@@ -39,7 +39,7 @@
 #include "cpqphp.h"
 
 static DEFINE_MUTEX(cpqphp_mutex);
-static int show_ctrl (struct controller *ctrl, char *buf)
+static int show_ctrl(struct controller *ctrl, char *buf)
 {
 	char *out = buf;
 	int index;
@@ -77,9 +77,9 @@ static int show_ctrl (struct controller *ctrl, char *buf)
 	return out - buf;
 }
 
-static int show_dev (struct controller *ctrl, char *buf)
+static int show_dev(struct controller *ctrl, char *buf)
 {
-	char * out = buf;
+	char *out = buf;
 	int index;
 	struct pci_resource *res;
 	struct pci_func *new_slot;
@@ -119,7 +119,7 @@ static int show_dev (struct controller *ctrl, char *buf)
 			out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
 			res = res->next;
 		}
-		slot=slot->next;
+		slot = slot->next;
 	}
 
 	return out - buf;
@@ -216,8 +216,7 @@ void cpqhp_create_debugfs_files(struct controller *ctrl)
 
 void cpqhp_remove_debugfs_files(struct controller *ctrl)
 {
-	if (ctrl->dentry)
-		debugfs_remove(ctrl->dentry);
+	debugfs_remove(ctrl->dentry);
 	ctrl->dentry = NULL;
 }
 

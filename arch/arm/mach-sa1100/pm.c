@@ -73,7 +73,7 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	RCSR = RCSR_HWR | RCSR_SWR | RCSR_WDR | RCSR_SMR;
 
 	/* set resume return address */
-	PSPR = virt_to_phys(cpu_resume);
+	PSPR = __pa_symbol(cpu_resume);
 
 	/* go zzz */
 	cpu_suspend(0, sa1100_finish_suspend);
@@ -81,6 +81,7 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	/*
 	 * Ensure not to come back here if it wasn't intended
 	 */
+	RCSR = RCSR_SMR;
 	PSPR = 0;
 
 	/*

@@ -1,6 +1,4 @@
 /*
- *  drivers/mtd/nandids.c
- *
  *  Copyright (C) 2002 Thomas Gleixner (tglx@linutronix.de)
  *
  * This program is free software; you can redistribute it and/or modify
@@ -8,11 +6,10 @@
  * published by the Free Software Foundation.
  *
  */
-#include <linux/module.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 
-#define LP_OPTIONS NAND_SAMSUNG_LP_OPTIONS
+#define LP_OPTIONS 0
 #define LP_OPTIONS16 (LP_OPTIONS | NAND_BUSWIDTH_16)
 
 #define SP_OPTIONS NAND_NEED_READRDY
@@ -31,18 +28,32 @@ struct nand_flash_dev nand_flash_ids[] = {
 	 * listed by full ID. We list them first so that we can easily identify
 	 * the most specific match.
 	 */
+	{"TC58NVG0S3E 1G 3.3V 8-bit",
+		{ .id = {0x98, 0xd1, 0x90, 0x15, 0x76, 0x14, 0x01, 0x00} },
+		  SZ_2K, SZ_128, SZ_128K, 0, 8, 64, NAND_ECC_INFO(1, SZ_512),
+		  2 },
 	{"TC58NVG2S0F 4G 3.3V 8-bit",
 		{ .id = {0x98, 0xdc, 0x90, 0x26, 0x76, 0x15, 0x01, 0x08} },
-		  SZ_4K, SZ_512, SZ_256K, 0, 8, 224},
+		  SZ_4K, SZ_512, SZ_256K, 0, 8, 224, NAND_ECC_INFO(4, SZ_512) },
+	{"TC58NVG2S0H 4G 3.3V 8-bit",
+		{ .id = {0x98, 0xdc, 0x90, 0x26, 0x76, 0x16, 0x08, 0x00} },
+		  SZ_4K, SZ_512, SZ_256K, 0, 8, 256, NAND_ECC_INFO(8, SZ_512) },
 	{"TC58NVG3S0F 8G 3.3V 8-bit",
 		{ .id = {0x98, 0xd3, 0x90, 0x26, 0x76, 0x15, 0x02, 0x08} },
-		  SZ_4K, SZ_1K, SZ_256K, 0, 8, 232},
+		  SZ_4K, SZ_1K, SZ_256K, 0, 8, 232, NAND_ECC_INFO(4, SZ_512) },
 	{"TC58NVG5D2 32G 3.3V 8-bit",
 		{ .id = {0x98, 0xd7, 0x94, 0x32, 0x76, 0x56, 0x09, 0x00} },
-		  SZ_8K, SZ_4K, SZ_1M, 0, 8, 640},
+		  SZ_8K, SZ_4K, SZ_1M, 0, 8, 640, NAND_ECC_INFO(40, SZ_1K) },
 	{"TC58NVG6D2 64G 3.3V 8-bit",
 		{ .id = {0x98, 0xde, 0x94, 0x82, 0x76, 0x56, 0x04, 0x20} },
-		  SZ_8K, SZ_8K, SZ_2M, 0, 8, 640},
+		  SZ_8K, SZ_8K, SZ_2M, 0, 8, 640, NAND_ECC_INFO(40, SZ_1K) },
+	{"SDTNRGAMA 64G 3.3V 8-bit",
+		{ .id = {0x45, 0xde, 0x94, 0x93, 0x76, 0x50} },
+		  SZ_16K, SZ_8K, SZ_4M, 0, 6, 1280, NAND_ECC_INFO(40, SZ_1K) },
+	{"H27UCG8T2ATR-BC 64G 3.3V 8-bit",
+		{ .id = {0xad, 0xde, 0x94, 0xda, 0x74, 0xc4} },
+		  SZ_8K, SZ_8K, SZ_2M, NAND_NEED_SCRAMBLING, 6, 640,
+		  NAND_ECC_INFO(40, SZ_1K), 4 },
 
 	LEGACY_ID_NAND("NAND 4MiB 5V 8-bit",   0x6B, 4, SZ_8K, SP_OPTIONS),
 	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit", 0xE3, 4, SZ_8K, SP_OPTIONS),
@@ -157,24 +168,40 @@ struct nand_flash_dev nand_flash_ids[] = {
 };
 
 /* Manufacturer IDs */
-struct nand_manufacturers nand_manuf_ids[] = {
-	{NAND_MFR_TOSHIBA, "Toshiba"},
-	{NAND_MFR_SAMSUNG, "Samsung"},
+static const struct nand_manufacturer nand_manufacturers[] = {
+	{NAND_MFR_TOSHIBA, "Toshiba", &toshiba_nand_manuf_ops},
+	{NAND_MFR_ESMT, "ESMT"},
+	{NAND_MFR_SAMSUNG, "Samsung", &samsung_nand_manuf_ops},
 	{NAND_MFR_FUJITSU, "Fujitsu"},
 	{NAND_MFR_NATIONAL, "National"},
 	{NAND_MFR_RENESAS, "Renesas"},
 	{NAND_MFR_STMICRO, "ST Micro"},
-	{NAND_MFR_HYNIX, "Hynix"},
-	{NAND_MFR_MICRON, "Micron"},
-	{NAND_MFR_AMD, "AMD/Spansion"},
-	{NAND_MFR_MACRONIX, "Macronix"},
+	{NAND_MFR_HYNIX, "Hynix", &hynix_nand_manuf_ops},
+	{NAND_MFR_MICRON, "Micron", &micron_nand_manuf_ops},
+	{NAND_MFR_AMD, "AMD/Spansion", &amd_nand_manuf_ops},
+	{NAND_MFR_MACRONIX, "Macronix", &macronix_nand_manuf_ops},
 	{NAND_MFR_EON, "Eon"},
-	{0x0, "Unknown"}
+	{NAND_MFR_SANDISK, "SanDisk"},
+	{NAND_MFR_INTEL, "Intel"},
+	{NAND_MFR_ATO, "ATO"},
+	{NAND_MFR_WINBOND, "Winbond"},
 };
 
-EXPORT_SYMBOL(nand_manuf_ids);
-EXPORT_SYMBOL(nand_flash_ids);
+/**
+ * nand_get_manufacturer - Get manufacturer information from the manufacturer
+ *			   ID
+ * @id: manufacturer ID
+ *
+ * Returns a pointer a nand_manufacturer object if the manufacturer is defined
+ * in the NAND manufacturers database, NULL otherwise.
+ */
+const struct nand_manufacturer *nand_get_manufacturer(u8 id)
+{
+	int i;
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Thomas Gleixner <tglx@linutronix.de>");
-MODULE_DESCRIPTION("Nand device & manufacturer IDs");
+	for (i = 0; i < ARRAY_SIZE(nand_manufacturers); i++)
+		if (nand_manufacturers[i].id == id)
+			return &nand_manufacturers[i];
+
+	return NULL;
+}

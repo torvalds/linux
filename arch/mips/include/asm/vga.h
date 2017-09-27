@@ -6,6 +6,8 @@
 #ifndef _ASM_VGA_H
 #define _ASM_VGA_H
 
+#include <linux/string.h>
+#include <asm/addrspace.h>
 #include <asm/byteorder.h>
 
 /*
@@ -13,7 +15,7 @@
  *	access the videoram directly without any black magic.
  */
 
-#define VGA_MAP_MEM(x, s)	(0xb0000000L + (unsigned long)(x))
+#define VGA_MAP_MEM(x, s)	CKSEG1ADDR(0x10000000L + (unsigned long)(x))
 
 #define vga_readb(x)	(*(x))
 #define vga_writeb(x, y)	(*(y) = (x))
@@ -39,9 +41,15 @@ static inline u16 scr_readw(volatile const u16 *addr)
 	return le16_to_cpu(*addr);
 }
 
+static inline void scr_memsetw(u16 *s, u16 v, unsigned int count)
+{
+	memset16(s, cpu_to_le16(v), count / 2);
+}
+
 #define scr_memcpyw(d, s, c) memcpy(d, s, c)
 #define scr_memmovew(d, s, c) memmove(d, s, c)
 #define VT_BUF_HAVE_MEMCPYW
 #define VT_BUF_HAVE_MEMMOVEW
+#define VT_BUF_HAVE_MEMSETW
 
 #endif /* _ASM_VGA_H */

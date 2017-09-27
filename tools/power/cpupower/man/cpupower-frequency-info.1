@@ -1,7 +1,7 @@
 .TH "CPUPOWER\-FREQUENCY\-INFO" "1" "0.1" "" "cpupower Manual"
 .SH "NAME"
 .LP 
-cpupower frequency\-info \- Utility to retrieve cpufreq kernel information
+cpupower\-frequency\-info \- Utility to retrieve cpufreq kernel information
 .SH "SYNTAX"
 .LP 
 cpupower [ \-c cpulist ] frequency\-info [\fIoptions\fP]
@@ -49,6 +49,9 @@ Prints out information like provided by the /proc/cpufreq interface in 2.4. and 
 .TP  
 \fB\-m\fR \fB\-\-human\fR
 human\-readable output for the \-f, \-w, \-s and \-y parameters.
+.TP  
+\fB\-n\fR \fB\-\-no-rounding\fR
+Output frequencies and latencies without rounding off values.
 .TP  
 .SH "REMARKS"
 .LP 

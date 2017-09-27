@@ -52,8 +52,6 @@
 /* PRM.PER_PRM register offsets */
 #define AM33XX_RM_PER_RSTCTRL_OFFSET		0x0000
 #define AM33XX_RM_PER_RSTCTRL			AM33XX_PRM_REGADDR(AM33XX_PRM_PER_MOD, 0x0000)
-#define AM33XX_RM_PER_RSTST_OFFSET		0x0004
-#define AM33XX_RM_PER_RSTST			AM33XX_PRM_REGADDR(AM33XX_PRM_PER_MOD, 0x0004)
 #define AM33XX_PM_PER_PWRSTST_OFFSET		0x0008
 #define AM33XX_PM_PER_PWRSTST			AM33XX_PRM_REGADDR(AM33XX_PRM_PER_MOD, 0x0008)
 #define AM33XX_PM_PER_PWRSTCTRL_OFFSET		0x000c
@@ -118,14 +116,7 @@
 #define AM33XX_PM_CEFUSE_PWRSTST		AM33XX_PRM_REGADDR(AM33XX_PRM_CEFUSE_MOD, 0x0004)
 
 #ifndef __ASSEMBLER__
-extern u32 am33xx_prm_read_reg(s16 inst, u16 idx);
-extern void am33xx_prm_write_reg(u32 val, s16 inst, u16 idx);
-extern u32 am33xx_prm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
-extern void am33xx_prm_global_warm_sw_reset(void);
-extern int am33xx_prm_is_hardreset_asserted(u8 shift, s16 inst,
-		u16 rstctrl_offs);
-extern int am33xx_prm_assert_hardreset(u8 shift, s16 inst, u16 rstctrl_offs);
-extern int am33xx_prm_deassert_hardreset(u8 shift, u8 st_shift, s16 inst,
-		u16 rstctrl_offs, u16 rstst_offs);
+int am33xx_prm_init(const struct omap_prcm_init_data *data);
+
 #endif /* ASSEMBLER */
 #endif

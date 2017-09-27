@@ -20,16 +20,19 @@
 #include <linux/export.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <linux/user_namespace.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
+#include <linux/uuid.h>
+#include <linux/ctype.h>
 #include <net/sock.h>
 #include <net/net_namespace.h>
 
 
 u64 uevent_seqnum;
+#ifdef CONFIG_UEVENT_HELPER
 char uevent_helper[UEVENT_HELPER_PATH_LEN] = CONFIG_UEVENT_HELPER_PATH;
+#endif
 #ifdef CONFIG_NET
 struct uevent_sock {
 	struct list_head list;
@@ -49,21 +52,17 @@ static const char *kobject_actions[] = {
 	[KOBJ_MOVE] =		"move",
 	[KOBJ_ONLINE] =		"online",
 	[KOBJ_OFFLINE] =	"offline",
+	[KOBJ_BIND] =		"bind",
+	[KOBJ_UNBIND] =		"unbind",
 };
 
-/**
- * kobject_action_type - translate action string to numeric type
- *
- * @buf: buffer containing the action string, newline is ignored
- * @len: length of buffer
- * @type: pointer to the location to store the action type
- *
- * Returns 0 if the action string was recognized.
- */
-int kobject_action_type(const char *buf, size_t count,
-			enum kobject_action *type)
+static int kobject_action_type(const char *buf, size_t count,
+			       enum kobject_action *type,
+			       const char **args)
 {
 	enum kobject_action action;
+	size_t count_first;
+	const char *args_start;
 	int ret = -EINVAL;
 
 	if (count && (buf[count-1] == '\n' || buf[count-1] == '\0'))
@@ -72,11 +71,20 @@ int kobject_action_type(const char *buf, size_t count,
 	if (!count)
 		goto out;
 
+	args_start = strnchr(buf, count, ' ');
+	if (args_start) {
+		count_first = args_start - buf;
+		args_start = args_start + 1;
+	} else
+		count_first = count;
+
 	for (action = 0; action < ARRAY_SIZE(kobject_actions); action++) {
-		if (strncmp(kobject_actions[action], buf, count) != 0)
+		if (strncmp(kobject_actions[action], buf, count_first) != 0)
 			continue;
-		if (kobject_actions[action][count] != '\0')
+		if (kobject_actions[action][count_first] != '\0')
 			continue;
+		if (args)
+			*args = args_start;
 		*type = action;
 		ret = 0;
 		break;
@@ -85,14 +93,156 @@ out:
 	return ret;
 }
 
+static const char *action_arg_word_end(const char *buf, const char *buf_end,
+				       char delim)
+{
+	const char *next = buf;
+
+	while (next <= buf_end && *next != delim)
+		if (!isalnum(*next++))
+			return NULL;
+
+	if (next == buf)
+		return NULL;
+
+	return next;
+}
+
+static int kobject_action_args(const char *buf, size_t count,
+			       struct kobj_uevent_env **ret_env)
+{
+	struct kobj_uevent_env *env = NULL;
+	const char *next, *buf_end, *key;
+	int key_len;
+	int r = -EINVAL;
+
+	if (count && (buf[count - 1] == '\n' || buf[count - 1] == '\0'))
+		count--;
+
+	if (!count)
+		return -EINVAL;
+
+	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	if (!env)
+		return -ENOMEM;
+
+	/* first arg is UUID */
+	if (count < UUID_STRING_LEN || !uuid_is_valid(buf) ||
+	    add_uevent_var(env, "SYNTH_UUID=%.*s", UUID_STRING_LEN, buf))
+		goto out;
+
+	/*
+	 * the rest are custom environment variables in KEY=VALUE
+	 * format with ' ' delimiter between each KEY=VALUE pair
+	 */
+	next = buf + UUID_STRING_LEN;
+	buf_end = buf + count - 1;
+
+	while (next <= buf_end) {
+		if (*next != ' ')
+			goto out;
+
+		/* skip the ' ', key must follow */
+		key = ++next;
+		if (key > buf_end)
+			goto out;
+
+		buf = next;
+		next = action_arg_word_end(buf, buf_end, '=');
+		if (!next || next > buf_end || *next != '=')
+			goto out;
+		key_len = next - buf;
+
+		/* skip the '=', value must follow */
+		if (++next > buf_end)
+			goto out;
+
+		buf = next;
+		next = action_arg_word_end(buf, buf_end, ' ');
+		if (!next)
+			goto out;
+
+		if (add_uevent_var(env, "SYNTH_ARG_%.*s=%.*s",
+				   key_len, key, (int) (next - buf), buf))
+			goto out;
+	}
+
+	r = 0;
+out:
+	if (r)
+		kfree(env);
+	else
+		*ret_env = env;
+	return r;
+}
+
+/**
+ * kobject_synth_uevent - send synthetic uevent with arguments
+ *
+ * @kobj: struct kobject for which synthetic uevent is to be generated
+ * @buf: buffer containing action type and action args, newline is ignored
+ * @count: length of buffer
+ *
+ * Returns 0 if kobject_synthetic_uevent() is completed with success or the
+ * corresponding error when it fails.
+ */
+int kobject_synth_uevent(struct kobject *kobj, const char *buf, size_t count)
+{
+	char *no_uuid_envp[] = { "SYNTH_UUID=0", NULL };
+	enum kobject_action action;
+	const char *action_args;
+	struct kobj_uevent_env *env;
+	const char *msg = NULL, *devpath;
+	int r;
+
+	r = kobject_action_type(buf, count, &action, &action_args);
+	if (r) {
+		msg = "unknown uevent action string\n";
+		goto out;
+	}
+
+	if (!action_args) {
+		r = kobject_uevent_env(kobj, action, no_uuid_envp);
+		goto out;
+	}
+
+	r = kobject_action_args(action_args,
+				count - (action_args - buf), &env);
+	if (r == -EINVAL) {
+		msg = "incorrect uevent action arguments\n";
+		goto out;
+	}
+
+	if (r)
+		goto out;
+
+	r = kobject_uevent_env(kobj, action, env->envp);
+	kfree(env);
+out:
+	if (r) {
+		devpath = kobject_get_path(kobj, GFP_KERNEL);
+		printk(KERN_WARNING "synth uevent: %s: %s",
+		       devpath ?: "unknown device",
+		       msg ?: "failed to send uevent");
+		kfree(devpath);
+	}
+	return r;
+}
+
 #ifdef CONFIG_NET
 static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 {
-	struct kobject *kobj = data;
+	struct kobject *kobj = data, *ksobj;
 	const struct kobj_ns_type_operations *ops;
 
 	ops = kobj_ns_ops(kobj);
-	if (ops) {
+	if (!ops && kobj->kset) {
+		ksobj = &kobj->kset->kobj;
+		if (ksobj->parent != NULL)
+			ops = kobj_ns_ops(ksobj->parent);
+	}
+
+	if (ops && ops->netlink_ns && kobj->ktype->namespace) {
 		const void *sock_ns, *ns;
 		ns = kobj->ktype->namespace(kobj);
 		sock_ns = ops->netlink_ns(dsk);
@@ -103,6 +253,7 @@ static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 }
 #endif
 
+#ifdef CONFIG_UEVENT_HELPER
 static int kobj_usermode_filter(struct kobject *kobj)
 {
 	const struct kobj_ns_type_operations *ops;
@@ -118,11 +269,36 @@ static int kobj_usermode_filter(struct kobject *kobj)
 	return 0;
 }
 
+static int init_uevent_argv(struct kobj_uevent_env *env, const char *subsystem)
+{
+	int len;
+
+	len = strlcpy(&env->buf[env->buflen], subsystem,
+		      sizeof(env->buf) - env->buflen);
+	if (len >= (sizeof(env->buf) - env->buflen)) {
+		WARN(1, KERN_ERR "init_uevent_argv: buffer size too small\n");
+		return -ENOMEM;
+	}
+
+	env->argv[0] = uevent_helper;
+	env->argv[1] = &env->buf[env->buflen];
+	env->argv[2] = NULL;
+
+	env->buflen += len + 1;
+	return 0;
+}
+
+static void cleanup_uevent_env(struct subprocess_info *info)
+{
+	kfree(info->data);
+}
+#endif
+
 /**
  * kobject_uevent_env - send an uevent with environmental data
  *
- * @action: action that is happening
  * @kobj: struct kobject that the action is happening to
+ * @action: action that is happening
  * @envp_ext: pointer to environmental data
  *
  * Returns 0 if kobject_uevent_env() is completed with success or the
@@ -293,13 +469,11 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 #endif
 	mutex_unlock(&uevent_sock_mutex);
 
+#ifdef CONFIG_UEVENT_HELPER
 	/* call uevent_helper, usually only enabled during early boot */
 	if (uevent_helper[0] && !kobj_usermode_filter(kobj)) {
-		char *argv [3];
+		struct subprocess_info *info;
 
-		argv [0] = uevent_helper;
-		argv [1] = (char *)subsystem;
-		argv [2] = NULL;
 		retval = add_uevent_var(env, "HOME=/");
 		if (retval)
 			goto exit;
@@ -307,10 +481,20 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 					"PATH=/sbin:/bin:/usr/sbin:/usr/bin");
 		if (retval)
 			goto exit;
+		retval = init_uevent_argv(env, subsystem);
+		if (retval)
+			goto exit;
 
-		retval = call_usermodehelper(argv[0], argv,
-					     env->envp, UMH_WAIT_EXEC);
+		retval = -ENOMEM;
+		info = call_usermodehelper_setup(env->argv[0], env->argv,
+						 env->envp, GFP_KERNEL,
+						 NULL, cleanup_uevent_env, env);
+		if (info) {
+			retval = call_usermodehelper_exec(info, UMH_NO_WAIT);
+			env = NULL;	/* freed by cleanup_uevent_env */
+		}
 	}
+#endif
 
 exit:
 	kfree(devpath);
@@ -322,8 +506,8 @@ EXPORT_SYMBOL_GPL(kobject_uevent_env);
 /**
  * kobject_uevent - notify userspace by sending an uevent
  *
- * @action: action that is happening
  * @kobj: struct kobject that the action is happening to
+ * @action: action that is happening
  *
  * Returns 0 if kobject_uevent() is completed with success or the
  * corresponding error when it fails.

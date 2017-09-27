@@ -11,19 +11,11 @@
  *  basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.
  *
  *  See the GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "sms-cards.h"
 #include "smsir.h"
 #include <linux/module.h>
-
-static int sms_dbg;
-module_param_named(cards_dbg, sms_dbg, int, 0644);
-MODULE_PARM_DESC(cards_dbg, "set debug level (info=1, adv=2 (or-able))");
 
 static struct sms_board sms_boards[] = {
 	[SMS_BOARD_UNKNOWN] = {
@@ -157,6 +149,12 @@ static struct sms_board sms_boards[] = {
 		.type = SMS_DENVER_2160,
 		.default_mode = DEVICE_MODE_DAB_TDMB,
 	},
+	[SMS1XXX_BOARD_PCTV_77E] = {
+		.name	= "Hauppauge microStick 77e",
+		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVB_NOVA_12MHZ_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+	},
 };
 
 struct sms_board *sms_get_board(unsigned id)
@@ -226,7 +224,7 @@ int sms_board_event(struct smscore_device_t *coredev,
 		break; /* BOARD_EVENT_MULTIPLEX_ERRORS */
 
 	default:
-		sms_err("Unknown SMS board event");
+		pr_err("Unknown SMS board event\n");
 		break;
 	}
 	return 0;
@@ -336,7 +334,7 @@ int sms_board_lna_control(struct smscore_device_t *coredev, int onoff)
 	int board_id = smscore_get_board_id(coredev);
 	struct sms_board *board = sms_get_board(board_id);
 
-	sms_debug("%s: LNA %s", __func__, onoff ? "enabled" : "disabled");
+	pr_debug("%s: LNA %s\n", __func__, onoff ? "enabled" : "disabled");
 
 	switch (board_id) {
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:

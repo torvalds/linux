@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,15 +66,16 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
 	 * Check if this is a PCI root bridge.
 	 * ACPI 3.0+: check for a PCI Express root also.
 	 */
-	if (!(ACPI_STRCMP(id,
-			  PCI_ROOT_HID_STRING)) ||
-	    !(ACPI_STRCMP(id, PCI_EXPRESS_ROOT_HID_STRING))) {
+	if (!(strcmp(id,
+		     PCI_ROOT_HID_STRING)) ||
+	    !(strcmp(id, PCI_EXPRESS_ROOT_HID_STRING))) {
 		return (TRUE);
 	}
 
 	return (FALSE);
 }
 
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_NAMES_APP)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_is_aml_table
@@ -96,12 +97,14 @@ u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 
 	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) ||
 	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_PSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT)) {
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT) ||
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_OSDT)) {
 		return (TRUE);
 	}
 
 	return (FALSE);
 }
+#endif
 
 /*******************************************************************************
  *
@@ -221,7 +224,7 @@ acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Walk through a package
+ * DESCRIPTION: Walk through a package, including subpackages
  *
  ******************************************************************************/
 
@@ -233,8 +236,8 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 	acpi_status status = AE_OK;
 	union acpi_generic_state *state_list = NULL;
 	union acpi_generic_state *state;
-	u32 this_index;
 	union acpi_operand_object *this_source_obj;
+	u32 this_index;
 
 	ACPI_FUNCTION_TRACE(ut_walk_package_tree);
 
@@ -248,8 +251,10 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 		/* Get one element of the package */
 
 		this_index = state->pkg.index;
-		this_source_obj = (union acpi_operand_object *)
+		this_source_obj =
 		    state->pkg.source_object->package.elements[this_index];
+		state->pkg.this_target_obj =
+		    &state->pkg.source_object->package.elements[this_index];
 
 		/*
 		 * Check for:
@@ -261,8 +266,8 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 		 */
 		if ((!this_source_obj) ||
 		    (ACPI_GET_DESCRIPTOR_TYPE(this_source_obj) !=
-		     ACPI_DESC_TYPE_OPERAND)
-		    || (this_source_obj->common.type != ACPI_TYPE_PACKAGE)) {
+		     ACPI_DESC_TYPE_OPERAND) ||
+		    (this_source_obj->common.type != ACPI_TYPE_PACKAGE)) {
 			status =
 			    walk_callback(ACPI_COPY_TYPE_SIMPLE,
 					  this_source_obj, state, context);
@@ -315,9 +320,10 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 			 * The callback above returned a new target package object.
 			 */
 			acpi_ut_push_generic_state(&state_list, state);
-			state = acpi_ut_create_pkg_state(this_source_obj,
-							 state->pkg.
-							 this_target_obj, 0);
+			state =
+			    acpi_ut_create_pkg_state(this_source_obj,
+						     state->pkg.this_target_obj,
+						     0);
 			if (!state) {
 
 				/* Free any stacked Update State objects */
@@ -334,6 +340,8 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 	}
 
 	/* We should never get here */
+
+	ACPI_ERROR((AE_INFO, "State list did not terminate correctly"));
 
 	return_ACPI_STATUS(AE_AML_INTERNAL);
 }
@@ -357,7 +365,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 void
 acpi_ut_display_init_pathname(u8 type,
 			      struct acpi_namespace_node *obj_handle,
-			      char *path)
+			      const char *path)
 {
 	acpi_status status;
 	struct acpi_buffer buffer;
@@ -373,7 +381,7 @@ acpi_ut_display_init_pathname(u8 type,
 	/* Get the full pathname to the node */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-	status = acpi_ns_handle_to_pathname(obj_handle, &buffer);
+	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);
 	if (ACPI_FAILURE(status)) {
 		return;
 	}

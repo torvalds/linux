@@ -8,10 +8,10 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/of_irq.h>
-
-#include "irqchip.h"
+#include <linux/irqchip.h>
 
 /*
  * This special of_device_id is the sentinel at the end of the
@@ -20,11 +20,12 @@
  * special section.
  */
 static const struct of_device_id
-irqchip_of_match_end __used __section(__irqchip_of_end);
+irqchip_of_match_end __used __section(__irqchip_of_table_end);
 
-extern struct of_device_id __irqchip_begin[];
+extern struct of_device_id __irqchip_of_table[];
 
 void __init irqchip_init(void)
 {
-	of_irq_init(__irqchip_begin);
+	of_irq_init(__irqchip_of_table);
+	acpi_probe_device_table(irqchip);
 }

@@ -21,8 +21,8 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <mach/psc.h>
-#include <mach/ddr2.h>
+#include "psc.h"
+#include "ddr2.h"
 
 #include "clock.h"
 
@@ -213,7 +213,7 @@ ddr2clk_stop_done:
 	cmp	ip, r0
 	bne	ddr2clk_stop_done
 
-	mov	pc, lr
+	ret	lr
 ENDPROC(davinci_ddr_psc_config)
 
 CACHE_FLUSH:

@@ -13,11 +13,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/module.h>
@@ -253,7 +248,6 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 	isa->vdev.fops = &radio_isa_fops;
 	isa->vdev.ioctl_ops = &radio_isa_ioctl_ops;
 	isa->vdev.release = video_device_release_empty;
-	set_bit(V4L2_FL_USE_FH_PRIO, &isa->vdev.flags);
 	video_set_drvdata(&isa->vdev, isa);
 	isa->freq = FREQ_LOW;
 	isa->stereo = drv->has_stereo;

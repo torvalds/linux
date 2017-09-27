@@ -27,6 +27,7 @@
 #include <linux/hwspinlock.h>
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 
 #include "hwspinlock_internal.h"
 
@@ -256,6 +257,88 @@ void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 		spin_unlock(&hwlock->lock);
 }
 EXPORT_SYMBOL_GPL(__hwspin_unlock);
+
+/**
+ * of_hwspin_lock_simple_xlate - translate hwlock_spec to return a lock id
+ * @bank: the hwspinlock device bank
+ * @hwlock_spec: hwlock specifier as found in the device tree
+ *
+ * This is a simple translation function, suitable for hwspinlock platform
+ * drivers that only has a lock specifier length of 1.
+ *
+ * Returns a relative index of the lock within a specified bank on success,
+ * or -EINVAL on invalid specifier cell count.
+ */
+static inline int
+of_hwspin_lock_simple_xlate(const struct of_phandle_args *hwlock_spec)
+{
+	if (WARN_ON(hwlock_spec->args_count != 1))
+		return -EINVAL;
+
+	return hwlock_spec->args[0];
+}
+
+/**
+ * of_hwspin_lock_get_id() - get lock id for an OF phandle-based specific lock
+ * @np: device node from which to request the specific hwlock
+ * @index: index of the hwlock in the list of values
+ *
+ * This function provides a means for DT users of the hwspinlock module to
+ * get the global lock id of a specific hwspinlock using the phandle of the
+ * hwspinlock device, so that it can be requested using the normal
+ * hwspin_lock_request_specific() API.
+ *
+ * Returns the global lock id number on success, -EPROBE_DEFER if the hwspinlock
+ * device is not yet registered, -EINVAL on invalid args specifier value or an
+ * appropriate error as returned from the OF parsing of the DT client node.
+ */
+int of_hwspin_lock_get_id(struct device_node *np, int index)
+{
+	struct of_phandle_args args;
+	struct hwspinlock *hwlock;
+	struct radix_tree_iter iter;
+	void **slot;
+	int id;
+	int ret;
+
+	ret = of_parse_phandle_with_args(np, "hwlocks", "#hwlock-cells", index,
+					 &args);
+	if (ret)
+		return ret;
+
+	/* Find the hwspinlock device: we need its base_id */
+	ret = -EPROBE_DEFER;
+	rcu_read_lock();
+	radix_tree_for_each_slot(slot, &hwspinlock_tree, &iter, 0) {
+		hwlock = radix_tree_deref_slot(slot);
+		if (unlikely(!hwlock))
+			continue;
+		if (radix_tree_deref_retry(hwlock)) {
+			slot = radix_tree_iter_retry(&iter);
+			continue;
+		}
+
+		if (hwlock->bank->dev->of_node == args.np) {
+			ret = 0;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	if (ret < 0)
+		goto out;
+
+	id = of_hwspin_lock_simple_xlate(&args);
+	if (id < 0 || id >= hwlock->bank->num_locks) {
+		ret = -EINVAL;
+		goto out;
+	}
+	id += hwlock->bank->base_id;
+
+out:
+	of_node_put(args.np);
+	return ret ? ret : id;
+}
+EXPORT_SYMBOL_GPL(of_hwspin_lock_get_id);
 
 static int hwspin_lock_register_single(struct hwspinlock *hwlock, int id)
 {

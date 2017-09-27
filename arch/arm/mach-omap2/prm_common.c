@@ -23,12 +23,24 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/clk-provider.h>
+#include <linux/clk/ti.h>
 
+#include "soc.h"
 #include "prm2xxx_3xxx.h"
 #include "prm2xxx.h"
 #include "prm3xxx.h"
+#include "prm33xx.h"
 #include "prm44xx.h"
+#include "prm54xx.h"
+#include "prm7xx.h"
+#include "prcm43xx.h"
 #include "common.h"
+#include "clock.h"
+#include "cm.h"
+#include "control.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -54,7 +66,9 @@ static struct irq_chip_generic **prcm_irq_chips;
 static struct omap_prcm_irq_setup *prcm_irq_setup;
 
 /* prm_base: base virtual address of the PRM IP block */
-void __iomem *prm_base;
+struct omap_domain_base prm_base;
+
+u16 prm_features;
 
 /*
  * prm_ll_data: function pointers to SoC-specific implementations of
@@ -88,7 +102,7 @@ static void omap_prcm_events_filter_priority(unsigned long *events,
  * dispatched accordingly. Clearing of the wakeup events should be
  * done by the SoC specific individual handlers.
  */
-static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void omap_prcm_irq_handler(struct irq_desc *desc)
 {
 	unsigned long pending[OMAP_PRCM_MAX_NR_PENDING_REG];
 	unsigned long priority_pending[OMAP_PRCM_MAX_NR_PENDING_REG];
@@ -179,6 +193,7 @@ int omap_prcm_event_to_irq(const char *name)
  */
 void omap_prcm_irq_cleanup(void)
 {
+	unsigned int irq;
 	int i;
 
 	if (!prcm_irq_setup) {
@@ -203,7 +218,11 @@ void omap_prcm_irq_cleanup(void)
 	kfree(prcm_irq_setup->priority_mask);
 	prcm_irq_setup->priority_mask = NULL;
 
-	irq_set_chained_handler(prcm_irq_setup->irq, NULL);
+	if (prcm_irq_setup->xlate_irq)
+		irq = prcm_irq_setup->xlate_irq(prcm_irq_setup->irq);
+	else
+		irq = prcm_irq_setup->irq;
+	irq_set_chained_handler(irq, NULL);
 
 	if (prcm_irq_setup->base_irq > 0)
 		irq_free_descs(prcm_irq_setup->base_irq,
@@ -248,7 +267,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 {
 	int nr_regs;
 	u32 mask[OMAP_PRCM_MAX_NR_PENDING_REG];
-	int offset, i;
+	int offset, i, irq;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 
@@ -275,10 +294,8 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 		GFP_KERNEL);
 
 	if (!prcm_irq_chips || !prcm_irq_setup->saved_mask ||
-	    !prcm_irq_setup->priority_mask) {
-		pr_err("PRCM: kzalloc failed\n");
+	    !prcm_irq_setup->priority_mask)
 		goto err;
-	}
 
 	memset(mask, 0, sizeof(mask));
 
@@ -290,7 +307,11 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 				1 << (offset & 0x1f);
 	}
 
-	irq_set_chained_handler(irq_setup->irq, omap_prcm_irq_handler);
+	if (irq_setup->xlate_irq)
+		irq = irq_setup->xlate_irq(irq_setup->irq);
+	else
+		irq = irq_setup->irq;
+	irq_set_chained_handler(irq, omap_prcm_irq_handler);
 
 	irq_setup->base_irq = irq_alloc_descs(-1, 0, irq_setup->nr_regs * 32,
 		0);
@@ -303,7 +324,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 	for (i = 0; i < irq_setup->nr_regs; i++) {
 		gc = irq_alloc_generic_chip("PRCM", 1,
-			irq_setup->base_irq + i * 32, prm_base,
+			irq_setup->base_irq + i * 32, prm_base.va,
 			handle_level_irq);
 
 		if (!gc) {
@@ -322,6 +343,9 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 		prcm_irq_chips[i] = gc;
 	}
 
+	irq = omap_prcm_event_to_irq("io");
+	omap_pcs_legacy_init(irq, irq_setup->reconfigure_io_chain);
+
 	return 0;
 
 err:
@@ -337,7 +361,7 @@ err:
  */
 void __init omap2_set_globals_prm(void __iomem *prm)
 {
-	prm_base = prm;
+	prm_base.va = prm;
 }
 
 /**
@@ -410,6 +434,160 @@ void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
 }
 
 /**
+ * omap_prm_assert_hardreset - assert hardreset for an IP block
+ * @shift: register bit shift corresponding to the reset line
+ * @part: PRM partition
+ * @prm_mod: PRM submodule base or instance offset
+ * @offset: register offset
+ *
+ * Asserts a hardware reset line for an IP block.
+ */
+int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset)
+{
+	if (!prm_ll_data->assert_hardreset) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return prm_ll_data->assert_hardreset(shift, part, prm_mod, offset);
+}
+
+/**
+ * omap_prm_deassert_hardreset - deassert hardreset for an IP block
+ * @shift: register bit shift corresponding to the reset line
+ * @st_shift: reset status bit shift corresponding to the reset line
+ * @part: PRM partition
+ * @prm_mod: PRM submodule base or instance offset
+ * @offset: register offset
+ * @st_offset: status register offset
+ *
+ * Deasserts a hardware reset line for an IP block.
+ */
+int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
+				u16 offset, u16 st_offset)
+{
+	if (!prm_ll_data->deassert_hardreset) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return prm_ll_data->deassert_hardreset(shift, st_shift, part, prm_mod,
+					       offset, st_offset);
+}
+
+/**
+ * omap_prm_is_hardreset_asserted - check the hardreset status for an IP block
+ * @shift: register bit shift corresponding to the reset line
+ * @part: PRM partition
+ * @prm_mod: PRM submodule base or instance offset
+ * @offset: register offset
+ *
+ * Checks if a hardware reset line for an IP block is enabled or not.
+ */
+int omap_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
+{
+	if (!prm_ll_data->is_hardreset_asserted) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return prm_ll_data->is_hardreset_asserted(shift, part, prm_mod, offset);
+}
+
+/**
+ * omap_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
+ *
+ * Clear any previously-latched I/O wakeup events and ensure that the
+ * I/O wakeup gates are aligned with the current mux settings.
+ * Calls SoC specific I/O chain reconfigure function if available,
+ * otherwise does nothing.
+ */
+void omap_prm_reconfigure_io_chain(void)
+{
+	if (!prcm_irq_setup || !prcm_irq_setup->reconfigure_io_chain)
+		return;
+
+	prcm_irq_setup->reconfigure_io_chain();
+}
+
+/**
+ * omap_prm_reset_system - trigger global SW reset
+ *
+ * Triggers SoC specific global warm reset to reboot the device.
+ */
+void omap_prm_reset_system(void)
+{
+	if (!prm_ll_data->reset_system) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return;
+	}
+
+	prm_ll_data->reset_system();
+
+	while (1)
+		cpu_relax();
+}
+
+/**
+ * omap_prm_clear_mod_irqs - clear wake-up events from PRCM interrupt
+ * @module: PRM module to clear wakeups from
+ * @regs: register to clear
+ * @wkst_mask: wkst bits to clear
+ *
+ * Clears any wakeup events for the module and register set defined.
+ * Uses SoC specific implementation to do the actual wakeup status
+ * clearing.
+ */
+int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
+{
+	if (!prm_ll_data->clear_mod_irqs) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return prm_ll_data->clear_mod_irqs(module, regs, wkst_mask);
+}
+
+/**
+ * omap_prm_vp_check_txdone - check voltage processor TX done status
+ *
+ * Checks if voltage processor transmission has been completed.
+ * Returns non-zero if a transmission has completed, 0 otherwise.
+ */
+u32 omap_prm_vp_check_txdone(u8 vp_id)
+{
+	if (!prm_ll_data->vp_check_txdone) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return 0;
+	}
+
+	return prm_ll_data->vp_check_txdone(vp_id);
+}
+
+/**
+ * omap_prm_vp_clear_txdone - clears voltage processor TX done status
+ *
+ * Clears the status bit for completed voltage processor transmission
+ * returned by prm_vp_check_txdone.
+ */
+void omap_prm_vp_clear_txdone(u8 vp_id)
+{
+	if (!prm_ll_data->vp_clear_txdone) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return;
+	}
+
+	prm_ll_data->vp_clear_txdone(vp_id);
+}
+
+/**
  * prm_register - register per-SoC low-level data with the PRM
  * @pld: low-level per-SoC OMAP PRM data & function pointers to register
  *
@@ -453,3 +631,194 @@ int prm_unregister(struct prm_ll_data *pld)
 
 	return 0;
 }
+
+#ifdef CONFIG_ARCH_OMAP2
+static struct omap_prcm_init_data omap2_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap2xxx_prm_init,
+};
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+static struct omap_prcm_init_data omap3_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap3xxx_prm_init,
+
+	/*
+	 * IVA2 offset is a negative value, must offset the prm_base
+	 * address by this to get it to positive
+	 */
+	.offset = -OMAP3430_IVA2_MOD,
+};
+#endif
+
+#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_TI81XX)
+static struct omap_prcm_init_data am3_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = am33xx_prm_init,
+};
+#endif
+
+#ifdef CONFIG_SOC_TI81XX
+static struct omap_prcm_init_data dm814_pllss_data __initdata = {
+	.index = TI_CLKM_PLLSS,
+	.init = am33xx_prm_init,
+};
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+static struct omap_prcm_init_data omap4_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+	.device_inst_offset = OMAP4430_PRM_DEVICE_INST,
+	.flags = PRM_HAS_IO_WAKEUP | PRM_HAS_VOLTAGE | PRM_IRQ_DEFAULT,
+};
+#endif
+
+#ifdef CONFIG_SOC_OMAP5
+static struct omap_prcm_init_data omap5_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+	.device_inst_offset = OMAP54XX_PRM_DEVICE_INST,
+	.flags = PRM_HAS_IO_WAKEUP | PRM_HAS_VOLTAGE,
+};
+#endif
+
+#ifdef CONFIG_SOC_DRA7XX
+static struct omap_prcm_init_data dra7_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+	.device_inst_offset = DRA7XX_PRM_DEVICE_INST,
+	.flags = PRM_HAS_IO_WAKEUP,
+};
+#endif
+
+#ifdef CONFIG_SOC_AM43XX
+static struct omap_prcm_init_data am4_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+	.device_inst_offset = AM43XX_PRM_DEVICE_INST,
+	.flags = PRM_HAS_IO_WAKEUP,
+};
+#endif
+
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
+static struct omap_prcm_init_data scrm_data __initdata = {
+	.index = TI_CLKM_SCRM,
+};
+#endif
+
+static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
+#ifdef CONFIG_SOC_AM33XX
+	{ .compatible = "ti,am3-prcm", .data = &am3_prm_data },
+#endif
+#ifdef CONFIG_SOC_AM43XX
+	{ .compatible = "ti,am4-prcm", .data = &am4_prm_data },
+#endif
+#ifdef CONFIG_SOC_TI81XX
+	{ .compatible = "ti,dm814-prcm", .data = &am3_prm_data },
+	{ .compatible = "ti,dm814-pllss", .data = &dm814_pllss_data },
+	{ .compatible = "ti,dm816-prcm", .data = &am3_prm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP2
+	{ .compatible = "ti,omap2-prcm", .data = &omap2_prm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP3
+	{ .compatible = "ti,omap3-prm", .data = &omap3_prm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP4
+	{ .compatible = "ti,omap4-prm", .data = &omap4_prm_data },
+	{ .compatible = "ti,omap4-scrm", .data = &scrm_data },
+#endif
+#ifdef CONFIG_SOC_OMAP5
+	{ .compatible = "ti,omap5-prm", .data = &omap5_prm_data },
+	{ .compatible = "ti,omap5-scrm", .data = &scrm_data },
+#endif
+#ifdef CONFIG_SOC_DRA7XX
+	{ .compatible = "ti,dra7-prm", .data = &dra7_prm_data },
+#endif
+	{ }
+};
+
+/**
+ * omap2_prm_base_init - initialize iomappings for the PRM driver
+ *
+ * Detects and initializes the iomappings for the PRM driver, based
+ * on the DT data. Returns 0 in success, negative error value
+ * otherwise.
+ */
+int __init omap2_prm_base_init(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match;
+	struct omap_prcm_init_data *data;
+	struct resource res;
+	int ret;
+
+	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
+		data = (struct omap_prcm_init_data *)match->data;
+
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			return ret;
+
+		data->mem = ioremap(res.start, resource_size(&res));
+
+		if (data->index == TI_CLKM_PRM) {
+			prm_base.va = data->mem + data->offset;
+			prm_base.pa = res.start + data->offset;
+		}
+
+		data->np = np;
+
+		if (data->init)
+			data->init(data);
+	}
+
+	return 0;
+}
+
+int __init omap2_prcm_base_init(void)
+{
+	int ret;
+
+	ret = omap2_prm_base_init();
+	if (ret)
+		return ret;
+
+	return omap2_cm_base_init();
+}
+
+/**
+ * omap_prcm_init - low level init for the PRCM drivers
+ *
+ * Initializes the low level clock infrastructure for PRCM drivers.
+ * Returns 0 in success, negative error value in failure.
+ */
+int __init omap_prcm_init(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match;
+	const struct omap_prcm_init_data *data;
+	int ret;
+
+	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
+		data = match->data;
+
+		ret = omap2_clk_provider_init(np, data->index, NULL, data->mem);
+		if (ret)
+			return ret;
+	}
+
+	omap_cm_init();
+
+	return 0;
+}
+
+static int __init prm_late_init(void)
+{
+	if (prm_ll_data->late_init)
+		return prm_ll_data->late_init();
+	return 0;
+}
+subsys_initcall(prm_late_init);

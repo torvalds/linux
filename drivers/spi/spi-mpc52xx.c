@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
@@ -235,7 +234,8 @@ static int mpc52xx_spi_fsmstate_transfer(int irq, struct mpc52xx_spi *ms,
 		dev_err(&ms->master->dev, "mode fault\n");
 		mpc52xx_spi_chipsel(ms, 0);
 		ms->message->status = -EIO;
-		ms->message->complete(ms->message->context);
+		if (ms->message->complete)
+			ms->message->complete(ms->message->context);
 		ms->state = mpc52xx_spi_fsmstate_idle;
 		return FSM_CONTINUE;
 	}
@@ -289,7 +289,8 @@ mpc52xx_spi_fsmstate_wait(int irq, struct mpc52xx_spi *ms, u8 status, u8 data)
 		ms->msg_count++;
 		mpc52xx_spi_chipsel(ms, 0);
 		ms->message->status = 0;
-		ms->message->complete(ms->message->context);
+		if (ms->message->complete)
+			ms->message->complete(ms->message->context);
 		ms->state = mpc52xx_spi_fsmstate_idle;
 		return FSM_CONTINUE;
 	}
@@ -357,20 +358,6 @@ static void mpc52xx_spi_wq(struct work_struct *work)
  * spi_master ops
  */
 
-static int mpc52xx_spi_setup(struct spi_device *spi)
-{
-	if (spi->bits_per_word % 8)
-		return -EINVAL;
-
-	if (spi->mode & ~(SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST))
-		return -EINVAL;
-
-	if (spi->chip_select >= spi->master->num_chipselect)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int mpc52xx_spi_transfer(struct spi_device *spi, struct spi_message *m)
 {
 	struct mpc52xx_spi *ms = spi_master_get_devdata(spi->master);
@@ -433,9 +420,9 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 		goto err_alloc;
 	}
 
-	master->setup = mpc52xx_spi_setup;
 	master->transfer = mpc52xx_spi_transfer;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->dev.of_node = op->dev.of_node;
 
 	platform_set_drvdata(op, master);
@@ -450,8 +437,9 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	ms->gpio_cs_count = of_gpio_count(op->dev.of_node);
 	if (ms->gpio_cs_count > 0) {
 		master->num_chipselect = ms->gpio_cs_count;
-		ms->gpio_cs = kmalloc(ms->gpio_cs_count * sizeof(unsigned int),
-				GFP_KERNEL);
+		ms->gpio_cs = kmalloc_array(ms->gpio_cs_count,
+					    sizeof(*ms->gpio_cs),
+					    GFP_KERNEL);
 		if (!ms->gpio_cs) {
 			rc = -ENOMEM;
 			goto err_alloc_gpio;
@@ -461,8 +449,7 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 			gpio_cs = of_get_gpio(op->dev.of_node, i);
 			if (gpio_cs < 0) {
 				dev_err(&op->dev,
-					"could not parse the gpio field "
-					"in oftree\n");
+					"could not parse the gpio field in oftree\n");
 				rc = -ENODEV;
 				goto err_gpio;
 			}
@@ -470,8 +457,8 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 			rc = gpio_request(gpio_cs, dev_name(&op->dev));
 			if (rc) {
 				dev_err(&op->dev,
-					"can't request spi cs gpio #%d "
-					"on gpio line %d\n", i, gpio_cs);
+					"can't request spi cs gpio #%d on gpio line %d\n",
+					i, gpio_cs);
 				goto err_gpio;
 			}
 
@@ -556,7 +543,6 @@ MODULE_DEVICE_TABLE(of, mpc52xx_spi_match);
 static struct platform_driver mpc52xx_spi_of_driver = {
 	.driver = {
 		.name = "mpc52xx-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_spi_match,
 	},
 	.probe = mpc52xx_spi_probe,

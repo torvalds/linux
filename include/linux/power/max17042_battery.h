@@ -24,8 +24,15 @@
 #define __MAX17042_BATTERY_H_
 
 #define MAX17042_STATUS_BattAbsent	(1 << 3)
-#define MAX17042_BATTERY_FULL	(100)
+#define MAX17042_BATTERY_FULL		(95)   /* Recommend. FullSOCThr value */
 #define MAX17042_DEFAULT_SNS_RESISTOR	(10000)
+#define MAX17042_DEFAULT_VMIN		(3000)
+#define MAX17042_DEFAULT_VMAX		(4500) /* LiHV cell max */
+#define MAX17042_DEFAULT_TEMP_MIN	(0)    /* For sys without temp sensor */
+#define MAX17042_DEFAULT_TEMP_MAX	(700)  /* 70 degrees Celcius */
+
+/* Consider RepCap which is less then 10 units below FullCAP full */
+#define MAX17042_FULL_THRESHOLD		10
 
 #define MAX17042_CHARACTERIZATION_DATA_SIZE 48
 
@@ -126,7 +133,14 @@ enum max17047_register {
 	MAX17047_QRTbl30	= 0x42,
 };
 
-enum max170xx_chip_type {MAX17042, MAX17047};
+enum max170xx_chip_type {
+	MAXIM_DEVICE_TYPE_UNKNOWN	= 0,
+	MAXIM_DEVICE_TYPE_MAX17042,
+	MAXIM_DEVICE_TYPE_MAX17047,
+	MAXIM_DEVICE_TYPE_MAX17050,
+
+	MAXIM_DEVICE_TYPE_NUM
+};
 
 /*
  * used for setting a register to a desired value
@@ -208,6 +222,10 @@ struct max17042_platform_data {
 	 * the datasheet although it can be changed by board designers.
 	 */
 	unsigned int r_sns;
+	int         vmin;	/* in millivolts */
+	int         vmax;	/* in millivolts */
+	int         temp_min;	/* in tenths of degree Celsius */
+	int         temp_max;	/* in tenths of degree Celsius */
 };
 
 #endif /* __MAX17042_BATTERY_H_ */

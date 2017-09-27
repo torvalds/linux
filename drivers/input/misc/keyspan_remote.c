@@ -13,7 +13,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
@@ -86,7 +85,7 @@ static const unsigned short keyspan_key_table[] = {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id keyspan_table[] = {
+static const struct usb_device_id keyspan_table[] = {
 	{ USB_DEVICE(USB_KEYSPAN_VENDOR_ID, USB_KEYSPAN_PRODUCT_UIA11) },
 	{ }					/* Terminating entry */
 };
@@ -393,7 +392,6 @@ static void keyspan_irq_recv(struct urb *urb)
 
 	default:
 		goto resubmit;
-		break;
 	}
 
 	if (debug)

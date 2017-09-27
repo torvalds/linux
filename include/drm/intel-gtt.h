@@ -3,8 +3,10 @@
 #ifndef _DRM_INTEL_GTT_H
 #define	_DRM_INTEL_GTT_H
 
-void intel_gtt_get(size_t *gtt_total, size_t *stolen_size,
-		   phys_addr_t *mappable_base, unsigned long *mappable_end);
+void intel_gtt_get(u64 *gtt_total,
+		   u32 *stolen_size,
+		   phys_addr_t *mappable_base,
+		   u64 *mappable_end);
 
 int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 		     struct agp_bridge_data *bridge);
@@ -13,6 +15,9 @@ void intel_gmch_remove(void);
 bool intel_enable_gtt(void);
 
 void intel_gtt_chipset_flush(void);
+void intel_gtt_insert_page(dma_addr_t addr,
+			   unsigned int pg,
+			   unsigned int flags);
 void intel_gtt_insert_sg_entries(struct sg_table *st,
 				 unsigned int pg_start,
 				 unsigned int flags);

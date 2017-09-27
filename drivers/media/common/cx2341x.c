@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -27,7 +23,7 @@
 #include <linux/videodev2.h>
 
 #include <media/tuner.h>
-#include <media/cx2341x.h>
+#include <media/drv-intf/cx2341x.h>
 #include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("cx23415/6/8 driver");
@@ -931,6 +927,35 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 	}
 }
 
+/* Check for correctness of the ctrl's value based on the data from
+   struct v4l2_queryctrl and the available menu items. Note that
+   menu_items may be NULL, in that case it is ignored. */
+static int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
+		const char * const *menu_items)
+{
+	if (qctrl->flags & V4L2_CTRL_FLAG_DISABLED)
+		return -EINVAL;
+	if (qctrl->flags & V4L2_CTRL_FLAG_GRABBED)
+		return -EBUSY;
+	if (qctrl->type == V4L2_CTRL_TYPE_STRING)
+		return 0;
+	if (qctrl->type == V4L2_CTRL_TYPE_BUTTON ||
+	    qctrl->type == V4L2_CTRL_TYPE_INTEGER64 ||
+	    qctrl->type == V4L2_CTRL_TYPE_CTRL_CLASS)
+		return 0;
+	if (ctrl->value < qctrl->minimum || ctrl->value > qctrl->maximum)
+		return -ERANGE;
+	if (qctrl->type == V4L2_CTRL_TYPE_MENU && menu_items != NULL) {
+		if (menu_items[ctrl->value] == NULL ||
+		    menu_items[ctrl->value][0] == '\0')
+			return -EINVAL;
+	}
+	if (qctrl->type == V4L2_CTRL_TYPE_BITMASK &&
+			(ctrl->value & ~qctrl->maximum))
+		return -ERANGE;
+	return 0;
+}
+
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 		  struct v4l2_ext_controls *ctrls, unsigned int cmd)
 {
@@ -1161,8 +1186,8 @@ void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_STREAM_TYPE));
 	if (p->stream_insert_nav_packets)
-		printk(" (with navigation packets)");
-	printk("\n");
+		printk(KERN_CONT " (with navigation packets)");
+	printk(KERN_CONT "\n");
 	printk(KERN_INFO "%s: VBI Format: %s\n",
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_STREAM_VBI_FMT));
@@ -1180,8 +1205,8 @@ void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 		cx2341x_menu_item(p, V4L2_CID_MPEG_VIDEO_BITRATE_MODE),
 		p->video_bitrate);
 	if (p->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR)
-		printk(", Peak %d", p->video_bitrate_peak);
-	printk("\n");
+		printk(KERN_CONT ", Peak %d", p->video_bitrate_peak);
+	printk(KERN_CONT "\n");
 	printk(KERN_INFO
 		"%s: Video:  GOP Size %d, %d B-Frames, %sGOP Closure\n",
 		prefix,
@@ -1203,9 +1228,9 @@ void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE),
 		p->audio_mute ? " (muted)" : "");
 	if (p->audio_mode == V4L2_MPEG_AUDIO_MODE_JOINT_STEREO)
-		printk(", %s", cx2341x_menu_item(p,
+		printk(KERN_CONT ", %s", cx2341x_menu_item(p,
 				V4L2_CID_MPEG_AUDIO_MODE_EXTENSION));
-	printk(", %s, %s\n",
+	printk(KERN_CONT ", %s, %s\n",
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_EMPHASIS),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_CRC));
 
@@ -1490,6 +1515,7 @@ static struct v4l2_ctrl *cx2341x_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 {
 	struct v4l2_ctrl_config cfg;
 
+	memset(&cfg, 0, sizeof(cfg));
 	cx2341x_ctrl_fill(id, &cfg.name, &cfg.type, &min, &max, &step, &def, &cfg.flags);
 	cfg.ops = &cx2341x_ops;
 	cfg.id = id;

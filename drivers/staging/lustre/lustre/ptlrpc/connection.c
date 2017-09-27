@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -41,23 +37,22 @@
 
 #include "ptlrpc_internal.h"
 
-static cfs_hash_t *conn_hash = NULL;
-static cfs_hash_ops_t conn_hash_ops;
+static struct cfs_hash *conn_hash;
+static struct cfs_hash_ops conn_hash_ops;
 
 struct ptlrpc_connection *
-ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
+ptlrpc_connection_get(struct lnet_process_id peer, lnet_nid_t self,
 		      struct obd_uuid *uuid)
 {
 	struct ptlrpc_connection *conn, *conn2;
-	ENTRY;
 
 	conn = cfs_hash_lookup(conn_hash, &peer);
 	if (conn)
-		GOTO(out, conn);
+		goto out;
 
-	OBD_ALLOC_PTR(conn);
+	conn = kzalloc(sizeof(*conn), GFP_NOFS);
 	if (!conn)
-		RETURN(NULL);
+		return NULL;
 
 	conn->c_peer = peer;
 	conn->c_self = self;
@@ -73,29 +68,27 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 	 * returned and may be compared against out object.
 	 */
 	/* In the function below, .hs_keycmp resolves to
-	 * conn_keycmp() */
+	 * conn_keycmp()
+	 */
 	/* coverity[overrun-buffer-val] */
 	conn2 = cfs_hash_findadd_unique(conn_hash, &peer, &conn->c_hash);
 	if (conn != conn2) {
-		OBD_FREE_PTR(conn);
+		kfree(conn);
 		conn = conn2;
 	}
-	EXIT;
 out:
 	CDEBUG(D_INFO, "conn=%p refcount %d to %s\n",
 	       conn, atomic_read(&conn->c_refcount),
 	       libcfs_nid2str(conn->c_peer.nid));
 	return conn;
 }
-EXPORT_SYMBOL(ptlrpc_connection_get);
 
 int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (!conn)
-		RETURN(rc);
+		return rc;
 
 	LASSERT(atomic_read(&conn->c_refcount) > 1);
 
@@ -122,28 +115,22 @@ int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 	       conn, atomic_read(&conn->c_refcount),
 	       libcfs_nid2str(conn->c_peer.nid));
 
-	RETURN(rc);
+	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_connection_put);
 
 struct ptlrpc_connection *
 ptlrpc_connection_addref(struct ptlrpc_connection *conn)
 {
-	ENTRY;
-
 	atomic_inc(&conn->c_refcount);
 	CDEBUG(D_INFO, "conn=%p refcount %d to %s\n",
 	       conn, atomic_read(&conn->c_refcount),
 	       libcfs_nid2str(conn->c_peer.nid));
 
-	RETURN(conn);
+	return conn;
 }
-EXPORT_SYMBOL(ptlrpc_connection_addref);
 
 int ptlrpc_connection_init(void)
 {
-	ENTRY;
-
 	conn_hash = cfs_hash_create("CONN_HASH",
 				    HASH_CONN_CUR_BITS,
 				    HASH_CONN_MAX_BITS,
@@ -152,36 +139,33 @@ int ptlrpc_connection_init(void)
 				    CFS_HASH_MAX_THETA,
 				    &conn_hash_ops, CFS_HASH_DEFAULT);
 	if (!conn_hash)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_connection_init);
 
-void ptlrpc_connection_fini(void) {
-	ENTRY;
+void ptlrpc_connection_fini(void)
+{
 	cfs_hash_putref(conn_hash);
-	EXIT;
 }
-EXPORT_SYMBOL(ptlrpc_connection_fini);
 
 /*
  * Hash operations for net_peer<->connection
  */
-static unsigned
-conn_hashfn(cfs_hash_t *hs, const void *key, unsigned mask)
+static unsigned int
+conn_hashfn(struct cfs_hash *hs, const void *key, unsigned int mask)
 {
-	return cfs_hash_djb2_hash(key, sizeof(lnet_process_id_t), mask);
+	return cfs_hash_djb2_hash(key, sizeof(struct lnet_process_id), mask);
 }
 
 static int
 conn_keycmp(const void *key, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
-	const lnet_process_id_t *conn_key;
+	const struct lnet_process_id *conn_key;
 
-	LASSERT(key != NULL);
-	conn_key = (lnet_process_id_t*)key;
+	LASSERT(key);
+	conn_key = key;
 	conn = hlist_entry(hnode, struct ptlrpc_connection, c_hash);
 
 	return conn_key->nid == conn->c_peer.nid &&
@@ -192,6 +176,7 @@ static void *
 conn_key(struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
+
 	conn = hlist_entry(hnode, struct ptlrpc_connection, c_hash);
 	return &conn->c_peer;
 }
@@ -203,7 +188,7 @@ conn_object(struct hlist_node *hnode)
 }
 
 static void
-conn_get(cfs_hash_t *hs, struct hlist_node *hnode)
+conn_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
 
@@ -212,7 +197,7 @@ conn_get(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-conn_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+conn_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
 
@@ -221,7 +206,7 @@ conn_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
 }
 
 static void
-conn_exit(cfs_hash_t *hs, struct hlist_node *hnode)
+conn_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
 
@@ -234,15 +219,15 @@ conn_exit(cfs_hash_t *hs, struct hlist_node *hnode)
 	LASSERTF(atomic_read(&conn->c_refcount) == 0,
 		 "Busy connection with %d refs\n",
 		 atomic_read(&conn->c_refcount));
-	OBD_FREE_PTR(conn);
+	kfree(conn);
 }
 
-static cfs_hash_ops_t conn_hash_ops = {
+static struct cfs_hash_ops conn_hash_ops = {
 	.hs_hash	= conn_hashfn,
 	.hs_keycmp      = conn_keycmp,
-	.hs_key	 = conn_key,
+	.hs_key		= conn_key,
 	.hs_object      = conn_object,
-	.hs_get	 = conn_get,
+	.hs_get		= conn_get,
 	.hs_put_locked  = conn_put_locked,
 	.hs_exit	= conn_exit,
 };

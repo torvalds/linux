@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,10 +46,10 @@ static struct rc_map_table ati_tv_wonder_hd_600[] = {
 
 static struct rc_map_list ati_tv_wonder_hd_600_map = {
 	.map = {
-		.scan    = ati_tv_wonder_hd_600,
-		.size    = ARRAY_SIZE(ati_tv_wonder_hd_600),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_ATI_TV_WONDER_HD_600,
+		.scan     = ati_tv_wonder_hd_600,
+		.size     = ARRAY_SIZE(ati_tv_wonder_hd_600),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_ATI_TV_WONDER_HD_600,
 	}
 };
 
@@ -67,4 +67,4 @@ module_init(init_rc_map_ati_tv_wonder_hd_600)
 module_exit(exit_rc_map_ati_tv_wonder_hd_600)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

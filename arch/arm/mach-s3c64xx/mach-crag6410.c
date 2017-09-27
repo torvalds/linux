@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 #include <linux/io.h>
@@ -24,13 +25,14 @@
 #include <linux/mmc/host.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/dm9000.h>
 #include <linux/gpio_keys.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/spi/spi.h>
 
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
 #include <video/platform_lcd.h>
@@ -48,17 +50,16 @@
 #include <video/samsung_fimd.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
-
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
+#include <mach/irqs.h>
 
-#include <plat/regs-serial.h>
 #include <plat/fb.h>
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 #include <linux/platform_data/spi-s3c64xx.h>
 
 #include <plat/keypad.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>
@@ -109,18 +110,22 @@ static struct s3c2410_uartcfg crag6410_uartcfgs[] __initdata = {
 	},
 };
 
+static struct pwm_lookup crag6410_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight", NULL, 100000,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data crag6410_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 1000,
 	.dft_brightness	= 600,
-	.pwm_period_ns	= 100000,	/* about 1kHz */
+	.enable_gpio	= -1,
 };
 
 static struct platform_device crag6410_backlight_device = {
 	.name		= "pwm-backlight",
 	.id		= -1,
 	.dev		= {
-		.parent	= &s3c_device_timer[0].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &crag6410_backlight_data,
 	},
 };
@@ -310,10 +315,6 @@ static struct regulator_consumer_supply wallvdd_consumers[] = {
 
 	REGULATOR_SUPPLY("SPKVDDL", "spi0.1"),
 	REGULATOR_SUPPLY("SPKVDDR", "spi0.1"),
-	REGULATOR_SUPPLY("SPKVDDL", "wm5102-codec"),
-	REGULATOR_SUPPLY("SPKVDDR", "wm5102-codec"),
-	REGULATOR_SUPPLY("SPKVDDL", "wm5110-codec"),
-	REGULATOR_SUPPLY("SPKVDDR", "wm5110-codec"),
 
 	REGULATOR_SUPPLY("DC1VDD", "0-0034"),
 	REGULATOR_SUPPLY("DC2VDD", "0-0034"),
@@ -375,7 +376,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
-	&s3c_device_timer[0],
+	&samsung_device_pwm,
 	&s3c64xx_device_iis0,
 	&s3c64xx_device_iis1,
 	&samsung_device_keypad,
@@ -558,6 +559,7 @@ static struct wm831x_touch_pdata touch_pdata = {
 
 static struct wm831x_pdata crag_pmic_pdata = {
 	.wm831x_num = 1,
+	.irq_base = BANFF_PMIC_IRQ_BASE,
 	.gpio_base = BANFF_PMIC_GPIO_BASE,
 	.soft_shutdown = true,
 
@@ -653,14 +655,6 @@ static struct regulator_consumer_supply pvdd_1v8_consumers[] = {
 	REGULATOR_SUPPLY("DBVDD3", "spi0.1"),
 	REGULATOR_SUPPLY("LDOVDD", "spi0.1"),
 	REGULATOR_SUPPLY("CPVDD", "spi0.1"),
-
-	REGULATOR_SUPPLY("DBVDD2", "wm5102-codec"),
-	REGULATOR_SUPPLY("DBVDD3", "wm5102-codec"),
-	REGULATOR_SUPPLY("CPVDD", "wm5102-codec"),
-
-	REGULATOR_SUPPLY("DBVDD2", "wm5110-codec"),
-	REGULATOR_SUPPLY("DBVDD3", "wm5110-codec"),
-	REGULATOR_SUPPLY("CPVDD", "wm5110-codec"),
 };
 
 static struct regulator_init_data pvdd_1v8 = {
@@ -743,7 +737,7 @@ static struct s3c2410_platform_i2c i2c1_pdata = {
 static void __init crag6410_map_io(void)
 {
 	s3c64xx_init_io(NULL, 0);
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(crag6410_uartcfgs, ARRAY_SIZE(crag6410_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -820,7 +814,7 @@ static const struct gpio_led_platform_data gpio_leds_pdata = {
 	.num_leds = ARRAY_SIZE(gpio_leds),
 };
 
-static struct s3c_hsotg_plat crag6410_hsotg_pdata;
+static struct dwc2_hsotg_plat crag6410_hsotg_pdata;
 
 static void __init crag6410_machine_init(void)
 {
@@ -846,7 +840,7 @@ static void __init crag6410_machine_init(void)
 	s3c_i2c0_set_platdata(&i2c0_pdata);
 	s3c_i2c1_set_platdata(&i2c1_pdata);
 	s3c_fb_set_platdata(&crag6410_lcd_pdata);
-	s3c_hsotg_set_platdata(&crag6410_hsotg_pdata);
+	dwc2_hsotg_set_platdata(&crag6410_hsotg_pdata);
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
@@ -854,6 +848,7 @@ static void __init crag6410_machine_init(void)
 	samsung_keypad_set_platdata(&crag6410_keypad_data);
 	s3c64xx_spi0_set_platdata(NULL, 0, 2);
 
+	pwm_add_table(crag6410_pwm_lookup, ARRAY_SIZE(crag6410_pwm_lookup));
 	platform_add_devices(crag6410_devices, ARRAY_SIZE(crag6410_devices));
 
 	gpio_led_register_device(-1, &gpio_leds_pdata);
@@ -866,10 +861,10 @@ static void __init crag6410_machine_init(void)
 MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,
-	.init_late	= s3c64xx_init_late,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

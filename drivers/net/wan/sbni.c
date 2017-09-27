@@ -57,12 +57,13 @@
 
 #include <net/net_namespace.h>
 #include <net/arp.h>
+#include <net/Space.h>
 
 #include <asm/io.h>
 #include <asm/types.h>
 #include <asm/byteorder.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sbni.h"
 
@@ -148,10 +149,6 @@ static int  enslave( struct net_device *, struct net_device * );
 static int  emancipate( struct net_device * );
 #endif
 
-#ifdef __i386__
-#define ASM_CRC 1
-#endif
-
 static const char  version[] =
 	"Granch SBNI12 driver ver 5.0.1  Jun 22 2001  Denis I.Timofeev.\n";
 
@@ -176,7 +173,7 @@ static u32	mac[  SBNI_MAX_NUM_CARDS ] __initdata;
 
 #ifndef MODULE
 typedef u32  iarr[];
-static iarr __initdata *dest[5] = { &io, &irq, &baud, &rxl, &mac };
+static iarr *dest[5] __initdata = { &io, &irq, &baud, &rxl, &mac };
 #endif
 
 /* A zero-terminated list of I/O addresses to be probed on ISA bus */
@@ -214,7 +211,6 @@ static const struct net_device_ops sbni_netdev_ops = {
 	.ndo_start_xmit		= sbni_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_do_ioctl		= sbni_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -230,7 +226,8 @@ int __init sbni_probe(int unit)
 	struct net_device *dev;
 	int err;
 
-	dev = alloc_netdev(sizeof(struct net_local), "sbni", sbni_devsetup);
+	dev = alloc_netdev(sizeof(struct net_local), "sbni",
+			   NET_NAME_UNKNOWN, sbni_devsetup);
 	if (!dev)
 		return -ENOMEM;
 
@@ -584,8 +581,8 @@ handle_channel( struct net_device  *dev )
 
 
 /*
- * Routine returns 1 if it need to acknoweledge received frame.
- * Empty frame received without errors won't be acknoweledged.
+ * Routine returns 1 if it needs to acknowledge received frame.
+ * Empty frame received without errors won't be acknowledged.
  */
 
 static int
@@ -862,9 +859,9 @@ prepare_to_send( struct sk_buff  *skb,  struct net_device  *dev )
 
 	outb( inb( dev->base_addr + CSR0 ) | TR_REQ,  dev->base_addr + CSR0 );
 #ifdef CONFIG_SBNI_MULTILINE
-	nl->master->trans_start = jiffies;
+	netif_trans_update(nl->master);
 #else
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 #endif
 }
 
@@ -891,10 +888,10 @@ drop_xmit_queue( struct net_device  *dev )
 	nl->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
 #ifdef CONFIG_SBNI_MULTILINE
 	netif_start_queue( nl->master );
-	nl->master->trans_start = jiffies;
+	netif_trans_update(nl->master);
 #else
 	netif_start_queue( dev );
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 #endif
 }
 
@@ -1360,6 +1357,8 @@ sbni_ioctl( struct net_device  *dev,  struct ifreq  *ifr,  int  cmd )
 		if( !slave_dev  ||  !(slave_dev->flags & IFF_UP) ) {
 			netdev_err(dev, "trying to enslave non-active device %s\n",
 				   slave_name);
+			if (slave_dev)
+				dev_put(slave_dev);
 			return  -EPERM;
 		}
 
@@ -1464,8 +1463,8 @@ set_multicast_list( struct net_device  *dev )
 
 
 #ifdef MODULE
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_array(baud, int, NULL, 0);
 module_param_array(rxl, int, NULL, 0);
 module_param_array(mac, int, NULL, 0);
@@ -1480,8 +1479,8 @@ int __init init_module( void )
 	int err;
 
 	while( num < SBNI_MAX_NUM_CARDS ) {
-		dev = alloc_netdev(sizeof(struct net_local), 
-				   "sbni%d", sbni_devsetup);
+		dev = alloc_netdev(sizeof(struct net_local), "sbni%d",
+				   NET_NAME_UNKNOWN, sbni_devsetup);
 		if( !dev)
 			break;
 
@@ -1551,88 +1550,6 @@ __setup( "sbni=", sbni_setup );
 
 /* -------------------------------------------------------------------------- */
 
-#ifdef ASM_CRC
-
-static u32
-calc_crc32( u32  crc,  u8  *p,  u32  len )
-{
-	register u32  _crc;
-	_crc = crc;
-	
-	__asm__ __volatile__ (
-		"xorl	%%ebx, %%ebx\n"
-		"movl	%2, %%esi\n" 
-		"movl	%3, %%ecx\n" 
-		"movl	$crc32tab, %%edi\n"
-		"shrl	$2, %%ecx\n"
-		"jz	1f\n"
-
-		".align 4\n"
-	"0:\n"
-		"movb	%%al, %%bl\n"
-		"movl	(%%esi), %%edx\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"shrl	$8, %%edx\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"shrl	$8, %%edx\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"movb	%%dh, %%dl\n" 
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"addl	$4, %%esi\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"decl	%%ecx\n"
-		"jnz	0b\n"
-
-	"1:\n"
-		"movl	%3, %%ecx\n"
-		"andl	$3, %%ecx\n"
-		"jz	2f\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	(%%esi), %%bl\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"decl	%%ecx\n"
-		"jz	2f\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	1(%%esi), %%bl\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"decl	%%ecx\n"
-		"jz	2f\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	2(%%esi), %%bl\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-	"2:\n"
-		: "=a" (_crc)
-		: "0" (_crc), "g" (p), "g" (len)
-		: "bx", "cx", "dx", "si", "di"
-	);
-
-	return  _crc;
-}
-
-#else	/* ASM_CRC */
-
 static u32
 calc_crc32( u32  crc,  u8  *p,  u32  len )
 {
@@ -1641,9 +1558,6 @@ calc_crc32( u32  crc,  u8  *p,  u32  len )
 
 	return  crc;
 }
-
-#endif	/* ASM_CRC */
-
 
 static u32  crc32tab[] __attribute__ ((aligned(8))) = {
 	0xD202EF8D,  0xA505DF1B,  0x3C0C8EA1,  0x4B0BBE37,

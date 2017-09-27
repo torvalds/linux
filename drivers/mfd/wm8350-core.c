@@ -14,7 +14,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/bug.h>
 #include <linux/device.h>
@@ -309,7 +308,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		goto err;
 	}
 
-	mode = id2 & WM8350_CONF_STS_MASK >> 10;
+	mode = (id2 & WM8350_CONF_STS_MASK) >> 10;
 	cust_id = id2 & WM8350_CUST_ID_MASK;
 	chip_rev = (id2 & WM8350_CHIP_REV_MASK) >> 12;
 	dev_info(wm8350->dev,
@@ -405,7 +404,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 	if (wm8350->irq_base) {
 		ret = request_threaded_irq(wm8350->irq_base +
 					   WM8350_IRQ_AUXADC_DATARDY,
-					   NULL, wm8350_auxadc_irq, 0,
+					   NULL, wm8350_auxadc_irq,
+					   IRQF_ONESHOT,
 					   "auxadc", wm8350);
 		if (ret < 0)
 			dev_warn(wm8350->dev,

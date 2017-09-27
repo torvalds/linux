@@ -16,16 +16,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __DVB_STV6110_H__
 #define __DVB_STV6110_H__
 
-#include <linux/kconfig.h>
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
@@ -46,7 +41,7 @@ struct stv6110_config {
 	u8 clk_div;	/* divisor value for the output clock */
 };
 
-#if IS_ENABLED(CONFIG_DVB_STV6110)
+#if IS_REACHABLE(CONFIG_DVB_STV6110)
 extern struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 					const struct stv6110_config *config,
 					struct i2c_adapter *i2c);

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,7 +23,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2013, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -42,11 +38,9 @@
  * @{
  */
 
-#include <lustre/lustre_idl.h>
-#include <lustre_mdt.h>
-#include <dt_object.h>
-
+#include <uapi/linux/lustre/lustre_idl.h>
 #include <linux/libcfs/libcfs.h>
+#include <seq_range.h>
 
 struct lu_client_fld;
 struct lu_server_fld;
@@ -64,7 +58,6 @@ enum {
 	LUSTRE_CLI_FLD_HASH_RRB
 };
 
-
 struct lu_fld_target {
 	struct list_head	       ft_chain;
 	struct obd_export       *ft_exp;
@@ -74,101 +67,44 @@ struct lu_fld_target {
 
 struct lu_server_fld {
 	/**
-	 * Fld dir proc entry. */
-	proc_dir_entry_t    *lsf_proc_dir;
-
-	/**
-	 * /fld file object device */
-	struct dt_object	*lsf_obj;
-
-	/**
 	 * super sequence controller export, needed to forward fld
-	 * lookup  request. */
+	 * lookup  request.
+	 */
 	struct obd_export       *lsf_control_exp;
 
-	/**
-	 * Client FLD cache. */
+	/** Client FLD cache. */
 	struct fld_cache	*lsf_cache;
 
-	/**
-	 * Protect index modifications */
+	/** Protect index modifications */
 	struct mutex		lsf_lock;
 
-	/**
-	 * Fld service name in form "fld-srv-lustre-MDTXXX" */
-	char		     lsf_name[80];
+	/** Fld service name in form "fld-srv-lustre-MDTXXX" */
+	char		     lsf_name[LUSTRE_MDT_MAXNAMELEN];
 
 };
 
 struct lu_client_fld {
-	/**
-	 * Client side proc entry. */
-	proc_dir_entry_t    *lcf_proc_dir;
+	/** Client side debugfs entry. */
+	struct dentry		*lcf_debugfs_entry;
 
-	/**
-	 * List of exports client FLD knows about. */
+	/** List of exports client FLD knows about. */
 	struct list_head	       lcf_targets;
 
-	/**
-	 * Current hash to be used to chose an export. */
+	/** Current hash to be used to chose an export. */
 	struct lu_fld_hash      *lcf_hash;
 
-	/**
-	 * Exports count. */
+	/** Exports count. */
 	int		      lcf_count;
 
-	/**
-	 * Lock protecting exports list and fld_hash. */
+	/** Lock protecting exports list and fld_hash. */
 	spinlock_t		 lcf_lock;
 
-	/**
-	 * Client FLD cache. */
+	/** Client FLD cache. */
 	struct fld_cache	*lcf_cache;
 
-	/**
-	 * Client fld proc entry name. */
-	char		     lcf_name[80];
-
-	const struct lu_context *lcf_ctx;
-
-	int		      lcf_flags;
+	/** Client fld debugfs entry name. */
+	char			 lcf_name[LUSTRE_MDT_MAXNAMELEN];
 };
-
-/**
- * number of blocks to reserve for particular operations. Should be function of
- * ... something. Stub for now.
- */
-enum {
-	/* one insert operation can involve two delete and one insert */
-	FLD_TXN_INDEX_INSERT_CREDITS  = 60,
-	FLD_TXN_INDEX_DELETE_CREDITS  = 20,
-};
-
-int fld_query(struct com_thread_info *info);
-
-/* Server methods */
-int fld_server_init(const struct lu_env *env, struct lu_server_fld *fld,
-		    struct dt_device *dt, const char *prefix, int mds_node_id,
-		    int type);
-
-void fld_server_fini(const struct lu_env *env, struct lu_server_fld *fld);
-
-int fld_declare_server_create(const struct lu_env *env,
-			      struct lu_server_fld *fld,
-			      struct lu_seq_range *new,
-			      struct thandle *th);
-
-int fld_server_create(const struct lu_env *env,
-		      struct lu_server_fld *fld,
-		      struct lu_seq_range *add_range,
-		      struct thandle *th);
-
-int fld_insert_entry(const struct lu_env *env,
-		     struct lu_server_fld *fld,
-		     const struct lu_seq_range *range);
-
-int fld_server_lookup(const struct lu_env *env, struct lu_server_fld *fld,
-		      seqno_t seq, struct lu_seq_range *range);
 
 /* Client methods */
 int fld_client_init(struct lu_client_fld *fld,
@@ -178,15 +114,14 @@ void fld_client_fini(struct lu_client_fld *fld);
 
 void fld_client_flush(struct lu_client_fld *fld);
 
-int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
+int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 		      __u32 flags, const struct lu_env *env);
 
 int fld_client_create(struct lu_client_fld *fld,
 		      struct lu_seq_range *range,
 		      const struct lu_env *env);
 
-int fld_client_delete(struct lu_client_fld *fld,
-		      seqno_t seq,
+int fld_client_delete(struct lu_client_fld *fld, u64 seq,
 		      const struct lu_env *env);
 
 int fld_client_add_target(struct lu_client_fld *fld,
@@ -195,7 +130,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 int fld_client_del_target(struct lu_client_fld *fld,
 			  __u64 idx);
 
-void fld_client_proc_fini(struct lu_client_fld *fld);
+void fld_client_debugfs_fini(struct lu_client_fld *fld);
 
 /** @} fld */
 

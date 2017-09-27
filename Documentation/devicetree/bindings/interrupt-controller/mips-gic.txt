@@ -1,0 +1,67 @@
+MIPS Global Interrupt Controller (GIC)
+
+The MIPS GIC routes external interrupts to individual VPEs and IRQ pins.
+It also supports local (per-processor) interrupts and software-generated
+interrupts which can be used as IPIs.  The GIC also includes a free-running
+global timer, per-CPU count/compare timers, and a watchdog.
+
+Required properties:
+- compatible : Should be "mti,gic".
+- interrupt-controller : Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode an
+  interrupt specifier.  Should be 3.
+  - The first cell is the type of interrupt, local or shared.
+    See <include/dt-bindings/interrupt-controller/mips-gic.h>.
+  - The second cell is the GIC interrupt number.
+  - The third cell encodes the interrupt flags.
+    See <include/dt-bindings/interrupt-controller/irq.h> for a list of valid
+    flags.
+
+Optional properties:
+- reg : Base address and length of the GIC registers.  If not present,
+  the base address reported by the hardware GCR_GIC_BASE will be used.
+- mti,reserved-cpu-vectors : Specifies the list of CPU interrupt vectors
+  to which the GIC may not route interrupts.  Valid values are 2 - 7.
+  This property is ignored if the CPU is started in EIC mode.
+- mti,reserved-ipi-vectors : Specifies the range of GIC interrupts that are
+  reserved for IPIs.
+  It accepts 2 values, the 1st is the starting interrupt and the 2nd is the size
+  of the reserved range.
+  If not specified, the driver will allocate the last 2 * number of VPEs in the
+  system.
+
+Required properties for timer sub-node:
+- compatible : Should be "mti,gic-timer".
+- interrupts : Interrupt for the GIC local timer.
+
+Optional properties for timer sub-node:
+- clocks : GIC timer operating clock.
+- clock-frequency : Clock frequency at which the GIC timers operate.
+
+Note that one of clocks or clock-frequency must be specified.
+
+Example:
+
+	gic: interrupt-controller@1bdc0000 {
+		compatible = "mti,gic";
+		reg = <0x1bdc0000 0x20000>;
+
+		interrupt-controller;
+		#interrupt-cells = <3>;
+
+		mti,reserved-cpu-vectors = <7>;
+		mti,reserved-ipi-vectors = <40 8>;
+
+		timer {
+			compatible = "mti,gic-timer";
+			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+			clock-frequency = <50000000>;
+		};
+	};
+
+	uart@18101400 {
+		...
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 24 IRQ_TYPE_LEVEL_HIGH>;
+		...
+	};

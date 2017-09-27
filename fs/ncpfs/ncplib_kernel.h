@@ -21,7 +21,7 @@
 #include <linux/fcntl.h>
 #include <linux/pagemap.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 #include <asm/string.h>
@@ -53,7 +53,7 @@ static inline int ncp_read_bounce_size(__u32 size) {
 	return sizeof(struct ncp_reply_header) + 2 + 2 + size + 8;
 };
 int ncp_read_bounce(struct ncp_server *, const char *, __u32, __u16, 
-		char __user *, int *, void* bounce, __u32 bouncelen);
+		struct iov_iter *, int *, void *bounce, __u32 bouncelen);
 int ncp_read_kernel(struct ncp_server *, const char *, __u32, __u16, 
 		char *, int *);
 int ncp_write_kernel(struct ncp_server *, const char *, __u32, __u16,
@@ -184,46 +184,6 @@ ncp_new_dentry(struct dentry* dentry)
 	dentry->d_time = jiffies;
 }
 
-static inline void
-ncp_renew_dentries(struct dentry *parent)
-{
-	struct ncp_server *server = NCP_SERVER(parent->d_inode);
-	struct list_head *next;
-	struct dentry *dentry;
-
-	spin_lock(&parent->d_lock);
-	next = parent->d_subdirs.next;
-	while (next != &parent->d_subdirs) {
-		dentry = list_entry(next, struct dentry, d_u.d_child);
-
-		if (dentry->d_fsdata == NULL)
-			ncp_age_dentry(server, dentry);
-		else
-			ncp_new_dentry(dentry);
-
-		next = next->next;
-	}
-	spin_unlock(&parent->d_lock);
-}
-
-static inline void
-ncp_invalidate_dircache_entries(struct dentry *parent)
-{
-	struct ncp_server *server = NCP_SERVER(parent->d_inode);
-	struct list_head *next;
-	struct dentry *dentry;
-
-	spin_lock(&parent->d_lock);
-	next = parent->d_subdirs.next;
-	while (next != &parent->d_subdirs) {
-		dentry = list_entry(next, struct dentry, d_u.d_child);
-		dentry->d_fsdata = NULL;
-		ncp_age_dentry(server, dentry);
-		next = next->next;
-	}
-	spin_unlock(&parent->d_lock);
-}
-
 struct ncp_cache_head {
 	time_t		mtime;
 	unsigned long	time;	/* cache age */
@@ -231,7 +191,7 @@ struct ncp_cache_head {
 	int		eof;
 };
 
-#define NCP_DIRCACHE_SIZE	((int)(PAGE_CACHE_SIZE/sizeof(struct dentry *)))
+#define NCP_DIRCACHE_SIZE	((int)(PAGE_SIZE/sizeof(struct dentry *)))
 union ncp_dir_cache {
 	struct ncp_cache_head	head;
 	struct dentry		*dentry[NCP_DIRCACHE_SIZE];

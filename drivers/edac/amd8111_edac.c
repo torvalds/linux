@@ -29,7 +29,6 @@
 #include <linux/pci_ids.h>
 #include <asm/io.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 #include "amd8111_edac.h"
 
@@ -350,6 +349,7 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	struct amd8111_dev_info *dev_info = &amd8111_devices[id->driver_data];
+	int ret = -ENODEV;
 
 	dev_info->dev = pci_get_device(PCI_VENDOR_ID_AMD,
 					dev_info->err_dev, NULL);
@@ -359,16 +359,15 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 			"vendor %x, device %x, name %s\n",
 			PCI_VENDOR_ID_AMD, dev_info->err_dev,
 			dev_info->ctl_name);
-		return -ENODEV;
+		goto err;
 	}
 
 	if (pci_enable_device(dev_info->dev)) {
-		pci_dev_put(dev_info->dev);
 		printk(KERN_ERR "failed to enable:"
 			"vendor %x, device %x, name %s\n",
 			PCI_VENDOR_ID_AMD, dev_info->err_dev,
 			dev_info->ctl_name);
-		return -ENODEV;
+		goto err_dev_put;
 	}
 
 	/*
@@ -381,8 +380,10 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 		edac_device_alloc_ctl_info(0, dev_info->ctl_name, 1,
 					   NULL, 0, 0,
 					   NULL, 0, dev_info->edac_idx);
-	if (!dev_info->edac_dev)
-		return -ENOMEM;
+	if (!dev_info->edac_dev) {
+		ret = -ENOMEM;
+		goto err_dev_put;
+	}
 
 	dev_info->edac_dev->pvt_info = dev_info;
 	dev_info->edac_dev->dev = &dev_info->dev->dev;
@@ -399,8 +400,7 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 	if (edac_device_add_device(dev_info->edac_dev) > 0) {
 		printk(KERN_ERR "failed to add edac_dev for %s\n",
 			dev_info->ctl_name);
-		edac_device_free_ctl_info(dev_info->edac_dev);
-		return -ENODEV;
+		goto err_edac_free_ctl;
 	}
 
 	printk(KERN_INFO "added one edac_dev on AMD8111 "
@@ -409,6 +409,13 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 		dev_info->ctl_name);
 
 	return 0;
+
+err_edac_free_ctl:
+	edac_device_free_ctl_info(dev_info->edac_dev);
+err_dev_put:
+	pci_dev_put(dev_info->dev);
+err:
+	return ret;
 }
 
 static void amd8111_dev_remove(struct pci_dev *dev)
@@ -437,6 +444,7 @@ static int amd8111_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	struct amd8111_pci_info *pci_info = &amd8111_pcis[id->driver_data];
+	int ret = -ENODEV;
 
 	pci_info->dev = pci_get_device(PCI_VENDOR_ID_AMD,
 					pci_info->err_dev, NULL);
@@ -446,16 +454,15 @@ static int amd8111_pci_probe(struct pci_dev *dev,
 			"vendor %x, device %x, name %s\n",
 			PCI_VENDOR_ID_AMD, pci_info->err_dev,
 			pci_info->ctl_name);
-		return -ENODEV;
+		goto err;
 	}
 
 	if (pci_enable_device(pci_info->dev)) {
-		pci_dev_put(pci_info->dev);
 		printk(KERN_ERR "failed to enable:"
 			"vendor %x, device %x, name %s\n",
 			PCI_VENDOR_ID_AMD, pci_info->err_dev,
 			pci_info->ctl_name);
-		return -ENODEV;
+		goto err_dev_put;
 	}
 
 	/*
@@ -465,8 +472,10 @@ static int amd8111_pci_probe(struct pci_dev *dev,
 	*/
 	pci_info->edac_idx = edac_pci_alloc_index();
 	pci_info->edac_dev = edac_pci_alloc_ctl_info(0, pci_info->ctl_name);
-	if (!pci_info->edac_dev)
-		return -ENOMEM;
+	if (!pci_info->edac_dev) {
+		ret = -ENOMEM;
+		goto err_dev_put;
+	}
 
 	pci_info->edac_dev->pvt_info = pci_info;
 	pci_info->edac_dev->dev = &pci_info->dev->dev;
@@ -483,8 +492,7 @@ static int amd8111_pci_probe(struct pci_dev *dev,
 	if (edac_pci_add_device(pci_info->edac_dev, pci_info->edac_idx) > 0) {
 		printk(KERN_ERR "failed to add edac_pci for %s\n",
 			pci_info->ctl_name);
-		edac_pci_free_ctl_info(pci_info->edac_dev);
-		return -ENODEV;
+		goto err_edac_free_ctl;
 	}
 
 	printk(KERN_INFO "added one edac_pci on AMD8111 "
@@ -493,6 +501,13 @@ static int amd8111_pci_probe(struct pci_dev *dev,
 		pci_info->ctl_name);
 
 	return 0;
+
+err_edac_free_ctl:
+	edac_pci_free_ctl_info(pci_info->edac_dev);
+err_dev_put:
+	pci_dev_put(pci_info->dev);
+err:
+	return ret;
 }
 
 static void amd8111_pci_remove(struct pci_dev *dev)

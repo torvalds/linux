@@ -55,12 +55,13 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	}
 
 	size >>= sb->s_blocksize_bits;
-	if (size > sizeof(dir->bh)/sizeof(dir->bh[0])) {
+	if (size > ARRAY_SIZE(dir->bh)) {
 		/* this directory is too big for fixed bh set, must allocate */
 		struct buffer_head **bh_fplus =
-			kzalloc(size * sizeof(struct buffer_head *),
+			kcalloc(size, sizeof(struct buffer_head *),
 				GFP_KERNEL);
 		if (!bh_fplus) {
+			ret = -ENOMEM;
 			adfs_error(sb, "not enough memory for"
 					" dir object %X (%d blocks)", id, size);
 			goto out;
@@ -79,9 +80,8 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 
 		dir->bh_fplus[blk] = sb_bread(sb, block);
 		if (!dir->bh_fplus[blk]) {
-			adfs_error(sb,	"dir object %X failed read for"
-					" offset %d, mapped block %X",
-					id, blk, block);
+			adfs_error(sb,	"dir object %x failed read for offset %d, mapped block %lX",
+				   id, blk, block);
 			goto out;
 		}
 
@@ -256,7 +256,7 @@ adfs_fplus_free(struct adfs_dir *dir)
 	dir->sb = NULL;
 }
 
-struct adfs_dir_ops adfs_fplus_dir_ops = {
+const struct adfs_dir_ops adfs_fplus_dir_ops = {
 	.read		= adfs_fplus_read,
 	.setpos		= adfs_fplus_setpos,
 	.getnext	= adfs_fplus_getnext,

@@ -22,6 +22,7 @@
 #include <linux/kref.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/file.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/numa.h>
@@ -35,7 +36,7 @@
 static DEFINE_SPINLOCK(buffer_lock);
 static DEFINE_SPINLOCK(cache_lock);
 static int num_spu_nodes;
-int spu_prof_num_nodes;
+static int spu_prof_num_nodes;
 
 struct spu_buffer spu_buff[MAX_NUMNODES * SPUS_PER_NODE];
 struct delayed_work spu_work;
@@ -50,7 +51,7 @@ static void spu_buff_add(unsigned long int value, int spu)
 	 * That way we can tell the difference between the
 	 * buffer being full versus empty.
 	 *
-	 *  ASSUPTION: the buffer_lock is held when this function
+	 *  ASSUMPTION: the buffer_lock is held when this function
 	 *             is called to lock the buffer, head and tail.
 	 */
 	int full = 1;
@@ -87,7 +88,7 @@ static void spu_buff_add(unsigned long int value, int spu)
 /* This function copies the per SPU buffers to the
  * OProfile kernel buffer.
  */
-void sync_spu_buff(void)
+static void sync_spu_buff(void)
 {
 	int spu;
 	unsigned long flags;
@@ -294,7 +295,7 @@ out:
  * dcookie user still being registered (namely, the reader
  * of the event buffer).
  */
-static inline unsigned long fast_get_dcookie(struct path *path)
+static inline unsigned long fast_get_dcookie(const struct path *path)
 {
 	unsigned long cookie;
 
@@ -322,19 +323,20 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 	unsigned long app_cookie = 0;
 	unsigned int my_offset = 0;
 	struct vm_area_struct *vma;
+	struct file *exe_file;
 	struct mm_struct *mm = spu->mm;
 
 	if (!mm)
 		goto out;
 
-	down_read(&mm->mmap_sem);
-
-	if (mm->exe_file) {
-		app_cookie = fast_get_dcookie(&mm->exe_file->f_path);
-		pr_debug("got dcookie for %s\n",
-			 mm->exe_file->f_dentry->d_name.name);
+	exe_file = get_mm_exe_file(mm);
+	if (exe_file) {
+		app_cookie = fast_get_dcookie(&exe_file->f_path);
+		pr_debug("got dcookie for %pD\n", exe_file);
+		fput(exe_file);
 	}
 
+	down_read(&mm->mmap_sem);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->vm_start > spu_ref || vma->vm_end <= spu_ref)
 			continue;
@@ -342,15 +344,14 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 		if (!vma->vm_file)
 			goto fail_no_image_cookie;
 
-		pr_debug("Found spu ELF at %X(object-id:%lx) for file %s\n",
-			 my_offset, spu_ref,
-			 vma->vm_file->f_dentry->d_name.name);
+		pr_debug("Found spu ELF at %X(object-id:%lx) for file %pD\n",
+			 my_offset, spu_ref, vma->vm_file);
 		*offsetp = my_offset;
 		break;
 	}
 
 	*spu_bin_dcookie = fast_get_dcookie(&vma->vm_file->f_path);
-	pr_debug("got dcookie for %s\n", vma->vm_file->f_dentry->d_name.name);
+	pr_debug("got dcookie for %pD\n", vma->vm_file);
 
 	up_read(&mm->mmap_sem);
 

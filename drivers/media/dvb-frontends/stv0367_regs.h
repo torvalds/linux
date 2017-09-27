@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef STV0367_REGS_H
@@ -2643,8 +2639,6 @@
 #define	R367TER_DEBUG_LT9	0xf405
 #define	F367TER_F_DEBUG_LT9	0xf40500ff
 
-#define STV0367TER_NBREGS	445
-
 /* ID */
 #define	R367CAB_ID	0xf000
 #define	F367CAB_IDENTIFICATIONREGISTER	0xf00000ff
@@ -3608,7 +3602,5 @@
 /* T_O_ID_3 */
 #define	R367CAB_T_O_ID_3	0xf4d3
 #define	F367CAB_TS_ID_I_H	0xf4d300ff
-
-#define STV0367CAB_NBREGS	187
 
 #endif

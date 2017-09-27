@@ -22,6 +22,8 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 
+#include <asm/setup.h>
+
 #ifdef CONFIG_MIPS_MT_SMP
 #define MIPS_CPU_IPI_RESCHED_IRQ 0	/* SW int 0 for resched */
 #define MIPS_CPU_IPI_CALL_IRQ 1		/* SW int 1 for call */
@@ -44,7 +46,7 @@ static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 
 static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 {
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 
 	return IRQ_HANDLED;
 }

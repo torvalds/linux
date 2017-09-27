@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -62,7 +62,7 @@ static int ixgbe_copy_dcb_cfg(struct ixgbe_adapter *adapter, int tc_max)
 			     };
 	u8 up = dcb_getapp(adapter->netdev, &app);
 
-	if (up && !(up & (1 << adapter->fcoe.up)))
+	if (up && !(up & BIT(adapter->fcoe.up)))
 		changes |= BIT_APP_UPCHG;
 #endif
 
@@ -153,7 +153,6 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	int err = 0;
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
@@ -161,12 +160,10 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 
 	/* verify there is something to do, if not then exit */
 	if (!state == !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-		goto out;
+		return 0;
 
-	err = ixgbe_setup_tc(netdev,
-			     state ? adapter->dcb_cfg.num_tcs.pg_tcs : 0);
-out:
-	return !!err;
+	return !!ixgbe_setup_tc(netdev,
+				state ? adapter->dcb_cfg.num_tcs.pg_tcs : 0);
 }
 
 static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
@@ -183,6 +180,7 @@ static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
 		for (j = 0; j < netdev->addr_len; j++, i++)
 			perm_addr[i] = adapter->hw.mac.san_addr[j];
 		break;
@@ -192,8 +190,8 @@ static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
 }
 
 static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
-                                         u8 prio, u8 bwg_id, u8 bw_pct,
-                                         u8 up_map)
+					 u8 prio, u8 bwg_id, u8 bw_pct,
+					 u8 up_map)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -210,7 +208,7 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 }
 
 static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
-                                          u8 bw_pct)
+					  u8 bw_pct)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -218,8 +216,8 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 }
 
 static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
-                                         u8 prio, u8 bwg_id, u8 bw_pct,
-                                         u8 up_map)
+					 u8 prio, u8 bwg_id, u8 bw_pct,
+					 u8 up_map)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -236,7 +234,7 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 }
 
 static void ixgbe_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
-                                          u8 bw_pct)
+					  u8 bw_pct)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -244,8 +242,8 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
 }
 
 static void ixgbe_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int tc,
-                                         u8 *prio, u8 *bwg_id, u8 *bw_pct,
-                                         u8 *up_map)
+					 u8 *prio, u8 *bwg_id, u8 *bw_pct,
+					 u8 *up_map)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -256,7 +254,7 @@ static void ixgbe_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 }
 
 static void ixgbe_dcbnl_get_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
-                                          u8 *bw_pct)
+					  u8 *bw_pct)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -264,8 +262,8 @@ static void ixgbe_dcbnl_get_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 }
 
 static void ixgbe_dcbnl_get_pg_tc_cfg_rx(struct net_device *netdev, int tc,
-                                         u8 *prio, u8 *bwg_id, u8 *bw_pct,
-                                         u8 *up_map)
+					 u8 *prio, u8 *bwg_id, u8 *bw_pct,
+					 u8 *up_map)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -276,7 +274,7 @@ static void ixgbe_dcbnl_get_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 }
 
 static void ixgbe_dcbnl_get_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
-                                          u8 *bw_pct)
+					  u8 *bw_pct)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -284,7 +282,7 @@ static void ixgbe_dcbnl_get_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
 }
 
 static void ixgbe_dcbnl_set_pfc_cfg(struct net_device *netdev, int priority,
-                                    u8 setting)
+				    u8 setting)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -295,7 +293,7 @@ static void ixgbe_dcbnl_set_pfc_cfg(struct net_device *netdev, int priority,
 }
 
 static void ixgbe_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,
-                                    u8 *setting)
+				    u8 *setting)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -331,12 +329,12 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return ret;
+		return DCB_NO_HW_CHG;
 
 	adapter->dcb_set_bitmap |= ixgbe_copy_dcb_cfg(adapter,
 						      MAX_TRAFFIC_CLASS);
 	if (!adapter->dcb_set_bitmap)
-		return ret;
+		return DCB_NO_HW_CHG;
 
 	if (adapter->dcb_set_bitmap & (BIT_PG_TX|BIT_PG_RX)) {
 		u16 refill[MAX_TRAFFIC_CLASS], max[MAX_TRAFFIC_CLASS];
@@ -460,7 +458,6 @@ static int ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 	} else {
 		return -EINVAL;
@@ -495,10 +492,10 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
  * @id: id is either ether type or TCP/UDP port number
  *
  * Returns : on success, returns a non-zero 802.1p user priority bitmap
- * otherwise returns 0 as the invalid user priority bitmap to indicate an
+ * otherwise returns -EINVAL as the invalid user priority bitmap to indicate an
  * error.
  */
-static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
+static int ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct dcb_app app = {
@@ -507,7 +504,7 @@ static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 			     };
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return 0;
+		return -EINVAL;
 
 	return dcb_getapp(netdev, &app);
 }
@@ -537,7 +534,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	int i, err = 0;
+	int i, err;
 	__u8 max_tc = 0;
 	__u8 map_chg = 0;
 
@@ -574,17 +571,15 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	if (max_tc > adapter->dcb_cfg.num_tcs.pg_tcs)
 		return -EINVAL;
 
-	if (max_tc != netdev_get_num_tc(dev))
+	if (max_tc != netdev_get_num_tc(dev)) {
 		err = ixgbe_setup_tc(dev, max_tc);
-	else if (map_chg)
+		if (err)
+			return err;
+	} else if (map_chg) {
 		ixgbe_dcbnl_devreset(dev);
+	}
 
-	if (err)
-		goto err_out;
-
-	err = ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
-err_out:
-	return err;
+	return ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
 }
 
 static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
@@ -648,10 +643,10 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 				   struct dcb_app *app)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int err = -EINVAL;
+	int err;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
-		return err;
+		return -EINVAL;
 
 	err = dcb_ieee_setapp(dev, app);
 	if (err)
@@ -662,8 +657,8 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 	    app->protocol == ETH_P_FCOE) {
 		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
 
-		if (app_mask & (1 << adapter->fcoe.up))
-			return err;
+		if (app_mask & BIT(adapter->fcoe.up))
+			return 0;
 
 		adapter->fcoe.up = app->priority;
 		ixgbe_dcbnl_devreset(dev);
@@ -705,8 +700,8 @@ static int ixgbe_dcbnl_ieee_delapp(struct net_device *dev,
 	    app->protocol == ETH_P_FCOE) {
 		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
 
-		if (app_mask & (1 << adapter->fcoe.up))
-			return err;
+		if (app_mask & BIT(adapter->fcoe.up))
+			return 0;
 
 		adapter->fcoe.up = app_mask ?
 				   ffs(app_mask) - 1 : IXGBE_FCOE_DEFTC;
@@ -782,7 +777,7 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	return err ? 1 : 0;
 }
 
-const struct dcbnl_rtnl_ops dcbnl_ops = {
+const struct dcbnl_rtnl_ops ixgbe_dcbnl_ops = {
 	.ieee_getets	= ixgbe_dcbnl_ieee_getets,
 	.ieee_setets	= ixgbe_dcbnl_ieee_setets,
 	.ieee_getpfc	= ixgbe_dcbnl_ieee_getpfc,

@@ -149,10 +149,8 @@ def raw_syscalls__sys_enter(event_name, context, common_cpu,
 		print "id=%d, args=%s\n" % \
 		(id, args),
 
-def trace_unhandled(event_name, context, common_cpu, common_secs, common_nsecs,
-		common_pid, common_comm):
-		print_header(event_name, common_cpu, common_secs, common_nsecs,
-		common_pid, common_comm)
+def trace_unhandled(event_name, context, event_fields_dict):
+		print ' '.join(['%s=%s'%(k,str(v))for k,v in sorted(event_fields_dict.items())])
 
 def print_header(event_name, cpu, secs, nsecs, pid, comm):
 	print "%-20s %5u %05u.%09u %8u %-20s " % \
@@ -263,7 +261,7 @@ and having the counts we've tallied as values.
 
 The print_syscall_totals() function iterates over the entries in the
 dictionary and displays a line for each entry containing the syscall
-name (the dictonary keys contain the syscall ids, which are passed to
+name (the dictionary keys contain the syscall ids, which are passed to
 the Util function syscall_name(), which translates the raw syscall
 numbers to the corresponding syscall name strings).  The output is
 displayed after all the events in the trace have been processed, by
@@ -321,7 +319,7 @@ So those are the essential steps in writing and running a script.  The
 process can be generalized to any tracepoint or set of tracepoints
 you're interested in - basically find the tracepoint(s) you're
 interested in by looking at the list of available events shown by
-'perf list' and/or look in /sys/kernel/debug/tracing events for
+'perf list' and/or look in /sys/kernel/debug/tracing/events/ for
 detailed event and field info, record the corresponding trace data
 using 'perf record', passing it the list of interesting events,
 generate a skeleton script using 'perf script -g python' and modify the
@@ -334,7 +332,7 @@ right place, you can have your script listed alongside the other
 scripts listed by the 'perf script -l' command e.g.:
 
 ----
-root@tropicana:~# perf script -l
+# perf script -l
 List of available trace scripts:
   wakeup-latency                       system-wide min/max/avg wakeup latency
   rw-by-file <comm>                    r/w activity for a program, by file
@@ -383,8 +381,6 @@ source tree:
 
 ----
 # ls -al kernel-source/tools/perf/scripts/python
-
-root@tropicana:/home/trz/src/tip# ls -al tools/perf/scripts/python
 total 32
 drwxr-xr-x 4 trz trz 4096 2010-01-26 22:30 .
 drwxr-xr-x 4 trz trz 4096 2010-01-26 22:29 ..
@@ -399,7 +395,7 @@ otherwise your script won't show up at run-time), 'perf script -l'
 should show a new entry for your script:
 
 ----
-root@tropicana:~# perf script -l
+# perf script -l
 List of available trace scripts:
   wakeup-latency                       system-wide min/max/avg wakeup latency
   rw-by-file <comm>                    r/w activity for a program, by file
@@ -437,7 +433,7 @@ EVENT HANDLERS
 When perf script is invoked using a trace script, a user-defined
 'handler function' is called for each event in the trace.  If there's
 no handler function defined for a given event type, the event is
-ignored (or passed to a 'trace_handled' function, see below) and the
+ignored (or passed to a 'trace_unhandled' function, see below) and the
 next event is processed.
 
 Most of the event's field values are passed as arguments to the
@@ -532,7 +528,7 @@ can implement a set of optional functions:
 gives scripts a chance to do setup tasks:
 
 ----
-def trace_begin:
+def trace_begin():
     pass
 ----
 
@@ -541,7 +537,7 @@ def trace_begin:
  as display results:
 
 ----
-def trace_end:
+def trace_end():
     pass
 ----
 
@@ -550,8 +546,7 @@ def trace_end:
  of common arguments are passed into it:
 
 ----
-def trace_unhandled(event_name, context, common_cpu, common_secs,
-        common_nsecs, common_pid, common_comm):
+def trace_unhandled(event_name, context, event_fields_dict):
     pass
 ----
 
@@ -576,8 +571,8 @@ strings for flag and symbolic fields.  These correspond to the strings
 and values parsed from the 'print fmt' fields of the event format
 files:
 
-  flag_str(event_name, field_name, field_value) - returns the string represention corresponding to field_value for the flag field field_name of event event_name
-  symbol_str(event_name, field_name, field_value) - returns the string represention corresponding to field_value for the symbolic field field_name of event event_name
+  flag_str(event_name, field_name, field_value) - returns the string representation corresponding to field_value for the flag field field_name of event event_name
+  symbol_str(event_name, field_name, field_value) - returns the string representation corresponding to field_value for the symbolic field field_name of event event_name
 
 The *autodict* function returns a special kind of Python
 dictionary that implements Perl's 'autovivifying' hashes in Python

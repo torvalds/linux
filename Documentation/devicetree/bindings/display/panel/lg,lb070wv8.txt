@@ -1,0 +1,7 @@
+LG 7" (800x480 pixels) TFT LCD panel
+
+Required properties:
+- compatible: should be "lg,lb070wv8"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

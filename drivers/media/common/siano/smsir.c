@@ -25,10 +25,11 @@
  ****************************************************************/
 
 
+#include "smscoreapi.h"
+
 #include <linux/types.h>
 #include <linux/input.h>
 
-#include "smscoreapi.h"
 #include "smsir.h"
 #include "sms-cards.h"
 
@@ -56,16 +57,14 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	int board_id = smscore_get_board_id(coredev);
 	struct rc_dev *dev;
 
-	sms_log("Allocating rc device");
-	dev = rc_allocate_device();
-	if (!dev) {
-		sms_err("Not enough memory");
+	pr_debug("Allocating rc device\n");
+	dev = rc_allocate_device(RC_DRIVER_IR_RAW);
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	coredev->ir.controller = 0;	/* Todo: vega/nova SPI number */
 	coredev->ir.timeout = IR_DEFAULT_TIMEOUT;
-	sms_log("IR port %d, timeout %d ms",
+	pr_debug("IR port %d, timeout %d ms\n",
 			coredev->ir.controller, coredev->ir.timeout);
 
 	snprintf(coredev->ir.name, sizeof(coredev->ir.name),
@@ -74,12 +73,12 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	strlcpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
 	strlcat(coredev->ir.phys, "/ir0", sizeof(coredev->ir.phys));
 
-	dev->input_name = coredev->ir.name;
+	dev->device_name = coredev->ir.name;
 	dev->input_phys = coredev->ir.phys;
 	dev->dev.parent = coredev->device;
 
 #if 0
-	/* TODO: properly initialize the parameters bellow */
+	/* TODO: properly initialize the parameters below */
 	dev->input_id.bustype = BUS_USB;
 	dev->input_id.version = 1;
 	dev->input_id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
@@ -87,16 +86,16 @@ int sms_ir_init(struct smscore_device_t *coredev)
 #endif
 
 	dev->priv = coredev;
-	dev->driver_type = RC_DRIVER_IR_RAW;
-	dev->allowed_protos = RC_BIT_ALL;
+	dev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	dev->map_name = sms_get_board(board_id)->rc_codes;
 	dev->driver_name = MODULE_NAME;
 
-	sms_log("Input device (IR) %s is set for key events", dev->input_name);
+	pr_debug("Input device (IR) %s is set for key events\n",
+		 dev->device_name);
 
 	err = rc_register_device(dev);
 	if (err < 0) {
-		sms_err("Failed to register device");
+		pr_err("Failed to register device\n");
 		rc_free_device(dev);
 		return err;
 	}
@@ -107,8 +106,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 
 void sms_ir_exit(struct smscore_device_t *coredev)
 {
-	if (coredev->ir.dev)
-		rc_unregister_device(coredev->ir.dev);
+	rc_unregister_device(coredev->ir.dev);
 
-	sms_log("");
+	pr_debug("\n");
 }

@@ -117,7 +117,7 @@ static int snirm710_probe(struct platform_device *dev)
 	return -ENODEV;
 }
 
-static int __exit snirm710_driver_remove(struct platform_device *dev)
+static int snirm710_driver_remove(struct platform_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->dev);
 	struct NCR_700_Host_Parameters *hostdata =
@@ -137,7 +137,6 @@ static struct platform_driver snirm710_driver = {
 	.remove	= snirm710_driver_remove,
 	.driver	= {
 		.name	= "snirm_53c710",
-		.owner	= THIS_MODULE,
 	},
 };
 

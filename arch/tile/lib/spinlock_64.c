@@ -62,13 +62,6 @@ int arch_spin_trylock(arch_spinlock_t *lock)
 }
 EXPORT_SYMBOL(arch_spin_trylock);
 
-void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	u32 iterations = 0;
-	while (arch_spin_is_locked(lock))
-		delay_backoff(iterations++);
-}
-EXPORT_SYMBOL(arch_spin_unlock_wait);
 
 /*
  * If the read lock fails due to a writer, we retry periodically

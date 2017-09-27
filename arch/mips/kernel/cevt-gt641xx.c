@@ -64,8 +64,7 @@ static int gt641xx_timer0_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void gt641xx_timer0_set_mode(enum clock_event_mode mode,
-				    struct clock_event_device *evt)
+static int gt641xx_timer0_shutdown(struct clock_event_device *evt)
 {
 	u32 ctrl;
 
@@ -73,21 +72,39 @@ static void gt641xx_timer0_set_mode(enum clock_event_mode mode,
 
 	ctrl = GT_READ(GT_TC_CONTROL_OFS);
 	ctrl &= ~(GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK);
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		ctrl |= GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK;
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		ctrl |= GT_TC_CONTROL_ENTC0_MSK;
-		break;
-	default:
-		break;
-	}
-
 	GT_WRITE(GT_TC_CONTROL_OFS, ctrl);
 
 	raw_spin_unlock(&gt641xx_timer_lock);
+	return 0;
+}
+
+static int gt641xx_timer0_set_oneshot(struct clock_event_device *evt)
+{
+	u32 ctrl;
+
+	raw_spin_lock(&gt641xx_timer_lock);
+
+	ctrl = GT_READ(GT_TC_CONTROL_OFS);
+	ctrl &= ~GT_TC_CONTROL_SELTC0_MSK;
+	ctrl |= GT_TC_CONTROL_ENTC0_MSK;
+	GT_WRITE(GT_TC_CONTROL_OFS, ctrl);
+
+	raw_spin_unlock(&gt641xx_timer_lock);
+	return 0;
+}
+
+static int gt641xx_timer0_set_periodic(struct clock_event_device *evt)
+{
+	u32 ctrl;
+
+	raw_spin_lock(&gt641xx_timer_lock);
+
+	ctrl = GT_READ(GT_TC_CONTROL_OFS);
+	ctrl |= GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK;
+	GT_WRITE(GT_TC_CONTROL_OFS, ctrl);
+
+	raw_spin_unlock(&gt641xx_timer_lock);
+	return 0;
 }
 
 static void gt641xx_timer0_event_handler(struct clock_event_device *dev)
@@ -95,12 +112,16 @@ static void gt641xx_timer0_event_handler(struct clock_event_device *dev)
 }
 
 static struct clock_event_device gt641xx_timer0_clockevent = {
-	.name		= "gt641xx-timer0",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.irq		= GT641XX_TIMER0_IRQ,
-	.set_next_event = gt641xx_timer0_set_next_event,
-	.set_mode	= gt641xx_timer0_set_mode,
-	.event_handler	= gt641xx_timer0_event_handler,
+	.name			= "gt641xx-timer0",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.irq			= GT641XX_TIMER0_IRQ,
+	.set_next_event		= gt641xx_timer0_set_next_event,
+	.set_state_shutdown	= gt641xx_timer0_shutdown,
+	.set_state_periodic	= gt641xx_timer0_set_periodic,
+	.set_state_oneshot	= gt641xx_timer0_set_oneshot,
+	.tick_resume		= gt641xx_timer0_shutdown,
+	.event_handler		= gt641xx_timer0_event_handler,
 };
 
 static irqreturn_t gt641xx_timer0_interrupt(int irq, void *dev_id)
@@ -131,7 +152,9 @@ static int __init gt641xx_timer0_clockevent_init(void)
 	cd->rating = 200 + gt641xx_base_clock / 10000000;
 	clockevent_set_clock(cd, gt641xx_base_clock);
 	cd->max_delta_ns = clockevent_delta2ns(0x7fffffff, cd);
+	cd->max_delta_ticks = 0x7fffffff;
 	cd->min_delta_ns = clockevent_delta2ns(0x300, cd);
+	cd->min_delta_ticks = 0x300;
 	cd->cpumask = cpumask_of(0);
 
 	clockevents_register_device(&gt641xx_timer0_clockevent);

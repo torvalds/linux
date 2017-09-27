@@ -19,8 +19,8 @@
  * Workarounds for at least 2 errata so far require this.
  * The mapping is set in mach-pxa/generic.c.
  */
-#define UNCACHED_PHYS_0		0xff000000
-#define UNCACHED_ADDR		UNCACHED_PHYS_0
+#define UNCACHED_PHYS_0		0xfe000000
+#define UNCACHED_PHYS_0_SIZE	0x00100000
 
 /*
  * Intel PXA2xx internal register mapping:
@@ -303,8 +303,6 @@
  */
 extern unsigned int get_memclk_frequency_10khz(void);
 
-/* return the clock tick rate of the OS timer */
-extern unsigned long get_clock_tick_rate(void);
 #endif
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

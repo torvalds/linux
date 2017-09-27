@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2001 Christoph Hellwig.
+ * Copyright (c) 2016 Krzysztof Blaszkowski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,22 +49,11 @@
 #include "vxfs_inode.h"
 
 
-MODULE_AUTHOR("Christoph Hellwig");
+MODULE_AUTHOR("Christoph Hellwig, Krzysztof Blaszkowski");
 MODULE_DESCRIPTION("Veritas Filesystem (VxFS) driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
-
-
-static void		vxfs_put_super(struct super_block *);
-static int		vxfs_statfs(struct dentry *, struct kstatfs *);
-static int		vxfs_remount(struct super_block *, int *, char *);
-
-static const struct super_operations vxfs_super_ops = {
-	.evict_inode =		vxfs_evict_inode,
-	.put_super =		vxfs_put_super,
-	.statfs =		vxfs_statfs,
-	.remount_fs =		vxfs_remount,
-};
+static struct kmem_cache *vxfs_inode_cachep;
 
 /**
  * vxfs_put_super - free superblock resources
@@ -79,9 +69,9 @@ vxfs_put_super(struct super_block *sbp)
 {
 	struct vxfs_sb_info	*infp = VXFS_SBI(sbp);
 
-	vxfs_put_fake_inode(infp->vsi_fship);
-	vxfs_put_fake_inode(infp->vsi_ilist);
-	vxfs_put_fake_inode(infp->vsi_stilist);
+	iput(infp->vsi_fship);
+	iput(infp->vsi_ilist);
+	iput(infp->vsi_stilist);
 
 	brelse(infp->vsi_bp);
 	kfree(infp);
@@ -109,14 +99,15 @@ static int
 vxfs_statfs(struct dentry *dentry, struct kstatfs *bufp)
 {
 	struct vxfs_sb_info		*infp = VXFS_SBI(dentry->d_sb);
+	struct vxfs_sb *raw_sb = infp->vsi_raw;
 
 	bufp->f_type = VXFS_SUPER_MAGIC;
 	bufp->f_bsize = dentry->d_sb->s_blocksize;
-	bufp->f_blocks = infp->vsi_raw->vs_dsize;
-	bufp->f_bfree = infp->vsi_raw->vs_free;
+	bufp->f_blocks = fs32_to_cpu(infp, raw_sb->vs_dsize);
+	bufp->f_bfree = fs32_to_cpu(infp, raw_sb->vs_free);
 	bufp->f_bavail = 0;
 	bufp->f_files = 0;
-	bufp->f_ffree = infp->vsi_raw->vs_ifree;
+	bufp->f_ffree = fs32_to_cpu(infp, raw_sb->vs_ifree);
 	bufp->f_namelen = VXFS_NAMELEN;
 
 	return 0;
@@ -124,8 +115,84 @@ vxfs_statfs(struct dentry *dentry, struct kstatfs *bufp)
 
 static int vxfs_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_RDONLY;
 	return 0;
+}
+
+static struct inode *vxfs_alloc_inode(struct super_block *sb)
+{
+	struct vxfs_inode_info *vi;
+
+	vi = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL);
+	if (!vi)
+		return NULL;
+	inode_init_once(&vi->vfs_inode);
+	return &vi->vfs_inode;
+}
+
+static void vxfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	kmem_cache_free(vxfs_inode_cachep, VXFS_INO(inode));
+}
+
+static void vxfs_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, vxfs_i_callback);
+}
+
+static const struct super_operations vxfs_super_ops = {
+	.alloc_inode		= vxfs_alloc_inode,
+	.destroy_inode		= vxfs_destroy_inode,
+	.evict_inode		= vxfs_evict_inode,
+	.put_super		= vxfs_put_super,
+	.statfs			= vxfs_statfs,
+	.remount_fs		= vxfs_remount,
+};
+
+static int vxfs_try_sb_magic(struct super_block *sbp, int silent,
+		unsigned blk, __fs32 magic)
+{
+	struct buffer_head *bp;
+	struct vxfs_sb *rsbp;
+	struct vxfs_sb_info *infp = VXFS_SBI(sbp);
+	int rc = -ENOMEM;
+
+	bp = sb_bread(sbp, blk);
+	do {
+		if (!bp || !buffer_mapped(bp)) {
+			if (!silent) {
+				printk(KERN_WARNING
+					"vxfs: unable to read disk superblock at %u\n",
+					blk);
+			}
+			break;
+		}
+
+		rc = -EINVAL;
+		rsbp = (struct vxfs_sb *)bp->b_data;
+		if (rsbp->vs_magic != magic) {
+			if (!silent)
+				printk(KERN_NOTICE
+					"vxfs: WRONG superblock magic %08x at %u\n",
+					rsbp->vs_magic, blk);
+			break;
+		}
+
+		rc = 0;
+		infp->vsi_raw = rsbp;
+		infp->vsi_bp = bp;
+	} while (0);
+
+	if (rc) {
+		infp->vsi_raw = NULL;
+		infp->vsi_bp = NULL;
+		brelse(bp);
+	}
+
+	return rc;
 }
 
 /**
@@ -148,10 +215,10 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 {
 	struct vxfs_sb_info	*infp;
 	struct vxfs_sb		*rsbp;
-	struct buffer_head	*bp = NULL;
 	u_long			bsize;
 	struct inode *root;
 	int ret = -EINVAL;
+	u32 j;
 
 	sbp->s_flags |= MS_RDONLY;
 
@@ -167,42 +234,43 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		goto out;
 	}
 
-	bp = sb_bread(sbp, 1);
-	if (!bp || !buffer_mapped(bp)) {
-		if (!silent) {
-			printk(KERN_WARNING
-				"vxfs: unable to read disk superblock\n");
-		}
-		goto out;
-	}
+	sbp->s_op = &vxfs_super_ops;
+	sbp->s_fs_info = infp;
 
-	rsbp = (struct vxfs_sb *)bp->b_data;
-	if (rsbp->vs_magic != VXFS_SUPER_MAGIC) {
+	if (!vxfs_try_sb_magic(sbp, silent, 1,
+			(__force __fs32)cpu_to_le32(VXFS_SUPER_MAGIC))) {
+		/* Unixware, x86 */
+		infp->byte_order = VXFS_BO_LE;
+	} else if (!vxfs_try_sb_magic(sbp, silent, 8,
+			(__force __fs32)cpu_to_be32(VXFS_SUPER_MAGIC))) {
+		/* HP-UX, parisc */
+		infp->byte_order = VXFS_BO_BE;
+	} else {
 		if (!silent)
-			printk(KERN_NOTICE "vxfs: WRONG superblock magic\n");
+			printk(KERN_NOTICE "vxfs: can't find superblock.\n");
 		goto out;
 	}
 
-	if ((rsbp->vs_version < 2 || rsbp->vs_version > 4) && !silent) {
-		printk(KERN_NOTICE "vxfs: unsupported VxFS version (%d)\n",
-		       rsbp->vs_version);
+	rsbp = infp->vsi_raw;
+	j = fs32_to_cpu(infp, rsbp->vs_version);
+	if ((j < 2 || j > 4) && !silent) {
+		printk(KERN_NOTICE "vxfs: unsupported VxFS version (%d)\n", j);
 		goto out;
 	}
 
 #ifdef DIAGNOSTIC
-	printk(KERN_DEBUG "vxfs: supported VxFS version (%d)\n", rsbp->vs_version);
-	printk(KERN_DEBUG "vxfs: blocksize: %d\n", rsbp->vs_bsize);
+	printk(KERN_DEBUG "vxfs: supported VxFS version (%d)\n", j);
+	printk(KERN_DEBUG "vxfs: blocksize: %d\n",
+		fs32_to_cpu(infp, rsbp->vs_bsize));
 #endif
 
-	sbp->s_magic = rsbp->vs_magic;
-	sbp->s_fs_info = infp;
+	sbp->s_magic = fs32_to_cpu(infp, rsbp->vs_magic);
 
-	infp->vsi_raw = rsbp;
-	infp->vsi_bp = bp;
-	infp->vsi_oltext = rsbp->vs_oltext[0];
-	infp->vsi_oltsize = rsbp->vs_oltsize;
+	infp->vsi_oltext = fs32_to_cpu(infp, rsbp->vs_oltext[0]);
+	infp->vsi_oltsize = fs32_to_cpu(infp, rsbp->vs_oltsize);
 
-	if (!sb_set_blocksize(sbp, rsbp->vs_bsize)) {
+	j = fs32_to_cpu(infp, rsbp->vs_bsize);
+	if (!sb_set_blocksize(sbp, j)) {
 		printk(KERN_WARNING "vxfs: unable to set final block size\n");
 		goto out;
 	}
@@ -217,7 +285,6 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		goto out;
 	}
 
-	sbp->s_op = &vxfs_super_ops;
 	root = vxfs_iget(sbp, VXFS_ROOT_INO);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
@@ -232,11 +299,11 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	return 0;
 	
 out_free_ilist:
-	vxfs_put_fake_inode(infp->vsi_fship);
-	vxfs_put_fake_inode(infp->vsi_ilist);
-	vxfs_put_fake_inode(infp->vsi_stilist);
+	iput(infp->vsi_fship);
+	iput(infp->vsi_ilist);
+	iput(infp->vsi_stilist);
 out:
-	brelse(bp);
+	brelse(infp->vsi_bp);
 	kfree(infp);
 	return ret;
 }

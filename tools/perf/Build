@@ -1,0 +1,55 @@
+perf-y += builtin-bench.o
+perf-y += builtin-annotate.o
+perf-y += builtin-config.o
+perf-y += builtin-diff.o
+perf-y += builtin-evlist.o
+perf-y += builtin-ftrace.o
+perf-y += builtin-help.o
+perf-y += builtin-sched.o
+perf-y += builtin-buildid-list.o
+perf-y += builtin-buildid-cache.o
+perf-y += builtin-kallsyms.o
+perf-y += builtin-list.o
+perf-y += builtin-record.o
+perf-y += builtin-report.o
+perf-y += builtin-stat.o
+perf-y += builtin-timechart.o
+perf-y += builtin-top.o
+perf-y += builtin-script.o
+perf-y += builtin-kmem.o
+perf-y += builtin-lock.o
+perf-y += builtin-kvm.o
+perf-y += builtin-inject.o
+perf-y += builtin-mem.o
+perf-y += builtin-data.o
+perf-y += builtin-version.o
+perf-y += builtin-c2c.o
+
+perf-$(CONFIG_AUDIT) += builtin-trace.o
+perf-$(CONFIG_LIBELF) += builtin-probe.o
+
+perf-y += bench/
+perf-y += tests/
+
+perf-y += perf.o
+
+paths += -DPERF_HTML_PATH="BUILD_STR($(htmldir_SQ))"
+paths += -DPERF_INFO_PATH="BUILD_STR($(infodir_SQ))"
+paths += -DPERF_MAN_PATH="BUILD_STR($(mandir_SQ))"
+
+CFLAGS_builtin-help.o      += $(paths)
+CFLAGS_builtin-timechart.o += $(paths)
+CFLAGS_perf.o              += -DPERF_HTML_PATH="BUILD_STR($(htmldir_SQ))"	\
+			      -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))"	\
+			      -DPREFIX="BUILD_STR($(prefix_SQ))"
+CFLAGS_builtin-trace.o	   += -DSTRACE_GROUPS_DIR="BUILD_STR($(STRACE_GROUPS_DIR_SQ))"
+CFLAGS_builtin-report.o	   += -DTIPDIR="BUILD_STR($(tipdir_SQ))"
+CFLAGS_builtin-report.o	   += -DDOCDIR="BUILD_STR($(srcdir_SQ)/Documentation)"
+
+libperf-y += util/
+libperf-y += arch/
+libperf-y += ui/
+libperf-y += scripts/
+libperf-$(CONFIG_AUDIT) += trace/beauty/
+
+gtk-y += ui/gtk/

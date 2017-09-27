@@ -1,5 +1,6 @@
 /* Internationalization implementation.  Includes definitions of English
- * string arrays, and the i18n pointer. */
+ * string arrays, and the i18n pointer.
+ */
 
 #include <linux/slab.h>		/* For kmalloc. */
 #include <linux/ctype.h>
@@ -388,14 +389,11 @@ static struct msg_group_t all_groups[] = {
 	},
 };
 
-static const  int num_groups = sizeof(all_groups) / sizeof(struct msg_group_t);
+static const  int num_groups = ARRAY_SIZE(all_groups);
 
 char *spk_msg_get(enum msg_index_t index)
 {
-	char *ch;
-
-	ch = speakup_msgs[index];
-	return ch;
+	return speakup_msgs[index];
 }
 
 /*
@@ -403,18 +401,18 @@ char *spk_msg_get(enum msg_index_t index)
  * Finds the start of the next format specifier in the argument string.
  * Return value: pointer to start of format
  * specifier, or NULL if no specifier exists.
-*/
+ */
 static char *next_specifier(char *input)
 {
 	int found = 0;
 	char *next_percent = input;
 
-	while ((next_percent != NULL) && !found) {
+	while (next_percent && !found) {
 		next_percent = strchr(next_percent, '%');
-		if (next_percent != NULL) {
+		if (next_percent) {
 			/* skip over doubled percent signs */
-			while ((next_percent[0] == '%')
-			       && (next_percent[1] == '%'))
+			while (next_percent[0] == '%' &&
+			       next_percent[1] == '%')
 				next_percent += 2;
 			if (*next_percent == '%')
 				found = 1;
@@ -452,7 +450,7 @@ static char *skip_width(char *input)
  * Note that this code only accepts a handful of conversion specifiers:
  * c d s x and ld.  Not accidental; these are exactly the ones used in
  * the default group of formatted messages.
-*/
+ */
 static char *skip_conversion(char *input)
 {
 	if ((input[0] == 'l') && (input[1] == 'd'))
@@ -465,7 +463,7 @@ static char *skip_conversion(char *input)
 /*
  * Function: find_specifier_end
  * Return a pointer to the end of the format specifier.
-*/
+ */
 static char *find_specifier_end(char *input)
 {
 	input++;		/* Advance over %. */
@@ -478,19 +476,20 @@ static char *find_specifier_end(char *input)
 /*
  * Function: compare_specifiers
  * Compare the format specifiers pointed to by *input1 and *input2.
- * Return 1 if they are the same, 0 otherwise.  Advance *input1 and *input2
- * so that they point to the character following the end of the specifier.
-*/
-static int compare_specifiers(char **input1, char **input2)
+ * Return true if they are the same, false otherwise.
+ * Advance *input1 and *input2 so that they point to the character following
+ * the end of the specifier.
+ */
+static bool compare_specifiers(char **input1, char **input2)
 {
-	int same = 0;
+	bool same = false;
 	char *end1 = find_specifier_end(*input1);
 	char *end2 = find_specifier_end(*input2);
 	size_t length1 = end1 - *input1;
 	size_t length2 = end2 - *input2;
 
 	if ((length1 == length2) && !memcmp(*input1, *input2, length1))
-		same = 1;
+		same = true;
 
 	*input1 = end1;
 	*input2 = end2;
@@ -501,12 +500,12 @@ static int compare_specifiers(char **input1, char **input2)
  * Function: fmt_validate
  * Check that two format strings contain the same number of format specifiers,
  * and that the order of specifiers is the same in both strings.
- * Return 1 if the condition holds, 0 if it doesn't.
-*/
-static int fmt_validate(char *template, char *user)
+ * Return true if the condition holds, false if it doesn't.
+ */
+static bool fmt_validate(char *template, char *user)
 {
-	int valid = 1;
-	int still_comparing = 1;
+	bool valid = true;
+	bool still_comparing = true;
 	char *template_ptr = template;
 	char *user_ptr = user;
 
@@ -518,10 +517,10 @@ static int fmt_validate(char *template, char *user)
 			valid = compare_specifiers(&template_ptr, &user_ptr);
 		} else {
 			/* No more format specifiers in one or both strings. */
-			still_comparing = 0;
+			still_comparing = false;
 			/* See if one has more specifiers than the other. */
 			if (template_ptr || user_ptr)
-				valid = 0;
+				valid = false;
 		}
 	}
 	return valid;
@@ -539,43 +538,39 @@ static int fmt_validate(char *template, char *user)
  * Failure conditions:
  * -EINVAL -  Invalid format specifiers in formatted message or illegal index.
  * -ENOMEM -  Unable to allocate memory.
-*/
+ */
 ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 {
-	int rc = 0;
 	char *newstr = NULL;
 	unsigned long flags;
 
-	if ((index >= MSG_FIRST_INDEX) && (index < MSG_LAST_INDEX)) {
-		newstr = kmalloc(length + 1, GFP_KERNEL);
-		if (newstr) {
-			memcpy(newstr, text, length);
-			newstr[length] = '\0';
-			if ((index >= MSG_FORMATTED_START
-			&& index <= MSG_FORMATTED_END)
-				&& !fmt_validate(speakup_default_msgs[index],
-				newstr)) {
-				kfree(newstr);
-				return -EINVAL;
-			}
-			spin_lock_irqsave(&speakup_info.spinlock, flags);
-			if (speakup_msgs[index] != speakup_default_msgs[index])
-				kfree(speakup_msgs[index]);
-			speakup_msgs[index] = newstr;
-			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		} else {
-			rc = -ENOMEM;
-		}
-	} else {
-		rc = -EINVAL;
+	if ((index < MSG_FIRST_INDEX) || (index >= MSG_LAST_INDEX))
+		return -EINVAL;
+
+	newstr = kmalloc(length + 1, GFP_KERNEL);
+	if (!newstr)
+		return -ENOMEM;
+
+	memcpy(newstr, text, length);
+	newstr[length] = '\0';
+	if (index >= MSG_FORMATTED_START &&
+	    index <= MSG_FORMATTED_END &&
+	    !fmt_validate(speakup_default_msgs[index], newstr)) {
+		kfree(newstr);
+		return -EINVAL;
 	}
-	return rc;
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
+	if (speakup_msgs[index] != speakup_default_msgs[index])
+		kfree(speakup_msgs[index]);
+	speakup_msgs[index] = newstr;
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
+	return 0;
 }
 
 /*
  * Find a message group, given its name.  Return a pointer to the structure
  * if found, or NULL otherwise.
-*/
+ */
 struct msg_group_t *spk_find_msg_group(const char *group_name)
 {
 	struct msg_group_t *group = NULL;
@@ -609,7 +604,7 @@ void spk_reset_msg_group(struct msg_group_t *group)
 void spk_initialize_msgs(void)
 {
 	memcpy(speakup_msgs, speakup_default_msgs,
-		sizeof(speakup_default_msgs));
+	       sizeof(speakup_default_msgs));
 }
 
 /* Free user-supplied strings when module is unloaded: */

@@ -98,23 +98,23 @@ MODULE_PARM_DESC(enable, "Enable " IDENT " soundcard.");
 module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "ISA PnP detection for specified soundcard.");
 #endif
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for " IDENT " driver.");
-module_param_array(cport, long, NULL, 0444);
+module_param_hw_array(cport, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(cport, "Control port # for " IDENT " driver.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for " IDENT " driver.");
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM port # for " IDENT " driver.");
-module_param_array(sb_port, long, NULL, 0444);
+module_param_hw_array(sb_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(sb_port, "SB port # for " IDENT " driver (optional).");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for " IDENT " driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for " IDENT " driver.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "DMA1 # for " IDENT " driver.");
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for " IDENT " driver.");
 
 #ifdef CONFIG_PNP
@@ -149,7 +149,7 @@ static const struct pnp_device_id snd_cs423x_pnpbiosids[] = {
 MODULE_DEVICE_TABLE(pnp, snd_cs423x_pnpbiosids);
 
 #define CS423X_ISAPNP_DRIVER	"cs4232_isapnp"
-static struct pnp_card_device_id snd_cs423x_pnpids[] = {
+static const struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	/* Philips PCA70PS */
 	{ .id = "CSC0d32", .devs = { { "CSC0000" }, { "CSC0010" }, { "PNPb006" } } },
 	/* TerraTec Maestro 32/96 (CS4232) */
@@ -364,13 +364,14 @@ static void snd_card_cs4236_free(struct snd_card *card)
 	release_and_free_resource(acard->res_sb_port);
 }
 
-static int snd_cs423x_card_new(int dev, struct snd_card **cardp)
+static int snd_cs423x_card_new(struct device *pdev, int dev,
+			       struct snd_card **cardp)
 {
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_card_cs4236), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_card_cs4236), &card);
 	if (err < 0)
 		return err;
 	card->private_free = snd_card_cs4236_free;
@@ -381,7 +382,6 @@ static int snd_cs423x_card_new(int dev, struct snd_card **cardp)
 static int snd_cs423x_probe(struct snd_card *card, int dev)
 {
 	struct snd_card_cs4236 *acard;
-	struct snd_pcm *pcm;
 	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
 	int err;
@@ -403,7 +403,7 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 	acard->chip = chip;
 	if (chip->hardware & WSS_HW_CS4236B_MASK) {
 
-		err = snd_cs4236_pcm(chip, 0, &pcm);
+		err = snd_cs4236_pcm(chip, 0);
 		if (err < 0)
 			return err;
 
@@ -411,7 +411,7 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (err < 0)
 			return err;
 	} else {
-		err = snd_wss_pcm(chip, 0, &pcm);
+		err = snd_wss_pcm(chip, 0);
 		if (err < 0)
 			return err;
 
@@ -419,17 +419,19 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (err < 0)
 			return err;
 	}
-	strcpy(card->driver, pcm->name);
-	strcpy(card->shortname, pcm->name);
-	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i",
-		pcm->name,
-		chip->port,
-		irq[dev],
-		dma1[dev]);
-	if (dma2[dev] >= 0)
-		sprintf(card->longname + strlen(card->longname), "&%d", dma2[dev]);
+	strlcpy(card->driver, chip->pcm->name, sizeof(card->driver));
+	strlcpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
+	if (dma2[dev] < 0)
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s at 0x%lx, irq %i, dma %i",
+			 chip->pcm->name, chip->port, irq[dev], dma1[dev]);
+	else
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s at 0x%lx, irq %i, dma %i&%d",
+			 chip->pcm->name, chip->port, irq[dev], dma1[dev],
+			 dma2[dev]);
 
-	err = snd_wss_timer(chip, 0, NULL);
+	err = snd_wss_timer(chip, 0);
 	if (err < 0)
 		return err;
 
@@ -487,10 +489,9 @@ static int snd_cs423x_isa_probe(struct device *pdev,
 	struct snd_card *card;
 	int err;
 
-	err = snd_cs423x_card_new(dev, &card);
+	err = snd_cs423x_card_new(pdev, dev, &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, pdev);
 	if ((err = snd_cs423x_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -577,7 +578,7 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 		if (!strcmp(cdev->id[0].id, cid))
 			break;
 	}
-	err = snd_cs423x_card_new(dev, &card);
+	err = snd_cs423x_card_new(&pdev->dev, dev, &card);
 	if (err < 0)
 		return err;
 	err = snd_card_cs423x_pnp(dev, card->private_data, pdev, cdev);
@@ -586,7 +587,6 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 		snd_card_free(card);
 		return err;
 	}
-	snd_card_set_dev(card, &pdev->dev);
 	if ((err = snd_cs423x_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -638,7 +638,7 @@ static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	res = snd_cs423x_card_new(dev, &card);
+	res = snd_cs423x_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;
 	if ((res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid)) < 0) {
@@ -647,7 +647,6 @@ static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 		snd_card_free(card);
 		return res;
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 	if ((res = snd_cs423x_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return res;

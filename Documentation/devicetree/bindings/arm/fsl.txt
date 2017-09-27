@@ -74,3 +74,147 @@ Required root node properties:
 i.MX6q generic board
 Required root node properties:
     - compatible = "fsl,imx6q";
+
+Freescale Vybrid Platform Device Tree Bindings
+----------------------------------------------
+
+For the Vybrid SoC familiy all variants with DDR controller are supported,
+which is the VF5xx and VF6xx series. Out of historical reasons, in most
+places the kernel uses vf610 to refer to the whole familiy.
+The compatible string "fsl,vf610m4" is used for the secondary Cortex-M4
+core support.
+
+Required root node compatible property (one of them):
+    - compatible = "fsl,vf500";
+    - compatible = "fsl,vf510";
+    - compatible = "fsl,vf600";
+    - compatible = "fsl,vf610";
+    - compatible = "fsl,vf610m4";
+
+Freescale LS1021A Platform Device Tree Bindings
+------------------------------------------------
+
+Required root node compatible properties:
+  - compatible = "fsl,ls1021a";
+
+Freescale SoC-specific Device Tree Bindings
+-------------------------------------------
+
+Freescale SCFG
+  SCFG is the supplemental configuration unit, that provides SoC specific
+configuration and status registers for the chip. Such as getting PEX port
+status.
+  Required properties:
+  - compatible: Should contain a chip-specific compatible string,
+	Chip-specific strings are of the form "fsl,<chip>-scfg",
+	The following <chip>s are known to be supported:
+	ls1012a, ls1021a, ls1043a, ls1046a, ls2080a.
+
+  - reg: should contain base address and length of SCFG memory-mapped registers
+
+Example:
+	scfg: scfg@1570000 {
+		compatible = "fsl,ls1021a-scfg";
+		reg = <0x0 0x1570000 0x0 0x10000>;
+	};
+
+Freescale DCFG
+  DCFG is the device configuration unit, that provides general purpose
+configuration and status for the device. Such as setting the secondary
+core start address and release the secondary core from holdoff and startup.
+  Required properties:
+  - compatible: Should contain a chip-specific compatible string,
+	Chip-specific strings are of the form "fsl,<chip>-dcfg",
+	The following <chip>s are known to be supported:
+	ls1012a, ls1021a, ls1043a, ls1046a, ls2080a.
+
+  - reg : should contain base address and length of DCFG memory-mapped registers
+
+Example:
+	dcfg: dcfg@1ee0000 {
+		compatible = "fsl,ls1021a-dcfg";
+		reg = <0x0 0x1ee0000 0x0 0x10000>;
+	};
+
+Freescale ARMv8 based Layerscape SoC family Device Tree Bindings
+----------------------------------------------------------------
+
+LS1012A SoC
+Required root node properties:
+    - compatible = "fsl,ls1012a";
+
+LS1012A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls1012a-rdb", "fsl,ls1012a";
+
+LS1012A ARMv8 based FRDM Board
+Required root node properties:
+    - compatible = "fsl,ls1012a-frdm", "fsl,ls1012a";
+
+LS1012A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls1012a-qds", "fsl,ls1012a";
+
+LS1043A SoC
+Required root node properties:
+    - compatible = "fsl,ls1043a";
+
+LS1043A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls1043a-rdb", "fsl,ls1043a";
+
+LS1043A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls1043a-qds", "fsl,ls1043a";
+
+LS1046A SoC
+Required root node properties:
+    - compatible = "fsl,ls1046a";
+
+LS1046A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls1046a-qds", "fsl,ls1046a";
+
+LS1046A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls1046a-rdb", "fsl,ls1046a";
+
+LS1088A SoC
+Required root node properties:
+    - compatible = "fsl,ls1088a";
+
+LS1088A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls1088a-qds", "fsl,ls1088a";
+
+LS1088A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls1088a-rdb", "fsl,ls1088a";
+
+LS2080A SoC
+Required root node properties:
+    - compatible = "fsl,ls2080a";
+
+LS2080A ARMv8 based Simulator model
+Required root node properties:
+    - compatible = "fsl,ls2080a-simu", "fsl,ls2080a";
+
+LS2080A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls2080a-qds", "fsl,ls2080a";
+
+LS2080A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls2080a-rdb", "fsl,ls2080a";
+
+LS2088A SoC
+Required root node properties:
+    - compatible = "fsl,ls2088a";
+
+LS2088A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls2088a-qds", "fsl,ls2088a";
+
+LS2088A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls2088a-rdb", "fsl,ls2088a";

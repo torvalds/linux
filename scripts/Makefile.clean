@@ -7,10 +7,7 @@ src := $(obj)
 PHONY := __clean
 __clean:
 
-# Shorthand for $(Q)$(MAKE) scripts/Makefile.clean obj=dir
-# Usage:
-# $(Q)$(MAKE) $(clean)=dir
-clean := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.clean obj
+include scripts/Kbuild.include
 
 # The filename Kbuild has precedence over Makefile
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
@@ -23,15 +20,13 @@ __subdir-y	:= $(patsubst %/,%,$(filter %/, $(obj-y)))
 subdir-y	+= $(__subdir-y)
 __subdir-m	:= $(patsubst %/,%,$(filter %/, $(obj-m)))
 subdir-m	+= $(__subdir-m)
-__subdir-n	:= $(patsubst %/,%,$(filter %/, $(obj-n)))
-subdir-n	+= $(__subdir-n)
 __subdir-	:= $(patsubst %/,%,$(filter %/, $(obj-)))
 subdir-		+= $(__subdir-)
 
 # Subdirectories we need to descend into
 
 subdir-ym	:= $(sort $(subdir-y) $(subdir-m))
-subdir-ymn      := $(sort $(subdir-ym) $(subdir-n) $(subdir-))
+subdir-ymn      := $(sort $(subdir-ym) $(subdir-))
 
 # Add subdir path
 
@@ -40,26 +35,28 @@ subdir-ymn	:= $(addprefix $(obj)/,$(subdir-ymn))
 # build a list of files to remove, usually relative to the current
 # directory
 
-__clean-files	:= $(extra-y) $(always)                  \
-		   $(targets) $(clean-files)             \
+__clean-files	:= $(extra-y) $(extra-m) $(extra-)       \
+		   $(always) $(targets) $(clean-files)   \
 		   $(host-progs)                         \
-		   $(hostprogs-y) $(hostprogs-m) $(hostprogs-)
+		   $(hostprogs-y) $(hostprogs-m) $(hostprogs-) \
+		   $(hostlibs-y) $(hostlibs-m) $(hostlibs-) \
+		   $(hostcxxlibs-y) $(hostcxxlibs-m)
 
 __clean-files   := $(filter-out $(no-clean-files), $(__clean-files))
 
-# as clean-files is given relative to the current directory, this adds
-# a $(obj) prefix, except for absolute paths
+# clean-files is given relative to the current directory, unless it
+# starts with $(objtree)/ (which means "./", so do not add "./" unless
+# you want to delete a file from the toplevel object directory).
 
 __clean-files   := $(wildcard                                               \
-                   $(addprefix $(obj)/, $(filter-out /%, $(__clean-files))) \
-		   $(filter /%, $(__clean-files)))
+		   $(addprefix $(obj)/, $(filter-out $(objtree)/%, $(__clean-files))) \
+		   $(filter $(objtree)/%, $(__clean-files)))
 
-# as clean-dirs is given relative to the current directory, this adds
-# a $(obj) prefix, except for absolute paths
+# same as clean-files
 
 __clean-dirs    := $(wildcard                                               \
-                   $(addprefix $(obj)/, $(filter-out /%, $(clean-dirs)))    \
-		   $(filter /%, $(clean-dirs)))
+		   $(addprefix $(obj)/, $(filter-out $(objtree)/%, $(clean-dirs)))    \
+		   $(filter $(objtree)/%, $(clean-dirs)))
 
 # ==========================================================================
 
@@ -76,9 +73,6 @@ endif
 ifneq ($(strip $(__clean-dirs)),)
 	+$(call cmd,cleandir)
 endif
-ifneq ($(strip $(clean-rule)),)
-	+$(clean-rule)
-endif
 	@:
 
 
@@ -92,11 +86,6 @@ endif
 PHONY += $(subdir-ymn)
 $(subdir-ymn):
 	$(Q)$(MAKE) $(clean)=$@
-
-# If quiet is set, only print short version of command
-
-cmd = @$(if $($(quiet)cmd_$(1)),echo '  $($(quiet)cmd_$(1))' &&) $(cmd_$(1))
-
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable se we can use it in if_changed and friends.

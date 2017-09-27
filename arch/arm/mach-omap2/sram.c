@@ -32,12 +32,6 @@
 
 #define OMAP2_SRAM_PUB_PA	(OMAP2_SRAM_PA + 0xf800)
 #define OMAP3_SRAM_PUB_PA       (OMAP3_SRAM_PA + 0x8000)
-#ifdef CONFIG_OMAP4_ERRATA_I688
-#define OMAP4_SRAM_PUB_PA	OMAP4_SRAM_PA
-#else
-#define OMAP4_SRAM_PUB_PA	(OMAP4_SRAM_PA + 0x4000)
-#endif
-#define OMAP5_SRAM_PA		0x40300000
 
 #define SRAM_BOOTLOADER_SZ	0x00
 
@@ -70,16 +64,16 @@ static int is_sram_locked(void)
 	if (OMAP2_DEVICE_TYPE_GP == omap_type()) {
 		/* RAMFW: R/W access to all initiators for all qualifier sets */
 		if (cpu_is_omap242x()) {
-			__raw_writel(0xFF, OMAP24XX_VA_REQINFOPERM0); /* all q-vects */
-			__raw_writel(0xCFDE, OMAP24XX_VA_READPERM0);  /* all i-read */
-			__raw_writel(0xCFDE, OMAP24XX_VA_WRITEPERM0); /* all i-write */
+			writel_relaxed(0xFF, OMAP24XX_VA_REQINFOPERM0); /* all q-vects */
+			writel_relaxed(0xCFDE, OMAP24XX_VA_READPERM0);  /* all i-read */
+			writel_relaxed(0xCFDE, OMAP24XX_VA_WRITEPERM0); /* all i-write */
 		}
 		if (cpu_is_omap34xx()) {
-			__raw_writel(0xFFFF, OMAP34XX_VA_REQINFOPERM0); /* all q-vects */
-			__raw_writel(0xFFFF, OMAP34XX_VA_READPERM0);  /* all i-read */
-			__raw_writel(0xFFFF, OMAP34XX_VA_WRITEPERM0); /* all i-write */
-			__raw_writel(0x0, OMAP34XX_VA_ADDR_MATCH2);
-			__raw_writel(0xFFFFFFFF, OMAP34XX_VA_SMS_RG_ATT0);
+			writel_relaxed(0xFFFF, OMAP34XX_VA_REQINFOPERM0); /* all q-vects */
+			writel_relaxed(0xFFFF, OMAP34XX_VA_READPERM0);  /* all i-read */
+			writel_relaxed(0xFFFF, OMAP34XX_VA_WRITEPERM0); /* all i-write */
+			writel_relaxed(0x0, OMAP34XX_VA_ADDR_MATCH2);
+			writel_relaxed(0xFFFFFFFF, OMAP34XX_VA_SMS_RG_ATT0);
 		}
 		return 0;
 	} else
@@ -105,32 +99,14 @@ static void __init omap_detect_sram(void)
 			} else {
 				omap_sram_size = 0x8000; /* 32K */
 			}
-		} else if (cpu_is_omap44xx()) {
-			omap_sram_start = OMAP4_SRAM_PUB_PA;
-			omap_sram_size = 0xa000; /* 40K */
-		} else if (soc_is_omap54xx()) {
-			omap_sram_start = OMAP5_SRAM_PA;
-			omap_sram_size = SZ_128K; /* 128KB */
 		} else {
 			omap_sram_start = OMAP2_SRAM_PUB_PA;
 			omap_sram_size = 0x800; /* 2K */
 		}
 	} else {
-		if (soc_is_am33xx()) {
-			omap_sram_start = AM33XX_SRAM_PA;
-			omap_sram_size = 0x10000; /* 64K */
-		} else if (soc_is_am43xx()) {
-			omap_sram_start = AM33XX_SRAM_PA;
-			omap_sram_size = SZ_256K;
-		} else if (cpu_is_omap34xx()) {
+		if (cpu_is_omap34xx()) {
 			omap_sram_start = OMAP3_SRAM_PA;
 			omap_sram_size = 0x10000; /* 64K */
-		} else if (cpu_is_omap44xx()) {
-			omap_sram_start = OMAP4_SRAM_PA;
-			omap_sram_size = 0xe000; /* 56K */
-		} else if (soc_is_omap54xx()) {
-			omap_sram_start = OMAP5_SRAM_PA;
-			omap_sram_size = SZ_128K; /* 128KB */
 		} else {
 			omap_sram_start = OMAP2_SRAM_PA;
 			if (cpu_is_omap242x())
@@ -148,12 +124,6 @@ static void __init omap2_map_sram(void)
 {
 	int cached = 1;
 
-#ifdef CONFIG_OMAP4_ERRATA_I688
-	if (cpu_is_omap44xx()) {
-		omap_sram_start += PAGE_SIZE;
-		omap_sram_size -= SZ_16K;
-	}
-#endif
 	if (cpu_is_omap34xx()) {
 		/*
 		 * SRAM must be marked as non-cached on OMAP3 since the
@@ -241,35 +211,10 @@ static inline int omap243x_sram_init(void)
 
 #ifdef CONFIG_ARCH_OMAP3
 
-static u32 (*_omap3_sram_configure_core_dpll)(
-			u32 m2, u32 unlock_dll, u32 f, u32 inc,
-			u32 sdrc_rfr_ctrl_0, u32 sdrc_actim_ctrl_a_0,
-			u32 sdrc_actim_ctrl_b_0, u32 sdrc_mr_0,
-			u32 sdrc_rfr_ctrl_1, u32 sdrc_actim_ctrl_a_1,
-			u32 sdrc_actim_ctrl_b_1, u32 sdrc_mr_1);
-
-u32 omap3_configure_core_dpll(u32 m2, u32 unlock_dll, u32 f, u32 inc,
-			u32 sdrc_rfr_ctrl_0, u32 sdrc_actim_ctrl_a_0,
-			u32 sdrc_actim_ctrl_b_0, u32 sdrc_mr_0,
-			u32 sdrc_rfr_ctrl_1, u32 sdrc_actim_ctrl_a_1,
-			u32 sdrc_actim_ctrl_b_1, u32 sdrc_mr_1)
-{
-	BUG_ON(!_omap3_sram_configure_core_dpll);
-	return _omap3_sram_configure_core_dpll(
-			m2, unlock_dll, f, inc,
-			sdrc_rfr_ctrl_0, sdrc_actim_ctrl_a_0,
-			sdrc_actim_ctrl_b_0, sdrc_mr_0,
-			sdrc_rfr_ctrl_1, sdrc_actim_ctrl_a_1,
-			sdrc_actim_ctrl_b_1, sdrc_mr_1);
-}
-
 void omap3_sram_restore_context(void)
 {
 	omap_sram_reset();
 
-	_omap3_sram_configure_core_dpll =
-		omap_sram_push(omap3_sram_configure_core_dpll,
-			       omap3_sram_configure_core_dpll_sz);
 	omap_push_sram_idle();
 }
 
@@ -285,11 +230,6 @@ static inline int omap34xx_sram_init(void)
 }
 #endif /* CONFIG_ARCH_OMAP3 */
 
-static inline int am33xx_sram_init(void)
-{
-	return 0;
-}
-
 int __init omap_sram_init(void)
 {
 	omap_detect_sram();
@@ -299,8 +239,6 @@ int __init omap_sram_init(void)
 		omap242x_sram_init();
 	else if (cpu_is_omap2430())
 		omap243x_sram_init();
-	else if (soc_is_am33xx())
-		am33xx_sram_init();
 	else if (cpu_is_omap34xx())
 		omap34xx_sram_init();
 

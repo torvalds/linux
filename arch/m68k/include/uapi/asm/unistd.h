@@ -354,5 +354,36 @@
 #define __NR_process_vm_writev	346
 #define __NR_kcmp		347
 #define __NR_finit_module	348
+#define __NR_sched_setattr	349
+#define __NR_sched_getattr	350
+#define __NR_renameat2		351
+#define __NR_getrandom		352
+#define __NR_memfd_create	353
+#define __NR_bpf		354
+#define __NR_execveat		355
+#define __NR_socket		356
+#define __NR_socketpair		357
+#define __NR_bind		358
+#define __NR_connect		359
+#define __NR_listen		360
+#define __NR_accept4		361
+#define __NR_getsockopt		362
+#define __NR_setsockopt		363
+#define __NR_getsockname	364
+#define __NR_getpeername	365
+#define __NR_sendto		366
+#define __NR_sendmsg		367
+#define __NR_recvfrom		368
+#define __NR_recvmsg		369
+#define __NR_shutdown		370
+#define __NR_recvmmsg		371
+#define __NR_sendmmsg		372
+#define __NR_userfaultfd	373
+#define __NR_membarrier		374
+#define __NR_mlock2		375
+#define __NR_copy_file_range	376
+#define __NR_preadv2		377
+#define __NR_pwritev2		378
+#define __NR_statx		379
 
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */

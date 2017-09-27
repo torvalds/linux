@@ -14,11 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -44,8 +39,7 @@ static int cx18_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 	      type == V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD)) {
 		/* Only IVTV fmt VBI insertion & only MPEG-2 PS type streams */
 		cx->vbi.insert_mpeg = V4L2_MPEG_STREAM_VBI_FMT_NONE;
-		CX18_DEBUG_INFO("disabled insertion of sliced VBI data into "
-				"the MPEG stream\n");
+		CX18_DEBUG_INFO("disabled insertion of sliced VBI data into the MPEG stream\n");
 		return 0;
 	}
 
@@ -63,16 +57,14 @@ static int cx18_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 				}
 				cx->vbi.insert_mpeg =
 						  V4L2_MPEG_STREAM_VBI_FMT_NONE;
-				CX18_WARN("Unable to allocate buffers for "
-					  "sliced VBI data insertion\n");
+				CX18_WARN("Unable to allocate buffers for sliced VBI data insertion\n");
 				return -ENOMEM;
 			}
 		}
 	}
 
 	cx->vbi.insert_mpeg = fmt;
-	CX18_DEBUG_INFO("enabled insertion of sliced VBI data into the MPEG PS,"
-			"when sliced VBI is enabled\n");
+	CX18_DEBUG_INFO("enabled insertion of sliced VBI data into the MPEG PS,when sliced VBI is enabled\n");
 
 	/*
 	 * If our current settings have no lines set for capture, store a valid,
@@ -93,13 +85,16 @@ static int cx18_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 {
 	struct cx18 *cx = container_of(cxhdl, struct cx18, cxhdl);
 	int is_mpeg1 = val == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-	struct v4l2_mbus_framefmt fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *fmt = &format.format;
 
 	/* fix videodecoder resolution */
-	fmt.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
-	fmt.height = cxhdl->height;
-	fmt.code = V4L2_MBUS_FMT_FIXED;
-	v4l2_subdev_call(cx->sd_av, video, s_mbus_fmt, &fmt);
+	fmt->width = cxhdl->width / (is_mpeg1 ? 2 : 1);
+	fmt->height = cxhdl->height;
+	fmt->code = MEDIA_BUS_FMT_FIXED;
+	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, &format);
 	return 0;
 }
 
@@ -123,7 +118,7 @@ static int cx18_s_audio_mode(struct cx2341x_handler *cxhdl, u32 val)
 	return 0;
 }
 
-struct cx2341x_handler_ops cx18_cxhdl_ops = {
+const struct cx2341x_handler_ops cx18_cxhdl_ops = {
 	.s_audio_mode = cx18_s_audio_mode,
 	.s_audio_sampling_freq = cx18_s_audio_sampling_freq,
 	.s_video_encoding = cx18_s_video_encoding,

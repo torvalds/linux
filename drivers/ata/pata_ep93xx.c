@@ -34,7 +34,6 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <scsi/scsi_host.h>
 #include <linux/ata.h>
@@ -475,11 +474,11 @@ static void ep93xx_pata_set_devctl(struct ata_port *ap, u8 ctl)
 }
 
 /* Note: original code is ata_sff_data_xfer */
-static unsigned int ep93xx_pata_data_xfer(struct ata_device *adev,
+static unsigned int ep93xx_pata_data_xfer(struct ata_queued_cmd *qc,
 					  unsigned char *buf,
 					  unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
+	struct ata_port *ap = qc->dev->link->ap;
 	struct ep93xx_pata_data *drv_data = ap->host->private_data;
 	u16 *data = (u16 *)buf;
 	unsigned int words = buflen >> 1;
@@ -709,8 +708,8 @@ static void ep93xx_pata_dma_start(struct ata_queued_cmd *qc)
 	struct dma_chan *channel = qc->dma_dir == DMA_TO_DEVICE
 		? drv_data->dma_tx_channel : drv_data->dma_rx_channel;
 
-	txd = channel->device->device_prep_slave_sg(channel, qc->sg,
-		 qc->n_elem, qc->dma_dir, DMA_CTRL_ACK, NULL);
+	txd = dmaengine_prep_slave_sg(channel, qc->sg, qc->n_elem, qc->dma_dir,
+		DMA_CTRL_ACK);
 	if (!txd) {
 		dev_err(qc->ap->dev, "failed to prepare slave for sg dma\n");
 		return;
@@ -916,7 +915,7 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 	struct ep93xx_pata_data *drv_data;
 	struct ata_host *host;
 	struct ata_port *ap;
-	unsigned int irq;
+	int irq;
 	struct resource *mem_res;
 	void __iomem *ide_base;
 	int err;
@@ -945,7 +944,6 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 		goto err_rel_gpio;
 	}
 
-	platform_set_drvdata(pdev, drv_data);
 	drv_data->pdev = pdev;
 	drv_data->ide_base = ide_base;
 	drv_data->udma_in_phys = mem_res->start + IDEUDMADATAIN;
@@ -1022,7 +1020,6 @@ static int ep93xx_pata_remove(struct platform_device *pdev)
 static struct platform_driver ep93xx_pata_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = ep93xx_pata_probe,
 	.remove = ep93xx_pata_remove,

@@ -33,8 +33,8 @@
 #include <mach/hardware.h>
 #include <mach/regs-serial.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-ebi.h>
-#include <mach/regs-timer.h>
+#include "regs-ebi.h"
+#include "regs-timer.h"
 
 #include "cpu.h"
 #include "clock.h"
@@ -178,7 +178,8 @@ static int __init nuc900_set_cpufreq(char *str)
 	if (!*str)
 		return 0;
 
-	strict_strtoul(str, 0, &cpufreq);
+	if (kstrtoul(str, 0, &cpufreq))
+		return 0;
 
 	nuc900_clock_source(NULL, "ext");
 

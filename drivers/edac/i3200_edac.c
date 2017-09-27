@@ -13,11 +13,9 @@
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
 #include <linux/io.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
-
-#define I3200_REVISION        "1.1"
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #define EDAC_MOD_STR        "i3200_edac"
 
@@ -242,11 +240,11 @@ static void i3200_process_error_info(struct mem_ctl_info *mci,
 					     -1, -1,
 					     "i3000 UE", "");
 		} else if (log & I3200_ECCERRLOG_CE) {
-			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 					     0, 0, eccerrlog_syndrome(log),
 					     eccerrlog_row(channel, log),
 					     -1, -1,
-					     "i3000 UE", "");
+					     "i3000 CE", "");
 		}
 	}
 }
@@ -260,8 +258,7 @@ static void i3200_check(struct mem_ctl_info *mci)
 	i3200_process_error_info(mci, &info);
 }
 
-
-void __iomem *i3200_map_mchbar(struct pci_dev *pdev)
+static void __iomem *i3200_map_mchbar(struct pci_dev *pdev)
 {
 	union {
 		u64 mchbar;
@@ -376,7 +373,6 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = EDAC_FLAG_SECDED;
 
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = I3200_REVISION;
 	mci->ctl_name = i3200_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = i3200_check;
@@ -465,9 +461,11 @@ static void i3200_remove_one(struct pci_dev *pdev)
 	iounmap(priv->window);
 
 	edac_mc_free(mci);
+
+	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(i3200_pci_tbl) = {
+static const struct pci_device_id i3200_pci_tbl[] = {
 	{
 		PCI_VEND_DEV(INTEL, 3200_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		I3200},
@@ -522,8 +520,7 @@ fail1:
 	pci_unregister_driver(&i3200_driver);
 
 fail0:
-	if (mci_pdev)
-		pci_dev_put(mci_pdev);
+	pci_dev_put(mci_pdev);
 
 	return pci_rc;
 }

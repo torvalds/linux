@@ -28,10 +28,9 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #ifdef CONFIG_NET_POLL_CONTROLLER
 #include <asm/irq.h>
@@ -138,7 +137,7 @@ static int link_status(struct xircom_private *card);
 
 
 
-static DEFINE_PCI_DEVICE_TABLE(xircom_pci_table) = {
+static const struct pci_device_id xircom_pci_table[] = {
 	{ PCI_VDEVICE(XIRCOM, 0x0003), },
 	{0,},
 };
@@ -175,7 +174,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_open		= xircom_open,
 	.ndo_stop		= xircom_close,
 	.ndo_start_xmit		= xircom_start_xmit,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -289,7 +287,6 @@ out:
 err_unmap:
 	pci_iounmap(pdev, private->ioaddr);
 reg_fail:
-	pci_set_drvdata(pdev, NULL);
 	dma_free_coherent(d, 8192, private->tx_buffer, private->tx_dma_handle);
 tx_buf_fail:
 	dma_free_coherent(d, 8192, private->rx_buffer, private->rx_dma_handle);
@@ -317,7 +314,6 @@ static void xircom_remove(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 	pci_iounmap(pdev, card->ioaddr);
-	pci_set_drvdata(pdev, NULL);
 	dma_free_coherent(d, 8192, card->tx_buffer, card->tx_dma_handle);
 	dma_free_coherent(d, 8192, card->rx_buffer, card->rx_dma_handle);
 	free_netdev(dev);

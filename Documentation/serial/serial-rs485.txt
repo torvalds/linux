@@ -33,50 +33,10 @@
    the values given by the device tree.
 
    Any driver for devices capable of working both as RS232 and RS485 should
-   provide at least the following ioctls:
-
-    - TIOCSRS485 (typically associated with number 0x542F). This ioctl is used
-      to enable/disable RS485 mode from user-space
-
-    - TIOCGRS485 (typically associated with number 0x542E). This ioctl is used
-      to get RS485 mode from kernel-space (i.e., driver) to user-space.
-
-   In other words, the serial driver should contain a code similar to the next
-   one:
-
-	static struct uart_ops atmel_pops = {
-		/* ... */
-		.ioctl		= handle_ioctl,
-	};
-
-	static int handle_ioctl(struct uart_port *port,
-		unsigned int cmd,
-		unsigned long arg)
-	{
-		struct serial_rs485 rs485conf;
-
-		switch (cmd) {
-		case TIOCSRS485:
-			if (copy_from_user(&rs485conf,
-				(struct serial_rs485 *) arg,
-				sizeof(rs485conf)))
-					return -EFAULT;
-
-			/* ... */
-			break;
-
-		case TIOCGRS485:
-			if (copy_to_user((struct serial_rs485 *) arg,
-				...,
-				sizeof(rs485conf)))
-					return -EFAULT;
-			/* ... */
-			break;
-
-		/* ... */
-		}
-	}
-
+   implement the rs485_config callback in the uart_port structure. The
+   serial_core calls rs485_config to do the device specific part in response
+   to TIOCSRS485 and TIOCGRS485 ioctls (see below). The rs485_config callback
+   receives a pointer to struct serial_rs485.
 
 4. USAGE FROM USER-LEVEL
 
@@ -85,9 +45,8 @@
 
 	#include <linux/serial.h>
 
-	/* Driver-specific ioctls: */
-	#define TIOCGRS485      0x542E
-	#define TIOCSRS485      0x542F
+	/* Include definition for RS485 ioctls: TIOCGRS485 and TIOCSRS485 */
+	#include <sys/ioctl.h>
 
 	/* Open your specific device (e.g., /dev/mydevice): */
 	int fd = open ("/dev/mydevice", O_RDWR);
@@ -132,5 +91,5 @@
 
 5. REFERENCES
 
- [1]	include/linux/serial.h
+ [1]	include/uapi/linux/serial.h
  [2]	Documentation/devicetree/bindings/serial/rs485.txt

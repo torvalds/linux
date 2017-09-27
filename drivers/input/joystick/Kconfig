@@ -196,6 +196,7 @@ config JOYSTICK_TWIDJOY
 config JOYSTICK_ZHENHUA
 	tristate "5-byte Zhenhua RC transmitter"
 	select SERIO
+	select BITREVERSE
 	help
 	  Say Y here if you have a Zhen Hua PPM-4CH transmitter which is
 	  supplied with a ready to fly micro electric indoor helicopters
@@ -328,5 +329,26 @@ config JOYSTICK_MAPLE
 
 	  To compile this as a module choose M here: the module will be called
 	  maplecontrol.
+
+config JOYSTICK_PSXPAD_SPI
+	tristate "PlayStation 1/2 joypads via SPI interface"
+	depends on SPI
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you wish to connect PlayStation 1/2 joypads
+	  via SPI interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called psxpad-spi.
+
+config JOYSTICK_PSXPAD_SPI_FF
+	bool "PlayStation 1/2 joypads force feedback (rumble) support"
+	depends on JOYSTICK_PSXPAD_SPI
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to take advantage of PlayStation 1/2
+	  joypads rumble features.
+
+	  To drive rumble motor a dedicated power supply is required.
 
 endif

@@ -1,0 +1,122 @@
+/*
+ * Broadcom BCM470X / BCM5301X ARM platform code.
+ * DTS for D-Link DIR-885L
+ *
+ * Copyright (C) 2016 Rafał Miłecki <zajec5@gmail.com>
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include "bcm47094.dtsi"
+#include "bcm5301x-nand-cs0-bch1.dtsi"
+
+/ {
+	compatible = "dlink,dir-885l", "brcm,bcm47094", "brcm,bcm4708";
+	model = "D-Link DIR-885L";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon";
+	};
+
+	memory {
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x08000000>;
+	};
+
+	nand: nand@18028000 {
+		nandcs@0 {
+			partition@0 {
+				label = "firmware";
+				reg = <0x00000000 0x08000000>;
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		power-white {
+			label = "bcm53xx:white:power";
+			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+
+		wan-white {
+			label = "bcm53xx:white:wan";
+			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
+		};
+
+		power-amber {
+			label = "bcm53xx:amber:power";
+			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
+		};
+
+		wan-amber {
+			label = "bcm53xx:amber:wan";
+			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
+		};
+
+		usb3-white {
+			label = "bcm53xx:white:usb3";
+			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
+			trigger-sources = <&ohci_port1>, <&ehci_port1>,
+					  <&xhci_port1>;
+			linux,default-trigger = "usbport";
+		};
+
+		2ghz {
+			label = "bcm53xx:white:2ghz";
+			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
+		};
+
+		5ghz {
+			label = "bcm53xx:white:5ghz";
+			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
+		};
+
+		/* Switch: router / extender */
+		extender {
+			label = "Extender";
+			linux,code = <BTN_0>;
+			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
+		};
+
+		restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&usb3 {
+	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
+};
+
+&spi_nor {
+	status = "okay";
+};

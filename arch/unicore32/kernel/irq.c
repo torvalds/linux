@@ -112,10 +112,9 @@ static struct irq_chip puv3_low_gpio_chip = {
  * irq_controller_lock held, and IRQs disabled.  Decode the IRQ
  * and call the handler.
  */
-static void
-puv3_gpio_handler(unsigned int irq, struct irq_desc *desc)
+static void puv3_gpio_handler(struct irq_desc *desc)
 {
-	unsigned int mask;
+	unsigned int mask, irq;
 
 	mask = readl(GPIO_GEDR);
 	do {

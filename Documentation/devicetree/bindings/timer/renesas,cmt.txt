@@ -1,0 +1,70 @@
+* Renesas R-Car Compare Match Timer (CMT)
+
+The CMT is a multi-channel 16/32/48-bit timer/counter with configurable clock
+inputs and programmable compare match.
+
+Channels share hardware resources but their counter and compare match value
+are independent. A particular CMT instance can implement only a subset of the
+channels supported by the CMT model. Channel indices represent the hardware
+position of the channel in the CMT and don't match the channel numbers in the
+datasheets.
+
+Required Properties:
+
+  - compatible: must contain one or more of the following:
+    - "renesas,cmt-48-sh73a0" for the sh73A0 48-bit CMT
+		(CMT1)
+    - "renesas,cmt-48-r8a7740" for the r8a7740 48-bit CMT
+		(CMT1)
+    - "renesas,cmt-48" for all non-second generation 48-bit CMT
+		(CMT1 on sh73a0 and r8a7740)
+		This is a fallback for the above renesas,cmt-48-* entries.
+
+    - "renesas,cmt0-r8a73a4" for the 32-bit CMT0 device included in r8a73a4.
+    - "renesas,cmt1-r8a73a4" for the 48-bit CMT1 device included in r8a73a4.
+    - "renesas,cmt0-r8a7790" for the 32-bit CMT0 device included in r8a7790.
+    - "renesas,cmt1-r8a7790" for the 48-bit CMT1 device included in r8a7790.
+    - "renesas,cmt0-r8a7791" for the 32-bit CMT0 device included in r8a7791.
+    - "renesas,cmt1-r8a7791" for the 48-bit CMT1 device included in r8a7791.
+    - "renesas,cmt0-r8a7793" for the 32-bit CMT0 device included in r8a7793.
+    - "renesas,cmt1-r8a7793" for the 48-bit CMT1 device included in r8a7793.
+    - "renesas,cmt0-r8a7794" for the 32-bit CMT0 device included in r8a7794.
+    - "renesas,cmt1-r8a7794" for the 48-bit CMT1 device included in r8a7794.
+
+    - "renesas,rcar-gen2-cmt0" for 32-bit CMT0 devices included in R-Car Gen2.
+    - "renesas,rcar-gen2-cmt1" for 48-bit CMT1 devices included in R-Car Gen2.
+		These are fallbacks for r8a73a4 and all the R-Car Gen2
+		entries	listed above.
+
+  - reg: base address and length of the registers block for the timer module.
+  - interrupts: interrupt-specifier for the timer, one per channel.
+  - clocks: a list of phandle + clock-specifier pairs, one for each entry
+    in clock-names.
+  - clock-names: must contain "fck" for the functional clock.
+
+
+Example: R8A7790 (R-Car H2) CMT0 and CMT1 nodes
+
+	cmt0: timer@ffca0000 {
+		compatible = "renesas,cmt0-r8a7790", "renesas,rcar-gen2-cmt0";
+		reg = <0 0xffca0000 0 0x1004>;
+		interrupts = <0 142 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 142 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp1_clks R8A7790_CLK_CMT0>;
+		clock-names = "fck";
+	};
+
+	cmt1: timer@e6130000 {
+		compatible = "renesas,cmt1-r8a7790", "renesas,rcar-gen2-cmt1";
+		reg = <0 0xe6130000 0 0x1004>;
+		interrupts = <0 120 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 121 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 122 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 123 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 124 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 125 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 126 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 127 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7790_CLK_CMT1>;
+		clock-names = "fck";
+	};

@@ -63,44 +63,23 @@
 
 #define VERSION_STRING DRIVER_DESC " 2.1d"
 
-/*    Macros definitions */
-
 /* Default debug printout level */
 #define NOZOMI_DEBUG_LEVEL 0x00
+static int debug = NOZOMI_DEBUG_LEVEL;
+module_param(debug, int, S_IRUGO | S_IWUSR);
 
-#define P_BUF_SIZE 128
-#define NFO(_err_flag_, args...)				\
-do {								\
-	char tmp[P_BUF_SIZE];					\
-	snprintf(tmp, sizeof(tmp), ##args);			\
-	printk(_err_flag_ "[%d] %s(): %s\n", __LINE__,		\
-		__func__, tmp);				\
+/*    Macros definitions */
+#define DBG_(lvl, fmt, args...)				\
+do {							\
+	if (lvl & debug)				\
+		pr_debug("[%d] %s(): " fmt "\n",	\
+			 __LINE__, __func__,  ##args);	\
 } while (0)
 
-#define DBG1(args...) D_(0x01, ##args)
-#define DBG2(args...) D_(0x02, ##args)
-#define DBG3(args...) D_(0x04, ##args)
-#define DBG4(args...) D_(0x08, ##args)
-#define DBG5(args...) D_(0x10, ##args)
-#define DBG6(args...) D_(0x20, ##args)
-#define DBG7(args...) D_(0x40, ##args)
-#define DBG8(args...) D_(0x80, ##args)
-
-#ifdef DEBUG
-/* Do we need this settable at runtime? */
-static int debug = NOZOMI_DEBUG_LEVEL;
-
-#define D(lvl, args...)  do \
-			{if (lvl & debug) NFO(KERN_DEBUG, ##args); } \
-			while (0)
-#define D_(lvl, args...) D(lvl, ##args)
-
-/* These printouts are always printed */
-
-#else
-static int debug;
-#define D_(lvl, args...)
-#endif
+#define DBG1(args...) DBG_(0x01, ##args)
+#define DBG2(args...) DBG_(0x02, ##args)
+#define DBG3(args...) DBG_(0x04, ##args)
+#define DBG4(args...) DBG_(0x08, ##args)
 
 /* TODO: rewrite to optimize macros... */
 
@@ -140,8 +119,8 @@ static int debug;
 #define R_FCR		0x0000	/* Flow Control Register */
 #define R_IER		0x0004	/* Interrupt Enable Register */
 
-#define CONFIG_MAGIC	0xEFEFFEFE
-#define TOGGLE_VALID	0x0000
+#define NOZOMI_CONFIG_MAGIC	0xEFEFFEFE
+#define TOGGLE_VALID		0x0000
 
 /* Definition of interrupt tokens */
 #define MDM_DL1		0x0001
@@ -523,7 +502,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 }
 
 /* Setup pointers to different channels and also setup buffer sizes. */
-static void setup_memory(struct nozomi *dc)
+static void nozomi_setup_memory(struct nozomi *dc)
 {
 	void __iomem *offset = dc->base_addr + dc->config_table.dl_start;
 	/* The length reported is including the length field of 4 bytes,
@@ -660,9 +639,9 @@ static int nozomi_read_config_table(struct nozomi *dc)
 	read_mem32((u32 *) &dc->config_table, dc->base_addr + 0,
 						sizeof(struct config_table));
 
-	if (dc->config_table.signature != CONFIG_MAGIC) {
+	if (dc->config_table.signature != NOZOMI_CONFIG_MAGIC) {
 		dev_err(&dc->pdev->dev, "ConfigTable Bad! 0x%08X != 0x%08X\n",
-			dc->config_table.signature, CONFIG_MAGIC);
+			dc->config_table.signature, NOZOMI_CONFIG_MAGIC);
 		return 0;
 	}
 
@@ -671,7 +650,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 		int i;
 		DBG1("Second phase, configuring card");
 
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		dc->port[PORT_MDM].toggle_ul = dc->config_table.toggle.mdm_ul;
 		dc->port[PORT_MDM].toggle_dl = dc->config_table.toggle.mdm_dl;
@@ -705,7 +684,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 			 dc->config_table.version);
 
 		/* Here we should disable all I/O over F32. */
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		/*
 		 * We should send ALL channel pair tokens back along
@@ -823,10 +802,10 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	int i, ret;
 
-	read_mem32((u32 *) &size, addr, 4);
+	size = __le32_to_cpu(readl(addr));
 	/*  DBG1( "%d bytes port: %d", size, index); */
 
-	if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (tty && tty_throttled(tty)) {
 		DBG1("No room in tty, don't read data, don't ack interrupt, "
 			"disable interrupt");
 
@@ -959,7 +938,7 @@ static int receive_flow_control(struct nozomi *dc)
 		dev_err(&dc->pdev->dev,
 			"ERROR: flow control received for non-existing port\n");
 		return 0;
-	};
+	}
 
 	DBG1("0x%04X->0x%04X", *((u16 *)&dc->port[port].ctrl_dl),
 	   *((u16 *)&ctrl_dl));
@@ -1025,7 +1004,7 @@ static enum ctrl_port_type port2ctrl(enum port_type port,
 		dev_err(&dc->pdev->dev,
 			"ERROR: send flow control " \
 			"received for non-existing port\n");
-	};
+	}
 	return CTRL_ERROR;
 }
 
@@ -1320,7 +1299,7 @@ static ssize_t card_type_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%d\n", dc->card_type);
 }
-static DEVICE_ATTR(card_type, S_IRUGO, card_type_show, NULL);
+static DEVICE_ATTR_RO(card_type);
 
 static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -1329,7 +1308,7 @@ static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%u\n", dc->open_ttys);
 }
-static DEVICE_ATTR(open_ttys, S_IRUGO, open_ttys_show, NULL);
+static DEVICE_ATTR_RO(open_ttys);
 
 static void make_sysfs_files(struct nozomi *dc)
 {
@@ -1805,7 +1784,7 @@ static int ntty_ioctl(struct tty_struct *tty,
 	default:
 		DBG1("ERR: 0x%08X, %d", cmd, cmd);
 		break;
-	};
+	}
 
 	return rval;
 }
@@ -1942,8 +1921,6 @@ static __exit void nozomi_exit(void)
 
 module_init(nozomi_init);
 module_exit(nozomi_exit);
-
-module_param(debug, int, S_IRUGO | S_IWUSR);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

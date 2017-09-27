@@ -1,0 +1,47 @@
+# ===========================================================================
+# Post-link powerpc pass
+# ===========================================================================
+#
+# 1. Check that vmlinux relocations look sane
+
+PHONY := __archpost
+__archpost:
+
+-include include/config/auto.conf
+include scripts/Kbuild.include
+
+quiet_cmd_head_check = CHKHEAD $@
+      cmd_head_check = $(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/head_check.sh "$(NM)" "$@"
+
+quiet_cmd_relocs_check = CHKREL  $@
+ifdef CONFIG_PPC_BOOK3S_64
+      cmd_relocs_check =						\
+	$(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/relocs_check.sh "$(OBJDUMP)" "$@" ; \
+	$(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/unrel_branch_check.sh "$(OBJDUMP)" "$@"
+else
+      cmd_relocs_check =						\
+	$(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/relocs_check.sh "$(OBJDUMP)" "$@"
+endif
+
+# `@true` prevents complaint when there is nothing to be done
+
+vmlinux: FORCE
+	@true
+ifdef CONFIG_PPC64
+	$(call cmd,head_check)
+endif
+ifdef CONFIG_RELOCATABLE
+	$(call if_changed,relocs_check)
+endif
+
+%.ko: FORCE
+	@true
+
+clean:
+	rm -f .tmp_symbols.txt
+
+PHONY += FORCE clean
+
+FORCE:
+
+.PHONY: $(PHONY)

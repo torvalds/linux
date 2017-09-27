@@ -1,17 +1,20 @@
-config ARCH_SOCFPGA
-	bool "Altera SOCFPGA family" if ARCH_MULTI_V7
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+menuconfig ARCH_SOCFPGA
+	bool "Altera SOCFPGA family"
+	depends on ARCH_MULTI_V7
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_AMBA
 	select ARM_GIC
 	select CACHE_L2X0
-	select CLKDEV_LOOKUP
-	select COMMON_CLK
-	select CPU_V7
 	select DW_APB_TIMER_OF
-	select GENERIC_CLOCKEVENTS
 	select GPIO_PL061 if GPIOLIB
 	select HAVE_ARM_SCU
-	select HAVE_SMP
+	select HAVE_ARM_TWD if SMP
 	select MFD_SYSCON
-	select SPARSE_IRQ
-	select USE_OF
+
+if ARCH_SOCFPGA
+config SOCFPGA_SUSPEND
+	bool "Suspend to RAM on SOCFPGA"
+	help
+	  Select this if you want to enable Suspend-to-RAM on SOCFPGA
+	  platforms.
+endif

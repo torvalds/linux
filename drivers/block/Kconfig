@@ -15,6 +15,10 @@ menuconfig BLK_DEV
 
 if BLK_DEV
 
+config BLK_DEV_NULL_BLK
+	tristate "Null test block driver"
+	depends on CONFIGFS_FS
+
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
 	depends on ARCH_MAY_HAVE_PC_FDC
@@ -66,6 +70,7 @@ config AMIGA_Z2RAM
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
 	depends on SH_DREAMCAST
+	select BLK_SCSI_REQUEST # only for the generic cdrom code
 	help
 	  A standard SEGA Dreamcast comes with a modified CD ROM drive called a
 	  "GD-ROM" by SEGA to signify it is capable of reading special disks
@@ -105,41 +110,7 @@ source "drivers/block/paride/Kconfig"
 
 source "drivers/block/mtip32xx/Kconfig"
 
-config BLK_CPQ_DA
-	tristate "Compaq SMART2 support"
-	depends on PCI && VIRT_TO_BUS
-	help
-	  This is the driver for Compaq Smart Array controllers.  Everyone
-	  using these boards should say Y here.  See the file
-	  <file:Documentation/blockdev/cpqarray.txt> for the current list of
-	  boards supported by this driver, and for further information on the
-	  use of this driver.
-
-config BLK_CPQ_CISS_DA
-	tristate "Compaq Smart Array 5xxx support"
-	depends on PCI
-	select CHECK_SIGNATURE
-	help
-	  This is the driver for Compaq Smart Array 5xxx controllers.
-	  Everyone using these boards should say Y here.
-	  See <file:Documentation/blockdev/cciss.txt> for the current list of
-	  boards supported by this driver, and for further information
-	  on the use of this driver.
-
-config CISS_SCSI_TAPE
-	bool "SCSI tape drive support for Smart Array 5xxx"
-	depends on BLK_CPQ_CISS_DA && PROC_FS
-	depends on SCSI=y || SCSI=BLK_CPQ_CISS_DA
-	help
-	  When enabled (Y), this option allows SCSI tape drives and SCSI medium
-	  changers (tape robots) to be accessed via a Compaq 5xxx array 
-	  controller.  (See <file:Documentation/blockdev/cciss.txt> for more details.)
-
-	  "SCSI support" and "SCSI tape support" must also be enabled for this 
-	  option to work.
-
-	  When this option is disabled (N), the SCSI portion of the driver 
-	  is not compiled.
+source "drivers/block/zram/Kconfig"
 
 config BLK_DEV_DAC960
 	tristate "Mylex DAC960/DAC1100 PCI RAID Controller support"
@@ -222,7 +193,7 @@ config BLK_DEV_LOOP
 
 	  To use the loop device, you need the losetup utility, found in the
 	  util-linux package, see
-	  <ftp://ftp.kernel.org/pub/linux/utils/util-linux/>.
+	  <https://www.kernel.org/pub/linux/utils/util-linux/>.
 
 	  The loop device driver can also be used to "hide" a file system in
 	  a disk partition, floppy, or regular file, either using encryption
@@ -305,32 +276,15 @@ config BLK_DEV_NBD
 
 	  If unsure, say N.
 
-config BLK_DEV_NVME
-	tristate "NVM Express block device"
+config BLK_DEV_SKD
+	tristate "STEC S1120 Block Driver"
 	depends on PCI
+	depends on 64BIT
 	---help---
-	  The NVM Express driver is for solid state drives directly
-	  connected to the PCI or PCI Express bus.  If you know you
-	  don't have one of these, it is safe to answer N.
+	Saying Y or M here will enable support for the
+	STEC, Inc. S1120 PCIe SSD.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called nvme.
-
-config BLK_DEV_OSD
-	tristate "OSD object-as-blkdev support"
-	depends on SCSI_OSD_ULD
-	---help---
-	  Saying Y or M here will allow the exporting of a single SCSI
-	  OSD (object-based storage) object as a Linux block device.
-
-	  For example, if you create a 2G object on an OSD device,
-	  you can then use this module to present that 2G object as
-	  a Linux block device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called osdblk.
-
-	  If unsure, say N.
+	Use device /dev/skd$N amd /dev/skd$Np$M.
 
 config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"
@@ -343,6 +297,7 @@ config BLK_DEV_SX8
 
 config BLK_DEV_RAM
 	tristate "RAM block device support"
+	select DAX if BLK_DEV_RAM_DAX
 	---help---
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
@@ -355,7 +310,8 @@ config BLK_DEV_RAM
 	  For details, read <file:Documentation/blockdev/ramdisk.txt>.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called rd.
+	  module will be called brd. An alias "rd" has been defined
+	  for historical reasons.
 
 	  Most normal users won't need the RAM disk functionality, and can
 	  thus say N here.
@@ -377,20 +333,25 @@ config BLK_DEV_RAM_SIZE
 	  The default value is 4096 kilobytes. Only change this if you know
 	  what you are doing.
 
-config BLK_DEV_XIP
-	bool "Support XIP filesystems on RAM block device"
-	depends on BLK_DEV_RAM
+config BLK_DEV_RAM_DAX
+	bool "Support Direct Access (DAX) to RAM block devices"
+	depends on BLK_DEV_RAM && FS_DAX
 	default n
 	help
-	  Support XIP filesystems (such as ext2 with XIP support on) on
-	  top of block ram device. This will slightly enlarge the kernel, and
-	  will prevent RAM block device backing store memory from being
+	  Support filesystems using DAX to access RAM block devices.  This
+	  avoids double-buffering data in the page cache before copying it
+	  to the block device.  Answering Y will slightly enlarge the kernel,
+	  and will prevent RAM block device backing store memory from being
 	  allocated from highmem (only a problem for highmem systems).
 
 config CDROM_PKTCDVD
-	tristate "Packet writing on CD/DVD media"
+	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
+	select BLK_SCSI_REQUEST
 	help
+	  Note: This driver is deprecated and will be removed from the
+	  kernel in the near future!
+
 	  If you have a CDROM/DVD drive that supports packet writing, say
 	  Y to include support. It should work with any MMC/Mt Fuji
 	  compliant ATAPI or SCSI drive, which is just about any newer
@@ -431,23 +392,6 @@ config ATA_OVER_ETH
 	help
 	This driver provides Support for ATA over Ethernet block
 	devices like the Coraid EtherDrive (R) Storage Blade.
-
-config MG_DISK
-	tristate "mGine mflash, gflash support"
-	depends on ARM && GPIOLIB
-	help
-	  mGine mFlash(gFlash) block device driver
-
-config MG_DISK_RES
-	int "Size of reserved area before MBR"
-	depends on MG_DISK
-	default 0
-	help
-	  Define size of reserved area that usually used for boot. Unit is KB.
-	  All of the block device operation will be taken this value as start
-	  offset
-	  Examples:
-			1024 => 1 MB
 
 config SUNVDC
 	tristate "Sun Virtual Disk Client support"
@@ -500,19 +444,17 @@ config VIRTIO_BLK
 	depends on VIRTIO
 	---help---
 	  This is the virtual block driver for virtio.  It can be used with
-          lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+          QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
-config BLK_DEV_HD
-	bool "Very old hard disk (MFM/RLL/IDE) driver"
-	depends on HAVE_IDE
-	depends on !ARM || ARCH_RPC || ARCH_SHARK || BROKEN
-	help
-	  This is a very old hard disk driver that lacks the enhanced
-	  functionality of the newer ones.
-
-	  It is required for systems with ancient MFM/RLL/ESDI drives.
-
-	  If unsure, say N.
+config VIRTIO_BLK_SCSI
+	bool "SCSI passthrough request for the Virtio block driver"
+	depends on VIRTIO_BLK
+	select BLK_SCSI_REQUEST
+	---help---
+	  Enable support for SCSI passthrough (e.g. the SG_IO ioctl) on
+	  virtio-blk devices.  This is only supported for the legacy
+	  virtio protocol and not enabled by default by any hypervisor.
+	  You probably want to use virtio-scsi instead.
 
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"

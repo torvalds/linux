@@ -11,6 +11,8 @@
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kdebug.h>
 #include <linux/export.h>
 #include <linux/uaccess.h>
@@ -115,7 +117,7 @@ static int print_trace_stack(void *data, char *name)
  */
 static void print_trace_address(void *data, unsigned long addr, int reliable)
 {
-	printk(data);
+	printk("%s", (char *)data);
 	printk_address(addr, reliable);
 }
 

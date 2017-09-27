@@ -1,12 +1,24 @@
-DaVinci Watchdog Timer (WDT) Controller
+Texas Instruments DaVinci/Keystone Watchdog Timer (WDT) Controller
 
 Required properties:
-- compatible : Should be "ti,davinci-wdt"
+- compatible : Should be "ti,davinci-wdt", "ti,keystone-wdt"
 - reg : Should contain WDT registers location and length
+
+Optional properties:
+- timeout-sec : Contains the watchdog timeout in seconds
+- clocks : the clock feeding the watchdog timer.
+	   Needed if platform uses clocks.
+	   See clock-bindings.txt
+
+Documentation:
+Davinci DM646x - http://www.ti.com/lit/ug/spruer5b/spruer5b.pdf
+Keystone - http://www.ti.com/lit/ug/sprugv5a/sprugv5a.pdf
 
 Examples:
 
 wdt: wdt@2320000 {
 	compatible = "ti,davinci-wdt";
 	reg = <0x02320000 0x80>;
+	timeout-sec = <30>;
+	clocks = <&clkwdtimer0>;
 };

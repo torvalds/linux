@@ -1,0 +1,132 @@
+menuconfig MTD_SPI_NOR
+	tristate "SPI-NOR device support"
+	depends on MTD
+	help
+	  This is the framework for the SPI NOR which can be used by the SPI
+	  device drivers and the SPI-NOR device driver.
+
+if MTD_SPI_NOR
+
+config MTD_MT81xx_NOR
+	tristate "Mediatek MT81xx SPI NOR flash controller"
+	depends on HAS_IOMEM
+	help
+	  This enables access to SPI NOR flash, using MT81xx SPI NOR flash
+	  controller. This controller does not support generic SPI BUS, it only
+	  supports SPI NOR Flash.
+
+config MTD_SPI_NOR_USE_4K_SECTORS
+	bool "Use small 4096 B erase sectors"
+	default y
+	help
+	  Many flash memories support erasing small (4096 B) sectors. Depending
+	  on the usage this feature may provide performance gain in comparison
+	  to erasing whole blocks (32/64 KiB).
+	  Changing a small part of the flash's contents is usually faster with
+	  small sectors. On the other hand erasing should be faster when using
+	  64 KiB block instead of 16 × 4 KiB sectors.
+
+	  Please note that some tools/drivers/filesystems may not work with
+	  4096 B erase size (e.g. UBIFS requires 15 KiB as a minimum).
+
+config SPI_ASPEED_SMC
+	tristate "Aspeed flash controllers in SPI mode"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	help
+	  This enables support for the Firmware Memory controller (FMC)
+	  in the Aspeed AST2500/AST2400 SoCs when attached to SPI NOR chips,
+	  and support for the SPI flash memory controller (SPI) for
+	  the host firmware. The implementation only supports SPI NOR.
+
+config SPI_ATMEL_QUADSPI
+	tristate "Atmel Quad SPI Controller"
+	depends on ARCH_AT91 || (ARM && COMPILE_TEST)
+	depends on OF && HAS_IOMEM
+	help
+	  This enables support for the Quad SPI controller in master mode.
+	  This driver does not support generic SPI. The implementation only
+	  supports SPI NOR.
+
+config SPI_CADENCE_QUADSPI
+	tristate "Cadence Quad SPI controller"
+	depends on OF && (ARM || COMPILE_TEST)
+	help
+	  Enable support for the Cadence Quad SPI Flash controller.
+
+	  Cadence QSPI is a specialized controller for connecting an SPI
+	  Flash over 1/2/4-bit wide bus. Enable this option if you have a
+	  device with a Cadence QSPI controller and want to access the
+	  Flash as an MTD device.
+
+config SPI_FSL_QUADSPI
+	tristate "Freescale Quad SPI controller"
+	depends on ARCH_MXC || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables support for the Quad SPI controller in master mode.
+	  This controller does not support generic SPI. It only supports
+	  SPI NOR.
+
+config SPI_HISI_SFC
+	tristate "Hisilicon SPI-NOR Flash Controller(SFC)"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on HAS_IOMEM && HAS_DMA
+	help
+	  This enables support for hisilicon SPI-NOR flash controller.
+
+config SPI_NXP_SPIFI
+	tristate "NXP SPI Flash Interface (SPIFI)"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	depends on HAS_IOMEM
+	help
+	  Enable support for the NXP LPC SPI Flash Interface controller.
+
+	  SPIFI is a specialized controller for connecting serial SPI
+	  Flash. Enable this option if you have a device with a SPIFI
+	  controller and want to access the Flash as a mtd device.
+
+config SPI_INTEL_SPI
+	tristate
+
+config SPI_INTEL_SPI_PCI
+	tristate "Intel PCH/PCU SPI flash PCI driver" if EXPERT
+	depends on X86 && PCI
+	select SPI_INTEL_SPI
+	help
+	  This enables PCI support for the Intel PCH/PCU SPI controller in
+	  master mode. This controller is present in modern Intel hardware
+	  and is used to hold BIOS and other persistent settings. Using
+	  this driver it is possible to upgrade BIOS directly from Linux.
+
+	  Say N here unless you know what you are doing. Overwriting the
+	  SPI flash may render the system unbootable.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel-spi-pci.
+
+config SPI_INTEL_SPI_PLATFORM
+	tristate "Intel PCH/PCU SPI flash platform driver" if EXPERT
+	depends on X86
+	select SPI_INTEL_SPI
+	help
+	  This enables platform support for the Intel PCH/PCU SPI
+	  controller in master mode. This controller is present in modern
+	  Intel hardware and is used to hold BIOS and other persistent
+	  settings. Using this driver it is possible to upgrade BIOS
+	  directly from Linux.
+
+	  Say N here unless you know what you are doing. Overwriting the
+	  SPI flash may render the system unbootable.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel-spi-platform.
+
+config SPI_STM32_QUADSPI
+	tristate "STM32 Quad SPI controller"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  This enables support for the STM32 Quad SPI controller.
+	  We only connect the NOR to this controller.
+
+endif # MTD_SPI_NOR

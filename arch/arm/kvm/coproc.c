@@ -16,6 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+
+#include <linux/bsearch.h>
 #include <linux/mm.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
@@ -23,12 +25,14 @@
 #include <asm/kvm_host.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
+#include <asm/kvm_mmu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <trace/events/kvm.h>
 #include <asm/vfp.h>
 #include "../vfp/vfpinstr.h"
 
+#define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "coproc.h"
 
@@ -37,11 +41,54 @@
  * Co-processor emulation
  *****************************************************************************/
 
+static bool write_to_read_only(struct kvm_vcpu *vcpu,
+			       const struct coproc_params *params)
+{
+	WARN_ONCE(1, "CP15 write to read-only register\n");
+	print_cp_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
+static bool read_from_write_only(struct kvm_vcpu *vcpu,
+				 const struct coproc_params *params)
+{
+	WARN_ONCE(1, "CP15 read to write-only register\n");
+	print_cp_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
 /* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
 static u32 cache_levels;
 
 /* CSSELR values; used to index KVM_REG_ARM_DEMUX_ID_CCSIDR */
 #define CSSELR_MAX 12
+
+/*
+ * kvm_vcpu_arch.cp15 holds cp15 registers as an array of u32, but some
+ * of cp15 registers can be viewed either as couple of two u32 registers
+ * or one u64 register. Current u64 register encoding is that least
+ * significant u32 word is followed by most significant u32 word.
+ */
+static inline void vcpu_cp15_reg64_set(struct kvm_vcpu *vcpu,
+				       const struct coproc_reg *r,
+				       u64 val)
+{
+	vcpu_cp15(vcpu, r->reg) = val & 0xffffffff;
+	vcpu_cp15(vcpu, r->reg + 1) = val >> 32;
+}
+
+static inline u64 vcpu_cp15_reg64_get(struct kvm_vcpu *vcpu,
+				      const struct coproc_reg *r)
+{
+	u64 val;
+
+	val = vcpu_cp15(vcpu, r->reg + 1);
+	val = val << 32;
+	val = val | vcpu_cp15(vcpu, r->reg);
+	return val;
+}
 
 int kvm_handle_cp10_id(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
@@ -65,49 +112,160 @@ int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 1;
 }
 
-int kvm_handle_cp14_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static void reset_mpidr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 {
-	kvm_inject_undefined(vcpu);
-	return 1;
+	/*
+	 * Compute guest MPIDR. We build a virtual cluster out of the
+	 * vcpu_id, but we read the 'U' bit from the underlying
+	 * hardware directly.
+	 */
+	vcpu_cp15(vcpu, c0_MPIDR) = ((read_cpuid_mpidr() & MPIDR_SMP_BITMASK) |
+				     ((vcpu->vcpu_id >> 2) << MPIDR_LEVEL_BITS) |
+				     (vcpu->vcpu_id & 3));
 }
 
-/* See note at ARM ARM B1.14.4 */
+/* TRM entries A7:4.3.31 A15:4.3.28 - RO WI */
+static bool access_actlr(struct kvm_vcpu *vcpu,
+			 const struct coproc_params *p,
+			 const struct coproc_reg *r)
+{
+	if (p->is_write)
+		return ignore_write(vcpu, p);
+
+	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c1_ACTLR);
+	return true;
+}
+
+/* TRM entries A7:4.3.56, A15:4.3.60 - R/O. */
+static bool access_cbar(struct kvm_vcpu *vcpu,
+			const struct coproc_params *p,
+			const struct coproc_reg *r)
+{
+	if (p->is_write)
+		return write_to_read_only(vcpu, p);
+	return read_zero(vcpu, p);
+}
+
+/* TRM entries A7:4.3.49, A15:4.3.48 - R/O WI */
+static bool access_l2ctlr(struct kvm_vcpu *vcpu,
+			  const struct coproc_params *p,
+			  const struct coproc_reg *r)
+{
+	if (p->is_write)
+		return ignore_write(vcpu, p);
+
+	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c9_L2CTLR);
+	return true;
+}
+
+static void reset_l2ctlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
+{
+	u32 l2ctlr, ncores;
+
+	asm volatile("mrc p15, 1, %0, c9, c0, 2\n" : "=r" (l2ctlr));
+	l2ctlr &= ~(3 << 24);
+	ncores = atomic_read(&vcpu->kvm->online_vcpus) - 1;
+	/* How many cores in the current cluster and the next ones */
+	ncores -= (vcpu->vcpu_id & ~3);
+	/* Cap it to the maximum number of cores in a single cluster */
+	ncores = min(ncores, 3U);
+	l2ctlr |= (ncores & 3) << 24;
+
+	vcpu_cp15(vcpu, c9_L2CTLR) = l2ctlr;
+}
+
+static void reset_actlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
+{
+	u32 actlr;
+
+	/* ACTLR contains SMP bit: make sure you create all cpus first! */
+	asm volatile("mrc p15, 0, %0, c1, c0, 1\n" : "=r" (actlr));
+	/* Make the SMP bit consistent with the guest configuration */
+	if (atomic_read(&vcpu->kvm->online_vcpus) > 1)
+		actlr |= 1U << 6;
+	else
+		actlr &= ~(1U << 6);
+
+	vcpu_cp15(vcpu, c1_ACTLR) = actlr;
+}
+
+/*
+ * TRM entries: A7:4.3.50, A15:4.3.49
+ * R/O WI (even if NSACR.NS_L2ERR, a write of 1 is ignored).
+ */
+static bool access_l2ectlr(struct kvm_vcpu *vcpu,
+			   const struct coproc_params *p,
+			   const struct coproc_reg *r)
+{
+	if (p->is_write)
+		return ignore_write(vcpu, p);
+
+	*vcpu_reg(vcpu, p->Rt1) = 0;
+	return true;
+}
+
+/*
+ * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ */
 static bool access_dcsw(struct kvm_vcpu *vcpu,
 			const struct coproc_params *p,
 			const struct coproc_reg *r)
 {
-	unsigned long val;
-	int cpu;
+	if (!p->is_write)
+		return read_from_write_only(vcpu, p);
+
+	kvm_set_way_flush(vcpu);
+	return true;
+}
+
+/*
+ * Generic accessor for VM registers. Only called as long as HCR_TVM
+ * is set.  If the guest enables the MMU, we stop trapping the VM
+ * sys_regs and leave it in complete control of the caches.
+ *
+ * Used by the cpu-specific code.
+ */
+bool access_vm_reg(struct kvm_vcpu *vcpu,
+		   const struct coproc_params *p,
+		   const struct coproc_reg *r)
+{
+	bool was_enabled = vcpu_has_cache_enabled(vcpu);
+
+	BUG_ON(!p->is_write);
+
+	vcpu_cp15(vcpu, r->reg) = *vcpu_reg(vcpu, p->Rt1);
+	if (p->is_64bit)
+		vcpu_cp15(vcpu, r->reg + 1) = *vcpu_reg(vcpu, p->Rt2);
+
+	kvm_toggle_cache(vcpu, was_enabled);
+	return true;
+}
+
+static bool access_gic_sgi(struct kvm_vcpu *vcpu,
+			   const struct coproc_params *p,
+			   const struct coproc_reg *r)
+{
+	u64 reg;
 
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p);
 
-	cpu = get_cpu();
+	reg = (u64)*vcpu_reg(vcpu, p->Rt2) << 32;
+	reg |= *vcpu_reg(vcpu, p->Rt1) ;
 
-	cpumask_setall(&vcpu->arch.require_dcache_flush);
-	cpumask_clear_cpu(cpu, &vcpu->arch.require_dcache_flush);
+	vgic_v3_dispatch_sgi(vcpu, reg);
 
-	/* If we were already preempted, take the long way around */
-	if (cpu != vcpu->arch.last_pcpu) {
-		flush_cache_all();
-		goto done;
-	}
+	return true;
+}
 
-	val = *vcpu_reg(vcpu, p->Rt1);
+static bool access_gic_sre(struct kvm_vcpu *vcpu,
+			   const struct coproc_params *p,
+			   const struct coproc_reg *r)
+{
+	if (p->is_write)
+		return ignore_write(vcpu, p);
 
-	switch (p->CRm) {
-	case 6:			/* Upgrade DCISW to DCCISW, as per HCR.SWIO */
-	case 14:		/* DCCISW */
-		asm volatile("mcr p15, 0, %0, c7, c14, 2" : : "r" (val));
-		break;
-
-	case 10:		/* DCCSW */
-		asm volatile("mcr p15, 0, %0, c7, c10, 2" : : "r" (val));
-		break;
-	}
-
-done:
-	put_cpu();
+	*vcpu_reg(vcpu, p->Rt1) = vcpu->arch.vgic_cpu.vgic_v3.vgic_sre;
 
 	return true;
 }
@@ -121,7 +279,7 @@ done:
  * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
  * all PM registers, which doesn't crash the guest kernel at least.
  */
-static bool pm_fake(struct kvm_vcpu *vcpu,
+static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 		    const struct coproc_params *p,
 		    const struct coproc_reg *r)
 {
@@ -131,58 +289,77 @@ static bool pm_fake(struct kvm_vcpu *vcpu,
 		return read_zero(vcpu, p);
 }
 
-#define access_pmcr pm_fake
-#define access_pmcntenset pm_fake
-#define access_pmcntenclr pm_fake
-#define access_pmovsr pm_fake
-#define access_pmselr pm_fake
-#define access_pmceid0 pm_fake
-#define access_pmceid1 pm_fake
-#define access_pmccntr pm_fake
-#define access_pmxevtyper pm_fake
-#define access_pmxevcntr pm_fake
-#define access_pmuserenr pm_fake
-#define access_pmintenset pm_fake
-#define access_pmintenclr pm_fake
+#define access_pmcr trap_raz_wi
+#define access_pmcntenset trap_raz_wi
+#define access_pmcntenclr trap_raz_wi
+#define access_pmovsr trap_raz_wi
+#define access_pmselr trap_raz_wi
+#define access_pmceid0 trap_raz_wi
+#define access_pmceid1 trap_raz_wi
+#define access_pmccntr trap_raz_wi
+#define access_pmxevtyper trap_raz_wi
+#define access_pmxevcntr trap_raz_wi
+#define access_pmuserenr trap_raz_wi
+#define access_pmintenset trap_raz_wi
+#define access_pmintenclr trap_raz_wi
 
 /* Architected CP15 registers.
- * Important: Must be sorted ascending by CRn, CRM, Op1, Op2
+ * CRn denotes the primary register number, but is copied to the CRm in the
+ * user space API for 64-bit register access in line with the terminology used
+ * in the ARM ARM.
+ * Important: Must be sorted ascending by CRn, CRM, Op1, Op2 and with 64-bit
+ *            registers preceding 32-bit ones.
  */
 static const struct coproc_reg cp15_regs[] = {
+	/* MPIDR: we use VMPIDR for guest access. */
+	{ CRn( 0), CRm( 0), Op1( 0), Op2( 5), is32,
+			NULL, reset_mpidr, c0_MPIDR },
+
 	/* CSSELR: swapped by interrupt.S. */
 	{ CRn( 0), CRm( 0), Op1( 2), Op2( 0), is32,
 			NULL, reset_unknown, c0_CSSELR },
 
-	/* TTBR0/TTBR1: swapped by interrupt.S. */
-	{ CRm( 2), Op1( 0), is64, NULL, reset_unknown64, c2_TTBR0 },
-	{ CRm( 2), Op1( 1), is64, NULL, reset_unknown64, c2_TTBR1 },
+	/* ACTLR: trapped by HCR.TAC bit. */
+	{ CRn( 1), CRm( 0), Op1( 0), Op2( 1), is32,
+			access_actlr, reset_actlr, c1_ACTLR },
 
-	/* TTBCR: swapped by interrupt.S. */
+	/* CPACR: swapped by interrupt.S. */
+	{ CRn( 1), CRm( 0), Op1( 0), Op2( 2), is32,
+			NULL, reset_val, c1_CPACR, 0x00000000 },
+
+	/* TTBR0/TTBR1/TTBCR: swapped by interrupt.S. */
+	{ CRm64( 2), Op1( 0), is64, access_vm_reg, reset_unknown64, c2_TTBR0 },
+	{ CRn(2), CRm( 0), Op1( 0), Op2( 0), is32,
+			access_vm_reg, reset_unknown, c2_TTBR0 },
+	{ CRn(2), CRm( 0), Op1( 0), Op2( 1), is32,
+			access_vm_reg, reset_unknown, c2_TTBR1 },
 	{ CRn( 2), CRm( 0), Op1( 0), Op2( 2), is32,
-			NULL, reset_val, c2_TTBCR, 0x00000000 },
+			access_vm_reg, reset_val, c2_TTBCR, 0x00000000 },
+	{ CRm64( 2), Op1( 1), is64, access_vm_reg, reset_unknown64, c2_TTBR1 },
+
 
 	/* DACR: swapped by interrupt.S. */
 	{ CRn( 3), CRm( 0), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c3_DACR },
+			access_vm_reg, reset_unknown, c3_DACR },
 
 	/* DFSR/IFSR/ADFSR/AIFSR: swapped by interrupt.S. */
 	{ CRn( 5), CRm( 0), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c5_DFSR },
+			access_vm_reg, reset_unknown, c5_DFSR },
 	{ CRn( 5), CRm( 0), Op1( 0), Op2( 1), is32,
-			NULL, reset_unknown, c5_IFSR },
+			access_vm_reg, reset_unknown, c5_IFSR },
 	{ CRn( 5), CRm( 1), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c5_ADFSR },
+			access_vm_reg, reset_unknown, c5_ADFSR },
 	{ CRn( 5), CRm( 1), Op1( 0), Op2( 1), is32,
-			NULL, reset_unknown, c5_AIFSR },
+			access_vm_reg, reset_unknown, c5_AIFSR },
 
 	/* DFAR/IFAR: swapped by interrupt.S. */
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c6_DFAR },
+			access_vm_reg, reset_unknown, c6_DFAR },
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 2), is32,
-			NULL, reset_unknown, c6_IFAR },
+			access_vm_reg, reset_unknown, c6_IFAR },
 
 	/* PAR swapped by interrupt.S */
-	{ CRn( 7), Op1( 0), is64, NULL, reset_unknown64, c7_PAR },
+	{ CRm64( 7), Op1( 0), is64, NULL, reset_unknown64, c7_PAR },
 
 	/*
 	 * DC{C,I,CI}SW operations:
@@ -190,6 +367,13 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn( 7), CRm( 6), Op1( 0), Op2( 2), is32, access_dcsw},
 	{ CRn( 7), CRm(10), Op1( 0), Op2( 2), is32, access_dcsw},
 	{ CRn( 7), CRm(14), Op1( 0), Op2( 2), is32, access_dcsw},
+	/*
+	 * L2CTLR access (guest wants to know #CPUs).
+	 */
+	{ CRn( 9), CRm( 0), Op1( 1), Op2( 2), is32,
+			access_l2ctlr, reset_l2ctlr, c9_L2CTLR },
+	{ CRn( 9), CRm( 0), Op1( 1), Op2( 3), is32, access_l2ectlr},
+
 	/*
 	 * Dummy performance monitor implementation.
 	 */
@@ -209,17 +393,29 @@ static const struct coproc_reg cp15_regs[] = {
 
 	/* PRRR/NMRR (aka MAIR0/MAIR1): swapped by interrupt.S. */
 	{ CRn(10), CRm( 2), Op1( 0), Op2( 0), is32,
-			NULL, reset_unknown, c10_PRRR},
+			access_vm_reg, reset_unknown, c10_PRRR},
 	{ CRn(10), CRm( 2), Op1( 0), Op2( 1), is32,
-			NULL, reset_unknown, c10_NMRR},
+			access_vm_reg, reset_unknown, c10_NMRR},
+
+	/* AMAIR0/AMAIR1: swapped by interrupt.S. */
+	{ CRn(10), CRm( 3), Op1( 0), Op2( 0), is32,
+			access_vm_reg, reset_unknown, c10_AMAIR0},
+	{ CRn(10), CRm( 3), Op1( 0), Op2( 1), is32,
+			access_vm_reg, reset_unknown, c10_AMAIR1},
+
+	/* ICC_SGI1R */
+	{ CRm64(12), Op1( 0), is64, access_gic_sgi},
 
 	/* VBAR: swapped by interrupt.S. */
 	{ CRn(12), CRm( 0), Op1( 0), Op2( 0), is32,
 			NULL, reset_val, c12_VBAR, 0x00000000 },
 
+	/* ICC_SRE */
+	{ CRn(12), CRm(12), Op1( 0), Op2(5), is32, access_gic_sre },
+
 	/* CONTEXTIDR/TPIDRURW/TPIDRURO/TPIDRPRW: swapped by interrupt.S. */
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 1), is32,
-			NULL, reset_val, c13_CID, 0x00000000 },
+			access_vm_reg, reset_val, c13_CID, 0x00000000 },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 2), is32,
 			NULL, reset_unknown, c13_TID_URW },
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 3), is32,
@@ -230,13 +426,31 @@ static const struct coproc_reg cp15_regs[] = {
 	/* CNTKCTL: swapped by interrupt.S. */
 	{ CRn(14), CRm( 1), Op1( 0), Op2( 0), is32,
 			NULL, reset_val, c14_CNTKCTL, 0x00000000 },
+
+	/* The Configuration Base Address Register. */
+	{ CRn(15), CRm( 0), Op1( 4), Op2( 0), is32, access_cbar},
 };
+
+static int check_reg_table(const struct coproc_reg *table, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 1; i < n; i++) {
+		if (cmp_reg(&table[i-1], &table[i]) >= 0) {
+			kvm_err("reg table %p out of order (%d)\n", table, i - 1);
+			return 1;
+		}
+	}
+
+	return 0;
+}
 
 /* Target specific emulation tables */
 static struct kvm_coproc_target_table *target_tables[KVM_ARM_NUM_TARGETS];
 
 void kvm_register_target_coproc_table(struct kvm_coproc_target_table *table)
 {
+	BUG_ON(check_reg_table(table->table, table->num));
 	target_tables[table->target] = table;
 }
 
@@ -250,29 +464,32 @@ static const struct coproc_reg *get_target_table(unsigned target, size_t *num)
 	return table->table;
 }
 
+#define reg_to_match_value(x)						\
+	({								\
+		unsigned long val;					\
+		val  = (x)->CRn << 11;					\
+		val |= (x)->CRm << 7;					\
+		val |= (x)->Op1 << 4;					\
+		val |= (x)->Op2 << 1;					\
+		val |= !(x)->is_64bit;					\
+		val;							\
+	 })
+
+static int match_reg(const void *key, const void *elt)
+{
+	const unsigned long pval = (unsigned long)key;
+	const struct coproc_reg *r = elt;
+
+	return pval - reg_to_match_value(r);
+}
+
 static const struct coproc_reg *find_reg(const struct coproc_params *params,
 					 const struct coproc_reg table[],
 					 unsigned int num)
 {
-	unsigned int i;
+	unsigned long pval = reg_to_match_value(params);
 
-	for (i = 0; i < num; i++) {
-		const struct coproc_reg *r = &table[i];
-
-		if (params->is_64bit != r->is_64)
-			continue;
-		if (params->CRn != r->CRn)
-			continue;
-		if (params->CRm != r->CRm)
-			continue;
-		if (params->Op1 != r->Op1)
-			continue;
-		if (params->Op2 != r->Op2)
-			continue;
-
-		return r;
-	}
-	return NULL;
+	return bsearch((void *)pval, table, num, sizeof(table[0]), match_reg);
 }
 
 static int emulate_cp15(struct kvm_vcpu *vcpu,
@@ -298,16 +515,33 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
 			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-			return 1;
 		}
-		/* If access function fails, it should complain. */
 	} else {
+		/* If access function fails, it should complain. */
 		kvm_err("Unsupported guest CP15 access at: %08lx\n",
 			*vcpu_pc(vcpu));
 		print_cp_instr(params);
+		kvm_inject_undefined(vcpu);
 	}
-	kvm_inject_undefined(vcpu);
+
 	return 1;
+}
+
+static struct coproc_params decode_64bit_hsr(struct kvm_vcpu *vcpu)
+{
+	struct coproc_params params;
+
+	params.CRn = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
+	params.Rt1 = (kvm_vcpu_get_hsr(vcpu) >> 5) & 0xf;
+	params.is_write = ((kvm_vcpu_get_hsr(vcpu) & 1) == 0);
+	params.is_64bit = true;
+
+	params.Op1 = (kvm_vcpu_get_hsr(vcpu) >> 16) & 0xf;
+	params.Op2 = 0;
+	params.Rt2 = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
+	params.CRm = 0;
+
+	return params;
 }
 
 /**
@@ -317,19 +551,26 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
  */
 int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	struct coproc_params params;
-
-	params.CRm = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
-	params.Rt1 = (kvm_vcpu_get_hsr(vcpu) >> 5) & 0xf;
-	params.is_write = ((kvm_vcpu_get_hsr(vcpu) & 1) == 0);
-	params.is_64bit = true;
-
-	params.Op1 = (kvm_vcpu_get_hsr(vcpu) >> 16) & 0xf;
-	params.Op2 = 0;
-	params.Rt2 = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
-	params.CRn = 0;
+	struct coproc_params params = decode_64bit_hsr(vcpu);
 
 	return emulate_cp15(vcpu, &params);
+}
+
+/**
+ * kvm_handle_cp14_64 -- handles a mrrc/mcrr trap on a guest CP14 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_64bit_hsr(vcpu);
+
+	/* raz_wi cp14 */
+	trap_raz_wi(vcpu, &params, NULL);
+
+	/* handled */
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+	return 1;
 }
 
 static void reset_coproc_regs(struct kvm_vcpu *vcpu,
@@ -342,12 +583,7 @@ static void reset_coproc_regs(struct kvm_vcpu *vcpu,
 			table[i].reset(vcpu, &table[i]);
 }
 
-/**
- * kvm_handle_cp15_32 -- handles a mrc/mcr trap on a guest CP15 access
- * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
- */
-int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static struct coproc_params decode_32bit_hsr(struct kvm_vcpu *vcpu)
 {
 	struct coproc_params params;
 
@@ -361,7 +597,35 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Op2 = (kvm_vcpu_get_hsr(vcpu) >> 17) & 0x7;
 	params.Rt2 = 0;
 
+	return params;
+}
+
+/**
+ * kvm_handle_cp15_32 -- handles a mrc/mcr trap on a guest CP15 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_32bit_hsr(vcpu);
 	return emulate_cp15(vcpu, &params);
+}
+
+/**
+ * kvm_handle_cp14_32 -- handles a mrc/mcr trap on a guest CP14 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp14_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_32bit_hsr(vcpu);
+
+	/* raz_wi cp14 */
+	trap_raz_wi(vcpu, &params, NULL);
+
+	/* handled */
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+	return 1;
 }
 
 /******************************************************************************
@@ -399,12 +663,13 @@ static bool index_to_params(u64 id, struct coproc_params *params)
 			      | KVM_REG_ARM_OPC1_MASK))
 			return false;
 		params->is_64bit = true;
-		params->CRm = ((id & KVM_REG_ARM_CRM_MASK)
+		/* CRm to CRn: see cp15_to_index for details */
+		params->CRn = ((id & KVM_REG_ARM_CRM_MASK)
 			       >> KVM_REG_ARM_CRM_SHIFT);
 		params->Op1 = ((id & KVM_REG_ARM_OPC1_MASK)
 			       >> KVM_REG_ARM_OPC1_SHIFT);
 		params->Op2 = 0;
-		params->CRn = 0;
+		params->CRm = 0;
 		return true;
 	default:
 		return false;
@@ -489,6 +754,9 @@ static struct coproc_reg invariant_cp15[] = {
 	{ CRn( 0), CRm( 0), Op1( 0), Op2( 3), is32, NULL, get_TLBTR },
 	{ CRn( 0), CRm( 0), Op1( 0), Op2( 6), is32, NULL, get_REVIDR },
 
+	{ CRn( 0), CRm( 0), Op1( 1), Op2( 1), is32, NULL, get_CLIDR },
+	{ CRn( 0), CRm( 0), Op1( 1), Op2( 7), is32, NULL, get_AIDR },
+
 	{ CRn( 0), CRm( 1), Op1( 0), Op2( 0), is32, NULL, get_ID_PFR0 },
 	{ CRn( 0), CRm( 1), Op1( 0), Op2( 1), is32, NULL, get_ID_PFR1 },
 	{ CRn( 0), CRm( 1), Op1( 0), Op2( 2), is32, NULL, get_ID_DFR0 },
@@ -504,22 +772,25 @@ static struct coproc_reg invariant_cp15[] = {
 	{ CRn( 0), CRm( 2), Op1( 0), Op2( 3), is32, NULL, get_ID_ISAR3 },
 	{ CRn( 0), CRm( 2), Op1( 0), Op2( 4), is32, NULL, get_ID_ISAR4 },
 	{ CRn( 0), CRm( 2), Op1( 0), Op2( 5), is32, NULL, get_ID_ISAR5 },
-
-	{ CRn( 0), CRm( 0), Op1( 1), Op2( 1), is32, NULL, get_CLIDR },
-	{ CRn( 0), CRm( 0), Op1( 1), Op2( 7), is32, NULL, get_AIDR },
 };
 
+/*
+ * Reads a register value from a userspace address to a kernel
+ * variable. Make sure that register size matches sizeof(*__val).
+ */
 static int reg_from_user(void *val, const void __user *uaddr, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_from_user(val, uaddr, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
 }
 
+/*
+ * Writes a register value to a userspace address from a kernel variable.
+ * Make sure that register size matches sizeof(*__val).
+ */
 static int reg_to_user(void __user *uaddr, const void *val, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_to_user(uaddr, val, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
@@ -529,6 +800,7 @@ static int get_invariant_cp15(u64 id, void __user *uaddr)
 {
 	struct coproc_params params;
 	const struct coproc_reg *r;
+	int ret;
 
 	if (!index_to_params(id, &params))
 		return -ENOENT;
@@ -537,7 +809,15 @@ static int get_invariant_cp15(u64 id, void __user *uaddr)
 	if (!r)
 		return -ENOENT;
 
-	return reg_to_user(uaddr, &r->val, id);
+	ret = -ENOENT;
+	if (KVM_REG_SIZE(id) == 4) {
+		u32 val = r->val;
+
+		ret = reg_to_user(uaddr, &val, id);
+	} else if (KVM_REG_SIZE(id) == 8) {
+		ret = reg_to_user(uaddr, &r->val, id);
+	}
+	return ret;
 }
 
 static int set_invariant_cp15(u64 id, void __user *uaddr)
@@ -545,7 +825,7 @@ static int set_invariant_cp15(u64 id, void __user *uaddr)
 	struct coproc_params params;
 	const struct coproc_reg *r;
 	int err;
-	u64 val = 0; /* Make sure high bits are 0 for 32-bit regs */
+	u64 val;
 
 	if (!index_to_params(id, &params))
 		return -ENOENT;
@@ -553,7 +833,16 @@ static int set_invariant_cp15(u64 id, void __user *uaddr)
 	if (!r)
 		return -ENOENT;
 
-	err = reg_from_user(&val, uaddr, id);
+	err = -ENOENT;
+	if (KVM_REG_SIZE(id) == 4) {
+		u32 val32;
+
+		err = reg_from_user(&val32, uaddr, id);
+		if (!err)
+			val = val32;
+	} else if (KVM_REG_SIZE(id) == 8) {
+		err = reg_from_user(&val, uaddr, id);
+	}
 	if (err)
 		return err;
 
@@ -569,7 +858,7 @@ static bool is_valid_cache(u32 val)
 	u32 level, ctype;
 
 	if (val >= CSSELR_MAX)
-		return -ENOENT;
+		return false;
 
 	/* Bottom bit is Instruction or Data bit.  Next 3 bits are level. */
         level = (val >> 1);
@@ -721,7 +1010,7 @@ static int vfp_get_reg(const struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 	if (vfpid < num_fp_regs()) {
 		if (KVM_REG_SIZE(id) != 8)
 			return -ENOENT;
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpregs[vfpid],
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpregs[vfpid],
 				   id);
 	}
 
@@ -731,13 +1020,13 @@ static int vfp_get_reg(const struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 
 	switch (vfpid) {
 	case KVM_REG_ARM_VFP_FPEXC:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpexc, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpexc, id);
 	case KVM_REG_ARM_VFP_FPSCR:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpscr, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpscr, id);
 	case KVM_REG_ARM_VFP_FPINST:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpinst, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpinst, id);
 	case KVM_REG_ARM_VFP_FPINST2:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpinst2, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpinst2, id);
 	case KVM_REG_ARM_VFP_MVFR0:
 		val = fmrx(MVFR0);
 		return reg_to_user(uaddr, &val, id);
@@ -765,7 +1054,7 @@ static int vfp_set_reg(struct kvm_vcpu *vcpu, u64 id, const void __user *uaddr)
 	if (vfpid < num_fp_regs()) {
 		if (KVM_REG_SIZE(id) != 8)
 			return -ENOENT;
-		return reg_from_user(&vcpu->arch.vfp_guest.fpregs[vfpid],
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpregs[vfpid],
 				     uaddr, id);
 	}
 
@@ -775,13 +1064,13 @@ static int vfp_set_reg(struct kvm_vcpu *vcpu, u64 id, const void __user *uaddr)
 
 	switch (vfpid) {
 	case KVM_REG_ARM_VFP_FPEXC:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpexc, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpexc, uaddr, id);
 	case KVM_REG_ARM_VFP_FPSCR:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpscr, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpscr, uaddr, id);
 	case KVM_REG_ARM_VFP_FPINST:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpinst, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpinst, uaddr, id);
 	case KVM_REG_ARM_VFP_FPINST2:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpinst2, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpinst2, uaddr, id);
 	/* These are invariant. */
 	case KVM_REG_ARM_VFP_MVFR0:
 		if (reg_from_user(&val, uaddr, id))
@@ -831,6 +1120,7 @@ int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	const struct coproc_reg *r;
 	void __user *uaddr = (void __user *)(long)reg->addr;
+	int ret;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_get(reg->id, uaddr);
@@ -842,14 +1132,24 @@ int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if (!r)
 		return get_invariant_cp15(reg->id, uaddr);
 
-	/* Note: copies two regs if size is 64 bit. */
-	return reg_to_user(uaddr, &vcpu->arch.cp15[r->reg], reg->id);
+	ret = -ENOENT;
+	if (KVM_REG_SIZE(reg->id) == 8) {
+		u64 val;
+
+		val = vcpu_cp15_reg64_get(vcpu, r);
+		ret = reg_to_user(uaddr, &val, reg->id);
+	} else if (KVM_REG_SIZE(reg->id) == 4) {
+		ret = reg_to_user(uaddr, &vcpu_cp15(vcpu, r->reg), reg->id);
+	}
+
+	return ret;
 }
 
 int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	const struct coproc_reg *r;
 	void __user *uaddr = (void __user *)(long)reg->addr;
+	int ret;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_set(reg->id, uaddr);
@@ -861,8 +1161,18 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if (!r)
 		return set_invariant_cp15(reg->id, uaddr);
 
-	/* Note: copies two regs if size is 64 bit */
-	return reg_from_user(&vcpu->arch.cp15[r->reg], uaddr, reg->id);
+	ret = -ENOENT;
+	if (KVM_REG_SIZE(reg->id) == 8) {
+		u64 val;
+
+		ret = reg_from_user(&val, uaddr, reg->id);
+		if (!ret)
+			vcpu_cp15_reg64_set(vcpu, r, val);
+	} else if (KVM_REG_SIZE(reg->id) == 4) {
+		ret = reg_from_user(&vcpu_cp15(vcpu, r->reg), uaddr, reg->id);
+	}
+
+	return ret;
 }
 
 static unsigned int num_demux_regs(void)
@@ -895,10 +1205,17 @@ static int write_demux_regids(u64 __user *uindices)
 static u64 cp15_to_index(const struct coproc_reg *reg)
 {
 	u64 val = KVM_REG_ARM | (15 << KVM_REG_ARM_COPROC_SHIFT);
-	if (reg->is_64) {
+	if (reg->is_64bit) {
 		val |= KVM_REG_SIZE_U64;
 		val |= (reg->Op1 << KVM_REG_ARM_OPC1_SHIFT);
-		val |= (reg->CRm << KVM_REG_ARM_CRM_SHIFT);
+		/*
+		 * CRn always denotes the primary coproc. reg. nr. for the
+		 * in-kernel representation, but the user space API uses the
+		 * CRm for the encoding, because it is modelled after the
+		 * MRRC/MCRR instructions: see the ARM ARM rev. c page
+		 * B3-1445
+		 */
+		val |= (reg->CRn << KVM_REG_ARM_CRM_SHIFT);
 	} else {
 		val |= KVM_REG_SIZE_U32;
 		val |= (reg->Op1 << KVM_REG_ARM_OPC1_SHIFT);
@@ -1002,8 +1319,8 @@ void kvm_coproc_table_init(void)
 	unsigned int i;
 
 	/* Make sure tables are unique and in order. */
-	for (i = 1; i < ARRAY_SIZE(cp15_regs); i++)
-		BUG_ON(cmp_reg(&cp15_regs[i-1], &cp15_regs[i]) >= 0);
+	BUG_ON(check_reg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
+	BUG_ON(check_reg_table(invariant_cp15, ARRAY_SIZE(invariant_cp15)));
 
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_cp15); i++)
@@ -1040,7 +1357,7 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 	const struct coproc_reg *table;
 
 	/* Catch someone adding a register without putting in reset entry. */
-	memset(vcpu->arch.cp15, 0x42, sizeof(vcpu->arch.cp15));
+	memset(vcpu->arch.ctxt.cp15, 0x42, sizeof(vcpu->arch.ctxt.cp15));
 
 	/* Generic chip reset first (so target could override). */
 	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
@@ -1049,6 +1366,6 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 	reset_coproc_regs(vcpu, table, num);
 
 	for (num = 1; num < NR_CP15_REGS; num++)
-		if (vcpu->arch.cp15[num] == 0x42424242)
-			panic("Didn't reset vcpu->arch.cp15[%zi]", num);
+		if (vcpu_cp15(vcpu, num) == 0x42424242)
+			panic("Didn't reset vcpu_cp15(vcpu, %zi)", num);
 }

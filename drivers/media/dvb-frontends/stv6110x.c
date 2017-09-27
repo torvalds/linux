@@ -32,6 +32,9 @@
 #include "stv6110x.h"
 #include "stv6110x_priv.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Set Verbosity level");
@@ -61,13 +64,21 @@ static int stv6110x_write_regs(struct stv6110x_state *stv6110x, int start, u8 da
 {
 	int ret;
 	const struct stv6110x_config *config = stv6110x->config;
-	u8 buf[len + 1];
+	u8 buf[MAX_XFER_SIZE];
+
 	struct i2c_msg msg = {
 		.addr = config->addr,
 		.flags = 0,
 		.buf = buf,
 		.len = len + 1
 	};
+
+	if (1 + len > sizeof(buf)) {
+		printk(KERN_WARNING
+		       "%s: i2c wr: len=%d is too big!\n",
+		       KBUILD_MODNAME, len);
+		return -EINVAL;
+	}
 
 	if (start + len > 8)
 		return -EINVAL;
@@ -324,17 +335,15 @@ static int stv6110x_get_status(struct dvb_frontend *fe, u32 *status)
 }
 
 
-static int stv6110x_release(struct dvb_frontend *fe)
+static void stv6110x_release(struct dvb_frontend *fe)
 {
 	struct stv6110x_state *stv6110x = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(stv6110x);
-
-	return 0;
 }
 
-static struct dvb_tuner_ops stv6110x_ops = {
+static const struct dvb_tuner_ops stv6110x_ops = {
 	.info = {
 		.name		= "STV6110(A) Silicon Tuner",
 		.frequency_min	=  950000,
@@ -344,7 +353,7 @@ static struct dvb_tuner_ops stv6110x_ops = {
 	.release		= stv6110x_release
 };
 
-static struct stv6110x_devctl stv6110x_ctl = {
+static const struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_init		= stv6110x_init,
 	.tuner_sleep		= stv6110x_sleep,
 	.tuner_set_mode		= stv6110x_set_mode,
@@ -358,7 +367,7 @@ static struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_get_status	= stv6110x_get_status,
 };
 
-struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
+const struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 					const struct stv6110x_config *config,
 					struct i2c_adapter *i2c)
 {

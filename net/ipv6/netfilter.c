@@ -18,25 +18,27 @@
 #include <net/ip6_checksum.h>
 #include <net/netfilter/nf_queue.h>
 
-int ip6_route_me_harder(struct sk_buff *skb)
+int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	unsigned int hh_len;
 	struct dst_entry *dst;
 	struct flowi6 fl6 = {
 		.flowi6_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
 		.flowi6_mark = skb->mark,
+		.flowi6_uid = sock_net_uid(net, skb->sk),
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
 	};
+	int err;
 
 	dst = ip6_route_output(net, skb->sk, &fl6);
-	if (dst->error) {
+	err = dst->error;
+	if (err) {
 		IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
-		LIMIT_NETDEBUG(KERN_DEBUG "ip6_route_me_harder: No more route.\n");
+		net_dbg_ratelimited("ip6_route_me_harder: No more route\n");
 		dst_release(dst);
-		return dst->error;
+		return err;
 	}
 
 	/* Drop old route. */
@@ -82,7 +84,7 @@ static void nf_ip6_saveroute(const struct sk_buff *skb,
 {
 	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (entry->hook == NF_INET_LOCAL_OUT) {
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		rt_info->daddr = iph->daddr;
@@ -91,17 +93,17 @@ static void nf_ip6_saveroute(const struct sk_buff *skb,
 	}
 }
 
-static int nf_ip6_reroute(struct sk_buff *skb,
+static int nf_ip6_reroute(struct net *net, struct sk_buff *skb,
 			  const struct nf_queue_entry *entry)
 {
 	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (entry->hook == NF_INET_LOCAL_OUT) {
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||
 		    skb->mark != rt_info->mark)
-			return ip6_route_me_harder(skb);
+			return ip6_route_me_harder(net, skb);
 	}
 	return 0;
 }
@@ -189,6 +191,8 @@ static __sum16 nf_ip6_checksum_partial(struct sk_buff *skb, unsigned int hook,
 
 static const struct nf_ipv6_ops ipv6ops = {
 	.chk_addr	= ipv6_chk_addr,
+	.route_input    = ip6_route_input,
+	.fragment	= ip6_fragment
 };
 
 static const struct nf_afinfo nf_ip6_afinfo = {

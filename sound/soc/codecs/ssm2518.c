@@ -169,19 +169,19 @@ static const char * const ssm2518_drc_hold_time_text[] = {
 	"682.24 ms", "1364 ms",
 };
 
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_attack_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_attack_time_enum,
 	SSM2518_REG_DRC_2, 4, ssm2518_drc_peak_detector_attack_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_release_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_peak_detector_release_time_enum,
 	SSM2518_REG_DRC_2, 0, ssm2518_drc_peak_detector_release_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_attack_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_attack_time_enum,
 	SSM2518_REG_DRC_6, 4, ssm2518_drc_peak_detector_attack_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_decay_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_decay_time_enum,
 	SSM2518_REG_DRC_6, 0, ssm2518_drc_peak_detector_release_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_hold_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_hold_time_enum,
 	SSM2518_REG_DRC_7, 4, ssm2518_drc_hold_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_noise_gate_hold_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_noise_gate_hold_time_enum,
 	SSM2518_REG_DRC_7, 0, ssm2518_drc_hold_time_text);
-static const SOC_ENUM_SINGLE_DECL(ssm2518_drc_rms_averaging_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_rms_averaging_time_enum,
 	SSM2518_REG_DRC_9, 0, ssm2518_drc_peak_detector_release_time_text);
 
 static const struct snd_kcontrol_new ssm2518_snd_controls[] = {
@@ -309,7 +309,7 @@ static const struct snd_pcm_hw_constraint_list ssm2518_constraints_12288000 = {
 	.count = ARRAY_SIZE(ssm2518_rates_12288000),
 };
 
-static unsigned int ssm2518_lookup_mcs(struct ssm2518 *ssm2518,
+static int ssm2518_lookup_mcs(struct ssm2518 *ssm2518,
 	unsigned int rate)
 {
 	const unsigned int *sysclks = NULL;
@@ -361,11 +361,11 @@ static int ssm2518_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	if (ssm2518->right_j) {
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			ctrl1 |= SSM2518_SAI_CTRL1_FMT_RJ_16BIT;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			ctrl1 |= SSM2518_SAI_CTRL1_FMT_RJ_24BIT;
 			break;
 		default:
@@ -510,7 +510,7 @@ static int ssm2518_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			ret = ssm2518_set_power(ssm2518, true);
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -518,12 +518,7 @@ static int ssm2518_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	codec->dapm.bias_level = level;
-
-	return 0;
+	return ret;
 }
 
 static int ssm2518_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
@@ -549,13 +544,13 @@ static int ssm2518_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		right_slot = 0;
 	} else {
 		/* We assume the left channel < right channel */
-		left_slot = ffs(tx_mask);
-		tx_mask &= ~(1 << tx_mask);
+		left_slot = __ffs(tx_mask);
+		tx_mask &= ~(1 << left_slot);
 		if (tx_mask == 0) {
 			right_slot = left_slot;
 		} else {
-			right_slot = ffs(tx_mask);
-			tx_mask &= ~(1 << tx_mask);
+			right_slot = __ffs(tx_mask);
+			tx_mask &= ~(1 << right_slot);
 		}
 	}
 
@@ -646,27 +641,6 @@ static struct snd_soc_dai_driver ssm2518_dai = {
 	.ops = &ssm2518_dai_ops,
 };
 
-static int ssm2518_probe(struct snd_soc_codec *codec)
-{
-	struct ssm2518 *ssm2518 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = ssm2518->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	return ssm2518_set_bias_level(codec, SND_SOC_BIAS_OFF);
-}
-
-static int ssm2518_remove(struct snd_soc_codec *codec)
-{
-	ssm2518_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int ssm2518_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	int source, unsigned int freq, int dir)
 {
@@ -736,32 +710,26 @@ static int ssm2518_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			SSM2518_POWER1_NO_BCLK, val);
 }
 
-static struct snd_soc_codec_driver ssm2518_codec_driver = {
-	.probe = ssm2518_probe,
-	.remove = ssm2518_remove,
+static const struct snd_soc_codec_driver ssm2518_codec_driver = {
 	.set_bias_level = ssm2518_set_bias_level,
 	.set_sysclk = ssm2518_set_sysclk,
 	.idle_bias_off = true,
 
-	.controls = ssm2518_snd_controls,
-	.num_controls = ARRAY_SIZE(ssm2518_snd_controls),
-	.dapm_widgets = ssm2518_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ssm2518_dapm_widgets),
-	.dapm_routes = ssm2518_routes,
-	.num_dapm_routes = ARRAY_SIZE(ssm2518_routes),
+	.component_driver = {
+		.controls		= ssm2518_snd_controls,
+		.num_controls		= ARRAY_SIZE(ssm2518_snd_controls),
+		.dapm_widgets		= ssm2518_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ssm2518_dapm_widgets),
+		.dapm_routes		= ssm2518_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ssm2518_routes),
+	},
 };
-
-static bool ssm2518_register_volatile(struct device *dev, unsigned int reg)
-{
-	return false;
-}
 
 static const struct regmap_config ssm2518_regmap_config = {
 	.val_bits = 8,
 	.reg_bits = 8,
 
 	.max_register = SSM2518_REG_DRC_9,
-	.volatile_reg = ssm2518_register_volatile,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = ssm2518_reg_defaults,
@@ -834,6 +802,14 @@ static int ssm2518_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ssm2518_dt_ids[] = {
+	{ .compatible = "adi,ssm2518", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ssm2518_dt_ids);
+#endif
+
 static const struct i2c_device_id ssm2518_i2c_ids[] = {
 	{ "ssm2518", 0 },
 	{ }
@@ -843,7 +819,7 @@ MODULE_DEVICE_TABLE(i2c, ssm2518_i2c_ids);
 static struct i2c_driver ssm2518_driver = {
 	.driver = {
 		.name = "ssm2518",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(ssm2518_dt_ids),
 	},
 	.probe = ssm2518_i2c_probe,
 	.remove = ssm2518_i2c_remove,

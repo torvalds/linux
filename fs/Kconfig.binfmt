@@ -1,6 +1,7 @@
 config BINFMT_ELF
 	bool "Kernel support for ELF binaries"
 	depends on MMU && (BROKEN || !FRV)
+	select ELFCORE
 	default y
 	---help---
 	  ELF (Executable and Linkable Format) is a format for libraries and
@@ -26,14 +27,16 @@ config BINFMT_ELF
 config COMPAT_BINFMT_ELF
 	bool
 	depends on COMPAT && BINFMT_ELF
+	select ELFCORE
 
-config ARCH_BINFMT_ELF_RANDOMIZE_PIE
+config ARCH_BINFMT_ELF_STATE
 	bool
 
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y
 	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
+	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
 	  segments of a binary to be located in memory independently of each
@@ -42,6 +45,11 @@ config BINFMT_ELF_FDPIC
 	  even if data segments are not.
 
 	  It is also possible to run FDPIC ELF binaries on MMU linux also.
+
+config ELFCORE
+	bool
+	help
+	  This option enables kernel/elfcore.o.
 
 config CORE_DUMP_DEFAULT_ELF_HEADERS
 	bool "Write ELF core dumps with partial segments"
@@ -81,7 +89,8 @@ config BINFMT_SCRIPT
 
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
-	depends on !MMU && (!FRV || BROKEN)
+	depends on !MMU || ARM || M68K
+	depends on !FRV || BROKEN
 	help
 	  Support uClinux FLAT format binaries.
 
@@ -146,13 +155,6 @@ config BINFMT_EM86
 	  later load the module when you want to use a Linux/Intel binary. The
 	  module will be called binfmt_em86. If unsure, say Y.
 
-config BINFMT_SOM
-	tristate "Kernel support for SOM binaries"
-	depends on PARISC && HPUX
-	help
-	  SOM is a binary executable format inherited from HP/UX.  Say
-	  Y here to be able to load and execute SOM binaries directly.
-
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"
 	---help---
@@ -168,8 +170,8 @@ config BINFMT_MISC
 
 	  You can do other nice things, too. Read the file
 	  <file:Documentation/binfmt_misc.txt> to learn how to use this
-	  feature, <file:Documentation/java.txt> for information about how
-	  to include Java support. and <file:Documentation/mono.txt> for
+	  feature, <file:Documentation/admin-guide/java.rst> for information about how
+	  to include Java support. and <file:Documentation/admin-guide/mono.rst> for
           information about how to include Mono-based .NET support.
 
           To use binfmt_misc, you will need to mount it:

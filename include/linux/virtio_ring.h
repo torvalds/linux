@@ -12,7 +12,7 @@
  * anyone care?
  *
  * For virtio_pci on SMP, we don't need to order with respect to MMIO
- * accesses through relaxed memory I/O windows, so smp_mb() et al are
+ * accesses through relaxed memory I/O windows, so virt_mb() et al are
  * sufficient.
  *
  * For using virtio to talk to real devices (eg. other heterogeneous
@@ -21,11 +21,10 @@
  * actually quite cheap.
  */
 
-#ifdef CONFIG_SMP
 static inline void virtio_mb(bool weak_barriers)
 {
 	if (weak_barriers)
-		smp_mb();
+		virt_mb();
 	else
 		mb();
 }
@@ -33,7 +32,7 @@ static inline void virtio_mb(bool weak_barriers)
 static inline void virtio_rmb(bool weak_barriers)
 {
 	if (weak_barriers)
-		smp_rmb();
+		virt_rmb();
 	else
 		rmb();
 }
@@ -41,40 +40,73 @@ static inline void virtio_rmb(bool weak_barriers)
 static inline void virtio_wmb(bool weak_barriers)
 {
 	if (weak_barriers)
-		smp_wmb();
+		virt_wmb();
 	else
 		wmb();
 }
-#else
-static inline void virtio_mb(bool weak_barriers)
-{
-	mb();
-}
 
-static inline void virtio_rmb(bool weak_barriers)
+static inline void virtio_store_mb(bool weak_barriers,
+				   __virtio16 *p, __virtio16 v)
 {
-	rmb();
+	if (weak_barriers) {
+		virt_store_mb(*p, v);
+	} else {
+		WRITE_ONCE(*p, v);
+		mb();
+	}
 }
-
-static inline void virtio_wmb(bool weak_barriers)
-{
-	wmb();
-}
-#endif
 
 struct virtio_device;
 struct virtqueue;
 
+/*
+ * Creates a virtqueue and allocates the descriptor ring.  If
+ * may_reduce_num is set, then this may allocate a smaller ring than
+ * expected.  The caller should query virtqueue_get_ring_size to learn
+ * the actual size of the ring.
+ */
+struct virtqueue *vring_create_virtqueue(unsigned int index,
+					 unsigned int num,
+					 unsigned int vring_align,
+					 struct virtio_device *vdev,
+					 bool weak_barriers,
+					 bool may_reduce_num,
+					 bool ctx,
+					 bool (*notify)(struct virtqueue *vq),
+					 void (*callback)(struct virtqueue *vq),
+					 const char *name);
+
+/* Creates a virtqueue with a custom layout. */
+struct virtqueue *__vring_new_virtqueue(unsigned int index,
+					struct vring vring,
+					struct virtio_device *vdev,
+					bool weak_barriers,
+					bool ctx,
+					bool (*notify)(struct virtqueue *),
+					void (*callback)(struct virtqueue *),
+					const char *name);
+
+/*
+ * Creates a virtqueue with a standard layout but a caller-allocated
+ * ring.
+ */
 struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      unsigned int num,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,
+				      bool ctx,
 				      void *pages,
-				      void (*notify)(struct virtqueue *vq),
+				      bool (*notify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name);
+
+/*
+ * Destroys a virtqueue.  If created with vring_create_virtqueue, this
+ * also frees the ring.
+ */
 void vring_del_virtqueue(struct virtqueue *vq);
+
 /* Filter out transport-specific feature bits. */
 void vring_transport_features(struct virtio_device *vdev);
 

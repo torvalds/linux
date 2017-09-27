@@ -31,6 +31,30 @@
 #define I8042_CMD_MUX_PFX	0x0090
 #define I8042_CMD_MUX_SEND	0x1090
 
+/*
+ * Status register bits.
+ */
+
+#define I8042_STR_PARITY	0x80
+#define I8042_STR_TIMEOUT	0x40
+#define I8042_STR_AUXDATA	0x20
+#define I8042_STR_KEYLOCK	0x10
+#define I8042_STR_CMDDAT	0x08
+#define I8042_STR_MUXERR	0x04
+#define I8042_STR_IBF		0x02
+#define I8042_STR_OBF		0x01
+
+/*
+ * Control register bits.
+ */
+
+#define I8042_CTR_KBDINT	0x01
+#define I8042_CTR_AUXINT	0x02
+#define I8042_CTR_IGNKEYLOCK	0x08
+#define I8042_CTR_KBDDIS	0x10
+#define I8042_CTR_AUXDIS	0x20
+#define I8042_CTR_XLATE		0x40
+
 struct serio;
 
 #if defined(CONFIG_SERIO_I8042) || defined(CONFIG_SERIO_I8042_MODULE)
@@ -38,7 +62,6 @@ struct serio;
 void i8042_lock_chip(void);
 void i8042_unlock_chip(void);
 int i8042_command(unsigned char *param, int command);
-bool i8042_check_port_owner(const struct serio *);
 int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
 					struct serio *serio));
 int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
@@ -57,11 +80,6 @@ static inline void i8042_unlock_chip(void)
 static inline int i8042_command(unsigned char *param, int command)
 {
 	return -ENODEV;
-}
-
-static inline bool i8042_check_port_owner(const struct serio *serio)
-{
-	return false;
 }
 
 static inline int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,

@@ -72,6 +72,7 @@
 
 # unsigned int crc_pcl(u8 *buffer, int len, unsigned int crc_init);
 
+.text
 ENTRY(crc_pcl)
 #define    bufp		%rdi
 #define    bufp_dw	%edi
@@ -169,15 +170,15 @@ continue_block:
 	## branch into array
 	lea	jump_table(%rip), bufp
 	movzxw  (bufp, %rax, 2), len
-	offset=crc_array-jump_table
-	lea     offset(bufp, len, 1), bufp
+	lea	crc_array(%rip), bufp
+	lea     (bufp, len, 1), bufp
 	jmp     *bufp
 
 	################################################################
 	## 2a) PROCESS FULL BLOCKS:
 	################################################################
 full_block:
-	movq    $128,%rax
+	movl    $128,%eax
 	lea     128*8*2(block_0), block_1
 	lea     128*8*3(block_0), block_2
 	add     $128*8*1, block_0
@@ -216,15 +217,11 @@ LABEL crc_ %i
 	## 4) Combine three results:
 	################################################################
 
-	lea	(K_table-16)(%rip), bufp	# first entry is for idx 1
+	lea	(K_table-8)(%rip), bufp		# first entry is for idx 1
 	shlq    $3, %rax			# rax *= 8
-	subq    %rax, tmp			# tmp -= rax*8
-	shlq    $1, %rax
-	subq    %rax, tmp			# tmp -= rax*16
-						# (total tmp -= rax*24)
-	addq    %rax, bufp
-
-	movdqa  (bufp), %xmm0			# 2 consts: K1:K2
+	pmovzxdq (bufp,%rax), %xmm0		# 2 consts: K1:K2
+	leal	(%eax,%eax,2), %eax		# rax *= 3 (total *24)
+	subq    %rax, tmp			# tmp -= rax*24
 
 	movq    crc_init, %xmm1			# CRC for block 1
 	PCLMULQDQ 0x00,%xmm0,%xmm1		# Multiply by K2
@@ -238,9 +235,9 @@ LABEL crc_ %i
 	mov     crc2, crc_init
 	crc32   %rax, crc_init
 
-################################################################
-## 5) Check for end:
-################################################################
+	################################################################
+	## 5) Check for end:
+	################################################################
 
 LABEL crc_ 0
 	mov     tmp, len
@@ -313,7 +310,9 @@ do_return:
 	popq    %rdi
 	popq    %rbx
         ret
+ENDPROC(crc_pcl)
 
+.section	.rodata, "a", @progbits
         ################################################################
         ## jump table        Table is 129 entries x 2 bytes each
         ################################################################
@@ -327,140 +326,138 @@ JMPTBL_ENTRY %i
 	i=i+1
 .endr
 
-ENDPROC(crc_pcl)
 
 	################################################################
 	## PCLMULQDQ tables
-	## Table is 128 entries x 2 quad words each
+	## Table is 128 entries x 2 words (8 bytes) each
 	################################################################
-.data
-.align 64
+.align 8
 K_table:
-        .quad 0x14cd00bd6,0x105ec76f0
-        .quad 0x0ba4fc28e,0x14cd00bd6
-        .quad 0x1d82c63da,0x0f20c0dfe
-        .quad 0x09e4addf8,0x0ba4fc28e
-        .quad 0x039d3b296,0x1384aa63a
-        .quad 0x102f9b8a2,0x1d82c63da
-        .quad 0x14237f5e6,0x01c291d04
-        .quad 0x00d3b6092,0x09e4addf8
-        .quad 0x0c96cfdc0,0x0740eef02
-        .quad 0x18266e456,0x039d3b296
-        .quad 0x0daece73e,0x0083a6eec
-        .quad 0x0ab7aff2a,0x102f9b8a2
-        .quad 0x1248ea574,0x1c1733996
-        .quad 0x083348832,0x14237f5e6
-        .quad 0x12c743124,0x02ad91c30
-        .quad 0x0b9e02b86,0x00d3b6092
-        .quad 0x018b33a4e,0x06992cea2
-        .quad 0x1b331e26a,0x0c96cfdc0
-        .quad 0x17d35ba46,0x07e908048
-        .quad 0x1bf2e8b8a,0x18266e456
-        .quad 0x1a3e0968a,0x11ed1f9d8
-        .quad 0x0ce7f39f4,0x0daece73e
-        .quad 0x061d82e56,0x0f1d0f55e
-        .quad 0x0d270f1a2,0x0ab7aff2a
-        .quad 0x1c3f5f66c,0x0a87ab8a8
-        .quad 0x12ed0daac,0x1248ea574
-        .quad 0x065863b64,0x08462d800
-        .quad 0x11eef4f8e,0x083348832
-        .quad 0x1ee54f54c,0x071d111a8
-        .quad 0x0b3e32c28,0x12c743124
-        .quad 0x0064f7f26,0x0ffd852c6
-        .quad 0x0dd7e3b0c,0x0b9e02b86
-        .quad 0x0f285651c,0x0dcb17aa4
-        .quad 0x010746f3c,0x018b33a4e
-        .quad 0x1c24afea4,0x0f37c5aee
-        .quad 0x0271d9844,0x1b331e26a
-        .quad 0x08e766a0c,0x06051d5a2
-        .quad 0x093a5f730,0x17d35ba46
-        .quad 0x06cb08e5c,0x11d5ca20e
-        .quad 0x06b749fb2,0x1bf2e8b8a
-        .quad 0x1167f94f2,0x021f3d99c
-        .quad 0x0cec3662e,0x1a3e0968a
-        .quad 0x19329634a,0x08f158014
-        .quad 0x0e6fc4e6a,0x0ce7f39f4
-        .quad 0x08227bb8a,0x1a5e82106
-        .quad 0x0b0cd4768,0x061d82e56
-        .quad 0x13c2b89c4,0x188815ab2
-        .quad 0x0d7a4825c,0x0d270f1a2
-        .quad 0x10f5ff2ba,0x105405f3e
-        .quad 0x00167d312,0x1c3f5f66c
-        .quad 0x0f6076544,0x0e9adf796
-        .quad 0x026f6a60a,0x12ed0daac
-        .quad 0x1a2adb74e,0x096638b34
-        .quad 0x19d34af3a,0x065863b64
-        .quad 0x049c3cc9c,0x1e50585a0
-        .quad 0x068bce87a,0x11eef4f8e
-        .quad 0x1524fa6c6,0x19f1c69dc
-        .quad 0x16cba8aca,0x1ee54f54c
-        .quad 0x042d98888,0x12913343e
-        .quad 0x1329d9f7e,0x0b3e32c28
-        .quad 0x1b1c69528,0x088f25a3a
-        .quad 0x02178513a,0x0064f7f26
-        .quad 0x0e0ac139e,0x04e36f0b0
-        .quad 0x0170076fa,0x0dd7e3b0c
-        .quad 0x141a1a2e2,0x0bd6f81f8
-        .quad 0x16ad828b4,0x0f285651c
-        .quad 0x041d17b64,0x19425cbba
-        .quad 0x1fae1cc66,0x010746f3c
-        .quad 0x1a75b4b00,0x18db37e8a
-        .quad 0x0f872e54c,0x1c24afea4
-        .quad 0x01e41e9fc,0x04c144932
-        .quad 0x086d8e4d2,0x0271d9844
-        .quad 0x160f7af7a,0x052148f02
-        .quad 0x05bb8f1bc,0x08e766a0c
-        .quad 0x0a90fd27a,0x0a3c6f37a
-        .quad 0x0b3af077a,0x093a5f730
-        .quad 0x04984d782,0x1d22c238e
-        .quad 0x0ca6ef3ac,0x06cb08e5c
-        .quad 0x0234e0b26,0x063ded06a
-        .quad 0x1d88abd4a,0x06b749fb2
-        .quad 0x04597456a,0x04d56973c
-        .quad 0x0e9e28eb4,0x1167f94f2
-        .quad 0x07b3ff57a,0x19385bf2e
-        .quad 0x0c9c8b782,0x0cec3662e
-        .quad 0x13a9cba9e,0x0e417f38a
-        .quad 0x093e106a4,0x19329634a
-        .quad 0x167001a9c,0x14e727980
-        .quad 0x1ddffc5d4,0x0e6fc4e6a
-        .quad 0x00df04680,0x0d104b8fc
-        .quad 0x02342001e,0x08227bb8a
-        .quad 0x00a2a8d7e,0x05b397730
-        .quad 0x168763fa6,0x0b0cd4768
-        .quad 0x1ed5a407a,0x0e78eb416
-        .quad 0x0d2c3ed1a,0x13c2b89c4
-        .quad 0x0995a5724,0x1641378f0
-        .quad 0x19b1afbc4,0x0d7a4825c
-        .quad 0x109ffedc0,0x08d96551c
-        .quad 0x0f2271e60,0x10f5ff2ba
-        .quad 0x00b0bf8ca,0x00bf80dd2
-        .quad 0x123888b7a,0x00167d312
-        .quad 0x1e888f7dc,0x18dcddd1c
-        .quad 0x002ee03b2,0x0f6076544
-        .quad 0x183e8d8fe,0x06a45d2b2
-        .quad 0x133d7a042,0x026f6a60a
-        .quad 0x116b0f50c,0x1dd3e10e8
-        .quad 0x05fabe670,0x1a2adb74e
-        .quad 0x130004488,0x0de87806c
-        .quad 0x000bcf5f6,0x19d34af3a
-        .quad 0x18f0c7078,0x014338754
-        .quad 0x017f27698,0x049c3cc9c
-        .quad 0x058ca5f00,0x15e3e77ee
-        .quad 0x1af900c24,0x068bce87a
-        .quad 0x0b5cfca28,0x0dd07448e
-        .quad 0x0ded288f8,0x1524fa6c6
-        .quad 0x059f229bc,0x1d8048348
-        .quad 0x06d390dec,0x16cba8aca
-        .quad 0x037170390,0x0a3e3e02c
-        .quad 0x06353c1cc,0x042d98888
-        .quad 0x0c4584f5c,0x0d73c7bea
-        .quad 0x1f16a3418,0x1329d9f7e
-        .quad 0x0531377e2,0x185137662
-        .quad 0x1d8d9ca7c,0x1b1c69528
-        .quad 0x0b25b29f2,0x18a08b5bc
-        .quad 0x19fb2a8b0,0x02178513a
-        .quad 0x1a08fe6ac,0x1da758ae0
-        .quad 0x045cddf4e,0x0e0ac139e
-        .quad 0x1a91647f2,0x169cf9eb0
-        .quad 0x1a0f717c4,0x0170076fa
+	.long 0x493c7d27, 0x00000001
+	.long 0xba4fc28e, 0x493c7d27
+	.long 0xddc0152b, 0xf20c0dfe
+	.long 0x9e4addf8, 0xba4fc28e
+	.long 0x39d3b296, 0x3da6d0cb
+	.long 0x0715ce53, 0xddc0152b
+	.long 0x47db8317, 0x1c291d04
+	.long 0x0d3b6092, 0x9e4addf8
+	.long 0xc96cfdc0, 0x740eef02
+	.long 0x878a92a7, 0x39d3b296
+	.long 0xdaece73e, 0x083a6eec
+	.long 0xab7aff2a, 0x0715ce53
+	.long 0x2162d385, 0xc49f4f67
+	.long 0x83348832, 0x47db8317
+	.long 0x299847d5, 0x2ad91c30
+	.long 0xb9e02b86, 0x0d3b6092
+	.long 0x18b33a4e, 0x6992cea2
+	.long 0xb6dd949b, 0xc96cfdc0
+	.long 0x78d9ccb7, 0x7e908048
+	.long 0xbac2fd7b, 0x878a92a7
+	.long 0xa60ce07b, 0x1b3d8f29
+	.long 0xce7f39f4, 0xdaece73e
+	.long 0x61d82e56, 0xf1d0f55e
+	.long 0xd270f1a2, 0xab7aff2a
+	.long 0xc619809d, 0xa87ab8a8
+	.long 0x2b3cac5d, 0x2162d385
+	.long 0x65863b64, 0x8462d800
+	.long 0x1b03397f, 0x83348832
+	.long 0xebb883bd, 0x71d111a8
+	.long 0xb3e32c28, 0x299847d5
+	.long 0x064f7f26, 0xffd852c6
+	.long 0xdd7e3b0c, 0xb9e02b86
+	.long 0xf285651c, 0xdcb17aa4
+	.long 0x10746f3c, 0x18b33a4e
+	.long 0xc7a68855, 0xf37c5aee
+	.long 0x271d9844, 0xb6dd949b
+	.long 0x8e766a0c, 0x6051d5a2
+	.long 0x93a5f730, 0x78d9ccb7
+	.long 0x6cb08e5c, 0x18b0d4ff
+	.long 0x6b749fb2, 0xbac2fd7b
+	.long 0x1393e203, 0x21f3d99c
+	.long 0xcec3662e, 0xa60ce07b
+	.long 0x96c515bb, 0x8f158014
+	.long 0xe6fc4e6a, 0xce7f39f4
+	.long 0x8227bb8a, 0xa00457f7
+	.long 0xb0cd4768, 0x61d82e56
+	.long 0x39c7ff35, 0x8d6d2c43
+	.long 0xd7a4825c, 0xd270f1a2
+	.long 0x0ab3844b, 0x00ac29cf
+	.long 0x0167d312, 0xc619809d
+	.long 0xf6076544, 0xe9adf796
+	.long 0x26f6a60a, 0x2b3cac5d
+	.long 0xa741c1bf, 0x96638b34
+	.long 0x98d8d9cb, 0x65863b64
+	.long 0x49c3cc9c, 0xe0e9f351
+	.long 0x68bce87a, 0x1b03397f
+	.long 0x57a3d037, 0x9af01f2d
+	.long 0x6956fc3b, 0xebb883bd
+	.long 0x42d98888, 0x2cff42cf
+	.long 0x3771e98f, 0xb3e32c28
+	.long 0xb42ae3d9, 0x88f25a3a
+	.long 0x2178513a, 0x064f7f26
+	.long 0xe0ac139e, 0x4e36f0b0
+	.long 0x170076fa, 0xdd7e3b0c
+	.long 0x444dd413, 0xbd6f81f8
+	.long 0x6f345e45, 0xf285651c
+	.long 0x41d17b64, 0x91c9bd4b
+	.long 0xff0dba97, 0x10746f3c
+	.long 0xa2b73df1, 0x885f087b
+	.long 0xf872e54c, 0xc7a68855
+	.long 0x1e41e9fc, 0x4c144932
+	.long 0x86d8e4d2, 0x271d9844
+	.long 0x651bd98b, 0x52148f02
+	.long 0x5bb8f1bc, 0x8e766a0c
+	.long 0xa90fd27a, 0xa3c6f37a
+	.long 0xb3af077a, 0x93a5f730
+	.long 0x4984d782, 0xd7c0557f
+	.long 0xca6ef3ac, 0x6cb08e5c
+	.long 0x234e0b26, 0x63ded06a
+	.long 0xdd66cbbb, 0x6b749fb2
+	.long 0x4597456a, 0x4d56973c
+	.long 0xe9e28eb4, 0x1393e203
+	.long 0x7b3ff57a, 0x9669c9df
+	.long 0xc9c8b782, 0xcec3662e
+	.long 0x3f70cc6f, 0xe417f38a
+	.long 0x93e106a4, 0x96c515bb
+	.long 0x62ec6c6d, 0x4b9e0f71
+	.long 0xd813b325, 0xe6fc4e6a
+	.long 0x0df04680, 0xd104b8fc
+	.long 0x2342001e, 0x8227bb8a
+	.long 0x0a2a8d7e, 0x5b397730
+	.long 0x6d9a4957, 0xb0cd4768
+	.long 0xe8b6368b, 0xe78eb416
+	.long 0xd2c3ed1a, 0x39c7ff35
+	.long 0x995a5724, 0x61ff0e01
+	.long 0x9ef68d35, 0xd7a4825c
+	.long 0x0c139b31, 0x8d96551c
+	.long 0xf2271e60, 0x0ab3844b
+	.long 0x0b0bf8ca, 0x0bf80dd2
+	.long 0x2664fd8b, 0x0167d312
+	.long 0xed64812d, 0x8821abed
+	.long 0x02ee03b2, 0xf6076544
+	.long 0x8604ae0f, 0x6a45d2b2
+	.long 0x363bd6b3, 0x26f6a60a
+	.long 0x135c83fd, 0xd8d26619
+	.long 0x5fabe670, 0xa741c1bf
+	.long 0x35ec3279, 0xde87806c
+	.long 0x00bcf5f6, 0x98d8d9cb
+	.long 0x8ae00689, 0x14338754
+	.long 0x17f27698, 0x49c3cc9c
+	.long 0x58ca5f00, 0x5bd2011f
+	.long 0xaa7c7ad5, 0x68bce87a
+	.long 0xb5cfca28, 0xdd07448e
+	.long 0xded288f8, 0x57a3d037
+	.long 0x59f229bc, 0xdde8f5b9
+	.long 0x6d390dec, 0x6956fc3b
+	.long 0x37170390, 0xa3e3e02c
+	.long 0x6353c1cc, 0x42d98888
+	.long 0xc4584f5c, 0xd73c7bea
+	.long 0xf48642e9, 0x3771e98f
+	.long 0x531377e2, 0x80ff0093
+	.long 0xdd35bc8d, 0xb42ae3d9
+	.long 0xb25b29f2, 0x8fe4c34d
+	.long 0x9a5ede41, 0x2178513a
+	.long 0xa563905d, 0xdf99fc11
+	.long 0x45cddf4e, 0xe0ac139e
+	.long 0xacfa3103, 0x6c23e841
+	.long 0xa51b6135, 0x170076fa

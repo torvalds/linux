@@ -119,12 +119,22 @@ static const struct wiimod_ops wiimod_keys = {
  * the rumble motor, this flag shouldn't be set.
  */
 
+/* used by wiimod_rumble and wiipro_rumble */
+static void wiimod_rumble_worker(struct work_struct *work)
+{
+	struct wiimote_data *wdata = container_of(work, struct wiimote_data,
+						  rumble_worker);
+
+	spin_lock_irq(&wdata->state.lock);
+	wiiproto_req_rumble(wdata, wdata->state.cache_rumble);
+	spin_unlock_irq(&wdata->state.lock);
+}
+
 static int wiimod_rumble_play(struct input_dev *dev, void *data,
 			      struct ff_effect *eff)
 {
 	struct wiimote_data *wdata = input_get_drvdata(dev);
 	__u8 value;
-	unsigned long flags;
 
 	/*
 	 * The wiimote supports only a single rumble motor so if any magnitude
@@ -137,9 +147,10 @@ static int wiimod_rumble_play(struct input_dev *dev, void *data,
 	else
 		value = 0;
 
-	spin_lock_irqsave(&wdata->state.lock, flags);
-	wiiproto_req_rumble(wdata, value);
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
+	/* Locking state.lock here might deadlock with input_event() calls.
+	 * schedule_work acts as barrier. Merging multiple changes is fine. */
+	wdata->state.cache_rumble = value;
+	schedule_work(&wdata->rumble_worker);
 
 	return 0;
 }
@@ -147,6 +158,8 @@ static int wiimod_rumble_play(struct input_dev *dev, void *data,
 static int wiimod_rumble_probe(const struct wiimod_ops *ops,
 			       struct wiimote_data *wdata)
 {
+	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
+
 	set_bit(FF_RUMBLE, wdata->input->ffbit);
 	if (input_ff_create_memless(wdata->input, NULL, wiimod_rumble_play))
 		return -ENOMEM;
@@ -158,6 +171,8 @@ static void wiimod_rumble_remove(const struct wiimod_ops *ops,
 				 struct wiimote_data *wdata)
 {
 	unsigned long flags;
+
+	cancel_work_sync(&wdata->rumble_worker);
 
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wiiproto_req_rumble(wdata, 0);
@@ -188,8 +203,7 @@ static int wiimod_battery_get_property(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       union power_supply_propval *val)
 {
-	struct wiimote_data *wdata = container_of(psy, struct wiimote_data,
-						  battery);
+	struct wiimote_data *wdata = power_supply_get_drvdata(psy);
 	int ret = 0, state;
 	unsigned long flags;
 
@@ -223,42 +237,46 @@ static int wiimod_battery_get_property(struct power_supply *psy,
 static int wiimod_battery_probe(const struct wiimod_ops *ops,
 				struct wiimote_data *wdata)
 {
+	struct power_supply_config psy_cfg = { .drv_data = wdata, };
 	int ret;
 
-	wdata->battery.properties = wiimod_battery_props;
-	wdata->battery.num_properties = ARRAY_SIZE(wiimod_battery_props);
-	wdata->battery.get_property = wiimod_battery_get_property;
-	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	wdata->battery.use_for_apm = 0;
-	wdata->battery.name = kasprintf(GFP_KERNEL, "wiimote_battery_%s",
-					wdata->hdev->uniq);
-	if (!wdata->battery.name)
+	wdata->battery_desc.properties = wiimod_battery_props;
+	wdata->battery_desc.num_properties = ARRAY_SIZE(wiimod_battery_props);
+	wdata->battery_desc.get_property = wiimod_battery_get_property;
+	wdata->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
+	wdata->battery_desc.use_for_apm = 0;
+	wdata->battery_desc.name = kasprintf(GFP_KERNEL, "wiimote_battery_%s",
+					     wdata->hdev->uniq);
+	if (!wdata->battery_desc.name)
 		return -ENOMEM;
 
-	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
-	if (ret) {
+	wdata->battery = power_supply_register(&wdata->hdev->dev,
+					       &wdata->battery_desc,
+					       &psy_cfg);
+	if (IS_ERR(wdata->battery)) {
 		hid_err(wdata->hdev, "cannot register battery device\n");
+		ret = PTR_ERR(wdata->battery);
 		goto err_free;
 	}
 
-	power_supply_powers(&wdata->battery, &wdata->hdev->dev);
+	power_supply_powers(wdata->battery, &wdata->hdev->dev);
 	return 0;
 
 err_free:
-	kfree(wdata->battery.name);
-	wdata->battery.name = NULL;
+	kfree(wdata->battery_desc.name);
+	wdata->battery_desc.name = NULL;
 	return ret;
 }
 
 static void wiimod_battery_remove(const struct wiimod_ops *ops,
 				  struct wiimote_data *wdata)
 {
-	if (!wdata->battery.name)
+	if (!wdata->battery_desc.name)
 		return;
 
-	power_supply_unregister(&wdata->battery);
-	kfree(wdata->battery.name);
-	wdata->battery.name = NULL;
+	power_supply_unregister(wdata->battery);
+	kfree(wdata->battery_desc.name);
+	wdata->battery_desc.name = NULL;
 }
 
 static const struct wiimod_ops wiimod_battery = {
@@ -278,13 +296,11 @@ static const struct wiimod_ops wiimod_battery = {
 
 static enum led_brightness wiimod_led_get(struct led_classdev *led_dev)
 {
-	struct wiimote_data *wdata;
 	struct device *dev = led_dev->dev->parent;
+	struct wiimote_data *wdata = dev_to_wii(dev);
 	int i;
 	unsigned long flags;
 	bool value = false;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
 
 	for (i = 0; i < 4; ++i) {
 		if (wdata->leds[i] == led_dev) {
@@ -301,13 +317,11 @@ static enum led_brightness wiimod_led_get(struct led_classdev *led_dev)
 static void wiimod_led_set(struct led_classdev *led_dev,
 			   enum led_brightness value)
 {
-	struct wiimote_data *wdata;
 	struct device *dev = led_dev->dev->parent;
+	struct wiimote_data *wdata = dev_to_wii(dev);
 	int i;
 	unsigned long flags;
 	__u8 state, flag;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
 
 	for (i = 0; i < 4; ++i) {
 		if (wdata->leds[i] == led_dev) {
@@ -1640,10 +1654,39 @@ static void wiimod_pro_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	ly = (ext[4] & 0xff) | ((ext[5] & 0x0f) << 8);
 	ry = (ext[6] & 0xff) | ((ext[7] & 0x0f) << 8);
 
-	input_report_abs(wdata->extension.input, ABS_X, lx - 0x800);
-	input_report_abs(wdata->extension.input, ABS_Y, ly - 0x800);
-	input_report_abs(wdata->extension.input, ABS_RX, rx - 0x800);
-	input_report_abs(wdata->extension.input, ABS_RY, ry - 0x800);
+	/* zero-point offsets */
+	lx -= 0x800;
+	ly = 0x800 - ly;
+	rx -= 0x800;
+	ry = 0x800 - ry;
+
+	/* Trivial automatic calibration. We don't know any calibration data
+	 * in the EEPROM so we must use the first report to calibrate the
+	 * null-position of the analog sticks. Users can retrigger calibration
+	 * via sysfs, or set it explicitly. If data is off more than abs(500),
+	 * we skip calibration as the sticks are likely to be moved already. */
+	if (!(wdata->state.flags & WIIPROTO_FLAG_PRO_CALIB_DONE)) {
+		wdata->state.flags |= WIIPROTO_FLAG_PRO_CALIB_DONE;
+		if (abs(lx) < 500)
+			wdata->state.calib_pro_sticks[0] = -lx;
+		if (abs(ly) < 500)
+			wdata->state.calib_pro_sticks[1] = -ly;
+		if (abs(rx) < 500)
+			wdata->state.calib_pro_sticks[2] = -rx;
+		if (abs(ry) < 500)
+			wdata->state.calib_pro_sticks[3] = -ry;
+	}
+
+	/* apply calibration data */
+	lx += wdata->state.calib_pro_sticks[0];
+	ly += wdata->state.calib_pro_sticks[1];
+	rx += wdata->state.calib_pro_sticks[2];
+	ry += wdata->state.calib_pro_sticks[3];
+
+	input_report_abs(wdata->extension.input, ABS_X, lx);
+	input_report_abs(wdata->extension.input, ABS_Y, ly);
+	input_report_abs(wdata->extension.input, ABS_RX, rx);
+	input_report_abs(wdata->extension.input, ABS_RY, ry);
 
 	input_report_key(wdata->extension.input,
 			 wiimod_pro_map[WIIMOD_PRO_KEY_RIGHT],
@@ -1731,7 +1774,6 @@ static int wiimod_pro_play(struct input_dev *dev, void *data,
 {
 	struct wiimote_data *wdata = input_get_drvdata(dev);
 	__u8 value;
-	unsigned long flags;
 
 	/*
 	 * The wiimote supports only a single rumble motor so if any magnitude
@@ -1744,17 +1786,78 @@ static int wiimod_pro_play(struct input_dev *dev, void *data,
 	else
 		value = 0;
 
-	spin_lock_irqsave(&wdata->state.lock, flags);
-	wiiproto_req_rumble(wdata, value);
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
+	/* Locking state.lock here might deadlock with input_event() calls.
+	 * schedule_work acts as barrier. Merging multiple changes is fine. */
+	wdata->state.cache_rumble = value;
+	schedule_work(&wdata->rumble_worker);
 
 	return 0;
 }
+
+static ssize_t wiimod_pro_calib_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *out)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+	int r;
+
+	r = 0;
+	r += sprintf(&out[r], "%+06hd:", wdata->state.calib_pro_sticks[0]);
+	r += sprintf(&out[r], "%+06hd ", wdata->state.calib_pro_sticks[1]);
+	r += sprintf(&out[r], "%+06hd:", wdata->state.calib_pro_sticks[2]);
+	r += sprintf(&out[r], "%+06hd\n", wdata->state.calib_pro_sticks[3]);
+
+	return r;
+}
+
+static ssize_t wiimod_pro_calib_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+	int r;
+	s16 x1, y1, x2, y2;
+
+	if (!strncmp(buf, "scan\n", 5)) {
+		spin_lock_irq(&wdata->state.lock);
+		wdata->state.flags &= ~WIIPROTO_FLAG_PRO_CALIB_DONE;
+		spin_unlock_irq(&wdata->state.lock);
+	} else {
+		r = sscanf(buf, "%hd:%hd %hd:%hd", &x1, &y1, &x2, &y2);
+		if (r != 4)
+			return -EINVAL;
+
+		spin_lock_irq(&wdata->state.lock);
+		wdata->state.flags |= WIIPROTO_FLAG_PRO_CALIB_DONE;
+		spin_unlock_irq(&wdata->state.lock);
+
+		wdata->state.calib_pro_sticks[0] = x1;
+		wdata->state.calib_pro_sticks[1] = y1;
+		wdata->state.calib_pro_sticks[2] = x2;
+		wdata->state.calib_pro_sticks[3] = y2;
+	}
+
+	return strnlen(buf, PAGE_SIZE);
+}
+
+static DEVICE_ATTR(pro_calib, S_IRUGO|S_IWUSR|S_IWGRP, wiimod_pro_calib_show,
+		   wiimod_pro_calib_store);
 
 static int wiimod_pro_probe(const struct wiimod_ops *ops,
 			    struct wiimote_data *wdata)
 {
 	int ret, i;
+	unsigned long flags;
+
+	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
+	wdata->state.calib_pro_sticks[0] = 0;
+	wdata->state.calib_pro_sticks[1] = 0;
+	wdata->state.calib_pro_sticks[2] = 0;
+	wdata->state.calib_pro_sticks[3] = 0;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags &= ~WIIPROTO_FLAG_PRO_CALIB_DONE;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	wdata->extension.input = input_allocate_device();
 	if (!wdata->extension.input)
@@ -1766,6 +1869,13 @@ static int wiimod_pro_probe(const struct wiimod_ops *ops,
 	if (input_ff_create_memless(wdata->extension.input, NULL,
 				    wiimod_pro_play)) {
 		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	ret = device_create_file(&wdata->hdev->dev,
+				 &dev_attr_pro_calib);
+	if (ret) {
+		hid_err(wdata->hdev, "cannot create sysfs attribute\n");
 		goto err_free;
 	}
 
@@ -1789,20 +1899,23 @@ static int wiimod_pro_probe(const struct wiimod_ops *ops,
 	set_bit(ABS_RX, wdata->extension.input->absbit);
 	set_bit(ABS_RY, wdata->extension.input->absbit);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_X, -0x800, 0x800, 2, 4);
+			     ABS_X, -0x400, 0x400, 4, 100);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_Y, -0x800, 0x800, 2, 4);
+			     ABS_Y, -0x400, 0x400, 4, 100);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_RX, -0x800, 0x800, 2, 4);
+			     ABS_RX, -0x400, 0x400, 4, 100);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_RY, -0x800, 0x800, 2, 4);
+			     ABS_RY, -0x400, 0x400, 4, 100);
 
 	ret = input_register_device(wdata->extension.input);
 	if (ret)
-		goto err_free;
+		goto err_file;
 
 	return 0;
 
+err_file:
+	device_remove_file(&wdata->hdev->dev,
+			   &dev_attr_pro_calib);
 err_free:
 	input_free_device(wdata->extension.input);
 	wdata->extension.input = NULL;
@@ -1817,12 +1930,15 @@ static void wiimod_pro_remove(const struct wiimod_ops *ops,
 	if (!wdata->extension.input)
 		return;
 
+	input_unregister_device(wdata->extension.input);
+	wdata->extension.input = NULL;
+	cancel_work_sync(&wdata->rumble_worker);
+	device_remove_file(&wdata->hdev->dev,
+			   &dev_attr_pro_calib);
+
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wiiproto_req_rumble(wdata, 0);
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
-
-	input_unregister_device(wdata->extension.input);
-	wdata->extension.input = NULL;
 }
 
 static const struct wiimod_ops wiimod_pro = {
@@ -1933,9 +2049,11 @@ static void wiimod_mp_in_mp(struct wiimote_data *wdata, const __u8 *ext)
 	 *   -----+------------------------------+-----+-----+
 	 * The single bits Yaw, Roll, Pitch in the lower right corner specify
 	 * whether the wiimote is rotating fast (0) or slow (1). Speed for slow
-	 * roation is 440 deg/s and for fast rotation 2000 deg/s. To get a
-	 * linear scale we multiply by 2000/440 = ~4.5454 which is 18 for fast
-	 * and 9 for slow.
+	 * roation is 8192/440 units / deg/s and for fast rotation 8192/2000
+	 * units / deg/s. To get a linear scale for fast rotation we multiply
+	 * by 2000/440 = ~4.5454 and scale both fast and slow by 9 to match the
+	 * previous scale reported by this driver.
+	 * This leaves a linear scale with 8192*9/440 (~167.564) units / deg/s.
 	 * If the wiimote is not rotating the sensor reports 2^13 = 8192.
 	 * Ext specifies whether an extension is connected to the motionp.
 	 * which is parsed by wiimote-core.
@@ -1954,15 +2072,15 @@ static void wiimod_mp_in_mp(struct wiimote_data *wdata, const __u8 *ext)
 	z -= 8192;
 
 	if (!(ext[3] & 0x02))
-		x *= 18;
+		x = (x * 2000 * 9) / 440;
 	else
 		x *= 9;
 	if (!(ext[4] & 0x02))
-		y *= 18;
+		y = (y * 2000 * 9) / 440;
 	else
 		y *= 9;
 	if (!(ext[3] & 0x01))
-		z *= 18;
+		z = (z * 2000 * 9) / 440;
 	else
 		z *= 9;
 

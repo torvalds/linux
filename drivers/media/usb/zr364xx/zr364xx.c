@@ -21,10 +21,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 
@@ -97,7 +93,7 @@ MODULE_PARM_DESC(mode, "0 = 320x240, 1 = 160x120, 2 = 640x480");
 
 /* Devices supported by this driver
  * .driver_info contains the init method used by the camera */
-static struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x08ca, 0x0109), .driver_info = METHOD0 },
 	{USB_DEVICE(0x041e, 0x4024), .driver_info = METHOD0 },
 	{USB_DEVICE(0x0d64, 0x0108), .driver_info = METHOD0 },
@@ -377,8 +373,7 @@ static void free_buffer(struct videobuf_queue *vq, struct zr364xx_buffer *buf)
 {
 	_DBG("%s\n", __func__);
 
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 
 	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -444,7 +439,7 @@ static void buffer_release(struct videobuf_queue *vq,
 	free_buffer(vq, buf);
 }
 
-static struct videobuf_queue_ops zr364xx_video_qops = {
+static const struct videobuf_queue_ops zr364xx_video_qops = {
 	.buf_setup = buffer_setup,
 	.buf_prepare = buffer_prepare,
 	.buf_queue = buffer_queue,
@@ -605,6 +600,14 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 	ptr = pdest = frm->lpvbits;
 
 	if (frm->ulState == ZR364XX_READ_IDLE) {
+		if (purb->actual_length < 128) {
+			/* header incomplete */
+			dev_info(&cam->udev->dev,
+				 "%s: buffer (%d bytes) too small to hold jpeg header. Discarding.\n",
+				 __func__, purb->actual_length);
+			return -EINVAL;
+		}
+
 		frm->ulState = ZR364XX_READ_FRAME;
 		frm->cur_size = 0;
 
@@ -634,8 +637,7 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 	} else {
 		if (frm->cur_size + purb->actual_length > MAX_FRAME_SIZE) {
 			dev_info(&cam->udev->dev,
-				 "%s: buffer (%d bytes) too small to hold "
-				 "frame data. Discarding frame data.\n",
+				 "%s: buffer (%d bytes) too small to hold frame data. Discarding frame data.\n",
 				 __func__, MAX_FRAME_SIZE);
 		} else {
 			pdest += frm->cur_size;
@@ -806,7 +808,6 @@ static int zr364xx_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-	f->fmt.pix.priv = 0;
 	DBG("%s: V4L2_PIX_FMT_%s (%d) ok!\n", __func__,
 	    decode_fourcc(f->fmt.pix.pixelformat, pixelformat_name),
 	    f->fmt.pix.field);
@@ -829,7 +830,6 @@ static int zr364xx_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-	f->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -866,7 +866,6 @@ static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-	f->fmt.pix.priv = 0;
 	cam->vb_vidq.field = f->fmt.pix.field;
 
 	if (f->fmt.pix.width == 160 && f->fmt.pix.height == 120)
@@ -1049,10 +1048,8 @@ static int zr364xx_start_readpipe(struct zr364xx_camera *cam)
 	pipe_info->state = 1;
 	pipe_info->err_count = 0;
 	pipe_info->stream_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!pipe_info->stream_urb) {
-		dev_err(&cam->udev->dev, "ReadStream: Unable to alloc URB\n");
+	if (!pipe_info->stream_urb)
 		return -ENOMEM;
-	}
 	/* transfer buffer allocated in board_init */
 	usb_fill_bulk_urb(pipe_info->stream_urb, cam->udev,
 			  pipe,
@@ -1338,7 +1335,7 @@ static const struct v4l2_ioctl_ops zr364xx_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static struct video_device zr364xx_template = {
+static const struct video_device zr364xx_template = {
 	.name = DRIVER_DESC,
 	.fops = &zr364xx_fops,
 	.ioctl_ops = &zr364xx_ioctl_ops,
@@ -1379,8 +1376,7 @@ static int zr364xx_board_init(struct zr364xx_camera *cam)
 			&cam->buffer.frame[i], i,
 			cam->buffer.frame[i].lpvbits);
 		if (cam->buffer.frame[i].lpvbits == NULL) {
-			printk(KERN_INFO KBUILD_MODNAME ": out of memory. "
-			       "Using less frames\n");
+			printk(KERN_INFO KBUILD_MODNAME ": out of memory. Using less frames\n");
 			break;
 		}
 	}
@@ -1456,10 +1452,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 	cam->vdev.lock = &cam->lock;
 	cam->vdev.v4l2_dev = &cam->v4l2_dev;
 	cam->vdev.ctrl_handler = &cam->ctrl_handler;
-	set_bit(V4L2_FL_USE_FH_PRIO, &cam->vdev.flags);
 	video_set_drvdata(&cam->vdev, cam);
-	if (debug)
-		cam->vdev.debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
 
 	cam->udev = udev;
 

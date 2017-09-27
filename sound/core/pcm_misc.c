@@ -23,6 +23,9 @@
 #include <linux/export.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+
+#include "pcm_local.h"
+
 #define SND_PCM_FORMAT_UNKNOWN (-1)
 
 /* NOTE: "signed" prefix must be given below since the default char is
@@ -142,11 +145,23 @@ static struct pcm_format_data pcm_formats[(INT)SNDRV_PCM_FORMAT_LAST+1] = {
 	},
 	[SNDRV_PCM_FORMAT_DSD_U8] = {
 		.width = 8, .phys = 8, .le = 1, .signd = 0,
-		.silence = {},
+		.silence = { 0x69 },
 	},
 	[SNDRV_PCM_FORMAT_DSD_U16_LE] = {
 		.width = 16, .phys = 16, .le = 1, .signd = 0,
-		.silence = {},
+		.silence = { 0x69, 0x69 },
+	},
+	[SNDRV_PCM_FORMAT_DSD_U32_LE] = {
+		.width = 32, .phys = 32, .le = 1, .signd = 0,
+		.silence = { 0x69, 0x69, 0x69, 0x69 },
+	},
+	[SNDRV_PCM_FORMAT_DSD_U16_BE] = {
+		.width = 16, .phys = 16, .le = 0, .signd = 0,
+		.silence = { 0x69, 0x69 },
+	},
+	[SNDRV_PCM_FORMAT_DSD_U32_BE] = {
+		.width = 32, .phys = 32, .le = 0, .signd = 0,
+		.silence = { 0x69, 0x69, 0x69, 0x69 },
 	},
 	/* FIXME: the following three formats are not defined properly yet */
 	[SNDRV_PCM_FORMAT_MPEG] = {
@@ -233,7 +248,6 @@ int snd_pcm_format_signed(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_signed);
 
 /**
@@ -252,7 +266,6 @@ int snd_pcm_format_unsigned(snd_pcm_format_t format)
 		return val;
 	return !val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_unsigned);
 
 /**
@@ -265,7 +278,6 @@ int snd_pcm_format_linear(snd_pcm_format_t format)
 {
 	return snd_pcm_format_signed(format) >= 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_linear);
 
 /**
@@ -284,7 +296,6 @@ int snd_pcm_format_little_endian(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_little_endian);
 
 /**
@@ -303,7 +314,6 @@ int snd_pcm_format_big_endian(snd_pcm_format_t format)
 		return val;
 	return !val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_big_endian);
 
 /**
@@ -322,7 +332,6 @@ int snd_pcm_format_width(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_width);
 
 /**
@@ -341,7 +350,6 @@ int snd_pcm_format_physical_width(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_physical_width);
 
 /**
@@ -359,7 +367,6 @@ ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples)
 		return -EINVAL;
 	return samples * phys_width / 8;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_size);
 
 /**
@@ -376,7 +383,6 @@ const unsigned char *snd_pcm_format_silence_64(snd_pcm_format_t format)
 		return NULL;
 	return pcm_formats[(INT)format].silence;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_silence_64);
 
 /**
@@ -447,7 +453,6 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 #endif
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_set_silence);
 
 /**
@@ -476,7 +481,6 @@ int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime)
 	}
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_limit_hw_rates);
 
 /**
@@ -514,3 +518,72 @@ unsigned int snd_pcm_rate_bit_to_rate(unsigned int rate_bit)
 	return 0;
 }
 EXPORT_SYMBOL(snd_pcm_rate_bit_to_rate);
+
+static unsigned int snd_pcm_rate_mask_sanitize(unsigned int rates)
+{
+	if (rates & SNDRV_PCM_RATE_CONTINUOUS)
+		return SNDRV_PCM_RATE_CONTINUOUS;
+	else if (rates & SNDRV_PCM_RATE_KNOT)
+		return SNDRV_PCM_RATE_KNOT;
+	return rates;
+}
+
+/**
+ * snd_pcm_rate_mask_intersect - computes the intersection between two rate masks
+ * @rates_a: The first rate mask
+ * @rates_b: The second rate mask
+ *
+ * This function computes the rates that are supported by both rate masks passed
+ * to the function. It will take care of the special handling of
+ * SNDRV_PCM_RATE_CONTINUOUS and SNDRV_PCM_RATE_KNOT.
+ *
+ * Return: A rate mask containing the rates that are supported by both rates_a
+ * and rates_b.
+ */
+unsigned int snd_pcm_rate_mask_intersect(unsigned int rates_a,
+	unsigned int rates_b)
+{
+	rates_a = snd_pcm_rate_mask_sanitize(rates_a);
+	rates_b = snd_pcm_rate_mask_sanitize(rates_b);
+
+	if (rates_a & SNDRV_PCM_RATE_CONTINUOUS)
+		return rates_b;
+	else if (rates_b & SNDRV_PCM_RATE_CONTINUOUS)
+		return rates_a;
+	else if (rates_a & SNDRV_PCM_RATE_KNOT)
+		return rates_b;
+	else if (rates_b & SNDRV_PCM_RATE_KNOT)
+		return rates_a;
+	return rates_a & rates_b;
+}
+EXPORT_SYMBOL_GPL(snd_pcm_rate_mask_intersect);
+
+/**
+ * snd_pcm_rate_range_to_bits - converts rate range to SNDRV_PCM_RATE_xxx bit
+ * @rate_min: the minimum sample rate
+ * @rate_max: the maximum sample rate
+ *
+ * This function has an implicit assumption: the rates in the given range have
+ * only the pre-defined rates like 44100 or 16000.
+ *
+ * Return: The SNDRV_PCM_RATE_xxx flag that corresponds to the given rate range,
+ * or SNDRV_PCM_RATE_KNOT for an unknown range.
+ */
+unsigned int snd_pcm_rate_range_to_bits(unsigned int rate_min,
+	unsigned int rate_max)
+{
+	unsigned int rates = 0;
+	int i;
+
+	for (i = 0; i < snd_pcm_known_rates.count; i++) {
+		if (snd_pcm_known_rates.list[i] >= rate_min
+			&& snd_pcm_known_rates.list[i] <= rate_max)
+			rates |= 1 << i;
+	}
+
+	if (!rates)
+		rates = SNDRV_PCM_RATE_KNOT;
+
+	return rates;
+}
+EXPORT_SYMBOL_GPL(snd_pcm_rate_range_to_bits);

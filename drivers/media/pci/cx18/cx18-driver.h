@@ -15,11 +15,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #ifndef CX18_DRIVER_H
@@ -29,7 +24,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -49,7 +44,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/tuner.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 #include "cx18-mailbox.h"
 #include "cx18-av-core.h"
 #include "cx23418.h"
@@ -262,7 +257,7 @@ struct cx18_options {
 };
 
 /* per-mdl bit flags */
-#define CX18_F_M_NEED_SWAP  0	/* mdl buffer data must be endianess swapped */
+#define CX18_F_M_NEED_SWAP  0	/* mdl buffer data must be endianness swapped */
 
 /* per-stream, s_flags */
 #define CX18_F_S_CLAIMED 	3	/* this stream is claimed */
@@ -290,7 +285,7 @@ struct cx18_options {
  * list_entry_is_past_end - check if a previous loop cursor is off list end
  * @pos:	the type * previously used as a loop cursor.
  * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
+ * @member:	the name of the list_head within the struct.
  *
  * Check if the entry's list_head is the head of the list, thus it's not a
  * real entry but was the loop cursor that walked past the end
@@ -373,12 +368,13 @@ struct cx18_in_work_order {
 struct cx18_stream {
 	/* These first five fields are always set, even if the stream
 	   is not actually created. */
-	struct video_device *video_dev;	/* NULL when stream not created */
+	struct video_device video_dev;	/* v4l2_dev is NULL when stream not created */
 	struct cx18_dvb *dvb;		/* DVB / Digital Transport */
 	struct cx18 *cx; 		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
 	u32 handle;			/* task handle */
+	u32 v4l2_dev_caps;		/* device capabilities */
 	unsigned int mdl_base_idx;
 
 	u32 id;
@@ -408,6 +404,7 @@ struct cx18_stream {
 	/* Videobuf for YUV video */
 	u32 pixelformat;
 	u32 vb_bytes_per_frame;
+	u32 vb_bytes_per_line;
 	struct list_head vb_capture;    /* video capture queue */
 	spinlock_t vb_lock;
 	struct timer_list vb_timeout;
@@ -490,9 +487,9 @@ struct cx18_card;
  *  (1/15.625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
  *  4 bytes SAV + 280 bytes anc data + 4 bytes SAV + 1440 active samples
  */
-static const u32 vbi_active_samples = 1444; /* 4 byte SAV + 720 Y + 720 U/V */
-static const u32 vbi_hblank_samples_60Hz = 272; /* 4 byte EAV + 268 anc/fill */
-static const u32 vbi_hblank_samples_50Hz = 284; /* 4 byte EAV + 280 anc/fill */
+#define VBI_ACTIVE_SAMPLES	1444 /* 4 byte SAV + 720 Y + 720 U/V */
+#define VBI_HBLANK_SAMPLES_60HZ	272 /* 4 byte EAV + 268 anc/fill */
+#define VBI_HBLANK_SAMPLES_50HZ	284 /* 4 byte EAV + 280 anc/fill */
 
 #define CX18_VBI_FRAMES 32
 
@@ -705,11 +702,7 @@ static inline int cx18_raw_vbi(const struct cx18 *cx)
 /* Call the specified callback for all subdevs with a grp_id bit matching the
  * mask in hw (if 0, then match them all). Ignore any errors. */
 #define cx18_call_hw(cx, hw, o, f, args...)				\
-	do {								\
-		struct v4l2_subdev *__sd;				\
-		__v4l2_device_call_subdevs_p(&(cx)->v4l2_dev, __sd,	\
-			!(hw) || (__sd->grp_id & (hw)), o, f , ##args);	\
-	} while (0)
+	v4l2_device_mask_call_all(&(cx)->v4l2_dev, hw, o, f, ##args)
 
 #define cx18_call_all(cx, o, f, args...) cx18_call_hw(cx, 0, o, f , ##args)
 
@@ -717,12 +710,7 @@ static inline int cx18_raw_vbi(const struct cx18 *cx)
  * mask in hw (if 0, then match them all). If the callback returns an error
  * other than 0 or -ENOIOCTLCMD, then return with that error code. */
 #define cx18_call_hw_err(cx, hw, o, f, args...)				\
-({									\
-	struct v4l2_subdev *__sd;					\
-	__v4l2_device_call_subdevs_until_err_p(&(cx)->v4l2_dev,		\
-			__sd, !(hw) || (__sd->grp_id & (hw)), o, f,	\
-			##args);					\
-})
+	v4l2_device_mask_call_until_err(&(cx)->v4l2_dev, hw, o, f, ##args)
 
 #define cx18_call_all_err(cx, o, f, args...) \
 	cx18_call_hw_err(cx, 0, o, f , ##args)

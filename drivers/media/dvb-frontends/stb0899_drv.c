@@ -20,6 +20,7 @@
 */
 
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -31,6 +32,9 @@
 #include "stb0899_drv.h"
 #include "stb0899_priv.h"
 #include "stb0899_reg.h"
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 static unsigned int verbose = 0;//1;
 module_param(verbose, int, 0644);
@@ -481,15 +485,8 @@ int stb0899_read_regs(struct stb0899_state *state, unsigned int reg, u8 *buf, u3
 	    (((reg & 0xff00) == 0xf200) || ((reg & 0xff00) == 0xf600)))
 		_stb0899_read_reg(state, (reg | 0x00ff));
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++) {
-			printk(" %02x", buf[i]);
-		}
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, buf);
 
 	return 0;
 err:
@@ -499,7 +496,7 @@ err:
 int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, u32 count)
 {
 	int ret;
-	u8 buf[2 + count];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg i2c_msg = {
 		.addr	= state->config->demod_address,
 		.flags	= 0,
@@ -507,18 +504,19 @@ int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, 
 		.len	= 2 + count
 	};
 
+	if (2 + count > sizeof(buf)) {
+		printk(KERN_WARNING
+		       "%s: i2c wr reg=%04x: len=%d is too big!\n",
+		       KBUILD_MODNAME, reg, count);
+		return -EINVAL;
+	}
+
 	buf[0] = reg >> 8;
 	buf[1] = reg & 0xff;
 	memcpy(&buf[2], data, count);
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++)
-			printk(" %02x", data[i]);
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, data);
 	ret = i2c_transfer(state->i2c, &i2c_msg, 1);
 
 	/*
@@ -603,13 +601,19 @@ static int stb0899_postproc(struct stb0899_state *state, u8 ctl, int enable)
 	return 0;
 }
 
+static void stb0899_detach(struct dvb_frontend *fe)
+{
+	struct stb0899_state *state = fe->demodulator_priv;
+
+	/* post process event */
+	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
+}
+
 static void stb0899_release(struct dvb_frontend *fe)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 
 	dprintk(state->verbose, FE_DEBUG, 1, "Release Frontend");
-	/* post process event */
-	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
 	kfree(state);
 }
 
@@ -681,7 +685,7 @@ static int stb0899_wait_diseqc_fifo_empty(struct stb0899_state *state, int timeo
 		reg = stb0899_read_reg(state, STB0899_DISSTATUS);
 		if (!STB0899_GETFIELD(FIFOFULL, reg))
 			break;
-		if ((jiffies - start) > timeout) {
+		if (time_after(jiffies, start + timeout)) {
 			dprintk(state->verbose, FE_ERROR, 1, "timed out !!");
 			return -ETIMEDOUT;
 		}
@@ -695,7 +699,7 @@ static int stb0899_send_diseqc_msg(struct dvb_frontend *fe, struct dvb_diseqc_ma
 	struct stb0899_state *state = fe->demodulator_priv;
 	u8 reg, i;
 
-	if (cmd->msg_len > 8)
+	if (cmd->msg_len > sizeof(cmd->msg))
 		return -EINVAL;
 
 	/* enable FIFO precharge	*/
@@ -723,7 +727,7 @@ static int stb0899_wait_diseqc_rxidle(struct stb0899_state *state, int timeout)
 
 	while (!STB0899_GETFIELD(RXEND, reg)) {
 		reg = stb0899_read_reg(state, STB0899_DISRX_ST0);
-		if (jiffies - start > timeout) {
+		if (time_after(jiffies, start + timeout)) {
 			dprintk(state->verbose, FE_ERROR, 1, "timed out!!");
 			return -ETIMEDOUT;
 		}
@@ -772,7 +776,7 @@ static int stb0899_wait_diseqc_txidle(struct stb0899_state *state, int timeout)
 
 	while (!STB0899_GETFIELD(TXIDLE, reg)) {
 		reg = stb0899_read_reg(state, STB0899_DISSTATUS);
-		if (jiffies - start > timeout) {
+		if (time_after(jiffies, start + timeout)) {
 			dprintk(state->verbose, FE_ERROR, 1, "timed out!!");
 			return -ETIMEDOUT;
 		}
@@ -781,7 +785,8 @@ static int stb0899_wait_diseqc_txidle(struct stb0899_state *state, int timeout)
 	return 0;
 }
 
-static int stb0899_send_diseqc_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t burst)
+static int stb0899_send_diseqc_burst(struct dvb_frontend *fe,
+				     enum fe_sec_mini_cmd burst)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 	u8 reg, old_state;
@@ -1167,7 +1172,8 @@ static int stb0899_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int stb0899_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int stb0899_set_voltage(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 
@@ -1194,7 +1200,7 @@ static int stb0899_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage
 	return 0;
 }
 
-static int stb0899_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int stb0899_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 	struct stb0899_internal *internal = &state->internal;
@@ -1555,9 +1561,9 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe)
 	return DVBFE_ALGO_SEARCH_ERROR;
 }
 
-static int stb0899_get_frontend(struct dvb_frontend *fe)
+static int stb0899_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stb0899_state *state		= fe->demodulator_priv;
 	struct stb0899_internal *internal	= &state->internal;
 
@@ -1573,7 +1579,7 @@ static enum dvbfe_algo stb0899_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
-static struct dvb_frontend_ops stb0899_ops = {
+static const struct dvb_frontend_ops stb0899_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name 			= "STB0899 Multistandard",
@@ -1590,6 +1596,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 					  FE_CAN_QPSK
 	},
 
+	.detach				= stb0899_detach,
 	.release			= stb0899_release,
 	.init				= stb0899_init,
 	.sleep				= stb0899_sleep,

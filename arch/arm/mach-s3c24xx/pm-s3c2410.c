@@ -33,7 +33,9 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
+#include <plat/gpio-cfg.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
 
@@ -43,7 +45,7 @@ static void s3c2410_pm_prepare(void)
 {
 	/* ensure at least GSTATUS3 has the resume address */
 
-	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C2410_GSTATUS3);
+	__raw_writel(__pa_symbol(s3c_cpu_resume), S3C2410_GSTATUS3);
 
 	S3C_PMDBG("GSTATUS3 0x%08x\n", __raw_readl(S3C2410_GSTATUS3));
 	S3C_PMDBG("GSTATUS4 0x%08x\n", __raw_readl(S3C2410_GSTATUS4));

@@ -29,30 +29,31 @@ DEFINE_SPINLOCK(mq_lock);
  * and not CONFIG_IPC_NS.
  */
 struct ipc_namespace init_ipc_ns = {
-	.count		= ATOMIC_INIT(1),
+	.count		= REFCOUNT_INIT(1),
 	.user_ns = &init_user_ns,
-	.proc_inum = PROC_IPC_INIT_INO,
+	.ns.inum = PROC_IPC_INIT_INO,
+#ifdef CONFIG_IPC_NS
+	.ns.ops = &ipcns_operations,
+#endif
 };
-
-atomic_t nr_ipc_ns = ATOMIC_INIT(1);
 
 struct msg_msgseg {
 	struct msg_msgseg *next;
 	/* the next part of the message follows immediately */
 };
 
-#define DATALEN_MSG	(int)(PAGE_SIZE-sizeof(struct msg_msg))
-#define DATALEN_SEG	(int)(PAGE_SIZE-sizeof(struct msg_msgseg))
+#define DATALEN_MSG	((size_t)PAGE_SIZE-sizeof(struct msg_msg))
+#define DATALEN_SEG	((size_t)PAGE_SIZE-sizeof(struct msg_msgseg))
 
 
-static struct msg_msg *alloc_msg(int len)
+static struct msg_msg *alloc_msg(size_t len)
 {
 	struct msg_msg *msg;
 	struct msg_msgseg **pseg;
-	int alen;
+	size_t alen;
 
 	alen = min(len, DATALEN_MSG);
-	msg = kmalloc(sizeof(*msg) + alen, GFP_KERNEL);
+	msg = kmalloc(sizeof(*msg) + alen, GFP_KERNEL_ACCOUNT);
 	if (msg == NULL)
 		return NULL;
 
@@ -64,7 +65,7 @@ static struct msg_msg *alloc_msg(int len)
 	while (len > 0) {
 		struct msg_msgseg *seg;
 		alen = min(len, DATALEN_SEG);
-		seg = kmalloc(sizeof(*seg) + alen, GFP_KERNEL);
+		seg = kmalloc(sizeof(*seg) + alen, GFP_KERNEL_ACCOUNT);
 		if (seg == NULL)
 			goto out_err;
 		*pseg = seg;
@@ -80,12 +81,12 @@ out_err:
 	return NULL;
 }
 
-struct msg_msg *load_msg(const void __user *src, int len)
+struct msg_msg *load_msg(const void __user *src, size_t len)
 {
 	struct msg_msg *msg;
 	struct msg_msgseg *seg;
 	int err = -EFAULT;
-	int alen;
+	size_t alen;
 
 	msg = alloc_msg(len);
 	if (msg == NULL)
@@ -117,10 +118,9 @@ out_err:
 struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 {
 	struct msg_msgseg *dst_pseg, *src_pseg;
-	int len = src->m_ts;
-	int alen;
+	size_t len = src->m_ts;
+	size_t alen;
 
-	BUG_ON(dst == NULL);
 	if (src->m_ts > dst->m_ts)
 		return ERR_PTR(-EINVAL);
 
@@ -147,9 +147,9 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 	return ERR_PTR(-ENOSYS);
 }
 #endif
-int store_msg(void __user *dest, struct msg_msg *msg, int len)
+int store_msg(void __user *dest, struct msg_msg *msg, size_t len)
 {
-	int alen;
+	size_t alen;
 	struct msg_msgseg *seg;
 
 	alen = min(len, DATALEN_MSG);

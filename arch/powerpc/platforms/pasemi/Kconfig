@@ -1,5 +1,5 @@
 config PPC_PASEMI
-	depends on PPC64 && PPC_BOOK3S
+	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
 	bool "PA Semi SoC-based platforms"
 	default n
 	select MPIC
@@ -13,6 +13,16 @@ config PPC_PASEMI
 
 menu "PA Semi PWRficient options"
 	depends on PPC_PASEMI
+
+config PPC_PASEMI_NEMO
+	bool "Nemo motherboard Support"
+	depends on PPC_PASEMI
+	select PPC_I8259
+	help
+	  This option enables support for the 'Nemo' motherboard
+	  used in A-Eons's Amigaone X1000. This consists of some
+	  device tree patches and workarounds for the SB600 South
+	  Bridge that provides SATA/USB/Audio.
 
 config PPC_PASEMI_IOMMU
 	bool "PA Semi IOMMU support"

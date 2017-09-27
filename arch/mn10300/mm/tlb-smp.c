@@ -20,7 +20,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
 #include <asm/tlbflush.h>
@@ -78,9 +78,9 @@ void smp_flush_tlb(void *unused)
 	else
 		local_flush_tlb_page(flush_mm, flush_va);
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	cpumask_clear_cpu(cpu_id, &flush_cpumask);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 out:
 	put_cpu();
 }
@@ -119,7 +119,7 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 	flush_mm = mm;
 	flush_va = va;
 #if NR_CPUS <= BITS_PER_LONG
-	atomic_set_mask(cpumask.bits[0], &flush_cpumask.bits[0]);
+	atomic_or(cpumask.bits[0], (atomic_t *)&flush_cpumask.bits[0]);
 #else
 #error Not supported.
 #endif

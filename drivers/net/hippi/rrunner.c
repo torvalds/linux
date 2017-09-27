@@ -37,7 +37,6 @@
 #include <linux/netdevice.h>
 #include <linux/hippidevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -47,7 +46,7 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define rr_if_busy(dev)     netif_queue_stopped(dev)
 #define rr_if_running(dev)  netif_running(dev)
@@ -61,7 +60,8 @@ MODULE_AUTHOR("Jes Sorensen <jes@wildopensource.com>");
 MODULE_DESCRIPTION("Essential RoadRunner HIPPI driver");
 MODULE_LICENSE("GPL");
 
-static char version[] = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
+static const char version[] =
+"rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
 
 
 static const struct net_device_ops rr_netdev_ops = {
@@ -69,7 +69,6 @@ static const struct net_device_ops rr_netdev_ops = {
 	.ndo_stop		= rr_close,
 	.ndo_do_ioctl		= rr_ioctl,
 	.ndo_start_xmit		= rr_start_xmit,
-	.ndo_change_mtu		= hippi_change_mtu,
 	.ndo_set_mac_address	= hippi_mac_addr,
 };
 
@@ -213,10 +212,8 @@ static int rr_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				    rrpriv->tx_ring_dma);
 	if (rrpriv->regs)
 		pci_iounmap(pdev, rrpriv->regs);
-	if (pdev) {
+	if (pdev)
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
-	}
  out2:
 	free_netdev(dev);
  out3:
@@ -244,7 +241,6 @@ static void rr_remove_one(struct pci_dev *pdev)
 	pci_iounmap(pdev, rr->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 }
 
@@ -966,8 +962,8 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 								    pkt_len,
 								    PCI_DMA_FROMDEVICE);
 
-					memcpy(skb_put(skb, pkt_len),
-					       rx_skb->data, pkt_len);
+					skb_put_data(skb, rx_skb->data,
+						     pkt_len);
 
 					pci_dma_sync_single_for_device(rrpriv->pci_dev,
 								       desc->addr.addrlo,
@@ -1426,7 +1422,7 @@ static netdev_tx_t rr_start_xmit(struct sk_buff *skb,
 		skb = new_skb;
 	}
 
-	ifield = (u32 *)skb_push(skb, 8);
+	ifield = skb_push(skb, 8);
 
 	ifield[0] = 0;
 	ifield[1] = hcb->ifield;
@@ -1620,17 +1616,14 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			return -EPERM;
 		}
 
-		image = kmalloc(EEPROM_WORDS * sizeof(u32), GFP_KERNEL);
-		oldimage = kmalloc(EEPROM_WORDS * sizeof(u32), GFP_KERNEL);
-		if (!image || !oldimage) {
-			error = -ENOMEM;
-			goto wf_out;
-		}
+		image = memdup_user(rq->ifr_data, EEPROM_BYTES);
+		if (IS_ERR(image))
+			return PTR_ERR(image);
 
-		error = copy_from_user(image, rq->ifr_data, EEPROM_BYTES);
-		if (error) {
-			error = -EFAULT;
-			goto wf_out;
+		oldimage = kmalloc(EEPROM_BYTES, GFP_KERNEL);
+		if (!oldimage) {
+			kfree(image);
+			return -ENOMEM;
 		}
 
 		if (rrpriv->fw_running){
@@ -1672,7 +1665,7 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rr_pci_tbl) = {
+static const struct pci_device_id rr_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ESSENTIAL, PCI_DEVICE_ID_ESSENTIAL_ROADRUNNER,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}

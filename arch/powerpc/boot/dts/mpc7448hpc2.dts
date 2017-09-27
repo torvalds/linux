@@ -68,7 +68,6 @@
 		};
 
 		MDIO: mdio@6000 {
-			device_type = "mdio";
 			compatible = "tsi108-mdio";
 			reg = <0x6000 0x50>;
 			#address-cells = <1>;

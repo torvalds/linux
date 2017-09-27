@@ -19,6 +19,8 @@
 #include <linux/utsname.h>
 #include <linux/pfn.h>
 #include <linux/cpu.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <asm/setup.h>
 #include <arch/system.h>
 
@@ -63,6 +65,10 @@ void __init setup_arch(char **cmdline_p)
 	unsigned long bootmap_size;
 	unsigned long start_pfn, max_pfn;
 	unsigned long memory_start;
+
+#ifdef CONFIG_OF
+	early_init_dt_scan(__dtb_start);
+#endif
 
 	/* register an initial console printing routine for printk's */
 
@@ -141,6 +147,8 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_bootmem(PFN_PHYS(start_pfn), bootmap_size, BOOTMEM_DEFAULT);
 
+	unflatten_and_copy_device_tree();
+
 	/* paging_init() sets up the MMU and marks all pages as reserved */
 
 	paging_init();
@@ -165,6 +173,7 @@ void __init setup_arch(char **cmdline_p)
 	strcpy(init_utsname()->machine, cris_machine_name);
 }
 
+#ifdef CONFIG_PROC_FS
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	return *pos < nr_cpu_ids ? (void *)(int)(*pos + 1) : NULL;
@@ -188,6 +197,7 @@ const struct seq_operations cpuinfo_op = {
 	.stop  = c_stop,
 	.show  = show_cpuinfo,
 };
+#endif /* CONFIG_PROC_FS */
 
 static int __init topology_init(void)
 {
@@ -201,4 +211,3 @@ static int __init topology_init(void)
 }
 
 subsys_initcall(topology_init);
-

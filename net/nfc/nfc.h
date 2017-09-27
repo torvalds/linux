@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __LOCAL_NFC_H
@@ -27,12 +25,15 @@
 #include <net/nfc/nfc.h>
 #include <net/sock.h>
 
+#define NFC_TARGET_MODE_IDLE 0
+#define NFC_TARGET_MODE_SLEEP 1
+
 struct nfc_protocol {
 	int id;
 	struct proto *proto;
 	struct module *owner;
 	int (*create)(struct net *net, struct socket *sock,
-		      const struct nfc_protocol *nfc_proto);
+		      const struct nfc_protocol *nfc_proto, int kern);
 };
 
 struct nfc_rawsock {
@@ -42,6 +43,12 @@ struct nfc_rawsock {
 	struct work_struct tx_work;
 	bool tx_work_scheduled;
 };
+
+struct nfc_sock_list {
+	struct hlist_head head;
+	rwlock_t          lock;
+};
+
 #define nfc_rawsock(sk) ((struct nfc_rawsock *) sk)
 #define to_rawsock_sk(_tx_work) \
 	((struct sock *) container_of(_tx_work, struct nfc_rawsock, tx_work))
@@ -96,6 +103,9 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list);
 
 int nfc_genl_se_added(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_genl_se_removed(struct nfc_dev *dev, u32 se_idx);
+int nfc_genl_se_transaction(struct nfc_dev *dev, u8 se_idx,
+			    struct nfc_evt_transaction *evt_transaction);
+int nfc_genl_se_connectivity(struct nfc_dev *dev, u8 se_idx);
 
 struct nfc_dev *nfc_get_device(unsigned int idx);
 
@@ -124,9 +134,8 @@ static inline void nfc_device_iter_exit(struct class_dev_iter *iter)
 }
 
 int nfc_fw_download(struct nfc_dev *dev, const char *firmware_name);
-int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name);
-
-int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name);
+int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
+			      u32 result);
 
 int nfc_dev_up(struct nfc_dev *dev);
 
@@ -142,7 +151,7 @@ int nfc_dep_link_down(struct nfc_dev *dev);
 
 int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol);
 
-int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx);
+int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx, u8 mode);
 
 int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		      data_exchange_cb_t cb, void *cb_context);

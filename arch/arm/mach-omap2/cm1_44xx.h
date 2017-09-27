@@ -25,8 +25,6 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CM1_44XX_H
 #define __ARCH_ARM_MACH_OMAP2_CM1_44XX_H
 
-#include "cm_44xx_54xx.h"
-
 /* CM1 base address */
 #define OMAP4430_CM1_BASE		0x4a004000
 

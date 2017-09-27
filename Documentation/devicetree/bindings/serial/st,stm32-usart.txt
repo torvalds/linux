@@ -1,0 +1,53 @@
+* STMicroelectronics STM32 USART
+
+Required properties:
+- compatible: can be either:
+  - "st,stm32-usart",
+  - "st,stm32-uart",
+  - "st,stm32f7-usart",
+  - "st,stm32f7-uart",
+  - "st,stm32h7-usart"
+  - "st,stm32h7-uart".
+  depending on whether the device supports synchronous mode
+  and is compatible with stm32(f4), stm32f7 or stm32h7.
+- reg: The address and length of the peripheral registers space
+- interrupts:
+  - The interrupt line for the USART instance,
+  - An optional wake-up interrupt.
+- clocks: The input clock of the USART instance
+
+Optional properties:
+- pinctrl: The reference on the pins configuration
+- st,hw-flow-ctrl: bool flag to enable hardware flow control.
+- dmas: phandle(s) to DMA controller node(s). Refer to stm32-dma.txt
+- dma-names: "rx" and/or "tx"
+
+Examples:
+usart4: serial@40004c00 {
+	compatible = "st,stm32-uart";
+	reg = <0x40004c00 0x400>;
+	interrupts = <52>;
+	clocks = <&clk_pclk1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usart4>;
+};
+
+usart2: serial@40004400 {
+	compatible = "st,stm32-usart", "st,stm32-uart";
+	reg = <0x40004400 0x400>;
+	interrupts = <38>;
+	clocks = <&clk_pclk1>;
+	st,hw-flow-ctrl;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usart2 &pinctrl_usart2_rtscts>;
+};
+
+usart1: serial@40011000 {
+	compatible = "st,stm32-usart", "st,stm32-uart";
+	reg = <0x40011000 0x400>;
+	interrupts = <37>;
+	clocks = <&rcc 0 164>;
+	dmas = <&dma2 2 4 0x414 0x0>,
+	       <&dma2 7 4 0x414 0x0>;
+	dma-names = "rx", "tx";
+};

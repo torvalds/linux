@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
@@ -480,14 +481,14 @@ pw_done:
 static void fsl_pw_dpc(struct work_struct *work)
 {
 	struct fsl_rio_pw *pw = container_of(work, struct fsl_rio_pw, pw_work);
-	u32 msg_buffer[RIO_PW_MSG_SIZE/sizeof(u32)];
+	union rio_pw_msg msg_buffer;
+	int i;
 
 	/*
 	 * Process port-write messages
 	 */
-	while (kfifo_out_spinlocked(&pw->pw_fifo, (unsigned char *)msg_buffer,
+	while (kfifo_out_spinlocked(&pw->pw_fifo, (unsigned char *)&msg_buffer,
 			 RIO_PW_MSG_SIZE, &pw->pw_fifo_lock)) {
-		/* Process one message */
 #ifdef DEBUG_PW
 		{
 		u32 i;
@@ -495,15 +496,19 @@ static void fsl_pw_dpc(struct work_struct *work)
 		for (i = 0; i < RIO_PW_MSG_SIZE/sizeof(u32); i++) {
 			if ((i%4) == 0)
 				pr_debug("\n0x%02x: 0x%08x", i*4,
-					 msg_buffer[i]);
+					 msg_buffer.raw[i]);
 			else
-				pr_debug(" 0x%08x", msg_buffer[i]);
+				pr_debug(" 0x%08x", msg_buffer.raw[i]);
 		}
 		pr_debug("\n");
 		}
 #endif
 		/* Pass the port-write message to RIO core for processing */
-		rio_inb_pwrite_handler((union rio_pw_msg *)msg_buffer);
+		for (i = 0; i < MAX_PORT_NUM; i++) {
+			if (pw->mport[i])
+				rio_inb_pwrite_handler(pw->mport[i],
+						       &msg_buffer);
+		}
 	}
 }
 
@@ -569,7 +574,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 	out_be32(&pw->pw_regs->pwsr,
 		 (RIO_IPWSR_TE | RIO_IPWSR_QFI | RIO_IPWSR_PWD));
 
-	/* Configure port write contoller for snooping enable all reporting,
+	/* Configure port write controller for snooping enable all reporting,
 	   clear queue full */
 	out_be32(&pw->pw_regs->pwmr,
 		 RIO_IPWMR_SEN | RIO_IPWMR_QFIE | RIO_IPWMR_EIE | RIO_IPWMR_CQ);
@@ -880,9 +885,9 @@ fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 	rc = request_irq(IRQ_RIO_RX(mport), fsl_rio_rx_handler, 0,
 			 "msg_rx", (void *)mport);
 	if (rc < 0) {
-		dma_free_coherent(priv->dev, RIO_MSG_BUFFER_SIZE,
-			rmu->msg_tx_ring.virt_buffer[i],
-			rmu->msg_tx_ring.phys_buffer[i]);
+		dma_free_coherent(priv->dev,
+			rmu->msg_rx_ring.size * RIO_MAX_MSG_SIZE,
+			rmu->msg_rx_ring.virt, rmu->msg_rx_ring.phys);
 		goto out;
 	}
 
@@ -1069,8 +1074,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	priv = mport->priv;
 
 	if (!node) {
-		dev_warn(priv->dev, "Can't get %s property 'fsl,rmu'\n",
-			priv->dev->of_node->full_name);
+		dev_warn(priv->dev, "Can't get %pOF property 'fsl,rmu'\n",
+			priv->dev->of_node);
 		return -EINVAL;
 	}
 
@@ -1081,8 +1086,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	aw = of_n_addr_cells(node);
 	msg_addr = of_get_property(node, "reg", &mlen);
 	if (!msg_addr) {
-		pr_err("%s: unable to find 'reg' property of message-unit\n",
-			node->full_name);
+		pr_err("%pOF: unable to find 'reg' property of message-unit\n",
+			node);
 		kfree(rmu);
 		return -ENOMEM;
 	}
@@ -1093,8 +1098,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 
 	rmu->txirq = irq_of_parse_and_map(node, 0);
 	rmu->rxirq = irq_of_parse_and_map(node, 1);
-	printk(KERN_INFO "%s: txirq: %d, rxirq %d\n",
-		node->full_name, rmu->txirq, rmu->rxirq);
+	printk(KERN_INFO "%pOF: txirq: %d, rxirq %d\n",
+		node, rmu->txirq, rmu->rxirq);
 
 	priv->rmm_handle = rmu;
 

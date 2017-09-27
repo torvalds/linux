@@ -1,0 +1,104 @@
+Amlogic MesonX device tree bindings
+-------------------------------------------
+
+Work in progress statement:
+
+Device tree files and bindings applying to Amlogic SoCs and boards are
+considered "unstable". Any Amlogic device tree binding may change at
+any time. Be sure to use a device tree binary and a kernel image
+generated from the same source tree.
+
+Please refer to Documentation/devicetree/bindings/ABI.txt for a definition of a
+stable binding/ABI.
+
+---------------------------------------------------------------
+
+Boards with the Amlogic Meson6 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson6"
+
+Boards with the Amlogic Meson8 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson8";
+
+Boards with the Amlogic Meson8b SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson8b";
+
+Boards with the Amlogic Meson GXBaby SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson-gxbb";
+
+Boards with the Amlogic Meson GXL S905X SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s905x", "amlogic,meson-gxl";
+
+Boards with the Amlogic Meson GXL S905D SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s905d", "amlogic,meson-gxl";
+
+Boards with the Amlogic Meson GXM S912 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s912", "amlogic,meson-gxm";
+
+Board compatible values (alphabetically, grouped by SoC):
+
+  - "geniatech,atv1200" (Meson6)
+
+  - "minix,neo-x8" (Meson8)
+
+  - "hardkernel,odroid-c1" (Meson8b)
+  - "tronfy,mxq" (Meson8b)
+
+  - "amlogic,p200" (Meson gxbb)
+  - "amlogic,p201" (Meson gxbb)
+  - "friendlyarm,nanopi-k2" (Meson gxbb)
+  - "hardkernel,odroid-c2" (Meson gxbb)
+  - "nexbox,a95x" (Meson gxbb or Meson gxl s905x)
+  - "tronsmart,vega-s95-pro", "tronsmart,vega-s95" (Meson gxbb)
+  - "tronsmart,vega-s95-meta", "tronsmart,vega-s95" (Meson gxbb)
+  - "tronsmart,vega-s95-telos", "tronsmart,vega-s95" (Meson gxbb)
+  - "wetek,hub" (Meson gxbb)
+  - "wetek,play2" (Meson gxbb)
+
+  - "amlogic,p212" (Meson gxl s905x)
+  - "hwacom,amazetv" (Meson gxl s905x)
+  - "khadas,vim" (Meson gxl s905x)
+  - "libretech,cc" (Meson gxl s905x)
+
+  - "amlogic,p230" (Meson gxl s905d)
+  - "amlogic,p231" (Meson gxl s905d)
+
+  - "amlogic,q200" (Meson gxm s912)
+  - "amlogic,q201" (Meson gxm s912)
+  - "kingnovel,r-box-pro" (Meson gxm S912)
+  - "nexbox,a1" (Meson gxm s912)
+
+Amlogic Meson Firmware registers Interface
+------------------------------------------
+
+The Meson SoCs have a register bank with status and data shared with the
+secure firmware.
+
+Required properties:
+ - compatible: For Meson GX SoCs, must be "amlogic,meson-gx-ao-secure", "syscon"
+
+Properties should indentify components of this register interface :
+
+Meson GX SoC Information
+------------------------
+A firmware register encodes the SoC type, package and revision information on
+the Meson GX SoCs.
+If present, the following property should be added :
+
+Optional properties:
+  - amlogic,has-chip-id: If present, the interface gives the current SoC version.
+
+Example
+-------
+
+ao-secure@140 {
+	compatible = "amlogic,meson-gx-ao-secure", "syscon";
+	reg = <0x0 0x140 0x0 0x140>;
+	amlogic,has-chip-id;
+};

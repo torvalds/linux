@@ -13,16 +13,11 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __ATBM8830_H__
 #define __ATBM8830_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
 
@@ -61,7 +56,7 @@ struct atbm8830_config {
 	u8 agc_hold_loop;
 };
 
-#if IS_ENABLED(CONFIG_DVB_ATBM8830)
+#if IS_REACHABLE(CONFIG_DVB_ATBM8830)
 extern struct dvb_frontend *atbm8830_attach(const struct atbm8830_config *config,
 		struct i2c_adapter *i2c);
 #else

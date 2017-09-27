@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,10 +61,10 @@ static struct rc_map_table cinergy_1400[] = {
 
 static struct rc_map_list cinergy_1400_map = {
 	.map = {
-		.scan    = cinergy_1400,
-		.size    = ARRAY_SIZE(cinergy_1400),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_CINERGY_1400,
+		.scan     = cinergy_1400,
+		.size     = ARRAY_SIZE(cinergy_1400),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_CINERGY_1400,
 	}
 };
 
@@ -82,4 +82,4 @@ module_init(init_rc_map_cinergy_1400)
 module_exit(exit_rc_map_cinergy_1400)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

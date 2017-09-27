@@ -281,20 +281,26 @@ typedef void (ak4113_write_t)(void *private_data, unsigned char addr,
 		unsigned char data);
 typedef unsigned char (ak4113_read_t)(void *private_data, unsigned char addr);
 
+enum {
+	AK4113_PARITY_ERRORS,
+	AK4113_V_BIT_ERRORS,
+	AK4113_QCRC_ERRORS,
+	AK4113_CCRC_ERRORS,
+	AK4113_NUM_ERRORS
+};
+
 struct ak4113 {
 	struct snd_card *card;
 	ak4113_write_t *write;
 	ak4113_read_t *read;
 	void *private_data;
-	unsigned int init:1;
+	atomic_t wq_processing;
+	struct mutex reinit_mutex;
 	spinlock_t lock;
 	unsigned char regmap[AK4113_WRITABLE_REGS];
 	struct snd_kcontrol *kctls[AK4113_CONTROLS];
 	struct snd_pcm_substream *substream;
-	unsigned long parity_errors;
-	unsigned long v_bit_errors;
-	unsigned long qcrc_errors;
-	unsigned long ccrc_errors;
+	unsigned long errors[AK4113_NUM_ERRORS];
 	unsigned char rcs0;
 	unsigned char rcs1;
 	unsigned char rcs2;
@@ -316,6 +322,14 @@ int snd_ak4113_build(struct ak4113 *ak4113,
 		struct snd_pcm_substream *capture_substream);
 int snd_ak4113_external_rate(struct ak4113 *ak4113);
 int snd_ak4113_check_rate_and_errors(struct ak4113 *ak4113, unsigned int flags);
+
+#ifdef CONFIG_PM
+void snd_ak4113_suspend(struct ak4113 *chip);
+void snd_ak4113_resume(struct ak4113 *chip);
+#else
+static inline void snd_ak4113_suspend(struct ak4113 *chip) {}
+static inline void snd_ak4113_resume(struct ak4113 *chip) {}
+#endif
 
 #endif /* __SOUND_AK4113_H */
 

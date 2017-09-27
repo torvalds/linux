@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_device.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
@@ -149,7 +150,7 @@ static struct atmel_tdes_drv atmel_tdes = {
 static int atmel_tdes_sg_copy(struct scatterlist **sg, size_t *offset,
 			void *buf, size_t buflen, size_t total, int out)
 {
-	unsigned int count, off = 0;
+	size_t count, off = 0;
 
 	while (buflen && total) {
 		count = min((*sg)->length - *offset, total);
@@ -217,7 +218,11 @@ static struct atmel_tdes_dev *atmel_tdes_find_dev(struct atmel_tdes_ctx *ctx)
 
 static int atmel_tdes_hw_init(struct atmel_tdes_dev *dd)
 {
-	clk_prepare_enable(dd->iclk);
+	int err;
+
+	err = clk_prepare_enable(dd->iclk);
+	if (err)
+		return err;
 
 	if (!(dd->flags & TDES_FLAGS_INIT)) {
 		atmel_tdes_write(dd, TDES_CR, TDES_CR_SWRST);
@@ -331,7 +336,7 @@ static int atmel_tdes_crypt_pdc_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 		if (count != dd->dma_size) {
 			err = -EINVAL;
-			pr_err("not all data converted: %u\n", count);
+			pr_err("not all data converted: %zu\n", count);
 		}
 	}
 
@@ -356,7 +361,7 @@ static int atmel_tdes_buff_init(struct atmel_tdes_dev *dd)
 	dd->dma_addr_in = dma_map_single(dd->dev, dd->buf_in,
 					dd->buflen, DMA_TO_DEVICE);
 	if (dma_mapping_error(dd->dev, dd->dma_addr_in)) {
-		dev_err(dd->dev, "dma %d bytes error\n", dd->buflen);
+		dev_err(dd->dev, "dma %zd bytes error\n", dd->buflen);
 		err = -EINVAL;
 		goto err_map_in;
 	}
@@ -364,7 +369,7 @@ static int atmel_tdes_buff_init(struct atmel_tdes_dev *dd)
 	dd->dma_addr_out = dma_map_single(dd->dev, dd->buf_out,
 					dd->buflen, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dd->dev, dd->dma_addr_out)) {
-		dev_err(dd->dev, "dma %d bytes error\n", dd->buflen);
+		dev_err(dd->dev, "dma %zd bytes error\n", dd->buflen);
 		err = -EINVAL;
 		goto err_map_out;
 	}
@@ -375,9 +380,9 @@ err_map_out:
 	dma_unmap_single(dd->dev, dd->dma_addr_in, dd->buflen,
 		DMA_TO_DEVICE);
 err_map_in:
+err_alloc:
 	free_page((unsigned long)dd->buf_out);
 	free_page((unsigned long)dd->buf_in);
-err_alloc:
 	if (err)
 		pr_err("error: %d\n", err);
 	return err;
@@ -520,8 +525,8 @@ static int atmel_tdes_crypt_start(struct atmel_tdes_dev *dd)
 
 
 	if (fast)  {
-		count = min(dd->total, sg_dma_len(dd->in_sg));
-		count = min(count, sg_dma_len(dd->out_sg));
+		count = min_t(size_t, dd->total, sg_dma_len(dd->in_sg));
+		count = min_t(size_t, count, sg_dma_len(dd->out_sg));
 
 		err = dma_map_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
 		if (!err) {
@@ -656,7 +661,7 @@ static int atmel_tdes_crypt_dma_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 			if (count != dd->dma_size) {
 				err = -EINVAL;
-				pr_err("not all data converted: %u\n", count);
+				pr_err("not all data converted: %zu\n", count);
 			}
 		}
 	}
@@ -716,59 +721,50 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd,
 			struct crypto_platform_data *pdata)
 {
 	int err = -ENOMEM;
-	dma_cap_mask_t mask_in, mask_out;
+	dma_cap_mask_t mask;
 
-	if (pdata && pdata->dma_slave->txdata.dma_dev &&
-		pdata->dma_slave->rxdata.dma_dev) {
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
 
-		/* Try to grab 2 DMA channels */
-		dma_cap_zero(mask_in);
-		dma_cap_set(DMA_SLAVE, mask_in);
+	/* Try to grab 2 DMA channels */
+	dd->dma_lch_in.chan = dma_request_slave_channel_compat(mask,
+			atmel_tdes_filter, &pdata->dma_slave->rxdata, dd->dev, "tx");
+	if (!dd->dma_lch_in.chan)
+		goto err_dma_in;
 
-		dd->dma_lch_in.chan = dma_request_channel(mask_in,
-				atmel_tdes_filter, &pdata->dma_slave->rxdata);
+	dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;
+	dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
+		TDES_IDATA1R;
+	dd->dma_lch_in.dma_conf.src_maxburst = 1;
+	dd->dma_lch_in.dma_conf.src_addr_width =
+		DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dd->dma_lch_in.dma_conf.dst_maxburst = 1;
+	dd->dma_lch_in.dma_conf.dst_addr_width =
+		DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dd->dma_lch_in.dma_conf.device_fc = false;
 
-		if (!dd->dma_lch_in.chan)
-			goto err_dma_in;
+	dd->dma_lch_out.chan = dma_request_slave_channel_compat(mask,
+			atmel_tdes_filter, &pdata->dma_slave->txdata, dd->dev, "rx");
+	if (!dd->dma_lch_out.chan)
+		goto err_dma_out;
 
-		dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;
-		dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
-			TDES_IDATA1R;
-		dd->dma_lch_in.dma_conf.src_maxburst = 1;
-		dd->dma_lch_in.dma_conf.src_addr_width =
-			DMA_SLAVE_BUSWIDTH_4_BYTES;
-		dd->dma_lch_in.dma_conf.dst_maxburst = 1;
-		dd->dma_lch_in.dma_conf.dst_addr_width =
-			DMA_SLAVE_BUSWIDTH_4_BYTES;
-		dd->dma_lch_in.dma_conf.device_fc = false;
+	dd->dma_lch_out.dma_conf.direction = DMA_DEV_TO_MEM;
+	dd->dma_lch_out.dma_conf.src_addr = dd->phys_base +
+		TDES_ODATA1R;
+	dd->dma_lch_out.dma_conf.src_maxburst = 1;
+	dd->dma_lch_out.dma_conf.src_addr_width =
+		DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dd->dma_lch_out.dma_conf.dst_maxburst = 1;
+	dd->dma_lch_out.dma_conf.dst_addr_width =
+		DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dd->dma_lch_out.dma_conf.device_fc = false;
 
-		dma_cap_zero(mask_out);
-		dma_cap_set(DMA_SLAVE, mask_out);
-		dd->dma_lch_out.chan = dma_request_channel(mask_out,
-				atmel_tdes_filter, &pdata->dma_slave->txdata);
-
-		if (!dd->dma_lch_out.chan)
-			goto err_dma_out;
-
-		dd->dma_lch_out.dma_conf.direction = DMA_DEV_TO_MEM;
-		dd->dma_lch_out.dma_conf.src_addr = dd->phys_base +
-			TDES_ODATA1R;
-		dd->dma_lch_out.dma_conf.src_maxburst = 1;
-		dd->dma_lch_out.dma_conf.src_addr_width =
-			DMA_SLAVE_BUSWIDTH_4_BYTES;
-		dd->dma_lch_out.dma_conf.dst_maxburst = 1;
-		dd->dma_lch_out.dma_conf.dst_addr_width =
-			DMA_SLAVE_BUSWIDTH_4_BYTES;
-		dd->dma_lch_out.dma_conf.device_fc = false;
-
-		return 0;
-	} else {
-		return -ENODEV;
-	}
+	return 0;
 
 err_dma_out:
 	dma_release_channel(dd->dma_lch_in.chan);
 err_dma_in:
+	dev_warn(dd->dev, "no DMA channel available\n");
 	return err;
 }
 
@@ -1317,16 +1313,55 @@ static void atmel_tdes_get_cap(struct atmel_tdes_dev *dd)
 	}
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id atmel_tdes_dt_ids[] = {
+	{ .compatible = "atmel,at91sam9g46-tdes" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, atmel_tdes_dt_ids);
+
+static struct crypto_platform_data *atmel_tdes_of_init(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct crypto_platform_data *pdata;
+
+	if (!np) {
+		dev_err(&pdev->dev, "device node not found\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&pdev->dev, "could not allocate memory for pdata\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pdata->dma_slave = devm_kzalloc(&pdev->dev,
+					sizeof(*(pdata->dma_slave)),
+					GFP_KERNEL);
+	if (!pdata->dma_slave) {
+		dev_err(&pdev->dev, "could not allocate memory for dma_slave\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return pdata;
+}
+#else /* CONFIG_OF */
+static inline struct crypto_platform_data *atmel_tdes_of_init(struct platform_device *pdev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
+
 static int atmel_tdes_probe(struct platform_device *pdev)
 {
 	struct atmel_tdes_dev *tdes_dd;
 	struct crypto_platform_data	*pdata;
 	struct device *dev = &pdev->dev;
 	struct resource *tdes_res;
-	unsigned long tdes_phys_size;
 	int err;
 
-	tdes_dd = kzalloc(sizeof(struct atmel_tdes_dev), GFP_KERNEL);
+	tdes_dd = devm_kmalloc(&pdev->dev, sizeof(*tdes_dd), GFP_KERNEL);
 	if (tdes_dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		err = -ENOMEM;
@@ -1338,6 +1373,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tdes_dd);
 
 	INIT_LIST_HEAD(&tdes_dd->list);
+	spin_lock_init(&tdes_dd->lock);
 
 	tasklet_init(&tdes_dd->done_task, atmel_tdes_done_task,
 					(unsigned long)tdes_dd);
@@ -1356,7 +1392,6 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 	tdes_dd->phys_base = tdes_res->start;
-	tdes_phys_size = resource_size(tdes_res);
 
 	/* Get the IRQ */
 	tdes_dd->irq = platform_get_irq(pdev,  0);
@@ -1366,26 +1401,26 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 
-	err = request_irq(tdes_dd->irq, atmel_tdes_irq, IRQF_SHARED,
-			"atmel-tdes", tdes_dd);
+	err = devm_request_irq(&pdev->dev, tdes_dd->irq, atmel_tdes_irq,
+			       IRQF_SHARED, "atmel-tdes", tdes_dd);
 	if (err) {
 		dev_err(dev, "unable to request tdes irq.\n");
-		goto tdes_irq_err;
+		goto res_err;
 	}
 
 	/* Initializing the clock */
-	tdes_dd->iclk = clk_get(&pdev->dev, "tdes_clk");
+	tdes_dd->iclk = devm_clk_get(&pdev->dev, "tdes_clk");
 	if (IS_ERR(tdes_dd->iclk)) {
-		dev_err(dev, "clock intialization failed.\n");
+		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(tdes_dd->iclk);
-		goto clk_err;
+		goto res_err;
 	}
 
-	tdes_dd->io_base = ioremap(tdes_dd->phys_base, tdes_phys_size);
-	if (!tdes_dd->io_base) {
+	tdes_dd->io_base = devm_ioremap_resource(&pdev->dev, tdes_res);
+	if (IS_ERR(tdes_dd->io_base)) {
 		dev_err(dev, "can't ioremap\n");
-		err = -ENOMEM;
-		goto tdes_io_err;
+		err = PTR_ERR(tdes_dd->io_base);
+		goto res_err;
 	}
 
 	atmel_tdes_hw_version_init(tdes_dd);
@@ -1399,13 +1434,24 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	if (tdes_dd->caps.has_dma) {
 		pdata = pdev->dev.platform_data;
 		if (!pdata) {
-			dev_err(&pdev->dev, "platform data not available\n");
+			pdata = atmel_tdes_of_init(pdev);
+			if (IS_ERR(pdata)) {
+				dev_err(&pdev->dev, "platform data not available\n");
+				err = PTR_ERR(pdata);
+				goto err_pdata;
+			}
+		}
+		if (!pdata->dma_slave) {
 			err = -ENXIO;
 			goto err_pdata;
 		}
 		err = atmel_tdes_dma_init(tdes_dd, pdata);
 		if (err)
 			goto err_tdes_dma;
+
+		dev_info(dev, "using %s, %s for DMA transfers\n",
+				dma_chan_name(tdes_dd->dma_lch_in.chan),
+				dma_chan_name(tdes_dd->dma_lch_out.chan));
 	}
 
 	spin_lock(&atmel_tdes.lock);
@@ -1430,17 +1476,9 @@ err_tdes_dma:
 err_pdata:
 	atmel_tdes_buff_cleanup(tdes_dd);
 err_tdes_buff:
-	iounmap(tdes_dd->io_base);
-tdes_io_err:
-	clk_put(tdes_dd->iclk);
-clk_err:
-	free_irq(tdes_dd->irq, tdes_dd);
-tdes_irq_err:
 res_err:
 	tasklet_kill(&tdes_dd->done_task);
 	tasklet_kill(&tdes_dd->queue_task);
-	kfree(tdes_dd);
-	tdes_dd = NULL;
 tdes_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1449,7 +1487,7 @@ tdes_dd_err:
 
 static int atmel_tdes_remove(struct platform_device *pdev)
 {
-	static struct atmel_tdes_dev *tdes_dd;
+	struct atmel_tdes_dev *tdes_dd;
 
 	tdes_dd = platform_get_drvdata(pdev);
 	if (!tdes_dd)
@@ -1468,16 +1506,6 @@ static int atmel_tdes_remove(struct platform_device *pdev)
 
 	atmel_tdes_buff_cleanup(tdes_dd);
 
-	iounmap(tdes_dd->io_base);
-
-	clk_put(tdes_dd->iclk);
-
-	if (tdes_dd->irq >= 0)
-		free_irq(tdes_dd->irq, tdes_dd);
-
-	kfree(tdes_dd);
-	tdes_dd = NULL;
-
 	return 0;
 }
 
@@ -1486,7 +1514,7 @@ static struct platform_driver atmel_tdes_driver = {
 	.remove		= atmel_tdes_remove,
 	.driver		= {
 		.name	= "atmel_tdes",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(atmel_tdes_dt_ids),
 	},
 };
 

@@ -22,6 +22,20 @@
 
 #include <linux/types.h>
 
+/*
+ * This is mainly used to communicate information back-and-forth
+ * between SVM and IOMMU for setting up and tearing down posted
+ * interrupt
+ */
+struct amd_iommu_pi_data {
+	u32 ga_tag;
+	u32 prev_ga_tag;
+	u64 base;
+	bool is_guest_mode;
+	struct vcpu_data *vcpu_data;
+	void *ir_data;
+};
+
 #ifdef CONFIG_AMD_IOMMU
 
 struct task_struct;
@@ -119,6 +133,13 @@ typedef int (*amd_iommu_invalid_ppr_cb)(struct pci_dev *pdev,
 extern int amd_iommu_set_invalid_ppr_cb(struct pci_dev *pdev,
 					amd_iommu_invalid_ppr_cb cb);
 
+#define PPR_FAULT_EXEC	(1 << 1)
+#define PPR_FAULT_READ  (1 << 2)
+#define PPR_FAULT_WRITE (1 << 5)
+#define PPR_FAULT_USER  (1 << 6)
+#define PPR_FAULT_RSVD  (1 << 7)
+#define PPR_FAULT_GN    (1 << 8)
+
 /**
  * amd_iommu_device_info() - Get information about IOMMUv2 support of a
  *			     PCI device
@@ -161,11 +182,34 @@ typedef void (*amd_iommu_invalidate_ctx)(struct pci_dev *pdev, int pasid);
 
 extern int amd_iommu_set_invalidate_ctx_cb(struct pci_dev *pdev,
 					   amd_iommu_invalidate_ctx cb);
-
-#else
+#else /* CONFIG_AMD_IOMMU */
 
 static inline int amd_iommu_detect(void) { return -ENODEV; }
 
-#endif
+#endif /* CONFIG_AMD_IOMMU */
+
+#if defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP)
+
+/* IOMMU AVIC Function */
+extern int amd_iommu_register_ga_log_notifier(int (*notifier)(u32));
+
+extern int
+amd_iommu_update_ga(int cpu, bool is_run, void *data);
+
+#else /* defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP) */
+
+static inline int
+amd_iommu_register_ga_log_notifier(int (*notifier)(u32))
+{
+	return 0;
+}
+
+static inline int
+amd_iommu_update_ga(int cpu, bool is_run, void *data)
+{
+	return 0;
+}
+
+#endif /* defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP) */
 
 #endif /* _ASM_X86_AMD_IOMMU_H */

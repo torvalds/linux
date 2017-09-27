@@ -96,7 +96,8 @@ static void mon_submit(struct usb_bus *ubus, struct urb *urb)
 {
 	struct mon_bus *mbus;
 
-	if ((mbus = ubus->mon_bus) != NULL)
+	mbus = ubus->mon_bus;
+	if (mbus != NULL)
 		mon_bus_submit(mbus, urb);
 	mon_bus_submit(&mon_bus0, urb);
 }
@@ -122,7 +123,8 @@ static void mon_submit_error(struct usb_bus *ubus, struct urb *urb, int error)
 {
 	struct mon_bus *mbus;
 
-	if ((mbus = ubus->mon_bus) != NULL)
+	mbus = ubus->mon_bus;
+	if (mbus != NULL)
 		mon_bus_submit_error(mbus, urb, error);
 	mon_bus_submit_error(&mon_bus0, urb, error);
 }
@@ -148,7 +150,8 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb, int status)
 {
 	struct mon_bus *mbus;
 
-	if ((mbus = ubus->mon_bus) != NULL)
+	mbus = ubus->mon_bus;
+	if (mbus != NULL)
 		mon_bus_complete(mbus, urb, status);
 	mon_bus_complete(&mon_bus0, urb, status);
 }
@@ -238,7 +241,7 @@ static struct notifier_block mon_nb = {
 /*
  * Ops
  */
-static struct usb_mon_operations mon_ops_0 = {
+static const struct usb_mon_operations mon_ops_0 = {
 	.urb_submit =	mon_submit,
 	.urb_submit_error = mon_submit_error,
 	.urb_complete =	mon_complete,
@@ -280,7 +283,8 @@ static void mon_bus_init(struct usb_bus *ubus)
 {
 	struct mon_bus *mbus;
 
-	if ((mbus = kzalloc(sizeof(struct mon_bus), GFP_KERNEL)) == NULL)
+	mbus = kzalloc(sizeof(struct mon_bus), GFP_KERNEL);
+	if (mbus == NULL)
 		goto err_alloc;
 	kref_init(&mbus->ref);
 	spin_lock_init(&mbus->lock);
@@ -345,7 +349,7 @@ struct mon_bus *mon_bus_lookup(unsigned int num)
 static int __init mon_init(void)
 {
 	struct usb_bus *ubus;
-	int rc;
+	int rc, id;
 
 	if ((rc = mon_text_init()) != 0)
 		goto err_text;
@@ -361,12 +365,11 @@ static int __init mon_init(void)
 	}
 	// MOD_INC_USE_COUNT(which_module?);
 
-	mutex_lock(&usb_bus_list_lock);
-	list_for_each_entry (ubus, &usb_bus_list, bus_list) {
+	mutex_lock(&usb_bus_idr_lock);
+	idr_for_each_entry(&usb_bus_idr, ubus, id)
 		mon_bus_init(ubus);
-	}
 	usb_register_notify(&mon_nb);
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 	return 0;
 
 err_reg:
@@ -406,7 +409,7 @@ static void __exit mon_exit(void)
 			printk(KERN_ERR TAG
 			    ": Outstanding opens (%d) on usb%d, leaking...\n",
 			    mbus->nreaders, mbus->u_bus->busnum);
-			atomic_set(&mbus->ref.refcount, 2);	/* Force leak */
+			kref_get(&mbus->ref); /* Force leak */
 		}
 
 		mon_dissolve(mbus, mbus->u_bus);

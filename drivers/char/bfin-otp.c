@@ -20,7 +20,7 @@
 
 #include <asm/blackfin.h>
 #include <asm/bfrom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
 #define stampit() stamp("here i am")
@@ -230,45 +230,7 @@ static struct miscdevice bfin_otp_misc_device = {
 	.name     = DRIVER_NAME,
 	.fops     = &bfin_otp_fops,
 };
-
-/**
- *	bfin_otp_init - Initialize module
- *
- *	Registers the device and notifier handler. Actual device
- *	initialization is handled by bfin_otp_open().
- */
-static int __init bfin_otp_init(void)
-{
-	int ret;
-
-	stampit();
-
-	ret = misc_register(&bfin_otp_misc_device);
-	if (ret) {
-		pr_init(KERN_ERR PFX "unable to register a misc device\n");
-		return ret;
-	}
-
-	pr_init(KERN_INFO PFX "initialized\n");
-
-	return 0;
-}
-
-/**
- *	bfin_otp_exit - Deinitialize module
- *
- *	Unregisters the device and notifier handler. Actual device
- *	deinitialization is handled by bfin_otp_close().
- */
-static void __exit bfin_otp_exit(void)
-{
-	stampit();
-
-	misc_deregister(&bfin_otp_misc_device);
-}
-
-module_init(bfin_otp_init);
-module_exit(bfin_otp_exit);
+module_misc_device(bfin_otp_misc_device);
 
 MODULE_AUTHOR("Mike Frysinger <vapier@gentoo.org>");
 MODULE_DESCRIPTION("Blackfin OTP Memory Interface");

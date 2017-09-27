@@ -8,33 +8,22 @@
  */
 #include <linux/io.h>
 #include <linux/pm.h>
+#include <linux/reboot.h>
 
 #include <asm/reboot.h>
+#include <asm/mach-malta/malta-pm.h>
 
-#define SOFTRES_REG	0x1f000500
-#define GORESET		0x42
-
-static void mips_machine_restart(char *command)
+static void mips_machine_power_off(void)
 {
-	unsigned int __iomem *softres_reg =
-		ioremap(SOFTRES_REG, sizeof(unsigned int));
+	mips_pm_suspend(PIIX4_FUNC3IO_PMCNTRL_SUS_TYP_SOFF);
 
-	__raw_writel(GORESET, softres_reg);
-}
-
-static void mips_machine_halt(void)
-{
-	unsigned int __iomem *softres_reg =
-		ioremap(SOFTRES_REG, sizeof(unsigned int));
-
-	__raw_writel(GORESET, softres_reg);
+	pr_info("Failed to power down, resetting\n");
+	machine_restart(NULL);
 }
 
 static int __init mips_reboot_setup(void)
 {
-	_machine_restart = mips_machine_restart;
-	_machine_halt = mips_machine_halt;
-	pm_power_off = mips_machine_halt;
+	pm_power_off = mips_machine_power_off;
 
 	return 0;
 }

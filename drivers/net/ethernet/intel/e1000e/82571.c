@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2015 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 /* 82571EB Gigabit Ethernet Controller
  * 82571EB Gigabit Ethernet Controller (Copper)
@@ -102,7 +95,6 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	/* This can only be done after all function pointers are setup. */
@@ -193,7 +185,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 		/* EEPROM access above 16k is unsupported */
 		if (size > 14)
 			size = 14;
-		nvm->word_size = 1 << size;
+		nvm->word_size = BIT(size);
 		break;
 	}
 
@@ -429,7 +421,6 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	case e1000_82573:
 		return e1000e_get_phy_id(hw);
-		break;
 	case e1000_82574:
 	case e1000_82583:
 		ret_val = e1e_rphy(hw, MII_PHYSID1, &phy_id);
@@ -447,7 +438,6 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	return 0;
@@ -1011,6 +1001,11 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Must release MDIO ownership and mutex after MAC reset. */
 	switch (hw->mac.type) {
+	case e1000_82573:
+		/* Release mutex only if the hw semaphore is acquired */
+		if (!ret_val)
+			e1000_put_hw_semaphore_82573(hw);
+		break;
 	case e1000_82574:
 	case e1000_82583:
 		/* Release mutex only if the hw semaphore is acquired */
@@ -1168,12 +1163,12 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 
 	/* Transmit Descriptor Control 0 */
 	reg = er32(TXDCTL(0));
-	reg |= (1 << 22);
+	reg |= BIT(22);
 	ew32(TXDCTL(0), reg);
 
 	/* Transmit Descriptor Control 1 */
 	reg = er32(TXDCTL(1));
-	reg |= (1 << 22);
+	reg |= BIT(22);
 	ew32(TXDCTL(1), reg);
 
 	/* Transmit Arbitration Control 0 */
@@ -1182,11 +1177,11 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		reg |= (1 << 23) | (1 << 24) | (1 << 25) | (1 << 26);
+		reg |= BIT(23) | BIT(24) | BIT(25) | BIT(26);
 		break;
 	case e1000_82574:
 	case e1000_82583:
-		reg |= (1 << 26);
+		reg |= BIT(26);
 		break;
 	default:
 		break;
@@ -1198,12 +1193,12 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		reg &= ~((1 << 29) | (1 << 30));
-		reg |= (1 << 22) | (1 << 24) | (1 << 25) | (1 << 26);
+		reg &= ~(BIT(29) | BIT(30));
+		reg |= BIT(22) | BIT(24) | BIT(25) | BIT(26);
 		if (er32(TCTL) & E1000_TCTL_MULR)
-			reg &= ~(1 << 28);
+			reg &= ~BIT(28);
 		else
-			reg |= (1 << 28);
+			reg |= BIT(28);
 		ew32(TARC(1), reg);
 		break;
 	default:
@@ -1216,7 +1211,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		reg = er32(CTRL);
-		reg &= ~(1 << 29);
+		reg &= ~BIT(29);
 		ew32(CTRL, reg);
 		break;
 	default:
@@ -1229,8 +1224,8 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		reg = er32(CTRL_EXT);
-		reg &= ~(1 << 23);
-		reg |= (1 << 22);
+		reg &= ~BIT(23);
+		reg |= BIT(22);
 		ew32(CTRL_EXT, reg);
 		break;
 	default:
@@ -1266,7 +1261,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		reg = er32(GCR);
-		reg |= (1 << 22);
+		reg |= BIT(22);
 		ew32(GCR, reg);
 
 		/* Workaround for hardware errata.
@@ -1313,8 +1308,8 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 				       E1000_VFTA_ENTRY_SHIFT) &
 			    E1000_VFTA_ENTRY_MASK;
 			vfta_bit_in_reg =
-			    1 << (hw->mng_cookie.vlan_id &
-				  E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+			    BIT(hw->mng_cookie.vlan_id &
+				E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 		}
 		break;
 	default:
@@ -1460,7 +1455,6 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	if (ret_val)
@@ -1898,6 +1892,7 @@ static const struct e1000_mac_operations e82571_mac_ops = {
 	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.read_mac_addr		= e1000_read_mac_addr_82571,
 	.rar_set		= e1000e_rar_set_generic,
+	.rar_get_count		= e1000e_rar_get_count_generic,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_igp = {
@@ -2015,7 +2010,7 @@ const struct e1000_info e1000_82573_info = {
 	.flags2			= FLAG2_DISABLE_ASPM_L1
 				  | FLAG2_DISABLE_ASPM_L0S,
 	.pba			= 20,
-	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
+	.max_hw_frame_size	= VLAN_ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_m88,
@@ -2037,7 +2032,8 @@ const struct e1000_info e1000_82574_info = {
 				  | FLAG2_DISABLE_ASPM_L0S
 				  | FLAG2_DISABLE_ASPM_L1
 				  | FLAG2_NO_DISABLE_RX
-				  | FLAG2_DMA_BURST,
+				  | FLAG2_DMA_BURST
+				  | FLAG2_CHECK_SYSTIM_OVERFLOW,
 	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -2057,7 +2053,9 @@ const struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
 	.flags2			= FLAG2_DISABLE_ASPM_L0S
-				  | FLAG2_NO_DISABLE_RX,
+				  | FLAG2_DISABLE_ASPM_L1
+				  | FLAG2_NO_DISABLE_RX
+				  | FLAG2_CHECK_SYSTIM_OVERFLOW,
 	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,

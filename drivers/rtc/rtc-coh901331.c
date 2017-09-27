@@ -43,8 +43,6 @@
 struct coh901331_port {
 	struct rtc_device *rtc;
 	struct clk *clk;
-	u32 phybase;
-	u32 physize;
 	void __iomem *virtbase;
 	int irq;
 #ifdef CONFIG_PM_SLEEP
@@ -142,7 +140,7 @@ static int coh901331_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static struct rtc_class_ops coh901331_ops = {
+static const struct rtc_class_ops coh901331_ops = {
 	.read_time = coh901331_read_time,
 	.set_mmss = coh901331_set_mmss,
 	.read_alarm = coh901331_read_alarm,
@@ -173,19 +171,9 @@ static int __init coh901331_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
-	rtap->phybase = res->start;
-	rtap->physize = resource_size(res);
-
-	if (devm_request_mem_region(&pdev->dev, rtap->phybase, rtap->physize,
-				    "rtc-coh901331") == NULL)
-		return -EBUSY;
-
-	rtap->virtbase = devm_ioremap(&pdev->dev, rtap->phybase, rtap->physize);
-	if (!rtap->virtbase)
-		return -ENOMEM;
+	rtap->virtbase  = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(rtap->virtbase))
+		return PTR_ERR(rtap->virtbase);
 
 	rtap->irq = platform_get_irq(pdev, 0);
 	if (devm_request_irq(&pdev->dev, rtap->irq, coh901331_interrupt, 0,
@@ -275,11 +263,11 @@ static const struct of_device_id coh901331_dt_match[] = {
 	{ .compatible = "stericsson,coh901331" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, coh901331_dt_match);
 
 static struct platform_driver coh901331_driver = {
 	.driver = {
 		.name = "rtc-coh901331",
-		.owner = THIS_MODULE,
 		.pm = &coh901331_pm_ops,
 		.of_match_table = coh901331_dt_match,
 	},

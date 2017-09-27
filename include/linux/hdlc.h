@@ -93,15 +93,13 @@ static __inline__ void debug_frame(const struct sk_buff *skb)
 int hdlc_open(struct net_device *dev);
 /* Must be called by hardware driver when HDLC device is being closed */
 void hdlc_close(struct net_device *dev);
-/* May be used by hardware driver */
-int hdlc_change_mtu(struct net_device *dev, int new_mtu);
 /* Must be pointed to by hw driver's dev->netdev_ops->ndo_start_xmit */
 netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 			 size_t size);
 /* May be used by hardware driver to gain control over HDLC device */
-void detach_hdlc_protocol(struct net_device *dev);
+int detach_hdlc_protocol(struct net_device *dev);
 
 static __inline__ __be16 hdlc_type_trans(struct sk_buff *skb,
 					 struct net_device *dev)

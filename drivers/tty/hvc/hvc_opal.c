@@ -29,6 +29,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/export.h>
+#include <linux/interrupt.h>
 
 #include <asm/hvconsole.h>
 #include <asm/prom.h>
@@ -41,7 +42,7 @@
 
 static const char hvc_opal_name[] = "hvc_opal";
 
-static struct of_device_id hvc_opal_match[] = {
+static const struct of_device_id hvc_opal_match[] = {
 	{ .name = "serial", .compatible = "ibm,opal-console-raw" },
 	{ .name = "serial", .compatible = "ibm,opal-console-hvsi" },
 	{ },
@@ -167,7 +168,7 @@ static int hvc_opal_probe(struct platform_device *dev)
 	struct hvc_struct *hp;
 	struct hvc_opal_priv *pv;
 	hv_protocol_t proto;
-	unsigned int termno, boot = 0;
+	unsigned int termno, irq, boot = 0;
 	const __be32 *reg;
 
 	if (of_device_is_compatible(dev->dev.of_node, "ibm,opal-console-raw")) {
@@ -178,8 +179,8 @@ static int hvc_opal_probe(struct platform_device *dev)
 		proto = HV_PROTOCOL_HVSI;
 		ops = &hvc_opal_hvsi_ops;
 	} else {
-		pr_err("hvc_opal: Unknown protocol for %s\n",
-		       dev->dev.of_node->full_name);
+		pr_err("hvc_opal: Unknown protocol for %pOF\n",
+		       dev->dev.of_node);
 		return -ENXIO;
 	}
 
@@ -203,20 +204,35 @@ static int hvc_opal_probe(struct platform_device *dev)
 		/* Instanciate now to establish a mapping index==vtermno */
 		hvc_instantiate(termno, termno, ops);
 	} else {
-		pr_err("hvc_opal: Device %s has duplicate terminal number #%d\n",
-		       dev->dev.of_node->full_name, termno);
+		pr_err("hvc_opal: Device %pOF has duplicate terminal number #%d\n",
+		       dev->dev.of_node, termno);
 		return -ENXIO;
 	}
 
-	pr_info("hvc%d: %s protocol on %s%s\n", termno,
+	pr_info("hvc%d: %s protocol on %pOF%s\n", termno,
 		proto == HV_PROTOCOL_RAW ? "raw" : "hvsi",
-		dev->dev.of_node->full_name,
+		dev->dev.of_node,
 		boot ? " (boot console)" : "");
 
-	/* We don't do IRQ yet */
-	hp = hvc_alloc(termno, 0, ops, MAX_VIO_PUT_CHARS);
+	irq = irq_of_parse_and_map(dev->dev.of_node, 0);
+	if (!irq) {
+		pr_info("hvc%d: No interrupts property, using OPAL event\n",
+				termno);
+		irq = opal_event_request(ilog2(OPAL_EVENT_CONSOLE_INPUT));
+	}
+
+	if (!irq) {
+		pr_err("hvc_opal: Unable to map interrupt for device %pOF\n",
+			dev->dev.of_node);
+		return irq;
+	}
+
+	hp = hvc_alloc(termno, irq, ops, MAX_VIO_PUT_CHARS);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
+
+	/* hvc consoles on powernv may need to share a single irq */
+	hp->flags = IRQF_SHARED;
 	dev_set_drvdata(&dev->dev, hp);
 
 	return 0;
@@ -242,7 +258,6 @@ static struct platform_driver hvc_opal_driver = {
 	.remove		= hvc_opal_remove,
 	.driver		= {
 		.name	= hvc_opal_name,
-		.owner	= THIS_MODULE,
 		.of_match_table	= hvc_opal_match,
 	}
 };
@@ -255,13 +270,7 @@ static int __init hvc_opal_init(void)
 	/* Register as a vio device to receive callbacks */
 	return platform_driver_register(&hvc_opal_driver);
 }
-module_init(hvc_opal_init);
-
-static void __exit hvc_opal_exit(void)
-{
-	platform_driver_unregister(&hvc_opal_driver);
-}
-module_exit(hvc_opal_exit);
+device_initcall(hvc_opal_init);
 
 static void udbg_opal_putc(char c)
 {
@@ -328,22 +337,13 @@ static void udbg_init_opal_common(void)
 
 void __init hvc_opal_init_early(void)
 {
-	struct device_node *stdout_node = NULL;
-	const u32 *termno;
-	const char *name = NULL;
+	struct device_node *stdout_node = of_node_get(of_stdout);
+	const __be32 *termno;
 	const struct hv_ops *ops;
 	u32 index;
 
-	/* find the boot console from /chosen/stdout */
-	if (of_chosen)
-		name = of_get_property(of_chosen, "linux,stdout-path", NULL);
-	if (name) {
-		stdout_node = of_find_node_by_path(name);
-		if (!stdout_node) {
-			pr_err("hvc_opal: Failed to locate default console!\n");
-			return;
-		}
-	} else {
+	/* If the console wasn't in /chosen, try /ibm,opal */
+	if (!stdout_node) {
 		struct device_node *opal, *np;
 
 		/* Current OPAL takeover doesn't provide the stdout
@@ -371,7 +371,7 @@ void __init hvc_opal_init_early(void)
 	if (!stdout_node)
 		return;
 	termno = of_get_property(stdout_node, "reg", NULL);
-	index = termno ? *termno : 0;
+	index = termno ? be32_to_cpup(termno) : 0;
 	if (index >= MAX_NR_HVC_CONSOLES)
 		return;
 	hvc_opal_privs[index] = &hvc_opal_boot_priv;

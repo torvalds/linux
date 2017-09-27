@@ -118,7 +118,7 @@ static bool tfp410_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	if (i2c_transfer(adapter, msgs, 2) == 2) {
 		*ch = in_buf[0];
 		return true;
-	};
+	}
 
 	if (!tfp->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from %s:%02x.\n",
@@ -222,8 +222,8 @@ static enum drm_mode_status tfp410_mode_valid(struct intel_dvo_device *dvo,
 }
 
 static void tfp410_mode_set(struct intel_dvo_device *dvo,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
+			    const struct drm_display_mode *mode,
+			    const struct drm_display_mode *adjusted_mode)
 {
 	/* As long as the basics are set up, since we don't have clock dependencies
 	* in the mode setup, we can just leave the registers alone and everything
@@ -267,33 +267,33 @@ static void tfp410_dump_regs(struct intel_dvo_device *dvo)
 	uint8_t val, val2;
 
 	tfp410_readb(dvo, TFP410_REV, &val);
-	DRM_LOG_KMS("TFP410_REV: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_REV: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_CTL_1, &val);
-	DRM_LOG_KMS("TFP410_CTL1: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_CTL1: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_CTL_2, &val);
-	DRM_LOG_KMS("TFP410_CTL2: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_CTL2: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_CTL_3, &val);
-	DRM_LOG_KMS("TFP410_CTL3: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_CTL3: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_USERCFG, &val);
-	DRM_LOG_KMS("TFP410_USERCFG: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_USERCFG: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_DLY, &val);
-	DRM_LOG_KMS("TFP410_DE_DLY: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_DE_DLY: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_CTL, &val);
-	DRM_LOG_KMS("TFP410_DE_CTL: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_DE_CTL: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_TOP, &val);
-	DRM_LOG_KMS("TFP410_DE_TOP: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_DE_TOP: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_CNT_LO, &val);
 	tfp410_readb(dvo, TFP410_DE_CNT_HI, &val2);
-	DRM_LOG_KMS("TFP410_DE_CNT: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_DE_CNT: 0x%02X%02X\n", val2, val);
 	tfp410_readb(dvo, TFP410_DE_LIN_LO, &val);
 	tfp410_readb(dvo, TFP410_DE_LIN_HI, &val2);
-	DRM_LOG_KMS("TFP410_DE_LIN: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_DE_LIN: 0x%02X%02X\n", val2, val);
 	tfp410_readb(dvo, TFP410_H_RES_LO, &val);
 	tfp410_readb(dvo, TFP410_H_RES_HI, &val2);
-	DRM_LOG_KMS("TFP410_H_RES: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_H_RES: 0x%02X%02X\n", val2, val);
 	tfp410_readb(dvo, TFP410_V_RES_LO, &val);
 	tfp410_readb(dvo, TFP410_V_RES_HI, &val2);
-	DRM_LOG_KMS("TFP410_V_RES: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_V_RES: 0x%02X%02X\n", val2, val);
 }
 
 static void tfp410_destroy(struct intel_dvo_device *dvo)
@@ -306,7 +306,7 @@ static void tfp410_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops tfp410_ops = {
+const struct intel_dvo_dev_ops tfp410_ops = {
 	.init = tfp410_init,
 	.detect = tfp410_detect,
 	.mode_valid = tfp410_mode_valid,

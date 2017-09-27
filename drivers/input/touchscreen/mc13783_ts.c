@@ -37,7 +37,6 @@ struct mc13783_ts_priv {
 	struct input_dev *idev;
 	struct mc13xxx *mc13xxx;
 	struct delayed_work work;
-	struct workqueue_struct *workq;
 	unsigned int sample[4];
 	struct mc13xxx_ts_platform_data *touch;
 };
@@ -54,7 +53,7 @@ static irqreturn_t mc13783_ts_handler(int irq, void *data)
 	 * be rescheduled for immediate execution here. However the rearm
 	 * delay is HZ / 50 which is acceptable.
 	 */
-	queue_delayed_work(priv->workq, &priv->work, 0);
+	schedule_delayed_work(&priv->work, 0);
 
 	return IRQ_HANDLED;
 }
@@ -106,16 +105,18 @@ static void mc13783_ts_report_sample(struct mc13783_ts_priv *priv)
 
 			dev_dbg(&idev->dev, "report (%d, %d, %d)\n",
 					x1, y1, 0x1000 - cr0);
-			queue_delayed_work(priv->workq, &priv->work, HZ / 50);
-		} else
+			schedule_delayed_work(&priv->work, HZ / 50);
+		} else {
 			dev_dbg(&idev->dev, "report release\n");
+		}
 
 		input_report_abs(idev, ABS_PRESSURE,
 				cr0 ? 0x1000 - cr0 : cr0);
 		input_report_key(idev, BTN_TOUCH, cr0);
 		input_sync(idev);
-	} else
+	} else {
 		dev_dbg(&idev->dev, "discard event\n");
+	}
 }
 
 static void mc13783_ts_work(struct work_struct *work)
@@ -189,14 +190,6 @@ static int __init mc13783_ts_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	/*
-	 * We need separate workqueue because mc13783_adc_do_conversion
-	 * uses keventd and thus would deadlock.
-	 */
-	priv->workq = create_singlethread_workqueue("mc13783_ts");
-	if (!priv->workq)
-		goto err_free_mem;
-
 	idev->name = MC13783_TS_NAME;
 	idev->dev.parent = &pdev->dev;
 
@@ -215,14 +208,12 @@ static int __init mc13783_ts_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"register input device failed with %d\n", ret);
-		goto err_destroy_wq;
+		goto err_free_mem;
 	}
 
 	platform_set_drvdata(pdev, priv);
 	return 0;
 
-err_destroy_wq:
-	destroy_workqueue(priv->workq);
 err_free_mem:
 	input_free_device(idev);
 	kfree(priv);
@@ -233,7 +224,6 @@ static int mc13783_ts_remove(struct platform_device *pdev)
 {
 	struct mc13783_ts_priv *priv = platform_get_drvdata(pdev);
 
-	destroy_workqueue(priv->workq);
 	input_unregister_device(priv->idev);
 	kfree(priv);
 
@@ -243,7 +233,6 @@ static int mc13783_ts_remove(struct platform_device *pdev)
 static struct platform_driver mc13783_ts_driver = {
 	.remove		= mc13783_ts_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= MC13783_TS_NAME,
 	},
 };

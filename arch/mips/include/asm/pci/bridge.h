@@ -269,16 +269,16 @@ typedef struct bridge_err_cmdword_s {
 	union {
 		u32		cmd_word;
 		struct {
-			u32	didn:4,		/* Destination ID */
-				sidn:4,		/* Source ID	  */
-				pactyp:4,	/* Packet type	  */
-				tnum:5,		/* Trans Number	  */
-				coh:1,		/* Coh Transacti  */
-				ds:2,		/* Data size	  */
-				gbr:1,		/* GBR enable	  */
-				vbpm:1,		/* VBPM message	  */
+			u32	didn:4,		/* Destination ID  */
+				sidn:4,		/* Source ID	   */
+				pactyp:4,	/* Packet type	   */
+				tnum:5,		/* Trans Number	   */
+				coh:1,		/* Coh Transaction */
+				ds:2,		/* Data size	   */
+				gbr:1,		/* GBR enable	   */
+				vbpm:1,		/* VBPM message	   */
 				error:1,	/* Error occurred  */
-				barr:1,		/* Barrier op	  */
+				barr:1,		/* Barrier op	   */
 				rsvd:8;
 		} berr_st;
 	} berr_un;
@@ -835,6 +835,7 @@ struct bridge_controller {
 	struct pci_controller	pc;
 	struct resource		mem;
 	struct resource		io;
+	struct resource		busn;
 	bridge_t		*base;
 	nasid_t			nasid;
 	unsigned int		widget_id;

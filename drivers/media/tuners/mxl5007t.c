@@ -12,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/i2c.h>
@@ -374,7 +370,6 @@ static struct reg_pair_t *mxl5007t_calc_init_regs(struct mxl5007t_state *state,
 	mxl5007t_set_if_freq_bits(state, cfg->if_freq_hz, cfg->invert_if);
 	mxl5007t_set_xtal_freq_bits(state, cfg->xtal_freq_hz);
 
-	set_reg_bits(state->tab_init, 0x04, 0x01, cfg->loop_thru_enable);
 	set_reg_bits(state->tab_init, 0x03, 0x08, cfg->clk_out_enable << 3);
 	set_reg_bits(state->tab_init, 0x03, 0x07, cfg->clk_out_amp);
 
@@ -530,10 +525,6 @@ static int mxl5007t_tuner_init(struct mxl5007t_state *state,
 {
 	struct reg_pair_t *init_regs;
 	int ret;
-
-	ret = mxl5007t_soft_reset(state);
-	if (mxl_fail(ret))
-		goto fail;
 
 	/* calculate initialization reg array */
 	init_regs = mxl5007t_calc_init_regs(state, mode);
@@ -781,7 +772,7 @@ static int mxl5007t_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int mxl5007t_release(struct dvb_frontend *fe)
+static void mxl5007t_release(struct dvb_frontend *fe)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
 
@@ -793,13 +784,11 @@ static int mxl5007t_release(struct dvb_frontend *fe)
 	mutex_unlock(&mxl5007t_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 /* ------------------------------------------------------------------------- */
 
-static struct dvb_tuner_ops mxl5007t_tuner_ops = {
+static const struct dvb_tuner_ops mxl5007t_tuner_ops = {
 	.info = {
 		.name = "MaxLinear MxL5007T",
 	},
@@ -900,7 +889,32 @@ struct dvb_frontend *mxl5007t_attach(struct dvb_frontend *fe,
 		/* existing tuner instance */
 		break;
 	}
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	ret = mxl5007t_soft_reset(state);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (mxl_fail(ret))
+		goto fail;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	ret = mxl5007t_write_reg(state, 0x04,
+		state->config->loop_thru_enable);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (mxl_fail(ret))
+		goto fail;
+
 	fe->tuner_priv = state;
+
 	mutex_unlock(&mxl5007t_list_mutex);
 
 	memcpy(&fe->ops.tuner_ops, &mxl5007t_tuner_ops,
@@ -918,11 +932,3 @@ MODULE_DESCRIPTION("MaxLinear MxL5007T Silicon IC tuner driver");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.2");
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

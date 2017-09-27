@@ -5,12 +5,13 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/stringify.h>
-#include <linux/kprobes.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/memory.h>
 #include <linux/stop_machine.h>
 #include <linux/slab.h>
+#include <linux/kdebug.h>
+#include <asm/text-patching.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -20,6 +21,10 @@
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 #include <asm/fixmap.h>
+
+int __read_mostly alternatives_patched;
+
+EXPORT_SYMBOL_GPL(alternatives_patched);
 
 #define MAX_PATCH_LEN (255-1)
 
@@ -52,10 +57,25 @@ static int __init setup_noreplace_paravirt(char *str)
 __setup("noreplace-paravirt", setup_noreplace_paravirt);
 #endif
 
-#define DPRINTK(fmt, ...)				\
-do {							\
-	if (debug_alternative)				\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);	\
+#define DPRINTK(fmt, args...)						\
+do {									\
+	if (debug_alternative)						\
+		printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##args);	\
+} while (0)
+
+#define DUMP_BYTES(buf, len, fmt, args...)				\
+do {									\
+	if (unlikely(debug_alternative)) {				\
+		int j;							\
+									\
+		if (!(len))						\
+			break;						\
+									\
+		printk(KERN_DEBUG fmt, ##args);				\
+		for (j = 0; j < (len) - 1; j++)				\
+			printk(KERN_CONT "%02hhx ", buf[j]);		\
+		printk(KERN_CONT "%02hhx\n", buf[j]);			\
+	}								\
 } while (0)
 
 /*
@@ -212,6 +232,15 @@ void __init arch_init_ideal_nops(void)
 #endif
 		}
 		break;
+
+	case X86_VENDOR_AMD:
+		if (boot_cpu_data.x86 > 0xf) {
+			ideal_nops = p6_nops;
+			return;
+		}
+
+		/* fall through */
+
 	default:
 #ifdef CONFIG_X86_64
 		ideal_nops = k8_nops;
@@ -243,23 +272,111 @@ extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern s32 __smp_locks[], __smp_locks_end[];
 void *text_poke_early(void *addr, const void *opcode, size_t len);
 
-/* Replace instructions with better alternatives for this CPU type.
-   This runs before SMP is initialized to avoid SMP problems with
-   self modifying code. This implies that asymmetric systems where
-   APs have less capabilities than the boot processor are not handled.
-   Tough. Make sure you disable such features by hand. */
+/*
+ * Are we looking at a near JMP with a 1 or 4-byte displacement.
+ */
+static inline bool is_jmp(const u8 opcode)
+{
+	return opcode == 0xeb || opcode == 0xe9;
+}
 
-void __init_or_module apply_alternatives(struct alt_instr *start,
-					 struct alt_instr *end)
+static void __init_or_module
+recompute_jump(struct alt_instr *a, u8 *orig_insn, u8 *repl_insn, u8 *insnbuf)
+{
+	u8 *next_rip, *tgt_rip;
+	s32 n_dspl, o_dspl;
+	int repl_len;
+
+	if (a->replacementlen != 5)
+		return;
+
+	o_dspl = *(s32 *)(insnbuf + 1);
+
+	/* next_rip of the replacement JMP */
+	next_rip = repl_insn + a->replacementlen;
+	/* target rip of the replacement JMP */
+	tgt_rip  = next_rip + o_dspl;
+	n_dspl = tgt_rip - orig_insn;
+
+	DPRINTK("target RIP: %p, new_displ: 0x%x", tgt_rip, n_dspl);
+
+	if (tgt_rip - orig_insn >= 0) {
+		if (n_dspl - 2 <= 127)
+			goto two_byte_jmp;
+		else
+			goto five_byte_jmp;
+	/* negative offset */
+	} else {
+		if (((n_dspl - 2) & 0xff) == (n_dspl - 2))
+			goto two_byte_jmp;
+		else
+			goto five_byte_jmp;
+	}
+
+two_byte_jmp:
+	n_dspl -= 2;
+
+	insnbuf[0] = 0xeb;
+	insnbuf[1] = (s8)n_dspl;
+	add_nops(insnbuf + 2, 3);
+
+	repl_len = 2;
+	goto done;
+
+five_byte_jmp:
+	n_dspl -= 5;
+
+	insnbuf[0] = 0xe9;
+	*(s32 *)&insnbuf[1] = n_dspl;
+
+	repl_len = 5;
+
+done:
+
+	DPRINTK("final displ: 0x%08x, JMP 0x%lx",
+		n_dspl, (unsigned long)orig_insn + n_dspl + repl_len);
+}
+
+/*
+ * "noinline" to cause control flow change and thus invalidate I$ and
+ * cause refetch after modification.
+ */
+static void __init_or_module noinline optimize_nops(struct alt_instr *a, u8 *instr)
+{
+	unsigned long flags;
+
+	if (instr[0] != 0x90)
+		return;
+
+	local_irq_save(flags);
+	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
+	local_irq_restore(flags);
+
+	DUMP_BYTES(instr, a->instrlen, "%p: [%d:%d) optimized NOPs: ",
+		   instr, a->instrlen - a->padlen, a->padlen);
+}
+
+/*
+ * Replace instructions with better alternatives for this CPU type. This runs
+ * before SMP is initialized to avoid SMP problems with self modifying code.
+ * This implies that asymmetric systems where APs have less capabilities than
+ * the boot processor are not handled. Tough. Make sure you disable such
+ * features by hand.
+ *
+ * Marked "noinline" to cause control flow change and thus insn cache
+ * to refetch changed I$ lines.
+ */
+void __init_or_module noinline apply_alternatives(struct alt_instr *start,
+						  struct alt_instr *end)
 {
 	struct alt_instr *a;
 	u8 *instr, *replacement;
 	u8 insnbuf[MAX_PATCH_LEN];
 
-	DPRINTK("%s: alt table %p -> %p\n", __func__, start, end);
+	DPRINTK("alt table %p -> %p", start, end);
 	/*
 	 * The scan order should be from start to end. A later scanned
-	 * alternative code can overwrite a previous scanned alternative code.
+	 * alternative code can overwrite previously scanned alternative code.
 	 * Some kernel functions (e.g. memcpy, memset, etc) use this order to
 	 * patch code.
 	 *
@@ -267,29 +384,59 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 	 * order.
 	 */
 	for (a = start; a < end; a++) {
+		int insnbuf_sz = 0;
+
 		instr = (u8 *)&a->instr_offset + a->instr_offset;
 		replacement = (u8 *)&a->repl_offset + a->repl_offset;
-		BUG_ON(a->replacementlen > a->instrlen);
 		BUG_ON(a->instrlen > sizeof(insnbuf));
 		BUG_ON(a->cpuid >= (NCAPINTS + NBUGINTS) * 32);
-		if (!boot_cpu_has(a->cpuid))
+		if (!boot_cpu_has(a->cpuid)) {
+			if (a->padlen > 1)
+				optimize_nops(a, instr);
+
 			continue;
+		}
+
+		DPRINTK("feat: %d*32+%d, old: (%p, len: %d), repl: (%p, len: %d), pad: %d",
+			a->cpuid >> 5,
+			a->cpuid & 0x1f,
+			instr, a->instrlen,
+			replacement, a->replacementlen, a->padlen);
+
+		DUMP_BYTES(instr, a->instrlen, "%p: old_insn: ", instr);
+		DUMP_BYTES(replacement, a->replacementlen, "%p: rpl_insn: ", replacement);
 
 		memcpy(insnbuf, replacement, a->replacementlen);
+		insnbuf_sz = a->replacementlen;
 
-		/* 0xe8 is a relative jump; fix the offset. */
-		if (*insnbuf == 0xe8 && a->replacementlen == 5)
-		    *(s32 *)(insnbuf + 1) += replacement - instr;
+		/*
+		 * 0xe8 is a relative jump; fix the offset.
+		 *
+		 * Instruction length is checked before the opcode to avoid
+		 * accessing uninitialized bytes for zero-length replacements.
+		 */
+		if (a->replacementlen == 5 && *insnbuf == 0xe8) {
+			*(s32 *)(insnbuf + 1) += replacement - instr;
+			DPRINTK("Fix CALL offset: 0x%x, CALL 0x%lx",
+				*(s32 *)(insnbuf + 1),
+				(unsigned long)instr + *(s32 *)(insnbuf + 1) + 5);
+		}
 
-		add_nops(insnbuf + a->replacementlen,
-			 a->instrlen - a->replacementlen);
+		if (a->replacementlen && is_jmp(replacement[0]))
+			recompute_jump(a, instr, replacement, insnbuf);
 
-		text_poke_early(instr, insnbuf, a->instrlen);
+		if (a->instrlen > a->replacementlen) {
+			add_nops(insnbuf + a->replacementlen,
+				 a->instrlen - a->replacementlen);
+			insnbuf_sz += a->instrlen - a->replacementlen;
+		}
+		DUMP_BYTES(insnbuf, insnbuf_sz, "%p: final_insn: ", instr);
+
+		text_poke_early(instr, insnbuf, insnbuf_sz);
 	}
 }
 
 #ifdef CONFIG_SMP
-
 static void alternatives_smp_lock(const s32 *start, const s32 *end,
 				  u8 *text, u8 *text_end)
 {
@@ -371,8 +518,8 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 	smp->locks_end	= locks_end;
 	smp->text	= text;
 	smp->text_end	= text_end;
-	DPRINTK("%s: locks %p -> %p, text %p -> %p, name %s\n",
-		__func__, smp->locks, smp->locks_end,
+	DPRINTK("locks %p -> %p, text %p -> %p, name %s\n",
+		smp->locks, smp->locks_end,
 		smp->text, smp->text_end, smp->name);
 
 	list_add_tail(&smp->next, &smp_alt_modules);
@@ -400,17 +547,6 @@ void __init_or_module alternatives_smp_module_del(struct module *mod)
 void alternatives_enable_smp(void)
 {
 	struct smp_alt_module *mod;
-
-#ifdef CONFIG_LOCKDEP
-	/*
-	 * Older binutils section handling bug prevented
-	 * alternatives-replacement from working reliably.
-	 *
-	 * If this still occurs then you should see a hang
-	 * or crash shortly after this line:
-	 */
-	pr_info("lockdep: fixing up alternatives\n");
-#endif
 
 	/* Why bother if there are no other CPUs? */
 	BUG_ON(num_possible_cpus() == 1);
@@ -451,7 +587,7 @@ int alternatives_text_reserved(void *start, void *end)
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PARAVIRT
 void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
@@ -521,6 +657,7 @@ void __init alternative_instructions(void)
 	apply_paravirt(__parainstructions, __parainstructions_end);
 
 	restart_nmi();
+	alternatives_patched = 1;
 }
 
 /**
@@ -541,7 +678,6 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
 	unsigned long flags;
 	local_irq_save(flags);
 	memcpy(addr, opcode, len);
-	sync_core();
 	local_irq_restore(flags);
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
 	   that causes hangs on some VIA CPUs. */
@@ -561,7 +697,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
  *
  * Note: Must be called under text_mutex.
  */
-void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
+void *text_poke(void *addr, const void *opcode, size_t len)
 {
 	unsigned long flags;
 	char *vaddr;
@@ -596,97 +732,103 @@ void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 	return addr;
 }
 
-/*
- * Cross-modifying kernel text with stop_machine().
- * This code originally comes from immediate value.
- */
-static atomic_t stop_machine_first;
-static int wrote_text;
-
-struct text_poke_params {
-	struct text_poke_param *params;
-	int nparams;
-};
-
-static int __kprobes stop_machine_text_poke(void *data)
+static void do_sync_core(void *info)
 {
-	struct text_poke_params *tpp = data;
-	struct text_poke_param *p;
-	int i;
-
-	if (atomic_xchg(&stop_machine_first, 0)) {
-		for (i = 0; i < tpp->nparams; i++) {
-			p = &tpp->params[i];
-			text_poke(p->addr, p->opcode, p->len);
-		}
-		smp_wmb();	/* Make sure other cpus see that this has run */
-		wrote_text = 1;
-	} else {
-		while (!wrote_text)
-			cpu_relax();
-		smp_mb();	/* Load wrote_text before following execution */
-	}
-
-	for (i = 0; i < tpp->nparams; i++) {
-		p = &tpp->params[i];
-		flush_icache_range((unsigned long)p->addr,
-				   (unsigned long)p->addr + p->len);
-	}
-	/*
-	 * Intel Archiecture Software Developer's Manual section 7.1.3 specifies
-	 * that a core serializing instruction such as "cpuid" should be
-	 * executed on _each_ core before the new instruction is made visible.
-	 */
 	sync_core();
-	return 0;
+}
+
+static bool bp_patching_in_progress;
+static void *bp_int3_handler, *bp_int3_addr;
+
+int poke_int3_handler(struct pt_regs *regs)
+{
+	/*
+	 * Having observed our INT3 instruction, we now must observe
+	 * bp_patching_in_progress.
+	 *
+	 * 	in_progress = TRUE		INT3
+	 * 	WMB				RMB
+	 * 	write INT3			if (in_progress)
+	 *
+	 * Idem for bp_int3_handler.
+	 */
+	smp_rmb();
+
+	if (likely(!bp_patching_in_progress))
+		return 0;
+
+	if (user_mode(regs) || regs->ip != (unsigned long)bp_int3_addr)
+		return 0;
+
+	/* set up the specified breakpoint handler */
+	regs->ip = (unsigned long) bp_int3_handler;
+
+	return 1;
+
 }
 
 /**
- * text_poke_smp - Update instructions on a live kernel on SMP
- * @addr: address to modify
- * @opcode: source of the copy
- * @len: length to copy
+ * text_poke_bp() -- update instructions on live kernel on SMP
+ * @addr:	address to patch
+ * @opcode:	opcode of new instruction
+ * @len:	length to copy
+ * @handler:	address to jump to when the temporary breakpoint is hit
  *
- * Modify multi-byte instruction by using stop_machine() on SMP. This allows
- * user to poke/set multi-byte text on SMP. Only non-NMI/MCE code modifying
- * should be allowed, since stop_machine() does _not_ protect code against
- * NMI and MCE.
+ * Modify multi-byte instruction by using int3 breakpoint on SMP.
+ * We completely avoid stop_machine() here, and achieve the
+ * synchronization using int3 breakpoint.
  *
- * Note: Must be called under get_online_cpus() and text_mutex.
+ * The way it is done:
+ *	- add a int3 trap to the address that will be patched
+ *	- sync cores
+ *	- update all but the first byte of the patched range
+ *	- sync cores
+ *	- replace the first byte (int3) by the first byte of
+ *	  replacing opcode
+ *	- sync cores
+ *
+ * Note: must be called under text_mutex.
  */
-void *__kprobes text_poke_smp(void *addr, const void *opcode, size_t len)
+void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
 {
-	struct text_poke_params tpp;
-	struct text_poke_param p;
+	unsigned char int3 = 0xcc;
 
-	p.addr = addr;
-	p.opcode = opcode;
-	p.len = len;
-	tpp.params = &p;
-	tpp.nparams = 1;
-	atomic_set(&stop_machine_first, 1);
-	wrote_text = 0;
-	/* Use __stop_machine() because the caller already got online_cpus. */
-	__stop_machine(stop_machine_text_poke, (void *)&tpp, cpu_online_mask);
+	bp_int3_handler = handler;
+	bp_int3_addr = (u8 *)addr + sizeof(int3);
+	bp_patching_in_progress = true;
+	/*
+	 * Corresponding read barrier in int3 notifier for making sure the
+	 * in_progress and handler are correctly ordered wrt. patching.
+	 */
+	smp_wmb();
+
+	text_poke(addr, &int3, sizeof(int3));
+
+	on_each_cpu(do_sync_core, NULL, 1);
+
+	if (len - sizeof(int3) > 0) {
+		/* patch all but the first byte */
+		text_poke((char *)addr + sizeof(int3),
+			  (const char *) opcode + sizeof(int3),
+			  len - sizeof(int3));
+		/*
+		 * According to Intel, this core syncing is very likely
+		 * not necessary and we'd be safe even without it. But
+		 * better safe than sorry (plus there's not only Intel).
+		 */
+		on_each_cpu(do_sync_core, NULL, 1);
+	}
+
+	/* patch the first byte */
+	text_poke(addr, opcode, sizeof(int3));
+
+	on_each_cpu(do_sync_core, NULL, 1);
+	/*
+	 * sync_core() implies an smp_mb() and orders this store against
+	 * the writing of the new instruction.
+	 */
+	bp_patching_in_progress = false;
+
 	return addr;
 }
 
-/**
- * text_poke_smp_batch - Update instructions on a live kernel on SMP
- * @params: an array of text_poke parameters
- * @n: the number of elements in params.
- *
- * Modify multi-byte instruction by using stop_machine() on SMP. Since the
- * stop_machine() is heavy task, it is better to aggregate text_poke requests
- * and do it once if possible.
- *
- * Note: Must be called under get_online_cpus() and text_mutex.
- */
-void __kprobes text_poke_smp_batch(struct text_poke_param *params, int n)
-{
-	struct text_poke_params tpp = {.params = params, .nparams = n};
-
-	atomic_set(&stop_machine_first, 1);
-	wrote_text = 0;
-	__stop_machine(stop_machine_text_poke, (void *)&tpp, cpu_online_mask);
-}

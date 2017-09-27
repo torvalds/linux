@@ -8,9 +8,7 @@
  */
 
 #include <linux/cpu_rmap.h>
-#ifdef CONFIG_GENERIC_HARDIRQS
 #include <linux/interrupt.h>
-#endif
 #include <linux/export.h>
 
 /*
@@ -193,7 +191,7 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 	/* Update distances based on topology */
 	for_each_cpu(cpu, update_mask) {
 		if (cpu_rmap_copy_neigh(rmap, cpu,
-					topology_thread_cpumask(cpu), 1))
+					topology_sibling_cpumask(cpu), 1))
 			continue;
 		if (cpu_rmap_copy_neigh(rmap, cpu,
 					topology_core_cpumask(cpu), 2))
@@ -212,8 +210,6 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 	return 0;
 }
 EXPORT_SYMBOL(cpu_rmap_update);
-
-#ifdef CONFIG_GENERIC_HARDIRQS
 
 /* Glue between IRQ affinity notifiers and CPU rmaps */
 
@@ -309,5 +305,3 @@ int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq)
 	return rc;
 }
 EXPORT_SYMBOL(irq_cpu_rmap_add);
-
-#endif /* CONFIG_GENERIC_HARDIRQS */

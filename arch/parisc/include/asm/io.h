@@ -34,10 +34,10 @@ static inline unsigned char gsc_readb(unsigned long addr)
 	unsigned char ret;
 
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	ldbx	0(%2),%1\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags), "=r" (ret) : "r" (addr) );
+	: "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D) );
 
 	return ret;
 }
@@ -48,10 +48,10 @@ static inline unsigned short gsc_readw(unsigned long addr)
 	unsigned short ret;
 
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	ldhx	0(%2),%1\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags), "=r" (ret) : "r" (addr) );
+	: "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D) );
 
 	return ret;
 }
@@ -87,20 +87,20 @@ static inline void gsc_writeb(unsigned char val, unsigned long addr)
 {
 	long flags;
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	stbs	%1,0(%2)\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags) :  "r" (val), "r" (addr) );
+	: "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D) );
 }
 
 static inline void gsc_writew(unsigned short val, unsigned long addr)
 {
 	long flags;
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	sths	%1,0(%2)\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags) :  "r" (val), "r" (addr) );
+	: "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D) );
 }
 
 static inline void gsc_writel(unsigned int val, unsigned long addr)
@@ -137,6 +137,8 @@ static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
 	return __ioremap(offset, size, _PAGE_NO_CACHE);
 }
 #define ioremap_nocache(off, sz)	ioremap((off), (sz))
+#define ioremap_wc			ioremap_nocache
+#define ioremap_uc			ioremap_nocache
 
 extern void iounmap(const volatile void __iomem *addr);
 
@@ -217,10 +219,14 @@ static inline void writeq(unsigned long long q, volatile void __iomem *addr)
 #define writel	writel
 #define writeq	writeq
 
-#define readb_relaxed(addr) readb(addr)
-#define readw_relaxed(addr) readw(addr)
-#define readl_relaxed(addr) readl(addr)
-#define readq_relaxed(addr) readq(addr)
+#define readb_relaxed(addr)	readb(addr)
+#define readw_relaxed(addr)	readw(addr)
+#define readl_relaxed(addr)	readl(addr)
+#define readq_relaxed(addr)	readq(addr)
+#define writeb_relaxed(b, addr)	writeb(b, addr)
+#define writew_relaxed(w, addr)	writew(w, addr)
+#define writel_relaxed(l, addr)	writel(l, addr)
+#define writeq_relaxed(q, addr)	writeq(q, addr)
 
 #define mmiowb() do { } while (0)
 

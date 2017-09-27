@@ -37,34 +37,31 @@
  *
  * ino_bucket->irq allocation is made during {sun4v_,}build_irq().
  */
-#define NR_IRQS    255
+#define NR_IRQS		(2048)
 
-extern void irq_install_pre_handler(int irq,
-				    void (*func)(unsigned int, void *, void *),
-				    void *arg1, void *arg2);
+void irq_install_pre_handler(int irq,
+			     void (*func)(unsigned int, void *, void *),
+			     void *arg1, void *arg2);
 #define irq_canonicalize(irq)	(irq)
-extern unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
-extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino);
-extern unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino);
-extern unsigned int sun4v_build_msi(u32 devhandle, unsigned int *irq_p,
-				    unsigned int msi_devino_start,
-				    unsigned int msi_devino_end);
-extern void sun4v_destroy_msi(unsigned int irq);
-extern unsigned int sun4u_build_msi(u32 portid, unsigned int *irq_p,
-				    unsigned int msi_devino_start,
-				    unsigned int msi_devino_end,
-				    unsigned long imap_base,
-				    unsigned long iclr_base);
-extern void sun4u_destroy_msi(unsigned int irq);
+unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
+unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino);
+unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino);
+unsigned int sun4v_build_msi(u32 devhandle, unsigned int *irq_p,
+			     unsigned int msi_devino_start,
+			     unsigned int msi_devino_end);
+void sun4v_destroy_msi(unsigned int irq);
+unsigned int sun4u_build_msi(u32 portid, unsigned int *irq_p,
+			     unsigned int msi_devino_start,
+			     unsigned int msi_devino_end,
+			     unsigned long imap_base,
+			     unsigned long iclr_base);
+void sun4u_destroy_msi(unsigned int irq);
 
-extern unsigned char irq_alloc(unsigned int dev_handle,
-				    unsigned int dev_ino);
-#ifdef CONFIG_PCI_MSI
-extern void irq_free(unsigned int irq);
-#endif
+unsigned int irq_alloc(unsigned int dev_handle, unsigned int dev_ino);
+void irq_free(unsigned int irq);
 
-extern void __init init_IRQ(void);
-extern void fixup_irqs(void);
+void __init init_IRQ(void);
+void fixup_irqs(void);
 
 static inline void set_softint(unsigned long bits)
 {
@@ -89,8 +86,9 @@ static inline unsigned long get_softint(void)
 	return retval;
 }
 
-void arch_trigger_all_cpu_backtrace(void);
-#define arch_trigger_all_cpu_backtrace arch_trigger_all_cpu_backtrace
+void arch_trigger_cpumask_backtrace(const struct cpumask *mask,
+				    bool exclude_self);
+#define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 
 extern void *hardirq_stack[NR_CPUS];
 extern void *softirq_stack[NR_CPUS];

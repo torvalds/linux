@@ -21,21 +21,9 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
-#include <asm/mach-jz4740/gpio.h>
 #include <asm/mach-jz4740/timer.h>
 
 #define NUM_PWM 8
-
-static const unsigned int jz4740_pwm_gpio_list[NUM_PWM] = {
-	JZ_GPIO_PWM0,
-	JZ_GPIO_PWM1,
-	JZ_GPIO_PWM2,
-	JZ_GPIO_PWM3,
-	JZ_GPIO_PWM4,
-	JZ_GPIO_PWM5,
-	JZ_GPIO_PWM6,
-	JZ_GPIO_PWM7,
-};
 
 struct jz4740_pwm_chip {
 	struct pwm_chip chip;
@@ -49,24 +37,12 @@ static inline struct jz4740_pwm_chip *to_jz4740(struct pwm_chip *chip)
 
 static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	unsigned int gpio = jz4740_pwm_gpio_list[pwm->hwpwm];
-	int ret;
-
 	/*
 	 * Timers 0 and 1 are used for system tasks, so they are unavailable
 	 * for use as PWMs.
 	 */
 	if (pwm->hwpwm < 2)
 		return -EBUSY;
-
-	ret = gpio_request(gpio, pwm->label);
-	if (ret) {
-		dev_err(chip->dev, "Failed to request GPIO#%u for PWM: %d\n",
-			gpio, ret);
-		return ret;
-	}
-
-	jz_gpio_set_function(gpio, JZ_GPIO_FUNC_PWM);
 
 	jz4740_timer_start(pwm->hwpwm);
 
@@ -75,12 +51,7 @@ static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 static void jz4740_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	unsigned int gpio = jz4740_pwm_gpio_list[pwm->hwpwm];
-
 	jz4740_timer_set_ctrl(pwm->hwpwm, 0);
-
-	jz_gpio_set_function(gpio, JZ_GPIO_FUNC_NONE);
-	gpio_free(gpio);
 
 	jz4740_timer_stop(pwm->hwpwm);
 }
@@ -165,13 +136,12 @@ static const struct pwm_ops jz4740_pwm_ops = {
 static int jz4740_pwm_probe(struct platform_device *pdev)
 {
 	struct jz4740_pwm_chip *jz4740;
-	int ret;
 
 	jz4740 = devm_kzalloc(&pdev->dev, sizeof(*jz4740), GFP_KERNEL);
 	if (!jz4740)
 		return -ENOMEM;
 
-	jz4740->clk = clk_get(NULL, "ext");
+	jz4740->clk = devm_clk_get(&pdev->dev, "ext");
 	if (IS_ERR(jz4740->clk))
 		return PTR_ERR(jz4740->clk);
 
@@ -180,35 +150,21 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 	jz4740->chip.npwm = NUM_PWM;
 	jz4740->chip.base = -1;
 
-	ret = pwmchip_add(&jz4740->chip);
-	if (ret < 0) {
-		clk_put(jz4740->clk);
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, jz4740);
 
-	return 0;
+	return pwmchip_add(&jz4740->chip);
 }
 
 static int jz4740_pwm_remove(struct platform_device *pdev)
 {
 	struct jz4740_pwm_chip *jz4740 = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pwmchip_remove(&jz4740->chip);
-	if (ret < 0)
-		return ret;
-
-	clk_put(jz4740->clk);
-
-	return 0;
+	return pwmchip_remove(&jz4740->chip);
 }
 
 static struct platform_driver jz4740_pwm_driver = {
 	.driver = {
 		.name = "jz4740-pwm",
-		.owner = THIS_MODULE,
 	},
 	.probe = jz4740_pwm_probe,
 	.remove = jz4740_pwm_remove,

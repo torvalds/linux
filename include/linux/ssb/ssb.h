@@ -29,10 +29,14 @@ struct ssb_sprom {
 	u8 il0mac[6] __aligned(sizeof(u16));	/* MAC address for 802.11b/g */
 	u8 et0mac[6] __aligned(sizeof(u16));	/* MAC address for Ethernet */
 	u8 et1mac[6] __aligned(sizeof(u16));	/* MAC address for 802.11a */
+	u8 et2mac[6] __aligned(sizeof(u16));	/* MAC address for extra Ethernet */
 	u8 et0phyaddr;		/* MII address for enet0 */
 	u8 et1phyaddr;		/* MII address for enet1 */
+	u8 et2phyaddr;		/* MII address for enet2 */
 	u8 et0mdcport;		/* MDIO for enet0 */
 	u8 et1mdcport;		/* MDIO for enet1 */
+	u8 et2mdcport;		/* MDIO for enet2 */
+	u16 dev_id;		/* Device ID overriding e.g. PCI ID */
 	u16 board_rev;		/* Board revision number from SPROM. */
 	u16 board_num;		/* Board number from SPROM. */
 	u16 board_type;		/* Board type from SPROM. */
@@ -87,11 +91,14 @@ struct ssb_sprom {
 	u32 ofdm5glpo;		/* 5.2GHz OFDM power offset */
 	u32 ofdm5gpo;		/* 5.3GHz OFDM power offset */
 	u32 ofdm5ghpo;		/* 5.8GHz OFDM power offset */
+	u32 boardflags;
+	u32 boardflags2;
+	u32 boardflags3;
+	/* TODO: Switch all drivers to new u32 fields and drop below ones */
 	u16 boardflags_lo;	/* Board flags (bits 0-15) */
 	u16 boardflags_hi;	/* Board flags (bits 16-31) */
 	u16 boardflags2_lo;	/* Board flags (bits 32-47) */
 	u16 boardflags2_hi;	/* Board flags (bits 48-63) */
-	/* TODO store board flags in a single u64 */
 
 	struct ssb_sprom_core_pwr_info core_pwr_info[4];
 
@@ -486,6 +493,7 @@ struct ssb_bus {
 #endif /* EMBEDDED */
 #ifdef CONFIG_SSB_DRIVER_GPIO
 	struct gpio_chip gpio;
+	struct irq_domain *irq_domain;
 #endif /* DRIVER_GPIO */
 
 	/* Internal-only stuff follows. Do not touch. */
@@ -516,13 +524,9 @@ struct ssb_init_invariants {
 typedef int (*ssb_invariants_func_t)(struct ssb_bus *bus,
 				     struct ssb_init_invariants *iv);
 
-/* Register a SSB system bus. get_invariants() is called after the
- * basic system devices are initialized.
- * The invariants are usually fetched from some NVRAM.
- * Put the invariants into the struct pointed to by iv. */
-extern int ssb_bus_ssbbus_register(struct ssb_bus *bus,
-				   unsigned long baseaddr,
-				   ssb_invariants_func_t get_invariants);
+/* Register SoC bus. */
+extern int ssb_bus_host_soc_register(struct ssb_bus *bus,
+				     unsigned long baseaddr);
 #ifdef CONFIG_SSB_PCIHOST
 extern int ssb_bus_pcibus_register(struct ssb_bus *bus,
 				   struct pci_dev *host_pci);

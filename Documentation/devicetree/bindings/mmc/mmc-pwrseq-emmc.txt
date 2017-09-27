@@ -1,0 +1,25 @@
+* The simple eMMC hardware reset provider
+
+The purpose of this driver is to perform standard eMMC hw reset
+procedure, as described by Jedec 4.4 specification. This procedure is
+performed just after MMC core enabled power to the given mmc host (to
+fix possible issues if bootloader has left eMMC card in initialized or
+unknown state), and before performing complete system reboot (also in
+case of emergency reboot call). The latter is needed on boards, which
+doesn't have hardware reset logic connected to emmc card and (limited or
+broken) ROM bootloaders are unable to read second stage from the emmc
+card if the card is left in unknown or already initialized state.
+
+Required properties:
+- compatible : contains "mmc-pwrseq-emmc".
+- reset-gpios : contains a GPIO specifier. The reset GPIO is asserted
+	and then deasserted to perform eMMC card reset. To perform
+	reset procedure as described in Jedec 4.4 specification, the
+	gpio line should be defined as GPIO_ACTIVE_LOW.
+
+Example:
+
+	sdhci0_pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+	}

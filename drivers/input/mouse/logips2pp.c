@@ -220,7 +220,7 @@ static const struct ps2pp_info *get_model_info(unsigned char model)
 		{ 61,	PS2PP_KIND_MX,					/* MX700 */
 				PS2PP_WHEEL | PS2PP_SIDE_BTN | PS2PP_TASK_BTN |
 				PS2PP_EXTRA_BTN | PS2PP_NAV_BTN },
-		{ 66,	PS2PP_KIND_MX,					/* MX3100 reciver */
+		{ 66,	PS2PP_KIND_MX,					/* MX3100 receiver */
 				PS2PP_WHEEL | PS2PP_SIDE_BTN | PS2PP_TASK_BTN |
 				PS2PP_EXTRA_BTN | PS2PP_NAV_BTN | PS2PP_HWHEEL },
 		{ 72,	PS2PP_KIND_TRACKMAN,	0 },			/* T-CH11: TrackMan Marble */
@@ -325,7 +325,7 @@ static void ps2pp_set_model_properties(struct psmouse *psmouse,
  * that support it.
  */
 
-int ps2pp_init(struct psmouse *psmouse, bool set_properties)
+int ps2pp_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[4];
@@ -402,7 +402,7 @@ int ps2pp_init(struct psmouse *psmouse, bool set_properties)
 				psmouse->set_resolution = ps2pp_set_resolution;
 				psmouse->disconnect = ps2pp_disconnect;
 
-				error = device_create_file(&psmouse->ps2dev.serio->dev,
+				error = device_create_file(&ps2dev->serio->dev,
 							   &psmouse_attr_smartscroll.dattr);
 				if (error) {
 					psmouse_err(psmouse,

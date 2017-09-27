@@ -339,10 +339,8 @@ static int __init atmel_wm97xx_probe(struct platform_device *pdev)
 	int ret;
 
 	atmel_wm97xx = kzalloc(sizeof(struct atmel_wm97xx), GFP_KERNEL);
-	if (!atmel_wm97xx) {
-		dev_dbg(&pdev->dev, "out of memory\n");
+	if (!atmel_wm97xx)
 		return -ENOMEM;
-	}
 
 	atmel_wm97xx->wm	= wm;
 	atmel_wm97xx->regs	= (void *)ATMEL_WM97XX_AC97C_IOMEM;
@@ -391,7 +389,7 @@ static int __exit atmel_wm97xx_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int atmel_wm97xx_suspend(struct *dev)
+static int atmel_wm97xx_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct atmel_wm97xx *atmel_wm97xx = platform_get_drvdata(pdev);
@@ -425,7 +423,6 @@ static struct platform_driver atmel_wm97xx_driver = {
 	.remove		= __exit_p(atmel_wm97xx_remove),
 	.driver		= {
 		.name	= "wm97xx-touch",
-		.owner	= THIS_MODULE,
 		.pm	= &atmel_wm97xx_pm_ops,
 	},
 };

@@ -38,8 +38,6 @@ struct dasd_diag_characteristics {
 	u8 rdev_features;
 } __attribute__ ((packed, aligned(4)));
 
-
-#ifdef CONFIG_64BIT
 #define DASD_DIAG_FLAGA_DEFAULT		DASD_DIAG_FLAGA_FORMAT_64BIT
 
 typedef u64 blocknum_t;
@@ -80,43 +78,3 @@ struct dasd_diag_rw_io {
 	struct dasd_diag_bio *bio_list;
 	u8  spare4[8];
 } __attribute__ ((packed, aligned(8)));
-#else /* CONFIG_64BIT */
-#define DASD_DIAG_FLAGA_DEFAULT		0x0
-
-typedef u32 blocknum_t;
-typedef s32 sblocknum_t;
-
-struct dasd_diag_bio {
-	u8 type;
-	u8 status;
-	u16 spare1;
-	blocknum_t block_number;
-	u32 alet;
-	void *buffer;
-} __attribute__ ((packed, aligned(8)));
-
-struct dasd_diag_init_io {
-	u16 dev_nr;
-	u8 flaga;
-	u8 spare1[21];
-	u32 block_size;
-	blocknum_t offset;
-	sblocknum_t start_block;
-	blocknum_t end_block;
-	u8 spare2[24];
-} __attribute__ ((packed, aligned(8)));
-
-struct dasd_diag_rw_io {
-	u16 dev_nr;
-	u8 flaga;
-	u8 spare1[21];
-	u8 key;
-	u8 flags;
-	u8 spare2[2];
-	u32 block_count;
-	u32 alet;
-	struct dasd_diag_bio *bio_list;
-	u32 interrupt_params;
-	u8 spare3[20];
-} __attribute__ ((packed, aligned(8)));
-#endif /* CONFIG_64BIT */

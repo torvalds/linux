@@ -160,13 +160,13 @@ enum cmds {
 struct cx24116_tuning {
 	u32 frequency;
 	u32 symbol_rate;
-	fe_spectral_inversion_t inversion;
-	fe_code_rate_t fec;
+	enum fe_spectral_inversion inversion;
+	enum fe_code_rate fec;
 
-	fe_delivery_system_t delsys;
-	fe_modulation_t modulation;
-	fe_pilot_t pilot;
-	fe_rolloff_t rolloff;
+	enum fe_delivery_system delsys;
+	enum fe_modulation modulation;
+	enum fe_pilot pilot;
+	enum fe_rolloff rolloff;
 
 	/* Demod values */
 	u8 fec_val;
@@ -209,8 +209,8 @@ static int cx24116_writereg(struct cx24116_state *state, int reg, int data)
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x,"
-			 " value == 0x%02x)\n", __func__, err, reg, data);
+		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x, value == 0x%02x)\n",
+		       __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -285,7 +285,7 @@ static int cx24116_readreg(struct cx24116_state *state, u8 reg)
 }
 
 static int cx24116_set_inversion(struct cx24116_state *state,
-	fe_spectral_inversion_t inversion)
+	enum fe_spectral_inversion inversion)
 {
 	dprintk("%s(%d)\n", __func__, inversion);
 
@@ -373,9 +373,9 @@ static int cx24116_set_inversion(struct cx24116_state *state,
  * a scheme are support. Especially, no auto detect when in S2 mode.
  */
 static struct cx24116_modfec {
-	fe_delivery_system_t delivery_system;
-	fe_modulation_t modulation;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delivery_system;
+	enum fe_modulation modulation;
+	enum fe_code_rate fec;
 	u8 mask;	/* In DVBS mode this is used to autodetect */
 	u8 val;		/* Passed to the firmware to indicate mode selection */
 } CX24116_MODFEC_MODES[] = {
@@ -415,7 +415,7 @@ static struct cx24116_modfec {
 };
 
 static int cx24116_lookup_fecmod(struct cx24116_state *state,
-	fe_delivery_system_t d, fe_modulation_t m, fe_code_rate_t f)
+	enum fe_delivery_system d, enum fe_modulation m, enum fe_code_rate f)
 {
 	int i, ret = -EOPNOTSUPP;
 
@@ -434,7 +434,9 @@ static int cx24116_lookup_fecmod(struct cx24116_state *state,
 }
 
 static int cx24116_set_fec(struct cx24116_state *state,
-	fe_delivery_system_t delsys, fe_modulation_t mod, fe_code_rate_t fec)
+			   enum fe_delivery_system delsys,
+			   enum fe_modulation mod,
+			   enum fe_code_rate fec)
 {
 	int ret = 0;
 
@@ -496,8 +498,8 @@ static int cx24116_firmware_ondemand(struct dvb_frontend *fe)
 		printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n",
 			__func__);
 		if (ret) {
-			printk(KERN_ERR "%s: No firmware uploaded "
-				"(timeout or file not found?)\n", __func__);
+			printk(KERN_ERR "%s: No firmware uploaded (timeout or file not found?)\n",
+			       __func__);
 			return ret;
 		}
 
@@ -683,7 +685,7 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cx24116_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int cx24116_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 
@@ -844,7 +846,7 @@ static int cx24116_wait_for_lnb(struct dvb_frontend *fe)
 }
 
 static int cx24116_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t voltage)
+	enum fe_sec_voltage voltage)
 {
 	struct cx24116_cmd cmd;
 	int ret;
@@ -872,7 +874,7 @@ static int cx24116_set_voltage(struct dvb_frontend *fe,
 }
 
 static int cx24116_set_tone(struct dvb_frontend *fe,
-	fe_sec_tone_mode_t tone)
+	enum fe_sec_tone_mode tone)
 {
 	struct cx24116_cmd cmd;
 	int ret;
@@ -963,6 +965,10 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 	struct cx24116_state *state = fe->demodulator_priv;
 	int i, ret;
 
+	/* Validate length */
+	if (d->msg_len > sizeof(d->msg))
+                return -EINVAL;
+
 	/* Dump DiSEqC message */
 	if (debug) {
 		printk(KERN_INFO "cx24116: %s(", __func__);
@@ -973,10 +979,6 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 		}
 		printk(") toneburst=%d\n", toneburst);
 	}
-
-	/* Validate length */
-	if (d->msg_len > (CX24116_ARGLEN - CX24116_DISEQC_MSGOFS))
-		return -EINVAL;
 
 	/* DiSEqC message */
 	for (i = 0; i < d->msg_len; i++)
@@ -1055,7 +1057,7 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 
 /* Send DiSEqC burst */
 static int cx24116_diseqc_send_burst(struct dvb_frontend *fe,
-	fe_sec_mini_cmd_t burst)
+	enum fe_sec_mini_cmd burst)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 	int ret;
@@ -1114,7 +1116,7 @@ static void cx24116_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx24116_ops;
+static const struct dvb_frontend_ops cx24116_ops;
 
 struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 	struct i2c_adapter *i2c)
@@ -1220,7 +1222,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 	struct cx24116_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24116_cmd cmd;
-	fe_status_t tunerstat;
+	enum fe_status tunerstat;
 	int i, status, ret, retune = 1;
 
 	dprintk("%s()\n", __func__);
@@ -1441,7 +1443,7 @@ tuned:  /* Set/Reset B/W */
 }
 
 static int cx24116_tune(struct dvb_frontend *fe, bool re_tune,
-	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
+	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
 	/*
 	 * It is safe to discard "params" here, as the DVB core will sync
@@ -1465,7 +1467,7 @@ static int cx24116_get_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_HW;
 }
 
-static struct dvb_frontend_ops cx24116_ops = {
+static const struct dvb_frontend_ops cx24116_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "Conexant CX24116/CX24118",

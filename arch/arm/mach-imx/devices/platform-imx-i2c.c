@@ -21,25 +21,10 @@
 #define imx_imx_i2c_data_entry(soc, _devid, _id, _hwid, _size)		\
 	[_id] = imx_imx_i2c_data_entry_single(soc, _devid, _id, _hwid, _size)
 
-#ifdef CONFIG_SOC_IMX1
-const struct imx_imx_i2c_data imx1_imx_i2c_data __initconst =
-	imx_imx_i2c_data_entry_single(MX1, "imx1-i2c", 0, , SZ_4K);
-#endif /* ifdef CONFIG_SOC_IMX1 */
-
 #ifdef CONFIG_SOC_IMX21
 const struct imx_imx_i2c_data imx21_imx_i2c_data __initconst =
 	imx_imx_i2c_data_entry_single(MX21, "imx21-i2c", 0, , SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX21 */
-
-#ifdef CONFIG_SOC_IMX25
-const struct imx_imx_i2c_data imx25_imx_i2c_data[] __initconst = {
-#define imx25_imx_i2c_data_entry(_id, _hwid)				\
-	imx_imx_i2c_data_entry(MX25, "imx21-i2c", _id, _hwid, SZ_16K)
-	imx25_imx_i2c_data_entry(0, 1),
-	imx25_imx_i2c_data_entry(1, 2),
-	imx25_imx_i2c_data_entry(2, 3),
-};
-#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX27
 const struct imx_imx_i2c_data imx27_imx_i2c_data[] __initconst = {
@@ -69,32 +54,6 @@ const struct imx_imx_i2c_data imx35_imx_i2c_data[] __initconst = {
 	imx35_imx_i2c_data_entry(2, 3),
 };
 #endif /* ifdef CONFIG_SOC_IMX35 */
-
-#ifdef CONFIG_SOC_IMX51
-const struct imx_imx_i2c_data imx51_imx_i2c_data[] __initconst = {
-#define imx51_imx_i2c_data_entry(_id, _hwid)				\
-	imx_imx_i2c_data_entry(MX51, "imx21-i2c", _id, _hwid, SZ_4K)
-	imx51_imx_i2c_data_entry(0, 1),
-	imx51_imx_i2c_data_entry(1, 2),
-	{
-		.devid = "imx21-i2c",
-		.id = 2,
-		.iobase = MX51_HSI2C_DMA_BASE_ADDR,
-		.iosize = SZ_16K,
-		.irq = MX51_INT_HS_I2C,
-	},
-};
-#endif /* ifdef CONFIG_SOC_IMX51 */
-
-#ifdef CONFIG_SOC_IMX53
-const struct imx_imx_i2c_data imx53_imx_i2c_data[] __initconst = {
-#define imx53_imx_i2c_data_entry(_id, _hwid)				\
-	imx_imx_i2c_data_entry(MX53, "imx21-i2c", _id, _hwid, SZ_4K)
-	imx53_imx_i2c_data_entry(0, 1),
-	imx53_imx_i2c_data_entry(1, 2),
-	imx53_imx_i2c_data_entry(2, 3),
-};
-#endif /* ifdef CONFIG_SOC_IMX53 */
 
 struct platform_device *__init imx_add_imx_i2c(
 		const struct imx_imx_i2c_data *data,

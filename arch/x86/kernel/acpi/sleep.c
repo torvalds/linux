@@ -16,6 +16,7 @@
 #include <asm/cacheflush.h>
 #include <asm/realmode.h>
 
+#include <linux/ftrace.h>
 #include "../../realmode/rm/wakeup.h"
 #include "sleep.h"
 
@@ -24,6 +25,17 @@ unsigned long acpi_realmode_flags;
 #if defined(CONFIG_SMP) && defined(CONFIG_64BIT)
 static char temp_stack[4096];
 #endif
+
+/**
+ * x86_acpi_enter_sleep_state - enter sleep state
+ * @state: Sleep state to enter.
+ *
+ * Wrapper around acpi_enter_sleep_state() to be called by assmebly.
+ */
+acpi_status asmlinkage __visible x86_acpi_enter_sleep_state(u8 state)
+{
+	return acpi_enter_sleep_state(state);
+}
 
 /**
  * x86_acpi_suspend_lowlevel - save kernel state
@@ -67,7 +79,7 @@ int x86_acpi_suspend_lowlevel(void)
 
 	header->pmode_cr0 = read_cr0();
 	if (__this_cpu_read(cpu_info.cpuid_level) >= 0) {
-		header->pmode_cr4 = read_cr4();
+		header->pmode_cr4 = __read_cr4();
 		header->pmode_behavior |= (1 << WAKEUP_BEHAVIOR_RESTORE_CR4);
 	}
 	if (!rdmsr_safe(MSR_IA32_MISC_ENABLE,
@@ -87,16 +99,22 @@ int x86_acpi_suspend_lowlevel(void)
 	saved_magic = 0x12345678;
 #else /* CONFIG_64BIT */
 #ifdef CONFIG_SMP
-	stack_start = (unsigned long)temp_stack + sizeof(temp_stack);
+	initial_stack = (unsigned long)temp_stack + sizeof(temp_stack);
 	early_gdt_descr.address =
-			(unsigned long)get_cpu_gdt_table(smp_processor_id());
+			(unsigned long)get_cpu_gdt_rw(smp_processor_id());
 	initial_gs = per_cpu_offset(smp_processor_id());
 #endif
 	initial_code = (unsigned long)wakeup_long64;
        saved_magic = 0x123456789abcdef0L;
 #endif /* CONFIG_64BIT */
 
+	/*
+	 * Pause/unpause graph tracing around do_suspend_lowlevel as it has
+	 * inconsistent call/return info after it jumps to the wakeup vector.
+	 */
+	pause_graph_tracing();
 	do_suspend_lowlevel();
+	unpause_graph_tracing();
 	return 0;
 }
 

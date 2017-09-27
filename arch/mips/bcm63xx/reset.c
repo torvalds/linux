@@ -6,7 +6,8 @@
  * Copyright (C) 2012 Jonas Gorski <jonas.gorski@gmail.com>
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -125,8 +126,6 @@
 #define BCM6368_RESET_PCIE	0
 #define BCM6368_RESET_PCIE_EXT	0
 
-#ifdef BCMCPU_RUNTIME_DETECT
-
 /*
  * core reset bits
  */
@@ -188,64 +187,6 @@ static int __init bcm63xx_reset_bits_init(void)
 
 	return 0;
 }
-#else
-
-#ifdef CONFIG_BCM63XX_CPU_3368
-static const u32 bcm63xx_reset_bits[] = {
-	__GEN_RESET_BITS_TABLE(3368)
-};
-#define reset_reg PERF_SOFTRESET_6358_REG
-#endif
-
-#ifdef CONFIG_BCM63XX_CPU_6328
-static const u32 bcm63xx_reset_bits[] = {
-	__GEN_RESET_BITS_TABLE(6328)
-};
-#define reset_reg PERF_SOFTRESET_6328_REG
-#endif
-
-#ifdef CONFIG_BCM63XX_CPU_6338
-static const u32 bcm63xx_reset_bits[] = {
-	__GEN_RESET_BITS_TABLE(6338)
-};
-#define reset_reg PERF_SOFTRESET_REG
-#endif
-
-#ifdef CONFIG_BCM63XX_CPU_6345
-static const u32 bcm63xx_reset_bits[] = { };
-#define reset_reg 0
-#endif
-
-#ifdef CONFIG_BCM63XX_CPU_6348
-static const u32 bcm63xx_reset_bits[] = {
-	__GEN_RESET_BITS_TABLE(6348)
-};
-#define reset_reg PERF_SOFTRESET_REG
-#endif
-
-#ifdef CONFIG_BCM63XX_CPU_6358
-static const u32 bcm63xx_reset_bits[] = {
-	__GEN_RESET_BITS_TABLE(6358)
-};
-#define reset_reg PERF_SOFTRESET_6358_REG
-#endif
-
-#ifdef CONFIG_BCM63XX_CPU_6362
-static const u32 bcm63xx_reset_bits[] = {
-	__GEN_RESET_BITS_TABLE(6362)
-};
-#define reset_reg PERF_SOFTRESET_6362_REG
-#endif
-
-#ifdef CONFIG_BCM63XX_CPU_6368
-static const u32 bcm63xx_reset_bits[] = {
-	__GEN_RESET_BITS_TABLE(6368)
-};
-#define reset_reg PERF_SOFTRESET_6368_REG
-#endif
-
-static int __init bcm63xx_reset_bits_init(void) { return 0; }
-#endif
 
 static DEFINE_SPINLOCK(reset_mutex);
 

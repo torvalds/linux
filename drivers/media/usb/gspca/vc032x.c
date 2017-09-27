@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -68,12 +64,12 @@ enum sensors {
 
 static const struct v4l2_pix_format vc0321_mode[] = {
 	{320, 240, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
-		.bytesperline = 320,
+		.bytesperline = 320 * 2,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
 	{640, 480, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
-		.bytesperline = 640,
+		.bytesperline = 640 * 2,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
@@ -97,17 +93,17 @@ static const struct v4l2_pix_format vc0323_mode[] = {
 };
 static const struct v4l2_pix_format bi_mode[] = {
 	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 320,
+		.bytesperline = 320 * 2,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
 	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 640,
+		.bytesperline = 640 * 2,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
 	{1280, 1024, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 1280,
+		.bytesperline = 1280 * 2,
 		.sizeimage = 1280 * 1024 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},

@@ -31,11 +31,12 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
@@ -49,11 +50,11 @@
 
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-lcd.h>
-#include <plat/regs-serial.h>
 #include <mach/fb.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>
@@ -283,6 +284,7 @@ static struct s3c2410_platform_nand __initdata qt2410_nand_info = {
 	.twrph1		= 20,
 	.nr_sets	= ARRAY_SIZE(qt2410_nand_sets),
 	.sets		= qt2410_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 /* UDC */
@@ -303,9 +305,14 @@ __setup("tft=", qt2410_tft_setup);
 static void __init qt2410_map_io(void)
 {
 	s3c24xx_init_io(qt2410_iodesc, ARRAY_SIZE(qt2410_iodesc));
-	s3c24xx_init_clocks(12*1000*1000);
 	s3c24xx_init_uarts(smdk2410_uartcfgs, ARRAY_SIZE(smdk2410_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init qt2410_init_time(void)
+{
+	s3c2410_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init qt2410_machine_init(void)
@@ -345,6 +352,5 @@ MACHINE_START(QT2410, "QT2410")
 	.map_io		= qt2410_map_io,
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= qt2410_machine_init,
-	.init_time	= samsung_timer_init,
-	.restart	= s3c2410_restart,
+	.init_time	= qt2410_init_time,
 MACHINE_END

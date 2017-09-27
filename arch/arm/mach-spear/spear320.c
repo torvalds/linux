@@ -4,7 +4,7 @@
  * SPEAr320 machine source file
  *
  * Copyright (C) 2009-2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -240,8 +240,7 @@ static void __init spear320_dt_init(void)
 	pl080_plat_data.slave_channels = spear320_dma_info;
 	pl080_plat_data.num_slave_channels = ARRAY_SIZE(spear320_dma_info);
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			spear320_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, spear320_auxdata_lookup, NULL);
 }
 
 static const char * const spear320_dt_board_compat[] = {

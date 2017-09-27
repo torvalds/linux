@@ -31,6 +31,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 /**
  * ehci_xilinx_port_handed_over - hand the port out if failed to enable it
@@ -79,7 +80,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -155,7 +156,8 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 
 	irq = irq_of_parse_and_map(dn, 0);
 	if (!irq) {
-		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
+		dev_err(&op->dev, "%s: irq_of_parse_and_map failed\n",
+			__FILE__);
 		rv = -EBUSY;
 		goto err_irq;
 	}
@@ -191,8 +193,10 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 	ehci->caps = hcd->regs + 0x100;
 
 	rv = usb_add_hcd(hcd, irq, 0);
-	if (rv == 0)
+	if (rv == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return 0;
+	}
 
 err_irq:
 	usb_put_hcd(hcd);
@@ -220,21 +224,6 @@ static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
 	return 0;
 }
 
-/**
- * ehci_hcd_xilinx_of_shutdown - shutdown the hcd
- * @op:		pointer to platform_device structure that is to be removed
- *
- * Properly shutdown the hcd, call driver's shutdown routine.
- */
-static void ehci_hcd_xilinx_of_shutdown(struct platform_device *op)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(op);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
-
 static const struct of_device_id ehci_hcd_xilinx_of_match[] = {
 		{.compatible = "xlnx,xps-usb-host-1.00.a",},
 	{},
@@ -244,10 +233,9 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_xilinx_of_match);
 static struct platform_driver ehci_hcd_xilinx_of_driver = {
 	.probe		= ehci_hcd_xilinx_of_probe,
 	.remove		= ehci_hcd_xilinx_of_remove,
-	.shutdown	= ehci_hcd_xilinx_of_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "xilinx-of-ehci",
-		.owner = THIS_MODULE,
 		.of_match_table = ehci_hcd_xilinx_of_match,
 	},
 };

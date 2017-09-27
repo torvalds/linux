@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,10 +57,10 @@ static struct rc_map_table npgtech[] = {
 
 static struct rc_map_list npgtech_map = {
 	.map = {
-		.scan    = npgtech,
-		.size    = ARRAY_SIZE(npgtech),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_NPGTECH,
+		.scan     = npgtech,
+		.size     = ARRAY_SIZE(npgtech),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_NPGTECH,
 	}
 };
 
@@ -78,4 +78,4 @@ module_init(init_rc_map_npgtech)
 module_exit(exit_rc_map_npgtech)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

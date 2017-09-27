@@ -42,7 +42,7 @@
 
 static struct usb_driver bfusb_driver;
 
-static struct usb_device_id bfusb_table[] = {
+static const struct usb_device_id bfusb_table[] = {
 	/* AVM BlueFRITZ! USB */
 	{ USB_DEVICE(0x057c, 0x2200) },
 
@@ -131,8 +131,11 @@ static int bfusb_send_bulk(struct bfusb_data *data, struct sk_buff *skb)
 
 	BT_DBG("bfusb %p skb %p len %d", data, skb, skb->len);
 
-	if (!urb && !(urb = usb_alloc_urb(0, GFP_ATOMIC)))
-		return -ENOMEM;
+	if (!urb) {
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!urb)
+			return -ENOMEM;
+	}
 
 	pipe = usb_sndbulkpipe(data->udev, data->bulk_out_ep);
 
@@ -218,8 +221,11 @@ static int bfusb_rx_submit(struct bfusb_data *data, struct urb *urb)
 
 	BT_DBG("bfusb %p urb %p", data, urb);
 
-	if (!urb && !(urb = usb_alloc_urb(0, GFP_ATOMIC)))
-		return -ENOMEM;
+	if (!urb) {
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!urb)
+			return -ENOMEM;
+	}
 
 	skb = bt_skb_alloc(size, GFP_ATOMIC);
 	if (!skb) {
@@ -318,8 +324,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 			return -ENOMEM;
 		}
 
-		skb->dev = (void *) data->hdev;
-		bt_cb(skb)->pkt_type = pkt_type;
+		hci_skb_pkt_type(skb) = pkt_type;
 
 		data->reassembly = skb;
 	} else {
@@ -330,10 +335,10 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 	}
 
 	if (len > 0)
-		memcpy(skb_put(data->reassembly, len), buf, len);
+		skb_put_data(data->reassembly, buf, len);
 
 	if (hdr & 0x08) {
-		hci_recv_frame(data->reassembly);
+		hci_recv_frame(data->hdev, data->reassembly);
 		data->reassembly = NULL;
 	}
 
@@ -417,17 +422,12 @@ static int bfusb_open(struct hci_dev *hdev)
 
 	BT_DBG("hdev %p bfusb %p", hdev, data);
 
-	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	write_lock_irqsave(&data->lock, flags);
 
 	err = bfusb_rx_submit(data, NULL);
 	if (!err) {
 		for (i = 1; i < BFUSB_MAX_BULK_RX; i++)
 			bfusb_rx_submit(data, NULL);
-	} else {
-		clear_bit(HCI_RUNNING, &hdev->flags);
 	}
 
 	write_unlock_irqrestore(&data->lock, flags);
@@ -453,9 +453,6 @@ static int bfusb_close(struct hci_dev *hdev)
 
 	BT_DBG("hdev %p bfusb %p", hdev, data);
 
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	write_lock_irqsave(&data->lock, flags);
 	write_unlock_irqrestore(&data->lock, flags);
 
@@ -465,27 +462,17 @@ static int bfusb_close(struct hci_dev *hdev)
 	return 0;
 }
 
-static int bfusb_send_frame(struct sk_buff *skb)
+static int bfusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct bfusb_data *data;
+	struct bfusb_data *data = hci_get_drvdata(hdev);
 	struct sk_buff *nskb;
 	unsigned char buf[3];
 	int sent = 0, size, count;
 
-	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, bt_cb(skb)->pkt_type, skb->len);
+	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb,
+	       hci_skb_pkt_type(skb), skb->len);
 
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
-		return -ENODEV;
-	}
-
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
-
-	data = hci_get_drvdata(hdev);
-
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -495,10 +482,10 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	case HCI_SCODATA_PKT:
 		hdev->stat.sco_tx++;
 		break;
-	};
+	}
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
 	count = skb->len;
 
@@ -518,7 +505,7 @@ static int bfusb_send_frame(struct sk_buff *skb)
 		buf[1] = 0x00;
 		buf[2] = (size == BFUSB_MAX_BLOCK_SIZE) ? 0 : size;
 
-		memcpy(skb_put(nskb, 3), buf, 3);
+		skb_put_data(nskb, buf, 3);
 		skb_copy_from_linear_data_offset(skb, sent, skb_put(nskb, size), size);
 
 		sent  += size;
@@ -529,7 +516,7 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	if ((nskb->len % data->bulk_pkt_size) == 0) {
 		buf[0] = 0xdd;
 		buf[1] = 0x00;
-		memcpy(skb_put(nskb, 2), buf, 2);
+		skb_put_data(nskb, buf, 2);
 	}
 
 	read_lock(&data->lock);
@@ -542,11 +529,6 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	kfree_skb(skb);
 
 	return 0;
-}
-
-static int bfusb_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
 }
 
 static int bfusb_load_firmware(struct bfusb_data *data,
@@ -654,10 +636,8 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	/* Initialize control structure and load firmware */
 	data = devm_kzalloc(&intf->dev, sizeof(struct bfusb_data), GFP_KERNEL);
-	if (!data) {
-		BT_ERR("Can't allocate memory for control structure");
-		goto done;
-	}
+	if (!data)
+		return -ENOMEM;
 
 	data->udev = udev;
 	data->bulk_in_ep    = bulk_in_ep->desc.bEndpointAddress;
@@ -699,11 +679,12 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hci_set_drvdata(hdev, data);
 	SET_HCIDEV_DEV(hdev, &intf->dev);
 
-	hdev->open     = bfusb_open;
-	hdev->close    = bfusb_close;
-	hdev->flush    = bfusb_flush;
-	hdev->send     = bfusb_send_frame;
-	hdev->ioctl    = bfusb_ioctl;
+	hdev->open  = bfusb_open;
+	hdev->close = bfusb_close;
+	hdev->flush = bfusb_flush;
+	hdev->send  = bfusb_send_frame;
+
+	set_bit(HCI_QUIRK_BROKEN_LOCAL_COMMANDS, &hdev->quirks);
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");

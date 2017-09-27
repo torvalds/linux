@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #
@@ -56,7 +52,7 @@ int netup_eeprom_read(struct i2c_adapter *i2c_adap, u8 addr)
 	ret = i2c_transfer(i2c_adap, msg, 2);
 
 	if (ret != 2) {
-		printk(KERN_ERR "eeprom i2c read error, status=%d\n", ret);
+		pr_err("eeprom i2c read error, status=%d\n", ret);
 		return -1;
 	}
 
@@ -84,7 +80,7 @@ int netup_eeprom_write(struct i2c_adapter *i2c_adap, u8 addr, u8 data)
 	ret = i2c_transfer(i2c_adap, msg, 1);
 
 	if (ret != 1) {
-		printk(KERN_ERR "eeprom i2c write error, status=%d\n", ret);
+		pr_err("eeprom i2c write error, status=%d\n", ret);
 		return -1;
 	}
 

@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
@@ -437,7 +436,7 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 	struct cami2c *id;
 	int ret;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_err(&pdev->dev, "no platform_data!\n");
 		ret = -ENODEV;
@@ -511,10 +510,8 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 	}
 
 	ret = i2c_add_numbered_adapter(&id->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "reg adap failed: %d\n", ret);
+	if (ret < 0)
 		goto out4;
-	}
 
 	platform_set_drvdata(pdev, id);
 
@@ -553,7 +550,6 @@ static int sh7760_i2c_remove(struct platform_device *pdev)
 static struct platform_driver sh7760_i2c_drv = {
 	.driver	= {
 		.name	= SH7760_I2C_DEVNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= sh7760_i2c_probe,
 	.remove		= sh7760_i2c_remove,

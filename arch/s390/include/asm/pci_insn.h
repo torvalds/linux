@@ -54,11 +54,9 @@
 struct zpci_fib {
 	u32 fmt		:  8;	/* format */
 	u32		: 24;
-	u32 reserved1;
+	u32		: 32;
 	u8 fc;			/* function controls */
-	u8 reserved2;
-	u16 reserved3;
-	u32 reserved4;
+	u64		: 56;
 	u64 pba;		/* PCI base address */
 	u64 pal;		/* PCI address limit */
 	u64 iota;		/* I/O Translation Anchor */
@@ -70,20 +68,19 @@ struct zpci_fib {
 	u32 sum		:  1;	/* Adapter int summary bit enabled */
 	u32		:  1;
 	u32 aisbo	:  6;	/* Adapter int summary bit offset */
-	u32 reserved5;
+	u32		: 32;
 	u64 aibv;		/* Adapter int bit vector address */
 	u64 aisb;		/* Adapter int summary bit address */
 	u64 fmb_addr;		/* Function measurement block address and key */
-	u64 reserved6;
-	u64 reserved7;
-} __packed;
+	u32		: 32;
+	u32 gd;
+} __packed __aligned(8);
 
-
-int s390pci_mod_fc(u64 req, struct zpci_fib *fib);
-int s390pci_refresh_trans(u64 fn, u64 addr, u64 range);
-int s390pci_load(u64 *data, u64 req, u64 offset);
-int s390pci_store(u64 data, u64 req, u64 offset);
-int s390pci_store_block(const u64 *data, u64 req, u64 offset);
-void set_irq_ctrl(u16 ctl, char *unused, u8 isc);
+u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status);
+int zpci_refresh_trans(u64 fn, u64 addr, u64 range);
+int zpci_load(u64 *data, u64 req, u64 offset);
+int zpci_store(u64 data, u64 req, u64 offset);
+int zpci_store_block(const u64 *data, u64 req, u64 offset);
+void zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc);
 
 #endif

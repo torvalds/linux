@@ -1,0 +1,210 @@
+[
+    {
+        "BriefDescription": "Uncore cache clock ticks",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_C_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "All LLC Misses (code+ data rd + data wr - including demand and prefetch)",
+        "Counter": "0,1",
+        "EventCode": "0x34",
+        "EventName": "UNC_C_LLC_LOOKUP.ANY",
+        "Filter": "filter_state=0x1",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x11",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "M line evictions from LLC (writebacks to memory)",
+        "Counter": "0,1",
+        "EventCode": "0x37",
+        "EventName": "UNC_C_LLC_VICTIMS.M_STATE",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "LLC misses - demand and prefetch data reads - excludes LLC prefetches. Derived from unc_c_tor_inserts.miss_opcode.demand",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_MISSES.DATA_READ",
+        "Filter": "filter_opc=0x182",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "LLC misses - Uncacheable reads. Derived from unc_c_tor_inserts.miss_opcode.uncacheable",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_MISSES.UNCACHEABLE",
+        "Filter": "filter_opc=0x187",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "PCIe allocating writes that miss LLC - DDIO misses. Derived from unc_c_tor_inserts.miss_opcode.ddio_miss",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_MISSES.PCIE_WRITE",
+        "Filter": "filter_opc=0x19c",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "LLC misses for ItoM writes (as part of fast string memcpy stores). Derived from unc_c_tor_inserts.miss_opcode.itom_write",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_MISSES.ITOM_WRITE",
+        "Filter": "filter_opc=0x1c8",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "Streaming stores (full cache line). Derived from unc_c_tor_inserts.opcode.streaming_full",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.STREAMING_FULL",
+        "Filter": "filter_opc=0x18c",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "Streaming stores (partial cache line). Derived from unc_c_tor_inserts.opcode.streaming_partial",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.STREAMING_PARTIAL",
+        "Filter": "filter_opc=0x18d",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "Partial PCIe reads. Derived from unc_c_tor_inserts.opcode.pcie_partial",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.PCIE_PARTIAL_READ",
+        "Filter": "filter_opc=0x195",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "PCIe allocating writes that hit in LLC (DDIO hits). Derived from unc_c_tor_inserts.opcode.ddio_hit",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.PCIE_WRITE",
+        "Filter": "filter_opc=0x19c",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "PCIe read current. Derived from unc_c_tor_inserts.opcode.pcie_read_current",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.PCIE_READ",
+        "Filter": "filter_opc=0x19e",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "ItoM write hits (as part of fast string memcpy stores). Derived from unc_c_tor_inserts.opcode.itom_write_hit",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.ITOM_WRITE",
+        "Filter": "filter_opc=0x1c8",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "PCIe non-snoop reads. Derived from unc_c_tor_inserts.opcode.pcie_read",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.PCIE_NS_READ",
+        "Filter": "filter_opc=0x1e4",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "PCIe non-snoop writes (partial). Derived from unc_c_tor_inserts.opcode.pcie_partial_write",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.PCIE_NS_PARTIAL_WRITE",
+        "Filter": "filter_opc=0x1e5",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "PCIe non-snoop writes (full line). Derived from unc_c_tor_inserts.opcode.pcie_full_write",
+        "Counter": "0,1",
+        "EventCode": "0x35",
+        "EventName": "LLC_REFERENCES.PCIE_NS_WRITE",
+        "Filter": "filter_opc=0x1e6",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "Occupancy counter for all LLC misses; we divide this by UNC_C_CLOCKTICKS to get average Q depth",
+        "EventCode": "0x36",
+        "EventName": "UNC_C_TOR_OCCUPANCY.MISS_ALL",
+        "Filter": "filter_opc=0x182",
+        "MetricExpr": "(UNC_C_TOR_OCCUPANCY.MISS_ALL / UNC_C_CLOCKTICKS) * 100.",
+        "MetricName": "tor_occupancy.miss_all %",
+        "PerPkg": "1",
+        "UMask": "0xa",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "Occupancy counter for LLC data reads (demand and L2 prefetch). Derived from unc_c_tor_occupancy.miss_opcode.llc_data_read",
+        "EventCode": "0x36",
+        "EventName": "UNC_C_TOR_OCCUPANCY.LLC_DATA_READ",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "CBO"
+    },
+    {
+        "BriefDescription": "read requests to home agent",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_H_REQUESTS.READS",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "HA"
+    },
+    {
+        "BriefDescription": "write requests to home agent",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_H_REQUESTS.WRITES",
+        "PerPkg": "1",
+        "UMask": "0xc",
+        "Unit": "HA"
+    }
+]

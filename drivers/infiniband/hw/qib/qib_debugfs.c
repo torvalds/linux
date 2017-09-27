@@ -1,6 +1,5 @@
-#ifdef CONFIG_DEBUG_FS
 /*
- * Copyright (c) 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2013 - 2017 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -189,32 +188,38 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 DEBUGFS_FILE(ctx_stats)
 
 static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
+	__acquires(RCU)
 {
-	struct qib_qp_iter *iter;
+	struct rvt_qp_iter *iter;
 	loff_t n = *pos;
 
-	iter = qib_qp_iter_init(s->private);
+	iter = rvt_qp_iter_init(s->private, 0, NULL);
+
+	/* stop calls rcu_read_unlock */
+	rcu_read_lock();
+
 	if (!iter)
 		return NULL;
 
-	while (n--) {
-		if (qib_qp_iter_next(iter)) {
+	do {
+		if (rvt_qp_iter_next(iter)) {
 			kfree(iter);
 			return NULL;
 		}
-	}
+	} while (n--);
 
 	return iter;
 }
 
 static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
 				   loff_t *pos)
+	__must_hold(RCU)
 {
-	struct qib_qp_iter *iter = iter_ptr;
+	struct rvt_qp_iter *iter = iter_ptr;
 
 	(*pos)++;
 
-	if (qib_qp_iter_next(iter)) {
+	if (rvt_qp_iter_next(iter)) {
 		kfree(iter);
 		return NULL;
 	}
@@ -223,13 +228,14 @@ static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
 }
 
 static void _qp_stats_seq_stop(struct seq_file *s, void *iter_ptr)
+	__releases(RCU)
 {
-	/* nothing for now */
+	rcu_read_unlock();
 }
 
 static int _qp_stats_seq_show(struct seq_file *s, void *iter_ptr)
 {
-	struct qib_qp_iter *iter = iter_ptr;
+	struct rvt_qp_iter *iter = iter_ptr;
 
 	if (!iter)
 		return 0;
@@ -254,7 +260,6 @@ void qib_dbg_ibdev_init(struct qib_ibdev *ibd)
 	DEBUGFS_FILE_CREATE(opcode_stats);
 	DEBUGFS_FILE_CREATE(ctx_stats);
 	DEBUGFS_FILE_CREATE(qp_stats);
-	return;
 }
 
 void qib_dbg_ibdev_exit(struct qib_ibdev *ibd)
@@ -278,6 +283,3 @@ void qib_dbg_exit(void)
 	debugfs_remove_recursive(qib_dbg_root);
 	qib_dbg_root = NULL;
 }
-
-#endif
-

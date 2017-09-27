@@ -2,7 +2,7 @@
  * Driver for DiBcom DiB3000MC/P-demodulator.
  *
  * Copyright (C) 2004-7 DiBcom (http://www.dibcom.fr/)
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * This code is partially based on the previous dib3000mc.c .
  *
@@ -10,6 +10,8 @@
  *	modify it under the terms of the GNU General Public License as
  *	published by the Free Software Foundation, version 2.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -27,7 +29,11 @@ static int buggy_sfn_workaround;
 module_param(buggy_sfn_workaround, int, 0644);
 MODULE_PARM_DESC(buggy_sfn_workaround, "Enable work-around for buggy SFNs (default: 0)");
 
-#define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB3000MC/P:"); printk(args); printk("\n"); } } while (0)
+#define dprintk(fmt, arg...) do {					\
+	if (debug)							\
+		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+		       __func__, ##arg);				\
+} while (0)
 
 struct dib3000mc_state {
 	struct dvb_frontend demod;
@@ -131,7 +137,7 @@ static int dib3000mc_set_timing(struct dib3000mc_state *state, s16 nfft, u32 bw,
 static int dib3000mc_setup_pwm_state(struct dib3000mc_state *state)
 {
 	u16 reg_51, reg_52 = state->cfg->agc->setup & 0xfefb;
-    if (state->cfg->pwm3_inversion) {
+	if (state->cfg->pwm3_inversion) {
 		reg_51 =  (2 << 14) | (0 << 10) | (7 << 6) | (2 << 2) | (2 << 0);
 		reg_52 |= (1 << 2);
 	} else {
@@ -141,12 +147,12 @@ static int dib3000mc_setup_pwm_state(struct dib3000mc_state *state)
 	dib3000mc_write_word(state, 51, reg_51);
 	dib3000mc_write_word(state, 52, reg_52);
 
-    if (state->cfg->use_pwm3)
+	if (state->cfg->use_pwm3)
 		dib3000mc_write_word(state, 245, (1 << 3) | (1 << 0));
 	else
 		dib3000mc_write_word(state, 245, 0);
 
-    dib3000mc_write_word(state, 1040, 0x3);
+	dib3000mc_write_word(state, 1040, 0x3);
 	return 0;
 }
 
@@ -417,7 +423,7 @@ static int dib3000mc_sleep(struct dvb_frontend *demod)
 	dib3000mc_write_word(state, 1032, 0xFFFF);
 	dib3000mc_write_word(state, 1033, 0xFFF0);
 
-    return 0;
+	return 0;
 }
 
 static void dib3000mc_set_adp_cfg(struct dib3000mc_state *state, s16 qam)
@@ -447,10 +453,14 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state,
 	dib3000mc_set_bandwidth(state, bw);
 	dib3000mc_set_timing(state, ch->transmission_mode, bw, 0);
 
-//	if (boost)
-//		dib3000mc_write_word(state, 100, (11 << 6) + 6);
-//	else
+#if 1
+	dib3000mc_write_word(state, 100, (16 << 6) + 9);
+#else
+	if (boost)
+		dib3000mc_write_word(state, 100, (11 << 6) + 6);
+	else
 		dib3000mc_write_word(state, 100, (16 << 6) + 9);
+#endif
 
 	dib3000mc_write_word(state, 1027, 0x0800);
 	dib3000mc_write_word(state, 1027, 0x0000);
@@ -632,9 +642,9 @@ struct i2c_adapter * dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod, 
 
 EXPORT_SYMBOL(dib3000mc_get_tuner_i2c_master);
 
-static int dib3000mc_get_frontend(struct dvb_frontend* fe)
+static int dib3000mc_get_frontend(struct dvb_frontend* fe,
+				  struct dtv_frontend_properties *fep)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 tps = dib3000mc_read_word(state,458);
 
@@ -722,7 +732,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 		if (found == 0 || found == 1)
 			return 0; // no channel found
 
-		dib3000mc_get_frontend(fe);
+		dib3000mc_get_frontend(fe, fep);
 	}
 
 	ret = dib3000mc_tune(fe);
@@ -732,7 +742,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib3000mc_read_status(struct dvb_frontend *fe, fe_status_t *stat)
+static int dib3000mc_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 lock = dib3000mc_read_word(state, 509);
@@ -869,7 +879,7 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 }
 EXPORT_SYMBOL(dib3000mc_i2c_enumeration);
 
-static struct dvb_frontend_ops dib3000mc_ops;
+static const struct dvb_frontend_ops dib3000mc_ops;
 
 struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib3000mc_config *cfg)
 {
@@ -902,7 +912,7 @@ error:
 }
 EXPORT_SYMBOL(dib3000mc_attach);
 
-static struct dvb_frontend_ops dib3000mc_ops = {
+static const struct dvb_frontend_ops dib3000mc_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DiBcom 3000MC/P",
@@ -935,6 +945,6 @@ static struct dvb_frontend_ops dib3000mc_ops = {
 	.read_ucblocks        = dib3000mc_read_unc_blocks,
 };
 
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 3000MC/P COFDM demodulator");
 MODULE_LICENSE("GPL");

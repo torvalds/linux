@@ -82,6 +82,18 @@ enum bmi_cmd_id {
 
 #define BMI_NVRAM_SEG_NAME_SZ 16
 
+#define BMI_PARAM_GET_EEPROM_BOARD_ID 0x10
+#define BMI_PARAM_GET_FLASH_BOARD_ID 0x8000
+#define BMI_PARAM_FLASH_SECTION_ALL 0x10000
+
+#define ATH10K_BMI_BOARD_ID_FROM_OTP_MASK   0x7c00
+#define ATH10K_BMI_BOARD_ID_FROM_OTP_LSB    10
+
+#define ATH10K_BMI_CHIP_ID_FROM_OTP_MASK    0x18000
+#define ATH10K_BMI_CHIP_ID_FROM_OTP_LSB     15
+
+#define ATH10K_BMI_BOARD_ID_STATUS_MASK 0xff
+
 struct bmi_cmd {
 	__le32 id; /* enum bmi_cmd_id */
 	union {
@@ -166,7 +178,8 @@ union bmi_resp {
 	} rompatch_uninstall;
 	struct {
 		/* 0 = nothing executed
-		 * otherwise = NVRAM segment return value */
+		 * otherwise = NVRAM segment return value
+		 */
 		__le32 result;
 	} nvram_process;
 	u8 payload[BMI_MAX_CMDBUF_SIZE];
@@ -177,16 +190,18 @@ struct bmi_target_info {
 	u32 type;
 };
 
-
-/* in msec */
-#define BMI_COMMUNICATION_TIMEOUT_HZ (1*HZ)
+/* in jiffies */
+#define BMI_COMMUNICATION_TIMEOUT_HZ (3 * HZ)
 
 #define BMI_CE_NUM_TO_TARG 0
 #define BMI_CE_NUM_TO_HOST 1
 
+void ath10k_bmi_start(struct ath10k *ar);
 int ath10k_bmi_done(struct ath10k *ar);
 int ath10k_bmi_get_target_info(struct ath10k *ar,
 			       struct bmi_target_info *target_info);
+int ath10k_bmi_get_target_info_sdio(struct ath10k *ar,
+				    struct bmi_target_info *target_info);
 int ath10k_bmi_read_memory(struct ath10k *ar, u32 address,
 			   void *buffer, u32 length);
 int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
@@ -200,7 +215,8 @@ int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
 									\
 		addr = host_interest_item_address(HI_ITEM(item));	\
 		ret = ath10k_bmi_read_memory(ar, addr, (u8 *)&tmp, 4); \
-		*val = __le32_to_cpu(tmp);				\
+		if (!ret)						\
+			*val = __le32_to_cpu(tmp);			\
 		ret;							\
 	 })
 
@@ -216,9 +232,11 @@ int ath10k_bmi_write_memory(struct ath10k *ar, u32 address,
 		ret;							\
 	})
 
-int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 *param);
+int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result);
 int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address);
 int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length);
 int ath10k_bmi_fast_download(struct ath10k *ar, u32 address,
 			     const void *buffer, u32 length);
+int ath10k_bmi_read_soc_reg(struct ath10k *ar, u32 address, u32 *reg_val);
+int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val);
 #endif /* _BMI_H_ */

@@ -53,7 +53,7 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 					  int *credits,
 					  int *ref_blocks);
 int ocfs2_refcount_cow(struct inode *inode,
-		       struct file *filep, struct buffer_head *di_bh,
+		       struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos);
 
 typedef int (ocfs2_post_refcount_func)(struct inode *inode,
@@ -85,11 +85,11 @@ int ocfs2_refcount_cow_xattr(struct inode *inode,
 			     u32 cpos, u32 write_len,
 			     struct ocfs2_post_refcount *post);
 int ocfs2_duplicate_clusters_by_page(handle_t *handle,
-				     struct file *file,
+				     struct inode *inode,
 				     u32 cpos, u32 old_cluster,
 				     u32 new_cluster, u32 new_len);
 int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
-				    struct file *file,
+				    struct inode *inode,
 				    u32 cpos, u32 old_cluster,
 				    u32 new_cluster, u32 new_len);
 int ocfs2_cow_sync_writeback(struct super_block *sb,
@@ -115,4 +115,11 @@ int ocfs2_reflink_ioctl(struct inode *inode,
 			const char __user *oldname,
 			const char __user *newname,
 			bool preserve);
+int ocfs2_reflink_remap_range(struct file *file_in,
+			      loff_t pos_in,
+			      struct file *file_out,
+			      loff_t pos_out,
+			      u64 len,
+			      bool is_dedupe);
+
 #endif /* OCFS2_REFCOUNTTREE_H */

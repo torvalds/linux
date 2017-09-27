@@ -73,7 +73,8 @@ static int xusbatm_capture_intf(struct usbatm_data *usbatm, struct usb_device *u
 		usb_err(usbatm, "%s: failed to claim interface %2d (%d)!\n", __func__, ifnum, ret);
 		return ret;
 	}
-	if ((ret = usb_set_interface(usb_dev, ifnum, altsetting))) {
+	ret = usb_set_interface(usb_dev, ifnum, altsetting);
+	if (ret) {
 		usb_err(usbatm, "%s: altsetting %2d for interface %2d failed (%d)!\n", __func__, altsetting, ifnum, ret);
 		return ret;
 	}
@@ -128,7 +129,8 @@ static int xusbatm_bind(struct usbatm_data *usbatm,
 			rx_intf->altsetting->desc.bInterfaceNumber,
 			tx_intf->altsetting->desc.bInterfaceNumber);
 
-	if ((ret = xusbatm_capture_intf(usbatm, usb_dev, rx_intf, rx_alt, rx_intf != intf)))
+	ret = xusbatm_capture_intf(usbatm, usb_dev, rx_intf, rx_alt, rx_intf != intf);
+	if (ret)
 		return ret;
 
 	if ((tx_intf != rx_intf) && (ret = xusbatm_capture_intf(usbatm, usb_dev, tx_intf, tx_alt, tx_intf != intf))) {
@@ -226,4 +228,3 @@ module_exit(xusbatm_exit);
 MODULE_AUTHOR("Roman Kagan, Duncan Sands");
 MODULE_DESCRIPTION("Driver for USB ADSL modems initialized in userspace");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1");

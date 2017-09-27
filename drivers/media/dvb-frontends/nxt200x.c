@@ -2,7 +2,7 @@
  *    Support for NXT2002 and NXT2004 - VSB/QAM
  *
  *    Copyright (C) 2005 Kirk Lapray <kirk.lapray@gmail.com>
- *    Copyright (C) 2006 Michael Krufky <mkrufky@m1k.net>
+ *    Copyright (C) 2006-2014 Michael Krufky <mkrufky@linuxtv.org>
  *    based on nxt2002 by Taylor Jacob <rtjacob@earthlink.net>
  *    and nxt2004 by Jean-Francois Thibert <jeanfrancois@sagetv.com>
  *
@@ -15,10 +15,6 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
 */
 
@@ -38,6 +34,9 @@
  * (depending on configuration of firmware hotplug).
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  256
 
 #define NXT2002_DEFAULT_FIRMWARE "dvb-fe-nxt2002.fw"
 #define NXT2004_DEFAULT_FIRMWARE "dvb-fe-nxt2004.fw"
@@ -95,9 +94,15 @@ static int i2c_readbytes(struct nxt200x_state *state, u8 addr, u8 *buf, u8 len)
 static int nxt200x_writebytes (struct nxt200x_state* state, u8 reg,
 			       const u8 *buf, u8 len)
 {
-	u8 buf2 [len+1];
+	u8 buf2[MAX_XFER_SIZE];
 	int err;
 	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf2, .len = len + 1 };
+
+	if (1 + len > sizeof(buf2)) {
+		pr_warn("%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 __func__, reg, len);
+		return -EINVAL;
+	}
 
 	buf2[0] = reg;
 	memcpy(&buf2[1], buf, len);
@@ -280,8 +285,7 @@ static void nxt200x_microcontroller_stop (struct nxt200x_state* state)
 		counter++;
 	}
 
-	pr_warn("Timeout waiting for nxt200x to stop. This is ok after "
-		"firmware upload.\n");
+	pr_warn("Timeout waiting for nxt200x to stop. This is ok after firmware upload.\n");
 	return;
 }
 
@@ -772,7 +776,7 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int nxt200x_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int nxt200x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct nxt200x_state* state = fe->demodulator_priv;
 	u8 lock;
@@ -884,8 +888,8 @@ static int nxt2002_init(struct dvb_frontend* fe)
 			       state->i2c->dev.parent);
 	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		pr_err("%s: No firmware uploaded (timeout or file not found?)"
-		       "\n", __func__);
+		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
+		       __func__);
 		return ret;
 	}
 
@@ -951,8 +955,8 @@ static int nxt2004_init(struct dvb_frontend* fe)
 			       state->i2c->dev.parent);
 	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		pr_err("%s: No firmware uploaded (timeout or file not found?)"
-		       "\n", __func__);
+		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
+		       __func__);
 		return ret;
 	}
 
@@ -1141,7 +1145,7 @@ static void nxt200x_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops nxt200x_ops;
+static const struct dvb_frontend_ops nxt200x_ops;
 
 struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 				   struct i2c_adapter* i2c)
@@ -1204,7 +1208,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops nxt200x_ops = {
+static const struct dvb_frontend_ops nxt200x_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "Nextwave NXT200X VSB/QAM frontend",

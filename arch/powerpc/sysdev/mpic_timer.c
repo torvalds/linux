@@ -19,7 +19,9 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/syscore_ops.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/io.h>
@@ -39,6 +41,7 @@
 #define MPIC_TIMER_TCR_ROVR_OFFSET	24
 
 #define TIMER_STOP			0x80000000
+#define GTCCR_TOG			0x80000000
 #define TIMERS_PER_GROUP		4
 #define MAX_TICKS			(~0U >> 1)
 #define MAX_TICKS_CASCADE		(~0U)
@@ -94,8 +97,11 @@ static void convert_ticks_to_time(struct timer_group_priv *priv,
 	time->tv_sec = (__kernel_time_t)div_u64(ticks, priv->timerfreq);
 	tmp_sec = (u64)time->tv_sec * (u64)priv->timerfreq;
 
-	time->tv_usec = (__kernel_suseconds_t)
-		div_u64((ticks - tmp_sec) * 1000000, priv->timerfreq);
+	time->tv_usec = 0;
+
+	if (tmp_sec <= ticks)
+		time->tv_usec = (__kernel_suseconds_t)
+			div_u64((ticks - tmp_sec) * 1000000, priv->timerfreq);
 
 	return;
 }
@@ -325,11 +331,13 @@ void mpic_get_remain_time(struct mpic_timer *handle, struct timeval *time)
 	casc_priv = priv->timer[handle->num].cascade_handle;
 	if (casc_priv) {
 		tmp_ticks = in_be32(&priv->regs[handle->num].gtccr);
+		tmp_ticks &= ~GTCCR_TOG;
 		ticks = ((u64)tmp_ticks & UINT_MAX) * (u64)MAX_TICKS_CASCADE;
 		tmp_ticks = in_be32(&priv->regs[handle->num - 1].gtccr);
 		ticks += tmp_ticks;
 	} else {
 		ticks = in_be32(&priv->regs[handle->num].gtccr);
+		ticks &= ~GTCCR_TOG;
 	}
 
 	convert_ticks_to_time(priv, ticks, time);
@@ -458,8 +466,7 @@ static int timer_group_get_irq(struct device_node *np,
 
 	p = of_get_property(np, "fsl,available-ranges", &len);
 	if (p && len % (2 * sizeof(u32)) != 0) {
-		pr_err("%s: malformed available-ranges property.\n",
-				np->full_name);
+		pr_err("%pOF: malformed available-ranges property.\n", np);
 		return -EINVAL;
 	}
 
@@ -476,8 +483,7 @@ static int timer_group_get_irq(struct device_node *np,
 		for (j = 0; j < count; j++) {
 			irq = irq_of_parse_and_map(np, irq_index);
 			if (!irq) {
-				pr_err("%s: irq parse and map failed.\n",
-						np->full_name);
+				pr_err("%pOF: irq parse and map failed.\n", np);
 				return -EINVAL;
 			}
 
@@ -500,8 +506,7 @@ static void timer_group_init(struct device_node *np)
 
 	priv = kzalloc(sizeof(struct timer_group_priv), GFP_KERNEL);
 	if (!priv) {
-		pr_err("%s: cannot allocate memory for group.\n",
-				np->full_name);
+		pr_err("%pOF: cannot allocate memory for group.\n", np);
 		return;
 	}
 
@@ -510,29 +515,27 @@ static void timer_group_init(struct device_node *np)
 
 	priv->regs = of_iomap(np, i++);
 	if (!priv->regs) {
-		pr_err("%s: cannot ioremap timer register address.\n",
-				np->full_name);
+		pr_err("%pOF: cannot ioremap timer register address.\n", np);
 		goto out;
 	}
 
 	if (priv->flags & FSL_GLOBAL_TIMER) {
 		priv->group_tcr = of_iomap(np, i++);
 		if (!priv->group_tcr) {
-			pr_err("%s: cannot ioremap tcr address.\n",
-					np->full_name);
+			pr_err("%pOF: cannot ioremap tcr address.\n", np);
 			goto out;
 		}
 	}
 
 	ret = timer_group_get_freq(np, priv);
 	if (ret < 0) {
-		pr_err("%s: cannot get timer frequency.\n", np->full_name);
+		pr_err("%pOF: cannot get timer frequency.\n", np);
 		goto out;
 	}
 
 	ret = timer_group_get_irq(np, priv);
 	if (ret < 0) {
-		pr_err("%s: cannot get timer irqs.\n", np->full_name);
+		pr_err("%pOF: cannot get timer irqs.\n", np);
 		goto out;
 	}
 

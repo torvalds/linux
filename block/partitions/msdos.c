@@ -159,8 +159,9 @@ static void parse_extended(struct parsed_partitions *state,
 		/*
 		 * First process the data partition(s)
 		 */
-		for (i=0; i<4; i++, p++) {
+		for (i = 0; i < 4; i++, p++) {
 			sector_t offs, size, next;
+
 			if (!nr_sects(p) || is_extended_partition(p))
 				continue;
 
@@ -194,7 +195,7 @@ static void parse_extended(struct parsed_partitions *state,
 		 * It should be a link to the next logical partition.
 		 */
 		p -= 4;
-		for (i=0; i<4; i++, p++)
+		for (i = 0; i < 4; i++, p++)
 			if (nr_sects(p) && is_extended_partition(p))
 				break;
 		if (i == 4)
@@ -243,8 +244,8 @@ static void parse_solaris_x86(struct parsed_partitions *state,
 		return;
 	}
 	/* Ensure we can handle previous case of VTOC with 8 entries gracefully */
-	max_nparts = le16_to_cpu (v->v_nparts) > 8 ? SOLARIS_X86_NUMSLICE : 8;
-	for (i=0; i<max_nparts && state->next<state->limit; i++) {
+	max_nparts = le16_to_cpu(v->v_nparts) > 8 ? SOLARIS_X86_NUMSLICE : 8;
+	for (i = 0; i < max_nparts && state->next < state->limit; i++) {
 		struct solaris_x86_slice *s = &v->v_slice[i];
 		char tmp[3 + 10 + 1 + 1];
 
@@ -299,6 +300,8 @@ static void parse_bsd(struct parsed_partitions *state,
 			continue;
 		bsd_start = le32_to_cpu(p->p_offset);
 		bsd_size = le32_to_cpu(p->p_size);
+		if (memcmp(flavour, "bsd\0", 4) == 0)
+			bsd_start += offset;
 		if (offset == bsd_start && size == bsd_size)
 			/* full parent partition, we have it already */
 			continue;
@@ -409,7 +412,7 @@ static void parse_minix(struct parsed_partitions *state,
 	/* The first sector of a Minix partition can have either
 	 * a secondary MBR describing its subpartitions, or
 	 * the normal boot sector. */
-	if (msdos_magic_present (data + 510) &&
+	if (msdos_magic_present(data + 510) &&
 	    SYS_IND(p) == MINIX_PARTITION) { /* subpartition table present */
 		char tmp[1 + BDEVNAME_SIZE + 10 + 9 + 1];
 
@@ -527,6 +530,7 @@ int msdos_partition(struct parsed_partitions *state)
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
 		sector_t start = start_sect(p)*sector_size;
 		sector_t size = nr_sects(p)*sector_size;
+
 		if (!size)
 			continue;
 		if (is_extended_partition(p)) {
@@ -537,6 +541,7 @@ int msdos_partition(struct parsed_partitions *state)
 			 * sector, although it may not be enough/proper.
 			 */
 			sector_t n = 2;
+
 			n = min(size, max(sector_size, n));
 			put_partition(state, slot, start, n);
 

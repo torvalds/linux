@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_ALTERNATIVE_H
 #define _ASM_X86_ALTERNATIVE_H
 
+#ifndef __ASSEMBLY__
+
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/stringify.h>
@@ -47,8 +49,15 @@ struct alt_instr {
 	s32 repl_offset;	/* offset to replacement instruction */
 	u16 cpuid;		/* cpuid bit set for replacement */
 	u8  instrlen;		/* length of original instruction */
-	u8  replacementlen;	/* length of new instruction, <= instrlen */
-};
+	u8  replacementlen;	/* length of new instruction */
+	u8  padlen;		/* length of build-time padding */
+} __packed;
+
+/*
+ * Debug flag that can be tested to see whether alternative
+ * instructions were patched in already:
+ */
+extern int alternatives_patched;
 
 extern void alternative_instructions(void);
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
@@ -75,60 +84,73 @@ static inline int alternatives_text_reserved(void *start, void *end)
 }
 #endif	/* CONFIG_SMP */
 
-#define OLDINSTR(oldinstr)	"661:\n\t" oldinstr "\n662:\n"
+#define b_replacement(num)	"664"#num
+#define e_replacement(num)	"665"#num
 
-#define b_replacement(number)	"663"#number
-#define e_replacement(number)	"664"#number
+#define alt_end_marker		"663"
+#define alt_slen		"662b-661b"
+#define alt_pad_len		alt_end_marker"b-662b"
+#define alt_total_slen		alt_end_marker"b-661b"
+#define alt_rlen(num)		e_replacement(num)"f-"b_replacement(num)"f"
 
-#define alt_slen "662b-661b"
-#define alt_rlen(number) e_replacement(number)"f-"b_replacement(number)"f"
+#define __OLDINSTR(oldinstr, num)					\
+	"661:\n\t" oldinstr "\n662:\n"					\
+	".skip -(((" alt_rlen(num) ")-(" alt_slen ")) > 0) * "		\
+		"((" alt_rlen(num) ")-(" alt_slen ")),0x90\n"
 
-#define ALTINSTR_ENTRY(feature, number)					      \
+#define OLDINSTR(oldinstr, num)						\
+	__OLDINSTR(oldinstr, num)					\
+	alt_end_marker ":\n"
+
+/*
+ * max without conditionals. Idea adapted from:
+ * http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax
+ *
+ * The additional "-" is needed because gas works with s32s.
+ */
+#define alt_max_short(a, b)	"((" a ") ^ (((" a ") ^ (" b ")) & -(-((" a ") - (" b ")))))"
+
+/*
+ * Pad the second replacement alternative with additional NOPs if it is
+ * additionally longer than the first replacement alternative.
+ */
+#define OLDINSTR_2(oldinstr, num1, num2) \
+	"661:\n\t" oldinstr "\n662:\n"								\
+	".skip -((" alt_max_short(alt_rlen(num1), alt_rlen(num2)) " - (" alt_slen ")) > 0) * "	\
+		"(" alt_max_short(alt_rlen(num1), alt_rlen(num2)) " - (" alt_slen ")), 0x90\n"	\
+	alt_end_marker ":\n"
+
+#define ALTINSTR_ENTRY(feature, num)					      \
 	" .long 661b - .\n"				/* label           */ \
-	" .long " b_replacement(number)"f - .\n"	/* new instruction */ \
+	" .long " b_replacement(num)"f - .\n"		/* new instruction */ \
 	" .word " __stringify(feature) "\n"		/* feature bit     */ \
-	" .byte " alt_slen "\n"				/* source len      */ \
-	" .byte " alt_rlen(number) "\n"			/* replacement len */
+	" .byte " alt_total_slen "\n"			/* source len      */ \
+	" .byte " alt_rlen(num) "\n"			/* replacement len */ \
+	" .byte " alt_pad_len "\n"			/* pad len */
 
-#define DISCARD_ENTRY(number)				/* rlen <= slen */    \
-	" .byte 0xff + (" alt_rlen(number) ") - (" alt_slen ")\n"
-
-#define ALTINSTR_REPLACEMENT(newinstr, feature, number)	/* replacement */     \
-	b_replacement(number)":\n\t" newinstr "\n" e_replacement(number) ":\n\t"
+#define ALTINSTR_REPLACEMENT(newinstr, feature, num)	/* replacement */     \
+	b_replacement(num)":\n\t" newinstr "\n" e_replacement(num) ":\n\t"
 
 /* alternative assembly primitive: */
 #define ALTERNATIVE(oldinstr, newinstr, feature)			\
-	OLDINSTR(oldinstr)						\
+	OLDINSTR(oldinstr, 1)						\
 	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(feature, 1)					\
-	".popsection\n"							\
-	".pushsection .discard,\"aw\",@progbits\n"			\
-	DISCARD_ENTRY(1)						\
 	".popsection\n"							\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr, feature, 1)			\
 	".popsection"
 
 #define ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2)\
-	OLDINSTR(oldinstr)						\
+	OLDINSTR_2(oldinstr, 1, 2)					\
 	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(feature1, 1)					\
 	ALTINSTR_ENTRY(feature2, 2)					\
-	".popsection\n"							\
-	".pushsection .discard,\"aw\",@progbits\n"			\
-	DISCARD_ENTRY(1)						\
-	DISCARD_ENTRY(2)						\
 	".popsection\n"							\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
 	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
 	".popsection"
-
-/*
- * This must be included *after* the definition of ALTERNATIVE due to
- * <asm/arch_hweight.h>
- */
-#include <asm/cpufeature.h>
 
 /*
  * Alternative instructions for different CPU types or capabilities.
@@ -145,6 +167,9 @@ static inline int alternatives_text_reserved(void *start, void *end)
 #define alternative(oldinstr, newinstr, feature)			\
 	asm volatile (ALTERNATIVE(oldinstr, newinstr, feature) : : : "memory")
 
+#define alternative_2(oldinstr, newinstr1, feature1, newinstr2, feature2) \
+	asm volatile(ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2) ::: "memory")
+
 /*
  * Alternative inline assembly with input.
  *
@@ -158,6 +183,20 @@ static inline int alternatives_text_reserved(void *start, void *end)
  */
 #define alternative_input(oldinstr, newinstr, feature, input...)	\
 	asm volatile (ALTERNATIVE(oldinstr, newinstr, feature)		\
+		: : "i" (0), ## input)
+
+/*
+ * This is similar to alternative_input. But it has two features and
+ * respective instructions.
+ *
+ * If CPU has feature2, newinstr2 is used.
+ * Otherwise, if CPU has feature1, newinstr1 is used.
+ * Otherwise, oldinstr is used.
+ */
+#define alternative_input_2(oldinstr, newinstr1, feature1, newinstr2,	     \
+			   feature2, input...)				     \
+	asm volatile(ALTERNATIVE_2(oldinstr, newinstr1, feature1,	     \
+		newinstr2, feature2)					     \
 		: : "i" (0), ## input)
 
 /* Like alternative_input, but with a single output argument */
@@ -178,10 +217,13 @@ static inline int alternatives_text_reserved(void *start, void *end)
  */
 #define alternative_call_2(oldfunc, newfunc1, feature1, newfunc2, feature2,   \
 			   output, input...)				      \
+{									      \
 	asm volatile (ALTERNATIVE_2("call %P[old]", "call %P[new1]", feature1,\
 		"call %P[new2]", feature2)				      \
-		: output : [old] "i" (oldfunc), [new1] "i" (newfunc1),	      \
-		[new2] "i" (newfunc2), ## input)
+		: output, ASM_CALL_CONSTRAINT				      \
+		: [old] "i" (oldfunc), [new1] "i" (newfunc1),		      \
+		  [new2] "i" (newfunc2), ## input);			      \
+}
 
 /*
  * use this macro(s) if you need more than one output parameter
@@ -195,45 +237,6 @@ static inline int alternatives_text_reserved(void *start, void *end)
  */
 #define ASM_NO_INPUT_CLOBBER(clbr...) "i" (0) : clbr
 
-struct paravirt_patch_site;
-#ifdef CONFIG_PARAVIRT
-void apply_paravirt(struct paravirt_patch_site *start,
-		    struct paravirt_patch_site *end);
-#else
-static inline void apply_paravirt(struct paravirt_patch_site *start,
-				  struct paravirt_patch_site *end)
-{}
-#define __parainstructions	NULL
-#define __parainstructions_end	NULL
-#endif
-
-extern void *text_poke_early(void *addr, const void *opcode, size_t len);
-
-/*
- * Clear and restore the kernel write-protection flag on the local CPU.
- * Allows the kernel to edit read-only pages.
- * Side-effect: any interrupt handler running between save and restore will have
- * the ability to write to read-only pages.
- *
- * Warning:
- * Code patching in the UP case is safe if NMIs and MCE handlers are stopped and
- * no thread can be preempted in the instructions being modified (no iret to an
- * invalid instruction possible) or if the instructions are changed from a
- * consistent state to another consistent state atomically.
- * More care must be taken when modifying code in the SMP case because of
- * Intel's errata. text_poke_smp() takes care that errata, but still
- * doesn't support NMI/MCE handler code modifying.
- * On the local CPU you need to be protected again NMI or MCE handlers seeing an
- * inconsistent instruction while you patch.
- */
-struct text_poke_param {
-	void *addr;
-	const void *opcode;
-	size_t len;
-};
-
-extern void *text_poke(void *addr, const void *opcode, size_t len);
-extern void *text_poke_smp(void *addr, const void *opcode, size_t len);
-extern void text_poke_smp_batch(struct text_poke_param *params, int n);
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_ALTERNATIVE_H */

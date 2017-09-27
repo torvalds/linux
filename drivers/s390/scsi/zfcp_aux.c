@@ -29,7 +29,6 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -104,11 +103,11 @@ static void __init zfcp_init_device_setup(char *devstr)
 	strncpy(busid, token, ZFCP_BUS_ID_SIZE);
 
 	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0, (unsigned long long *) &wwpn))
+	if (!token || kstrtoull(token, 0, (unsigned long long *) &wwpn))
 		goto err_out;
 
 	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0, (unsigned long long *) &lun))
+	if (!token || kstrtoull(token, 0, (unsigned long long *) &lun))
 		goto err_out;
 
 	kfree(str_saved);
@@ -310,7 +309,7 @@ static int zfcp_setup_adapter_work_queue(struct zfcp_adapter *adapter)
 
 	snprintf(name, sizeof(name), "zfcp_q_%s",
 		 dev_name(&adapter->ccw_device->dev));
-	adapter->work_queue = create_singlethread_workqueue(name);
+	adapter->work_queue = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 
 	if (adapter->work_queue)
 		return 0;
@@ -353,8 +352,10 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	adapter->ccw_device = ccw_device;
 
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
-	INIT_WORK(&adapter->scan_work, zfcp_fc_scan_ports);
+	INIT_DELAYED_WORK(&adapter->scan_work, zfcp_fc_scan_ports);
 	INIT_WORK(&adapter->ns_up_work, zfcp_fc_sym_name_update);
+
+	adapter->next_port_scan = jiffies;
 
 	if (zfcp_qdio_setup(adapter))
 		goto failed;
@@ -420,7 +421,7 @@ void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
 {
 	struct ccw_device *cdev = adapter->ccw_device;
 
-	cancel_work_sync(&adapter->scan_work);
+	cancel_delayed_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
 	cancel_work_sync(&adapter->ns_up_work);
 	zfcp_destroy_adapter_work_queue(adapter);
@@ -527,7 +528,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	list_add_tail(&port->list, &adapter->port_list);
 	write_unlock_irq(&adapter->port_list_lock);
 
-	atomic_set_mask(status | ZFCP_STATUS_COMMON_RUNNING, &port->status);
+	atomic_or(status | ZFCP_STATUS_COMMON_RUNNING, &port->status);
 
 	return port;
 

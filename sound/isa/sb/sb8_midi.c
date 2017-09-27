@@ -26,7 +26,7 @@
  *   Added full duplex UART mode for DSP version 2.0 and later.
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/sb.h>
@@ -216,8 +216,7 @@ static void snd_sb8dsp_midi_output_timer(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->open_lock, flags);
-	chip->midi_timer.expires = 1 + jiffies;
-	add_timer(&chip->midi_timer);
+	mod_timer(&chip->midi_timer, 1 + jiffies);
 	spin_unlock_irqrestore(&chip->open_lock, flags);	
 	snd_sb8dsp_midi_output_write(substream);
 }
@@ -231,11 +230,10 @@ static void snd_sb8dsp_midi_output_trigger(struct snd_rawmidi_substream *substre
 	spin_lock_irqsave(&chip->open_lock, flags);
 	if (up) {
 		if (!(chip->open & SB_OPEN_MIDI_OUTPUT_TRIGGER)) {
-			init_timer(&chip->midi_timer);
-			chip->midi_timer.function = snd_sb8dsp_midi_output_timer;
-			chip->midi_timer.data = (unsigned long) substream;
-			chip->midi_timer.expires = 1 + jiffies;
-			add_timer(&chip->midi_timer);
+			setup_timer(&chip->midi_timer,
+				    snd_sb8dsp_midi_output_timer,
+				    (unsigned long) substream);
+			mod_timer(&chip->midi_timer, 1 + jiffies);
 			chip->open |= SB_OPEN_MIDI_OUTPUT_TRIGGER;
 		}
 	} else {
@@ -249,27 +247,25 @@ static void snd_sb8dsp_midi_output_trigger(struct snd_rawmidi_substream *substre
 		snd_sb8dsp_midi_output_write(substream);
 }
 
-static struct snd_rawmidi_ops snd_sb8dsp_midi_output =
+static const struct snd_rawmidi_ops snd_sb8dsp_midi_output =
 {
 	.open =		snd_sb8dsp_midi_output_open,
 	.close =	snd_sb8dsp_midi_output_close,
 	.trigger =	snd_sb8dsp_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_sb8dsp_midi_input =
+static const struct snd_rawmidi_ops snd_sb8dsp_midi_input =
 {
 	.open =		snd_sb8dsp_midi_input_open,
 	.close =	snd_sb8dsp_midi_input_close,
 	.trigger =	snd_sb8dsp_midi_input_trigger,
 };
 
-int snd_sb8dsp_midi(struct snd_sb *chip, int device, struct snd_rawmidi ** rrawmidi)
+int snd_sb8dsp_midi(struct snd_sb *chip, int device)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if (rrawmidi)
-		*rrawmidi = NULL;
 	if ((err = snd_rawmidi_new(chip->card, "SB8 MIDI", device, 1, 1, &rmidi)) < 0)
 		return err;
 	strcpy(rmidi->name, "SB8 MIDI");
@@ -280,7 +276,5 @@ int snd_sb8dsp_midi(struct snd_sb *chip, int device, struct snd_rawmidi ** rrawm
 		rmidi->info_flags |= SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = chip;
 	chip->rmidi = rmidi;
-	if (rrawmidi)
-		*rrawmidi = rmidi;
 	return 0;
 }

@@ -110,20 +110,14 @@ static struct pcmcia_low_level neponset_pcmcia_ops = {
 
 int pcmcia_neponset_init(struct sa1111_dev *sadev)
 {
-	int ret = -ENODEV;
-
-	if (machine_is_assabet()) {
-		/*
-		 * Set GPIO_A<3:0> to be outputs for the MAX1600,
-		 * and switch to standby mode.
-		 */
-		sa1111_set_io_dir(sadev, GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0, 0);
-		sa1111_set_io(sadev, GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0);
-		sa1111_set_sleep_io(sadev, GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0);
-		sa11xx_drv_pcmcia_ops(&neponset_pcmcia_ops);
-		ret = sa1111_pcmcia_add(sadev, &neponset_pcmcia_ops,
-				sa11xx_drv_pcmcia_add_one);
-	}
-
-	return ret;
+	/*
+	 * Set GPIO_A<3:0> to be outputs for the MAX1600,
+	 * and switch to standby mode.
+	 */
+	sa1111_set_io_dir(sadev, GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0, 0);
+	sa1111_set_io(sadev, GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0);
+	sa1111_set_sleep_io(sadev, GPIO_A0|GPIO_A1|GPIO_A2|GPIO_A3, 0);
+	sa11xx_drv_pcmcia_ops(&neponset_pcmcia_ops);
+	return sa1111_pcmcia_add(sadev, &neponset_pcmcia_ops,
+				 sa11xx_drv_pcmcia_add_one);
 }

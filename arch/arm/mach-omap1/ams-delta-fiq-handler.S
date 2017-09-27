@@ -17,11 +17,10 @@
 #include <asm/assembler.h>
 
 #include <mach/board-ams-delta.h>
-
-#include <mach/irqs.h>
 #include <mach/ams-delta-fiq.h>
 
 #include "iomap.h"
+#include "soc.h"
 
 /*
  * GPIO related definitions, copied from arch/arm/plat-omap/gpio.c.
@@ -44,8 +43,8 @@
 #define OTHERS_MASK			(MODEM_IRQ_MASK | HOOK_SWITCH_MASK)
 
 /* IRQ handler register bitmasks */
-#define DEFERRED_FIQ_MASK		(0x1 << (INT_DEFERRED_FIQ % IH2_BASE))
-#define GPIO_BANK1_MASK  		(0x1 << INT_GPIO_BANK1)
+#define DEFERRED_FIQ_MASK		OMAP_IRQ_BIT(INT_DEFERRED_FIQ)
+#define GPIO_BANK1_MASK  		OMAP_IRQ_BIT(INT_GPIO_BANK1)
 
 /* Driver buffer byte offsets */
 #define BUF_MASK			(FIQ_MASK * 4)
@@ -111,7 +110,7 @@ ENTRY(qwerty_fiqin_start)
 	mov r8, #2				@ reset FIQ agreement
 	str r8, [r12, #IRQ_CONTROL_REG_OFFSET]
 
-	cmp r10, #INT_GPIO_BANK1		@ is it GPIO bank interrupt?
+	cmp r10, #(INT_GPIO_BANK1 - NR_IRQS_LEGACY)	@ is it GPIO interrupt?
 	beq gpio				@ yes - process it
 
 	mov r8, #1

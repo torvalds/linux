@@ -1,10 +1,11 @@
 config INFINIBAND_CXGB4
-	tristate "Chelsio T4 RDMA Driver"
-	depends on CHELSIO_T4 && INET
+	tristate "Chelsio T4/T5 RDMA Driver"
+	depends on CHELSIO_T4 && INET && (IPV6 || IPV6=n)
+	select CHELSIO_LIB
 	select GENERIC_ALLOCATOR
 	---help---
-	  This is an iWARP/RDMA driver for the Chelsio T4 1GbE and
-	  10GbE adapters.
+	  This is an iWARP/RDMA driver for the Chelsio T4 and T5
+	  1GbE, 10GbE adapters and T5 40GbE adapter.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.

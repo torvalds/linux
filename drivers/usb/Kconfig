@@ -2,14 +2,21 @@
 # USB device configuration
 #
 
-# These are unused now, remove them once they are no longer selected
-config USB_ARCH_HAS_OHCI
+config USB_OHCI_BIG_ENDIAN_DESC
 	bool
 
-config USB_ARCH_HAS_EHCI
+config USB_OHCI_BIG_ENDIAN_MMIO
 	bool
 
-config USB_ARCH_HAS_XHCI
+config USB_OHCI_LITTLE_ENDIAN
+	bool
+	default n if STB03xxx || PPC_MPC52xx
+	default y
+
+config USB_EHCI_BIG_ENDIAN_MMIO
+	bool
+
+config USB_EHCI_BIG_ENDIAN_DESC
 	bool
 
 menuconfig USB_SUPPORT
@@ -24,16 +31,14 @@ if USB_SUPPORT
 
 config USB_COMMON
 	tristate
-	default y
-	depends on USB || USB_GADGET
 
 config USB_ARCH_HAS_HCD
 	def_bool y
 
-# ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.
 config USB
 	tristate "Support for Host-side USB"
 	depends on USB_ARCH_HAS_HCD
+	select USB_COMMON
 	select NLS  # for UTF-8 strings
 	---help---
 	  Universal Serial Bus (USB) is a specification for a serial bus
@@ -67,6 +72,17 @@ config USB
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbcore.
 
+config USB_PCI
+	bool "PCI based USB host interface"
+	depends on PCI
+	default y
+	---help---
+	  A lot of embeded system SOC (e.g. freescale T2080) have both
+	  PCI and USB modules. But USB module is controlled by registers
+	  directly, it have no relationship with PCI module.
+
+	  When say N here it will not build PCI related code in USB driver.
+
 if USB
 
 source "drivers/usb/core/Kconfig"
@@ -77,8 +93,6 @@ source "drivers/usb/wusbcore/Kconfig"
 
 source "drivers/usb/host/Kconfig"
 
-source "drivers/usb/musb/Kconfig"
-
 source "drivers/usb/renesas_usbhs/Kconfig"
 
 source "drivers/usb/class/Kconfig"
@@ -87,11 +101,21 @@ source "drivers/usb/storage/Kconfig"
 
 source "drivers/usb/image/Kconfig"
 
+source "drivers/usb/usbip/Kconfig"
+
 endif
+
+source "drivers/usb/mtu3/Kconfig"
+
+source "drivers/usb/musb/Kconfig"
 
 source "drivers/usb/dwc3/Kconfig"
 
+source "drivers/usb/dwc2/Kconfig"
+
 source "drivers/usb/chipidea/Kconfig"
+
+source "drivers/usb/isp1760/Kconfig"
 
 comment "USB port drivers"
 
@@ -137,5 +161,39 @@ endif # USB
 source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
+
+source "drivers/usb/typec/Kconfig"
+
+config USB_LED_TRIG
+	bool "USB LED Triggers"
+	depends on LEDS_CLASS && LEDS_TRIGGERS
+	select USB_COMMON
+	help
+	  This option adds LED triggers for USB host and/or gadget activity.
+
+	  Say Y here if you are working on a system with led-class supported
+	  LEDs and you want to use them as activity indicators for USB host or
+	  gadget.
+
+config USB_ULPI_BUS
+	tristate "USB ULPI PHY interface support"
+	select USB_COMMON
+	help
+	  UTMI+ Low Pin Interface (ULPI) is specification for a commonly used
+	  USB 2.0 PHY interface. The ULPI specification defines a standard set
+	  of registers that can be used to detect the vendor and product which
+	  allows ULPI to be handled as a bus. This module is the driver for that
+	  bus.
+
+	  The ULPI interfaces (the buses) are registered by the drivers for USB
+	  controllers which support ULPI register access and have ULPI PHY
+	  attached to them. The ULPI PHY drivers themselves are normal PHY
+	  drivers.
+
+	  ULPI PHYs provide often functions such as ADP sensing/probing (OTG
+	  protocol) and USB charger detection.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called ulpi.
 
 endif # USB_SUPPORT

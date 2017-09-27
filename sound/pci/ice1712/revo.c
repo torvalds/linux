@@ -235,7 +235,7 @@ static const struct snd_akm4xxx_adc_channel revo51_adc[] = {
 	},
 };
 
-static struct snd_akm4xxx akm_revo_front = {
+static const struct snd_akm4xxx akm_revo_front = {
 	.type = SND_AK4381,
 	.num_dacs = 2,
 	.ops = {
@@ -244,7 +244,7 @@ static struct snd_akm4xxx akm_revo_front = {
 	.dac_info = revo71_front,
 };
 
-static struct snd_ak4xxx_private akm_revo_front_priv = {
+static const struct snd_ak4xxx_private akm_revo_front_priv = {
 	.caddr = 1,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -256,7 +256,7 @@ static struct snd_ak4xxx_private akm_revo_front_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_revo_surround = {
+static const struct snd_akm4xxx akm_revo_surround = {
 	.type = SND_AK4355,
 	.idx_offset = 1,
 	.num_dacs = 6,
@@ -266,7 +266,7 @@ static struct snd_akm4xxx akm_revo_surround = {
 	.dac_info = revo71_surround,
 };
 
-static struct snd_ak4xxx_private akm_revo_surround_priv = {
+static const struct snd_ak4xxx_private akm_revo_surround_priv = {
 	.caddr = 3,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -278,7 +278,7 @@ static struct snd_ak4xxx_private akm_revo_surround_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_revo51 = {
+static const struct snd_akm4xxx akm_revo51 = {
 	.type = SND_AK4358,
 	.num_dacs = 8,
 	.ops = {
@@ -287,7 +287,7 @@ static struct snd_akm4xxx akm_revo51 = {
 	.dac_info = revo51_dac,
 };
 
-static struct snd_ak4xxx_private akm_revo51_priv = {
+static const struct snd_ak4xxx_private akm_revo51_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -299,13 +299,13 @@ static struct snd_ak4xxx_private akm_revo51_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_revo51_adc = {
+static const struct snd_akm4xxx akm_revo51_adc = {
 	.type = SND_AK5365,
 	.num_adcs = 2,
 	.adc_info = revo51_adc,
 };
 
-static struct snd_ak4xxx_private akm_revo51_adc_priv = {
+static const struct snd_ak4xxx_private akm_revo51_adc_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -346,7 +346,7 @@ static const struct snd_akm4xxx_dac_channel ap192_dac[] = {
 	AK_DAC("PCM Playback Volume", 2)
 };
 
-static struct snd_akm4xxx akm_ap192 = {
+static const struct snd_akm4xxx akm_ap192 = {
 	.type = SND_AK4358,
 	.num_dacs = 2,
 	.ops = {
@@ -355,7 +355,7 @@ static struct snd_akm4xxx akm_ap192 = {
 	.dac_info = ap192_dac,
 };
 
-static struct snd_ak4xxx_private akm_ap192_priv = {
+static const struct snd_ak4xxx_private akm_ap192_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -494,11 +494,13 @@ static int ap192_ak4114_init(struct snd_ice1712 *ice)
 				 ap192_ak4114_write,
 				 ak4114_init_vals, ak4114_init_txcsb,
 				 ice, &spec->ak4114);
+	if (err < 0)
+		return err;
 	/* AK4114 in Revo cannot detect external rate correctly.
 	 * No reason to stop capture stream due to incorrect checks */
 	spec->ak4114->check_flags = AK4114_CHECK_NO_RATE;
 
-	return 0; /* error ignored; it's no fatal error */
+	return 0;
 }
 
 static int revo_init(struct snd_ice1712 *ice)

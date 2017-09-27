@@ -1,0 +1,32 @@
+Xilinx SuperSpeed DWC3 USB SoC controller
+
+Required properties:
+- compatible:	Should contain "xlnx,zynqmp-dwc3"
+- clocks:	A list of phandles for the clocks listed in clock-names
+- clock-names:	Should contain the following:
+  "bus_clk"	 Master/Core clock, have to be >= 125 MHz for SS
+		 operation and >= 60MHz for HS operation
+
+  "ref_clk"	 Clock source to core during PHY power down
+
+Required child node:
+A child node must exist to represent the core DWC3 IP block. The name of
+the node is not important. The content of the node is defined in dwc3.txt.
+
+Example device node:
+
+		usb@0 {
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			compatible = "xlnx,zynqmp-dwc3";
+			clock-names = "bus_clk" "ref_clk";
+			clocks = <&clk125>, <&clk125>;
+			ranges;
+
+			dwc3@fe200000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xfe200000 0x40000>;
+				interrupts = <0x0 0x41 0x4>;
+				dr_mode = "host";
+			};
+		};

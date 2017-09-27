@@ -12,7 +12,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 
@@ -142,7 +141,7 @@ static void steelseries_srws1_led_all_set_brightness(struct led_classdev *led_cd
 			enum led_brightness value)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct hid_device *hid = to_hid_device(dev);
 	struct steelseries_srws1_data *drv_data = hid_get_drvdata(hid);
 
 	if (!drv_data) {
@@ -161,7 +160,7 @@ static void steelseries_srws1_led_all_set_brightness(struct led_classdev *led_cd
 static enum led_brightness steelseries_srws1_led_all_get_brightness(struct led_classdev *led_cdev)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct hid_device *hid = to_hid_device(dev);
 	struct steelseries_srws1_data *drv_data;
 
 	drv_data = hid_get_drvdata(hid);
@@ -178,7 +177,7 @@ static void steelseries_srws1_led_set_brightness(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct hid_device *hid = to_hid_device(dev);
 	struct steelseries_srws1_data *drv_data = hid_get_drvdata(hid);
 	int i, state = 0;
 
@@ -206,7 +205,7 @@ static void steelseries_srws1_led_set_brightness(struct led_classdev *led_cdev,
 static enum led_brightness steelseries_srws1_led_get_brightness(struct led_classdev *led_cdev)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct hid_device *hid = to_hid_device(dev);
 	struct steelseries_srws1_data *drv_data;
 	int i, value = 0;
 
@@ -246,6 +245,11 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed\n");
+		goto err_free;
+	}
+
+	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 0, 0, 16)) {
+		ret = -ENODEV;
 		goto err_free;
 	}
 

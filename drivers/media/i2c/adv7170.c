@@ -22,17 +22,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/ioctl.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
@@ -63,9 +59,9 @@ static inline struct adv7170 *to_adv7170(struct v4l2_subdev *sd)
 
 static char *inputs[] = { "pass_through", "play_back" };
 
-static enum v4l2_mbus_pixelcode adv7170_codes[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_UYVY8_1X16,
+static u32 adv7170_codes[] = {
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_UYVY8_1X16,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -262,25 +258,31 @@ static int adv7170_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7170_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-				enum v4l2_mbus_pixelcode *code)
+static int adv7170_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(adv7170_codes))
+	if (code->pad || code->index >= ARRAY_SIZE(adv7170_codes))
 		return -EINVAL;
 
-	*code = adv7170_codes[index];
+	code->code = adv7170_codes[code->index];
 	return 0;
 }
 
-static int adv7170_g_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *mf)
+static int adv7170_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	u8 val = adv7170_read(sd, 0x7);
 
+	if (format->pad)
+		return -EINVAL;
+
 	if ((val & 0x40) == (1 << 6))
-		mf->code = V4L2_MBUS_FMT_UYVY8_1X16;
+		mf->code = MEDIA_BUS_FMT_UYVY8_1X16;
 	else
-		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	mf->colorspace  = V4L2_COLORSPACE_SMPTE170M;
 	mf->width       = 0;
@@ -290,18 +292,22 @@ static int adv7170_g_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7170_s_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *mf)
+static int adv7170_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	u8 val = adv7170_read(sd, 0x7);
-	int ret;
+
+	if (format->pad)
+		return -EINVAL;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		val &= ~0x40;
 		break;
 
-	case V4L2_MBUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 		val |= 0x40;
 		break;
 
@@ -311,9 +317,10 @@ static int adv7170_s_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	ret = adv7170_write(sd, 0x7, val);
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		return adv7170_write(sd, 0x7, val);
 
-	return ret;
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -321,13 +328,17 @@ static int adv7170_s_fmt(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_video_ops adv7170_video_ops = {
 	.s_std_output = adv7170_s_std_output,
 	.s_routing = adv7170_s_routing,
-	.s_mbus_fmt = adv7170_s_fmt,
-	.g_mbus_fmt = adv7170_g_fmt,
-	.enum_mbus_fmt  = adv7170_enum_fmt,
+};
+
+static const struct v4l2_subdev_pad_ops adv7170_pad_ops = {
+	.enum_mbus_code = adv7170_enum_mbus_code,
+	.get_fmt = adv7170_get_fmt,
+	.set_fmt = adv7170_set_fmt,
 };
 
 static const struct v4l2_subdev_ops adv7170_ops = {
 	.video = &adv7170_video_ops,
+	.pad = &adv7170_pad_ops,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -385,7 +396,6 @@ MODULE_DEVICE_TABLE(i2c, adv7170_id);
 
 static struct i2c_driver adv7170_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "adv7170",
 	},
 	.probe		= adv7170_probe,

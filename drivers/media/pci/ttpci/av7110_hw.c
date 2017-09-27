@@ -16,13 +16,10 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
- *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at https://linuxtv.org
  */
 
 /* for debugging ARM communication: */
@@ -40,6 +37,14 @@
 
 #define _NOHANDSHAKE
 
+/*
+ * Max transfer size done by av7110_fw_cmd()
+ *
+ * The maximum size passed to this function is 6 bytes. The buffer also
+ * uses two additional ones for type and size. So, 8 bytes is enough.
+ */
+#define MAX_XFER_SIZE  8
+
 /****************************************************************************
  * DEBI functions
  ****************************************************************************/
@@ -48,11 +53,11 @@
    by Nathan Laredo <laredo@gnu.org> */
 
 int av7110_debiwrite(struct av7110 *av7110, u32 config,
-		     int addr, u32 val, int count)
+		     int addr, u32 val, unsigned int count)
 {
 	struct saa7146_dev *dev = av7110->dev;
 
-	if (count <= 0 || count > 32764) {
+	if (count > 32764) {
 		printk("%s: invalid count %d\n", __func__, count);
 		return -1;
 	}
@@ -70,12 +75,12 @@ int av7110_debiwrite(struct av7110 *av7110, u32 config,
 	return 0;
 }
 
-u32 av7110_debiread(struct av7110 *av7110, u32 config, int addr, int count)
+u32 av7110_debiread(struct av7110 *av7110, u32 config, int addr, unsigned int count)
 {
 	struct saa7146_dev *dev = av7110->dev;
 	u32 result = 0;
 
-	if (count > 32764 || count <= 0) {
+	if (count > 32764) {
 		printk("%s: invalid count %d\n", __func__, count);
 		return 0;
 	}
@@ -227,8 +232,7 @@ int av7110_bootarm(struct av7110 *av7110)
 	iwdebi(av7110, DEBISWAP, DPRAM_BASE, 0x76543210, 4);
 
 	if ((ret=irdebi(av7110, DEBINOSWAP, DPRAM_BASE, 0, 4)) != 0x10325476) {
-		printk(KERN_ERR "dvb-ttpci: debi test in av7110_bootarm() failed: "
-		       "%08x != %08x (check your BIOS 'Plug&Play OS' settings)\n",
+		printk(KERN_ERR "dvb-ttpci: debi test in av7110_bootarm() failed: %08x != %08x (check your BIOS 'Plug&Play OS' settings)\n",
 		       ret, 0x10325476);
 		return -1;
 	}
@@ -254,8 +258,7 @@ int av7110_bootarm(struct av7110 *av7110)
 	iwdebi(av7110, DEBINOSWAP, AV7110_BOOT_STATE, BOOTSTATE_BUFFER_FULL, 2);
 
 	if (saa7146_wait_for_debi_done(av7110->dev, 1)) {
-		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): "
-		       "saa7146_wait_for_debi_done() timed out\n");
+		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): saa7146_wait_for_debi_done() timed out\n");
 		return -ETIMEDOUT;
 	}
 	saa7146_setgpio(dev, RESET_LINE, SAA7146_GPIO_OUTHI);
@@ -263,8 +266,7 @@ int av7110_bootarm(struct av7110 *av7110)
 
 	dprintk(1, "load dram code\n");
 	if (load_dram(av7110, (u32 *)av7110->bin_root, av7110->size_root) < 0) {
-		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): "
-		       "load_dram() failed\n");
+		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): load_dram() failed\n");
 		return -1;
 	}
 
@@ -275,8 +277,7 @@ int av7110_bootarm(struct av7110 *av7110)
 	mwdebi(av7110, DEBISWAB, DPRAM_BASE, av7110->bin_dpram, av7110->size_dpram);
 
 	if (saa7146_wait_for_debi_done(av7110->dev, 1)) {
-		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): "
-		       "saa7146_wait_for_debi_done() timed out after loading DRAM\n");
+		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): saa7146_wait_for_debi_done() timed out after loading DRAM\n");
 		return -ETIMEDOUT;
 	}
 	saa7146_setgpio(dev, RESET_LINE, SAA7146_GPIO_OUTHI);
@@ -488,10 +489,17 @@ static int av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...)
 {
 	va_list args;
-	u16 buf[num + 2];
+	u16 buf[MAX_XFER_SIZE];
 	int i, ret;
 
 //	dprintk(4, "%p\n", av7110);
+
+	if (2 + num > ARRAY_SIZE(buf)) {
+		printk(KERN_WARNING
+		       "%s: %s len=%d is too big!\n",
+		       KBUILD_MODNAME, __func__, num);
+		return -EINVAL;
+	}
 
 	buf[0] = ((type << 8) | com);
 	buf[1] = num;

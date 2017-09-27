@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/mtd/mtd.h>
 #include <linux/compiler.h>
-#include <linux/sched.h> /* For cond_resched() */
+#include <linux/sched/signal.h>
 #include "nodelist.h"
 #include "debug.h"
 
@@ -179,6 +179,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 					spin_unlock(&c->erase_completion_lock);
 
 					schedule();
+					remove_wait_queue(&c->erase_wait, &wait);
 				} else
 					spin_unlock(&c->erase_completion_lock);
 			} else if (ret)
@@ -211,20 +212,25 @@ out:
 int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 			   uint32_t *len, uint32_t sumsize)
 {
-	int ret = -EAGAIN;
+	int ret;
 	minsize = PAD(minsize);
 
 	jffs2_dbg(1, "%s(): Requested 0x%x bytes\n", __func__, minsize);
 
-	spin_lock(&c->erase_completion_lock);
-	while(ret == -EAGAIN) {
+	while (true) {
+		spin_lock(&c->erase_completion_lock);
 		ret = jffs2_do_reserve_space(c, minsize, len, sumsize);
 		if (ret) {
 			jffs2_dbg(1, "%s(): looping, ret is %d\n",
 				  __func__, ret);
 		}
+		spin_unlock(&c->erase_completion_lock);
+
+		if (ret == -EAGAIN)
+			cond_resched();
+		else
+			break;
 	}
-	spin_unlock(&c->erase_completion_lock);
 	if (!ret)
 		ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);
 
@@ -840,8 +846,8 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 		return 1;
 
 	if (c->unchecked_size) {
-		jffs2_dbg(1, "jffs2_thread_should_wake(): unchecked_size %d, checked_ino #%d\n",
-			  c->unchecked_size, c->checked_ino);
+		jffs2_dbg(1, "jffs2_thread_should_wake(): unchecked_size %d, check_ino #%d\n",
+			  c->unchecked_size, c->check_ino);
 		return 1;
 	}
 

@@ -46,7 +46,7 @@ static int via_driver_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-void via_driver_postclose(struct drm_device *dev, struct drm_file *file)
+static void via_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct via_file_private *file_priv = file->driver_priv;
 
@@ -62,18 +62,15 @@ static const struct file_operations via_driver_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_mmap,
+	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_HAVE_IRQ |
+	    DRIVER_USE_AGP | DRIVER_HAVE_IRQ | DRIVER_LEGACY |
 	    DRIVER_IRQ_SHARED,
 	.load = via_driver_load,
 	.unload = via_driver_unload,
@@ -109,12 +106,12 @@ static int __init via_init(void)
 {
 	driver.num_ioctls = via_max_ioctl;
 	via_init_command_verifier();
-	return drm_pci_init(&driver, &via_pci_driver);
+	return drm_legacy_pci_init(&driver, &via_pci_driver);
 }
 
 static void __exit via_exit(void)
 {
-	drm_pci_exit(&driver, &via_pci_driver);
+	drm_legacy_pci_exit(&driver, &via_pci_driver);
 }
 
 module_init(via_init);

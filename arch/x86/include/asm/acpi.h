@@ -26,55 +26,15 @@
 #include <acpi/pdc_intel.h>
 
 #include <asm/numa.h>
+#include <asm/fixmap.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mpspec.h>
 #include <asm/realmode.h>
 
-#define COMPILER_DEPENDENT_INT64   long long
-#define COMPILER_DEPENDENT_UINT64  unsigned long long
-
-/*
- * Calling conventions:
- *
- * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
- * ACPI_EXTERNAL_XFACE      - External ACPI interfaces
- * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
- * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
- */
-#define ACPI_SYSTEM_XFACE
-#define ACPI_EXTERNAL_XFACE
-#define ACPI_INTERNAL_XFACE
-#define ACPI_INTERNAL_VAR_XFACE
-
-/* Asm macros */
-
-#define ACPI_FLUSH_CPU_CACHE()	wbinvd()
-
-int __acpi_acquire_global_lock(unsigned int *lock);
-int __acpi_release_global_lock(unsigned int *lock);
-
-#define ACPI_ACQUIRE_GLOBAL_LOCK(facs, Acq) \
-	((Acq) = __acpi_acquire_global_lock(&facs->global_lock))
-
-#define ACPI_RELEASE_GLOBAL_LOCK(facs, Acq) \
-	((Acq) = __acpi_release_global_lock(&facs->global_lock))
-
-/*
- * Math helper asm macros
- */
-#define ACPI_DIV_64_BY_32(n_hi, n_lo, d32, q32, r32) \
-	asm("divl %2;"				     \
-	    : "=a"(q32), "=d"(r32)		     \
-	    : "r"(d32),				     \
-	     "0"(n_lo), "1"(n_hi))
-
-
-#define ACPI_SHIFT_RIGHT_64(n_hi, n_lo) \
-	asm("shrl   $1,%2	;"	\
-	    "rcrl   $1,%3;"		\
-	    : "=r"(n_hi), "=r"(n_lo)	\
-	    : "0"(n_hi), "1"(n_lo))
+#ifdef CONFIG_ACPI_APEI
+# include <asm/pgtable_types.h>
+#endif
 
 #ifdef CONFIG_ACPI
 extern int acpi_lapic;
@@ -86,13 +46,17 @@ extern int acpi_pci_disabled;
 extern int acpi_skip_timer_override;
 extern int acpi_use_timer_override;
 extern int acpi_fix_pin2_polarity;
+extern int acpi_disable_cmcff;
 
 extern u8 acpi_sci_flags;
 extern int acpi_sci_override_gsi;
 void acpi_pic_sci_set_trigger(unsigned int, u16);
 
+struct device;
+
 extern int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
 				  int trigger, int polarity);
+extern void (*__acpi_unregister_gsi)(u32 gsi);
 
 static inline void disable_acpi(void)
 {
@@ -132,7 +96,7 @@ static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 	    boot_cpu_data.x86_model <= 0x05 &&
 	    boot_cpu_data.x86_mask < 0x0A)
 		return 1;
-	else if (amd_e400_c1e_detected)
+	else if (boot_cpu_has(X86_BUG_AMD_APIC_C1E))
 		return 1;
 	else
 		return max_cstate;
@@ -164,10 +128,16 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
 		buf[2] &= ~(ACPI_PDC_C_C2C3_FFH);
 }
 
+static inline bool acpi_has_cpu_in_madt(void)
+{
+	return !!acpi_lapic;
+}
+
 #else /* !CONFIG_ACPI */
 
 #define acpi_lapic 0
 #define acpi_ioapic 0
+#define acpi_disable_cmcff 0
 static inline void acpi_noirq_set(void) { }
 static inline void acpi_disable_pci(void) { }
 static inline void disable_acpi(void) { }
@@ -177,10 +147,29 @@ static inline void disable_acpi(void) { }
 #define ARCH_HAS_POWER_INIT	1
 
 #ifdef CONFIG_ACPI_NUMA
-extern int acpi_numa;
 extern int x86_acpi_numa_init(void);
 #endif /* CONFIG_ACPI_NUMA */
 
-#define acpi_unlazy_tlb(x)	leave_mm(x)
+#ifdef CONFIG_ACPI_APEI
+static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
+{
+	/*
+	 * We currently have no way to look up the EFI memory map
+	 * attributes for a region in a consistent way, because the
+	 * memmap is discarded after efi_free_boot_services(). So if
+	 * you call efi_mem_attributes() during boot and at runtime,
+	 * you could theoretically see different attributes.
+	 *
+	 * We are yet to see any x86 platforms that require anything
+	 * other than PAGE_KERNEL (some ARM64 platforms require the
+	 * equivalent of PAGE_KERNEL_NOCACHE). Additionally, if SME
+	 * is active, the ACPI information will not be encrypted,
+	 * so return PAGE_KERNEL_NOENC until we know differently.
+	 */
+	return PAGE_KERNEL_NOENC;
+}
+#endif
+
+#define ACPI_TABLE_UPGRADE_MAX_PHYS (max_low_pfn_mapped << PAGE_SHIFT)
 
 #endif /* _ASM_X86_ACPI_H */

@@ -28,6 +28,7 @@
  */
 
 #include <linux/signal.h>
+#include <linux/sched/signal.h>
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -667,7 +668,7 @@ void user_dlm_set_locking_protocol(void)
 	ocfs2_stack_glue_set_max_proto_version(&user_dlm_lproto.lp_max_version);
 }
 
-struct ocfs2_cluster_connection *user_dlm_register(struct qstr *name)
+struct ocfs2_cluster_connection *user_dlm_register(const struct qstr *name)
 {
 	int rc;
 	struct ocfs2_cluster_connection *conn;

@@ -10,7 +10,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 /*
  * Create our own symbols for the supported buffer modes, but, for now,
@@ -88,6 +88,8 @@ struct mcam_frame_state {
 	unsigned int delivered;
 };
 
+#define NR_MCAM_CLK 3
+
 /*
  * A description of one of our devices.
  * Locking: controlled by s_mutex.  Certain fields, however, require
@@ -108,11 +110,33 @@ struct mcam_camera {
 	short int clock_speed;	/* Sensor clock speed, default 30 */
 	short int use_smbus;	/* SMBUS or straight I2c? */
 	enum mcam_buffer_mode buffer_mode;
+
+	int mclk_min;	/* The minimal value of mclk */
+	int mclk_src;	/* which clock source the mclk derives from */
+	int mclk_div;	/* Clock Divider Value for MCLK */
+
+	int ccic_id;
+	enum v4l2_mbus_type bus_type;
+	/* MIPI support */
+	/* The dphy config value, allocated in board file
+	 * dphy[0]: DPHY3
+	 * dphy[1]: DPHY5
+	 * dphy[2]: DPHY6
+	 */
+	int *dphy;
+	bool mipi_enabled;	/* flag whether mipi is enabled already */
+	int lane;			/* lane number */
+
+	/* clock tree support */
+	struct clk *clk[NR_MCAM_CLK];
+
 	/*
 	 * Callbacks from the core to the platform code.
 	 */
-	void (*plat_power_up) (struct mcam_camera *cam);
+	int (*plat_power_up) (struct mcam_camera *cam);
 	void (*plat_power_down) (struct mcam_camera *cam);
+	void (*calc_dphy) (struct mcam_camera *cam);
+	void (*ctlr_reset) (struct mcam_camera *cam);
 
 	/*
 	 * Everything below here is private to the mcam core and
@@ -122,7 +146,6 @@ struct mcam_camera {
 	struct v4l2_ctrl_handler ctrl_handler;
 	enum mcam_state state;
 	unsigned long flags;		/* Buffer status, mainly (dev_lock) */
-	int users;			/* How many open FDs */
 
 	struct mcam_frame_state frame_state;	/* Frame state counter */
 	/*
@@ -139,6 +162,8 @@ struct mcam_camera {
 	unsigned int nbufs;		/* How many are alloc'd */
 	int next_buf;			/* Next to consume (dev_lock) */
 
+	char bus_info[32];		/* querycap bus_info */
+
 	/* DMA buffers - vmalloc mode */
 #ifdef MCAM_MODE_VMALLOC
 	unsigned int dma_buf_size;	/* allocated size */
@@ -151,7 +176,6 @@ struct mcam_camera {
 
 	/* DMA buffers - DMA modes */
 	struct mcam_vb_buffer *vb_bufs[MAX_DMA_BUFS];
-	struct vb2_alloc_ctx *vb_alloc_ctx;
 
 	/* Mode-specific ops, set at open time */
 	void (*dma_setup)(struct mcam_camera *cam);
@@ -159,7 +183,7 @@ struct mcam_camera {
 
 	/* Current operating parameters */
 	struct v4l2_pix_format pix_format;
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 
 	/* Locks */
 	struct mutex s_mutex; /* Access to this structure */
@@ -225,6 +249,23 @@ int mccic_resume(struct mcam_camera *cam);
 #define REG_Y0BAR	0x00
 #define REG_Y1BAR	0x04
 #define REG_Y2BAR	0x08
+#define REG_U0BAR	0x0c
+#define REG_U1BAR	0x10
+#define REG_U2BAR	0x14
+#define REG_V0BAR	0x18
+#define REG_V1BAR	0x1C
+#define REG_V2BAR	0x20
+
+/*
+ * register definitions for MIPI support
+ */
+#define REG_CSI2_CTRL0	0x100
+#define   CSI2_C0_MIPI_EN (0x1 << 0)
+#define   CSI2_C0_ACT_LANE(n) ((n-1) << 1)
+#define REG_CSI2_DPHY3	0x12c
+#define REG_CSI2_DPHY5	0x134
+#define REG_CSI2_DPHY6	0x138
+
 /* ... */
 
 #define REG_IMGPITCH	0x24	/* Image pitch register */
@@ -288,18 +329,21 @@ int mccic_resume(struct mcam_camera *cam);
 #define	  C0_YUVE_YVYU	  0x00010000	/* Y1CrY0Cb		*/
 #define	  C0_YUVE_VYUY	  0x00020000	/* CrY1CbY0		*/
 #define	  C0_YUVE_UYVY	  0x00030000	/* CbY1CrY0		*/
-#define	  C0_YUVE_XYUV	  0x00000000	/* 420: .YUV		*/
-#define	  C0_YUVE_XYVU	  0x00010000	/* 420: .YVU		*/
-#define	  C0_YUVE_XUVY	  0x00020000	/* 420: .UVY		*/
-#define	  C0_YUVE_XVUY	  0x00030000	/* 420: .VUY		*/
+#define	  C0_YUVE_NOSWAP  0x00000000	/* no bytes swapping	*/
+#define	  C0_YUVE_SWAP13  0x00010000	/* swap byte 1 and 3	*/
+#define	  C0_YUVE_SWAP24  0x00020000	/* swap byte 2 and 4	*/
+#define	  C0_YUVE_SWAP1324 0x00030000	/* swap bytes 1&3 and 2&4 */
 /* Bayer bits 18,19 if needed */
+#define	  C0_EOF_VSYNC	  0x00400000	/* Generate EOF by VSYNC */
+#define	  C0_VEDGE_CTRL   0x00800000	/* Detect falling edge of VSYNC */
 #define	  C0_HPOL_LOW	  0x01000000	/* HSYNC polarity active low */
 #define	  C0_VPOL_LOW	  0x02000000	/* VSYNC polarity active low */
 #define	  C0_VCLK_LOW	  0x04000000	/* VCLK on falling edge */
 #define	  C0_DOWNSCALE	  0x08000000	/* Enable downscaler */
-#define	  C0_SIFM_MASK	  0xc0000000	/* SIF mode bits */
+/* SIFMODE */
 #define	  C0_SIF_HVSYNC	  0x00000000	/* Use H/VSYNC */
-#define	  CO_SOF_NOSYNC	  0x40000000	/* Use inband active signaling */
+#define	  C0_SOF_NOSYNC	  0x40000000	/* Use inband active signaling */
+#define	  C0_SIFM_MASK	  0xc0000000	/* SIF mode bits */
 
 /* Bits below C1_444ALPHA are not present in Cafe */
 #define REG_CTRL1	0x40	/* Control 1 */

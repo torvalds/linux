@@ -49,12 +49,10 @@ struct microtune_priv {
 	u32 frequency;
 };
 
-static int microtune_release(struct dvb_frontend *fe)
+static void microtune_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int microtune_get_frequency(struct dvb_frontend *fe, u32 *frequency)
@@ -363,7 +361,7 @@ static int mt2032_set_params(struct dvb_frontend *fe,
 	return ret;
 }
 
-static struct dvb_tuner_ops mt2032_tuner_ops = {
+static const struct dvb_tuner_ops mt2032_tuner_ops = {
 	.set_analog_params = mt2032_set_params,
 	.release           = microtune_release,
 	.get_frequency     = microtune_get_frequency,
@@ -487,13 +485,8 @@ static void mt2050_set_if_freq(struct dvb_frontend *fe,unsigned int freq, unsign
 	buf[5]=div2a;
 	if(num2!=0) buf[5]=buf[5]|0x40;
 
-	if (debug > 1) {
-		int i;
-		tuner_dbg("bufs is: ");
-		for(i=0;i<6;i++)
-			printk("%x ",buf[i]);
-		printk("\n");
-	}
+	if (debug > 1)
+		tuner_dbg("bufs is: %*ph\n", 6, buf);
 
 	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,6);
 	if (ret!=6)
@@ -563,7 +556,7 @@ static int mt2050_set_params(struct dvb_frontend *fe,
 	return ret;
 }
 
-static struct dvb_tuner_ops mt2050_tuner_ops = {
+static const struct dvb_tuner_ops mt2050_tuner_ops = {
 	.set_analog_params = mt2050_set_params,
 	.release           = microtune_release,
 	.get_frequency     = microtune_get_frequency,
@@ -619,15 +612,9 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 
 	tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
 	tuner_i2c_xfer_recv(&priv->i2c_props,buf,21);
-	if (debug) {
-		int i;
-		tuner_dbg("MT20xx hexdump:");
-		for(i=0;i<21;i++) {
-			printk(" %02x",buf[i]);
-			if(((i+1)%8)==0) printk(" ");
-		}
-		printk("\n");
-	}
+	if (debug)
+		tuner_dbg("MT20xx hexdump: %*ph\n", 21, buf);
+
 	company_code = buf[0x11] << 8 | buf[0x12];
 	tuner_info("microtune: companycode=%04x part=%02x rev=%02x\n",
 		   company_code,buf[0x13],buf[0x14]);
@@ -660,11 +647,3 @@ EXPORT_SYMBOL_GPL(microtune_attach);
 MODULE_DESCRIPTION("Microtune tuner driver");
 MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
 MODULE_LICENSE("GPL");
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

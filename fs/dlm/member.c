@@ -60,17 +60,14 @@ void dlm_slots_copy_out(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 #define SLOT_DEBUG_LINE 128
 
-static void log_debug_slots(struct dlm_ls *ls, uint32_t gen, int num_slots,
-			    struct rcom_slot *ro0, struct dlm_slot *array,
-			    int array_size)
+static void log_slots(struct dlm_ls *ls, uint32_t gen, int num_slots,
+		      struct rcom_slot *ro0, struct dlm_slot *array,
+		      int array_size)
 {
 	char line[SLOT_DEBUG_LINE];
 	int len = SLOT_DEBUG_LINE - 1;
 	int pos = 0;
 	int ret, i;
-
-	if (!dlm_config.ci_log_debug)
-		return;
 
 	memset(line, 0, sizeof(line));
 
@@ -95,7 +92,7 @@ static void log_debug_slots(struct dlm_ls *ls, uint32_t gen, int num_slots,
 		}
 	}
 
-	log_debug(ls, "generation %u slots %d%s", gen, num_slots, line);
+	log_rinfo(ls, "generation %u slots %d%s", gen, num_slots, line);
 }
 
 int dlm_slots_copy_in(struct dlm_ls *ls)
@@ -129,7 +126,7 @@ int dlm_slots_copy_in(struct dlm_ls *ls)
 		ro->ro_slot = le16_to_cpu(ro->ro_slot);
 	}
 
-	log_debug_slots(ls, gen, num_slots, ro0, NULL, 0);
+	log_slots(ls, gen, num_slots, ro0, NULL, 0);
 
 	list_for_each_entry(memb, &ls->ls_nodes, list) {
 		for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
@@ -220,8 +217,7 @@ int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
 	}
 
 	array_size = max + need;
-
-	array = kzalloc(array_size * sizeof(struct dlm_slot), GFP_NOFS);
+	array = kcalloc(array_size, sizeof(*array), GFP_NOFS);
 	if (!array)
 		return -ENOMEM;
 
@@ -274,7 +270,7 @@ int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
 
 	gen++;
 
-	log_debug_slots(ls, gen, num, NULL, array, array_size);
+	log_slots(ls, gen, num, NULL, array, array_size);
 
 	max_slots = (dlm_config.ci_buffer_size - sizeof(struct dlm_rcom) -
 		     sizeof(struct rcom_config)) / sizeof(struct rcom_slot);
@@ -322,7 +318,7 @@ static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
 	struct dlm_member *memb;
 	int error;
 
-	memb = kzalloc(sizeof(struct dlm_member), GFP_NOFS);
+	memb = kzalloc(sizeof(*memb), GFP_NOFS);
 	if (!memb)
 		return -ENOMEM;
 
@@ -408,8 +404,7 @@ static void make_member_array(struct dlm_ls *ls)
 	}
 
 	ls->ls_total_weight = total;
-
-	array = kmalloc(sizeof(int) * total, GFP_NOFS);
+	array = kmalloc_array(total, sizeof(*array), GFP_NOFS);
 	if (!array)
 		return;
 
@@ -447,7 +442,7 @@ static int ping_members(struct dlm_ls *ls)
 			break;
 	}
 	if (error)
-		log_debug(ls, "ping_members aborted %d last nodeid %d",
+		log_rinfo(ls, "ping_members aborted %d last nodeid %d",
 			  error, ls->ls_recover_nodeid);
 	return error;
 }
@@ -495,8 +490,7 @@ void dlm_lsop_recover_done(struct dlm_ls *ls)
 		return;
 
 	num = ls->ls_num_nodes;
-
-	slots = kzalloc(num * sizeof(struct dlm_slot), GFP_KERNEL);
+	slots = kcalloc(num, sizeof(*slots), GFP_KERNEL);
 	if (!slots)
 		return;
 
@@ -539,7 +533,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	   count as a negative change so the "neg" recovery steps will happen */
 
 	list_for_each_entry(memb, &ls->ls_nodes_gone, list) {
-		log_debug(ls, "prev removed member %d", memb->nodeid);
+		log_rinfo(ls, "prev removed member %d", memb->nodeid);
 		neg++;
 	}
 
@@ -551,10 +545,10 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 			continue;
 
 		if (!node) {
-			log_debug(ls, "remove member %d", memb->nodeid);
+			log_rinfo(ls, "remove member %d", memb->nodeid);
 		} else {
 			/* removed and re-added */
-			log_debug(ls, "remove member %d comm_seq %u %u",
+			log_rinfo(ls, "remove member %d comm_seq %u %u",
 				  memb->nodeid, memb->comm_seq, node->comm_seq);
 		}
 
@@ -571,7 +565,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 		if (dlm_is_member(ls, node->nodeid))
 			continue;
 		dlm_add_member(ls, node);
-		log_debug(ls, "add member %d", node->nodeid);
+		log_rinfo(ls, "add member %d", node->nodeid);
 	}
 
 	list_for_each_entry(memb, &ls->ls_nodes, list) {
@@ -591,7 +585,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 		complete(&ls->ls_members_done);
 	}
 
-	log_debug(ls, "dlm_recover_members %d nodes", ls->ls_num_nodes);
+	log_rinfo(ls, "dlm_recover_members %d nodes", ls->ls_num_nodes);
 	return error;
 }
 
@@ -676,11 +670,11 @@ int dlm_ls_stop(struct dlm_ls *ls)
 
 int dlm_ls_start(struct dlm_ls *ls)
 {
-	struct dlm_recover *rv = NULL, *rv_old;
+	struct dlm_recover *rv, *rv_old;
 	struct dlm_config_node *nodes;
 	int error, count;
 
-	rv = kzalloc(sizeof(struct dlm_recover), GFP_NOFS);
+	rv = kzalloc(sizeof(*rv), GFP_NOFS);
 	if (!rv)
 		return -ENOMEM;
 

@@ -27,10 +27,6 @@
 #define S3C2410_PA_UART		(0x50000000)
 #define S3C24XX_PA_UART		S3C2410_PA_UART
 
-#ifndef S3C_UART_OFFSET
-#define S3C_UART_OFFSET		(0x400)
-#endif
-
 /*
  * GPIO ports
  *
@@ -65,7 +61,7 @@
 
 /* deal with the registers that move under the 2412/2413 */
 
-#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
+#if defined(CONFIG_CPU_S3C2412)
 #ifndef __ASSEMBLY__
 extern void __iomem *s3c24xx_va_gpio2;
 #endif

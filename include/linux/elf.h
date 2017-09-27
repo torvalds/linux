@@ -15,6 +15,11 @@
 	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 #endif
 
+#ifndef SET_PERSONALITY2
+#define SET_PERSONALITY2(ex, state) \
+	SET_PERSONALITY(ex)
+#endif
+
 #if ELF_CLASS == ELFCLASS32
 
 extern Elf32_Dyn _DYNAMIC [];
@@ -24,6 +29,7 @@ extern Elf32_Dyn _DYNAMIC [];
 #define elf_note	elf32_note
 #define elf_addr_t	Elf32_Off
 #define Elf_Half	Elf32_Half
+#define Elf_Word	Elf32_Word
 
 #else
 
@@ -34,18 +40,19 @@ extern Elf64_Dyn _DYNAMIC [];
 #define elf_note	elf64_note
 #define elf_addr_t	Elf64_Off
 #define Elf_Half	Elf64_Half
+#define Elf_Word	Elf64_Word
 
 #endif
 
 /* Optional callbacks to write extra ELF notes. */
 struct file;
+struct coredump_params;
 
 #ifndef ARCH_HAVE_EXTRA_ELF_NOTES
 static inline int elf_coredump_extra_notes_size(void) { return 0; }
-static inline int elf_coredump_extra_notes_write(struct file *file,
-			loff_t *foffset) { return 0; }
+static inline int elf_coredump_extra_notes_write(struct coredump_params *cprm) { return 0; }
 #else
 extern int elf_coredump_extra_notes_size(void);
-extern int elf_coredump_extra_notes_write(struct file *file, loff_t *foffset);
+extern int elf_coredump_extra_notes_write(struct coredump_params *cprm);
 #endif
 #endif /* _LINUX_ELF_H */

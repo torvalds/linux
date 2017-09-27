@@ -14,10 +14,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __MEDUSA_REGISTERS__
@@ -84,9 +80,9 @@
 #define	ABIST_BIN4_VGA3				0x01D4
 #define	ABIST_BIN5_VGA4				0x01D8
 #define	ABIST_BIN6_VGA5				0x01DC
-#define	ABIST_BIN7_VGA6				0x0x1E0
-#define	ABIST_CLAMP_A				0x0x1E4
-#define	ABIST_CLAMP_B				0x0x1E8
+#define	ABIST_BIN7_VGA6				0x01E0
+#define	ABIST_CLAMP_A				0x01E4
+#define	ABIST_CLAMP_B				0x01E8
 #define	ABIST_CLAMP_C				0x01EC
 #define	ABIST_CLAMP_D				0x01F0
 #define	ABIST_CLAMP_E				0x01F4

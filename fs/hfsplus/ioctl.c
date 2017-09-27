@@ -16,7 +16,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "hfsplus_fs.h"
 
 /*
@@ -26,7 +26,7 @@
 static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
 	struct hfsplus_vh *vh = sbi->s_vhdr;
 	struct hfsplus_vh *bvh = sbi->s_backup_vhdr;
@@ -76,7 +76,7 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 {
 	struct inode *inode = file_inode(file);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
-	unsigned int flags;
+	unsigned int flags, new_fl = 0;
 	int err = 0;
 
 	err = mnt_want_write_file(file);
@@ -93,7 +93,7 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 		goto out_drop_write;
 	}
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	if ((flags & (FS_IMMUTABLE_FL|FS_APPEND_FL)) ||
 	    inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
@@ -110,25 +110,23 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	}
 
 	if (flags & FS_IMMUTABLE_FL)
-		inode->i_flags |= S_IMMUTABLE;
-	else
-		inode->i_flags &= ~S_IMMUTABLE;
+		new_fl |= S_IMMUTABLE;
 
 	if (flags & FS_APPEND_FL)
-		inode->i_flags |= S_APPEND;
-	else
-		inode->i_flags &= ~S_APPEND;
+		new_fl |= S_APPEND;
+
+	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND);
 
 	if (flags & FS_NODUMP_FL)
 		hip->userflags |= HFSPLUS_FLG_NODUMP;
 	else
 		hip->userflags &= ~HFSPLUS_FLG_NODUMP;
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 
 out_unlock_inode:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 out_drop_write:
 	mnt_drop_write_file(file);
 out:

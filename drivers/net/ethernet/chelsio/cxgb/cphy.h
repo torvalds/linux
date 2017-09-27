@@ -11,8 +11,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, write to the Free Software Foundation, Inc.,   *
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.                 *
+ * with this program; if not, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -138,7 +137,7 @@ static inline int simple_mdio_write(struct cphy *cphy, int reg,
 
 /* Convenience initializer */
 static inline void cphy_init(struct cphy *phy, struct net_device *dev,
-			     int phy_addr, struct cphy_ops *phy_ops,
+			     int phy_addr, const struct cphy_ops *phy_ops,
 			     const struct mdio_ops *mdio_ops)
 {
 	struct adapter *adapter = netdev_priv(dev);

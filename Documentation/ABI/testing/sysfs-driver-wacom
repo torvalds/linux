@@ -1,89 +1,72 @@
-WWhat:		/sys/class/hidraw/hidraw*/device/oled*_img
-Date:		June 2012
-Contact:	linux-bluetooth@vger.kernel.org
-Description:
-		The /sys/class/hidraw/hidraw*/device/oled*_img files control
-		OLED mocro displays on Intuos4 Wireless tablet. Accepted image
-		has to contain 256 bytes (64x32 px 1 bit colour). The format
-		is the same as PBM image 62x32px without header (64 bits per
-		horizontal line, 32 lines). An example of setting OLED No. 0:
-		dd bs=256 count=1 if=img_file of=[path to oled0_img]/oled0_img
-		The attribute is read only and no local copy of the image is
-		stored.
-
-What:		/sys/class/hidraw/hidraw*/device/speed
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/speed
 Date:		April 2010
 Kernel Version:	2.6.35
 Contact:	linux-bluetooth@vger.kernel.org
 Description:
-		The /sys/class/hidraw/hidraw*/device/speed file controls
-		reporting speed of Wacom bluetooth tablet. Reading from
-		this file returns 1 if tablet reports in high speed mode
+		The /sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/speed file
+		controls reporting speed of Wacom bluetooth tablet. Reading
+		from this file returns 1 if tablet reports in high speed mode
 		or 0 otherwise. Writing to this file one of these values
 		switches reporting speed.
 
-What:		/sys/class/leds/0005\:056A\:00BD.0001\:selector\:*/
-Date:		May 2012
-Kernel Version:	3.5
-Contact:	linux-bluetooth@vger.kernel.org
-Description:
-		LED selector for Intuos4 WL. There are 4 leds, but only one LED
-		can be lit at a time. Max brightness is 127.
-
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/led
-Date:		August 2011
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/led
+Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
 		Attribute group for control of the status LEDs and the OLEDs.
 		This attribute group is only available for Intuos 4 M, L,
-		and XL (with LEDs and OLEDs), Intuos 5 (LEDs only), and Cintiq
-		21UX2 and Cintiq 24HD (LEDs only). Therefore its presence
-		implicitly signifies the presence of said LEDs and OLEDs on the
-		tablet device.
+		and XL (with LEDs and OLEDs), Intuos 4 WL, Intuos 5 (LEDs only),
+		Intuos Pro (LEDs only) and Cintiq 21UX2 and Cintiq 24HD
+		(LEDs only). Therefore its presence implicitly signifies the
+		presence of said LEDs and OLEDs on the tablet device.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status0_luminance
-Date:		August 2011
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status0_luminance
+Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets the status LED luminance (1..127)
 		when the stylus does not touch the tablet surface, and no
 		button is pressed on the stylus. This luminance level is
 		normally lower than the level when a button is pressed.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status1_luminance
-Date:		August 2011
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status1_luminance
+Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets the status LED luminance (1..127)
 		when the stylus touches the tablet surface, or any button is
 		pressed on the stylus.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led0_select
-Date:		August 2011
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status_led0_select
+Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets which one of the four (for Intuos 4
 		and Intuos 5) or of the right four (for Cintiq 21UX2 and Cintiq
 		24HD) status LEDs is active (0..3). The other three LEDs on the
 		same side are always inactive.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led1_select
-Date:		September 2011
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status_led1_select
+Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets which one of the left four (for Cintiq 21UX2
 		and Cintiq 24HD) status LEDs is active (0..3). The other three LEDs on
 		the left are always inactive.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/buttons_luminance
-Date:		August 2011
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/buttons_luminance
+Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
 		Writing to this file sets the overall luminance level (0..15)
 		of all eight button OLED displays.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/button<n>_rawimg
-Date:		August 2011
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/button<n>_rawimg
+Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
 		When writing a 1024 byte raw image in Wacom Intuos 4
@@ -93,3 +76,28 @@ Description:
 		byte chunk encodes the image data for two consecutive lines on
 		the display. The low nibble of each byte contains the first
 		line, and the high nibble contains the second line.
+		When the Wacom Intuos 4 is connected over Bluetooth, the
+		image has to contain 256 bytes (64x32 px 1 bit colour).
+		The format is also scrambled, like in the USB mode, and it can
+		be summarized by converting 76543210 into GECA6420.
+					    HGFEDCBA      HFDB7531
+
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_remote/unpair_remote
+Date:		July 2015
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing the character sequence '*' followed by a newline to
+		this file will delete all of the current pairings on the
+		device. Other character sequences are reserved. This file is
+		write only.
+
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_remote/<serial_number>/remote_mode
+Date:		July 2015
+Contact:	linux-input@vger.kernel.org
+Description:
+		<obsoleted by the LED class API now exported by the driver>
+		Reading from this file reports the mode status of the
+		remote as indicated by the LED lights on the device. If no
+		reports have been received from the paired device, reading
+		from this file will report '-1'. The mode is read-only
+		and cannot be set through the driver.

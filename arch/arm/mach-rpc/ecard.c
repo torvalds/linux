@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/reboot.h>
@@ -551,8 +552,7 @@ static void ecard_check_lockup(struct irq_desc *desc)
 	}
 }
 
-static void
-ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ecard_irq_handler(struct irq_desc *desc)
 {
 	ecard_t *ec;
 	int called = 0;
@@ -761,19 +761,21 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	return ec;
 }
 
-static ssize_t ecard_show_irq(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t irq_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->irq);
 }
+static DEVICE_ATTR_RO(irq);
 
-static ssize_t ecard_show_dma(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t dma_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->dma);
 }
+static DEVICE_ATTR_RO(dma);
 
-static ssize_t ecard_show_resources(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t resource_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	char *str = buf;
@@ -787,35 +789,39 @@ static ssize_t ecard_show_resources(struct device *dev, struct device_attribute 
 
 	return str - buf;
 }
+static DEVICE_ATTR_RO(resource);
 
-static ssize_t ecard_show_vendor(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t vendor_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->cid.manufacturer);
 }
+static DEVICE_ATTR_RO(vendor);
 
-static ssize_t ecard_show_device(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t device_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%u\n", ec->cid.product);
 }
+static DEVICE_ATTR_RO(device);
 
-static ssize_t ecard_show_type(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	return sprintf(buf, "%s\n", ec->easi ? "EASI" : "IOC");
 }
+static DEVICE_ATTR_RO(type);
 
-static struct device_attribute ecard_dev_attrs[] = {
-	__ATTR(device,   S_IRUGO, ecard_show_device,    NULL),
-	__ATTR(dma,      S_IRUGO, ecard_show_dma,       NULL),
-	__ATTR(irq,      S_IRUGO, ecard_show_irq,       NULL),
-	__ATTR(resource, S_IRUGO, ecard_show_resources, NULL),
-	__ATTR(type,     S_IRUGO, ecard_show_type,      NULL),
-	__ATTR(vendor,   S_IRUGO, ecard_show_vendor,    NULL),
-	__ATTR_NULL,
+static struct attribute *ecard_dev_attrs[] = {
+	&dev_attr_device.attr,
+	&dev_attr_dma.attr,
+	&dev_attr_irq.attr,
+	&dev_attr_resource.attr,
+	&dev_attr_type.attr,
+	&dev_attr_vendor.attr,
+	NULL,
 };
-
+ATTRIBUTE_GROUPS(ecard_dev);
 
 int ecard_request_resources(struct expansion_card *ec)
 {
@@ -946,7 +952,7 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 		irq_set_chip_and_handler(ec->irq, &ecard_chip,
 					 handle_level_irq);
 		irq_set_chip_data(ec->irq, ec);
-		set_irq_flags(ec->irq, IRQF_VALID);
+		irq_clear_status_flags(ec->irq, IRQ_NOREQUEST);
 	}
 
 #ifdef CONFIG_ARCH_RPC
@@ -1120,7 +1126,7 @@ static int ecard_match(struct device *_dev, struct device_driver *_drv)
 
 struct bus_type ecard_bus_type = {
 	.name		= "ecard",
-	.dev_attrs	= ecard_dev_attrs,
+	.dev_groups	= ecard_dev_groups,
 	.match		= ecard_match,
 	.probe		= ecard_drv_probe,
 	.remove		= ecard_drv_remove,

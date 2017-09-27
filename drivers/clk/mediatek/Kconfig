@@ -1,0 +1,99 @@
+#
+# MediaTek SoC drivers
+#
+config COMMON_CLK_MEDIATEK
+	bool
+	---help---
+	  Mediatek SoCs' clock support.
+
+config COMMON_CLK_MT2701
+	bool "Clock driver for Mediatek MT2701"
+	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK && ARM
+	---help---
+	  This driver supports Mediatek MT2701 basic clocks.
+
+config COMMON_CLK_MT2701_MMSYS
+	bool "Clock driver for Mediatek MT2701 mmsys"
+	depends on COMMON_CLK_MT2701
+	---help---
+	  This driver supports Mediatek MT2701 mmsys clocks.
+
+config COMMON_CLK_MT2701_IMGSYS
+	bool "Clock driver for Mediatek MT2701 imgsys"
+	depends on COMMON_CLK_MT2701
+	---help---
+	  This driver supports Mediatek MT2701 imgsys clocks.
+
+config COMMON_CLK_MT2701_VDECSYS
+	bool "Clock driver for Mediatek MT2701 vdecsys"
+	depends on COMMON_CLK_MT2701
+	---help---
+	  This driver supports Mediatek MT2701 vdecsys clocks.
+
+config COMMON_CLK_MT2701_HIFSYS
+	bool "Clock driver for Mediatek MT2701 hifsys"
+	depends on COMMON_CLK_MT2701
+	---help---
+	  This driver supports Mediatek MT2701 hifsys clocks.
+
+config COMMON_CLK_MT2701_ETHSYS
+	bool "Clock driver for Mediatek MT2701 ethsys"
+	depends on COMMON_CLK_MT2701
+	---help---
+	  This driver supports Mediatek MT2701 ethsys clocks.
+
+config COMMON_CLK_MT2701_BDPSYS
+	bool "Clock driver for Mediatek MT2701 bdpsys"
+	depends on COMMON_CLK_MT2701
+	---help---
+	  This driver supports Mediatek MT2701 bdpsys clocks.
+
+config COMMON_CLK_MT6797
+       bool "Clock driver for Mediatek MT6797"
+       depends on (ARCH_MEDIATEK && ARM64) || COMPILE_TEST
+       select COMMON_CLK_MEDIATEK
+       default ARCH_MEDIATEK && ARM64
+       ---help---
+         This driver supports Mediatek MT6797 basic clocks.
+
+config COMMON_CLK_MT6797_MMSYS
+       bool "Clock driver for Mediatek MT6797 mmsys"
+       depends on COMMON_CLK_MT6797
+       ---help---
+         This driver supports Mediatek MT6797 mmsys clocks.
+
+config COMMON_CLK_MT6797_IMGSYS
+       bool "Clock driver for Mediatek MT6797 imgsys"
+       depends on COMMON_CLK_MT6797
+       ---help---
+         This driver supports Mediatek MT6797 imgsys clocks.
+
+config COMMON_CLK_MT6797_VDECSYS
+       bool "Clock driver for Mediatek MT6797 vdecsys"
+       depends on COMMON_CLK_MT6797
+       ---help---
+         This driver supports Mediatek MT6797 vdecsys clocks.
+
+config COMMON_CLK_MT6797_VENCSYS
+       bool "Clock driver for Mediatek MT6797 vencsys"
+       depends on COMMON_CLK_MT6797
+       ---help---
+         This driver supports Mediatek MT6797 vencsys clocks.
+
+config COMMON_CLK_MT8135
+	bool "Clock driver for Mediatek MT8135"
+	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK && ARM
+	---help---
+	  This driver supports Mediatek MT8135 clocks.
+
+config COMMON_CLK_MT8173
+	bool "Clock driver for Mediatek MT8173"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK
+	---help---
+	  This driver supports Mediatek MT8173 clocks.

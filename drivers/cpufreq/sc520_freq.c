@@ -13,6 +13,8 @@
  *	2005-03-30: - initial revision
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -30,12 +32,10 @@
 
 static __u8 __iomem *cpuctl;
 
-#define PFX "sc520_freq: "
-
 static struct cpufreq_frequency_table sc520_freq_table[] = {
-	{0x01,	100000},
-	{0x02,	133000},
-	{0,	CPUFREQ_TABLE_END},
+	{0, 0x01,	100000},
+	{0, 0x02,	133000},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
@@ -44,8 +44,8 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 
 	switch (clockspeed_reg & 0x03) {
 	default:
-		printk(KERN_ERR PFX "error: cpuctl register has unexpected "
-				"value %02x\n", clockspeed_reg);
+		pr_err("error: cpuctl register has unexpected value %02x\n",
+		       clockspeed_reg);
 	case 0x01:
 		return 100000;
 	case 0x02:
@@ -53,20 +53,10 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 	}
 }
 
-static void sc520_freq_set_cpu_state(struct cpufreq_policy *policy,
-		unsigned int state)
+static int sc520_freq_target(struct cpufreq_policy *policy, unsigned int state)
 {
 
-	struct cpufreq_freqs	freqs;
 	u8 clockspeed_reg;
-
-	freqs.old = sc520_freq_get_cpu_frequency(0);
-	freqs.new = sc520_freq_table[state].frequency;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
-	pr_debug("attempting to set frequency to %i kHz\n",
-			sc520_freq_table[state].frequency);
 
 	local_irq_disable();
 
@@ -75,29 +65,8 @@ static void sc520_freq_set_cpu_state(struct cpufreq_policy *policy,
 
 	local_irq_enable();
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-};
-
-static int sc520_freq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, &sc520_freq_table[0]);
-}
-
-static int sc520_freq_target(struct cpufreq_policy *policy,
-			    unsigned int target_freq,
-			    unsigned int relation)
-{
-	unsigned int newstate = 0;
-
-	if (cpufreq_frequency_table_target(policy, sc520_freq_table,
-				target_freq, relation, &newstate))
-		return -EINVAL;
-
-	sc520_freq_set_cpu_state(policy, newstate);
-
 	return 0;
 }
-
 
 /*
  *	Module init and exit code
@@ -106,7 +75,6 @@ static int sc520_freq_target(struct cpufreq_policy *policy,
 static int sc520_freq_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
-	int result;
 
 	/* capability check */
 	if (c->x86_vendor != X86_VENDOR_AMD ||
@@ -115,40 +83,18 @@ static int sc520_freq_cpu_init(struct cpufreq_policy *policy)
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = 1000000; /* 1ms */
-	policy->cur = sc520_freq_get_cpu_frequency(0);
 
-	result = cpufreq_frequency_table_cpuinfo(policy, sc520_freq_table);
-	if (result)
-		return result;
-
-	cpufreq_frequency_table_get_attr(sc520_freq_table, policy->cpu);
-
-	return 0;
+	return cpufreq_table_validate_and_show(policy, sc520_freq_table);
 }
-
-
-static int sc520_freq_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-
-static struct freq_attr *sc520_freq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
 
 
 static struct cpufreq_driver sc520_freq_driver = {
 	.get	= sc520_freq_get_cpu_frequency,
-	.verify	= sc520_freq_verify,
-	.target	= sc520_freq_target,
+	.verify	= cpufreq_generic_frequency_table_verify,
+	.target_index = sc520_freq_target,
 	.init	= sc520_freq_cpu_init,
-	.exit	= sc520_freq_cpu_exit,
 	.name	= "sc520_freq",
-	.owner	= THIS_MODULE,
-	.attr	= sc520_freq_attr,
+	.attr	= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id sc520_ids[] = {
@@ -166,7 +112,7 @@ static int __init sc520_freq_init(void)
 
 	cpuctl = ioremap((unsigned long)(MMCR_BASE + OFFS_CPUCTL), 1);
 	if (!cpuctl) {
-		printk(KERN_ERR "sc520_freq: error: failed to remap memory\n");
+		pr_err("sc520_freq: error: failed to remap memory\n");
 		return -ENOMEM;
 	}
 

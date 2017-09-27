@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/mod_devicetable.h>
+#include <linux/console.h>
 
 #define PNP_NAME_LEN		50
 
@@ -309,15 +310,22 @@ struct pnp_fixup {
 #define PNP_DISABLE		0x0004
 #define PNP_CONFIGURABLE	0x0008
 #define PNP_REMOVABLE		0x0010
+#define PNP_CONSOLE		0x0020
 
 #define pnp_can_read(dev)	(((dev)->protocol->get) && \
 				 ((dev)->capabilities & PNP_READ))
 #define pnp_can_write(dev)	(((dev)->protocol->set) && \
 				 ((dev)->capabilities & PNP_WRITE))
-#define pnp_can_disable(dev)	(((dev)->protocol->disable) && \
-				 ((dev)->capabilities & PNP_DISABLE))
+#define pnp_can_disable(dev)	(((dev)->protocol->disable) &&		  \
+				 ((dev)->capabilities & PNP_DISABLE) &&	  \
+				 (!((dev)->capabilities & PNP_CONSOLE) || \
+				  console_suspend_enabled))
 #define pnp_can_configure(dev)	((!(dev)->active) && \
 				 ((dev)->capabilities & PNP_CONFIGURABLE))
+#define pnp_can_suspend(dev)	(((dev)->protocol->suspend) &&		  \
+				 (!((dev)->capabilities & PNP_CONSOLE) || \
+				  console_suspend_enabled))
+
 
 #ifdef CONFIG_ISAPNP
 extern struct pnp_protocol isapnp_protocol;
@@ -329,9 +337,11 @@ extern struct mutex pnp_res_mutex;
 
 #ifdef CONFIG_PNPBIOS
 extern struct pnp_protocol pnpbios_protocol;
+extern bool arch_pnpbios_disabled(void);
 #define pnp_device_is_pnpbios(dev) ((dev)->protocol == (&pnpbios_protocol))
 #else
 #define pnp_device_is_pnpbios(dev) 0
+#define arch_pnpbios_disabled()	false
 #endif
 
 #ifdef CONFIG_PNPACPI
@@ -501,5 +511,17 @@ static inline int pnp_register_driver(struct pnp_driver *drv) { return -ENODEV; 
 static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
 
 #endif /* CONFIG_PNP */
+
+/**
+ * module_pnp_driver() - Helper macro for registering a PnP driver
+ * @__pnp_driver: pnp_driver struct
+ *
+ * Helper macro for PnP drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_pnp_driver(__pnp_driver) \
+	module_driver(__pnp_driver, pnp_register_driver, \
+				    pnp_unregister_driver)
 
 #endif /* _LINUX_PNP_H */

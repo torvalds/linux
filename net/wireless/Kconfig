@@ -50,8 +50,8 @@ config CFG80211_DEVELOPER_WARNINGS
 	default n
 	help
 	  This option enables some additional warnings that help
-	  cfg80211 developers and driver developers, but that can
-	  trigger due to races with userspace.
+	  cfg80211 developers and driver developers, but beware that
+	  they can also trigger due to races with userspace.
 
 	  For example, when a driver reports that it was disconnected
 	  from the AP, but the user disconnects manually at the same
@@ -60,19 +60,6 @@ config CFG80211_DEVELOPER_WARNINGS
 	  Say Y only if you are developing cfg80211 or a driver based
 	  on it (or mac80211).
 
-
-config CFG80211_REG_DEBUG
-	bool "cfg80211 regulatory debugging"
-	depends on CFG80211
-	default n
-	---help---
-	  You can enable this if you want to debug regulatory changes.
-	  For more information on cfg80211 regulatory refer to the wireless
-	  wiki:
-
-	  http://wireless.kernel.org/en/developers/Regulatory
-
-	  If unsure, say N.
 
 config CFG80211_CERTIFICATION_ONUS
 	bool "cfg80211 certification onus"
@@ -95,6 +82,43 @@ config CFG80211_CERTIFICATION_ONUS
 	  you are a wireless researcher and are working in a controlled
 	  and approved environment by your local regulatory agency.
 
+config CFG80211_REG_CELLULAR_HINTS
+	bool "cfg80211 regulatory support for cellular base station hints"
+	depends on CFG80211_CERTIFICATION_ONUS
+	---help---
+	  This option enables support for parsing regulatory hints
+	  from cellular base stations. If enabled and at least one driver
+	  claims support for parsing cellular base station hints the
+	  regulatory core will allow and parse these regulatory hints.
+	  The regulatory core will only apply these regulatory hints on
+	  drivers that support this feature. You should only enable this
+	  feature if you have tested and validated this feature on your
+	  systems.
+
+config CFG80211_REG_RELAX_NO_IR
+	bool "cfg80211 support for NO_IR relaxation"
+	depends on CFG80211_CERTIFICATION_ONUS
+	---help---
+	 This option enables support for relaxation of the NO_IR flag for
+	 situations that certain regulatory bodies have provided clarifications
+	 on how relaxation can occur. This feature has an inherent dependency on
+	 userspace features which must have been properly tested and as such is
+	 not enabled by default.
+
+	 A relaxation feature example is allowing the operation of a P2P group
+	 owner (GO) on channels marked with NO_IR if there is an additional BSS
+	 interface which associated to an AP which userspace assumes or confirms
+	 to be an authorized master, i.e., with radar detection support and DFS
+	 capabilities. However, note that in order to not create daisy chain
+	 scenarios, this relaxation is not allowed in cases where the BSS client
+	 is associated to P2P GO and in addition the P2P GO instantiated on
+	 a channel due to this relaxation should not allow connection from
+	 non P2P clients.
+
+	 The regulatory core will apply these relaxations only for drivers that
+	 support this feature by declaring the appropriate channel flags and
+	 capabilities in their registration flow.
+
 config CFG80211_DEFAULT_PS
 	bool "enable powersave by default"
 	depends on CFG80211
@@ -111,7 +135,7 @@ config CFG80211_DEBUGFS
 	depends on CFG80211
 	depends on DEBUG_FS
 	---help---
-	  You can enable this if you want to debugfs entries for cfg80211.
+	  You can enable this if you want debugfs entries for cfg80211.
 
 	  If unsure, say N.
 
@@ -122,22 +146,46 @@ config CFG80211_INTERNAL_REGDB
 	---help---
 	  This option generates an internal data structure representing
 	  the wireless regulatory rules described in net/wireless/db.txt
-	  and includes code to query that database.  This is an alternative
+	  and includes code to query that database. This is an alternative
 	  to using CRDA for defining regulatory rules for the kernel.
+
+	  Using this option requires some parsing of the db.txt at build time,
+	  the parser will be upkept with the latest wireless-regdb updates but
+	  older wireless-regdb formats will be ignored. The parser may later
+	  be replaced to avoid issues with conflicts on versions of
+	  wireless-regdb.
 
 	  For details see:
 
 	  http://wireless.kernel.org/en/developers/Regulatory
 
-	  Most distributions have a CRDA package.  So if unsure, say N.
+	  Most distributions have a CRDA package. So if unsure, say N.
+
+config CFG80211_CRDA_SUPPORT
+	bool "support CRDA" if CFG80211_INTERNAL_REGDB
+	default y
+	depends on CFG80211
+	help
+	  You should enable this option unless you know for sure you have no
+	  need for it, for example when using internal regdb (above.)
+
+	  If unsure, say Y.
 
 config CFG80211_WEXT
-	bool "cfg80211 wireless extensions compatibility"
+	bool "cfg80211 wireless extensions compatibility" if !CFG80211_WEXT_EXPORT
 	depends on CFG80211
 	select WEXT_CORE
+	default y if CFG80211_WEXT_EXPORT
 	help
 	  Enable this option if you need old userspace for wireless
 	  extensions with cfg80211-based drivers.
+
+config CFG80211_WEXT_EXPORT
+	bool
+	depends on CFG80211
+	help
+	  Drivers should select this option if they require cfg80211's
+	  wext compatibility symbols to be exported.
 
 config LIB80211
 	tristate

@@ -174,7 +174,7 @@ DPRINTK(KERN_DEBUG "read_status %02x\n", status);
 	return status;
 }
 
-static int use_cnt = 0;
+static int use_cnt;
 
 static irqreturn_t mfc3_interrupt(int irq, void *dev_id)
 {
@@ -300,7 +300,7 @@ static int __init parport_mfc3_init(void)
 		if (!request_mem_region(piabase, sizeof(struct pia), "PIA"))
 			continue;
 
-		pp = (struct pia *)ZTWO_VADDR(piabase);
+		pp = ZTWO_VADDR(piabase);
 		pp->crb = 0;
 		pp->pddrb = 255; /* all data pins output */
 		pp->crb = PIA_DDR|32|8;

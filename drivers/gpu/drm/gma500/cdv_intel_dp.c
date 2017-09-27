@@ -34,7 +34,203 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
+#include "gma_display.h"
 #include <drm/drm_dp_helper.h>
+
+/**
+ * struct i2c_algo_dp_aux_data - driver interface structure for i2c over dp
+ * 				 aux algorithm
+ * @running: set by the algo indicating whether an i2c is ongoing or whether
+ * 	     the i2c bus is quiescent
+ * @address: i2c target address for the currently ongoing transfer
+ * @aux_ch: driver callback to transfer a single byte of the i2c payload
+ */
+struct i2c_algo_dp_aux_data {
+	bool running;
+	u16 address;
+	int (*aux_ch) (struct i2c_adapter *adapter,
+		       int mode, uint8_t write_byte,
+		       uint8_t *read_byte);
+};
+
+/* Run a single AUX_CH I2C transaction, writing/reading data as necessary */
+static int
+i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
+			    uint8_t write_byte, uint8_t *read_byte)
+{
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
+	int ret;
+
+	ret = (*algo_data->aux_ch)(adapter, mode,
+				   write_byte, read_byte);
+	return ret;
+}
+
+/*
+ * I2C over AUX CH
+ */
+
+/*
+ * Send the address. If the I2C link is running, this 'restarts'
+ * the connection with the new address, this is used for doing
+ * a write followed by a read (as needed for DDC)
+ */
+static int
+i2c_algo_dp_aux_address(struct i2c_adapter *adapter, u16 address, bool reading)
+{
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
+	int mode = MODE_I2C_START;
+	int ret;
+
+	if (reading)
+		mode |= MODE_I2C_READ;
+	else
+		mode |= MODE_I2C_WRITE;
+	algo_data->address = address;
+	algo_data->running = true;
+	ret = i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
+	return ret;
+}
+
+/*
+ * Stop the I2C transaction. This closes out the link, sending
+ * a bare address packet with the MOT bit turned off
+ */
+static void
+i2c_algo_dp_aux_stop(struct i2c_adapter *adapter, bool reading)
+{
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
+	int mode = MODE_I2C_STOP;
+
+	if (reading)
+		mode |= MODE_I2C_READ;
+	else
+		mode |= MODE_I2C_WRITE;
+	if (algo_data->running) {
+		(void) i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
+		algo_data->running = false;
+	}
+}
+
+/*
+ * Write a single byte to the current I2C address, the
+ * the I2C link must be running or this returns -EIO
+ */
+static int
+i2c_algo_dp_aux_put_byte(struct i2c_adapter *adapter, u8 byte)
+{
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
+	int ret;
+
+	if (!algo_data->running)
+		return -EIO;
+
+	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_WRITE, byte, NULL);
+	return ret;
+}
+
+/*
+ * Read a single byte from the current I2C address, the
+ * I2C link must be running or this returns -EIO
+ */
+static int
+i2c_algo_dp_aux_get_byte(struct i2c_adapter *adapter, u8 *byte_ret)
+{
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
+	int ret;
+
+	if (!algo_data->running)
+		return -EIO;
+
+	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_READ, 0, byte_ret);
+	return ret;
+}
+
+static int
+i2c_algo_dp_aux_xfer(struct i2c_adapter *adapter,
+		     struct i2c_msg *msgs,
+		     int num)
+{
+	int ret = 0;
+	bool reading = false;
+	int m;
+	int b;
+
+	for (m = 0; m < num; m++) {
+		u16 len = msgs[m].len;
+		u8 *buf = msgs[m].buf;
+		reading = (msgs[m].flags & I2C_M_RD) != 0;
+		ret = i2c_algo_dp_aux_address(adapter, msgs[m].addr, reading);
+		if (ret < 0)
+			break;
+		if (reading) {
+			for (b = 0; b < len; b++) {
+				ret = i2c_algo_dp_aux_get_byte(adapter, &buf[b]);
+				if (ret < 0)
+					break;
+			}
+		} else {
+			for (b = 0; b < len; b++) {
+				ret = i2c_algo_dp_aux_put_byte(adapter, buf[b]);
+				if (ret < 0)
+					break;
+			}
+		}
+		if (ret < 0)
+			break;
+	}
+	if (ret >= 0)
+		ret = num;
+	i2c_algo_dp_aux_stop(adapter, reading);
+	DRM_DEBUG_KMS("dp_aux_xfer return %d\n", ret);
+	return ret;
+}
+
+static u32
+i2c_algo_dp_aux_functionality(struct i2c_adapter *adapter)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+	       I2C_FUNC_SMBUS_READ_BLOCK_DATA |
+	       I2C_FUNC_SMBUS_BLOCK_PROC_CALL |
+	       I2C_FUNC_10BIT_ADDR;
+}
+
+static const struct i2c_algorithm i2c_dp_aux_algo = {
+	.master_xfer	= i2c_algo_dp_aux_xfer,
+	.functionality	= i2c_algo_dp_aux_functionality,
+};
+
+static void
+i2c_dp_aux_reset_bus(struct i2c_adapter *adapter)
+{
+	(void) i2c_algo_dp_aux_address(adapter, 0, false);
+	(void) i2c_algo_dp_aux_stop(adapter, false);
+}
+
+static int
+i2c_dp_aux_prepare_bus(struct i2c_adapter *adapter)
+{
+	adapter->algo = &i2c_dp_aux_algo;
+	adapter->retries = 3;
+	i2c_dp_aux_reset_bus(adapter);
+	return 0;
+}
+
+/*
+ * FIXME: This is the old dp aux helper, gma500 is the last driver that needs to
+ * be ported over to the new helper code in drm_dp_helper.c like i915 or radeon.
+ */
+static int
+i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
+{
+	int error;
+
+	error = i2c_dp_aux_prepare_bus(adapter);
+	if (error)
+		return error;
+	error = i2c_add_adapter(adapter);
+	return error;
+}
 
 #define _wait_for(COND, MS, W) ({ \
         unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);       \
@@ -51,7 +247,6 @@
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 
-#define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
 #define DP_LINK_CONFIGURATION_SIZE	9
@@ -68,7 +263,7 @@ struct cdv_intel_dp {
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[4];
-	struct psb_intel_encoder *encoder;
+	struct gma_encoder *encoder;
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
 	uint8_t	train_set[4];
@@ -114,18 +309,18 @@ static uint32_t dp_vswing_premph_table[] = {
  * If a CPU or PCH DP output is attached to an eDP panel, this function
  * will return true, and false otherwise.
  */
-static bool is_edp(struct psb_intel_encoder *encoder)
+static bool is_edp(struct gma_encoder *encoder)
 {
 	return encoder->type == INTEL_OUTPUT_EDP;
 }
 
 
-static void cdv_intel_dp_start_link_train(struct psb_intel_encoder *encoder);
-static void cdv_intel_dp_complete_link_train(struct psb_intel_encoder *encoder);
-static void cdv_intel_dp_link_down(struct psb_intel_encoder *encoder);
+static void cdv_intel_dp_start_link_train(struct gma_encoder *encoder);
+static void cdv_intel_dp_complete_link_train(struct gma_encoder *encoder);
+static void cdv_intel_dp_link_down(struct gma_encoder *encoder);
 
 static int
-cdv_intel_dp_max_lane_count(struct psb_intel_encoder *encoder)
+cdv_intel_dp_max_lane_count(struct gma_encoder *encoder)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_lane_count = 4;
@@ -143,7 +338,7 @@ cdv_intel_dp_max_lane_count(struct psb_intel_encoder *encoder)
 }
 
 static int
-cdv_intel_dp_max_link_bw(struct psb_intel_encoder *encoder)
+cdv_intel_dp_max_link_bw(struct gma_encoder *encoder)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
@@ -180,7 +375,7 @@ cdv_intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 	return (max_link_clock * max_lanes * 19) / 20;
 }
 
-static void cdv_intel_edp_panel_vdd_on(struct psb_intel_encoder *intel_encoder)
+static void cdv_intel_edp_panel_vdd_on(struct gma_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
@@ -200,7 +395,7 @@ static void cdv_intel_edp_panel_vdd_on(struct psb_intel_encoder *intel_encoder)
 	msleep(intel_dp->panel_power_up_delay);
 }
 
-static void cdv_intel_edp_panel_vdd_off(struct psb_intel_encoder *intel_encoder)
+static void cdv_intel_edp_panel_vdd_off(struct gma_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	u32 pp;
@@ -215,7 +410,7 @@ static void cdv_intel_edp_panel_vdd_off(struct psb_intel_encoder *intel_encoder)
 }
 
 /* Returns true if the panel was already on when called */
-static bool cdv_intel_edp_panel_on(struct psb_intel_encoder *intel_encoder)
+static bool cdv_intel_edp_panel_on(struct gma_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
@@ -242,7 +437,7 @@ static bool cdv_intel_edp_panel_on(struct psb_intel_encoder *intel_encoder)
 	return false;
 }
 
-static void cdv_intel_edp_panel_off (struct psb_intel_encoder *intel_encoder)
+static void cdv_intel_edp_panel_off (struct gma_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	u32 pp, idle_off_mask = PP_ON ;
@@ -274,7 +469,7 @@ static void cdv_intel_edp_panel_off (struct psb_intel_encoder *intel_encoder)
 	DRM_DEBUG_KMS("Over\n");
 }
 
-static void cdv_intel_edp_backlight_on (struct psb_intel_encoder *intel_encoder)
+static void cdv_intel_edp_backlight_on (struct gma_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	u32 pp;
@@ -294,7 +489,7 @@ static void cdv_intel_edp_backlight_on (struct psb_intel_encoder *intel_encoder)
 	gma_backlight_enable(dev);
 }
 
-static void cdv_intel_edp_backlight_off (struct psb_intel_encoder *intel_encoder)
+static void cdv_intel_edp_backlight_off (struct gma_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
@@ -314,7 +509,7 @@ static int
 cdv_intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct gma_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_link_clock = cdv_intel_dp_link_clock(cdv_intel_dp_max_link_bw(encoder));
 	int max_lanes = cdv_intel_dp_max_lane_count(encoder);
@@ -370,7 +565,7 @@ unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
 }
 
 static int
-cdv_intel_dp_aux_ch(struct psb_intel_encoder *encoder,
+cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 		uint8_t *send, int send_bytes,
 		uint8_t *recv, int recv_size)
 {
@@ -472,7 +667,7 @@ cdv_intel_dp_aux_ch(struct psb_intel_encoder *encoder,
 
 /* Write data to the aux channel in native mode */
 static int
-cdv_intel_dp_aux_native_write(struct psb_intel_encoder *encoder,
+cdv_intel_dp_aux_native_write(struct gma_encoder *encoder,
 			  uint16_t address, uint8_t *send, int send_bytes)
 {
 	int ret;
@@ -482,7 +677,7 @@ cdv_intel_dp_aux_native_write(struct psb_intel_encoder *encoder,
 
 	if (send_bytes > 16)
 		return -1;
-	msg[0] = AUX_NATIVE_WRITE << 4;
+	msg[0] = DP_AUX_NATIVE_WRITE << 4;
 	msg[1] = address >> 8;
 	msg[2] = address & 0xff;
 	msg[3] = send_bytes - 1;
@@ -492,9 +687,10 @@ cdv_intel_dp_aux_native_write(struct psb_intel_encoder *encoder,
 		ret = cdv_intel_dp_aux_ch(encoder, msg, msg_bytes, &ack, 1);
 		if (ret < 0)
 			return ret;
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+		ack >>= 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
 			break;
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
 			udelay(100);
 		else
 			return -EIO;
@@ -504,7 +700,7 @@ cdv_intel_dp_aux_native_write(struct psb_intel_encoder *encoder,
 
 /* Write a single byte to the aux channel in native mode */
 static int
-cdv_intel_dp_aux_native_write_1(struct psb_intel_encoder *encoder,
+cdv_intel_dp_aux_native_write_1(struct gma_encoder *encoder,
 			    uint16_t address, uint8_t byte)
 {
 	return cdv_intel_dp_aux_native_write(encoder, address, &byte, 1);
@@ -512,7 +708,7 @@ cdv_intel_dp_aux_native_write_1(struct psb_intel_encoder *encoder,
 
 /* read bytes from a native aux channel */
 static int
-cdv_intel_dp_aux_native_read(struct psb_intel_encoder *encoder,
+cdv_intel_dp_aux_native_read(struct gma_encoder *encoder,
 			 uint16_t address, uint8_t *recv, int recv_bytes)
 {
 	uint8_t msg[4];
@@ -522,7 +718,7 @@ cdv_intel_dp_aux_native_read(struct psb_intel_encoder *encoder,
 	uint8_t ack;
 	int ret;
 
-	msg[0] = AUX_NATIVE_READ << 4;
+	msg[0] = DP_AUX_NATIVE_READ << 4;
 	msg[1] = address >> 8;
 	msg[2] = address & 0xff;
 	msg[3] = recv_bytes - 1;
@@ -537,12 +733,12 @@ cdv_intel_dp_aux_native_read(struct psb_intel_encoder *encoder,
 			return -EPROTO;
 		if (ret < 0)
 			return ret;
-		ack = reply[0];
-		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK) {
+		ack = reply[0] >> 4;
+		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK) {
 			memcpy(recv, reply + 1, ret - 1);
 			return ret - 1;
 		}
-		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
 			udelay(100);
 		else
 			return -EIO;
@@ -557,7 +753,7 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	struct cdv_intel_dp *intel_dp = container_of(adapter,
 						struct cdv_intel_dp,
 						adapter);
-	struct psb_intel_encoder *encoder = intel_dp->encoder;
+	struct gma_encoder *encoder = intel_dp->encoder;
 	uint16_t address = algo_data->address;
 	uint8_t msg[5];
 	uint8_t reply[2];
@@ -568,12 +764,12 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
-		msg[0] = AUX_I2C_READ << 4;
+		msg[0] = DP_AUX_I2C_READ << 4;
 	else
-		msg[0] = AUX_I2C_WRITE << 4;
+		msg[0] = DP_AUX_I2C_WRITE << 4;
 
 	if (!(mode & MODE_I2C_STOP))
-		msg[0] |= AUX_I2C_MOT << 4;
+		msg[0] |= DP_AUX_I2C_MOT << 4;
 
 	msg[1] = address >> 8;
 	msg[2] = address;
@@ -605,16 +801,16 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return ret;
 		}
 
-		switch (reply[0] & AUX_NATIVE_REPLY_MASK) {
-		case AUX_NATIVE_REPLY_ACK:
+		switch ((reply[0] >> 4) & DP_AUX_NATIVE_REPLY_MASK) {
+		case DP_AUX_NATIVE_REPLY_ACK:
 			/* I2C-over-AUX Reply field is only valid
 			 * when paired with AUX ACK.
 			 */
 			break;
-		case AUX_NATIVE_REPLY_NACK:
+		case DP_AUX_NATIVE_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_ch native nack\n");
 			return -EREMOTEIO;
-		case AUX_NATIVE_REPLY_DEFER:
+		case DP_AUX_NATIVE_REPLY_DEFER:
 			udelay(100);
 			continue;
 		default:
@@ -623,16 +819,16 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			return -EREMOTEIO;
 		}
 
-		switch (reply[0] & AUX_I2C_REPLY_MASK) {
-		case AUX_I2C_REPLY_ACK:
+		switch ((reply[0] >> 4) & DP_AUX_I2C_REPLY_MASK) {
+		case DP_AUX_I2C_REPLY_ACK:
 			if (mode == MODE_I2C_READ) {
 				*read_byte = reply[1];
 			}
 			return reply_bytes - 1;
-		case AUX_I2C_REPLY_NACK:
+		case DP_AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
 			return -EREMOTEIO;
-		case AUX_I2C_REPLY_DEFER:
+		case DP_AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
 			udelay(100);
 			break;
@@ -647,7 +843,8 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 }
 
 static int
-cdv_intel_dp_i2c_init(struct psb_intel_connector *connector, struct psb_intel_encoder *encoder, const char *name)
+cdv_intel_dp_i2c_init(struct gma_connector *connector,
+		      struct gma_encoder *encoder, const char *name)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
@@ -664,7 +861,7 @@ cdv_intel_dp_i2c_init(struct psb_intel_connector *connector, struct psb_intel_en
 	strncpy (intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
-	intel_dp->adapter.dev.parent = &connector->base.kdev;
+	intel_dp->adapter.dev.parent = connector->base.kdev;
 
 	if (is_edp(encoder))
 		cdv_intel_edp_panel_vdd_on(encoder);
@@ -675,7 +872,7 @@ cdv_intel_dp_i2c_init(struct psb_intel_connector *connector, struct psb_intel_en
 	return ret;
 }
 
-void cdv_intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+static void cdv_intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 	struct drm_display_mode *adjusted_mode)
 {
 	adjusted_mode->hdisplay = fixed_mode->hdisplay;
@@ -698,7 +895,7 @@ cdv_intel_dp_mode_fixup(struct drm_encoder *encoder, const struct drm_display_mo
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct drm_psb_private *dev_priv = encoder->dev->dev_private;
-	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	int lane_count, clock;
 	int max_lane_count = cdv_intel_dp_max_lane_count(intel_encoder);
@@ -792,22 +989,22 @@ cdv_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_encoder *encoder;
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int lane_count = 4, bpp = 24;
 	struct cdv_intel_dp_m_n m_n;
-	int pipe = intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 
 	/*
 	 * Find the lane count in the intel_encoder private
 	 */
 	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		struct psb_intel_encoder *intel_encoder;
+		struct gma_encoder *intel_encoder;
 		struct cdv_intel_dp *intel_dp;
 
 		if (encoder->crtc != crtc)
 			continue;
 
-		intel_encoder = to_psb_intel_encoder(encoder);
+		intel_encoder = to_gma_encoder(encoder);
 		intel_dp = intel_encoder->dev_priv;
 		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
 			lane_count = intel_dp->lane_count;
@@ -841,9 +1038,9 @@ static void
 cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
 {
-	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	struct drm_device *dev = encoder->dev;
 
@@ -885,7 +1082,7 @@ cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 	}
 
 	/* CPT DP's pipe select is decided in TRANS_DP_CTL */
-	if (intel_crtc->pipe == 1)
+	if (gma_crtc->pipe == 1)
 		intel_dp->DP |= DP_PIPEB_SELECT;
 
 	REG_WRITE(intel_dp->output_reg, (intel_dp->DP | DP_PORT_EN));
@@ -900,7 +1097,7 @@ cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 		else
 			pfit_control = 0;
 
-		pfit_control |= intel_crtc->pipe << PFIT_PIPE_SHIFT;
+		pfit_control |= gma_crtc->pipe << PFIT_PIPE_SHIFT;
 
 		REG_WRITE(PFIT_CONTROL, pfit_control);
 	}
@@ -908,7 +1105,7 @@ cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 
 
 /* If the sink supports it, try to set the power state appropriately */
-static void cdv_intel_dp_sink_dpms(struct psb_intel_encoder *encoder, int mode)
+static void cdv_intel_dp_sink_dpms(struct gma_encoder *encoder, int mode)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret, i;
@@ -940,7 +1137,7 @@ static void cdv_intel_dp_sink_dpms(struct psb_intel_encoder *encoder, int mode)
 
 static void cdv_intel_dp_prepare(struct drm_encoder *encoder)
 {
-	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 	int edp = is_edp(intel_encoder);
 
 	if (edp) {
@@ -957,7 +1154,7 @@ static void cdv_intel_dp_prepare(struct drm_encoder *encoder)
 
 static void cdv_intel_dp_commit(struct drm_encoder *encoder)
 {
-	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 	int edp = is_edp(intel_encoder);
 
 	if (edp)
@@ -971,7 +1168,7 @@ static void cdv_intel_dp_commit(struct drm_encoder *encoder)
 static void
 cdv_intel_dp_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	struct drm_device *dev = encoder->dev;
 	uint32_t dp_reg = REG_READ(intel_dp->output_reg);
@@ -1006,7 +1203,7 @@ cdv_intel_dp_dpms(struct drm_encoder *encoder, int mode)
  * cases where the sink may still be asleep.
  */
 static bool
-cdv_intel_dp_aux_native_read_retry(struct psb_intel_encoder *encoder, uint16_t address,
+cdv_intel_dp_aux_native_read_retry(struct gma_encoder *encoder, uint16_t address,
 			       uint8_t *recv, int recv_bytes)
 {
 	int ret, i;
@@ -1031,7 +1228,7 @@ cdv_intel_dp_aux_native_read_retry(struct psb_intel_encoder *encoder, uint16_t a
  * link status information
  */
 static bool
-cdv_intel_dp_get_link_status(struct psb_intel_encoder *encoder)
+cdv_intel_dp_get_link_status(struct gma_encoder *encoder)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	return cdv_intel_dp_aux_native_read_retry(encoder,
@@ -1086,7 +1283,7 @@ static char	*link_train_names[] = {
 };
 #endif
 
-#define CDV_DP_VOLTAGE_MAX	    DP_TRAIN_VOLTAGE_SWING_1200
+#define CDV_DP_VOLTAGE_MAX	    DP_TRAIN_VOLTAGE_SWING_LEVEL_3
 /*
 static uint8_t
 cdv_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
@@ -1105,7 +1302,7 @@ cdv_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
 }
 */
 static void
-cdv_intel_get_adjust_train(struct psb_intel_encoder *encoder)
+cdv_intel_get_adjust_train(struct gma_encoder *encoder)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	uint8_t v = 0;
@@ -1164,7 +1361,7 @@ cdv_intel_clock_recovery_ok(uint8_t link_status[DP_LINK_STATUS_SIZE], int lane_c
 			 DP_LANE_CHANNEL_EQ_DONE|\
 			 DP_LANE_SYMBOL_LOCKED)
 static bool
-cdv_intel_channel_eq_ok(struct psb_intel_encoder *encoder)
+cdv_intel_channel_eq_ok(struct gma_encoder *encoder)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	uint8_t lane_align;
@@ -1184,7 +1381,7 @@ cdv_intel_channel_eq_ok(struct psb_intel_encoder *encoder)
 }
 
 static bool
-cdv_intel_dp_set_link_train(struct psb_intel_encoder *encoder,
+cdv_intel_dp_set_link_train(struct gma_encoder *encoder,
 			uint32_t dp_reg_value,
 			uint8_t dp_train_pat)
 {
@@ -1211,7 +1408,7 @@ cdv_intel_dp_set_link_train(struct psb_intel_encoder *encoder,
 
 
 static bool
-cdv_intel_dplink_set_level(struct psb_intel_encoder *encoder,
+cdv_intel_dplink_set_level(struct gma_encoder *encoder,
 			uint8_t dp_train_pat)
 {
 	
@@ -1232,7 +1429,7 @@ cdv_intel_dplink_set_level(struct psb_intel_encoder *encoder,
 }
 
 static void
-cdv_intel_dp_set_vswing_premph(struct psb_intel_encoder *encoder, uint8_t signal_level)
+cdv_intel_dp_set_vswing_premph(struct gma_encoder *encoder, uint8_t signal_level)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
@@ -1273,7 +1470,7 @@ cdv_intel_dp_set_vswing_premph(struct psb_intel_encoder *encoder, uint8_t signal
 		cdv_sb_write(dev, ddi_reg->VSwing2, dp_vswing_premph_table[index]);
 
 	/* ;gfx_dpio_set_reg(0x814c, 0x40802040) */
-	if ((vswing + premph) == DP_TRAIN_VOLTAGE_SWING_1200)
+	if ((vswing + premph) == DP_TRAIN_VOLTAGE_SWING_LEVEL_3)
 		cdv_sb_write(dev, ddi_reg->VSwing3, 0x70802040);
 	else
 		cdv_sb_write(dev, ddi_reg->VSwing3, 0x40802040);
@@ -1298,7 +1495,7 @@ cdv_intel_dp_set_vswing_premph(struct psb_intel_encoder *encoder, uint8_t signal
 
 /* Enable corresponding port and start training pattern 1 */
 static void
-cdv_intel_dp_start_link_train(struct psb_intel_encoder *encoder)
+cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
@@ -1317,7 +1514,7 @@ cdv_intel_dp_start_link_train(struct psb_intel_encoder *encoder)
 	/* Enable output, wait for it to become active */
 	REG_WRITE(intel_dp->output_reg, reg);
 	REG_READ(intel_dp->output_reg);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	DRM_DEBUG_KMS("Link config\n");
 	/* Write the link configuration data */
@@ -1392,7 +1589,7 @@ cdv_intel_dp_start_link_train(struct psb_intel_encoder *encoder)
 }
 
 static void
-cdv_intel_dp_complete_link_train(struct psb_intel_encoder *encoder)
+cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
@@ -1478,7 +1675,7 @@ cdv_intel_dp_complete_link_train(struct psb_intel_encoder *encoder)
 }
 
 static void
-cdv_intel_dp_link_down(struct psb_intel_encoder *encoder)
+cdv_intel_dp_link_down(struct gma_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
@@ -1502,8 +1699,7 @@ cdv_intel_dp_link_down(struct psb_intel_encoder *encoder)
 	REG_READ(intel_dp->output_reg);
 }
 
-static enum drm_connector_status
-cdv_dp_detect(struct psb_intel_encoder *encoder)
+static enum drm_connector_status cdv_dp_detect(struct gma_encoder *encoder)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	enum drm_connector_status status;
@@ -1531,7 +1727,7 @@ cdv_dp_detect(struct psb_intel_encoder *encoder)
 static enum drm_connector_status
 cdv_intel_dp_detect(struct drm_connector *connector, bool force)
 {
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct gma_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	enum drm_connector_status status;
 	struct edid *edid = NULL;
@@ -1565,7 +1761,7 @@ cdv_intel_dp_detect(struct drm_connector *connector, bool force)
 
 static int cdv_intel_dp_get_modes(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *intel_encoder = psb_intel_attached_encoder(connector);
+	struct gma_encoder *intel_encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	struct edid *edid = NULL;
 	int ret = 0;
@@ -1621,7 +1817,7 @@ static int cdv_intel_dp_get_modes(struct drm_connector *connector)
 static bool
 cdv_intel_dp_detect_audio(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct gma_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	struct edid *edid;
 	bool has_audio = false;
@@ -1647,7 +1843,7 @@ cdv_intel_dp_set_property(struct drm_connector *connector,
 		      uint64_t val)
 {
 	struct drm_psb_private *dev_priv = connector->dev->dev_private;
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct gma_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
 
@@ -1691,7 +1887,7 @@ done:
 		struct drm_crtc *crtc = encoder->base.crtc;
 		drm_crtc_helper_set_mode(crtc, &crtc->mode,
 					 crtc->x, crtc->y,
-					 crtc->fb);
+					 crtc->primary->fb);
 	}
 
 	return 0;
@@ -1700,11 +1896,10 @@ done:
 static void
 cdv_intel_dp_destroy(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
-	struct cdv_intel_dp *intel_dp = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	struct cdv_intel_dp *intel_dp = gma_encoder->dev_priv;
 
-	if (is_edp(psb_intel_encoder)) {
+	if (is_edp(gma_encoder)) {
 	/*	cdv_intel_panel_destroy_backlight(connector->dev); */
 		if (intel_dp->panel_fixed_mode) {
 			kfree(intel_dp->panel_fixed_mode);
@@ -1712,7 +1907,7 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 		}
 	}
 	i2c_del_adapter(&intel_dp->adapter);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1741,7 +1936,7 @@ static const struct drm_connector_funcs cdv_intel_dp_connector_funcs = {
 static const struct drm_connector_helper_funcs cdv_intel_dp_connector_helper_funcs = {
 	.get_modes = cdv_intel_dp_get_modes,
 	.mode_valid = cdv_intel_dp_mode_valid,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static const struct drm_encoder_funcs cdv_intel_dp_enc_funcs = {
@@ -1800,19 +1995,19 @@ static void cdv_disable_intel_clock_gating(struct drm_device *dev)
 void
 cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int output_reg)
 {
-	struct psb_intel_encoder *psb_intel_encoder;
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_encoder *gma_encoder;
+	struct gma_connector *gma_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct cdv_intel_dp *intel_dp;
 	const char *name = NULL;
 	int type = DRM_MODE_CONNECTOR_DisplayPort;
 
-	psb_intel_encoder = kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
-	if (!psb_intel_encoder)
+	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
+	if (!gma_encoder)
 		return;
-        psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
-        if (!psb_intel_connector)
+        gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+        if (!gma_connector)
                 goto err_connector;
 	intel_dp = kzalloc(sizeof(struct cdv_intel_dp), GFP_KERNEL);
 	if (!intel_dp)
@@ -1821,22 +2016,23 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	if ((output_reg == DP_C) && cdv_intel_dpc_is_edp(dev))
 		type = DRM_MODE_CONNECTOR_eDP;
 
-	connector = &psb_intel_connector->base;
-	encoder = &psb_intel_encoder->base;
+	connector = &gma_connector->base;
+	encoder = &gma_encoder->base;
 
 	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, type);
-	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS);
+	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs,
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
 	if (type == DRM_MODE_CONNECTOR_DisplayPort)
-        	psb_intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+		gma_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
         else
-		psb_intel_encoder->type = INTEL_OUTPUT_EDP;
+		gma_encoder->type = INTEL_OUTPUT_EDP;
 
 
-	psb_intel_encoder->dev_priv=intel_dp;
-	intel_dp->encoder = psb_intel_encoder;
+	gma_encoder->dev_priv=intel_dp;
+	intel_dp->encoder = gma_encoder;
 	intel_dp->output_reg = output_reg;
 	
 	drm_encoder_helper_add(encoder, &cdv_intel_dp_helper_funcs);
@@ -1846,27 +2042,27 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	/* Set up the DDC bus. */
 	switch (output_reg) {
 		case DP_B:
 			name = "DPDDC-B";
-			psb_intel_encoder->ddi_select = (DP_MASK | DDI0_SELECT);
+			gma_encoder->ddi_select = (DP_MASK | DDI0_SELECT);
 			break;
 		case DP_C:
 			name = "DPDDC-C";
-			psb_intel_encoder->ddi_select = (DP_MASK | DDI1_SELECT);
+			gma_encoder->ddi_select = (DP_MASK | DDI1_SELECT);
 			break;
 	}
 
 	cdv_disable_intel_clock_gating(dev);
 
-	cdv_intel_dp_i2c_init(psb_intel_connector, psb_intel_encoder, name);
+	cdv_intel_dp_i2c_init(gma_connector, gma_encoder, name);
         /* FIXME:fail check */
 	cdv_intel_dp_add_properties(connector);
 
-	if (is_edp(psb_intel_encoder)) {
+	if (is_edp(gma_encoder)) {
 		int ret;
 		struct edp_power_seq cur;
                 u32 pp_on, pp_off, pp_div;
@@ -1920,11 +2116,11 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
                               intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
 
 
-		cdv_intel_edp_panel_vdd_on(psb_intel_encoder);
-		ret = cdv_intel_dp_aux_native_read(psb_intel_encoder, DP_DPCD_REV,
+		cdv_intel_edp_panel_vdd_on(gma_encoder);
+		ret = cdv_intel_dp_aux_native_read(gma_encoder, DP_DPCD_REV,
 					       intel_dp->dpcd,
 					       sizeof(intel_dp->dpcd));
-		cdv_intel_edp_panel_vdd_off(psb_intel_encoder);
+		cdv_intel_edp_panel_vdd_off(gma_encoder);
 		if (ret == 0) {
 			/* if this fails, presume the device is a ghost */
 			DRM_INFO("failed to retrieve link info, disabling eDP\n");
@@ -1945,7 +2141,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	return;
 
 err_priv:
-	kfree(psb_intel_connector);
+	kfree(gma_connector);
 err_connector:
-	kfree(psb_intel_encoder);
+	kfree(gma_encoder);
 }

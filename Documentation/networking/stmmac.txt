@@ -1,12 +1,12 @@
        STMicroelectronics 10/100/1000 Synopsys Ethernet driver
 
-Copyright (C) 2007-2013  STMicroelectronics Ltd
+Copyright (C) 2007-2015  STMicroelectronics Ltd
 Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 
 This is the driver for the MAC 10/100/1000 on-chip Ethernet controllers
 (Synopsys IP blocks).
 
-Currently this network device driver is for all STM embedded MAC/GMAC
+Currently this network device driver is for all STi embedded MAC/GMAC
 (i.e. 7xxx/5xxx SoCs), SPEAr (arm), Loongson1B (mips) and XLINX XC2V3000
 FF1152AMT0221 D1215994A VIRTEX FPGA board.
 
@@ -22,11 +22,12 @@ The kernel configuration option is STMMAC_ETH:
  Device Drivers ---> Network device support ---> Ethernet (1000 Mbit) --->
  STMicroelectronics 10/100/1000 Ethernet driver (STMMAC_ETH)
 
+CONFIG_STMMAC_PLATFORM: is to enable the platform driver.
+CONFIG_STMMAC_PCI: is to enable the pci driver.
+
 2) Driver parameters list:
 	debug: message level (0: no output, 16: all);
 	phyaddr: to manually provide the physical address to the PHY device;
-	dma_rxsize: DMA rx ring size;
-	dma_txsize: DMA tx ring size;
 	buf_sz: DMA buffer size;
 	tc: control the HW FIFO threshold;
 	watchdog: transmit timeout (in milliseconds);
@@ -37,41 +38,34 @@ The kernel configuration option is STMMAC_ETH:
 
 3) Command line options
 Driver parameters can be also passed in command line by using:
-	stmmaceth=dma_rxsize:128,dma_txsize:512
+	stmmaceth=watchdog:100,chain_mode=1
 
 4) Driver information and notes
 
 4.1) Transmit process
 The xmit method is invoked when the kernel needs to transmit a packet; it sets
-the descriptors in the ring and informs the DMA engine that there is a packet
+the descriptors in the ring and informs the DMA engine, that there is a packet
 ready to be transmitted.
-Once the controller has finished transmitting the packet, an interrupt is
-triggered; So the driver will be able to release the socket buffers.
 By default, the driver sets the NETIF_F_SG bit in the features field of the
-net_device structure enabling the scatter/gather feature.
+net_device structure, enabling the scatter-gather feature. This is true on
+chips and configurations where the checksum can be done in hardware.
+Once the controller has finished transmitting the packet, timer will be
+scheduled to release the transmit resources.
 
 4.2) Receive process
 When one or more packets are received, an interrupt happens. The interrupts
-are not queued so the driver has to scan all the descriptors in the ring during
+are not queued, so the driver has to scan all the descriptors in the ring during
 the receive process.
-This is based on NAPI so the interrupt handler signals only if there is work
+This is based on NAPI, so the interrupt handler signals only if there is work
 to be done, and it exits.
 Then the poll method will be scheduled at some future point.
 The incoming packets are stored, by the DMA, in a list of pre-allocated socket
-buffers in order to avoid the memcpy (Zero-copy).
+buffers in order to avoid the memcpy (zero-copy).
 
-4.3) Interrupt Mitigation
+4.3) Interrupt mitigation
 The driver is able to mitigate the number of its DMA interrupts
 using NAPI for the reception on chips older than the 3.50.
 New chips have an HW RX-Watchdog used for this mitigation.
-
-On Tx-side, the mitigation schema is based on a SW timer that calls the
-tx function (stmmac_tx) to reclaim the resource after transmitting the
-frames.
-Also there is another parameter (like a threshold) used to program
-the descriptors avoiding to set the interrupt on completion bit in
-when the frame is sent (xmit).
-
 Mitigation parameters can be tuned by ethtool.
 
 4.4) WOL
@@ -79,7 +73,7 @@ Wake up on Lan feature through Magic and Unicast frames are supported for the
 GMAC core.
 
 4.5) DMA descriptors
-Driver handles both normal and enhanced descriptors. The latter has been only
+Driver handles both normal and alternate descriptors. The latter has been only
 tested on DWC Ether MAC 10/100/1000 Universal version 3.41a and later.
 
 STMMAC supports DMA descriptor to operate both in dual buffer (RING)
@@ -91,9 +85,21 @@ In CHAINED mode each descriptor will have pointer to next descriptor in
 the list, hence creating the explicit chaining in the descriptor itself,
 whereas such explicit chaining is not possible in RING mode.
 
+4.5.1) Extended descriptors
+The extended descriptors give us information about the Ethernet payload
+when it is carrying PTP packets or TCP/UDP/ICMP over IP.
+These are not available on GMAC Synopsys chips older than the 3.50.
+At probe time the driver will decide if these can be actually used.
+This support also is mandatory for PTPv2 because the extra descriptors
+are used for saving the hardware timestamps and Extended Status.
+
 4.6) Ethtool support
-Ethtool is supported. Driver statistics and internal errors can be taken using:
-ethtool -S ethX command. It is possible to dump registers etc.
+Ethtool is supported.
+
+For example, driver statistics (including RMON), internal errors can be taken
+using:
+  # ethtool -S ethX
+command
 
 4.7) Jumbo and Segmentation Offloading
 Jumbo frames are supported and tested for the GMAC.
@@ -101,12 +107,11 @@ The GSO has been also added but it's performed in software.
 LRO is not supported.
 
 4.8) Physical
-The driver is compatible with PAL to work with PHY and GPHY devices.
+The driver is compatible with Physical Abstraction Layer to be connected with
+PHY and GPHY devices.
 
 4.9) Platform information
-Several driver's information can be passed through the platform
-These are included in the include/linux/stmmac.h header file
-and detailed below as well:
+Several information can be passed through the platform and device-tree.
 
 struct plat_stmmacenet_data {
 	char *phy_bus_name;
@@ -123,15 +128,18 @@ struct plat_stmmacenet_data {
 	int bugged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;
+	int force_thresh_dma_mode;
 	int riwt_off;
+	int max_speed;
+	int maxmtu;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-	int (*init)(struct platform_device *pdev);
-	void (*exit)(struct platform_device *pdev);
-	void *custom_cfg;
-	void *custom_data;
+	int (*init)(struct platform_device *pdev, void *priv);
+	void (*exit)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
- };
+	int has_gmac4;
+	bool tso_en;
+};
 
 Where:
  o phy_bus_name: phy bus name to attach to the stmmac.
@@ -144,8 +152,10 @@ Where:
  o dma_cfg: internal DMA parameters
    o pbl: the Programmable Burst Length is maximum number of beats to
        be transferred in one DMA transaction.
-       GMAC also enables the 4xPBL by default.
-   o fixed_burst/mixed_burst/burst_len
+       GMAC also enables the 4xPBL by default. (8xPBL for GMAC 3.50 and newer)
+   o txpbl/rxpbl: GMAC and newer supports independent DMA pbl for tx/rx.
+   o pblx8: Enable 8xPBL (4xPBL for core rev < 3.50). Enabled by default.
+   o fixed_burst/mixed_burst/aal
  o clk_csr: fixed CSR Clock range selection.
  o has_gmac: uses the GMAC core.
  o enh_desc: if sets the MAC will use the enhanced descriptor structure.
@@ -159,6 +169,8 @@ Where:
  o pmt: core has the embedded power module (optional).
  o force_sf_dma_mode: force DMA to use the Store and Forward mode
 		     instead of the Threshold.
+ o force_thresh_dma_mode: force DMA to use the Threshold mode other than
+		     the Store and Forward mode.
  o riwt_off: force to disable the RX watchdog feature and switch to NAPI mode.
  o fix_mac_speed: this callback is used for modifying some syscfg registers
 		 (on ST SoCs) according to the link speed negotiated by the
@@ -169,10 +181,11 @@ Where:
  o init/exit: callbacks used for calling a custom initialization;
 	     this is sometime necessary on some platforms (e.g. ST boxes)
 	     where the HW needs to have set some PIO lines or system cfg
-	     registers.
- o custom_cfg/custom_data: this is a custom configuration that can be passed
-			   while initializing the resources.
- o bsp_priv: another private poiter.
+	     registers.  init/exit callbacks should not use or modify
+	     platform data.
+ o bsp_priv: another private pointer.
+ o has_gmac4: uses GMAC4 core.
+ o tso_en: Enables TSO (TCP Segmentation Offload) feature.
 
 For MDIO bus The we have:
 
@@ -194,16 +207,24 @@ tuned according to the HW capabilities.
 
 struct stmmac_dma_cfg {
 	int pbl;
+	int txpbl;
+	int rxpbl;
+	bool pblx8;
 	int fixed_burst;
-	int burst_len_supported;
+	int mixed_burst;
+	bool aal;
 };
 
 Where:
- o pbl: Programmable Burst Length
+ o pbl: Programmable Burst Length (tx and rx)
+ o txpbl: Transmit Programmable Burst Length. Only for GMAC and newer.
+	 If set, DMA tx will use this value rather than pbl.
+ o rxpbl: Receive Programmable Burst Length. Only for GMAC and newer.
+	 If set, DMA rx will use this value rather than pbl.
+ o pblx8: Enable 8xPBL (4xPBL for core rev < 3.50). Enabled by default.
  o fixed_burst: program the DMA to use the fixed burst mode
- o burst_len: this is the value we put in the register
-	      supported values are provided as macros in
-	      linux/stmmac.h header file.
+ o mixed_burst: program the DMA to use the mixed burst mode
+ o aal: Address-Aligned Beats
 
 ---
 
@@ -246,37 +267,75 @@ static struct fixed_phy_status stmmac0_fixed_phy_status = {
 
 During the board's device_init we can configure the first
 MAC for fixed_link by calling:
-  fixed_phy_add(PHY_POLL, 1, &stmmac0_fixed_phy_status));)
+  fixed_phy_add(PHY_POLL, 1, &stmmac0_fixed_phy_status, -1);
 and the second one, with a real PHY device attached to the bus,
 by using the stmmac_mdio_bus_data structure (to provide the id, the
 reset procedure etc).
 
-4.10) List of source files:
- o Kconfig
- o Makefile
- o stmmac_main.c: main network device driver;
- o stmmac_mdio.c: mdio functions;
- o stmmac_pci: PCI driver;
- o stmmac_platform.c: platform driver
- o stmmac_ethtool.c: ethtool support;
- o stmmac_timer.[ch]: timer code used for mitigating the driver dma interrupts
-		      (only tested on ST40 platforms based);
+Note that, starting from new chips, where it is available the HW capability
+register, many configurations are discovered at run-time for example to
+understand if EEE, HW csum, PTP, enhanced descriptor etc are actually
+available. As strategy adopted in this driver, the information from the HW
+capability register can replace what has been passed from the platform.
+
+4.10) Device-tree support.
+
+Please see the following document:
+	Documentation/devicetree/bindings/net/stmmac.txt
+
+4.11) This is a summary of the content of some relevant files:
+ o stmmac_main.c: implements the main network device driver;
+ o stmmac_mdio.c: provides MDIO functions;
+ o stmmac_pci: this is the PCI driver;
+ o stmmac_platform.c: this the platform driver (OF supported);
+ o stmmac_ethtool.c: implements the ethtool support;
  o stmmac.h: private driver structure;
  o common.h: common definitions and VFTs;
+ o mmc_core.c/mmc.h: Management MAC Counters;
+ o stmmac_hwtstamp.c: HW timestamp support for PTP;
+ o stmmac_ptp.c: PTP 1588 clock;
+ o stmmac_pcs.h: Physical Coding Sublayer common implementation;
+ o dwmac-<XXX>.c: these are for the platform glue-logic file; e.g. dwmac-sti.c
+   for STMicroelectronics SoCs.
+
+- GMAC 3.x
  o descs.h: descriptor structure definitions;
- o dwmac1000_core.c: GMAC core functions;
- o dwmac1000_dma.c:  dma functions for the GMAC chip;
- o dwmac1000.h: specific header file for the GMAC;
- o dwmac100_core: MAC 100 core and dma code;
- o dwmac100_dma.c: dma funtions for the MAC chip;
+ o dwmac1000_core.c: dwmac GiGa core functions;
+ o dwmac1000_dma.c: dma functions for the GMAC chip;
+ o dwmac1000.h: specific header file for the dwmac GiGa;
+ o dwmac100_core: dwmac 100 core code;
+ o dwmac100_dma.c: dma functions for the dwmac 100 chip;
  o dwmac1000.h: specific header file for the MAC;
- o dwmac_lib.c: generic DMA functions shared among chips;
+ o dwmac_lib.c: generic DMA functions;
  o enh_desc.c: functions for handling enhanced descriptors;
  o norm_desc.c: functions for handling normal descriptors;
  o chain_mode.c/ring_mode.c:: functions to manage RING/CHAINED modes;
- o mmc_core.c/mmc.h: Management MAC Counters;
- o stmmac_hwtstamp.c: HW timestamp support for PTP
- o stmmac_ptp.c: PTP 1588 clock
+
+- GMAC4.x generation
+ o dwmac4_core.c: dwmac GMAC4.x core functions;
+ o dwmac4_desc.c: functions for handling GMAC4.x descriptors;
+ o dwmac4_descs.h: descriptor definitions;
+ o dwmac4_dma.c: dma functions for the GMAC4.x chip;
+ o dwmac4_dma.h: dma definitions for the GMAC4.x chip;
+ o dwmac4.h: core definitions for the GMAC4.x chip;
+ o dwmac4_lib.c: generic GMAC4.x functions;
+
+4.12) TSO support (GMAC4.x)
+
+TSO (Tcp Segmentation Offload) feature is supported by GMAC 4.x chip family.
+When a packet is sent through TCP protocol, the TCP stack ensures that
+the SKB provided to the low level driver (stmmac in our case) matches with
+the maximum frame len (IP header + TCP header + payload <= 1500 bytes (for
+MTU set to 1500)). It means that if an application using TCP want to send a
+packet which will have a length (after adding headers) > 1514 the packet
+will be split in several TCP packets: The data payload is split and headers
+(TCP/IP ..) are added. It is done by software.
+
+When TSO is enabled, the TCP stack doesn't care about the maximum frame
+length and provide SKB packet to stmmac as it is. The GMAC IP will have to
+perform the segmentation by it self to match with maximum frame length.
+
+This feature can be enabled in device tree through "snps,tso" entry.
 
 5) Debug Information
 
@@ -291,23 +350,14 @@ to get statistics: e.g. using: ethtool -S ethX
 (that shows the Management counters (MMC) if supported)
 or sees the MAC/DMA registers: e.g. using: ethtool -d ethX
 
-Compiling the Kernel with CONFIG_DEBUG_FS and enabling the
-STMMAC_DEBUG_FS option the driver will export the following
+Compiling the Kernel with CONFIG_DEBUG_FS the driver will export the following
 debugfs entries:
 
 /sys/kernel/debug/stmmaceth/descriptors_status
   To show the DMA TX/RX descriptor rings
 
-Developer can also use the "debug" module parameter to get
-further debug information.
-
-In the end, there are other macros (that cannot be enabled
-via menuconfig) to turn-on the RX/TX DMA debugging,
-specific MAC core debug printk etc. Others to enable the
-debug in the TX and RX processes.
-All these are only useful during the developing stage
-and should never enabled inside the code for general usage.
-In fact, these can generate an huge amount of debug messages.
+Developer can also use the "debug" module parameter to get further debug
+information (please see: NETIF Msg Level).
 
 6) Energy Efficient Ethernet
 
@@ -330,15 +380,7 @@ To enter in Tx LPI mode the driver needs to have a software timer
 that enable and disable the LPI mode when there is nothing to be
 transmitted.
 
-7) Extended descriptors
-The extended descriptors give us information about the receive Ethernet payload
-when it is carrying PTP packets or TCP/UDP/ICMP over IP.
-These are not available on GMAC Synopsys chips older than the 3.50.
-At probe time the driver will decide if these can be actually used.
-This support also is mandatory for PTPv2 because the extra descriptors 6 and 7
-are used for saving the hardware timestamps.
-
-8) Precision Time Protocol (PTP)
+7) Precision Time Protocol (PTP)
 The driver supports the IEEE 1588-2002, Precision Time Protocol (PTP),
 which enables precise synchronization of clocks in measurement and
 control systems implemented with technologies such as network
@@ -348,17 +390,12 @@ In addition to the basic timestamp features mentioned in IEEE 1588-2002
 Timestamps, new GMAC cores support the advanced timestamp features.
 IEEE 1588-2008 that can be enabled when configure the Kernel.
 
-9) SGMII/RGMII supports
+8) SGMII/RGMII support
 New GMAC devices provide own way to manage RGMII/SGMII.
 This information is available at run-time by looking at the
 HW capability register. This means that the stmmac can manage
-auto-negotiation and link status w/o using the PHYLIB stuff
+auto-negotiation and link status w/o using the PHYLIB stuff.
 In fact, the HW provides a subset of extended registers to
 restart the ANE, verify Full/Half duplex mode and Speed.
-Also thanks to these registers it is possible to look at the
+Thanks to these registers, it is possible to look at the
 Auto-negotiated Link Parter Ability.
-
-10) TODO:
- o XGMAC is not supported.
- o Complete the TBI & RTBI support.
- o extened VLAN support for 3.70a SYNP GMAC.

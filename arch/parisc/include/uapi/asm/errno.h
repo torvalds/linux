@@ -37,7 +37,7 @@
 #define	EBADMSG		67	/* Not a data message */
 #define	EUSERS		68	/* Too many users */
 #define	EDQUOT		69	/* Quota exceeded */
-#define	ESTALE		70	/* Stale NFS file handle */
+#define	ESTALE		70	/* Stale file handle */
 #define	EREMOTE		71	/* Object is remote */
 #define	EOVERFLOW	72	/* Value too large for defined data type */
 
@@ -97,16 +97,16 @@
 #define	ENOTCONN	235	/* Transport endpoint is not connected */
 #define	ESHUTDOWN	236	/* Cannot send after transport endpoint shutdown */
 #define	ETOOMANYREFS	237	/* Too many references: cannot splice */
-#define EREFUSED	ECONNREFUSED	/* for HP's NFS apparently */
 #define	ETIMEDOUT	238	/* Connection timed out */
 #define	ECONNREFUSED	239	/* Connection refused */
-#define EREMOTERELEASE	240	/* Remote peer released connection */
+#define	EREFUSED	ECONNREFUSED	/* for HP's NFS apparently */
+#define	EREMOTERELEASE	240	/* Remote peer released connection */
 #define	EHOSTDOWN	241	/* Host is down */
 #define	EHOSTUNREACH	242	/* No route to host */
 
 #define	EALREADY	244	/* Operation already in progress */
 #define	EINPROGRESS	245	/* Operation now in progress */
-#define	EWOULDBLOCK	246	/* Operation would block (Linux returns EAGAIN) */
+#define	EWOULDBLOCK	EAGAIN	/* Operation would block (Not HPUX compliant) */
 #define	ENOTEMPTY	247	/* Directory not empty */
 #define	ENAMETOOLONG	248	/* File name too long */
 #define	ELOOP		249	/* Too many symbolic links encountered */

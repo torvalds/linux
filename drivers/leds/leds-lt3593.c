@@ -17,10 +17,8 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
-#include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
@@ -29,15 +27,14 @@
 struct lt3593_led_data {
 	struct led_classdev cdev;
 	unsigned gpio;
-	struct work_struct work;
-	u8 new_level;
 };
 
-static void lt3593_led_work(struct work_struct *work)
+static int lt3593_led_set(struct led_classdev *led_cdev,
+			   enum led_brightness value)
 {
-	int pulses;
 	struct lt3593_led_data *led_dat =
-		container_of(work, struct lt3593_led_data, work);
+		container_of(led_cdev, struct lt3593_led_data, cdev);
+	int pulses;
 
 	/*
 	 * The LT3593 resets its internal current level register to the maximum
@@ -48,18 +45,18 @@ static void lt3593_led_work(struct work_struct *work)
 	 * applied is to the output driver.
 	 */
 
-	if (led_dat->new_level == 0) {
+	if (value == 0) {
 		gpio_set_value_cansleep(led_dat->gpio, 0);
-		return;
+		return 0;
 	}
 
-	pulses = 32 - (led_dat->new_level * 32) / 255;
+	pulses = 32 - (value * 32) / 255;
 
 	if (pulses == 0) {
 		gpio_set_value_cansleep(led_dat->gpio, 0);
 		mdelay(1);
 		gpio_set_value_cansleep(led_dat->gpio, 1);
-		return;
+		return 0;
 	}
 
 	gpio_set_value_cansleep(led_dat->gpio, 1);
@@ -70,16 +67,8 @@ static void lt3593_led_work(struct work_struct *work)
 		gpio_set_value_cansleep(led_dat->gpio, 1);
 		udelay(1);
 	}
-}
 
-static void lt3593_led_set(struct led_classdev *led_cdev,
-	enum led_brightness value)
-{
-	struct lt3593_led_data *led_dat =
-		container_of(led_cdev, struct lt3593_led_data, cdev);
-
-	led_dat->new_level = value;
-	schedule_work(&led_dat->work);
+	return 0;
 }
 
 static int create_lt3593_led(const struct gpio_led *template,
@@ -98,7 +87,7 @@ static int create_lt3593_led(const struct gpio_led *template,
 	led_dat->cdev.default_trigger = template->default_trigger;
 	led_dat->gpio = template->gpio;
 
-	led_dat->cdev.brightness_set = lt3593_led_set;
+	led_dat->cdev.brightness_set_blocking = lt3593_led_set;
 
 	state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
 	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
@@ -111,8 +100,6 @@ static int create_lt3593_led(const struct gpio_led *template,
 				    template->name);
 	if (ret < 0)
 		return ret;
-
-	INIT_WORK(&led_dat->work, lt3593_led_work);
 
 	ret = led_classdev_register(parent, &led_dat->cdev);
 	if (ret < 0)
@@ -130,12 +117,11 @@ static void delete_lt3593_led(struct lt3593_led_data *led)
 		return;
 
 	led_classdev_unregister(&led->cdev);
-	cancel_work_sync(&led->work);
 }
 
 static int lt3593_led_probe(struct platform_device *pdev)
 {
-	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct lt3593_led_data *leds_data;
 	int i, ret = 0;
 
@@ -169,7 +155,7 @@ err:
 static int lt3593_led_remove(struct platform_device *pdev)
 {
 	int i;
-	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct lt3593_led_data *leds_data;
 
 	leds_data = platform_get_drvdata(pdev);
@@ -185,7 +171,6 @@ static struct platform_driver lt3593_led_driver = {
 	.remove		= lt3593_led_remove,
 	.driver		= {
 		.name	= "leds-lt3593",
-		.owner	= THIS_MODULE,
 	},
 };
 

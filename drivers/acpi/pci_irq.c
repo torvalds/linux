@@ -19,10 +19,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
@@ -37,8 +33,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/interrupt.h>
 
 #define PREFIX "ACPI: "
 
@@ -46,7 +41,6 @@
 ACPI_MODULE_NAME("pci_irq");
 
 struct acpi_prt_entry {
-	struct list_head	list;
 	struct acpi_pci_id	id;
 	u8			pin;
 	acpi_handle		link;
@@ -138,9 +132,6 @@ static void do_prt_fixups(struct acpi_prt_entry *entry,
 		quirk = &prt_quirks[i];
 
 		/* All current quirks involve link devices, not GSIs */
-		if (!prt->source)
-			continue;
-
 		if (dmi_check_system(quirk->system) &&
 		    entry->id.segment == quirk->segment &&
 		    entry->id.bus == quirk->bus &&
@@ -165,7 +156,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 {
 	int segment = pci_domain_nr(dev->bus);
 	int bus = dev->bus->number;
-	int device = PCI_SLOT(dev->devfn);
+	int device = pci_ari_enabled(dev->bus) ? 0 : PCI_SLOT(dev->devfn);
 	struct acpi_prt_entry *entry;
 
 	if (((prt->address >> 16) & 0xffff) != device ||
@@ -372,13 +363,63 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 	return NULL;
 }
 
+#if IS_ENABLED(CONFIG_ISA) || IS_ENABLED(CONFIG_EISA)
+static int acpi_isa_register_gsi(struct pci_dev *dev)
+{
+	u32 dev_gsi;
+
+	/* Interrupt Line values above 0xF are forbidden */
+	if (dev->irq > 0 && (dev->irq <= 0xF) &&
+	    acpi_isa_irq_available(dev->irq) &&
+	    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
+		dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
+			 pin_name(dev->pin), dev->irq);
+		acpi_register_gsi(&dev->dev, dev_gsi,
+				  ACPI_LEVEL_SENSITIVE,
+				  ACPI_ACTIVE_LOW);
+		return 0;
+	}
+	return -EINVAL;
+}
+#else
+static inline int acpi_isa_register_gsi(struct pci_dev *dev)
+{
+	return -ENODEV;
+}
+#endif
+
+static inline bool acpi_pci_irq_valid(struct pci_dev *dev, u8 pin)
+{
+#ifdef CONFIG_X86
+	/*
+	 * On x86 irq line 0xff means "unknown" or "no connection"
+	 * (PCI 3.0, Section 6.2.4, footnote on page 223).
+	 */
+	if (dev->irq == 0xff) {
+		dev->irq = IRQ_NOTCONNECTED;
+		dev_warn(&dev->dev, "PCI INT %c: not connected\n",
+			 pin_name(pin));
+		return false;
+	}
+#endif
+	return true;
+}
+
 int acpi_pci_irq_enable(struct pci_dev *dev)
 {
 	struct acpi_prt_entry *entry;
 	int gsi;
 	u8 pin;
 	int triggering = ACPI_LEVEL_SENSITIVE;
-	int polarity = ACPI_ACTIVE_LOW;
+	/*
+	 * On ARM systems with the GIC interrupt model, level interrupts
+	 * are always polarity high by specification; PCI legacy
+	 * IRQs lines are inverted before reaching the interrupt
+	 * controller and must therefore be considered active high
+	 * as default.
+	 */
+	int polarity = acpi_irq_model == ACPI_IRQ_MODEL_GIC ?
+				      ACPI_ACTIVE_HIGH : ACPI_ACTIVE_LOW;
 	char *link = NULL;
 	char link_desc[16];
 	int rc;
@@ -390,6 +431,9 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 				  pci_name(dev)));
 		return 0;
 	}
+
+	if (dev->irq_managed && dev->irq > 0)
+		return 0;
 
 	entry = acpi_pci_irq_lookup(dev, pin);
 	if (!entry) {
@@ -413,25 +457,19 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	} else
 		gsi = -1;
 
-	/*
-	 * No IRQ known to the ACPI subsystem - maybe the BIOS / 
-	 * driver reported one, then use it. Exit in any case.
-	 */
 	if (gsi < 0) {
-		u32 dev_gsi;
-		/* Interrupt Line values above 0xF are forbidden */
-		if (dev->irq > 0 && (dev->irq <= 0xF) &&
-		    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
-			dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
-				 pin_name(pin), dev->irq);
-			acpi_register_gsi(&dev->dev, dev_gsi,
-					  ACPI_LEVEL_SENSITIVE,
-					  ACPI_ACTIVE_LOW);
-		} else {
+		/*
+		 * No IRQ known to the ACPI subsystem - maybe the BIOS /
+		 * driver reported one, then use it. Exit in any case.
+		 */
+		if (!acpi_pci_irq_valid(dev, pin))
+			return 0;
+
+		if (acpi_isa_register_gsi(dev))
 			dev_warn(&dev->dev, "PCI INT %c: no GSI\n",
 				 pin_name(pin));
-		}
 
+		kfree(entry);
 		return 0;
 	}
 
@@ -443,6 +481,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		return rc;
 	}
 	dev->irq = rc;
+	dev->irq_managed = 1;
 
 	if (link)
 		snprintf(link_desc, sizeof(link_desc), " -> Link[%s]", link);
@@ -465,8 +504,16 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	u8 pin;
 
 	pin = dev->pin;
-	if (!pin)
+	if (!pin || !dev->irq_managed || dev->irq <= 0)
 		return;
+
+	/* Keep IOAPIC pin configuration when suspending */
+	if (dev->dev.power.is_prepared)
+		return;
+#ifdef	CONFIG_PM
+	if (dev->dev.power.runtime_status == RPM_SUSPENDING)
+		return;
+#endif
 
 	entry = acpi_pci_irq_lookup(dev, pin);
 	if (!entry)
@@ -485,5 +532,8 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	 */
 
 	dev_dbg(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
-	acpi_unregister_gsi(gsi);
+	if (gsi >= 0) {
+		acpi_unregister_gsi(gsi);
+		dev->irq_managed = 0;
+	}
 }

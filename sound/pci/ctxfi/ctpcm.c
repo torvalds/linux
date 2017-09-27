@@ -21,7 +21,7 @@
 #include <sound/pcm.h>
 
 /* Hardware descriptions for playback */
-static struct snd_pcm_hardware ct_pcm_playback_hw = {
+static const struct snd_pcm_hardware ct_pcm_playback_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 				   SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -46,7 +46,7 @@ static struct snd_pcm_hardware ct_pcm_playback_hw = {
 	.fifo_size		= 0,
 };
 
-static struct snd_pcm_hardware ct_spdif_passthru_playback_hw = {
+static const struct snd_pcm_hardware ct_spdif_passthru_playback_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 				   SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -69,7 +69,7 @@ static struct snd_pcm_hardware ct_spdif_passthru_playback_hw = {
 };
 
 /* Hardware descriptions for capture */
-static struct snd_pcm_hardware ct_pcm_capture_hw = {
+static const struct snd_pcm_hardware ct_pcm_capture_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 				   SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -140,27 +140,28 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
+
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 					   1024, UINT_MAX);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
 	if (!apcm->timer) {
-		kfree(apcm);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_pcm;
 	}
 	runtime->private_data = apcm;
 	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
+
+free_pcm:
+	kfree(apcm);
+	return err;
 }
 
 static int ct_pcm_playback_close(struct snd_pcm_substream *substream)
@@ -217,7 +218,8 @@ static int ct_pcm_playback_prepare(struct snd_pcm_substream *substream)
 		err = atc->pcm_playback_prepare(atc, apcm);
 
 	if (err < 0) {
-		printk(KERN_ERR "ctxfi: Preparing pcm playback failed!!!\n");
+		dev_err(atc->card->dev,
+			"Preparing pcm playback failed!!!\n");
 		return err;
 	}
 
@@ -285,27 +287,28 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
+
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 					   1024, UINT_MAX);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
 	if (!apcm->timer) {
-		kfree(apcm);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_pcm;
 	}
 	runtime->private_data = apcm;
 	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
+
+free_pcm:
+	kfree(apcm);
+	return err;
 }
 
 static int ct_pcm_capture_close(struct snd_pcm_substream *substream)
@@ -324,7 +327,8 @@ static int ct_pcm_capture_prepare(struct snd_pcm_substream *substream)
 
 	err = atc->pcm_capture_prepare(atc, apcm);
 	if (err < 0) {
-		printk(KERN_ERR "ctxfi: Preparing pcm capture failed!!!\n");
+		dev_err(atc->card->dev,
+			"Preparing pcm capture failed!!!\n");
 		return err;
 	}
 
@@ -370,7 +374,7 @@ ct_pcm_capture_pointer(struct snd_pcm_substream *substream)
 }
 
 /* PCM operators for playback */
-static struct snd_pcm_ops ct_pcm_playback_ops = {
+static const struct snd_pcm_ops ct_pcm_playback_ops = {
 	.open	 	= ct_pcm_playback_open,
 	.close		= ct_pcm_playback_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -383,7 +387,7 @@ static struct snd_pcm_ops ct_pcm_playback_ops = {
 };
 
 /* PCM operators for capture */
-static struct snd_pcm_ops ct_pcm_capture_ops = {
+static const struct snd_pcm_ops ct_pcm_capture_ops = {
 	.open	 	= ct_pcm_capture_open,
 	.close		= ct_pcm_capture_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -435,7 +439,8 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 	err = snd_pcm_new(atc->card, "ctxfi", device,
 			  playback_count, capture_count, &pcm);
 	if (err < 0) {
-		printk(KERN_ERR "ctxfi: snd_pcm_new failed!! Err=%d\n", err);
+		dev_err(atc->card->dev, "snd_pcm_new failed!! Err=%d\n",
+			err);
 		return err;
 	}
 

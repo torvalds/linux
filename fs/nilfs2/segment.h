@@ -13,11 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Ryusuke Konishi.
  *
  */
 #ifndef _NILFS_SEGMENT_H
@@ -26,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_fs.h>
+#include <linux/workqueue.h>
 #include "nilfs.h"
 
 struct nilfs_root;
@@ -66,14 +62,15 @@ struct nilfs_recovery_info {
 
 /**
  * struct nilfs_cstage - Context of collection stage
- * @scnt: Stage count
+ * @scnt: Stage count, must be accessed via wrappers:
+ *        nilfs_sc_cstage_inc(), nilfs_sc_cstage_set(), nilfs_sc_cstage_get()
  * @flags: State flags
  * @dirty_file_ptr: Pointer on dirty_files list, or inode of a target file
  * @gc_inode_ptr: Pointer on the list of gc-inodes
  */
 struct nilfs_cstage {
 	int			scnt;
-	unsigned		flags;
+	unsigned int		flags;
 	struct nilfs_inode_info *dirty_file_ptr;
 	struct nilfs_inode_info *gc_inode_ptr;
 };
@@ -82,7 +79,7 @@ struct nilfs_segment_buffer;
 
 struct nilfs_segsum_pointer {
 	struct buffer_head     *bh;
-	unsigned		offset; /* offset in bytes */
+	unsigned int		offset; /* offset in bytes */
 };
 
 /**
@@ -92,6 +89,8 @@ struct nilfs_segsum_pointer {
  * @sc_nblk_inc: Block count of current generation
  * @sc_dirty_files: List of files to be written
  * @sc_gc_inodes: List of GC inodes having blocks to be written
+ * @sc_iput_queue: list of inodes for which iput should be done
+ * @sc_iput_work: work struct to defer iput call
  * @sc_freesegs: array of segment numbers to be freed
  * @sc_nfreesegs: number of segments on @sc_freesegs
  * @sc_dsync_inode: inode whose data pages are written for a sync operation
@@ -135,6 +134,8 @@ struct nilfs_sc_info {
 
 	struct list_head	sc_dirty_files;
 	struct list_head	sc_gc_inodes;
+	struct list_head	sc_iput_queue;
+	struct work_struct	sc_iput_work;
 
 	__u64		       *sc_freesegs;
 	size_t			sc_nfreesegs;
@@ -187,11 +188,15 @@ enum {
 	NILFS_SC_DIRTY,		/* One or more dirty meta-data blocks exist */
 	NILFS_SC_UNCLOSED,	/* Logical segment is not closed */
 	NILFS_SC_SUPER_ROOT,	/* The latest segment has a super root */
-	NILFS_SC_PRIOR_FLUSH,	/* Requesting immediate flush without making a
-				   checkpoint */
-	NILFS_SC_HAVE_DELTA,	/* Next checkpoint will have update of files
-				   other than DAT, cpfile, sufile, or files
-				   moved by GC */
+	NILFS_SC_PRIOR_FLUSH,	/*
+				 * Requesting immediate flush without making a
+				 * checkpoint
+				 */
+	NILFS_SC_HAVE_DELTA,	/*
+				 * Next checkpoint will have update of files
+				 * other than DAT, cpfile, sufile, or files
+				 * moved by GC.
+				 */
 };
 
 /* sc_state */
@@ -201,17 +206,23 @@ enum {
 /*
  * Constant parameters
  */
-#define NILFS_SC_CLEANUP_RETRY	    3  /* Retry count of construction when
-					  destroying segctord */
+#define NILFS_SC_CLEANUP_RETRY	    3  /*
+					* Retry count of construction when
+					* destroying segctord
+					*/
 
 /*
  * Default values of timeout, in seconds.
  */
-#define NILFS_SC_DEFAULT_TIMEOUT    5   /* Timeout value of dirty blocks.
-					   It triggers construction of a
-					   logical segment with a super root */
-#define NILFS_SC_DEFAULT_SR_FREQ    30  /* Maximum frequency of super root
-					   creation */
+#define NILFS_SC_DEFAULT_TIMEOUT    5   /*
+					 * Timeout value of dirty blocks.
+					 * It triggers construction of a
+					 * logical segment with a super root.
+					 */
+#define NILFS_SC_DEFAULT_SR_FREQ    30  /*
+					 * Maximum frequency of super root
+					 * creation
+					 */
 
 /*
  * The default threshold amount of data, in block counts.

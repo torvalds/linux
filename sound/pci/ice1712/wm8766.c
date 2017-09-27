@@ -183,22 +183,6 @@ void snd_wm8766_set_if(struct snd_wm8766 *wm, u16 dac)
 	snd_wm8766_write(wm, WM8766_REG_IFCTRL, val | dac);
 }
 
-void snd_wm8766_set_master_mode(struct snd_wm8766 *wm, u16 mode)
-{
-	u16 val = wm->regs[WM8766_REG_DACCTRL3] & ~WM8766_DAC3_MSTR_MASK;
-
-	mode &= WM8766_DAC3_MSTR_MASK;
-	snd_wm8766_write(wm, WM8766_REG_DACCTRL3, val | mode);
-}
-
-void snd_wm8766_set_power(struct snd_wm8766 *wm, u16 power)
-{
-	u16 val = wm->regs[WM8766_REG_DACCTRL3] & ~WM8766_DAC3_POWER_MASK;
-
-	power &= WM8766_DAC3_POWER_MASK;
-	snd_wm8766_write(wm, WM8766_REG_DACCTRL3, val | power);
-}
-
 void snd_wm8766_volume_restore(struct snd_wm8766 *wm)
 {
 	u16 val = wm->regs[WM8766_REG_DACR1];
@@ -253,7 +237,8 @@ static int snd_wm8766_ctl_get(struct snd_kcontrol *kcontrol,
 	}
 	if (wm->ctl[n].flags & WM8766_FLAG_INVERT) {
 		val1 = wm->ctl[n].max - (val1 - wm->ctl[n].min);
-		val2 = wm->ctl[n].max - (val2 - wm->ctl[n].min);
+		if (wm->ctl[n].flags & WM8766_FLAG_STEREO)
+			val2 = wm->ctl[n].max - (val2 - wm->ctl[n].min);
 	}
 	ucontrol->value.integer.value[0] = val1;
 	if (wm->ctl[n].flags & WM8766_FLAG_STEREO)
@@ -269,7 +254,7 @@ static int snd_wm8766_ctl_put(struct snd_kcontrol *kcontrol,
 	int n = kcontrol->private_value;
 	u16 val, regval1, regval2;
 
-	/* this also works for enum because value is an union */
+	/* this also works for enum because value is a union */
 	regval1 = ucontrol->value.integer.value[0];
 	regval2 = ucontrol->value.integer.value[1];
 	if (wm->ctl[n].flags & WM8766_FLAG_INVERT) {

@@ -7,7 +7,7 @@
  * defined; unless noted otherwise, they are optional, and can be
  * filled in with a null pointer.
  *
- * struct tty_struct * (*lookup)(struct tty_driver *self, int idx)
+ * struct tty_struct * (*lookup)(struct tty_driver *self, struct file *, int idx)
  *
  *	Return the tty device corresponding to idx, NULL if there is not
  *	one currently in use and an ERR_PTR value on error. Called under
@@ -35,14 +35,14 @@
  * 	This routine is mandatory; if this routine is not filled in,
  * 	the attempted open will fail with ENODEV.
  *
- *	Required method.
- *     
+ *	Required method. Called with tty lock held.
+ *
  * void (*close)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is closed.
  *	Note: called even if the corresponding open() failed.
  *
- *	Required method.
+ *	Required method. Called with tty lock held.
  *
  * void (*shutdown)(struct tty_struct * tty);
  *
@@ -152,6 +152,8 @@
  * 	This routine notifies the tty driver that it should stop
  * 	outputting characters to the tty device.  
  *
+ *	Called with ->flow_lock held. Serialized with start() method.
+ *
  *	Optional:
  *
  *	Note: Call stop_tty not this method.
@@ -160,6 +162,8 @@
  *
  * 	This routine notifies the tty driver that it resume sending
  *	characters to the tty device.
+ *
+ *	Called with ->flow_lock held. Serialized with stop() method.
  *
  *	Optional:
  *
@@ -171,6 +175,8 @@
  * 	tty device.
  *
  *	Optional:
+ *
+ *	Called with tty lock held.
  *
  * int (*break_ctl)(struct tty_struct *tty, int state);
  *
@@ -237,6 +243,7 @@
 #include <linux/list.h>
 #include <linux/cdev.h>
 #include <linux/termios.h>
+#include <linux/seq_file.h>
 
 struct tty_struct;
 struct tty_driver;
@@ -244,7 +251,7 @@ struct serial_icounter_struct;
 
 struct tty_operations {
 	struct tty_struct * (*lookup)(struct tty_driver *driver,
-			struct inode *inode, int idx);
+			struct file *filp, int idx);
 	int  (*install)(struct tty_driver *driver, struct tty_struct *tty);
 	void (*remove)(struct tty_driver *driver, struct tty_struct *tty);
 	int  (*open)(struct tty_struct * tty, struct file * filp);
@@ -279,18 +286,19 @@ struct tty_operations {
 	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 	int (*get_icount)(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
+	void (*show_fdinfo)(struct tty_struct *tty, struct seq_file *m);
 #ifdef CONFIG_CONSOLE_POLL
 	int (*poll_init)(struct tty_driver *driver, int line, char *options);
 	int (*poll_get_char)(struct tty_driver *driver, int line);
 	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
 #endif
 	const struct file_operations *proc_fops;
-};
+} __randomize_layout;
 
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
 	struct kref kref;	/* Reference management */
-	struct cdev *cdevs;
+	struct cdev **cdevs;
 	struct module	*owner;
 	const char	*driver_name;
 	const char	*name;
@@ -319,7 +327,7 @@ struct tty_driver {
 
 	const struct tty_operations *ops;
 	struct list_head tty_drivers;
-};
+} __randomize_layout;
 
 extern struct list_head tty_drivers;
 

@@ -1,5 +1,6 @@
 config WIL6210
 	tristate "Wilocity 60g WiFi card wil6210 support"
+	select WANT_DEV_COREDUMP
 	depends on CFG80211
 	depends on PCI
 	default n
@@ -36,6 +37,18 @@ config WIL6210_TRACING
 	---help---
 	  Say Y here to enable tracepoints for the wil6210 driver
 	  using the kernel tracing infrastructure.  Select this
+	  option if you are interested in debugging the driver.
+
+	  If unsure, say Y to make it easier to debug problems.
+
+config WIL6210_DEBUGFS
+	bool "wil6210 debugfs support"
+	depends on WIL6210
+	depends on DEBUG_FS
+	default y
+	---help---
+	  Say Y here to enable wil6210 debugfs support, using the
+	  kernel debugfs infrastructure. Select this
 	  option if you are interested in debugging the driver.
 
 	  If unsure, say Y to make it easier to debug problems.

@@ -10,6 +10,7 @@
  * 27/03/03 Ian Molton Clean up CONFIG_CPU
  *
  */
+#include <linux/kern_levels.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 		.text
@@ -25,7 +26,7 @@
 ENTRY(c_backtrace)
 
 #if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)
-		mov	pc, lr
+		ret	lr
 ENDPROC(c_backtrace)
 #else
 		stmfd	sp!, {r4 - r8, lr}	@ Save an extra register so we have a location...
@@ -80,16 +81,16 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 
 		ldr	r1, [sv_pc, #-4]	@ if stmfd sp!, {args} exists,
 		ldr	r3, .Ldsi+4
-		teq	r3, r1, lsr #10
+		teq	r3, r1, lsr #11
 		ldreq	r0, [frame, #-8]	@ get sp
 		subeq	r0, r0, #4		@ point at the last arg
-		bleq	.Ldumpstm		@ dump saved registers
+		bleq	dump_backtrace_stm	@ dump saved registers
 
 1004:		ldr	r1, [sv_pc, #0]		@ if stmfd sp!, {..., fp, ip, lr, pc}
 		ldr	r3, .Ldsi		@ instruction exists,
-		teq	r3, r1, lsr #10
+		teq	r3, r1, lsr #11
 		subeq	r0, frame, #16
-		bleq	.Ldumpstm		@ dump saved registers
+		bleq	dump_backtrace_stm	@ dump saved registers
 
 		teq	sv_fp, #0		@ zero saved fp means
 		beq	no_frame		@ no further frames
@@ -112,41 +113,9 @@ ENDPROC(c_backtrace)
 		.long	1004b, 1006b
 		.popsection
 
-#define instr r4
-#define reg   r5
-#define stack r6
-
-.Ldumpstm:	stmfd	sp!, {instr, reg, stack, r7, lr}
-		mov	stack, r0
-		mov	instr, r1
-		mov	reg, #10
-		mov	r7, #0
-1:		mov	r3, #1
- ARM(		tst	instr, r3, lsl reg	)
- THUMB(		lsl	r3, reg			)
- THUMB(		tst	instr, r3		)
-		beq	2f
-		add	r7, r7, #1
-		teq	r7, #6
-		moveq	r7, #1
-		moveq	r1, #'\n'
-		movne	r1, #' '
-		ldr	r3, [stack], #-4
-		mov	r2, reg
-		adr	r0, .Lfp
-		bl	printk
-2:		subs	reg, reg, #1
-		bpl	1b
-		teq	r7, #0
-		adrne	r0, .Lcr
-		blne	printk
-		ldmfd	sp!, {instr, reg, stack, r7, pc}
-
-.Lfp:		.asciz	"%cr%d:%08x"
-.Lcr:		.asciz	"\n"
 .Lbad:		.asciz	"Backtrace aborted due to bad frame pointer <%p>\n"
 		.align
-.Ldsi:		.word	0xe92dd800 >> 10	@ stmfd sp!, {... fp, ip, lr, pc}
-		.word	0xe92d0000 >> 10	@ stmfd sp!, {}
+.Ldsi:		.word	0xe92dd800 >> 11	@ stmfd sp!, {... fp, ip, lr, pc}
+		.word	0xe92d0000 >> 11	@ stmfd sp!, {}
 
 #endif

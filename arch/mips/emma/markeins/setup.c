@@ -90,7 +90,7 @@ void __init plat_time_init(void)
 static void markeins_board_init(void);
 extern void markeins_irq_setup(void);
 
-static void inline __init markeins_sio_setup(void)
+static inline void __init markeins_sio_setup(void)
 {
 }
 
@@ -110,9 +110,6 @@ void __init plat_mem_setup(void)
 	ioport_resource.end = EMMA2RH_PCI_IO_BASE + EMMA2RH_PCI_IO_SIZE - 1;
 	iomem_resource.start = EMMA2RH_IO_BASE;
 	iomem_resource.end = EMMA2RH_ROM_BASE - 1;
-
-	/* Reboot on panic */
-	panic_timeout = 180;
 
 	markeins_sio_setup();
 }

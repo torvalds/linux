@@ -53,12 +53,12 @@ struct ext2_xattr_entry {
 #define EXT2_XATTR_SIZE(size) \
 	(((size) + EXT2_XATTR_ROUND) & ~EXT2_XATTR_ROUND)
 
+struct mb_cache;
+
 # ifdef CONFIG_EXT2_FS_XATTR
 
 extern const struct xattr_handler ext2_xattr_user_handler;
 extern const struct xattr_handler ext2_xattr_trusted_handler;
-extern const struct xattr_handler ext2_xattr_acl_access_handler;
-extern const struct xattr_handler ext2_xattr_acl_default_handler;
 extern const struct xattr_handler ext2_xattr_security_handler;
 
 extern ssize_t ext2_listxattr(struct dentry *, char *, size_t);
@@ -67,10 +67,9 @@ extern int ext2_xattr_get(struct inode *, int, const char *, void *, size_t);
 extern int ext2_xattr_set(struct inode *, int, const char *, const void *, size_t, int);
 
 extern void ext2_xattr_delete_inode(struct inode *);
-extern void ext2_xattr_put_super(struct super_block *);
 
-extern int init_ext2_xattr(void);
-extern void exit_ext2_xattr(void);
+extern struct mb_cache *ext2_xattr_create_cache(void);
+extern void ext2_xattr_destroy_cache(struct mb_cache *cache);
 
 extern const struct xattr_handler *ext2_xattr_handlers[];
 
@@ -95,19 +94,7 @@ ext2_xattr_delete_inode(struct inode *inode)
 {
 }
 
-static inline void
-ext2_xattr_put_super(struct super_block *sb)
-{
-}
-
-static inline int
-init_ext2_xattr(void)
-{
-	return 0;
-}
-
-static inline void
-exit_ext2_xattr(void)
+static inline void ext2_xattr_destroy_cache(struct mb_cache *cache)
 {
 }
 

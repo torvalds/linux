@@ -2,7 +2,7 @@ This file contains brief information about the SCSI tape driver.
 The driver is currently maintained by Kai Mäkisara (email
 Kai.Makisara@kolumbus.fi)
 
-Last modified: Sun Aug 29 18:25:47 2010 by kai.makisara
+Last modified: Tue Feb  9 21:54:16 2016 by kai.makisara
 
 
 BASICS
@@ -150,6 +150,65 @@ options.
 A link named 'tape' is made from the SCSI device directory to the class
 directory corresponding to the mode 0 auto-rewind device (e.g., st0). 
 
+
+SYSFS AND STATISTICS FOR TAPE DEVICES
+
+The st driver maintains statistics for tape drives inside the sysfs filesystem.
+The following method can be used to locate the statistics that are
+available (assuming that sysfs is mounted at /sys):
+
+1. Use opendir(3) on the directory /sys/class/scsi_tape
+2. Use readdir(3) to read the directory contents
+3. Use regcomp(3)/regexec(3) to match directory entries to the extended
+        regular expression "^st[0-9]+$"
+4. Access the statistics from the /sys/class/scsi_tape/<match>/stats
+        directory (where <match> is a directory entry from /sys/class/scsi_tape
+        that matched the extended regular expression)
+
+The reason for using this approach is that all the character devices
+pointing to the same tape drive use the same statistics. That means
+that st0 would have the same statistics as nst0.
+
+The directory contains the following statistics files:
+
+1.  in_flight - The number of I/Os currently outstanding to this device.
+2.  io_ns - The amount of time spent waiting (in nanoseconds) for all I/O
+        to complete (including read and write). This includes tape movement
+        commands such as seeking between file or set marks and implicit tape
+        movement such as when rewind on close tape devices are used.
+3.  other_cnt - The number of I/Os issued to the tape drive other than read or
+        write commands. The time taken to complete these commands uses the
+        following calculation io_ms-read_ms-write_ms.
+4.  read_byte_cnt - The number of bytes read from the tape drive.
+5.  read_cnt - The number of read requests issued to the tape drive.
+6.  read_ns - The amount of time (in nanoseconds) spent waiting for read
+        requests to complete.
+7.  write_byte_cnt - The number of bytes written to the tape drive.
+8.  write_cnt - The number of write requests issued to the tape drive.
+9.  write_ns - The amount of time (in nanoseconds) spent waiting for write
+        requests to complete.
+10. resid_cnt - The number of times during a read or write we found
+	the residual amount to be non-zero. This should mean that a program
+	is issuing a read larger thean the block size on tape. For write
+	not all data made it to tape.
+
+Note: The in_flight value is incremented when an I/O starts the I/O
+itself is not added to the statistics until it completes.
+
+The total of read_cnt, write_cnt, and other_cnt may not total to the same
+value as iodone_cnt at the device level. The tape statistics only count
+I/O issued via the st module.
+
+When read the statistics may not be temporally consistent while I/O is in
+progress. The individual values are read and written to atomically however
+when reading them back via sysfs they may be in the process of being
+updated when starting an I/O or when it is completed.
+
+The value shown in in_flight is incremented before any statstics are
+updated and decremented when an I/O completes after updating statistics.
+The value of in_flight is 0 when there are no I/Os outstanding that are
+issued by the st driver. Tape statistics do not take into account any
+I/O performed via the sg device.
 
 BSD AND SYS V SEMANTICS
 
@@ -349,10 +408,15 @@ MTSETPART Moves the tape to the partition given by the argument at the
 	specified by MTSEEK. MTSETPART is inactive unless
 	MT_ST_CAN_PARTITIONS set.
 MTMKPART Formats the tape with one partition (argument zero) or two
-	partitions (the argument gives in megabytes the size of
-	partition 1 that is physically the first partition of the
-	tape). The drive has to support partitions with size specified
-	by the initiator. Inactive unless MT_ST_CAN_PARTITIONS set.
+	partitions (argument non-zero). If the argument is positive,
+	it specifies the size of partition 1 in megabytes. For DDS
+	drives and several early drives this is the physically first
+	partition of the tape. If the argument is negative, its absolute
+	value specifies the size of partition 0 in megabytes. This is
+	the physically first partition of many later drives, like the
+	LTO drives from LTO-5 upwards. The drive has to support partitions
+	with size specified by the initiator. Inactive unless
+	MT_ST_CAN_PARTITIONS set.
 MTSETDRVBUFFER
 	Is used for several purposes. The command is obtained from count
         with mask MT_SET_OPTIONS, the low order bits are used as argument.
@@ -506,9 +570,13 @@ user does not request data that far.)
 
 DEBUGGING HINTS
 
-To enable debugging messages, edit st.c and #define DEBUG 1. As seen
-above, debugging can be switched off with an ioctl if debugging is
-compiled into the driver. The debugging output is not voluminous.
+Debugging code is now compiled in by default but debugging is turned off
+with the kernel module parameter debug_flag defaulting to 0.  Debugging
+can still be switched on and off with an ioctl.  To enable debug at
+module load time add debug_flag=1 to the module load options, the
+debugging output is not voluminous. Debugging can also be enabled
+and disabled by writing a '0' (disable) or '1' (enable) to the sysfs
+file /sys/bus/scsi/drivers/st/debug_flag.
 
 If the tape seems to hang, I would be very interested to hear where
 the driver is waiting. With the command 'ps -l' you can see the state

@@ -45,7 +45,7 @@ enum abx500_adc_therm {
  * struct abx500_res_to_temp - defines one point in a temp to res curve. To
  * be used in battery packs that combines the identification resistor with a
  * NTC resistor.
- * @temp:			battery pack temperature in Celcius
+ * @temp:			battery pack temperature in Celsius
  * @resist:			NTC resistor net total resistance
  */
 struct abx500_res_to_temp {
@@ -330,7 +330,6 @@ int abx500_mask_and_set_register_interruptible(struct device *dev, u8 bank,
 int abx500_get_chip_id(struct device *dev);
 int abx500_event_registers_startup_state_get(struct device *dev, u8 *event);
 int abx500_startup_irq_enabled(struct device *dev, unsigned int irq);
-void abx500_dump_all_banks(void);
 
 struct abx500_ops {
 	int (*get_chip_id) (struct device *);

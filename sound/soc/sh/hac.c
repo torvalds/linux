@@ -272,7 +272,7 @@ static const struct snd_soc_dai_ops hac_dai_ops = {
 static struct snd_soc_dai_driver sh4_hac_dai[] = {
 {
 	.name			= "hac-dai.0",
-	.ac97_control		= 1,
+	.bus_control		= true,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -315,6 +315,8 @@ static const struct snd_soc_component_driver sh4_hac_component = {
 
 static int hac_soc_platform_probe(struct platform_device *pdev)
 {
+	int ret;
+
 	ret = snd_soc_set_ac97_ops(&hac_ac97_ops);
 	if (ret != 0)
 		return ret;
@@ -333,7 +335,6 @@ static int hac_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver hac_pcm_driver = {
 	.driver = {
 			.name = "hac-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = hac_soc_platform_probe,

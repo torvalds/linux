@@ -14,33 +14,20 @@
 #include <asm/thread_info.h>
 #include <asm/gdb-stub.h>
 
-#define DEF_PTREG(sym, reg) \
-        asm volatile("\n->" #sym " %0 offsetof(struct pt_regs, " #reg ")" \
-		     : : "i" (offsetof(struct pt_regs, reg)))
-
-#define DEF_IREG(sym, reg) \
-        asm volatile("\n->" #sym " %0 offsetof(struct user_context, " #reg ")" \
-		     : : "i" (offsetof(struct user_context, reg)))
-
-#define DEF_FREG(sym, reg) \
-        asm volatile("\n->" #sym " %0 offsetof(struct user_context, " #reg ")" \
-		     : : "i" (offsetof(struct user_context, reg)))
-
-#define DEF_0REG(sym, reg) \
-        asm volatile("\n->" #sym " %0 offsetof(struct frv_frame0, " #reg ")" \
-		     : : "i" (offsetof(struct frv_frame0, reg)))
+#define DEF_PTREG(sym, reg) OFFSET(sym, pt_regs, reg)
+#define DEF_IREG(sym, reg) OFFSET(sym, user_context, reg)
+#define DEF_FREG(sym, reg) OFFSET(sym, user_context, reg)
+#define DEF_0REG(sym, reg) OFFSET(sym, frv_frame0, reg)
 
 void foo(void)
 {
 	/* offsets into the thread_info structure */
 	OFFSET(TI_TASK,			thread_info, task);
-	OFFSET(TI_EXEC_DOMAIN,		thread_info, exec_domain);
 	OFFSET(TI_FLAGS,		thread_info, flags);
 	OFFSET(TI_STATUS,		thread_info, status);
 	OFFSET(TI_CPU,			thread_info, cpu);
 	OFFSET(TI_PREEMPT_COUNT,	thread_info, preempt_count);
 	OFFSET(TI_ADDR_LIMIT,		thread_info, addr_limit);
-	OFFSET(TI_RESTART_BLOCK,	thread_info, restart_block);
 	BLANK();
 
 	/* offsets into register file storage */

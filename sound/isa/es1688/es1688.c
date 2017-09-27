@@ -71,17 +71,17 @@ module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "PnP detection for specified soundcard.");
 #endif
 MODULE_PARM_DESC(enable, "Enable " CRD_NAME " soundcard.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for " CRD_NAME " driver.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for " CRD_NAME " driver.");
-module_param_array(irq, int, NULL, 0444);
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM port # for ES1688 driver.");
 MODULE_PARM_DESC(irq, "IRQ # for " CRD_NAME " driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for " CRD_NAME " driver.");
-module_param_array(dma8, int, NULL, 0444);
+module_param_hw_array(dma8, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for " CRD_NAME " driver.");
 
 #ifdef CONFIG_PNP
@@ -138,10 +138,9 @@ static int snd_es1688_probe(struct snd_card *card, unsigned int n)
 {
 	struct snd_es1688 *chip = card->private_data;
 	struct snd_opl3 *opl3;
-	struct snd_pcm *pcm;
 	int error;
 
-	error = snd_es1688_pcm(card, chip, 0, &pcm);
+	error = snd_es1688_pcm(card, chip, 0);
 	if (error < 0)
 		return error;
 
@@ -150,9 +149,9 @@ static int snd_es1688_probe(struct snd_card *card, unsigned int n)
 		return error;
 
 	strlcpy(card->driver, "ES1688", sizeof(card->driver));
-	strlcpy(card->shortname, pcm->name, sizeof(card->shortname));
+	strlcpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
-		"%s at 0x%lx, irq %i, dma %i", pcm->name, chip->port,
+		"%s at 0x%lx, irq %i, dma %i", chip->pcm->name, chip->port,
 		 chip->irq, chip->dma8);
 
 	if (fm_port[n] == SNDRV_AUTO_PORT)
@@ -187,16 +186,14 @@ static int snd_es1688_isa_probe(struct device *dev, unsigned int n)
 	struct snd_card *card;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE,
-				sizeof(struct snd_es1688), &card);
+	error = snd_card_new(dev, index[n], id[n], THIS_MODULE,
+			     sizeof(struct snd_es1688), &card);
 	if (error < 0)
 		return error;
 
 	error = snd_es1688_legacy_create(card, dev, n);
 	if (error < 0)
 		goto out;
-
-	snd_card_set_dev(card, dev);
 
 	error = snd_es1688_probe(card, n);
 	if (error < 0)
@@ -274,8 +271,9 @@ static int snd_es968_pnp_detect(struct pnp_card_link *pcard,
 	if (dev == SNDRV_CARDS)
 		return -ENODEV;
 
-	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
-				sizeof(struct snd_es1688), &card);
+	error = snd_card_new(&pcard->card->dev,
+			     index[dev], id[dev], THIS_MODULE,
+			     sizeof(struct snd_es1688), &card);
 	if (error < 0)
 		return error;
 	chip = card->private_data;
@@ -285,7 +283,6 @@ static int snd_es968_pnp_detect(struct pnp_card_link *pcard,
 		snd_card_free(card);
 		return error;
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 	error = snd_es1688_probe(card, dev);
 	if (error < 0)
 		return error;
@@ -324,7 +321,7 @@ static int snd_es968_pnp_resume(struct pnp_card_link *pcard)
 }
 #endif
 
-static struct pnp_card_device_id snd_es968_pnpids[] = {
+static const struct pnp_card_device_id snd_es968_pnpids[] = {
 	{ .id = "ESS0968", .devs = { { "@@@0968" }, } },
 	{ .id = "ESS0968", .devs = { { "ESS0968" }, } },
 	{ .id = "", } /* end */

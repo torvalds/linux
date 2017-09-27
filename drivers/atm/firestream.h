@@ -420,7 +420,6 @@ struct fs_transmit_config {
 #define RC_FLAGS_BFPS_BFP27 (0xd << 17)
 #define RC_FLAGS_BFPS_BFP47 (0xe << 17)
 
-#define RC_FLAGS_BFPS       (0x1 << 17)
 #define RC_FLAGS_BFPP       (0x1 << 21)
 #define RC_FLAGS_TEVC       (0x1 << 22)
 #define RC_FLAGS_TEP        (0x1 << 23)

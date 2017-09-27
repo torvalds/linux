@@ -55,7 +55,7 @@ static LIST_HEAD(voltdm_list);
 unsigned long voltdm_get_voltage(struct voltagedomain *voltdm)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return 0;
 	}
 
@@ -77,12 +77,18 @@ int voltdm_scale(struct voltagedomain *voltdm,
 	unsigned long volt = 0;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return -EINVAL;
 	}
 
 	if (!voltdm->scale) {
 		pr_err("%s: No voltage scale API registered for vdd_%s\n",
+			__func__, voltdm->name);
+		return -ENODATA;
+	}
+
+	if (!voltdm->volt_data) {
+		pr_err("%s: No voltage data defined for vdd_%s\n",
 			__func__, voltdm->name);
 		return -ENODATA;
 	}
@@ -96,8 +102,8 @@ int voltdm_scale(struct voltagedomain *voltdm,
 	}
 
 	if (!volt) {
-		pr_warning("%s: not scaling. OPP voltage for %lu, not found.\n",
-			   __func__, target_volt);
+		pr_warn("%s: not scaling. OPP voltage for %lu, not found.\n",
+			__func__, target_volt);
 		return -EINVAL;
 	}
 
@@ -122,7 +128,7 @@ void voltdm_reset(struct voltagedomain *voltdm)
 	unsigned long target_volt;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
 
@@ -152,7 +158,7 @@ void omap_voltage_get_volttable(struct voltagedomain *voltdm,
 				struct omap_volt_data **volt_data)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
 
@@ -180,12 +186,12 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 	int i;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!voltdm->volt_data) {
-		pr_warning("%s: voltage table does not exist for vdd_%s\n",
+		pr_warn("%s: voltage table does not exist for vdd_%s\n",
 			__func__, voltdm->name);
 		return ERR_PTR(-ENODATA);
 	}
@@ -214,44 +220,13 @@ int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 			       struct omap_voltdm_pmic *pmic)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return -EINVAL;
 	}
 
 	voltdm->pmic = pmic;
 
 	return 0;
-}
-
-/**
- * omap_change_voltscale_method() - API to change the voltage scaling method.
- * @voltdm:	pointer to the VDD whose voltage scaling method
- *		has to be changed.
- * @voltscale_method:	the method to be used for voltage scaling.
- *
- * This API can be used by the board files to change the method of voltage
- * scaling between vpforceupdate and vcbypass. The parameter values are
- * defined in voltage.h
- */
-void omap_change_voltscale_method(struct voltagedomain *voltdm,
-				  int voltscale_method)
-{
-	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
-		return;
-	}
-
-	switch (voltscale_method) {
-	case VOLTSCALE_VPFORCEUPDATE:
-		voltdm->scale = omap_vp_forceupdate_scale;
-		return;
-	case VOLTSCALE_VCBYPASS:
-		voltdm->scale = omap_vc_bypass_scale;
-		return;
-	default:
-		pr_warn("%s: Trying to change the method of voltage scaling to an unsupported one!\n",
-			__func__);
-	}
 }
 
 /**
@@ -279,7 +254,7 @@ int __init omap_voltage_late_init(void)
 
 		sys_ck = clk_get(NULL, voltdm->sys_clk.name);
 		if (IS_ERR(sys_ck)) {
-			pr_warning("%s: Could not get sys clk.\n", __func__);
+			pr_warn("%s: Could not get sys clk.\n", __func__);
 			return -EINVAL;
 		}
 		voltdm->sys_clk.rate = clk_get_rate(sys_ck);
@@ -316,90 +291,11 @@ static struct voltagedomain *_voltdm_lookup(const char *name)
 	return voltdm;
 }
 
-/**
- * voltdm_add_pwrdm - add a powerdomain to a voltagedomain
- * @voltdm: struct voltagedomain * to add the powerdomain to
- * @pwrdm: struct powerdomain * to associate with a voltagedomain
- *
- * Associate the powerdomain @pwrdm with a voltagedomain @voltdm.  This
- * enables the use of voltdm_for_each_pwrdm().  Returns -EINVAL if
- * presented with invalid pointers; -ENOMEM if memory could not be allocated;
- * or 0 upon success.
- */
-int voltdm_add_pwrdm(struct voltagedomain *voltdm, struct powerdomain *pwrdm)
-{
-	if (!voltdm || !pwrdm)
-		return -EINVAL;
-
-	pr_debug("voltagedomain: %s: associating powerdomain %s\n",
-		 voltdm->name, pwrdm->name);
-
-	list_add(&pwrdm->voltdm_node, &voltdm->pwrdm_list);
-
-	return 0;
-}
-
-/**
- * voltdm_for_each_pwrdm - call function for each pwrdm in a voltdm
- * @voltdm: struct voltagedomain * to iterate over
- * @fn: callback function *
- *
- * Call the supplied function @fn for each powerdomain in the
- * voltagedomain @voltdm.  Returns -EINVAL if presented with invalid
- * pointers; or passes along the last return value of the callback
- * function, which should be 0 for success or anything else to
- * indicate failure.
- */
-int voltdm_for_each_pwrdm(struct voltagedomain *voltdm,
-			  int (*fn)(struct voltagedomain *voltdm,
-				    struct powerdomain *pwrdm))
-{
-	struct powerdomain *pwrdm;
-	int ret = 0;
-
-	if (!fn)
-		return -EINVAL;
-
-	list_for_each_entry(pwrdm, &voltdm->pwrdm_list, voltdm_node)
-		ret = (*fn)(voltdm, pwrdm);
-
-	return ret;
-}
-
-/**
- * voltdm_for_each - call function on each registered voltagedomain
- * @fn: callback function *
- *
- * Call the supplied function @fn for each registered voltagedomain.
- * The callback function @fn can return anything but 0 to bail out
- * early from the iterator.  Returns the last return value of the
- * callback function, which should be 0 for success or anything else
- * to indicate failure; or -EINVAL if the function pointer is null.
- */
-int voltdm_for_each(int (*fn)(struct voltagedomain *voltdm, void *user),
-		    void *user)
-{
-	struct voltagedomain *temp_voltdm;
-	int ret = 0;
-
-	if (!fn)
-		return -EINVAL;
-
-	list_for_each_entry(temp_voltdm, &voltdm_list, node) {
-		ret = (*fn)(temp_voltdm, user);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
 static int _voltdm_register(struct voltagedomain *voltdm)
 {
 	if (!voltdm || !voltdm->name)
 		return -EINVAL;
 
-	INIT_LIST_HEAD(&voltdm->pwrdm_list);
 	list_add(&voltdm->node, &voltdm_list);
 
 	pr_debug("voltagedomain: registered %s\n", voltdm->name);

@@ -1,0 +1,10 @@
+Todo list for devicetree:
+
+=== General structure ===
+- Switch from custom lists to (h)list_head for nodes and properties structure
+
+=== CONFIG_OF_DYNAMIC ===
+- Switch to RCU for tree updates and get rid of global spinlock
+- Document node lifecycle for CONFIG_OF_DYNAMIC
+- Always set ->full_name at of_attach_node() time
+- pseries: Get rid of open-coded tree modification from arch/powerpc/platforms/pseries/dlpar.c

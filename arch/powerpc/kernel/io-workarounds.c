@@ -12,13 +12,15 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
-#include <linux/sched.h>	/* for init_mm */
+#include <linux/sched/mm.h>	/* for init_mm */
 
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
 #include <asm/ppc-pci.h>
 #include <asm/io-workarounds.h>
+#include <asm/pte-walk.h>
+
 
 #define IOWA_MAX_BUS	8
 
@@ -53,6 +55,7 @@ static struct iowa_bus *iowa_pci_find(unsigned long vaddr, unsigned long paddr)
 	return NULL;
 }
 
+#ifdef CONFIG_PPC_INDIRECT_MMIO
 struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 {
 	unsigned hugepage_shift;
@@ -70,15 +73,14 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 		vaddr = (unsigned long)PCI_FIX_ADDR(addr);
 		if (vaddr < PHB_IO_BASE || vaddr >= PHB_IO_END)
 			return NULL;
-
-		ptep = find_linux_pte_or_hugepte(init_mm.pgd, vaddr,
-						 &hugepage_shift);
+		/*
+		 * We won't find huge pages here (iomem). Also can't hit
+		 * a page table free due to init_mm
+		 */
+		ptep = find_init_mm_pte(vaddr, &hugepage_shift);
 		if (ptep == NULL)
 			paddr = 0;
 		else {
-			/*
-			 * we don't have hugepages backing iomem
-			 */
 			WARN_ON(hugepage_shift);
 			paddr = pte_pfn(*ptep) << PAGE_SHIFT;
 		}
@@ -90,13 +92,25 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 
 	return bus;
 }
+#else /* CONFIG_PPC_INDIRECT_MMIO */
+struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
+{
+	return NULL;
+}
+#endif /* !CONFIG_PPC_INDIRECT_MMIO */
 
+#ifdef CONFIG_PPC_INDIRECT_PIO
 struct iowa_bus *iowa_pio_find_bus(unsigned long port)
 {
 	unsigned long vaddr = (unsigned long)pci_io_base + port;
 	return iowa_pci_find(vaddr, 0);
 }
-
+#else
+struct iowa_bus *iowa_pio_find_bus(unsigned long port)
+{
+	return NULL;
+}
+#endif
 
 #define DEF_PCI_AC_RET(name, ret, at, al, space, aa)		\
 static ret iowa_##name at					\
@@ -137,6 +151,7 @@ static const struct ppc_pci_io iowa_pci_io = {
 
 };
 
+#ifdef CONFIG_PPC_INDIRECT_MMIO
 static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 				  unsigned long flags, void *caller)
 {
@@ -151,6 +166,9 @@ static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 	}
 	return res;
 }
+#else /* CONFIG_PPC_INDIRECT_MMIO */
+#define iowa_ioremap NULL
+#endif /* !CONFIG_PPC_INDIRECT_MMIO */
 
 /* Enable IO workaround */
 static void io_workaround_init(void)
@@ -175,7 +193,7 @@ void iowa_register_bus(struct pci_controller *phb, struct ppc_pci_io *ops,
 
 	if (iowa_bus_count >= IOWA_MAX_BUS) {
 		pr_err("IOWA:Too many pci bridges, "
-		       "workarounds disabled for %s\n", np->full_name);
+		       "workarounds disabled for %pOF\n", np);
 		return;
 	}
 
@@ -190,6 +208,6 @@ void iowa_register_bus(struct pci_controller *phb, struct ppc_pci_io *ops,
 
 	iowa_bus_count++;
 
-	pr_debug("IOWA:[%d]Add bus, %s.\n", iowa_bus_count-1, np->full_name);
+	pr_debug("IOWA:[%d]Add bus, %pOF.\n", iowa_bus_count-1, np);
 }
 

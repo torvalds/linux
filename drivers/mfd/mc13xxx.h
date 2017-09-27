@@ -13,7 +13,9 @@
 #include <linux/regmap.h>
 #include <linux/mfd/mc13xxx.h>
 
-#define MC13XXX_NUMREGS 0x3f
+#define MC13XXX_NUMREGS		0x3f
+#define MC13XXX_IRQ_REG_CNT	2
+#define MC13XXX_IRQ_PER_REG	24
 
 struct mc13xxx;
 
@@ -33,19 +35,18 @@ struct mc13xxx {
 	struct device *dev;
 	const struct mc13xxx_variant *variant;
 
+	struct regmap_irq irqs[MC13XXX_IRQ_PER_REG * MC13XXX_IRQ_REG_CNT];
+	struct regmap_irq_chip irq_chip;
+	struct regmap_irq_chip_data *irq_data;
+
 	struct mutex lock;
 	int irq;
 	int flags;
 
-	irq_handler_t irqhandler[MC13XXX_NUM_IRQ];
-	void *irqdata[MC13XXX_NUM_IRQ];
-
 	int adcflags;
 };
 
-int mc13xxx_common_init(struct mc13xxx *mc13xxx,
-		struct mc13xxx_platform_data *pdata, int irq);
-
-void mc13xxx_common_cleanup(struct mc13xxx *mc13xxx);
+int mc13xxx_common_init(struct device *dev);
+int mc13xxx_common_exit(struct device *dev);
 
 #endif /* __DRIVERS_MFD_MC13XXX_H */

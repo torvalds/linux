@@ -7,76 +7,41 @@
  *
  * Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- * Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2013 John Crispin <john@phrozen.org>
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/rt288x.h>
+#include <asm/mach-ralink/pinmux.h>
 
 #include "common.h"
 
-static struct ralink_pinmux_grp mode_mux[] = {
-	{
-		.name = "i2c",
-		.mask = RT2880_GPIO_MODE_I2C,
-		.gpio_first = 1,
-		.gpio_last = 2,
-	}, {
-		.name = "spi",
-		.mask = RT2880_GPIO_MODE_SPI,
-		.gpio_first = 3,
-		.gpio_last = 6,
-	}, {
-		.name = "uartlite",
-		.mask = RT2880_GPIO_MODE_UART0,
-		.gpio_first = 7,
-		.gpio_last = 14,
-	}, {
-		.name = "jtag",
-		.mask = RT2880_GPIO_MODE_JTAG,
-		.gpio_first = 17,
-		.gpio_last = 21,
-	}, {
-		.name = "mdio",
-		.mask = RT2880_GPIO_MODE_MDIO,
-		.gpio_first = 22,
-		.gpio_last = 23,
-	}, {
-		.name = "sdram",
-		.mask = RT2880_GPIO_MODE_SDRAM,
-		.gpio_first = 24,
-		.gpio_last = 39,
-	}, {
-		.name = "pci",
-		.mask = RT2880_GPIO_MODE_PCI,
-		.gpio_first = 40,
-		.gpio_last = 71,
-	}, {0}
-};
+static struct rt2880_pmx_func i2c_func[] = { FUNC("i2c", 0, 1, 2) };
+static struct rt2880_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
+static struct rt2880_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 7, 8) };
+static struct rt2880_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
+static struct rt2880_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
+static struct rt2880_pmx_func sdram_func[] = { FUNC("sdram", 0, 24, 16) };
+static struct rt2880_pmx_func pci_func[] = { FUNC("pci", 0, 40, 32) };
 
-static void rt288x_wdt_reset(void)
-{
-	u32 t;
-
-	/* enable WDT reset output on pin SRAM_CS_N */
-	t = rt_sysc_r32(SYSC_REG_CLKCFG);
-	t |= CLKCFG_SRAM_CS_N_WDT;
-	rt_sysc_w32(t, SYSC_REG_CLKCFG);
-}
-
-struct ralink_pinmux rt_gpio_pinmux = {
-	.mode = mode_mux,
-	.wdt_reset = rt288x_wdt_reset,
+static struct rt2880_pmx_group rt2880_pinmux_data_act[] = {
+	GRP("i2c", i2c_func, 1, RT2880_GPIO_MODE_I2C),
+	GRP("spi", spi_func, 1, RT2880_GPIO_MODE_SPI),
+	GRP("uartlite", uartlite_func, 1, RT2880_GPIO_MODE_UART0),
+	GRP("jtag", jtag_func, 1, RT2880_GPIO_MODE_JTAG),
+	GRP("mdio", mdio_func, 1, RT2880_GPIO_MODE_MDIO),
+	GRP("sdram", sdram_func, 1, RT2880_GPIO_MODE_SDRAM),
+	GRP("pci", pci_func, 1, RT2880_GPIO_MODE_PCI),
+	{ 0 }
 };
 
 void __init ralink_clk_init(void)
 {
-	unsigned long cpu_rate;
+	unsigned long cpu_rate, wmac_rate = 40000000;
 	u32 t = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG);
 	t = ((t >> SYSTEM_CONFIG_CPUCLK_SHIFT) & SYSTEM_CONFIG_CPUCLK_MASK);
 
@@ -99,8 +64,10 @@ void __init ralink_clk_init(void)
 	ralink_clk_add("300100.timer", cpu_rate / 2);
 	ralink_clk_add("300120.watchdog", cpu_rate / 2);
 	ralink_clk_add("300500.uart", cpu_rate / 2);
+	ralink_clk_add("300900.i2c", cpu_rate / 2);
 	ralink_clk_add("300c00.uartlite", cpu_rate / 2);
 	ralink_clk_add("400000.ethernet", cpu_rate / 2);
+	ralink_clk_add("480000.wmac", wmac_rate);
 }
 
 void __init ralink_of_remap(void)
@@ -140,4 +107,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	soc_info->mem_base = RT2880_SDRAM_BASE;
 	soc_info->mem_size_min = RT2880_MEM_SIZE_MIN;
 	soc_info->mem_size_max = RT2880_MEM_SIZE_MAX;
+
+	rt2880_pinmux_data = rt2880_pinmux_data_act;
+	ralink_soc = RT2880_SOC;
 }

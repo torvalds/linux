@@ -34,7 +34,7 @@
 #include <linux/errno.h>
 #include <net/arp.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Create the HIPPI MAC header for an arbitrary protocol layer
@@ -47,7 +47,7 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type,
 			const void *daddr, const void *saddr, unsigned int len)
 {
-	struct hippi_hdr *hip = (struct hippi_hdr *)skb_push(skb, HIPPI_HLEN);
+	struct hippi_hdr *hip = skb_push(skb, HIPPI_HLEN);
 	struct hippi_cb *hcb = (struct hippi_cb *) skb->cb;
 
 	if (!len){
@@ -91,33 +91,6 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 
 
 /*
- * Rebuild the HIPPI MAC header. This is called after an ARP has
- * completed on this sk_buff. We now let ARP fill in the other fields.
- */
-
-static int hippi_rebuild_header(struct sk_buff *skb)
-{
-	struct hippi_hdr *hip = (struct hippi_hdr *)skb->data;
-
-	/*
-	 * Only IP is currently supported
-	 */
-
-	if(hip->snap.ethertype != htons(ETH_P_IP))
-	{
-		printk(KERN_DEBUG "%s: unable to resolve type %X addresses.\n",skb->dev->name,ntohs(hip->snap.ethertype));
-		return 0;
-	}
-
-	/*
-	 * We don't support dynamic ARP on HIPPI, but we use the ARP
-	 * static ARP tables to hold the I-FIELDs.
-	 */
-	return arp_find(hip->le.daddr, skb);
-}
-
-
-/*
  *	Determine the packet's protocol ID.
  */
 
@@ -143,18 +116,6 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 EXPORT_SYMBOL(hippi_type_trans);
 
-int hippi_change_mtu(struct net_device *dev, int new_mtu)
-{
-	/*
-	 * HIPPI's got these nice large MTUs.
-	 */
-	if ((new_mtu < 68) || (new_mtu > 65280))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(hippi_change_mtu);
-
 /*
  * For HIPPI we will actually use the lower 4 bytes of the hardware
  * address as the I-FIELD rather than the actual hardware address.
@@ -172,21 +133,20 @@ EXPORT_SYMBOL(hippi_mac_addr);
 int hippi_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 {
 	/* Never send broadcast/multicast ARP messages */
-	p->mcast_probes = 0;
+	NEIGH_VAR_INIT(p, MCAST_PROBES, 0);
 
 	/* In IPv6 unicast probes are valid even on NBMA,
 	* because they are encapsulated in normal IPv6 protocol.
 	* Should be a generic flag.
 	*/
 	if (p->tbl->family != AF_INET6)
-		p->ucast_probes = 0;
+		NEIGH_VAR_INIT(p, UCAST_PROBES, 0);
 	return 0;
 }
 EXPORT_SYMBOL(hippi_neigh_setup_dev);
 
 static const struct header_ops hippi_header_ops = {
 	.create		= hippi_header,
-	.rebuild	= hippi_rebuild_header,
 };
 
 
@@ -202,6 +162,8 @@ static void hippi_setup(struct net_device *dev)
 	dev->type		= ARPHRD_HIPPI;
 	dev->hard_header_len 	= HIPPI_HLEN;
 	dev->mtu		= 65280;
+	dev->min_mtu		= 68;
+	dev->max_mtu		= 65280;
 	dev->addr_len		= HIPPI_ALEN;
 	dev->tx_queue_len	= 25 /* 5 */;
 	memset(dev->broadcast, 0xFF, HIPPI_ALEN);
@@ -228,7 +190,8 @@ static void hippi_setup(struct net_device *dev)
 
 struct net_device *alloc_hippi_dev(int sizeof_priv)
 {
-	return alloc_netdev(sizeof_priv, "hip%d", hippi_setup);
+	return alloc_netdev(sizeof_priv, "hip%d", NET_NAME_UNKNOWN,
+			    hippi_setup);
 }
 
 EXPORT_SYMBOL(alloc_hippi_dev);

@@ -13,7 +13,7 @@
 #include <linux/errno.h>	/* error codes */
 #include <linux/capability.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/time.h>		/* struct timeval */
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
@@ -62,21 +62,16 @@ static void vcc_remove_socket(struct sock *sk)
 	write_unlock_irq(&vcc_sklist_lock);
 }
 
-static struct sk_buff *alloc_tx(struct atm_vcc *vcc, unsigned int size)
+static bool vcc_tx_ready(struct atm_vcc *vcc, unsigned int size)
 {
-	struct sk_buff *skb;
 	struct sock *sk = sk_atm(vcc);
 
 	if (sk_wmem_alloc_get(sk) && !atm_may_send(vcc, size)) {
 		pr_debug("Sorry: wmem_alloc = %d, size = %d, sndbuf = %d\n",
 			 sk_wmem_alloc_get(sk), size, sk->sk_sndbuf);
-		return NULL;
+		return false;
 	}
-	while (!(skb = alloc_skb(size, GFP_KERNEL)))
-		schedule();
-	pr_debug("%d += %d\n", sk_wmem_alloc_get(sk), skb->truesize);
-	atomic_add(skb->truesize, &sk->sk_wmem_alloc);
-	return skb;
+	return true;
 }
 
 static void vcc_sock_destruct(struct sock *sk)
@@ -85,9 +80,9 @@ static void vcc_sock_destruct(struct sock *sk)
 		printk(KERN_DEBUG "%s: rmem leakage (%d bytes) detected.\n",
 		       __func__, atomic_read(&sk->sk_rmem_alloc));
 
-	if (atomic_read(&sk->sk_wmem_alloc))
+	if (refcount_read(&sk->sk_wmem_alloc))
 		printk(KERN_DEBUG "%s: wmem leakage (%d bytes) detected.\n",
-		       __func__, atomic_read(&sk->sk_wmem_alloc));
+		       __func__, refcount_read(&sk->sk_wmem_alloc));
 }
 
 static void vcc_def_wakeup(struct sock *sk)
@@ -96,7 +91,7 @@ static void vcc_def_wakeup(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up(&wq->wait);
 	rcu_read_unlock();
 }
@@ -106,7 +101,7 @@ static inline int vcc_writable(struct sock *sk)
 	struct atm_vcc *vcc = atm_sk(sk);
 
 	return (vcc->qos.txtp.max_sdu +
-		atomic_read(&sk->sk_wmem_alloc)) <= sk->sk_sndbuf;
+		refcount_read(&sk->sk_wmem_alloc)) <= sk->sk_sndbuf;
 }
 
 static void vcc_write_space(struct sock *sk)
@@ -117,7 +112,7 @@ static void vcc_write_space(struct sock *sk)
 
 	if (vcc_writable(sk)) {
 		wq = rcu_dereference(sk->sk_wq);
-		if (wq_has_sleeper(wq))
+		if (skwq_has_sleeper(wq))
 			wake_up_interruptible(&wq->wait);
 
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
@@ -141,7 +136,7 @@ static struct proto vcc_proto = {
 	.release_cb = vcc_release_cb,
 };
 
-int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
+int vcc_create(struct net *net, struct socket *sock, int protocol, int family, int kern)
 {
 	struct sock *sk;
 	struct atm_vcc *vcc;
@@ -149,7 +144,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	sock->sk = NULL;
 	if (sock->type == SOCK_STREAM)
 		return -EINVAL;
-	sk = sk_alloc(net, family, GFP_KERNEL, &vcc_proto);
+	sk = sk_alloc(net, family, GFP_KERNEL, &vcc_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 	sock_init_data(sock, sk);
@@ -161,7 +156,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	memset(&vcc->local, 0, sizeof(struct sockaddr_atmsvc));
 	memset(&vcc->remote, 0, sizeof(struct sockaddr_atmsvc));
 	vcc->qos.txtp.max_sdu = 1 << 16; /* for meta VCs */
-	atomic_set(&sk->sk_wmem_alloc, 1);
+	refcount_set(&sk->sk_wmem_alloc, 1);
 	atomic_set(&sk->sk_rmem_alloc, 0);
 	vcc->push = NULL;
 	vcc->pop = NULL;
@@ -300,7 +295,7 @@ static int adjust_tp(struct atm_trafprm *tp, unsigned char aal)
 		max_sdu = ATM_MAX_AAL34_PDU;
 		break;
 	default:
-		pr_warning("AAL problems ... (%d)\n", aal);
+		pr_warn("AAL problems ... (%d)\n", aal);
 		/* fall through */
 	case ATM_AAL5:
 		max_sdu = ATM_MAX_AAL5_PDU;
@@ -523,15 +518,13 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	return 0;
 }
 
-int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-		size_t size, int flags)
+int vcc_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		int flags)
 {
 	struct sock *sk = sock->sk;
 	struct atm_vcc *vcc;
 	struct sk_buff *skb;
 	int copied, error = -EINVAL;
-
-	msg->msg_namelen = 0;
 
 	if (sock->state != SS_CONNECTED)
 		return -ENOTCONN;
@@ -556,7 +549,7 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		msg->msg_flags |= MSG_TRUNC;
 	}
 
-	error = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	error = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (error)
 		return error;
 	sock_recv_ts_and_drops(msg, sk, skb);
@@ -571,16 +564,13 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	return copied;
 }
 
-int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
-		size_t total_len)
+int vcc_sendmsg(struct socket *sock, struct msghdr *m, size_t size)
 {
 	struct sock *sk = sock->sk;
 	DEFINE_WAIT(wait);
 	struct atm_vcc *vcc;
 	struct sk_buff *skb;
 	int eff, error;
-	const void __user *buff;
-	int size;
 
 	lock_sock(sk);
 	if (sock->state != SS_CONNECTED) {
@@ -591,12 +581,6 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 		error = -EISCONN;
 		goto out;
 	}
-	if (m->msg_iovlen != 1) {
-		error = -ENOSYS; /* fix this later @@@ */
-		goto out;
-	}
-	buff = m->msg_iov->iov_base;
-	size = m->msg_iov->iov_len;
 	vcc = ATM_SD(sock);
 	if (test_bit(ATM_VF_RELEASED, &vcc->flags) ||
 	    test_bit(ATM_VF_CLOSE, &vcc->flags) ||
@@ -609,7 +593,7 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 		error = 0;
 		goto out;
 	}
-	if (size < 0 || size > vcc->qos.txtp.max_sdu) {
+	if (size > vcc->qos.txtp.max_sdu) {
 		error = -EMSGSIZE;
 		goto out;
 	}
@@ -617,7 +601,7 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 	eff = (size+3) & ~3; /* align to word boundary */
 	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 	error = 0;
-	while (!(skb = alloc_tx(vcc, eff))) {
+	while (!vcc_tx_ready(vcc, eff)) {
 		if (m->msg_flags & MSG_DONTWAIT) {
 			error = -EAGAIN;
 			break;
@@ -639,9 +623,18 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 	finish_wait(sk_sleep(sk), &wait);
 	if (error)
 		goto out;
+
+	skb = alloc_skb(eff, GFP_KERNEL);
+	if (!skb) {
+		error = -ENOMEM;
+		goto out;
+	}
+	pr_debug("%d += %d\n", sk_wmem_alloc_get(sk), skb->truesize);
+	refcount_add(skb->truesize, &sk->sk_wmem_alloc);
+
 	skb->dev = NULL; /* for paths shared with net_device interfaces */
 	ATM_SKB(skb)->atm_options = vcc->atm_options;
-	if (copy_from_user(skb_put(skb, size), buff, size)) {
+	if (!copy_from_iter_full(skb_put(skb, size), size, &m->msg_iter)) {
 		kfree_skb(skb);
 		error = -EFAULT;
 		goto out;

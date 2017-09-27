@@ -1,0 +1,120 @@
+* Rockchip Power Domains
+
+Rockchip processors include support for multiple power domains which can be
+powered up/down by software based on different application scenes to save power.
+
+Required properties for power domain controller:
+- compatible: Should be one of the following.
+	"rockchip,rk3288-power-controller" - for RK3288 SoCs.
+	"rockchip,rk3328-power-controller" - for RK3328 SoCs.
+	"rockchip,rk3366-power-controller" - for RK3366 SoCs.
+	"rockchip,rk3368-power-controller" - for RK3368 SoCs.
+	"rockchip,rk3399-power-controller" - for RK3399 SoCs.
+- #power-domain-cells: Number of cells in a power-domain specifier.
+	Should be 1 for multiple PM domains.
+- #address-cells: Should be 1.
+- #size-cells: Should be 0.
+
+Required properties for power domain sub nodes:
+- reg: index of the power domain, should use macros in:
+	"include/dt-bindings/power/rk3288-power.h" - for RK3288 type power domain.
+	"include/dt-bindings/power/rk3328-power.h" - for RK3328 type power domain.
+	"include/dt-bindings/power/rk3366-power.h" - for RK3366 type power domain.
+	"include/dt-bindings/power/rk3368-power.h" - for RK3368 type power domain.
+	"include/dt-bindings/power/rk3399-power.h" - for RK3399 type power domain.
+- clocks (optional): phandles to clocks which need to be enabled while power domain
+	switches state.
+- pm_qos (optional): phandles to qos blocks which need to be saved and restored
+	while power domain switches state.
+
+Qos Example:
+
+	qos_gpu: qos_gpu@ffaf0000 {
+		compatible ="syscon";
+		reg = <0x0 0xffaf0000 0x0 0x20>;
+	};
+
+Example:
+
+	power: power-controller {
+		compatible = "rockchip,rk3288-power-controller";
+		#power-domain-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pd_gpu {
+			reg = <RK3288_PD_GPU>;
+			clocks = <&cru ACLK_GPU>;
+			pm_qos = <&qos_gpu>;
+		};
+	};
+
+	 power: power-controller {
+                compatible = "rockchip,rk3368-power-controller";
+                #power-domain-cells = <1>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                pd_gpu_1 {
+                        reg = <RK3368_PD_GPU_1>;
+                        clocks = <&cru ACLK_GPU_CFG>;
+                };
+        };
+
+Example 2:
+		power: power-controller {
+			compatible = "rockchip,rk3399-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pd_vio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <RK3399_PD_VIO>;
+
+				pd_vo {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <RK3399_PD_VO>;
+
+					pd_vopb {
+						reg = <RK3399_PD_VOPB>;
+					};
+
+					pd_vopl {
+						reg = <RK3399_PD_VOPL>;
+					};
+				};
+			};
+		};
+
+Node of a device using power domains must have a power-domains property,
+containing a phandle to the power device node and an index specifying which
+power domain to use.
+The index should use macros in:
+	"include/dt-bindings/power/rk3288-power.h" - for rk3288 type power domain.
+	"include/dt-bindings/power/rk3328-power.h" - for rk3328 type power domain.
+	"include/dt-bindings/power/rk3366-power.h" - for rk3366 type power domain.
+	"include/dt-bindings/power/rk3368-power.h" - for rk3368 type power domain.
+	"include/dt-bindings/power/rk3399-power.h" - for rk3399 type power domain.
+
+Example of the node using power domain:
+
+	node {
+		/* ... */
+		power-domains = <&power RK3288_PD_GPU>;
+		/* ... */
+	};
+
+	node {
+                /* ... */
+                power-domains = <&power RK3368_PD_GPU_1>;
+                /* ... */
+        };
+
+	node {
+		/* ... */
+		power-domains = <&power RK3399_PD_VOPB>;
+		/* ... */
+	};

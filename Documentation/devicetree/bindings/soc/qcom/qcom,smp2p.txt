@@ -1,0 +1,104 @@
+Qualcomm Shared Memory Point 2 Point binding
+
+The Shared Memory Point to Point (SMP2P) protocol facilitates communication of
+a single 32-bit value between two processors.  Each value has a single writer
+(the local side) and a single reader (the remote side).  Values are uniquely
+identified in the system by the directed edge (local processor ID to remote
+processor ID) and a string identifier.
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,smp2p"
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: one entry specifying the smp2p notification interrupt
+
+- qcom,ipc:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: three entries specifying the outgoing ipc bit used for
+		    signaling the remote end of the smp2p edge:
+		    - phandle to a syscon node representing the apcs registers
+		    - u32 representing offset to the register within the syscon
+		    - u32 representing the ipc bit within the register
+
+- qcom,smem:
+	Usage: required
+	Value type: <u32 array>
+	Definition: two identifiers of the inbound and outbound smem items used
+		    for this edge
+
+- qcom,local-pid:
+	Usage: required
+	Value type: <u32>
+	Definition: specifies the identfier of the local endpoint of this edge
+
+- qcom,remote-pid:
+	Usage: required
+	Value type: <u32>
+	Definition: specifies the identfier of the remote endpoint of this edge
+
+= SUBNODES
+Each SMP2P pair contain a set of inbound and outbound entries, these are
+described in subnodes of the smp2p device node. The node names are not
+important.
+
+- qcom,entry-name:
+	Usage: required
+	Value type: <string>
+	Definition: specifies the name of this entry, for inbound entries this
+		    will be used to match against the remotely allocated entry
+		    and for outbound entries this name is used for allocating
+		    entries
+
+- interrupt-controller:
+	Usage: required for incoming entries
+	Value type: <empty>
+	Definition: marks the entry as inbound; the node should be specified
+		    as a two cell interrupt-controller as defined in
+		    "../interrupt-controller/interrupts.txt"
+		    If not specified this node will denote the outgoing entry
+
+- #interrupt-cells:
+	Usage: required for incoming entries
+	Value type: <u32>
+	Definition: must be 2 - denoting the bit in the entry and IRQ flags
+
+- #qcom,smem-state-cells:
+	Usage: required for outgoing entries
+	Value type: <u32>
+	Definition: must be 1 - denoting the bit in the entry
+
+= EXAMPLE
+The following example shows the SMP2P setup with the wireless processor,
+defined from the 8974 apps processor's point-of-view. It encompasses one
+inbound and one outbound entry:
+
+wcnss-smp2p {
+	compatible = "qcom,smp2p";
+	qcom,smem = <431>, <451>;
+
+	interrupts = <0 143 1>;
+
+	qcom,ipc = <&apcs 8 18>;
+
+	qcom,local-pid = <0>;
+	qcom,remote-pid = <4>;
+
+	wcnss_smp2p_out: master-kernel {
+		qcom,entry-name = "master-kernel";
+
+		#qcom,smem-state-cells = <1>;
+	};
+
+	wcnss_smp2p_in: slave-kernel {
+		qcom,entry-name = "slave-kernel";
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+};

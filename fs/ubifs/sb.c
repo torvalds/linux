@@ -28,8 +28,8 @@
 
 #include "ubifs.h"
 #include <linux/slab.h>
-#include <linux/random.h>
 #include <linux/math64.h>
+#include <linux/uuid.h>
 
 /*
  * Default journal size in logical eraseblocks as a percent of total
@@ -84,6 +84,8 @@ static int create_default_filesystem(struct ubifs_info *c)
 	int min_leb_cnt = UBIFS_MIN_LEB_CNT;
 	long long tmp64, main_bytes;
 	__le64 tmp_le64;
+	__le32 tmp_le32;
+	struct timespec ts;
 
 	/* Some functions called from here depend on the @c->key_len filed */
 	c->key_len = UBIFS_SK_LEN;
@@ -163,6 +165,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	tmp64 = (long long)max_buds * c->leb_size;
 	if (big_lpt)
 		sup_flags |= UBIFS_FLG_BIGLPT;
+	sup_flags |= UBIFS_FLG_DOUBLE_HASH;
 
 	sup->ch.node_type  = UBIFS_SB_NODE;
 	sup->key_hash      = UBIFS_KEY_HASH_R5;
@@ -297,13 +300,17 @@ static int create_default_filesystem(struct ubifs_info *c)
 	ino->ch.node_type = UBIFS_INO_NODE;
 	ino->creat_sqnum = cpu_to_le64(++c->max_sqnum);
 	ino->nlink = cpu_to_le32(2);
-	tmp_le64 = cpu_to_le64(CURRENT_TIME_SEC.tv_sec);
+
+	ktime_get_real_ts(&ts);
+	ts = timespec_trunc(ts, DEFAULT_TIME_GRAN);
+	tmp_le64 = cpu_to_le64(ts.tv_sec);
 	ino->atime_sec   = tmp_le64;
 	ino->ctime_sec   = tmp_le64;
 	ino->mtime_sec   = tmp_le64;
-	ino->atime_nsec  = 0;
-	ino->ctime_nsec  = 0;
-	ino->mtime_nsec  = 0;
+	tmp_le32 = cpu_to_le32(ts.tv_nsec);
+	ino->atime_nsec  = tmp_le32;
+	ino->ctime_nsec  = tmp_le32;
+	ino->mtime_nsec  = tmp_le32;
 	ino->mode = cpu_to_le32(S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
 	ino->size = cpu_to_le64(UBIFS_INO_NODE_SZ);
 
@@ -332,8 +339,10 @@ static int create_default_filesystem(struct ubifs_info *c)
 	cs->ch.node_type = UBIFS_CS_NODE;
 	err = ubifs_write_node(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
 	kfree(cs);
+	if (err)
+		return err;
 
-	ubifs_msg("default file-system created");
+	ubifs_msg(c, "default file-system created");
 	return 0;
 }
 
@@ -363,13 +372,13 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 	}
 
 	if (le32_to_cpu(sup->min_io_size) != c->min_io_size) {
-		ubifs_err("min. I/O unit mismatch: %d in superblock, %d real",
+		ubifs_err(c, "min. I/O unit mismatch: %d in superblock, %d real",
 			  le32_to_cpu(sup->min_io_size), c->min_io_size);
 		goto failed;
 	}
 
 	if (le32_to_cpu(sup->leb_size) != c->leb_size) {
-		ubifs_err("LEB size mismatch: %d in superblock, %d real",
+		ubifs_err(c, "LEB size mismatch: %d in superblock, %d real",
 			  le32_to_cpu(sup->leb_size), c->leb_size);
 		goto failed;
 	}
@@ -391,33 +400,33 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 	min_leb_cnt += c->lpt_lebs + c->orph_lebs + c->jhead_cnt + 6;
 
 	if (c->leb_cnt < min_leb_cnt || c->leb_cnt > c->vi.size) {
-		ubifs_err("bad LEB count: %d in superblock, %d on UBI volume, %d minimum required",
+		ubifs_err(c, "bad LEB count: %d in superblock, %d on UBI volume, %d minimum required",
 			  c->leb_cnt, c->vi.size, min_leb_cnt);
 		goto failed;
 	}
 
 	if (c->max_leb_cnt < c->leb_cnt) {
-		ubifs_err("max. LEB count %d less than LEB count %d",
+		ubifs_err(c, "max. LEB count %d less than LEB count %d",
 			  c->max_leb_cnt, c->leb_cnt);
 		goto failed;
 	}
 
 	if (c->main_lebs < UBIFS_MIN_MAIN_LEBS) {
-		ubifs_err("too few main LEBs count %d, must be at least %d",
+		ubifs_err(c, "too few main LEBs count %d, must be at least %d",
 			  c->main_lebs, UBIFS_MIN_MAIN_LEBS);
 		goto failed;
 	}
 
 	max_bytes = (long long)c->leb_size * UBIFS_MIN_BUD_LEBS;
 	if (c->max_bud_bytes < max_bytes) {
-		ubifs_err("too small journal (%lld bytes), must be at least %lld bytes",
+		ubifs_err(c, "too small journal (%lld bytes), must be at least %lld bytes",
 			  c->max_bud_bytes, max_bytes);
 		goto failed;
 	}
 
 	max_bytes = (long long)c->leb_size * c->main_lebs;
 	if (c->max_bud_bytes > max_bytes) {
-		ubifs_err("too large journal size (%lld bytes), only %lld bytes available in the main area",
+		ubifs_err(c, "too large journal size (%lld bytes), only %lld bytes available in the main area",
 			  c->max_bud_bytes, max_bytes);
 		goto failed;
 	}
@@ -447,7 +456,7 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 		goto failed;
 	}
 
-	if (c->default_compr < 0 || c->default_compr >= UBIFS_COMPR_TYPES_CNT) {
+	if (c->default_compr >= UBIFS_COMPR_TYPES_CNT) {
 		err = 13;
 		goto failed;
 	}
@@ -463,10 +472,20 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 		goto failed;
 	}
 
+	if (!c->double_hash && c->fmt_version >= 5) {
+		err = 16;
+		goto failed;
+	}
+
+	if (c->encrypted && c->fmt_version < 5) {
+		err = 17;
+		goto failed;
+	}
+
 	return 0;
 
 failed:
-	ubifs_err("bad superblock, error %d", err);
+	ubifs_err(c, "bad superblock, error %d", err);
 	ubifs_dump_node(c, sup);
 	return -EINVAL;
 }
@@ -547,12 +566,12 @@ int ubifs_read_superblock(struct ubifs_info *c)
 		ubifs_assert(!c->ro_media || c->ro_mount);
 		if (!c->ro_mount ||
 		    c->ro_compat_version > UBIFS_RO_COMPAT_VERSION) {
-			ubifs_err("on-flash format version is w%d/r%d, but software only supports up to version w%d/r%d",
+			ubifs_err(c, "on-flash format version is w%d/r%d, but software only supports up to version w%d/r%d",
 				  c->fmt_version, c->ro_compat_version,
 				  UBIFS_FORMAT_VERSION,
 				  UBIFS_RO_COMPAT_VERSION);
 			if (c->ro_compat_version <= UBIFS_RO_COMPAT_VERSION) {
-				ubifs_msg("only R/O mounting is possible");
+				ubifs_msg(c, "only R/O mounting is possible");
 				err = -EROFS;
 			} else
 				err = -EINVAL;
@@ -568,7 +587,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	}
 
 	if (c->fmt_version < 3) {
-		ubifs_err("on-flash format version %d is not supported",
+		ubifs_err(c, "on-flash format version %d is not supported",
 			  c->fmt_version);
 		err = -EINVAL;
 		goto out;
@@ -593,7 +612,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 		c->key_len = UBIFS_SK_LEN;
 		break;
 	default:
-		ubifs_err("unsupported key format");
+		ubifs_err(c, "unsupported key format");
 		err = -EINVAL;
 		goto out;
 	}
@@ -618,6 +637,24 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	memcpy(&c->uuid, &sup->uuid, 16);
 	c->big_lpt = !!(sup_flags & UBIFS_FLG_BIGLPT);
 	c->space_fixup = !!(sup_flags & UBIFS_FLG_SPACE_FIXUP);
+	c->double_hash = !!(sup_flags & UBIFS_FLG_DOUBLE_HASH);
+	c->encrypted = !!(sup_flags & UBIFS_FLG_ENCRYPTION);
+
+	if ((sup_flags & ~UBIFS_FLG_MASK) != 0) {
+		ubifs_err(c, "Unknown feature flags found: %#x",
+			  sup_flags & ~UBIFS_FLG_MASK);
+		err = -EINVAL;
+		goto out;
+	}
+
+#ifndef CONFIG_UBIFS_FS_ENCRYPTION
+	if (c->encrypted) {
+		ubifs_err(c, "file system contains encrypted files but UBIFS"
+			     " was built without crypto support.");
+		err = -EINVAL;
+		goto out;
+	}
+#endif
 
 	/* Automatically increase file system size to the maximum size */
 	c->old_leb_cnt = c->leb_cnt;
@@ -783,7 +820,7 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	ubifs_assert(c->space_fixup);
 	ubifs_assert(!c->ro_mount);
 
-	ubifs_msg("start fixing up free space");
+	ubifs_msg(c, "start fixing up free space");
 
 	err = fixup_free_space(c);
 	if (err)
@@ -802,6 +839,36 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	if (err)
 		return err;
 
-	ubifs_msg("free space fixup complete");
+	ubifs_msg(c, "free space fixup complete");
+	return err;
+}
+
+int ubifs_enable_encryption(struct ubifs_info *c)
+{
+	int err;
+	struct ubifs_sb_node *sup;
+
+	if (c->encrypted)
+		return 0;
+
+	if (c->ro_mount || c->ro_media)
+		return -EROFS;
+
+	if (c->fmt_version < 5) {
+		ubifs_err(c, "on-flash format version 5 is needed for encryption");
+		return -EINVAL;
+	}
+
+	sup = ubifs_read_sb_node(c);
+	if (IS_ERR(sup))
+		return PTR_ERR(sup);
+
+	sup->flags |= cpu_to_le32(UBIFS_FLG_ENCRYPTION);
+
+	err = ubifs_write_sb_node(c, sup);
+	if (!err)
+		c->encrypted = 1;
+	kfree(sup);
+
 	return err;
 }

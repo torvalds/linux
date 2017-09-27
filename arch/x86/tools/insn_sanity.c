@@ -254,7 +254,7 @@ int main(int argc, char **argv)
 			continue;
 
 		/* Decode an instruction */
-		insn_init(&insn, insn_buf, x86_64);
+		insn_init(&insn, insn_buf, sizeof(insn_buf), x86_64);
 		insn_get_length(&insn);
 
 		if (insn.next_byte <= insn.kaddr ||
@@ -269,7 +269,8 @@ int main(int argc, char **argv)
 		insns++;
 	}
 
-	fprintf(stdout, "%s: %s: decoded and checked %d %s instructions with %d errors (seed:0x%x)\n",
+	fprintf((errors) ? stderr : stdout,
+		"%s: %s: decoded and checked %d %s instructions with %d errors (seed:0x%x)\n",
 		prog,
 		(errors) ? "Failure" : "Success",
 		insns,

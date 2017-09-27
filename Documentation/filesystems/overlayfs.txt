@@ -1,0 +1,275 @@
+Written by: Neil Brown
+Please see MAINTAINERS file for where to send questions.
+
+Overlay Filesystem
+==================
+
+This document describes a prototype for a new approach to providing
+overlay-filesystem functionality in Linux (sometimes referred to as
+union-filesystems).  An overlay-filesystem tries to present a
+filesystem which is the result over overlaying one filesystem on top
+of the other.
+
+The result will inevitably fail to look exactly like a normal
+filesystem for various technical reasons.  The expectation is that
+many use cases will be able to ignore these differences.
+
+This approach is 'hybrid' because the objects that appear in the
+filesystem do not all appear to belong to that filesystem.  In many
+cases an object accessed in the union will be indistinguishable
+from accessing the corresponding object from the original filesystem.
+This is most obvious from the 'st_dev' field returned by stat(2).
+
+While directories will report an st_dev from the overlay-filesystem,
+non-directory objects may report an st_dev from the lower filesystem or
+upper filesystem that is providing the object.  Similarly st_ino will
+only be unique when combined with st_dev, and both of these can change
+over the lifetime of a non-directory object.  Many applications and
+tools ignore these values and will not be affected.
+
+In the special case of all overlay layers on the same underlying
+filesystem, all objects will report an st_dev from the overlay
+filesystem and st_ino from the underlying filesystem.  This will
+make the overlay mount more compliant with filesystem scanners and
+overlay objects will be distinguishable from the corresponding
+objects in the original filesystem.
+
+Upper and Lower
+---------------
+
+An overlay filesystem combines two filesystems - an 'upper' filesystem
+and a 'lower' filesystem.  When a name exists in both filesystems, the
+object in the 'upper' filesystem is visible while the object in the
+'lower' filesystem is either hidden or, in the case of directories,
+merged with the 'upper' object.
+
+It would be more correct to refer to an upper and lower 'directory
+tree' rather than 'filesystem' as it is quite possible for both
+directory trees to be in the same filesystem and there is no
+requirement that the root of a filesystem be given for either upper or
+lower.
+
+The lower filesystem can be any filesystem supported by Linux and does
+not need to be writable.  The lower filesystem can even be another
+overlayfs.  The upper filesystem will normally be writable and if it
+is it must support the creation of trusted.* extended attributes, and
+must provide valid d_type in readdir responses, so NFS is not suitable.
+
+A read-only overlay of two read-only filesystems may use any
+filesystem type.
+
+Directories
+-----------
+
+Overlaying mainly involves directories.  If a given name appears in both
+upper and lower filesystems and refers to a non-directory in either,
+then the lower object is hidden - the name refers only to the upper
+object.
+
+Where both upper and lower objects are directories, a merged directory
+is formed.
+
+At mount time, the two directories given as mount options "lowerdir" and
+"upperdir" are combined into a merged directory:
+
+  mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,\
+  workdir=/work /merged
+
+The "workdir" needs to be an empty directory on the same filesystem
+as upperdir.
+
+Then whenever a lookup is requested in such a merged directory, the
+lookup is performed in each actual directory and the combined result
+is cached in the dentry belonging to the overlay filesystem.  If both
+actual lookups find directories, both are stored and a merged
+directory is created, otherwise only one is stored: the upper if it
+exists, else the lower.
+
+Only the lists of names from directories are merged.  Other content
+such as metadata and extended attributes are reported for the upper
+directory only.  These attributes of the lower directory are hidden.
+
+whiteouts and opaque directories
+--------------------------------
+
+In order to support rm and rmdir without changing the lower
+filesystem, an overlay filesystem needs to record in the upper filesystem
+that files have been removed.  This is done using whiteouts and opaque
+directories (non-directories are always opaque).
+
+A whiteout is created as a character device with 0/0 device number.
+When a whiteout is found in the upper level of a merged directory, any
+matching name in the lower level is ignored, and the whiteout itself
+is also hidden.
+
+A directory is made opaque by setting the xattr "trusted.overlay.opaque"
+to "y".  Where the upper filesystem contains an opaque directory, any
+directory in the lower filesystem with the same name is ignored.
+
+readdir
+-------
+
+When a 'readdir' request is made on a merged directory, the upper and
+lower directories are each read and the name lists merged in the
+obvious way (upper is read first, then lower - entries that already
+exist are not re-added).  This merged name list is cached in the
+'struct file' and so remains as long as the file is kept open.  If the
+directory is opened and read by two processes at the same time, they
+will each have separate caches.  A seekdir to the start of the
+directory (offset 0) followed by a readdir will cause the cache to be
+discarded and rebuilt.
+
+This means that changes to the merged directory do not appear while a
+directory is being read.  This is unlikely to be noticed by many
+programs.
+
+seek offsets are assigned sequentially when the directories are read.
+Thus if
+
+  - read part of a directory
+  - remember an offset, and close the directory
+  - re-open the directory some time later
+  - seek to the remembered offset
+
+there may be little correlation between the old and new locations in
+the list of filenames, particularly if anything has changed in the
+directory.
+
+Readdir on directories that are not merged is simply handled by the
+underlying directory (upper or lower).
+
+renaming directories
+--------------------
+
+When renaming a directory that is on the lower layer or merged (i.e. the
+directory was not created on the upper layer to start with) overlayfs can
+handle it in two different ways:
+
+1. return EXDEV error: this error is returned by rename(2) when trying to
+   move a file or directory across filesystem boundaries.  Hence
+   applications are usually prepared to hande this error (mv(1) for example
+   recursively copies the directory tree).  This is the default behavior.
+
+2. If the "redirect_dir" feature is enabled, then the directory will be
+   copied up (but not the contents).  Then the "trusted.overlay.redirect"
+   extended attribute is set to the path of the original location from the
+   root of the overlay.  Finally the directory is moved to the new
+   location.
+
+Non-directories
+---------------
+
+Objects that are not directories (files, symlinks, device-special
+files etc.) are presented either from the upper or lower filesystem as
+appropriate.  When a file in the lower filesystem is accessed in a way
+the requires write-access, such as opening for write access, changing
+some metadata etc., the file is first copied from the lower filesystem
+to the upper filesystem (copy_up).  Note that creating a hard-link
+also requires copy_up, though of course creation of a symlink does
+not.
+
+The copy_up may turn out to be unnecessary, for example if the file is
+opened for read-write but the data is not modified.
+
+The copy_up process first makes sure that the containing directory
+exists in the upper filesystem - creating it and any parents as
+necessary.  It then creates the object with the same metadata (owner,
+mode, mtime, symlink-target etc.) and then if the object is a file, the
+data is copied from the lower to the upper filesystem.  Finally any
+extended attributes are copied up.
+
+Once the copy_up is complete, the overlay filesystem simply
+provides direct access to the newly created file in the upper
+filesystem - future operations on the file are barely noticed by the
+overlay filesystem (though an operation on the name of the file such as
+rename or unlink will of course be noticed and handled).
+
+
+Multiple lower layers
+---------------------
+
+Multiple lower layers can now be given using the the colon (":") as a
+separator character between the directory names.  For example:
+
+  mount -t overlay overlay -olowerdir=/lower1:/lower2:/lower3 /merged
+
+As the example shows, "upperdir=" and "workdir=" may be omitted.  In
+that case the overlay will be read-only.
+
+The specified lower directories will be stacked beginning from the
+rightmost one and going left.  In the above example lower1 will be the
+top, lower2 the middle and lower3 the bottom layer.
+
+
+Sharing and copying layers
+--------------------------
+
+Lower layers may be shared among several overlay mounts and that is indeed
+a very common practice.  An overlay mount may use the same lower layer
+path as another overlay mount and it may use a lower layer path that is
+beneath or above the path of another overlay lower layer path.
+
+Using an upper layer path and/or a workdir path that are already used by
+another overlay mount is not allowed and will fail with EBUSY.  Using
+partially overlapping paths is not allowed but will not fail with EBUSY.
+
+Mounting an overlay using an upper layer path, where the upper layer path
+was previously used by another mounted overlay in combination with a
+different lower layer path, is allowed, unless the "inodes index" feature
+is enabled.
+
+With the "inodes index" feature, on the first time mount, an NFS file
+handle of the lower layer root directory, along with the UUID of the lower
+filesystem, are encoded and stored in the "trusted.overlay.origin" extended
+attribute on the upper layer root directory.  On subsequent mount attempts,
+the lower root directory file handle and lower filesystem UUID are compared
+to the stored origin in upper root directory.  On failure to verify the
+lower root origin, mount will fail with ESTALE.  An overlayfs mount with
+"inodes index" enabled will fail with EOPNOTSUPP if the lower filesystem
+does not support NFS export, lower filesystem does not have a valid UUID or
+if the upper filesystem does not support extended attributes.
+
+It is quite a common practice to copy overlay layers to a different
+directory tree on the same or different underlying filesystem, and even
+to a different machine.  With the "inodes index" feature, trying to mount
+the copied layers will fail the verification of the lower root file handle.
+
+
+Non-standard behavior
+---------------------
+
+The copy_up operation essentially creates a new, identical file and
+moves it over to the old name.  The new file may be on a different
+filesystem, so both st_dev and st_ino of the file may change.
+
+Any open files referring to this inode will access the old data.
+
+If a file with multiple hard links is copied up, then this will
+"break" the link.  Changes will not be propagated to other names
+referring to the same inode.
+
+Unless "redirect_dir" feature is enabled, rename(2) on a lower or merged
+directory will fail with EXDEV.
+
+Changes to underlying filesystems
+---------------------------------
+
+Offline changes, when the overlay is not mounted, are allowed to either
+the upper or the lower trees.
+
+Changes to the underlying filesystems while part of a mounted overlay
+filesystem are not allowed.  If the underlying filesystem is changed,
+the behavior of the overlay is undefined, though it will not result in
+a crash or deadlock.
+
+Testsuite
+---------
+
+There's testsuite developed by David Howells at:
+
+  git://git.infradead.org/users/dhowells/unionmount-testsuite.git
+
+Run as root:
+
+  # cd unionmount-testsuite
+  # ./run --ov

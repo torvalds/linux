@@ -32,11 +32,10 @@ static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	struct qxl_bo *bo;
 	struct qxl_device *qdev;
 
-	bo = container_of(tbo, struct qxl_bo, tbo);
+	bo = to_qxl_bo(tbo);
 	qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
 
 	qxl_surface_evict(qdev, bo, false);
-	qxl_fence_fini(&bo->fence);
 	mutex_lock(&qdev->gem.mutex);
 	list_del_init(&bo->list);
 	mutex_unlock(&qdev->gem.mutex);
@@ -55,21 +54,24 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 {
 	u32 c = 0;
 	u32 pflag = pinned ? TTM_PL_FLAG_NO_EVICT : 0;
+	unsigned i;
 
-	qbo->placement.fpfn = 0;
-	qbo->placement.lpfn = 0;
 	qbo->placement.placement = qbo->placements;
 	qbo->placement.busy_placement = qbo->placements;
 	if (domain == QXL_GEM_DOMAIN_VRAM)
-		qbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
 	if (domain == QXL_GEM_DOMAIN_SURFACE)
-		qbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_PRIV0 | pflag;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_PRIV | pflag;
 	if (domain == QXL_GEM_DOMAIN_CPU)
-		qbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM | pflag;
+		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM | pflag;
 	if (!c)
-		qbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	qbo->placement.num_placement = c;
 	qbo->placement.num_busy_placement = c;
+	for (i = 0; i < c; ++i) {
+		qbo->placements[i].fpfn = 0;
+		qbo->placements[i].lpfn = 0;
+	}
 }
 
 
@@ -82,8 +84,6 @@ int qxl_bo_create(struct qxl_device *qdev,
 	enum ttm_bo_type type;
 	int r;
 
-	if (unlikely(qdev->mman.bdev.dev_mapping == NULL))
-		qdev->mman.bdev.dev_mapping = qdev->ddev->dev_mapping;
 	if (kernel)
 		type = ttm_bo_type_kernel;
 	else
@@ -93,16 +93,14 @@ int qxl_bo_create(struct qxl_device *qdev,
 	if (bo == NULL)
 		return -ENOMEM;
 	size = roundup(size, PAGE_SIZE);
-	r = drm_gem_object_init(qdev->ddev, &bo->gem_base, size);
+	r = drm_gem_object_init(&qdev->ddev, &bo->gem_base, size);
 	if (unlikely(r)) {
 		kfree(bo);
 		return r;
 	}
-	bo->gem_base.driver_private = NULL;
 	bo->type = domain;
 	bo->pin_count = pinned ? 1 : 0;
 	bo->surface_id = 0;
-	qxl_fence_init(qdev, &bo->fence);
 	INIT_LIST_HEAD(&bo->list);
 
 	if (surf)
@@ -112,10 +110,10 @@ int qxl_bo_create(struct qxl_device *qdev,
 
 	r = ttm_bo_init(&qdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, 0, !kernel, NULL, size,
-			NULL, &qxl_ttm_bo_destroy);
+			NULL, NULL, &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
-			dev_err(qdev->dev,
+			dev_err(qdev->ddev.dev,
 				"object_init failed for (%lu, 0x%08X)\n",
 				size, domain);
 		return r;
@@ -153,7 +151,7 @@ void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 
 	if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
 		map = qdev->vram_mapping;
-	else if (bo->tbo.mem.mem_type == TTM_PL_PRIV0)
+	else if (bo->tbo.mem.mem_type == TTM_PL_PRIV)
 		map = qdev->surface_mapping;
 	else
 		goto fallback;
@@ -193,7 +191,7 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 
 	if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
 		map = qdev->vram_mapping;
-	else if (bo->tbo.mem.mem_type == TTM_PL_PRIV0)
+	else if (bo->tbo.mem.mem_type == TTM_PL_PRIV)
 		map = qdev->surface_mapping;
 	else
 		goto fallback;
@@ -210,25 +208,22 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 
 void qxl_bo_unref(struct qxl_bo **bo)
 {
-	struct ttm_buffer_object *tbo;
-
 	if ((*bo) == NULL)
 		return;
-	tbo = &((*bo)->tbo);
-	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
+
+	drm_gem_object_unreference_unlocked(&(*bo)->gem_base);
+	*bo = NULL;
 }
 
 struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 {
-	ttm_bo_reference(&bo->tbo);
+	drm_gem_object_reference(&bo->gem_base);
 	return bo;
 }
 
-int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+static int __qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 {
-	struct qxl_device *qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
+	struct drm_device *ddev = bo->gem_base.dev;
 	int r;
 
 	if (bo->pin_count) {
@@ -245,27 +240,64 @@ int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 			*gpu_addr = qxl_bo_gpu_offset(bo);
 	}
 	if (unlikely(r != 0))
-		dev_err(qdev->dev, "%p pin failed\n", bo);
+		dev_err(ddev->dev, "%p pin failed\n", bo);
 	return r;
 }
 
-int qxl_bo_unpin(struct qxl_bo *bo)
+static int __qxl_bo_unpin(struct qxl_bo *bo)
 {
-	struct qxl_device *qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
+	struct drm_device *ddev = bo->gem_base.dev;
 	int r, i;
 
 	if (!bo->pin_count) {
-		dev_warn(qdev->dev, "%p unpin not necessary\n", bo);
+		dev_warn(ddev->dev, "%p unpin not necessary\n", bo);
 		return 0;
 	}
 	bo->pin_count--;
 	if (bo->pin_count)
 		return 0;
 	for (i = 0; i < bo->placement.num_placement; i++)
-		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
+		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (unlikely(r != 0))
-		dev_err(qdev->dev, "%p validate failed for unpin\n", bo);
+		dev_err(ddev->dev, "%p validate failed for unpin\n", bo);
+	return r;
+}
+
+
+/*
+ * Reserve the BO before pinning the object.  If the BO was reserved
+ * beforehand, use the internal version directly __qxl_bo_pin.
+ *
+ */
+int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+{
+	int r;
+
+	r = qxl_bo_reserve(bo, false);
+	if (r)
+		return r;
+
+	r = __qxl_bo_pin(bo, bo->type, NULL);
+	qxl_bo_unreserve(bo);
+	return r;
+}
+
+/*
+ * Reserve the BO before pinning the object.  If the BO was reserved
+ * beforehand, use the internal version directly __qxl_bo_unpin.
+ *
+ */
+int qxl_bo_unpin(struct qxl_bo *bo)
+{
+	int r;
+
+	r = qxl_bo_reserve(bo, false);
+	if (r)
+		return r;
+
+	r = __qxl_bo_unpin(bo);
+	qxl_bo_unreserve(bo);
 	return r;
 }
 
@@ -275,18 +307,16 @@ void qxl_bo_force_delete(struct qxl_device *qdev)
 
 	if (list_empty(&qdev->gem.objects))
 		return;
-	dev_err(qdev->dev, "Userspace still has active objects !\n");
+	dev_err(qdev->ddev.dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &qdev->gem.objects, list) {
-		mutex_lock(&qdev->ddev->struct_mutex);
-		dev_err(qdev->dev, "%p %p %lu %lu force free\n",
+		dev_err(qdev->ddev.dev, "%p %p %lu %lu force free\n",
 			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
 			*((unsigned long *)&bo->gem_base.refcount));
 		mutex_lock(&qdev->gem.mutex);
 		list_del_init(&bo->list);
 		mutex_unlock(&qdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_unreference(&bo->gem_base);
-		mutex_unlock(&qdev->ddev->struct_mutex);
+		drm_gem_object_unreference_unlocked(&bo->gem_base);
 	}
 }
 
@@ -318,7 +348,7 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 
 int qxl_surf_evict(struct qxl_device *qdev)
 {
-	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_PRIV0);
+	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_PRIV);
 }
 
 int qxl_vram_evict(struct qxl_device *qdev)

@@ -298,5 +298,11 @@
 			bus-width = <4>;
 			sdon-inverted;
 		};
+
+		ethernet@d8004000 {
+			compatible = "via,vt8500-rhine";
+			reg = <0xd8004000 0x100>;
+			interrupts = <10>;
+                };
 	};
 };

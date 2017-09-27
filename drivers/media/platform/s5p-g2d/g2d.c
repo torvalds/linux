@@ -12,7 +12,6 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/version.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -24,7 +23,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "g2d.h"
@@ -102,9 +101,9 @@ static struct g2d_frame *get_frame(struct g2d_ctx *ctx,
 	}
 }
 
-static int g2d_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int g2d_queue_setup(struct vb2_queue *vq,
 			   unsigned int *nbuffers, unsigned int *nplanes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct g2d_ctx *ctx = vb2_get_drv_priv(vq);
 	struct g2d_frame *f = get_frame(ctx, vq->type);
@@ -114,7 +113,6 @@ static int g2d_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	sizes[0] = f->size;
 	*nplanes = 1;
-	alloc_ctxs[0] = ctx->dev->alloc_ctx;
 
 	if (*nbuffers == 0)
 		*nbuffers = 1;
@@ -135,12 +133,12 @@ static int g2d_buf_prepare(struct vb2_buffer *vb)
 
 static void g2d_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct g2d_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
+	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
-
-static struct vb2_ops g2d_qops = {
+static const struct vb2_ops g2d_qops = {
 	.queue_setup	= g2d_queue_setup,
 	.buf_prepare	= g2d_buf_prepare,
 	.buf_queue	= g2d_buf_queue,
@@ -158,7 +156,9 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &g2d_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
-	src_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->lock = &ctx->dev->mutex;
+	src_vq->dev = ctx->dev->v4l2_dev.dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -170,7 +170,9 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &g2d_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
-	dst_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->lock = &ctx->dev->mutex;
+	dst_vq->dev = ctx->dev->v4l2_dev.dev;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -253,9 +255,9 @@ static int g2d_open(struct file *file)
 		kfree(ctx);
 		return -ERESTARTSYS;
 	}
-	ctx->m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
-	if (IS_ERR(ctx->m2m_ctx)) {
-		ret = PTR_ERR(ctx->m2m_ctx);
+	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
+	if (IS_ERR(ctx->fh.m2m_ctx)) {
+		ret = PTR_ERR(ctx->fh.m2m_ctx);
 		mutex_unlock(&dev->mutex);
 		kfree(ctx);
 		return ret;
@@ -296,14 +298,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strncpy(cap->driver, G2D_NAME, sizeof(cap->driver) - 1);
 	strncpy(cap->card, G2D_NAME, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
-	cap->version = KERNEL_VERSION(1, 0, 0);
-	/*
-	 * This is only a mem-to-mem video device. The capture and output
-	 * device capability flags are left only for backward compatibility
-	 * and are scheduled for removal.
-	 */
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
-			    V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -324,7 +320,7 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	struct vb2_queue *vq;
 	struct g2d_frame *frm;
 
-	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
 	if (!vq)
 		return -EINVAL;
 	frm = get_frame(ctx, f->type);
@@ -384,7 +380,7 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	ret = vidioc_try_fmt(file, prv, f);
 	if (ret)
 		return ret;
-	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
 	if (vb2_is_busy(vq)) {
 		v4l2_err(&dev->v4l2_dev, "queue (%d) bust\n", f->type);
 		return -EBUSY;
@@ -408,72 +404,6 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	frm->fmt	= fmt;
 	frm->stride	= f->fmt.pix.bytesperline;
 	return 0;
-}
-
-static unsigned int g2d_poll(struct file *file, struct poll_table_struct *wait)
-{
-	struct g2d_ctx *ctx = fh2ctx(file->private_data);
-	struct g2d_dev *dev = ctx->dev;
-	unsigned int res;
-
-	mutex_lock(&dev->mutex);
-	res = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
-	mutex_unlock(&dev->mutex);
-	return res;
-}
-
-static int g2d_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct g2d_ctx *ctx = fh2ctx(file->private_data);
-	struct g2d_dev *dev = ctx->dev;
-	int ret;
-
-	if (mutex_lock_interruptible(&dev->mutex))
-		return -ERESTARTSYS;
-	ret = v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
-	mutex_unlock(&dev->mutex);
-	return ret;
-}
-
-static int vidioc_reqbufs(struct file *file, void *priv,
-			struct v4l2_requestbuffers *reqbufs)
-{
-	struct g2d_ctx *ctx = priv;
-	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
-}
-
-static int vidioc_querybuf(struct file *file, void *priv,
-			struct v4l2_buffer *buf)
-{
-	struct g2d_ctx *ctx = priv;
-	return v4l2_m2m_querybuf(file, ctx->m2m_ctx, buf);
-}
-
-static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
-{
-	struct g2d_ctx *ctx = priv;
-	return v4l2_m2m_qbuf(file, ctx->m2m_ctx, buf);
-}
-
-static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
-{
-	struct g2d_ctx *ctx = priv;
-	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
-}
-
-
-static int vidioc_streamon(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	struct g2d_ctx *ctx = priv;
-	return v4l2_m2m_streamon(file, ctx->m2m_ctx, type);
-}
-
-static int vidioc_streamoff(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	struct g2d_ctx *ctx = priv;
-	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
 }
 
 static int vidioc_cropcap(struct file *file, void *priv,
@@ -551,32 +481,17 @@ static int vidioc_s_crop(struct file *file, void *prv, const struct v4l2_crop *c
 	return 0;
 }
 
-static void g2d_lock(void *prv)
-{
-	struct g2d_ctx *ctx = prv;
-	struct g2d_dev *dev = ctx->dev;
-	mutex_lock(&dev->mutex);
-}
-
-static void g2d_unlock(void *prv)
-{
-	struct g2d_ctx *ctx = prv;
-	struct g2d_dev *dev = ctx->dev;
-	mutex_unlock(&dev->mutex);
-}
-
 static void job_abort(void *prv)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
-	int ret;
 
 	if (dev->curr == NULL) /* No job currently running */
 		return;
 
-	ret = wait_event_timeout(dev->irq_queue,
-		dev->curr == NULL,
-		msecs_to_jiffies(G2D_TIMEOUT));
+	wait_event_timeout(dev->irq_queue,
+			   dev->curr == NULL,
+			   msecs_to_jiffies(G2D_TIMEOUT));
 }
 
 static void device_run(void *prv)
@@ -589,8 +504,8 @@ static void device_run(void *prv)
 
 	dev->curr = ctx;
 
-	src = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
-	dst = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
+	src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
 	clk_enable(dev->gate);
 	g2d_reset(dev);
@@ -624,25 +539,28 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 {
 	struct g2d_dev *dev = prv;
 	struct g2d_ctx *ctx = dev->curr;
-	struct vb2_buffer *src, *dst;
+	struct vb2_v4l2_buffer *src, *dst;
 
 	g2d_clear_int(dev);
 	clk_disable(dev->gate);
 
 	BUG_ON(ctx == NULL);
 
-	src = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
-	dst = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
+	src = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+	dst = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
 	BUG_ON(src == NULL);
 	BUG_ON(dst == NULL);
 
-	dst->v4l2_buf.timecode = src->v4l2_buf.timecode;
-	dst->v4l2_buf.timestamp = src->v4l2_buf.timestamp;
+	dst->timecode = src->timecode;
+	dst->vb2_buf.timestamp = src->vb2_buf.timestamp;
+	dst->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst->flags |=
+		src->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
-	v4l2_m2m_job_finish(dev->m2m_dev, ctx->m2m_ctx);
+	v4l2_m2m_job_finish(dev->m2m_dev, ctx->fh.m2m_ctx);
 
 	dev->curr = NULL;
 	wake_up(&dev->irq_queue);
@@ -653,9 +571,9 @@ static const struct v4l2_file_operations g2d_fops = {
 	.owner		= THIS_MODULE,
 	.open		= g2d_open,
 	.release	= g2d_release,
-	.poll		= g2d_poll,
+	.poll		= v4l2_m2m_fop_poll,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap		= g2d_mmap,
+	.mmap		= v4l2_m2m_fop_mmap,
 };
 
 static const struct v4l2_ioctl_ops g2d_ioctl_ops = {
@@ -671,21 +589,20 @@ static const struct v4l2_ioctl_ops g2d_ioctl_ops = {
 	.vidioc_try_fmt_vid_out		= vidioc_try_fmt,
 	.vidioc_s_fmt_vid_out		= vidioc_s_fmt,
 
-	.vidioc_reqbufs			= vidioc_reqbufs,
-	.vidioc_querybuf		= vidioc_querybuf,
+	.vidioc_reqbufs			= v4l2_m2m_ioctl_reqbufs,
+	.vidioc_querybuf		= v4l2_m2m_ioctl_querybuf,
+	.vidioc_qbuf			= v4l2_m2m_ioctl_qbuf,
+	.vidioc_dqbuf			= v4l2_m2m_ioctl_dqbuf,
 
-	.vidioc_qbuf			= vidioc_qbuf,
-	.vidioc_dqbuf			= vidioc_dqbuf,
-
-	.vidioc_streamon		= vidioc_streamon,
-	.vidioc_streamoff		= vidioc_streamoff,
+	.vidioc_streamon		= v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff		= v4l2_m2m_ioctl_streamoff,
 
 	.vidioc_g_crop			= vidioc_g_crop,
 	.vidioc_s_crop			= vidioc_s_crop,
 	.vidioc_cropcap			= vidioc_cropcap,
 };
 
-static struct video_device g2d_videodev = {
+static const struct video_device g2d_videodev = {
 	.name		= G2D_NAME,
 	.fops		= &g2d_fops,
 	.ioctl_ops	= &g2d_ioctl_ops,
@@ -694,11 +611,9 @@ static struct video_device g2d_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 };
 
-static struct v4l2_m2m_ops g2d_m2m_ops = {
+static const struct v4l2_m2m_ops g2d_m2m_ops = {
 	.device_run	= device_run,
 	.job_abort	= job_abort,
-	.lock		= g2d_lock,
-	.unlock		= g2d_unlock,
 };
 
 static const struct of_device_id exynos_g2d_match[];
@@ -764,18 +679,14 @@ static int g2d_probe(struct platform_device *pdev)
 						0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to install IRQ\n");
-		goto put_clk_gate;
-	}
-
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		ret = PTR_ERR(dev->alloc_ctx);
 		goto unprep_clk_gate;
 	}
 
+	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
+
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
-		goto alloc_ctx_cleanup;
+		goto unprep_clk_gate;
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&dev->v4l2_dev, "Failed to allocate video device\n");
@@ -805,16 +716,12 @@ static int g2d_probe(struct platform_device *pdev)
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
 
-	if (!pdev->dev.of_node) {
-		dev->variant = g2d_get_drv_data(pdev);
-	} else {
-		of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
-		if (!of_id) {
-			ret = -ENODEV;
-			goto unreg_video_dev;
-		}
-		dev->variant = (struct g2d_variant *)of_id->data;
+	of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
+	if (!of_id) {
+		ret = -ENODEV;
+		goto unreg_video_dev;
 	}
+	dev->variant = (struct g2d_variant *)of_id->data;
 
 	return 0;
 
@@ -824,8 +731,6 @@ rel_vdev:
 	video_device_release(vfd);
 unreg_v4l2_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
-alloc_ctx_cleanup:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 unprep_clk_gate:
 	clk_unprepare(dev->gate);
 put_clk_gate:
@@ -840,13 +745,13 @@ put_clk:
 
 static int g2d_remove(struct platform_device *pdev)
 {
-	struct g2d_dev *dev = (struct g2d_dev *)platform_get_drvdata(pdev);
+	struct g2d_dev *dev = platform_get_drvdata(pdev);
 
 	v4l2_info(&dev->v4l2_dev, "Removing " G2D_NAME);
 	v4l2_m2m_release(dev->m2m_dev);
 	video_unregister_device(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
 	clk_unprepare(dev->clk);
@@ -874,25 +779,11 @@ static const struct of_device_id exynos_g2d_match[] = {
 };
 MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
-static struct platform_device_id g2d_driver_ids[] = {
-	{
-		.name = "s5p-g2d",
-		.driver_data = (unsigned long)&g2d_drvdata_v3x,
-	}, {
-		.name = "s5p-g2d-v4x",
-		.driver_data = (unsigned long)&g2d_drvdata_v4x,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, g2d_driver_ids);
-
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
-	.id_table	= g2d_driver_ids,
 	.driver		= {
 		.name = G2D_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = exynos_g2d_match,
 	},
 };

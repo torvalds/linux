@@ -50,6 +50,8 @@ void fscache_objlist_add(struct fscache_object *obj)
 	struct fscache_object *xobj;
 	struct rb_node **p = &fscache_object_list.rb_node, *parent = NULL;
 
+	ASSERT(RB_EMPTY_NODE(&obj->objlist_link));
+
 	write_lock(&fscache_object_list_lock);
 
 	while (*p) {
@@ -75,6 +77,9 @@ void fscache_objlist_add(struct fscache_object *obj)
  */
 void fscache_objlist_remove(struct fscache_object *obj)
 {
+	if (RB_EMPTY_NODE(&obj->objlist_link))
+		return;
+
 	write_lock(&fscache_object_list_lock);
 
 	BUG_ON(RB_EMPTY_ROOT(&fscache_object_list));
@@ -257,7 +262,8 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 			type = "DT";
 			break;
 		default:
-			sprintf(_type, "%02u", cookie->def->type);
+			snprintf(_type, sizeof(_type), "%02u",
+				 cookie->def->type);
 			type = _type;
 			break;
 		}
@@ -280,20 +286,20 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		fscache_unuse_cookie(obj);
 
 		if (keylen > 0 || auxlen > 0) {
-			seq_printf(m, " ");
+			seq_puts(m, " ");
 			for (p = buf; keylen > 0; keylen--)
 				seq_printf(m, "%02x", *p++);
 			if (auxlen > 0) {
 				if (config & FSCACHE_OBJLIST_CONFIG_KEY)
-					seq_printf(m, ", ");
+					seq_puts(m, ", ");
 				for (; auxlen > 0; auxlen--)
 					seq_printf(m, "%02x", *p++);
 			}
 		}
 
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	} else {
-		seq_printf(m, "<no_netfs>\n");
+		seq_puts(m, "<no_netfs>\n");
 	}
 	return 0;
 }
@@ -311,7 +317,7 @@ static const struct seq_operations fscache_objlist_ops = {
 static void fscache_objlist_config(struct fscache_objlist_data *data)
 {
 #ifdef CONFIG_KEYS
-	struct user_key_payload *confkey;
+	const struct user_key_payload *confkey;
 	unsigned long config;
 	struct key *key;
 	const char *buf;
@@ -324,7 +330,7 @@ static void fscache_objlist_config(struct fscache_objlist_data *data)
 	config = 0;
 	rcu_read_lock();
 
-	confkey = key->payload.data;
+	confkey = user_key_payload_rcu(key);
 	buf = confkey->data;
 
 	for (len = confkey->datalen - 1; len >= 0; len--) {
@@ -375,26 +381,14 @@ no_config:
 static int fscache_objlist_open(struct inode *inode, struct file *file)
 {
 	struct fscache_objlist_data *data;
-	struct seq_file *m;
-	int ret;
 
-	ret = seq_open(file, &fscache_objlist_ops);
-	if (ret < 0)
-		return ret;
-
-	m = file->private_data;
-
-	/* buffer for key extraction */
-	data = kmalloc(sizeof(struct fscache_objlist_data), GFP_KERNEL);
-	if (!data) {
-		seq_release(inode, file);
+	data = __seq_open_private(file, &fscache_objlist_ops, sizeof(*data));
+	if (!data)
 		return -ENOMEM;
-	}
 
 	/* get the configuration key */
 	fscache_objlist_config(data);
 
-	m->private = data;
 	return 0;
 }
 
@@ -411,7 +405,6 @@ static int fscache_objlist_release(struct inode *inode, struct file *file)
 }
 
 const struct file_operations fscache_objlist_fops = {
-	.owner		= THIS_MODULE,
 	.open		= fscache_objlist_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

@@ -11,7 +11,6 @@
 #define __ARCH_SI_PREAMBLE_SIZE	(4 * sizeof(int))
 
 #define HAVE_ARCH_SIGINFO_T
-#define HAVE_ARCH_COPY_SIGINFO
 #define HAVE_ARCH_COPY_SIGINFO_TO_USER
 
 #include <asm-generic/siginfo.h>
@@ -63,6 +62,15 @@ typedef struct siginfo {
 			unsigned int _flags;	/* see below */
 			unsigned long _isr;	/* isr */
 			short _addr_lsb;	/* lsb of faulting address */
+			union {
+				/* used when si_code=SEGV_BNDERR */
+				struct {
+					void __user *_lower;
+					void __user *_upper;
+				} _addr_bnd;
+				/* used when si_code=SEGV_PKUERR */
+				__u32 _pkey;
+			};
 		} _sigfault;
 
 		/* SIGPOLL */
@@ -90,29 +98,32 @@ typedef struct siginfo {
 /*
  * SIGILL si_codes
  */
-#define ILL_BADIADDR	(__SI_FAULT|9)	/* unimplemented instruction address */
-#define __ILL_BREAK	(__SI_FAULT|10)	/* illegal break */
-#define __ILL_BNDMOD	(__SI_FAULT|11)	/* bundle-update (modification) in progress */
+#define ILL_BADIADDR	9	/* unimplemented instruction address */
+#define __ILL_BREAK	10	/* illegal break */
+#define __ILL_BNDMOD	11	/* bundle-update (modification) in progress */
 #undef NSIGILL
 #define NSIGILL		11
 
 /*
  * SIGFPE si_codes
  */
-#define __FPE_DECOVF	(__SI_FAULT|9)	/* decimal overflow */
-#define __FPE_DECDIV	(__SI_FAULT|10)	/* decimal division by zero */
-#define __FPE_DECERR	(__SI_FAULT|11)	/* packed decimal error */
-#define __FPE_INVASC	(__SI_FAULT|12)	/* invalid ASCII digit */
-#define __FPE_INVDEC	(__SI_FAULT|13)	/* invalid decimal digit */
+#ifdef __KERNEL__
+#define FPE_FIXME	0	/* Broken dup of SI_USER */
+#endif /* __KERNEL__ */
+#define __FPE_DECOVF	9	/* decimal overflow */
+#define __FPE_DECDIV	10	/* decimal division by zero */
+#define __FPE_DECERR	11	/* packed decimal error */
+#define __FPE_INVASC	12	/* invalid ASCII digit */
+#define __FPE_INVDEC	13	/* invalid decimal digit */
 #undef NSIGFPE
 #define NSIGFPE		13
 
 /*
  * SIGSEGV si_codes
  */
-#define __SEGV_PSTKOVF	(__SI_FAULT|3)	/* paragraph stack overflow */
+#define __SEGV_PSTKOVF	4	/* paragraph stack overflow */
 #undef NSIGSEGV
-#define NSIGSEGV	3
+#define NSIGSEGV	4
 
 #undef NSIGTRAP
 #define NSIGTRAP	4

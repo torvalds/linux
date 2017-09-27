@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -35,6 +31,10 @@
 						 * current value.*/
 #define MMC_CNTRL_PRESET		0x10
 #define MMC_CNTRL_FULL_HALF_PRESET	0x20
+
+#define MMC_GMAC4_OFFSET		0x700
+#define MMC_GMAC3_X_OFFSET		0x100
+
 struct stmmac_counters {
 	unsigned int mmc_tx_octetcount_gb;
 	unsigned int mmc_tx_framecount_gb;
@@ -68,7 +68,7 @@ struct stmmac_counters {
 	unsigned int mmc_rx_octetcount_g;
 	unsigned int mmc_rx_broadcastframe_g;
 	unsigned int mmc_rx_multicastframe_g;
-	unsigned int mmc_rx_crc_errror;
+	unsigned int mmc_rx_crc_error;
 	unsigned int mmc_rx_align_error;
 	unsigned int mmc_rx_run_error;
 	unsigned int mmc_rx_jabber_error;
@@ -128,8 +128,8 @@ struct stmmac_counters {
 	unsigned int mmc_rx_icmp_err_octets;
 };
 
-extern void dwmac_mmc_ctrl(void __iomem *ioaddr, unsigned int mode);
-extern void dwmac_mmc_intr_all_mask(void __iomem *ioaddr);
-extern void dwmac_mmc_read(void __iomem *ioaddr, struct stmmac_counters *mmc);
+void dwmac_mmc_ctrl(void __iomem *ioaddr, unsigned int mode);
+void dwmac_mmc_intr_all_mask(void __iomem *ioaddr);
+void dwmac_mmc_read(void __iomem *ioaddr, struct stmmac_counters *mmc);
 
 #endif /* __MMC_H__ */

@@ -25,7 +25,7 @@
 #include <linux/sched_clock.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <mach/time.h>
@@ -38,7 +38,7 @@
 /*
  * IOP clocksource (free-running timer 1).
  */
-static cycle_t notrace iop_clocksource_read(struct clocksource *unused)
+static u64 notrace iop_clocksource_read(struct clocksource *unused)
 {
 	return 0xffffffffu - read_tcr1();
 }
@@ -54,7 +54,7 @@ static struct clocksource iop_clocksource = {
 /*
  * IOP sched_clock() implementation via its clocksource.
  */
-static u32 notrace iop_read_sched_clock(void)
+static u64 notrace iop_read_sched_clock(void)
 {
 	return 0xffffffffu - read_tcr1();
 }
@@ -77,41 +77,57 @@ static int iop_set_next_event(unsigned long delta,
 
 static unsigned long ticks_per_jiffy;
 
-static void iop_set_mode(enum clock_event_mode mode,
-			 struct clock_event_device *unused)
+static int iop_set_periodic(struct clock_event_device *evt)
 {
 	u32 tmr = read_tmr0();
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		write_tmr0(tmr & ~IOP_TMR_EN);
-		write_tcr0(ticks_per_jiffy - 1);
-		write_trr0(ticks_per_jiffy - 1);
-		tmr |= (IOP_TMR_RELOAD | IOP_TMR_EN);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* ->set_next_event sets period and enables timer */
-		tmr &= ~(IOP_TMR_RELOAD | IOP_TMR_EN);
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		tmr |= IOP_TMR_EN;
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-	default:
-		tmr &= ~IOP_TMR_EN;
-		break;
-	}
+	write_tmr0(tmr & ~IOP_TMR_EN);
+	write_tcr0(ticks_per_jiffy - 1);
+	write_trr0(ticks_per_jiffy - 1);
+	tmr |= (IOP_TMR_RELOAD | IOP_TMR_EN);
 
 	write_tmr0(tmr);
+	return 0;
+}
+
+static int iop_set_oneshot(struct clock_event_device *evt)
+{
+	u32 tmr = read_tmr0();
+
+	/* ->set_next_event sets period and enables timer */
+	tmr &= ~(IOP_TMR_RELOAD | IOP_TMR_EN);
+	write_tmr0(tmr);
+	return 0;
+}
+
+static int iop_shutdown(struct clock_event_device *evt)
+{
+	u32 tmr = read_tmr0();
+
+	tmr &= ~IOP_TMR_EN;
+	write_tmr0(tmr);
+	return 0;
+}
+
+static int iop_resume(struct clock_event_device *evt)
+{
+	u32 tmr = read_tmr0();
+
+	tmr |= IOP_TMR_EN;
+	write_tmr0(tmr);
+	return 0;
 }
 
 static struct clock_event_device iop_clockevent = {
-	.name		= "iop_timer0",
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.rating         = 300,
-	.set_next_event	= iop_set_next_event,
-	.set_mode	= iop_set_mode,
+	.name			= "iop_timer0",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.rating			= 300,
+	.set_next_event		= iop_set_next_event,
+	.set_state_shutdown	= iop_shutdown,
+	.set_state_periodic	= iop_set_periodic,
+	.tick_resume		= iop_resume,
+	.set_state_oneshot	= iop_set_oneshot,
 };
 
 static irqreturn_t
@@ -127,7 +143,7 @@ iop_timer_interrupt(int irq, void *dev_id)
 static struct irqaction iop_timer_irq = {
 	.name		= "IOP Timer Tick",
 	.handler	= iop_timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.dev_id		= &iop_clockevent,
 };
 
@@ -142,7 +158,7 @@ void __init iop_init_time(unsigned long tick_rate)
 {
 	u32 timer_ctl;
 
-	setup_sched_clock(iop_read_sched_clock, 32, tick_rate);
+	sched_clock_register(iop_read_sched_clock, 32, tick_rate);
 
 	ticks_per_jiffy = DIV_ROUND_CLOSEST(tick_rate, HZ);
 	iop_tick_rate = tick_rate;

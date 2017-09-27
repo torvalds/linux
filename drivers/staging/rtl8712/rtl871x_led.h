@@ -72,14 +72,17 @@ enum LED_STRATEGY_871x {
 	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* 2 LEDs, through LED0 and LED1. For ALPHA. */
 	SW_LED_MODE2, /* SW control 1 LED via GPIO0,
-		       * custom for AzWave 8187 minicard. */
+		       * custom for AzWave 8187 minicard.
+		       */
 	SW_LED_MODE3, /* SW control 1 LED via GPIO0,
-		       *  customized for Sercomm Printer Server case.*/
+		       * customized for Sercomm Printer Server case.
+		       */
 	SW_LED_MODE4, /*for Edimax / Belkin*/
 	SW_LED_MODE5, /*for Sercomm / Belkin*/
 	SW_LED_MODE6, /*for WNC / Corega*/
 	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different
-		 * control modes, see MAC.CONFIG1 for details.)*/
+		 * control modes, see MAC.CONFIG1 for details.)
+		 */
 };
 
 struct LED_871x {
@@ -96,10 +99,11 @@ struct LED_871x {
 	u8			bLedWPSBlinkInProgress;
 	u32			BlinkTimes; /* No. times to toggle for blink.*/
 	u32			BlinkingLedState; /* Next state for blinking,
-						   * either LED_ON or OFF.*/
+						   * either LED_ON or OFF.
+						   */
 
 	struct timer_list	BlinkTimer; /* Timer object for led blinking.*/
-	_workitem		BlinkWorkItem; /* Workitem used by BlinkTimer */
+	struct work_struct	BlinkWorkItem; /* Workitem used by BlinkTimer */
 };
 
 struct led_priv {
@@ -115,7 +119,8 @@ struct led_priv {
 
 /*===========================================================================
  * Interface to manipulate LED objects.
- *===========================================================================*/
+ *===========================================================================
+ */
 void r8712_InitSwLeds(struct _adapter *padapter);
 void r8712_DeInitSwLeds(struct _adapter *padapter);
 void LedControl871x(struct _adapter *padapter, enum LED_CTL_MODE LedAction);

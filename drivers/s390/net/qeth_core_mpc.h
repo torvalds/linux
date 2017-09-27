@@ -29,7 +29,6 @@ extern unsigned char IPA_PDU_HEADER[];
 #define QETH_TIMEOUT		(10 * HZ)
 #define QETH_IPA_TIMEOUT	(45 * HZ)
 #define QETH_IDX_COMMAND_SEQNO	0xffff0000
-#define SR_INFO_LEN		16
 
 #define QETH_CLEAR_CHANNEL_PARM	-10
 #define QETH_HALT_CHANNEL_PARM	-11
@@ -65,7 +64,6 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_LANE_TR      = 0x82,
 	QETH_LINK_TYPE_LANE_ETH1000 = 0x83,
 	QETH_LINK_TYPE_LANE         = 0x88,
-	QETH_LINK_TYPE_ATM_NATIVE   = 0x90,
 };
 
 /*
@@ -92,6 +90,7 @@ enum qeth_ipa_cmds {
 	IPA_CMD_DELGMAC			= 0x24,
 	IPA_CMD_SETVLAN			= 0x25,
 	IPA_CMD_DELVLAN			= 0x26,
+	IPA_CMD_SETBRIDGEPORT_OSA	= 0x2b,
 	IPA_CMD_SETCCID			= 0x41,
 	IPA_CMD_DELCCID			= 0x42,
 	IPA_CMD_MODCCID			= 0x43,
@@ -104,10 +103,12 @@ enum qeth_ipa_cmds {
 	IPA_CMD_DELIP			= 0xb7,
 	IPA_CMD_SETADAPTERPARMS		= 0xb8,
 	IPA_CMD_SET_DIAG_ASS		= 0xb9,
+	IPA_CMD_SETBRIDGEPORT_IQD	= 0xbe,
 	IPA_CMD_CREATE_ADDR		= 0xc3,
 	IPA_CMD_DESTROY_ADDR		= 0xc4,
 	IPA_CMD_REGISTER_LOCAL_ADDR	= 0xd1,
 	IPA_CMD_UNREGISTER_LOCAL_ADDR	= 0xd2,
+	IPA_CMD_ADDRESS_CHANGE_NOTIF	= 0xd3,
 	IPA_CMD_UNKNOWN			= 0x00
 };
 
@@ -141,12 +142,18 @@ enum qeth_ipa_return_codes {
 	IPA_RC_TRACE_ALREADY_ACTIVE	= 0x0005,
 	IPA_RC_INVALID_FORMAT		= 0x0006,
 	IPA_RC_DUP_IPV6_REMOTE		= 0x0008,
+	IPA_RC_SBP_IQD_NOT_CONFIGURED	= 0x000C,
 	IPA_RC_DUP_IPV6_HOME		= 0x0010,
 	IPA_RC_UNREGISTERED_ADDR	= 0x0011,
 	IPA_RC_NO_ID_AVAILABLE		= 0x0012,
 	IPA_RC_ID_NOT_FOUND		= 0x0013,
+	IPA_RC_SBP_IQD_ANO_DEV_PRIMARY	= 0x0014,
+	IPA_RC_SBP_IQD_CURRENT_SECOND	= 0x0018,
+	IPA_RC_SBP_IQD_LIMIT_SECOND	= 0x001C,
 	IPA_RC_INVALID_IP_VERSION	= 0x0020,
+	IPA_RC_SBP_IQD_CURRENT_PRIMARY	= 0x0024,
 	IPA_RC_LAN_FRAME_MISMATCH	= 0x0040,
+	IPA_RC_SBP_IQD_NO_QDIO_QUEUES	= 0x00EB,
 	IPA_RC_L2_UNSUPPORTED_CMD	= 0x2003,
 	IPA_RC_L2_DUP_MAC		= 0x2005,
 	IPA_RC_L2_ADDR_TABLE_FULL	= 0x2006,
@@ -158,6 +165,14 @@ enum qeth_ipa_return_codes {
 	IPA_RC_L2_INVALID_VLAN_ID	= 0x2015,
 	IPA_RC_L2_DUP_VLAN_ID		= 0x2016,
 	IPA_RC_L2_VLAN_ID_NOT_FOUND	= 0x2017,
+	IPA_RC_SBP_OSA_NOT_CONFIGURED	= 0x2B0C,
+	IPA_RC_SBP_OSA_OS_MISMATCH	= 0x2B10,
+	IPA_RC_SBP_OSA_ANO_DEV_PRIMARY	= 0x2B14,
+	IPA_RC_SBP_OSA_CURRENT_SECOND	= 0x2B18,
+	IPA_RC_SBP_OSA_LIMIT_SECOND	= 0x2B1C,
+	IPA_RC_SBP_OSA_NOT_AUTHD_BY_ZMAN = 0x2B20,
+	IPA_RC_SBP_OSA_CURRENT_PRIMARY	= 0x2B24,
+	IPA_RC_SBP_OSA_NO_QDIO_QUEUES	= 0x2BEB,
 	IPA_RC_DATA_MISMATCH		= 0xe001,
 	IPA_RC_INVALID_MTU_SIZE		= 0xe002,
 	IPA_RC_INVALID_LANTYPE		= 0xe003,
@@ -182,18 +197,20 @@ enum qeth_ipa_return_codes {
 	IPA_RC_ENOMEM			= 0xfffe,
 	IPA_RC_FFFF			= 0xffff
 };
-/* for DELIP */
-#define IPA_RC_IP_ADDRESS_NOT_DEFINED	IPA_RC_PRIMARY_ALREADY_DEFINED
 /* for SET_DIAGNOSTIC_ASSIST */
 #define IPA_RC_INVALID_SUBCMD		IPA_RC_IP_TABLE_FULL
 #define IPA_RC_HARDWARE_AUTH_ERROR	IPA_RC_UNKNOWN_ERROR
+
+/* for SETBRIDGEPORT (double occupancies) */
+#define IPA_RC_SBP_IQD_OS_MISMATCH	 IPA_RC_DUP_IPV6_HOME
+#define IPA_RC_SBP_IQD_NOT_AUTHD_BY_ZMAN IPA_RC_INVALID_IP_VERSION
 
 /* IPA function flags; each flag marks availability of respective function */
 enum qeth_ipa_funcs {
 	IPA_ARP_PROCESSING      = 0x00000001L,
 	IPA_INBOUND_CHECKSUM    = 0x00000002L,
 	IPA_OUTBOUND_CHECKSUM   = 0x00000004L,
-	IPA_IP_FRAGMENTATION    = 0x00000008L,
+	/* RESERVED		= 0x00000008L,*/
 	IPA_FILTERING           = 0x00000010L,
 	IPA_IPV6                = 0x00000020L,
 	IPA_MULTICASTING        = 0x00000040L,
@@ -240,6 +257,7 @@ enum qeth_ipa_setadp_cmd {
 	IPA_SETADP_SET_DIAG_ASSIST		= 0x00002000L,
 	IPA_SETADP_SET_ACCESS_CONTROL		= 0x00010000L,
 	IPA_SETADP_QUERY_OAT			= 0x00080000L,
+	IPA_SETADP_QUERY_SWITCH_ATTRIBUTES	= 0x00100000L,
 };
 enum qeth_ipa_mac_ops {
 	CHANGE_ADDR_READ_MAC		= 0,
@@ -274,7 +292,24 @@ enum qeth_ipa_set_access_mode_rc {
 	SET_ACCESS_CTRL_RC_REFLREL_FAILED	= 0x0024,
 	SET_ACCESS_CTRL_RC_REFLREL_DEACT_FAILED	= 0x0028,
 };
-
+enum qeth_card_info_card_type {
+	CARD_INFO_TYPE_1G_COPPER_A	= 0x61,
+	CARD_INFO_TYPE_1G_FIBRE_A	= 0x71,
+	CARD_INFO_TYPE_10G_FIBRE_A	= 0x91,
+	CARD_INFO_TYPE_1G_COPPER_B	= 0xb1,
+	CARD_INFO_TYPE_1G_FIBRE_B	= 0xa1,
+	CARD_INFO_TYPE_10G_FIBRE_B	= 0xc1,
+};
+enum qeth_card_info_port_mode {
+	CARD_INFO_PORTM_HALFDUPLEX	= 0x0002,
+	CARD_INFO_PORTM_FULLDUPLEX	= 0x0003,
+};
+enum qeth_card_info_port_speed {
+	CARD_INFO_PORTS_10M		= 0x00000005,
+	CARD_INFO_PORTS_100M		= 0x00000006,
+	CARD_INFO_PORTS_1G		= 0x00000007,
+	CARD_INFO_PORTS_10G		= 0x00000008,
+};
 
 /* (SET)DELIP(M) IPA stuff ***************************************************/
 struct qeth_ipacmd_setdelip4 {
@@ -331,11 +366,28 @@ struct qeth_arp_query_info {
 	char *udata;
 };
 
+/* IPA set assist segmentation bit definitions for receive and
+ * transmit checksum offloading.
+ */
+enum qeth_ipa_checksum_bits {
+	QETH_IPA_CHECKSUM_IP_HDR	= 0x0002,
+	QETH_IPA_CHECKSUM_UDP		= 0x0008,
+	QETH_IPA_CHECKSUM_TCP		= 0x0010,
+	QETH_IPA_CHECKSUM_LP2LP		= 0x0020
+};
+
+/* IPA Assist checksum offload reply layout. */
+struct qeth_checksum_cmd {
+	__u32 supported;
+	__u32 enabled;
+} __packed;
+
 /* SETASSPARMS IPA Command: */
 struct qeth_ipacmd_setassparms {
 	struct qeth_ipacmd_setassparms_hdr hdr;
 	union {
 		__u32 flags_32bit;
+		struct qeth_checksum_cmd chksum;
 		struct qeth_arp_cache_entry add_arp_entry;
 		struct qeth_arp_query_data query_arp;
 		__u8 ip[16];
@@ -404,6 +456,29 @@ struct qeth_qoat_priv {
 	char *buffer;
 };
 
+struct qeth_query_card_info {
+	__u8	card_type;
+	__u8	reserved1;
+	__u16	port_mode;
+	__u32	port_speed;
+	__u32	reserved2;
+};
+
+#define QETH_SWITCH_FORW_802_1		0x00000001
+#define QETH_SWITCH_FORW_REFL_RELAY	0x00000002
+#define QETH_SWITCH_CAP_RTE		0x00000004
+#define QETH_SWITCH_CAP_ECP		0x00000008
+#define QETH_SWITCH_CAP_VDP		0x00000010
+
+struct qeth_query_switch_attributes {
+	__u8  version;
+	__u8  reserved1;
+	__u16 reserved2;
+	__u32 capabilities;
+	__u32 settings;
+	__u8  reserved3[8];
+};
+
 struct qeth_ipacmd_setadpparms_hdr {
 	__u32 supp_hw_cmds;
 	__u32 reserved1;
@@ -424,6 +499,8 @@ struct qeth_ipacmd_setadpparms {
 		struct qeth_snmp_cmd snmp;
 		struct qeth_set_access_ctrl set_access_ctrl;
 		struct qeth_query_oat query_oat;
+		struct qeth_query_card_info card_info;
+		struct qeth_query_switch_attributes query_switch_attributes;
 		__u32 mode;
 	} data;
 } __attribute__ ((packed));
@@ -474,6 +551,116 @@ struct qeth_ipacmd_diagass {
 	__u8   cdata[64];
 } __attribute__ ((packed));
 
+/* SETBRIDGEPORT IPA Command:	 *********************************************/
+enum qeth_ipa_sbp_cmd {
+	IPA_SBP_QUERY_COMMANDS_SUPPORTED	= 0x00000000L,
+	IPA_SBP_RESET_BRIDGE_PORT_ROLE		= 0x00000001L,
+	IPA_SBP_SET_PRIMARY_BRIDGE_PORT		= 0x00000002L,
+	IPA_SBP_SET_SECONDARY_BRIDGE_PORT	= 0x00000004L,
+	IPA_SBP_QUERY_BRIDGE_PORTS		= 0x00000008L,
+	IPA_SBP_BRIDGE_PORT_STATE_CHANGE	= 0x00000010L,
+};
+
+struct net_if_token {
+	__u16 devnum;
+	__u8 cssid;
+	__u8 iid;
+	__u8 ssid;
+	__u8 chpid;
+	__u16 chid;
+} __packed;
+
+struct mac_addr_lnid {
+	__u8 mac[6];
+	__u16 lnid;
+} __packed;
+
+struct qeth_ipacmd_sbp_hdr {
+	__u32 supported_sbp_cmds;
+	__u32 enabled_sbp_cmds;
+	__u16 cmdlength;
+	__u16 reserved1;
+	__u32 command_code;
+	__u16 return_code;
+	__u8  used_total;
+	__u8  seq_no;
+	__u32 reserved2;
+} __packed;
+
+struct qeth_sbp_query_cmds_supp {
+	__u32 supported_cmds;
+	__u32 reserved;
+} __packed;
+
+struct qeth_sbp_reset_role {
+} __packed;
+
+struct qeth_sbp_set_primary {
+	struct net_if_token token;
+} __packed;
+
+struct qeth_sbp_set_secondary {
+} __packed;
+
+struct qeth_sbp_port_entry {
+		__u8 role;
+		__u8 state;
+		__u8 reserved1;
+		__u8 reserved2;
+		struct net_if_token token;
+} __packed;
+
+struct qeth_sbp_query_ports {
+	__u8 primary_bp_supported;
+	__u8 secondary_bp_supported;
+	__u8 num_entries;
+	__u8 entry_length;
+	struct qeth_sbp_port_entry entry[];
+} __packed;
+
+struct qeth_sbp_state_change {
+	__u8 primary_bp_supported;
+	__u8 secondary_bp_supported;
+	__u8 num_entries;
+	__u8 entry_length;
+	struct qeth_sbp_port_entry entry[];
+} __packed;
+
+struct qeth_ipacmd_setbridgeport {
+	struct qeth_ipacmd_sbp_hdr hdr;
+	union {
+		struct qeth_sbp_query_cmds_supp query_cmds_supp;
+		struct qeth_sbp_reset_role reset_role;
+		struct qeth_sbp_set_primary set_primary;
+		struct qeth_sbp_set_secondary set_secondary;
+		struct qeth_sbp_query_ports query_ports;
+		struct qeth_sbp_state_change state_change;
+	} data;
+} __packed;
+
+/* ADDRESS_CHANGE_NOTIFICATION adapter-initiated "command" *******************/
+/* Bitmask for entry->change_code. Both bits may be raised.		     */
+enum qeth_ipa_addr_change_code {
+	IPA_ADDR_CHANGE_CODE_VLANID		= 0x01,
+	IPA_ADDR_CHANGE_CODE_MACADDR		= 0x02,
+	IPA_ADDR_CHANGE_CODE_REMOVAL		= 0x80,	/* else addition */
+};
+
+struct qeth_ipacmd_addr_change_entry {
+	struct net_if_token token;
+	struct mac_addr_lnid addr_lnid;
+	__u8 change_code;
+	__u8 reserved1;
+	__u16 reserved2;
+} __packed;
+
+struct qeth_ipacmd_addr_change {
+	__u8 lost_event_mask;
+	__u8 reserved;
+	__u16 num_entries;
+	struct qeth_ipacmd_addr_change_entry entry[];
+} __packed;
+
 /* Header for each IPA command */
 struct qeth_ipacmd_hdr {
 	__u8   command;
@@ -503,6 +690,8 @@ struct qeth_ipa_cmd {
 		struct qeth_ipacmd_setadpparms		setadapterparms;
 		struct qeth_set_routing			setrtg;
 		struct qeth_ipacmd_diagass		diagass;
+		struct qeth_ipacmd_setbridgeport	sbp;
+		struct qeth_ipacmd_addr_change		addrchange;
 	} data;
 } __attribute__ ((packed));
 
@@ -633,10 +822,5 @@ extern unsigned char IDX_ACTIVATE_WRITE[];
 #define IS_IPA(buffer) \
 	((buffer) && \
 	 (*(buffer + ((*(buffer + 0x0b)) + 4)) == 0xc1))
-
-#define ADDR_FRAME_TYPE_DIX 1
-#define ADDR_FRAME_TYPE_802_3 2
-#define ADDR_FRAME_TYPE_TR_WITHOUT_SR 0x10
-#define ADDR_FRAME_TYPE_TR_WITH_SR 0x20
 
 #endif

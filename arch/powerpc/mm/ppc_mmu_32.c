@@ -2,7 +2,7 @@
  * This file contains the routines for handling the MMU on those
  * PowerPC implementations where the MMU substantially follows the
  * architecture specification.  This includes the 6xx, 7xx, 7xxx,
- * 8260, and POWER3 implementations but excludes the 8xx and 4xx.
+ * and 8260 implementations but excludes the 8xx and 4xx.
  *  -- paulus
  *
  *  Derived from arch/ppc/mm/init.c:
@@ -49,7 +49,7 @@ struct batrange {		/* stores address ranges mapped by BATs */
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
  */
-phys_addr_t v_mapped_by_bats(unsigned long va)
+phys_addr_t v_block_mapped(unsigned long va)
 {
 	int b;
 	for (b = 0; b < 4; ++b)
@@ -61,7 +61,7 @@ phys_addr_t v_mapped_by_bats(unsigned long va)
 /*
  * Return VA for a given PA or 0 if not mapped
  */
-unsigned long p_mapped_by_bats(phys_addr_t pa)
+unsigned long p_block_mapped(phys_addr_t pa)
 {
 	int b;
 	for (b = 0; b < 4; ++b)
@@ -113,11 +113,12 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
  * of 2 between 128k and 256M.
  */
 void __init setbat(int index, unsigned long virt, phys_addr_t phys,
-		   unsigned int size, int flags)
+		   unsigned int size, pgprot_t prot)
 {
 	unsigned int bl;
 	int wimgxpp;
 	struct ppc_bat *bat = BATS[index];
+	unsigned long flags = pgprot_val(prot);
 
 	if ((flags & _PAGE_NO_CACHE) ||
 	    (cpu_has_feature(CPU_FTR_NEED_COHERENT) == 0))
@@ -224,7 +225,7 @@ void __init MMU_init_hw(void)
 	 */
 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
 	Hash = __va(memblock_alloc(Hash_size, Hash_size));
-	cacheable_memzero(Hash, Hash_size);
+	memset(Hash, 0, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
 
 	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);

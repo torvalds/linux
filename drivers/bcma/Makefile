@@ -1,8 +1,11 @@
 bcma-y					+= main.o scan.o core.o sprom.o
 bcma-y					+= driver_chipcommon.o driver_chipcommon_pmu.o
+bcma-y					+= driver_chipcommon_b.o
+bcma-$(CONFIG_BCMA_PFLASH)		+= driver_chipcommon_pflash.o
 bcma-$(CONFIG_BCMA_SFLASH)		+= driver_chipcommon_sflash.o
 bcma-$(CONFIG_BCMA_NFLASH)		+= driver_chipcommon_nflash.o
-bcma-y					+= driver_pci.o
+bcma-$(CONFIG_BCMA_DRIVER_PCI)		+= driver_pci.o
+bcma-$(CONFIG_BCMA_DRIVER_PCI)		+= driver_pcie2.o
 bcma-$(CONFIG_BCMA_DRIVER_PCI_HOSTMODE)	+= driver_pci_host.o
 bcma-$(CONFIG_BCMA_DRIVER_MIPS)		+= driver_mips.o
 bcma-$(CONFIG_BCMA_DRIVER_GMAC_CMN)	+= driver_gmac_cmn.o

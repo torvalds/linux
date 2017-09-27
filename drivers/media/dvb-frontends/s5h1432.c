@@ -12,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -36,7 +32,7 @@ struct s5h1432_state {
 
 	struct dvb_frontend frontend;
 
-	fe_modulation_t current_modulation;
+	enum fe_modulation current_modulation;
 	unsigned int first_tune:1;
 
 	u32 current_frequency;
@@ -63,8 +59,8 @@ static int s5h1432_writereg(struct s5h1432_state *state,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, "
-		       "ret == %i)\n", __func__, addr, reg, data, ret);
+		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, ret == %i)\n",
+		       __func__, addr, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -302,7 +298,7 @@ static int s5h1432_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int s5h1432_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int s5h1432_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	return 0;
 }
@@ -341,7 +337,7 @@ static void s5h1432_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1432_ops;
+static const struct dvb_frontend_ops s5h1432_ops;
 
 struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 				    struct i2c_adapter *i2c)
@@ -370,7 +366,7 @@ struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 }
 EXPORT_SYMBOL(s5h1432_attach);
 
-static struct dvb_frontend_ops s5h1432_ops = {
+static const struct dvb_frontend_ops s5h1432_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "Samsung s5h1432 DVB-T Frontend",

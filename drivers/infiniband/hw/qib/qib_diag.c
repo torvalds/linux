@@ -85,7 +85,7 @@ static struct qib_diag_client *get_client(struct qib_devdata *dd)
 		client_pool = dc->next;
 	else
 		/* None in pool, alloc and init */
-		dc = kmalloc(sizeof *dc, GFP_KERNEL);
+		dc = kmalloc(sizeof(*dc), GFP_KERNEL);
 
 	if (dc) {
 		dc->next = NULL;
@@ -257,6 +257,7 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 	if (dd->userbase) {
 		/* If user regs mapped, they are after send, so set limit. */
 		u32 ulim = (dd->cfgctxts * dd->ureg_align) + dd->uregbase;
+
 		if (!dd->piovl15base)
 			snd_lim = dd->uregbase;
 		krb32 = (u32 __iomem *)dd->userbase;
@@ -280,6 +281,7 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 	snd_bottom = dd->pio2k_bufbase;
 	if (snd_lim == 0) {
 		u32 tot2k = dd->piobcnt2k * ALIGN(dd->piosize2k, dd->palign);
+
 		snd_lim = snd_bottom + tot2k;
 	}
 	/* If 4k buffers exist, account for them by bumping
@@ -398,6 +400,7 @@ static int qib_write_umem64(struct qib_devdata *dd, u32 regoffs,
 	/* not very efficient, but it works for now */
 	while (reg_addr < reg_end) {
 		u64 data;
+
 		if (copy_from_user(&data, uaddr, sizeof(data))) {
 			ret = -EFAULT;
 			goto bail;
@@ -546,7 +549,7 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 				 size_t count, loff_t *off)
 {
 	u32 __iomem *piobuf;
-	u32 plen, clen, pbufn;
+	u32 plen, pbufn, maxlen_reserve;
 	struct qib_diag_xpkt dp;
 	u32 *tmpbuf = NULL;
 	struct qib_devdata *dd;
@@ -590,19 +593,22 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 	}
 	ppd = &dd->pport[dp.port - 1];
 
-	/* need total length before first word written */
-	/* +1 word is for the qword padding */
-	plen = sizeof(u32) + dp.len;
-	clen = dp.len >> 2;
-
-	if ((plen + 4) > ppd->ibmaxlen) {
+	/*
+	 * need total length before first word written, plus 2 Dwords. One Dword
+	 * is for padding so we get the full user data when not aligned on
+	 * a word boundary. The other Dword is to make sure we have room for the
+	 * ICRC which gets tacked on later.
+	 */
+	maxlen_reserve = 2 * sizeof(u32);
+	if (dp.len > ppd->ibmaxlen - maxlen_reserve) {
 		ret = -EINVAL;
-		goto bail;      /* before writing pbc */
+		goto bail;
 	}
+
+	plen = sizeof(u32) + dp.len;
+
 	tmpbuf = vmalloc(plen);
 	if (!tmpbuf) {
-		qib_devinfo(dd->pcidev,
-			"Unable to allocate tmp buffer, failing\n");
 		ret = -ENOMEM;
 		goto bail;
 	}
@@ -638,11 +644,11 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 	 */
 	if (dd->flags & QIB_PIO_FLUSH_WC) {
 		qib_flush_wc();
-		qib_pio_copy(piobuf + 2, tmpbuf, clen - 1);
+		qib_pio_copy(piobuf + 2, tmpbuf, plen - 1);
 		qib_flush_wc();
-		__raw_writel(tmpbuf[clen - 1], piobuf + clen + 1);
+		__raw_writel(tmpbuf[plen - 1], piobuf + plen + 1);
 	} else
-		qib_pio_copy(piobuf + 2, tmpbuf, clen);
+		qib_pio_copy(piobuf + 2, tmpbuf, plen);
 
 	if (dd->flags & QIB_USE_SPCL_TRIG) {
 		u32 spcl_off = (pbufn >= dd->piobcnt2k) ? 2047 : 1023;
@@ -689,28 +695,21 @@ int qib_register_observer(struct qib_devdata *dd,
 			  const struct diag_observer *op)
 {
 	struct diag_observer_list_elt *olp;
-	int ret = -EINVAL;
+	unsigned long flags;
 
 	if (!dd || !op)
-		goto bail;
-	ret = -ENOMEM;
-	olp = vmalloc(sizeof *olp);
-	if (!olp) {
-		pr_err("vmalloc for observer failed\n");
-		goto bail;
-	}
-	if (olp) {
-		unsigned long flags;
+		return -EINVAL;
+	olp = vmalloc(sizeof(*olp));
+	if (!olp)
+		return -ENOMEM;
 
-		spin_lock_irqsave(&dd->qib_diag_trans_lock, flags);
-		olp->op = op;
-		olp->next = dd->diag_observer_list;
-		dd->diag_observer_list = olp;
-		spin_unlock_irqrestore(&dd->qib_diag_trans_lock, flags);
-		ret = 0;
-	}
-bail:
-	return ret;
+	spin_lock_irqsave(&dd->qib_diag_trans_lock, flags);
+	olp->op = op;
+	olp->next = dd->diag_observer_list;
+	dd->diag_observer_list = olp;
+	spin_unlock_irqrestore(&dd->qib_diag_trans_lock, flags);
+
+	return 0;
 }
 
 /* Remove all registered observers when device is closed */
@@ -796,6 +795,7 @@ static ssize_t qib_diag_read(struct file *fp, char __user *data,
 		op = diag_get_observer(dd, *off);
 		if (op) {
 			u32 offset = *off;
+
 			ret = op->hook(dd, op, offset, &data64, 0, use_32);
 		}
 		/*
@@ -873,6 +873,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		if (count == 4 || count == 8) {
 			u64 data64;
 			u32 offset = *off;
+
 			ret = copy_from_user(&data64, data, count);
 			if (ret) {
 				ret = -EFAULT;

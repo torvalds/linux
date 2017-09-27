@@ -44,20 +44,16 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	while (volt_data[count].volt_nominal)
 		count++;
 
-	nvalue_table = kzalloc(sizeof(struct omap_sr_nvalue_table)*count,
-			GFP_KERNEL);
-
-	if (!nvalue_table) {
-		pr_err("OMAP: SmartReflex: cannot allocate memory for n-value table\n");
+	nvalue_table = kcalloc(count, sizeof(*nvalue_table), GFP_KERNEL);
+	if (!nvalue_table)
 		return;
-	}
 
 	for (i = 0, j = 0; i < count; i++) {
 		u32 v;
 
 		/*
 		 * In OMAP4 the efuse registers are 24 bit aligned.
-		 * A __raw_readl will fail for non-32 bit aligned address
+		 * A readl_relaxed will fail for non-32 bit aligned address
 		 * and hence the 8-bit read and shift.
 		 */
 		if (cpu_is_omap44xx()) {
@@ -102,12 +98,9 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 	char *name = "smartreflex";
 	static int i;
 
-	sr_data = kzalloc(sizeof(struct omap_sr_data), GFP_KERNEL);
-	if (!sr_data) {
-		pr_err("%s: Unable to allocate memory for %s sr_data\n",
-		       __func__, oh->name);
+	sr_data = kzalloc(sizeof(*sr_data), GFP_KERNEL);
+	if (!sr_data)
 		return -ENOMEM;
-	}
 
 	sr_dev_attr = (struct omap_smartreflex_dev_attr *)oh->dev_attr;
 	if (!sr_dev_attr || !sr_dev_attr->sensor_voltdm_name) {
@@ -154,7 +147,7 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 
 	pdev = omap_device_build(name, i, oh, sr_data, sizeof(*sr_data));
 	if (IS_ERR(pdev))
-		pr_warning("%s: Could not build omap_device for %s: %s.\n\n",
+		pr_warn("%s: Could not build omap_device for %s: %s\n",
 			__func__, name, oh->name);
 exit:
 	i++;

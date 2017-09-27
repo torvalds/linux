@@ -452,14 +452,7 @@ static int se200pci_cont_enum_info(struct snd_kcontrol *kc,
 	c = se200pci_get_enum_count(n);
 	if (!c)
 		return -EINVAL;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = c;
-	if (uinfo->value.enumerated.item >= c)
-		uinfo->value.enumerated.item = c - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       se200pci_cont[n].member[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, c, se200pci_cont[n].member);
 }
 
 static int se200pci_cont_volume_get(struct snd_kcontrol *kc,

@@ -25,7 +25,7 @@ EXPORT_SYMBOL(i8253_lock);
  * to just read by itself. So use jiffies to emulate a free
  * running counter:
  */
-static cycle_t i8253_read(struct clocksource *cs)
+static u64 i8253_read(struct clocksource *cs)
 {
 	static int old_count;
 	static u32 old_jifs;
@@ -83,7 +83,7 @@ static cycle_t i8253_read(struct clocksource *cs)
 
 	count = (PIT_LATCH - 1) - count;
 
-	return (cycle_t)(jifs * PIT_LATCH) + count;
+	return (u64)(jifs * PIT_LATCH) + count;
 }
 
 static struct clocksource i8253_cs = {
@@ -100,44 +100,40 @@ int __init clocksource_i8253_init(void)
 #endif
 
 #ifdef CONFIG_CLKEVT_I8253
-/*
- * Initialize the PIT timer.
- *
- * This is also called after resume to bring the PIT into operation again.
- */
-static void init_pit_timer(enum clock_event_mode mode,
-			   struct clock_event_device *evt)
+static int pit_shutdown(struct clock_event_device *evt)
+{
+	if (!clockevent_state_oneshot(evt) && !clockevent_state_periodic(evt))
+		return 0;
+
+	raw_spin_lock(&i8253_lock);
+
+	outb_p(0x30, PIT_MODE);
+	outb_p(0, PIT_CH0);
+	outb_p(0, PIT_CH0);
+
+	raw_spin_unlock(&i8253_lock);
+	return 0;
+}
+
+static int pit_set_oneshot(struct clock_event_device *evt)
+{
+	raw_spin_lock(&i8253_lock);
+	outb_p(0x38, PIT_MODE);
+	raw_spin_unlock(&i8253_lock);
+	return 0;
+}
+
+static int pit_set_periodic(struct clock_event_device *evt)
 {
 	raw_spin_lock(&i8253_lock);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		/* binary, mode 2, LSB/MSB, ch 0 */
-		outb_p(0x34, PIT_MODE);
-		outb_p(PIT_LATCH & 0xff , PIT_CH0);	/* LSB */
-		outb_p(PIT_LATCH >> 8 , PIT_CH0);		/* MSB */
-		break;
+	/* binary, mode 2, LSB/MSB, ch 0 */
+	outb_p(0x34, PIT_MODE);
+	outb_p(PIT_LATCH & 0xff, PIT_CH0);	/* LSB */
+	outb_p(PIT_LATCH >> 8, PIT_CH0);	/* MSB */
 
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		if (evt->mode == CLOCK_EVT_MODE_PERIODIC ||
-		    evt->mode == CLOCK_EVT_MODE_ONESHOT) {
-			outb_p(0x30, PIT_MODE);
-			outb_p(0, PIT_CH0);
-			outb_p(0, PIT_CH0);
-		}
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* One shot setup */
-		outb_p(0x38, PIT_MODE);
-		break;
-
-	case CLOCK_EVT_MODE_RESUME:
-		/* Nothing to do here */
-		break;
-	}
 	raw_spin_unlock(&i8253_lock);
+	return 0;
 }
 
 /*
@@ -160,10 +156,11 @@ static int pit_next_event(unsigned long delta, struct clock_event_device *evt)
  * it can be solely used for the global tick.
  */
 struct clock_event_device i8253_clockevent = {
-	.name		= "pit",
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.set_mode	= init_pit_timer,
-	.set_next_event = pit_next_event,
+	.name			= "pit",
+	.features		= CLOCK_EVT_FEAT_PERIODIC,
+	.set_state_shutdown	= pit_shutdown,
+	.set_state_periodic	= pit_set_periodic,
+	.set_next_event		= pit_next_event,
 };
 
 /*
@@ -172,8 +169,10 @@ struct clock_event_device i8253_clockevent = {
  */
 void __init clockevent_i8253_init(bool oneshot)
 {
-	if (oneshot)
+	if (oneshot) {
 		i8253_clockevent.features |= CLOCK_EVT_FEAT_ONESHOT;
+		i8253_clockevent.set_state_oneshot = pit_set_oneshot;
+	}
 	/*
 	 * Start pit with the boot cpu mask. x86 might make it global
 	 * when it is used as broadcast device later.

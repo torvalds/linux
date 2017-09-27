@@ -1,6 +1,7 @@
-/* bnx2.h: Broadcom NX2 network driver.
+/* bnx2.h: QLogic bnx2 network driver.
  *
- * Copyright (c) 2004-2011 Broadcom Corporation
+ * Copyright (c) 2004-2014 Broadcom Corporation
+ * Copyright (c) 2014-2015 QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -6471,6 +6472,15 @@ struct l2_fhdr {
 
 #define BCM5708S_TX_ACTL3			0x17
 
+#define MII_BNX2_EXT_STATUS			0x11
+#define EXT_STATUS_MDIX				 (1 << 13)
+
+#define MII_BNX2_AUX_CTL			0x18
+#define AUX_CTL_MISC_CTL			 0x7007
+#define AUX_CTL_MISC_CTL_WIRESPEED		  (1 << 4)
+#define AUX_CTL_MISC_CTL_AUTOMDIX		  (1 << 9)
+#define AUX_CTL_MISC_CTL_WR			  (1 << 15)
+
 #define MII_BNX2_DSP_RW_PORT			0x15
 #define MII_BNX2_DSP_ADDRESS			0x17
 #define MII_BNX2_DSP_EXPAND_REG			 0x0f00
@@ -6520,9 +6530,9 @@ struct l2_fhdr {
 #define MII_BNX2_AER_AER_AN_MMD			   0x3800
 #define MII_BNX2_BLK_ADDR_COMBO_IEEEB0		 0xffe0
 
-#define MIN_ETHERNET_PACKET_SIZE	60
-#define MAX_ETHERNET_PACKET_SIZE	1514
-#define MAX_ETHERNET_JUMBO_PACKET_SIZE	9014
+#define MIN_ETHERNET_PACKET_SIZE	(ETH_ZLEN - ETH_HLEN)
+#define MAX_ETHERNET_PACKET_SIZE	ETH_DATA_LEN
+#define MAX_ETHERNET_JUMBO_PACKET_SIZE	9000
 
 #define BNX2_RX_COPY_THRESH		128
 
@@ -6844,6 +6854,7 @@ struct bnx2 {
 #define BNX2_PHY_FLAG_REMOTE_PHY_CAP		0x00000800
 #define BNX2_PHY_FLAG_FORCED_DOWN		0x00001000
 #define BNX2_PHY_FLAG_NO_PARALLEL		0x00002000
+#define BNX2_PHY_FLAG_MDIX			0x00004000
 
 	u32			mii_bmcr;
 	u32			mii_bmsr;
@@ -6890,6 +6901,7 @@ struct bnx2 {
 
 	u16			fw_wr_seq;
 	u16			fw_drv_pulse_wr_seq;
+	u32			fw_last_msg;
 
 	int			rx_max_ring;
 	int			rx_ring_size;
@@ -6916,6 +6928,7 @@ struct bnx2 {
 
 	dma_addr_t		status_blk_mapping;
 
+	void *status_blk;
 	struct statistics_block	*stats_blk;
 	struct statistics_block	*temp_stats_blk;
 	dma_addr_t		stats_blk_mapping;
@@ -7396,6 +7409,10 @@ struct bnx2_rv2p_fw_file {
 #define BNX2_CONDITION_MFW_RUN_NCSI		 0x00006000
 #define BNX2_CONDITION_MFW_RUN_NONE		 0x0000e000
 #define BNX2_CONDITION_MFW_RUN_MASK		 0x0000e000
+#define BNX2_CONDITION_PM_STATE_MASK		 0x00030000
+#define BNX2_CONDITION_PM_STATE_FULL		 0x00030000
+#define BNX2_CONDITION_PM_STATE_PREP		 0x00020000
+#define BNX2_CONDITION_PM_STATE_UNPREP		 0x00010000
 
 #define BNX2_BC_STATE_DEBUG_CMD			0x1dc
 #define BNX2_BC_STATE_BC_DBG_CMD_SIGNATURE	 0x42440000

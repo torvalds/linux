@@ -33,7 +33,7 @@ static int sysv_hash(const struct dentry *dentry, struct qstr *qstr)
 	   function. */
 	if (qstr->len > SYSV_NAMELEN) {
 		qstr->len = SYSV_NAMELEN;
-		qstr->hash = full_name_hash(qstr->name, qstr->len);
+		qstr->hash = full_name_hash(dentry, qstr->name, qstr->len);
 	}
 	return 0;
 }
@@ -118,9 +118,9 @@ out_fail:
 static int sysv_link(struct dentry * old_dentry, struct inode * dir, 
 	struct dentry * dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	inode_inc_link_count(inode);
 	ihold(inode);
 
@@ -166,7 +166,7 @@ out_dir:
 
 static int sysv_unlink(struct inode * dir, struct dentry * dentry)
 {
-	struct inode * inode = dentry->d_inode;
+	struct inode * inode = d_inode(dentry);
 	struct page * page;
 	struct sysv_dir_entry * de;
 	int err = -ENOENT;
@@ -187,7 +187,7 @@ out:
 
 static int sysv_rmdir(struct inode * dir, struct dentry * dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int err = -ENOTEMPTY;
 
 	if (sysv_empty_dir(inode)) {
@@ -206,15 +206,19 @@ static int sysv_rmdir(struct inode * dir, struct dentry * dentry)
  * higher-level routines.
  */
 static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
-		  struct inode * new_dir, struct dentry * new_dentry)
+		       struct inode * new_dir, struct dentry * new_dentry,
+		       unsigned int flags)
 {
-	struct inode * old_inode = old_dentry->d_inode;
-	struct inode * new_inode = new_dentry->d_inode;
+	struct inode * old_inode = d_inode(old_dentry);
+	struct inode * new_inode = d_inode(new_dentry);
 	struct page * dir_page = NULL;
 	struct sysv_dir_entry * dir_de = NULL;
 	struct page * old_page;
 	struct sysv_dir_entry * old_de;
 	int err = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_de = sysv_find_entry(old_dentry, &old_page);
 	if (!old_de)
@@ -240,7 +244,7 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
 		if (!new_de)
 			goto out_dir;
 		sysv_set_link(new_de, new_page, old_inode);
-		new_inode->i_ctime = CURRENT_TIME_SEC;
+		new_inode->i_ctime = current_time(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
 		inode_dec_link_count(new_inode);
@@ -264,11 +268,11 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
 out_dir:
 	if (dir_de) {
 		kunmap(dir_page);
-		page_cache_release(dir_page);
+		put_page(dir_page);
 	}
 out_old:
 	kunmap(old_page);
-	page_cache_release(old_page);
+	put_page(old_page);
 out:
 	return err;
 }

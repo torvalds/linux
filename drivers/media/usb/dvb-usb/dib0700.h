@@ -48,7 +48,7 @@ struct dib0700_state {
 	u8 disable_streaming_master_mode;
 	u32 fw_version;
 	u32 nb_packet_buffer_size;
-	int (*read_status)(struct dvb_frontend *, fe_status_t *);
+	int (*read_status)(struct dvb_frontend *, enum fe_status *);
 	int (*sleep)(struct dvb_frontend* fe);
 	u8 buf[255];
 };
@@ -59,12 +59,12 @@ extern int dib0700_set_gpio(struct dvb_usb_device *, enum dib07x0_gpios gpio, u8
 extern int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_out_gp3);
 extern int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen);
 extern int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw);
-extern int dib0700_rc_setup(struct dvb_usb_device *d);
+extern int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf);
 extern int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
 extern struct i2c_algorithm dib0700_i2c_algo;
 extern int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
 			struct dvb_usb_device_description **desc, int *cold);
-extern int dib0700_change_protocol(struct rc_dev *dev, u64 *rc_type);
+extern int dib0700_change_protocol(struct rc_dev *dev, u64 *rc_proto);
 extern int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz);
 
 extern int dib0700_device_count;

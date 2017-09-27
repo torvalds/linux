@@ -13,10 +13,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef LGDT330X_H
@@ -52,7 +48,7 @@ struct lgdt330x_config
 	int clock_polarity_flip;
 };
 
-#if IS_ENABLED(CONFIG_DVB_LGDT330X)
+#if IS_REACHABLE(CONFIG_DVB_LGDT330X)
 extern struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 					    struct i2c_adapter* i2c);
 #else
@@ -65,9 +61,3 @@ static inline struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config*
 #endif // CONFIG_DVB_LGDT330X
 
 #endif /* LGDT330X_H */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

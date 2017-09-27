@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #ifndef ZL10353_H
@@ -47,7 +43,7 @@ struct zl10353_config
 	u8 pll_0;        /* default: 0x15 */
 };
 
-#if IS_ENABLED(CONFIG_DVB_ZL10353)
+#if IS_REACHABLE(CONFIG_DVB_ZL10353)
 extern struct dvb_frontend* zl10353_attach(const struct zl10353_config *config,
 					   struct i2c_adapter *i2c);
 #else

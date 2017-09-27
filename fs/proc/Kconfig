@@ -31,6 +31,10 @@ config PROC_FS
 config PROC_KCORE
 	bool "/proc/kcore support" if !ARM
 	depends on PROC_FS && MMU
+	help
+	  Provides a virtual ELF core file of the live kernel.  This can
+	  be read with gdb and other ELF tools.  No modifications can be
+	  made using this mechanism.
 
 config PROC_VMCORE
 	bool "/proc/vmcore support"
@@ -67,3 +71,13 @@ config PROC_PAGE_MONITOR
 	  /proc/pid/smaps, /proc/pid/clear_refs, /proc/pid/pagemap,
 	  /proc/kpagecount, and /proc/kpageflags. Disabling these
           interfaces will reduce the size of the kernel by approximately 4kb.
+
+config PROC_CHILDREN
+	bool "Include /proc/<pid>/task/<tid>/children file"
+	default n
+	help
+	  Provides a fast way to retrieve first level children pids of a task. See
+	  <file:Documentation/filesystems/proc.txt> for more information.
+
+	  Say Y if you are running any user-space software which takes benefit from
+	  this interface. For example, rkt is such a piece of software.

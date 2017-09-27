@@ -55,18 +55,18 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for the Yamaha DS-1 PCI soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Yamaha DS-1 soundcard.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 Port.");
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM OPL-3 Port.");
 #ifdef SUPPORT_JOYSTICK
-module_param_array(joystick_port, long, NULL, 0444);
+module_param_hw_array(joystick_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address");
 #endif
 module_param_array(rear_switch, bool, NULL, 0444);
 MODULE_PARM_DESC(rear_switch, "Enable shared rear/line-in switch");
 
-static DEFINE_PCI_DEVICE_TABLE(snd_ymfpci_ids) = {
+static const struct pci_device_id snd_ymfpci_ids[] = {
 	{ PCI_VDEVICE(YAMAHA, 0x0004), 0, },   /* YMF724 */
 	{ PCI_VDEVICE(YAMAHA, 0x000d), 0, },   /* YMF724F */
 	{ PCI_VDEVICE(YAMAHA, 0x000a), 0, },   /* YMF740 */
@@ -106,7 +106,8 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 					break;
 			}
 			if (!r) {
-				printk(KERN_ERR "ymfpci: no gameport ports available\n");
+				dev_err(chip->card->dev,
+					"no gameport ports available\n");
 				return -EBUSY;
 			}
 		}
@@ -116,19 +117,22 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 		case 0x204: legacy_ctrl2 |= 2 << 6; break;
 		case 0x205: legacy_ctrl2 |= 3 << 6; break;
 		default:
-			printk(KERN_ERR "ymfpci: invalid joystick port %#x", io_port);
+			dev_err(chip->card->dev,
+				"invalid joystick port %#x", io_port);
 			return -EINVAL;
 		}
 	}
 
 	if (!r && !(r = request_region(io_port, 1, "YMFPCI gameport"))) {
-		printk(KERN_ERR "ymfpci: joystick port %#x is in use.\n", io_port);
+		dev_err(chip->card->dev,
+			"joystick port %#x is in use.\n", io_port);
 		return -EBUSY;
 	}
 
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
-		printk(KERN_ERR "ymfpci: cannot allocate memory for gameport\n");
+		dev_err(chip->card->dev,
+			"cannot allocate memory for gameport\n");
 		release_and_free_resource(r);
 		return -ENOMEM;
 	}
@@ -187,7 +191,8 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 
@@ -263,10 +268,9 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 	if ((err = snd_ymfpci_create(card, pci,
 				     old_legacy_ctrl,
 			 	     &chip)) < 0) {
-		snd_card_free(card);
 		release_and_free_resource(mpu_res);
 		release_and_free_resource(fm_res);
-		return err;
+		goto free_card;
 	}
 	chip->fm_res = fm_res;
 	chip->mpu_res = mpu_res;
@@ -278,42 +282,40 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 		card->shortname,
 		chip->reg_area_phys,
 		chip->irq);
-	if ((err = snd_ymfpci_pcm(chip, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_ymfpci_pcm_spdif(chip, 1, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_ymfpci_pcm(chip, 0);
+	if (err < 0)
+		goto free_card;
+
+	err = snd_ymfpci_pcm_spdif(chip, 1);
+	if (err < 0)
+		goto free_card;
+
 	err = snd_ymfpci_mixer(chip, rear_switch[dev]);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto free_card;
+
 	if (chip->ac97->ext_id & AC97_EI_SDAC) {
-		err = snd_ymfpci_pcm_4ch(chip, 2, NULL);
-		if (err < 0) {
-			snd_card_free(card);
-			return err;
-		}
-		err = snd_ymfpci_pcm2(chip, 3, NULL);
-		if (err < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		err = snd_ymfpci_pcm_4ch(chip, 2);
+		if (err < 0)
+			goto free_card;
+
+		err = snd_ymfpci_pcm2(chip, 3);
+		if (err < 0)
+			goto free_card;
 	}
-	if ((err = snd_ymfpci_timer(chip, 0)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_ymfpci_timer(chip, 0);
+	if (err < 0)
+		goto free_card;
+
 	if (chip->mpu_res) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_YMFPCI,
 					       mpu_port[dev],
 					       MPU401_INFO_INTEGRATED |
 					       MPU401_INFO_IRQ_HOOK,
 					       -1, &chip->rawmidi)) < 0) {
-			printk(KERN_WARNING "ymfpci: cannot initialize MPU401 at 0x%lx, skipping...\n", mpu_port[dev]);
+			dev_warn(card->dev,
+				 "cannot initialize MPU401 at 0x%lx, skipping...\n",
+				 mpu_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_MIEN; /* disable MPU401 irq */
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
 		}
@@ -323,25 +325,30 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 					   fm_port[dev],
 					   fm_port[dev] + 2,
 					   OPL3_HW_OPL3, 1, &opl3)) < 0) {
-			printk(KERN_WARNING "ymfpci: cannot initialize FM OPL3 at 0x%lx, skipping...\n", fm_port[dev]);
+			dev_warn(card->dev,
+				 "cannot initialize FM OPL3 at 0x%lx, skipping...\n",
+				 fm_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_FMEN;
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
 		} else if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-			snd_card_free(card);
-			snd_printk(KERN_ERR "cannot create opl3 hwdep\n");
-			return err;
+			dev_err(card->dev, "cannot create opl3 hwdep\n");
+			goto free_card;
 		}
 	}
 
 	snd_ymfpci_create_gameport(chip, dev, legacy_ctrl, legacy_ctrl2);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_card_register(card);
+	if (err < 0)
+		goto free_card;
+
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+
+free_card:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_card_ymfpci_remove(struct pci_dev *pci)

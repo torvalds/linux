@@ -37,7 +37,8 @@ dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		if (!skb_make_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 
-		ipv4_change_dsfield(ip_hdr(skb), (__u8)(~XT_DSCP_MASK),
+		ipv4_change_dsfield(ip_hdr(skb),
+				    (__force __u8)(~XT_DSCP_MASK),
 				    dinfo->dscp << XT_DSCP_SHIFT);
 
 	}
@@ -54,7 +55,8 @@ dscp_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 		if (!skb_make_writable(skb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
 
-		ipv6_change_dsfield(ipv6_hdr(skb), (__u8)(~XT_DSCP_MASK),
+		ipv6_change_dsfield(ipv6_hdr(skb),
+				    (__force __u8)(~XT_DSCP_MASK),
 				    dinfo->dscp << XT_DSCP_SHIFT);
 	}
 	return XT_CONTINUE;

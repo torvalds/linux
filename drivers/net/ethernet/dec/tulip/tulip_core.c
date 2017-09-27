@@ -31,7 +31,7 @@
 #include <linux/mii.h>
 #include <linux/crc32.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_SPARC
 #include <asm/prom.h>
@@ -98,8 +98,7 @@ static int csr0 = 0x01A00000 | 0x4800;
 #elif defined(__mips__)
 static int csr0 = 0x00200000 | 0x4000;
 #else
-#warning Processor architecture undefined!
-static int csr0 = 0x00A00000 | 0x4800;
+static int csr0;
 #endif
 
 /* Operational parameters that usually are not changed. */
@@ -139,7 +138,7 @@ static void tulip_timer(unsigned long data)
  * It is indexed via the values in 'enum chips'
  */
 
-struct tulip_chip_table tulip_tbl[] = {
+const struct tulip_chip_table tulip_tbl[] = {
   { }, /* placeholder for array, slot unused currently */
   { }, /* placeholder for array, slot unused currently */
 
@@ -207,7 +206,7 @@ struct tulip_chip_table tulip_tbl[] = {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(tulip_pci_tbl) = {
+static const struct pci_device_id tulip_pci_tbl[] = {
 	{ 0x1011, 0x0009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21140 },
 	{ 0x1011, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21143 },
 	{ 0x11AD, 0x0002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, LC82C168 },
@@ -506,9 +505,7 @@ media_picked:
 	tp->timer.expires = RUN_AT(next_tick);
 	add_timer(&tp->timer);
 #ifdef CONFIG_TULIP_NAPI
-	init_timer(&tp->oom_timer);
-        tp->oom_timer.data = (unsigned long)dev;
-        tp->oom_timer.function = oom_timer;
+	setup_timer(&tp->oom_timer, oom_timer, (unsigned long)dev);
 #endif
 }
 
@@ -589,7 +586,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 			       (unsigned int)tp->rx_ring[i].buffer1,
 			       (unsigned int)tp->rx_ring[i].buffer2,
 			       buf[0], buf[1], buf[2]);
-			for (j = 0; buf[j] != 0xee && j < 1600; j++)
+			for (j = 0; ((j < 1600) && buf[j] != 0xee); j++)
 				if (j < 100)
 					pr_cont(" %02x", buf[j]);
 			pr_cont(" j=%d\n", j);
@@ -608,7 +605,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 
 out_unlock:
 	spin_unlock_irqrestore (&tp->lock, flags);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -783,9 +780,8 @@ static void tulip_down (struct net_device *dev)
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long)dev;
-	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
+	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
+		    (unsigned long)dev);
 
 	dev->if_port = tp->saved_if_port;
 
@@ -1286,7 +1282,6 @@ static const struct net_device_ops tulip_netdev_ops = {
 	.ndo_get_stats		= tulip_get_stats,
 	.ndo_do_ioctl 		= private_ioctl,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1294,7 +1289,7 @@ static const struct net_device_ops tulip_netdev_ops = {
 #endif
 };
 
-DEFINE_PCI_DEVICE_TABLE(early_486_chipsets) = {
+const struct pci_device_id early_486_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
 	{ },
@@ -1304,9 +1299,10 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct tulip_private *tp;
 	/* See note below on the multiport cards. */
-	static unsigned char last_phys_addr[6] = {0x00, 'L', 'i', 'n', 'u', 'x'};
+	static unsigned char last_phys_addr[ETH_ALEN] = {
+		0x00, 'L', 'i', 'n', 'u', 'x'
+	};
 	static int last_irq;
-	static int multiport_cnt;	/* For four-port boards w/one EEPROM */
 	int i, irq;
 	unsigned short sum;
 	unsigned char *ee_data;
@@ -1474,9 +1470,8 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->csr0 = csr0;
 	spin_lock_init(&tp->lock);
 	spin_lock_init(&tp->mii_lock);
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long)dev;
-	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
+	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
+		    (unsigned long)dev);
 
 	INIT_WORK(&tp->media_work, tulip_tbl[tp->chip_id].media_task);
 
@@ -1561,7 +1556,6 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		} else if (ee_data[0] == 0xff  &&  ee_data[1] == 0xff &&
 				   ee_data[2] == 0) {
 			sa_offset = 2;		/* Grrr, damn Matrox boards. */
-			multiport_cnt = 4;
 		}
 #ifdef CONFIG_MIPS_COBALT
                if ((pdev->bus->number == 0) &&
@@ -1627,8 +1621,8 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->dev_addr[i] = last_phys_addr[i] + 1;
 #if defined(CONFIG_SPARC)
 		addr = of_get_property(dp, "local-mac-address", &len);
-		if (addr && len == 6)
-			memcpy(dev->dev_addr, addr, 6);
+		if (addr && len == ETH_ALEN)
+			memcpy(dev->dev_addr, addr, ETH_ALEN);
 #endif
 #if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 		if (last_irq)
@@ -1701,7 +1695,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_TULIP_NAPI
 	netif_napi_add(dev, &tp->napi, tulip_poll, 16);
 #endif
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 
 	if (register_netdev(dev))
 		goto err_out_free_ring;
@@ -1937,7 +1931,7 @@ static void tulip_remove_one(struct pci_dev *pdev)
 	pci_iounmap(pdev, tp->base_addr);
 	free_netdev (dev);
 	pci_release_regions (pdev);
-	pci_set_drvdata (pdev, NULL);
+	pci_disable_device(pdev);
 
 	/* pci_power_off (pdev, -1); */
 }
@@ -1979,6 +1973,12 @@ static int __init tulip_init (void)
 #ifdef MODULE
 	pr_info("%s", version);
 #endif
+
+	if (!csr0) {
+		pr_warn("tulip: unknown CPU architecture, using default csr0\n");
+		/* default to 8 longword cache line alignment */
+		csr0 = 0x00A00000 | 0x4800;
+	}
 
 	/* copy module parms into globals */
 	tulip_rx_copybreak = rx_copybreak;

@@ -1,0 +1,17 @@
+HopeRF HP03 digital pressure/temperature sensors
+
+Required properties:
+- compatible: must be "hoperf,hp03"
+- xclr-gpio: must be device tree identifier of the XCLR pin.
+             The XCLR pin is a reset of the ADC in the chip,
+             it must be pulled HI before the conversion and
+             readout of the value from the ADC registers and
+             pulled LO afterward.
+
+Example:
+
+hp03@0x77 {
+	compatible = "hoperf,hp03";
+	reg = <0x77>;
+	xclr-gpio = <&portc 0 0x0>;
+};

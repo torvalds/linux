@@ -99,32 +99,32 @@ struct ipac_hw {
 
 /* All registers original Siemens Spec  */
 /* IPAC/ISAC registers */
-#define ISAC_MASK		0x20
 #define ISAC_ISTA		0x20
-#define ISAC_STAR		0x21
+#define ISAC_MASK		0x20
 #define ISAC_CMDR		0x21
+#define ISAC_STAR		0x21
+#define ISAC_MODE		0x22
+#define ISAC_TIMR		0x23
 #define ISAC_EXIR		0x24
-#define ISAC_ADF2		0x39
+#define ISAC_RBCL		0x25
+#define ISAC_RSTA		0x27
+#define ISAC_RBCH		0x2A
 #define ISAC_SPCR		0x30
-#define ISAC_ADF1		0x38
 #define ISAC_CIR0		0x31
 #define ISAC_CIX0		0x31
-#define ISAC_CIR1		0x33
-#define ISAC_CIX1		0x33
-#define ISAC_STCR		0x37
-#define ISAC_MODE		0x22
-#define ISAC_RSTA		0x27
-#define ISAC_RBCL		0x25
-#define ISAC_RBCH		0x2A
-#define ISAC_TIMR		0x23
-#define ISAC_SQXR		0x3b
-#define ISAC_SQRR		0x3b
-#define ISAC_MOSR		0x3a
-#define ISAC_MOCR		0x3a
 #define ISAC_MOR0		0x32
 #define ISAC_MOX0		0x32
+#define ISAC_CIR1		0x33
+#define ISAC_CIX1		0x33
 #define ISAC_MOR1		0x34
 #define ISAC_MOX1		0x34
+#define ISAC_STCR		0x37
+#define ISAC_ADF1		0x38
+#define ISAC_ADF2		0x39
+#define ISAC_MOCR		0x3a
+#define ISAC_MOSR		0x3a
+#define ISAC_SQRR		0x3b
+#define ISAC_SQXR		0x3b
 
 #define ISAC_RBCH_XAC		0x80
 
@@ -212,13 +212,14 @@ struct ipac_hw {
 #define ISAC_CMD_DUI		0xF
 
 /* ISAC/ISACX/IPAC/IPACX L1 indications */
-#define ISAC_IND_RS		0x1
-#define ISAC_IND_PU		0x7
 #define ISAC_IND_DR		0x0
+#define ISAC_IND_RS		0x1
 #define ISAC_IND_SD		0x2
 #define ISAC_IND_DIS		0x3
-#define ISAC_IND_EI		0x6
 #define ISAC_IND_RSY		0x4
+#define ISAC_IND_DR6		0x5
+#define ISAC_IND_EI		0x6
+#define ISAC_IND_PU		0x7
 #define ISAC_IND_ARD		0x8
 #define ISAC_IND_TI		0xA
 #define ISAC_IND_ATI		0xB
@@ -339,9 +340,9 @@ struct ipac_hw {
 #define ISACX__AUX		0x08
 #define ISACX__CIC		0x10
 #define ISACX__ST		0x20
+#define IPACX__ON		0x2C
 #define IPACX__ICB		0x40
 #define IPACX__ICA		0x80
-#define IPACX__ON		0x2C
 
 /* ISACX/IPACX _CMDRD (W) */
 #define ISACX_CMDRD_XRES	0x01

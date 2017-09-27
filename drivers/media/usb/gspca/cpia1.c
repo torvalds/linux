@@ -20,10 +20,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -31,6 +27,8 @@
 #define MODULE_NAME "cpia1"
 
 #include <linux/input.h>
+#include <linux/sched/signal.h>
+
 #include "gspca.h"
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
@@ -1553,9 +1551,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		sd->params.format.videoSize = VIDEOSIZE_CIF;
 
 	sd->params.roi.colEnd = sd->params.roi.colStart +
-				(gspca_dev->width >> 3);
+				(gspca_dev->pixfmt.width >> 3);
 	sd->params.roi.rowEnd = sd->params.roi.rowStart +
-				(gspca_dev->height >> 2);
+				(gspca_dev->pixfmt.height >> 2);
 
 	/* And now set the camera to a known state */
 	ret = do_command(gspca_dev, CPIA_COMMAND_SetGrabMode,
@@ -1624,7 +1622,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	struct sd *sd __maybe_unused = (struct sd *) gspca_dev;
 
 	command_pause(gspca_dev);
 

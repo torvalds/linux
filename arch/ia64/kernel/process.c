@@ -20,6 +20,10 @@
 #include <linux/notifier.h>
 #include <linux/personality.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/stddef.h>
 #include <linux/thread_info.h>
 #include <linux/unistd.h>
@@ -41,7 +45,7 @@
 #include <asm/sal.h>
 #include <asm/switch_to.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unwind.h>
 #include <asm/user.h>
 
@@ -215,7 +219,7 @@ static inline void play_dead(void)
 	unsigned int this_cpu = smp_processor_id();
 
 	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	__this_cpu_write(cpu_state, CPU_DEAD);
 
 	max_xtp();
 	local_irq_disable();
@@ -273,7 +277,7 @@ ia64_save_extra (struct task_struct *task)
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
 		pfm_save_regs(task);
 
-	info = __get_cpu_var(pfm_syst_info);
+	info = __this_cpu_read(pfm_syst_info);
 	if (info & PFM_CPUINFO_SYST_WIDE)
 		pfm_syst_wide_update_task(task, info, 0);
 #endif
@@ -293,7 +297,7 @@ ia64_load_extra (struct task_struct *task)
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
 		pfm_load_regs(task);
 
-	info = __get_cpu_var(pfm_syst_info);
+	info = __this_cpu_read(pfm_syst_info);
 	if (info & PFM_CPUINFO_SYST_WIDE) 
 		pfm_syst_wide_update_task(task, info, 1);
 #endif
@@ -570,22 +574,22 @@ flush_thread (void)
 }
 
 /*
- * Clean up state associated with current thread.  This is called when
+ * Clean up state associated with a thread.  This is called when
  * the thread calls exit().
  */
 void
-exit_thread (void)
+exit_thread (struct task_struct *tsk)
 {
 
-	ia64_drop_fpu(current);
+	ia64_drop_fpu(tsk);
 #ifdef CONFIG_PERFMON
        /* if needed, stop monitoring and flush state to perfmon context */
-	if (current->thread.pfm_context)
-		pfm_exit_thread(current);
+	if (tsk->thread.pfm_context)
+		pfm_exit_thread(tsk);
 
 	/* free debug register resources */
-	if (current->thread.flags & IA64_THREAD_DBG_VALID)
-		pfm_release_debug_registers(current);
+	if (tsk->thread.flags & IA64_THREAD_DBG_VALID)
+		pfm_release_debug_registers(tsk);
 #endif
 }
 
@@ -662,7 +666,7 @@ void
 machine_restart (char *restart_cmd)
 {
 	(void) notify_die(DIE_MACHINE_RESTART, restart_cmd, NULL, 0, 0, 0);
-	(*efi.reset_system)(EFI_RESET_WARM, 0, 0, NULL);
+	efi_reboot(REBOOT_WARM, NULL);
 }
 
 void

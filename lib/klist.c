@@ -140,11 +140,11 @@ void klist_add_tail(struct klist_node *n, struct klist *k)
 EXPORT_SYMBOL_GPL(klist_add_tail);
 
 /**
- * klist_add_after - Init a klist_node and add it after an existing node
+ * klist_add_behind - Init a klist_node and add it after an existing node
  * @n: node we're adding.
  * @pos: node to put @n after
  */
-void klist_add_after(struct klist_node *n, struct klist_node *pos)
+void klist_add_behind(struct klist_node *n, struct klist_node *pos)
 {
 	struct klist *k = knode_klist(pos);
 
@@ -153,7 +153,7 @@ void klist_add_after(struct klist_node *n, struct klist_node *pos)
 	list_add(&n->n_node, &pos->n_node);
 	spin_unlock(&k->k_lock);
 }
-EXPORT_SYMBOL_GPL(klist_add_after);
+EXPORT_SYMBOL_GPL(klist_add_behind);
 
 /**
  * klist_add_before - Init a klist_node and add it before an existing node
@@ -282,9 +282,9 @@ void klist_iter_init_node(struct klist *k, struct klist_iter *i,
 			  struct klist_node *n)
 {
 	i->i_klist = k;
-	i->i_cur = n;
-	if (n)
-		kref_get(&n->n_ref);
+	i->i_cur = NULL;
+	if (n && kref_get_unless_zero(&n->n_ref))
+		i->i_cur = n;
 }
 EXPORT_SYMBOL_GPL(klist_iter_init_node);
 
@@ -322,6 +322,47 @@ static struct klist_node *to_klist_node(struct list_head *n)
 {
 	return container_of(n, struct klist_node, n_node);
 }
+
+/**
+ * klist_prev - Ante up prev node in list.
+ * @i: Iterator structure.
+ *
+ * First grab list lock. Decrement the reference count of the previous
+ * node, if there was one. Grab the prev node, increment its reference
+ * count, drop the lock, and return that prev node.
+ */
+struct klist_node *klist_prev(struct klist_iter *i)
+{
+	void (*put)(struct klist_node *) = i->i_klist->put;
+	struct klist_node *last = i->i_cur;
+	struct klist_node *prev;
+
+	spin_lock(&i->i_klist->k_lock);
+
+	if (last) {
+		prev = to_klist_node(last->n_node.prev);
+		if (!klist_dec_and_del(last))
+			put = NULL;
+	} else
+		prev = to_klist_node(i->i_klist->k_list.prev);
+
+	i->i_cur = NULL;
+	while (prev != to_klist_node(&i->i_klist->k_list)) {
+		if (likely(!knode_dead(prev))) {
+			kref_get(&prev->n_ref);
+			i->i_cur = prev;
+			break;
+		}
+		prev = to_klist_node(prev->n_node.prev);
+	}
+
+	spin_unlock(&i->i_klist->k_lock);
+
+	if (put && last)
+		put(last);
+	return i->i_cur;
+}
+EXPORT_SYMBOL_GPL(klist_prev);
 
 /**
  * klist_next - Ante up next node in list.

@@ -24,7 +24,7 @@ int hpfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct inode *inode = file->f_mapping->host;
 	int ret;
 
-	ret = filemap_write_and_wait_range(file->f_mapping, start, end);
+	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
 		return ret;
 	return sync_blockdev(inode->i_sb->s_bdev);
@@ -83,6 +83,11 @@ static int hpfs_get_block(struct inode *inode, sector_t iblock, struct buffer_he
 	if (s) {
 		if (bh_result->b_size >> 9 < n_secs)
 			n_secs = bh_result->b_size >> 9;
+		n_secs = hpfs_search_hotfix_map_for_range(inode->i_sb, s, n_secs);
+		if (unlikely(!n_secs)) {
+			s = hpfs_search_hotfix_map(inode->i_sb, s);
+			n_secs = 1;
+		}
 		map_bh(bh_result, inode->i_sb, s);
 		bh_result->b_size = n_secs << 9;
 		goto ret_0;
@@ -101,7 +106,7 @@ static int hpfs_get_block(struct inode *inode, sector_t iblock, struct buffer_he
 	inode->i_blocks++;
 	hpfs_i(inode)->mmu_private += 512;
 	set_buffer_new(bh_result);
-	map_bh(bh_result, inode->i_sb, s);
+	map_bh(bh_result, inode->i_sb, hpfs_search_hotfix_map(inode->i_sb, s));
 	ret_0:
 	r = 0;
 	ret_r:
@@ -138,7 +143,7 @@ static void hpfs_write_failed(struct address_space *mapping, loff_t to)
 	hpfs_lock(inode->i_sb);
 
 	if (to > inode->i_size) {
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 		hpfs_truncate(inode);
 	}
 
@@ -181,7 +186,12 @@ static int hpfs_write_end(struct file *file, struct address_space *mapping,
 
 static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 {
-	return generic_block_bmap(mapping,block,hpfs_get_block);
+	return generic_block_bmap(mapping, block, hpfs_get_block);
+}
+
+static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, u64 start, u64 len)
+{
+	return generic_block_fiemap(inode, fieinfo, start, len, hpfs_get_block);
 }
 
 const struct address_space_operations hpfs_aops = {
@@ -197,17 +207,17 @@ const struct address_space_operations hpfs_aops = {
 const struct file_operations hpfs_file_ops =
 {
 	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
-	.aio_read	= generic_file_aio_read,
-	.write		= do_sync_write,
-	.aio_write	= generic_file_aio_write,
+	.read_iter	= generic_file_read_iter,
+	.write_iter	= generic_file_write_iter,
 	.mmap		= generic_file_mmap,
 	.release	= hpfs_file_release,
 	.fsync		= hpfs_file_fsync,
 	.splice_read	= generic_file_splice_read,
+	.unlocked_ioctl	= hpfs_ioctl,
 };
 
 const struct inode_operations hpfs_file_iops =
 {
 	.setattr	= hpfs_setattr,
+	.fiemap		= hpfs_fiemap,
 };

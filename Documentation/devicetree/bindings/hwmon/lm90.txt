@@ -1,0 +1,50 @@
+* LM90 series thermometer.
+
+Required node properties:
+- compatible: manufacturer and chip name, one of
+		"adi,adm1032"
+		"adi,adt7461"
+		"adi,adt7461a"
+		"gmt,g781"
+		"national,lm90"
+		"national,lm86"
+		"national,lm89"
+		"national,lm99"
+		"dallas,max6646"
+		"dallas,max6647"
+		"dallas,max6649"
+		"dallas,max6657"
+		"dallas,max6658"
+		"dallas,max6659"
+		"dallas,max6680"
+		"dallas,max6681"
+		"dallas,max6695"
+		"dallas,max6696"
+		"onnn,nct1008"
+		"winbond,w83l771"
+		"nxp,sa56004"
+
+- reg: I2C bus address of the device
+
+- vcc-supply: vcc regulator for the supply voltage.
+
+Optional properties:
+- interrupts: Contains a single interrupt specifier which describes the
+              LM90 "-ALERT" pin output.
+              See interrupt-controller/interrupts.txt for the format.
+
+- #thermal-sensor-cells: should be set to 1. See thermal/thermal.txt for
+	      details. See <include/dt-bindings/thermal/lm90.h> for the
+	      definition of the local, remote and 2nd remote sensor index
+	      constants.
+
+Example LM90 node:
+
+temp-sensor {
+	compatible = "onnn,nct1008";
+	reg = <0x4c>;
+	vcc-supply = <&palmas_ldo6_reg>;
+	interrupt-parent = <&gpio>;
+	interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_LEVEL_LOW>;
+	#thermal-sensor-cells = <1>;
+}

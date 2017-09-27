@@ -11,10 +11,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -26,7 +22,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
-#include <media/tvaudio.h>
+#include <media/i2c/tvaudio.h>
 #include <media/i2c-addr.h>
 #include <media/rc-map.h>
 
@@ -617,7 +613,7 @@ static struct tm6000_board tm6000_boards[] = {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id tm6000_id_table[] = {
+static const struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_GENERIC },
 	{ USB_DEVICE(0x6000, 0x0002), .driver_info = TM6010_BOARD_GENERIC },
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },
@@ -1120,7 +1116,7 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	tm6000_config_tuner(dev);
 
 	/* Set video standard */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->norm);
 
 	/* Set tuner frequency - also loads firmware on xc2028/xc3028 */
 	f.tuner = 0;

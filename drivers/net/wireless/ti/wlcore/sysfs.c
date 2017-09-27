@@ -119,32 +119,6 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 	if (ret < 0)
 		return -ERESTARTSYS;
 
-	/* Let only one thread read the log at a time, blocking others */
-	while (wl->fwlog_size == 0) {
-		DEFINE_WAIT(wait);
-
-		prepare_to_wait_exclusive(&wl->fwlog_waitq,
-					  &wait,
-					  TASK_INTERRUPTIBLE);
-
-		if (wl->fwlog_size != 0) {
-			finish_wait(&wl->fwlog_waitq, &wait);
-			break;
-		}
-
-		mutex_unlock(&wl->mutex);
-
-		schedule();
-		finish_wait(&wl->fwlog_waitq, &wait);
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		ret = mutex_lock_interruptible(&wl->mutex);
-		if (ret < 0)
-			return -ERESTARTSYS;
-	}
-
 	/* Check if the fwlog is still valid */
 	if (wl->fwlog_size < 0) {
 		mutex_unlock(&wl->mutex);
@@ -152,7 +126,7 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 	}
 
 	/* Seeking is not supported - old logs are not kept. Disregard pos. */
-	len = min(count, (size_t)wl->fwlog_size);
+	len = min_t(size_t, count, wl->fwlog_size);
 	wl->fwlog_size -= len;
 	memcpy(buffer, wl->fwlog, len);
 
@@ -164,7 +138,7 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 	return len;
 }
 
-static struct bin_attribute fwlog_attr = {
+static const struct bin_attribute fwlog_attr = {
 	.attr = {.name = "fwlog", .mode = S_IRUSR},
 	.read = wl1271_sysfs_read_fwlog,
 };

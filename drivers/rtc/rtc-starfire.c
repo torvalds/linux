@@ -1,19 +1,17 @@
 /* rtc-starfire.c: Starfire platform RTC driver.
  *
+ * Author: David S. Miller
+ * License: GPL
+ *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 
 #include <asm/oplib.h>
-
-MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
-MODULE_DESCRIPTION("Starfire RTC driver");
-MODULE_LICENSE("GPL");
 
 static u32 starfire_get_time(void)
 {
@@ -54,8 +52,7 @@ static int __init starfire_rtc_probe(struct platform_device *pdev)
 static struct platform_driver starfire_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-starfire",
-		.owner	= THIS_MODULE,
 	},
 };
 
-module_platform_driver_probe(starfire_rtc_driver, starfire_rtc_probe);
+builtin_platform_driver_probe(starfire_rtc_driver, starfire_rtc_probe);

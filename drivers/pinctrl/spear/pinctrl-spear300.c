@@ -2,7 +2,7 @@
  * Driver for the ST Microelectronics SPEAr300 pinmux
  *
  * Copyright (C) 2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -11,7 +11,6 @@
 
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include "pinctrl-spear3xx.h"
@@ -646,7 +645,7 @@ static struct spear_function *spear300_functions[] = {
 	&gpio1_function,
 };
 
-static struct of_device_id spear300_pinctrl_of_match[] = {
+static const struct of_device_id spear300_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear300-pinmux",
 	},
@@ -677,19 +676,12 @@ static int spear300_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int spear300_pinctrl_remove(struct platform_device *pdev)
-{
-	return spear_pinctrl_remove(pdev);
-}
-
 static struct platform_driver spear300_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = spear300_pinctrl_of_match,
 	},
 	.probe = spear300_pinctrl_probe,
-	.remove = spear300_pinctrl_remove,
 };
 
 static int __init spear300_pinctrl_init(void)
@@ -697,14 +689,3 @@ static int __init spear300_pinctrl_init(void)
 	return platform_driver_register(&spear300_pinctrl_driver);
 }
 arch_initcall(spear300_pinctrl_init);
-
-static void __exit spear300_pinctrl_exit(void)
-{
-	platform_driver_unregister(&spear300_pinctrl_driver);
-}
-module_exit(spear300_pinctrl_exit);
-
-MODULE_AUTHOR("Viresh Kumar <viresh.linux@gmail.com>");
-MODULE_DESCRIPTION("ST Microelectronics SPEAr300 pinctrl driver");
-MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, spear300_pinctrl_of_match);

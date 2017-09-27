@@ -82,16 +82,16 @@ static u8 cor[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
 static u8 bcr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
 static int indirect[MAXDEV] = {[0 ... (MAXDEV - 1)] = -1};
 
-module_param_array(port, ulong, NULL, S_IRUGO);
+module_param_hw_array(port, ulong, ioport, NULL, S_IRUGO);
 MODULE_PARM_DESC(port, "I/O port number");
 
-module_param_array(mem, ulong, NULL, S_IRUGO);
+module_param_hw_array(mem, ulong, iomem, NULL, S_IRUGO);
 MODULE_PARM_DESC(mem, "I/O memory address");
 
-module_param_array(indirect, int, NULL, S_IRUGO);
+module_param_hw_array(indirect, int, ioport, NULL, S_IRUGO);
 MODULE_PARM_DESC(indirect, "Indirect access via address and data port");
 
-module_param_array(irq, int, NULL, S_IRUGO);
+module_param_hw_array(irq, int, irq, NULL, S_IRUGO);
 MODULE_PARM_DESC(irq, "IRQ number");
 
 module_param_array(clk, int, NULL, S_IRUGO);
@@ -318,7 +318,6 @@ static struct platform_driver cc770_isa_driver = {
 	.remove = cc770_isa_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 	},
 };
 

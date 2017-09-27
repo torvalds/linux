@@ -19,7 +19,7 @@ struct cfg_interrupt_param {
 	union iorpc_interrupt interrupt;
 };
 
-int gxio_usb_host_cfg_interrupt(gxio_usb_host_context_t * context, int inter_x,
+int gxio_usb_host_cfg_interrupt(gxio_usb_host_context_t *context, int inter_x,
 				int inter_y, int inter_ipi, int inter_event)
 {
 	struct cfg_interrupt_param temp;
@@ -41,7 +41,7 @@ struct register_client_memory_param {
 	unsigned int flags;
 };
 
-int gxio_usb_host_register_client_memory(gxio_usb_host_context_t * context,
+int gxio_usb_host_register_client_memory(gxio_usb_host_context_t *context,
 					 HV_PTE pte, unsigned int flags)
 {
 	struct register_client_memory_param temp;
@@ -61,7 +61,7 @@ struct get_mmio_base_param {
 	HV_PTE base;
 };
 
-int gxio_usb_host_get_mmio_base(gxio_usb_host_context_t * context, HV_PTE *base)
+int gxio_usb_host_get_mmio_base(gxio_usb_host_context_t *context, HV_PTE *base)
 {
 	int __result;
 	struct get_mmio_base_param temp;
@@ -82,7 +82,7 @@ struct check_mmio_offset_param {
 	unsigned long size;
 };
 
-int gxio_usb_host_check_mmio_offset(gxio_usb_host_context_t * context,
+int gxio_usb_host_check_mmio_offset(gxio_usb_host_context_t *context,
 				    unsigned long offset, unsigned long size)
 {
 	struct check_mmio_offset_param temp;

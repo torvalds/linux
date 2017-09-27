@@ -8,7 +8,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -65,8 +64,6 @@ struct bfin_sport_spi_master_data {
 	/* Pin request list */
 	u16 *pin_req;
 
-	/* Driver message queue */
-	struct workqueue_struct *workqueue;
 	struct work_struct pump_messages;
 	spinlock_t lock;
 	struct list_head queue;
@@ -301,7 +298,7 @@ bfin_sport_spi_giveback(struct bfin_sport_spi_master_data *drv_data)
 	drv_data->cur_msg = NULL;
 	drv_data->cur_transfer = NULL;
 	drv_data->cur_chip = NULL;
-	queue_work(drv_data->workqueue, &drv_data->pump_messages);
+	schedule_work(&drv_data->pump_messages);
 	spin_unlock_irqrestore(&drv_data->lock, flags);
 
 	if (!drv_data->cs_change)
@@ -353,10 +350,7 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 	transfer = drv_data->cur_transfer;
 	chip = drv_data->cur_chip;
 
-	if (transfer->speed_hz)
-		transfer_speed = bfin_sport_hz_to_spi_baud(transfer->speed_hz);
-	else
-		transfer_speed = chip->baud;
+	transfer_speed = bfin_sport_hz_to_spi_baud(transfer->speed_hz);
 	bfin_write(&drv_data->regs->tclkdiv, transfer_speed);
 	SSYNC();
 
@@ -560,7 +554,7 @@ bfin_sport_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	list_add_tail(&msg->queue, &drv_data->queue);
 
 	if (drv_data->run && !drv_data->busy)
-		queue_work(drv_data->workqueue, &drv_data->pump_messages);
+		schedule_work(&drv_data->pump_messages);
 
 	spin_unlock_irqrestore(&drv_data->lock, flags);
 
@@ -592,7 +586,7 @@ bfin_sport_spi_setup(struct spi_device *spi)
 			 */
 			if (chip_info->ctl_reg || chip_info->enable_dma) {
 				ret = -EINVAL;
-				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields");
+				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields\n");
 				goto error;
 			}
 			chip->cs_chg_udelay = chip_info->cs_chg_udelay;
@@ -670,12 +664,7 @@ bfin_sport_spi_init_queue(struct bfin_sport_spi_master_data *drv_data)
 	tasklet_init(&drv_data->pump_transfers,
 		     bfin_sport_spi_pump_transfers, (unsigned long)drv_data);
 
-	/* init messages workqueue */
 	INIT_WORK(&drv_data->pump_messages, bfin_sport_spi_pump_messages);
-	drv_data->workqueue =
-	    create_singlethread_workqueue(dev_name(drv_data->master->dev.parent));
-	if (drv_data->workqueue == NULL)
-		return -EBUSY;
 
 	return 0;
 }
@@ -698,7 +687,7 @@ bfin_sport_spi_start_queue(struct bfin_sport_spi_master_data *drv_data)
 	drv_data->cur_chip = NULL;
 	spin_unlock_irqrestore(&drv_data->lock, flags);
 
-	queue_work(drv_data->workqueue, &drv_data->pump_messages);
+	schedule_work(&drv_data->pump_messages);
 
 	return 0;
 }
@@ -742,7 +731,7 @@ bfin_sport_spi_destroy_queue(struct bfin_sport_spi_master_data *drv_data)
 	if (status)
 		return status;
 
-	destroy_workqueue(drv_data->workqueue);
+	flush_work(&drv_data->pump_messages);
 
 	return 0;
 }
@@ -756,7 +745,7 @@ static int bfin_sport_spi_probe(struct platform_device *pdev)
 	struct bfin_sport_spi_master_data *drv_data;
 	int status;
 
-	platform_info = dev->platform_data;
+	platform_info = dev_get_platdata(dev);
 
 	/* Allocate master with space for drv_data */
 	master = spi_alloc_master(dev, sizeof(*master) + 16);
@@ -879,11 +868,10 @@ static int bfin_sport_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int
-bfin_sport_spi_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int bfin_sport_spi_suspend(struct device *dev)
 {
-	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_sport_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status;
 
 	status = bfin_sport_spi_stop_queue(drv_data);
@@ -896,10 +884,9 @@ bfin_sport_spi_suspend(struct platform_device *pdev, pm_message_t state)
 	return status;
 }
 
-static int
-bfin_sport_spi_resume(struct platform_device *pdev)
+static int bfin_sport_spi_resume(struct device *dev)
 {
-	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_sport_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status;
 
 	/* Enable the SPI interface */
@@ -912,19 +899,21 @@ bfin_sport_spi_resume(struct platform_device *pdev)
 
 	return status;
 }
+
+static SIMPLE_DEV_PM_OPS(bfin_sport_spi_pm_ops, bfin_sport_spi_suspend,
+			bfin_sport_spi_resume);
+
+#define BFIN_SPORT_SPI_PM_OPS		(&bfin_sport_spi_pm_ops)
 #else
-# define bfin_sport_spi_suspend NULL
-# define bfin_sport_spi_resume  NULL
+#define BFIN_SPORT_SPI_PM_OPS		NULL
 #endif
 
 static struct platform_driver bfin_sport_spi_driver = {
 	.driver	= {
-		.name = DRV_NAME,
-		.owner = THIS_MODULE,
+		.name	= DRV_NAME,
+		.pm	= BFIN_SPORT_SPI_PM_OPS,
 	},
 	.probe   = bfin_sport_spi_probe,
 	.remove  = bfin_sport_spi_remove,
-	.suspend = bfin_sport_spi_suspend,
-	.resume  = bfin_sport_spi_resume,
 };
 module_platform_driver(bfin_sport_spi_driver);

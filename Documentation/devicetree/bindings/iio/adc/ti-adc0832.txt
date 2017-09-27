@@ -1,0 +1,19 @@
+* Texas Instruments' ADC0831/ADC0832/ADC0832/ADC0838
+
+Required properties:
+ - compatible: Should be one of
+	* "ti,adc0831"
+	* "ti,adc0832"
+	* "ti,adc0834"
+	* "ti,adc0838"
+ - reg: spi chip select number for the device
+ - vref-supply: The regulator supply for ADC reference voltage
+ - spi-max-frequency: Max SPI frequency to use (< 400000)
+
+Example:
+adc@0 {
+	compatible = "ti,adc0832";
+	reg = <0>;
+	vref-supply = <&vdd_supply>;
+	spi-max-frequency = <200000>;
+};

@@ -14,6 +14,7 @@
 
 #include <asm/asmmacro.h>
 #include <asm/processor.h>
+#include <asm/export.h>
 
 	.data
 pal_entry_point:
@@ -87,6 +88,7 @@ GLOBAL_ENTRY(ia64_pal_call_static)
 	srlz.d				// seralize restoration of psr.l
 	br.ret.sptk.many b0
 END(ia64_pal_call_static)
+EXPORT_SYMBOL(ia64_pal_call_static)
 
 /*
  * Make a PAL call using the stacked registers calling convention.
@@ -122,6 +124,7 @@ GLOBAL_ENTRY(ia64_pal_call_stacked)
 	srlz.d				// serialize restoration of psr.l
 	br.ret.sptk.many b0
 END(ia64_pal_call_stacked)
+EXPORT_SYMBOL(ia64_pal_call_stacked)
 
 /*
  * Make a physical mode PAL call using the static registers calling convention.
@@ -193,6 +196,7 @@ GLOBAL_ENTRY(ia64_pal_call_phys_static)
 	srlz.d				// seralize restoration of psr.l
 	br.ret.sptk.many b0
 END(ia64_pal_call_phys_static)
+EXPORT_SYMBOL(ia64_pal_call_phys_static)
 
 /*
  * Make a PAL call using the stacked registers in physical mode.
@@ -250,6 +254,7 @@ GLOBAL_ENTRY(ia64_pal_call_phys_stacked)
 	srlz.d				// seralize restoration of psr.l
 	br.ret.sptk.many b0
 END(ia64_pal_call_phys_stacked)
+EXPORT_SYMBOL(ia64_pal_call_phys_stacked)
 
 /*
  * Save scratch fp scratch regs which aren't saved in pt_regs already
@@ -275,6 +280,7 @@ GLOBAL_ENTRY(ia64_save_scratch_fpregs)
 	stf.spill [r2]  = f15,32
 	br.ret.sptk.many rp
 END(ia64_save_scratch_fpregs)
+EXPORT_SYMBOL(ia64_save_scratch_fpregs)
 
 /*
  * Load scratch fp scratch regs (fp10-fp15)
@@ -296,3 +302,4 @@ GLOBAL_ENTRY(ia64_load_scratch_fpregs)
 	ldf.fill  f15 = [r2],32
 	br.ret.sptk.many rp
 END(ia64_load_scratch_fpregs)
+EXPORT_SYMBOL(ia64_load_scratch_fpregs)

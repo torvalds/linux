@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,10 +55,10 @@ static struct rc_map_table dntv_live_dvb_t[] = {
 
 static struct rc_map_list dntv_live_dvb_t_map = {
 	.map = {
-		.scan    = dntv_live_dvb_t,
-		.size    = ARRAY_SIZE(dntv_live_dvb_t),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_DNTV_LIVE_DVB_T,
+		.scan     = dntv_live_dvb_t,
+		.size     = ARRAY_SIZE(dntv_live_dvb_t),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_DNTV_LIVE_DVB_T,
 	}
 };
 
@@ -76,4 +76,4 @@ module_init(init_rc_map_dntv_live_dvb_t)
 module_exit(exit_rc_map_dntv_live_dvb_t)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

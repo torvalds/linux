@@ -36,6 +36,13 @@
 
 #include <asm/octeon/cvmx-helper.h>
 
+enum cvmx_helper_board_usb_clock_types {
+	USB_CLOCK_TYPE_REF_12,
+	USB_CLOCK_TYPE_REF_24,
+	USB_CLOCK_TYPE_REF_48,
+	USB_CLOCK_TYPE_CRYSTAL_12,
+};
+
 typedef enum {
 	set_phy_link_flags_autoneg = 0x1,
 	set_phy_link_flags_flow_control_dont_touch = 0x0 << 1,
@@ -49,16 +56,6 @@ typedef enum {
  * this macro to return appropriate MIX address to read the PHY.
  */
 #define CVMX_HELPER_BOARD_MGMT_IPD_PORT	    -10
-
-/**
- * cvmx_override_board_link_get(int ipd_port) is a function
- * pointer. It is meant to allow customization of the process of
- * talking to a PHY to determine link speed. It is called every
- * time a PHY must be polled for link status. Users should set
- * this pointer to a function before calling any cvmx-helper
- * operations.
- */
-extern cvmx_helper_link_info_t(*cvmx_override_board_link_get) (int ipd_port);
 
 /**
  * Return the MII PHY address associated with the given IPD
@@ -77,26 +74,6 @@ extern cvmx_helper_link_info_t(*cvmx_override_board_link_get) (int ipd_port);
  * Returns MII PHY address and bus number or -1.
  */
 extern int cvmx_helper_board_get_mii_address(int ipd_port);
-
-/**
- * This function as a board specific method of changing the PHY
- * speed, duplex, and autonegotiation. This programs the PHY and
- * not Octeon. This can be used to force Octeon's links to
- * specific settings.
- *
- * @phy_addr:  The address of the PHY to program
- * @link_flags:
- *		    Flags to control autonegotiation.  Bit 0 is autonegotiation
- *		    enable/disable to maintain backware compatibility.
- * @link_info: Link speed to program. If the speed is zero and autonegotiation
- *		    is enabled, all possible negotiation speeds are advertised.
- *
- * Returns Zero on success, negative on failure
- */
-int cvmx_helper_board_link_set_phy(int phy_addr,
-				   cvmx_helper_board_set_phy_link_flags_types_t
-				   link_flags,
-				   cvmx_helper_link_info_t link_info);
 
 /**
  * This function is the board specific method of determining an
@@ -153,5 +130,7 @@ extern int __cvmx_helper_board_interface_probe(int interface,
  * Returns Zero on success, negative on failure
  */
 extern int __cvmx_helper_board_hardware_enable(int interface);
+
+enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(void);
 
 #endif /* __CVMX_HELPER_BOARD_H__ */

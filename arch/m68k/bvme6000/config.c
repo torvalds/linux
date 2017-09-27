@@ -28,11 +28,12 @@
 #include <linux/bcd.h>
 
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-vme.h>
+#include <asm/byteorder.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
-#include <asm/rtc.h>
 #include <asm/machdep.h>
 #include <asm/bvme6000hw.h>
 
@@ -50,9 +51,9 @@ void bvme6000_set_vectors (void);
 static irq_handler_t tick_handler;
 
 
-int bvme6000_parse_bootinfo(const struct bi_record *bi)
+int __init bvme6000_parse_bootinfo(const struct bi_record *bi)
 {
-	if (bi->tag == BI_VME_TYPE)
+	if (be16_to_cpu(bi->tag) == BI_VME_TYPE)
 		return 0;
 	else
 		return 1;
@@ -62,8 +63,8 @@ void bvme6000_reset(void)
 {
 	volatile PitRegsPtr pit = (PitRegsPtr)BVME_PIT_BASE;
 
-	printk ("\r\n\nCalled bvme6000_reset\r\n"
-			"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r");
+	pr_info("\r\n\nCalled bvme6000_reset\r\n"
+		"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r");
 	/* The string of returns is to delay the reset until the whole
 	 * message is output. */
 	/* Enable the watchdog, via PIT port C bit 4 */
@@ -116,8 +117,8 @@ void __init config_bvme6000(void)
     mach_reset		 = bvme6000_reset;
     mach_get_model       = bvme6000_get_model;
 
-    printk ("Board is %sconfigured as a System Controller\n",
-		*config_reg_ptr & BVME_CONFIG_SW1 ? "" : "not ");
+    pr_info("Board is %sconfigured as a System Controller\n",
+	    *config_reg_ptr & BVME_CONFIG_SW1 ? "" : "not ");
 
     /* Now do the PIT configuration */
 

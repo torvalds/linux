@@ -13,9 +13,7 @@
  * This file is licenced under the GPL.
  */
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <mach/assabet.h>
 #include <asm/hardware/sa1111.h>
 
 #ifndef CONFIG_SA1111
@@ -127,7 +125,7 @@ static int sa1111_start_hc(struct sa1111_dev *dev)
 	dev_dbg(&dev->dev, "starting SA-1111 OHCI USB Controller\n");
 
 	if (machine_is_xp860() ||
-	    machine_has_neponset() ||
+	    machine_is_assabet() ||
 	    machine_is_pfs168() ||
 	    machine_is_badge4())
 		usb_rst = USB_RESET_PWRSENSELOW | USB_RESET_PWRCTRLLOW;
@@ -185,6 +183,12 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 	if (usb_disabled())
 		return -ENODEV;
 
+	/*
+	 * We don't call dma_set_mask_and_coherent() here because the
+	 * DMA mask has already been appropraitely setup by the core
+	 * SA-1111 bus code (which includes bug workarounds.)
+	 */
+
 	hcd = usb_create_hcd(&ohci_sa1111_hc_driver, &dev->dev, "sa1111");
 	if (!hcd)
 		return -ENOMEM;
@@ -205,8 +209,10 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 		goto err2;
 
 	ret = usb_add_hcd(hcd, dev->irq[1], 0);
-	if (ret == 0)
+	if (ret == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return ret;
+	}
 
 	sa1111_stop_hc(dev);
  err2:

@@ -1,0 +1,53 @@
+* Renesas RZ Clock Pulse Generator (CPG)
+
+The CPG generates core clocks for the RZ SoCs. It includes the PLL, variable
+CPU and GPU clocks, and several fixed ratio dividers.
+The CPG also provides a Clock Domain for SoC devices, in combination with the
+CPG Module Stop (MSTP) Clocks.
+
+Required Properties:
+
+  - compatible: Must be one of
+    - "renesas,r7s72100-cpg-clocks" for the r7s72100 CPG
+    and "renesas,rz-cpg-clocks" as a fallback.
+  - reg: Base address and length of the memory resource used by the CPG
+  - clocks: References to possible parent clocks. Order must match clock modes
+    in the datasheet. For the r7s72100, this is extal, usb_x1.
+  - #clock-cells: Must be 1
+  - clock-output-names: The names of the clocks. Supported clocks are "pll",
+    "i", and "g"
+  - #power-domain-cells: Must be 0
+
+SoC devices that are part of the CPG/MSTP Clock Domain and can be power-managed
+through an MSTP clock should refer to the CPG device node in their
+"power-domains" property, as documented by the generic PM domain bindings in
+Documentation/devicetree/bindings/power/power_domain.txt.
+
+
+Examples
+--------
+
+  - CPG device node:
+
+	cpg_clocks: cpg_clocks@fcfe0000 {
+		#clock-cells = <1>;
+		compatible = "renesas,r7s72100-cpg-clocks",
+			     "renesas,rz-cpg-clocks";
+		reg = <0xfcfe0000 0x18>;
+		clocks = <&extal_clk>, <&usb_x1_clk>;
+		clock-output-names = "pll", "i", "g";
+		#power-domain-cells = <0>;
+	};
+
+
+  - CPG/MSTP Clock Domain member device node:
+
+	mtu2: timer@fcff0000 {
+		compatible = "renesas,mtu2-r7s72100", "renesas,mtu2";
+		reg = <0xfcff0000 0x400>;
+		interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tgi0a";
+		clocks = <&mstp3_clks R7S72100_CLK_MTU2>;
+		clock-names = "fck";
+		power-domains = <&cpg_clocks>;
+	};

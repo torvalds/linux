@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,10 +74,10 @@ static struct rc_map_table avermedia_cardbus[] = {
 
 static struct rc_map_list avermedia_cardbus_map = {
 	.map = {
-		.scan    = avermedia_cardbus,
-		.size    = ARRAY_SIZE(avermedia_cardbus),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERMEDIA_CARDBUS,
+		.scan     = avermedia_cardbus,
+		.size     = ARRAY_SIZE(avermedia_cardbus),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERMEDIA_CARDBUS,
 	}
 };
 
@@ -95,4 +95,4 @@ module_init(init_rc_map_avermedia_cardbus)
 module_exit(exit_rc_map_avermedia_cardbus)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

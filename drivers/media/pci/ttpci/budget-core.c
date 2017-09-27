@@ -24,14 +24,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at https://linuxtv.org
  */
 
 
@@ -161,7 +158,8 @@ static int start_ts_capture(struct budget *budget)
 	return 0;
 }
 
-static int budget_read_fe_status(struct dvb_frontend *fe, fe_status_t *status)
+static int budget_read_fe_status(struct dvb_frontend *fe,
+				 enum fe_status *status)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	int synced;
@@ -231,63 +229,59 @@ static void vpeirq(unsigned long data)
 }
 
 
-int ttpci_budget_debiread(struct budget *budget, u32 config, int addr, int count,
-			  int uselocks, int nobusyloop)
+static int ttpci_budget_debiread_nolock(struct budget *budget, u32 config,
+		int addr, int count, int nobusyloop)
 {
 	struct saa7146_dev *saa = budget->dev;
-	int result = 0;
-	unsigned long flags = 0;
+	int result;
 
-	if (count > 4 || count <= 0)
-		return 0;
-
-	if (uselocks)
-		spin_lock_irqsave(&budget->debilock, flags);
-
-	if ((result = saa7146_wait_for_debi_done(saa, nobusyloop)) < 0) {
-		if (uselocks)
-			spin_unlock_irqrestore(&budget->debilock, flags);
+	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	if (result < 0)
 		return result;
-	}
 
 	saa7146_write(saa, DEBI_COMMAND, (count << 17) | 0x10000 | (addr & 0xffff));
 	saa7146_write(saa, DEBI_CONFIG, config);
 	saa7146_write(saa, DEBI_PAGE, 0);
 	saa7146_write(saa, MC2, (2 << 16) | 2);
 
-	if ((result = saa7146_wait_for_debi_done(saa, nobusyloop)) < 0) {
-		if (uselocks)
-			spin_unlock_irqrestore(&budget->debilock, flags);
+	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	if (result < 0)
 		return result;
-	}
 
 	result = saa7146_read(saa, DEBI_AD);
 	result &= (0xffffffffUL >> ((4 - count) * 8));
-
-	if (uselocks)
-		spin_unlock_irqrestore(&budget->debilock, flags);
-
 	return result;
 }
 
-int ttpci_budget_debiwrite(struct budget *budget, u32 config, int addr,
-			   int count, u32 value, int uselocks, int nobusyloop)
+int ttpci_budget_debiread(struct budget *budget, u32 config, int addr, int count,
+			  int uselocks, int nobusyloop)
 {
-	struct saa7146_dev *saa = budget->dev;
-	unsigned long flags = 0;
-	int result;
-
 	if (count > 4 || count <= 0)
 		return 0;
 
-	if (uselocks)
-		spin_lock_irqsave(&budget->debilock, flags);
+	if (uselocks) {
+		unsigned long flags;
+		int result;
 
-	if ((result = saa7146_wait_for_debi_done(saa, nobusyloop)) < 0) {
-		if (uselocks)
-			spin_unlock_irqrestore(&budget->debilock, flags);
+		spin_lock_irqsave(&budget->debilock, flags);
+		result = ttpci_budget_debiread_nolock(budget, config, addr,
+						      count, nobusyloop);
+		spin_unlock_irqrestore(&budget->debilock, flags);
 		return result;
 	}
+	return ttpci_budget_debiread_nolock(budget, config, addr,
+					    count, nobusyloop);
+}
+
+static int ttpci_budget_debiwrite_nolock(struct budget *budget, u32 config,
+		int addr, int count, u32 value, int nobusyloop)
+{
+	struct saa7146_dev *saa = budget->dev;
+	int result;
+
+	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	if (result < 0)
+		return result;
 
 	saa7146_write(saa, DEBI_COMMAND, (count << 17) | 0x00000 | (addr & 0xffff));
 	saa7146_write(saa, DEBI_CONFIG, config);
@@ -295,15 +289,28 @@ int ttpci_budget_debiwrite(struct budget *budget, u32 config, int addr,
 	saa7146_write(saa, DEBI_AD, value);
 	saa7146_write(saa, MC2, (2 << 16) | 2);
 
-	if ((result = saa7146_wait_for_debi_done(saa, nobusyloop)) < 0) {
-		if (uselocks)
-			spin_unlock_irqrestore(&budget->debilock, flags);
+	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	return result < 0 ? result : 0;
+}
+
+int ttpci_budget_debiwrite(struct budget *budget, u32 config, int addr,
+			   int count, u32 value, int uselocks, int nobusyloop)
+{
+	if (count > 4 || count <= 0)
+		return 0;
+
+	if (uselocks) {
+		unsigned long flags;
+		int result;
+
+		spin_lock_irqsave(&budget->debilock, flags);
+		result = ttpci_budget_debiwrite_nolock(budget, config, addr,
+						count, value, nobusyloop);
+		spin_unlock_irqrestore(&budget->debilock, flags);
 		return result;
 	}
-
-	if (uselocks)
-		spin_unlock_irqrestore(&budget->debilock, flags);
-	return 0;
+	return ttpci_budget_debiwrite_nolock(budget, config, addr,
+					     count, value, nobusyloop);
 }
 
 

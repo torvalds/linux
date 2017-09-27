@@ -1,10 +1,5 @@
 CFLAGS += -iquote../../../../include/uapi -Wall
-peeksiginfo: peeksiginfo.c
 
-all: peeksiginfo
+TEST_GEN_PROGS := peeksiginfo
 
-clean:
-	rm -f peeksiginfo
-
-run_tests: all
-	@./peeksiginfo || echo "peeksiginfo selftests: [FAIL]"
+include ../lib.mk

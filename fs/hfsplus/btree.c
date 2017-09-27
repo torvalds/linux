@@ -15,6 +15,118 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 
+/*
+ * Initial source code of clump size calculation is gotten
+ * from http://opensource.apple.com/tarballs/diskdev_cmds/
+ */
+#define CLUMP_ENTRIES	15
+
+static short clumptbl[CLUMP_ENTRIES * 3] = {
+/*
+ *	    Volume	Attributes	 Catalog	 Extents
+ *	     Size	Clump (MB)	Clump (MB)	Clump (MB)
+ */
+	/*   1GB */	  4,		  4,		 4,
+	/*   2GB */	  6,		  6,		 4,
+	/*   4GB */	  8,		  8,		 4,
+	/*   8GB */	 11,		 11,		 5,
+	/*
+	 * For volumes 16GB and larger, we want to make sure that a full OS
+	 * install won't require fragmentation of the Catalog or Attributes
+	 * B-trees.  We do this by making the clump sizes sufficiently large,
+	 * and by leaving a gap after the B-trees for them to grow into.
+	 *
+	 * For SnowLeopard 10A298, a FullNetInstall with all packages selected
+	 * results in:
+	 * Catalog B-tree Header
+	 *	nodeSize:          8192
+	 *	totalNodes:       31616
+	 *	freeNodes:         1978
+	 * (used = 231.55 MB)
+	 * Attributes B-tree Header
+	 *	nodeSize:          8192
+	 *	totalNodes:       63232
+	 *	freeNodes:          958
+	 * (used = 486.52 MB)
+	 *
+	 * We also want Time Machine backup volumes to have a sufficiently
+	 * large clump size to reduce fragmentation.
+	 *
+	 * The series of numbers for Catalog and Attribute form a geometric
+	 * series. For Catalog (16GB to 512GB), each term is 8**(1/5) times
+	 * the previous term.  For Attributes (16GB to 512GB), each term is
+	 * 4**(1/5) times the previous term.  For 1TB to 16TB, each term is
+	 * 2**(1/5) times the previous term.
+	 */
+	/*  16GB */	 64,		 32,		 5,
+	/*  32GB */	 84,		 49,		 6,
+	/*  64GB */	111,		 74,		 7,
+	/* 128GB */	147,		111,		 8,
+	/* 256GB */	194,		169,		 9,
+	/* 512GB */	256,		256,		11,
+	/*   1TB */	294,		294,		14,
+	/*   2TB */	338,		338,		16,
+	/*   4TB */	388,		388,		20,
+	/*   8TB */	446,		446,		25,
+	/*  16TB */	512,		512,		32
+};
+
+u32 hfsplus_calc_btree_clump_size(u32 block_size, u32 node_size,
+					u64 sectors, int file_id)
+{
+	u32 mod = max(node_size, block_size);
+	u32 clump_size;
+	int column;
+	int i;
+
+	/* Figure out which column of the above table to use for this file. */
+	switch (file_id) {
+	case HFSPLUS_ATTR_CNID:
+		column = 0;
+		break;
+	case HFSPLUS_CAT_CNID:
+		column = 1;
+		break;
+	default:
+		column = 2;
+		break;
+	}
+
+	/*
+	 * The default clump size is 0.8% of the volume size. And
+	 * it must also be a multiple of the node and block size.
+	 */
+	if (sectors < 0x200000) {
+		clump_size = sectors << 2;	/*  0.8 %  */
+		if (clump_size < (8 * node_size))
+			clump_size = 8 * node_size;
+	} else {
+		/* turn exponent into table index... */
+		for (i = 0, sectors = sectors >> 22;
+		     sectors && (i < CLUMP_ENTRIES - 1);
+		     ++i, sectors = sectors >> 1) {
+			/* empty body */
+		}
+
+		clump_size = clumptbl[column + (i) * 3] * 1024 * 1024;
+	}
+
+	/*
+	 * Round the clump size to a multiple of node and block size.
+	 * NOTE: This rounds down.
+	 */
+	clump_size /= mod;
+	clump_size *= mod;
+
+	/*
+	 * Rounding down could have rounded down to 0 if the block size was
+	 * greater than the clump size.  If so, just use one block or node.
+	 */
+	if (clump_size == 0)
+		clump_size = mod;
+
+	return clump_size;
+}
 
 /* Get a reference to a B*Tree and do some initial checks */
 struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
@@ -124,15 +236,15 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	tree->node_size_shift = ffs(size) - 1;
 
 	tree->pages_per_bnode =
-		(tree->node_size + PAGE_CACHE_SIZE - 1) >>
-		PAGE_CACHE_SHIFT;
+		(tree->node_size + PAGE_SIZE - 1) >>
+		PAGE_SHIFT;
 
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 	return tree;
 
  fail_page:
-	page_cache_release(page);
+	put_page(page);
  free_inode:
 	tree->inode->i_mapping->a_ops = &hfsplus_aops;
 	iput(tree->inode);
@@ -246,7 +358,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		u32 count;
 		int res;
 
-		res = hfsplus_file_extend(inode);
+		res = hfsplus_file_extend(inode, hfs_bnode_need_zeroout(tree));
 		if (res)
 			return ERR_PTR(res);
 		hip->phys_size = inode->i_size =
@@ -268,9 +380,9 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 	off = off16;
 
 	off += node->page_offset;
-	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
+	pagep = node->page + (off >> PAGE_SHIFT);
 	data = kmap(*pagep);
-	off &= ~PAGE_CACHE_MASK;
+	off &= ~PAGE_MASK;
 	idx = 0;
 
 	for (;;) {
@@ -291,7 +403,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 					}
 				}
 			}
-			if (++off >= PAGE_CACHE_SIZE) {
+			if (++off >= PAGE_SIZE) {
 				kunmap(*pagep);
 				data = kmap(*++pagep);
 				off = 0;
@@ -314,9 +426,9 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		len = hfs_brec_lenoff(node, 0, &off16);
 		off = off16;
 		off += node->page_offset;
-		pagep = node->page + (off >> PAGE_CACHE_SHIFT);
+		pagep = node->page + (off >> PAGE_SHIFT);
 		data = kmap(*pagep);
-		off &= ~PAGE_CACHE_MASK;
+		off &= ~PAGE_MASK;
 	}
 }
 
@@ -363,9 +475,9 @@ void hfs_bmap_free(struct hfs_bnode *node)
 		len = hfs_brec_lenoff(node, 0, &off);
 	}
 	off += node->page_offset + nidx / 8;
-	page = node->page[off >> PAGE_CACHE_SHIFT];
+	page = node->page[off >> PAGE_SHIFT];
 	data = kmap(page);
-	off &= ~PAGE_CACHE_MASK;
+	off &= ~PAGE_MASK;
 	m = 1 << (~nidx & 7);
 	byte = data[off];
 	if (!(byte & m)) {

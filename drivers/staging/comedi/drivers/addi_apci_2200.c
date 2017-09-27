@@ -22,9 +22,9 @@
  * more details.
  */
 
-#include <linux/pci.h>
+#include <linux/module.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 #include "addi_watchdog.h"
 
 /*
@@ -49,16 +49,10 @@ static int apci2200_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
 	s->state = inw(dev->iobase + APCI2200_DO_REG);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + APCI2200_DO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -103,7 +97,7 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 16;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -123,7 +117,7 @@ static void apci2200_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci2200_reset(dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci2200_driver = {
@@ -139,7 +133,7 @@ static int apci2200_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci2200_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci2200_pci_table) = {
+static const struct pci_device_id apci2200_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1005) },
 	{ 0 }
 };

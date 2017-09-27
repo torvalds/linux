@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,7 +107,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 
 		/* For copy_object, no further validation necessary */
 
-		if (walk_state->opcode == AML_COPY_OP) {
+		if (walk_state->opcode == AML_COPY_OBJECT_OP) {
 			break;
 		}
 
@@ -122,9 +122,10 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 			/* Conversion successful but still not a valid type */
 
 			ACPI_ERROR((AE_INFO,
-				    "Cannot assign type %s to %s (must be type Int/Str/Buf)",
+				    "Cannot assign type [%s] to [%s] (must be type Int/Str/Buf)",
 				    acpi_ut_get_object_type_name(source_desc),
 				    acpi_ut_get_type_name(target_type)));
+
 			status = AE_AML_OPERAND_TYPE;
 		}
 		break;
@@ -275,7 +276,7 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 		/*
 		 * All other types come here.
 		 */
-		ACPI_WARNING((AE_INFO, "Store into type %s not implemented",
+		ACPI_WARNING((AE_INFO, "Store into type [%s] not implemented",
 			      acpi_ut_get_object_type_name(dest_desc)));
 
 		status = AE_NOT_IMPLEMENTED;

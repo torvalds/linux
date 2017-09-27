@@ -4,16 +4,30 @@
  * Jan 23 2005  Matt Mackall <mpm@selenic.com>
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/types.h>
+#include <linux/export.h>
 #include <linux/sort.h>
-#include <linux/slab.h>
+
+static int alignment_ok(const void *base, int align)
+{
+	return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
+		((unsigned long)base & (align - 1)) == 0;
+}
 
 static void u32_swap(void *a, void *b, int size)
 {
 	u32 t = *(u32 *)a;
 	*(u32 *)a = *(u32 *)b;
 	*(u32 *)b = t;
+}
+
+static void u64_swap(void *a, void *b, int size)
+{
+	u64 t = *(u64 *)a;
+	*(u64 *)a = *(u64 *)b;
+	*(u64 *)b = t;
 }
 
 static void generic_swap(void *a, void *b, int size)
@@ -51,8 +65,14 @@ void sort(void *base, size_t num, size_t size,
 	/* pre-scale counters for performance */
 	int i = (num/2 - 1) * size, n = num * size, c, r;
 
-	if (!swap_func)
-		swap_func = (size == 4 ? u32_swap : generic_swap);
+	if (!swap_func) {
+		if (size == 4 && alignment_ok(base, 4))
+			swap_func = u32_swap;
+		else if (size == 8 && alignment_ok(base, 8))
+			swap_func = u64_swap;
+		else
+			swap_func = generic_swap;
+	}
 
 	/* heapify */
 	for ( ; i >= 0; i -= size) {
@@ -83,41 +103,3 @@ void sort(void *base, size_t num, size_t size,
 }
 
 EXPORT_SYMBOL(sort);
-
-#if 0
-/* a simple boot-time regression test */
-
-int cmpint(const void *a, const void *b)
-{
-	return *(int *)a - *(int *)b;
-}
-
-static int sort_test(void)
-{
-	int *a, i, r = 1;
-
-	a = kmalloc(1000 * sizeof(int), GFP_KERNEL);
-	BUG_ON(!a);
-
-	printk("testing sort()\n");
-
-	for (i = 0; i < 1000; i++) {
-		r = (r * 725861) % 6599;
-		a[i] = r;
-	}
-
-	sort(a, 1000, sizeof(int), cmpint, NULL);
-
-	for (i = 0; i < 999; i++)
-		if (a[i] > a[i+1]) {
-			printk("sort() failed!\n");
-			break;
-		}
-
-	kfree(a);
-
-	return 0;
-}
-
-module_init(sort_test);
-#endif

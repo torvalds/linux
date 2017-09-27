@@ -1,0 +1,32 @@
+#
+# MediaTek SoC drivers
+#
+config MTK_INFRACFG
+	bool "MediaTek INFRACFG Support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select REGMAP
+	help
+	  Say yes here to add support for the MediaTek INFRACFG controller. The
+	  INFRACFG controller contains various infrastructure registers not
+	  directly associated to any device.
+
+config MTK_PMIC_WRAP
+	tristate "MediaTek PMIC Wrapper Support"
+	depends on ARCH_MEDIATEK
+	depends on RESET_CONTROLLER
+	select REGMAP
+	help
+	  Say yes here to add support for MediaTek PMIC Wrapper found
+	  on different MediaTek SoCs. The PMIC wrapper is a proprietary
+	  hardware to connect the PMIC.
+
+config MTK_SCPSYS
+	bool "MediaTek SCPSYS Support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	default ARCH_MEDIATEK
+	select REGMAP
+	select MTK_INFRACFG
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  Say yes here to add support for the MediaTek SCPSYS power domain
+	  driver.

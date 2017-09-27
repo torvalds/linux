@@ -15,11 +15,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include "cx18-driver.h"
@@ -36,7 +31,7 @@
 
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
-static struct v4l2_file_operations cx18_v4l2_enc_fops = {
+static const struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.owner = THIS_MODULE,
 	.read = cx18_v4l2_read,
 	.open = cx18_v4l2_open,
@@ -58,11 +53,14 @@ static struct {
 	int vfl_type;
 	int num_offset;
 	int dma;
+	u32 caps;
 } cx18_stream_info[] = {
 	{	/* CX18_ENC_STREAM_TYPE_MPG */
 		"encoder MPEG",
 		VFL_TYPE_GRABBER, 0,
 		PCI_DMA_FROMDEVICE,
+		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		V4L2_CAP_AUDIO | V4L2_CAP_TUNER
 	},
 	{	/* CX18_ENC_STREAM_TYPE_TS */
 		"TS",
@@ -73,16 +71,21 @@ static struct {
 		"encoder YUV",
 		VFL_TYPE_GRABBER, CX18_V4L2_ENC_YUV_OFFSET,
 		PCI_DMA_FROMDEVICE,
+		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		V4L2_CAP_STREAMING | V4L2_CAP_AUDIO | V4L2_CAP_TUNER
 	},
 	{	/* CX18_ENC_STREAM_TYPE_VBI */
 		"encoder VBI",
 		VFL_TYPE_VBI, 0,
 		PCI_DMA_FROMDEVICE,
+		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_CAPTURE |
+		V4L2_CAP_READWRITE | V4L2_CAP_TUNER
 	},
 	{	/* CX18_ENC_STREAM_TYPE_PCM */
 		"encoder PCM audio",
 		VFL_TYPE_GRABBER, CX18_V4L2_ENC_PCM_OFFSET,
 		PCI_DMA_FROMDEVICE,
+		V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
 	},
 	{	/* CX18_ENC_STREAM_TYPE_IDX */
 		"encoder IDX",
@@ -93,6 +96,7 @@ static struct {
 		"encoder radio",
 		VFL_TYPE_RADIO, 0,
 		PCI_DMA_NONE,
+		V4L2_CAP_RADIO | V4L2_CAP_TUNER
 	},
 };
 
@@ -236,7 +240,7 @@ static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	list_add_tail(&buf->vb.queue, &s->vb_capture);
 }
 
-static struct videobuf_queue_ops cx18_videobuf_qops = {
+static const struct videobuf_queue_ops cx18_videobuf_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,
@@ -246,11 +250,8 @@ static struct videobuf_queue_ops cx18_videobuf_qops = {
 static void cx18_stream_init(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
-	struct video_device *video_dev = s->video_dev;
 
-	/* we need to keep video_dev, so restore it afterwards */
 	memset(s, 0, sizeof(*s));
-	s->video_dev = video_dev;
 
 	/* initialize cx18_stream fields */
 	s->dvb = NULL;
@@ -260,6 +261,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->handle = CX18_INVALID_TASK_HANDLE;
 
 	s->dma = cx18_stream_info[type].dma;
+	s->v4l2_dev_caps = cx18_stream_info[type].caps;
 	s->buffers = cx->stream_buffers[type];
 	s->buf_size = cx->stream_buf_size[type];
 	INIT_LIST_HEAD(&s->buf_pool);
@@ -280,9 +282,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	INIT_WORK(&s->out_work_order, cx18_out_work_handler);
 
 	INIT_LIST_HEAD(&s->vb_capture);
-	s->vb_timeout.function = cx18_vb_timeout;
-	s->vb_timeout.data = (unsigned long)s;
-	init_timer(&s->vb_timeout);
+	setup_timer(&s->vb_timeout, cx18_vb_timeout, (unsigned long)s);
 	spin_lock_init(&s->vb_lock);
 	if (type == CX18_ENC_STREAM_TYPE_YUV) {
 		spin_lock_init(&s->vbuf_q_lock);
@@ -298,6 +298,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 		/* Assume the previous pixel default */
 		s->pixelformat = V4L2_PIX_FMT_HM12;
 		s->vb_bytes_per_frame = cx->cxhdl.height * 720 * 3 / 2;
+		s->vb_bytes_per_line = 720;
 	}
 }
 
@@ -310,12 +311,12 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 
 	/*
 	 * These five fields are always initialized.
-	 * For analog capture related streams, if video_dev == NULL then the
+	 * For analog capture related streams, if video_dev.v4l2_dev == NULL then the
 	 * stream is not in use.
 	 * For the TS stream, if dvb == NULL then the stream is not in use.
 	 * In those cases no other fields but these four can be used.
 	 */
-	s->video_dev = NULL;
+	s->video_dev.v4l2_dev = NULL;
 	s->dvb = NULL;
 	s->cx = cx;
 	s->type = type;
@@ -345,8 +346,8 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 		if (cx->card->hw_all & CX18_HW_DVB) {
 			s->dvb = kzalloc(sizeof(struct cx18_dvb), GFP_KERNEL);
 			if (s->dvb == NULL) {
-				CX18_ERR("Couldn't allocate cx18_dvb structure"
-					 " for %s\n", s->name);
+				CX18_ERR("Couldn't allocate cx18_dvb structure for %s\n",
+					 s->name);
 				return -ENOMEM;
 			}
 		} else {
@@ -358,25 +359,20 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	if (num_offset == -1)
 		return 0;
 
-	/* allocate and initialize the v4l2 video device structure */
-	s->video_dev = video_device_alloc();
-	if (s->video_dev == NULL) {
-		CX18_ERR("Couldn't allocate v4l2 video_device for %s\n",
-				s->name);
-		return -ENOMEM;
-	}
-
-	snprintf(s->video_dev->name, sizeof(s->video_dev->name), "%s %s",
+	/* initialize the v4l2 video device structure */
+	snprintf(s->video_dev.name, sizeof(s->video_dev.name), "%s %s",
 		 cx->v4l2_dev.name, s->name);
 
-	s->video_dev->num = num;
-	s->video_dev->v4l2_dev = &cx->v4l2_dev;
-	s->video_dev->fops = &cx18_v4l2_enc_fops;
-	s->video_dev->release = video_device_release;
-	s->video_dev->tvnorms = V4L2_STD_ALL;
-	s->video_dev->lock = &cx->serialize_lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &s->video_dev->flags);
-	cx18_set_funcs(s->video_dev);
+	s->video_dev.num = num;
+	s->video_dev.v4l2_dev = &cx->v4l2_dev;
+	s->video_dev.fops = &cx18_v4l2_enc_fops;
+	s->video_dev.release = video_device_release_empty;
+	if (cx->card->video_inputs->video_type == CX18_CARD_INPUT_VID_TUNER)
+		s->video_dev.tvnorms = cx->tuner_std;
+	else
+		s->video_dev.tvnorms = V4L2_STD_ALL;
+	s->video_dev.lock = &cx->serialize_lock;
+	cx18_set_funcs(&s->video_dev);
 	return 0;
 }
 
@@ -420,31 +416,30 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		}
 	}
 
-	if (s->video_dev == NULL)
+	if (s->video_dev.v4l2_dev == NULL)
 		return 0;
 
-	num = s->video_dev->num;
+	num = s->video_dev.num;
 	/* card number + user defined offset + device offset */
 	if (type != CX18_ENC_STREAM_TYPE_MPG) {
 		struct cx18_stream *s_mpg = &cx->streams[CX18_ENC_STREAM_TYPE_MPG];
 
-		if (s_mpg->video_dev)
-			num = s_mpg->video_dev->num
+		if (s_mpg->video_dev.v4l2_dev)
+			num = s_mpg->video_dev.num
 			    + cx18_stream_info[type].num_offset;
 	}
-	video_set_drvdata(s->video_dev, s);
+	video_set_drvdata(&s->video_dev, s);
 
 	/* Register device. First try the desired minor, then any free one. */
-	ret = video_register_device_no_warn(s->video_dev, vfl_type, num);
+	ret = video_register_device_no_warn(&s->video_dev, vfl_type, num);
 	if (ret < 0) {
 		CX18_ERR("Couldn't register v4l2 device for %s (device node number %d)\n",
 			s->name, num);
-		video_device_release(s->video_dev);
-		s->video_dev = NULL;
+		s->video_dev.v4l2_dev = NULL;
 		return ret;
 	}
 
-	name = video_device_node_name(s->video_dev);
+	name = video_device_node_name(&s->video_dev);
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -460,8 +455,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 
 	case VFL_TYPE_VBI:
 		if (cx->stream_buffers[type])
-			CX18_INFO("Registered device %s for %s "
-				  "(%d x %d bytes)\n",
+			CX18_INFO("Registered device %s for %s (%d x %d bytes)\n",
 				  name, s->name, cx->stream_buffers[type],
 				  cx->stream_buf_size[type]);
 		else
@@ -534,10 +528,9 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 		}
 
 		/* If struct video_device exists, can have buffers allocated */
-		vdev = cx->streams[type].video_dev;
+		vdev = &cx->streams[type].video_dev;
 
-		cx->streams[type].video_dev = NULL;
-		if (vdev == NULL)
+		if (vdev->v4l2_dev == NULL)
 			continue;
 
 		if (type == CX18_ENC_STREAM_TYPE_YUV)
@@ -545,11 +538,7 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 
 		cx18_stream_free(&cx->streams[type]);
 
-		/* Unregister or release device */
-		if (unregister)
-			video_unregister_device(vdev);
-		else
-			video_device_release(vdev);
+		video_unregister_device(vdev);
 	}
 }
 
@@ -608,9 +597,9 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	/* Lines per field */
 	data[1] = (lines / 2) | ((lines / 2) << 16);
 	/* bytes per line */
-	data[2] = (raw ? vbi_active_samples
-		       : (cx->is_60hz ? vbi_hblank_samples_60Hz
-				      : vbi_hblank_samples_50Hz));
+	data[2] = (raw ? VBI_ACTIVE_SAMPLES
+		       : (cx->is_60hz ? VBI_HBLANK_SAMPLES_60HZ
+				      : VBI_HBLANK_SAMPLES_50HZ));
 	/* Every X number of frames a VBI interrupt arrives
 	   (frames as in 25 or 30 fps) */
 	data[3] = 1;
@@ -764,7 +753,7 @@ static void cx18_stream_configure_mdls(struct cx18_stream *s)
 		s->bufs_per_mdl = 1;
 		if  (cx18_raw_vbi(s->cx)) {
 			s->mdl_size = (s->cx->is_60hz ? 12 : 18)
-						       * 2 * vbi_active_samples;
+						       * 2 * VBI_ACTIVE_SAMPLES;
 		} else {
 			/*
 			 * See comment in cx18_vbi_setup() below about the
@@ -772,8 +761,8 @@ static void cx18_stream_configure_mdls(struct cx18_stream *s)
 			 * the lines on which EAV RP codes toggle.
 			*/
 			s->mdl_size = s->cx->is_60hz
-				   ? (21 - 4 + 1) * 2 * vbi_hblank_samples_60Hz
-				   : (23 - 2 + 1) * 2 * vbi_hblank_samples_50Hz;
+				   ? (21 - 4 + 1) * 2 * VBI_HBLANK_SAMPLES_60HZ
+				   : (23 - 2 + 1) * 2 * VBI_HBLANK_SAMPLES_50HZ;
 		}
 		break;
 	default:
@@ -1034,7 +1023,7 @@ u32 cx18_find_handle(struct cx18 *cx)
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->video_dev && (s->handle != CX18_INVALID_TASK_HANDLE))
+		if (s->video_dev.v4l2_dev && (s->handle != CX18_INVALID_TASK_HANDLE))
 			return s->handle;
 	}
 	return CX18_INVALID_TASK_HANDLE;

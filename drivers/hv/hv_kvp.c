@@ -28,32 +28,58 @@
 #include <linux/workqueue.h>
 #include <linux/hyperv.h>
 
-
+#include "hyperv_vmbus.h"
+#include "hv_utils_transport.h"
 
 /*
- * Global state maintained for transaction that is being processed.
- * Note that only one transaction can be active at any point in time.
+ * Pre win8 version numbers used in ws2008 and ws 2008 r2 (win7)
+ */
+#define WS2008_SRV_MAJOR	1
+#define WS2008_SRV_MINOR	0
+#define WS2008_SRV_VERSION     (WS2008_SRV_MAJOR << 16 | WS2008_SRV_MINOR)
+
+#define WIN7_SRV_MAJOR   3
+#define WIN7_SRV_MINOR   0
+#define WIN7_SRV_VERSION     (WIN7_SRV_MAJOR << 16 | WIN7_SRV_MINOR)
+
+#define WIN8_SRV_MAJOR   4
+#define WIN8_SRV_MINOR   0
+#define WIN8_SRV_VERSION     (WIN8_SRV_MAJOR << 16 | WIN8_SRV_MINOR)
+
+#define KVP_VER_COUNT 3
+static const int kvp_versions[] = {
+	WIN8_SRV_VERSION,
+	WIN7_SRV_VERSION,
+	WS2008_SRV_VERSION
+};
+
+#define FW_VER_COUNT 2
+static const int fw_versions[] = {
+	UTIL_FW_VERSION,
+	UTIL_WS2K8_FW_VERSION
+};
+
+/*
+ * Global state maintained for transaction that is being processed. For a class
+ * of integration services, including the "KVP service", the specified protocol
+ * is a "request/response" protocol which means that there can only be single
+ * outstanding transaction from the host at any given point in time. We use
+ * this to simplify memory management in this driver - we cache and process
+ * only one message at a time.
  *
- * This state is set when we receive a request from the host; we
- * cleanup this state when the transaction is completed - when we respond
- * to the host with the key value.
+ * While the request/response protocol is guaranteed by the host, we further
+ * ensure this by serializing packet processing in this driver - we do not
+ * read additional packets from the VMBUS until the current packet is fully
+ * handled.
  */
 
 static struct {
-	bool active; /* transaction status - active or not */
+	int state;   /* hvutil_device_state */
 	int recv_len; /* number of bytes received. */
 	struct hv_kvp_msg  *kvp_msg; /* current message */
 	struct vmbus_channel *recv_channel; /* chn we got the request */
 	u64 recv_req_id; /* request ID. */
-	void *kvp_context; /* for the channel callback */
 } kvp_transaction;
-
-/*
- * Before we can accept KVP messages from the host, we need
- * to handshake with the user level daemon. This state tracks
- * if we are in the handshake phase.
- */
-static bool in_hand_shake = true;
 
 /*
  * This state maintains the version number registered by the daemon.
@@ -64,57 +90,80 @@ static void kvp_send_key(struct work_struct *dummy);
 
 
 static void kvp_respond_to_host(struct hv_kvp_msg *msg, int error);
-static void kvp_work_func(struct work_struct *dummy);
+static void kvp_timeout_func(struct work_struct *dummy);
+static void kvp_host_handshake_func(struct work_struct *dummy);
 static void kvp_register(int);
 
-static DECLARE_DELAYED_WORK(kvp_work, kvp_work_func);
+static DECLARE_DELAYED_WORK(kvp_timeout_work, kvp_timeout_func);
+static DECLARE_DELAYED_WORK(kvp_host_handshake_work, kvp_host_handshake_func);
 static DECLARE_WORK(kvp_sendkey_work, kvp_send_key);
 
-static struct cb_id kvp_id = { CN_KVP_IDX, CN_KVP_VAL };
-static const char kvp_name[] = "kvp_kernel_module";
+static const char kvp_devname[] = "vmbus/hv_kvp";
 static u8 *recv_buffer;
+static struct hvutil_transport *hvt;
 /*
  * Register the kernel component with the user-level daemon.
  * As part of this registration, pass the LIC version number.
+ * This number has no meaning, it satisfies the registration protocol.
  */
+#define HV_DRV_VERSION           "3.1"
+
+static void kvp_poll_wrapper(void *channel)
+{
+	/* Transaction is finished, reset the state here to avoid races. */
+	kvp_transaction.state = HVUTIL_READY;
+	tasklet_schedule(&((struct vmbus_channel *)channel)->callback_event);
+}
+
+static void kvp_register_done(void)
+{
+	/*
+	 * If we're still negotiating with the host cancel the timeout
+	 * work to not poll the channel twice.
+	 */
+	pr_debug("KVP: userspace daemon registered\n");
+	cancel_delayed_work_sync(&kvp_host_handshake_work);
+	hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
+}
 
 static void
 kvp_register(int reg_value)
 {
 
-	struct cn_msg *msg;
 	struct hv_kvp_msg *kvp_msg;
 	char *version;
 
-	msg = kzalloc(sizeof(*msg) + sizeof(struct hv_kvp_msg), GFP_ATOMIC);
+	kvp_msg = kzalloc(sizeof(*kvp_msg), GFP_KERNEL);
 
-	if (msg) {
-		kvp_msg = (struct hv_kvp_msg *)msg->data;
+	if (kvp_msg) {
 		version = kvp_msg->body.kvp_register.version;
-		msg->id.idx =  CN_KVP_IDX;
-		msg->id.val = CN_KVP_VAL;
-
 		kvp_msg->kvp_hdr.operation = reg_value;
 		strcpy(version, HV_DRV_VERSION);
-		msg->len = sizeof(struct hv_kvp_msg);
-		cn_netlink_send(msg, 0, GFP_ATOMIC);
-		kfree(msg);
+
+		hvutil_transport_send(hvt, kvp_msg, sizeof(*kvp_msg),
+				      kvp_register_done);
+		kfree(kvp_msg);
 	}
 }
-static void
-kvp_work_func(struct work_struct *dummy)
+
+static void kvp_timeout_func(struct work_struct *dummy)
 {
 	/*
 	 * If the timer fires, the user-mode component has not responded;
 	 * process the pending transaction.
 	 */
 	kvp_respond_to_host(NULL, HV_E_FAIL);
+
+	hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
+}
+
+static void kvp_host_handshake_func(struct work_struct *dummy)
+{
+	tasklet_schedule(&kvp_transaction.recv_channel->callback_event);
 }
 
 static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 {
-	int ret = 1;
-
 	switch (msg->kvp_hdr.operation) {
 	case KVP_OP_REGISTER:
 		dm_reg_value = KVP_OP_REGISTER;
@@ -128,20 +177,17 @@ static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 		pr_info("KVP: incompatible daemon\n");
 		pr_info("KVP: KVP version: %d, Daemon version: %d\n",
 			KVP_OP_REGISTER1, msg->kvp_hdr.operation);
-		ret = 0;
+		return -EINVAL;
 	}
 
-	if (ret) {
-		/*
-		 * We have a compatible daemon; complete the handshake.
-		 */
-		pr_info("KVP: user-mode registering done.\n");
-		kvp_register(dm_reg_value);
-		kvp_transaction.active = false;
-		if (kvp_transaction.kvp_context)
-			hv_kvp_onchannelcallback(kvp_transaction.kvp_context);
-	}
-	return ret;
+	/*
+	 * We have a compatible daemon; complete the handshake.
+	 */
+	pr_debug("KVP: userspace daemon ver. %d connected\n",
+		 msg->kvp_hdr.operation);
+	kvp_register(dm_reg_value);
+
+	return 0;
 }
 
 
@@ -149,25 +195,29 @@ static int kvp_handle_handshake(struct hv_kvp_msg *msg)
  * Callback when data is received from user mode.
  */
 
-static void
-kvp_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
+static int kvp_on_msg(void *msg, int len)
 {
-	struct hv_kvp_msg *message;
+	struct hv_kvp_msg *message = (struct hv_kvp_msg *)msg;
 	struct hv_kvp_msg_enumerate *data;
 	int	error = 0;
 
-	message = (struct hv_kvp_msg *)msg->data;
+	if (len < sizeof(*message))
+		return -EINVAL;
 
 	/*
 	 * If we are negotiating the version information
 	 * with the daemon; handle that first.
 	 */
 
-	if (in_hand_shake) {
-		if (kvp_handle_handshake(message))
-			in_hand_shake = false;
-		return;
+	if (kvp_transaction.state < HVUTIL_READY) {
+		return kvp_handle_handshake(message);
 	}
+
+	/* We didn't send anything to userspace so the reply is spurious */
+	if (kvp_transaction.state < HVUTIL_USERSPACE_REQ)
+		return -EINVAL;
+
+	kvp_transaction.state = HVUTIL_USERSPACE_RECV;
 
 	/*
 	 * Based on the version of the daemon, we propagate errors from the
@@ -198,8 +248,12 @@ kvp_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	 * Complete the transaction by forwarding the key value
 	 * to the host. But first, cancel the timeout.
 	 */
-	if (cancel_delayed_work_sync(&kvp_work))
+	if (cancel_delayed_work_sync(&kvp_timeout_work)) {
 		kvp_respond_to_host(message, error);
+		hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
+	}
+
+	return 0;
 }
 
 
@@ -250,7 +304,7 @@ static int process_ob_ipinfo(void *in_msg, void *out_msg, int op)
 				strlen((char *)in->body.kvp_ip_val.adapter_id),
 				UTF16_HOST_ENDIAN,
 				(wchar_t *)out->kvp_ip_val.adapter_id,
-				MAX_IP_ADDR_SIZE);
+				MAX_ADAPTER_ID_SIZE);
 		if (len < 0)
 			return len;
 
@@ -316,22 +370,22 @@ static void process_ib_ipinfo(void *in_msg, void *out_msg, int op)
 static void
 kvp_send_key(struct work_struct *dummy)
 {
-	struct cn_msg *msg;
 	struct hv_kvp_msg *message;
 	struct hv_kvp_msg *in_msg;
 	__u8 operation = kvp_transaction.kvp_msg->kvp_hdr.operation;
 	__u8 pool = kvp_transaction.kvp_msg->kvp_hdr.pool;
 	__u32 val32;
 	__u64 val64;
+	int rc;
 
-	msg = kzalloc(sizeof(*msg) + sizeof(struct hv_kvp_msg) , GFP_ATOMIC);
-	if (!msg)
+	/* The transaction state is wrong. */
+	if (kvp_transaction.state != HVUTIL_HOSTMSG_RECEIVED)
 		return;
 
-	msg->id.idx =  CN_KVP_IDX;
-	msg->id.val = CN_KVP_VAL;
+	message = kzalloc(sizeof(*message), GFP_KERNEL);
+	if (!message)
+		return;
 
-	message = (struct hv_kvp_msg *)msg->data;
 	message->kvp_hdr.operation = operation;
 	message->kvp_hdr.pool = pool;
 	in_msg = kvp_transaction.kvp_msg;
@@ -343,7 +397,7 @@ kvp_send_key(struct work_struct *dummy)
 	 * the max lengths specified. We will however, reserve room
 	 * for the string terminating character - in the utf16s_utf8s()
 	 * function we limit the size of the buffer where the converted
-	 * string is placed to HV_KVP_EXCHANGE_MAX_*_SIZE -1 to gaurantee
+	 * string is placed to HV_KVP_EXCHANGE_MAX_*_SIZE -1 to guarantee
 	 * that the strings can be properly terminated!
 	 */
 
@@ -418,11 +472,17 @@ kvp_send_key(struct work_struct *dummy)
 			break;
 	}
 
-	msg->len = sizeof(struct hv_kvp_msg);
-	cn_netlink_send(msg, 0, GFP_ATOMIC);
-	kfree(msg);
+	kvp_transaction.state = HVUTIL_USERSPACE_REQ;
+	rc = hvutil_transport_send(hvt, message, sizeof(*message), NULL);
+	if (rc) {
+		pr_debug("KVP: failed to communicate to the daemon: %d\n", rc);
+		if (cancel_delayed_work_sync(&kvp_timeout_work)) {
+			kvp_respond_to_host(message, HV_E_FAIL);
+			kvp_transaction.state = HVUTIL_READY;
+		}
+	}
 
-	return;
+	kfree(message);
 }
 
 /*
@@ -445,17 +505,6 @@ kvp_respond_to_host(struct hv_kvp_msg *msg_to_host, int error)
 	int ret;
 
 	/*
-	 * If a transaction is not active; log and return.
-	 */
-
-	if (!kvp_transaction.active) {
-		/*
-		 * This is a spurious call!
-		 */
-		pr_warn("KVP: Transaction not active\n");
-		return;
-	}
-	/*
 	 * Copy the global state for completing the transaction. Note that
 	 * only one transaction can be active at a time.
 	 */
@@ -463,8 +512,6 @@ kvp_respond_to_host(struct hv_kvp_msg *msg_to_host, int error)
 	buf_len = kvp_transaction.recv_len;
 	channel = kvp_transaction.recv_channel;
 	req_id = kvp_transaction.recv_req_id;
-
-	kvp_transaction.active = false;
 
 	icmsghdrp = (struct icmsg_hdr *)
 			&recv_buffer[sizeof(struct vmbuspipe_hdr)];
@@ -484,7 +531,7 @@ kvp_respond_to_host(struct hv_kvp_msg *msg_to_host, int error)
 	 */
 	if (error) {
 		/*
-		 * Something failed or we have timedout;
+		 * Something failed or we have timed out;
 		 * terminate the current host-side iteration.
 		 */
 		goto response_done;
@@ -552,15 +599,14 @@ response_done:
 
 	vmbus_sendpacket(channel, recv_buffer, buf_len, req_id,
 				VM_PKT_DATA_INBAND, 0);
-
 }
 
 /*
  * This callback is invoked when we get a KVP message from the host.
  * The host ensures that only one KVP transaction can be active at a time.
  * KVP implementation in Linux needs to forward the key to a user-mde
- * component to retrive the corresponding value. Consequently, we cannot
- * respond to the host in the conext of this callback. Since the host
+ * component to retrieve the corresponding value. Consequently, we cannot
+ * respond to the host in the context of this callback. Since the host
  * guarantees that at most only one transaction can be active at a time,
  * we stash away the transaction state in a set of global variables.
  */
@@ -574,18 +620,28 @@ void hv_kvp_onchannelcallback(void *context)
 	struct hv_kvp_msg *kvp_msg;
 
 	struct icmsg_hdr *icmsghdrp;
-	struct icmsg_negotiate *negop = NULL;
+	int kvp_srv_version;
+	static enum {NEGO_NOT_STARTED,
+		     NEGO_IN_PROGRESS,
+		     NEGO_FINISHED} host_negotiatied = NEGO_NOT_STARTED;
 
-	if (kvp_transaction.active) {
+	if (kvp_transaction.state < HVUTIL_READY) {
 		/*
-		 * We will defer processing this callback once
-		 * the current transaction is complete.
+		 * If userspace daemon is not connected and host is asking
+		 * us to negotiate we need to delay to not lose messages.
+		 * This is important for Failover IP setting.
 		 */
-		kvp_transaction.kvp_context = context;
+		if (host_negotiatied == NEGO_NOT_STARTED) {
+			host_negotiatied = NEGO_IN_PROGRESS;
+			schedule_delayed_work(&kvp_host_handshake_work,
+				      HV_UTIL_NEGO_TIMEOUT * HZ);
+		}
 		return;
 	}
+	if (kvp_transaction.state > HVUTIL_READY)
+		return;
 
-	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 2, &recvlen,
+	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 4, &recvlen,
 			 &requestid);
 
 	if (recvlen > 0) {
@@ -593,8 +649,14 @@ void hv_kvp_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, MAX_SRV_VER, MAX_SRV_VER);
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
+				 recv_buffer, fw_versions, FW_VER_COUNT,
+				 kvp_versions, KVP_VER_COUNT,
+				 NULL, &kvp_srv_version)) {
+				pr_info("KVP IC version %d.%d\n",
+					kvp_srv_version >> 16,
+					kvp_srv_version & 0xFFFF);
+			}
 		} else {
 			kvp_msg = (struct hv_kvp_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +
@@ -606,10 +668,15 @@ void hv_kvp_onchannelcallback(void *context)
 			 */
 
 			kvp_transaction.recv_len = recvlen;
-			kvp_transaction.recv_channel = channel;
 			kvp_transaction.recv_req_id = requestid;
-			kvp_transaction.active = true;
 			kvp_transaction.kvp_msg = kvp_msg;
+
+			if (kvp_transaction.state < HVUTIL_READY) {
+				/* Userspace is not registered yet */
+				kvp_respond_to_host(NULL, HV_E_FAIL);
+				return;
+			}
+			kvp_transaction.state = HVUTIL_HOSTMSG_RECEIVED;
 
 			/*
 			 * Get the information from the
@@ -621,7 +688,8 @@ void hv_kvp_onchannelcallback(void *context)
 			 * user-mode not responding.
 			 */
 			schedule_work(&kvp_sendkey_work);
-			schedule_delayed_work(&kvp_work, 5*HZ);
+			schedule_delayed_work(&kvp_timeout_work,
+					      HV_UTIL_TIMEOUT * HZ);
 
 			return;
 
@@ -633,19 +701,25 @@ void hv_kvp_onchannelcallback(void *context)
 		vmbus_sendpacket(channel, recv_buffer,
 				       recvlen, requestid,
 				       VM_PKT_DATA_INBAND, 0);
+
+		host_negotiatied = NEGO_FINISHED;
+		hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
 	}
 
+}
+
+static void kvp_on_reset(void)
+{
+	if (cancel_delayed_work_sync(&kvp_timeout_work))
+		kvp_respond_to_host(NULL, HV_E_FAIL);
+	kvp_transaction.state = HVUTIL_DEVICE_INIT;
 }
 
 int
 hv_kvp_init(struct hv_util_service *srv)
 {
-	int err;
-
-	err = cn_add_callback(&kvp_id, kvp_name, kvp_cn_callback);
-	if (err)
-		return err;
 	recv_buffer = srv->recv_buffer;
+	kvp_transaction.recv_channel = srv->channel;
 
 	/*
 	 * When this driver loads, the user level daemon that
@@ -653,14 +727,21 @@ hv_kvp_init(struct hv_util_service *srv)
 	 * Defer processing channel callbacks until the daemon
 	 * has registered.
 	 */
-	kvp_transaction.active = true;
+	kvp_transaction.state = HVUTIL_DEVICE_INIT;
+
+	hvt = hvutil_transport_init(kvp_devname, CN_KVP_IDX, CN_KVP_VAL,
+				    kvp_on_msg, kvp_on_reset);
+	if (!hvt)
+		return -EFAULT;
 
 	return 0;
 }
 
 void hv_kvp_deinit(void)
 {
-	cn_del_callback(&kvp_id);
-	cancel_delayed_work_sync(&kvp_work);
+	kvp_transaction.state = HVUTIL_DEVICE_DYING;
+	cancel_delayed_work_sync(&kvp_host_handshake_work);
+	cancel_delayed_work_sync(&kvp_timeout_work);
 	cancel_work_sync(&kvp_sendkey_work);
+	hvutil_transport_destroy(hvt);
 }

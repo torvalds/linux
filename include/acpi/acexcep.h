@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,6 @@ struct acpi_exception_info {
 #define ACPI_SUCCESS(a)                 (!(a))
 #define ACPI_FAILURE(a)                 (a)
 
-#define ACPI_SKIP(a)                    (a == AE_CTRL_SKIP)
 #define AE_OK                           (acpi_status) 0x0000
 
 /*
@@ -125,8 +124,10 @@ struct acpi_exception_info {
 #define AE_NO_HANDLER                   EXCEP_ENV (0x001A)
 #define AE_OWNER_ID_LIMIT               EXCEP_ENV (0x001B)
 #define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
+#define AE_ACCESS                       EXCEP_ENV (0x001D)
+#define AE_IO_ERROR                     EXCEP_ENV (0x001E)
 
-#define AE_CODE_ENV_MAX                 0x001C
+#define AE_CODE_ENV_MAX                 0x001E
 
 /*
  * Programmer exceptions
@@ -191,8 +192,10 @@ struct acpi_exception_info {
 #define AE_AML_BAD_RESOURCE_LENGTH      EXCEP_AML (0x001F)
 #define AE_AML_ILLEGAL_ADDRESS          EXCEP_AML (0x0020)
 #define AE_AML_INFINITE_LOOP            EXCEP_AML (0x0021)
+#define AE_AML_UNINITIALIZED_NODE       EXCEP_AML (0x0022)
+#define AE_AML_TARGET_TYPE              EXCEP_AML (0x0023)
 
-#define AE_CODE_AML_MAX                 0x0021
+#define AE_CODE_AML_MAX                 0x0023
 
 /*
  * Internal exceptions used for control
@@ -207,11 +210,10 @@ struct acpi_exception_info {
 #define AE_CTRL_TRANSFER                EXCEP_CTL (0x0008)
 #define AE_CTRL_BREAK                   EXCEP_CTL (0x0009)
 #define AE_CTRL_CONTINUE                EXCEP_CTL (0x000A)
-#define AE_CTRL_SKIP                    EXCEP_CTL (0x000B)
-#define AE_CTRL_PARSE_CONTINUE          EXCEP_CTL (0x000C)
-#define AE_CTRL_PARSE_PENDING           EXCEP_CTL (0x000D)
+#define AE_CTRL_PARSE_CONTINUE          EXCEP_CTL (0x000B)
+#define AE_CTRL_PARSE_PENDING           EXCEP_CTL (0x000C)
 
-#define AE_CODE_CTRL_MAX                0x000D
+#define AE_CODE_CTRL_MAX                0x000C
 
 /* Exception strings for acpi_format_exception */
 
@@ -227,7 +229,7 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 	EXCEP_TXT("AE_NO_ACPI_TABLES", "ACPI tables could not be found"),
 	EXCEP_TXT("AE_NO_NAMESPACE", "A namespace has not been loaded"),
 	EXCEP_TXT("AE_NO_MEMORY", "Insufficient dynamic memory"),
-	EXCEP_TXT("AE_NOT_FOUND", "The name was not found in the namespace"),
+	EXCEP_TXT("AE_NOT_FOUND", "A requested entity is not found"),
 	EXCEP_TXT("AE_NOT_EXIST", "A required entity does not exist"),
 	EXCEP_TXT("AE_ALREADY_EXISTS", "An entity already exists"),
 	EXCEP_TXT("AE_TYPE", "The object type is incorrect"),
@@ -259,7 +261,9 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 	EXCEP_TXT("AE_OWNER_ID_LIMIT",
 		  "There are no more Owner IDs available for ACPI tables or control methods"),
 	EXCEP_TXT("AE_NOT_CONFIGURED",
-		  "The interface is not part of the current subsystem configuration")
+		  "The interface is not part of the current subsystem configuration"),
+	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation"),
+	EXCEP_TXT("AE_IO_ERROR", "An I/O error occurred")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_pgm[] = {
@@ -353,7 +357,11 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 	EXCEP_TXT("AE_AML_ILLEGAL_ADDRESS",
 		  "A memory, I/O, or PCI configuration address is invalid"),
 	EXCEP_TXT("AE_AML_INFINITE_LOOP",
-		  "An apparent infinite AML While loop, method was aborted")
+		  "An apparent infinite AML While loop, method was aborted"),
+	EXCEP_TXT("AE_AML_UNINITIALIZED_NODE",
+		  "A namespace node is uninitialized or unresolved"),
+	EXCEP_TXT("AE_AML_TARGET_TYPE",
+		  "A target operand of an incorrect type was encountered")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {
@@ -368,7 +376,6 @@ static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {
 	EXCEP_TXT("AE_CTRL_TRANSFER", "Transfer control to called method"),
 	EXCEP_TXT("AE_CTRL_BREAK", "A Break has been executed"),
 	EXCEP_TXT("AE_CTRL_CONTINUE", "A Continue has been executed"),
-	EXCEP_TXT("AE_CTRL_SKIP", "Not currently used"),
 	EXCEP_TXT("AE_CTRL_PARSE_CONTINUE", "Used to skip over bad opcodes"),
 	EXCEP_TXT("AE_CTRL_PARSE_PENDING", "Used to implement AML While loops")
 };

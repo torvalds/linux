@@ -1,0 +1,57 @@
+* Rockchip SPI Controller
+
+The Rockchip SPI controller is used to interface with various devices such as flash
+and display controllers using the SPI communication interface.
+
+Required Properties:
+
+- compatible: should be one of the following.
+    "rockchip,rv1108-spi" for rv1108 SoCs.
+    "rockchip,rk3036-spi" for rk3036 SoCS.
+    "rockchip,rk3066-spi" for rk3066 SoCs.
+    "rockchip,rk3188-spi" for rk3188 SoCs.
+    "rockchip,rk3228-spi" for rk3228 SoCS.
+    "rockchip,rk3288-spi" for rk3288 SoCs.
+    "rockchip,rk3368-spi" for rk3368 SoCs.
+    "rockchip,rk3399-spi" for rk3399 SoCs.
+- reg: physical base address of the controller and length of memory mapped
+       region.
+- interrupts: The interrupt number to the cpu. The interrupt specifier format
+              depends on the interrupt controller.
+- clocks: Must contain an entry for each entry in clock-names.
+- clock-names: Shall be "spiclk" for the transfer-clock, and "apb_pclk" for
+			   the peripheral clock.
+- #address-cells: should be 1.
+- #size-cells: should be 0.
+
+Optional Properties:
+
+- dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
+		Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: DMA request names should include "tx" and "rx" if present.
+- rx-sample-delay-ns: nanoseconds to delay after the SCLK edge before sampling
+		Rx data (may need to be fine tuned for high capacitance lines).
+		No delay (0) by default.
+- pinctrl-names: Names for the pin configuration(s); may be "default" or
+		"sleep", where the "sleep" configuration may describe the state
+		the pins should be in during system suspend. See also
+		pinctrl/pinctrl-bindings.txt.
+
+
+Example:
+
+	spi0: spi@ff110000 {
+		compatible = "rockchip,rk3066-spi";
+		reg = <0xff110000 0x1000>;
+		dmas = <&pdma1 11>, <&pdma1 12>;
+		dma-names = "tx", "rx";
+		rx-sample-delay-ns = <10>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
+		clock-names = "spiclk", "apb_pclk";
+		pinctrl-0 = <&spi1_pins>;
+		pinctrl-1 = <&spi1_sleep>;
+		pinctrl-names = "default", "sleep";
+	};

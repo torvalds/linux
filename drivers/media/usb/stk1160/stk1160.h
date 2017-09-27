@@ -23,7 +23,7 @@
 #include <linux/i2c.h>
 #include <sound/core.h>
 #include <sound/ac97_codec.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
@@ -50,6 +50,8 @@
 #define STK1160_MAX_INPUT 4
 #define STK1160_SVIDEO_INPUT 4
 
+#define STK1160_AC97_TIMEOUT 50
+
 #define STK1160_I2C_TIMEOUT 100
 
 /* TODO: Print helpers
@@ -58,7 +60,6 @@
  * new drivers should use.
  *
  */
-#define DEBUG
 #ifdef DEBUG
 #define stk1160_dbg(fmt, args...) \
 	printk(KERN_DEBUG "stk1160: " fmt,  ## args)
@@ -78,7 +79,7 @@
 /* Buffer for one video frame */
 struct stk1160_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 
 	void *mem;
@@ -143,7 +144,6 @@ struct stk1160 {
 	int num_alt;
 
 	struct stk1160_isoc_ctl isoc_ctl;
-	char urb_buf[255];	 /* urb control msg buffer */
 
 	/* frame properties */
 	int width;		  /* current frame width */
@@ -152,8 +152,7 @@ struct stk1160 {
 	v4l2_std_id norm;	  /* current norm */
 	struct stk1160_fmt *fmt;  /* selected format */
 
-	unsigned int field_count; /* not sure ??? */
-	enum v4l2_field field;    /* also not sure :/ */
+	unsigned int sequence;
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap;
@@ -200,11 +199,4 @@ int stk1160_read_reg_req_len(struct stk1160 *dev, u8 req, u16 reg,
 void stk1160_select_input(struct stk1160 *dev);
 
 /* Provided by stk1160-ac97.c */
-#ifdef CONFIG_VIDEO_STK1160_AC97
-int stk1160_ac97_register(struct stk1160 *dev);
-int stk1160_ac97_unregister(struct stk1160 *dev);
-#else
-static inline int stk1160_ac97_register(struct stk1160 *dev) { return 0; }
-static inline int stk1160_ac97_unregister(struct stk1160 *dev) { return 0; }
-#endif
-
+void stk1160_ac97_setup(struct stk1160 *dev);

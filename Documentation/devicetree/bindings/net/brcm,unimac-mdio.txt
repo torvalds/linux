@@ -1,0 +1,40 @@
+* Broadcom UniMAC MDIO bus controller
+
+Required properties:
+- compatible: should one from "brcm,genet-mdio-v1", "brcm,genet-mdio-v2",
+  "brcm,genet-mdio-v3", "brcm,genet-mdio-v4", "brcm,genet-mdio-v5" or
+  "brcm,unimac-mdio"
+- reg: address and length of the register set for the device, first one is the
+  base register, and the second one is optional and for indirect accesses to
+  larger than 16-bits MDIO transactions
+- reg-names: name(s) of the register must be "mdio" and optional "mdio_indir_rw"
+- #size-cells: must be 1
+- #address-cells: must be 0
+
+Optional properties:
+- interrupts: must be one if the interrupt is shared with the Ethernet MAC or
+  Ethernet switch this MDIO block is integrated from, or must be two, if there
+  are two separate interrupts, first one must be "mdio done" and second must be
+  for "mdio error"
+- interrupt-names: must be "mdio_done_error" when there is a share interrupt fed
+  to this hardware block, or must be "mdio_done" for the first interrupt and
+  "mdio_error" for the second when there are separate interrupts
+
+Child nodes of this MDIO bus controller node are standard Ethernet PHY device
+nodes as described in Documentation/devicetree/bindings/net/phy.txt
+
+Example:
+
+mdio@403c0 {
+	compatible = "brcm,unimac-mdio";
+	reg = <0x403c0 0x8 0x40300 0x18>;
+	reg-names = "mdio", "mdio_indir_rw";
+	#size-cells = <1>;
+	#address-cells = <0>;
+
+	...
+	phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};

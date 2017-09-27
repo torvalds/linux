@@ -40,11 +40,11 @@
 #include <asm/netlogic/interrupt.h>
 #include <asm/netlogic/common.h>
 #include <asm/netlogic/haldefs.h>
-#include <asm/netlogic/common.h>
 
 #if defined(CONFIG_CPU_XLP)
 #include <asm/netlogic/xlp-hal/iomap.h>
 #include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/sys.h>
 #include <asm/netlogic/xlp-hal/pic.h>
 #elif defined(CONFIG_CPU_XLR)
 #include <asm/netlogic/xlr/iomap.h>
@@ -59,14 +59,14 @@ unsigned int get_c0_compare_int(void)
 	return IRQ_TIMER;
 }
 
-static cycle_t nlm_get_pic_timer(struct clocksource *cs)
+static u64 nlm_get_pic_timer(struct clocksource *cs)
 {
 	uint64_t picbase = nlm_get_node(0)->picbase;
 
 	return ~nlm_pic_read_timer(picbase, PIC_CLOCK_TIMER);
 }
 
-static cycle_t nlm_get_pic_timer32(struct clocksource *cs)
+static u64 nlm_get_pic_timer32(struct clocksource *cs)
 {
 	uint64_t picbase = nlm_get_node(0)->picbase;
 
@@ -81,6 +81,7 @@ static struct clocksource csrc_pic = {
 static void nlm_init_pic_timer(void)
 {
 	uint64_t picbase = nlm_get_node(0)->picbase;
+	u32 picfreq;
 
 	nlm_pic_set_timer(picbase, PIC_CLOCK_TIMER, ~0ULL, 0, 0);
 	if (current_cpu_data.cputype == CPU_XLR) {
@@ -91,7 +92,9 @@ static void nlm_init_pic_timer(void)
 		csrc_pic.read	= nlm_get_pic_timer;
 	}
 	csrc_pic.rating = 1000;
-	clocksource_register_hz(&csrc_pic, PIC_CLK_HZ);
+	picfreq = pic_timer_freq();
+	clocksource_register_hz(&csrc_pic, picfreq);
+	pr_info("PIC clock source added, frequency %d\n", picfreq);
 }
 
 void __init plat_time_init(void)

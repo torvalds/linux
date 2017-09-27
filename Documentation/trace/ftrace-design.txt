@@ -102,30 +102,6 @@ extern void mcount(void);
 EXPORT_SYMBOL(mcount);
 
 
-HAVE_FUNCTION_TRACE_MCOUNT_TEST
--------------------------------
-
-This is an optional optimization for the normal case when tracing is turned off
-in the system.  If you do not enable this Kconfig option, the common ftrace
-code will take care of doing the checking for you.
-
-To support this feature, you only need to check the function_trace_stop
-variable in the mcount function.  If it is non-zero, there is no tracing to be
-done at all, so you can return.
-
-This additional pseudo code would simply be:
-void mcount(void)
-{
-	/* save any bare state needed in order to do initial checking */
-
-+	if (function_trace_stop)
-+		return;
-
-	extern void (*ftrace_trace_function)(unsigned long, unsigned long);
-	if (ftrace_trace_function != ftrace_stub)
-...
-
-
 HAVE_FUNCTION_GRAPH_TRACER
 --------------------------
 
@@ -227,6 +203,17 @@ along to ftrace_push_return_trace() instead of a stub value of 0.
 
 Similarly, when you call ftrace_return_to_handler(), pass it the frame pointer.
 
+HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+--------------------------------
+
+An arch may pass in a pointer to the return address on the stack.  This
+prevents potential stack unwinding issues where the unwinder gets out of
+sync with ret_stack and the wrong addresses are reported by
+ftrace_graph_ret_addr().
+
+Adding support for it is easy: just define the macro in asm/ftrace.h and
+pass the return address pointer as the 'retp' argument to
+ftrace_push_return_trace().
 
 HAVE_FTRACE_NMI_ENTER
 ---------------------
@@ -328,8 +315,6 @@ void mcount(void)
 
 void ftrace_caller(void)
 {
-	/* implement HAVE_FUNCTION_TRACE_MCOUNT_TEST if you desire */
-
 	/* save all state needed by the ABI (see paragraph above) */
 
 	unsigned long frompc = ...;
@@ -358,11 +343,8 @@ Every arch has an init callback function.  If you need to do something early on
 to initialize some state, this is the time to do that.  Otherwise, this simple
 function below should be sufficient for most people:
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
-	/* return value is done indirectly via data */
-	*(unsigned long *)data = 0;
-
 	return 0;
 }
 

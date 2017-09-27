@@ -56,13 +56,13 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for GUS MAX soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable GUS MAX soundcard.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for GUS MAX driver.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for GUS MAX driver.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "DMA1 # for GUS MAX driver.");
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for GUS MAX driver.");
 module_param_array(joystick_dac, int, NULL, 0444);
 MODULE_PARM_DESC(joystick_dac, "Joystick DAC level 0.59V-4.52V or 0.389V-2.98V for GUS MAX driver.");
@@ -214,8 +214,8 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	struct snd_wss *wss;
 	struct snd_gusmax *maxcard;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_gusmax), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_gusmax), &card);
 	if (err < 0)
 		return err;
 	card->private_free = snd_gusmax_free;
@@ -309,7 +309,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	if (err < 0)
 		goto _err;
 
-	err = snd_wss_pcm(wss, 0, NULL);
+	err = snd_wss_pcm(wss, 0);
 	if (err < 0)
 		goto _err;
 
@@ -317,27 +317,25 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	if (err < 0)
 		goto _err;
 
-	err = snd_wss_timer(wss, 2, NULL);
+	err = snd_wss_timer(wss, 2);
 	if (err < 0)
 		goto _err;
 
 	if (pcm_channels[dev] > 0) {
-		if ((err = snd_gf1_pcm_new(gus, 1, 1, NULL)) < 0)
+		if ((err = snd_gf1_pcm_new(gus, 1, 1)) < 0)
 			goto _err;
 	}
 	err = snd_gusmax_mixer(wss);
 	if (err < 0)
 		goto _err;
 
-	err = snd_gf1_rawmidi_new(gus, 0, NULL);
+	err = snd_gf1_rawmidi_new(gus, 0);
 	if (err < 0)
 		goto _err;
 
 	sprintf(card->longname + strlen(card->longname), " at 0x%lx, irq %i, dma %i", gus->gf1.port, xirq, xdma1);
 	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%i", xdma2);
-
-	snd_card_set_dev(card, pdev);
 
 	err = snd_card_register(card);
 	if (err < 0)
@@ -372,15 +370,4 @@ static struct isa_driver snd_gusmax_driver = {
 	},
 };
 
-static int __init alsa_card_gusmax_init(void)
-{
-	return isa_register_driver(&snd_gusmax_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_gusmax_exit(void)
-{
-	isa_unregister_driver(&snd_gusmax_driver);
-}
-
-module_init(alsa_card_gusmax_init)
-module_exit(alsa_card_gusmax_exit)
+module_isa_driver(snd_gusmax_driver, SNDRV_CARDS);

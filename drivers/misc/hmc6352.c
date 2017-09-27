@@ -22,7 +22,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
@@ -133,7 +132,7 @@ static int hmc6352_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id hmc6352_id[] = {
+static const struct i2c_device_id hmc6352_id[] = {
 	{ "hmc6352", 0 },
 	{ }
 };

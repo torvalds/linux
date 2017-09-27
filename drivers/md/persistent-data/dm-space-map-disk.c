@@ -78,7 +78,9 @@ static int sm_disk_count_is_more_than_one(struct dm_space_map *sm, dm_block_t b,
 	if (r)
 		return r;
 
-	return count > 1;
+	*result = count > 1;
+
+	return 0;
 }
 
 static int sm_disk_set_count(struct dm_space_map *sm, dm_block_t b,
@@ -152,10 +154,7 @@ static int sm_disk_dec_block(struct dm_space_map *sm, dm_block_t b)
 		 * transaction.
 		 */
 		r = sm_ll_lookup(&smd->old_ll, b, &old_count);
-		if (r)
-			return r;
-
-		if (!old_count)
+		if (!r && !old_count)
 			smd->nr_allocated_this_transaction--;
 	}
 

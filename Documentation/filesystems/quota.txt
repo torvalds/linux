@@ -6,7 +6,7 @@ Quota subsystem allows system administrator to set limits on used space and
 number of used inodes (inode is a filesystem structure which is associated with
 each file or directory) for users and/or groups. For both used space and number
 of used inodes there are actually two limits. The first one is called softlimit
-and the second one hardlimit.  An user can never exceed a hardlimit for any
+and the second one hardlimit.  A user can never exceed a hardlimit for any
 resource (unless he has CAP_SYS_RESOURCE capability). User is allowed to exceed
 softlimit but only for limited period of time. This period is called "grace
 period" or "grace time". When grace time is over, user is not able to allocate
@@ -32,7 +32,10 @@ The interface uses generic netlink framework (see
 http://lwn.net/Articles/208755/ and http://people.suug.ch/~tgr/libnl/ for more
 details about this layer). The name of the quota generic netlink interface
 is "VFS_DQUOT". Definitions of constants below are in <linux/quota.h>.
-  Currently, the interface supports only one message type QUOTA_NL_C_WARNING.
+Since the quota netlink protocol is not namespace aware, quota netlink messages
+are sent only in initial network namespace.
+
+Currently, the interface supports only one message type QUOTA_NL_C_WARNING.
 This command is used to send a notification about any of the above mentioned
 events. Each message has six attributes. These are (type of the argument is
 in parentheses):

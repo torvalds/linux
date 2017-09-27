@@ -84,7 +84,7 @@ hmark_ct_set_htuple(const struct sk_buff *skb, struct hmark_tuple *t,
 	struct nf_conntrack_tuple *otuple;
 	struct nf_conntrack_tuple *rtuple;
 
-	if (ct == NULL || nf_ct_is_untracked(ct))
+	if (ct == NULL)
 		return -1;
 
 	otuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
@@ -126,7 +126,7 @@ hmark_hash(struct hmark_tuple *t, const struct xt_hmark_info *info)
 	hash = jhash_3words(src, dst, t->uports.v32, info->hashrnd);
 	hash = hash ^ (t->proto & info->proto_mask);
 
-	return (((u64)hash * info->hmodulus) >> 32) + info->hoffset;
+	return reciprocal_scale(hash, info->hmodulus) + info->hoffset;
 }
 
 static void

@@ -19,16 +19,16 @@ typedef u64 befs_blocknr_t;
  * BeFS in memory structures
  */
 
-typedef struct befs_mount_options {
+struct befs_mount_options {
 	kgid_t gid;
 	kuid_t uid;
 	int use_gid;
 	int use_uid;
 	int debug;
 	char *iocharset;
-} befs_mount_options;
+};
 
-typedef struct befs_sb_info {
+struct befs_sb_info {
 	u32 magic1;
 	u32 block_size;
 	u32 block_shift;
@@ -43,7 +43,10 @@ typedef struct befs_sb_info {
 	u32 ag_shift;
 	u32 num_ags;
 
-	/* jornal log entry */
+	/* State of the superblock */
+	u32 flags;
+
+	/* Journal log entry */
 	befs_block_run log_blocks;
 	befs_off_t log_start;
 	befs_off_t log_end;
@@ -52,12 +55,11 @@ typedef struct befs_sb_info {
 	befs_inode_addr indices;
 	u32 magic3;
 
-	befs_mount_options mount_opts;
+	struct befs_mount_options mount_opts;
 	struct nls_table *nls;
+};
 
-} befs_sb_info;
-
-typedef struct befs_inode_info {
+struct befs_inode_info {
 	u32 i_flags;
 	u32 i_type;
 
@@ -71,8 +73,7 @@ typedef struct befs_inode_info {
 	} i_data;
 
 	struct inode vfs_inode;
-
-} befs_inode_info;
+};
 
 enum befs_err {
 	BEFS_OK,
@@ -81,15 +82,18 @@ enum befs_err {
 	BEFS_BT_END,
 	BEFS_BT_EMPTY,
 	BEFS_BT_MATCH,
-	BEFS_BT_PARMATCH,
+	BEFS_BT_OVERFLOW,
 	BEFS_BT_NOT_FOUND
 };
 
 
 /****************************/
 /* debug.c */
+__printf(2, 3)
 void befs_error(const struct super_block *sb, const char *fmt, ...);
+__printf(2, 3)
 void befs_warning(const struct super_block *sb, const char *fmt, ...);
+__printf(2, 3)
 void befs_debug(const struct super_block *sb, const char *fmt, ...);
 
 void befs_dump_super_block(const struct super_block *sb, befs_super_block *);
@@ -102,20 +106,20 @@ void befs_dump_index_node(const struct super_block *sb, befs_btree_nodehead *);
 /* Gets a pointer to the private portion of the super_block
  * structure from the public part
  */
-static inline befs_sb_info *
+static inline struct befs_sb_info *
 BEFS_SB(const struct super_block *super)
 {
-	return (befs_sb_info *) super->s_fs_info;
+	return (struct befs_sb_info *) super->s_fs_info;
 }
 
-static inline befs_inode_info *
+static inline struct befs_inode_info *
 BEFS_I(const struct inode *inode)
 {
-	return list_entry(inode, struct befs_inode_info, vfs_inode);
+	return container_of(inode, struct befs_inode_info, vfs_inode);
 }
 
 static inline befs_blocknr_t
-iaddr2blockno(struct super_block *sb, befs_inode_addr * iaddr)
+iaddr2blockno(struct super_block *sb, const befs_inode_addr *iaddr)
 {
 	return ((iaddr->allocation_group << BEFS_SB(sb)->ag_shift) +
 		iaddr->start);
@@ -125,6 +129,7 @@ static inline befs_inode_addr
 blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 {
 	befs_inode_addr iaddr;
+
 	iaddr.allocation_group = blockno >> BEFS_SB(sb)->ag_shift;
 	iaddr.start =
 	    blockno - (iaddr.allocation_group << BEFS_SB(sb)->ag_shift);
@@ -136,19 +141,7 @@ blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 static inline unsigned int
 befs_iaddrs_per_block(struct super_block *sb)
 {
-	return BEFS_SB(sb)->block_size / sizeof (befs_disk_inode_addr);
-}
-
-static inline int
-befs_iaddr_is_empty(befs_inode_addr * iaddr)
-{
-	return (!iaddr->allocation_group) && (!iaddr->start) && (!iaddr->len);
-}
-
-static inline size_t
-befs_brun_size(struct super_block *sb, befs_block_run run)
-{
-	return BEFS_SB(sb)->block_size * run.len;
+	return BEFS_SB(sb)->block_size / sizeof(befs_disk_inode_addr);
 }
 
 #include "endian.h"

@@ -33,11 +33,19 @@ OPTIONS
 
 -f::
 --force::
-        Don't complain, do it.
+        Don't do ownership validation.
 
 -v::
 --verbose::
         Be more verbose. (Show symbol address, etc)
+
+-q::
+--quiet::
+	Do not show any message.  (Suppress -v)
+
+-n::
+--show-nr-samples::
+	Show the number of samples for each symbol
 
 -D::
 --dump-raw-trace::
@@ -61,6 +69,13 @@ OPTIONS
 
 --stdio:: Use the stdio interface.
 
+--stdio-color::
+	'always', 'never' or 'auto', allowing configuring color output
+	via the command line, in addition to via "color.ui" .perfconfig.
+	Use '--stdio-color always' to generate color even when redirecting
+	to a pipe or file. Using just '--stdio-color' is equivalent to
+	using 'always'.
+
 --tui:: Use the TUI interface. Use of --tui requires a tty, if one is not
 	present, as when piping to other commands, the stdio interface is
 	used. This interfaces starts by centering on the line with more
@@ -76,6 +91,8 @@ OPTIONS
 
 --asm-raw::
 	Show raw instruction encoding of assembly instructions.
+
+--show-total-period:: Show a column with the sum of periods.
 
 --source::
 	Interleave source code with assembly code. Enabled by default,

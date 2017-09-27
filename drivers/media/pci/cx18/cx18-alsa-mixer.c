@@ -13,11 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include <linux/init.h>
@@ -93,7 +88,7 @@ static int snd_cx18_mixer_tv_vol_get(struct snd_kcontrol *kctl,
 	vctrl.value = dB_to_cx18_av_vol(uctl->value.integer.value[0]);
 
 	snd_cx18_lock(cxsc);
-	ret = v4l2_subdev_call(cx->sd_av, core, g_ctrl, &vctrl);
+	ret = v4l2_g_ctrl(cx->sd_av->ctrl_handler, &vctrl);
 	snd_cx18_unlock(cxsc);
 
 	if (!ret)
@@ -115,14 +110,14 @@ static int snd_cx18_mixer_tv_vol_put(struct snd_kcontrol *kctl,
 	snd_cx18_lock(cxsc);
 
 	/* Fetch current state */
-	ret = v4l2_subdev_call(cx->sd_av, core, g_ctrl, &vctrl);
+	ret = v4l2_g_ctrl(cx->sd_av->ctrl_handler, &vctrl);
 
 	if (ret ||
 	    (cx18_av_vol_to_dB(vctrl.value) != uctl->value.integer.value[0])) {
 
 		/* Set, if needed */
 		vctrl.value = dB_to_cx18_av_vol(uctl->value.integer.value[0]);
-		ret = v4l2_subdev_call(cx->sd_av, core, s_ctrl, &vctrl);
+		ret = v4l2_s_ctrl(cx->sd_av->ctrl_handler, &vctrl);
 		if (!ret)
 			ret = 1; /* Indicate control was changed w/o error */
 	}
@@ -166,7 +161,7 @@ int __init snd_cx18_mixer_create(struct snd_cx18_card *cxsc)
 
 	strlcpy(sc->mixername, "CX23418 Mixer", sizeof(sc->mixername));
 
-	ret = snd_ctl_add(sc, snd_ctl_new1(snd_cx18_mixer_tv_vol, cxsc));
+	ret = snd_ctl_add(sc, snd_ctl_new1(&snd_cx18_mixer_tv_vol, cxsc));
 	if (ret) {
 		CX18_ALSA_WARN("%s: failed to add %s control, err %d\n",
 				__func__, snd_cx18_mixer_tv_vol.name, ret);

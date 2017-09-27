@@ -3,7 +3,8 @@
 #include "util/annotate.h"
 #include "util/evsel.h"
 #include "ui/helpline.h"
-
+#include <inttypes.h>
+#include <signal.h>
 
 enum {
 	ANN_COL__PERCENT,
@@ -33,10 +34,10 @@ static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 		return 0;
 
 	symhist = annotation__histogram(symbol__annotation(sym), evidx);
-	if (!symbol_conf.event_group && !symhist->addr[dl->offset])
+	if (!symbol_conf.event_group && !symhist->addr[dl->offset].nr_samples)
 		return 0;
 
-	percent = 100.0 * symhist->addr[dl->offset] / symhist->sum;
+	percent = 100.0 * symhist->addr[dl->offset].nr_samples / symhist->nr_samples;
 
 	markup = perf_gtk__get_percent_color(percent);
 	if (markup)
@@ -154,20 +155,25 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 	return 0;
 }
 
-int symbol__gtk_annotate(struct symbol *sym, struct map *map,
-			 struct perf_evsel *evsel,
-			 struct hist_browser_timer *hbt)
+static int symbol__gtk_annotate(struct symbol *sym, struct map *map,
+				struct perf_evsel *evsel,
+				struct hist_browser_timer *hbt)
 {
 	GtkWidget *window;
 	GtkWidget *notebook;
 	GtkWidget *scrolled_window;
 	GtkWidget *tab_label;
+	int err;
 
 	if (map->dso->annotate_warned)
 		return -1;
 
-	if (symbol__annotate(sym, map, 0) < 0) {
-		ui__error("%s", ui_helpline__current);
+	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
+				  0, NULL, NULL);
+	if (err) {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		ui__error("Couldn't annotate %s: %s\n", sym->name, msg);
 		return -1;
 	}
 
@@ -224,6 +230,13 @@ int symbol__gtk_annotate(struct symbol *sym, struct map *map,
 
 	perf_gtk__annotate_symbol(scrolled_window, sym, map, evsel, hbt);
 	return 0;
+}
+
+int hist_entry__gtk_annotate(struct hist_entry *he,
+			     struct perf_evsel *evsel,
+			     struct hist_browser_timer *hbt)
+{
+	return symbol__gtk_annotate(he->ms.sym, he->ms.map, evsel, hbt);
 }
 
 void perf_gtk__show_annotations(void)

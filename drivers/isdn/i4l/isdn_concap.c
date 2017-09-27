@@ -80,9 +80,9 @@ static int isdn_concap_dl_disconn_req(struct concap_proto *concap)
 }
 
 struct concap_device_ops isdn_concap_reliable_dl_dops = {
-	&isdn_concap_dl_data_req,
-	&isdn_concap_dl_connect_req,
-	&isdn_concap_dl_disconn_req
+	.data_req = &isdn_concap_dl_data_req,
+	.connect_req = &isdn_concap_dl_connect_req,
+	.disconn_req = &isdn_concap_dl_disconn_req
 };
 
 /* The following should better go into a dedicated source file such that

@@ -1,5 +1,4 @@
-/* arch/arm/plat-samsung/include/plat/audio.h
- *
+/*
  * Copyright (c) 2009 Samsung Electronics Co. Ltd
  * Author: Jaswinder Singh <jassi.brar@samsung.com>
  *
@@ -14,18 +13,12 @@
  */
 #define S3C64XX_AC97_GPD  0
 #define S3C64XX_AC97_GPE  1
+
+#include <linux/dmaengine.h>
+
 extern void s3c64xx_ac97_setup_gpio(int);
 
-/*
- * The machine init code calls s5p*_spdif_setup_gpio with
- * one of these defines in order to select appropriate bank
- * of GPIO for S/PDIF pins
- */
-#define S5PC100_SPDIF_GPD  0
-#define S5PC100_SPDIF_GPG3 1
-extern void s5pc100_spdif_setup_gpio(int);
-
-struct samsung_i2s {
+struct samsung_i2s_type {
 /* If the Primary DAI has 5.1 Channels */
 #define QUIRK_PRI_6CHAN		(1 << 0)
 /* If the I2S block has a Stereo Overlay Channel */
@@ -36,6 +29,8 @@ struct samsung_i2s {
  */
 #define QUIRK_NO_MUXPSR		(1 << 2)
 #define QUIRK_NEED_RSTCLR	(1 << 3)
+#define QUIRK_SUPPORTS_TDM	(1 << 4)
+#define QUIRK_SUPPORTS_IDMA	(1 << 5)
 	/* Quirks of the I2S controller */
 	u32 quirks;
 	dma_addr_t idma_addr;
@@ -47,7 +42,10 @@ struct samsung_i2s {
  */
 struct s3c_audio_pdata {
 	int (*cfg_gpio)(struct platform_device *);
-	union {
-		struct samsung_i2s i2s;
-	} type;
+	dma_filter_fn dma_filter;
+	void *dma_playback;
+	void *dma_capture;
+	void *dma_play_sec;
+	void *dma_capture_mic;
+	struct samsung_i2s_type type;
 };

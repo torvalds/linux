@@ -348,7 +348,7 @@ static irqreturn_t aaci_irq(int irq, void *devid)
 /*
  * ALSA support.
  */
-static struct snd_pcm_hardware aaci_hw_info = {
+static const struct snd_pcm_hardware aaci_hw_info = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
@@ -635,7 +635,7 @@ static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cm
 	return ret;
 }
 
-static struct snd_pcm_ops aaci_playback_ops = {
+static const struct snd_pcm_ops aaci_playback_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -738,7 +738,7 @@ static int aaci_pcm_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops aaci_capture_ops = {
+static const struct snd_pcm_ops aaci_capture_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -753,7 +753,7 @@ static struct snd_pcm_ops aaci_capture_ops = {
  * Power Management.
  */
 #ifdef CONFIG_PM
-static int aaci_do_suspend(struct snd_card *card, unsigned int state)
+static int aaci_do_suspend(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
@@ -761,32 +761,32 @@ static int aaci_do_suspend(struct snd_card *card, unsigned int state)
 	return 0;
 }
 
-static int aaci_do_resume(struct snd_card *card, unsigned int state)
+static int aaci_do_resume(struct snd_card *card)
 {
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 
-static int aaci_suspend(struct amba_device *dev, pm_message_t state)
+static int aaci_suspend(struct device *dev)
 {
-	struct snd_card *card = amba_get_drvdata(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	return card ? aaci_do_suspend(card) : 0;
 }
 
-static int aaci_resume(struct amba_device *dev)
+static int aaci_resume(struct device *dev)
 {
-	struct snd_card *card = amba_get_drvdata(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	return card ? aaci_do_resume(card) : 0;
 }
+
+static SIMPLE_DEV_PM_OPS(aaci_dev_pm_ops, aaci_suspend, aaci_resume);
+#define AACI_DEV_PM_OPS (&aaci_dev_pm_ops)
 #else
-#define aaci_do_suspend		NULL
-#define aaci_do_resume		NULL
-#define aaci_suspend		NULL
-#define aaci_resume		NULL
+#define AACI_DEV_PM_OPS NULL
 #endif
 
 
-static struct ac97_pcm ac97_defs[] = {
+static const struct ac97_pcm ac97_defs[] = {
 	[0] = {	/* Front PCM */
 		.exclusive = 1,
 		.r = {
@@ -889,8 +889,8 @@ static int aaci_probe_ac97(struct aaci *aaci)
 static void aaci_free_card(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
-	if (aaci->base)
-		iounmap(aaci->base);
+
+	iounmap(aaci->base);
 }
 
 static struct aaci *aaci_init_card(struct amba_device *dev)
@@ -899,8 +899,8 @@ static struct aaci *aaci_init_card(struct amba_device *dev)
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			      THIS_MODULE, sizeof(struct aaci), &card);
+	err = snd_card_new(&dev->dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			   THIS_MODULE, sizeof(struct aaci), &card);
 	if (err < 0)
 		return NULL;
 
@@ -1055,8 +1055,6 @@ static int aaci_probe(struct amba_device *dev,
 	if (ret)
 		goto out;
 
-	snd_card_set_dev(aaci->card, &dev->dev);
-
 	ret = snd_card_register(aaci->card);
 	if (ret == 0) {
 		dev_info(&dev->dev, "%s\n", aaci->card->longname);
@@ -1100,11 +1098,10 @@ MODULE_DEVICE_TABLE(amba, aaci_ids);
 static struct amba_driver aaci_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
+		.pm	= AACI_DEV_PM_OPS,
 	},
 	.probe		= aaci_probe,
 	.remove		= aaci_remove,
-	.suspend	= aaci_suspend,
-	.resume		= aaci_resume,
 	.id_table	= aaci_ids,
 };
 

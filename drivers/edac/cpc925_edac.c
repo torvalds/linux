@@ -27,7 +27,6 @@
 #include <linux/platform_device.h>
 #include <linux/gfp.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define CPC925_EDAC_REVISION	" Ver: 1.0.0"
@@ -562,7 +561,7 @@ static void cpc925_mc_check(struct mem_ctl_info *mci)
 
 	if (apiexcp & UECC_EXCP_DETECTED) {
 		cpc925_mc_printk(mci, KERN_INFO, "DRAM UECC Fault\n");
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     pfn, offset, 0,
 				     csrow, -1, -1,
 				     mci->ctl_name, "");
@@ -619,7 +618,7 @@ static u32 cpc925_cpu_mask_disabled(void)
 		}
 
 		if (reg == NULL || *reg > 2) {
-			cpc925_printk(KERN_ERR, "Bad reg value at %s\n", cpunode->full_name);
+			cpc925_printk(KERN_ERR, "Bad reg value at %pOF\n", cpunode);
 			continue;
 		}
 
@@ -789,7 +788,7 @@ static struct cpc925_dev_info cpc925_devs[] = {
 	.exit = cpc925_htlink_exit,
 	.check = cpc925_htlink_check,
 	},
-	{0}, /* Terminated by NULL */
+	{ }
 };
 
 /*
@@ -1000,7 +999,6 @@ static int cpc925_probe(struct platform_device *pdev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = CPC925_EDAC_MOD_STR;
-	mci->mod_ver = CPC925_EDAC_REVISION;
 	mci->ctl_name = pdev->name;
 
 	if (edac_op_state == EDAC_OPSTATE_POLL)

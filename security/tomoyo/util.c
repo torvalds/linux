@@ -5,6 +5,8 @@
  */
 
 #include <linux/slab.h>
+#include <linux/rculist.h>
+
 #include "common.h"
 
 /* Lock for protecting policy. */
@@ -666,7 +668,7 @@ void tomoyo_fill_path_info(struct tomoyo_path_info *ptr)
 	ptr->const_len = tomoyo_const_part_length(name);
 	ptr->is_dir = len && (name[len - 1] == '/');
 	ptr->is_patterned = (ptr->const_len < len);
-	ptr->hash = full_name_hash(name, len);
+	ptr->hash = full_name_hash(NULL, name, len);
 }
 
 /**
@@ -948,15 +950,18 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
  */
 const char *tomoyo_get_exe(void)
 {
+	struct file *exe_file;
+	const char *cp;
 	struct mm_struct *mm = current->mm;
-	const char *cp = NULL;
 
 	if (!mm)
 		return NULL;
-	down_read(&mm->mmap_sem);
-	if (mm->exe_file)
-		cp = tomoyo_realpath_from_path(&mm->exe_file->f_path);
-	up_read(&mm->mmap_sem);
+	exe_file = get_mm_exe_file(mm);
+	if (!exe_file)
+		return NULL;
+
+	cp = tomoyo_realpath_from_path(&exe_file->f_path);
+	fput(exe_file);
 	return cp;
 }
 

@@ -35,13 +35,14 @@ static inline void rdev_set_wakeup(struct cfg80211_registered_device *rdev,
 
 static inline struct wireless_dev
 *rdev_add_virtual_intf(struct cfg80211_registered_device *rdev, char *name,
-		       enum nl80211_iftype type, u32 *flags,
+		       unsigned char name_assign_type,
+		       enum nl80211_iftype type,
 		       struct vif_params *params)
 {
 	struct wireless_dev *ret;
 	trace_rdev_add_virtual_intf(&rdev->wiphy, name, type);
-	ret = rdev->ops->add_virtual_intf(&rdev->wiphy, name, type, flags,
-					  params);
+	ret = rdev->ops->add_virtual_intf(&rdev->wiphy, name, name_assign_type,
+					  type, params);
 	trace_rdev_return_wdev(&rdev->wiphy, ret);
 	return ret;
 }
@@ -60,12 +61,11 @@ rdev_del_virtual_intf(struct cfg80211_registered_device *rdev,
 static inline int
 rdev_change_virtual_intf(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, enum nl80211_iftype type,
-			 u32 *flags, struct vif_params *params)
+			 struct vif_params *params)
 {
 	int ret;
 	trace_rdev_change_virtual_intf(&rdev->wiphy, dev, type);
-	ret = rdev->ops->change_virtual_intf(&rdev->wiphy, dev, type, flags,
-					     params);
+	ret = rdev->ops->change_virtual_intf(&rdev->wiphy, dev, type, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -178,11 +178,12 @@ static inline int rdev_add_station(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_del_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, u8 *mac)
+				   struct net_device *dev,
+				   struct station_del_parameters *params)
 {
 	int ret;
-	trace_rdev_del_station(&rdev->wiphy, dev, mac);
-	ret = rdev->ops->del_station(&rdev->wiphy, dev, mac);
+	trace_rdev_del_station(&rdev->wiphy, dev, params);
+	ret = rdev->ops->del_station(&rdev->wiphy, dev, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -199,7 +200,7 @@ static inline int rdev_change_station(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_get_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, u8 *mac,
+				   struct net_device *dev, const u8 *mac,
 				   struct station_info *sinfo)
 {
 	int ret;
@@ -263,6 +264,18 @@ static inline int rdev_get_mpath(struct cfg80211_registered_device *rdev,
 
 }
 
+static inline int rdev_get_mpp(struct cfg80211_registered_device *rdev,
+			       struct net_device *dev, u8 *dst, u8 *mpp,
+			       struct mpath_info *pinfo)
+{
+	int ret;
+
+	trace_rdev_get_mpp(&rdev->wiphy, dev, dst, mpp);
+	ret = rdev->ops->get_mpp(&rdev->wiphy, dev, dst, mpp, pinfo);
+	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
+	return ret;
+}
+
 static inline int rdev_dump_mpath(struct cfg80211_registered_device *rdev,
 				  struct net_device *dev, int idx, u8 *dst,
 				  u8 *next_hop, struct mpath_info *pinfo)
@@ -271,7 +284,20 @@ static inline int rdev_dump_mpath(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_dump_mpath(&rdev->wiphy, dev, idx, dst, next_hop);
 	ret = rdev->ops->dump_mpath(&rdev->wiphy, dev, idx, dst, next_hop,
-				     pinfo);
+				    pinfo);
+	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
+	return ret;
+}
+
+static inline int rdev_dump_mpp(struct cfg80211_registered_device *rdev,
+				struct net_device *dev, int idx, u8 *dst,
+				u8 *mpp, struct mpath_info *pinfo)
+
+{
+	int ret;
+
+	trace_rdev_dump_mpp(&rdev->wiphy, dev, idx, dst, mpp);
+	ret = rdev->ops->dump_mpp(&rdev->wiphy, dev, idx, dst, mpp, pinfo);
 	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
 	return ret;
 }
@@ -318,6 +344,27 @@ static inline int rdev_leave_mesh(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_leave_mesh(&rdev->wiphy, dev);
 	ret = rdev->ops->leave_mesh(&rdev->wiphy, dev);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_join_ocb(struct cfg80211_registered_device *rdev,
+				struct net_device *dev,
+				struct ocb_setup *setup)
+{
+	int ret;
+	trace_rdev_join_ocb(&rdev->wiphy, dev, setup);
+	ret = rdev->ops->join_ocb(&rdev->wiphy, dev, setup);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_leave_ocb(struct cfg80211_registered_device *rdev,
+				 struct net_device *dev)
+{
+	int ret;
+	trace_rdev_leave_ocb(&rdev->wiphy, dev);
+	ret = rdev->ops->leave_ocb(&rdev->wiphy, dev);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -379,6 +426,14 @@ static inline int rdev_scan(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline void rdev_abort_scan(struct cfg80211_registered_device *rdev,
+				   struct wireless_dev *wdev)
+{
+	trace_rdev_abort_scan(&rdev->wiphy, wdev);
+	rdev->ops->abort_scan(&rdev->wiphy, wdev);
+	trace_rdev_return_void(&rdev->wiphy);
+}
+
 static inline int rdev_auth(struct cfg80211_registered_device *rdev,
 			    struct net_device *dev,
 			    struct cfg80211_auth_request *req)
@@ -430,6 +485,18 @@ static inline int rdev_connect(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_connect(&rdev->wiphy, dev, sme);
 	ret = rdev->ops->connect(&rdev->wiphy, dev, sme);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int
+rdev_update_connect_params(struct cfg80211_registered_device *rdev,
+			   struct net_device *dev,
+			   struct cfg80211_connect_params *sme, u32 changed)
+{
+	int ret;
+	trace_rdev_update_connect_params(&rdev->wiphy, dev, sme, changed);
+	ret = rdev->ops->update_connect_params(&rdev->wiphy, dev, sme, changed);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -506,6 +573,18 @@ static inline int rdev_set_wds_peer(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int
+rdev_set_multicast_to_unicast(struct cfg80211_registered_device *rdev,
+			      struct net_device *dev,
+			      const bool enabled)
+{
+	int ret;
+	trace_rdev_set_multicast_to_unicast(&rdev->wiphy, dev, enabled);
+	ret = rdev->ops->set_multicast_to_unicast(&rdev->wiphy, dev, enabled);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
 static inline void rdev_rfkill_poll(struct cfg80211_registered_device *rdev)
 {
 	trace_rdev_rfkill_poll(&rdev->wiphy);
@@ -516,11 +595,12 @@ static inline void rdev_rfkill_poll(struct cfg80211_registered_device *rdev)
 
 #ifdef CONFIG_NL80211_TESTMODE
 static inline int rdev_testmode_cmd(struct cfg80211_registered_device *rdev,
+				    struct wireless_dev *wdev,
 				    void *data, int len)
 {
 	int ret;
-	trace_rdev_testmode_cmd(&rdev->wiphy);
-	ret = rdev->ops->testmode_cmd(&rdev->wiphy, data, len);
+	trace_rdev_testmode_cmd(&rdev->wiphy, wdev);
+	ret = rdev->ops->testmode_cmd(&rdev->wiphy, wdev, data, len);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -623,16 +703,12 @@ rdev_cancel_remain_on_channel(struct cfg80211_registered_device *rdev,
 
 static inline int rdev_mgmt_tx(struct cfg80211_registered_device *rdev,
 			       struct wireless_dev *wdev,
-			       struct ieee80211_channel *chan, bool offchan,
-			       unsigned int wait, const u8 *buf, size_t len,
-			       bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+			       struct cfg80211_mgmt_tx_params *params,
+			       u64 *cookie)
 {
 	int ret;
-	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
-			   wait, no_cck, dont_wait_for_ack);
-	ret = rdev->ops->mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
-				  wait, buf, len, no_cck,
-				  dont_wait_for_ack, cookie);
+	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, params);
+	ret = rdev->ops->mgmt_tx(&rdev->wiphy, wdev, params, cookie);
 	trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
 	return ret;
 }
@@ -673,6 +749,18 @@ rdev_set_cqm_rssi_config(struct cfg80211_registered_device *rdev,
 }
 
 static inline int
+rdev_set_cqm_rssi_range_config(struct cfg80211_registered_device *rdev,
+			       struct net_device *dev, s32 low, s32 high)
+{
+	int ret;
+	trace_rdev_set_cqm_rssi_range_config(&rdev->wiphy, dev, low, high);
+	ret = rdev->ops->set_cqm_rssi_range_config(&rdev->wiphy, dev,
+						   low, high);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int
 rdev_set_cqm_txe_config(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u32 rate, u32 pkts, u32 intvl)
 {
@@ -688,6 +776,8 @@ static inline void
 rdev_mgmt_frame_register(struct cfg80211_registered_device *rdev,
 			 struct wireless_dev *wdev, u16 frame_type, bool reg)
 {
+	might_sleep();
+
 	trace_rdev_mgmt_frame_register(&rdev->wiphy, wdev , frame_type, reg);
 	rdev->ops->mgmt_frame_register(&rdev->wiphy, wdev , frame_type, reg);
 	trace_rdev_return_void(&rdev->wiphy);
@@ -717,43 +807,24 @@ static inline int rdev_get_antenna(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
-static inline int rdev_set_ringparam(struct cfg80211_registered_device *rdev,
-				     u32 tx, u32 rx)
-{
-	int ret;
-	trace_rdev_set_ringparam(&rdev->wiphy, tx, rx);
-	ret = rdev->ops->set_ringparam(&rdev->wiphy, tx, rx);
-	trace_rdev_return_int(&rdev->wiphy, ret);
-	return ret;
-}
-
-static inline void rdev_get_ringparam(struct cfg80211_registered_device *rdev,
-				      u32 *tx, u32 *tx_max, u32 *rx,
-				      u32 *rx_max)
-{
-	trace_rdev_get_ringparam(&rdev->wiphy);
-	rdev->ops->get_ringparam(&rdev->wiphy, tx, tx_max, rx, rx_max);
-	trace_rdev_return_void_tx_rx(&rdev->wiphy, *tx, *tx_max, *rx, *rx_max);
-}
-
 static inline int
 rdev_sched_scan_start(struct cfg80211_registered_device *rdev,
 		      struct net_device *dev,
 		      struct cfg80211_sched_scan_request *request)
 {
 	int ret;
-	trace_rdev_sched_scan_start(&rdev->wiphy, dev, request);
+	trace_rdev_sched_scan_start(&rdev->wiphy, dev, request->reqid);
 	ret = rdev->ops->sched_scan_start(&rdev->wiphy, dev, request);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int rdev_sched_scan_stop(struct cfg80211_registered_device *rdev,
-				       struct net_device *dev)
+				       struct net_device *dev, u64 reqid)
 {
 	int ret;
-	trace_rdev_sched_scan_stop(&rdev->wiphy, dev);
-	ret = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
+	trace_rdev_sched_scan_stop(&rdev->wiphy, dev, reqid);
+	ret = rdev->ops->sched_scan_stop(&rdev->wiphy, dev, reqid);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -772,13 +843,16 @@ static inline int rdev_set_rekey_data(struct cfg80211_registered_device *rdev,
 static inline int rdev_tdls_mgmt(struct cfg80211_registered_device *rdev,
 				 struct net_device *dev, u8 *peer,
 				 u8 action_code, u8 dialog_token,
-				 u16 status_code, const u8 *buf, size_t len)
+				 u16 status_code, u32 peer_capability,
+				 bool initiator, const u8 *buf, size_t len)
 {
 	int ret;
 	trace_rdev_tdls_mgmt(&rdev->wiphy, dev, peer, action_code,
-			     dialog_token, status_code, buf, len);
+			     dialog_token, status_code, peer_capability,
+			     initiator, buf, len);
 	ret = rdev->ops->tdls_mgmt(&rdev->wiphy, dev, peer, action_code,
-				   dialog_token, status_code, buf, len);
+				   dialog_token, status_code, peer_capability,
+				   initiator, buf, len);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -816,35 +890,6 @@ static inline int rdev_set_noack_map(struct cfg80211_registered_device *rdev,
 }
 
 static inline int
-rdev_get_et_sset_count(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, int sset)
-{
-	int ret;
-	trace_rdev_get_et_sset_count(&rdev->wiphy, dev, sset);
-	ret = rdev->ops->get_et_sset_count(&rdev->wiphy, dev, sset);
-	trace_rdev_return_int(&rdev->wiphy, ret);
-	return ret;
-}
-
-static inline void rdev_get_et_stats(struct cfg80211_registered_device *rdev,
-				     struct net_device *dev,
-				     struct ethtool_stats *stats, u64 *data)
-{
-	trace_rdev_get_et_stats(&rdev->wiphy, dev);
-	rdev->ops->get_et_stats(&rdev->wiphy, dev, stats, data);
-	trace_rdev_return_void(&rdev->wiphy);
-}
-
-static inline void rdev_get_et_strings(struct cfg80211_registered_device *rdev,
-				       struct net_device *dev, u32 sset,
-				       u8 *data)
-{
-	trace_rdev_get_et_strings(&rdev->wiphy, dev, sset);
-	rdev->ops->get_et_strings(&rdev->wiphy, dev, sset, data);
-	trace_rdev_return_void(&rdev->wiphy);
-}
-
-static inline int
 rdev_get_channel(struct cfg80211_registered_device *rdev,
 		 struct wireless_dev *wdev,
 		 struct cfg80211_chan_def *chandef)
@@ -875,6 +920,64 @@ static inline void rdev_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	trace_rdev_stop_p2p_device(&rdev->wiphy, wdev);
 	rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
 	trace_rdev_return_void(&rdev->wiphy);
+}
+
+static inline int rdev_start_nan(struct cfg80211_registered_device *rdev,
+				 struct wireless_dev *wdev,
+				 struct cfg80211_nan_conf *conf)
+{
+	int ret;
+
+	trace_rdev_start_nan(&rdev->wiphy, wdev, conf);
+	ret = rdev->ops->start_nan(&rdev->wiphy, wdev, conf);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline void rdev_stop_nan(struct cfg80211_registered_device *rdev,
+				 struct wireless_dev *wdev)
+{
+	trace_rdev_stop_nan(&rdev->wiphy, wdev);
+	rdev->ops->stop_nan(&rdev->wiphy, wdev);
+	trace_rdev_return_void(&rdev->wiphy);
+}
+
+static inline int
+rdev_add_nan_func(struct cfg80211_registered_device *rdev,
+		  struct wireless_dev *wdev,
+		  struct cfg80211_nan_func *nan_func)
+{
+	int ret;
+
+	trace_rdev_add_nan_func(&rdev->wiphy, wdev, nan_func);
+	ret = rdev->ops->add_nan_func(&rdev->wiphy, wdev, nan_func);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline void rdev_del_nan_func(struct cfg80211_registered_device *rdev,
+				    struct wireless_dev *wdev, u64 cookie)
+{
+	trace_rdev_del_nan_func(&rdev->wiphy, wdev, cookie);
+	rdev->ops->del_nan_func(&rdev->wiphy, wdev, cookie);
+	trace_rdev_return_void(&rdev->wiphy);
+}
+
+static inline int
+rdev_nan_change_conf(struct cfg80211_registered_device *rdev,
+		     struct wireless_dev *wdev,
+		     struct cfg80211_nan_conf *conf, u32 changes)
+{
+	int ret;
+
+	trace_rdev_nan_change_conf(&rdev->wiphy, wdev, conf, changes);
+	if (rdev->ops->nan_change_conf)
+		ret = rdev->ops->nan_change_conf(&rdev->wiphy, wdev, conf,
+						 changes);
+	else
+		ret = -ENOTSUPP;
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
 }
 
 static inline int rdev_set_mac_acl(struct cfg80211_registered_device *rdev,
@@ -923,4 +1026,167 @@ static inline void rdev_crit_proto_stop(struct cfg80211_registered_device *rdev,
 	trace_rdev_return_void(&rdev->wiphy);
 }
 
+static inline int rdev_channel_switch(struct cfg80211_registered_device *rdev,
+				      struct net_device *dev,
+				      struct cfg80211_csa_settings *params)
+{
+	int ret;
+
+	trace_rdev_channel_switch(&rdev->wiphy, dev, params);
+	ret = rdev->ops->channel_switch(&rdev->wiphy, dev, params);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_set_qos_map(struct cfg80211_registered_device *rdev,
+				   struct net_device *dev,
+				   struct cfg80211_qos_map *qos_map)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (rdev->ops->set_qos_map) {
+		trace_rdev_set_qos_map(&rdev->wiphy, dev, qos_map);
+		ret = rdev->ops->set_qos_map(&rdev->wiphy, dev, qos_map);
+		trace_rdev_return_int(&rdev->wiphy, ret);
+	}
+
+	return ret;
+}
+
+static inline int
+rdev_set_ap_chanwidth(struct cfg80211_registered_device *rdev,
+		      struct net_device *dev, struct cfg80211_chan_def *chandef)
+{
+	int ret;
+
+	trace_rdev_set_ap_chanwidth(&rdev->wiphy, dev, chandef);
+	ret = rdev->ops->set_ap_chanwidth(&rdev->wiphy, dev, chandef);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_add_tx_ts(struct cfg80211_registered_device *rdev,
+	       struct net_device *dev, u8 tsid, const u8 *peer,
+	       u8 user_prio, u16 admitted_time)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_add_tx_ts(&rdev->wiphy, dev, tsid, peer,
+			     user_prio, admitted_time);
+	if (rdev->ops->add_tx_ts)
+		ret = rdev->ops->add_tx_ts(&rdev->wiphy, dev, tsid, peer,
+					   user_prio, admitted_time);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_del_tx_ts(struct cfg80211_registered_device *rdev,
+	       struct net_device *dev, u8 tsid, const u8 *peer)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_del_tx_ts(&rdev->wiphy, dev, tsid, peer);
+	if (rdev->ops->del_tx_ts)
+		ret = rdev->ops->del_tx_ts(&rdev->wiphy, dev, tsid, peer);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_tdls_channel_switch(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev, const u8 *addr,
+			 u8 oper_class, struct cfg80211_chan_def *chandef)
+{
+	int ret;
+
+	trace_rdev_tdls_channel_switch(&rdev->wiphy, dev, addr, oper_class,
+				       chandef);
+	ret = rdev->ops->tdls_channel_switch(&rdev->wiphy, dev, addr,
+					     oper_class, chandef);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline void
+rdev_tdls_cancel_channel_switch(struct cfg80211_registered_device *rdev,
+				struct net_device *dev, const u8 *addr)
+{
+	trace_rdev_tdls_cancel_channel_switch(&rdev->wiphy, dev, addr);
+	rdev->ops->tdls_cancel_channel_switch(&rdev->wiphy, dev, addr);
+	trace_rdev_return_void(&rdev->wiphy);
+}
+
+static inline int
+rdev_start_radar_detection(struct cfg80211_registered_device *rdev,
+			   struct net_device *dev,
+			   struct cfg80211_chan_def *chandef,
+			   u32 cac_time_ms)
+{
+	int ret = -ENOTSUPP;
+
+	trace_rdev_start_radar_detection(&rdev->wiphy, dev, chandef,
+					 cac_time_ms);
+	if (rdev->ops->start_radar_detection)
+		ret = rdev->ops->start_radar_detection(&rdev->wiphy, dev,
+						       chandef, cac_time_ms);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_mcast_rate(struct cfg80211_registered_device *rdev,
+		    struct net_device *dev,
+		    int mcast_rate[NUM_NL80211_BANDS])
+{
+	int ret = -ENOTSUPP;
+
+	trace_rdev_set_mcast_rate(&rdev->wiphy, dev, mcast_rate);
+	if (rdev->ops->set_mcast_rate)
+		ret = rdev->ops->set_mcast_rate(&rdev->wiphy, dev, mcast_rate);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int
+rdev_set_coalesce(struct cfg80211_registered_device *rdev,
+		  struct cfg80211_coalesce *coalesce)
+{
+	int ret = -ENOTSUPP;
+
+	trace_rdev_set_coalesce(&rdev->wiphy, coalesce);
+	if (rdev->ops->set_coalesce)
+		ret = rdev->ops->set_coalesce(&rdev->wiphy, coalesce);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_set_pmk(struct cfg80211_registered_device *rdev,
+			       struct net_device *dev,
+			       struct cfg80211_pmk_conf *pmk_conf)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_set_pmk(&rdev->wiphy, dev, pmk_conf);
+	if (rdev->ops->set_pmk)
+		ret = rdev->ops->set_pmk(&rdev->wiphy, dev, pmk_conf);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_del_pmk(struct cfg80211_registered_device *rdev,
+			       struct net_device *dev, const u8 *aa)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_del_pmk(&rdev->wiphy, dev, aa);
+	if (rdev->ops->del_pmk)
+		ret = rdev->ops->del_pmk(&rdev->wiphy, dev, aa);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
 #endif /* __CFG80211_RDEV_OPS */

@@ -211,7 +211,7 @@ enum head {
 struct swim_priv {
 	struct swim __iomem *base;
 	spinlock_t lock;
-	struct request_queue *queue;
+	int fdc_queue;
 	int floppy_count;
 	struct floppy_state unit[FD_MAX_UNIT];
 };
@@ -493,7 +493,7 @@ static inline int swim_read_sector(struct floppy_state *fs,
 	return ret;
 }
 
-static int floppy_read_sectors(struct floppy_state *fs,
+static blk_status_t floppy_read_sectors(struct floppy_state *fs,
 			       int req_sector, int sectors_nb,
 			       unsigned char *buffer)
 {
@@ -516,7 +516,7 @@ static int floppy_read_sectors(struct floppy_state *fs,
 			ret = swim_read_sector(fs, side, track, sector,
 						buffer);
 			if (try-- == 0)
-				return -EIO;
+				return BLK_STS_IOERR;
 		} while (ret != 512);
 
 		buffer += ret;
@@ -525,14 +525,35 @@ static int floppy_read_sectors(struct floppy_state *fs,
 	return 0;
 }
 
-static void redo_fd_request(struct request_queue *q)
+static struct request *swim_next_request(struct swim_priv *swd)
 {
+	struct request_queue *q;
+	struct request *rq;
+	int old_pos = swd->fdc_queue;
+
+	do {
+		q = swd->unit[swd->fdc_queue].disk->queue;
+		if (++swd->fdc_queue == swd->floppy_count)
+			swd->fdc_queue = 0;
+		if (q) {
+			rq = blk_fetch_request(q);
+			if (rq)
+				return rq;
+		}
+	} while (swd->fdc_queue != old_pos);
+
+	return NULL;
+}
+
+static void do_fd_request(struct request_queue *q)
+{
+	struct swim_priv *swd = q->queuedata;
 	struct request *req;
 	struct floppy_state *fs;
 
-	req = blk_fetch_request(q);
+	req = swim_next_request(swd);
 	while (req) {
-		int err = -EIO;
+		blk_status_t err = BLK_STS_IOERR;
 
 		fs = req->rq_disk->private_data;
 		if (blk_rq_pos(req) >= fs->total_secs)
@@ -549,18 +570,13 @@ static void redo_fd_request(struct request_queue *q)
 		case READ:
 			err = floppy_read_sectors(fs, blk_rq_pos(req),
 						  blk_rq_cur_sectors(req),
-						  req->buffer);
+						  bio_data(req->bio));
 			break;
 		}
 	done:
 		if (!__blk_end_request_cur(req, err))
-			req = blk_fetch_request(q);
+			req = swim_next_request(swd);
 	}
-}
-
-static void do_fd_request(struct request_queue *q)
-{
-	redo_fd_request(q);
 }
 
 static struct floppy_struct floppy_type[4] = {
@@ -833,20 +849,25 @@ static int swim_floppy_init(struct swim_priv *swd)
 		return -EBUSY;
 	}
 
+	spin_lock_init(&swd->lock);
+
 	for (drive = 0; drive < swd->floppy_count; drive++) {
 		swd->unit[drive].disk = alloc_disk(1);
 		if (swd->unit[drive].disk == NULL) {
 			err = -ENOMEM;
 			goto exit_put_disks;
 		}
+		swd->unit[drive].disk->queue = blk_init_queue(do_fd_request,
+							      &swd->lock);
+		if (!swd->unit[drive].disk->queue) {
+			err = -ENOMEM;
+			put_disk(swd->unit[drive].disk);
+			goto exit_put_disks;
+		}
+		blk_queue_bounce_limit(swd->unit[drive].disk->queue,
+				BLK_BOUNCE_HIGH);
+		swd->unit[drive].disk->queue->queuedata = swd;
 		swd->unit[drive].swd = swd;
-	}
-
-	spin_lock_init(&swd->lock);
-	swd->queue = blk_init_queue(do_fd_request, &swd->lock);
-	if (!swd->queue) {
-		err = -ENOMEM;
-		goto exit_put_disks;
 	}
 
 	for (drive = 0; drive < swd->floppy_count; drive++) {
@@ -856,7 +877,6 @@ static int swim_floppy_init(struct swim_priv *swd)
 		sprintf(swd->unit[drive].disk->disk_name, "fd%d", drive);
 		swd->unit[drive].disk->fops = &floppy_fops;
 		swd->unit[drive].disk->private_data = &swd->unit[drive];
-		swd->unit[drive].disk->queue = swd->queue;
 		set_capacity(swd->unit[drive].disk, 2880);
 		add_disk(swd->unit[drive].disk);
 	}
@@ -924,7 +944,6 @@ static int swim_probe(struct platform_device *dev)
 	return 0;
 
 out_kfree:
-	platform_set_drvdata(dev, NULL);
 	kfree(swd);
 out_iounmap:
 	iounmap(swim_base);
@@ -944,12 +963,11 @@ static int swim_remove(struct platform_device *dev)
 
 	for (drive = 0; drive < swd->floppy_count; drive++) {
 		del_gendisk(swd->unit[drive].disk);
+		blk_cleanup_queue(swd->unit[drive].disk->queue);
 		put_disk(swd->unit[drive].disk);
 	}
 
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
-
-	blk_cleanup_queue(swd->queue);
 
 	/* eject floppies */
 
@@ -962,7 +980,6 @@ static int swim_remove(struct platform_device *dev)
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 
-	platform_set_drvdata(dev, NULL);
 	kfree(swd);
 
 	return 0;
@@ -973,7 +990,6 @@ static struct platform_driver swim_driver = {
 	.remove = swim_remove,
 	.driver   = {
 		.name	= CARDNAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

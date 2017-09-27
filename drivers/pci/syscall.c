@@ -10,7 +10,7 @@
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/syscalls.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "pci.h"
 
 SYSCALL_DEFINE5(pciconfig_read, unsigned long, bus, unsigned long, dfn,
@@ -44,7 +44,7 @@ SYSCALL_DEFINE5(pciconfig_read, unsigned long, bus, unsigned long, dfn,
 	default:
 		err = -EINVAL;
 		goto error;
-	};
+	}
 
 	err = -EIO;
 	if (cfg_ret != PCIBIOS_SUCCESSFUL)
@@ -99,7 +99,7 @@ SYSCALL_DEFINE5(pciconfig_write, unsigned long, bus, unsigned long, dfn,
 	if (!dev)
 		return -ENODEV;
 
-	switch(len) {
+	switch (len) {
 	case 1:
 		err = get_user(byte, (u8 __user *)buf);
 		if (err)

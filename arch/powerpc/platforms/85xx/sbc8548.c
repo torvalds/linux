@@ -120,9 +120,7 @@ machine_arch_initcall(sbc8548, mpc85xx_common_publish_devices);
  */
 static int __init sbc8548_probe(void)
 {
-        unsigned long root = of_get_flat_dt_root();
-
-        return of_flat_dt_is_compatible(root, "SBC8548");
+	return of_machine_is_compatible("SBC8548");
 }
 
 define_machine(sbc8548) {
@@ -132,9 +130,9 @@ define_machine(sbc8548) {
 	.init_IRQ	= sbc8548_pic_init,
 	.show_cpuinfo	= sbc8548_show_cpuinfo,
 	.get_irq	= mpic_get_irq,
-	.restart	= fsl_rstcr_restart,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,

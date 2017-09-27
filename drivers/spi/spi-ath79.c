@@ -14,10 +14,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/spi/spi.h>
@@ -41,15 +39,15 @@ struct ath79_spi {
 	u32			reg_ctrl;
 	void __iomem		*base;
 	struct clk		*clk;
-	unsigned		rrw_delay;
+	unsigned int		rrw_delay;
 };
 
-static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned reg)
+static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned int reg)
 {
 	return ioread32(sp->base + reg);
 }
 
-static inline void ath79_spi_wr(struct ath79_spi *sp, unsigned reg, u32 val)
+static inline void ath79_spi_wr(struct ath79_spi *sp, unsigned int reg, u32 val)
 {
 	iowrite32(val, sp->base + reg);
 }
@@ -59,7 +57,7 @@ static inline struct ath79_spi *ath79_spidev_to_sp(struct spi_device *spi)
 	return spi_master_get_devdata(spi->master);
 }
 
-static inline void ath79_spi_delay(struct ath79_spi *sp, unsigned nsecs)
+static inline void ath79_spi_delay(struct ath79_spi *sp, unsigned int nsecs)
 {
 	if (nsecs > sp->rrw_delay)
 		ndelay(nsecs - sp->rrw_delay);
@@ -80,16 +78,16 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
-	if (spi->chip_select) {
-		struct ath79_spi_controller_data *cdata = spi->controller_data;
-
+	if (gpio_is_valid(spi->cs_gpio)) {
 		/* SPI is normally active-low */
-		gpio_set_value(cdata->gpio, cs_high);
+		gpio_set_value_cansleep(spi->cs_gpio, cs_high);
 	} else {
+		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
+
 		if (cs_high)
-			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
+			sp->ioc_base |= cs_bit;
 		else
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
+			sp->ioc_base &= ~cs_bit;
 
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
@@ -119,25 +117,30 @@ static void ath79_spi_disable(struct ath79_spi *sp)
 
 static int ath79_spi_setup_cs(struct spi_device *spi)
 {
-	struct ath79_spi_controller_data *cdata;
+	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	int status;
 
-	cdata = spi->controller_data;
-	if (spi->chip_select && !cdata)
-		return -EINVAL;
-
 	status = 0;
-	if (spi->chip_select) {
+	if (gpio_is_valid(spi->cs_gpio)) {
 		unsigned long flags;
 
 		flags = GPIOF_DIR_OUT;
 		if (spi->mode & SPI_CS_HIGH)
-			flags |= GPIOF_INIT_HIGH;
-		else
 			flags |= GPIOF_INIT_LOW;
+		else
+			flags |= GPIOF_INIT_HIGH;
 
-		status = gpio_request_one(cdata->gpio, flags,
+		status = gpio_request_one(spi->cs_gpio, flags,
 					  dev_name(&spi->dev));
+	} else {
+		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
+
+		if (spi->mode & SPI_CS_HIGH)
+			sp->ioc_base &= ~cs_bit;
+		else
+			sp->ioc_base |= cs_bit;
+
+		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
 	return status;
@@ -145,10 +148,8 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 static void ath79_spi_cleanup_cs(struct spi_device *spi)
 {
-	if (spi->chip_select) {
-		struct ath79_spi_controller_data *cdata = spi->controller_data;
-		gpio_free(cdata->gpio);
-	}
+	if (gpio_is_valid(spi->cs_gpio))
+		gpio_free(spi->cs_gpio);
 }
 
 static int ath79_spi_setup(struct spi_device *spi)
@@ -174,7 +175,7 @@ static void ath79_spi_cleanup(struct spi_device *spi)
 	spi_bitbang_cleanup(spi);
 }
 
-static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
+static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned int nsecs,
 			       u32 word, u8 bits)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
@@ -219,9 +220,10 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	}
 
 	sp = spi_master_get_devdata(master);
+	master->dev.of_node = pdev->dev.of_node;
 	platform_set_drvdata(pdev, sp);
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->setup = ath79_spi_setup;
@@ -231,33 +233,28 @@ static int ath79_spi_probe(struct platform_device *pdev)
 		master->num_chipselect = pdata->num_chipselect;
 	}
 
-	sp->bitbang.master = spi_master_get(master);
+	sp->bitbang.master = master;
 	sp->bitbang.chipselect = ath79_spi_chipselect;
 	sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_mode0;
 	sp->bitbang.setup_transfer = spi_bitbang_setup_transfer;
 	sp->bitbang.flags = SPI_CS_HIGH;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		ret = -ENOENT;
+	sp->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(sp->base)) {
+		ret = PTR_ERR(sp->base);
 		goto err_put_master;
 	}
 
-	sp->base = ioremap(r->start, resource_size(r));
-	if (!sp->base) {
-		ret = -ENXIO;
-		goto err_put_master;
-	}
-
-	sp->clk = clk_get(&pdev->dev, "ahb");
+	sp->clk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(sp->clk)) {
 		ret = PTR_ERR(sp->clk);
-		goto err_unmap;
+		goto err_put_master;
 	}
 
-	ret = clk_enable(sp->clk);
+	ret = clk_prepare_enable(sp->clk);
 	if (ret)
-		goto err_clk_put;
+		goto err_put_master;
 
 	rate = DIV_ROUND_UP(clk_get_rate(sp->clk), MHZ);
 	if (!rate) {
@@ -279,11 +276,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 err_disable:
 	ath79_spi_disable(sp);
 err_clk_disable:
-	clk_disable(sp->clk);
-err_clk_put:
-	clk_put(sp->clk);
-err_unmap:
-	iounmap(sp->base);
+	clk_disable_unprepare(sp->clk);
 err_put_master:
 	spi_master_put(sp->bitbang.master);
 
@@ -296,9 +289,7 @@ static int ath79_spi_remove(struct platform_device *pdev)
 
 	spi_bitbang_stop(&sp->bitbang);
 	ath79_spi_disable(sp);
-	clk_disable(sp->clk);
-	clk_put(sp->clk);
-	iounmap(sp->base);
+	clk_disable_unprepare(sp->clk);
 	spi_master_put(sp->bitbang.master);
 
 	return 0;
@@ -309,13 +300,19 @@ static void ath79_spi_shutdown(struct platform_device *pdev)
 	ath79_spi_remove(pdev);
 }
 
+static const struct of_device_id ath79_spi_of_match[] = {
+	{ .compatible = "qca,ar7100-spi", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ath79_spi_of_match);
+
 static struct platform_driver ath79_spi_driver = {
 	.probe		= ath79_spi_probe,
 	.remove		= ath79_spi_remove,
 	.shutdown	= ath79_spi_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
+		.of_match_table = ath79_spi_of_match,
 	},
 };
 module_platform_driver(ath79_spi_driver);

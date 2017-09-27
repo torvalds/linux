@@ -23,18 +23,22 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/mfd/palmas.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/workqueue.h>
 
-static const char *palmas_extcon_cable[] = {
-	[0] = "USB",
-	[1] = "USB-HOST",
-	NULL,
+#define USB_GPIO_DEBOUNCE_MS	20	/* ms */
+
+static const unsigned int palmas_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
 };
-
-static const int mutually_exclusive[] = {0x3, 0x0};
 
 static void palmas_usb_wakeup(struct palmas *palmas, int enable)
 {
@@ -48,6 +52,7 @@ static void palmas_usb_wakeup(struct palmas *palmas, int enable)
 static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 {
 	struct palmas_usb *palmas_usb = _palmas_usb;
+	struct extcon_dev *edev = palmas_usb->edev;
 	unsigned int vbus_line_state;
 
 	palmas_read(palmas_usb->palmas, PALMAS_INTERRUPT_BASE,
@@ -56,7 +61,8 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 	if (vbus_line_state & PALMAS_INT3_LINE_STATE_VBUS) {
 		if (palmas_usb->linkstat != PALMAS_USB_STATE_VBUS) {
 			palmas_usb->linkstat = PALMAS_USB_STATE_VBUS;
-			extcon_set_cable_state(&palmas_usb->edev, "USB", true);
+			extcon_set_state_sync(edev, EXTCON_USB, true);
+			dev_dbg(palmas_usb->dev, "USB cable is attached\n");
 		} else {
 			dev_dbg(palmas_usb->dev,
 				"Spurious connect event detected\n");
@@ -64,7 +70,8 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 	} else if (!(vbus_line_state & PALMAS_INT3_LINE_STATE_VBUS)) {
 		if (palmas_usb->linkstat == PALMAS_USB_STATE_VBUS) {
 			palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-			extcon_set_cable_state(&palmas_usb->edev, "USB", false);
+			extcon_set_state_sync(edev, EXTCON_USB, false);
+			dev_dbg(palmas_usb->dev, "USB cable is detached\n");
 		} else {
 			dev_dbg(palmas_usb->dev,
 				"Spurious disconnect event detected\n");
@@ -76,37 +83,74 @@ static irqreturn_t palmas_vbus_irq_handler(int irq, void *_palmas_usb)
 
 static irqreturn_t palmas_id_irq_handler(int irq, void *_palmas_usb)
 {
-	unsigned int set;
+	unsigned int set, id_src;
 	struct palmas_usb *palmas_usb = _palmas_usb;
+	struct extcon_dev *edev = palmas_usb->edev;
 
 	palmas_read(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
 		PALMAS_USB_ID_INT_LATCH_SET, &set);
+	palmas_read(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
+		PALMAS_USB_ID_INT_SRC, &id_src);
 
-	if (set & PALMAS_USB_ID_INT_SRC_ID_GND) {
-		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
-			PALMAS_USB_ID_INT_EN_HI_SET,
-			PALMAS_USB_ID_INT_EN_HI_SET_ID_FLOAT);
-		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
-			PALMAS_USB_ID_INT_EN_HI_CLR,
-			PALMAS_USB_ID_INT_EN_HI_CLR_ID_GND);
+	if ((set & PALMAS_USB_ID_INT_SRC_ID_GND) &&
+				(id_src & PALMAS_USB_ID_INT_SRC_ID_GND)) {
 		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
 			PALMAS_USB_ID_INT_LATCH_CLR,
 			PALMAS_USB_ID_INT_EN_HI_CLR_ID_GND);
 		palmas_usb->linkstat = PALMAS_USB_STATE_ID;
-		extcon_set_cable_state(&palmas_usb->edev, "USB-HOST", true);
-	} else if (set & PALMAS_USB_ID_INT_SRC_ID_FLOAT) {
-		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
-			PALMAS_USB_ID_INT_EN_HI_SET,
-			PALMAS_USB_ID_INT_EN_HI_SET_ID_GND);
-		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
-			PALMAS_USB_ID_INT_EN_HI_CLR,
-			PALMAS_USB_ID_INT_EN_HI_CLR_ID_FLOAT);
+		extcon_set_state_sync(edev, EXTCON_USB_HOST, true);
+		dev_dbg(palmas_usb->dev, "USB-HOST cable is attached\n");
+	} else if ((set & PALMAS_USB_ID_INT_SRC_ID_FLOAT) &&
+				(id_src & PALMAS_USB_ID_INT_SRC_ID_FLOAT)) {
 		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
 			PALMAS_USB_ID_INT_LATCH_CLR,
 			PALMAS_USB_ID_INT_EN_HI_CLR_ID_FLOAT);
 		palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
-		extcon_set_cable_state(&palmas_usb->edev, "USB-HOST", false);
+		extcon_set_state_sync(edev, EXTCON_USB_HOST, false);
+		dev_dbg(palmas_usb->dev, "USB-HOST cable is detached\n");
+	} else if ((palmas_usb->linkstat == PALMAS_USB_STATE_ID) &&
+				(!(set & PALMAS_USB_ID_INT_SRC_ID_GND))) {
+		palmas_usb->linkstat = PALMAS_USB_STATE_DISCONNECT;
+		extcon_set_state_sync(edev, EXTCON_USB_HOST, false);
+		dev_dbg(palmas_usb->dev, "USB-HOST cable is detached\n");
+	} else if ((palmas_usb->linkstat == PALMAS_USB_STATE_DISCONNECT) &&
+				(id_src & PALMAS_USB_ID_INT_SRC_ID_GND)) {
+		palmas_usb->linkstat = PALMAS_USB_STATE_ID;
+		extcon_set_state_sync(edev, EXTCON_USB_HOST, true);
+		dev_dbg(palmas_usb->dev, " USB-HOST cable is attached\n");
 	}
+
+	return IRQ_HANDLED;
+}
+
+static void palmas_gpio_id_detect(struct work_struct *work)
+{
+	int id;
+	struct palmas_usb *palmas_usb = container_of(to_delayed_work(work),
+						     struct palmas_usb,
+						     wq_detectid);
+	struct extcon_dev *edev = palmas_usb->edev;
+
+	if (!palmas_usb->id_gpiod)
+		return;
+
+	id = gpiod_get_value_cansleep(palmas_usb->id_gpiod);
+
+	if (id) {
+		extcon_set_state_sync(edev, EXTCON_USB_HOST, false);
+		dev_dbg(palmas_usb->dev, "USB-HOST cable is detached\n");
+	} else {
+		extcon_set_state_sync(edev, EXTCON_USB_HOST, true);
+		dev_dbg(palmas_usb->dev, "USB-HOST cable is attached\n");
+	}
+}
+
+static irqreturn_t palmas_gpio_id_irq_handler(int irq, void *_palmas_usb)
+{
+	struct palmas_usb *palmas_usb = _palmas_usb;
+
+	queue_delayed_work(system_power_efficient_wq, &palmas_usb->wq_detectid,
+			   palmas_usb->sw_debounce_jiffies);
 
 	return IRQ_HANDLED;
 }
@@ -117,36 +161,37 @@ static void palmas_enable_irq(struct palmas_usb *palmas_usb)
 		PALMAS_USB_VBUS_CTRL_SET,
 		PALMAS_USB_VBUS_CTRL_SET_VBUS_ACT_COMP);
 
-	palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
-		PALMAS_USB_ID_CTRL_SET, PALMAS_USB_ID_CTRL_SET_ID_ACT_COMP);
+	if (palmas_usb->enable_id_detection) {
+		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
+			     PALMAS_USB_ID_CTRL_SET,
+			     PALMAS_USB_ID_CTRL_SET_ID_ACT_COMP);
 
-	palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
-		PALMAS_USB_ID_INT_EN_HI_SET,
-		PALMAS_USB_ID_INT_EN_HI_SET_ID_GND);
+		palmas_write(palmas_usb->palmas, PALMAS_USB_OTG_BASE,
+			     PALMAS_USB_ID_INT_EN_HI_SET,
+			     PALMAS_USB_ID_INT_EN_HI_SET_ID_GND |
+			     PALMAS_USB_ID_INT_EN_HI_SET_ID_FLOAT);
+	}
 
-	palmas_vbus_irq_handler(palmas_usb->vbus_irq, palmas_usb);
+	if (palmas_usb->enable_vbus_detection)
+		palmas_vbus_irq_handler(palmas_usb->vbus_irq, palmas_usb);
 
 	/* cold plug for host mode needs this delay */
-	msleep(30);
-	palmas_id_irq_handler(palmas_usb->id_irq, palmas_usb);
+	if (palmas_usb->enable_id_detection) {
+		msleep(30);
+		palmas_id_irq_handler(palmas_usb->id_irq, palmas_usb);
+	}
 }
 
 static int palmas_usb_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
-	struct palmas_usb_platform_data	*pdata = pdev->dev.platform_data;
+	struct palmas_usb_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
 	struct palmas_usb *palmas_usb;
 	int status;
 
-	if (node && !pdata) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-
-		if (!pdata)
-			return -ENOMEM;
-
-		pdata->wakeup = of_property_read_bool(node, "ti,wakeup");
-	} else if (!pdata) {
+	if (!palmas) {
+		dev_err(&pdev->dev, "failed to get valid parent\n");
 		return -EINVAL;
 	}
 
@@ -154,76 +199,237 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	if (!palmas_usb)
 		return -ENOMEM;
 
+	if (node && !pdata) {
+		palmas_usb->wakeup = of_property_read_bool(node, "ti,wakeup");
+		palmas_usb->enable_id_detection = of_property_read_bool(node,
+						"ti,enable-id-detection");
+		palmas_usb->enable_vbus_detection = of_property_read_bool(node,
+						"ti,enable-vbus-detection");
+	} else {
+		palmas_usb->wakeup = true;
+		palmas_usb->enable_id_detection = true;
+		palmas_usb->enable_vbus_detection = true;
+
+		if (pdata)
+			palmas_usb->wakeup = pdata->wakeup;
+	}
+
+	palmas_usb->id_gpiod = devm_gpiod_get_optional(&pdev->dev, "id",
+							GPIOD_IN);
+	if (IS_ERR(palmas_usb->id_gpiod)) {
+		dev_err(&pdev->dev, "failed to get id gpio\n");
+		return PTR_ERR(palmas_usb->id_gpiod);
+	}
+
+	palmas_usb->vbus_gpiod = devm_gpiod_get_optional(&pdev->dev, "vbus",
+							GPIOD_IN);
+	if (IS_ERR(palmas_usb->vbus_gpiod)) {
+		dev_err(&pdev->dev, "failed to get vbus gpio\n");
+		return PTR_ERR(palmas_usb->vbus_gpiod);
+	}
+
+	if (palmas_usb->enable_id_detection && palmas_usb->id_gpiod) {
+		palmas_usb->enable_id_detection = false;
+		palmas_usb->enable_gpio_id_detection = true;
+	}
+
+	if (palmas_usb->enable_vbus_detection && palmas_usb->vbus_gpiod) {
+		palmas_usb->enable_vbus_detection = false;
+		palmas_usb->enable_gpio_vbus_detection = true;
+	}
+
+	if (palmas_usb->enable_gpio_id_detection) {
+		u32 debounce;
+
+		if (of_property_read_u32(node, "debounce-delay-ms", &debounce))
+			debounce = USB_GPIO_DEBOUNCE_MS;
+
+		status = gpiod_set_debounce(palmas_usb->id_gpiod,
+					    debounce * 1000);
+		if (status < 0)
+			palmas_usb->sw_debounce_jiffies = msecs_to_jiffies(debounce);
+	}
+
+	INIT_DELAYED_WORK(&palmas_usb->wq_detectid, palmas_gpio_id_detect);
+
 	palmas->usb = palmas_usb;
 	palmas_usb->palmas = palmas;
 
 	palmas_usb->dev	 = &pdev->dev;
 
-	palmas_usb->id_otg_irq = regmap_irq_get_virq(palmas->irq_data,
-						PALMAS_ID_OTG_IRQ);
-	palmas_usb->id_irq = regmap_irq_get_virq(palmas->irq_data,
-						PALMAS_ID_IRQ);
-	palmas_usb->vbus_otg_irq = regmap_irq_get_virq(palmas->irq_data,
-						PALMAS_VBUS_OTG_IRQ);
-	palmas_usb->vbus_irq = regmap_irq_get_virq(palmas->irq_data,
-						PALMAS_VBUS_IRQ);
-
-	palmas_usb_wakeup(palmas, pdata->wakeup);
+	palmas_usb_wakeup(palmas, palmas_usb->wakeup);
 
 	platform_set_drvdata(pdev, palmas_usb);
 
-	palmas_usb->edev.name = "palmas-usb";
-	palmas_usb->edev.supported_cable = palmas_extcon_cable;
-	palmas_usb->edev.mutually_exclusive = mutually_exclusive;
+	palmas_usb->edev = devm_extcon_dev_allocate(&pdev->dev,
+						    palmas_extcon_cable);
+	if (IS_ERR(palmas_usb->edev)) {
+		dev_err(&pdev->dev, "failed to allocate extcon device\n");
+		return -ENOMEM;
+	}
 
-	status = extcon_dev_register(&palmas_usb->edev, palmas_usb->dev);
+	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);
 	if (status) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		return status;
 	}
 
-	status = devm_request_threaded_irq(palmas_usb->dev, palmas_usb->id_irq,
-			NULL, palmas_id_irq_handler,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"palmas_usb_id", palmas_usb);
-	if (status < 0) {
-		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
+	if (palmas_usb->enable_id_detection) {
+		palmas_usb->id_otg_irq = regmap_irq_get_virq(palmas->irq_data,
+							     PALMAS_ID_OTG_IRQ);
+		palmas_usb->id_irq = regmap_irq_get_virq(palmas->irq_data,
+							 PALMAS_ID_IRQ);
+		status = devm_request_threaded_irq(palmas_usb->dev,
+				palmas_usb->id_irq,
+				NULL, palmas_id_irq_handler,
+				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+				IRQF_ONESHOT,
+				"palmas_usb_id", palmas_usb);
+		if (status < 0) {
+			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->id_irq, status);
-		goto fail_extcon;
+			return status;
+		}
+	} else if (palmas_usb->enable_gpio_id_detection) {
+		palmas_usb->gpio_id_irq = gpiod_to_irq(palmas_usb->id_gpiod);
+		if (palmas_usb->gpio_id_irq < 0) {
+			dev_err(&pdev->dev, "failed to get id irq\n");
+			return palmas_usb->gpio_id_irq;
+		}
+		status = devm_request_threaded_irq(&pdev->dev,
+						   palmas_usb->gpio_id_irq,
+						   NULL,
+						   palmas_gpio_id_irq_handler,
+						   IRQF_TRIGGER_RISING |
+						   IRQF_TRIGGER_FALLING |
+						   IRQF_ONESHOT,
+						   "palmas_usb_id",
+						   palmas_usb);
+		if (status < 0) {
+			dev_err(&pdev->dev,
+				"failed to request handler for id irq\n");
+			return status;
+		}
 	}
 
-	status = devm_request_threaded_irq(palmas_usb->dev,
-			palmas_usb->vbus_irq, NULL, palmas_vbus_irq_handler,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"palmas_usb_vbus", palmas_usb);
-	if (status < 0) {
-		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
+	if (palmas_usb->enable_vbus_detection) {
+		palmas_usb->vbus_otg_irq = regmap_irq_get_virq(palmas->irq_data,
+						       PALMAS_VBUS_OTG_IRQ);
+		palmas_usb->vbus_irq = regmap_irq_get_virq(palmas->irq_data,
+							   PALMAS_VBUS_IRQ);
+		status = devm_request_threaded_irq(palmas_usb->dev,
+				palmas_usb->vbus_irq, NULL,
+				palmas_vbus_irq_handler,
+				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+				IRQF_ONESHOT,
+				"palmas_usb_vbus", palmas_usb);
+		if (status < 0) {
+			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->vbus_irq, status);
-		goto fail_extcon;
+			return status;
+		}
+	} else if (palmas_usb->enable_gpio_vbus_detection) {
+		/* remux GPIO_1 as VBUSDET */
+		status = palmas_update_bits(palmas,
+			PALMAS_PU_PD_OD_BASE,
+			PALMAS_PRIMARY_SECONDARY_PAD1,
+			PALMAS_PRIMARY_SECONDARY_PAD1_GPIO_1_MASK,
+			(1 << PALMAS_PRIMARY_SECONDARY_PAD1_GPIO_1_SHIFT));
+		if (status < 0) {
+			dev_err(&pdev->dev, "can't remux GPIO1\n");
+			return status;
+		}
+
+		palmas_usb->vbus_otg_irq = regmap_irq_get_virq(palmas->irq_data,
+						       PALMAS_VBUS_OTG_IRQ);
+		palmas_usb->gpio_vbus_irq = gpiod_to_irq(palmas_usb->vbus_gpiod);
+		if (palmas_usb->gpio_vbus_irq < 0) {
+			dev_err(&pdev->dev, "failed to get vbus irq\n");
+			return palmas_usb->gpio_vbus_irq;
+		}
+		status = devm_request_threaded_irq(&pdev->dev,
+						palmas_usb->gpio_vbus_irq,
+						NULL,
+						palmas_vbus_irq_handler,
+						IRQF_TRIGGER_FALLING |
+						IRQF_TRIGGER_RISING |
+						IRQF_ONESHOT,
+						"palmas_usb_vbus",
+						palmas_usb);
+		if (status < 0) {
+			dev_err(&pdev->dev,
+				"failed to request handler for vbus irq\n");
+			return status;
+		}
 	}
 
 	palmas_enable_irq(palmas_usb);
-
+	/* perform initial detection */
+	if (palmas_usb->enable_gpio_vbus_detection)
+		palmas_vbus_irq_handler(palmas_usb->gpio_vbus_irq, palmas_usb);
+	palmas_gpio_id_detect(&palmas_usb->wq_detectid.work);
+	device_set_wakeup_capable(&pdev->dev, true);
 	return 0;
-
-fail_extcon:
-	extcon_dev_unregister(&palmas_usb->edev);
-
-	return status;
 }
 
 static int palmas_usb_remove(struct platform_device *pdev)
 {
 	struct palmas_usb *palmas_usb = platform_get_drvdata(pdev);
 
-	extcon_dev_unregister(&palmas_usb->edev);
+	cancel_delayed_work_sync(&palmas_usb->wq_detectid);
 
 	return 0;
 }
 
-static struct of_device_id of_palmas_match_tbl[] = {
+#ifdef CONFIG_PM_SLEEP
+static int palmas_usb_suspend(struct device *dev)
+{
+	struct palmas_usb *palmas_usb = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev)) {
+		if (palmas_usb->enable_vbus_detection)
+			enable_irq_wake(palmas_usb->vbus_irq);
+		if (palmas_usb->enable_gpio_vbus_detection)
+			enable_irq_wake(palmas_usb->gpio_vbus_irq);
+		if (palmas_usb->enable_id_detection)
+			enable_irq_wake(palmas_usb->id_irq);
+		if (palmas_usb->enable_gpio_id_detection)
+			enable_irq_wake(palmas_usb->gpio_id_irq);
+	}
+	return 0;
+}
+
+static int palmas_usb_resume(struct device *dev)
+{
+	struct palmas_usb *palmas_usb = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev)) {
+		if (palmas_usb->enable_vbus_detection)
+			disable_irq_wake(palmas_usb->vbus_irq);
+		if (palmas_usb->enable_gpio_vbus_detection)
+			disable_irq_wake(palmas_usb->gpio_vbus_irq);
+		if (palmas_usb->enable_id_detection)
+			disable_irq_wake(palmas_usb->id_irq);
+		if (palmas_usb->enable_gpio_id_detection)
+			disable_irq_wake(palmas_usb->gpio_id_irq);
+	}
+
+	/* check if GPIO states changed while suspend/resume */
+	if (palmas_usb->enable_gpio_vbus_detection)
+		palmas_vbus_irq_handler(palmas_usb->gpio_vbus_irq, palmas_usb);
+	palmas_gpio_id_detect(&palmas_usb->wq_detectid.work);
+
+	return 0;
+};
+#endif
+
+static SIMPLE_DEV_PM_OPS(palmas_pm_ops, palmas_usb_suspend, palmas_usb_resume);
+
+static const struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas-usb", },
+	{ .compatible = "ti,palmas-usb-vid", },
 	{ .compatible = "ti,twl6035-usb", },
+	{ .compatible = "ti,twl6035-usb-vid", },
 	{ /* end */ }
 };
 
@@ -233,7 +439,7 @@ static struct platform_driver palmas_usb_driver = {
 	.driver = {
 		.name = "palmas-usb",
 		.of_match_table = of_palmas_match_tbl,
-		.owner = THIS_MODULE,
+		.pm = &palmas_pm_ops,
 	},
 };
 

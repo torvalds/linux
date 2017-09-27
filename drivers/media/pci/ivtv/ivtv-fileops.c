@@ -34,7 +34,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-firmware.h"
 #include <media/v4l2-event.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 
 /* This function tries to claim the stream for a specific file descriptor.
    If no one else is using this stream then the stream is claimed and
@@ -894,7 +894,7 @@ int ivtv_v4l2_close(struct file *filp)
 		/* Mark that the radio is no longer in use */
 		clear_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* Switch tuner to TV */
-		ivtv_call_all(itv, core, s_std, itv->std);
+		ivtv_call_all(itv, video, s_std, itv->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		ivtv_audio_set_io(itv);
 		if (itv->hw_flags & IVTV_HW_SAA711X) {
@@ -995,7 +995,7 @@ static int ivtv_open(struct file *filp)
 		IVTV_DEBUG_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;
 	}
-	v4l2_fh_init(&item->fh, s->vdev);
+	v4l2_fh_init(&item->fh, &s->vdev);
 	item->itv = itv;
 	item->type = s->type;
 

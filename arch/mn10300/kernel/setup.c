@@ -25,7 +25,7 @@
 #include <linux/cpu.h>
 #include <asm/processor.h>
 #include <linux/console.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -34,9 +34,6 @@
 #include <asm/sections.h>
 
 struct mn10300_cpuinfo boot_cpu_data;
-
-/* For PCI or other memory-mapped resources */
-unsigned long pci_mem_start = 0x18000000;
 
 static char __initdata cmd_line[COMMAND_LINE_SIZE];
 char redboot_command_line[COMMAND_LINE_SIZE] =

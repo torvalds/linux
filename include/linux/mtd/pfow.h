@@ -101,9 +101,6 @@ static inline void send_pfow_command(struct map_info *map,
 				unsigned long len, map_word *datum)
 {
 	int bits_per_chip = map_bankwidth(map) * 8;
-	int chipnum;
-	struct lpddr_private *lpddr = map->fldrv_priv;
-	chipnum = adr >> lpddr->chipshift;
 
 	map_write(map, CMD(cmd_code), map->pfow_base + PFOW_COMMAND_CODE);
 	map_write(map, CMD(adr & ((1<<bits_per_chip) - 1)),

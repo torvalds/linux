@@ -13,27 +13,17 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/spinlock.h>
-#include <linux/videodev2.h>
+#include "ivtv-alsa.h"
+#include "ivtv-alsa-mixer.h"
+#include "ivtv-driver.h"
 
-#include <media/v4l2-device.h>
+#include <linux/videodev2.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
-
-#include "ivtv-alsa.h"
-#include "ivtv-driver.h"
 
 /*
  * Note the cx25840-core volume scale is funny, due to the alignment of the
@@ -93,7 +83,7 @@ static int snd_ivtv_mixer_tv_vol_get(struct snd_kcontrol *kctl,
 	vctrl.value = dB_to_cx25840_vol(uctl->value.integer.value[0]);
 
 	snd_ivtv_lock(itvsc);
-	ret = v4l2_subdev_call(itv->sd_audio, core, g_ctrl, &vctrl);
+	ret = v4l2_g_ctrl(itv->sd_audio->ctrl_handler, &vctrl);
 	snd_ivtv_unlock(itvsc);
 
 	if (!ret)
@@ -115,14 +105,14 @@ static int snd_ivtv_mixer_tv_vol_put(struct snd_kcontrol *kctl,
 	snd_ivtv_lock(itvsc);
 
 	/* Fetch current state */
-	ret = v4l2_subdev_call(itv->sd_audio, core, g_ctrl, &vctrl);
+	ret = v4l2_g_ctrl(itv->sd_audio->ctrl_handler, &vctrl);
 
 	if (ret ||
 	    (cx25840_vol_to_dB(vctrl.value) != uctl->value.integer.value[0])) {
 
 		/* Set, if needed */
 		vctrl.value = dB_to_cx25840_vol(uctl->value.integer.value[0]);
-		ret = v4l2_subdev_call(itv->sd_audio, core, s_ctrl, &vctrl);
+		ret = v4l2_s_ctrl(itv->sd_audio->ctrl_handler, &vctrl);
 		if (!ret)
 			ret = 1; /* Indicate control was changed w/o error */
 	}
@@ -166,7 +156,7 @@ int __init snd_ivtv_mixer_create(struct snd_ivtv_card *itvsc)
 
 	strlcpy(sc->mixername, "CX2341[56] Mixer", sizeof(sc->mixername));
 
-	ret = snd_ctl_add(sc, snd_ctl_new1(snd_ivtv_mixer_tv_vol, itvsc));
+	ret = snd_ctl_add(sc, snd_ctl_new1(&snd_ivtv_mixer_tv_vol, itvsc));
 	if (ret) {
 		IVTV_ALSA_WARN("%s: failed to add %s control, err %d\n",
 			       __func__, snd_ivtv_mixer_tv_vol.name, ret);

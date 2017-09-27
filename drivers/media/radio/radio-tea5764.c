@@ -19,10 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  * History:
  * 2008-12-06   Fabio Belavenuto <belavenuto@gmail.com>
  *              initial code
@@ -124,11 +120,11 @@ struct tea5764_regs {
 
 struct tea5764_write_regs {
 	u8 intreg;				/* INTMSK */
-	u16 frqset;				/* FRQSETMSB & FRQSETLSB */
-	u16 tnctrl;				/* TNCTRL1 & TNCTRL2 */
-	u16 testreg;				/* TESTBITS & TESTMODE */
-	u16 rdsctrl;				/* RDSCTRL1 & RDSCTRL2 */
-	u16 rdsbbl;				/* PAUSEDET & RDSBBL */
+	__be16 frqset;				/* FRQSETMSB & FRQSETLSB */
+	__be16 tnctrl;				/* TNCTRL1 & TNCTRL2 */
+	__be16 testreg;				/* TESTBITS & TESTMODE */
+	__be16 rdsctrl;				/* RDSCTRL1 & RDSCTRL2 */
+	__be16 rdsbbl;				/* PAUSEDET & RDSBBL */
 } __attribute__ ((packed));
 
 #ifdef CONFIG_RADIO_TEA5764_XTAL
@@ -165,7 +161,7 @@ static int tea5764_i2c_read(struct tea5764_device *radio)
 	if (i2c_transfer(radio->i2c_client->adapter, msgs, 1) != 1)
 		return -EIO;
 	for (i = 0; i < sizeof(struct tea5764_regs) / sizeof(u16); i++)
-		p[i] = __be16_to_cpu(p[i]);
+		p[i] = __be16_to_cpu((__force __be16)p[i]);
 
 	return 0;
 }
@@ -356,7 +352,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		   So we keep it as-is. */
 		return -EINVAL;
 	}
-	clamp(freq, FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL);
+	freq = clamp(freq, FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL);
 	tea5764_power_up(radio);
 	tea5764_tune(radio, (freq * 125) / 2);
 	return 0;
@@ -418,7 +414,7 @@ static const struct v4l2_ioctl_ops tea5764_ioctl_ops = {
 };
 
 /* V4L2 interface */
-static struct video_device tea5764_radio_template = {
+static const struct video_device tea5764_radio_template = {
 	.name		= "TEA5764 FM-Radio",
 	.fops           = &tea5764_fops,
 	.ioctl_ops 	= &tea5764_ioctl_ops,
@@ -478,7 +474,6 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	video_set_drvdata(&radio->vdev, radio);
 	radio->vdev.lock = &radio->mutex;
 	radio->vdev.v4l2_dev = v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	/* initialize and power off the chip */
 	tea5764_i2c_read(radio);
@@ -527,7 +522,6 @@ MODULE_DEVICE_TABLE(i2c, tea5764_id);
 static struct i2c_driver tea5764_i2c_driver = {
 	.driver = {
 		.name = "radio-tea5764",
-		.owner = THIS_MODULE,
 	},
 	.probe = tea5764_i2c_probe,
 	.remove = tea5764_i2c_remove,

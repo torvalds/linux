@@ -44,7 +44,7 @@
 /* table of ISA irq nos to the relevant mask... zero means
  * the irq is not implemented
 */
-static unsigned char bast_pc104_irqmasks[] = {
+static const unsigned char bast_pc104_irqmasks[] = {
 	0,   /* 0 */
 	0,   /* 1 */
 	0,   /* 2 */
@@ -63,7 +63,7 @@ static unsigned char bast_pc104_irqmasks[] = {
 	0,   /* 15 */
 };
 
-static unsigned char bast_pc104_irqs[] = { 3, 5, 7, 10 };
+static const unsigned char bast_pc104_irqs[] = { 3, 5, 7, 10 };
 
 static void
 bast_pc104_mask(struct irq_data *data)
@@ -100,9 +100,7 @@ static struct irq_chip  bast_pc104_chip = {
 	.irq_ack	= bast_pc104_maskack
 };
 
-static void
-bast_irq_pc104_demux(unsigned int irq,
-		     struct irq_desc *desc)
+static void bast_irq_pc104_demux(struct irq_desc *desc)
 {
 	unsigned int stat;
 	unsigned int irqno;
@@ -147,7 +145,7 @@ static __init int bast_irq_init(void)
 
 			irq_set_chip_and_handler(irqno, &bast_pc104_chip,
 						 handle_level_irq);
-			set_irq_flags(irqno, IRQF_VALID);
+			irq_clear_status_flags(irqno, IRQ_NOREQUEST);
 		}
 	}
 

@@ -53,6 +53,21 @@ Description:
 		512 bytes of data.
 
 
+What:		/sys/block/<disk>/integrity/device_is_integrity_capable
+Date:		July 2014
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		Indicates whether a storage device is capable of storing
+		integrity metadata. Set if the device is T10 PI-capable.
+
+What:		/sys/block/<disk>/integrity/protection_interval_bytes
+Date:		July 2015
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		Describes the number of data bytes which are protected
+		by one integrity tuple. Typically the device's logical
+		block size.
+
 What:		/sys/block/<disk>/integrity/write_generate
 Date:		June 2008
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
@@ -198,14 +213,8 @@ What:		/sys/block/<disk>/queue/discard_zeroes_data
 Date:		May 2011
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
-		Devices that support discard functionality may return
-		stale or random data when a previously discarded block
-		is read back. This can cause problems if the filesystem
-		expects discarded blocks to be explicitly cleared. If a
-		device reports that it deterministically returns zeroes
-		when a discarded area is read the discard_zeroes_data
-		parameter will be set to one. Otherwise it will be 0 and
-		the result of reading a discarded area is undefined.
+		Will always return 0.  Don't rely on any specific behavior
+		for discards, and don't read this file.
 
 What:		/sys/block/<disk>/queue/write_same_max_bytes
 Date:		January 2012
@@ -220,3 +229,45 @@ Description:
 		write_same_max_bytes is 0, write same is not supported
 		by the device.
 
+What:		/sys/block/<disk>/queue/write_zeroes_max_bytes
+Date:		November 2016
+Contact:	Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+Description:
+		Devices that support write zeroes operation in which a
+		single request can be issued to zero out the range of
+		contiguous blocks on storage without having any payload
+		in the request. This can be used to optimize writing zeroes
+		to the devices. write_zeroes_max_bytes indicates how many
+		bytes can be written in a single write zeroes command. If
+		write_zeroes_max_bytes is 0, write zeroes is not supported
+		by the device.
+
+What:		/sys/block/<disk>/queue/zoned
+Date:		September 2016
+Contact:	Damien Le Moal <damien.lemoal@hgst.com>
+Description:
+		zoned indicates if the device is a zoned block device
+		and the zone model of the device if it is indeed zoned.
+		The possible values indicated by zoned are "none" for
+		regular block devices and "host-aware" or "host-managed"
+		for zoned block devices. The characteristics of
+		host-aware and host-managed zoned block devices are
+		described in the ZBC (Zoned Block Commands) and ZAC
+		(Zoned Device ATA Command Set) standards. These standards
+		also define the "drive-managed" zone model. However,
+		since drive-managed zoned block devices do not support
+		zone commands, they will be treated as regular block
+		devices and zoned will report "none".
+
+What:		/sys/block/<disk>/queue/chunk_sectors
+Date:		September 2016
+Contact:	Hannes Reinecke <hare@suse.com>
+Description:
+		chunk_sectors has different meaning depending on the type
+		of the disk. For a RAID device (dm-raid), chunk_sectors
+		indicates the size in 512B sectors of the RAID volume
+		stripe segment. For a zoned block device, either
+		host-aware or host-managed, chunk_sectors indicates the
+		size of 512B sectors of the zones of the device, with
+		the eventual exception of the last zone of the device
+		which may be smaller.

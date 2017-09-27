@@ -42,20 +42,14 @@ discussion.
 
  Once LLDD gets hold of a scmd, either the LLDD will complete the
 command by calling scsi_done callback passed from midlayer when
-invoking hostt->queuecommand() or SCSI midlayer will time it out.
+invoking hostt->queuecommand() or the block layer will time it out.
 
 
 [1-2-1] Completing a scmd w/ scsi_done
 
  For all non-EH commands, scsi_done() is the completion callback.  It
-does the following.
-
- 1. Delete timeout timer.  If it fails, it means that timeout timer
-    has expired and is going to finish the command.  Just return.
-
- 2. Link scmd to per-cpu scsi_done_q using scmd->en_entry
-
- 3. Raise SCSI_SOFTIRQ
+just calls blk_complete_request() to delete the block layer timer and
+raise SCSI_SOFTIRQ
 
  SCSI_SOFTIRQ handler scsi_softirq calls scsi_decide_disposition() to
 determine what to do with the command.  scsi_decide_disposition()
@@ -64,17 +58,19 @@ with the command.
 
  - SUCCESS
 	scsi_finish_command() is invoked for the command.  The
-	function does some maintenance choirs and notify completion by
-	calling scmd->done() callback, which, for fs requests, would
-	be HLD completion callback - sd:sd_rw_intr, sr:rw_intr,
-	st:st_intr.
+	function does some maintenance chores and then calls
+	scsi_io_completion() to finish the I/O.
+	scsi_io_completion() then notifies the block layer on
+	the completed request by calling blk_end_request and
+	friends or figures out what to do with the remainder
+	of the data in case of an error.
 
  - NEEDS_RETRY
  - ADD_TO_MLQUEUE
 	scmd is requeued to blk queue.
 
  - otherwise
-	scsi_eh_scmd_add(scmd, 0) is invoked for the command.  See
+	scsi_eh_scmd_add(scmd) is invoked for the command.  See
 	[1-3] for details of this function.
 
 
@@ -86,46 +82,56 @@ function
  1. invokes optional hostt->eh_timed_out() callback.  Return value can
     be one of
 
-    - EH_HANDLED
-	This indicates that eh_timed_out() dealt with the timeout.  The
-	scmd is passed to __scsi_done() and thus linked into per-cpu
-	scsi_done_q.  Normal command completion described in [1-2-1]
-	follows.
+    - BLK_EH_HANDLED
+	This indicates that eh_timed_out() dealt with the timeout.
+	The command is passed back to the block layer and completed
+	via __blk_complete_requests().
 
-    - EH_RESET_TIMER
+	*NOTE* After returning BLK_EH_HANDLED the SCSI layer is
+	assumed to be finished with the command, and no other
+	functions from the SCSI layer will be called. So this
+	should typically only be returned if the eh_timed_out()
+	handler raced with normal completion.
+
+    - BLK_EH_RESET_TIMER
 	This indicates that more time is required to finish the
 	command.  Timer is restarted.  This action is counted as a
 	retry and only allowed scmd->allowed + 1(!) times.  Once the
-	limit is reached, action for EH_NOT_HANDLED is taken instead.
+	limit is reached, action for BLK_EH_NOT_HANDLED is taken instead.
 
-	*NOTE* This action is racy as the LLDD could finish the scmd
-	after the timeout has expired but before it's added back.  In
-	such cases, scsi_done() would think that timeout has occurred
-	and return without doing anything.  We lose completion and the
-	command will time out again.
-
-    - EH_NOT_HANDLED
-	This is the same as when eh_timed_out() callback doesn't exist.
+    - BLK_EH_NOT_HANDLED
+        eh_timed_out() callback did not handle the command.
 	Step #2 is taken.
 
- 2. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
-    command.  See [1-3] for more information.
+ 2. scsi_abort_command() is invoked to schedule an asynchrous abort.
+    Asynchronous abort are not invoked for commands which the
+    SCSI_EH_ABORT_SCHEDULED flag is set (this indicates that the command
+    already had been aborted once, and this is a retry which failed),
+    or when the EH deadline is expired. In these case Step #3 is taken.
 
+ 3. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
+    command.  See [1-4] for more information.
 
-[1-3] How EH takes over
+[1-3] Asynchronous command aborts
+
+ After a timeout occurs a command abort is scheduled from
+ scsi_abort_command(). If the abort is successful the command
+ will either be retried (if the number of retries is not exhausted)
+ or terminated with DID_TIME_OUT.
+ Otherwise scsi_eh_scmd_add() is invoked for the command.
+ See [1-4] for more information.
+
+[1-4] How EH takes over
 
  scmds enter EH via scsi_eh_scmd_add(), which does the following.
 
- 1. Turns on scmd->eh_eflags as requested.  It's 0 for error
-    completions and SCSI_EH_CANCEL_CMD for timeouts.
+ 1. Links scmd->eh_entry to shost->eh_cmd_q
 
- 2. Links scmd->eh_entry to shost->eh_cmd_q
+ 2. Sets SHOST_RECOVERY bit in shost->shost_state
 
- 3. Sets SHOST_RECOVERY bit in shost->shost_state
+ 3. Increments shost->host_failed
 
- 4. Increments shost->host_failed
-
- 5. Wakes up SCSI EH thread if shost->host_busy == shost->host_failed
+ 4. Wakes up SCSI EH thread if shost->host_busy == shost->host_failed
 
  As can be seen above, once any scmd is added to shost->eh_cmd_q,
 SHOST_RECOVERY shost_state bit is turned on.  This prevents any new
@@ -164,7 +170,7 @@ ways.
 
  - eh_strategy_handler() callback
 	This is one big callback which should perform whole error
-	handling.  As such, it should do all choirs SCSI midlayer
+	handling.  As such, it should do all chores the SCSI midlayer
 	performs during recovery.  This will be discussed in [2-2].
 
  Once recovery is complete, SCSI EH resumes normal operation by
@@ -241,7 +247,6 @@ scmd->allowed.
 
  1. Error completion / time out
     ACTION: scsi_eh_scmd_add() is invoked for scmd
-	- set scmd->eh_eflags
 	- add scmd to shost->eh_cmd_q
 	- set SHOST_RECOVERY
 	- shost->host_failed++
@@ -255,19 +260,22 @@ scmd->allowed.
 
  3. scmd recovered
     ACTION: scsi_eh_finish_cmd() is invoked to EH-finish scmd
-	- shost->host_failed--
-	- clear scmd->eh_eflags
 	- scsi_setup_cmd_retry()
 	- move from local eh_work_q to local eh_done_q
     LOCKING: none
+    CONCURRENCY: at most one thread per separate eh_work_q to
+		 keep queue manipulation lockless
 
  4. EH completes
     ACTION: scsi_eh_flush_done_q() retries scmds or notifies upper
-	    layer of failure.
+	    layer of failure. May be called concurrently but must have
+	    a no more than one thread per separate eh_work_q to
+	    manipulate the queue locklessly
 	- scmd is removed from eh_done_q and scmd->eh_entry is cleared
 	- if retry is necessary, scmd is requeued using
           scsi_queue_insert()
 	- otherwise, scsi_finish_command() is invoked for scmd
+	- zero shost->host_failed
     LOCKING: queue or finish function performs appropriate locking
 
 
@@ -320,7 +328,8 @@ scmd->allowed.
 
     <<scsi_eh_abort_cmds>>
 
-	This action is taken for each timed out command.
+	This action is taken for each timed out command when
+	no_async_abort is enabled in the host template.
 	hostt->eh_abort_handler() is invoked for each scmd.  The
 	handler returns SUCCESS if it has succeeded to make LLDD and
 	all related hardware forget about the scmd.
@@ -419,7 +428,7 @@ scmd->allowed.
 scsi_unjam_host() and it is responsible for whole recovery process.
 On completion, the handler should have made lower layers forget about
 all failed scmds and either ready for new commands or offline.  Also,
-it should perform SCSI EH maintenance choirs to maintain integrity of
+it should perform SCSI EH maintenance chores to maintain integrity of
 SCSI midlayer.  IOW, of the steps described in [2-1-2], all steps
 except for #1 must be implemented by eh_strategy_handler().
 
@@ -442,8 +451,6 @@ except for #1 must be implemented by eh_strategy_handler().
  The following conditions must be true on exit from the handler.
 
  - shost->host_failed is zero.
-
- - Each scmd's eh_eflags field is cleared.
 
  - Each scmd is in such a state that scsi_setup_cmd_retry() on the
    scmd doesn't make any difference.

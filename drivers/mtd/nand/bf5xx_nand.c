@@ -37,7 +37,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
@@ -50,7 +49,7 @@
 #include <linux/bitops.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
@@ -110,28 +109,33 @@ static const unsigned short bfin_nfc_pin_req[] =
 	 0};
 
 #ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
-static struct nand_ecclayout bootrom_ecclayout = {
-	.eccbytes = 24,
-	.eccpos = {
-		0x8 * 0, 0x8 * 0 + 1, 0x8 * 0 + 2,
-		0x8 * 1, 0x8 * 1 + 1, 0x8 * 1 + 2,
-		0x8 * 2, 0x8 * 2 + 1, 0x8 * 2 + 2,
-		0x8 * 3, 0x8 * 3 + 1, 0x8 * 3 + 2,
-		0x8 * 4, 0x8 * 4 + 1, 0x8 * 4 + 2,
-		0x8 * 5, 0x8 * 5 + 1, 0x8 * 5 + 2,
-		0x8 * 6, 0x8 * 6 + 1, 0x8 * 6 + 2,
-		0x8 * 7, 0x8 * 7 + 1, 0x8 * 7 + 2
-	},
-	.oobfree = {
-		{ 0x8 * 0 + 3, 5 },
-		{ 0x8 * 1 + 3, 5 },
-		{ 0x8 * 2 + 3, 5 },
-		{ 0x8 * 3 + 3, 5 },
-		{ 0x8 * 4 + 3, 5 },
-		{ 0x8 * 5 + 3, 5 },
-		{ 0x8 * 6 + 3, 5 },
-		{ 0x8 * 7 + 3, 5 },
-	}
+static int bootrom_ooblayout_ecc(struct mtd_info *mtd, int section,
+				 struct mtd_oob_region *oobregion)
+{
+	if (section > 7)
+		return -ERANGE;
+
+	oobregion->offset = section * 8;
+	oobregion->length = 3;
+
+	return 0;
+}
+
+static int bootrom_ooblayout_free(struct mtd_info *mtd, int section,
+				  struct mtd_oob_region *oobregion)
+{
+	if (section > 7)
+		return -ERANGE;
+
+	oobregion->offset = (section * 8) + 3;
+	oobregion->length = 5;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops bootrom_ooblayout_ops = {
+	.ecc = bootrom_ooblayout_ecc,
+	.free = bootrom_ooblayout_free,
 };
 #endif
 
@@ -143,7 +147,6 @@ static struct nand_ecclayout bootrom_ecclayout = {
 struct bf5xx_nand_info {
 	/* mtd info */
 	struct nand_hw_control		controller;
-	struct mtd_info			mtd;
 	struct nand_chip		chip;
 
 	/* platform info */
@@ -161,7 +164,8 @@ struct bf5xx_nand_info {
  */
 static struct bf5xx_nand_info *mtd_to_nand_info(struct mtd_info *mtd)
 {
-	return container_of(mtd, struct bf5xx_nand_info, mtd);
+	return container_of(mtd_to_nand(mtd), struct bf5xx_nand_info,
+			    chip);
 }
 
 static struct bf5xx_nand_info *to_nand_info(struct platform_device *pdev)
@@ -171,7 +175,7 @@ static struct bf5xx_nand_info *to_nand_info(struct platform_device *pdev)
 
 static struct bf5xx_nand_platform *to_nand_plat(struct platform_device *pdev)
 {
-	return pdev->dev.platform_data;
+	return dev_get_platdata(&pdev->dev);
 }
 
 /*
@@ -253,7 +257,7 @@ static int bf5xx_nand_correct_data_256(struct mtd_info *mtd, u_char *dat,
 	 */
 	if (hweight32(syndrome[0]) == 1) {
 		dev_err(info->device, "ECC data was incorrect!\n");
-		return 1;
+		return -EBADMSG;
 	}
 
 	syndrome[1] = (calced & 0x7FF) ^ (stored & 0x7FF);
@@ -286,7 +290,7 @@ static int bf5xx_nand_correct_data_256(struct mtd_info *mtd, u_char *dat,
 		data = data ^ (0x1 << failing_bit);
 		*(dat + failing_byte) = data;
 
-		return 0;
+		return 1;
 	}
 
 	/*
@@ -299,26 +303,34 @@ static int bf5xx_nand_correct_data_256(struct mtd_info *mtd, u_char *dat,
 	dev_err(info->device,
 		"Please discard data, mark bad block\n");
 
-	return 1;
+	return -EBADMSG;
 }
 
 static int bf5xx_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 					u_char *read_ecc, u_char *calc_ecc)
 {
-	struct nand_chip *chip = mtd->priv;
-	int ret;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	int ret, bitflips = 0;
 
 	ret = bf5xx_nand_correct_data_256(mtd, dat, read_ecc, calc_ecc);
+	if (ret < 0)
+		return ret;
+
+	bitflips = ret;
 
 	/* If ecc size is 512, correct second 256 bytes */
 	if (chip->ecc.size == 512) {
 		dat += 256;
 		read_ecc += 3;
 		calc_ecc += 3;
-		ret |= bf5xx_nand_correct_data_256(mtd, dat, read_ecc, calc_ecc);
+		ret = bf5xx_nand_correct_data_256(mtd, dat, read_ecc, calc_ecc);
+		if (ret < 0)
+			return ret;
+
+		bitflips += ret;
 	}
 
-	return ret;
+	return bitflips;
 }
 
 static void bf5xx_nand_enable_hwecc(struct mtd_info *mtd, int mode)
@@ -330,7 +342,7 @@ static int bf5xx_nand_calculate_ecc(struct mtd_info *mtd,
 		const u_char *dat, u_char *ecc_code)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	u16 ecc0, ecc1;
 	u32 code[2];
 	u8 *p;
@@ -467,7 +479,7 @@ static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 				uint8_t *buf, int is_read)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	unsigned short val;
 
 	dev_dbg(info->device, " mtd->%p, buf->%p, is_read %d\n",
@@ -533,7 +545,7 @@ static void bf5xx_nand_dma_read_buf(struct mtd_info *mtd,
 					uint8_t *buf, int len)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	dev_dbg(info->device, "mtd->%p, buf->%p, int %d\n", mtd, buf, len);
 
@@ -547,7 +559,7 @@ static void bf5xx_nand_dma_write_buf(struct mtd_info *mtd,
 				const uint8_t *buf, int len)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	dev_dbg(info->device, "mtd->%p, buf->%p, len %d\n", mtd, buf, len);
 
@@ -567,7 +579,8 @@ static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip
 }
 
 static int bf5xx_nand_write_page_raw(struct mtd_info *mtd,
-		struct nand_chip *chip,	const uint8_t *buf, int oob_required)
+		struct nand_chip *chip,	const uint8_t *buf, int oob_required,
+		int page)
 {
 	bf5xx_nand_write_buf(mtd, buf, mtd->writesize);
 	bf5xx_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -660,7 +673,7 @@ static int bf5xx_nand_hw_init(struct bf5xx_nand_info *info)
  */
 static int bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
 {
-	struct mtd_info *mtd = &info->mtd;
+	struct mtd_info *mtd = nand_to_mtd(&info->chip);
 	struct mtd_partition *parts = info->platform->partitions;
 	int nr = info->platform->nr_partitions;
 
@@ -671,26 +684,21 @@ static int bf5xx_nand_remove(struct platform_device *pdev)
 {
 	struct bf5xx_nand_info *info = to_nand_info(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	/* first thing we need to do is release all our mtds
 	 * and their partitions, then go through freeing the
 	 * resources used
 	 */
-	nand_release(&info->mtd);
+	nand_release(nand_to_mtd(&info->chip));
 
 	peripheral_free_list(bfin_nfc_pin_req);
 	bf5xx_nand_dma_remove(info);
-
-	/* free the common resources */
-	kfree(info);
 
 	return 0;
 }
 
 static int bf5xx_nand_scan(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	int ret;
 
 	ret = nand_scan_ident(mtd, 1, NULL);
@@ -745,23 +753,22 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
-		goto out_err_kzalloc;
+		goto out_err;
 	}
 
 	platform_set_drvdata(pdev, info);
 
-	spin_lock_init(&info->controller.lock);
-	init_waitqueue_head(&info->controller.wq);
+	nand_hw_control_init(&info->controller);
 
 	info->device     = &pdev->dev;
 	info->platform   = plat;
 
 	/* initialise chip data struct */
 	chip = &info->chip;
+	mtd = nand_to_mtd(&info->chip);
 
 	if (plat->data_width)
 		chip->options |= NAND_BUSWIDTH_16;
@@ -778,7 +785,7 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 	chip->cmd_ctrl     = bf5xx_nand_hwcontrol;
 	chip->dev_ready    = bf5xx_nand_devready;
 
-	chip->priv	   = &info->mtd;
+	nand_set_controller_data(chip, mtd);
 	chip->controller   = &info->controller;
 
 	chip->IO_ADDR_R    = (void __iomem *) NFC_READ;
@@ -787,19 +794,17 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 	chip->chip_delay   = 0;
 
 	/* initialise mtd info data struct */
-	mtd 		= &info->mtd;
-	mtd->priv	= chip;
-	mtd->owner	= THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 
 	/* initialise the hardware */
 	err = bf5xx_nand_hw_init(info);
 	if (err)
-		goto out_err_hw_init;
+		goto out_err;
 
 	/* setup hardware ECC data struct */
 	if (hardware_ecc) {
 #ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
-		chip->ecc.layout = &bootrom_ecclayout;
+		mtd_set_ooblayout(mtd, &bootrom_ooblayout_ops);
 #endif
 		chip->read_buf      = bf5xx_nand_dma_read_buf;
 		chip->write_buf     = bf5xx_nand_dma_write_buf;
@@ -811,6 +816,7 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 		chip->ecc.write_page_raw = bf5xx_nand_write_page_raw;
 	} else {
 		chip->ecc.mode	    = NAND_ECC_SOFT;
+		chip->ecc.algo	= NAND_ECC_HAMMING;
 	}
 
 	/* scan hardware nand chip and setup mtd info data struct */
@@ -831,46 +837,18 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 
 out_err_nand_scan:
 	bf5xx_nand_dma_remove(info);
-out_err_hw_init:
-	platform_set_drvdata(pdev, NULL);
-	kfree(info);
-out_err_kzalloc:
+out_err:
 	peripheral_free_list(bfin_nfc_pin_req);
 
 	return err;
 }
 
-/* PM Support */
-#ifdef CONFIG_PM
-
-static int bf5xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
-{
-	struct bf5xx_nand_info *info = platform_get_drvdata(dev);
-
-	return 0;
-}
-
-static int bf5xx_nand_resume(struct platform_device *dev)
-{
-	struct bf5xx_nand_info *info = platform_get_drvdata(dev);
-
-	return 0;
-}
-
-#else
-#define bf5xx_nand_suspend NULL
-#define bf5xx_nand_resume NULL
-#endif
-
 /* driver device registration */
 static struct platform_driver bf5xx_nand_driver = {
 	.probe		= bf5xx_nand_probe,
 	.remove		= bf5xx_nand_remove,
-	.suspend	= bf5xx_nand_suspend,
-	.resume		= bf5xx_nand_resume,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

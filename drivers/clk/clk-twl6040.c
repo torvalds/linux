@@ -20,68 +20,79 @@
 *
 */
 
-#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/twl6040.h>
 #include <linux/clk-provider.h>
 
-struct twl6040_clk {
+struct twl6040_pdmclk {
 	struct twl6040 *twl6040;
 	struct device *dev;
-	struct clk_hw mcpdm_fclk;
-	struct clk *clk;
+	struct clk_hw pdmclk_hw;
 	int enabled;
 };
 
-static int twl6040_bitclk_is_enabled(struct clk_hw *hw)
+static int twl6040_pdmclk_is_prepared(struct clk_hw *hw)
 {
-	struct twl6040_clk *twl6040_clk = container_of(hw, struct twl6040_clk,
-						       mcpdm_fclk);
-	return twl6040_clk->enabled;
+	struct twl6040_pdmclk *pdmclk = container_of(hw, struct twl6040_pdmclk,
+						     pdmclk_hw);
+
+	return pdmclk->enabled;
 }
 
-static int twl6040_bitclk_prepare(struct clk_hw *hw)
+static int twl6040_pdmclk_prepare(struct clk_hw *hw)
 {
-	struct twl6040_clk *twl6040_clk = container_of(hw, struct twl6040_clk,
-						       mcpdm_fclk);
+	struct twl6040_pdmclk *pdmclk = container_of(hw, struct twl6040_pdmclk,
+						     pdmclk_hw);
 	int ret;
 
-	ret = twl6040_power(twl6040_clk->twl6040, 1);
+	ret = twl6040_power(pdmclk->twl6040, 1);
 	if (!ret)
-		twl6040_clk->enabled = 1;
+		pdmclk->enabled = 1;
 
 	return ret;
 }
 
-static void twl6040_bitclk_unprepare(struct clk_hw *hw)
+static void twl6040_pdmclk_unprepare(struct clk_hw *hw)
 {
-	struct twl6040_clk *twl6040_clk = container_of(hw, struct twl6040_clk,
-						       mcpdm_fclk);
+	struct twl6040_pdmclk *pdmclk = container_of(hw, struct twl6040_pdmclk,
+						     pdmclk_hw);
 	int ret;
 
-	ret = twl6040_power(twl6040_clk->twl6040, 0);
+	ret = twl6040_power(pdmclk->twl6040, 0);
 	if (!ret)
-		twl6040_clk->enabled = 0;
+		pdmclk->enabled = 0;
+
 }
 
-static const struct clk_ops twl6040_mcpdm_ops = {
-	.is_enabled = twl6040_bitclk_is_enabled,
-	.prepare = twl6040_bitclk_prepare,
-	.unprepare = twl6040_bitclk_unprepare,
+static unsigned long twl6040_pdmclk_recalc_rate(struct clk_hw *hw,
+						unsigned long parent_rate)
+{
+	struct twl6040_pdmclk *pdmclk = container_of(hw, struct twl6040_pdmclk,
+						     pdmclk_hw);
+
+	return twl6040_get_sysclk(pdmclk->twl6040);
+}
+
+static const struct clk_ops twl6040_pdmclk_ops = {
+	.is_prepared = twl6040_pdmclk_is_prepared,
+	.prepare = twl6040_pdmclk_prepare,
+	.unprepare = twl6040_pdmclk_unprepare,
+	.recalc_rate = twl6040_pdmclk_recalc_rate,
 };
 
-static struct clk_init_data wm831x_clkout_init = {
-	.name = "mcpdm_fclk",
-	.ops = &twl6040_mcpdm_ops,
-	.flags = CLK_IS_ROOT,
+static struct clk_init_data twl6040_pdmclk_init = {
+	.name = "pdmclk",
+	.ops = &twl6040_pdmclk_ops,
+	.flags = CLK_GET_RATE_NOCACHE,
 };
 
-static int twl6040_clk_probe(struct platform_device *pdev)
+static int twl6040_pdmclk_probe(struct platform_device *pdev)
 {
 	struct twl6040 *twl6040 = dev_get_drvdata(pdev->dev.parent);
-	struct twl6040_clk *clkdata;
+	struct twl6040_pdmclk *clkdata;
+	int ret;
 
 	clkdata = devm_kzalloc(&pdev->dev, sizeof(*clkdata), GFP_KERNEL);
 	if (!clkdata)
@@ -90,37 +101,28 @@ static int twl6040_clk_probe(struct platform_device *pdev)
 	clkdata->dev = &pdev->dev;
 	clkdata->twl6040 = twl6040;
 
-	clkdata->mcpdm_fclk.init = &wm831x_clkout_init;
-	clkdata->clk = clk_register(&pdev->dev, &clkdata->mcpdm_fclk);
-	if (IS_ERR(clkdata->clk))
-		return PTR_ERR(clkdata->clk);
+	clkdata->pdmclk_hw.init = &twl6040_pdmclk_init;
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->pdmclk_hw);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, clkdata);
 
-	return 0;
+	return of_clk_add_hw_provider(pdev->dev.parent->of_node,
+				      of_clk_hw_simple_get,
+				      &clkdata->pdmclk_hw);
 }
 
-static int twl6040_clk_remove(struct platform_device *pdev)
-{
-	struct twl6040_clk *clkdata = platform_get_drvdata(pdev);
-
-	clk_unregister(clkdata->clk);
-
-	return 0;
-}
-
-static struct platform_driver twl6040_clk_driver = {
+static struct platform_driver twl6040_pdmclk_driver = {
 	.driver = {
-		.name = "twl6040-clk",
-		.owner = THIS_MODULE,
+		.name = "twl6040-pdmclk",
 	},
-	.probe = twl6040_clk_probe,
-	.remove = twl6040_clk_remove,
+	.probe = twl6040_pdmclk_probe,
 };
 
-module_platform_driver(twl6040_clk_driver);
+module_platform_driver(twl6040_pdmclk_driver);
 
 MODULE_DESCRIPTION("TWL6040 clock driver for McPDM functional clock");
 MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
-MODULE_ALIAS("platform:twl6040-clk");
+MODULE_ALIAS("platform:twl6040-pdmclk");
 MODULE_LICENSE("GPL");

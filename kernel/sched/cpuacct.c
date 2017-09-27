@@ -25,59 +25,59 @@ enum cpuacct_stat_index {
 	CPUACCT_STAT_NSTATS,
 };
 
+static const char * const cpuacct_stat_desc[] = {
+	[CPUACCT_STAT_USER] = "user",
+	[CPUACCT_STAT_SYSTEM] = "system",
+};
+
+struct cpuacct_usage {
+	u64	usages[CPUACCT_STAT_NSTATS];
+};
+
 /* track cpu usage of a group of tasks and its child groups */
 struct cpuacct {
 	struct cgroup_subsys_state css;
 	/* cpuusage holds pointer to a u64-type object on every cpu */
-	u64 __percpu *cpuusage;
+	struct cpuacct_usage __percpu *cpuusage;
 	struct kernel_cpustat __percpu *cpustat;
 };
 
-/* return cpu accounting group corresponding to this container */
-static inline struct cpuacct *cgroup_ca(struct cgroup *cgrp)
+static inline struct cpuacct *css_ca(struct cgroup_subsys_state *css)
 {
-	return container_of(cgroup_subsys_state(cgrp, cpuacct_subsys_id),
-			    struct cpuacct, css);
+	return css ? container_of(css, struct cpuacct, css) : NULL;
 }
 
 /* return cpu accounting group to which this task belongs */
 static inline struct cpuacct *task_ca(struct task_struct *tsk)
 {
-	return container_of(task_subsys_state(tsk, cpuacct_subsys_id),
-			    struct cpuacct, css);
-}
-
-static inline struct cpuacct *__parent_ca(struct cpuacct *ca)
-{
-	return cgroup_ca(ca->css.cgroup->parent);
+	return css_ca(task_css(tsk, cpuacct_cgrp_id));
 }
 
 static inline struct cpuacct *parent_ca(struct cpuacct *ca)
 {
-	if (!ca->css.cgroup->parent)
-		return NULL;
-	return cgroup_ca(ca->css.cgroup->parent);
+	return css_ca(ca->css.parent);
 }
 
-static DEFINE_PER_CPU(u64, root_cpuacct_cpuusage);
+static DEFINE_PER_CPU(struct cpuacct_usage, root_cpuacct_cpuusage);
 static struct cpuacct root_cpuacct = {
 	.cpustat	= &kernel_cpustat,
 	.cpuusage	= &root_cpuacct_cpuusage,
 };
 
 /* create a new cpu accounting group */
-static struct cgroup_subsys_state *cpuacct_css_alloc(struct cgroup *cgrp)
+static struct cgroup_subsys_state *
+cpuacct_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct cpuacct *ca;
 
-	if (!cgrp->parent)
+	if (!parent_css)
 		return &root_cpuacct.css;
 
 	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
 	if (!ca)
 		goto out;
 
-	ca->cpuusage = alloc_percpu(u64);
+	ca->cpuusage = alloc_percpu(struct cpuacct_usage);
 	if (!ca->cpuusage)
 		goto out_free_ca;
 
@@ -96,29 +96,46 @@ out:
 }
 
 /* destroy an existing cpu accounting group */
-static void cpuacct_css_free(struct cgroup *cgrp)
+static void cpuacct_css_free(struct cgroup_subsys_state *css)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
+	struct cpuacct *ca = css_ca(css);
 
 	free_percpu(ca->cpustat);
 	free_percpu(ca->cpuusage);
 	kfree(ca);
 }
 
-static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu)
+static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu,
+				 enum cpuacct_stat_index index)
 {
-	u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
+	struct cpuacct_usage *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
 	u64 data;
+
+	/*
+	 * We allow index == CPUACCT_STAT_NSTATS here to read
+	 * the sum of suages.
+	 */
+	BUG_ON(index > CPUACCT_STAT_NSTATS);
 
 #ifndef CONFIG_64BIT
 	/*
 	 * Take rq->lock to make 64-bit read safe on 32-bit platforms.
 	 */
 	raw_spin_lock_irq(&cpu_rq(cpu)->lock);
-	data = *cpuusage;
+#endif
+
+	if (index == CPUACCT_STAT_NSTATS) {
+		int i = 0;
+
+		data = 0;
+		for (i = 0; i < CPUACCT_STAT_NSTATS; i++)
+			data += cpuusage->usages[i];
+	} else {
+		data = cpuusage->usages[index];
+	}
+
+#ifndef CONFIG_64BIT
 	raw_spin_unlock_irq(&cpu_rq(cpu)->lock);
-#else
-	data = *cpuusage;
 #endif
 
 	return data;
@@ -126,97 +143,162 @@ static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu)
 
 static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu, u64 val)
 {
-	u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
+	struct cpuacct_usage *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
+	int i;
 
 #ifndef CONFIG_64BIT
 	/*
 	 * Take rq->lock to make 64-bit write safe on 32-bit platforms.
 	 */
 	raw_spin_lock_irq(&cpu_rq(cpu)->lock);
-	*cpuusage = val;
+#endif
+
+	for (i = 0; i < CPUACCT_STAT_NSTATS; i++)
+		cpuusage->usages[i] = val;
+
+#ifndef CONFIG_64BIT
 	raw_spin_unlock_irq(&cpu_rq(cpu)->lock);
-#else
-	*cpuusage = val;
 #endif
 }
 
 /* return total cpu usage (in nanoseconds) of a group */
-static u64 cpuusage_read(struct cgroup *cgrp, struct cftype *cft)
+static u64 __cpuusage_read(struct cgroup_subsys_state *css,
+			   enum cpuacct_stat_index index)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
+	struct cpuacct *ca = css_ca(css);
 	u64 totalcpuusage = 0;
 	int i;
 
-	for_each_present_cpu(i)
-		totalcpuusage += cpuacct_cpuusage_read(ca, i);
+	for_each_possible_cpu(i)
+		totalcpuusage += cpuacct_cpuusage_read(ca, i, index);
 
 	return totalcpuusage;
 }
 
-static int cpuusage_write(struct cgroup *cgrp, struct cftype *cftype,
-								u64 reset)
+static u64 cpuusage_user_read(struct cgroup_subsys_state *css,
+			      struct cftype *cft)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
-	int err = 0;
-	int i;
-
-	if (reset) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	for_each_present_cpu(i)
-		cpuacct_cpuusage_write(ca, i, 0);
-
-out:
-	return err;
+	return __cpuusage_read(css, CPUACCT_STAT_USER);
 }
 
-static int cpuacct_percpu_seq_read(struct cgroup *cgroup, struct cftype *cft,
-				   struct seq_file *m)
+static u64 cpuusage_sys_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft)
 {
-	struct cpuacct *ca = cgroup_ca(cgroup);
+	return __cpuusage_read(css, CPUACCT_STAT_SYSTEM);
+}
+
+static u64 cpuusage_read(struct cgroup_subsys_state *css, struct cftype *cft)
+{
+	return __cpuusage_read(css, CPUACCT_STAT_NSTATS);
+}
+
+static int cpuusage_write(struct cgroup_subsys_state *css, struct cftype *cft,
+			  u64 val)
+{
+	struct cpuacct *ca = css_ca(css);
+	int cpu;
+
+	/*
+	 * Only allow '0' here to do a reset.
+	 */
+	if (val)
+		return -EINVAL;
+
+	for_each_possible_cpu(cpu)
+		cpuacct_cpuusage_write(ca, cpu, 0);
+
+	return 0;
+}
+
+static int __cpuacct_percpu_seq_show(struct seq_file *m,
+				     enum cpuacct_stat_index index)
+{
+	struct cpuacct *ca = css_ca(seq_css(m));
 	u64 percpu;
 	int i;
 
-	for_each_present_cpu(i) {
-		percpu = cpuacct_cpuusage_read(ca, i);
+	for_each_possible_cpu(i) {
+		percpu = cpuacct_cpuusage_read(ca, i, index);
 		seq_printf(m, "%llu ", (unsigned long long) percpu);
 	}
 	seq_printf(m, "\n");
 	return 0;
 }
 
-static const char * const cpuacct_stat_desc[] = {
-	[CPUACCT_STAT_USER] = "user",
-	[CPUACCT_STAT_SYSTEM] = "system",
-};
-
-static int cpuacct_stats_show(struct cgroup *cgrp, struct cftype *cft,
-			      struct cgroup_map_cb *cb)
+static int cpuacct_percpu_user_seq_show(struct seq_file *m, void *V)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
+	return __cpuacct_percpu_seq_show(m, CPUACCT_STAT_USER);
+}
+
+static int cpuacct_percpu_sys_seq_show(struct seq_file *m, void *V)
+{
+	return __cpuacct_percpu_seq_show(m, CPUACCT_STAT_SYSTEM);
+}
+
+static int cpuacct_percpu_seq_show(struct seq_file *m, void *V)
+{
+	return __cpuacct_percpu_seq_show(m, CPUACCT_STAT_NSTATS);
+}
+
+static int cpuacct_all_seq_show(struct seq_file *m, void *V)
+{
+	struct cpuacct *ca = css_ca(seq_css(m));
+	int index;
 	int cpu;
-	s64 val = 0;
 
-	for_each_online_cpu(cpu) {
-		struct kernel_cpustat *kcpustat = per_cpu_ptr(ca->cpustat, cpu);
-		val += kcpustat->cpustat[CPUTIME_USER];
-		val += kcpustat->cpustat[CPUTIME_NICE];
+	seq_puts(m, "cpu");
+	for (index = 0; index < CPUACCT_STAT_NSTATS; index++)
+		seq_printf(m, " %s", cpuacct_stat_desc[index]);
+	seq_puts(m, "\n");
+
+	for_each_possible_cpu(cpu) {
+		struct cpuacct_usage *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
+
+		seq_printf(m, "%d", cpu);
+
+		for (index = 0; index < CPUACCT_STAT_NSTATS; index++) {
+#ifndef CONFIG_64BIT
+			/*
+			 * Take rq->lock to make 64-bit read safe on 32-bit
+			 * platforms.
+			 */
+			raw_spin_lock_irq(&cpu_rq(cpu)->lock);
+#endif
+
+			seq_printf(m, " %llu", cpuusage->usages[index]);
+
+#ifndef CONFIG_64BIT
+			raw_spin_unlock_irq(&cpu_rq(cpu)->lock);
+#endif
+		}
+		seq_puts(m, "\n");
 	}
-	val = cputime64_to_clock_t(val);
-	cb->fill(cb, cpuacct_stat_desc[CPUACCT_STAT_USER], val);
+	return 0;
+}
 
-	val = 0;
-	for_each_online_cpu(cpu) {
-		struct kernel_cpustat *kcpustat = per_cpu_ptr(ca->cpustat, cpu);
-		val += kcpustat->cpustat[CPUTIME_SYSTEM];
-		val += kcpustat->cpustat[CPUTIME_IRQ];
-		val += kcpustat->cpustat[CPUTIME_SOFTIRQ];
+static int cpuacct_stats_show(struct seq_file *sf, void *v)
+{
+	struct cpuacct *ca = css_ca(seq_css(sf));
+	s64 val[CPUACCT_STAT_NSTATS];
+	int cpu;
+	int stat;
+
+	memset(val, 0, sizeof(val));
+	for_each_possible_cpu(cpu) {
+		u64 *cpustat = per_cpu_ptr(ca->cpustat, cpu)->cpustat;
+
+		val[CPUACCT_STAT_USER]   += cpustat[CPUTIME_USER];
+		val[CPUACCT_STAT_USER]   += cpustat[CPUTIME_NICE];
+		val[CPUACCT_STAT_SYSTEM] += cpustat[CPUTIME_SYSTEM];
+		val[CPUACCT_STAT_SYSTEM] += cpustat[CPUTIME_IRQ];
+		val[CPUACCT_STAT_SYSTEM] += cpustat[CPUTIME_SOFTIRQ];
 	}
 
-	val = cputime64_to_clock_t(val);
-	cb->fill(cb, cpuacct_stat_desc[CPUACCT_STAT_SYSTEM], val);
+	for (stat = 0; stat < CPUACCT_STAT_NSTATS; stat++) {
+		seq_printf(sf, "%s %lld\n",
+			   cpuacct_stat_desc[stat],
+			   (long long)nsec_to_clock_t(val[stat]));
+	}
 
 	return 0;
 }
@@ -228,12 +310,32 @@ static struct cftype files[] = {
 		.write_u64 = cpuusage_write,
 	},
 	{
+		.name = "usage_user",
+		.read_u64 = cpuusage_user_read,
+	},
+	{
+		.name = "usage_sys",
+		.read_u64 = cpuusage_sys_read,
+	},
+	{
 		.name = "usage_percpu",
-		.read_seq_string = cpuacct_percpu_seq_read,
+		.seq_show = cpuacct_percpu_seq_show,
+	},
+	{
+		.name = "usage_percpu_user",
+		.seq_show = cpuacct_percpu_user_seq_show,
+	},
+	{
+		.name = "usage_percpu_sys",
+		.seq_show = cpuacct_percpu_sys_seq_show,
+	},
+	{
+		.name = "usage_all",
+		.seq_show = cpuacct_all_seq_show,
 	},
 	{
 		.name = "stat",
-		.read_map = cpuacct_stats_show,
+		.seq_show = cpuacct_stats_show,
 	},
 	{ }	/* terminate */
 };
@@ -246,22 +348,16 @@ static struct cftype files[] = {
 void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 {
 	struct cpuacct *ca;
-	int cpu;
+	int index = CPUACCT_STAT_SYSTEM;
+	struct pt_regs *regs = task_pt_regs(tsk);
 
-	cpu = task_cpu(tsk);
+	if (regs && user_mode(regs))
+		index = CPUACCT_STAT_USER;
 
 	rcu_read_lock();
 
-	ca = task_ca(tsk);
-
-	while (true) {
-		u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
-		*cpuusage += cputime;
-
-		ca = parent_ca(ca);
-		if (!ca)
-			break;
-	}
+	for (ca = task_ca(tsk); ca; ca = parent_ca(ca))
+		this_cpu_ptr(ca->cpuusage)->usages[index] += cputime;
 
 	rcu_read_unlock();
 }
@@ -271,26 +367,19 @@ void cpuacct_charge(struct task_struct *tsk, u64 cputime)
  *
  * Note: it's the caller that updates the account of the root cgroup.
  */
-void cpuacct_account_field(struct task_struct *p, int index, u64 val)
+void cpuacct_account_field(struct task_struct *tsk, int index, u64 val)
 {
-	struct kernel_cpustat *kcpustat;
 	struct cpuacct *ca;
 
 	rcu_read_lock();
-	ca = task_ca(p);
-	while (ca != &root_cpuacct) {
-		kcpustat = this_cpu_ptr(ca->cpustat);
-		kcpustat->cpustat[index] += val;
-		ca = __parent_ca(ca);
-	}
+	for (ca = task_ca(tsk); ca != &root_cpuacct; ca = parent_ca(ca))
+		this_cpu_ptr(ca->cpustat)->cpustat[index] += val;
 	rcu_read_unlock();
 }
 
-struct cgroup_subsys cpuacct_subsys = {
-	.name		= "cpuacct",
+struct cgroup_subsys cpuacct_cgrp_subsys = {
 	.css_alloc	= cpuacct_css_alloc,
 	.css_free	= cpuacct_css_free,
-	.subsys_id	= cpuacct_subsys_id,
-	.base_cftypes	= files,
-	.early_init	= 1,
+	.legacy_cftypes	= files,
+	.early_init	= true,
 };

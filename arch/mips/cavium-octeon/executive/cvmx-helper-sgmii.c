@@ -34,7 +34,6 @@
 
 #include <asm/octeon/cvmx-config.h>
 
-#include <asm/octeon/cvmx-mdio.h>
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
 
@@ -317,10 +316,14 @@ static int __cvmx_helper_sgmii_hardware_init(int interface, int num_ports)
 	for (index = 0; index < num_ports; index++) {
 		int ipd_port = cvmx_helper_get_ipd_port(interface, index);
 		__cvmx_helper_sgmii_hardware_init_one_time(interface, index);
-		__cvmx_helper_sgmii_link_set(ipd_port,
-					     __cvmx_helper_sgmii_link_get
-					     (ipd_port));
-
+		/* Linux kernel driver will call ....link_set with the
+		 * proper link state. In the simulator there is no
+		 * link state polling and hence it is set from
+		 * here.
+		 */
+		if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
+			__cvmx_helper_sgmii_link_set(ipd_port,
+				       __cvmx_helper_sgmii_link_get(ipd_port));
 	}
 
 	return 0;
@@ -497,8 +500,7 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
  * Configure an IPD/PKO port for the specified link state. This
  * function does not influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
- * by cvmx_helper_link_get(). It is normally best to use
- * cvmx_helper_link_autoconf() instead.
+ * by cvmx_helper_link_get().
  *
  * @ipd_port:  IPD/PKO port to configure
  * @link_info: The new link state

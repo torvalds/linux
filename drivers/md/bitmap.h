@@ -9,8 +9,10 @@
 #define BITMAP_MAJOR_LO 3
 /* version 4 insists the bitmap is in little-endian order
  * with version 3, it is host-endian which is non-portable
+ * Version 5 is currently set only for clustered devices
  */
 #define BITMAP_MAJOR_HI 4
+#define BITMAP_MAJOR_CLUSTERED 5
 #define	BITMAP_MAJOR_HOSTENDIAN 3
 
 /*
@@ -47,8 +49,8 @@
  * When we set a bit, or in the counter (to start a write), if the fields is
  * 0, we first set the disk bit and set the counter to 1.
  *
- * If the counter is 0, the on-disk bit is clear and the stipe is clean
- * Anything that dirties the stipe pushes the counter to 2 (at least)
+ * If the counter is 0, the on-disk bit is clear and the stripe is clean
+ * Anything that dirties the stripe pushes the counter to 2 (at least)
  * and sets the on-disk bit (lazily).
  * If a periodic sweep find the counter at 2, it is decremented to 1.
  * If the sweep find the counter at 1, the on-disk bit is cleared and the
@@ -130,8 +132,9 @@ typedef struct bitmap_super_s {
 	__le32 write_behind; /* 60  number of outstanding write-behind writes */
 	__le32 sectors_reserved; /* 64 number of 512-byte sectors that are
 				  * reserved for the bitmap. */
-
-	__u8  pad[256 - 68]; /* set to zero */
+	__le32 nodes;        /* 68 the maximum number of nodes in cluster. */
+	__u8 cluster_name[64]; /* 72 cluster name to which this md belongs */
+	__u8  pad[256 - 136]; /* set to zero */
 } bitmap_super_t;
 
 /* notes:
@@ -225,13 +228,14 @@ struct bitmap {
 	wait_queue_head_t overflow_wait;
 	wait_queue_head_t behind_wait;
 
-	struct sysfs_dirent *sysfs_can_clear;
+	struct kernfs_node *sysfs_can_clear;
+	int cluster_slot;		/* Slot offset for clustered env */
 };
 
 /* the bitmap API */
 
 /* these are used only by md/bitmap */
-int  bitmap_create(struct mddev *mddev);
+struct bitmap *bitmap_create(struct mddev *mddev, int slot);
 int bitmap_load(struct mddev *mddev);
 void bitmap_flush(struct mddev *mddev);
 void bitmap_destroy(struct mddev *mddev);
@@ -253,13 +257,21 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset,
 int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int degraded);
 void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int aborted);
 void bitmap_close_sync(struct bitmap *bitmap);
-void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector);
+void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force);
+void bitmap_sync_with_cluster(struct mddev *mddev,
+			      sector_t old_lo, sector_t old_hi,
+			      sector_t new_lo, sector_t new_hi);
 
 void bitmap_unplug(struct bitmap *bitmap);
 void bitmap_daemon_work(struct mddev *mddev);
 
 int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 		  int chunksize, int init);
+struct bitmap *get_bitmap_from_slot(struct mddev *mddev, int slot);
+int bitmap_copy_from_slot(struct mddev *mddev, int slot,
+				sector_t *lo, sector_t *hi, bool clear_bits);
+void bitmap_free(struct bitmap *bitmap);
+void bitmap_wait_behind_writes(struct mddev *mddev);
 #endif
 
 #endif

@@ -33,6 +33,7 @@
  *   when freed).
  */
 
+#if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
 #define pr_fmt(fmt) "[TTM] " fmt
 
 #include <linux/dma-mapping.h>
@@ -49,8 +50,11 @@
 #include <linux/kthread.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 #include <asm/agp.h>
+#endif
+#ifdef CONFIG_X86
+#include <asm/set_memory.h>
 #endif
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
@@ -270,7 +274,7 @@ static struct kobj_type ttm_pool_kobj_type = {
 #ifndef CONFIG_X86
 static int set_pages_array_wb(struct page **pages, int addrinarray)
 {
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	int i;
 
 	for (i = 0; i < addrinarray; i++)
@@ -281,7 +285,7 @@ static int set_pages_array_wb(struct page **pages, int addrinarray)
 
 static int set_pages_array_wc(struct page **pages, int addrinarray)
 {
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	int i;
 
 	for (i = 0; i < addrinarray; i++)
@@ -292,7 +296,7 @@ static int set_pages_array_wc(struct page **pages, int addrinarray)
 
 static int set_pages_array_uc(struct page **pages, int addrinarray)
 {
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	int i;
 
 	for (i = 0; i < addrinarray; i++)
@@ -341,9 +345,12 @@ static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
 	d_page->vaddr = dma_alloc_coherent(pool->dev, pool->size,
 					   &d_page->dma,
 					   pool->gfp_flags);
-	if (d_page->vaddr)
-		d_page->p = virt_to_page(d_page->vaddr);
-	else {
+	if (d_page->vaddr) {
+		if (is_vmalloc_addr(d_page->vaddr))
+			d_page->p = vmalloc_to_page(d_page->vaddr);
+		else
+			d_page->p = virt_to_page(d_page->vaddr);
+	} else {
 		kfree(d_page);
 		d_page = NULL;
 	}
@@ -410,9 +417,12 @@ static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
  *
  * @pool: to free the pages from
  * @nr_free: If set to true will free all pages in pool
+ * @use_static: Safe to use static buffer
  **/
-static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free)
+static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
+				       bool use_static)
 {
+	static struct page *static_buf[NUM_PAGES_TO_ALLOC];
 	unsigned long irq_flags;
 	struct dma_page *dma_p, *tmp;
 	struct page **pages_to_free;
@@ -429,8 +439,11 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free)
 			 npages_to_free, nr_free);
 	}
 #endif
-	pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
-			GFP_KERNEL);
+	if (use_static)
+		pages_to_free = static_buf;
+	else
+		pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
+					GFP_KERNEL);
 
 	if (!pages_to_free) {
 		pr_err("%s: Failed to allocate memory for pool free operation\n",
@@ -500,7 +513,8 @@ restart:
 	if (freed_pages)
 		ttm_dma_pages_put(pool, &d_pages, pages_to_free, freed_pages);
 out:
-	kfree(pages_to_free);
+	if (pages_to_free != static_buf)
+		kfree(pages_to_free);
 	return nr_free;
 }
 
@@ -529,7 +543,8 @@ static void ttm_dma_free_pool(struct device *dev, enum pool_type type)
 		if (pool->type != type)
 			continue;
 		/* Takes a spinlock.. */
-		ttm_dma_page_pool_free(pool, FREE_ALL_PAGES);
+		/* OK to use static buffer since global mutex is held. */
+		ttm_dma_page_pool_free(pool, FREE_ALL_PAGES, true);
 		WARN_ON(((pool->npages_in_use + pool->npages_free) != 0));
 		/* This code path is called after _all_ references to the
 		 * struct device has been dropped - so nobody should be
@@ -918,19 +933,6 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(ttm_dma_populate);
 
-/* Get good estimation how many pages are free in pools */
-static int ttm_dma_pool_get_num_unused_pages(void)
-{
-	struct device_pools *p;
-	unsigned total = 0;
-
-	mutex_lock(&_manager->lock);
-	list_for_each_entry(p, &_manager->pools, pools)
-		total += p->pool->npages_free;
-	mutex_unlock(&_manager->lock);
-	return total;
-}
-
 /* Put all pages in pages list to correct pool to wait for reuse */
 void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 {
@@ -963,14 +965,13 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	} else {
 		pool->npages_free += count;
 		list_splice(&ttm_dma->pages_list, &pool->free_list);
-		npages = count;
-		if (pool->npages_free > _manager->options.max_size) {
+		/*
+		 * Wait to have at at least NUM_PAGES_TO_ALLOC number of pages
+		 * to free in order to minimize calls to set_memory_wb().
+		 */
+		if (pool->npages_free >= (_manager->options.max_size +
+					  NUM_PAGES_TO_ALLOC))
 			npages = pool->npages_free - _manager->options.max_size;
-			/* free at least NUM_PAGES_TO_ALLOC number of pages
-			 * to reduce calls to set_memory_wb */
-			if (npages < NUM_PAGES_TO_ALLOC)
-				npages = NUM_PAGES_TO_ALLOC;
-		}
 	}
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
 
@@ -995,28 +996,37 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 
 	/* shrink pool if necessary (only on !is_cached pools)*/
 	if (npages)
-		ttm_dma_page_pool_free(pool, npages);
+		ttm_dma_page_pool_free(pool, npages, false);
 	ttm->state = tt_unpopulated;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_unpopulate);
 
 /**
  * Callback for mm to request pool to reduce number of page held.
+ *
+ * XXX: (dchinner) Deadlock warning!
+ *
+ * I'm getting sadder as I hear more pathetical whimpers about needing per-pool
+ * shrinkers
  */
-static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
-				  struct shrink_control *sc)
+static unsigned long
+ttm_dma_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
-	static atomic_t start_pool = ATOMIC_INIT(0);
+	static unsigned start_pool;
 	unsigned idx = 0;
-	unsigned pool_offset = atomic_add_return(1, &start_pool);
+	unsigned pool_offset;
 	unsigned shrink_pages = sc->nr_to_scan;
 	struct device_pools *p;
+	unsigned long freed = 0;
 
 	if (list_empty(&_manager->pools))
-		return 0;
+		return SHRINK_STOP;
 
-	mutex_lock(&_manager->lock);
-	pool_offset = pool_offset % _manager->npools;
+	if (!mutex_trylock(&_manager->lock))
+		return SHRINK_STOP;
+	if (!_manager->npools)
+		goto out;
+	pool_offset = ++start_pool % _manager->npools;
 	list_for_each_entry(p, &_manager->pools, pools) {
 		unsigned nr_free;
 
@@ -1028,19 +1038,37 @@ static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
 		if (++idx < pool_offset)
 			continue;
 		nr_free = shrink_pages;
-		shrink_pages = ttm_dma_page_pool_free(p->pool, nr_free);
+		/* OK to use static buffer since global mutex is held. */
+		shrink_pages = ttm_dma_page_pool_free(p->pool, nr_free, true);
+		freed += nr_free - shrink_pages;
+
 		pr_debug("%s: (%s:%d) Asked to shrink %d, have %d more to go\n",
 			 p->pool->dev_name, p->pool->name, current->pid,
 			 nr_free, shrink_pages);
 	}
+out:
 	mutex_unlock(&_manager->lock);
-	/* return estimated number of unused pages in pool */
-	return ttm_dma_pool_get_num_unused_pages();
+	return freed;
+}
+
+static unsigned long
+ttm_dma_pool_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+{
+	struct device_pools *p;
+	unsigned long count = 0;
+
+	if (!mutex_trylock(&_manager->lock))
+		return 0;
+	list_for_each_entry(p, &_manager->pools, pools)
+		count += p->pool->npages_free;
+	mutex_unlock(&_manager->lock);
+	return count;
 }
 
 static void ttm_dma_pool_mm_shrink_init(struct ttm_pool_manager *manager)
 {
-	manager->mm_shrink.shrink = &ttm_dma_pool_mm_shrink;
+	manager->mm_shrink.count_objects = ttm_dma_pool_shrink_count;
+	manager->mm_shrink.scan_objects = &ttm_dma_pool_shrink_scan;
 	manager->mm_shrink.seeks = 1;
 	register_shrinker(&manager->mm_shrink);
 }
@@ -1129,3 +1157,5 @@ int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_page_alloc_debugfs);
+
+#endif

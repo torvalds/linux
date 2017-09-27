@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/of_fdt.h>
 #include <asm/machdep.h>
+#include <asm/pgtable.h>
 #include <asm/time.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
@@ -44,6 +45,15 @@ static void __init qemu_e500_setup_arch(void)
 
 	fsl_pci_assign_primary();
 	swiotlb_detect_4g();
+#if defined(CONFIG_FSL_PCI) && defined(CONFIG_ZONE_DMA32)
+	/*
+	 * Inbound windows don't cover the full lower 4 GiB
+	 * due to conflicts with PCICSRBAR and outbound windows,
+	 * so limit the DMA32 zone to 2 GiB, to allow consistent
+	 * allocations to succeed.
+	 */
+	limit_zone_pfn(ZONE_DMA32, 1UL << (31 - PAGE_SHIFT));
+#endif
 	mpc85xx_smp_init();
 }
 
@@ -52,9 +62,7 @@ static void __init qemu_e500_setup_arch(void)
  */
 static int __init qemu_e500_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return !!of_flat_dt_is_compatible(root, "fsl,qemu-e500");
+	return !!of_machine_is_compatible("fsl,qemu-e500");
 }
 
 machine_arch_initcall(qemu_e500, mpc85xx_common_publish_devices);
@@ -66,9 +74,9 @@ define_machine(qemu_e500) {
 	.init_IRQ		= qemu_e500_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_coreint_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

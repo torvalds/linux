@@ -1,0 +1,29 @@
+config DRM_VC4
+	tristate "Broadcom VC4 Graphics"
+	depends on ARCH_BCM || ARCH_BCM2835 || COMPILE_TEST
+	depends on DRM
+	depends on SND && SND_SOC
+	depends on COMMON_CLK
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_PANEL_BRIDGE
+	select SND_PCM
+	select SND_PCM_ELD
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select DRM_MIPI_DSI
+	help
+	  Choose this option if you have a system that has a Broadcom
+	  VC4 GPU, such as the Raspberry Pi or other BCM2708/BCM2835.
+
+	  This driver requires that "avoid_warnings=2" be present in
+	  the config.txt for the firmware, to keep it from smashing
+	  our display setup.
+
+config DRM_VC4_HDMI_CEC
+       bool "Broadcom VC4 HDMI CEC Support"
+       depends on DRM_VC4
+       select CEC_CORE
+       help
+	  Choose this option if you have a Broadcom VC4 GPU
+	  and want to use CEC.

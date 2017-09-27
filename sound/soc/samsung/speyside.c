@@ -25,8 +25,12 @@ static int speyside_set_bias_level(struct snd_soc_card *card,
 				   struct snd_soc_dapm_context *dapm,
 				   enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -57,8 +61,12 @@ static int speyside_set_bias_level_post(struct snd_soc_card *card,
 					struct snd_soc_dapm_context *dapm,
 					enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -123,7 +131,7 @@ static void speyside_set_polarity(struct snd_soc_codec *codec,
 	gpio_direction_output(WM8996_HPSEL_GPIO, speyside_jack_polarity);
 
 	/* Re-run DAPM to make sure we're using the correct mic bias */
-	snd_soc_dapm_sync(&codec->dapm);
+	snd_soc_dapm_sync(snd_soc_codec_get_dapm(codec));
 }
 
 static int speyside_wm0010_init(struct snd_soc_pcm_runtime *rtd)
@@ -153,16 +161,10 @@ static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 		pr_err("Failed to request HP_SEL GPIO: %d\n", ret);
 	gpio_direction_output(WM8996_HPSEL_GPIO, speyside_jack_polarity);
 
-	ret = snd_soc_jack_new(codec, "Headset",
-			       SND_JACK_LINEOUT | SND_JACK_HEADSET |
-			       SND_JACK_BTN_0,
-			       &speyside_headset);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_pins(&speyside_headset,
-				    ARRAY_SIZE(speyside_headset_pins),
-				    speyside_headset_pins);
+	ret = snd_soc_card_jack_new(rtd->card, "Headset", SND_JACK_LINEOUT |
+				    SND_JACK_HEADSET | SND_JACK_BTN_0,
+				    &speyside_headset, speyside_headset_pins,
+				    ARRAY_SIZE(speyside_headset_pins));
 	if (ret)
 		return ret;
 
@@ -228,10 +230,12 @@ static struct snd_soc_dai_link speyside_dai[] = {
 	},
 };
 
-static int speyside_wm9081_init(struct snd_soc_dapm_context *dapm)
+static int speyside_wm9081_init(struct snd_soc_component *component)
 {
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
 	/* At any time the WM9081 is active it will have this clock */
-	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK, 0,
+	return snd_soc_codec_set_sysclk(codec, WM9081_SYSCLK_MCLK, 0,
 					MCLK_AUDIO_RATE, 0);
 }
 
@@ -327,33 +331,20 @@ static int speyside_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
-	if (ret) {
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
+	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
-		return ret;
-	}
 
-	return 0;
-}
-
-static int speyside_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-
-	return 0;
+	return ret;
 }
 
 static struct platform_driver speyside_driver = {
 	.driver = {
 		.name = "speyside",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = speyside_probe,
-	.remove = speyside_remove,
 };
 
 module_platform_driver(speyside_driver);

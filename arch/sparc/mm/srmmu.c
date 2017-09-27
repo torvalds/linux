@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/kdebug.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/log2.h>
@@ -48,11 +49,12 @@
 #include <asm/mxcc.h>
 #include <asm/ross.h>
 
-#include "srmmu.h"
+#include "mm_32.h"
 
 enum mbus_module srmmu_modtype;
 static unsigned int hwbug_bitmask;
 int vac_cache_size;
+EXPORT_SYMBOL(vac_cache_size);
 int vac_line_size;
 
 extern struct resource sparc_iomap;
@@ -62,6 +64,7 @@ extern unsigned long last_valid_pfn;
 static pgd_t *srmmu_swapper_pg_dir;
 
 const struct sparc32_cachetlb_ops *sparc32_cachetlb_ops;
+EXPORT_SYMBOL(sparc32_cachetlb_ops);
 
 #ifdef CONFIG_SMP
 const struct sparc32_cachetlb_ops *local_ops;
@@ -98,7 +101,6 @@ static unsigned long srmmu_nocache_end;
 #define SRMMU_NOCACHE_ALIGN_MAX (sizeof(ctxd_t)*SRMMU_MAX_CONTEXTS)
 
 void *srmmu_nocache_pool;
-void *srmmu_nocache_bitmap;
 static struct bit_map srmmu_nocache_map;
 
 static inline int srmmu_pmd_none(pmd_t pmd)
@@ -106,17 +108,22 @@ static inline int srmmu_pmd_none(pmd_t pmd)
 
 /* XXX should we hyper_flush_whole_icache here - Anton */
 static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
-{ set_pte((pte_t *)ctxp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pgdp) >> 4))); }
+{
+	pte_t pte;
+
+	pte = __pte((SRMMU_ET_PTD | (__nocache_pa(pgdp) >> 4)));
+	set_pte((pte_t *)ctxp, pte);
+}
 
 void pmd_set(pmd_t *pmdp, pte_t *ptep)
 {
 	unsigned long ptp;	/* Physical address, shifted right by 4 */
 	int i;
 
-	ptp = __nocache_pa((unsigned long) ptep) >> 4;
+	ptp = __nocache_pa(ptep) >> 4;
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
-		ptp += (SRMMU_REAL_PTRS_PER_PTE*sizeof(pte_t) >> 4);
+		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
+		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
 	}
 }
 
@@ -127,8 +134,8 @@ void pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
 
 	ptp = page_to_pfn(ptep) << (PAGE_SHIFT-4);	/* watch for overflow */
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
-		ptp += (SRMMU_REAL_PTRS_PER_PTE*sizeof(pte_t) >> 4);
+		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
+		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
 	}
 }
 
@@ -171,7 +178,7 @@ static void *__srmmu_get_nocache(int size, int align)
 		printk(KERN_ERR "srmmu: out of nocache %d: %d/%d\n",
 		       size, (int) srmmu_nocache_size,
 		       srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
-		return 0;
+		return NULL;
 	}
 
 	addr = SRMMU_NOCACHE_VADDR + (offset << SRMMU_NOCACHE_BITMAP_SHIFT);
@@ -267,6 +274,7 @@ static void __init srmmu_nocache_calcsize(void)
 
 static void __init srmmu_nocache_init(void)
 {
+	void *srmmu_nocache_bitmap;
 	unsigned int bitmap_bits;
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -345,7 +353,10 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	if ((pte = (unsigned long)pte_alloc_one_kernel(mm, address)) == 0)
 		return NULL;
 	page = pfn_to_page(__nocache_pa(pte) >> PAGE_SHIFT);
-	pgtable_page_ctor(page);
+	if (!pgtable_page_ctor(page)) {
+		__free_page(page);
+		return NULL;
+	}
 	return page;
 }
 
@@ -455,10 +466,12 @@ static void __init sparc_context_init(int numctx)
 void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,
 	       struct task_struct *tsk)
 {
+	unsigned long flags;
+
 	if (mm->context == NO_CONTEXT) {
-		spin_lock(&srmmu_context_spinlock);
+		spin_lock_irqsave(&srmmu_context_spinlock, flags);
 		alloc_context(old_mm, mm);
-		spin_unlock(&srmmu_context_spinlock);
+		spin_unlock_irqrestore(&srmmu_context_spinlock, flags);
 		srmmu_ctxd_set(&srmmu_context_table[mm->context], mm->pgd);
 	}
 
@@ -723,7 +736,7 @@ static inline unsigned long srmmu_probe(unsigned long vaddr)
 				     "=r" (retval) :
 				     "r" (vaddr | 0x400), "i" (ASI_M_FLUSH_PROBE));
 	} else {
-		retval = leon_swprobe(vaddr, 0);
+		retval = leon_swprobe(vaddr, NULL);
 	}
 	return retval;
 }
@@ -860,8 +873,6 @@ static void __init map_kernel(void)
 
 void (*poke_srmmu)(void) = NULL;
 
-extern unsigned long bootmem_init(unsigned long *pages_avail);
-
 void __init srmmu_paging_init(void)
 {
 	int i;
@@ -906,7 +917,7 @@ void __init srmmu_paging_init(void)
 
 	/* ctx table has to be physically aligned to its size */
 	srmmu_context_table = __srmmu_get_nocache(num_contexts * sizeof(ctxd_t), num_contexts * sizeof(ctxd_t));
-	srmmu_ctx_table_phys = (ctxd_t *)__nocache_pa((unsigned long)srmmu_context_table);
+	srmmu_ctx_table_phys = (ctxd_t *)__nocache_pa(srmmu_context_table);
 
 	for (i = 0; i < num_contexts; i++)
 		srmmu_ctxd_set((ctxd_t *)__nocache_fix(&srmmu_context_table[i]), srmmu_swapper_pg_dir);
@@ -983,14 +994,15 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 void destroy_context(struct mm_struct *mm)
 {
+	unsigned long flags;
 
 	if (mm->context != NO_CONTEXT) {
 		flush_cache_mm(mm);
 		srmmu_ctxd_set(&srmmu_context_table[mm->context], srmmu_swapper_pg_dir);
 		flush_tlb_mm(mm);
-		spin_lock(&srmmu_context_spinlock);
+		spin_lock_irqsave(&srmmu_context_spinlock, flags);
 		free_context(mm->context);
-		spin_unlock(&srmmu_context_spinlock);
+		spin_unlock_irqrestore(&srmmu_context_spinlock, flags);
 		mm->context = NO_CONTEXT;
 	}
 }
@@ -1433,7 +1445,7 @@ static void poke_viking(void)
 	srmmu_set_mmureg(mreg);
 }
 
-static struct sparc32_cachetlb_ops viking_ops = {
+static struct sparc32_cachetlb_ops viking_ops __ro_after_init = {
 	.cache_all	= viking_flush_cache_all,
 	.cache_mm	= viking_flush_cache_mm,
 	.cache_page	= viking_flush_cache_page,
@@ -1464,7 +1476,7 @@ static struct sparc32_cachetlb_ops viking_ops = {
  * flushes going at once will require SMP locking anyways so there's
  * no real value in trying any harder than this.
  */
-static struct sparc32_cachetlb_ops viking_sun4d_smp_ops = {
+static struct sparc32_cachetlb_ops viking_sun4d_smp_ops __ro_after_init = {
 	.cache_all	= viking_flush_cache_all,
 	.cache_mm	= viking_flush_cache_mm,
 	.cache_page	= viking_flush_cache_page,
@@ -1748,7 +1760,7 @@ static void smp_flush_sig_insns(struct mm_struct *mm, unsigned long insn_addr)
 	local_ops->sig_insns(mm, insn_addr);
 }
 
-static struct sparc32_cachetlb_ops smp_cachetlb_ops = {
+static struct sparc32_cachetlb_ops smp_cachetlb_ops __ro_after_init = {
 	.cache_all	= smp_flush_cache_all,
 	.cache_mm	= smp_flush_cache_mm,
 	.cache_page	= smp_flush_cache_page,
@@ -1766,9 +1778,6 @@ static struct sparc32_cachetlb_ops smp_cachetlb_ops = {
 /* Load up routines and constants for sun4m and sun4d mmu */
 void __init load_mmu(void)
 {
-	extern void ld_mmu_iommu(void);
-	extern void ld_mmu_iounit(void);
-
 	/* Functions */
 	get_srmmu_type();
 

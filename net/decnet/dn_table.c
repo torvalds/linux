@@ -25,10 +25,11 @@
 #include <linux/timer.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/route.h> /* RTF_xxx */
 #include <net/neighbour.h>
 #include <net/netlink.h>
+#include <net/tcp.h>
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/fib_rules.h>
@@ -273,7 +274,8 @@ static inline size_t dn_fib_nlmsg_size(struct dn_fib_info *fi)
 	size_t payload = NLMSG_ALIGN(sizeof(struct rtmsg))
 			 + nla_total_size(4) /* RTA_TABLE */
 			 + nla_total_size(2) /* RTA_DST */
-			 + nla_total_size(4); /* RTA_PRIORITY */
+			 + nla_total_size(4) /* RTA_PRIORITY */
+			 + nla_total_size(TCP_CA_NAME_MAX); /* RTAX_CC_ALGO */
 
 	/* space for nested metrics */
 	payload += nla_total_size((RTAX_MAX * nla_total_size(4)));
@@ -365,7 +367,8 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		nla_nest_end(skb, mp_head);
 	}
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 errout:
 	nlmsg_cancel(skb, nlh);

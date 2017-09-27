@@ -7,9 +7,10 @@ int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev);
 
 #define GS_STRINGS_W(__struct, __name)	\
-	static ssize_t __struct##_##__name##_store(struct __struct *gs, \
+static ssize_t __struct##_##__name##_store(struct config_item *item, \
 		const char *page, size_t len)		\
 {							\
+	struct __struct *gs = to_##__struct(item);	\
 	int ret;					\
 							\
 	ret = usb_string_copy(page, &gs->__name);	\
@@ -19,30 +20,20 @@ int check_user_usb_string(const char *name,
 }
 
 #define GS_STRINGS_R(__struct, __name)	\
-	static ssize_t __struct##_##__name##_show(struct __struct *gs, \
-			char *page)	\
+static ssize_t __struct##_##__name##_show(struct config_item *item, char *page) \
 {	\
+	struct __struct *gs = to_##__struct(item);	\
 	return sprintf(page, "%s\n", gs->__name ?: "");	\
 }
-
-#define GS_STRING_ITEM_ATTR(struct_name, name)	\
-	static struct struct_name##_attribute struct_name##_##name = \
-		__CONFIGFS_ATTR(name,  S_IRUGO | S_IWUSR,		\
-				struct_name##_##name##_show,		\
-				struct_name##_##name##_store)
 
 #define GS_STRINGS_RW(struct_name, _name)	\
 	GS_STRINGS_R(struct_name, _name)	\
 	GS_STRINGS_W(struct_name, _name)	\
-	GS_STRING_ITEM_ATTR(struct_name, _name)
+	CONFIGFS_ATTR(struct_name##_, _name)
 
 #define USB_CONFIG_STRING_RW_OPS(struct_in)				\
-	CONFIGFS_ATTR_OPS(struct_in);					\
-									\
 static struct configfs_item_operations struct_in##_langid_item_ops = {	\
 	.release                = struct_in##_attr_release,		\
-	.show_attribute         = struct_in##_attr_show,		\
-	.store_attribute        = struct_in##_attr_store,		\
 };									\
 									\
 static struct config_item_type struct_in##_langid_type = {		\

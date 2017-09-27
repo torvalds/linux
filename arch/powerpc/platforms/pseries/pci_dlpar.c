@@ -32,49 +32,20 @@
 #include <asm/firmware.h>
 #include <asm/eeh.h>
 
-static struct pci_bus *
-find_bus_among_children(struct pci_bus *bus,
-                        struct device_node *dn)
-{
-	struct pci_bus *child = NULL;
-	struct list_head *tmp;
-	struct device_node *busdn;
-
-	busdn = pci_bus_to_OF_node(bus);
-	if (busdn == dn)
-		return bus;
-
-	list_for_each(tmp, &bus->children) {
-		child = find_bus_among_children(pci_bus_b(tmp), dn);
-		if (child)
-			break;
-	};
-	return child;
-}
-
-struct pci_bus *
-pcibios_find_pci_bus(struct device_node *dn)
-{
-	struct pci_dn *pdn = dn->data;
-
-	if (!pdn  || !pdn->phb || !pdn->phb->bus)
-		return NULL;
-
-	return find_bus_among_children(pdn->phb->bus, dn);
-}
-EXPORT_SYMBOL_GPL(pcibios_find_pci_bus);
+#include "pseries.h"
 
 struct pci_controller *init_phb_dynamic(struct device_node *dn)
 {
 	struct pci_controller *phb;
 
-	pr_debug("PCI: Initializing new hotplug PHB %s\n", dn->full_name);
+	pr_debug("PCI: Initializing new hotplug PHB %pOF\n", dn);
 
 	phb = pcibios_alloc_controller(dn);
 	if (!phb)
 		return NULL;
 	rtas_setup_phb(phb);
 	pci_process_bridge_OF_ranges(phb, dn, 0);
+	phb->controller_ops = pseries_pci_controller_ops;
 
 	pci_devs_phb_init_dynamic(phb);
 
@@ -82,7 +53,7 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 	eeh_dev_phb_init_dynamic(phb);
 
 	if (dn->child)
-		eeh_add_device_tree_early(dn);
+		eeh_add_device_tree_early(PCI_DN(dn));
 
 	pcibios_scan_phb(phb);
 	pcibios_finish_adding_to_bus(phb->bus);
@@ -118,10 +89,10 @@ int remove_phb_dynamic(struct pci_controller *phb)
 		}
 	}
 
-	/* Unregister the bridge device from sysfs and remove the PCI bus */
-	device_unregister(b->bridge);
+	/* Remove the PCI bus and unregister the bridge device from sysfs */
 	phb->bus = NULL;
 	pci_remove_bus(b);
+	device_unregister(b->bridge);
 
 	/* Now release the IO resource */
 	if (res->flags & IORESOURCE_IO)
@@ -135,8 +106,11 @@ int remove_phb_dynamic(struct pci_controller *phb)
 		release_resource(res);
 	}
 
-	/* Free pci_controller data structure */
-	pcibios_free_controller(phb);
+	/*
+	 * The pci_controller data structure is freed by
+	 * the pcibios_free_controller_deferred() callback;
+	 * see pseries_root_bridge_prepare().
+	 */
 
 	return 0;
 }

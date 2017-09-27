@@ -2,6 +2,8 @@
  * Copyright 2003-2005	Devicescape Software, Inc.
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,8 +30,6 @@ static ssize_t sta_ ##name## _read(struct file *file,			\
 				      format_string, sta->field);	\
 }
 #define STA_READ_D(name, field) STA_READ(name, field, "%d\n")
-#define STA_READ_U(name, field) STA_READ(name, field, "%u\n")
-#define STA_READ_S(name, field) STA_READ(name, field, "%s\n")
 
 #define STA_OPS(name)							\
 static const struct file_operations sta_ ##name## _ops = {		\
@@ -51,34 +51,55 @@ static const struct file_operations sta_ ##name## _ops = {		\
 		STA_OPS(name)
 
 STA_FILE(aid, sta.aid, D);
-STA_FILE(dev, sdata->name, S);
-STA_FILE(last_signal, last_signal, D);
-STA_FILE(last_ack_signal, last_ack_signal, D);
-STA_FILE(beacon_loss_count, beacon_loss_count, D);
+
+static const char * const sta_flag_names[] = {
+#define FLAG(F) [WLAN_STA_##F] = #F
+	FLAG(AUTH),
+	FLAG(ASSOC),
+	FLAG(PS_STA),
+	FLAG(AUTHORIZED),
+	FLAG(SHORT_PREAMBLE),
+	FLAG(WDS),
+	FLAG(CLEAR_PS_FILT),
+	FLAG(MFP),
+	FLAG(BLOCK_BA),
+	FLAG(PS_DRIVER),
+	FLAG(PSPOLL),
+	FLAG(TDLS_PEER),
+	FLAG(TDLS_PEER_AUTH),
+	FLAG(TDLS_INITIATOR),
+	FLAG(TDLS_CHAN_SWITCH),
+	FLAG(TDLS_OFF_CHANNEL),
+	FLAG(TDLS_WIDER_BW),
+	FLAG(UAPSD),
+	FLAG(SP),
+	FLAG(4ADDR_EVENT),
+	FLAG(INSERTED),
+	FLAG(RATE_CONTROL),
+	FLAG(TOFFSET_KNOWN),
+	FLAG(MPSP_OWNER),
+	FLAG(MPSP_RECIPIENT),
+	FLAG(PS_DELIVER),
+#undef FLAG
+};
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	char buf[121];
+	char buf[16 * NUM_WLAN_STA_FLAGS], *pos = buf;
+	char *end = buf + sizeof(buf) - 1;
 	struct sta_info *sta = file->private_data;
+	unsigned int flg;
 
-#define TEST(flg) \
-	test_sta_flag(sta, WLAN_STA_##flg) ? #flg "\n" : ""
+	BUILD_BUG_ON(ARRAY_SIZE(sta_flag_names) != NUM_WLAN_STA_FLAGS);
 
-	int res = scnprintf(buf, sizeof(buf),
-			    "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-			    TEST(AUTH), TEST(ASSOC), TEST(PS_STA),
-			    TEST(PS_DRIVER), TEST(AUTHORIZED),
-			    TEST(SHORT_PREAMBLE),
-			    TEST(WME), TEST(WDS), TEST(CLEAR_PS_FILT),
-			    TEST(MFP), TEST(BLOCK_BA), TEST(PSPOLL),
-			    TEST(UAPSD), TEST(SP), TEST(TDLS_PEER),
-			    TEST(TDLS_PEER_AUTH), TEST(4ADDR_EVENT),
-			    TEST(INSERTED), TEST(RATE_CONTROL),
-			    TEST(TOFFSET_KNOWN), TEST(MPSP_OWNER),
-			    TEST(MPSP_RECIPIENT));
-#undef TEST
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
+	for (flg = 0; flg < NUM_WLAN_STA_FLAGS; flg++) {
+		if (test_sta_flag(sta, flg))
+			pos += scnprintf(pos, end - pos, "%s\n",
+					 sta_flag_names[flg]);
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, strlen(buf));
 }
 STA_OPS(flags);
 
@@ -98,40 +119,6 @@ static ssize_t sta_num_ps_buf_frames_read(struct file *file,
 }
 STA_OPS(num_ps_buf_frames);
 
-static ssize_t sta_inactive_ms_read(struct file *file, char __user *userbuf,
-				    size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	return mac80211_format_buffer(userbuf, count, ppos, "%d\n",
-				      jiffies_to_msecs(jiffies - sta->last_rx));
-}
-STA_OPS(inactive_ms);
-
-
-static ssize_t sta_connected_time_read(struct file *file, char __user *userbuf,
-					size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	struct timespec uptime;
-	struct tm result;
-	long connected_time_secs;
-	char buf[100];
-	int res;
-	do_posix_clock_monotonic_gettime(&uptime);
-	connected_time_secs = uptime.tv_sec - sta->last_connected;
-	time_to_tm(connected_time_secs, 0, &result);
-	result.tm_year -= 70;
-	result.tm_mday -= 1;
-	res = scnprintf(buf, sizeof(buf),
-		"years  - %ld\nmonths - %d\ndays   - %d\nclock  - %d:%d:%d\n\n",
-			result.tm_year, result.tm_mon, result.tm_mday,
-			result.tm_hour, result.tm_min, result.tm_sec);
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
-}
-STA_OPS(connected_time);
-
-
-
 static ssize_t sta_last_seq_ctrl_read(struct file *file, char __user *userbuf,
 				      size_t count, loff_t *ppos)
 {
@@ -145,6 +132,61 @@ static ssize_t sta_last_seq_ctrl_read(struct file *file, char __user *userbuf,
 	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
 STA_OPS(last_seq_ctrl);
+
+#define AQM_TXQ_ENTRY_LEN 130
+
+static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
+			size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_local *local = sta->local;
+	size_t bufsz = AQM_TXQ_ENTRY_LEN*(IEEE80211_NUM_TIDS+1);
+	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
+	struct txq_info *txqi;
+	ssize_t rv;
+	int i;
+
+	if (!buf)
+		return -ENOMEM;
+
+	spin_lock_bh(&local->fq.lock);
+	rcu_read_lock();
+
+	p += scnprintf(p,
+		       bufsz+buf-p,
+		       "target %uus interval %uus ecn %s\n",
+		       codel_time_to_us(sta->cparams.target),
+		       codel_time_to_us(sta->cparams.interval),
+		       sta->cparams.ecn ? "yes" : "no");
+	p += scnprintf(p,
+		       bufsz+buf-p,
+		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets\n");
+
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		txqi = to_txq_info(sta->sta.txq[i]);
+		p += scnprintf(p, bufsz+buf-p,
+			       "%d %d %u %u %u %u %u %u %u %u %u\n",
+			       txqi->txq.tid,
+			       txqi->txq.ac,
+			       txqi->tin.backlog_bytes,
+			       txqi->tin.backlog_packets,
+			       txqi->tin.flows,
+			       txqi->cstats.drop_count,
+			       txqi->cstats.ecn_mark,
+			       txqi->tin.overlimit,
+			       txqi->tin.collisions,
+			       txqi->tin.tx_bytes,
+			       txqi->tin.tx_packets);
+	}
+
+	rcu_read_unlock();
+	spin_unlock_bh(&local->fq.lock);
+
+	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return rv;
+}
+STA_OPS(aqm);
 
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
@@ -160,16 +202,21 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	p += scnprintf(p, sizeof(buf) + buf - p, "next dialog_token: %#02x\n",
 			sta->ampdu_mlme.dialog_token_allocator + 1);
 	p += scnprintf(p, sizeof(buf) + buf - p,
-		       "TID\t\tRX active\tDTKN\tSSN\t\tTX\tDTKN\tpending\n");
+		       "TID\t\tRX\tDTKN\tSSN\t\tTX\tDTKN\tpending\n");
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		bool tid_rx_valid;
+
 		tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[i]);
 		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[i]);
+		tid_rx_valid = test_bit(i, sta->ampdu_mlme.agg_session_valid);
 
 		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x", !!tid_rx);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
+			       tid_rx_valid);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				tid_rx ? tid_rx->dialog_token : 0);
+			       tid_rx_valid ?
+					sta->ampdu_mlme.tid_rx_token[i] : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
 				tid_rx ? tid_rx->ssn : 0);
 
@@ -188,11 +235,12 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 static ssize_t sta_agg_status_write(struct file *file, const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	char _buf[12], *buf = _buf;
+	char _buf[25] = {}, *buf = _buf;
 	struct sta_info *sta = file->private_data;
 	bool start, tx;
 	unsigned long tid;
-	int ret;
+	char *pos;
+	int ret, timeout = 5000;
 
 	if (count > sizeof(_buf))
 		return -EINVAL;
@@ -201,37 +249,48 @@ static ssize_t sta_agg_status_write(struct file *file, const char __user *userbu
 		return -EFAULT;
 
 	buf[sizeof(_buf) - 1] = '\0';
-
-	if (strncmp(buf, "tx ", 3) == 0) {
-		buf += 3;
-		tx = true;
-	} else if (strncmp(buf, "rx ", 3) == 0) {
-		buf += 3;
-		tx = false;
-	} else
+	pos = buf;
+	buf = strsep(&pos, " ");
+	if (!buf)
 		return -EINVAL;
 
-	if (strncmp(buf, "start ", 6) == 0) {
-		buf += 6;
+	if (!strcmp(buf, "tx"))
+		tx = true;
+	else if (!strcmp(buf, "rx"))
+		tx = false;
+	else
+		return -EINVAL;
+
+	buf = strsep(&pos, " ");
+	if (!buf)
+		return -EINVAL;
+	if (!strcmp(buf, "start")) {
 		start = true;
 		if (!tx)
 			return -EINVAL;
-	} else if (strncmp(buf, "stop ", 5) == 0) {
-		buf += 5;
+	} else if (!strcmp(buf, "stop")) {
 		start = false;
-	} else
+	} else {
 		return -EINVAL;
+	}
+
+	buf = strsep(&pos, " ");
+	if (!buf)
+		return -EINVAL;
+	if (sscanf(buf, "timeout=%d", &timeout) == 1) {
+		buf = strsep(&pos, " ");
+		if (!buf || !tx || !start)
+			return -EINVAL;
+	}
 
 	ret = kstrtoul(buf, 0, &tid);
-	if (ret)
-		return ret;
-
-	if (tid >= IEEE80211_NUM_TIDS)
+	if (ret || tid >= IEEE80211_NUM_TIDS)
 		return -EINVAL;
 
 	if (tx) {
 		if (start)
-			ret = ieee80211_start_tx_ba_session(&sta->sta, tid, 5000);
+			ret = ieee80211_start_tx_ba_session(&sta->sta, tid,
+							    timeout);
 		else
 			ret = ieee80211_stop_tx_ba_session(&sta->sta, tid);
 	} else {
@@ -329,14 +388,88 @@ STA_OPS(ht_capa);
 static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
-	char buf[128], *p = buf;
+	char buf[512], *p = buf;
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.vht_cap;
 
 	p += scnprintf(p, sizeof(buf) + buf - p, "VHT %ssupported\n",
 			vhtc->vht_supported ? "" : "not ");
 	if (vhtc->vht_supported) {
-		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.8x\n", vhtc->cap);
+		p += scnprintf(p, sizeof(buf) + buf - p, "cap: %#.8x\n",
+			       vhtc->cap);
+#define PFLAG(a, b)							\
+		do {							\
+			if (vhtc->cap & IEEE80211_VHT_CAP_ ## a)	\
+				p += scnprintf(p, sizeof(buf) + buf - p, \
+					       "\t\t%s\n", b);		\
+		} while (0)
+
+		switch (vhtc->cap & 0x3) {
+		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\tMAX-MPDU-3895\n");
+			break;
+		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\tMAX-MPDU-7991\n");
+			break;
+		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\tMAX-MPDU-11454\n");
+			break;
+		default:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\tMAX-MPDU-UNKNOWN\n");
+		};
+		switch (vhtc->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
+		case 0:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\t80Mhz\n");
+			break;
+		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\t160Mhz\n");
+			break;
+		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\t80+80Mhz\n");
+			break;
+		default:
+			p += scnprintf(p, sizeof(buf) + buf - p,
+				       "\t\tUNKNOWN-MHZ: 0x%x\n",
+				       (vhtc->cap >> 2) & 0x3);
+		};
+		PFLAG(RXLDPC, "RXLDPC");
+		PFLAG(SHORT_GI_80, "SHORT-GI-80");
+		PFLAG(SHORT_GI_160, "SHORT-GI-160");
+		PFLAG(TXSTBC, "TXSTBC");
+		p += scnprintf(p, sizeof(buf) + buf - p,
+			       "\t\tRXSTBC_%d\n", (vhtc->cap >> 8) & 0x7);
+		PFLAG(SU_BEAMFORMER_CAPABLE, "SU-BEAMFORMER-CAPABLE");
+		PFLAG(SU_BEAMFORMEE_CAPABLE, "SU-BEAMFORMEE-CAPABLE");
+		p += scnprintf(p, sizeof(buf) + buf - p,
+			"\t\tBEAMFORMEE-STS: 0x%x\n",
+			(vhtc->cap & IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK) >>
+			IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT);
+		p += scnprintf(p, sizeof(buf) + buf - p,
+			"\t\tSOUNDING-DIMENSIONS: 0x%x\n",
+			(vhtc->cap & IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK)
+			>> IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT);
+		PFLAG(MU_BEAMFORMER_CAPABLE, "MU-BEAMFORMER-CAPABLE");
+		PFLAG(MU_BEAMFORMEE_CAPABLE, "MU-BEAMFORMEE-CAPABLE");
+		PFLAG(VHT_TXOP_PS, "TXOP-PS");
+		PFLAG(HTC_VHT, "HTC-VHT");
+		p += scnprintf(p, sizeof(buf) + buf - p,
+			"\t\tMPDU-LENGTH-EXPONENT: 0x%x\n",
+			(vhtc->cap & IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK) >>
+			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT);
+		PFLAG(VHT_LINK_ADAPTATION_VHT_UNSOL_MFB,
+		      "LINK-ADAPTATION-VHT-UNSOL-MFB");
+		p += scnprintf(p, sizeof(buf) + buf - p,
+			"\t\tLINK-ADAPTATION-VHT-MRQ-MFB: 0x%x\n",
+			(vhtc->cap & IEEE80211_VHT_CAP_VHT_LINK_ADAPTATION_VHT_MRQ_MFB) >> 26);
+		PFLAG(RX_ANTENNA_PATTERN, "RX-ANTENNA-PATTERN");
+		PFLAG(TX_ANTENNA_PATTERN, "TX-ANTENNA-PATTERN");
 
 		p += scnprintf(p, sizeof(buf)+buf-p, "RX MCS: %.4x\n",
 			       le16_to_cpu(vhtc->vht_mcs.rx_mcs_map));
@@ -356,48 +489,17 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(vht_capa);
 
-static ssize_t sta_current_tx_rate_read(struct file *file, char __user *userbuf,
-					size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	struct rate_info rinfo;
-	u16 rate;
-	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &rinfo);
-	rate = cfg80211_calculate_bitrate(&rinfo);
-
-	return mac80211_format_buffer(userbuf, count, ppos,
-				      "%d.%d MBit/s\n",
-				      rate/10, rate%10);
-}
-STA_OPS(current_tx_rate);
-
-static ssize_t sta_last_rx_rate_read(struct file *file, char __user *userbuf,
-				     size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	struct rate_info rinfo;
-	u16 rate;
-
-	sta_set_rate_info_rx(sta, &rinfo);
-
-	rate = cfg80211_calculate_bitrate(&rinfo);
-
-	return mac80211_format_buffer(userbuf, count, ppos,
-				      "%d.%d MBit/s\n",
-				      rate/10, rate%10);
-}
-STA_OPS(last_rx_rate);
 
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
-		sta->debugfs.dir, sta, &sta_ ##name## _ops);
+		sta->debugfs_dir, sta, &sta_ ##name## _ops);
 
 #define DEBUGFS_ADD_COUNTER(name, field)				\
 	if (sizeof(sta->field) == sizeof(u32))				\
-		debugfs_create_u32(#name, 0400, sta->debugfs.dir,	\
+		debugfs_create_u32(#name, 0400, sta->debugfs_dir,	\
 			(u32 *) &sta->field);				\
 	else								\
-		debugfs_create_u64(#name, 0400, sta->debugfs.dir,	\
+		debugfs_create_u64(#name, 0400, sta->debugfs_dir,	\
 			(u64 *) &sta->field);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
@@ -406,8 +508,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct dentry *stations_dir = sta->sdata->debugfs.subdir_stations;
 	u8 mac[3*ETH_ALEN];
-
-	sta->debugfs.add_has_run = true;
 
 	if (!stations_dir)
 		return;
@@ -423,47 +523,39 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	 * destroyed quickly enough the old station's debugfs
 	 * dir might still be around.
 	 */
-	sta->debugfs.dir = debugfs_create_dir(mac, stations_dir);
-	if (!sta->debugfs.dir)
+	sta->debugfs_dir = debugfs_create_dir(mac, stations_dir);
+	if (!sta->debugfs_dir)
 		return;
 
 	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD(num_ps_buf_frames);
-	DEBUGFS_ADD(inactive_ms);
-	DEBUGFS_ADD(connected_time);
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);
-	DEBUGFS_ADD(dev);
-	DEBUGFS_ADD(last_signal);
-	DEBUGFS_ADD(beacon_loss_count);
 	DEBUGFS_ADD(ht_capa);
 	DEBUGFS_ADD(vht_capa);
-	DEBUGFS_ADD(last_ack_signal);
-	DEBUGFS_ADD(current_tx_rate);
-	DEBUGFS_ADD(last_rx_rate);
 
-	DEBUGFS_ADD_COUNTER(rx_packets, rx_packets);
-	DEBUGFS_ADD_COUNTER(tx_packets, tx_packets);
-	DEBUGFS_ADD_COUNTER(rx_bytes, rx_bytes);
-	DEBUGFS_ADD_COUNTER(tx_bytes, tx_bytes);
-	DEBUGFS_ADD_COUNTER(rx_duplicates, num_duplicates);
-	DEBUGFS_ADD_COUNTER(rx_fragments, rx_fragments);
-	DEBUGFS_ADD_COUNTER(rx_dropped, rx_dropped);
-	DEBUGFS_ADD_COUNTER(tx_fragments, tx_fragments);
-	DEBUGFS_ADD_COUNTER(tx_filtered, tx_filtered_count);
-	DEBUGFS_ADD_COUNTER(tx_retry_failed, tx_retry_failed);
-	DEBUGFS_ADD_COUNTER(tx_retry_count, tx_retry_count);
-	DEBUGFS_ADD_COUNTER(wep_weak_iv_count, wep_weak_iv_count);
+	DEBUGFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
+	DEBUGFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
+	DEBUGFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
 
-	drv_sta_add_debugfs(local, sdata, &sta->sta, sta->debugfs.dir);
+	if (local->ops->wake_tx_queue)
+		DEBUGFS_ADD(aqm);
+
+	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
+		debugfs_create_x32("driver_buffered_tids", 0400,
+				   sta->debugfs_dir,
+				   (u32 *)&sta->driver_buffered_tids);
+	else
+		debugfs_create_x64("driver_buffered_tids", 0400,
+				   sta->debugfs_dir,
+				   (u64 *)&sta->driver_buffered_tids);
+
+	drv_sta_add_debugfs(local, sdata, &sta->sta, sta->debugfs_dir);
 }
 
 void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 {
-	struct ieee80211_local *local = sta->local;
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-
-	drv_sta_remove_debugfs(local, sdata, &sta->sta, sta->debugfs.dir);
-	debugfs_remove_recursive(sta->debugfs.dir);
-	sta->debugfs.dir = NULL;
+	debugfs_remove_recursive(sta->debugfs_dir);
+	sta->debugfs_dir = NULL;
 }

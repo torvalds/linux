@@ -53,14 +53,14 @@ static int isdn_x25iface_disconn_ind(struct concap_proto *);
 
 
 static struct concap_proto_ops ix25_pops = {
-	&isdn_x25iface_proto_new,
-	&isdn_x25iface_proto_del,
-	&isdn_x25iface_proto_restart,
-	&isdn_x25iface_proto_close,
-	&isdn_x25iface_xmit,
-	&isdn_x25iface_receive,
-	&isdn_x25iface_connect_ind,
-	&isdn_x25iface_disconn_ind
+	.proto_new = &isdn_x25iface_proto_new,
+	.proto_del = &isdn_x25iface_proto_del,
+	.restart = &isdn_x25iface_proto_restart,
+	.close = &isdn_x25iface_proto_close,
+	.encap_and_xmit = &isdn_x25iface_xmit,
+	.data_ind = &isdn_x25iface_receive,
+	.connect_ind = &isdn_x25iface_connect_ind,
+	.disconn_ind = &isdn_x25iface_disconn_ind
 };
 
 /* error message helper function */
@@ -224,7 +224,7 @@ static int isdn_x25iface_connect_ind(struct concap_proto *cprot)
 
 	skb = dev_alloc_skb(1);
 	if (skb) {
-		*(skb_put(skb, 1)) = X25_IFACE_CONNECT;
+		skb_put_u8(skb, X25_IFACE_CONNECT);
 		skb->protocol = x25_type_trans(skb, cprot->net_dev);
 		netif_rx(skb);
 		return 0;
@@ -253,7 +253,7 @@ static int isdn_x25iface_disconn_ind(struct concap_proto *cprot)
 	*state_p = WAN_DISCONNECTED;
 	skb = dev_alloc_skb(1);
 	if (skb) {
-		*(skb_put(skb, 1)) = X25_IFACE_DISCONNECT;
+		skb_put_u8(skb, X25_IFACE_DISCONNECT);
 		skb->protocol = x25_type_trans(skb, cprot->net_dev);
 		netif_rx(skb);
 		return 0;
@@ -278,7 +278,7 @@ static int isdn_x25iface_xmit(struct concap_proto *cprot, struct sk_buff *skb)
 	case X25_IFACE_DATA:
 		if (*state == WAN_CONNECTED) {
 			skb_pull(skb, 1);
-			cprot->net_dev->trans_start = jiffies;
+			netif_trans_update(cprot->net_dev);
 			ret = (cprot->dops->data_req(cprot, skb));
 			/* prepare for future retransmissions */
 			if (ret) skb_push(skb, 1);

@@ -17,7 +17,8 @@
 #ifndef __LINUX_CLK_TEGRA_H_
 #define __LINUX_CLK_TEGRA_H_
 
-#include <linux/clk.h>
+#include <linux/types.h>
+#include <linux/bug.h>
 
 /*
  * Tegra CPU clock and reset control ops
@@ -120,13 +121,12 @@ static inline void tegra_cpu_clock_resume(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_TEGRA
-void tegra_periph_reset_deassert(struct clk *c);
-void tegra_periph_reset_assert(struct clk *c);
-#else
-static inline void tegra_periph_reset_deassert(struct clk *c) {}
-static inline void tegra_periph_reset_assert(struct clk *c) {}
-#endif
-void tegra_clocks_apply_init_table(void);
+extern void tegra210_xusb_pll_hw_control_enable(void);
+extern void tegra210_xusb_pll_hw_sequence_start(void);
+extern void tegra210_sata_pll_hw_control_enable(void);
+extern void tegra210_sata_pll_hw_sequence_start(void);
+extern void tegra210_set_sata_pll_seq_sw(bool state);
+extern void tegra210_put_utmipll_in_iddq(void);
+extern void tegra210_put_utmipll_out_iddq(void);
 
 #endif /* __LINUX_CLK_TEGRA_H_ */

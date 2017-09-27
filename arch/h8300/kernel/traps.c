@@ -1,7 +1,7 @@
 /*
  * linux/arch/h8300/boot/traps.c -- general exception handling code
  * H8/300 support Yoshinori Sato <ysato@users.sourceforge.jp>
- * 
+ *
  * Cloned from Linux/m68k.
  *
  * No original Copyright holder listed,
@@ -16,6 +16,8 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/mm_types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -37,11 +39,11 @@ void __init base_trap_init(void)
 {
 }
 
-void __init trap_init (void)
+void __init trap_init(void)
 {
 }
 
-asmlinkage void set_esp0 (unsigned long ssp)
+asmlinkage void set_esp0(unsigned long ssp)
 {
 	current->thread.esp0 = ssp;
 }
@@ -56,43 +58,43 @@ static void dump(struct pt_regs *fp)
 	unsigned char	*tp;
 	int		i;
 
-	printk("\nCURRENT PROCESS:\n\n");
-	printk("COMM=%s PID=%d\n", current->comm, current->pid);
+	pr_info("\nCURRENT PROCESS:\n\n");
+	pr_info("COMM=%s PID=%d\n", current->comm, current->pid);
 	if (current->mm) {
-		printk("TEXT=%08x-%08x DATA=%08x-%08x BSS=%08x-%08x\n",
+		pr_info("TEXT=%08x-%08x DATA=%08x-%08x BSS=%08x-%08x\n",
 			(int) current->mm->start_code,
 			(int) current->mm->end_code,
 			(int) current->mm->start_data,
 			(int) current->mm->end_data,
 			(int) current->mm->end_data,
 			(int) current->mm->brk);
-		printk("USER-STACK=%08x  KERNEL-STACK=%08lx\n\n",
+		pr_info("USER-STACK=%08x  KERNEL-STACK=%08lx\n\n",
 			(int) current->mm->start_stack,
 			(int) PAGE_SIZE+(unsigned long)current);
 	}
 
 	show_regs(fp);
-	printk("\nCODE:");
+	pr_info("\nCODE:");
 	tp = ((unsigned char *) fp->pc) - 0x20;
 	for (sp = (unsigned long *) tp, i = 0; (i < 0x40);  i += 4) {
 		if ((i % 0x10) == 0)
-			printk("\n%08x: ", (int) (tp + i));
-		printk("%08x ", (int) *sp++);
+			pr_info("\n%08x: ", (int) (tp + i));
+		pr_info("%08x ", (int) *sp++);
 	}
-	printk("\n");
+	pr_info("\n");
 
-	printk("\nKERNEL STACK:");
+	pr_info("\nKERNEL STACK:");
 	tp = ((unsigned char *) fp) - 0x40;
 	for (sp = (unsigned long *) tp, i = 0; (i < 0xc0); i += 4) {
 		if ((i % 0x10) == 0)
-			printk("\n%08x: ", (int) (tp + i));
-		printk("%08x ", (int) *sp++);
+			pr_info("\n%08x: ", (int) (tp + i));
+		pr_info("%08x ", (int) *sp++);
 	}
-	printk("\n");
+	pr_info("\n");
 	if (STACK_MAGIC != *(unsigned long *)((unsigned long)current+PAGE_SIZE))
-                printk("(Possibly corrupted stack page??)\n");
+		pr_info("(Possibly corrupted stack page??)\n");
 
-	printk("\n\n");
+	pr_info("\n\n");
 }
 
 void die(const char *str, struct pt_regs *fp, unsigned long err)
@@ -104,17 +106,12 @@ void die(const char *str, struct pt_regs *fp, unsigned long err)
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	report_bug(fp->pc, fp);
-	printk(KERN_EMERG "%s: %04lx [#%d] ", str, err & 0xffff, ++diecount);
+	pr_crit("%s: %04lx [#%d] ", str, err & 0xffff, ++diecount);
 	dump(fp);
 
 	spin_unlock_irq(&die_lock);
 	do_exit(SIGSEGV);
 }
-
-extern char _start, _etext;
-#define check_kernel_text(addr) \
-        ((addr >= (unsigned long)(&_start)) && \
-         (addr <  (unsigned long)(&_etext))) 
 
 static int kstack_depth_to_print = 24;
 
@@ -128,19 +125,20 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 
 	stack = esp;
 
-	printk("Stack from %08lx:", (unsigned long)stack);
+	pr_info("Stack from %08lx:", (unsigned long)stack);
 	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (((unsigned long)stack & (THREAD_SIZE - 1)) == 0)
+		if (((unsigned long)stack & (THREAD_SIZE - 1)) >=
+		    THREAD_SIZE-4)
 			break;
 		if (i % 8 == 0)
-			printk("\n       ");
-		printk(" %08lx", *stack++);
+			pr_info(" ");
+		pr_cont(" %08lx", *stack++);
 	}
 
-	printk("\nCall Trace:");
+	pr_info("\nCall Trace:\n");
 	i = 0;
 	stack = esp;
-	while (((unsigned long)stack & (THREAD_SIZE - 1)) != 0) {
+	while (((unsigned long)stack & (THREAD_SIZE - 1)) < THREAD_SIZE-4) {
 		addr = *stack++;
 		/*
 		 * If the address is either in the text segment of the
@@ -152,15 +150,10 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 		 */
 		if (check_kernel_text(addr)) {
 			if (i % 4 == 0)
-				printk("\n       ");
-			printk(" [<%08lx>]", addr);
+				pr_info("       ");
+			pr_cont(" [<%08lx>]", addr);
 			i++;
 		}
 	}
-	printk("\n");
-}
-
-void show_trace_task(struct task_struct *tsk)
-{
-	show_stack(tsk,(unsigned long *)tsk->thread.esp0);
+	pr_info("\n");
 }

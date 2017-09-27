@@ -36,6 +36,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/moduleparam.h>
+#include <linux/pci.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
 #include <asm/cpu_device_id.h>
@@ -50,19 +51,20 @@ static int force_tjmax;
 module_param_named(tjmax, force_tjmax, int, 0444);
 MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
+#define PKG_SYSFS_ATTR_NO	1	/* Sysfs attribute for package temp */
 #define BASE_SYSFS_ATTR_NO	2	/* Sysfs Base attr no for coretemp */
-#define NUM_REAL_CORES		32	/* Number of Real cores per cpu */
-#define CORETEMP_NAME_LENGTH	17	/* String Length of attrs */
+#define NUM_REAL_CORES		128	/* Number of Real cores per cpu */
+#define CORETEMP_NAME_LENGTH	19	/* String Length of attrs */
 #define MAX_CORE_ATTRS		4	/* Maximum no of basic attrs */
 #define TOTAL_ATTRS		(MAX_CORE_ATTRS + 1)
 #define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_NO)
 
-#define TO_PHYS_ID(cpu)		(cpu_data(cpu).phys_proc_id)
 #define TO_CORE_ID(cpu)		(cpu_data(cpu).cpu_core_id)
 #define TO_ATTR_NO(cpu)		(TO_CORE_ID(cpu) + BASE_SYSFS_ATTR_NO)
 
 #ifdef CONFIG_SMP
-#define for_each_sibling(i, cpu)	for_each_cpu(i, cpu_sibling_mask(cpu))
+#define for_each_sibling(i, cpu) \
+	for_each_cpu(i, topology_sibling_cpumask(cpu))
 #else
 #define for_each_sibling(i, cpu)	for (i = 0; false; )
 #endif
@@ -93,31 +95,24 @@ struct temp_data {
 	bool valid;
 	struct sensor_device_attribute sd_attrs[TOTAL_ATTRS];
 	char attr_name[TOTAL_ATTRS][CORETEMP_NAME_LENGTH];
+	struct attribute *attrs[TOTAL_ATTRS + 1];
+	struct attribute_group attr_group;
 	struct mutex update_lock;
 };
 
 /* Platform Data per Physical CPU */
 struct platform_data {
-	struct device *hwmon_dev;
-	u16 phys_proc_id;
-	struct temp_data *core_data[MAX_CORE_DATA];
+	struct device		*hwmon_dev;
+	u16			pkg_id;
+	struct cpumask		cpumask;
+	struct temp_data	*core_data[MAX_CORE_DATA];
 	struct device_attribute name_attr;
 };
 
-struct pdev_entry {
-	struct list_head list;
-	struct platform_device *pdev;
-	u16 phys_proc_id;
-};
-
-static LIST_HEAD(pdev_list);
-static DEFINE_MUTEX(pdev_list_mutex);
-
-static ssize_t show_name(struct device *dev,
-			struct device_attribute *devattr, char *buf)
-{
-	return sprintf(buf, "%s\n", DRVNAME);
-}
+/* Keep track of how many package pointers we allocated in init() */
+static int max_packages __read_mostly;
+/* Array of package pointers. Serialized by cpu hotplug lock */
+static struct platform_device **pkg_devices;
 
 static ssize_t show_label(struct device *dev,
 				struct device_attribute *devattr, char *buf)
@@ -127,7 +122,7 @@ static ssize_t show_label(struct device *dev,
 	struct temp_data *tdata = pdata->core_data[attr->index];
 
 	if (tdata->is_pkg_data)
-		return sprintf(buf, "Physical id %u\n", pdata->phys_proc_id);
+		return sprintf(buf, "Package id %u\n", pdata->pkg_id);
 
 	return sprintf(buf, "Core %u\n", tdata->cpu_core_id);
 }
@@ -140,7 +135,9 @@ static ssize_t show_crit_alarm(struct device *dev,
 	struct platform_data *pdata = dev_get_drvdata(dev);
 	struct temp_data *tdata = pdata->core_data[attr->index];
 
+	mutex_lock(&tdata->update_lock);
 	rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
+	mutex_unlock(&tdata->update_lock);
 
 	return sprintf(buf, "%d\n", (eax >> 5) & 1);
 }
@@ -176,19 +173,32 @@ static ssize_t show_temp(struct device *dev,
 	/* Check whether the time interval has elapsed */
 	if (!tdata->valid || time_after(jiffies, tdata->last_updated + HZ)) {
 		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
-		tdata->valid = 0;
-		/* Check whether the data is valid */
-		if (eax & 0x80000000) {
-			tdata->temp = tdata->tjmax -
-					((eax >> 16) & 0x7f) * 1000;
-			tdata->valid = 1;
-		}
+		/*
+		 * Ignore the valid bit. In all observed cases the register
+		 * value is either low or zero if the valid bit is 0.
+		 * Return it instead of reporting an error which doesn't
+		 * really help at all.
+		 */
+		tdata->temp = tdata->tjmax - ((eax >> 16) & 0x7f) * 1000;
+		tdata->valid = 1;
 		tdata->last_updated = jiffies;
 	}
 
 	mutex_unlock(&tdata->update_lock);
-	return tdata->valid ? sprintf(buf, "%d\n", tdata->temp) : -EAGAIN;
+	return sprintf(buf, "%d\n", tdata->temp);
 }
+
+struct tjmax_pci {
+	unsigned int device;
+	int tjmax;
+};
+
+static const struct tjmax_pci tjmax_pci_table[] = {
+	{ 0x0708, 110000 },	/* CE41x0 (Sodaville ) */
+	{ 0x0c72, 102000 },	/* Atom S1240 (Centerton) */
+	{ 0x0c73, 95000 },	/* Atom S1220 (Centerton) */
+	{ 0x0c75, 95000 },	/* Atom S1260 (Centerton) */
+};
 
 struct tjmax {
 	char const *id;
@@ -198,9 +208,6 @@ struct tjmax {
 static const struct tjmax tjmax_table[] = {
 	{ "CPU  230", 100000 },		/* Model 0x1c, stepping 2	*/
 	{ "CPU  330", 125000 },		/* Model 0x1c, stepping 2	*/
-	{ "CPU CE4110", 110000 },	/* Model 0x1c, stepping 10 Sodaville */
-	{ "CPU CE4150", 110000 },	/* Model 0x1c, stepping 10	*/
-	{ "CPU CE4170", 110000 },	/* Model 0x1c, stepping 10	*/
 };
 
 struct tjmax_model {
@@ -222,8 +229,11 @@ static const struct tjmax_model tjmax_model_table[] = {
 				 * is undetectable by software
 				 */
 	{ 0x27, ANY, 90000 },	/* Atom Medfield (Z2460) */
-	{ 0x35, ANY, 90000 },	/* Atom Clover Trail/Cloverview (Z2760) */
-	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx) */
+	{ 0x35, ANY, 90000 },	/* Atom Clover Trail/Cloverview (Z27x0) */
+	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx)
+				 * Also matches S12x0 (stepping 9), covered by
+				 * PCI table
+				 */
 };
 
 static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
@@ -236,8 +246,20 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	int err;
 	u32 eax, edx;
 	int i;
+	struct pci_dev *host_bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
 
-	/* explicit tjmax table entries override heuristics */
+	/*
+	 * Explicit tjmax table entries override heuristics.
+	 * First try PCI host bridge IDs, followed by model ID strings
+	 * and model/stepping information.
+	 */
+	if (host_bridge && host_bridge->vendor == PCI_VENDOR_ID_INTEL) {
+		for (i = 0; i < ARRAY_SIZE(tjmax_pci_table); i++) {
+			if (host_bridge->device == tjmax_pci_table[i].device)
+				return tjmax_pci_table[i].tjmax;
+		}
+	}
+
 	for (i = 0; i < ARRAY_SIZE(tjmax_table); i++) {
 		if (strstr(c->x86_model_id, tjmax_table[i].id))
 			return tjmax_table[i].tjmax;
@@ -316,6 +338,18 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	return tjmax;
 }
 
+static bool cpu_has_tjmax(struct cpuinfo_x86 *c)
+{
+	u8 model = c->x86_model;
+
+	return model > 0xe &&
+	       model != 0x1c &&
+	       model != 0x26 &&
+	       model != 0x27 &&
+	       model != 0x35 &&
+	       model != 0x36;
+}
+
 static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 {
 	int err;
@@ -328,7 +362,7 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	 */
 	err = rdmsr_safe_on_cpu(id, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (err) {
-		if (c->x86_model > 0xe && c->x86_model != 0x1c)
+		if (cpu_has_tjmax(c))
 			dev_warn(dev, "Unable to read TjMax from CPU %u\n", id);
 	} else {
 		val = (eax >> 16) & 0xff;
@@ -355,47 +389,30 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	return adjust_tjmax(c, id, dev);
 }
 
-static int create_name_attr(struct platform_data *pdata,
-				      struct device *dev)
-{
-	sysfs_attr_init(&pdata->name_attr.attr);
-	pdata->name_attr.attr.name = "name";
-	pdata->name_attr.attr.mode = S_IRUGO;
-	pdata->name_attr.show = show_name;
-	return device_create_file(dev, &pdata->name_attr);
-}
-
 static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 			     int attr_no)
 {
-	int err, i;
+	int i;
 	static ssize_t (*const rd_ptr[TOTAL_ATTRS]) (struct device *dev,
 			struct device_attribute *devattr, char *buf) = {
 			show_label, show_crit_alarm, show_temp, show_tjmax,
 			show_ttarget };
-	static const char *const names[TOTAL_ATTRS] = {
-					"temp%d_label", "temp%d_crit_alarm",
-					"temp%d_input", "temp%d_crit",
-					"temp%d_max" };
+	static const char *const suffixes[TOTAL_ATTRS] = {
+		"label", "crit_alarm", "input", "crit", "max"
+	};
 
 	for (i = 0; i < tdata->attr_size; i++) {
-		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH, names[i],
-			attr_no);
+		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH,
+			 "temp%d_%s", attr_no, suffixes[i]);
 		sysfs_attr_init(&tdata->sd_attrs[i].dev_attr.attr);
 		tdata->sd_attrs[i].dev_attr.attr.name = tdata->attr_name[i];
 		tdata->sd_attrs[i].dev_attr.attr.mode = S_IRUGO;
 		tdata->sd_attrs[i].dev_attr.show = rd_ptr[i];
 		tdata->sd_attrs[i].index = attr_no;
-		err = device_create_file(dev, &tdata->sd_attrs[i].dev_attr);
-		if (err)
-			goto exit_free;
+		tdata->attrs[i] = &tdata->sd_attrs[i].dev_attr.attr;
 	}
-	return 0;
-
-exit_free:
-	while (--i >= 0)
-		device_remove_file(dev, &tdata->sd_attrs[i].dev_attr);
-	return err;
+	tdata->attr_group.attrs = tdata->attrs;
+	return sysfs_create_group(&dev->kobj, &tdata->attr_group);
 }
 
 
@@ -417,18 +434,10 @@ static int chk_ucode_version(unsigned int cpu)
 
 static struct platform_device *coretemp_get_pdev(unsigned int cpu)
 {
-	u16 phys_proc_id = TO_PHYS_ID(cpu);
-	struct pdev_entry *p;
+	int pkgid = topology_logical_package_id(cpu);
 
-	mutex_lock(&pdev_list_mutex);
-
-	list_for_each_entry(p, &pdev_list, list)
-		if (p->phys_proc_id == phys_proc_id) {
-			mutex_unlock(&pdev_list_mutex);
-			return p->pdev;
-		}
-
-	mutex_unlock(&pdev_list_mutex);
+	if (pkgid >= 0 && pkgid < max_packages)
+		return pkg_devices[pkgid];
 	return NULL;
 }
 
@@ -465,20 +474,10 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	 * The attr number is always core id + 2
 	 * The Pkgtemp will always show up as temp1_*, if available
 	 */
-	attr_no = pkg_flag ? 1 : TO_ATTR_NO(cpu);
+	attr_no = pkg_flag ? PKG_SYSFS_ATTR_NO : TO_ATTR_NO(cpu);
 
 	if (attr_no > MAX_CORE_DATA - 1)
 		return -ERANGE;
-
-	/*
-	 * Provide a single set of attributes for all HT siblings of a core
-	 * to avoid duplicate sensors (the processor ID and core ID of all
-	 * HT siblings of a core are the same).
-	 * Skip if a HT sibling of this core is already registered.
-	 * This is not an error.
-	 */
-	if (pdata->core_data[attr_no] != NULL)
-		return 0;
 
 	tdata = init_temp_data(cpu, pkg_flag);
 	if (!tdata)
@@ -510,7 +509,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	pdata->core_data[attr_no] = tdata;
 
 	/* Create sysfs interfaces */
-	err = create_core_attrs(tdata, &pdev->dev, attr_no);
+	err = create_core_attrs(tdata, pdata->hwmon_dev, attr_no);
 	if (err)
 		goto exit_free;
 
@@ -521,28 +520,19 @@ exit_free:
 	return err;
 }
 
-static void coretemp_add_core(unsigned int cpu, int pkg_flag)
+static void
+coretemp_add_core(struct platform_device *pdev, unsigned int cpu, int pkg_flag)
 {
-	struct platform_device *pdev = coretemp_get_pdev(cpu);
-	int err;
-
-	if (!pdev)
-		return;
-
-	err = create_core_data(pdev, cpu, pkg_flag);
-	if (err)
+	if (create_core_data(pdev, cpu, pkg_flag))
 		dev_err(&pdev->dev, "Adding Core %u failed\n", cpu);
 }
 
-static void coretemp_remove_core(struct platform_data *pdata,
-				struct device *dev, int indx)
+static void coretemp_remove_core(struct platform_data *pdata, int indx)
 {
-	int i;
 	struct temp_data *tdata = pdata->core_data[indx];
 
 	/* Remove the sysfs attributes */
-	for (i = 0; i < tdata->attr_size; i++)
-		device_remove_file(dev, &tdata->sd_attrs[i].dev_attr);
+	sysfs_remove_group(&pdata->hwmon_dev->kobj, &tdata->attr_group);
 
 	kfree(pdata->core_data[indx]);
 	pdata->core_data[indx] = NULL;
@@ -550,34 +540,20 @@ static void coretemp_remove_core(struct platform_data *pdata,
 
 static int coretemp_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct platform_data *pdata;
-	int err;
 
 	/* Initialize the per-package data structures */
-	pdata = kzalloc(sizeof(struct platform_data), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(struct platform_data), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	err = create_name_attr(pdata, &pdev->dev);
-	if (err)
-		goto exit_free;
-
-	pdata->phys_proc_id = pdev->id;
+	pdata->pkg_id = pdev->id;
 	platform_set_drvdata(pdev, pdata);
 
-	pdata->hwmon_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(pdata->hwmon_dev)) {
-		err = PTR_ERR(pdata->hwmon_dev);
-		dev_err(&pdev->dev, "Class registration failed (%d)\n", err);
-		goto exit_name;
-	}
-	return 0;
-
-exit_name:
-	device_remove_file(&pdev->dev, &pdata->name_attr);
-exit_free:
-	kfree(pdata);
-	return err;
+	pdata->hwmon_dev = devm_hwmon_device_register_with_groups(dev, DRVNAME,
+								  pdata, NULL);
+	return PTR_ERR_OR_ZERO(pdata->hwmon_dev);
 }
 
 static int coretemp_remove(struct platform_device *pdev)
@@ -587,102 +563,53 @@ static int coretemp_remove(struct platform_device *pdev)
 
 	for (i = MAX_CORE_DATA - 1; i >= 0; --i)
 		if (pdata->core_data[i])
-			coretemp_remove_core(pdata, &pdev->dev, i);
+			coretemp_remove_core(pdata, i);
 
-	device_remove_file(&pdev->dev, &pdata->name_attr);
-	hwmon_device_unregister(pdata->hwmon_dev);
-	kfree(pdata);
 	return 0;
 }
 
 static struct platform_driver coretemp_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRVNAME,
 	},
 	.probe = coretemp_probe,
 	.remove = coretemp_remove,
 };
 
-static int coretemp_device_add(unsigned int cpu)
+static struct platform_device *coretemp_device_add(unsigned int cpu)
 {
-	int err;
+	int err, pkgid = topology_logical_package_id(cpu);
 	struct platform_device *pdev;
-	struct pdev_entry *pdev_entry;
 
-	mutex_lock(&pdev_list_mutex);
+	if (pkgid < 0)
+		return ERR_PTR(-ENOMEM);
 
-	pdev = platform_device_alloc(DRVNAME, TO_PHYS_ID(cpu));
-	if (!pdev) {
-		err = -ENOMEM;
-		pr_err("Device allocation failed\n");
-		goto exit;
-	}
-
-	pdev_entry = kzalloc(sizeof(struct pdev_entry), GFP_KERNEL);
-	if (!pdev_entry) {
-		err = -ENOMEM;
-		goto exit_device_put;
-	}
+	pdev = platform_device_alloc(DRVNAME, pkgid);
+	if (!pdev)
+		return ERR_PTR(-ENOMEM);
 
 	err = platform_device_add(pdev);
 	if (err) {
-		pr_err("Device addition failed (%d)\n", err);
-		goto exit_device_free;
+		platform_device_put(pdev);
+		return ERR_PTR(err);
 	}
 
-	pdev_entry->pdev = pdev;
-	pdev_entry->phys_proc_id = pdev->id;
-
-	list_add_tail(&pdev_entry->list, &pdev_list);
-	mutex_unlock(&pdev_list_mutex);
-
-	return 0;
-
-exit_device_free:
-	kfree(pdev_entry);
-exit_device_put:
-	platform_device_put(pdev);
-exit:
-	mutex_unlock(&pdev_list_mutex);
-	return err;
+	pkg_devices[pkgid] = pdev;
+	return pdev;
 }
 
-static void coretemp_device_remove(unsigned int cpu)
+static int coretemp_cpu_online(unsigned int cpu)
 {
-	struct pdev_entry *p, *n;
-	u16 phys_proc_id = TO_PHYS_ID(cpu);
-
-	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		if (p->phys_proc_id != phys_proc_id)
-			continue;
-		platform_device_unregister(p->pdev);
-		list_del(&p->list);
-		kfree(p);
-	}
-	mutex_unlock(&pdev_list_mutex);
-}
-
-static bool is_any_core_online(struct platform_data *pdata)
-{
-	int i;
-
-	/* Find online cores, except pkgtemp data */
-	for (i = MAX_CORE_DATA - 1; i >= 0; --i) {
-		if (pdata->core_data[i] &&
-			!pdata->core_data[i]->is_pkg_data) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static void get_core_online(unsigned int cpu)
-{
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct platform_device *pdev = coretemp_get_pdev(cpu);
-	int err;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	struct platform_data *pdata;
+
+	/*
+	 * Don't execute this on resume as the offline callback did
+	 * not get executed on suspend.
+	 */
+	if (cpuhp_tasks_frozen)
+		return 0;
 
 	/*
 	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
@@ -690,12 +617,12 @@ static void get_core_online(unsigned int cpu)
 	 * without thermal sensors will be filtered out.
 	 */
 	if (!cpu_has(c, X86_FEATURE_DTHERM))
-		return;
+		return -ENODEV;
 
 	if (!pdev) {
 		/* Check the microcode version of the CPU */
 		if (chk_ucode_version(cpu))
-			return;
+			return -EINVAL;
 
 		/*
 		 * Alright, we have DTS support.
@@ -703,101 +630,107 @@ static void get_core_online(unsigned int cpu)
 		 * online. So, initialize per-pkg data structures and
 		 * then bring this core online.
 		 */
-		err = coretemp_device_add(cpu);
-		if (err)
-			return;
+		pdev = coretemp_device_add(cpu);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
+
 		/*
 		 * Check whether pkgtemp support is available.
 		 * If so, add interfaces for pkgtemp.
 		 */
 		if (cpu_has(c, X86_FEATURE_PTS))
-			coretemp_add_core(cpu, 1);
+			coretemp_add_core(pdev, cpu, 1);
 	}
+
+	pdata = platform_get_drvdata(pdev);
 	/*
-	 * Physical CPU device already exists.
-	 * So, just add interfaces for this core.
+	 * Check whether a thread sibling is already online. If not add the
+	 * interface for this CPU core.
 	 */
-	coretemp_add_core(cpu, 0);
+	if (!cpumask_intersects(&pdata->cpumask, topology_sibling_cpumask(cpu)))
+		coretemp_add_core(pdev, cpu, 0);
+
+	cpumask_set_cpu(cpu, &pdata->cpumask);
+	return 0;
 }
 
-static void put_core_offline(unsigned int cpu)
+static int coretemp_cpu_offline(unsigned int cpu)
 {
-	int i, indx;
-	struct platform_data *pdata;
 	struct platform_device *pdev = coretemp_get_pdev(cpu);
+	struct platform_data *pd;
+	struct temp_data *tdata;
+	int indx, target;
+
+	/*
+	 * Don't execute this on suspend as the device remove locks
+	 * up the machine.
+	 */
+	if (cpuhp_tasks_frozen)
+		return 0;
 
 	/* If the physical CPU device does not exist, just return */
 	if (!pdev)
-		return;
-
-	pdata = platform_get_drvdata(pdev);
-
-	indx = TO_ATTR_NO(cpu);
+		return 0;
 
 	/* The core id is too big, just return */
+	indx = TO_ATTR_NO(cpu);
 	if (indx > MAX_CORE_DATA - 1)
-		return;
+		return 0;
 
-	if (pdata->core_data[indx] && pdata->core_data[indx]->cpu == cpu)
-		coretemp_remove_core(pdata, &pdev->dev, indx);
+	pd = platform_get_drvdata(pdev);
+	tdata = pd->core_data[indx];
+
+	cpumask_clear_cpu(cpu, &pd->cpumask);
 
 	/*
-	 * If a HT sibling of a core is taken offline, but another HT sibling
-	 * of the same core is still online, register the alternate sibling.
-	 * This ensures that exactly one set of attributes is provided as long
-	 * as at least one HT sibling of a core is online.
+	 * If this is the last thread sibling, remove the CPU core
+	 * interface, If there is still a sibling online, transfer the
+	 * target cpu of that core interface to it.
 	 */
-	for_each_sibling(i, cpu) {
-		if (i != cpu) {
-			get_core_online(i);
-			/*
-			 * Display temperature sensor data for one HT sibling
-			 * per core only, so abort the loop after one such
-			 * sibling has been found.
-			 */
-			break;
-		}
+	target = cpumask_any_and(&pd->cpumask, topology_sibling_cpumask(cpu));
+	if (target >= nr_cpu_ids) {
+		coretemp_remove_core(pd, indx);
+	} else if (tdata && tdata->cpu == cpu) {
+		mutex_lock(&tdata->update_lock);
+		tdata->cpu = target;
+		mutex_unlock(&tdata->update_lock);
 	}
+
 	/*
-	 * If all cores in this pkg are offline, remove the device.
-	 * coretemp_device_remove calls unregister_platform_device,
-	 * which in turn calls coretemp_remove. This removes the
-	 * pkgtemp entry and does other clean ups.
+	 * If all cores in this pkg are offline, remove the device. This
+	 * will invoke the platform driver remove function, which cleans up
+	 * the rest.
 	 */
-	if (!is_any_core_online(pdata))
-		coretemp_device_remove(cpu);
-}
-
-static int coretemp_cpu_callback(struct notifier_block *nfb,
-				 unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long) hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		get_core_online(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		put_core_offline(cpu);
-		break;
+	if (cpumask_empty(&pd->cpumask)) {
+		pkg_devices[topology_logical_package_id(cpu)] = NULL;
+		platform_device_unregister(pdev);
+		return 0;
 	}
-	return NOTIFY_OK;
+
+	/*
+	 * Check whether this core is the target for the package
+	 * interface. We need to assign it to some other cpu.
+	 */
+	tdata = pd->core_data[PKG_SYSFS_ATTR_NO];
+	if (tdata && tdata->cpu == cpu) {
+		target = cpumask_first(&pd->cpumask);
+		mutex_lock(&tdata->update_lock);
+		tdata->cpu = target;
+		mutex_unlock(&tdata->update_lock);
+	}
+	return 0;
 }
-
-static struct notifier_block coretemp_cpu_notifier __refdata = {
-	.notifier_call = coretemp_cpu_callback,
-};
-
 static const struct x86_cpu_id __initconst coretemp_ids[] = {
 	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_DTHERM },
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, coretemp_ids);
 
+static enum cpuhp_state coretemp_hp_online;
+
 static int __init coretemp_init(void)
 {
-	int i, err;
+	int err;
 
 	/*
 	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
@@ -807,54 +740,38 @@ static int __init coretemp_init(void)
 	if (!x86_match_cpu(coretemp_ids))
 		return -ENODEV;
 
+	max_packages = topology_max_packages();
+	pkg_devices = kzalloc(max_packages * sizeof(struct platform_device *),
+			      GFP_KERNEL);
+	if (!pkg_devices)
+		return -ENOMEM;
+
 	err = platform_driver_register(&coretemp_driver);
 	if (err)
-		goto exit;
+		return err;
 
-	get_online_cpus();
-	for_each_online_cpu(i)
-		get_core_online(i);
-
-#ifndef CONFIG_HOTPLUG_CPU
-	if (list_empty(&pdev_list)) {
-		put_online_cpus();
-		err = -ENODEV;
-		goto exit_driver_unreg;
-	}
-#endif
-
-	register_hotcpu_notifier(&coretemp_cpu_notifier);
-	put_online_cpus();
+	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "hwmon/coretemp:online",
+				coretemp_cpu_online, coretemp_cpu_offline);
+	if (err < 0)
+		goto outdrv;
+	coretemp_hp_online = err;
 	return 0;
 
-#ifndef CONFIG_HOTPLUG_CPU
-exit_driver_unreg:
+outdrv:
 	platform_driver_unregister(&coretemp_driver);
-#endif
-exit:
+	kfree(pkg_devices);
 	return err;
 }
+module_init(coretemp_init)
 
 static void __exit coretemp_exit(void)
 {
-	struct pdev_entry *p, *n;
-
-	get_online_cpus();
-	unregister_hotcpu_notifier(&coretemp_cpu_notifier);
-	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		platform_device_unregister(p->pdev);
-		list_del(&p->list);
-		kfree(p);
-	}
-	mutex_unlock(&pdev_list_mutex);
-	put_online_cpus();
+	cpuhp_remove_state(coretemp_hp_online);
 	platform_driver_unregister(&coretemp_driver);
+	kfree(pkg_devices);
 }
+module_exit(coretemp_exit)
 
 MODULE_AUTHOR("Rudolf Marek <r.marek@assembler.cz>");
 MODULE_DESCRIPTION("Intel Core temperature monitor");
 MODULE_LICENSE("GPL");
-
-module_init(coretemp_init)
-module_exit(coretemp_exit)

@@ -174,7 +174,7 @@ static int __init pcibios_init(void)
 	struct pci_controller *pci_ctrl;
 	struct list_head resources;
 	struct pci_bus *bus;
-	int next_busno = 0;
+	int next_busno = 0, ret;
 
 	printk("PCI: Probing PCI hardware\n");
 
@@ -185,14 +185,25 @@ static int __init pcibios_init(void)
 		pci_controller_apertures(pci_ctrl, &resources);
 		bus = pci_scan_root_bus(NULL, pci_ctrl->first_busno,
 					pci_ctrl->ops, pci_ctrl, &resources);
+		if (!bus)
+			continue;
+
 		pci_ctrl->bus = bus;
 		pci_ctrl->last_busno = bus->busn_res.end;
 		if (next_busno <= pci_ctrl->last_busno)
 			next_busno = pci_ctrl->last_busno+1;
 	}
 	pci_bus_count = next_busno;
+	ret = platform_pcibios_fixup();
+	if (ret)
+		return ret;
 
-	return platform_pcibios_fixup();
+	for (pci_ctrl = pci_ctrl_head; pci_ctrl; pci_ctrl = pci_ctrl->next) {
+		if (pci_ctrl->bus)
+			pci_bus_add_devices(pci_ctrl->bus);
+	}
+
+	return 0;
 }
 
 subsys_initcall(pcibios_init);
@@ -323,25 +334,6 @@ __pci_mmap_make_offset(struct pci_dev *dev, struct vm_area_struct *vma,
 }
 
 /*
- * Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
- * device mapping.
- */
-static __inline__ void
-__pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
-		      enum pci_mmap_state mmap_state, int write_combine)
-{
-	int prot = pgprot_val(vma->vm_page_prot);
-
-	/* Set to write-through */
-	prot = (prot & _PAGE_CA_MASK) | _PAGE_CA_WT;
-#if 0
-	if (!write_combine)
-		prot |= _PAGE_WRITETHRU;
-#endif
-	vma->vm_page_prot = __pgprot(prot);
-}
-
-/*
  * Perform the actual remap of the pages for a PCI device mapping, as
  * appropriate for this architecture.  The region in the process to map
  * is described by vm_start and vm_end members of VMA, the base physical
@@ -351,7 +343,8 @@ __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
  *
  * Returns a negative error code on failure, zero on success.
  */
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
+int pci_mmap_page_range(struct pci_dev *dev, int bar,
+			struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state,
 			int write_combine)
 {
@@ -361,7 +354,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	if (ret < 0)
 		return ret;
 
-	__pci_mmap_set_pgprot(dev, vma, mmap_state, write_combine);
+	vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
 
 	ret = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			         vma->vm_end - vma->vm_start,vma->vm_page_prot);

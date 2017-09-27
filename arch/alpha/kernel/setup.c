@@ -53,7 +53,7 @@ static struct notifier_block alpha_panic_block = {
         INT_MAX /* try to do it first */
 };
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/hwrpb.h>
 #include <asm/dma.h>
@@ -115,8 +115,16 @@ unsigned long alpha_agpgart_size = DEFAULT_AGP_APER_SIZE;
 
 #ifdef CONFIG_ALPHA_GENERIC
 struct alpha_machine_vector alpha_mv;
+EXPORT_SYMBOL(alpha_mv);
+#endif
+
+#ifndef alpha_using_srm
 int alpha_using_srm;
 EXPORT_SYMBOL(alpha_using_srm);
+#endif
+
+#ifndef alpha_using_qemu
+int alpha_using_qemu;
 #endif
 
 static struct alpha_machine_vector *get_sysvec(unsigned long, unsigned long,
@@ -529,10 +537,14 @@ setup_arch(char **cmdline_p)
 	atomic_notifier_chain_register(&panic_notifier_list,
 			&alpha_panic_block);
 
-#ifdef CONFIG_ALPHA_GENERIC
+#ifndef alpha_using_srm
 	/* Assume that we've booted from SRM if we haven't booted from MILO.
 	   Detect the later by looking for "MILO" in the system serial nr.  */
 	alpha_using_srm = strncmp((const char *)hwrpb->ssn, "MILO", 4) != 0;
+#endif
+#ifndef alpha_using_qemu
+	/* Similarly, look for QEMU.  */
+	alpha_using_qemu = strstr((const char *)hwrpb->ssn, "QEMU") != 0;
 #endif
 
 	/* If we are using SRM, we want to allow callbacks
@@ -1082,8 +1094,9 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
 	default: /* default to variation "0" for now */
 		break;
 	case ST_DEC_EB164:
-		if (member < ARRAY_SIZE(eb164_indices))
-			*variation_name = eb164_names[eb164_indices[member]];
+		if (member >= ARRAY_SIZE(eb164_indices))
+			break;
+		*variation_name = eb164_names[eb164_indices[member]];
 		/* PC164 may show as EB164 variation, but with EV56 CPU,
 		   so, since no true EB164 had anything but EV5... */
 		if (eb164_indices[member] == 0 && cpu == EV56_CPU)
@@ -1207,6 +1220,7 @@ show_cpuinfo(struct seq_file *f, void *slot)
 	char *systype_name;
 	char *sysvariation_name;
 	int nr_processors;
+	unsigned long timer_freq;
 
 	cpu_index = (unsigned) (cpu->type - 1);
 	cpu_name = "Unknown";
@@ -1217,6 +1231,12 @@ show_cpuinfo(struct seq_file *f, void *slot)
 		     cpu->type, &systype_name, &sysvariation_name);
 
 	nr_processors = get_nr_processors(cpu, hwrpb->nr_processors);
+
+#if CONFIG_HZ == 1024 || CONFIG_HZ == 1200
+	timer_freq = (100UL * hwrpb->intr_freq) / 4096;
+#else
+	timer_freq = 100UL * CONFIG_HZ;
+#endif
 
 	seq_printf(f, "cpu\t\t\t: Alpha\n"
 		      "cpu model\t\t: %s\n"
@@ -1243,8 +1263,7 @@ show_cpuinfo(struct seq_file *f, void *slot)
 		       (char*)hwrpb->ssn,
 		       est_cycle_freq ? : hwrpb->cycle_freq,
 		       est_cycle_freq ? "est." : "",
-		       hwrpb->intr_freq / 4096,
-		       (100 * hwrpb->intr_freq / 4096) % 100,
+		       timer_freq / 100, timer_freq % 100,
 		       hwrpb->pagesize,
 		       hwrpb->pa_bits,
 		       hwrpb->max_asn,

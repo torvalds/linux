@@ -1,0 +1,110 @@
+* Renesas R-Car Display Unit (DU)
+
+Required Properties:
+
+  - compatible: must be one of the following.
+    - "renesas,du-r8a7779" for R8A7779 (R-Car H1) compatible DU
+    - "renesas,du-r8a7790" for R8A7790 (R-Car H2) compatible DU
+    - "renesas,du-r8a7791" for R8A7791 (R-Car M2-W) compatible DU
+    - "renesas,du-r8a7792" for R8A7792 (R-Car V2H) compatible DU
+    - "renesas,du-r8a7793" for R8A7793 (R-Car M2-N) compatible DU
+    - "renesas,du-r8a7794" for R8A7794 (R-Car E2) compatible DU
+    - "renesas,du-r8a7795" for R8A7795 (R-Car H3) compatible DU
+    - "renesas,du-r8a7796" for R8A7796 (R-Car M3-W) compatible DU
+
+  - reg: A list of base address and length of each memory resource, one for
+    each entry in the reg-names property.
+  - reg-names: Name of the memory resources. The DU requires one memory
+    resource for the DU core (named "du") and one memory resource for each
+    LVDS encoder (named "lvds.x" with "x" being the LVDS controller numerical
+    index).
+
+  - interrupt-parent: phandle of the parent interrupt controller.
+  - interrupts: Interrupt specifiers for the DU interrupts.
+
+  - clocks: A list of phandles + clock-specifier pairs, one for each entry in
+    the clock-names property.
+  - clock-names: Name of the clocks. This property is model-dependent.
+    - R8A7779 uses a single functional clock. The clock doesn't need to be
+      named.
+    - R8A779[0123456] use one functional clock per channel and one clock per
+      LVDS encoder (if available). The functional clocks must be named "du.x"
+      with "x" being the channel numerical index. The LVDS clocks must be
+      named "lvds.x" with "x" being the LVDS encoder numerical index.
+    - In addition to the functional and encoder clocks, all DU versions also
+      support externally supplied pixel clocks. Those clocks are optional.
+      When supplied they must be named "dclkin.x" with "x" being the input
+      clock numerical index.
+
+  - vsps: A list of phandle and channel index tuples to the VSPs that handle
+    the memory interfaces for the DU channels. The phandle identifies the VSP
+    instance that serves the DU channel, and the channel index identifies the
+    LIF instance in that VSP.
+
+Required nodes:
+
+The connections to the DU output video ports are modeled using the OF graph
+bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+The following table lists for each supported model the port number
+corresponding to each DU output.
+
+		Port 0		Port1		Port2		Port3
+-----------------------------------------------------------------------------
+ R8A7779 (H1)	DPAD 0		DPAD 1		-		-
+ R8A7790 (H2)	DPAD		LVDS 0		LVDS 1		-
+ R8A7791 (M2-W)	DPAD		LVDS 0		-		-
+ R8A7792 (V2H)	DPAD 0		DPAD 1		-		-
+ R8A7793 (M2-N)	DPAD		LVDS 0		-		-
+ R8A7794 (E2)	DPAD 0		DPAD 1		-		-
+ R8A7795 (H3)	DPAD		HDMI 0		HDMI 1		LVDS
+ R8A7796 (M3-W)	DPAD		HDMI		LVDS		-
+
+
+Example: R8A7795 (R-Car H3) ES2.0 DU
+
+	du: display@feb00000 {
+		compatible = "renesas,du-r8a7795";
+		reg = <0 0xfeb00000 0 0x80000>,
+		      <0 0xfeb90000 0 0x14>;
+		reg-names = "du", "lvds.0";
+		interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 270 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 724>,
+			 <&cpg CPG_MOD 723>,
+			 <&cpg CPG_MOD 722>,
+			 <&cpg CPG_MOD 721>,
+			 <&cpg CPG_MOD 727>;
+		clock-names = "du.0", "du.1", "du.2", "du.3", "lvds.0";
+		vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>, <&vspd0 1>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				du_out_rgb: endpoint {
+				};
+			};
+			port@1 {
+				reg = <1>;
+				du_out_hdmi0: endpoint {
+					remote-endpoint = <&dw_hdmi0_in>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+				du_out_hdmi1: endpoint {
+					remote-endpoint = <&dw_hdmi1_in>;
+				};
+			};
+			port@3 {
+				reg = <3>;
+				du_out_lvds0: endpoint {
+				};
+			};
+		};
+	};

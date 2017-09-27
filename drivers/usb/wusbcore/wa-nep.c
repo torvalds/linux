@@ -69,8 +69,8 @@ struct wa_notif_work {
  * [the wuswad daemon, basically]
  *
  * @_nw:	Pointer to a descriptor which has the pointer to the
- * 		@wa, the size of the buffer and the work queue
- * 		structure (so we can free all when done).
+ *		@wa, the size of the buffer and the work queue
+ *		structure (so we can free all when done).
  * @returns     0 if ok, < 0 errno code on error.
  *
  * All notifications follow the same format; they need to start with a
@@ -93,7 +93,8 @@ static void wa_notif_dispatch(struct work_struct *ws)
 {
 	void *itr;
 	u8 missing = 0;
-	struct wa_notif_work *nw = container_of(ws, struct wa_notif_work, work);
+	struct wa_notif_work *nw = container_of(ws, struct wa_notif_work,
+						work);
 	struct wahc *wa = nw->wa;
 	struct wa_notif_hdr *notif_hdr;
 	size_t size;
@@ -197,6 +198,7 @@ static int wa_nep_queue(struct wahc *wa, size_t size)
 	if (nw == NULL) {
 		if (printk_ratelimit())
 			dev_err(dev, "No memory to queue notification\n");
+		result = -ENOMEM;
 		goto out;
 	}
 	INIT_WORK(&nw->work, wa_notif_dispatch);
@@ -270,15 +272,11 @@ int wa_nep_create(struct wahc *wa, struct usb_interface *iface)
 	epd = &iface->cur_altsetting->endpoint[0].desc;
 	wa->nep_buffer_size = 1024;
 	wa->nep_buffer = kmalloc(wa->nep_buffer_size, GFP_KERNEL);
-	if (wa->nep_buffer == NULL) {
-		dev_err(dev, "Unable to allocate notification's read buffer\n");
+	if (!wa->nep_buffer)
 		goto error_nep_buffer;
-	}
 	wa->nep_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (wa->nep_urb == NULL) {
-		dev_err(dev, "Unable to allocate notification URB\n");
+	if (wa->nep_urb == NULL)
 		goto error_urb_alloc;
-	}
 	usb_fill_int_urb(wa->nep_urb, usb_dev,
 			 usb_rcvintpipe(usb_dev, epd->bEndpointAddress),
 			 wa->nep_buffer, wa->nep_buffer_size,

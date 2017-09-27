@@ -90,18 +90,23 @@ struct RT_PMKID_LIST {
 
 struct security_priv {
 	u32 AuthAlgrthm;		/* 802.11 auth, could be open, shared,
-					 * 8021x and authswitch */
+					 * 8021x and authswitch
+					 */
 	u32 PrivacyAlgrthm;		/* This specify the privacy for shared
-					 * auth. algorithm. */
+					 * auth. algorithm.
+					 */
 	u32 PrivacyKeyIndex;		/* this is only valid for legendary
-					 * wep, 0~3 for key id. */
+					 * wep, 0~3 for key id.
+					 */
 	union Keytype DefKey[4];	/* this is only valid for def. key */
 	u32 DefKeylen[4];
 	u32 XGrpPrivacy;		/* This specify the privacy algthm.
-					 * used for Grp key */
+					 * used for Grp key
+					 */
 	u32 XGrpKeyid;			/* key id used for Grp Key */
 	union Keytype	XGrpKey[2];	/* 802.1x Group Key, for
-					 * inx0 and inx1 */
+					 * inx0 and inx1
+					 */
 	union Keytype	XGrptxmickey[2];
 	union Keytype	XGrprxmickey[2];
 	union pn48 Grptxpn;		/* PN48 used for Grp Key xmit. */
@@ -118,9 +123,11 @@ struct security_priv {
 	s32	sw_encrypt;	/* from registry_priv */
 	s32	sw_decrypt;	/* from registry_priv */
 	s32	hw_decrypted;	/* if the rx packets is hw_decrypted==false,
-				 * it means the hw has not been ready. */
+				 * it means the hw has not been ready.
+				 */
 	u32 ndisauthtype;	/* keeps the auth_type & enc_status from upper
-				 * layer ioctl(wpa_supplicant or wzc) */
+				 * layer ioctl(wpa_supplicant or wzc)
+				 */
 	u32 ndisencryptstatus;
 	struct wlan_bssid_ex sec_bss;  /* for joinbss (h2c buffer) usage */
 	struct NDIS_802_11_WEP ndiswep;
@@ -136,7 +143,8 @@ struct security_priv {
 	u32 btkip_countermeasure_time;
 	/*-------------------------------------------------------------------
 	 * For WPA2 Pre-Authentication.
-	 *------------------------------------------------------------------ */
+	 *------------------------------------------------------------------
+	 **/
 	struct RT_PMKID_LIST		PMKIDList[NUM_PMKID_CACHE];
 	u8				PMKIDIndex;
 };
@@ -216,7 +224,7 @@ void r8712_wep_encrypt(struct _adapter *padapter, u8  *pxmitframe);
 u32 r8712_aes_decrypt(struct _adapter *padapter, u8  *precvframe);
 u32 r8712_tkip_decrypt(struct _adapter *padapter, u8  *precvframe);
 void r8712_wep_decrypt(struct _adapter *padapter, u8  *precvframe);
-void r8712_use_tkipkey_handler(void *FunctionContext);
+void r8712_use_tkipkey_handler(unsigned long data);
 
 #endif	/*__RTL871X_SECURITY_H_ */
 

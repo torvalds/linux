@@ -35,18 +35,21 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct lirc_codec *lirc = &dev->raw->lirc;
 	int sample;
 
-	if (!(dev->enabled_protocols & RC_BIT_LIRC))
-		return 0;
-
 	if (!dev->raw->lirc.drv || !dev->raw->lirc.drv->rbuf)
 		return -EINVAL;
 
 	/* Packet start */
-	if (ev.reset)
-		return 0;
+	if (ev.reset) {
+		/* Userspace expects a long space event before the start of
+		 * the signal to use as a sync.  This may be done with repeat
+		 * packets and normal samples.  But if a reset has been sent
+		 * then we assume that a long time has passed, so we send a
+		 * space with the maximum time value. */
+		sample = LIRC_SPACE(LIRC_VALUE_MASK);
+		IR_dprintk(2, "delivering reset sync space to lirc_dev\n");
 
 	/* Carrier reports */
-	if (ev.carrier_report) {
+	} else if (ev.carrier_report) {
 		sample = LIRC_FREQUENCY(ev.carrier);
 		IR_dprintk(2, "carrier report (freq: %d)\n", sample);
 
@@ -136,15 +139,24 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	}
 
 	if (!dev->tx_ir) {
-		ret = -ENOSYS;
+		ret = -EINVAL;
 		goto out;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (txbuf[i] > IR_MAX_DURATION / 1000 - duration || !txbuf[i]) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		duration += txbuf[i];
 	}
 
 	ret = dev->tx_ir(dev, txbuf, count);
 	if (ret < 0)
 		goto out;
 
-	for (i = 0; i < ret; i++)
+	for (duration = i = 0; i < ret; i++)
 		duration += txbuf[i];
 
 	ret *= sizeof(unsigned int);
@@ -192,30 +204,36 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 
 	/* legacy support */
 	case LIRC_GET_SEND_MODE:
-		val = LIRC_CAN_SEND_PULSE & LIRC_CAN_SEND_MASK;
+		if (!dev->tx_ir)
+			return -ENOTTY;
+
+		val = LIRC_MODE_PULSE;
 		break;
 
 	case LIRC_SET_SEND_MODE:
-		if (val != (LIRC_MODE_PULSE & LIRC_CAN_SEND_MASK))
+		if (!dev->tx_ir)
+			return -ENOTTY;
+
+		if (val != LIRC_MODE_PULSE)
 			return -EINVAL;
 		return 0;
 
 	/* TX settings */
 	case LIRC_SET_TRANSMITTER_MASK:
 		if (!dev->s_tx_mask)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_tx_mask(dev, val);
 
 	case LIRC_SET_SEND_CARRIER:
 		if (!dev->s_tx_carrier)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_tx_carrier(dev, val);
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
 		if (!dev->s_tx_duty_cycle)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		if (val <= 0 || val >= 100)
 			return -EINVAL;
@@ -225,7 +243,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	/* RX settings */
 	case LIRC_SET_REC_CARRIER:
 		if (!dev->s_rx_carrier_range)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		if (val <= 0)
 			return -EINVAL;
@@ -235,6 +253,9 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 					       val);
 
 	case LIRC_SET_REC_CARRIER_RANGE:
+		if (!dev->s_rx_carrier_range)
+			return -ENOTTY;
+
 		if (val <= 0)
 			return -EINVAL;
 
@@ -242,37 +263,40 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		return 0;
 
 	case LIRC_GET_REC_RESOLUTION:
-		val = dev->rx_resolution;
+		if (!dev->rx_resolution)
+			return -ENOTTY;
+
+		val = dev->rx_resolution / 1000;
 		break;
 
 	case LIRC_SET_WIDEBAND_RECEIVER:
 		if (!dev->s_learning_mode)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_learning_mode(dev, !!val);
 
 	case LIRC_SET_MEASURE_CARRIER_MODE:
 		if (!dev->s_carrier_report)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_carrier_report(dev, !!val);
 
 	/* Generic timeout support */
 	case LIRC_GET_MIN_TIMEOUT:
 		if (!dev->max_timeout)
-			return -ENOSYS;
-		val = dev->min_timeout / 1000;
+			return -ENOTTY;
+		val = DIV_ROUND_UP(dev->min_timeout, 1000);
 		break;
 
 	case LIRC_GET_MAX_TIMEOUT:
 		if (!dev->max_timeout)
-			return -ENOSYS;
+			return -ENOTTY;
 		val = dev->max_timeout / 1000;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT:
 		if (!dev->max_timeout)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		tmp = val * 1000;
 
@@ -280,10 +304,16 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		    tmp > dev->max_timeout)
 				return -EINVAL;
 
-		dev->timeout = tmp;
+		if (dev->s_timeout)
+			ret = dev->s_timeout(dev, tmp);
+		if (!ret)
+			dev->timeout = tmp;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:
+		if (!dev->timeout)
+			return -ENOTTY;
+
 		lirc->send_timeout_reports = !!val;
 		break;
 
@@ -295,16 +325,6 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		ret = put_user(val, argp);
 
 	return ret;
-}
-
-static int ir_lirc_open(void *data)
-{
-	return 0;
-}
-
-static void ir_lirc_close(void *data)
-{
-	return;
 }
 
 static const struct file_operations lirc_fops = {
@@ -324,23 +344,19 @@ static const struct file_operations lirc_fops = {
 static int ir_lirc_register(struct rc_dev *dev)
 {
 	struct lirc_driver *drv;
-	struct lirc_buffer *rbuf;
 	int rc = -ENOMEM;
-	unsigned long features;
+	unsigned long features = 0;
 
 	drv = kzalloc(sizeof(struct lirc_driver), GFP_KERNEL);
 	if (!drv)
 		return rc;
 
-	rbuf = kzalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
-	if (!rbuf)
-		goto rbuf_alloc_failed;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		features |= LIRC_CAN_REC_MODE2;
+		if (dev->rx_resolution)
+			features |= LIRC_CAN_GET_REC_RESOLUTION;
+	}
 
-	rc = lirc_buffer_init(rbuf, sizeof(int), LIRCBUF_SIZE);
-	if (rc)
-		goto rbuf_init_failed;
-
-	features = LIRC_CAN_REC_MODE2;
 	if (dev->tx_ir) {
 		features |= LIRC_CAN_SEND_PULSE;
 		if (dev->s_tx_mask)
@@ -369,30 +385,27 @@ static int ir_lirc_register(struct rc_dev *dev)
 	drv->minor = -1;
 	drv->features = features;
 	drv->data = &dev->raw->lirc;
-	drv->rbuf = rbuf;
-	drv->set_use_inc = &ir_lirc_open;
-	drv->set_use_dec = &ir_lirc_close;
+	drv->rbuf = NULL;
 	drv->code_length = sizeof(struct ir_raw_event) * 8;
+	drv->chunk_size = sizeof(int);
+	drv->buffer_size = LIRCBUF_SIZE;
 	drv->fops = &lirc_fops;
 	drv->dev = &dev->dev;
+	drv->rdev = dev;
 	drv->owner = THIS_MODULE;
 
 	drv->minor = lirc_register_driver(drv);
 	if (drv->minor < 0) {
 		rc = -ENODEV;
-		goto lirc_register_failed;
+		goto out;
 	}
 
 	dev->raw->lirc.drv = drv;
 	dev->raw->lirc.dev = dev;
 	return 0;
 
-lirc_register_failed:
-rbuf_init_failed:
-	kfree(rbuf);
-rbuf_alloc_failed:
+out:
 	kfree(drv);
-
 	return rc;
 }
 
@@ -401,14 +414,14 @@ static int ir_lirc_unregister(struct rc_dev *dev)
 	struct lirc_codec *lirc = &dev->raw->lirc;
 
 	lirc_unregister_driver(lirc->drv->minor);
-	lirc_buffer_free(lirc->drv->rbuf);
 	kfree(lirc->drv);
+	lirc->drv = NULL;
 
 	return 0;
 }
 
 static struct ir_raw_handler lirc_handler = {
-	.protocols	= RC_BIT_LIRC,
+	.protocols	= 0,
 	.decode		= ir_lirc_decode,
 	.raw_register	= ir_lirc_register,
 	.raw_unregister	= ir_lirc_unregister,

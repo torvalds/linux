@@ -8,8 +8,9 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
+#include <linux/spinlock.h>
 
 #include <asm/io.h>
 #include <asm/bootinfo.h>
@@ -24,14 +25,12 @@ EXPORT_SYMBOL(sgimc);
 
 static inline unsigned long get_bank_addr(unsigned int memconfig)
 {
-	return ((memconfig & SGIMC_MCONFIG_BASEADDR) <<
-		((sgimc->systemid & SGIMC_SYSID_MASKREV) >= 5 ? 24 : 22));
+	return (memconfig & SGIMC_MCONFIG_BASEADDR) << ((sgimc->systemid & SGIMC_SYSID_MASKREV) >= 5 ? 24 : 22);
 }
 
 static inline unsigned long get_bank_size(unsigned int memconfig)
 {
-	return ((memconfig & SGIMC_MCONFIG_RMASK) + 0x0100) <<
-		((sgimc->systemid & SGIMC_SYSID_MASKREV) >= 5 ? 16 : 14);
+	return ((memconfig & SGIMC_MCONFIG_RMASK) + 0x0100) << ((sgimc->systemid & SGIMC_SYSID_MASKREV) >= 5 ? 16 : 14);
 }
 
 static inline unsigned int get_bank_config(int bank)

@@ -13,15 +13,6 @@ config SOUND_BCM_CS4297A
 	  note that CONFIG_KGDB should not be enabled at the same
 	  time, since it also attempts to use this UART port.
 
-config SOUND_VWSND
-	tristate "SGI Visual Workstation Sound"
-	depends on X86_VISWS
-	help
-	  Say Y or M if you have an SGI Visual Workstation and you want to be
-	  able to use its on-board audio.  Read
-	  <file:Documentation/sound/oss/vwsnd> for more info on this driver's
-	  capabilities.
-
 config SOUND_MSNDCLAS
 	tristate "Support for Turtle Beach MultiSound Classic, Tahiti, Monterey"
 	depends on (m || !STANDALONE) && ISA
@@ -249,7 +240,7 @@ config MSND_FIFOSIZE
 
 menuconfig SOUND_OSS
 	tristate "OSS sound modules"
-	depends on ISA_DMA_API && VIRT_TO_BUS
+	depends on ISA_DMA_API && (VIRT_TO_BUS || ARCH_RPC || ARCH_NETWINDER)
 	depends on !GENERIC_ISA_DMA_SUPPORT_BROKEN
 	help
 	  OSS is the Open Sound System suite of sound card drivers.  They make

@@ -5,16 +5,21 @@
 config PINCTRL
 	bool
 
-if PINCTRL
-
 menu "Pin controllers"
 	depends on PINCTRL
 
+config GENERIC_PINCTRL_GROUPS
+	bool
+
 config PINMUX
-	bool "Support pin multiplexing controllers"
+	bool "Support pin multiplexing controllers" if COMPILE_TEST
+
+config GENERIC_PINMUX_FUNCTIONS
+	bool
+	select PINMUX
 
 config PINCONF
-	bool "Support pin configuration controllers"
+	bool "Support pin configuration controllers" if COMPILE_TEST
 
 config GENERIC_PINCONF
 	bool
@@ -26,28 +31,45 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
-config PINCTRL_ABX500
-	bool "ST-Ericsson ABx500 family Mixed Signal Circuit gpio functions"
-	depends on AB8500_CORE
+config PINCTRL_ADI2
+	bool "ADI pin controller driver"
+	depends on BLACKFIN
+	select PINMUX
+	select IRQ_DOMAIN
+	help
+	  This is the pin controller and gpio driver for ADI BF54x, BF60x and
+	  future processors. This option is selected automatically when specific
+	  machine and arch are selected to build.
+
+config PINCTRL_ARTPEC6
+        bool "Axis ARTPEC-6 pin controller driver"
+        depends on MACH_ARTPEC6
+        select PINMUX
+        select GENERIC_PINCONF
+        help
+          This is the driver for the Axis ARTPEC-6 pin controller. This driver
+          supports pin function multiplexing as well as pin bias and drive
+          strength configuration. Device tree integration instructions can be
+          found in Documentation/devicetree/bindings/pinctrl/axis,artpec6-pinctrl.txt
+
+config PINCTRL_AS3722
+	tristate "Pinctrl and GPIO driver for ams AS3722 PMIC"
+	depends on MFD_AS3722 && GPIOLIB
+	select PINMUX
 	select GENERIC_PINCONF
 	help
-	  Select this to enable the ABx500 family IC GPIO driver
+	  AS3722 device supports the configuration of GPIO pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the GPIO pins of AS3722 devices. It also
+	  supports the GPIO functionality through gpiolib.
 
-config PINCTRL_AB8500
-	bool "AB8500 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
+config PINCTRL_BF54x
+	def_bool y if BF54x
+	select PINCTRL_ADI2
 
-config PINCTRL_AB8540
-	bool "AB8540 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB9540
-	bool "AB9540 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB8505
-	bool "AB8505 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
+config PINCTRL_BF60x
+	def_bool y if BF60x
+	select PINCTRL_ADI2
 
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
@@ -55,78 +77,54 @@ config PINCTRL_AT91
 	depends on ARCH_AT91
 	select PINMUX
 	select PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to enable the at91 pinctrl driver
 
-config PINCTRL_BAYTRAIL
-	bool "Intel Baytrail GPIO pin control"
-	depends on GPIOLIB && ACPI && X86
-        select IRQ_DOMAIN
-	help
-	  driver for memory mapped GPIO functionality on Intel Baytrail
-	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
-	  Most pins are usually muxed to some other functionality by firmware,
-	  so only a small amount is available for gpio use.
-
-	  Requires ACPI device enumeration code to set up a platform device.
-
-config PINCTRL_BCM2835
-	bool
+config PINCTRL_AT91PIO4
+	bool "AT91 PIO4 pinctrl driver"
+	depends on OF
+	depends on ARCH_AT91
 	select PINMUX
-	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  Say Y here to enable the at91 pinctrl/gpio driver for Atmel PIO4
+	  controller available on sama5d2 SoC.
 
-config PINCTRL_IMX
+config PINCTRL_AMD
+	tristate "AMD GPIO pin control"
+	depends on GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  driver for memory mapped GPIO functionality on AMD platforms
+	  (x86 or arm).Most pins are usually muxed to some other
+	  functionality by firmware,so only a small amount is available
+	  for gpio use.
+
+	  Requires ACPI/FDT device enumeration code to set up a platform
+	  device.
+
+config PINCTRL_DA850_PUPD
+	tristate "TI DA850/OMAP-L138/AM18XX pullup/pulldown groups"
+	depends on OF && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Driver for TI DA850/OMAP-L138/AM18XX pinconf. Used to control
+	  pullup/pulldown pin groups.
+
+config PINCTRL_DIGICOLOR
 	bool
+	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
 	select PINMUX
-	select PINCONF
-
-config PINCTRL_IMX35
-	bool "IMX35 pinctrl driver"
-	depends on OF
-	depends on SOC_IMX35
-	select PINCTRL_IMX
-	help
-	  Say Y here to enable the imx35 pinctrl driver
-
-config PINCTRL_IMX51
-	bool "IMX51 pinctrl driver"
-	depends on OF
-	depends on SOC_IMX51
-	select PINCTRL_IMX
-	help
-	  Say Y here to enable the imx51 pinctrl driver
-
-config PINCTRL_IMX53
-	bool "IMX53 pinctrl driver"
-	depends on OF
-	depends on SOC_IMX53
-	select PINCTRL_IMX
-	help
-	  Say Y here to enable the imx53 pinctrl driver
-
-config PINCTRL_IMX6Q
-	bool "IMX6Q/DL pinctrl driver"
-	depends on OF
-	depends on SOC_IMX6Q
-	select PINCTRL_IMX
-	help
-	  Say Y here to enable the imx6q/dl pinctrl driver
-
-config PINCTRL_IMX6SL
-	bool "IMX6SL pinctrl driver"
-	depends on OF
-	depends on SOC_IMX6SL
-	select PINCTRL_IMX
-	help
-	  Say Y here to enable the imx6sl pinctrl driver
-
-config PINCTRL_VF610
-	bool "Freescale Vybrid VF610 pinctrl driver"
-	depends on OF
-	depends on SOC_VF610
-	select PINCTRL_IMX
-	help
-	  Say Y here to enable the Freescale Vybrid VF610 pinctrl driver
+	select GENERIC_PINCONF
 
 config PINCTRL_LANTIQ
 	bool
@@ -134,89 +132,126 @@ config PINCTRL_LANTIQ
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_LPC18XX
+	bool "NXP LPC18XX/43XX SCU pinctrl driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Pinctrl driver for NXP LPC18xx/43xx System Control Unit (SCU).
+
 config PINCTRL_FALCON
 	bool
 	depends on SOC_FALCON
 	depends on PINCTRL_LANTIQ
 
-config PINCTRL_MXS
+config PINCTRL_GEMINI
 	bool
+	depends on ARCH_GEMINI
+	default ARCH_GEMINI
+	select PINMUX
+	select MFD_SYSCON
+
+config PINCTRL_MCP23S08
+	tristate "Microchip MCP23xxx I/O expander"
+	depends on SPI_MASTER || I2C
+	depends on I2C || I2C=n
+	select GPIOLIB_IRQCHIP
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+	select GENERIC_PINCONF
+	help
+	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
+	  I/O expanders.
+	  This provides a GPIO interface supporting inputs and outputs.
+	  The I2C versions of the chips can be used as interrupt-controller.
+
+config PINCTRL_MESON
+	bool
+	depends on OF
 	select PINMUX
 	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select REGMAP_MMIO
 
-config PINCTRL_IMX23
+config PINCTRL_OXNAS
 	bool
-	select PINCTRL_MXS
-
-config PINCTRL_IMX28
-	bool
-	select PINCTRL_MXS
-
-config PINCTRL_NOMADIK
-	bool "Nomadik pin controller driver"
-	depends on ARCH_U8500 || ARCH_NOMADIK
+	depends on OF
 	select PINMUX
 	select PINCONF
-
-config PINCTRL_STN8815
-	bool "STN8815 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_NOMADIK
-
-config PINCTRL_DB8500
-	bool "DB8500 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_U8500
-
-config PINCTRL_DB8540
-	bool "DB8540 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_U8500
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
+	select MFD_SYSCON
 
 config PINCTRL_ROCKCHIP
 	bool
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_IRQ_CHIP
+	select MFD_SYSCON
+
+config PINCTRL_RZA1
+	bool "Renesas RZ/A1 gpio and pinctrl driver"
+	depends on OF
+	depends on ARCH_R7S72100 || COMPILE_TEST
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects pinctrl driver for Renesas RZ/A1 platforms.
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
-	select PINMUX
-	select PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
 	help
 	  This selects the device tree based generic pinctrl driver.
 
 config PINCTRL_SIRF
-	bool "CSR SiRFprimaII/SiRFmarco pin controller driver"
+	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_SIRF
 	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
 
-config PINCTRL_SUNXI
-	bool
+config PINCTRL_SX150X
+	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
+	depends on GPIOLIB && I2C=y
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select REGMAP
+	help
+	  Say yes here to provide support for Semtech SX150x-series I2C
+	  GPIO expanders as pinctrl module.
+	  Compatible models include:
+	  - 8 bits:  sx1508q, sx1502q
+	  - 16 bits: sx1509q, sx1506q
+
+config PINCTRL_PISTACHIO
+	def_bool y if MACH_PISTACHIO
+	depends on GPIOLIB
 	select PINMUX
 	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
 
 config PINCTRL_ST
 	bool
 	depends on OF
 	select PINMUX
 	select PINCONF
-
-config PINCTRL_TEGRA
-	bool
-	select PINMUX
-	select PINCONF
-
-config PINCTRL_TEGRA20
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA30
-	bool
-	select PINCTRL_TEGRA
-
-config PINCTRL_TEGRA114
-	bool
-	select PINCTRL_TEGRA
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_TZ1090
 	bool "Toumaz Xenif TZ1090 pin control driver"
@@ -239,48 +274,109 @@ config PINCTRL_U300
 config PINCTRL_COH901
 	bool "ST-Ericsson U300 COH 901 335/571 GPIO"
 	depends on GPIOLIB && ARCH_U300 && PINCTRL_U300
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO interface on ST-Ericsson U300.
 	  The names of the two IP block variants supported are
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
 
-config PINCTRL_SAMSUNG
-	bool
+config PINCTRL_MAX77620
+	tristate "MAX77620/MAX20024 Pincontrol support"
+	depends on MFD_MAX77620 && OF
 	select PINMUX
-	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Say Yes here to enable Pin control support for Maxim PMIC MAX77620.
+	  This PMIC has 8 GPIO pins that work as GPIO as well as special
+	  function in alternate mode. This driver also configure push-pull,
+	  open drain, FPS slots etc.
 
-config PINCTRL_EXYNOS
-	bool "Pinctrl driver data for Samsung EXYNOS SoCs other than 5440"
-	depends on OF && GPIOLIB && ARCH_EXYNOS
-	select PINCTRL_SAMSUNG
-
-config PINCTRL_EXYNOS5440
-	bool "Samsung EXYNOS5440 SoC pinctrl driver"
-	depends on SOC_EXYNOS5440
+config PINCTRL_PALMAS
+	tristate "Pinctrl driver for the PALMAS Series MFD devices"
+	depends on OF && MFD_PALMAS
 	select PINMUX
-	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Palmas device supports the configuration of pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the Palmas series devices like
+	  TPS65913, TPS80036 etc.
 
-config PINCTRL_S3C24XX
-	bool "Samsung S3C24XX SoC pinctrl driver"
-	depends on ARCH_S3C24XX
-	select PINCTRL_SAMSUNG
+config PINCTRL_PIC32
+	bool "Microchip PIC32 pin controller driver"
+	depends on OF
+	depends on MACH_PIC32
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  This is the pin controller and gpio driver for Microchip PIC32
+	  microcontrollers. This option is selected automatically when specific
+	  machine and arch are selected to build.
 
-config PINCTRL_S3C64XX
-	bool "Samsung S3C64XX SoC pinctrl driver"
-	depends on ARCH_S3C64XX
-	select PINCTRL_SAMSUNG
+config PINCTRL_PIC32MZDA
+	def_bool y if PIC32MZDA
+	select PINCTRL_PIC32
 
+config PINCTRL_ZYNQ
+	bool "Pinctrl driver for Xilinx Zynq"
+	depends on ARCH_ZYNQ
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for Xilinx Zynq.
+
+config PINCTRL_INGENIC
+	bool "Pinctrl driver for the Ingenic JZ47xx SoCs"
+	default y
+	depends on OF
+	depends on MACH_INGENIC || COMPILE_TEST
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select REGMAP_MMIO
+
+config PINCTRL_RK805
+	tristate "Pinctrl and GPIO driver for RK805 PMIC"
+	depends on MFD_RK808
+	select GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for RK805.
+
+source "drivers/pinctrl/aspeed/Kconfig"
+source "drivers/pinctrl/bcm/Kconfig"
+source "drivers/pinctrl/berlin/Kconfig"
+source "drivers/pinctrl/freescale/Kconfig"
+source "drivers/pinctrl/intel/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
+source "drivers/pinctrl/nomadik/Kconfig"
+source "drivers/pinctrl/pxa/Kconfig"
+source "drivers/pinctrl/qcom/Kconfig"
+source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/sprd/Kconfig"
+source "drivers/pinctrl/stm32/Kconfig"
+source "drivers/pinctrl/sunxi/Kconfig"
+source "drivers/pinctrl/tegra/Kconfig"
+source "drivers/pinctrl/ti/Kconfig"
+source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
+source "drivers/pinctrl/mediatek/Kconfig"
+source "drivers/pinctrl/zte/Kconfig"
 
 config PINCTRL_XWAY
 	bool
 	depends on SOC_TYPE_XWAY
 	depends on PINCTRL_LANTIQ
 
-endmenu
+config PINCTRL_TB10X
+	bool
+	depends on OF && ARC_PLAT_TB10X
+	select GPIOLIB
 
-endif
+endmenu

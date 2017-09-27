@@ -14,11 +14,15 @@ Required properties:
 Optional properties:
 - clock-output-names : From common clock binding.
 
+Some clocks that require special treatments are also handled by that
+driver, with the compatibles:
+  - allwinner,sun4i-a10-pll3-2x-clk
+
 Example:
 	clock {
 		compatible = "fixed-factor-clock";
 		clocks = <&parentclk>;
 		#clock-cells = <0>;
-		div = <2>;
-		mult = <1>;
+		clock-div = <2>;
+		clock-mult = <1>;
 	};

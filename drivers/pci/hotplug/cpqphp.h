@@ -32,14 +32,14 @@
 #include <asm/io.h>		/* for read? and write? functions */
 #include <linux/delay.h>	/* for delays */
 #include <linux/mutex.h>
-#include <linux/sched.h>	/* for signal_pending() */
+#include <linux/sched/signal.h>	/* for signal_pending() */
 
 #define MY_NAME	"cpqphp"
 
-#define dbg(fmt, arg...) do { if (cpqhp_debug) printk(KERN_DEBUG "%s: " fmt , MY_NAME , ## arg); } while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format , MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format , MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format , MY_NAME , ## arg)
+#define dbg(fmt, arg...) do { if (cpqhp_debug) printk(KERN_DEBUG "%s: " fmt, MY_NAME, ## arg); } while (0)
+#define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
+#define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
 
 
 
@@ -255,7 +255,7 @@ struct pci_func {
 	struct pci_resource *io_head;
 	struct pci_resource *bus_head;
 	struct timer_list *p_task_event;
-	struct pci_dev* pci_dev;
+	struct pci_dev *pci_dev;
 };
 
 struct slot {
@@ -278,7 +278,7 @@ struct slot {
 };
 
 struct pci_resource {
-	struct pci_resource * next;
+	struct pci_resource *next;
 	u32 base;
 	u32 length;
 };
@@ -424,7 +424,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func);
 int cpqhp_hardware_test(struct controller *ctrl, int test_num);
 
 /* resource functions */
-int	cpqhp_resource_sort_and_combine	(struct pci_resource **head);
+int	cpqhp_resource_sort_and_combine(struct pci_resource **head);
 
 /* pci functions */
 int cpqhp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
@@ -685,12 +685,12 @@ static inline int cpq_get_latch_status(struct controller *ctrl,
 	u8 hp_slot;
 
 	hp_slot = slot->device - ctrl->slot_device_offset;
-	dbg("%s: slot->device = %d, ctrl->slot_device_offset = %d \n",
+	dbg("%s: slot->device = %d, ctrl->slot_device_offset = %d\n",
 	    __func__, slot->device, ctrl->slot_device_offset);
 
 	status = (readl(ctrl->hpc_reg + INT_INPUT_CLEAR) & (0x01L << hp_slot));
 
-	return(status == 0) ? 1 : 0;
+	return (status == 0) ? 1 : 0;
 }
 
 
@@ -712,7 +712,7 @@ static inline int get_presence_status(struct controller *ctrl,
 
 static inline int wait_for_ctrl_irq(struct controller *ctrl)
 {
-        DECLARE_WAITQUEUE(wait, current);
+	DECLARE_WAITQUEUE(wait, current);
 	int retval = 0;
 
 	dbg("%s - start\n", __func__);

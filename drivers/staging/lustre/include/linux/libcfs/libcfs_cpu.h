@@ -13,16 +13,12 @@
  * General Public License version 2 for more details (a copy is included
  * in the LICENSE file that accompanied this code).
  *
- * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA
- *
  * GPL HEADER END
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, Intel Corporation.
+ *
+ * Copyright (c) 2012, 2015 Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -75,11 +71,19 @@
 #ifndef __LIBCFS_CPU_H__
 #define __LIBCFS_CPU_H__
 
-#ifndef HAVE_LIBCFS_CPT
+/* any CPU partition */
+#define CFS_CPT_ANY		(-1)
 
-typedef unsigned long		cpumask_t;
-typedef unsigned long		nodemask_t;
-
+#ifdef CONFIG_SMP
+/**
+ * return cpumask of CPU partition \a cpt
+ */
+cpumask_t *cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt);
+/**
+ * print string information of cpt-table
+ */
+int cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len);
+#else /* !CONFIG_SMP */
 struct cfs_cpt_table {
 	/* # of CPU partitions */
 	int			ctb_nparts;
@@ -88,13 +92,21 @@ struct cfs_cpt_table {
 	/* node mask */
 	nodemask_t		ctb_nodemask;
 	/* version */
-	__u64			ctb_version;
+	u64			ctb_version;
 };
 
-#endif /* !HAVE_LIBCFS_CPT */
+static inline cpumask_t *
+cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt)
+{
+	return NULL;
+}
 
-/* any CPU partition */
-#define CFS_CPT_ANY		(-1)
+static inline int
+cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
+{
+	return 0;
+}
+#endif /* CONFIG_SMP */
 
 extern struct cfs_cpt_table	*cfs_cpt_table;
 
@@ -107,26 +119,18 @@ void cfs_cpt_table_free(struct cfs_cpt_table *cptab);
  */
 struct cfs_cpt_table *cfs_cpt_table_alloc(unsigned int ncpt);
 /**
- * print string information of cpt-table
- */
-int cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len);
-/**
  * return total number of CPU partitions in \a cptab
  */
 int
 cfs_cpt_number(struct cfs_cpt_table *cptab);
 /**
- * return number of HW cores or hypter-threadings in a CPU partition \a cpt
+ * return number of HW cores or hyper-threadings in a CPU partition \a cpt
  */
 int cfs_cpt_weight(struct cfs_cpt_table *cptab, int cpt);
 /**
  * is there any online CPU in CPU partition \a cpt
  */
 int cfs_cpt_online(struct cfs_cpt_table *cptab, int cpt);
-/**
- * return cpumask of CPU partition \a cpt
- */
-cpumask_t *cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt);
 /**
  * return nodemask of CPU partition \a cpt
  */
@@ -144,7 +148,7 @@ int cfs_cpt_of_cpu(struct cfs_cpt_table *cptab, int cpu);
  */
 int cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt);
 /**
- * add \a cpu to CPU partion @cpt of \a cptab, return 1 for success,
+ * add \a cpu to CPU partition @cpt of \a cptab, return 1 for success,
  * otherwise 0 is returned
  */
 int cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu);
@@ -195,18 +199,94 @@ void cfs_cpt_clear(struct cfs_cpt_table *cptab, int cpt);
 int cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt);
 
 /**
+ * return number of HTs in the same core of \a cpu
+ */
+int cfs_cpu_ht_nsiblings(int cpu);
+
+/*
+ * allocate per-cpu-partition data, returned value is an array of pointers,
+ * variable can be indexed by CPU ID.
+ *	cptab != NULL: size of array is number of CPU partitions
+ *	cptab == NULL: size of array is number of HW cores
+ */
+void *cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size);
+/*
+ * destroy per-cpu-partition variable
+ */
+void cfs_percpt_free(void *vars);
+int cfs_percpt_number(void *vars);
+
+#define cfs_percpt_for_each(var, i, vars)		\
+	for (i = 0; i < cfs_percpt_number(vars) &&	\
+		((var) = (vars)[i]) != NULL; i++)
+
+/*
+ * percpu partition lock
+ *
+ * There are some use-cases like this in Lustre:
+ * . each CPU partition has it's own private data which is frequently changed,
+ *   and mostly by the local CPU partition.
+ * . all CPU partitions share some global data, these data are rarely changed.
+ *
+ * LNet is typical example.
+ * CPU partition lock is designed for this kind of use-cases:
+ * . each CPU partition has it's own private lock
+ * . change on private data just needs to take the private lock
+ * . read on shared data just needs to take _any_ of private locks
+ * . change on shared data needs to take _all_ private locks,
+ *   which is slow and should be really rare.
+ */
+enum {
+	CFS_PERCPT_LOCK_EX	= -1,	/* negative */
+};
+
+struct cfs_percpt_lock {
+	/* cpu-partition-table for this lock */
+	struct cfs_cpt_table     *pcl_cptab;
+	/* exclusively locked */
+	unsigned int		  pcl_locked;
+	/* private lock table */
+	spinlock_t		**pcl_locks;
+};
+
+/* return number of private locks */
+#define cfs_percpt_lock_num(pcl)	cfs_cpt_number(pcl->pcl_cptab)
+
+/*
+ * create a cpu-partition lock based on CPU partition table \a cptab,
+ * each private lock has extra \a psize bytes padding data
+ */
+struct cfs_percpt_lock *cfs_percpt_lock_create(struct cfs_cpt_table *cptab,
+					       struct lock_class_key *keys);
+/* destroy a cpu-partition lock */
+void cfs_percpt_lock_free(struct cfs_percpt_lock *pcl);
+
+/* lock private lock \a index of \a pcl */
+void cfs_percpt_lock(struct cfs_percpt_lock *pcl, int index);
+
+/* unlock private lock \a index of \a pcl */
+void cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index);
+
+#define CFS_PERCPT_LOCK_KEYS	256
+
+/* NB: don't allocate keys dynamically, lockdep needs them to be in ".data" */
+#define cfs_percpt_lock_alloc(cptab)					\
+({									\
+	static struct lock_class_key ___keys[CFS_PERCPT_LOCK_KEYS];	\
+	struct cfs_percpt_lock *___lk;					\
+									\
+	if (cfs_cpt_number(cptab) > CFS_PERCPT_LOCK_KEYS)		\
+		___lk = cfs_percpt_lock_create(cptab, NULL);		\
+	else								\
+		___lk = cfs_percpt_lock_create(cptab, ___keys);		\
+	___lk;								\
+})
+
+/**
  * iterate over all CPU partitions in \a cptab
  */
 #define cfs_cpt_for_each(i, cptab)	\
 	for (i = 0; i < cfs_cpt_number(cptab); i++)
-
-#ifndef __read_mostly
-# define __read_mostly
-#endif
-
-#ifndef ____cacheline_aligned
-#define ____cacheline_aligned
-#endif
 
 int  cfs_cpu_init(void);
 void cfs_cpu_fini(void);

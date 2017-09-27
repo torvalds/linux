@@ -1,16 +1,34 @@
+#include <linux/capability.h>
+
 #define COMMON_FILE_SOCK_PERMS "ioctl", "read", "write", "create", \
-    "getattr", "setattr", "lock", "relabelfrom", "relabelto", "append"
+    "getattr", "setattr", "lock", "relabelfrom", "relabelto", "append", "map"
 
 #define COMMON_FILE_PERMS COMMON_FILE_SOCK_PERMS, "unlink", "link", \
-    "rename", "execute", "swapon", "quotaon", "mounton", "audit_access", \
+    "rename", "execute", "quotaon", "mounton", "audit_access", \
     "open", "execmod"
 
 #define COMMON_SOCK_PERMS COMMON_FILE_SOCK_PERMS, "bind", "connect", \
     "listen", "accept", "getopt", "setopt", "shutdown", "recvfrom",  \
-    "sendto", "recv_msg", "send_msg", "name_bind"
+    "sendto", "name_bind"
 
 #define COMMON_IPC_PERMS "create", "destroy", "getattr", "setattr", "read", \
 	    "write", "associate", "unix_read", "unix_write"
+
+#define COMMON_CAP_PERMS  "chown", "dac_override", "dac_read_search", \
+	    "fowner", "fsetid", "kill", "setgid", "setuid", "setpcap", \
+	    "linux_immutable", "net_bind_service", "net_broadcast", \
+	    "net_admin", "net_raw", "ipc_lock", "ipc_owner", "sys_module", \
+	    "sys_rawio", "sys_chroot", "sys_ptrace", "sys_pacct", "sys_admin", \
+	    "sys_boot", "sys_nice", "sys_resource", "sys_time", \
+	    "sys_tty_config", "mknod", "lease", "audit_write", \
+	    "audit_control", "setfcap"
+
+#define COMMON_CAP2_PERMS  "mac_override", "mac_admin", "syslog", \
+		"wake_alarm", "block_suspend", "audit_read"
+
+#if CAP_LAST_CAP > CAP_AUDIT_READ
+#error New capability defined, please update COMMON_CAP2_PERMS.
+#endif
 
 /*
  * Note: The name for any socket class should be suffixed by "socket",
@@ -21,7 +39,7 @@ struct security_class_mapping secclass_map[] = {
 	  { "compute_av", "compute_create", "compute_member",
 	    "check_context", "load_policy", "compute_relabel",
 	    "compute_user", "setenforce", "setbool", "setsecparam",
-	    "setcheckreqprot", "read_policy", NULL } },
+	    "setcheckreqprot", "read_policy", "validate_trans", NULL } },
 	{ "process",
 	  { "fork", "transition", "sigchld", "sigkill",
 	    "sigstop", "signull", "signal", "ptrace", "getsched", "setsched",
@@ -29,22 +47,17 @@ struct security_class_mapping secclass_map[] = {
 	    "getattr", "setexec", "setfscreate", "noatsecure", "siginh",
 	    "setrlimit", "rlimitinh", "dyntransition", "setcurrent",
 	    "execmem", "execstack", "execheap", "setkeycreate",
-	    "setsockcreate", NULL } },
+	    "setsockcreate", "getrlimit", NULL } },
+	{ "process2",
+	  { "nnp_transition", "nosuid_transition", NULL } },
 	{ "system",
 	  { "ipc_info", "syslog_read", "syslog_mod",
-	    "syslog_console", "module_request", NULL } },
+	    "syslog_console", "module_request", "module_load", NULL } },
 	{ "capability",
-	  { "chown", "dac_override", "dac_read_search",
-	    "fowner", "fsetid", "kill", "setgid", "setuid", "setpcap",
-	    "linux_immutable", "net_bind_service", "net_broadcast",
-	    "net_admin", "net_raw", "ipc_lock", "ipc_owner", "sys_module",
-	    "sys_rawio", "sys_chroot", "sys_ptrace", "sys_pacct", "sys_admin",
-	    "sys_boot", "sys_nice", "sys_resource", "sys_time",
-	    "sys_tty_config", "mknod", "lease", "audit_write",
-	    "audit_control", "setfcap", NULL } },
+	  { COMMON_CAP_PERMS, NULL } },
 	{ "filesystem",
 	  { "mount", "remount", "unmount", "getattr",
-	    "relabelfrom", "relabelto", "transition", "associate", "quotamod",
+	    "relabelfrom", "relabelto", "associate", "quotamod",
 	    "quotaget", NULL } },
 	{ "file",
 	  { COMMON_FILE_PERMS,
@@ -67,7 +80,7 @@ struct security_class_mapping secclass_map[] = {
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "tcp_socket",
 	  { COMMON_SOCK_PERMS,
-	    "connectto", "newconn", "acceptfrom", "node_bind", "name_connect",
+	    "node_bind", "name_connect",
 	    NULL } },
 	{ "udp_socket",
 	  { COMMON_SOCK_PERMS,
@@ -76,13 +89,9 @@ struct security_class_mapping secclass_map[] = {
 	  { COMMON_SOCK_PERMS,
 	    "node_bind", NULL } },
 	{ "node",
-	  { "tcp_recv", "tcp_send", "udp_recv", "udp_send",
-	    "rawip_recv", "rawip_send", "enforce_dest",
-	    "dccp_recv", "dccp_send", "recvfrom", "sendto", NULL } },
+	  { "recvfrom", "sendto", NULL } },
 	{ "netif",
-	  {  "tcp_recv", "tcp_send", "udp_recv", "udp_send",
-	     "rawip_recv", "rawip_send", "dccp_recv", "dccp_send",
-	     "ingress", "egress", NULL } },
+	  { "ingress", "egress", NULL } },
 	{ "netlink_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "packet_socket",
@@ -90,11 +99,9 @@ struct security_class_mapping secclass_map[] = {
 	{ "key_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "unix_stream_socket",
-	  { COMMON_SOCK_PERMS, "connectto", "newconn", "acceptfrom", NULL
-	  } },
+	  { COMMON_SOCK_PERMS, "connectto", NULL } },
 	{ "unix_dgram_socket",
-	  { COMMON_SOCK_PERMS, NULL
-	  } },
+	  { COMMON_SOCK_PERMS, NULL } },
 	{ "sem",
 	  { COMMON_IPC_PERMS, NULL } },
 	{ "msg", { "send", "receive", NULL } },
@@ -107,9 +114,6 @@ struct security_class_mapping secclass_map[] = {
 	{ "netlink_route_socket",
 	  { COMMON_SOCK_PERMS,
 	    "nlmsg_read", "nlmsg_write", NULL } },
-	{ "netlink_firewall_socket",
-	  { COMMON_SOCK_PERMS,
-	    "nlmsg_read", "nlmsg_write", NULL } },
 	{ "netlink_tcpdiag_socket",
 	  { COMMON_SOCK_PERMS,
 	    "nlmsg_read", "nlmsg_write", NULL } },
@@ -120,18 +124,31 @@ struct security_class_mapping secclass_map[] = {
 	    "nlmsg_read", "nlmsg_write", NULL } },
 	{ "netlink_selinux_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netlink_iscsi_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
 	{ "netlink_audit_socket",
 	  { COMMON_SOCK_PERMS,
 	    "nlmsg_read", "nlmsg_write", "nlmsg_relay", "nlmsg_readpriv",
 	    "nlmsg_tty_audit", NULL } },
-	{ "netlink_ip6fw_socket",
-	  { COMMON_SOCK_PERMS,
-	    "nlmsg_read", "nlmsg_write", NULL } },
+	{ "netlink_fib_lookup_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netlink_connector_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netlink_netfilter_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
 	{ "netlink_dnrt_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "association",
 	  { "sendto", "recvfrom", "setcontext", "polmatch", NULL } },
 	{ "netlink_kobject_uevent_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netlink_generic_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netlink_scsitransport_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netlink_rdma_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netlink_crypto_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "appletalk_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
@@ -146,10 +163,83 @@ struct security_class_mapping secclass_map[] = {
 	{ "memprotect", { "mmap_zero", NULL } },
 	{ "peer", { "recv", NULL } },
 	{ "capability2",
-	  { "mac_override", "mac_admin", "syslog", "wake_alarm", "block_suspend",
-	    NULL } },
+	  { COMMON_CAP2_PERMS, NULL } },
 	{ "kernel_service", { "use_as_override", "create_files_as", NULL } },
 	{ "tun_socket",
 	  { COMMON_SOCK_PERMS, "attach_queue", NULL } },
+	{ "binder", { "impersonate", "call", "set_context_mgr", "transfer",
+		      NULL } },
+	{ "cap_userns",
+	  { COMMON_CAP_PERMS, NULL } },
+	{ "cap2_userns",
+	  { COMMON_CAP2_PERMS, NULL } },
+	{ "sctp_socket",
+	  { COMMON_SOCK_PERMS,
+	    "node_bind", NULL } },
+	{ "icmp_socket",
+	  { COMMON_SOCK_PERMS,
+	    "node_bind", NULL } },
+	{ "ax25_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "ipx_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "netrom_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "atmpvc_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "x25_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "rose_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "decnet_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "atmsvc_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "rds_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "irda_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "pppox_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "llc_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "can_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "tipc_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "bluetooth_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "iucv_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "rxrpc_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "isdn_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "phonet_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "ieee802154_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "caif_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "alg_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "nfc_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "vsock_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "kcm_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "qipcrtr_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "smc_socket",
+	  { COMMON_SOCK_PERMS, NULL } },
+	{ "infiniband_pkey",
+	  { "access", NULL } },
+	{ "infiniband_endport",
+	  { "manage_subnet", NULL } },
 	{ NULL }
   };
+
+#if PF_MAX > 44
+#error New address family defined, please update secclass_map.
+#endif

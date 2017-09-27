@@ -9,6 +9,8 @@
 #include <linux/bug.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <asm/traps.h>
 #include <asm/cplb.h>
 #include <asm/blackfin.h>
@@ -18,6 +20,7 @@
 #include <asm/fixed_code.h>
 #include <asm/pseudo_instructions.h>
 #include <asm/pda.h>
+#include <asm/asm-offsets.h>
 
 #ifdef CONFIG_KGDB
 # include <linux/kgdb.h>

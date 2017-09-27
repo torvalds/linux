@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2012 ARM Ltd.
- * Author: Marc Zyngier <marc.zyngier@arm.com>
+ * Copyright (C) 2015, 2016 ARM Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,209 +11,342 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef __ASM_ARM_KVM_VGIC_H
-#define __ASM_ARM_KVM_VGIC_H
+#ifndef __KVM_ARM_VGIC_H
+#define __KVM_ARM_VGIC_H
 
 #include <linux/kernel.h>
 #include <linux/kvm.h>
 #include <linux/irqreturn.h>
 #include <linux/spinlock.h>
+#include <linux/static_key.h>
 #include <linux/types.h>
-#include <linux/irqchip/arm-gic.h>
+#include <kvm/iodev.h>
+#include <linux/list.h>
+#include <linux/jump_label.h>
 
-#define VGIC_NR_IRQS		128
+#define VGIC_V3_MAX_CPUS	255
+#define VGIC_V2_MAX_CPUS	8
+#define VGIC_NR_IRQS_LEGACY     256
 #define VGIC_NR_SGIS		16
 #define VGIC_NR_PPIS		16
 #define VGIC_NR_PRIVATE_IRQS	(VGIC_NR_SGIS + VGIC_NR_PPIS)
-#define VGIC_NR_SHARED_IRQS	(VGIC_NR_IRQS - VGIC_NR_PRIVATE_IRQS)
-#define VGIC_MAX_CPUS		KVM_MAX_VCPUS
-#define VGIC_MAX_LRS		(1 << 6)
+#define VGIC_MAX_PRIVATE	(VGIC_NR_PRIVATE_IRQS - 1)
+#define VGIC_MAX_SPI		1019
+#define VGIC_MAX_RESERVED	1023
+#define VGIC_MIN_LPI		8192
+#define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
 
-/* Sanity checks... */
-#if (VGIC_MAX_CPUS > 8)
-#error	Invalid number of CPU interfaces
-#endif
+#define irq_is_ppi(irq) ((irq) >= VGIC_NR_SGIS && (irq) < VGIC_NR_PRIVATE_IRQS)
+#define irq_is_spi(irq) ((irq) >= VGIC_NR_PRIVATE_IRQS && \
+			 (irq) <= VGIC_MAX_SPI)
 
-#if (VGIC_NR_IRQS & 31)
-#error "VGIC_NR_IRQS must be a multiple of 32"
-#endif
-
-#if (VGIC_NR_IRQS > 1024)
-#error "VGIC_NR_IRQS must be <= 1024"
-#endif
-
-/*
- * The GIC distributor registers describing interrupts have two parts:
- * - 32 per-CPU interrupts (SGI + PPI)
- * - a bunch of shared interrupts (SPI)
- */
-struct vgic_bitmap {
-	union {
-		u32 reg[VGIC_NR_PRIVATE_IRQS / 32];
-		DECLARE_BITMAP(reg_ul, VGIC_NR_PRIVATE_IRQS);
-	} percpu[VGIC_MAX_CPUS];
-	union {
-		u32 reg[VGIC_NR_SHARED_IRQS / 32];
-		DECLARE_BITMAP(reg_ul, VGIC_NR_SHARED_IRQS);
-	} shared;
+enum vgic_type {
+	VGIC_V2,		/* Good ol' GICv2 */
+	VGIC_V3,		/* New fancy GICv3 */
 };
 
-struct vgic_bytemap {
-	u32 percpu[VGIC_MAX_CPUS][VGIC_NR_PRIVATE_IRQS / 4];
-	u32 shared[VGIC_NR_SHARED_IRQS  / 4];
+/* same for all guests, as depending only on the _host's_ GIC model */
+struct vgic_global {
+	/* type of the host GIC */
+	enum vgic_type		type;
+
+	/* Physical address of vgic virtual cpu interface */
+	phys_addr_t		vcpu_base;
+
+	/* GICV mapping */
+	void __iomem		*vcpu_base_va;
+
+	/* virtual control interface mapping */
+	void __iomem		*vctrl_base;
+
+	/* Number of implemented list registers */
+	int			nr_lr;
+
+	/* Maintenance IRQ number */
+	unsigned int		maint_irq;
+
+	/* maximum number of VCPUs allowed (GICv2 limits us to 8) */
+	int			max_gic_vcpus;
+
+	/* Only needed for the legacy KVM_CREATE_IRQCHIP */
+	bool			can_emulate_gicv2;
+
+	/* GIC system register CPU interface */
+	struct static_key_false gicv3_cpuif;
+
+	u32			ich_vtr_el2;
 };
+
+extern struct vgic_global kvm_vgic_global_state;
+
+#define VGIC_V2_MAX_LRS		(1 << 6)
+#define VGIC_V3_MAX_LRS		16
+#define VGIC_V3_LR_INDEX(lr)	(VGIC_V3_MAX_LRS - 1 - lr)
+
+enum vgic_irq_config {
+	VGIC_CONFIG_EDGE = 0,
+	VGIC_CONFIG_LEVEL
+};
+
+struct vgic_irq {
+	spinlock_t irq_lock;		/* Protects the content of the struct */
+	struct list_head lpi_list;	/* Used to link all LPIs together */
+	struct list_head ap_list;
+
+	struct kvm_vcpu *vcpu;		/* SGIs and PPIs: The VCPU
+					 * SPIs and LPIs: The VCPU whose ap_list
+					 * this is queued on.
+					 */
+
+	struct kvm_vcpu *target_vcpu;	/* The VCPU that this interrupt should
+					 * be sent to, as a result of the
+					 * targets reg (v2) or the
+					 * affinity reg (v3).
+					 */
+
+	u32 intid;			/* Guest visible INTID */
+	bool line_level;		/* Level only */
+	bool pending_latch;		/* The pending latch state used to calculate
+					 * the pending state for both level
+					 * and edge triggered IRQs. */
+	bool active;			/* not used for LPIs */
+	bool enabled;
+	bool hw;			/* Tied to HW IRQ */
+	struct kref refcount;		/* Used for LPIs */
+	u32 hwintid;			/* HW INTID number */
+	union {
+		u8 targets;			/* GICv2 target VCPUs mask */
+		u32 mpidr;			/* GICv3 target VCPU */
+	};
+	u8 source;			/* GICv2 SGIs only */
+	u8 priority;
+	enum vgic_irq_config config;	/* Level or edge */
+
+	void *owner;			/* Opaque pointer to reserve an interrupt
+					   for in-kernel devices. */
+};
+
+struct vgic_register_region;
+struct vgic_its;
+
+enum iodev_type {
+	IODEV_CPUIF,
+	IODEV_DIST,
+	IODEV_REDIST,
+	IODEV_ITS
+};
+
+struct vgic_io_device {
+	gpa_t base_addr;
+	union {
+		struct kvm_vcpu *redist_vcpu;
+		struct vgic_its *its;
+	};
+	const struct vgic_register_region *regions;
+	enum iodev_type iodev_type;
+	int nr_regions;
+	struct kvm_io_device dev;
+};
+
+struct vgic_its {
+	/* The base address of the ITS control register frame */
+	gpa_t			vgic_its_base;
+
+	bool			enabled;
+	struct vgic_io_device	iodev;
+	struct kvm_device	*dev;
+
+	/* These registers correspond to GITS_BASER{0,1} */
+	u64			baser_device_table;
+	u64			baser_coll_table;
+
+	/* Protects the command queue */
+	struct mutex		cmd_lock;
+	u64			cbaser;
+	u32			creadr;
+	u32			cwriter;
+
+	/* migration ABI revision in use */
+	u32			abi_rev;
+
+	/* Protects the device and collection lists */
+	struct mutex		its_lock;
+	struct list_head	device_list;
+	struct list_head	collection_list;
+};
+
+struct vgic_state_iter;
 
 struct vgic_dist {
-#ifdef CONFIG_KVM_ARM_VGIC
-	spinlock_t		lock;
+	bool			in_kernel;
 	bool			ready;
+	bool			initialized;
 
+	/* vGIC model the kernel emulates for the guest (GICv2 or GICv3) */
+	u32			vgic_model;
+
+	/* Do injected MSIs require an additional device ID? */
+	bool			msis_require_devid;
+
+	int			nr_spis;
+
+	/* TODO: Consider moving to global state */
 	/* Virtual control interface mapping */
 	void __iomem		*vctrl_base;
 
-	/* Distributor and vcpu interface mapping in the guest */
-	phys_addr_t		vgic_dist_base;
-	phys_addr_t		vgic_cpu_base;
+	/* base addresses in guest physical address space: */
+	gpa_t			vgic_dist_base;		/* distributor */
+	union {
+		/* either a GICv2 CPU interface */
+		gpa_t			vgic_cpu_base;
+		/* or a number of GICv3 redistributor regions */
+		struct {
+			gpa_t		vgic_redist_base;
+			gpa_t		vgic_redist_free_offset;
+		};
+	};
 
-	/* Distributor enabled */
-	u32			enabled;
+	/* distributor enabled */
+	bool			enabled;
 
-	/* Interrupt enabled (one bit per IRQ) */
-	struct vgic_bitmap	irq_enabled;
+	struct vgic_irq		*spis;
 
-	/* Interrupt 'pin' level */
-	struct vgic_bitmap	irq_state;
+	struct vgic_io_device	dist_iodev;
 
-	/* Level-triggered interrupt in progress */
-	struct vgic_bitmap	irq_active;
+	bool			has_its;
 
-	/* Interrupt priority. Not used yet. */
-	struct vgic_bytemap	irq_priority;
+	/*
+	 * Contains the attributes and gpa of the LPI configuration table.
+	 * Since we report GICR_TYPER.CommonLPIAff as 0b00, we can share
+	 * one address across all redistributors.
+	 * GICv3 spec: 6.1.2 "LPI Configuration tables"
+	 */
+	u64			propbaser;
 
-	/* Level/edge triggered */
-	struct vgic_bitmap	irq_cfg;
+	/* Protects the lpi_list and the count value below. */
+	spinlock_t		lpi_list_lock;
+	struct list_head	lpi_list_head;
+	int			lpi_list_count;
 
-	/* Source CPU per SGI and target CPU */
-	u8			irq_sgi_sources[VGIC_MAX_CPUS][VGIC_NR_SGIS];
+	/* used by vgic-debug */
+	struct vgic_state_iter *iter;
+};
 
-	/* Target CPU for each IRQ */
-	u8			irq_spi_cpu[VGIC_NR_SHARED_IRQS];
-	struct vgic_bitmap	irq_spi_target[VGIC_MAX_CPUS];
+struct vgic_v2_cpu_if {
+	u32		vgic_hcr;
+	u32		vgic_vmcr;
+	u64		vgic_elrsr;	/* Saved only */
+	u32		vgic_apr;
+	u32		vgic_lr[VGIC_V2_MAX_LRS];
+};
 
-	/* Bitmap indicating which CPU has something pending */
-	unsigned long		irq_pending_on_cpu;
-#endif
+struct vgic_v3_cpu_if {
+	u32		vgic_hcr;
+	u32		vgic_vmcr;
+	u32		vgic_sre;	/* Restored only, change ignored */
+	u32		vgic_elrsr;	/* Saved only */
+	u32		vgic_ap0r[4];
+	u32		vgic_ap1r[4];
+	u64		vgic_lr[VGIC_V3_MAX_LRS];
 };
 
 struct vgic_cpu {
-#ifdef CONFIG_KVM_ARM_VGIC
-	/* per IRQ to LR mapping */
-	u8		vgic_irq_lr_map[VGIC_NR_IRQS];
-
-	/* Pending interrupts on this VCPU */
-	DECLARE_BITMAP(	pending_percpu, VGIC_NR_PRIVATE_IRQS);
-	DECLARE_BITMAP(	pending_shared, VGIC_NR_SHARED_IRQS);
-
-	/* Bitmap of used/free list registers */
-	DECLARE_BITMAP(	lr_used, VGIC_MAX_LRS);
-
-	/* Number of list registers on this CPU */
-	int		nr_lr;
-
 	/* CPU vif control registers for world switch */
-	u32		vgic_hcr;
-	u32		vgic_vmcr;
-	u32		vgic_misr;	/* Saved only */
-	u32		vgic_eisr[2];	/* Saved only */
-	u32		vgic_elrsr[2];	/* Saved only */
-	u32		vgic_apr;
-	u32		vgic_lr[VGIC_MAX_LRS];
-#endif
+	union {
+		struct vgic_v2_cpu_if	vgic_v2;
+		struct vgic_v3_cpu_if	vgic_v3;
+	};
+
+	unsigned int used_lrs;
+	struct vgic_irq private_irqs[VGIC_NR_PRIVATE_IRQS];
+
+	spinlock_t ap_list_lock;	/* Protects the ap_list */
+
+	/*
+	 * List of IRQs that this VCPU should consider because they are either
+	 * Active or Pending (hence the name; AP list), or because they recently
+	 * were one of the two and need to be migrated off this list to another
+	 * VCPU.
+	 */
+	struct list_head ap_list_head;
+
+	/*
+	 * Members below are used with GICv3 emulation only and represent
+	 * parts of the redistributor.
+	 */
+	struct vgic_io_device	rd_iodev;
+	struct vgic_io_device	sgi_iodev;
+
+	/* Contains the attributes and gpa of the LPI pending tables. */
+	u64 pendbaser;
+
+	bool lpis_enabled;
+
+	/* Cache guest priority bits */
+	u32 num_pri_bits;
+
+	/* Cache guest interrupt ID bits */
+	u32 num_id_bits;
 };
 
-#define LR_EMPTY	0xff
+extern struct static_key_false vgic_v2_cpuif_trap;
+extern struct static_key_false vgic_v3_cpuif_trap;
 
-struct kvm;
-struct kvm_vcpu;
-struct kvm_run;
-struct kvm_exit_mmio;
-
-#ifdef CONFIG_KVM_ARM_VGIC
-int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr);
-int kvm_vgic_hyp_init(void);
-int kvm_vgic_init(struct kvm *kvm);
-int kvm_vgic_create(struct kvm *kvm);
+int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
+void kvm_vgic_early_init(struct kvm *kvm);
 int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu);
-void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
-void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
-int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
-			bool level);
+int kvm_vgic_create(struct kvm *kvm, u32 type);
+void kvm_vgic_destroy(struct kvm *kvm);
+void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);
+void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
+int kvm_vgic_map_resources(struct kvm *kvm);
+int kvm_vgic_hyp_init(void);
+void kvm_vgic_init_cpu_hardware(void);
+
+int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
+			bool level, void *owner);
+int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, u32 virt_irq, u32 phys_irq);
+int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int virt_irq);
+bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int virt_irq);
+
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
-bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
-		      struct kvm_exit_mmio *mmio);
 
-#define irqchip_in_kernel(k)	(!!((k)->arch.vgic.vctrl_base))
-#define vgic_initialized(k)	((k)->arch.vgic.ready)
+void kvm_vgic_load(struct kvm_vcpu *vcpu);
+void kvm_vgic_put(struct kvm_vcpu *vcpu);
 
-#else
-static inline int kvm_vgic_hyp_init(void)
+#define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
+#define vgic_initialized(k)	((k)->arch.vgic.initialized)
+#define vgic_ready(k)		((k)->arch.vgic.ready)
+#define vgic_valid_spi(k, i)	(((i) >= VGIC_NR_PRIVATE_IRQS) && \
+			((i) < (k)->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS))
+
+bool kvm_vcpu_has_pending_irqs(struct kvm_vcpu *vcpu);
+void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
+void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
+
+void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
+
+/**
+ * kvm_vgic_get_max_vcpus - Get the maximum number of VCPUs allowed by HW
+ *
+ * The host's GIC naturally limits the maximum amount of VCPUs a guest
+ * can use.
+ */
+static inline int kvm_vgic_get_max_vcpus(void)
 {
-	return 0;
+	return kvm_vgic_global_state.max_gic_vcpus;
 }
 
-static inline int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr)
-{
-	return 0;
-}
+int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
 
-static inline int kvm_vgic_init(struct kvm *kvm)
-{
-	return 0;
-}
+/**
+ * kvm_vgic_setup_default_irq_routing:
+ * Setup a default flat gsi routing table mapping all SPIs
+ */
+int kvm_vgic_setup_default_irq_routing(struct kvm *kvm);
 
-static inline int kvm_vgic_create(struct kvm *kvm)
-{
-	return 0;
-}
+int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner);
 
-static inline int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
-{
-	return 0;
-}
-
-static inline void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu) {}
-static inline void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu) {}
-
-static inline int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid,
-				      unsigned int irq_num, bool level)
-{
-	return 0;
-}
-
-static inline int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
-{
-	return 0;
-}
-
-static inline bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
-				    struct kvm_exit_mmio *mmio)
-{
-	return false;
-}
-
-static inline int irqchip_in_kernel(struct kvm *kvm)
-{
-	return 0;
-}
-
-static inline bool vgic_initialized(struct kvm *kvm)
-{
-	return true;
-}
-#endif
-
-#endif
+#endif /* __KVM_ARM_VGIC_H */

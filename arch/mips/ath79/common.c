@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
 
@@ -38,11 +38,27 @@ unsigned int ath79_soc_rev;
 void __iomem *ath79_pll_base;
 void __iomem *ath79_reset_base;
 EXPORT_SYMBOL_GPL(ath79_reset_base);
-void __iomem *ath79_ddr_base;
+static void __iomem *ath79_ddr_base;
+static void __iomem *ath79_ddr_wb_flush_base;
+static void __iomem *ath79_ddr_pci_win_base;
+
+void ath79_ddr_ctrl_init(void)
+{
+	ath79_ddr_base = ioremap_nocache(AR71XX_DDR_CTRL_BASE,
+					 AR71XX_DDR_CTRL_SIZE);
+	if (soc_is_ar913x() || soc_is_ar724x() || soc_is_ar933x()) {
+		ath79_ddr_wb_flush_base = ath79_ddr_base + 0x7c;
+		ath79_ddr_pci_win_base = 0;
+	} else {
+		ath79_ddr_wb_flush_base = ath79_ddr_base + 0x9c;
+		ath79_ddr_pci_win_base = ath79_ddr_base + 0x7c;
+	}
+}
+EXPORT_SYMBOL_GPL(ath79_ddr_ctrl_init);
 
 void ath79_ddr_wb_flush(u32 reg)
 {
-	void __iomem *flush_reg = ath79_ddr_base + reg;
+	void __iomem *flush_reg = ath79_ddr_wb_flush_base + reg;
 
 	/* Flush the DDR write buffer. */
 	__raw_writel(0x1, flush_reg);
@@ -55,6 +71,21 @@ void ath79_ddr_wb_flush(u32 reg)
 		;
 }
 EXPORT_SYMBOL_GPL(ath79_ddr_wb_flush);
+
+void ath79_ddr_set_pci_windows(void)
+{
+	BUG_ON(!ath79_ddr_pci_win_base);
+
+	__raw_writel(AR71XX_PCI_WIN0_OFFS, ath79_ddr_pci_win_base + 0x0);
+	__raw_writel(AR71XX_PCI_WIN1_OFFS, ath79_ddr_pci_win_base + 0x4);
+	__raw_writel(AR71XX_PCI_WIN2_OFFS, ath79_ddr_pci_win_base + 0x8);
+	__raw_writel(AR71XX_PCI_WIN3_OFFS, ath79_ddr_pci_win_base + 0xc);
+	__raw_writel(AR71XX_PCI_WIN4_OFFS, ath79_ddr_pci_win_base + 0x10);
+	__raw_writel(AR71XX_PCI_WIN5_OFFS, ath79_ddr_pci_win_base + 0x14);
+	__raw_writel(AR71XX_PCI_WIN6_OFFS, ath79_ddr_pci_win_base + 0x18);
+	__raw_writel(AR71XX_PCI_WIN7_OFFS, ath79_ddr_pci_win_base + 0x1c);
+}
+EXPORT_SYMBOL_GPL(ath79_ddr_set_pci_windows);
 
 void ath79_device_reset_set(u32 mask)
 {

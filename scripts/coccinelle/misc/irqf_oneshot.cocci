@@ -1,8 +1,11 @@
-/// Make sure threaded IRQs without a primary handler are always request with
-/// IRQF_ONESHOT
+/// Since commit 1c6c69525b40 ("genirq: Reject bogus threaded irq requests")
+/// threaded IRQs without a primary handler need to be requested with
+/// IRQF_ONESHOT, otherwise the request will fail.
+///
+/// So pass the IRQF_ONESHOT flag in this case.
 ///
 //
-// Confidence: Good
+// Confidence: Moderate
 // Comments:
 // Options: --no-includes
 
@@ -12,25 +15,48 @@ virtual org
 virtual report
 
 @r1@
-expression irq;
-expression thread_fn;
-expression flags;
+expression dev, irq, thread_fn;
 position p;
 @@
+(
 request_threaded_irq@p(irq, NULL, thread_fn,
 (
-flags | IRQF_ONESHOT
+IRQF_ONESHOT | ...
 |
 IRQF_ONESHOT
 )
 , ...)
+|
+devm_request_threaded_irq@p(dev, irq, NULL, thread_fn,
+(
+IRQF_ONESHOT | ...
+|
+IRQF_ONESHOT
+)
+, ...)
+)
 
-@depends on patch@
-expression irq;
-expression thread_fn;
-expression flags;
+@r2@
+expression dev, irq, thread_fn, flags, e;
 position p != r1.p;
 @@
+(
+flags = IRQF_ONESHOT | ...
+|
+flags |= IRQF_ONESHOT | ...
+)
+... when != flags = e
+(
+request_threaded_irq@p(irq, NULL, thread_fn, flags, ...);
+|
+devm_request_threaded_irq@p(dev, irq, NULL, thread_fn, flags, ...);
+)
+
+@depends on patch@
+expression dev, irq, thread_fn, flags;
+position p != {r1.p,r2.p};
+@@
+(
 request_threaded_irq@p(irq, NULL, thread_fn,
 (
 -0
@@ -40,17 +66,38 @@ request_threaded_irq@p(irq, NULL, thread_fn,
 +flags | IRQF_ONESHOT
 )
 , ...)
+|
+devm_request_threaded_irq@p(dev, irq, NULL, thread_fn,
+(
+-0
++IRQF_ONESHOT
+|
+-flags
++flags | IRQF_ONESHOT
+)
+, ...)
+)
 
 @depends on context@
-position p != r1.p;
+expression dev, irq;
+position p != {r1.p,r2.p};
 @@
-*request_threaded_irq@p(...)
+(
+*request_threaded_irq@p(irq, NULL, ...)
+|
+*devm_request_threaded_irq@p(dev, irq, NULL, ...)
+)
+
 
 @match depends on report || org@
-expression irq;
-position p != r1.p;
+expression dev, irq;
+position p != {r1.p,r2.p};
 @@
+(
 request_threaded_irq@p(irq, NULL, ...)
+|
+devm_request_threaded_irq@p(dev, irq, NULL, ...)
+)
 
 @script:python depends on org@
 p << match.p;

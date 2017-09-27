@@ -13,10 +13,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
  *
@@ -49,14 +45,13 @@ static void rtl871x_load_fw_cb(const struct firmware *firmware, void *context)
 	if (!firmware) {
 		struct usb_device *udev = padapter->dvobjpriv.pusbdev;
 		struct usb_interface *pusb_intf = padapter->pusb_intf;
+
 		dev_err(&udev->dev, "r8712u: Firmware request failed\n");
-		padapter->fw_found = false;
 		usb_put_dev(udev);
 		usb_set_intfdata(pusb_intf, NULL);
 		return;
 	}
 	padapter->fw = firmware;
-	padapter->fw_found = true;
 	/* firmware available - start netdev */
 	register_netdev(padapter->pnetdev);
 }
@@ -87,13 +82,13 @@ static u32 rtl871x_open_fw(struct _adapter *padapter, const u8 **ppmappedfw)
 			(int)padapter->fw->size);
 		return 0;
 	}
-	*ppmappedfw = (u8 *)((*praw)->data);
+	*ppmappedfw = (*praw)->data;
 	return (*praw)->size;
 }
 
 static void fill_fwpriv(struct _adapter *padapter, struct fw_priv *pfwpriv)
 {
-	struct dvobj_priv *pdvobj = (struct dvobj_priv *)&padapter->dvobjpriv;
+	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 
 	memset(pfwpriv, 0, sizeof(struct fw_priv));
@@ -122,30 +117,25 @@ static void fill_fwpriv(struct _adapter *padapter, struct fw_priv *pfwpriv)
 
 static void update_fwhdr(struct fw_hdr	*pfwhdr, const u8 *pmappedfw)
 {
-	pfwhdr->signature = le16_to_cpu(*(u16 *)pmappedfw);
-	pfwhdr->version = le16_to_cpu(*(u16 *)(pmappedfw+2));
+	pfwhdr->signature = le16_to_cpu(*(__le16 *)pmappedfw);
+	pfwhdr->version = le16_to_cpu(*(__le16 *)(pmappedfw + 2));
 	/* define the size of boot loader */
-	pfwhdr->dmem_size = le32_to_cpu(*(uint *)(pmappedfw+4));
+	pfwhdr->dmem_size = le32_to_cpu(*(__le32 *)(pmappedfw + 4));
 	/* define the size of FW in IMEM */
-	pfwhdr->img_IMEM_size = le32_to_cpu(*(uint *)(pmappedfw+8));
+	pfwhdr->img_IMEM_size = le32_to_cpu(*(__le32 *)(pmappedfw + 8));
 	/* define the size of FW in SRAM */
-	pfwhdr->img_SRAM_size = le32_to_cpu(*(uint *)(pmappedfw+12));
+	pfwhdr->img_SRAM_size = le32_to_cpu(*(__le32 *)(pmappedfw + 12));
 	/* define the size of DMEM variable */
-	pfwhdr->fw_priv_sz = le32_to_cpu(*(uint *)(pmappedfw+16));
+	pfwhdr->fw_priv_sz = le32_to_cpu(*(__le32 *)(pmappedfw + 16));
 }
 
 static u8 chk_fwhdr(struct fw_hdr *pfwhdr, u32 ulfilelength)
 {
 	u32	fwhdrsz, fw_sz;
-	u8 intf, rfconf;
 
 	/* check signature */
 	if ((pfwhdr->signature != 0x8712) && (pfwhdr->signature != 0x8192))
 		return _FAIL;
-	/* check interface */
-	intf = (u8)((pfwhdr->version&0x3000) >> 12);
-	/* check rf_conf */
-	rfconf = (u8)((pfwhdr->version&0xC000) >> 14);
 	/* check fw_priv_sze & sizeof(struct fw_priv) */
 	if (pfwhdr->fw_priv_sz != sizeof(struct fw_priv))
 		return _FAIL;
@@ -163,7 +153,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 	sint i;
 	u8 tmp8, tmp8_a;
 	u16 tmp16;
-	u32 maxlen = 0, tmp32; /* for compare usage */
+	u32 maxlen = 0; /* for compare usage */
 	uint dump_imem_sz, imem_sz, dump_emem_sz, emem_sz; /* max = 49152; */
 	struct fw_hdr fwhdr;
 	u32 ulfilelength;	/* FW file size */
@@ -183,8 +173,8 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		maxlen = (fwhdr.img_IMEM_size > fwhdr.img_SRAM_size) ?
 			  fwhdr.img_IMEM_size : fwhdr.img_SRAM_size;
 		maxlen += txdscp_sz;
-		ptmpchar = _malloc(maxlen + FWBUFF_ALIGN_SZ);
-		if (ptmpchar == NULL)
+		ptmpchar = kmalloc(maxlen + FWBUFF_ALIGN_SZ, GFP_KERNEL);
+		if (!ptmpchar)
 			return ret;
 
 		ptx_desc = (struct tx_desc *)(ptmpchar + FWBUFF_ALIGN_SZ -
@@ -197,9 +187,9 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		imem_sz = fwhdr.img_IMEM_size;
 		do {
 			memset(ptx_desc, 0, TXDESC_SIZE);
-			if (imem_sz >  MAX_DUMP_FWSZ/*49152*/)
+			if (imem_sz >  MAX_DUMP_FWSZ/*49152*/) {
 				dump_imem_sz = MAX_DUMP_FWSZ;
-			else {
+			} else {
 				dump_imem_sz = imem_sz;
 				ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 			}
@@ -207,15 +197,15 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 						       0x0000ffff);
 			memcpy(ppayload, ptr, dump_imem_sz);
 			r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-				  dump_imem_sz + TXDESC_SIZE,
-				  (u8 *)ptx_desc);
+					dump_imem_sz + TXDESC_SIZE,
+					(u8 *)ptx_desc);
 			ptr += dump_imem_sz;
 			imem_sz -= dump_imem_sz;
 		} while (imem_sz > 0);
 		i = 10;
 		tmp16 = r8712_read16(padapter, TCR);
 		while (((tmp16 & _IMEM_CODE_DONE) == 0) && (i > 0)) {
-			udelay(10);
+			usleep_range(10, 1000);
 			tmp16 = r8712_read16(padapter, TCR);
 			i--;
 		}
@@ -236,14 +226,15 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 						       0x0000ffff);
 			memcpy(ppayload, ptr, dump_emem_sz);
 			r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-				  dump_emem_sz+TXDESC_SIZE, (u8 *)ptx_desc);
+					dump_emem_sz + TXDESC_SIZE,
+					(u8 *)ptx_desc);
 			ptr += dump_emem_sz;
 			emem_sz -= dump_emem_sz;
 		} while (emem_sz > 0);
 		i = 5;
 		tmp16 = r8712_read16(padapter, TCR);
 		while (((tmp16 & _EMEM_CODE_DONE) == 0) && (i > 0)) {
-			udelay(10);
+			usleep_range(10, 1000);
 			tmp16 = r8712_read16(padapter, TCR);
 			i--;
 		}
@@ -252,18 +243,18 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 
 		/* 3.Enable CPU */
 		tmp8 = r8712_read8(padapter, SYS_CLKR);
-		r8712_write8(padapter, SYS_CLKR, tmp8|BIT(2));
+		r8712_write8(padapter, SYS_CLKR, tmp8 | BIT(2));
 		tmp8_a = r8712_read8(padapter, SYS_CLKR);
-		if (tmp8_a != (tmp8|BIT(2)))
+		if (tmp8_a != (tmp8 | BIT(2)))
 			goto exit_fail;
 
 		tmp8 = r8712_read8(padapter, SYS_FUNC_EN + 1);
-		r8712_write8(padapter, SYS_FUNC_EN+1, tmp8|BIT(2));
+		r8712_write8(padapter, SYS_FUNC_EN + 1, tmp8 | BIT(2));
 		tmp8_a = r8712_read8(padapter, SYS_FUNC_EN + 1);
-		if (tmp8_a != (tmp8|BIT(2)))
+		if (tmp8_a != (tmp8 | BIT(2)))
 			goto exit_fail;
 
-		tmp32 = r8712_read32(padapter, TCR);
+		r8712_read32(padapter, TCR);
 
 		/* 4.polling IMEM Ready */
 		i = 100;
@@ -284,11 +275,11 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		}
 		/* 5.Download DMEM code size and Load EMEM Code Section */
 		memset(ptx_desc, 0, TXDESC_SIZE);
-		ptx_desc->txdw0 |= cpu_to_le32(fwhdr.fw_priv_sz&0x0000ffff);
+		ptx_desc->txdw0 |= cpu_to_le32(fwhdr.fw_priv_sz & 0x0000ffff);
 		ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 		memcpy(ppayload, &fwhdr.fwpriv, fwhdr.fw_priv_sz);
 		r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-			  fwhdr.fw_priv_sz + TXDESC_SIZE, (u8 *)ptx_desc);
+				fwhdr.fw_priv_sz + TXDESC_SIZE, (u8 *)ptx_desc);
 
 		/* polling dmem code done */
 		i = 100;
@@ -303,7 +294,8 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 
 		tmp8 = r8712_read8(padapter, 0x1025000A);
 		if (tmp8 & BIT(4)) /* When boot from EEPROM,
-				    & FW need more time to read EEPROM */
+				    * & FW need more time to read EEPROM
+				    */
 			i = 60;
 		else			/* boot from EFUSE */
 			i = 30;
@@ -315,8 +307,9 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		}
 		if (i == 0)
 			goto exit_fail;
-	} else
+	} else {
 		goto exit_fail;
+	}
 	ret = _SUCCESS;
 
 exit_fail:
@@ -337,21 +330,23 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 		    r8712_read32(padapter, RCR));
 	val32 = r8712_read32(padapter, RCR);
 	r8712_write32(padapter, RCR, (val32 | BIT(26))); /* Enable RX TCP
-							    Checksum offload */
+							  * Checksum offload
+							  */
 	netdev_info(padapter->pnetdev, "2 RCR=0x%x\n",
 		    r8712_read32(padapter, RCR));
 	val32 = r8712_read32(padapter, RCR);
-	r8712_write32(padapter, RCR, (val32|BIT(25))); /* Append PHY status */
+	r8712_write32(padapter, RCR, (val32 | BIT(25))); /* Append PHY status */
 	val32 = 0;
 	val32 = r8712_read32(padapter, 0x10250040);
-	r8712_write32(padapter,  0x10250040, (val32&0x00FFFFFF));
+	r8712_write32(padapter,  0x10250040, (val32 & 0x00FFFFFF));
 	/* for usb rx aggregation */
 	r8712_write8(padapter, 0x102500B5, r8712_read8(padapter, 0x102500B5) |
 	       BIT(0)); /* page = 128bytes */
 	r8712_write8(padapter, 0x102500BD, r8712_read8(padapter, 0x102500BD) |
 	       BIT(7)); /* enable usb rx aggregation */
 	r8712_write8(padapter, 0x102500D9, 1); /* TH=1 => means that invalidate
-						*  usb rx aggregation */
+						*  usb rx aggregation
+						*/
 	r8712_write8(padapter, 0x1025FE5B, 0x04); /* 1.7ms/4 */
 	/* Fix the RX FIFO issue(USB error) */
 	r8712_write8(padapter, 0x1025fe5C, r8712_read8(padapter, 0x1025fe5C)
@@ -368,35 +363,34 @@ uint rtl8712_hal_deinit(struct _adapter *padapter)
 	/* Turn off BB */
 	msleep(20);
 	/* Turn off MAC	*/
-	r8712_write8(padapter, SYS_CLKR+1, 0x38); /* Switch Control Path */
-	r8712_write8(padapter, SYS_FUNC_EN+1, 0x70);
+	r8712_write8(padapter, SYS_CLKR + 1, 0x38); /* Switch Control Path */
+	r8712_write8(padapter, SYS_FUNC_EN + 1, 0x70);
 	r8712_write8(padapter, PMC_FSM, 0x06);  /* Enable Loader Data Keep */
 	r8712_write8(padapter, SYS_ISO_CTRL, 0xF9); /* Isolation signals from
-						     * CORE, PLL */
-	r8712_write8(padapter, SYS_ISO_CTRL+1, 0xe8); /* Enable EFUSE 1.2V */
+						     * CORE, PLL
+						     */
+	r8712_write8(padapter, SYS_ISO_CTRL + 1, 0xe8); /* Enable EFUSE 1.2V */
 	r8712_write8(padapter, AFE_PLL_CTRL, 0x00); /* Disable AFE PLL. */
 	r8712_write8(padapter, LDOA15_CTRL, 0x54);  /* Disable A15V */
-	r8712_write8(padapter, SYS_FUNC_EN+1, 0x50); /* Disable E-Fuse 1.2V */
+	r8712_write8(padapter, SYS_FUNC_EN + 1, 0x50); /* Disable E-Fuse 1.2V */
 	r8712_write8(padapter, LDOV12D_CTRL, 0x24); /* Disable LDO12(for CE) */
 	r8712_write8(padapter, AFE_MISC, 0x30); /* Disable AFE BG&MB */
 	/* Option for Disable 1.6V LDO.	*/
 	r8712_write8(padapter, SPS0_CTRL, 0x56); /* Disable 1.6V LDO */
-	r8712_write8(padapter, SPS0_CTRL+1, 0x43);  /* Set SW PFM */
+	r8712_write8(padapter, SPS0_CTRL + 1, 0x43);  /* Set SW PFM */
 	return _SUCCESS;
 }
 
 uint rtl871x_hal_init(struct _adapter *padapter)
 {
 	padapter->hw_init_completed = false;
-	if (padapter->halpriv.hal_bus_init == NULL)
+	if (!padapter->halpriv.hal_bus_init)
 		return _FAIL;
-	else {
-		if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
-			return _FAIL;
-	}
-	if (rtl8712_hal_init(padapter) == _SUCCESS)
+	if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
+		return _FAIL;
+	if (rtl8712_hal_init(padapter) == _SUCCESS) {
 		padapter->hw_init_completed = true;
-	else {
+	} else {
 		padapter->hw_init_completed = false;
 		return _FAIL;
 	}

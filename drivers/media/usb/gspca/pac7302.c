@@ -17,10 +17,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /*
@@ -105,8 +101,7 @@
 #define PAC7302_EXPOSURE_DEFAULT	 66 /* 33 ms / 30 fps */
 #define PAC7302_EXPOSURE_KNEE		133 /* 66 ms / 15 fps */
 
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
-		"Thomas Kaiser thomas@kaiser-linux.li");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7302");
 MODULE_LICENSE("GPL");
 
@@ -394,9 +389,9 @@ static void setbrightcont(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xff, 0x00);		/* page 0 */
 	for (i = 0; i < 10; i++) {
 		v = max[i];
-		v += (sd->brightness->val - sd->brightness->maximum)
-			* 150 / sd->brightness->maximum; /* 200 ? */
-		v -= delta[i] * sd->contrast->val / sd->contrast->maximum;
+		v += (sd->brightness->val - (s32)sd->brightness->maximum)
+			* 150 / (s32)sd->brightness->maximum; /* 200 ? */
+		v -= delta[i] * sd->contrast->val / (s32)sd->contrast->maximum;
 		if (v < 0)
 			v = 0;
 		else if (v > 0xff)
@@ -419,7 +414,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x11, 0x01);
 	reg_w(gspca_dev, 0xff, 0x00);			/* page 0 */
 	for (i = 0; i < 9; i++) {
-		v = a[i] * sd->saturation->val / sd->saturation->maximum;
+		v = a[i] * sd->saturation->val / (s32)sd->saturation->maximum;
 		v += b[i];
 		reg_w(gspca_dev, 0x0f + 2 * i, (v >> 8) & 0x07);
 		reg_w(gspca_dev, 0x0f + 2 * i + 1, v);
@@ -874,7 +869,7 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 #if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
-			int len)		/* interrput packet length */
+			int len)		/* interrupt packet length */
 {
 	int ret = -EINVAL;
 	u8 data0, data1;
@@ -928,6 +923,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x093a, 0x2620)},
 	{USB_DEVICE(0x093a, 0x2621)},
 	{USB_DEVICE(0x093a, 0x2622), .driver_info = FL_VFLIP},
+	{USB_DEVICE(0x093a, 0x2623), .driver_info = FL_VFLIP},
 	{USB_DEVICE(0x093a, 0x2624), .driver_info = FL_VFLIP},
 	{USB_DEVICE(0x093a, 0x2625)},
 	{USB_DEVICE(0x093a, 0x2626)},

@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
 #include <linux/fb.h>
@@ -26,9 +27,9 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/types.h>
-#include <linux/i2c/pcf857x.h>
+#include <linux/platform_data/pcf857x.h>
 #include <linux/i2c/pxa-i2c.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/max1586.h>
 
@@ -42,13 +43,13 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/balloon3.h>
 #include <mach/audio.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/udc.h>
-#include <mach/pxa27x-udc.h>
+#include "udc.h"
+#include "pxa27x-udc.h"
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 
@@ -90,7 +91,7 @@ int __init parse_balloon3_features(char *arg)
 	if (!arg)
 		return 0;
 
-	return strict_strtoul(arg, 0, &balloon3_features_present);
+	return kstrtoul(arg, 0, &balloon3_features_present);
 }
 early_param("balloon3_features", parse_balloon3_features);
 
@@ -331,7 +332,6 @@ static struct pxa2xx_udc_mach_info balloon3_udc_info __initdata = {
 static void __init balloon3_udc_init(void)
 {
 	pxa_set_udc_info(&balloon3_udc_info);
-	platform_device_register(&balloon3_gpio_vbus);
 }
 #else
 static inline void balloon3_udc_init(void) {}
@@ -497,18 +497,18 @@ static struct irq_chip balloon3_irq_chip = {
 	.irq_unmask	= balloon3_unmask_irq,
 };
 
-static void balloon3_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void balloon3_irq_handler(struct irq_desc *desc)
 {
 	unsigned long pending = __raw_readl(BALLOON3_INT_CONTROL_REG) &
 					balloon3_irq_enabled;
 	do {
-		/* clear useless edge notification */
-		if (desc->irq_data.chip->irq_ack) {
-			struct irq_data *d;
+		struct irq_data *d = irq_desc_get_irq_data(desc);
+		struct irq_chip *chip = irq_desc_get_chip(desc);
+		unsigned int irq;
 
-			d = irq_get_irq_data(BALLOON3_AUX_NIRQ);
-			desc->irq_data.chip->irq_ack(d);
-		}
+		/* clear useless edge notification */
+		if (chip->irq_ack)
+			chip->irq_ack(d);
 
 		while (pending) {
 			irq = BALLOON3_IRQ(0) + __ffs(pending);
@@ -529,7 +529,7 @@ static void __init balloon3_init_irq(void)
 	for (irq = BALLOON3_IRQ(0); irq <= BALLOON3_IRQ(7); irq++) {
 		irq_set_chip_and_handler(irq, &balloon3_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_chained_handler(BALLOON3_AUX_NIRQ, balloon3_irq_handler);
@@ -573,7 +573,7 @@ static inline void balloon3_i2c_init(void) {}
 #if defined(CONFIG_MTD_NAND_PLATFORM)||defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
 static void balloon3_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	uint8_t balloon3_ctl_set = 0, balloon3_ctl_clr = 0;
 
 	if (ctrl & NAND_CTRL_CHANGE) {

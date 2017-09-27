@@ -26,7 +26,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -91,7 +90,7 @@ static int pcmcia_set_mode_8bit(struct ata_link *link,
 
 /**
  *	ata_data_xfer_8bit	 -	Transfer data by 8bit PIO
- *	@dev: device to target
+ *	@qc: queued command
  *	@buf: data buffer
  *	@buflen: buffer length
  *	@rw: read/write
@@ -102,10 +101,10 @@ static int pcmcia_set_mode_8bit(struct ata_link *link,
  *	Inherited from caller.
  */
 
-static unsigned int ata_data_xfer_8bit(struct ata_device *dev,
+static unsigned int ata_data_xfer_8bit(struct ata_queued_cmd *qc,
 				unsigned char *buf, unsigned int buflen, int rw)
 {
-	struct ata_port *ap = dev->link->ap;
+	struct ata_port *ap = qc->dev->link->ap;
 
 	if (rw == READ)
 		ioread8_rep(ap->ioaddr.data_addr, buf, buflen);

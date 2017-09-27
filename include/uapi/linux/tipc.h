@@ -1,7 +1,7 @@
 /*
  * include/uapi/linux/tipc.h: Header for TIPC socket interface
  *
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 2003-2006, 2015-2016 Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -38,6 +38,7 @@
 #define _LINUX_TIPC_H_
 
 #include <linux/types.h>
+#include <linux/sockios.h>
 
 /*
  * TIPC addressing primitives
@@ -59,26 +60,48 @@ struct tipc_name_seq {
 	__u32 upper;
 };
 
+/* TIPC Address Size, Offset, Mask specification for Z.C.N
+ */
+#define TIPC_NODE_BITS          12
+#define TIPC_CLUSTER_BITS       12
+#define TIPC_ZONE_BITS          8
+
+#define TIPC_NODE_OFFSET        0
+#define TIPC_CLUSTER_OFFSET     TIPC_NODE_BITS
+#define TIPC_ZONE_OFFSET        (TIPC_CLUSTER_OFFSET + TIPC_CLUSTER_BITS)
+
+#define TIPC_NODE_SIZE          ((1UL << TIPC_NODE_BITS) - 1)
+#define TIPC_CLUSTER_SIZE       ((1UL << TIPC_CLUSTER_BITS) - 1)
+#define TIPC_ZONE_SIZE          ((1UL << TIPC_ZONE_BITS) - 1)
+
+#define TIPC_NODE_MASK		(TIPC_NODE_SIZE << TIPC_NODE_OFFSET)
+#define TIPC_CLUSTER_MASK	(TIPC_CLUSTER_SIZE << TIPC_CLUSTER_OFFSET)
+#define TIPC_ZONE_MASK		(TIPC_ZONE_SIZE << TIPC_ZONE_OFFSET)
+
+#define TIPC_ZONE_CLUSTER_MASK (TIPC_ZONE_MASK | TIPC_CLUSTER_MASK)
+
 static inline __u32 tipc_addr(unsigned int zone,
 			      unsigned int cluster,
 			      unsigned int node)
 {
-	return (zone << 24) | (cluster << 12) | node;
+	return (zone << TIPC_ZONE_OFFSET) |
+		(cluster << TIPC_CLUSTER_OFFSET) |
+		node;
 }
 
 static inline unsigned int tipc_zone(__u32 addr)
 {
-	return addr >> 24;
+	return addr >> TIPC_ZONE_OFFSET;
 }
 
 static inline unsigned int tipc_cluster(__u32 addr)
 {
-	return (addr >> 12) & 0xfff;
+	return (addr & TIPC_CLUSTER_MASK) >> TIPC_CLUSTER_OFFSET;
 }
 
 static inline unsigned int tipc_node(__u32 addr)
 {
-	return addr & 0xfff;
+	return addr & TIPC_NODE_MASK;
 }
 
 /*
@@ -87,6 +110,7 @@ static inline unsigned int tipc_node(__u32 addr)
 
 #define TIPC_CFG_SRV		0	/* configuration service name type */
 #define TIPC_TOP_SRV		1	/* topology service name type */
+#define TIPC_LINK_STATE		2	/* link state name type */
 #define TIPC_RESERVED_TYPES	64	/* lowest user-publishable name type */
 
 /*
@@ -196,7 +220,7 @@ struct sockaddr_tipc {
 #define TIPC_DESTNAME	3	/* destination name */
 
 /*
- * TIPC-specific socket option values
+ * TIPC-specific socket option names
  */
 
 #define TIPC_IMPORTANCE		127	/* Default: TIPC_LOW_IMPORTANCE */
@@ -205,5 +229,28 @@ struct sockaddr_tipc {
 #define TIPC_CONN_TIMEOUT	130	/* Default: 8000 (ms)  */
 #define TIPC_NODE_RECVQ_DEPTH	131	/* Default: none (read only) */
 #define TIPC_SOCK_RECVQ_DEPTH	132	/* Default: none (read only) */
+#define TIPC_MCAST_BROADCAST    133     /* Default: TIPC selects. No arg */
+#define TIPC_MCAST_REPLICAST    134     /* Default: TIPC selects. No arg */
 
+/*
+ * Maximum sizes of TIPC bearer-related names (including terminating NULL)
+ * The string formatting for each name element is:
+ * media: media
+ * interface: media:interface name
+ * link: Z.C.N:interface-Z.C.N:interface
+ *
+ */
+
+#define TIPC_MAX_MEDIA_NAME	16
+#define TIPC_MAX_IF_NAME	16
+#define TIPC_MAX_BEARER_NAME	32
+#define TIPC_MAX_LINK_NAME	60
+
+#define SIOCGETLINKNAME		SIOCPROTOPRIVATE
+
+struct tipc_sioc_ln_req {
+	__u32 peer;
+	__u32 bearer_id;
+	char linkname[TIPC_MAX_LINK_NAME];
+};
 #endif

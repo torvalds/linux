@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -342,12 +338,12 @@ static const struct v4l2_ctrl_ops tw2804_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_video_ops tw2804_video_ops = {
+	.s_std = tw2804_s_std,
 	.s_routing = tw2804_s_video_routing,
 };
 
 static const struct v4l2_subdev_core_ops tw2804_core_ops = {
 	.log_status = tw2804_log_status,
-	.s_std = tw2804_s_std,
 };
 
 static const struct v4l2_subdev_ops tw2804_ops = {

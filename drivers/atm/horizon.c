@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/errno.h>
@@ -45,7 +46,7 @@
 
 #include <asm/io.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/string.h>
 #include <asm/byteorder.h>
 
@@ -458,12 +459,6 @@ static inline void update_tx_channel_config (hrz_dev * dev, short chan, u8 mode,
     return;
 }
 
-static inline u16 query_tx_channel_config (hrz_dev * dev, short chan, u8 mode) {
-  wr_regw (dev, TX_CHANNEL_CONFIG_COMMAND_OFF,
-	   chan * TX_CHANNEL_CONFIG_MULT | mode);
-    return rd_regw (dev, TX_CHANNEL_CONFIG_DATA_OFF);
-}
-
 /********** dump functions **********/
 
 static inline void dump_skb (char * prefix, unsigned int vc, struct sk_buff * skb) {
@@ -512,16 +507,6 @@ static inline void dump_framer (hrz_dev * dev) {
 /********** VPI/VCI <-> (RX) channel conversions **********/
 
 /* RX channels are 10 bit integers, these fns are quite paranoid */
-
-static inline int channel_to_vpivci (const u16 channel, short * vpi, int * vci) {
-  unsigned short vci_bits = 10 - vpi_bits;
-  if ((channel & RX_CHANNEL_MASK) == channel) {
-    *vci = channel & ((~0)<<vci_bits);
-    *vpi = channel >> vci_bits;
-    return channel ? 0 : -EINVAL;
-  }
-  return -EINVAL;
-}
 
 static inline int vpivci_to_channel (u16 * channel, const short vpi, const int vci) {
   unsigned short vci_bits = 10 - vpi_bits;
@@ -1258,14 +1243,6 @@ static u32 rx_queue_entry_next (hrz_dev * dev) {
   wr_regw (dev, RX_QUEUE_RD_PTR_OFF, dev->rx_q_entry - dev->rx_q_reset);
   spin_unlock (&dev->mem_lock);
   return rx_queue_entry;
-}
-
-/********** handle RX disabled by device **********/
-
-static inline void rx_disabled_handler (hrz_dev * dev) {
-  wr_regw (dev, RX_CONFIG_OFF, rd_regw (dev, RX_CONFIG_OFF) | RX_ENABLE);
-  // count me please
-  PRINTK (KERN_WARNING, "RX was disabled!");
 }
 
 /********** handle RX data received by device **********/
@@ -2819,9 +2796,7 @@ static int hrz_probe(struct pci_dev *pci_dev,
 	dev->atm_dev->ci_range.vpi_bits = vpi_bits;
 	dev->atm_dev->ci_range.vci_bits = 10-vpi_bits;
 
-	init_timer(&dev->housekeeping);
-	dev->housekeeping.function = do_housekeeping;
-	dev->housekeeping.data = (unsigned long) dev;
+	setup_timer(&dev->housekeeping, do_housekeeping, (unsigned long) dev);
 	mod_timer(&dev->housekeeping, jiffies);
 
 out:
@@ -2892,7 +2867,7 @@ MODULE_PARM_DESC(max_tx_size, "maximum size of TX AAL5 frames");
 MODULE_PARM_DESC(max_rx_size, "maximum size of RX AAL5 frames");
 MODULE_PARM_DESC(pci_lat, "PCI latency in bus cycles");
 
-static struct pci_device_id hrz_pci_tbl[] = {
+static const struct pci_device_id hrz_pci_tbl[] = {
 	{ PCI_VENDOR_ID_MADGE, PCI_DEVICE_ID_MADGE_HORIZON, PCI_ANY_ID, PCI_ANY_ID,
 	  0, 0, 0 },
 	{ 0, }
@@ -2910,12 +2885,7 @@ static struct pci_driver hrz_driver = {
 /********** module entry **********/
 
 static int __init hrz_module_init (void) {
-  // sanity check - cast is needed since printk does not support %Zu
-  if (sizeof(struct MEMMAP) != 128*1024/4) {
-    PRINTK (KERN_ERR, "Fix struct MEMMAP (is %lu fakewords).",
-	    (unsigned long) sizeof(struct MEMMAP));
-    return -ENOMEM;
-  }
+  BUILD_BUG_ON(sizeof(struct MEMMAP) != 128*1024/4);
   
   show_version();
   

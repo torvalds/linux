@@ -16,62 +16,15 @@
 #include <asm/processor.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
-
-/*
- * ip_fast_csum(r3=buf, r4=len) -- Optimized for IP header
- * len is in words and is always >= 5.
- *
- * In practice len == 5, but this is not guaranteed.  So this code does not
- * attempt to use doubleword instructions.
- */
-_GLOBAL(ip_fast_csum)
-	lwz	r0,0(r3)
-	lwzu	r5,4(r3)
-	addic.	r4,r4,-2
-	addc	r0,r0,r5
-	mtctr	r4
-	blelr-
-1:	lwzu	r4,4(r3)
-	adde	r0,r0,r4
-	bdnz	1b
-	addze	r0,r0		/* add in final carry */
-        rldicl  r4,r0,32,0      /* fold two 32-bit halves together */
-        add     r0,r0,r4
-        srdi    r0,r0,32
-	rlwinm	r3,r0,16,0,31	/* fold two halves together */
-	add	r3,r0,r3
-	not	r3,r3
-	srwi	r3,r3,16
-	blr
-
-/*
- * Compute checksum of TCP or UDP pseudo-header:
- *   csum_tcpudp_magic(r3=saddr, r4=daddr, r5=len, r6=proto, r7=sum)
- * No real gain trying to do this specially for 64 bit, but
- * the 32 bit addition may spill into the upper bits of
- * the doubleword so we still must fold it down from 64.
- */	
-_GLOBAL(csum_tcpudp_magic)
-	rlwimi	r5,r6,16,0,15	/* put proto in upper half of len */
-	addc	r0,r3,r4	/* add 4 32-bit words together */
-	adde	r0,r0,r5
-	adde	r0,r0,r7
-        rldicl  r4,r0,32,0      /* fold 64 bit value */
-        add     r0,r4,r0
-        srdi    r0,r0,32
-	rlwinm	r3,r0,16,0,31	/* fold two halves together */
-	add	r3,r0,r3
-	not	r3,r3
-	srwi	r3,r3,16
-	blr
+#include <asm/export.h>
 
 /*
  * Computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit).
  *
- * csum_partial(r3=buff, r4=len, r5=sum)
+ * __csum_partial(r3=buff, r4=len, r5=sum)
  */
-_GLOBAL(csum_partial)
+_GLOBAL(__csum_partial)
 	addic	r0,r5,0			/* clear carry */
 
 	srdi.	r6,r4,3			/* less than 8 bytes? */
@@ -83,7 +36,7 @@ _GLOBAL(csum_partial)
 	 * work to calculate the correct checksum, we ignore that case
 	 * and take the potential slowdown of unaligned loads.
 	 */
-	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 & 0x3) >> 1 */
+	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 >> 1) & 0x3 */
 	beq	.Lcsum_aligned
 
 	li	r7,4
@@ -122,9 +75,9 @@ _GLOBAL(csum_partial)
 	ld	r11,24(r3)
 
 	/*
-	 * On POWER6 and POWER7 back to back addes take 2 cycles because of
-	 * the XER dependency. This means the fastest this loop can go is
-	 * 16 cycles per iteration. The scheduling of the loop below has
+	 * On POWER6 and POWER7 back to back adde instructions take 2 cycles
+	 * because of the XER dependency. This means the fastest this loop can
+	 * go is 16 cycles per iteration. The scheduling of the loop below has
 	 * been shown to hit this on both POWER6 and POWER7.
 	 */
 	.align 5
@@ -215,8 +168,12 @@ _GLOBAL(csum_partial)
 	beq	.Lcsum_finish
 
 	lbz	r6,0(r3)
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
+#else
+	adde	r0,r0,r6
+#endif
 
 .Lcsum_finish:
 	addze	r0,r0			/* add in final carry */
@@ -224,22 +181,27 @@ _GLOBAL(csum_partial)
 	add	r3,r4,r0
 	srdi	r3,r3,32
 	blr
+EXPORT_SYMBOL(__csum_partial)
 
+
+	.macro srcnr
+100:
+	EX_TABLE(100b,.Lsrc_error_nr)
+	.endm
 
 	.macro source
-100:
-	.section __ex_table,"a"
-	.align 3
-	.llong 100b,.Lsrc_error
-	.previous
+150:
+	EX_TABLE(150b,.Lsrc_error)
+	.endm
+
+	.macro dstnr
+200:
+	EX_TABLE(200b,.Ldest_error_nr)
 	.endm
 
 	.macro dest
-200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldest_error
-	.previous
+250:
+	EX_TABLE(250b,.Ldest_error)
 	.endm
 
 /*
@@ -266,19 +228,19 @@ _GLOBAL(csum_partial_copy_generic)
 	 * If the source and destination are relatively unaligned we only
 	 * align the source. This keeps things simple.
 	 */
-	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 & 0x3) >> 1 */
+	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 >> 1) & 0x3 */
 	beq	.Lcopy_aligned
 
-	li	r7,4
-	sub	r6,r7,r6
+	li	r9,4
+	sub	r6,r9,r6
 	mtctr	r6
 
 1:
-source;	lhz	r6,0(r3)		/* align to doubleword */
+srcnr;	lhz	r6,0(r3)		/* align to doubleword */
 	subi	r5,r5,2
 	addi	r3,r3,2
 	adde	r0,r0,r6
-dest;	sth	r6,0(r4)
+dstnr;	sth	r6,0(r4)
 	addi	r4,r4,2
 	bdnz	1b
 
@@ -307,9 +269,9 @@ source;	ld	r10,16(r3)
 source;	ld	r11,24(r3)
 
 	/*
-	 * On POWER6 and POWER7 back to back addes take 2 cycles because of
-	 * the XER dependency. This means the fastest this loop can go is
-	 * 16 cycles per iteration. The scheduling of the loop below has
+	 * On POWER6 and POWER7 back to back adde instructions take 2 cycles
+	 * because of the XER dependency. This means the fastest this loop can
+	 * go is 16 cycles per iteration. The scheduling of the loop below has
 	 * been shown to hit this on both POWER6 and POWER7.
 	 */
 	.align 5
@@ -392,10 +354,10 @@ dest;	std	r16,56(r4)
 
 	mtctr	r6
 3:
-source;	ld	r6,0(r3)
+srcnr;	ld	r6,0(r3)
 	addi	r3,r3,8
 	adde	r0,r0,r6
-dest;	std	r6,0(r4)
+dstnr;	std	r6,0(r4)
 	addi	r4,r4,8
 	bdnz	3b
 
@@ -405,10 +367,10 @@ dest;	std	r6,0(r4)
 	srdi.	r6,r5,2
 	beq	.Lcopy_tail_halfword
 
-source;	lwz	r6,0(r3)
+srcnr;	lwz	r6,0(r3)
 	addi	r3,r3,4
 	adde	r0,r0,r6
-dest;	stw	r6,0(r4)
+dstnr;	stw	r6,0(r4)
 	addi	r4,r4,4
 	subi	r5,r5,4
 
@@ -416,10 +378,10 @@ dest;	stw	r6,0(r4)
 	srdi.	r6,r5,1
 	beq	.Lcopy_tail_byte
 
-source;	lhz	r6,0(r3)
+srcnr;	lhz	r6,0(r3)
 	addi	r3,r3,2
 	adde	r0,r0,r6
-dest;	sth	r6,0(r4)
+dstnr;	sth	r6,0(r4)
 	addi	r4,r4,2
 	subi	r5,r5,2
 
@@ -427,10 +389,14 @@ dest;	sth	r6,0(r4)
 	andi.	r6,r5,1
 	beq	.Lcopy_finish
 
-source;	lbz	r6,0(r3)
+srcnr;	lbz	r6,0(r3)
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
-dest;	stb	r6,0(r4)
+#else
+	adde	r0,r0,r6
+#endif
+dstnr;	stb	r6,0(r4)
 
 .Lcopy_finish:
 	addze	r0,r0			/* add in final carry */
@@ -440,6 +406,11 @@ dest;	stb	r6,0(r4)
 	blr
 
 .Lsrc_error:
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	addi	r1,r1,STACKFRAMESIZE
+.Lsrc_error_nr:
 	cmpdi	0,r7,0
 	beqlr
 	li	r6,-EFAULT
@@ -447,8 +418,14 @@ dest;	stb	r6,0(r4)
 	blr
 
 .Ldest_error:
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	addi	r1,r1,STACKFRAMESIZE
+.Ldest_error_nr:
 	cmpdi	0,r8,0
 	beqlr
 	li	r6,-EFAULT
 	stw	r6,0(r8)
 	blr
+EXPORT_SYMBOL(csum_partial_copy_generic)

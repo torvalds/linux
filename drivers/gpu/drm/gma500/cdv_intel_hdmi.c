@@ -64,11 +64,11 @@ static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
 			struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct psb_intel_encoder *psb_intel_encoder = to_psb_intel_encoder(encoder);
-	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
+	struct mid_intel_hdmi_priv *hdmi_priv = gma_encoder->dev_priv;
 	u32 hdmib;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
 	hdmib = (2 << 10);
 
@@ -77,7 +77,7 @@ static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		hdmib |= HDMI_HSYNC_ACTIVE_HIGH;
 
-	if (intel_crtc->pipe == 1)
+	if (gma_crtc->pipe == 1)
 		hdmib |= HDMIB_PIPE_B_SELECT;
 
 	if (hdmi_priv->has_hdmi_audio) {
@@ -89,19 +89,11 @@ static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
 	REG_READ(hdmi_priv->hdmi_reg);
 }
 
-static bool cdv_hdmi_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void cdv_hdmi_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct psb_intel_encoder *psb_intel_encoder =
-						to_psb_intel_encoder(encoder);
-	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
+	struct mid_intel_hdmi_priv *hdmi_priv = gma_encoder->dev_priv;
 	u32 hdmib;
 
 	hdmib = REG_READ(hdmi_priv->hdmi_reg);
@@ -116,9 +108,8 @@ static void cdv_hdmi_dpms(struct drm_encoder *encoder, int mode)
 static void cdv_hdmi_save(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
-	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	struct mid_intel_hdmi_priv *hdmi_priv = gma_encoder->dev_priv;
 
 	hdmi_priv->save_HDMIB = REG_READ(hdmi_priv->hdmi_reg);
 }
@@ -126,9 +117,8 @@ static void cdv_hdmi_save(struct drm_connector *connector)
 static void cdv_hdmi_restore(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
-	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	struct mid_intel_hdmi_priv *hdmi_priv = gma_encoder->dev_priv;
 
 	REG_WRITE(hdmi_priv->hdmi_reg, hdmi_priv->save_HDMIB);
 	REG_READ(hdmi_priv->hdmi_reg);
@@ -137,13 +127,12 @@ static void cdv_hdmi_restore(struct drm_connector *connector)
 static enum drm_connector_status cdv_hdmi_detect(
 				struct drm_connector *connector, bool force)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
-	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	struct mid_intel_hdmi_priv *hdmi_priv = gma_encoder->dev_priv;
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
 
-	edid = drm_get_edid(connector, &psb_intel_encoder->i2c_bus->adapter);
+	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->adapter);
 
 	hdmi_priv->has_hdmi_sink = false;
 	hdmi_priv->has_hdmi_audio = false;
@@ -167,7 +156,7 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = connector->encoder;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
-		struct psb_intel_crtc *crtc = to_psb_intel_crtc(encoder->crtc);
+		struct gma_crtc *crtc = to_gma_crtc(encoder->crtc);
 		bool centre;
 		uint64_t curValue;
 
@@ -203,10 +192,10 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 		    crtc->saved_mode.vdisplay != 0) {
 			if (centre) {
 				if (!drm_crtc_helper_set_mode(encoder->crtc, &crtc->saved_mode,
-					    encoder->crtc->x, encoder->crtc->y, encoder->crtc->fb))
+					    encoder->crtc->x, encoder->crtc->y, encoder->crtc->primary->fb))
 					return -1;
 			} else {
-				struct drm_encoder_helper_funcs *helpers
+				const struct drm_encoder_helper_funcs *helpers
 						    = encoder->helper_private;
 				helpers->mode_set(encoder, &crtc->saved_mode,
 					     &crtc->saved_adjusted_mode);
@@ -221,12 +210,11 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
  */
 static int cdv_hdmi_get_modes(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct edid *edid = NULL;
 	int ret = 0;
 
-	edid = drm_get_edid(connector, &psb_intel_encoder->i2c_bus->adapter);
+	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->adapter);
 	if (edid) {
 		drm_mode_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
@@ -256,35 +244,30 @@ static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 
 static void cdv_hdmi_destroy(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	if (psb_intel_encoder->i2c_bus)
-		psb_intel_i2c_destroy(psb_intel_encoder->i2c_bus);
-	drm_sysfs_connector_remove(connector);
+	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
 
 static const struct drm_encoder_helper_funcs cdv_hdmi_helper_funcs = {
 	.dpms = cdv_hdmi_dpms,
-	.mode_fixup = cdv_hdmi_mode_fixup,
-	.prepare = psb_intel_encoder_prepare,
+	.prepare = gma_encoder_prepare,
 	.mode_set = cdv_hdmi_mode_set,
-	.commit = psb_intel_encoder_commit,
+	.commit = gma_encoder_commit,
 };
 
 static const struct drm_connector_helper_funcs
 					cdv_hdmi_connector_helper_funcs = {
 	.get_modes = cdv_hdmi_get_modes,
 	.mode_valid = cdv_hdmi_mode_valid,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static const struct drm_connector_funcs cdv_hdmi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = cdv_hdmi_save,
-	.restore = cdv_hdmi_restore,
 	.detect = cdv_hdmi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = cdv_hdmi_set_property,
@@ -294,23 +277,22 @@ static const struct drm_connector_funcs cdv_hdmi_connector_funcs = {
 void cdv_hdmi_init(struct drm_device *dev,
 			struct psb_intel_mode_device *mode_dev, int reg)
 {
-	struct psb_intel_encoder *psb_intel_encoder;
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_encoder *gma_encoder;
+	struct gma_connector *gma_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct mid_intel_hdmi_priv *hdmi_priv;
 	int ddc_bus;
 
-	psb_intel_encoder = kzalloc(sizeof(struct psb_intel_encoder),
-				    GFP_KERNEL);
+	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
 
-	if (!psb_intel_encoder)
+	if (!gma_encoder)
 		return;
 
-	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector),
+	gma_connector = kzalloc(sizeof(struct gma_connector),
 				      GFP_KERNEL);
 
-	if (!psb_intel_connector)
+	if (!gma_connector)
 		goto err_connector;
 
 	hdmi_priv = kzalloc(sizeof(struct mid_intel_hdmi_priv), GFP_KERNEL);
@@ -318,22 +300,24 @@ void cdv_hdmi_init(struct drm_device *dev,
 	if (!hdmi_priv)
 		goto err_priv;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
-	encoder = &psb_intel_encoder->base;
+	gma_connector->save = cdv_hdmi_save;
+	gma_connector->restore = cdv_hdmi_restore;
+
+	encoder = &gma_encoder->base;
 	drm_connector_init(dev, connector,
 			   &cdv_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DVID);
 
 	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector,
-					   psb_intel_encoder);
-	psb_intel_encoder->type = INTEL_OUTPUT_HDMI;
+	gma_connector_attach_encoder(gma_connector, gma_encoder);
+	gma_encoder->type = INTEL_OUTPUT_HDMI;
 	hdmi_priv->hdmi_reg = reg;
 	hdmi_priv->has_hdmi_sink = false;
-	psb_intel_encoder->dev_priv = hdmi_priv;
+	gma_encoder->dev_priv = hdmi_priv;
 
 	drm_encoder_helper_add(encoder, &cdv_hdmi_helper_funcs);
 	drm_connector_helper_add(connector,
@@ -349,11 +333,11 @@ void cdv_hdmi_init(struct drm_device *dev,
 	switch (reg) {
 	case SDVOB:
 		ddc_bus = GPIOE;
-		psb_intel_encoder->ddi_select = DDI0_SELECT;
+		gma_encoder->ddi_select = DDI0_SELECT;
 		break;
 	case SDVOC:
 		ddc_bus = GPIOD;
-		psb_intel_encoder->ddi_select = DDI1_SELECT;
+		gma_encoder->ddi_select = DDI1_SELECT;
 		break;
 	default:
 		DRM_ERROR("unknown reg 0x%x for HDMI\n", reg);
@@ -361,25 +345,24 @@ void cdv_hdmi_init(struct drm_device *dev,
 		break;
 	}
 
-	psb_intel_encoder->i2c_bus = psb_intel_i2c_create(dev,
+	gma_encoder->i2c_bus = psb_intel_i2c_create(dev,
 				ddc_bus, (reg == SDVOB) ? "HDMIB" : "HDMIC");
 
-	if (!psb_intel_encoder->i2c_bus) {
+	if (!gma_encoder->i2c_bus) {
 		dev_err(dev->dev, "No ddc adapter available!\n");
 		goto failed_ddc;
 	}
 
-	hdmi_priv->hdmi_i2c_adapter =
-				&(psb_intel_encoder->i2c_bus->adapter);
+	hdmi_priv->hdmi_i2c_adapter = &(gma_encoder->i2c_bus->adapter);
 	hdmi_priv->dev = dev;
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	return;
 
 failed_ddc:
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);
 err_priv:
-	kfree(psb_intel_connector);
+	kfree(gma_connector);
 err_connector:
-	kfree(psb_intel_encoder);
+	kfree(gma_encoder);
 }

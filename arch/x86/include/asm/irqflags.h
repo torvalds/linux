@@ -4,6 +4,10 @@
 #include <asm/processor-flags.h>
 
 #ifndef __ASSEMBLY__
+
+/* Provide __cpuidle; we can't safely include <linux/cpu.h> */
+#define __cpuidle __attribute__((__section__(".cpuidle.text")))
+
 /*
  * Interrupt control:
  */
@@ -44,12 +48,12 @@ static inline void native_irq_enable(void)
 	asm volatile("sti": : :"memory");
 }
 
-static inline void native_safe_halt(void)
+static inline __cpuidle void native_safe_halt(void)
 {
 	asm volatile("sti; hlt": : :"memory");
 }
 
-static inline void native_halt(void)
+static inline __cpuidle void native_halt(void)
 {
 	asm volatile("hlt": : :"memory");
 }
@@ -86,7 +90,7 @@ static inline notrace void arch_local_irq_enable(void)
  * Used in the idle loop; sti takes one instruction cycle
  * to complete:
  */
-static inline void arch_safe_halt(void)
+static inline __cpuidle void arch_safe_halt(void)
 {
 	native_safe_halt();
 }
@@ -95,7 +99,7 @@ static inline void arch_safe_halt(void)
  * Used when interrupts are already enabled or to
  * shutdown the processor:
  */
-static inline void halt(void)
+static inline __cpuidle void halt(void)
 {
 	native_halt();
 }
@@ -129,17 +133,13 @@ static inline notrace unsigned long arch_local_irq_save(void)
 
 #define PARAVIRT_ADJUST_EXCEPTION_FRAME	/*  */
 
-#define INTERRUPT_RETURN	iretq
+#define INTERRUPT_RETURN	jmp native_iret
 #define USERGS_SYSRET64				\
 	swapgs;					\
 	sysretq;
 #define USERGS_SYSRET32				\
 	swapgs;					\
 	sysretl
-#define ENABLE_INTERRUPTS_SYSEXIT32		\
-	swapgs;					\
-	sti;					\
-	sysexit
 
 #else
 #define INTERRUPT_RETURN		iret
@@ -163,33 +163,9 @@ static inline int arch_irqs_disabled(void)
 
 	return arch_irqs_disabled_flags(flags);
 }
+#endif /* !__ASSEMBLY__ */
 
-#else
-
-#ifdef CONFIG_X86_64
-#define ARCH_LOCKDEP_SYS_EXIT		call lockdep_sys_exit_thunk
-#define ARCH_LOCKDEP_SYS_EXIT_IRQ	\
-	TRACE_IRQS_ON; \
-	sti; \
-	SAVE_REST; \
-	LOCKDEP_SYS_EXIT; \
-	RESTORE_REST; \
-	cli; \
-	TRACE_IRQS_OFF;
-
-#else
-#define ARCH_LOCKDEP_SYS_EXIT			\
-	pushl %eax;				\
-	pushl %ecx;				\
-	pushl %edx;				\
-	call lockdep_sys_exit;			\
-	popl %edx;				\
-	popl %ecx;				\
-	popl %eax;
-
-#define ARCH_LOCKDEP_SYS_EXIT_IRQ
-#endif
-
+#ifdef __ASSEMBLY__
 #ifdef CONFIG_TRACE_IRQFLAGS
 #  define TRACE_IRQS_ON		call trace_hardirqs_on_thunk;
 #  define TRACE_IRQS_OFF	call trace_hardirqs_off_thunk;
@@ -198,12 +174,29 @@ static inline int arch_irqs_disabled(void)
 #  define TRACE_IRQS_OFF
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-#  define LOCKDEP_SYS_EXIT	ARCH_LOCKDEP_SYS_EXIT
-#  define LOCKDEP_SYS_EXIT_IRQ	ARCH_LOCKDEP_SYS_EXIT_IRQ
-# else
+#  ifdef CONFIG_X86_64
+#    define LOCKDEP_SYS_EXIT		call lockdep_sys_exit_thunk
+#    define LOCKDEP_SYS_EXIT_IRQ \
+	TRACE_IRQS_ON; \
+	sti; \
+	call lockdep_sys_exit_thunk; \
+	cli; \
+	TRACE_IRQS_OFF;
+#  else
+#    define LOCKDEP_SYS_EXIT \
+	pushl %eax;				\
+	pushl %ecx;				\
+	pushl %edx;				\
+	call lockdep_sys_exit;			\
+	popl %edx;				\
+	popl %ecx;				\
+	popl %eax;
+#    define LOCKDEP_SYS_EXIT_IRQ
+#  endif
+#else
 #  define LOCKDEP_SYS_EXIT
 #  define LOCKDEP_SYS_EXIT_IRQ
-# endif
-
+#endif
 #endif /* __ASSEMBLY__ */
+
 #endif

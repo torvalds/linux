@@ -1,7 +1,7 @@
 /*
  *  mxl111sf-gpio.c - driver for the MaxLinear MXL111SF
  *
- *  Copyright (C) 2010 Michael Krufky <mkrufky@kernellabs.com>
+ *  Copyright (C) 2010-2014 Michael Krufky <mkrufky@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -12,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "mxl111sf-gpio.h"
@@ -755,9 +751,3 @@ int mxl111sf_gpio_mode_switch(struct mxl111sf_state *state, unsigned int mode)
 	}
 	return 0;
 }
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

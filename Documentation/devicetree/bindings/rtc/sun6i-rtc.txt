@@ -1,0 +1,27 @@
+* sun6i Real Time Clock
+
+RTC controller for the Allwinner A31
+
+Required properties:
+- compatible	: Should be "allwinner,sun6i-a31-rtc"
+- reg		: physical base address of the controller and length of
+		  memory mapped region.
+- interrupts	: IRQ lines for the RTC alarm 0 and alarm 1, in that order.
+
+Required properties for new device trees
+- clocks	: phandle to the 32kHz external oscillator
+- clock-output-names : names of the LOSC and its external output clocks created
+- #clock-cells  : must be equals to 1. The RTC provides two clocks: the
+		  LOSC and its external output, with index 0 and 1
+		  respectively.
+
+Example:
+
+rtc: rtc@01f00000 {
+	compatible = "allwinner,sun6i-a31-rtc";
+	reg = <0x01f00000 0x54>;
+	interrupts = <0 40 4>, <0 41 4>;
+	clock-output-names = "osc32k", "osc32k-out";
+	clocks = <&ext_osc32k>;
+	#clock-cells = <1>;
+};

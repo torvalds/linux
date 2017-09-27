@@ -17,9 +17,10 @@
 /*
  * bit masks for use in "interrupt" flags (3rd argument)
  */
-#define SERIO_TIMEOUT	1
-#define SERIO_PARITY	2
-#define SERIO_FRAME	4
+#define SERIO_TIMEOUT	BIT(0)
+#define SERIO_PARITY	BIT(1)
+#define SERIO_FRAME	BIT(2)
+#define SERIO_OOB_DATA	BIT(3)
 
 /*
  * Serio types
@@ -76,5 +77,9 @@
 #define SERIO_HAMPSHIRE	0x3b
 #define SERIO_PS2MULT	0x3c
 #define SERIO_TSC40	0x3d
+#define SERIO_WACOM_IV	0x3e
+#define SERIO_EGALAX	0x3f
+#define SERIO_PULSE8_CEC	0x40
+#define SERIO_RAINSHADOW_CEC	0x41
 
 #endif /* _UAPI_SERIO_H */

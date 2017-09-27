@@ -63,6 +63,8 @@ enum ab8500_version {
 #define AB8500_STE_TEST		0x14
 #define AB8500_OTP_EMUL		0x15
 
+#define AB8500_DEBUG_FIELD_LAST	0x16
+
 /*
  * Interrupts
  * Values used to index into array ab8500_irq_regoffset[] defined in
@@ -347,7 +349,6 @@ struct ab8500 {
 	struct mutex	lock;
 	struct mutex	irq_lock;
 	atomic_t	transfer_ongoing;
-	int		irq_base;
 	int		irq;
 	struct irq_domain  *domain;
 	enum ab8500_version version;
@@ -368,7 +369,6 @@ struct ab8500 {
 };
 
 struct ab8500_regulator_platform_data;
-struct ab8500_gpio_platform_data;
 struct ab8500_codec_platform_data;
 struct ab8500_sysctrl_platform_data;
 
@@ -379,10 +379,8 @@ struct ab8500_sysctrl_platform_data;
  * @regulator: machine-specific constraints for regulators
  */
 struct ab8500_platform_data {
-	int irq_base;
 	void (*init) (struct ab8500 *);
 	struct ab8500_regulator_platform_data *regulator;
-	struct abx500_gpio_platform_data *gpio;
 	struct ab8500_codec_platform_data *codec;
 	struct ab8500_sysctrl_platform_data *sysctrl;
 };
@@ -509,6 +507,7 @@ static inline int is_ab9540_2p0_or_earlier(struct ab8500 *ab)
 void ab8500_override_turn_on_stat(u8 mask, u8 set);
 
 #ifdef CONFIG_AB8500_DEBUG
+extern int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 void ab8500_dump_all_banks(struct device *dev);
 void ab8500_debug_register_interrupt(int line);
 #else

@@ -33,7 +33,7 @@
 #include <linux/atomic.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 
 #define TTM_WRITE_LOCK_PENDING    (1 << 0)
@@ -180,19 +180,11 @@ int ttm_write_lock(struct ttm_lock *lock, bool interruptible)
 			spin_unlock(&lock->lock);
 		}
 	} else
-		wait_event(lock->queue, __ttm_read_lock(lock));
+		wait_event(lock->queue, __ttm_write_lock(lock));
 
 	return ret;
 }
 EXPORT_SYMBOL(ttm_write_lock);
-
-void ttm_write_lock_downgrade(struct ttm_lock *lock)
-{
-	spin_lock(&lock->lock);
-	lock->rw = 1;
-	wake_up_all(&lock->queue);
-	spin_unlock(&lock->lock);
-}
 
 static int __ttm_vt_unlock(struct ttm_lock *lock)
 {

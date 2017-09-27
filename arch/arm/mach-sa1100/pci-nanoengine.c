@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
-#include <linux/spinlock.h>
 
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
@@ -30,97 +29,20 @@
 #include <mach/nanoengine.h>
 #include <mach/hardware.h>
 
-static DEFINE_SPINLOCK(nano_lock);
-
-static int nanoengine_get_pci_address(struct pci_bus *bus,
-	unsigned int devfn, int where, unsigned long *address)
+static void __iomem *nanoengine_pci_map_bus(struct pci_bus *bus,
+					    unsigned int devfn, int where)
 {
-	int ret = PCIBIOS_DEVICE_NOT_FOUND;
-	unsigned int busnr = bus->number;
+	if (bus->number != 0 || (devfn >> 3) != 0)
+		return NULL;
 
-	*address = NANO_PCI_CONFIG_SPACE_VIRT +
+	return (void __iomem *)NANO_PCI_CONFIG_SPACE_VIRT +
 		((bus->number << 16) | (devfn << 8) | (where & ~3));
-
-	ret = (busnr > 255 || devfn > 255 || where > 255) ?
-		PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
-
-	return ret;
-}
-
-static int nanoengine_read_config(struct pci_bus *bus, unsigned int devfn, int where,
-	int size, u32 *val)
-{
-	int ret;
-	unsigned long address;
-	unsigned long flags;
-	u32 v;
-
-	/* nanoEngine PCI bridge does not return -1 for a non-existing
-	 * device. We must fake the answer. We know that the only valid
-	 * device is device zero at bus 0, which is the network chip. */
-	if (bus->number != 0 || (devfn >> 3) != 0) {
-		v = -1;
-		nanoengine_get_pci_address(bus, devfn, where, &address);
-		goto exit_function;
-	}
-
-	spin_lock_irqsave(&nano_lock, flags);
-
-	ret = nanoengine_get_pci_address(bus, devfn, where, &address);
-	if (ret != PCIBIOS_SUCCESSFUL)
-		return ret;
-	v = __raw_readl(address);
-
-	spin_unlock_irqrestore(&nano_lock, flags);
-
-	v >>= ((where & 3) * 8);
-	v &= (unsigned long)(-1) >> ((4 - size) * 8);
-
-exit_function:
-	*val = v;
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int nanoengine_write_config(struct pci_bus *bus, unsigned int devfn, int where,
-	int size, u32 val)
-{
-	int ret;
-	unsigned long address;
-	unsigned long flags;
-	unsigned shift;
-	u32 v;
-
-	shift = (where & 3) * 8;
-
-	spin_lock_irqsave(&nano_lock, flags);
-
-	ret = nanoengine_get_pci_address(bus, devfn, where, &address);
-	if (ret != PCIBIOS_SUCCESSFUL)
-		return ret;
-	v = __raw_readl(address);
-	switch (size) {
-	case 1:
-		v &= ~(0xFF << shift);
-		v |= val << shift;
-		break;
-	case 2:
-		v &= ~(0xFFFF << shift);
-		v |= val << shift;
-		break;
-	case 4:
-		v = val;
-		break;
-	}
-	__raw_writel(v, address);
-
-	spin_unlock_irqrestore(&nano_lock, flags);
-
-	return PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops pci_nano_ops = {
-	.read	= nanoengine_read_config,
-	.write	= nanoengine_write_config,
+	.map_bus = nanoengine_pci_map_bus,
+	.read	= pci_generic_config_read32,
+	.write	= pci_generic_config_write32,
 };
 
 static int __init pci_nanoengine_map_irq(const struct pci_dev *dev, u8 slot,

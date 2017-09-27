@@ -54,7 +54,8 @@
 #define PORT_ALTR_16550_F32 26	/* Altera 16550 UART with 32 FIFOs */
 #define PORT_ALTR_16550_F64 27	/* Altera 16550 UART with 64 FIFOs */
 #define PORT_ALTR_16550_F128 28 /* Altera 16550 UART with 128 FIFOs */
-#define PORT_MAX_8250	28	/* max port ID */
+#define PORT_RT2880	29	/* Ralink RT2880 internal UART */
+#define PORT_16550A_FSL64 30	/* Freescale 16550 UART with 64 FIFOs */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -67,11 +68,16 @@
 #define PORT_CLPS711X	33
 #define PORT_SA1100	34
 #define PORT_UART00	35
+#define PORT_OWL	36
 #define PORT_21285	37
 
 /* Sparc type numbers.  */
 #define PORT_SUNZILOG	38
 #define PORT_SUNSAB	39
+
+/* Intel EG20 */
+#define PORT_PCH_8LINE	44
+#define PORT_PCH_2LINE	45
 
 /* DEC */
 #define PORT_DZ		46
@@ -80,7 +86,7 @@
 /* Parisc type numbers. */
 #define PORT_MUX	48
 
-/* Atmel AT91 / AT32 SoC */
+/* Atmel AT91 SoC */
 #define PORT_ATMEL	49
 
 /* Macintosh Zilog type numbers */
@@ -174,7 +180,7 @@
 
 #define PORT_S3C6400	84
 
-/* NWPSERIAL */
+/* NWPSERIAL, now removed */
 #define PORT_NWPSERIAL	85
 
 /* MAX3100 */
@@ -202,8 +208,8 @@
 /* MAX310X */
 #define PORT_MAX310X	94
 
-/* High Speed UART for Medfield */
-#define PORT_MFD	95
+/* TI DA8xx/66AK2x */
+#define PORT_DA830	95
 
 /* TI OMAP-UART */
 #define PORT_OMAP	96
@@ -211,7 +217,7 @@
 /* VIA VT8500 SoC */
 #define PORT_VT8500	97
 
-/* Xilinx PSS UART */
+/* Cadence (Xilinx Zynq) UART */
 #define PORT_XUARTPS	98
 
 /* Atheros AR933X SoC */
@@ -231,5 +237,44 @@
 
 /* SH-SCI */
 #define PORT_HSCIF	104
+
+/* ST ASC type numbers */
+#define PORT_ASC       105
+
+/* Tilera TILE-Gx UART */
+#define PORT_TILEGX	106
+
+/* MEN 16z135 UART */
+#define PORT_MEN_Z135	107
+
+/* SC16IS74xx */
+#define PORT_SC16IS7XX   108
+
+/* MESON */
+#define PORT_MESON	109
+
+/* Conexant Digicolor */
+#define PORT_DIGICOLOR	110
+
+/* SPRD SERIAL  */
+#define PORT_SPRD	111
+
+/* Cris v10 / v32 SoC */
+#define PORT_CRIS	112
+
+/* STM32 USART */
+#define PORT_STM32	113
+
+/* MVEBU UART */
+#define PORT_MVEBU	114
+
+/* Microchip PIC32 UART */
+#define PORT_PIC32	115
+
+/* MPS2 UART */
+#define PORT_MPS2UART	116
+
+/* MediaTek BTIF */
+#define PORT_MTK_BTIF	117
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

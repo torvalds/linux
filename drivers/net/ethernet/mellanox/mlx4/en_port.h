@@ -35,7 +35,6 @@
 #define _MLX4_EN_PORT_H_
 
 
-#define SET_PORT_GEN_ALL_VALID	0x7
 #define SET_PORT_PROMISC_SHIFT	31
 #define SET_PORT_MC_PROMISC_SHIFT	30
 
@@ -53,22 +52,49 @@ enum {
 	MLX4_MCAST_ENABLE       = 2,
 };
 
+enum mlx4_link_mode {
+	MLX4_1000BASE_CX_SGMII	 = 0,
+	MLX4_1000BASE_KX	 = 1,
+	MLX4_10GBASE_CX4	 = 2,
+	MLX4_10GBASE_KX4	 = 3,
+	MLX4_10GBASE_KR		 = 4,
+	MLX4_20GBASE_KR2	 = 5,
+	MLX4_40GBASE_CR4	 = 6,
+	MLX4_40GBASE_KR4	 = 7,
+	MLX4_56GBASE_KR4	 = 8,
+	MLX4_10GBASE_CR		 = 12,
+	MLX4_10GBASE_SR		 = 13,
+	MLX4_40GBASE_SR4	 = 15,
+	MLX4_56GBASE_CR4	 = 17,
+	MLX4_56GBASE_SR4	 = 18,
+	MLX4_100BASE_TX		 = 24,
+	MLX4_1000BASE_T		 = 25,
+	MLX4_10GBASE_T		 = 26,
+};
+
+#define MLX4_PROT_MASK(link_mode) (1<<link_mode)
+
 enum {
-	MLX4_EN_1G_SPEED	= 0x02,
-	MLX4_EN_10G_SPEED_XFI	= 0x01,
+	MLX4_EN_100M_SPEED	= 0x04,
 	MLX4_EN_10G_SPEED_XAUI	= 0x00,
+	MLX4_EN_10G_SPEED_XFI	= 0x01,
+	MLX4_EN_1G_SPEED	= 0x02,
+	MLX4_EN_20G_SPEED	= 0x08,
 	MLX4_EN_40G_SPEED	= 0x40,
+	MLX4_EN_56G_SPEED	= 0x20,
 	MLX4_EN_OTHER_SPEED	= 0x0f,
 };
 
 struct mlx4_en_query_port_context {
 	u8 link_up;
 #define MLX4_EN_LINK_UP_MASK	0x80
-	u8 reserved;
+#define MLX4_EN_ANC_MASK	0x40
+	u8 autoneg;
+#define MLX4_EN_AUTONEG_MASK	0x80
 	__be16 mtu;
 	u8 reserved2;
 	u8 link_speed;
-#define MLX4_EN_SPEED_MASK	0x43
+#define MLX4_EN_SPEED_MASK	0x6f
 	u16 reserved3[5];
 	__be64 mac;
 	u8 transceiver;

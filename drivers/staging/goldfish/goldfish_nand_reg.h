@@ -57,6 +57,7 @@ enum nand_reg {
 	NAND_RESULT         = 0x040,
 	NAND_COMMAND        = 0x044,
 	NAND_DATA           = 0x048,
+	NAND_DATA_HIGH	    = 0x100,
 	NAND_TRANSFER_SIZE  = 0x04c,
 	NAND_ADDR_LOW       = 0x050,
 	NAND_ADDR_HIGH      = 0x054,
@@ -65,11 +66,11 @@ enum nand_reg {
 };
 
 struct cmd_params {
-	uint32_t dev;
-	uint32_t addr_low;
-	uint32_t addr_high;
-	uint32_t transfer_size;
-	uint32_t data;
-	uint32_t result;
+	u32 dev;
+	u32 addr_low;
+	u32 addr_high;
+	u32 transfer_size;
+	unsigned long data;
+	u32 result;
 };
 #endif

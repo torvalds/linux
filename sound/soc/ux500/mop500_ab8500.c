@@ -290,21 +290,9 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 			SND_SOC_DAIFMT_GATED;
 	}
 
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0) {
-		dev_err(dev,
-			"%s: ERROR: snd_soc_dai_set_fmt failed for codec_dai (ret = %d)!\n",
-			__func__, ret);
+	ret = snd_soc_runtime_set_dai_fmt(rtd, fmt);
+	if (ret)
 		return ret;
-	}
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret < 0) {
-		dev_err(dev,
-			"%s: ERROR: snd_soc_dai_set_fmt failed for cpu_dai (ret = %d)!\n",
-			__func__, ret);
-		return ret;
-	}
 
 	/* Setup TDM-slots */
 
@@ -374,7 +362,7 @@ struct snd_soc_ops mop500_ab8500_ops[] = {
 
 int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
 	struct device *dev = rtd->card->dev;
 	struct mop500_ab8500_drvdata *drvdata;
 	int ret;
@@ -384,6 +372,10 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 	/* Create driver private-data struct */
 	drvdata = devm_kzalloc(dev, sizeof(struct mop500_ab8500_drvdata),
 			GFP_KERNEL);
+
+	if (!drvdata)
+		return -ENOMEM;
+
 	snd_soc_card_set_drvdata(rtd->card, drvdata);
 
 	/* Setup clocks */
@@ -411,7 +403,7 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 	drvdata->mclk_sel = MCLK_ULPCLK;
 
 	/* Add controls */
-	ret = snd_soc_add_card_controls(codec->card, mop500_ab8500_ctrls,
+	ret = snd_soc_add_card_controls(rtd->card, mop500_ab8500_ctrls,
 			ARRAY_SIZE(mop500_ab8500_ctrls));
 	if (ret < 0) {
 		pr_err("%s: Failed to add machine-controls (%d)!\n",
@@ -419,23 +411,23 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_disable_pin(&codec->dapm, "Earpiece");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "Speaker Left");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "Speaker Right");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "LineOut Left");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "LineOut Right");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "Vibra 1");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "Vibra 2");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "Mic 1");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "Mic 2");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "LineIn Left");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "LineIn Right");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "DMic 1");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "DMic 2");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "DMic 3");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "DMic 4");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "DMic 5");
-	ret |= snd_soc_dapm_disable_pin(&codec->dapm, "DMic 6");
+	ret = snd_soc_dapm_disable_pin(dapm, "Earpiece");
+	ret |= snd_soc_dapm_disable_pin(dapm, "Speaker Left");
+	ret |= snd_soc_dapm_disable_pin(dapm, "Speaker Right");
+	ret |= snd_soc_dapm_disable_pin(dapm, "LineOut Left");
+	ret |= snd_soc_dapm_disable_pin(dapm, "LineOut Right");
+	ret |= snd_soc_dapm_disable_pin(dapm, "Vibra 1");
+	ret |= snd_soc_dapm_disable_pin(dapm, "Vibra 2");
+	ret |= snd_soc_dapm_disable_pin(dapm, "Mic 1");
+	ret |= snd_soc_dapm_disable_pin(dapm, "Mic 2");
+	ret |= snd_soc_dapm_disable_pin(dapm, "LineIn Left");
+	ret |= snd_soc_dapm_disable_pin(dapm, "LineIn Right");
+	ret |= snd_soc_dapm_disable_pin(dapm, "DMic 1");
+	ret |= snd_soc_dapm_disable_pin(dapm, "DMic 2");
+	ret |= snd_soc_dapm_disable_pin(dapm, "DMic 3");
+	ret |= snd_soc_dapm_disable_pin(dapm, "DMic 4");
+	ret |= snd_soc_dapm_disable_pin(dapm, "DMic 5");
+	ret |= snd_soc_dapm_disable_pin(dapm, "DMic 6");
 
 	return ret;
 }

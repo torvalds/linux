@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007-2010 Advanced Micro Devices, Inc.
- * Author: Joerg Roedel <joerg.roedel@amd.com>
+ * Author: Joerg Roedel <jroedel@suse.de>
  *         Leo Duran <leo.duran@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -22,9 +22,11 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/msi.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
+#include <linux/irqreturn.h>
 
 /*
  * Maximum number of IOMMUs supported
@@ -68,6 +70,8 @@
 #define MMIO_EXCL_LIMIT_OFFSET  0x0028
 #define MMIO_EXT_FEATURES	0x0030
 #define MMIO_PPR_LOG_OFFSET	0x0038
+#define MMIO_GA_LOG_BASE_OFFSET	0x00e0
+#define MMIO_GA_LOG_TAIL_OFFSET	0x00e8
 #define MMIO_CMD_HEAD_OFFSET	0x2000
 #define MMIO_CMD_TAIL_OFFSET	0x2008
 #define MMIO_EVT_HEAD_OFFSET	0x2010
@@ -75,6 +79,8 @@
 #define MMIO_STATUS_OFFSET	0x2020
 #define MMIO_PPR_HEAD_OFFSET	0x2030
 #define MMIO_PPR_TAIL_OFFSET	0x2038
+#define MMIO_GA_HEAD_OFFSET	0x2040
+#define MMIO_GA_TAIL_OFFSET	0x2048
 #define MMIO_CNTR_CONF_OFFSET	0x4000
 #define MMIO_CNTR_REG_OFFSET	0x40000
 #define MMIO_REG_END_OFFSET	0x80000
@@ -91,6 +97,7 @@
 #define FEATURE_GA		(1ULL<<7)
 #define FEATURE_HE		(1ULL<<8)
 #define FEATURE_PC		(1ULL<<9)
+#define FEATURE_GAM_VAPIC	(1ULL<<21)
 
 #define FEATURE_PASID_SHIFT	32
 #define FEATURE_PASID_MASK	(0x1fULL << FEATURE_PASID_SHIFT)
@@ -98,12 +105,20 @@
 #define FEATURE_GLXVAL_SHIFT	14
 #define FEATURE_GLXVAL_MASK	(0x03ULL << FEATURE_GLXVAL_SHIFT)
 
-#define PASID_MASK		0x000fffff
+/* Note:
+ * The current driver only support 16-bit PASID.
+ * Currently, hardware only implement upto 16-bit PASID
+ * even though the spec says it could have upto 20 bits.
+ */
+#define PASID_MASK		0x0000ffff
 
 /* MMIO status bits */
 #define MMIO_STATUS_EVT_INT_MASK	(1 << 1)
 #define MMIO_STATUS_COM_WAIT_INT_MASK	(1 << 2)
 #define MMIO_STATUS_PPR_INT_MASK	(1 << 6)
+#define MMIO_STATUS_GALOG_RUN_MASK	(1 << 8)
+#define MMIO_STATUS_GALOG_OVERFLOW_MASK	(1 << 9)
+#define MMIO_STATUS_GALOG_INT_MASK	(1 << 10)
 
 /* event logging constants */
 #define EVENT_ENTRY_SIZE	0x10
@@ -140,6 +155,10 @@
 #define CONTROL_PPFINT_EN       0x0eULL
 #define CONTROL_PPR_EN          0x0fULL
 #define CONTROL_GT_EN           0x10ULL
+#define CONTROL_GA_EN           0x11ULL
+#define CONTROL_GAM_EN          0x19ULL
+#define CONTROL_GALOG_EN        0x1CULL
+#define CONTROL_GAINT_EN        0x1DULL
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
 #define CTRL_INV_TO_NONE	0
@@ -218,6 +237,27 @@
 
 #define PPR_REQ_FAULT		0x01
 
+/* Constants for GA Log handling */
+#define GA_LOG_ENTRIES		512
+#define GA_LOG_SIZE_SHIFT	56
+#define GA_LOG_SIZE_512		(0x8ULL << GA_LOG_SIZE_SHIFT)
+#define GA_ENTRY_SIZE		8
+#define GA_LOG_SIZE		(GA_ENTRY_SIZE * GA_LOG_ENTRIES)
+
+#define GA_TAG(x)		(u32)(x & 0xffffffffULL)
+#define GA_DEVID(x)		(u16)(((x) >> 32) & 0xffffULL)
+#define GA_REQ_TYPE(x)		(((x) >> 60) & 0xfULL)
+
+#define GA_GUEST_NR		0x1
+
+/* Bit value definition for dte irq remapping fields*/
+#define DTE_IRQ_PHYS_ADDR_MASK	(((1ULL << 45)-1) << 6)
+#define DTE_IRQ_REMAP_INTCTL_MASK	(0x3ULL << 60)
+#define DTE_IRQ_TABLE_LEN_MASK	(0xfULL << 1)
+#define DTE_IRQ_REMAP_INTCTL    (2ULL << 60)
+#define DTE_IRQ_TABLE_LEN       (8ULL << 1)
+#define DTE_IRQ_REMAP_ENABLE    1ULL
+
 #define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
 #define PAGE_MODE_2_LEVEL 0x02
@@ -233,7 +273,7 @@
 #define PM_LEVEL_INDEX(x, a)	(((a) >> PM_LEVEL_SHIFT((x))) & 0x1ffULL)
 #define PM_LEVEL_ENC(x)		(((x) << 9) & 0xe00ULL)
 #define PM_LEVEL_PDE(x, a)	((a) | PM_LEVEL_ENC((x)) | \
-				 IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
+				 IOMMU_PTE_PR | IOMMU_PTE_IR | IOMMU_PTE_IW)
 #define PM_PTE_LEVEL(pte)	(((pte) >> 9) & 0x7ULL)
 
 #define PM_MAP_4k		0
@@ -276,17 +316,35 @@
 #define PTE_PAGE_SIZE(pte) \
 	(1ULL << (1 + ffz(((pte) | 0xfffULL))))
 
-#define IOMMU_PTE_P  (1ULL << 0)
-#define IOMMU_PTE_TV (1ULL << 1)
+/*
+ * Takes a page-table level and returns the default page-size for this level
+ */
+#define PTE_LEVEL_PAGE_SIZE(level)			\
+	(1ULL << (12 + (9 * (level))))
+
+/*
+ * Bit value definition for I/O PTE fields
+ */
+#define IOMMU_PTE_PR (1ULL << 0)
 #define IOMMU_PTE_U  (1ULL << 59)
 #define IOMMU_PTE_FC (1ULL << 60)
 #define IOMMU_PTE_IR (1ULL << 61)
 #define IOMMU_PTE_IW (1ULL << 62)
 
-#define DTE_FLAG_IOTLB	(0x01UL << 32)
-#define DTE_FLAG_GV	(0x01ULL << 55)
+/*
+ * Bit value definition for DTE fields
+ */
+#define DTE_FLAG_V  (1ULL << 0)
+#define DTE_FLAG_TV (1ULL << 1)
+#define DTE_FLAG_IR (1ULL << 61)
+#define DTE_FLAG_IW (1ULL << 62)
+
+#define DTE_FLAG_IOTLB	(1ULL << 32)
+#define DTE_FLAG_GV	(1ULL << 55)
+#define DTE_FLAG_MASK	(0x3ffULL << 32)
 #define DTE_GLX_SHIFT	(56)
 #define DTE_GLX_MASK	(3)
+#define DEV_DOMID_MASK	0xffffULL
 
 #define DTE_GCR3_VAL_A(x)	(((x) >> 12) & 0x00007ULL)
 #define DTE_GCR3_VAL_B(x)	(((x) >> 15) & 0x0ffffULL)
@@ -303,8 +361,8 @@
 #define GCR3_VALID		0x01ULL
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
-#define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
-#define IOMMU_PTE_PAGE(pte) (phys_to_virt((pte) & IOMMU_PAGE_MASK))
+#define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_PR)
+#define IOMMU_PTE_PAGE(pte) (iommu_phys_to_virt((pte) & IOMMU_PAGE_MASK))
 #define IOMMU_PTE_MODE(pte) (((pte) >> 9) & 0x07)
 
 #define IOMMU_PROT_MASK 0x03
@@ -315,6 +373,12 @@
 #define IOMMU_CAP_IOTLB   24
 #define IOMMU_CAP_NPCACHE 26
 #define IOMMU_CAP_EFR     27
+
+/* IOMMU Feature Reporting Field (for IVHD type 10h */
+#define IOMMU_FEAT_GASUP_SHIFT	6
+
+/* IOMMU Extended Feature Register (EFR) */
+#define IOMMU_EFR_GASUP_SHIFT	7
 
 #define MAX_DOMAIN_ID 65536
 
@@ -384,14 +448,12 @@ struct amd_iommu_fault {
 
 };
 
-#define PPR_FAULT_EXEC	(1 << 1)
-#define PPR_FAULT_READ  (1 << 2)
-#define PPR_FAULT_WRITE (1 << 5)
-#define PPR_FAULT_USER  (1 << 6)
-#define PPR_FAULT_RSVD  (1 << 7)
-#define PPR_FAULT_GN    (1 << 8)
 
 struct iommu_domain;
+struct irq_domain;
+struct amd_irte_ops;
+
+#define AMD_IOMMU_FLAG_TRANS_PRE_ENABLED      (1 << 0)
 
 /*
  * This structure contains generic data for  IOMMU protection domains
@@ -400,6 +462,8 @@ struct iommu_domain;
 struct protection_domain {
 	struct list_head list;  /* for list of all protection domains */
 	struct list_head dev_list; /* List of all devices in this domain */
+	struct iommu_domain domain; /* generic domain handle used by
+				       iommu core code */
 	spinlock_t lock;	/* mostly used to lock the page table*/
 	struct mutex api_lock;	/* protect page tables in the iommu-api path */
 	u16 id;			/* the domain id written to the device table */
@@ -411,80 +475,6 @@ struct protection_domain {
 	bool updated;		/* complete domain flush required */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
-	void *priv;		/* private data */
-	struct iommu_domain *iommu_domain; /* Pointer to generic
-					      domain structure */
-
-};
-
-/*
- * This struct contains device specific data for the IOMMU
- */
-struct iommu_dev_data {
-	struct list_head list;		  /* For domain->dev_list */
-	struct list_head dev_data_list;	  /* For global dev_data_list */
-	struct iommu_dev_data *alias_data;/* The alias dev_data */
-	struct protection_domain *domain; /* Domain the device is bound to */
-	atomic_t bind;			  /* Domain attach reference count */
-	struct iommu_group *group;	  /* IOMMU group for virtual aliases */
-	u16 devid;			  /* PCI Device ID */
-	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
-	bool passthrough;		  /* Default for device is pt_domain */
-	struct {
-		bool enabled;
-		int qdep;
-	} ats;				  /* ATS state */
-	bool pri_tlp;			  /* PASID TLB required for
-					     PPR completions */
-	u32 errata;			  /* Bitmap for errata to apply */
-};
-
-/*
- * For dynamic growth the aperture size is split into ranges of 128MB of
- * DMA address space each. This struct represents one such range.
- */
-struct aperture_range {
-
-	/* address allocation bitmap */
-	unsigned long *bitmap;
-
-	/*
-	 * Array of PTE pages for the aperture. In this array we save all the
-	 * leaf pages of the domain page table used for the aperture. This way
-	 * we don't need to walk the page table to find a specific PTE. We can
-	 * just calculate its address in constant time.
-	 */
-	u64 *pte_pages[64];
-
-	unsigned long offset;
-};
-
-/*
- * Data container for a dma_ops specific protection domain
- */
-struct dma_ops_domain {
-	struct list_head list;
-
-	/* generic protection domain information */
-	struct protection_domain domain;
-
-	/* size of the aperture for the mappings */
-	unsigned long aperture_size;
-
-	/* address we start to search for free addresses */
-	unsigned long next_address;
-
-	/* address space relevant data */
-	struct aperture_range *aperture[APERTURE_MAX_RANGES];
-
-	/* This will be set to true when TLB needs to be flushed */
-	bool need_flush;
-
-	/*
-	 * if this is a preallocated domain, keep the device for which it was
-	 * preallocated in this variable
-	 */
-	u16 target_dev;
 };
 
 /*
@@ -540,11 +530,6 @@ struct amd_iommu {
 	/* pci domain of this IOMMU */
 	u16 pci_seg;
 
-	/* first device this IOMMU handles. read from PCI */
-	u16 first_device;
-	/* last device this IOMMU handles. read from PCI */
-	u16 last_device;
-
 	/* start of exclusion range of that IOMMU */
 	u64 exclusion_start;
 	/* length of exclusion range of that IOMMU */
@@ -552,16 +537,20 @@ struct amd_iommu {
 
 	/* command buffer virtual address */
 	u8 *cmd_buf;
-	/* size of command buffer */
-	u32 cmd_buf_size;
+	u32 cmd_buf_head;
+	u32 cmd_buf_tail;
 
-	/* size of event buffer */
-	u32 evt_buf_size;
 	/* event buffer virtual address */
 	u8 *evt_buf;
 
 	/* Base of the PPR log, if present */
 	u8 *ppr_log;
+
+	/* Base of the GA log, if present */
+	u8 *ga_log;
+
+	/* Tail of the GA log, if present */
+	u8 *ga_log_tail;
 
 	/* true if interrupts for this IOMMU are already enabled */
 	bool int_enabled;
@@ -569,8 +558,8 @@ struct amd_iommu {
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
 
-	/* default dma_ops domain for that IOMMU */
-	struct dma_ops_domain *default_dom;
+	/* Handle for IOMMU core code */
+	struct iommu_device iommu;
 
 	/*
 	 * We can't rely on the BIOS to restore all values on reinit, so we
@@ -593,6 +582,35 @@ struct amd_iommu {
 	/* The maximum PC banks and counters/bank (PCSup=1) */
 	u8 max_banks;
 	u8 max_counters;
+#ifdef CONFIG_IRQ_REMAP
+	struct irq_domain *ir_domain;
+	struct irq_domain *msi_domain;
+
+	struct amd_irte_ops *irte_ops;
+#endif
+
+	u32 flags;
+	volatile u64 __aligned(8) cmd_sem;
+};
+
+static inline struct amd_iommu *dev_to_amd_iommu(struct device *dev)
+{
+	struct iommu_device *iommu = dev_to_iommu_device(dev);
+
+	return container_of(iommu, struct amd_iommu, iommu);
+}
+
+#define ACPIHID_UID_LEN 256
+#define ACPIHID_HID_LEN 9
+
+struct acpihid_map_entry {
+	struct list_head list;
+	u8 uid[ACPIHID_UID_LEN];
+	u8 hid[ACPIHID_HID_LEN];
+	u16 devid;
+	u16 root_devid;
+	bool cmd_line;
+	struct iommu_group *group;
 };
 
 struct devid_map {
@@ -602,9 +620,34 @@ struct devid_map {
 	bool cmd_line;
 };
 
+/*
+ * This struct contains device specific data for the IOMMU
+ */
+struct iommu_dev_data {
+	struct list_head list;		  /* For domain->dev_list */
+	struct list_head dev_data_list;	  /* For global dev_data_list */
+	struct protection_domain *domain; /* Domain the device is bound to */
+	u16 devid;			  /* PCI Device ID */
+	u16 alias;			  /* Alias Device ID */
+	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
+	bool passthrough;		  /* Device is identity mapped */
+	struct {
+		bool enabled;
+		int qdep;
+	} ats;				  /* ATS state */
+	bool pri_tlp;			  /* PASID TLB required for
+					     PPR completions */
+	u32 errata;			  /* Bitmap for errata to apply */
+	bool use_vapic;			  /* Enable device to use vapic mode */
+	bool defer_attach;
+
+	struct ratelimit_state rs;        /* Ratelimit IOPF messages */
+};
+
 /* Map HPET and IOAPIC ids to the devid used by the IOMMU */
 extern struct list_head ioapic_map;
 extern struct list_head hpet_map;
+extern struct list_head acpihid_map;
 
 /*
  * List with all IOMMUs in the system. This list is not locked because it is
@@ -617,9 +660,6 @@ extern struct list_head amd_iommu_list;
  * The indices are referenced in the protection domains
  */
 extern struct amd_iommu *amd_iommus[MAX_IOMMUS];
-
-/* Number of IOMMUs present in the system */
-extern int amd_iommus_present;
 
 /*
  * Declarations for the global list of all protection domains
@@ -694,10 +734,10 @@ extern unsigned long *amd_iommu_pd_alloc_bitmap;
  * If true, the addresses will be flushed on unmap time, not when
  * they are reused
  */
-extern u32 amd_iommu_unmap_flush;
+extern bool amd_iommu_unmap_flush;
 
-/* Smallest number of PASIDs supported by any IOMMU in the system */
-extern u32 amd_iommu_max_pasids;
+/* Smallest max PASID supported by any IOMMU in the system */
+extern u32 amd_iommu_max_pasid;
 
 extern bool amd_iommu_v2_present;
 
@@ -736,30 +776,112 @@ static inline int get_hpet_devid(int id)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_AMD_IOMMU_STATS
+enum amd_iommu_intr_mode_type {
+	AMD_IOMMU_GUEST_IR_LEGACY,
 
-struct __iommu_counter {
-	char *name;
-	struct dentry *dent;
-	u64 value;
+	/* This mode is not visible to users. It is used when
+	 * we cannot fully enable vAPIC and fallback to only support
+	 * legacy interrupt remapping via 128-bit IRTE.
+	 */
+	AMD_IOMMU_GUEST_IR_LEGACY_GA,
+	AMD_IOMMU_GUEST_IR_VAPIC,
 };
 
-#define DECLARE_STATS_COUNTER(nm) \
-	static struct __iommu_counter nm = {	\
-		.name = #nm,			\
-	}
+#define AMD_IOMMU_GUEST_IR_GA(x)	(x == AMD_IOMMU_GUEST_IR_VAPIC || \
+					 x == AMD_IOMMU_GUEST_IR_LEGACY_GA)
 
-#define INC_STATS_COUNTER(name)		name.value += 1
-#define ADD_STATS_COUNTER(name, x)	name.value += (x)
-#define SUB_STATS_COUNTER(name, x)	name.value -= (x)
+#define AMD_IOMMU_GUEST_IR_VAPIC(x)	(x == AMD_IOMMU_GUEST_IR_VAPIC)
 
-#else /* CONFIG_AMD_IOMMU_STATS */
+union irte {
+	u32 val;
+	struct {
+		u32 valid	: 1,
+		    no_fault	: 1,
+		    int_type	: 3,
+		    rq_eoi	: 1,
+		    dm		: 1,
+		    rsvd_1	: 1,
+		    destination	: 8,
+		    vector	: 8,
+		    rsvd_2	: 8;
+	} fields;
+};
 
-#define DECLARE_STATS_COUNTER(name)
-#define INC_STATS_COUNTER(name)
-#define ADD_STATS_COUNTER(name, x)
-#define SUB_STATS_COUNTER(name, x)
+union irte_ga_lo {
+	u64 val;
 
-#endif /* CONFIG_AMD_IOMMU_STATS */
+	/* For int remapping */
+	struct {
+		u64 valid	: 1,
+		    no_fault	: 1,
+		    /* ------ */
+		    int_type	: 3,
+		    rq_eoi	: 1,
+		    dm		: 1,
+		    /* ------ */
+		    guest_mode	: 1,
+		    destination	: 8,
+		    rsvd	: 48;
+	} fields_remap;
+
+	/* For guest vAPIC */
+	struct {
+		u64 valid	: 1,
+		    no_fault	: 1,
+		    /* ------ */
+		    ga_log_intr	: 1,
+		    rsvd1	: 3,
+		    is_run	: 1,
+		    /* ------ */
+		    guest_mode	: 1,
+		    destination	: 8,
+		    rsvd2	: 16,
+		    ga_tag	: 32;
+	} fields_vapic;
+};
+
+union irte_ga_hi {
+	u64 val;
+	struct {
+		u64 vector	: 8,
+		    rsvd_1	: 4,
+		    ga_root_ptr	: 40,
+		    rsvd_2	: 12;
+	} fields;
+};
+
+struct irte_ga {
+	union irte_ga_lo lo;
+	union irte_ga_hi hi;
+};
+
+struct irq_2_irte {
+	u16 devid; /* Device ID for IRTE table */
+	u16 index; /* Index into IRTE table*/
+};
+
+struct amd_ir_data {
+	u32 cached_ga_tag;
+	struct irq_2_irte irq_2_irte;
+	struct msi_msg msi_entry;
+	void *entry;    /* Pointer to union irte or struct irte_ga */
+	void *ref;      /* Pointer to the actual irte */
+};
+
+struct amd_irte_ops {
+	void (*prepare)(void *, u32, u32, u8, u32, int);
+	void (*activate)(void *, u16, u16);
+	void (*deactivate)(void *, u16, u16);
+	void (*set_affinity)(void *, u16, u16, u8, u32);
+	void *(*get)(struct irq_remap_table *, int);
+	void (*set_allocated)(struct irq_remap_table *, int);
+	bool (*is_allocated)(struct irq_remap_table *, int);
+	void (*clear_allocated)(struct irq_remap_table *, int);
+};
+
+#ifdef CONFIG_IRQ_REMAP
+extern struct amd_irte_ops irte_32_ops;
+extern struct amd_irte_ops irte_128_ops;
+#endif
 
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */

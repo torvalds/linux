@@ -1,6 +1,7 @@
 config TEGRA_HOST1X
 	tristate "NVIDIA Tegra host1x driver"
-	depends on ARCH_TEGRA || ARCH_MULTIPLATFORM
+	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
+	select IOMMU_IOVA if IOMMU_SUPPORT
 	help
 	  Driver for the NVIDIA Tegra host1x hardware.
 
@@ -18,7 +19,5 @@ config TEGRA_HOST1X_FIREWALL
 	  Say yes if kernel should protect command streams from tampering.
 
 	  If unsure, choose Y.
-
-source "drivers/gpu/host1x/drm/Kconfig"
 
 endif

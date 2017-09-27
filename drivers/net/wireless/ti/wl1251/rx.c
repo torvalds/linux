@@ -53,7 +53,7 @@ static void wl1251_rx_status(struct wl1251 *wl,
 
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
-	status->band = IEEE80211_BAND_2GHZ;
+	status->band = NL80211_BAND_2GHZ;
 	status->mactime = desc->timestamp;
 
 	/*
@@ -83,7 +83,7 @@ static void wl1251_rx_status(struct wl1251 *wl,
 
 	status->flag |= RX_FLAG_MACTIME_START;
 
-	if (desc->flags & RX_DESC_ENCRYPTION_MASK) {
+	if (!wl->monitor_present && (desc->flags & RX_DESC_ENCRYPTION_MASK)) {
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
 
 		if (likely(!(desc->flags & RX_DESC_DECRYPT_FAIL)))
@@ -141,7 +141,7 @@ static void wl1251_rx_status(struct wl1251 *wl,
 	}
 
 	if (desc->mod_pre & SHORT_PREAMBLE_BIT)
-		status->flag |= RX_FLAG_SHORTPRE;
+		status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 }
 
 static void wl1251_rx_body(struct wl1251 *wl,
@@ -180,7 +180,7 @@ static void wl1251_rx_body(struct wl1251 *wl,
 	wl1251_mem_read(wl, rx_packet_ring_addr, rx_buffer, length);
 
 	/* The actual length doesn't include the target's alignment */
-	skb->len = desc->length  - PLCP_HEADER_LENGTH;
+	skb_trim(skb, desc->length - PLCP_HEADER_LENGTH);
 
 	fc = (u16 *)skb->data;
 

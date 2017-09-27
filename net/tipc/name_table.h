@@ -1,7 +1,7 @@
 /*
  * net/tipc/name_table.h: Include file for TIPC name table code
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -37,15 +37,16 @@
 #ifndef _TIPC_NAME_TABLE_H
 #define _TIPC_NAME_TABLE_H
 
-#include "node_subscr.h"
-
 struct tipc_subscription;
-struct tipc_port_list;
+struct tipc_plist;
+struct tipc_nlist;
 
 /*
  * TIPC name types reserved for internal TIPC use (both current and planned)
  */
-#define TIPC_ZM_SRV 3		/* zone master service name type */
+#define TIPC_ZM_SRV		3	/* zone master service name type */
+#define TIPC_PUBL_SCOPE_NUM	(TIPC_NODE_SCOPE + 1)
+#define TIPC_NAMETBL_SIZE	1024	/* must be a power of 2 */
 
 /**
  * struct publication - info about a published (name or) name sequence
@@ -56,12 +57,13 @@ struct tipc_port_list;
  * @node: network address of publishing port's node
  * @ref: publishing port
  * @key: publication key
- * @subscr: subscription to "node down" event (for off-node publications only)
+ * @nodesub_list: subscription to "node down" event (off-node publication only)
  * @local_list: adjacent entries in list of publications made by this node
  * @pport_list: adjacent entries in list of publications made by this port
  * @node_list: adjacent matching name seq publications with >= node scope
  * @cluster_list: adjacent matching name seq publications with >= cluster scope
  * @zone_list: adjacent matching name seq publications with >= zone scope
+ * @rcu: RCU callback head used for deferred freeing
  *
  * Note that the node list, cluster list, and zone list are circular lists.
  */
@@ -73,32 +75,61 @@ struct publication {
 	u32 node;
 	u32 ref;
 	u32 key;
-	struct tipc_node_subscr subscr;
+	struct list_head nodesub_list;
 	struct list_head local_list;
 	struct list_head pport_list;
 	struct list_head node_list;
 	struct list_head cluster_list;
 	struct list_head zone_list;
+	struct rcu_head rcu;
 };
 
+/**
+ * struct name_table - table containing all existing port name publications
+ * @seq_hlist: name sequence hash lists
+ * @publ_list: pulication lists
+ * @local_publ_count: number of publications issued by this node
+ */
+struct name_table {
+	struct hlist_head seq_hlist[TIPC_NAMETBL_SIZE];
+	struct list_head publ_list[TIPC_PUBL_SCOPE_NUM];
+	u32 local_publ_count;
+};
 
-extern rwlock_t tipc_nametbl_lock;
+int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
-struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space);
-u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *node);
-int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit,
-			      struct tipc_port_list *dports);
-struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
-					 u32 scope, u32 port_ref, u32 key);
-int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key);
-struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
-					     u32 scope, u32 node, u32 ref,
+u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *node);
+int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
+			      u32 limit, struct list_head *dports);
+void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
+				   u32 upper, u32 domain,
+				   struct tipc_nlist *nodes);
+struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
+					 u32 upper, u32 scope, u32 port_ref,
+					 u32 key);
+int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
+			  u32 key);
+struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
+					     u32 lower, u32 upper, u32 scope,
+					     u32 node, u32 ref, u32 key);
+struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
+					     u32 lower, u32 node, u32 ref,
 					     u32 key);
-struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower, u32 node,
-					     u32 ref, u32 key);
 void tipc_nametbl_subscribe(struct tipc_subscription *s);
 void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
-int tipc_nametbl_init(void);
-void tipc_nametbl_stop(void);
+int tipc_nametbl_init(struct net *net);
+void tipc_nametbl_stop(struct net *net);
+
+struct u32_item {
+	struct list_head list;
+	u32 value;
+};
+
+bool u32_push(struct list_head *l, u32 value);
+u32 u32_pop(struct list_head *l);
+bool u32_find(struct list_head *l, u32 value);
+bool u32_del(struct list_head *l, u32 value);
+void u32_list_purge(struct list_head *l);
+int u32_list_len(struct list_head *l);
 
 #endif

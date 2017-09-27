@@ -13,24 +13,20 @@
 #include "befs.h"
 #include "super.h"
 
-/**
- * load_befs_sb -- Read from disk and properly byteswap all the fields
+/*
+ * befs_load_sb -- Read from disk and properly byteswap all the fields
  * of the befs superblock
- *
- *
- *
- *
  */
 int
-befs_load_sb(struct super_block *sb, befs_super_block * disk_sb)
+befs_load_sb(struct super_block *sb, befs_super_block *disk_sb)
 {
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	/* Check the byte order of the filesystem */
 	if (disk_sb->fs_byte_order == BEFS_BYTEORDER_NATIVE_LE)
-	    befs_sb->byte_order = BEFS_BYTESEX_LE;
+		befs_sb->byte_order = BEFS_BYTESEX_LE;
 	else if (disk_sb->fs_byte_order == BEFS_BYTEORDER_NATIVE_BE)
-	    befs_sb->byte_order = BEFS_BYTESEX_BE;
+		befs_sb->byte_order = BEFS_BYTESEX_BE;
 
 	befs_sb->magic1 = fs32_to_cpu(sb, disk_sb->magic1);
 	befs_sb->magic2 = fs32_to_cpu(sb, disk_sb->magic2);
@@ -44,6 +40,8 @@ befs_load_sb(struct super_block *sb, befs_super_block * disk_sb)
 	befs_sb->blocks_per_ag = fs32_to_cpu(sb, disk_sb->blocks_per_ag);
 	befs_sb->ag_shift = fs32_to_cpu(sb, disk_sb->ag_shift);
 	befs_sb->num_ags = fs32_to_cpu(sb, disk_sb->num_ags);
+
+	befs_sb->flags = fs32_to_cpu(sb, disk_sb->flags);
 
 	befs_sb->log_blocks = fsrun_to_cpu(sb, disk_sb->log_blocks);
 	befs_sb->log_start = fs64_to_cpu(sb, disk_sb->log_start);
@@ -59,7 +57,7 @@ befs_load_sb(struct super_block *sb, befs_super_block * disk_sb)
 int
 befs_check_sb(struct super_block *sb)
 {
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	/* Check magic headers of super block */
 	if ((befs_sb->magic1 != BEFS_SUPER_MAGIC1)
@@ -84,15 +82,15 @@ befs_check_sb(struct super_block *sb)
 	}
 
 	if (befs_sb->block_size > PAGE_SIZE) {
-		befs_error(sb, "blocksize(%u) cannot be larger"
+		befs_error(sb, "blocksize(%u) cannot be larger "
 			   "than system pagesize(%lu)", befs_sb->block_size,
 			   PAGE_SIZE);
 		return BEFS_ERR;
 	}
 
 	/*
-	   * block_shift and block_size encode the same information
-	   * in different ways as a consistency check.
+	 * block_shift and block_size encode the same information
+	 * in different ways as a consistency check.
 	 */
 
 	if ((1 << befs_sb->block_shift) != befs_sb->block_size) {
@@ -101,10 +99,18 @@ befs_check_sb(struct super_block *sb)
 		return BEFS_ERR;
 	}
 
-	if (befs_sb->log_start != befs_sb->log_end) {
+
+	/* ag_shift also encodes the same information as blocks_per_ag in a
+	 * different way, non-fatal consistency check
+	 */
+	if ((1 << befs_sb->ag_shift) != befs_sb->blocks_per_ag)
+		befs_error(sb, "ag_shift disagrees with blocks_per_ag.");
+
+	if (befs_sb->log_start != befs_sb->log_end ||
+	    befs_sb->flags == BEFS_DIRTY) {
 		befs_error(sb, "Filesystem not clean! There are blocks in the "
-			   "journal. You must boot into BeOS and mount this volume "
-			   "to make it clean.");
+			   "journal. You must boot into BeOS and mount this "
+			   "volume to make it clean.");
 		return BEFS_ERR;
 	}
 

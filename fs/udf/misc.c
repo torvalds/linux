@@ -23,7 +23,6 @@
 
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <linux/buffer_head.h>
 #include <linux/crc-itu-t.h>
 
 #include "udf_i.h"
@@ -142,8 +141,6 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 		iinfo->i_lenEAttr += size;
 		return (struct genericFormat *)&ea[offset];
 	}
-	if (loc & 0x02)
-		;
 
 	return NULL;
 }

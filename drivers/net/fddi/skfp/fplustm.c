@@ -23,6 +23,7 @@
 #include "h/smc.h"
 #include "h/supern_2.h"
 #include <linux/bitrev.h>
+#include <linux/etherdevice.h>
 
 #ifndef	lint
 static const char ID_sccs[] = "@(#)fplustm.c	1.32 99/02/23 (C) SK " ;
@@ -55,14 +56,14 @@ static	char cam_warning [] = "E_SMT_004: CAM still busy\n";
 
 #define	DUMMY_READ()	smc->hw.mc_dummy = (u_short) inp(ADDR(B0_RAP))
 
-#define	CHECK_NPP() {	unsigned k = 10000 ;\
+#define	CHECK_NPP() {	unsigned int k = 10000 ;\
 			while ((inpw(FM_A(FM_STMCHN)) & FM_SNPPND) && k) k--;\
 			if (!k) { \
 				SMT_PANIC(smc,SMT_E0130, SMT_E0130_MSG) ; \
 			}	\
 		}
 
-#define	CHECK_CAM() {	unsigned k = 10 ;\
+#define	CHECK_CAM() {	unsigned int k = 10 ;\
 			while (!(inpw(FM_A(FM_AFSTAT)) & FM_DONE) && k) k--;\
 			if (!k) { \
 				SMT_PANIC(smc,SMT_E0131, SMT_E0131_MSG) ; \
@@ -356,25 +357,25 @@ static	void set_formac_addr(struct s_smc *smc)
 	long	t_requ = smc->mib.m[MAC0].fddiMACT_Req ;
 
 	outpw(FM_A(FM_SAID),my_said) ;	/* set short address */
-	outpw(FM_A(FM_LAIL),(unsigned)((smc->hw.fddi_home_addr.a[4]<<8) +
+	outpw(FM_A(FM_LAIL),(unsigned short)((smc->hw.fddi_home_addr.a[4]<<8) +
 					smc->hw.fddi_home_addr.a[5])) ;
-	outpw(FM_A(FM_LAIC),(unsigned)((smc->hw.fddi_home_addr.a[2]<<8) +
+	outpw(FM_A(FM_LAIC),(unsigned short)((smc->hw.fddi_home_addr.a[2]<<8) +
 					smc->hw.fddi_home_addr.a[3])) ;
-	outpw(FM_A(FM_LAIM),(unsigned)((smc->hw.fddi_home_addr.a[0]<<8) +
+	outpw(FM_A(FM_LAIM),(unsigned short)((smc->hw.fddi_home_addr.a[0]<<8) +
 					smc->hw.fddi_home_addr.a[1])) ;
 
 	outpw(FM_A(FM_SAGP),my_sagp) ;	/* set short group address */
 
-	outpw(FM_A(FM_LAGL),(unsigned)((smc->hw.fp.group_addr.a[4]<<8) +
+	outpw(FM_A(FM_LAGL),(unsigned short)((smc->hw.fp.group_addr.a[4]<<8) +
 					smc->hw.fp.group_addr.a[5])) ;
-	outpw(FM_A(FM_LAGC),(unsigned)((smc->hw.fp.group_addr.a[2]<<8) +
+	outpw(FM_A(FM_LAGC),(unsigned short)((smc->hw.fp.group_addr.a[2]<<8) +
 					smc->hw.fp.group_addr.a[3])) ;
-	outpw(FM_A(FM_LAGM),(unsigned)((smc->hw.fp.group_addr.a[0]<<8) +
+	outpw(FM_A(FM_LAGM),(unsigned short)((smc->hw.fp.group_addr.a[0]<<8) +
 					smc->hw.fp.group_addr.a[1])) ;
 
 	/* set r_request regs. (MSW & LSW of TRT ) */
-	outpw(FM_A(FM_TREQ1),(unsigned)(t_requ>>16)) ;
-	outpw(FM_A(FM_TREQ0),(unsigned)t_requ) ;
+	outpw(FM_A(FM_TREQ1),(unsigned short)(t_requ>>16)) ;
+	outpw(FM_A(FM_TREQ0),(unsigned short)t_requ) ;
 }
 
 static void set_int(char *p, int l)
@@ -394,10 +395,10 @@ static void set_int(char *p, int l)
  *	append 'end of chain' pointer
  */
 static void copy_tx_mac(struct s_smc *smc, u_long td, struct fddi_mac *mac,
-			unsigned off, int len)
+			unsigned int off, int len)
 /* u_long td;		 transmit descriptor */
 /* struct fddi_mac *mac; mac frame pointer */
-/* unsigned off;	 start address within buffer memory */
+/* unsigned int off;	 start address within buffer memory */
 /* int len ;		 length of the frame including the FC */
 {
 	int	i ;
@@ -453,7 +454,7 @@ static void directed_beacon(struct s_smc *smc)
 	 */
 	* (char *) a = (char) ((long)DBEACON_INFO<<24L) ;
 	a[1] = 0 ;
-	memcpy((char *)a+1,(char *) &smc->mib.m[MAC0].fddiMACUpstreamNbr,6) ;
+	memcpy((char *)a+1, (char *) &smc->mib.m[MAC0].fddiMACUpstreamNbr, ETH_ALEN);
 
 	CHECK_NPP() ;
 	 /* set memory address reg for writes */
@@ -725,7 +726,7 @@ void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l)
 	if (code_s2u & FM_SMYBEC)
 		queue_event(smc,EVENT_RMT,RM_MY_BEACON) ;
 	if (change_s2u & code_s2u & FM_SLOCLM) {
-		DB_RMTN(2,"RMT : lower claim received\n",0,0) ;
+		DB_RMTN(2, "RMT : lower claim received");
 	}
 	if ((code_s2u & FM_SMYCLM) && !(code_s2l & FM_SDUPCLM)) {
 		/*
@@ -745,7 +746,7 @@ void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l)
 		queue_event(smc,EVENT_RMT,RM_VALID_CLAIM) ;
 	}
 	if (change_s2u & code_s2u & FM_SHICLM) {
-		DB_RMTN(2,"RMT : higher claim received\n",0,0) ;
+		DB_RMTN(2, "RMT : higher claim received");
 	}
 	if ( (code_s2l & FM_STRTEXP) ||
 	     (code_s2l & FM_STRTEXR) )
@@ -1082,7 +1083,7 @@ static struct s_fpmc* mac_get_mc_table(struct s_smc *smc,
 				slot = tb ;
 			continue ;
 		}
-		if (memcmp((char *)&tb->a,(char *)own,6))
+		if (!ether_addr_equal((char *)&tb->a, (char *)own))
 			continue ;
 		return tb;
 	}
@@ -1333,7 +1334,7 @@ void rtm_irq(struct s_smc *smc)
 	outpw(ADDR(B2_RTM_CRTL),TIM_CL_IRQ) ;		/* clear IRQ */
 	if (inpw(ADDR(B2_RTM_CRTL)) & TIM_RES_TOK) {
 		outpw(FM_A(FM_CMDREG1),FM_ICL) ;	/* force claim */
-		DB_RMT("RMT: fddiPATHT_Rmode expired\n",0,0) ;
+		DB_RMT("RMT: fddiPATHT_Rmode expired");
 		AIX_EVENT(smc, (u_long) FDDI_RING_STATUS,
 				(u_long) FDDI_SMT_EVENT,
 				(u_long) FDDI_RTT, smt_get_event_word(smc));
@@ -1352,8 +1353,8 @@ void rtm_set_timer(struct s_smc *smc)
 	/*
 	 * MIB timer and hardware timer have the same resolution of 80nS
 	 */
-	DB_RMT("RMT: setting new fddiPATHT_Rmode, t = %d ns\n",
-		(int) smc->mib.a[PATH0].fddiPATHT_Rmode,0) ;
+	DB_RMT("RMT: setting new fddiPATHT_Rmode, t = %d ns",
+	       (int)smc->mib.a[PATH0].fddiPATHT_Rmode);
 	outpd(ADDR(B2_RTM_INI),smc->mib.a[PATH0].fddiPATHT_Rmode) ;
 }
 
@@ -1468,13 +1469,13 @@ static void smt_split_up_fifo(struct s_smc *smc)
 	smc->hw.fp.fifo.rx2_fifo_start = smc->hw.fp.fifo.tx_a0_start +
 		smc->hw.fp.fifo.tx_a0_size ;
 
-	DB_SMT("FIFO split: mode = %x\n",smc->hw.fp.fifo.fifo_config_mode,0) ;
-	DB_SMT("rbc_ram_start =	%x	 rbc_ram_end = 	%x\n",
-		smc->hw.fp.fifo.rbc_ram_start, smc->hw.fp.fifo.rbc_ram_end) ;
-	DB_SMT("rx1_fifo_start = %x	 tx_s_start = 	%x\n",
-		smc->hw.fp.fifo.rx1_fifo_start, smc->hw.fp.fifo.tx_s_start) ;
-	DB_SMT("tx_a0_start =	%x	 rx2_fifo_start = 	%x\n",
-		smc->hw.fp.fifo.tx_a0_start, smc->hw.fp.fifo.rx2_fifo_start) ;
+	DB_SMT("FIFO split: mode = %x", smc->hw.fp.fifo.fifo_config_mode);
+	DB_SMT("rbc_ram_start =	%x	 rbc_ram_end = 	%x",
+	       smc->hw.fp.fifo.rbc_ram_start, smc->hw.fp.fifo.rbc_ram_end);
+	DB_SMT("rx1_fifo_start = %x	 tx_s_start = 	%x",
+	       smc->hw.fp.fifo.rx1_fifo_start, smc->hw.fp.fifo.tx_s_start);
+	DB_SMT("tx_a0_start =	%x	 rx2_fifo_start = 	%x",
+	       smc->hw.fp.fifo.tx_a0_start, smc->hw.fp.fifo.rx2_fifo_start);
 }
 
 void formac_reinit_tx(struct s_smc *smc)

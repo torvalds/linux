@@ -55,7 +55,7 @@ static char version[] = "sb1000.c:v1.1.2 6/01/98 (fventuri@mediaone.net)\n";
 
 #include <asm/io.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef SB1000_DEBUG
 static int sb1000_debug = SB1000_DEBUG;
@@ -141,7 +141,6 @@ static const struct net_device_ops sb1000_netdev_ops = {
 	.ndo_start_xmit		= sb1000_start_xmit,
 	.ndo_do_ioctl		= sb1000_dev_ioctl,
 	.ndo_stop		= sb1000_close,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1175,17 +1174,4 @@ MODULE_AUTHOR("Franco Venturi <fventuri@mediaone.net>");
 MODULE_DESCRIPTION("General Instruments SB1000 driver");
 MODULE_LICENSE("GPL");
 
-static int __init
-sb1000_init(void)
-{
-	return pnp_register_driver(&sb1000_driver);
-}
-
-static void __exit
-sb1000_exit(void)
-{
-	pnp_unregister_driver(&sb1000_driver);
-}
-
-module_init(sb1000_init);
-module_exit(sb1000_exit);
+module_pnp_driver(sb1000_driver);

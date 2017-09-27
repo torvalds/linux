@@ -13,10 +13,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
  *
@@ -29,7 +25,6 @@
 #define _OS_INTFS_C_
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
 #include "osdep_service.h"
@@ -98,7 +93,7 @@ static char *initmac;
  */
 static int wifi_test;
 
-module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
+module_param_string(ifname, ifname, sizeof(ifname), 0644);
 module_param(wifi_test, int, 0644);
 module_param(initmac, charp, 0644);
 module_param(video_mode, int, 0644);
@@ -123,13 +118,11 @@ module_param(low_power, int, 0644);
 MODULE_PARM_DESC(ifname, " Net interface name, wlan%d=default");
 MODULE_PARM_DESC(initmac, "MAC-Address, default: use FUSE");
 
-static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev);
 static int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
 
-static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
+static void loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 {
-	uint status = _SUCCESS;
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
 	registry_par->chip_version = (u8)chip_version;
@@ -141,7 +134,7 @@ static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 	registry_par->ssid.SsidLength = 3;
 	registry_par->channel = (u8)channel;
 	registry_par->wireless_mode = (u8)wireless_mode;
-	registry_par->vrtl_carrier_sense = (u8)vrtl_carrier_sense ;
+	registry_par->vrtl_carrier_sense = (u8)vrtl_carrier_sense;
 	registry_par->vcs_type = (u8)vcs_type;
 	registry_par->frag_thresh = (u16)frag_thresh;
 	registry_par->preamble = (u8)preamble;
@@ -171,26 +164,25 @@ static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 	registry_par->ampdu_enable = (u8)ampdu_enable;
 	registry_par->rf_config = (u8)rf_config;
 	registry_par->low_power = (u8)low_power;
-	registry_par->wifi_test = (u8) wifi_test;
+	registry_par->wifi_test = (u8)wifi_test;
 	r8712_initmac = initmac;
-	return status;
 }
 
 static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 {
-	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct sockaddr *addr = p;
 
-	if (padapter->bup == false)
-		memcpy(pnetdev->dev_addr, addr->sa_data, ETH_ALEN);
+	if (!padapter->bup)
+		ether_addr_copy(pnetdev->dev_addr, addr->sa_data);
 	return 0;
 }
 
 static struct net_device_stats *r871x_net_get_stats(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *) netdev_priv(pnetdev);
-	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
-	struct recv_priv *precvpriv = &(padapter->recvpriv);
+	struct _adapter *padapter = netdev_priv(pnetdev);
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	padapter->stats.tx_packets = pxmitpriv->tx_pkts;
 	padapter->stats.rx_packets = precvpriv->rx_pkts;
@@ -222,14 +214,13 @@ struct net_device *r8712_init_netdev(void)
 		strcpy(ifname, "wlan%d");
 		dev_alloc_name(pnetdev, ifname);
 	}
-	padapter = (struct _adapter *) netdev_priv(pnetdev);
+	padapter = netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
 	pr_info("r8712u: register rtl8712_netdev_ops to netdev_ops\n");
 	pnetdev->netdev_ops = &rtl8712_netdev_ops;
 	pnetdev->watchdog_timeo = HZ; /* 1 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)
 				     &r871x_handlers_def;
-	/*step 2.*/
 	loadparam(padapter, pnetdev);
 	netif_carrier_off(pnetdev);
 	padapter->pid = 0;  /* Initial the PID value used for HW PBC.*/
@@ -240,7 +231,7 @@ static u32 start_drv_threads(struct _adapter *padapter)
 {
 	padapter->cmdThread = kthread_run(r8712_cmd_thread, padapter, "%s",
 			      padapter->pnetdev->name);
-	if (IS_ERR(padapter->cmdThread) < 0)
+	if (IS_ERR(padapter->cmdThread))
 		return _FAIL;
 	return _SUCCESS;
 }
@@ -248,33 +239,32 @@ static u32 start_drv_threads(struct _adapter *padapter)
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
-	up(&padapter->cmdpriv.cmd_queue_sema);
+	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
-		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
 	padapter->cmdpriv.cmd_seq = 1;
 }
 
 static void start_drv_timers(struct _adapter *padapter)
 {
-	_set_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
-		   5000);
-	_set_timer(&padapter->mlmepriv.wdg_timer, 2000);
+	mod_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
+		  jiffies + msecs_to_jiffies(5000));
+	mod_timer(&padapter->mlmepriv.wdg_timer,
+		  jiffies + msecs_to_jiffies(2000));
 }
 
 void r8712_stop_drv_timers(struct _adapter *padapter)
 {
-	_cancel_timer_ex(&padapter->mlmepriv.assoc_timer);
-	_cancel_timer_ex(&padapter->securitypriv.tkip_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.scan_to_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.dhcp_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.wdg_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.sitesurveyctrl.
-			 sitesurvey_ctrl_timer);
+	del_timer_sync(&padapter->mlmepriv.assoc_timer);
+	del_timer_sync(&padapter->securitypriv.tkip_timer);
+	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
+	del_timer_sync(&padapter->mlmepriv.dhcp_timer);
+	del_timer_sync(&padapter->mlmepriv.wdg_timer);
+	del_timer_sync(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer);
 }
 
 static u8 init_default_value(struct _adapter *padapter)
 {
-	u8 ret  = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -307,7 +297,7 @@ static u8 init_default_value(struct _adapter *padapter)
 	r8712_init_registrypriv_dev_network(padapter);
 	r8712_update_registrypriv_dev_network(padapter);
 	/*misc.*/
-	return ret;
+	return _SUCCESS;
 }
 
 u8 r8712_init_drv_sw(struct _adapter *padapter)
@@ -323,8 +313,8 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
-	_init_timer(&(padapter->securitypriv.tkip_timer), padapter->pnetdev,
-		    r8712_use_tkipkey_handler, padapter);
+	setup_timer(&padapter->securitypriv.tkip_timer,
+		    r8712_use_tkipkey_handler, (unsigned long)padapter);
 	_r8712_init_sta_priv(&padapter->stapriv);
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
@@ -338,7 +328,7 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 
 u8 r8712_free_drv_sw(struct _adapter *padapter)
 {
-	struct net_device *pnetdev = (struct net_device *)padapter->pnetdev;
+	struct net_device *pnetdev = padapter->pnetdev;
 
 	r8712_free_cmd_priv(&padapter->cmdpriv);
 	r8712_free_evt_priv(&padapter->evtpriv);
@@ -346,8 +336,7 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	r8712_free_mlme_priv(&padapter->mlmepriv);
 	r8712_free_io_queue(padapter);
 	_free_xmit_priv(&padapter->xmitpriv);
-	if (padapter->fw_found)
-		_r8712_free_sta_priv(&padapter->stapriv);
+	_r8712_free_sta_priv(&padapter->stapriv);
 	_r8712_free_recv_priv(&padapter->recvpriv);
 	mp871xdeinit(padapter);
 	if (pnetdev)
@@ -372,7 +361,8 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 
 	if (cbw40_value) {
 		/* if the driver supports the 40M bandwidth,
-		 * we can enable the bit 9.*/
+		 * we can enable the bit 9.
+		 */
 		intcmd |= 0x200;
 	}
 	r8712_fw_cmd(padapter, intcmd);
@@ -386,19 +376,19 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
  */
 static int netdev_open(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	mutex_lock(&padapter->mutex_start);
-	if (padapter->bup == false) {
+	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
 		padapter->bSurpriseRemoved = false;
 		padapter->bup = true;
 		if (rtl871x_hal_init(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (r8712_initmac == NULL)
+		if (!r8712_initmac)
 			/* Use the mac address stored in the Efuse */
 			memcpy(pnetdev->dev_addr,
-				padapter->eeprompriv.mac_addr, ETH_ALEN);
+			       padapter->eeprompriv.mac_addr, ETH_ALEN);
 		else {
 			/* We have to inform f/w to use user-supplied MAC
 			 * address.
@@ -415,11 +405,11 @@ static int netdev_open(struct net_device *pnetdev)
 			 * users specify.
 			 */
 			memcpy(padapter->eeprompriv.mac_addr,
-				pnetdev->dev_addr, ETH_ALEN);
+			       pnetdev->dev_addr, ETH_ALEN);
 		}
 		if (start_drv_threads(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (padapter->dvobjpriv.inirp_init == NULL)
+		if (!padapter->dvobjpriv.inirp_init)
 			goto netdev_open_error;
 		else
 			padapter->dvobjpriv.inirp_init(padapter);
@@ -431,7 +421,7 @@ static int netdev_open(struct net_device *pnetdev)
 	else
 		netif_wake_queue(pnetdev);
 
-	 if (video_mode)
+	if (video_mode)
 		enable_video_mode(padapter, cbw40_enable);
 	/* start driver mlme relation timer */
 	start_drv_timers(padapter);
@@ -454,7 +444,7 @@ netdev_open_error:
  */
 static int netdev_close(struct net_device *pnetdev)
 {
-	struct _adapter *padapter = (struct _adapter *) netdev_priv(pnetdev);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	/* Close LED*/
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_POWER_OFF);

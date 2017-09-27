@@ -13,11 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include "cx18-driver.h"
@@ -130,7 +125,7 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 		}
 	}
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags))
-		CX18_INFO("loaded %s firmware (%zd bytes)\n", fn, fw->size);
+		CX18_INFO("loaded %s firmware (%zu bytes)\n", fn, fw->size);
 	size = fw->size;
 	release_firmware(fw);
 	cx18_setup_page(cx, SCB_OFFSET);
@@ -164,7 +159,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 
 	apu_version = (vers[0] << 24) | (vers[4] << 16) | vers[32];
 	while (offset + sizeof(seghdr) < fw->size) {
-		const u32 *shptr = src + offset / 4;
+		const __le32 *shptr = (__force __le32 *)src + offset / 4;
 
 		seghdr.sync1 = le32_to_cpu(shptr[0]);
 		seghdr.sync2 = le32_to_cpu(shptr[1]);
@@ -202,7 +197,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 		offset += seghdr.size;
 	}
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags))
-		CX18_INFO("loaded %s firmware V%08x (%zd bytes)\n",
+		CX18_INFO("loaded %s firmware V%08x (%zu bytes)\n",
 				fn, apu_version, fw->size);
 	size = fw->size;
 	release_firmware(fw);

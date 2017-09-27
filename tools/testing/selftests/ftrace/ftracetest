@@ -1,0 +1,323 @@
+#!/bin/sh
+
+# ftracetest - Ftrace test shell scripts
+#
+# Copyright (C) Hitachi Ltd., 2014
+#  Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+#
+# Released under the terms of the GPL v2.
+
+usage() { # errno [message]
+[ ! -z "$2" ] && echo $2
+echo "Usage: ftracetest [options] [testcase(s)] [testcase-directory(s)]"
+echo " Options:"
+echo "		-h|--help  Show help message"
+echo "		-k|--keep  Keep passed test logs"
+echo "		-v|--verbose Increase verbosity of test messages"
+echo "		-vv        Alias of -v -v (Show all results in stdout)"
+echo "		-vvv       Alias of -v -v -v (Show all commands immediately)"
+echo "		--fail-unsupported Treat UNSUPPORTED as a failure"
+echo "		-d|--debug Debug mode (trace all shell commands)"
+echo "		-l|--logdir <dir> Save logs on the <dir>"
+echo "		            If <dir> is -, all logs output in console only"
+exit $1
+}
+
+errexit() { # message
+  echo "Error: $1" 1>&2
+  exit 1
+}
+
+# Ensuring user privilege
+if [ `id -u` -ne 0 ]; then
+  errexit "this must be run by root user"
+fi
+
+# Utilities
+absdir() { # file_path
+  (cd `dirname $1`; pwd)
+}
+
+abspath() {
+  echo `absdir $1`/`basename $1`
+}
+
+find_testcases() { #directory
+  echo `find $1 -name \*.tc | sort`
+}
+
+parse_opts() { # opts
+  local OPT_TEST_CASES=
+  local OPT_TEST_DIR=
+
+  while [ ! -z "$1" ]; do
+    case "$1" in
+    --help|-h)
+      usage 0
+    ;;
+    --keep|-k)
+      KEEP_LOG=1
+      shift 1
+    ;;
+    --verbose|-v|-vv|-vvv)
+      VERBOSE=$((VERBOSE + 1))
+      [ $1 = '-vv' ] && VERBOSE=$((VERBOSE + 1))
+      [ $1 = '-vvv' ] && VERBOSE=$((VERBOSE + 2))
+      shift 1
+    ;;
+    --debug|-d)
+      DEBUG=1
+      shift 1
+    ;;
+    --fail-unsupported)
+      UNSUPPORTED_RESULT=1
+      shift 1
+    ;;
+    --logdir|-l)
+      LOG_DIR=$2
+      shift 2
+    ;;
+    *.tc)
+      if [ -f "$1" ]; then
+        OPT_TEST_CASES="$OPT_TEST_CASES `abspath $1`"
+        shift 1
+      else
+        usage 1 "$1 is not a testcase"
+      fi
+      ;;
+    *)
+      if [ -d "$1" ]; then
+        OPT_TEST_DIR=`abspath $1`
+        OPT_TEST_CASES="$OPT_TEST_CASES `find_testcases $OPT_TEST_DIR`"
+        shift 1
+      else
+        usage 1 "Invalid option ($1)"
+      fi
+    ;;
+    esac
+  done
+  if [ ! -z "$OPT_TEST_CASES" ]; then
+    TEST_CASES=$OPT_TEST_CASES
+  fi
+}
+
+# Parameters
+DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
+if [ -z "$DEBUGFS_DIR" ]; then
+    TRACING_DIR=`grep tracefs /proc/mounts | cut -f2 -d' ' | head -1`
+else
+    TRACING_DIR=$DEBUGFS_DIR/tracing
+fi
+
+TOP_DIR=`absdir $0`
+TEST_DIR=$TOP_DIR/test.d
+TEST_CASES=`find_testcases $TEST_DIR`
+LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`/
+KEEP_LOG=0
+DEBUG=0
+VERBOSE=0
+UNSUPPORTED_RESULT=0
+# Parse command-line options
+parse_opts $*
+
+[ $DEBUG -ne 0 ] && set -x
+
+# Verify parameters
+if [ -z "$TRACING_DIR" -o ! -d "$TRACING_DIR" ]; then
+  errexit "No ftrace directory found"
+fi
+
+# Preparing logs
+if [ "x$LOG_DIR" = "x-" ]; then
+  LOG_FILE=
+  date
+else
+  LOG_FILE=$LOG_DIR/ftracetest.log
+  mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
+  date > $LOG_FILE
+fi
+
+prlog() { # messages
+  [ -z "$LOG_FILE" ] && echo "$@" || echo "$@" | tee -a $LOG_FILE
+}
+catlog() { #file
+  [ -z "$LOG_FILE" ] && cat $1 || cat $1 | tee -a $LOG_FILE
+}
+prlog "=== Ftrace unit tests ==="
+
+
+# Testcase management
+# Test result codes - Dejagnu extended code
+PASS=0	# The test succeeded.
+FAIL=1	# The test failed, but was expected to succeed.
+UNRESOLVED=2  # The test produced indeterminate results. (e.g. interrupted)
+UNTESTED=3    # The test was not run, currently just a placeholder.
+UNSUPPORTED=4 # The test failed because of lack of feature.
+XFAIL=5	# The test failed, and was expected to fail.
+
+# Accumulations
+PASSED_CASES=
+FAILED_CASES=
+UNRESOLVED_CASES=
+UNTESTED_CASES=
+UNSUPPORTED_CASES=
+XFAILED_CASES=
+UNDEFINED_CASES=
+TOTAL_RESULT=0
+
+INSTANCE=
+CASENO=0
+testcase() { # testfile
+  CASENO=$((CASENO+1))
+  desc=`grep "^#[ \t]*description:" $1 | cut -f2 -d:`
+  prlog -n "[$CASENO]$INSTANCE$desc"
+}
+
+test_on_instance() { # testfile
+  grep -q "^#[ \t]*flags:.*instance" $1
+}
+
+eval_result() { # sigval
+  case $1 in
+    $PASS)
+      prlog "	[PASS]"
+      PASSED_CASES="$PASSED_CASES $CASENO"
+      return 0
+    ;;
+    $FAIL)
+      prlog "	[FAIL]"
+      FAILED_CASES="$FAILED_CASES $CASENO"
+      return 1 # this is a bug.
+    ;;
+    $UNRESOLVED)
+      prlog "	[UNRESOLVED]"
+      UNRESOLVED_CASES="$UNRESOLVED_CASES $CASENO"
+      return 1 # this is a kind of bug.. something happened.
+    ;;
+    $UNTESTED)
+      prlog "	[UNTESTED]"
+      UNTESTED_CASES="$UNTESTED_CASES $CASENO"
+      return 0
+    ;;
+    $UNSUPPORTED)
+      prlog "	[UNSUPPORTED]"
+      UNSUPPORTED_CASES="$UNSUPPORTED_CASES $CASENO"
+      return $UNSUPPORTED_RESULT # depends on use case
+    ;;
+    $XFAIL)
+      prlog "	[XFAIL]"
+      XFAILED_CASES="$XFAILED_CASES $CASENO"
+      return 0
+    ;;
+    *)
+      prlog "	[UNDEFINED]"
+      UNDEFINED_CASES="$UNDEFINED_CASES $CASENO"
+      return 1 # this must be a test bug
+    ;;
+  esac
+}
+
+# Signal handling for result codes
+SIG_RESULT=
+SIG_BASE=36	# Use realtime signals
+SIG_PID=$$
+
+SIG_FAIL=$((SIG_BASE + FAIL))
+trap 'SIG_RESULT=$FAIL' $SIG_FAIL
+
+SIG_UNRESOLVED=$((SIG_BASE + UNRESOLVED))
+exit_unresolved () {
+  kill -s $SIG_UNRESOLVED $SIG_PID
+  exit 0
+}
+trap 'SIG_RESULT=$UNRESOLVED' $SIG_UNRESOLVED
+
+SIG_UNTESTED=$((SIG_BASE + UNTESTED))
+exit_untested () {
+  kill -s $SIG_UNTESTED $SIG_PID
+  exit 0
+}
+trap 'SIG_RESULT=$UNTESTED' $SIG_UNTESTED
+
+SIG_UNSUPPORTED=$((SIG_BASE + UNSUPPORTED))
+exit_unsupported () {
+  kill -s $SIG_UNSUPPORTED $SIG_PID
+  exit 0
+}
+trap 'SIG_RESULT=$UNSUPPORTED' $SIG_UNSUPPORTED
+
+SIG_XFAIL=$((SIG_BASE + XFAIL))
+exit_xfail () {
+  kill -s $SIG_XFAIL $SIG_PID
+  exit 0
+}
+trap 'SIG_RESULT=$XFAIL' $SIG_XFAIL
+
+__run_test() { # testfile
+  # setup PID and PPID, $$ is not updated.
+  (cd $TRACING_DIR; read PID _ < /proc/self/stat; set -e; set -x; initialize_ftrace; . $1)
+  [ $? -ne 0 ] && kill -s $SIG_FAIL $SIG_PID
+}
+
+# Run one test case
+run_test() { # testfile
+  local testname=`basename $1`
+  if [ ! -z "$LOG_FILE" ] ; then
+    local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+  else
+    local testlog=/proc/self/fd/1
+  fi
+  export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
+  testcase $1
+  echo "execute$INSTANCE: "$1 > $testlog
+  SIG_RESULT=0
+  if [ -z "$LOG_FILE" ]; then
+    __run_test $1 2>&1
+  elif [ $VERBOSE -ge 3 ]; then
+    __run_test $1 | tee -a $testlog 2>&1
+  elif [ $VERBOSE -eq 2 ]; then
+    __run_test $1 2>> $testlog | tee -a $testlog
+  else
+    __run_test $1 >> $testlog 2>&1
+  fi
+  eval_result $SIG_RESULT
+  if [ $? -eq 0 ]; then
+    # Remove test log if the test was done as it was expected.
+    [ $KEEP_LOG -eq 0 -a ! -z "$LOG_FILE" ] && rm $testlog
+  else
+    [ $VERBOSE -eq 1 -o $VERBOSE -eq 2 ] && catlog $testlog
+    TOTAL_RESULT=1
+  fi
+  rm -rf $TMPDIR
+}
+
+# load in the helper functions
+. $TEST_DIR/functions
+
+# Main loop
+for t in $TEST_CASES; do
+  run_test $t
+done
+
+# Test on instance loop
+INSTANCE=" (instance) "
+for t in $TEST_CASES; do
+  test_on_instance $t || continue
+  SAVED_TRACING_DIR=$TRACING_DIR
+  export TRACING_DIR=`mktemp -d $TRACING_DIR/instances/ftracetest.XXXXXX`
+  run_test $t
+  rmdir $TRACING_DIR
+  TRACING_DIR=$SAVED_TRACING_DIR
+done
+
+prlog ""
+prlog "# of passed: " `echo $PASSED_CASES | wc -w`
+prlog "# of failed: " `echo $FAILED_CASES | wc -w`
+prlog "# of unresolved: " `echo $UNRESOLVED_CASES | wc -w`
+prlog "# of untested: " `echo $UNTESTED_CASES | wc -w`
+prlog "# of unsupported: " `echo $UNSUPPORTED_CASES | wc -w`
+prlog "# of xfailed: " `echo $XFAILED_CASES | wc -w`
+prlog "# of undefined(test bug): " `echo $UNDEFINED_CASES | wc -w`
+
+# if no error, return 0
+exit $TOTAL_RESULT

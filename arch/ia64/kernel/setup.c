@@ -29,9 +29,12 @@
 #include <linux/bootmem.h>
 #include <linux/console.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/threads.h>
@@ -50,8 +53,6 @@
 #include <asm/mca.h>
 #include <asm/meminit.h>
 #include <asm/page.h>
-#include <asm/paravirt.h>
-#include <asm/paravirt_patch.h>
 #include <asm/patch.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -73,7 +74,11 @@ EXPORT_SYMBOL(__per_cpu_offset);
 #endif
 
 DEFINE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
+EXPORT_SYMBOL(ia64_cpu_info);
 DEFINE_PER_CPU(unsigned long, local_per_cpu_offset);
+#ifdef CONFIG_SMP
+EXPORT_SYMBOL(local_per_cpu_offset);
+#endif
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
 struct screen_info screen_info;
@@ -82,17 +87,17 @@ unsigned long vga_console_membase;
 
 static struct resource data_resource = {
 	.name	= "Kernel data",
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
 };
 
 static struct resource code_resource = {
 	.name	= "Kernel code",
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
 };
 
 static struct resource bss_resource = {
 	.name	= "Kernel bss",
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
 };
 
 unsigned long ia64_max_cacheline_size;
@@ -360,8 +365,6 @@ reserve_memory (void)
 	rsvd_region[n].end   = (unsigned long) ia64_imva(_end);
 	n++;
 
-	n += paravirt_reserve_memory(&rsvd_region[n]);
-
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (ia64_boot_param->initrd_start) {
 		rsvd_region[n].start = (unsigned long)__va(ia64_boot_param->initrd_start);
@@ -528,10 +531,7 @@ setup_arch (char **cmdline_p)
 {
 	unw_init();
 
-	paravirt_arch_setup_early();
-
 	ia64_patch_vtop((u64) __start___vtop_patchlist, (u64) __end___vtop_patchlist);
-	paravirt_patch_apply();
 
 	*cmdline_p = __va(ia64_boot_param->command_line);
 	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
@@ -559,11 +559,12 @@ setup_arch (char **cmdline_p)
 	early_acpi_boot_init();
 # ifdef CONFIG_ACPI_NUMA
 	acpi_numa_init();
+	acpi_numa_fixup();
 #  ifdef CONFIG_ACPI_HOTPLUG_CPU
 	prefill_possible_map();
 #  endif
-	per_cpu_scan_finalize((cpus_weight(early_cpu_possible_map) == 0 ?
-		32 : cpus_weight(early_cpu_possible_map)),
+	per_cpu_scan_finalize((cpumask_weight(&early_cpu_possible_map) == 0 ?
+		32 : cpumask_weight(&early_cpu_possible_map)),
 		additional_cpus > 0 ? additional_cpus : 0);
 # endif
 #endif /* CONFIG_APCI_BOOT */
@@ -594,9 +595,6 @@ setup_arch (char **cmdline_p)
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
 
-	paravirt_banner();
-	paravirt_arch_setup_console(cmdline_p);
-
 #ifdef CONFIG_VT
 	if (!conswitchp) {
 # if defined(CONFIG_DUMMY_CONSOLE)
@@ -616,8 +614,6 @@ setup_arch (char **cmdline_p)
 #endif
 
 	/* enable IA-64 Machine Check Abort Handling unless disabled */
-	if (paravirt_arch_setup_nomca())
-		nomca = 1;
 	if (!nomca)
 		ia64_mca_init();
 
@@ -626,6 +622,8 @@ setup_arch (char **cmdline_p)
 	check_sal_cache_flush();
 #endif
 	paging_init();
+
+	clear_sched_clock_stable();
 }
 
 /*
@@ -702,7 +700,8 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
 		   lpj*HZ/500000, (lpj*HZ/5000) % 100);
 #ifdef CONFIG_SMP
-	seq_printf(m, "siblings   : %u\n", cpus_weight(cpu_core_map[cpunum]));
+	seq_printf(m, "siblings   : %u\n",
+		   cpumask_weight(&cpu_core_map[cpunum]));
 	if (c->socket_id != -1)
 		seq_printf(m, "physical id: %u\n", c->socket_id);
 	if (c->threads_per_core > 1 || c->cores_per_socket > 1)
@@ -933,8 +932,8 @@ cpu_init (void)
 	 * (must be done after per_cpu area is setup)
 	 */
 	if (smp_processor_id() == 0) {
-		cpu_set(0, per_cpu(cpu_sibling_map, 0));
-		cpu_set(0, cpu_core_map[0]);
+		cpumask_set_cpu(0, &per_cpu(cpu_sibling_map, 0));
+		cpumask_set_cpu(0, &cpu_core_map[0]);
 	} else {
 		/*
 		 * Set ar.k3 so that assembly code in MCA handler can compute
@@ -998,7 +997,7 @@ cpu_init (void)
 	 */
 	ia64_setreg(_IA64_REG_CR_DCR,  (  IA64_DCR_DP | IA64_DCR_DK | IA64_DCR_DX | IA64_DCR_DR
 					| IA64_DCR_DA | IA64_DCR_DD | IA64_DCR_LC));
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 
@@ -1063,6 +1062,7 @@ check_bugs (void)
 static int __init run_dmi_scan(void)
 {
 	dmi_scan_machine();
+	dmi_memdev_walk();
 	dmi_set_dump_stack_arch_desc();
 	return 0;
 }

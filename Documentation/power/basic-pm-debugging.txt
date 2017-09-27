@@ -75,12 +75,14 @@ you should do the following:
 # echo platform > /sys/power/disk
 # echo disk > /sys/power/state
 
-Then, the kernel will try to freeze processes, suspend devices, wait 5 seconds,
-resume devices and thaw processes.  If "platform" is written to
+Then, the kernel will try to freeze processes, suspend devices, wait a few
+seconds (5 by default, but configurable by the suspend.pm_test_delay module
+parameter), resume devices and thaw processes.  If "platform" is written to
 /sys/power/pm_test , then after suspending devices the kernel will additionally
 invoke the global control methods (eg. ACPI global control methods) used to
-prepare the platform firmware for hibernation.  Next, it will wait 5 seconds and
-invoke the platform (eg. ACPI) global methods used to cancel hibernation etc.
+prepare the platform firmware for hibernation.  Next, it will wait a
+configurable number of seconds and invoke the platform (eg. ACPI) global
+methods used to cancel hibernation etc.
 
 Writing "none" to /sys/power/pm_test causes the kernel to switch to the normal
 hibernation/suspend operations.  Also, when open for reading, /sys/power/pm_test
@@ -162,7 +164,32 @@ load n/2 modules more and try again.
 Again, if you find the offending module(s), it(they) must be unloaded every time
 before hibernation, and please report the problem with it(them).
 
-c) Advanced debugging
+c) Using the "test_resume" hibernation option
+
+/sys/power/disk generally tells the kernel what to do after creating a
+hibernation image.  One of the available options is "test_resume" which
+causes the just created image to be used for immediate restoration.  Namely,
+after doing:
+
+# echo test_resume > /sys/power/disk
+# echo disk > /sys/power/state
+
+a hibernation image will be created and a resume from it will be triggered
+immediately without involving the platform firmware in any way.
+
+That test can be used to check if failures to resume from hibernation are
+related to bad interactions with the platform firmware.  That is, if the above
+works every time, but resume from actual hibernation does not work or is
+unreliable, the platform firmware may be responsible for the failures.
+
+On architectures and platforms that support using different kernels to restore
+hibernation images (that is, the kernel used to read the image from storage and
+load it into memory is different from the one included in the image) or support
+kernel address space randomization, it also can be used to check if failures
+to resume may be related to the differences between the restore and image
+kernels.
+
+d) Advanced debugging
 
 In case that hibernation does not work on your system even in the minimal
 configuration and compiling more drivers as modules is not practical or some
@@ -172,14 +199,14 @@ you can boot the kernel with the 'no_console_suspend' parameter and try to log
 kernel messages using the serial console.  This may provide you with some
 information about the reasons of the suspend (resume) failure.  Alternatively,
 it may be possible to use a FireWire port for debugging with firescope
-(ftp://ftp.firstfloor.org/pub/ak/firescope/).  On x86 it is also possible to
+(http://v3.sk/~lkundrak/firescope/).  On x86 it is also possible to
 use the PM_TRACE mechanism documented in Documentation/power/s2ram.txt .
 
 2. Testing suspend to RAM (STR)
 
 To verify that the STR works, it is generally more convenient to use the s2ram
 tool available from http://suspend.sf.net and documented at
-http://en.opensuse.org/SDB:Suspend_to_RAM.
+http://en.opensuse.org/SDB:Suspend_to_RAM (S2RAM_LINK).
 
 Namely, after writing "freezer", "devices", "platform", "processors", or "core"
 into /sys/power/pm_test (available if the kernel is compiled with
@@ -194,10 +221,10 @@ Among other things, the testing with the help of /sys/power/pm_test may allow
 you to identify drivers that fail to suspend or resume their devices.  They
 should be unloaded every time before an STR transition.
 
-Next, you can follow the instructions at http://en.opensuse.org/s2ram to test
-the system, but if it does not work "out of the box", you may need to boot it
-with "init=/bin/bash" and test s2ram in the minimal configuration.  In that
-case, you may be able to search for failing drivers by following the procedure
+Next, you can follow the instructions at S2RAM_LINK to test the system, but if
+it does not work "out of the box", you may need to boot it with
+"init=/bin/bash" and test s2ram in the minimal configuration.  In that case,
+you may be able to search for failing drivers by following the procedure
 analogous to the one described in section 1.  If you find some failing drivers,
 you will have to unload them every time before an STR transition (ie. before
 you run s2ram), and please report the problems with them.

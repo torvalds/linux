@@ -27,7 +27,7 @@
 #include <linux/personality.h>
 #include <linux/unistd.h>
 #include <linux/ipc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "entry.h"
 
 /*
@@ -76,7 +76,6 @@ SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
 	return sys_ipc(call, first, second, third, ptr, third);
 }
 
-#ifdef CONFIG_64BIT
 SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 {
 	unsigned int ret;
@@ -90,51 +89,3 @@ SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 
 	return ret;
 }
-#endif /* CONFIG_64BIT */
-
-/*
- * Wrapper function for sys_fadvise64/fadvise64_64
- */
-#ifndef CONFIG_64BIT
-
-SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, offset_high, u32, offset_low,
-		size_t, len, int, advice)
-{
-	return sys_fadvise64(fd, (u64) offset_high << 32 | offset_low,
-			len, advice);
-}
-
-struct fadvise64_64_args {
-	int fd;
-	long long offset;
-	long long len;
-	int advice;
-};
-
-SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, args)
-{
-	struct fadvise64_64_args a;
-
-	if ( copy_from_user(&a, args, sizeof(a)) )
-		return -EFAULT;
-	return sys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
-}
-
-/*
- * This is a wrapper to call sys_fallocate(). For 31 bit s390 the last
- * 64 bit argument "len" is split into the upper and lower 32 bits. The
- * system call wrapper in the user space loads the value to %r6/%r7.
- * The code in entry.S keeps the values in %r2 - %r6 where they are and
- * stores %r7 to 96(%r15). But the standard C linkage requires that
- * the whole 64 bit value for len is stored on the stack and doesn't
- * use %r6 at all. So s390_fallocate has to convert the arguments from
- *   %r2: fd, %r3: mode, %r4/%r5: offset, %r6/96(%r15)-99(%r15): len
- * to
- *   %r2: fd, %r3: mode, %r4/%r5: offset, 96(%r15)-103(%r15): len
- */
-SYSCALL_DEFINE5(s390_fallocate, int, fd, int, mode, loff_t, offset,
-			       u32, len_high, u32, len_low)
-{
-	return sys_fallocate(fd, mode, offset, ((u64)len_high << 32) | len_low);
-}
-#endif

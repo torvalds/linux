@@ -39,7 +39,7 @@ MODULE_PARM_DESC(debug,
 
 #define DRIVER_VERSION "0.1"
 #define DRIVER_NAME "flexcop-pci"
-#define DRIVER_AUTHOR "Patrick Boettcher <patrick.boettcher@desy.de>"
+#define DRIVER_AUTHOR "Patrick Boettcher <patrick.boettcher@posteo.de>"
 
 struct flexcop_pci {
 	struct pci_dev *pdev;
@@ -157,7 +157,7 @@ static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 	if (v.irq_20c.Data_receiver_error)
 		deb_chk("data receiver error\n");
 	if (v.irq_20c.Continuity_error_flag)
-		deb_chk("Contunuity error flag is set\n");
+		deb_chk("Continuity error flag is set\n");
 	if (v.irq_20c.LLC_SNAP_FLAG_set)
 		deb_chk("LLC_SNAP_FLAG_set is set\n");
 	if (v.irq_20c.Transport_Error)
@@ -185,8 +185,7 @@ static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 			fc->read_ibi_reg(fc,dma1_008).dma_0x8.dma_cur_addr << 2;
 		u32 cur_pos = cur_addr - fc_pci->dma[0].dma_addr0;
 
-		deb_irq("%u irq: %08x cur_addr: %llx: cur_pos: %08x, "
-			"last_cur_pos: %08x ",
+		deb_irq("%u irq: %08x cur_addr: %llx: cur_pos: %08x, last_cur_pos: %08x ",
 				jiffies_to_usecs(jiffies - fc_pci->last_irq),
 				v.raw, (unsigned long long)cur_addr, cur_pos,
 				fc_pci->last_dma1_cur_pos);
@@ -220,8 +219,8 @@ static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 		fc_pci->last_dma1_cur_pos = cur_pos;
 		fc_pci->count++;
 	} else {
-		deb_irq("isr for flexcop called, "
-			"apparently without reason (%08x)\n", v.raw);
+		deb_irq("isr for flexcop called, apparently without reason (%08x)\n",
+			v.raw);
 		ret = IRQ_NONE;
 	}
 
@@ -319,7 +318,6 @@ static int flexcop_pci_init(struct flexcop_pci *fc_pci)
 
 err_pci_iounmap:
 	pci_iounmap(fc_pci->pdev, fc_pci->io_mem);
-	pci_set_drvdata(fc_pci->pdev, NULL);
 err_pci_release_regions:
 	pci_release_regions(fc_pci->pdev);
 err_pci_disable_device:
@@ -332,7 +330,6 @@ static void flexcop_pci_exit(struct flexcop_pci *fc_pci)
 	if (fc_pci->init_state & FC_PCI_INIT) {
 		free_irq(fc_pci->pdev->irq, fc_pci);
 		pci_iounmap(fc_pci->pdev, fc_pci->io_mem);
-		pci_set_drvdata(fc_pci->pdev, NULL);
 		pci_release_regions(fc_pci->pdev);
 		pci_disable_device(fc_pci->pdev);
 	}
@@ -418,7 +415,7 @@ static void flexcop_pci_remove(struct pci_dev *pdev)
 	flexcop_device_kfree(fc_pci->fc_dev);
 }
 
-static struct pci_device_id flexcop_pci_tbl[] = {
+static const struct pci_device_id flexcop_pci_tbl[] = {
 	{ PCI_DEVICE(0x13d0, 0x2103) },
 	{ },
 };

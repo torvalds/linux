@@ -18,6 +18,8 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
+#include <plat/platsmp.h>
+
 /*
  * Write pen_release in a way that is guaranteed to be visible to all
  * observers, irrespective of whether they're taking part in coherency
@@ -27,8 +29,7 @@ static void write_pen_release(int val)
 {
 	pen_release = val;
 	smp_wmb();
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+	sync_cache_w(&pen_release);
 }
 
 static DEFINE_SPINLOCK(boot_lock);

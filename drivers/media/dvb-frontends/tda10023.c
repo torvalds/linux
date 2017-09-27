@@ -72,8 +72,7 @@ static u8 tda10023_readreg (struct tda10023_state* state, u8 reg)
 	ret = i2c_transfer (state->i2c, msg, 2);
 	if (ret != 2) {
 		int num = state->frontend.dvb ? state->frontend.dvb->num : -1;
-		printk(KERN_ERR "DVB: TDA10023(%d): %s: readreg error "
-			"(reg == 0x%02x, ret == %i)\n",
+		printk(KERN_ERR "DVB: TDA10023(%d): %s: readreg error (reg == 0x%02x, ret == %i)\n",
 			num, __func__, reg, ret);
 	}
 	return b1[0];
@@ -88,8 +87,7 @@ static int tda10023_writereg (struct tda10023_state* state, u8 reg, u8 data)
 	ret = i2c_transfer (state->i2c, &msg, 1);
 	if (ret != 1) {
 		int num = state->frontend.dvb ? state->frontend.dvb->num : -1;
-		printk(KERN_ERR "DVB: TDA10023(%d): %s, writereg error "
-			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+		printk(KERN_ERR "DVB: TDA10023(%d): %s, writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
 			num, __func__, reg, data, ret);
 	}
 	return (ret != 1) ? -EREMOTEIO : 0;
@@ -331,7 +329,7 @@ static int tda10023_set_parameters(struct dvb_frontend *fe)
 	}
 
 	/*
-	 * gcc optimizes the code bellow the same way as it would code:
+	 * gcc optimizes the code below the same way as it would code:
 	 *		 "if (qam > 5) return -EINVAL;"
 	 * Yet, the code is clearer, as it shows what QAM standards are
 	 * supported by the driver, and avoids the usage of magic numbers on
@@ -376,7 +374,8 @@ static int tda10023_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda10023_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int tda10023_read_status(struct dvb_frontend *fe,
+				enum fe_status *status)
 {
 	struct tda10023_state* state = fe->demodulator_priv;
 	int sync;
@@ -456,9 +455,9 @@ static int tda10023_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int tda10023_get_frontend(struct dvb_frontend *fe)
+static int tda10023_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda10023_state* state = fe->demodulator_priv;
 	int sync,inv;
 	s8 afc = 0;
@@ -515,7 +514,7 @@ static void tda10023_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda10023_ops;
+static const struct dvb_frontend_ops tda10023_ops;
 
 struct dvb_frontend *tda10023_attach(const struct tda10023_config *config,
 				     struct i2c_adapter *i2c,
@@ -572,7 +571,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops tda10023_ops = {
+static const struct dvb_frontend_ops tda10023_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10023 DVB-C",

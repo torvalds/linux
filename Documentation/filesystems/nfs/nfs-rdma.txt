@@ -110,10 +110,10 @@ Installation
   - Install a Linux kernel with NFS/RDMA
 
     The NFS/RDMA client and server are both included in the mainline Linux
-    kernel version 2.6.25 and later. This and other versions of the 2.6 Linux
+    kernel version 2.6.25 and later. This and other versions of the Linux
     kernel can be found at:
 
-    ftp://ftp.kernel.org/pub/linux/kernel/v2.6/
+    https://www.kernel.org/pub/linux/kernel/
 
     Download the sources and place them in an appropriate location.
 
@@ -187,8 +187,10 @@ Check RDMA and NFS Setup
     To further test the InfiniBand software stack, use IPoIB (this
     assumes you have two IB hosts named host1 and host2):
 
-    host1$ ifconfig ib0 a.b.c.x
-    host2$ ifconfig ib0 a.b.c.y
+    host1$ ip link set dev ib0 up
+    host1$ ip address add dev ib0 a.b.c.x
+    host2$ ip link set dev ib0 up
+    host2$ ip address add dev ib0 a.b.c.y
     host1$ ping a.b.c.y
     host2$ ping a.b.c.x
 
@@ -216,7 +218,7 @@ NFS/RDMA Setup
     /vol0   192.168.0.0/255.255.255.0(fsid=0,rw,async,insecure,no_root_squash)
 
     The IP address(es) is(are) the client's IPoIB address for an InfiniBand
-    HCA or the cleint's iWARP address(es) for an RNIC.
+    HCA or the client's iWARP address(es) for an RNIC.
 
     NOTE: The "insecure" option must be used because the NFS/RDMA client does
     not use a reserved port.
@@ -229,7 +231,8 @@ NFS/RDMA Setup
 
     $ modprobe ib_mthca
     $ modprobe ib_ipoib
-    $ ifconfig ib0 a.b.c.d
+    $ ip li set dev ib0 up
+    $ ip addr add dev ib0 a.b.c.d
 
     NOTE: use unique addresses for the client and server
 

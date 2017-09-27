@@ -1,15 +1,17 @@
-/* bnx2x_dump.h: Broadcom Everest network driver.
+/* bnx2x_dump.h: QLogic Everest network driver.
  *
  * Copyright (c) 2012-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
- * Unless you and Broadcom execute a separate written software license
+ * Unless you and QLogic execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
  * Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a
- * license other than the GPL, without Broadcom's express prior written
+ * software in any way with any other QLogic software provided under a
+ * license other than the GPL, without QLogic's express prior written
  * consent.
  */
 
@@ -40,7 +42,7 @@ struct	dump_header {
 	u32 dump_meta_data; /* OR of CHIP and PATH. */
 };
 
-#define BNX2X_DUMP_VERSION 0x50acff01
+#define  BNX2X_DUMP_VERSION 0x61111111
 struct reg_addr {
 	u32 addr;
 	u32 size;
@@ -1464,7 +1466,6 @@ static const struct reg_addr reg_addrs[] = {
 	{ 0x180398, 1, 0x1c, 0x924},
 	{ 0x1803a0, 5, 0x1c, 0x924},
 	{ 0x1803b4, 2, 0x18, 0x924},
-	{ 0x180400, 256, 0x3, 0xfff},
 	{ 0x181000, 4, 0x1f, 0x93c},
 	{ 0x181010, 1020, 0x1f, 0x38},
 	{ 0x182000, 4, 0x18, 0x924},
@@ -1576,7 +1577,6 @@ static const struct reg_addr reg_addrs[] = {
 	{ 0x200398, 1, 0x1c, 0x924},
 	{ 0x2003a0, 1, 0x1c, 0x924},
 	{ 0x2003a8, 2, 0x1c, 0x924},
-	{ 0x200400, 256, 0x3, 0xfff},
 	{ 0x202000, 4, 0x1f, 0x1927},
 	{ 0x202010, 2044, 0x1f, 0x1007},
 	{ 0x204000, 4, 0x18, 0x924},
@@ -1688,7 +1688,6 @@ static const struct reg_addr reg_addrs[] = {
 	{ 0x280398, 1, 0x1c, 0x924},
 	{ 0x2803a0, 1, 0x1c, 0x924},
 	{ 0x2803a8, 2, 0x1c, 0x924},
-	{ 0x280400, 256, 0x3, 0xfff},
 	{ 0x282000, 4, 0x1f, 0x9e4},
 	{ 0x282010, 2044, 0x1f, 0x1c0},
 	{ 0x284000, 4, 0x18, 0x924},
@@ -1800,7 +1799,6 @@ static const struct reg_addr reg_addrs[] = {
 	{ 0x300398, 1, 0x1c, 0x924},
 	{ 0x3003a0, 1, 0x1c, 0x924},
 	{ 0x3003a8, 2, 0x1c, 0x924},
-	{ 0x300400, 256, 0x3, 0xfff},
 	{ 0x302000, 4, 0x1f, 0xf24},
 	{ 0x302010, 2044, 0x1f, 0xe00},
 	{ 0x304000, 4, 0x18, 0x924},
@@ -2206,10 +2204,10 @@ static const struct wreg_addr wreg_addr_e3b0 = {
 	0x1b0c00, 128, 2, read_reg_e3b0, 0x1f, 0x1fff};
 
 static const unsigned int dump_num_registers[NUM_CHIPS][NUM_PRESETS] = {
-	{20782, 18567, 27975, 19729, 18311, 27719, 20836, 32391, 41799, 20812,
-	 26247, 35655, 19074},
-	{32774, 19297, 33277, 31721, 19041, 33021, 32828, 33121, 47101, 32804,
-	 26977, 40957, 35895},
+	{19758, 17543, 26951, 18705, 17287, 26695, 19812, 31367, 40775, 19788,
+	 25223, 34631, 19074},
+	{31750, 18273, 32253, 30697, 18017, 31997, 31804, 32097, 46077, 31780,
+	 25953, 39933, 35895},
 	{36527, 17928, 33697, 35474, 18700, 34466, 36581, 31752, 47521, 36557,
 	 25608, 41377, 43903},
 	{45239, 17936, 34387, 44186, 18708, 35156, 45293, 31760, 48211, 45269,

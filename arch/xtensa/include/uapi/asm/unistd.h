@@ -384,7 +384,8 @@ __SYSCALL(174, sys_chroot, 1)
 #define __NR_pivot_root 			175
 __SYSCALL(175, sys_pivot_root, 2)
 #define __NR_umount 				176
-__SYSCALL(176, sys_umount, 2)
+__SYSCALL(176, sys_oldumount, 1)
+#define __ARCH_WANT_SYS_OLDUMOUNT
 #define __NR_swapoff 				177
 __SYSCALL(177, sys_swapoff, 1)
 #define __NR_sync 				178
@@ -714,7 +715,7 @@ __SYSCALL(323, sys_process_vm_writev, 6)
 __SYSCALL(324, sys_name_to_handle_at, 5)
 #define __NR_open_by_handle_at			325
 __SYSCALL(325, sys_open_by_handle_at, 3)
-#define __NR_sync_file_range			326
+#define __NR_sync_file_range2			326
 __SYSCALL(326, sys_sync_file_range2, 6)
 #define __NR_perf_event_open			327
 __SYSCALL(327, sys_perf_event_open, 5)
@@ -734,7 +735,49 @@ __SYSCALL(332, sys_finit_module, 3)
 #define __NR_accept4				333
 __SYSCALL(333, sys_accept4, 4)
 
-#define __NR_syscall_count			334
+#define __NR_sched_setattr			334
+__SYSCALL(334, sys_sched_setattr, 2)
+#define __NR_sched_getattr			335
+__SYSCALL(335, sys_sched_getattr, 3)
+
+#define __NR_renameat2				336
+__SYSCALL(336, sys_renameat2, 5)
+
+#define __NR_seccomp				337
+__SYSCALL(337, sys_seccomp, 3)
+#define __NR_getrandom				338
+__SYSCALL(338, sys_getrandom, 3)
+#define __NR_memfd_create			339
+__SYSCALL(339, sys_memfd_create, 2)
+#define __NR_bpf				340
+__SYSCALL(340, sys_bpf, 3)
+#define __NR_execveat				341
+__SYSCALL(341, sys_execveat, 5)
+
+#define __NR_userfaultfd			342
+__SYSCALL(342, sys_userfaultfd, 1)
+#define __NR_membarrier				343
+__SYSCALL(343, sys_membarrier, 2)
+#define __NR_mlock2				344
+__SYSCALL(344, sys_mlock2, 3)
+#define __NR_copy_file_range			345
+__SYSCALL(345, sys_copy_file_range, 6)
+#define __NR_preadv2				346
+__SYSCALL(346, sys_preadv2, 6)
+#define __NR_pwritev2				347
+__SYSCALL(347, sys_pwritev2, 6)
+
+#define __NR_pkey_mprotect			348
+__SYSCALL(348, sys_pkey_mprotect, 4)
+#define __NR_pkey_alloc				349
+__SYSCALL(349, sys_pkey_alloc, 2)
+#define __NR_pkey_free				350
+__SYSCALL(350, sys_pkey_free, 1)
+
+#define __NR_statx				351
+__SYSCALL(351, sys_statx, 5)
+
+#define __NR_syscall_count			352
 
 /*
  * sysxtensa syscall handler

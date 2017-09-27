@@ -21,18 +21,19 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
+#include <asm/unaligned.h>
 
-#include <asm/blackfin.h>
-#include <asm/bfin_crc.h>
 #include <asm/dma.h>
 #include <asm/portmux.h>
+#include <asm/io.h>
+
+#include "bfin_crc.h"
 
 #define CRC_CCRYPTO_QUEUE_LENGTH	5
 
@@ -54,12 +55,13 @@ struct bfin_crypto_crc {
 	int			irq;
 	int			dma_ch;
 	u32			poly;
-	volatile struct crc_register *regs;
+	struct crc_register	*regs;
 
 	struct ahash_request	*req; /* current request in operation */
 	struct dma_desc_array	*sg_cpu; /* virt addr of sg dma descriptors */
 	dma_addr_t		sg_dma; /* phy addr of sg dma descriptors */
 	u8			*sg_mid_buf;
+	dma_addr_t		sg_mid_dma; /* phy addr of sg mid buffer */
 
 	struct tasklet_struct	done_task;
 	struct crypto_queue	queue; /* waiting requests */
@@ -94,26 +96,6 @@ struct bfin_crypto_crc_ctx {
 	u32			key;
 };
 
-
-/*
- * derive number of elements in scatterlist
- */
-static int sg_count(struct scatterlist *sg_list)
-{
-	struct scatterlist *sg = sg_list;
-	int sg_nents = 1;
-
-	if (sg_list == NULL)
-		return 0;
-
-	while (!sg_is_last(sg)) {
-		sg_nents++;
-		sg = scatterwalk_sg_next(sg);
-	}
-
-	return sg_nents;
-}
-
 /*
  * get element in scatter list by given index
  */
@@ -132,14 +114,13 @@ static struct scatterlist *sg_get(struct scatterlist *sg_list, unsigned int nent
 
 static int bfin_crypto_crc_init_hw(struct bfin_crypto_crc *crc, u32 key)
 {
-	crc->regs->datacntrld = 0;
-	crc->regs->control = MODE_CALC_CRC << OPMODE_OFFSET;
-	crc->regs->curresult = key;
+	writel(0, &crc->regs->datacntrld);
+	writel(MODE_CALC_CRC << OPMODE_OFFSET, &crc->regs->control);
+	writel(key, &crc->regs->curresult);
 
 	/* setup CRC interrupts */
-	crc->regs->status = CMPERRI | DCNTEXPI;
-	crc->regs->intrenset = CMPERRI | DCNTEXPI;
-	SSYNC();
+	writel(CMPERRI | DCNTEXPI, &crc->regs->status);
+	writel(CMPERRI | DCNTEXPI, &crc->regs->intrenset);
 
 	return 0;
 }
@@ -159,7 +140,7 @@ static int bfin_crypto_crc_init(struct ahash_request *req)
 	}
 	spin_unlock_bh(&crc_list.lock);
 
-	if (sg_count(req->src) > CRC_MAX_DMA_DESC) {
+	if (sg_nents(req->src) > CRC_MAX_DMA_DESC) {
 		dev_dbg(ctx->crc->dev, "init: requested sg list is too big > %d\n",
 			CRC_MAX_DMA_DESC);
 		return -EINVAL;
@@ -195,7 +176,6 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 	dma_map_sg(crc->dev, ctx->sg, ctx->sg_nents, DMA_TO_DEVICE);
 
 	for_each_sg(ctx->sg, sg, ctx->sg_nents, j) {
-		dma_config = DMAFLOW_ARRAY | RESTART | NDSIZE_3 | DMAEN | PSIZE_32;
 		dma_addr = sg_dma_address(sg);
 		/* deduce extra bytes in last sg */
 		if (sg_is_last(sg))
@@ -208,12 +188,29 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 			   bytes in current sg buffer. Move addr of current
 			   sg and deduce the length of current sg.
 			 */
-			memcpy(crc->sg_mid_buf +((i-1) << 2) + mid_dma_count,
-				(void *)dma_addr,
+			memcpy(crc->sg_mid_buf +(i << 2) + mid_dma_count,
+				sg_virt(sg),
 				CHKSUM_DIGEST_SIZE - mid_dma_count);
 			dma_addr += CHKSUM_DIGEST_SIZE - mid_dma_count;
 			dma_count -= CHKSUM_DIGEST_SIZE - mid_dma_count;
+
+			dma_config = DMAFLOW_ARRAY | RESTART | NDSIZE_3 |
+				DMAEN | PSIZE_32 | WDSIZE_32;
+
+			/* setup new dma descriptor for next middle dma */
+			crc->sg_cpu[i].start_addr = crc->sg_mid_dma + (i << 2);
+			crc->sg_cpu[i].cfg = dma_config;
+			crc->sg_cpu[i].x_count = 1;
+			crc->sg_cpu[i].x_modify = CHKSUM_DIGEST_SIZE;
+			dev_dbg(crc->dev, "%d: crc_dma: start_addr:0x%lx, "
+				"cfg:0x%x, x_count:0x%x, x_modify:0x%x\n",
+				i, crc->sg_cpu[i].start_addr,
+				crc->sg_cpu[i].cfg, crc->sg_cpu[i].x_count,
+				crc->sg_cpu[i].x_modify);
+			i++;
 		}
+
+		dma_config = DMAFLOW_ARRAY | RESTART | NDSIZE_3 | DMAEN | PSIZE_32;
 		/* chop current sg dma len to multiple of 32 bits */
 		mid_dma_count = dma_count % 4;
 		dma_count &= ~0x3;
@@ -236,7 +233,7 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 		crc->sg_cpu[i].x_count = dma_count;
 		crc->sg_cpu[i].x_modify = dma_mod;
 		dev_dbg(crc->dev, "%d: crc_dma: start_addr:0x%lx, "
-			"cfg:0x%lx, x_count:0x%lx, x_modify:0x%lx\n",
+			"cfg:0x%x, x_count:0x%x, x_modify:0x%x\n",
 			i, crc->sg_cpu[i].start_addr,
 			crc->sg_cpu[i].cfg, crc->sg_cpu[i].x_count,
 			crc->sg_cpu[i].x_modify);
@@ -244,24 +241,9 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 
 		if (mid_dma_count) {
 			/* copy extra bytes to next middle dma buffer */
-			dma_config = DMAFLOW_ARRAY | RESTART | NDSIZE_3 |
-				DMAEN | PSIZE_32 | WDSIZE_32;
 			memcpy(crc->sg_mid_buf + (i << 2),
-				(void *)(dma_addr + (dma_count << 2)),
+				(u8*)sg_virt(sg) + (dma_count << 2),
 				mid_dma_count);
-			/* setup new dma descriptor for next middle dma */
-			crc->sg_cpu[i].start_addr = dma_map_single(crc->dev,
-					crc->sg_mid_buf + (i << 2),
-					CHKSUM_DIGEST_SIZE, DMA_TO_DEVICE);
-			crc->sg_cpu[i].cfg = dma_config;
-			crc->sg_cpu[i].x_count = 1;
-			crc->sg_cpu[i].x_modify = CHKSUM_DIGEST_SIZE;
-			dev_dbg(crc->dev, "%d: crc_dma: start_addr:0x%lx, "
-				"cfg:0x%lx, x_count:0x%lx, x_modify:0x%lx\n",
-				i, crc->sg_cpu[i].start_addr,
-				crc->sg_cpu[i].cfg, crc->sg_cpu[i].x_count,
-				crc->sg_cpu[i].x_modify);
-			i++;
 		}
 	}
 
@@ -275,7 +257,7 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 		crc->sg_cpu[i].x_count = 1;
 		crc->sg_cpu[i].x_modify = CHKSUM_DIGEST_SIZE;
 		dev_dbg(crc->dev, "%d: crc_dma: start_addr:0x%lx, "
-			"cfg:0x%lx, x_count:0x%lx, x_modify:0x%lx\n",
+			"cfg:0x%x, x_count:0x%x, x_modify:0x%x\n",
 			i, crc->sg_cpu[i].start_addr,
 			crc->sg_cpu[i].cfg, crc->sg_cpu[i].x_count,
 			crc->sg_cpu[i].x_modify);
@@ -285,17 +267,12 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 	if (i == 0)
 		return;
 
-	flush_dcache_range((unsigned int)crc->sg_cpu,
-			(unsigned int)crc->sg_cpu +
-			i * sizeof(struct dma_desc_array));
-
 	/* Set the last descriptor to stop mode */
 	crc->sg_cpu[i - 1].cfg &= ~(DMAFLOW | NDSIZE);
 	crc->sg_cpu[i - 1].cfg |= DI_EN;
 	set_dma_curr_desc_addr(crc->dma_ch, (unsigned long *)crc->sg_dma);
 	set_dma_x_count(crc->dma_ch, 0);
 	set_dma_x_modify(crc->dma_ch, 0);
-	SSYNC();
 	set_dma_config(crc->dma_ch, dma_config);
 }
 
@@ -309,6 +286,7 @@ static int bfin_crypto_crc_handle_queue(struct bfin_crypto_crc *crc,
 	int nsg, i, j;
 	unsigned int nextlen;
 	unsigned long flags;
+	u32 reg;
 
 	spin_lock_irqsave(&crc->lock, flags);
 	if (req)
@@ -372,14 +350,14 @@ static int bfin_crypto_crc_handle_queue(struct bfin_crypto_crc *crc,
 			sg_init_table(ctx->bufsl, nsg);
 			sg_set_buf(ctx->bufsl, ctx->buflast, ctx->buflast_len);
 			if (nsg > 1)
-				scatterwalk_sg_chain(ctx->bufsl, nsg,
-						req->src);
+				sg_chain(ctx->bufsl, nsg, req->src);
 			ctx->sg = ctx->bufsl;
 		} else
 			ctx->sg = req->src;
 
 		/* Chop crc buffer size to multiple of 32 bit */
-		nsg = ctx->sg_nents = sg_count(ctx->sg);
+		nsg = sg_nents(ctx->sg);
+		ctx->sg_nents = nsg;
 		ctx->sg_buflen = ctx->buflast_len + req->nbytes;
 		ctx->bufnext_len = ctx->sg_buflen % 4;
 		ctx->sg_buflen &= ~0x3;
@@ -408,14 +386,14 @@ finish_update:
 		ctx->sg_buflen += CHKSUM_DIGEST_SIZE;
 
 	/* set CRC data count before start DMA */
-	crc->regs->datacnt = ctx->sg_buflen >> 2;
+	writel(ctx->sg_buflen >> 2, &crc->regs->datacnt);
 
 	/* setup and enable CRC DMA */
 	bfin_crypto_crc_config_dma(crc);
 
 	/* finally kick off CRC operation */
-	crc->regs->control |= BLKEN;
-	SSYNC();
+	reg = readl(&crc->regs->control);
+	writel(reg | BLKEN, &crc->regs->control);
 
 	return -EINPROGRESS;
 }
@@ -536,15 +514,17 @@ static void bfin_crypto_crc_done_task(unsigned long data)
 static irqreturn_t bfin_crypto_crc_handler(int irq, void *dev_id)
 {
 	struct bfin_crypto_crc *crc = dev_id;
+	u32 reg;
 
-	if (crc->regs->status & DCNTEXP) {
-		crc->regs->status = DCNTEXP;
-		SSYNC();
+	if (readl(&crc->regs->status) & DCNTEXP) {
+		writel(DCNTEXP, &crc->regs->status);
 
 		/* prepare results */
-		put_unaligned_le32(crc->regs->result, crc->req->result);
+		put_unaligned_le32(readl(&crc->regs->result),
+			crc->req->result);
 
-		crc->regs->control &= ~BLKEN;
+		reg = readl(&crc->regs->control);
+		writel(reg & ~BLKEN, &crc->regs->control);
 		crc->busy = 0;
 
 		if (crc->req->base.complete)
@@ -568,7 +548,7 @@ static int bfin_crypto_crc_suspend(struct platform_device *pdev, pm_message_t st
 	struct bfin_crypto_crc *crc = platform_get_drvdata(pdev);
 	int i = 100000;
 
-	while ((crc->regs->control & BLKEN) && --i)
+	while ((readl(&crc->regs->control) & BLKEN) && --i)
 		cpu_relax();
 
 	if (i == 0)
@@ -594,7 +574,7 @@ static int bfin_crypto_crc_probe(struct platform_device *pdev)
 	unsigned int timeout = 100000;
 	int ret;
 
-	crc = kzalloc(sizeof(*crc), GFP_KERNEL);
+	crc = devm_kzalloc(dev, sizeof(*crc), GFP_KERNEL);
 	if (!crc) {
 		dev_err(&pdev->dev, "fail to malloc bfin_crypto_crc\n");
 		return -ENOMEM;
@@ -608,44 +588,36 @@ static int bfin_crypto_crc_probe(struct platform_device *pdev)
 	crypto_init_queue(&crc->queue, CRC_CCRYPTO_QUEUE_LENGTH);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "Cannot get IORESOURCE_MEM\n");
-		ret = -ENOENT;
-		goto out_error_free_mem;
-	}
-
-	crc->regs = ioremap(res->start, resource_size(res));
-	if (!crc->regs) {
+	crc->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR((void *)crc->regs)) {
 		dev_err(&pdev->dev, "Cannot map CRC IO\n");
-		ret = -ENXIO;
-		goto out_error_free_mem;
+		return PTR_ERR((void *)crc->regs);
 	}
 
 	crc->irq = platform_get_irq(pdev, 0);
 	if (crc->irq < 0) {
 		dev_err(&pdev->dev, "No CRC DCNTEXP IRQ specified\n");
-		ret = -ENOENT;
-		goto out_error_unmap;
+		return -ENOENT;
 	}
 
-	ret = request_irq(crc->irq, bfin_crypto_crc_handler, IRQF_SHARED, dev_name(dev), crc);
+	ret = devm_request_irq(dev, crc->irq, bfin_crypto_crc_handler,
+			IRQF_SHARED, dev_name(dev), crc);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to request blackfin crc irq\n");
-		goto out_error_unmap;
+		return ret;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "No CRC DMA channel specified\n");
-		ret = -ENOENT;
-		goto out_error_irq;
+		return -ENOENT;
 	}
 	crc->dma_ch = res->start;
 
 	ret = request_dma(crc->dma_ch, dev_name(dev));
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to attach Blackfin CRC DMA channel\n");
-		goto out_error_irq;
+		return ret;
 	}
 
 	crc->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &crc->sg_dma, GFP_KERNEL);
@@ -658,31 +630,32 @@ static int bfin_crypto_crc_probe(struct platform_device *pdev)
 	 * 1 last + 1 next dma descriptors
 	 */
 	crc->sg_mid_buf = (u8 *)(crc->sg_cpu + ((CRC_MAX_DMA_DESC + 1) << 1));
+	crc->sg_mid_dma = crc->sg_dma + sizeof(struct dma_desc_array)
+			* ((CRC_MAX_DMA_DESC + 1) << 1);
 
-	crc->regs->control = 0;
-	SSYNC();
-	crc->regs->poly = crc->poly = (u32)pdev->dev.platform_data;
-	SSYNC();
+	writel(0, &crc->regs->control);
+	crc->poly = (u32)pdev->dev.platform_data;
+	writel(crc->poly, &crc->regs->poly);
 
-	while (!(crc->regs->status & LUTDONE) && (--timeout) > 0)
+	while (!(readl(&crc->regs->status) & LUTDONE) && (--timeout) > 0)
 		cpu_relax();
 
 	if (timeout == 0)
 		dev_info(&pdev->dev, "init crc poly timeout\n");
 
+	platform_set_drvdata(pdev, crc);
+
 	spin_lock(&crc_list.lock);
 	list_add(&crc->list, &crc_list.dev_list);
 	spin_unlock(&crc_list.lock);
 
-	platform_set_drvdata(pdev, crc);
-
-	ret = crypto_register_ahash(&algs);
-	if (ret) {
-		spin_lock(&crc_list.lock);
-		list_del(&crc->list);
-		spin_unlock(&crc_list.lock);
-		dev_err(&pdev->dev, "Cann't register crypto ahash device\n");
-		goto out_error_dma;
+	if (list_is_singular(&crc_list.dev_list)) {
+		ret = crypto_register_ahash(&algs);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Can't register crypto ahash device\n");
+			goto out_error_dma;
+		}
 	}
 
 	dev_info(&pdev->dev, "initialized\n");
@@ -693,12 +666,6 @@ out_error_dma:
 	if (crc->sg_cpu)
 		dma_free_coherent(&pdev->dev, PAGE_SIZE, crc->sg_cpu, crc->sg_dma);
 	free_dma(crc->dma_ch);
-out_error_irq:
-	free_irq(crc->irq, crc);
-out_error_unmap:
-	iounmap((void *)crc->regs);
-out_error_free_mem:
-	kfree(crc);
 
 	return ret;
 }
@@ -721,10 +688,6 @@ static int bfin_crypto_crc_remove(struct platform_device *pdev)
 	crypto_unregister_ahash(&algs);
 	tasklet_kill(&crc->done_task);
 	free_dma(crc->dma_ch);
-	if (crc->irq > 0)
-		free_irq(crc->irq, crc);
-	iounmap((void *)crc->regs);
-	kfree(crc);
 
 	return 0;
 }
@@ -736,7 +699,6 @@ static struct platform_driver bfin_crypto_crc_driver = {
 	.resume    = bfin_crypto_crc_resume,
 	.driver    = {
 		.name  = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 
@@ -757,7 +719,7 @@ static int __init bfin_crypto_crc_mod_init(void)
 
 	ret = platform_driver_register(&bfin_crypto_crc_driver);
 	if (ret) {
-		pr_info(KERN_ERR "unable to register driver\n");
+		pr_err("unable to register driver\n");
 		return ret;
 	}
 

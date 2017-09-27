@@ -38,24 +38,15 @@ static int db1000_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &db1000_ac97;
 	card->dev = &pdev->dev;
-	return snd_soc_register_card(card);
-}
-
-static int db1000_audio_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	snd_soc_unregister_card(card);
-	return 0;
+	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
 static struct platform_driver db1000_audio_driver = {
 	.driver	= {
 		.name	= "db1000-audio",
-		.owner	= THIS_MODULE,
 		.pm	= &snd_soc_pm_ops,
 	},
 	.probe		= db1000_audio_probe,
-	.remove		= db1000_audio_remove,
 };
 
 module_platform_driver(db1000_audio_driver);

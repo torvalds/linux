@@ -13,10 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef QT1010_H
@@ -36,7 +32,7 @@ struct qt1010_config {
  * @param cfg  tuner hw based configuration
  * @return fe  pointer on success, NULL on failure
  */
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_QT1010)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_QT1010)
 extern struct dvb_frontend *qt1010_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
 					  struct qt1010_config *cfg);

@@ -3,8 +3,10 @@
 
 #include <uapi/asm/setup.h>
 
-
 #define COMMAND_LINE_SIZE 2048
+
+#include <linux/linkage.h>
+#include <asm/page_types.h>
 
 #ifdef __i386__
 
@@ -27,6 +29,8 @@
 #include <asm/bootparam.h>
 #include <asm/x86_init.h>
 
+extern u64 relocated_ramdisk;
+
 /* Interrupt control for vSMPowered x86_64 systems */
 #ifdef CONFIG_X86_64
 void vsmp_init(void);
@@ -35,23 +39,17 @@ static inline void vsmp_init(void) { }
 #endif
 
 void setup_bios_corruption_check(void);
-
-#ifdef CONFIG_X86_VISWS
-extern void visws_early_detect(void);
-#else
-static inline void visws_early_detect(void) { }
-#endif
+void early_platform_quirks(void);
 
 extern unsigned long saved_video_mode;
 
 extern void reserve_standard_io_resources(void);
 extern void i386_reserve_resources(void);
-extern void setup_default_timer_irq(void);
 
 #ifdef CONFIG_X86_INTEL_MID
-extern void x86_mrst_early_setup(void);
+extern void x86_intel_mid_early_setup(void);
 #else
-static inline void x86_mrst_early_setup(void) { }
+static inline void x86_intel_mid_early_setup(void) { }
 #endif
 
 #ifdef CONFIG_X86_INTEL_CE
@@ -62,10 +60,24 @@ static inline void x86_ce4100_early_setup(void) { }
 
 #ifndef _SETUP
 
+#include <asm/espfix.h>
+#include <linux/kernel.h>
+
 /*
  * This is set up by the setup-routine at boot-time
  */
 extern struct boot_params boot_params;
+extern char _text[];
+
+static inline bool kaslr_enabled(void)
+{
+	return !!(boot_params.hdr.loadflags & KASLR_FLAG);
+}
+
+static inline unsigned long kaslr_offset(void)
+{
+	return (unsigned long)&_text - __START_KERNEL;
+}
 
 /*
  * Do NOT EVER look at the BIOS memory size location.
@@ -108,11 +120,11 @@ void *extend_brk(size_t size, size_t align);
 extern void probe_roms(void);
 #ifdef __i386__
 
-void __init i386_start_kernel(void);
+asmlinkage void __init i386_start_kernel(void);
 
 #else
-void __init x86_64_start_kernel(char *real_mode);
-void __init x86_64_start_reservations(char *real_mode_data);
+asmlinkage void __init x86_64_start_kernel(char *real_mode);
+asmlinkage void __init x86_64_start_reservations(char *real_mode_data);
 
 #endif /* __i386__ */
 #endif /* _SETUP */

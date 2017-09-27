@@ -28,6 +28,88 @@
 #include "ps.h"
 #include "scan.h"
 #include "wl12xx_80211.h"
+#include "hw_ops.h"
+
+#define WL18XX_LOGGER_SDIO_BUFF_MAX	(0x1020)
+#define WL18XX_DATA_RAM_BASE_ADDRESS	(0x20000000)
+#define WL18XX_LOGGER_SDIO_BUFF_ADDR	(0x40159c)
+#define WL18XX_LOGGER_BUFF_OFFSET	(sizeof(struct fw_logger_information))
+#define WL18XX_LOGGER_READ_POINT_OFFSET		(12)
+
+int wlcore_event_fw_logger(struct wl1271 *wl)
+{
+	int ret;
+	struct fw_logger_information fw_log;
+	u8  *buffer;
+	u32 internal_fw_addrbase = WL18XX_DATA_RAM_BASE_ADDRESS;
+	u32 addr = WL18XX_LOGGER_SDIO_BUFF_ADDR;
+	u32 end_buff_addr = WL18XX_LOGGER_SDIO_BUFF_ADDR +
+				WL18XX_LOGGER_BUFF_OFFSET;
+	u32 available_len;
+	u32 actual_len;
+	u32 clear_addr;
+	size_t len;
+	u32 start_loc;
+
+	buffer = kzalloc(WL18XX_LOGGER_SDIO_BUFF_MAX, GFP_KERNEL);
+	if (!buffer) {
+		wl1271_error("Fail to allocate fw logger memory");
+		fw_log.actual_buff_size = cpu_to_le32(0);
+		goto out;
+	}
+
+	ret = wlcore_read(wl, addr, buffer, WL18XX_LOGGER_SDIO_BUFF_MAX,
+			  false);
+	if (ret < 0) {
+		wl1271_error("Fail to read logger buffer, error_id = %d",
+			     ret);
+		fw_log.actual_buff_size = cpu_to_le32(0);
+		goto free_out;
+	}
+
+	memcpy(&fw_log, buffer, sizeof(fw_log));
+
+	if (le32_to_cpu(fw_log.actual_buff_size) == 0)
+		goto free_out;
+
+	actual_len = le32_to_cpu(fw_log.actual_buff_size);
+	start_loc = (le32_to_cpu(fw_log.buff_read_ptr) -
+			internal_fw_addrbase) - addr;
+	end_buff_addr += le32_to_cpu(fw_log.max_buff_size);
+	available_len = end_buff_addr -
+			(le32_to_cpu(fw_log.buff_read_ptr) -
+				 internal_fw_addrbase);
+	actual_len = min(actual_len, available_len);
+	len = actual_len;
+
+	wl12xx_copy_fwlog(wl, &buffer[start_loc], len);
+	clear_addr = addr + start_loc + le32_to_cpu(fw_log.actual_buff_size) +
+			internal_fw_addrbase;
+
+	len = le32_to_cpu(fw_log.actual_buff_size) - len;
+	if (len) {
+		wl12xx_copy_fwlog(wl,
+				  &buffer[WL18XX_LOGGER_BUFF_OFFSET],
+				  len);
+		clear_addr = addr + WL18XX_LOGGER_BUFF_OFFSET + len +
+				internal_fw_addrbase;
+	}
+
+	/* double check that clear address and write pointer are the same */
+	if (clear_addr != le32_to_cpu(fw_log.buff_write_ptr)) {
+		wl1271_error("Calculate of clear addr Clear = %x, write = %x",
+			     clear_addr, le32_to_cpu(fw_log.buff_write_ptr));
+	}
+
+	/* indicate FW about Clear buffer */
+	ret = wlcore_write32(wl, addr + WL18XX_LOGGER_READ_POINT_OFFSET,
+			     fw_log.buff_write_ptr);
+free_out:
+	kfree(buffer);
+out:
+	return le32_to_cpu(fw_log.actual_buff_size);
+}
+EXPORT_SYMBOL_GPL(wlcore_event_fw_logger);
 
 void wlcore_event_rssi_trigger(struct wl1271 *wl, s8 *metric_arr)
 {
@@ -47,7 +129,8 @@ void wlcore_event_rssi_trigger(struct wl1271 *wl, s8 *metric_arr)
 
 		vif = wl12xx_wlvif_to_vif(wlvif);
 		if (event != wlvif->last_rssi_event)
-			ieee80211_cqm_rssi_notify(vif, event, GFP_KERNEL);
+			ieee80211_cqm_rssi_notify(vif, event, metric,
+						  GFP_KERNEL);
 		wlvif->last_rssi_event = event;
 	}
 }
@@ -67,7 +150,7 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		u8 hlid;
 		struct wl1271_link *lnk;
 		for_each_set_bit(hlid, wlvif->ap.sta_hlid_map,
-				 WL12XX_MAX_LINKS) {
+				 wl->num_links) {
 			lnk = &wl->links[hlid];
 			if (!lnk->ba_bitmap)
 				continue;
@@ -139,7 +222,7 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 	wl1271_debug(DEBUG_EVENT, "%s: roles=0x%lx success=%d",
 		     __func__, roles_bitmap, success);
 
-	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+	wl12xx_for_each_wlvif(wl, wlvif) {
 		if (wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
 		    !test_bit(wlvif->role_id , &roles_bitmap))
 			continue;
@@ -150,14 +233,24 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 
 		vif = wl12xx_wlvif_to_vif(wlvif);
 
-		ieee80211_chswitch_done(vif, success);
-		cancel_delayed_work(&wlvif->channel_switch_work);
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
+			ieee80211_chswitch_done(vif, success);
+			cancel_delayed_work(&wlvif->channel_switch_work);
+		} else {
+			set_bit(WLVIF_FLAG_BEACON_DISABLED, &wlvif->flags);
+			ieee80211_csa_finish(vif);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 
 void wlcore_event_dummy_packet(struct wl1271 *wl)
 {
+	if (wl->plt) {
+		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, ignoring.");
+		return;
+	}
+
 	wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 	wl1271_tx_dummy_packet(wl);
 }
@@ -172,7 +265,7 @@ static void wlcore_disconnect_sta(struct wl1271 *wl, unsigned long sta_bitmap)
 	const u8 *addr;
 	int h;
 
-	for_each_set_bit(h, &sta_bitmap, WL12XX_MAX_LINKS) {
+	for_each_set_bit(h, &sta_bitmap, wl->num_links) {
 		bool found = false;
 		/* find the ap vif connected to this sta */
 		wl12xx_for_each_wlvif_ap(wl, wlvif) {
@@ -254,10 +347,7 @@ void wlcore_event_beacon_loss(struct wl1271 *wl, unsigned long roles_bitmap)
 					     &wlvif->connection_loss_work,
 					     msecs_to_jiffies(delay));
 
-		ieee80211_cqm_rssi_notify(
-				vif,
-				NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
-				GFP_KERNEL);
+		ieee80211_cqm_beacon_loss_notify(vif, GFP_KERNEL);
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_event_beacon_loss);
@@ -266,6 +356,7 @@ int wl1271_event_unmask(struct wl1271 *wl)
 {
 	int ret;
 
+	wl1271_debug(DEBUG_EVENT, "unmasking event_mask 0x%x", wl->event_mask);
 	ret = wl1271_acx_event_mbox_mask(wl, ~(wl->event_mask));
 	if (ret < 0)
 		return ret;

@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2010-2012 Emulex.  All rights reserved.                *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2010-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
  * modify it under the terms of version 2 of the GNU General       *
@@ -35,6 +37,7 @@
 #define LPFC_BSG_VENDOR_MENLO_DATA		9
 #define LPFC_BSG_VENDOR_DIAG_MODE_END		10
 #define LPFC_BSG_VENDOR_LINK_DIAG_TEST		11
+#define LPFC_BSG_VENDOR_FORCED_LINK_SPEED	14
 
 struct set_ct_event {
 	uint32_t command;
@@ -231,6 +234,8 @@ struct lpfc_sli_config_emb0_subsys {
 #define SLI_CONFIG_SUBSYS_FCOE		0x0C
 #define FCOE_OPCODE_READ_FCF		0x08
 #define FCOE_OPCODE_ADD_FCF		0x09
+#define FCOE_OPCODE_SET_DPORT_MODE	0x27
+#define FCOE_OPCODE_GET_DPORT_RESULTS	0x28
 };
 
 struct lpfc_sli_config_emb1_subsys {
@@ -244,6 +249,7 @@ struct lpfc_sli_config_emb1_subsys {
 #define lpfc_emb1_subcmnd_subsys_WORD	word6
 /* Subsystem COMN (0x01) OpCodes */
 #define SLI_CONFIG_SUBSYS_COMN		0x01
+#define COMN_OPCODE_GET_PROFILE_CONFIG	0xA4
 #define COMN_OPCODE_READ_OBJECT		0xAB
 #define COMN_OPCODE_WRITE_OBJECT	0xAC
 #define COMN_OPCODE_READ_OBJECT_LIST	0xAD
@@ -279,6 +285,15 @@ struct lpfc_sli_config_mbox {
 		struct lpfc_sli_config_emb0_subsys sli_config_emb0_subsys;
 		struct lpfc_sli_config_emb1_subsys sli_config_emb1_subsys;
 	} un;
+};
+
+#define LPFC_FORCED_LINK_SPEED_NOT_SUPPORTED	0
+#define LPFC_FORCED_LINK_SPEED_SUPPORTED	1
+struct get_forced_link_speed_support {
+	uint32_t command;
+};
+struct forced_link_speed_support_reply {
+	uint8_t supported;
 };
 
 /* driver only */

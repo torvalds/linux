@@ -24,10 +24,11 @@
 int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i, bw_i;
-	u32 if_freq, if_ctl;
-	u64 num;
+	int ret, bw_i;
+	unsigned int utmp;
+	u32 if_frequency;
 	u8 buf[3], bw_param;
 	u8 bw_params1[][5] = {
 		{ 0x17, 0xea, 0xaa, 0xaa, 0xaa }, /* 6 MHz */
@@ -45,8 +46,9 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 		{ 0x00085, 0x07, 0xff },
 		{ 0x00088, 0x01, 0xff },
 
-		{ 0x00070, priv->cfg.ts_mode, 0xff },
-		{ 0x000cb, priv->cfg.if_agc_polarity << 6, 0x40 },
+		{ 0x00070, priv->ts_mode, 0xff },
+		{ 0x00071, !priv->ts_clk_inv << 4, 0x10 },
+		{ 0x000cb, priv->if_agc_polarity << 6, 0x40 },
 		{ 0x000a5, 0x00, 0x01 },
 		{ 0x00082, 0x20, 0x60 },
 		{ 0x000c2, 0xc3, 0xff },
@@ -54,8 +56,10 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 		{ 0x00427, 0x41, 0xff },
 	};
 
-	dev_dbg(&priv->i2c->dev, "%s: frequency=%d bandwidth_hz=%d\n", __func__,
-			c->frequency, c->bandwidth_hz);
+	dev_dbg(&client->dev,
+		"delivery_system=%d modulation=%d frequency=%u bandwidth_hz=%u inversion=%d\n",
+		c->delivery_system, c->modulation, c->frequency,
+		c->bandwidth_hz, c->inversion);
 
 	switch (c->bandwidth_hz) {
 	case 6000000:
@@ -79,72 +83,71 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 		fe->ops.tuner_ops.set_params(fe);
 
 	if (priv->delivery_system != SYS_DVBT) {
-		for (i = 0; i < ARRAY_SIZE(tab); i++) {
-			ret = cxd2820r_wr_reg_mask(priv, tab[i].reg,
-				tab[i].val, tab[i].mask);
-			if (ret)
-				goto error;
-		}
+		ret = cxd2820r_wr_reg_val_mask_tab(priv, tab, ARRAY_SIZE(tab));
+		if (ret)
+			goto error;
 	}
 
 	priv->delivery_system = SYS_DVBT;
-	priv->ber_running = 0; /* tune stops BER counter */
+	priv->ber_running = false; /* tune stops BER counter */
 
 	/* program IF frequency */
 	if (fe->ops.tuner_ops.get_if_frequency) {
-		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_frequency);
 		if (ret)
 			goto error;
-	} else
-		if_freq = 0;
+		dev_dbg(&client->dev, "if_frequency=%u\n", if_frequency);
+	} else {
+		ret = -EINVAL;
+		goto error;
+	}
 
-	dev_dbg(&priv->i2c->dev, "%s: if_freq=%d\n", __func__, if_freq);
-
-	num = if_freq / 1000; /* Hz => kHz */
-	num *= 0x1000000;
-	if_ctl = cxd2820r_div_u64_round_closest(num, 41000);
-	buf[0] = ((if_ctl >> 16) & 0xff);
-	buf[1] = ((if_ctl >>  8) & 0xff);
-	buf[2] = ((if_ctl >>  0) & 0xff);
-
-	ret = cxd2820r_wr_regs(priv, 0x000b6, buf, 3);
+	utmp = DIV_ROUND_CLOSEST_ULL((u64)if_frequency * 0x1000000, CXD2820R_CLK);
+	buf[0] = (utmp >> 16) & 0xff;
+	buf[1] = (utmp >>  8) & 0xff;
+	buf[2] = (utmp >>  0) & 0xff;
+	ret = regmap_bulk_write(priv->regmap[0], 0x00b6, buf, 3);
 	if (ret)
 		goto error;
 
-	ret = cxd2820r_wr_regs(priv, 0x0009f, bw_params1[bw_i], 5);
+	ret = regmap_bulk_write(priv->regmap[0], 0x009f, bw_params1[bw_i], 5);
 	if (ret)
 		goto error;
 
-	ret = cxd2820r_wr_reg_mask(priv, 0x000d7, bw_param << 6, 0xc0);
+	ret = regmap_update_bits(priv->regmap[0], 0x00d7, 0xc0, bw_param << 6);
 	if (ret)
 		goto error;
 
-	ret = cxd2820r_wr_regs(priv, 0x000d9, bw_params2[bw_i], 2);
+	ret = regmap_bulk_write(priv->regmap[0], 0x00d9, bw_params2[bw_i], 2);
 	if (ret)
 		goto error;
 
-	ret = cxd2820r_wr_reg(priv, 0x000ff, 0x08);
+	ret = regmap_write(priv->regmap[0], 0x00ff, 0x08);
 	if (ret)
 		goto error;
 
-	ret = cxd2820r_wr_reg(priv, 0x000fe, 0x01);
+	ret = regmap_write(priv->regmap[0], 0x00fe, 0x01);
 	if (ret)
 		goto error;
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
-int cxd2820r_get_frontend_t(struct dvb_frontend *fe)
+int cxd2820r_get_frontend_t(struct dvb_frontend *fe,
+			    struct dtv_frontend_properties *c)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct i2c_client *client = priv->client[0];
 	int ret;
+	unsigned int utmp;
 	u8 buf[2];
 
-	ret = cxd2820r_rd_regs(priv, 0x0002f, buf, sizeof(buf));
+	dev_dbg(&client->dev, "\n");
+
+	ret = regmap_bulk_read(priv->regmap[0], 0x002f, buf, sizeof(buf));
 	if (ret)
 		goto error;
 
@@ -235,11 +238,11 @@ int cxd2820r_get_frontend_t(struct dvb_frontend *fe)
 		break;
 	}
 
-	ret = cxd2820r_rd_reg(priv, 0x007c6, &buf[0]);
+	ret = regmap_read(priv->regmap[0], 0x07c6, &utmp);
 	if (ret)
 		goto error;
 
-	switch ((buf[0] >> 0) & 0x01) {
+	switch ((utmp >> 0) & 0x01) {
 	case 0:
 		c->inversion = INVERSION_OFF;
 		break;
@@ -250,169 +253,158 @@ int cxd2820r_get_frontend_t(struct dvb_frontend *fe)
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
-int cxd2820r_read_ber_t(struct dvb_frontend *fe, u32 *ber)
+int cxd2820r_read_status_t(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
-	u8 buf[3], start_ber = 0;
-	*ber = 0;
+	unsigned int utmp, utmp1, utmp2;
+	u8 buf[3];
 
-	if (priv->ber_running) {
-		ret = cxd2820r_rd_regs(priv, 0x00076, buf, sizeof(buf));
-		if (ret)
-			goto error;
+	/* Lock detection */
+	ret = regmap_bulk_read(priv->regmap[0], 0x0010, &buf[0], 1);
+	if (ret)
+		goto error;
+	ret = regmap_bulk_read(priv->regmap[0], 0x0073, &buf[1], 1);
+	if (ret)
+		goto error;
 
-		if ((buf[2] >> 7) & 0x01 || (buf[2] >> 4) & 0x01) {
-			*ber = (buf[2] & 0x0f) << 16 | buf[1] << 8 | buf[0];
-			start_ber = 1;
-		}
+	utmp1 = (buf[0] >> 0) & 0x07;
+	utmp2 = (buf[1] >> 3) & 0x01;
+
+	if (utmp1 == 6 && utmp2 == 1) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			  FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+	} else if (utmp1 == 6 || utmp2 == 1) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			  FE_HAS_VITERBI | FE_HAS_SYNC;
 	} else {
-		priv->ber_running = 1;
-		start_ber = 1;
+		*status = 0;
 	}
 
-	if (start_ber) {
-		/* (re)start BER */
-		ret = cxd2820r_wr_reg(priv, 0x00079, 0x01);
+	dev_dbg(&client->dev, "status=%02x raw=%*ph sync=%u ts=%u\n",
+		*status, 2, buf, utmp1, utmp2);
+
+	/* Signal strength */
+	if (*status & FE_HAS_SIGNAL) {
+		unsigned int strength;
+
+		ret = regmap_bulk_read(priv->regmap[0], 0x0026, buf, 2);
 		if (ret)
 			goto error;
+
+		utmp = buf[0] << 8 | buf[1] << 0;
+		utmp = ~utmp & 0x0fff;
+		/* Scale value to 0x0000-0xffff */
+		strength = utmp << 4 | utmp >> 8;
+
+		c->strength.len = 1;
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = strength;
+	} else {
+		c->strength.len = 1;
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
-	return ret;
-error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
+	/* CNR */
+	if (*status & FE_HAS_VITERBI) {
+		unsigned int cnr;
 
-int cxd2820r_read_signal_strength_t(struct dvb_frontend *fe,
-	u16 *strength)
-{
-	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
-	u8 buf[2];
-	u16 tmp;
-
-	ret = cxd2820r_rd_regs(priv, 0x00026, buf, sizeof(buf));
-	if (ret)
-		goto error;
-
-	tmp = (buf[0] & 0x0f) << 8 | buf[1];
-	tmp = ~tmp & 0x0fff;
-
-	/* scale value to 0x0000-0xffff from 0x0000-0x0fff */
-	*strength = tmp * 0xffff / 0x0fff;
-
-	return ret;
-error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
-
-int cxd2820r_read_snr_t(struct dvb_frontend *fe, u16 *snr)
-{
-	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
-	u8 buf[2];
-	u16 tmp;
-	/* report SNR in dB * 10 */
-
-	ret = cxd2820r_rd_regs(priv, 0x00028, buf, sizeof(buf));
-	if (ret)
-		goto error;
-
-	tmp = (buf[0] & 0x1f) << 8 | buf[1];
-	#define CXD2820R_LOG10_8_24 15151336 /* log10(8) << 24 */
-	if (tmp)
-		*snr = (intlog10(tmp) - CXD2820R_LOG10_8_24) / ((1 << 24)
-			/ 100);
-	else
-		*snr = 0;
-
-	dev_dbg(&priv->i2c->dev, "%s: dBx10=%d val=%04x\n", __func__, *snr,
-			tmp);
-
-	return ret;
-error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
-
-int cxd2820r_read_ucblocks_t(struct dvb_frontend *fe, u32 *ucblocks)
-{
-	*ucblocks = 0;
-	/* no way to read ? */
-	return 0;
-}
-
-int cxd2820r_read_status_t(struct dvb_frontend *fe, fe_status_t *status)
-{
-	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
-	u8 buf[4];
-	*status = 0;
-
-	ret = cxd2820r_rd_reg(priv, 0x00010, &buf[0]);
-	if (ret)
-		goto error;
-
-	if ((buf[0] & 0x07) == 6) {
-		ret = cxd2820r_rd_reg(priv, 0x00073, &buf[1]);
+		ret = regmap_bulk_read(priv->regmap[0], 0x002c, buf, 2);
 		if (ret)
 			goto error;
 
-		if (((buf[1] >> 3) & 0x01) == 1) {
-			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
-				FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
-		} else {
-			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
-				FE_HAS_VITERBI | FE_HAS_SYNC;
-		}
+		utmp = buf[0] << 8 | buf[1] << 0;
+		if (utmp)
+			cnr = div_u64((u64)(intlog10(utmp)
+				      - intlog10(32000 - utmp) + 55532585)
+				      * 10000, (1 << 24));
+		else
+			cnr = 0;
+
+		c->cnr.len = 1;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		c->cnr.stat[0].svalue = cnr;
 	} else {
-		ret = cxd2820r_rd_reg(priv, 0x00014, &buf[2]);
-		if (ret)
-			goto error;
+		c->cnr.len = 1;
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
 
-		if ((buf[2] & 0x0f) >= 4) {
-			ret = cxd2820r_rd_reg(priv, 0x00a14, &buf[3]);
+	/* BER */
+	if (*status & FE_HAS_SYNC) {
+		unsigned int post_bit_error;
+		bool start_ber;
+
+		if (priv->ber_running) {
+			ret = regmap_bulk_read(priv->regmap[0], 0x0076, buf, 3);
 			if (ret)
 				goto error;
 
-			if (((buf[3] >> 4) & 0x01) == 1)
-				*status |= FE_HAS_SIGNAL;
+			if ((buf[2] >> 7) & 0x01) {
+				post_bit_error = buf[2] << 16 | buf[1] << 8 |
+						 buf[0] << 0;
+				post_bit_error &= 0x0fffff;
+				start_ber = true;
+			} else {
+				post_bit_error = 0;
+				start_ber = false;
+			}
+		} else {
+			post_bit_error = 0;
+			start_ber = true;
 		}
-	}
 
-	dev_dbg(&priv->i2c->dev, "%s: lock=%*ph\n", __func__, 4, buf);
+		if (start_ber) {
+			ret = regmap_write(priv->regmap[0], 0x0079, 0x01);
+			if (ret)
+				goto error;
+			priv->ber_running = true;
+		}
+
+		priv->post_bit_error += post_bit_error;
+
+		c->post_bit_error.len = 1;
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue = priv->post_bit_error;
+	} else {
+		c->post_bit_error.len = 1;
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 int cxd2820r_init_t(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 	int ret;
 
-	ret = cxd2820r_wr_reg(priv, 0x00085, 0x07);
+	dev_dbg(&client->dev, "\n");
+
+	ret = regmap_write(priv->regmap[0], 0x0085, 0x07);
 	if (ret)
 		goto error;
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 int cxd2820r_sleep_t(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret, i;
+	struct i2c_client *client = priv->client[0];
+	int ret;
 	struct reg_val_mask tab[] = {
 		{ 0x000ff, 0x1f, 0xff },
 		{ 0x00085, 0x00, 0xff },
@@ -421,20 +413,17 @@ int cxd2820r_sleep_t(struct dvb_frontend *fe)
 		{ 0x00080, 0x00, 0xff },
 	};
 
-	dev_dbg(&priv->i2c->dev, "%s\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	priv->delivery_system = SYS_UNDEFINED;
 
-	for (i = 0; i < ARRAY_SIZE(tab); i++) {
-		ret = cxd2820r_wr_reg_mask(priv, tab[i].reg, tab[i].val,
-			tab[i].mask);
-		if (ret)
-			goto error;
-	}
+	ret = cxd2820r_wr_reg_val_mask_tab(priv, tab, ARRAY_SIZE(tab));
+	if (ret)
+		goto error;
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 

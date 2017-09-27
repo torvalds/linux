@@ -48,7 +48,6 @@ void release_and_free_resource(struct resource *res)
 		kfree(res);
 	}
 }
-
 EXPORT_SYMBOL(release_and_free_resource);
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
@@ -71,6 +70,7 @@ void __snd_printk(unsigned int level, const char *path, int line,
 	int kern_level;
 	struct va_format vaf;
 	char verbose_fmt[] = KERN_DEFAULT "ALSA %s:%d %pV";
+	bool level_found = false;
 #endif
 
 #ifdef CONFIG_SND_DEBUG
@@ -83,15 +83,22 @@ void __snd_printk(unsigned int level, const char *path, int line,
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	kern_level = printk_get_level(format);
-	if (kern_level) {
-		const char *end_of_header = printk_skip_level(format);
-		memcpy(verbose_fmt, format, end_of_header - format);
-		vaf.fmt = end_of_header;
-	} else if (level)
-		memcpy(verbose_fmt, KERN_DEBUG, sizeof(KERN_DEBUG) - 1);
-	printk(verbose_fmt, sanity_file_name(path), line, &vaf);
+	while ((kern_level = printk_get_level(vaf.fmt)) != 0) {
+		const char *end_of_header = printk_skip_level(vaf.fmt);
 
+		/* Ignore KERN_CONT. We print filename:line for each piece. */
+		if (kern_level >= '0' && kern_level <= '7') {
+			memcpy(verbose_fmt, vaf.fmt, end_of_header - vaf.fmt);
+			level_found = true;
+		}
+
+		vaf.fmt = end_of_header;
+	}
+
+	if (!level_found && level)
+		memcpy(verbose_fmt, KERN_DEBUG, sizeof(KERN_DEBUG) - 1);
+
+	printk(verbose_fmt, sanity_file_name(path), line, &vaf);
 #else
 	vprintk(format, args);
 #endif
@@ -145,6 +152,8 @@ EXPORT_SYMBOL(snd_pci_quirk_lookup_id);
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list)
 {
+	if (!pci)
+		return NULL;
 	return snd_pci_quirk_lookup_id(pci->subsystem_vendor,
 				       pci->subsystem_device,
 				       list);

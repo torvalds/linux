@@ -17,13 +17,13 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
-
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-
 #include <linux/list.h>
 
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
+
+#include "omap_drv.h"
 
 /*
  * encoder funcs
@@ -51,6 +51,7 @@ struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder)
 static void omap_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+
 	drm_encoder_cleanup(encoder);
 	kfree(omap_encoder);
 }
@@ -59,73 +60,50 @@ static const struct drm_encoder_funcs omap_encoder_funcs = {
 	.destroy = omap_encoder_destroy,
 };
 
-/*
- * The CRTC drm_crtc_helper_set_mode() doesn't really give us the right
- * order.. the easiest way to work around this for now is to make all
- * the encoder-helper's no-op's and have the omap_crtc code take care
- * of the sequencing and call us in the right points.
- *
- * Eventually to handle connecting CRTCs to different encoders properly,
- * either the CRTC helpers need to change or we need to replace
- * drm_crtc_helper_set_mode(), but lets wait until atomic-modeset for
- * that.
- */
-
-static void omap_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-}
-
-static bool omap_encoder_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void omap_encoder_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = encoder->dev;
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct drm_connector *connector;
+	bool hdmi_mode;
+	int r;
+
+	hdmi_mode = false;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			hdmi_mode = omap_connector_get_hdmi_mode(connector);
+			break;
+		}
+	}
+
+	if (dssdev->driver->set_hdmi_mode)
+		dssdev->driver->set_hdmi_mode(dssdev, hdmi_mode);
+
+	if (hdmi_mode && dssdev->driver->set_hdmi_infoframe) {
+		struct hdmi_avi_infoframe avi;
+
+		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode,
+							     false);
+		if (r == 0)
+			dssdev->driver->set_hdmi_infoframe(dssdev, &avi);
+	}
 }
 
-static void omap_encoder_prepare(struct drm_encoder *encoder)
-{
-}
-
-static void omap_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
-static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
-	.dpms = omap_encoder_dpms,
-	.mode_fixup = omap_encoder_mode_fixup,
-	.mode_set = omap_encoder_mode_set,
-	.prepare = omap_encoder_prepare,
-	.commit = omap_encoder_commit,
-};
-
-/*
- * Instead of relying on the helpers for modeset, the omap_crtc code
- * calls these functions in the proper sequence.
- */
-
-int omap_encoder_set_enabled(struct drm_encoder *encoder, bool enabled)
+static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->dssdev;
 	struct omap_dss_driver *dssdrv = dssdev->driver;
 
-	if (enabled) {
-		return dssdrv->enable(dssdev);
-	} else {
-		dssdrv->disable(dssdev);
-		return 0;
-	}
+	dssdrv->disable(dssdev);
 }
 
-int omap_encoder_update(struct drm_encoder *encoder,
-		struct omap_overlay_manager *mgr,
-		struct omap_video_timings *timings)
+static int omap_encoder_update(struct drm_encoder *encoder,
+			       enum omap_channel channel,
+			       struct videomode *vm)
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
@@ -133,16 +111,14 @@ int omap_encoder_update(struct drm_encoder *encoder,
 	struct omap_dss_driver *dssdrv = dssdev->driver;
 	int ret;
 
-	dssdev->output->manager = mgr;
-
 	if (dssdrv->check_timings) {
-		ret = dssdrv->check_timings(dssdev, timings);
+		ret = dssdrv->check_timings(dssdev, vm);
 	} else {
-		struct omap_video_timings t = {0};
+		struct videomode t = {0};
 
 		dssdrv->get_timings(dssdev, &t);
 
-		if (memcmp(timings, &t, sizeof(struct omap_video_timings)))
+		if (memcmp(vm, &t, sizeof(*vm)))
 			ret = -EINVAL;
 		else
 			ret = 0;
@@ -154,10 +130,41 @@ int omap_encoder_update(struct drm_encoder *encoder,
 	}
 
 	if (dssdrv->set_timings)
-		dssdrv->set_timings(dssdev, timings);
+		dssdrv->set_timings(dssdev, vm);
 
 	return 0;
 }
+
+static void omap_encoder_enable(struct drm_encoder *encoder)
+{
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_driver *dssdrv = dssdev->driver;
+	int r;
+
+	omap_encoder_update(encoder, omap_crtc_channel(encoder->crtc),
+			    omap_crtc_timings(encoder->crtc));
+
+	r = dssdrv->enable(dssdev);
+	if (r)
+		dev_err(encoder->dev->dev,
+			"Failed to enable display '%s': %d\n",
+			dssdev->name, r);
+}
+
+static int omap_encoder_atomic_check(struct drm_encoder *encoder,
+				     struct drm_crtc_state *crtc_state,
+				     struct drm_connector_state *conn_state)
+{
+	return 0;
+}
+
+static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
+	.mode_set = omap_encoder_mode_set,
+	.disable = omap_encoder_disable,
+	.enable = omap_encoder_enable,
+	.atomic_check = omap_encoder_atomic_check,
+};
 
 /* initialize encoder */
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
@@ -175,7 +182,7 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 	encoder = &omap_encoder->base;
 
 	drm_encoder_init(dev, encoder, &omap_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 	drm_encoder_helper_add(encoder, &omap_encoder_helper_funcs);
 
 	return encoder;

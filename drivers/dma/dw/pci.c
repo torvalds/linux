@@ -15,16 +15,22 @@
 
 #include "internal.h"
 
-static struct dw_dma_platform_data dw_pci_pdata = {
-	.is_private = 1,
+static struct dw_dma_platform_data mrfld_pdata = {
+	.nr_channels = 8,
+	.is_private = true,
+	.is_memcpy = true,
+	.is_idma32 = true,
 	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
 	.chan_priority = CHAN_PRIORITY_ASCENDING,
+	.block_size = 131071,
+	.nr_masters = 1,
+	.data_width = {4},
 };
 
 static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
+	const struct dw_dma_platform_data *pdata = (void *)pid->driver_data;
 	struct dw_dma_chip *chip;
-	struct dw_dma_platform_data *pdata = (void *)pid->driver_data;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -53,10 +59,12 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 		return -ENOMEM;
 
 	chip->dev = &pdev->dev;
+	chip->id = pdev->devfn;
 	chip->regs = pcim_iomap_table(pdev)[0];
 	chip->irq = pdev->irq;
+	chip->pdata = pdata;
 
-	ret = dw_dma_probe(chip, pdata);
+	ret = dw_dma_probe(chip);
 	if (ret)
 		return ret;
 
@@ -75,14 +83,51 @@ static void dw_pci_remove(struct pci_dev *pdev)
 		dev_warn(&pdev->dev, "can't remove device properly: %d\n", ret);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dw_pci_id_table) = {
-	/* Medfield */
-	{ PCI_VDEVICE(INTEL, 0x0827), (kernel_ulong_t)&dw_pci_pdata },
-	{ PCI_VDEVICE(INTEL, 0x0830), (kernel_ulong_t)&dw_pci_pdata },
+#ifdef CONFIG_PM_SLEEP
+
+static int dw_pci_suspend_late(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+
+	return dw_dma_disable(chip);
+};
+
+static int dw_pci_resume_early(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+
+	return dw_dma_enable(chip);
+};
+
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops dw_pci_dev_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_pci_suspend_late, dw_pci_resume_early)
+};
+
+static const struct pci_device_id dw_pci_id_table[] = {
+	/* Medfield (GPDMA) */
+	{ PCI_VDEVICE(INTEL, 0x0827) },
 
 	/* BayTrail */
-	{ PCI_VDEVICE(INTEL, 0x0f06), (kernel_ulong_t)&dw_pci_pdata },
-	{ PCI_VDEVICE(INTEL, 0x0f40), (kernel_ulong_t)&dw_pci_pdata },
+	{ PCI_VDEVICE(INTEL, 0x0f06) },
+	{ PCI_VDEVICE(INTEL, 0x0f40) },
+
+	/* Merrifield iDMA 32-bit (GPDMA) */
+	{ PCI_VDEVICE(INTEL, 0x11a2), (kernel_ulong_t)&mrfld_pdata },
+
+	/* Braswell */
+	{ PCI_VDEVICE(INTEL, 0x2286) },
+	{ PCI_VDEVICE(INTEL, 0x22c0) },
+
+	/* Haswell */
+	{ PCI_VDEVICE(INTEL, 0x9c60) },
+
+	/* Broadwell */
+	{ PCI_VDEVICE(INTEL, 0x9ce0) },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_pci_id_table);
@@ -92,6 +137,9 @@ static struct pci_driver dw_pci_driver = {
 	.id_table	= dw_pci_id_table,
 	.probe		= dw_pci_probe,
 	.remove		= dw_pci_remove,
+	.driver	= {
+		.pm	= &dw_pci_dev_pm_ops,
+	},
 };
 
 module_pci_driver(dw_pci_driver);

@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -368,8 +364,7 @@ static void spca504_read_info(struct gspca_dev *gspca_dev)
 		info[i] = gspca_dev->usb_buf[0];
 	}
 	PDEBUG(D_STREAM,
-		"Read info: %d %d %d %d %d %d."
-		" Should be 1,0,2,2,0,0",
+		"Read info: %d %d %d %d %d %d. Should be 1,0,2,2,0,0",
 		info[0], info[1], info[2],
 		info[3], info[4], info[5]);
 }
@@ -715,7 +710,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int enable;
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x22);		/* JPEG 411 */
 	jpeg_set_qual(sd->jpeg_hdr, QUALITY);
 
@@ -1026,6 +1022,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x055f, 0xc650), BS(SPCA533, 0)},
 	{USB_DEVICE(0x05da, 0x1018), BS(SPCA504B, 0)},
 	{USB_DEVICE(0x06d6, 0x0031), BS(SPCA533, 0)},
+	{USB_DEVICE(0x06d6, 0x0041), BS(SPCA504B, 0)},
 	{USB_DEVICE(0x0733, 0x1311), BS(SPCA533, 0)},
 	{USB_DEVICE(0x0733, 0x1314), BS(SPCA533, 0)},
 	{USB_DEVICE(0x0733, 0x2211), BS(SPCA533, 0)},

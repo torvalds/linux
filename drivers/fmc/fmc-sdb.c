@@ -127,6 +127,30 @@ int fmc_free_sdb_tree(struct fmc_device *fmc)
 EXPORT_SYMBOL(fmc_free_sdb_tree);
 
 /* This helper calls reprogram and inizialized sdb as well */
+int fmc_reprogram_raw(struct fmc_device *fmc, struct fmc_driver *d,
+		      void *gw, unsigned long len, int sdb_entry)
+{
+	int ret;
+
+	ret = fmc->op->reprogram_raw(fmc, d, gw, len);
+	if (ret < 0)
+		return ret;
+	if (sdb_entry < 0)
+		return ret;
+
+	/* We are required to find SDB at a given offset */
+	ret = fmc_scan_sdb_tree(fmc, sdb_entry);
+	if (ret < 0) {
+		dev_err(&fmc->dev, "Can't find SDB at address 0x%x\n",
+			sdb_entry);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(fmc_reprogram_raw);
+
+/* This helper calls reprogram and inizialized sdb as well */
 int fmc_reprogram(struct fmc_device *fmc, struct fmc_driver *d, char *gw,
 			 int sdb_entry)
 {
@@ -145,85 +169,15 @@ int fmc_reprogram(struct fmc_device *fmc, struct fmc_driver *d, char *gw,
 			sdb_entry);
 		return -ENODEV;
 	}
-	fmc_dump_sdb(fmc);
+
 	return 0;
 }
 EXPORT_SYMBOL(fmc_reprogram);
 
-static void __fmc_show_sdb_tree(const struct fmc_device *fmc,
-				const struct sdb_array *arr)
-{
-	int i, j, n = arr->len, level = arr->level;
-	const struct sdb_array *ap;
-
-	for (i = 0; i < n; i++) {
-		unsigned long base;
-		union  sdb_record *r;
-		struct sdb_product *p;
-		struct sdb_component *c;
-		r = &arr->record[i];
-		c = &r->dev.sdb_component;
-		p = &c->product;
-		base = 0;
-		for (ap = arr; ap; ap = ap->parent)
-			base += ap->baseaddr;
-		dev_info(&fmc->dev, "SDB: ");
-
-		for (j = 0; j < level; j++)
-			printk(KERN_CONT "   ");
-		switch (r->empty.record_type) {
-		case sdb_type_interconnect:
-			printk(KERN_CONT "%08llx:%08x %.19s\n",
-			       __be64_to_cpu(p->vendor_id),
-			       __be32_to_cpu(p->device_id),
-			       p->name);
-			break;
-		case sdb_type_device:
-			printk(KERN_CONT "%08llx:%08x %.19s (%08llx-%08llx)\n",
-			       __be64_to_cpu(p->vendor_id),
-			       __be32_to_cpu(p->device_id),
-			       p->name,
-			       __be64_to_cpu(c->addr_first) + base,
-			       __be64_to_cpu(c->addr_last) + base);
-			break;
-		case sdb_type_bridge:
-			printk(KERN_CONT "%08llx:%08x %.19s (bridge: %08llx)\n",
-			       __be64_to_cpu(p->vendor_id),
-			       __be32_to_cpu(p->device_id),
-			       p->name,
-			       __be64_to_cpu(c->addr_first) + base);
-			if (IS_ERR(arr->subtree[i])) {
-				printk(KERN_CONT "(bridge error %li)\n",
-				       PTR_ERR(arr->subtree[i]));
-				break;
-			}
-			__fmc_show_sdb_tree(fmc, arr->subtree[i]);
-			break;
-		case sdb_type_integration:
-			printk(KERN_CONT "integration\n");
-			break;
-		case sdb_type_repo_url:
-			printk(KERN_CONT "repo-url\n");
-			break;
-		case sdb_type_synthesis:
-			printk(KERN_CONT "synthesis-info\n");
-			break;
-		case sdb_type_empty:
-			printk(KERN_CONT "empty\n");
-			break;
-		default:
-			printk(KERN_CONT "UNKNOWN TYPE 0x%02x\n",
-			       r->empty.record_type);
-			break;
-		}
-	}
-}
-
 void fmc_show_sdb_tree(const struct fmc_device *fmc)
 {
-	if (!fmc->sdb)
-		return;
-	__fmc_show_sdb_tree(fmc, fmc->sdb);
+	pr_err("%s: not supported anymore, use debugfs to dump SDB\n",
+		__func__);
 }
 EXPORT_SYMBOL(fmc_show_sdb_tree);
 

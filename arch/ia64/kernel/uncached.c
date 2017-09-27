@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/efi.h>
+#include <linux/nmi.h>
 #include <linux/genalloc.h>
 #include <linux/gfp.h>
 #include <asm/page.h>
@@ -97,8 +98,8 @@ static int uncached_add_chunk(struct uncached_pool *uc_pool, int nid)
 
 	/* attempt to allocate a granule's worth of cached memory pages */
 
-	page = alloc_pages_exact_node(nid,
-				GFP_KERNEL | __GFP_ZERO | GFP_THISNODE,
+	page = __alloc_pages_node(nid,
+				GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
 				IA64_GRANULE_SHIFT-PAGE_SHIFT);
 	if (!page) {
 		mutex_unlock(&uc_pool->add_chunk_mutex);

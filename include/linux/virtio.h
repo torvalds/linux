@@ -44,6 +44,12 @@ int virtqueue_add_inbuf(struct virtqueue *vq,
 			void *data,
 			gfp_t gfp);
 
+int virtqueue_add_inbuf_ctx(struct virtqueue *vq,
+			    struct scatterlist sg[], unsigned int num,
+			    void *data,
+			    void *ctx,
+			    gfp_t gfp);
+
 int virtqueue_add_sgs(struct virtqueue *vq,
 		      struct scatterlist *sgs[],
 		      unsigned int out_sgs,
@@ -51,13 +57,16 @@ int virtqueue_add_sgs(struct virtqueue *vq,
 		      void *data,
 		      gfp_t gfp);
 
-void virtqueue_kick(struct virtqueue *vq);
+bool virtqueue_kick(struct virtqueue *vq);
 
 bool virtqueue_kick_prepare(struct virtqueue *vq);
 
-void virtqueue_notify(struct virtqueue *vq);
+bool virtqueue_notify(struct virtqueue *vq);
 
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
+
+void *virtqueue_get_buf_ctx(struct virtqueue *vq, unsigned int *len,
+			    void **ctx);
 
 void virtqueue_disable_cb(struct virtqueue *vq);
 
@@ -73,9 +82,37 @@ void *virtqueue_detach_unused_buf(struct virtqueue *vq);
 
 unsigned int virtqueue_get_vring_size(struct virtqueue *vq);
 
+bool virtqueue_is_broken(struct virtqueue *vq);
+
+const struct vring *virtqueue_get_vring(struct virtqueue *vq);
+dma_addr_t virtqueue_get_desc_addr(struct virtqueue *vq);
+dma_addr_t virtqueue_get_avail_addr(struct virtqueue *vq);
+dma_addr_t virtqueue_get_used_addr(struct virtqueue *vq);
+
+/*
+ * Legacy accessors -- in almost all cases, these are the wrong functions
+ * to use.
+ */
+static inline void *virtqueue_get_desc(struct virtqueue *vq)
+{
+	return virtqueue_get_vring(vq)->desc;
+}
+static inline void *virtqueue_get_avail(struct virtqueue *vq)
+{
+	return virtqueue_get_vring(vq)->avail;
+}
+static inline void *virtqueue_get_used(struct virtqueue *vq)
+{
+	return virtqueue_get_vring(vq)->used;
+}
+
 /**
  * virtio_device - representation of a device using virtio
  * @index: unique position on the virtio bus
+ * @failed: saved value for VIRTIO_CONFIG_S_FAILED bit (for restore)
+ * @config_enabled: configuration change reporting enabled
+ * @config_change_pending: configuration change reported while disabled
+ * @config_lock: protects configuration change reporting
  * @dev: underlying device.
  * @id: the device type identification (used to match it with a driver).
  * @config: the configuration ops for this device.
@@ -86,13 +123,16 @@ unsigned int virtqueue_get_vring_size(struct virtqueue *vq);
  */
 struct virtio_device {
 	int index;
+	bool failed;
+	bool config_enabled;
+	bool config_change_pending;
+	spinlock_t config_lock;
 	struct device dev;
 	struct virtio_device_id id;
 	const struct virtio_config_ops *config;
 	const struct vringh_config_ops *vringh_config;
 	struct list_head vqs;
-	/* Note that this is a Linux set_bit-style bitmap. */
-	unsigned long features[1];
+	u64 features;
 	void *priv;
 };
 
@@ -101,8 +141,20 @@ static inline struct virtio_device *dev_to_virtio(struct device *_dev)
 	return container_of(_dev, struct virtio_device, dev);
 }
 
+void virtio_add_status(struct virtio_device *dev, unsigned int status);
 int register_virtio_device(struct virtio_device *dev);
 void unregister_virtio_device(struct virtio_device *dev);
+
+void virtio_break_device(struct virtio_device *dev);
+
+void virtio_config_changed(struct virtio_device *dev);
+void virtio_config_disable(struct virtio_device *dev);
+void virtio_config_enable(struct virtio_device *dev);
+int virtio_finalize_features(struct virtio_device *dev);
+#ifdef CONFIG_PM_SLEEP
+int virtio_device_freeze(struct virtio_device *dev);
+int virtio_device_restore(struct virtio_device *dev);
+#endif
 
 /**
  * virtio_driver - operations for a virtio I/O driver
@@ -110,16 +162,25 @@ void unregister_virtio_device(struct virtio_device *dev);
  * @id_table: the ids serviced by this driver.
  * @feature_table: an array of feature numbers supported by this driver.
  * @feature_table_size: number of entries in the feature table array.
+ * @feature_table_legacy: same as feature_table but when working in legacy mode.
+ * @feature_table_size_legacy: number of entries in feature table legacy array.
  * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ * @scan: optional function to call after successful probe; intended
+ *    for virtio-scsi to invoke a scan.
  * @remove: the function to call when a device is removed.
  * @config_changed: optional function to call when the device configuration
  *    changes; may be called in interrupt context.
+ * @freeze: optional function to call during suspend/hibernation.
+ * @restore: optional function to call on resume.
  */
 struct virtio_driver {
 	struct device_driver driver;
 	const struct virtio_device_id *id_table;
 	const unsigned int *feature_table;
 	unsigned int feature_table_size;
+	const unsigned int *feature_table_legacy;
+	unsigned int feature_table_size_legacy;
+	int (*validate)(struct virtio_device *dev);
 	int (*probe)(struct virtio_device *dev);
 	void (*scan)(struct virtio_device *dev);
 	void (*remove)(struct virtio_device *dev);

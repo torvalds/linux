@@ -8,6 +8,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/signal.h>
 #include <linux/seq_file.h>
 
 #include <asm/addrspace.h>
@@ -19,7 +21,7 @@
 #include <asm/sgi/ioc.h>
 #include <asm/sgi/ip22.h>
 #include <asm/r4kcache.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/bootinfo.h>
 
 static unsigned int count_be_is_fixup;
@@ -338,7 +340,7 @@ static int check_microtlb(u32 hi, u32 lo, unsigned long vaddr)
 						PHYS_TO_XKSEG_UNCACHED(pte);
 				a = (a & 0x3f) << 6; /* PFN */
 				a += vaddr & ((1 << pgsz) - 1);
-				return (cpu_err_addr == a);
+				return cpu_err_addr == a;
 			}
 		}
 	}
@@ -351,7 +353,7 @@ static int check_vdma_memaddr(void)
 		u32 a = sgimc->maddronly;
 
 		if (!(sgimc->dma_ctrl & 0x100)) /* Xlate-bit clear ? */
-			return (cpu_err_addr == a);
+			return cpu_err_addr == a;
 
 		if (check_microtlb(sgimc->dtlb_hi0, sgimc->dtlb_lo0, a) ||
 		    check_microtlb(sgimc->dtlb_hi1, sgimc->dtlb_lo1, a) ||
@@ -367,7 +369,7 @@ static int check_vdma_gioaddr(void)
 	if (gio_err_stat & GIO_ERRMASK) {
 		u32 a = sgimc->gio_dma_trans;
 		a = (sgimc->gmaddronly & ~a) | (sgimc->gio_dma_sbits & a);
-		return (gio_err_addr == a);
+		return gio_err_addr == a;
 	}
 	return 0;
 }

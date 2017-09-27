@@ -27,6 +27,12 @@
 
 #define S5C73M3_SPI_DRV_NAME "S5C73M3-SPI"
 
+static const struct of_device_id s5c73m3_spi_ids[] = {
+	{ .compatible = "samsung,s5c73m3" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, s5c73m3_spi_ids);
+
 enum spi_direction {
 	SPI_DIR_RX,
 	SPI_DIR_TX
@@ -47,7 +53,7 @@ static int spi_xmit(struct spi_device *spi_dev, void *addr, const int len,
 		xfer.rx_buf = addr;
 
 	if (spi_dev == NULL) {
-		dev_err(&spi_dev->dev, "SPI device is uninitialized\n");
+		pr_err("SPI device is uninitialized\n");
 		return -ENODEV;
 	}
 
@@ -144,8 +150,7 @@ int s5c73m3_register_spi_driver(struct s5c73m3 *state)
 	spidrv->remove = s5c73m3_spi_remove;
 	spidrv->probe = s5c73m3_spi_probe;
 	spidrv->driver.name = S5C73M3_SPI_DRV_NAME;
-	spidrv->driver.bus = &spi_bus_type;
-	spidrv->driver.owner = THIS_MODULE;
+	spidrv->driver.of_match_table = s5c73m3_spi_ids;
 
 	return spi_register_driver(spidrv);
 }

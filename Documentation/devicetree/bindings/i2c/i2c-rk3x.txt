@@ -1,0 +1,68 @@
+* Rockchip RK3xxx I2C controller
+
+This driver interfaces with the native I2C controller present in Rockchip
+RK3xxx SoCs.
+
+Required properties :
+
+ - reg : Offset and length of the register set for the device
+ - compatible: should be one of the following:
+   - "rockchip,rv1108-i2c": for rv1108
+   - "rockchip,rk3066-i2c": for rk3066
+   - "rockchip,rk3188-i2c": for rk3188
+   - "rockchip,rk3228-i2c": for rk3228
+   - "rockchip,rk3288-i2c": for rk3288
+   - "rockchip,rk3328-i2c", "rockchip,rk3399-i2c": for rk3328
+   - "rockchip,rk3399-i2c": for rk3399
+ - interrupts : interrupt number
+ - clocks: See ../clock/clock-bindings.txt
+   - For older hardware (rk3066, rk3188, rk3228, rk3288):
+     - There is one clock that's used both to derive the functional clock
+       for the device and as the bus clock.
+   - For newer hardware (rk3399): specified by name
+     - "i2c": This is used to derive the functional clock.
+     - "pclk": This is the bus clock.
+
+Required on RK3066, RK3188 :
+
+ - rockchip,grf : the phandle of the syscon node for the general register
+		  file (GRF)
+ - on those SoCs an alias with the correct I2C bus ID (bit offset in the GRF)
+   is also required.
+
+Optional properties :
+
+ - clock-frequency : SCL frequency to use (in Hz). If omitted, 100kHz is used.
+ - i2c-scl-rising-time-ns : Number of nanoseconds the SCL signal takes to rise
+	(t(r) in I2C specification). If not specified this is assumed to be
+	the maximum the specification allows(1000 ns for Standard-mode,
+	300 ns for Fast-mode) which might cause slightly slower communication.
+ - i2c-scl-falling-time-ns : Number of nanoseconds the SCL signal takes to fall
+	(t(f) in the I2C specification). If not specified this is assumed to
+	be the maximum the specification allows (300 ns) which might cause
+	slightly slower communication.
+ - i2c-sda-falling-time-ns : Number of nanoseconds the SDA signal takes to fall
+	(t(f) in the I2C specification). If not specified we'll use the SCL
+	value since they are the same in nearly all cases.
+
+Example:
+
+aliases {
+	i2c0 = &i2c0;
+}
+
+i2c0: i2c@2002d000 {
+	compatible = "rockchip,rk3188-i2c";
+	reg = <0x2002d000 0x1000>;
+	interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	rockchip,grf = <&grf>;
+
+	clock-names = "i2c";
+	clocks = <&cru PCLK_I2C0>;
+
+	i2c-scl-rising-time-ns = <800>;
+	i2c-scl-falling-time-ns = <100>;
+};

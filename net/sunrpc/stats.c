@@ -55,8 +55,7 @@ static int rpc_proc_show(struct seq_file *seq, void *v) {
 		seq_printf(seq, "proc%u %u",
 					vers->number, vers->nrprocs);
 		for (j = 0; j < vers->nrprocs; j++)
-			seq_printf(seq, " %u",
-					vers->procs[j].p_count);
+			seq_printf(seq, " %u", vers->counts[j]);
 		seq_putc(seq, '\n');
 	}
 	return 0;
@@ -78,9 +77,9 @@ static const struct file_operations rpc_proc_fops = {
 /*
  * Get RPC server stats
  */
-void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
+void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp)
+{
 	const struct svc_program *prog = statp->program;
-	const struct svc_procedure *proc;
 	const struct svc_version *vers;
 	unsigned int i, j;
 
@@ -99,11 +98,12 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 			statp->rpcbadclnt);
 
 	for (i = 0; i < prog->pg_nvers; i++) {
-		if (!(vers = prog->pg_vers[i]) || !(proc = vers->vs_proc))
+		vers = prog->pg_vers[i];
+		if (!vers)
 			continue;
 		seq_printf(seq, "proc%d %u", i, vers->vs_nproc);
-		for (j = 0; j < vers->vs_nproc; j++, proc++)
-			seq_printf(seq, " %u", proc->pc_count);
+		for (j = 0; j < vers->vs_nproc; j++)
+			seq_printf(seq, " %u", vers->vs_count[j]);
 		seq_putc(seq, '\n');
 	}
 }
@@ -116,7 +116,15 @@ EXPORT_SYMBOL_GPL(svc_seq_show);
  */
 struct rpc_iostats *rpc_alloc_iostats(struct rpc_clnt *clnt)
 {
-	return kcalloc(clnt->cl_maxproc, sizeof(struct rpc_iostats), GFP_KERNEL);
+	struct rpc_iostats *stats;
+	int i;
+
+	stats = kcalloc(clnt->cl_maxproc, sizeof(*stats), GFP_KERNEL);
+	if (stats) {
+		for (i = 0; i < clnt->cl_maxproc; i++)
+			spin_lock_init(&stats[i].om_lock);
+	}
+	return stats;
 }
 EXPORT_SYMBOL_GPL(rpc_alloc_iostats);
 
@@ -132,42 +140,59 @@ void rpc_free_iostats(struct rpc_iostats *stats)
 EXPORT_SYMBOL_GPL(rpc_free_iostats);
 
 /**
- * rpc_count_iostats - tally up per-task stats
+ * rpc_count_iostats_metrics - tally up per-task stats
  * @task: completed rpc_task
- * @stats: array of stat structures
- *
- * Relies on the caller for serialization.
+ * @op_metrics: stat structure for OP that will accumulate stats from @task
  */
-void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
+void rpc_count_iostats_metrics(const struct rpc_task *task,
+			       struct rpc_iostats *op_metrics)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_iostats *op_metrics;
-	ktime_t delta;
+	ktime_t delta, now;
 
-	if (!stats || !req)
+	if (!op_metrics || !req)
 		return;
 
-	op_metrics = &stats[task->tk_msg.rpc_proc->p_statidx];
+	now = ktime_get();
+	spin_lock(&op_metrics->om_lock);
 
 	op_metrics->om_ops++;
-	op_metrics->om_ntrans += req->rq_ntrans;
+	/* kernel API: om_ops must never become larger than om_ntrans */
+	op_metrics->om_ntrans += max(req->rq_ntrans, 1);
 	op_metrics->om_timeouts += task->tk_timeouts;
 
 	op_metrics->om_bytes_sent += req->rq_xmit_bytes_sent;
 	op_metrics->om_bytes_recv += req->rq_reply_bytes_recvd;
 
-	delta = ktime_sub(req->rq_xtime, task->tk_start);
-	op_metrics->om_queue = ktime_add(op_metrics->om_queue, delta);
-
+	if (ktime_to_ns(req->rq_xtime)) {
+		delta = ktime_sub(req->rq_xtime, task->tk_start);
+		op_metrics->om_queue = ktime_add(op_metrics->om_queue, delta);
+	}
 	op_metrics->om_rtt = ktime_add(op_metrics->om_rtt, req->rq_rtt);
 
-	delta = ktime_sub(ktime_get(), task->tk_start);
+	delta = ktime_sub(now, task->tk_start);
 	op_metrics->om_execute = ktime_add(op_metrics->om_execute, delta);
+
+	spin_unlock(&op_metrics->om_lock);
+}
+EXPORT_SYMBOL_GPL(rpc_count_iostats_metrics);
+
+/**
+ * rpc_count_iostats - tally up per-task stats
+ * @task: completed rpc_task
+ * @stats: array of stat structures
+ *
+ * Uses the statidx from @task
+ */
+void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
+{
+	rpc_count_iostats_metrics(task,
+				  &stats[task->tk_msg.rpc_proc->p_statidx]);
 }
 EXPORT_SYMBOL_GPL(rpc_count_iostats);
 
 static void _print_name(struct seq_file *seq, unsigned int op,
-			struct rpc_procinfo *procs)
+			const struct rpc_procinfo *procs)
 {
 	if (procs[op].p_name)
 		seq_printf(seq, "\t%12s: ", procs[op].p_name);
@@ -188,7 +213,7 @@ void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
 
 	seq_printf(seq, "\tRPC iostats version: %s  ", RPC_IOSTATS_VERS);
 	seq_printf(seq, "p/v: %u/%u (%s)\n",
-			clnt->cl_prog, clnt->cl_vers, clnt->cl_protname);
+			clnt->cl_prog, clnt->cl_vers, clnt->cl_program->name);
 
 	rcu_read_lock();
 	xprt = rcu_dereference(clnt->cl_xprt);

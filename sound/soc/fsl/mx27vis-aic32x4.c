@@ -55,16 +55,6 @@ static int mx27vis_aic32x4_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
-	u32 dai_format;
-
-	dai_format = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF |
-		SND_SOC_DAIFMT_CBM_CFM;
-
-	/* set codec DAI configuration */
-	snd_soc_dai_set_fmt(codec_dai, dai_format);
-
-	/* set cpu DAI configuration */
-	snd_soc_dai_set_fmt(cpu_dai, dai_format);
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
 				     25000000, SND_SOC_CLOCK_OUT);
@@ -83,7 +73,7 @@ static int mx27vis_aic32x4_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops mx27vis_aic32x4_snd_ops = {
+static const struct snd_soc_ops mx27vis_aic32x4_snd_ops = {
 	.hw_params	= mx27vis_aic32x4_hw_params,
 };
 
@@ -164,6 +154,8 @@ static struct snd_soc_dai_link mx27vis_aic32x4_dai = {
 	.platform_name	= "imx-ssi.0",
 	.codec_name	= "tlv320aic32x4.0-0018",
 	.cpu_dai_name	= "imx-ssi.0",
+	.dai_fmt	= SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF |
+			  SND_SOC_DAIFMT_CBM_CFM,
 	.ops		= &mx27vis_aic32x4_snd_ops,
 };
 
@@ -229,7 +221,6 @@ static int mx27vis_aic32x4_remove(struct platform_device *pdev)
 static struct platform_driver mx27vis_aic32x4_audio_driver = {
 	.driver = {
 		.name = "mx27vis",
-		.owner = THIS_MODULE,
 	},
 	.probe = mx27vis_aic32x4_probe,
 	.remove = mx27vis_aic32x4_remove,

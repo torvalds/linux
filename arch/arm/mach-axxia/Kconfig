@@ -1,0 +1,15 @@
+config ARCH_AXXIA
+	bool "LSI Axxia platforms"
+	depends on ARCH_MULTI_V7 && ARM_LPAE
+	select ARCH_DMA_ADDR_T_64BIT
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select HAVE_ARM_ARCH_TIMER
+	select MFD_SYSCON
+	select ZONE_DMA
+	help
+	  This enables support for the LSI Axxia devices.
+
+	  The LSI Axxia platforms require a Flattened Device Tree to be passed
+	  to the kernel.

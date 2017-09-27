@@ -21,18 +21,19 @@
 
 #define NDISKS		16	/* Including P and Q */
 
-const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));
+const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(PAGE_SIZE)));
 struct raid6_calls raid6_call;
 
 char *dataptrs[NDISKS];
-char data[NDISKS][PAGE_SIZE];
-char recovi[PAGE_SIZE], recovj[PAGE_SIZE];
+char data[NDISKS][PAGE_SIZE] __attribute__((aligned(PAGE_SIZE)));
+char recovi[PAGE_SIZE] __attribute__((aligned(PAGE_SIZE)));
+char recovj[PAGE_SIZE] __attribute__((aligned(PAGE_SIZE)));
 
-static void makedata(void)
+static void makedata(int start, int stop)
 {
 	int i, j;
 
-	for (i = 0; i < NDISKS; i++) {
+	for (i = start; i <= stop; i++) {
 		for (j = 0; j < PAGE_SIZE; j++)
 			data[i][j] = rand();
 
@@ -91,34 +92,55 @@ int main(int argc, char *argv[])
 {
 	const struct raid6_calls *const *algo;
 	const struct raid6_recov_calls *const *ra;
-	int i, j;
+	int i, j, p1, p2;
 	int err = 0;
 
-	makedata();
+	makedata(0, NDISKS-1);
 
 	for (ra = raid6_recov_algos; *ra; ra++) {
 		if ((*ra)->valid  && !(*ra)->valid())
 			continue;
+
 		raid6_2data_recov = (*ra)->data2;
 		raid6_datap_recov = (*ra)->datap;
 
 		printf("using recovery %s\n", (*ra)->name);
 
 		for (algo = raid6_algos; *algo; algo++) {
-			if (!(*algo)->valid || (*algo)->valid()) {
-				raid6_call = **algo;
+			if ((*algo)->valid && !(*algo)->valid())
+				continue;
 
-				/* Nuke syndromes */
-				memset(data[NDISKS-2], 0xee, 2*PAGE_SIZE);
+			raid6_call = **algo;
 
-				/* Generate assumed good syndrome */
-				raid6_call.gen_syndrome(NDISKS, PAGE_SIZE,
-							(void **)&dataptrs);
+			/* Nuke syndromes */
+			memset(data[NDISKS-2], 0xee, 2*PAGE_SIZE);
 
-				for (i = 0; i < NDISKS-1; i++)
-					for (j = i+1; j < NDISKS; j++)
-						err += test_disks(i, j);
-			}
+			/* Generate assumed good syndrome */
+			raid6_call.gen_syndrome(NDISKS, PAGE_SIZE,
+						(void **)&dataptrs);
+
+			for (i = 0; i < NDISKS-1; i++)
+				for (j = i+1; j < NDISKS; j++)
+					err += test_disks(i, j);
+
+			if (!raid6_call.xor_syndrome)
+				continue;
+
+			for (p1 = 0; p1 < NDISKS-2; p1++)
+				for (p2 = p1; p2 < NDISKS-2; p2++) {
+
+					/* Simulate rmw run */
+					raid6_call.xor_syndrome(NDISKS, p1, p2, PAGE_SIZE,
+								(void **)&dataptrs);
+					makedata(p1, p2);
+					raid6_call.xor_syndrome(NDISKS, p1, p2, PAGE_SIZE,
+                                                                (void **)&dataptrs);
+
+					for (i = 0; i < NDISKS-1; i++)
+						for (j = i+1; j < NDISKS; j++)
+							err += test_disks(i, j);
+				}
+
 		}
 		printf("\n");
 	}

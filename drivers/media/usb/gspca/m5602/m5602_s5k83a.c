@@ -41,6 +41,130 @@ static struct v4l2_pix_format s5k83a_modes[] = {
 	}
 };
 
+static const unsigned char preinit_s5k83a[][4] = {
+	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02, 0x00},
+	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0, 0x00},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0d, 0x00},
+	{BRIDGE, M5602_XB_SENSOR_CTRL, 0x00, 0x00},
+
+	{BRIDGE, M5602_XB_SIG_INI, 0x00, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x1d, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x08, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x3f, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x3f, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0xff, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR_L, 0xff, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT_L, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0x80, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0, 0x00},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x09, 0x00},
+	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02, 0x00},
+	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xf0, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x1d, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x1c, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00, 0x00},
+	{BRIDGE, M5602_XB_I2C_CLK_DIV, 0x20, 0x00},
+};
+
+/* This could probably be considerably shortened.
+   I don't have the hardware to experiment with it, patches welcome
+*/
+static const unsigned char init_s5k83a[][4] = {
+	/* The following sequence is useless after a clean boot
+	   but is necessary after resume from suspend */
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x1d, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x08, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x3f, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x3f, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0xff, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR_L, 0xff, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT_L, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0x80, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0, 0x00},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x09, 0x00},
+	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02, 0x00},
+	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xf0, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x1d, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x08, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00, 0x00},
+	{BRIDGE, M5602_XB_I2C_CLK_DIV, 0x20, 0x00},
+
+	{SENSOR, S5K83A_PAGE_MAP, 0x04, 0x00},
+	{SENSOR, 0xaf, 0x01, 0x00},
+	{SENSOR, S5K83A_PAGE_MAP, 0x00, 0x00},
+	{SENSOR, 0x7b, 0xff, 0x00},
+	{SENSOR, S5K83A_PAGE_MAP, 0x05, 0x00},
+	{SENSOR, 0x01, 0x50, 0x00},
+	{SENSOR, 0x12, 0x20, 0x00},
+	{SENSOR, 0x17, 0x40, 0x00},
+	{SENSOR, 0x1c, 0x00, 0x00},
+	{SENSOR, 0x02, 0x70, 0x00},
+	{SENSOR, 0x03, 0x0b, 0x00},
+	{SENSOR, 0x04, 0xf0, 0x00},
+	{SENSOR, 0x05, 0x0b, 0x00},
+	{SENSOR, 0x06, 0x71, 0x00},
+	{SENSOR, 0x07, 0xe8, 0x00}, /* 488 */
+	{SENSOR, 0x08, 0x02, 0x00},
+	{SENSOR, 0x09, 0x88, 0x00}, /* 648 */
+	{SENSOR, 0x14, 0x00, 0x00},
+	{SENSOR, 0x15, 0x20, 0x00}, /* 32 */
+	{SENSOR, 0x19, 0x00, 0x00},
+	{SENSOR, 0x1a, 0x98, 0x00}, /* 152 */
+	{SENSOR, 0x0f, 0x02, 0x00},
+	{SENSOR, 0x10, 0xe5, 0x00}, /* 741 */
+	/* normal colors
+	(this is value after boot, but after tries can be different) */
+	{SENSOR, 0x00, 0x06, 0x00},
+};
+
+static const unsigned char start_s5k83a[][4] = {
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0, 0x00},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x09, 0x00},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x81, 0x00},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x01, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0xe4, 0x00}, /* 484 */
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x02, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x7f, 0x00}, /* 639 */
+	{BRIDGE, M5602_XB_SIG_INI, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
+};
+
 static void s5k83a_dump_registers(struct sd *sd);
 static int s5k83a_get_rotation(struct sd *sd, u8 *reg_data);
 static int s5k83a_set_led_indication(struct sd *sd, u8 val);
@@ -177,7 +301,7 @@ static int rotation_thread_function(void *data)
 	__s32 vflip, hflip;
 
 	set_current_state(TASK_INTERRUPTIBLE);
-	while (!schedule_timeout(100)) {
+	while (!schedule_timeout(msecs_to_jiffies(100))) {
 		if (mutex_lock_interruptible(&sd->gspca_dev.usb_lock))
 			break;
 
@@ -221,6 +345,11 @@ int s5k83a_start(struct sd *sd)
 	   to assume that there is no better way of accomplishing this */
 	sd->rotation_thread = kthread_create(rotation_thread_function,
 					     sd, "rotation thread");
+	if (IS_ERR(sd->rotation_thread)) {
+		err = PTR_ERR(sd->rotation_thread);
+		sd->rotation_thread = NULL;
+		return err;
+	}
 	wake_up_process(sd->rotation_thread);
 
 	/* Preinit the sensor */

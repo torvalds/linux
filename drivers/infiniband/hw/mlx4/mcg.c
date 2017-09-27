@@ -51,6 +51,10 @@
 	pr_warn("%s-%d: %16s (port %d): WARNING: " format, __func__, __LINE__,\
 	(group)->name, group->demux->port, ## arg)
 
+#define mcg_debug_group(group, format, arg...) \
+	pr_debug("%s-%d: %16s (port %d): WARNING: " format, __func__, __LINE__,\
+		 (group)->name, (group)->demux->port, ## arg)
+
 #define mcg_error_group(group, format, arg...) \
 	pr_err("  %16s: " format, (group)->name, ## arg)
 
@@ -92,7 +96,7 @@ struct ib_sa_mcmember_data {
 	u8		scope_join_state;
 	u8		proxy_join;
 	u8		reserved[2];
-};
+} __packed __aligned(4);
 
 struct mcast_group {
 	struct ib_sa_mcmember_data rec;
@@ -205,18 +209,20 @@ static struct mcast_group *mcast_insert(struct mlx4_ib_demux_ctx *ctx,
 static int send_mad_to_wire(struct mlx4_ib_demux_ctx *ctx, struct ib_mad *mad)
 {
 	struct mlx4_ib_dev *dev = ctx->dev;
-	struct ib_ah_attr	ah_attr;
+	struct rdma_ah_attr	ah_attr;
+	unsigned long flags;
 
-	spin_lock(&dev->sm_lock);
+	spin_lock_irqsave(&dev->sm_lock, flags);
 	if (!dev->sm_ah[ctx->port - 1]) {
 		/* port is not yet Active, sm_ah not ready */
-		spin_unlock(&dev->sm_lock);
+		spin_unlock_irqrestore(&dev->sm_lock, flags);
 		return -EAGAIN;
 	}
 	mlx4_ib_query_ah(dev->sm_ah[ctx->port - 1], &ah_attr);
-	spin_unlock(&dev->sm_lock);
-	return mlx4_ib_send_to_wire(dev, mlx4_master_func_num(dev->dev), ctx->port,
-				    IB_QPT_GSI, 0, 1, IB_QP1_QKEY, &ah_attr, mad);
+	spin_unlock_irqrestore(&dev->sm_lock, flags);
+	return mlx4_ib_send_to_wire(dev, mlx4_master_func_num(dev->dev),
+				    ctx->port, IB_QPT_GSI, 0, 1, IB_QP1_QKEY,
+				    &ah_attr, NULL, 0xffff, mad);
 }
 
 static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,
@@ -225,20 +231,20 @@ static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,
 	struct mlx4_ib_dev *dev = ctx->dev;
 	struct ib_mad_agent *agent = dev->send_agent[ctx->port - 1][1];
 	struct ib_wc wc;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 
 	/* Our agent might not yet be registered when mads start to arrive */
 	if (!agent)
 		return -EAGAIN;
 
-	ib_query_ah(dev->sm_ah[ctx->port - 1], &ah_attr);
+	rdma_query_ah(dev->sm_ah[ctx->port - 1], &ah_attr);
 
 	if (ib_find_cached_pkey(&dev->ib_dev, ctx->port, IB_DEFAULT_PKEY_FULL, &wc.pkey_index))
 		return -EINVAL;
 	wc.sl = 0;
 	wc.dlid_path_bits = 0;
 	wc.port_num = ctx->port;
-	wc.slid = ah_attr.dlid;  /* opensm lid */
+	wc.slid = rdma_ah_get_dlid(&ah_attr);  /* opensm lid */
 	wc.src_qp = 1;
 	return mlx4_ib_send_to_slave(dev, slave, ctx->port, IB_QPT_GSI, &wc, NULL, mad);
 }
@@ -483,7 +489,7 @@ static u8 get_leave_state(struct mcast_group *group)
 		if (!group->members[i])
 			leave_state |= (1 << i);
 
-	return leave_state & (group->rec.scope_join_state & 7);
+	return leave_state & (group->rec.scope_join_state & 0xf);
 }
 
 static int join_group(struct mcast_group *group, int slave, u8 join_mask)
@@ -558,8 +564,8 @@ static void mlx4_ib_mcg_timeout_handler(struct work_struct *work)
 		} else
 			mcg_warn_group(group, "DRIVER BUG\n");
 	} else if (group->state == MCAST_LEAVE_SENT) {
-		if (group->rec.scope_join_state & 7)
-			group->rec.scope_join_state &= 0xf8;
+		if (group->rec.scope_join_state & 0xf)
+			group->rec.scope_join_state &= 0xf0;
 		group->state = MCAST_IDLE;
 		mutex_unlock(&group->lock);
 		if (release_group(group, 1))
@@ -599,7 +605,7 @@ static int handle_leave_req(struct mcast_group *group, u8 leave_mask,
 static int handle_join_req(struct mcast_group *group, u8 join_mask,
 			   struct mcast_req *req)
 {
-	u8 group_join_state = group->rec.scope_join_state & 7;
+	u8 group_join_state = group->rec.scope_join_state & 0xf;
 	int ref = 0;
 	u16 status;
 	struct ib_sa_mcmember_data *sa_data = (struct ib_sa_mcmember_data *)req->sa_mad.data;
@@ -684,8 +690,8 @@ static void mlx4_ib_mcg_work_handler(struct work_struct *work)
 			u8 cur_join_state;
 
 			resp_join_state = ((struct ib_sa_mcmember_data *)
-						group->response_sa_mad.data)->scope_join_state & 7;
-			cur_join_state = group->rec.scope_join_state & 7;
+						group->response_sa_mad.data)->scope_join_state & 0xf;
+			cur_join_state = group->rec.scope_join_state & 0xf;
 
 			if (method == IB_MGMT_METHOD_GET_RESP) {
 				/* successfull join */
@@ -704,7 +710,7 @@ process_requests:
 		req = list_first_entry(&group->pending_list, struct mcast_req,
 				       group_list);
 		sa_data = (struct ib_sa_mcmember_data *)req->sa_mad.data;
-		req_join_state = sa_data->scope_join_state & 0x7;
+		req_join_state = sa_data->scope_join_state & 0xf;
 
 		/* For a leave request, we will immediately answer the VF, and
 		 * update our internal counters. The actual leave will be sent
@@ -741,14 +747,11 @@ static struct mcast_group *search_relocate_mgid0_group(struct mlx4_ib_demux_ctx 
 						       __be64 tid,
 						       union ib_gid *new_mgid)
 {
-	struct mcast_group *group = NULL, *cur_group;
+	struct mcast_group *group = NULL, *cur_group, *n;
 	struct mcast_req *req;
-	struct list_head *pos;
-	struct list_head *n;
 
 	mutex_lock(&ctx->mcg_table_lock);
-	list_for_each_safe(pos, n, &ctx->mcg_mgid0_list) {
-		group = list_entry(pos, struct mcast_group, mgid0_list);
+	list_for_each_entry_safe(group, n, &ctx->mcg_mgid0_list, mgid0_list) {
 		mutex_lock(&group->lock);
 		if (group->last_req_tid == tid) {
 			if (memcmp(new_mgid, &mgid0, sizeof mgid0)) {
@@ -805,8 +808,7 @@ static ssize_t sysfs_show_group(struct device *dev,
 		struct device_attribute *attr, char *buf);
 
 static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
-					 union ib_gid *mgid, int create,
-					 gfp_t gfp_mask)
+					 union ib_gid *mgid, int create)
 {
 	struct mcast_group *group, *cur_group;
 	int is_mgid0;
@@ -822,7 +824,7 @@ static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 	if (!create)
 		return ERR_PTR(-ENOENT);
 
-	group = kzalloc(sizeof *group, gfp_mask);
+	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
@@ -889,7 +891,7 @@ int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
 	case IB_MGMT_METHOD_GET_RESP:
 	case IB_SA_METHOD_DELETE_RESP:
 		mutex_lock(&ctx->mcg_table_lock);
-		group = acquire_group(ctx, &rec->mgid, 0, GFP_KERNEL);
+		group = acquire_group(ctx, &rec->mgid, 0);
 		mutex_unlock(&ctx->mcg_table_lock);
 		if (IS_ERR(group)) {
 			if (mad->mad_hdr.method == IB_MGMT_METHOD_GET_RESP) {
@@ -951,7 +953,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 		req->sa_mad = *sa_mad;
 
 		mutex_lock(&ctx->mcg_table_lock);
-		group = acquire_group(ctx, &rec->mgid, may_create, GFP_KERNEL);
+		group = acquire_group(ctx, &rec->mgid, may_create);
 		mutex_unlock(&ctx->mcg_table_lock);
 		if (IS_ERR(group)) {
 			kfree(req);
@@ -960,8 +962,8 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 		mutex_lock(&group->lock);
 		if (group->func[slave].num_pend_reqs > MAX_PEND_REQS_PER_FUNC) {
 			mutex_unlock(&group->lock);
-			mcg_warn_group(group, "Port %d, Func %d has too many pending requests (%d), dropping\n",
-				       port, slave, MAX_PEND_REQS_PER_FUNC);
+			mcg_debug_group(group, "Port %d, Func %d has too many pending requests (%d), dropping\n",
+					port, slave, MAX_PEND_REQS_PER_FUNC);
 			release_group(group, 0);
 			kfree(req);
 			return -ENOMEM;
@@ -1042,7 +1044,7 @@ int mlx4_ib_mcg_port_init(struct mlx4_ib_demux_ctx *ctx)
 
 	atomic_set(&ctx->tid, 0);
 	sprintf(name, "mlx4_ib_mcg%d", ctx->port);
-	ctx->mcg_wq = create_singlethread_workqueue(name);
+	ctx->mcg_wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!ctx->mcg_wq)
 		return -ENOMEM;
 
@@ -1088,7 +1090,7 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 		if (!count)
 			break;
 
-		msleep(1);
+		usleep_range(1000, 2000);
 	} while (time_after(end, jiffies));
 
 	flush_workqueue(ctx->mcg_wq);
@@ -1099,7 +1101,8 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 	while ((p = rb_first(&ctx->mcg_table)) != NULL) {
 		group = rb_entry(p, struct mcast_group, node);
 		if (atomic_read(&group->refcount))
-			mcg_warn_group(group, "group refcount %d!!! (pointer %p)\n", atomic_read(&group->refcount), group);
+			mcg_debug_group(group, "group refcount %d!!! (pointer %p)\n",
+					atomic_read(&group->refcount), group);
 
 		force_clean_group(group);
 	}
@@ -1139,7 +1142,6 @@ void mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq)
 	work = kmalloc(sizeof *work, GFP_KERNEL);
 	if (!work) {
 		ctx->flushing = 0;
-		mcg_warn("failed allocating work for cleanup\n");
 		return;
 	}
 
@@ -1199,10 +1201,8 @@ static int push_deleteing_req(struct mcast_group *group, int slave)
 		return 0;
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
-	if (!req) {
-		mcg_warn_group(group, "failed allocation - may leave stall groups\n");
+	if (!req)
 		return -ENOMEM;
-	}
 
 	if (!list_empty(&group->func[slave].pending)) {
 		pend_req = list_entry(group->func[slave].pending.prev, struct mcast_req, group_list);
@@ -1243,7 +1243,7 @@ void clean_vf_mcast(struct mlx4_ib_demux_ctx *ctx, int slave)
 
 int mlx4_ib_mcg_init(void)
 {
-	clean_wq = create_singlethread_workqueue("mlx4_ib_mcg");
+	clean_wq = alloc_ordered_workqueue("mlx4_ib_mcg", WQ_MEM_RECLAIM);
 	if (!clean_wq)
 		return -ENOMEM;
 

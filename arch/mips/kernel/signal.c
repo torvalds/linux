@@ -6,6 +6,7 @@
  * Copyright (C) 1991, 1992  Linus Torvalds
  * Copyright (C) 1994 - 2000  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2014, Imagination Technologies Ltd.
  */
 #include <linux/cache.h>
 #include <linux/context_tracking.h>
@@ -20,6 +21,7 @@
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
+#include <linux/uprobes.h>
 #include <linux/compiler.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
@@ -34,26 +36,23 @@
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
 #include <asm/war.h>
-#include <asm/vdso.h>
 #include <asm/dsp.h>
 #include <asm/inst.h>
+#include <asm/msa.h>
 
 #include "signal-common.h"
 
-static int (*save_fp_context)(struct sigcontext __user *sc);
-static int (*restore_fp_context)(struct sigcontext __user *sc);
-
-extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
-extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
-
-extern asmlinkage int fpu_emulator_save_context(struct sigcontext __user *sc);
-extern asmlinkage int fpu_emulator_restore_context(struct sigcontext __user *sc);
+static int (*save_fp_context)(void __user *sc);
+static int (*restore_fp_context)(void __user *sc);
 
 struct sigframe {
 	u32 sf_ass[4];		/* argument save space for o32 */
 	u32 sf_pad[2];		/* Was: signal trampoline */
+
+	/* Matches struct ucontext from its uc_mcontext field onwards */
 	struct sigcontext sf_sc;
 	sigset_t sf_mask;
+	unsigned long long sf_extcontext[0];
 };
 
 struct rt_sigframe {
@@ -64,53 +63,354 @@ struct rt_sigframe {
 };
 
 /*
- * Helper routines
+ * Thread saved context copy to/from a signal context presumed to be on the
+ * user stack, and therefore accessed with appropriate macros from uaccess.h.
  */
-static int protected_save_fp_context(struct sigcontext __user *sc)
+static int copy_fp_to_sigcontext(void __user *sc)
 {
-	int err;
-	while (1) {
-		lock_fpu_owner();
-		own_fpu_inatomic(1);
-		err = save_fp_context(sc); /* this might fail */
-		unlock_fpu_owner();
-		if (likely(!err))
-			break;
-		/* touch the sigcontext and try again */
-		err = __put_user(0, &sc->sc_fpregs[0]) |
-			__put_user(0, &sc->sc_fpregs[31]) |
-			__put_user(0, &sc->sc_fpc_csr);
-		if (err)
-			break;	/* really bad sigcontext */
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+	int i;
+	int err = 0;
+	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
+
+	for (i = 0; i < NUM_FPU_REGS; i += inc) {
+		err |=
+		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 0),
+			       &fpregs[i]);
 	}
+	err |= __put_user(current->thread.fpu.fcr31, csr);
+
 	return err;
 }
 
-static int protected_restore_fp_context(struct sigcontext __user *sc)
+static int copy_fp_from_sigcontext(void __user *sc)
 {
-	int err, tmp __maybe_unused;
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+	int i;
+	int err = 0;
+	int inc = test_thread_flag(TIF_32BIT_FPREGS) ? 2 : 1;
+	u64 fpr_val;
+
+	for (i = 0; i < NUM_FPU_REGS; i += inc) {
+		err |= __get_user(fpr_val, &fpregs[i]);
+		set_fpr64(&current->thread.fpu.fpr[i], 0, fpr_val);
+	}
+	err |= __get_user(current->thread.fpu.fcr31, csr);
+
+	return err;
+}
+
+/*
+ * Wrappers for the assembly _{save,restore}_fp_context functions.
+ */
+static int save_hw_fp_context(void __user *sc)
+{
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+
+	return _save_fp_context(fpregs, csr);
+}
+
+static int restore_hw_fp_context(void __user *sc)
+{
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+
+	return _restore_fp_context(fpregs, csr);
+}
+
+/*
+ * Extended context handling.
+ */
+
+static inline void __user *sc_to_extcontext(void __user *sc)
+{
+	struct ucontext __user *uc;
+
+	/*
+	 * We can just pretend the sigcontext is always embedded in a struct
+	 * ucontext here, because the offset from sigcontext to extended
+	 * context is the same in the struct sigframe case.
+	 */
+	uc = container_of(sc, struct ucontext, uc_mcontext);
+	return &uc->uc_extcontext;
+}
+
+static int save_msa_extcontext(void __user *buf)
+{
+	struct msa_extcontext __user *msa = buf;
+	uint64_t val;
+	int i, err;
+
+	if (!thread_msa_context_live())
+		return 0;
+
+	/*
+	 * Ensure that we can't lose the live MSA context between checking
+	 * for it & writing it to memory.
+	 */
+	preempt_disable();
+
+	if (is_msa_enabled()) {
+		/*
+		 * There are no EVA versions of the vector register load/store
+		 * instructions, so MSA context has to be saved to kernel memory
+		 * and then copied to user memory. The save to kernel memory
+		 * should already have been done when handling scalar FP
+		 * context.
+		 */
+		BUG_ON(IS_ENABLED(CONFIG_EVA));
+
+		err = __put_user(read_msa_csr(), &msa->csr);
+		err |= _save_msa_all_upper(&msa->wr);
+
+		preempt_enable();
+	} else {
+		preempt_enable();
+
+		err = __put_user(current->thread.fpu.msacsr, &msa->csr);
+
+		for (i = 0; i < NUM_FPU_REGS; i++) {
+			val = get_fpr64(&current->thread.fpu.fpr[i], 1);
+			err |= __put_user(val, &msa->wr[i]);
+		}
+	}
+
+	err |= __put_user(MSA_EXTCONTEXT_MAGIC, &msa->ext.magic);
+	err |= __put_user(sizeof(*msa), &msa->ext.size);
+
+	return err ? -EFAULT : sizeof(*msa);
+}
+
+static int restore_msa_extcontext(void __user *buf, unsigned int size)
+{
+	struct msa_extcontext __user *msa = buf;
+	unsigned long long val;
+	unsigned int csr;
+	int i, err;
+
+	if (!IS_ENABLED(CONFIG_CPU_HAS_MSA))
+		return SIGSYS;
+
+	if (size != sizeof(*msa))
+		return -EINVAL;
+
+	err = get_user(csr, &msa->csr);
+	if (err)
+		return err;
+
+	preempt_disable();
+
+	if (is_msa_enabled()) {
+		/*
+		 * There are no EVA versions of the vector register load/store
+		 * instructions, so MSA context has to be copied to kernel
+		 * memory and later loaded to registers. The same is true of
+		 * scalar FP context, so FPU & MSA should have already been
+		 * disabled whilst handling scalar FP context.
+		 */
+		BUG_ON(IS_ENABLED(CONFIG_EVA));
+
+		write_msa_csr(csr);
+		err |= _restore_msa_all_upper(&msa->wr);
+		preempt_enable();
+	} else {
+		preempt_enable();
+
+		current->thread.fpu.msacsr = csr;
+
+		for (i = 0; i < NUM_FPU_REGS; i++) {
+			err |= __get_user(val, &msa->wr[i]);
+			set_fpr64(&current->thread.fpu.fpr[i], 1, val);
+		}
+	}
+
+	return err;
+}
+
+static int save_extcontext(void __user *buf)
+{
+	int sz;
+
+	sz = save_msa_extcontext(buf);
+	if (sz < 0)
+		return sz;
+	buf += sz;
+
+	/* If no context was saved then trivially return */
+	if (!sz)
+		return 0;
+
+	/* Write the end marker */
+	if (__put_user(END_EXTCONTEXT_MAGIC, (u32 *)buf))
+		return -EFAULT;
+
+	sz += sizeof(((struct extcontext *)NULL)->magic);
+	return sz;
+}
+
+static int restore_extcontext(void __user *buf)
+{
+	struct extcontext ext;
+	int err;
+
+	while (1) {
+		err = __get_user(ext.magic, (unsigned int *)buf);
+		if (err)
+			return err;
+
+		if (ext.magic == END_EXTCONTEXT_MAGIC)
+			return 0;
+
+		err = __get_user(ext.size, (unsigned int *)(buf
+			+ offsetof(struct extcontext, size)));
+		if (err)
+			return err;
+
+		switch (ext.magic) {
+		case MSA_EXTCONTEXT_MAGIC:
+			err = restore_msa_extcontext(buf, ext.size);
+			break;
+
+		default:
+			err = -EINVAL;
+			break;
+		}
+
+		if (err)
+			return err;
+
+		buf += ext.size;
+	}
+}
+
+/*
+ * Helper routines
+ */
+int protected_save_fp_context(void __user *sc)
+{
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+	uint32_t __user *used_math = sc + abi->off_sc_used_math;
+	unsigned int used, ext_sz;
+	int err;
+
+	used = used_math() ? USED_FP : 0;
+	if (!used)
+		goto fp_done;
+
+	if (!test_thread_flag(TIF_32BIT_FPREGS))
+		used |= USED_FR1;
+	if (test_thread_flag(TIF_HYBRID_FPREGS))
+		used |= USED_HYBRID_FPRS;
+
+	/*
+	 * EVA does not have userland equivalents of ldc1 or sdc1, so
+	 * save to the kernel FP context & copy that to userland below.
+	 */
+	if (IS_ENABLED(CONFIG_EVA))
+		lose_fpu(1);
+
 	while (1) {
 		lock_fpu_owner();
-		own_fpu_inatomic(0);
-		err = restore_fp_context(sc); /* this might fail */
-		unlock_fpu_owner();
+		if (is_fpu_owner()) {
+			err = save_fp_context(sc);
+			unlock_fpu_owner();
+		} else {
+			unlock_fpu_owner();
+			err = copy_fp_to_sigcontext(sc);
+		}
 		if (likely(!err))
 			break;
 		/* touch the sigcontext and try again */
-		err = __get_user(tmp, &sc->sc_fpregs[0]) |
-			__get_user(tmp, &sc->sc_fpregs[31]) |
-			__get_user(tmp, &sc->sc_fpc_csr);
+		err = __put_user(0, &fpregs[0]) |
+			__put_user(0, &fpregs[31]) |
+			__put_user(0, csr);
+		if (err)
+			return err;	/* really bad sigcontext */
+	}
+
+fp_done:
+	ext_sz = err = save_extcontext(sc_to_extcontext(sc));
+	if (err < 0)
+		return err;
+	used |= ext_sz ? USED_EXTCONTEXT : 0;
+
+	return __put_user(used, used_math);
+}
+
+int protected_restore_fp_context(void __user *sc)
+{
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+	uint32_t __user *used_math = sc + abi->off_sc_used_math;
+	unsigned int used;
+	int err, sig = 0, tmp __maybe_unused;
+
+	err = __get_user(used, used_math);
+	conditional_used_math(used & USED_FP);
+
+	/*
+	 * The signal handler may have used FPU; give it up if the program
+	 * doesn't want it following sigreturn.
+	 */
+	if (err || !(used & USED_FP))
+		lose_fpu(0);
+	if (err)
+		return err;
+	if (!(used & USED_FP))
+		goto fp_done;
+
+	err = sig = fpcsr_pending(csr);
+	if (err < 0)
+		return err;
+
+	/*
+	 * EVA does not have userland equivalents of ldc1 or sdc1, so we
+	 * disable the FPU here such that the code below simply copies to
+	 * the kernel FP context.
+	 */
+	if (IS_ENABLED(CONFIG_EVA))
+		lose_fpu(0);
+
+	while (1) {
+		lock_fpu_owner();
+		if (is_fpu_owner()) {
+			err = restore_fp_context(sc);
+			unlock_fpu_owner();
+		} else {
+			unlock_fpu_owner();
+			err = copy_fp_from_sigcontext(sc);
+		}
+		if (likely(!err))
+			break;
+		/* touch the sigcontext and try again */
+		err = __get_user(tmp, &fpregs[0]) |
+			__get_user(tmp, &fpregs[31]) |
+			__get_user(tmp, csr);
 		if (err)
 			break;	/* really bad sigcontext */
 	}
-	return err;
+
+fp_done:
+	if (!err && (used & USED_EXTCONTEXT))
+		err = restore_extcontext(sc_to_extcontext(sc));
+
+	return err ?: sig;
 }
 
 int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	int err = 0;
 	int i;
-	unsigned int used_math;
 
 	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
 
@@ -133,17 +433,36 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
 	}
 
-	used_math = !!used_math();
-	err |= __put_user(used_math, &sc->sc_used_math);
 
-	if (used_math) {
-		/*
-		 * Save FPU state to signal context. Signal handler
-		 * will "inherit" current FPU state.
-		 */
-		err |= protected_save_fp_context(sc);
-	}
+	/*
+	 * Save FPU state to signal context. Signal handler
+	 * will "inherit" current FPU state.
+	 */
+	err |= protected_save_fp_context(sc);
+
 	return err;
+}
+
+static size_t extcontext_max_size(void)
+{
+	size_t sz = 0;
+
+	/*
+	 * The assumption here is that between this point & the point at which
+	 * the extended context is saved the size of the context should only
+	 * ever be able to shrink (if the task is preempted), but never grow.
+	 * That is, what this function returns is an upper bound on the size of
+	 * the extended context for the current task at the current time.
+	 */
+
+	if (thread_msa_context_live())
+		sz += sizeof(struct msa_extcontext);
+
+	/* If any context is saved then we'll append the end marker */
+	if (sz)
+		sz += sizeof(((struct extcontext *)NULL)->magic);
+
+	return sz;
 }
 
 int fpcsr_pending(unsigned int __user *fpcsr)
@@ -165,27 +484,14 @@ int fpcsr_pending(unsigned int __user *fpcsr)
 	return err ?: sig;
 }
 
-static int
-check_and_restore_fp_context(struct sigcontext __user *sc)
-{
-	int err, sig;
-
-	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
-	if (err > 0)
-		err = 0;
-	err |= protected_restore_fp_context(sc);
-	return err ?: sig;
-}
-
 int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
-	unsigned int used_math;
 	unsigned long treg;
 	int err = 0;
 	int i;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
 
@@ -207,25 +513,16 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	for (i = 1; i < 32; i++)
 		err |= __get_user(regs->regs[i], &sc->sc_regs[i]);
 
-	err |= __get_user(used_math, &sc->sc_used_math);
-	conditional_used_math(used_math);
-
-	if (used_math) {
-		/* restore fpu context if we have used it before */
-		if (!err)
-			err = check_and_restore_fp_context(sc);
-	} else {
-		/* signal handler may have used FPU.  Give it up. */
-		lose_fpu(0);
-	}
-
-	return err;
+	return err ?: protected_restore_fp_context(sc);
 }
 
-void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 			  size_t frame_size)
 {
 	unsigned long sp;
+
+	/* Leave space for potential extended context */
+	frame_size += extcontext_max_size();
 
 	/* Default to using normal stack */
 	sp = regs->regs[29];
@@ -237,9 +534,7 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	 */
 	sp -= 32;
 
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
-		sp = current->sas_ss_sp + current->sas_ss_size;
+	sp = sigsp(sp, ksig);
 
 	return (void __user *)((sp - frame_size) & (ICACHE_REFILLS_WORKAROUND_WAR ? ~(cpu_icache_line_size()-1) : ALMASK));
 }
@@ -370,20 +665,20 @@ badframe:
 }
 
 #ifdef CONFIG_TRAD_SIGNALS
-static int setup_frame(void *sig_return, struct k_sigaction *ka,
-		       struct pt_regs *regs, int signr, sigset_t *set)
+static int setup_frame(void *sig_return, struct ksignal *ksig,
+		       struct pt_regs *regs, sigset_t *set)
 {
 	struct sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err |= setup_sigcontext(regs, &frame->sf_sc);
 	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/*
 	 * Arguments to signal handler:
@@ -395,37 +690,32 @@ static int setup_frame(void *sig_return, struct k_sigaction *ka,
 	 * $25 and c0_epc point to the signal handler, $29 points to the
 	 * struct sigframe.
 	 */
-	regs->regs[ 4] = signr;
+	regs->regs[ 4] = ksig->sig;
 	regs->regs[ 5] = 0;
 	regs->regs[ 6] = (unsigned long) &frame->sf_sc;
 	regs->regs[29] = (unsigned long) frame;
 	regs->regs[31] = (unsigned long) sig_return;
-	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
+	regs->cp0_epc = regs->regs[25] = (unsigned long) ksig->ka.sa.sa_handler;
 
 	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(signr, current);
-	return -EFAULT;
 }
 #endif
 
-static int setup_rt_frame(void *sig_return, struct k_sigaction *ka,
-			  struct pt_regs *regs, int signr, sigset_t *set,
-			  siginfo_t *info)
+static int setup_rt_frame(void *sig_return, struct ksignal *ksig,
+			  struct pt_regs *regs, sigset_t *set)
 {
 	struct rt_sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Create siginfo.  */
-	err |= copy_siginfo_to_user(&frame->rs_info, info);
+	err |= copy_siginfo_to_user(&frame->rs_info, &ksig->info);
 
 	/* Create the ucontext.	 */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
@@ -435,7 +725,7 @@ static int setup_rt_frame(void *sig_return, struct k_sigaction *ka,
 	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/*
 	 * Arguments to signal handler:
@@ -447,50 +737,48 @@ static int setup_rt_frame(void *sig_return, struct k_sigaction *ka,
 	 * $25 and c0_epc point to the signal handler, $29 points to
 	 * the struct rt_sigframe.
 	 */
-	regs->regs[ 4] = signr;
+	regs->regs[ 4] = ksig->sig;
 	regs->regs[ 5] = (unsigned long) &frame->rs_info;
 	regs->regs[ 6] = (unsigned long) &frame->rs_uc;
 	regs->regs[29] = (unsigned long) frame;
 	regs->regs[31] = (unsigned long) sig_return;
-	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
+	regs->cp0_epc = regs->regs[25] = (unsigned long) ksig->ka.sa.sa_handler;
 
 	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(signr, current);
-	return -EFAULT;
 }
 
 struct mips_abi mips_abi = {
 #ifdef CONFIG_TRAD_SIGNALS
 	.setup_frame	= setup_frame,
-	.signal_return_offset = offsetof(struct mips_vdso, signal_trampoline),
 #endif
 	.setup_rt_frame = setup_rt_frame,
-	.rt_signal_return_offset =
-		offsetof(struct mips_vdso, rt_signal_trampoline),
-	.restart	= __NR_restart_syscall
+	.restart	= __NR_restart_syscall,
+
+	.off_sc_fpregs = offsetof(struct sigcontext, sc_fpregs),
+	.off_sc_fpc_csr = offsetof(struct sigcontext, sc_fpc_csr),
+	.off_sc_used_math = offsetof(struct sigcontext, sc_used_math),
+
+	.vdso		= &vdso_image,
 };
 
-static void handle_signal(unsigned long sig, siginfo_t *info,
-	struct k_sigaction *ka, struct pt_regs *regs)
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
 	struct mips_abi *abi = current->thread.abi;
-#ifdef CONFIG_CPU_MICROMIPS
-	void *vdso;
-	unsigned int tmp = (unsigned int)current->mm->context.vdso;
-
-	set_isa16_mode(tmp);
-	vdso = (void *)tmp;
-#else
 	void *vdso = current->mm->context.vdso;
-#endif
+
+	/*
+	 * If we were emulating a delay slot instruction, exit that frame such
+	 * that addresses in the sigframe are as expected for userland and we
+	 * don't have a problem if we reuse the thread's frame for an
+	 * instruction within the signal handler.
+	 */
+	dsemul_thread_rollback(regs);
 
 	if (regs->regs[0]) {
 		switch(regs->regs[2]) {
@@ -499,7 +787,7 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 			regs->regs[2] = EINTR;
 			break;
 		case ERESTARTSYS:
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
+			if (!(ksig->ka.sa.sa_flags & SA_RESTART)) {
 				regs->regs[2] = EINTR;
 				break;
 			}
@@ -513,29 +801,23 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 		regs->regs[0] = 0;		/* Don't deal with this again.	*/
 	}
 
-	if (sig_uses_siginfo(ka))
-		ret = abi->setup_rt_frame(vdso + abi->rt_signal_return_offset,
-					  ka, regs, sig, oldset, info);
+	if (sig_uses_siginfo(&ksig->ka, abi))
+		ret = abi->setup_rt_frame(vdso + abi->vdso->off_rt_sigreturn,
+					  ksig, regs, oldset);
 	else
-		ret = abi->setup_frame(vdso + abi->signal_return_offset,
-				       ka, regs, sig, oldset);
+		ret = abi->setup_frame(vdso + abi->vdso->off_sigreturn,
+				       ksig, regs, oldset);
 
-	if (ret)
-		return;
-
-	signal_delivered(sig, info, ka, regs, 0);
+	signal_setup_done(ret, ksig, 0);
 }
 
 static void do_signal(struct pt_regs *regs)
 {
-	struct k_sigaction ka;
-	siginfo_t info;
-	int signr;
+	struct ksignal ksig;
 
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
+	if (get_signal(&ksig)) {
 		/* Whee!  Actually deliver the signal.	*/
-		handle_signal(signr, &info, &ka, regs);
+		handle_signal(&ksig, regs);
 		return;
 	}
 
@@ -576,6 +858,9 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 
 	user_exit();
 
+	if (thread_info_flags & _TIF_UPROBE)
+		uprobe_notify_resume(regs);
+
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
@@ -589,36 +874,46 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 }
 
 #ifdef CONFIG_SMP
-static int smp_save_fp_context(struct sigcontext __user *sc)
+static int smp_save_fp_context(void __user *sc)
 {
 	return raw_cpu_has_fpu
-	       ? _save_fp_context(sc)
-	       : fpu_emulator_save_context(sc);
+	       ? save_hw_fp_context(sc)
+	       : copy_fp_to_sigcontext(sc);
 }
 
-static int smp_restore_fp_context(struct sigcontext __user *sc)
+static int smp_restore_fp_context(void __user *sc)
 {
 	return raw_cpu_has_fpu
-	       ? _restore_fp_context(sc)
-	       : fpu_emulator_restore_context(sc);
+	       ? restore_hw_fp_context(sc)
+	       : copy_fp_from_sigcontext(sc);
 }
 #endif
 
 static int signal_setup(void)
 {
+	/*
+	 * The offset from sigcontext to extended context should be the same
+	 * regardless of the type of signal, such that userland can always know
+	 * where to look if it wishes to find the extended context structures.
+	 */
+	BUILD_BUG_ON((offsetof(struct sigframe, sf_extcontext) -
+		      offsetof(struct sigframe, sf_sc)) !=
+		     (offsetof(struct rt_sigframe, rs_uc.uc_extcontext) -
+		      offsetof(struct rt_sigframe, rs_uc.uc_mcontext)));
+
 #ifdef CONFIG_SMP
 	/* For now just do the cpu_has_fpu check when the functions are invoked */
 	save_fp_context = smp_save_fp_context;
 	restore_fp_context = smp_restore_fp_context;
 #else
 	if (cpu_has_fpu) {
-		save_fp_context = _save_fp_context;
-		restore_fp_context = _restore_fp_context;
+		save_fp_context = save_hw_fp_context;
+		restore_fp_context = restore_hw_fp_context;
 	} else {
-		save_fp_context = fpu_emulator_save_context;
-		restore_fp_context = fpu_emulator_restore_context;
+		save_fp_context = copy_fp_to_sigcontext;
+		restore_fp_context = copy_fp_from_sigcontext;
 	}
-#endif
+#endif /* CONFIG_SMP */
 
 	return 0;
 }

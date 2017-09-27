@@ -43,6 +43,7 @@
  * compatibility are made.
  */
 #define IB_USER_VERBS_ABI_VERSION	6
+#define IB_USER_VERBS_CMD_THRESHOLD    50
 
 enum {
 	IB_USER_VERBS_CMD_GET_CONTEXT,
@@ -85,7 +86,21 @@ enum {
 	IB_USER_VERBS_CMD_OPEN_XRCD,
 	IB_USER_VERBS_CMD_CLOSE_XRCD,
 	IB_USER_VERBS_CMD_CREATE_XSRQ,
-	IB_USER_VERBS_CMD_OPEN_QP
+	IB_USER_VERBS_CMD_OPEN_QP,
+};
+
+enum {
+	IB_USER_VERBS_EX_CMD_QUERY_DEVICE = IB_USER_VERBS_CMD_QUERY_DEVICE,
+	IB_USER_VERBS_EX_CMD_CREATE_CQ = IB_USER_VERBS_CMD_CREATE_CQ,
+	IB_USER_VERBS_EX_CMD_CREATE_QP = IB_USER_VERBS_CMD_CREATE_QP,
+	IB_USER_VERBS_EX_CMD_MODIFY_QP = IB_USER_VERBS_CMD_MODIFY_QP,
+	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
+	IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
+	IB_USER_VERBS_EX_CMD_CREATE_WQ,
+	IB_USER_VERBS_EX_CMD_MODIFY_WQ,
+	IB_USER_VERBS_EX_CMD_DESTROY_WQ,
+	IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
+	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL
 };
 
 /*
@@ -117,10 +132,23 @@ struct ib_uverbs_comp_event_desc {
  * the rest of the command struct based on these value.
  */
 
+#define IB_USER_VERBS_CMD_COMMAND_MASK 0xff
+#define IB_USER_VERBS_CMD_FLAGS_MASK 0xff000000u
+#define IB_USER_VERBS_CMD_FLAGS_SHIFT 24
+
+#define IB_USER_VERBS_CMD_FLAG_EXTENDED 0x80
+
 struct ib_uverbs_cmd_hdr {
 	__u32 command;
 	__u16 in_words;
 	__u16 out_words;
+};
+
+struct ib_uverbs_ex_cmd_hdr {
+	__u64 response;
+	__u16 provider_in_words;
+	__u16 provider_out_words;
+	__u32 cmd_hdr_reserved;
 };
 
 struct ib_uverbs_get_context {
@@ -180,6 +208,60 @@ struct ib_uverbs_query_device_resp {
 	__u8  local_ca_ack_delay;
 	__u8  phys_port_cnt;
 	__u8  reserved[4];
+};
+
+struct ib_uverbs_ex_query_device {
+	__u32 comp_mask;
+	__u32 reserved;
+};
+
+struct ib_uverbs_odp_caps {
+	__u64 general_caps;
+	struct {
+		__u32 rc_odp_caps;
+		__u32 uc_odp_caps;
+		__u32 ud_odp_caps;
+	} per_transport_caps;
+	__u32 reserved;
+};
+
+struct ib_uverbs_rss_caps {
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_UD
+	 */
+	__u32 supported_qpts;
+	__u32 max_rwq_indirection_tables;
+	__u32 max_rwq_indirection_table_size;
+	__u32 reserved;
+};
+
+struct ib_uverbs_tm_caps {
+	/* Max size of rendezvous request message */
+	__u32 max_rndv_hdr_size;
+	/* Max number of entries in tag matching list */
+	__u32 max_num_tags;
+	/* TM flags */
+	__u32 flags;
+	/* Max number of outstanding list operations */
+	__u32 max_ops;
+	/* Max number of SGE in tag matching entry */
+	__u32 max_sge;
+	__u32 reserved;
+};
+
+struct ib_uverbs_ex_query_device_resp {
+	struct ib_uverbs_query_device_resp base;
+	__u32 comp_mask;
+	__u32 response_length;
+	struct ib_uverbs_odp_caps odp_caps;
+	__u64 timestamp_mask;
+	__u64 hca_core_clock; /* in KHZ */
+	__u64 device_cap_flags_ex;
+	struct ib_uverbs_rss_caps rss_caps;
+	__u32  max_wq_type_rq;
+	__u32 raw_packet_caps;
+	struct ib_uverbs_tm_caps xrq_caps;
 };
 
 struct ib_uverbs_query_port {
@@ -257,6 +339,22 @@ struct ib_uverbs_reg_mr_resp {
 	__u32 rkey;
 };
 
+struct ib_uverbs_rereg_mr {
+	__u64 response;
+	__u32 mr_handle;
+	__u32 flags;
+	__u64 start;
+	__u64 length;
+	__u64 hca_va;
+	__u32 pd_handle;
+	__u32 access_flags;
+};
+
+struct ib_uverbs_rereg_mr_resp {
+	__u32 lkey;
+	__u32 rkey;
+};
+
 struct ib_uverbs_dereg_mr {
 	__u32 mr_handle;
 };
@@ -295,9 +393,25 @@ struct ib_uverbs_create_cq {
 	__u64 driver_data[0];
 };
 
+struct ib_uverbs_ex_create_cq {
+	__u64 user_handle;
+	__u32 cqe;
+	__u32 comp_vector;
+	__s32 comp_channel;
+	__u32 comp_mask;
+	__u32 flags;
+	__u32 reserved;
+};
+
 struct ib_uverbs_create_cq_resp {
 	__u32 cq_handle;
 	__u32 cqe;
+};
+
+struct ib_uverbs_ex_create_cq_resp {
+	struct ib_uverbs_create_cq_resp base;
+	__u32 comp_mask;
+	__u32 response_length;
 };
 
 struct ib_uverbs_resize_cq {
@@ -439,6 +553,49 @@ struct ib_uverbs_create_qp {
 	__u64 driver_data[0];
 };
 
+enum ib_uverbs_create_qp_mask {
+	IB_UVERBS_CREATE_QP_MASK_IND_TABLE = 1UL << 0,
+};
+
+enum {
+	IB_UVERBS_CREATE_QP_SUP_COMP_MASK = IB_UVERBS_CREATE_QP_MASK_IND_TABLE,
+};
+
+enum {
+	/*
+	 * This value is equal to IB_QP_DEST_QPN.
+	 */
+	IB_USER_LEGACY_LAST_QP_ATTR_MASK = 1ULL << 20,
+};
+
+enum {
+	/*
+	 * This value is equal to IB_QP_RATE_LIMIT.
+	 */
+	IB_USER_LAST_QP_ATTR_MASK = 1ULL << 25,
+};
+
+struct ib_uverbs_ex_create_qp {
+	__u64 user_handle;
+	__u32 pd_handle;
+	__u32 send_cq_handle;
+	__u32 recv_cq_handle;
+	__u32 srq_handle;
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
+	__u8  sq_sig_all;
+	__u8  qp_type;
+	__u8  is_srq;
+	__u8 reserved;
+	__u32 comp_mask;
+	__u32 create_flags;
+	__u32 rwq_ind_tbl_handle;
+	__u32  source_qpn;
+};
+
 struct ib_uverbs_open_qp {
 	__u64 response;
 	__u64 user_handle;
@@ -459,6 +616,12 @@ struct ib_uverbs_create_qp_resp {
 	__u32 max_recv_sge;
 	__u32 max_inline_data;
 	__u32 reserved;
+};
+
+struct ib_uverbs_ex_create_qp_resp {
+	struct ib_uverbs_create_qp_resp base;
+	__u32 comp_mask;
+	__u32 response_length;
 };
 
 /*
@@ -551,7 +714,18 @@ struct ib_uverbs_modify_qp {
 	__u64 driver_data[0];
 };
 
+struct ib_uverbs_ex_modify_qp {
+	struct ib_uverbs_modify_qp base;
+	__u32	rate_limit;
+	__u32	reserved;
+};
+
 struct ib_uverbs_modify_qp_resp {
+};
+
+struct ib_uverbs_ex_modify_qp_resp {
+	__u32  comp_mask;
+	__u32  response_length;
 };
 
 struct ib_uverbs_destroy_qp {
@@ -684,6 +858,169 @@ struct ib_uverbs_detach_mcast {
 	__u64 driver_data[0];
 };
 
+struct ib_uverbs_flow_spec_hdr {
+	__u32 type;
+	__u16 size;
+	__u16 reserved;
+	/* followed by flow_spec */
+	__u64 flow_spec_data[0];
+};
+
+struct ib_uverbs_flow_eth_filter {
+	__u8  dst_mac[6];
+	__u8  src_mac[6];
+	__be16 ether_type;
+	__be16 vlan_tag;
+};
+
+struct ib_uverbs_flow_spec_eth {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_eth_filter val;
+	struct ib_uverbs_flow_eth_filter mask;
+};
+
+struct ib_uverbs_flow_ipv4_filter {
+	__be32 src_ip;
+	__be32 dst_ip;
+	__u8	proto;
+	__u8	tos;
+	__u8	ttl;
+	__u8	flags;
+};
+
+struct ib_uverbs_flow_spec_ipv4 {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_ipv4_filter val;
+	struct ib_uverbs_flow_ipv4_filter mask;
+};
+
+struct ib_uverbs_flow_tcp_udp_filter {
+	__be16 dst_port;
+	__be16 src_port;
+};
+
+struct ib_uverbs_flow_spec_tcp_udp {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_tcp_udp_filter val;
+	struct ib_uverbs_flow_tcp_udp_filter mask;
+};
+
+struct ib_uverbs_flow_ipv6_filter {
+	__u8    src_ip[16];
+	__u8    dst_ip[16];
+	__be32	flow_label;
+	__u8	next_hdr;
+	__u8	traffic_class;
+	__u8	hop_limit;
+	__u8	reserved;
+};
+
+struct ib_uverbs_flow_spec_ipv6 {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_ipv6_filter val;
+	struct ib_uverbs_flow_ipv6_filter mask;
+};
+
+struct ib_uverbs_flow_spec_action_tag {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	__u32			      tag_id;
+	__u32			      reserved1;
+};
+
+struct ib_uverbs_flow_spec_action_drop {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+};
+
+struct ib_uverbs_flow_tunnel_filter {
+	__be32 tunnel_id;
+};
+
+struct ib_uverbs_flow_spec_tunnel {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_tunnel_filter val;
+	struct ib_uverbs_flow_tunnel_filter mask;
+};
+
+struct ib_uverbs_flow_attr {
+	__u32 type;
+	__u16 size;
+	__u16 priority;
+	__u8  num_of_specs;
+	__u8  reserved[2];
+	__u8  port;
+	__u32 flags;
+	/* Following are the optional layers according to user request
+	 * struct ib_flow_spec_xxx
+	 * struct ib_flow_spec_yyy
+	 */
+	struct ib_uverbs_flow_spec_hdr flow_specs[0];
+};
+
+struct ib_uverbs_create_flow  {
+	__u32 comp_mask;
+	__u32 qp_handle;
+	struct ib_uverbs_flow_attr flow_attr;
+};
+
+struct ib_uverbs_create_flow_resp {
+	__u32 comp_mask;
+	__u32 flow_handle;
+};
+
+struct ib_uverbs_destroy_flow  {
+	__u32 comp_mask;
+	__u32 flow_handle;
+};
+
 struct ib_uverbs_create_srq {
 	__u64 response;
 	__u64 user_handle;
@@ -702,7 +1039,7 @@ struct ib_uverbs_create_xsrq {
 	__u32 max_wr;
 	__u32 max_sge;
 	__u32 srq_limit;
-	__u32 reserved;
+	__u32 max_num_tags;
 	__u32 xrcd_handle;
 	__u32 cq_handle;
 	__u64 driver_data[0];
@@ -746,5 +1083,73 @@ struct ib_uverbs_destroy_srq {
 struct ib_uverbs_destroy_srq_resp {
 	__u32 events_reported;
 };
+
+struct ib_uverbs_ex_create_wq  {
+	__u32 comp_mask;
+	__u32 wq_type;
+	__u64 user_handle;
+	__u32 pd_handle;
+	__u32 cq_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 create_flags; /* Use enum ib_wq_flags */
+	__u32 reserved;
+};
+
+struct ib_uverbs_ex_create_wq_resp {
+	__u32 comp_mask;
+	__u32 response_length;
+	__u32 wq_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 wqn;
+};
+
+struct ib_uverbs_ex_destroy_wq  {
+	__u32 comp_mask;
+	__u32 wq_handle;
+};
+
+struct ib_uverbs_ex_destroy_wq_resp {
+	__u32 comp_mask;
+	__u32 response_length;
+	__u32 events_reported;
+	__u32 reserved;
+};
+
+struct ib_uverbs_ex_modify_wq  {
+	__u32 attr_mask;
+	__u32 wq_handle;
+	__u32 wq_state;
+	__u32 curr_wq_state;
+	__u32 flags; /* Use enum ib_wq_flags */
+	__u32 flags_mask; /* Use enum ib_wq_flags */
+};
+
+/* Prevent memory allocation rather than max expected size */
+#define IB_USER_VERBS_MAX_LOG_IND_TBL_SIZE 0x0d
+struct ib_uverbs_ex_create_rwq_ind_table  {
+	__u32 comp_mask;
+	__u32 log_ind_tbl_size;
+	/* Following are the wq handles according to log_ind_tbl_size
+	 * wq_handle1
+	 * wq_handle2
+	 */
+	__u32 wq_handles[0];
+};
+
+struct ib_uverbs_ex_create_rwq_ind_table_resp {
+	__u32 comp_mask;
+	__u32 response_length;
+	__u32 ind_tbl_handle;
+	__u32 ind_tbl_num;
+};
+
+struct ib_uverbs_ex_destroy_rwq_ind_table  {
+	__u32 comp_mask;
+	__u32 ind_tbl_handle;
+};
+
+#define IB_DEVICE_NAME_MAX 64
 
 #endif /* IB_USER_VERBS_H */

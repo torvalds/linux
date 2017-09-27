@@ -25,7 +25,6 @@
  * that and only has minimal functionality.
  */
 #include <linux/compiler.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -707,10 +706,8 @@ static int ar5523_alloc_rx_bufs(struct ar5523 *ar)
 
 		data->ar = ar;
 		data->urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!data->urb) {
-			ar5523_err(ar, "could not allocate rx data urb\n");
+		if (!data->urb)
 			goto err;
-		}
 		list_add_tail(&data->list, &ar->rx_data_free);
 		atomic_inc(&ar->rx_data_free_cnt);
 	}
@@ -780,8 +777,6 @@ static void ar5523_tx(struct ieee80211_hw *hw,
 		ieee80211_stop_queues(hw);
 	}
 
-	data->skb = skb;
-
 	spin_lock_irqsave(&ar->tx_data_list_lock, flags);
 	list_add_tail(&data->list, &ar->tx_queue_pending);
 	spin_unlock_irqrestore(&ar->tx_data_list_lock, flags);
@@ -818,13 +813,15 @@ static void ar5523_tx_work_locked(struct ar5523 *ar)
 		if (!data)
 			break;
 
-		skb = data->skb;
+		txi = container_of((void *)data, struct ieee80211_tx_info,
+				   driver_data);
 		txqid = 0;
-		txi = IEEE80211_SKB_CB(skb);
+
+		skb = container_of((void *)txi, struct sk_buff, cb);
 		paylen = skb->len;
+
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			ar5523_err(ar, "Failed to allocate TX urb\n");
 			ieee80211_free_txskb(ar->hw, skb);
 			continue;
 		}
@@ -832,8 +829,8 @@ static void ar5523_tx_work_locked(struct ar5523 *ar)
 		data->ar = ar;
 		data->urb = urb;
 
-		desc = (struct ar5523_tx_desc *)skb_push(skb, sizeof(*desc));
-		chunk = (struct ar5523_chunk *)skb_push(skb, sizeof(*chunk));
+		desc = skb_push(skb, sizeof(*desc));
+		chunk = skb_push(skb, sizeof(*chunk));
 
 		chunk->seqnum = 0;
 		chunk->flags = UATH_CFLAGS_FINAL;
@@ -949,10 +946,8 @@ static int ar5523_alloc_tx_cmd(struct ar5523 *ar)
 	init_completion(&cmd->done);
 
 	cmd->urb_tx = usb_alloc_urb(0, GFP_KERNEL);
-	if (!cmd->urb_tx) {
-		ar5523_err(ar, "could not allocate urb\n");
+	if (!cmd->urb_tx)
 		return -ENOMEM;
-	}
 	cmd->buf_tx = usb_alloc_coherent(ar->dev, AR5523_MAX_TXCMDSZ,
 					 GFP_KERNEL,
 					 &cmd->urb_tx->transfer_dma);
@@ -1091,7 +1086,8 @@ static int ar5523_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return ret;
 }
 
-static void ar5523_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void ar5523_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 u32 queues, bool drop)
 {
 	struct ar5523 *ar = hw->priv;
 
@@ -1318,8 +1314,7 @@ out_unlock:
 
 }
 
-#define AR5523_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
-				  FIF_ALLMULTI | \
+#define AR5523_SUPPORTED_FILTERS (FIF_ALLMULTI | \
 				  FIF_FCSFAIL | \
 				  FIF_OTHER_BSS)
 
@@ -1471,12 +1466,12 @@ static int ar5523_init_modes(struct ar5523 *ar)
 	memcpy(ar->channels, ar5523_channels, sizeof(ar5523_channels));
 	memcpy(ar->rates, ar5523_rates, sizeof(ar5523_rates));
 
-	ar->band.band = IEEE80211_BAND_2GHZ;
+	ar->band.band = NL80211_BAND_2GHZ;
 	ar->band.channels = ar->channels;
 	ar->band.n_channels = ARRAY_SIZE(ar5523_channels);
 	ar->band.bitrates = ar->rates;
 	ar->band.n_bitrates = ARRAY_SIZE(ar5523_rates);
-	ar->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &ar->band;
+	ar->hw->wiphy->bands[NL80211_BAND_2GHZ] = &ar->band;
 	return 0;
 }
 
@@ -1682,9 +1677,9 @@ static int ar5523_probe(struct usb_interface *intf,
 			(id->driver_info & AR5523_FLAG_ABG) ? '5' : '2');
 
 	ar->vif = NULL;
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		    IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_HAS_RATE_CONTROL;
+	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
+	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
 	hw->extra_tx_headroom = sizeof(struct ar5523_tx_desc) +
 				sizeof(struct ar5523_chunk);
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
@@ -1693,6 +1688,8 @@ static int ar5523_probe(struct usb_interface *intf,
 	error = ar5523_init_modes(ar);
 	if (error)
 		goto out_cancel_rx_cmd;
+
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	usb_set_intfdata(intf, hw);
 
@@ -1752,7 +1749,7 @@ static void ar5523_disconnect(struct usb_interface *intf)
 	{ USB_DEVICE((vendor), (device) + 1), \
 		.driver_info = AR5523_FLAG_ABG|AR5523_FLAG_PRE_FIRMWARE }
 
-static struct usb_device_id ar5523_id_table[] = {
+static const struct usb_device_id ar5523_id_table[] = {
 	AR5523_DEVICE_UG(0x168c, 0x0001),	/* Atheros / AR5523 */
 	AR5523_DEVICE_UG(0x0cf3, 0x0001),	/* Atheros2 / AR5523_1 */
 	AR5523_DEVICE_UG(0x0cf3, 0x0003),	/* Atheros2 / AR5523_2 */
@@ -1762,9 +1759,10 @@ static struct usb_device_id ar5523_id_table[] = {
 	AR5523_DEVICE_UX(0x2001, 0x3a00),	/* Dlink / DWLAG132 */
 	AR5523_DEVICE_UG(0x2001, 0x3a02),	/* Dlink / DWLG132 */
 	AR5523_DEVICE_UX(0x2001, 0x3a04),	/* Dlink / DWLAG122 */
+	AR5523_DEVICE_UG(0x07d1, 0x3a07),	/* D-Link / WUA-2340 rev A1 */
 	AR5523_DEVICE_UG(0x1690, 0x0712),	/* Gigaset / AR5523 */
 	AR5523_DEVICE_UG(0x1690, 0x0710),	/* Gigaset / SMCWUSBTG */
-	AR5523_DEVICE_UG(0x129b, 0x160c),	/* Gigaset / USB stick 108
+	AR5523_DEVICE_UG(0x129b, 0x160b),	/* Gigaset / USB stick 108
 						   (CyberTAN Technology) */
 	AR5523_DEVICE_UG(0x16ab, 0x7801),	/* Globalsun / AR5523_1 */
 	AR5523_DEVICE_UX(0x16ab, 0x7811),	/* Globalsun / AR5523_2 */

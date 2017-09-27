@@ -23,7 +23,6 @@
  * byte channel used for the console is designated as the default tty.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -32,6 +31,7 @@
 #include <linux/poll.h>
 #include <asm/epapr_hcalls.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/cdev.h>
 #include <linux/console.h>
@@ -107,55 +107,22 @@ static void disable_tx_interrupt(struct ehv_bc_data *bc)
  *
  * The byte channel to be used for the console is specified via a "stdout"
  * property in the /chosen node.
- *
- * For compatible with legacy device trees, we also look for a "stdout" alias.
  */
 static int find_console_handle(void)
 {
-	struct device_node *np, *np2;
-	const char *sprop = NULL;
+	struct device_node *np = of_stdout;
 	const uint32_t *iprop;
-
-	np = of_find_node_by_path("/chosen");
-	if (np)
-		sprop = of_get_property(np, "stdout-path", NULL);
-
-	if (!np || !sprop) {
-		of_node_put(np);
-		np = of_find_node_by_name(NULL, "aliases");
-		if (np)
-			sprop = of_get_property(np, "stdout", NULL);
-	}
-
-	if (!sprop) {
-		of_node_put(np);
-		return 0;
-	}
 
 	/* We don't care what the aliased node is actually called.  We only
 	 * care if it's compatible with "epapr,hv-byte-channel", because that
-	 * indicates that it's a byte channel node.  We use a temporary
-	 * variable, 'np2', because we can't release 'np' until we're done with
-	 * 'sprop'.
+	 * indicates that it's a byte channel node.
 	 */
-	np2 = of_find_node_by_path(sprop);
-	of_node_put(np);
-	np = np2;
-	if (!np) {
-		pr_warning("ehv-bc: stdout node '%s' does not exist\n", sprop);
+	if (!np || !of_device_is_compatible(np, "epapr,hv-byte-channel"))
 		return 0;
-	}
-
-	/* Is it a byte channel? */
-	if (!of_device_is_compatible(np, "epapr,hv-byte-channel")) {
-		of_node_put(np);
-		return 0;
-	}
 
 	stdout_irq = irq_of_parse_and_map(np, 0);
 	if (stdout_irq == NO_IRQ) {
-		pr_err("ehv-bc: no 'interrupts' property in %s node\n", sprop);
-		of_node_put(np);
+		pr_err("ehv-bc: no 'interrupts' property in %pOF node\n", np);
 		return 0;
 	}
 
@@ -166,12 +133,9 @@ static int find_console_handle(void)
 	if (!iprop) {
 		pr_err("ehv-bc: no 'hv-handle' property in %s node\n",
 		       np->name);
-		of_node_put(np);
 		return 0;
 	}
 	stdout_bc = be32_to_cpu(*iprop);
-
-	of_node_put(np);
 	return 1;
 }
 
@@ -343,8 +307,8 @@ static int __init ehv_bc_console_init(void)
 	 * handle for udbg.
 	 */
 	if (stdout_bc != CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE)
-		pr_warning("ehv-bc: udbg handle %u is not the stdout handle\n",
-			   CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE);
+		pr_warn("ehv-bc: udbg handle %u is not the stdout handle\n",
+			CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE);
 #endif
 
 	/* add_preferred_console() must be called before register_console(),
@@ -754,19 +718,6 @@ error:
 	return ret;
 }
 
-static int ehv_bc_tty_remove(struct platform_device *pdev)
-{
-	struct ehv_bc_data *bc = dev_get_drvdata(&pdev->dev);
-
-	tty_unregister_device(ehv_bc_driver, bc - bcs);
-
-	tty_port_destroy(&bc->port);
-	irq_dispose_mapping(bc->tx_irq);
-	irq_dispose_mapping(bc->rx_irq);
-
-	return 0;
-}
-
 static const struct of_device_id ehv_bc_tty_of_ids[] = {
 	{ .compatible = "epapr,hv-byte-channel" },
 	{}
@@ -774,18 +725,17 @@ static const struct of_device_id ehv_bc_tty_of_ids[] = {
 
 static struct platform_driver ehv_bc_tty_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "ehv-bc",
 		.of_match_table = ehv_bc_tty_of_ids,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= ehv_bc_tty_probe,
-	.remove		= ehv_bc_tty_remove,
 };
 
 /**
  * ehv_bc_init - ePAPR hypervisor byte channel driver initialization
  *
- * This function is called when this module is loaded.
+ * This function is called when this driver is loaded.
  */
 static int __init ehv_bc_init(void)
 {
@@ -814,7 +764,7 @@ static int __init ehv_bc_init(void)
 	ehv_bc_driver = alloc_tty_driver(count);
 	if (!ehv_bc_driver) {
 		ret = -ENOMEM;
-		goto error;
+		goto err_free_bcs;
 	}
 
 	ehv_bc_driver->driver_name = "ehv-bc";
@@ -828,46 +778,25 @@ static int __init ehv_bc_init(void)
 	ret = tty_register_driver(ehv_bc_driver);
 	if (ret) {
 		pr_err("ehv-bc: could not register tty driver (ret=%i)\n", ret);
-		goto error;
+		goto err_put_tty_driver;
 	}
 
 	ret = platform_driver_register(&ehv_bc_tty_driver);
 	if (ret) {
 		pr_err("ehv-bc: could not register platform driver (ret=%i)\n",
 		       ret);
-		goto error;
+		goto err_deregister_tty_driver;
 	}
 
 	return 0;
 
-error:
-	if (ehv_bc_driver) {
-		tty_unregister_driver(ehv_bc_driver);
-		put_tty_driver(ehv_bc_driver);
-	}
-
+err_deregister_tty_driver:
+	tty_unregister_driver(ehv_bc_driver);
+err_put_tty_driver:
+	put_tty_driver(ehv_bc_driver);
+err_free_bcs:
 	kfree(bcs);
 
 	return ret;
 }
-
-
-/**
- * ehv_bc_exit - ePAPR hypervisor byte channel driver termination
- *
- * This function is called when this driver is unloaded.
- */
-static void __exit ehv_bc_exit(void)
-{
-	platform_driver_unregister(&ehv_bc_tty_driver);
-	tty_unregister_driver(ehv_bc_driver);
-	put_tty_driver(ehv_bc_driver);
-	kfree(bcs);
-}
-
-module_init(ehv_bc_init);
-module_exit(ehv_bc_exit);
-
-MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
-MODULE_DESCRIPTION("ePAPR hypervisor byte channel driver");
-MODULE_LICENSE("GPL v2");
+device_initcall(ehv_bc_init);

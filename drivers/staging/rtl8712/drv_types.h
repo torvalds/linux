@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
  *
@@ -23,11 +19,12 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  ******************************************************************************/
-/*---------------------------------------------------------------------
-
-	For type defines and data structure defines
-
------------------------------------------------------------------------*/
+/* ---------------------------------------------------------------------
+ *
+ *	For type defines and data structure defines
+ *
+ * ---------------------------------------------------------------------
+ */
 #ifndef __DRV_TYPES_H__
 #define __DRV_TYPES_H__
 
@@ -129,8 +126,8 @@ struct dvobj_priv {
 	struct _adapter *padapter;
 	u32 nr_endpoint;
 	u8   ishighspeed;
-	uint(*inirp_init)(struct _adapter *adapter);
-	uint(*inirp_deinit)(struct _adapter *adapter);
+	uint (*inirp_init)(struct _adapter *adapter);
+	uint (*inirp_deinit)(struct _adapter *adapter);
 	struct usb_device *pusbdev;
 };
 
@@ -158,23 +155,23 @@ struct _adapter {
 	struct mp_priv  mppriv;
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
+	s32	bSuspended;
 	u32	IsrContent;
 	u32	ImrContent;
-	bool	fw_found;
 	u8	EepromAddressSize;
 	u8	hw_init_completed;
 	struct task_struct *cmdThread;
 	 pid_t evtThread;
 	struct task_struct *xmitThread;
 	pid_t recvThread;
-	uint(*dvobj_init)(struct _adapter *adapter);
-	void  (*dvobj_deinit)(struct _adapter *adapter);
+	uint (*dvobj_init)(struct _adapter *adapter);
+	void (*dvobj_deinit)(struct _adapter *adapter);
 	struct net_device *pnetdev;
 	int bup;
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
 	int pid; /*process id from UI*/
-	_workitem wkFilterRxFF0;
+	struct work_struct wkFilterRxFF0;
 	u8 blnEnableRxFF0Filter;
 	spinlock_t lockRxFF0Filter;
 	const struct firmware *fw;

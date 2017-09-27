@@ -4,14 +4,18 @@ Required Properties:
 - compatible: Should be one of:
   - "ti,abb-v1" for older SoCs like OMAP3
   - "ti,abb-v2" for newer SoCs like OMAP4, OMAP5
+  - "ti,abb-v3" for a generic definition where setup and control registers are
+     provided (example: DRA7)
 - reg: Address and length of the register set for the device. It contains
   the information of registers in the same order as described by reg-names
 - reg-names: Should contain the reg names
-  - "base-address"	- contains base address of ABB module
+  - "base-address"	- contains base address of ABB module (ti,abb-v1,ti,abb-v2)
+  - "control-address"	- contains control register address of ABB module (ti,abb-v3)
+  - "setup-address"	- contains setup register address of ABB module (ti,abb-v3)
   - "int-address"	- contains address of interrupt register for ABB module
   (also see Optional properties)
-- #address-cell: should be 0
-- #size-cell: should be 0
+- #address-cells: should be 0
+- #size-cells: should be 0
 - clocks: should point to the clock node used by ABB module
 - ti,settling-time: Settling time in uSecs from SoC documentation for ABB module
 	to settle down(target time for SR2_WTCNT_VALUE).
@@ -41,7 +45,7 @@ Required Properties:
 Optional Properties:
 - reg-names: In addition to the required properties, the following are optional
   - "efuse-address"	- Contains efuse base address used to pick up ABB info.
-  - "ldo-address"	- Contains address of ABB LDO overide register address.
+  - "ldo-address"	- Contains address of ABB LDO override register.
 	"efuse-address" is required for this.
 - ti,ldovbb-vset-mask	- Required if ldo-address is set, mask for LDO override
 	register to provide override vset value.
@@ -65,7 +69,7 @@ Example #1: Simplest configuration (no efuse data, hard coded ABB table):
 abb_x: regulator-abb-x {
 	compatible = "ti,abb-v1";
 	regulator-name = "abb_x";
-	#address-cell = <0>;
+	#address-cells = <0>;
 	#size-cells = <0>;
 	reg = <0x483072f0 0x8>, <0x48306818 0x4>;
 	reg-names = "base-address", "int-address";
@@ -85,7 +89,7 @@ Example #2: Efuse bits contain ABB mode setting (no LDO override capability)
 abb_y: regulator-abb-y {
 	compatible = "ti,abb-v2";
 	regulator-name = "abb_y";
-	#address-cell = <0>;
+	#address-cells = <0>;
 	#size-cells = <0>;
 	reg = <0x4a307bd0 0x8>, <0x4a306014 0x4>, <0x4A002268 0x8>;
 	reg-names = "base-address", "int-address", "efuse-address";
@@ -106,7 +110,7 @@ Example #3: Efuse bits contain ABB mode setting and LDO override capability
 abb_z: regulator-abb-z {
 	compatible = "ti,abb-v2";
 	regulator-name = "abb_z";
-	#address-cell = <0>;
+	#address-cells = <0>;
 	#size-cells = <0>;
 	reg = <0x4ae07ce4 0x8>, <0x4ae06010 0x4>,
 	      <0x4a002194 0x8>, <0x4ae0C314 0x4>;

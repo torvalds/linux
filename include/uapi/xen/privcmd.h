@@ -44,6 +44,10 @@ struct privcmd_hypercall {
 
 struct privcmd_mmap_entry {
 	__u64 va;
+	/*
+	 * This should be a GFN. It's not possible to change the name because
+	 * it's exposed to the user-space.
+	 */
 	__u64 mfn;
 	__u64 npages;
 };
@@ -73,6 +77,17 @@ struct privcmd_mmapbatch_v2 {
 	int __user *err;  /* array of error codes */
 };
 
+struct privcmd_dm_op_buf {
+	void __user *uptr;
+	size_t size;
+};
+
+struct privcmd_dm_op {
+	domid_t dom;
+	__u16 num;
+	const struct privcmd_dm_op_buf __user *ubufs;
+};
+
 /*
  * @cmd: IOCTL_PRIVCMD_HYPERCALL
  * @arg: &privcmd_hypercall_t
@@ -94,5 +109,9 @@ struct privcmd_mmapbatch_v2 {
 	_IOC(_IOC_NONE, 'P', 3, sizeof(struct privcmd_mmapbatch))
 #define IOCTL_PRIVCMD_MMAPBATCH_V2				\
 	_IOC(_IOC_NONE, 'P', 4, sizeof(struct privcmd_mmapbatch_v2))
+#define IOCTL_PRIVCMD_DM_OP					\
+	_IOC(_IOC_NONE, 'P', 5, sizeof(struct privcmd_dm_op))
+#define IOCTL_PRIVCMD_RESTRICT					\
+	_IOC(_IOC_NONE, 'P', 6, sizeof(domid_t))
 
 #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */

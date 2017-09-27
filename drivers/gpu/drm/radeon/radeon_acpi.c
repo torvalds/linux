@@ -25,17 +25,19 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/power_supply.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
+#include <linux/pm_runtime.h>
 #include <acpi/video.h>
-
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "radeon.h"
 #include "radeon_acpi.h"
 #include "atom.h"
 
-#include <linux/vga_switcheroo.h>
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool radeon_atpx_dgpu_req_power_for_displays(void);
+#else
+static inline bool radeon_atpx_dgpu_req_power_for_displays(void) { return false; }
+#endif
 
 #define ACPI_AC_CLASS           "ac_adapter"
 
@@ -349,7 +351,7 @@ out:
  * handles it.
  * Returns NOTIFY code
  */
-int radeon_atif_handler(struct radeon_device *rdev,
+static int radeon_atif_handler(struct radeon_device *rdev,
 		struct acpi_bus_event *event)
 {
 	struct radeon_atif *atif = &rdev->atif;
@@ -369,7 +371,7 @@ int radeon_atif_handler(struct radeon_device *rdev,
 		return NOTIFY_DONE;
 
 	/* Check pending SBIOS requests */
-	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
+	handle = ACPI_HANDLE(&rdev->pdev->dev);
 	count = radeon_atif_get_sbios_requests(handle, &req);
 
 	if (count <= 0)
@@ -397,6 +399,16 @@ int radeon_atif_handler(struct radeon_device *rdev,
 						       BACKLIGHT_UPDATE_HOTKEY);
 			}
 #endif
+		}
+	}
+	if (req.pending & ATIF_DGPU_DISPLAY_EVENT) {
+		if ((rdev->flags & RADEON_IS_PX) &&
+		    radeon_atpx_dgpu_req_power_for_displays()) {
+			pm_runtime_get_sync(rdev->ddev->dev);
+			/* Just fire off a uevent and let userspace tell us what to do */
+			drm_helper_hpd_irq_event(rdev->ddev);
+			pm_runtime_mark_last_busy(rdev->ddev->dev);
+			pm_runtime_put_autosuspend(rdev->ddev->dev);
 		}
 	}
 	/* TODO: check other events */
@@ -556,7 +568,7 @@ int radeon_acpi_pcie_notify_device_ready(struct radeon_device *rdev)
 	struct radeon_atcs *atcs = &rdev->atcs;
 
 	/* Get the device handle */
-	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
+	handle = ACPI_HANDLE(&rdev->pdev->dev);
 	if (!handle)
 		return -EINVAL;
 
@@ -596,7 +608,7 @@ int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
 	u32 retry = 3;
 
 	/* Get the device handle */
-	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
+	handle = ACPI_HANDLE(&rdev->pdev->dev);
 	if (!handle)
 		return -EINVAL;
 
@@ -699,7 +711,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	int ret;
 
 	/* Get the device handle */
-	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
+	handle = ACPI_HANDLE(&rdev->pdev->dev);
 
 	/* No need to proceed if we're sure that ATIF is not supported */
 	if (!ASIC_IS_AVIVO(rdev) || !rdev->bios || !handle)
@@ -746,13 +758,6 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		}
 
 		atif->encoder_for_bl = target;
-		if (!target) {
-			/* Brightness change notification is enabled, but we
-			 * didn't find a backlight controller, this should
-			 * never happen.
-			 */
-			DRM_ERROR("Cannot find a backlight controller\n");
-		}
 	}
 
 	if (atif->functions.sbios_requests && !atif->functions.system_params) {

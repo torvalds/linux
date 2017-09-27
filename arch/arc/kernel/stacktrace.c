@@ -28,6 +28,8 @@
 #include <linux/export.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
+#include <linux/sched/debug.h>
+
 #include <asm/arcregs.h>
 #include <asm/unwind.h>
 #include <asm/switch_to.h>
@@ -43,6 +45,10 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 				   struct pt_regs *regs,
 				   struct unwind_frame_info *frame_info)
 {
+	/*
+	 * synchronous unwinding (e.g. dump_stack)
+	 *  - uses current values of SP and friends
+	 */
 	if (tsk == NULL && regs == NULL) {
 		unsigned long fp, sp, blink, ret;
 		frame_info->task = current;
@@ -61,12 +67,17 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		frame_info->regs.r63 = ret;
 		frame_info->call_frame = 0;
 	} else if (regs == NULL) {
+		/*
+		 * Asynchronous unwinding of sleeping task
+		 *  - Gets SP etc from task's pt_regs (saved bottom of kernel
+		 *    mode stack of task)
+		 */
 
 		frame_info->task = tsk;
 
-		frame_info->regs.r27 = KSTK_FP(tsk);
-		frame_info->regs.r28 = KSTK_ESP(tsk);
-		frame_info->regs.r31 = KSTK_BLINK(tsk);
+		frame_info->regs.r27 = TSK_K_FP(tsk);
+		frame_info->regs.r28 = TSK_K_ESP(tsk);
+		frame_info->regs.r31 = TSK_K_BLINK(tsk);
 		frame_info->regs.r63 = (unsigned int)__switch_to;
 
 		/* In the prologue of __switch_to, first FP is saved on stack
@@ -83,6 +94,10 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		frame_info->call_frame = 0;
 
 	} else {
+		/*
+		 * Asynchronous unwinding of intr/exception
+		 *  - Just uses the pt_regs passed
+		 */
 		frame_info->task = tsk;
 
 		frame_info->regs.r27 = regs->fp;
@@ -95,7 +110,7 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 
 #endif
 
-static noinline unsigned int
+notrace noinline unsigned int
 arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 		int (*consumer_fn) (unsigned int, void *), void *arg)
 {
@@ -109,19 +124,17 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	while (1) {
 		address = UNW_PC(&frame_info);
 
-		if (address && __kernel_text_address(address)) {
-			if (consumer_fn(address, arg) == -1)
-				break;
-		}
+		if (!address || !__kernel_text_address(address))
+			break;
+
+		if (consumer_fn(address, arg) == -1)
+			break;
 
 		ret = arc_unwind(&frame_info);
-
-		if (ret == 0) {
-			frame_info.regs.r63 = frame_info.regs.r31;
-			continue;
-		} else {
+		if (ret)
 			break;
-		}
+
+		frame_info.regs.r63 = frame_info.regs.r31;
 	}
 
 	return address;		/* return the last address it saw */
@@ -131,7 +144,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	 * prelogue is setup (callee regs saved and then fp set and not other
 	 * way around
 	 */
-	pr_warn("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
+	pr_warn_once("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
 	return 0;
 
 #endif
@@ -221,7 +234,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 }
 
 /* Another API expected by schedular, shows up in "ps" as Wait Channel
- * Ofcourse just returning schedule( ) would be pointless so unwind until
+ * Of course just returning schedule( ) would be pointless so unwind until
  * the function is not in schedular code
  */
 unsigned int get_wchan(struct task_struct *tsk)
@@ -237,11 +250,14 @@ unsigned int get_wchan(struct task_struct *tsk)
  */
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
+	/* Assumes @tsk is sleeping so unwinds from __switch_to */
 	arc_unwind_core(tsk, NULL, __collect_all_but_sched, trace);
 }
 
 void save_stack_trace(struct stack_trace *trace)
 {
-	arc_unwind_core(current, NULL, __collect_all, trace);
+	/* Pass NULL for task so it unwinds the current call frame */
+	arc_unwind_core(NULL, NULL, __collect_all, trace);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);
 #endif

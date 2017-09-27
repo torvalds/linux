@@ -1,0 +1,149 @@
+Davinci/Keystone GPIO controller bindings
+
+Required Properties:
+- compatible: should be "ti,dm6441-gpio": for Davinci da850 SoCs
+			"ti,keystone-gpio": for Keystone 2 66AK2H/K, 66AK2L,
+						66AK2E SoCs
+			"ti,k2g-gpio", "ti,keystone-gpio": for 66AK2G
+
+- reg: Physical base address of the controller and the size of memory mapped
+       registers.
+
+- gpio-controller : Marks the device node as a gpio controller.
+
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify optional parameters (unused)
+
+- interrupt-parent: phandle of the parent interrupt controller.
+
+- interrupts: Array of GPIO interrupt number. Only banked or unbanked IRQs are
+	      supported at a time.
+
+- ti,ngpio: The number of GPIO pins supported.
+
+- ti,davinci-gpio-unbanked: The number of GPIOs that have an individual interrupt
+		            line to processor.
+
+- clocks: Should contain the device's input clock, and should be defined as per
+          the appropriate clock bindings consumer usage in,
+
+          Documentation/devicetree/bindings/clock/keystone-gate.txt
+                            for 66AK2HK/66AK2L/66AK2E SoCs or,
+
+          Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+                            for 66AK2G SoCs
+
+- clock-names: Name should be "gpio";
+
+Currently clock-names and clocks are needed for all keystone 2 platforms
+Davinci platforms do not have DT clocks as of now.
+
+The GPIO controller also acts as an interrupt controller. It uses the default
+two cells specifier as described in Documentation/devicetree/bindings/
+interrupt-controller/interrupts.txt.
+
+Example:
+
+gpio: gpio@1e26000 {
+	compatible = "ti,dm6441-gpio";
+	gpio-controller;
+	#gpio-cells = <2>;
+	reg = <0x226000 0x1000>;
+	interrupt-parent = <&intc>;
+	interrupts = <42 IRQ_TYPE_EDGE_BOTH 43 IRQ_TYPE_EDGE_BOTH
+		44 IRQ_TYPE_EDGE_BOTH 45 IRQ_TYPE_EDGE_BOTH
+		46 IRQ_TYPE_EDGE_BOTH 47 IRQ_TYPE_EDGE_BOTH
+		48 IRQ_TYPE_EDGE_BOTH 49 IRQ_TYPE_EDGE_BOTH
+		50 IRQ_TYPE_EDGE_BOTH>;
+	ti,ngpio = <144>;
+	ti,davinci-gpio-unbanked = <0>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+};
+
+leds {
+	compatible = "gpio-leds";
+
+	led1 {
+		label = "davinci:green:usr1";
+		gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
+		...
+	};
+
+	led2 {
+		label = "davinci:red:debug1";
+		gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
+		...
+	};
+};
+
+Example for 66AK2G:
+
+gpio0: gpio@2603000 {
+	compatible = "ti,k2g-gpio", "ti,keystone-gpio";
+	reg = <0x02603000 0x100>;
+	gpio-controller;
+	#gpio-cells = <2>;
+	interrupts = <GIC_SPI 432 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 433 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 434 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 435 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 436 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 437 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 438 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 439 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 440 IRQ_TYPE_EDGE_RISING>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+	ti,ngpio = <144>;
+	ti,davinci-gpio-unbanked = <0>;
+	clocks = <&k2g_clks 0x001b 0x0>;
+	clock-names = "gpio";
+};
+
+Example for 66AK2HK/66AK2L/66AK2E:
+
+gpio0: gpio@260bf00 {
+	compatible = "ti,keystone-gpio";
+	reg = <0x0260bf00 0x100>;
+	gpio-controller;
+	#gpio-cells = <2>;
+	/* HW Interrupts mapped to GPIO pins */
+	interrupts = <GIC_SPI 120 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 121 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 123 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 124 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 125 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 126 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 127 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 128 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 129 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 130 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 131 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 132 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 133 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 134 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 135 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 136 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 137 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 138 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 139 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 140 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 141 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 142 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 143 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 144 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 145 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 146 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkgpio>;
+	clock-names = "gpio";
+	ti,ngpio = <32>;
+	ti,davinci-gpio-unbanked = <32>;
+};

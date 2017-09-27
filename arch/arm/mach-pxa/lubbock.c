@@ -11,7 +11,9 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <linux/clkdev.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -45,18 +47,17 @@
 
 #include <asm/hardware/sa1111.h>
 
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <mach/audio.h>
 #include <mach/lubbock.h>
-#include <mach/udc.h>
+#include "udc.h"
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/smemc.h>
 
 #include "generic.h"
-#include "clock.h"
 #include "devices.h"
 
 static unsigned long lubbock_pin_config[] __initdata = {
@@ -101,6 +102,9 @@ static unsigned long lubbock_pin_config[] __initdata = {
 	GPIO6_MMC_CLK,
 	GPIO8_MMC_CS0,
 
+	/* SA1111 chip */
+	GPIO11_3_6MHz,
+
 	/* wakeup */
 	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
 };
@@ -123,84 +127,6 @@ void lubbock_set_misc_wr(unsigned int mask, unsigned int set)
 }
 EXPORT_SYMBOL(lubbock_set_misc_wr);
 
-static unsigned long lubbock_irq_enabled;
-
-static void lubbock_mask_irq(struct irq_data *d)
-{
-	int lubbock_irq = (d->irq - LUBBOCK_IRQ(0));
-	LUB_IRQ_MASK_EN = (lubbock_irq_enabled &= ~(1 << lubbock_irq));
-}
-
-static void lubbock_unmask_irq(struct irq_data *d)
-{
-	int lubbock_irq = (d->irq - LUBBOCK_IRQ(0));
-	/* the irq can be acknowledged only if deasserted, so it's done here */
-	LUB_IRQ_SET_CLR &= ~(1 << lubbock_irq);
-	LUB_IRQ_MASK_EN = (lubbock_irq_enabled |= (1 << lubbock_irq));
-}
-
-static struct irq_chip lubbock_irq_chip = {
-	.name		= "FPGA",
-	.irq_ack	= lubbock_mask_irq,
-	.irq_mask	= lubbock_mask_irq,
-	.irq_unmask	= lubbock_unmask_irq,
-};
-
-static void lubbock_irq_handler(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned long pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
-	do {
-		/* clear our parent irq */
-		desc->irq_data.chip->irq_ack(&desc->irq_data);
-		if (likely(pending)) {
-			irq = LUBBOCK_IRQ(0) + __ffs(pending);
-			generic_handle_irq(irq);
-		}
-		pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
-	} while (pending);
-}
-
-static void __init lubbock_init_irq(void)
-{
-	int irq;
-
-	pxa25x_init_irq();
-
-	/* setup extra lubbock irqs */
-	for (irq = LUBBOCK_IRQ(0); irq <= LUBBOCK_LAST_IRQ; irq++) {
-		irq_set_chip_and_handler(irq, &lubbock_irq_chip,
-					 handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-	}
-
-	irq_set_chained_handler(PXA_GPIO_TO_IRQ(0), lubbock_irq_handler);
-	irq_set_irq_type(PXA_GPIO_TO_IRQ(0), IRQ_TYPE_EDGE_FALLING);
-}
-
-#ifdef CONFIG_PM
-
-static void lubbock_irq_resume(void)
-{
-	LUB_IRQ_MASK_EN = lubbock_irq_enabled;
-}
-
-static struct syscore_ops lubbock_irq_syscore_ops = {
-	.resume = lubbock_irq_resume,
-};
-
-static int __init lubbock_irq_device_init(void)
-{
-	if (machine_is_lubbock()) {
-		register_syscore_ops(&lubbock_irq_syscore_ops);
-		return 0;
-	}
-	return -ENODEV;
-}
-
-device_initcall(lubbock_irq_device_init);
-
-#endif
-
 static int lubbock_udc_is_connected(void)
 {
 	return (LUB_MISC_RD & (1 << 9)) == 0;
@@ -210,6 +136,18 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	.udc_is_connected	= lubbock_udc_is_connected,
 	// no D+ pullup; lubbock can't connect/disconnect in software
 };
+
+static void lubbock_init_pcmcia(void)
+{
+	struct clk *clk;
+
+	/* Add an alias for the SA1111 PCMCIA clock */
+	clk = clk_get_sys("pxa2xx-pcmcia", NULL);
+	if (!IS_ERR(clk)) {
+		clkdev_create(clk, NULL, "1800");
+		clk_put(clk);
+	}
+}
 
 static struct resource sa1111_resources[] = {
 	[0] = {
@@ -383,11 +321,38 @@ static struct platform_device lubbock_flash_device[2] = {
 	},
 };
 
+static struct resource lubbock_cplds_resources[] = {
+	[0] = {
+		.start	= LUBBOCK_FPGA_PHYS + 0xc0,
+		.end	= LUBBOCK_FPGA_PHYS + 0xe0 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= PXA_GPIO_TO_IRQ(0),
+		.end	= PXA_GPIO_TO_IRQ(0),
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+	},
+	[2] = {
+		.start	= LUBBOCK_IRQ(0),
+		.end	= LUBBOCK_IRQ(6),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device lubbock_cplds_device = {
+	.name		= "pxa_cplds_irqs",
+	.id		= -1,
+	.resource	= &lubbock_cplds_resources[0],
+	.num_resources	= 3,
+};
+
+
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
 	&smc91x_device,
 	&lubbock_flash_device[0],
 	&lubbock_flash_device[1],
+	&lubbock_cplds_device,
 };
 
 static struct pxafb_mode_info sharp_lm8v31_mode = {
@@ -513,6 +478,8 @@ static void __init lubbock_init(void)
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
+
+	lubbock_init_pcmcia();
 
 	clk_add_alias("SA1111_CLK", NULL, "GPIO11_CLK", NULL);
 	pxa_set_udc_info(&udc_info);
@@ -648,7 +615,7 @@ MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
 	/* Maintainer: MontaVista Software Inc. */
 	.map_io		= lubbock_map_io,
 	.nr_irqs	= LUBBOCK_NR_IRQS,
-	.init_irq	= lubbock_init_irq,
+	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
 	.init_time	= pxa_timer_init,
 	.init_machine	= lubbock_init,

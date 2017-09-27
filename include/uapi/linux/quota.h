@@ -33,14 +33,14 @@
 #ifndef _UAPI_LINUX_QUOTA_
 #define _UAPI_LINUX_QUOTA_
 
-#include <linux/errno.h>
 #include <linux/types.h>
 
-#define __DQUOT_VERSION__	"dquot_6.5.2"
+#define __DQUOT_VERSION__	"dquot_6.6.0"
 
-#define MAXQUOTAS 2
+#define MAXQUOTAS 3
 #define USRQUOTA  0		/* element used for user quotas */
 #define GRPQUOTA  1		/* element used for group quotas */
+#define PRJQUOTA  2		/* element used for project quotas */
 
 /*
  * Definitions for the default names of the quotas files.
@@ -48,6 +48,7 @@
 #define INITQFNAMES { \
 	"user",    /* USRQUOTA */ \
 	"group",   /* GRPQUOTA */ \
+	"project", /* PRJQUOTA */ \
 	"undefined", \
 };
 
@@ -69,6 +70,7 @@
 #define Q_SETINFO  0x800006	/* set information about quota files */
 #define Q_GETQUOTA 0x800007	/* get user quota structure */
 #define Q_SETQUOTA 0x800008	/* set user quota structure */
+#define Q_GETNEXTQUOTA 0x800009	/* get disk limits and usage >= ID */
 
 /* Quota format type IDs */
 #define	QFMT_VFS_OLD 1
@@ -117,6 +119,19 @@ struct if_dqblk {
 	__u32 dqb_valid;
 };
 
+struct if_nextdqblk {
+	__u64 dqb_bhardlimit;
+	__u64 dqb_bsoftlimit;
+	__u64 dqb_curspace;
+	__u64 dqb_ihardlimit;
+	__u64 dqb_isoftlimit;
+	__u64 dqb_curinodes;
+	__u64 dqb_btime;
+	__u64 dqb_itime;
+	__u32 dqb_valid;
+	__u32 dqb_id;
+};
+
 /*
  * Structure used for setting quota information about file via quotactl
  * Following flags are used to specify which fields are valid
@@ -126,10 +141,22 @@ struct if_dqblk {
 #define IIF_FLAGS	4
 #define IIF_ALL		(IIF_BGRACE | IIF_IGRACE | IIF_FLAGS)
 
+enum {
+	DQF_ROOT_SQUASH_B = 0,
+	DQF_SYS_FILE_B = 16,
+	/* Kernel internal flags invisible to userspace */
+	DQF_PRIVATE
+};
+
+/* Root squash enabled (for v1 quota format) */
+#define DQF_ROOT_SQUASH	(1 << DQF_ROOT_SQUASH_B)
+/* Quota stored in a system file */
+#define DQF_SYS_FILE	(1 << DQF_SYS_FILE_B)
+
 struct if_dqinfo {
 	__u64 dqi_bgrace;
 	__u64 dqi_igrace;
-	__u32 dqi_flags;
+	__u32 dqi_flags;	/* DFQ_* */
 	__u32 dqi_valid;
 };
 
@@ -163,6 +190,7 @@ enum {
 	QUOTA_NL_A_DEV_MAJOR,
 	QUOTA_NL_A_DEV_MINOR,
 	QUOTA_NL_A_CAUSED_ID,
+	QUOTA_NL_A_PAD,
 	__QUOTA_NL_A_MAX,
 };
 #define QUOTA_NL_A_MAX (__QUOTA_NL_A_MAX - 1)

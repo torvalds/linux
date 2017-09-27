@@ -31,7 +31,6 @@
 #include <linux/gameport.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 
 #define DRIVER_DESC	"Gameport data dumper module"

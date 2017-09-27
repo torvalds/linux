@@ -1,0 +1,32 @@
+menuconfig ARCH_MESON
+	bool "Amlogic Meson SoCs"
+	depends on ARCH_MULTI_V7
+	select GPIOLIB
+	select GENERIC_IRQ_CHIP
+	select ARM_GIC
+	select CACHE_L2X0
+	select PINCTRL
+	select PINCTRL_MESON
+	select COMMON_CLK
+	select COMMON_CLK_AMLOGIC
+
+if ARCH_MESON
+
+config MACH_MESON6
+	bool "Amlogic Meson6 (8726MX) SoCs support"
+	default ARCH_MESON
+	select MESON6_TIMER
+
+config MACH_MESON8
+	bool "Amlogic Meson8 SoCs support"
+	default ARCH_MESON
+	select MESON6_TIMER
+	select COMMON_CLK_MESON8B
+
+config MACH_MESON8B
+	bool "Amlogic Meson8b SoCs support"
+	default ARCH_MESON
+	select MESON6_TIMER
+	select COMMON_CLK_MESON8B
+
+endif

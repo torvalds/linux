@@ -3,28 +3,36 @@ perf-diff(1)
 
 NAME
 ----
-perf-diff - Read two perf.data files and display the differential profile
+perf-diff - Read perf.data files and display the differential profile
 
 SYNOPSIS
 --------
 [verse]
-'perf diff' [oldfile] [newfile]
+'perf diff' [baseline file] [data file1] [[data file2] ... ]
 
 DESCRIPTION
 -----------
-This command displays the performance difference amongst two perf.data files
-captured via perf record.
+This command displays the performance difference amongst two or more perf.data
+files captured via perf record.
 
 If no parameters are passed it will assume perf.data.old and perf.data.
 
 The differential profile is displayed only for events matching both
 specified perf.data files.
 
+If no parameters are passed the samples will be sorted by dso and symbol.
+As the perf.data files could come from different binaries, the symbols addresses
+could vary. So perf diff is based on the comparison of the files and
+symbols name.
+
 OPTIONS
 -------
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
+
+--kallsyms=<file>::
+        kallsyms pathname
 
 -m::
 --modules::
@@ -33,21 +41,25 @@ OPTIONS
 -d::
 --dsos=::
 	Only consider symbols in these dsos. CSV that understands
-	file://filename entries.
+	file://filename entries.  This option will affect the percentage
+	of the Baseline/Delta column.  See --percentage for more info.
 
 -C::
 --comms=::
 	Only consider symbols in these comms. CSV that understands
-	file://filename entries.
+	file://filename entries.  This option will affect the percentage
+	of the Baseline/Delta column.  See --percentage for more info.
 
 -S::
 --symbols=::
 	Only consider these symbols. CSV that understands
-	file://filename entries.
+	file://filename entries.  This option will affect the percentage
+	of the Baseline/Delta column.  See --percentage for more info.
 
 -s::
 --sort=::
-	Sort by key(s): pid, comm, dso, symbol.
+	Sort by key(s): pid, comm, dso, symbol, cpu, parent, srcline.
+	Please see description of --sort in the perf-report man page.
 
 -t::
 --field-separator=::
@@ -61,9 +73,13 @@ OPTIONS
 	Be verbose, for instance, show the raw counts in addition to the
 	diff.
 
+-q::
+--quiet::
+	Do not show any message.  (Suppress -v)
+
 -f::
 --force::
-       Don't complain, do it.
+        Don't do ownership validation.
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
@@ -74,10 +90,9 @@ OPTIONS
 
 -c::
 --compute::
-        Differential computation selection - delta,ratio,wdiff (default is delta).
-        If '+' is specified as a first character, the output is sorted based
-        on the computation results.
-        See COMPARISON METHODS section for more info.
+        Differential computation selection - delta, ratio, wdiff, delta-abs
+        (default is delta-abs).  Default can be changed using diff.compute
+        config option.  See COMPARISON METHODS section for more info.
 
 -p::
 --period::
@@ -86,6 +101,75 @@ OPTIONS
 -F::
 --formula::
         Show formula for given computation.
+
+-o::
+--order::
+       Specify compute sorting column number.  0 means sorting by baseline
+       overhead and 1 (default) means sorting by computed value of column 1
+       (data from the first file other base baseline).  Values more than 1
+       can be used only if enough data files are provided.
+       The default value can be set using the diff.order config option.
+
+--percentage::
+	Determine how to display the overhead percentage of filtered entries.
+	Filters can be applied by --comms, --dsos and/or --symbols options.
+
+	"relative" means it's relative to filtered entries only so that the
+	sum of shown entries will be always 100%.  "absolute" means it retains
+	the original value before and after the filter is applied.
+
+COMPARISON
+----------
+The comparison is governed by the baseline file. The baseline perf.data
+file is iterated for samples. All other perf.data files specified on
+the command line are searched for the baseline sample pair. If the pair
+is found, specified computation is made and result is displayed.
+
+All samples from non-baseline perf.data files, that do not match any
+baseline entry, are displayed with empty space within baseline column
+and possible computation results (delta) in their related column.
+
+Example files samples:
+- file A with samples f1, f2, f3, f4,    f6
+- file B with samples     f2,     f4, f5
+- file C with samples f1, f2,         f5
+
+Example output:
+  x - computation takes place for pair
+  b - baseline sample percentage
+
+- perf diff A B C
+
+  baseline/A compute/B compute/C  samples
+  ---------------------------------------
+  b                    x          f1
+  b          x         x          f2
+  b                               f3
+  b          x                    f4
+  b                               f6
+             x         x          f5
+
+- perf diff B A C
+
+  baseline/B compute/A compute/C  samples
+  ---------------------------------------
+  b          x         x          f2
+  b          x                    f4
+  b                    x          f5
+             x         x          f1
+             x                    f3
+             x                    f6
+
+- perf diff C B A
+
+  baseline/C compute/B compute/A  samples
+  ---------------------------------------
+  b                    x          f1
+  b          x         x          f2
+  b          x                    f5
+                       x          f3
+             x         x          f4
+                       x          f6
 
 COMPARISON METHODS
 ------------------
@@ -96,11 +180,19 @@ If specified the 'Delta' column is displayed with value 'd' computed as:
   d = A->period_percent - B->period_percent
 
 with:
-  - A/B being matching hist entry from first/second file specified
+  - A/B being matching hist entry from data/baseline file specified
     (or perf.data/perf.data.old) respectively.
 
   - period_percent being the % of the hist entry period value within
     single data file
+
+  - with filtering by -C, -d and/or -S, period_percent might be changed
+    relative to how entries are filtered.  Use --percentage=absolute to
+    prevent such fluctuation.
+
+delta-abs
+~~~~~~~~~
+Same as 'delta` method, but sort the result with the absolute values.
 
 ratio
 ~~~~~
@@ -109,25 +201,27 @@ If specified the 'Ratio' column is displayed with value 'r' computed as:
   r = A->period / B->period
 
 with:
-  - A/B being matching hist entry from first/second file specified
+  - A/B being matching hist entry from data/baseline file specified
     (or perf.data/perf.data.old) respectively.
 
   - period being the hist entry period value
 
-wdiff
-~~~~~
+wdiff:WEIGHT-B,WEIGHT-A
+~~~~~~~~~~~~~~~~~~~~~~~
 If specified the 'Weighted diff' column is displayed with value 'd' computed as:
 
    d = B->period * WEIGHT-A - A->period * WEIGHT-B
 
-  - A/B being matching hist entry from first/second file specified
+  - A/B being matching hist entry from data/baseline file specified
     (or perf.data/perf.data.old) respectively.
 
   - period being the hist entry period value
 
-  - WEIGHT-A/WEIGHT-B being user suplied weights in the the '-c' option
+  - WEIGHT-A/WEIGHT-B being user supplied weights in the the '-c' option
     behind ':' separator like '-c wdiff:1,2'.
+    - WEIGHT-A being the weight of the data file
+    - WEIGHT-B being the weight of the baseline data file
 
 SEE ALSO
 --------
-linkperf:perf-record[1]
+linkperf:perf-record[1], linkperf:perf-report[1]

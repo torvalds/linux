@@ -1,0 +1,53 @@
+TI QSPI controller.
+
+Required properties:
+- compatible : should be "ti,dra7xxx-qspi" or "ti,am4372-qspi".
+- reg: Should contain QSPI registers location and length.
+- reg-names: Should contain the resource reg names.
+	- qspi_base: Qspi configuration register Address space
+	- qspi_mmap: Memory mapped Address space
+	- (optional) qspi_ctrlmod: Control module Address space
+- interrupts: should contain the qspi interrupt number.
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+- ti,hwmods: Name of the hwmod associated to the QSPI
+
+Recommended properties:
+- spi-max-frequency: Definition as per
+                     Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Optional properties:
+- syscon-chipselects: Handle to system control region contains QSPI
+		      chipselect register and offset of that register.
+
+NOTE: TI QSPI controller requires different pinmux and IODelay
+parameters for Mode-0 and Mode-3 operations, which needs to be set up by
+the bootloader (U-Boot). Default configuration only supports Mode-0
+operation. Hence, "spi-cpol" and "spi-cpha" DT properties cannot be
+specified in the slave nodes of TI QSPI controller without appropriate
+modification to bootloader.
+
+Example:
+
+For am4372:
+qspi: qspi@4b300000 {
+	compatible = "ti,am4372-qspi";
+	reg = <0x47900000 0x100>, <0x30000000 0x4000000>;
+	reg-names = "qspi_base", "qspi_mmap";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	spi-max-frequency = <25000000>;
+	ti,hwmods = "qspi";
+};
+
+For dra7xx:
+qspi: qspi@4b300000 {
+	compatible = "ti,dra7xxx-qspi";
+	reg = <0x4b300000 0x100>,
+	      <0x5c000000 0x4000000>,
+	reg-names = "qspi_base", "qspi_mmap";
+	syscon-chipselects = <&scm_conf 0x558>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	spi-max-frequency = <48000000>;
+	ti,hwmods = "qspi";
+};

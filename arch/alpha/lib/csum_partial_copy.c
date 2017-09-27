@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 #define ldq_u(x,y) \
@@ -45,10 +45,7 @@ __asm__ __volatile__("insqh %1,%2,%0":"=r" (z):"r" (x),"r" (y))
 	__asm__ __volatile__(				\
 	"1:	ldq_u %0,%2\n"				\
 	"2:\n"						\
-	".section __ex_table,\"a\"\n"			\
-	"	.long 1b - .\n"				\
-	"	lda %0,2b-1b(%1)\n"			\
-	".previous"					\
+	EXC(1b,2b,%0,%1)				\
 		: "=r"(x), "=r"(__guu_err)		\
 		: "m"(__m(ptr)), "1"(0));		\
 	__guu_err;					\
@@ -60,10 +57,7 @@ __asm__ __volatile__("insqh %1,%2,%0":"=r" (z):"r" (x),"r" (y))
 	__asm__ __volatile__(				\
 	"1:	stq_u %2,%1\n"				\
 	"2:\n"						\
-	".section __ex_table,\"a\"\n"			\
-	"	.long 1b - ."				\
-	"	lda $31,2b-1b(%0)\n"			\
-	".previous"					\
+	EXC(1b,2b,$31,%0)				\
 		: "=r"(__puu_err)			\
 		: "m"(__m(addr)), "rJ"(x), "0"(0));	\
 	__puu_err;					\
@@ -130,7 +124,7 @@ csum_partial_cfu_aligned(const unsigned long __user *src, unsigned long *dst,
 		*dst = word | tmp;
 		checksum += carry;
 	}
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -185,7 +179,7 @@ csum_partial_cfu_dest_aligned(const unsigned long __user *src,
 		*dst = word | tmp;
 		checksum += carry;
 	}
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -242,7 +236,7 @@ csum_partial_cfu_src_aligned(const unsigned long __user *src,
 	stq_u(partial_dest | second_dest, dst);
 out:
 	checksum += carry;
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -325,7 +319,7 @@ csum_partial_cfu_unaligned(const unsigned long __user * src,
 		stq_u(partial_dest | word | second_dest, dst);
 		checksum += carry;
 	}
-	if (err) *errp = err;
+	if (err && errp) *errp = err;
 	return checksum;
 }
 
@@ -338,6 +332,11 @@ csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 	unsigned long doff = 7 & (unsigned long) dst;
 
 	if (len) {
+		if (!access_ok(VERIFY_READ, src, len)) {
+			if (errp) *errp = -EFAULT;
+			memset(dst, 0, len);
+			return sum;
+		}
 		if (!doff) {
 			if (!soff)
 				checksum = csum_partial_cfu_aligned(
@@ -369,10 +368,17 @@ csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 	}
 	return (__force __wsum)checksum;
 }
+EXPORT_SYMBOL(csum_partial_copy_from_user);
 
 __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 {
-	return csum_partial_copy_from_user((__force const void __user *)src,
-			dst, len, sum, NULL);
+	__wsum checksum;
+	mm_segment_t oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	checksum = csum_partial_copy_from_user((__force const void __user *)src,
+						dst, len, sum, NULL);
+	set_fs(oldfs);
+	return checksum;
 }
+EXPORT_SYMBOL(csum_partial_copy_nocheck);

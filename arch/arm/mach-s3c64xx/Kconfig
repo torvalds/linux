@@ -2,35 +2,45 @@
 #	Simtec Electronics, Ben Dooks <ben@simtec.co.uk>
 #
 # Licensed under GPLv2
-
-# temporary until we can eliminate all drivers using it.
-config PLAT_S3C64XX
-	bool
-	depends on ARCH_S3C64XX
-	default y
-	select PM_GENERIC_DOMAINS
-	select SAMSUNG_WAKEMASK
+menuconfig ARCH_S3C64XX
+	bool "Samsung S3C64XX"
+	depends on ARCH_MULTI_V6
+	select ARM_AMBA
+	select ARM_VIC
+	select CLKSRC_SAMSUNG_PWM
+	select COMMON_CLK_SAMSUNG
+	select GPIO_SAMSUNG if ATAGS
+	select GPIOLIB
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select HAVE_TCM
+	select PLAT_SAMSUNG
+	select PM_GENERIC_DOMAINS if PM
+	select S3C_DEV_NAND if ATAGS
+	select S3C_GPIO_TRACK if ATAGS
+	select SAMSUNG_ATAGS if ATAGS
+	select SAMSUNG_WAKEMASK if PM
+	select SAMSUNG_WDT_RESET
 	help
-	  Base platform code for any Samsung S3C64XX device
+	  Samsung S3C64XX series based systems
 
+if ARCH_S3C64XX
 
 # Configuration options for the S3C6410 CPU
 
 config CPU_S3C6400
-	select SAMSUNG_HRT
 	bool
 	help
 	  Enable S3C6400 CPU support
 
 config CPU_S3C6410
-	select SAMSUNG_HRT
 	bool
 	help
 	  Enable S3C6410 CPU support
 
-config S3C64XX_DMA
-	bool "S3C64XX DMA"
-	select S3C_DMA
+config S3C64XX_PL080
+	def_bool DMADEVICES
+	select AMBA_PL08X
 
 config S3C64XX_SETUP_SDHCI
 	bool
@@ -43,6 +53,12 @@ config S3C64XX_DEV_ONENAND1
 	bool
 	help
 	  Compile in platform device definition for OneNAND1 controller
+
+config SAMSUNG_DEV_BACKLIGHT
+	bool
+	depends on SAMSUNG_DEV_PWM
+	help
+	  Compile in platform device definition LCD backlight with PWM Timer
 
 # platform specific device setup
 
@@ -94,10 +110,10 @@ config S3C64XX_SETUP_USB_PHY
 
 config MACH_SMDK6400
        bool "SMDK6400"
+	depends on ATAGS
 	select CPU_S3C6400
 	select S3C64XX_SETUP_SDHCI
-	select S3C_DEV_HSMMC
-	select S3C_DEV_NAND
+	select S3C_DEV_HSMMC1
 	help
 	  Machine support for the Samsung SMDK6400
 
@@ -105,6 +121,7 @@ config MACH_SMDK6400
 
 config MACH_ANW6410
 	bool "A&W6410"
+	depends on ATAGS
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C_DEV_FB
@@ -113,6 +130,7 @@ config MACH_ANW6410
 
 config MACH_MINI6410
 	bool "MINI6410"
+	depends on ATAGS
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_SDHCI
@@ -128,6 +146,7 @@ config MACH_MINI6410
 
 config MACH_REAL6410
 	bool "REAL6410"
+	depends on ATAGS
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_SDHCI
@@ -143,6 +162,7 @@ config MACH_REAL6410
 
 config MACH_SMDK6410
 	bool "SMDK6410"
+	depends on ATAGS
 	select CPU_S3C6410
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select S3C64XX_SETUP_FB_24BPP
@@ -200,10 +220,10 @@ endchoice
 config SMDK6410_WM1190_EV1
 	bool "Support Wolfson Microelectronics 1190-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	depends on I2C=y
 	select MFD_WM8350_I2C
 	select REGULATOR
 	select REGULATOR_WM8350
-	select SAMSUNG_GPIO_EXTRA64
 	help
 	  The Wolfson Microelectronics 1190-EV1 is a WM835x based PMIC
 	  and audio daughtercard for the Samsung SMDK6410 reference
@@ -215,11 +235,11 @@ config SMDK6410_WM1190_EV1
 config SMDK6410_WM1192_EV1
 	bool "Support Wolfson Microelectronics 1192-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	depends on I2C=y
 	select MFD_WM831X
 	select MFD_WM831X_I2C
 	select REGULATOR
 	select REGULATOR_WM831X
-	select SAMSUNG_GPIO_EXTRA64
 	help
 	  The Wolfson Microelectronics 1192-EV1 is a WM831x based PMIC
 	  daughtercard for the Samsung SMDK6410 reference platform.
@@ -230,6 +250,7 @@ config SMDK6410_WM1192_EV1
 
 config MACH_NCP
 	bool "NCP"
+	depends on ATAGS
 	select CPU_S3C6410
 	select S3C64XX_SETUP_I2C1
 	select S3C_DEV_HSMMC1
@@ -239,6 +260,7 @@ config MACH_NCP
 
 config MACH_HMT
 	bool "Airgoo HMT"
+	depends on ATAGS
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C_DEV_FB
@@ -270,20 +292,23 @@ config MACH_SMARTQ
 
 config MACH_SMARTQ5
 	bool "SmartQ 5"
+	depends on ATAGS
 	select MACH_SMARTQ
 	help
 	    Machine support for the SmartQ 5
 
 config MACH_SMARTQ7
 	bool "SmartQ 7"
+	depends on ATAGS
 	select MACH_SMARTQ
 	help
 	    Machine support for the SmartQ 7
 
 config MACH_WLF_CRAGG_6410
 	bool "Wolfson Cragganmore 6410"
+	depends on ATAGS
+	depends on I2C=y
 	select CPU_S3C6410
-	select I2C
 	select LEDS_GPIO_REGISTER
 	select S3C64XX_DEV_SPI0
 	select S3C64XX_SETUP_FB_24BPP
@@ -305,6 +330,22 @@ config MACH_WLF_CRAGG_6410
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_PWM
-	select SAMSUNG_GPIO_EXTRA128
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.
+
+config MACH_S3C64XX_DT
+	bool "Samsung S3C6400/S3C6410 machine using Device Tree"
+	select TIMER_OF
+	select CPU_S3C6400
+	select CPU_S3C6410
+	select PINCTRL
+	select PINCTRL_S3C64XX
+	help
+	  Machine support for Samsung S3C6400/S3C6410 machines with Device Tree
+	  enabled.
+	  Select this if a fdt blob is available for your S3C64XX SoC based
+	  board.
+	  Note: This is under development and not all peripherals can be
+	  supported with this machine file.
+
+endif

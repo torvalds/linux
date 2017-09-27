@@ -1,4 +1,5 @@
-/* Driver for USB Mass Storage compliant devices
+/*
+ * Driver for USB Mass Storage compliant devices
  * Debugging Functions Header File
  *
  * Current development and maintenance by:
@@ -50,19 +51,18 @@
 void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb);
 void usb_stor_show_sense(const struct us_data *us, unsigned char key,
 			 unsigned char asc, unsigned char ascq);
-__printf(2, 3) int usb_stor_dbg(const struct us_data *us,
-				const char *fmt, ...);
+__printf(2, 3) void usb_stor_dbg(const struct us_data *us,
+				 const char *fmt, ...);
 
-#define US_DEBUGPX(fmt, ...)	printk(fmt, ##__VA_ARGS__)
 #define US_DEBUG(x)		x
 #else
 __printf(2, 3)
-static inline int _usb_stor_dbg(const struct us_data *us,
-				const char *fmt, ...) {return 1;}
+static inline void _usb_stor_dbg(const struct us_data *us,
+				 const char *fmt, ...)
+{
+}
 #define usb_stor_dbg(us, fmt, ...)				\
 	do { if (0) _usb_stor_dbg(us, fmt, ##__VA_ARGS__); } while (0)
-#define US_DEBUGPX(fmt, ...)					\
-	do { if (0) printk(fmt, ##__VA_ARGS__); } while (0)
 #define US_DEBUG(x)
 #endif
 

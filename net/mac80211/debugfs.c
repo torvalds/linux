@@ -1,8 +1,8 @@
-
 /*
  * mac80211 debugfs for wireless PHYs
  *
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * GPLv2
  *
@@ -10,6 +10,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/rtnetlink.h>
+#include <linux/vmalloc.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 #include "rate.h"
@@ -70,6 +71,84 @@ DEBUGFS_READONLY_FILE(wep_iv, "%#08x",
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, "%s",
 	local->rate_ctrl ? local->rate_ctrl->ops->name : "hw/driver");
 
+static ssize_t aqm_read(struct file *file,
+			char __user *user_buf,
+			size_t count,
+			loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	struct fq *fq = &local->fq;
+	char buf[200];
+	int len = 0;
+
+	spin_lock_bh(&local->fq.lock);
+	rcu_read_lock();
+
+	len = scnprintf(buf, sizeof(buf),
+			"access name value\n"
+			"R fq_flows_cnt %u\n"
+			"R fq_backlog %u\n"
+			"R fq_overlimit %u\n"
+			"R fq_overmemory %u\n"
+			"R fq_collisions %u\n"
+			"R fq_memory_usage %u\n"
+			"RW fq_memory_limit %u\n"
+			"RW fq_limit %u\n"
+			"RW fq_quantum %u\n",
+			fq->flows_cnt,
+			fq->backlog,
+			fq->overmemory,
+			fq->overlimit,
+			fq->collisions,
+			fq->memory_usage,
+			fq->memory_limit,
+			fq->limit,
+			fq->quantum);
+
+	rcu_read_unlock();
+	spin_unlock_bh(&local->fq.lock);
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       buf, len);
+}
+
+static ssize_t aqm_write(struct file *file,
+			 const char __user *user_buf,
+			 size_t count,
+			 loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	char buf[100];
+	size_t len;
+
+	if (count > sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	buf[sizeof(buf) - 1] = '\0';
+	len = strlen(buf);
+	if (len > 0 && buf[len-1] == '\n')
+		buf[len-1] = 0;
+
+	if (sscanf(buf, "fq_limit %u", &local->fq.limit) == 1)
+		return count;
+	else if (sscanf(buf, "fq_memory_limit %u", &local->fq.memory_limit) == 1)
+		return count;
+	else if (sscanf(buf, "fq_quantum %u", &local->fq.quantum) == 1)
+		return count;
+
+	return -EINVAL;
+}
+
+static const struct file_operations aqm_ops = {
+	.write = aqm_write,
+	.read = aqm_read,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 #ifdef CONFIG_PM
 static ssize_t reset_write(struct file *file, const char __user *user_buf,
 			   size_t count, loff_t *ppos)
@@ -91,66 +170,105 @@ static const struct file_operations reset_ops = {
 };
 #endif
 
+static const char *hw_flag_names[] = {
+#define FLAG(F)	[IEEE80211_HW_##F] = #F
+	FLAG(HAS_RATE_CONTROL),
+	FLAG(RX_INCLUDES_FCS),
+	FLAG(HOST_BROADCAST_PS_BUFFERING),
+	FLAG(SIGNAL_UNSPEC),
+	FLAG(SIGNAL_DBM),
+	FLAG(NEED_DTIM_BEFORE_ASSOC),
+	FLAG(SPECTRUM_MGMT),
+	FLAG(AMPDU_AGGREGATION),
+	FLAG(SUPPORTS_PS),
+	FLAG(PS_NULLFUNC_STACK),
+	FLAG(SUPPORTS_DYNAMIC_PS),
+	FLAG(MFP_CAPABLE),
+	FLAG(WANT_MONITOR_VIF),
+	FLAG(NO_AUTO_VIF),
+	FLAG(SW_CRYPTO_CONTROL),
+	FLAG(SUPPORT_FAST_XMIT),
+	FLAG(REPORTS_TX_ACK_STATUS),
+	FLAG(CONNECTION_MONITOR),
+	FLAG(QUEUE_CONTROL),
+	FLAG(SUPPORTS_PER_STA_GTK),
+	FLAG(AP_LINK_PS),
+	FLAG(TX_AMPDU_SETUP_IN_HW),
+	FLAG(SUPPORTS_RC_TABLE),
+	FLAG(P2P_DEV_ADDR_FOR_INTF),
+	FLAG(TIMING_BEACON_ONLY),
+	FLAG(SUPPORTS_HT_CCK_RATES),
+	FLAG(CHANCTX_STA_CSA),
+	FLAG(SUPPORTS_CLONED_SKBS),
+	FLAG(SINGLE_SCAN_ON_ALL_BANDS),
+	FLAG(TDLS_WIDER_BW),
+	FLAG(SUPPORTS_AMSDU_IN_AMPDU),
+	FLAG(BEACON_TX_STATUS),
+	FLAG(NEEDS_UNIQUE_STA_ADDR),
+	FLAG(SUPPORTS_REORDERING_BUFFER),
+	FLAG(USES_RSS),
+	FLAG(TX_AMSDU),
+	FLAG(TX_FRAG_LIST),
+	FLAG(REPORTS_LOW_ACK),
+	FLAG(SUPPORTS_TX_FRAG),
+#undef FLAG
+};
+
 static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 			    size_t count, loff_t *ppos)
 {
 	struct ieee80211_local *local = file->private_data;
-	int mxln = 500;
+	size_t bufsz = 30 * NUM_IEEE80211_HW_FLAGS;
+	char *buf = kzalloc(bufsz, GFP_KERNEL);
+	char *pos = buf, *end = buf + bufsz - 1;
 	ssize_t rv;
-	char *buf = kzalloc(mxln, GFP_KERNEL);
-	int sf = 0; /* how many written so far */
+	int i;
 
 	if (!buf)
-		return 0;
+		return -ENOMEM;
 
-	sf += snprintf(buf, mxln - sf, "0x%x\n", local->hw.flags);
-	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
-		sf += snprintf(buf + sf, mxln - sf, "HAS_RATE_CONTROL\n");
-	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
-		sf += snprintf(buf + sf, mxln - sf, "RX_INCLUDES_FCS\n");
-	if (local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING)
-		sf += snprintf(buf + sf, mxln - sf,
-			       "HOST_BCAST_PS_BUFFERING\n");
-	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE)
-		sf += snprintf(buf + sf, mxln - sf,
-			       "2GHZ_SHORT_SLOT_INCAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE)
-		sf += snprintf(buf + sf, mxln - sf,
-			       "2GHZ_SHORT_PREAMBLE_INCAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
-		sf += snprintf(buf + sf, mxln - sf, "SIGNAL_UNSPEC\n");
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
-		sf += snprintf(buf + sf, mxln - sf, "SIGNAL_DBM\n");
-	if (local->hw.flags & IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC)
-		sf += snprintf(buf + sf, mxln - sf, "NEED_DTIM_BEFORE_ASSOC\n");
-	if (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT)
-		sf += snprintf(buf + sf, mxln - sf, "SPECTRUM_MGMT\n");
-	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)
-		sf += snprintf(buf + sf, mxln - sf, "AMPDU_AGGREGATION\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_PS\n");
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-		sf += snprintf(buf + sf, mxln - sf, "PS_NULLFUNC_STACK\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_DYNAMIC_PS\n");
-	if (local->hw.flags & IEEE80211_HW_MFP_CAPABLE)
-		sf += snprintf(buf + sf, mxln - sf, "MFP_CAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_STATIC_SMPS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_STATIC_SMPS\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_DYNAMIC_SMPS\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_UAPSD\n");
-	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
-		sf += snprintf(buf + sf, mxln - sf, "REPORTS_TX_ACK_STATUS\n");
-	if (local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
-		sf += snprintf(buf + sf, mxln - sf, "CONNECTION_MONITOR\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_PER_STA_GTK\n");
-	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
-		sf += snprintf(buf + sf, mxln - sf, "AP_LINK_PS\n");
-	if (local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)
-		sf += snprintf(buf + sf, mxln - sf, "TX_AMPDU_SETUP_IN_HW\n");
+	/* fail compilation if somebody adds or removes
+	 * a flag without updating the name array above
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(hw_flag_names) != NUM_IEEE80211_HW_FLAGS);
+
+	for (i = 0; i < NUM_IEEE80211_HW_FLAGS; i++) {
+		if (test_bit(i, local->hw.flags))
+			pos += scnprintf(pos, end - pos, "%s\n",
+					 hw_flag_names[i]);
+	}
+
+	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
+	kfree(buf);
+	return rv;
+}
+
+static ssize_t misc_read(struct file *file, char __user *user_buf,
+			 size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	/* Max len of each line is 16 characters, plus 9 for 'pending:\n' */
+	size_t bufsz = IEEE80211_MAX_QUEUES * 16 + 9;
+	char *buf;
+	char *pos, *end;
+	ssize_t rv;
+	int i;
+	int ln;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	pos = buf;
+	end = buf + bufsz - 1;
+
+	pos += scnprintf(pos, end - pos, "pending:\n");
+
+	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
+		ln = skb_queue_len(&local->pending[i]);
+		pos += scnprintf(pos, end - pos, "[%i] %d\n",
+				 i, ln);
+	}
 
 	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 	kfree(buf);
@@ -177,6 +295,7 @@ static ssize_t queues_read(struct file *file, char __user *user_buf,
 
 DEBUGFS_READONLY_FILE_OPS(hwflags);
 DEBUGFS_READONLY_FILE_OPS(queues);
+DEBUGFS_READONLY_FILE_OPS(misc);
 
 /* statistics stuff */
 
@@ -222,8 +341,8 @@ static const struct file_operations stats_ ##name## _ops = {		\
 	.llseek = generic_file_llseek,					\
 };
 
-#define DEBUGFS_STATS_ADD(name, field)					\
-	debugfs_create_u32(#name, 0400, statsd, (u32 *) &field);
+#define DEBUGFS_STATS_ADD(name)					\
+	debugfs_create_u32(#name, 0400, statsd, &local->name);
 #define DEBUGFS_DEVSTATS_ADD(name)					\
 	debugfs_create_file(#name, 0400, statsd, local, &stats_ ##name## _ops);
 
@@ -244,7 +363,9 @@ void debugfs_hw_add(struct ieee80211_local *local)
 
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
+	DEBUGFS_ADD(rate_ctrl_alg);
 	DEBUGFS_ADD(queues);
+	DEBUGFS_ADD(misc);
 #ifdef CONFIG_PM
 	DEBUGFS_ADD_MODE(reset, 0200);
 #endif
@@ -252,61 +373,39 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(user_power);
 	DEBUGFS_ADD(power);
 
+	if (local->ops->wake_tx_queue)
+		DEBUGFS_ADD_MODE(aqm, 0600);
+
 	statsd = debugfs_create_dir("statistics", phyd);
 
 	/* if the dir failed, don't put all the other things into the root! */
 	if (!statsd)
 		return;
 
-	DEBUGFS_STATS_ADD(transmitted_fragment_count,
-		local->dot11TransmittedFragmentCount);
-	DEBUGFS_STATS_ADD(multicast_transmitted_frame_count,
-		local->dot11MulticastTransmittedFrameCount);
-	DEBUGFS_STATS_ADD(failed_count, local->dot11FailedCount);
-	DEBUGFS_STATS_ADD(retry_count, local->dot11RetryCount);
-	DEBUGFS_STATS_ADD(multiple_retry_count,
-		local->dot11MultipleRetryCount);
-	DEBUGFS_STATS_ADD(frame_duplicate_count,
-		local->dot11FrameDuplicateCount);
-	DEBUGFS_STATS_ADD(received_fragment_count,
-		local->dot11ReceivedFragmentCount);
-	DEBUGFS_STATS_ADD(multicast_received_frame_count,
-		local->dot11MulticastReceivedFrameCount);
-	DEBUGFS_STATS_ADD(transmitted_frame_count,
-		local->dot11TransmittedFrameCount);
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_STATS_ADD(tx_handlers_drop, local->tx_handlers_drop);
-	DEBUGFS_STATS_ADD(tx_handlers_queued, local->tx_handlers_queued);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_unencrypted,
-		local->tx_handlers_drop_unencrypted);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_fragment,
-		local->tx_handlers_drop_fragment);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_wep,
-		local->tx_handlers_drop_wep);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc,
-		local->tx_handlers_drop_not_assoc);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_unauth_port,
-		local->tx_handlers_drop_unauth_port);
-	DEBUGFS_STATS_ADD(rx_handlers_drop, local->rx_handlers_drop);
-	DEBUGFS_STATS_ADD(rx_handlers_queued, local->rx_handlers_queued);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_nullfunc,
-		local->rx_handlers_drop_nullfunc);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_defrag,
-		local->rx_handlers_drop_defrag);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_short,
-		local->rx_handlers_drop_short);
-	DEBUGFS_STATS_ADD(tx_expand_skb_head,
-		local->tx_expand_skb_head);
-	DEBUGFS_STATS_ADD(tx_expand_skb_head_cloned,
-		local->tx_expand_skb_head_cloned);
-	DEBUGFS_STATS_ADD(rx_expand_skb_head,
-		local->rx_expand_skb_head);
-	DEBUGFS_STATS_ADD(rx_expand_skb_head2,
-		local->rx_expand_skb_head2);
-	DEBUGFS_STATS_ADD(rx_handlers_fragments,
-		local->rx_handlers_fragments);
-	DEBUGFS_STATS_ADD(tx_status_drop,
-		local->tx_status_drop);
+	DEBUGFS_STATS_ADD(dot11TransmittedFragmentCount);
+	DEBUGFS_STATS_ADD(dot11MulticastTransmittedFrameCount);
+	DEBUGFS_STATS_ADD(dot11FailedCount);
+	DEBUGFS_STATS_ADD(dot11RetryCount);
+	DEBUGFS_STATS_ADD(dot11MultipleRetryCount);
+	DEBUGFS_STATS_ADD(dot11FrameDuplicateCount);
+	DEBUGFS_STATS_ADD(dot11ReceivedFragmentCount);
+	DEBUGFS_STATS_ADD(dot11MulticastReceivedFrameCount);
+	DEBUGFS_STATS_ADD(dot11TransmittedFrameCount);
+	DEBUGFS_STATS_ADD(tx_handlers_drop);
+	DEBUGFS_STATS_ADD(tx_handlers_queued);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_wep);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_unauth_port);
+	DEBUGFS_STATS_ADD(rx_handlers_drop);
+	DEBUGFS_STATS_ADD(rx_handlers_queued);
+	DEBUGFS_STATS_ADD(rx_handlers_drop_nullfunc);
+	DEBUGFS_STATS_ADD(rx_handlers_drop_defrag);
+	DEBUGFS_STATS_ADD(tx_expand_skb_head);
+	DEBUGFS_STATS_ADD(tx_expand_skb_head_cloned);
+	DEBUGFS_STATS_ADD(rx_expand_skb_head_defrag);
+	DEBUGFS_STATS_ADD(rx_handlers_fragments);
+	DEBUGFS_STATS_ADD(tx_status_drop);
 #endif
 	DEBUGFS_DEVSTATS_ADD(dot11ACKFailureCount);
 	DEBUGFS_DEVSTATS_ADD(dot11RTSFailureCount);

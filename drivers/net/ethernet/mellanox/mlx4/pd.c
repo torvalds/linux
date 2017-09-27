@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/io-mapping.h>
@@ -59,7 +58,7 @@ EXPORT_SYMBOL_GPL(mlx4_pd_alloc);
 
 void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->pd_bitmap, pdn);
+	mlx4_bitmap_free(&mlx4_priv(dev)->pd_bitmap, pdn, MLX4_USE_RR);
 }
 EXPORT_SYMBOL_GPL(mlx4_pd_free);
 
@@ -96,7 +95,7 @@ EXPORT_SYMBOL_GPL(mlx4_xrcd_alloc);
 
 void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn);
+	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn, MLX4_USE_RR);
 }
 
 void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
@@ -152,11 +151,13 @@ int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar)
 		return -ENOMEM;
 
 	if (mlx4_is_slave(dev))
-		offset = uar->index % ((int) pci_resource_len(dev->pdev, 2) /
+		offset = uar->index % ((int)pci_resource_len(dev->persist->pdev,
+							     2) /
 				       dev->caps.uar_page_size);
 	else
 		offset = uar->index;
-	uar->pfn = (pci_resource_start(dev->pdev, 2) >> PAGE_SHIFT) + offset;
+	uar->pfn = (pci_resource_start(dev->persist->pdev, 2) >> PAGE_SHIFT)
+		    + offset;
 	uar->map = NULL;
 	return 0;
 }
@@ -164,11 +165,11 @@ EXPORT_SYMBOL_GPL(mlx4_uar_alloc);
 
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar)
 {
-	mlx4_bitmap_free(&mlx4_priv(dev)->uar_table.bitmap, uar->index);
+	mlx4_bitmap_free(&mlx4_priv(dev)->uar_table.bitmap, uar->index, MLX4_USE_RR);
 }
 EXPORT_SYMBOL_GPL(mlx4_uar_free);
 
-int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf)
+int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_uar *uar;
@@ -186,10 +187,13 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf)
 			err = -ENOMEM;
 			goto out;
 		}
-		uar = kmalloc(sizeof *uar, GFP_KERNEL);
+		uar = kmalloc_node(sizeof(*uar), GFP_KERNEL, node);
 		if (!uar) {
-			err = -ENOMEM;
-			goto out;
+			uar = kmalloc(sizeof(*uar), GFP_KERNEL);
+			if (!uar) {
+				err = -ENOMEM;
+				goto out;
+			}
 		}
 		err = mlx4_uar_alloc(dev, uar);
 		if (err)
@@ -201,7 +205,9 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf)
 			goto free_uar;
 		}
 
-		uar->bf_map = io_mapping_map_wc(priv->bf_mapping, uar->index << PAGE_SHIFT);
+		uar->bf_map = io_mapping_map_wc(priv->bf_mapping,
+						uar->index << PAGE_SHIFT,
+						PAGE_SIZE);
 		if (!uar->bf_map) {
 			err = -ENOMEM;
 			goto unamp_uar;
@@ -210,7 +216,6 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf)
 		list_add(&uar->bf_list, &priv->bf_list);
 	}
 
-	bf->uar = uar;
 	idx = ffz(uar->free_bf_bmap);
 	uar->free_bf_bmap |= 1 << idx;
 	bf->uar = uar;
@@ -266,9 +271,15 @@ EXPORT_SYMBOL_GPL(mlx4_bf_free);
 
 int mlx4_init_uar_table(struct mlx4_dev *dev)
 {
-	if (dev->caps.num_uars <= 128) {
-		mlx4_err(dev, "Only %d UAR pages (need more than 128)\n",
-			 dev->caps.num_uars);
+	int num_reserved_uar = mlx4_get_num_reserved_uar(dev);
+
+	mlx4_dbg(dev, "uar_page_shift = %d", dev->uar_page_shift);
+	mlx4_dbg(dev, "Effective reserved_uars=%d", dev->caps.reserved_uars);
+
+	if (dev->caps.num_uars <= num_reserved_uar) {
+		mlx4_err(
+			dev, "Only %d UAR pages (need more than %d)\n",
+			dev->caps.num_uars, num_reserved_uar);
 		mlx4_err(dev, "Increase firmware log2_uar_bar_megabytes?\n");
 		return -ENODEV;
 	}

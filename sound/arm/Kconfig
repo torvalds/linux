@@ -21,13 +21,6 @@ config SND_PXA2XX_PCM
 	tristate
 	select SND_PCM
 
-config SND_PXA2XX_LIB
-	tristate
-	select SND_AC97_CODEC if SND_PXA2XX_LIB_AC97
-
-config SND_PXA2XX_LIB_AC97
-	bool
-
 config SND_PXA2XX_AC97
 	tristate "AC97 driver for the Intel PXA2xx chip"
 	depends on ARCH_PXA
@@ -41,3 +34,10 @@ config SND_PXA2XX_AC97
 
 endif	# SND_ARM
 
+config SND_PXA2XX_LIB
+	tristate
+	select SND_AC97_CODEC if SND_PXA2XX_LIB_AC97
+	select SND_DMAENGINE_PCM
+
+config SND_PXA2XX_LIB_AC97
+	bool

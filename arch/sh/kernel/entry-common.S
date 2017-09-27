@@ -108,7 +108,7 @@ need_resched:
 	and	#(0xf0>>1), r0		! interrupts off (exception path)?
 	cmp/eq	#(0xf0>>1), r0
 	bt	noresched
-	mov.l	3f, r0
+	mov.l	1f, r0
 	jsr	@r0			! call preempt_schedule_irq
 	 nop
 	bra	need_resched
@@ -119,9 +119,7 @@ noresched:
 	 nop
 
 	.align 2
-1:	.long	PREEMPT_ACTIVE
-2:	.long	schedule
-3:	.long	preempt_schedule_irq
+1:	.long	preempt_schedule_irq
 #endif
 
 ENTRY(resume_userspace)
@@ -195,10 +193,10 @@ syscall_trace_entry:
 	!			Reload R0-R4 from kernel stack, where the
 	!   	    	    	parent may have modified them using
 	!   	    	    	ptrace(POKEUSR).  (Note that R0-R2 are
-	!   	    	    	used by the system call handler directly
-	!   	    	    	from the kernel stack anyway, so don't need
-	!   	    	    	to be reloaded here.)  This allows the parent
-	!   	    	    	to rewrite system calls and args on the fly.
+	!   	    	    	reloaded from the kernel stack by syscall_call
+	!   	    	    	below, so don't need to be reloaded here.)
+	!   	    	    	This allows the parent to rewrite system calls
+	!   	    	    	and args on the fly.
 	mov.l	@(OFF_R4,r15), r4   ! arg0
 	mov.l	@(OFF_R5,r15), r5
 	mov.l	@(OFF_R6,r15), r6
@@ -270,19 +268,28 @@ debug_trap:
  *	Syscall #: R3
  *	Arguments #0 to #3: R4--R7
  *	Arguments #4 to #6: R0, R1, R2
- *	TRA: (number of arguments + ABI revision) x 4
+ *	TRA: See following table.
  *
- * This code also handles delegating other traps to the BIOS/gdb stub
- * according to:
- *
- * Trap number
  * (TRA>>2)	Purpose
  * --------	-------
  * 0x00-0x0f	original SH-3/4 syscall ABI (not in general use).
  * 0x10-0x1f	general SH-3/4 syscall ABI.
- * 0x20-0x2f	syscall ABI for SH-2 parts.
+ *      0x1f	unified SH-2/3/4 syscall ABI (preferred).
+ * 0x20-0x2f	original SH-2 syscall ABI.
  * 0x30-0x3f	debug traps used by the kernel.
  * 0x40-0xff	Not supported by all parts, so left unhandled.
+ *
+ * For making system calls, any trap number in the range for the
+ * given cpu model may be used, but the unified trap number 0x1f is
+ * preferred for compatibility with all models.
+ *
+ * The low bits of the trap number were once documented as matching
+ * the number of arguments, but they were never actually used as such
+ * by the kernel. SH-2 originally used its own separate trap range
+ * because several hardware exceptions fell in the range used for the
+ * SH-3/4 syscall ABI.
+ *
+ * This code also handles delegating other traps to the BIOS/gdb stub.
  *
  * Note: When we're first called, the TRA value must be shifted
  * right 2 bits in order to get the value that was used as the "trapa"
@@ -359,8 +366,15 @@ syscall_call:
 	mov.l	3f, r8		! Load the address of sys_call_table
 	add	r8, r3
 	mov.l	@r3, r8
+	mov.l	@(OFF_R2,r15), r2
+	mov.l	@(OFF_R1,r15), r1
+	mov.l	@(OFF_R0,r15), r0
+	mov.l	r2, @-r15
+	mov.l	r1, @-r15
+	mov.l	r0, @-r15
 	jsr	@r8	    	! jump to specific syscall handler
 	 nop
+	add	#12, r15
 	mov.l	@(OFF_R0,r15), r12		! save r0
 	mov.l	r0, @(OFF_R0,r15)		! save the return value
 	!

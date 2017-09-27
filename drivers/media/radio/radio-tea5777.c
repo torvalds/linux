@@ -17,10 +17,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -570,7 +566,6 @@ int radio_tea5777_init(struct radio_tea5777 *tea, struct module *owner)
 	tea->fops = tea575x_fops;
 	tea->fops.owner = owner;
 	tea->vd.fops = &tea->fops;
-	set_bit(V4L2_FL_USE_FH_PRIO, &tea->vd.flags);
 
 	tea->vd.ctrl_handler = &tea->ctrl_handler;
 	v4l2_ctrl_handler_init(&tea->ctrl_handler, 1);

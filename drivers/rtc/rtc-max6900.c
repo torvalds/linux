@@ -17,8 +17,6 @@
 #include <linux/rtc.h>
 #include <linux/delay.h>
 
-#define DRV_VERSION "0.2"
-
 /*
  * register indices
  */
@@ -164,14 +162,7 @@ static int max6900_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 
 static int max6900_i2c_clear_write_protect(struct i2c_client *client)
 {
-	int rc;
-	rc = i2c_smbus_write_byte_data(client, MAX6900_REG_CONTROL_WRITE, 0);
-	if (rc < 0) {
-		dev_err(&client->dev, "%s: control register write failed\n",
-			__func__);
-		return -EIO;
-	}
-	return 0;
+	return i2c_smbus_write_byte_data(client, MAX6900_REG_CONTROL_WRITE, 0);
 }
 
 static int
@@ -225,8 +216,6 @@ max6900_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	rtc = devm_rtc_device_register(&client->dev, max6900_driver.driver.name,
 					&max6900_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
@@ -237,10 +226,11 @@ max6900_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
-static struct i2c_device_id max6900_id[] = {
+static const struct i2c_device_id max6900_id[] = {
 	{ "max6900", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, max6900_id);
 
 static struct i2c_driver max6900_driver = {
 	.driver = {
@@ -255,4 +245,3 @@ module_i2c_driver(max6900_driver);
 MODULE_DESCRIPTION("Maxim MAX6900 RTC driver");
 MODULE_AUTHOR("Dale Farnsworth <dale@farnsworth.org>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

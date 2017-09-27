@@ -73,6 +73,7 @@ Code  Seq#(hex)	Include File		Comments
 0x09	all	linux/raid/md_u.h
 0x10	00-0F	drivers/char/s390/vmcp.h
 0x10	10-1F	arch/s390/include/uapi/sclp_ctl.h
+0x10	20-2F	arch/s390/include/uapi/asm/hypfs.h
 0x12	all	linux/fs.h
 		linux/blkpg.h
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>
@@ -80,6 +81,9 @@ Code  Seq#(hex)	Include File		Comments
 0x22	all	scsi/sg.h
 '#'	00-3F	IEEE 1394 Subsystem	Block for the entire subsystem
 '$'	00-0F	linux/perf_counter.h, linux/perf_event.h
+'%'	00-0F	include/uapi/linux/stm.h
+					System Trace Module subsystem
+					<mailto:alexander.shishkin@linux.intel.com>
 '&'	00-07	drivers/firewire/nosy-user.h
 '1'	00-1F	<linux/timepps.h>	PPS kit from Ulrich Windl
 					<ftp://ftp.de.kernel.org/pub/linux/daemons/ntp/PPS/>
@@ -123,6 +127,8 @@ Code  Seq#(hex)	Include File		Comments
 'H'	00-7F	linux/hiddev.h		conflict!
 'H'	00-0F	linux/hidraw.h		conflict!
 'H'	01	linux/mei.h		conflict!
+'H'	02	linux/mei.h		conflict!
+'H'	03	linux/mei.h		conflict!
 'H'	00-0F	sound/asound.h		conflict!
 'H'	20-40	sound/asound_fm.h	conflict!
 'H'	80-8F	sound/sfnt_info.h	conflict!
@@ -138,6 +144,7 @@ Code  Seq#(hex)	Include File		Comments
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
 'H'	C0-DF	net/bluetooth/bnep/bnep.h	conflict!
 'H'	F1	linux/hid-roccat.h	<mailto:erazor_de@users.sourceforge.net>
+'H'	F8-FA	sound/firewire.h
 'I'	all	linux/isdn.h		conflict!
 'I'	00-0F	drivers/isdn/divert/isdn_divert.h	conflict!
 'I'	40-4F	linux/mISDNif.h		conflict!
@@ -145,6 +152,7 @@ Code  Seq#(hex)	Include File		Comments
 'K'	all	linux/kd.h
 'L'	00-1F	linux/loop.h		conflict!
 'L'	10-1F	drivers/scsi/mpt2sas/mpt2sas_ctl.h	conflict!
+'L'	20-2F	linux/lightnvm.h
 'L'	E0-FF	linux/ppdd.h		encrypted disk device driver
 					<http://linux01.gwdg.de/~alatham/ppdd.html>
 'M'	all	linux/soundcard.h	conflict!
@@ -183,6 +191,7 @@ Code  Seq#(hex)	Include File		Comments
 'W'	00-1F	linux/watchdog.h	conflict!
 'W'	00-1F	linux/wanrouter.h	conflict!		(pre 3.9)
 'W'	00-3F	sound/asound.h		conflict!
+'W'	40-5F   drivers/pci/switch/switchtec.c
 'X'	all	fs/xfs/xfs_fs.h		conflict!
 		and fs/xfs/linux-2.6/xfs_ioctl32.h
 		and include/linux/falloc.h
@@ -195,6 +204,7 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:gregkh@linuxfoundation.org>
 'a'	all	linux/atm*.h, linux/sonet.h	ATM on linux
 					<http://lrcwww.epfl.ch/>
+'a'	00-0F	drivers/crypto/qat/qat_common/adf_cfg_common.h	conflict! qat driver
 'b'	00-FF				conflict! bit3 vme host bridge
 					<mailto:natalia@nikhefk.nikhef.nl>
 'c'	all	linux/cm4000_cs.h	conflict!
@@ -203,7 +213,7 @@ Code  Seq#(hex)	Include File		Comments
 'c'	00-1F	linux/chio.h		conflict!
 'c'	80-9F	arch/s390/include/asm/chsc.h	conflict!
 'c'	A0-AF   arch/x86/include/asm/msr.h	conflict!
-'d'	00-FF	linux/char/drm/drm/h	conflict!
+'d'	00-FF	linux/char/drm/drm.h	conflict!
 'd'	02-40	pcmcia/ds.h		conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
@@ -239,7 +249,7 @@ Code  Seq#(hex)	Include File		Comments
 'm'	00	drivers/scsi/megaraid/megaraid_ioctl.h	conflict!
 'm'	00-1F	net/irda/irmod.h	conflict!
 'n'	00-7F	linux/ncp_fs.h and fs/ncpfs/ioctl.c
-'n'	80-8F	linux/nilfs2_fs.h	NILFS2
+'n'	80-8F	uapi/linux/nilfs2_api.h	NILFS2
 'n'	E0-FF	linux/matroxfb.h	matroxfb
 'o'	00-1F	fs/ocfs2/ocfs2_fs.h	OCFS2
 'o'     00-03   mtd/ubi-user.h		conflict! (OCFS2 and UBI overlaps)
@@ -260,7 +270,7 @@ Code  Seq#(hex)	Include File		Comments
 's'	all	linux/cdk.h
 't'	00-7F	linux/ppp-ioctl.h
 't'	80-8F	linux/isdn_ppp.h
-'t'	90	linux/toshiba.h
+'t'	90-91	linux/toshiba.h		toshiba and toshiba_acpi SMM
 'u'	00-1F	linux/smb_fs.h		gone
 'u'	20-3F	linux/uvcvideo.h	USB video class host driver
 'v'	00-1F	linux/ext2_fs.h		conflict!
@@ -294,10 +304,13 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:buk@buks.ipn.de>
 0xA0	all	linux/sdp/sdp.h		Industrial Device Project
 					<mailto:kenji@bitgate.com>
+0xA1	0	linux/vtpm_proxy.h	TPM Emulator Proxy Driver
 0xA2	00-0F	arch/tile/include/asm/hardwall.h
 0xA3	80-8F	Port ACL		in development:
 					<mailto:tlewis@mindspring.com>
 0xA3	90-9F	linux/dtlk.h
+0xA4	00-1F	uapi/linux/tee.h	Generic TEE subsystem
+0xAA	00-3F	linux/uapi/linux/userfaultfd.h
 0xAB	00-1F	linux/nbd.h
 0xAC	00-1F	linux/raw.h
 0xAD	00	Netfilter device	in development:
@@ -309,7 +322,11 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:vgo@ratio.de>
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>
 0xB3	00	linux/mmc/ioctl.h
+0xB4	00-0F	linux/gpio.h		<mailto:linux-gpio@vger.kernel.org>
+0xB5	00-0F	uapi/linux/rpmsg.h	<mailto:linux-remoteproc@vger.kernel.org>
 0xC0	00-0F	linux/usb/iowarrior.h
+0xCA	00-0F	uapi/misc/cxl.h
+0xCA	80-BF	uapi/scsi/cxlflash_ioctl.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>
 0xCD	01	linux/reiserfs_fs.h
@@ -317,6 +334,8 @@ Code  Seq#(hex)	Include File		Comments
 0xDB	00-0F	drivers/char/mwave/mwavepub.h
 0xDD	00-3F	ZFCP device driver	see drivers/s390/scsi/
 					<mailto:aherrman@de.ibm.com>
+0xE5	00-3F	linux/fuse.h
+0xEC	00-01	drivers/platform/chrome/cros_ec_dev.h	ChromeOS EC driver
 0xF3	00-3F	drivers/usb/misc/sisusbvga/sisusb.h	sisfb (in development)
 					<mailto:thomas@winischhofer.net>
 0xF4	00-1F	video/mbxfb.h		mbxfb

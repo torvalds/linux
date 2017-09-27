@@ -23,16 +23,16 @@
 #define AD7280A_CONV_AVG_4			2
 #define AD7280A_CONV_AVG_8			3
 
-#define AD7280A_ALERT_REMOVE_VIN5		(1 << 2)
-#define AD7280A_ALERT_REMOVE_VIN4_VIN5		(2 << 2)
-#define AD7280A_ALERT_REMOVE_AUX5		(1 << 0)
-#define AD7280A_ALERT_REMOVE_AUX4_AUX5		(2 << 0)
+#define AD7280A_ALERT_REMOVE_VIN5		BIT(2)
+#define AD7280A_ALERT_REMOVE_VIN4_VIN5		BIT(3)
+#define AD7280A_ALERT_REMOVE_AUX5		BIT(0)
+#define AD7280A_ALERT_REMOVE_AUX4_AUX5		BIT(1)
 
 struct ad7280_platform_data {
-	unsigned acquisition_time;
-	unsigned conversion_averaging;
-	unsigned chain_last_alert_ignore;
-	bool thermistor_term_en;
+	unsigned int		acquisition_time;
+	unsigned int		conversion_averaging;
+	unsigned int		chain_last_alert_ignore;
+	bool			thermistor_term_en;
 };
 
 #endif /* IIO_ADC_AD7280_H_ */

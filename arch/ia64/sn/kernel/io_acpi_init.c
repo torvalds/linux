@@ -132,7 +132,7 @@ sn_get_bussoft_ptr(struct pci_bus *bus)
 	struct acpi_resource_vendor_typed *vendor;
 
 
-	handle = PCI_CONTROLLER(bus)->acpi_handle;
+	handle = acpi_device_handle(PCI_CONTROLLER(bus)->companion);
 	status = acpi_get_vendor_resource(handle, METHOD_NAME__CRS,
 					  &sn_uuid, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -360,7 +360,7 @@ sn_acpi_get_pcidev_info(struct pci_dev *dev, struct pcidev_info **pcidev_info,
 	acpi_status status;
 	struct acpi_buffer name_buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	rootbus_handle = PCI_CONTROLLER(dev)->acpi_handle;
+	rootbus_handle = acpi_device_handle(PCI_CONTROLLER(dev)->companion);
         status = acpi_evaluate_integer(rootbus_handle, METHOD_NAME__SEG, NULL,
                                        &segment);
         if (ACPI_SUCCESS(status)) {
@@ -426,10 +426,10 @@ sn_acpi_get_pcidev_info(struct pci_dev *dev, struct pcidev_info **pcidev_info,
 void
 sn_acpi_slot_fixup(struct pci_dev *dev)
 {
-	void __iomem *addr;
 	struct pcidev_info *pcidev_info = NULL;
 	struct sn_irq_info *sn_irq_info = NULL;
-	size_t image_size, size;
+	struct resource *res;
+	size_t size;
 
 	if (sn_acpi_get_pcidev_info(dev, &pcidev_info, &sn_irq_info)) {
 		panic("%s:  Failure obtaining pcidev_info for %s\n",
@@ -443,17 +443,20 @@ sn_acpi_slot_fixup(struct pci_dev *dev)
 		 * of the shadowed copy, and the actual length of the ROM image.
 		 */
 		size = pci_resource_len(dev, PCI_ROM_RESOURCE);
-		addr = ioremap(pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE],
-			       size);
-		image_size = pci_get_rom_size(dev, addr, size);
-		dev->resource[PCI_ROM_RESOURCE].start = (unsigned long) addr;
-		dev->resource[PCI_ROM_RESOURCE].end =
-					(unsigned long) addr + image_size - 1;
-		dev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_BIOS_COPY;
+
+		res = &dev->resource[PCI_ROM_RESOURCE];
+
+		pci_disable_rom(dev);
+		if (res->parent)
+			release_resource(res);
+
+		res->start = pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE];
+		res->end = res->start + size - 1;
+		res->flags = IORESOURCE_MEM | IORESOURCE_ROM_SHADOW |
+			     IORESOURCE_PCI_FIXED;
 	}
 	sn_pci_fixup_slot(dev, pcidev_info, sn_irq_info);
 }
-
 EXPORT_SYMBOL(sn_acpi_slot_fixup);
 
 

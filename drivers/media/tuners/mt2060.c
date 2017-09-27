@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 /* In that file, frequencies are expressed in kiloHertz to avoid 32 bits overflows */
@@ -71,13 +67,24 @@ static int mt2060_writereg(struct mt2060_priv *priv, u8 reg, u8 val)
 // Writes a set of consecutive registers
 static int mt2060_writeregs(struct mt2060_priv *priv,u8 *buf, u8 len)
 {
+	int rem, val_len;
+	u8 xfer_buf[16];
 	struct i2c_msg msg = {
-		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = len
+		.addr = priv->cfg->i2c_address, .flags = 0, .buf = xfer_buf
 	};
-	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
-		printk(KERN_WARNING "mt2060 I2C write failed (len=%i)\n",(int)len);
-		return -EREMOTEIO;
+
+	for (rem = len - 1; rem > 0; rem -= priv->i2c_max_regs) {
+		val_len = min_t(int, rem, priv->i2c_max_regs);
+		msg.len = 1 + val_len;
+		xfer_buf[0] = buf[0] + len - 1 - rem;
+		memcpy(&xfer_buf[1], &buf[1 + len - 1 - rem], val_len);
+
+		if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
+			printk(KERN_WARNING "mt2060 I2C write failed (len=%i)\n", val_len);
+			return -EREMOTEIO;
+		}
 	}
+
 	return 0;
 }
 
@@ -157,7 +164,6 @@ static int mt2060_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2060_priv *priv;
-	int ret=0;
 	int i=0;
 	u32 freq;
 	u8  lnaband;
@@ -240,7 +246,7 @@ static int mt2060_set_params(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
-	return ret;
+	return 0;
 }
 
 static void mt2060_calibrate(struct mt2060_priv *priv)
@@ -307,9 +313,16 @@ static int mt2060_init(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
 
+	if (priv->sleep) {
+		ret = mt2060_writereg(priv, REG_MISC_CTRL, 0x20);
+		if (ret)
+			goto err_i2c_gate_ctrl;
+	}
+
 	ret = mt2060_writereg(priv, REG_VGAG,
 			      (priv->cfg->clock_out << 6) | 0x33);
 
+err_i2c_gate_ctrl:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
@@ -326,18 +339,23 @@ static int mt2060_sleep(struct dvb_frontend *fe)
 
 	ret = mt2060_writereg(priv, REG_VGAG,
 			      (priv->cfg->clock_out << 6) | 0x30);
+	if (ret)
+		goto err_i2c_gate_ctrl;
 
+	if (priv->sleep)
+		ret = mt2060_writereg(priv, REG_MISC_CTRL, 0xe8);
+
+err_i2c_gate_ctrl:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
 	return ret;
 }
 
-static int mt2060_release(struct dvb_frontend *fe)
+static void mt2060_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops mt2060_tuner_ops = {
@@ -371,6 +389,7 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	priv->cfg      = cfg;
 	priv->i2c      = i2c;
 	priv->if1_freq = if1;
+	priv->i2c_max_regs = ~0;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
@@ -397,6 +416,98 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	return fe;
 }
 EXPORT_SYMBOL(mt2060_attach);
+
+static int mt2060_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct mt2060_platform_data *pdata = client->dev.platform_data;
+	struct dvb_frontend *fe;
+	struct mt2060_priv *dev;
+	int ret;
+	u8 chip_id;
+
+	dev_dbg(&client->dev, "\n");
+
+	if (!pdata) {
+		dev_err(&client->dev, "Cannot proceed without platform data\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	fe = pdata->dvb_frontend;
+	dev->config.i2c_address = client->addr;
+	dev->config.clock_out = pdata->clock_out;
+	dev->cfg = &dev->config;
+	dev->i2c = client->adapter;
+	dev->if1_freq = pdata->if1 ? pdata->if1 : 1220;
+	dev->client = client;
+	dev->i2c_max_regs = pdata->i2c_write_max ? pdata->i2c_write_max - 1 : ~0;
+	dev->sleep = true;
+
+	ret = mt2060_readreg(dev, REG_PART_REV, &chip_id);
+	if (ret) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	dev_dbg(&client->dev, "chip id=%02x\n", chip_id);
+
+	if (chip_id != PART_REV) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	/* Power on, calibrate, sleep */
+	ret = mt2060_writereg(dev, REG_MISC_CTRL, 0x20);
+	if (ret)
+		goto err;
+	mt2060_calibrate(dev);
+	ret = mt2060_writereg(dev, REG_MISC_CTRL, 0xe8);
+	if (ret)
+		goto err;
+
+	dev_info(&client->dev, "Microtune MT2060 successfully identified\n");
+	memcpy(&fe->ops.tuner_ops, &mt2060_tuner_ops, sizeof(fe->ops.tuner_ops));
+	fe->ops.tuner_ops.release = NULL;
+	fe->tuner_priv = dev;
+	i2c_set_clientdata(client, dev);
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int mt2060_remove(struct i2c_client *client)
+{
+	dev_dbg(&client->dev, "\n");
+
+	return 0;
+}
+
+static const struct i2c_device_id mt2060_id_table[] = {
+	{"mt2060", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, mt2060_id_table);
+
+static struct i2c_driver mt2060_driver = {
+	.driver = {
+		.name = "mt2060",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= mt2060_probe,
+	.remove		= mt2060_remove,
+	.id_table	= mt2060_id_table,
+};
+
+module_i2c_driver(mt2060_driver);
 
 MODULE_AUTHOR("Olivier DANET");
 MODULE_DESCRIPTION("Microtune MT2060 silicon tuner driver");

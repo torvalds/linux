@@ -37,11 +37,19 @@
 #endif
 	.endm
 
-	.macro	alignment_trap, rtemp
 #ifdef CONFIG_ALIGNMENT_TRAP
-	ldr	\rtemp, .LCcralign
-	ldr	\rtemp, [\rtemp]
-	mcr	p15, 0, \rtemp, c1, c0
+#define ATRAP(x...) x
+#else
+#define ATRAP(x...)
+#endif
+
+	.macro	alignment_trap, rtmp1, rtmp2, label
+#ifdef CONFIG_ALIGNMENT_TRAP
+	mrc	p15, 0, \rtmp2, c1, c0, 0
+	ldr	\rtmp1, \label
+	ldr	\rtmp1, [\rtmp1]
+	teq	\rtmp1, \rtmp2
+	mcrne	p15, 0, \rtmp1, c1, c0, 0
 #endif
 	.endm
 
@@ -82,7 +90,7 @@
 	@ Linux expects to have irqs off. Do it here before taking stack space
 	cpsid	i
 
-	sub	sp, #S_FRAME_SIZE-S_IP
+	sub	sp, #PT_REGS_SIZE-S_IP
 	stmdb	sp!, {r0-r11}
 
 	@ load saved r12, lr, return address and xPSR.
@@ -132,6 +140,10 @@
 	orrne	r5, V7M_xPSR_FRAMEPTRALIGN
 	biceq	r5, V7M_xPSR_FRAMEPTRALIGN
 
+	@ ensure bit 0 is cleared in the PC, otherwise behaviour is
+	@ unpredictable
+	bic	r4, #1
+
 	@ write basic exception frame
 	stmdb	r2!, {r1, r3-r5}
 	ldmia	sp, {r1, r3-r5}
@@ -148,7 +160,7 @@
 	ldmia	sp!, {r0-r11}
 
 	@ restore main sp
-	add	sp, sp, #S_FRAME_SIZE-S_IP
+	add	sp, sp, #PT_REGS_SIZE-S_IP
 
 	cpsie	i
 	bx	lr
@@ -184,7 +196,7 @@
 	msr	cpsr_c, \rtemp			@ switch back to the SVC mode
 	.endm
 
-#ifndef CONFIG_THUMB2_KERNEL
+
 	.macro	svc_exit, rpsr, irq = 0
 	.if	\irq != 0
 	@ IRQs already off
@@ -203,123 +215,133 @@
 	blne	trace_hardirqs_off
 #endif
 	.endif
+	ldr	r1, [sp, #SVC_ADDR_LIMIT]
+	uaccess_restore
+	str	r1, [tsk, #TI_ADDR_LIMIT]
+
+#ifndef CONFIG_THUMB2_KERNEL
+	@ ARM mode SVC restore
 	msr	spsr_cxsf, \rpsr
-#if defined(CONFIG_CPU_V6)
-	ldr	r0, [sp]
-	strex	r1, r2, [sp]			@ clear the exclusive monitor
-	ldmib	sp, {r1 - pc}^			@ load r1 - pc, cpsr
-#elif defined(CONFIG_CPU_32v6K)
-	clrex					@ clear the exclusive monitor
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_32v6K)
+	@ We must avoid clrex due to Cortex-A15 erratum #830321
+	sub	r0, sp, #4			@ uninhabited address
+	strex	r1, r2, [r0]			@ clear the exclusive monitor
+#endif
 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 #else
-	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
-#endif
-	.endm
-
-	.macro	restore_user_regs, fast = 0, offset = 0
-	ldr	r1, [sp, #\offset + S_PSR]	@ get calling cpsr
-	ldr	lr, [sp, #\offset + S_PC]!	@ get pc
-	msr	spsr_cxsf, r1			@ save in spsr_svc
-#if defined(CONFIG_CPU_V6)
-	strex	r1, r2, [sp]			@ clear the exclusive monitor
-#elif defined(CONFIG_CPU_32v6K)
-	clrex					@ clear the exclusive monitor
-#endif
-	.if	\fast
-	ldmdb	sp, {r1 - lr}^			@ get calling r1 - lr
-	.else
-	ldmdb	sp, {r0 - lr}^			@ get calling r0 - lr
-	.endif
-	mov	r0, r0				@ ARMv5T and earlier require a nop
-						@ after ldm {}^
-	add	sp, sp, #S_FRAME_SIZE - S_PC
-	movs	pc, lr				@ return & move spsr_svc into cpsr
-	.endm
-
-	.macro	get_thread_info, rd
-	mov	\rd, sp, lsr #13
-	mov	\rd, \rd, lsl #13
-	.endm
-
-	@
-	@ 32-bit wide "mov pc, reg"
-	@
-	.macro	movw_pc, reg
-	mov	pc, \reg
-	.endm
-#else	/* CONFIG_THUMB2_KERNEL */
-	.macro	svc_exit, rpsr, irq = 0
-	.if	\irq != 0
-	@ IRQs already off
-#ifdef CONFIG_TRACE_IRQFLAGS
-	@ The parent context IRQs must have been enabled to get here in
-	@ the first place, so there's no point checking the PSR I bit.
-	bl	trace_hardirqs_on
-#endif
-	.else
-	@ IRQs off again before pulling preserved data off the stack
-	disable_irq_notrace
-#ifdef CONFIG_TRACE_IRQFLAGS
-	tst	\rpsr, #PSR_I_BIT
-	bleq	trace_hardirqs_on
-	tst	\rpsr, #PSR_I_BIT
-	blne	trace_hardirqs_off
-#endif
-	.endif
+	@ Thumb mode SVC restore
 	ldr	lr, [sp, #S_SP]			@ top of the stack
 	ldrd	r0, r1, [sp, #S_LR]		@ calling lr and pc
-	clrex					@ clear the exclusive monitor
+
+	@ We must avoid clrex due to Cortex-A15 erratum #830321
+	strex	r2, r1, [sp, #S_LR]		@ clear the exclusive monitor
+
 	stmdb	lr!, {r0, r1, \rpsr}		@ calling lr and rfe context
 	ldmia	sp, {r0 - r12}
 	mov	sp, lr
 	ldr	lr, [sp], #4
 	rfeia	sp!
+#endif
 	.endm
 
-#ifdef CONFIG_CPU_V7M
-	/*
-	 * Note we don't need to do clrex here as clearing the local monitor is
-	 * part of each exception entry and exit sequence.
-	 */
+	@
+	@ svc_exit_via_fiq - like svc_exit but switches to FIQ mode before exit
+	@
+	@ This macro acts in a similar manner to svc_exit but switches to FIQ
+	@ mode to restore the final part of the register state.
+	@
+	@ We cannot use the normal svc_exit procedure because that would
+	@ clobber spsr_svc (FIQ could be delivered during the first few
+	@ instructions of vector_swi meaning its contents have not been
+	@ saved anywhere).
+	@
+	@ Note that, unlike svc_exit, this macro also does not allow a caller
+	@ supplied rpsr. This is because the FIQ exceptions are not re-entrant
+	@ and the handlers cannot call into the scheduler (meaning the value
+	@ on the stack remains correct).
+	@
+	.macro  svc_exit_via_fiq
+	ldr	r1, [sp, #SVC_ADDR_LIMIT]
+	uaccess_restore
+	str	r1, [tsk, #TI_ADDR_LIMIT]
+#ifndef CONFIG_THUMB2_KERNEL
+	@ ARM mode restore
+	mov	r0, sp
+	ldmib	r0, {r1 - r14}	@ abort is deadly from here onward (it will
+				@ clobber state restored below)
+	msr	cpsr_c, #FIQ_MODE | PSR_I_BIT | PSR_F_BIT
+	add	r8, r0, #S_PC
+	ldr	r9, [r0, #S_PSR]
+	msr	spsr_cxsf, r9
+	ldr	r0, [r0, #S_R0]
+	ldmia	r8, {pc}^
+#else
+	@ Thumb mode restore
+	add	r0, sp, #S_R2
+	ldr	lr, [sp, #S_LR]
+	ldr	sp, [sp, #S_SP] @ abort is deadly from here onward (it will
+			        @ clobber state restored below)
+	ldmia	r0, {r2 - r12}
+	mov	r1, #FIQ_MODE | PSR_I_BIT | PSR_F_BIT
+	msr	cpsr_c, r1
+	sub	r0, #S_R2
+	add	r8, r0, #S_PC
+	ldmia	r0, {r0 - r1}
+	rfeia	r8
+#endif
+	.endm
+
+
 	.macro	restore_user_regs, fast = 0, offset = 0
+	uaccess_enable r1, isb=0
+#ifndef CONFIG_THUMB2_KERNEL
+	@ ARM mode restore
+	mov	r2, sp
+	ldr	r1, [r2, #\offset + S_PSR]	@ get calling cpsr
+	ldr	lr, [r2, #\offset + S_PC]!	@ get pc
+	msr	spsr_cxsf, r1			@ save in spsr_svc
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_32v6K)
+	@ We must avoid clrex due to Cortex-A15 erratum #830321
+	strex	r1, r2, [r2]			@ clear the exclusive monitor
+#endif
+	.if	\fast
+	ldmdb	r2, {r1 - lr}^			@ get calling r1 - lr
+	.else
+	ldmdb	r2, {r0 - lr}^			@ get calling r0 - lr
+	.endif
+	mov	r0, r0				@ ARMv5T and earlier require a nop
+						@ after ldm {}^
+	add	sp, sp, #\offset + PT_REGS_SIZE
+	movs	pc, lr				@ return & move spsr_svc into cpsr
+#elif defined(CONFIG_CPU_V7M)
+	@ V7M restore.
+	@ Note that we don't need to do clrex here as clearing the local
+	@ monitor is part of the exception entry and exit sequence.
 	.if	\offset
 	add	sp, #\offset
 	.endif
 	v7m_exception_slow_exit ret_r0 = \fast
-	.endm
-#else	/* ifdef CONFIG_CPU_V7M */
-	.macro	restore_user_regs, fast = 0, offset = 0
-	clrex					@ clear the exclusive monitor
+#else
+	@ Thumb mode restore
 	mov	r2, sp
 	load_user_sp_lr r2, r3, \offset + S_SP	@ calling sp, lr
 	ldr	r1, [sp, #\offset + S_PSR]	@ get calling cpsr
 	ldr	lr, [sp, #\offset + S_PC]	@ get pc
 	add	sp, sp, #\offset + S_SP
 	msr	spsr_cxsf, r1			@ save in spsr_svc
+
+	@ We must avoid clrex due to Cortex-A15 erratum #830321
+	strex	r1, r2, [sp]			@ clear the exclusive monitor
+
 	.if	\fast
 	ldmdb	sp, {r1 - r12}			@ get calling r1 - r12
 	.else
 	ldmdb	sp, {r0 - r12}			@ get calling r0 - r12
 	.endif
-	add	sp, sp, #S_FRAME_SIZE - S_SP
+	add	sp, sp, #PT_REGS_SIZE - S_SP
 	movs	pc, lr				@ return & move spsr_svc into cpsr
-	.endm
-#endif	/* ifdef CONFIG_CPU_V7M / else */
-
-	.macro	get_thread_info, rd
-	mov	\rd, sp
-	lsr	\rd, \rd, #13
-	mov	\rd, \rd, lsl #13
-	.endm
-
-	@
-	@ 32-bit wide "mov pc, reg"
-	@
-	.macro	movw_pc, reg
-	mov	pc, \reg
-	nop
-	.endm
 #endif	/* !CONFIG_THUMB2_KERNEL */
+	.endm
 
 /*
  * Context tracking subsystem.  Used to instrument transitions
@@ -329,10 +351,10 @@
 #ifdef CONFIG_CONTEXT_TRACKING
 	.if	\save
 	stmdb   sp!, {r0-r3, ip, lr}
-	bl	user_exit
+	bl	context_tracking_user_exit
 	ldmia	sp!, {r0-r3, ip, lr}
 	.else
-	bl	user_exit
+	bl	context_tracking_user_exit
 	.endif
 #endif
 	.endm
@@ -341,10 +363,10 @@
 #ifdef CONFIG_CONTEXT_TRACKING
 	.if	\save
 	stmdb   sp!, {r0-r3, ip, lr}
-	bl	user_enter
+	bl	context_tracking_user_enter
 	ldmia	sp!, {r0-r3, ip, lr}
 	.else
-	bl	user_enter
+	bl	context_tracking_user_enter
 	.endif
 #endif
 	.endm

@@ -11,6 +11,9 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -26,7 +29,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -35,14 +38,6 @@
 #include <asm/reset-regs.h>
 #include <asm/gdb-stub.h>
 #include "internal.h"
-
-/*
- * return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return ((unsigned long *) tsk->thread.sp)[3];
-}
 
 /*
  * power off function, if any
@@ -63,10 +58,6 @@ void arch_cpu_idle(void)
 	safe_halt();
 }
 #endif
-
-void release_segments(struct mm_struct *mm)
-{
-}
 
 void machine_restart(char *cmd)
 {
@@ -103,9 +94,9 @@ void show_regs(struct pt_regs *regs)
 /*
  * free current thread data structures etc..
  */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	exit_fpu();
+	exit_fpu(tsk);
 }
 
 void flush_thread(void)
@@ -114,14 +105,6 @@ void flush_thread(void)
 }
 
 void release_thread(struct task_struct *dead_task)
-{
-}
-
-/*
- * we do not have to muck with descriptors here, that is
- * done in switch_mm() as needed.
- */
-void copy_segments(struct task_struct *p, struct mm_struct *new_mm)
 {
 }
 

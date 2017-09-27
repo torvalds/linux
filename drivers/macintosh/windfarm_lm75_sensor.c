@@ -82,7 +82,7 @@ static void wf_lm75_release(struct wf_sensor *sr)
 	kfree(lm);
 }
 
-static struct wf_sensor_ops wf_lm75_ops = {
+static const struct wf_sensor_ops wf_lm75_ops = {
 	.get_value	= wf_lm75_get,
 	.release	= wf_lm75_release,
 	.owner		= THIS_MODULE,
@@ -133,7 +133,7 @@ static int wf_lm75_probe(struct i2c_client *client,
 	lm->inited = 0;
 	lm->ds1775 = ds1775;
 	lm->i2c = client;
-	lm->sens.name = (char *)name; /* XXX fix constness in structure */
+	lm->sens.name = name;
 	lm->sens.ops = &wf_lm75_ops;
 	i2c_set_clientdata(client, lm);
 

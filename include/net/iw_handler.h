@@ -432,44 +432,38 @@ struct iw_public_data {
 /* First : function strictly used inside the kernel */
 
 /* Handle /proc/net/wireless, called in net/code/dev.c */
-extern int dev_get_wireless_info(char * buffer, char **start, off_t offset,
-				 int length);
+int dev_get_wireless_info(char *buffer, char **start, off_t offset, int length);
 
 /* Second : functions that may be called by driver modules */
 
 /* Send a single event to user space */
-extern void wireless_send_event(struct net_device *	dev,
-				unsigned int		cmd,
-				union iwreq_data *	wrqu,
-				const char *		extra);
+void wireless_send_event(struct net_device *dev, unsigned int cmd,
+			 union iwreq_data *wrqu, const char *extra);
+#ifdef CONFIG_WEXT_CORE
+/* flush all previous wext events - if work is done from netdev notifiers */
+void wireless_nlevent_flush(void);
+#else
+static inline void wireless_nlevent_flush(void) {}
+#endif
 
 /* We may need a function to send a stream of events to user space.
  * More on that later... */
 
 /* Standard handler for SIOCSIWSPY */
-extern int iw_handler_set_spy(struct net_device *	dev,
-			      struct iw_request_info *	info,
-			      union iwreq_data *	wrqu,
-			      char *			extra);
+int iw_handler_set_spy(struct net_device *dev, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra);
 /* Standard handler for SIOCGIWSPY */
-extern int iw_handler_get_spy(struct net_device *	dev,
-			      struct iw_request_info *	info,
-			      union iwreq_data *	wrqu,
-			      char *			extra);
+int iw_handler_get_spy(struct net_device *dev, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra);
 /* Standard handler for SIOCSIWTHRSPY */
-extern int iw_handler_set_thrspy(struct net_device *	dev,
-				 struct iw_request_info *info,
-				 union iwreq_data *	wrqu,
-				 char *			extra);
+int iw_handler_set_thrspy(struct net_device *dev, struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra);
 /* Standard handler for SIOCGIWTHRSPY */
-extern int iw_handler_get_thrspy(struct net_device *	dev,
-				 struct iw_request_info *info,
-				 union iwreq_data *	wrqu,
-				 char *			extra);
+int iw_handler_get_thrspy(struct net_device *dev, struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra);
 /* Driver call to update spy records */
-extern void wireless_spy_update(struct net_device *	dev,
-				unsigned char *		address,
-				struct iw_quality *	wstats);
+void wireless_spy_update(struct net_device *dev, unsigned char *address,
+			 struct iw_quality *wstats);
 
 /************************* INLINE FUNTIONS *************************/
 /*
@@ -511,24 +505,18 @@ static inline int iwe_stream_event_len_adjust(struct iw_request_info *info,
 /*
  * Wrapper to add an Wireless Event to a stream of events.
  */
+char *iwe_stream_add_event(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, int event_len);
+
 static inline char *
-iwe_stream_add_event(struct iw_request_info *info, char *stream, char *ends,
-		     struct iw_event *iwe, int event_len)
+iwe_stream_add_event_check(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, int event_len)
 {
-	int lcp_len = iwe_stream_lcp_len(info);
+	char *res = iwe_stream_add_event(info, stream, ends, iwe, event_len);
 
-	event_len = iwe_stream_event_len_adjust(info, event_len);
-
-	/* Check if it's possible */
-	if(likely((stream + event_len) < ends)) {
-		iwe->len = event_len;
-		/* Beware of alignement issues on 64 bits */
-		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
-		memcpy(stream + lcp_len, &iwe->u,
-		       event_len - lcp_len);
-		stream += event_len;
-	}
-	return stream;
+	if (res == stream)
+		return ERR_PTR(-E2BIG);
+	return res;
 }
 
 /*------------------------------------------------------------------*/
@@ -536,25 +524,18 @@ iwe_stream_add_event(struct iw_request_info *info, char *stream, char *ends,
  * Wrapper to add an short Wireless Event containing a pointer to a
  * stream of events.
  */
-static inline char *
-iwe_stream_add_point(struct iw_request_info *info, char *stream, char *ends,
-		     struct iw_event *iwe, char *extra)
-{
-	int event_len = iwe_stream_point_len(info) + iwe->u.data.length;
-	int point_len = iwe_stream_point_len(info);
-	int lcp_len   = iwe_stream_lcp_len(info);
+char *iwe_stream_add_point(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, char *extra);
 
-	/* Check if it's possible */
-	if(likely((stream + event_len) < ends)) {
-		iwe->len = event_len;
-		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
-		memcpy(stream + lcp_len,
-		       ((char *) &iwe->u) + IW_EV_POINT_OFF,
-		       IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
-		memcpy(stream + point_len, extra, iwe->u.data.length);
-		stream += event_len;
-	}
-	return stream;
+static inline char *
+iwe_stream_add_point_check(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, char *extra)
+{
+	char *res = iwe_stream_add_point(info, stream, ends, iwe, extra);
+
+	if (res == stream)
+		return ERR_PTR(-E2BIG);
+	return res;
 }
 
 /*------------------------------------------------------------------*/
@@ -563,25 +544,8 @@ iwe_stream_add_point(struct iw_request_info *info, char *stream, char *ends,
  * Be careful, this one is tricky to use properly :
  * At the first run, you need to have (value = event + IW_EV_LCP_LEN).
  */
-static inline char *
-iwe_stream_add_value(struct iw_request_info *info, char *event, char *value,
-		     char *ends, struct iw_event *iwe, int event_len)
-{
-	int lcp_len = iwe_stream_lcp_len(info);
-
-	/* Don't duplicate LCP */
-	event_len -= IW_EV_LCP_LEN;
-
-	/* Check if it's possible */
-	if(likely((value + event_len) < ends)) {
-		/* Add new value */
-		memcpy(value, &iwe->u, event_len);
-		value += event_len;
-		/* Patch LCP */
-		iwe->len = value - event;
-		memcpy(event, (char *) iwe, lcp_len);
-	}
-	return value;
-}
+char *iwe_stream_add_value(struct iw_request_info *info, char *event,
+			   char *value, char *ends, struct iw_event *iwe,
+			   int event_len);
 
 #endif	/* _IW_HANDLER_H */

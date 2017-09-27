@@ -42,7 +42,7 @@
 	dmb
 	mov	\rscratch, #0
 	strb	\rscratch, [\rbase, \rcpu]
-	dsb
+	dsb	st
 	sev
 .endm
 
@@ -102,7 +102,7 @@ ENTRY(vlock_unlock)
 	dmb
 	mov	r1, #VLOCK_OWNER_NONE
 	strb	r1, [r0, #VLOCK_OWNER_OFFSET]
-	dsb
+	dsb	st
 	sev
 	bx	lr
 ENDPROC(vlock_unlock)

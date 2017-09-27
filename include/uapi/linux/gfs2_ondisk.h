@@ -20,7 +20,7 @@
 
 #define GFS2_MOUNT_LOCK		0
 #define GFS2_LIVE_LOCK		1
-#define GFS2_TRANS_LOCK		2
+#define GFS2_FREEZE_LOCK	2
 #define GFS2_RENAME_LOCK	3
 #define GFS2_CONTROL_LOCK	4
 #define GFS2_MOUNTED_LOCK	5
@@ -297,6 +297,8 @@ struct gfs2_dinode {
 
 #define GFS2_FNAMESIZE		255
 #define GFS2_DIRENT_SIZE(name_len) ((sizeof(struct gfs2_dirent) + (name_len) + 7) & ~7)
+#define GFS2_MIN_DIRENT_SIZE (GFS2_DIRENT_SIZE(1))
+
 
 struct gfs2_dirent {
 	struct gfs2_inum de_inum;
@@ -304,7 +306,14 @@ struct gfs2_dirent {
 	__be16 de_rec_len;
 	__be16 de_name_len;
 	__be16 de_type;
-	__u8 __pad[14];
+	__be16 de_rahead;
+	union {
+		__u8 __pad[12];
+		struct {
+			__u32 de_cookie; /* ondisk value not used */
+			__u8 pad3[8];
+		};
+	};
 };
 
 /*
@@ -319,7 +328,16 @@ struct gfs2_leaf {
 	__be32 lf_dirent_format;	/* Format of the dirents */
 	__be64 lf_next;			/* Next leaf, if overflow */
 
-	__u8 lf_reserved[64];
+	union {
+		__u8 lf_reserved[64];
+		struct {
+			__be64 lf_inode;	/* Dir inode number */
+			__be32 lf_dist;		/* Dist from inode on chain */
+			__be32 lf_nsec;		/* Last ins/del usecs */
+			__be64 lf_sec;		/* Last ins/del in secs */
+			__u8 lf_reserved2[40];
+		};
+	};
 };
 
 /*
@@ -338,9 +356,9 @@ struct gfs2_leaf {
  * metadata header. Each inode, if it has extended attributes, will
  * have either a single block containing the extended attribute headers
  * or a single indirect block pointing to blocks containing the
- * extended attribure headers.
+ * extended attribute headers.
  *
- * The maximim size of the data part of an extended attribute is 64k
+ * The maximum size of the data part of an extended attribute is 64k
  * so the number of blocks required depends upon block size. Since the
  * block size also determines the number of pointers in an indirect
  * block, its a fairly complicated calculation to work out the maximum

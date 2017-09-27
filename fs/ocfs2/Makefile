@@ -1,7 +1,5 @@
 ccflags-y := -Ifs/ocfs2
 
-ccflags-y += -DCATCH_BH_JBD_RACES
-
 obj-$(CONFIG_OCFS2_FS) += 	\
 	ocfs2.o			\
 	ocfs2_stackglue.o
@@ -38,11 +36,11 @@ ocfs2-objs := \
 	symlink.o 		\
 	sysfile.o 		\
 	uptodate.o		\
-	ver.o			\
 	quota_local.o		\
 	quota_global.o		\
 	xattr.o			\
-	acl.o
+	acl.o	\
+	filecheck.o
 
 ocfs2_stackglue-objs := stackglue.o
 ocfs2_stack_o2cb-objs := stack_o2cb.o

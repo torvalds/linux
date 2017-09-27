@@ -6,7 +6,8 @@
  * Licensed under GPLv2 or later.
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
+#include "dt-bindings/clock/pxa-clock.h"
 
 / {
 	model = "Marvell PXA2xx family SoC";
@@ -53,8 +54,8 @@
 			reg = <0x40e00000 0x10000>;
 			gpio-controller;
 			#gpio-cells = <0x2>;
-			interrupts = <10>;
-			interrupt-names = "gpio_mux";
+			interrupts = <8>, <9>, <10>;
+			interrupt-names = "gpio0", "gpio1", "gpio_mux";
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
 			ranges;
@@ -79,6 +80,7 @@
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40100000 0x30>;
 			interrupts = <22>;
+			clocks = <&clks CLK_FFUART>;
 			status = "disabled";
 		};
 
@@ -86,6 +88,7 @@
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40200000 0x30>;
 			interrupts = <21>;
+			clocks = <&clks CLK_BTUART>;
 			status = "disabled";
 		};
 
@@ -93,6 +96,7 @@
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40700000 0x30>;
 			interrupts = <20>;
+			clocks = <&clks CLK_STUART>;
 			status = "disabled";
 		};
 
@@ -107,22 +111,27 @@
 			compatible = "mrvl,pxa-i2c";
 			reg = <0x40301680 0x30>;
 			interrupts = <18>;
+			clocks = <&clks CLK_I2C>;
 			#address-cells = <0x1>;
 			#size-cells = <0>;
 			status = "disabled";
 		};
 
 		usb0: ohci@4c000000 {
-			compatible = "mrvl,pxa-ohci";
+			compatible = "marvell,pxa-ohci";
 			reg = <0x4c000000 0x10000>;
 			interrupts = <3>;
 			status = "disabled";
 		};
 
 		mmc0: mmc@41100000 {
-			compatible = "mrvl,pxa-mmc";
+			compatible = "marvell,pxa-mmc";
 			reg = <0x41100000 0x1000>;
 			interrupts = <23>;
+			clocks = <&clks CLK_MMC>;
+			dmas = <&pdma 21 3
+				&pdma 22 3>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -130,6 +139,14 @@
 			compatible = "marvell,pxa-rtc";
 			reg = <0x40900000 0x3c>;
 			interrupts = <30 31>;
+		};
+
+		lcd-controller@40500000 {
+			compatible = "marvell,pxa2xx-lcdc";
+			reg = <0x44000000 0x10000>;
+			interrupts = <17>;
+			clocks = <&clks CLK_LCD>;
+			status = "disabled";
 		};
 	};
 };

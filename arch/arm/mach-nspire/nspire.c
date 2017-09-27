@@ -14,22 +14,18 @@
 #include <linux/of_platform.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-vic.h>
-#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
-#include <linux/clocksource.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/hardware/timer-sp.h>
-
 #include "mmio.h"
 #include "clcd.h"
 
-static const char *nspire_dt_match[] __initconst = {
+static const char *const nspire_dt_match[] __initconst = {
 	"ti,nspire",
 	"ti,nspire-cx",
 	"ti,nspire-tp",
@@ -61,17 +57,10 @@ static struct of_dev_auxdata nspire_auxdata[] __initdata = {
 
 static void __init nspire_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			nspire_auxdata, NULL);
+	of_platform_default_populate(NULL, nspire_auxdata, NULL);
 }
 
-static void __init nspire_init_time(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
-}
-
-static void nspire_restart(char mode, const char *cmd)
+static void nspire_restart(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *base = ioremap(NSPIRE_MISC_PHYS_BASE, SZ_4K);
 	if (!base)
@@ -83,7 +72,6 @@ static void nspire_restart(char mode, const char *cmd)
 DT_MACHINE_START(NSPIRE, "TI-NSPIRE")
 	.dt_compat	= nspire_dt_match,
 	.map_io		= nspire_map_io,
-	.init_time	= nspire_init_time,
 	.init_machine	= nspire_init,
 	.restart	= nspire_restart,
 MACHINE_END

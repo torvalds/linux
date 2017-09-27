@@ -31,9 +31,12 @@
 #include <asm/pgtable.h>
 #include <asm/vaddrs.h>
 #include <asm/pgalloc.h>	/* bug in asm-generic/tlb.h: check_pgt_cache */
+#include <asm/setup.h>
 #include <asm/tlb.h>
 #include <asm/prom.h>
 #include <asm/leon.h>
+
+#include "mm_32.h"
 
 unsigned long *sparc_valid_addr_bitmap;
 EXPORT_SYMBOL(sparc_valid_addr_bitmap);
@@ -52,18 +55,6 @@ extern unsigned int sparc_ramdisk_size;
 
 unsigned long highstart_pfn, highend_pfn;
 
-void show_mem(unsigned int filter)
-{
-	printk("Mem-info:\n");
-	show_free_areas(filter);
-	printk("Free swap:       %6ldkB\n",
-	       get_nr_swap_pages() << (PAGE_SHIFT-10));
-	printk("%ld pages of RAM\n", totalram_pages);
-	printk("%ld free pages\n", nr_free_pages());
-}
-
-
-extern unsigned long cmdline_memory_size;
 unsigned long last_valid_pfn;
 
 unsigned long calc_highpages(void)
@@ -246,9 +237,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
  * init routine based upon the Sun model type on the Sparc.
  *
  */
-extern void srmmu_paging_init(void);
-extern void device_scan(void);
-
 void __init paging_init(void)
 {
 	srmmu_paging_init();
@@ -302,7 +290,7 @@ void __init mem_init(void)
 
 
 	/* Saves us work later. */
-	memset((void *)&empty_zero_page, 0, PAGE_SIZE);
+	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 
 	i = last_valid_pfn >> ((20 - PAGE_SHIFT) + 5);
 	i += 1;

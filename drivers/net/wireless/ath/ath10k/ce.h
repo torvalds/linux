@@ -20,14 +20,10 @@
 
 #include "hif.h"
 
-
-/* Maximum number of Copy Engine's supported */
-#define CE_COUNT_MAX 8
-#define CE_HTT_H2T_MSG_SRC_NENTRIES 2048
+#define CE_HTT_H2T_MSG_SRC_NENTRIES 8192
 
 /* Descriptor rings must be aligned to this boundary */
 #define CE_DESC_RING_ALIGN	8
-#define CE_SENDLIST_ITEMS_MAX	12
 #define CE_SEND_FLAG_GATHER	0x00010000
 
 /*
@@ -36,20 +32,17 @@
  * how to use copy engines.
  */
 
-struct ce_state;
-
-
-/* Copy Engine operational state */
-enum ce_op_state {
-	CE_UNUSED,
-	CE_PAUSED,
-	CE_RUNNING,
-};
+struct ath10k_ce_pipe;
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
-#define CE_DESC_FLAGS_META_DATA_MASK 0xFFFC
-#define CE_DESC_FLAGS_META_DATA_LSB  3
+
+/* Following desc flags are used in QCA99X0 */
+#define CE_DESC_FLAGS_HOST_INT_DIS	(1 << 2)
+#define CE_DESC_FLAGS_TGT_INT_DIS	(1 << 3)
+
+#define CE_DESC_FLAGS_META_DATA_MASK ar->hw_values->ce_desc_meta_data_mask
+#define CE_DESC_FLAGS_META_DATA_LSB  ar->hw_values->ce_desc_meta_data_lsb
 
 struct ce_desc {
 	__le32 addr;
@@ -57,8 +50,7 @@ struct ce_desc {
 	__le16 flags; /* %CE_DESC_FLAGS_ */
 };
 
-/* Copy Engine Ring internal state */
-struct ce_ring_state {
+struct ath10k_ce_ring {
 	/* Number of entries in this ring; must be power of 2 */
 	unsigned int nentries;
 	unsigned int nentries_mask;
@@ -106,63 +98,47 @@ struct ce_ring_state {
 
 	/* CE address space */
 	u32 base_addr_ce_space;
-	/*
-	 * Start of shadow copy of descriptors, within regular memory.
-	 * Aligned to descriptor-size boundary.
-	 */
-	void *shadow_base_unaligned;
-	struct ce_desc *shadow_base;
 
-	void **per_transfer_context;
+	/* keep last */
+	void *per_transfer_context[0];
 };
 
-/* Copy Engine internal state */
-struct ce_state {
+struct ath10k_ce_pipe {
 	struct ath10k *ar;
 	unsigned int id;
 
 	unsigned int attr_flags;
 
 	u32 ctrl_addr;
-	enum ce_op_state state;
 
-	void (*send_cb) (struct ce_state *ce_state,
-			 void *per_transfer_send_context,
-			 u32 buffer,
-			 unsigned int nbytes,
-			 unsigned int transfer_id);
-	void (*recv_cb) (struct ce_state *ce_state,
-			 void *per_transfer_recv_context,
-			 u32 buffer,
-			 unsigned int nbytes,
-			 unsigned int transfer_id,
-			 unsigned int flags);
+	void (*send_cb)(struct ath10k_ce_pipe *);
+	void (*recv_cb)(struct ath10k_ce_pipe *);
 
 	unsigned int src_sz_max;
-	struct ce_ring_state *src_ring;
-	struct ce_ring_state *dest_ring;
-};
-
-struct ce_sendlist_item {
-	/* e.g. buffer or desc list */
-	dma_addr_t data;
-	union {
-		/* simple buffer */
-		unsigned int nbytes;
-		/* Rx descriptor list */
-		unsigned int ndesc;
-	} u;
-	/* externally-specified flags; OR-ed with internal flags */
-	u32 flags;
-};
-
-struct ce_sendlist {
-	unsigned int num_items;
-	struct ce_sendlist_item item[CE_SENDLIST_ITEMS_MAX];
+	struct ath10k_ce_ring *src_ring;
+	struct ath10k_ce_ring *dest_ring;
 };
 
 /* Copy Engine settable attributes */
 struct ce_attr;
+
+struct ath10k_bus_ops {
+	u32 (*read32)(struct ath10k *ar, u32 offset);
+	void (*write32)(struct ath10k *ar, u32 offset, u32 value);
+	int (*get_num_banks)(struct ath10k *ar);
+};
+
+static inline struct ath10k_ce *ath10k_ce_priv(struct ath10k *ar)
+{
+	return (struct ath10k_ce *)ar->ce_priv;
+}
+
+struct ath10k_ce {
+	/* protects CE info */
+	spinlock_t ce_lock;
+	const struct ath10k_bus_ops *bus_ops;
+	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
+};
 
 /*==================Send====================*/
 
@@ -182,7 +158,7 @@ struct ce_attr;
  *
  * Implementation note: pushes 1 buffer to Source ring
  */
-int ath10k_ce_send(struct ce_state *ce_state,
+int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_send_context,
 		   u32 buffer,
 		   unsigned int nbytes,
@@ -190,60 +166,23 @@ int ath10k_ce_send(struct ce_state *ce_state,
 		   unsigned int transfer_id,
 		   unsigned int flags);
 
-void ath10k_ce_send_cb_register(struct ce_state *ce_state,
-				void (*send_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id),
-				int disable_interrupts);
+int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+			  void *per_transfer_context,
+			  u32 buffer,
+			  unsigned int nbytes,
+			  unsigned int transfer_id,
+			  unsigned int flags);
 
-/* Append a simple buffer (address/length) to a sendlist. */
-void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist,
-				u32 buffer,
-				unsigned int nbytes,
-				/* OR-ed with internal flags */
-				u32 flags);
+void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe);
 
-/*
- * Queue a "sendlist" of buffers to be sent using gather to a single
- * anonymous destination buffer
- *   ce         - which copy engine to use
- *   sendlist        - list of simple buffers to send using gather
- *   transfer_id     - arbitrary ID; reflected to destination
- * Returns 0 on success; otherwise an error status.
- *
- * Implemenation note: Pushes multiple buffers with Gather to Source ring.
- */
-int ath10k_ce_sendlist_send(struct ce_state *ce_state,
-			    void *per_transfer_send_context,
-			    struct ce_sendlist *sendlist,
-			    /* 14 bits */
-			    unsigned int transfer_id);
+int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe);
 
 /*==================Recv=======================*/
 
-/*
- * Make a buffer available to receive. The buffer must be at least of a
- * minimal size appropriate for this copy engine (src_sz_max attribute).
- *   ce                    - which copy engine to use
- *   per_transfer_recv_context  - context passed back to caller's recv_cb
- *   buffer                     - address of buffer in CE space
- * Returns 0 on success; otherwise an error status.
- *
- * Implemenation note: Pushes a buffer to Dest ring.
- */
-int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
-			       void *per_transfer_recv_context,
-			       u32 buffer);
-
-void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
-				void (*recv_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id,
-						 unsigned int flags));
+int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe);
+int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
+int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
+void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries);
 
 /* recv flags */
 /* Data is byte-swapped */
@@ -253,28 +192,27 @@ void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
  * Supply data for the next completed unprocessed receive descriptor.
  * Pops buffer from Dest ring.
  */
-int ath10k_ce_completed_recv_next(struct ce_state *ce_state,
+int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp,
-				  unsigned int *flagsp);
+				  unsigned int *nbytesp);
 /*
  * Supply data for the next completed unprocessed send descriptor.
  * Pops 1 completed send buffer from Source ring.
  */
-int ath10k_ce_completed_send_next(struct ce_state *ce_state,
-			   void **per_transfer_contextp,
-			   u32 *bufferp,
-			   unsigned int *nbytesp,
-			   unsigned int *transfer_idp);
+int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
+				  void **per_transfer_contextp);
+
+int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+					 void **per_transfer_contextp);
 
 /*==================CE Engine Initialization=======================*/
 
-/* Initialize an instance of a CE */
-struct ce_state *ath10k_ce_init(struct ath10k *ar,
-				unsigned int ce_id,
-				const struct ce_attr *attr);
+int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
+			const struct ce_attr *attr);
+void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id);
+int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
+			 const struct ce_attr *attr);
+void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
 
 /*==================CE Engine Shutdown=======================*/
 /*
@@ -282,27 +220,32 @@ struct ce_state *ath10k_ce_init(struct ath10k *ar,
  * receive buffers.  Target DMA must be stopped before using
  * this API.
  */
-int ath10k_ce_revoke_recv_next(struct ce_state *ce_state,
+int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp);
+
+int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
+					 void **per_transfer_contextp,
+					 unsigned int *nbytesp);
 
 /*
  * Support clean shutdown by allowing the caller to cancel
  * pending sends.  Target DMA must be stopped before using
  * this API.
  */
-int ath10k_ce_cancel_send_next(struct ce_state *ce_state,
+int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp);
 
-void ath10k_ce_deinit(struct ce_state *ce_state);
-
 /*==================CE Interrupt Handlers====================*/
 void ath10k_ce_per_engine_service_any(struct ath10k *ar);
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id);
-void ath10k_ce_disable_interrupts(struct ath10k *ar);
+int ath10k_ce_disable_interrupts(struct ath10k *ar);
+void ath10k_ce_enable_interrupts(struct ath10k *ar);
+void ath10k_ce_dump_registers(struct ath10k *ar,
+			      struct ath10k_fw_crash_data *crash_data);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */
@@ -322,9 +265,6 @@ struct ce_attr {
 	/* CE_ATTR_* values */
 	unsigned int flags;
 
-	/* currently not in use */
-	unsigned int priority;
-
 	/* #entries in source ring - Must be a power of 2 */
 	unsigned int src_nentries;
 
@@ -337,157 +277,14 @@ struct ce_attr {
 	/* #entries in destination ring - Must be a power of 2 */
 	unsigned int dest_nentries;
 
-	/* Future use */
-	void *reserved;
+	void (*send_cb)(struct ath10k_ce_pipe *);
+	void (*recv_cb)(struct ath10k_ce_pipe *);
 };
 
-/*
- * When using sendlist_send to transfer multiple buffer fragments, the
- * transfer context of each fragment, except last one, will be filled
- * with CE_SENDLIST_ITEM_CTXT. ce_completed_send will return success for
- * each fragment done with send and the transfer context would be
- * CE_SENDLIST_ITEM_CTXT. Upper layer could use this to identify the
- * status of a send completion.
- */
-#define CE_SENDLIST_ITEM_CTXT	((void *)0xcecebeef)
-
-#define SR_BA_ADDRESS		0x0000
-#define SR_SIZE_ADDRESS		0x0004
-#define DR_BA_ADDRESS		0x0008
-#define DR_SIZE_ADDRESS		0x000c
-#define CE_CMD_ADDRESS		0x0018
-
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_MSB	17
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_LSB	17
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_MASK	0x00020000
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_SET(x) \
-	(((0 | (x)) << CE_CTRL1_DST_RING_BYTE_SWAP_EN_LSB) & \
-	CE_CTRL1_DST_RING_BYTE_SWAP_EN_MASK)
-
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MSB	16
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_LSB	16
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MASK	0x00010000
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_GET(x) \
-	(((x) & CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MASK) >> \
-	 CE_CTRL1_SRC_RING_BYTE_SWAP_EN_LSB)
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_SET(x) \
-	(((0 | (x)) << CE_CTRL1_SRC_RING_BYTE_SWAP_EN_LSB) & \
-	 CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MASK)
-
-#define CE_CTRL1_DMAX_LENGTH_MSB		15
-#define CE_CTRL1_DMAX_LENGTH_LSB		0
-#define CE_CTRL1_DMAX_LENGTH_MASK		0x0000ffff
-#define CE_CTRL1_DMAX_LENGTH_GET(x) \
-	(((x) & CE_CTRL1_DMAX_LENGTH_MASK) >> CE_CTRL1_DMAX_LENGTH_LSB)
-#define CE_CTRL1_DMAX_LENGTH_SET(x) \
-	(((0 | (x)) << CE_CTRL1_DMAX_LENGTH_LSB) & CE_CTRL1_DMAX_LENGTH_MASK)
-
-#define CE_CTRL1_ADDRESS			0x0010
-#define CE_CTRL1_HW_MASK			0x0007ffff
-#define CE_CTRL1_SW_MASK			0x0007ffff
-#define CE_CTRL1_HW_WRITE_MASK			0x00000000
-#define CE_CTRL1_SW_WRITE_MASK			0x0007ffff
-#define CE_CTRL1_RSTMASK			0xffffffff
-#define CE_CTRL1_RESET				0x00000080
-
-#define CE_CMD_HALT_STATUS_MSB			3
-#define CE_CMD_HALT_STATUS_LSB			3
-#define CE_CMD_HALT_STATUS_MASK			0x00000008
-#define CE_CMD_HALT_STATUS_GET(x) \
-	(((x) & CE_CMD_HALT_STATUS_MASK) >> CE_CMD_HALT_STATUS_LSB)
-#define CE_CMD_HALT_STATUS_SET(x) \
-	(((0 | (x)) << CE_CMD_HALT_STATUS_LSB) & CE_CMD_HALT_STATUS_MASK)
-#define CE_CMD_HALT_STATUS_RESET		0
-#define CE_CMD_HALT_MSB				0
-#define CE_CMD_HALT_MASK			0x00000001
-
-#define HOST_IE_COPY_COMPLETE_MSB		0
-#define HOST_IE_COPY_COMPLETE_LSB		0
-#define HOST_IE_COPY_COMPLETE_MASK		0x00000001
-#define HOST_IE_COPY_COMPLETE_GET(x) \
-	(((x) & HOST_IE_COPY_COMPLETE_MASK) >> HOST_IE_COPY_COMPLETE_LSB)
-#define HOST_IE_COPY_COMPLETE_SET(x) \
-	(((0 | (x)) << HOST_IE_COPY_COMPLETE_LSB) & HOST_IE_COPY_COMPLETE_MASK)
-#define HOST_IE_COPY_COMPLETE_RESET		0
-#define HOST_IE_ADDRESS				0x002c
-
-#define HOST_IS_DST_RING_LOW_WATERMARK_MASK	0x00000010
-#define HOST_IS_DST_RING_HIGH_WATERMARK_MASK	0x00000008
-#define HOST_IS_SRC_RING_LOW_WATERMARK_MASK	0x00000004
-#define HOST_IS_SRC_RING_HIGH_WATERMARK_MASK	0x00000002
-#define HOST_IS_COPY_COMPLETE_MASK		0x00000001
-#define HOST_IS_ADDRESS				0x0030
-
-#define MISC_IE_ADDRESS				0x0034
-
-#define MISC_IS_AXI_ERR_MASK			0x00000400
-
-#define MISC_IS_DST_ADDR_ERR_MASK		0x00000200
-#define MISC_IS_SRC_LEN_ERR_MASK		0x00000100
-#define MISC_IS_DST_MAX_LEN_VIO_MASK		0x00000080
-#define MISC_IS_DST_RING_OVERFLOW_MASK		0x00000040
-#define MISC_IS_SRC_RING_OVERFLOW_MASK		0x00000020
-
-#define MISC_IS_ADDRESS				0x0038
-
-#define SR_WR_INDEX_ADDRESS			0x003c
-
-#define DST_WR_INDEX_ADDRESS			0x0040
-
-#define CURRENT_SRRI_ADDRESS			0x0044
-
-#define CURRENT_DRRI_ADDRESS			0x0048
-
-#define SRC_WATERMARK_LOW_MSB			31
-#define SRC_WATERMARK_LOW_LSB			16
-#define SRC_WATERMARK_LOW_MASK			0xffff0000
-#define SRC_WATERMARK_LOW_GET(x) \
-	(((x) & SRC_WATERMARK_LOW_MASK) >> SRC_WATERMARK_LOW_LSB)
-#define SRC_WATERMARK_LOW_SET(x) \
-	(((0 | (x)) << SRC_WATERMARK_LOW_LSB) & SRC_WATERMARK_LOW_MASK)
-#define SRC_WATERMARK_LOW_RESET			0
-#define SRC_WATERMARK_HIGH_MSB			15
-#define SRC_WATERMARK_HIGH_LSB			0
-#define SRC_WATERMARK_HIGH_MASK			0x0000ffff
-#define SRC_WATERMARK_HIGH_GET(x) \
-	(((x) & SRC_WATERMARK_HIGH_MASK) >> SRC_WATERMARK_HIGH_LSB)
-#define SRC_WATERMARK_HIGH_SET(x) \
-	(((0 | (x)) << SRC_WATERMARK_HIGH_LSB) & SRC_WATERMARK_HIGH_MASK)
-#define SRC_WATERMARK_HIGH_RESET		0
-#define SRC_WATERMARK_ADDRESS			0x004c
-
-#define DST_WATERMARK_LOW_LSB			16
-#define DST_WATERMARK_LOW_MASK			0xffff0000
-#define DST_WATERMARK_LOW_SET(x) \
-	(((0 | (x)) << DST_WATERMARK_LOW_LSB) & DST_WATERMARK_LOW_MASK)
-#define DST_WATERMARK_LOW_RESET			0
-#define DST_WATERMARK_HIGH_MSB			15
-#define DST_WATERMARK_HIGH_LSB			0
-#define DST_WATERMARK_HIGH_MASK			0x0000ffff
-#define DST_WATERMARK_HIGH_GET(x) \
-	(((x) & DST_WATERMARK_HIGH_MASK) >> DST_WATERMARK_HIGH_LSB)
-#define DST_WATERMARK_HIGH_SET(x) \
-	(((0 | (x)) << DST_WATERMARK_HIGH_LSB) & DST_WATERMARK_HIGH_MASK)
-#define DST_WATERMARK_HIGH_RESET		0
-#define DST_WATERMARK_ADDRESS			0x0050
-
-
-static inline u32 ath10k_ce_base_address(unsigned int ce_id)
+static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 {
 	return CE0_BASE_ADDRESS + (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS) * ce_id;
 }
-
-#define CE_WATERMARK_MASK (HOST_IS_SRC_RING_LOW_WATERMARK_MASK  | \
-			   HOST_IS_SRC_RING_HIGH_WATERMARK_MASK | \
-			   HOST_IS_DST_RING_LOW_WATERMARK_MASK  | \
-			   HOST_IS_DST_RING_HIGH_WATERMARK_MASK)
-
-#define CE_ERROR_MASK	(MISC_IS_AXI_ERR_MASK           | \
-			 MISC_IS_DST_ADDR_ERR_MASK      | \
-			 MISC_IS_SRC_LEN_ERR_MASK       | \
-			 MISC_IS_DST_MAX_LEN_VIO_MASK   | \
-			 MISC_IS_DST_RING_OVERFLOW_MASK | \
-			 MISC_IS_SRC_RING_OVERFLOW_MASK)
 
 #define CE_SRC_RING_TO_DESC(baddr, idx) \
 	(&(((struct ce_desc *)baddr)[idx]))
@@ -497,20 +294,28 @@ static inline u32 ath10k_ce_base_address(unsigned int ce_id)
 
 /* Ring arithmetic (modulus number of entries in ring, which is a pwr of 2). */
 #define CE_RING_DELTA(nentries_mask, fromidx, toidx) \
-	(((int)(toidx)-(int)(fromidx)) & (nentries_mask))
+	(((int)(toidx) - (int)(fromidx)) & (nentries_mask))
 
 #define CE_RING_IDX_INCR(nentries_mask, idx) (((idx) + 1) & (nentries_mask))
+#define CE_RING_IDX_ADD(nentries_mask, idx, num) \
+		(((idx) + (num)) & (nentries_mask))
 
-#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB		8
-#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK		0x0000ff00
+#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB \
+				ar->regs->ce_wrap_intr_sum_host_msi_lsb
+#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK \
+				ar->regs->ce_wrap_intr_sum_host_msi_mask
 #define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(x) \
 	(((x) & CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK) >> \
 		CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB)
 #define CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS			0x0000
 
-#define CE_INTERRUPT_SUMMARY(ar) \
-	CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET( \
-		ath10k_pci_read32((ar), CE_WRAPPER_BASE_ADDRESS + \
-		CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS))
+static inline u32 ath10k_ce_interrupt_summary(struct ath10k *ar)
+{
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+
+	return CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(
+		ce->bus_ops->read32((ar), CE_WRAPPER_BASE_ADDRESS +
+		CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS));
+}
 
 #endif /* _CE_H_ */

@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -254,7 +250,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int i;
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x21);		/* JPEG 422 */
 	jpeg_set_qual(sd->jpeg_hdr, QUALITY);
 
@@ -270,8 +267,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	data[0] = 0x00;		/* address */
 	data[1] = 0x0c | 0x01;	/* reg 0 */
 	data[2] = 0x01;		/* reg 1 */
-	data[3] = gspca_dev->width / 8;		/* h_size , reg 2 */
-	data[4] = gspca_dev->height / 8;	/* v_size , reg 3 */
+	data[3] = gspca_dev->pixfmt.width / 8;	/* h_size , reg 2 */
+	data[4] = gspca_dev->pixfmt.height / 8;	/* v_size , reg 3 */
 	data[5] = 0x30;		/* reg 4, MI, PAS5101 :
 				 *	0x30 for 24mhz , 0x28 for 12mhz */
 	data[6] = 0x02;		/* reg 5, H start - was 0x04 */

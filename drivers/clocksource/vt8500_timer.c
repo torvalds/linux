@@ -30,7 +30,6 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/delay.h>
-#include <asm/mach/time.h>
 
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -50,9 +49,11 @@
 
 #define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
 
+#define MIN_OSCR_DELTA		16
+
 static void __iomem *regbase;
 
-static cycle_t vt8500_timer_read(struct clocksource *cs)
+static u64 vt8500_timer_read(struct clocksource *cs)
 {
 	int loops = msecs_to_loops(10);
 	writel(3, regbase + TIMER_CTRL_VAL);
@@ -74,13 +75,13 @@ static int vt8500_timer_set_next_event(unsigned long cycles,
 				    struct clock_event_device *evt)
 {
 	int loops = msecs_to_loops(10);
-	cycle_t alarm = clocksource.read(&clocksource) + cycles;
+	u64 alarm = clocksource.read(&clocksource) + cycles;
 	while ((readl(regbase + TIMER_AS_VAL) & TIMER_MATCH_W_ACTIVE)
 						&& --loops)
 		cpu_relax();
 	writel((unsigned long)alarm, regbase + TIMER_MATCH_VAL);
 
-	if ((signed)(alarm - clocksource.read(&clocksource)) <= 16)
+	if ((signed)(alarm - clocksource.read(&clocksource)) <= MIN_OSCR_DELTA)
 		return -ETIME;
 
 	writel(1, regbase + TIMER_IER_VAL);
@@ -88,29 +89,20 @@ static int vt8500_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void vt8500_timer_set_mode(enum clock_event_mode mode,
-			      struct clock_event_device *evt)
+static int vt8500_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_RESUME:
-	case CLOCK_EVT_MODE_PERIODIC:
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		writel(readl(regbase + TIMER_CTRL_VAL) | 1,
-			regbase + TIMER_CTRL_VAL);
-		writel(0, regbase + TIMER_IER_VAL);
-		break;
-	}
+	writel(readl(regbase + TIMER_CTRL_VAL) | 1, regbase + TIMER_CTRL_VAL);
+	writel(0, regbase + TIMER_IER_VAL);
+	return 0;
 }
 
 static struct clock_event_device clockevent = {
-	.name           = "vt8500_timer",
-	.features       = CLOCK_EVT_FEAT_ONESHOT,
-	.rating         = 200,
-	.set_next_event = vt8500_timer_set_next_event,
-	.set_mode       = vt8500_timer_set_mode,
+	.name			= "vt8500_timer",
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.rating			= 200,
+	.set_next_event		= vt8500_timer_set_next_event,
+	.set_state_shutdown	= vt8500_shutdown,
+	.set_state_oneshot	= vt8500_shutdown,
 };
 
 static irqreturn_t vt8500_timer_interrupt(int irq, void *dev_id)
@@ -124,45 +116,53 @@ static irqreturn_t vt8500_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction irq = {
 	.name    = "vt8500_timer",
-	.flags   = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags   = IRQF_TIMER | IRQF_IRQPOLL,
 	.handler = vt8500_timer_interrupt,
 	.dev_id  = &clockevent,
 };
 
-static void __init vt8500_timer_init(struct device_node *np)
+static int __init vt8500_timer_init(struct device_node *np)
 {
-	int timer_irq;
+	int timer_irq, ret;
 
 	regbase = of_iomap(np, 0);
 	if (!regbase) {
 		pr_err("%s: Missing iobase description in Device Tree\n",
 								__func__);
-		of_node_put(np);
-		return;
+		return -ENXIO;
 	}
+
 	timer_irq = irq_of_parse_and_map(np, 0);
 	if (!timer_irq) {
 		pr_err("%s: Missing irq description in Device Tree\n",
 								__func__);
-		of_node_put(np);
-		return;
+		return -EINVAL;
 	}
 
 	writel(1, regbase + TIMER_CTRL_VAL);
 	writel(0xf, regbase + TIMER_STATUS_VAL);
 	writel(~0, regbase + TIMER_MATCH_VAL);
 
-	if (clocksource_register_hz(&clocksource, VT8500_TIMER_HZ))
+	ret = clocksource_register_hz(&clocksource, VT8500_TIMER_HZ);
+	if (ret) {
 		pr_err("%s: vt8500_timer_init: clocksource_register failed for %s\n",
-					__func__, clocksource.name);
+		       __func__, clocksource.name);
+		return ret;
+	}
 
 	clockevent.cpumask = cpumask_of(0);
 
-	if (setup_irq(timer_irq, &irq))
+	ret = setup_irq(timer_irq, &irq);
+	if (ret) {
 		pr_err("%s: setup_irq failed for %s\n", __func__,
 							clockevent.name);
+		return ret;
+	}
+
 	clockevents_config_and_register(&clockevent, VT8500_TIMER_HZ,
-					4, 0xf0000000);
+					MIN_OSCR_DELTA * 2, 0xf0000000);
+
+	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init);
+TIMER_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init);

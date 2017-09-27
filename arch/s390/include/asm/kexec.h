@@ -26,6 +26,9 @@
 /* Not more than 2GB */
 #define KEXEC_CONTROL_MEMORY_LIMIT (1UL<<31)
 
+/* Allocate control page with GFP_DMA */
+#define KEXEC_CONTROL_MEMORY_GFP GFP_DMA
+
 /* Maximum address we can use for the crash control pages */
 #define KEXEC_CRASH_CONTROL_MEMORY_LIMIT (-1UL)
 
@@ -37,24 +40,6 @@
 
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_S390
-
-/*
- * Size for s390x ELF notes per CPU
- *
- * Seven notes plus zero note at the end: prstatus, fpregset, timer,
- * tod_cmp, tod_reg, control regs, and prefix
- */
-#define KEXEC_NOTE_BYTES \
-	(ALIGN(sizeof(struct elf_note), 4) * 8 + \
-	 ALIGN(sizeof("CORE"), 4) * 7 + \
-	 ALIGN(sizeof(struct elf_prstatus), 4) + \
-	 ALIGN(sizeof(elf_fpregset_t), 4) + \
-	 ALIGN(sizeof(u64), 4) + \
-	 ALIGN(sizeof(u64), 4) + \
-	 ALIGN(sizeof(u32), 4) + \
-	 ALIGN(sizeof(u64) * 16, 4) + \
-	 ALIGN(sizeof(u32), 4) \
-	)
 
 /* Provide a dummy definition to avoid build failures. */
 static inline void crash_setup_regs(struct pt_regs *newregs,

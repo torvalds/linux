@@ -10,16 +10,6 @@ menuconfig IEEE802154_DRIVERS
 	  If you say N, all options in this submenu will be skipped and
 	  disabled.
 
-config IEEE802154_FAKEHARD
-	tristate "Fake LR-WPAN driver with several interconnected devices"
-	depends on  IEEE802154_DRIVERS
-	---help---
-	  Say Y here to enable the fake driver that serves as an example
-          of HardMAC device driver.
-
-          This driver can also be built as a module. To do so say M here.
-	  The module will be called 'fakehard'.
-
 config IEEE802154_FAKELB
 	depends on IEEE802154_DRIVERS && MAC802154
 	tristate "IEEE 802.15.4 loopback driver"
@@ -31,17 +21,86 @@ config IEEE802154_FAKELB
 	  The module will be called 'fakelb'.
 
 config IEEE802154_AT86RF230
-        depends on IEEE802154_DRIVERS && MAC802154
-        tristate "AT86RF230/231 transceiver driver"
-        depends on SPI
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "AT86RF230/231/233/212 transceiver driver"
+	depends on SPI
+	select REGMAP_SPI
+	---help---
+	  Say Y here to enable the at86rf230/231/233/212 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'at86rf230'.
+
+config IEEE802154_AT86RF230_DEBUGFS
+	depends on IEEE802154_AT86RF230
+	bool "AT86RF230 debugfs interface"
+	depends on DEBUG_FS
+	---help---
+	  This option compiles debugfs code for the at86rf230 driver.
 
 config IEEE802154_MRF24J40
-       tristate "Microchip MRF24J40 transceiver driver"
+	tristate "Microchip MRF24J40 transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on SPI
+	select REGMAP_SPI
+	---help---
+	  Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'mrf24j40'.
+
+config IEEE802154_CC2520
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "CC2520 transceiver driver"
+	depends on SPI
+	---help---
+	  Say Y here to enable the CC2520 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'cc2520'.
+
+config IEEE802154_ATUSB
+	tristate "ATUSB transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154 && USB
+	---help---
+	  Say Y here to enable the ATUSB IEEE 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so say M here.
+	  The module will be called 'atusb'.
+
+config IEEE802154_ADF7242
+       tristate "ADF7242 transceiver driver"
        depends on IEEE802154_DRIVERS && MAC802154
        depends on SPI
-       ---help---
-         Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
-         controller.
+	---help---
+	  Say Y here to enable the ADF7242 SPI 802.15.4 wireless
+	  controller.
 
-         This driver can also be built as a module. To do so, say M here.
-         the module will be called 'mrf24j40'.
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'adf7242'.
+
+config IEEE802154_CA8210
+	tristate "Cascoda CA8210 transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on COMMON_CLK
+	depends on SPI
+	---help---
+	  Say Y here to enable the CA8210 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'ca8210'.
+
+config IEEE802154_CA8210_DEBUGFS
+	bool "CA8210 debugfs interface"
+	depends on IEEE802154_CA8210
+	depends on DEBUG_FS
+	---help---
+	  This option compiles debugfs code for the ca8210 driver. This
+	  exposes a debugfs node for each CA8210 instance which allows
+	  direct use of the Cascoda API, exposing the 802.15.4 MAC
+	  management entities.

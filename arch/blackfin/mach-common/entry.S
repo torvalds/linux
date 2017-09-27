@@ -1694,6 +1694,16 @@ ENTRY(_sys_call_table)
 	.long _sys_sendmmsg		/* 380 */
 	.long _sys_process_vm_readv
 	.long _sys_process_vm_writev
+	.long _sys_kcmp
+	.long _sys_finit_module
+	.long _sys_sched_setattr	/* 385 */
+	.long _sys_sched_getattr
+	.long _sys_renameat2
+	.long _sys_seccomp
+	.long _sys_getrandom
+	.long _sys_memfd_create		/* 390 */
+	.long _sys_bpf
+	.long _sys_execveat
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

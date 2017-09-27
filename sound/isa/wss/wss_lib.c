@@ -31,12 +31,12 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 
-#include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
 
@@ -69,12 +69,12 @@ static unsigned char freq_bits[14] = {
 	/* 48000 */	0x0C | CS4231_XTAL1
 };
 
-static unsigned int rates[14] = {
+static const unsigned int rates[14] = {
 	5510, 6620, 8000, 9600, 11025, 16000, 18900, 22050,
 	27042, 32000, 33075, 37800, 44100, 48000
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,
@@ -1452,7 +1452,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 
  */
 
-static struct snd_pcm_hardware snd_wss_playback =
+static const struct snd_pcm_hardware snd_wss_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -1472,7 +1472,7 @@ static struct snd_pcm_hardware snd_wss_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_wss_capture =
+static const struct snd_pcm_hardware snd_wss_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -1901,7 +1901,7 @@ int snd_wss_create(struct snd_card *card,
 }
 EXPORT_SYMBOL(snd_wss_create);
 
-static struct snd_pcm_ops snd_wss_playback_ops = {
+static const struct snd_pcm_ops snd_wss_playback_ops = {
 	.open =		snd_wss_playback_open,
 	.close =	snd_wss_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1912,7 +1912,7 @@ static struct snd_pcm_ops snd_wss_playback_ops = {
 	.pointer =	snd_wss_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_wss_capture_ops = {
+static const struct snd_pcm_ops snd_wss_capture_ops = {
 	.open =		snd_wss_capture_open,
 	.close =	snd_wss_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1923,7 +1923,7 @@ static struct snd_pcm_ops snd_wss_capture_ops = {
 	.pointer =	snd_wss_capture_pointer,
 };
 
-int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
+int snd_wss_pcm(struct snd_wss *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1949,8 +1949,6 @@ int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
 					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 EXPORT_SYMBOL(snd_wss_pcm);
@@ -1961,7 +1959,7 @@ static void snd_wss_timer_free(struct snd_timer *timer)
 	chip->timer = NULL;
 }
 
-int snd_wss_timer(struct snd_wss *chip, int device, struct snd_timer **rtimer)
+int snd_wss_timer(struct snd_wss *chip, int device)
 {
 	struct snd_timer *timer;
 	struct snd_timer_id tid;
@@ -1980,8 +1978,6 @@ int snd_wss_timer(struct snd_wss *chip, int device, struct snd_timer **rtimer)
 	timer->private_free = snd_wss_timer_free;
 	timer->hw = snd_wss_timer_table;
 	chip->timer = timer;
-	if (rtimer)
-		*rtimer = timer;
 	return 0;
 }
 EXPORT_SYMBOL(snd_wss_timer);
@@ -1993,25 +1989,20 @@ EXPORT_SYMBOL(snd_wss_timer);
 static int snd_wss_info_mux(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[4] = {
+	static const char * const texts[4] = {
 		"Line", "Aux", "Mic", "Mix"
 	};
-	static char *opl3sa_texts[4] = {
+	static const char * const opl3sa_texts[4] = {
 		"Line", "CD", "Mic", "Mix"
 	};
-	static char *gusmax_texts[4] = {
+	static const char * const gusmax_texts[4] = {
 		"Line", "Synth", "Mic", "Mix"
 	};
-	char **ptexts = texts;
+	const char * const *ptexts = texts;
 	struct snd_wss *chip = snd_kcontrol_chip(kcontrol);
 
 	if (snd_BUG_ON(!chip->card))
 		return -EINVAL;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 2;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item > 3)
-		uinfo->value.enumerated.item = 3;
 	if (!strcmp(chip->card->driver, "GUS MAX"))
 		ptexts = gusmax_texts;
 	switch (chip->hardware) {
@@ -2023,8 +2014,7 @@ static int snd_wss_info_mux(struct snd_kcontrol *kcontrol,
 		ptexts = opl3sa_texts;
 		break;
 	}
-	strcpy(uinfo->value.enumerated.name, ptexts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 2, 4, ptexts);
 }
 
 static int snd_wss_get_mux(struct snd_kcontrol *kcontrol,

@@ -13,7 +13,6 @@
 #include <linux/clk.h>
 #include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
-#include <linux/clocksource.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -60,6 +59,8 @@
 
 static u32 chipid;
 static u32 socid;
+
+static void __iomem *reset_addr;
 
 static inline void __mxs_setl(u32 mask, void __iomem *reg)
 {
@@ -156,6 +157,8 @@ enum mac_oui {
 	OUI_FSL,
 	OUI_DENX,
 	OUI_CRYSTALFONTZ,
+	OUI_I2SE,
+	OUI_ARMADEUS,
 };
 
 static void __init update_fec_mac_prop(enum mac_oui oui)
@@ -210,6 +213,16 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 			macaddr[1] = 0xb9;
 			macaddr[2] = 0xe1;
 			break;
+		case OUI_I2SE:
+			macaddr[0] = 0x00;
+			macaddr[1] = 0x01;
+			macaddr[2] = 0x87;
+			break;
+		case OUI_ARMADEUS:
+			macaddr[0] = 0x00;
+			macaddr[1] = 0x1e;
+			macaddr[2] = 0xac;
+			break;
 		}
 		val = ocotp[i];
 		macaddr[3] = (val >> 16) & 0xff;
@@ -235,6 +248,11 @@ static void __init imx28_evk_init(void)
 	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
 }
 
+static void __init imx28_apf28_init(void)
+{
+	update_fec_mac_prop(OUI_ARMADEUS);
+}
+
 static int apx4devkit_phy_fixup(struct phy_device *phy)
 {
 	phy->dev_flags |= MICREL_PHY_50MHZ_CLK;
@@ -250,83 +268,19 @@ static void __init apx4devkit_init(void)
 					   apx4devkit_phy_fixup);
 }
 
-#define ENET0_MDC__GPIO_4_0	MXS_GPIO_NR(4, 0)
-#define ENET0_MDIO__GPIO_4_1	MXS_GPIO_NR(4, 1)
-#define ENET0_RX_EN__GPIO_4_2	MXS_GPIO_NR(4, 2)
-#define ENET0_RXD0__GPIO_4_3	MXS_GPIO_NR(4, 3)
-#define ENET0_RXD1__GPIO_4_4	MXS_GPIO_NR(4, 4)
-#define ENET0_TX_EN__GPIO_4_6	MXS_GPIO_NR(4, 6)
-#define ENET0_TXD0__GPIO_4_7	MXS_GPIO_NR(4, 7)
-#define ENET0_TXD1__GPIO_4_8	MXS_GPIO_NR(4, 8)
-#define ENET_CLK__GPIO_4_16	MXS_GPIO_NR(4, 16)
-
-#define TX28_FEC_PHY_POWER	MXS_GPIO_NR(3, 29)
-#define TX28_FEC_PHY_RESET	MXS_GPIO_NR(4, 13)
-#define TX28_FEC_nINT		MXS_GPIO_NR(4, 5)
-
-static const struct gpio tx28_gpios[] __initconst = {
-	{ ENET0_MDC__GPIO_4_0, GPIOF_OUT_INIT_LOW, "GPIO_4_0" },
-	{ ENET0_MDIO__GPIO_4_1, GPIOF_OUT_INIT_LOW, "GPIO_4_1" },
-	{ ENET0_RX_EN__GPIO_4_2, GPIOF_OUT_INIT_LOW, "GPIO_4_2" },
-	{ ENET0_RXD0__GPIO_4_3, GPIOF_OUT_INIT_LOW, "GPIO_4_3" },
-	{ ENET0_RXD1__GPIO_4_4, GPIOF_OUT_INIT_LOW, "GPIO_4_4" },
-	{ ENET0_TX_EN__GPIO_4_6, GPIOF_OUT_INIT_LOW, "GPIO_4_6" },
-	{ ENET0_TXD0__GPIO_4_7, GPIOF_OUT_INIT_LOW, "GPIO_4_7" },
-	{ ENET0_TXD1__GPIO_4_8, GPIOF_OUT_INIT_LOW, "GPIO_4_8" },
-	{ ENET_CLK__GPIO_4_16, GPIOF_OUT_INIT_LOW, "GPIO_4_16" },
-	{ TX28_FEC_PHY_POWER, GPIOF_OUT_INIT_LOW, "fec-phy-power" },
-	{ TX28_FEC_PHY_RESET, GPIOF_OUT_INIT_LOW, "fec-phy-reset" },
-	{ TX28_FEC_nINT, GPIOF_DIR_IN, "fec-int" },
-};
-
-static void __init tx28_post_init(void)
-{
-	struct device_node *np;
-	struct platform_device *pdev;
-	struct pinctrl *pctl;
-	int ret;
-
-	enable_clk_enet_out();
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-fec");
-	pdev = of_find_device_by_node(np);
-	if (!pdev) {
-		pr_err("%s: failed to find fec device\n", __func__);
-		return;
-	}
-
-	pctl = pinctrl_get_select(&pdev->dev, "gpio_mode");
-	if (IS_ERR(pctl)) {
-		pr_err("%s: failed to get pinctrl state\n", __func__);
-		return;
-	}
-
-	ret = gpio_request_array(tx28_gpios, ARRAY_SIZE(tx28_gpios));
-	if (ret) {
-		pr_err("%s: failed to request gpios: %d\n", __func__, ret);
-		return;
-	}
-
-	/* Power up fec phy */
-	gpio_set_value(TX28_FEC_PHY_POWER, 1);
-	msleep(26); /* 25ms according to data sheet */
-
-	/* Mode strap pins */
-	gpio_set_value(ENET0_RX_EN__GPIO_4_2, 1);
-	gpio_set_value(ENET0_RXD0__GPIO_4_3, 1);
-	gpio_set_value(ENET0_RXD1__GPIO_4_4, 1);
-
-	udelay(100); /* minimum assertion time for nRST */
-
-	/* Deasserting FEC PHY RESET */
-	gpio_set_value(TX28_FEC_PHY_RESET, 1);
-
-	pinctrl_put(pctl);
-}
-
 static void __init crystalfontz_init(void)
 {
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+}
+
+static void __init duckbill_init(void)
+{
+	update_fec_mac_prop(OUI_I2SE);
+}
+
+static void __init m28cu3_init(void)
+{
+	update_fec_mac_prop(OUI_DENX);
 }
 
 static const char __init *mxs_get_soc_id(void)
@@ -393,10 +347,36 @@ static const char __init *mxs_get_revision(void)
 	u32 rev = mxs_get_cpu_rev();
 
 	if (rev != MXS_CHIP_REV_UNKNOWN)
-		return kasprintf(GFP_KERNEL, "TO%d.%d", (rev >> 4) & 0xf,
+		return kasprintf(GFP_KERNEL, "%d.%d", (rev >> 4) & 0xf,
 				rev & 0xf);
 	else
 		return kasprintf(GFP_KERNEL, "%s", "Unknown");
+}
+
+#define MX23_CLKCTRL_RESET_OFFSET	0x120
+#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
+
+static int __init mxs_restart_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
+	reset_addr = of_iomap(np, 0);
+	if (!reset_addr)
+		return -ENODEV;
+
+	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
+		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
+	else
+		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+	of_node_put(np);
+
+	return 0;
+}
+
+static void __init eukrea_mbmx283lc_init(void)
+{
+	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
 }
 
 static void __init mxs_machine_init(void)
@@ -431,23 +411,25 @@ static void __init mxs_machine_init(void)
 
 	if (of_machine_is_compatible("fsl,imx28-evk"))
 		imx28_evk_init();
+	if (of_machine_is_compatible("armadeus,imx28-apf28"))
+		imx28_apf28_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
-	else if (of_machine_is_compatible("crystalfontz,cfa10037") ||
-		 of_machine_is_compatible("crystalfontz,cfa10049") ||
-		 of_machine_is_compatible("crystalfontz,cfa10055") ||
-		 of_machine_is_compatible("crystalfontz,cfa10057"))
+	else if (of_machine_is_compatible("crystalfontz,cfa10036"))
 		crystalfontz_init();
+	else if (of_machine_is_compatible("eukrea,mbmx283lc"))
+		eukrea_mbmx283lc_init();
+	else if (of_machine_is_compatible("i2se,duckbill") ||
+		 of_machine_is_compatible("i2se,duckbill-2"))
+		duckbill_init();
+	else if (of_machine_is_compatible("msr,m28cu3"))
+		m28cu3_init();
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     NULL, parent);
+	of_platform_default_populate(NULL, NULL, parent);
 
-	if (of_machine_is_compatible("karo,tx28"))
-		tx28_post_init();
+	mxs_restart_init();
 }
 
-#define MX23_CLKCTRL_RESET_OFFSET	0x120
-#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
 #define MXS_CLKCTRL_RESET_CHIP		(1 << 1)
 
 /*
@@ -455,42 +437,21 @@ static void __init mxs_machine_init(void)
  */
 static void mxs_restart(enum reboot_mode mode, const char *cmd)
 {
-	struct device_node *np;
-	void __iomem *reset_addr;
+	if (reset_addr) {
+		/* reset the chip */
+		__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
-	reset_addr = of_iomap(np, 0);
-	if (!reset_addr)
-		goto soft;
+		pr_err("Failed to assert the chip reset\n");
 
-	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
-		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
-	else
-		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+		/* Delay to allow the serial port to show the message */
+		mdelay(50);
+	}
 
-	/* reset the chip */
-	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
-
-	pr_err("Failed to assert the chip reset\n");
-
-	/* Delay to allow the serial port to show the message */
-	mdelay(50);
-
-soft:
 	/* We'll take a jump through zero as a poor second */
 	soft_restart(0);
 }
 
-static void __init mxs_timer_init(void)
-{
-	if (of_machine_is_compatible("fsl,imx23"))
-		mx23_clocks_init();
-	else
-		mx28_clocks_init();
-	clocksource_of_init();
-}
-
-static const char *mxs_dt_compat[] __initdata = {
+static const char *const mxs_dt_compat[] __initconst = {
 	"fsl,imx28",
 	"fsl,imx23",
 	NULL,
@@ -498,7 +459,6 @@ static const char *mxs_dt_compat[] __initdata = {
 
 DT_MACHINE_START(MXS, "Freescale MXS (Device Tree)")
 	.handle_irq	= icoll_handle_irq,
-	.init_time	= mxs_timer_init,
 	.init_machine	= mxs_machine_init,
 	.init_late      = mxs_pm_init,
 	.dt_compat	= mxs_dt_compat,

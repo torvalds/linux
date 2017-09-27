@@ -19,25 +19,12 @@
 #ifndef __ASM_PAGE_H
 #define __ASM_PAGE_H
 
-/* PAGE_SHIFT determines the page size */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define PAGE_SHIFT		16
-#else
-#define PAGE_SHIFT		12
-#endif
-#define PAGE_SIZE		(_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK		(~(PAGE_SIZE-1))
-
-/* We do define AT_SYSINFO_EHDR but don't use the gate mechanism */
-#define __HAVE_ARCH_GATE_AREA		1
+#include <asm/page-def.h>
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_ARM64_64K_PAGES
-#include <asm/pgtable-2level-types.h>
-#else
-#include <asm/pgtable-3level-types.h>
-#endif
+#include <linux/personality.h> /* for READ_IMPLIES_EXEC */
+#include <asm/pgtable-types.h>
 
 extern void __cpu_clear_user_page(void *p, unsigned long user);
 extern void __cpu_copy_user_page(void *to, const void *from,

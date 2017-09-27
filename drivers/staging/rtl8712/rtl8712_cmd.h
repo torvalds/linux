@@ -109,16 +109,16 @@ enum rtl8712_h2c_cmd {
 	GEN_CMD_CODE(_DisconnectCtrlEx), /*61*/
 
 	/* To do, modify these h2c cmd, add or delete */
-	GEN_CMD_CODE(_GetH2cLbk) ,
+	GEN_CMD_CODE(_GetH2cLbk),
 
 	/* WPS extra IE */
-	GEN_CMD_CODE(_SetProbeReqExtraIE) ,
-	GEN_CMD_CODE(_SetAssocReqExtraIE) ,
-	GEN_CMD_CODE(_SetProbeRspExtraIE) ,
-	GEN_CMD_CODE(_SetAssocRspExtraIE) ,
+	GEN_CMD_CODE(_SetProbeReqExtraIE),
+	GEN_CMD_CODE(_SetAssocReqExtraIE),
+	GEN_CMD_CODE(_SetProbeRspExtraIE),
+	GEN_CMD_CODE(_SetAssocRspExtraIE),
 
 	/* the following is driver will do */
-	GEN_CMD_CODE(_GetCurDataRate) ,
+	GEN_CMD_CODE(_GetCurDataRate),
 
 	GEN_CMD_CODE(_GetTxRetrycnt),  /* to record times that Tx retry to
 					* transmit packet after association

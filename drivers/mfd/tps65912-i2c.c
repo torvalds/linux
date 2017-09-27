@@ -1,140 +1,80 @@
 /*
- * tps65912-i2c.c  --  I2C access for TI TPS65912x PMIC
+ * I2C access driver for TI TPS65912x PMICs
  *
- * Copyright 2011 Texas Instruments Inc.
+ * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ *	Andrew F. Davis <afd@ti.com>
  *
- * Author: Margarita Olaya Cabrera <magi@slimlogic.co.uk>
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether expressed or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details.
  *
- *  This driver is based on wm8350 implementation.
+ * Based on the TPS65218 driver and the previous TPS65912 driver by
+ * Margarita Olaya Cabrera <magi@slimlogic.co.uk>
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
-#include <linux/mfd/core.h>
+#include <linux/module.h>
+#include <linux/regmap.h>
+
 #include <linux/mfd/tps65912.h>
 
-static int tps65912_i2c_read(struct tps65912 *tps65912, u8 reg,
-				  int bytes, void *dest)
+static const struct of_device_id tps65912_i2c_of_match_table[] = {
+	{ .compatible = "ti,tps65912", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, tps65912_i2c_of_match_table);
+
+static int tps65912_i2c_probe(struct i2c_client *client,
+			      const struct i2c_device_id *ids)
 {
-	struct i2c_client *i2c = tps65912->control_data;
-	struct i2c_msg xfer[2];
-	int ret;
+	struct tps65912 *tps;
 
-	/* Write register */
-	xfer[0].addr = i2c->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 1;
-	xfer[0].buf = &reg;
-
-	/* Read data */
-	xfer[1].addr = i2c->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = bytes;
-	xfer[1].buf = dest;
-
-	ret = i2c_transfer(i2c->adapter, xfer, 2);
-	if (ret == 2)
-		ret = 0;
-	else if (ret >= 0)
-		ret = -EIO;
-	return ret;
-}
-
-static int tps65912_i2c_write(struct tps65912 *tps65912, u8 reg,
-				   int bytes, void *src)
-{
-	struct i2c_client *i2c = tps65912->control_data;
-	/* we add 1 byte for device register */
-	u8 msg[TPS6591X_MAX_REGISTER + 1];
-	int ret;
-
-	if (bytes > TPS6591X_MAX_REGISTER)
-		return -EINVAL;
-
-	msg[0] = reg;
-	memcpy(&msg[1], src, bytes);
-
-	ret = i2c_master_send(i2c, msg, bytes + 1);
-	if (ret < 0)
-		return ret;
-	if (ret != bytes + 1)
-		return -EIO;
-
-	return 0;
-}
-
-static int tps65912_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct tps65912 *tps65912;
-
-	tps65912 = devm_kzalloc(&i2c->dev,
-				sizeof(struct tps65912), GFP_KERNEL);
-	if (tps65912 == NULL)
+	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
+	if (!tps)
 		return -ENOMEM;
 
-	i2c_set_clientdata(i2c, tps65912);
-	tps65912->dev = &i2c->dev;
-	tps65912->control_data = i2c;
-	tps65912->read = tps65912_i2c_read;
-	tps65912->write = tps65912_i2c_write;
+	i2c_set_clientdata(client, tps);
+	tps->dev = &client->dev;
+	tps->irq = client->irq;
 
-	return tps65912_device_init(tps65912);
+	tps->regmap = devm_regmap_init_i2c(client, &tps65912_regmap_config);
+	if (IS_ERR(tps->regmap)) {
+		dev_err(tps->dev, "Failed to initialize register map\n");
+		return PTR_ERR(tps->regmap);
+	}
+
+	return tps65912_device_init(tps);
 }
 
-static int tps65912_i2c_remove(struct i2c_client *i2c)
+static int tps65912_i2c_remove(struct i2c_client *client)
 {
-	struct tps65912 *tps65912 = i2c_get_clientdata(i2c);
+	struct tps65912 *tps = i2c_get_clientdata(client);
 
-	tps65912_device_exit(tps65912);
-
-	return 0;
+	return tps65912_device_exit(tps);
 }
 
-static const struct i2c_device_id tps65912_i2c_id[] = {
-	{"tps65912", 0 },
-	{ }
+static const struct i2c_device_id tps65912_i2c_id_table[] = {
+	{ "tps65912", 0 },
+	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(i2c, tps65912_i2c_id);
+MODULE_DEVICE_TABLE(i2c, tps65912_i2c_id_table);
 
 static struct i2c_driver tps65912_i2c_driver = {
-	.driver = {
-		   .name = "tps65912",
-		   .owner = THIS_MODULE,
+	.driver		= {
+		.name	= "tps65912",
+		.of_match_table = tps65912_i2c_of_match_table,
 	},
-	.probe = tps65912_i2c_probe,
-	.remove = tps65912_i2c_remove,
-	.id_table = tps65912_i2c_id,
+	.probe		= tps65912_i2c_probe,
+	.remove		= tps65912_i2c_remove,
+	.id_table       = tps65912_i2c_id_table,
 };
+module_i2c_driver(tps65912_i2c_driver);
 
-static int __init tps65912_i2c_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&tps65912_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register TPS65912 I2C driver: %d\n", ret);
-
-	return ret;
-}
-/* init early so consumer devices can complete system boot */
-subsys_initcall(tps65912_i2c_init);
-
-static void __exit tps65912_i2c_exit(void)
-{
-	i2c_del_driver(&tps65912_i2c_driver);
-}
-module_exit(tps65912_i2c_exit);
-
-MODULE_AUTHOR("Margarita Olaya	<magi@slimlogic.co.uk>");
-MODULE_DESCRIPTION("TPS6591x chip family multi-function driver");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Andrew F. Davis <afd@ti.com>");
+MODULE_DESCRIPTION("TPS65912x I2C Interface Driver");
+MODULE_LICENSE("GPL v2");

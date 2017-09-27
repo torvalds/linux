@@ -78,7 +78,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
@@ -607,7 +606,7 @@ static int init_i596_mem(struct net_device *dev)
 	i596_add_cmd(dev, &dma->cf_cmd.cmd);
 
 	DEB(DEB_INIT, printk(KERN_DEBUG "%s: queuing CmdSASetup\n", dev->name));
-	memcpy(dma->sa_cmd.eth_addr, dev->dev_addr, 6);
+	memcpy(dma->sa_cmd.eth_addr, dev->dev_addr, ETH_ALEN);
 	dma->sa_cmd.cmd.command = SWAP16(CmdSASetup);
 	DMA_WBACK(dev, &(dma->sa_cmd), sizeof(struct sa_cmd));
 	i596_add_cmd(dev, &dma->sa_cmd.cmd);
@@ -728,7 +727,8 @@ memory_squeeze:
 					dma_sync_single_for_cpu(dev->dev.parent,
 								(dma_addr_t)SWAP32(rbd->b_data),
 								PKT_BUF_SZ, DMA_FROM_DEVICE);
-					memcpy(skb_put(skb, pkt_len), rbd->v_data, pkt_len);
+					skb_put_data(skb, rbd->v_data,
+						     pkt_len);
 					dma_sync_single_for_device(dev->dev.parent,
 								   (dma_addr_t)SWAP32(rbd->b_data),
 								   PKT_BUF_SZ, DMA_FROM_DEVICE);
@@ -961,7 +961,7 @@ static void i596_tx_timeout (struct net_device *dev)
 		lp->last_restart = dev->stats.tx_packets;
 	}
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -994,7 +994,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				       dev->name));
 		dev->stats.tx_dropped++;
 
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	} else {
 		if (++lp->next_tx_cmd == TX_RING_SIZE)
 			lp->next_tx_cmd = 0;
@@ -1038,7 +1038,6 @@ static const struct net_device_ops i596_netdev_ops = {
 	.ndo_start_xmit		= i596_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_tx_timeout		= i596_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1064,8 +1063,9 @@ static int i82596_probe(struct net_device *dev)
 	if (!dev->base_addr || !dev->irq)
 		return -ENODEV;
 
-	dma = (struct i596_dma *) DMA_ALLOC(dev->dev.parent,
-		sizeof(struct i596_dma), &lp->dma_addr, GFP_KERNEL);
+	dma = dma_alloc_attrs(dev->dev.parent, sizeof(struct i596_dma),
+			      &lp->dma_addr, GFP_KERNEL,
+			      DMA_ATTR_NON_CONSISTENT);
 	if (!dma) {
 		printk(KERN_ERR "%s: Couldn't get shared memory\n", __FILE__);
 		return -ENOMEM;
@@ -1086,8 +1086,8 @@ static int i82596_probe(struct net_device *dev)
 
 	i = register_netdev(dev);
 	if (i) {
-		DMA_FREE(dev->dev.parent, sizeof(struct i596_dma),
-				    (void *)dma, lp->dma_addr);
+		dma_free_attrs(dev->dev.parent, sizeof(struct i596_dma),
+			       dma, lp->dma_addr, DMA_ATTR_NON_CONSISTENT);
 		return i;
 	}
 
@@ -1396,13 +1396,13 @@ static void set_multicast_list(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			if (!cnt--)
 				break;
-			memcpy(cp, ha->addr, 6);
+			memcpy(cp, ha->addr, ETH_ALEN);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,
 				    printk(KERN_DEBUG
 					   "%s: Adding address %pM\n",
 					   dev->name, cp));
-			cp += 6;
+			cp += ETH_ALEN;
 		}
 		DMA_WBACK_INV(dev, &dma->mc_cmd, sizeof(struct mc_cmd));
 		i596_add_cmd(dev, &cmd->cmd);

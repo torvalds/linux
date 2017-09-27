@@ -8,10 +8,12 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/vfs.h>
+#include <linux/cred.h>
 #include <linux/parser.h>
 #include <linux/buffer_head.h>
 #include <linux/vmalloc.h>
 #include <linux/writeback.h>
+#include <linux/seq_file.h>
 #include <linux/crc-itu-t.h>
 #include "omfs.h"
 
@@ -49,7 +51,7 @@ struct inode *omfs_new_inode(struct inode *dir, umode_t mode)
 	inode_init_owner(inode, NULL, mode);
 	inode->i_mapping->a_ops = &omfs_aops;
 
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
 		inode->i_op = &omfs_dir_inops;
@@ -183,7 +185,7 @@ int omfs_sync_inode(struct inode *inode)
  */
 static void omfs_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 
 	if (inode->i_nlink)
@@ -289,12 +291,40 @@ static int omfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+/*
+ * Display the mount options in /proc/mounts.
+ */
+static int omfs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct omfs_sb_info *sbi = OMFS_SB(root->d_sb);
+	umode_t cur_umask = current_umask();
+
+	if (!uid_eq(sbi->s_uid, current_uid()))
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, sbi->s_uid));
+	if (!gid_eq(sbi->s_gid, current_gid()))
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, sbi->s_gid));
+
+	if (sbi->s_dmask == sbi->s_fmask) {
+		if (sbi->s_fmask != cur_umask)
+			seq_printf(m, ",umask=%o", sbi->s_fmask);
+	} else {
+		if (sbi->s_dmask != cur_umask)
+			seq_printf(m, ",dmask=%o", sbi->s_dmask);
+		if (sbi->s_fmask != cur_umask)
+			seq_printf(m, ",fmask=%o", sbi->s_fmask);
+	}
+
+	return 0;
+}
+
 static const struct super_operations omfs_sops = {
 	.write_inode	= omfs_write_inode,
 	.evict_inode	= omfs_evict_inode,
 	.put_super	= omfs_put_super,
 	.statfs		= omfs_statfs,
-	.show_options	= generic_show_options,
+	.show_options	= omfs_show_options,
 };
 
 /*
@@ -306,8 +336,7 @@ static const struct super_operations omfs_sops = {
  */
 static int omfs_get_imap(struct super_block *sb)
 {
-	int bitmap_size;
-	int array_size;
+	unsigned int bitmap_size, array_size;
 	int count;
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	struct buffer_head *bh;
@@ -321,7 +350,7 @@ static int omfs_get_imap(struct super_block *sb)
 		goto out;
 
 	sbi->s_imap_size = array_size;
-	sbi->s_imap = kzalloc(array_size * sizeof(unsigned long *), GFP_KERNEL);
+	sbi->s_imap = kcalloc(array_size, sizeof(unsigned long *), GFP_KERNEL);
 	if (!sbi->s_imap)
 		goto nomem;
 
@@ -361,7 +390,7 @@ nomem:
 }
 
 enum {
-	Opt_uid, Opt_gid, Opt_umask, Opt_dmask, Opt_fmask
+	Opt_uid, Opt_gid, Opt_umask, Opt_dmask, Opt_fmask, Opt_err
 };
 
 static const match_table_t tokens = {
@@ -370,6 +399,7 @@ static const match_table_t tokens = {
 	{Opt_umask, "umask=%o"},
 	{Opt_dmask, "dmask=%o"},
 	{Opt_fmask, "fmask=%o"},
+	{Opt_err, NULL},
 };
 
 static int parse_options(char *options, struct omfs_sb_info *sbi)
@@ -433,8 +463,6 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root;
 	int ret = -EINVAL;
 
-	save_mount_options(sb, (char *) data);
-
 	sbi = kzalloc(sizeof(struct omfs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
@@ -472,6 +500,12 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_root_ino = be64_to_cpu(omfs_sb->s_root_block);
 	sbi->s_sys_blocksize = be32_to_cpu(omfs_sb->s_sys_blocksize);
 	mutex_init(&sbi->s_bitmap_lock);
+
+	if (sbi->s_num_blocks > OMFS_MAX_BLOCKS) {
+		printk(KERN_ERR "omfs: sysblock number (%llx) is out of range\n",
+		       (unsigned long long)sbi->s_num_blocks);
+		goto out_brelse_bh;
+	}
 
 	if (sbi->s_sys_blocksize > PAGE_SIZE) {
 		printk(KERN_ERR "omfs: sysblock size (%d) is out of range\n",
@@ -544,8 +578,10 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	sb->s_root = d_make_root(root);
-	if (!sb->s_root)
+	if (!sb->s_root) {
+		ret = -ENOMEM;
 		goto out_brelse_bh2;
+	}
 	printk(KERN_DEBUG "omfs: Mounted volume %s\n", omfs_rb->r_name);
 
 	ret = 0;

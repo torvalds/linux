@@ -23,8 +23,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.1"
-
 #define RTC_REG_SIZE		0x20000
 #define RTC_OFFSET		0x1fff0
 
@@ -214,8 +212,7 @@ static irqreturn_t stk17ta8_rtc_interrupt(int irq, void *dev_id)
 			events |= RTC_UF;
 		else
 			events |= RTC_AF;
-		if (likely(pdata->rtc))
-			rtc_update_irq(pdata->rtc, 1, events);
+		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
 	return events ? IRQ_HANDLED : IRQ_NONE;
@@ -255,7 +252,7 @@ static ssize_t stk17ta8_nvram_read(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; count < size; count++)
 		*buf++ = readb(ioaddr + pos++);
 	return count;
 }
@@ -270,7 +267,7 @@ static ssize_t stk17ta8_nvram_write(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; count < size; count++)
 		writeb(*buf++, ioaddr + pos++);
 	return count;
 }
@@ -294,19 +291,14 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 	void __iomem *ioaddr;
 	int ret = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	if (!devm_request_mem_region(&pdev->dev, res->start, RTC_REG_SIZE,
-			pdev->name))
-		return -EBUSY;
-	ioaddr = devm_ioremap(&pdev->dev, res->start, RTC_REG_SIZE);
-	if (!ioaddr)
-		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ioaddr))
+		return PTR_ERR(ioaddr);
 	pdata->ioaddr = ioaddr;
 	pdata->irq = platform_get_irq(pdev, 0);
 
@@ -364,7 +356,6 @@ static struct platform_driver stk17ta8_rtc_driver = {
 	.remove		= stk17ta8_rtc_remove,
 	.driver		= {
 		.name	= "stk17ta8",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -373,4 +364,3 @@ module_platform_driver(stk17ta8_rtc_driver);
 MODULE_AUTHOR("Thomas Hommel <thomas.hommel@ge.com>");
 MODULE_DESCRIPTION("Simtek STK17TA8 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

@@ -4,7 +4,7 @@
  * Copyright (C) 2008 Panasas Inc.  All rights reserved.
  *
  * Authors:
- *   Boaz Harrosh <bharrosh@panasas.com>
+ *   Boaz Harrosh <ooo@electrozaur.com>
  *   Benny Halevy <bhalevy@panasas.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -157,7 +157,7 @@ struct osd_request {
 
 	osd_req_done_fn *async_done;
 	void *async_private;
-	int async_error;
+	blk_status_t async_error;
 	int req_errors;
 };
 

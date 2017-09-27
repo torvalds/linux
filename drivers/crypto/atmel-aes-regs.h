@@ -9,6 +9,7 @@
 #define	AES_MR			0x04
 #define AES_MR_CYPHER_DEC		(0 << 0)
 #define AES_MR_CYPHER_ENC		(1 << 0)
+#define AES_MR_GTAGEN			(1 << 1)
 #define	AES_MR_DUALBUFF			(1 << 3)
 #define AES_MR_PROCDLY_MASK		(0xF << 4)
 #define AES_MR_PROCDLY_OFFSET	4
@@ -26,6 +27,8 @@
 #define AES_MR_OPMOD_OFB		(0x2 << 12)
 #define AES_MR_OPMOD_CFB		(0x3 << 12)
 #define AES_MR_OPMOD_CTR		(0x4 << 12)
+#define AES_MR_OPMOD_GCM		(0x5 << 12)
+#define AES_MR_OPMOD_XTS		(0x6 << 12)
 #define AES_MR_LOD				(0x1 << 15)
 #define AES_MR_CFBS_MASK		(0x7 << 16)
 #define AES_MR_CFBS_128b		(0x0 << 16)
@@ -44,6 +47,7 @@
 #define	AES_ISR		0x1C
 #define AES_INT_DATARDY		(1 << 0)
 #define AES_INT_URAD		(1 << 8)
+#define AES_INT_TAGRDY		(1 << 16)
 #define AES_ISR_URAT_MASK	(0xF << 12)
 #define AES_ISR_URAT_IDR_WR_PROC	(0x0 << 12)
 #define AES_ISR_URAT_ODR_RD_PROC	(0x1 << 12)
@@ -56,6 +60,32 @@
 #define AES_IDATAR(x)	(0x40 + ((x) * 0x04))
 #define AES_ODATAR(x)	(0x50 + ((x) * 0x04))
 #define AES_IVR(x)		(0x60 + ((x) * 0x04))
+
+#define AES_AADLENR	0x70
+#define AES_CLENR	0x74
+#define AES_GHASHR(x)	(0x78 + ((x) * 0x04))
+#define AES_TAGR(x)	(0x88 + ((x) * 0x04))
+#define AES_CTRR	0x98
+#define AES_GCMHR(x)	(0x9c + ((x) * 0x04))
+
+#define AES_EMR		0xb0
+#define AES_EMR_APEN		BIT(0)	/* Auto Padding Enable */
+#define AES_EMR_APM		BIT(1)	/* Auto Padding Mode */
+#define AES_EMR_APM_IPSEC	0x0
+#define AES_EMR_APM_SSL		BIT(1)
+#define AES_EMR_PLIPEN		BIT(4)	/* PLIP Enable */
+#define AES_EMR_PLIPD		BIT(5)	/* PLIP Decipher */
+#define AES_EMR_PADLEN_MASK	(0xFu << 8)
+#define AES_EMR_PADLEN_OFFSET	8
+#define AES_EMR_PADLEN(padlen)	(((padlen) << AES_EMR_PADLEN_OFFSET) &\
+				 AES_EMR_PADLEN_MASK)
+#define AES_EMR_NHEAD_MASK	(0xFu << 16)
+#define AES_EMR_NHEAD_OFFSET	16
+#define AES_EMR_NHEAD(nhead)	(((nhead) << AES_EMR_NHEAD_OFFSET) &\
+				 AES_EMR_NHEAD_MASK)
+
+#define AES_TWR(x)	(0xc0 + ((x) * 0x04))
+#define AES_ALPHAR(x)	(0xd0 + ((x) * 0x04))
 
 #define AES_HW_VERSION	0xFC
 

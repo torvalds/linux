@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "pch_gbe.h"
@@ -23,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
+#include <linux/gpio.h>
 
 #define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
@@ -111,16 +111,14 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
 
+#define MINNOW_PHY_RESET_GPIO		13
+
 static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
 
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
 static void pch_gbe_set_multi(struct net_device *netdev);
-
-static struct sock_filter ptp_filter[] = {
-	PTP_FILTER
-};
 
 static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 {
@@ -129,7 +127,7 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 	u16 *hi, *id;
 	u32 lo;
 
-	if (sk_run_filter(skb, ptp_filter) == PTP_CLASS_NONE)
+	if (ptp_classify_raw(skb) == PTP_CLASS_NONE)
 		return 0;
 
 	offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
@@ -242,16 +240,8 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	/* Get ieee1588's dev information */
 	pdev = adapter->ptp_pdev;
 
-	switch (cfg.tx_type) {
-	case HWTSTAMP_TX_OFF:
-		adapter->hwts_tx_en = 0;
-		break;
-	case HWTSTAMP_TX_ON:
-		adapter->hwts_tx_en = 1;
-		break;
-	default:
+	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
-	}
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
@@ -280,6 +270,8 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	default:
 		return -ERANGE;
 	}
+
+	adapter->hwts_tx_en = cfg.tx_type == HWTSTAMP_TX_ON;
 
 	/* Clear out any old time stamps. */
 	pch_ch_event_write(pdev, TX_SNAPSHOT_LOCKED | RX_SNAPSHOT_LOCKED);
@@ -682,7 +674,7 @@ static int pch_gbe_init_phy(struct pch_gbe_adapter *adapter)
 	}
 	adapter->hw.phy.addr = adapter->mii.phy_id;
 	netdev_dbg(netdev, "phy_addr = %d\n", adapter->mii.phy_id);
-	if (addr == 32)
+	if (addr == PCH_GBE_PHY_REGS_LEN)
 		return -EAGAIN;
 	/* Selected the phy and isolate the rest */
 	for (addr = 0; addr < PCH_GBE_PHY_REGS_LEN; addr++) {
@@ -1488,9 +1480,9 @@ pch_gbe_alloc_rx_buffers_pool(struct pch_gbe_adapter *adapter,
 	bufsz = adapter->rx_buffer_len;
 
 	size = rx_ring->count * bufsz + PCH_GBE_RESERVE_MEMORY;
-	rx_ring->rx_buff_pool = dma_alloc_coherent(&pdev->dev, size,
-						   &rx_ring->rx_buff_pool_logic,
-						   GFP_KERNEL | __GFP_ZERO);
+	rx_ring->rx_buff_pool =
+		dma_zalloc_coherent(&pdev->dev, size,
+				    &rx_ring->rx_buff_pool_logic, GFP_KERNEL);
 	if (!rx_ring->rx_buff_pool)
 		return -ENOMEM;
 
@@ -1648,7 +1640,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		   cleaned_count);
 	if (cleaned_count > 0)  { /*skip this if nothing cleaned*/
 		/* Recover from running out of Tx resources in xmit_frame */
-		spin_lock(&tx_ring->tx_lock);
+		netif_tx_lock(adapter->netdev);
 		if (unlikely(cleaned && (netif_queue_stopped(adapter->netdev))))
 		{
 			netif_wake_queue(adapter->netdev);
@@ -1660,7 +1652,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 
 		netdev_dbg(adapter->netdev, "next_to_clean : %d\n",
 			   tx_ring->next_to_clean);
-		spin_unlock(&tx_ring->tx_lock);
+		netif_tx_unlock(adapter->netdev);
 	}
 	return cleaned;
 }
@@ -1804,9 +1796,8 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 
 	tx_ring->size = tx_ring->count * (int)sizeof(struct pch_gbe_tx_desc);
 
-	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
-					   &tx_ring->dma,
-					   GFP_KERNEL | __GFP_ZERO);
+	tx_ring->desc = dma_zalloc_coherent(&pdev->dev, tx_ring->size,
+					    &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc) {
 		vfree(tx_ring->buffer_info);
 		return -ENOMEM;
@@ -1814,7 +1805,6 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-	spin_lock_init(&tx_ring->tx_lock);
 
 	for (desNo = 0; desNo < tx_ring->count; desNo++) {
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, desNo);
@@ -1849,9 +1839,8 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 		return -ENOMEM;
 
 	rx_ring->size = rx_ring->count * (int)sizeof(struct pch_gbe_rx_desc);
-	rx_ring->desc =	dma_alloc_coherent(&pdev->dev, rx_ring->size,
-					   &rx_ring->dma,
-					   GFP_KERNEL | __GFP_ZERO);
+	rx_ring->desc =	dma_zalloc_coherent(&pdev->dev, rx_ring->size,
+					    &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->desc) {
 		vfree(rx_ring->buffer_info);
 		return -ENOMEM;
@@ -2145,15 +2134,9 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
-	unsigned long flags;
 
-	if (!spin_trylock_irqsave(&tx_ring->tx_lock, flags)) {
-		/* Collision - tell upper layer to requeue */
-		return NETDEV_TX_LOCKED;
-	}
 	if (unlikely(!PCH_GBE_DESC_UNUSED(tx_ring))) {
 		netif_stop_queue(netdev);
-		spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 		netdev_dbg(netdev,
 			   "Return : BUSY  next_to use : 0x%08x  next_to clean : 0x%08x\n",
 			   tx_ring->next_to_use, tx_ring->next_to_clean);
@@ -2162,19 +2145,7 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	/* CRC,ITAG no support */
 	pch_gbe_tx_queue(adapter, tx_ring, skb);
-	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 	return NETDEV_TX_OK;
-}
-
-/**
- * pch_gbe_get_stats - Get System Network Statistics
- * @netdev:  Network interface device structure
- * Returns:  The current stats
- */
-static struct net_device_stats *pch_gbe_get_stats(struct net_device *netdev)
-{
-	/* only return the current stats */
-	return &netdev->stats;
 }
 
 /**
@@ -2278,16 +2249,10 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-	int max_frame;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	unsigned long old_rx_buffer_len = adapter->rx_buffer_len;
 	int err;
 
-	max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
-	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
-		(max_frame > PCH_GBE_MAX_JUMBO_FRAME_SIZE)) {
-		netdev_err(netdev, "Invalid MTU setting\n");
-		return -EINVAL;
-	}
 	if (max_frame <= PCH_GBE_FRAME_SIZE_2048)
 		adapter->rx_buffer_len = PCH_GBE_FRAME_SIZE_2048;
 	else if (max_frame <= PCH_GBE_FRAME_SIZE_4096)
@@ -2409,7 +2374,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 		poll_end_flag = true;
 
 	if (poll_end_flag) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		pch_gbe_irq_enable(adapter);
 	}
 
@@ -2444,7 +2409,6 @@ static const struct net_device_ops pch_gbe_netdev_ops = {
 	.ndo_open = pch_gbe_open,
 	.ndo_stop = pch_gbe_stop,
 	.ndo_start_xmit = pch_gbe_xmit_frame,
-	.ndo_get_stats = pch_gbe_get_stats,
 	.ndo_set_mac_address = pch_gbe_set_mac,
 	.ndo_tx_timeout = pch_gbe_tx_timeout,
 	.ndo_change_mtu = pch_gbe_change_mtu,
@@ -2635,14 +2599,12 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
 	adapter->hw.reg = pcim_iomap_table(pdev)[PCH_GBE_PCI_BAR];
+	adapter->pdata = (struct pch_gbe_privdata *)pci_id->driver_data;
+	if (adapter->pdata && adapter->pdata->platform_init)
+		adapter->pdata->platform_init(pdev);
 
 	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
 					       PCI_DEVFN(12, 4));
-	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
-		dev_err(&pdev->dev, "Bad ptp filter\n");
-		ret = -EINVAL;
-		goto err_free_netdev;
-	}
 
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
@@ -2652,6 +2614,11 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features = netdev->hw_features;
 	pch_gbe_set_ethtool_ops(netdev);
+
+	/* MTU range: 46 - 10300 */
+	netdev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	netdev->max_mtu = PCH_GBE_MAX_JUMBO_FRAME_SIZE -
+			  (ETH_HLEN + ETH_FCS_LEN);
 
 	pch_gbe_mac_load_mac_addr(&adapter->hw);
 	pch_gbe_mac_reset_hw(&adapter->hw);
@@ -2710,6 +2677,10 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 	dev_dbg(&pdev->dev, "PCH Network Connection\n");
 
+	/* Disable hibernation on certain platforms */
+	if (adapter->pdata && adapter->pdata->phy_disable_hibernate)
+		pch_gbe_phy_disable_hibernate(&adapter->hw);
+
 	device_set_wakeup_enable(&pdev->dev, 1);
 	return 0;
 
@@ -2720,7 +2691,46 @@ err_free_netdev:
 	return ret;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pch_gbe_pcidev_id) = {
+/* The AR803X PHY on the MinnowBoard requires a physical pin to be toggled to
+ * ensure it is awake for probe and init. Request the line and reset the PHY.
+ */
+static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
+{
+	unsigned long flags = GPIOF_DIR_OUT | GPIOF_INIT_HIGH | GPIOF_EXPORT;
+	unsigned gpio = MINNOW_PHY_RESET_GPIO;
+	int ret;
+
+	ret = devm_gpio_request_one(&pdev->dev, gpio, flags,
+				    "minnow_phy_reset");
+	if (ret) {
+		dev_err(&pdev->dev,
+			"ERR: Can't request PHY reset GPIO line '%d'\n", gpio);
+		return ret;
+	}
+
+	gpio_set_value(gpio, 0);
+	usleep_range(1250, 1500);
+	gpio_set_value(gpio, 1);
+	usleep_range(1250, 1500);
+
+	return ret;
+}
+
+static struct pch_gbe_privdata pch_gbe_minnow_privdata = {
+	.phy_tx_clk_delay = true,
+	.phy_disable_hibernate = true,
+	.platform_init = pch_gbe_minnow_platform_init,
+};
+
+static const struct pci_device_id pch_gbe_pcidev_id[] = {
+	{.vendor = PCI_VENDOR_ID_INTEL,
+	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
+	 .subvendor = PCI_VENDOR_ID_CIRCUITCO,
+	 .subdevice = PCI_SUBSYSTEM_ID_CIRCUITCO_MINNOWBOARD,
+	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),
+	 .class_mask = (0xFFFF00),
+	 .driver_data = (kernel_ulong_t)&pch_gbe_minnow_privdata
+	 },
 	{.vendor = PCI_VENDOR_ID_INTEL,
 	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
 	 .subvendor = PCI_ANY_ID,

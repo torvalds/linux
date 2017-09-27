@@ -17,6 +17,8 @@ config SCSI
 	tristate "SCSI device support"
 	depends on BLOCK
 	select SCSI_DMA if HAS_DMA
+	select SG_POOL
+	select BLK_SCSI_REQUEST
 	---help---
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
@@ -40,17 +42,21 @@ config SCSI_DMA
 	bool
 	default n
 
-config SCSI_TGT
-	tristate "SCSI target support"
-	depends on SCSI
-	---help---
-	  If you want to use SCSI target mode drivers enable this option.
-	  If you choose M, the module will be called scsi_tgt.
-
 config SCSI_NETLINK
 	bool
 	default	n
-	select NET
+	depends on NET
+
+config SCSI_MQ_DEFAULT
+	bool "SCSI: use blk-mq I/O path by default"
+	depends on SCSI
+	---help---
+	  This option enables the new blk-mq based I/O path for SCSI
+	  devices by default.  With the option the scsi_mod.use_blk_mq
+	  module/boot option defaults to Y, without it to N, but it can
+	  still be overridden either way.
+
+	  If unsure say N.
 
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
@@ -69,7 +75,6 @@ comment "SCSI support type (disk, tape, CD-ROM)"
 config BLK_DEV_SD
 	tristate "SCSI disk support"
 	depends on SCSI
-	select CRC_T10DIF if BLK_DEV_INTEGRITY
 	---help---
 	  If you want to use SCSI hard disks, Fibre Channel disks,
 	  Serial ATA (SATA) or Parallel ATA (PATA) hard disks,
@@ -191,33 +196,20 @@ config CHR_DEV_SCH
 config SCSI_ENCLOSURE
 	tristate "SCSI Enclosure Support"
 	depends on SCSI && ENCLOSURE_SERVICES
+	depends on m || SCSI_SAS_ATTRS != m
 	help
 	  Enclosures are devices sitting on or in SCSI backplanes that
 	  manage devices.  If you have a disk cage, the chances are that
 	  it has an enclosure device.  Selecting this option will just allow
 	  certain enclosure conditions to be reported and is not required.
 
-config SCSI_MULTI_LUN
-	bool "Probe all LUNs on each SCSI device"
-	depends on SCSI
-	help
-	  Some devices support more than one LUN (Logical Unit Number) in order
-	  to allow access to several media, e.g. CD jukebox, USB card reader,
-	  mobile phone in mass storage mode. This option forces the kernel to
-	  probe for all LUNs by default. This setting can be overriden by
-	  max_luns boot/module parameter. Note that this option does not affect
-	  devices conforming to SCSI-3 or higher as they can explicitely report
-	  their number of LUNs. It is safe to say Y here unless you have one of
-	  those rare devices which reacts in an unexpected way when probed for
-	  multiple LUNs.
-
 config SCSI_CONSTANTS
-	bool "Verbose SCSI error reporting (kernel size +=12K)"
+	bool "Verbose SCSI error reporting (kernel size += 36K)"
 	depends on SCSI
 	help
 	  The error messages regarding your SCSI hardware will be easier to
 	  understand if you say Y here; it will enlarge your kernel by about
-	  12 KB. If in doubt, say Y.
+	  36 KB. If in doubt, say Y.
 
 config SCSI_LOGGING
 	bool "SCSI logging facility"
@@ -253,15 +245,11 @@ config SCSI_SCAN_ASYNC
 	  system continues booting, and even probe devices on different
 	  busses in parallel, leading to a significant speed-up.
 
-	  If you have built SCSI as modules, enabling this option can
-	  be a problem as the devices may not have been found by the
-	  time your system expects them to have been.  You can load the
-	  scsi_wait_scan module to ensure that all scans have completed.
-	  If you build your SCSI drivers into the kernel, then everything
-	  will work fine if you say Y here.
-
 	  You can override this choice by specifying "scsi_mod.scan=sync"
 	  or async on the kernel's command line.
+
+	  Note that this setting also affects whether resuming from
+	  system suspend will be performed asynchronously.
 
 menu "SCSI Transports"
 	depends on SCSI
@@ -275,19 +263,13 @@ config SCSI_SPI_ATTRS
 
 config SCSI_FC_ATTRS
 	tristate "FiberChannel Transport Attributes"
-	depends on SCSI
+	depends on SCSI && NET
+	select BLK_DEV_BSGLIB
 	select SCSI_NETLINK
 	help
 	  If you wish to export transport-specific information about
 	  each attached FiberChannel device to sysfs, say Y.
 	  Otherwise, say N.
-
-config SCSI_FC_TGT_ATTRS
-	bool "SCSI target support for FiberChannel Transport Attributes"
-	depends on SCSI_FC_ATTRS
-	depends on SCSI_TGT = y || SCSI_TGT = SCSI_FC_ATTRS
-	help
-		If you want to use SCSI target mode drivers enable this option.
 
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
@@ -301,7 +283,7 @@ config SCSI_ISCSI_ATTRS
 config SCSI_SAS_ATTRS
 	tristate "SAS Transport Attributes"
 	depends on SCSI
-	select BLK_DEV_BSG
+	select BLK_DEV_BSGLIB
 	help
 	  If you wish to export transport-specific information about
 	  each attached SAS device to sysfs, say Y.
@@ -314,13 +296,6 @@ config SCSI_SRP_ATTRS
 	help
 	  If you wish to export transport-specific information about
 	  each attached SRP device to sysfs, say Y.
-
-config SCSI_SRP_TGT_ATTRS
-	bool "SCSI target support for SRP Transport Attributes"
-	depends on SCSI_SRP_ATTRS
-	depends on SCSI_TGT = y || SCSI_TGT = SCSI_SRP_ATTRS
-	help
-		If you want to use SCSI target mode drivers enable this option.
 
 endmenu
 
@@ -367,6 +342,7 @@ source "drivers/scsi/cxgbi/Kconfig"
 source "drivers/scsi/bnx2i/Kconfig"
 source "drivers/scsi/bnx2fc/Kconfig"
 source "drivers/scsi/be2iscsi/Kconfig"
+source "drivers/scsi/cxlflash/Kconfig"
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
@@ -392,6 +368,7 @@ config SCSI_HPSA
 	tristate "HP Smart Array SCSI driver"
 	depends on PCI && SCSI
 	select CHECK_SIGNATURE
+	select SCSI_SAS_ATTRS
 	help
 	  This driver supports HP Smart Array Controllers (circa 2009).
 	  It is a SCSI alternative to the cciss driver, which is a block
@@ -420,18 +397,6 @@ config SCSI_3W_SAS
 
 	  Please read the comments at the top of
 	  <file:drivers/scsi/3w-sas.c>.
-
-config SCSI_7000FASST
-	tristate "7000FASST SCSI support"
-	depends on ISA && SCSI && ISA_DMA_API
-	select CHECK_SIGNATURE
-	help
-	  This driver supports the Western Digital 7000 SCSI host adapter
-	  family.  Some information is in the source:
-	  <file:drivers/scsi/wd7000.c>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called wd7000.
 
 config SCSI_ACARD
 	tristate "ACARD SCSI support"
@@ -499,49 +464,9 @@ config SCSI_AACRAID
 
 
 source "drivers/scsi/aic7xxx/Kconfig.aic7xxx"
-
-config SCSI_AIC7XXX_OLD
-	tristate "Adaptec AIC7xxx support (old driver)"
-	depends on (ISA || EISA || PCI ) && SCSI
-	help
-	  WARNING This driver is an older aic7xxx driver and is no longer
-	  under active development.  Adaptec, Inc. is writing a new driver to
-	  take the place of this one, and it is recommended that whenever
-	  possible, people should use the new Adaptec written driver instead
-	  of this one.  This driver will eventually be phased out entirely.
-
-	  This is support for the various aic7xxx based Adaptec SCSI
-	  controllers. These include the 274x EISA cards; 284x VLB cards;
-	  2902, 2910, 293x, 294x, 394x, 3985 and several other PCI and
-	  motherboard based SCSI controllers from Adaptec. It does not support
-	  the AAA-13x RAID controllers from Adaptec, nor will it likely ever
-	  support them. It does not support the 2920 cards from Adaptec that
-	  use the Future Domain SCSI controller chip. For those cards, you
-	  need the "Future Domain 16xx SCSI support" driver.
-
-	  In general, if the controller is based on an Adaptec SCSI controller
-	  chip from the aic777x series or the aic78xx series, this driver
-	  should work. The only exception is the 7810 which is specifically
-	  not supported (that's the RAID controller chip on the AAA-13x
-	  cards).
-
-	  Note that the AHA2920 SCSI host adapter is *not* supported by this
-	  driver; choose "Future Domain 16xx SCSI support" instead if you have
-	  one of those.
-
-	  Information on the configuration options for this controller can be
-	  found by checking the help file for each of the available
-	  configuration options. You should read
-	  <file:Documentation/scsi/aic7xxx_old.txt> at a minimum before
-	  contacting the maintainer with any questions.  The SCSI-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>, can also
-	  be of great help.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called aic7xxx_old.
-
 source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
 source "drivers/scsi/aic94xx/Kconfig"
+source "drivers/scsi/hisi_sas/Kconfig"
 source "drivers/scsi/mvsas/Kconfig"
 
 config SCSI_MVUMI
@@ -566,8 +491,9 @@ config SCSI_DPT_I2O
 
 config SCSI_ADVANSYS
 	tristate "AdvanSys SCSI support"
-	depends on SCSI && VIRT_TO_BUS
+	depends on SCSI
 	depends on ISA || EISA || PCI
+	depends on ISA_DMA_API || !ISA
 	help
 	  This is a driver for all SCSI host adapters manufactured by
 	  AdvanSys. It is documented in the kernel source in
@@ -575,18 +501,6 @@ config SCSI_ADVANSYS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called advansys.
-
-config SCSI_IN2000
-	tristate "Always IN2000 SCSI support"
-	depends on ISA && SCSI
-	help
-	  This is support for an ISA bus SCSI host adapter.  You'll find more
-	  information in <file:Documentation/scsi/in2000.txt>. If it doesn't work
-	  out of the box, you may have to change the jumpers for IRQ or
-	  address selection.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called in2000.
 
 config SCSI_ARCMSR
 	tristate "ARECA (ARC11xx/12xx/13xx/16xx) SATA/SAS RAID Host Adapter"
@@ -601,9 +515,10 @@ config SCSI_ARCMSR
 	  To compile this driver as a module, choose M here: the
 	  module will be called arcmsr (modprobe arcmsr).
 
+source "drivers/scsi/esas2r/Kconfig"
 source "drivers/scsi/megaraid/Kconfig.megaraid"
-source "drivers/scsi/mpt2sas/Kconfig"
 source "drivers/scsi/mpt3sas/Kconfig"
+source "drivers/scsi/smartpqi/Kconfig"
 source "drivers/scsi/ufs/Kconfig"
 
 config SCSI_HPTIOP
@@ -648,43 +563,71 @@ config VMWARE_PVSCSI
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmw_pvscsi.
 
+config XEN_SCSI_FRONTEND
+	tristate "XEN SCSI frontend driver"
+	depends on SCSI && XEN
+	select XEN_XENBUS_FRONTEND
+	help
+	  The XEN SCSI frontend driver allows the kernel to access SCSI Devices
+	  within another guest OS (usually Dom0).
+	  Only needed if the kernel is running in a XEN guest and generic
+	  SCSI access to a device is needed.
+
 config HYPERV_STORAGE
 	tristate "Microsoft Hyper-V virtual storage driver"
 	depends on SCSI && HYPERV
+	depends on m || SCSI_FC_ATTRS != m
 	default HYPERV
 	help
 	  Select this option to enable the Hyper-V virtual storage driver.
 
 config LIBFC
 	tristate "LibFC module"
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	select CRC32
 	---help---
 	  Fibre Channel library module
 
 config LIBFCOE
 	tristate "LibFCoE module"
-	select LIBFC
+	depends on LIBFC
 	---help---
 	  Library for Fibre Channel over Ethernet module
 
 config FCOE
 	tristate "FCoE module"
 	depends on PCI
-	select LIBFCOE
+	depends on LIBFCOE
 	---help---
 	  Fibre Channel over Ethernet module
 
 config FCOE_FNIC
 	tristate "Cisco FNIC Driver"
 	depends on PCI && X86
-	select LIBFCOE
+	depends on LIBFCOE
 	help
 	  This is support for the Cisco PCI-Express FCoE HBA.
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/scsi.txt>.
 	  The module will be called fnic.
+
+config SCSI_SNIC
+	tristate "Cisco SNIC Driver"
+	depends on PCI && SCSI
+	help
+	  This is support for the Cisco PCI-Express SCSI HBA.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/scsi/scsi.txt>.
+	  The module will be called snic.
+
+config SCSI_SNIC_DEBUG_FS
+	bool "Cisco SNIC Driver Debugfs Support"
+	depends on SCSI_SNIC && DEBUG_FS
+	help
+	  This enables to list debugging information from SNIC Driver
+	  available via debugfs file system
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
@@ -695,20 +638,6 @@ config SCSI_DMX3191D
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dmx3191d.
-
-config SCSI_DTC3280
-	tristate "DTC3180/3280 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	select CHECK_SIGNATURE
-	help
-	  This is support for DTC 3180/3280 SCSI Host Adapters.  Please read
-	  the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, and the file
-	  <file:Documentation/scsi/dtc3x80.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dtc.
 
 config SCSI_EATA
 	tristate "EATA ISA/EISA/PCI (DPT and generic EATA/DMA-compliant boards) support"
@@ -816,50 +745,17 @@ config SCSI_ISCI
 	  control unit found in the Intel(R) C600 series chipset.
 
 config SCSI_GENERIC_NCR5380
-	tristate "Generic NCR5380/53c400 SCSI PIO support"
-	depends on ISA && SCSI
+	tristate "Generic NCR5380/53c400 SCSI ISA card support"
+	depends on ISA && SCSI && HAS_IOPORT_MAP
 	select SCSI_SPI_ATTRS
 	---help---
-	  This is a driver for the old NCR 53c80 series of SCSI controllers
-	  on boards using PIO. Most boards such as the Trantor T130 fit this
-	  category, along with a large number of ISA 8bit controllers shipped
-	  for free with SCSI scanners. If you have a PAS16, T128 or DMX3191
-	  you should select the specific driver for that card rather than
-	  generic 5380 support.
-
-	  It is explained in section 3.8 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/g_NCR5380.h>.
+	  This is a driver for old ISA card SCSI controllers based on a
+	  NCR 5380, 53C80, 53C400, 53C400A, or DTC 436 device.
+	  Most boards such as the Trantor T130 fit this category, as do
+	  various 8-bit and 16-bit ISA cards bundled with SCSI scanners.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called g_NCR5380.
-
-config SCSI_GENERIC_NCR5380_MMIO
-	tristate "Generic NCR5380/53c400 SCSI MMIO support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	---help---
-	  This is a driver for the old NCR 53c80 series of SCSI controllers
-	  on boards using memory mapped I/O. 
-	  It is explained in section 3.8 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/g_NCR5380.h>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called g_NCR5380_mmio.
-
-config SCSI_GENERIC_NCR53C400
-	bool "Enable NCR53c400 extensions"
-	depends on SCSI_GENERIC_NCR5380
-	help
-	  This enables certain optimizations for the NCR53c400 SCSI cards.
-	  You might as well try it out.  Note that this driver will only probe
-	  for the Trantor T130B in its default configuration; you might have
-	  to pass a command line option to the kernel at boot time if it does
-	  not detect your card.  See the file
-	  <file:Documentation/scsi/g_NCR5380.txt> for details.
 
 config SCSI_IPS
 	tristate "IBM ServeRAID support"
@@ -887,22 +783,25 @@ config SCSI_IBMVSCSI
 
 config SCSI_IBMVSCSIS
 	tristate "IBM Virtual SCSI Server support"
-	depends on PPC_PSERIES && SCSI_SRP && SCSI_SRP_TGT_ATTRS
+	depends on PPC_PSERIES && TARGET_CORE && SCSI && PCI
 	help
-	  This is the SRP target driver for IBM pSeries virtual environments.
+	  This is the IBM POWER Virtual SCSI Target Server
+	  This driver uses the SRP protocol for communication betwen servers
+	  guest and/or the host that run on the same server.
+	  More information on VSCSI protocol can be found at www.power.org
 
-	  The userspace component needed to initialize the driver and
-	  documentation can be found:
+	  The userspace configuration needed to initialize the driver can be
+	  be found here:
 
-	  http://stgt.berlios.de/
+	  https://github.com/powervm/ibmvscsis/wiki/Configuration
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ibmvstgt.
+	  module will be called ibmvscsis.
 
 config SCSI_IBMVFC
 	tristate "IBM Virtual FC support"
 	depends on PPC_PSERIES && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	help
 	  This is the IBM POWER Virtual FC Client
 
@@ -1158,6 +1057,7 @@ config SCSI_IPR
 	tristate "IBM Power Linux RAID adapter support"
 	depends on PCI && SCSI && ATA
 	select FW_LOADER
+	select IRQ_POLL
 	---help---
 	  This driver supports the IBM Power Linux family RAID adapters.
 	  This includes IBM pSeries 5712, 5703, 5709, and 570A, as well
@@ -1291,20 +1191,6 @@ config SCSI_NCR53C8XX_NO_DISCONNECT
 	  not allow targets to disconnect is not reasonable if there is more
 	  than 1 device on a SCSI bus. The normal answer therefore is N.
 
-config SCSI_PAS16
-	tristate "PAS16 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	---help---
-	  This is support for a SCSI host adapter.  It is explained in section
-	  3.10 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/pas16.h>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pas16.
-
 config SCSI_QLOGIC_FAS
 	tristate "Qlogic FAS SCSI support"
 	depends on ISA && SCSI
@@ -1348,21 +1234,24 @@ config SCSI_QLOGICPTI
 
 source "drivers/scsi/qla2xxx/Kconfig"
 source "drivers/scsi/qla4xxx/Kconfig"
+source "drivers/scsi/qedi/Kconfig"
+source "drivers/scsi/qedf/Kconfig"
 
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
-	select SCSI_FC_ATTRS
-	select GENERIC_CSUM
+	depends on SCSI_FC_ATTRS
+	depends on NVME_TARGET_FC || NVME_TARGET_FC=n
+	depends on NVME_FC || NVME_FC=n
 	select CRC_T10DIF
-	help
+	---help---
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
 config SCSI_LPFC_DEBUG_FS
 	bool "Emulex LightPulse Fibre Channel debugfs Support"
 	depends on SCSI_LPFC && DEBUG_FS
-	help
+	---help---
 	  This makes debugging information from the lpfc driver
 	  available via the debugfs filesystem.
 
@@ -1408,13 +1297,15 @@ config SCSI_DC395x
 	  To compile this driver as a module, choose M here: the
 	  module will be called dc395x.
 
-config SCSI_DC390T
-	tristate "Tekram DC390(T) and Am53/79C974 SCSI support"
+config SCSI_AM53C974
+	tristate "Tekram DC390(T) and Am53/79C974 SCSI support (new driver)"
 	depends on PCI && SCSI
+	select SCSI_SPI_ATTRS
 	---help---
 	  This driver supports PCI SCSI host adapters based on the Am53C974A
 	  chip, e.g. Tekram DC390(T), DawiControl 2974 and some onboard
 	  PCscsi/PCnet (Am53/79C974) solutions.
+	  This is a new implementation base on the generic esp_scsi driver.
 
 	  Documentation can be found in <file:Documentation/scsi/tmscsim.txt>.
 
@@ -1422,90 +1313,7 @@ config SCSI_DC390T
 	  based on NCR/Symbios chips. Use "NCR53C8XX SCSI support" for those.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called tmscsim.
-
-config SCSI_T128
-	tristate "Trantor T128/T128F/T228 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	select CHECK_SIGNATURE
-	---help---
-	  This is support for a SCSI host adapter. It is explained in section
-	  3.11 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/t128.h>.  Note that Trantor was purchased by
-	  Adaptec, and some former Trantor products are being sold under the
-	  Adaptec name.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called t128.
-
-config SCSI_U14_34F
-	tristate "UltraStor 14F/34F support"
-	depends on ISA && SCSI && ISA_DMA_API
-	---help---
-	  This is support for the UltraStor 14F and 34F SCSI-2 host adapters.
-	  The source at <file:drivers/scsi/u14-34f.c> contains some
-	  information about this hardware.  If the driver doesn't work out of
-	  the box, you may have to change some settings in
-	  <file: drivers/scsi/u14-34f.c>.  Read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Note that there is also
-	  another driver for the same hardware: "UltraStor SCSI support",
-	  below.  You should say Y to both only if you want 24F support as
-	  well.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called u14-34f.
-
-config SCSI_U14_34F_TAGGED_QUEUE
-	bool "enable tagged command queueing"
-	depends on SCSI_U14_34F
-	help
-	  This is a feature of SCSI-2 which improves performance: the host
-	  adapter can send several SCSI commands to a device's queue even if
-	  previous commands haven't finished yet.
-	  This is equivalent to the "u14-34f=tc:y" boot option.
-
-config SCSI_U14_34F_LINKED_COMMANDS
-	bool "enable elevator sorting"
-	depends on SCSI_U14_34F
-	help
-	  This option enables elevator sorting for all probed SCSI disks and
-	  CD-ROMs. It definitely reduces the average seek distance when doing
-	  random seeks, but this does not necessarily result in a noticeable
-	  performance improvement: your mileage may vary...
-	  This is equivalent to the "u14-34f=lc:y" boot option.
-
-config SCSI_U14_34F_MAX_TAGS
-	int "maximum number of queued commands"
-	depends on SCSI_U14_34F
-	default "8"
-	help
-	  This specifies how many SCSI commands can be maximally queued for
-	  each probed SCSI device. You should reduce the default value of 8
-	  only if you have disks with buggy or limited tagged command support.
-	  Minimum is 2 and maximum is 14. This value is also the window size
-	  used by the elevator sorting option above. The effective value used
-	  by the driver for each probed SCSI device is reported at boot time.
-	  This is equivalent to the "u14-34f=mq:8" boot option.
-
-config SCSI_ULTRASTOR
-	tristate "UltraStor SCSI support"
-	depends on X86 && ISA && SCSI
-	---help---
-	  This is support for the UltraStor 14F, 24F and 34F SCSI-2 host
-	  adapter family.  This driver is explained in section 3.12 of the
-	  SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/ultrastor.h>.
-
-	  Note that there is also another driver for the same hardware:
-	  "UltraStor 14F/34F support", above.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ultrastor.
+	  module will be called am53c974.
 
 config SCSI_NSP32
 	tristate "Workbit NinjaSCSI-32Bi/UDE support"
@@ -1518,19 +1326,26 @@ config SCSI_NSP32
 	  To compile this driver as a module, choose M here: the
 	  module will be called nsp32.
 
+config SCSI_WD719X
+	tristate "Western Digital WD7193/7197/7296 support"
+	depends on PCI && SCSI
+	select EEPROM_93CX6
+	---help---
+	  This is a driver for Western Digital WD7193, WD7197 and WD7296 PCI
+	  SCSI controllers (based on WD33C296A chip).
+
 config SCSI_DEBUG
-	tristate "SCSI debugging host simulator"
+	tristate "SCSI debugging host and device simulator"
 	depends on SCSI
 	select CRC_T10DIF
 	help
-	  This is a host adapter simulator that can simulate multiple hosts
-	  each with multiple dummy SCSI devices (disks). It defaults to one
-	  host adapter with one dummy SCSI disk. Each dummy disk uses kernel
-	  RAM as storage (i.e. it is a ramdisk). To save space when multiple
-	  dummy disks are simulated, they share the same kernel RAM for 
-	  their storage. See <http://sg.danny.cz/sg/sdebug26.html> for more
-	  information. This driver is primarily of use to those testing the
-	  SCSI and block subsystems. If unsure, say N.
+	  This pseudo driver simulates one or more hosts (SCSI initiators),
+	  each with one or more targets, each with one or more logical units.
+	  Defaults to one of each, creating a small RAM disk device. Many
+	  parameters found in the /sys/bus/pseudo/drivers/scsi_debug
+	  directory can be tweaked at run time.
+	  See <http://sg.danny.cz/sg/sdebug26.html> for more information.
+	  Mainly used for testing and best as a module. If unsure, say N.
 
 config SCSI_MESH
 	tristate "MESH (Power Mac internal SCSI) support"
@@ -1664,26 +1479,9 @@ config ATARI_SCSI
 	  ST-DMA, replacing ACSI).  It does NOT support other schemes, like
 	  in the Hades (without DMA).
 
-config ATARI_SCSI_TOSHIBA_DELAY
-	bool "Long delays for Toshiba CD-ROMs"
-	depends on ATARI_SCSI
-	help
-	  This option increases the delay after a SCSI arbitration to
-	  accommodate some flaky Toshiba CD-ROM drives. Say Y if you intend to
-	  use a Toshiba CD-ROM drive; otherwise, the option is not needed and
-	  would impact performance a bit, so say N.
-
-config ATARI_SCSI_RESET_BOOT
-	bool "Reset SCSI-devices at boottime"
-	depends on ATARI_SCSI
-	help
-	  Reset the devices on your Atari whenever it boots.  This makes the
-	  boot process fractionally longer but may assist recovery from errors
-	  that leave the devices with SCSI operations partway completed.
-
 config MAC_SCSI
-	bool "Macintosh NCR5380 SCSI"
-	depends on MAC && SCSI=y
+	tristate "Macintosh NCR5380 SCSI"
+	depends on MAC && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  This is the NCR 5380 SCSI controller included on most of the 68030
@@ -1763,7 +1561,7 @@ config SCSI_SUNESP
 config ZFCP
 	tristate "FCP host bus adapter driver for IBM eServer zSeries"
 	depends on S390 && QDIO && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	help
           If you want to access SCSI devices attached to your IBM eServer
           zSeries by means of Fibre Channel interfaces say Y.
@@ -1788,20 +1586,10 @@ config SCSI_PM8001
 	  This driver supports PMC-Sierra PCIE SAS/SATA 8x6G SPC 8001 chip
 	  based host adapters.
 
-config SCSI_SRP
-	tristate "SCSI RDMA Protocol helper library"
-	depends on SCSI && PCI
-	select SCSI_TGT
-	help
-	  If you wish to use SRP target drivers, say Y.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called libsrp.
-
 config SCSI_BFA_FC
 	tristate "Brocade BFA Fibre Channel Support"
 	depends on PCI && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	help
 	  This bfa driver supports all Brocade PCIe FC/FCOE host adapters.
 

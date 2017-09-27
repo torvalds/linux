@@ -2,7 +2,8 @@
  * Base driver for Marvell 88PM8607
  *
  * Copyright (C) 2009 Marvell International Ltd.
- * 	Haojian Zhuang <haojian.zhuang@marvell.com>
+ *
+ * Author: Haojian Zhuang <haojian.zhuang@marvell.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -140,7 +141,8 @@ static struct resource codec_resources[] = {
 	/* Headset insertion or removal */
 	{PM8607_IRQ_HEADSET, PM8607_IRQ_HEADSET, "headset", IORESOURCE_IRQ,},
 	/* Audio short */
-	{PM8607_IRQ_AUDIO_SHORT, PM8607_IRQ_AUDIO_SHORT, "audio-short", IORESOURCE_IRQ,},
+	{PM8607_IRQ_AUDIO_SHORT, PM8607_IRQ_AUDIO_SHORT, "audio-short",
+	 IORESOURCE_IRQ,},
 };
 
 static struct resource battery_resources[] = {
@@ -150,10 +152,14 @@ static struct resource battery_resources[] = {
 
 static struct resource charger_resources[] = {
 	{PM8607_IRQ_CHG,  PM8607_IRQ_CHG,  "charger detect",  IORESOURCE_IRQ,},
-	{PM8607_IRQ_CHG_DONE,  PM8607_IRQ_CHG_DONE,  "charging done",       IORESOURCE_IRQ,},
-	{PM8607_IRQ_CHG_FAIL,  PM8607_IRQ_CHG_FAIL,  "charging timeout",    IORESOURCE_IRQ,},
-	{PM8607_IRQ_CHG_FAULT, PM8607_IRQ_CHG_FAULT, "charging fault",	    IORESOURCE_IRQ,},
-	{PM8607_IRQ_GPADC1,    PM8607_IRQ_GPADC1,    "battery temperature", IORESOURCE_IRQ,},
+	{PM8607_IRQ_CHG_DONE,  PM8607_IRQ_CHG_DONE,  "charging done",
+	 IORESOURCE_IRQ,},
+	{PM8607_IRQ_CHG_FAIL,  PM8607_IRQ_CHG_FAIL,  "charging timeout",
+	 IORESOURCE_IRQ,},
+	{PM8607_IRQ_CHG_FAULT, PM8607_IRQ_CHG_FAULT, "charging fault",
+	 IORESOURCE_IRQ,},
+	{PM8607_IRQ_GPADC1,    PM8607_IRQ_GPADC1,    "battery temperature",
+	 IORESOURCE_IRQ,},
 	{PM8607_IRQ_VBAT, PM8607_IRQ_VBAT, "battery voltage", IORESOURCE_IRQ,},
 	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
 };
@@ -552,15 +558,11 @@ static int pm860x_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, d->host_data);
 	irq_set_chip_and_handler(virq, &pm860x_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 	return 0;
 }
 
-static struct irq_domain_ops pm860x_irq_domain_ops = {
+static const struct irq_domain_ops pm860x_irq_domain_ops = {
 	.map	= pm860x_irq_domain_map,
 	.xlate	= irq_domain_xlate_onetwocell,
 };
@@ -568,8 +570,8 @@ static struct irq_domain_ops pm860x_irq_domain_ops = {
 static int device_irq_init(struct pm860x_chip *chip,
 				     struct pm860x_platform_data *pdata)
 {
-	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
-				: chip->companion;
+	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ?
+		chip->client : chip->companion;
 	unsigned char status_buf[INT_STATUS_NUM];
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	int data, mask, ret = -EINVAL;
@@ -631,8 +633,8 @@ static int device_irq_init(struct pm860x_chip *chip,
 	if (!chip->core_irq)
 		goto out;
 
-	ret = request_threaded_irq(chip->core_irq, NULL, pm860x_irq, flags | IRQF_ONESHOT,
-				   "88pm860x", chip);
+	ret = request_threaded_irq(chip->core_irq, NULL, pm860x_irq,
+				   flags | IRQF_ONESHOT, "88pm860x", chip);
 	if (ret) {
 		dev_err(chip->dev, "Failed to request IRQ: %d\n", ret);
 		chip->core_irq = 0;
@@ -703,10 +705,12 @@ int pm8606_osc_disable(struct pm860x_chip *chip, unsigned short client)
 			chip->osc_status);
 
 	mutex_lock(&chip->osc_lock);
-	/*Update voting status */
+	/* Update voting status */
 	chip->osc_vote &= ~(client);
-	/* If reference group is off and this is the last client to release
-	 * - turn off */
+	/*
+	 * If reference group is off and this is the last client to release
+	 * - turn off
+	 */
 	if ((chip->osc_status != PM8606_REF_GP_OSC_OFF) &&
 			(chip->osc_vote == REF_GP_NO_CLIENTS)) {
 		chip->osc_status = PM8606_REF_GP_OSC_UNKNOWN;
@@ -871,7 +875,7 @@ static void device_rtc_init(struct pm860x_chip *chip,
 {
 	int ret;
 
-	if ((pdata == NULL))
+	if (!pdata)
 		return;
 
 	rtc_devs[0].platform_data = pdata->rtc;
@@ -997,8 +1001,9 @@ static void device_8607_init(struct pm860x_chip *chip,
 			 ret);
 		break;
 	default:
-		dev_err(chip->dev, "Failed to detect Marvell 88PM8607. "
-			"Chip ID: %02x\n", ret);
+		dev_err(chip->dev,
+			"Failed to detect Marvell 88PM8607. Chip ID: %02x\n",
+			ret);
 		goto out;
 	}
 
@@ -1104,7 +1109,7 @@ static int verify_addr(struct i2c_client *i2c)
 	return 0;
 }
 
-static struct regmap_config pm860x_regmap_config = {
+static const struct regmap_config pm860x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
@@ -1120,17 +1125,16 @@ static int pm860x_dt_init(struct device_node *np,
 	ret = of_property_read_u32(np, "marvell,88pm860x-slave-addr",
 				   &pdata->companion_addr);
 	if (ret) {
-		dev_err(dev, "Not found \"marvell,88pm860x-slave-addr\" "
-			"property\n");
+		dev_err(dev,
+			"Not found \"marvell,88pm860x-slave-addr\" property\n");
 		pdata->companion_addr = 0;
 	}
 	return 0;
 }
 
-static int pm860x_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int pm860x_probe(struct i2c_client *client)
 {
-	struct pm860x_platform_data *pdata = client->dev.platform_data;
+	struct pm860x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct device_node *node = client->dev.of_node;
 	struct pm860x_chip *chip;
 	int ret;
@@ -1179,12 +1183,18 @@ static int pm860x_probe(struct i2c_client *client,
 		chip->companion_addr = pdata->companion_addr;
 		chip->companion = i2c_new_dummy(chip->client->adapter,
 						chip->companion_addr);
+		if (!chip->companion) {
+			dev_err(&client->dev,
+				"Failed to allocate I2C companion device\n");
+			return -ENODEV;
+		}
 		chip->regmap_companion = regmap_init_i2c(chip->companion,
 							&pm860x_regmap_config);
 		if (IS_ERR(chip->regmap_companion)) {
 			ret = PTR_ERR(chip->regmap_companion);
 			dev_err(&chip->companion->dev,
 				"Failed to allocate register map: %d\n", ret);
+			i2c_unregister_device(chip->companion);
 			return ret;
 		}
 		i2c_set_clientdata(chip->companion, chip);
@@ -1209,7 +1219,7 @@ static int pm860x_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int pm860x_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -1219,7 +1229,7 @@ static int pm860x_suspend(struct device *dev)
 
 static int pm860x_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -1245,11 +1255,10 @@ MODULE_DEVICE_TABLE(of, pm860x_dt_ids);
 static struct i2c_driver pm860x_driver = {
 	.driver	= {
 		.name	= "88PM860x",
-		.owner	= THIS_MODULE,
 		.pm     = &pm860x_pm_ops,
-		.of_match_table	= of_match_ptr(pm860x_dt_ids),
+		.of_match_table	= pm860x_dt_ids,
 	},
-	.probe		= pm860x_probe,
+	.probe_new	= pm860x_probe,
 	.remove		= pm860x_remove,
 	.id_table	= pm860x_id_table,
 };
@@ -1257,6 +1266,7 @@ static struct i2c_driver pm860x_driver = {
 static int __init pm860x_i2c_init(void)
 {
 	int ret;
+
 	ret = i2c_add_driver(&pm860x_driver);
 	if (ret != 0)
 		pr_err("Failed to register 88PM860x I2C driver: %d\n", ret);

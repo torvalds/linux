@@ -20,7 +20,6 @@
 #include <linux/types.h>
 #include <asm/lasat/lasat.h>
 
-#include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/stddef.h>
 #include <linux/init.h>
@@ -53,21 +52,6 @@ int proc_dolasatstring(struct ctl_table *table, int write,
 	return 0;
 }
 
-/* proc function to write EEPROM after changing int entry */
-int proc_dolasatint(struct ctl_table *table, int write,
-		       void *buffer, size_t *lenp, loff_t *ppos)
-{
-	int r;
-
-	r = proc_dointvec(table, write, buffer, lenp, ppos);
-	if ((!write) || r)
-		return r;
-
-	lasat_write_eeprom_info();
-
-	return 0;
-}
-
 #ifdef CONFIG_DS1603
 static int rtctmp;
 
@@ -75,11 +59,11 @@ static int rtctmp;
 int proc_dolasatrtc(struct ctl_table *table, int write,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 	int r;
 
 	if (!write) {
-		read_persistent_clock(&ts);
+		read_persistent_clock64(&ts);
 		rtctmp = ts.tv_sec;
 		/* check for time < 0 and set to 0 */
 		if (rtctmp < 0)
@@ -285,4 +269,4 @@ static int __init lasat_register_sysctl(void)
 	return 0;
 }
 
-__initcall(lasat_register_sysctl);
+arch_initcall(lasat_register_sysctl);

@@ -42,14 +42,14 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/clk.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/scatterlist.h>
 
 #include <asm/types.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DRIVER_NAME "goldfish_mmc"
 
@@ -118,7 +118,7 @@ struct goldfish_mmc_host {
 	struct mmc_host		*mmc;
 	struct device		*dev;
 	unsigned char		id; /* 16xx chips have 2 MMC blocks */
-	void __iomem		*virt_base;
+	void			*virt_base;
 	unsigned int		phys_base;
 	int			irq;
 	unsigned char		bus_mode;
@@ -212,10 +212,7 @@ static void goldfish_mmc_xfer_done(struct goldfish_mmc_host *host,
 	if (host->dma_in_use) {
 		enum dma_data_direction dma_data_dir;
 
-		if (data->flags & MMC_DATA_WRITE)
-			dma_data_dir = DMA_TO_DEVICE;
-		else
-			dma_data_dir = DMA_FROM_DEVICE;
+		dma_data_dir = mmc_get_dma_dir(data);
 
 		if (dma_data_dir == DMA_FROM_DEVICE) {
 			/*
@@ -293,7 +290,6 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 	u16 status;
 	int end_command = 0;
 	int end_transfer = 0;
-	int transfer_error = 0;
 	int state_changed = 0;
 	int cmd_timeout = 0;
 
@@ -325,9 +321,7 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 	if (end_command)
 		goldfish_mmc_cmd_done(host, host->cmd);
 
-	if (transfer_error)
-		goldfish_mmc_xfer_done(host, host->data);
-	else if (end_transfer) {
+	if (end_transfer) {
 		host->dma_done = 1;
 		goldfish_mmc_end_of_data(host, host->data);
 	} else if (host->data != NULL) {
@@ -350,8 +344,7 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 		mmc_detect_change(host->mmc, 0);
 	}
 
-	if (!end_command && !end_transfer &&
-	    !transfer_error && !state_changed && !cmd_timeout) {
+	if (!end_command && !end_transfer && !state_changed && !cmd_timeout) {
 		status = GOLDFISH_MMC_READ(host, MMC_INT_STATUS);
 		dev_info(mmc_dev(host->mmc),"spurious irq 0x%04x\n", status);
 		if (status != 0) {
@@ -390,10 +383,7 @@ static void goldfish_mmc_prepare_data(struct goldfish_mmc_host *host,
 	 */
 	sg_len = (data->blocks == 1) ? 1 : data->sg_len;
 
-	if (data->flags & MMC_DATA_WRITE)
-		dma_data_dir = DMA_TO_DEVICE;
-	else
-		dma_data_dir = DMA_FROM_DEVICE;
+	dma_data_dir = mmc_get_dma_dir(data);
 
 	host->sg_len = dma_map_sg(mmc_dev(host->mmc), data->sg,
 				  sg_len, dma_data_dir);

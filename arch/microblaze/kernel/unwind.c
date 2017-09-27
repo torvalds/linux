@@ -17,6 +17,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -59,7 +60,7 @@ struct stack_trace;
  *
  * Return - Number of stack bytes the instruction reserves or reclaims
  */
-inline long get_frame_size(unsigned long instr)
+static inline long get_frame_size(unsigned long instr)
 {
 	return abs((s16)(instr & 0xFFFF));
 }

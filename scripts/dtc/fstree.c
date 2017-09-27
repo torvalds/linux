@@ -37,26 +37,26 @@ static struct node *read_fstree(const char *dirname)
 	tree = build_node(NULL, NULL);
 
 	while ((de = readdir(d)) != NULL) {
-		char *tmpnam;
+		char *tmpname;
 
 		if (streq(de->d_name, ".")
 		    || streq(de->d_name, ".."))
 			continue;
 
-		tmpnam = join_path(dirname, de->d_name);
+		tmpname = join_path(dirname, de->d_name);
 
-		if (lstat(tmpnam, &st) < 0)
-			die("stat(%s): %s\n", tmpnam, strerror(errno));
+		if (lstat(tmpname, &st) < 0)
+			die("stat(%s): %s\n", tmpname, strerror(errno));
 
 		if (S_ISREG(st.st_mode)) {
 			struct property *prop;
 			FILE *pfile;
 
-			pfile = fopen(tmpnam, "r");
+			pfile = fopen(tmpname, "rb");
 			if (! pfile) {
 				fprintf(stderr,
 					"WARNING: Cannot open %s: %s\n",
-					tmpnam, strerror(errno));
+					tmpname, strerror(errno));
 			} else {
 				prop = build_property(xstrdup(de->d_name),
 						      data_copy_file(pfile,
@@ -67,25 +67,24 @@ static struct node *read_fstree(const char *dirname)
 		} else if (S_ISDIR(st.st_mode)) {
 			struct node *newchild;
 
-			newchild = read_fstree(tmpnam);
+			newchild = read_fstree(tmpname);
 			newchild = name_node(newchild, xstrdup(de->d_name));
 			add_child(tree, newchild);
 		}
 
-		free(tmpnam);
+		free(tmpname);
 	}
 
 	closedir(d);
 	return tree;
 }
 
-struct boot_info *dt_from_fs(const char *dirname)
+struct dt_info *dt_from_fs(const char *dirname)
 {
 	struct node *tree;
 
 	tree = read_fstree(dirname);
 	tree = name_node(tree, "");
 
-	return build_boot_info(NULL, tree, guess_boot_cpuid(tree));
+	return build_dt_info(DTSF_V1, NULL, tree, guess_boot_cpuid(tree));
 }
-

@@ -56,6 +56,7 @@ static const struct team_mode bc_mode = {
 	.kind		= "broadcast",
 	.owner		= THIS_MODULE,
 	.ops		= &bc_mode_ops,
+	.lag_tx_type	= NETDEV_LAG_TX_TYPE_BROADCAST,
 };
 
 static int __init bc_init_module(void)
@@ -74,4 +75,4 @@ module_exit(bc_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jpirko@redhat.com>");
 MODULE_DESCRIPTION("Broadcast mode for team");
-MODULE_ALIAS("team-mode-broadcast");
+MODULE_ALIAS_TEAM_MODE("broadcast");

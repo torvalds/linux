@@ -359,15 +359,7 @@ static int maya_rec_src_info(struct snd_kcontrol *kcontrol,
 {
 	static const char * const texts[] = { "Line", "Mic" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = ARRAY_SIZE(texts);
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
 }
 
 static int maya_rec_src_get(struct snd_kcontrol *kcontrol,
@@ -411,15 +403,7 @@ static int maya_pb_route_info(struct snd_kcontrol *kcontrol,
 		"Input 1", "Input 2", "Input 3", "Input 4"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = ARRAY_SIZE(texts);
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
 }
 
 static int maya_pb_route_shift(int idx)
@@ -677,12 +661,12 @@ static void set_rate(struct snd_ice1712 *ice, unsigned int rate)
  * supported sample rates (to override the default one)
  */
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000
 };
 
 /* playback rates: 32..192 kHz */
-static struct snd_pcm_hw_constraint_list dac_rates = {
+static const struct snd_pcm_hw_constraint_list dac_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0

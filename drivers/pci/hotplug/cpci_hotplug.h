@@ -52,13 +52,13 @@ struct slot {
 };
 
 struct cpci_hp_controller_ops {
-	int (*query_enum) (void);
-	int (*enable_irq) (void);
-	int (*disable_irq) (void);
-	int (*check_irq) (void *dev_id);
-	int (*hardware_test) (struct slot* slot, u32 value);
-	u8  (*get_power) (struct slot* slot);
-	int (*set_power) (struct slot* slot, int value);
+	int (*query_enum)(void);
+	int (*enable_irq)(void);
+	int (*disable_irq)(void);
+	int (*check_irq)(void *dev_id);
+	int (*hardware_test)(struct slot *slot, u32 value);
+	u8  (*get_power)(struct slot *slot);
+	int (*set_power)(struct slot *slot, int value);
 };
 
 struct cpci_hp_controller {
@@ -89,22 +89,20 @@ int cpci_hp_stop(void);
 u8 cpci_get_attention_status(struct slot *slot);
 u8 cpci_get_latch_status(struct slot *slot);
 u8 cpci_get_adapter_status(struct slot *slot);
-u16 cpci_get_hs_csr(struct slot * slot);
+u16 cpci_get_hs_csr(struct slot *slot);
 int cpci_set_attention_status(struct slot *slot, int status);
-int cpci_check_and_clear_ins(struct slot * slot);
-int cpci_check_ext(struct slot * slot);
-int cpci_clear_ext(struct slot * slot);
-int cpci_led_on(struct slot * slot);
-int cpci_led_off(struct slot * slot);
+int cpci_check_and_clear_ins(struct slot *slot);
+int cpci_check_ext(struct slot *slot);
+int cpci_clear_ext(struct slot *slot);
+int cpci_led_on(struct slot *slot);
+int cpci_led_off(struct slot *slot);
 int cpci_configure_slot(struct slot *slot);
 int cpci_unconfigure_slot(struct slot *slot);
 
 #ifdef CONFIG_HOTPLUG_PCI_CPCI
 int cpci_hotplug_init(int debug);
-void cpci_hotplug_exit(void);
 #else
 static inline int cpci_hotplug_init(int debug) { return 0; }
-static inline void cpci_hotplug_exit(void) { }
 #endif
 
 #endif	/* _CPCI_HOTPLUG_H */

@@ -1,7 +1,7 @@
 /*
  *  tm6000-stds.c - driver for TM5600/TM6000/TM6010 USB video capture devices
  *
- *  Copyright (C) 2007 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *  Copyright (C) 2007 Mauro Carvalho Chehab
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -11,10 +11,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -464,8 +460,7 @@ static int tm6000_load_std(struct tm6000_core *dev, struct tm6000_reg_settings *
 	for (i = 0; set[i].req; i++) {
 		rc = tm6000_set_reg(dev, set[i].req, set[i].reg, set[i].value);
 		if (rc < 0) {
-			printk(KERN_ERR "Error %i while setting "
-			       "req %d, reg %d to value %d\n",
+			printk(KERN_ERR "Error %i while setting req %d, reg %d to value %d\n",
 			       rc, set[i].req, set[i].reg, set[i].value);
 			return rc;
 		}

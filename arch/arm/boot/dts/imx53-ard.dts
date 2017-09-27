@@ -49,9 +49,12 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_3p3v: 3p3v {
+		reg_3p3v: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "3P3V";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
@@ -66,21 +69,21 @@
 			label = "Home";
 			gpios = <&gpio5 10 0>;
 			linux,code = <102>; /* KEY_HOME */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		back {
 			label = "Back";
 			gpios = <&gpio5 11 0>;
 			linux,code = <158>; /* KEY_BACK */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		program {
 			label = "Program";
 			gpios = <&gpio5 12 0>;
 			linux,code = <362>; /* KEY_PROGRAM */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		volume-up {
@@ -99,9 +102,9 @@
 
 &esdhc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_esdhc1_2>;
-	cd-gpios = <&gpio1 1 0>;
-	wp-gpios = <&gpio1 9 0>;
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -109,7 +112,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
-	hog {
+	imx53-ard {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX53_PAD_GPIO_1__GPIO1_1             0x80000000
@@ -148,11 +151,33 @@
 				MX53_PAD_EIM_CS1__EMI_WEIM_CS_1	     0x80000000
 			>;
 		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX53_PAD_SD1_DATA0__ESDHC1_DAT0		0x1d5
+				MX53_PAD_SD1_DATA1__ESDHC1_DAT1		0x1d5
+				MX53_PAD_SD1_DATA2__ESDHC1_DAT2		0x1d5
+				MX53_PAD_SD1_DATA3__ESDHC1_DAT3		0x1d5
+				MX53_PAD_PATA_DATA8__ESDHC1_DAT4	0x1d5
+				MX53_PAD_PATA_DATA9__ESDHC1_DAT5	0x1d5
+				MX53_PAD_PATA_DATA10__ESDHC1_DAT6	0x1d5
+				MX53_PAD_PATA_DATA11__ESDHC1_DAT7	0x1d5
+				MX53_PAD_SD1_CMD__ESDHC1_CMD		0x1d5
+				MX53_PAD_SD1_CLK__ESDHC1_CLK		0x1d5
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX53_PAD_PATA_DIOW__UART1_TXD_MUX	0x1e4
+				MX53_PAD_PATA_DMACK__UART1_RXD_MUX	0x1e4
+			>;
+		};
 	};
 };
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_2>;
+	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };

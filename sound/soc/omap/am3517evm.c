@@ -49,7 +49,7 @@ static int am3517evm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops am3517evm_ops = {
+static const struct snd_soc_ops am3517evm_ops = {
 	.hw_params = am3517evm_hw_params,
 };
 
@@ -77,7 +77,7 @@ static struct snd_soc_dai_link am3517evm_dai = {
 	.stream_name = "AIC23",
 	.cpu_dai_name = "omap-mcbsp.1",
 	.codec_dai_name = "tlv320aic23-hifi",
-	.platform_name = "omap-pcm-audio",
+	.platform_name = "omap-mcbsp.1",
 	.codec_name = "tlv320aic23-codec.2-001a",
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,

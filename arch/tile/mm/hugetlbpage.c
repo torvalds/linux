@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
@@ -49,38 +50,6 @@ int huge_shift[HUGE_SHIFT_ENTRIES] = {
 #endif
 };
 
-/*
- * This routine is a hybrid of pte_alloc_map() and pte_alloc_kernel().
- * It assumes that L2 PTEs are never in HIGHMEM (we don't support that).
- * It locks the user pagetable, and bumps up the mm->nr_ptes field,
- * but otherwise allocate the page table using the kernel versions.
- */
-static pte_t *pte_alloc_hugetlb(struct mm_struct *mm, pmd_t *pmd,
-				unsigned long address)
-{
-	pte_t *new;
-
-	if (pmd_none(*pmd)) {
-		new = pte_alloc_one_kernel(mm, address);
-		if (!new)
-			return NULL;
-
-		smp_wmb(); /* See comment in __pte_alloc */
-
-		spin_lock(&mm->page_table_lock);
-		if (likely(pmd_none(*pmd))) {  /* Has another populated it ? */
-			mm->nr_ptes++;
-			pmd_populate_kernel(mm, pmd, new);
-			new = NULL;
-		} else
-			VM_BUG_ON(pmd_trans_splitting(*pmd));
-		spin_unlock(&mm->page_table_lock);
-		if (new)
-			pte_free_kernel(mm, new);
-	}
-
-	return pte_offset_kernel(pmd, address);
-}
 #endif
 
 pte_t *huge_pte_alloc(struct mm_struct *mm,
@@ -109,7 +78,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		else {
 			if (sz != PAGE_SIZE << huge_shift[HUGE_SHIFT_PAGE])
 				panic("Unexpected page size %#lx\n", sz);
-			return pte_alloc_hugetlb(mm, pmd, addr);
+			return pte_alloc_map(mm, pmd, addr);
 		}
 	}
 #else
@@ -133,7 +102,8 @@ static pte_t *get_pte(pte_t *base, int index, int level)
 	return ptep;
 }
 
-pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_offset(struct mm_struct *mm,
+		       unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -144,14 +114,14 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 
 	/* Get the top-level page table entry. */
 	pgd = (pgd_t *)get_pte((pte_t *)mm->pgd, pgd_index(addr), 0);
-	if (!pgd_present(*pgd))
-		return NULL;
 
 	/* We don't have four levels. */
 	pud = pud_offset(pgd, addr);
 #ifndef __PAGETABLE_PUD_FOLDED
 # error support fourth page table level
 #endif
+	if (!pud_present(*pud))
+		return NULL;
 
 	/* Check for an L0 huge PTE, if we have three levels. */
 #ifndef __PAGETABLE_PMD_FOLDED
@@ -182,12 +152,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	return NULL;
 }
 
-struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-			      int write)
-{
-	return ERR_PTR(-EINVAL);
-}
-
 int pmd_huge(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_HUGE_PAGE);
@@ -196,33 +160,6 @@ int pmd_huge(pmd_t pmd)
 int pud_huge(pud_t pud)
 {
 	return !!(pud_val(pud) & _PAGE_HUGE_PAGE);
-}
-
-struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-			     pmd_t *pmd, int write)
-{
-	struct page *page;
-
-	page = pte_page(*(pte_t *)pmd);
-	if (page)
-		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
-	return page;
-}
-
-struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
-			     pud_t *pud, int write)
-{
-	struct page *page;
-
-	page = pte_page(*(pte_t *)pud);
-	if (page)
-		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
-	return page;
-}
-
-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
-{
-	return 0;
 }
 
 #ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
@@ -297,7 +234,7 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		addr = ALIGN(addr, huge_page_size(h));
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 	if (current->mm->get_unmapped_area == arch_get_unmapped_area)
@@ -316,22 +253,21 @@ static __init int __setup_hugepagesz(unsigned long ps)
 	int level, base_shift;
 
 	if ((1UL << log_ps) != ps || (log_ps & 1) != 0) {
-		pr_warn("Not enabling %ld byte huge pages;"
-			" must be a power of four.\n", ps);
+		pr_warn("Not enabling %ld byte huge pages; must be a power of four\n",
+			ps);
 		return -EINVAL;
 	}
 
 	if (ps > 64*1024*1024*1024UL) {
-		pr_warn("Not enabling %ld MB huge pages;"
-			" largest legal value is 64 GB .\n", ps >> 20);
+		pr_warn("Not enabling %ld MB huge pages; largest legal value is 64 GB\n",
+			ps >> 20);
 		return -EINVAL;
 	} else if (ps >= PUD_SIZE) {
 		static long hv_jpage_size;
 		if (hv_jpage_size == 0)
 			hv_jpage_size = hv_sysconf(HV_SYSCONF_PAGE_SIZE_JUMBO);
 		if (hv_jpage_size != PUD_SIZE) {
-			pr_warn("Not enabling >= %ld MB huge pages:"
-				" hypervisor reports size %ld\n",
+			pr_warn("Not enabling >= %ld MB huge pages: hypervisor reports size %ld\n",
 				PUD_SIZE >> 20, hv_jpage_size);
 			return -EINVAL;
 		}
@@ -352,14 +288,13 @@ static __init int __setup_hugepagesz(unsigned long ps)
 		int shift_val = log_ps - base_shift;
 		if (huge_shift[level] != 0) {
 			int old_shift = base_shift + huge_shift[level];
-			pr_warn("Not enabling %ld MB huge pages;"
-				" already have size %ld MB.\n",
+			pr_warn("Not enabling %ld MB huge pages; already have size %ld MB\n",
 				ps >> 20, (1UL << old_shift) >> 20);
 			return -EINVAL;
 		}
 		if (hv_set_pte_super_shift(level, shift_val) != 0) {
-			pr_warn("Not enabling %ld MB huge pages;"
-				" no hypervisor support.\n", ps >> 20);
+			pr_warn("Not enabling %ld MB huge pages; no hypervisor support\n",
+				ps >> 20);
 			return -EINVAL;
 		}
 		printk(KERN_DEBUG "Enabled %ld MB huge pages\n", ps >> 20);
@@ -375,11 +310,16 @@ static bool saw_hugepagesz;
 
 static __init int setup_hugepagesz(char *opt)
 {
+	int rc;
+
 	if (!saw_hugepagesz) {
 		saw_hugepagesz = true;
 		memset(huge_shift, 0, sizeof(huge_shift));
 	}
-	return __setup_hugepagesz(memparse(opt, NULL));
+	rc = __setup_hugepagesz(memparse(opt, NULL));
+	if (rc)
+		hugetlb_bad_size();
+	return rc;
 }
 __setup("hugepagesz=", setup_hugepagesz);
 

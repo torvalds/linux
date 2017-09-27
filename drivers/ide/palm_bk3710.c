@@ -191,7 +191,7 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 static void palm_bk3710_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int is_slave = drive->dn & 1;
-	void __iomem *base = (void *)hwif->dma_base;
+	void __iomem *base = (void __iomem *)hwif->dma_base;
 	const u8 xferspeed = drive->dma_mode;
 
 	if (xferspeed >= XFER_UDMA_0) {
@@ -209,7 +209,7 @@ static void palm_bk3710_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	unsigned int cycle_time;
 	int is_slave = drive->dn & 1;
 	ide_drive_t *mate;
-	void __iomem *base = (void *)hwif->dma_base;
+	void __iomem *base = (void __iomem *)hwif->dma_base;
 	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	/*
@@ -300,7 +300,7 @@ static const struct ide_port_ops palm_bk3710_ports_ops = {
 	.cable_detect		= palm_bk3710_cable_detect,
 };
 
-static struct ide_port_info palm_bk3710_port_info = {
+static struct ide_port_info palm_bk3710_port_info __initdata = {
 	.init_dma		= palm_bk3710_init_dma,
 	.port_ops		= &palm_bk3710_ports_ops,
 	.dma_ops		= &sff_dma_ops,
@@ -325,6 +325,8 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 
 	clk_enable(clk);
 	rate = clk_get_rate(clk);
+	if (!rate)
+		return -EINVAL;
 
 	/* NOTE:  round *down* to meet minimum timings; we count in clocks */
 	ideclk_period = 1000000000UL / rate;
@@ -386,7 +388,6 @@ MODULE_ALIAS("platform:palm_bk3710");
 static struct platform_driver platform_bk_driver = {
 	.driver = {
 		.name = "palm_bk3710",
-		.owner = THIS_MODULE,
 	},
 };
 

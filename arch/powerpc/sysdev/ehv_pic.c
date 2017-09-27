@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -26,8 +27,6 @@
 #include <asm/machdep.h>
 #include <asm/ehv_pic.h>
 #include <asm/fsl_hcalls.h>
-
-#include "../../../kernel/irq/settings.h"
 
 static struct ehv_pic *global_ehv_pic;
 static DEFINE_SPINLOCK(ehv_pic_lock);
@@ -112,17 +111,13 @@ static unsigned int ehv_pic_type_to_vecpri(unsigned int type)
 int ehv_pic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	unsigned int src = virq_to_hw(d->irq);
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	unsigned int vecpri, vold, vnew, prio, cpu_dest;
 	unsigned long flags;
 
 	if (flow_type == IRQ_TYPE_NONE)
 		flow_type = IRQ_TYPE_LEVEL_LOW;
 
-	irq_settings_clr_level(desc);
-	irq_settings_set_trigger_mask(desc, flow_type);
-	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		irq_settings_set_level(desc);
+	irqd_set_trigger_type(d, flow_type);
 
 	vecpri = ehv_pic_type_to_vecpri(flow_type);
 
@@ -143,7 +138,7 @@ int ehv_pic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	ev_int_set_config(src, vecpri, prio, cpu_dest);
 
 	spin_unlock_irqrestore(&ehv_pic_lock, flags);
-	return 0;
+	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
 static struct irq_chip ehv_pic_irq_chip = {
@@ -160,7 +155,7 @@ static struct irq_chip ehv_pic_direct_eoi_irq_chip = {
 	.irq_set_type	= ehv_pic_set_irq_type,
 };
 
-/* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
+/* Return an interrupt vector or 0 if no interrupt is pending. */
 unsigned int ehv_pic_get_irq(void)
 {
 	int irq;
@@ -173,7 +168,7 @@ unsigned int ehv_pic_get_irq(void)
 		ev_int_iack(0, &irq); /* legacy mode */
 
 	if (irq == 0xFFFF)    /* 0xFFFF --> no irq is pending */
-		return NO_IRQ;
+		return 0;
 
 	/*
 	 * this will also setup revmap[] in the slow path for the first
@@ -182,10 +177,12 @@ unsigned int ehv_pic_get_irq(void)
 	return irq_linear_revmap(global_ehv_pic->irqhost, irq);
 }
 
-static int ehv_pic_host_match(struct irq_domain *h, struct device_node *node)
+static int ehv_pic_host_match(struct irq_domain *h, struct device_node *node,
+			      enum irq_domain_bus_token bus_token)
 {
 	/* Exact match, unless ehv_pic node is NULL */
-	return h->of_node == NULL || h->of_node == node;
+	struct device_node *of_node = irq_domain_get_of_node(h);
+	return of_node == NULL || of_node == node;
 }
 
 static int ehv_pic_host_map(struct irq_domain *h, unsigned int virq,

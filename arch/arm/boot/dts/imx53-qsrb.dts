@@ -1,0 +1,156 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+
+#include "imx53-qsb-common.dtsi"
+
+/ {
+	model = "Freescale i.MX53 Quick Start-R Board";
+	compatible = "fsl,imx53-qsrb", "fsl,imx53";
+};
+
+&iomuxc {
+	imx53-qsrb {
+		pinctrl_pmic: pmicgrp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT5__GPIO5_23	0x1c4 /* IRQ */
+			>;
+		};
+	};
+};
+
+&i2c1 {
+	pmic: mc34708@8 {
+		compatible = "fsl,mc34708";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic>;
+		reg = <0x08>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+		regulators {
+			sw1_reg: sw1a {
+				regulator-name = "SW1";
+				regulator-min-microvolt = <650000>;
+				regulator-max-microvolt = <1437500>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw1b_reg: sw1b {
+				regulator-name = "SW1B";
+				regulator-min-microvolt = <650000>;
+				regulator-max-microvolt = <1437500>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw2_reg: sw2 {
+				regulator-name = "SW2";
+				regulator-min-microvolt = <650000>;
+				regulator-max-microvolt = <1437500>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3_reg: sw3 {
+				regulator-name = "SW3";
+				regulator-min-microvolt = <650000>;
+				regulator-max-microvolt = <1425000>;
+				regulator-boot-on;
+			};
+
+			sw4a_reg: sw4a {
+				regulator-name = "SW4A";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw4b_reg: sw4b {
+				regulator-name = "SW4B";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw5_reg: sw5 {
+				regulator-name = "SW5";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1975000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			swbst_reg: swbst {
+				regulator-name = "SWBST";
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vpll_reg: vpll {
+				regulator-name = "VPLL";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+			};
+
+			vrefddr_reg: vrefddr {
+				regulator-name = "VREFDDR";
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vusb_reg: vusb {
+				regulator-name = "VUSB";
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vusb2_reg: vusb2 {
+				regulator-name = "VUSB2";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vdac_reg: vdac {
+				regulator-name = "VDAC";
+				regulator-min-microvolt = <2750000>;
+				regulator-max-microvolt = <2750000>;
+			};
+
+			vgen1_reg: vgen1 {
+				regulator-name = "VGEN1";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1550000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vgen2_reg: vgen2 {
+				regulator-name = "VGEN2";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&tve {
+	dac-supply = <&vdac_reg>;
+};

@@ -9,3 +9,23 @@ config FIREWIRE_SERIAL
 
 	  To compile this driver as a module, say M here:  the module will
 	  be called firewire-serial.
+
+if FIREWIRE_SERIAL
+
+config FWTTY_MAX_TOTAL_PORTS
+       int "Maximum number of serial ports supported"
+       default "64"
+       help
+          Set this to the maximum number of serial ports you want the
+	  firewire-serial driver to support.
+
+config FWTTY_MAX_CARD_PORTS
+       int "Maximum number of serial ports supported per adapter"
+       range 0 FWTTY_MAX_TOTAL_PORTS
+       default "32"
+       help
+          Set this to the maximum number of serial ports each firewire
+	  adapter supports. The actual number of serial ports registered
+	  is set with the module parameter "ttys".
+
+endif

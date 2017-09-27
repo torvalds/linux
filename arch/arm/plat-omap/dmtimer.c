@@ -36,6 +36,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/device.h>
@@ -103,7 +104,7 @@ static void omap_timer_restore_context(struct omap_dm_timer *timer)
 				timer->context.tmar);
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG,
 				timer->context.tsicr);
-	__raw_writel(timer->context.tier, timer->irq_ena);
+	writel_relaxed(timer->context.tier, timer->irq_ena);
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG,
 				timer->context.tclr);
 }
@@ -137,6 +138,31 @@ static int omap_dm_timer_reset(struct omap_dm_timer *timer)
 	return 0;
 }
 
+static int omap_dm_timer_of_set_source(struct omap_dm_timer *timer)
+{
+	int ret;
+	struct clk *parent;
+
+	/*
+	 * FIXME: OMAP1 devices do not use the clock framework for dmtimers so
+	 * do not call clk_get() for these devices.
+	 */
+	if (!timer->fclk)
+		return -ENODEV;
+
+	parent = clk_get(&timer->pdev->dev, NULL);
+	if (IS_ERR(parent))
+		return -ENODEV;
+
+	ret = clk_set_parent(timer->fclk, parent);
+	if (ret < 0)
+		pr_err("%s: failed to set parent\n", __func__);
+
+	clk_put(parent);
+
+	return ret;
+}
+
 static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 {
 	int rc;
@@ -166,7 +192,11 @@ static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 	__omap_dm_timer_enable_posted(timer);
 	omap_dm_timer_disable(timer);
 
-	return omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
+	rc = omap_dm_timer_of_set_source(timer);
+	if (rc == -ENODEV)
+		return omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
+
+	return rc;
 }
 
 static inline u32 omap_dm_timer_reserved_systimer(int id)
@@ -504,6 +534,12 @@ int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	if (IS_ERR(timer->fclk))
 		return -EINVAL;
 
+#if defined(CONFIG_COMMON_CLK)
+	/* Check if the clock has configurable parents */
+	if (clk_hw_get_num_parents(__clk_get_hw(timer->fclk)) < 2)
+		return 0;
+#endif
+
 	switch (source) {
 	case OMAP_TIMER_SRC_SYS_CLK:
 		parent_name = "timer_sys_ck";
@@ -699,9 +735,9 @@ int omap_dm_timer_set_int_disable(struct omap_dm_timer *timer, u32 mask)
 	omap_dm_timer_enable(timer);
 
 	if (timer->revision == 1)
-		l = __raw_readl(timer->irq_ena) & ~mask;
+		l = readl_relaxed(timer->irq_ena) & ~mask;
 
-	__raw_writel(l, timer->irq_dis);
+	writel_relaxed(l, timer->irq_dis);
 	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_WAKEUP_EN_REG) & ~mask;
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_WAKEUP_EN_REG, l);
 
@@ -722,7 +758,7 @@ unsigned int omap_dm_timer_read_status(struct omap_dm_timer *timer)
 		return 0;
 	}
 
-	l = __raw_readl(timer->irq_stat);
+	l = readl_relaxed(timer->irq_stat);
 
 	return l;
 }
@@ -799,6 +835,7 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	const struct dmtimer_platform_data *pdata;
+	int ret;
 
 	match = of_match_device(of_match_ptr(omap_timer_match), dev);
 	pdata = match ? match->data : dev->platform_data;
@@ -860,7 +897,12 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	}
 
 	if (!timer->reserved) {
-		pm_runtime_get_sync(dev);
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0) {
+			dev_err(dev, "%s: pm_runtime_get_sync failed!\n",
+				__func__);
+			goto err_get_sync;
+		}
 		__omap_dm_timer_init_regs(timer);
 		pm_runtime_put(dev);
 	}
@@ -873,6 +915,11 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	dev_dbg(dev, "Device Probed.\n");
 
 	return 0;
+
+err_get_sync:
+	pm_runtime_put_noidle(dev);
+	pm_runtime_disable(dev);
+	return ret;
 }
 
 /**
@@ -898,6 +945,8 @@ static int omap_dm_timer_remove(struct platform_device *pdev)
 			break;
 		}
 	spin_unlock_irqrestore(&dm_timer_lock, flags);
+
+	pm_runtime_disable(&pdev->dev);
 
 	return ret;
 }
@@ -928,6 +977,10 @@ static const struct of_device_id omap_timer_match[] = {
 	},
 	{
 		.compatible = "ti,am335x-timer-1ms",
+		.data = &omap3plus_pdata,
+	},
+	{
+		.compatible = "ti,dm816-timer",
 		.data = &omap3plus_pdata,
 	},
 	{},

@@ -13,10 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include "qt1010.h"
 #include "qt1010_priv.h"
@@ -294,7 +290,7 @@ static int qt1010_init(struct dvb_frontend *fe)
 	int err = 0;
 	u8 i, tmpval, *valptr = NULL;
 
-	qt1010_i2c_oper_t i2c_data[] = {
+	static const qt1010_i2c_oper_t i2c_data[] = {
 		{ QT1010_WR, 0x01, 0x80 },
 		{ QT1010_WR, 0x0d, 0x84 },
 		{ QT1010_WR, 0x0e, 0xb7 },
@@ -354,13 +350,17 @@ static int qt1010_init(struct dvb_frontend *fe)
 				valptr = &priv->reg1f_init_val;
 			else
 				valptr = &tmpval;
+
+			BUG_ON(i >= ARRAY_SIZE(i2c_data) - 1);
+
 			err = qt1010_init_meas1(priv, i2c_data[i+1].reg,
 						i2c_data[i].reg,
 						i2c_data[i].val, valptr);
 			i++;
 			break;
 		}
-		if (err) return err;
+		if (err)
+			return err;
 	}
 
 	for (i = 0x31; i < 0x3a; i++) /* 0x31 - 0x39 */
@@ -373,11 +373,10 @@ static int qt1010_init(struct dvb_frontend *fe)
 	return qt1010_set_params(fe);
 }
 
-static int qt1010_release(struct dvb_frontend *fe)
+static void qt1010_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int qt1010_get_frequency(struct dvb_frontend *fe, u32 *frequency)

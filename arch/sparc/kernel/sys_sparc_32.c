@@ -7,7 +7,9 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/debug.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -21,8 +23,10 @@
 #include <linux/smp.h>
 #include <linux/ipc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
+
+#include "systbls.h"
 
 /* #define DEBUG_UNIMP_SYSCALL */
 
@@ -68,7 +72,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-asmlinkage int sparc_pipe(struct pt_regs *regs)
+asmlinkage long sparc_pipe(struct pt_regs *regs)
 {
 	int fd[2];
 	int error;
@@ -93,7 +97,7 @@ int sparc_mmap_check(unsigned long addr, unsigned long len)
 
 /* Linux version of mmap */
 
-asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
+asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
 	unsigned long pgoff)
 {
@@ -103,7 +107,7 @@ asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 			      pgoff >> (PAGE_SHIFT - 12));
 }
 
-asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
+asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
 	unsigned long off)
 {
@@ -197,7 +201,7 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig,
 	return ret;
 }
 
-asmlinkage int sys_getdomainname(char __user *name, int len)
+asmlinkage long sys_getdomainname(char __user *name, int len)
 {
  	int nlen, err;
  	

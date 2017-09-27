@@ -47,8 +47,8 @@ consume far too much memory.
 Using this device-mapper switch target we can now build a two-layer
 device hierarchy:
 
-    Upper Tier – Determine which array member the I/O should be sent to.
-    Lower Tier – Load balance amongst paths to a particular member.
+    Upper Tier - Determine which array member the I/O should be sent to.
+    Lower Tier - Load balance amongst paths to a particular member.
 
 The lower tier consists of a single dm multipath device for each member.
 Each of these multipath devices contains the set of paths directly to
@@ -106,6 +106,11 @@ which paths.
     The path number in the range 0 ... (<num_paths> - 1).
     Expressed in hexadecimal (WITHOUT any prefix like 0x).
 
+R<n>,<m>
+    This parameter allows repetitive patterns to be loaded quickly. <n> and <m>
+    are hexadecimal numbers. The last <n> mappings are repeated in the next <m>
+    slots.
+
 Status
 ======
 
@@ -118,9 +123,16 @@ Assume that you have volumes vg1/switch0 vg1/switch1 vg1/switch2 with
 the same size.
 
 Create a switch device with 64kB region size:
-    dmsetup create switch --table "0 `blockdev --getsize /dev/vg1/switch0`
+    dmsetup create switch --table "0 `blockdev --getsz /dev/vg1/switch0`
 	switch 3 128 0 /dev/vg1/switch0 0 /dev/vg1/switch1 0 /dev/vg1/switch2 0"
 
 Set mappings for the first 7 entries to point to devices switch0, switch1,
 switch2, switch0, switch1, switch2, switch1:
     dmsetup message switch 0 set_region_mappings 0:0 :1 :2 :0 :1 :2 :1
+
+Set repetitive mapping. This command:
+    dmsetup message switch 0 set_region_mappings 1000:1 :2 R2,10
+is equivalent to:
+    dmsetup message switch 0 set_region_mappings 1000:1 :2 :1 :2 :1 :2 :1 :2 \
+	:1 :2 :1 :2 :1 :2 :1 :2 :1 :2
+

@@ -99,11 +99,11 @@ static int alloc_region_table(struct dm_target *ti, unsigned nr_paths)
 	if (sector_div(nr_regions, sctx->region_size))
 		nr_regions++;
 
-	sctx->nr_regions = nr_regions;
-	if (sctx->nr_regions != nr_regions || sctx->nr_regions >= ULONG_MAX) {
+	if (nr_regions >= ULONG_MAX) {
 		ti->error = "Region table too large";
 		return -EINVAL;
 	}
+	sctx->nr_regions = nr_regions;
 
 	nr_slots = nr_regions;
 	if (sector_div(nr_slots, sctx->region_entries_per_slot))
@@ -137,13 +137,23 @@ static void switch_get_position(struct switch_ctx *sctx, unsigned long region_nr
 	*bit *= sctx->region_table_entry_bits;
 }
 
+static unsigned switch_region_table_read(struct switch_ctx *sctx, unsigned long region_nr)
+{
+	unsigned long region_index;
+	unsigned bit;
+
+	switch_get_position(sctx, region_nr, &region_index, &bit);
+
+	return (ACCESS_ONCE(sctx->region_table[region_index]) >> bit) &
+		((1 << sctx->region_table_entry_bits) - 1);
+}
+
 /*
  * Find which path to use at given offset.
  */
 static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 {
-	unsigned long region_index;
-	unsigned bit, path_nr;
+	unsigned path_nr;
 	sector_t p;
 
 	p = offset;
@@ -152,9 +162,7 @@ static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 	else
 		sector_div(p, sctx->region_size);
 
-	switch_get_position(sctx, p, &region_index, &bit);
-	path_nr = (ACCESS_ONCE(sctx->region_table[region_index]) >> bit) &
-	       ((1 << sctx->region_table_entry_bits) - 1);
+	path_nr = switch_region_table_read(sctx, p);
 
 	/* This can only happen if the processor uses non-atomic stores. */
 	if (unlikely(path_nr >= sctx->nr_paths))
@@ -243,7 +251,7 @@ static void switch_dtr(struct dm_target *ti)
  */
 static int switch_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{1, (KMALLOC_MAX_SIZE - sizeof(struct switch_ctx)) / sizeof(struct switch_path), "Invalid number of paths"},
 		{1, UINT_MAX, "Invalid region size"},
 		{0, 0, "Invalid number of optional args"},
@@ -311,11 +319,11 @@ error:
 static int switch_map(struct dm_target *ti, struct bio *bio)
 {
 	struct switch_ctx *sctx = ti->private;
-	sector_t offset = dm_target_offset(ti, bio->bi_sector);
+	sector_t offset = dm_target_offset(ti, bio->bi_iter.bi_sector);
 	unsigned path_nr = switch_get_path_nr(sctx, offset);
 
-	bio->bi_bdev = sctx->path_list[path_nr].dmdev->bdev;
-	bio->bi_sector = sctx->path_list[path_nr].start + offset;
+	bio_set_dev(bio, sctx->path_list[path_nr].dmdev->bdev);
+	bio->bi_iter.bi_sector = sctx->path_list[path_nr].start + offset;
 
 	return DM_MAPIO_REMAPPED;
 }
@@ -363,7 +371,7 @@ static __always_inline unsigned long parse_hex(const char **string)
 }
 
 static int process_set_region_mappings(struct switch_ctx *sctx,
-			     unsigned argc, char **argv)
+				       unsigned argc, char **argv)
 {
 	unsigned i;
 	unsigned long region_index = 0;
@@ -371,6 +379,51 @@ static int process_set_region_mappings(struct switch_ctx *sctx,
 	for (i = 1; i < argc; i++) {
 		unsigned long path_nr;
 		const char *string = argv[i];
+
+		if ((*string & 0xdf) == 'R') {
+			unsigned long cycle_length, num_write;
+
+			string++;
+			if (unlikely(*string == ',')) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+			cycle_length = parse_hex(&string);
+			if (unlikely(*string != ',')) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+			string++;
+			if (unlikely(!*string)) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+			num_write = parse_hex(&string);
+			if (unlikely(*string)) {
+				DMWARN("invalid set_region_mappings argument: '%s'", argv[i]);
+				return -EINVAL;
+			}
+
+			if (unlikely(!cycle_length) || unlikely(cycle_length - 1 > region_index)) {
+				DMWARN("invalid set_region_mappings cycle length: %lu > %lu",
+				       cycle_length - 1, region_index);
+				return -EINVAL;
+			}
+			if (unlikely(region_index + num_write < region_index) ||
+			    unlikely(region_index + num_write >= sctx->nr_regions)) {
+				DMWARN("invalid set_region_mappings region number: %lu + %lu >= %lu",
+				       region_index, num_write, sctx->nr_regions);
+				return -EINVAL;
+			}
+
+			while (num_write--) {
+				region_index++;
+				path_nr = switch_region_table_read(sctx, region_index - cycle_length);
+				switch_region_table_write(sctx, region_index, path_nr);
+			}
+
+			continue;
+		}
 
 		if (*string == ':')
 			region_index++;
@@ -458,27 +511,24 @@ static void switch_status(struct dm_target *ti, status_type_t type,
  *
  * Passthrough all ioctls to the path for sector 0
  */
-static int switch_ioctl(struct dm_target *ti, unsigned cmd,
-			unsigned long arg)
+static int switch_prepare_ioctl(struct dm_target *ti,
+		struct block_device **bdev, fmode_t *mode)
 {
 	struct switch_ctx *sctx = ti->private;
-	struct block_device *bdev;
-	fmode_t mode;
 	unsigned path_nr;
-	int r = 0;
 
 	path_nr = switch_get_path_nr(sctx, 0);
 
-	bdev = sctx->path_list[path_nr].dmdev->bdev;
-	mode = sctx->path_list[path_nr].dmdev->mode;
+	*bdev = sctx->path_list[path_nr].dmdev->bdev;
+	*mode = sctx->path_list[path_nr].dmdev->mode;
 
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
-	if (ti->len + sctx->path_list[path_nr].start != i_size_read(bdev->bd_inode) >> SECTOR_SHIFT)
-		r = scsi_verify_blk_ioctl(NULL, cmd);
-
-	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	if (ti->len + sctx->path_list[path_nr].start !=
+	    i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+		return 1;
+	return 0;
 }
 
 static int switch_iterate_devices(struct dm_target *ti,
@@ -500,14 +550,14 @@ static int switch_iterate_devices(struct dm_target *ti,
 
 static struct target_type switch_target = {
 	.name = "switch",
-	.version = {1, 0, 0},
+	.version = {1, 1, 0},
 	.module = THIS_MODULE,
 	.ctr = switch_ctr,
 	.dtr = switch_dtr,
 	.map = switch_map,
 	.message = switch_message,
 	.status = switch_status,
-	.ioctl = switch_ioctl,
+	.prepare_ioctl = switch_prepare_ioctl,
 	.iterate_devices = switch_iterate_devices,
 };
 

@@ -7,6 +7,7 @@
 #include <linux/fault-inject.h>
 
 #include "blk.h"
+#include "blk-mq.h"
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
 
@@ -31,7 +32,7 @@ static int __init fail_io_timeout_debugfs(void)
 	struct dentry *dir = fault_create_debugfs_attr("fail_io_timeout",
 						NULL, &fail_io_timeout);
 
-	return IS_ERR(dir) ? PTR_ERR(dir) : 0;
+	return PTR_ERR_OR_ZERO(dir);
 }
 
 late_initcall(fail_io_timeout_debugfs);
@@ -91,8 +92,8 @@ static void blk_rq_timed_out(struct request *req)
 		__blk_complete_request(req);
 		break;
 	case BLK_EH_RESET_TIMER:
-		blk_clear_rq_complete(req);
 		blk_add_timer(req);
+		blk_clear_rq_complete(req);
 		break;
 	case BLK_EH_NOT_HANDLED:
 		/*
@@ -108,35 +109,43 @@ static void blk_rq_timed_out(struct request *req)
 	}
 }
 
-void blk_rq_timed_out_timer(unsigned long data)
+static void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
+			  unsigned int *next_set)
 {
-	struct request_queue *q = (struct request_queue *) data;
+	if (time_after_eq(jiffies, rq->deadline)) {
+		list_del_init(&rq->timeout_list);
+
+		/*
+		 * Check if we raced with end io completion
+		 */
+		if (!blk_mark_rq_complete(rq))
+			blk_rq_timed_out(rq);
+	} else if (!*next_set || time_after(*next_timeout, rq->deadline)) {
+		*next_timeout = rq->deadline;
+		*next_set = 1;
+	}
+}
+
+void blk_timeout_work(struct work_struct *work)
+{
+	struct request_queue *q =
+		container_of(work, struct request_queue, timeout_work);
 	unsigned long flags, next = 0;
 	struct request *rq, *tmp;
 	int next_set = 0;
 
+	if (blk_queue_enter(q, true))
+		return;
 	spin_lock_irqsave(q->queue_lock, flags);
 
-	list_for_each_entry_safe(rq, tmp, &q->timeout_list, timeout_list) {
-		if (time_after_eq(jiffies, rq->deadline)) {
-			list_del_init(&rq->timeout_list);
-
-			/*
-			 * Check if we raced with end io completion
-			 */
-			if (blk_mark_rq_complete(rq))
-				continue;
-			blk_rq_timed_out(rq);
-		} else if (!next_set || time_after(next, rq->deadline)) {
-			next = rq->deadline;
-			next_set = 1;
-		}
-	}
+	list_for_each_entry_safe(rq, tmp, &q->timeout_list, timeout_list)
+		blk_rq_check_expired(rq, &next, &next_set);
 
 	if (next_set)
 		mod_timer(&q->timeout, round_jiffies_up(next));
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
+	blk_queue_exit(q);
 }
 
 /**
@@ -152,10 +161,26 @@ void blk_abort_request(struct request *req)
 {
 	if (blk_mark_rq_complete(req))
 		return;
-	blk_delete_timer(req);
-	blk_rq_timed_out(req);
+
+	if (req->q->mq_ops) {
+		blk_mq_rq_timed_out(req, false);
+	} else {
+		blk_delete_timer(req);
+		blk_rq_timed_out(req);
+	}
 }
 EXPORT_SYMBOL_GPL(blk_abort_request);
+
+unsigned long blk_rq_timeout(unsigned long timeout)
+{
+	unsigned long maxt;
+
+	maxt = round_jiffies_up(jiffies + BLK_MAX_TIMEOUT);
+	if (time_after(timeout, maxt))
+		timeout = maxt;
+
+	return timeout;
+}
 
 /**
  * blk_add_timer - Start timeout timer for a single request
@@ -170,11 +195,14 @@ void blk_add_timer(struct request *req)
 	struct request_queue *q = req->q;
 	unsigned long expiry;
 
-	if (!q->rq_timed_out_fn)
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
+
+	/* blk-mq has its own handler, so we don't need ->rq_timed_out_fn */
+	if (!q->mq_ops && !q->rq_timed_out_fn)
 		return;
 
 	BUG_ON(!list_empty(&req->timeout_list));
-	BUG_ON(test_bit(REQ_ATOM_COMPLETE, &req->atomic_flags));
 
 	/*
 	 * Some LLDs, like scsi, peek at the timeout to prevent a
@@ -184,17 +212,34 @@ void blk_add_timer(struct request *req)
 		req->timeout = q->rq_timeout;
 
 	req->deadline = jiffies + req->timeout;
-	list_add_tail(&req->timeout_list, &q->timeout_list);
+
+	/*
+	 * Only the non-mq case needs to add the request to a protected list.
+	 * For the mq case we simply scan the tag map.
+	 */
+	if (!q->mq_ops)
+		list_add_tail(&req->timeout_list, &req->q->timeout_list);
 
 	/*
 	 * If the timer isn't already pending or this timeout is earlier
 	 * than an existing one, modify the timer. Round up to next nearest
 	 * second.
 	 */
-	expiry = round_jiffies_up(req->deadline);
+	expiry = blk_rq_timeout(round_jiffies_up(req->deadline));
 
 	if (!timer_pending(&q->timeout) ||
-	    time_before(expiry, q->timeout.expires))
-		mod_timer(&q->timeout, expiry);
-}
+	    time_before(expiry, q->timeout.expires)) {
+		unsigned long diff = q->timeout.expires - expiry;
 
+		/*
+		 * Due to added timer slack to group timers, the timer
+		 * will often be a little in front of what we asked for.
+		 * So apply some tolerance here too, otherwise we keep
+		 * modifying the timer because expires for value X
+		 * will be X + something.
+		 */
+		if (!timer_pending(&q->timeout) || (diff >= HZ / 2))
+			mod_timer(&q->timeout, expiry);
+	}
+
+}

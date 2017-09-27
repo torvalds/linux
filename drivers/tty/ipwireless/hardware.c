@@ -378,9 +378,9 @@ static void swap_packet_bitfield_to_le(unsigned char *data)
 	/*
 	 * transform bits from aa.bbb.ccc to ccc.bbb.aa
 	 */
-	ret |= tmp & 0xc0 >> 6;
-	ret |= tmp & 0x38 >> 1;
-	ret |= tmp & 0x07 << 5;
+	ret |= (tmp & 0xc0) >> 6;
+	ret |= (tmp & 0x38) >> 1;
+	ret |= (tmp & 0x07) << 5;
 	*data = ret & 0xff;
 #endif
 }
@@ -393,9 +393,9 @@ static void swap_packet_bitfield_from_le(unsigned char *data)
 	/*
 	 * transform bits from ccc.bbb.aa to aa.bbb.ccc
 	 */
-	ret |= tmp & 0xe0 >> 5;
-	ret |= tmp & 0x1c << 1;
-	ret |= tmp & 0x03 << 6;
+	ret |= (tmp & 0xe0) >> 5;
+	ret |= (tmp & 0x1c) << 1;
+	ret |= (tmp & 0x03) << 6;
 	*data = ret & 0xff;
 #endif
 }
@@ -1455,7 +1455,7 @@ static void __handle_setup_get_version_rsp(struct ipw_hardware *hw)
 			return;
 		}
 
-		set_RTS(hw, PRIO_SETUP, channel_idx,
+		ret = set_RTS(hw, PRIO_SETUP, channel_idx,
 			(hw->control_lines [channel_idx] &
 			 IPW_CONTROL_LINE_RTS) != 0);
 		if (ret) {
@@ -1572,6 +1572,11 @@ static void handle_received_SETUP_packet(struct ipw_hardware *hw,
 					sizeof(struct ipw_setup_reboot_msg_ack),
 					ADDR_SETUP_PROT, TL_PROTOCOLID_SETUP,
 					TL_SETUP_SIGNO_REBOOT_MSG_ACK);
+			if (!packet) {
+				pr_err(IPWIRELESS_PCCARD_NAME
+				       ": Not enough memory to send reboot packet");
+				break;
+			}
 			packet->header.length =
 				sizeof(struct TlSetupRebootMsgAck);
 			send_packet(hw, PRIO_SETUP, &packet->header);

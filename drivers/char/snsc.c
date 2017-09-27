@@ -16,10 +16,10 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/device.h>
 #include <linux/poll.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <asm/sn/io.h>
@@ -108,8 +108,7 @@ scdrv_open(struct inode *inode, struct file *file)
 	/* hook this subchannel up to the system controller interrupt */
 	mutex_lock(&scdrv_mutex);
 	rv = request_irq(SGI_UART_VECTOR, scdrv_interrupt,
-			 IRQF_SHARED | IRQF_DISABLED,
-			 SYSCTL_BASENAME, sd);
+			 IRQF_SHARED, SYSCTL_BASENAME, sd);
 	if (rv) {
 		ia64_sn_irtr_close(sd->sd_nasid, sd->sd_subch);
 		kfree(sd);
@@ -199,7 +198,7 @@ scdrv_read(struct file *file, char __user *buf, size_t count, loff_t *f_pos)
 		add_wait_queue(&sd->sd_rq, &wait);
 		spin_unlock_irqrestore(&sd->sd_rlock, flags);
 
-		schedule_timeout(SCDRV_TIMEOUT);
+		schedule_timeout(msecs_to_jiffies(SCDRV_TIMEOUT));
 
 		remove_wait_queue(&sd->sd_rq, &wait);
 		if (signal_pending(current)) {
@@ -286,7 +285,7 @@ scdrv_write(struct file *file, const char __user *buf,
 		DECLARE_WAITQUEUE(wait, current);
 
 		if (file->f_flags & O_NONBLOCK) {
-			spin_unlock(&sd->sd_wlock);
+			spin_unlock_irqrestore(&sd->sd_wlock, flags);
 			up(&sd->sd_wbs);
 			return -EAGAIN;
 		}
@@ -295,7 +294,7 @@ scdrv_write(struct file *file, const char __user *buf,
 		add_wait_queue(&sd->sd_wq, &wait);
 		spin_unlock_irqrestore(&sd->sd_wlock, flags);
 
-		schedule_timeout(SCDRV_TIMEOUT);
+		schedule_timeout(msecs_to_jiffies(SCDRV_TIMEOUT));
 
 		remove_wait_queue(&sd->sd_wq, &wait);
 		if (signal_pending(current)) {
@@ -386,13 +385,18 @@ scdrv_init(void)
 
 	event_nasid = ia64_sn_get_console_nasid();
 
+	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
+	if (IS_ERR(snsc_class)) {
+		printk("%s: failed to allocate class\n", __func__);
+		return PTR_ERR(snsc_class);
+	}
+
 	if (alloc_chrdev_region(&first_dev, 0, num_cnodes,
 				SYSCTL_BASENAME) < 0) {
 		printk("%s: failed to register SN system controller device\n",
 		       __func__);
 		return -ENODEV;
 	}
-	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
 
 	for (cnode = 0; cnode < num_cnodes; cnode++) {
 			geoid = cnodeid_get_geoid(cnode);
@@ -462,5 +466,4 @@ scdrv_init(void)
 	}
 	return 0;
 }
-
-module_init(scdrv_init);
+device_initcall(scdrv_init);

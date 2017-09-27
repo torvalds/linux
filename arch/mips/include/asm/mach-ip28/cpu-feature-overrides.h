@@ -9,11 +9,14 @@
 #ifndef __ASM_MACH_IP28_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_IP28_CPU_FEATURE_OVERRIDES_H
 
+#include <asm/cpu.h>
+
 /*
  * IP28 only comes with R10000 family processors all using the same config
  */
 #define cpu_has_watch		1
 #define cpu_has_mips16		0
+#define cpu_has_mips16e2	0
 #define cpu_has_divec		0
 #define cpu_has_vce		0
 #define cpu_has_cache_cdex_p	0

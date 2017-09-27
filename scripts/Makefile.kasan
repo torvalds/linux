@@ -1,0 +1,33 @@
+ifdef CONFIG_KASAN
+ifdef CONFIG_KASAN_INLINE
+	call_threshold := 10000
+else
+	call_threshold := 0
+endif
+
+KASAN_SHADOW_OFFSET ?= $(CONFIG_KASAN_SHADOW_OFFSET)
+
+CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-address
+
+CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-address \
+		-fasan-shadow-offset=$(KASAN_SHADOW_OFFSET) \
+		--param asan-stack=1 --param asan-globals=1 \
+		--param asan-instrumentation-with-call-threshold=$(call_threshold))
+
+ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
+   ifneq ($(CONFIG_COMPILE_TEST),y)
+        $(warning Cannot use CONFIG_KASAN: \
+            -fsanitize=kernel-address is not supported by compiler)
+   endif
+else
+    ifeq ($(CFLAGS_KASAN),)
+        ifneq ($(CONFIG_COMPILE_TEST),y)
+            $(warning CONFIG_KASAN: compiler does not support all options.\
+                Trying minimal configuration)
+        endif
+        CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
+    endif
+endif
+
+CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
+endif

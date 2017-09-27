@@ -341,7 +341,6 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, AK4535_PM1, 0x80, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -373,42 +372,9 @@ static struct snd_soc_dai_driver ak4535_dai = {
 	.ops = &ak4535_dai_ops,
 };
 
-static int ak4535_suspend(struct snd_soc_codec *codec)
-{
-	ak4535_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int ak4535_resume(struct snd_soc_codec *codec)
 {
 	snd_soc_cache_sync(codec);
-	ak4535_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
-static int ak4535_probe(struct snd_soc_codec *codec)
-{
-	struct ak4535_priv *ak4535 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = ak4535->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-	/* power on device */
-	ak4535_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	snd_soc_add_codec_controls(codec, ak4535_snd_controls,
-				ARRAY_SIZE(ak4535_snd_controls));
-	return 0;
-}
-
-/* power down chip */
-static int ak4535_remove(struct snd_soc_codec *codec)
-{
-	ak4535_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
@@ -424,16 +390,19 @@ static const struct regmap_config ak4535_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(ak4535_reg_defaults),
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
-	.probe =	ak4535_probe,
-	.remove =	ak4535_remove,
-	.suspend =	ak4535_suspend,
+static const struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
 	.resume =	ak4535_resume,
 	.set_bias_level = ak4535_set_bias_level,
-	.dapm_widgets = ak4535_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ak4535_dapm_widgets),
-	.dapm_routes = ak4535_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(ak4535_audio_map),
+	.suspend_bias_off = true,
+
+	.component_driver = {
+		.controls		= ak4535_snd_controls,
+		.num_controls		= ARRAY_SIZE(ak4535_snd_controls),
+		.dapm_widgets		= ak4535_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak4535_dapm_widgets),
+		.dapm_routes		= ak4535_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(ak4535_audio_map),
+	},
 };
 
 static int ak4535_i2c_probe(struct i2c_client *i2c,
@@ -477,7 +446,6 @@ MODULE_DEVICE_TABLE(i2c, ak4535_i2c_id);
 static struct i2c_driver ak4535_i2c_driver = {
 	.driver = {
 		.name = "ak4535",
-		.owner = THIS_MODULE,
 	},
 	.probe =    ak4535_i2c_probe,
 	.remove =   ak4535_i2c_remove,

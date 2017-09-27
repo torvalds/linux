@@ -57,13 +57,13 @@ MODULE_PARM_DESC(shpchp_poll_time, "Polling mechanism frequency, in seconds");
 
 #define SHPC_MODULE_NAME "shpchp"
 
-static int set_attention_status (struct hotplug_slot *slot, u8 value);
-static int enable_slot		(struct hotplug_slot *slot);
-static int disable_slot		(struct hotplug_slot *slot);
-static int get_power_status	(struct hotplug_slot *slot, u8 *value);
-static int get_attention_status	(struct hotplug_slot *slot, u8 *value);
-static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
-static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
+static int set_attention_status(struct hotplug_slot *slot, u8 value);
+static int enable_slot(struct hotplug_slot *slot);
+static int disable_slot(struct hotplug_slot *slot);
+static int get_power_status(struct hotplug_slot *slot, u8 *value);
+static int get_attention_status(struct hotplug_slot *slot, u8 *value);
+static int get_latch_status(struct hotplug_slot *slot, u8 *value);
+static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 
 static struct hotplug_slot_ops shpchp_hotplug_slot_ops = {
 	.set_attention_status =	set_attention_status,
@@ -143,11 +143,10 @@ static int init_slots(struct controller *ctrl)
 		snprintf(name, SLOT_NAME_SIZE, "%d", slot->number);
 		hotplug_slot->ops = &shpchp_hotplug_slot_ops;
 
- 		ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:%02x "
- 			 "hp_slot=%x sun=%x slot_device_offset=%x\n",
- 			 pci_domain_nr(ctrl->pci_dev->subordinate),
- 			 slot->bus, slot->device, slot->hp_slot, slot->number,
- 			 ctrl->slot_device_offset);
+		ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:%02x hp_slot=%x sun=%x slot_device_offset=%x\n",
+			 pci_domain_nr(ctrl->pci_dev->subordinate),
+			 slot->bus, slot->device, slot->hp_slot, slot->number,
+			 ctrl->slot_device_offset);
 		retval = pci_hp_register(slot->hotplug_slot,
 				ctrl->pci_dev->subordinate, slot->device, name);
 		if (retval) {
@@ -179,12 +178,9 @@ error:
 
 void cleanup_slots(struct controller *ctrl)
 {
-	struct list_head *tmp;
-	struct list_head *next;
-	struct slot *slot;
+	struct slot *slot, *next;
 
-	list_for_each_safe(tmp, next, &ctrl->slot_list) {
-		slot = list_entry(tmp, struct slot, slot_list);
+	list_for_each_entry_safe(slot, next, &ctrl->slot_list, slot_list) {
 		list_del(&slot->slot_list);
 		cancel_delayed_work(&slot->work);
 		destroy_workqueue(slot->wq);
@@ -195,7 +191,7 @@ void cleanup_slots(struct controller *ctrl)
 /*
  * set_attention_status - Turns the Amber LED for a slot on, off or blink
  */
-static int set_attention_status (struct hotplug_slot *hotplug_slot, u8 status)
+static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 {
 	struct slot *slot = get_slot(hotplug_slot);
 
@@ -208,7 +204,7 @@ static int set_attention_status (struct hotplug_slot *hotplug_slot, u8 status)
 	return 0;
 }
 
-static int enable_slot (struct hotplug_slot *hotplug_slot)
+static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = get_slot(hotplug_slot);
 
@@ -218,7 +214,7 @@ static int enable_slot (struct hotplug_slot *hotplug_slot)
 	return shpchp_sysfs_enable_slot(slot);
 }
 
-static int disable_slot (struct hotplug_slot *hotplug_slot)
+static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = get_slot(hotplug_slot);
 
@@ -228,7 +224,7 @@ static int disable_slot (struct hotplug_slot *hotplug_slot)
 	return shpchp_sysfs_disable_slot(slot);
 }
 
-static int get_power_status (struct hotplug_slot *hotplug_slot, u8 *value)
+static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = get_slot(hotplug_slot);
 	int retval;
@@ -243,7 +239,7 @@ static int get_power_status (struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-static int get_attention_status (struct hotplug_slot *hotplug_slot, u8 *value)
+static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = get_slot(hotplug_slot);
 	int retval;
@@ -258,7 +254,7 @@ static int get_attention_status (struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-static int get_latch_status (struct hotplug_slot *hotplug_slot, u8 *value)
+static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = get_slot(hotplug_slot);
 	int retval;
@@ -273,7 +269,7 @@ static int get_latch_status (struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-static int get_adapter_status (struct hotplug_slot *hotplug_slot, u8 *value)
+static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = get_slot(hotplug_slot);
 	int retval;
@@ -355,7 +351,7 @@ static void shpc_remove(struct pci_dev *dev)
 	kfree(ctrl);
 }
 
-static struct pci_device_id shpcd_pci_tbl[] = {
+static const struct pci_device_id shpcd_pci_tbl[] = {
 	{PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0)},
 	{ /* end: all zeroes */ }
 };

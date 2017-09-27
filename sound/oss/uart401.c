@@ -30,7 +30,7 @@
 
 #include "mpu401.h"
 
-typedef struct uart401_devc
+struct uart401_devc
 {
 	int             base;
 	int             irq;
@@ -41,14 +41,13 @@ typedef struct uart401_devc
 	int             my_dev;
 	int             share_irq;
 	spinlock_t	lock;
-}
-uart401_devc;
+};
 
 #define	DATAPORT   (devc->base)
 #define	COMDPORT   (devc->base+1)
 #define	STATPORT   (devc->base+1)
 
-static int uart401_status(uart401_devc * devc)
+static int uart401_status(struct uart401_devc *devc)
 {
 	return inb(STATPORT);
 }
@@ -56,17 +55,17 @@ static int uart401_status(uart401_devc * devc)
 #define input_avail(devc) (!(uart401_status(devc)&INPUT_AVAIL))
 #define output_ready(devc)	(!(uart401_status(devc)&OUTPUT_READY))
 
-static void uart401_cmd(uart401_devc * devc, unsigned char cmd)
+static void uart401_cmd(struct uart401_devc *devc, unsigned char cmd)
 {
 	outb((cmd), COMDPORT);
 }
 
-static int uart401_read(uart401_devc * devc)
+static int uart401_read(struct uart401_devc *devc)
 {
 	return inb(DATAPORT);
 }
 
-static void uart401_write(uart401_devc * devc, unsigned char byte)
+static void uart401_write(struct uart401_devc *devc, unsigned char byte)
 {
 	outb((byte), DATAPORT);
 }
@@ -77,10 +76,10 @@ static void uart401_write(uart401_devc * devc, unsigned char byte)
 #define	MPU_RESET	0xFF
 #define	UART_MODE_ON	0x3F
 
-static int      reset_uart401(uart401_devc * devc);
-static void     enter_uart_mode(uart401_devc * devc);
+static int      reset_uart401(struct uart401_devc *devc);
+static void     enter_uart_mode(struct uart401_devc *devc);
 
-static void uart401_input_loop(uart401_devc * devc)
+static void uart401_input_loop(struct uart401_devc *devc)
 {
 	int work_limit=30000;
 	
@@ -99,7 +98,7 @@ static void uart401_input_loop(uart401_devc * devc)
 
 irqreturn_t uart401intr(int irq, void *dev_id)
 {
-	uart401_devc *devc = dev_id;
+	struct uart401_devc *devc = dev_id;
 
 	if (devc == NULL)
 	{
@@ -118,7 +117,8 @@ uart401_open(int dev, int mode,
 	     void            (*output) (int dev)
 )
 {
-	uart401_devc *devc = (uart401_devc *) midi_devs[dev]->devc;
+	struct uart401_devc *devc = (struct uart401_devc *)
+				    midi_devs[dev]->devc;
 
 	if (devc->opened)
 		return -EBUSY;
@@ -138,7 +138,8 @@ uart401_open(int dev, int mode,
 
 static void uart401_close(int dev)
 {
-	uart401_devc *devc = (uart401_devc *) midi_devs[dev]->devc;
+	struct uart401_devc *devc = (struct uart401_devc *)
+				    midi_devs[dev]->devc;
 
 	reset_uart401(devc);
 	devc->opened = 0;
@@ -148,7 +149,8 @@ static int uart401_out(int dev, unsigned char midi_byte)
 {
 	int timeout;
 	unsigned long flags;
-	uart401_devc *devc = (uart401_devc *) midi_devs[dev]->devc;
+	struct uart401_devc *devc = (struct uart401_devc *)
+				    midi_devs[dev]->devc;
 
 	if (devc->disabled)
 		return 1;
@@ -219,7 +221,7 @@ static const struct midi_operations uart401_operations =
 	.buffer_status	= uart401_buffer_status,
 };
 
-static void enter_uart_mode(uart401_devc * devc)
+static void enter_uart_mode(struct uart401_devc *devc)
 {
 	int ok, timeout;
 	unsigned long flags;
@@ -241,7 +243,7 @@ static void enter_uart_mode(uart401_devc * devc)
 	spin_unlock_irqrestore(&devc->lock,flags);
 }
 
-static int reset_uart401(uart401_devc * devc)
+static int reset_uart401(struct uart401_devc *devc)
 {
 	int ok, timeout, n;
 
@@ -274,25 +276,18 @@ static int reset_uart401(uart401_devc * devc)
 		}
 	}
 
-
+	/* Flush input before enabling interrupts */
 	if (ok)
-	{
-		DEB(printk("Reset UART401 OK\n"));
-	}
+		uart401_input_loop(devc);
 	else
 		DDB(printk("Reset UART401 failed - No hardware detected.\n"));
-
-	if (ok)
-		uart401_input_loop(devc);	/*
-						 * Flush input before enabling interrupts
-						 */
 
 	return ok;
 }
 
 int probe_uart401(struct address_info *hw_config, struct module *owner)
 {
-	uart401_devc *devc;
+	struct uart401_devc *devc;
 	char *name = "MPU-401 (UART) MIDI";
 	int ok = 0;
 	unsigned long flags;
@@ -307,7 +302,7 @@ int probe_uart401(struct address_info *hw_config, struct module *owner)
 		return 0;
 	}
 
-	devc = kmalloc(sizeof(uart401_devc), GFP_KERNEL);
+	devc = kmalloc(sizeof(struct uart401_devc), GFP_KERNEL);
 	if (!devc) {
 		printk(KERN_WARNING "uart401: Can't allocate memory\n");
 		goto cleanup_region;
@@ -399,7 +394,7 @@ cleanup_region:
 
 void unload_uart401(struct address_info *hw_config)
 {
-	uart401_devc *devc;
+	struct uart401_devc *devc;
 	int n=hw_config->slots[4];
 	
 	/* Not set up */
@@ -417,13 +412,10 @@ void unload_uart401(struct address_info *hw_config)
 
 	if (!devc->share_irq)
 		free_irq(devc->irq, devc);
-	if (devc)
-	{
-		kfree(midi_devs[devc->my_dev]->converter);
-		kfree(midi_devs[devc->my_dev]);
-		kfree(devc);
-		devc = NULL;
-	}
+	kfree(midi_devs[devc->my_dev]->converter);
+	kfree(midi_devs[devc->my_dev]);
+	kfree(devc);
+
 	/* This kills midi_devs[x] */
 	sound_unload_mididev(hw_config->slots[4]);
 }
@@ -437,8 +429,8 @@ static struct address_info cfg_mpu;
 static int io = -1;
 static int irq = -1;
 
-module_param(io, int, 0444);
-module_param(irq, int, 0444);
+module_param_hw(io, int, ioport, 0444);
+module_param_hw(irq, int, irq, 0444);
 
 
 static int __init init_uart401(void)

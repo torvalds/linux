@@ -20,8 +20,8 @@ struct nf_conntrack_l3proto {
 	/* L3 Protocol Family number. ex) PF_INET */
 	u_int16_t l3proto;
 
-	/* Protocol name */
-	const char *name;
+	/* size of tuple nlattr, fills a hole */
+	u16 nla_size;
 
 	/*
 	 * Try to fill in the third arg: nhoff is offset of l3 proto
@@ -37,10 +37,6 @@ struct nf_conntrack_l3proto {
 	bool (*invert_tuple)(struct nf_conntrack_tuple *inverse,
 			     const struct nf_conntrack_tuple *orig);
 
-	/* Print out the per-protocol part of the tuple. */
-	int (*print_tuple)(struct seq_file *s,
-			   const struct nf_conntrack_tuple *);
-
 	/*
 	 * Called before tracking. 
 	 *	*dataoff: offset of protocol header (TCP, UDP,...) in skb
@@ -49,45 +45,29 @@ struct nf_conntrack_l3proto {
 	int (*get_l4proto)(const struct sk_buff *skb, unsigned int nhoff,
 			   unsigned int *dataoff, u_int8_t *protonum);
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
-
-	/*
-	 * Calculate size of tuple nlattr
-	 */
-	int (*nlattr_tuple_size)(void);
-
 	int (*nlattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
 	const struct nla_policy *nla_policy;
+#endif
 
-	size_t nla_size;
-
-#ifdef CONFIG_SYSCTL
-	const char		*ctl_table_path;
-#endif /* CONFIG_SYSCTL */
-
-	/* Init l3proto pernet data */
-	int (*init_net)(struct net *net);
+	/* Called when netns wants to use connection tracking */
+	int (*net_ns_get)(struct net *);
+	void (*net_ns_put)(struct net *);
 
 	/* Module (if any) which this is connected to. */
 	struct module *me;
 };
 
-extern struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[AF_MAX];
-
-/* Protocol pernet registration. */
-extern int nf_ct_l3proto_pernet_register(struct net *net,
-					 struct nf_conntrack_l3proto *proto);
-extern void nf_ct_l3proto_pernet_unregister(struct net *net,
-					    struct nf_conntrack_l3proto *proto);
+extern struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[NFPROTO_NUMPROTO];
 
 /* Protocol global registration. */
-extern int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto);
-extern void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto);
+int nf_ct_l3proto_register(const struct nf_conntrack_l3proto *proto);
+void nf_ct_l3proto_unregister(const struct nf_conntrack_l3proto *proto);
 
-extern struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
-extern void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p);
+const struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
 
 /* Existing built-in protocols */
 extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;
@@ -95,7 +75,7 @@ extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;
 static inline struct nf_conntrack_l3proto *
 __nf_ct_l3proto_find(u_int16_t l3proto)
 {
-	if (unlikely(l3proto >= AF_MAX))
+	if (unlikely(l3proto >= NFPROTO_NUMPROTO))
 		return &nf_conntrack_l3proto_generic;
 	return rcu_dereference(nf_ct_l3protos[l3proto]);
 }

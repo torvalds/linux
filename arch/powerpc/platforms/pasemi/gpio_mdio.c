@@ -30,6 +30,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/phy.h>
+#include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 
@@ -40,7 +41,6 @@ static void __iomem *gpio_regs;
 struct gpio_priv {
 	int mdc_pin;
 	int mdio_pin;
-	int mdio_irqs[PHY_MAX_ADDR];
 };
 
 #define MDC_PIN(bus)	(((struct gpio_priv *)bus->priv)->mdc_pin)
@@ -244,8 +244,6 @@ static int gpio_mdio_probe(struct platform_device *ofdev)
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", *prop);
 	new_bus->priv = priv;
 
-	new_bus->irq = priv->mdio_irqs;
-
 	prop = of_get_property(np, "mdc-pin", NULL);
 	priv->mdc_pin = *prop;
 
@@ -289,7 +287,7 @@ static int gpio_mdio_remove(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_device_id gpio_mdio_match[] =
+static const struct of_device_id gpio_mdio_match[] =
 {
 	{
 		.compatible      = "gpio-mdio",
@@ -304,12 +302,11 @@ static struct platform_driver gpio_mdio_driver =
 	.remove		= gpio_mdio_remove,
 	.driver = {
 		.name = "gpio-mdio-bitbang",
-		.owner = THIS_MODULE,
 		.of_match_table = gpio_mdio_match,
 	},
 };
 
-int gpio_mdio_init(void)
+static int gpio_mdio_init(void)
 {
 	struct device_node *np;
 
@@ -329,7 +326,7 @@ int gpio_mdio_init(void)
 }
 module_init(gpio_mdio_init);
 
-void gpio_mdio_exit(void)
+static void gpio_mdio_exit(void)
 {
 	platform_driver_unregister(&gpio_mdio_driver);
 	if (gpio_regs)

@@ -104,7 +104,6 @@ static void mptfc_remove(struct pci_dev *pdev);
 static int mptfc_abort(struct scsi_cmnd *SCpnt);
 static int mptfc_dev_reset(struct scsi_cmnd *SCpnt);
 static int mptfc_bus_reset(struct scsi_cmnd *SCpnt);
-static int mptfc_host_reset(struct scsi_cmnd *SCpnt);
 
 static struct scsi_host_template mptfc_driver_template = {
 	.module				= THIS_MODULE,
@@ -119,10 +118,11 @@ static struct scsi_host_template mptfc_driver_template = {
 	.target_destroy			= mptfc_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
+	.eh_timed_out			= fc_eh_timed_out,
 	.eh_abort_handler		= mptfc_abort,
 	.eh_device_reset_handler	= mptfc_dev_reset,
 	.eh_bus_reset_handler		= mptfc_bus_reset,
-	.eh_host_reset_handler		= mptfc_host_reset,
+	.eh_host_reset_handler		= mptscsih_host_reset,
 	.bios_param			= mptscsih_bios_param,
 	.can_queue			= MPT_FC_CAN_QUEUE,
 	.this_id			= -1,
@@ -204,7 +204,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	 || (loops > 0 && ioc->active == 0)) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
-			"mptfc_block_error_handler.%d: %d:%d, port status is "
+			"mptfc_block_error_handler.%d: %d:%llu, port status is "
 			"%x, active flag %d, deferring %s recovery.\n",
 			ioc->name, ioc->sh->host_no,
 			SCpnt->device->id, SCpnt->device->lun,
@@ -218,7 +218,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata
 	 || ioc->active == 0) {
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
-			"%s.%d: %d:%d, failing recovery, "
+			"%s.%d: %d:%llu, failing recovery, "
 			"port state %x, active %d, vdevice %p.\n", caller,
 			ioc->name, ioc->sh->host_no,
 			SCpnt->device->id, SCpnt->device->lun, ready,
@@ -226,7 +226,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 		return FAILED;
 	}
 	dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
-		"%s.%d: %d:%d, executing recovery.\n", caller,
+		"%s.%d: %d:%llu, executing recovery.\n", caller,
 		ioc->name, ioc->sh->host_no,
 		SCpnt->device->id, SCpnt->device->lun));
 	return (*func)(SCpnt);
@@ -251,13 +251,6 @@ mptfc_bus_reset(struct scsi_cmnd *SCpnt)
 {
 	return
 	    mptfc_block_error_handler(SCpnt, mptscsih_bus_reset, __func__);
-}
-
-static int
-mptfc_host_reset(struct scsi_cmnd *SCpnt)
-{
-	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_host_reset, __func__);
 }
 
 static void
@@ -525,8 +518,7 @@ mptfc_target_destroy(struct scsi_target *starget)
 		if (ri)	/* better be! */
 			ri->starget = NULL;
 	}
-	if (starget->hostdata)
-		kfree(starget->hostdata);
+	kfree(starget->hostdata);
 	starget->hostdata = NULL;
 }
 
@@ -649,7 +641,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 }
 
 static int
-mptfc_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 {
 	struct mptfc_rport_info	*ri;
 	struct fc_rport	*rport = starget_to_rport(scsi_target(SCpnt->device));
@@ -658,14 +650,14 @@ mptfc_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
 	err = fc_remote_port_chkready(rport);
 	if (unlikely(err)) {
 		SCpnt->result = err;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
@@ -673,14 +665,12 @@ mptfc_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	ri = *((struct mptfc_rport_info **)rport->dd_data);
 	if (unlikely(!ri)) {
 		SCpnt->result = DID_IMM_RETRY << 16;
-		done(SCpnt);
+		SCpnt->scsi_done(SCpnt);
 		return 0;
 	}
 
-	return mptscsih_qcmd(SCpnt,done);
+	return mptscsih_qcmd(SCpnt);
 }
-
-static DEF_SCSI_QCMD(mptfc_qcmd)
 
 /*
  *	mptfc_display_port_link_speed - displaying link speed
@@ -1327,9 +1317,12 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	snprintf(ioc->fc_rescan_work_q_name, sizeof(ioc->fc_rescan_work_q_name),
 		 "mptfc_wq_%d", sh->host_no);
 	ioc->fc_rescan_work_q =
-		create_singlethread_workqueue(ioc->fc_rescan_work_q_name);
-	if (!ioc->fc_rescan_work_q)
-		goto out_mptfc_probe;
+		alloc_ordered_workqueue(ioc->fc_rescan_work_q_name,
+					WQ_MEM_RECLAIM);
+	if (!ioc->fc_rescan_work_q) {
+		error = -ENOMEM;
+		goto out_mptfc_host;
+	}
 
 	/*
 	 *  Pre-fetch FC port WWN and stuff...
@@ -1349,6 +1342,9 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	flush_workqueue(ioc->fc_rescan_work_q);
 
 	return 0;
+
+out_mptfc_host:
+	scsi_remove_host(sh);
 
 out_mptfc_probe:
 
@@ -1528,6 +1524,8 @@ static void mptfc_remove(struct pci_dev *pdev)
 			ioc->fc_data.fc_port_page1[ii].data = NULL;
 		}
 	}
+
+	scsi_remove_host(ioc->sh);
 
 	mptscsih_remove(pdev);
 }

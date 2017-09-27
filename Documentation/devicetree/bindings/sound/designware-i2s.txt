@@ -1,0 +1,35 @@
+DesignWare I2S controller
+
+Required properties:
+ - compatible : Must be "snps,designware-i2s"
+ - reg : Must contain the I2S core's registers location and length
+ - clocks : Pairs of phandle and specifier referencing the controller's
+   clocks. The controller expects one clock: the clock used as the sampling
+   rate reference clock sample.
+ - clock-names : "i2sclk" for the sample rate reference clock.
+ - dmas: Pairs of phandle and specifier for the DMA channels that are used by
+   the core. The core expects one or two dma channels: one for transmit and
+   one for receive.
+ - dma-names : "tx" for the transmit channel, "rx" for the receive channel.
+
+Optional properties:
+ - interrupts: The interrupt line number for the I2S controller. Add this
+   parameter if the I2S controller that you are using does not support DMA.
+
+For more details on the 'dma', 'dma-names', 'clock' and 'clock-names'
+properties please check:
+	* resource-names.txt
+	* clock/clock-bindings.txt
+	* dma/dma.txt
+
+Example:
+
+	soc_i2s: i2s@7ff90000 {
+		compatible = "snps,designware-i2s";
+		reg = <0x0 0x7ff90000 0x0 0x1000>;
+		clocks = <&scpi_i2sclk 0>;
+		clock-names = "i2sclk";
+		#sound-dai-cells = <0>;
+		dmas = <&dma0 5>;
+		dma-names = "tx";
+	};

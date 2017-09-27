@@ -46,7 +46,7 @@ ENTRY(stext)
 	.arm
 ENTRY(stext)
 
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
+ THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
  THUMB(	.thumb			)	@ switch to Thumb now.
  THUMB(1:			)
@@ -68,7 +68,7 @@ ENTRY(stext)
 
 #ifdef CONFIG_ARM_MPU
 	/* Calculate the size of a region covering just the kernel */
-	ldr	r5, =PHYS_OFFSET		@ Region start: PHYS_OFFSET
+	ldr	r5, =PLAT_PHYS_OFFSET		@ Region start: PHYS_OFFSET
 	ldr     r6, =(_end)			@ Cover whole kernel
 	sub	r6, r6, r5			@ Minimum size of region to map
 	clz	r6, r6				@ Region size must be 2^N...
@@ -77,13 +77,13 @@ ENTRY(stext)
 	orr	r6, r6, #(1 << MPU_RSR_EN)	@ Set region enabled bit
 	bl	__setup_mpu
 #endif
-	ldr	r13, =__mmap_switched		@ address to jump to after
-						@ initialising sctlr
-	adr	lr, BSYM(1f)			@ return (PIC) address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
- 1:	b	__after_proc_init
+
+	badr	lr, 1f				@ return (PIC) address
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10
+	ret	r12
+1:	bl	__after_proc_init
+	b	__mmap_switched
 ENDPROC(stext)
 
 #ifdef CONFIG_SMP
@@ -106,8 +106,7 @@ ENTRY(secondary_startup)
 	movs	r10, r5				@ invalid processor?
 	beq	__error_p			@ yes, error 'p'
 
-	adr	r4, __secondary_data
-	ldmia	r4, {r7, r12}
+	ldr	r7, __secondary_data
 
 #ifdef CONFIG_ARM_MPU
 	/* Use MPU region info supplied by __cpu_up */
@@ -115,23 +114,19 @@ ENTRY(secondary_startup)
 	bl      __setup_mpu			@ Initialize the MPU
 #endif
 
-	adr	lr, BSYM(__after_proc_init)	@ return address
-	mov	r13, r12			@ __secondary_switched address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
-ENDPROC(secondary_startup)
-
-ENTRY(__secondary_switched)
-	ldr	sp, [r7, #8]			@ set up the stack pointer
+	badr	lr, 1f				@ return (PIC) address
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10
+	ret	r12
+1:	bl	__after_proc_init
+	ldr	sp, [r7, #12]			@ set up the stack pointer
 	mov	fp, #0
 	b	secondary_start_kernel
-ENDPROC(__secondary_switched)
+ENDPROC(secondary_startup)
 
 	.type	__secondary_data, %object
 __secondary_data:
 	.long	secondary_data
-	.long	__secondary_switched
 #endif /* CONFIG_SMP */
 
 /*
@@ -157,14 +152,23 @@ __after_proc_init:
 #ifdef CONFIG_CPU_ICACHE_DISABLE
 	bic	r0, r0, #CR_I
 #endif
-#ifdef CONFIG_CPU_HIGH_VECTOR
-	orr	r0, r0, #CR_V
-#else
-	bic	r0, r0, #CR_V
-#endif
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
-#endif /* CONFIG_CPU_CP15 */
-	mov	pc, r13
+#elif defined (CONFIG_CPU_V7M)
+	/* For V7M systems we want to modify the CCR similarly to the SCTLR */
+#ifdef CONFIG_CPU_DCACHE_DISABLE
+	bic	r0, r0, #V7M_SCB_CCR_DC
+#endif
+#ifdef CONFIG_CPU_BPREDICT_DISABLE
+	bic	r0, r0, #V7M_SCB_CCR_BP
+#endif
+#ifdef CONFIG_CPU_ICACHE_DISABLE
+	bic	r0, r0, #V7M_SCB_CCR_IC
+#endif
+	movw	r3, #:lower16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
+	movt	r3, #:upper16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
+	str	r0, [r3]
+#endif /* CONFIG_CPU_CP15 elif CONFIG_CPU_V7M */
+	ret	lr
 ENDPROC(__after_proc_init)
 	.ltorg
 
@@ -213,7 +217,7 @@ ENTRY(__setup_mpu)
 	set_region_nr r0, #MPU_RAM_REGION
 	isb
 	/* Full access from PL0, PL1, shared for CONFIG_SMP, cacheable */
-	ldr	r0, =PHYS_OFFSET		@ RAM starts at PHYS_OFFSET
+	ldr	r0, =PLAT_PHYS_OFFSET		@ RAM starts at PHYS_OFFSET
 	ldr	r5,=(MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL)
 
 	setup_region r0, r5, r6, MPU_DATA_SIDE	@ PHYS_OFFSET, shared, enabled
@@ -241,7 +245,7 @@ ENTRY(__setup_mpu)
 	mov	r0, #CONFIG_VECTORS_BASE	@ Cover from VECTORS_BASE
 	ldr	r5,=(MPU_AP_PL1RW_PL0NA | MPU_RGN_NORMAL)
 	/* Writing N to bits 5:1 (RSR_SZ) --> region size 2^N+1 */
-	mov	r6, #(((PAGE_SHIFT - 1) << MPU_RSR_SZ) | 1 << MPU_RSR_EN)
+	mov	r6, #(((2 * PAGE_SHIFT - 1) << MPU_RSR_SZ) | 1 << MPU_RSR_EN)
 
 	setup_region r0, r5, r6, MPU_DATA_SIDE	@ VECTORS_BASE, PL0 NA, enabled
 	beq	3f				@ Memory-map not unified
@@ -254,7 +258,7 @@ ENTRY(__setup_mpu)
 	orr	r0, r0, #CR_M			@ Set SCTRL.M (MPU on)
 	mcr	p15, 0, r0, c1, c0, 0		@ Enable MPU
 	isb
-	mov pc,lr
+	ret	lr
 ENDPROC(__setup_mpu)
 #endif
 #include "head-common.S"

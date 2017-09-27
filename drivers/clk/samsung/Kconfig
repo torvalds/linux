@@ -1,0 +1,42 @@
+# Recent Exynos platforms should just select COMMON_CLK_SAMSUNG:
+config COMMON_CLK_SAMSUNG
+	bool "Samsung Exynos clock controller support" if COMPILE_TEST
+	# Clocks on ARM64 SoCs (e.g. Exynos5433, Exynos7) are chosen by
+	# EXYNOS_ARM64_COMMON_CLK to avoid building them on ARMv7:
+	select EXYNOS_ARM64_COMMON_CLK if ARM64 && ARCH_EXYNOS
+
+config EXYNOS_ARM64_COMMON_CLK
+	bool "Samsung Exynos ARMv8-family clock controller support" if COMPILE_TEST
+	depends on COMMON_CLK_SAMSUNG
+
+config EXYNOS_AUDSS_CLK_CON
+	tristate "Samsung Exynos AUDSS clock controller support"
+	depends on COMMON_CLK_SAMSUNG
+	default y if ARCH_EXYNOS
+	help
+	  Support for the Audio Subsystem CLKCON clock controller present
+	  on some Exynos SoC variants. Choose M or Y here if you want to
+	  use audio devices such as I2S, PCM, etc.
+
+# For S3C24XX platforms, select following symbols:
+config S3C2410_COMMON_CLK
+	bool "Samsung S3C2410 clock controller support" if COMPILE_TEST
+	select COMMON_CLK_SAMSUNG
+	help
+	  Build the s3c2410 clock driver based on the common clock framework.
+
+config S3C2410_COMMON_DCLK
+	bool
+	select COMMON_CLK_SAMSUNG
+	select REGMAP_MMIO
+	help
+	  Temporary symbol to build the dclk driver based on the common clock
+	  framework.
+
+config S3C2412_COMMON_CLK
+	bool "Samsung S3C2412 clock controller support" if COMPILE_TEST
+	select COMMON_CLK_SAMSUNG
+
+config S3C2443_COMMON_CLK
+	bool "Samsung S3C2443 clock controller support" if COMPILE_TEST
+	select COMMON_CLK_SAMSUNG

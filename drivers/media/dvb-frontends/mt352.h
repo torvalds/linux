@@ -24,10 +24,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #ifndef MT352_H
@@ -51,7 +47,7 @@ struct mt352_config
 	int (*demod_init)(struct dvb_frontend* fe);
 };
 
-#if IS_ENABLED(CONFIG_DVB_MT352)
+#if IS_REACHABLE(CONFIG_DVB_MT352)
 extern struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 					 struct i2c_adapter* i2c);
 #else

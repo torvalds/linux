@@ -28,101 +28,19 @@
 #include <linux/hyperv.h>
 #include <linux/version.h>
 #include <linux/interrupt.h>
+#include <linux/clockchips.h>
 #include <asm/hyperv.h>
+#include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
 
 /* The one and only */
 struct hv_context hv_context = {
 	.synic_initialized	= false,
-	.hypercall_page		= NULL,
 };
 
-/*
- * query_hypervisor_info - Get version info of the windows hypervisor
- */
-unsigned int host_info_eax;
-unsigned int host_info_ebx;
-unsigned int host_info_ecx;
-unsigned int host_info_edx;
-
-static int query_hypervisor_info(void)
-{
-	unsigned int eax;
-	unsigned int ebx;
-	unsigned int ecx;
-	unsigned int edx;
-	unsigned int max_leaf;
-	unsigned int op;
-
-	/*
-	* Its assumed that this is called after confirming that Viridian
-	* is present. Query id and revision.
-	*/
-	eax = 0;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
-	op = HVCPUID_VENDOR_MAXFUNCTION;
-	cpuid(op, &eax, &ebx, &ecx, &edx);
-
-	max_leaf = eax;
-
-	if (max_leaf >= HVCPUID_VERSION) {
-		eax = 0;
-		ebx = 0;
-		ecx = 0;
-		edx = 0;
-		op = HVCPUID_VERSION;
-		cpuid(op, &eax, &ebx, &ecx, &edx);
-		host_info_eax = eax;
-		host_info_ebx = ebx;
-		host_info_ecx = ecx;
-		host_info_edx = edx;
-	}
-	return max_leaf;
-}
-
-/*
- * do_hypercall- Invoke the specified hypercall
- */
-static u64 do_hypercall(u64 control, void *input, void *output)
-{
-#ifdef CONFIG_X86_64
-	u64 hv_status = 0;
-	u64 input_address = (input) ? virt_to_phys(input) : 0;
-	u64 output_address = (output) ? virt_to_phys(output) : 0;
-	void *hypercall_page = hv_context.hypercall_page;
-
-	__asm__ __volatile__("mov %0, %%r8" : : "r" (output_address) : "r8");
-	__asm__ __volatile__("call *%3" : "=a" (hv_status) :
-			     "c" (control), "d" (input_address),
-			     "m" (hypercall_page));
-
-	return hv_status;
-
-#else
-
-	u32 control_hi = control >> 32;
-	u32 control_lo = control & 0xFFFFFFFF;
-	u32 hv_status_hi = 1;
-	u32 hv_status_lo = 1;
-	u64 input_address = (input) ? virt_to_phys(input) : 0;
-	u32 input_address_hi = input_address >> 32;
-	u32 input_address_lo = input_address & 0xFFFFFFFF;
-	u64 output_address = (output) ? virt_to_phys(output) : 0;
-	u32 output_address_hi = output_address >> 32;
-	u32 output_address_lo = output_address & 0xFFFFFFFF;
-	void *hypercall_page = hv_context.hypercall_page;
-
-	__asm__ __volatile__ ("call *%8" : "=d"(hv_status_hi),
-			      "=a"(hv_status_lo) : "d" (control_hi),
-			      "a" (control_lo), "b" (input_address_hi),
-			      "c" (input_address_lo), "D"(output_address_hi),
-			      "S"(output_address_lo), "m" (hypercall_page));
-
-	return hv_status_lo | ((u64)hv_status_hi << 32);
-#endif /* !x86_64 */
-}
+#define HV_TIMER_FREQUENCY (10 * 1000 * 1000) /* 100ns period */
+#define HV_MAX_MAX_DELTA_TICKS 0xffffffff
+#define HV_MIN_DELTA_TICKS 1
 
 /*
  * hv_init - Main initialization routine.
@@ -131,81 +49,14 @@ static u64 do_hypercall(u64 control, void *input, void *output)
  */
 int hv_init(void)
 {
-	int max_leaf;
-	union hv_x64_msr_hypercall_contents hypercall_msr;
-	void *virtaddr = NULL;
+	if (!hv_is_hypercall_page_setup())
+		return -ENOTSUPP;
 
-	memset(hv_context.synic_event_page, 0, sizeof(void *) * NR_CPUS);
-	memset(hv_context.synic_message_page, 0,
-	       sizeof(void *) * NR_CPUS);
-	memset(hv_context.vp_index, 0,
-	       sizeof(int) * NR_CPUS);
-	memset(hv_context.event_dpc, 0,
-	       sizeof(void *) * NR_CPUS);
-
-	max_leaf = query_hypervisor_info();
-
-	/*
-	 * Write our OS ID.
-	 */
-	hv_context.guestid = generate_guest_id(0, LINUX_VERSION_CODE, 0);
-	wrmsrl(HV_X64_MSR_GUEST_OS_ID, hv_context.guestid);
-
-	/* See if the hypercall page is already set */
-	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-
-	virtaddr = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_EXEC);
-
-	if (!virtaddr)
-		goto cleanup;
-
-	hypercall_msr.enable = 1;
-
-	hypercall_msr.guest_physical_address = vmalloc_to_pfn(virtaddr);
-	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-
-	/* Confirm that hypercall page did get setup. */
-	hypercall_msr.as_uint64 = 0;
-	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-
-	if (!hypercall_msr.enable)
-		goto cleanup;
-
-	hv_context.hypercall_page = virtaddr;
+	hv_context.cpu_context = alloc_percpu(struct hv_per_cpu_context);
+	if (!hv_context.cpu_context)
+		return -ENOMEM;
 
 	return 0;
-
-cleanup:
-	if (virtaddr) {
-		if (hypercall_msr.enable) {
-			hypercall_msr.as_uint64 = 0;
-			wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-		}
-
-		vfree(virtaddr);
-	}
-
-	return -ENOTSUPP;
-}
-
-/*
- * hv_cleanup - Cleanup routine.
- *
- * This routine is called normally during driver unloading or exiting.
- */
-void hv_cleanup(void)
-{
-	union hv_x64_msr_hypercall_contents hypercall_msr;
-
-	/* Reset our OS id */
-	wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
-
-	if (hv_context.hypercall_page) {
-		hypercall_msr.as_uint64 = 0;
-		wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-		vfree(hv_context.hypercall_page);
-		hv_context.hypercall_page = NULL;
-	}
 }
 
 /*
@@ -217,83 +68,130 @@ int hv_post_message(union hv_connection_id connection_id,
 		  enum hv_message_type message_type,
 		  void *payload, size_t payload_size)
 {
-	struct aligned_input {
-		u64 alignment8;
-		struct hv_input_post_message msg;
-	};
-
 	struct hv_input_post_message *aligned_msg;
-	u16 status;
-	unsigned long addr;
+	struct hv_per_cpu_context *hv_cpu;
+	u64 status;
 
 	if (payload_size > HV_MESSAGE_PAYLOAD_BYTE_COUNT)
 		return -EMSGSIZE;
 
-	addr = (unsigned long)kmalloc(sizeof(struct aligned_input), GFP_ATOMIC);
-	if (!addr)
-		return -ENOMEM;
-
-	aligned_msg = (struct hv_input_post_message *)
-			(ALIGN(addr, HV_HYPERCALL_PARAM_ALIGN));
-
+	hv_cpu = get_cpu_ptr(hv_context.cpu_context);
+	aligned_msg = hv_cpu->post_msg_page;
 	aligned_msg->connectionid = connection_id;
+	aligned_msg->reserved = 0;
 	aligned_msg->message_type = message_type;
 	aligned_msg->payload_size = payload_size;
 	memcpy((void *)aligned_msg->payload, payload, payload_size);
 
-	status = do_hypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL)
-		& 0xFFFF;
+	status = hv_do_hypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL);
 
-	kfree((void *)addr);
+	/* Preemption must remain disabled until after the hypercall
+	 * so some other thread can't get scheduled onto this cpu and
+	 * corrupt the per-cpu post_msg_page
+	 */
+	put_cpu_ptr(hv_cpu);
 
-	return status;
+	return status & 0xFFFF;
 }
 
-
-/*
- * hv_signal_event -
- * Signal an event on the specified connection using the hypervisor event IPC.
- *
- * This involves a hypercall.
- */
-u16 hv_signal_event(void *con_id)
+static int hv_ce_set_next_event(unsigned long delta,
+				struct clock_event_device *evt)
 {
-	u16 status;
+	u64 current_tick;
 
-	status = (do_hypercall(HVCALL_SIGNAL_EVENT, con_id, NULL) & 0xFFFF);
+	WARN_ON(!clockevent_state_oneshot(evt));
 
-	return status;
+	current_tick = hyperv_cs->read(NULL);
+	current_tick += delta;
+	hv_init_timer(HV_X64_MSR_STIMER0_COUNT, current_tick);
+	return 0;
+}
+
+static int hv_ce_shutdown(struct clock_event_device *evt)
+{
+	hv_init_timer(HV_X64_MSR_STIMER0_COUNT, 0);
+	hv_init_timer_config(HV_X64_MSR_STIMER0_CONFIG, 0);
+
+	return 0;
+}
+
+static int hv_ce_set_oneshot(struct clock_event_device *evt)
+{
+	union hv_timer_config timer_cfg;
+
+	timer_cfg.enable = 1;
+	timer_cfg.auto_enable = 1;
+	timer_cfg.sintx = VMBUS_MESSAGE_SINT;
+	hv_init_timer_config(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
+
+	return 0;
+}
+
+static void hv_init_clockevent_device(struct clock_event_device *dev, int cpu)
+{
+	dev->name = "Hyper-V clockevent";
+	dev->features = CLOCK_EVT_FEAT_ONESHOT;
+	dev->cpumask = cpumask_of(cpu);
+	dev->rating = 1000;
+	/*
+	 * Avoid settint dev->owner = THIS_MODULE deliberately as doing so will
+	 * result in clockevents_config_and_register() taking additional
+	 * references to the hv_vmbus module making it impossible to unload.
+	 */
+
+	dev->set_state_shutdown = hv_ce_shutdown;
+	dev->set_state_oneshot = hv_ce_set_oneshot;
+	dev->set_next_event = hv_ce_set_next_event;
 }
 
 
 int hv_synic_alloc(void)
 {
-	size_t size = sizeof(struct tasklet_struct);
 	int cpu;
 
-	for_each_online_cpu(cpu) {
-		hv_context.event_dpc[cpu] = kmalloc(size, GFP_ATOMIC);
-		if (hv_context.event_dpc[cpu] == NULL) {
-			pr_err("Unable to allocate event dpc\n");
+	hv_context.hv_numa_map = kzalloc(sizeof(struct cpumask) * nr_node_ids,
+					 GFP_ATOMIC);
+	if (hv_context.hv_numa_map == NULL) {
+		pr_err("Unable to allocate NUMA map\n");
+		goto err;
+	}
+
+	for_each_present_cpu(cpu) {
+		struct hv_per_cpu_context *hv_cpu
+			= per_cpu_ptr(hv_context.cpu_context, cpu);
+
+		memset(hv_cpu, 0, sizeof(*hv_cpu));
+		tasklet_init(&hv_cpu->msg_dpc,
+			     vmbus_on_msg_dpc, (unsigned long) hv_cpu);
+
+		hv_cpu->clk_evt = kzalloc(sizeof(struct clock_event_device),
+					  GFP_KERNEL);
+		if (hv_cpu->clk_evt == NULL) {
+			pr_err("Unable to allocate clock event device\n");
 			goto err;
 		}
-		tasklet_init(hv_context.event_dpc[cpu], vmbus_on_event, cpu);
+		hv_init_clockevent_device(hv_cpu->clk_evt, cpu);
 
-		hv_context.synic_message_page[cpu] =
+		hv_cpu->synic_message_page =
 			(void *)get_zeroed_page(GFP_ATOMIC);
-
-		if (hv_context.synic_message_page[cpu] == NULL) {
+		if (hv_cpu->synic_message_page == NULL) {
 			pr_err("Unable to allocate SYNIC message page\n");
 			goto err;
 		}
 
-		hv_context.synic_event_page[cpu] =
-			(void *)get_zeroed_page(GFP_ATOMIC);
-
-		if (hv_context.synic_event_page[cpu] == NULL) {
+		hv_cpu->synic_event_page = (void *)get_zeroed_page(GFP_ATOMIC);
+		if (hv_cpu->synic_event_page == NULL) {
 			pr_err("Unable to allocate SYNIC event page\n");
 			goto err;
 		}
+
+		hv_cpu->post_msg_page = (void *)get_zeroed_page(GFP_ATOMIC);
+		if (hv_cpu->post_msg_page == NULL) {
+			pr_err("Unable to allocate post msg page\n");
+			goto err;
+		}
+
+		INIT_LIST_HEAD(&hv_cpu->chan_list);
 	}
 
 	return 0;
@@ -301,21 +199,24 @@ err:
 	return -ENOMEM;
 }
 
-void hv_synic_free_cpu(int cpu)
-{
-	kfree(hv_context.event_dpc[cpu]);
-	if (hv_context.synic_message_page[cpu])
-		free_page((unsigned long)hv_context.synic_event_page[cpu]);
-	if (hv_context.synic_message_page[cpu])
-		free_page((unsigned long)hv_context.synic_message_page[cpu]);
-}
 
 void hv_synic_free(void)
 {
 	int cpu;
 
-	for_each_online_cpu(cpu)
-		hv_synic_free_cpu(cpu);
+	for_each_present_cpu(cpu) {
+		struct hv_per_cpu_context *hv_cpu
+			= per_cpu_ptr(hv_context.cpu_context, cpu);
+
+		if (hv_cpu->synic_event_page)
+			free_page((unsigned long)hv_cpu->synic_event_page);
+		if (hv_cpu->synic_message_page)
+			free_page((unsigned long)hv_cpu->synic_message_page);
+		if (hv_cpu->post_msg_page)
+			free_page((unsigned long)hv_cpu->post_msg_page);
+	}
+
+	kfree(hv_context.hv_numa_map);
 }
 
 /*
@@ -325,100 +226,163 @@ void hv_synic_free(void)
  * retrieve the initialized message and event pages.  Otherwise, we create and
  * initialize the message and event pages.
  */
-void hv_synic_init(void *arg)
+int hv_synic_init(unsigned int cpu)
 {
-	u64 version;
+	struct hv_per_cpu_context *hv_cpu
+		= per_cpu_ptr(hv_context.cpu_context, cpu);
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
 	union hv_synic_sint shared_sint;
 	union hv_synic_scontrol sctrl;
-	u64 vp_index;
-
-	int cpu = smp_processor_id();
-
-	if (!hv_context.hypercall_page)
-		return;
-
-	/* Check the version */
-	rdmsrl(HV_X64_MSR_SVERSION, version);
 
 	/* Setup the Synic's message page */
-	rdmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_get_simp(simp.as_uint64);
 	simp.simp_enabled = 1;
-	simp.base_simp_gpa = virt_to_phys(hv_context.synic_message_page[cpu])
+	simp.base_simp_gpa = virt_to_phys(hv_cpu->synic_message_page)
 		>> PAGE_SHIFT;
 
-	wrmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_set_simp(simp.as_uint64);
 
 	/* Setup the Synic's event page */
-	rdmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
+	hv_get_siefp(siefp.as_uint64);
 	siefp.siefp_enabled = 1;
-	siefp.base_siefp_gpa = virt_to_phys(hv_context.synic_event_page[cpu])
+	siefp.base_siefp_gpa = virt_to_phys(hv_cpu->synic_event_page)
 		>> PAGE_SHIFT;
 
-	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
+	hv_set_siefp(siefp.as_uint64);
 
 	/* Setup the shared SINT. */
-	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	hv_get_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
 	shared_sint.as_uint64 = 0;
 	shared_sint.vector = HYPERVISOR_CALLBACK_VECTOR;
 	shared_sint.masked = false;
-	shared_sint.auto_eoi = true;
+	if (ms_hyperv.hints & HV_X64_DEPRECATING_AEOI_RECOMMENDED)
+		shared_sint.auto_eoi = false;
+	else
+		shared_sint.auto_eoi = true;
 
-	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	hv_set_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
 	/* Enable the global synic bit */
-	rdmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
+	hv_get_synic_state(sctrl.as_uint64);
 	sctrl.enable = 1;
 
-	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
+	hv_set_synic_state(sctrl.as_uint64);
 
 	hv_context.synic_initialized = true;
 
 	/*
-	 * Setup the mapping between Hyper-V's notion
-	 * of cpuid and Linux' notion of cpuid.
-	 * This array will be indexed using Linux cpuid.
+	 * Register the per-cpu clockevent source.
 	 */
-	rdmsrl(HV_X64_MSR_VP_INDEX, vp_index);
-	hv_context.vp_index[cpu] = (u32)vp_index;
-	return;
+	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE)
+		clockevents_config_and_register(hv_cpu->clk_evt,
+						HV_TIMER_FREQUENCY,
+						HV_MIN_DELTA_TICKS,
+						HV_MAX_MAX_DELTA_TICKS);
+	return 0;
+}
+
+/*
+ * hv_synic_clockevents_cleanup - Cleanup clockevent devices
+ */
+void hv_synic_clockevents_cleanup(void)
+{
+	int cpu;
+
+	if (!(ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE))
+		return;
+
+	for_each_present_cpu(cpu) {
+		struct hv_per_cpu_context *hv_cpu
+			= per_cpu_ptr(hv_context.cpu_context, cpu);
+
+		clockevents_unbind_device(hv_cpu->clk_evt, cpu);
+	}
 }
 
 /*
  * hv_synic_cleanup - Cleanup routine for hv_synic_init().
  */
-void hv_synic_cleanup(void *arg)
+int hv_synic_cleanup(unsigned int cpu)
 {
 	union hv_synic_sint shared_sint;
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
-	int cpu = smp_processor_id();
+	union hv_synic_scontrol sctrl;
+	struct vmbus_channel *channel, *sc;
+	bool channel_found = false;
+	unsigned long flags;
 
 	if (!hv_context.synic_initialized)
-		return;
+		return -EFAULT;
 
-	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	/*
+	 * Search for channels which are bound to the CPU we're about to
+	 * cleanup. In case we find one and vmbus is still connected we need to
+	 * fail, this will effectively prevent CPU offlining. There is no way
+	 * we can re-bind channels to different CPUs for now.
+	 */
+	mutex_lock(&vmbus_connection.channel_mutex);
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		if (channel->target_cpu == cpu) {
+			channel_found = true;
+			break;
+		}
+		spin_lock_irqsave(&channel->lock, flags);
+		list_for_each_entry(sc, &channel->sc_list, sc_list) {
+			if (sc->target_cpu == cpu) {
+				channel_found = true;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&channel->lock, flags);
+		if (channel_found)
+			break;
+	}
+	mutex_unlock(&vmbus_connection.channel_mutex);
+
+	if (channel_found && vmbus_connection.conn_state == CONNECTED)
+		return -EBUSY;
+
+	/* Turn off clockevent device */
+	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE) {
+		struct hv_per_cpu_context *hv_cpu
+			= this_cpu_ptr(hv_context.cpu_context);
+
+		clockevents_unbind_device(hv_cpu->clk_evt, cpu);
+		hv_ce_shutdown(hv_cpu->clk_evt);
+		put_cpu_ptr(hv_cpu);
+	}
+
+	hv_get_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
 	shared_sint.masked = 1;
 
 	/* Need to correctly cleanup in the case of SMP!!! */
 	/* Disable the interrupt */
-	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	hv_set_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
-	rdmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_get_simp(simp.as_uint64);
 	simp.simp_enabled = 0;
 	simp.base_simp_gpa = 0;
 
-	wrmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_set_simp(simp.as_uint64);
 
-	rdmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
+	hv_get_siefp(siefp.as_uint64);
 	siefp.siefp_enabled = 0;
 	siefp.base_siefp_gpa = 0;
 
-	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
+	hv_set_siefp(siefp.as_uint64);
 
-	free_page((unsigned long)hv_context.synic_message_page[cpu]);
-	free_page((unsigned long)hv_context.synic_event_page[cpu]);
+	/* Disable the global synic bit */
+	hv_get_synic_state(sctrl.as_uint64);
+	sctrl.enable = 0;
+	hv_set_synic_state(sctrl.as_uint64);
+
+	return 0;
 }

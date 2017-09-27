@@ -46,7 +46,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/kernel.h>
@@ -61,6 +60,7 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include <linux/freezer.h>
+#include <linux/kmod.h>
 #include <linux/kthread.h>
 
 #include <asm/page.h>
@@ -98,6 +98,7 @@ static struct completion unload_sem;
  */
 static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 {
+	static char const sbin_pnpbios[] = "/sbin/pnpbios";
 	char *argv[3], **envp, *buf, *scratch;
 	int i = 0, value;
 
@@ -112,7 +113,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	 * integrated into the driver core and use the usual infrastructure
 	 * like sysfs and uevents
 	 */
-	argv[0] = "/sbin/pnpbios";
+	argv[0] = (char *)sbin_pnpbios;
 	argv[1] = "dock";
 	argv[2] = NULL;
 
@@ -139,7 +140,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 			   info->location_id, info->serial, info->capabilities);
 	envp[i] = NULL;
 
-	value = call_usermodehelper(argv [0], argv, envp, UMH_WAIT_EXEC);
+	value = call_usermodehelper(sbin_pnpbios, argv, envp, UMH_WAIT_EXEC);
 	kfree(buf);
 	kfree(envp);
 	return 0;
@@ -181,7 +182,8 @@ static int pnp_dock_thread(void *unused)
 			break;
 		default:
 			pnpbios_print_status("pnp_dock_thread", status);
-			continue;
+			printk(KERN_WARNING "PnPBIOS: disabling dock monitoring.\n");
+			complete_and_exit(&unload_sem, 0);
 		}
 		if (d != docked) {
 			if (pnp_dock_event(d, &now) == 0) {
@@ -312,18 +314,19 @@ static int __init insert_device(struct pnp_bios_node *node)
 	struct list_head *pos;
 	struct pnp_dev *dev;
 	char id[8];
+	int error;
 
 	/* check if the device is already added */
 	list_for_each(pos, &pnpbios_protocol.devices) {
 		dev = list_entry(pos, struct pnp_dev, protocol_list);
 		if (dev->number == node->handle)
-			return -1;
+			return -EEXIST;
 	}
 
 	pnp_eisa_id_to_string(node->eisa_id & PNP_EISA_ID_MASK, id);
 	dev = pnp_alloc_dev(&pnpbios_protocol, node->handle, id);
 	if (!dev)
-		return -1;
+		return -ENOMEM;
 
 	pnpbios_parse_data_stream(dev, node);
 	dev->active = pnp_is_active(dev);
@@ -342,7 +345,12 @@ static int __init insert_device(struct pnp_bios_node *node)
 	if (!dev->active)
 		pnp_init_resources(dev);
 
-	pnp_add_device(dev);
+	error = pnp_add_device(dev);
+	if (error) {
+		put_device(&dev->dev);
+		return error;
+	}
+
 	pnpbios_interface_attach_device(node);
 
 	return 0;
@@ -487,7 +495,7 @@ static int __init exploding_pnp_bios(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id pnpbios_dmi_table[] __initdata = {
+static const struct dmi_system_id pnpbios_dmi_table[] __initconst = {
 	{			/* PnPBIOS GPF on boot */
 	 .callback = exploding_pnp_bios,
 	 .ident = "Higraded P14H",
@@ -514,10 +522,11 @@ static int __init pnpbios_init(void)
 	int ret;
 
 	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table) ||
-	    paravirt_enabled()) {
+	    arch_pnpbios_disabled()) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
 		return -ENODEV;
 	}
+
 #ifdef CONFIG_PNPACPI
 	if (!acpi_disabled && !pnpacpi_disabled) {
 		pnpbios_disabled = 1;
@@ -579,6 +588,6 @@ static int __init pnpbios_thread_init(void)
 }
 
 /* Start the kernel thread later: */
-module_init(pnpbios_thread_init);
+device_initcall(pnpbios_thread_init);
 
 EXPORT_SYMBOL(pnpbios_protocol);

@@ -18,6 +18,9 @@ struct iio_subirq {
 	bool enabled;
 };
 
+struct iio_dev;
+struct iio_trigger;
+
 /**
  * struct iio_trigger_ops - operations structure for an iio_trigger.
  * @owner:		used to monitor usage count of the trigger.
@@ -53,6 +56,9 @@ struct iio_trigger_ops {
  * @subirqs:		[INTERN] information about the 'child' irqs.
  * @pool:		[INTERN] bitmap of irqs currently in use.
  * @pool_lock:		[INTERN] protection of the irq pool.
+ * @attached_own_device:[INTERN] if we are using our own device as trigger,
+ *			i.e. if we registered a poll function to the same
+ *			device as the one providing the trigger.
  **/
 struct iio_trigger {
 	const struct iio_trigger_ops	*ops;
@@ -70,6 +76,7 @@ struct iio_trigger {
 	struct iio_subirq subirqs[CONFIG_IIO_CONSUMERS_PER_TRIGGER];
 	unsigned long pool[BITS_TO_LONGS(CONFIG_IIO_CONSUMERS_PER_TRIGGER)];
 	struct mutex			pool_lock;
+	bool				attached_own_device;
 };
 
 
@@ -84,10 +91,12 @@ static inline void iio_trigger_put(struct iio_trigger *trig)
 	put_device(&trig->dev);
 }
 
-static inline void iio_trigger_get(struct iio_trigger *trig)
+static inline struct iio_trigger *iio_trigger_get(struct iio_trigger *trig)
 {
 	get_device(&trig->dev);
 	__module_get(trig->ops->owner);
+
+	return trig;
 }
 
 /**
@@ -120,26 +129,49 @@ static inline void *iio_trigger_get_drvdata(struct iio_trigger *trig)
  **/
 int iio_trigger_register(struct iio_trigger *trig_info);
 
+int devm_iio_trigger_register(struct device *dev,
+			      struct iio_trigger *trig_info);
+
 /**
  * iio_trigger_unregister() - unregister a trigger from the core
  * @trig_info:	trigger to be unregistered
  **/
 void iio_trigger_unregister(struct iio_trigger *trig_info);
 
+void devm_iio_trigger_unregister(struct device *dev,
+				 struct iio_trigger *trig_info);
+
+/**
+ * iio_trigger_set_immutable() - set an immutable trigger on destination
+ *
+ * @indio_dev: IIO device structure containing the device
+ * @trig: trigger to assign to device
+ *
+ **/
+int iio_trigger_set_immutable(struct iio_dev *indio_dev, struct iio_trigger *trig);
+
 /**
  * iio_trigger_poll() - called on a trigger occurring
  * @trig:	trigger which occurred
- * @time:	timestamp when trigger occurred
  *
  * Typically called in relevant hardware interrupt handler.
  **/
-void iio_trigger_poll(struct iio_trigger *trig, s64 time);
-void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time);
+void iio_trigger_poll(struct iio_trigger *trig);
+void iio_trigger_poll_chained(struct iio_trigger *trig);
 
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 
 __printf(1, 2) struct iio_trigger *iio_trigger_alloc(const char *fmt, ...);
 void iio_trigger_free(struct iio_trigger *trig);
+
+/**
+ * iio_trigger_using_own() - tells us if we use our own HW trigger ourselves
+ * @indio_dev:  device to check
+ */
+bool iio_trigger_using_own(struct iio_dev *indio_dev);
+
+int iio_trigger_validate_own_device(struct iio_trigger *trig,
+				     struct iio_dev *indio_dev);
 
 #else
 struct iio_trigger;

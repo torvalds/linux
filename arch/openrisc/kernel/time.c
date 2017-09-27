@@ -48,29 +48,6 @@ static int openrisc_timer_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void openrisc_timer_set_mode(enum clock_event_mode mode,
-				    struct clock_event_device *evt)
-{
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		pr_debug(KERN_INFO "%s: periodic\n", __func__);
-		BUG();
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		pr_debug(KERN_INFO "%s: oneshot\n", __func__);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-		pr_debug(KERN_INFO "%s: unused\n", __func__);
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		pr_debug(KERN_INFO "%s: shutdown\n", __func__);
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		pr_debug(KERN_INFO "%s: resume\n", __func__);
-		break;
-	}
-}
-
 /* This is the clock event device based on the OR1K tick timer.
  * As the timer is being used as a continuous clock-source (required for HR
  * timers) we cannot enable the PERIODIC feature.  The tick timer can run using
@@ -82,7 +59,6 @@ static struct clock_event_device clockevent_openrisc_timer = {
 	.features = CLOCK_EVT_FEAT_ONESHOT,
 	.rating = 300,
 	.set_next_event = openrisc_timer_set_next_event,
-	.set_mode = openrisc_timer_set_mode,
 };
 
 static inline void timer_ack(void)
@@ -141,9 +117,9 @@ static __init void openrisc_clockevent_init(void)
  * is 32 bits wide and runs at the CPU clock frequency.
  */
 
-static cycle_t openrisc_timer_read(struct clocksource *cs)
+static u64 openrisc_timer_read(struct clocksource *cs)
 {
-	return (cycle_t) mfspr(SPR_TTCR);
+	return (u64) mfspr(SPR_TTCR);
 }
 
 static struct clocksource openrisc_timer = {

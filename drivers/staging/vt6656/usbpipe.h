@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: usbpipe.h
  *
@@ -32,15 +28,17 @@
 
 #include "device.h"
 
-int PIPEnsControlOut(struct vnt_private *, u8 byRequest, u16 wValue,
-		u16 wIndex, u16 wLength, u8 *pbyBuffer);
-int PIPEnsControlOutAsyn(struct vnt_private *, u8 byRequest,
-	u16 wValue, u16 wIndex, u16 wLength, u8 *pbyBuffer);
-int PIPEnsControlIn(struct vnt_private *, u8 byRequest, u16 wValue,
-	u16 wIndex, u16 wLength,  u8 *pbyBuffer);
+int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
+		    u16 index, u16 length, u8 *buffer);
+int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
+		   u16 index, u16 length,  u8 *buffer);
 
-int PIPEnsInterruptRead(struct vnt_private *);
-int PIPEnsBulkInUsbRead(struct vnt_private *, PRCB pRCB);
-int PIPEnsSendBulkOut(struct vnt_private *, PUSB_SEND_CONTEXT pContext);
+void vnt_control_out_u8(struct vnt_private *priv, u8 reg, u8 ref_off, u8 data);
+void vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data);
+
+int vnt_start_interrupt_urb(struct vnt_private *priv);
+int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb);
+int vnt_tx_context(struct vnt_private *priv,
+		   struct vnt_usb_send_context *context);
 
 #endif /* __USBPIPE_H__ */

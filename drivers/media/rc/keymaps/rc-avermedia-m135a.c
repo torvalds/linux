@@ -1,6 +1,6 @@
 /* avermedia-m135a.c - Keytable for Avermedia M135A Remote Controllers
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  * Copyright (c) 2010 by Herton Ronaldo Krzesinski <herton@mandriva.com.br>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -124,10 +124,10 @@ static struct rc_map_table avermedia_m135a[] = {
 
 static struct rc_map_list avermedia_m135a_map = {
 	.map = {
-		.scan    = avermedia_m135a,
-		.size    = ARRAY_SIZE(avermedia_m135a),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_AVERMEDIA_M135A,
+		.scan     = avermedia_m135a,
+		.size     = ARRAY_SIZE(avermedia_m135a),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_AVERMEDIA_M135A,
 	}
 };
 
@@ -145,4 +145,4 @@ module_init(init_rc_map_avermedia_m135a)
 module_exit(exit_rc_map_avermedia_m135a)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

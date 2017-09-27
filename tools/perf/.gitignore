@@ -1,7 +1,10 @@
 PERF-CFLAGS
 PERF-GUI-VARS
 PERF-VERSION-FILE
+FEATURE-DUMP
 perf
+perf-read-vdso32
+perf-read-vdsox32
 perf-help
 perf-record
 perf-report
@@ -13,7 +16,9 @@ perf*.html
 common-cmds.h
 perf.data
 perf.data.old
+output.svg
 perf-archive
+perf-with-kcore
 tags
 TAGS
 cscope*
@@ -23,3 +28,8 @@ config.mak.autogen
 *-flex.*
 *.pyc
 *.pyo
+.config-detected
+util/intel-pt-decoder/inat-tables.c
+arch/*/include/generated/
+pmu-events/pmu-events.c
+pmu-events/jevents

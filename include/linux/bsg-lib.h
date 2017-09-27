@@ -24,6 +24,7 @@
 #define _BLK_BSG_
 
 #include <linux/blkdev.h>
+#include <scsi/scsi_request.h>
 
 struct request;
 struct device;
@@ -37,8 +38,11 @@ struct bsg_buffer {
 };
 
 struct bsg_job {
+	struct scsi_request sreq;
 	struct device *dev;
 	struct request *req;
+
+	struct kref kref;
 
 	/* Transport/driver specific request/reply structs */
 	void *request;
@@ -64,8 +68,10 @@ struct bsg_job {
 
 void bsg_job_done(struct bsg_job *job, int result,
 		  unsigned int reply_payload_rcv_len);
-int bsg_setup_queue(struct device *dev, struct request_queue *q, char *name,
-		    bsg_job_fn *job_fn, int dd_job_size);
-void bsg_request_fn(struct request_queue *q);
+struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
+		bsg_job_fn *job_fn, int dd_job_size,
+		void (*release)(struct device *));
+void bsg_job_put(struct bsg_job *job);
+int __must_check bsg_job_get(struct bsg_job *job);
 
 #endif

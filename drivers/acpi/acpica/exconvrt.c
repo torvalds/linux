@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -124,7 +124,9 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 		 * of ACPI 3.0) is that the to_integer() operator allows both decimal
 		 * and hexadecimal strings (hex prefixed with "0x").
 		 */
-		status = acpi_ut_strtoul64((char *)pointer, flags, &result);
+		status = acpi_ut_strtoul64(ACPI_CAST_PTR(char, pointer),
+					   (acpi_gbl_integer_byte_width |
+					    flags), &result);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -227,9 +229,8 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		/* Copy the integer to the buffer, LSB first */
 
 		new_buf = return_desc->buffer.pointer;
-		ACPI_MEMCPY(new_buf,
-			    &obj_desc->integer.value,
-			    acpi_gbl_integer_byte_width);
+		memcpy(new_buf, &obj_desc->integer.value,
+		       acpi_gbl_integer_byte_width);
 		break;
 
 	case ACPI_TYPE_STRING:
@@ -252,8 +253,8 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		/* Copy the string to the buffer */
 
 		new_buf = return_desc->buffer.pointer;
-		ACPI_STRNCPY((char *)new_buf, (char *)obj_desc->string.pointer,
-			     obj_desc->string.length);
+		strncpy((char *)new_buf, (char *)obj_desc->string.pointer,
+			obj_desc->string.length);
 		break;
 
 	default:
@@ -355,9 +356,8 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
 
 			/* Get one hex digit, most significant digits first */
 
-			string[k] =
-			    (u8) acpi_ut_hex_to_ascii_char(integer,
-							   ACPI_MUL_4(j));
+			string[k] = (u8)
+			    acpi_ut_hex_to_ascii_char(integer, ACPI_MUL_4(j));
 			k++;
 		}
 		break;
@@ -441,7 +441,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		 * Need enough space for one ASCII integer (plus null terminator)
 		 */
 		return_desc =
-		    acpi_ut_create_string_object((acpi_size) string_length);
+		    acpi_ut_create_string_object((acpi_size)string_length);
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -520,7 +520,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		}
 
 		return_desc =
-		    acpi_ut_create_string_object((acpi_size) string_length);
+		    acpi_ut_create_string_object((acpi_size)string_length);
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -592,7 +592,6 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 	 */
 	switch (GET_CURRENT_ARG_TYPE(walk_state->op_info->runtime_args)) {
 	case ARGI_SIMPLE_TARGET:
-	case ARGI_FIXED_TARGET:
 	case ARGI_INTEGER_REF:	/* Handles Increment, Decrement cases */
 
 		switch (destination_type) {
@@ -619,6 +618,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 		break;
 
 	case ARGI_TARGETREF:
+	case ARGI_STORE_TARGET:
 
 		switch (destination_type) {
 		case ACPI_TYPE_INTEGER:
@@ -631,7 +631,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			 */
 			status =
 			    acpi_ex_convert_to_integer(source_desc, result_desc,
-						       16);
+						       ACPI_STRTOUL_BASE16);
 			break;
 
 		case ACPI_TYPE_STRING:

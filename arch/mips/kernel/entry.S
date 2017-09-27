@@ -10,15 +10,14 @@
 
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
+#include <asm/compiler.h>
+#include <asm/irqflags.h>
 #include <asm/regdef.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
 #include <asm/isadep.h>
 #include <asm/thread_info.h>
 #include <asm/war.h>
-#ifdef CONFIG_MIPS_MT_SMTC
-#include <asm/mipsmtregs.h>
-#endif
 
 #ifndef CONFIG_PREEMPT
 #define resume_kernel	restore_all
@@ -89,41 +88,6 @@ FEXPORT(syscall_exit)
 	bnez	t0, syscall_exit_work
 
 restore_all:				# restore full frame
-#ifdef CONFIG_MIPS_MT_SMTC
-#ifdef CONFIG_MIPS_MT_SMTC_IM_BACKSTOP
-/* Re-arm any temporarily masked interrupts not explicitly "acked" */
-	mfc0	v0, CP0_TCSTATUS
-	ori	v1, v0, TCSTATUS_IXMT
-	mtc0	v1, CP0_TCSTATUS
-	andi	v0, TCSTATUS_IXMT
-	_ehb
-	mfc0	t0, CP0_TCCONTEXT
-	DMT	9				# dmt t1
-	jal	mips_ihb
-	mfc0	t2, CP0_STATUS
-	andi	t3, t0, 0xff00
-	or	t2, t2, t3
-	mtc0	t2, CP0_STATUS
-	_ehb
-	andi	t1, t1, VPECONTROL_TE
-	beqz	t1, 1f
-	EMT
-1:
-	mfc0	v1, CP0_TCSTATUS
-	/* We set IXMT above, XOR should clear it here */
-	xori	v1, v1, TCSTATUS_IXMT
-	or	v1, v0, v1
-	mtc0	v1, CP0_TCSTATUS
-	_ehb
-	xor	t0, t0, t3
-	mtc0	t0, CP0_TCCONTEXT
-#endif /* CONFIG_MIPS_MT_SMTC_IM_BACKSTOP */
-/* Detect and execute deferred IPI "interrupts" */
-	LONG_L	s0, TI_REGS($28)
-	LONG_S	sp, TI_REGS($28)
-	jal	deferred_smtc_ipi
-	LONG_S	s0, TI_REGS($28)
-#endif /* CONFIG_MIPS_MT_SMTC */
 	.set	noat
 	RESTORE_TEMP
 	RESTORE_AT
@@ -156,6 +120,7 @@ work_pending:
 	andi	t0, a2, _TIF_NEED_RESCHED # a2 is preloaded with TI_FLAGS
 	beqz	t0, work_notifysig
 work_resched:
+	TRACE_IRQS_OFF
 	jal	schedule
 
 	local_irq_disable		# make sure need_resched and
@@ -192,11 +157,13 @@ syscall_exit_work:
 	beqz	t0, work_pending	# trace bit set?
 	local_irq_enable		# could let syscall_trace_leave()
 					# call schedule() instead
+	TRACE_IRQS_ON
 	move	a0, sp
 	jal	syscall_trace_leave
 	b	resume_userspace
 
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_MIPS_MT)
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6) || \
+    defined(CONFIG_MIPS_MT)
 
 /*
  * MIPS32R2 Instruction Hazard Barrier - must be called
@@ -204,9 +171,9 @@ syscall_exit_work:
  * For C code use the inline version named instruction_hazard().
  */
 LEAF(mips_ihb)
-	.set	mips32r2
+	.set	MIPS_ISA_LEVEL_RAW
 	jr.hb	ra
 	nop
 	END(mips_ihb)
 
-#endif /* CONFIG_CPU_MIPSR2 or CONFIG_MIPS_MT */
+#endif /* CONFIG_CPU_MIPSR2 or CONFIG_CPU_MIPSR6 or CONFIG_MIPS_MT */

@@ -22,7 +22,6 @@
 #ifndef __S5H1409_H__
 #define __S5H1409_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct s5h1409_config {
@@ -67,7 +66,7 @@ struct s5h1409_config {
 	u8 hvr1600_opt;
 };
 
-#if IS_ENABLED(CONFIG_DVB_S5H1409)
+#if IS_REACHABLE(CONFIG_DVB_S5H1409)
 extern struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 					   struct i2c_adapter *i2c);
 #else
@@ -81,8 +80,3 @@ static inline struct dvb_frontend *s5h1409_attach(
 #endif /* CONFIG_DVB_S5H1409 */
 
 #endif /* __S5H1409_H__ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */

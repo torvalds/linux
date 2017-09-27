@@ -22,7 +22,6 @@
 #define LINUX_PPS_KERNEL_H
 
 #include <linux/pps.h>
-
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/time.h>
@@ -35,9 +34,9 @@ struct pps_device;
 
 /* The specific PPS source info */
 struct pps_source_info {
-	char name[PPS_MAX_NAME_LEN];		/* simbolic name */
+	char name[PPS_MAX_NAME_LEN];		/* symbolic name */
 	char path[PPS_MAX_NAME_LEN];		/* path of connected device */
-	int mode;				/* PPS's allowed mode */
+	int mode;				/* PPS allowed mode */
 
 	void (*echo)(struct pps_device *pps,
 			int event, void *data);	/* PPS echo function */
@@ -48,19 +47,19 @@ struct pps_source_info {
 
 struct pps_event_time {
 #ifdef CONFIG_NTP_PPS
-	struct timespec ts_raw;
+	struct timespec64 ts_raw;
 #endif /* CONFIG_NTP_PPS */
-	struct timespec ts_real;
+	struct timespec64 ts_real;
 };
 
 /* The main struct */
 struct pps_device {
 	struct pps_source_info info;		/* PSS source info */
 
-	struct pps_kparams params;		/* PPS's current params */
+	struct pps_kparams params;		/* PPS current params */
 
-	__u32 assert_sequence;			/* PPS' assert event seq # */
-	__u32 clear_sequence;			/* PPS' clear event seq # */
+	__u32 assert_sequence;			/* PPS assert event seq # */
+	__u32 clear_sequence;			/* PPS clear event seq # */
 	struct pps_ktime assert_tu;
 	struct pps_ktime clear_tu;
 	int current_mode;			/* PPS mode at event time */
@@ -69,7 +68,7 @@ struct pps_device {
 	wait_queue_head_t queue;		/* PPS event queue */
 
 	unsigned int id;			/* PPS source unique ID */
-	void const *lookup_cookie;		/* pps_lookup_dev only */
+	void const *lookup_cookie;		/* For pps_lookup_dev() only */
 	struct cdev cdev;
 	struct device *dev;
 	struct fasync_struct *async_queue;	/* fasync method */
@@ -80,7 +79,7 @@ struct pps_device {
  * Global variables
  */
 
-extern struct device_attribute pps_attrs[];
+extern const struct attribute_group *pps_groups[];
 
 /*
  * Internal functions.
@@ -101,40 +100,34 @@ extern struct pps_device *pps_register_source(
 extern void pps_unregister_source(struct pps_device *pps);
 extern void pps_event(struct pps_device *pps,
 		struct pps_event_time *ts, int event, void *data);
-/* Look up a pps device by magic cookie */
+/* Look up a pps_device by magic cookie */
 struct pps_device *pps_lookup_dev(void const *cookie);
 
 static inline void timespec_to_pps_ktime(struct pps_ktime *kt,
-		struct timespec ts)
+		struct timespec64 ts)
 {
 	kt->sec = ts.tv_sec;
 	kt->nsec = ts.tv_nsec;
 }
 
+static inline void pps_get_ts(struct pps_event_time *ts)
+{
+	struct system_time_snapshot snap;
+
+	ktime_get_snapshot(&snap);
+	ts->ts_real = ktime_to_timespec64(snap.real);
 #ifdef CONFIG_NTP_PPS
-
-static inline void pps_get_ts(struct pps_event_time *ts)
-{
-	getnstime_raw_and_real(&ts->ts_raw, &ts->ts_real);
+	ts->ts_raw = ktime_to_timespec64(snap.raw);
+#endif
 }
-
-#else /* CONFIG_NTP_PPS */
-
-static inline void pps_get_ts(struct pps_event_time *ts)
-{
-	getnstimeofday(&ts->ts_real);
-}
-
-#endif /* CONFIG_NTP_PPS */
 
 /* Subtract known time delay from PPS event time(s) */
-static inline void pps_sub_ts(struct pps_event_time *ts, struct timespec delta)
+static inline void pps_sub_ts(struct pps_event_time *ts, struct timespec64 delta)
 {
-	ts->ts_real = timespec_sub(ts->ts_real, delta);
+	ts->ts_real = timespec64_sub(ts->ts_real, delta);
 #ifdef CONFIG_NTP_PPS
-	ts->ts_raw = timespec_sub(ts->ts_raw, delta);
+	ts->ts_raw = timespec64_sub(ts->ts_raw, delta);
 #endif
 }
 
 #endif /* LINUX_PPS_KERNEL_H */
-

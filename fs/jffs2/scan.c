@@ -510,6 +510,10 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 				sumlen = c->sector_size - je32_to_cpu(sm->offset);
 				sumptr = buf + buf_size - sumlen;
 
+				/* sm->offset maybe wrong but MAGIC maybe right */
+				if (sumlen > c->sector_size)
+					goto full_scan;
+
 				/* Now, make sure the summary itself is available */
 				if (sumlen > buf_size) {
 					/* Need to kmalloc for this. */
@@ -544,6 +548,7 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 		}
 	}
 
+full_scan:
 	buf_ofs = jeb->offset;
 
 	if (!buf_size) {
@@ -1095,7 +1100,7 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 	fd->next = NULL;
 	fd->version = je32_to_cpu(rd->version);
 	fd->ino = je32_to_cpu(rd->ino);
-	fd->nhash = full_name_hash(fd->name, checkedlen);
+	fd->nhash = full_name_hash(NULL, fd->name, checkedlen);
 	fd->type = rd->type;
 	jffs2_add_fd_to_list(c, fd, &ic->scan_dents);
 

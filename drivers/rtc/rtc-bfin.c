@@ -333,7 +333,7 @@ static int bfin_rtc_proc(struct device *dev, struct seq_file *seq)
 #undef yesno
 }
 
-static struct rtc_class_ops bfin_rtc_ops = {
+static const struct rtc_class_ops bfin_rtc_ops = {
 	.read_time     = bfin_rtc_read_time,
 	.set_time      = bfin_rtc_set_time,
 	.read_alarm    = bfin_rtc_read_alarm,
@@ -346,7 +346,7 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 {
 	struct bfin_rtc *rtc;
 	struct device *dev = &pdev->dev;
-	int ret = 0;
+	int ret;
 	unsigned long timeout = jiffies + HZ;
 
 	dev_dbg_stamp(dev);
@@ -361,16 +361,17 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 	/* Register our RTC with the RTC framework */
 	rtc->rtc_dev = devm_rtc_device_register(dev, pdev->name, &bfin_rtc_ops,
 						THIS_MODULE);
-	if (unlikely(IS_ERR(rtc->rtc_dev))) {
-		ret = PTR_ERR(rtc->rtc_dev);
-		goto err;
-	}
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
 
 	/* Grab the IRQ and init the hardware */
 	ret = devm_request_irq(dev, IRQ_RTC, bfin_rtc_interrupt, 0,
 				pdev->name, dev);
 	if (unlikely(ret))
-		goto err;
+		dev_err(&pdev->dev,
+			"unable to request IRQ; alarm won't work, "
+			"and writes will be delayed\n");
+
 	/* sometimes the bootloader touched things, but the write complete was not
 	 * enabled, so let's just do a quick timeout here since the IRQ will not fire ...
 	 */
@@ -381,9 +382,6 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 	bfin_write_RTC_SWCNT(0);
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static int bfin_rtc_remove(struct platform_device *pdev)
@@ -436,7 +434,6 @@ static SIMPLE_DEV_PM_OPS(bfin_rtc_pm_ops, bfin_rtc_suspend, bfin_rtc_resume);
 static struct platform_driver bfin_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-bfin",
-		.owner	= THIS_MODULE,
 		.pm	= &bfin_rtc_pm_ops,
 	},
 	.probe		= bfin_rtc_probe,

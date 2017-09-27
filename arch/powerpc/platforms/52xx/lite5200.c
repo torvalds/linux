@@ -34,13 +34,13 @@
  */
 
 /* mpc5200 device tree match tables */
-static struct of_device_id mpc5200_cdm_ids[] __initdata = {
+static const struct of_device_id mpc5200_cdm_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-cdm", },
 	{ .compatible = "mpc5200-cdm", },
 	{}
 };
 
-static struct of_device_id mpc5200_gpio_ids[] __initdata = {
+static const struct of_device_id mpc5200_gpio_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-gpio", },
 	{ .compatible = "mpc5200-gpio", },
 	{}
@@ -183,7 +183,7 @@ static const char * const board[] __initconst = {
  */
 static int __init lite5200_probe(void)
 {
-	return of_flat_dt_match(of_get_flat_dt_root(), board);
+	return of_device_compatible_match(of_root, board);
 }
 
 define_machine(lite5200) {

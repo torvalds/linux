@@ -19,18 +19,18 @@
  * more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/clk/tegra.h>
+#include <linux/tick.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/clockchips.h>
-#include <linux/clk/tegra.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
-#include <asm/suspend.h>
 #include <asm/smp_plat.h>
+#include <asm/suspend.h>
 
+#include "cpuidle.h"
 #include "pm.h"
 #include "sleep.h"
 
@@ -56,7 +56,6 @@ static struct cpuidle_driver tegra_idle_driver = {
 			.exit_latency		= 2000,
 			.target_residency	= 2200,
 			.power_usage		= 0,
-			.flags			= CPUIDLE_FLAG_TIME_VALID,
 			.name			= "powered-down",
 			.desc			= "CPU power gated",
 		},
@@ -77,11 +76,11 @@ static bool tegra30_cpu_cluster_power_down(struct cpuidle_device *dev,
 		return false;
 	}
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+	tick_broadcast_enter();
 
 	tegra_idle_lp2_last();
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+	tick_broadcast_exit();
 
 	return true;
 }
@@ -91,13 +90,13 @@ static bool tegra30_cpu_core_power_down(struct cpuidle_device *dev,
 					struct cpuidle_driver *drv,
 					int index)
 {
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+	tick_broadcast_enter();
 
 	smp_wmb();
 
 	cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+	tick_broadcast_exit();
 
 	return true;
 }

@@ -1,13 +1,15 @@
 /* Copyright 2008-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
- * Unless you and Broadcom execute a separate written software license
+ * Unless you and QLogic execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2, available
- * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
+ * at http://www.gnu.org/licenses/gpl-2.0.html (the "GPL").
  *
  * Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a
- * license other than the GPL, without Broadcom's express prior written
+ * software in any way with any other Qlogic software provided under a
+ * license other than the GPL, without Qlogic's express prior written
  * consent.
  *
  * Written by Yaniv Rosner
@@ -32,12 +34,6 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 					     u8 dev_addr, u16 addr, u8 byte_cnt,
 					     u8 *o_buf, u8);
 /********************************************************/
-#define ETH_HLEN			14
-/* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
-#define ETH_OVREHEAD			(ETH_HLEN + 8 + 8)
-#define ETH_MIN_PACKET_SIZE		60
-#define ETH_MAX_PACKET_SIZE		1500
-#define ETH_MAX_JUMBO_PACKET_SIZE	9600
 #define MDIO_ACCESS_TIMEOUT		1000
 #define WC_LANE_MAX			4
 #define I2C_SWITCH_WIDTH		2
@@ -154,15 +150,22 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 			 LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE)
 
 #define SFP_EEPROM_CON_TYPE_ADDR		0x2
+	#define SFP_EEPROM_CON_TYPE_VAL_UNKNOWN	0x0
 	#define SFP_EEPROM_CON_TYPE_VAL_LC	0x7
 	#define SFP_EEPROM_CON_TYPE_VAL_COPPER	0x21
 	#define SFP_EEPROM_CON_TYPE_VAL_RJ45	0x22
 
 
-#define SFP_EEPROM_COMP_CODE_ADDR		0x3
-	#define SFP_EEPROM_COMP_CODE_SR_MASK	(1<<4)
-	#define SFP_EEPROM_COMP_CODE_LR_MASK	(1<<5)
-	#define SFP_EEPROM_COMP_CODE_LRM_MASK	(1<<6)
+#define SFP_EEPROM_10G_COMP_CODE_ADDR		0x3
+	#define SFP_EEPROM_10G_COMP_CODE_SR_MASK	(1<<4)
+	#define SFP_EEPROM_10G_COMP_CODE_LR_MASK	(1<<5)
+	#define SFP_EEPROM_10G_COMP_CODE_LRM_MASK	(1<<6)
+
+#define SFP_EEPROM_1G_COMP_CODE_ADDR		0x6
+	#define SFP_EEPROM_1G_COMP_CODE_SX	(1<<0)
+	#define SFP_EEPROM_1G_COMP_CODE_LX	(1<<1)
+	#define SFP_EEPROM_1G_COMP_CODE_CX	(1<<2)
+	#define SFP_EEPROM_1G_COMP_CODE_BASE_T	(1<<3)
 
 #define SFP_EEPROM_FC_TX_TECH_ADDR		0x8
 	#define SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE 0x4
@@ -175,6 +178,7 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 #define EDC_MODE_LINEAR				0x0022
 #define EDC_MODE_LIMITING				0x0044
 #define EDC_MODE_PASSIVE_DAC			0x0055
+#define EDC_MODE_ACTIVE_DAC			0x0066
 
 /* ETS defines*/
 #define DCBX_INVALID_COS					(0xFF)
@@ -187,6 +191,10 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 
 #define MAX_PACKET_SIZE					(9700)
 #define MAX_KR_LINK_RETRY				4
+#define DEFAULT_TX_DRV_BRDCT		2
+#define DEFAULT_TX_DRV_IFIR		0
+#define DEFAULT_TX_DRV_POST2		3
+#define DEFAULT_TX_DRV_IPRE_DRIVER	6
 
 /**********************************************************/
 /*                     INTERFACE                          */
@@ -203,6 +211,11 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 		(_phy)->def_md_devad, \
 		(_bank + (_addr & 0xf)), \
 		_val)
+
+static int bnx2x_check_half_open_conn(struct link_params *params,
+				      struct link_vars *vars, u8 notify);
+static int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
+				      struct link_params *params);
 
 static u32 bnx2x_bits_en(struct bnx2x *bp, u32 reg, u32 bits)
 {
@@ -550,7 +563,7 @@ static void bnx2x_ets_e3b0_set_credit_upper_bound_nig(
 *	Will return the NIG ETS registers to init values.Except
 *	credit_upper_bound.
 *	That isn't used in this configuration (No WFQ is enabled) and will be
-*	configured acording to spec
+*	configured according to spec
 *.
 ******************************************************************************/
 static void bnx2x_ets_e3b0_nig_disabled(const struct link_params *params,
@@ -667,7 +680,7 @@ static void bnx2x_ets_e3b0_set_credit_upper_bound_pbf(
 *	Will return the PBF ETS registers to init values.Except
 *	credit_upper_bound.
 *	That isn't used in this configuration (No WFQ is enabled) and will be
-*	configured acording to spec
+*	configured according to spec
 *.
 ******************************************************************************/
 static void bnx2x_ets_e3b0_pbf_disabled(const struct link_params *params)
@@ -725,7 +738,7 @@ static void bnx2x_ets_e3b0_pbf_disabled(const struct link_params *params)
 }
 /******************************************************************************
 * Description:
-*	E3B0 disable will return basicly the values to init values.
+*	E3B0 disable will return basically the values to init values.
 *.
 ******************************************************************************/
 static int bnx2x_ets_e3b0_disabled(const struct link_params *params,
@@ -748,7 +761,7 @@ static int bnx2x_ets_e3b0_disabled(const struct link_params *params,
 
 /******************************************************************************
 * Description:
-*	Disable will return basicly the values to init values.
+*	Disable will return basically the values to init values.
 *
 ******************************************************************************/
 int bnx2x_ets_disabled(struct link_params *params,
@@ -1398,57 +1411,6 @@ static void bnx2x_update_pfc_xmac(struct link_params *params,
 	udelay(30);
 }
 
-
-static void bnx2x_emac_get_pfc_stat(struct link_params *params,
-				    u32 pfc_frames_sent[2],
-				    u32 pfc_frames_received[2])
-{
-	/* Read pfc statistic */
-	struct bnx2x *bp = params->bp;
-	u32 emac_base = params->port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
-	u32 val_xon = 0;
-	u32 val_xoff = 0;
-
-	DP(NETIF_MSG_LINK, "pfc statistic read from EMAC\n");
-
-	/* PFC received frames */
-	val_xoff = REG_RD(bp, emac_base +
-				EMAC_REG_RX_PFC_STATS_XOFF_RCVD);
-	val_xoff &= EMAC_REG_RX_PFC_STATS_XOFF_RCVD_COUNT;
-	val_xon = REG_RD(bp, emac_base + EMAC_REG_RX_PFC_STATS_XON_RCVD);
-	val_xon &= EMAC_REG_RX_PFC_STATS_XON_RCVD_COUNT;
-
-	pfc_frames_received[0] = val_xon + val_xoff;
-
-	/* PFC received sent */
-	val_xoff = REG_RD(bp, emac_base +
-				EMAC_REG_RX_PFC_STATS_XOFF_SENT);
-	val_xoff &= EMAC_REG_RX_PFC_STATS_XOFF_SENT_COUNT;
-	val_xon = REG_RD(bp, emac_base + EMAC_REG_RX_PFC_STATS_XON_SENT);
-	val_xon &= EMAC_REG_RX_PFC_STATS_XON_SENT_COUNT;
-
-	pfc_frames_sent[0] = val_xon + val_xoff;
-}
-
-/* Read pfc statistic*/
-void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
-			 u32 pfc_frames_sent[2],
-			 u32 pfc_frames_received[2])
-{
-	/* Read pfc statistic */
-	struct bnx2x *bp = params->bp;
-
-	DP(NETIF_MSG_LINK, "pfc statistic\n");
-
-	if (!vars->link_up)
-		return;
-
-	if (vars->mac_type == MAC_TYPE_EMAC) {
-		DP(NETIF_MSG_LINK, "About to read PFC stats from EMAC\n");
-		bnx2x_emac_get_pfc_stat(params, pfc_frames_sent,
-					pfc_frames_received);
-	}
-}
 /******************************************************************/
 /*			MAC/PBF section				  */
 /******************************************************************/
@@ -1949,7 +1911,7 @@ static int bnx2x_emac_enable(struct link_params *params,
 	/* Enable emac for jumbo packets */
 	EMAC_WR(bp, EMAC_REG_EMAC_RX_MTU_SIZE,
 		(EMAC_RX_MTU_SIZE_JUMBO_ENA |
-		 (ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD)));
+		 (ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD)));
 
 	/* Strip CRC */
 	REG_WR(bp, NIG_REG_NIG_INGRESS_EMAC0_NO_CRC + port*4, 0x1);
@@ -2263,7 +2225,6 @@ int bnx2x_update_pfc(struct link_params *params,
 	 */
 	u32 val;
 	struct bnx2x *bp = params->bp;
-	int bnx2x_status = 0;
 	u8 bmac_loopback = (params->loopback_mode == LOOPBACK_BMAC);
 
 	if (params->feature_config_flags & FEATURE_CONFIG_PFC_ENABLED)
@@ -2277,7 +2238,7 @@ int bnx2x_update_pfc(struct link_params *params,
 	bnx2x_update_pfc_nig(params, vars, pfc_params);
 
 	if (!vars->link_up)
-		return bnx2x_status;
+		return 0;
 
 	DP(NETIF_MSG_LINK, "About to update PFC in BMAC\n");
 
@@ -2291,7 +2252,7 @@ int bnx2x_update_pfc(struct link_params *params,
 		    == 0) {
 			DP(NETIF_MSG_LINK, "About to update PFC in EMAC\n");
 			bnx2x_emac_enable(params, vars, 0);
-			return bnx2x_status;
+			return 0;
 		}
 		if (CHIP_IS_E2(bp))
 			bnx2x_update_pfc_bmac2(params, vars, bmac_loopback);
@@ -2305,7 +2266,7 @@ int bnx2x_update_pfc(struct link_params *params,
 			val = 1;
 		REG_WR(bp, NIG_REG_BMAC0_PAUSE_OUT_EN + params->port*4, val);
 	}
-	return bnx2x_status;
+	return 0;
 }
 
 static int bnx2x_bmac1_enable(struct link_params *params,
@@ -2347,19 +2308,19 @@ static int bnx2x_bmac1_enable(struct link_params *params,
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_BMAC_CONTROL, wb_data, 2);
 
 	/* Set rx mtu */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_RX_MAX_SIZE, wb_data, 2);
 
 	bnx2x_update_pfc_bmac1(params, vars);
 
 	/* Set tx mtu */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_TX_MAX_SIZE, wb_data, 2);
 
 	/* Set cnt max size */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_CNT_MAX_SIZE, wb_data, 2);
 
@@ -2417,18 +2378,18 @@ static int bnx2x_bmac2_enable(struct link_params *params,
 	udelay(30);
 
 	/* Set RX MTU */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_MAX_SIZE, wb_data, 2);
 	udelay(30);
 
 	/* Set TX MTU */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_MAX_SIZE, wb_data, 2);
 	udelay(30);
 	/* Set cnt max size */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD - 2;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD - 2;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_CNT_MAX_SIZE, wb_data, 2);
 	udelay(30);
@@ -2549,7 +2510,7 @@ static int bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
 
 	} else {
 		u32 thresh = (ETH_MAX_JUMBO_PACKET_SIZE +
-			      ETH_OVREHEAD)/16;
+			      ETH_OVERHEAD)/16;
 		REG_WR(bp, PBF_REG_P0_PAUSE_ENABLE + port*4, 0);
 		/* Update threshold */
 		REG_WR(bp, PBF_REG_P0_ARB_THRSH + port*4, thresh);
@@ -2977,7 +2938,7 @@ static int bnx2x_eee_initial_config(struct link_params *params,
 {
 	vars->eee_status |= ((u32) mode) << SHMEM_EEE_SUPPORTED_SHIFT;
 
-	/* Propogate params' bits --> vars (for migration exposure) */
+	/* Propagate params' bits --> vars (for migration exposure) */
 	if (params->eee_mode & EEE_MODE_ENABLE_LPI)
 		vars->eee_status |= SHMEM_EEE_LPI_REQUESTED_BIT;
 	else
@@ -3121,7 +3082,7 @@ static void bnx2x_bsc_module_sel(struct link_params *params)
 }
 
 static int bnx2x_bsc_read(struct link_params *params,
-			  struct bnx2x_phy *phy,
+			  struct bnx2x *bp,
 			  u8 sl_devid,
 			  u16 sl_addr,
 			  u8 lc_addr,
@@ -3130,7 +3091,6 @@ static int bnx2x_bsc_read(struct link_params *params,
 {
 	u32 val, i;
 	int rc = 0;
-	struct bnx2x *bp = params->bp;
 
 	if (xfer_cnt > 16) {
 		DP(NETIF_MSG_LINK, "invalid xfer_cnt %d. Max is 16 bytes\n",
@@ -3428,9 +3388,9 @@ static void bnx2x_calc_ieee_aneg_adv(struct bnx2x_phy *phy,
 	case BNX2X_FLOW_CTRL_AUTO:
 		switch (params->req_fc_auto_adv) {
 		case BNX2X_FLOW_CTRL_BOTH:
+		case BNX2X_FLOW_CTRL_RX:
 			*ieee_fc |= MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH;
 			break;
-		case BNX2X_FLOW_CTRL_RX:
 		case BNX2X_FLOW_CTRL_TX:
 			*ieee_fc |=
 				MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC;
@@ -3524,14 +3484,21 @@ static void bnx2x_ext_phy_set_pause(struct link_params *params,
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD, MDIO_AN_REG_ADV_PAUSE, val);
 }
 
-static void bnx2x_pause_resolve(struct link_vars *vars, u32 pause_result)
-{						/*  LD	    LP	 */
+static void bnx2x_pause_resolve(struct bnx2x_phy *phy,
+				struct link_params *params,
+				struct link_vars *vars,
+				u32 pause_result)
+{
+	struct bnx2x *bp = params->bp;
+						/*  LD	    LP	 */
 	switch (pause_result) {			/* ASYM P ASYM P */
 	case 0xb:				/*   1  0   1  1 */
+		DP(NETIF_MSG_LINK, "Flow Control: TX only\n");
 		vars->flow_ctrl = BNX2X_FLOW_CTRL_TX;
 		break;
 
 	case 0xe:				/*   1  1   1  0 */
+		DP(NETIF_MSG_LINK, "Flow Control: RX only\n");
 		vars->flow_ctrl = BNX2X_FLOW_CTRL_RX;
 		break;
 
@@ -3539,10 +3506,22 @@ static void bnx2x_pause_resolve(struct link_vars *vars, u32 pause_result)
 	case 0x7:				/*   0  1   1  1 */
 	case 0xd:				/*   1  1   0  1 */
 	case 0xf:				/*   1  1   1  1 */
-		vars->flow_ctrl = BNX2X_FLOW_CTRL_BOTH;
+		/* If the user selected to advertise RX ONLY,
+		 * although we advertised both, need to enable
+		 * RX only.
+		 */
+		if (params->req_fc_auto_adv == BNX2X_FLOW_CTRL_BOTH) {
+			DP(NETIF_MSG_LINK, "Flow Control: RX & TX\n");
+			vars->flow_ctrl = BNX2X_FLOW_CTRL_BOTH;
+		} else {
+			DP(NETIF_MSG_LINK, "Flow Control: RX only\n");
+			vars->flow_ctrl = BNX2X_FLOW_CTRL_RX;
+		}
 		break;
 
 	default:
+		DP(NETIF_MSG_LINK, "Flow Control: None\n");
+		vars->flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 		break;
 	}
 	if (pause_result & (1<<0))
@@ -3603,7 +3582,7 @@ static void bnx2x_ext_phy_update_adv_fc(struct bnx2x_phy *phy,
 	pause_result |= (lp_pause &
 			 MDIO_AN_REG_ADV_PAUSE_MASK) >> 10;
 	DP(NETIF_MSG_LINK, "Ext PHY pause result 0x%x\n", pause_result);
-	bnx2x_pause_resolve(vars, pause_result);
+	bnx2x_pause_resolve(phy, params, vars, pause_result);
 
 }
 
@@ -3635,10 +3614,11 @@ static u8 bnx2x_ext_phy_resolve_fc(struct bnx2x_phy *phy,
  * init configuration, and set/clear SGMII flag. Internal
  * phy init is done purely in phy_init stage.
  */
-#define WC_TX_DRIVER(post2, idriver, ipre) \
+#define WC_TX_DRIVER(post2, idriver, ipre, ifir) \
 	((post2 << MDIO_WC_REG_TX0_TX_DRIVER_POST2_COEFF_OFFSET) | \
 	 (idriver << MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_OFFSET) | \
-	 (ipre << MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_OFFSET))
+	 (ipre << MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_OFFSET) | \
+	 (ifir << MDIO_WC_REG_TX0_TX_DRIVER_IFIR_OFFSET))
 
 #define WC_TX_FIR(post, main, pre) \
 	((post << MDIO_WC_REG_TX_FIR_TAP_POST_TAP_OFFSET) | \
@@ -3680,8 +3660,43 @@ static void bnx2x_warpcore_enable_AN_KR2(struct bnx2x_phy *phy,
 				 reg_set[i].val);
 
 	/* Start KR2 work-around timer which handles BCM8073 link-parner */
-	vars->link_attr_sync |= LINK_ATTR_SYNC_KR2_ENABLE;
-	bnx2x_update_link_attr(params, vars->link_attr_sync);
+	params->link_attr_sync |= LINK_ATTR_SYNC_KR2_ENABLE;
+	bnx2x_update_link_attr(params, params->link_attr_sync);
+}
+
+static void bnx2x_disable_kr2(struct link_params *params,
+			      struct link_vars *vars,
+			      struct bnx2x_phy *phy)
+{
+	struct bnx2x *bp = params->bp;
+	int i;
+	static struct bnx2x_reg_set reg_set[] = {
+		/* Step 1 - Program the TX/RX alignment markers */
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL5, 0x7690},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL7, 0xe647},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL6, 0xc4f0},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL9, 0x7690},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL11, 0xe647},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL10, 0xc4f0},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_USERB0_CTRL, 0x000c},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL1, 0x6000},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL3, 0x0000},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CODE_FIELD, 0x0002},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI1, 0x0000},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI2, 0x0af7},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI3, 0x0af7},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_BAM_CODE, 0x0002},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_UD_CODE, 0x0000}
+	};
+	DP(NETIF_MSG_LINK, "Disabling 20G-KR2\n");
+
+	for (i = 0; i < ARRAY_SIZE(reg_set); i++)
+		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
+				 reg_set[i].val);
+	params->link_attr_sync &= ~LINK_ATTR_SYNC_KR2_ENABLE;
+	bnx2x_update_link_attr(params, params->link_attr_sync);
+
+	vars->check_kr2_recovery_cnt = CHECK_KR2_RECOVERY_CNT;
 }
 
 static void bnx2x_warpcore_set_lpi_passthrough(struct bnx2x_phy *phy,
@@ -3714,8 +3729,8 @@ static void bnx2x_warpcore_restart_AN_KR(struct bnx2x_phy *phy,
 static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 					struct link_params *params,
 					struct link_vars *vars) {
-	u16 lane, i, cl72_ctrl, an_adv = 0;
-	u16 ucode_ver;
+	u16 lane, i, cl72_ctrl, an_adv = 0, val;
+	u32 wc_lane_config;
 	struct bnx2x *bp = params->bp;
 	static struct bnx2x_reg_set reg_set[] = {
 		{MDIO_WC_DEVAD, MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2, 0x7},
@@ -3770,12 +3785,12 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	lane = bnx2x_get_warpcore_lane(phy, params);
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			 MDIO_WC_REG_TX0_TX_DRIVER + 0x10*lane,
-			 WC_TX_DRIVER(0x02, 0x06, 0x09));
+			 WC_TX_DRIVER(0x02, 0x06, 0x09, 0));
 	/* Configure the next lane if dual mode */
 	if (phy->flags & FLAGS_WC_DUAL_MODE)
 		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 				 MDIO_WC_REG_TX0_TX_DRIVER + 0x10*(lane+1),
-				 WC_TX_DRIVER(0x02, 0x06, 0x09));
+				 WC_TX_DRIVER(0x02, 0x06, 0x09, 0));
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			 MDIO_WC_REG_CL72_USERB0_CL72_OS_DEF_CTRL,
 			 0x03f0);
@@ -3806,15 +3821,7 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 
 	/* Advertise pause */
 	bnx2x_ext_phy_set_pause(params, phy, vars);
-	/* Set KR Autoneg Work-Around flag for Warpcore version older than D108
-	 */
-	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
-			MDIO_WC_REG_UC_INFO_B1_VERSION, &ucode_ver);
-	if (ucode_ver < 0xd108) {
-		DP(NETIF_MSG_LINK, "Enable AN KR work-around. WC ver:0x%x\n",
-			       ucode_ver);
-		vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
-	}
+	vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
 	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
 				 MDIO_WC_REG_DIGITAL5_MISC7, 0x100);
 
@@ -3838,6 +3845,33 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 		bnx2x_set_aer_mmd(params, phy);
 
 		bnx2x_warpcore_enable_AN_KR2(phy, params, vars);
+	} else {
+		/* Enable Auto-Detect to support 1G over CL37 as well */
+		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X1, 0x10);
+		wc_lane_config = REG_RD(bp, params->shmem_base +
+					offsetof(struct shmem_region, dev_info.
+					shared_hw_config.wc_lane_config));
+		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+				MDIO_WC_REG_RX0_PCI_CTRL + (lane << 4), &val);
+		/* Force cl48 sync_status LOW to avoid getting stuck in CL73
+		 * parallel-detect loop when CL73 and CL37 are enabled.
+		 */
+		val |= 1 << 11;
+
+		/* Restore Polarity settings in case it was run over by
+		 * previous link owner
+		 */
+		if (wc_lane_config &
+		    (SHARED_HW_CFG_RX_LANE0_POL_FLIP_ENABLED << lane))
+			val |= 3 << 2;
+		else
+			val &= ~(3 << 2);
+		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_RX0_PCI_CTRL + (lane << 4),
+				 val);
+
+		bnx2x_disable_kr2(params, vars, phy);
 	}
 
 	/* Enable Autoneg: only on the main lane */
@@ -3919,6 +3953,7 @@ static void bnx2x_warpcore_set_10G_XFI(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u16 misc1_val, tap_val, tx_driver_val, lane, val;
 	u32 cfg_tap_val, tx_drv_brdct, tx_equal;
+	u32 ifir_val, ipost2_val, ipre_driver_val;
 
 	/* Hold rxSeqStart */
 	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
@@ -3964,7 +3999,7 @@ static void bnx2x_warpcore_set_10G_XFI(struct bnx2x_phy *phy,
 	if (is_xfi) {
 		misc1_val |= 0x5;
 		tap_val = WC_TX_FIR(0x08, 0x37, 0x00);
-		tx_driver_val = WC_TX_DRIVER(0x00, 0x02, 0x03);
+		tx_driver_val = WC_TX_DRIVER(0x00, 0x02, 0x03, 0);
 	} else {
 		cfg_tap_val = REG_RD(bp, params->shmem_base +
 				     offsetof(struct shmem_region, dev_info.
@@ -3972,10 +4007,6 @@ static void bnx2x_warpcore_set_10G_XFI(struct bnx2x_phy *phy,
 					      sfi_tap_values));
 
 		tx_equal = cfg_tap_val & PORT_HW_CFG_TX_EQUALIZATION_MASK;
-
-		tx_drv_brdct = (cfg_tap_val &
-				PORT_HW_CFG_TX_DRV_BROADCAST_MASK) >>
-			       PORT_HW_CFG_TX_DRV_BROADCAST_SHIFT;
 
 		misc1_val |= 0x9;
 
@@ -3985,11 +4016,36 @@ static void bnx2x_warpcore_set_10G_XFI(struct bnx2x_phy *phy,
 		else
 			tap_val = WC_TX_FIR(0x0f, 0x2b, 0x02);
 
-		if (tx_drv_brdct)
-			tx_driver_val = WC_TX_DRIVER(0x03, (u16)tx_drv_brdct,
-						     0x06);
-		else
-			tx_driver_val = WC_TX_DRIVER(0x03, 0x02, 0x06);
+		ifir_val = DEFAULT_TX_DRV_IFIR;
+		ipost2_val = DEFAULT_TX_DRV_POST2;
+		ipre_driver_val = DEFAULT_TX_DRV_IPRE_DRIVER;
+		tx_drv_brdct = DEFAULT_TX_DRV_BRDCT;
+
+		/* If any of the IFIR/IPRE_DRIVER/POST@ is set, apply all
+		 * configuration.
+		 */
+		if (cfg_tap_val & (PORT_HW_CFG_TX_DRV_IFIR_MASK |
+				   PORT_HW_CFG_TX_DRV_IPREDRIVER_MASK |
+				   PORT_HW_CFG_TX_DRV_POST2_MASK)) {
+			ifir_val = (cfg_tap_val &
+				    PORT_HW_CFG_TX_DRV_IFIR_MASK) >>
+				PORT_HW_CFG_TX_DRV_IFIR_SHIFT;
+			ipre_driver_val = (cfg_tap_val &
+					   PORT_HW_CFG_TX_DRV_IPREDRIVER_MASK)
+			>> PORT_HW_CFG_TX_DRV_IPREDRIVER_SHIFT;
+			ipost2_val = (cfg_tap_val &
+				      PORT_HW_CFG_TX_DRV_POST2_MASK) >>
+				PORT_HW_CFG_TX_DRV_POST2_SHIFT;
+		}
+
+		if (cfg_tap_val & PORT_HW_CFG_TX_DRV_BROADCAST_MASK) {
+			tx_drv_brdct = (cfg_tap_val &
+					PORT_HW_CFG_TX_DRV_BROADCAST_MASK) >>
+				PORT_HW_CFG_TX_DRV_BROADCAST_SHIFT;
+		}
+
+		tx_driver_val = WC_TX_DRIVER(ipost2_val, tx_drv_brdct,
+					     ipre_driver_val, ifir_val);
 	}
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			 MDIO_WC_REG_SERDESDIGITAL_MISC1, misc1_val);
@@ -4130,7 +4186,7 @@ static void bnx2x_warpcore_set_20G_DXGXS(struct bnx2x *bp,
 			  MDIO_WC_REG_TX_FIR_TAP_ENABLE));
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			 MDIO_WC_REG_TX0_TX_DRIVER + 0x10*lane,
-			 WC_TX_DRIVER(0x02, 0x02, 0x02));
+			 WC_TX_DRIVER(0x02, 0x02, 0x02, 0));
 }
 
 static void bnx2x_warpcore_set_sgmii_speed(struct bnx2x_phy *phy,
@@ -4347,20 +4403,14 @@ static void bnx2x_warpcore_config_runtime(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u32 serdes_net_if;
 	u16 gp_status1 = 0, lnkup = 0, lnkup_kr = 0;
-	u16 lane = bnx2x_get_warpcore_lane(phy, params);
 
 	vars->turn_to_run_wc_rt = vars->turn_to_run_wc_rt ? 0 : 1;
 
 	if (!vars->turn_to_run_wc_rt)
 		return;
 
-	/* Return if there is no link partner */
-	if (!(bnx2x_warpcore_get_sigdet(phy, params))) {
-		DP(NETIF_MSG_LINK, "bnx2x_warpcore_get_sigdet false\n");
-		return;
-	}
-
 	if (vars->rx_tx_asic_rst) {
+		u16 lane = bnx2x_get_warpcore_lane(phy, params);
 		serdes_net_if = (REG_RD(bp, params->shmem_base +
 				offsetof(struct shmem_region, dev_info.
 				port_hw_config[params->port].default_cfg)) &
@@ -4375,14 +4425,8 @@ static void bnx2x_warpcore_config_runtime(struct bnx2x_phy *phy,
 				/*10G KR*/
 			lnkup_kr = (gp_status1 >> (12+lane)) & 0x1;
 
-			DP(NETIF_MSG_LINK,
-				"gp_status1 0x%x\n", gp_status1);
-
 			if (lnkup_kr || lnkup) {
-					vars->rx_tx_asic_rst = 0;
-					DP(NETIF_MSG_LINK,
-					"link up, rx_tx_asic_rst 0x%x\n",
-					vars->rx_tx_asic_rst);
+				vars->rx_tx_asic_rst = 0;
 			} else {
 				/* Reset the lane to see if link comes up.*/
 				bnx2x_warpcore_reset_lane(bp, phy, 1);
@@ -4507,10 +4551,14 @@ static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 			 * enabled transmitter to avoid current leakage in case
 			 * no module is connected
 			 */
-			if (bnx2x_is_sfp_module_plugged(phy, params))
-				bnx2x_sfp_module_detection(phy, params);
-			else
-				bnx2x_sfp_e3_set_transmitter(params, phy, 1);
+			if ((params->loopback_mode == LOOPBACK_NONE) ||
+			    (params->loopback_mode == LOOPBACK_EXT)) {
+				if (bnx2x_is_sfp_module_plugged(phy, params))
+					bnx2x_sfp_module_detection(phy, params);
+				else
+					bnx2x_sfp_e3_set_transmitter(params,
+								     phy, 1);
+			}
 
 			bnx2x_warpcore_config_sfi(phy, params);
 			break;
@@ -4811,7 +4859,7 @@ void bnx2x_link_status_update(struct link_params *params,
 					~FEATURE_CONFIG_PFC_ENABLED;
 
 	if (SHMEM2_HAS(bp, link_attr_sync))
-		vars->link_attr_sync = SHMEM2_RD(bp,
+		params->link_attr_sync = SHMEM2_RD(bp,
 						 link_attr_sync[params->port]);
 
 	DP(NETIF_MSG_LINK, "link_status 0x%x  phy_link_up %x int_mask 0x%x\n",
@@ -5363,7 +5411,7 @@ static void bnx2x_update_adv_fc(struct bnx2x_phy *phy,
 				 MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK)>>7;
 		DP(NETIF_MSG_LINK, "pause_result CL37 0x%x\n", pause_result);
 	}
-	bnx2x_pause_resolve(vars, pause_result);
+	bnx2x_pause_resolve(phy, params, vars, pause_result);
 
 }
 
@@ -5757,6 +5805,11 @@ static int bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
 	rc = bnx2x_get_link_speed_duplex(phy, params, vars, link_up, gp_speed,
 					 duplex);
 
+	/* In case of KR link down, start up the recovering procedure */
+	if ((!link_up) && (phy->media_type == ETH_PHY_KR) &&
+	    (!(phy->flags & FLAGS_WC_DUAL_MODE)))
+		vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
+
 	DP(NETIF_MSG_LINK, "duplex %x  flow_ctrl 0x%x link_status 0x%x\n",
 		   vars->duplex, vars->flow_ctrl, vars->link_status);
 	return rc;
@@ -6108,49 +6161,40 @@ static void bnx2x_link_int_ack(struct link_params *params,
 	}
 }
 
-static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
-{
-	u8 *str_ptr = str;
-	u32 mask = 0xf0000000;
-	u8 shift = 8*4;
-	u8 digit;
-	u8 remove_leading_zeros = 1;
-	if (*len < 10) {
-		/* Need more than 10chars for this format */
-		*str_ptr = '\0';
-		(*len)--;
-		return -EINVAL;
-	}
-	while (shift > 0) {
-
-		shift -= 4;
-		digit = ((num & mask) >> shift);
-		if (digit == 0 && remove_leading_zeros) {
-			mask = mask >> 4;
-			continue;
-		} else if (digit < 0xa)
-			*str_ptr = digit + '0';
-		else
-			*str_ptr = digit - 0xa + 'a';
-		remove_leading_zeros = 0;
-		str_ptr++;
-		(*len)--;
-		mask = mask >> 4;
-		if (shift == 4*4) {
-			*str_ptr = '.';
-			str_ptr++;
-			(*len)--;
-			remove_leading_zeros = 1;
-		}
-	}
-	return 0;
-}
-
-
 static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
 {
 	str[0] = '\0';
 	(*len)--;
+	return 0;
+}
+
+static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
+{
+	u16 ret;
+
+	if (*len < 10) {
+		/* Need more than 10chars for this format */
+		bnx2x_null_format_ver(num, str, len);
+		return -EINVAL;
+	}
+
+	ret = scnprintf(str, *len, "%hx.%hx", num >> 16, num);
+	*len -= ret;
+	return 0;
+}
+
+static int bnx2x_3_seq_format_ver(u32 num, u8 *str, u16 *len)
+{
+	u16 ret;
+
+	if (*len < 10) {
+		/* Need more than 10chars for this format */
+		bnx2x_null_format_ver(num, str, len);
+		return -EINVAL;
+	}
+
+	ret = scnprintf(str, *len, "%hhx.%hhx.%hhx", num >> 16, num >> 8, num);
+	*len -= ret;
 	return 0;
 }
 
@@ -6345,9 +6389,15 @@ int bnx2x_set_led(struct link_params *params,
 			 * intended override.
 			 */
 			break;
-		} else
+		} else {
+			u32 nig_led_mode = ((params->hw_led_mode <<
+					     SHARED_HW_CFG_LED_MODE_SHIFT) ==
+					    SHARED_HW_CFG_LED_EXTPHY2) ?
+				(SHARED_HW_CFG_LED_PHY1 >>
+				 SHARED_HW_CFG_LED_MODE_SHIFT) : hw_led_mode;
 			REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4,
-			       hw_led_mode);
+			       nig_led_mode);
+		}
 
 		REG_WR(bp, NIG_REG_LED_CONTROL_OVERRIDE_TRAFFIC_P0 + port*4, 0);
 		/* Set blinking rate to ~15.9Hz */
@@ -6475,7 +6525,6 @@ int bnx2x_test_link(struct link_params *params, struct link_vars *vars,
 static int bnx2x_link_initialize(struct link_params *params,
 				 struct link_vars *vars)
 {
-	int rc = 0;
 	u8 phy_index, non_ext_phy;
 	struct bnx2x *bp = params->bp;
 	/* In case of external phy existence, the line speed would be the
@@ -6503,11 +6552,14 @@ static int bnx2x_link_initialize(struct link_params *params,
 		    (CHIP_IS_E1x(bp) ||
 		     CHIP_IS_E2(bp)))
 			bnx2x_set_parallel_detection(phy, params);
-			if (params->phy[INT_PHY].config_init)
-				params->phy[INT_PHY].config_init(phy,
-								 params,
-								 vars);
+		if (params->phy[INT_PHY].config_init)
+			params->phy[INT_PHY].config_init(phy, params, vars);
 	}
+
+	/* Re-read this value in case it was changed inside config_init due to
+	 * limitations of optic module
+	 */
+	vars->line_speed = params->phy[INT_PHY].req_line_speed;
 
 	/* Init external phy*/
 	if (non_ext_phy) {
@@ -6545,7 +6597,7 @@ static int bnx2x_link_initialize(struct link_params *params,
 			NIG_STATUS_XGXS0_LINK_STATUS |
 			NIG_STATUS_SERDES0_LINK_STATUS |
 			NIG_MASK_MI_INT));
-	return rc;
+	return 0;
 }
 
 static void bnx2x_int_link_reset(struct bnx2x_phy *phy,
@@ -6712,6 +6764,25 @@ static int bnx2x_update_link_up(struct link_params *params,
 	msleep(20);
 	return rc;
 }
+
+static void bnx2x_chng_link_count(struct link_params *params, bool clear)
+{
+	struct bnx2x *bp = params->bp;
+	u32 addr, val;
+
+	/* Verify the link_change_count is supported by the MFW */
+	if (!(SHMEM2_HAS(bp, link_change_count)))
+		return;
+
+	addr = params->shmem2_base +
+		offsetof(struct shmem2_region, link_change_count[params->port]);
+	if (clear)
+		val = 0;
+	else
+		val = REG_RD(bp, addr) + 1;
+	REG_WR(bp, addr, val);
+}
+
 /* The bnx2x_link_update function should be called upon link
  * interrupt.
  * Link is considered up as follows:
@@ -6730,6 +6801,7 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 	struct link_vars phy_vars[MAX_PHYS];
 	u8 port = params->port;
 	u8 link_10g_plus, phy_index;
+	u32 prev_link_status = vars->link_status;
 	u8 ext_phy_link_up = 0, cur_link_up;
 	int rc = 0;
 	u8 is_mi_int = 0;
@@ -6822,7 +6894,7 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 			 * hence its link is expected to be down
 			 * - SECOND_PHY means that first phy should not be able
 			 * to link up by itself (using configuration)
-			 * - DEFAULT should be overriden during initialiazation
+			 * - DEFAULT should be overridden during initialization
 			 */
 				DP(NETIF_MSG_LINK, "Invalid link indication"
 					   "mpc=0x%x. DISABLING LINK !!!\n",
@@ -6969,6 +7041,9 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 	else
 		rc = bnx2x_update_link_down(params, vars);
 
+	if ((prev_link_status ^ vars->link_status) & LINK_STATUS_LINK_UP)
+		bnx2x_chng_link_count(params, false);
+
 	/* Update MCP link status was changed */
 	if (params->feature_config_flags & FEATURE_CONFIG_BC_SUPPORTS_AFEX)
 		bnx2x_fw_command(bp, DRV_MSG_CODE_LINK_STATUS_CHANGED, 0);
@@ -7060,7 +7135,7 @@ static void bnx2x_8073_resolve_fc(struct bnx2x_phy *phy,
 		pause_result |= (lp_pause &
 				 MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH) >> 7;
 
-		bnx2x_pause_resolve(vars, pause_result);
+		bnx2x_pause_resolve(phy, params, vars, pause_result);
 		DP(NETIF_MSG_LINK, "Ext PHY CL37 pause result 0x%x\n",
 			   pause_result);
 	}
@@ -7888,7 +7963,7 @@ static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 			usleep_range(1000, 2000);
 			bnx2x_warpcore_power_module(params, 1);
 		}
-		rc = bnx2x_bsc_read(params, phy, dev_addr, addr32, 0, byte_cnt,
+		rc = bnx2x_bsc_read(params, bp, dev_addr, addr32, 0, byte_cnt,
 				    data_array);
 	} while ((rc != 0) && (++cnt < I2C_WA_RETRY_CNT));
 
@@ -8045,21 +8120,24 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u32 sync_offset = 0, phy_idx, media_types;
-	u8 gport, val[2], check_limiting_mode = 0;
+	u8 val[SFP_EEPROM_FC_TX_TECH_ADDR + 1], check_limiting_mode = 0;
 	*edc_mode = EDC_MODE_LIMITING;
 	phy->media_type = ETH_PHY_UNSPECIFIED;
 	/* First check for copper cable */
 	if (bnx2x_read_sfp_module_eeprom(phy,
 					 params,
 					 I2C_DEV_ADDR_A0,
-					 SFP_EEPROM_CON_TYPE_ADDR,
-					 2,
+					 0,
+					 SFP_EEPROM_FC_TX_TECH_ADDR + 1,
 					 (u8 *)val) != 0) {
 		DP(NETIF_MSG_LINK, "Failed to read from SFP+ module EEPROM\n");
 		return -EINVAL;
 	}
-
-	switch (val[0]) {
+	params->link_attr_sync &= ~LINK_SFP_EEPROM_COMP_CODE_MASK;
+	params->link_attr_sync |= val[SFP_EEPROM_10G_COMP_CODE_ADDR] <<
+		LINK_SFP_EEPROM_COMP_CODE_SHIFT;
+	bnx2x_update_link_attr(params, params->link_attr_sync);
+	switch (val[SFP_EEPROM_CON_TYPE_ADDR]) {
 	case SFP_EEPROM_CON_TYPE_VAL_COPPER:
 	{
 		u8 copper_module_type;
@@ -8067,46 +8145,45 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		/* Check if its active cable (includes SFP+ module)
 		 * of passive cable
 		 */
-		if (bnx2x_read_sfp_module_eeprom(phy,
-					       params,
-					       I2C_DEV_ADDR_A0,
-					       SFP_EEPROM_FC_TX_TECH_ADDR,
-					       1,
-					       &copper_module_type) != 0) {
-			DP(NETIF_MSG_LINK,
-				"Failed to read copper-cable-type"
-				" from SFP+ EEPROM\n");
-			return -EINVAL;
-		}
+		copper_module_type = val[SFP_EEPROM_FC_TX_TECH_ADDR];
 
 		if (copper_module_type &
 		    SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_ACTIVE) {
 			DP(NETIF_MSG_LINK, "Active Copper cable detected\n");
-			check_limiting_mode = 1;
-		} else if (copper_module_type &
-			SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
+			if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
+				*edc_mode = EDC_MODE_ACTIVE_DAC;
+			else
+				check_limiting_mode = 1;
+		} else {
+			*edc_mode = EDC_MODE_PASSIVE_DAC;
+			/* Even in case PASSIVE_DAC indication is not set,
+			 * treat it as a passive DAC cable, since some cables
+			 * don't have this indication.
+			 */
+			if (copper_module_type &
+			    SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
 				DP(NETIF_MSG_LINK,
 				   "Passive Copper cable detected\n");
-				*edc_mode =
-				      EDC_MODE_PASSIVE_DAC;
-		} else {
-			DP(NETIF_MSG_LINK,
-			   "Unknown copper-cable-type 0x%x !!!\n",
-			   copper_module_type);
-			return -EINVAL;
+			} else {
+				DP(NETIF_MSG_LINK,
+				   "Unknown copper-cable-type\n");
+			}
 		}
 		break;
 	}
+	case SFP_EEPROM_CON_TYPE_VAL_UNKNOWN:
 	case SFP_EEPROM_CON_TYPE_VAL_LC:
 	case SFP_EEPROM_CON_TYPE_VAL_RJ45:
 		check_limiting_mode = 1;
-		if ((val[1] & (SFP_EEPROM_COMP_CODE_SR_MASK |
-			       SFP_EEPROM_COMP_CODE_LR_MASK |
-			       SFP_EEPROM_COMP_CODE_LRM_MASK)) == 0) {
+		if (((val[SFP_EEPROM_10G_COMP_CODE_ADDR] &
+		     (SFP_EEPROM_10G_COMP_CODE_SR_MASK |
+		      SFP_EEPROM_10G_COMP_CODE_LR_MASK |
+		       SFP_EEPROM_10G_COMP_CODE_LRM_MASK)) == 0) &&
+		    (val[SFP_EEPROM_1G_COMP_CODE_ADDR] != 0)) {
 			DP(NETIF_MSG_LINK, "1G SFP module detected\n");
-			gport = params->port;
 			phy->media_type = ETH_PHY_SFP_1G_FIBER;
 			if (phy->req_line_speed != SPEED_1000) {
+				u8 gport = params->port;
 				phy->req_line_speed = SPEED_1000;
 				if (!CHIP_IS_E1x(bp)) {
 					gport = BP_PATH(bp) +
@@ -8115,6 +8192,12 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 				netdev_err(bp->dev,
 					   "Warning: Link speed was forced to 1000Mbps. Current SFP module in port %d is not compliant with 10G Ethernet\n",
 					   gport);
+			}
+			if (val[SFP_EEPROM_1G_COMP_CODE_ADDR] &
+			    SFP_EEPROM_1G_COMP_CODE_BASE_T) {
+				bnx2x_sfp_set_transmitter(params, phy, 0);
+				msleep(40);
+				bnx2x_sfp_set_transmitter(params, phy, 1);
 			}
 		} else {
 			int idx, cfg_idx = 0;
@@ -8131,7 +8214,7 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		break;
 	default:
 		DP(NETIF_MSG_LINK, "Unable to determine module type 0x%x !!!\n",
-			 val[0]);
+			 val[SFP_EEPROM_CON_TYPE_ADDR]);
 		return -EINVAL;
 	}
 	sync_offset = params->shmem_base +
@@ -8557,6 +8640,7 @@ static void bnx2x_warpcore_set_limiting_mode(struct link_params *params,
 		mode = MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_DEFAULT;
 		break;
 	case EDC_MODE_PASSIVE_DAC:
+	case EDC_MODE_ACTIVE_DAC:
 		mode = MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_DAC;
 		break;
 	default:
@@ -8594,8 +8678,8 @@ static void bnx2x_set_limiting_mode(struct link_params *params,
 	}
 }
 
-int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
-			       struct link_params *params)
+static int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
+				      struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
 	u16 edc_mode;
@@ -9555,6 +9639,13 @@ static void bnx2x_8727_link_reset(struct bnx2x_phy *phy,
 /******************************************************************/
 /*		BCM8481/BCM84823/BCM84833 PHY SECTION	          */
 /******************************************************************/
+static int bnx2x_is_8483x_8485x(struct bnx2x_phy *phy)
+{
+	return ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+		(phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) ||
+		(phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858));
+}
+
 static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
 					    struct bnx2x *bp,
 					    u8 port)
@@ -9569,11 +9660,11 @@ static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
 	};
 	u16 fw_ver1;
 
-	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
-	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
+	if (bnx2x_is_8483x_8485x(phy)) {
 		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD, 0x400f, &fw_ver1);
-		bnx2x_save_spirom_version(bp, port, fw_ver1 & 0xfff,
-				phy->ver_addr);
+		if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858)
+			fw_ver1 &= 0xfff;
+		bnx2x_save_spirom_version(bp, port, fw_ver1, phy->ver_addr);
 	} else {
 		/* For 32-bit registers in 848xx, access via MDIO2ARM i/f. */
 		/* (1) set reg 0xc200_0014(SPI_BRIDGE_CTRL_2) to 0x03000000 */
@@ -9627,22 +9718,41 @@ static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
 static void bnx2x_848xx_set_led(struct bnx2x *bp,
 				struct bnx2x_phy *phy)
 {
-	u16 val, offset, i;
+	u16 val, led3_blink_rate, offset, i;
 	static struct bnx2x_reg_set reg_set[] = {
 		{MDIO_PMA_DEVAD, MDIO_PMA_REG_8481_LED1_MASK, 0x0080},
 		{MDIO_PMA_DEVAD, MDIO_PMA_REG_8481_LED2_MASK, 0x0018},
 		{MDIO_PMA_DEVAD, MDIO_PMA_REG_8481_LED3_MASK, 0x0006},
-		{MDIO_PMA_DEVAD, MDIO_PMA_REG_8481_LED3_BLINK, 0x0000},
 		{MDIO_PMA_DEVAD, MDIO_PMA_REG_84823_CTL_SLOW_CLK_CNT_HIGH,
 			MDIO_PMA_REG_84823_BLINK_RATE_VAL_15P9HZ},
 		{MDIO_AN_DEVAD, 0xFFFB, 0xFFFD}
 	};
+
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858) {
+		/* Set LED5 source */
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD,
+				 MDIO_PMA_REG_8481_LED5_MASK,
+				 0x90);
+		led3_blink_rate = 0x000f;
+	} else {
+		led3_blink_rate = 0x0000;
+	}
+	/* Set LED3 BLINK */
+	bnx2x_cl45_write(bp, phy,
+			 MDIO_PMA_DEVAD,
+			 MDIO_PMA_REG_8481_LED3_BLINK,
+			 led3_blink_rate);
+
 	/* PHYC_CTL_LED_CTL */
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD,
 			MDIO_PMA_REG_8481_LINK_SIGNAL, &val);
 	val &= 0xFE00;
 	val |= 0x0092;
+
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858)
+		val |= 2 << 12; /* LED5 ON based on source */
 
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
@@ -9652,16 +9762,22 @@ static void bnx2x_848xx_set_led(struct bnx2x *bp,
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
 
-	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
-	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834))
+	if (bnx2x_is_8483x_8485x(phy))
 		offset = MDIO_PMA_REG_84833_CTL_LED_CTL_1;
 	else
 		offset = MDIO_PMA_REG_84823_CTL_LED_CTL_1;
 
-	/* stretch_en for LED3*/
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858)
+		val = MDIO_PMA_REG_84858_ALLOW_GPHY_ACT |
+		      MDIO_PMA_REG_84823_LED3_STRETCH_EN;
+	else
+		val = MDIO_PMA_REG_84823_LED3_STRETCH_EN;
+
+	/* stretch_en for LEDs */
 	bnx2x_cl45_read_or_write(bp, phy,
-				 MDIO_PMA_DEVAD, offset,
-				 MDIO_PMA_REG_84823_LED3_STRETCH_EN);
+				 MDIO_PMA_DEVAD,
+				 offset,
+				 val);
 }
 
 static void bnx2x_848xx_specific_func(struct bnx2x_phy *phy,
@@ -9671,8 +9787,7 @@ static void bnx2x_848xx_specific_func(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	switch (action) {
 	case PHY_INIT:
-		if ((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
-		    (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
+		if (bnx2x_is_8483x_8485x(phy)) {
 			/* Save spirom version */
 			bnx2x_save_848xx_spirom_version(phy, bp, params->port);
 		}
@@ -9732,32 +9847,41 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 			 MDIO_AN_DEVAD, MDIO_AN_REG_8481_1000T_CTRL,
 			 an_1000_val);
 
-	/* set 100 speed advertisement */
-	if ((phy->req_line_speed == SPEED_AUTO_NEG) &&
-	     (phy->speed_cap_mask &
-	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
-	       PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF))) {
-		an_10_100_val |= (1<<7);
-		/* Enable autoneg and restart autoneg for legacy speeds */
-		autoneg_val |= (1<<9 | 1<<12);
-
-		if (phy->req_duplex == DUPLEX_FULL)
+	/* Set 10/100 speed advertisement */
+	if (phy->req_line_speed == SPEED_AUTO_NEG) {
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL) {
+			/* Enable autoneg and restart autoneg for legacy speeds
+			 */
+			autoneg_val |= (1<<9 | 1<<12);
 			an_10_100_val |= (1<<8);
-		DP(NETIF_MSG_LINK, "Advertising 100M\n");
-	}
-	/* set 10 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-	     (phy->speed_cap_mask &
-	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL |
-	       PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF)) &&
-	     (phy->supported &
-	      (SUPPORTED_10baseT_Half |
-	       SUPPORTED_10baseT_Full)))) {
-		an_10_100_val |= (1<<5);
-		autoneg_val |= (1<<9 | 1<<12);
-		if (phy->req_duplex == DUPLEX_FULL)
+			DP(NETIF_MSG_LINK, "Advertising 100M-FD\n");
+		}
+
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF) {
+			/* Enable autoneg and restart autoneg for legacy speeds
+			 */
+			autoneg_val |= (1<<9 | 1<<12);
+			an_10_100_val |= (1<<7);
+			DP(NETIF_MSG_LINK, "Advertising 100M-HD\n");
+		}
+
+		if ((phy->speed_cap_mask &
+		     PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL) &&
+		    (phy->supported & SUPPORTED_10baseT_Full)) {
 			an_10_100_val |= (1<<6);
-		DP(NETIF_MSG_LINK, "Advertising 10M\n");
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-FD\n");
+		}
+
+		if ((phy->speed_cap_mask &
+		     PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF) &&
+		    (phy->supported & SUPPORTED_10baseT_Half)) {
+			an_10_100_val |= (1<<5);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-HD\n");
+		}
 	}
 
 	/* Only 10/100 are allowed to work in FORCE mode */
@@ -9795,8 +9919,7 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	/* Always write this if this is not 84833/4.
 	 * For 84833/4, write it only when it's a forced speed.
 	 */
-	if (((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
-	     (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) ||
+	if (!bnx2x_is_8483x_8485x(phy) ||
 	    ((autoneg_val & (1<<12)) == 0))
 		bnx2x_cl45_write(bp, phy,
 			 MDIO_AN_DEVAD,
@@ -9843,70 +9966,191 @@ static int bnx2x_8481_config_init(struct bnx2x_phy *phy,
 	return bnx2x_848xx_cmn_config_init(phy, params, vars);
 }
 
-#define PHY84833_CMDHDLR_WAIT 300
-#define PHY84833_CMDHDLR_MAX_ARGS 5
-static int bnx2x_84833_cmd_hdlr(struct bnx2x_phy *phy,
-				struct link_params *params, u16 fw_cmd,
+#define PHY848xx_CMDHDLR_WAIT 300
+#define PHY848xx_CMDHDLR_MAX_ARGS 5
+
+static int bnx2x_84858_cmd_hdlr(struct bnx2x_phy *phy,
+				struct link_params *params,
+				u16 fw_cmd,
 				u16 cmd_args[], int argc)
 {
 	int idx;
 	u16 val;
 	struct bnx2x *bp = params->bp;
-	/* Write CMD_OPEN_OVERRIDE to STATUS reg */
-	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
-			MDIO_84833_CMD_HDLR_STATUS,
-			PHY84833_STATUS_CMD_OPEN_OVERRIDE);
-	for (idx = 0; idx < PHY84833_CMDHDLR_WAIT; idx++) {
+
+	/* Step 1: Poll the STATUS register to see whether the previous command
+	 * is in progress or the system is busy (CMD_IN_PROGRESS or
+	 * SYSTEM_BUSY). If previous command is in progress or system is busy,
+	 * check again until the previous command finishes execution and the
+	 * system is available for taking command
+	 */
+
+	for (idx = 0; idx < PHY848xx_CMDHDLR_WAIT; idx++) {
 		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
-				MDIO_84833_CMD_HDLR_STATUS, &val);
-		if (val == PHY84833_STATUS_CMD_OPEN_FOR_CMDS)
+				MDIO_848xx_CMD_HDLR_STATUS, &val);
+		if ((val != PHY84858_STATUS_CMD_IN_PROGRESS) &&
+		    (val != PHY84858_STATUS_CMD_SYSTEM_BUSY))
 			break;
 		usleep_range(1000, 2000);
 	}
-	if (idx >= PHY84833_CMDHDLR_WAIT) {
+	if (idx >= PHY848xx_CMDHDLR_WAIT) {
 		DP(NETIF_MSG_LINK, "FW cmd: FW not ready.\n");
 		return -EINVAL;
 	}
 
-	/* Prepare argument(s) and issue command */
+	/* Step2: If any parameters are required for the function, write them
+	 * to the required DATA registers
+	 */
+
 	for (idx = 0; idx < argc; idx++) {
 		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
-				MDIO_84833_CMD_HDLR_DATA1 + idx,
-				cmd_args[idx]);
+				 MDIO_848xx_CMD_HDLR_DATA1 + idx,
+				 cmd_args[idx]);
 	}
+
+	/* Step3: When the firmware is ready for commands, write the 'Command
+	 * code' to the CMD register
+	 */
 	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
-			MDIO_84833_CMD_HDLR_COMMAND, fw_cmd);
-	for (idx = 0; idx < PHY84833_CMDHDLR_WAIT; idx++) {
+			 MDIO_848xx_CMD_HDLR_COMMAND, fw_cmd);
+
+	/* Step4: Once the command has been written, poll the STATUS register
+	 * to check whether the command has completed (CMD_COMPLETED_PASS/
+	 * CMD_FOR_CMDS or CMD_COMPLETED_ERROR).
+	 */
+
+	for (idx = 0; idx < PHY848xx_CMDHDLR_WAIT; idx++) {
 		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
-				MDIO_84833_CMD_HDLR_STATUS, &val);
-		if ((val == PHY84833_STATUS_CMD_COMPLETE_PASS) ||
-			(val == PHY84833_STATUS_CMD_COMPLETE_ERROR))
+				MDIO_848xx_CMD_HDLR_STATUS, &val);
+		if ((val == PHY84858_STATUS_CMD_COMPLETE_PASS) ||
+		    (val == PHY84858_STATUS_CMD_COMPLETE_ERROR))
 			break;
 		usleep_range(1000, 2000);
 	}
-	if ((idx >= PHY84833_CMDHDLR_WAIT) ||
-		(val == PHY84833_STATUS_CMD_COMPLETE_ERROR)) {
+	if ((idx >= PHY848xx_CMDHDLR_WAIT) ||
+	    (val == PHY84858_STATUS_CMD_COMPLETE_ERROR)) {
 		DP(NETIF_MSG_LINK, "FW cmd failed.\n");
 		return -EINVAL;
 	}
+	/* Step5: Once the command has completed, read the specficied DATA
+	 * registers for any saved results for the command, if applicable
+	 */
+
 	/* Gather returning data */
 	for (idx = 0; idx < argc; idx++) {
 		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
-				MDIO_84833_CMD_HDLR_DATA1 + idx,
+				MDIO_848xx_CMD_HDLR_DATA1 + idx,
 				&cmd_args[idx]);
 	}
-	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
-			MDIO_84833_CMD_HDLR_STATUS,
-			PHY84833_STATUS_CMD_CLEAR_COMPLETE);
+
 	return 0;
 }
 
-static int bnx2x_84833_pair_swap_cfg(struct bnx2x_phy *phy,
-				   struct link_params *params,
-				   struct link_vars *vars)
+static int bnx2x_84833_cmd_hdlr(struct bnx2x_phy *phy,
+				struct link_params *params, u16 fw_cmd,
+				u16 cmd_args[], int argc, int process)
+{
+	int idx;
+	u16 val;
+	struct bnx2x *bp = params->bp;
+	int rc = 0;
+
+	if (process == PHY84833_MB_PROCESS2) {
+		/* Write CMD_OPEN_OVERRIDE to STATUS reg */
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				 MDIO_848xx_CMD_HDLR_STATUS,
+				 PHY84833_STATUS_CMD_OPEN_OVERRIDE);
+	}
+
+	for (idx = 0; idx < PHY848xx_CMDHDLR_WAIT; idx++) {
+		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_848xx_CMD_HDLR_STATUS, &val);
+		if (val == PHY84833_STATUS_CMD_OPEN_FOR_CMDS)
+			break;
+		usleep_range(1000, 2000);
+	}
+	if (idx >= PHY848xx_CMDHDLR_WAIT) {
+		DP(NETIF_MSG_LINK, "FW cmd: FW not ready.\n");
+		/* if the status is CMD_COMPLETE_PASS or CMD_COMPLETE_ERROR
+		 * clear the status to CMD_CLEAR_COMPLETE
+		 */
+		if (val == PHY84833_STATUS_CMD_COMPLETE_PASS ||
+		    val == PHY84833_STATUS_CMD_COMPLETE_ERROR) {
+			bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+					 MDIO_848xx_CMD_HDLR_STATUS,
+					 PHY84833_STATUS_CMD_CLEAR_COMPLETE);
+		}
+		return -EINVAL;
+	}
+	if (process == PHY84833_MB_PROCESS1 ||
+	    process == PHY84833_MB_PROCESS2) {
+		/* Prepare argument(s) */
+		for (idx = 0; idx < argc; idx++) {
+			bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+					 MDIO_848xx_CMD_HDLR_DATA1 + idx,
+					 cmd_args[idx]);
+		}
+	}
+
+	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+			MDIO_848xx_CMD_HDLR_COMMAND, fw_cmd);
+	for (idx = 0; idx < PHY848xx_CMDHDLR_WAIT; idx++) {
+		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_848xx_CMD_HDLR_STATUS, &val);
+		if ((val == PHY84833_STATUS_CMD_COMPLETE_PASS) ||
+		    (val == PHY84833_STATUS_CMD_COMPLETE_ERROR))
+			break;
+		usleep_range(1000, 2000);
+	}
+	if ((idx >= PHY848xx_CMDHDLR_WAIT) ||
+	    (val == PHY84833_STATUS_CMD_COMPLETE_ERROR)) {
+		DP(NETIF_MSG_LINK, "FW cmd failed.\n");
+		rc = -EINVAL;
+	}
+	if (process == PHY84833_MB_PROCESS3 && rc == 0) {
+		/* Gather returning data */
+		for (idx = 0; idx < argc; idx++) {
+			bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+					MDIO_848xx_CMD_HDLR_DATA1 + idx,
+					&cmd_args[idx]);
+		}
+	}
+	if (val == PHY84833_STATUS_CMD_COMPLETE_ERROR ||
+	    val == PHY84833_STATUS_CMD_COMPLETE_PASS) {
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				 MDIO_848xx_CMD_HDLR_STATUS,
+				 PHY84833_STATUS_CMD_CLEAR_COMPLETE);
+	}
+	return rc;
+}
+
+static int bnx2x_848xx_cmd_hdlr(struct bnx2x_phy *phy,
+				struct link_params *params,
+				u16 fw_cmd,
+					   u16 cmd_args[], int argc,
+					   int process)
+{
+	struct bnx2x *bp = params->bp;
+
+	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858) ||
+	    (REG_RD(bp, params->shmem2_base +
+		    offsetof(struct shmem2_region,
+			     link_attr_sync[params->port])) &
+	     LINK_ATTR_84858)) {
+		return bnx2x_84858_cmd_hdlr(phy, params, fw_cmd, cmd_args,
+					    argc);
+	} else {
+		return bnx2x_84833_cmd_hdlr(phy, params, fw_cmd, cmd_args,
+					    argc, process);
+	}
+}
+
+static int bnx2x_848xx_pair_swap_cfg(struct bnx2x_phy *phy,
+				     struct link_params *params,
+				     struct link_vars *vars)
 {
 	u32 pair_swap;
-	u16 data[PHY84833_CMDHDLR_MAX_ARGS];
+	u16 data[PHY848xx_CMDHDLR_MAX_ARGS];
 	int status;
 	struct bnx2x *bp = params->bp;
 
@@ -9922,8 +10166,9 @@ static int bnx2x_84833_pair_swap_cfg(struct bnx2x_phy *phy,
 	/* Only the second argument is used for this command */
 	data[1] = (u16)pair_swap;
 
-	status = bnx2x_84833_cmd_hdlr(phy, params,
-		PHY84833_CMD_SET_PAIR_SWAP, data, PHY84833_CMDHDLR_MAX_ARGS);
+	status = bnx2x_848xx_cmd_hdlr(phy, params,
+				      PHY848xx_CMD_SET_PAIR_SWAP, data,
+				      2, PHY84833_MB_PROCESS2);
 	if (status == 0)
 		DP(NETIF_MSG_LINK, "Pairswap OK, val=0x%x\n", data[1]);
 
@@ -10012,8 +10257,8 @@ static int bnx2x_8483x_disable_eee(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Don't Advertise 10GBase-T EEE\n");
 
 	/* Prevent Phy from working in EEE and advertising it */
-	rc = bnx2x_84833_cmd_hdlr(phy, params,
-		PHY84833_CMD_SET_EEE_MODE, &cmd_args, 1);
+	rc = bnx2x_848xx_cmd_hdlr(phy, params, PHY848xx_CMD_SET_EEE_MODE,
+				  &cmd_args, 1, PHY84833_MB_PROCESS1);
 	if (rc) {
 		DP(NETIF_MSG_LINK, "EEE disable failed.\n");
 		return rc;
@@ -10030,8 +10275,8 @@ static int bnx2x_8483x_enable_eee(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u16 cmd_args = 1;
 
-	rc = bnx2x_84833_cmd_hdlr(phy, params,
-		PHY84833_CMD_SET_EEE_MODE, &cmd_args, 1);
+	rc = bnx2x_848xx_cmd_hdlr(phy, params, PHY848xx_CMD_SET_EEE_MODE,
+				  &cmd_args, 1, PHY84833_MB_PROCESS1);
 	if (rc) {
 		DP(NETIF_MSG_LINK, "EEE enable failed.\n");
 		return rc;
@@ -10049,7 +10294,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	u8 port, initialize = 1;
 	u16 val;
 	u32 actual_phy_selection;
-	u16 cmd_args[PHY84833_CMDHDLR_MAX_ARGS];
+	u16 cmd_args[PHY848xx_CMDHDLR_MAX_ARGS];
 	int rc = 0;
 
 	usleep_range(1000, 2000);
@@ -10074,8 +10319,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 
 	/* Wait for GPHY to come out of reset */
 	msleep(50);
-	if ((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
-	    (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
+	if (!bnx2x_is_8483x_8485x(phy)) {
 		/* BCM84823 requires that XGXS links up first @ 10G for normal
 		 * behavior.
 		 */
@@ -10086,7 +10330,19 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		bnx2x_program_serdes(&params->phy[INT_PHY], params, vars);
 		vars->line_speed = temp;
 	}
+	/* Check if this is actually BCM84858 */
+	if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858) {
+		u16 hw_rev;
 
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_848xx_ID_MSB, &hw_rev);
+		if (hw_rev == BCM84858_PHY_ID) {
+			params->link_attr_sync |= LINK_ATTR_84858;
+			bnx2x_update_link_attr(params, params->link_attr_sync);
+		}
+	}
+
+	/* Set dual-media configuration according to configuration */
 	bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
 			MDIO_CTL_REG_84823_MEDIA, &val);
 	val &= ~(MDIO_CTL_REG_84823_MEDIA_MAC_MASK |
@@ -10131,18 +10387,17 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Multi_phy config = 0x%x, Media control = 0x%x\n",
 		   params->multi_phy_config, val);
 
-	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
-	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
-		bnx2x_84833_pair_swap_cfg(phy, params, vars);
+	if (bnx2x_is_8483x_8485x(phy)) {
+		bnx2x_848xx_pair_swap_cfg(phy, params, vars);
 
 		/* Keep AutogrEEEn disabled. */
 		cmd_args[0] = 0x0;
 		cmd_args[1] = 0x0;
 		cmd_args[2] = PHY84833_CONSTANT_LATENCY + 1;
 		cmd_args[3] = PHY84833_CONSTANT_LATENCY;
-		rc = bnx2x_84833_cmd_hdlr(phy, params,
-			PHY84833_CMD_SET_EEE_MODE, cmd_args,
-			PHY84833_CMDHDLR_MAX_ARGS);
+		rc = bnx2x_848xx_cmd_hdlr(phy, params,
+					  PHY848xx_CMD_SET_EEE_MODE, cmd_args,
+					  4, PHY84833_MB_PROCESS1);
 		if (rc)
 			DP(NETIF_MSG_LINK, "Cfg AutogrEEEn failed.\n");
 	}
@@ -10196,8 +10451,33 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		vars->eee_status &= ~SHMEM_EEE_SUPPORTED_MASK;
 	}
 
-	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
-	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+		/* Additional settings for jumbo packets in 1000BASE-T mode */
+		/* Allow rx extended length */
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_8481_AUX_CTRL, &val);
+		val |= 0x4000;
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_AUX_CTRL, val);
+		/* TX FIFO Elasticity LSB */
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_8481_1G_100T_EXT_CTRL, &val);
+		val |= 0x1;
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_1G_100T_EXT_CTRL, val);
+		/* TX FIFO Elasticity MSB */
+		/* Enable expansion register 0x46 (Pattern Generator status) */
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_EXPANSION_REG_ACCESS, 0xf46);
+
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_8481_EXPANSION_REG_RD_RW, &val);
+		val |= 0x4000;
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_EXPANSION_REG_RD_RW, val);
+	}
+
+	if (bnx2x_is_8483x_8485x(phy)) {
 		/* Bring PHY out of super isolate mode as the final step. */
 		bnx2x_cl45_read_and_write(bp, phy,
 					  MDIO_CTL_DEVAD,
@@ -10329,21 +10609,28 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
 
 		/* Determine if EEE was negotiated */
-		if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
-		    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834))
+		if (bnx2x_is_8483x_8485x(phy))
 			bnx2x_eee_an_resolve(phy, params, vars);
 	}
 
 	return link_up;
 }
 
+static int bnx2x_8485x_format_ver(u32 raw_ver, u8 *str, u16 *len)
+{
+	u32 num;
+
+	num = ((raw_ver & 0xF80) >> 7) << 16 | ((raw_ver & 0x7F) << 8) |
+	      ((raw_ver & 0xF000) >> 12);
+	return bnx2x_3_seq_format_ver(num, str, len);
+}
+
 static int bnx2x_848xx_format_ver(u32 raw_ver, u8 *str, u16 *len)
 {
-	int status = 0;
 	u32 spirom_ver;
+
 	spirom_ver = ((raw_ver & 0xF80) >> 7) << 16 | (raw_ver & 0x7F);
-	status = bnx2x_format_ver(spirom_ver, str, len);
-	return status;
+	return bnx2x_format_ver(spirom_ver, str, len);
 }
 
 static void bnx2x_8481_hw_reset(struct bnx2x_phy *phy,
@@ -10433,10 +10720,25 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					0x0);
 
 		} else {
+			/* LED 1 OFF */
 			bnx2x_cl45_write(bp, phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x0);
+
+			if (phy->type ==
+				PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858) {
+				/* LED 2 OFF */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LED2_MASK,
+						 0x0);
+				/* LED 3 OFF */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LED3_MASK,
+						 0x0);
+			}
 		}
 		break;
 	case LED_MODE_FRONT_PANEL_OFF:
@@ -10493,6 +10795,19 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 				bnx2x_cl45_write(bp, phy,
 						 MDIO_PMA_DEVAD,
 						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x0);
+			}
+			if (phy->type ==
+				PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858) {
+				/* LED 2 OFF */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LED2_MASK,
+						 0x0);
+				/* LED 3 OFF */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LED3_MASK,
 						 0x0);
 			}
 		}
@@ -10558,6 +10873,25 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 						params->port*4,
 						NIG_MASK_MI_INT);
 				}
+			}
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858) {
+				/* Tell LED3 to constant on */
+				bnx2x_cl45_read(bp, phy,
+						MDIO_PMA_DEVAD,
+						MDIO_PMA_REG_8481_LINK_SIGNAL,
+						&val);
+				val &= ~(7<<6);
+				val |= (2<<6);  /* A83B[8:6]= 2 */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LINK_SIGNAL,
+						 val);
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LED3_MASK,
+						 0x20);
+			} else {
 				bnx2x_cl45_write(bp, phy,
 						 MDIO_PMA_DEVAD,
 						 MDIO_PMA_REG_8481_SIGNAL_MASK,
@@ -10611,10 +10945,18 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 0x40);
 
 		} else {
+			/* EXTPHY2 LED mode indicate that the 100M/1G/10G LED
+			 * sources are all wired through LED1, rather than only
+			 * 10G in other modes.
+			 */
+			val = ((params->hw_led_mode <<
+				SHARED_HW_CFG_LED_MODE_SHIFT) ==
+			       SHARED_HW_CFG_LED_EXTPHY2) ? 0x98 : 0x80;
+
 			bnx2x_cl45_write(bp, phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
-					 0x80);
+					 val);
 
 			/* Tell LED3 to blink on source */
 			bnx2x_cl45_read(bp, phy,
@@ -10627,6 +10969,17 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LINK_SIGNAL,
 					 val);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858) {
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LED2_MASK,
+						 0x18);
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_LED3_MASK,
+						 0x06);
+			}
 			if (phy->type ==
 			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
 				/* Restore LED4 source to external link,
@@ -10770,9 +11123,9 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 			   (1<<11));
 
 	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-			(phy->speed_cap_mask &
-			PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) ||
-			(phy->req_line_speed == SPEED_1000)) {
+	     (phy->speed_cap_mask &
+	      PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) ||
+	    (phy->req_line_speed == SPEED_1000)) {
 		an_1000_val |= (1<<8);
 		autoneg_val |= (1<<9 | 1<<12);
 		if (phy->req_duplex == DUPLEX_FULL)
@@ -10788,30 +11141,32 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 			0x09,
 			&an_1000_val);
 
-	/* Set 100 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-			(phy->speed_cap_mask &
-			(PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
-			PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF)))) {
-		an_10_100_val |= (1<<7);
-		/* Enable autoneg and restart autoneg for legacy speeds */
-		autoneg_val |= (1<<9 | 1<<12);
-
-		if (phy->req_duplex == DUPLEX_FULL)
-			an_10_100_val |= (1<<8);
-		DP(NETIF_MSG_LINK, "Advertising 100M\n");
-	}
-
-	/* Set 10 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-			(phy->speed_cap_mask &
-			(PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL |
-			PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF)))) {
-		an_10_100_val |= (1<<5);
-		autoneg_val |= (1<<9 | 1<<12);
-		if (phy->req_duplex == DUPLEX_FULL)
+	/* Advertise 10/100 link speed */
+	if (phy->req_line_speed == SPEED_AUTO_NEG) {
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF) {
+			an_10_100_val |= (1<<5);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-HD\n");
+		}
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL) {
 			an_10_100_val |= (1<<6);
-		DP(NETIF_MSG_LINK, "Advertising 10M\n");
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 10M-FD\n");
+		}
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF) {
+			an_10_100_val |= (1<<7);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 100M-HD\n");
+		}
+		if (phy->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL) {
+			an_10_100_val |= (1<<8);
+			autoneg_val |= (1<<9 | 1<<12);
+			DP(NETIF_MSG_LINK, "Advertising 100M-FD\n");
+		}
 	}
 
 	/* Only 10/100 are allowed to work in FORCE mode */
@@ -11377,7 +11732,9 @@ static const struct bnx2x_phy phy_warpcore = {
 			   SUPPORTED_100baseT_Half |
 			   SUPPORTED_100baseT_Full |
 			   SUPPORTED_1000baseT_Full |
+			   SUPPORTED_1000baseKX_Full |
 			   SUPPORTED_10000baseT_Full |
+			   SUPPORTED_10000baseKR_Full |
 			   SUPPORTED_20000baseKR2_Full |
 			   SUPPORTED_20000baseMLD2_Full |
 			   SUPPORTED_FIBRE |
@@ -11724,6 +12081,40 @@ static const struct bnx2x_phy phy_84834 = {
 	.phy_specific_func = (phy_specific_func_t)bnx2x_848xx_specific_func
 };
 
+static const struct bnx2x_phy phy_84858 = {
+	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858,
+	.addr		= 0xff,
+	.def_md_devad	= 0,
+	.flags		= FLAGS_FAN_FAILURE_DET_REQ |
+			    FLAGS_REARM_LATCH_SIGNAL,
+	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
+	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
+	.mdio_ctrl	= 0,
+	.supported	= (SUPPORTED_100baseT_Half |
+			   SUPPORTED_100baseT_Full |
+			   SUPPORTED_1000baseT_Full |
+			   SUPPORTED_10000baseT_Full |
+			   SUPPORTED_TP |
+			   SUPPORTED_Autoneg |
+			   SUPPORTED_Pause |
+			   SUPPORTED_Asym_Pause),
+	.media_type	= ETH_PHY_BASE_T,
+	.ver_addr	= 0,
+	.req_flow_ctrl	= 0,
+	.req_line_speed	= 0,
+	.speed_cap_mask	= 0,
+	.req_duplex	= 0,
+	.rsrv		= 0,
+	.config_init	= (config_init_t)bnx2x_848x3_config_init,
+	.read_status	= (read_status_t)bnx2x_848xx_read_status,
+	.link_reset	= (link_reset_t)bnx2x_848x3_link_reset,
+	.config_loopback = (config_loopback_t)NULL,
+	.format_fw_ver	= (format_fw_ver_t)bnx2x_8485x_format_ver,
+	.hw_reset	= (hw_reset_t)bnx2x_84833_hw_reset_phy,
+	.set_link_led	= (set_link_led_t)bnx2x_848xx_set_link_led,
+	.phy_specific_func = (phy_specific_func_t)bnx2x_848xx_specific_func
+};
+
 static const struct bnx2x_phy phy_54618se = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE,
 	.addr		= 0xff,
@@ -11883,8 +12274,8 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			break;
 		case PORT_HW_CFG_NET_SERDES_IF_KR:
 			phy->media_type = ETH_PHY_KR;
-			phy->supported &= (SUPPORTED_1000baseT_Full |
-					   SUPPORTED_10000baseT_Full |
+			phy->supported &= (SUPPORTED_1000baseKX_Full |
+					   SUPPORTED_10000baseKR_Full |
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Autoneg |
 					   SUPPORTED_Pause |
@@ -11902,8 +12293,8 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			phy->media_type = ETH_PHY_KR;
 			phy->flags |= FLAGS_WC_DUAL_MODE;
 			phy->supported &= (SUPPORTED_20000baseKR2_Full |
-					   SUPPORTED_10000baseT_Full |
-					   SUPPORTED_1000baseT_Full |
+					   SUPPORTED_10000baseKR_Full |
+					   SUPPORTED_1000baseKX_Full |
 					   SUPPORTED_Autoneg |
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Pause |
@@ -12010,6 +12401,9 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
 		*phy = phy_84834;
 		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858:
+		*phy = phy_84858;
+		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE:
 		*phy = phy_54618se;
@@ -12066,9 +12460,7 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 	}
 	phy->mdio_ctrl = bnx2x_get_emac_base(bp, mdc_mdio_access, port);
 
-	if (((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
-	     (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) &&
-	    (phy->ver_addr)) {
+	if (bnx2x_is_8483x_8485x(phy) && (phy->ver_addr)) {
 		/* Remove 100Mb link supported for BCM84833/4 when phy fw
 		 * version lower than or equal to 1.39
 		 */
@@ -12089,13 +12481,12 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 static int bnx2x_populate_phy(struct bnx2x *bp, u8 phy_index, u32 shmem_base,
 			      u32 shmem2_base, u8 port, struct bnx2x_phy *phy)
 {
-	int status = 0;
 	phy->type = PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN;
 	if (phy_index == INT_PHY)
 		return bnx2x_populate_int_phy(bp, shmem_base, port, phy);
-	status = bnx2x_populate_ext_phy(bp, phy_index, shmem_base, shmem2_base,
+
+	return bnx2x_populate_ext_phy(bp, phy_index, shmem_base, shmem2_base,
 					port, phy);
-	return status;
 }
 
 static void bnx2x_phy_def_cfg(struct link_params *params,
@@ -12434,6 +12825,7 @@ static int bnx2x_avoid_link_flap(struct link_params *params,
 	u32 dont_clear_stat, lfa_sts;
 	struct bnx2x *bp = params->bp;
 
+	bnx2x_set_mdio_emac_per_phy(bp, params);
 	/* Sync the link parameters */
 	bnx2x_link_status_update(params, vars);
 
@@ -12583,6 +12975,7 @@ int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	params->link_flags = PHY_INITIALIZED;
 	/* Driver opens NIG-BRB filters */
 	bnx2x_set_rx_filter(params, 1);
+	bnx2x_chng_link_count(params, true);
 	/* Check if link flap can be avoided */
 	lfa_status = bnx2x_check_lfa(params);
 
@@ -12657,6 +13050,7 @@ int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 	DP(NETIF_MSG_LINK, "Resetting the link of port %d\n", port);
 	/* Disable attentions */
 	vars->link_status = 0;
+	bnx2x_chng_link_count(params, true);
 	bnx2x_update_mng(params, vars->link_status);
 	vars->eee_status &= ~(SHMEM_EEE_LP_ADV_STATUS_MASK |
 			      SHMEM_EEE_ACTIVE_BIT);
@@ -13160,6 +13554,7 @@ static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858:
 		/* GPIO3's are linked, and so both need to be toggled
 		 * to obtain required 2us pulse.
 		 */
@@ -13260,7 +13655,7 @@ static void bnx2x_check_over_curr(struct link_params *params,
 		vars->phy_flags &= ~PHY_OVER_CURRENT_FLAG;
 }
 
-/* Returns 0 if no change occured since last check; 1 otherwise. */
+/* Returns 0 if no change occurred since last check; 1 otherwise. */
 static u8 bnx2x_analyze_link_error(struct link_params *params,
 				    struct link_vars *vars, u32 status,
 				    u32 phy_flag, u32 link_flag, u8 notify)
@@ -13286,6 +13681,10 @@ static u8 bnx2x_analyze_link_error(struct link_params *params,
 	}
 	DP(NETIF_MSG_LINK, "Link changed:[%x %x]->%x\n", vars->link_up,
 	   old_status, status);
+
+	/* Do not touch the link in case physical link down */
+	if ((vars->phy_flags & PHY_PHYSICAL_LINK_FLAG) == 0)
+		return 1;
 
 	/* a. Update shmem->link_status accordingly
 	 * b. Update link_vars->link_up
@@ -13336,9 +13735,9 @@ static u8 bnx2x_analyze_link_error(struct link_params *params,
 *	a fault, for example, due to break in the TX side of fiber.
 *
 ******************************************************************************/
-int bnx2x_check_half_open_conn(struct link_params *params,
-				struct link_vars *vars,
-				u8 notify)
+static int bnx2x_check_half_open_conn(struct link_params *params,
+				      struct link_vars *vars,
+				      u8 notify)
 {
 	struct bnx2x *bp = params->bp;
 	u32 lss_status = 0;
@@ -13434,43 +13833,6 @@ static void bnx2x_sfp_tx_fault_detection(struct bnx2x_phy *phy,
 		}
 	}
 }
-static void bnx2x_disable_kr2(struct link_params *params,
-			      struct link_vars *vars,
-			      struct bnx2x_phy *phy)
-{
-	struct bnx2x *bp = params->bp;
-	int i;
-	static struct bnx2x_reg_set reg_set[] = {
-		/* Step 1 - Program the TX/RX alignment markers */
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL5, 0x7690},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL7, 0xe647},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL6, 0xc4f0},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL9, 0x7690},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL11, 0xe647},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL10, 0xc4f0},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_USERB0_CTRL, 0x000c},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL1, 0x6000},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL3, 0x0000},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CODE_FIELD, 0x0002},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI1, 0x0000},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI2, 0x0af7},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI3, 0x0af7},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_BAM_CODE, 0x0002},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_UD_CODE, 0x0000}
-	};
-	DP(NETIF_MSG_LINK, "Disabling 20G-KR2\n");
-
-	for (i = 0; i < ARRAY_SIZE(reg_set); i++)
-		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
-				 reg_set[i].val);
-	vars->link_attr_sync &= ~LINK_ATTR_SYNC_KR2_ENABLE;
-	bnx2x_update_link_attr(params, vars->link_attr_sync);
-
-	vars->check_kr2_recovery_cnt = CHECK_KR2_RECOVERY_CNT;
-	/* Restart AN on leading lane */
-	bnx2x_warpcore_restart_AN_KR(phy, params);
-}
-
 static void bnx2x_kr2_recovery(struct link_params *params,
 			       struct link_vars *vars,
 			       struct bnx2x_phy *phy)
@@ -13501,7 +13863,7 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 
 	sigdet = bnx2x_warpcore_get_sigdet(phy, params);
 	if (!sigdet) {
-		if (!(vars->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
+		if (!(params->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
 			bnx2x_kr2_recovery(params, vars, phy);
 			DP(NETIF_MSG_LINK, "No sigdet\n");
 		}
@@ -13519,7 +13881,7 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 
 	/* CL73 has not begun yet */
 	if (base_page == 0) {
-		if (!(vars->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
+		if (!(params->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
 			bnx2x_kr2_recovery(params, vars, phy);
 			DP(NETIF_MSG_LINK, "No BP\n");
 		}
@@ -13532,10 +13894,10 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 	 */
 	not_kr2_device = (((base_page & 0x8000) == 0) ||
 			  (((base_page & 0x8000) &&
-			    ((next_page & 0xe0) == 0x2))));
+			    ((next_page & 0xe0) == 0x20))));
 
 	/* In case KR2 is already disabled, check if we need to re-enable it */
-	if (!(vars->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
+	if (!(params->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
 		if (!not_kr2_device) {
 			DP(NETIF_MSG_LINK, "BP=0x%x, NP=0x%x\n", base_page,
 			   next_page);
@@ -13548,6 +13910,8 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 		/* Disable KR2 on both lanes */
 		DP(NETIF_MSG_LINK, "BP=0x%x, NP=0x%x\n", base_page, next_page);
 		bnx2x_disable_kr2(params, vars, phy);
+		/* Restart AN on leading lane */
+		bnx2x_warpcore_restart_AN_KR(phy, params);
 		return;
 	}
 }
@@ -13569,8 +13933,10 @@ void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 	if (CHIP_IS_E3(bp)) {
 		struct bnx2x_phy *phy = &params->phy[INT_PHY];
 		bnx2x_set_aer_mmd(params, phy);
-		if ((phy->supported & SUPPORTED_20000baseKR2_Full) &&
-		    (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_20G))
+		if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
+		     (phy->speed_cap_mask &
+		      PORT_HW_CFG_SPEED_CAPABILITY_D0_20G)) ||
+		    (phy->req_line_speed == SPEED_20000))
 			bnx2x_check_kr2_wa(params, vars, phy);
 		bnx2x_check_over_curr(params, vars);
 		if (vars->rx_tx_asic_rst)

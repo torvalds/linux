@@ -459,8 +459,7 @@ static int ks8842_tx_frame_dma(struct sk_buff *skb, struct net_device *netdev)
 		sg_dma_len(&ctl->sg) += 4 - sg_dma_len(&ctl->sg) % 4;
 
 	ctl->adesc = dmaengine_prep_slave_sg(ctl->chan,
-		&ctl->sg, 1, DMA_MEM_TO_DEV,
-		DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
+		&ctl->sg, 1, DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
 	if (!ctl->adesc)
 		return NETDEV_TX_BUSY;
 
@@ -562,8 +561,8 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		sg_init_table(sg, 1);
 		sg_dma_address(sg) = dma_map_single(adapter->dev,
 			ctl->skb->data, DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
-		err = dma_mapping_error(adapter->dev, sg_dma_address(sg));
-		if (unlikely(err)) {
+		if (dma_mapping_error(adapter->dev, sg_dma_address(sg))) {
+			err = -ENOMEM;
 			sg_dma_address(sg) = 0;
 			goto out;
 		}
@@ -571,11 +570,12 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		sg_dma_len(sg) = DMA_BUFFER_SIZE;
 
 		ctl->adesc = dmaengine_prep_slave_sg(ctl->chan,
-			sg, 1, DMA_DEV_TO_MEM,
-			DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
+			sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
 
-		if (!ctl->adesc)
+		if (!ctl->adesc) {
+			err = -ENOMEM;
 			goto out;
+		}
 
 		ctl->adesc->callback_param = netdev;
 		ctl->adesc->callback = ks8842_dma_rx_cb;
@@ -586,7 +586,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		goto out;
 	}
 
-	return err;
+	return 0;
 out:
 	if (sg_dma_address(sg))
 		dma_unmap_single(adapter->dev, sg_dma_address(sg),
@@ -669,7 +669,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 			ks8842_update_rx_counters(netdev, status, len);
 
 			if (adapter->conf_flags & KS884X_16BIT) {
-				u16 *data16 = (u16 *)skb_put(skb, len);
+				u16 *data16 = skb_put(skb, len);
 				ks8842_select_bank(adapter, 17);
 				while (len > 0) {
 					*data16++ = ioread16(adapter->hw_addr +
@@ -679,7 +679,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 					len -= sizeof(u32);
 				}
 			} else {
-				u32 *data = (u32 *)skb_put(skb, len);
+				u32 *data = skb_put(skb, len);
 
 				ks8842_select_bank(adapter, 17);
 				while (len > 0) {
@@ -705,7 +705,8 @@ static void ks8842_rx_frame(struct net_device *netdev,
 	ks8842_enable_bits(adapter, 0, 1 << 12, REG_QRFCR);
 }
 
-void ks8842_handle_rx(struct net_device *netdev, struct ks8842_adapter *adapter)
+static void ks8842_handle_rx(struct net_device *netdev,
+	struct ks8842_adapter *adapter)
 {
 	u16 rx_data = ks8842_read16(adapter, 16, REG_RXMIR) & 0x1fff;
 	netdev_dbg(netdev, "%s Entry - rx_data: %d\n", __func__, rx_data);
@@ -715,7 +716,8 @@ void ks8842_handle_rx(struct net_device *netdev, struct ks8842_adapter *adapter)
 	}
 }
 
-void ks8842_handle_tx(struct net_device *netdev, struct ks8842_adapter *adapter)
+static void ks8842_handle_tx(struct net_device *netdev,
+	struct ks8842_adapter *adapter)
 {
 	u16 sr = ks8842_read16(adapter, 16, REG_TXSR);
 	netdev_dbg(netdev, "%s - entry, sr: %x\n", __func__, sr);
@@ -724,7 +726,7 @@ void ks8842_handle_tx(struct net_device *netdev, struct ks8842_adapter *adapter)
 		netif_wake_queue(netdev);
 }
 
-void ks8842_handle_rx_overrun(struct net_device *netdev,
+static void ks8842_handle_rx_overrun(struct net_device *netdev,
 	struct ks8842_adapter *adapter)
 {
 	netdev_dbg(netdev, "%s: entry\n", __func__);
@@ -732,7 +734,7 @@ void ks8842_handle_rx_overrun(struct net_device *netdev,
 	netdev->stats.rx_fifo_errors++;
 }
 
-void ks8842_tasklet(unsigned long arg)
+static void ks8842_tasklet(unsigned long arg)
 {
 	struct net_device *netdev = (struct net_device *)arg;
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
@@ -875,13 +877,11 @@ static void ks8842_stop_dma(struct ks8842_adapter *adapter)
 
 	tx_ctl->adesc = NULL;
 	if (tx_ctl->chan)
-		tx_ctl->chan->device->device_control(tx_ctl->chan,
-			DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(tx_ctl->chan);
 
 	rx_ctl->adesc = NULL;
 	if (rx_ctl->chan)
-		rx_ctl->chan->device->device_control(rx_ctl->chan,
-			DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(rx_ctl->chan);
 
 	if (sg_dma_address(&rx_ctl->sg))
 		dma_unmap_single(adapter->dev, sg_dma_address(&rx_ctl->sg),
@@ -954,9 +954,8 @@ static int ks8842_alloc_dma_bufs(struct net_device *netdev)
 
 	sg_dma_address(&tx_ctl->sg) = dma_map_single(adapter->dev,
 		tx_ctl->buf, DMA_BUFFER_SIZE, DMA_TO_DEVICE);
-	err = dma_mapping_error(adapter->dev,
-		sg_dma_address(&tx_ctl->sg));
-	if (err) {
+	if (dma_mapping_error(adapter->dev, sg_dma_address(&tx_ctl->sg))) {
+		err = -ENOMEM;
 		sg_dma_address(&tx_ctl->sg) = 0;
 		goto err;
 	}
@@ -1146,7 +1145,7 @@ static int ks8842_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;
-	struct ks8842_platform_data *pdata = pdev->dev.platform_data;
+	struct ks8842_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	u16 id;
 	unsigned i;
 
@@ -1257,7 +1256,6 @@ static int ks8842_remove(struct platform_device *pdev)
 static struct platform_driver ks8842_platform_driver = {
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ks8842_probe,
 	.remove		= ks8842_remove,

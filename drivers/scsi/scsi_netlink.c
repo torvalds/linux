@@ -77,7 +77,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 			goto next_msg;
 		}
 
-		if (!capable(CAP_SYS_ADMIN)) {
+		if (!netlink_capable(skb, CAP_SYS_ADMIN)) {
 			err = -EPERM;
 			goto next_msg;
 		}
@@ -111,7 +111,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 
 next_msg:
 		if ((err) || (nlh->nlmsg_flags & NLM_F_ACK))
-			netlink_ack(skb, nlh, err);
+			netlink_ack(skb, nlh, err, NULL);
 
 		skb_pull(skb, rlen);
 	}

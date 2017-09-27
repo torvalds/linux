@@ -22,6 +22,7 @@
 #include <net/pkt_sched.h>
 #include <net/caif/caif_device.h>
 #include <net/caif/caif_layer.h>
+#include <net/caif/caif_dev.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfcnfg.h>
 #include <net/caif/cfserl.h>
@@ -51,7 +52,7 @@ struct caif_net {
 	struct caif_device_entry_list caifdevs;
 };
 
-static int caif_net_id;
+static unsigned int caif_net_id;
 static int q_high = 50; /* Percent */
 
 struct cfcnfg *get_cfcnfg(struct net *net)
@@ -176,7 +177,7 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 	skb->protocol = htons(ETH_P_CAIF);
 
 	/* Check if we need to handle xoff */
-	if (likely(caifd->netdev->tx_queue_len == 0))
+	if (likely(caifd->netdev->priv_flags & IFF_NO_QUEUE))
 		goto noxoff;
 
 	if (unlikely(caifd->xoff))

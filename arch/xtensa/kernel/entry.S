@@ -1,6 +1,4 @@
 /*
- * arch/xtensa/kernel/entry.S
- *
  * Low-level exception handling
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -8,6 +6,7 @@
  * for more details.
  *
  * Copyright (C) 2004 - 2008 by Tensilica Inc.
+ * Copyright (C) 2015 Cadence Design Systems Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -18,7 +17,7 @@
 #include <asm/processor.h>
 #include <asm/coprocessor.h>
 #include <asm/thread_info.h>
-#include <asm/uaccess.h>
+#include <asm/asm-uaccess.h>
 #include <asm/unistd.h>
 #include <asm/ptrace.h>
 #include <asm/current.h>
@@ -31,8 +30,6 @@
 /* Unimplemented features. */
 
 #undef KERNEL_STACK_OVERFLOW_CHECK
-#undef PREEMPTIBLE_KERNEL
-#undef ALLOCA_EXCEPTION_IN_IRAM
 
 /* Not well tested.
  *
@@ -77,6 +74,27 @@
 #endif
 	.endm
 
+
+	.macro	irq_save flags tmp
+#if XTENSA_FAKE_NMI
+#if defined(CONFIG_DEBUG_KERNEL) && (LOCKLEVEL | TOPLEVEL) >= XCHAL_DEBUGLEVEL
+	rsr	\flags, ps
+	extui	\tmp, \flags, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	bgei	\tmp, LOCKLEVEL, 99f
+	rsil	\tmp, LOCKLEVEL
+99:
+#else
+	movi	\tmp, LOCKLEVEL
+	rsr	\flags, ps
+	or	\flags, \flags, \tmp
+	xsr	\flags, ps
+	rsync
+#endif
+#else
+	rsil	\flags, LOCKLEVEL
+#endif
+	.endm
+
 /* ----------------- DEFAULT FIRST LEVEL EXCEPTION HANDLERS ----------------- */
 
 /*
@@ -92,9 +110,9 @@
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original value in depc
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave1:	a3
+ *   excsave1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
@@ -110,9 +128,8 @@
 
 ENTRY(user_exception)
 
-	/* Save a2, a3, and depc, restore excsave_1 and set SP. */
+	/* Save a1, a2, a3, and set SP. */
 
-	xsr	a3, excsave1
 	rsr	a0, depc
 	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_AREG2
@@ -125,6 +142,7 @@ _user_exception:
 	/* Save SAR and turn off single stepping */
 
 	movi	a2, 0
+	wsr	a2, depc		# terminate user stack trace with 0
 	rsr	a3, sar
 	xsr	a2, icountlevel
 	s32i	a3, a1, PT_SAR
@@ -238,9 +256,9 @@ ENDPROC(user_exception)
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
@@ -256,9 +274,8 @@ ENDPROC(user_exception)
 
 ENTRY(kernel_exception)
 
-	/* Save a0, a2, a3, DEPC and set SP. */
+	/* Save a1, a2, a3, and set SP. */
 
-	xsr	a3, excsave1		# restore a3, excsave_1
 	rsr	a0, depc		# get a2
 	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_AREG2
@@ -305,7 +322,18 @@ _kernel_exception:
 	s32i	a14, a1, PT_AREG14
 	s32i	a15, a1, PT_AREG15
 
+	_bnei	a2, 1, 1f
+
+	/* Copy spill slots of a0 and a1 to imitate movsp
+	 * in order to keep exception stack continuous
+	 */
+	l32i	a3, a1, PT_SIZE
+	l32i	a0, a1, PT_SIZE + 4
+	s32e	a3, a1, -16
+	s32e	a0, a1, -12
 1:
+	l32i	a0, a1, PT_AREG0	# restore saved a0
+	wsr	a0, depc
 
 #ifdef KERNEL_STACK_OVERFLOW_CHECK
 
@@ -339,80 +367,96 @@ common_exception:
 	s32i	a2, a1, PT_SYSCALL
 	movi	a2, 0
 	s32i	a3, a1, PT_EXCVADDR
+#if XCHAL_HAVE_LOOPS
 	xsr	a2, lcount
 	s32i	a2, a1, PT_LCOUNT
+#endif
 
 	/* It is now save to restore the EXC_TABLE_FIXUP variable. */
 
-	rsr	a0, exccause
+	rsr	a2, exccause
 	movi	a3, 0
-	rsr	a2, excsave1
-	s32i	a0, a1, PT_EXCCAUSE
-	s32i	a3, a2, EXC_TABLE_FIXUP
+	rsr	a0, excsave1
+	s32i	a2, a1, PT_EXCCAUSE
+	s32i	a3, a0, EXC_TABLE_FIXUP
 
-	/* All unrecoverable states are saved on stack, now, and a1 is valid,
-	 * so we can allow exceptions and interrupts (*) again.
-	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
+	/* All unrecoverable states are saved on stack, now, and a1 is valid.
+	 * Now we can allow exceptions again. In case we've got an interrupt
+	 * PS.INTLEVEL is set to LOCKLEVEL disabling furhter interrupts,
+	 * otherwise it's left unchanged.
 	 *
-	 * (*) We only allow interrupts if they were previously enabled and
-	 *     we're not handling an IRQ
+	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
 	 */
 
 	rsr	a3, ps
-	addi	a0, a0, -EXCCAUSE_LEVEL1_INTERRUPT
-	movi	a2, LOCKLEVEL
-	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
-					# a3 = PS.INTLEVEL
-	moveqz	a3, a2, a0		# a3 = LOCKLEVEL iff interrupt
-	movi	a2, 1 << PS_WOE_BIT
-	or	a3, a3, a2
-	rsr	a0, exccause
-	xsr	a3, ps
-
 	s32i	a3, a1, PT_PS		# save ps
 
-	/* Save lbeg, lend */
+#if XTENSA_FAKE_NMI
+	/* Correct PS needs to be saved in the PT_PS:
+	 * - in case of exception or level-1 interrupt it's in the PS,
+	 *   and is already saved.
+	 * - in case of medium level interrupt it's in the excsave2.
+	 */
+	movi	a0, EXCCAUSE_MAPPED_NMI
+	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	beq	a2, a0, .Lmedium_level_irq
+	bnei	a2, EXCCAUSE_LEVEL1_INTERRUPT, .Lexception
+	beqz	a3, .Llevel1_irq	# level-1 IRQ sets ps.intlevel to 0
 
-	rsr	a2, lbeg
+.Lmedium_level_irq:
+	rsr	a0, excsave2
+	s32i	a0, a1, PT_PS		# save medium-level interrupt ps
+	bgei	a3, LOCKLEVEL, .Lexception
+
+.Llevel1_irq:
+	movi	a3, LOCKLEVEL
+
+.Lexception:
+	movi	a0, 1 << PS_WOE_BIT
+	or	a3, a3, a0
+#else
+	addi	a2, a2, -EXCCAUSE_LEVEL1_INTERRUPT
+	movi	a0, LOCKLEVEL
+	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+					# a3 = PS.INTLEVEL
+	moveqz	a3, a0, a2		# a3 = LOCKLEVEL iff interrupt
+	movi	a2, 1 << PS_WOE_BIT
+	or	a3, a3, a2
+	rsr	a2, exccause
+#endif
+
+	/* restore return address (or 0 if return to userspace) */
+	rsr	a0, depc
+	wsr	a3, ps
+	rsync				# PS.WOE => rsync => overflow
+
+	/* Save lbeg, lend */
+#if XCHAL_HAVE_LOOPS
+	rsr	a4, lbeg
 	rsr	a3, lend
-	s32i	a2, a1, PT_LBEG
+	s32i	a4, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
+#endif
 
 	/* Save SCOMPARE1 */
 
 #if XCHAL_HAVE_S32C1I
-	rsr     a2, scompare1
-	s32i    a2, a1, PT_SCOMPARE1
+	rsr     a3, scompare1
+	s32i    a3, a1, PT_SCOMPARE1
 #endif
 
 	/* Save optional registers. */
 
-	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
+	save_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
 	
-#ifdef CONFIG_TRACE_IRQFLAGS
-	l32i	a4, a1, PT_DEPC
-	/* Double exception means we came here with an exception
-	 * while PS.EXCM was set, i.e. interrupts disabled.
-	 */
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	l32i	a4, a1, PT_EXCCAUSE
-	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
-	/* We came here with an interrupt means interrupts were enabled
-	 * and we've just disabled them.
-	 */
-	movi	a4, trace_hardirqs_off
-	callx4	a4
-1:
-#endif
-
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
 
-	movi	a4, exc_table
+	rsr	a4, excsave1
 	mov	a6, a1			# pass stack frame
-	mov	a7, a0			# pass EXCCAUSE
-	addx4	a4, a0, a4
+	mov	a7, a2			# pass EXCCAUSE
+	addx4	a4, a2, a4
 	l32i	a4, a4, EXC_TABLE_DEFAULT		# load handler
 
 	/* Call the second-level handler */
@@ -423,28 +467,24 @@ common_exception:
 	.global common_exception_return
 common_exception_return:
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	l32i	a4, a1, PT_DEPC
-	/* Double exception means we came here with an exception
-	 * while PS.EXCM was set, i.e. interrupts disabled.
-	 */
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	l32i	a4, a1, PT_EXCCAUSE
-	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
-	/* We came here with an interrupt means interrupts were enabled
-	 * and we'll reenable them on return.
-	 */
-	movi	a4, trace_hardirqs_on
-	callx4	a4
+#if XTENSA_FAKE_NMI
+	l32i	a2, a1, PT_EXCCAUSE
+	movi	a3, EXCCAUSE_MAPPED_NMI
+	beq	a2, a3, .LNMIexit
+#endif
 1:
+	irq_save a2, a3
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_off
+	callx4	a4
 #endif
 
 	/* Jump if we are returning from kernel exceptions. */
 
-1:	l32i	a3, a1, PT_PS
-	_bbci.l	a3, PS_UM_BIT, 4f
-
-	rsil	a2, 0
+	l32i	a3, a1, PT_PS
+	GET_THREAD_INFO(a2, a1)
+	l32i	a4, a2, TI_FLAGS
+	_bbci.l	a3, PS_UM_BIT, 6f
 
 	/* Specific to a user exception exit:
 	 * We need to check some flags for signal handling and rescheduling,
@@ -452,9 +492,6 @@ common_exception_return:
 	 * in the register file that were in use in the user task.
 	 * Note that we don't disable interrupts here. 
 	 */
-
-	GET_THREAD_INFO(a2,a1)
-	l32i	a4, a2, TI_FLAGS
 
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
 	_bbsi.l	a4, TIF_NOTIFY_RESUME, 2f
@@ -465,6 +502,11 @@ common_exception_return:
 
 	/* Call do_signal() */
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+#endif
+	rsil	a2, 0
 	movi	a4, do_notify_resume	# int do_notify_resume(struct pt_regs*)
 	mov	a6, a1
 	callx4	a4
@@ -472,18 +514,57 @@ common_exception_return:
 
 3:	/* Reschedule */
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+#endif
+	rsil	a2, 0
 	movi	a4, schedule	# void schedule (void)
 	callx4	a4
 	j	1b
 
+#ifdef CONFIG_PREEMPT
+6:
+	_bbci.l	a4, TIF_NEED_RESCHED, 4f
+
+	/* Check current_thread_info->preempt_count */
+
+	l32i	a4, a2, TI_PRE_COUNT
+	bnez	a4, 4f
+	movi	a4, preempt_schedule_irq
+	callx4	a4
+	j	1b
+#endif
+
+#if XTENSA_FAKE_NMI
+.LNMIexit:
+	l32i	a3, a1, PT_PS
+	_bbci.l	a3, PS_UM_BIT, 4f
+#endif
+
 5:
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	_bbci.l	a4, TIF_DB_DISABLED, 7f
+	movi	a4, restore_dbreak
+	callx4	a4
+7:
+#endif
 #ifdef CONFIG_DEBUG_TLB_SANITY
 	l32i	a4, a1, PT_DEPC
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
 	movi	a4, check_tlb_sanity
 	callx4	a4
 #endif
-4:	/* Restore optional registers. */
+6:
+4:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	extui	a4, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	bgei	a4, LOCKLEVEL, 1f
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+1:
+#endif
+	/* Restore optional registers. */
 
 	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
 
@@ -556,12 +637,13 @@ user_exception_exit:
 	 *	 (if we have restored WSBITS-1 frames).
 	 */
 
+2:
 #if XCHAL_HAVE_THREADPTR
 	l32i	a3, a1, PT_THREADPTR
 	wur	a3, threadptr
 #endif
 
-2:	j	common_exception_exit
+	j	common_exception_exit
 
 	/* This is the kernel exception exit.
 	 * We avoided to do a MOVSP when we entered the exception, but we
@@ -569,29 +651,6 @@ user_exception_exit:
 	 */
 
 kernel_exception_exit:
-
-#ifdef PREEMPTIBLE_KERNEL
-
-#ifdef CONFIG_PREEMPT
-
-	/*
-	 * Note: We've just returned from a call4, so we have
-	 * at least 4 addt'l regs.
-	 */
-
-	/* Check current_thread_info->preempt_count */
-
-	GET_THREAD_INFO(a2)
-	l32i	a3, a2, TI_PREEMPT
-	bnez	a3, 1f
-
-	l32i	a2, a2, TI_FLAGS
-
-1:
-
-#endif
-
-#endif
 
 	/* Check if we have to do a movsp.
 	 *
@@ -674,13 +733,14 @@ common_exception_exit:
 	wsr	a3, sar
 
 	/* Restore LBEG, LEND, LCOUNT */
-
+#if XCHAL_HAVE_LOOPS
 	l32i	a2, a1, PT_LBEG
 	l32i	a3, a1, PT_LEND
 	wsr	a2, lbeg
 	l32i	a2, a1, PT_LCOUNT
 	wsr	a3, lend
 	wsr	a2, lcount
+#endif
 
 	/* We control single stepping through the ICOUNTLEVEL register. */
 
@@ -735,39 +795,99 @@ ENTRY(debug_exception)
 
 	movi	a2, 1 << PS_EXCM_BIT
 	or	a2, a0, a2
-	movi	a0, debug_exception	# restore a3, debug jump vector
 	wsr	a2, ps
-	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 
 	/* Switch to kernel/user stack, restore jump vector, and save a0 */
 
 	bbsi.l	a2, PS_UM_BIT, 2f	# jump if user mode
 
 	addi	a2, a1, -16-PT_SIZE	# assume kernel stack
+3:
+	l32i	a0, a3, DT_DEBUG_SAVE
+	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_AREG0
 	movi	a0, 0
-	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	xsr	a0, depc
 	s32i	a3, a2, PT_AREG3
 	s32i	a0, a2, PT_AREG2
 	mov	a1, a2
+
+	/* Debug exception is handled as an exception, so interrupts will
+	 * likely be enabled in the common exception handler. Disable
+	 * preemption if we have HW breakpoints to preserve DEBUGCAUSE.DBNUM
+	 * meaning.
+	 */
+#if defined(CONFIG_PREEMPT_COUNT) && defined(CONFIG_HAVE_HW_BREAKPOINT)
+	GET_THREAD_INFO(a2, a1)
+	l32i	a3, a2, TI_PRE_COUNT
+	addi	a3, a3, 1
+	s32i	a3, a2, TI_PRE_COUNT
+#endif
+
+	rsr	a2, ps
+	bbsi.l	a2, PS_UM_BIT, _user_exception
 	j	_kernel_exception
 
 2:	rsr	a2, excsave1
 	l32i	a2, a2, EXC_TABLE_KSTK	# load kernel stack pointer
-	s32i	a0, a2, PT_AREG0
-	movi	a0, 0
-	s32i	a1, a2, PT_AREG1
-	s32i	a0, a2, PT_DEPC
-	xsr	a0, depc
-	s32i	a3, a2, PT_AREG3
-	s32i	a0, a2, PT_AREG2
-	mov	a1, a2
-	j	_user_exception
+	j	3b
 
-	/* Debug exception while in exception mode. */
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	/* Debug exception while in exception mode. This may happen when
+	 * window overflow/underflow handler or fast exception handler hits
+	 * data breakpoint, in which case save and disable all data
+	 * breakpoints, single-step faulting instruction and restore data
+	 * breakpoints.
+	 */
+1:
+	bbci.l	a0, PS_UM_BIT, 1b	# jump if kernel mode
+
+	rsr	a0, debugcause
+	bbsi.l	a0, DEBUGCAUSE_DBREAK_BIT, .Ldebug_save_dbreak
+
+	.set	_index, 0
+	.rept	XCHAL_NUM_DBREAK
+	l32i	a0, a3, DT_DBREAKC_SAVE + _index * 4
+	wsr	a0, SREG_DBREAKC + _index
+	.set	_index, _index + 1
+	.endr
+
+	l32i	a0, a3, DT_ICOUNT_LEVEL_SAVE
+	wsr	a0, icountlevel
+
+	l32i	a0, a3, DT_ICOUNT_SAVE
+	xsr	a0, icount
+
+	l32i	a0, a3, DT_DEBUG_SAVE
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	rfi	XCHAL_DEBUGLEVEL
+
+.Ldebug_save_dbreak:
+	.set	_index, 0
+	.rept	XCHAL_NUM_DBREAK
+	movi	a0, 0
+	xsr	a0, SREG_DBREAKC + _index
+	s32i	a0, a3, DT_DBREAKC_SAVE + _index * 4
+	.set	_index, _index + 1
+	.endr
+
+	movi	a0, XCHAL_EXCM_LEVEL + 1
+	xsr	a0, icountlevel
+	s32i	a0, a3, DT_ICOUNT_LEVEL_SAVE
+
+	movi	a0, 0xfffffffe
+	xsr	a0, icount
+	s32i	a0, a3, DT_ICOUNT_SAVE
+
+	l32i	a0, a3, DT_DEBUG_SAVE
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	rfi	XCHAL_DEBUGLEVEL
+#else
+	/* Debug exception while in exception mode. Should not happen. */
 1:	j	1b	// FIXME!!
+#endif
 
 ENDPROC(debug_exception)
 
@@ -829,176 +949,63 @@ ENDPROC(unrecoverable_exception)
  *
  *  The ALLOCA handler is entered when user code executes the MOVSP
  *  instruction and the caller's frame is not in the register file.
- *  In this case, the caller frame's a0..a3 are on the stack just
- *  below sp (a1), and this handler moves them.
  *
- *  For "MOVSP <ar>,<as>" without destination register a1, this routine
- *  simply moves the value from <as> to <ar> without moving the save area.
+ * This algorithm was taken from the Ross Morley's RTOS Porting Layer:
+ *
+ *    /home/ross/rtos/porting/XtensaRTOS-PortingLayer-20090507/xtensa_vectors.S
+ *
+ * It leverages the existing window spill/fill routines and their support for
+ * double exceptions. The 'movsp' instruction will only cause an exception if
+ * the next window needs to be loaded. In fact this ALLOCA exception may be
+ * replaced at some point by changing the hardware to do a underflow exception
+ * of the proper size instead.
+ *
+ * This algorithm simply backs out the register changes started by the user
+ * excpetion handler, makes it appear that we have started a window underflow
+ * by rotating the window back and then setting the old window base (OWB) in
+ * the 'ps' register with the rolled back window base. The 'movsp' instruction
+ * will be re-executed and this time since the next window frames is in the
+ * active AR registers it won't cause an exception.
+ *
+ * If the WindowUnderflow code gets a TLB miss the page will get mapped
+ * the the partial windeowUnderflow will be handeled in the double exception
+ * handler.
  *
  * Entry condition:
  *
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
  */
 
-#if XCHAL_HAVE_BE
-#define _EXTUI_MOVSP_SRC(ar)	extui ar, ar, 4, 4
-#define _EXTUI_MOVSP_DST(ar)	extui ar, ar, 0, 4
-#else
-#define _EXTUI_MOVSP_SRC(ar)	extui ar, ar, 0, 4
-#define _EXTUI_MOVSP_DST(ar)	extui ar, ar, 4, 4
-#endif
-
 ENTRY(fast_alloca)
+	rsr	a0, windowbase
+	rotw	-1
+	rsr	a2, ps
+	extui	a3, a2, PS_OWB_SHIFT, PS_OWB_WIDTH
+	xor	a3, a3, a4
+	l32i	a4, a6, PT_AREG0
+	l32i	a1, a6, PT_DEPC
+	rsr	a6, depc
+	wsr	a1, depc
+	slli	a3, a3, PS_OWB_SHIFT
+	xor	a2, a2, a3
+	wsr	a2, ps
+	rsync
 
-	/* We shouldn't be in a double exception. */
-
-	l32i	a0, a2, PT_DEPC
-	_bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lunhandled_double
-
-	rsr	a0, depc		# get a2
-	s32i	a4, a2, PT_AREG4	# save a4 and
-	s32i	a0, a2, PT_AREG2	# a2 to stack
-
-	/* Exit critical section. */
-
-	movi	a0, 0
-	s32i	a0, a3, EXC_TABLE_FIXUP
-
-	/* Restore a3, excsave_1 */
-
-	xsr	a3, excsave1		# make sure excsave_1 is valid for dbl.
-	rsr	a4, epc1		# get exception address
-	s32i	a3, a2, PT_AREG3	# save a3 to stack
-
-#ifdef ALLOCA_EXCEPTION_IN_IRAM
-#error	iram not supported
-#else
-	/* Note: l8ui not allowed in IRAM/IROM!! */
-	l8ui	a0, a4, 1		# read as(src) from MOVSP instruction
-#endif
-	movi	a3, .Lmovsp_src
-	_EXTUI_MOVSP_SRC(a0)		# extract source register number
-	addx8	a3, a0, a3
-	jx	a3
-
-.Lunhandled_double:
-	wsr	a0, excsave1
-	movi	a0, unrecoverable_exception
-	callx0	a0
-
-	.align 8
-.Lmovsp_src:
-	l32i	a3, a2, PT_AREG0;	_j 1f;	.align 8
-	mov	a3, a1;			_j 1f;	.align 8
-	l32i	a3, a2, PT_AREG2;	_j 1f;	.align 8
-	l32i	a3, a2, PT_AREG3;	_j 1f;	.align 8
-	l32i	a3, a2, PT_AREG4;	_j 1f;	.align 8
-	mov	a3, a5;			_j 1f;	.align 8
-	mov	a3, a6;			_j 1f;	.align 8
-	mov	a3, a7;			_j 1f;	.align 8
-	mov	a3, a8;			_j 1f;	.align 8
-	mov	a3, a9;			_j 1f;	.align 8
-	mov	a3, a10;		_j 1f;	.align 8
-	mov	a3, a11;		_j 1f;	.align 8
-	mov	a3, a12;		_j 1f;	.align 8
-	mov	a3, a13;		_j 1f;	.align 8
-	mov	a3, a14;		_j 1f;	.align 8
-	mov	a3, a15;		_j 1f;	.align 8
-
-1:
-
-#ifdef ALLOCA_EXCEPTION_IN_IRAM
-#error	iram not supported
-#else
-	l8ui	a0, a4, 0		# read ar(dst) from MOVSP instruction
-#endif
-	addi	a4, a4, 3		# step over movsp
-	_EXTUI_MOVSP_DST(a0)		# extract destination register
-	wsr	a4, epc1		# save new epc_1
-
-	_bnei	a0, 1, 1f		# no 'movsp a1, ax': jump
-
-	/* Move the save area. This implies the use of the L32E
-	 * and S32E instructions, because this move must be done with
-	 * the user's PS.RING privilege levels, not with ring 0
-	 * (kernel's) privileges currently active with PS.EXCM
-	 * set. Note that we have stil registered a fixup routine with the
-	 * double exception vector in case a double exception occurs.
-	 */
-
-	/* a0,a4:avail a1:old user stack a2:exc. stack a3:new user stack. */
-
-	l32e	a0, a1, -16
-	l32e	a4, a1, -12
-	s32e	a0, a3, -16
-	s32e	a4, a3, -12
-	l32e	a0, a1, -8
-	l32e	a4, a1, -4
-	s32e	a0, a3, -8
-	s32e	a4, a3, -4
-
-	/* Restore stack-pointer and all the other saved registers. */
-
-	mov	a1, a3
-
-	l32i	a4, a2, PT_AREG4
-	l32i	a3, a2, PT_AREG3
-	l32i	a0, a2, PT_AREG0
-	l32i	a2, a2, PT_AREG2
-	rfe
-
-	/*  MOVSP <at>,<as>  was invoked with <at> != a1.
-	 *  Because the stack pointer is not being modified,
-	 *  we should be able to just modify the pointer
-	 *  without moving any save area.
-	 *  The processor only traps these occurrences if the
-	 *  caller window isn't live, so unfortunately we can't
-	 *  use this as an alternate trap mechanism.
-	 *  So we just do the move.  This requires that we
-	 *  resolve the destination register, not just the source,
-	 *  so there's some extra work.
-	 *  (PERHAPS NOT REALLY NEEDED, BUT CLEANER...)
-	 */
-
-	/* a0 dst-reg, a1 user-stack, a2 stack, a3 value of src reg. */
-
-1:	movi	a4, .Lmovsp_dst
-	addx8	a4, a0, a4
-	jx	a4
-
-	.align 8
-.Lmovsp_dst:
-	s32i	a3, a2, PT_AREG0;	_j 1f;	.align 8
-	mov	a1, a3;			_j 1f;	.align 8
-	s32i	a3, a2, PT_AREG2;	_j 1f;	.align 8
-	s32i	a3, a2, PT_AREG3;	_j 1f;	.align 8
-	s32i	a3, a2, PT_AREG4;	_j 1f;	.align 8
-	mov	a5, a3;			_j 1f;	.align 8
-	mov	a6, a3;			_j 1f;	.align 8
-	mov	a7, a3;			_j 1f;	.align 8
-	mov	a8, a3;			_j 1f;	.align 8
-	mov	a9, a3;			_j 1f;	.align 8
-	mov	a10, a3;		_j 1f;	.align 8
-	mov	a11, a3;		_j 1f;	.align 8
-	mov	a12, a3;		_j 1f;	.align 8
-	mov	a13, a3;		_j 1f;	.align 8
-	mov	a14, a3;		_j 1f;	.align 8
-	mov	a15, a3;		_j 1f;	.align 8
-
-1:	l32i	a4, a2, PT_AREG4
-	l32i	a3, a2, PT_AREG3
-	l32i	a0, a2, PT_AREG0
-	l32i	a2, a2, PT_AREG2
-	rfe
-
+	_bbci.l	a4, 31, 4f
+	rotw	-1
+	_bbci.l	a8, 30, 8f
+	rotw	-1
+	j	_WindowUnderflow12
+8:	j	_WindowUnderflow8
+4:	j	_WindowUnderflow4
 ENDPROC(fast_alloca)
 
 /*
@@ -1015,9 +1022,9 @@ ENDPROC(fast_alloca)
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  */
 
 ENTRY(fast_syscall_kernel)
@@ -1064,7 +1071,6 @@ ENTRY(fast_syscall_unrecoverable)
 
 	l32i    a0, a2, PT_AREG0        # restore a0
 	xsr     a2, depc                # restore a2, depc
-	rsr     a3, excsave1
 
 	wsr     a0, excsave1
 	movi    a0, unrecoverable_exception
@@ -1086,10 +1092,10 @@ ENDPROC(fast_syscall_unrecoverable)
  *   a0:	a2 (syscall-nr), original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in a0 and DEPC
- *   a3:	dispatch table, original in excsave_1
+ *   a3:	a3
  *   a4..a15:	unchanged
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
@@ -1111,6 +1117,8 @@ ENDPROC(fast_syscall_unrecoverable)
  *		j done
  */
 
+#ifdef CONFIG_FAST_SYSCALL_XTENSA
+
 #define TRY								\
 	.section __ex_table, "a";					\
 	.word	66f, 67f;						\
@@ -1122,15 +1130,12 @@ ENDPROC(fast_syscall_unrecoverable)
 
 ENTRY(fast_syscall_xtensa)
 
-	xsr	a3, excsave1		# restore a3, excsave1
-
 	s32i	a7, a2, PT_AREG7	# we need an additional register
 	movi	a7, 4			# sizeof(unsigned int)
 	access_ok a3, a7, a0, a2, .Leac	# a0: scratch reg, a2: sp
 
-	addi	a6, a6, -1		# assuming SYS_XTENSA_ATOMIC_SET = 1
-	_bgeui	a6, SYS_XTENSA_COUNT - 1, .Lill
-	_bnei	a6, SYS_XTENSA_ATOMIC_CMP_SWP - 1, .Lnswp
+	_bgeui	a6, SYS_XTENSA_COUNT, .Lill
+	_bnei	a6, SYS_XTENSA_ATOMIC_CMP_SWP, .Lnswp
 
 	/* Fall through for ATOMIC_CMP_SWP. */
 
@@ -1142,27 +1147,26 @@ TRY	s32i	a5, a3, 0		# different, modify value
 	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, 1			# and return 1
-	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 1:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, 0			# return 0 (note that we cannot set
-	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 .Lnswp:	/* Atomic set, add, and exg_add. */
 
 TRY	l32i	a7, a3, 0		# orig
+	addi	a6, a6, -SYS_XTENSA_ATOMIC_SET
 	add	a0, a4, a7		# + arg
 	moveqz	a0, a4, a6		# set
+	addi	a6, a6, SYS_XTENSA_ATOMIC_SET
 TRY	s32i	a0, a3, 0		# write new value
 
 	mov	a0, a2
 	mov	a2, a7
 	l32i	a7, a0, PT_AREG7	# restore a7
 	l32i	a0, a0, PT_AREG0	# restore a0
-	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 CATCH
@@ -1171,12 +1175,24 @@ CATCH
 	movi	a2, -EFAULT
 	rfe
 
-.Lill:	l32i	a7, a2, PT_AREG0	# restore a7
+.Lill:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, -EINVAL
 	rfe
 
 ENDPROC(fast_syscall_xtensa)
+
+#else /* CONFIG_FAST_SYSCALL_XTENSA */
+
+ENTRY(fast_syscall_xtensa)
+
+	l32i    a0, a2, PT_AREG0        # restore a0
+	movi	a2, -ENOSYS
+	rfe
+
+ENDPROC(fast_syscall_xtensa)
+
+#endif /* CONFIG_FAST_SYSCALL_XTENSA */
 
 
 /* fast_syscall_spill_registers.
@@ -1186,173 +1202,40 @@ ENDPROC(fast_syscall_xtensa)
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  * Note: We assume the stack pointer is EXC_TABLE_KSTK in the fixup handler.
  */
+
+#ifdef CONFIG_FAST_SYSCALL_SPILL_REGISTERS
 
 ENTRY(fast_syscall_spill_registers)
 
 	/* Register a FIXUP handler (pass current wb as a parameter) */
 
+	xsr	a3, excsave1
 	movi	a0, fast_syscall_spill_registers_fixup
 	s32i	a0, a3, EXC_TABLE_FIXUP
 	rsr	a0, windowbase
 	s32i	a0, a3, EXC_TABLE_PARAM
+	xsr	a3, excsave1		# restore a3 and excsave_1
 
-	/* Save a3 and SAR on stack. */
+	/* Save a3, a4 and SAR on stack. */
 
 	rsr	a0, sar
-	xsr	a3, excsave1		# restore a3 and excsave_1
 	s32i	a3, a2, PT_AREG3
+	s32i	a0, a2, PT_SAR
+
+	/* The spill routine might clobber a4, a7, a8, a11, a12, and a15. */
+
 	s32i	a4, a2, PT_AREG4
-	s32i	a0, a2, PT_AREG5	# store SAR to PT_AREG5
-
-	/* The spill routine might clobber a7, a11, and a15. */
-
 	s32i	a7, a2, PT_AREG7
+	s32i	a8, a2, PT_AREG8
 	s32i	a11, a2, PT_AREG11
+	s32i	a12, a2, PT_AREG12
 	s32i	a15, a2, PT_AREG15
-
-	call0	_spill_registers	# destroys a3, a4, and SAR
-
-	/* Advance PC, restore registers and SAR, and return from exception. */
-
-	l32i	a3, a2, PT_AREG5
-	l32i	a4, a2, PT_AREG4
-	l32i	a0, a2, PT_AREG0
-	wsr	a3, sar
-	l32i	a3, a2, PT_AREG3
-
-	/* Restore clobbered registers. */
-
-	l32i	a7, a2, PT_AREG7
-	l32i	a11, a2, PT_AREG11
-	l32i	a15, a2, PT_AREG15
-
-	movi	a2, 0
-	rfe
-
-ENDPROC(fast_syscall_spill_registers)
-
-/* Fixup handler.
- *
- * We get here if the spill routine causes an exception, e.g. tlb miss.
- * We basically restore WINDOWBASE and WINDOWSTART to the condition when
- * we entered the spill routine and jump to the user exception handler.
- *
- * a0: value of depc, original value in depc
- * a2: trashed, original value in EXC_TABLE_DOUBLE_SAVE
- * a3: exctable, original value in excsave1
- */
-
-fast_syscall_spill_registers_fixup:
-
-	rsr	a2, windowbase	# get current windowbase (a2 is saved)
-	xsr	a0, depc	# restore depc and a0
-	ssl	a2		# set shift (32 - WB)
-
-	/* We need to make sure the current registers (a0-a3) are preserved.
-	 * To do this, we simply set the bit for the current window frame
-	 * in WS, so that the exception handlers save them to the task stack.
-	 */
-
-	rsr	a3, excsave1	# get spill-mask
-	slli	a2, a3, 1	# shift left by one
-
-	slli	a3, a2, 32-WSBITS
-	src	a2, a2, a3	# a1 = xxwww1yyxxxwww1yy......
-	wsr	a2, windowstart	# set corrected windowstart
-
-	movi	a3, exc_table
-	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE	# restore a2
-	l32i	a3, a3, EXC_TABLE_PARAM	# original WB (in user task)
-
-	/* Return to the original (user task) WINDOWBASE.
-	 * We leave the following frame behind:
-	 * a0, a1, a2	same
-	 * a3:		trashed (saved in excsave_1)
-	 * depc:	depc (we have to return to that address)
-	 * excsave_1:	a3
-	 */
-
-	wsr	a3, windowbase
-	rsync
-
-	/* We are now in the original frame when we entered _spill_registers:
-	 *  a0: return address
-	 *  a1: used, stack pointer
-	 *  a2: kernel stack pointer
-	 *  a3: available, saved in EXCSAVE_1
-	 *  depc: exception address
-	 *  excsave: a3
-	 * Note: This frame might be the same as above.
-	 */
-
-	/* Setup stack pointer. */
-
-	addi	a2, a2, -PT_USER_SIZE
-	s32i	a0, a2, PT_AREG0
-
-	/* Make sure we return to this fixup handler. */
-
-	movi	a3, fast_syscall_spill_registers_fixup_return
-	s32i	a3, a2, PT_DEPC		# setup depc
-
-	/* Jump to the exception handler. */
-
-	movi	a3, exc_table
-	rsr	a0, exccause
-	addx4	a0, a0, a3              	# find entry in table
-	l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
-	jx	a0
-
-fast_syscall_spill_registers_fixup_return:
-
-	/* When we return here, all registers have been restored (a2: DEPC) */
-
-	wsr	a2, depc		# exception address
-
-	/* Restore fixup handler. */
-
-	xsr	a3, excsave1
-	movi	a2, fast_syscall_spill_registers_fixup
-	s32i	a2, a3, EXC_TABLE_FIXUP
-	rsr	a2, windowbase
-	s32i	a2, a3, EXC_TABLE_PARAM
-	l32i	a2, a3, EXC_TABLE_KSTK
-
-	/* Load WB at the time the exception occurred. */
-
-	rsr	a3, sar			# WB is still in SAR
-	neg	a3, a3
-	wsr	a3, windowbase
-	rsync
-
-	/* Restore a3 and return. */
-
-	movi	a3, exc_table
-	xsr	a3, excsave1
-
-	rfde
-
-
-/*
- * spill all registers.
- *
- * This is not a real function. The following conditions must be met:
- *
- *  - must be called with call0.
- *  - uses a3, a4 and SAR.
- *  - the last 'valid' register of each frame are clobbered.
- *  - the caller must have registered a fixup handler
- *    (or be inside a critical section)
- *  - PS_EXCM must be set (PS_WOE cleared?)
- */
-
-ENTRY(_spill_registers)
 
 	/*
 	 * Rotate ws so that the current windowbase is at bit 0.
@@ -1360,36 +1243,36 @@ ENTRY(_spill_registers)
 	 * Rotate ws right so that a4 = yyxxxwww1.
 	 */
 
-	rsr	a4, windowbase
+	rsr	a0, windowbase
 	rsr	a3, windowstart		# a3 = xxxwww1yy
-	ssr	a4			# holds WB
-	slli	a4, a3, WSBITS
-	or	a3, a3, a4		# a3 = xxxwww1yyxxxwww1yy
+	ssr	a0			# holds WB
+	slli	a0, a3, WSBITS
+	or	a3, a3, a0		# a3 = xxxwww1yyxxxwww1yy
 	srl	a3, a3			# a3 = 00xxxwww1yyxxxwww1
 
 	/* We are done if there are no more than the current register frame. */
 
 	extui	a3, a3, 1, WSBITS-1	# a3 = 0yyxxxwww
-	movi	a4, (1 << (WSBITS-1))
+	movi	a0, (1 << (WSBITS-1))
 	_beqz	a3, .Lnospill		# only one active frame? jump
 
 	/* We want 1 at the top, so that we return to the current windowbase */
 
-	or	a3, a3, a4		# 1yyxxxwww
+	or	a3, a3, a0		# 1yyxxxwww
 
 	/* Skip empty frames - get 'oldest' WINDOWSTART-bit. */
 
 	wsr	a3, windowstart		# save shifted windowstart
-	neg	a4, a3
-	and	a3, a4, a3		# first bit set from right: 000010000
+	neg	a0, a3
+	and	a3, a0, a3		# first bit set from right: 000010000
 
-	ffs_ws	a4, a3			# a4: shifts to skip empty frames
+	ffs_ws	a0, a3			# a0: shifts to skip empty frames
 	movi	a3, WSBITS
-	sub	a4, a3, a4		# WSBITS-a4:number of 0-bits from right
-	ssr	a4			# save in SAR for later.
+	sub	a0, a3, a0		# WSBITS-a0:number of 0-bits from right
+	ssr	a0			# save in SAR for later.
 
 	rsr	a3, windowbase
-	add	a3, a3, a4
+	add	a3, a3, a0
 	wsr	a3, windowbase
 	rsync
 
@@ -1404,22 +1287,6 @@ ENTRY(_spill_registers)
 	 * we have to save 4,8. or 12 registers.
 	 */
 
-	_bbsi.l	a3, 1, .Lc4
-	_bbsi.l	a3, 2, .Lc8
-
-	/* Special case: we have a call12-frame starting at a4. */
-
-	_bbci.l	a3, 3, .Lc12	# bit 3 shouldn't be zero! (Jump to Lc12 first)
-
-	s32e	a4, a1, -16	# a1 is valid with an empty spill area
-	l32e	a4, a5, -12
-	s32e	a8, a4, -48
-	mov	a8, a4
-	l32e	a4, a1, -16
-	j	.Lc12c
-
-.Lnospill:
-	ret
 
 .Lloop: _bbsi.l	a3, 1, .Lc4
 	_bbci.l	a3, 2, .Lc12
@@ -1433,20 +1300,10 @@ ENTRY(_spill_registers)
 	s32e	a9, a4, -28
 	s32e	a10, a4, -24
 	s32e	a11, a4, -20
-
 	srli	a11, a3, 2		# shift windowbase by 2
 	rotw	2
 	_bnei	a3, 1, .Lloop
-
-.Lexit: /* Done. Do the final rotation, set WS, and return. */
-
-	rotw	1
-	rsr	a3, windowbase
-	ssl	a3
-	movi	a3, 1
-	sll	a3, a3
-	wsr	a3, windowstart
-	ret
+	j	.Lexit
 
 .Lc4:	s32e	a4, a9, -16
 	s32e	a5, a9, -12
@@ -1462,11 +1319,11 @@ ENTRY(_spill_registers)
 
 	/* 12-register frame (call12) */
 
-	l32e	a2, a5, -12
-	s32e	a8, a2, -48
-	mov	a8, a2
+	l32e	a0, a5, -12
+	s32e	a8, a0, -48
+	mov	a8, a0
 
-.Lc12c: s32e	a9, a8, -44
+	s32e	a9, a8, -44
 	s32e	a10, a8, -40
 	s32e	a11, a8, -36
 	s32e	a12, a8, -32
@@ -1486,30 +1343,54 @@ ENTRY(_spill_registers)
 	 */
 
 	rotw	1
-	mov	a5, a13
+	mov	a4, a13
 	rotw	-1
 
-	s32e	a4, a9, -16
-	s32e	a5, a9, -12
-	s32e	a6, a9, -8
-	s32e	a7, a9, -4
+	s32e	a4, a8, -16
+	s32e	a5, a8, -12
+	s32e	a6, a8, -8
+	s32e	a7, a8, -4
 
 	rotw	3
 
 	_beqi	a3, 1, .Lexit
 	j	.Lloop
 
+.Lexit:
+
+	/* Done. Do the final rotation and set WS */
+
+	rotw	1
+	rsr	a3, windowbase
+	ssl	a3
+	movi	a3, 1
+	sll	a3, a3
+	wsr	a3, windowstart
+.Lnospill:
+
+	/* Advance PC, restore registers and SAR, and return from exception. */
+
+	l32i	a3, a2, PT_SAR
+	l32i	a0, a2, PT_AREG0
+	wsr	a3, sar
+	l32i	a3, a2, PT_AREG3
+
+	/* Restore clobbered registers. */
+
+	l32i	a4, a2, PT_AREG4
+	l32i	a7, a2, PT_AREG7
+	l32i	a8, a2, PT_AREG8
+	l32i	a11, a2, PT_AREG11
+	l32i	a12, a2, PT_AREG12
+	l32i	a15, a2, PT_AREG15
+
+	movi	a2, 0
+	rfe
+
 .Linvalid_mask:
 
 	/* We get here because of an unrecoverable error in the window
-	 * registers. If we are in user space, we kill the application,
-	 * however, this condition is unrecoverable in kernel space.
-	 */
-
-	rsr	a0, ps
-	_bbci.l	a0, PS_UM_BIT, 1f
-
-	/* User space: Setup a dummy frame and kill application.
+	 * registers, so set up a dummy frame and kill the user application.
 	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
 	 */
 
@@ -1522,9 +1403,8 @@ ENTRY(_spill_registers)
 
 	movi	a0, 0
 
-	movi	a3, exc_table
+	rsr	a3, excsave1
 	l32i	a1, a3, EXC_TABLE_KSTK
-	wsr	a3, excsave1
 
 	movi	a4, (1 << PS_WOE_BIT) | LOCKLEVEL
 	wsr	a4, ps
@@ -1534,14 +1414,148 @@ ENTRY(_spill_registers)
 	movi	a4, do_exit
 	callx4	a4
 
-1:	/* Kernel space: PANIC! */
+	/* shouldn't return, so panic */
 
 	wsr	a0, excsave1
 	movi	a0, unrecoverable_exception
 	callx0	a0		# should not return
 1:	j	1b
 
-ENDPROC(_spill_registers)
+
+ENDPROC(fast_syscall_spill_registers)
+
+/* Fixup handler.
+ *
+ * We get here if the spill routine causes an exception, e.g. tlb miss.
+ * We basically restore WINDOWBASE and WINDOWSTART to the condition when
+ * we entered the spill routine and jump to the user exception handler.
+ *
+ * Note that we only need to restore the bits in windowstart that have not
+ * been spilled yet by the _spill_register routine. Luckily, a3 contains a
+ * rotated windowstart with only those bits set for frames that haven't been
+ * spilled yet. Because a3 is rotated such that bit 0 represents the register
+ * frame for the current windowbase - 1, we need to rotate a3 left by the
+ * value of the current windowbase + 1 and move it to windowstart.
+ *
+ * a0: value of depc, original value in depc
+ * a2: trashed, original value in EXC_TABLE_DOUBLE_SAVE
+ * a3: exctable, original value in excsave1
+ */
+
+ENTRY(fast_syscall_spill_registers_fixup)
+
+	rsr	a2, windowbase	# get current windowbase (a2 is saved)
+	xsr	a0, depc	# restore depc and a0
+	ssl	a2		# set shift (32 - WB)
+
+	/* We need to make sure the current registers (a0-a3) are preserved.
+	 * To do this, we simply set the bit for the current window frame
+	 * in WS, so that the exception handlers save them to the task stack.
+	 *
+	 * Note: we use a3 to set the windowbase, so we take a special care
+	 * of it, saving it in the original _spill_registers frame across
+	 * the exception handler call.
+	 */
+
+	xsr	a3, excsave1	# get spill-mask
+	slli	a3, a3, 1	# shift left by one
+	addi	a3, a3, 1	# set the bit for the current window frame
+
+	slli	a2, a3, 32-WSBITS
+	src	a2, a3, a2	# a2 = xxwww1yyxxxwww1yy......
+	wsr	a2, windowstart	# set corrected windowstart
+
+	srli	a3, a3, 1
+	rsr	a2, excsave1
+	l32i	a2, a2, EXC_TABLE_DOUBLE_SAVE	# restore a2
+	xsr	a2, excsave1
+	s32i	a3, a2, EXC_TABLE_DOUBLE_SAVE	# save a3
+	l32i	a3, a2, EXC_TABLE_PARAM	# original WB (in user task)
+	xsr	a2, excsave1
+
+	/* Return to the original (user task) WINDOWBASE.
+	 * We leave the following frame behind:
+	 * a0, a1, a2	same
+	 * a3:		trashed (saved in EXC_TABLE_DOUBLE_SAVE)
+	 * depc:	depc (we have to return to that address)
+	 * excsave_1:	exctable
+	 */
+
+	wsr	a3, windowbase
+	rsync
+
+	/* We are now in the original frame when we entered _spill_registers:
+	 *  a0: return address
+	 *  a1: used, stack pointer
+	 *  a2: kernel stack pointer
+	 *  a3: available
+	 *  depc: exception address
+	 *  excsave: exctable
+	 * Note: This frame might be the same as above.
+	 */
+
+	/* Setup stack pointer. */
+
+	addi	a2, a2, -PT_USER_SIZE
+	s32i	a0, a2, PT_AREG0
+
+	/* Make sure we return to this fixup handler. */
+
+	movi	a3, fast_syscall_spill_registers_fixup_return
+	s32i	a3, a2, PT_DEPC		# setup depc
+
+	/* Jump to the exception handler. */
+
+	rsr	a3, excsave1
+	rsr	a0, exccause
+	addx4	a0, a0, a3              	# find entry in table
+	l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
+	l32i	a3, a3, EXC_TABLE_DOUBLE_SAVE
+	jx	a0
+
+ENDPROC(fast_syscall_spill_registers_fixup)
+
+ENTRY(fast_syscall_spill_registers_fixup_return)
+
+	/* When we return here, all registers have been restored (a2: DEPC) */
+
+	wsr	a2, depc		# exception address
+
+	/* Restore fixup handler. */
+
+	rsr	a2, excsave1
+	s32i	a3, a2, EXC_TABLE_DOUBLE_SAVE
+	movi	a3, fast_syscall_spill_registers_fixup
+	s32i	a3, a2, EXC_TABLE_FIXUP
+	rsr	a3, windowbase
+	s32i	a3, a2, EXC_TABLE_PARAM
+	l32i	a2, a2, EXC_TABLE_KSTK
+
+	/* Load WB at the time the exception occurred. */
+
+	rsr	a3, sar			# WB is still in SAR
+	neg	a3, a3
+	wsr	a3, windowbase
+	rsync
+
+	rsr	a3, excsave1
+	l32i	a3, a3, EXC_TABLE_DOUBLE_SAVE
+
+	rfde
+
+ENDPROC(fast_syscall_spill_registers_fixup_return)
+
+#else /* CONFIG_FAST_SYSCALL_SPILL_REGISTERS */
+
+ENTRY(fast_syscall_spill_registers)
+
+	l32i    a0, a2, PT_AREG0        # restore a0
+	movi	a2, -ENOSYS
+	rfe
+
+ENDPROC(fast_syscall_spill_registers)
+
+#endif /* CONFIG_FAST_SYSCALL_SPILL_REGISTERS */
 
 #ifdef CONFIG_MMU
 /*
@@ -1568,9 +1582,9 @@ ENDPROC(fast_second_level_miss_double_kernel)
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
@@ -1578,9 +1592,10 @@ ENDPROC(fast_second_level_miss_double_kernel)
 
 ENTRY(fast_second_level_miss)
 
-	/* Save a1. Note: we don't expect a double exception. */
+	/* Save a1 and a3. Note: we don't expect a double exception. */
 
 	s32i	a1, a2, PT_AREG1
+	s32i	a3, a2, PT_AREG3
 
 	/* We need to map the page of PTEs for the user task.  Find
 	 * the pointer to that page.  Also, it's possible for tsk->mm
@@ -1602,9 +1617,6 @@ ENTRY(fast_second_level_miss)
 	l32i	a0, a1, TASK_MM		# tsk->mm
 	beqz	a0, 9f
 
-
-	/* We deliberately destroy a3 that holds the exception table. */
-
 8:	rsr	a3, excvaddr		# fault address
 	_PGD_OFFSET(a0, a3, a1)
 	l32i	a0, a0, 0		# read pmdval
@@ -1620,10 +1632,11 @@ ENTRY(fast_second_level_miss)
 	 * The messy computation for 'pteval' above really simplifies
 	 * into the following:
 	 *
-	 * pteval = ((pmdval - PAGE_OFFSET) & PAGE_MASK) | PAGE_DIRECTORY
+	 * pteval = ((pmdval - PAGE_OFFSET + PHYS_OFFSET) & PAGE_MASK)
+	 *                 | PAGE_DIRECTORY
 	 */
 
-	movi	a1, (-PAGE_OFFSET) & 0xffffffff
+	movi	a1, (PHYS_OFFSET - PAGE_OFFSET) & 0xffffffff
 	add	a0, a0, a1		# pmdval - PAGE_OFFSET
 	extui	a1, a0, 0, PAGE_SHIFT	# ... & PAGE_MASK
 	xor	a0, a0, a1
@@ -1655,7 +1668,7 @@ ENTRY(fast_second_level_miss)
 
 	/* Exit critical section. */
 
-4:	movi	a3, exc_table		# restore a3
+4:	rsr	a3, excsave1
 	movi	a0, 0
 	s32i	a0, a3, EXC_TABLE_FIXUP
 
@@ -1663,8 +1676,8 @@ ENTRY(fast_second_level_miss)
 
 	l32i	a0, a2, PT_AREG0
 	l32i	a1, a2, PT_AREG1
+	l32i	a3, a2, PT_AREG3
 	l32i	a2, a2, PT_DEPC
-	xsr	a3, excsave1
 
 	bgeui	a2, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
 
@@ -1680,6 +1693,13 @@ ENTRY(fast_second_level_miss)
 	rfde
 
 9:	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
+	bnez	a0, 8b
+
+	/* Even more unlikely case active_mm == 0.
+	 * We can get here with NMI in the middle of context_switch that
+	 * touches vmalloc area.
+	 */
+	movi	a0, init_mm
 	j	8b
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
@@ -1710,7 +1730,7 @@ ENTRY(fast_second_level_miss)
 	rsr	a0, excvaddr
 	bltu	a0, a3, 2f
 
-	addi	a1, a0, -(2 << (DCACHE_ALIAS_ORDER + PAGE_SHIFT))
+	addi	a1, a0, -TLBTEMP_SIZE
 	bgeu	a1, a3, 2f
 
 	/* Check if we have to restore an ITLB mapping. */
@@ -1751,11 +1771,8 @@ ENTRY(fast_second_level_miss)
 
 2:	/* Invalid PGD, default exception handling */
 
-	movi	a3, exc_table
 	rsr	a1, depc
-	xsr	a3, excsave1
 	s32i	a1, a2, PT_AREG2
-	s32i	a3, a2, PT_AREG3
 	mov	a1, a2
 
 	rsr	a2, ps
@@ -1775,9 +1792,9 @@ ENDPROC(fast_second_level_miss)
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
@@ -1785,17 +1802,17 @@ ENDPROC(fast_second_level_miss)
 
 ENTRY(fast_store_prohibited)
 
-	/* Save a1 and a4. */
+	/* Save a1 and a3. */
 
 	s32i	a1, a2, PT_AREG1
-	s32i	a4, a2, PT_AREG4
+	s32i	a3, a2, PT_AREG3
 
 	GET_CURRENT(a1,a2)
 	l32i	a0, a1, TASK_MM		# tsk->mm
 	beqz	a0, 9f
 
 8:	rsr	a1, excvaddr		# fault address
-	_PGD_OFFSET(a0, a1, a4)
+	_PGD_OFFSET(a0, a1, a3)
 	l32i	a0, a0, 0
 	beqz	a0, 2f
 
@@ -1804,39 +1821,37 @@ ENTRY(fast_store_prohibited)
 	 * and is not PAGE_NONE. See pgtable.h for possible PTE layouts.
 	 */
 
-	_PTE_OFFSET(a0, a1, a4)
-	l32i	a4, a0, 0		# read pteval
+	_PTE_OFFSET(a0, a1, a3)
+	l32i	a3, a0, 0		# read pteval
 	movi	a1, _PAGE_CA_INVALID
-	ball	a4, a1, 2f
-	bbci.l	a4, _PAGE_WRITABLE_BIT, 2f
+	ball	a3, a1, 2f
+	bbci.l	a3, _PAGE_WRITABLE_BIT, 2f
 
 	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_HW_WRITE
-	or	a4, a4, a1
+	or	a3, a3, a1
 	rsr	a1, excvaddr
-	s32i	a4, a0, 0
+	s32i	a3, a0, 0
 
 	/* We need to flush the cache if we have page coloring. */
 #if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
 	dhwb	a0, 0
 #endif
 	pdtlb	a0, a1
-	wdtlb	a4, a0
+	wdtlb	a3, a0
 
 	/* Exit critical section. */
 
 	movi	a0, 0
+	rsr	a3, excsave1
 	s32i	a0, a3, EXC_TABLE_FIXUP
 
 	/* Restore the working registers, and return. */
 
-	l32i	a4, a2, PT_AREG4
+	l32i	a3, a2, PT_AREG3
 	l32i	a1, a2, PT_AREG1
 	l32i	a0, a2, PT_AREG0
 	l32i	a2, a2, PT_DEPC
 
-	/* Restore excsave1 and a3. */
-
-	xsr	a3, excsave1
 	bgeui	a2, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
 
 	rsr	a2, depc
@@ -1853,11 +1868,8 @@ ENTRY(fast_store_prohibited)
 
 2:	/* If there was a problem, handle fault in C */
 
-	rsr	a4, depc	# still holds a2
-	xsr	a3, excsave1
-	s32i	a4, a2, PT_AREG2
-	s32i	a3, a2, PT_AREG3
-	l32i	a4, a2, PT_AREG4
+	rsr	a3, depc	# still holds a2
+	s32i	a3, a2, PT_AREG2
 	mov	a1, a2
 
 	rsr	a2, ps
@@ -1887,10 +1899,11 @@ ENTRY(system_call)
 	movi	a4, do_syscall_trace_enter
 	s32i	a3, a2, PT_SYSCALL
 	callx4	a4
+	mov	a3, a6
 
 	/* syscall = sys_call_table[syscall_nr] */
 
-	movi	a4, sys_call_table;
+	movi	a4, sys_call_table
 	movi	a5, __NR_syscall_count
 	movi	a6, -ENOSYS
 	bgeu	a3, a5, 1f
@@ -1924,6 +1937,43 @@ ENTRY(system_call)
 
 ENDPROC(system_call)
 
+/*
+ * Spill live registers on the kernel stack macro.
+ *
+ * Entry condition: ps.woe is set, ps.excm is cleared
+ * Exit condition: windowstart has single bit set
+ * May clobber: a12, a13
+ */
+	.macro	spill_registers_kernel
+
+#if XCHAL_NUM_AREGS > 16
+	call12	1f
+	_j	2f
+	retw
+	.align	4
+1:
+	_entry	a1, 48
+	addi	a12, a0, 3
+#if XCHAL_NUM_AREGS > 32
+	.rept	(XCHAL_NUM_AREGS - 32) / 12
+	_entry	a1, 48
+	mov	a12, a0
+	.endr
+#endif
+	_entry	a1, 16
+#if XCHAL_NUM_AREGS % 12 == 0
+	mov	a8, a8
+#elif XCHAL_NUM_AREGS % 12 == 4
+	mov	a12, a12
+#elif XCHAL_NUM_AREGS % 12 == 8
+	mov	a4, a4
+#endif
+	retw
+2:
+#else
+	mov	a12, a12
+#endif
+	.endm
 
 /*
  * Task switch.
@@ -1934,26 +1984,28 @@ ENDPROC(system_call)
 
 ENTRY(_switch_to)
 
-	entry	a1, 16
+	entry	a1, 48
 
-	mov	a12, a2			# preserve 'prev' (a2)
-	mov	a13, a3			# and 'next' (a3)
+	mov	a11, a3			# and 'next' (a3)
 
 	l32i	a4, a2, TASK_THREAD_INFO
 	l32i	a5, a3, TASK_THREAD_INFO
 
-	save_xtregs_user a4 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
+	save_xtregs_user a4 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
-	s32i	a0, a12, THREAD_RA	# save return address
-	s32i	a1, a12, THREAD_SP	# save stack pointer
+#if THREAD_RA > 1020 || THREAD_SP > 1020
+	addi	a10, a2, TASK_THREAD
+	s32i	a0, a10, THREAD_RA - TASK_THREAD	# save return address
+	s32i	a1, a10, THREAD_SP - TASK_THREAD	# save stack pointer
+#else
+	s32i	a0, a2, THREAD_RA	# save return address
+	s32i	a1, a2, THREAD_SP	# save stack pointer
+#endif
 
 	/* Disable ints while we manipulate the stack pointer. */
 
-	movi	a14, (1 << PS_EXCM_BIT) | LOCKLEVEL
-	xsr	a14, ps
-	rsr	a3, excsave1
+	irq_save a14, a3
 	rsync
-	s32i	a3, a3, EXC_TABLE_FIXUP	/* enter critical section */
 
 	/* Switch CPENABLE */
 
@@ -1965,7 +2017,7 @@ ENTRY(_switch_to)
 
 	/* Flush register file. */
 
-	call0	_spill_registers	# destroys a3, a4, and SAR
+	spill_registers_kernel
 
 	/* Set kernel stack (and leave critical section)
 	 * Note: It's save to set it here. The stack will not be overwritten
@@ -1974,20 +2026,17 @@ ENTRY(_switch_to)
 	 */
 
 	rsr	a3, excsave1		# exc_table
-	movi	a6, 0
 	addi	a7, a5, PT_REGS_OFFSET
-	s32i	a6, a3, EXC_TABLE_FIXUP
 	s32i	a7, a3, EXC_TABLE_KSTK
 
 	/* restore context of the task 'next' */
 
-	l32i	a0, a13, THREAD_RA	# restore return address
-	l32i	a1, a13, THREAD_SP	# restore stack pointer
+	l32i	a0, a11, THREAD_RA	# restore return address
+	l32i	a1, a11, THREAD_SP	# restore stack pointer
 
-	load_xtregs_user a5 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
+	load_xtregs_user a5 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
 	wsr	a14, ps
-	mov	a2, a12			# return 'prev'
 	rsync
 
 	retw

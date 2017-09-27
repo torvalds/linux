@@ -11,14 +11,13 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/ctype.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/vme.h>
 
@@ -26,26 +25,20 @@
 
 static const char driver_name[] = "pio2_gpio";
 
-static struct pio2_card *gpio_to_pio2_card(struct gpio_chip *chip)
-{
-	return container_of(chip, struct pio2_card, gc);
-}
-
 static int pio2_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	u8 reg;
 	int retval;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == OUTPUT) |
-		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
-
+	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 		dev_err(&card->vdev->dev, "Channel not available as input\n");
 		return 0;
 	}
 
 	retval = vme_master_read(card->window, &reg, 1,
-		PIO2_REGS_DATA[PIO2_CHANNEL_BANK[offset]]);
+				 PIO2_REGS_DATA[PIO2_CHANNEL_BANK[offset]]);
 	if (retval < 0) {
 		dev_err(&card->vdev->dev, "Unable to read from GPIO\n");
 		return 0;
@@ -58,26 +51,25 @@ static int pio2_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	if (reg & PIO2_CHANNEL_BIT[offset]) {
 		if (card->bank[PIO2_CHANNEL_BANK[offset]].config != BOTH)
 			return 0;
-		else
-			return 1;
-	} else {
-		if (card->bank[PIO2_CHANNEL_BANK[offset]].config != BOTH)
-			return 1;
-		else
-			return 0;
+
+		return 1;
 	}
+
+	if (card->bank[PIO2_CHANNEL_BANK[offset]].config != BOTH)
+		return 1;
+
+	return 0;
 }
 
-static void pio2_gpio_set(struct gpio_chip *chip, unsigned int offset,
-	int value)
+static void pio2_gpio_set(struct gpio_chip *chip,
+			  unsigned int offset, int value)
 {
 	u8 reg;
 	int retval;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == INPUT) |
-		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
-
+	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 		dev_err(&card->vdev->dev, "Channel not available as output\n");
 		return;
 	}
@@ -90,7 +82,7 @@ static void pio2_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			~PIO2_CHANNEL_BIT[offset];
 
 	retval = vme_master_write(card->window, &reg, 1,
-		PIO2_REGS_DATA[PIO2_CHANNEL_BANK[offset]]);
+				  PIO2_REGS_DATA[PIO2_CHANNEL_BANK[offset]]);
 	if (retval < 0) {
 		dev_err(&card->vdev->dev, "Unable to write to GPIO\n");
 		return;
@@ -100,15 +92,15 @@ static void pio2_gpio_set(struct gpio_chip *chip, unsigned int offset,
 }
 
 /* Directionality configured at board build - send appropriate response */
-static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
+static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned int offset)
 {
 	int data;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == OUTPUT) |
-		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
+	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 		dev_err(&card->vdev->dev,
-			"Channel directionality not configurable at runtine\n");
+			"Channel directionality not configurable at runtime\n");
 
 		data = -EINVAL;
 	} else {
@@ -119,15 +111,16 @@ static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 }
 
 /* Directionality configured at board build - send appropriate response */
-static int pio2_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int value)
+static int pio2_gpio_dir_out(struct gpio_chip *chip,
+			     unsigned int offset, int value)
 {
 	int data;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == INPUT) |
-		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
+	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 		dev_err(&card->vdev->dev,
-			"Channel directionality not configurable at runtine\n");
+			"Channel directionality not configurable at runtime\n");
 
 		data = -EINVAL;
 	} else {
@@ -151,7 +144,7 @@ int pio2_gpio_reset(struct pio2_card *card)
 	/* Zero output registers */
 	for (i = 0; i < 4; i++) {
 		retval = vme_master_write(card->window, &data, 1,
-			PIO2_REGS_DATA[i]);
+					  PIO2_REGS_DATA[i]);
 		if (retval < 0)
 			return retval;
 		card->bank[i].value = 0;
@@ -160,12 +153,12 @@ int pio2_gpio_reset(struct pio2_card *card)
 	/* Set input interrupt masks */
 	for (i = 0; i < 4; i++) {
 		retval = vme_master_write(card->window, &data, 1,
-			PIO2_REGS_INT_MASK[i * 2]);
+					  PIO2_REGS_INT_MASK[i * 2]);
 		if (retval < 0)
 			return retval;
 
 		retval = vme_master_write(card->window, &data, 1,
-			PIO2_REGS_INT_MASK[(i * 2) + 1]);
+					  PIO2_REGS_INT_MASK[(i * 2) + 1]);
 		if (retval < 0)
 			return retval;
 
@@ -177,7 +170,7 @@ int pio2_gpio_reset(struct pio2_card *card)
 	for (i = 0; i < 4; i++) {
 		do {
 			retval = vme_master_read(card->window, &data, 1,
-				PIO2_REGS_INT_STAT[i]);
+						 PIO2_REGS_INT_STAT[i]);
 			if (retval < 0)
 				return retval;
 		} while (data != 0);
@@ -191,11 +184,11 @@ int pio2_gpio_init(struct pio2_card *card)
 	int retval = 0;
 	char *label;
 
-	label = kmalloc(PIO2_NUM_CHANNELS, GFP_KERNEL);
-	if (label == NULL)
+	label = kasprintf(GFP_KERNEL,
+			  "%s@%s", driver_name, dev_name(&card->vdev->dev));
+	if (!label)
 		return -ENOMEM;
 
-	sprintf(label, "%s@%s", driver_name, dev_name(&card->vdev->dev));
 	card->gc.label = label;
 
 	card->gc.ngpio = PIO2_NUM_CHANNELS;
@@ -208,7 +201,7 @@ int pio2_gpio_init(struct pio2_card *card)
 	card->gc.set = pio2_gpio_set;
 
 	/* This function adds a memory mapped GPIO chip */
-	retval = gpiochip_add(&(card->gc));
+	retval = gpiochip_add_data(&card->gc, card);
 	if (retval) {
 		dev_err(&card->vdev->dev, "Unable to register GPIO\n");
 		kfree(card->gc.label);
@@ -221,9 +214,7 @@ void pio2_gpio_exit(struct pio2_card *card)
 {
 	const char *label = card->gc.label;
 
-	if (gpiochip_remove(&(card->gc)))
-		dev_err(&card->vdev->dev, "Failed to remove GPIO");
-
+	gpiochip_remove(&card->gc);
 	kfree(label);
 }
 

@@ -38,37 +38,53 @@ static unsigned int resolution;
 struct snd_hrtimer {
 	struct snd_timer *timer;
 	struct hrtimer hrt;
-	atomic_t running;
+	bool in_callback;
 };
 
 static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 {
 	struct snd_hrtimer *stime = container_of(hrt, struct snd_hrtimer, hrt);
 	struct snd_timer *t = stime->timer;
-	unsigned long oruns;
+	ktime_t delta;
+	unsigned long ticks;
+	enum hrtimer_restart ret = HRTIMER_NORESTART;
 
-	if (!atomic_read(&stime->running))
-		return HRTIMER_NORESTART;
+	spin_lock(&t->lock);
+	if (!t->running)
+		goto out; /* fast path */
+	stime->in_callback = true;
+	ticks = t->sticks;
+	spin_unlock(&t->lock);
 
-	oruns = hrtimer_forward_now(hrt, ns_to_ktime(t->sticks * resolution));
-	snd_timer_interrupt(stime->timer, t->sticks * oruns);
+	/* calculate the drift */
+	delta = ktime_sub(hrt->base->get_time(), hrtimer_get_expires(hrt));
+	if (delta > 0)
+		ticks += ktime_divns(delta, ticks * resolution);
 
-	if (!atomic_read(&stime->running))
-		return HRTIMER_NORESTART;
-	return HRTIMER_RESTART;
+	snd_timer_interrupt(stime->timer, ticks);
+
+	spin_lock(&t->lock);
+	if (t->running) {
+		hrtimer_add_expires_ns(hrt, t->sticks * resolution);
+		ret = HRTIMER_RESTART;
+	}
+
+	stime->in_callback = false;
+ out:
+	spin_unlock(&t->lock);
+	return ret;
 }
 
 static int snd_hrtimer_open(struct snd_timer *t)
 {
 	struct snd_hrtimer *stime;
 
-	stime = kmalloc(sizeof(*stime), GFP_KERNEL);
+	stime = kzalloc(sizeof(*stime), GFP_KERNEL);
 	if (!stime)
 		return -ENOMEM;
 	hrtimer_init(&stime->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	stime->timer = t;
 	stime->hrt.function = snd_hrtimer_callback;
-	atomic_set(&stime->running, 0);
 	t->private_data = stime;
 	return 0;
 }
@@ -78,6 +94,11 @@ static int snd_hrtimer_close(struct snd_timer *t)
 	struct snd_hrtimer *stime = t->private_data;
 
 	if (stime) {
+		spin_lock_irq(&t->lock);
+		t->running = 0; /* just to be sure */
+		stime->in_callback = 1; /* skip start/stop */
+		spin_unlock_irq(&t->lock);
+
 		hrtimer_cancel(&stime->hrt);
 		kfree(stime);
 		t->private_data = NULL;
@@ -89,18 +110,20 @@ static int snd_hrtimer_start(struct snd_timer *t)
 {
 	struct snd_hrtimer *stime = t->private_data;
 
-	atomic_set(&stime->running, 0);
-	hrtimer_cancel(&stime->hrt);
+	if (stime->in_callback)
+		return 0;
 	hrtimer_start(&stime->hrt, ns_to_ktime(t->sticks * resolution),
 		      HRTIMER_MODE_REL);
-	atomic_set(&stime->running, 1);
 	return 0;
 }
 
 static int snd_hrtimer_stop(struct snd_timer *t)
 {
 	struct snd_hrtimer *stime = t->private_data;
-	atomic_set(&stime->running, 0);
+
+	if (stime->in_callback)
+		return 0;
+	hrtimer_try_to_cancel(&stime->hrt);
 	return 0;
 }
 
@@ -121,17 +144,9 @@ static struct snd_timer *mytimer;
 static int __init snd_hrtimer_init(void)
 {
 	struct snd_timer *timer;
-	struct timespec tp;
 	int err;
 
-	hrtimer_get_res(CLOCK_MONOTONIC, &tp);
-	if (tp.tv_sec > 0 || !tp.tv_nsec) {
-		snd_printk(KERN_ERR
-			   "snd-hrtimer: Invalid resolution %u.%09u",
-			   (unsigned)tp.tv_sec, (unsigned)tp.tv_nsec);
-		return -EINVAL;
-	}
-	resolution = tp.tv_nsec;
+	resolution = hrtimer_resolution;
 
 	/* Create a new timer and set up the fields */
 	err = snd_timer_global_new("hrtimer", SNDRV_TIMER_GLOBAL_HRTIMER,

@@ -19,7 +19,7 @@
 #include <linux/videodev2.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
@@ -33,6 +33,7 @@
 
 #define GSC_SHUTDOWN_TIMEOUT		((100*HZ)/1000)
 #define GSC_MAX_DEVS			4
+#define GSC_MAX_CLOCKS			4
 #define GSC_M2M_BUF_NUM			0
 #define GSC_MAX_CTRL_NUM		10
 #define GSC_SC_ALIGN_4			4
@@ -45,11 +46,9 @@
 #define GSC_DST_FMT			(1 << 2)
 #define GSC_CTX_M2M			(1 << 3)
 #define GSC_CTX_STOP_REQ		(1 << 6)
+#define	GSC_CTX_ABORT			(1 << 7)
 
 enum gsc_dev_flags {
-	/* for global */
-	ST_SUSPEND,
-
 	/* for m2m node */
 	ST_M2M_OPEN,
 	ST_M2M_RUN,
@@ -116,7 +115,7 @@ enum gsc_yuv_fmt {
  * @flags: flags indicating which operation mode format applies to
  */
 struct gsc_fmt {
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	char	*name;
 	u32	pixelformat;
 	u32	color;
@@ -135,7 +134,7 @@ struct gsc_fmt {
  * @idx : index of G-Scaler input buffer
  */
 struct gsc_input_buf {
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head	list;
 	int			idx;
 };
@@ -305,12 +304,12 @@ struct gsc_variant {
  * struct gsc_driverdata - per device type driver data for init time.
  *
  * @variant: the variant information for this driver.
- * @lclk_frequency: G-Scaler clock frequency
  * @num_entities: the number of g-scalers
  */
 struct gsc_driverdata {
 	struct gsc_variant *variant[GSC_MAX_DEVS];
-	unsigned long	lclk_frequency;
+	const char	*clk_names[GSC_MAX_CLOCKS];
+	int		num_clocks;
 	int		num_entities;
 };
 
@@ -326,7 +325,6 @@ struct gsc_driverdata {
  * @irq_queue:	interrupt handler waitqueue
  * @m2m:	memory-to-memory V4L2 device information
  * @state:	flags used to synchronize m2m and capture mode operation
- * @alloc_ctx:	videobuf2 memory allocator context
  * @vdev:	video device for G-Scaler instance
  */
 struct gsc_dev {
@@ -335,14 +333,14 @@ struct gsc_dev {
 	struct platform_device		*pdev;
 	struct gsc_variant		*variant;
 	u16				id;
-	struct clk			*clock;
+	int				num_clocks;
+	struct clk			*clock[GSC_MAX_CLOCKS];
 	void __iomem			*regs;
 	wait_queue_head_t		irq_queue;
 	struct gsc_m2m_device		m2m;
-	struct exynos_platform_gscaler	*pdata;
 	unsigned long			state;
-	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		vdev;
+	struct v4l2_device		v4l2_dev;
 };
 
 /**
@@ -378,6 +376,7 @@ struct gsc_ctx {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct gsc_ctrls	gsc_ctrls;
 	bool			ctrls_rdy;
+	enum v4l2_colorspace out_colorspace;
 };
 
 void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm);
@@ -462,18 +461,6 @@ static inline void gsc_hw_clear_irq(struct gsc_dev *dev, int irq)
 	else if (irq == GSC_IRQ_DONE)
 		cfg |= GSC_IRQ_STATUS_FRM_DONE_IRQ;
 	writel(cfg, dev->regs + GSC_IRQ);
-}
-
-static inline void gsc_lock(struct vb2_queue *vq)
-{
-	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_lock(&ctx->gsc_dev->lock);
-}
-
-static inline void gsc_unlock(struct vb2_queue *vq)
-{
-	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_unlock(&ctx->gsc_dev->lock);
 }
 
 static inline bool gsc_ctx_state_is_set(u32 mask, struct gsc_ctx *ctx)

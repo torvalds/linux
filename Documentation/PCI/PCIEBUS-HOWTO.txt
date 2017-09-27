@@ -161,21 +161,13 @@ Since all service drivers of a PCI-PCI Bridge Port device are
 allowed to run simultaneously, below lists a few of possible resource
 conflicts with proposed solutions.
 
-6.1 MSI Vector Resource
+6.1 MSI and MSI-X Vector Resource
 
-The MSI capability structure enables a device software driver to call
-pci_enable_msi to request MSI based interrupts. Once MSI interrupts
-are enabled on a device, it stays in this mode until a device driver
-calls pci_disable_msi to disable MSI interrupts and revert back to
-INTx emulation mode. Since service drivers of the same PCI-PCI Bridge
-port share the same physical device, if an individual service driver
-calls pci_enable_msi/pci_disable_msi it may result unpredictable
-behavior. For example, two service drivers run simultaneously on the
-same physical Root Port. Both service drivers call pci_enable_msi to
-request MSI based interrupts. A service driver may not know whether
-any other service drivers have run on this Root Port. If either one
-of them calls pci_disable_msi, it puts the other service driver
-in a wrong interrupt mode.
+Once MSI or MSI-X interrupts are enabled on a device, it stays in this
+mode until they are disabled again.  Since service drivers of the same
+PCI-PCI Bridge port share the same physical device, if an individual
+service driver enables or disables MSI/MSI-X mode it may result
+unpredictable behavior.
 
 To avoid this situation all service drivers are not permitted to
 switch interrupt mode on its device. The PCI Express Port Bus driver
@@ -186,17 +178,6 @@ is passed in when the PCI Express Port Bus driver probes each service
 driver. Service drivers should use (struct pcie_device*)dev->irq to
 call request_irq/free_irq. In addition, the interrupt mode is stored
 in the field interrupt_mode of struct pcie_device.
-
-6.2 MSI-X Vector Resources
-
-Similar to the MSI a device driver for an MSI-X capable device can
-call pci_enable_msix to request MSI-X interrupts. All service drivers
-are not permitted to switch interrupt mode on its device. The PCI
-Express Port Bus driver is responsible for determining the interrupt
-mode and this should be transparent to service drivers. Any attempt
-by service driver to call pci_enable_msix/pci_disable_msix may
-result unpredictable behavior. Service drivers should use
-(struct pcie_device*)dev->irq and call request_irq/free_irq.
 
 6.3 PCI Memory/IO Mapped Regions
 

@@ -330,7 +330,7 @@ static const struct {
 	{ "SiS 191 PCI Gigabit Ethernet adapter" },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(sis190_pci_tbl) = {
+static const struct pci_device_id sis190_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0190), 0, 0, 0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0191), 0, 0, 1 },
 	{ 0, },
@@ -1734,18 +1734,22 @@ static void sis190_set_speed_auto(struct net_device *dev)
 		   BMCR_ANENABLE | BMCR_ANRESTART | BMCR_RESET);
 }
 
-static int sis190_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sis190_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_gset(&tp->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&tp->mii_if, cmd);
+
+	return 0;
 }
 
-static int sis190_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sis190_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_sset(&tp->mii_if, cmd);
+	return mii_ethtool_set_link_ksettings(&tp->mii_if, cmd);
 }
 
 static void sis190_get_drvinfo(struct net_device *dev,
@@ -1769,9 +1773,6 @@ static void sis190_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 {
 	struct sis190_private *tp = netdev_priv(dev);
 	unsigned long flags;
-
-	if (regs->len > SIS190_REGS_SIZE)
-		regs->len = SIS190_REGS_SIZE;
 
 	spin_lock_irqsave(&tp->lock, flags);
 	memcpy_fromio(p, tp->mmio_addr, regs->len);
@@ -1800,8 +1801,6 @@ static void sis190_set_msglevel(struct net_device *dev, u32 value)
 }
 
 static const struct ethtool_ops sis190_ethtool_ops = {
-	.get_settings	= sis190_get_settings,
-	.set_settings	= sis190_set_settings,
 	.get_drvinfo	= sis190_get_drvinfo,
 	.get_regs_len	= sis190_get_regs_len,
 	.get_regs	= sis190_get_regs,
@@ -1809,6 +1808,8 @@ static const struct ethtool_ops sis190_ethtool_ops = {
 	.get_msglevel	= sis190_get_msglevel,
 	.set_msglevel	= sis190_set_msglevel,
 	.nway_reset	= sis190_nway_reset,
+	.get_link_ksettings = sis190_get_link_ksettings,
+	.set_link_ksettings = sis190_set_link_ksettings,
 };
 
 static int sis190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -1836,7 +1837,6 @@ static const struct net_device_ops sis190_netdev_ops = {
 	.ndo_start_xmit		= sis190_start_xmit,
 	.ndo_tx_timeout		= sis190_tx_timeout,
 	.ndo_set_rx_mode	= sis190_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= sis190_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1880,7 +1880,7 @@ static int sis190_init_one(struct pci_dev *pdev,
 
 	dev->netdev_ops = &sis190_netdev_ops;
 
-	SET_ETHTOOL_OPS(dev, &sis190_ethtool_ops);
+	dev->ethtool_ops = &sis190_ethtool_ops;
 	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
 
 	spin_lock_init(&tp->lock);
@@ -1924,7 +1924,6 @@ static void sis190_remove_one(struct pci_dev *pdev)
 	cancel_work_sync(&tp->phy_task);
 	unregister_netdev(dev);
 	sis190_release_board(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver sis190_pci_driver = {

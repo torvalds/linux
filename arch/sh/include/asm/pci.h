@@ -66,14 +66,9 @@ extern unsigned long PCIBIOS_MIN_IO, PCIBIOS_MIN_MEM;
 struct pci_dev;
 
 #define HAVE_PCI_MMAP
-extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-	enum pci_mmap_state mmap_state, int write_combine);
-extern void pcibios_set_master(struct pci_dev *dev);
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE
 
-static inline void pcibios_penalize_isa_irq(int irq, int active)
-{
-	/* We don't do dynamic PCI IRQ allocation */
-}
+extern void pcibios_set_master(struct pci_dev *dev);
 
 /* Dynamic DMA mapping stuff.
  * SuperH has everything mapped statically like x86.
@@ -91,24 +86,6 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
  * direct memory write.
  */
 #define PCI_DISABLE_MWI
-
-static inline void pci_dma_burst_advice(struct pci_dev *pdev,
-					enum pci_dma_burst_strategy *strat,
-					unsigned long *strategy_parameter)
-{
-	unsigned long cacheline_size;
-	u8 byte;
-
-	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
-
-	if (byte == 0)
-		cacheline_size = L1_CACHE_BYTES;
-	else
-		cacheline_size = byte << 2;
-
-	*strat = PCI_DMA_BURST_MULTIPLE;
-	*strategy_parameter = cacheline_size;
-}
 #endif
 
 /* Board-specific fixup routines. */
@@ -127,9 +104,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return channel ? 15 : 14;
 }
-
-/* generic DMA-mapping stuff */
-#include <asm-generic/pci-dma-compat.h>
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PCI_H */

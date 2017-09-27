@@ -252,7 +252,7 @@ static int pppoatm_may_send(struct pppoatm_vcc *pvcc, int size)
 	 * we need to ensure there's a memory barrier after it. The bit
 	 * *must* be set before we do the atomic_inc() on pvcc->inflight.
 	 * There's no smp_mb__after_set_bit(), so it's this or abuse
-	 * smp_mb__after_clear_bit().
+	 * smp_mb__after_atomic().
 	 */
 	test_and_set_bit(BLOCKED, &pvcc->blocked);
 
@@ -350,7 +350,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 		return 1;
 	}
 
-	atomic_add(skb->truesize, &sk_atm(ATM_SKB(skb)->vcc)->sk_wmem_alloc);
+	refcount_add(skb->truesize, &sk_atm(ATM_SKB(skb)->vcc)->sk_wmem_alloc);
 	ATM_SKB(skb)->atm_options = ATM_SKB(skb)->vcc->atm_options;
 	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n",
 		 skb, ATM_SKB(skb)->vcc, ATM_SKB(skb)->vcc->dev);

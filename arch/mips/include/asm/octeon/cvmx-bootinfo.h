@@ -32,6 +32,8 @@
 #ifndef __CVMX_BOOTINFO_H__
 #define __CVMX_BOOTINFO_H__
 
+#include "cvmx-coremask.h"
+
 /*
  * Current major and minor versions of the CVMX bootinfo block that is
  * passed from the bootloader to the application.  This is versioned
@@ -39,7 +41,7 @@
  * versions.
  */
 #define CVMX_BOOTINFO_MAJ_VER 1
-#define CVMX_BOOTINFO_MIN_VER 3
+#define CVMX_BOOTINFO_MIN_VER 4
 
 #if (CVMX_BOOTINFO_MAJ_VER == 1)
 #define CVMX_BOOTINFO_OCTEON_SERIAL_LEN 20
@@ -53,6 +55,7 @@
  * to 0.
  */
 struct cvmx_bootinfo {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t major_version;
 	uint32_t minor_version;
 
@@ -122,6 +125,70 @@ struct cvmx_bootinfo {
 	 * describing the board.
 	 */
 	uint64_t fdt_addr;
+#endif
+#if (CVMX_BOOTINFO_MIN_VER >= 4)
+	/*
+	 * Coremask used for processors with more than 32 cores
+	 * or with OCI.  This replaces core_mask.
+	 */
+	struct cvmx_coremask ext_core_mask;
+#endif
+#else				/* __BIG_ENDIAN */
+	/*
+	 * Little-Endian: When the CPU mode is switched to
+	 * little-endian, the view of the structure has some of the
+	 * fields swapped.
+	 */
+	uint32_t minor_version;
+	uint32_t major_version;
+
+	uint64_t stack_top;
+	uint64_t heap_base;
+	uint64_t heap_end;
+	uint64_t desc_vaddr;
+
+	uint32_t stack_size;
+	uint32_t exception_base_addr;
+
+	uint32_t core_mask;
+	uint32_t flags;
+
+	uint32_t phy_mem_desc_addr;
+	uint32_t dram_size;
+
+	uint32_t eclock_hz;
+	uint32_t debugger_flags_base_addr;
+
+	uint32_t reserved0;
+	uint32_t dclock_hz;
+
+	uint8_t reserved3;
+	uint8_t reserved2;
+	uint16_t reserved1;
+	uint8_t board_rev_minor;
+	uint8_t board_rev_major;
+	uint16_t board_type;
+
+	char board_serial_number[CVMX_BOOTINFO_OCTEON_SERIAL_LEN];
+	uint8_t mac_addr_base[6];
+	uint8_t mac_addr_count;
+	uint8_t pad[5];
+
+#if (CVMX_BOOTINFO_MIN_VER >= 1)
+	uint64_t compact_flash_common_base_addr;
+	uint64_t compact_flash_attribute_base_addr;
+	uint64_t led_display_base_addr;
+#endif
+#if (CVMX_BOOTINFO_MIN_VER >= 2)
+	uint32_t config_flags;
+	uint32_t dfa_ref_clock_hz;
+#endif
+#if (CVMX_BOOTINFO_MIN_VER >= 3)
+	uint64_t fdt_addr;
+#endif
+#if (CVMX_BOOTINFO_MIN_VER >= 4)
+	struct cvmx_coremask ext_core_mask;
+#endif
 #endif
 };
 
@@ -228,6 +295,8 @@ enum cvmx_board_types_enum {
 	 */
 	CVMX_BOARD_TYPE_CUST_PRIVATE_MIN = 20001,
 	CVMX_BOARD_TYPE_UBNT_E100 = 20002,
+	CVMX_BOARD_TYPE_CUST_DSR1000N = 20006,
+	CVMX_BOARD_TYPE_KONTRON_S1901 = 21901,
 	CVMX_BOARD_TYPE_CUST_PRIVATE_MAX = 30000,
 
 	/* The remaining range is reserved for future use. */
@@ -327,9 +396,11 @@ static inline const char *cvmx_board_type_to_string(enum
 		    /* Customer private range */
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MIN)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E100)
+		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_DSR1000N)
+		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_KONTRON_S1901)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MAX)
 	}
-	return "Unsupported Board";
+	return NULL;
 }
 
 #define ENUM_CHIP_TYPE_CASE(x) \

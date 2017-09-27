@@ -20,8 +20,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/mxm-wmi.h>
+#include <linux/acpi.h>
 
 MODULE_AUTHOR("Dave Airlie");
 MODULE_DESCRIPTION("MXM WMI Driver");
@@ -53,7 +53,7 @@ int mxm_wmi_call_mxds(int adapter)
 
 	printk("calling mux switch %d\n", adapter);
 
-	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x1, adapter, &input,
+	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x0, adapter, &input,
 				     &output);
 
 	if (ACPI_FAILURE(status))
@@ -78,7 +78,7 @@ int mxm_wmi_call_mxmx(int adapter)
 
 	printk("calling mux switch %d\n", adapter);
 
-	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x1, adapter, &input,
+	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x0, adapter, &input,
 				     &output);
 
 	if (ACPI_FAILURE(status))

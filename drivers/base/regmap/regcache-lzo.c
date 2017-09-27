@@ -10,9 +10,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/lzo.h>
+#include <linux/slab.h>
 
 #include "internal.h"
 
@@ -139,7 +139,7 @@ static int regcache_lzo_init(struct regmap *map)
 	ret = 0;
 
 	blkcount = regcache_lzo_block_count(map);
-	map->cache = kzalloc(blkcount * sizeof *lzo_blocks,
+	map->cache = kcalloc(blkcount, sizeof(*lzo_blocks),
 			     GFP_KERNEL);
 	if (!map->cache)
 		return -ENOMEM;
@@ -152,8 +152,8 @@ static int regcache_lzo_init(struct regmap *map)
 	 * that register.
 	 */
 	bmp_size = map->num_reg_defaults_raw;
-	sync_bmp = kmalloc(BITS_TO_LONGS(bmp_size) * sizeof(long),
-			   GFP_KERNEL);
+	sync_bmp = kmalloc_array(BITS_TO_LONGS(bmp_size), sizeof(long),
+				 GFP_KERNEL);
 	if (!sync_bmp) {
 		ret = -ENOMEM;
 		goto err;
@@ -236,15 +236,13 @@ static int regcache_lzo_read(struct regmap *map,
 {
 	struct regcache_lzo_ctx *lzo_block, **lzo_blocks;
 	int ret, blkindex, blkpos;
-	size_t blksize, tmp_dst_len;
+	size_t tmp_dst_len;
 	void *tmp_dst;
 
 	/* index of the compressed lzo block */
 	blkindex = regcache_lzo_get_blkindex(map, reg);
 	/* register index within the decompressed block */
 	blkpos = regcache_lzo_get_blkpos(map, reg);
-	/* size of the compressed block */
-	blksize = regcache_lzo_get_blksize(map);
 	lzo_blocks = map->cache;
 	lzo_block = lzo_blocks[blkindex];
 
@@ -275,15 +273,13 @@ static int regcache_lzo_write(struct regmap *map,
 {
 	struct regcache_lzo_ctx *lzo_block, **lzo_blocks;
 	int ret, blkindex, blkpos;
-	size_t blksize, tmp_dst_len;
+	size_t tmp_dst_len;
 	void *tmp_dst;
 
 	/* index of the compressed lzo block */
 	blkindex = regcache_lzo_get_blkindex(map, reg);
 	/* register index within the decompressed block */
 	blkpos = regcache_lzo_get_blkpos(map, reg);
-	/* size of the compressed block */
-	blksize = regcache_lzo_get_blksize(map);
 	lzo_blocks = map->cache;
 	lzo_block = lzo_blocks[blkindex];
 
@@ -355,9 +351,9 @@ static int regcache_lzo_sync(struct regmap *map, unsigned int min,
 		if (ret > 0 && val == map->reg_defaults[ret].def)
 			continue;
 
-		map->cache_bypass = 1;
+		map->cache_bypass = true;
 		ret = _regmap_write(map, i, val);
-		map->cache_bypass = 0;
+		map->cache_bypass = false;
 		if (ret)
 			return ret;
 		dev_dbg(map->dev, "Synced register %#x, value %#x\n",

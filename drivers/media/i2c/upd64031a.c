@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -27,7 +23,7 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/upd64031a.h>
+#include <media/i2c/upd64031a.h>
 
 /* --------------------- read registers functions define -------------------- */
 
@@ -241,7 +237,6 @@ MODULE_DEVICE_TABLE(i2c, upd64031a_id);
 
 static struct i2c_driver upd64031a_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "upd64031a",
 	},
 	.probe		= upd64031a_probe,

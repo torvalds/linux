@@ -15,9 +15,26 @@ struct display_timings;
 
 #define OF_USE_NATIVE_MODE -1
 
-int of_get_display_timing(struct device_node *np, const char *name,
+#ifdef CONFIG_OF
+int of_get_display_timing(const struct device_node *np, const char *name,
 		struct display_timing *dt);
-struct display_timings *of_get_display_timings(struct device_node *np);
-int of_display_timings_exist(struct device_node *np);
+struct display_timings *of_get_display_timings(const struct device_node *np);
+int of_display_timings_exist(const struct device_node *np);
+#else
+static inline int of_get_display_timing(const struct device_node *np,
+		const char *name, struct display_timing *dt)
+{
+	return -ENOSYS;
+}
+static inline struct display_timings *
+of_get_display_timings(const struct device_node *np)
+{
+	return NULL;
+}
+static inline int of_display_timings_exist(const struct device_node *np)
+{
+	return -ENOSYS;
+}
+#endif
 
 #endif

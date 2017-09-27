@@ -1,0 +1,174 @@
+/*
+ * See craneboard.org for more details
+ *
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "am3517.dtsi"
+
+/ {
+	model = "TI AM3517 CraneBoard (TMDSEVM3517)";
+	compatible = "ti,am3517-craneboard", "ti,am3517", "ti,omap3";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>;	/* 256 MB */
+	};
+
+	vbat: fixedregulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+};
+
+&davinci_emac {
+	status = "okay";
+};
+
+&davinci_mdio {
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	tps: tps@2d {
+		reg = <0x2d>;
+	};
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	/* goes to expansion connector */
+	status = "disabled";
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	/* goes to expansion connector */
+	status = "disabled";
+};
+
+&mmc1 {
+	vmmc-supply = <&vdd2_reg>;
+	bus-width = <8>;
+};
+
+&mmc2 {
+	/* goes to expansion connector */
+	status = "disabled";
+};
+
+&mmc3 {
+	/* goes to expansion connector */
+	status = "disabled";
+};
+
+#include "tps65910.dtsi"
+
+&omap3_pmx_core {
+	tps_pins: pinmux_tps_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21e0, PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq.sys_nirq */
+		>;
+	};
+};
+
+&tps {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tps_pins>;
+
+	interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+	interrupt-parent = <&intc>;
+
+	ti,en-ck32k-xtal;
+
+	vcc1-supply = <&vbat>;
+	vcc2-supply = <&vbat>;
+	vcc3-supply = <&vbat>;
+	vcc4-supply = <&vbat>;
+	vcc5-supply = <&vbat>;
+	vcc6-supply = <&vbat>;
+	vcc7-supply = <&vbat>;
+	vccio-supply = <&vbat>;
+
+	regulators {
+		vrtc_reg: regulator@0 {
+			regulator-always-on;
+		};
+
+		vio_reg: regulator@1 {
+			regulator-always-on;
+		};
+
+		/*
+		 * Unused:
+		 * VDIG1=2.7V,300mA max
+		 * VDIG2=1.8V,300mA max
+		 */
+
+		vpll_reg: regulator@7 {
+			/* VDDS_DPLL_1V8 */
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		vaux1_reg: regulator@9 {
+			/* VDDS_SRAM_1V8 */
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		vaux2_reg: regulator@10 {
+			/* VDDA1P8V_USBPHY */
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		/* VAUX33 unused */
+
+		vdac_reg: regulator@8 {
+			/* VDDA_DAC_1V8 */
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		vmmc_reg: regulator@12 {
+			/* VDDA3P3V_USBPHY */
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		vdd1_reg: regulator@2 {
+			/* VDD_CORE */
+			regulator-name = "vdd_core";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		vdd2_reg: regulator@3 {
+			/* VDDSHV_3V3 */
+			regulator-name = "vdd_shv";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		/* VDD3 unused */
+	};
+};

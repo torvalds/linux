@@ -18,17 +18,14 @@
 #include <linux/fsl_devices.h>
 
 #include <asm/io.h>
-#include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/prom.h>
 #include <asm/fs_pd.h>
 #include <mm/mmu_decl.h>
 
-#include <sysdev/mpc8xx_pic.h>
+#include "pic.h"
 
 #include "mpc8xx.h"
-
-struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;
 
 extern int cpm_pic_init(void);
 extern int cpm_get_irq(void);
@@ -201,7 +198,7 @@ void mpc8xx_get_rtc_time(struct rtc_time *tm)
 	return;
 }
 
-void mpc8xx_restart(char *cmd)
+void __noreturn mpc8xx_restart(char *cmd)
 {
 	car8xx_t __iomem *clk_r = immr_map(im_clkrst);
 
@@ -217,7 +214,7 @@ void mpc8xx_restart(char *cmd)
 	panic("Restart failed\n");
 }
 
-static void cpm_cascade(unsigned int irq, struct irq_desc *desc)
+static void cpm_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int cascade_irq = cpm_get_irq();
@@ -244,6 +241,6 @@ void __init mpc8xx_pics_init(void)
 	}
 
 	irq = cpm_pic_init();
-	if (irq != NO_IRQ)
+	if (irq)
 		irq_set_chained_handler(irq, cpm_cascade);
 }

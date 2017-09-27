@@ -34,6 +34,7 @@
 #include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-au1x00/gpio-au1000.h>
 #include <prom.h>
 
 const char *get_system_type(void)
@@ -53,10 +54,8 @@ void __init prom_init(void)
 	prom_init_cmdline();
 
 	memsize_str = prom_getenv("memsize");
-	if (!memsize_str)
+	if (!memsize_str || kstrtoul(memsize_str, 0, &memsize))
 		memsize = 0x04000000;
-	else
-		strict_strtoul(memsize_str, 0, &memsize);
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }
 
@@ -237,7 +236,6 @@ static struct platform_device gpr_i2c_device = {
 static struct i2c_board_info gpr_i2c_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("lm83", 0x18),
-		.type = "lm83"
 	}
 };
 

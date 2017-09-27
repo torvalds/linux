@@ -1,0 +1,37 @@
+Qualcomm DWC3 HS AND SS PHY CONTROLLER
+--------------------------------------
+
+DWC3 PHY nodes are defined to describe on-chip Synopsis Physical layer
+controllers.  Each DWC3 PHY controller should have its own node.
+
+Required properties:
+- compatible: should contain one of the following:
+	- "qcom,dwc3-hs-usb-phy" for High Speed Synopsis PHY controller
+	- "qcom,dwc3-ss-usb-phy" for Super Speed Synopsis PHY controller
+- reg: offset and length of the DWC3 PHY controller register set
+- #phy-cells: must be zero
+- clocks: a list of phandles and clock-specifier pairs, one for each entry in
+  clock-names.
+- clock-names: Should contain "ref" for the PHY reference clock
+
+Optional clocks:
+  "xo"		External reference clock
+
+Example:
+		phy@100f8800 {
+			compatible = "qcom,dwc3-hs-usb-phy";
+			reg = <0x100f8800 0x30>;
+			clocks = <&gcc USB30_0_UTMI_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+
+		};
+
+		phy@100f8830 {
+			compatible = "qcom,dwc3-ss-usb-phy";
+			reg = <0x100f8830 0x30>;
+			clocks = <&gcc USB30_0_MASTER_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+
+		};

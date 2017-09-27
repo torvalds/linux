@@ -34,10 +34,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -194,7 +190,6 @@ enum wbcir_txstate {
 #define WBCIR_NAME	"Winbond CIR"
 #define WBCIR_ID_FAMILY          0xF1 /* Family ID for the WPCD376I	*/
 #define	WBCIR_ID_CHIP            0x04 /* Chip ID for the WPCD376I	*/
-#define INVALID_SCANCODE   0x7FFFFFFF /* Invalid with all protos	*/
 #define WAKEUP_IOMEM_LEN         0x10 /* Wake-Up I/O Reg Len		*/
 #define EHFUNC_IOMEM_LEN         0x10 /* Enhanced Func I/O Reg Len	*/
 #define SP_IOMEM_LEN             0x08 /* Serial Port 3 (IR) Reg Len	*/
@@ -213,24 +208,17 @@ struct wbcir_data {
 
 	/* RX state */
 	enum wbcir_rxstate rxstate;
-	struct led_trigger *rxtrigger;
 	int carrier_report_enabled;
 	u32 pulse_duration;
 
 	/* TX state */
 	enum wbcir_txstate txstate;
-	struct led_trigger *txtrigger;
 	u32 txlen;
 	u32 txoff;
 	u32 *txbuf;
 	u8 txmask;
 	u32 txcarrier;
 };
-
-static enum wbcir_protocol protocol = IR_PROTOCOL_RC6;
-module_param(protocol, uint, 0444);
-MODULE_PARM_DESC(protocol, "IR protocol to use for the power-on command "
-		 "(0 = RC5, 1 = NEC, 2 = RC6A, default)");
 
 static bool invert; /* default = 0 */
 module_param(invert, bool, 0444);
@@ -239,16 +227,6 @@ MODULE_PARM_DESC(invert, "Invert the signal from the IR receiver");
 static bool txandrx; /* default = 0 */
 module_param(txandrx, bool, 0444);
 MODULE_PARM_DESC(txandrx, "Allow simultaneous TX and RX");
-
-static unsigned int wake_sc = 0x800F040C;
-module_param(wake_sc, uint, 0644);
-MODULE_PARM_DESC(wake_sc, "Scancode of the power-on IR command");
-
-static unsigned int wake_rc6mode = 6;
-module_param(wake_rc6mode, uint, 0644);
-MODULE_PARM_DESC(wake_rc6mode, "RC6 mode for the power-on command "
-		 "(0 = 0, 6 = 6A, default)");
-
 
 
 /*****************************************************************************
@@ -366,14 +344,11 @@ wbcir_idle_rx(struct rc_dev *dev, bool idle)
 {
 	struct wbcir_data *data = dev->priv;
 
-	if (!idle && data->rxstate == WBCIR_RXSTATE_INACTIVE) {
+	if (!idle && data->rxstate == WBCIR_RXSTATE_INACTIVE)
 		data->rxstate = WBCIR_RXSTATE_ACTIVE;
-		led_trigger_event(data->rxtrigger, LED_FULL);
-	}
 
 	if (idle && data->rxstate != WBCIR_RXSTATE_INACTIVE) {
 		data->rxstate = WBCIR_RXSTATE_INACTIVE;
-		led_trigger_event(data->rxtrigger, LED_OFF);
 
 		if (data->carrier_report_enabled)
 			wbcir_carrier_report(data);
@@ -425,7 +400,6 @@ wbcir_irq_tx(struct wbcir_data *data)
 	case WBCIR_TXSTATE_INACTIVE:
 		/* TX FIFO empty */
 		space = 16;
-		led_trigger_event(data->txtrigger, LED_FULL);
 		break;
 	case WBCIR_TXSTATE_ACTIVE:
 		/* TX FIFO low (3 bytes or less) */
@@ -455,7 +429,7 @@ wbcir_irq_tx(struct wbcir_data *data)
 		bytes[used] = byte;
 	}
 
-	while (data->txbuf[data->txoff] == 0 && data->txoff != data->txlen)
+	while (data->txoff != data->txlen && data->txbuf[data->txoff] == 0)
 		data->txoff++;
 
 	if (used == 0) {
@@ -464,7 +438,6 @@ wbcir_irq_tx(struct wbcir_data *data)
 			/* Clear TX underrun bit */
 			outb(WBCIR_TX_UNDERRUN, data->sbase + WBCIR_REG_SP3_ASCR);
 		wbcir_set_irqmask(data, WBCIR_IRQ_RX | WBCIR_IRQ_ERR);
-		led_trigger_event(data->txtrigger, LED_OFF);
 		kfree(data->txbuf);
 		data->txbuf = NULL;
 		data->txstate = WBCIR_TXSTATE_INACTIVE;
@@ -622,6 +595,10 @@ wbcir_txmask(struct rc_dev *dev, u32 mask)
 	unsigned long flags;
 	u8 val;
 
+	/* return the number of transmitters */
+	if (mask > 15)
+		return 4;
+
 	/* Four outputs, only one output can be enabled at a time */
 	switch (mask) {
 	case 0x1:
@@ -663,7 +640,7 @@ wbcir_tx(struct rc_dev *dev, unsigned *b, unsigned count)
 	unsigned i;
 	unsigned long flags;
 
-	buf = kmalloc(count * sizeof(*b), GFP_KERNEL);
+	buf = kmalloc_array(count, sizeof(*b), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -701,138 +678,153 @@ wbcir_shutdown(struct pnp_dev *device)
 {
 	struct device *dev = &device->dev;
 	struct wbcir_data *data = pnp_get_drvdata(device);
+	struct rc_dev *rc = data->dev;
 	bool do_wake = true;
 	u8 match[11];
 	u8 mask[11];
 	u8 rc6_csl = 0;
+	u8 proto;
+	u32 wake_sc = rc->scancode_wakeup_filter.data;
+	u32 mask_sc = rc->scancode_wakeup_filter.mask;
 	int i;
 
 	memset(match, 0, sizeof(match));
 	memset(mask, 0, sizeof(mask));
 
-	if (wake_sc == INVALID_SCANCODE || !device_may_wakeup(dev)) {
+	if (!mask_sc || !device_may_wakeup(dev)) {
 		do_wake = false;
 		goto finish;
 	}
 
-	switch (protocol) {
-	case IR_PROTOCOL_RC5:
-		if (wake_sc > 0xFFF) {
-			do_wake = false;
-			dev_err(dev, "RC5 - Invalid wake scancode\n");
-			break;
-		}
-
+	switch (rc->wakeup_protocol) {
+	case RC_PROTO_RC5:
 		/* Mask = 13 bits, ex toggle */
-		mask[0] = 0xFF;
-		mask[1] = 0x17;
-
-		match[0]  = (wake_sc & 0x003F);      /* 6 command bits */
-		match[0] |= (wake_sc & 0x0180) >> 1; /* 2 address bits */
-		match[1]  = (wake_sc & 0x0E00) >> 9; /* 3 address bits */
-		if (!(wake_sc & 0x0040))             /* 2nd start bit  */
+		mask[0]  = (mask_sc & 0x003f);
+		mask[0] |= (mask_sc & 0x0300) >> 2;
+		mask[1]  = (mask_sc & 0x1c00) >> 10;
+		if (mask_sc & 0x0040)		      /* 2nd start bit  */
 			match[1] |= 0x10;
 
+		match[0]  = (wake_sc & 0x003F);       /* 6 command bits */
+		match[0] |= (wake_sc & 0x0300) >> 2;  /* 2 address bits */
+		match[1]  = (wake_sc & 0x1c00) >> 10; /* 3 address bits */
+		if (!(wake_sc & 0x0040))	      /* 2nd start bit  */
+			match[1] |= 0x10;
+
+		proto = IR_PROTOCOL_RC5;
 		break;
 
-	case IR_PROTOCOL_NEC:
-		if (wake_sc > 0xFFFFFF) {
-			do_wake = false;
-			dev_err(dev, "NEC - Invalid wake scancode\n");
-			break;
-		}
+	case RC_PROTO_NEC:
+		mask[1] = bitrev8(mask_sc);
+		mask[0] = mask[1];
+		mask[3] = bitrev8(mask_sc >> 8);
+		mask[2] = mask[3];
 
-		mask[0] = mask[1] = mask[2] = mask[3] = 0xFF;
-
-		match[1] = bitrev8((wake_sc & 0xFF));
+		match[1] = bitrev8(wake_sc);
 		match[0] = ~match[1];
+		match[3] = bitrev8(wake_sc >> 8);
+		match[2] = ~match[3];
 
-		match[3] = bitrev8((wake_sc & 0xFF00) >> 8);
-		if (wake_sc > 0xFFFF)
-			match[2] = bitrev8((wake_sc & 0xFF0000) >> 16);
-		else
-			match[2] = ~match[3];
-
+		proto = IR_PROTOCOL_NEC;
 		break;
 
-	case IR_PROTOCOL_RC6:
+	case RC_PROTO_NECX:
+		mask[1] = bitrev8(mask_sc);
+		mask[0] = mask[1];
+		mask[2] = bitrev8(mask_sc >> 8);
+		mask[3] = bitrev8(mask_sc >> 16);
 
-		if (wake_rc6mode == 0) {
-			if (wake_sc > 0xFFFF) {
-				do_wake = false;
-				dev_err(dev, "RC6 - Invalid wake scancode\n");
-				break;
-			}
+		match[1] = bitrev8(wake_sc);
+		match[0] = ~match[1];
+		match[2] = bitrev8(wake_sc >> 8);
+		match[3] = bitrev8(wake_sc >> 16);
 
-			/* Command */
-			match[0] = wbcir_to_rc6cells(wake_sc >>  0);
-			mask[0]  = 0xFF;
-			match[1] = wbcir_to_rc6cells(wake_sc >>  4);
-			mask[1]  = 0xFF;
+		proto = IR_PROTOCOL_NEC;
+		break;
 
-			/* Address */
-			match[2] = wbcir_to_rc6cells(wake_sc >>  8);
-			mask[2]  = 0xFF;
-			match[3] = wbcir_to_rc6cells(wake_sc >> 12);
-			mask[3]  = 0xFF;
+	case RC_PROTO_NEC32:
+		mask[0] = bitrev8(mask_sc);
+		mask[1] = bitrev8(mask_sc >> 8);
+		mask[2] = bitrev8(mask_sc >> 16);
+		mask[3] = bitrev8(mask_sc >> 24);
 
-			/* Header */
-			match[4] = 0x50; /* mode1 = mode0 = 0, ignore toggle */
-			mask[4]  = 0xF0;
-			match[5] = 0x09; /* start bit = 1, mode2 = 0 */
-			mask[5]  = 0x0F;
+		match[0] = bitrev8(wake_sc);
+		match[1] = bitrev8(wake_sc >> 8);
+		match[2] = bitrev8(wake_sc >> 16);
+		match[3] = bitrev8(wake_sc >> 24);
 
-			rc6_csl = 44;
+		proto = IR_PROTOCOL_NEC;
+		break;
 
-		} else if (wake_rc6mode == 6) {
-			i = 0;
+	case RC_PROTO_RC6_0:
+		/* Command */
+		match[0] = wbcir_to_rc6cells(wake_sc >> 0);
+		mask[0]  = wbcir_to_rc6cells(mask_sc >> 0);
+		match[1] = wbcir_to_rc6cells(wake_sc >> 4);
+		mask[1]  = wbcir_to_rc6cells(mask_sc >> 4);
 
-			/* Command */
-			match[i]  = wbcir_to_rc6cells(wake_sc >>  0);
-			mask[i++] = 0xFF;
-			match[i]  = wbcir_to_rc6cells(wake_sc >>  4);
-			mask[i++] = 0xFF;
+		/* Address */
+		match[2] = wbcir_to_rc6cells(wake_sc >>  8);
+		mask[2]  = wbcir_to_rc6cells(mask_sc >>  8);
+		match[3] = wbcir_to_rc6cells(wake_sc >> 12);
+		mask[3]  = wbcir_to_rc6cells(mask_sc >> 12);
 
-			/* Address + Toggle */
-			match[i]  = wbcir_to_rc6cells(wake_sc >>  8);
-			mask[i++] = 0xFF;
-			match[i]  = wbcir_to_rc6cells(wake_sc >> 12);
-			mask[i++] = 0x3F;
+		/* Header */
+		match[4] = 0x50; /* mode1 = mode0 = 0, ignore toggle */
+		mask[4]  = 0xF0;
+		match[5] = 0x09; /* start bit = 1, mode2 = 0 */
+		mask[5]  = 0x0F;
 
-			/* Customer bits 7 - 0 */
-			match[i]  = wbcir_to_rc6cells(wake_sc >> 16);
-			mask[i++] = 0xFF;
+		rc6_csl = 44;
+		proto = IR_PROTOCOL_RC6;
+		break;
+
+	case RC_PROTO_RC6_6A_24:
+	case RC_PROTO_RC6_6A_32:
+	case RC_PROTO_RC6_MCE:
+		i = 0;
+
+		/* Command */
+		match[i]  = wbcir_to_rc6cells(wake_sc >>  0);
+		mask[i++] = wbcir_to_rc6cells(mask_sc >>  0);
+		match[i]  = wbcir_to_rc6cells(wake_sc >>  4);
+		mask[i++] = wbcir_to_rc6cells(mask_sc >>  4);
+
+		/* Address + Toggle */
+		match[i]  = wbcir_to_rc6cells(wake_sc >>  8);
+		mask[i++] = wbcir_to_rc6cells(mask_sc >>  8);
+		match[i]  = wbcir_to_rc6cells(wake_sc >> 12);
+		mask[i++] = wbcir_to_rc6cells(mask_sc >> 12);
+
+		/* Customer bits 7 - 0 */
+		match[i]  = wbcir_to_rc6cells(wake_sc >> 16);
+		mask[i++] = wbcir_to_rc6cells(mask_sc >> 16);
+
+		if (rc->wakeup_protocol == RC_PROTO_RC6_6A_20) {
+			rc6_csl = 52;
+		} else {
 			match[i]  = wbcir_to_rc6cells(wake_sc >> 20);
-			mask[i++] = 0xFF;
+			mask[i++] = wbcir_to_rc6cells(mask_sc >> 20);
 
-			if (wake_sc & 0x80000000) {
-				/* Customer range bit and bits 15 - 8 */
-				match[i]  = wbcir_to_rc6cells(wake_sc >> 24);
-				mask[i++] = 0xFF;
-				match[i]  = wbcir_to_rc6cells(wake_sc >> 28);
-				mask[i++] = 0xFF;
-				rc6_csl = 76;
-			} else if (wake_sc <= 0x007FFFFF) {
+			if (rc->wakeup_protocol == RC_PROTO_RC6_6A_24) {
 				rc6_csl = 60;
 			} else {
-				do_wake = false;
-				dev_err(dev, "RC6 - Invalid wake scancode\n");
-				break;
+				/* Customer range bit and bits 15 - 8 */
+				match[i]  = wbcir_to_rc6cells(wake_sc >> 24);
+				mask[i++] = wbcir_to_rc6cells(mask_sc >> 24);
+				match[i]  = wbcir_to_rc6cells(wake_sc >> 28);
+				mask[i++] = wbcir_to_rc6cells(mask_sc >> 28);
+				rc6_csl = 76;
 			}
-
-			/* Header */
-			match[i]  = 0x93; /* mode1 = mode0 = 1, submode = 0 */
-			mask[i++] = 0xFF;
-			match[i]  = 0x0A; /* start bit = 1, mode2 = 1 */
-			mask[i++] = 0x0F;
-
-		} else {
-			do_wake = false;
-			dev_err(dev, "RC6 - Invalid wake mode\n");
 		}
 
+		/* Header */
+		match[i]  = 0x93; /* mode1 = mode0 = 1, submode = 0 */
+		mask[i++] = 0xFF;
+		match[i]  = 0x0A; /* start bit = 1, mode2 = 1 */
+		mask[i++] = 0x0F;
+		proto = IR_PROTOCOL_RC6;
 		break;
-
 	default:
 		do_wake = false;
 		break;
@@ -860,7 +852,8 @@ finish:
 		wbcir_set_bits(data->wbase + WBCIR_REG_WCEIR_EV_EN, 0x01, 0x07);
 
 		/* Set CEIR_EN */
-		wbcir_set_bits(data->wbase + WBCIR_REG_WCEIR_CTL, 0x01, 0x01);
+		wbcir_set_bits(data->wbase + WBCIR_REG_WCEIR_CTL,
+			       (proto << 4) | 0x01, 0x31);
 
 	} else {
 		/* Clear BUFF_EN, Clear END_EN, Clear MATCH_EN */
@@ -878,15 +871,22 @@ finish:
 	 */
 	wbcir_set_irqmask(data, WBCIR_IRQ_NONE);
 	disable_irq(data->irq);
+}
 
-	/* Disable LED */
-	led_trigger_event(data->rxtrigger, LED_OFF);
-	led_trigger_event(data->txtrigger, LED_OFF);
+/*
+ * Wakeup handling is done on shutdown.
+ */
+static int
+wbcir_set_wakeup_filter(struct rc_dev *rc, struct rc_scancode_filter *filter)
+{
+	return 0;
 }
 
 static int
 wbcir_suspend(struct pnp_dev *device, pm_message_t state)
 {
+	struct wbcir_data *data = pnp_get_drvdata(device);
+	led_classdev_suspend(&data->led);
 	wbcir_shutdown(device);
 	return 0;
 }
@@ -894,16 +894,11 @@ wbcir_suspend(struct pnp_dev *device, pm_message_t state)
 static void
 wbcir_init_hw(struct wbcir_data *data)
 {
-	u8 tmp;
-
 	/* Disable interrupts */
 	wbcir_set_irqmask(data, WBCIR_IRQ_NONE);
 
-	/* Set PROT_SEL, RX_INV, Clear CEIR_EN (needed for the led) */
-	tmp = protocol << 4;
-	if (invert)
-		tmp |= 0x08;
-	outb(tmp, data->wbase + WBCIR_REG_WCEIR_CTL);
+	/* Set RX_INV, Clear CEIR_EN (needed for the led) */
+	wbcir_set_bits(data->wbase + WBCIR_REG_WCEIR_CTL, invert ? 8 : 0, 0x09);
 
 	/* Clear status bits NEC_REP, BUFF, MSG_END, MATCH */
 	wbcir_set_bits(data->wbase + WBCIR_REG_WCEIR_STS, 0x17, 0x17);
@@ -1015,6 +1010,7 @@ wbcir_resume(struct pnp_dev *device)
 
 	wbcir_init_hw(data);
 	enable_irq(data->irq);
+	led_classdev_resume(&data->led);
 
 	return 0;
 }
@@ -1054,39 +1050,25 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		goto exit_free_data;
 	}
 
-	dev_dbg(&device->dev, "Found device "
-		"(w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
+	dev_dbg(&device->dev, "Found device (w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
 		data->wbase, data->ebase, data->sbase, data->irq);
 
-	led_trigger_register_simple("cir-tx", &data->txtrigger);
-	if (!data->txtrigger) {
-		err = -ENOMEM;
-		goto exit_free_data;
-	}
-
-	led_trigger_register_simple("cir-rx", &data->rxtrigger);
-	if (!data->rxtrigger) {
-		err = -ENOMEM;
-		goto exit_unregister_txtrigger;
-	}
-
 	data->led.name = "cir::activity";
-	data->led.default_trigger = "cir-rx";
+	data->led.default_trigger = "rc-feedback";
 	data->led.brightness_set = wbcir_led_brightness_set;
 	data->led.brightness_get = wbcir_led_brightness_get;
 	err = led_classdev_register(&device->dev, &data->led);
 	if (err)
-		goto exit_unregister_rxtrigger;
+		goto exit_free_data;
 
-	data->dev = rc_allocate_device();
+	data->dev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!data->dev) {
 		err = -ENOMEM;
 		goto exit_unregister_led;
 	}
 
-	data->dev->driver_type = RC_DRIVER_IR_RAW;
 	data->dev->driver_name = DRVNAME;
-	data->dev->input_name = WBCIR_NAME;
+	data->dev->device_name = WBCIR_NAME;
 	data->dev->input_phys = "wbcir/cir0";
 	data->dev->input_id.bustype = BUS_HOST;
 	data->dev->input_id.vendor = PCI_VENDOR_ID_WINBOND;
@@ -1100,9 +1082,20 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->dev->tx_ir = wbcir_tx;
 	data->dev->priv = data;
 	data->dev->dev.parent = &device->dev;
-	data->dev->timeout = MS_TO_NS(100);
+	data->dev->min_timeout = 1;
+	data->dev->timeout = IR_DEFAULT_TIMEOUT;
+	data->dev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	data->dev->rx_resolution = US_TO_NS(2);
-	data->dev->allowed_protos = RC_BIT_ALL;
+	data->dev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	data->dev->allowed_wakeup_protocols = RC_PROTO_BIT_NEC |
+		RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 | RC_PROTO_BIT_RC5 |
+		RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 |
+		RC_PROTO_BIT_RC6_6A_24 | RC_PROTO_BIT_RC6_6A_32 |
+		RC_PROTO_BIT_RC6_MCE;
+	data->dev->wakeup_protocol = RC_PROTO_RC6_MCE;
+	data->dev->scancode_wakeup_filter.data = 0x800f040c;
+	data->dev->scancode_wakeup_filter.mask = 0xffff7fff;
+	data->dev->s_wakeup_filter = wbcir_set_wakeup_filter;
 
 	err = rc_register_device(data->dev);
 	if (err)
@@ -1130,7 +1123,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	}
 
 	err = request_irq(data->irq, wbcir_irq_handler,
-			  IRQF_DISABLED, DRVNAME, device);
+			  0, DRVNAME, device);
 	if (err) {
 		dev_err(dev, "Failed to claim IRQ %u\n", data->irq);
 		err = -EBUSY;
@@ -1156,10 +1149,6 @@ exit_free_rc:
 	rc_free_device(data->dev);
 exit_unregister_led:
 	led_classdev_unregister(&data->led);
-exit_unregister_rxtrigger:
-	led_trigger_unregister_simple(data->rxtrigger);
-exit_unregister_txtrigger:
-	led_trigger_unregister_simple(data->txtrigger);
 exit_free_data:
 	kfree(data);
 	pnp_set_drvdata(device, NULL);
@@ -1187,8 +1176,6 @@ wbcir_remove(struct pnp_dev *device)
 
 	rc_unregister_device(data->dev);
 
-	led_trigger_unregister_simple(data->rxtrigger);
-	led_trigger_unregister_simple(data->txtrigger);
 	led_classdev_unregister(&data->led);
 
 	/* This is ok since &data->led isn't actually used */
@@ -1210,7 +1197,7 @@ static const struct pnp_device_id wbcir_ids[] = {
 MODULE_DEVICE_TABLE(pnp, wbcir_ids);
 
 static struct pnp_driver wbcir_driver = {
-	.name     = WBCIR_NAME,
+	.name     = DRVNAME,
 	.id_table = wbcir_ids,
 	.probe    = wbcir_probe,
 	.remove   = wbcir_remove,
@@ -1223,15 +1210,6 @@ static int __init
 wbcir_init(void)
 {
 	int ret;
-
-	switch (protocol) {
-	case IR_PROTOCOL_RC5:
-	case IR_PROTOCOL_NEC:
-	case IR_PROTOCOL_RC6:
-		break;
-	default:
-		pr_err("Invalid power-on protocol\n");
-	}
 
 	ret = pnp_register_driver(&wbcir_driver);
 	if (ret)

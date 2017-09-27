@@ -22,7 +22,6 @@
  */
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/mfd/rc5t583.h>
 
@@ -387,22 +386,13 @@ int rc5t583_irq_init(struct rc5t583 *rc5t583, int irq, int irq_base)
 		irq_set_chip_and_handler(__irq, &rc5t583_irq_chip,
 					 handle_simple_irq);
 		irq_set_nested_thread(__irq, 1);
-#ifdef CONFIG_ARM
-		set_irq_flags(__irq, IRQF_VALID);
-#endif
+		irq_clear_status_flags(__irq, IRQ_NOREQUEST);
 	}
 
-	ret = request_threaded_irq(irq, NULL, rc5t583_irq, IRQF_ONESHOT,
-				"rc5t583", rc5t583);
+	ret = devm_request_threaded_irq(rc5t583->dev, irq, NULL, rc5t583_irq,
+					IRQF_ONESHOT, "rc5t583", rc5t583);
 	if (ret < 0)
 		dev_err(rc5t583->dev,
 			"Error in registering interrupt error: %d\n", ret);
 	return ret;
-}
-
-int rc5t583_irq_exit(struct rc5t583 *rc5t583)
-{
-	if (rc5t583->chip_irq)
-		free_irq(rc5t583->chip_irq, rc5t583);
-	return 0;
 }

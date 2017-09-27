@@ -113,7 +113,7 @@ static void __init db120_pci_init(u8 *eeprom)
 	ath79_register_pci();
 }
 #else
-static inline void db120_pci_init(void) {}
+static inline void db120_pci_init(u8 *eeprom) {}
 #endif /* CONFIG_PCI */
 
 static void __init db120_setup(void)

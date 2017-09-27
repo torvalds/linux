@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #ifndef _DVB_DEMUX_H_
@@ -80,10 +76,8 @@ struct dvb_demux_feed {
 	int type;
 	int state;
 	u16 pid;
-	u8 *buffer;
-	int buffer_size;
 
-	struct timespec timeout;
+	ktime_t timeout;
 	struct dvb_demux_filter *filter;
 
 	int ts_type;
@@ -134,7 +128,7 @@ struct dvb_demux {
 
 	uint8_t *cnt_storage; /* for TS continuity check */
 
-	struct timespec speed_last_time; /* for TS speed check */
+	ktime_t speed_last_time; /* for TS speed check */
 	uint32_t speed_pkts_cnt; /* for TS speed check */
 };
 

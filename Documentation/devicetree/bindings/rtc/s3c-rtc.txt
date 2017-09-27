@@ -3,13 +3,22 @@
 Required properties:
 - compatible: should be one of the following.
     * "samsung,s3c2410-rtc" - for controllers compatible with s3c2410 rtc.
+    * "samsung,s3c2416-rtc" - for controllers compatible with s3c2416 rtc.
+    * "samsung,s3c2443-rtc" - for controllers compatible with s3c2443 rtc.
     * "samsung,s3c6410-rtc" - for controllers compatible with s3c6410 rtc.
+    * "samsung,exynos3250-rtc" - (deprecated) for controllers compatible with
+                                 exynos3250 rtc (use "samsung,s3c6410-rtc").
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: Two interrupt numbers to the cpu should be specified. First
   interrupt number is the rtc alarm interrupt and second interrupt number
   is the rtc tick interrupt. The number of cells representing a interrupt
   depends on the parent interrupt controller.
+- clocks: Must contain a list of phandle and clock specifier for the rtc
+          clock and in the case of a s3c6410 compatible controller, also
+          a source clock.
+- clock-names: Must contain "rtc" and for a s3c6410 compatible controller,
+               a "rtc_src" sorted in the same order as the clocks property.
 
 Example:
 
@@ -17,4 +26,6 @@ Example:
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x10070000 0x100>;
 		interrupts = <44 0 45 0>;
+		clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
+		clock-names = "rtc", "rtc_src";
 	};

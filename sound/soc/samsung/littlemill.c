@@ -23,8 +23,12 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 					  struct snd_soc_dapm_context *dapm,
 					  enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *aif1_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	aif1_dai = rtd->codec_dai;
 
 	if (dapm->dev != aif1_dai->dev)
 		return 0;
@@ -66,8 +70,12 @@ static int littlemill_set_bias_level_post(struct snd_soc_card *card,
 					       struct snd_soc_dapm_context *dapm,
 					       enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *aif1_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	aif1_dai = rtd->codec_dai;
 
 	if (dapm->dev != aif1_dai->dev)
 		return 0;
@@ -168,8 +176,12 @@ static int bbclk_ev(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_card *card = w->dapm->card;
-	struct snd_soc_dai *aif2_dai = card->rtd[1].cpu_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *aif2_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	aif2_dai = rtd->cpu_dai;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -245,10 +257,18 @@ static struct snd_soc_jack littlemill_headset;
 
 static int littlemill_late_probe(struct snd_soc_card *card)
 {
-	struct snd_soc_codec *codec = card->rtd[0].codec;
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
-	struct snd_soc_dai *aif2_dai = card->rtd[1].cpu_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_codec *codec;
+	struct snd_soc_dai *aif1_dai;
+	struct snd_soc_dai *aif2_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	codec = rtd->codec;
+	aif1_dai = rtd->codec_dai;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	aif2_dai = rtd->cpu_dai;
 
 	ret = snd_soc_dai_set_sysclk(aif1_dai, WM8994_SYSCLK_MCLK2,
 				     32768, SND_SOC_CLOCK_IN);
@@ -260,12 +280,12 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_jack_new(codec, "Headset",
-			       SND_JACK_HEADSET | SND_JACK_MECHANICAL |
-			       SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-			       SND_JACK_BTN_2 | SND_JACK_BTN_3 |
-			       SND_JACK_BTN_4 | SND_JACK_BTN_5,
-			       &littlemill_headset);
+	ret = snd_soc_card_jack_new(card, "Headset",
+				    SND_JACK_HEADSET | SND_JACK_MECHANICAL |
+				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+				    SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+				    SND_JACK_BTN_4 | SND_JACK_BTN_5,
+				    &littlemill_headset, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -304,33 +324,20 @@ static int littlemill_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
-	if (ret) {
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
+	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
-		return ret;
-	}
 
-	return 0;
-}
-
-static int littlemill_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-
-	return 0;
+	return ret;
 }
 
 static struct platform_driver littlemill_driver = {
 	.driver = {
 		.name = "littlemill",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = littlemill_probe,
-	.remove = littlemill_remove,
 };
 
 module_platform_driver(littlemill_driver);

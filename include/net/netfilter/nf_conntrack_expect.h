@@ -4,10 +4,15 @@
 
 #ifndef _NF_CONNTRACK_EXPECT_H
 #define _NF_CONNTRACK_EXPECT_H
+
+#include <linux/refcount.h>
+
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 
 extern unsigned int nf_ct_expect_hsize;
 extern unsigned int nf_ct_expect_max;
+extern struct hlist_head *nf_ct_expect_hash;
 
 struct nf_conntrack_expect {
 	/* Conntrack expectation list member */
@@ -34,7 +39,7 @@ struct nf_conntrack_expect {
 	struct timer_list timeout;
 
 	/* Usage count. */
-	atomic_t use;
+	refcount_t use;
 
 	/* Flags */
 	unsigned int flags;
@@ -68,6 +73,7 @@ struct nf_conntrack_expect_policy {
 };
 
 #define NF_CT_EXPECT_CLASS_DEFAULT	0
+#define NF_CT_EXPECT_MAX_CNT		255
 
 int nf_conntrack_expect_pernet_init(struct net *net);
 void nf_conntrack_expect_pernet_fini(struct net *net);
@@ -76,15 +82,18 @@ int nf_conntrack_expect_init(void);
 void nf_conntrack_expect_fini(void);
 
 struct nf_conntrack_expect *
-__nf_ct_expect_find(struct net *net, u16 zone,
+__nf_ct_expect_find(struct net *net,
+		    const struct nf_conntrack_zone *zone,
 		    const struct nf_conntrack_tuple *tuple);
 
 struct nf_conntrack_expect *
-nf_ct_expect_find_get(struct net *net, u16 zone,
+nf_ct_expect_find_get(struct net *net,
+		      const struct nf_conntrack_zone *zone,
 		      const struct nf_conntrack_tuple *tuple);
 
 struct nf_conntrack_expect *
-nf_ct_find_expectation(struct net *net, u16 zone,
+nf_ct_find_expectation(struct net *net,
+		       const struct nf_conntrack_zone *zone,
 		       const struct nf_conntrack_tuple *tuple);
 
 void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
@@ -96,6 +105,12 @@ static inline void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 
 void nf_ct_remove_expectations(struct nf_conn *ct);
 void nf_ct_unexpect_related(struct nf_conntrack_expect *exp);
+bool nf_ct_remove_expect(struct nf_conntrack_expect *exp);
+
+void nf_ct_expect_iterate_destroy(bool (*iter)(struct nf_conntrack_expect *e, void *data), void *data);
+void nf_ct_expect_iterate_net(struct net *net,
+			      bool (*iter)(struct nf_conntrack_expect *e, void *data),
+                              void *data, u32 portid, int report);
 
 /* Allocate space for an expectation: this is mandatory before calling
    nf_ct_expect_related.  You will have to call put afterwards. */

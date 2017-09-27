@@ -2,21 +2,24 @@
  * x86 single-step support code, common to 32-bit and 64-bit.
  */
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <asm/desc.h>
+#include <asm/mmu_context.h>
 
 unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs)
 {
 	unsigned long addr, seg;
 
 	addr = regs->ip;
-	seg = regs->cs & 0xffff;
+	seg = regs->cs;
 	if (v8086_mode(regs)) {
 		addr = (addr & 0xffff) + (seg << 4);
 		return addr;
 	}
 
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
 	/*
 	 * We'll assume that the code segments in the GDT
 	 * are all zero-based. That is largely true: the
@@ -27,13 +30,14 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		struct desc_struct *desc;
 		unsigned long base;
 
-		seg &= ~7UL;
+		seg >>= 3;
 
 		mutex_lock(&child->mm->context.lock);
-		if (unlikely((seg >> 3) >= child->mm->context.size))
+		if (unlikely(!child->mm->context.ldt ||
+			     seg >= child->mm->context.ldt->nr_entries))
 			addr = -1L; /* bogus selector, access would fault */
 		else {
-			desc = child->mm->context.ldt + seg;
+			desc = &child->mm->context.ldt->entries[seg];
 			base = get_desc_base(desc);
 
 			/* 16-bit code segment? */
@@ -43,6 +47,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		}
 		mutex_unlock(&child->mm->context.lock);
 	}
+#endif
 
 	return addr;
 }
@@ -53,7 +58,8 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 	unsigned char opcode[15];
 	unsigned long addr = convert_ip_to_linear(child, regs);
 
-	copied = access_process_vm(child, addr, opcode, sizeof(opcode), 0);
+	copied = access_process_vm(child, addr, opcode, sizeof(opcode),
+			FOLL_FORCE);
 	for (i = 0; i < copied; i++) {
 		switch (opcode[i]) {
 		/* popf and iret */

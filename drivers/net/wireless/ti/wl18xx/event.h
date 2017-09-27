@@ -38,6 +38,17 @@ enum {
 	REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID      = BIT(18),
 	DFS_CHANNELS_CONFIG_COMPLETE_EVENT       = BIT(19),
 	PERIODIC_SCAN_REPORT_EVENT_ID            = BIT(20),
+	RX_BA_WIN_SIZE_CHANGE_EVENT_ID           = BIT(21),
+	SMART_CONFIG_SYNC_EVENT_ID               = BIT(22),
+	SMART_CONFIG_DECODE_EVENT_ID             = BIT(23),
+	TIME_SYNC_EVENT_ID                       = BIT(24),
+	FW_LOGGER_INDICATION			= BIT(25),
+};
+
+enum wl18xx_radar_types {
+	RADAR_TYPE_NONE,
+	RADAR_TYPE_REGULAR,
+	RADAR_TYPE_CHIRP
 };
 
 struct wl18xx_event_mailbox {
@@ -64,10 +75,46 @@ struct wl18xx_event_mailbox {
 	__le16 bss_loss_bitmap;
 
 	/* bitmap of stations (by HLID) which exceeded max tx retries */
-	__le32 tx_retry_exceeded_bitmap;
+	__le16 tx_retry_exceeded_bitmap;
+
+	/* time sync high msb*/
+	__le16 time_sync_tsf_high_msb;
 
 	/* bitmap of inactive stations (by HLID) */
-	__le32 inactive_sta_bitmap;
+	__le16 inactive_sta_bitmap;
+
+	/* time sync high lsb*/
+	__le16 time_sync_tsf_high_lsb;
+
+	/* rx BA win size indicated by RX_BA_WIN_SIZE_CHANGE_EVENT_ID */
+	u8 rx_ba_role_id;
+	u8 rx_ba_link_id;
+	u8 rx_ba_win_size;
+	u8 padding;
+
+	/* smart config */
+	u8 sc_ssid_len;
+	u8 sc_pwd_len;
+	u8 sc_token_len;
+	u8 padding1;
+	u8 sc_ssid[32];
+	u8 sc_pwd[64];
+	u8 sc_token[32];
+
+	/* smart config sync channel */
+	u8 sc_sync_channel;
+	u8 sc_sync_band;
+
+	/* time sync low msb*/
+	__le16 time_sync_tsf_low_msb;
+
+	/* radar detect */
+	u8 radar_channel;
+	u8 radar_type;
+
+	/* time sync low lsb*/
+	__le16 time_sync_tsf_low_lsb;
+
 } __packed;
 
 int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,

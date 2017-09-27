@@ -20,7 +20,7 @@
 #include <asm/fiq.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/mach/dma.h>
 #include <asm/hardware/iomd.h>
@@ -141,7 +141,7 @@ static int iomd_request_dma(unsigned int chan, dma_t *dma)
 	struct iomd_dma *idma = container_of(dma, struct iomd_dma, dma);
 
 	return request_irq(idma->irq, iomd_dma_handle,
-			   IRQF_DISABLED, idma->dma.device_id, idma);
+			   0, idma->dma.device_id, idma);
 }
 
 static void iomd_free_dma(unsigned int chan, dma_t *dma)

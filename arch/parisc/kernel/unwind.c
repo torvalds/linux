@@ -14,8 +14,9 @@
 #include <linux/slab.h>
 #include <linux/kallsyms.h>
 #include <linux/sort.h>
+#include <linux/sched.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/assembly.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
@@ -34,7 +35,7 @@
 extern struct unwind_table_entry __start___unwind[];
 extern struct unwind_table_entry __stop___unwind[];
 
-static spinlock_t unwind_lock;
+static DEFINE_SPINLOCK(unwind_lock);
 /*
  * the kernel unwind block is not dynamically allocated so that
  * we can call unwind_init as early in the bootup process as 
@@ -75,7 +76,10 @@ find_unwind_entry(unsigned long addr)
 	if (addr >= kernel_unwind_table.start && 
 	    addr <= kernel_unwind_table.end)
 		e = find_unwind_entry_in_table(&kernel_unwind_table, addr);
-	else 
+	else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&unwind_lock, flags);
 		list_for_each_entry(table, &unwind_tables, list) {
 			if (addr >= table->start && 
 			    addr <= table->end)
@@ -86,6 +90,8 @@ find_unwind_entry(unsigned long addr)
 				break;
 			}
 		}
+		spin_unlock_irqrestore(&unwind_lock, flags);
+	}
 
 	return e;
 }
@@ -168,15 +174,13 @@ void unwind_table_remove(struct unwind_table *table)
 }
 
 /* Called from setup_arch to import the kernel unwind info */
-int unwind_init(void)
+int __init unwind_init(void)
 {
 	long start, stop;
 	register unsigned long gp __asm__ ("r27");
 
 	start = (long)&__start___unwind[0];
 	stop = (long)&__stop___unwind[0];
-
-	spin_lock_init(&unwind_lock);
 
 	printk("unwind_init: start = 0x%lx, end = 0x%lx, entries = %lu\n", 
 	    start, stop,
@@ -233,7 +237,6 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 	e = find_unwind_entry(info->ip);
 	if (e == NULL) {
 		unsigned long sp;
-		extern char _stext[], _etext[];
 
 		dbg("Cannot find unwind entry for 0x%lx; forced unwinding\n", info->ip);
 
@@ -277,12 +280,22 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 
 			info->prev_sp = sp - 64;
 			info->prev_ip = 0;
+
+			/* The stack is at the end inside the thread_union
+			 * struct. If we reach data, we have reached the
+			 * beginning of the stack and should stop unwinding. */
+			if (info->prev_sp >= (unsigned long) task_thread_info(info->t) &&
+			    info->prev_sp < ((unsigned long) task_thread_info(info->t)
+						+ THREAD_SZ_ALGN)) {
+				info->prev_sp = 0;
+				break;
+			}
+
 			if (get_user(tmp, (unsigned long *)(info->prev_sp - RP_OFFSET))) 
 				break;
 			info->prev_ip = tmp;
 			sp = info->prev_sp;
-		} while (info->prev_ip < (unsigned long)_stext ||
-			 info->prev_ip > (unsigned long)_etext);
+		} while (!kernel_text_address(info->prev_ip));
 
 		info->rp = 0;
 
@@ -305,18 +318,16 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 
 			insn = *(unsigned int *)npc;
 
-			if ((insn & 0xffffc000) == 0x37de0000 ||
-			    (insn & 0xffe00000) == 0x6fc00000) {
+			if ((insn & 0xffffc001) == 0x37de0000 ||
+			    (insn & 0xffe00001) == 0x6fc00000) {
 				/* ldo X(sp), sp, or stwm X,D(sp) */
-				frame_size += (insn & 0x1 ? -1 << 13 : 0) | 
-					((insn & 0x3fff) >> 1);
+				frame_size += (insn & 0x3fff) >> 1;
 				dbg("analyzing func @ %lx, insn=%08x @ "
 				    "%lx, frame_size = %ld\n", info->ip,
 				    insn, npc, frame_size);
-			} else if ((insn & 0xffe00008) == 0x73c00008) {
+			} else if ((insn & 0xffe00009) == 0x73c00008) {
 				/* std,ma X,D(sp) */
-				frame_size += (insn & 0x1 ? -1 << 13 : 0) | 
-					(((insn >> 4) & 0x3ff) << 3);
+				frame_size += ((insn >> 4) & 0x3ff) << 3;
 				dbg("analyzing func @ %lx, insn=%08x @ "
 				    "%lx, frame_size = %ld\n", info->ip,
 				    insn, npc, frame_size);
@@ -334,6 +345,9 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 				    "-16(sp) @ %lx\n", info->ip, npc);
 			}
 		}
+
+		if (frame_size > e->Total_frame_size << 3)
+			frame_size = e->Total_frame_size << 3;
 
 		if (!unwind_special(info, e->region_start, frame_size)) {
 			info->prev_sp = info->sp - frame_size;
@@ -435,9 +449,8 @@ unsigned long return_address(unsigned int level)
 	do {
 		if (unwind_once(&info) < 0 || info.ip == 0)
 			return 0;
-		if (!__kernel_text_address(info.ip)) {
+		if (!kernel_text_address(info.ip))
 			return 0;
-		}
 	} while (info.ip && level--);
 
 	return info.ip;

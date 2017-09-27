@@ -49,8 +49,8 @@ enum iw_cm_event_type {
 struct iw_cm_event {
 	enum iw_cm_event_type event;
 	int			 status;
-	struct sockaddr_in local_addr;
-	struct sockaddr_in remote_addr;
+	struct sockaddr_storage local_addr;
+	struct sockaddr_storage remote_addr;
 	void *private_data;
 	void *provider_data;
 	u8 private_data_len;
@@ -83,14 +83,18 @@ struct iw_cm_id {
 	iw_cm_handler		cm_handler;      /* client callback function */
 	void		        *context;	 /* client cb context */
 	struct ib_device	*device;
-	struct sockaddr_in      local_addr;
-	struct sockaddr_in	remote_addr;
+	struct sockaddr_storage local_addr;      /* local addr */
+	struct sockaddr_storage	remote_addr;
+	struct sockaddr_storage m_local_addr;	 /* nmapped local addr */
+	struct sockaddr_storage	m_remote_addr;	 /* nmapped rem addr */
 	void			*provider_data;	 /* provider private data */
 	iw_event_handler        event_handler;   /* cb for provider
 						    events */
 	/* Used by provider to add and remove refs on IW cm_id */
 	void (*add_ref)(struct iw_cm_id *);
 	void (*rem_ref)(struct iw_cm_id *);
+	u8  tos;
+	bool mapped;
 };
 
 struct iw_cm_conn_param {
@@ -122,6 +126,7 @@ struct iw_cm_verbs {
 					 int backlog);
 
 	int		(*destroy_listen)(struct iw_cm_id *cm_id);
+	char		ifname[IFNAMSIZ];
 };
 
 /**
@@ -247,5 +252,11 @@ int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt);
  */
 int iw_cm_init_qp_attr(struct iw_cm_id *cm_id, struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
+
+/**
+ * iwcm_reject_msg - return a pointer to a reject message string.
+ * @reason: Value returned in the REJECT event status field.
+ */
+const char *__attribute_const__ iwcm_reject_msg(int reason);
 
 #endif /* IW_CM_H */

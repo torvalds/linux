@@ -11,10 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * Image Sensor Interface (ISIF) driver
  *
  * This driver is for configuring the ISIF IP available on DM365 or any other
@@ -1134,7 +1130,6 @@ static int isif_remove(struct platform_device *pdev)
 static struct platform_driver isif_driver = {
 	.driver = {
 		.name	= "isif",
-		.owner = THIS_MODULE,
 	},
 	.remove = isif_remove,
 	.probe = isif_probe,

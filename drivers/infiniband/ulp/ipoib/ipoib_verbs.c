@@ -35,9 +35,10 @@
 
 #include "ipoib.h"
 
-int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int set_qkey)
+int ipoib_mcast_attach(struct net_device *dev, struct ib_device *hca,
+		       union ib_gid *mgid, u16 mlid, int set_qkey, u32 qkey)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_qp_attr *qp_attr = NULL;
 	int ret;
 	u16 pkey_index;
@@ -56,7 +57,7 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int
 			goto out;
 
 		/* set correct QKey for QP */
-		qp_attr->qkey = priv->qkey;
+		qp_attr->qkey = qkey;
 		ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
 		if (ret) {
 			ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
@@ -74,9 +75,20 @@ out:
 	return ret;
 }
 
+int ipoib_mcast_detach(struct net_device *dev, struct ib_device *hca,
+		       union ib_gid *mgid, u16 mlid)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	int ret;
+
+	ret = ib_detach_mcast(priv->qp, mgid, mlid);
+
+	return ret;
+}
+
 int ipoib_init_qp(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int ret;
 	struct ib_qp_attr qp_attr;
 	int attr_mask;
@@ -130,32 +142,22 @@ out_fail:
 
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_qp_init_attr init_attr = {
 		.cap = {
 			.max_send_wr  = ipoib_sendq_size,
 			.max_recv_wr  = ipoib_recvq_size,
-			.max_send_sge = 1,
+			.max_send_sge = min_t(u32, priv->ca->attrs.max_sge,
+					      MAX_SKB_FRAGS + 1),
 			.max_recv_sge = IPOIB_UD_RX_SG
 		},
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
 		.qp_type     = IB_QPT_UD
 	};
+	struct ib_cq_init_attr cq_attr = {};
 
 	int ret, size;
 	int i;
-
-	priv->pd = ib_alloc_pd(priv->ca);
-	if (IS_ERR(priv->pd)) {
-		printk(KERN_WARNING "%s: failed to allocate PD\n", ca->name);
-		return -ENODEV;
-	}
-
-	priv->mr = ib_get_dma_mr(priv->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(priv->mr)) {
-		printk(KERN_WARNING "%s: ib_get_dma_mr failed\n", ca->name);
-		goto out_free_pd;
-	}
 
 	size = ipoib_recvq_size + 1;
 	ret = ipoib_cm_dev_init(dev);
@@ -165,16 +167,21 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 			size += ipoib_recvq_size + 1; /* 1 extra for rx_drain_qp */
 		else
 			size += ipoib_recvq_size * ipoib_max_conn_qp;
-	}
+	} else
+		if (ret != -ENOSYS)
+			return -ENODEV;
 
-	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size, 0);
+	cq_attr.cqe = size;
+	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL,
+				     dev, &cq_attr);
 	if (IS_ERR(priv->recv_cq)) {
 		printk(KERN_WARNING "%s: failed to create receive CQ\n", ca->name);
-		goto out_free_mr;
+		goto out_cm_dev_cleanup;
 	}
 
+	cq_attr.cqe = ipoib_sendq_size;
 	priv->send_cq = ib_create_cq(priv->ca, ipoib_send_comp_handler, NULL,
-				     dev, ipoib_sendq_size, 0);
+				     dev, &cq_attr);
 	if (IS_ERR(priv->send_cq)) {
 		printk(KERN_WARNING "%s: failed to create send CQ\n", ca->name);
 		goto out_free_recv_cq;
@@ -192,8 +199,8 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	if (priv->hca_caps & IB_DEVICE_BLOCK_MULTICAST_LOOPBACK)
 		init_attr.create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
 
-	if (dev->features & NETIF_F_SG)
-		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
+	if (priv->hca_caps & IB_DEVICE_MANAGED_FLOW_STEERING)
+		init_attr.create_flags |= IB_QP_CREATE_NETIF_QP;
 
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
@@ -201,29 +208,25 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_send_cq;
 	}
 
-	priv->dev->dev_addr[1] = (priv->qp->qp_num >> 16) & 0xff;
-	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
-	priv->dev->dev_addr[3] = (priv->qp->qp_num      ) & 0xff;
-
 	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
-		priv->tx_sge[i].lkey = priv->mr->lkey;
+		priv->tx_sge[i].lkey = priv->pd->local_dma_lkey;
 
-	priv->tx_wr.opcode	= IB_WR_SEND;
-	priv->tx_wr.sg_list	= priv->tx_sge;
-	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
+	priv->tx_wr.wr.opcode		= IB_WR_SEND;
+	priv->tx_wr.wr.sg_list		= priv->tx_sge;
+	priv->tx_wr.wr.send_flags	= IB_SEND_SIGNALED;
 
-	priv->rx_sge[0].lkey = priv->mr->lkey;
-	if (ipoib_ud_need_sg(priv->max_ib_mtu)) {
-		priv->rx_sge[0].length = IPOIB_UD_HEAD_SIZE;
-		priv->rx_sge[1].length = PAGE_SIZE;
-		priv->rx_sge[1].lkey = priv->mr->lkey;
-		priv->rx_wr.num_sge = IPOIB_UD_RX_SG;
-	} else {
-		priv->rx_sge[0].length = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
-		priv->rx_wr.num_sge = 1;
-	}
+	priv->rx_sge[0].lkey = priv->pd->local_dma_lkey;
+
+	priv->rx_sge[0].length = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
+	priv->rx_wr.num_sge = 1;
+
 	priv->rx_wr.next = NULL;
 	priv->rx_wr.sg_list = priv->rx_sge;
+
+	if (init_attr.cap.max_send_sge > 1)
+		dev->features |= NETIF_F_SG;
+
+	priv->max_send_sge = init_attr.cap.max_send_sge;
 
 	return 0;
 
@@ -233,25 +236,21 @@ out_free_send_cq:
 out_free_recv_cq:
 	ib_destroy_cq(priv->recv_cq);
 
-out_free_mr:
-	ib_dereg_mr(priv->mr);
+out_cm_dev_cleanup:
 	ipoib_cm_dev_cleanup(dev);
 
-out_free_pd:
-	ib_dealloc_pd(priv->pd);
 	return -ENODEV;
 }
 
 void ipoib_transport_dev_cleanup(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (priv->qp) {
 		if (ib_destroy_qp(priv->qp))
 			ipoib_warn(priv, "ib_qp_destroy failed\n");
 
 		priv->qp = NULL;
-		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	}
 
 	if (ib_destroy_cq(priv->send_cq))
@@ -259,14 +258,6 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 
 	if (ib_destroy_cq(priv->recv_cq))
 		ipoib_warn(priv, "ib_cq_destroy (recv) failed\n");
-
-	ipoib_cm_dev_cleanup(dev);
-
-	if (ib_dereg_mr(priv->mr))
-		ipoib_warn(priv, "ib_dereg_mr failed\n");
-
-	if (ib_dealloc_pd(priv->pd))
-		ipoib_warn(priv, "ib_dealloc_pd failed\n");
 }
 
 void ipoib_event(struct ib_event_handler *handler,
@@ -290,5 +281,8 @@ void ipoib_event(struct ib_event_handler *handler,
 		queue_work(ipoib_workqueue, &priv->flush_normal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
 		queue_work(ipoib_workqueue, &priv->flush_heavy);
+	} else if (record->event == IB_EVENT_GID_CHANGE &&
+		   !test_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags)) {
+		queue_work(ipoib_workqueue, &priv->flush_light);
 	}
 }

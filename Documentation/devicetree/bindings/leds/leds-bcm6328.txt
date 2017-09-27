@@ -1,0 +1,319 @@
+LEDs connected to Broadcom BCM6328 controller
+
+This controller is present on BCM6318, BCM6328, BCM6362 and BCM63268.
+In these SoCs it's possible to control LEDs both as GPIOs or by hardware.
+However, on some devices there are Serial LEDs (LEDs connected to a 74x164
+controller), which can either be controlled by software (exporting the 74x164
+as spi-gpio. See Documentation/devicetree/bindings/gpio/gpio-74x164.txt), or
+by hardware using this driver.
+Some of these Serial LEDs are hardware controlled (e.g. ethernet LEDs) and
+exporting the 74x164 as spi-gpio prevents those LEDs to be hardware
+controlled, so the only chance to keep them working is by using this driver.
+
+BCM6328 LED controller has a HWDIS register, which controls whether a LED
+should be controlled by a hardware signal instead of the MODE register value,
+with 0 meaning hardware control enabled and 1 hardware control disabled. This
+is usually 1:1 for hardware to LED signals, but through the activity/link
+registers you have some limited control over rerouting the LEDs (as
+explained later in brcm,link-signal-sources). Even if a LED is hardware
+controlled you are still able to make it blink or light it up if it isn't,
+but you can't turn it off if the hardware decides to light it up. For this
+reason, hardware controlled LEDs aren't registered as LED class devices.
+
+Required properties:
+  - compatible : should be "brcm,bcm6328-leds".
+  - #address-cells : must be 1.
+  - #size-cells : must be 0.
+  - reg : BCM6328 LED controller address and size.
+
+Optional properties:
+  - brcm,serial-leds : Boolean, enables Serial LEDs.
+    Default : false
+  - brcm,serial-mux : Boolean, enables Serial LEDs multiplexing.
+    Default : false
+  - brcm,serial-clk-low : Boolean, makes clock signal active low.
+    Default : false
+  - brcm,serial-dat-low : Boolean, makes data signal active low.
+    Default : false
+  - brcm,serial-shift-inv : Boolean, inverts Serial LEDs shift direction.
+    Default : false
+
+Each LED is represented as a sub-node of the brcm,bcm6328-leds device.
+
+LED sub-node required properties:
+  - reg : LED pin number (only LEDs 0 to 23 are valid).
+
+LED sub-node optional properties:
+  a) Optional properties for sub-nodes related to software controlled LEDs:
+    - label : see Documentation/devicetree/bindings/leds/common.txt
+    - active-low : Boolean, makes LED active low.
+      Default : false
+    - default-state : see
+      Documentation/devicetree/bindings/leds/common.txt
+    - linux,default-trigger : see
+      Documentation/devicetree/bindings/leds/common.txt
+
+  b) Optional properties for sub-nodes related to hardware controlled LEDs:
+    - brcm,hardware-controlled : Boolean, makes this LED hardware controlled.
+      Default : false
+    - brcm,link-signal-sources : An array of hardware link
+      signal sources. Up to four link hardware signals can get muxed into
+      these LEDs. Only valid for LEDs 0 to 7, where LED signals 0 to 3 may
+      be muxed to LEDs 0 to 3, and signals 4 to 7 may be muxed to LEDs
+      4 to 7. A signal can be muxed to more than one LED, and one LED can
+      have more than one source signal.
+    - brcm,activity-signal-sources : An array of hardware activity
+      signal sources. Up to four activity hardware signals can get muxed into
+      these LEDs. Only valid for LEDs 0 to 7, where LED signals 0 to 3 may
+      be muxed to LEDs 0 to 3, and signals 4 to 7 may be muxed to LEDs
+      4 to 7. A signal can be muxed to more than one LED, and one LED can
+      have more than one source signal.
+
+Examples:
+Scenario 1 : BCM6328 with 4 EPHY LEDs
+	leds0: led-controller@10000800 {
+		compatible = "brcm,bcm6328-leds";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10000800 0x24>;
+
+		alarm_red@2 {
+			reg = <2>;
+			active-low;
+			label = "red:alarm";
+		};
+		inet_green@3 {
+			reg = <3>;
+			active-low;
+			label = "green:inet";
+		};
+		power_green@4 {
+			reg = <4>;
+			active-low;
+			label = "green:power";
+			default-state = "on";
+		};
+		ephy0_spd@17 {
+			reg = <17>;
+			brcm,hardware-controlled;
+		};
+		ephy1_spd@18 {
+			reg = <18>;
+			brcm,hardware-controlled;
+		};
+		ephy2_spd@19 {
+			reg = <19>;
+			brcm,hardware-controlled;
+		};
+		ephy3_spd@20 {
+			reg = <20>;
+			brcm,hardware-controlled;
+		};
+	};
+
+Scenario 2 : BCM63268 with Serial/GPHY0 LEDs
+	leds0: led-controller@10001900 {
+		compatible = "brcm,bcm6328-leds";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10001900 0x24>;
+		brcm,serial-leds;
+		brcm,serial-dat-low;
+		brcm,serial-shift-inv;
+
+		gphy0_spd0@0 {
+			reg = <0>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <0>;
+		};
+		gphy0_spd1@1 {
+			reg = <1>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <1>;
+		};
+		inet_red@2 {
+			reg = <2>;
+			active-low;
+			label = "red:inet";
+		};
+		dsl_green@3 {
+			reg = <3>;
+			active-low;
+			label = "green:dsl";
+		};
+		usb_green@4 {
+			reg = <4>;
+			active-low;
+			label = "green:usb";
+		};
+		wps_green@7 {
+			reg = <7>;
+			active-low;
+			label = "green:wps";
+		};
+		inet_green@8 {
+			reg = <8>;
+			active-low;
+			label = "green:inet";
+		};
+		ephy0_act@9 {
+			reg = <9>;
+			brcm,hardware-controlled;
+		};
+		ephy1_act@10 {
+			reg = <10>;
+			brcm,hardware-controlled;
+		};
+		ephy2_act@11 {
+			reg = <11>;
+			brcm,hardware-controlled;
+		};
+		gphy0_act@12 {
+			reg = <12>;
+			brcm,hardware-controlled;
+		};
+		ephy0_spd@13 {
+			reg = <13>;
+			brcm,hardware-controlled;
+		};
+		ephy1_spd@14 {
+			reg = <14>;
+			brcm,hardware-controlled;
+		};
+		ephy2_spd@15 {
+			reg = <15>;
+			brcm,hardware-controlled;
+		};
+		power_green@20 {
+			reg = <20>;
+			active-low;
+			label = "green:power";
+			default-state = "on";
+		};
+	};
+
+Scenario 3 : BCM6362 with 1 LED for each EPHY
+	leds0: led-controller@10001900 {
+		compatible = "brcm,bcm6328-leds";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10001900 0x24>;
+
+		usb@0 {
+			reg = <0>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <0>;
+			brcm,activity-signal-sources = <0>;
+			/* USB link/activity routed to USB LED */
+		};
+		inet@1 {
+			reg = <1>;
+			brcm,hardware-controlled;
+			brcm,activity-signal-sources = <1>;
+			/* INET activity routed to INET LED */
+		};
+		ephy0@4 {
+			reg = <4>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <4>;
+			/* EPHY0 link routed to EPHY0 LED */
+		};
+		ephy1@5 {
+			reg = <5>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <5>;
+			/* EPHY1 link routed to EPHY1 LED */
+		};
+		ephy2@6 {
+			reg = <6>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <6>;
+			/* EPHY2 link routed to EPHY2 LED */
+		};
+		ephy3@7 {
+			reg = <7>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <7>;
+			/* EPHY3 link routed to EPHY3 LED */
+		};
+		power_green@20 {
+			reg = <20>;
+			active-low;
+			label = "green:power";
+			default-state = "on";
+		};
+	};
+
+Scenario 4 : BCM6362 with 1 LED for all EPHYs
+	leds0: led-controller@10001900 {
+		compatible = "brcm,bcm6328-leds";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10001900 0x24>;
+
+		usb@0 {
+			reg = <0>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <0 1>;
+			brcm,activity-signal-sources = <0 1>;
+			/* USB/INET link/activity routed to USB LED */
+		};
+		ephy@4 {
+			reg = <4>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <4 5 6 7>;
+			/* EPHY0/1/2/3 link routed to EPHY0 LED */
+		};
+		power_green@20 {
+			reg = <20>;
+			active-low;
+			label = "green:power";
+			default-state = "on";
+		};
+	};
+
+Scenario 5 : BCM6362 with EPHY LEDs swapped
+	leds0: led-controller@10001900 {
+		compatible = "brcm,bcm6328-leds";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10001900 0x24>;
+
+		usb@0 {
+			reg = <0>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <0>;
+			brcm,activity-signal-sources = <0 1>;
+			/* USB link/act and INET act routed to USB LED */
+		};
+		ephy0@4 {
+			reg = <4>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <7>;
+			/* EPHY3 link routed to EPHY0 LED */
+		};
+		ephy1@5 {
+			reg = <5>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <6>;
+			/* EPHY2 link routed to EPHY1 LED */
+		};
+		ephy2@6 {
+			reg = <6>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <5>;
+			/* EPHY1 link routed to EPHY2 LED */
+		};
+		ephy3@7 {
+			reg = <7>;
+			brcm,hardware-controlled;
+			brcm,link-signal-sources = <4>;
+			/* EPHY0 link routed to EPHY3 LED */
+		};
+		power_green@20 {
+			reg = <20>;
+			active-low;
+			label = "green:power";
+			default-state = "on";
+		};
+	};

@@ -31,24 +31,24 @@ extern void __iomem *omap2_sms_base;
 
 static inline void sdrc_write_reg(u32 val, u16 reg)
 {
-	__raw_writel(val, OMAP_SDRC_REGADDR(reg));
+	writel_relaxed(val, OMAP_SDRC_REGADDR(reg));
 }
 
 static inline u32 sdrc_read_reg(u16 reg)
 {
-	return __raw_readl(OMAP_SDRC_REGADDR(reg));
+	return readl_relaxed(OMAP_SDRC_REGADDR(reg));
 }
 
 /* SMS global register get/set */
 
 static inline void sms_write_reg(u32 val, u16 reg)
 {
-	__raw_writel(val, OMAP_SMS_REGADDR(reg));
+	writel_relaxed(val, OMAP_SMS_REGADDR(reg));
 }
 
 static inline u32 sms_read_reg(u16 reg)
 {
-	return __raw_readl(OMAP_SMS_REGADDR(reg));
+	return readl_relaxed(OMAP_SMS_REGADDR(reg));
 }
 
 extern void omap2_set_globals_sdrc(void __iomem *sdrc, void __iomem *sms);
@@ -175,8 +175,8 @@ u32 omap2xxx_sdrc_reprogram(u32 level, u32 force);
  * don't adjust it down as your clock period increases the refresh interval
  * will not be met. Setting all parameters for complete worst case may work,
  * but may cut memory performance by 2x. Due to errata the DLLs need to be
- * unlocked and their value needs run time calibration.	A dynamic call is
- * need for that as no single right value exists acorss production samples.
+ * unlocked and their value needs run time calibration. A dynamic call is
+ * need for that as no single right value exists across production samples.
  *
  * Only the FULL speed values are given. Current code is such that rate
  * changes must be made at DPLLoutx2. The actual value adjustment for low

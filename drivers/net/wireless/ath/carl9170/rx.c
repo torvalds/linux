@@ -37,7 +37,6 @@
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -359,7 +358,7 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 	switch (mac->status & AR9170_RX_STATUS_MODULATION) {
 	case AR9170_RX_STATUS_MODULATION_CCK:
 		if (mac->status & AR9170_RX_STATUS_SHORT_PREAMBLE)
-			status->flag |= RX_FLAG_SHORTPRE;
+			status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 		switch (head->plcp[0]) {
 		case AR9170_RX_PHY_RATE_CCK_1M:
 			status->rate_idx = 0;
@@ -418,18 +417,18 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 
 			return -EINVAL;
 		}
-		if (status->band == IEEE80211_BAND_2GHZ)
+		if (status->band == NL80211_BAND_2GHZ)
 			status->rate_idx += 4;
 		break;
 
 	case AR9170_RX_STATUS_MODULATION_HT:
 		if (head->plcp[3] & 0x80)
-			status->flag |= RX_FLAG_40MHZ;
+			status->bw = RATE_INFO_BW_40;
 		if (head->plcp[6] & 0x80)
-			status->flag |= RX_FLAG_SHORT_GI;
+			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 		status->rate_idx = clamp(0, 75, head->plcp[3] & 0x7f);
-		status->flag |= RX_FLAG_HT;
+		status->encoding = RX_ENC_HT;
 		break;
 
 	default:
@@ -454,7 +453,7 @@ static void carl9170_rx_phy_status(struct ar9170 *ar,
 	/* post-process RSSI */
 	for (i = 0; i < 7; i++)
 		if (phy->rssi[i] & 0x80)
-			phy->rssi[i] = ((phy->rssi[i] & 0x7f) + 1) & 0x7f;
+			phy->rssi[i] = ((~phy->rssi[i] & 0x7f) + 1) & 0x7f;
 
 	/* TODO: we could do something with phy_errors */
 	status->signal = ar->noise[0] + phy->rssi_combined;
@@ -482,7 +481,7 @@ static struct sk_buff *carl9170_rx_copy_data(u8 *buf, int len)
 	skb = dev_alloc_skb(len + reserved);
 	if (likely(skb)) {
 		skb_reserve(skb, reserved);
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 	}
 
 	return skb;
@@ -520,6 +519,7 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 {
 	struct ieee80211_hdr *hdr = data;
 	struct ieee80211_tim_ie *tim_ie;
+	struct ath_common *common = &ar->common;
 	u8 *tim;
 	u8 tim_len;
 	bool cam;
@@ -527,17 +527,13 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 	if (likely(!(ar->hw->conf.flags & IEEE80211_CONF_PS)))
 		return;
 
-	/* check if this really is a beacon */
-	if (!ieee80211_is_beacon(hdr->frame_control))
-		return;
-
 	/* min. beacon length + FCS_LEN */
 	if (len <= 40 + FCS_LEN)
 		return;
 
+	/* check if this really is a beacon */
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal(hdr->addr3, ar->common.curbssid) ||
-	    !ar->common.curaid)
+	if (!ath_is_mybeacon(common, hdr) || !common->curaid)
 		return;
 
 	ar->ps.last_beacon = jiffies;
@@ -576,7 +572,7 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 
 static void carl9170_ba_check(struct ar9170 *ar, void *data, unsigned int len)
 {
-	struct ieee80211_bar *bar = (void *) data;
+	struct ieee80211_bar *bar = data;
 	struct carl9170_bar_list_entry *entry;
 	unsigned int queue;
 
@@ -602,8 +598,8 @@ static void carl9170_ba_check(struct ar9170 *ar, void *data, unsigned int len)
 
 		if (bar->start_seq_num == entry_bar->start_seq_num &&
 		    TID_CHECK(bar->control, entry_bar->control) &&
-		    compare_ether_addr(bar->ra, entry_bar->ta) == 0 &&
-		    compare_ether_addr(bar->ta, entry_bar->ra) == 0) {
+		    ether_addr_equal_64bits(bar->ra, entry_bar->ta) &&
+		    ether_addr_equal_64bits(bar->ta, entry_bar->ra)) {
 			struct ieee80211_tx_info *tx_info;
 
 			tx_info = IEEE80211_SKB_CB(entry_skb);
@@ -920,7 +916,7 @@ static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)
 				}
 			}
 
-			memcpy(skb_put(ar->rx_failover, tlen), tbuf, tlen);
+			skb_put_data(ar->rx_failover, tbuf, tlen);
 			ar->rx_failover_missing -= tlen;
 
 			if (ar->rx_failover_missing <= 0) {
@@ -962,7 +958,7 @@ static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)
 			 * the rx - descriptor comes round again.
 			 */
 
-			memcpy(skb_put(ar->rx_failover, tlen), tbuf, tlen);
+			skb_put_data(ar->rx_failover, tbuf, tlen);
 			ar->rx_failover_missing = clen - tlen;
 			return;
 		}

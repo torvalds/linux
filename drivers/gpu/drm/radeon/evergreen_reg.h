@@ -33,6 +33,7 @@
 #define EVERGREEN_PIF_PHY0_DATA                         0xc
 #define EVERGREEN_PIF_PHY1_INDEX                        0x10
 #define EVERGREEN_PIF_PHY1_DATA                         0x14
+#define EVERGREEN_MM_INDEX_HI                           0x18
 
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS               0x310
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH          0x324
@@ -115,6 +116,8 @@
 #       define EVERGREEN_GRPH_ARRAY_LINEAR_ALIGNED      1
 #       define EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1      2
 #       define EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1      4
+#define EVERGREEN_GRPH_LUT_10BIT_BYPASS_CONTROL         0x6808
+#       define EVERGREEN_LUT_10BIT_BYPASS_EN            (1 << 8)
 #define EVERGREEN_GRPH_SWAP_CONTROL                     0x680c
 #       define EVERGREEN_GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
 #       define EVERGREEN_GRPH_ENDIAN_NONE               0
@@ -236,7 +239,6 @@
 #       define EVERGREEN_CRTC_V_BLANK                   (1 << 0)
 #define EVERGREEN_CRTC_STATUS_POSITION                  0x6e90
 #define EVERGREEN_CRTC_STATUS_HV_COUNT                  0x6ea0
-#define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4
 #define EVERGREEN_MASTER_UPDATE_LOCK                    0x6ef4
 #define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
@@ -248,5 +250,66 @@
 
 /* HDMI blocks at 0x7030, 0x7c30, 0x10830, 0x11430, 0x12030, 0x12c30 */
 #define EVERGREEN_HDMI_BASE				0x7030
+/*DIG block*/
+#define NI_DIG0_REGISTER_OFFSET                 (0x7000  - 0x7000)
+#define NI_DIG1_REGISTER_OFFSET                 (0x7C00  - 0x7000)
+#define NI_DIG2_REGISTER_OFFSET                 (0x10800 - 0x7000)
+#define NI_DIG3_REGISTER_OFFSET                 (0x11400 - 0x7000)
+#define NI_DIG4_REGISTER_OFFSET                 (0x12000 - 0x7000)
+#define NI_DIG5_REGISTER_OFFSET                 (0x12C00 - 0x7000)
+
+
+#define NI_DIG_FE_CNTL                               0x7000
+#       define NI_DIG_FE_CNTL_SOURCE_SELECT(x)        ((x) & 0x3)
+#       define NI_DIG_FE_CNTL_SYMCLK_FE_ON            (1<<24)
+
+
+#define NI_DIG_BE_CNTL                    0x7140
+#       define NI_DIG_BE_CNTL_FE_SOURCE_SELECT(x)     (((x) >> 8 ) & 0x3F)
+#       define NI_DIG_FE_CNTL_MODE(x)                 (((x) >> 16) & 0x7 )
+
+#define NI_DIG_BE_EN_CNTL                              0x7144
+#       define NI_DIG_BE_EN_CNTL_ENABLE               (1 << 0)
+#       define NI_DIG_BE_EN_CNTL_SYMBCLK_ON           (1 << 8)
+#       define NI_DIG_BE_DPSST 0
+
+/* Display Port block */
+#define EVERGREEN_DP0_REGISTER_OFFSET                 (0x730C  - 0x730C)
+#define EVERGREEN_DP1_REGISTER_OFFSET                 (0x7F0C  - 0x730C)
+#define EVERGREEN_DP2_REGISTER_OFFSET                 (0x10B0C - 0x730C)
+#define EVERGREEN_DP3_REGISTER_OFFSET                 (0x1170C - 0x730C)
+#define EVERGREEN_DP4_REGISTER_OFFSET                 (0x1230C - 0x730C)
+#define EVERGREEN_DP5_REGISTER_OFFSET                 (0x12F0C - 0x730C)
+
+
+#define EVERGREEN_DP_VID_STREAM_CNTL                    0x730C
+#       define EVERGREEN_DP_VID_STREAM_CNTL_ENABLE     (1 << 0)
+#       define EVERGREEN_DP_VID_STREAM_STATUS          (1 <<16)
+#define EVERGREEN_DP_STEER_FIFO                         0x7310
+#       define EVERGREEN_DP_STEER_FIFO_RESET           (1 << 0)
+#define EVERGREEN_DP_SEC_CNTL                           0x7280
+#       define EVERGREEN_DP_SEC_STREAM_ENABLE           (1 << 0)
+#       define EVERGREEN_DP_SEC_ASP_ENABLE              (1 << 4)
+#       define EVERGREEN_DP_SEC_ATP_ENABLE              (1 << 8)
+#       define EVERGREEN_DP_SEC_AIP_ENABLE              (1 << 12)
+#       define EVERGREEN_DP_SEC_GSP_ENABLE              (1 << 20)
+#       define EVERGREEN_DP_SEC_AVI_ENABLE              (1 << 24)
+#       define EVERGREEN_DP_SEC_MPG_ENABLE              (1 << 28)
+#define EVERGREEN_DP_SEC_TIMESTAMP                      0x72a4
+#       define EVERGREEN_DP_SEC_TIMESTAMP_MODE(x)       (((x) & 0x3) << 0)
+#define EVERGREEN_DP_SEC_AUD_N                          0x7294
+#       define EVERGREEN_DP_SEC_N_BASE_MULTIPLE(x)      (((x) & 0xf) << 24)
+#       define EVERGREEN_DP_SEC_SS_EN                   (1 << 28)
+
+/*DCIO_UNIPHY block*/
+#define NI_DCIO_UNIPHY0_UNIPHY_TX_CONTROL1            (0x6600  -0x6600)
+#define NI_DCIO_UNIPHY1_UNIPHY_TX_CONTROL1            (0x6640  -0x6600)
+#define NI_DCIO_UNIPHY2_UNIPHY_TX_CONTROL1            (0x6680 - 0x6600)
+#define NI_DCIO_UNIPHY3_UNIPHY_TX_CONTROL1            (0x66C0 - 0x6600)
+#define NI_DCIO_UNIPHY4_UNIPHY_TX_CONTROL1            (0x6700 - 0x6600)
+#define NI_DCIO_UNIPHY5_UNIPHY_TX_CONTROL1            (0x6740 - 0x6600)
+
+#define NI_DCIO_UNIPHY0_PLL_CONTROL1                   0x6618
+#       define NI_DCIO_UNIPHY0_PLL_CONTROL1_ENABLE     (1 << 0)
 
 #endif

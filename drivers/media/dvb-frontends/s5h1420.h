@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #ifndef S5H1420_H
 #define S5H1420_H
@@ -40,7 +36,7 @@ struct s5h1420_config
 	u8 serial_mpeg:1;
 };
 
-#if IS_ENABLED(CONFIG_DVB_S5H1420)
+#if IS_REACHABLE(CONFIG_DVB_S5H1420)
 extern struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 	     struct i2c_adapter *i2c);
 extern struct i2c_adapter *s5h1420_get_tuner_i2c_adapter(struct dvb_frontend *fe);

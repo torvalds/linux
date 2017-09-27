@@ -82,36 +82,6 @@ struct snd_seq_dummy_port {
 static int my_client = -1;
 
 /*
- * unuse callback - send ALL_SOUNDS_OFF and RESET_CONTROLLERS events
- * to subscribers.
- * Note: this callback is called only after all subscribers are removed.
- */
-static int
-dummy_unuse(void *private_data, struct snd_seq_port_subscribe *info)
-{
-	struct snd_seq_dummy_port *p;
-	int i;
-	struct snd_seq_event ev;
-
-	p = private_data;
-	memset(&ev, 0, sizeof(ev));
-	if (p->duplex)
-		ev.source.port = p->connect;
-	else
-		ev.source.port = p->port;
-	ev.dest.client = SNDRV_SEQ_ADDRESS_SUBSCRIBERS;
-	ev.type = SNDRV_SEQ_EVENT_CONTROLLER;
-	for (i = 0; i < 16; i++) {
-		ev.data.control.channel = i;
-		ev.data.control.param = MIDI_CTL_ALL_SOUNDS_OFF;
-		snd_seq_kernel_client_dispatch(p->client, &ev, 0, 0);
-		ev.data.control.param = MIDI_CTL_RESET_CONTROLLERS;
-		snd_seq_kernel_client_dispatch(p->client, &ev, 0, 0);
-	}
-	return 0;
-}
-
-/*
  * event input callback - just redirect events to subscribers
  */
 static int
@@ -175,7 +145,6 @@ create_port(int idx, int type)
 		| SNDRV_SEQ_PORT_TYPE_PORT;
 	memset(&pcb, 0, sizeof(pcb));
 	pcb.owner = THIS_MODULE;
-	pcb.unuse = dummy_unuse;
 	pcb.event_input = dummy_input;
 	pcb.private_free = dummy_free;
 	pcb.private_data = rec;
@@ -198,7 +167,7 @@ register_client(void)
 	int i;
 
 	if (ports < 1) {
-		snd_printk(KERN_ERR "invalid number of ports %d\n", ports);
+		pr_err("ALSA: seq_dummy: invalid number of ports %d\n", ports);
 		return -EINVAL;
 	}
 
@@ -245,11 +214,7 @@ delete_client(void)
 
 static int __init alsa_seq_dummy_init(void)
 {
-	int err;
-	snd_seq_autoload_lock();
-	err = register_client();
-	snd_seq_autoload_unlock();
-	return err;
+	return register_client();
 }
 
 static void __exit alsa_seq_dummy_exit(void)

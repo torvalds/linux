@@ -1,0 +1,51 @@
+Platform DesignWare HS OTG USB 2.0 controller
+-----------------------------------------------------
+
+Required properties:
+- compatible : One of:
+  - brcm,bcm2835-usb: The DWC2 USB controller instance in the BCM2835 SoC.
+  - hisilicon,hi6220-usb: The DWC2 USB controller instance in the hi6220 SoC.
+  - rockchip,rk3066-usb: The DWC2 USB controller instance in the rk3066 Soc;
+  - "rockchip,rk3188-usb", "rockchip,rk3066-usb", "snps,dwc2": for rk3188 Soc;
+  - "rockchip,rk3288-usb", "rockchip,rk3066-usb", "snps,dwc2": for rk3288 Soc;
+  - "lantiq,arx100-usb": The DWC2 USB controller instance in Lantiq ARX SoCs;
+  - "lantiq,xrx200-usb": The DWC2 USB controller instance in Lantiq XRX SoCs;
+  - "amlogic,meson8-usb": The DWC2 USB controller instance in Amlogic Meson8 SoCs;
+  - "amlogic,meson8b-usb": The DWC2 USB controller instance in Amlogic Meson8b SoCs;
+  - "amlogic,meson-gxbb-usb": The DWC2 USB controller instance in Amlogic S905 SoCs;
+  - "amcc,dwc-otg": The DWC2 USB controller instance in AMCC Canyonlands 460EX SoCs;
+  - snps,dwc2: A generic DWC2 USB controller with default parameters.
+  - "st,stm32f4x9-fsotg": The DWC2 USB FS/HS controller instance in STM32F4x9 SoCs
+  configured in FS mode;
+  - "st,stm32f4x9-hsotg": The DWC2 USB HS controller instance in STM32F4x9 SoCs
+  configured in HS mode;
+- reg : Should contain 1 register range (address and length)
+- interrupts : Should contain 1 interrupt
+- clocks: clock provider specifier
+- clock-names: shall be "otg"
+Refer to clk/clock-bindings.txt for generic clock consumer properties
+
+Optional properties:
+- phys: phy provider specifier
+- phy-names: shall be "usb2-phy"
+Refer to phy/phy-bindings.txt for generic phy consumer properties
+- dr_mode: shall be one of "host", "peripheral" and "otg"
+  Refer to usb/generic.txt
+- g-rx-fifo-size: size of rx fifo size in gadget mode.
+- g-np-tx-fifo-size: size of non-periodic tx fifo size in gadget mode.
+- g-tx-fifo-size: size of periodic tx fifo per endpoint (except ep0) in gadget mode.
+
+Deprecated properties:
+- g-use-dma: gadget DMA mode is automatically detected
+
+Example:
+
+        usb@101c0000 {
+                compatible = "ralink,rt3050-usb, snps,dwc2";
+                reg = <0x101c0000 40000>;
+                interrupts = <18>;
+		clocks = <&usb_otg_ahb_clk>;
+		clock-names = "otg";
+		phys = <&usbphy>;
+		phy-names = "usb2-phy";
+        };

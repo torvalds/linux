@@ -1,0 +1,61 @@
+#!/bin/sh
+# description: event tracing - enable/disable with event level files
+# flags: instance
+
+do_reset() {
+    echo > set_event
+    clear_trace
+}
+
+fail() { #msg
+    do_reset
+    echo $1
+    exit $FAIL
+}
+
+yield() {
+    ping localhost -c 1 || sleep .001 || usleep 1 || sleep 1
+}
+
+if [ ! -f set_event -o ! -d events/sched ]; then
+    echo "event tracing is not supported"
+    exit_unsupported
+fi
+
+reset_tracer
+do_reset
+
+echo 'sched:sched_switch' > set_event
+
+yield
+
+count=`cat trace | grep sched_switch | wc -l`
+if [ $count -eq 0 ]; then
+    fail "sched_switch events are not recorded"
+fi
+
+do_reset
+
+echo 1 > events/sched/sched_switch/enable
+
+yield
+
+count=`cat trace | grep sched_switch | wc -l`
+if [ $count -eq 0 ]; then
+    fail "sched_switch events are not recorded"
+fi
+
+do_reset
+
+echo 0 > events/sched/sched_switch/enable
+
+yield
+
+count=`cat trace | grep sched_switch | wc -l`
+if [ $count -ne 0 ]; then
+    fail "sched_switch events should not be recorded"
+fi
+
+do_reset
+
+exit 0

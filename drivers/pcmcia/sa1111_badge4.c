@@ -132,22 +132,16 @@ static struct pcmcia_low_level badge4_pcmcia_ops = {
 	.nr			= 2,
 };
 
-int pcmcia_badge4_init(struct device *dev)
+int pcmcia_badge4_init(struct sa1111_dev *dev)
 {
-	int ret = -ENODEV;
+	printk(KERN_INFO
+	       "%s: badge4_pcmvcc=%d, badge4_pcmvpp=%d, badge4_cfvcc=%d\n",
+	       __func__,
+	       badge4_pcmvcc, badge4_pcmvpp, badge4_cfvcc);
 
-	if (machine_is_badge4()) {
-		printk(KERN_INFO
-		       "%s: badge4_pcmvcc=%d, badge4_pcmvpp=%d, badge4_cfvcc=%d\n",
-		       __func__,
-		       badge4_pcmvcc, badge4_pcmvpp, badge4_cfvcc);
-
-		sa11xx_drv_pcmcia_ops(&badge4_pcmcia_ops);
-		ret = sa1111_pcmcia_add(dev, &badge4_pcmcia_ops,
-				sa11xx_drv_pcmcia_add_one);
-	}
-
-	return ret;
+	sa11xx_drv_pcmcia_ops(&badge4_pcmcia_ops);
+	return sa1111_pcmcia_add(dev, &badge4_pcmcia_ops,
+				 sa11xx_drv_pcmcia_add_one);
 }
 
 static int __init pcmv_setup(char *s)

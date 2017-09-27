@@ -35,12 +35,13 @@ Properties for PIP port which is a child the PIP interface:
 
 - reg: The port number within the interface group.
 
-- mac-address: Optional, the MAC address to assign to the device.
+- phy-handle: Optional, see ethernet.txt file in the same directory.
 
-- local-mac-address: Optional, the MAC address to assign to the device
-  if mac-address is not specified.
+- rx-delay: Delay value for RGMII receive clock. Optional. Disabled if 0.
+  Value range is 1-31, and mapping to the actual delay varies depending on HW.
 
-- phy-handle: Optional, a phandle for the PHY device connected to this device.
+- tx-delay: Delay value for RGMII transmit clock. Optional. Disabled if 0.
+  Value range is 1-31, and mapping to the actual delay varies depending on HW.
 
 Example:
 

@@ -86,7 +86,7 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* --------------------------------------------------------------------- */
 
@@ -156,7 +156,7 @@ struct baycom_state {
 
 /* --------------------------------------------------------------------- */
 
-static void __inline__ baycom_int_freq(struct baycom_state *bc)
+static inline void baycom_int_freq(struct baycom_state *bc)
 {
 #ifdef BAYCOM_DEBUG
 	unsigned long cur_jiffies = jiffies;
@@ -192,7 +192,7 @@ static void __inline__ baycom_int_freq(struct baycom_state *bc)
 
 /* --------------------------------------------------------------------- */
 
-static __inline__ void par96_tx(struct net_device *dev, struct baycom_state *bc)
+static inline void par96_tx(struct net_device *dev, struct baycom_state *bc)
 {
 	int i;
 	unsigned int data = hdlcdrv_getbits(&bc->hdrv);
@@ -216,7 +216,7 @@ static __inline__ void par96_tx(struct net_device *dev, struct baycom_state *bc)
 
 /* --------------------------------------------------------------------- */
 
-static __inline__ void par96_rx(struct net_device *dev, struct baycom_state *bc)
+static inline void par96_rx(struct net_device *dev, struct baycom_state *bc)
 {
 	int i;
 	unsigned int data, mask, mask2, descx;
@@ -386,7 +386,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 /* --------------------------------------------------------------------- */
 
-static struct hdlcdrv_ops par96_ops = {
+static const struct hdlcdrv_ops par96_ops = {
 	.drvname = bc_drvname,
 	.drvinfo = bc_drvinfo,
 	.open    = par96_open,
@@ -481,7 +481,7 @@ static int iobase[NR_PORTS] = { 0x378, };
 
 module_param_array(mode, charp, NULL, 0);
 MODULE_PARM_DESC(mode, "baycom operating mode; eg. par96 or picpar");
-module_param_array(iobase, int, NULL, 0);
+module_param_hw_array(iobase, int, ioport, NULL, 0);
 MODULE_PARM_DESC(iobase, "baycom io base address");
 
 MODULE_AUTHOR("Thomas M. Sailer, sailer@ife.ee.ethz.ch, hb9jnx@hb9w.che.eu");

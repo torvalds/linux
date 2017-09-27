@@ -44,7 +44,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/time.h>
 #include <asm/mmu_context.h>

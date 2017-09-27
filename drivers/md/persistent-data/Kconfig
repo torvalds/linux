@@ -6,3 +6,4 @@ config DM_PERSISTENT_DATA
        ---help---
 	 Library providing immutable on-disk data structure support for
 	 device-mapper targets such as the thin provisioning target.
+

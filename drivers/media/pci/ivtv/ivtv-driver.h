@@ -22,6 +22,8 @@
 #ifndef IVTV_DRIVER_H
 #define IVTV_DRIVER_H
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 /* Internal header for ivtv project:
  * Driver for the cx23415/6 chip.
  * Author: Kevin Thayer (nufan_wfk at yahoo.com)
@@ -39,7 +41,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -53,7 +55,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 #include <linux/dvb/video.h>
@@ -64,8 +66,8 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/tuner.h>
-#include <media/cx2341x.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/drv-intf/cx2341x.h>
+#include <media/i2c/ir-kbd-i2c.h>
 
 #include <linux/ivtv.h>
 
@@ -327,7 +329,7 @@ struct ivtv;				/* forward reference */
 struct ivtv_stream {
 	/* These first four fields are always set, even if the stream
 	   is not actually created. */
-	struct video_device *vdev;	/* NULL when stream not created */
+	struct video_device vdev;	/* vdev.v4l2_dev is NULL if there is no device */
 	struct ivtv *itv; 		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
@@ -827,11 +829,7 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
 /* Call the specified callback for all subdevs matching hw (if 0, then
    match them all). Ignore any errors. */
 #define ivtv_call_hw(itv, hw, o, f, args...) 				\
-	do {								\
-		struct v4l2_subdev *__sd;				\
-		__v4l2_device_call_subdevs_p(&(itv)->v4l2_dev, __sd,	\
-			!(hw) || (__sd->grp_id & (hw)), o, f , ##args);	\
-	} while (0)
+	v4l2_device_mask_call_all(&(itv)->v4l2_dev, hw, o, f, ##args)
 
 #define ivtv_call_all(itv, o, f, args...) ivtv_call_hw(itv, 0, o, f , ##args)
 
@@ -839,11 +837,7 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
    match them all). If the callback returns an error other than 0 or
    -ENOIOCTLCMD, then return with that error code. */
 #define ivtv_call_hw_err(itv, hw, o, f, args...)			\
-({									\
-	struct v4l2_subdev *__sd;					\
-	__v4l2_device_call_subdevs_until_err_p(&(itv)->v4l2_dev, __sd,	\
-		!(hw) || (__sd->grp_id & (hw)), o, f , ##args);		\
-})
+	v4l2_device_mask_call_until_err(&(itv)->v4l2_dev, hw, o, f, ##args)
 
 #define ivtv_call_all_err(itv, o, f, args...) ivtv_call_hw_err(itv, 0, o, f , ##args)
 

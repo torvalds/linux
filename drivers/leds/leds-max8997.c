@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
@@ -229,6 +228,12 @@ static ssize_t max8997_led_store_mode(struct device *dev,
 
 static DEVICE_ATTR(mode, 0644, max8997_led_show_mode, max8997_led_store_mode);
 
+static struct attribute *max8997_attrs[] = {
+	&dev_attr_mode.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(max8997);
+
 static int max8997_led_probe(struct platform_device *pdev)
 {
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -253,6 +258,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 	led->cdev.brightness_set = max8997_led_brightness_set;
 	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	led->cdev.brightness = 0;
+	led->cdev.groups = max8997_groups;
 	led->iodev = iodev;
 
 	/* initialize mode and brightness according to platform_data */
@@ -275,29 +281,9 @@ static int max8997_led_probe(struct platform_device *pdev)
 
 	mutex_init(&led->mutex);
 
-	platform_set_drvdata(pdev, led);
-
-	ret = led_classdev_register(&pdev->dev, &led->cdev);
+	ret = devm_led_classdev_register(&pdev->dev, &led->cdev);
 	if (ret < 0)
 		return ret;
-
-	ret = device_create_file(led->cdev.dev, &dev_attr_mode);
-	if (ret != 0) {
-		dev_err(&pdev->dev,
-			"failed to create file: %d\n", ret);
-		led_classdev_unregister(&led->cdev);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int max8997_led_remove(struct platform_device *pdev)
-{
-	struct max8997_led *led = platform_get_drvdata(pdev);
-
-	device_remove_file(led->cdev.dev, &dev_attr_mode);
-	led_classdev_unregister(&led->cdev);
 
 	return 0;
 }
@@ -305,10 +291,8 @@ static int max8997_led_remove(struct platform_device *pdev)
 static struct platform_driver max8997_led_driver = {
 	.driver = {
 		.name  = "max8997-led",
-		.owner = THIS_MODULE,
 	},
 	.probe  = max8997_led_probe,
-	.remove = max8997_led_remove,
 };
 
 module_platform_driver(max8997_led_driver);

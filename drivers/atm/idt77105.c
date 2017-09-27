@@ -17,7 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <asm/param.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "idt77105.h"
 
@@ -306,14 +306,12 @@ static int idt77105_start(struct atm_dev *dev)
 	if (start_timer) {
 		start_timer = 0;
                 
-		init_timer(&stats_timer);
+		setup_timer(&stats_timer, idt77105_stats_timer_func, 0UL);
 		stats_timer.expires = jiffies+IDT77105_STATS_TIMER_PERIOD;
-		stats_timer.function = idt77105_stats_timer_func;
 		add_timer(&stats_timer);
                 
-		init_timer(&restart_timer);
+		setup_timer(&restart_timer, idt77105_restart_timer_func, 0UL);
 		restart_timer.expires = jiffies+IDT77105_RESTART_TIMER_PERIOD;
-		restart_timer.function = idt77105_restart_timer_func;
 		add_timer(&restart_timer);
 	}
 	spin_unlock_irqrestore(&idt77105_priv_lock, flags);
@@ -368,9 +366,9 @@ EXPORT_SYMBOL(idt77105_init);
 
 static void __exit idt77105_exit(void)
 {
-        /* turn off timers */
-        del_timer(&stats_timer);
-        del_timer(&restart_timer);
+	/* turn off timers */
+	del_timer_sync(&stats_timer);
+	del_timer_sync(&restart_timer);
 }
 
 module_exit(idt77105_exit);

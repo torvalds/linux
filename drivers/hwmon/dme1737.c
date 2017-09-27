@@ -247,8 +247,8 @@ struct dme1737_data {
 	u8  pwm_acz[3];
 	u8  pwm_freq[6];
 	u8  pwm_rr[2];
-	u8  zone_low[3];
-	u8  zone_abs[3];
+	s8  zone_low[3];
+	s8  zone_abs[3];
 	u8  zone_hyst[2];
 	u32 alarms;
 };
@@ -277,9 +277,10 @@ static inline int IN_FROM_REG(int reg, int nominal, int res)
 	return (reg * nominal + (3 << (res - 3))) / (3 << (res - 2));
 }
 
-static inline int IN_TO_REG(int val, int nominal)
+static inline int IN_TO_REG(long val, int nominal)
 {
-	return clamp_val((val * 192 + nominal / 2) / nominal, 0, 255);
+	val = clamp_val(val, 0, 255 * nominal / 192);
+	return DIV_ROUND_CLOSEST(val * 192, nominal);
 }
 
 /*
@@ -293,9 +294,10 @@ static inline int TEMP_FROM_REG(int reg, int res)
 	return (reg * 1000) >> (res - 8);
 }
 
-static inline int TEMP_TO_REG(int val)
+static inline int TEMP_TO_REG(long val)
 {
-	return clamp_val((val < 0 ? val - 500 : val + 500) / 1000, -128, 127);
+	val = clamp_val(val, -128000, 127000);
+	return DIV_ROUND_CLOSEST(val, 1000);
 }
 
 /* Temperature range */
@@ -308,7 +310,7 @@ static inline int TEMP_RANGE_FROM_REG(int reg)
 	return TEMP_RANGE[(reg >> 4) & 0x0f];
 }
 
-static int TEMP_RANGE_TO_REG(int val, int reg)
+static int TEMP_RANGE_TO_REG(long val, int reg)
 {
 	int i;
 
@@ -331,9 +333,10 @@ static inline int TEMP_HYST_FROM_REG(int reg, int ix)
 	return (((ix == 1) ? reg : reg >> 4) & 0x0f) * 1000;
 }
 
-static inline int TEMP_HYST_TO_REG(int val, int ix, int reg)
+static inline int TEMP_HYST_TO_REG(int temp, long hyst, int ix, int reg)
 {
-	int hyst = clamp_val((val + 500) / 1000, 0, 15);
+	hyst = clamp_val(hyst, temp - 15000, temp);
+	hyst = DIV_ROUND_CLOSEST(temp - hyst, 1000);
 
 	return (ix == 1) ? (reg & 0xf0) | hyst : (reg & 0x0f) | (hyst << 4);
 }
@@ -347,7 +350,7 @@ static inline int FAN_FROM_REG(int reg, int tpc)
 		return (reg == 0 || reg == 0xffff) ? 0 : 90000 * 60 / reg;
 }
 
-static inline int FAN_TO_REG(int val, int tpc)
+static inline int FAN_TO_REG(long val, int tpc)
 {
 	if (tpc) {
 		return clamp_val(val / tpc, 0, 0xffff);
@@ -379,7 +382,7 @@ static inline int FAN_TYPE_FROM_REG(int reg)
 	return (edge > 0) ? 1 << (edge - 1) : 0;
 }
 
-static inline int FAN_TYPE_TO_REG(int val, int reg)
+static inline int FAN_TYPE_TO_REG(long val, int reg)
 {
 	int edge = (val == 4) ? 3 : val;
 
@@ -402,7 +405,7 @@ static int FAN_MAX_FROM_REG(int reg)
 	return 1000 + i * 500;
 }
 
-static int FAN_MAX_TO_REG(int val)
+static int FAN_MAX_TO_REG(long val)
 {
 	int i;
 
@@ -460,7 +463,7 @@ static inline int PWM_ACZ_FROM_REG(int reg)
 	return acz[(reg >> 5) & 0x07];
 }
 
-static inline int PWM_ACZ_TO_REG(int val, int reg)
+static inline int PWM_ACZ_TO_REG(long val, int reg)
 {
 	int acz = (val == 4) ? 2 : val - 1;
 
@@ -476,7 +479,7 @@ static inline int PWM_FREQ_FROM_REG(int reg)
 	return PWM_FREQ[reg & 0x0f];
 }
 
-static int PWM_FREQ_TO_REG(int val, int reg)
+static int PWM_FREQ_TO_REG(long val, int reg)
 {
 	int i;
 
@@ -510,7 +513,7 @@ static inline int PWM_RR_FROM_REG(int reg, int ix)
 	return (rr & 0x08) ? PWM_RR[rr & 0x07] : 0;
 }
 
-static int PWM_RR_TO_REG(int val, int ix, int reg)
+static int PWM_RR_TO_REG(long val, int ix, int reg)
 {
 	int i;
 
@@ -528,7 +531,7 @@ static inline int PWM_RR_EN_FROM_REG(int reg, int ix)
 	return PWM_RR_FROM_REG(reg, ix) ? 1 : 0;
 }
 
-static inline int PWM_RR_EN_TO_REG(int val, int ix, int reg)
+static inline int PWM_RR_EN_TO_REG(long val, int ix, int reg)
 {
 	int en = (ix == 1) ? 0x80 : 0x08;
 
@@ -1022,7 +1025,9 @@ static ssize_t set_zone(struct device *dev, struct device_attribute *attr,
 	int ix = sensor_attr_2->index;
 	int fn = sensor_attr_2->nr;
 	long val;
+	int temp;
 	int err;
+	u8 reg;
 
 	err = kstrtol(buf, 10, &val);
 	if (err)
@@ -1035,10 +1040,9 @@ static ssize_t set_zone(struct device *dev, struct device_attribute *attr,
 		data->zone_low[ix] = dme1737_read(data,
 						  DME1737_REG_ZONE_LOW(ix));
 		/* Modify the temp hyst value */
-		data->zone_hyst[ix == 2] = TEMP_HYST_TO_REG(
-					TEMP_FROM_REG(data->zone_low[ix], 8) -
-					val, ix, dme1737_read(data,
-					DME1737_REG_ZONE_HYST(ix == 2)));
+		temp = TEMP_FROM_REG(data->zone_low[ix], 8);
+		reg = dme1737_read(data, DME1737_REG_ZONE_HYST(ix == 2));
+		data->zone_hyst[ix == 2] = TEMP_HYST_TO_REG(temp, val, ix, reg);
 		dme1737_write(data, DME1737_REG_ZONE_HYST(ix == 2),
 			      data->zone_hyst[ix == 2]);
 		break;
@@ -1055,10 +1059,10 @@ static ssize_t set_zone(struct device *dev, struct device_attribute *attr,
 		 * Modify the temp range value (which is stored in the upper
 		 * nibble of the pwm_freq register)
 		 */
-		data->pwm_freq[ix] = TEMP_RANGE_TO_REG(val -
-					TEMP_FROM_REG(data->zone_low[ix], 8),
-					dme1737_read(data,
-					DME1737_REG_PWM_FREQ(ix)));
+		temp = TEMP_FROM_REG(data->zone_low[ix], 8);
+		val = clamp_val(val, temp, temp + 80000);
+		reg = dme1737_read(data, DME1737_REG_PWM_FREQ(ix));
+		data->pwm_freq[ix] = TEMP_RANGE_TO_REG(val - temp, reg);
 		dme1737_write(data, DME1737_REG_PWM_FREQ(ix),
 			      data->pwm_freq[ix]);
 		break;
@@ -1468,7 +1472,7 @@ exit:
  * Miscellaneous sysfs attributes
  * --------------------------------------------------------------------- */
 
-static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
+static ssize_t vrm_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1477,30 +1481,33 @@ static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data->vrm);
 }
 
-static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct dme1737_data *data = dev_get_drvdata(dev);
-	long val;
+	unsigned long val;
 	int err;
 
-	err = kstrtol(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
+
+	if (val > 255)
+		return -EINVAL;
 
 	data->vrm = val;
 	return count;
 }
 
-static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct dme1737_data *data = dme1737_update_device(dev);
 
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 
-static ssize_t show_name(struct device *dev, struct device_attribute *attr,
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct dme1737_data *data = dev_get_drvdata(dev);
@@ -1642,9 +1649,9 @@ SENSOR_DEVICE_ATTR_PWM_5TO6(6);
 
 /* Misc */
 
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);   /* for ISA devices */
+static DEVICE_ATTR_RW(vrm);
+static DEVICE_ATTR_RO(cpu0_vid);
+static DEVICE_ATTR_RO(name);   /* for ISA devices */
 
 /*
  * This struct holds all the attributes that are always present and need to be
@@ -2729,7 +2736,6 @@ static int dme1737_isa_remove(struct platform_device *pdev)
 
 static struct platform_driver dme1737_isa_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "dme1737",
 	},
 	.probe = dme1737_isa_probe,

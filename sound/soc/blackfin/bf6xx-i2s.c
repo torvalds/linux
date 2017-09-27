@@ -88,6 +88,7 @@ static int bfin_i2s_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S8:
 		param.spctl |= 0x70;
 		sport->wdsize = 1;
+		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		param.spctl |= 0xf0;
 		sport->wdsize = 2;
@@ -163,7 +164,7 @@ static int bfin_i2s_resume(struct snd_soc_dai *dai)
 #define BFIN_I2S_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
 		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops bfin_i2s_dai_ops = {
+static const struct snd_soc_dai_ops bfin_i2s_dai_ops = {
 	.hw_params	= bfin_i2s_hw_params,
 	.set_fmt	= bfin_i2s_set_dai_fmt,
 };
@@ -228,7 +229,6 @@ static struct platform_driver bfin_i2s_driver = {
 	.remove = bfin_i2s_remove,
 	.driver = {
 		.name = "bfin-i2s",
-		.owner = THIS_MODULE,
 	},
 };
 

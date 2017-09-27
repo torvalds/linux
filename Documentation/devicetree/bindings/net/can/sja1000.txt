@@ -2,7 +2,7 @@ Memory mapped SJA1000 CAN controller from NXP (formerly Philips)
 
 Required properties:
 
-- compatible : should be "nxp,sja1000".
+- compatible : should be one of "nxp,sja1000", "technologic,sja1000".
 
 - reg : should specify the chip select, address offset and size required
 	to map the registers of the SJA1000. The size is usually 0x80.
@@ -11,6 +11,11 @@ Required properties:
 	(number and sensitivity) required for the SJA1000.
 
 Optional properties:
+
+- reg-io-width : Specify the size (in bytes) of the IO accesses that
+	should be performed on the device.  Valid value is 1, 2 or 4.
+	This property is ignored for technologic version.
+	Default to 1 (8 bits).
 
 - nxp,external-clock-frequency : Frequency of the external oscillator
 	clock in Hz. Note that the internal clock frequency used by the
@@ -37,7 +42,7 @@ Optional properties:
 	If not specified or if the specified value is 0, the CLKOUT pin
 	will be disabled.
 
-- nxp,no-comparator-bypass : Allows to disable the CAN input comperator.
+- nxp,no-comparator-bypass : Allows to disable the CAN input comparator.
 
 For further information, please have a look to the SJA1000 data sheet.
 

@@ -102,13 +102,13 @@ static const unsigned char wm_vol[256] = {
 #define WM_VOL_MAX	(sizeof(wm_vol) - 1)
 #define WM_VOL_MUTE	0x8000
 
-static struct snd_akm4xxx akm_phase22 = {
+static const struct snd_akm4xxx akm_phase22 = {
 	.type = SND_AK4524,
 	.num_dacs = 2,
 	.num_adcs = 2,
 };
 
-static struct snd_ak4xxx_private akm_phase22_priv = {
+static const struct snd_ak4xxx_private akm_phase22_priv = {
 	.caddr =	2,
 	.cif =		1,
 	.data_mask =	1 << 4,
@@ -723,17 +723,7 @@ static int phase28_oversampling_info(struct snd_kcontrol *k,
 {
 	static const char * const texts[2] = { "128x", "64x"	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items -
-						1;
-	strcpy(uinfo->value.enumerated.name,
-		texts[uinfo->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int phase28_oversampling_get(struct snd_kcontrol *kcontrol,

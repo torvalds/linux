@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -53,82 +49,158 @@
 #include <linux/fcntl.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
-#include <linux/proc_fs.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/highmem.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/ioctls.h>
-#include <asm/poll.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
+#include <linux/kobject.h>
 
 #include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lnet/lnetctl.h>
 #include <obd_support.h>
 #include <obd_class.h>
-#include <linux/lnet/lnetctl.h>
 #include <lprocfs_status.h>
-#include <lustre_ver.h>
-#include <lustre/lustre_build_version.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <uapi/linux/lustre/lustre_ver.h>
 
-int proc_version;
+#define OBD_MAX_IOCTL_BUFFER	8192
+
+static int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
+{
+	if (data->ioc_len > BIT(30)) {
+		CERROR("OBD ioctl: ioc_len larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen1 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen1 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen2 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen2 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen3 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen3 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen4 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen4 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf1 && data->ioc_inllen1 == 0) {
+		CERROR("OBD ioctl: inlbuf1 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf2 && data->ioc_inllen2 == 0) {
+		CERROR("OBD ioctl: inlbuf2 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf3 && data->ioc_inllen3 == 0) {
+		CERROR("OBD ioctl: inlbuf3 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf4 && data->ioc_inllen4 == 0) {
+		CERROR("OBD ioctl: inlbuf4 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_pbuf1 && data->ioc_plen1 == 0) {
+		CERROR("OBD ioctl: pbuf1 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_pbuf2 && data->ioc_plen2 == 0) {
+		CERROR("OBD ioctl: pbuf2 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (!data->ioc_pbuf1 && data->ioc_plen1 != 0) {
+		CERROR("OBD ioctl: plen1 set but NULL pointer\n");
+		return 1;
+	}
+
+	if (!data->ioc_pbuf2 && data->ioc_plen2 != 0) {
+		CERROR("OBD ioctl: plen2 set but NULL pointer\n");
+		return 1;
+	}
+
+	if (obd_ioctl_packlen(data) > data->ioc_len) {
+		CERROR("OBD ioctl: packlen exceeds ioc_len (%d > %d)\n",
+		obd_ioctl_packlen(data), data->ioc_len);
+		return 1;
+	}
+
+	return 0;
+}
 
 /* buffer MUST be at least the size of obd_ioctl_hdr */
-int obd_ioctl_getdata(char **buf, int *len, void *arg)
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
 {
 	struct obd_ioctl_hdr hdr;
 	struct obd_ioctl_data *data;
 	int err;
 	int offset = 0;
-	ENTRY;
 
-	err = copy_from_user(&hdr, (void *)arg, sizeof(hdr));
-	if ( err )
-		RETURN(err);
+	if (copy_from_user(&hdr, arg, sizeof(hdr)))
+		return -EFAULT;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
 		CERROR("Version mismatch kernel (%x) vs application (%x)\n",
 		       OBD_IOCTL_VERSION, hdr.ioc_version);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (hdr.ioc_len > OBD_MAX_IOCTL_BUFFER) {
 		CERROR("User buffer len %d exceeds %d max buffer\n",
 		       hdr.ioc_len, OBD_MAX_IOCTL_BUFFER);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (hdr.ioc_len < sizeof(struct obd_ioctl_data)) {
 		CERROR("User buffer too small for ioctl (%d)\n", hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* When there are lots of processes calling vmalloc on multi-core
 	 * system, the high lock contention will hurt performance badly,
 	 * obdfilter-survey is an example, which relies on ioctl. So we'd
-	 * better avoid vmalloc on ioctl path. LU-66 */
-	OBD_ALLOC_LARGE(*buf, hdr.ioc_len);
-	if (*buf == NULL) {
+	 * better avoid vmalloc on ioctl path. LU-66
+	 */
+	*buf = libcfs_kvzalloc(hdr.ioc_len, GFP_NOFS);
+	if (!*buf) {
 		CERROR("Cannot allocate control buffer of len %d\n",
 		       hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	*len = hdr.ioc_len;
 	data = (struct obd_ioctl_data *)*buf;
 
-	err = copy_from_user(*buf, (void *)arg, hdr.ioc_len);
-	if ( err ) {
-		OBD_FREE_LARGE(*buf, hdr.ioc_len);
-		RETURN(err);
+	if (copy_from_user(*buf, arg, hdr.ioc_len)) {
+		err = -EFAULT;
+		goto free_buf;
+	}
+	if (hdr.ioc_len != data->ioc_len) {
+		err = -EINVAL;
+		goto free_buf;
 	}
 
 	if (obd_ioctl_is_invalid(data)) {
 		CERROR("ioctl not correctly formatted\n");
-		OBD_FREE_LARGE(*buf, hdr.ioc_len);
-		RETURN(-EINVAL);
+		err = -EINVAL;
+		goto free_buf;
 	}
 
 	if (data->ioc_inllen1) {
@@ -146,42 +218,29 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 		offset += cfs_size_round(data->ioc_inllen3);
 	}
 
-	if (data->ioc_inllen4) {
+	if (data->ioc_inllen4)
 		data->ioc_inlbuf4 = &data->ioc_bulk[0] + offset;
-	}
 
-	EXIT;
 	return 0;
+
+free_buf:
+	kvfree(*buf);
+	return err;
 }
 EXPORT_SYMBOL(obd_ioctl_getdata);
 
-int obd_ioctl_popdata(void *arg, void *data, int len)
-{
-	int err;
-
-	err = copy_to_user(arg, data, len);
-	if (err)
-		err = -EFAULT;
-	return err;
-}
-EXPORT_SYMBOL(obd_ioctl_popdata);
-
 /*  opening /dev/obd */
-static int obd_class_open(struct inode * inode, struct file * file)
+static int obd_class_open(struct inode *inode, struct file *file)
 {
-	ENTRY;
-
 	try_module_get(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 /*  closing /dev/obd */
-static int obd_class_release(struct inode * inode, struct file * file)
+static int obd_class_release(struct inode *inode, struct file *file)
 {
-	ENTRY;
-
 	module_put(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 /* to control /dev/obd */
@@ -189,21 +248,20 @@ static long obd_class_ioctl(struct file *filp, unsigned int cmd,
 			    unsigned long arg)
 {
 	int err = 0;
-	ENTRY;
 
 	/* Allow non-root access for OBD_IOC_PING_TARGET - used by lfs check */
-	if (!cfs_capable(CFS_CAP_SYS_ADMIN) && (cmd != OBD_IOC_PING_TARGET))
-		RETURN(err = -EACCES);
+	if (!capable(CFS_CAP_SYS_ADMIN) && (cmd != OBD_IOC_PING_TARGET))
+		return err = -EACCES;
 	if ((cmd & 0xffffff00) == ((int)'T') << 8) /* ignore all tty ioctls */
-		RETURN(err = -ENOTTY);
+		return err = -ENOTTY;
 
 	err = class_handle_ioctl(cmd, (unsigned long)arg);
 
-	RETURN(err);
+	return err;
 }
 
 /* declare character device */
-static struct file_operations obd_psdev_fops = {
+static const struct file_operations obd_psdev_fops = {
 	.owner	  = THIS_MODULE,
 	.unlocked_ioctl = obd_class_ioctl, /* unlocked_ioctl */
 	.open	   = obd_class_open,      /* open */
@@ -211,100 +269,130 @@ static struct file_operations obd_psdev_fops = {
 };
 
 /* modules setup */
-psdev_t obd_psdev = {
+struct miscdevice obd_psdev = {
 	.minor = OBD_DEV_MINOR,
 	.name  = OBD_DEV_NAME,
 	.fops  = &obd_psdev_fops,
 };
 
-
-#ifdef LPROCFS
-int obd_proc_version_seq_show(struct seq_file *m, void *v)
+static ssize_t version_show(struct kobject *kobj, struct attribute *attr,
+			    char *buf)
 {
-	return seq_printf(m, "lustre: %s\nkernel: %s\nbuild:  %s\n",
-			LUSTRE_VERSION_STRING, "patchless_client",
-			BUILD_VERSION);
+	return sprintf(buf, "%s\n", LUSTRE_VERSION_STRING);
 }
-LPROC_SEQ_FOPS_RO(obd_proc_version);
 
-int obd_proc_pinger_seq_show(struct seq_file *m, void *v)
+static ssize_t pinger_show(struct kobject *kobj, struct attribute *attr,
+			   char *buf)
 {
-	return seq_printf(m, "%s\n", "on");
+	return sprintf(buf, "%s\n", "on");
 }
-LPROC_SEQ_FOPS_RO(obd_proc_pinger);
 
-static int obd_proc_health_seq_show(struct seq_file *m, void *v)
+static ssize_t
+health_check_show(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	int rc = 0, i;
+	bool healthy = true;
+	int i;
+	size_t len = 0;
 
 	if (libcfs_catastrophe)
-		seq_printf(m, "LBUG\n");
+		return sprintf(buf, "LBUG\n");
 
 	read_lock(&obd_dev_lock);
 	for (i = 0; i < class_devno_max(); i++) {
 		struct obd_device *obd;
 
 		obd = class_num2obd(i);
-		if (obd == NULL || !obd->obd_attached || !obd->obd_set_up)
+		if (!obd || !obd->obd_attached || !obd->obd_set_up)
 			continue;
 
 		LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
 		if (obd->obd_stopping)
 			continue;
 
-		class_incref(obd, __FUNCTION__, current);
+		class_incref(obd, __func__, current);
 		read_unlock(&obd_dev_lock);
 
-		if (obd_health_check(NULL, obd)) {
-			seq_printf(m, "device %s reported unhealthy\n",
-				      obd->obd_name);
-			rc++;
-		}
-		class_decref(obd, __FUNCTION__, current);
+		if (obd_health_check(NULL, obd))
+			healthy = false;
+		class_decref(obd, __func__, current);
 		read_lock(&obd_dev_lock);
 	}
 	read_unlock(&obd_dev_lock);
 
-	if (rc == 0)
-		return seq_printf(m, "healthy\n");
+	if (healthy)
+		len = sprintf(buf, "healthy\n");
+	else
+		len = sprintf(buf, "NOT HEALTHY\n");
 
-	seq_printf(m, "NOT HEALTHY\n");
-	return 0;
+	return len;
 }
-LPROC_SEQ_FOPS_RO(obd_proc_health);
 
-static int obd_proc_jobid_var_seq_show(struct seq_file *m, void *v)
+static ssize_t jobid_var_show(struct kobject *kobj, struct attribute *attr,
+			      char *buf)
 {
-	return seq_printf(m, "%s\n", obd_jobid_var);
+	return snprintf(buf, PAGE_SIZE, "%s\n", obd_jobid_var);
 }
 
-static ssize_t obd_proc_jobid_var_seq_write(struct file *file, const char *buffer,
-					size_t count, loff_t *off)
+static ssize_t jobid_var_store(struct kobject *kobj, struct attribute *attr,
+			       const char *buffer,
+			       size_t count)
 {
 	if (!count || count > JOBSTATS_JOBID_VAR_MAX_LEN)
 		return -EINVAL;
 
 	memset(obd_jobid_var, 0, JOBSTATS_JOBID_VAR_MAX_LEN + 1);
+
+	memcpy(obd_jobid_var, buffer, count);
+
 	/* Trim the trailing '\n' if any */
-	memcpy(obd_jobid_var, buffer, count - (buffer[count - 1] == '\n'));
+	if (obd_jobid_var[count - 1] == '\n')
+		obd_jobid_var[count - 1] = 0;
+
 	return count;
 }
-LPROC_SEQ_FOPS(obd_proc_jobid_var);
 
-/* Root for /proc/fs/lustre */
-struct proc_dir_entry *proc_lustre_root = NULL;
-EXPORT_SYMBOL(proc_lustre_root);
+static ssize_t jobid_name_show(struct kobject *kobj, struct attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%s\n", obd_jobid_node);
+}
 
-struct lprocfs_vars lprocfs_base[] = {
-	{ "version", &obd_proc_version_fops },
-	{ "pinger", &obd_proc_pinger_fops },
-	{ "health_check", &obd_proc_health_fops },
-	{ "jobid_var", &obd_proc_jobid_var_fops },
-	{ 0 }
+static ssize_t jobid_name_store(struct kobject *kobj, struct attribute *attr,
+				const char *buffer,
+				size_t count)
+{
+	if (!count || count > LUSTRE_JOBID_SIZE)
+		return -EINVAL;
+
+	memcpy(obd_jobid_node, buffer, count);
+
+	obd_jobid_node[count] = 0;
+
+	/* Trim the trailing '\n' if any */
+	if (obd_jobid_node[count - 1] == '\n')
+		obd_jobid_node[count - 1] = 0;
+
+	return count;
+}
+
+/* Root for /sys/kernel/debug/lustre */
+struct dentry *debugfs_lustre_root;
+EXPORT_SYMBOL_GPL(debugfs_lustre_root);
+
+LUSTRE_RO_ATTR(version);
+LUSTRE_RO_ATTR(pinger);
+LUSTRE_RO_ATTR(health_check);
+LUSTRE_RW_ATTR(jobid_var);
+LUSTRE_RW_ATTR(jobid_name);
+
+static struct attribute *lustre_attrs[] = {
+	&lustre_attr_version.attr,
+	&lustre_attr_pinger.attr,
+	&lustre_attr_health_check.attr,
+	&lustre_attr_jobid_name.attr,
+	&lustre_attr_jobid_var.attr,
+	NULL,
 };
-#else
-#define lprocfs_base NULL
-#endif /* LPROCFS */
 
 static void *obd_device_list_seq_start(struct seq_file *p, loff_t *pos)
 {
@@ -333,7 +421,7 @@ static int obd_device_list_seq_show(struct seq_file *p, void *v)
 	struct obd_device *obd = class_num2obd((int)index);
 	char *status;
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
@@ -348,13 +436,14 @@ static int obd_device_list_seq_show(struct seq_file *p, void *v)
 	else
 		status = "--";
 
-	return seq_printf(p, "%3d %s %s %s %s %d\n",
-			  (int)index, status, obd->obd_type->typ_name,
-			  obd->obd_name, obd->obd_uuid.uuid,
-			  atomic_read(&obd->obd_refcount));
+	seq_printf(p, "%3d %s %s %s %s %d\n",
+		   (int)index, status, obd->obd_type->typ_name,
+		   obd->obd_name, obd->obd_uuid.uuid,
+		   atomic_read(&obd->obd_refcount));
+	return 0;
 }
 
-struct seq_operations obd_device_list_sops = {
+static const struct seq_operations obd_device_list_sops = {
 	.start = obd_device_list_seq_start,
 	.stop = obd_device_list_seq_stop,
 	.next = obd_device_list_seq_next,
@@ -370,12 +459,12 @@ static int obd_device_list_open(struct inode *inode, struct file *file)
 		return rc;
 
 	seq = file->private_data;
-	seq->private = PDE_DATA(inode);
+	seq->private = inode->i_private;
 
 	return 0;
 }
 
-struct file_operations obd_device_list_fops = {
+static const struct file_operations obd_device_list_fops = {
 	.owner   = THIS_MODULE,
 	.open    = obd_device_list_open,
 	.read    = seq_read,
@@ -383,26 +472,56 @@ struct file_operations obd_device_list_fops = {
 	.release = seq_release,
 };
 
+struct kobject *lustre_kobj;
+EXPORT_SYMBOL_GPL(lustre_kobj);
+
+static const struct attribute_group lustre_attr_group = {
+	.attrs = lustre_attrs,
+};
+
 int class_procfs_init(void)
 {
-	int rc;
-	ENTRY;
+	int rc = -ENOMEM;
+	struct dentry *file;
 
-	obd_sysctl_init();
-	proc_lustre_root = lprocfs_register("fs/lustre", NULL,
-					    lprocfs_base, NULL);
-	rc = lprocfs_seq_create(proc_lustre_root, "devices", 0444,
-				&obd_device_list_fops, NULL);
-	if (rc)
-		CERROR("error adding /proc/fs/lustre/devices file\n");
-	RETURN(0);
+	lustre_kobj = kobject_create_and_add("lustre", fs_kobj);
+	if (!lustre_kobj)
+		goto out;
+
+	/* Create the files associated with this kobject */
+	rc = sysfs_create_group(lustre_kobj, &lustre_attr_group);
+	if (rc) {
+		kobject_put(lustre_kobj);
+		goto out;
+	}
+
+	debugfs_lustre_root = debugfs_create_dir("lustre", NULL);
+	if (IS_ERR_OR_NULL(debugfs_lustre_root)) {
+		rc = debugfs_lustre_root ? PTR_ERR(debugfs_lustre_root)
+					 : -ENOMEM;
+		debugfs_lustre_root = NULL;
+		kobject_put(lustre_kobj);
+		goto out;
+	}
+
+	file = debugfs_create_file("devices", 0444, debugfs_lustre_root, NULL,
+				   &obd_device_list_fops);
+	if (IS_ERR_OR_NULL(file)) {
+		rc = file ? PTR_ERR(file) : -ENOMEM;
+		kobject_put(lustre_kobj);
+		goto out;
+	}
+out:
+	return rc;
 }
 
 int class_procfs_clean(void)
 {
-	ENTRY;
-	if (proc_lustre_root) {
-		lprocfs_remove(&proc_lustre_root);
-	}
-	RETURN(0);
+	debugfs_remove_recursive(debugfs_lustre_root);
+
+	debugfs_lustre_root = NULL;
+
+	kobject_put(lustre_kobj);
+
+	return 0;
 }

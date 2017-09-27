@@ -10,6 +10,7 @@
 #define FIMC_MDEVICE_H_
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -18,7 +19,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/s5p_fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #include "fimc-core.h"
 #include "fimc-lite.h"
@@ -31,8 +32,9 @@
 
 #define PINCTRL_STATE_IDLE	"idle"
 
-#define FIMC_MAX_SENSORS	8
+#define FIMC_MAX_SENSORS	4
 #define FIMC_MAX_CAMCLKS	2
+#define DEFAULT_SENSOR_CLK_FREQ	24000000U
 
 /* LCD/ISP Writeback clocks (PIXELASYNCMx) */
 enum {
@@ -78,6 +80,7 @@ struct fimc_camclk_info {
 /**
  * struct fimc_sensor_info - image data source subdev information
  * @pdata: sensor's atrributes passed as media device's platform data
+ * @asd: asynchronous subdev registration data structure
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
  *
@@ -85,9 +88,16 @@ struct fimc_camclk_info {
  */
 struct fimc_sensor_info {
 	struct fimc_source_info pdata;
+	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *subdev;
 	struct fimc_dev *host;
 };
+
+struct cam_clk {
+	struct clk_hw hw;
+	struct fimc_md *fmd;
+};
+#define to_cam_clk(_hw) container_of(_hw, struct cam_clk, hw)
 
 /**
  * struct fimc_md - fimc media device information
@@ -105,6 +115,7 @@ struct fimc_sensor_info {
  * @pinctrl: camera port pinctrl handle
  * @state_default: pinctrl default state handle
  * @state_idle: pinctrl idle state handle
+ * @cam_clk_provider: CAMCLK clock provider structure
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
  */
@@ -122,15 +133,28 @@ struct fimc_md {
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
+
 	struct fimc_pinctrl {
 		struct pinctrl *pinctrl;
 		struct pinctrl_state *state_default;
 		struct pinctrl_state *state_idle;
 	} pinctl;
-	bool user_subdev_api;
 
+	struct cam_clk_provider {
+		struct clk *clks[FIMC_MAX_CAMCLKS];
+		struct clk_onecell_data clk_data;
+		struct device_node *of_node;
+		struct cam_clk camclk[FIMC_MAX_CAMCLKS];
+		int num_clocks;
+	} clk_provider;
+
+	struct v4l2_async_notifier subdev_notifier;
+	struct v4l2_async_subdev *async_subdevs[FIMC_MAX_SENSORS];
+
+	bool user_subdev_api;
 	spinlock_t slock;
 	struct list_head pipelines;
+	struct media_graph link_setup_graph;
 };
 
 static inline
@@ -141,18 +165,23 @@ struct fimc_sensor_info *source_to_sensor_info(struct fimc_source_info *si)
 
 static inline struct fimc_md *entity_to_fimc_mdev(struct media_entity *me)
 {
-	return me->parent == NULL ? NULL :
-		container_of(me->parent, struct fimc_md, media_dev);
+	return me->graph_obj.mdev == NULL ? NULL :
+		container_of(me->graph_obj.mdev, struct fimc_md, media_dev);
+}
+
+static inline struct fimc_md *notifier_to_fimc_md(struct v4l2_async_notifier *n)
+{
+	return container_of(n, struct fimc_md, subdev_notifier);
 }
 
 static inline void fimc_md_graph_lock(struct exynos_video_entity *ve)
 {
-	mutex_lock(&ve->vdev.entity.parent->graph_mutex);
+	mutex_lock(&ve->vdev.entity.graph_obj.mdev->graph_mutex);
 }
 
 static inline void fimc_md_graph_unlock(struct exynos_video_entity *ve)
 {
-	mutex_unlock(&ve->vdev.entity.parent->graph_mutex);
+	mutex_unlock(&ve->vdev.entity.graph_obj.mdev->graph_mutex);
 }
 
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on);

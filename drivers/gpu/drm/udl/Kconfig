@@ -1,12 +1,9 @@
 config DRM_UDL
 	tristate "DisplayLink"
 	depends on DRM
+	depends on USB_SUPPORT
 	depends on USB_ARCH_HAS_HCD
-	select DRM_USB
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_DEFERRED_IO
+	select USB
 	select DRM_KMS_HELPER
 	help
 	  This is a KMS driver for the USB displaylink video adapters.

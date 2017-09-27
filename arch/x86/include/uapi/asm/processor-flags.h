@@ -37,8 +37,6 @@
 #define X86_EFLAGS_VM		_BITUL(X86_EFLAGS_VM_BIT)
 #define X86_EFLAGS_AC_BIT	18 /* Alignment Check/Access Control */
 #define X86_EFLAGS_AC		_BITUL(X86_EFLAGS_AC_BIT)
-#define X86_EFLAGS_AC_BIT	18 /* Alignment Check/Access Control */
-#define X86_EFLAGS_AC		_BITUL(X86_EFLAGS_AC_BIT)
 #define X86_EFLAGS_VIF_BIT	19 /* Virtual Interrupt Flag */
 #define X86_EFLAGS_VIF		_BITUL(X86_EFLAGS_VIF_BIT)
 #define X86_EFLAGS_VIP_BIT	20 /* Virtual Interrupt Pending */
@@ -106,6 +104,8 @@
 #define X86_CR4_OSFXSR		_BITUL(X86_CR4_OSFXSR_BIT)
 #define X86_CR4_OSXMMEXCPT_BIT	10 /* enable unmasked SSE exceptions */
 #define X86_CR4_OSXMMEXCPT	_BITUL(X86_CR4_OSXMMEXCPT_BIT)
+#define X86_CR4_LA57_BIT	12 /* enable 5-level page tables */
+#define X86_CR4_LA57		_BITUL(X86_CR4_LA57_BIT)
 #define X86_CR4_VMXE_BIT	13 /* enable VMX virtualization */
 #define X86_CR4_VMXE		_BITUL(X86_CR4_VMXE_BIT)
 #define X86_CR4_SMXE_BIT	14 /* enable safer mode (TXT) */
@@ -120,6 +120,8 @@
 #define X86_CR4_SMEP		_BITUL(X86_CR4_SMEP_BIT)
 #define X86_CR4_SMAP_BIT	21 /* enable SMAP support */
 #define X86_CR4_SMAP		_BITUL(X86_CR4_SMAP_BIT)
+#define X86_CR4_PKE_BIT		22 /* enable Protection Keys support */
+#define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
 
 /*
  * x86-64 Task Priority Register, CR8

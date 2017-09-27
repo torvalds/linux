@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef _CX25840_CORE_H_
@@ -41,6 +37,14 @@ enum cx25840_model {
 	CX25837,
 };
 
+enum cx25840_media_pads {
+	CX25840_PAD_INPUT,
+	CX25840_PAD_VID_OUT,
+	CX25840_PAD_VBI_OUT,
+
+	CX25840_NUM_PADS
+};
+
 struct cx25840_state {
 	struct i2c_client *c;
 	struct v4l2_subdev sd;
@@ -61,9 +65,13 @@ struct cx25840_state {
 	enum cx25840_model id;
 	u32 rev;
 	int is_initialized;
+	unsigned vbi_regs_offset;
 	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
 	struct work_struct fw_work;   /* work entry for fw load */
 	struct cx25840_ir_state *ir_state;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_pad	pads[CX25840_NUM_PADS];
+#endif
 };
 
 static inline struct cx25840_state *to_state(struct v4l2_subdev *sd)

@@ -133,9 +133,9 @@ static void flush_icache_all(void)
 	jump_to_uncached();
 
 	/* Flush I-cache */
-	ccr = __raw_readl(CCR);
+	ccr = __raw_readl(SH_CCR);
 	ccr |= CCR_CACHE_ICI;
-	__raw_writel(ccr, CCR);
+	__raw_writel(ccr, SH_CCR);
 
 	/*
 	 * back_to_cached() will take care of the barrier for us, don't add
@@ -241,7 +241,7 @@ static void sh4_flush_cache_page(void *args)
 		 */
 		map_coherent = (current_cpu_data.dcache.n_aliases &&
 			test_bit(PG_dcache_clean, &page->flags) &&
-			page_mapped(page));
+			page_mapcount(page));
 		if (map_coherent)
 			vaddr = kmap_coherent(page, address);
 		else

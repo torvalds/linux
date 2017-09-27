@@ -1,0 +1,80 @@
+* Marvell Armada 380/385 SoC pinctrl driver for mpp
+
+Please refer to marvell,mvebu-pinctrl.txt in this directory for common binding
+part and usage.
+
+Required properties:
+- compatible: "marvell,88f6810-pinctrl", "marvell,88f6820-pinctrl" or
+  "marvell,88f6828-pinctrl" depending on the specific variant of the
+  SoC being used.
+- reg: register specifier of MPP registers
+
+Available mpp pins/groups and functions:
+Note: brackets (x) are not part of the mpp name for marvell,function and given
+only for more detailed description in this document.
+
+name          pins     functions
+================================================================================
+mpp0          0        gpio, ua0(rxd)
+mpp1          1        gpio, ua0(txd)
+mpp2          2        gpio, i2c0(sck)
+mpp3          3        gpio, i2c0(sda)
+mpp4          4        gpio, ge(mdc), ua1(txd), ua0(rts)
+mpp5          5        gpio, ge(mdio), ua1(rxd), ua0(cts)
+mpp6          6        gpio, ge0(txclkout), ge0(crs), dev(cs3)
+mpp7          7        gpio, ge0(txd0), dev(ad9)
+mpp8          8        gpio, ge0(txd1), dev(ad10)
+mpp9          9        gpio, ge0(txd2), dev(ad11)
+mpp10         10       gpio, ge0(txd3), dev(ad12)
+mpp11         11       gpio, ge0(txctl), dev(ad13)
+mpp12         12       gpio, ge0(rxd0), pcie0(rstout), spi0(cs1), dev(ad14), pcie3(clkreq)
+mpp13         13       gpio, ge0(rxd1), pcie0(clkreq), pcie1(clkreq) [1], spi0(cs2), dev(ad15), pcie2(clkreq)
+mpp14         14       gpio, ge0(rxd2), ptp(clk), dram(vttctrl), spi0(cs3), dev(we1), pcie3(clkreq)
+mpp15         15       gpio, ge0(rxd3), ge(mdc slave), pcie0(rstout), spi0(mosi)
+mpp16         16       gpio, ge0(rxctl), ge(mdio slave), dram(deccerr), spi0(miso), pcie0(clkreq), pcie1(clkreq) [1]
+mpp17         17       gpio, ge0(rxclk), ptp(clk), ua1(rxd), spi0(sck), sata1(prsnt), sata0(prsnt)
+mpp18         18       gpio, ge0(rxerr), ptp(trig), ua1(txd), spi0(cs0)
+mpp19         19       gpio, ge0(col), ptp(evreq), ge0(txerr), sata1(prsnt), ua0(cts)
+mpp20         20       gpio, ge0(txclk), ptp(clk), sata0(prsnt), ua0(rts)
+mpp21         21       gpio, spi0(cs1), ge1(rxd0), sata0(prsnt), sd0(cmd), dev(bootcs), sata1(prsnt)
+mpp22         22       gpio, spi0(mosi), dev(ad0)
+mpp23         23       gpio, spi0(sck), dev(ad2)
+mpp24         24       gpio, spi0(miso), ua0(cts), ua1(rxd), sd0(d4), dev(ready)
+mpp25         25       gpio, spi0(cs0), ua0(rts), ua1(txd), sd0(d5), dev(cs0)
+mpp26         26       gpio, spi0(cs2), i2c1(sck), sd0(d6), dev(cs1)
+mpp27         27       gpio, spi0(cs3), ge1(txclkout), i2c1(sda), sd0(d7), dev(cs2)
+mpp28         28       gpio, ge1(txd0), sd0(clk), dev(ad5)
+mpp29         29       gpio, ge1(txd1), dev(ale0)
+mpp30         30       gpio, ge1(txd2), dev(oe)
+mpp31         31       gpio, ge1(txd3), dev(ale1)
+mpp32         32       gpio, ge1(txctl), dev(we0)
+mpp33         33       gpio, dram(deccerr), dev(ad3)
+mpp34         34       gpio, dev(ad1)
+mpp35         35       gpio, ref(clk_out1), dev(a1)
+mpp36         36       gpio, ptp(trig), dev(a0)
+mpp37         37       gpio, ptp(clk), ge1(rxclk), sd0(d3), dev(ad8)
+mpp38         38       gpio, ptp(evreq), ge1(rxd1), ref(clk_out0), sd0(d0), dev(ad4)
+mpp39         39       gpio, i2c1(sck), ge1(rxd2), ua0(cts), sd0(d1), dev(a2)
+mpp40         40       gpio, i2c1(sda), ge1(rxd3), ua0(rts), sd0(d2), dev(ad6)
+mpp41         41       gpio, ua1(rxd), ge1(rxctl), ua0(cts), spi1(cs3), dev(burst/last), nand(rb0)
+mpp42         42       gpio, ua1(txd), ua0(rts), dev(ad7)
+mpp43         43       gpio, pcie0(clkreq), dram(vttctrl), dram(deccerr), spi1(cs2), dev(clkout), nand(rb1)
+mpp44         44       gpio, sata0(prsnt), sata1(prsnt), sata2(prsnt) [2], sata3(prsnt) [3]
+mpp45         45       gpio, ref(clk_out0), pcie0(rstout), ua1(rxd)
+mpp46         46       gpio, ref(clk_out1), pcie0(rstout), ua1(txd)
+mpp47         47       gpio, sata0(prsnt), sata1(prsnt), sata2(prsnt) [2], sata3(prsnt) [2]
+mpp48         48       gpio, sata0(prsnt), dram(vttctrl), tdm(pclk), audio(mclk), sd0(d4), pcie0(clkreq)
+mpp49         49       gpio, sata2(prsnt) [2], sata3(prsnt) [2], tdm(fsync), audio(lrclk), sd0(d5), pcie1(clkreq)
+mpp50         50       gpio, pcie0(rstout), tdm(drx), audio(extclk), sd0(cmd)
+mpp51         51       gpio, tdm(dtx), audio(sdo), dram(deccerr), ptp(trig)
+mpp52         52       gpio, pcie0(rstout), tdm(int), audio(sdi), sd0(d6), ptp(clk)
+mpp53         53       gpio, sata1(prsnt), sata0(prsnt), tdm(rst), audio(bclk), sd0(d7), ptp(evreq)
+mpp54         54       gpio, sata0(prsnt), sata1(prsnt), pcie0(rstout), ge0(txerr), sd0(d3)
+mpp55         55       gpio, ua1(cts), ge(mdio), pcie1(clkreq) [1], spi1(cs1), sd0(d0), ua1(rxd)
+mpp56         56       gpio, ua1(rts), ge(mdc), dram(deccerr), spi1(mosi), ua1(txd)
+mpp57         57       gpio, spi1(sck), sd0(clk), ua1(txd)
+mpp58         58       gpio, pcie1(clkreq) [1], i2c1(sck), pcie2(clkreq), spi1(miso), sd0(d1), ua1(rxd)
+mpp59         59       gpio, pcie0(rstout), i2c1(sda), spi1(cs0), sd0(d2)
+
+[1]: only available on 88F6820 and 88F6828
+[2]: only available on 88F6828

@@ -1,0 +1,345 @@
+#include "qcom-msm8974.dtsi"
+#include "qcom-pm8841.dtsi"
+#include "qcom-pm8941.dtsi"
+
+/ {
+	model = "Qualcomm APQ8074 Dragonboard";
+	compatible = "qcom,apq8074-dragonboard", "qcom,apq8074";
+
+	aliases {
+		serial0 = &blsp1_uart2;
+		usid0 = &pm8941_0;
+		usid4 = &pm8841_0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	soc {
+		serial@f991e000 {
+			status = "ok";
+		};
+
+		sdhci@f9824900 {
+			bus-width = <8>;
+			non-removable;
+			status = "ok";
+
+			vmmc-supply = <&pm8941_l20>;
+			vqmmc-supply = <&pm8941_s3>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdhc1_pin_a>;
+		};
+
+		sdhci@f98a4900 {
+			cd-gpios = <&msmgpio 62 0x1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
+			bus-width = <4>;
+			status = "ok";
+
+			vmmc-supply = <&pm8941_l21>;
+			vqmmc-supply = <&pm8941_l13>;
+		};
+
+		usb@f9a55000 {
+			status = "ok";
+			phys = <&usb_hs2_phy>;
+			phy-select = <&tcsr 0xb000 1>;
+			extcon = <&smbb>, <&usb_id>;
+			vbus-supply = <&chg_otg>;
+			hnp-disable;
+			srp-disable;
+			adp-disable;
+			ulpi {
+				phy@b {
+					status = "ok";
+					v3p3-supply = <&pm8941_l24>;
+					v1p8-supply = <&pm8941_l6>;
+					extcon = <&smbb>;
+					qcom,init-seq = /bits/ 8 <0x1 0x63>;
+				};
+			};
+		};
+
+
+		pinctrl@fd510000 {
+			i2c11_pins: i2c11 {
+				mux {
+					pins = "gpio83", "gpio84";
+					function = "blsp_i2c11";
+				};
+			};
+
+			spi8_default: spi8_default {
+				mosi {
+					pins = "gpio45";
+					function = "blsp_spi8";
+				};
+				miso {
+					pins = "gpio46";
+					function = "blsp_spi8";
+				};
+				cs {
+					pins = "gpio47";
+					function = "blsp_spi8";
+				};
+				clk {
+					pins = "gpio48";
+					function = "blsp_spi8";
+				};
+			};
+
+			sdhc1_pin_a: sdhc1-pin-active {
+				clk {
+					pins = "sdc1_clk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				cmd-data {
+					pins = "sdc1_cmd", "sdc1_data";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+			};
+
+			sdhc2_cd_pin_a: sdhc2-cd-pin-active {
+				pins = "gpio62";
+				function = "gpio";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			sdhc2_pin_a: sdhc2-pin-active {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <10>;
+					bias-disable;
+				};
+
+				cmd-data {
+					pins = "sdc2_cmd", "sdc2_data";
+					drive-strength = <6>;
+					bias-pull-up;
+				};
+			};
+		};
+
+		i2c@f9967000 {
+			status = "okay";
+			clock-frequency = <200000>;
+			pinctrl-0 = <&i2c11_pins>;
+			pinctrl-names = "default";
+
+			eeprom: eeprom@52 {
+				compatible = "atmel,24c128";
+				reg = <0x52>;
+				pagesize = <32>;
+				read-only;
+			};
+		};
+	};
+
+	smd {
+		rpm {
+			rpm_requests {
+				pm8841-regulators {
+					s1 {
+						regulator-min-microvolt = <675000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					s2 {
+						regulator-min-microvolt = <500000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					s3 {
+						regulator-min-microvolt = <500000>;
+						regulator-max-microvolt = <1050000>;
+					};
+
+					s4 {
+						regulator-min-microvolt = <500000>;
+						regulator-max-microvolt = <1050000>;
+					};
+				};
+
+				pm8941-regulators {
+					vdd_l1_l3-supply = <&pm8941_s1>;
+					vdd_l2_lvs1_2_3-supply = <&pm8941_s3>;
+					vdd_l4_l11-supply = <&pm8941_s1>;
+					vdd_l5_l7-supply = <&pm8941_s2>;
+					vdd_l6_l12_l14_l15-supply = <&pm8941_s2>;
+					vin_5vs-supply = <&pm8941_5v>;
+
+					s1 {
+						regulator-min-microvolt = <1300000>;
+						regulator-max-microvolt = <1300000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					s2 {
+						regulator-min-microvolt = <2150000>;
+						regulator-max-microvolt = <2150000>;
+						regulator-boot-on;
+					};
+
+					s3 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					l1 {
+						regulator-min-microvolt = <1225000>;
+						regulator-max-microvolt = <1225000>;
+
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					l2 {
+						regulator-min-microvolt = <1200000>;
+						regulator-max-microvolt = <1200000>;
+					};
+
+					l3 {
+						regulator-min-microvolt = <1225000>;
+						regulator-max-microvolt = <1225000>;
+					};
+
+					l4 {
+						regulator-min-microvolt = <1225000>;
+						regulator-max-microvolt = <1225000>;
+					};
+
+					l5 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					l6 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+
+						regulator-boot-on;
+					};
+
+					l7 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+
+						regulator-boot-on;
+					};
+
+					l8 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					l9 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2950000>;
+					};
+
+					l10 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
+					};
+
+					l11 {
+						regulator-min-microvolt = <1300000>;
+						regulator-max-microvolt = <1300000>;
+					};
+
+					l12 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+
+						regulator-always-on;
+						regulator-boot-on;
+					};
+
+					l13 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <2950000>;
+
+						regulator-boot-on;
+					};
+
+					l14 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					l15 {
+						regulator-min-microvolt = <2050000>;
+						regulator-max-microvolt = <2050000>;
+					};
+
+					l16 {
+						regulator-min-microvolt = <2700000>;
+						regulator-max-microvolt = <2700000>;
+					};
+
+					l17 {
+						regulator-min-microvolt = <2700000>;
+						regulator-max-microvolt = <2700000>;
+					};
+
+					l18 {
+						regulator-min-microvolt = <2850000>;
+						regulator-max-microvolt = <2850000>;
+					};
+
+					l19 {
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+						regulator-always-on;
+					};
+
+					l20 {
+						regulator-min-microvolt = <2950000>;
+						regulator-max-microvolt = <2950000>;
+
+						regulator-allow-set-load;
+						regulator-boot-on;
+						regulator-system-load = <200000>;
+					};
+
+					l21 {
+						regulator-min-microvolt = <2950000>;
+						regulator-max-microvolt = <2950000>;
+
+						regulator-boot-on;
+					};
+
+					l22 {
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
+					};
+
+					l23 {
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
+					};
+
+					l24 {
+						regulator-min-microvolt = <3075000>;
+						regulator-max-microvolt = <3075000>;
+
+						regulator-boot-on;
+					};
+				};
+			};
+		};
+	};
+};

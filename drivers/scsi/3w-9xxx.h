@@ -1,8 +1,8 @@
 /*
    3w-9xxx.h -- 3ware 9000 Storage Controller device driver for Linux.
 
-   Written By: Adam Radford <linuxraid@lsi.com>
-   Modifications By: Tom Couch <linuxraid@lsi.com>
+   Written By: Adam Radford <aradford@gmail.com>
+   Modifications By: Tom Couch
 
    Copyright (C) 2004-2009 Applied Micro Circuits Corporation.
    Copyright (C) 2010 LSI Corporation.
@@ -41,10 +41,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Bugs/Comments/Suggestions should be mailed to:
-   linuxraid@lsi.com
-
-   For more information, goto:
-   http://www.lsi.com
+   aradford@gmail.com
 */
 
 #ifndef _3W_9XXX_H
@@ -323,11 +320,6 @@ static twa_message_type twa_error_table[] = {
 #define TW_CURRENT_DRIVER_SRL 35
 #define TW_CURRENT_DRIVER_BUILD 0
 #define TW_CURRENT_DRIVER_BRANCH 0
-
-/* Phase defines */
-#define TW_PHASE_INITIAL 0
-#define TW_PHASE_SINGLE  1
-#define TW_PHASE_SGLIST  2
 
 /* Misc defines */
 #define TW_9550SX_DRAIN_COMPLETED	      0xFFFF

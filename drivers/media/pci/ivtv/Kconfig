@@ -28,6 +28,19 @@ config VIDEO_IVTV
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtv.
 
+config VIDEO_IVTV_DEPRECATED_IOCTLS
+	bool "enable the DVB ioctls abuse on ivtv driver"
+	depends on VIDEO_IVTV
+	default n
+	---help---
+	  Enable the usage of the a DVB set of ioctls that were abused by
+	  IVTV driver for a while.
+
+	  Those ioctls were not needed for a long time, as IVTV implements
+	  the proper V4L2 ioctls since kernel 3.3.
+
+	  If unsure, say N.
+
 config VIDEO_IVTV_ALSA
 	tristate "Conexant cx23415/cx23416 ALSA interface for PCM audio capture"
 	depends on VIDEO_IVTV && SND
@@ -56,6 +69,9 @@ config VIDEO_FB_IVTV
 
 	  This is used in the Hauppauge PVR-350 card. There is a driver
 	  homepage at <http://www.ivtvdriver.org>.
+
+	  In order to use this module, you will need to boot with PAT disabled
+	  on x86 systems, using the nopat kernel parameter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtvfb.

@@ -13,12 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -166,9 +162,9 @@ static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-#define dprintk(level, fmt, arg...) do {			\
-if (debug >= level)						\
-	pr_debug(fmt, ##arg);					\
+#define dprintk(level, fmt, arg...) do {				\
+if (debug >= level)							\
+	printk(KERN_DEBUG KBUILD_MODNAME ": %s " fmt, __func__, ##arg);	\
 } while (0)
 
 
@@ -544,7 +540,7 @@ error:
 static int init_state(struct drxk_state *state)
 {
 	/*
-	 * FIXME: most (all?) of the values bellow should be moved into
+	 * FIXME: most (all?) of the values below should be moved into
 	 * struct drxk_config, as they are probably board-specific
 	 */
 	u32 ul_vsb_if_agc_mode = DRXK_AGC_CTRL_AUTO;
@@ -1028,7 +1024,7 @@ static int hi_command(struct drxk_state *state, u16 cmd, u16 *p_result)
 		    ((state->m_hi_cfg_ctrl) &
 		     SIO_HI_RA_RAM_PAR_5_CFG_SLEEP__M) ==
 		    SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ);
-	if (powerdown_cmd == false) {
+	if (!powerdown_cmd) {
 		/* Wait until command rdy */
 		u32 retry_count = 0;
 		u16 wait_cmd;
@@ -1083,7 +1079,7 @@ static int hi_cfg_command(struct drxk_state *state)
 			 SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY);
 	if (status < 0)
 		goto error;
-	status = hi_command(state, SIO_HI_RA_RAM_CMD_CONFIG, 0);
+	status = hi_command(state, SIO_HI_RA_RAM_CMD_CONFIG, NULL);
 	if (status < 0)
 		goto error;
 
@@ -1129,7 +1125,7 @@ static int mpegts_configure_pins(struct drxk_state *state, bool mpeg_enable)
 	if (status < 0)
 		goto error;
 
-	if (mpeg_enable == false) {
+	if (!mpeg_enable) {
 		/*  Set MPEG TS pads to inputmode */
 		status = write16(state, SIO_PDR_MSTRT_CFG__A, 0x0000);
 		if (status < 0)
@@ -1190,8 +1186,8 @@ static int mpegts_configure_pins(struct drxk_state *state, bool mpeg_enable)
 		if (status < 0)
 			goto error;
 
-		if (state->m_enable_parallel == true) {
-			/* paralel -> enable MD1 to MD7 */
+		if (state->m_enable_parallel) {
+			/* parallel -> enable MD1 to MD7 */
 			status = write16(state, SIO_PDR_MD1_CFG__A,
 					 sio_pdr_mdx_cfg);
 			if (status < 0)
@@ -1392,7 +1388,7 @@ static int dvbt_enable_ofdm_token_ring(struct drxk_state *state, bool enable)
 
 	dprintk(1, "\n");
 
-	if (enable == false) {
+	if (!enable) {
 		desired_ctrl = SIO_OFDM_SH_OFDM_RING_ENABLE_OFF;
 		desired_status = SIO_OFDM_SH_OFDM_RING_STATUS_DOWN;
 	}
@@ -1428,7 +1424,7 @@ static int mpegts_stop(struct drxk_state *state)
 
 	dprintk(1, "\n");
 
-	/* Gracefull shutdown (byte boundaries) */
+	/* Graceful shutdown (byte boundaries) */
 	status = read16(state, FEC_OC_SNC_MODE__A, &fec_oc_snc_mode);
 	if (status < 0)
 		goto error;
@@ -1630,7 +1626,7 @@ static int ctrl_power_mode(struct drxk_state *state, enum drx_power_mode *mode)
 	}
 
 	if (*mode == DRX_POWER_UP) {
-		/* Restore analog & pin configuartion */
+		/* Restore analog & pin configuration */
 	} else {
 		/* Power down to requested mode */
 		/* Backup some register settings */
@@ -1908,7 +1904,9 @@ static int get_lock_status(struct drxk_state *state, u32 *p_lock_status)
 		status = get_dvbt_lock_status(state, p_lock_status);
 		break;
 	default:
-		break;
+		pr_debug("Unsupported operation mode %d in %s\n",
+			state->m_operation_mode, __func__);
+		return 0;
 	}
 error:
 	if (status < 0)
@@ -2012,7 +2010,7 @@ static int mpegts_dto_setup(struct drxk_state *state,
 		goto error;
 	fec_oc_reg_mode &= (~FEC_OC_MODE_PARITY__M);
 	fec_oc_reg_ipr_mode &= (~FEC_OC_IPR_MODE_MVAL_DIS_PAR__M);
-	if (state->m_insert_rs_byte == true) {
+	if (state->m_insert_rs_byte) {
 		/* enable parity symbol forward */
 		fec_oc_reg_mode |= FEC_OC_MODE_PARITY__M;
 		/* MVAL disable during parity bytes */
@@ -2021,9 +2019,9 @@ static int mpegts_dto_setup(struct drxk_state *state,
 		fec_oc_dto_burst_len = 204;
 	}
 
-	/* Check serial or parrallel output */
+	/* Check serial or parallel output */
 	fec_oc_reg_ipr_mode &= (~(FEC_OC_IPR_MODE_SERIAL__M));
-	if (state->m_enable_parallel == false) {
+	if (!state->m_enable_parallel) {
 		/* MPEG data output is serial -> set ipr_mode[0] */
 		fec_oc_reg_ipr_mode |= FEC_OC_IPR_MODE_SERIAL__M;
 	}
@@ -2136,19 +2134,19 @@ static int mpegts_configure_polarity(struct drxk_state *state)
 
 	/* Control selective inversion of output bits */
 	fec_oc_reg_ipr_invert &= (~(invert_data_mask));
-	if (state->m_invert_data == true)
+	if (state->m_invert_data)
 		fec_oc_reg_ipr_invert |= invert_data_mask;
 	fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MERR__M));
-	if (state->m_invert_err == true)
+	if (state->m_invert_err)
 		fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MERR__M;
 	fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MSTRT__M));
-	if (state->m_invert_str == true)
+	if (state->m_invert_str)
 		fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MSTRT__M;
 	fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MVAL__M));
-	if (state->m_invert_val == true)
+	if (state->m_invert_val)
 		fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MVAL__M;
 	fec_oc_reg_ipr_invert &= (~(FEC_OC_IPR_INVERT_MCLK__M));
-	if (state->m_invert_clk == true)
+	if (state->m_invert_clk)
 		fec_oc_reg_ipr_invert |= FEC_OC_IPR_INVERT_MCLK__M;
 
 	return write16(state, FEC_OC_IPR_INVERT__A, fec_oc_reg_ipr_invert);
@@ -2220,12 +2218,13 @@ static int set_agc_rf(struct drxk_state *state,
 		}
 
 		/* Set TOP, only if IF-AGC is in AUTO mode */
-		if (p_if_agc_settings->ctrl_mode == DRXK_AGC_CTRL_AUTO)
+		if (p_if_agc_settings->ctrl_mode == DRXK_AGC_CTRL_AUTO) {
 			status = write16(state,
 					 SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
 					 p_agc_cfg->top);
 			if (status < 0)
 				goto error;
+		}
 
 		/* Cut-Off current */
 		status = write16(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A,
@@ -2781,7 +2780,7 @@ static int ConfigureI2CBridge(struct drxk_state *state, bool b_enable_bridge)
 			goto error;
 	}
 
-	status = hi_command(state, SIO_HI_RA_RAM_CMD_BRDCTRL, 0);
+	status = hi_command(state, SIO_HI_RA_RAM_CMD_BRDCTRL, NULL);
 
 error:
 	if (status < 0)
@@ -2908,7 +2907,7 @@ static int adc_synchronization(struct drxk_state *state)
 		goto error;
 
 	if (count == 1) {
-		/* Try sampling on a diffrent edge */
+		/* Try sampling on a different edge */
 		u16 clk_neg = 0;
 
 		status = read16(state, IQM_AF_CLKNEG__A, &clk_neg);
@@ -3261,6 +3260,7 @@ static int dvbt_sc_command(struct drxk_state *state,
 	}
 
 	/* Write needed parameters and the command */
+	status = 0;
 	switch (cmd) {
 		/* All commands using 5 parameters */
 		/* All commands using 4 parameters */
@@ -3269,16 +3269,18 @@ static int dvbt_sc_command(struct drxk_state *state,
 	case OFDM_SC_RA_RAM_CMD_PROC_START:
 	case OFDM_SC_RA_RAM_CMD_SET_PREF_PARAM:
 	case OFDM_SC_RA_RAM_CMD_PROGRAM_PARAM:
-		status = write16(state, OFDM_SC_RA_RAM_PARAM1__A, param1);
+		status |= write16(state, OFDM_SC_RA_RAM_PARAM1__A, param1);
 		/* All commands using 1 parameters */
+		/* fall through */
 	case OFDM_SC_RA_RAM_CMD_SET_ECHO_TIMING:
 	case OFDM_SC_RA_RAM_CMD_USER_IO:
-		status = write16(state, OFDM_SC_RA_RAM_PARAM0__A, param0);
+		status |= write16(state, OFDM_SC_RA_RAM_PARAM0__A, param0);
 		/* All commands using 0 parameters */
+		/* fall through */
 	case OFDM_SC_RA_RAM_CMD_GET_OP_PARAM:
 	case OFDM_SC_RA_RAM_CMD_NULL:
 		/* Write command */
-		status = write16(state, OFDM_SC_RA_RAM_CMD__A, cmd);
+		status |= write16(state, OFDM_SC_RA_RAM_CMD__A, cmd);
 		break;
 	default:
 		/* Unknown command */
@@ -3306,7 +3308,7 @@ static int dvbt_sc_command(struct drxk_state *state,
 	if (status < 0)
 		goto error;
 
-	/* Retreive results parameters from SC */
+	/* Retrieve results parameters from SC */
 	switch (cmd) {
 		/* All commands yielding 5 results */
 		/* All commands yielding 4 results */
@@ -3352,7 +3354,7 @@ static int dvbt_ctrl_set_inc_enable(struct drxk_state *state, bool *enabled)
 	int status;
 
 	dprintk(1, "\n");
-	if (*enabled == true)
+	if (*enabled)
 		status = write16(state, IQM_CF_BYPASSDET__A, 0);
 	else
 		status = write16(state, IQM_CF_BYPASSDET__A, 1);
@@ -3368,7 +3370,7 @@ static int dvbt_ctrl_set_fr_enable(struct drxk_state *state, bool *enabled)
 	int status;
 
 	dprintk(1, "\n");
-	if (*enabled == true) {
+	if (*enabled) {
 		/* write mask to 1 */
 		status = write16(state, OFDM_SC_RA_RAM_FR_THRES_8K__A,
 				   DEFAULT_FR_THRES_8K);
@@ -3782,7 +3784,8 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	case TRANSMISSION_MODE_AUTO:
 	default:
 		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_MODE__M;
-		/* fall through , try first guess DRX_FFTMODE_8K */
+		/* try first guess DRX_FFTMODE_8K */
+		/* fall through */
 	case TRANSMISSION_MODE_8K:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_MODE_8K;
 		break;
@@ -3796,7 +3799,8 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	default:
 	case GUARD_INTERVAL_AUTO:
 		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_GUARD__M;
-		/* fall through , try first guess DRX_GUARD_1DIV4 */
+		/* try first guess DRX_GUARD_1DIV4 */
+		/* fall through */
 	case GUARD_INTERVAL_1_4:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_GUARD_4;
 		break;
@@ -3817,9 +3821,9 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	case HIERARCHY_NONE:
 	default:
 		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_HIER__M;
-		/* fall through , try first guess SC_RA_RAM_OP_PARAM_HIER_NO */
+		/* try first guess SC_RA_RAM_OP_PARAM_HIER_NO */
 		/* transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_HIER_NO; */
-		/* break; */
+		/* fall through */
 	case HIERARCHY_1:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_HIER_A1;
 		break;
@@ -3837,7 +3841,8 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	case QAM_AUTO:
 	default:
 		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_CONST__M;
-		/* fall through , try first guess DRX_CONSTELLATION_QAM64 */
+		/* try first guess DRX_CONSTELLATION_QAM64 */
+		/* fall through */
 	case QAM_64:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_CONST_QAM64;
 		break;
@@ -3849,7 +3854,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 		break;
 	}
 #if 0
-	/* No hierachical channels support in BDA */
+	/* No hierarchical channels support in BDA */
 	/* Priority (only for hierarchical channels) */
 	switch (channel->priority) {
 	case DRX_PRIORITY_LOW:
@@ -3880,7 +3885,8 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	case FEC_AUTO:
 	default:
 		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_RATE__M;
-		/* fall through , try first guess DRX_CODERATE_2DIV3 */
+		/* try first guess DRX_CODERATE_2DIV3 */
+		/* fall through */
 	case FEC_2_3:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_RATE_2_3;
 		break;
@@ -3914,7 +3920,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	switch (state->props.bandwidth_hz) {
 	case 0:
 		state->props.bandwidth_hz = 8000000;
-		/* fall though */
+		/* fall through */
 	case 8000000:
 		bandwidth = DRXK_BANDWIDTH_8MHZ_IN_HZ;
 		status = write16(state, OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A,
@@ -4081,7 +4087,7 @@ error:
 /*============================================================================*/
 
 /**
-* \brief Retreive lock status .
+* \brief Retrieve lock status .
 * \param demod    Pointer to demodulator instance.
 * \param lockStat Pointer to lock status structure.
 * \return DRXStatus_t.
@@ -5285,7 +5291,6 @@ static int qam_set_symbolrate(struct drxk_state *state)
 	/* Select & calculate correct IQM rate */
 	adc_frequency = (state->m_sys_clock_freq * 1000) / 3;
 	ratesel = 0;
-	/* printk(KERN_DEBUG "drxk: SR %d\n", state->props.symbol_rate); */
 	if (state->props.symbol_rate <= 1188750)
 		ratesel = 3;
 	else if (state->props.symbol_rate <= 2377500)
@@ -6174,7 +6179,7 @@ static int init_drxk(struct drxk_state *state)
 			goto error;
 
 		/* Stamp driver version number in SCU data RAM in BCD code
-			Done to enable field application engineers to retreive drxdriver version
+			Done to enable field application engineers to retrieve drxdriver version
 			via I2C from SCU RAM.
 			Not using SCU command interface for SCU register access since no
 			microcode may be present.
@@ -6309,8 +6314,7 @@ static void drxk_release(struct dvb_frontend *fe)
 	struct drxk_state *state = fe->demodulator_priv;
 
 	dprintk(1, "\n");
-	if (state->fw)
-		release_firmware(state->fw);
+	release_firmware(state->fw);
 
 	kfree(state);
 }
@@ -6399,7 +6403,7 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	start(state, 0, IF);
 
-	/* After set_frontend, stats aren't avaliable */
+	/* After set_frontend, stats aren't available */
 	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
 	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
@@ -6447,7 +6451,7 @@ static int get_strength(struct drxk_state *state, u64 *strength)
 			return status;
 
 		/* SCU c.o.c. */
-		read16(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A, &scu_coc);
+		status = read16(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A, &scu_coc);
 		if (status < 0)
 			return status;
 
@@ -6639,7 +6643,7 @@ error:
 }
 
 
-static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int drxk_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 	int rc;
@@ -6736,7 +6740,7 @@ static int drxk_get_tune_settings(struct dvb_frontend *fe,
 	}
 }
 
-static struct dvb_frontend_ops drxk_ops = {
+static const struct dvb_frontend_ops drxk_ops = {
 	/* .delsys will be filled dynamically */
 	.info = {
 		.name = "DRXK",
@@ -6794,11 +6798,11 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->enable_merr_cfg = config->enable_merr_cfg;
 
 	if (config->dynamic_clk) {
-		state->m_dvbt_static_clk = 0;
-		state->m_dvbc_static_clk = 0;
+		state->m_dvbt_static_clk = false;
+		state->m_dvbc_static_clk = false;
 	} else {
-		state->m_dvbt_static_clk = 1;
-		state->m_dvbc_static_clk = 1;
+		state->m_dvbt_static_clk = true;
+		state->m_dvbc_static_clk = true;
 	}
 
 
@@ -6830,25 +6834,13 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 
 	/* Load firmware and initialize DRX-K */
 	if (state->microcode_name) {
-		if (config->load_firmware_sync) {
-			const struct firmware *fw = NULL;
+		const struct firmware *fw = NULL;
 
-			status = request_firmware(&fw, state->microcode_name,
-						  state->i2c->dev.parent);
-			if (status < 0)
-				fw = NULL;
-			load_firmware_cb(fw, state);
-		} else {
-			status = request_firmware_nowait(THIS_MODULE, 1,
-					      state->microcode_name,
-					      state->i2c->dev.parent,
-					      GFP_KERNEL,
-					      state, load_firmware_cb);
-			if (status < 0) {
-				pr_err("failed to request a firmware\n");
-				return NULL;
-			}
-		}
+		status = request_firmware(&fw, state->microcode_name,
+					  state->i2c->dev.parent);
+		if (status < 0)
+			fw = NULL;
+		load_firmware_cb(fw, state);
 	} else if (init_drxk(state) < 0)
 		goto error;
 

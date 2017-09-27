@@ -48,7 +48,7 @@
 
 /* IOP message status codes */
 
-#define IOP_MSGSTATUS_UNUSED	0	/* Unusued message structure       */
+#define IOP_MSGSTATUS_UNUSED	0	/* Unused message structure        */
 #define IOP_MSGSTATUS_WAITING	1	/* waiting for channel             */
 #define IOP_MSGSTATUS_SENT	2	/* message sent, awaiting reply    */
 #define IOP_MSGSTATUS_COMPLETE	3	/* message complete and reply rcvd */

@@ -6,7 +6,6 @@
  */
 
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -81,9 +80,17 @@ static inline int ssu100_setdevice(struct usb_device *dev, u8 *data)
 
 static inline int ssu100_getdevice(struct usb_device *dev, u8 *data)
 {
-	return usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-			       QT_SET_GET_DEVICE, 0xc0, 0, 0,
-			       data, 3, 300);
+	int ret;
+
+	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+			      QT_SET_GET_DEVICE, 0xc0, 0, 0,
+			      data, 3, 300);
+	if (ret < 3) {
+		if (ret >= 0)
+			ret = -EIO;
+	}
+
+	return ret;
 }
 
 static inline int ssu100_getregister(struct usb_device *dev,
@@ -91,10 +98,17 @@ static inline int ssu100_getregister(struct usb_device *dev,
 				     unsigned short reg,
 				     u8 *data)
 {
-	return usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-			       QT_SET_GET_REGISTER, 0xc0, reg,
-			       uart, data, sizeof(*data), 300);
+	int ret;
 
+	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+			      QT_SET_GET_REGISTER, 0xc0, reg,
+			      uart, data, sizeof(*data), 300);
+	if (ret < sizeof(*data)) {
+		if (ret >= 0)
+			ret = -EIO;
+	}
+
+	return ret;
 }
 
 
@@ -290,8 +304,10 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 				 QT_OPEN_CLOSE_CHANNEL,
 				 QT_TRANSFER_IN, 0x01,
 				 0, data, 2, 300);
-	if (result < 0) {
+	if (result < 2) {
 		dev_dbg(&port->dev, "%s - open failed %i\n", __func__, result);
+		if (result >= 0)
+			result = -EIO;
 		kfree(data);
 		return result;
 	}
@@ -319,14 +335,10 @@ static int get_serial_info(struct usb_serial_port *port,
 {
 	struct serial_struct tmp;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.line		= port->minor;
 	tmp.port		= 0;
 	tmp.irq			= 0;
-	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 	tmp.xmit_fifo_size	= port->bulk_out_size;
 	tmp.baud_base		= 9600;
 	tmp.close_delay		= 5*HZ;
@@ -342,8 +354,6 @@ static int ssu100_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s cmd 0x%04x\n", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		return get_serial_info(port,
@@ -351,8 +361,6 @@ static int ssu100_ioctl(struct tty_struct *tty,
 	default:
 		break;
 	}
-
-	dev_dbg(&port->dev, "%s arg not supported\n", __func__);
 
 	return -ENOIOCTLCMD;
 }
@@ -495,10 +503,9 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 			if (*tty_flag == TTY_NORMAL)
 				*tty_flag = TTY_FRAME;
 		}
-		if (lsr & UART_LSR_OE){
+		if (lsr & UART_LSR_OE) {
 			port->icount.overrun++;
-			if (*tty_flag == TTY_NORMAL)
-				*tty_flag = TTY_OVERRUN;
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 		}
 	}
 
@@ -516,12 +523,8 @@ static void ssu100_process_read_urb(struct urb *urb)
 	if ((len >= 4) &&
 	    (packet[0] == 0x1b) && (packet[1] == 0x1b) &&
 	    ((packet[2] == 0x00) || (packet[2] == 0x01))) {
-		if (packet[2] == 0x00) {
+		if (packet[2] == 0x00)
 			ssu100_update_lsr(port, packet[3], &flag);
-			if (flag == TTY_OVERRUN)
-				tty_insert_flip_char(&port->port, 0,
-						TTY_OVERRUN);
-		}
 		if (packet[2] == 0x01)
 			ssu100_update_msr(port, packet[3]);
 

@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -906,7 +902,8 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 	gspca_dev->cam.bulk_nurbs = 1;	/* there must be one URB only */
 	sd->do_ctrl = 0;
-	gspca_dev->cam.bulk_size = gspca_dev->width * gspca_dev->height + 8;
+	gspca_dev->cam.bulk_size = gspca_dev->pixfmt.width *
+			gspca_dev->pixfmt.height + 8;
 	return 0;
 }
 

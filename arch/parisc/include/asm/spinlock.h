@@ -13,8 +13,6 @@ static inline int arch_spin_is_locked(arch_spinlock_t *x)
 }
 
 #define arch_spin_lock(lock) arch_spin_lock_flags(lock, 0)
-#define arch_spin_unlock_wait(x) \
-		do { cpu_relax(); } while (arch_spin_is_locked(x))
 
 static inline void arch_spin_lock_flags(arch_spinlock_t *x,
 					 unsigned long flags)
@@ -190,9 +188,5 @@ static __inline__ int arch_write_can_lock(arch_rwlock_t *rw)
 
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
-
-#define arch_spin_relax(lock)	cpu_relax()
-#define arch_read_relax(lock)	cpu_relax()
-#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SPINLOCK_H */

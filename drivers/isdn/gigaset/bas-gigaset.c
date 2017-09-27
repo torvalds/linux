@@ -2317,6 +2317,9 @@ static int gigaset_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
+	if (hostif->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	dev_info(&udev->dev,
 		 "%s: Device matched (Vendor: 0x%x, Product: 0x%x)\n",
 		 __func__, le16_to_cpu(udev->descriptor.idVendor),
@@ -2365,7 +2368,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	endpoint = &hostif->endpoint[0].desc;
 	usb_fill_int_urb(ucs->urb_int_in, udev,
 			 usb_rcvintpipe(udev,
-					(endpoint->bEndpointAddress) & 0x0f),
+					usb_endpoint_num(endpoint)),
 			 ucs->int_in_buf, IP_MSGSIZE, read_int_callback, cs,
 			 endpoint->bInterval);
 	rc = usb_submit_urb(ucs->urb_int_in, GFP_KERNEL);
@@ -2400,6 +2403,7 @@ allocerr:
 error:
 	freeurbs(cs);
 	usb_set_intfdata(interface, NULL);
+	usb_put_dev(udev);
 	gigaset_freecs(cs);
 	return rc;
 }
@@ -2564,22 +2568,22 @@ static int gigaset_post_reset(struct usb_interface *intf)
 
 
 static const struct gigaset_ops gigops = {
-	gigaset_write_cmd,
-	gigaset_write_room,
-	gigaset_chars_in_buffer,
-	gigaset_brkchars,
-	gigaset_init_bchannel,
-	gigaset_close_bchannel,
-	gigaset_initbcshw,
-	gigaset_freebcshw,
-	gigaset_reinitbcshw,
-	gigaset_initcshw,
-	gigaset_freecshw,
-	gigaset_set_modem_ctrl,
-	gigaset_baud_rate,
-	gigaset_set_line_ctrl,
-	gigaset_isoc_send_skb,
-	gigaset_isoc_input,
+	.write_cmd = gigaset_write_cmd,
+	.write_room = gigaset_write_room,
+	.chars_in_buffer = gigaset_chars_in_buffer,
+	.brkchars = gigaset_brkchars,
+	.init_bchannel = gigaset_init_bchannel,
+	.close_bchannel = gigaset_close_bchannel,
+	.initbcshw = gigaset_initbcshw,
+	.freebcshw = gigaset_freebcshw,
+	.reinitbcshw = gigaset_reinitbcshw,
+	.initcshw = gigaset_initcshw,
+	.freecshw = gigaset_freecshw,
+	.set_modem_ctrl = gigaset_set_modem_ctrl,
+	.baud_rate = gigaset_baud_rate,
+	.set_line_ctrl = gigaset_set_line_ctrl,
+	.send_skb = gigaset_isoc_send_skb,
+	.handle_input = gigaset_isoc_input,
 };
 
 /* bas_gigaset_init

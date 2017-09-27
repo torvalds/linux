@@ -165,15 +165,15 @@ int ide_devset_execute(ide_drive_t *drive, const struct ide_devset *setting,
 	if (!(setting->flags & DS_SYNC))
 		return setting->set(drive, arg);
 
-	rq = blk_get_request(q, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd_len = 5;
-	rq->cmd[0] = REQ_DEVSET_EXEC;
-	*(int *)&rq->cmd[1] = arg;
+	rq = blk_get_request(q, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	ide_req(rq)->type = ATA_PRIV_MISC;
+	scsi_req(rq)->cmd_len = 5;
+	scsi_req(rq)->cmd[0] = REQ_DEVSET_EXEC;
+	*(int *)&scsi_req(rq)->cmd[1] = arg;
 	rq->special = setting->set;
 
-	if (blk_execute_rq(q, NULL, rq, 0))
-		ret = rq->errors;
+	blk_execute_rq(q, NULL, rq, 0);
+	ret = scsi_req(rq)->result;
 	blk_put_request(rq);
 
 	return ret;
@@ -183,9 +183,9 @@ ide_startstop_t ide_do_devset(ide_drive_t *drive, struct request *rq)
 {
 	int err, (*setfunc)(ide_drive_t *, int) = rq->special;
 
-	err = setfunc(drive, *(int *)&rq->cmd[1]);
+	err = setfunc(drive, *(int *)&scsi_req(rq)->cmd[1]);
 	if (err)
-		rq->errors = err;
-	ide_complete_rq(drive, err, blk_rq_bytes(rq));
+		scsi_req(rq)->result = err;
+	ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 	return ide_stopped;
 }

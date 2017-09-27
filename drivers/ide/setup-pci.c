@@ -209,7 +209,7 @@ static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 	 * a DMA mask field to the struct ide_port_info if we need it
 	 * (or let lower level driver set the DMA mask)
 	 */
-	ret = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask(&dev->dev, DMA_BIT_MASK(32));
 	if (ret < 0) {
 		printk(KERN_ERR "%s %s: can't set DMA mask\n",
 			d->name, pci_name(dev));

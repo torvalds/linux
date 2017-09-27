@@ -25,19 +25,20 @@
 #include <drm/drmP.h>
 #include <drm/drm_dp_helper.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
-#include <core/class.h>
+#include <nvif/class.h>
+#include <nvif/cl5070.h>
 
-#include <subdev/gpio.h>
-#include <subdev/i2c.h>
+MODULE_PARM_DESC(mst, "Enable DisplayPort multi-stream (default: enabled)");
+static int nouveau_mst = 1;
+module_param_named(mst, nouveau_mst, int, 0400);
 
 static void
-nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_port *auxch,
-		     u8 *dpcd)
+nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	u8 buf[3];
@@ -45,33 +46,32 @@ nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_port *auxch,
 	if (!(dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
 		return;
 
-	if (!nv_rdaux(auxch, DP_SINK_OUI, buf, 3))
+	if (!nvkm_rdaux(aux, DP_SINK_OUI, buf, 3))
 		NV_DEBUG(drm, "Sink OUI: %02hx%02hx%02hx\n",
 			     buf[0], buf[1], buf[2]);
 
-	if (!nv_rdaux(auxch, DP_BRANCH_OUI, buf, 3))
+	if (!nvkm_rdaux(aux, DP_BRANCH_OUI, buf, 3))
 		NV_DEBUG(drm, "Branch OUI: %02hx%02hx%02hx\n",
 			     buf[0], buf[1], buf[2]);
 
 }
 
-bool
-nouveau_dp_detect(struct drm_encoder *encoder)
+int
+nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = nv_encoder->base.base.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c_port *auxch;
-	u8 *dpcd = nv_encoder->dp.dpcd;
+	struct nvkm_i2c_aux *aux;
+	u8 dpcd[8];
 	int ret;
 
-	auxch = nv_encoder->i2c;
-	if (!auxch)
-		return false;
+	aux = nv_encoder->aux;
+	if (!aux)
+		return -ENODEV;
 
-	ret = nv_rdaux(auxch, DP_DPCD_REV, dpcd, 8);
+	ret = nvkm_rdaux(aux, DP_DPCD_REV, dpcd, sizeof(dpcd));
 	if (ret)
-		return false;
+		return ret;
 
 	nv_encoder->dp.link_bw = 27000 * dpcd[1];
 	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT_MASK;
@@ -90,7 +90,12 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	NV_DEBUG(drm, "maximum: %dx%d\n",
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
-	nouveau_dp_probe_oui(dev, auxch, dpcd);
+	nouveau_dp_probe_oui(dev, aux, dpcd);
 
-	return true;
+	ret = nv50_mstm_detect(nv_encoder->dp.mstm, dpcd, nouveau_mst);
+	if (ret == 1)
+		return NOUVEAU_DP_MST;
+	if (ret == 0)
+		return NOUVEAU_DP_SST;
+	return ret;
 }

@@ -7,7 +7,6 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -16,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/gfp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "ctrlchar.h"
 #include "sclp.h"
@@ -84,8 +83,8 @@ sclp_tty_close(struct tty_struct *tty, struct file *filp)
  * to change as output buffers get emptied, or if the output flow
  * control is acted. This is not an exact number because not every
  * character needs the same space in the sccb. The worst case is
- * a string of newlines. Every newlines creates a new mto which
- * needs 8 bytes.
+ * a string of newlines. Every newline creates a new message which
+ * needs 82 bytes.
  */
 static int
 sclp_tty_write_room (struct tty_struct *tty)
@@ -97,9 +96,9 @@ sclp_tty_write_room (struct tty_struct *tty)
 	spin_lock_irqsave(&sclp_tty_lock, flags);
 	count = 0;
 	if (sclp_ttybuf != NULL)
-		count = sclp_buffer_space(sclp_ttybuf) / sizeof(struct mto);
+		count = sclp_buffer_space(sclp_ttybuf) / sizeof(struct msg_buf);
 	list_for_each(l, &sclp_tty_pages)
-		count += NR_EMPTY_MTO_PER_SCCB;
+		count += NR_EMPTY_MSG_PER_SCCB;
 	spin_unlock_irqrestore(&sclp_tty_lock, flags);
 	return count;
 }
@@ -559,7 +558,7 @@ sclp_tty_init(void)
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_iflag = IGNBRK | IGNPAR;
-	driver->init_termios.c_oflag = ONLCR | XTABS;
+	driver->init_termios.c_oflag = ONLCR;
 	driver->init_termios.c_lflag = ISIG | ECHO;
 	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &sclp_ops);
@@ -573,4 +572,4 @@ sclp_tty_init(void)
 	sclp_tty_driver = driver;
 	return 0;
 }
-module_init(sclp_tty_init);
+device_initcall(sclp_tty_init);

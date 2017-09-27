@@ -1,13 +1,23 @@
 # Makefile for KVM support for MIPS
 #
 
-common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
+common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
 
 EXTRA_CFLAGS += -Ivirt/kvm -Iarch/mips/kvm
 
-kvm-objs := $(common-objs) kvm_mips.o kvm_mips_emul.o kvm_locore.o \
-	    kvm_mips_int.o kvm_mips_stats.o kvm_mips_commpage.o \
-	    kvm_mips_dyntrans.o kvm_trap_emul.o
+common-objs-$(CONFIG_CPU_HAS_MSA) += msa.o
 
+kvm-objs := $(common-objs-y) mips.o emulate.o entry.o \
+	    interrupt.o stats.o commpage.o \
+	    fpu.o
+kvm-objs += hypcall.o
+kvm-objs += mmu.o
+
+ifdef CONFIG_KVM_MIPS_VZ
+kvm-objs		+= vz.o
+else
+kvm-objs		+= dyntrans.o
+kvm-objs		+= trap_emul.o
+endif
 obj-$(CONFIG_KVM)	+= kvm.o
-obj-y			+= kvm_cb.o kvm_tlb.o
+obj-y			+= callback.o tlb.o

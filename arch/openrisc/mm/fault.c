@@ -17,10 +17,10 @@
 
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/extable.h>
+#include <linux/sched/signal.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 
@@ -86,6 +86,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (user_mode(regs)) {
 		/* Exception was in userspace: reenable interrupts */
 		local_irq_enable();
+		flags |= FAULT_FLAG_USER;
 	} else {
 		/* If exception was in a syscall, then IRQ's may have
 		 * been enabled or disabled.  If they were enabled,
@@ -162,7 +163,7 @@ good_area:
 	 * the fault.
 	 */
 
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags);
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 		return;
@@ -170,6 +171,8 @@ good_area:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGSEGV)
+			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();

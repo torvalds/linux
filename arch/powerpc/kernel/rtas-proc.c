@@ -24,7 +24,7 @@
 #include <linux/bitops.h>
 #include <linux/rtc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -113,17 +113,6 @@
 #define SENSOR_PREFIX		"ibm,sensor-"
 #define cel_to_fahr(x)		((x*9/5)+32)
 
-
-/* Globals */
-static struct rtas_sensors sensors;
-static struct device_node *rtas_node = NULL;
-static unsigned long power_on_time = 0; /* Save the time the user set */
-static char progress_led[MAX_LINELENGTH];
-
-static unsigned long rtas_tone_frequency = 1000;
-static unsigned long rtas_tone_volume = 0;
-
-/* ****************STRUCTS******************************************* */
 struct individual_sensor {
 	unsigned int token;
 	unsigned int quant;
@@ -133,6 +122,15 @@ struct rtas_sensors {
         struct individual_sensor sensor[MAX_SENSORS];
 	unsigned int quant;
 };
+
+/* Globals */
+static struct rtas_sensors sensors;
+static struct device_node *rtas_node = NULL;
+static unsigned long power_on_time = 0; /* Save the time the user set */
+static char progress_led[MAX_LINELENGTH];
+
+static unsigned long rtas_tone_frequency = 1000;
+static unsigned long rtas_tone_volume = 0;
 
 /* ****************************************************************** */
 /* Declarations */
@@ -700,7 +698,7 @@ static void check_location(struct seq_file *m, const char *c)
 /* 
  * Format: 
  * ${LETTER}${NUMBER}[[-/]${LETTER}${NUMBER} [ ... ] ]
- * the '.' may be an abbrevation
+ * the '.' may be an abbreviation
  */
 static void check_location_string(struct seq_file *m, const char *c)
 {

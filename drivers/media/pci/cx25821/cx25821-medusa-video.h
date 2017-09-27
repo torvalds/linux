@@ -14,10 +14,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _MEDUSA_VIDEO_H
@@ -39,11 +35,5 @@
 #define BRIGHTNESS_DEFAULT              6200
 #define CONTRAST_DEFAULT                5000
 #define HUE_DEFAULT                     5000
-
-unsigned short _num_decoders;
-unsigned short _num_cameras;
-
-unsigned int _video_standard;
-int _display_field_cnt[MAX_DECODERS];
 
 #endif

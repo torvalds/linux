@@ -63,8 +63,7 @@ static int sp887x_writereg (struct sp887x_state* state, u16 reg, u16 data)
 		if (!(reg == 0xf1a && data == 0x000 &&
 			(ret == -EREMOTEIO || ret == -EFAULT)))
 		{
-			printk("%s: writereg error "
-			       "(reg %03x, data %03x, ret == %i)\n",
+			printk("%s: writereg error (reg %03x, data %03x, ret == %i)\n",
 			       __func__, reg & 0xffff, data & 0xffff, ret);
 			return ret;
 		}
@@ -416,7 +415,7 @@ static int sp887x_setup_frontend_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int sp887x_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int sp887x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
 	u16 snr12 = sp887x_readreg(state, 0xf16);
@@ -562,7 +561,7 @@ static void sp887x_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops sp887x_ops;
+static const struct dvb_frontend_ops sp887x_ops;
 
 struct dvb_frontend* sp887x_attach(const struct sp887x_config* config,
 				   struct i2c_adapter* i2c)
@@ -591,7 +590,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops sp887x_ops = {
+static const struct dvb_frontend_ops sp887x_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Spase SP887x DVB-T",

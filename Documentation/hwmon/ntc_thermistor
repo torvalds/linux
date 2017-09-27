@@ -1,10 +1,17 @@
 Kernel driver ntc_thermistor
 =================
 
-Supported thermistors:
-* Murata NTC Thermistors NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, NCP15WL333
-  Prefixes: 'ncp15wb473', 'ncp18wb473', 'ncp21wb473', 'ncp03wb473', 'ncp15wl333'
+Supported thermistors from Murata:
+* Murata NTC Thermistors NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473,
+  NCP15WL333, NCP03WF104, NCP15XH103
+  Prefixes: 'ncp15wb473', 'ncp18wb473', 'ncp21wb473', 'ncp03wb473',
+  'ncp15wl333', 'ncp03wf104', 'ncp15xh103'
   Datasheet: Publicly available at Murata
+
+Supported thermistors from EPCOS:
+* EPCOS NTC Thermistors B57330V2103
+  Prefixes: b57330v2103
+  Datasheet: Publicly available at EPCOS
 
 Other NTC thermistors can be supported simply by adding compensation
 tables; e.g., NCP15WL333 support is added by the table ncpXXwl333.
@@ -15,9 +22,9 @@ Authors:
 Description
 -----------
 
-The NTC thermistor is a simple thermistor that requires users to provide the
-resistance and lookup the corresponding compensation table to get the
-temperature input.
+The NTC (Negative Temperature Coefficient) thermistor is a simple thermistor
+that requires users to provide the resistance and lookup the corresponding
+compensation table to get the temperature input.
 
 The NTC driver provides lookup tables with a linear approximation function
 and four circuit models with an option not to use any of the four models.

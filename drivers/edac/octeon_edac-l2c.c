@@ -16,7 +16,6 @@
 
 #include <asm/octeon/cvmx.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR "octeon-l2c"
@@ -151,7 +150,7 @@ static int octeon_l2c_probe(struct platform_device *pdev)
 	l2c->ctl_name = "octeon_l2c_err";
 
 
-	if (OCTEON_IS_MODEL(OCTEON_FAM_1_PLUS)) {
+	if (OCTEON_IS_OCTEON1PLUS()) {
 		union cvmx_l2t_err l2t_err;
 		union cvmx_l2d_err l2d_err;
 

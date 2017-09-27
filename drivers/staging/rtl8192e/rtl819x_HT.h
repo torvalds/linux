@@ -6,57 +6,18 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #ifndef _RTL819XU_HTTYPE_H_
 #define _RTL819XU_HTTYPE_H_
 
-
-#define HT_OPMODE_NO_PROTECT		0
-#define HT_OPMODE_OPTIONAL		1
-#define HT_OPMODE_40MHZ_PROTECT	2
-#define HT_OPMODE_MIXED			3
-
 #define MIMO_PS_STATIC				0
-#define MIMO_PS_DYNAMIC			1
-#define MIMO_PS_NOLIMIT			3
-
-
 
 #define sHTCLng	4
-
-
-#define HT_SUPPORTED_MCS_1SS_BITMAP			0x000000ff
-#define HT_SUPPORTED_MCS_2SS_BITMAP			0x0000ff00
-#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			\
-	(HT_MCS_1SS_BITMAP | HT_MCS_1SS_2SS_BITMAP)
-
-enum ht_mcs_rate {
-	HT_MCS0   = 0x00000001,
-	HT_MCS1   = 0x00000002,
-	HT_MCS2   = 0x00000004,
-	HT_MCS3   = 0x00000008,
-	HT_MCS4   = 0x00000010,
-	HT_MCS5   = 0x00000020,
-	HT_MCS6   = 0x00000040,
-	HT_MCS7   = 0x00000080,
-	HT_MCS8   = 0x00000100,
-	HT_MCS9   = 0x00000200,
-	HT_MCS10 = 0x00000400,
-	HT_MCS11 = 0x00000800,
-	HT_MCS12 = 0x00001000,
-	HT_MCS13 = 0x00002000,
-	HT_MCS14 = 0x00004000,
-	HT_MCS15 = 0x00008000,
-};
 
 enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
@@ -68,71 +29,6 @@ enum ht_extchnl_offset {
 	HT_EXTCHNL_OFFSET_UPPER = 1,
 	HT_EXTCHNL_OFFSET_NO_DEF = 2,
 	HT_EXTCHNL_OFFSET_LOWER = 3,
-};
-
-enum chnl_op {
-	CHNLOP_NONE = 0,
-	CHNLOP_SCAN = 1,
-	CHNLOP_SWBW = 2,
-	CHNLOP_SWCHNL = 3,
-};
-
-#define CHHLOP_IN_PROGRESS(_pHTInfo)	\
-		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? true : false
-
-/*
-union ht_capability {
-	u16	ShortData;
-	u8	CharData[2];
-	struct
-	{
-		u16	AdvCoding:1;
-		u16	ChlWidth:1;
-		u16	MimoPwrSave:2;
-		u16	GreenField:1;
-		u16	ShortGI20Mhz:1;
-		u16	ShortGI40Mhz:1;
-		u16	STBC:1;
-		u16	BeamForm:1;
-		u16	DelayBA:1;
-		u16	MaxAMSDUSize:1;
-		u16	DssCCk:1;
-		u16	PSMP:1;
-		u16	Rsvd:3;
-	}Field;
-};
-
-union ht_capability_macpara {
-	u8	ShortData;
-	u8	CharData[1];
-	struct
-	{
-		u8	MaxRxAMPDU:2;
-		u8	MPDUDensity:2;
-		u8	Rsvd:4;
-	}Field;
-};
-*/
-
-enum ht_action {
-	ACT_RECOMMAND_WIDTH		= 0,
-	ACT_MIMO_PWR_SAVE		= 1,
-	ACT_PSMP					= 2,
-	ACT_SET_PCO_PHASE		= 3,
-	ACT_MIMO_CHL_MEASURE	= 4,
-	ACT_RECIPROCITY_CORRECT	= 5,
-	ACT_MIMO_CSI_MATRICS		= 6,
-	ACT_MIMO_NOCOMPR_STEER	= 7,
-	ACT_MIMO_COMPR_STEER		= 8,
-	ACT_ANTENNA_SELECT		= 9,
-};
-
-
-enum ht_bw40_sc {
-	SC_MODE_DUPLICATE = 0,
-	SC_MODE_LOWER = 1,
-	SC_MODE_UPPER = 2,
-	SC_MODE_FULL40MHZ = 3,
 };
 
 struct ht_capab_ele {
@@ -194,12 +90,6 @@ struct ht_info_ele {
 
 	u8	BasicMSC[16];
 } __packed;
-
-struct mimops_ctrl {
-	u8	MimoPsEnable:1;
-	u8	MimoPsMode:1;
-	u8	Reserved:6;
-};
 
 enum ht_spec_ver {
 	HT_SPEC_VER_IEEE = 0,
@@ -270,7 +160,6 @@ struct rt_hi_throughput {
 	u8				PeerBandwidth;
 
 	u8				bSwBwInProgress;
-	enum chnl_op ChnlOp;
 	u8				SwBwStep;
 
 	u8				bRegRT2RTAggregation;
@@ -297,43 +186,6 @@ struct rt_hi_throughput {
 	u8				bAcceptAddbaReq;
 } __packed;
 
-
-
-struct rt_htinfo_sta_entry {
-	u8			bEnableHT;
-
-	u8			bSupportCck;
-
-	u16			AMSDU_MaxSize;
-
-	u8			AMPDU_Factor;
-	u8			MPDU_Density;
-
-	u8			HTHighestOperaRate;
-
-	u8			bBw40MHz;
-
-	u8			bCurTxBW40MHz;
-
-	u8			bCurShortGI20MHz;
-
-	u8			bCurShortGI40MHz;
-
-	u8			MimoPs;
-
-	u8			McsRateSet[16];
-
-	u8                      bCurRxReorderEnable;
-
-	u16                     nAMSDU_MaxSize;
-
-};
-
-
-
-
-
-
 struct bss_ht {
 
 	u8				bdSupportHT;
@@ -352,49 +204,12 @@ struct bss_ht {
 	u8					bdHT1R;
 };
 
-struct mimo_rssi {
-	u32	EnableAntenna;
-	u32	AntennaA;
-	u32	AntennaB;
-	u32	AntennaC;
-	u32	AntennaD;
-	u32	Average;
-};
-
-struct mimo_evm {
-	u32	EVM1;
-	u32    EVM2;
-};
-
-struct false_alarm_stats {
-	u32	Cnt_Parity_Fail;
-	u32	Cnt_Rate_Illegal;
-	u32	Cnt_Crc8_fail;
-	u32	Cnt_Mcs_fail;
-	u32	Cnt_Ofdm_fail;
-	u32	Cnt_Cck_fail;
-	u32	Cnt_all;
-};
-
-
 extern u8 MCS_FILTER_ALL[16];
 extern u8 MCS_FILTER_1SS[16];
-
-#define PICK_RATE(_nLegacyRate, _nMcsRate)	\
-		((_nMcsRate == 0) ? (_nLegacyRate&0x7f) : (_nMcsRate))
-#define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
-
-#define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-			((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ? \
-			(LegacyRate) : (PICK_RATE(LegacyRate, HTRate))
-
-
 
 #define	RATE_ADPT_1SS_MASK		0xFF
 #define	RATE_ADPT_2SS_MASK		0xF0
 #define	RATE_ADPT_MCS32_MASK		0x01
-
-#define		IS_11N_MCS_RATE(rate)		(rate&0x80)
 
 enum ht_aggre_size {
 	HT_AGG_SIZE_8K = 0,
@@ -416,10 +231,6 @@ enum ht_iot_peer {
 	HT_IOT_PEER_SELF_SOFTAP = 9,
 	HT_IOT_PEER_AIRGO = 10,
 	HT_IOT_PEER_MAX = 11,
-};
-
-enum ht_iot_peer_subtype {
-	HT_IOT_PEER_ATHEROS_DIR635 = 0,
 };
 
 enum ht_iot_action {

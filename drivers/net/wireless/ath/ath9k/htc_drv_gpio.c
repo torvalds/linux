@@ -253,6 +253,19 @@ void ath9k_deinit_leds(struct ath9k_htc_priv *priv)
 	ath9k_led_brightness(&priv->led_cdev, LED_OFF);
 	led_classdev_unregister(&priv->led_cdev);
 	cancel_work_sync(&priv->led_work);
+
+	ath9k_hw_gpio_free(priv->ah, priv->ah->led_pin);
+}
+
+
+void ath9k_configure_leds(struct ath9k_htc_priv *priv)
+{
+	/* Configure gpio 1 for output */
+	ath9k_hw_gpio_request_out(priv->ah, priv->ah->led_pin,
+				  "ath9k-led",
+				  AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+	/* LED off, active low */
+	ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin, 1);
 }
 
 void ath9k_init_leds(struct ath9k_htc_priv *priv)
@@ -268,11 +281,11 @@ void ath9k_init_leds(struct ath9k_htc_priv *priv)
 	else
 		priv->ah->led_pin = ATH_LED_PIN_DEF;
 
-	/* Configure gpio 1 for output */
-	ath9k_hw_cfg_output(priv->ah, priv->ah->led_pin,
-			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	/* LED off, active low */
-	ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin, 1);
+	if (!ath9k_htc_led_blink)
+		priv->led_cdev.default_trigger =
+			ieee80211_get_radio_led_name(priv->hw);
+
+	ath9k_configure_leds(priv);
 
 	snprintf(priv->led_name, sizeof(priv->led_name),
 		"ath9k_htc-%s", wiphy_name(priv->hw->wiphy));

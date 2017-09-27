@@ -28,7 +28,7 @@
 #define ULITE_NAME		"ttyUL"
 #define ULITE_MAJOR		204
 #define ULITE_MINOR		187
-#define ULITE_NR_UARTS		4
+#define ULITE_NR_UARTS		CONFIG_SERIAL_UARTLITE_NR_UARTS
 
 /* ---------------------------------------------------------------------
  * Register definitions
@@ -72,7 +72,7 @@ static void uartlite_outbe32(u32 val, void __iomem *addr)
 	iowrite32be(val, addr);
 }
 
-static struct uartlite_reg_ops uartlite_be = {
+static const struct uartlite_reg_ops uartlite_be = {
 	.in = uartlite_inbe32,
 	.out = uartlite_outbe32,
 };
@@ -87,21 +87,21 @@ static void uartlite_outle32(u32 val, void __iomem *addr)
 	iowrite32(val, addr);
 }
 
-static struct uartlite_reg_ops uartlite_le = {
+static const struct uartlite_reg_ops uartlite_le = {
 	.in = uartlite_inle32,
 	.out = uartlite_outle32,
 };
 
 static inline u32 uart_in32(u32 offset, struct uart_port *port)
 {
-	struct uartlite_reg_ops *reg_ops = port->private_data;
+	const struct uartlite_reg_ops *reg_ops = port->private_data;
 
 	return reg_ops->in(port->membase + offset);
 }
 
 static inline void uart_out32(u32 val, u32 offset, struct uart_port *port)
 {
-	struct uartlite_reg_ops *reg_ops = port->private_data;
+	const struct uartlite_reg_ops *reg_ops = port->private_data;
 
 	reg_ops->out(val, port->membase + offset);
 }
@@ -193,12 +193,15 @@ static int ulite_transmit(struct uart_port *port, int stat)
 static irqreturn_t ulite_isr(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	int busy, n = 0;
+	int stat, busy, n = 0;
+	unsigned long flags;
 
 	do {
-		int stat = uart_in32(ULITE_STATUS, port);
+		spin_lock_irqsave(&port->lock, flags);
+		stat = uart_in32(ULITE_STATUS, port);
 		busy  = ulite_receive(port, stat);
 		busy |= ulite_transmit(port, stat);
+		spin_unlock_irqrestore(&port->lock, flags);
 		n++;
 	} while (busy);
 
@@ -250,11 +253,6 @@ static void ulite_stop_rx(struct uart_port *port)
 		| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 }
 
-static void ulite_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 static void ulite_break_ctl(struct uart_port *port, int ctl)
 {
 	/* N/A */
@@ -264,7 +262,8 @@ static int ulite_startup(struct uart_port *port)
 {
 	int ret;
 
-	ret = request_irq(port->irq, ulite_isr, IRQF_SHARED, "uartlite", port);
+	ret = request_irq(port->irq, ulite_isr, IRQF_SHARED | IRQF_TRIGGER_RISING,
+			  "uartlite", port);
 	if (ret)
 		return ret;
 
@@ -346,13 +345,13 @@ static int ulite_request_port(struct uart_port *port)
 		return -EBUSY;
 	}
 
-	port->private_data = &uartlite_be;
+	port->private_data = (void *)&uartlite_be;
 	ret = uart_in32(ULITE_CONTROL, port);
 	uart_out32(ULITE_CONTROL_RST_TX, ULITE_CONTROL, port);
 	ret = uart_in32(ULITE_STATUS, port);
 	/* Endianess detection */
 	if ((ret & ULITE_STATUS_TXEMPTY) != ULITE_STATUS_TXEMPTY)
-		port->private_data = &uartlite_le;
+		port->private_data = (void *)&uartlite_le;
 
 	return 0;
 }
@@ -388,14 +387,13 @@ static void ulite_put_poll_char(struct uart_port *port, unsigned char ch)
 }
 #endif
 
-static struct uart_ops ulite_ops = {
+static const struct uart_ops ulite_ops = {
 	.tx_empty	= ulite_tx_empty,
 	.set_mctrl	= ulite_set_mctrl,
 	.get_mctrl	= ulite_get_mctrl,
 	.stop_tx	= ulite_stop_tx,
 	.start_tx	= ulite_start_tx,
 	.stop_rx	= ulite_stop_rx,
-	.enable_ms	= ulite_enable_ms,
 	.break_ctl	= ulite_break_ctl,
 	.startup	= ulite_startup,
 	.shutdown	= ulite_shutdown,
@@ -418,14 +416,23 @@ static struct uart_ops ulite_ops = {
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 static void ulite_console_wait_tx(struct uart_port *port)
 {
-	int i;
 	u8 val;
+	unsigned long timeout;
 
-	/* Spin waiting for TX fifo to have space available */
-	for (i = 0; i < 100000; i++) {
+	/*
+	 * Spin waiting for TX fifo to have space available.
+	 * When using the Microblaze Debug Module this can take up to 1s
+	 */
+	timeout = jiffies + msecs_to_jiffies(1000);
+	while (1) {
 		val = uart_in32(ULITE_STATUS, port);
 		if ((val & ULITE_STATUS_TXFULL) == 0)
 			break;
+		if (time_after(jiffies, timeout)) {
+			dev_warn(port->dev,
+				 "timeout waiting for TX buffer empty\n");
+			break;
+		}
 		cpu_relax();
 	}
 }
@@ -515,6 +522,47 @@ static int __init ulite_console_init(void)
 }
 
 console_initcall(ulite_console_init);
+
+static void early_uartlite_putc(struct uart_port *port, int c)
+{
+	/*
+	 * Limit how many times we'll spin waiting for TX FIFO status.
+	 * This will prevent lockups if the base address is incorrectly
+	 * set, or any other issue on the UARTLITE.
+	 * This limit is pretty arbitrary, unless we are at about 10 baud
+	 * we'll never timeout on a working UART.
+	 */
+
+	unsigned retries = 1000000;
+	/* read status bit - 0x8 offset */
+	while (--retries && (readl(port->membase + 8) & (1 << 3)))
+		;
+
+	/* Only attempt the iowrite if we didn't timeout */
+	/* write to TX_FIFO - 0x4 offset */
+	if (retries)
+		writel(c & 0xff, port->membase + 4);
+}
+
+static void early_uartlite_write(struct console *console,
+				 const char *s, unsigned n)
+{
+	struct earlycon_device *device = console->data;
+	uart_console_write(&device->port, s, n, early_uartlite_putc);
+}
+
+static int __init early_uartlite_setup(struct earlycon_device *device,
+				       const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = early_uartlite_write;
+	return 0;
+}
+EARLYCON_DECLARE(uartlite, early_uartlite_setup);
+OF_EARLYCON_DECLARE(uartlite_b, "xlnx,opb-uartlite-1.00.b", early_uartlite_setup);
+OF_EARLYCON_DECLARE(uartlite_a, "xlnx,xps-uartlite-1.00.a", early_uartlite_setup);
 
 #endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
 
@@ -619,7 +667,7 @@ static int ulite_release(struct device *dev)
 
 #if defined(CONFIG_OF)
 /* Match table for of_platform binding */
-static struct of_device_id ulite_of_match[] = {
+static const struct of_device_id ulite_of_match[] = {
 	{ .compatible = "xlnx,opb-uartlite-1.00.b", },
 	{ .compatible = "xlnx,xps-uartlite-1.00.a", },
 	{}
@@ -629,7 +677,8 @@ MODULE_DEVICE_TABLE(of, ulite_of_match);
 
 static int ulite_probe(struct platform_device *pdev)
 {
-	struct resource *res, *res2;
+	struct resource *res;
+	int irq;
 	int id = pdev->id;
 #ifdef CONFIG_OF
 	const __be32 *prop;
@@ -643,11 +692,11 @@ static int ulite_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	res2 = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res2)
-		return -ENODEV;
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return -ENXIO;
 
-	return ulite_assign(&pdev->dev, id, res->start, res2->start);
+	return ulite_assign(&pdev->dev, id, res->start, irq);
 }
 
 static int ulite_remove(struct platform_device *pdev)
@@ -662,7 +711,6 @@ static struct platform_driver ulite_platform_driver = {
 	.probe = ulite_probe,
 	.remove = ulite_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "uartlite",
 		.of_match_table = of_match_ptr(ulite_of_match),
 	},

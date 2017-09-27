@@ -37,7 +37,7 @@ struct s5h1411_state {
 
 	struct dvb_frontend frontend;
 
-	fe_modulation_t current_modulation;
+	enum fe_modulation current_modulation;
 	unsigned int first_tune:1;
 
 	u32 current_frequency;
@@ -51,7 +51,7 @@ static int debug;
 #define dprintk(arg...) do {	\
 	if (debug)		\
 		printk(arg);	\
-	} while (0)
+} while (0)
 
 /* Register values to initialise the demod, defaults to VSB */
 static struct init_tab {
@@ -350,8 +350,8 @@ static int s5h1411_writereg(struct s5h1411_state *state,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, "
-		       "ret == %i)\n", __func__, addr, reg, data, ret);
+		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, ret == %i)\n",
+		       __func__, addr, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -410,7 +410,7 @@ static int s5h1411_set_if_freq(struct dvb_frontend *fe, int KHz)
 	default:
 		dprintk("%s(%d KHz) Invalid, defaulting to 5380\n",
 			__func__, KHz);
-		/* no break, need to continue */
+		/* fall through */
 	case 5380:
 	case 44000:
 		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x38, 0x1be4);
@@ -484,7 +484,7 @@ static int s5h1411_set_serialmode(struct dvb_frontend *fe, int serial)
 }
 
 static int s5h1411_enable_modulation(struct dvb_frontend *fe,
-				     fe_modulation_t m)
+				     enum fe_modulation m)
 {
 	struct s5h1411_state *state = fe->demodulator_priv;
 
@@ -659,7 +659,7 @@ static int s5h1411_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int s5h1411_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int s5h1411_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct s5h1411_state *state = fe->demodulator_priv;
 	u16 reg;
@@ -840,9 +840,9 @@ static int s5h1411_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return s5h1411_read_ucblocks(fe, ber);
 }
 
-static int s5h1411_get_frontend(struct dvb_frontend *fe)
+static int s5h1411_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1411_state *state = fe->demodulator_priv;
 
 	p->frequency = state->current_frequency;
@@ -864,7 +864,7 @@ static void s5h1411_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1411_ops;
+static const struct dvb_frontend_ops s5h1411_ops;
 
 struct dvb_frontend *s5h1411_attach(const struct s5h1411_config *config,
 				    struct i2c_adapter *i2c)
@@ -914,7 +914,7 @@ error:
 }
 EXPORT_SYMBOL(s5h1411_attach);
 
-static struct dvb_frontend_ops s5h1411_ops = {
+static const struct dvb_frontend_ops s5h1411_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Samsung S5H1411 QAM/8VSB Frontend",
@@ -944,8 +944,3 @@ MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 MODULE_DESCRIPTION("Samsung S5H1411 QAM-B/ATSC Demodulator driver");
 MODULE_AUTHOR("Steven Toth");
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */

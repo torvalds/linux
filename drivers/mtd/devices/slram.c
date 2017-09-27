@@ -30,7 +30,7 @@
 
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -41,7 +41,7 @@
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <linux/mtd/mtd.h>
 
@@ -280,13 +280,10 @@ __setup("slram=", mtd_slram_setup);
 static int __init init_slram(void)
 {
 	char *devname;
-	int i;
 
 #ifndef MODULE
 	char *devstart;
 	char *devlength;
-
-	i = 0;
 
 	if (!map) {
 		E("slram: not enough parameters.\n");
@@ -314,6 +311,7 @@ static int __init init_slram(void)
 	}
 #else
 	int count;
+	int i;
 
 	for (count = 0; count < SLRAM_MAX_DEVICES_PARAMS && map[count];
 			count++) {

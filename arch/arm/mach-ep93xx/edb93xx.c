@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
@@ -106,33 +105,10 @@ static struct cs4271_platform_data edb93xx_cs4271_data = {
 	.gpio_nreset	= -EINVAL,	/* filled in later */
 };
 
-static int edb93xx_cs4271_hw_setup(struct spi_device *spi)
-{
-	return gpio_request_one(EP93XX_GPIO_LINE_EGPIO6,
-				GPIOF_OUT_INIT_HIGH, spi->modalias);
-}
-
-static void edb93xx_cs4271_hw_cleanup(struct spi_device *spi)
-{
-	gpio_free(EP93XX_GPIO_LINE_EGPIO6);
-}
-
-static void edb93xx_cs4271_hw_cs_control(struct spi_device *spi, int value)
-{
-	gpio_set_value(EP93XX_GPIO_LINE_EGPIO6, value);
-}
-
-static struct ep93xx_spi_chip_ops edb93xx_cs4271_hw = {
-	.setup		= edb93xx_cs4271_hw_setup,
-	.cleanup	= edb93xx_cs4271_hw_cleanup,
-	.cs_control	= edb93xx_cs4271_hw_cs_control,
-};
-
 static struct spi_board_info edb93xx_spi_board_info[] __initdata = {
 	{
 		.modalias		= "cs4271",
 		.platform_data		= &edb93xx_cs4271_data,
-		.controller_data	= &edb93xx_cs4271_hw,
 		.max_speed_hz		= 6000000,
 		.bus_num		= 0,
 		.chip_select		= 0,
@@ -140,8 +116,13 @@ static struct spi_board_info edb93xx_spi_board_info[] __initdata = {
 	},
 };
 
+static int edb93xx_spi_chipselects[] __initdata = {
+	EP93XX_GPIO_LINE_EGPIO6,
+};
+
 static struct ep93xx_spi_info edb93xx_spi_info __initdata = {
-	.num_chipselect	= ARRAY_SIZE(edb93xx_spi_board_info),
+	.chipselect	= edb93xx_spi_chipselects,
+	.num_chipselect	= ARRAY_SIZE(edb93xx_spi_chipselects),
 };
 
 static void __init edb93xx_register_spi(void)
@@ -205,8 +186,6 @@ static void __init edb93xx_register_pwm(void)
  * EDB93xx framebuffer
  *************************************************************************/
 static struct ep93xxfb_mach_info __initdata edb93xxfb_info = {
-	.num_modes	= EP93XXFB_USE_MODEDB,
-	.bpp		= 16,
 	.flags		= 0,
 };
 
@@ -266,6 +245,7 @@ static void __init edb93xx_init_machine(void)
 	edb93xx_register_pwm();
 	edb93xx_register_fb();
 	edb93xx_register_ide();
+	ep93xx_register_adc();
 }
 
 

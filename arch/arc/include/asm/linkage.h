@@ -9,21 +9,11 @@
 #ifndef __ASM_LINKAGE_H
 #define __ASM_LINKAGE_H
 
+#include <asm/dwarf.h>
+
 #ifdef __ASSEMBLY__
 
-/* Can't use the ENTRY macro in linux/linkage.h
- * gas considers ';' as comment vs. newline
- */
-.macro ARC_ENTRY name
-	.global \name
-	.align 4
-	\name:
-.endm
-
-.macro ARC_EXIT name
-#define ASM_PREV_SYM_ADDR(name)  .-##name
-	.size \ name, ASM_PREV_SYM_ADDR(\name)
-.endm
+#define ASM_NL		 `	/* use '`' to mark new line in macro */
 
 /* annotation for data we want in DCCM - if enabled in .config */
 .macro ARCFP_DATA nm
@@ -43,6 +33,16 @@
 	.section .text, "ax",@progbits
 #endif
 .endm
+
+#define ENTRY_CFI(name)		\
+	.globl name ASM_NL	\
+	ALIGN ASM_NL 		\
+	name: ASM_NL		\
+	CFI_STARTPROC ASM_NL
+
+#define END_CFI(name) 		\
+	CFI_ENDPROC ASM_NL	\
+	.size name, .-name
 
 #else	/* !__ASSEMBLY__ */
 

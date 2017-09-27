@@ -8,6 +8,7 @@
  * for more details.
  *
  * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2014 - 2016 Cadence Design Systems Inc.
  *
  * Chris Zankel	<chris@zankel.net>
  * Joe Taylor	<joe@tensilica.com, joetylr@yahoo.com>
@@ -19,151 +20,62 @@
 #include <linux/errno.h>
 #include <linux/bootmem.h>
 #include <linux/gfp.h>
+#include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/mm.h>
+#include <linux/of_fdt.h>
+#include <linux/dma-contiguous.h>
 
 #include <asm/bootparam.h>
 #include <asm/page.h>
 #include <asm/sections.h>
+#include <asm/sysmem.h>
 
 /*
- * mem_reserve(start, end, must_exist)
- *
- * Reserve some memory from the memory pool.
- *
- * Parameters:
- *  start	Start of region,
- *  end		End of region,
- *  must_exist	Must exist in memory pool.
- *
- * Returns:
- *  0 (memory area couldn't be mapped)
- * -1 (success)
- */
-
-int __init mem_reserve(unsigned long start, unsigned long end, int must_exist)
-{
-	int i;
-
-	if (start == end)
-		return 0;
-
-	start = start & PAGE_MASK;
-	end = PAGE_ALIGN(end);
-
-	for (i = 0; i < sysmem.nr_banks; i++)
-		if (start < sysmem.bank[i].end
-		    && end >= sysmem.bank[i].start)
-			break;
-
-	if (i == sysmem.nr_banks) {
-		if (must_exist)
-			printk (KERN_WARNING "mem_reserve: [0x%0lx, 0x%0lx) "
-				"not in any region!\n", start, end);
-		return 0;
-	}
-
-	if (start > sysmem.bank[i].start) {
-		if (end < sysmem.bank[i].end) {
-			/* split entry */
-			if (sysmem.nr_banks >= SYSMEM_BANKS_MAX)
-				panic("meminfo overflow\n");
-			sysmem.bank[sysmem.nr_banks].start = end;
-			sysmem.bank[sysmem.nr_banks].end = sysmem.bank[i].end;
-			sysmem.nr_banks++;
-		}
-		sysmem.bank[i].end = start;
-
-	} else if (end < sysmem.bank[i].end) {
-		sysmem.bank[i].start = end;
-
-	} else {
-		/* remove entry */
-		sysmem.nr_banks--;
-		sysmem.bank[i].start = sysmem.bank[sysmem.nr_banks].start;
-		sysmem.bank[i].end   = sysmem.bank[sysmem.nr_banks].end;
-	}
-	return -1;
-}
-
-
-/*
- * Initialize the bootmem system and give it all the memory we have available.
+ * Initialize the bootmem system and give it all low memory we have available.
  */
 
 void __init bootmem_init(void)
 {
-	unsigned long pfn;
-	unsigned long bootmap_start, bootmap_size;
-	int i;
+	/* Reserve all memory below PHYS_OFFSET, as memory
+	 * accounting doesn't work for pages below that address.
+	 *
+	 * If PHYS_OFFSET is zero reserve page at address 0:
+	 * successfull allocations should never return NULL.
+	 */
+	if (PHYS_OFFSET)
+		memblock_reserve(0, PHYS_OFFSET);
+	else
+		memblock_reserve(0, 1);
 
-	max_low_pfn = max_pfn = 0;
-	min_low_pfn = ~0;
+	early_init_fdt_scan_reserved_mem();
 
-	for (i=0; i < sysmem.nr_banks; i++) {
-		pfn = PAGE_ALIGN(sysmem.bank[i].start) >> PAGE_SHIFT;
-		if (pfn < min_low_pfn)
-			min_low_pfn = pfn;
-		pfn = PAGE_ALIGN(sysmem.bank[i].end - 1) >> PAGE_SHIFT;
-		if (pfn > max_pfn)
-			max_pfn = pfn;
-	}
-
-	if (min_low_pfn > max_pfn)
+	if (!memblock_phys_mem_size())
 		panic("No memory found!\n");
 
-	max_low_pfn = max_pfn < MAX_MEM_PFN >> PAGE_SHIFT ?
-		max_pfn : MAX_MEM_PFN >> PAGE_SHIFT;
+	min_low_pfn = PFN_UP(memblock_start_of_DRAM());
+	min_low_pfn = max(min_low_pfn, PFN_UP(PHYS_OFFSET));
+	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
 
-	/* Find an area to use for the bootmem bitmap. */
+	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
+	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
-	bootmap_size = bootmem_bootmap_pages(max_low_pfn - min_low_pfn);
-	bootmap_size <<= PAGE_SHIFT;
-	bootmap_start = ~0;
-
-	for (i=0; i<sysmem.nr_banks; i++)
-		if (sysmem.bank[i].end - sysmem.bank[i].start >= bootmap_size) {
-			bootmap_start = sysmem.bank[i].start;
-			break;
-		}
-
-	if (bootmap_start == ~0UL)
-		panic("Cannot find %ld bytes for bootmap\n", bootmap_size);
-
-	/* Reserve the bootmem bitmap area */
-
-	mem_reserve(bootmap_start, bootmap_start + bootmap_size, 1);
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-					 bootmap_start >> PAGE_SHIFT,
-					 min_low_pfn,
-					 max_low_pfn);
-
-	/* Add all remaining memory pieces into the bootmem map */
-
-	for (i=0; i<sysmem.nr_banks; i++)
-		free_bootmem(sysmem.bank[i].start,
-			     sysmem.bank[i].end - sysmem.bank[i].start);
-
+	memblock_dump_all();
 }
 
 
 void __init zones_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES];
-	int i;
-
 	/* All pages are DMA-able, so we put them all in the DMA zone. */
-
-	zones_size[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET;
-	for (i = 1; i < MAX_NR_ZONES; i++)
-		zones_size[i] = 0;
-
+	unsigned long zones_size[MAX_NR_ZONES] = {
+		[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET,
 #ifdef CONFIG_HIGHMEM
-	zones_size[ZONE_HIGHMEM] = max_pfn - max_low_pfn;
+		[ZONE_HIGHMEM] = max_pfn - max_low_pfn,
 #endif
-
+	};
 	free_area_init_node(0, zones_size, ARCH_PFN_OFFSET, NULL);
 }
 
@@ -173,16 +85,44 @@ void __init zones_init(void)
 
 void __init mem_init(void)
 {
-	max_mapnr = max_low_pfn - ARCH_PFN_OFFSET;
-	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
-
 #ifdef CONFIG_HIGHMEM
-#error HIGHGMEM not implemented in init.c
+	unsigned long tmp;
+
+	reset_all_zones_managed_pages();
+	for (tmp = max_low_pfn; tmp < max_pfn; tmp++)
+		free_highmem_page(pfn_to_page(tmp));
 #endif
+
+	max_mapnr = max_pfn - ARCH_PFN_OFFSET;
+	high_memory = (void *)__va(max_low_pfn << PAGE_SHIFT);
 
 	free_all_bootmem();
 
 	mem_init_print_info(NULL);
+	pr_info("virtual kernel memory layout:\n"
+#ifdef CONFIG_HIGHMEM
+		"    pkmap   : 0x%08lx - 0x%08lx  (%5lu kB)\n"
+		"    fixmap  : 0x%08lx - 0x%08lx  (%5lu kB)\n"
+#endif
+#ifdef CONFIG_MMU
+		"    vmalloc : 0x%08lx - 0x%08lx  (%5lu MB)\n"
+#endif
+		"    lowmem  : 0x%08lx - 0x%08lx  (%5lu MB)\n",
+#ifdef CONFIG_HIGHMEM
+		PKMAP_BASE, PKMAP_BASE + LAST_PKMAP * PAGE_SIZE,
+		(LAST_PKMAP*PAGE_SIZE) >> 10,
+		FIXADDR_START, FIXADDR_TOP,
+		(FIXADDR_TOP - FIXADDR_START) >> 10,
+#endif
+#ifdef CONFIG_MMU
+		VMALLOC_START, VMALLOC_END,
+		(VMALLOC_END - VMALLOC_START) >> 20,
+		PAGE_OFFSET, PAGE_OFFSET +
+		(max_low_pfn - min_low_pfn) * PAGE_SIZE,
+#else
+		min_low_pfn * PAGE_SIZE, max_low_pfn * PAGE_SIZE,
+#endif
+		((max_low_pfn - min_low_pfn) * PAGE_SIZE) >> 20);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -199,3 +139,53 @@ void free_initmem(void)
 {
 	free_initmem_default(-1);
 }
+
+static void __init parse_memmap_one(char *p)
+{
+	char *oldp;
+	unsigned long start_at, mem_size;
+
+	if (!p)
+		return;
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return;
+
+	switch (*p) {
+	case '@':
+		start_at = memparse(p + 1, &p);
+		memblock_add(start_at, mem_size);
+		break;
+
+	case '$':
+		start_at = memparse(p + 1, &p);
+		memblock_reserve(start_at, mem_size);
+		break;
+
+	case 0:
+		memblock_reserve(mem_size, -mem_size);
+		break;
+
+	default:
+		pr_warn("Unrecognized memmap syntax: %s\n", p);
+		break;
+	}
+}
+
+static int __init parse_memmap_opt(char *str)
+{
+	while (str) {
+		char *k = strchr(str, ',');
+
+		if (k)
+			*k++ = 0;
+
+		parse_memmap_one(str);
+		str = k;
+	}
+
+	return 0;
+}
+early_param("memmap", parse_memmap_opt);

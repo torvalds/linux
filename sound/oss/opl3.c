@@ -52,7 +52,7 @@ struct voice_info
 	int             panning;	/* 0xffff means not set */
 };
 
-typedef struct opl_devinfo
+struct opl_devinfo
 {
 	int             base;
 	int             left_io, right_io;
@@ -73,7 +73,7 @@ typedef struct opl_devinfo
 	unsigned char   cmask;
 
 	int             is_opl4;
-} opl_devinfo;
+};
 
 static struct opl_devinfo *devc = NULL;
 
@@ -275,7 +275,6 @@ static int opl3_kill_note  (int devno, int voice, int note, int velocity)
 	 devc->v_alloc->map[voice] = 0;
 
 	 map = &pv_map[devc->lv_map[voice]];
-	 DEB(printk("Kill note %d\n", voice));
 
 	 if (map->voice_mode == 0)
 		 return 0;
@@ -667,7 +666,7 @@ static int opl3_start_note (int dev, int voice, int note, int volume)
 	opl3_command(map->ioaddr, FNUM_LOW + map->voice_num, data);
 
 	data = 0x20 | ((block & 0x7) << 2) | ((fnum >> 8) & 0x3);
-		 devc->voc[voice].keyon_byte = data;
+	devc->voc[voice].keyon_byte = data;
 	opl3_command(map->ioaddr, KEYON_BLOCK + map->voice_num, data);
 	if (voice_mode == 4)
 		opl3_command(map->ioaddr, KEYON_BLOCK + map->voice_num + 3, data);
@@ -718,7 +717,7 @@ static void freq_to_fnum    (int freq, int *block, int *fnum)
 
 static void opl3_command    (int io_addr, unsigned int addr, unsigned int val)
 {
-	 int i;
+	int i;
 
 	/*
 	 * The original 2-OP synth requires a quite long delay after writing to a
@@ -872,8 +871,6 @@ static void opl3_aftertouch(int dev, int voice, int pressure)
 		return;
 
 	map = &pv_map[devc->lv_map[voice]];
-
-	DEB(printk("Aftertouch %d\n", voice));
 
 	if (map->voice_mode == 0)
 		return;
@@ -1203,7 +1200,7 @@ static int me;
 
 static int io = -1;
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 
 static int __init init_opl3 (void)
 {

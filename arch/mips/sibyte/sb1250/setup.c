@@ -15,13 +15,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+#include <linux/export.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
+#include <asm/cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/io.h>
 #include <asm/sibyte/sb1250.h>
@@ -33,6 +34,7 @@ unsigned int soc_pass;
 unsigned int soc_type;
 EXPORT_SYMBOL(soc_type);
 unsigned int periph_rev;
+EXPORT_SYMBOL_GPL(periph_rev);
 unsigned int zbbus_mhz;
 EXPORT_SYMBOL(zbbus_mhz);
 
@@ -182,7 +184,7 @@ void __init sb1250_setup(void)
 	int plldiv;
 	int bad_config = 0;
 
-	sb1_pass = read_c0_prid() & 0xff;
+	sb1_pass = read_c0_prid() & PRID_REV_MASK;
 	sys_rev = __raw_readq(IOADDR(A_SCD_SYSTEM_REVISION));
 	soc_type = SYS_SOC_TYPE(sys_rev);
 	soc_pass = G_SYS_REVISION(sys_rev);
@@ -201,12 +203,10 @@ void __init sb1250_setup(void)
 
 	switch (war_pass) {
 	case K_SYS_REVISION_BCM1250_PASS1:
-#ifndef CONFIG_SB1_PASS_1_WORKAROUNDS
 		printk("@@@@ This is a BCM1250 A0-A2 (Pass 1) board, "
 			    "and the kernel doesn't have the proper "
 			    "workarounds compiled in. @@@@\n");
 		bad_config = 1;
-#endif
 		break;
 	case K_SYS_REVISION_BCM1250_PASS2:
 		/* Pass 2 - easiest as default for now - so many numbers */

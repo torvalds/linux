@@ -8,50 +8,38 @@
 
 #include <asm/sni.h>
 #include <asm/time.h>
-#include <asm-generic/rtc.h>
 
 #define SNI_CLOCK_TICK_RATE	3686400
 #define SNI_COUNTER2_DIV	64
 #define SNI_COUNTER0_DIV	((SNI_CLOCK_TICK_RATE / SNI_COUNTER2_DIV) / HZ)
 
-static void a20r_set_mode(enum clock_event_mode mode,
-			  struct clock_event_device *evt)
+static int a20r_set_periodic(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		*(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0x34;
-		wmb();
-		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  0) = SNI_COUNTER0_DIV;
-		wmb();
-		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  0) = SNI_COUNTER0_DIV >> 8;
-		wmb();
+	*(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0x34;
+	wmb();
+	*(volatile u8 *)(A20R_PT_CLOCK_BASE + 0) = SNI_COUNTER0_DIV;
+	wmb();
+	*(volatile u8 *)(A20R_PT_CLOCK_BASE + 0) = SNI_COUNTER0_DIV >> 8;
+	wmb();
 
-		*(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0xb4;
-		wmb();
-		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  8) = SNI_COUNTER2_DIV;
-		wmb();
-		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  8) = SNI_COUNTER2_DIV >> 8;
-		wmb();
-
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	*(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0xb4;
+	wmb();
+	*(volatile u8 *)(A20R_PT_CLOCK_BASE + 8) = SNI_COUNTER2_DIV;
+	wmb();
+	*(volatile u8 *)(A20R_PT_CLOCK_BASE + 8) = SNI_COUNTER2_DIV >> 8;
+	wmb();
+	return 0;
 }
 
 static struct clock_event_device a20r_clockevent_device = {
-	.name		= "a20r-timer",
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.name			= "a20r-timer",
+	.features		= CLOCK_EVT_FEAT_PERIODIC,
 
 	/* .mult, .shift, .max_delta_ns and .min_delta_ns left uninitialized */
 
-	.rating		= 300,
-	.irq		= SNI_A20R_IRQ_TIMER,
-	.set_mode	= a20r_set_mode,
+	.rating			= 300,
+	.irq			= SNI_A20R_IRQ_TIMER,
+	.set_state_periodic	= a20r_set_periodic,
 };
 
 static irqreturn_t a20r_interrupt(int irq, void *dev_id)

@@ -63,9 +63,7 @@ struct driver_private {
  *	binding of drivers which were unable to get all the resources needed by
  *	the device; typically because it depends on another driver getting
  *	probed first.
- * @driver_data - private pointer for driver specific info.  Will turn into a
- * list soon.
- * @device - pointer back to the struct class that this structure is
+ * @device - pointer back to the struct device that this structure is
  * associated with.
  *
  * Nothing outside of the driver core should ever touch these fields.
@@ -76,7 +74,6 @@ struct device_private {
 	struct klist_node knode_driver;
 	struct klist_node knode_bus;
 	struct list_head deferred_probe;
-	void *driver_data;
 	struct device *device;
 };
 #define to_device_private_parent(obj)	\
@@ -100,6 +97,7 @@ static inline int hypervisor_init(void) { return 0; }
 #endif
 extern int platform_bus_init(void);
 extern void cpu_dev_init(void);
+extern void container_dev_init(void);
 
 struct kobject *virtual_device_parent(struct device *dev);
 
@@ -109,6 +107,9 @@ extern void bus_remove_device(struct device *dev);
 
 extern int bus_add_driver(struct device_driver *drv);
 extern void bus_remove_driver(struct device_driver *drv);
+extern void device_release_driver_internal(struct device *dev,
+					   struct device_driver *drv,
+					   struct device *parent);
 
 extern void driver_detach(struct device_driver *drv);
 extern int driver_probe_device(struct device_driver *drv, struct device *dev);
@@ -118,13 +119,22 @@ static inline int driver_match_device(struct device_driver *drv,
 {
 	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
 }
+extern bool driver_allows_async_probing(struct device_driver *drv);
+
+extern int driver_add_groups(struct device_driver *drv,
+			     const struct attribute_group **groups);
+extern void driver_remove_groups(struct device_driver *drv,
+				 const struct attribute_group **groups);
 
 extern char *make_class_name(const char *name, struct kobject *kobj);
 
 extern int devres_release_all(struct device *dev);
+extern void device_block_probing(void);
+extern void device_unblock_probing(void);
 
 /* /sys/devices directory */
 extern struct kset *devices_kset;
+extern void devices_kset_move_last(struct device *dev);
 
 #if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)
 extern void module_add_driver(struct module *mod, struct device_driver *drv);
@@ -140,3 +150,13 @@ extern int devtmpfs_init(void);
 #else
 static inline int devtmpfs_init(void) { return 0; }
 #endif
+
+/* Device links support */
+extern int device_links_read_lock(void);
+extern void device_links_read_unlock(int idx);
+extern int device_links_check_suppliers(struct device *dev);
+extern void device_links_driver_bound(struct device *dev);
+extern void device_links_driver_cleanup(struct device *dev);
+extern void device_links_no_driver(struct device *dev);
+extern bool device_links_busy(struct device *dev);
+extern void device_links_unbind_consumers(struct device *dev);

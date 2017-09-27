@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -38,45 +34,13 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-# include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs.h>
 
 #include <obd_support.h>
 #include <obd_class.h>
 
-
-static inline __u32 consume(int nob, __u8 **ptr)
-{
-	__u32 value;
-
-	LASSERT(nob <= sizeof value);
-
-	for (value = 0; nob > 0; --nob)
-		value = (value << 8) | *((*ptr)++);
-	return value;
-}
-
-#define CONSUME(val, ptr) (val) = consume(sizeof(val), (ptr))
-
-static void uuid_unpack(class_uuid_t in, __u16 *uu, int nr)
-{
-	__u8 *ptr = in;
-
-	LASSERT(nr * sizeof *uu == sizeof(class_uuid_t));
-
-	while (nr-- > 0)
-		CONSUME(uu[nr], &ptr);
-}
-
 void class_uuid_unparse(class_uuid_t uu, struct obd_uuid *out)
 {
-	/* uu as an array of __u16's */
-	__u16 uuid[sizeof(class_uuid_t) / sizeof(__u16)];
-
-	CLASSERT(ARRAY_SIZE(uuid) == 8);
-
-	uuid_unpack(uu, uuid, ARRAY_SIZE(uuid));
-	sprintf(out->uuid, "%04x%04x-%04x-%04x-%04x-%04x%04x%04x",
-		uuid[0], uuid[1], uuid[2], uuid[3],
-		uuid[4], uuid[5], uuid[6], uuid[7]);
+	sprintf(out->uuid, "%pU", uu);
 }
 EXPORT_SYMBOL(class_uuid_unparse);

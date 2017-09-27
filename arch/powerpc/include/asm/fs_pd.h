@@ -26,9 +26,8 @@
 #define cpm2_unmap(addr) do {} while(0)
 #endif
 
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 #include <asm/8xx_immap.h>
-#include <asm/mpc8xx.h>
 
 extern immap_t __iomem *mpc8xx_immr;
 

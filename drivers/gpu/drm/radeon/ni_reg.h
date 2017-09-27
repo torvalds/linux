@@ -83,4 +83,50 @@
 #       define NI_REGAMMA_PROG_B                       4
 #       define NI_OVL_REGAMMA_MODE(x)                  (((x) & 0x7) << 4)
 
+#define NI_DP_MSE_LINK_TIMING                          0x73a0
+#	define NI_DP_MSE_LINK_FRAME			(((x) & 0x3ff) << 0)
+#	define NI_DP_MSE_LINK_LINE                      (((x) & 0x3) << 16)
+
+#define NI_DP_MSE_MISC_CNTL                            0x736c
+#       define NI_DP_MSE_BLANK_CODE                    (((x) & 0x1) << 0)
+#       define NI_DP_MSE_TIMESTAMP_MODE                (((x) & 0x1) << 4)
+#       define NI_DP_MSE_ZERO_ENCODER                  (((x) & 0x1) << 8)
+
+#define NI_DP_MSE_RATE_CNTL                            0x7384
+#       define NI_DP_MSE_RATE_Y(x)                   (((x) & 0x3ffffff) << 0)
+#       define NI_DP_MSE_RATE_X(x)                   (((x) & 0x3f) << 26)
+
+#define NI_DP_MSE_RATE_UPDATE                          0x738c
+
+#define NI_DP_MSE_SAT0                                 0x7390
+#       define NI_DP_MSE_SAT_SRC0(x)                   (((x) & 0x7) << 0)
+#       define NI_DP_MSE_SAT_SLOT_COUNT0(x)            (((x) & 0x3f) << 8)
+#       define NI_DP_MSE_SAT_SRC1(x)                   (((x) & 0x7) << 16)
+#       define NI_DP_MSE_SAT_SLOT_COUNT1(x)            (((x) & 0x3f) << 24)
+
+#define NI_DP_MSE_SAT1                                 0x7394
+
+#define NI_DP_MSE_SAT2                                 0x7398
+
+#define NI_DP_MSE_SAT_UPDATE                           0x739c
+#       define NI_DP_MSE_SAT_UPDATE_MASK               0x3
+#       define NI_DP_MSE_16_MTP_KEEPOUT                0x100
+
+#define NI_DIG_BE_CNTL                                 0x7140
+#       define NI_DIG_FE_SOURCE_SELECT(x)              (((x) & 0x7f) << 8)
+#       define NI_DIG_FE_DIG_MODE(x)                   (((x) & 0x7) << 16)
+#       define NI_DIG_MODE_DP_SST                      0
+#       define NI_DIG_MODE_LVDS                        1
+#       define NI_DIG_MODE_TMDS_DVI                    2
+#       define NI_DIG_MODE_TMDS_HDMI                   3
+#       define NI_DIG_MODE_DP_MST                      5
+#       define NI_DIG_HPD_SELECT(x)                    (((x) & 0x7) << 28)
+
+#define NI_DIG_FE_CNTL                                 0x7000
+#       define NI_DIG_SOURCE_SELECT(x)                 (((x) & 0x3) << 0)
+#       define NI_DIG_STEREOSYNC_SELECT(x)             (((x) & 0x3) << 4)
+#       define NI_DIG_STEREOSYNC_GATE_EN(x)            (((x) & 0x1) << 8)
+#       define NI_DIG_DUAL_LINK_ENABLE(x)              (((x) & 0x1) << 16)
+#       define NI_DIG_SWAP(x)                          (((x) & 0x1) << 18)
+#       define NI_DIG_SYMCLK_FE_ON                     (0x1 << 24)
 #endif

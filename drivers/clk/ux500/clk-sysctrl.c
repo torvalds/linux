@@ -52,7 +52,7 @@ static void clk_sysctrl_unprepare(struct clk_hw *hw)
 	struct clk_sysctrl *clk = to_clk_sysctrl(hw);
 	if (ab8500_sysctrl_clear(clk->reg_sel[0], clk->reg_mask[0]))
 		dev_err(clk->dev, "clk_sysctrl: %s fail to clear %s.\n",
-			__func__, __clk_get_name(hw->clk));
+			__func__, clk_hw_get_name(hw));
 }
 
 static unsigned long clk_sysctrl_recalc_rate(struct clk_hw *hw,
@@ -98,18 +98,18 @@ static u8 clk_sysctrl_get_parent(struct clk_hw *hw)
 	return clk->parent_index;
 }
 
-static struct clk_ops clk_sysctrl_gate_ops = {
+static const struct clk_ops clk_sysctrl_gate_ops = {
 	.prepare = clk_sysctrl_prepare,
 	.unprepare = clk_sysctrl_unprepare,
 };
 
-static struct clk_ops clk_sysctrl_gate_fixed_rate_ops = {
+static const struct clk_ops clk_sysctrl_gate_fixed_rate_ops = {
 	.prepare = clk_sysctrl_prepare,
 	.unprepare = clk_sysctrl_unprepare,
 	.recalc_rate = clk_sysctrl_recalc_rate,
 };
 
-static struct clk_ops clk_sysctrl_set_parent_ops = {
+static const struct clk_ops clk_sysctrl_set_parent_ops = {
 	.set_parent = clk_sysctrl_set_parent,
 	.get_parent = clk_sysctrl_get_parent,
 };
@@ -124,7 +124,7 @@ static struct clk *clk_reg_sysctrl(struct device *dev,
 				unsigned long rate,
 				unsigned long enable_delay_us,
 				unsigned long flags,
-				struct clk_ops *clk_sysctrl_ops)
+				const struct clk_ops *clk_sysctrl_ops)
 {
 	struct clk_sysctrl *clk;
 	struct clk_init_data clk_sysctrl_init;

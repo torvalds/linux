@@ -117,7 +117,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
@@ -134,7 +134,7 @@
 #include <linux/lp.h>
 
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* if you have more than 8 printers, remember to increase LP_NO */
 #define LP_NO 8
@@ -587,6 +587,8 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 		return -ENODEV;
 	switch ( cmd ) {
 		case LPTIME:
+			if (arg > UINT_MAX / HZ)
+				return -EINVAL;
 			LP_TIME(minor) = arg * HZ/100;
 			break;
 		case LPCHAR:
@@ -857,7 +859,11 @@ static int __init lp_setup (char *str)
 	} else if (!strcmp(str, "auto")) {
 		parport_nr[0] = LP_PARPORT_AUTO;
 	} else if (!strcmp(str, "none")) {
-		parport_nr[parport_ptr++] = LP_PARPORT_NONE;
+		if (parport_ptr < LP_NO)
+			parport_nr[parport_ptr++] = LP_PARPORT_NONE;
+		else
+			printk(KERN_INFO "lp: too many ports, %s ignored.\n",
+			       str);
 	} else if (!strcmp(str, "reset")) {
 		reset = 1;
 	}

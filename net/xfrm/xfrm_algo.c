@@ -9,13 +9,15 @@
  * any later version.
  */
 
+#include <crypto/hash.h>
+#include <crypto/skcipher.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <net/xfrm.h>
-#if defined(CONFIG_INET_ESP) || defined(CONFIG_INET_ESP_MODULE) || defined(CONFIG_INET6_ESP) || defined(CONFIG_INET6_ESP_MODULE)
+#if IS_ENABLED(CONFIG_INET_ESP) || IS_ENABLED(CONFIG_INET6_ESP)
 #include <net/esp.h>
 #endif
 
@@ -31,6 +33,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
+			.geniv = "seqiv",
 			.icv_truncbits = 64,
 		}
 	},
@@ -49,6 +52,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
+			.geniv = "seqiv",
 			.icv_truncbits = 96,
 		}
 	},
@@ -67,6 +71,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
+			.geniv = "seqiv",
 			.icv_truncbits = 128,
 		}
 	},
@@ -85,6 +90,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
+			.geniv = "seqiv",
 			.icv_truncbits = 64,
 		}
 	},
@@ -103,6 +109,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
+			.geniv = "seqiv",
 			.icv_truncbits = 96,
 		}
 	},
@@ -121,6 +128,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
+			.geniv = "seqiv",
 			.icv_truncbits = 128,
 		}
 	},
@@ -139,6 +147,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
+			.geniv = "seqiv",
 			.icv_truncbits = 128,
 		}
 	},
@@ -151,6 +160,18 @@ static struct xfrm_algo_desc aead_list[] = {
 		.sadb_alg_minbits = 128,
 		.sadb_alg_maxbits = 256
 	}
+},
+{
+	.name = "rfc7539esp(chacha20,poly1305)",
+
+	.uinfo = {
+		.aead = {
+			.geniv = "seqiv",
+			.icv_truncbits = 128,
+		}
+	},
+
+	.pfkey_supported = 0,
 },
 };
 
@@ -353,6 +374,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 64,
 			.defkeybits = 64,
 		}
@@ -373,6 +395,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 64,
 			.defkeybits = 192,
 		}
@@ -393,6 +416,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 64,
 			.defkeybits = 128,
 		}
@@ -413,6 +437,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 64,
 			.defkeybits = 128,
 		}
@@ -433,6 +458,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 128,
 			.defkeybits = 128,
 		}
@@ -453,6 +479,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 128,
 			.defkeybits = 128,
 		}
@@ -473,6 +500,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 128,
 			.defkeybits = 128,
 		}
@@ -493,6 +521,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "echainiv",
 			.blockbits = 128,
 			.defkeybits = 128,
 		}
@@ -512,6 +541,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 
 	.uinfo = {
 		.encr = {
+			.geniv = "seqiv",
 			.blockbits = 128,
 			.defkeybits = 160, /* 128-bit key + 32-bit nonce */
 		}
@@ -560,11 +590,6 @@ static struct xfrm_algo_desc calg_list[] = {
 	.desc = { .sadb_alg_id = SADB_X_CALG_LZJH }
 },
 };
-
-static inline int aead_entries(void)
-{
-	return ARRAY_SIZE(aead_list);
-}
 
 static inline int aalg_entries(void)
 {
@@ -759,14 +784,13 @@ void xfrm_probe_algs(void)
 	BUG_ON(in_softirq());
 
 	for (i = 0; i < aalg_entries(); i++) {
-		status = crypto_has_hash(aalg_list[i].name, 0,
-					 CRYPTO_ALG_ASYNC);
+		status = crypto_has_ahash(aalg_list[i].name, 0, 0);
 		if (aalg_list[i].available != status)
 			aalg_list[i].available = status;
 	}
 
 	for (i = 0; i < ealg_entries(); i++) {
-		status = crypto_has_ablkcipher(ealg_list[i].name, 0, 0);
+		status = crypto_has_skcipher(ealg_list[i].name, 0, 0);
 		if (ealg_list[i].available != status)
 			ealg_list[i].available = status;
 	}
@@ -801,18 +825,5 @@ int xfrm_count_pfkey_enc_supported(void)
 	return n;
 }
 EXPORT_SYMBOL_GPL(xfrm_count_pfkey_enc_supported);
-
-#if defined(CONFIG_INET_ESP) || defined(CONFIG_INET_ESP_MODULE) || defined(CONFIG_INET6_ESP) || defined(CONFIG_INET6_ESP_MODULE)
-
-void *pskb_put(struct sk_buff *skb, struct sk_buff *tail, int len)
-{
-	if (tail != skb) {
-		skb->data_len += len;
-		skb->len += len;
-	}
-	return skb_put(tail, len);
-}
-EXPORT_SYMBOL_GPL(pskb_put);
-#endif
 
 MODULE_LICENSE("GPL");

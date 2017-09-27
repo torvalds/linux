@@ -3,11 +3,9 @@ VIA/Wondermedia VT8500/WM8xxx series SoC PWM controller
 Required properties:
 - compatible: should be "via,vt8500-pwm"
 - reg: physical base address and length of the controller's registers
-- #pwm-cells: Should be 3. Number of cells being used to specify PWM property.
-  First cell specifies the per-chip index of the PWM to use, the second
-  cell is the period in nanoseconds and bit 0 in the third cell is used to
-  encode the polarity of PWM output. Set bit 0 of the third in PWM specifier
-  to 1 for inverse polarity & set to 0 for normal polarity.
+- #pwm-cells: should be 3. See pwm.txt in this directory for a description of
+  the cells format. The only third cell flag supported by this binding is
+  PWM_POLARITY_INVERTED.
 - clocks: phandle to the PWM source clock
 
 Example:

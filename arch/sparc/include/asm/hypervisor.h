@@ -98,7 +98,7 @@
 #define HV_FAST_MACH_EXIT		0x00
 
 #ifndef __ASSEMBLY__
-extern void sun4v_mach_exit(unsigned long exit_code);
+void sun4v_mach_exit(unsigned long exit_code);
 #endif
 
 /* Domain services.  */
@@ -127,9 +127,9 @@ extern void sun4v_mach_exit(unsigned long exit_code);
 #define HV_FAST_MACH_DESC		0x01
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_mach_desc(unsigned long buffer_pa,
-				     unsigned long buf_len,
-				     unsigned long *real_buf_len);
+unsigned long sun4v_mach_desc(unsigned long buffer_pa,
+			      unsigned long buf_len,
+			      unsigned long *real_buf_len);
 #endif
 
 /* mach_sir()
@@ -148,7 +148,7 @@ extern unsigned long sun4v_mach_desc(unsigned long buffer_pa,
 #define HV_FAST_MACH_SIR		0x02
 
 #ifndef __ASSEMBLY__
-extern void sun4v_mach_sir(void);
+void sun4v_mach_sir(void);
 #endif
 
 /* mach_set_watchdog()
@@ -204,8 +204,8 @@ extern void sun4v_mach_sir(void);
 #define HV_FAST_MACH_SET_WATCHDOG	0x05
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_mach_set_watchdog(unsigned long timeout,
-					     unsigned long *orig_timeout);
+unsigned long sun4v_mach_set_watchdog(unsigned long timeout,
+				      unsigned long *orig_timeout);
 #endif
 
 /* CPU services.
@@ -250,10 +250,10 @@ extern unsigned long sun4v_mach_set_watchdog(unsigned long timeout,
 #define HV_FAST_CPU_START		0x10
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_cpu_start(unsigned long cpuid,
-				     unsigned long pc,
-				     unsigned long rtba,
-				     unsigned long arg0);
+unsigned long sun4v_cpu_start(unsigned long cpuid,
+			      unsigned long pc,
+			      unsigned long rtba,
+			      unsigned long arg0);
 #endif
 
 /* cpu_stop()
@@ -278,7 +278,7 @@ extern unsigned long sun4v_cpu_start(unsigned long cpuid,
 #define HV_FAST_CPU_STOP		0x11
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_cpu_stop(unsigned long cpuid);
+unsigned long sun4v_cpu_stop(unsigned long cpuid);
 #endif
 
 /* cpu_yield()
@@ -295,7 +295,25 @@ extern unsigned long sun4v_cpu_stop(unsigned long cpuid);
 #define HV_FAST_CPU_YIELD		0x12
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_cpu_yield(void);
+unsigned long sun4v_cpu_yield(void);
+#endif
+
+/* cpu_poke()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_CPU_POKE
+ * RET0:	status
+ * ERRORS:	ENOCPU		cpuid refers to a CPU that does not exist
+ *		EINVAL		cpuid is current CPU
+ *
+ * Poke CPU cpuid. If the target CPU is currently suspended having
+ * invoked the cpu-yield service, that vCPU will be resumed.
+ * Poke interrupts may only be sent to valid, non-local CPUs.
+ * It is not legal to poke the current vCPU.
+ */
+#define HV_FAST_CPU_POKE                0x13
+
+#ifndef __ASSEMBLY__
+unsigned long sun4v_cpu_poke(unsigned long cpuid);
 #endif
 
 /* cpu_qconf()
@@ -341,9 +359,9 @@ extern unsigned long sun4v_cpu_yield(void);
 #define  HV_CPU_QUEUE_NONRES_ERROR	 0x3f
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_cpu_qconf(unsigned long type,
-				     unsigned long queue_paddr,
-				     unsigned long num_queue_entries);
+unsigned long sun4v_cpu_qconf(unsigned long type,
+			      unsigned long queue_paddr,
+			      unsigned long num_queue_entries);
 #endif
 
 /* cpu_qinfo()
@@ -394,7 +412,9 @@ extern unsigned long sun4v_cpu_qconf(unsigned long type,
 #define HV_FAST_CPU_MONDO_SEND		0x42
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_cpu_mondo_send(unsigned long cpu_count, unsigned long cpu_list_pa, unsigned long mondo_block_pa);
+unsigned long sun4v_cpu_mondo_send(unsigned long cpu_count,
+				   unsigned long cpu_list_pa,
+				   unsigned long mondo_block_pa);
 #endif
 
 /* cpu_myid()
@@ -425,7 +445,7 @@ extern unsigned long sun4v_cpu_mondo_send(unsigned long cpu_count, unsigned long
 #define  HV_CPU_STATE_ERROR		 0x03
 
 #ifndef __ASSEMBLY__
-extern long sun4v_cpu_state(unsigned long cpuid);
+long sun4v_cpu_state(unsigned long cpuid);
 #endif
 
 /* cpu_set_rtba()
@@ -625,8 +645,8 @@ struct hv_fault_status {
 #define HV_FAST_MMU_TSB_CTX0		0x20
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
-					unsigned long tsb_desc_ra);
+unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
+				 unsigned long tsb_desc_ra);
 #endif
 
 /* mmu_tsb_ctxnon0()
@@ -710,7 +730,7 @@ extern unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
 #define HV_FAST_MMU_DEMAP_ALL		0x24
 
 #ifndef __ASSEMBLY__
-extern void sun4v_mmu_demap_all(void);
+void sun4v_mmu_demap_all(void);
 #endif
 
 /* mmu_map_perm_addr()
@@ -740,10 +760,10 @@ extern void sun4v_mmu_demap_all(void);
 #define HV_FAST_MMU_MAP_PERM_ADDR	0x25
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
-					     unsigned long set_to_zero,
-					     unsigned long tte,
-					     unsigned long flags);
+unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
+				      unsigned long set_to_zero,
+				      unsigned long tte,
+				      unsigned long flags);
 #endif
 
 /* mmu_fault_area_conf()
@@ -945,7 +965,7 @@ extern unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
 #define HV_FAST_TOD_GET			0x50
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_tod_get(unsigned long *time);
+unsigned long sun4v_tod_get(unsigned long *time);
 #endif
 
 /* tod_set()
@@ -962,7 +982,7 @@ extern unsigned long sun4v_tod_get(unsigned long *time);
 #define HV_FAST_TOD_SET			0x51
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_tod_set(unsigned long time);
+unsigned long sun4v_tod_set(unsigned long time);
 #endif
 
 /* Console services */
@@ -1038,14 +1058,14 @@ extern unsigned long sun4v_tod_set(unsigned long time);
 #define HV_FAST_CONS_WRITE		0x63
 
 #ifndef __ASSEMBLY__
-extern long sun4v_con_getchar(long *status);
-extern long sun4v_con_putchar(long c);
-extern long sun4v_con_read(unsigned long buffer,
-			   unsigned long size,
-			   unsigned long *bytes_read);
-extern unsigned long sun4v_con_write(unsigned long buffer,
-				     unsigned long size,
-				     unsigned long *bytes_written);
+long sun4v_con_getchar(long *status);
+long sun4v_con_putchar(long c);
+long sun4v_con_read(unsigned long buffer,
+		    unsigned long size,
+		    unsigned long *bytes_read);
+unsigned long sun4v_con_write(unsigned long buffer,
+			      unsigned long size,
+			      unsigned long *bytes_written);
 #endif
 
 /* mach_set_soft_state()
@@ -1080,8 +1100,8 @@ extern unsigned long sun4v_con_write(unsigned long buffer,
 #define  HV_SOFT_STATE_TRANSITION	 0x02
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
-					       unsigned long msg_string_ra);
+unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
+				        unsigned long msg_string_ra);
 #endif
 
 /* mach_get_soft_state()
@@ -1159,20 +1179,20 @@ extern unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
 #define HV_FAST_SVC_CLRSTATUS		0x84
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_svc_send(unsigned long svc_id,
-				    unsigned long buffer,
-				    unsigned long buffer_size,
-				    unsigned long *sent_bytes);
-extern unsigned long sun4v_svc_recv(unsigned long svc_id,
-				    unsigned long buffer,
-				    unsigned long buffer_size,
-				    unsigned long *recv_bytes);
-extern unsigned long sun4v_svc_getstatus(unsigned long svc_id,
-					 unsigned long *status_bits);
-extern unsigned long sun4v_svc_setstatus(unsigned long svc_id,
-					 unsigned long status_bits);
-extern unsigned long sun4v_svc_clrstatus(unsigned long svc_id,
-					 unsigned long status_bits);
+unsigned long sun4v_svc_send(unsigned long svc_id,
+			     unsigned long buffer,
+			     unsigned long buffer_size,
+			     unsigned long *sent_bytes);
+unsigned long sun4v_svc_recv(unsigned long svc_id,
+			     unsigned long buffer,
+			     unsigned long buffer_size,
+			     unsigned long *recv_bytes);
+unsigned long sun4v_svc_getstatus(unsigned long svc_id,
+				  unsigned long *status_bits);
+unsigned long sun4v_svc_setstatus(unsigned long svc_id,
+				  unsigned long status_bits);
+unsigned long sun4v_svc_clrstatus(unsigned long svc_id,
+				  unsigned long status_bits);
 #endif
 
 /* Trap trace services.
@@ -1458,8 +1478,8 @@ struct hv_trap_trace_entry {
 #define HV_FAST_INTR_DEVINO2SYSINO	0xa0
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
-					    unsigned long devino);
+unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
+				     unsigned long devino);
 #endif
 
 /* intr_getenabled()
@@ -1476,7 +1496,7 @@ extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
 #define HV_FAST_INTR_GETENABLED		0xa1
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_intr_getenabled(unsigned long sysino);
+unsigned long sun4v_intr_getenabled(unsigned long sysino);
 #endif
 
 /* intr_setenabled()
@@ -1492,7 +1512,8 @@ extern unsigned long sun4v_intr_getenabled(unsigned long sysino);
 #define HV_FAST_INTR_SETENABLED		0xa2
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_intr_setenabled(unsigned long sysino, unsigned long intr_enabled);
+unsigned long sun4v_intr_setenabled(unsigned long sysino,
+				    unsigned long intr_enabled);
 #endif
 
 /* intr_getstate()
@@ -1508,7 +1529,7 @@ extern unsigned long sun4v_intr_setenabled(unsigned long sysino, unsigned long i
 #define HV_FAST_INTR_GETSTATE		0xa3
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_intr_getstate(unsigned long sysino);
+unsigned long sun4v_intr_getstate(unsigned long sysino);
 #endif
 
 /* intr_setstate()
@@ -1528,7 +1549,7 @@ extern unsigned long sun4v_intr_getstate(unsigned long sysino);
 #define HV_FAST_INTR_SETSTATE		0xa4
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_intr_setstate(unsigned long sysino, unsigned long intr_state);
+unsigned long sun4v_intr_setstate(unsigned long sysino, unsigned long intr_state);
 #endif
 
 /* intr_gettarget()
@@ -1546,7 +1567,7 @@ extern unsigned long sun4v_intr_setstate(unsigned long sysino, unsigned long int
 #define HV_FAST_INTR_GETTARGET		0xa5
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_intr_gettarget(unsigned long sysino);
+unsigned long sun4v_intr_gettarget(unsigned long sysino);
 #endif
 
 /* intr_settarget()
@@ -1563,7 +1584,7 @@ extern unsigned long sun4v_intr_gettarget(unsigned long sysino);
 #define HV_FAST_INTR_SETTARGET		0xa6
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
+unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
 #endif
 
 /* vintr_get_cookie()
@@ -1647,30 +1668,30 @@ extern unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cp
 #define HV_FAST_VINTR_SET_TARGET	0xae
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_vintr_get_cookie(unsigned long dev_handle,
-					    unsigned long dev_ino,
-					    unsigned long *cookie);
-extern unsigned long sun4v_vintr_set_cookie(unsigned long dev_handle,
-					    unsigned long dev_ino,
-					    unsigned long cookie);
-extern unsigned long sun4v_vintr_get_valid(unsigned long dev_handle,
-					   unsigned long dev_ino,
-					   unsigned long *valid);
-extern unsigned long sun4v_vintr_set_valid(unsigned long dev_handle,
-					   unsigned long dev_ino,
-					   unsigned long valid);
-extern unsigned long sun4v_vintr_get_state(unsigned long dev_handle,
-					   unsigned long dev_ino,
-					   unsigned long *state);
-extern unsigned long sun4v_vintr_set_state(unsigned long dev_handle,
-					   unsigned long dev_ino,
-					   unsigned long state);
-extern unsigned long sun4v_vintr_get_target(unsigned long dev_handle,
-					    unsigned long dev_ino,
-					    unsigned long *cpuid);
-extern unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
-					    unsigned long dev_ino,
-					    unsigned long cpuid);
+unsigned long sun4v_vintr_get_cookie(unsigned long dev_handle,
+				     unsigned long dev_ino,
+				     unsigned long *cookie);
+unsigned long sun4v_vintr_set_cookie(unsigned long dev_handle,
+				     unsigned long dev_ino,
+				     unsigned long cookie);
+unsigned long sun4v_vintr_get_valid(unsigned long dev_handle,
+				    unsigned long dev_ino,
+				    unsigned long *valid);
+unsigned long sun4v_vintr_set_valid(unsigned long dev_handle,
+				    unsigned long dev_ino,
+				    unsigned long valid);
+unsigned long sun4v_vintr_get_state(unsigned long dev_handle,
+				    unsigned long dev_ino,
+				    unsigned long *state);
+unsigned long sun4v_vintr_set_state(unsigned long dev_handle,
+				    unsigned long dev_ino,
+				    unsigned long state);
+unsigned long sun4v_vintr_get_target(unsigned long dev_handle,
+				     unsigned long dev_ino,
+				     unsigned long *cpuid);
+unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
+				     unsigned long dev_ino,
+				     unsigned long cpuid);
 #endif
 
 /* PCI IO services.
@@ -1741,6 +1762,7 @@ extern unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
 
 #define HV_PCI_MAP_ATTR_READ		0x01
 #define HV_PCI_MAP_ATTR_WRITE		0x02
+#define HV_PCI_MAP_ATTR_RELAXED_ORDER	0x04
 
 #define HV_PCI_DEVICE_BUILD(b,d,f)	\
 	((((b) & 0xff) << 16) | \
@@ -2331,6 +2353,348 @@ extern unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  */
 #define HV_FAST_PCI_MSG_SETVALID	0xd3
 
+/* PCI IOMMU v2 definitions and services
+ *
+ * While the PCI IO definitions above is valid IOMMU v2 adds new PCI IO
+ * definitions and services.
+ *
+ *	CTE		Clump Table Entry. First level table entry in the ATU.
+ *
+ *	pci_device_list
+ *			A 32-bit aligned list of pci_devices.
+ *
+ *	pci_device_listp
+ *			real address of a pci_device_list. 32-bit aligned.
+ *
+ *	iotte		IOMMU translation table entry.
+ *
+ *	iotte_attributes
+ *			IO Attributes for IOMMU v2 mappings. In addition to
+ *			read, write IOMMU v2 supports relax ordering
+ *
+ *	io_page_list	A 64-bit aligned list of real addresses. Each real
+ *			address in an io_page_list must be properly aligned
+ *			to the pagesize of the given IOTSB.
+ *
+ *	io_page_list_p	Real address of an io_page_list, 64-bit aligned.
+ *
+ *	IOTSB		IO Translation Storage Buffer. An aligned table of
+ *			IOTTEs. Each IOTSB has a pagesize, table size, and
+ *			virtual address associated with it that must match
+ *			a pagesize and table size supported by the un-derlying
+ *			hardware implementation. The alignment requirements
+ *			for an IOTSB depend on the pagesize used for that IOTSB.
+ *			Each IOTTE in an IOTSB maps one pagesize-sized page.
+ *			The size of the IOTSB dictates how large of a virtual
+ *			address space the IOTSB is capable of mapping.
+ *
+ *	iotsb_handle	An opaque identifier for an IOTSB. A devhandle plus
+ *			iotsb_handle represents a binding of an IOTSB to a
+ *			PCI root complex.
+ *
+ *	iotsb_index	Zero-based IOTTE number within an IOTSB.
+ */
+
+/* The index_count argument consists of two fields:
+ * bits 63:48 #iottes and bits 47:0 iotsb_index
+ */
+#define HV_PCI_IOTSB_INDEX_COUNT(__iottes, __iotsb_index) \
+	(((u64)(__iottes) << 48UL) | ((u64)(__iotsb_index)))
+
+/* pci_iotsb_conf()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_CONF
+ * ARG0:	devhandle
+ * ARG1:	r_addr
+ * ARG2:	size
+ * ARG3:	pagesize
+ * ARG4:	iova
+ * RET0:	status
+ * RET1:	iotsb_handle
+ * ERRORS:	EINVAL		Invalid devhandle, size, iova, or pagesize
+ *		EBADALIGN	r_addr is not properly aligned
+ *		ENORADDR	r_addr is not a valid real address
+ *		ETOOMANY	No further IOTSBs may be configured
+ *		EBUSY		Duplicate devhandle, raddir, iova combination
+ *
+ * Create an IOTSB suitable for the PCI root complex identified by devhandle,
+ * for the DMA virtual address defined by the argument iova.
+ *
+ * r_addr is the properly aligned base address of the IOTSB and size is the
+ * IOTSB (table) size in bytes.The IOTSB is required to be zeroed prior to
+ * being configured. If it contains any values other than zeros then the
+ * behavior is undefined.
+ *
+ * pagesize is the size of each page in the IOTSB. Note that the combination of
+ * size (table size) and pagesize must be valid.
+ *
+ * virt is the DMA virtual address this IOTSB will map.
+ *
+ * If successful, the opaque 64-bit handle iotsb_handle is returned in ret1.
+ * Once configured, privileged access to the IOTSB memory is prohibited and
+ * creates undefined behavior. The only permitted access is indirect via these
+ * services.
+ */
+#define HV_FAST_PCI_IOTSB_CONF		0x190
+
+/* pci_iotsb_info()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_INFO
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * RET0:	status
+ * RET1:	r_addr
+ * RET2:	size
+ * RET3:	pagesize
+ * RET4:	iova
+ * RET5:	#bound
+ * ERRORS:	EINVAL	Invalid devhandle or iotsb_handle
+ *
+ * This service returns configuration information about an IOTSB previously
+ * created with pci_iotsb_conf.
+ *
+ * iotsb_handle value 0 may be used with this service to inquire about the
+ * legacy IOTSB that may or may not exist. If the service succeeds, the return
+ * values describe the legacy IOTSB and I/O virtual addresses mapped by that
+ * table. However, the table base address r_addr may contain the value -1 which
+ * indicates a memory range that cannot be accessed or be reclaimed.
+ *
+ * The return value #bound contains the number of PCI devices that iotsb_handle
+ * is currently bound to.
+ */
+#define HV_FAST_PCI_IOTSB_INFO		0x191
+
+/* pci_iotsb_unconf()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_UNCONF
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * RET0:	status
+ * ERRORS:	EINVAL	Invalid devhandle or iotsb_handle
+ *		EBUSY	The IOTSB is bound and may not be unconfigured
+ *
+ * This service unconfigures the IOTSB identified by the devhandle and
+ * iotsb_handle arguments, previously created with pci_iotsb_conf.
+ * The IOTSB must not be currently bound to any device or the service will fail
+ *
+ * If the call succeeds, iotsb_handle is no longer valid.
+ */
+#define HV_FAST_PCI_IOTSB_UNCONF	0x192
+
+/* pci_iotsb_bind()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_BIND
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	pci_device
+ * RET0:	status
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or pci_device
+ *		EBUSY	A PCI function is already bound to an IOTSB at the same
+ *			address range as specified by devhandle, iotsb_handle.
+ *
+ * This service binds the PCI function specified by the argument pci_device to
+ * the IOTSB specified by the arguments devhandle and iotsb_handle.
+ *
+ * The PCI device function is bound to the specified IOTSB with the IOVA range
+ * specified when the IOTSB was configured via pci_iotsb_conf. If the function
+ * is already bound then it is unbound first.
+ */
+#define HV_FAST_PCI_IOTSB_BIND		0x193
+
+/* pci_iotsb_unbind()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_UNBIND
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	pci_device
+ * RET0:	status
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or pci_device
+ *		ENOMAP	The PCI function was not bound to the specified IOTSB
+ *
+ * This service unbinds the PCI device specified by the argument pci_device
+ * from the IOTSB identified  * by the arguments devhandle and iotsb_handle.
+ *
+ * If the PCI device is not bound to the specified IOTSB then this service will
+ * fail with status ENOMAP
+ */
+#define HV_FAST_PCI_IOTSB_UNBIND	0x194
+
+/* pci_iotsb_get_binding()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_GET_BINDING
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iova
+ * RET0:	status
+ * RET1:	iotsb_handle
+ * ERRORS:	EINVAL	Invalid devhandle, pci_device, or iova
+ *		ENOMAP	The PCI function is not bound to an IOTSB at iova
+ *
+ * This service returns the IOTSB binding, iotsb_handle, for a given pci_device
+ * and DMA virtual address, iova.
+ *
+ * iova must be the base address of a DMA virtual address range as defined by
+ * the iommu-address-ranges property in the root complex device node defined
+ * by the argument devhandle.
+ */
+#define HV_FAST_PCI_IOTSB_GET_BINDING	0x195
+
+/* pci_iotsb_map()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_MAP
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	index_count
+ * ARG3:	iotte_attributes
+ * ARG4:	io_page_list_p
+ * RET0:	status
+ * RET1:	#mapped
+ * ERRORS:	EINVAL		Invalid devhandle, iotsb_handle, #iottes,
+ *				iotsb_index or iotte_attributes
+ *		EBADALIGN	Improperly aligned io_page_list_p or I/O page
+ *				address in the I/O page list.
+ *		ENORADDR	Invalid io_page_list_p or I/O page address in
+ *				the I/O page list.
+ *
+ * This service creates and flushes mappings in the IOTSB defined by the
+ * arguments devhandle, iotsb.
+ *
+ * The index_count argument consists of two fields. Bits 63:48 contain #iotte
+ * and bits 47:0 contain iotsb_index
+ *
+ * The first mapping is created in the IOTSB index specified by iotsb_index.
+ * Subsequent mappings are  created at iotsb_index+1 and so on.
+ *
+ * The attributes of each mapping are defined by the argument iotte_attributes.
+ *
+ * The io_page_list_p specifies the real address of the 64-bit-aligned list of
+ * #iottes I/O page addresses. Each page address must be a properly aligned
+ * real address of a page to be mapped in the IOTSB. The first entry in the I/O
+ * page list contains the real address of the first page, the 2nd entry for the
+ * 2nd page, and so on.
+ *
+ * #iottes must be greater than zero.
+ *
+ * The return value #mapped is the actual number of mappings created, which may
+ * be less than or equal to the argument #iottes. If the function returns
+ * successfully with a #mapped value less than the requested #iottes then the
+ * caller should continue to invoke the service with updated iotsb_index,
+ * #iottes, and io_page_list_p arguments until all pages are mapped.
+ *
+ * This service must not be used to demap a mapping. In other words, all
+ * mappings must be valid and have  one or both of the RW attribute bits set.
+ *
+ * Note:
+ * It is implementation-defined whether I/O page real address validity checking
+ * is done at time mappings are established or deferred until they are
+ * accessed.
+ */
+#define HV_FAST_PCI_IOTSB_MAP		0x196
+
+/* pci_iotsb_map_one()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_MAP_ONE
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * ARG3:	iotte_attributes
+ * ARG4:	r_addr
+ * RET0:	status
+ * ERRORS:	EINVAL		Invalid devhandle,iotsb_handle, iotsb_index
+ *				or iotte_attributes
+ *		EBADALIGN	Improperly aligned r_addr
+ *		ENORADDR	Invalid r_addr
+ *
+ * This service creates and flushes a single mapping in the IOTSB defined by the
+ * arguments devhandle, iotsb.
+ *
+ * The mapping for the page at r_addr is created at the IOTSB index specified by
+ * iotsb_index with  the attributes iotte_attributes.
+ *
+ * This service must not be used to demap a mapping. In other words, the mapping
+ * must be valid and have one or both of the RW attribute bits set.
+ *
+ * Note:
+ * It is implementation-defined whether I/O page real address validity checking
+ * is done at time mappings are established or deferred until they are
+ * accessed.
+ */
+#define HV_FAST_PCI_IOTSB_MAP_ONE	0x197
+
+/* pci_iotsb_demap()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_DEMAP
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * ARG3:	#iottes
+ * RET0:	status
+ * RET1:	#unmapped
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, iotsb_index or #iottes
+ *
+ * This service unmaps and flushes up to #iottes mappings starting at index
+ * iotsb_index from the IOTSB defined by the arguments devhandle, iotsb.
+ *
+ * #iottes must be greater than zero.
+ *
+ * The actual number of IOTTEs unmapped is returned in #unmapped and may be less
+ * than or equal to the requested number of IOTTEs, #iottes.
+ *
+ * If #unmapped is less than #iottes, the caller should continue to invoke this
+ * service with updated iotsb_index and #iottes arguments until all pages are
+ * demapped.
+ */
+#define HV_FAST_PCI_IOTSB_DEMAP		0x198
+
+/* pci_iotsb_getmap()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_GETMAP
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * RET0:	status
+ * RET1:	r_addr
+ * RET2:	iotte_attributes
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or iotsb_index
+ *		ENOMAP	No mapping was found
+ *
+ * This service returns the mapping specified by index iotsb_index from the
+ * IOTSB defined by the arguments devhandle, iotsb.
+ *
+ * Upon success, the real address of the mapping shall be returned in
+ * r_addr and thethe IOTTE mapping attributes shall be returned in
+ * iotte_attributes.
+ *
+ * The return value iotte_attributes may not include optional features used in
+ * the call to create the  mapping.
+ */
+#define HV_FAST_PCI_IOTSB_GETMAP	0x199
+
+/* pci_iotsb_sync_mappings()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_SYNC_MAPPINGS
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * ARG3:	#iottes
+ * RET0:	status
+ * RET1:	#synced
+ * ERROS:	EINVAL	Invalid devhandle, iotsb_handle, iotsb_index, or #iottes
+ *
+ * This service synchronizes #iottes mappings starting at index iotsb_index in
+ * the IOTSB defined by the arguments devhandle, iotsb.
+ *
+ * #iottes must be greater than zero.
+ *
+ * The actual number of IOTTEs synchronized is returned in #synced, which may
+ * be less than or equal to the requested number, #iottes.
+ *
+ * Upon a successful return, #synced is less than #iottes, the caller should
+ * continue to invoke this service with updated iotsb_index and #iottes
+ * arguments until all pages are synchronized.
+ */
+#define HV_FAST_PCI_IOTSB_SYNC_MAPPINGS	0x19a
+
 /* Logical Domain Channel services.  */
 
 #define LDC_CHANNEL_DOWN		0
@@ -2627,50 +2991,50 @@ struct ldc_mtable_entry {
 #define HV_FAST_LDC_REVOKE		0xef
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_ldc_tx_qconf(unsigned long channel,
-					unsigned long ra,
-					unsigned long num_entries);
-extern unsigned long sun4v_ldc_tx_qinfo(unsigned long channel,
-					unsigned long *ra,
-					unsigned long *num_entries);
-extern unsigned long sun4v_ldc_tx_get_state(unsigned long channel,
-					    unsigned long *head_off,
-					    unsigned long *tail_off,
-					    unsigned long *chan_state);
-extern unsigned long sun4v_ldc_tx_set_qtail(unsigned long channel,
-					    unsigned long tail_off);
-extern unsigned long sun4v_ldc_rx_qconf(unsigned long channel,
-					unsigned long ra,
-					unsigned long num_entries);
-extern unsigned long sun4v_ldc_rx_qinfo(unsigned long channel,
-					unsigned long *ra,
-					unsigned long *num_entries);
-extern unsigned long sun4v_ldc_rx_get_state(unsigned long channel,
-					    unsigned long *head_off,
-					    unsigned long *tail_off,
-					    unsigned long *chan_state);
-extern unsigned long sun4v_ldc_rx_set_qhead(unsigned long channel,
-					    unsigned long head_off);
-extern unsigned long sun4v_ldc_set_map_table(unsigned long channel,
-					     unsigned long ra,
-					     unsigned long num_entries);
-extern unsigned long sun4v_ldc_get_map_table(unsigned long channel,
-					     unsigned long *ra,
-					     unsigned long *num_entries);
-extern unsigned long sun4v_ldc_copy(unsigned long channel,
-				    unsigned long dir_code,
-				    unsigned long tgt_raddr,
-				    unsigned long lcl_raddr,
-				    unsigned long len,
-				    unsigned long *actual_len);
-extern unsigned long sun4v_ldc_mapin(unsigned long channel,
-				     unsigned long cookie,
-				     unsigned long *ra,
-				     unsigned long *perm);
-extern unsigned long sun4v_ldc_unmap(unsigned long ra);
-extern unsigned long sun4v_ldc_revoke(unsigned long channel,
-				      unsigned long cookie,
-				      unsigned long mte_cookie);
+unsigned long sun4v_ldc_tx_qconf(unsigned long channel,
+				 unsigned long ra,
+				 unsigned long num_entries);
+unsigned long sun4v_ldc_tx_qinfo(unsigned long channel,
+				 unsigned long *ra,
+				 unsigned long *num_entries);
+unsigned long sun4v_ldc_tx_get_state(unsigned long channel,
+				     unsigned long *head_off,
+				     unsigned long *tail_off,
+				     unsigned long *chan_state);
+unsigned long sun4v_ldc_tx_set_qtail(unsigned long channel,
+				     unsigned long tail_off);
+unsigned long sun4v_ldc_rx_qconf(unsigned long channel,
+				 unsigned long ra,
+				 unsigned long num_entries);
+unsigned long sun4v_ldc_rx_qinfo(unsigned long channel,
+				 unsigned long *ra,
+				 unsigned long *num_entries);
+unsigned long sun4v_ldc_rx_get_state(unsigned long channel,
+				     unsigned long *head_off,
+				     unsigned long *tail_off,
+				     unsigned long *chan_state);
+unsigned long sun4v_ldc_rx_set_qhead(unsigned long channel,
+				     unsigned long head_off);
+unsigned long sun4v_ldc_set_map_table(unsigned long channel,
+				      unsigned long ra,
+				      unsigned long num_entries);
+unsigned long sun4v_ldc_get_map_table(unsigned long channel,
+				      unsigned long *ra,
+				      unsigned long *num_entries);
+unsigned long sun4v_ldc_copy(unsigned long channel,
+			     unsigned long dir_code,
+			     unsigned long tgt_raddr,
+			     unsigned long lcl_raddr,
+			     unsigned long len,
+			     unsigned long *actual_len);
+unsigned long sun4v_ldc_mapin(unsigned long channel,
+			      unsigned long cookie,
+			      unsigned long *ra,
+			      unsigned long *perm);
+unsigned long sun4v_ldc_unmap(unsigned long ra);
+unsigned long sun4v_ldc_revoke(unsigned long channel,
+			       unsigned long cookie,
+			       unsigned long mte_cookie);
 #endif
 
 /* Performance counter services.  */
@@ -2727,14 +3091,14 @@ extern unsigned long sun4v_ldc_revoke(unsigned long channel,
 #define HV_FAST_N2_SET_PERFREG		0x105
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_niagara_getperf(unsigned long reg,
-					   unsigned long *val);
-extern unsigned long sun4v_niagara_setperf(unsigned long reg,
-					   unsigned long val);
-extern unsigned long sun4v_niagara2_getperf(unsigned long reg,
-					    unsigned long *val);
-extern unsigned long sun4v_niagara2_setperf(unsigned long reg,
-					    unsigned long val);
+unsigned long sun4v_niagara_getperf(unsigned long reg,
+				    unsigned long *val);
+unsigned long sun4v_niagara_setperf(unsigned long reg,
+				    unsigned long val);
+unsigned long sun4v_niagara2_getperf(unsigned long reg,
+				     unsigned long *val);
+unsigned long sun4v_niagara2_setperf(unsigned long reg,
+				     unsigned long val);
 #endif
 
 /* MMU statistics services.
@@ -2829,8 +3193,8 @@ struct hv_mmu_statistics {
 #define HV_FAST_MMUSTAT_INFO		0x103
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_mmustat_conf(unsigned long ra, unsigned long *orig_ra);
-extern unsigned long sun4v_mmustat_info(unsigned long *ra);
+unsigned long sun4v_mmustat_conf(unsigned long ra, unsigned long *orig_ra);
+unsigned long sun4v_mmustat_info(unsigned long *ra);
 #endif
 
 /* NCS crypto services  */
@@ -2919,9 +3283,9 @@ struct hv_ncs_qtail_update_arg {
 #define HV_FAST_NCS_REQUEST		0x110
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_ncs_request(unsigned long request,
-				       unsigned long arg_ra,
-				       unsigned long arg_size);
+unsigned long sun4v_ncs_request(unsigned long request,
+			        unsigned long arg_ra,
+			        unsigned long arg_size);
 #endif
 
 #define HV_FAST_FIRE_GET_PERFREG	0x120
@@ -2930,18 +3294,39 @@ extern unsigned long sun4v_ncs_request(unsigned long request,
 #define HV_FAST_REBOOT_DATA_SET		0x172
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_reboot_data_set(unsigned long ra,
-					   unsigned long len);
+unsigned long sun4v_reboot_data_set(unsigned long ra,
+				    unsigned long len);
 #endif
 
 #define HV_FAST_VT_GET_PERFREG		0x184
 #define HV_FAST_VT_SET_PERFREG		0x185
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_vt_get_perfreg(unsigned long reg_num,
-					  unsigned long *reg_val);
-extern unsigned long sun4v_vt_set_perfreg(unsigned long reg_num,
-					  unsigned long reg_val);
+unsigned long sun4v_vt_get_perfreg(unsigned long reg_num,
+				   unsigned long *reg_val);
+unsigned long sun4v_vt_set_perfreg(unsigned long reg_num,
+				   unsigned long reg_val);
+#endif
+
+#define	HV_FAST_T5_GET_PERFREG		0x1a8
+#define	HV_FAST_T5_SET_PERFREG		0x1a9
+
+#ifndef	__ASSEMBLY__
+unsigned long sun4v_t5_get_perfreg(unsigned long reg_num,
+				   unsigned long *reg_val);
+unsigned long sun4v_t5_set_perfreg(unsigned long reg_num,
+				   unsigned long reg_val);
+#endif
+
+
+#define HV_FAST_M7_GET_PERFREG	0x43
+#define HV_FAST_M7_SET_PERFREG	0x44
+
+#ifndef	__ASSEMBLY__
+unsigned long sun4v_m7_get_perfreg(unsigned long reg_num,
+				      unsigned long *reg_val);
+unsigned long sun4v_m7_set_perfreg(unsigned long reg_num,
+				      unsigned long reg_val);
 #endif
 
 /* Function numbers for HV_CORE_TRAP.  */
@@ -2968,6 +3353,8 @@ extern unsigned long sun4v_vt_set_perfreg(unsigned long reg_num,
 #define HV_GRP_SDIO			0x0108
 #define HV_GRP_SDIO_ERR			0x0109
 #define HV_GRP_REBOOT_DATA		0x0110
+#define HV_GRP_ATU			0x0111
+#define HV_GRP_M7_PERF			0x0114
 #define HV_GRP_NIAG_PERF		0x0200
 #define HV_GRP_FIRE_PERF		0x0201
 #define HV_GRP_N2_CPU			0x0202
@@ -2975,24 +3362,25 @@ extern unsigned long sun4v_vt_set_perfreg(unsigned long reg_num,
 #define HV_GRP_VF_CPU			0x0205
 #define HV_GRP_KT_CPU			0x0209
 #define HV_GRP_VT_CPU			0x020c
+#define HV_GRP_T5_CPU			0x0211
 #define HV_GRP_DIAG			0x0300
 
 #ifndef __ASSEMBLY__
-extern unsigned long sun4v_get_version(unsigned long group,
-				       unsigned long *major,
-				       unsigned long *minor);
-extern unsigned long sun4v_set_version(unsigned long group,
-				       unsigned long major,
-				       unsigned long minor,
-				       unsigned long *actual_minor);
+unsigned long sun4v_get_version(unsigned long group,
+			        unsigned long *major,
+			        unsigned long *minor);
+unsigned long sun4v_set_version(unsigned long group,
+			        unsigned long major,
+			        unsigned long minor,
+			        unsigned long *actual_minor);
 
-extern int sun4v_hvapi_register(unsigned long group, unsigned long major,
-				unsigned long *minor);
-extern void sun4v_hvapi_unregister(unsigned long group);
-extern int sun4v_hvapi_get(unsigned long group,
-			   unsigned long *major,
-			   unsigned long *minor);
-extern void sun4v_hvapi_init(void);
+int sun4v_hvapi_register(unsigned long group, unsigned long major,
+			 unsigned long *minor);
+void sun4v_hvapi_unregister(unsigned long group);
+int sun4v_hvapi_get(unsigned long group,
+		    unsigned long *major,
+		    unsigned long *minor);
+void sun4v_hvapi_init(void);
 #endif
 
 #endif /* !(_SPARC64_HYPERVISOR_H) */

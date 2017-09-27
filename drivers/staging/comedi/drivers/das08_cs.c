@@ -1,51 +1,46 @@
 /*
-    comedi/drivers/das08_cs.c
-    DAS08 driver
+ * Comedi driver for DAS008 PCMCIA boards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ * Copyright (C) 2001,2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * PCMCIA support code for this driver is adapted from the dummy_cs.c
+ * driver of the Linux PCMCIA Card Services package.
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-    Copyright (C) 2001,2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    PCMCIA support code for this driver is adapted from the dummy_cs.c
-    driver of the Linux PCMCIA Card Services package.
-
-    The initial developer of the original code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-*/
 /*
-Driver: das08_cs
-Description: DAS-08 PCMCIA boards
-Author: Warren Jasper, ds, Frank Hess
-Devices: [ComputerBoards] PCM-DAS08 (pcm-das08)
-Status: works
+ * Driver: das08_cs
+ * Description: DAS-08 PCMCIA boards
+ * Author: Warren Jasper, ds, Frank Hess
+ * Devices: [ComputerBoards] PCM-DAS08 (pcm-das08)
+ * Status: works
+ *
+ * This is the PCMCIA-specific support split off from the
+ * das08 driver.
+ *
+ * Configuration Options: none, uses PCMCIA auto config
+ *
+ * Command support does not exist, but could be added for this board.
+ */
 
-This is the PCMCIA-specific support split off from the
-das08 driver.
+#include <linux/module.h>
 
-Options (for pcm-das08):
-	NONE
-
-Command support does not exist, but could be added for this board.
-*/
-
-#include <linux/delay.h>
-#include <linux/slab.h>
-
-#include "../comedidev.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
+#include "../comedi_pcmcia.h"
 
 #include "das08.h"
 
@@ -78,10 +73,9 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 		return ret;
 	iobase = link->resource[0]->start;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	return das08_common_attach(dev, iobase);
 }
@@ -113,7 +107,7 @@ static struct pcmcia_driver das08_cs_driver = {
 };
 module_comedi_pcmcia_driver(driver_das08_cs, das08_cs_driver);
 
-MODULE_AUTHOR("David A. Schleef <ds@schleef.org>, "
-	      "Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
 MODULE_DESCRIPTION("Comedi driver for ComputerBoards DAS-08 PCMCIA boards");
 MODULE_LICENSE("GPL");

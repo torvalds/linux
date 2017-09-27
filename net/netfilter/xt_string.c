@@ -26,14 +26,12 @@ static bool
 string_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_string_info *conf = par->matchinfo;
-	struct ts_state state;
 	bool invert;
 
-	memset(&state, 0, sizeof(struct ts_state));
 	invert = conf->u.v1.flags & XT_STRING_FLAG_INVERT;
 
 	return (skb_find_text((struct sk_buff *)skb, conf->from_offset,
-			     conf->to_offset, conf->config, &state)
+			     conf->to_offset, conf->config)
 			     != UINT_MAX) ^ invert;
 }
 
@@ -79,6 +77,7 @@ static struct xt_match xt_string_mt_reg __read_mostly = {
 	.match      = string_mt,
 	.destroy    = string_mt_destroy,
 	.matchsize  = sizeof(struct xt_string_info),
+	.usersize   = offsetof(struct xt_string_info, config),
 	.me         = THIS_MODULE,
 };
 

@@ -13,6 +13,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/delay.h>
+#include <linux/time.h>
 
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -24,7 +25,6 @@
 #include <asm/mpc52xx_psc.h>
 
 #include "mpc5200_dma.h"
-#include "mpc5200_psc_ac97.h"
 
 #define DRV_NAME "mpc5200-psc-ac97"
 
@@ -127,7 +127,7 @@ static void psc_ac97_cold_reset(struct snd_ac97 *ac97)
 
 	mutex_unlock(&psc_dma->mutex);
 
-	msleep(1);
+	usleep_range(1000, 2000);
 	psc_ac97_warm_reset(ac97);
 }
 
@@ -237,7 +237,7 @@ static const struct snd_soc_dai_ops psc_ac97_digital_ops = {
 static struct snd_soc_dai_driver psc_ac97_dai[] = {
 {
 	.name = "mpc5200-psc-ac97.0",
-	.ac97_control = 1,
+	.bus_control = true,
 	.probe	= psc_ac97_probe,
 	.playback = {
 		.stream_name	= "AC97 Playback",
@@ -257,7 +257,7 @@ static struct snd_soc_dai_driver psc_ac97_dai[] = {
 },
 {
 	.name = "mpc5200-psc-ac97.1",
-	.ac97_control = 1,
+	.bus_control = true,
 	.playback = {
 		.stream_name	= "AC97 SPDIF",
 		.channels_min   = 1,
@@ -282,7 +282,6 @@ static const struct snd_soc_component_driver psc_ac97_component = {
 static int psc_ac97_of_probe(struct platform_device *op)
 {
 	int rc;
-	struct snd_ac97 ac97;
 	struct mpc52xx_psc __iomem *regs;
 
 	rc = mpc5200_audio_dma_create(op);
@@ -291,7 +290,7 @@ static int psc_ac97_of_probe(struct platform_device *op)
 
 	rc = snd_soc_set_ac97_ops(&psc_ac97_ops);
 	if (rc != 0) {
-		dev_err(&op->dev, "Failed to set AC'97 ops: %d\n", ret);
+		dev_err(&op->dev, "Failed to set AC'97 ops: %d\n", rc);
 		return rc;
 	}
 
@@ -304,7 +303,6 @@ static int psc_ac97_of_probe(struct platform_device *op)
 
 	psc_dma = dev_get_drvdata(&op->dev);
 	regs = psc_dma->psc_regs;
-	ac97.private_data = psc_dma;
 
 	psc_dma->imr = 0;
 	out_be16(&psc_dma->psc_regs->isr_imr.imr, psc_dma->imr);
@@ -328,7 +326,7 @@ static int psc_ac97_of_remove(struct platform_device *op)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id psc_ac97_match[] = {
+static const struct of_device_id psc_ac97_match[] = {
 	{ .compatible = "fsl,mpc5200-psc-ac97", },
 	{ .compatible = "fsl,mpc5200b-psc-ac97", },
 	{}
@@ -340,7 +338,6 @@ static struct platform_driver psc_ac97_driver = {
 	.remove = psc_ac97_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-ac97",
-		.owner = THIS_MODULE,
 		.of_match_table = psc_ac97_match,
 	},
 };

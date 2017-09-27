@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/slab.h>
 
 #include "vmci_queue_pair.h"
@@ -303,7 +304,7 @@ int vmci_ctx_enqueue_datagram(u32 cid, struct vmci_datagram *dg)
 
 	vmci_dg_size = VMCI_DG_SIZE(dg);
 	if (vmci_dg_size > VMCI_MAX_DG_SIZE) {
-		pr_devel("Datagram too large (bytes=%Zu)\n", vmci_dg_size);
+		pr_devel("Datagram too large (bytes=%zu)\n", vmci_dg_size);
 		return VMCI_ERROR_INVALID_ARGS;
 	}
 

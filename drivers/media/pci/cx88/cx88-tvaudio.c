@@ -1,39 +1,36 @@
 /*
+ * cx88x-audio.c - Conexant CX23880/23881 audio downstream driver driver
+ *
+ *  (c) 2001 Michael Eskin, Tom Zakrajsek [Windows version]
+ *  (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
+ *  (c) 2003 Gerd Knorr <kraxel@bytesex.org>
+ *
+ * -----------------------------------------------------------------------
+ *
+ * Lot of voodoo here.  Even the data sheet doesn't help to
+ * understand what is going on here, the documentation for the audio
+ * part of the cx2388x chip is *very* bad.
+ *
+ * Some of this comes from party done linux driver sources I got from
+ * [undocumented].
+ *
+ * Some comes from the dscaler sources, one of the dscaler driver guy works
+ * for Conexant ...
+ *
+ * -----------------------------------------------------------------------
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    cx88x-audio.c - Conexant CX23880/23881 audio downstream driver driver
-
-     (c) 2001 Michael Eskin, Tom Zakrajsek [Windows version]
-     (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
-     (c) 2003 Gerd Knorr <kraxel@bytesex.org>
-
-    -----------------------------------------------------------------------
-
-    Lot of voodoo here.  Even the data sheet doesn't help to
-    understand what is going on here, the documentation for the audio
-    part of the cx2388x chip is *very* bad.
-
-    Some of this comes from party done linux driver sources I got from
-    [undocumented].
-
-    Some comes from the dscaler sources, one of the dscaler driver guy works
-    for Conexant ...
-
-    -----------------------------------------------------------------------
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+#include "cx88.h"
 
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -50,24 +47,24 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 
-#include "cx88.h"
-
 static unsigned int audio_debug;
 module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [audio]");
 
 static unsigned int always_analog;
-module_param(always_analog,int,0644);
-MODULE_PARM_DESC(always_analog,"force analog audio out");
+module_param(always_analog, int, 0644);
+MODULE_PARM_DESC(always_analog, "force analog audio out");
 
 static unsigned int radio_deemphasis;
-module_param(radio_deemphasis,int,0644);
-MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, "
-		 "0=None, 1=50us (elsewhere), 2=75us (USA)");
+module_param(radio_deemphasis, int, 0644);
+MODULE_PARM_DESC(radio_deemphasis,
+		 "Radio deemphasis time constant, 0=None, 1=50us (elsewhere), 2=75us (USA)");
 
-#define dprintk(fmt, arg...)	if (audio_debug) \
-	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
-
+#define dprintk(fmt, arg...) do {				\
+	if (audio_debug)						\
+		printk(KERN_DEBUG pr_fmt("%s: tvaudio:" fmt),		\
+			__func__, ##arg);				\
+} while (0)
 /* ----------------------------------------------------------- */
 
 static const char * const aud_ctl_names[64] = {
@@ -145,7 +142,10 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 	if (core->board.mpeg & CX88_MPEG_BLACKBIRD) {
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
-		/* 'pass-thru mode': this enables the i2s output to the mpeg encoder */
+		/*
+		 * 'pass-thru mode': this enables the i2s
+		 * output to the mpeg encoder
+		 */
 		cx_set(AUD_CTL, EN_I2SOUT_ENABLE);
 		cx_write(AUD_I2SOUTPUTCNTL, 1);
 		cx_write(AUD_I2SCNTL, 0);
@@ -349,7 +349,7 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		{ /* end of list */ },
 	};
 
-	set_audio_start(core,SEL_NICAM);
+	set_audio_start(core, SEL_NICAM);
 	switch (core->tvaudio) {
 	case WW_L:
 		dprintk("%s SECAM-L NICAM (status: devel)\n", __func__);
@@ -638,7 +638,6 @@ static void set_audio_standard_A2(struct cx88_core *core, u32 mode)
 	case WW_M:
 		dprintk("%s Warning: wrong value\n", __func__);
 		return;
-		break;
 	}
 
 	mode |= EN_FMRADIO_EN_RDS | EN_DMTRX_SUMDIFF;
@@ -695,13 +694,15 @@ static void set_audio_standard_FM(struct cx88_core *core,
 		{ /* end of list */ },
 	};
 
-	/* It is enough to leave default values? */
-	/* No, it's not!  The deemphasis registers are reset to the 75us
+	/*
+	 * It is enough to leave default values?
+	 *
+	 * No, it's not!  The deemphasis registers are reset to the 75us
 	 * values by default.  Analyzing the spectrum of the decoded audio
 	 * reveals that "no deemphasis" is the same as 75 us, while the 50 us
-	 * setting results in less deemphasis.  */
+	 * setting results in less deemphasis.
+	 */
 	static const struct rlist fm_no_deemph[] = {
-
 		{AUD_POLYPH80SCALEFAC, 0x0003},
 		{ /* end of list */ },
 	};
@@ -745,7 +746,7 @@ static int cx88_detect_nicam(struct cx88_core *core)
 		}
 
 		/* wait a little bit for next reading status */
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 	dprintk("nicam is not detected.\n");
@@ -766,10 +767,12 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		/* prepare all dsp registers */
 		set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 
-		/* set nicam mode - otherwise
-		   AUD_NICAM_STATUS2 contains wrong values */
+		/*
+		 * set nicam mode - otherwise
+		 * AUD_NICAM_STATUS2 contains wrong values
+		 */
 		set_audio_standard_NICAM(core, EN_NICAM_AUTO_STEREO);
-		if (0 == cx88_detect_nicam(core)) {
+		if (cx88_detect_nicam(core) == 0) {
 			/* fall back to fm / am mono */
 			set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 			core->audiomode_current = V4L2_TUNER_MODE_MONO;
@@ -798,23 +801,25 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		break;
 	case WW_NONE:
 	case WW_I2SPT:
-		printk("%s/0: unknown tv audio mode [%d]\n",
-		       core->name, core->tvaudio);
+		pr_info("unknown tv audio mode [%d]\n", core->tvaudio);
 		break;
 	}
-	return;
 }
+EXPORT_SYMBOL(cx88_set_tvaudio);
 
 void cx88_newstation(struct cx88_core *core)
 {
 	core->audiomode_manual = UNSET;
 	core->last_change = jiffies;
 }
+EXPORT_SYMBOL(cx88_newstation);
 
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 {
-	static const char * const m[] = { "stereo", "dual mono", "mono", "sap" };
-	static const char * const p[] = { "no pilot", "pilot c1", "pilot c2", "?" };
+	static const char * const m[] = { "stereo", "dual mono",
+					  "mono",   "sap" };
+	static const char * const p[] = { "no pilot", "pilot c1",
+					  "pilot c2", "?" };
 	u32 reg, mode, pilot;
 
 	reg = cx_read(AUD_STATUS);
@@ -869,15 +874,18 @@ void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 	}
 
 	/* If software stereo detection is not supported... */
-	if (UNSET == t->rxsubchans) {
+	if (t->rxsubchans == UNSET) {
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
-		/* If the hardware itself detected stereo, also return
-		   stereo as an available subchannel */
-		if (V4L2_TUNER_MODE_STEREO == t->audmode)
+		/*
+		 * If the hardware itself detected stereo, also return
+		 * stereo as an available subchannel
+		 */
+		if (t->audmode == V4L2_TUNER_MODE_STEREO)
 			t->rxsubchans |= V4L2_TUNER_SUB_STEREO;
 	}
-	return;
 }
+EXPORT_SYMBOL(cx88_get_stereo);
+
 
 void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 {
@@ -887,7 +895,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 	if (manual) {
 		core->audiomode_manual = mode;
 	} else {
-		if (UNSET != core->audiomode_manual)
+		if (core->audiomode_manual != UNSET)
 			return;
 	}
 	core->audiomode_current = mode;
@@ -915,7 +923,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 	case WW_M:
 	case WW_I:
 	case WW_L:
-		if (1 == core->use_nicam) {
+		if (core->use_nicam == 1) {
 			switch (mode) {
 			case V4L2_TUNER_MODE_MONO:
 			case V4L2_TUNER_MODE_LANG1:
@@ -933,7 +941,8 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 				break;
 			}
 		} else {
-			if ((core->tvaudio == WW_I) || (core->tvaudio == WW_L)) {
+			if ((core->tvaudio == WW_I) ||
+			    (core->tvaudio == WW_L)) {
 				/* fall back to fm / am mono */
 				set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 			} else {
@@ -975,15 +984,14 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 		break;
 	}
 
-	if (UNSET != ctl) {
-		dprintk("cx88_set_stereo: mask 0x%x, ctl 0x%x "
-			"[status=0x%x,ctl=0x%x,vol=0x%x]\n",
+	if (ctl != UNSET) {
+		dprintk("cx88_set_stereo: mask 0x%x, ctl 0x%x [status=0x%x,ctl=0x%x,vol=0x%x]\n",
 			mask, ctl, cx_read(AUD_STATUS),
 			cx_read(AUD_CTL), cx_sread(SHADOW_AUD_VOL_CTL));
 		cx_andor(AUD_CTL, mask, ctl);
 	}
-	return;
 }
+EXPORT_SYMBOL(cx88_set_stereo);
 
 int cx88_audio_thread(void *data)
 {
@@ -1012,7 +1020,7 @@ int cx88_audio_thread(void *data)
 			memset(&t, 0, sizeof(t));
 			cx88_get_stereo(core, &t);
 
-			if (UNSET != core->audiomode_manual)
+			if (core->audiomode_manual != UNSET)
 				/* manually set, don't do anything. */
 				continue;
 
@@ -1033,8 +1041,10 @@ int cx88_audio_thread(void *data)
 		case WW_FM:
 		case WW_I2SADC:
 hw_autodetect:
-			/* stereo autodetection is supported by hardware so
-			   we don't need to do it manually. Do nothing. */
+			/*
+			 * stereo autodetection is supported by hardware so
+			 * we don't need to do it manually. Do nothing.
+			 */
 			break;
 		}
 	}
@@ -1042,18 +1052,4 @@ hw_autodetect:
 	dprintk("cx88: tvaudio thread exiting\n");
 	return 0;
 }
-
-/* ----------------------------------------------------------- */
-
-EXPORT_SYMBOL(cx88_set_tvaudio);
-EXPORT_SYMBOL(cx88_newstation);
-EXPORT_SYMBOL(cx88_set_stereo);
-EXPORT_SYMBOL(cx88_get_stereo);
 EXPORT_SYMBOL(cx88_audio_thread);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
- */

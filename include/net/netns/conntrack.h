@@ -4,7 +4,15 @@
 #include <linux/list.h>
 #include <linux/list_nulls.h>
 #include <linux/atomic.h>
+#include <linux/workqueue.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+#include <linux/netfilter/nf_conntrack_dccp.h>
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+#include <linux/netfilter/nf_conntrack_sctp.h>
+#endif
+#include <linux/seqlock.h>
 
 struct ctl_table_header;
 struct nf_conntrack_ecache;
@@ -13,10 +21,6 @@ struct nf_proto_net {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header *ctl_table_header;
 	struct ctl_table        *ctl_table;
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	struct ctl_table_header *ctl_compat_header;
-	struct ctl_table        *ctl_compat_table;
-#endif
 #endif
 	unsigned int		users;
 };
@@ -50,47 +54,47 @@ struct nf_icmp_net {
 	unsigned int timeout;
 };
 
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+struct nf_dccp_net {
+	struct nf_proto_net pn;
+	int dccp_loose;
+	unsigned int dccp_timeout[CT_DCCP_MAX + 1];
+};
+#endif
+
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+struct nf_sctp_net {
+	struct nf_proto_net pn;
+	unsigned int timeouts[SCTP_CONNTRACK_MAX];
+};
+#endif
+
 struct nf_ip_net {
 	struct nf_generic_net   generic;
 	struct nf_tcp_net	tcp;
 	struct nf_udp_net	udp;
 	struct nf_icmp_net	icmp;
 	struct nf_icmp_net	icmpv6;
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	struct ctl_table_header *ctl_table_header;
-	struct ctl_table	*ctl_table;
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	struct nf_dccp_net	dccp;
 #endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	struct nf_sctp_net	sctp;
+#endif
+};
+
+struct ct_pcpu {
+	spinlock_t		lock;
+	struct hlist_nulls_head unconfirmed;
+	struct hlist_nulls_head dying;
 };
 
 struct netns_ct {
 	atomic_t		count;
 	unsigned int		expect_count;
-	unsigned int		htable_size;
-	struct kmem_cache	*nf_conntrack_cachep;
-	struct hlist_nulls_head	*hash;
-	struct hlist_head	*expect_hash;
-	struct hlist_nulls_head	unconfirmed;
-	struct hlist_nulls_head	dying;
-	struct hlist_nulls_head tmpl;
-	struct ip_conntrack_stat __percpu *stat;
-	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
-	struct nf_exp_event_notifier __rcu *nf_expect_event_cb;
-	int			sysctl_events;
-	unsigned int		sysctl_events_retry_timeout;
-	int			sysctl_acct;
-	int			sysctl_tstamp;
-	int			sysctl_checksum;
-	unsigned int		sysctl_log_invalid; /* Log invalid packets */
-	int			sysctl_auto_assign_helper;
-	bool			auto_assign_helper_warned;
-	struct nf_ip_net	nf_ct_proto;
-#if defined(CONFIG_NF_CONNTRACK_LABELS)
-	unsigned int		labels_used;
-	u8			label_words;
-#endif
-#ifdef CONFIG_NF_NAT_NEEDED
-	struct hlist_head	*nat_bysource;
-	unsigned int		nat_htable_size;
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	struct delayed_work ecache_dwork;
+	bool ecache_dwork_pending;
 #endif
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_header;
@@ -99,6 +103,21 @@ struct netns_ct {
 	struct ctl_table_header	*event_sysctl_header;
 	struct ctl_table_header	*helper_sysctl_header;
 #endif
-	char			*slabname;
+	unsigned int		sysctl_log_invalid; /* Log invalid packets */
+	int			sysctl_events;
+	int			sysctl_acct;
+	int			sysctl_auto_assign_helper;
+	bool			auto_assign_helper_warned;
+	int			sysctl_tstamp;
+	int			sysctl_checksum;
+
+	struct ct_pcpu __percpu *pcpu_lists;
+	struct ip_conntrack_stat __percpu *stat;
+	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
+	struct nf_exp_event_notifier __rcu *nf_expect_event_cb;
+	struct nf_ip_net	nf_ct_proto;
+#if defined(CONFIG_NF_CONNTRACK_LABELS)
+	unsigned int		labels_used;
+#endif
 };
 #endif

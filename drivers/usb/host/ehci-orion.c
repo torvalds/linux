@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <linux/of.h>
+#include <linux/phy/phy.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/usb.h>
@@ -24,11 +25,17 @@
 
 #include "ehci.h"
 
-#define rdl(off)	__raw_readl(hcd->regs + (off))
-#define wrl(off, val)	__raw_writel((val), hcd->regs + (off))
+#define rdl(off)	readl_relaxed(hcd->regs + (off))
+#define wrl(off, val)	writel_relaxed((val), hcd->regs + (off))
 
 #define USB_CMD			0x140
+#define   USB_CMD_RUN		BIT(0)
+#define   USB_CMD_RESET		BIT(1)
 #define USB_MODE		0x1a8
+#define   USB_MODE_MASK		GENMASK(1, 0)
+#define   USB_MODE_DEVICE	0x2
+#define   USB_MODE_HOST		0x3
+#define   USB_MODE_SDIS		BIT(4)
 #define USB_CAUSE		0x310
 #define USB_MASK		0x314
 #define USB_WINDOW_CTRL(i)	(0x320 + ((i) << 4))
@@ -40,7 +47,26 @@
 #define USB_PHY_IVREF_CTRL	0x440
 #define USB_PHY_TST_GRP_CTRL	0x450
 
+#define USB_SBUSCFG		0x90
+
+/* BAWR = BARD = 3 : Align read/write bursts packets larger than 128 bytes */
+#define USB_SBUSCFG_BAWR_ALIGN_128B	(0x3 << 6)
+#define USB_SBUSCFG_BARD_ALIGN_128B	(0x3 << 3)
+/* AHBBRST = 3	   : Align AHB Burst to INCR16 (64 bytes) */
+#define USB_SBUSCFG_AHBBRST_INCR16	(0x3 << 0)
+
+#define USB_SBUSCFG_DEF_VAL (USB_SBUSCFG_BAWR_ALIGN_128B	\
+			     | USB_SBUSCFG_BARD_ALIGN_128B	\
+			     | USB_SBUSCFG_AHBBRST_INCR16)
+
 #define DRIVER_DESC "EHCI orion driver"
+
+#define hcd_to_orion_priv(h) ((struct orion_ehci_hcd *)hcd_to_ehci(h)->priv)
+
+struct orion_ehci_hcd {
+	struct clk *clk;
+	struct phy *phy;
+};
 
 static const char hcd_name[] = "ehci-orion";
 
@@ -61,8 +87,8 @@ static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 	/*
 	 * Reset controller
 	 */
-	wrl(USB_CMD, rdl(USB_CMD) | 0x2);
-	while (rdl(USB_CMD) & 0x2);
+	wrl(USB_CMD, rdl(USB_CMD) | USB_CMD_RESET);
+	while (rdl(USB_CMD) & USB_CMD_RESET);
 
 	/*
 	 * GL# USB-10: Set IPG for non start of frame packets
@@ -104,16 +130,16 @@ static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 	/*
 	 * Stop and reset controller
 	 */
-	wrl(USB_CMD, rdl(USB_CMD) & ~0x1);
-	wrl(USB_CMD, rdl(USB_CMD) | 0x2);
-	while (rdl(USB_CMD) & 0x2);
+	wrl(USB_CMD, rdl(USB_CMD) & ~USB_CMD_RUN);
+	wrl(USB_CMD, rdl(USB_CMD) | USB_CMD_RESET);
+	while (rdl(USB_CMD) & USB_CMD_RESET);
 
 	/*
 	 * GL# USB-5 Streaming disable REG_USB_MODE[4]=1
 	 * TBD: This need to be done after each reset!
 	 * GL# USB-4 Setup USB Host mode
 	 */
-	wrl(USB_MODE, 0x13);
+	wrl(USB_MODE, USB_MODE_SDIS | USB_MODE_HOST);
 }
 
 static void
@@ -137,42 +163,57 @@ ehci_orion_conf_mbus_windows(struct usb_hcd *hcd,
 	}
 }
 
+static int ehci_orion_drv_reset(struct usb_hcd *hcd)
+{
+	struct device *dev = hcd->self.controller;
+	int ret;
+
+	ret = ehci_setup(hcd);
+	if (ret)
+		return ret;
+
+	/*
+	 * For SoC without hlock, need to program sbuscfg value to guarantee
+	 * AHB master's burst would not overrun or underrun FIFO.
+	 *
+	 * sbuscfg reg has to be set after usb controller reset, otherwise
+	 * the value would be override to 0.
+	 */
+	if (of_device_is_compatible(dev->of_node, "marvell,armada-3700-ehci"))
+		wrl(USB_SBUSCFG, USB_SBUSCFG_DEF_VAL);
+
+	return ret;
+}
+
+static const struct ehci_driver_overrides orion_overrides __initconst = {
+	.extra_priv_size =	sizeof(struct orion_ehci_hcd),
+	.reset = ehci_orion_drv_reset,
+};
+
 static int ehci_orion_drv_probe(struct platform_device *pdev)
 {
-	struct orion_ehci_data *pd = pdev->dev.platform_data;
+	struct orion_ehci_data *pd = dev_get_platdata(&pdev->dev);
 	const struct mbus_dram_target_info *dram;
 	struct resource *res;
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
-	struct clk *clk;
 	void __iomem *regs;
 	int irq, err;
 	enum orion_ehci_phy_ver phy_version;
+	struct orion_ehci_hcd *priv;
 
 	if (usb_disabled())
 		return -ENODEV;
 
 	pr_debug("Initializing Orion-SoC USB Host Controller\n");
 
-	if (pdev->dev.of_node)
-		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	else
-		irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev,
 			"Found HC with no IRQ. Check %s setup!\n",
 			dev_name(&pdev->dev));
 		err = -ENODEV;
-		goto err1;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev,
-			"Found HC with no register addr. Check %s setup!\n",
-			dev_name(&pdev->dev));
-		err = -ENODEV;
-		goto err1;
+		goto err;
 	}
 
 	/*
@@ -180,38 +221,22 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	 * set. Since shared usb code relies on it, set it here for
 	 * now. Once we have dma capability bindings this can go away.
 	 */
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err)
+		goto err;
 
-	if (!request_mem_region(res->start, resource_size(res),
-				ehci_orion_hc_driver.description)) {
-		dev_dbg(&pdev->dev, "controller already in use\n");
-		err = -EBUSY;
-		goto err1;
-	}
-
-	regs = ioremap(res->start, resource_size(res));
-	if (regs == NULL) {
-		dev_dbg(&pdev->dev, "error mapping memory\n");
-		err = -EFAULT;
-		goto err2;
-	}
-
-	/* Not all platforms can gate the clock, so it is not
-	   an error if the clock does not exists. */
-	clk = clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk)) {
-		clk_prepare_enable(clk);
-		clk_put(clk);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(regs)) {
+		err = PTR_ERR(regs);
+		goto err;
 	}
 
 	hcd = usb_create_hcd(&ehci_orion_hc_driver,
 			&pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		err = -ENOMEM;
-		goto err3;
+		goto err;
 	}
 
 	hcd->rsrc_start = res->start;
@@ -221,6 +246,30 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs + 0x100;
 	hcd->has_tt = 1;
+
+	priv = hcd_to_orion_priv(hcd);
+	/*
+	 * Not all platforms can gate the clock, so it is not an error if
+	 * the clock does not exists.
+	 */
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(priv->clk))
+		clk_prepare_enable(priv->clk);
+
+	priv->phy = devm_phy_optional_get(&pdev->dev, "usb");
+	if (IS_ERR(priv->phy)) {
+		err = PTR_ERR(priv->phy);
+		if (err != -ENOSYS)
+			goto err_phy_get;
+	} else {
+		err = phy_init(priv->phy);
+		if (err)
+			goto err_phy_init;
+
+		err = phy_power_on(priv->phy);
+		if (err)
+			goto err_phy_power_on;
+	}
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -246,26 +295,28 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	case EHCI_PHY_DD:
 	case EHCI_PHY_KW:
 	default:
-		printk(KERN_WARNING "Orion ehci -USB phy version isn't supported.\n");
+		dev_warn(&pdev->dev, "USB phy version isn't supported.\n");
 	}
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
-		goto err4;
+		goto err_add_hcd;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
-err4:
+err_add_hcd:
+	if (!IS_ERR(priv->phy))
+		phy_power_off(priv->phy);
+err_phy_power_on:
+	if (!IS_ERR(priv->phy))
+		phy_exit(priv->phy);
+err_phy_init:
+err_phy_get:
+	if (!IS_ERR(priv->clk))
+		clk_disable_unprepare(priv->clk);
 	usb_put_hcd(hcd);
-err3:
-	if (!IS_ERR(clk)) {
-		clk_disable_unprepare(clk);
-		clk_put(clk);
-	}
-	iounmap(regs);
-err2:
-	release_mem_region(res->start, resource_size(res));
-err1:
+err:
 	dev_err(&pdev->dev, "init %s fail, %d\n",
 		dev_name(&pdev->dev), err);
 
@@ -275,23 +326,26 @@ err1:
 static int ehci_orion_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct clk *clk;
+	struct orion_ehci_hcd *priv = hcd_to_orion_priv(hcd);
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+
+	if (!IS_ERR(priv->phy)) {
+		phy_power_off(priv->phy);
+		phy_exit(priv->phy);
+	}
+
+	if (!IS_ERR(priv->clk))
+		clk_disable_unprepare(priv->clk);
+
 	usb_put_hcd(hcd);
 
-	clk = clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk)) {
-		clk_disable_unprepare(clk);
-		clk_put(clk);
-	}
 	return 0;
 }
 
 static const struct of_device_id ehci_orion_dt_ids[] = {
 	{ .compatible = "marvell,orion-ehci", },
+	{ .compatible = "marvell,armada-3700-ehci", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ehci_orion_dt_ids);
@@ -302,7 +356,6 @@ static struct platform_driver ehci_orion_driver = {
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name	= "orion-ehci",
-		.owner  = THIS_MODULE,
 		.of_match_table = ehci_orion_dt_ids,
 	},
 };
@@ -314,7 +367,7 @@ static int __init ehci_orion_init(void)
 
 	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
-	ehci_init_driver(&ehci_orion_hc_driver, NULL);
+	ehci_init_driver(&ehci_orion_hc_driver, &orion_overrides);
 	return platform_driver_register(&ehci_orion_driver);
 }
 module_init(ehci_orion_init);

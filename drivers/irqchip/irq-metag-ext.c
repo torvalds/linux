@@ -404,7 +404,6 @@ static int meta_intc_irq_set_type(struct irq_data *data, unsigned int flow_type)
 #ifdef CONFIG_METAG_SUSPEND_MEM
 	struct meta_intc_priv *priv = &meta_intc_priv;
 #endif
-	unsigned int irq = data->irq;
 	irq_hw_number_t hw = data->hwirq;
 	unsigned int bit = 1 << meta_intc_offset(hw);
 	void __iomem *level_addr = meta_intc_level_addr(hw);
@@ -413,11 +412,11 @@ static int meta_intc_irq_set_type(struct irq_data *data, unsigned int flow_type)
 
 	/* update the chip/handler */
 	if (flow_type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_chip_handler_name_locked(irq, &meta_intc_level_chip,
-						   handle_level_irq, NULL);
+		irq_set_chip_handler_name_locked(data, &meta_intc_level_chip,
+						 handle_level_irq, NULL);
 	else
-		__irq_set_chip_handler_name_locked(irq, &meta_intc_edge_chip,
-						   handle_edge_irq, NULL);
+		irq_set_chip_handler_name_locked(data, &meta_intc_edge_chip,
+						 handle_edge_irq, NULL);
 
 	/* and clear/set the bit in HWLEVELEXT */
 	__global_lock2(flags);
@@ -437,7 +436,6 @@ static int meta_intc_irq_set_type(struct irq_data *data, unsigned int flow_type)
 
 /**
  * meta_intc_irq_demux() - external irq de-multiplexer
- * @irq:	the virtual interrupt number
  * @desc:	the interrupt description structure for this irq
  *
  * The cpu receives an interrupt on TR2 when a SoC interrupt has occurred. It is
@@ -447,7 +445,7 @@ static int meta_intc_irq_set_type(struct irq_data *data, unsigned int flow_type)
  * Whilst using TR2 to detect external interrupts is a software convention it is
  * (hopefully) unlikely to change.
  */
-static void meta_intc_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void meta_intc_irq_demux(struct irq_desc *desc)
 {
 	struct meta_intc_priv *priv = &meta_intc_priv;
 	irq_hw_number_t hw;
@@ -515,10 +513,12 @@ static int meta_intc_set_affinity(struct irq_data *data,
 	 * one cpu (the interrupt code doesn't support it), so we just
 	 * pick the first cpu we find in 'cpumask'.
 	 */
-	cpu = cpumask_any(cpumask);
+	cpu = cpumask_any_and(cpumask, cpu_online_mask);
 	thread = cpu_2_hwthread_id[cpu];
 
 	metag_out32(TBI_TRIG_VEC(TBID_SIGNUM_TR2(thread)), vec_addr);
+
+	irq_data_update_effective_affinity(data, cpumask_of(cpu));
 
 	return 0;
 }
@@ -580,6 +580,8 @@ static int meta_intc_map(struct irq_domain *d, unsigned int irq,
 	else
 		irq_set_chip_and_handler(irq, &meta_intc_edge_chip,
 					 handle_edge_irq);
+
+	irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(irq)));
 	return 0;
 }
 

@@ -44,6 +44,7 @@ extern int prof_on __read_mostly;
 int profile_init(void);
 int profile_setup(char *str);
 void profile_tick(int type);
+int setup_profiling_timer(unsigned int multiplier);
 
 /*
  * Add multiple profiler hits to a given address:

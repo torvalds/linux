@@ -6,14 +6,25 @@
 #include <linux/proc_fs.h>
 #include <linux/elf.h>
 
+#include <asm/pgtable.h> /* for pgprot_t */
+
 #define ELFCORE_ADDR_MAX	(-1ULL)
 #define ELFCORE_ADDR_ERR	(-2ULL)
 
 extern unsigned long long elfcorehdr_addr;
 extern unsigned long long elfcorehdr_size;
 
+extern int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size);
+extern void elfcorehdr_free(unsigned long long addr);
+extern ssize_t elfcorehdr_read(char *buf, size_t count, u64 *ppos);
+extern ssize_t elfcorehdr_read_notes(char *buf, size_t count, u64 *ppos);
+extern int remap_oldmem_pfn_range(struct vm_area_struct *vma,
+				  unsigned long from, unsigned long pfn,
+				  unsigned long size, pgprot_t prot);
+
 extern ssize_t copy_oldmem_page(unsigned long, char *, size_t,
 						unsigned long, int);
+void vmcore_cleanup(void);
 
 /* Architecture code defines this if there are other possible ELF
  * machine types, e.g. on bi-arch capable hardware. */
@@ -23,9 +34,13 @@ extern ssize_t copy_oldmem_page(unsigned long, char *, size_t,
 
 /*
  * Architecture code can redefine this if there are any special checks
- * needed for 64-bit ELF vmcores. In case of 32-bit only architecture,
- * this can be set to zero.
+ * needed for 32-bit ELF or 64-bit ELF vmcores.  In case of 32-bit
+ * only architecture, vmcore_elf64_check_arch can be set to zero.
  */
+#ifndef vmcore_elf32_check_arch
+#define vmcore_elf32_check_arch(x) elf_check_arch(x)
+#endif
+
 #ifndef vmcore_elf64_check_arch
 #define vmcore_elf64_check_arch(x) (elf_check_arch(x) || vmcore_elf_check_arch_cross(x))
 #endif

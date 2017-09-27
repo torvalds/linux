@@ -169,6 +169,7 @@
 /* Audio serial data interface control register A bits */
 #define BIT_CLK_MASTER          0x80
 #define WORD_CLK_MASTER         0x40
+#define DOUT_TRISTATE		0x20
 
 /* Codec Datapath setup register 7 */
 #define FSREF_44100		(1 << 7)
@@ -241,6 +242,14 @@
 /* MICBIAS Control Register */
 #define MICBIAS_LEVEL_SHIFT	(6)
 #define MICBIAS_LEVEL_MASK	(3 << 6)
+
+/* HPOUT_SC */
+#define HPOUT_SC_OCMV_MASK	(3 << 6)
+#define HPOUT_SC_OCMV_SHIFT	(6)
+#define HPOUT_SC_OCMV_1_35V	0
+#define HPOUT_SC_OCMV_1_5V	1
+#define HPOUT_SC_OCMV_1_65V	2
+#define HPOUT_SC_OCMV_1_8V	3
 
 /* headset detection / button API */
 

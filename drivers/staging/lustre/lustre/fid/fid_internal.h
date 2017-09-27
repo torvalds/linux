@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -40,45 +36,11 @@
 #ifndef __FID_INTERNAL_H
 #define __FID_INTERNAL_H
 
-#include <lustre/lustre_idl.h>
-#include <dt_object.h>
-
+#include <uapi/linux/lustre/lustre_idl.h>
 #include <linux/libcfs/libcfs.h>
 
-struct seq_thread_info {
-	struct req_capsule     *sti_pill;
-	struct lu_seq_range     sti_space;
-	struct lu_buf	   sti_buf;
-};
+/* Functions used internally in module. */
 
-enum {
-	SEQ_TXN_STORE_CREDITS = 20
-};
-
-extern struct lu_context_key seq_thread_key;
-
-int seq_client_alloc_super(struct lu_client_seq *seq,
-			   const struct lu_env *env);
-/* Store API functions. */
-int seq_store_init(struct lu_server_seq *seq,
-		   const struct lu_env *env,
-		   struct dt_device *dt);
-
-void seq_store_fini(struct lu_server_seq *seq,
-		    const struct lu_env *env);
-
-int seq_store_read(struct lu_server_seq *seq,
-		   const struct lu_env *env);
-
-int seq_store_update(const struct lu_env *env, struct lu_server_seq *seq,
-		     struct lu_seq_range *out, int sync);
-
-#ifdef LPROCFS
-extern struct lprocfs_vars seq_server_proc_list[];
-extern struct lprocfs_vars seq_client_proc_list[];
-#endif
-
-
-extern proc_dir_entry_t *seq_type_proc_dir;
+extern struct lprocfs_vars seq_client_debugfs_list[];
 
 #endif /* __FID_INTERNAL_H */

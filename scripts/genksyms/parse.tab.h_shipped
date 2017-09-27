@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 2.5.  */
+/* A Bison parser, made by GNU Bison 2.7.  */
 
 /* Bison interface for Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989-1990, 2000-2012 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,15 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
+#ifndef YY_YY_SCRIPTS_GENKSYMS_PARSE_TAB_H_SHIPPED_INCLUDED
+# define YY_YY_SCRIPTS_GENKSYMS_PARSE_TAB_H_SHIPPED_INCLUDED
+/* Enabling traces.  */
+#ifndef YYDEBUG
+# define YYDEBUG 1
+#endif
+#if YYDEBUG
+extern int yydebug;
+#endif
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -63,24 +72,25 @@
      VOID_KEYW = 281,
      VOLATILE_KEYW = 282,
      TYPEOF_KEYW = 283,
-     EXPORT_SYMBOL_KEYW = 284,
-     ASM_PHRASE = 285,
-     ATTRIBUTE_PHRASE = 286,
-     BRACE_PHRASE = 287,
-     BRACKET_PHRASE = 288,
-     EXPRESSION_PHRASE = 289,
-     CHAR = 290,
-     DOTS = 291,
-     IDENT = 292,
-     INT = 293,
-     REAL = 294,
-     STRING = 295,
-     TYPE = 296,
-     OTHER = 297,
-     FILENAME = 298
+     VA_LIST_KEYW = 284,
+     EXPORT_SYMBOL_KEYW = 285,
+     ASM_PHRASE = 286,
+     ATTRIBUTE_PHRASE = 287,
+     TYPEOF_PHRASE = 288,
+     BRACE_PHRASE = 289,
+     BRACKET_PHRASE = 290,
+     EXPRESSION_PHRASE = 291,
+     CHAR = 292,
+     DOTS = 293,
+     IDENT = 294,
+     INT = 295,
+     REAL = 296,
+     STRING = 297,
+     TYPE = 298,
+     OTHER = 299,
+     FILENAME = 300
    };
 #endif
-
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -92,4 +102,18 @@ typedef int YYSTYPE;
 
 extern YYSTYPE yylval;
 
+#ifdef YYPARSE_PARAM
+#if defined __STDC__ || defined __cplusplus
+int yyparse (void *YYPARSE_PARAM);
+#else
+int yyparse ();
+#endif
+#else /* ! YYPARSE_PARAM */
+#if defined __STDC__ || defined __cplusplus
+int yyparse (void);
+#else
+int yyparse ();
+#endif
+#endif /* ! YYPARSE_PARAM */
 
+#endif /* !YY_YY_SCRIPTS_GENKSYMS_PARSE_TAB_H_SHIPPED_INCLUDED  */

@@ -4,7 +4,7 @@
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/cpu.h>
 
 #include <asm/tlbflush.h>
@@ -14,11 +14,8 @@
 #include <asm/uv/uv.h>
 #include <linux/debugfs.h>
 
-DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
-			= { &init_mm, 0, };
-
 /*
- *	Smarter SMP flushing macros.
+ *	TLB flushing, formerly SMP-only
  *		c/o Linus Torvalds.
  *
  *	These mean you can really definitely utterly forget about
@@ -31,238 +28,491 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
  */
 
-struct flush_tlb_info {
-	struct mm_struct *flush_mm;
-	unsigned long flush_start;
-	unsigned long flush_end;
-};
+atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
-/*
- * We cannot call mmdrop() because we are in interrupt context,
- * instead update mm->cpu_vm_mask.
- */
+static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
+			    u16 *new_asid, bool *need_flush)
+{
+	u16 asid;
+
+	if (!static_cpu_has(X86_FEATURE_PCID)) {
+		*new_asid = 0;
+		*need_flush = true;
+		return;
+	}
+
+	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
+		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
+		    next->context.ctx_id)
+			continue;
+
+		*new_asid = asid;
+		*need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
+			       next_tlb_gen);
+		return;
+	}
+
+	/*
+	 * We don't currently own an ASID slot on this CPU.
+	 * Allocate a slot.
+	 */
+	*new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
+	if (*new_asid >= TLB_NR_DYN_ASIDS) {
+		*new_asid = 0;
+		this_cpu_write(cpu_tlbstate.next_asid, 1);
+	}
+	*need_flush = true;
+}
+
 void leave_mm(int cpu)
 {
-	struct mm_struct *active_mm = this_cpu_read(cpu_tlbstate.active_mm);
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
-		BUG();
-	if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
-		cpumask_clear_cpu(cpu, mm_cpumask(active_mm));
-		load_cr3(swapper_pg_dir);
-	}
+	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+
+	/*
+	 * It's plausible that we're in lazy TLB mode while our mm is init_mm.
+	 * If so, our callers still expect us to flush the TLB, but there
+	 * aren't any user TLB entries in init_mm to worry about.
+	 *
+	 * This needs to happen before any other sanity checks due to
+	 * intel_idle's shenanigans.
+	 */
+	if (loaded_mm == &init_mm)
+		return;
+
+	/* Warn if we're not lazy. */
+	WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm)));
+
+	switch_mm(NULL, &init_mm, NULL);
 }
-EXPORT_SYMBOL_GPL(leave_mm);
 
-/*
- * The flush IPI assumes that a thread switch happens in this order:
- * [cpu0: the cpu that switches]
- * 1) switch_mm() either 1a) or 1b)
- * 1a) thread switch to a different mm
- * 1a1) set cpu_tlbstate to TLBSTATE_OK
- *	Now the tlb flush NMI handler flush_tlb_func won't call leave_mm
- *	if cpu0 was in lazy tlb mode.
- * 1a2) update cpu active_mm
- *	Now cpu0 accepts tlb flushes for the new mm.
- * 1a3) cpu_set(cpu, new_mm->cpu_vm_mask);
- *	Now the other cpus will send tlb flush ipis.
- * 1a4) change cr3.
- * 1a5) cpu_clear(cpu, old_mm->cpu_vm_mask);
- *	Stop ipi delivery for the old mm. This is not synchronized with
- *	the other cpus, but flush_tlb_func ignore flush ipis for the wrong
- *	mm, and in the worst case we perform a superfluous tlb flush.
- * 1b) thread switch without mm change
- *	cpu active_mm is correct, cpu0 already handles flush ipis.
- * 1b1) set cpu_tlbstate to TLBSTATE_OK
- * 1b2) test_and_set the cpu bit in cpu_vm_mask.
- *	Atomically set the bit [other cpus will start sending flush ipis],
- *	and test the bit.
- * 1b3) if the bit was 0: leave_mm was called, flush the tlb.
- * 2) switch %%esp, ie current
- *
- * The interrupt must handle 2 special cases:
- * - cr3 is changed before %%esp, ie. it cannot use current->{active_,}mm.
- * - the cpu performs speculative tlb reads, i.e. even if the cpu only
- *   runs in kernel space, the cpu could load tlb entries for user space
- *   pages.
- *
- * The good news is that cpu_tlbstate is local to each cpu, no
- * write/read ordering problems.
- */
-
-/*
- * TLB flush funcation:
- * 1) Flush the tlb entries if the cpu uses the mm that's being flushed.
- * 2) Leave the mm if we are in the lazy tlb mode.
- */
-static void flush_tlb_func(void *info)
+void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+	       struct task_struct *tsk)
 {
-	struct flush_tlb_info *f = info;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	switch_mm_irqs_off(prev, next, tsk);
+	local_irq_restore(flags);
+}
+
+void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+			struct task_struct *tsk)
+{
+	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u16 prev_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+	unsigned cpu = smp_processor_id();
+	u64 next_tlb_gen;
+
+	/*
+	 * NB: The scheduler will call us with prev == next when switching
+	 * from lazy TLB mode to normal mode if active_mm isn't changing.
+	 * When this happens, we don't assume that CR3 (and hence
+	 * cpu_tlbstate.loaded_mm) matches next.
+	 *
+	 * NB: leave_mm() calls us with prev == NULL and tsk == NULL.
+	 */
+
+	/* We don't want flush_tlb_func_* to run concurrently with us. */
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING))
+		WARN_ON_ONCE(!irqs_disabled());
+
+	/*
+	 * Verify that CR3 is what we think it is.  This will catch
+	 * hypothetical buggy code that directly switches to swapper_pg_dir
+	 * without going through leave_mm() / switch_mm_irqs_off() or that
+	 * does something like write_cr3(read_cr3_pa()).
+	 *
+	 * Only do this check if CONFIG_DEBUG_VM=y because __read_cr3()
+	 * isn't free.
+	 */
+#ifdef CONFIG_DEBUG_VM
+	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev, prev_asid))) {
+		/*
+		 * If we were to BUG here, we'd be very likely to kill
+		 * the system so hard that we don't see the call trace.
+		 * Try to recover instead by ignoring the error and doing
+		 * a global flush to minimize the chance of corruption.
+		 *
+		 * (This is far from being a fully correct recovery.
+		 *  Architecturally, the CPU could prefetch something
+		 *  back into an incorrect ASID slot and leave it there
+		 *  to cause trouble down the road.  It's better than
+		 *  nothing, though.)
+		 */
+		__flush_tlb_all();
+	}
+#endif
+
+	if (real_prev == next) {
+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
+			  next->context.ctx_id);
+
+		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
+			/*
+			 * There's nothing to do: we weren't lazy, and we
+			 * aren't changing our mm.  We don't need to flush
+			 * anything, nor do we need to update CR3, CR4, or
+			 * LDTR.
+			 */
+			return;
+		}
+
+		/* Resume remote flushes and then read tlb_gen. */
+		cpumask_set_cpu(cpu, mm_cpumask(next));
+		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+
+		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) <
+		    next_tlb_gen) {
+			/*
+			 * Ideally, we'd have a flush_tlb() variant that
+			 * takes the known CR3 value as input.  This would
+			 * be faster on Xen PV and on hypothetical CPUs
+			 * on which INVPCID is fast.
+			 */
+			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,
+				       next_tlb_gen);
+			write_cr3(build_cr3(next, prev_asid));
+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
+					TLB_FLUSH_ALL);
+		}
+
+		/*
+		 * We just exited lazy mode, which means that CR4 and/or LDTR
+		 * may be stale.  (Changes to the required CR4 and LDTR states
+		 * are not reflected in tlb_gen.)
+		 */
+	} else {
+		u16 new_asid;
+		bool need_flush;
+
+		if (IS_ENABLED(CONFIG_VMAP_STACK)) {
+			/*
+			 * If our current stack is in vmalloc space and isn't
+			 * mapped in the new pgd, we'll double-fault.  Forcibly
+			 * map it.
+			 */
+			unsigned int index = pgd_index(current_stack_pointer());
+			pgd_t *pgd = next->pgd + index;
+
+			if (unlikely(pgd_none(*pgd)))
+				set_pgd(pgd, init_mm.pgd[index]);
+		}
+
+		/* Stop remote flushes for the previous mm */
+		if (cpumask_test_cpu(cpu, mm_cpumask(real_prev)))
+			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
+
+		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+
+		/*
+		 * Start remote flushes and then read tlb_gen.
+		 */
+		cpumask_set_cpu(cpu, mm_cpumask(next));
+		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+
+		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
+
+		if (need_flush) {
+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
+			write_cr3(build_cr3(next, new_asid));
+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
+					TLB_FLUSH_ALL);
+		} else {
+			/* The new ASID is already up to date. */
+			write_cr3(build_cr3_noflush(next, new_asid));
+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
+		}
+
+		this_cpu_write(cpu_tlbstate.loaded_mm, next);
+		this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
+	}
+
+	load_mm_cr4(next);
+	switch_ldt(real_prev, next);
+}
+
+/*
+ * Call this when reinitializing a CPU.  It fixes the following potential
+ * problems:
+ *
+ * - The ASID changed from what cpu_tlbstate thinks it is (most likely
+ *   because the CPU was taken down and came back up with CR3's PCID
+ *   bits clear.  CPU hotplug can do this.
+ *
+ * - The TLB contains junk in slots corresponding to inactive ASIDs.
+ *
+ * - The CPU went so far out to lunch that it may have missed a TLB
+ *   flush.
+ */
+void initialize_tlbstate_and_flush(void)
+{
+	int i;
+	struct mm_struct *mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u64 tlb_gen = atomic64_read(&init_mm.context.tlb_gen);
+	unsigned long cr3 = __read_cr3();
+
+	/* Assert that CR3 already references the right mm. */
+	WARN_ON((cr3 & CR3_ADDR_MASK) != __pa(mm->pgd));
+
+	/*
+	 * Assert that CR4.PCIDE is set if needed.  (CR4.PCIDE initialization
+	 * doesn't work like other CR4 bits because it can only be set from
+	 * long mode.)
+	 */
+	WARN_ON(boot_cpu_has(X86_FEATURE_PCID) &&
+		!(cr4_read_shadow() & X86_CR4_PCIDE));
+
+	/* Force ASID 0 and force a TLB flush. */
+	write_cr3(build_cr3(mm, 0));
+
+	/* Reinitialize tlbstate. */
+	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
+	this_cpu_write(cpu_tlbstate.next_asid, 1);
+	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, mm->context.ctx_id);
+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, tlb_gen);
+
+	for (i = 1; i < TLB_NR_DYN_ASIDS; i++)
+		this_cpu_write(cpu_tlbstate.ctxs[i].ctx_id, 0);
+}
+
+/*
+ * flush_tlb_func_common()'s memory ordering requirement is that any
+ * TLB fills that happen after we flush the TLB are ordered after we
+ * read active_mm's tlb_gen.  We don't need any explicit barriers
+ * because all x86 flush operations are serializing and the
+ * atomic64_read operation won't be reordered by the compiler.
+ */
+static void flush_tlb_func_common(const struct flush_tlb_info *f,
+				  bool local, enum tlb_flush_reason reason)
+{
+	/*
+	 * We have three different tlb_gen values in here.  They are:
+	 *
+	 * - mm_tlb_gen:     the latest generation.
+	 * - local_tlb_gen:  the generation that this CPU has already caught
+	 *                   up to.
+	 * - f->new_tlb_gen: the generation that the requester of the flush
+	 *                   wants us to catch up to.
+	 */
+	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
+	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
+
+	/* This code cannot presently handle being reentered. */
+	VM_WARN_ON(!irqs_disabled());
+
+	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
+		   loaded_mm->context.ctx_id);
+
+	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
+		/*
+		 * We're in lazy mode -- don't flush.  We can get here on
+		 * remote flushes due to races and on local flushes if a
+		 * kernel thread coincidentally flushes the mm it's lazily
+		 * still using.
+		 */
+		return;
+	}
+
+	if (unlikely(local_tlb_gen == mm_tlb_gen)) {
+		/*
+		 * There's nothing to do: we're already up to date.  This can
+		 * happen if two concurrent flushes happen -- the first flush to
+		 * be handled can catch us all the way up, leaving no work for
+		 * the second flush.
+		 */
+		trace_tlb_flush(reason, 0);
+		return;
+	}
+
+	WARN_ON_ONCE(local_tlb_gen > mm_tlb_gen);
+	WARN_ON_ONCE(f->new_tlb_gen > mm_tlb_gen);
+
+	/*
+	 * If we get to this point, we know that our TLB is out of date.
+	 * This does not strictly imply that we need to flush (it's
+	 * possible that f->new_tlb_gen <= local_tlb_gen), but we're
+	 * going to need to flush in the very near future, so we might
+	 * as well get it over with.
+	 *
+	 * The only question is whether to do a full or partial flush.
+	 *
+	 * We do a partial flush if requested and two extra conditions
+	 * are met:
+	 *
+	 * 1. f->new_tlb_gen == local_tlb_gen + 1.  We have an invariant that
+	 *    we've always done all needed flushes to catch up to
+	 *    local_tlb_gen.  If, for example, local_tlb_gen == 2 and
+	 *    f->new_tlb_gen == 3, then we know that the flush needed to bring
+	 *    us up to date for tlb_gen 3 is the partial flush we're
+	 *    processing.
+	 *
+	 *    As an example of why this check is needed, suppose that there
+	 *    are two concurrent flushes.  The first is a full flush that
+	 *    changes context.tlb_gen from 1 to 2.  The second is a partial
+	 *    flush that changes context.tlb_gen from 2 to 3.  If they get
+	 *    processed on this CPU in reverse order, we'll see
+	 *     local_tlb_gen == 1, mm_tlb_gen == 3, and end != TLB_FLUSH_ALL.
+	 *    If we were to use __flush_tlb_single() and set local_tlb_gen to
+	 *    3, we'd be break the invariant: we'd update local_tlb_gen above
+	 *    1 without the full flush that's needed for tlb_gen 2.
+	 *
+	 * 2. f->new_tlb_gen == mm_tlb_gen.  This is purely an optimiation.
+	 *    Partial TLB flushes are not all that much cheaper than full TLB
+	 *    flushes, so it seems unlikely that it would be a performance win
+	 *    to do a partial flush if that won't bring our TLB fully up to
+	 *    date.  By doing a full flush instead, we can increase
+	 *    local_tlb_gen all the way to mm_tlb_gen and we can probably
+	 *    avoid another flush in the very near future.
+	 */
+	if (f->end != TLB_FLUSH_ALL &&
+	    f->new_tlb_gen == local_tlb_gen + 1 &&
+	    f->new_tlb_gen == mm_tlb_gen) {
+		/* Partial flush */
+		unsigned long addr;
+		unsigned long nr_pages = (f->end - f->start) >> PAGE_SHIFT;
+
+		addr = f->start;
+		while (addr < f->end) {
+			__flush_tlb_single(addr);
+			addr += PAGE_SIZE;
+		}
+		if (local)
+			count_vm_tlb_events(NR_TLB_LOCAL_FLUSH_ONE, nr_pages);
+		trace_tlb_flush(reason, nr_pages);
+	} else {
+		/* Full flush. */
+		local_flush_tlb();
+		if (local)
+			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+		trace_tlb_flush(reason, TLB_FLUSH_ALL);
+	}
+
+	/* Both paths above update our state to mm_tlb_gen. */
+	this_cpu_write(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen, mm_tlb_gen);
+}
+
+static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)
+{
+	const struct flush_tlb_info *f = info;
+
+	flush_tlb_func_common(f, true, reason);
+}
+
+static void flush_tlb_func_remote(void *info)
+{
+	const struct flush_tlb_info *f = info;
 
 	inc_irq_stat(irq_tlb_count);
 
-	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
+	if (f->mm && f->mm != this_cpu_read(cpu_tlbstate.loaded_mm))
 		return;
 
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
-		if (f->flush_end == TLB_FLUSH_ALL)
-			local_flush_tlb();
-		else if (!f->flush_end)
-			__flush_tlb_single(f->flush_start);
-		else {
-			unsigned long addr;
-			addr = f->flush_start;
-			while (addr < f->flush_end) {
-				__flush_tlb_single(addr);
-				addr += PAGE_SIZE;
-			}
-		}
-	} else
-		leave_mm(smp_processor_id());
-
+	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+	flush_tlb_func_common(f, false, TLB_REMOTE_SHOOTDOWN);
 }
 
 void native_flush_tlb_others(const struct cpumask *cpumask,
-				 struct mm_struct *mm, unsigned long start,
-				 unsigned long end)
+			     const struct flush_tlb_info *info)
 {
-	struct flush_tlb_info info;
-	info.flush_mm = mm;
-	info.flush_start = start;
-	info.flush_end = end;
+	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
+	if (info->end == TLB_FLUSH_ALL)
+		trace_tlb_flush(TLB_REMOTE_SEND_IPI, TLB_FLUSH_ALL);
+	else
+		trace_tlb_flush(TLB_REMOTE_SEND_IPI,
+				(info->end - info->start) >> PAGE_SHIFT);
 
 	if (is_uv_system()) {
+		/*
+		 * This whole special case is confused.  UV has a "Broadcast
+		 * Assist Unit", which seems to be a fancy way to send IPIs.
+		 * Back when x86 used an explicit TLB flush IPI, UV was
+		 * optimized to use its own mechanism.  These days, x86 uses
+		 * smp_call_function_many(), but UV still uses a manual IPI,
+		 * and that IPI's action is out of date -- it does a manual
+		 * flush instead of calling flush_tlb_func_remote().  This
+		 * means that the percpu tlb_gen variables won't be updated
+		 * and we'll do pointless flushes on future context switches.
+		 *
+		 * Rather than hooking native_flush_tlb_others() here, I think
+		 * that UV should be updated so that smp_call_function_many(),
+		 * etc, are optimal on UV.
+		 */
 		unsigned int cpu;
 
 		cpu = smp_processor_id();
-		cpumask = uv_flush_tlb_others(cpumask, mm, start, end, cpu);
+		cpumask = uv_flush_tlb_others(cpumask, info);
 		if (cpumask)
-			smp_call_function_many(cpumask, flush_tlb_func,
-								&info, 1);
+			smp_call_function_many(cpumask, flush_tlb_func_remote,
+					       (void *)info, 1);
 		return;
 	}
-	smp_call_function_many(cpumask, flush_tlb_func, &info, 1);
-}
-
-void flush_tlb_current_task(void)
-{
-	struct mm_struct *mm = current->mm;
-
-	preempt_disable();
-
-	local_flush_tlb();
-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-	preempt_enable();
+	smp_call_function_many(cpumask, flush_tlb_func_remote,
+			       (void *)info, 1);
 }
 
 /*
- * It can find out the THP large page, or
- * HUGETLB page in tlb_flush when THP disabled
+ * See Documentation/x86/tlb.txt for details.  We choose 33
+ * because it is large enough to cover the vast majority (at
+ * least 95%) of allocations, and is small enough that we are
+ * confident it will not cause too much overhead.  Each single
+ * flush is about 100 ns, so this caps the maximum overhead at
+ * _about_ 3,000 ns.
+ *
+ * This is in units of pages.
  */
-static inline unsigned long has_large_page(struct mm_struct *mm,
-				 unsigned long start, unsigned long end)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	unsigned long addr = ALIGN(start, HPAGE_SIZE);
-	for (; addr < end; addr += HPAGE_SIZE) {
-		pgd = pgd_offset(mm, addr);
-		if (likely(!pgd_none(*pgd))) {
-			pud = pud_offset(pgd, addr);
-			if (likely(!pud_none(*pud))) {
-				pmd = pmd_offset(pud, addr);
-				if (likely(!pmd_none(*pmd)))
-					if (pmd_large(*pmd))
-						return addr;
-			}
-		}
-	}
-	return 0;
-}
+static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
 
 void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, unsigned long vmflag)
 {
-	unsigned long addr;
-	unsigned act_entries, tlb_entries = 0;
+	int cpu;
 
-	preempt_disable();
-	if (current->active_mm != mm)
-		goto flush_all;
+	struct flush_tlb_info info = {
+		.mm = mm,
+	};
 
-	if (!current->mm) {
-		leave_mm(smp_processor_id());
-		goto flush_all;
+	cpu = get_cpu();
+
+	/* This is also a barrier that synchronizes with switch_mm(). */
+	info.new_tlb_gen = inc_mm_tlb_gen(mm);
+
+	/* Should we flush just the requested range? */
+	if ((end != TLB_FLUSH_ALL) &&
+	    !(vmflag & VM_HUGETLB) &&
+	    ((end - start) >> PAGE_SHIFT) <= tlb_single_page_flush_ceiling) {
+		info.start = start;
+		info.end = end;
+	} else {
+		info.start = 0UL;
+		info.end = TLB_FLUSH_ALL;
 	}
 
-	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
-					|| vmflag & VM_HUGETLB) {
-		local_flush_tlb();
-		goto flush_all;
+	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+		VM_WARN_ON(irqs_disabled());
+		local_irq_disable();
+		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+		local_irq_enable();
 	}
 
-	/* In modern CPU, last level tlb used for both data/ins */
-	if (vmflag & VM_EXEC)
-		tlb_entries = tlb_lli_4k[ENTRIES];
-	else
-		tlb_entries = tlb_lld_4k[ENTRIES];
-	/* Assume all of TLB entries was occupied by this task */
-	act_entries = mm->total_vm > tlb_entries ? tlb_entries : mm->total_vm;
+	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+		flush_tlb_others(mm_cpumask(mm), &info);
 
-	/* tlb_flushall_shift is on balance point, details in commit log */
-	if ((end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift)
-		local_flush_tlb();
-	else {
-		if (has_large_page(mm, start, end)) {
-			local_flush_tlb();
-			goto flush_all;
-		}
-		/* flush range by one by one 'invlpg' */
-		for (addr = start; addr < end;	addr += PAGE_SIZE)
-			__flush_tlb_single(addr);
-
-		if (cpumask_any_but(mm_cpumask(mm),
-				smp_processor_id()) < nr_cpu_ids)
-			flush_tlb_others(mm_cpumask(mm), mm, start, end);
-		preempt_enable();
-		return;
-	}
-
-flush_all:
-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-	preempt_enable();
+	put_cpu();
 }
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
-{
-	struct mm_struct *mm = vma->vm_mm;
-
-	preempt_disable();
-
-	if (current->active_mm == mm) {
-		if (current->mm)
-			__flush_tlb_one(start);
-		else
-			leave_mm(smp_processor_id());
-	}
-
-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, start, 0UL);
-
-	preempt_enable();
-}
 
 static void do_flush_tlb_all(void *info)
 {
+	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 	__flush_tlb_all();
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
-		leave_mm(smp_processor_id());
 }
 
 void flush_tlb_all(void)
 {
+	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
 	on_each_cpu(do_flush_tlb_all, NULL, 1);
 }
 
@@ -272,38 +522,57 @@ static void do_kernel_range_flush(void *info)
 	unsigned long addr;
 
 	/* flush range by one by one 'invlpg' */
-	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE)
+	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
 		__flush_tlb_single(addr);
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	unsigned act_entries;
-	struct flush_tlb_info info;
-
-	/* In modern CPU, last level tlb used for both data/ins */
-	act_entries = tlb_lld_4k[ENTRIES];
 
 	/* Balance as user space task's flush, a bit conservative */
-	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1 ||
-		(end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift)
-
+	if (end == TLB_FLUSH_ALL ||
+	    (end - start) > tlb_single_page_flush_ceiling << PAGE_SHIFT) {
 		on_each_cpu(do_flush_tlb_all, NULL, 1);
-	else {
-		info.flush_start = start;
-		info.flush_end = end;
+	} else {
+		struct flush_tlb_info info;
+		info.start = start;
+		info.end = end;
 		on_each_cpu(do_kernel_range_flush, &info, 1);
 	}
 }
 
-#ifdef CONFIG_DEBUG_TLBFLUSH
+void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
+{
+	struct flush_tlb_info info = {
+		.mm = NULL,
+		.start = 0UL,
+		.end = TLB_FLUSH_ALL,
+	};
+
+	int cpu = get_cpu();
+
+	if (cpumask_test_cpu(cpu, &batch->cpumask)) {
+		VM_WARN_ON(irqs_disabled());
+		local_irq_disable();
+		flush_tlb_func_local(&info, TLB_LOCAL_SHOOTDOWN);
+		local_irq_enable();
+	}
+
+	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
+		flush_tlb_others(&batch->cpumask, &info);
+
+	cpumask_clear(&batch->cpumask);
+
+	put_cpu();
+}
+
 static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "%hd\n", tlb_flushall_shift);
+	len = sprintf(buf, "%ld\n", tlb_single_page_flush_ceiling);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -312,20 +581,20 @@ static ssize_t tlbflush_write_file(struct file *file,
 {
 	char buf[32];
 	ssize_t len;
-	s8 shift;
+	int ceiling;
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;
 
 	buf[len] = '\0';
-	if (kstrtos8(buf, 0, &shift))
+	if (kstrtoint(buf, 0, &ceiling))
 		return -EINVAL;
 
-	if (shift < -1 || shift >= BITS_PER_LONG)
+	if (ceiling < 0)
 		return -EINVAL;
 
-	tlb_flushall_shift = shift;
+	tlb_single_page_flush_ceiling = ceiling;
 	return count;
 }
 
@@ -335,11 +604,10 @@ static const struct file_operations fops_tlbflush = {
 	.llseek = default_llseek,
 };
 
-static int __init create_tlb_flushall_shift(void)
+static int __init create_tlb_single_page_flush_ceiling(void)
 {
-	debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
+	debugfs_create_file("tlb_single_page_flush_ceiling", S_IRUSR | S_IWUSR,
 			    arch_debugfs_dir, NULL, &fops_tlbflush);
 	return 0;
 }
-late_initcall(create_tlb_flushall_shift);
-#endif
+late_initcall(create_tlb_single_page_flush_ceiling);

@@ -13,6 +13,7 @@
 
 #include <video/vga.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 
 #include <drm/ttm/ttm_bo_api.h>
@@ -20,6 +21,8 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
+
+#include <drm/drm_gem.h>
 
 #define DRIVER_AUTHOR		"Matthew Garrett"
 
@@ -93,7 +96,6 @@
 
 struct cirrus_crtc {
 	struct drm_crtc			base;
-	u8				lut_r[256], lut_g[256], lut_b[256];
 	int				last_dpms;
 	bool				enabled;
 };
@@ -151,7 +153,6 @@ struct cirrus_device {
 struct cirrus_fbdev {
 	struct drm_fb_helper helper;
 	struct cirrus_framebuffer gfb;
-	struct list_head fbdev_list;
 	void *sysram;
 	int size;
 	int x1, y1, x2, y2; /* dirty rect */
@@ -163,7 +164,7 @@ struct cirrus_bo {
 	struct ttm_placement placement;
 	struct ttm_bo_kmap_obj kmap;
 	struct drm_gem_object gem;
-	u32 placements[3];
+	struct ttm_place placements[3];
 	int pin_count;
 };
 #define gem_to_cirrus_bo(gobj) container_of((gobj), struct cirrus_bo, gem)
@@ -178,20 +179,12 @@ cirrus_bo(struct ttm_buffer_object *bo)
 #define to_cirrus_obj(x) container_of(x, struct cirrus_gem_object, base)
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
-				/* cirrus_mode.c */
-void cirrus_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			     u16 blue, int regno);
-void cirrus_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			     u16 *blue, int regno);
-
-
 				/* cirrus_main.c */
 int cirrus_device_init(struct cirrus_device *cdev,
 		      struct drm_device *ddev,
 		      struct pci_dev *pdev,
 		      uint32_t flags);
 void cirrus_device_fini(struct cirrus_device *cdev);
-int cirrus_gem_init_object(struct drm_gem_object *obj);
 void cirrus_gem_free_object(struct drm_gem_object *obj);
 int cirrus_dumb_mmap_offset(struct drm_file *file,
 			    struct drm_device *dev,
@@ -203,14 +196,14 @@ int cirrus_gem_create(struct drm_device *dev,
 int cirrus_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		       struct drm_mode_create_dumb *args);
-int cirrus_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-			uint32_t handle);
 
 int cirrus_framebuffer_init(struct drm_device *dev,
 			   struct cirrus_framebuffer *gfb,
-			    struct drm_mode_fb_cmd2 *mode_cmd,
+			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj);
+
+bool cirrus_check_framebuffer(struct cirrus_device *cdev, int width, int height,
+			      int bpp, int pitch);
 
 				/* cirrus_display.c */
 int cirrus_modeset_init(struct cirrus_device *cdev);
@@ -226,11 +219,11 @@ void cirrus_fbdev_fini(struct cirrus_device *cdev);
 void cirrus_driver_irq_preinstall(struct drm_device *dev);
 int cirrus_driver_irq_postinstall(struct drm_device *dev);
 void cirrus_driver_irq_uninstall(struct drm_device *dev);
-irqreturn_t cirrus_driver_irq_handler(DRM_IRQ_ARGS);
+irqreturn_t cirrus_driver_irq_handler(int irq, void *arg);
 
 				/* cirrus_kms.c */
 int cirrus_driver_load(struct drm_device *dev, unsigned long flags);
-int cirrus_driver_unload(struct drm_device *dev);
+void cirrus_driver_unload(struct drm_device *dev);
 extern struct drm_ioctl_desc cirrus_ioctls[];
 extern int cirrus_max_ioctl;
 
@@ -245,7 +238,7 @@ static inline int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, NULL);
 	if (ret) {
 		if (ret != -ERESTARTSYS && ret != -EBUSY)
 			DRM_ERROR("reserve failed %p\n", bo);
@@ -261,4 +254,7 @@ static inline void cirrus_bo_unreserve(struct cirrus_bo *bo)
 
 int cirrus_bo_push_sysram(struct cirrus_bo *bo);
 int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr);
+
+extern int cirrus_bpp;
+
 #endif				/* __CIRRUS_DRV_H__ */

@@ -41,7 +41,7 @@
 #include <linux/tty_flip.h>
 #include <linux/types.h>
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <asm/io.h>
 #include <asm/war.h>
 
@@ -103,7 +103,7 @@ struct sbd_port {
 struct sbd_duart {
 	struct sbd_port		sport[2];
 	unsigned long		mapctrl;
-	atomic_t		map_guard;
+	refcount_t		map_guard;
 };
 
 #define to_sport(uport) container_of(uport, struct sbd_port, port)
@@ -596,7 +596,7 @@ static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_iflag & INPCK)
 		uport->read_status_mask |= M_DUART_FRM_ERR |
 					   M_DUART_PARITY_ERR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		uport->read_status_mask |= M_DUART_RCVD_BRK;
 
 	uport->ignore_status_mask = 0;
@@ -654,15 +654,13 @@ static void sbd_release_port(struct uart_port *uport)
 {
 	struct sbd_port *sport = to_sport(uport);
 	struct sbd_duart *duart = sport->duart;
-	int map_guard;
 
 	iounmap(sport->memctrl);
 	sport->memctrl = NULL;
 	iounmap(uport->membase);
 	uport->membase = NULL;
 
-	map_guard = atomic_add_return(-1, &duart->map_guard);
-	if (!map_guard)
+	if(refcount_dec_and_test(&duart->map_guard))
 		release_mem_region(duart->mapctrl, DUART_CHANREG_SPACING);
 	release_mem_region(uport->mapbase, DUART_CHANREG_SPACING);
 }
@@ -698,7 +696,6 @@ static int sbd_request_port(struct uart_port *uport)
 {
 	const char *err = KERN_ERR "sbd: Unable to reserve MMIO resource\n";
 	struct sbd_duart *duart = to_sport(uport)->duart;
-	int map_guard;
 	int ret = 0;
 
 	if (!request_mem_region(uport->mapbase, DUART_CHANREG_SPACING,
@@ -706,11 +703,11 @@ static int sbd_request_port(struct uart_port *uport)
 		printk(err);
 		return -EBUSY;
 	}
-	map_guard = atomic_add_return(1, &duart->map_guard);
-	if (map_guard == 1) {
+	refcount_inc(&duart->map_guard);
+	if (refcount_read(&duart->map_guard) == 1) {
 		if (!request_mem_region(duart->mapctrl, DUART_CHANREG_SPACING,
 					"sb1250-duart")) {
-			atomic_add(-1, &duart->map_guard);
+			refcount_dec(&duart->map_guard);
 			printk(err);
 			ret = -EBUSY;
 		}
@@ -718,8 +715,7 @@ static int sbd_request_port(struct uart_port *uport)
 	if (!ret) {
 		ret = sbd_map_port(uport);
 		if (ret) {
-			map_guard = atomic_add_return(-1, &duart->map_guard);
-			if (!map_guard)
+			if (refcount_dec_and_test(&duart->map_guard))
 				release_mem_region(duart->mapctrl,
 						   DUART_CHANREG_SPACING);
 		}

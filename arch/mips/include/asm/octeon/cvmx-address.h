@@ -104,6 +104,7 @@ typedef enum {
 typedef union {
 
 	uint64_t u64;
+#ifdef __BIG_ENDIAN_BITFIELD
 	/* mapped or unmapped virtual address */
 	struct {
 		uint64_t R:2;
@@ -202,6 +203,72 @@ typedef union {
 		uint64_t didspace:24;
 		uint64_t unused:40;
 	} sfilldidspace;
+#else
+	struct {
+		uint64_t offset:62;
+		uint64_t R:2;
+	} sva;
+
+	struct {
+		uint64_t offset:31;
+		uint64_t zeroes:33;
+	} suseg;
+
+	struct {
+		uint64_t offset:29;
+		uint64_t sp:2;
+		uint64_t ones:33;
+	} sxkseg;
+
+	struct {
+		uint64_t pa:49;
+		uint64_t mbz:10;
+		uint64_t cca:3;
+		uint64_t R:2;
+	} sxkphys;
+
+	struct {
+		uint64_t offset:36;
+		uint64_t unaddr:4;
+		uint64_t did:8;
+		uint64_t is_io:1;
+		uint64_t mbz:15;
+	} sphys;
+
+	struct {
+		uint64_t offset:36;
+		uint64_t unaddr:4;
+		uint64_t zeroes:24;
+	} smem;
+
+	struct {
+		uint64_t offset:36;
+		uint64_t unaddr:4;
+		uint64_t did:8;
+		uint64_t is_io:1;
+		uint64_t mbz:13;
+		uint64_t mem_region:2;
+	} sio;
+
+	struct {
+		uint64_t addr:13;
+		cvmx_add_win_dec_t csrdec:2;
+		uint64_t ones:49;
+	} sscr;
+
+	struct {
+		uint64_t addr:7;
+		uint64_t type:3;
+		uint64_t unused2:3;
+		uint64_t csrdec:2;
+		uint64_t ones:49;
+	} sdma;
+
+	struct {
+		uint64_t unused:40;
+		uint64_t didspace:24;
+	} sfilldidspace;
+#endif
 
 } cvmx_addr_t;
 

@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,10 +47,10 @@ static struct rc_map_table pinnacle_pctv_hd[] = {
 
 static struct rc_map_list pinnacle_pctv_hd_map = {
 	.map = {
-		.scan    = pinnacle_pctv_hd,
-		.size    = ARRAY_SIZE(pinnacle_pctv_hd),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_PINNACLE_PCTV_HD,
+		.scan     = pinnacle_pctv_hd,
+		.size     = ARRAY_SIZE(pinnacle_pctv_hd),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_PINNACLE_PCTV_HD,
 	}
 };
 
@@ -68,4 +68,4 @@ module_init(init_rc_map_pinnacle_pctv_hd)
 module_exit(exit_rc_map_pinnacle_pctv_hd)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

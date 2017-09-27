@@ -117,16 +117,41 @@ do {								\
 #endif /*arch_spin_is_contended*/
 #endif
 
-/* The lock does not imply full memory barrier. */
-#ifndef ARCH_HAS_SMP_MB_AFTER_LOCK
-static inline void smp_mb__after_lock(void) { smp_mb(); }
-#endif
-
-/**
- * raw_spin_unlock_wait - wait until the spinlock gets unlocked
- * @lock: the spinlock in question.
+/*
+ * This barrier must provide two things:
+ *
+ *   - it must guarantee a STORE before the spin_lock() is ordered against a
+ *     LOAD after it, see the comments at its two usage sites.
+ *
+ *   - it must ensure the critical section is RCsc.
+ *
+ * The latter is important for cases where we observe values written by other
+ * CPUs in spin-loops, without barriers, while being subject to scheduling.
+ *
+ * CPU0			CPU1			CPU2
+ *
+ *			for (;;) {
+ *			  if (READ_ONCE(X))
+ *			    break;
+ *			}
+ * X=1
+ *			<sched-out>
+ *						<sched-in>
+ *						r = X;
+ *
+ * without transitivity it could be that CPU1 observes X!=0 breaks the loop,
+ * we get migrated and CPU2 sees X==0.
+ *
+ * Since most load-store architectures implement ACQUIRE with an smp_mb() after
+ * the LL/SC loop, they need no further barriers. Similarly all our TSO
+ * architectures imply an smp_mb() for each atomic instruction and equally don't
+ * need more.
+ *
+ * Architectures that can implement ACQUIRE better need to take care.
  */
-#define raw_spin_unlock_wait(lock)	arch_spin_unlock_wait(&(lock)->raw_lock)
+#ifndef smp_mb__after_spinlock
+#define smp_mb__after_spinlock()	do { } while (0)
+#endif
 
 #ifdef CONFIG_DEBUG_SPINLOCK
  extern void do_raw_spin_lock(raw_spinlock_t *lock) __acquires(lock);
@@ -179,7 +204,13 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 		 _raw_spin_lock_nest_lock(lock, &(nest_lock)->dep_map);	\
 	 } while (0)
 #else
-# define raw_spin_lock_nested(lock, subclass)		_raw_spin_lock(lock)
+/*
+ * Always evaluate the 'subclass' argument to avoid that the compiler
+ * warns about set-but-not-used variables when building with
+ * CONFIG_DEBUG_LOCK_ALLOC=n and with W=1.
+ */
+# define raw_spin_lock_nested(lock, subclass)		\
+	_raw_spin_lock(((void)(subclass), (lock)))
 # define raw_spin_lock_nest_lock(lock, nest_lock)	_raw_spin_lock(lock)
 #endif
 
@@ -269,7 +300,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
  * Map the spin_lock functions to the raw variants for PREEMPT_RT=n
  */
 
-static inline raw_spinlock_t *spinlock_check(spinlock_t *lock)
+static __always_inline raw_spinlock_t *spinlock_check(spinlock_t *lock)
 {
 	return &lock->rlock;
 }
@@ -280,17 +311,17 @@ do {							\
 	raw_spin_lock_init(&(_lock)->rlock);		\
 } while (0)
 
-static inline void spin_lock(spinlock_t *lock)
+static __always_inline void spin_lock(spinlock_t *lock)
 {
 	raw_spin_lock(&lock->rlock);
 }
 
-static inline void spin_lock_bh(spinlock_t *lock)
+static __always_inline void spin_lock_bh(spinlock_t *lock)
 {
 	raw_spin_lock_bh(&lock->rlock);
 }
 
-static inline int spin_trylock(spinlock_t *lock)
+static __always_inline int spin_trylock(spinlock_t *lock)
 {
 	return raw_spin_trylock(&lock->rlock);
 }
@@ -305,7 +336,7 @@ do {									\
 	raw_spin_lock_nest_lock(spinlock_check(lock), nest_lock);	\
 } while (0)
 
-static inline void spin_lock_irq(spinlock_t *lock)
+static __always_inline void spin_lock_irq(spinlock_t *lock)
 {
 	raw_spin_lock_irq(&lock->rlock);
 }
@@ -320,32 +351,32 @@ do {									\
 	raw_spin_lock_irqsave_nested(spinlock_check(lock), flags, subclass); \
 } while (0)
 
-static inline void spin_unlock(spinlock_t *lock)
+static __always_inline void spin_unlock(spinlock_t *lock)
 {
 	raw_spin_unlock(&lock->rlock);
 }
 
-static inline void spin_unlock_bh(spinlock_t *lock)
+static __always_inline void spin_unlock_bh(spinlock_t *lock)
 {
 	raw_spin_unlock_bh(&lock->rlock);
 }
 
-static inline void spin_unlock_irq(spinlock_t *lock)
+static __always_inline void spin_unlock_irq(spinlock_t *lock)
 {
 	raw_spin_unlock_irq(&lock->rlock);
 }
 
-static inline void spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
+static __always_inline void spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
 {
 	raw_spin_unlock_irqrestore(&lock->rlock, flags);
 }
 
-static inline int spin_trylock_bh(spinlock_t *lock)
+static __always_inline int spin_trylock_bh(spinlock_t *lock)
 {
 	return raw_spin_trylock_bh(&lock->rlock);
 }
 
-static inline int spin_trylock_irq(spinlock_t *lock)
+static __always_inline int spin_trylock_irq(spinlock_t *lock)
 {
 	return raw_spin_trylock_irq(&lock->rlock);
 }
@@ -355,22 +386,17 @@ static inline int spin_trylock_irq(spinlock_t *lock)
 	raw_spin_trylock_irqsave(spinlock_check(lock), flags); \
 })
 
-static inline void spin_unlock_wait(spinlock_t *lock)
-{
-	raw_spin_unlock_wait(&lock->rlock);
-}
-
-static inline int spin_is_locked(spinlock_t *lock)
+static __always_inline int spin_is_locked(spinlock_t *lock)
 {
 	return raw_spin_is_locked(&lock->rlock);
 }
 
-static inline int spin_is_contended(spinlock_t *lock)
+static __always_inline int spin_is_contended(spinlock_t *lock)
 {
 	return raw_spin_is_contended(&lock->rlock);
 }
 
-static inline int spin_can_lock(spinlock_t *lock)
+static __always_inline int spin_can_lock(spinlock_t *lock)
 {
 	return raw_spin_can_lock(&lock->rlock);
 }

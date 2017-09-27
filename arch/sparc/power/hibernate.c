@@ -9,10 +9,8 @@
 #include <asm/hibernate.h>
 #include <asm/visasm.h>
 #include <asm/page.h>
+#include <asm/sections.h>
 #include <asm/tlb.h>
-
-/* References to section boundaries */
-extern const void __nosave_begin, __nosave_end;
 
 struct saved_context saved_context;
 
@@ -37,6 +35,5 @@ void restore_processor_state(void)
 {
 	struct mm_struct *mm = current->active_mm;
 
-	load_secondary_context(mm);
-	tsb_context_switch(mm);
+	tsb_context_switch_ctx(mm, CTX_HWBITS(mm->context));
 }

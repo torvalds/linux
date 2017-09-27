@@ -31,9 +31,9 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 
 #include <linux/mlx4/cmd.h>
+#include <linux/mlx4/srq.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
 
@@ -45,15 +45,12 @@ void mlx4_srq_event(struct mlx4_dev *dev, u32 srqn, int event_type)
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
 	struct mlx4_srq *srq;
 
-	spin_lock(&srq_table->lock);
-
+	rcu_read_lock();
 	srq = radix_tree_lookup(&srq_table->tree, srqn & (dev->caps.num_srqs - 1));
+	rcu_read_unlock();
 	if (srq)
 		atomic_inc(&srq->refcount);
-
-	spin_unlock(&srq_table->lock);
-
-	if (!srq) {
+	else {
 		mlx4_warn(dev, "Async event for bogus SRQ %08x\n", srqn);
 		return;
 	}
@@ -116,7 +113,7 @@ err_put:
 	mlx4_table_put(dev, &srq_table->table, *srqn);
 
 err_out:
-	mlx4_bitmap_free(&srq_table->bitmap, *srqn);
+	mlx4_bitmap_free(&srq_table->bitmap, *srqn, MLX4_NO_RR);
 	return err;
 }
 
@@ -144,7 +141,7 @@ void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
 
 	mlx4_table_put(dev, &srq_table->cmpt_table, srqn);
 	mlx4_table_put(dev, &srq_table->table, srqn);
-	mlx4_bitmap_free(&srq_table->bitmap, srqn);
+	mlx4_bitmap_free(&srq_table->bitmap, srqn, MLX4_NO_RR);
 }
 
 static void mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
@@ -188,8 +185,6 @@ int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, u32 cqn, u16 xrcd,
 	}
 
 	srq_context = mailbox->buf;
-	memset(srq_context, 0, sizeof *srq_context);
-
 	srq_context->state_logsize_srqn = cpu_to_be32((ilog2(srq->max) << 24) |
 						      srq->srqn);
 	srq_context->logstride          = srq->wqe_shift - 4;
@@ -303,12 +298,11 @@ struct mlx4_srq *mlx4_srq_lookup(struct mlx4_dev *dev, u32 srqn)
 {
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
 	struct mlx4_srq *srq;
-	unsigned long flags;
 
-	spin_lock_irqsave(&srq_table->lock, flags);
+	rcu_read_lock();
 	srq = radix_tree_lookup(&srq_table->tree,
 				srqn & (dev->caps.num_srqs - 1));
-	spin_unlock_irqrestore(&srq_table->lock, flags);
+	rcu_read_unlock();
 
 	return srq;
 }

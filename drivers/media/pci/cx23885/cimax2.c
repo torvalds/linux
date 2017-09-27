@@ -17,15 +17,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx23885.h"
 #include "cimax2.h"
 #include "dvb_ca_en50221.h"
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 /**** Bit definitions for MC417_RWD and MC417_OEN registers  ***
   bits 31-16
 +-----------+
@@ -65,10 +65,11 @@ static unsigned int ci_irq_enable;
 module_param(ci_irq_enable, int, 0644);
 MODULE_PARM_DESC(ci_irq_enable, "Enable IRQ from CAM");
 
-#define ci_dbg_print(args...) \
+#define ci_dbg_print(fmt, args...) \
 	do { \
 		if (ci_dbg) \
-			printk(KERN_DEBUG args); \
+			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			       __func__, ##args); \
 	} while (0)
 
 #define ci_irq_flags() (ci_irq_enable ? NETUP_IRQ_IRQAM : 0)
@@ -125,7 +126,7 @@ static int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 						u8 *buf, int len)
 {
 	int ret;
-	u8 buffer[len + 1];
+	u8 buffer[MAX_XFER_SIZE];
 
 	struct i2c_msg msg = {
 		.addr	= addr,
@@ -133,6 +134,12 @@ static int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 		.buf	= &buffer[0],
 		.len	= len + 1
 	};
+
+	if (1 + len > sizeof(buffer)) {
+		pr_warn("%s: i2c wr reg=%04x: len=%d is too big!\n",
+		       KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buffer[0] = reg;
 	memcpy(&buffer[1], buf, len);
@@ -358,11 +365,8 @@ static void netup_read_ci_status(struct work_struct *work)
 		if (ret != 0)
 			return;
 
-		ci_dbg_print("%s: Slot Status Addr=[0x%04x], "
-				"Reg=[0x%02x], data=%02x, "
-				"TS config = %02x\n", __func__,
-				state->ci_i2c_addr, 0, buf[0],
-				buf[0]);
+		ci_dbg_print("%s: Slot Status Addr=[0x%04x], Reg=[0x%02x], data=%02x, TS config = %02x\n",
+			     __func__,	state->ci_i2c_addr, 0, buf[0], buf[0]);
 
 
 		if (buf[0] & 1)

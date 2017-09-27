@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -34,6 +35,7 @@ enum {
 	IOCMD_IOC_RESET_FWSTATS,
 	IOCMD_IOC_SET_ADAPTER_NAME,
 	IOCMD_IOC_SET_PORT_NAME,
+	IOCMD_IOC_FW_SIG_INV,
 	IOCMD_IOCFC_GET_ATTR,
 	IOCMD_IOCFC_SET_INTR,
 	IOCMD_PORT_ENABLE,

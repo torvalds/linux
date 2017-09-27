@@ -34,19 +34,19 @@
 #include <linux/ipc.h>
 #include <linux/utsname.h>
 #include <linux/file.h>
-#include <linux/init.h>
 #include <linux/personality.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/syscalls.h>
 #include <asm/time.h>
 #include <asm/unistd.h>
+#include <asm/asm-prototypes.h>
 
-static inline unsigned long do_mmap2(unsigned long addr, size_t len,
+static inline long do_mmap2(unsigned long addr, size_t len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, unsigned long off, int shift)
 {
-	unsigned long ret = -EINVAL;
+	long ret = -EINVAL;
 
 	if (!arch_validate_prot(prot))
 		goto out;
@@ -62,16 +62,16 @@ out:
 	return ret;
 }
 
-unsigned long sys_mmap2(unsigned long addr, size_t len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long pgoff)
+SYSCALL_DEFINE6(mmap2, unsigned long, addr, size_t, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, unsigned long, pgoff)
 {
 	return do_mmap2(addr, len, prot, flags, fd, pgoff, PAGE_SHIFT-12);
 }
 
-unsigned long sys_mmap(unsigned long addr, size_t len,
-		       unsigned long prot, unsigned long flags,
-		       unsigned long fd, off_t offset)
+SYSCALL_DEFINE6(mmap, unsigned long, addr, size_t, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, off_t, offset)
 {
 	return do_mmap2(addr, len, prot, flags, fd, offset, PAGE_SHIFT);
 }
@@ -123,16 +123,19 @@ long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 			     (u64)len_high << 32 | len_low, advice);
 }
 
-void do_show_syscall(unsigned long r3, unsigned long r4, unsigned long r5,
-		     unsigned long r6, unsigned long r7, unsigned long r8,
-		     struct pt_regs *regs)
+long sys_switch_endian(void)
 {
-	printk("syscall %ld(%lx, %lx, %lx, %lx, %lx, %lx) regs=%p current=%p"
-	       " cpu=%d\n", regs->gpr[0], r3, r4, r5, r6, r7, r8, regs,
-	       current, smp_processor_id());
-}
+	struct thread_info *ti;
 
-void do_show_syscall_exit(unsigned long r3)
-{
-	printk(" -> %lx, current=%p cpu=%d\n", r3, current, smp_processor_id());
+	current->thread.regs->msr ^= MSR_LE;
+
+	/*
+	 * Set TIF_RESTOREALL so that r3 isn't clobbered on return to
+	 * userspace. That also has the effect of restoring the non-volatile
+	 * GPRs, so we saved them on the way in here.
+	 */
+	ti = current_thread_info();
+	ti->flags |= _TIF_RESTOREALL;
+
+	return 0;
 }

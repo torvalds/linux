@@ -35,7 +35,7 @@
 #define IB_USER_MAD_H
 
 #include <linux/types.h>
-#include <linux/ioctl.h>
+#include <rdma/rdma_user_ioctl.h>
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -191,13 +191,43 @@ struct ib_user_mad_reg_req {
 	__u8	rmpp_version;
 };
 
-#define IB_IOCTL_MAGIC		0x1b
-
-#define IB_USER_MAD_REGISTER_AGENT	_IOWR(IB_IOCTL_MAGIC, 1, \
-					      struct ib_user_mad_reg_req)
-
-#define IB_USER_MAD_UNREGISTER_AGENT	_IOW(IB_IOCTL_MAGIC, 2, __u32)
-
-#define IB_USER_MAD_ENABLE_PKEY		_IO(IB_IOCTL_MAGIC, 3)
+/**
+ * ib_user_mad_reg_req2 - MAD registration request
+ *
+ * @id                 - Set by the _kernel_; used by userspace to identify the
+ *                       registered agent in future requests.
+ * @qpn                - Queue pair number; must be 0 or 1.
+ * @mgmt_class         - Indicates which management class of MADs should be
+ *                       receive by the caller.  This field is only required if
+ *                       the user wishes to receive unsolicited MADs, otherwise
+ *                       it should be 0.
+ * @mgmt_class_version - Indicates which version of MADs for the given
+ *                       management class to receive.
+ * @res                - Ignored.
+ * @flags              - additional registration flags; Must be in the set of
+ *                       flags defined in IB_USER_MAD_REG_FLAGS_CAP
+ * @method_mask        - The caller wishes to receive unsolicited MADs for the
+ *                       methods whose bit(s) is(are) set.
+ * @oui                - Indicates IEEE OUI to use when mgmt_class is a vendor
+ *                       class in the range from 0x30 to 0x4f. Otherwise not
+ *                       used.
+ * @rmpp_version       - If set, indicates the RMPP version to use.
+ */
+enum {
+	IB_USER_MAD_USER_RMPP = (1 << 0),
+};
+#define IB_USER_MAD_REG_FLAGS_CAP (IB_USER_MAD_USER_RMPP)
+struct ib_user_mad_reg_req2 {
+	__u32	id;
+	__u32	qpn;
+	__u8	mgmt_class;
+	__u8	mgmt_class_version;
+	__u16   res;
+	__u32   flags;
+	__u64   method_mask[2];
+	__u32   oui;
+	__u8	rmpp_version;
+	__u8	reserved[3];
+};
 
 #endif /* IB_USER_MAD_H */

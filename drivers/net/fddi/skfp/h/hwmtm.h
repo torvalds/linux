@@ -74,15 +74,6 @@
 #define NULL 		0
 #endif
 
-#ifdef	LITTLE_ENDIAN
-#define HWM_REVERSE(x)	(x)
-#else
-#define	HWM_REVERSE(x)		((((x)<<24L)&0xff000000L)	+	\
-				 (((x)<< 8L)&0x00ff0000L)	+	\
-				 (((x)>> 8L)&0x0000ff00L)	+	\
-				 (((x)>>24L)&0x000000ffL))
-#endif
-
 #define C_INDIC		(1L<<25)
 #define A_INDIC		(1L<<26)
 #define	RD_FS_LOCAL	0x80
@@ -177,13 +168,25 @@ struct os_debug {
 #define DB_P	debug
 #endif
 
-#define DB_RX(a,b,c,lev) if (DB_P.d_os.hwm_rx >= (lev))	printf(a,b,c)
-#define DB_TX(a,b,c,lev) if (DB_P.d_os.hwm_tx >= (lev))	printf(a,b,c)
-#define DB_GEN(a,b,c,lev) if (DB_P.d_os.hwm_gen >= (lev)) printf(a,b,c)
+#define DB_RX(lev, fmt, ...)						\
+do {									\
+	if (DB_P.d_os.hwm_rx >= (lev))					\
+		printf(fmt "\n", ##__VA_ARGS__);			\
+} while (0)
+#define DB_TX(lev, fmt, ...)						\
+do {									\
+	if (DB_P.d_os.hwm_tx >= (lev))					\
+		printf(fmt "\n", ##__VA_ARGS__);			\
+} while (0)
+#define DB_GEN(lev, fmt, ...)						\
+do {									\
+	if (DB_P.d_os.hwm_gen >= (lev))					\
+		printf(fmt "\n", ##__VA_ARGS__);			\
+} while (0)
 #else	/* DEBUG */
-#define DB_RX(a,b,c,lev)
-#define DB_TX(a,b,c,lev)
-#define DB_GEN(a,b,c,lev)
+#define DB_RX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_TX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_GEN(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
 #endif	/* DEBUG */
 
 #ifndef	SK_BREAK

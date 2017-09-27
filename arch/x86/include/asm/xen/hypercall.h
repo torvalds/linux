@@ -43,12 +43,15 @@
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/smap.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/platform.h>
 #include <xen/interface/xen-mca.h>
+
+struct xen_dm_op_buf;
 
 /*
  * The hypercall asms have to meet several constraints:
@@ -112,7 +115,7 @@ extern struct { char _entry[32]; } hypercall_page[];
 	register unsigned long __arg4 asm(__HYPERCALL_ARG4REG) = __arg4; \
 	register unsigned long __arg5 asm(__HYPERCALL_ARG5REG) = __arg5;
 
-#define __HYPERCALL_0PARAM	"=r" (__res)
+#define __HYPERCALL_0PARAM	"=r" (__res), ASM_CALL_CONSTRAINT
 #define __HYPERCALL_1PARAM	__HYPERCALL_0PARAM, "+r" (__arg1)
 #define __HYPERCALL_2PARAM	__HYPERCALL_1PARAM, "+r" (__arg2)
 #define __HYPERCALL_3PARAM	__HYPERCALL_2PARAM, "+r" (__arg3)
@@ -213,10 +216,12 @@ privcmd_call(unsigned call,
 	__HYPERCALL_DECLS;
 	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);
 
+	stac();
 	asm volatile("call *%[call]"
 		     : __HYPERCALL_5PARAM
 		     : [call] "a" (&hypercall_page[call])
 		     : __HYPERCALL_CLOBBER5);
+	clac();
 
 	return (long)__res;
 }
@@ -310,10 +315,10 @@ HYPERVISOR_mca(struct xen_mc *mc_op)
 }
 
 static inline int
-HYPERVISOR_dom0_op(struct xen_platform_op *platform_op)
+HYPERVISOR_platform_op(struct xen_platform_op *op)
 {
-	platform_op->interface_version = XENPF_INTERFACE_VERSION;
-	return _hypercall1(int, dom0_op, platform_op);
+	op->interface_version = XENPF_INTERFACE_VERSION;
+	return _hypercall1(int, platform_op, op);
 }
 
 static inline int
@@ -336,14 +341,14 @@ HYPERVISOR_update_descriptor(u64 ma, u64 desc)
 	return _hypercall4(int, update_descriptor, ma, ma>>32, desc, desc>>32);
 }
 
-static inline int
+static inline long
 HYPERVISOR_memory_op(unsigned int cmd, void *arg)
 {
-	return _hypercall2(int, memory_op, cmd, arg);
+	return _hypercall2(long, memory_op, cmd, arg);
 }
 
 static inline int
-HYPERVISOR_multicall(void *call_list, int nr_calls)
+HYPERVISOR_multicall(void *call_list, uint32_t nr_calls)
 {
 	return _hypercall2(int, multicall, call_list, nr_calls);
 }
@@ -465,6 +470,23 @@ HYPERVISOR_tmem_op(
 	return _hypercall1(int, tmem_op, op);
 }
 
+static inline int
+HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
+{
+	return _hypercall2(int, xenpmu_op, op, arg);
+}
+
+static inline int
+HYPERVISOR_dm_op(
+	domid_t dom, unsigned int nr_bufs, struct xen_dm_op_buf *bufs)
+{
+	int ret;
+	stac();
+	ret = _hypercall3(int, dm_op, dom, nr_bufs, bufs);
+	clac();
+	return ret;
+}
+
 static inline void
 MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
 {
@@ -529,6 +551,8 @@ static inline void
 MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 			struct desc_struct desc)
 {
+	u32 *p = (u32 *) &desc;
+
 	mcl->op = __HYPERVISOR_update_descriptor;
 	if (sizeof(maddr) == sizeof(long)) {
 		mcl->args[0] = maddr;
@@ -536,8 +560,8 @@ MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 	} else {
 		mcl->args[0] = maddr;
 		mcl->args[1] = maddr >> 32;
-		mcl->args[2] = desc.a;
-		mcl->args[3] = desc.b;
+		mcl->args[2] = *p++;
+		mcl->args[3] = *p;
 	}
 
 	trace_xen_mc_entry(mcl, sizeof(maddr) == sizeof(long) ? 2 : 4);

@@ -126,7 +126,8 @@ EXPORT_SYMBOL_GPL(dm_rh_region_to_sector);
 
 region_t dm_rh_bio_to_region(struct dm_region_hash *rh, struct bio *bio)
 {
-	return dm_rh_sector_to_region(rh, bio->bi_sector - rh->target_begin);
+	return dm_rh_sector_to_region(rh, bio->bi_iter.bi_sector -
+				      rh->target_begin);
 }
 EXPORT_SYMBOL_GPL(dm_rh_bio_to_region);
 
@@ -192,7 +193,7 @@ struct dm_region_hash *dm_region_hash_create(
 	rh->max_recovery = max_recovery;
 	rh->log = log;
 	rh->region_size = region_size;
-	rh->region_shift = ffs(region_size) - 1;
+	rh->region_shift = __ffs(region_size);
 	rwlock_init(&rh->hash_lock);
 	rh->mask = nr_buckets - 1;
 	rh->nr_buckets = nr_buckets;
@@ -248,9 +249,7 @@ void dm_region_hash_destroy(struct dm_region_hash *rh)
 	if (rh->log)
 		dm_dirty_log_destroy(rh->log);
 
-	if (rh->region_pool)
-		mempool_destroy(rh->region_pool);
-
+	mempool_destroy(rh->region_pool);
 	vfree(rh->buckets);
 	kfree(rh);
 }
@@ -399,12 +398,12 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 	region_t region = dm_rh_bio_to_region(rh, bio);
 	int recovering = 0;
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_opf & REQ_PREFLUSH) {
 		rh->flush_failure = 1;
 		return;
 	}
 
-	if (bio->bi_rw & REQ_DISCARD)
+	if (bio_op(bio) == REQ_OP_DISCARD)
 		return;
 
 	/* We must inform the log that the sync count has changed. */
@@ -527,7 +526,7 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
 	struct bio *bio;
 
 	for (bio = bios->head; bio; bio = bio->bi_next) {
-		if (bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))
+		if (bio->bi_opf & REQ_PREFLUSH || bio_op(bio) == REQ_OP_DISCARD)
 			continue;
 		rh_inc(rh, dm_rh_bio_to_region(rh, bio));
 	}

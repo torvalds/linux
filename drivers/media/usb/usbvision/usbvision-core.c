@@ -17,10 +17,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -37,7 +33,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
@@ -87,11 +83,6 @@ MODULE_PARM_DESC(adjust_y_offset, "adjust Y offset display [core]");
 #define DBG_PARSE	(1 << 3)
 #define DBG_SCRATCH	(1 << 4)
 #define DBG_FUNC	(1 << 5)
-
-static const int max_imgwidth = MAX_FRAME_WIDTH;
-static const int max_imgheight = MAX_FRAME_HEIGHT;
-static const int min_imgwidth = MIN_FRAME_WIDTH;
-static const int min_imgheight = MIN_FRAME_HEIGHT;
 
 /* The value of 'scratch_buf_size' affects quality of the picture
  * in many ways. Shorter buffers may cause loss of data when client
@@ -1367,7 +1358,7 @@ static void usbvision_isoc_irq(struct urb *urb)
 int usbvision_read_reg(struct usb_usbvision *usbvision, unsigned char reg)
 {
 	int err_code = 0;
-	unsigned char buffer[1];
+	unsigned char *buffer = usbvision->ctrl_urb_buffer;
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return -1;
@@ -1401,10 +1392,12 @@ int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return 0;
 
+	usbvision->ctrl_urb_buffer[0] = value;
 	err_code = usb_control_msg(usbvision->dev, usb_sndctrlpipe(usbvision->dev, 1),
 				USBVISION_OP_CODE,
 				USB_DIR_OUT | USB_TYPE_VENDOR |
-				USB_RECIP_ENDPOINT, 0, (__u16) reg, &value, 1, HZ);
+				USB_RECIP_ENDPOINT, 0, (__u16) reg,
+				usbvision->ctrl_urb_buffer, 1, HZ);
 
 	if (err_code < 0) {
 		dev_err(&usbvision->dev->dev,
@@ -1420,8 +1413,6 @@ static void usbvision_ctrl_urb_complete(struct urb *urb)
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->ctrl_urb_busy = 0;
-	if (waitqueue_active(&usbvision->ctrl_urb_wq))
-		wake_up_interruptible(&usbvision->ctrl_urb_wq);
 }
 
 
@@ -1463,8 +1454,6 @@ static int usbvision_write_reg_irq(struct usb_usbvision *usbvision, int address,
 
 static int usbvision_init_compression(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
-
 	usbvision->last_isoc_frame_num = -1;
 	usbvision->isoc_data_count = 0;
 	usbvision->isoc_packet_count = 0;
@@ -1475,7 +1464,7 @@ static int usbvision_init_compression(struct usb_usbvision *usbvision)
 	usbvision->request_intra = 1;
 	usbvision->isoc_measure_bandwidth_count = 0;
 
-	return err_code;
+	return 0;
 }
 
 /* this function measures the used bandwidth since last call
@@ -1484,11 +1473,9 @@ static int usbvision_init_compression(struct usb_usbvision *usbvision)
  */
 static int usbvision_measure_bandwidth(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
-
 	if (usbvision->isoc_measure_bandwidth_count < 2) { /* this gives an average bandwidth of 3 frames */
 		usbvision->isoc_measure_bandwidth_count++;
-		return err_code;
+		return 0;
 	}
 	if ((usbvision->isoc_packet_size > 0) && (usbvision->isoc_packet_count > 0)) {
 		usbvision->used_bandwidth = usbvision->isoc_data_count /
@@ -1499,7 +1486,7 @@ static int usbvision_measure_bandwidth(struct usb_usbvision *usbvision)
 	usbvision->isoc_data_count = 0;
 	usbvision->isoc_packet_count = 0;
 	usbvision->isoc_skip_count = 0;
-	return err_code;
+	return 0;
 }
 
 static int usbvision_adjust_compression(struct usb_usbvision *usbvision)
@@ -1546,26 +1533,24 @@ static int usbvision_adjust_compression(struct usb_usbvision *usbvision)
 
 static int usbvision_request_intra(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
 	unsigned char buffer[1];
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->request_intra = 1;
 	buffer[0] = 1;
 	usbvision_write_reg_irq(usbvision, USBVISION_FORCE_INTRA, buffer, 1);
-	return err_code;
+	return 0;
 }
 
 static int usbvision_unrequest_intra(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
 	unsigned char buffer[1];
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->request_intra = 0;
 	buffer[0] = 0;
 	usbvision_write_reg_irq(usbvision, USBVISION_FORCE_INTRA, buffer, 1);
-	return err_code;
+	return 0;
 }
 
 /*******************************
@@ -1602,7 +1587,7 @@ static int usbvision_init_webcam(struct usb_usbvision *usbvision)
 		{ 0x27, 0x00, 0x00 }, { 0x28, 0x00, 0x00 }, { 0x29, 0x00, 0x00 }, { 0x08, 0x80, 0x60 },
 		{ 0x0f, 0x2d, 0x24 }, { 0x0c, 0x80, 0x80 }
 	};
-	char value[3];
+	unsigned char *value = usbvision->ctrl_urb_buffer;
 
 	/* the only difference between PAL and NTSC init_values */
 	if (usbvision_device_data[usbvision->dev_model].video_norm == V4L2_STD_NTSC)
@@ -1641,8 +1626,8 @@ static int usbvision_init_webcam(struct usb_usbvision *usbvision)
 static int usbvision_set_video_format(struct usb_usbvision *usbvision, int format)
 {
 	static const char proc[] = "usbvision_set_video_format";
+	unsigned char *value = usbvision->ctrl_urb_buffer;
 	int rc;
-	unsigned char value[2];
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return 0;
@@ -1665,8 +1650,8 @@ static int usbvision_set_video_format(struct usb_usbvision *usbvision, int forma
 			     (__u16) USBVISION_FILT_CONT, value, 2, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%s: ERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%s: ERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 	}
 	usbvision->isoc_mode = format;
 	return rc;
@@ -1683,7 +1668,7 @@ int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 	int err_code = 0;
 	int usb_width, usb_height;
 	unsigned int frame_rate = 0, frame_drop = 0;
-	unsigned char value[4];
+	unsigned char *value = usbvision->ctrl_urb_buffer;
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return 0;
@@ -1795,10 +1780,6 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision, int number_of_frames
 		usbvision->num_frames--;
 	}
 
-	spin_lock_init(&usbvision->queue_lock);
-	init_waitqueue_head(&usbvision->wait_frame);
-	init_waitqueue_head(&usbvision->wait_stream);
-
 	/* Allocate all buffers */
 	for (i = 0; i < usbvision->num_frames; i++) {
 		usbvision->frame[i].index = i;
@@ -1878,7 +1859,7 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 {
 	static const char proc[] = "usbvision_set_compresion_params: ";
 	int rc;
-	unsigned char value[6];
+	unsigned char *value = usbvision->ctrl_urb_buffer;
 
 	value[0] = 0x0F;    /* Intra-Compression cycle */
 	value[1] = 0x01;    /* Reg.45 one line per strip */
@@ -1903,8 +1884,8 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_INTRA_CYC, value, 5, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -1934,8 +1915,8 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_PCM_THR1, value, 6, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 	}
 	return rc;
 }
@@ -1952,7 +1933,7 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 {
 	static const char proc[] = "usbvision_set_input: ";
 	int rc;
-	unsigned char value[8];
+	unsigned char *value = usbvision->ctrl_urb_buffer;
 	unsigned char dvi_yuv_value;
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
@@ -1973,8 +1954,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 
 	rc = usbvision_write_reg(usbvision, USBVISION_VIN_REG1, value[0]);
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -2039,8 +2020,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 			     USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT, 0,
 			     (__u16) USBVISION_LXSIZE_I, value, 8, HZ);
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -2068,8 +2049,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 
 static int usbvision_set_dram_settings(struct usb_usbvision *usbvision)
 {
+	unsigned char *value = usbvision->ctrl_urb_buffer;
 	int rc;
-	unsigned char value[8];
 
 	if (usbvision->isoc_mode == ISOC_MODE_COMPRESS) {
 		value[0] = 0x42;
@@ -2165,56 +2146,6 @@ int usbvision_power_on(struct usb_usbvision *usbvision)
 	return err_code;
 }
 
-
-/*
- * usbvision timer stuff
- */
-
-/* to call usbvision_power_off from task queue */
-static void call_usbvision_power_off(struct work_struct *work)
-{
-	struct usb_usbvision *usbvision = container_of(work, struct usb_usbvision, power_off_work);
-
-	PDEBUG(DBG_FUNC, "");
-	if (mutex_lock_interruptible(&usbvision->v4l2_lock))
-		return;
-
-	if (usbvision->user == 0) {
-		usbvision_i2c_unregister(usbvision);
-
-		usbvision_power_off(usbvision);
-		usbvision->initialized = 0;
-	}
-	mutex_unlock(&usbvision->v4l2_lock);
-}
-
-static void usbvision_power_off_timer(unsigned long data)
-{
-	struct usb_usbvision *usbvision = (void *)data;
-
-	PDEBUG(DBG_FUNC, "");
-	del_timer(&usbvision->power_off_timer);
-	INIT_WORK(&usbvision->power_off_work, call_usbvision_power_off);
-	(void) schedule_work(&usbvision->power_off_work);
-}
-
-void usbvision_init_power_off_timer(struct usb_usbvision *usbvision)
-{
-	init_timer(&usbvision->power_off_timer);
-	usbvision->power_off_timer.data = (long)usbvision;
-	usbvision->power_off_timer.function = usbvision_power_off_timer;
-}
-
-void usbvision_set_power_off_timer(struct usb_usbvision *usbvision)
-{
-	mod_timer(&usbvision->power_off_timer, jiffies + USBVISION_POWEROFF_TIME);
-}
-
-void usbvision_reset_power_off_timer(struct usb_usbvision *usbvision)
-{
-	if (timer_pending(&usbvision->power_off_timer))
-		del_timer(&usbvision->power_off_timer);
-}
 
 /*
  * usbvision_begin_streaming()
@@ -2366,11 +2297,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		struct urb *urb;
 
 		urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
-		if (urb == NULL) {
-			dev_err(&usbvision->dev->dev,
-				"%s: usb_alloc_urb() failed\n", __func__);
+		if (urb == NULL)
 			return -ENOMEM;
-		}
 		usbvision->sbuf[buf_idx].urb = urb;
 		usbvision->sbuf[buf_idx].data =
 			usb_alloc_coherent(usbvision->dev,
@@ -2397,8 +2325,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 
 	/* Submit all URBs */
 	for (buf_idx = 0; buf_idx < USBVISION_NUMSBUF; buf_idx++) {
-			err_code = usb_submit_urb(usbvision->sbuf[buf_idx].urb,
-						 GFP_KERNEL);
+		err_code = usb_submit_urb(usbvision->sbuf[buf_idx].urb,
+					 GFP_KERNEL);
 		if (err_code) {
 			dev_err(&usbvision->dev->dev,
 				"%s: usb_submit_urb(%d) failed: error %d\n",
@@ -2508,11 +2436,3 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	usbvision_set_audio(usbvision, audio[channel]);
 	return 0;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

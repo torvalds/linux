@@ -12,7 +12,9 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/profile.h>
@@ -68,7 +70,7 @@ static DECLARE_COMPLETION(cpu_running);
 /*
  * "thread" is assumed to be a valid Meta hardware thread ID.
  */
-int boot_secondary(unsigned int thread, struct task_struct *idle)
+static int boot_secondary(unsigned int thread, struct task_struct *idle)
 {
 	u32 val;
 
@@ -261,7 +263,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static DECLARE_COMPLETION(cpu_killed);
 
 /*
  * __cpu_disable runs on the processor to be shutdown.
@@ -299,7 +300,7 @@ int __cpu_disable(void)
  */
 void __cpu_die(unsigned int cpu)
 {
-	if (!wait_for_completion_timeout(&cpu_killed, msecs_to_jiffies(1)))
+	if (!cpu_wait_death(cpu, 1))
 		pr_err("CPU%u: unable to kill\n", cpu);
 }
 
@@ -313,8 +314,9 @@ void cpu_die(void)
 {
 	local_irq_disable();
 	idle_task_exit();
+	irq_ctx_exit(smp_processor_id());
 
-	complete(&cpu_killed);
+	(void)cpu_report_death();
 
 	asm ("XOR	TXENABLE, D0Re0,D0Re0\n");
 }
@@ -344,8 +346,8 @@ asmlinkage void secondary_start_kernel(void)
 	 * All kernel threads share the same mm context; grab a
 	 * reference and switch to it.
 	 */
-	atomic_inc(&mm->mm_users);
-	atomic_inc(&mm->mm_count);
+	mmget(mm);
+	mmgrab(mm);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 	enter_lazy_tlb(mm, current);
@@ -367,6 +369,7 @@ asmlinkage void secondary_start_kernel(void)
 		panic("No TBI found!");
 
 	per_cpu_trap_init(cpu);
+	irq_ctx_init(cpu);
 
 	preempt_disable();
 
@@ -395,7 +398,7 @@ asmlinkage void secondary_start_kernel(void)
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -491,7 +494,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
+	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC);
 }
 
 void show_ipi_list(struct seq_file *p)
@@ -517,11 +520,10 @@ static DEFINE_SPINLOCK(stop_lock);
  *
  *  Bit 0 - Inter-processor function call
  */
-static int do_IPI(struct pt_regs *regs)
+static int do_IPI(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long msgs, nextmsg;
 	int handled = 0;
 
@@ -546,18 +548,12 @@ static int do_IPI(struct pt_regs *regs)
 			generic_smp_call_function_interrupt();
 			break;
 
-		case IPI_CALL_FUNC_SINGLE:
-			generic_smp_call_function_single_interrupt();
-			break;
-
 		default:
 			pr_crit("CPU%u: Unknown IPI message 0x%lx\n",
 				cpu, nextmsg);
 			break;
 		}
 	}
-
-	set_irq_regs(old_regs);
 
 	return handled;
 }
@@ -571,8 +567,7 @@ static void stop_this_cpu(void *data)
 {
 	unsigned int cpu = smp_processor_id();
 
-	if (system_state == SYSTEM_BOOTING ||
-	    system_state == SYSTEM_RUNNING) {
+	if (system_state <= SYSTEM_RUNNING) {
 		spin_lock(&stop_lock);
 		pr_crit("CPU%u: stopping\n", cpu);
 		dump_stack();
@@ -624,7 +619,7 @@ static void kick_raise_softirq(cpumask_t callmap, unsigned int irq)
 static TBIRES ipi_handler(TBIRES State, int SigNum, int Triggers,
 		   int Inst, PTBI pTBI, int *handled)
 {
-	*handled = do_IPI((struct pt_regs *)State.Sig.pCtx);
+	*handled = do_IPI();
 
 	return State;
 }

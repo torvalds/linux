@@ -1,0 +1,53 @@
+InvenSense MPU-6050 Six-Axis (Gyro + Accelerometer) MEMS MotionTracking Device
+
+http://www.invensense.com/mems/gyro/mpu6050.html
+
+Required properties:
+ - compatible : should be one of
+		"invensense,mpu6050"
+ 		"invensense,mpu6500"
+		"invensense,mpu9150"
+		"invensense,mpu9250"
+		"invensense,icm20608"
+ - reg : the I2C address of the sensor
+ - interrupt-parent : should be the phandle for the interrupt controller
+ - interrupts : interrupt mapping for GPIO IRQ
+
+Optional properties:
+ - mount-matrix: an optional 3x3 mounting rotation matrix
+ - i2c-gate node.  These devices also support an auxiliary i2c bus.  This is
+   simple enough to be described using the i2c-gate binding. See
+   i2c/i2c-gate.txt for more details.
+
+Example:
+	mpu6050@68 {
+		compatible = "invensense,mpu6050";
+		reg = <0x68>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <18 1>;
+		mount-matrix = "-0.984807753012208",  /* x0 */
+		               "0",                   /* y0 */
+		               "-0.173648177666930",  /* z0 */
+		               "0",                   /* x1 */
+		               "-1",                  /* y1 */
+		               "0",                   /* z1 */
+		               "-0.173648177666930",  /* x2 */
+		               "0",                   /* y2 */
+		               "0.984807753012208";   /* z2 */
+	};
+
+
+	mpu9250@68 {
+		compatible = "invensense,mpu9250";
+		reg = <0x68>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <21 1>;
+		i2c-gate {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ax8975@c {
+				compatible = "ak,ak8975";
+				reg = <0x0c>;
+			};
+		};
+	};

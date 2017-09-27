@@ -17,9 +17,10 @@
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include <plat/cpu-freq.h>
+#include <mach/gpio-samsung.h>
 
 #define OSIRIS_GPIO_DVS	S3C2410_GPB(5)
 
@@ -142,7 +143,7 @@ static int osiris_dvs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* the CONFIG_PM block is so small, it isn't worth actaully compiling it
+/* the CONFIG_PM block is so small, it isn't worth actually compiling it
  * out if the configuration isn't set. */
 
 static int osiris_dvs_suspend(struct device *dev)
@@ -170,7 +171,6 @@ static struct platform_driver osiris_dvs_driver = {
 	.remove		= osiris_dvs_remove,
 	.driver		= {
 		.name	= "osiris-dvs",
-		.owner	= THIS_MODULE,
 		.pm	= &osiris_dvs_pm,
 	},
 };

@@ -5,14 +5,15 @@
  * (C) Copyright 2002,2004 IBM Corp.
  * (C) Copyright 2006 Novell Inc.
  *
- * Endpoint sysfs stuff
+ * Released under the GPLv2 only.
+ * SPDX-License-Identifier: GPL-2.0
  *
+ * Endpoint sysfs stuff
  */
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/idr.h>
 #include <linux/usb.h>
 #include "usb.h"
 
@@ -33,31 +34,30 @@ struct ep_attribute {
 	container_of(_attr, struct ep_attribute, attr)
 
 #define usb_ep_attr(field, format_string)			\
-static ssize_t show_ep_##field(struct device *dev,		\
+static ssize_t field##_show(struct device *dev,			\
 			       struct device_attribute *attr,	\
 			       char *buf)			\
 {								\
 	struct ep_device *ep = to_ep_device(dev);		\
 	return sprintf(buf, format_string, ep->desc->field);	\
 }								\
-static DEVICE_ATTR(field, S_IRUGO, show_ep_##field, NULL);
+static DEVICE_ATTR_RO(field)
 
-usb_ep_attr(bLength, "%02x\n")
-usb_ep_attr(bEndpointAddress, "%02x\n")
-usb_ep_attr(bmAttributes, "%02x\n")
-usb_ep_attr(bInterval, "%02x\n")
+usb_ep_attr(bLength, "%02x\n");
+usb_ep_attr(bEndpointAddress, "%02x\n");
+usb_ep_attr(bmAttributes, "%02x\n");
+usb_ep_attr(bInterval, "%02x\n");
 
-static ssize_t show_ep_wMaxPacketSize(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t wMaxPacketSize_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct ep_device *ep = to_ep_device(dev);
-	return sprintf(buf, "%04x\n",
-		        usb_endpoint_maxp(ep->desc) & 0x07ff);
+	return sprintf(buf, "%04x\n", usb_endpoint_maxp(ep->desc));
 }
-static DEVICE_ATTR(wMaxPacketSize, S_IRUGO, show_ep_wMaxPacketSize, NULL);
+static DEVICE_ATTR_RO(wMaxPacketSize);
 
-static ssize_t show_ep_type(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t type_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct ep_device *ep = to_ep_device(dev);
 	char *type = "unknown";
@@ -78,10 +78,10 @@ static ssize_t show_ep_type(struct device *dev, struct device_attribute *attr,
 	}
 	return sprintf(buf, "%s\n", type);
 }
-static DEVICE_ATTR(type, S_IRUGO, show_ep_type, NULL);
+static DEVICE_ATTR_RO(type);
 
-static ssize_t show_ep_interval(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t interval_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct ep_device *ep = to_ep_device(dev);
 	char unit;
@@ -124,10 +124,10 @@ static ssize_t show_ep_interval(struct device *dev,
 
 	return sprintf(buf, "%d%cs\n", interval, unit);
 }
-static DEVICE_ATTR(interval, S_IRUGO, show_ep_interval, NULL);
+static DEVICE_ATTR_RO(interval);
 
-static ssize_t show_ep_direction(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t direction_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct ep_device *ep = to_ep_device(dev);
 	char *direction;
@@ -140,7 +140,7 @@ static ssize_t show_ep_direction(struct device *dev,
 		direction = "out";
 	return sprintf(buf, "%s\n", direction);
 }
-static DEVICE_ATTR(direction, S_IRUGO, show_ep_direction, NULL);
+static DEVICE_ATTR_RO(direction);
 
 static struct attribute *ep_dev_attrs[] = {
 	&dev_attr_bLength.attr,

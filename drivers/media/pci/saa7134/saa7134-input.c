@@ -12,20 +12,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
+
+#include "saa7134.h"
+#include "saa7134-reg.h"
 
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-
-#include "saa7134-reg.h"
-#include "saa7134.h"
 
 #define MODULE_NAME "saa7134"
 
@@ -41,10 +37,14 @@ static int pinnacle_remote;
 module_param(pinnacle_remote, int, 0644);    /* Choose Pinnacle PCTV remote */
 MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=grey (defaults to 0)");
 
-#define dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "%s/ir: " fmt, dev->name , ## arg)
-#define i2cdprintk(fmt, arg...)    if (ir_debug) \
-	printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg)
+#define input_dbg(fmt, arg...) do { \
+	if (ir_debug) \
+		printk(KERN_DEBUG pr_fmt("input: " fmt), ## arg); \
+	} while (0)
+#define ir_dbg(ir, fmt, arg...) do { \
+	if (ir_debug) \
+		printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->name, ## arg); \
+	} while (0)
 
 /* Helper function for raw decoding at GPIO16 or GPIO18 */
 static int saa7134_raw_decode_irq(struct saa7134_dev *dev);
@@ -75,7 +75,7 @@ static int build_key(struct saa7134_dev *dev)
 	}
 
 	data = ir_extract_bits(gpio, ir->mask_keycode);
-	dprintk("build_key gpio=0x%x mask=0x%x data=%d\n",
+	input_dbg("build_key gpio=0x%x mask=0x%x data=%d\n",
 		gpio, ir->mask_keycode, data);
 
 	switch (dev->board) {
@@ -83,14 +83,16 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 		return 0;
 	}
 
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 		} else {
 			rc_keyup(ir->dev);
 		}
@@ -98,7 +100,8 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 			rc_keyup(ir->dev);
 		}
 	}
@@ -108,7 +111,8 @@ static int build_key(struct saa7134_dev *dev)
 
 /* --------------------- Chip specific I2C key builders ----------------- */
 
-static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
+			       u32 *scancode, u8 *toggle)
 {
 	int gpio;
 	int attempt = 0;
@@ -118,8 +122,7 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 
 	if (dev == NULL) {
-		i2cdprintk("get_key_flydvb_trio: "
-			   "ir->c->adapter->algo_data is NULL!\n");
+		ir_dbg(ir, "get_key_flydvb_trio: ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -131,10 +134,6 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 	if (0x40000 & ~gpio)
 		return 0; /* No button press */
-
-	/* No button press - only before first key pressed */
-	if (b == 0xFF)
-		return 0;
 
 	/* poll IR chip */
 	/* weak up the IR chip */
@@ -149,22 +148,24 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 			msleep(10);
 			continue;
 		}
-		i2cdprintk("send wake up byte to pic16C505 (IR chip)"
-			   "failed %dx\n", attempt);
+		ir_dbg(ir, "send wake up byte to pic16C505 (IR chip)failed %dx\n",
+		       attempt);
 		return -EIO;
 	}
 	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		i2cdprintk("read error\n");
+		ir_dbg(ir, "read error\n");
 		return -EIO;
 	}
 
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
-				       u32 *ir_raw)
+static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
+				       enum rc_proto *protocol,
+				       u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 	int gpio;
@@ -172,8 +173,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 	if (dev == NULL) {
-		i2cdprintk("get_key_msi_tvanywhere_plus: "
-			   "ir->c->adapter->algo_data is NULL!\n");
+		ir_dbg(ir, "get_key_msi_tvanywhere_plus: ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -193,7 +193,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 	/* GPIO says there is a button press. Get it. */
 
 	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		i2cdprintk("read error\n");
+		ir_dbg(ir, "read error\n");
 		return -EIO;
 	}
 
@@ -204,15 +204,16 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 
 	/* Button pressed */
 
-	dprintk("get_key_msi_tvanywhere_plus: Key = 0x%02X\n", b);
-	*ir_key = b;
-	*ir_raw = b;
+	input_dbg("get_key_msi_tvanywhere_plus: Key = 0x%02X\n", b);
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
 /* copied and modified from get_key_msi_tvanywhere_plus() */
-static int get_key_kworld_pc150u(struct IR_i2c *ir, u32 *ir_key,
-					u32 *ir_raw)
+static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
+				 u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 	unsigned int gpio;
@@ -220,8 +221,7 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, u32 *ir_key,
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 	if (dev == NULL) {
-		i2cdprintk("get_key_kworld_pc150u: "
-			   "ir->c->adapter->algo_data is NULL!\n");
+		ir_dbg(ir, "get_key_kworld_pc150u: ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -241,7 +241,7 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, u32 *ir_key,
 	/* GPIO says there is a button press. Get it. */
 
 	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		i2cdprintk("read error\n");
+		ir_dbg(ir, "read error\n");
 		return -EIO;
 	}
 
@@ -252,19 +252,21 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, u32 *ir_key,
 
 	/* Button pressed */
 
-	dprintk("get_key_kworld_pc150u: Key = 0x%02X\n", b);
-	*ir_key = b;
-	*ir_raw = b;
+	input_dbg("get_key_kworld_pc150u: Key = 0x%02X\n", b);
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
+			    u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 
 	/* poll IR chip */
 	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		i2cdprintk("read error\n");
+		ir_dbg(ir, "read error\n");
 		return -EIO;
 	}
 
@@ -276,12 +278,14 @@ static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (b & 0x80)
 		return 1;
 
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_hvr1110(struct IR_i2c *ir, enum rc_proto *protocol,
+			   u32 *scancode, u8 *toggle)
 {
 	unsigned char buf[5];
 
@@ -299,14 +303,20 @@ static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	 * by preserving it into two separate readings
 	 * buf[4] bits 0 and 1, and buf[1] and buf[2] are always
 	 * zero.
+	 *
+	 * Note that the keymap which the hvr1110 uses is RC5.
+	 *
+	 * FIXME: start bits could maybe be used...?
 	 */
-	*ir_key = 0x1fff & ((buf[3] << 8) | (buf[4] >> 2));
-	*ir_raw = *ir_key;
+	*protocol = RC_PROTO_RC5;
+	*scancode = RC_SCANCODE_RC5(buf[3] & 0x1f, buf[4] >> 2);
+	*toggle = !!(buf[3] & 0x40);
 	return 1;
 }
 
 
-static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_proto *protocol,
+			      u32 *scancode, u8 *toggle)
 {
 	unsigned char data[12];
 	u32 gpio;
@@ -325,31 +335,32 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	ir->c->addr = 0x5a >> 1;
 
 	if (12 != i2c_master_recv(ir->c, data, 12)) {
-		i2cdprintk("read error\n");
+		ir_dbg(ir, "read error\n");
 		return -EIO;
 	}
 
 	if (data[9] != (unsigned char)(~data[8]))
 		return 0;
 
-	*ir_raw = ((data[10] << 16) | (data[11] << 8) | (data[9] << 0));
-	*ir_key = *ir_raw;
-
+	*protocol = RC_PROTO_NECX;
+	*scancode = RC_SCANCODE_NECX(data[11] << 8 | data[10], data[9]);
+	*toggle = 0;
 	return 1;
 }
 
 /* Common (grey or coloured) pinnacle PCTV remote handling
  *
  */
-static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
-			    int parity_offset, int marker, int code_modulo)
+static int get_key_pinnacle(struct IR_i2c *ir, enum rc_proto *protocol,
+			    u32 *scancode, u8 *toggle, int parity_offset,
+			    int marker, int code_modulo)
 {
 	unsigned char b[4];
 	unsigned int start = 0,parity = 0,code = 0;
 
 	/* poll IR chip */
 	if (4 != i2c_master_recv(ir->c, b, 4)) {
-		i2cdprintk("read error\n");
+		ir_dbg(ir, "read error\n");
 		return -EIO;
 	}
 
@@ -377,11 +388,11 @@ static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 
 	code %= code_modulo;
 
-	*ir_raw = code;
-	*ir_key = code;
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = code;
+	*toggle = 0;
 
-	i2cdprintk("Pinnacle PCTV key %02x\n", code);
-
+	ir_dbg(ir, "Pinnacle PCTV key %02x\n", code);
 	return 1;
 }
 
@@ -394,10 +405,11 @@ static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
  *
  * Sylvain Pasche <sylvain.pasche@gmail.com>
  */
-static int get_key_pinnacle_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pinnacle_grey(struct IR_i2c *ir, enum rc_proto *protocol,
+				 u32 *scancode, u8 *toggle)
 {
 
-	return get_key_pinnacle(ir, ir_key, ir_raw, 1, 0xfe, 0xff);
+	return get_key_pinnacle(ir, protocol, scancode, toggle, 1, 0xfe, 0xff);
 }
 
 
@@ -405,7 +417,8 @@ static int get_key_pinnacle_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
  *
  * Ricardo Cerqueira <v4l@cerqueira.org>
  */
-static int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pinnacle_color(struct IR_i2c *ir, enum rc_proto *protocol,
+				  u32 *scancode, u8 *toggle)
 {
 	/* code_modulo parameter (0x88) is used to reduce code value to fit inside IR_KEYTAB_SIZE
 	 *
@@ -413,7 +426,7 @@ static int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	 * codes < 128
 	 */
 
-	return get_key_pinnacle(ir, ir_key, ir_raw, 2, 0x80, 0x88);
+	return get_key_pinnacle(ir, protocol, scancode, toggle, 2, 0x80, 0x88);
 }
 
 void saa7134_input_irq(struct saa7134_dev *dev)
@@ -443,13 +456,6 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static void ir_raw_decode_timer_end(unsigned long data)
-{
-	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-
-	ir_raw_event_handle(dev->remote->dev);
-}
-
 static int __saa7134_ir_start(void *priv)
 {
 	struct saa7134_dev *dev = priv;
@@ -469,6 +475,7 @@ static int __saa7134_ir_start(void *priv)
 	case SAA7134_BOARD_KWORLD_VSTREAM_XPERT:
 	case SAA7134_BOARD_AVERMEDIA_305:
 	case SAA7134_BOARD_AVERMEDIA_307:
+	case SAA7134_BOARD_AVERMEDIA_505:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_305:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_505:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
@@ -504,10 +511,6 @@ static int __saa7134_ir_start(void *priv)
 			    (unsigned long)dev);
 		ir->timer.expires = jiffies + HZ;
 		add_timer(&ir->timer);
-	} else if (ir->raw_decode) {
-		/* set timer_end for code completion */
-		setup_timer(&ir->timer, ir_raw_decode_timer_end,
-			    (unsigned long)dev);
 	}
 
 	return 0;
@@ -525,7 +528,7 @@ static void __saa7134_ir_stop(void *priv)
 	if (!ir->running)
 		return;
 
-	if (ir->polling || ir->raw_decode)
+	if (ir->polling)
 		del_timer_sync(&ir->timer);
 
 	ir->running = false;
@@ -617,6 +620,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_KWORLD_VSTREAM_XPERT:
 	case SAA7134_BOARD_AVERMEDIA_305:
 	case SAA7134_BOARD_AVERMEDIA_307:
+	case SAA7134_BOARD_AVERMEDIA_505:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_305:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_505:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
@@ -817,15 +821,21 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0xffff;
 		raw_decode   = true;
 		break;
+	case SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM:
+		ir_codes     = RC_MAP_LEADTEK_Y04G0051;
+		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = true;
+		break;
 	}
 	if (NULL == ir_codes) {
-		printk("%s: Oops: IR config error [card=%d]\n",
-		       dev->name, dev->board);
+		pr_err("Oops: IR config error [card=%d]\n", dev->board);
 		return -ENODEV;
 	}
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ir || !rc) {
 		err = -ENOMEM;
 		goto err_out_free;
@@ -850,10 +860,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	rc->priv = dev;
 	rc->open = saa7134_ir_open;
 	rc->close = saa7134_ir_close;
-	if (raw_decode)
+	if (raw_decode) {
 		rc->driver_type = RC_DRIVER_IR_RAW;
+		rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	}
 
-	rc->input_name = ir->name;
+	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_PCI;
 	rc->input_id.version = 1;
@@ -867,6 +879,9 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	rc->dev.parent = &dev->pci->dev;
 	rc->map_name = ir_codes;
 	rc->driver_name = MODULE_NAME;
+	rc->min_timeout = 1;
+	rc->timeout = IR_DEFAULT_TIMEOUT;
+	rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 
 	err = rc_register_device(rc);
 	if (err)
@@ -904,7 +919,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	int rc;
 
 	if (disable_ir) {
-		dprintk("IR has been disabled, not probing for i2c remote\n");
+		input_dbg("IR has been disabled, not probing for i2c remote\n");
 		return;
 	}
 
@@ -947,9 +962,30 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		   an existing device. Weird...
 		   REVISIT: might no longer be needed */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
-		dprintk("probe 0x%02x @ %s: %s\n",
+		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
 			(1 == rc) ? "yes" : "no");
+		break;
+	case SAA7134_BOARD_SNAZIO_TVPVR_PRO:
+		dev->init_data.name = "SnaZio* TVPVR PRO";
+		dev->init_data.get_key = get_key_msi_tvanywhere_plus;
+		dev->init_data.ir_codes = RC_MAP_MSI_TVANYWHERE_PLUS;
+		/*
+		 * MSI TV@nyware Plus requires more frequent polling
+		 * otherwise it will miss some keypresses
+		 */
+		dev->init_data.polling_interval = 50;
+		info.addr = 0x30;
+		/*
+		 * MSI TV@nywhere Plus controller doesn't seem to
+		 *  respond to probes unless we read something from
+		 *  an existing device. Weird...
+		 * REVISIT: might no longer be needed
+		 */
+		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
+		input_dbg("probe 0x%02x @ %s: %s\n",
+			msg_msi.addr, dev->i2c_adap.name,
+			(rc == 1) ? "yes" : "no");
 		break;
 	case SAA7134_BOARD_KWORLD_PC150U:
 		/* copied and modified from MSI TV@nywhere Plus */
@@ -962,7 +998,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		   an existing device. Weird...
 		   REVISIT: might no longer be needed */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
-		dprintk("probe 0x%02x @ %s: %s\n",
+		input_dbg("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
 			(1 == rc) ? "yes" : "no");
 		break;
@@ -990,7 +1026,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
 		dev->init_data.ir_codes = RC_MAP_BEHOLD;
-		dev->init_data.type = RC_BIT_NEC;
+		dev->init_data.type = RC_PROTO_BIT_NECX;
 		info.addr = 0x2d;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
@@ -1007,7 +1043,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		info.addr = 0x0b;
 		break;
 	default:
-		dprintk("No I2C IR support for board %x\n", dev->board);
+		input_dbg("No I2C IR support for board %x\n", dev->board);
 		return;
 	}
 
@@ -1019,26 +1055,13 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 {
 	struct saa7134_card_ir *ir = dev->remote;
-	unsigned long timeout;
 	int space;
 
 	/* Generate initial event */
 	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	space = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
-	ir_raw_event_store_edge(dev->remote->dev, space ? IR_SPACE : IR_PULSE);
-
-	/*
-	 * Wait 15 ms from the start of the first IR event before processing
-	 * the event. This time is enough for NEC protocol. May need adjustments
-	 * to work with other protocols.
-	 */
-	smp_mb();
-
-	if (!timer_pending(&ir->timer)) {
-		timeout = jiffies + msecs_to_jiffies(15);
-		mod_timer(&ir->timer, timeout);
-	}
+	ir_raw_event_store_edge(dev->remote->dev, !space);
 
 	return 1;
 }

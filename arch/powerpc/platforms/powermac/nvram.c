@@ -513,11 +513,7 @@ static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
 		printk(KERN_ERR "nvram: no address\n");
 		return -EINVAL;
 	}
-	nvram_image = alloc_bootmem(NVRAM_SIZE);
-	if (nvram_image == NULL) {
-		printk(KERN_ERR "nvram: can't allocate ram image\n");
-		return -ENOMEM;
-	}
+	nvram_image = memblock_virt_alloc(NVRAM_SIZE, 0);
 	nvram_data = ioremap(addr, NVRAM_SIZE*2);
 	nvram_naddrs = 1; /* Make sure we get the correct case */
 

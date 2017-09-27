@@ -205,7 +205,7 @@ static ssize_t solos_param_show(struct device *dev, struct device_attribute *att
 		return -ENOMEM;
 	}
 
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	buflen = snprintf((void *)&header[1], buflen - 1,
 			  "L%05d\n%s\n", current->pid, attr->attr.name);
@@ -261,7 +261,7 @@ static ssize_t solos_param_store(struct device *dev, struct device_attribute *at
 		return -ENOMEM;
 	}
 
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	buflen = snprintf((void *)&header[1], buflen - 1,
 			  "L%05d\n%s\n%s\n", current->pid, attr->attr.name, buf);
@@ -347,8 +347,8 @@ static char *next_string(struct sk_buff *skb)
  */       
 static int process_status(struct solos_card *card, int port, struct sk_buff *skb)
 {
-	char *str, *end, *state_str, *snr, *attn;
-	int ver, rate_up, rate_down;
+	char *str, *state_str, *snr, *attn;
+	int ver, rate_up, rate_down, err;
 
 	if (!card->atmdev[port])
 		return -ENODEV;
@@ -357,7 +357,11 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	if (!str)
 		return -EIO;
 
-	ver = simple_strtol(str, NULL, 10);
+	err = kstrtoint(str, 10, &ver);
+	if (err) {
+		dev_warn(&card->dev->dev, "Unexpected status interrupt version\n");
+		return err;
+	}
 	if (ver < 1) {
 		dev_warn(&card->dev->dev, "Unexpected status interrupt version %d\n",
 			 ver);
@@ -373,16 +377,16 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 		return 0;
 	}
 
-	rate_down = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
+	err = kstrtoint(str, 10, &rate_down);
+	if (err)
+		return err;
 
 	str = next_string(skb);
 	if (!str)
 		return -EIO;
-	rate_up = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
+	err = kstrtoint(str, 10, &rate_up);
+	if (err)
+		return err;
 
 	state_str = next_string(skb);
 	if (!state_str)
@@ -417,7 +421,7 @@ static int process_command(struct solos_card *card, int port, struct sk_buff *sk
 	struct solos_param *prm;
 	unsigned long flags;
 	int cmdpid;
-	int found = 0;
+	int found = 0, err;
 
 	if (skb->len < 7)
 		return 0;
@@ -428,7 +432,9 @@ static int process_command(struct solos_card *card, int port, struct sk_buff *sk
 	    skb->data[6] != '\n')
 		return 0;
 
-	cmdpid = simple_strtol(&skb->data[1], NULL, 10);
+	err = kstrtoint(&skb->data[1], 10, &cmdpid);
+	if (err)
+		return err;
 
 	spin_lock_irqsave(&card->param_queue_lock, flags);
 	list_for_each_entry(prm, &card->param_queue, list) {
@@ -480,14 +486,14 @@ static int send_command(struct solos_card *card, int dev, const char *buf, size_
 		return 0;
 	}
 
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	header->size = cpu_to_le16(size);
 	header->vpi = cpu_to_le16(0);
 	header->vci = cpu_to_le16(0);
 	header->type = cpu_to_le16(PKT_COMMAND);
 
-	memcpy(skb_put(skb, size), buf, size);
+	skb_put_data(skb, buf, size);
 
 	fpga_queue(card, dev, skb, NULL);
 
@@ -519,7 +525,7 @@ struct geos_gpio_attr {
 static ssize_t geos_gpio_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
 	struct solos_card *card = pci_get_drvdata(pdev);
 	uint32_t data32;
@@ -545,7 +551,7 @@ static ssize_t geos_gpio_store(struct device *dev, struct device_attribute *attr
 static ssize_t geos_gpio_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
 	struct solos_card *card = pci_get_drvdata(pdev);
 	uint32_t data32;
@@ -559,7 +565,7 @@ static ssize_t geos_gpio_show(struct device *dev, struct device_attribute *attr,
 static ssize_t hardware_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
 	struct solos_card *card = pci_get_drvdata(pdev);
 	uint32_t data32;
@@ -578,7 +584,7 @@ static ssize_t hardware_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data32);
 }
 
-static DEVICE_ATTR(console, 0644, console_show, console_store);
+static DEVICE_ATTR_RW(console);
 
 
 #define SOLOS_ATTR_RO(x) static DEVICE_ATTR(x, 0444, solos_param_show, NULL);
@@ -605,7 +611,7 @@ static struct attribute *solos_attrs[] = {
 	NULL
 };
 
-static struct attribute_group solos_attr_group = {
+static const struct attribute_group solos_attr_group = {
 	.attrs = solos_attrs,
 	.name = "parameters",
 };
@@ -622,7 +628,7 @@ static struct attribute *gpio_attrs[] = {
 	NULL
 };
 
-static struct attribute_group gpio_attr_group = {
+static const struct attribute_group gpio_attr_group = {
 	.attrs = gpio_attrs,
 	.name = "gpio",
 };
@@ -760,7 +766,7 @@ static irqreturn_t solos_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-void solos_bh(unsigned long card_arg)
+static void solos_bh(unsigned long card_arg)
 {
 	struct solos_card *card = (void *)card_arg;
 	uint32_t card_flags;
@@ -785,8 +791,8 @@ void solos_bh(unsigned long card_arg)
 				skb = card->rx_skb[port];
 				card->rx_skb[port] = NULL;
 
-				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
-						 RX_DMA_SIZE, PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(skb)->dma_addr,
+						 RX_DMA_SIZE, DMA_FROM_DEVICE);
 
 				header = (void *)skb->data;
 				size = le16_to_cpu(header->size);
@@ -805,7 +811,12 @@ void solos_bh(unsigned long card_arg)
 					continue;
 				}
 
-				skb = alloc_skb(size + 1, GFP_ATOMIC);
+				/* Use netdev_alloc_skb() because it adds NET_SKB_PAD of
+				 * headroom, and ensures we can route packets back out an
+				 * Ethernet interface (for example) without having to
+				 * reallocate. Adding NET_IP_ALIGN also ensures that both
+				 * PPPoATM and PPPoEoBR2684 packets end up aligned. */
+				skb = netdev_alloc_skb_ip_align(NULL, size + 1);
 				if (!skb) {
 					if (net_ratelimit())
 						dev_warn(&card->dev->dev, "Failed to allocate sk_buff for RX\n");
@@ -869,11 +880,14 @@ void solos_bh(unsigned long card_arg)
 		/* Allocate RX skbs for any ports which need them */
 		if (card->using_dma && card->atmdev[port] &&
 		    !card->rx_skb[port]) {
-			struct sk_buff *skb = alloc_skb(RX_DMA_SIZE, GFP_ATOMIC);
+			/* Unlike the MMIO case (qv) we can't add NET_IP_ALIGN
+			 * here; the FPGA can only DMA to addresses which are
+			 * aligned to 4 bytes. */
+			struct sk_buff *skb = dev_alloc_skb(RX_DMA_SIZE);
 			if (skb) {
 				SKB_CB(skb)->dma_addr =
-					pci_map_single(card->dev, skb->data,
-						       RX_DMA_SIZE, PCI_DMA_FROMDEVICE);
+					dma_map_single(&card->dev->dev, skb->data,
+						       RX_DMA_SIZE, DMA_FROM_DEVICE);
 				iowrite32(SKB_CB(skb)->dma_addr,
 					  card->config_regs + RX_DMA_ADDR(port));
 				card->rx_skb[port] = skb;
@@ -931,7 +945,7 @@ static int popen(struct atm_vcc *vcc)
 			dev_warn(&card->dev->dev, "Failed to allocate sk_buff in popen()\n");
 		return -ENOMEM;
 	}
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	header->size = cpu_to_le16(0);
 	header->vpi = cpu_to_le16(vcc->vpi);
@@ -968,7 +982,7 @@ static void pclose(struct atm_vcc *vcc)
 		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in pclose()\n");
 		return;
 	}
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	header->size = cpu_to_le16(0);
 	header->vpi = cpu_to_le16(vcc->vpi);
@@ -1069,8 +1083,8 @@ static uint32_t fpga_tx(struct solos_card *card)
 		if (tx_pending & 1) {
 			struct sk_buff *oldskb = card->tx_skb[port];
 			if (oldskb) {
-				pci_unmap_single(card->dev, SKB_CB(oldskb)->dma_addr,
-						 oldskb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(oldskb)->dma_addr,
+						 oldskb->len, DMA_TO_DEVICE);
 				card->tx_skb[port] = NULL;
 			}
 			spin_lock(&card->tx_queue_lock);
@@ -1089,8 +1103,8 @@ static uint32_t fpga_tx(struct solos_card *card)
 					data = card->dma_bounce + (BUF_SIZE * port);
 					memcpy(data, skb->data, skb->len);
 				}
-				SKB_CB(skb)->dma_addr = pci_map_single(card->dev, data,
-								       skb->len, PCI_DMA_TODEVICE);
+				SKB_CB(skb)->dma_addr = dma_map_single(&card->dev->dev, data,
+								       skb->len, DMA_TO_DEVICE);
 				card->tx_skb[port] = skb;
 				iowrite32(SKB_CB(skb)->dma_addr,
 					  card->config_regs + TX_DMA_ADDR(port));
@@ -1160,7 +1174,7 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 		}
 	}
 
-	header = (void *)skb_push(skb, sizeof(*header));
+	header = skb_push(skb, sizeof(*header));
 
 	/* This does _not_ include the size of the header */
 	header->size = cpu_to_le16(pktlen);
@@ -1173,7 +1187,7 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 	return 0;
 }
 
-static struct atmdev_ops fpga_ops = {
+static const struct atmdev_ops fpga_ops = {
 	.open =		popen,
 	.close =	pclose,
 	.ioctl =	NULL,
@@ -1210,7 +1224,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out;
 	}
 
-	err = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
+	err = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_warn(&dev->dev, "Failed to set 32-bit DMA mask\n");
 		goto out;
@@ -1225,20 +1239,22 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	card->config_regs = pci_iomap(dev, 0, CONFIG_RAM_SIZE);
 	if (!card->config_regs) {
 		dev_warn(&dev->dev, "Failed to ioremap config registers\n");
+		err = -ENOMEM;
 		goto out_release_regions;
 	}
 	card->buffers = pci_iomap(dev, 1, DATA_RAM_SIZE);
 	if (!card->buffers) {
 		dev_warn(&dev->dev, "Failed to ioremap data buffers\n");
+		err = -ENOMEM;
 		goto out_unmap_config;
 	}
 
 	if (reset) {
 		iowrite32(1, card->config_regs + FPGA_MODE);
-		data32 = ioread32(card->config_regs + FPGA_MODE); 
+		ioread32(card->config_regs + FPGA_MODE);
 
 		iowrite32(0, card->config_regs + FPGA_MODE);
-		data32 = ioread32(card->config_regs + FPGA_MODE); 
+		ioread32(card->config_regs + FPGA_MODE);
 	}
 
 	data32 = ioread32(card->config_regs + FPGA_VER);
@@ -1278,6 +1294,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			card->dma_bounce = kmalloc(card->nr_ports * BUF_SIZE, GFP_KERNEL);
 			if (!card->dma_bounce) {
 				dev_warn(&card->dev->dev, "Failed to allocate DMA bounce buffers\n");
+				err = -ENOMEM;
 				/* Fallback to MMIO doesn't work */
 				goto out_unmap_both;
 			}
@@ -1335,7 +1352,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	
  out_unmap_both:
 	kfree(card->dma_bounce);
-	pci_set_drvdata(dev, NULL);
 	pci_iounmap(dev, card->buffers);
  out_unmap_config:
 	pci_iounmap(dev, card->config_regs);
@@ -1382,7 +1398,7 @@ static int atm_init(struct solos_card *card, struct device *parent)
 			continue;
 		}
 
-		header = (void *)skb_put(skb, sizeof(*header));
+		header = skb_put(skb, sizeof(*header));
 
 		header->size = cpu_to_le16(0);
 		header->vpi = cpu_to_le16(0);
@@ -1409,14 +1425,14 @@ static void atm_remove(struct solos_card *card)
 
 			skb = card->rx_skb[i];
 			if (skb) {
-				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
-						 RX_DMA_SIZE, PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(skb)->dma_addr,
+						 RX_DMA_SIZE, DMA_FROM_DEVICE);
 				dev_kfree_skb(skb);
 			}
 			skb = card->tx_skb[i];
 			if (skb) {
-				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
-						 skb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(skb)->dma_addr,
+						 skb->len, DMA_TO_DEVICE);
 				dev_kfree_skb(skb);
 			}
 			while ((skb = skb_dequeue(&card->tx_queue[i])))
@@ -1457,11 +1473,10 @@ static void fpga_remove(struct pci_dev *dev)
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 
-	pci_set_drvdata(dev, NULL);
 	kfree(card);
 }
 
-static struct pci_device_id fpga_pci_tbl[] = {
+static const struct pci_device_id fpga_pci_tbl[] = {
 	{ 0x10ee, 0x0300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, }
 };

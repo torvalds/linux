@@ -41,11 +41,6 @@
 #define _LINUX_SUNRPC_XPRTRDMA_H
 
 /*
- * rpcbind (v3+) RDMA netid.
- */
-#define RPCBIND_NETID_RDMA	"rdma"
-
-/*
  * Constants. Max RPC/NFS header is big enough to account for
  * additional marshaling buffers passed down by Linux client.
  *
@@ -54,16 +49,15 @@
  * a single chunk type per message is supported currently.
  */
 #define RPCRDMA_MIN_SLOT_TABLE	(2U)
-#define RPCRDMA_DEF_SLOT_TABLE	(32U)
+#define RPCRDMA_DEF_SLOT_TABLE	(128U)
 #define RPCRDMA_MAX_SLOT_TABLE	(256U)
 
-#define RPCRDMA_DEF_INLINE  (1024)	/* default inline max */
+#define RPCRDMA_MIN_INLINE  (1024)	/* min inline thresh */
+#define RPCRDMA_DEF_INLINE  (4096)	/* default inline thresh */
+#define RPCRDMA_MAX_INLINE  (65536)	/* max inline thresh */
 
-#define RPCRDMA_INLINE_PAD_THRESH  (512)/* payload threshold to pad (bytes) */
-
-/* memory registration strategies */
-#define RPCRDMA_PERSISTENT_REGISTRATION (1)
-
+/* Memory registration strategies, by number.
+ * This is part of a kernel / user space API. Do not remove. */
 enum rpcrdma_memreg {
 	RPCRDMA_BOUNCEBUFFERS = 0,
 	RPCRDMA_REGISTER,

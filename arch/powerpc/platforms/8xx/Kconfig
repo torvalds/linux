@@ -1,6 +1,3 @@
-config FADS
-	bool
-
 config CPM1
 	bool
 	select CPM
@@ -8,12 +5,10 @@ config CPM1
 choice
 	prompt "8xx Machine Type"
 	depends on PPC_8xx
-	depends on 8xx
 	default MPC885ADS
 
 config MPC8XXFADS
 	bool "FADS"
-	select FADS
 
 config MPC86XADS
 	bool "MPC86XADS"
@@ -45,7 +40,6 @@ config PPC_EP88XC
 config PPC_ADDER875
 	bool "Analogue & Micro Adder 875"
 	select CPM1
-	select REDBOOT
 	help
 	  This enables support for the Analogue & Micro Adder 875
 	  board.
@@ -97,7 +91,7 @@ endmenu
 #
 
 menu "MPC8xx CPM Options"
-	depends on 8xx
+	depends on PPC_8xx
 
 # This doesn't really belong here, but it is convenient to ask
 # 8xx specific questions.
@@ -114,7 +108,7 @@ config 8xx_COPYBACK
 
 config 8xx_GPIO
 	bool "GPIO API Support"
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Saying Y here will cause the ports on an MPC8xx processor to be used
 	  with the GPIO API.  If you say N here, the kernel needs less memory.
@@ -135,6 +129,7 @@ config 8xx_CPU6
 
 config 8xx_CPU15
 	bool "CPU15 Silicon Errata"
+	depends on !HUGETLB_PAGE
 	default y
 	help
 	  This enables a workaround for erratum CPU15 on MPC8xx chips.

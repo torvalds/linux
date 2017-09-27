@@ -5,14 +5,13 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
 
 #include <acpi/processor.h>
-#include <asm/acpi.h>
 #include <asm/mwait.h>
 #include <asm/special_insns.h>
 
@@ -87,7 +86,10 @@ static long acpi_processor_ffh_cstate_probe_cpu(void *_cx)
 	num_cstate_subtype = edx_part & MWAIT_SUBSTATE_MASK;
 
 	retval = 0;
-	if (num_cstate_subtype < (cx->address & MWAIT_SUBSTATE_MASK)) {
+	/* If the HW does not support any sub-states in this C-state */
+	if (num_cstate_subtype == 0) {
+		pr_warn(FW_BUG "ACPI MWAIT C-state 0x%x not supported by HW (0x%x)\n",
+				cx->address, edx_part);
 		retval = -1;
 		goto out;
 	}
@@ -102,8 +104,8 @@ static long acpi_processor_ffh_cstate_probe_cpu(void *_cx)
 	if (!mwait_supported[cstate_type]) {
 		mwait_supported[cstate_type] = 1;
 		printk(KERN_DEBUG
-			"Monitor-Mwait will be used to enter C-%d "
-			"state\n", cx->type);
+			"Monitor-Mwait will be used to enter C-%d state\n",
+			cx->type);
 	}
 	snprintf(cx->desc,
 			ACPI_CX_DESC_LEN, "ACPI FFH INTEL MWAIT 0x%x",
@@ -150,30 +152,7 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 }
 EXPORT_SYMBOL_GPL(acpi_processor_ffh_cstate_probe);
 
-/*
- * This uses new MONITOR/MWAIT instructions on P4 processors with PNI,
- * which can obviate IPI to trigger checking of need_resched.
- * We execute MONITOR against need_resched and enter optimized wait state
- * through MWAIT. Whenever someone changes need_resched, we would be woken
- * up from MWAIT (without an IPI).
- *
- * New with Core Duo processors, MWAIT can take some hints based on CPU
- * capability.
- */
-void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
-{
-	if (!need_resched()) {
-		if (this_cpu_has(X86_FEATURE_CLFLUSH_MONITOR))
-			clflush((void *)&current_thread_info()->flags);
-
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (!need_resched())
-			__mwait(ax, cx);
-	}
-}
-
-void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx *cx)
+void __cpuidle acpi_processor_ffh_cstate_enter(struct acpi_processor_cx *cx)
 {
 	unsigned int cpu = smp_processor_id();
 	struct cstate_entry *percpu_entry;
@@ -187,7 +166,9 @@ EXPORT_SYMBOL_GPL(acpi_processor_ffh_cstate_enter);
 static int __init ffh_cstate_init(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-	if (c->x86_vendor != X86_VENDOR_INTEL)
+
+	if (c->x86_vendor != X86_VENDOR_INTEL &&
+	    c->x86_vendor != X86_VENDOR_AMD)
 		return -1;
 
 	cpu_cstate_entry = alloc_percpu(struct cstate_entry);

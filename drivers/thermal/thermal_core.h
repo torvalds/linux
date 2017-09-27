@@ -41,17 +41,48 @@ struct thermal_instance {
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *cdev;
 	int trip;
+	bool initialized;
 	unsigned long upper;	/* Highest cooling state for this trip point */
 	unsigned long lower;	/* Lowest cooling state for this trip point */
 	unsigned long target;	/* expected cooling state */
 	char attr_name[THERMAL_NAME_LENGTH];
 	struct device_attribute attr;
+	char weight_attr_name[THERMAL_NAME_LENGTH];
+	struct device_attribute weight_attr;
 	struct list_head tz_node; /* node in tz->thermal_instances */
 	struct list_head cdev_node; /* node in cdev->thermal_instances */
+	unsigned int weight; /* The weight of the cooling device */
 };
+
+#define to_thermal_zone(_dev) \
+	container_of(_dev, struct thermal_zone_device, device)
+
+#define to_cooling_device(_dev)	\
+	container_of(_dev, struct thermal_cooling_device, device)
 
 int thermal_register_governor(struct thermal_governor *);
 void thermal_unregister_governor(struct thermal_governor *);
+void thermal_zone_device_rebind_exception(struct thermal_zone_device *,
+					  const char *, size_t);
+void thermal_zone_device_unbind_exception(struct thermal_zone_device *,
+					  const char *, size_t);
+int thermal_zone_device_set_policy(struct thermal_zone_device *, char *);
+int thermal_build_list_of_policies(char *buf);
+
+/* sysfs I/F */
+int thermal_zone_create_device_groups(struct thermal_zone_device *, int);
+void thermal_zone_destroy_device_groups(struct thermal_zone_device *);
+void thermal_cooling_device_setup_sysfs(struct thermal_cooling_device *);
+/* used only at binding time */
+ssize_t
+thermal_cooling_device_trip_point_show(struct device *,
+				       struct device_attribute *, char *);
+ssize_t thermal_cooling_device_weight_show(struct device *,
+					   struct device_attribute *, char *);
+
+ssize_t thermal_cooling_device_weight_store(struct device *,
+					    struct device_attribute *,
+					    const char *, size_t);
 
 #ifdef CONFIG_THERMAL_GOV_STEP_WISE
 int thermal_gov_step_wise_register(void);
@@ -69,6 +100,14 @@ static inline int thermal_gov_fair_share_register(void) { return 0; }
 static inline void thermal_gov_fair_share_unregister(void) {}
 #endif /* CONFIG_THERMAL_GOV_FAIR_SHARE */
 
+#ifdef CONFIG_THERMAL_GOV_BANG_BANG
+int thermal_gov_bang_bang_register(void);
+void thermal_gov_bang_bang_unregister(void);
+#else
+static inline int thermal_gov_bang_bang_register(void) { return 0; }
+static inline void thermal_gov_bang_bang_unregister(void) {}
+#endif /* CONFIG_THERMAL_GOV_BANG_BANG */
+
 #ifdef CONFIG_THERMAL_GOV_USER_SPACE
 int thermal_gov_user_space_register(void);
 void thermal_gov_user_space_unregister(void);
@@ -76,5 +115,40 @@ void thermal_gov_user_space_unregister(void);
 static inline int thermal_gov_user_space_register(void) { return 0; }
 static inline void thermal_gov_user_space_unregister(void) {}
 #endif /* CONFIG_THERMAL_GOV_USER_SPACE */
+
+#ifdef CONFIG_THERMAL_GOV_POWER_ALLOCATOR
+int thermal_gov_power_allocator_register(void);
+void thermal_gov_power_allocator_unregister(void);
+#else
+static inline int thermal_gov_power_allocator_register(void) { return 0; }
+static inline void thermal_gov_power_allocator_unregister(void) {}
+#endif /* CONFIG_THERMAL_GOV_POWER_ALLOCATOR */
+
+/* device tree support */
+#ifdef CONFIG_THERMAL_OF
+int of_parse_thermal_zones(void);
+void of_thermal_destroy_zones(void);
+int of_thermal_get_ntrips(struct thermal_zone_device *);
+bool of_thermal_is_trip_valid(struct thermal_zone_device *, int);
+const struct thermal_trip *
+of_thermal_get_trip_points(struct thermal_zone_device *);
+#else
+static inline int of_parse_thermal_zones(void) { return 0; }
+static inline void of_thermal_destroy_zones(void) { }
+static inline int of_thermal_get_ntrips(struct thermal_zone_device *tz)
+{
+	return 0;
+}
+static inline bool of_thermal_is_trip_valid(struct thermal_zone_device *tz,
+					    int trip)
+{
+	return false;
+}
+static inline const struct thermal_trip *
+of_thermal_get_trip_points(struct thermal_zone_device *tz)
+{
+	return NULL;
+}
+#endif
 
 #endif /* __THERMAL_CORE_H__ */

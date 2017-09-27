@@ -22,8 +22,7 @@
 #include <linux/rtc.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-
-#define DRV_VERSION "1.0.8"
+#include <linux/bitops.h>
 
 /* offsets into CCR area */
 
@@ -366,8 +365,7 @@ static int x1205_get_atrim(struct i2c_client *client, int *trim)
 	 * perform sign extension. The formula is
 	 * Catr = (atr * 0.25pF) + 11.00pF.
 	 */
-	if (atr & 0x20)
-		atr |= 0xC0;
+	atr = sign_extend32(atr, 5);
 
 	dev_dbg(&client->dev, "%s: raw atr=%x (%d)\n", __func__, atr, atr);
 
@@ -634,8 +632,6 @@ static int x1205_probe(struct i2c_client *client,
 	if (x1205_validate_client(client) < 0)
 		return -ENODEV;
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	rtc = devm_rtc_device_register(&client->dev, x1205_driver.driver.name,
 					&x1205_rtc_ops, THIS_MODULE);
 
@@ -660,7 +656,7 @@ static int x1205_probe(struct i2c_client *client,
 
 	err = x1205_sysfs_register(&client->dev);
 	if (err)
-		return err;
+		dev_err(&client->dev, "Unable to create sysfs entries\n");
 
 	return 0;
 }
@@ -693,4 +689,3 @@ MODULE_AUTHOR(
 	"Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("Xicor/Intersil X1205 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

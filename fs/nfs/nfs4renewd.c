@@ -88,10 +88,18 @@ nfs4_renew_state(struct work_struct *work)
 			}
 			nfs_expire_all_delegations(clp);
 		} else {
+			int ret;
+
 			/* Queue an asynchronous RENEW. */
-			ops->sched_state_renewal(clp, cred, renew_flags);
+			ret = ops->sched_state_renewal(clp, cred, renew_flags);
 			put_rpccred(cred);
-			goto out_exp;
+			switch (ret) {
+			default:
+				goto out_exp;
+			case -EAGAIN:
+			case -ENOMEM:
+				break;
+			}
 		}
 	} else {
 		dprintk("%s: failed to call renewd. Reason: lease not expired \n",
@@ -126,6 +134,26 @@ void
 nfs4_kill_renewd(struct nfs_client *clp)
 {
 	cancel_delayed_work_sync(&clp->cl_renewd);
+}
+
+/**
+ * nfs4_set_lease_period - Sets the lease period on a nfs_client
+ *
+ * @clp: pointer to nfs_client
+ * @lease: new value for lease period
+ * @lastrenewed: time at which lease was last renewed
+ */
+void nfs4_set_lease_period(struct nfs_client *clp,
+		unsigned long lease,
+		unsigned long lastrenewed)
+{
+	spin_lock(&clp->cl_lock);
+	clp->cl_lease_time = lease;
+	clp->cl_last_renewal = lastrenewed;
+	spin_unlock(&clp->cl_lock);
+
+	/* Cap maximum reconnect timeout at 1/2 lease period */
+	rpc_set_connect_timeout(clp->cl_rpcclient, lease, lease >> 1);
 }
 
 /*

@@ -267,8 +267,7 @@ static inline int is_compat_task(void)
 	return current_thread_info()->status & TS_COMPAT;
 }
 
-extern int compat_setup_rt_frame(int sig, struct k_sigaction *ka,
-				 siginfo_t *info, sigset_t *set,
+extern int compat_setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 				 struct pt_regs *regs);
 
 /* Compat syscalls. */
@@ -281,7 +280,6 @@ long compat_sys_pread64(unsigned int fd, char __user *ubuf, size_t count,
 			u32 dummy, u32 low, u32 high);
 long compat_sys_pwrite64(unsigned int fd, char __user *ubuf, size_t count,
 			 u32 dummy, u32 low, u32 high);
-long compat_sys_lookup_dcookie(u32 low, u32 high, char __user *buf, size_t len);
 long compat_sys_sync_file_range2(int fd, unsigned int flags,
 				 u32 offset_lo, u32 offset_hi,
 				 u32 nbytes_lo, u32 nbytes_hi);

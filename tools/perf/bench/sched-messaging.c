@@ -11,7 +11,7 @@
 
 #include "../perf.h"
 #include "../util/util.h"
-#include "../util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "../builtin.h"
 #include "bench.h"
 
@@ -26,13 +26,15 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/time.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <limits.h>
+#include <err.h>
+#include <linux/time64.h>
 
 #define DATASIZE 100
 
 static bool use_pipes = false;
-static unsigned int loops = 100;
+static unsigned int nr_loops = 100;
 static bool thread_mode = false;
 static unsigned int num_groups = 10;
 
@@ -50,12 +52,6 @@ struct receiver_context {
 	int wakefd;
 };
 
-static void barf(const char *msg)
-{
-	fprintf(stderr, "%s (error: %s)\n", msg, strerror(errno));
-	exit(1);
-}
-
 static void fdpair(int fds[2])
 {
 	if (use_pipes) {
@@ -66,7 +62,7 @@ static void fdpair(int fds[2])
 			return;
 	}
 
-	barf(use_pipes ? "pipe()" : "socketpair()");
+	err(EXIT_FAILURE, use_pipes ? "pipe()" : "socketpair()");
 }
 
 /* Block until we're ready to go */
@@ -77,14 +73,14 @@ static void ready(int ready_out, int wakefd)
 
 	/* Tell them we're ready. */
 	if (write(ready_out, &dummy, 1) != 1)
-		barf("CLIENT: ready write");
+		err(EXIT_FAILURE, "CLIENT: ready write");
 
 	/* Wait for "GO" signal */
 	if (poll(&pollfd, 1, -1) != 1)
-		barf("poll");
+		err(EXIT_FAILURE, "poll");
 }
 
-/* Sender sprays loops messages down each file descriptor */
+/* Sender sprays nr_loops messages down each file descriptor */
 static void *sender(struct sender_context *ctx)
 {
 	char data[DATASIZE];
@@ -93,7 +89,7 @@ static void *sender(struct sender_context *ctx)
 	ready(ctx->ready_out, ctx->wakefd);
 
 	/* Now pump to every receiver. */
-	for (i = 0; i < loops; i++) {
+	for (i = 0; i < nr_loops; i++) {
 		for (j = 0; j < ctx->num_fds; j++) {
 			int ret, done = 0;
 
@@ -101,7 +97,7 @@ again:
 			ret = write(ctx->out_fds[j], data + done,
 				    sizeof(data)-done);
 			if (ret < 0)
-				barf("SENDER: write");
+				err(EXIT_FAILURE, "SENDER: write");
 			done += ret;
 			if (done < DATASIZE)
 				goto again;
@@ -131,7 +127,7 @@ static void *receiver(struct receiver_context* ctx)
 again:
 		ret = read(ctx->in_fds[0], data + done, DATASIZE - done);
 		if (ret < 0)
-			barf("SERVER: read");
+			err(EXIT_FAILURE, "SERVER: read");
 		done += ret;
 		if (done < DATASIZE)
 			goto again;
@@ -144,14 +140,14 @@ static pthread_t create_worker(void *ctx, void *(*func)(void *))
 {
 	pthread_attr_t attr;
 	pthread_t childid;
-	int err;
+	int ret;
 
 	if (!thread_mode) {
 		/* process mode */
 		/* Fork the receiver. */
 		switch (fork()) {
 		case -1:
-			barf("fork()");
+			err(EXIT_FAILURE, "fork()");
 			break;
 		case 0:
 			(*func) (ctx);
@@ -165,19 +161,17 @@ static pthread_t create_worker(void *ctx, void *(*func)(void *))
 	}
 
 	if (pthread_attr_init(&attr) != 0)
-		barf("pthread_attr_init:");
+		err(EXIT_FAILURE, "pthread_attr_init:");
 
 #ifndef __ia64__
 	if (pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN) != 0)
-		barf("pthread_attr_setstacksize");
+		err(EXIT_FAILURE, "pthread_attr_setstacksize");
 #endif
 
-	err = pthread_create(&childid, &attr, func, ctx);
-	if (err != 0) {
-		fprintf(stderr, "pthread_create failed: %s (%d)\n",
-			strerror(err), err);
-		exit(-1);
-	}
+	ret = pthread_create(&childid, &attr, func, ctx);
+	if (ret != 0)
+		err(EXIT_FAILURE, "pthread_create failed");
+
 	return childid;
 }
 
@@ -207,20 +201,20 @@ static unsigned int group(pthread_t *pth,
 			+ num_fds * sizeof(int));
 
 	if (!snd_ctx)
-		barf("malloc()");
+		err(EXIT_FAILURE, "malloc()");
 
 	for (i = 0; i < num_fds; i++) {
 		int fds[2];
 		struct receiver_context *ctx = malloc(sizeof(*ctx));
 
 		if (!ctx)
-			barf("malloc()");
+			err(EXIT_FAILURE, "malloc()");
 
 
 		/* Create the pipe between client and server */
 		fdpair(fds);
 
-		ctx->num_packets = num_fds * loops;
+		ctx->num_packets = num_fds * nr_loops;
 		ctx->in_fds[0] = fds[0];
 		ctx->in_fds[1] = fds[1];
 		ctx->ready_out = ready_out;
@@ -257,7 +251,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('t', "thread", &thread_mode,
 		    "Be multi thread instead of multi process"),
 	OPT_UINTEGER('g', "group", &num_groups, "Specify number of groups"),
-	OPT_UINTEGER('l', "loop", &loops, "Specify number of loops"),
+	OPT_UINTEGER('l', "nr_loops", &nr_loops, "Specify the number of loops to run (default: 100)"),
 	OPT_END()
 };
 
@@ -266,8 +260,7 @@ static const char * const bench_sched_message_usage[] = {
 	NULL
 };
 
-int bench_sched_messaging(int argc, const char **argv,
-		    const char *prefix __maybe_unused)
+int bench_sched_messaging(int argc, const char **argv)
 {
 	unsigned int i, total_children;
 	struct timeval start, stop, diff;
@@ -281,7 +274,7 @@ int bench_sched_messaging(int argc, const char **argv,
 
 	pth_tab = malloc(num_fds * 2 * num_groups * sizeof(pthread_t));
 	if (!pth_tab)
-		barf("main:malloc()");
+		err(EXIT_FAILURE, "main:malloc()");
 
 	fdpair(readyfds);
 	fdpair(wakefds);
@@ -294,13 +287,13 @@ int bench_sched_messaging(int argc, const char **argv,
 	/* Wait for everyone to be ready */
 	for (i = 0; i < total_children; i++)
 		if (read(readyfds[0], &dummy, 1) != 1)
-			barf("Reading for readyfds");
+			err(EXIT_FAILURE, "Reading for readyfds");
 
 	gettimeofday(&start, NULL);
 
 	/* Kick them off */
 	if (write(wakefds[1], &dummy, 1) != 1)
-		barf("Writing to start them");
+		err(EXIT_FAILURE, "Writing to start them");
 
 	/* Reap them all */
 	for (i = 0; i < total_children; i++)
@@ -319,11 +312,11 @@ int bench_sched_messaging(int argc, const char **argv,
 		       thread_mode ? "threads" : "processes");
 		printf(" %14s: %lu.%03lu [sec]\n", "Total time",
 		       diff.tv_sec,
-		       (unsigned long) (diff.tv_usec/1000));
+		       (unsigned long) (diff.tv_usec / USEC_PER_MSEC));
 		break;
 	case BENCH_FORMAT_SIMPLE:
 		printf("%lu.%03lu\n", diff.tv_sec,
-		       (unsigned long) (diff.tv_usec/1000));
+		       (unsigned long) (diff.tv_usec / USEC_PER_MSEC));
 		break;
 	default:
 		/* reaching here is something disaster */
@@ -331,6 +324,8 @@ int bench_sched_messaging(int argc, const char **argv,
 		exit(1);
 		break;
 	}
+
+	free(pth_tab);
 
 	return 0;
 }

@@ -11,7 +11,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -19,6 +18,7 @@
 #include <linux/netdevice.h>
 #include <linux/can.h>
 #include <linux/can/dev.h>
+#include <linux/can/skb.h>
 #include <linux/can/error.h>
 
 #include <linux/mfd/janz.h>
@@ -40,6 +40,7 @@
 #define MSYNC_PEER		0x00		/* ICAN only */
 #define MSYNC_LOCL		0x01		/* host only */
 #define TARGET_RUNNING		0x02
+#define FIRMWARE_STAMP		0x60		/* big endian firmware stamp */
 
 #define MSYNC_RB0		0x01
 #define MSYNC_RB1		0x02
@@ -83,6 +84,8 @@
 #define MSG_COFFREQ		0x42
 #define MSG_CONREQ		0x43
 #define MSG_CCONFREQ		0x47
+#define MSG_NMTS		0xb0
+#define MSG_LMTS		0xb4
 
 /*
  * Janz ICAN3 CAN Inquiry Message Types
@@ -128,6 +131,22 @@
 
 #define ICAN3_CAN_DLC_MASK	0x0f
 
+/* Janz ICAN3 NMTS subtypes */
+#define NMTS_CREATE_NODE_REQ	0x0
+#define NMTS_SLAVE_STATE_IND	0x8
+#define NMTS_SLAVE_EVENT_IND	0x9
+
+/* Janz ICAN3 LMTS subtypes */
+#define LMTS_BUSON_REQ		0x0
+#define LMTS_BUSOFF_REQ		0x1
+#define LMTS_CAN_CONF_REQ	0x2
+
+/* Janz ICAN3 NMTS Event indications */
+#define NE_LOCAL_OCCURRED	0x3
+#define NE_LOCAL_RESOLVED	0x2
+#define NE_REMOTE_OCCURRED	0xc
+#define NE_REMOTE_RESOLVED	0x8
+
 /*
  * SJA1000 Status and Error Register Definitions
  *
@@ -165,6 +184,12 @@
 /* SJA1000 Clock Input */
 #define ICAN3_CAN_CLOCK		8000000
 
+/* Janz ICAN3 firmware types */
+enum ican3_fwtype {
+	ICAN3_FWTYPE_ICANOS,
+	ICAN3_FWTYPE_CAL_CANOPEN,
+};
+
 /* Driver Name */
 #define DRV_NAME "janz-ican3"
 
@@ -198,9 +223,6 @@ struct ican3_dev {
 	struct net_device *ndev;
 	struct napi_struct napi;
 
-	/* Device for printing */
-	struct device *dev;
-
 	/* module number */
 	unsigned int num;
 
@@ -217,6 +239,10 @@ struct ican3_dev {
 	/* CAN bus error status registers */
 	struct completion buserror_comp;
 	struct can_berr_counter bec;
+
+	/* firmware type */
+	enum ican3_fwtype fwtype;
+	char fwinfo[32];
 
 	/* old and new style host interface */
 	unsigned int iftype;
@@ -295,7 +321,7 @@ static int ican3_old_recv_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	xord = locl ^ peer;
 
 	if ((xord & MSYNC_RB_MASK) == 0x00) {
-		dev_dbg(mod->dev, "no mbox for reading\n");
+		netdev_dbg(mod->ndev, "no mbox for reading\n");
 		return -ENOMEM;
 	}
 
@@ -340,7 +366,7 @@ static int ican3_old_send_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	xord = locl ^ peer;
 
 	if ((xord & MSYNC_WB_MASK) == MSYNC_WB_MASK) {
-		dev_err(mod->dev, "no mbox for writing\n");
+		netdev_err(mod->ndev, "no mbox for writing\n");
 		return -ENOMEM;
 	}
 
@@ -542,7 +568,7 @@ static int ican3_new_send_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	memcpy_fromio(&desc, desc_addr, sizeof(desc));
 
 	if (!(desc.control & DESC_VALID)) {
-		dev_dbg(mod->dev, "%s: no free buffers\n", __func__);
+		netdev_dbg(mod->ndev, "%s: no free buffers\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -573,7 +599,7 @@ static int ican3_new_recv_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	memcpy_fromio(&desc, desc_addr, sizeof(desc));
 
 	if (!(desc.control & DESC_VALID)) {
-		dev_dbg(mod->dev, "%s: no buffers to recv\n", __func__);
+		netdev_dbg(mod->ndev, "%s: no buffers to recv\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -753,13 +779,81 @@ static int ican3_set_id_filter(struct ican3_dev *mod, bool accept)
  */
 static int ican3_set_bus_state(struct ican3_dev *mod, bool on)
 {
+	struct can_bittiming *bt = &mod->can.bittiming;
 	struct ican3_msg msg;
+	u8 btr0, btr1;
+	int res;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.spec = on ? MSG_CONREQ : MSG_COFFREQ;
-	msg.len = cpu_to_le16(0);
+	/* This algorithm was stolen from drivers/net/can/sja1000/sja1000.c      */
+	/* The bittiming register command for the ICAN3 just sets the bit timing */
+	/* registers on the SJA1000 chip directly                                */
+	btr0 = ((bt->brp - 1) & 0x3f) | (((bt->sjw - 1) & 0x3) << 6);
+	btr1 = ((bt->prop_seg + bt->phase_seg1 - 1) & 0xf) |
+		(((bt->phase_seg2 - 1) & 0x7) << 4);
+	if (mod->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
+		btr1 |= 0x80;
 
-	return ican3_send_msg(mod, &msg);
+	if (mod->fwtype == ICAN3_FWTYPE_ICANOS) {
+		if (on) {
+			/* set bittiming */
+			memset(&msg, 0, sizeof(msg));
+			msg.spec = MSG_CBTRREQ;
+			msg.len = cpu_to_le16(4);
+			msg.data[0] = 0x00;
+			msg.data[1] = 0x00;
+			msg.data[2] = btr0;
+			msg.data[3] = btr1;
+
+			res = ican3_send_msg(mod, &msg);
+			if (res)
+				return res;
+		}
+
+		/* can-on/off request */
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = on ? MSG_CONREQ : MSG_COFFREQ;
+		msg.len = cpu_to_le16(0);
+
+		return ican3_send_msg(mod, &msg);
+
+	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CANOPEN) {
+		/* bittiming + can-on/off request */
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = MSG_LMTS;
+		if (on) {
+			msg.len = cpu_to_le16(4);
+			msg.data[0] = LMTS_BUSON_REQ;
+			msg.data[1] = 0;
+			msg.data[2] = btr0;
+			msg.data[3] = btr1;
+		} else {
+			msg.len = cpu_to_le16(2);
+			msg.data[0] = LMTS_BUSOFF_REQ;
+			msg.data[1] = 0;
+		}
+		res = ican3_send_msg(mod, &msg);
+		if (res)
+			return res;
+
+		if (on) {
+			/* create NMT Slave Node for error processing
+			 *   class 2 (with error capability, see CiA/DS203-1)
+			 *   id    1
+			 *   name  locnod1 (must be exactly 7 bytes)
+			 */
+			memset(&msg, 0, sizeof(msg));
+			msg.spec = MSG_NMTS;
+			msg.len = cpu_to_le16(11);
+			msg.data[0] = NMTS_CREATE_NODE_REQ;
+			msg.data[1] = 0;
+			msg.data[2] = 2;                 /* node class */
+			msg.data[3] = 1;                 /* node id */
+			strcpy(msg.data + 4, "locnod1"); /* node name  */
+			return ican3_send_msg(mod, &msg);
+		}
+		return 0;
+	}
+	return -ENOTSUPP;
 }
 
 static int ican3_set_termination(struct ican3_dev *mod, bool on)
@@ -792,12 +886,23 @@ static int ican3_set_buserror(struct ican3_dev *mod, u8 quota)
 {
 	struct ican3_msg msg;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.spec = MSG_CCONFREQ;
-	msg.len = cpu_to_le16(2);
-	msg.data[0] = 0x00;
-	msg.data[1] = quota;
-
+	if (mod->fwtype == ICAN3_FWTYPE_ICANOS) {
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = MSG_CCONFREQ;
+		msg.len = cpu_to_le16(2);
+		msg.data[0] = 0x00;
+		msg.data[1] = quota;
+	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CANOPEN) {
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = MSG_LMTS;
+		msg.len = cpu_to_le16(4);
+		msg.data[0] = LMTS_CAN_CONF_REQ;
+		msg.data[1] = 0x00;
+		msg.data[2] = 0x00;
+		msg.data[3] = quota;
+	} else {
+		return -ENOTSUPP;
+	}
 	return ican3_send_msg(mod, &msg);
 }
 
@@ -883,7 +988,7 @@ static void can_frame_to_ican3(struct ican3_dev *mod,
  */
 static void ican3_handle_idvers(struct ican3_dev *mod, struct ican3_msg *msg)
 {
-	dev_dbg(mod->dev, "IDVERS response: %s\n", msg->data);
+	netdev_dbg(mod->ndev, "IDVERS response: %s\n", msg->data);
 }
 
 static void ican3_handle_msglost(struct ican3_dev *mod, struct ican3_msg *msg)
@@ -899,7 +1004,7 @@ static void ican3_handle_msglost(struct ican3_dev *mod, struct ican3_msg *msg)
 	 * error frame for userspace
 	 */
 	if (msg->spec == MSG_MSGLOST) {
-		dev_err(mod->dev, "lost %d control messages\n", msg->data[0]);
+		netdev_err(mod->ndev, "lost %d control messages\n", msg->data[0]);
 		return;
 	}
 
@@ -939,13 +1044,13 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 
 	/* we can only handle the SJA1000 part */
 	if (msg->data[1] != CEVTIND_CHIP_SJA1000) {
-		dev_err(mod->dev, "unable to handle errors on non-SJA1000\n");
+		netdev_err(mod->ndev, "unable to handle errors on non-SJA1000\n");
 		return -ENODEV;
 	}
 
 	/* check the message length for sanity */
 	if (le16_to_cpu(msg->len) < 6) {
-		dev_err(mod->dev, "error message too short\n");
+		netdev_err(mod->ndev, "error message too short\n");
 		return -EINVAL;
 	}
 
@@ -967,7 +1072,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 	 */
 	if (isrc == CEVTIND_BEI) {
 		int ret;
-		dev_dbg(mod->dev, "bus error interrupt\n");
+		netdev_dbg(mod->ndev, "bus error interrupt\n");
 
 		/* TX error */
 		if (!(ecc & ECC_DIR)) {
@@ -983,7 +1088,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 		 */
 		ret = ican3_set_buserror(mod, 1);
 		if (ret) {
-			dev_err(mod->dev, "unable to re-enable bus-error\n");
+			netdev_err(mod->ndev, "unable to re-enable bus-error\n");
 			return ret;
 		}
 
@@ -998,7 +1103,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 
 	/* data overrun interrupt */
 	if (isrc == CEVTIND_DOI || isrc == CEVTIND_LOST) {
-		dev_dbg(mod->dev, "data overrun interrupt\n");
+		netdev_dbg(mod->ndev, "data overrun interrupt\n");
 		cf->can_id |= CAN_ERR_CRTL;
 		cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		stats->rx_over_errors++;
@@ -1007,10 +1112,11 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 
 	/* error warning + passive interrupt */
 	if (isrc == CEVTIND_EI) {
-		dev_dbg(mod->dev, "error warning + passive interrupt\n");
+		netdev_dbg(mod->ndev, "error warning + passive interrupt\n");
 		if (status & SR_BS) {
 			state = CAN_STATE_BUS_OFF;
 			cf->can_id |= CAN_ERR_BUSOFF;
+			mod->can.can_stats.bus_off++;
 			can_bus_off(dev);
 		} else if (status & SR_ES) {
 			if (rxerr >= 128 || txerr >= 128)
@@ -1038,7 +1144,6 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
 			break;
 		default:
-			cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 			cf->data[3] = ecc & ECC_SEG;
 			break;
 		}
@@ -1088,15 +1193,50 @@ static void ican3_handle_inquiry(struct ican3_dev *mod, struct ican3_msg *msg)
 		complete(&mod->termination_comp);
 		break;
 	default:
-		dev_err(mod->dev, "received an unknown inquiry response\n");
+		netdev_err(mod->ndev, "received an unknown inquiry response\n");
 		break;
+	}
+}
+
+/* Handle NMTS Slave Event Indication Messages from the firmware */
+static void ican3_handle_nmtsind(struct ican3_dev *mod, struct ican3_msg *msg)
+{
+	u16 subspec;
+
+	subspec = msg->data[0] + msg->data[1] * 0x100;
+	if (subspec == NMTS_SLAVE_EVENT_IND) {
+		switch (msg->data[2]) {
+		case NE_LOCAL_OCCURRED:
+		case NE_LOCAL_RESOLVED:
+			/* now follows the same message as Raw ICANOS CEVTIND
+			 * shift the data at the same place and call this method
+			 */
+			le16_add_cpu(&msg->len, -3);
+			memmove(msg->data, msg->data + 3, le16_to_cpu(msg->len));
+			ican3_handle_cevtind(mod, msg);
+			break;
+		case NE_REMOTE_OCCURRED:
+		case NE_REMOTE_RESOLVED:
+			/* should not occurre, ignore */
+			break;
+		default:
+			netdev_warn(mod->ndev, "unknown NMTS event indication %x\n",
+				    msg->data[2]);
+			break;
+		}
+	} else if (subspec == NMTS_SLAVE_STATE_IND) {
+		/* ignore state indications */
+	} else {
+		netdev_warn(mod->ndev, "unhandled NMTS indication %x\n",
+			    subspec);
+		return;
 	}
 }
 
 static void ican3_handle_unknown_message(struct ican3_dev *mod,
 					struct ican3_msg *msg)
 {
-	dev_warn(mod->dev, "received unknown message: spec 0x%.2x length %d\n",
+	netdev_warn(mod->ndev, "received unknown message: spec 0x%.2x length %d\n",
 			   msg->spec, le16_to_cpu(msg->len));
 }
 
@@ -1105,7 +1245,7 @@ static void ican3_handle_unknown_message(struct ican3_dev *mod,
  */
 static void ican3_handle_message(struct ican3_dev *mod, struct ican3_msg *msg)
 {
-	dev_dbg(mod->dev, "%s: modno %d spec 0x%.2x len %d bytes\n", __func__,
+	netdev_dbg(mod->ndev, "%s: modno %d spec 0x%.2x len %d bytes\n", __func__,
 			   mod->num, msg->spec, le16_to_cpu(msg->len));
 
 	switch (msg->spec) {
@@ -1122,6 +1262,9 @@ static void ican3_handle_message(struct ican3_dev *mod, struct ican3_msg *msg)
 	case MSG_INQUIRY:
 		ican3_handle_inquiry(mod, msg);
 		break;
+	case MSG_NMTS:
+		ican3_handle_nmtsind(mod, msg);
+		break;
 	default:
 		ican3_handle_unknown_message(mod, msg);
 		break;
@@ -1134,20 +1277,9 @@ static void ican3_handle_message(struct ican3_dev *mod, struct ican3_msg *msg)
  */
 static void ican3_put_echo_skb(struct ican3_dev *mod, struct sk_buff *skb)
 {
-	struct sock *srcsk = skb->sk;
-
-	if (atomic_read(&skb->users) != 1) {
-		struct sk_buff *old_skb = skb;
-
-		skb = skb_clone(old_skb, GFP_ATOMIC);
-		kfree_skb(old_skb);
-		if (!skb)
-			return;
-	} else {
-		skb_orphan(skb);
-	}
-
-	skb->sk = srcsk;
+	skb = can_create_echo_skb(skb);
+	if (!skb)
+		return;
 
 	/* save this skb for tx interrupt echo handling */
 	skb_queue_tail(&mod->echoq, skb);
@@ -1323,7 +1455,7 @@ static int ican3_napi(struct napi_struct *napi, int budget)
 
 	/* process all communication messages */
 	while (true) {
-		struct ican3_msg msg;
+		struct ican3_msg uninitialized_var(msg);
 		ret = ican3_recv_msg(mod, &msg);
 		if (ret)
 			break;
@@ -1343,7 +1475,7 @@ static int ican3_napi(struct napi_struct *napi, int budget)
 	/* We have processed all packets that the adapter had, but it
 	 * was less than our budget, stop polling */
 	if (received < budget)
-		napi_complete(napi);
+		napi_complete_done(napi, received);
 
 	spin_lock_irqsave(&mod->lock, flags);
 
@@ -1415,9 +1547,9 @@ static int ican3_reset_module(struct ican3_dev *mod)
 			return 0;
 
 		msleep(10);
-	} while (time_before(jiffies, start + HZ / 4));
+	} while (time_before(jiffies, start + HZ / 2));
 
-	dev_err(mod->dev, "failed to reset CAN module\n");
+	netdev_err(mod->ndev, "failed to reset CAN module\n");
 	return -ETIMEDOUT;
 }
 
@@ -1436,50 +1568,61 @@ static int ican3_startup_module(struct ican3_dev *mod)
 
 	ret = ican3_reset_module(mod);
 	if (ret) {
-		dev_err(mod->dev, "unable to reset module\n");
+		netdev_err(mod->ndev, "unable to reset module\n");
 		return ret;
 	}
+
+	/* detect firmware */
+	memcpy_fromio(mod->fwinfo, mod->dpm + FIRMWARE_STAMP, sizeof(mod->fwinfo) - 1);
+	if (strncmp(mod->fwinfo, "JANZ-ICAN3", 10)) {
+		netdev_err(mod->ndev, "ICAN3 not detected (found %s)\n", mod->fwinfo);
+		return -ENODEV;
+	}
+	if (strstr(mod->fwinfo, "CAL/CANopen"))
+		mod->fwtype = ICAN3_FWTYPE_CAL_CANOPEN;
+	else
+		mod->fwtype = ICAN3_FWTYPE_ICANOS;
 
 	/* re-enable interrupts so we can send messages */
 	iowrite8(1 << mod->num, &mod->ctrl->int_enable);
 
 	ret = ican3_msg_connect(mod);
 	if (ret) {
-		dev_err(mod->dev, "unable to connect to module\n");
+		netdev_err(mod->ndev, "unable to connect to module\n");
 		return ret;
 	}
 
 	ican3_init_new_host_interface(mod);
 	ret = ican3_msg_newhostif(mod);
 	if (ret) {
-		dev_err(mod->dev, "unable to switch to new-style interface\n");
+		netdev_err(mod->ndev, "unable to switch to new-style interface\n");
 		return ret;
 	}
 
 	/* default to "termination on" */
 	ret = ican3_set_termination(mod, true);
 	if (ret) {
-		dev_err(mod->dev, "unable to enable termination\n");
+		netdev_err(mod->ndev, "unable to enable termination\n");
 		return ret;
 	}
 
 	/* default to "bus errors enabled" */
 	ret = ican3_set_buserror(mod, 1);
 	if (ret) {
-		dev_err(mod->dev, "unable to set bus-error\n");
+		netdev_err(mod->ndev, "unable to set bus-error\n");
 		return ret;
 	}
 
 	ican3_init_fast_host_interface(mod);
 	ret = ican3_msg_fasthostif(mod);
 	if (ret) {
-		dev_err(mod->dev, "unable to switch to fast host interface\n");
+		netdev_err(mod->ndev, "unable to switch to fast host interface\n");
 		return ret;
 	}
 
 	ret = ican3_set_id_filter(mod, true);
 	if (ret) {
-		dev_err(mod->dev, "unable to set acceptance filter\n");
+		netdev_err(mod->ndev, "unable to set acceptance filter\n");
 		return ret;
 	}
 
@@ -1498,14 +1641,14 @@ static int ican3_open(struct net_device *ndev)
 	/* open the CAN layer */
 	ret = open_candev(ndev);
 	if (ret) {
-		dev_err(mod->dev, "unable to start CAN layer\n");
+		netdev_err(mod->ndev, "unable to start CAN layer\n");
 		return ret;
 	}
 
 	/* bring the bus online */
 	ret = ican3_set_bus_state(mod, true);
 	if (ret) {
-		dev_err(mod->dev, "unable to set bus-on\n");
+		netdev_err(mod->ndev, "unable to set bus-on\n");
 		close_candev(ndev);
 		return ret;
 	}
@@ -1529,7 +1672,7 @@ static int ican3_stop(struct net_device *ndev)
 	/* bring the bus offline, stop receiving packets */
 	ret = ican3_set_bus_state(mod, false);
 	if (ret) {
-		dev_err(mod->dev, "unable to set bus-off\n");
+		netdev_err(mod->ndev, "unable to set bus-off\n");
 		return ret;
 	}
 
@@ -1556,7 +1699,7 @@ static int ican3_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* check that we can actually transmit */
 	if (!ican3_txok(mod)) {
-		dev_err(mod->dev, "BUG: no free descriptors\n");
+		netdev_err(mod->ndev, "BUG: no free descriptors\n");
 		spin_unlock_irqrestore(&mod->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
@@ -1608,6 +1751,7 @@ static const struct net_device_ops ican3_netdev_ops = {
 	.ndo_open	= ican3_open,
 	.ndo_stop	= ican3_stop,
 	.ndo_start_xmit	= ican3_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 /*
@@ -1627,36 +1771,6 @@ static const struct can_bittiming_const ican3_bittiming_const = {
 	.brp_inc = 1,
 };
 
-/*
- * This routine was stolen from drivers/net/can/sja1000/sja1000.c
- *
- * The bittiming register command for the ICAN3 just sets the bit timing
- * registers on the SJA1000 chip directly
- */
-static int ican3_set_bittiming(struct net_device *ndev)
-{
-	struct ican3_dev *mod = netdev_priv(ndev);
-	struct can_bittiming *bt = &mod->can.bittiming;
-	struct ican3_msg msg;
-	u8 btr0, btr1;
-
-	btr0 = ((bt->brp - 1) & 0x3f) | (((bt->sjw - 1) & 0x3) << 6);
-	btr1 = ((bt->prop_seg + bt->phase_seg1 - 1) & 0xf) |
-		(((bt->phase_seg2 - 1) & 0x7) << 4);
-	if (mod->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
-		btr1 |= 0x80;
-
-	memset(&msg, 0, sizeof(msg));
-	msg.spec = MSG_CBTRREQ;
-	msg.len = cpu_to_le16(4);
-	msg.data[0] = 0x00;
-	msg.data[1] = 0x00;
-	msg.data[2] = btr0;
-	msg.data[3] = btr1;
-
-	return ican3_send_msg(mod, &msg);
-}
-
 static int ican3_set_mode(struct net_device *ndev, enum can_mode mode)
 {
 	struct ican3_dev *mod = netdev_priv(ndev);
@@ -1668,7 +1782,7 @@ static int ican3_set_mode(struct net_device *ndev, enum can_mode mode)
 	/* bring the bus online */
 	ret = ican3_set_bus_state(mod, true);
 	if (ret) {
-		dev_err(mod->dev, "unable to set bus-on\n");
+		netdev_err(ndev, "unable to set bus-on\n");
 		return ret;
 	}
 
@@ -1691,9 +1805,8 @@ static int ican3_get_berr_counter(const struct net_device *ndev,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&mod->buserror_comp, HZ);
-	if (ret == 0) {
-		dev_info(mod->dev, "%s timed out\n", __func__);
+	if (!wait_for_completion_timeout(&mod->buserror_comp, HZ)) {
+		netdev_info(mod->ndev, "%s timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
 
@@ -1717,9 +1830,8 @@ static ssize_t ican3_sysfs_show_term(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&mod->termination_comp, HZ);
-	if (ret == 0) {
-		dev_info(mod->dev, "%s timed out\n", __func__);
+	if (!wait_for_completion_timeout(&mod->termination_comp, HZ)) {
+		netdev_info(mod->ndev, "%s timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
 
@@ -1744,15 +1856,26 @@ static ssize_t ican3_sysfs_set_term(struct device *dev,
 	return count;
 }
 
+static ssize_t ican3_sysfs_show_fwinfo(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct ican3_dev *mod = netdev_priv(to_net_dev(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", mod->fwinfo);
+}
+
 static DEVICE_ATTR(termination, S_IWUSR | S_IRUGO, ican3_sysfs_show_term,
 						   ican3_sysfs_set_term);
+static DEVICE_ATTR(fwinfo, S_IRUSR | S_IRUGO, ican3_sysfs_show_fwinfo, NULL);
 
 static struct attribute *ican3_sysfs_attrs[] = {
 	&dev_attr_termination.attr,
+	&dev_attr_fwinfo.attr,
 	NULL,
 };
 
-static struct attribute_group ican3_sysfs_attr_group = {
+static const struct attribute_group ican3_sysfs_attr_group = {
 	.attrs = ican3_sysfs_attrs,
 };
 
@@ -1769,7 +1892,7 @@ static int ican3_probe(struct platform_device *pdev)
 	struct device *dev;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata)
 		return -ENXIO;
 
@@ -1789,7 +1912,6 @@ static int ican3_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	mod = netdev_priv(ndev);
 	mod->ndev = ndev;
-	mod->dev = &pdev->dev;
 	mod->num = pdata->modno;
 	netif_napi_add(ndev, &mod->napi, ican3_napi, ICAN3_RX_BUFFERS);
 	skb_queue_head_init(&mod->echoq);
@@ -1809,7 +1931,6 @@ static int ican3_probe(struct platform_device *pdev)
 
 	mod->can.clock.freq = ICAN3_CAN_CLOCK;
 	mod->can.bittiming_const = &ican3_bittiming_const;
-	mod->can.do_set_bittiming = ican3_set_bittiming;
 	mod->can.do_set_mode = ican3_set_mode;
 	mod->can.do_get_berr_counter = ican3_get_berr_counter;
 	mod->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES
@@ -1881,7 +2002,7 @@ static int ican3_probe(struct platform_device *pdev)
 		goto out_free_irq;
 	}
 
-	dev_info(dev, "module %d: registered CAN device\n", pdata->modno);
+	netdev_info(mod->ndev, "module %d: registered CAN device\n", pdata->modno);
 	return 0;
 
 out_free_irq:
@@ -1924,7 +2045,6 @@ static int ican3_remove(struct platform_device *pdev)
 static struct platform_driver ican3_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ican3_probe,
 	.remove		= ican3_remove,

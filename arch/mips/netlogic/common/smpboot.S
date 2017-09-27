@@ -32,7 +32,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/init.h>
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
@@ -49,26 +48,28 @@
 #include <asm/netlogic/xlp-hal/sys.h>
 #include <asm/netlogic/xlp-hal/cpucontrol.h>
 
-#define CP0_EBASE	$15
-
 	.set	noreorder
 	.set	noat
 	.set	arch=xlr		/* for mfcr/mtcr, XLR is sufficient */
 
-FEXPORT(xlp_boot_core0_siblings)	/* "Master" cpu starts from here */
-	dmtc0	sp, $4, 2		/* SP saved in UserLocal */
+/* Called by the boot cpu to wake up its sibling threads */
+NESTED(xlp_boot_core0_siblings, PT_SIZE, sp)
+	/* CPU register contents lost when enabling threads, save them first */
 	SAVE_ALL
 	sync
 	/* find the location to which nlm_boot_siblings was relocated */
 	li	t0, CKSEG1ADDR(RESET_VEC_PHYS)
-	dla	t1, nlm_reset_entry
-	dla	t2, nlm_boot_siblings
+	PTR_LA	t1, nlm_reset_entry
+	PTR_LA	t2, nlm_boot_siblings
 	dsubu	t2, t1
 	daddu	t2, t0
 	/* call it */
-	jr	t2
+	jalr	t2
 	nop
-	/* not reached */
+	RESTORE_ALL
+	jr	ra
+	nop
+END(xlp_boot_core0_siblings)
 
 NESTED(nlm_boot_secondary_cpus, 16, sp)
 	/* Initialize CP0 Status */
@@ -83,7 +84,7 @@ NESTED(nlm_boot_secondary_cpus, 16, sp)
 	PTR_L	gp, 0(t1)
 
 	/* a0 has the processor id */
-	mfc0	a0, CP0_EBASE, 1
+	mfc0	a0, CP0_EBASE
 	andi	a0, 0x3ff		/* a0 <- node/core */
 	PTR_LA	t0, nlm_early_init_secondary
 	jalr	t0
@@ -98,7 +99,7 @@ END(nlm_boot_secondary_cpus)
  * In case of RMIboot bootloader which is used on XLR boards, the CPUs
  * be already woken up and waiting in bootloader code.
  * This will get them out of the bootloader code and into linux. Needed
- *  because the bootloader area will be taken and initialized by linux.
+ * because the bootloader area will be taken and initialized by linux.
  */
 NESTED(nlm_rmiboot_preboot, 16, sp)
 	mfc0	t0, $15, 1	/* read ebase */
@@ -133,6 +134,7 @@ NESTED(nlm_rmiboot_preboot, 16, sp)
 	or	t1, t2, v1	/* put in new value */
 	mtcr	t1, t0		/* update core control */
 
+	/* wait for NMI to hit */
 1:	wait
 	b	1b
 	nop

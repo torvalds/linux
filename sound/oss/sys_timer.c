@@ -19,7 +19,7 @@
 #include "sound_config.h"
 
 static volatile int opened, tmr_running;
-static volatile time_t tmr_offs, tmr_ctr;
+static volatile unsigned int tmr_offs, tmr_ctr;
 static volatile unsigned long ticks_offs;
 static volatile int curr_tempo, curr_timebase;
 static volatile unsigned long curr_ticks;
@@ -50,29 +50,24 @@ tmr2ticks(int tmr_value)
 static void
 poll_def_tmr(unsigned long dummy)
 {
+	if (!opened)
+		return;
+	def_tmr.expires = (1) + jiffies;
+	add_timer(&def_tmr);
 
-	if (opened)
-	  {
+	if (!tmr_running)
+		return;
 
-		  {
-			  def_tmr.expires = (1) + jiffies;
-			  add_timer(&def_tmr);
-		  }
+	spin_lock(&lock);
+	tmr_ctr++;
+	curr_ticks = ticks_offs + tmr2ticks(tmr_ctr);
 
-		  if (tmr_running)
-		    {
-				spin_lock(&lock);
-			    tmr_ctr++;
-			    curr_ticks = ticks_offs + tmr2ticks(tmr_ctr);
+	if (curr_ticks >= next_event_time) {
+		next_event_time = (unsigned long) -1;
+		sequencer_timer(0);
+	}
 
-			    if (curr_ticks >= next_event_time)
-			      {
-				      next_event_time = (unsigned long) -1;
-				      sequencer_timer(0);
-			      }
-				spin_unlock(&lock);
-		    }
-	  }
+	spin_unlock(&lock);
 }
 
 static void

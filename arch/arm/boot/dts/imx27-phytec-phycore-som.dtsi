@@ -1,0 +1,348 @@
+/*
+ * Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "imx27.dtsi"
+
+/ {
+	model = "Phytec pcm038";
+	compatible = "phytec,imx27-pcm038", "fsl,imx27";
+
+	memory {
+		reg = <0xa0000000 0x08000000>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_3v3: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		reg_5v0: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "5V0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+		};
+	};
+
+	usbphy {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbphy0: usbphy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			vcc-supply = <&sw3_reg>;
+			clocks = <&clks IMX27_CLK_DUMMY>;
+			clock-names = "main_clk";
+		};
+	};
+};
+
+&audmux {
+	status = "okay";
+
+	/* SSI0 <=> PINS_4 (MC13783 Audio) */
+	ssi0 {
+		fsl,audmux-port = <0>;
+		fsl,port-config = <0xcb205000>;
+	};
+
+	pins4 {
+		fsl,audmux-port = <2>;
+		fsl,port-config = <0x00001000>;
+	};
+};
+
+&cspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_cspi1>;
+	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	pmic: mc13783@0 {
+		compatible = "fsl,mc13783";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic>;
+		reg = <0>;
+		spi-cs-high;
+		spi-max-frequency = <20000000>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,mc13xxx-uses-adc;
+		fsl,mc13xxx-uses-rtc;
+
+		pmicleds: leds {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			led-control = <0x001 0x000 0x000 0x000 0x000 0x000>;
+		};
+
+		regulators {
+			/* SW1A and SW1B joined operation */
+			sw1_reg: sw1a {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1520000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			/* SW2A and SW2B joined operation */
+			sw2_reg: sw2a {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw3_reg: sw3 {
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vaudio_reg: vaudio {
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			violo_reg: violo {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			viohi_reg: viohi {
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vgen_reg: vgen {
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vcam_reg: vcam {
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+			};
+
+			vrf1_reg: vrf1 {
+				regulator-min-microvolt = <2775000>;
+				regulator-max-microvolt = <2775000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vrf2_reg: vrf2 {
+				regulator-min-microvolt = <2775000>;
+				regulator-max-microvolt = <2775000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vmmc1_reg: vmmc1 {
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <3000000>;
+			};
+
+			gpo1_reg: gpo1 { };
+
+			pwgt1spi_reg: pwgt1spi {
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&fec {
+	phy-mode = "mii";
+	phy-reset-gpios = <&gpio3 30 GPIO_ACTIVE_LOW>;
+	phy-supply = <&reg_3v3>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+
+	at24@52 {
+		compatible = "atmel,24c32";
+		pagesize = <32>;
+		reg = <0x52>;
+	};
+
+	pcf8563@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+
+	lm75@4a {
+		compatible = "national,lm75";
+		reg = <0x4a>;
+	};
+};
+
+&iomuxc {
+	imx27_phycore_som {
+		pinctrl_cspi1: cspi1grp {
+			fsl,pins = <
+				MX27_PAD_CSPI1_MISO__CSPI1_MISO 0x0
+				MX27_PAD_CSPI1_MOSI__CSPI1_MOSI 0x0
+				MX27_PAD_CSPI1_SCLK__CSPI1_SCLK 0x0
+				MX27_PAD_CSPI1_SS0__GPIO4_28	0x0 /* SPI1 CS0 */
+			>;
+		};
+
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX27_PAD_SD3_CMD__FEC_TXD0 0x0
+				MX27_PAD_SD3_CLK__FEC_TXD1 0x0
+				MX27_PAD_ATA_DATA0__FEC_TXD2 0x0
+				MX27_PAD_ATA_DATA1__FEC_TXD3 0x0
+				MX27_PAD_ATA_DATA2__FEC_RX_ER 0x0
+				MX27_PAD_ATA_DATA3__FEC_RXD1 0x0
+				MX27_PAD_ATA_DATA4__FEC_RXD2 0x0
+				MX27_PAD_ATA_DATA5__FEC_RXD3 0x0
+				MX27_PAD_ATA_DATA6__FEC_MDIO 0x0
+				MX27_PAD_ATA_DATA7__FEC_MDC 0x0
+				MX27_PAD_ATA_DATA8__FEC_CRS 0x0
+				MX27_PAD_ATA_DATA9__FEC_TX_CLK 0x0
+				MX27_PAD_ATA_DATA10__FEC_RXD0 0x0
+				MX27_PAD_ATA_DATA11__FEC_RX_DV 0x0
+				MX27_PAD_ATA_DATA12__FEC_RX_CLK 0x0
+				MX27_PAD_ATA_DATA13__FEC_COL 0x0
+				MX27_PAD_ATA_DATA14__FEC_TX_ER 0x0
+				MX27_PAD_ATA_DATA15__FEC_TX_EN 0x0
+				MX27_PAD_SSI3_TXDAT__GPIO3_30	0x0 /* FEC RST */
+			>;
+		};
+
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX27_PAD_I2C2_SDA__I2C2_SDA 0x0
+				MX27_PAD_I2C2_SCL__I2C2_SCL 0x0
+			>;
+		};
+
+		pinctrl_nfc: nfcgrp {
+			fsl,pins = <
+				MX27_PAD_NFRB__NFRB 0x0
+				MX27_PAD_NFCLE__NFCLE 0x0
+				MX27_PAD_NFWP_B__NFWP_B 0x0
+				MX27_PAD_NFCE_B__NFCE_B 0x0
+				MX27_PAD_NFALE__NFALE 0x0
+				MX27_PAD_NFRE_B__NFRE_B 0x0
+				MX27_PAD_NFWE_B__NFWE_B 0x0
+			>;
+		};
+
+		pinctrl_pmic: pmicgrp {
+			fsl,pins = <
+				MX27_PAD_USB_PWR__GPIO2_23	0x0 /* PMIC IRQ */
+			>;
+		};
+
+		pinctrl_ssi1: ssi1grp {
+			fsl,pins = <
+				MX27_PAD_SSI1_FS__SSI1_FS 0x0
+				MX27_PAD_SSI1_RXDAT__SSI1_RXDAT 0x0
+				MX27_PAD_SSI1_TXDAT__SSI1_TXDAT 0x0
+				MX27_PAD_SSI1_CLK__SSI1_CLK 0x0
+			>;
+		};
+
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX27_PAD_USBOTG_CLK__USBOTG_CLK 0x0
+				MX27_PAD_USBOTG_DIR__USBOTG_DIR 0x0
+				MX27_PAD_USBOTG_NXT__USBOTG_NXT 0x0
+				MX27_PAD_USBOTG_STP__USBOTG_STP 0x0
+				MX27_PAD_USBOTG_DATA0__USBOTG_DATA0 0x0
+				MX27_PAD_USBOTG_DATA1__USBOTG_DATA1 0x0
+				MX27_PAD_USBOTG_DATA2__USBOTG_DATA2 0x0
+				MX27_PAD_USBOTG_DATA3__USBOTG_DATA3 0x0
+				MX27_PAD_USBOTG_DATA4__USBOTG_DATA4 0x0
+				MX27_PAD_USBOTG_DATA5__USBOTG_DATA5 0x0
+				MX27_PAD_USBOTG_DATA6__USBOTG_DATA6 0x0
+				MX27_PAD_USBOTG_DATA7__USBOTG_DATA7 0x0
+			>;
+		};
+	};
+};
+
+&nfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nfc>;
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&ssi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ssi1>;
+	status = "okay";
+};
+
+&usbotg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	dr_mode = "otg";
+	phy_type = "ulpi";
+	fsl,usbphy = <&usbphy0>;
+	vbus-supply = <&sw3_reg>;
+	disable-over-current;
+	status = "okay";
+};
+
+&weim {
+	status = "okay";
+
+	nor: nor@0,0 {
+		compatible = "cfi-flash";
+		reg = <0 0x00000000 0x02000000>;
+		bank-width = <2>;
+		linux,mtd-name = "physmap-flash.0";
+		fsl,weim-cs-timing = <0x22c2cf00 0x75000d01 0x00000900>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	sram: sram@1,0 {
+		compatible = "mtd-ram";
+		reg = <1 0x00000000 0x00800000>;
+		bank-width = <2>;
+		linux,mtd-name = "mtd-ram.0";
+		fsl,weim-cs-timing = <0x0000d843 0x22252521 0x22220a00>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};

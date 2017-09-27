@@ -82,7 +82,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>
@@ -353,7 +353,7 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
  * mechanism
  * returns the size of the memory region found.
  */
-static int fixup_pmc551(struct pci_dev *dev)
+static int __init fixup_pmc551(struct pci_dev *dev)
 {
 #ifdef CONFIG_MTD_PMC551_BUGFIX
 	u32 dram_data;
@@ -725,16 +725,11 @@ static int __init init_pmc551(void)
 		}
 
 		mtd = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
-		if (!mtd) {
-			printk(KERN_NOTICE "pmc551: Cannot allocate new MTD "
-				"device.\n");
+		if (!mtd)
 			break;
-		}
 
 		priv = kzalloc(sizeof(struct mypriv), GFP_KERNEL);
 		if (!priv) {
-			printk(KERN_NOTICE "pmc551: Cannot allocate new MTD "
-				"device.\n");
 			kfree(mtd);
 			break;
 		}
@@ -817,8 +812,7 @@ static int __init init_pmc551(void)
 	}
 
 	/* Exited early, reference left over */
-	if (PCI_Device)
-		pci_dev_put(PCI_Device);
+	pci_dev_put(PCI_Device);
 
 	if (!pmc551list) {
 		printk(KERN_NOTICE "pmc551: not detected\n");

@@ -13,6 +13,7 @@
 #include <wait.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>
+#include <init.h>
 #include <os.h>
 
 void stack_protections(unsigned long address)
@@ -94,6 +95,16 @@ static inline void __attribute__ ((noreturn)) uml_abort(void)
 			exit(127);
 }
 
+/*
+ * UML helper threads must not handle SIGWINCH/INT/TERM
+ */
+void os_fix_helper_signals(void)
+{
+	signal(SIGWINCH, SIG_IGN);
+	signal(SIGINT, SIG_DFL);
+	signal(SIGTERM, SIG_DFL);
+}
+
 void os_dump_core(void)
 {
 	int pid;
@@ -141,4 +152,37 @@ void os_dump_core(void)
 void um_early_printk(const char *s, unsigned int n)
 {
 	printf("%.*s", n, s);
+}
+
+static int quiet_info;
+
+static int __init quiet_cmd_param(char *str, int *add)
+{
+	quiet_info = 1;
+	return 0;
+}
+
+__uml_setup("quiet", quiet_cmd_param,
+"quiet\n"
+"    Turns off information messages during boot.\n\n");
+
+void os_info(const char *fmt, ...)
+{
+	va_list list;
+
+	if (quiet_info)
+		return;
+
+	va_start(list, fmt);
+	vfprintf(stderr, fmt, list);
+	va_end(list);
+}
+
+void os_warn(const char *fmt, ...)
+{
+	va_list list;
+
+	va_start(list, fmt);
+	vfprintf(stderr, fmt, list);
+	va_end(list);
 }

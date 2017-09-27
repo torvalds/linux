@@ -80,14 +80,25 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		if (!new_pmd)
 			goto no_pmd;
 
-		new_pte = pte_alloc_map(mm, NULL, new_pmd, 0);
+		new_pte = pte_alloc_map(mm, new_pmd, 0);
 		if (!new_pte)
 			goto no_pte;
+
+#ifndef CONFIG_ARM_LPAE
+		/*
+		 * Modify the PTE pointer to have the correct domain.  This
+		 * needs to be the vectors domain to avoid the low vectors
+		 * being unmapped.
+		 */
+		pmd_val(*new_pmd) &= ~PMD_DOMAIN_MASK;
+		pmd_val(*new_pmd) |= PMD_DOMAIN(DOMAIN_VECTORS);
+#endif
 
 		init_pud = pud_offset(init_pgd, 0);
 		init_pmd = pmd_offset(init_pud, 0);
 		init_pte = pte_offset_map(init_pmd, 0);
-		set_pte_ext(new_pte, *init_pte, 0);
+		set_pte_ext(new_pte + 0, init_pte[0], 0);
+		set_pte_ext(new_pte + 1, init_pte[1], 0);
 		pte_unmap(init_pte);
 		pte_unmap(new_pte);
 	}
@@ -96,6 +107,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 no_pte:
 	pmd_free(mm, new_pmd);
+	mm_dec_nr_pmds(mm);
 no_pmd:
 	pud_free(mm, new_pud);
 no_pud:
@@ -129,9 +141,11 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
 	pte_free(mm, pte);
+	atomic_long_dec(&mm->nr_ptes);
 no_pmd:
 	pud_clear(pud);
 	pmd_free(mm, pmd);
+	mm_dec_nr_pmds(mm);
 no_pud:
 	pgd_clear(pgd);
 	pud_free(mm, pud);
@@ -151,6 +165,7 @@ no_pgd:
 		pmd = pmd_offset(pud, 0);
 		pud_clear(pud);
 		pmd_free(mm, pmd);
+		mm_dec_nr_pmds(mm);
 		pgd_clear(pgd);
 		pud_free(mm, pud);
 	}

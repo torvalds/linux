@@ -96,13 +96,11 @@ mpc86xx_hpcn_show_cpuinfo(struct seq_file *m)
  */
 static int __init mpc86xx_hpcn_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "fsl,mpc8641hpcn"))
+	if (of_machine_is_compatible("fsl,mpc8641hpcn"))
 		return 1;	/* Looks good */
 
 	/* Be nice and don't give silent boot death.  Delete this in 2.6.27 */
-	if (of_flat_dt_is_compatible(root, "mpc86xx")) {
+	if (of_machine_is_compatible("mpc86xx")) {
 		pr_warning("WARNING: your dts/dtb is old. You must update before the next kernel release\n");
 		return 1;
 	}
@@ -110,33 +108,14 @@ static int __init mpc86xx_hpcn_probe(void)
 	return 0;
 }
 
-static long __init
-mpc86xx_time_init(void)
-{
-	unsigned int temp;
-
-	/* Set the time base to zero */
-	mtspr(SPRN_TBWL, 0);
-	mtspr(SPRN_TBWU, 0);
-
-	temp = mfspr(SPRN_HID0);
-	temp |= HID0_TBEN;
-	mtspr(SPRN_HID0, temp);
-	asm volatile("isync");
-
-	return 0;
-}
-
-static __initdata struct of_device_id of_bus_ids[] = {
-	{ .compatible = "simple-bus", },
+static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .compatible = "fsl,srio", },
-	{ .compatible = "gianfar", },
-	{ .compatible = "fsl,mpc8641-pcie", },
 	{},
 };
 
 static int __init declare_of_platform_devices(void)
 {
+	mpc86xx_common_publish_devices();
 	of_platform_bus_probe(NULL, of_bus_ids, NULL);
 
 	return 0;
@@ -151,7 +130,6 @@ define_machine(mpc86xx_hpcn) {
 	.init_IRQ		= mpc86xx_init_irq,
 	.show_cpuinfo		= mpc86xx_hpcn_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

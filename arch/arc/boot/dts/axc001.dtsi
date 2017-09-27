@@ -1,0 +1,123 @@
+/*
+ * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Device tree for AXC001 770D/EM6/AS221 CPU card
+ * Note that this file only supports the 770D CPU
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "snps,arc";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	cpu_card {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
+
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <750000000>;
+		};
+
+		core_intc: arc700-intc@cpu {
+			compatible = "snps,arc700-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		/*
+		 * this GPIO block ORs all interrupts on CPU card (creg,..)
+		 * to uplink only 1 IRQ to ARC core intc
+		 */
+		dw-apb-gpio@0x2000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = < 0x2000 0x80 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ictl_intc: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <30>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&core_intc>;
+				interrupts = <15>;
+			};
+		};
+
+		debug_uart: dw-apb-uart@0x5000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x5000 0x100>;
+			clock-frequency = <33333000>;
+			interrupt-parent = <&ictl_intc>;
+			interrupts = <19 4>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		arcpct0: pct {
+			compatible = "snps,arc700-pct";
+		};
+	};
+
+	/*
+	 * This INTC is actually connected to DW APB GPIO
+	 * which acts as a wire between MB INTC and CPU INTC.
+	 * GPIO INTC is configured in platform init code
+	 * and here we mimic direct connection from MB INTC to
+	 * CPU INTC, thus we set "interrupts = <7>" instead of
+	 * "interrupts = <12>"
+	 *
+	 * This intc actually resides on MB, but we move it here to
+	 * avoid duplicating the MB dtsi file given that IRQ from
+	 * this intc to cpu intc are different for axs101 and axs103
+	 */
+	mb_intc: dw-apb-ictl@0xe0012000 {
+		#interrupt-cells = <1>;
+		compatible = "snps,dw-apb-ictl";
+		reg = < 0x0 0xe0012000 0x0 0x200 >;
+		interrupt-controller;
+		interrupt-parent = <&core_intc>;
+		interrupts = < 7 >;
+	};
+
+	memory {
+		device_type = "memory";
+		/* CONFIG_LINUX_RAM_BASE needs to match low mem start */
+		reg = <0x0 0x80000000 0x0 0x1b000000>;	/* (512 - 32) MiB */
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		/*
+		 * We just move frame buffer area to the very end of
+		 * available DDR. And even though in case of ARC770 there's
+		 * no strict requirement for a frame-buffer to be in any
+		 * particular location it allows us to use the same
+		 * base board's DT node for ARC PGU as for ARc HS38.
+		 */
+		frame_buffer: frame_buffer@9e000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x9e000000 0x0 0x2000000>;
+			no-map;
+		};
+	};
+};

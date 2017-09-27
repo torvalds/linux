@@ -7,7 +7,7 @@
  *	   : r4 = aborted context pc
  *	   : r5 = aborted context psr
  *
- * Returns : r4-r5, r10-r11, r13 preserved
+ * Returns : r4-r5, r9-r11, r13 preserved
  *
  * Purpose : obtain information about current aborted instruction.
  * Note: we read user space.  This means we might cause a data
@@ -26,6 +26,7 @@ ENTRY(v4t_late_abort)
 #endif
 	bne	.data_thumb_abort
 	ldr	r8, [r4]			@ read arm instruction
+	uaccess_disable ip			@ disable userspace access
 	tst	r8, #1 << 20			@ L = 1 -> write?
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #15 << 24
@@ -47,7 +48,10 @@ ENTRY(v4t_late_abort)
 /* c */	b	do_DataAbort			@ ldc	rd, [rn], #m	@ Same as ldr	rd, [rn], #m
 /* d */	b	do_DataAbort			@ ldc	rd, [rn, #m]
 /* e */	b	.data_unknown
-/* f */
+/* f */	b	.data_unknown
+
+.data_unknown_r9:
+	ldr	r9, [sp], #4
 .data_unknown:	@ Part of jumptable
 	mov	r0, r4
 	mov	r1, r8
@@ -56,6 +60,7 @@ ENTRY(v4t_late_abort)
 .data_arm_ldmstm:
 	tst	r8, #1 << 21			@ check writeback bit
 	beq	do_DataAbort			@ no writeback -> no fixup
+	str	r9, [sp, #-4]!
 	mov	r7, #0x11
 	orr	r7, r7, #0x1100
 	and	r6, r8, r7
@@ -74,12 +79,14 @@ ENTRY(v4t_late_abort)
 	subne	r7, r7, r6, lsl #2		@ Undo increment
 	addeq	r7, r7, r6, lsl #2		@ Undo decrement
 	str	r7, [r2, r9, lsr #14]		@ Put register 'Rn'
+	ldr	r9, [sp], #4
 	b	do_DataAbort
 
 .data_arm_lateldrhpre:
 	tst	r8, #1 << 21			@ Check writeback bit
 	beq	do_DataAbort			@ No writeback -> no fixup
 .data_arm_lateldrhpost:
+	str	r9, [sp, #-4]!
 	and	r9, r8, #0x00f			@ get Rm / low nibble of immediate value
 	tst	r8, #1 << 22			@ if (immediate offset)
 	andne	r6, r8, #0xf00			@ { immediate high nibble
@@ -92,6 +99,7 @@ ENTRY(v4t_late_abort)
 	subne	r7, r7, r6			@ Undo incrmenet
 	addeq	r7, r7, r6			@ Undo decrement
 	str	r7, [r2, r9, lsr #14]		@ Put register 'Rn'
+	ldr	r9, [sp], #4
 	b	do_DataAbort
 
 .data_arm_lateldrpreconst:
@@ -100,12 +108,14 @@ ENTRY(v4t_late_abort)
 .data_arm_lateldrpostconst:
 	movs	r6, r8, lsl #20			@ Get offset
 	beq	do_DataAbort			@ zero -> no fixup
+	str	r9, [sp, #-4]!
 	and	r9, r8, #15 << 16		@ Extract 'n' from instruction
 	ldr	r7, [r2, r9, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
 	subne	r7, r7, r6, lsr #20		@ Undo increment
 	addeq	r7, r7, r6, lsr #20		@ Undo decrement
 	str	r7, [r2, r9, lsr #14]		@ Put register 'Rn'
+	ldr	r9, [sp], #4
 	b	do_DataAbort
 
 .data_arm_lateldrprereg:
@@ -114,6 +124,7 @@ ENTRY(v4t_late_abort)
 .data_arm_lateldrpostreg:
 	and	r7, r8, #15			@ Extract 'm' from instruction
 	ldr	r6, [r2, r7, lsl #2]		@ Get register 'Rm'
+	str	r9, [sp, #-4]!
 	mov	r9, r8, lsr #7			@ get shift count
 	ands	r9, r9, #31
 	and	r7, r8, #0x70			@ get shift type
@@ -125,36 +136,37 @@ ENTRY(v4t_late_abort)
 	b	.data_arm_apply_r6_and_rn
 	b	.data_arm_apply_r6_and_rn	@ 1: LSL #0
 	nop
-	b	.data_unknown			@ 2: MUL?
+	b	.data_unknown_r9		@ 2: MUL?
 	nop
-	b	.data_unknown			@ 3: MUL?
+	b	.data_unknown_r9		@ 3: MUL?
 	nop
 	mov	r6, r6, lsr r9			@ 4: LSR #!0
 	b	.data_arm_apply_r6_and_rn
 	mov	r6, r6, lsr #32			@ 5: LSR #32
 	b	.data_arm_apply_r6_and_rn
-	b	.data_unknown			@ 6: MUL?
+	b	.data_unknown_r9		@ 6: MUL?
 	nop
-	b	.data_unknown			@ 7: MUL?
+	b	.data_unknown_r9		@ 7: MUL?
 	nop
 	mov	r6, r6, asr r9			@ 8: ASR #!0
 	b	.data_arm_apply_r6_and_rn
 	mov	r6, r6, asr #32			@ 9: ASR #32
 	b	.data_arm_apply_r6_and_rn
-	b	.data_unknown			@ A: MUL?
+	b	.data_unknown_r9		@ A: MUL?
 	nop
-	b	.data_unknown			@ B: MUL?
+	b	.data_unknown_r9		@ B: MUL?
 	nop
 	mov	r6, r6, ror r9			@ C: ROR #!0
 	b	.data_arm_apply_r6_and_rn
 	mov	r6, r6, rrx			@ D: RRX
 	b	.data_arm_apply_r6_and_rn
-	b	.data_unknown			@ E: MUL?
+	b	.data_unknown_r9		@ E: MUL?
 	nop
-	b	.data_unknown			@ F: MUL?
+	b	.data_unknown_r9		@ F: MUL?
 
 .data_thumb_abort:
 	ldrh	r8, [r4]			@ read instruction
+	uaccess_disable ip			@ disable userspace access
 	tst	r8, #1 << 11			@ L = 1 -> write?
 	orreq	r1, r1, #1 << 8			@ yes
 	and	r7, r8, #15 << 12
@@ -188,6 +200,7 @@ ENTRY(v4t_late_abort)
 .data_thumb_pushpop:
 	tst	r8, #1 << 10
 	beq	.data_unknown
+	str	r9, [sp, #-4]!
 	and	r6, r8, #0x55			@ hweight8(r8) + R bit
 	and	r9, r8, #0xaa
 	add	r6, r6, r9, lsr #1
@@ -202,9 +215,11 @@ ENTRY(v4t_late_abort)
 	addeq	r7, r7, r6, lsl #2		@ increment SP if PUSH
 	subne	r7, r7, r6, lsl #2		@ decrement SP if POP
 	str	r7, [r2, #13 << 2]
+	ldr	r9, [sp], #4
 	b	do_DataAbort
 
 .data_thumb_ldmstm:
+	str	r9, [sp, #-4]!
 	and	r6, r8, #0x55			@ hweight8(r8)
 	and	r9, r8, #0xaa
 	add	r6, r6, r9, lsr #1
@@ -217,4 +232,5 @@ ENTRY(v4t_late_abort)
 	and	r6, r6, #15			@ number of regs to transfer
 	sub	r7, r7, r6, lsl #2		@ always decrement
 	str	r7, [r2, r9, lsr #6]
+	ldr	r9, [sp], #4
 	b	do_DataAbort

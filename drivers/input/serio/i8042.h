@@ -41,30 +41,6 @@
 #define I8042_CTL_TIMEOUT	10000
 
 /*
- * Status register bits.
- */
-
-#define I8042_STR_PARITY	0x80
-#define I8042_STR_TIMEOUT	0x40
-#define I8042_STR_AUXDATA	0x20
-#define I8042_STR_KEYLOCK	0x10
-#define I8042_STR_CMDDAT	0x08
-#define I8042_STR_MUXERR	0x04
-#define I8042_STR_IBF		0x02
-#define	I8042_STR_OBF		0x01
-
-/*
- * Control register bits.
- */
-
-#define I8042_CTR_KBDINT	0x01
-#define I8042_CTR_AUXINT	0x02
-#define I8042_CTR_IGNKEYLOCK	0x08
-#define I8042_CTR_KBDDIS	0x10
-#define I8042_CTR_AUXDIS	0x20
-#define I8042_CTR_XLATE		0x40
-
-/*
  * Return codes.
  */
 
@@ -97,6 +73,17 @@ static unsigned long i8042_start_time;
 			printk(KERN_DEBUG KBUILD_MODNAME ": [%d] " format,	\
 			       (int) (jiffies - i8042_start_time), ##arg);	\
 	} while (0)
+
+#define filter_dbg(filter, data, format, args...)		\
+	do {							\
+		if (!i8042_debug)				\
+			break;					\
+								\
+		if (!filter || i8042_unmask_kbd_data)		\
+			dbg("%02x " format, data, ##args);	\
+		else						\
+			dbg("** " format, ##args);		\
+	} while (0)
 #else
 #define dbg_init() do { } while (0)
 #define dbg(format, arg...)							\
@@ -104,6 +91,8 @@ static unsigned long i8042_start_time;
 		if (0)								\
 			printk(KERN_DEBUG pr_fmt(format), ##arg);		\
 	} while (0)
+
+#define filter_dbg(filter, data, format, args...) do { } while (0)
 #endif
 
 #endif /* _I8042_H */

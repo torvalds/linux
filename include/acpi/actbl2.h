@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,8 @@
  * These tables are not consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
- * The tables in this file are defined by third-party specifications, and are
- * not defined directly by the ACPI specification itself.
+ * Generally, the tables in this file are defined by third-party specifications,
+ * and are not defined directly by the ACPI specification itself.
  *
  ******************************************************************************/
 
@@ -69,20 +69,27 @@
 #define ACPI_SIG_DMAR           "DMAR"	/* DMA Remapping table */
 #define ACPI_SIG_HPET           "HPET"	/* High Precision Event Timer table */
 #define ACPI_SIG_IBFT           "IBFT"	/* iSCSI Boot Firmware Table */
+#define ACPI_SIG_IORT           "IORT"	/* IO Remapping Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
+#define ACPI_SIG_LPIT           "LPIT"	/* Low Power Idle Table */
 #define ACPI_SIG_MCFG           "MCFG"	/* PCI Memory Mapped Configuration table */
 #define ACPI_SIG_MCHI           "MCHI"	/* Management Controller Host Interface table */
+#define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
 #define ACPI_SIG_MTMR           "MTMR"	/* MID Timer table */
+#define ACPI_SIG_SDEI           "SDEI"	/* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SLIC           "SLIC"	/* Software Licensing Description Table */
 #define ACPI_SIG_SPCR           "SPCR"	/* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"	/* Server Platform Management Interface table */
 #define ACPI_SIG_TCPA           "TCPA"	/* Trusted Computing Platform Alliance table */
+#define ACPI_SIG_TPM2           "TPM2"	/* Trusted Platform Module 2.0 H/W interface table */
 #define ACPI_SIG_UEFI           "UEFI"	/* Uefi Boot Optimization Table */
 #define ACPI_SIG_VRTC           "VRTC"	/* Virtual Real Time Clock Table */
 #define ACPI_SIG_WAET           "WAET"	/* Windows ACPI Emulated devices Table */
 #define ACPI_SIG_WDAT           "WDAT"	/* Watchdog Action Table */
 #define ACPI_SIG_WDDT           "WDDT"	/* Watchdog Timer Description Table */
 #define ACPI_SIG_WDRT           "WDRT"	/* Watchdog Resource Table */
+#define ACPI_SIG_WSMT           "WSMT"	/* Windows SMM Security Migrations Table */
+#define ACPI_SIG_XXXX           "XXXX"	/* Intermediate AML header for ASL/ASL+ converter */
 
 #ifdef ACPI_UNDEFINED_TABLES
 /*
@@ -317,12 +324,17 @@ struct acpi_csrt_descriptor {
  * DBG2 - Debug Port Table 2
  *        Version 0 (Both main table and subtables)
  *
- * Conforms to "Microsoft Debug Port Table 2 (DBG2)", May 22 2012.
+ * Conforms to "Microsoft Debug Port Table 2 (DBG2)", December 10, 2015
  *
  ******************************************************************************/
 
 struct acpi_table_dbg2 {
 	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 info_offset;
+	u32 info_count;
+};
+
+struct acpi_dbg2_header {
 	u32 info_offset;
 	u32 info_count;
 };
@@ -362,6 +374,11 @@ struct acpi_dbg2_device {
 
 #define ACPI_DBG2_16550_COMPATIBLE  0x0000
 #define ACPI_DBG2_16550_SUBSET      0x0001
+#define ACPI_DBG2_ARM_PL011         0x0003
+#define ACPI_DBG2_ARM_SBSA_32BIT    0x000D
+#define ACPI_DBG2_ARM_SBSA_GENERIC  0x000E
+#define ACPI_DBG2_ARM_DCC           0x000F
+#define ACPI_DBG2_BCM2835           0x0010
 
 #define ACPI_DBG2_1394_STANDARD     0x0000
 
@@ -390,7 +407,7 @@ struct acpi_table_dbgp {
  *        Version 1
  *
  * Conforms to "Intel Virtualization Technology for Directed I/O",
- * Version 1.2, Sept. 2008
+ * Version 2.3, October 2014
  *
  ******************************************************************************/
 
@@ -404,6 +421,8 @@ struct acpi_table_dmar {
 /* Masks for Flags field above */
 
 #define ACPI_DMAR_INTR_REMAP        (1)
+#define ACPI_DMAR_X2APIC_OPT_OUT    (1<<1)
+#define ACPI_DMAR_X2APIC_MODE       (1<<2)
 
 /* DMAR subtable header */
 
@@ -417,9 +436,10 @@ struct acpi_dmar_header {
 enum acpi_dmar_type {
 	ACPI_DMAR_TYPE_HARDWARE_UNIT = 0,
 	ACPI_DMAR_TYPE_RESERVED_MEMORY = 1,
-	ACPI_DMAR_TYPE_ATSR = 2,
-	ACPI_DMAR_HARDWARE_AFFINITY = 3,
-	ACPI_DMAR_TYPE_RESERVED = 4	/* 4 and greater are reserved */
+	ACPI_DMAR_TYPE_ROOT_ATS = 2,
+	ACPI_DMAR_TYPE_HARDWARE_AFFINITY = 3,
+	ACPI_DMAR_TYPE_NAMESPACE = 4,
+	ACPI_DMAR_TYPE_RESERVED = 5	/* 5 and greater are reserved */
 };
 
 /* DMAR Device Scope structure */
@@ -432,7 +452,7 @@ struct acpi_dmar_device_scope {
 	u8 bus;
 };
 
-/* Values for entry_type in struct acpi_dmar_device_scope */
+/* Values for entry_type in struct acpi_dmar_device_scope - device types */
 
 enum acpi_dmar_scope_type {
 	ACPI_DMAR_SCOPE_TYPE_NOT_USED = 0,
@@ -440,16 +460,17 @@ enum acpi_dmar_scope_type {
 	ACPI_DMAR_SCOPE_TYPE_BRIDGE = 2,
 	ACPI_DMAR_SCOPE_TYPE_IOAPIC = 3,
 	ACPI_DMAR_SCOPE_TYPE_HPET = 4,
-	ACPI_DMAR_SCOPE_TYPE_RESERVED = 5	/* 5 and greater are reserved */
+	ACPI_DMAR_SCOPE_TYPE_NAMESPACE = 5,
+	ACPI_DMAR_SCOPE_TYPE_RESERVED = 6	/* 6 and greater are reserved */
 };
 
 struct acpi_dmar_pci_path {
-	u8 dev;
-	u8 fn;
+	u8 device;
+	u8 function;
 };
 
 /*
- * DMAR Sub-tables, correspond to Type in struct acpi_dmar_header
+ * DMAR Subtables, correspond to Type in struct acpi_dmar_header
  */
 
 /* 0: Hardware Unit Definition */
@@ -500,6 +521,15 @@ struct acpi_dmar_rhsa {
 	u32 reserved;
 	u64 base_address;
 	u32 proximity_domain;
+};
+
+/* 4: ACPI Namespace Device Declaration Structure */
+
+struct acpi_dmar_andd {
+	struct acpi_dmar_header header;
+	u8 reserved[3];
+	u8 device_number;
+	char device_name[1];
 };
 
 /*******************************************************************************
@@ -629,6 +659,170 @@ struct acpi_ibft_target {
 	u16 reverse_chap_secret_length;
 	u16 reverse_chap_secret_offset;
 };
+
+/*******************************************************************************
+ *
+ * IORT - IO Remapping Table
+ *
+ * Conforms to "IO Remapping Table System Software on ARM Platforms",
+ * Document number: ARM DEN 0049C, May 2017
+ *
+ ******************************************************************************/
+
+struct acpi_table_iort {
+	struct acpi_table_header header;
+	u32 node_count;
+	u32 node_offset;
+	u32 reserved;
+};
+
+/*
+ * IORT subtables
+ */
+struct acpi_iort_node {
+	u8 type;
+	u16 length;
+	u8 revision;
+	u32 reserved;
+	u32 mapping_count;
+	u32 mapping_offset;
+	char node_data[1];
+};
+
+/* Values for subtable Type above */
+
+enum acpi_iort_node_type {
+	ACPI_IORT_NODE_ITS_GROUP = 0x00,
+	ACPI_IORT_NODE_NAMED_COMPONENT = 0x01,
+	ACPI_IORT_NODE_PCI_ROOT_COMPLEX = 0x02,
+	ACPI_IORT_NODE_SMMU = 0x03,
+	ACPI_IORT_NODE_SMMU_V3 = 0x04
+};
+
+struct acpi_iort_id_mapping {
+	u32 input_base;		/* Lowest value in input range */
+	u32 id_count;		/* Number of IDs */
+	u32 output_base;	/* Lowest value in output range */
+	u32 output_reference;	/* A reference to the output node */
+	u32 flags;
+};
+
+/* Masks for Flags field above for IORT subtable */
+
+#define ACPI_IORT_ID_SINGLE_MAPPING (1)
+
+struct acpi_iort_memory_access {
+	u32 cache_coherency;
+	u8 hints;
+	u16 reserved;
+	u8 memory_flags;
+};
+
+/* Values for cache_coherency field above */
+
+#define ACPI_IORT_NODE_COHERENT         0x00000001	/* The device node is fully coherent */
+#define ACPI_IORT_NODE_NOT_COHERENT     0x00000000	/* The device node is not coherent */
+
+/* Masks for Hints field above */
+
+#define ACPI_IORT_HT_TRANSIENT          (1)
+#define ACPI_IORT_HT_WRITE              (1<<1)
+#define ACPI_IORT_HT_READ               (1<<2)
+#define ACPI_IORT_HT_OVERRIDE           (1<<3)
+
+/* Masks for memory_flags field above */
+
+#define ACPI_IORT_MF_COHERENCY          (1)
+#define ACPI_IORT_MF_ATTRIBUTES         (1<<1)
+
+/*
+ * IORT node specific subtables
+ */
+struct acpi_iort_its_group {
+	u32 its_count;
+	u32 identifiers[1];	/* GIC ITS identifier arrary */
+};
+
+struct acpi_iort_named_component {
+	u32 node_flags;
+	u64 memory_properties;	/* Memory access properties */
+	u8 memory_address_limit;	/* Memory address size limit */
+	char device_name[1];	/* Path of namespace object */
+};
+
+struct acpi_iort_root_complex {
+	u64 memory_properties;	/* Memory access properties */
+	u32 ats_attribute;
+	u32 pci_segment_number;
+};
+
+/* Values for ats_attribute field above */
+
+#define ACPI_IORT_ATS_SUPPORTED         0x00000001	/* The root complex supports ATS */
+#define ACPI_IORT_ATS_UNSUPPORTED       0x00000000	/* The root complex doesn't support ATS */
+
+struct acpi_iort_smmu {
+	u64 base_address;	/* SMMU base address */
+	u64 span;		/* Length of memory range */
+	u32 model;
+	u32 flags;
+	u32 global_interrupt_offset;
+	u32 context_interrupt_count;
+	u32 context_interrupt_offset;
+	u32 pmu_interrupt_count;
+	u32 pmu_interrupt_offset;
+	u64 interrupts[1];	/* Interrupt array */
+};
+
+/* Values for Model field above */
+
+#define ACPI_IORT_SMMU_V1               0x00000000	/* Generic SMMUv1 */
+#define ACPI_IORT_SMMU_V2               0x00000001	/* Generic SMMUv2 */
+#define ACPI_IORT_SMMU_CORELINK_MMU400  0x00000002	/* ARM Corelink MMU-400 */
+#define ACPI_IORT_SMMU_CORELINK_MMU500  0x00000003	/* ARM Corelink MMU-500 */
+#define ACPI_IORT_SMMU_CORELINK_MMU401  0x00000004	/* ARM Corelink MMU-401 */
+#define ACPI_IORT_SMMU_CAVIUM_THUNDERX  0x00000005	/* Cavium thunder_x SMMUv2 */
+
+/* Masks for Flags field above */
+
+#define ACPI_IORT_SMMU_DVM_SUPPORTED    (1)
+#define ACPI_IORT_SMMU_COHERENT_WALK    (1<<1)
+
+/* Global interrupt format */
+
+struct acpi_iort_smmu_gsi {
+	u32 nsg_irpt;
+	u32 nsg_irpt_flags;
+	u32 nsg_cfg_irpt;
+	u32 nsg_cfg_irpt_flags;
+};
+
+struct acpi_iort_smmu_v3 {
+	u64 base_address;	/* SMMUv3 base address */
+	u32 flags;
+	u32 reserved;
+	u64 vatos_address;
+	u32 model;
+	u32 event_gsiv;
+	u32 pri_gsiv;
+	u32 gerr_gsiv;
+	u32 sync_gsiv;
+	u8 pxm;
+	u8 reserved1;
+	u16 reserved2;
+};
+
+/* Values for Model field above */
+
+#define ACPI_IORT_SMMU_V3_GENERIC           0x00000000	/* Generic SMMUv3 */
+#define ACPI_IORT_SMMU_V3_HISILICON_HI161X  0x00000001	/* hi_silicon Hi161x SMMUv3 */
+#define ACPI_IORT_SMMU_V3_CAVIUM_CN99XX     0x00000002	/* Cavium CN99xx SMMUv3 */
+
+/* Masks for Flags field above */
+
+#define ACPI_IORT_SMMU_V3_COHACC_OVERRIDE   (1)
+#define ACPI_IORT_SMMU_V3_HTTU_OVERRIDE     (1<<1)
+#define ACPI_IORT_SMMU_V3_PXM_VALID         (1<<3)
 
 /*******************************************************************************
  *
@@ -804,7 +998,56 @@ struct acpi_ivrs_memory {
 
 /*******************************************************************************
  *
- * MCFG - PCI Memory Mapped Configuration table and sub-table
+ * LPIT - Low Power Idle Table
+ *
+ * Conforms to "ACPI Low Power Idle Table (LPIT)" July 2014.
+ *
+ ******************************************************************************/
+
+struct acpi_table_lpit {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+/* LPIT subtable header */
+
+struct acpi_lpit_header {
+	u32 type;		/* Subtable type */
+	u32 length;		/* Subtable length */
+	u16 unique_id;
+	u16 reserved;
+	u32 flags;
+};
+
+/* Values for subtable Type above */
+
+enum acpi_lpit_type {
+	ACPI_LPIT_TYPE_NATIVE_CSTATE = 0x00,
+	ACPI_LPIT_TYPE_RESERVED = 0x01	/* 1 and above are reserved */
+};
+
+/* Masks for Flags field above  */
+
+#define ACPI_LPIT_STATE_DISABLED    (1)
+#define ACPI_LPIT_NO_COUNTER        (1<<1)
+
+/*
+ * LPIT subtables, correspond to Type in struct acpi_lpit_header
+ */
+
+/* 0x00: Native C-state instruction based LPI structure */
+
+struct acpi_lpit_native {
+	struct acpi_lpit_header header;
+	struct acpi_generic_address entry_trigger;
+	u32 residency;
+	u32 latency;
+	struct acpi_generic_address residency_counter;
+	u64 counter_frequency;
+};
+
+/*******************************************************************************
+ *
+ * MCFG - PCI Memory Mapped Configuration table and subtable
  *        Version 1
  *
  * Conforms to "PCI Firmware Specification", Revision 3.0, June 20, 2005
@@ -854,6 +1097,21 @@ struct acpi_table_mchi {
 
 /*******************************************************************************
  *
+ * MSDM - Microsoft Data Management table
+ *
+ * Conforms to "Microsoft Software Licensing Tables (SLIC and MSDM)",
+ * November 29, 2011. Copyright 2011 Microsoft
+ *
+ ******************************************************************************/
+
+/* Basic MSDM table is only the common ACPI header */
+
+struct acpi_table_msdm {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+/*******************************************************************************
+ *
  * MTMR - MID Timer Table
  *        Version 1
  *
@@ -877,11 +1135,23 @@ struct acpi_mtmr_entry {
 
 /*******************************************************************************
  *
- * SLIC - Software Licensing Description Table
- *        Version 1
+ * SDEI - Software Delegated Exception Interface Descriptor Table
  *
- * Conforms to "OEM Activation 2.0 for Windows Vista Operating Systems",
- * Copyright 2006
+ * Conforms to "Software Delegated Exception Interface (SDEI)" ARM DEN0054A,
+ * May 8th, 2017. Copyright 2017 ARM Ltd.
+ *
+ ******************************************************************************/
+
+struct acpi_table_sdei {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+/*******************************************************************************
+ *
+ * SLIC - Software Licensing Description Table
+ *
+ * Conforms to "Microsoft Software Licensing Tables (SLIC and MSDM)",
+ * November 29, 2011. Copyright 2011 Microsoft
  *
  ******************************************************************************/
 
@@ -891,59 +1161,13 @@ struct acpi_table_slic {
 	struct acpi_table_header header;	/* Common ACPI table header */
 };
 
-/* Common SLIC subtable header */
-
-struct acpi_slic_header {
-	u32 type;
-	u32 length;
-};
-
-/* Values for Type field above */
-
-enum acpi_slic_type {
-	ACPI_SLIC_TYPE_PUBLIC_KEY = 0,
-	ACPI_SLIC_TYPE_WINDOWS_MARKER = 1,
-	ACPI_SLIC_TYPE_RESERVED = 2	/* 2 and greater are reserved */
-};
-
-/*
- * SLIC Sub-tables, correspond to Type in struct acpi_slic_header
- */
-
-/* 0: Public Key Structure */
-
-struct acpi_slic_key {
-	struct acpi_slic_header header;
-	u8 key_type;
-	u8 version;
-	u16 reserved;
-	u32 algorithm;
-	char magic[4];
-	u32 bit_length;
-	u32 exponent;
-	u8 modulus[128];
-};
-
-/* 1: Windows Marker Structure */
-
-struct acpi_slic_marker {
-	struct acpi_slic_header header;
-	u32 version;
-	char oem_id[ACPI_OEM_ID_SIZE];	/* ASCII OEM identification */
-	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE];	/* ASCII OEM table identification */
-	char windows_flag[8];
-	u32 slic_version;
-	u8 reserved[16];
-	u8 signature[128];
-};
-
 /*******************************************************************************
  *
  * SPCR - Serial Port Console Redirection table
- *        Version 1
+ *        Version 2
  *
  * Conforms to "Serial Port Console Redirection Table",
- * Version 1.00, January 11, 2002
+ * Version 1.03, August 10, 2015
  *
  ******************************************************************************/
 
@@ -974,6 +1198,8 @@ struct acpi_table_spcr {
 /* Masks for pci_flags field above */
 
 #define ACPI_SPCR_DO_NOT_DISABLE    (1)
+
+/* Values for Interface Type: See the definition of the DBG2 table */
 
 /*******************************************************************************
  *
@@ -1018,19 +1244,125 @@ enum acpi_spmi_interface_types {
 /*******************************************************************************
  *
  * TCPA - Trusted Computing Platform Alliance table
- *        Version 1
+ *        Version 2
  *
- * Conforms to "TCG PC Specific Implementation Specification",
- * Version 1.1, August 18, 2003
+ * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
+ * Version 1.2, Revision 8
+ * February 27, 2017
+ *
+ * NOTE: There are two versions of the table with the same signature --
+ * the client version and the server version. The common platform_class
+ * field is used to differentiate the two types of tables.
  *
  ******************************************************************************/
 
-struct acpi_table_tcpa {
+struct acpi_table_tcpa_hdr {
 	struct acpi_table_header header;	/* Common ACPI table header */
-	u16 reserved;
-	u32 max_log_length;	/* Maximum length for the event log area */
+	u16 platform_class;
+};
+
+/*
+ * Values for platform_class above.
+ * This is how the client and server subtables are differentiated
+ */
+#define ACPI_TCPA_CLIENT_TABLE          0
+#define ACPI_TCPA_SERVER_TABLE          1
+
+struct acpi_table_tcpa_client {
+	u32 minimum_log_length;	/* Minimum length for the event log area */
 	u64 log_address;	/* Address of the event log area */
 };
+
+struct acpi_table_tcpa_server {
+	u16 reserved;
+	u64 minimum_log_length;	/* Minimum length for the event log area */
+	u64 log_address;	/* Address of the event log area */
+	u16 spec_revision;
+	u8 device_flags;
+	u8 interrupt_flags;
+	u8 gpe_number;
+	u8 reserved2[3];
+	u32 global_interrupt;
+	struct acpi_generic_address address;
+	u32 reserved3;
+	struct acpi_generic_address config_address;
+	u8 group;
+	u8 bus;			/* PCI Bus/Segment/Function numbers */
+	u8 device;
+	u8 function;
+};
+
+/* Values for device_flags above */
+
+#define ACPI_TCPA_PCI_DEVICE            (1)
+#define ACPI_TCPA_BUS_PNP               (1<<1)
+#define ACPI_TCPA_ADDRESS_VALID         (1<<2)
+
+/* Values for interrupt_flags above */
+
+#define ACPI_TCPA_INTERRUPT_MODE        (1)
+#define ACPI_TCPA_INTERRUPT_POLARITY    (1<<1)
+#define ACPI_TCPA_SCI_VIA_GPE           (1<<2)
+#define ACPI_TCPA_GLOBAL_INTERRUPT      (1<<3)
+
+/*******************************************************************************
+ *
+ * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
+ *        Version 4
+ *
+ * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
+ * Version 1.2, Revision 8
+ * February 27, 2017
+ *
+ ******************************************************************************/
+
+struct acpi_table_tpm2 {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u16 platform_class;
+	u16 reserved;
+	u64 control_address;
+	u32 start_method;
+
+	/* Platform-specific data follows */
+};
+
+/* Values for start_method above */
+
+#define ACPI_TPM2_NOT_ALLOWED                       0
+#define ACPI_TPM2_START_METHOD                      2
+#define ACPI_TPM2_MEMORY_MAPPED                     6
+#define ACPI_TPM2_COMMAND_BUFFER                    7
+#define ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD  8
+#define ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC       11	/* V1.2 Rev 8 */
+
+/* Trailer appears after any start_method subtables */
+
+struct acpi_tpm2_trailer {
+	u32 minimum_log_length;	/* Minimum length for the event log area */
+	u64 log_address;	/* Address of the event log area */
+};
+
+/*
+ * Subtables (start_method-specific)
+ */
+
+/* 11: Start Method for ARM SMC (V1.2 Rev 8) */
+
+struct acpi_tpm2_arm_smc {
+	u32 global_interrupt;
+	u8 interrupt_flags;
+	u8 operation_flags;
+	u16 reserved;
+	u32 function_id;
+};
+
+/* Values for interrupt_flags above */
+
+#define ACPI_TPM2_INTERRUPT_SUPPORT     (1)
+
+/* Values for operation_flags above */
+
+#define ACPI_TPM2_IDLE_SUPPORT          (1)
 
 /*******************************************************************************
  *
@@ -1223,6 +1555,27 @@ struct acpi_table_wdrt {
 	u16 max_count;		/* Maximum counter value supported */
 	u8 units;
 };
+
+/*******************************************************************************
+ *
+ * WSMT - Windows SMM Security Migrations Table
+ *        Version 1
+ *
+ * Conforms to "Windows SMM Security Migrations Table",
+ * Version 1.0, April 18, 2016
+ *
+ ******************************************************************************/
+
+struct acpi_table_wsmt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 protection_flags;
+};
+
+/* Flags for protection_flags field above */
+
+#define ACPI_WSMT_FIXED_COMM_BUFFERS                (1)
+#define ACPI_WSMT_COMM_BUFFER_NESTED_PTR_PROTECTION (2)
+#define ACPI_WSMT_SYSTEM_RESOURCE_PROTECTION        (4)
 
 /* Reset to default packing */
 

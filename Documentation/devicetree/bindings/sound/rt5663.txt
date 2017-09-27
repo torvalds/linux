@@ -1,0 +1,38 @@
+RT5663 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5663".
+
+- reg : The I2C address of the device.
+
+- interrupts : The CODEC's interrupt output.
+
+Optional properties:
+
+- "realtek,dc_offset_l_manual"
+- "realtek,dc_offset_r_manual"
+- "realtek,dc_offset_l_manual_mic"
+- "realtek,dc_offset_r_manual_mic"
+  Based on the different PCB layout, add the manual offset value to
+  compensate the DC offset for each L and R channel, and they are different
+  between headphone and headset.
+
+Pins on the device (for linking into audio routes) for RT5663:
+
+  * IN1P
+  * IN1N
+  * IN2P
+  * IN2N
+  * HPOL
+  * HPOR
+
+Example:
+
+codec: rt5663@12 {
+	compatible = "realtek,rt5663";
+	reg = <0x12>;
+	interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+};

@@ -11,7 +11,9 @@
 #include <linux/thread_info.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
@@ -136,7 +138,7 @@ void decode_address(char *buf, unsigned long address)
 				struct file *file = vma->vm_file;
 
 				if (file) {
-					char *d_name = d_path(&file->f_path, _tmpbuf,
+					char *d_name = file_path(file, _tmpbuf,
 						      sizeof(_tmpbuf));
 					if (!IS_ERR(d_name))
 						name = d_name;

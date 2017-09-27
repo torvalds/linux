@@ -403,7 +403,7 @@ svcauth_unix_info_release(struct svc_xprt *xpt)
 /****************************************************************************
  * auth.unix.gid cache
  * simple cache to map a UID to a list of GIDs
- * because AUTH_UNIX aka AUTH_SYS has a max of 16
+ * because AUTH_UNIX aka AUTH_SYS has a max of UNX_NGROUPS
  */
 #define	GID_HASHBITS	8
 #define	GID_HASHMAX	(1<<GID_HASHBITS)
@@ -517,7 +517,7 @@ static int unix_gid_parse(struct cache_detail *cd,
 		kgid = make_kgid(&init_user_ns, gid);
 		if (!gid_valid(kgid))
 			goto out;
-		GROUP_AT(ug.gi, i) = kgid;
+		ug.gi->gid[i] = kgid;
 	}
 
 	ugp = unix_gid_lookup(cd, uid);
@@ -564,7 +564,7 @@ static int unix_gid_show(struct seq_file *m,
 
 	seq_printf(m, "%u %d:", from_kuid_munged(user_ns, ug->uid), glen);
 	for (i = 0; i < glen; i++)
-		seq_printf(m, " %d", from_kgid_munged(user_ns, GROUP_AT(ug->gi, i)));
+		seq_printf(m, " %d", from_kgid_munged(user_ns, ug->gi->gid[i]));
 	seq_printf(m, "\n");
 	return 0;
 }
@@ -728,10 +728,6 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	struct kvec	*resv = &rqstp->rq_res.head[0];
 	struct svc_cred	*cred = &rqstp->rq_cred;
 
-	cred->cr_group_info = NULL;
-	cred->cr_principal = NULL;
-	rqstp->rq_client = NULL;
-
 	if (argv->iov_len < 3*4)
 		return SVC_GARBAGE;
 
@@ -794,10 +790,6 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	u32		slen, i;
 	int		len   = argv->iov_len;
 
-	cred->cr_group_info = NULL;
-	cred->cr_principal = NULL;
-	rqstp->rq_client = NULL;
-
 	if ((len -= 3*4) < 0)
 		return SVC_GARBAGE;
 
@@ -818,14 +810,14 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	cred->cr_uid = make_kuid(&init_user_ns, svc_getnl(argv)); /* uid */
 	cred->cr_gid = make_kgid(&init_user_ns, svc_getnl(argv)); /* gid */
 	slen = svc_getnl(argv);			/* gids length */
-	if (slen > 16 || (len -= (slen + 2)*4) < 0)
+	if (slen > UNX_NGROUPS || (len -= (slen + 2)*4) < 0)
 		goto badcred;
 	cred->cr_group_info = groups_alloc(slen);
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE;
 	for (i = 0; i < slen; i++) {
 		kgid_t kgid = make_kgid(&init_user_ns, svc_getnl(argv));
-		GROUP_AT(cred->cr_group_info, i) = kgid;
+		cred->cr_group_info->gid[i] = kgid;
 	}
 	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		*authp = rpc_autherr_badverf;

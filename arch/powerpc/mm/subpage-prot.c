@@ -15,7 +15,7 @@
 #include <linux/hugetlb.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlbflush.h>
 
 /*
@@ -36,7 +36,7 @@ void subpage_prot_free(struct mm_struct *mm)
 		}
 	}
 	addr = 0;
-	for (i = 0; i < 2; ++i) {
+	for (i = 0; i < (TASK_SIZE_USER64 >> 43); ++i) {
 		p = spt->protptrs[i];
 		if (!p)
 			continue;
@@ -78,7 +78,7 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	arch_enter_lazy_mmu_mode();
 	for (; npages > 0; --npages) {
-		pte_update(mm, addr, pte, 0, 0);
+		pte_update(mm, addr, pte, 0, 0, 0);
 		addr += PAGE_SIZE;
 		++pte;
 	}
@@ -105,7 +105,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 		limit = spt->maxaddr;
 	for (; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
-		if (addr < 0x100000000) {
+		if (addr < 0x100000000UL) {
 			spm = spt->low_prot;
 		} else {
 			spm = spt->protptrs[addr >> SBP_L3_SHIFT];
@@ -134,8 +134,8 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, struct mm_walk *walk)
 {
-	struct vm_area_struct *vma = walk->private;
-	split_huge_page_pmd(vma, addr, pmd);
+	struct vm_area_struct *vma = walk->vma;
+	split_huge_pmd(vma, pmd, addr);
 	return 0;
 }
 
@@ -163,9 +163,7 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
 		if (vma->vm_start >= (addr + len))
 			break;
 		vma->vm_flags |= VM_NOHUGEPAGE;
-		subpage_proto_walk.private = vma;
-		walk_page_range(vma->vm_start, vma->vm_end,
-				&subpage_proto_walk);
+		walk_page_vma(vma, &subpage_proto_walk);
 		vma = vma->vm_next;
 	}
 }
@@ -199,7 +197,8 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 
 	/* Check parameters */
 	if ((addr & ~PAGE_MASK) || (len & ~PAGE_MASK) ||
-	    addr >= TASK_SIZE || len >= TASK_SIZE || addr + len > TASK_SIZE)
+	    addr >= mm->task_size || len >= mm->task_size ||
+	    addr + len > mm->task_size)
 		return -EINVAL;
 
 	if (is_hugepage_only_range(mm, addr, len))
@@ -219,7 +218,7 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	for (limit = addr + len; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
 		err = -ENOMEM;
-		if (addr < 0x100000000) {
+		if (addr < 0x100000000UL) {
 			spm = spt->low_prot;
 		} else {
 			spm = spt->protptrs[addr >> SBP_L3_SHIFT];
@@ -250,9 +249,8 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 			nw = (next - addr) >> PAGE_SHIFT;
 
 		up_write(&mm->mmap_sem);
-		err = -EFAULT;
 		if (__copy_from_user(spp, map, nw * sizeof(u32)))
-			goto out2;
+			return -EFAULT;
 		map += nw;
 		down_write(&mm->mmap_sem);
 
@@ -264,6 +262,5 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	err = 0;
  out:
 	up_write(&mm->mmap_sem);
- out2:
 	return err;
 }

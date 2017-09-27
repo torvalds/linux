@@ -68,7 +68,7 @@ char *fw_getenv(char *envname)
 					result = fw_envp(index + 1);
 					break;
 				} else if (fw_envp(index)[i] == '=') {
-					result = (fw_envp(index + 1) + i);
+					result = fw_envp(index) + i + 1;
 					break;
 				}
 			}
@@ -88,13 +88,13 @@ unsigned long fw_getenvl(char *envname)
 {
 	unsigned long envl = 0UL;
 	char *str;
-	long val;
 	int tmp;
 
 	str = fw_getenv(envname);
 	if (str) {
-		tmp = kstrtol(str, 0, &val);
-		envl = (unsigned long)val;
+		tmp = kstrtoul(str, 0, &envl);
+		if (tmp)
+			envl = 0;
 	}
 
 	return envl;

@@ -1,11 +1,14 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
+
+#include <linux/nvme.h>
+#include <linux/nvme-fc.h>
 
 #define MBS_CHECKSUM_ERROR	0x4010
 #define MBS_INVALID_PRODUCT_KEY	0x4020
@@ -37,6 +40,12 @@ struct port_database_24xx {
 #define PDF_CLASS_2		BIT_4
 #define PDF_HARD_ADDR		BIT_1
 
+	/*
+	 * for NVMe, the login_state field has been
+	 * split into nibbles.
+	 * The lower nibble is for FCP.
+	 * The upper nibble is for NVMe.
+	 */
 	uint8_t current_login_state;
 	uint8_t last_login_state;
 #define PDS_PLOGI_PENDING	0x03
@@ -69,7 +78,42 @@ struct port_database_24xx {
 	uint8_t port_name[WWN_SIZE];
 	uint8_t node_name[WWN_SIZE];
 
-	uint8_t reserved_3[24];
+	uint8_t reserved_3[4];
+	uint16_t prli_nvme_svc_param_word_0;	/* Bits 15-0 of word 0 */
+	uint16_t prli_nvme_svc_param_word_3;	/* Bits 15-0 of word 3 */
+	uint16_t nvme_first_burst_size;
+	uint8_t reserved_4[14];
+};
+
+/*
+ * MB 75h returns a list of DB entries similar to port_database_24xx(64B).
+ * However, in this case it returns 1st 40 bytes.
+ */
+struct get_name_list_extended {
+	__le16 flags;
+	u8 current_login_state;
+	u8 last_login_state;
+	u8 hard_address[3];
+	u8 reserved_1;
+	u8 port_id[3];
+	u8 sequence_id;
+	__le16 port_timer;
+	__le16 nport_handle;			/* N_PORT handle. */
+	__le16 receive_data_size;
+	__le16 reserved_2;
+
+	/* PRLI SVC Param are Big endian */
+	u8 prli_svc_param_word_0[2]; /* Bits 15-0 of word 0 */
+	u8 prli_svc_param_word_3[2]; /* Bits 15-0 of word 3 */
+	u8 port_name[WWN_SIZE];
+	u8 node_name[WWN_SIZE];
+};
+
+/* MB 75h: This is the short version of the database */
+struct get_name_list {
+	u8 port_node_name[WWN_SIZE]; /* B7 most sig, B0 least sig */
+	__le16 nport_handle;
+	u8 reserved;
 };
 
 struct vp_database_24xx {
@@ -91,7 +135,7 @@ struct nvram_24xx {
 	/* Firmware Initialization Control Block. */
 	uint16_t version;
 	uint16_t reserved_1;
-	uint16_t frame_payload_size;
+	__le16 frame_payload_size;
 	uint16_t execution_throttle;
 	uint16_t exchange_count;
 	uint16_t hard_address;
@@ -317,8 +361,8 @@ struct init_cb_24xx {
 	 * BIT 3  = Reserved
 	 * BIT 4  = Enable Target Mode
 	 * BIT 5  = Disable Initiator Mode
-	 * BIT 6  = Reserved
-	 * BIT 7  = Reserved
+	 * BIT 6  = Acquire FA-WWN
+	 * BIT 7  = Enable D-port Diagnostics
 	 *
 	 * BIT 8  = Reserved
 	 * BIT 9  = Non Participating LIP
@@ -371,7 +415,10 @@ struct init_cb_24xx {
 	 * BIT 14 = Data Rate bit 1
 	 * BIT 15 = Data Rate bit 2
 	 * BIT 16 = Enable 75 ohm Termination Select
-	 * BIT 17-31 = Reserved
+	 * BIT 17-28 = Reserved
+	 * BIT 29 = Enable response queue 0 in index shadowing
+	 * BIT 30 = Enable request queue 0 out index shadowing
+	 * BIT 31 = Reserved
 	 */
 	uint32_t firmware_options_3;
 	uint16_t qos;
@@ -559,20 +606,33 @@ struct sts_entry_24xx {
 
 	uint32_t residual_len;		/* FW calc residual transfer length. */
 
-	uint16_t reserved_1;
+	union {
+		uint16_t reserved_1;
+		uint16_t nvme_rsp_pyld_len;
+	};
+
 	uint16_t state_flags;		/* State flags. */
 #define SF_TRANSFERRED_DATA	BIT_11
+#define SF_NVME_ERSP            BIT_6
 #define SF_FCP_RSP_DMA		BIT_0
 
-	uint16_t reserved_2;
+	uint16_t retry_delay;
 	uint16_t scsi_status;		/* SCSI status. */
 #define SS_CONFIRMATION_REQ		BIT_12
 
 	uint32_t rsp_residual_count;	/* FCP RSP residual count. */
 
 	uint32_t sense_len;		/* FCP SENSE length. */
-	uint32_t rsp_data_len;		/* FCP response data length. */
-	uint8_t data[28];		/* FCP response/sense information. */
+
+	union {
+		struct {
+			uint32_t rsp_data_len;	/* FCP response data length  */
+			uint8_t data[28];	/* FCP rsp/sense information */
+		};
+		struct nvme_fc_ersp_iu nvme_ersp;
+		uint8_t nvme_ersp_data[32];
+	};
+
 	/*
 	 * If DIF Error is set in comp_status, these additional fields are
 	 * defined:
@@ -785,6 +845,7 @@ struct logio_entry_24xx {
 #define LCF_CLASS_2		BIT_8	/* Enable class 2 during PLOGI. */
 #define LCF_FREE_NPORT		BIT_7	/* Release NPORT handle after LOGO. */
 #define LCF_EXPL_LOGO		BIT_6	/* Perform an explicit LOGO. */
+#define LCF_NVME_PRLI		BIT_6   /* Perform NVME FC4 PRLI */
 #define LCF_SKIP_PRLI		BIT_5	/* Skip PRLI after PLOGI. */
 #define LCF_IMPL_LOGO_ALL	BIT_5	/* Implicit LOGO to all ports. */
 #define LCF_COND_PLOGI		BIT_4	/* PLOGI only if not logged-in. */
@@ -1134,13 +1195,6 @@ struct device_reg_24xx {
 #define MIN_MULTI_ID_FABRIC	64	/* Must be power-of-2. */
 #define MAX_MULTI_ID_FABRIC	256	/* ... */
 
-#define for_each_mapped_vp_idx(_ha, _idx)		\
-	for (_idx = find_next_bit((_ha)->vp_idx_map,	\
-		(_ha)->max_npiv_vports + 1, 1);		\
-	    _idx <= (_ha)->max_npiv_vports;		\
-	    _idx = find_next_bit((_ha)->vp_idx_map,	\
-		(_ha)->max_npiv_vports + 1, _idx + 1))	\
-
 struct mid_conf_entry_24xx {
 	uint16_t reserved_1;
 
@@ -1274,25 +1328,76 @@ struct vp_config_entry_24xx {
 };
 
 #define VP_RPT_ID_IOCB_TYPE	0x32	/* Report ID Acquisition entry. */
+enum VP_STATUS {
+	VP_STAT_COMPL,
+	VP_STAT_FAIL,
+	VP_STAT_ID_CHG,
+	VP_STAT_SNS_TO,				/* timeout */
+	VP_STAT_SNS_RJT,
+	VP_STAT_SCR_TO,				/* timeout */
+	VP_STAT_SCR_RJT,
+};
+
+enum VP_FLAGS {
+	VP_FLAGS_CON_FLOOP = 1,
+	VP_FLAGS_CON_P2P = 2,
+	VP_FLAGS_CON_FABRIC = 3,
+	VP_FLAGS_NAME_VALID = BIT_5,
+};
+
 struct vp_rpt_id_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
 	uint8_t sys_define;		/* System defined. */
 	uint8_t entry_status;		/* Entry Status. */
-
-	uint32_t handle;		/* System handle. */
-
-	uint16_t vp_count;		/* Format 0 -- | VP setup | VP acq |. */
-					/* Format 1 -- | VP count |. */
-	uint16_t vp_idx;		/* Format 0 -- Reserved. */
-					/* Format 1 -- VP status and index. */
+	uint32_t resv1;
+	uint8_t vp_acquired;
+	uint8_t vp_setup;
+	uint8_t vp_idx;		/* Format 0=reserved */
+	uint8_t vp_status;	/* Format 0=reserved */
 
 	uint8_t port_id[3];
 	uint8_t format;
+	union {
+		struct {
+			/* format 0 loop */
+			uint8_t vp_idx_map[16];
+			uint8_t reserved_4[32];
+		} f0;
+		struct {
+			/* format 1 fabric */
+			uint8_t vpstat1_subcode; /* vp_status=1 subcode */
+			uint8_t flags;
+			uint16_t fip_flags;
+			uint8_t rsv2[12];
 
-	uint8_t vp_idx_map[16];
+			uint8_t ls_rjt_vendor;
+			uint8_t ls_rjt_explanation;
+			uint8_t ls_rjt_reason;
+			uint8_t rsv3[5];
 
-	uint8_t reserved_4[32];
+			uint8_t port_name[8];
+			uint8_t node_name[8];
+			uint16_t bbcr;
+			uint8_t reserved_5[6];
+		} f1;
+		struct { /* format 2: N2N direct connect */
+		    uint8_t vpstat1_subcode;
+		    uint8_t flags;
+		    uint16_t rsv6;
+		    uint8_t rsv2[12];
+
+		    uint8_t ls_rjt_vendor;
+		    uint8_t ls_rjt_explanation;
+		    uint8_t ls_rjt_reason;
+		    uint8_t rsv3[5];
+
+		    uint8_t port_name[8];
+		    uint8_t node_name[8];
+		    uint32_t remote_nport_id;
+		    uint32_t reserved_5;
+		} f2;
+	} u;
 };
 
 #define VF_EVFP_IOCB_TYPE       0x26    /* Exchange Virtual Fabric Parameters entry. */
@@ -1378,6 +1483,10 @@ struct qla_flt_header {
 #define FLT_REG_NVRAM_0		0x15
 #define FLT_REG_VPD_1		0x16
 #define FLT_REG_NVRAM_1		0x17
+#define FLT_REG_VPD_2		0xD4
+#define FLT_REG_NVRAM_2		0xD5
+#define FLT_REG_VPD_3		0xD6
+#define FLT_REG_NVRAM_3		0xD7
 #define FLT_REG_FDT		0x1a
 #define FLT_REG_FLT		0x1c
 #define FLT_REG_HW_EVENT_0	0x1d
@@ -1387,9 +1496,21 @@ struct qla_flt_header {
 #define FLT_REG_GOLD_FW		0x2f
 #define FLT_REG_FCP_PRIO_0	0x87
 #define FLT_REG_FCP_PRIO_1	0x88
+#define FLT_REG_CNA_FW		0x97
+#define FLT_REG_BOOT_CODE_8044	0xA2
 #define FLT_REG_FCOE_FW		0xA4
 #define FLT_REG_FCOE_NVRAM_0	0xAA
 #define FLT_REG_FCOE_NVRAM_1	0xAC
+
+/* 27xx */
+#define FLT_REG_IMG_PRI_27XX	0x95
+#define FLT_REG_IMG_SEC_27XX	0x96
+#define FLT_REG_FW_SEC_27XX	0x02
+#define FLT_REG_BOOTLOAD_SEC_27XX	0x9
+#define FLT_REG_VPD_SEC_27XX_0	0x50
+#define FLT_REG_VPD_SEC_27XX_1	0x52
+#define FLT_REG_VPD_SEC_27XX_2	0xD8
+#define FLT_REG_VPD_SEC_27XX_3	0xDA
 
 struct qla_flt_region {
 	uint32_t code;
@@ -1578,6 +1699,15 @@ struct access_chip_rsp_84xx {
 #define FAC_OPT_CMD_UNLOCK_SEMAPHORE	0x04
 #define FAC_OPT_CMD_GET_SECTOR_SIZE	0x05
 
+/* enhanced features bit definitions */
+#define NEF_LR_DIST_ENABLE	BIT_0
+
+/* LR Distance bit positions */
+#define LR_DIST_NV_POS		2
+#define LR_DIST_FW_POS		12
+#define LR_DIST_FW_SHIFT	(LR_DIST_FW_POS - LR_DIST_NV_POS)
+#define LR_DIST_FW_FIELD(x)	((x) << LR_DIST_FW_SHIFT & 0xf000)
+
 struct nvram_81xx {
 	/* NVRAM header. */
 	uint8_t id[4];
@@ -1624,7 +1754,9 @@ struct nvram_81xx {
 	uint16_t reserved_6_3[14];
 
 	/* Offset 192. */
-	uint16_t reserved_7[32];
+	uint8_t min_link_speed;
+	uint8_t reserved_7_0;
+	uint16_t reserved_7[31];
 
 	/*
 	 * BIT 0  = Enable spinup delay
@@ -1718,16 +1850,13 @@ struct nvram_81xx {
 	uint8_t reserved_21[16];
 	uint16_t reserved_22[3];
 
-	/*
-	 * BIT 0 = Extended BB credits for LR
-	 * BIT 1 = Virtual Fabric Enable
-	 * BIT 2 = Enhanced Features Unused
-	 * BIT 3-7 = Enhanced Features Reserved
+	/* Offset 406 (0x196) Enhanced Features
+	 * BIT 0    = Extended BB credits for LR
+	 * BIT 1    = Virtual Fabric Enable
+	 * BIT 2-5  = Distance Support if BIT 0 is on
+	 * BIT 6-15 = Unused
 	 */
-	/* Enhanced Features */
-	uint8_t enhanced_features;
-
-	uint8_t reserved_23;
+	uint16_t enhanced_features;
 	uint16_t reserved_24[4];
 
 	/* Offset 416. */

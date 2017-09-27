@@ -36,6 +36,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
+#include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -51,6 +52,8 @@
 #include <rdma/ib_pack.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/iw_cm.h>
+#include <rdma/rdma_netlink.h>
+#include <rdma/iw_portmap.h>
 
 #define NES_SEND_FIRST_WRITE
 
@@ -80,6 +83,8 @@
 #define NES_TX_TIMEOUT          (6*HZ)
 #define NES_FIRST_QPN           64
 #define NES_SW_CONTEXT_ALIGN    1024
+
+#define NES_MAX_MTU		9000
 
 #define NES_NIC_MAX_NICS        16
 #define NES_MAX_ARP_TABLE_SIZE  4096
@@ -130,6 +135,7 @@
 #define NES_DBG_IW_TX       0x00040000
 #define NES_DBG_SHUTDOWN    0x00080000
 #define NES_DBG_PAU         0x00100000
+#define NES_DBG_NLMSG       0x00200000
 #define NES_DBG_RSVD1       0x10000000
 #define NES_DBG_RSVD2       0x20000000
 #define NES_DBG_RSVD3       0x40000000
@@ -162,12 +168,10 @@ do { \
 #include "nes_hw.h"
 #include "nes_verbs.h"
 #include "nes_context.h"
-#include "nes_user.h"
+#include <rdma/nes-abi.h>
 #include "nes_cm.h"
 #include "nes_mgt.h"
 
-extern int max_mtu;
-#define max_frame_len (max_mtu+ETH_HLEN)
 extern int interrupt_mod_interval;
 extern int nes_if_count;
 extern int mpa_version;

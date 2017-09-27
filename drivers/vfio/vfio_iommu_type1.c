@@ -30,13 +30,17 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/pci.h>		/* pci_bus_type */
 #include <linux/rbtree.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/workqueue.h>
+#include <linux/mdev.h>
+#include <linux/notifier.h>
+#include <linux/dma-iommu.h>
+#include <linux/irqdomain.h>
 
 #define DRIVER_VERSION  "0.2"
 #define DRIVER_AUTHOR   "Alex Williamson <alex.williamson@redhat.com>"
@@ -55,11 +59,21 @@ MODULE_PARM_DESC(disable_hugepages,
 		 "Disable VFIO IOMMU support for IOMMU hugepages.");
 
 struct vfio_iommu {
-	struct iommu_domain	*domain;
+	struct list_head	domain_list;
+	struct vfio_domain	*external_domain; /* domain for external user */
 	struct mutex		lock;
 	struct rb_root		dma_list;
+	struct blocking_notifier_head notifier;
+	bool			v2;
+	bool			nesting;
+};
+
+struct vfio_domain {
+	struct iommu_domain	*domain;
+	struct list_head	next;
 	struct list_head	group_list;
-	bool			cache;
+	int			prot;		/* IOMMU_CACHE */
+	bool			fgsp;		/* Fine-grained super pages */
 };
 
 struct vfio_dma {
@@ -68,12 +82,30 @@ struct vfio_dma {
 	unsigned long		vaddr;		/* Process virtual addr */
 	size_t			size;		/* Map size (bytes) */
 	int			prot;		/* IOMMU_READ/WRITE */
+	bool			iommu_mapped;
+	struct task_struct	*task;
+	struct rb_root		pfn_list;	/* Ex-user pinned pfn list */
 };
 
 struct vfio_group {
 	struct iommu_group	*iommu_group;
 	struct list_head	next;
 };
+
+/*
+ * Guest RAM pinning working set or DMA target
+ */
+struct vfio_pfn {
+	struct rb_node		node;
+	dma_addr_t		iova;		/* Device address */
+	unsigned long		pfn;		/* Host pfn */
+	atomic_t		ref_count;
+};
+
+#define IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu)	\
+					(!list_empty(&iommu->domain_list))
+
+static int put_pfn(unsigned long pfn, int prot);
 
 /*
  * This code handles mapping and unmapping of user data buffers
@@ -99,7 +131,7 @@ static struct vfio_dma *vfio_find_dma(struct vfio_iommu *iommu,
 	return NULL;
 }
 
-static void vfio_insert_dma(struct vfio_iommu *iommu, struct vfio_dma *new)
+static void vfio_link_dma(struct vfio_iommu *iommu, struct vfio_dma *new)
 {
 	struct rb_node **link = &iommu->dma_list.rb_node, *parent = NULL;
 	struct vfio_dma *dma;
@@ -118,62 +150,142 @@ static void vfio_insert_dma(struct vfio_iommu *iommu, struct vfio_dma *new)
 	rb_insert_color(&new->node, &iommu->dma_list);
 }
 
-static void vfio_remove_dma(struct vfio_iommu *iommu, struct vfio_dma *old)
+static void vfio_unlink_dma(struct vfio_iommu *iommu, struct vfio_dma *old)
 {
 	rb_erase(&old->node, &iommu->dma_list);
 }
 
-struct vwork {
-	struct mm_struct	*mm;
-	long			npage;
-	struct work_struct	work;
-};
-
-/* delayed decrement/increment for locked_vm */
-static void vfio_lock_acct_bg(struct work_struct *work)
+/*
+ * Helper Functions for host iova-pfn list
+ */
+static struct vfio_pfn *vfio_find_vpfn(struct vfio_dma *dma, dma_addr_t iova)
 {
-	struct vwork *vwork = container_of(work, struct vwork, work);
-	struct mm_struct *mm;
+	struct vfio_pfn *vpfn;
+	struct rb_node *node = dma->pfn_list.rb_node;
 
-	mm = vwork->mm;
-	down_write(&mm->mmap_sem);
-	mm->locked_vm += vwork->npage;
-	up_write(&mm->mmap_sem);
-	mmput(mm);
-	kfree(vwork);
+	while (node) {
+		vpfn = rb_entry(node, struct vfio_pfn, node);
+
+		if (iova < vpfn->iova)
+			node = node->rb_left;
+		else if (iova > vpfn->iova)
+			node = node->rb_right;
+		else
+			return vpfn;
+	}
+	return NULL;
 }
 
-static void vfio_lock_acct(long npage)
+static void vfio_link_pfn(struct vfio_dma *dma,
+			  struct vfio_pfn *new)
 {
-	struct vwork *vwork;
+	struct rb_node **link, *parent = NULL;
+	struct vfio_pfn *vpfn;
+
+	link = &dma->pfn_list.rb_node;
+	while (*link) {
+		parent = *link;
+		vpfn = rb_entry(parent, struct vfio_pfn, node);
+
+		if (new->iova < vpfn->iova)
+			link = &(*link)->rb_left;
+		else
+			link = &(*link)->rb_right;
+	}
+
+	rb_link_node(&new->node, parent, link);
+	rb_insert_color(&new->node, &dma->pfn_list);
+}
+
+static void vfio_unlink_pfn(struct vfio_dma *dma, struct vfio_pfn *old)
+{
+	rb_erase(&old->node, &dma->pfn_list);
+}
+
+static int vfio_add_to_pfn_list(struct vfio_dma *dma, dma_addr_t iova,
+				unsigned long pfn)
+{
+	struct vfio_pfn *vpfn;
+
+	vpfn = kzalloc(sizeof(*vpfn), GFP_KERNEL);
+	if (!vpfn)
+		return -ENOMEM;
+
+	vpfn->iova = iova;
+	vpfn->pfn = pfn;
+	atomic_set(&vpfn->ref_count, 1);
+	vfio_link_pfn(dma, vpfn);
+	return 0;
+}
+
+static void vfio_remove_from_pfn_list(struct vfio_dma *dma,
+				      struct vfio_pfn *vpfn)
+{
+	vfio_unlink_pfn(dma, vpfn);
+	kfree(vpfn);
+}
+
+static struct vfio_pfn *vfio_iova_get_vfio_pfn(struct vfio_dma *dma,
+					       unsigned long iova)
+{
+	struct vfio_pfn *vpfn = vfio_find_vpfn(dma, iova);
+
+	if (vpfn)
+		atomic_inc(&vpfn->ref_count);
+	return vpfn;
+}
+
+static int vfio_iova_put_vfio_pfn(struct vfio_dma *dma, struct vfio_pfn *vpfn)
+{
+	int ret = 0;
+
+	if (atomic_dec_and_test(&vpfn->ref_count)) {
+		ret = put_pfn(vpfn->pfn, dma->prot);
+		vfio_remove_from_pfn_list(dma, vpfn);
+	}
+	return ret;
+}
+
+static int vfio_lock_acct(struct task_struct *task, long npage, bool *lock_cap)
+{
 	struct mm_struct *mm;
+	bool is_current;
+	int ret;
 
-	if (!current->mm || !npage)
-		return; /* process exited or nothing to do */
+	if (!npage)
+		return 0;
 
-	if (down_write_trylock(&current->mm->mmap_sem)) {
-		current->mm->locked_vm += npage;
-		up_write(&current->mm->mmap_sem);
-		return;
+	is_current = (task->mm == current->mm);
+
+	mm = is_current ? task->mm : get_task_mm(task);
+	if (!mm)
+		return -ESRCH; /* process exited */
+
+	ret = down_write_killable(&mm->mmap_sem);
+	if (!ret) {
+		if (npage > 0) {
+			if (lock_cap ? !*lock_cap :
+			    !has_capability(task, CAP_IPC_LOCK)) {
+				unsigned long limit;
+
+				limit = task_rlimit(task,
+						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+
+				if (mm->locked_vm + npage > limit)
+					ret = -ENOMEM;
+			}
+		}
+
+		if (!ret)
+			mm->locked_vm += npage;
+
+		up_write(&mm->mmap_sem);
 	}
 
-	/*
-	 * Couldn't get mmap_sem lock, so must setup to update
-	 * mm->locked_vm later. If locked_vm were atomic, we
-	 * wouldn't need this silliness
-	 */
-	vwork = kmalloc(sizeof(struct vwork), GFP_KERNEL);
-	if (!vwork)
-		return;
-	mm = get_task_mm(current);
-	if (!mm) {
-		kfree(vwork);
-		return;
-	}
-	INIT_WORK(&vwork->work, vfio_lock_acct_bg);
-	vwork->mm = mm;
-	vwork->npage = npage;
-	schedule_work(&vwork->work);
+	if (!is_current)
+		mmput(mm);
+
+	return ret;
 }
 
 /*
@@ -186,12 +298,12 @@ static bool is_invalid_reserved_pfn(unsigned long pfn)
 	if (pfn_valid(pfn)) {
 		bool reserved;
 		struct page *tail = pfn_to_page(pfn);
-		struct page *head = compound_trans_head(tail);
+		struct page *head = compound_head(tail);
 		reserved = !!(PageReserved(head));
 		if (head != tail) {
 			/*
 			 * "head" is not a dangling pointer
-			 * (compound_trans_head takes care of that)
+			 * (compound_head takes care of that)
 			 * but the hugepage may have been split
 			 * from under us (and we may not hold a
 			 * reference count on the head page so it can
@@ -221,20 +333,36 @@ static int put_pfn(unsigned long pfn, int prot)
 	return 0;
 }
 
-static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
+static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
+			 int prot, unsigned long *pfn)
 {
 	struct page *page[1];
 	struct vm_area_struct *vma;
-	int ret = -EFAULT;
+	int ret;
 
-	if (get_user_pages_fast(vaddr, 1, !!(prot & IOMMU_WRITE), page) == 1) {
+	if (mm == current->mm) {
+		ret = get_user_pages_fast(vaddr, 1, !!(prot & IOMMU_WRITE),
+					  page);
+	} else {
+		unsigned int flags = 0;
+
+		if (prot & IOMMU_WRITE)
+			flags |= FOLL_WRITE;
+
+		down_read(&mm->mmap_sem);
+		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
+					    NULL, NULL);
+		up_read(&mm->mmap_sem);
+	}
+
+	if (ret == 1) {
 		*pfn = page_to_pfn(page[0]);
 		return 0;
 	}
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&mm->mmap_sem);
 
-	vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
+	vma = find_vma_intersection(mm, vaddr, vaddr + 1);
 
 	if (vma && vma->vm_flags & VM_PFNMAP) {
 		*pfn = ((vaddr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
@@ -242,8 +370,7 @@ static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
 			ret = 0;
 	}
 
-	up_read(&current->mm->mmap_sem);
-
+	up_read(&mm->mmap_sem);
 	return ret;
 }
 
@@ -252,235 +379,389 @@ static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
  * the iommu can only map chunks of consecutive pfns anyway, so get the
  * first page and all consecutive pages with the same locking.
  */
-static long vfio_pin_pages(unsigned long vaddr, long npage,
-			   int prot, unsigned long *pfn_base)
+static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
+				  long npage, unsigned long *pfn_base,
+				  bool lock_cap, unsigned long limit)
 {
-	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-	bool lock_cap = capable(CAP_IPC_LOCK);
-	long ret, i;
+	unsigned long pfn = 0;
+	long ret, pinned = 0, lock_acct = 0;
+	bool rsvd;
+	dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
 
+	/* This code path is only user initiated */
 	if (!current->mm)
 		return -ENODEV;
 
-	ret = vaddr_get_pfn(vaddr, prot, pfn_base);
+	ret = vaddr_get_pfn(current->mm, vaddr, dma->prot, pfn_base);
 	if (ret)
 		return ret;
 
-	if (is_invalid_reserved_pfn(*pfn_base))
-		return 1;
+	pinned++;
+	rsvd = is_invalid_reserved_pfn(*pfn_base);
 
-	if (!lock_cap && current->mm->locked_vm + 1 > limit) {
-		put_pfn(*pfn_base, prot);
-		pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
-			limit << PAGE_SHIFT);
-		return -ENOMEM;
+	/*
+	 * Reserved pages aren't counted against the user, externally pinned
+	 * pages are already counted against the user.
+	 */
+	if (!rsvd && !vfio_find_vpfn(dma, iova)) {
+		if (!lock_cap && current->mm->locked_vm + 1 > limit) {
+			put_pfn(*pfn_base, dma->prot);
+			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
+					limit << PAGE_SHIFT);
+			return -ENOMEM;
+		}
+		lock_acct++;
 	}
 
-	if (unlikely(disable_hugepages)) {
-		vfio_lock_acct(1);
-		return 1;
-	}
+	if (unlikely(disable_hugepages))
+		goto out;
 
 	/* Lock all the consecutive pages from pfn_base */
-	for (i = 1, vaddr += PAGE_SIZE; i < npage; i++, vaddr += PAGE_SIZE) {
-		unsigned long pfn = 0;
-
-		ret = vaddr_get_pfn(vaddr, prot, &pfn);
+	for (vaddr += PAGE_SIZE, iova += PAGE_SIZE; pinned < npage;
+	     pinned++, vaddr += PAGE_SIZE, iova += PAGE_SIZE) {
+		ret = vaddr_get_pfn(current->mm, vaddr, dma->prot, &pfn);
 		if (ret)
 			break;
 
-		if (pfn != *pfn_base + i || is_invalid_reserved_pfn(pfn)) {
-			put_pfn(pfn, prot);
+		if (pfn != *pfn_base + pinned ||
+		    rsvd != is_invalid_reserved_pfn(pfn)) {
+			put_pfn(pfn, dma->prot);
 			break;
 		}
 
-		if (!lock_cap && current->mm->locked_vm + i + 1 > limit) {
-			put_pfn(pfn, prot);
-			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n",
-				__func__, limit << PAGE_SHIFT);
-			break;
+		if (!rsvd && !vfio_find_vpfn(dma, iova)) {
+			if (!lock_cap &&
+			    current->mm->locked_vm + lock_acct + 1 > limit) {
+				put_pfn(pfn, dma->prot);
+				pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n",
+					__func__, limit << PAGE_SHIFT);
+				ret = -ENOMEM;
+				goto unpin_out;
+			}
+			lock_acct++;
 		}
 	}
 
-	vfio_lock_acct(i);
+out:
+	ret = vfio_lock_acct(current, lock_acct, &lock_cap);
 
-	return i;
+unpin_out:
+	if (ret) {
+		if (!rsvd) {
+			for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
+				put_pfn(pfn, dma->prot);
+		}
+
+		return ret;
+	}
+
+	return pinned;
 }
 
-static long vfio_unpin_pages(unsigned long pfn, long npage,
-			     int prot, bool do_accounting)
+static long vfio_unpin_pages_remote(struct vfio_dma *dma, dma_addr_t iova,
+				    unsigned long pfn, long npage,
+				    bool do_accounting)
 {
-	unsigned long unlocked = 0;
+	long unlocked = 0, locked = 0;
 	long i;
 
-	for (i = 0; i < npage; i++)
-		unlocked += put_pfn(pfn++, prot);
+	for (i = 0; i < npage; i++, iova += PAGE_SIZE) {
+		if (put_pfn(pfn++, dma->prot)) {
+			unlocked++;
+			if (vfio_find_vpfn(dma, iova))
+				locked++;
+		}
+	}
 
 	if (do_accounting)
-		vfio_lock_acct(-unlocked);
+		vfio_lock_acct(dma->task, locked - unlocked, NULL);
 
 	return unlocked;
 }
 
-static int vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma,
-			    dma_addr_t iova, size_t *size)
+static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
+				  unsigned long *pfn_base, bool do_accounting)
 {
-	dma_addr_t start = iova, end = iova + *size;
+	struct mm_struct *mm;
+	int ret;
+
+	mm = get_task_mm(dma->task);
+	if (!mm)
+		return -ENODEV;
+
+	ret = vaddr_get_pfn(mm, vaddr, dma->prot, pfn_base);
+	if (!ret && do_accounting && !is_invalid_reserved_pfn(*pfn_base)) {
+		ret = vfio_lock_acct(dma->task, 1, NULL);
+		if (ret) {
+			put_pfn(*pfn_base, dma->prot);
+			if (ret == -ENOMEM)
+				pr_warn("%s: Task %s (%d) RLIMIT_MEMLOCK "
+					"(%ld) exceeded\n", __func__,
+					dma->task->comm, task_pid_nr(dma->task),
+					task_rlimit(dma->task, RLIMIT_MEMLOCK));
+		}
+	}
+
+	mmput(mm);
+	return ret;
+}
+
+static int vfio_unpin_page_external(struct vfio_dma *dma, dma_addr_t iova,
+				    bool do_accounting)
+{
+	int unlocked;
+	struct vfio_pfn *vpfn = vfio_find_vpfn(dma, iova);
+
+	if (!vpfn)
+		return 0;
+
+	unlocked = vfio_iova_put_vfio_pfn(dma, vpfn);
+
+	if (do_accounting)
+		vfio_lock_acct(dma->task, -unlocked, NULL);
+
+	return unlocked;
+}
+
+static int vfio_iommu_type1_pin_pages(void *iommu_data,
+				      unsigned long *user_pfn,
+				      int npage, int prot,
+				      unsigned long *phys_pfn)
+{
+	struct vfio_iommu *iommu = iommu_data;
+	int i, j, ret;
+	unsigned long remote_vaddr;
+	struct vfio_dma *dma;
+	bool do_accounting;
+
+	if (!iommu || !user_pfn || !phys_pfn)
+		return -EINVAL;
+
+	/* Supported for v2 version only */
+	if (!iommu->v2)
+		return -EACCES;
+
+	mutex_lock(&iommu->lock);
+
+	/* Fail if notifier list is empty */
+	if ((!iommu->external_domain) || (!iommu->notifier.head)) {
+		ret = -EINVAL;
+		goto pin_done;
+	}
+
+	/*
+	 * If iommu capable domain exist in the container then all pages are
+	 * already pinned and accounted. Accouting should be done if there is no
+	 * iommu capable domain in the container.
+	 */
+	do_accounting = !IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu);
+
+	for (i = 0; i < npage; i++) {
+		dma_addr_t iova;
+		struct vfio_pfn *vpfn;
+
+		iova = user_pfn[i] << PAGE_SHIFT;
+		dma = vfio_find_dma(iommu, iova, PAGE_SIZE);
+		if (!dma) {
+			ret = -EINVAL;
+			goto pin_unwind;
+		}
+
+		if ((dma->prot & prot) != prot) {
+			ret = -EPERM;
+			goto pin_unwind;
+		}
+
+		vpfn = vfio_iova_get_vfio_pfn(dma, iova);
+		if (vpfn) {
+			phys_pfn[i] = vpfn->pfn;
+			continue;
+		}
+
+		remote_vaddr = dma->vaddr + iova - dma->iova;
+		ret = vfio_pin_page_external(dma, remote_vaddr, &phys_pfn[i],
+					     do_accounting);
+		if (ret)
+			goto pin_unwind;
+
+		ret = vfio_add_to_pfn_list(dma, iova, phys_pfn[i]);
+		if (ret) {
+			vfio_unpin_page_external(dma, iova, do_accounting);
+			goto pin_unwind;
+		}
+	}
+
+	ret = i;
+	goto pin_done;
+
+pin_unwind:
+	phys_pfn[i] = 0;
+	for (j = 0; j < i; j++) {
+		dma_addr_t iova;
+
+		iova = user_pfn[j] << PAGE_SHIFT;
+		dma = vfio_find_dma(iommu, iova, PAGE_SIZE);
+		vfio_unpin_page_external(dma, iova, do_accounting);
+		phys_pfn[j] = 0;
+	}
+pin_done:
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
+static int vfio_iommu_type1_unpin_pages(void *iommu_data,
+					unsigned long *user_pfn,
+					int npage)
+{
+	struct vfio_iommu *iommu = iommu_data;
+	bool do_accounting;
+	int i;
+
+	if (!iommu || !user_pfn)
+		return -EINVAL;
+
+	/* Supported for v2 version only */
+	if (!iommu->v2)
+		return -EACCES;
+
+	mutex_lock(&iommu->lock);
+
+	if (!iommu->external_domain) {
+		mutex_unlock(&iommu->lock);
+		return -EINVAL;
+	}
+
+	do_accounting = !IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu);
+	for (i = 0; i < npage; i++) {
+		struct vfio_dma *dma;
+		dma_addr_t iova;
+
+		iova = user_pfn[i] << PAGE_SHIFT;
+		dma = vfio_find_dma(iommu, iova, PAGE_SIZE);
+		if (!dma)
+			goto unpin_exit;
+		vfio_unpin_page_external(dma, iova, do_accounting);
+	}
+
+unpin_exit:
+	mutex_unlock(&iommu->lock);
+	return i > npage ? npage : (i > 0 ? i : -EINVAL);
+}
+
+static long vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma,
+			     bool do_accounting)
+{
+	dma_addr_t iova = dma->iova, end = dma->iova + dma->size;
+	struct vfio_domain *domain, *d;
 	long unlocked = 0;
 
-	while (iova < end) {
-		size_t unmapped;
-		phys_addr_t phys;
+	if (!dma->size)
+		return 0;
 
-		/*
-		 * We use the IOMMU to track the physical address.  This
-		 * saves us from having a lot more entries in our mapping
-		 * tree.  The downside is that we don't track the size
-		 * used to do the mapping.  We request unmap of a single
-		 * page, but expect IOMMUs that support large pages to
-		 * unmap a larger chunk.
-		 */
-		phys = iommu_iova_to_phys(iommu->domain, iova);
+	if (!IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu))
+		return 0;
+
+	/*
+	 * We use the IOMMU to track the physical addresses, otherwise we'd
+	 * need a much more complicated tracking system.  Unfortunately that
+	 * means we need to use one of the iommu domains to figure out the
+	 * pfns to unpin.  The rest need to be unmapped in advance so we have
+	 * no iommu translations remaining when the pages are unpinned.
+	 */
+	domain = d = list_first_entry(&iommu->domain_list,
+				      struct vfio_domain, next);
+
+	list_for_each_entry_continue(d, &iommu->domain_list, next) {
+		iommu_unmap(d->domain, dma->iova, dma->size);
+		cond_resched();
+	}
+
+	while (iova < end) {
+		size_t unmapped, len;
+		phys_addr_t phys, next;
+
+		phys = iommu_iova_to_phys(domain->domain, iova);
 		if (WARN_ON(!phys)) {
 			iova += PAGE_SIZE;
 			continue;
 		}
 
-		unmapped = iommu_unmap(iommu->domain, iova, PAGE_SIZE);
-		if (!unmapped)
+		/*
+		 * To optimize for fewer iommu_unmap() calls, each of which
+		 * may require hardware cache flushing, try to find the
+		 * largest contiguous physical memory chunk to unmap.
+		 */
+		for (len = PAGE_SIZE;
+		     !domain->fgsp && iova + len < end; len += PAGE_SIZE) {
+			next = iommu_iova_to_phys(domain->domain, iova + len);
+			if (next != phys + len)
+				break;
+		}
+
+		unmapped = iommu_unmap(domain->domain, iova, len);
+		if (WARN_ON(!unmapped))
 			break;
 
-		unlocked += vfio_unpin_pages(phys >> PAGE_SHIFT,
-					     unmapped >> PAGE_SHIFT,
-					     dma->prot, false);
+		unlocked += vfio_unpin_pages_remote(dma, iova,
+						    phys >> PAGE_SHIFT,
+						    unmapped >> PAGE_SHIFT,
+						    false);
 		iova += unmapped;
+
+		cond_resched();
 	}
 
-	vfio_lock_acct(-unlocked);
-
-	*size = iova - start;
-
-	return 0;
+	dma->iommu_mapped = false;
+	if (do_accounting) {
+		vfio_lock_acct(dma->task, -unlocked, NULL);
+		return 0;
+	}
+	return unlocked;
 }
 
-static int vfio_remove_dma_overlap(struct vfio_iommu *iommu, dma_addr_t start,
-				   size_t *size, struct vfio_dma *dma)
+static void vfio_remove_dma(struct vfio_iommu *iommu, struct vfio_dma *dma)
 {
-	size_t offset, overlap, tmp;
-	struct vfio_dma *split;
-	int ret;
+	vfio_unmap_unpin(iommu, dma, true);
+	vfio_unlink_dma(iommu, dma);
+	put_task_struct(dma->task);
+	kfree(dma);
+}
 
-	if (!*size)
-		return 0;
+static unsigned long vfio_pgsize_bitmap(struct vfio_iommu *iommu)
+{
+	struct vfio_domain *domain;
+	unsigned long bitmap = ULONG_MAX;
 
-	/*
-	 * Existing dma region is completely covered, unmap all.  This is
-	 * the likely case since userspace tends to map and unmap buffers
-	 * in one shot rather than multiple mappings within a buffer.
-	 */
-	if (likely(start <= dma->iova &&
-		   start + *size >= dma->iova + dma->size)) {
-		*size = dma->size;
-		ret = vfio_unmap_unpin(iommu, dma, dma->iova, size);
-		if (ret)
-			return ret;
-
-		/*
-		 * Did we remove more than we have?  Should never happen
-		 * since a vfio_dma is contiguous in iova and vaddr.
-		 */
-		WARN_ON(*size != dma->size);
-
-		vfio_remove_dma(iommu, dma);
-		kfree(dma);
-		return 0;
-	}
-
-	/* Overlap low address of existing range */
-	if (start <= dma->iova) {
-		overlap = start + *size - dma->iova;
-		ret = vfio_unmap_unpin(iommu, dma, dma->iova, &overlap);
-		if (ret)
-			return ret;
-
-		vfio_remove_dma(iommu, dma);
-
-		/*
-		 * Check, we may have removed to whole vfio_dma.  If not
-		 * fixup and re-insert.
-		 */
-		if (overlap < dma->size) {
-			dma->iova += overlap;
-			dma->vaddr += overlap;
-			dma->size -= overlap;
-			vfio_insert_dma(iommu, dma);
-		} else
-			kfree(dma);
-
-		*size = overlap;
-		return 0;
-	}
-
-	/* Overlap high address of existing range */
-	if (start + *size >= dma->iova + dma->size) {
-		offset = start - dma->iova;
-		overlap = dma->size - offset;
-
-		ret = vfio_unmap_unpin(iommu, dma, start, &overlap);
-		if (ret)
-			return ret;
-
-		dma->size -= overlap;
-		*size = overlap;
-		return 0;
-	}
-
-	/* Split existing */
+	mutex_lock(&iommu->lock);
+	list_for_each_entry(domain, &iommu->domain_list, next)
+		bitmap &= domain->domain->pgsize_bitmap;
+	mutex_unlock(&iommu->lock);
 
 	/*
-	 * Allocate our tracking structure early even though it may not
-	 * be used.  An Allocation failure later loses track of pages and
-	 * is more difficult to unwind.
+	 * In case the IOMMU supports page sizes smaller than PAGE_SIZE
+	 * we pretend PAGE_SIZE is supported and hide sub-PAGE_SIZE sizes.
+	 * That way the user will be able to map/unmap buffers whose size/
+	 * start address is aligned with PAGE_SIZE. Pinning code uses that
+	 * granularity while iommu driver can use the sub-PAGE_SIZE size
+	 * to map the buffer.
 	 */
-	split = kzalloc(sizeof(*split), GFP_KERNEL);
-	if (!split)
-		return -ENOMEM;
-
-	offset = start - dma->iova;
-
-	ret = vfio_unmap_unpin(iommu, dma, start, size);
-	if (ret || !*size) {
-		kfree(split);
-		return ret;
+	if (bitmap & ~PAGE_MASK) {
+		bitmap &= PAGE_MASK;
+		bitmap |= PAGE_SIZE;
 	}
 
-	tmp = dma->size;
-
-	/* Resize the lower vfio_dma in place, before the below insert */
-	dma->size = offset;
-
-	/* Insert new for remainder, assuming it didn't all get unmapped */
-	if (likely(offset + *size < tmp)) {
-		split->size = tmp - offset - *size;
-		split->iova = dma->iova + offset + *size;
-		split->vaddr = dma->vaddr + offset + *size;
-		split->prot = dma->prot;
-		vfio_insert_dma(iommu, split);
-	} else
-		kfree(split);
-
-	return 0;
+	return bitmap;
 }
 
 static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 			     struct vfio_iommu_type1_dma_unmap *unmap)
 {
 	uint64_t mask;
-	struct vfio_dma *dma;
-	size_t unmapped = 0, size;
-	int ret = 0;
+	struct vfio_dma *dma, *dma_last = NULL;
+	size_t unmapped = 0;
+	int ret = 0, retries = 0;
 
-	mask = ((uint64_t)1 << __ffs(iommu->domain->ops->pgsize_bitmap)) - 1;
+	mask = ((uint64_t)1 << __ffs(vfio_pgsize_bitmap(iommu))) - 1;
 
 	if (unmap->iova & mask)
 		return -EINVAL;
@@ -488,23 +769,96 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 		return -EINVAL;
 
 	WARN_ON(mask & PAGE_MASK);
-
+again:
 	mutex_lock(&iommu->lock);
 
-	while ((dma = vfio_find_dma(iommu, unmap->iova, unmap->size))) {
-		size = unmap->size;
-		ret = vfio_remove_dma_overlap(iommu, unmap->iova, &size, dma);
-		if (ret || !size)
-			break;
-		unmapped += size;
+	/*
+	 * vfio-iommu-type1 (v1) - User mappings were coalesced together to
+	 * avoid tracking individual mappings.  This means that the granularity
+	 * of the original mapping was lost and the user was allowed to attempt
+	 * to unmap any range.  Depending on the contiguousness of physical
+	 * memory and page sizes supported by the IOMMU, arbitrary unmaps may
+	 * or may not have worked.  We only guaranteed unmap granularity
+	 * matching the original mapping; even though it was untracked here,
+	 * the original mappings are reflected in IOMMU mappings.  This
+	 * resulted in a couple unusual behaviors.  First, if a range is not
+	 * able to be unmapped, ex. a set of 4k pages that was mapped as a
+	 * 2M hugepage into the IOMMU, the unmap ioctl returns success but with
+	 * a zero sized unmap.  Also, if an unmap request overlaps the first
+	 * address of a hugepage, the IOMMU will unmap the entire hugepage.
+	 * This also returns success and the returned unmap size reflects the
+	 * actual size unmapped.
+	 *
+	 * We attempt to maintain compatibility with this "v1" interface, but
+	 * we take control out of the hands of the IOMMU.  Therefore, an unmap
+	 * request offset from the beginning of the original mapping will
+	 * return success with zero sized unmap.  And an unmap request covering
+	 * the first iova of mapping will unmap the entire range.
+	 *
+	 * The v2 version of this interface intends to be more deterministic.
+	 * Unmap requests must fully cover previous mappings.  Multiple
+	 * mappings may still be unmaped by specifying large ranges, but there
+	 * must not be any previous mappings bisected by the range.  An error
+	 * will be returned if these conditions are not met.  The v2 interface
+	 * will only return success and a size of zero if there were no
+	 * mappings within the range.
+	 */
+	if (iommu->v2) {
+		dma = vfio_find_dma(iommu, unmap->iova, 1);
+		if (dma && dma->iova != unmap->iova) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+		dma = vfio_find_dma(iommu, unmap->iova + unmap->size - 1, 0);
+		if (dma && dma->iova + dma->size != unmap->iova + unmap->size) {
+			ret = -EINVAL;
+			goto unlock;
+		}
 	}
 
+	while ((dma = vfio_find_dma(iommu, unmap->iova, unmap->size))) {
+		if (!iommu->v2 && unmap->iova > dma->iova)
+			break;
+		/*
+		 * Task with same address space who mapped this iova range is
+		 * allowed to unmap the iova range.
+		 */
+		if (dma->task->mm != current->mm)
+			break;
+
+		if (!RB_EMPTY_ROOT(&dma->pfn_list)) {
+			struct vfio_iommu_type1_dma_unmap nb_unmap;
+
+			if (dma_last == dma) {
+				BUG_ON(++retries > 10);
+			} else {
+				dma_last = dma;
+				retries = 0;
+			}
+
+			nb_unmap.iova = dma->iova;
+			nb_unmap.size = dma->size;
+
+			/*
+			 * Notify anyone (mdev vendor drivers) to invalidate and
+			 * unmap iovas within the range we're about to unmap.
+			 * Vendor drivers MUST unpin pages in response to an
+			 * invalidation.
+			 */
+			mutex_unlock(&iommu->lock);
+			blocking_notifier_call_chain(&iommu->notifier,
+						    VFIO_IOMMU_NOTIFY_DMA_UNMAP,
+						    &nb_unmap);
+			goto again;
+		}
+		unmapped += dma->size;
+		vfio_remove_dma(iommu, dma);
+	}
+
+unlock:
 	mutex_unlock(&iommu->lock);
 
-	/*
-	 * We may unmap more than requested, update the unmap struct so
-	 * userspace can know.
-	 */
+	/* Report how much was unmapped */
 	unmap->size = unmapped;
 
 	return ret;
@@ -516,22 +870,92 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
  * soon, so this is just a temporary workaround to break mappings down into
  * PAGE_SIZE.  Better to map smaller pages than nothing.
  */
-static int map_try_harder(struct vfio_iommu *iommu, dma_addr_t iova,
+static int map_try_harder(struct vfio_domain *domain, dma_addr_t iova,
 			  unsigned long pfn, long npage, int prot)
 {
 	long i;
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < npage; i++, pfn++, iova += PAGE_SIZE) {
-		ret = iommu_map(iommu->domain, iova,
+		ret = iommu_map(domain->domain, iova,
 				(phys_addr_t)pfn << PAGE_SHIFT,
-				PAGE_SIZE, prot);
+				PAGE_SIZE, prot | domain->prot);
 		if (ret)
 			break;
 	}
 
 	for (; i < npage && i > 0; i--, iova -= PAGE_SIZE)
-		iommu_unmap(iommu->domain, iova, PAGE_SIZE);
+		iommu_unmap(domain->domain, iova, PAGE_SIZE);
+
+	return ret;
+}
+
+static int vfio_iommu_map(struct vfio_iommu *iommu, dma_addr_t iova,
+			  unsigned long pfn, long npage, int prot)
+{
+	struct vfio_domain *d;
+	int ret;
+
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		ret = iommu_map(d->domain, iova, (phys_addr_t)pfn << PAGE_SHIFT,
+				npage << PAGE_SHIFT, prot | d->prot);
+		if (ret) {
+			if (ret != -EBUSY ||
+			    map_try_harder(d, iova, pfn, npage, prot))
+				goto unwind;
+		}
+
+		cond_resched();
+	}
+
+	return 0;
+
+unwind:
+	list_for_each_entry_continue_reverse(d, &iommu->domain_list, next)
+		iommu_unmap(d->domain, iova, npage << PAGE_SHIFT);
+
+	return ret;
+}
+
+static int vfio_pin_map_dma(struct vfio_iommu *iommu, struct vfio_dma *dma,
+			    size_t map_size)
+{
+	dma_addr_t iova = dma->iova;
+	unsigned long vaddr = dma->vaddr;
+	size_t size = map_size;
+	long npage;
+	unsigned long pfn, limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	bool lock_cap = capable(CAP_IPC_LOCK);
+	int ret = 0;
+
+	while (size) {
+		/* Pin a contiguous chunk of memory */
+		npage = vfio_pin_pages_remote(dma, vaddr + dma->size,
+					      size >> PAGE_SHIFT, &pfn,
+					      lock_cap, limit);
+		if (npage <= 0) {
+			WARN_ON(!npage);
+			ret = (int)npage;
+			break;
+		}
+
+		/* Map it! */
+		ret = vfio_iommu_map(iommu, iova + dma->size, pfn, npage,
+				     dma->prot);
+		if (ret) {
+			vfio_unpin_pages_remote(dma, iova + dma->size, pfn,
+						npage, true);
+			break;
+		}
+
+		size -= npage << PAGE_SHIFT;
+		dma->size += npage << PAGE_SHIFT;
+	}
+
+	dma->iommu_mapped = true;
+
+	if (ret)
+		vfio_remove_dma(iommu, dma);
 
 	return ret;
 }
@@ -539,16 +963,20 @@ static int map_try_harder(struct vfio_iommu *iommu, dma_addr_t iova,
 static int vfio_dma_do_map(struct vfio_iommu *iommu,
 			   struct vfio_iommu_type1_dma_map *map)
 {
-	dma_addr_t end, iova;
+	dma_addr_t iova = map->iova;
 	unsigned long vaddr = map->vaddr;
 	size_t size = map->size;
-	long npage;
 	int ret = 0, prot = 0;
 	uint64_t mask;
+	struct vfio_dma *dma;
 
-	end = map->iova + map->size;
+	/* Verify that none of our __u64 fields overflow */
+	if (map->size != size || map->vaddr != vaddr || map->iova != iova)
+		return -EINVAL;
 
-	mask = ((uint64_t)1 << __ffs(iommu->domain->ops->pgsize_bitmap)) - 1;
+	mask = ((uint64_t)1 << __ffs(vfio_pgsize_bitmap(iommu))) - 1;
+
+	WARN_ON(mask & PAGE_MASK);
 
 	/* READ/WRITE from device perspective */
 	if (map->flags & VFIO_DMA_MAP_FLAG_WRITE)
@@ -556,148 +984,208 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	if (map->flags & VFIO_DMA_MAP_FLAG_READ)
 		prot |= IOMMU_READ;
 
-	if (!prot)
-		return -EINVAL; /* No READ/WRITE? */
-
-	if (iommu->cache)
-		prot |= IOMMU_CACHE;
-
-	if (vaddr & mask)
-		return -EINVAL;
-	if (map->iova & mask)
-		return -EINVAL;
-	if (!map->size || map->size & mask)
+	if (!prot || !size || (size | iova | vaddr) & mask)
 		return -EINVAL;
 
-	WARN_ON(mask & PAGE_MASK);
-
-	/* Don't allow IOVA wrap */
-	if (end && end < map->iova)
-		return -EINVAL;
-
-	/* Don't allow virtual address wrap */
-	if (vaddr + map->size && vaddr + map->size < vaddr)
+	/* Don't allow IOVA or virtual address wrap */
+	if (iova + size - 1 < iova || vaddr + size - 1 < vaddr)
 		return -EINVAL;
 
 	mutex_lock(&iommu->lock);
 
-	if (vfio_find_dma(iommu, map->iova, map->size)) {
-		mutex_unlock(&iommu->lock);
-		return -EEXIST;
+	if (vfio_find_dma(iommu, iova, size)) {
+		ret = -EEXIST;
+		goto out_unlock;
 	}
 
-	for (iova = map->iova; iova < end; iova += size, vaddr += size) {
-		struct vfio_dma *dma = NULL;
-		unsigned long pfn;
-		long i;
+	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
+	if (!dma) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
-		/* Pin a contiguous chunk of memory */
-		npage = vfio_pin_pages(vaddr, (end - iova) >> PAGE_SHIFT,
-				       prot, &pfn);
-		if (npage <= 0) {
-			WARN_ON(!npage);
-			ret = (int)npage;
+	dma->iova = iova;
+	dma->vaddr = vaddr;
+	dma->prot = prot;
+	get_task_struct(current);
+	dma->task = current;
+	dma->pfn_list = RB_ROOT;
+
+	/* Insert zero-sized and grow as we map chunks of it */
+	vfio_link_dma(iommu, dma);
+
+	/* Don't pin and map if container doesn't contain IOMMU capable domain*/
+	if (!IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu))
+		dma->size = size;
+	else
+		ret = vfio_pin_map_dma(iommu, dma, size);
+
+out_unlock:
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
+static int vfio_bus_type(struct device *dev, void *data)
+{
+	struct bus_type **bus = data;
+
+	if (*bus && *bus != dev->bus)
+		return -EINVAL;
+
+	*bus = dev->bus;
+
+	return 0;
+}
+
+static int vfio_iommu_replay(struct vfio_iommu *iommu,
+			     struct vfio_domain *domain)
+{
+	struct vfio_domain *d;
+	struct rb_node *n;
+	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	bool lock_cap = capable(CAP_IPC_LOCK);
+	int ret;
+
+	/* Arbitrarily pick the first domain in the list for lookups */
+	d = list_first_entry(&iommu->domain_list, struct vfio_domain, next);
+	n = rb_first(&iommu->dma_list);
+
+	for (; n; n = rb_next(n)) {
+		struct vfio_dma *dma;
+		dma_addr_t iova;
+
+		dma = rb_entry(n, struct vfio_dma, node);
+		iova = dma->iova;
+
+		while (iova < dma->iova + dma->size) {
+			phys_addr_t phys;
+			size_t size;
+
+			if (dma->iommu_mapped) {
+				phys_addr_t p;
+				dma_addr_t i;
+
+				phys = iommu_iova_to_phys(d->domain, iova);
+
+				if (WARN_ON(!phys)) {
+					iova += PAGE_SIZE;
+					continue;
+				}
+
+				size = PAGE_SIZE;
+				p = phys + size;
+				i = iova + size;
+				while (i < dma->iova + dma->size &&
+				       p == iommu_iova_to_phys(d->domain, i)) {
+					size += PAGE_SIZE;
+					p += PAGE_SIZE;
+					i += PAGE_SIZE;
+				}
+			} else {
+				unsigned long pfn;
+				unsigned long vaddr = dma->vaddr +
+						     (iova - dma->iova);
+				size_t n = dma->iova + dma->size - iova;
+				long npage;
+
+				npage = vfio_pin_pages_remote(dma, vaddr,
+							      n >> PAGE_SHIFT,
+							      &pfn, lock_cap,
+							      limit);
+				if (npage <= 0) {
+					WARN_ON(!npage);
+					ret = (int)npage;
+					return ret;
+				}
+
+				phys = pfn << PAGE_SHIFT;
+				size = npage << PAGE_SHIFT;
+			}
+
+			ret = iommu_map(domain->domain, iova, phys,
+					size, dma->prot | domain->prot);
+			if (ret)
+				return ret;
+
+			iova += size;
+		}
+		dma->iommu_mapped = true;
+	}
+	return 0;
+}
+
+/*
+ * We change our unmap behavior slightly depending on whether the IOMMU
+ * supports fine-grained superpages.  IOMMUs like AMD-Vi will use a superpage
+ * for practically any contiguous power-of-two mapping we give it.  This means
+ * we don't need to look for contiguous chunks ourselves to make unmapping
+ * more efficient.  On IOMMUs with coarse-grained super pages, like Intel VT-d
+ * with discrete 2M/1G/512G/1T superpages, identifying contiguous chunks
+ * significantly boosts non-hugetlbfs mappings and doesn't seem to hurt when
+ * hugetlbfs is in use.
+ */
+static void vfio_test_domain_fgsp(struct vfio_domain *domain)
+{
+	struct page *pages;
+	int ret, order = get_order(PAGE_SIZE * 2);
+
+	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
+	if (!pages)
+		return;
+
+	ret = iommu_map(domain->domain, 0, page_to_phys(pages), PAGE_SIZE * 2,
+			IOMMU_READ | IOMMU_WRITE | domain->prot);
+	if (!ret) {
+		size_t unmapped = iommu_unmap(domain->domain, 0, PAGE_SIZE);
+
+		if (unmapped == PAGE_SIZE)
+			iommu_unmap(domain->domain, PAGE_SIZE, PAGE_SIZE);
+		else
+			domain->fgsp = true;
+	}
+
+	__free_pages(pages, order);
+}
+
+static struct vfio_group *find_iommu_group(struct vfio_domain *domain,
+					   struct iommu_group *iommu_group)
+{
+	struct vfio_group *g;
+
+	list_for_each_entry(g, &domain->group_list, next) {
+		if (g->iommu_group == iommu_group)
+			return g;
+	}
+
+	return NULL;
+}
+
+static bool vfio_iommu_has_sw_msi(struct iommu_group *group, phys_addr_t *base)
+{
+	struct list_head group_resv_regions;
+	struct iommu_resv_region *region, *next;
+	bool ret = false;
+
+	INIT_LIST_HEAD(&group_resv_regions);
+	iommu_get_group_resv_regions(group, &group_resv_regions);
+	list_for_each_entry(region, &group_resv_regions, list) {
+		/*
+		 * The presence of any 'real' MSI regions should take
+		 * precedence over the software-managed one if the
+		 * IOMMU driver happens to advertise both types.
+		 */
+		if (region->type == IOMMU_RESV_MSI) {
+			ret = false;
 			break;
 		}
 
-		/* Verify pages are not already mapped */
-		for (i = 0; i < npage; i++) {
-			if (iommu_iova_to_phys(iommu->domain,
-					       iova + (i << PAGE_SHIFT))) {
-				vfio_unpin_pages(pfn, npage, prot, true);
-				ret = -EBUSY;
-				break;
-			}
-		}
-
-		ret = iommu_map(iommu->domain, iova,
-				(phys_addr_t)pfn << PAGE_SHIFT,
-				npage << PAGE_SHIFT, prot);
-		if (ret) {
-			if (ret != -EBUSY ||
-			    map_try_harder(iommu, iova, pfn, npage, prot)) {
-				vfio_unpin_pages(pfn, npage, prot, true);
-				break;
-			}
-		}
-
-		size = npage << PAGE_SHIFT;
-
-		/*
-		 * Check if we abut a region below - nothing below 0.
-		 * This is the most likely case when mapping chunks of
-		 * physically contiguous regions within a virtual address
-		 * range.  Update the abutting entry in place since iova
-		 * doesn't change.
-		 */
-		if (likely(iova)) {
-			struct vfio_dma *tmp;
-			tmp = vfio_find_dma(iommu, iova - 1, 1);
-			if (tmp && tmp->prot == prot &&
-			    tmp->vaddr + tmp->size == vaddr) {
-				tmp->size += size;
-				iova = tmp->iova;
-				size = tmp->size;
-				vaddr = tmp->vaddr;
-				dma = tmp;
-			}
-		}
-
-		/*
-		 * Check if we abut a region above - nothing above ~0 + 1.
-		 * If we abut above and below, remove and free.  If only
-		 * abut above, remove, modify, reinsert.
-		 */
-		if (likely(iova + size)) {
-			struct vfio_dma *tmp;
-			tmp = vfio_find_dma(iommu, iova + size, 1);
-			if (tmp && tmp->prot == prot &&
-			    tmp->vaddr == vaddr + size) {
-				vfio_remove_dma(iommu, tmp);
-				if (dma) {
-					dma->size += tmp->size;
-					kfree(tmp);
-				} else {
-					size += tmp->size;
-					tmp->size = size;
-					tmp->iova = iova;
-					tmp->vaddr = vaddr;
-					vfio_insert_dma(iommu, tmp);
-					dma = tmp;
-				}
-			}
-		}
-
-		if (!dma) {
-			dma = kzalloc(sizeof(*dma), GFP_KERNEL);
-			if (!dma) {
-				iommu_unmap(iommu->domain, iova, size);
-				vfio_unpin_pages(pfn, npage, prot, true);
-				ret = -ENOMEM;
-				break;
-			}
-
-			dma->size = size;
-			dma->iova = iova;
-			dma->vaddr = vaddr;
-			dma->prot = prot;
-			vfio_insert_dma(iommu, dma);
+		if (region->type == IOMMU_RESV_SW_MSI) {
+			*base = region->start;
+			ret = true;
 		}
 	}
-
-	if (ret) {
-		struct vfio_dma *tmp;
-		iova = map->iova;
-		size = map->size;
-		while ((tmp = vfio_find_dma(iommu, iova, size))) {
-			int r = vfio_remove_dma_overlap(iommu, iova,
-							&size, tmp);
-			if (WARN_ON(r || !size))
-				break;
-		}
-	}
-
-	mutex_unlock(&iommu->lock);
+	list_for_each_entry_safe(region, next, &group_resv_regions, list)
+		kfree(region);
 	return ret;
 }
 
@@ -705,61 +1193,260 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 					 struct iommu_group *iommu_group)
 {
 	struct vfio_iommu *iommu = iommu_data;
-	struct vfio_group *group, *tmp;
+	struct vfio_group *group;
+	struct vfio_domain *domain, *d;
+	struct bus_type *bus = NULL, *mdev_bus;
 	int ret;
-
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
-	if (!group)
-		return -ENOMEM;
+	bool resv_msi, msi_remap;
+	phys_addr_t resv_msi_base;
 
 	mutex_lock(&iommu->lock);
 
-	list_for_each_entry(tmp, &iommu->group_list, next) {
-		if (tmp->iommu_group == iommu_group) {
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		if (find_iommu_group(d, iommu_group)) {
 			mutex_unlock(&iommu->lock);
-			kfree(group);
 			return -EINVAL;
 		}
 	}
 
-	/*
-	 * TODO: Domain have capabilities that might change as we add
-	 * groups (see iommu->cache, currently never set).  Check for
-	 * them and potentially disallow groups to be attached when it
-	 * would change capabilities (ugh).
-	 */
-	ret = iommu_attach_group(iommu->domain, iommu_group);
-	if (ret) {
-		mutex_unlock(&iommu->lock);
-		kfree(group);
-		return ret;
+	if (iommu->external_domain) {
+		if (find_iommu_group(iommu->external_domain, iommu_group)) {
+			mutex_unlock(&iommu->lock);
+			return -EINVAL;
+		}
+	}
+
+	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	if (!group || !domain) {
+		ret = -ENOMEM;
+		goto out_free;
 	}
 
 	group->iommu_group = iommu_group;
-	list_add(&group->next, &iommu->group_list);
+
+	/* Determine bus_type in order to allocate a domain */
+	ret = iommu_group_for_each_dev(iommu_group, &bus, vfio_bus_type);
+	if (ret)
+		goto out_free;
+
+	mdev_bus = symbol_get(mdev_bus_type);
+
+	if (mdev_bus) {
+		if ((bus == mdev_bus) && !iommu_present(bus)) {
+			symbol_put(mdev_bus_type);
+			if (!iommu->external_domain) {
+				INIT_LIST_HEAD(&domain->group_list);
+				iommu->external_domain = domain;
+			} else
+				kfree(domain);
+
+			list_add(&group->next,
+				 &iommu->external_domain->group_list);
+			mutex_unlock(&iommu->lock);
+			return 0;
+		}
+		symbol_put(mdev_bus_type);
+	}
+
+	domain->domain = iommu_domain_alloc(bus);
+	if (!domain->domain) {
+		ret = -EIO;
+		goto out_free;
+	}
+
+	if (iommu->nesting) {
+		int attr = 1;
+
+		ret = iommu_domain_set_attr(domain->domain, DOMAIN_ATTR_NESTING,
+					    &attr);
+		if (ret)
+			goto out_domain;
+	}
+
+	ret = iommu_attach_group(domain->domain, iommu_group);
+	if (ret)
+		goto out_domain;
+
+	resv_msi = vfio_iommu_has_sw_msi(iommu_group, &resv_msi_base);
+
+	INIT_LIST_HEAD(&domain->group_list);
+	list_add(&group->next, &domain->group_list);
+
+	msi_remap = irq_domain_check_msi_remap() ||
+		    iommu_capable(bus, IOMMU_CAP_INTR_REMAP);
+
+	if (!allow_unsafe_interrupts && !msi_remap) {
+		pr_warn("%s: No interrupt remapping support.  Use the module param \"allow_unsafe_interrupts\" to enable VFIO IOMMU support on this platform\n",
+		       __func__);
+		ret = -EPERM;
+		goto out_detach;
+	}
+
+	if (iommu_capable(bus, IOMMU_CAP_CACHE_COHERENCY))
+		domain->prot |= IOMMU_CACHE;
+
+	/*
+	 * Try to match an existing compatible domain.  We don't want to
+	 * preclude an IOMMU driver supporting multiple bus_types and being
+	 * able to include different bus_types in the same IOMMU domain, so
+	 * we test whether the domains use the same iommu_ops rather than
+	 * testing if they're on the same bus_type.
+	 */
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		if (d->domain->ops == domain->domain->ops &&
+		    d->prot == domain->prot) {
+			iommu_detach_group(domain->domain, iommu_group);
+			if (!iommu_attach_group(d->domain, iommu_group)) {
+				list_add(&group->next, &d->group_list);
+				iommu_domain_free(domain->domain);
+				kfree(domain);
+				mutex_unlock(&iommu->lock);
+				return 0;
+			}
+
+			ret = iommu_attach_group(domain->domain, iommu_group);
+			if (ret)
+				goto out_domain;
+		}
+	}
+
+	vfio_test_domain_fgsp(domain);
+
+	/* replay mappings on new domains */
+	ret = vfio_iommu_replay(iommu, domain);
+	if (ret)
+		goto out_detach;
+
+	if (resv_msi) {
+		ret = iommu_get_msi_cookie(domain->domain, resv_msi_base);
+		if (ret)
+			goto out_detach;
+	}
+
+	list_add(&domain->next, &iommu->domain_list);
 
 	mutex_unlock(&iommu->lock);
 
 	return 0;
+
+out_detach:
+	iommu_detach_group(domain->domain, iommu_group);
+out_domain:
+	iommu_domain_free(domain->domain);
+out_free:
+	kfree(domain);
+	kfree(group);
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
+static void vfio_iommu_unmap_unpin_all(struct vfio_iommu *iommu)
+{
+	struct rb_node *node;
+
+	while ((node = rb_first(&iommu->dma_list)))
+		vfio_remove_dma(iommu, rb_entry(node, struct vfio_dma, node));
+}
+
+static void vfio_iommu_unmap_unpin_reaccount(struct vfio_iommu *iommu)
+{
+	struct rb_node *n, *p;
+
+	n = rb_first(&iommu->dma_list);
+	for (; n; n = rb_next(n)) {
+		struct vfio_dma *dma;
+		long locked = 0, unlocked = 0;
+
+		dma = rb_entry(n, struct vfio_dma, node);
+		unlocked += vfio_unmap_unpin(iommu, dma, false);
+		p = rb_first(&dma->pfn_list);
+		for (; p; p = rb_next(p)) {
+			struct vfio_pfn *vpfn = rb_entry(p, struct vfio_pfn,
+							 node);
+
+			if (!is_invalid_reserved_pfn(vpfn->pfn))
+				locked++;
+		}
+		vfio_lock_acct(dma->task, locked - unlocked, NULL);
+	}
+}
+
+static void vfio_sanity_check_pfn_list(struct vfio_iommu *iommu)
+{
+	struct rb_node *n;
+
+	n = rb_first(&iommu->dma_list);
+	for (; n; n = rb_next(n)) {
+		struct vfio_dma *dma;
+
+		dma = rb_entry(n, struct vfio_dma, node);
+
+		if (WARN_ON(!RB_EMPTY_ROOT(&dma->pfn_list)))
+			break;
+	}
+	/* mdev vendor driver must unregister notifier */
+	WARN_ON(iommu->notifier.head);
 }
 
 static void vfio_iommu_type1_detach_group(void *iommu_data,
 					  struct iommu_group *iommu_group)
 {
 	struct vfio_iommu *iommu = iommu_data;
+	struct vfio_domain *domain;
 	struct vfio_group *group;
 
 	mutex_lock(&iommu->lock);
 
-	list_for_each_entry(group, &iommu->group_list, next) {
-		if (group->iommu_group == iommu_group) {
-			iommu_detach_group(iommu->domain, iommu_group);
+	if (iommu->external_domain) {
+		group = find_iommu_group(iommu->external_domain, iommu_group);
+		if (group) {
 			list_del(&group->next);
 			kfree(group);
-			break;
+
+			if (list_empty(&iommu->external_domain->group_list)) {
+				vfio_sanity_check_pfn_list(iommu);
+
+				if (!IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu))
+					vfio_iommu_unmap_unpin_all(iommu);
+
+				kfree(iommu->external_domain);
+				iommu->external_domain = NULL;
+			}
+			goto detach_group_done;
 		}
 	}
 
+	list_for_each_entry(domain, &iommu->domain_list, next) {
+		group = find_iommu_group(domain, iommu_group);
+		if (!group)
+			continue;
+
+		iommu_detach_group(domain->domain, iommu_group);
+		list_del(&group->next);
+		kfree(group);
+		/*
+		 * Group ownership provides privilege, if the group list is
+		 * empty, the domain goes away. If it's the last domain with
+		 * iommu and external domain doesn't exist, then all the
+		 * mappings go away too. If it's the last domain with iommu and
+		 * external domain exist, update accounting
+		 */
+		if (list_empty(&domain->group_list)) {
+			if (list_is_singular(&iommu->domain_list)) {
+				if (!iommu->external_domain)
+					vfio_iommu_unmap_unpin_all(iommu);
+				else
+					vfio_iommu_unmap_unpin_reaccount(iommu);
+			}
+			iommu_domain_free(domain->domain);
+			list_del(&domain->next);
+			kfree(domain);
+		}
+		break;
+	}
+
+detach_group_done:
 	mutex_unlock(&iommu->lock);
 }
 
@@ -767,67 +1454,84 @@ static void *vfio_iommu_type1_open(unsigned long arg)
 {
 	struct vfio_iommu *iommu;
 
-	if (arg != VFIO_TYPE1_IOMMU)
-		return ERR_PTR(-EINVAL);
-
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&iommu->group_list);
+	switch (arg) {
+	case VFIO_TYPE1_IOMMU:
+		break;
+	case VFIO_TYPE1_NESTING_IOMMU:
+		iommu->nesting = true;
+	case VFIO_TYPE1v2_IOMMU:
+		iommu->v2 = true;
+		break;
+	default:
+		kfree(iommu);
+		return ERR_PTR(-EINVAL);
+	}
+
+	INIT_LIST_HEAD(&iommu->domain_list);
 	iommu->dma_list = RB_ROOT;
 	mutex_init(&iommu->lock);
-
-	/*
-	 * Wish we didn't have to know about bus_type here.
-	 */
-	iommu->domain = iommu_domain_alloc(&pci_bus_type);
-	if (!iommu->domain) {
-		kfree(iommu);
-		return ERR_PTR(-EIO);
-	}
-
-	/*
-	 * Wish we could specify required capabilities rather than create
-	 * a domain, see what comes out and hope it doesn't change along
-	 * the way.  Fortunately we know interrupt remapping is global for
-	 * our iommus.
-	 */
-	if (!allow_unsafe_interrupts &&
-	    !iommu_domain_has_cap(iommu->domain, IOMMU_CAP_INTR_REMAP)) {
-		pr_warn("%s: No interrupt remapping support.  Use the module param \"allow_unsafe_interrupts\" to enable VFIO IOMMU support on this platform\n",
-		       __func__);
-		iommu_domain_free(iommu->domain);
-		kfree(iommu);
-		return ERR_PTR(-EPERM);
-	}
+	BLOCKING_INIT_NOTIFIER_HEAD(&iommu->notifier);
 
 	return iommu;
+}
+
+static void vfio_release_domain(struct vfio_domain *domain, bool external)
+{
+	struct vfio_group *group, *group_tmp;
+
+	list_for_each_entry_safe(group, group_tmp,
+				 &domain->group_list, next) {
+		if (!external)
+			iommu_detach_group(domain->domain, group->iommu_group);
+		list_del(&group->next);
+		kfree(group);
+	}
+
+	if (!external)
+		iommu_domain_free(domain->domain);
 }
 
 static void vfio_iommu_type1_release(void *iommu_data)
 {
 	struct vfio_iommu *iommu = iommu_data;
-	struct vfio_group *group, *group_tmp;
-	struct rb_node *node;
+	struct vfio_domain *domain, *domain_tmp;
 
-	list_for_each_entry_safe(group, group_tmp, &iommu->group_list, next) {
-		iommu_detach_group(iommu->domain, group->iommu_group);
-		list_del(&group->next);
-		kfree(group);
+	if (iommu->external_domain) {
+		vfio_release_domain(iommu->external_domain, true);
+		vfio_sanity_check_pfn_list(iommu);
+		kfree(iommu->external_domain);
 	}
 
-	while ((node = rb_first(&iommu->dma_list))) {
-		struct vfio_dma *dma = rb_entry(node, struct vfio_dma, node);
-		size_t size = dma->size;
-		vfio_remove_dma_overlap(iommu, dma->iova, &size, dma);
-		if (WARN_ON(!size))
-			break;
-	}
+	vfio_iommu_unmap_unpin_all(iommu);
 
-	iommu_domain_free(iommu->domain);
-	iommu->domain = NULL;
+	list_for_each_entry_safe(domain, domain_tmp,
+				 &iommu->domain_list, next) {
+		vfio_release_domain(domain, false);
+		list_del(&domain->next);
+		kfree(domain);
+	}
 	kfree(iommu);
+}
+
+static int vfio_domains_have_iommu_cache(struct vfio_iommu *iommu)
+{
+	struct vfio_domain *domain;
+	int ret = 1;
+
+	mutex_lock(&iommu->lock);
+	list_for_each_entry(domain, &iommu->domain_list, next) {
+		if (!(domain->prot & IOMMU_CACHE)) {
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&iommu->lock);
+
+	return ret;
 }
 
 static long vfio_iommu_type1_ioctl(void *iommu_data,
@@ -839,7 +1543,13 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 	if (cmd == VFIO_CHECK_EXTENSION) {
 		switch (arg) {
 		case VFIO_TYPE1_IOMMU:
+		case VFIO_TYPE1v2_IOMMU:
+		case VFIO_TYPE1_NESTING_IOMMU:
 			return 1;
+		case VFIO_DMA_CC_IOMMU:
+			if (!iommu)
+				return 0;
+			return vfio_domains_have_iommu_cache(iommu);
 		default:
 			return 0;
 		}
@@ -854,11 +1564,12 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		if (info.argsz < minsz)
 			return -EINVAL;
 
-		info.flags = 0;
+		info.flags = VFIO_IOMMU_INFO_PGSIZES;
 
-		info.iova_pgsizes = iommu->domain->ops->pgsize_bitmap;
+		info.iova_pgsizes = vfio_pgsize_bitmap(iommu);
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		return copy_to_user((void __user *)arg, &info, minsz) ?
+			-EFAULT : 0;
 
 	} else if (cmd == VFIO_IOMMU_MAP_DMA) {
 		struct vfio_iommu_type1_dma_map map;
@@ -891,27 +1602,53 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		if (ret)
 			return ret;
 
-		return copy_to_user((void __user *)arg, &unmap, minsz);
+		return copy_to_user((void __user *)arg, &unmap, minsz) ?
+			-EFAULT : 0;
 	}
 
 	return -ENOTTY;
 }
 
+static int vfio_iommu_type1_register_notifier(void *iommu_data,
+					      unsigned long *events,
+					      struct notifier_block *nb)
+{
+	struct vfio_iommu *iommu = iommu_data;
+
+	/* clear known events */
+	*events &= ~VFIO_IOMMU_NOTIFY_DMA_UNMAP;
+
+	/* refuse to register if still events remaining */
+	if (*events)
+		return -EINVAL;
+
+	return blocking_notifier_chain_register(&iommu->notifier, nb);
+}
+
+static int vfio_iommu_type1_unregister_notifier(void *iommu_data,
+						struct notifier_block *nb)
+{
+	struct vfio_iommu *iommu = iommu_data;
+
+	return blocking_notifier_chain_unregister(&iommu->notifier, nb);
+}
+
 static const struct vfio_iommu_driver_ops vfio_iommu_driver_ops_type1 = {
-	.name		= "vfio-iommu-type1",
-	.owner		= THIS_MODULE,
-	.open		= vfio_iommu_type1_open,
-	.release	= vfio_iommu_type1_release,
-	.ioctl		= vfio_iommu_type1_ioctl,
-	.attach_group	= vfio_iommu_type1_attach_group,
-	.detach_group	= vfio_iommu_type1_detach_group,
+	.name			= "vfio-iommu-type1",
+	.owner			= THIS_MODULE,
+	.open			= vfio_iommu_type1_open,
+	.release		= vfio_iommu_type1_release,
+	.ioctl			= vfio_iommu_type1_ioctl,
+	.attach_group		= vfio_iommu_type1_attach_group,
+	.detach_group		= vfio_iommu_type1_detach_group,
+	.pin_pages		= vfio_iommu_type1_pin_pages,
+	.unpin_pages		= vfio_iommu_type1_unpin_pages,
+	.register_notifier	= vfio_iommu_type1_register_notifier,
+	.unregister_notifier	= vfio_iommu_type1_unregister_notifier,
 };
 
 static int __init vfio_iommu_type1_init(void)
 {
-	if (!iommu_present(&pci_bus_type))
-		return -ENODEV;
-
 	return vfio_register_iommu_driver(&vfio_iommu_driver_ops_type1);
 }
 

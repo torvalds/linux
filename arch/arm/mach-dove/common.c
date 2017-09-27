@@ -16,6 +16,7 @@
 #include <linux/platform_data/dma-mv_xor.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <linux/platform_device.h>
+#include <linux/soc/dove/pmu.h>
 #include <asm/hardware/cache-tauros2.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -26,6 +27,22 @@
 #include <plat/irq.h>
 #include <plat/time.h>
 #include "common.h"
+
+/* These can go away once Dove uses the mvebu-mbus DT binding */
+#define DOVE_MBUS_PCIE0_MEM_TARGET    0x4
+#define DOVE_MBUS_PCIE0_MEM_ATTR      0xe8
+#define DOVE_MBUS_PCIE0_IO_TARGET     0x4
+#define DOVE_MBUS_PCIE0_IO_ATTR       0xe0
+#define DOVE_MBUS_PCIE1_MEM_TARGET    0x8
+#define DOVE_MBUS_PCIE1_MEM_ATTR      0xe8
+#define DOVE_MBUS_PCIE1_IO_TARGET     0x8
+#define DOVE_MBUS_PCIE1_IO_ATTR       0xe0
+#define DOVE_MBUS_CESA_TARGET         0x3
+#define DOVE_MBUS_CESA_ATTR           0x1
+#define DOVE_MBUS_BOOTROM_TARGET      0x1
+#define DOVE_MBUS_BOOTROM_ATTR        0xfd
+#define DOVE_MBUS_SCRATCHPAD_TARGET   0xd
+#define DOVE_MBUS_SCRATCHPAD_ATTR     0x0
 
 /*****************************************************************************
  * I/O Address Mapping
@@ -71,8 +88,7 @@ static void __init dove_clk_init(void)
 	struct clk *nand, *camera, *i2s0, *i2s1, *crypto, *ac97, *pdma;
 	struct clk *xor0, *xor1, *ge, *gephy;
 
-	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
-				       dove_tclk);
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, 0, dove_tclk);
 
 	usb0 = dove_register_gate("usb0", "tclk", CLOCK_GATING_BIT_USB0);
 	usb1 = dove_register_gate("usb1", "tclk", CLOCK_GATING_BIT_USB1);
@@ -108,8 +124,8 @@ static void __init dove_clk_init(void)
 	orion_clkdev_add(NULL, "sdhci-dove.1", sdio1);
 	orion_clkdev_add(NULL, "orion_nand", nand);
 	orion_clkdev_add(NULL, "cafe1000-ccic.0", camera);
-	orion_clkdev_add(NULL, "kirkwood-i2s.0", i2s0);
-	orion_clkdev_add(NULL, "kirkwood-i2s.1", i2s1);
+	orion_clkdev_add(NULL, "mvebu-audio.0", i2s0);
+	orion_clkdev_add(NULL, "mvebu-audio.1", i2s1);
 	orion_clkdev_add(NULL, "mv_crypto", crypto);
 	orion_clkdev_add(NULL, "dove-ac97", ac97);
 	orion_clkdev_add(NULL, "dove-pdma", pdma);
@@ -146,7 +162,7 @@ void __init dove_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 /*****************************************************************************
  * SoC RTC
  ****************************************************************************/
-void __init dove_rtc_init(void)
+static void __init dove_rtc_init(void)
 {
 	orion_rtc_init(DOVE_RTC_PHYS_BASE, IRQ_DOVE_RTC);
 }
@@ -241,18 +257,9 @@ void __init dove_timer_init(void)
 }
 
 /*****************************************************************************
- * Cryptographic Engines and Security Accelerator (CESA)
- ****************************************************************************/
-void __init dove_crypto_init(void)
-{
-	orion_crypto_init(DOVE_CRYPT_PHYS_BASE, DOVE_CESA_PHYS_BASE,
-			  DOVE_CESA_SIZE, IRQ_DOVE_CRYPTO);
-}
-
-/*****************************************************************************
  * XOR 0
  ****************************************************************************/
-void __init dove_xor0_init(void)
+static void __init dove_xor0_init(void)
 {
 	orion_xor0_init(DOVE_XOR0_PHYS_BASE, DOVE_XOR0_HIGH_PHYS_BASE,
 			IRQ_DOVE_XOR_00, IRQ_DOVE_XOR_01);
@@ -261,7 +268,7 @@ void __init dove_xor0_init(void)
 /*****************************************************************************
  * XOR 1
  ****************************************************************************/
-void __init dove_xor1_init(void)
+static void __init dove_xor1_init(void)
 {
 	orion_xor1_init(DOVE_XOR1_PHYS_BASE, DOVE_XOR1_HIGH_PHYS_BASE,
 			IRQ_DOVE_XOR_10, IRQ_DOVE_XOR_11);
@@ -332,35 +339,82 @@ void __init dove_setup_cpu_wins(void)
 {
 	/*
 	 * The PCIe windows will no longer be statically allocated
-	 * here once Dove is migrated to the pci-mvebu driver.
+	 * here once Dove is migrated to the pci-mvebu driver. The
+	 * non-PCIe windows will no longer be created here once Dove
+	 * fully moves to DT.
 	 */
-	mvebu_mbus_add_window_remap_flags("pcie0.0",
+	mvebu_mbus_add_window_remap_by_id(DOVE_MBUS_PCIE0_IO_TARGET,
+					  DOVE_MBUS_PCIE0_IO_ATTR,
 					  DOVE_PCIE0_IO_PHYS_BASE,
 					  DOVE_PCIE0_IO_SIZE,
-					  DOVE_PCIE0_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pcie1.0",
+					  DOVE_PCIE0_IO_BUS_BASE);
+	mvebu_mbus_add_window_remap_by_id(DOVE_MBUS_PCIE1_IO_TARGET,
+					  DOVE_MBUS_PCIE1_IO_ATTR,
 					  DOVE_PCIE1_IO_PHYS_BASE,
 					  DOVE_PCIE1_IO_SIZE,
-					  DOVE_PCIE1_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pcie0.0",
-					  DOVE_PCIE0_MEM_PHYS_BASE,
-					  DOVE_PCIE0_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
-	mvebu_mbus_add_window_remap_flags("pcie1.0",
-					  DOVE_PCIE1_MEM_PHYS_BASE,
-					  DOVE_PCIE1_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
-	mvebu_mbus_add_window("cesa", DOVE_CESA_PHYS_BASE,
-			      DOVE_CESA_SIZE);
-	mvebu_mbus_add_window("bootrom", DOVE_BOOTROM_PHYS_BASE,
-			      DOVE_BOOTROM_SIZE);
-	mvebu_mbus_add_window("scratchpad", DOVE_SCRATCHPAD_PHYS_BASE,
-			      DOVE_SCRATCHPAD_SIZE);
+					  DOVE_PCIE1_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_PCIE0_MEM_TARGET,
+				    DOVE_MBUS_PCIE0_MEM_ATTR,
+				    DOVE_PCIE0_MEM_PHYS_BASE,
+				    DOVE_PCIE0_MEM_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_PCIE1_MEM_TARGET,
+				    DOVE_MBUS_PCIE1_MEM_ATTR,
+				    DOVE_PCIE1_MEM_PHYS_BASE,
+				    DOVE_PCIE1_MEM_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_CESA_TARGET,
+				    DOVE_MBUS_CESA_ATTR,
+				    DOVE_CESA_PHYS_BASE,
+				    DOVE_CESA_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_BOOTROM_TARGET,
+				    DOVE_MBUS_BOOTROM_ATTR,
+				    DOVE_BOOTROM_PHYS_BASE,
+				    DOVE_BOOTROM_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_SCRATCHPAD_TARGET,
+				    DOVE_MBUS_SCRATCHPAD_ATTR,
+				    DOVE_SCRATCHPAD_PHYS_BASE,
+				    DOVE_SCRATCHPAD_SIZE);
 }
+
+static struct resource orion_wdt_resource[] = {
+		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x04),
+		DEFINE_RES_MEM(RSTOUTn_MASK_PHYS, 0x04),
+};
+
+static struct platform_device orion_wdt_device = {
+	.name		= "orion_wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(orion_wdt_resource),
+	.resource	= orion_wdt_resource,
+};
+
+static void __init __maybe_unused orion_wdt_init(void)
+{
+	platform_device_register(&orion_wdt_device);
+}
+
+static const struct dove_pmu_domain_initdata pmu_domains[] __initconst = {
+	{
+		.pwr_mask = PMU_PWR_VPU_PWR_DWN_MASK,
+		.rst_mask = PMU_SW_RST_VIDEO_MASK,
+		.iso_mask = PMU_ISO_VIDEO_MASK,
+		.name = "vpu-domain",
+	}, {
+		.pwr_mask = PMU_PWR_GPU_PWR_DWN_MASK,
+		.rst_mask = PMU_SW_RST_GPU_MASK,
+		.iso_mask = PMU_ISO_GPU_MASK,
+		.name = "gpu-domain",
+	}, {
+		/* sentinel */
+	},
+};
+
+static const struct dove_pmu_initdata pmu_data __initconst = {
+	.pmc_base = DOVE_PMU_VIRT_BASE,
+	.pmu_base = DOVE_PMU_VIRT_BASE + 0x8000,
+	.irq = IRQ_DOVE_PMU,
+	.irq_domain_start = IRQ_DOVE_PMU_START,
+	.domains = pmu_domains,
+};
 
 void __init dove_init(void)
 {
@@ -376,6 +430,7 @@ void __init dove_init(void)
 	dove_clk_init();
 
 	/* internal devices that every board has */
+	dove_init_pmu_legacy(&pmu_data);
 	dove_rtc_init();
 	dove_xor0_init();
 	dove_xor1_init();

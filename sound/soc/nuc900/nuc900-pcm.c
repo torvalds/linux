@@ -32,9 +32,6 @@ static const struct snd_pcm_hardware nuc900_pcm_hardware = {
 					SNDRV_PCM_INFO_MMAP_VALID |
 					SNDRV_PCM_INFO_PAUSE |
 					SNDRV_PCM_INFO_RESUME,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
-	.channels_min		= 1,
-	.channels_max		= 2,
 	.buffer_bytes_max	= 4*1024,
 	.period_bytes_min	= 1*1024,
 	.period_bytes_max	= 4*1024,
@@ -45,29 +42,10 @@ static const struct snd_pcm_hardware nuc900_pcm_hardware = {
 static int nuc900_dma_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct nuc900_audio *nuc900_audio = runtime->private_data;
-	unsigned long flags;
-	int ret = 0;
-
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0)
-		return ret;
-
-	spin_lock_irqsave(&nuc900_audio->lock, flags);
-
-	nuc900_audio->substream = substream;
-	nuc900_audio->dma_addr[substream->stream] = runtime->dma_addr;
-	nuc900_audio->buffersize[substream->stream] =
-						params_buffer_bytes(params);
-
-	spin_unlock_irqrestore(&nuc900_audio->lock, flags);
-
-	return ret;
+	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 }
 
-static void nuc900_update_dma_register(struct snd_pcm_substream *substream,
-				dma_addr_t dma_addr, size_t count)
+static void nuc900_update_dma_register(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nuc900_audio *nuc900_audio = runtime->private_data;
@@ -81,8 +59,8 @@ static void nuc900_update_dma_register(struct snd_pcm_substream *substream,
 		mmio_len = nuc900_audio->mmio + ACTL_RDST_LENGTH;
 	}
 
-	AUDIO_WRITE(mmio_addr, dma_addr);
-	AUDIO_WRITE(mmio_len, count);
+	AUDIO_WRITE(mmio_addr, runtime->dma_addr);
+	AUDIO_WRITE(mmio_len, runtime->dma_bytes);
 }
 
 static void nuc900_dma_start(struct snd_pcm_substream *substream)
@@ -173,9 +151,7 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 
 	spin_lock_irqsave(&nuc900_audio->lock, flags);
 
-	nuc900_update_dma_register(substream,
-				nuc900_audio->dma_addr[substream->stream],
-				nuc900_audio->buffersize[substream->stream]);
+	nuc900_update_dma_register(substream);
 
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
 
@@ -291,13 +267,11 @@ static int nuc900_dma_mmap(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
-					runtime->dma_area,
-					runtime->dma_addr,
-					runtime->dma_bytes);
+	return dma_mmap_wc(substream->pcm->card->dev, vma, runtime->dma_area,
+			   runtime->dma_addr, runtime->dma_bytes);
 }
 
-static struct snd_pcm_ops nuc900_dma_ops = {
+static const struct snd_pcm_ops nuc900_dma_ops = {
 	.open		= nuc900_dma_open,
 	.close		= nuc900_dma_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -309,21 +283,15 @@ static struct snd_pcm_ops nuc900_dma_ops = {
 	.mmap		= nuc900_dma_mmap,
 };
 
-static void nuc900_dma_free_dma_buffers(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static u64 nuc900_pcm_dmamask = DMA_BIT_MASK(32);
 static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
+	int ret;
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &nuc900_pcm_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 		card->dev, 4 * 1024, (4 * 1024) - 1);
@@ -331,31 +299,22 @@ static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_platform_driver nuc900_soc_platform = {
+static const struct snd_soc_platform_driver nuc900_soc_platform = {
 	.ops		= &nuc900_dma_ops,
 	.pcm_new	= nuc900_dma_new,
-	.pcm_free	= nuc900_dma_free_dma_buffers,
 };
 
 static int nuc900_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&pdev->dev, &nuc900_soc_platform);
-}
-
-static int nuc900_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_platform(&pdev->dev, &nuc900_soc_platform);
 }
 
 static struct platform_driver nuc900_pcm_driver = {
 	.driver = {
 			.name = "nuc900-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = nuc900_soc_platform_probe,
-	.remove = nuc900_soc_platform_remove,
 };
 
 module_platform_driver(nuc900_pcm_driver);

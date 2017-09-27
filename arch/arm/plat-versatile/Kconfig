@@ -1,18 +1,6 @@
 if PLAT_VERSATILE
 
-config PLAT_VERSATILE_CLOCK
-	bool
-
-config PLAT_VERSATILE_CLCD
-	bool
-
-config PLAT_VERSATILE_LEDS
-	def_bool y if NEW_LEDS
-	depends on ARCH_REALVIEW || ARCH_VERSATILE
-	select LEDS_CLASS
-	select LEDS_TRIGGERS
-
 config PLAT_VERSATILE_SCHED_CLOCK
-	def_bool y
+	bool
 
 endif

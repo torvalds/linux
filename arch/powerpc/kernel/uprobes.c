@@ -186,7 +186,7 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	 * emulate_step() returns 1 if the insn was successfully emulated.
 	 * For all other cases, we need to single-step in hardware.
 	 */
-	ret = emulate_step(regs, auprobe->ainsn);
+	ret = emulate_step(regs, auprobe->insn);
 	if (ret > 0)
 		return true;
 
@@ -204,4 +204,13 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs
 	regs->link = trampoline_vaddr;
 
 	return orig_ret_vaddr;
+}
+
+bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
+				struct pt_regs *regs)
+{
+	if (ctx == RP_CHECK_CHAIN_CALL)
+		return regs->gpr[1] <= ret->stack;
+	else
+		return regs->gpr[1] < ret->stack;
 }

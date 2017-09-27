@@ -23,12 +23,11 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
 
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
+		main_xtal {
 			clock-frequency = <18432000>;
 		};
 	};
@@ -120,13 +119,13 @@
 			};
 		};
 
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			num-ports = <2>;
 			status = "okay";
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c0>;
 		i2c-gpio,delay-us = <5>;	/* ~85 kHz */
@@ -151,7 +150,7 @@
 			label = "Button";
 			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <0x103>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

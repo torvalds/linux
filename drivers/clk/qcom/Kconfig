@@ -1,0 +1,198 @@
+config QCOM_GDSC
+	bool
+	select PM_GENERIC_DOMAINS if PM
+
+config QCOM_RPMCC
+	bool
+
+config COMMON_CLK_QCOM
+	tristate "Support for Qualcomm's clock controllers"
+	depends on OF
+	depends on ARCH_QCOM || COMPILE_TEST
+	select REGMAP_MMIO
+	select RESET_CONTROLLER
+
+config QCOM_CLK_RPM
+	tristate "RPM based Clock Controller"
+	depends on COMMON_CLK_QCOM && MFD_QCOM_RPM
+	select QCOM_RPMCC
+	help
+	  The RPM (Resource Power Manager) is a dedicated hardware engine for
+	  managing the shared SoC resources in order to keep the lowest power
+	  profile. It communicates with other hardware subsystems via shared
+	  memory and accepts clock requests, aggregates the requests and turns
+	  the clocks on/off or scales them on demand.
+	  Say Y if you want to support the clocks exposed by the RPM on
+	  platforms such as apq8064, msm8660, msm8960 etc.
+
+config QCOM_CLK_SMD_RPM
+	tristate "RPM over SMD based Clock Controller"
+	depends on COMMON_CLK_QCOM && QCOM_SMD_RPM
+	select QCOM_RPMCC
+	help
+	  The RPM (Resource Power Manager) is a dedicated hardware engine for
+	  managing the shared SoC resources in order to keep the lowest power
+	  profile. It communicates with other hardware subsystems via shared
+	  memory and accepts clock requests, aggregates the requests and turns
+	  the clocks on/off or scales them on demand.
+	  Say Y if you want to support the clocks exposed by the RPM on
+	  platforms such as apq8016, apq8084, msm8974 etc.
+
+config APQ_GCC_8084
+	tristate "APQ8084 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on apq8084 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
+
+config APQ_MMCC_8084
+	tristate "APQ8084 Multimedia Clock Controller"
+	select APQ_GCC_8084
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the multimedia clock controller on apq8084 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.
+
+config IPQ_GCC_4019
+	tristate "IPQ4019 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on ipq4019 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
+config IPQ_GCC_806X
+	tristate "IPQ806x Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on ipq806x devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
+config IPQ_LCC_806X
+	tristate "IPQ806x LPASS Clock Controller"
+	select IPQ_GCC_806X
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the LPASS clock controller on ipq806x devices.
+	  Say Y if you want to use audio devices such as i2s, pcm,
+	  S/PDIF, etc.
+
+config IPQ_GCC_8074
+	tristate "IPQ8074 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for global clock controller on ipq8074 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc. Select this for the root clock
+	  of ipq8074.
+
+config MSM_GCC_8660
+	tristate "MSM8660 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8660 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
+config MSM_GCC_8916
+	tristate "MSM8916 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8916 devices.
+	  Say Y if you want to use devices such as UART, SPI i2c, USB,
+	  SD/eMMC, display, graphics, camera etc.
+
+config MSM_GCC_8960
+	tristate "APQ8064/MSM8960 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on apq8064/msm8960 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
+
+config MSM_LCC_8960
+	tristate "APQ8064/MSM8960 LPASS Clock Controller"
+	select MSM_GCC_8960
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the LPASS clock controller on apq8064/msm8960 devices.
+	  Say Y if you want to use audio devices such as i2s, pcm,
+	  SLIMBus, etc.
+
+config MDM_GCC_9615
+	tristate "MDM9615 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on mdm9615 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
+config MDM_LCC_9615
+	tristate "MDM9615 LPASS Clock Controller"
+	select MDM_GCC_9615
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the LPASS clock controller on mdm9615 devices.
+	  Say Y if you want to use audio devices such as i2s, pcm,
+	  SLIMBus, etc.
+
+config MSM_MMCC_8960
+	tristate "MSM8960 Multimedia Clock Controller"
+	select MSM_GCC_8960
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the multimedia clock controller on msm8960 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.
+
+config MSM_GCC_8974
+	tristate "MSM8974 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8974 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
+
+config MSM_MMCC_8974
+	tristate "MSM8974 Multimedia Clock Controller"
+	select MSM_GCC_8974
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the multimedia clock controller on msm8974 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.
+
+config MSM_GCC_8994
+	tristate "MSM8994 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8994 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
+
+config MSM_GCC_8996
+	tristate "MSM8996 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8996 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
+
+config MSM_MMCC_8996
+	tristate "MSM8996 Multimedia Clock Controller"
+	select MSM_GCC_8996
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the multimedia clock controller on msm8996 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.

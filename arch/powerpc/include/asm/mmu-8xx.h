@@ -27,6 +27,19 @@
 #define MI_Ks		0x80000000	/* Should not be set */
 #define MI_Kp		0x40000000	/* Should always be set */
 
+/*
+ * All pages' PP exec bits are set to 000, which means Execute for Supervisor
+ * and no Execute for User.
+ * Then we use the APG to say whether accesses are according to Page rules,
+ * "all Supervisor" rules (Exec for all) and "all User" rules (Exec for noone)
+ * Therefore, we define 4 APG groups. msb is _PAGE_EXEC, lsb is _PAGE_USER
+ * 0 (00) => Not User, no exec => 11 (all accesses performed as user)
+ * 1 (01) => User but no exec => 11 (all accesses performed as user)
+ * 2 (10) => Not User, exec => 01 (rights according to page definition)
+ * 3 (11) => User, exec => 00 (all accesses performed as supervisor)
+ */
+#define MI_APG_INIT	0xf4ffffff
+
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
  * this register are used to create the TLB entry.
@@ -56,6 +69,7 @@
  * additional information from the MI_EPN, and MI_TWC registers.
  */
 #define SPRN_MI_RPN	790
+#define MI_SPS16K	0x00000008	/* Small page size (0 = 4k, 1 = 16k) */
 
 /* Define an RPN value for mapping kernel memory to large virtual
  * pages for boot initialization.  This has real page number of 0,
@@ -85,6 +99,19 @@
 #define SPRN_MD_AP	794
 #define MD_Ks		0x80000000	/* Should not be set */
 #define MD_Kp		0x40000000	/* Should always be set */
+
+/*
+ * All pages' PP data bits are set to either 000 or 011, which means
+ * respectively RW for Supervisor and no access for User, or RO for
+ * Supervisor and no access for user.
+ * Then we use the APG to say whether accesses are according to Page rules or
+ * "all Supervisor" rules (Access to all)
+ * Therefore, we define 2 APG groups. lsb is _PAGE_USER
+ * 0 => No user => 01 (all accesses performed according to page definition)
+ * 1 => User => 00 (all accesses performed as supervisor
+ *                                 according to page definition)
+ */
+#define MD_APG_INIT	0x4fffffff
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MD_RPN is written, bits in
@@ -129,6 +156,7 @@
  * additional information from the MD_EPN, and MD_TWC registers.
  */
 #define SPRN_MD_RPN	798
+#define MD_SPS16K	0x00000008	/* Small page size (0 = 4k, 1 = 16k) */
 
 /* This is a temporary storage register that could be used to save
  * a processor working register during a tablewalk.
@@ -141,9 +169,54 @@ typedef struct {
 	unsigned int active;
 	unsigned long vdso_base;
 } mm_context_t;
+
+#define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
+#define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))
+
+/* Page size definitions, common between 32 and 64-bit
+ *
+ *    shift : is the "PAGE_SHIFT" value for that page size
+ *    penc  : is the pte encoding mask
+ *
+ */
+struct mmu_psize_def {
+	unsigned int	shift;	/* number of bits */
+	unsigned int	enc;	/* PTE encoding */
+	unsigned int    ind;    /* Corresponding indirect page size shift */
+	unsigned int	flags;
+#define MMU_PAGE_SIZE_DIRECT	0x1	/* Supported as a direct size */
+#define MMU_PAGE_SIZE_INDIRECT	0x2	/* Supported as an indirect size */
+};
+
+extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
+static inline int shift_to_mmu_psize(unsigned int shift)
+{
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize)
+		if (mmu_psize_defs[psize].shift == shift)
+			return psize;
+	return -1;
+}
+
+static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
+{
+	if (mmu_psize_defs[mmu_psize].shift)
+		return mmu_psize_defs[mmu_psize].shift;
+	BUG();
+}
+
 #endif /* !__ASSEMBLY__ */
 
+#if defined(CONFIG_PPC_4K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_4K
+#elif defined(CONFIG_PPC_16K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_16K
+#else
+#error "Unsupported PAGE_SIZE"
+#endif
+
 #define mmu_linear_psize	MMU_PAGE_8M
 
 #endif /* _ASM_POWERPC_MMU_8XX_H_ */

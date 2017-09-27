@@ -5,14 +5,14 @@ TI C6X SoCs contain a region of miscellaneous registers which provide various
 function for SoC control or status. Details vary considerably among from SoC
 to SoC with no two being alike.
 
-In general, the Device State Configuraion Registers (DSCR) will provide one or
+In general, the Device State Configuration Registers (DSCR) will provide one or
 more configuration registers often protected by a lock register where one or
 more key values must be written to a lock register in order to unlock the
 configuration register for writes. These configuration register may be used to
 enable (and disable in some cases) SoC pin drivers, select peripheral clock
 sources (internal or pin), etc. In some cases, a configuration register is
 write once or the individual bits are write once. In addition to device config,
-the DSCR block may provide registers which which are used to reset peripherals,
+the DSCR block may provide registers which are used to reset peripherals,
 provide device ID information, provide ethernet MAC addresses, as well as other
 miscellaneous functions.
 

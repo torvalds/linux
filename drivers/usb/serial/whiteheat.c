@@ -18,7 +18,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -117,6 +116,8 @@ static struct usb_serial_driver whiteheat_device = {
 	.description =		"Connect Tech - WhiteHEAT",
 	.id_table =		id_table_std,
 	.num_ports =		4,
+	.num_bulk_in =		5,
+	.num_bulk_out =		5,
 	.attach =		whiteheat_attach,
 	.release =		whiteheat_release,
 	.port_probe =		whiteheat_port_probe,
@@ -218,6 +219,7 @@ static int whiteheat_firmware_attach(struct usb_serial *serial)
 /*****************************************************************************
  * Connect Tech's White Heat serial driver functions
  *****************************************************************************/
+
 static int whiteheat_attach(struct usb_serial *serial)
 {
 	struct usb_serial_port *command_port;
@@ -288,12 +290,8 @@ static int whiteheat_attach(struct usb_serial *serial)
 
 	command_info = kmalloc(sizeof(struct whiteheat_command_private),
 								GFP_KERNEL);
-	if (command_info == NULL) {
-		dev_err(&serial->dev->dev,
-			"%s: Out of memory for port structures\n",
-			serial->type->description);
+	if (!command_info)
 		goto no_command_private;
-	}
 
 	mutex_init(&command_info->mutex);
 	command_info->port_running = 0;
@@ -455,15 +453,12 @@ static int whiteheat_ioctl(struct tty_struct *tty,
 	struct serial_struct serstruct;
 	void __user *user_arg = (void __user *)arg;
 
-	dev_dbg(&port->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		memset(&serstruct, 0, sizeof(serstruct));
 		serstruct.type = PORT_16654;
 		serstruct.line = port->minor;
 		serstruct.port = port->port_number;
-		serstruct.flags = ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 		serstruct.xmit_fifo_size = kfifo_size(&port->write_fifo);
 		serstruct.custom_divisor = 0;
 		serstruct.baud_base = 460800;
@@ -521,6 +516,10 @@ static void command_port_read_callback(struct urb *urb)
 		dev_dbg(&urb->dev->dev, "%s - command_info is NULL, exiting.\n", __func__);
 		return;
 	}
+	if (!urb->actual_length) {
+		dev_dbg(&urb->dev->dev, "%s - empty response, exiting.\n", __func__);
+		return;
+	}
 	if (status) {
 		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n", __func__, status);
 		if (status != -ENOENT)
@@ -541,7 +540,8 @@ static void command_port_read_callback(struct urb *urb)
 		/* These are unsolicited reports from the firmware, hence no
 		   waiting command to wakeup */
 		dev_dbg(&urb->dev->dev, "%s - event received\n", __func__);
-	} else if (data[0] == WHITEHEAT_GET_DTR_RTS) {
+	} else if ((data[0] == WHITEHEAT_GET_DTR_RTS) &&
+		(urb->actual_length - 1 <= sizeof(command_info->result_buffer))) {
 		memcpy(command_info->result_buffer, &data[1],
 						urb->actual_length - 1);
 		command_info->command_finished = WHITEHEAT_CMD_COMPLETE;

@@ -9,28 +9,7 @@
 #include <linux/prefetch.h>
 #include <linux/string.h>
 #include <linux/thread_info.h>
-#include <asm/uaccess.h>
-
-unsigned long
-__generic_copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	prefetch(from);
-	if (access_ok(VERIFY_WRITE, to, n))
-		__copy_user(to,from,n);
-	return n;
-}
-
-unsigned long
-__generic_copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	prefetchw(to);
-	if (access_ok(VERIFY_READ, from, n))
-		__copy_user_zeroing(to,from,n);
-	else
-		memset(to, 0, n);
-	return n;
-}
-
+#include <linux/uaccess.h>
 
 /*
  * Copy a null terminated string from userspace.
@@ -108,14 +87,6 @@ do {									\
 } while (0)
 
 #endif /* CONFIG_ISA_DUAL_ISSUE */
-
-long
-__strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res;
-	__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
 
 long
 strncpy_from_user(char *dst, const char __user *src, long count)

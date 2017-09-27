@@ -1,0 +1,66 @@
+Atmel Image Sensor Interface (ISI)
+----------------------------------
+
+Required properties for ISI:
+- compatible: must be "atmel,at91sam9g45-isi".
+- reg: physical base address and length of the registers set for the device.
+- interrupts: should contain IRQ line for the ISI.
+- clocks: list of clock specifiers, corresponding to entries in the clock-names
+	property; please refer to clock-bindings.txt.
+- clock-names: required elements: "isi_clk".
+- pinctrl-names, pinctrl-0: please refer to pinctrl-bindings.txt.
+
+ISI supports a single port node with parallel bus. It shall contain one
+'port' child node with child 'endpoint' node. Please refer to the bindings
+defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Endpoint node properties
+------------------------
+
+- bus-width: <8> or <10> (mandatory)
+- hsync-active (default: active high)
+- vsync-active (default: active high)
+- pclk-sample (default: sample on falling edge)
+- remote-endpoint: A phandle to the bus receiver's endpoint node (mandatory).
+
+Example:
+
+isi: isi@f0034000 {
+	compatible = "atmel,at91sam9g45-isi";
+	reg = <0xf0034000 0x4000>;
+	interrupts = <37 IRQ_TYPE_LEVEL_HIGH 5>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_isi_data_0_7>;
+	clocks = <&isi_clk>;
+	clock-names = "isi_clk";
+	port {
+		isi_0: endpoint {
+			remote-endpoint = <&ov2640_0>;
+			bus-width = <8>;
+			vsync-active = <1>;
+			hsync-active = <1>;
+		};
+	};
+};
+
+i2c1: i2c@f0018000 {
+	ov2640: camera@30 {
+		compatible = "ovti,ov2640";
+		reg = <0x30>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck0_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
+		resetb-gpios = <&pioE 11 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&pioE 13 GPIO_ACTIVE_HIGH>;
+		clocks = <&pck0>;
+		clock-names = "xvclk";
+		assigned-clocks = <&pck0>;
+		assigned-clock-rates = <25000000>;
+
+		port {
+			ov2640_0: endpoint {
+				remote-endpoint = <&isi_0>;
+				bus-width = <8>;
+			};
+		};
+	};
+};

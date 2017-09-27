@@ -26,6 +26,7 @@
 #endif
 
 #define TX_RECLAIM_JIFFIES (HZ / 5)
+#define BFIN_MAC_RX_IRQ_DISABLED	1
 
 struct dma_descriptor {
 	struct dma_descriptor *next_dma_desc;
@@ -67,19 +68,14 @@ struct net_dma_desc_tx {
 };
 
 struct bfin_mac_local {
-	/*
-	 * these are things that the kernel wants me to keep, so users
-	 * can find out semi-useless statistics of how well the card is
-	 * performing
-	 */
-	struct net_device_stats stats;
-
 	spinlock_t lock;
 
 	int wol;		/* Wake On Lan */
 	int irq_wake_requested;
 	struct timer_list tx_reclaim_timer;
 	struct net_device *ndev;
+	struct napi_struct napi;
+	unsigned long flags;
 
 	/* Data for EMAC_VLAN1 regs */
 	u16 vlan1_mask, vlan2_mask;
@@ -89,7 +85,6 @@ struct bfin_mac_local {
 	int old_speed;
 	int old_duplex;
 
-	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
 
 #if defined(CONFIG_BFIN_MAC_USE_HWSTAMP)
@@ -104,6 +99,6 @@ struct bfin_mac_local {
 #endif
 };
 
-extern int bfin_get_ether_addr(char *addr);
+int bfin_get_ether_addr(char *addr);
 
 #endif

@@ -11,7 +11,7 @@ Every bio that is mapped by the target is referred to the policy.
 The policy can return a simple HIT or MISS or issue a migration.
 
 Currently there's no way for the policy to issue background work,
-e.g. to start writing back dirty blocks that are going to be evicte
+e.g. to start writing back dirty blocks that are going to be evicted
 soon.
 
 Because we map bios, rather than requests it's easy for the policy
@@ -25,33 +25,77 @@ trying to see when the io scheduler has let the ios run.
 Overview of supplied cache replacement policies
 ===============================================
 
-multiqueue
-----------
+multiqueue (mq)
+---------------
+
+This policy is now an alias for smq (see below).
+
+The following tunables are accepted, but have no effect:
+
+	'sequential_threshold <#nr_sequential_ios>'
+	'random_threshold <#nr_random_ios>'
+	'read_promote_adjustment <value>'
+	'write_promote_adjustment <value>'
+	'discard_promote_adjustment <value>'
+
+Stochastic multiqueue (smq)
+---------------------------
 
 This policy is the default.
 
-The multiqueue policy has two sets of 16 queues: one set for entries
-waiting for the cache and another one for those in the cache.
-Cache entries in the queues are aged based on logical time. Entry into
-the cache is based on variable thresholds and queue selection is based
-on hit count on entry. The policy aims to take different cache miss
-costs into account and to adjust to varying load patterns automatically.
+The stochastic multi-queue (smq) policy addresses some of the problems
+with the multiqueue (mq) policy.
 
-Message and constructor argument pairs are:
-	'sequential_threshold <#nr_sequential_ios>' and
-	'random_threshold <#nr_random_ios>'.
+The smq policy (vs mq) offers the promise of less memory utilization,
+improved performance and increased adaptability in the face of changing
+workloads.  smq also does not have any cumbersome tuning knobs.
 
-The sequential threshold indicates the number of contiguous I/Os
-required before a stream is treated as sequential.  The random threshold
-is the number of intervening non-contiguous I/Os that must be seen
-before the stream is treated as random again.
+Users may switch from "mq" to "smq" simply by appropriately reloading a
+DM table that is using the cache target.  Doing so will cause all of the
+mq policy's hints to be dropped.  Also, performance of the cache may
+degrade slightly until smq recalculates the origin device's hotspots
+that should be cached.
 
-The sequential and random thresholds default to 512 and 4 respectively.
+Memory usage:
+The mq policy used a lot of memory; 88 bytes per cache block on a 64
+bit machine.
 
-Large, sequential ios are probably better left on the origin device
-since spindles tend to have good bandwidth. The io_tracker counts
-contiguous I/Os to try to spot when the io is in one of these sequential
-modes.
+smq uses 28bit indexes to implement it's data structures rather than
+pointers.  It avoids storing an explicit hit count for each block.  It
+has a 'hotspot' queue, rather than a pre-cache, which uses a quarter of
+the entries (each hotspot block covers a larger area than a single
+cache block).
+
+All this means smq uses ~25bytes per cache block.  Still a lot of
+memory, but a substantial improvement nontheless.
+
+Level balancing:
+mq placed entries in different levels of the multiqueue structures
+based on their hit count (~ln(hit count)).  This meant the bottom
+levels generally had the most entries, and the top ones had very
+few.  Having unbalanced levels like this reduced the efficacy of the
+multiqueue.
+
+smq does not maintain a hit count, instead it swaps hit entries with
+the least recently used entry from the level above.  The overall
+ordering being a side effect of this stochastic process.  With this
+scheme we can decide how many entries occupy each multiqueue level,
+resulting in better promotion/demotion decisions.
+
+Adaptability:
+The mq policy maintained a hit count for each cache block.  For a
+different block to get promoted to the cache it's hit count has to
+exceed the lowest currently in the cache.  This meant it could take a
+long time for the cache to adapt between varying IO patterns.
+
+smq doesn't maintain hit counts, so a lot of this problem just goes
+away.  In addition it tracks performance of the hotspot queue, which
+is used to decide which blocks to promote.  If the hotspot queue is
+performing badly then it starts moving entries more quickly between
+levels.  This lets it adapt to new IO patterns very quickly.
+
+Performance:
+Testing smq shows substantially better performance than mq.
 
 cleaner
 -------

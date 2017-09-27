@@ -21,13 +21,7 @@
 
 #include <asm/processor.h>
 #include <asm/byteorder.h>
-
-#ifdef CONFIG_SMP
-# error SMP not supported on this architecture
-#endif
-
-#define smp_mb__before_clear_bit()	barrier()
-#define smp_mb__after_clear_bit()	barrier()
+#include <asm/barrier.h>
 
 #include <asm-generic/bitops/non-atomic.h>
 
@@ -54,7 +48,7 @@ static inline int ffz(unsigned long x)
  * __ffs: Find first bit set in word. Return 0 for bit 0
  */
 
-static inline int __ffs(unsigned long x)
+static inline unsigned long __ffs(unsigned long x)
 {
 	return 31 - __cntlz(x & -x);
 }

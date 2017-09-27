@@ -10,7 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/cpu.h>
 
 #include <asm/cacheflush.h>
@@ -93,7 +93,7 @@ void sun4d_cpu_pre_online(void *arg)
 	show_leds(cpuid);
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	local_ops->cache_all();
@@ -204,7 +204,7 @@ static void __init smp4d_ipi_init(void)
 
 void sun4d_ipi_interrupt(void)
 {
-	struct sun4d_ipi_work *work = &__get_cpu_var(sun4d_ipi_work);
+	struct sun4d_ipi_work *work = this_cpu_ptr(&sun4d_ipi_work);
 
 	if (work->single) {
 		work->single = 0;

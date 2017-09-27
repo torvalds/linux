@@ -1,11 +1,11 @@
 /******************************************************************************
  *
- * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
+ * Module Name: exprep - ACPI AML field prep utilities
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -103,8 +103,10 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	/* Round Field start offset and length to "minimal" byte boundaries */
 
 	field_byte_offset = ACPI_DIV_8(ACPI_ROUND_DOWN(field_bit_offset, 8));
-	field_byte_end_offset = ACPI_DIV_8(ACPI_ROUND_UP(field_bit_length +
-							 field_bit_offset, 8));
+
+	field_byte_end_offset =
+	    ACPI_DIV_8(ACPI_ROUND_UP(field_bit_length + field_bit_offset, 8));
+
 	field_byte_length = field_byte_end_offset - field_byte_offset;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
@@ -159,7 +161,8 @@ acpi_ex_generate_access(u32 field_bit_offset,
 
 			if (accesses <= 1) {
 				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-						  "Entire field can be accessed with one operation of size %u\n",
+						  "Entire field can be accessed "
+						  "with one operation of size %u\n",
 						  access_byte_width));
 				return_VALUE(access_byte_width);
 			}
@@ -202,6 +205,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "Cannot access field in one operation, using width 8\n"));
+
 	return_VALUE(8);
 }
 #endif				/* ACPI_UNDER_DEVELOPMENT */
@@ -281,6 +285,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 		/* Invalid field access type */
 
 		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
+
 		return_UINT32(0);
 	}
 
@@ -354,8 +359,8 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	 * For all other access types (Byte, Word, Dword, Qword), the Bitwidth is
 	 * the same (equivalent) as the byte_alignment.
 	 */
-	access_bit_width = acpi_ex_decode_field_access(obj_desc, field_flags,
-						       &byte_alignment);
+	access_bit_width =
+	    acpi_ex_decode_field_access(obj_desc, field_flags, &byte_alignment);
 	if (!access_bit_width) {
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
@@ -484,6 +489,8 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 			obj_desc->field.resource_length = info->resource_length;
 		}
 
+		obj_desc->field.pin_number_index = info->pin_number_index;
+
 		/* Allow full data read from EC address space */
 
 		if ((obj_desc->field.region_obj->region.space_id ==
@@ -593,7 +600,8 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 					  access_byte_width);
 
 		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-				  "IndexField: BitOff %X, Off %X, Value %X, Gran %X, Index %p, Data %p\n",
+				  "IndexField: BitOff %X, Off %X, Value %X, "
+				  "Gran %X, Index %p, Data %p\n",
 				  obj_desc->index_field.start_field_bit_offset,
 				  obj_desc->index_field.base_byte_offset,
 				  obj_desc->index_field.value,
@@ -613,8 +621,9 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	 * Store the constructed descriptor (obj_desc) into the parent Node,
 	 * preserving the current type of that named_obj.
 	 */
-	status = acpi_ns_attach_object(info->field_node, obj_desc,
-				       acpi_ns_get_type(info->field_node));
+	status =
+	    acpi_ns_attach_object(info->field_node, obj_desc,
+				  acpi_ns_get_type(info->field_node));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "Set NamedObj %p [%4.4s], ObjDesc %p\n",

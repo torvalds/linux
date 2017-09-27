@@ -39,11 +39,11 @@ extern int ibmphp_debug;
 #else
 	#define MY_NAME THIS_MODULE->name
 #endif
-#define debug(fmt, arg...) do { if (ibmphp_debug == 1) printk(KERN_DEBUG "%s: " fmt , MY_NAME , ## arg); } while (0)
-#define debug_pci(fmt, arg...) do { if (ibmphp_debug) printk(KERN_DEBUG "%s: " fmt , MY_NAME , ## arg); } while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format , MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format , MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format , MY_NAME , ## arg)
+#define debug(fmt, arg...) do { if (ibmphp_debug == 1) printk(KERN_DEBUG "%s: " fmt, MY_NAME, ## arg); } while (0)
+#define debug_pci(fmt, arg...) do { if (ibmphp_debug) printk(KERN_DEBUG "%s: " fmt, MY_NAME, ## arg); } while (0)
+#define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
+#define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
 
 
 /* EBDA stuff */
@@ -59,7 +59,7 @@ extern int ibmphp_debug;
 
 
 /************************************************************
-*  RESOURE TYPE                                             *
+*  RESOURCE TYPE                                             *
 ************************************************************/
 
 #define EBDA_RSRC_TYPE_MASK		0x03
@@ -103,7 +103,7 @@ extern int ibmphp_debug;
 //--------------------------------------------------------------
 
 struct rio_table_hdr {
-	u8 ver_num; 
+	u8 ver_num;
 	u8 scal_count;
 	u8 riodev_count;
 	u16 offset;
@@ -127,7 +127,7 @@ struct scal_detail {
 };
 
 //--------------------------------------------------------------
-// RIO DETAIL 
+// RIO DETAIL
 //--------------------------------------------------------------
 
 struct rio_detail {
@@ -152,7 +152,7 @@ struct opt_rio {
 	u8 first_slot_num;
 	u8 middle_num;
 	struct list_head opt_rio_list;
-};	
+};
 
 struct opt_rio_lo {
 	u8 rio_type;
@@ -161,7 +161,7 @@ struct opt_rio_lo {
 	u8 middle_num;
 	u8 pack_count;
 	struct list_head opt_rio_lo_list;
-};	
+};
 
 /****************************************************************
 *  HPC DESCRIPTOR NODE                                          *
@@ -574,7 +574,7 @@ void ibmphp_hpc_stop_poll_thread(void);
 #define HPC_CTLR_IRQ_PENDG	0x80
 
 //----------------------------------------------------------------------------
-// HPC_CTLR_WROKING status return codes
+// HPC_CTLR_WORKING status return codes
 //----------------------------------------------------------------------------
 #define HPC_CTLR_WORKING_NO	0x00
 #define HPC_CTLR_WORKING_YES	0x01
@@ -603,7 +603,7 @@ void ibmphp_hpc_stop_poll_thread(void);
 #define SLOT_CONNECT(s)	((u8) ((s & HPC_SLOT_CONNECT) \
 	? HPC_SLOT_DISCONNECTED : HPC_SLOT_CONNECTED))
 
-#define SLOT_ATTN(s,es)	((u8) ((es & HPC_SLOT_BLINK_ATTN) \
+#define SLOT_ATTN(s, es)	((u8) ((es & HPC_SLOT_BLINK_ATTN) \
 	? HPC_SLOT_ATTN_BLINK \
 	: ((s & HPC_SLOT_ATTN) ? HPC_SLOT_ATTN_ON : HPC_SLOT_ATTN_OFF)))
 

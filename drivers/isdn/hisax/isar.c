@@ -74,7 +74,7 @@ sendmsg(struct IsdnCardState *cs, u_char his, u_char creg, u_char len,
 				t = tmp;
 				t += sprintf(t, "sendmbox cnt %d", len);
 				QuickHex(t, &msg[len-i], (i > 64) ? 64 : i);
-				debugl1(cs, tmp);
+				debugl1(cs, "%s", tmp);
 				i -= 64;
 			}
 		}
@@ -105,7 +105,7 @@ rcv_mbox(struct IsdnCardState *cs, struct isar_reg *ireg, u_char *msg)
 				t = tmp;
 				t += sprintf(t, "rcv_mbox cnt %d", ireg->clsb);
 				QuickHex(t, &msg[ireg->clsb - i], (i > 64) ? 64 : i);
-				debugl1(cs, tmp);
+				debugl1(cs, "%s", tmp);
 				i -= 64;
 			}
 		}
@@ -458,7 +458,7 @@ send_DLE_ETX(struct BCState *bcs)
 	struct sk_buff *skb;
 
 	if ((skb = dev_alloc_skb(2))) {
-		memcpy(skb_put(skb, 2), dleetx, 2);
+		skb_put_data(skb, dleetx, 2);
 		skb_queue_tail(&bcs->rqueue, skb);
 		schedule_event(bcs, B_RCVBUFREADY);
 	} else {
@@ -550,8 +550,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 				} else if (!(skb = dev_alloc_skb(bcs->hw.isar.rcvidx - 2))) {
 					printk(KERN_WARNING "ISAR: receive out of memory\n");
 				} else {
-					memcpy(skb_put(skb, bcs->hw.isar.rcvidx - 2),
-					       bcs->hw.isar.rcvbuf, bcs->hw.isar.rcvidx - 2);
+					skb_put_data(skb, bcs->hw.isar.rcvbuf,
+						     bcs->hw.isar.rcvidx - 2);
 					skb_queue_tail(&bcs->rqueue, skb);
 					schedule_event(bcs, B_RCVBUFREADY);
 				}
@@ -1248,7 +1248,7 @@ isar_int_main(struct IsdnCardState *cs)
 			tp += sprintf(debbuf, "msg iis(%x) msb(%x)",
 				      ireg->iis, ireg->cmsb);
 			QuickHex(tp, (u_char *)ireg->par, ireg->clsb);
-			debugl1(cs, debbuf);
+			debugl1(cs, "%s", debbuf);
 		}
 		break;
 	case ISAR_IIS_INVMSG:
@@ -1902,10 +1902,8 @@ void initisar(struct IsdnCardState *cs)
 	cs->bcs[1].BC_SetStack = setstack_isar;
 	cs->bcs[0].BC_Close = close_isarstate;
 	cs->bcs[1].BC_Close = close_isarstate;
-	cs->bcs[0].hw.isar.ftimer.function = (void *) ftimer_handler;
-	cs->bcs[0].hw.isar.ftimer.data = (long) &cs->bcs[0];
-	init_timer(&cs->bcs[0].hw.isar.ftimer);
-	cs->bcs[1].hw.isar.ftimer.function = (void *) ftimer_handler;
-	cs->bcs[1].hw.isar.ftimer.data = (long) &cs->bcs[1];
-	init_timer(&cs->bcs[1].hw.isar.ftimer);
+	setup_timer(&cs->bcs[0].hw.isar.ftimer, (void *)ftimer_handler,
+		    (long)&cs->bcs[0]);
+	setup_timer(&cs->bcs[1].hw.isar.ftimer, (void *)ftimer_handler,
+		    (long)&cs->bcs[1]);
 }

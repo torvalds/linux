@@ -1,0 +1,30 @@
+/dts-v1/;
+/include/ "xtfpga.dtsi"
+/include/ "xtfpga-flash-128m.dtsi"
+
+/ {
+	compatible = "cdns,xtensa-kc705";
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32native,0xfd050020,115200n8 console=ttyS0,115200n8 ip=dhcp root=/dev/nfs rw debug memmap=0x38000000";
+	};
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x38000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x04000000>;
+			alignment = <0x2000>;
+			alloc-ranges = <0x00000000 0x20000000>;
+			linux,cma-default;
+		};
+	};
+};

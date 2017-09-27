@@ -8,7 +8,32 @@ perf - Performance analysis tools for Linux
 SYNOPSIS
 --------
 [verse]
-'perf' [--version] [--help] COMMAND [ARGS]
+'perf' [--version] [--help] [OPTIONS] COMMAND [ARGS]
+
+OPTIONS
+-------
+--debug::
+	Setup debug variable (see list below) in value
+	range (0, 10). Use like:
+	  --debug verbose   # sets verbose = 1
+	  --debug verbose=2 # sets verbose = 2
+
+	List of debug variables allowed to set:
+	  verbose          - general debug messages
+	  ordered-events   - ordered events object debug messages
+	  data-convert     - data convert command debug messages
+
+--buildid-dir::
+	Setup buildid cache directory. It has higher priority than
+	buildid.dir config file option.
+
+-v::
+--version::
+  Display perf version.
+
+-h::
+--help::
+  Run perf help command.
 
 DESCRIPTION
 -----------

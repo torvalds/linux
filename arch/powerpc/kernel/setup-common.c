@@ -31,10 +31,11 @@
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
-#include <linux/debugfs.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
 #include <linux/of_platform.h>
+#include <linux/hugetlb.h>
+#include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/paca.h>
 #include <asm/prom.h>
@@ -61,6 +62,11 @@
 #include <asm/cputhreads.h>
 #include <mm/mmu_decl.h>
 #include <asm/fadump.h>
+#include <asm/udbg.h>
+#include <asm/hugetlb.h>
+#include <asm/livepatch.h>
+#include <asm/mmu_context.h>
+#include <asm/cpu_has_feature.h>
 
 #include "setup.h"
 
@@ -78,9 +84,19 @@ EXPORT_SYMBOL(ppc_md);
 struct machdep_calls *machine_id;
 EXPORT_SYMBOL(machine_id);
 
-unsigned long klimit = (unsigned long) _end;
+int boot_cpuid = -1;
+EXPORT_SYMBOL_GPL(boot_cpuid);
 
-char cmd_line[COMMAND_LINE_SIZE];
+/*
+ * These are used in binfmt_elf.c to put aux entries on the stack
+ * for each elf executable being started.
+ */
+int dcache_bsize;
+int icache_bsize;
+int ucache_bsize;
+
+
+unsigned long klimit = (unsigned long) _end;
 
 /*
  * This still seems to be needed... -- paulus
@@ -93,6 +109,9 @@ struct screen_info screen_info = {
 	.orig_video_isVGA = 1,
 	.orig_video_points = 16
 };
+#if defined(CONFIG_FB_VGA16_MODULE)
+EXPORT_SYMBOL(screen_info);
+#endif
 
 /* Variables required to store legacy IO irq routing */
 int of_i8042_kbd_irq;
@@ -104,6 +123,11 @@ EXPORT_SYMBOL_GPL(of_i8042_aux_irq);
 /* XXX should go elsewhere eventually */
 int ppc_do_canonicalize_irqs;
 EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
+#endif
+
+#ifdef CONFIG_CRASH_CORE
+/* This keeps a track of which one is the crashing cpu. */
+int crashing_cpu = -1;
 #endif
 
 /* also used by kexec */
@@ -121,35 +145,41 @@ void machine_shutdown(void)
 		ppc_md.machine_shutdown();
 }
 
+static void machine_hang(void)
+{
+	pr_emerg("System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1)
+		;
+}
+
 void machine_restart(char *cmd)
 {
 	machine_shutdown();
 	if (ppc_md.restart)
 		ppc_md.restart(cmd);
-#ifdef CONFIG_SMP
+
 	smp_send_stop();
-#endif
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
-	local_irq_disable();
-	while (1) ;
+
+	do_kernel_restart(cmd);
+	mdelay(1000);
+
+	machine_hang();
 }
 
 void machine_power_off(void)
 {
 	machine_shutdown();
-	if (ppc_md.power_off)
-		ppc_md.power_off();
-#ifdef CONFIG_SMP
+	if (pm_power_off)
+		pm_power_off();
+
 	smp_send_stop();
-#endif
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
-	local_irq_disable();
-	while (1) ;
+	machine_hang();
 }
 /* Used by the G5 thermal driver */
 EXPORT_SYMBOL_GPL(machine_power_off);
 
-void (*pm_power_off)(void) = machine_power_off;
+void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
 void machine_halt(void)
@@ -157,12 +187,9 @@ void machine_halt(void)
 	machine_shutdown();
 	if (ppc_md.halt)
 		ppc_md.halt();
-#ifdef CONFIG_SMP
+
 	smp_send_stop();
-#endif
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
-	local_irq_disable();
-	while (1) ;
+	machine_hang();
 }
 
 
@@ -211,6 +238,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long cpu_id = (unsigned long)v - 1;
 	unsigned int pvr;
+	unsigned long proc_freq;
 	unsigned short maj;
 	unsigned short min;
 
@@ -233,7 +261,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t: %lu\n", cpu_id);
 	seq_printf(m, "cpu\t\t: ");
 
-	if (cur_cpu_spec->pvr_mask)
+	if (cur_cpu_spec->pvr_mask && cur_cpu_spec->cpu_name)
 		seq_printf(m, "%s", cur_cpu_spec->cpu_name);
 	else
 		seq_printf(m, "unknown (%08x)", pvr);
@@ -262,12 +290,19 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif /* CONFIG_TAU */
 
 	/*
-	 * Assume here that all clock rates are the same in a
-	 * smp system.  -- Cort
+	 * Platforms that have variable clock rates, should implement
+	 * the method ppc_md.get_proc_freq() that reports the clock
+	 * rate of a given cpu. The rest can use ppc_proc_freq to
+	 * report the clock rate that is same across all cpus.
 	 */
-	if (ppc_proc_freq)
+	if (ppc_md.get_proc_freq)
+		proc_freq = ppc_md.get_proc_freq(cpu_id);
+	else
+		proc_freq = ppc_proc_freq;
+
+	if (proc_freq)
 		seq_printf(m, "clock\t\t: %lu.%06luMHz\n",
-			   ppc_proc_freq / 1000000, ppc_proc_freq % 1000000);
+			   proc_freq / 1000000, proc_freq % 1000000);
 
 	if (ppc_md.show_percpuinfo != NULL)
 		ppc_md.show_percpuinfo(m, cpu_id);
@@ -298,6 +333,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				break;
 			case 0x1008:	/* 740P/750P ?? */
 				maj = ((pvr >> 8) & 0xFF) - 1;
+				min = pvr & 0xFF;
+				break;
+			case 0x004e: /* POWER9 bits 12-15 give chip type */
+				maj = (pvr >> 8) & 0x0F;
 				min = pvr & 0xFF;
 				break;
 			default:
@@ -373,7 +412,7 @@ void __init check_for_initrd(void)
 		initrd_start = initrd_end = 0;
 
 	if (initrd_start)
-		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
+		pr_info("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
 
 	DBG(" <- check_for_initrd()\n");
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -381,9 +420,10 @@ void __init check_for_initrd(void)
 
 #ifdef CONFIG_SMP
 
-int threads_per_core, threads_shift;
+int threads_per_core, threads_per_subcore, threads_shift;
 cpumask_t threads_core_mask;
 EXPORT_SYMBOL_GPL(threads_per_core);
+EXPORT_SYMBOL_GPL(threads_per_subcore);
 EXPORT_SYMBOL_GPL(threads_shift);
 EXPORT_SYMBOL_GPL(threads_core_mask);
 
@@ -392,6 +432,7 @@ static void __init cpu_init_thread_core_maps(int tpc)
 	int i;
 
 	threads_per_core = tpc;
+	threads_per_subcore = tpc;
 	cpumask_clear(&threads_core_mask);
 
 	/* This implementation only supports power of 2 number of threads
@@ -436,29 +477,42 @@ void __init smp_setup_cpu_maps(void)
 	DBG("smp_setup_cpu_maps()\n");
 
 	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < nr_cpu_ids) {
-		const int *intserv;
+		const __be32 *intserv;
+		__be32 cpu_be;
 		int j, len;
 
-		DBG("  * %s...\n", dn->full_name);
+		DBG("  * %pOF...\n", dn);
 
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);
 		if (intserv) {
-			nthreads = len / sizeof(int);
 			DBG("    ibm,ppc-interrupt-server#s -> %d threads\n",
 			    nthreads);
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
-			intserv = of_get_property(dn, "reg", NULL);
-			if (!intserv)
-				intserv = &cpu;	/* assume logical == phys */
+			intserv = of_get_property(dn, "reg", &len);
+			if (!intserv) {
+				cpu_be = cpu_to_be32(cpu);
+				intserv = &cpu_be;	/* assume logical == phys */
+				len = 4;
+			}
 		}
 
+		nthreads = len / sizeof(int);
+
 		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
+			bool avail;
+
 			DBG("    thread %d -> cpu %d (hard id %d)\n",
-			    j, cpu, intserv[j]);
-			set_cpu_present(cpu, true);
-			set_hard_smp_processor_id(cpu, intserv[j]);
+			    j, cpu, be32_to_cpu(intserv[j]));
+
+			avail = of_device_is_available(dn);
+			if (!avail)
+				avail = !of_property_match_string(dn,
+						"enable-method", "spin-table");
+
+			set_cpu_present(cpu, avail);
+			set_hard_smp_processor_id(cpu, be32_to_cpu(intserv[j]));
 			set_cpu_possible(cpu, true);
 			cpu++;
 		}
@@ -475,10 +529,10 @@ void __init smp_setup_cpu_maps(void)
 	 * On pSeries LPAR, we need to know how many cpus
 	 * could possibly be added to this partition.
 	 */
-	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR) &&
+	if (firmware_has_feature(FW_FEATURE_LPAR) &&
 	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
-		const unsigned int *ireg;
+		const __be32 *ireg;
 
 		num_addr_cell = of_n_addr_cells(dn);
 		num_size_cell = of_n_size_cells(dn);
@@ -488,7 +542,7 @@ void __init smp_setup_cpu_maps(void)
 		if (!ireg)
 			goto out;
 
-		maxcpus = ireg[num_addr_cell + num_size_cell];
+		maxcpus = be32_to_cpup(ireg + num_addr_cell + num_size_cell);
 
 		/* Double maxcpus for processors which have SMT capability */
 		if (cpu_has_feature(CPU_FTR_SMT))
@@ -497,7 +551,7 @@ void __init smp_setup_cpu_maps(void)
 		if (maxcpus > nr_cpu_ids) {
 			printk(KERN_WARNING
 			       "Partition configured for %d cpus, "
-			       "operating system maximum is %d.\n",
+			       "operating system maximum is %u.\n",
 			       maxcpus, nr_cpu_ids);
 			maxcpus = nr_cpu_ids;
 		} else
@@ -556,12 +610,24 @@ void probe_machine(void)
 {
 	extern struct machdep_calls __machine_desc_start;
 	extern struct machdep_calls __machine_desc_end;
+	unsigned int i;
 
 	/*
 	 * Iterate all ppc_md structures until we find the proper
 	 * one for the current machine type
 	 */
 	DBG("Probing machine type ...\n");
+
+	/*
+	 * Check ppc_md is empty, if not we have a bug, ie, we setup an
+	 * entry before probe_machine() which will be overwritten
+	 */
+	for (i = 0; i < (sizeof(ppc_md) / sizeof(void *)); i++) {
+		if (((void **)&ppc_md)[i]) {
+			printk(KERN_ERR "Entry %d in ppc_md non empty before"
+			       " machine probe !\n", i);
+		}
+	}
 
 	for (machine_id = &__machine_desc_start;
 	     machine_id < &__machine_desc_end;
@@ -638,28 +704,6 @@ int check_legacy_ioport(unsigned long base_port)
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
-static int ppc_panic_event(struct notifier_block *this,
-                             unsigned long event, void *ptr)
-{
-	/*
-	 * If firmware-assisted dump has been registered then trigger
-	 * firmware-assisted dump and let firmware handle everything else.
-	 */
-	crash_fadump(NULL, ptr);
-	ppc_md.panic(ptr);  /* May not return */
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block ppc_panic_block = {
-	.notifier_call = ppc_panic_event,
-	.priority = INT_MIN /* may not return; must be done last */
-};
-
-void __init setup_panic(void)
-{
-	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
-}
-
 #ifdef CONFIG_CHECK_CACHE_COHERENCY
 /*
  * For platforms that have configurable cache-coherency.  This function
@@ -714,33 +758,6 @@ static int powerpc_debugfs_init(void)
 arch_initcall(powerpc_debugfs_init);
 #endif
 
-#ifdef CONFIG_BOOKE_WDT
-extern u32 booke_wdt_enabled;
-extern u32 booke_wdt_period;
-
-/* Checks wdt=x and wdt_period=xx command-line option */
-notrace int __init early_parse_wdt(char *p)
-{
-	if (p && strncmp(p, "0", 1) != 0)
-		booke_wdt_enabled = 1;
-
-	return 0;
-}
-early_param("wdt", early_parse_wdt);
-
-int __init early_parse_wdt_period(char *p)
-{
-	unsigned long ret;
-	if (p) {
-		if (!kstrtol(p, 0, &ret))
-			booke_wdt_period = ret;
-	}
-
-	return 0;
-}
-early_param("wdt_period", early_parse_wdt_period);
-#endif	/* CONFIG_BOOKE_WDT */
-
 void ppc_printk_progress(char *s, unsigned short hex)
 {
 	pr_info("%s\n", s);
@@ -751,4 +768,169 @@ void arch_setup_pdev_archdata(struct platform_device *pdev)
 	pdev->archdata.dma_mask = DMA_BIT_MASK(32);
 	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
  	set_dma_ops(&pdev->dev, &dma_direct_ops);
+}
+
+static __init void print_system_info(void)
+{
+	pr_info("-----------------------------------------------------\n");
+#ifdef CONFIG_PPC_STD_MMU_64
+	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
+#endif
+#ifdef CONFIG_PPC_STD_MMU_32
+	pr_info("Hash_size         = 0x%lx\n", Hash_size);
+#endif
+	pr_info("phys_mem_size     = 0x%llx\n",
+		(unsigned long long)memblock_phys_mem_size());
+
+	pr_info("dcache_bsize      = 0x%x\n", dcache_bsize);
+	pr_info("icache_bsize      = 0x%x\n", icache_bsize);
+	if (ucache_bsize != 0)
+		pr_info("ucache_bsize      = 0x%x\n", ucache_bsize);
+
+	pr_info("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
+	pr_info("  possible        = 0x%016lx\n",
+		(unsigned long)CPU_FTRS_POSSIBLE);
+	pr_info("  always          = 0x%016lx\n",
+		(unsigned long)CPU_FTRS_ALWAYS);
+	pr_info("cpu_user_features = 0x%08x 0x%08x\n",
+		cur_cpu_spec->cpu_user_features,
+		cur_cpu_spec->cpu_user_features2);
+	pr_info("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
+#ifdef CONFIG_PPC64
+	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
+#endif
+
+#ifdef CONFIG_PPC_STD_MMU_64
+	if (htab_address)
+		pr_info("htab_address      = 0x%p\n", htab_address);
+	if (htab_hash_mask)
+		pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+#endif
+#ifdef CONFIG_PPC_STD_MMU_32
+	if (Hash)
+		pr_info("Hash              = 0x%p\n", Hash);
+	if (Hash_mask)
+		pr_info("Hash_mask         = 0x%lx\n", Hash_mask);
+#endif
+
+	if (PHYSICAL_START > 0)
+		pr_info("physical_start    = 0x%llx\n",
+		       (unsigned long long)PHYSICAL_START);
+	pr_info("-----------------------------------------------------\n");
+}
+
+/*
+ * Called into from start_kernel this initializes memblock, which is used
+ * to manage page allocation until mem_init is called.
+ */
+void __init setup_arch(char **cmdline_p)
+{
+	*cmdline_p = boot_command_line;
+
+	/* Set a half-reasonable default so udelay does something sensible */
+	loops_per_jiffy = 500000000 / HZ;
+
+	/* Unflatten the device-tree passed by prom_init or kexec */
+	unflatten_device_tree();
+
+	/*
+	 * Initialize cache line/block info from device-tree (on ppc64) or
+	 * just cputable (on ppc32).
+	 */
+	initialize_cache_info();
+
+	/* Initialize RTAS if available. */
+	rtas_initialize();
+
+	/* Check if we have an initrd provided via the device-tree. */
+	check_for_initrd();
+
+	/* Probe the machine type, establish ppc_md. */
+	probe_machine();
+
+	/*
+	 * Configure ppc_md.power_save (ppc32 only, 64-bit machines do
+	 * it from their respective probe() function.
+	 */
+	setup_power_save();
+
+	/* Discover standard serial ports. */
+	find_legacy_serial_ports();
+
+	/* Register early console with the printk subsystem. */
+	register_early_udbg_console();
+
+	/* Setup the various CPU maps based on the device-tree. */
+	smp_setup_cpu_maps();
+
+	/* Initialize xmon. */
+	xmon_setup();
+
+	/* Check the SMT related command line arguments (ppc64). */
+	check_smt_enabled();
+
+	/* On BookE, setup per-core TLB data structures. */
+	setup_tlb_core_data();
+
+	/*
+	 * Release secondary cpus out of their spinloops at 0x60 now that
+	 * we can map physical -> logical CPU ids.
+	 *
+	 * Freescale Book3e parts spin in a loop provided by firmware,
+	 * so smp_release_cpus() does nothing for them.
+	 */
+#ifdef CONFIG_SMP
+	smp_release_cpus();
+#endif
+
+	/* Print various info about the machine that has been gathered so far. */
+	print_system_info();
+
+	/* Reserve large chunks of memory for use by CMA for KVM. */
+	kvm_cma_reserve();
+
+	klp_init_thread_info(&init_thread_info);
+
+	init_mm.start_code = (unsigned long)_stext;
+	init_mm.end_code = (unsigned long) _etext;
+	init_mm.end_data = (unsigned long) _edata;
+	init_mm.brk = klimit;
+
+#ifdef CONFIG_PPC_MM_SLICES
+#ifdef CONFIG_PPC64
+	init_mm.context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+#else
+#error	"context.addr_limit not initialized."
+#endif
+#endif
+
+#ifdef CONFIG_PPC_64K_PAGES
+	init_mm.context.pte_frag = NULL;
+#endif
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	mm_iommu_init(&init_mm);
+#endif
+	irqstack_early_init();
+	exc_lvl_early_init();
+	emergency_stack_init();
+
+	initmem_init();
+
+#ifdef CONFIG_DUMMY_CONSOLE
+	conswitchp = &dummy_con;
+#endif
+	if (ppc_md.setup_arch)
+		ppc_md.setup_arch();
+
+	paging_init();
+
+	/* Initialize the MMU context management stuff. */
+	mmu_context_init();
+
+#ifdef CONFIG_PPC64
+	/* Interrupt code needs to be 64K-aligned. */
+	if ((unsigned long)_stext & 0xffff)
+		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
+		      (unsigned long)_stext);
+#endif
 }

@@ -1,0 +1,53 @@
+/*
+ * Andrew Lunn <andrew@lunn.ch>
+ * Ben Peddell <klightspeed@killerwolves.net>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6282.dtsi"
+#include "kirkwood-synology.dtsi"
+
+/ {
+	model = "Synology DS112";
+	compatible = "synology,ds111", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	gpio-fan-100-15-35-1 {
+		status = "okay";
+	};
+
+	gpio-leds-21-2 {
+		status = "okay";
+	};
+
+	regulators-hdd-30 {
+		status = "okay";
+	};
+};
+
+&s35390a {
+	status = "okay";
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};

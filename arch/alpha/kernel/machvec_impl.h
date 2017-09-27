@@ -43,10 +43,7 @@
 #define CAT1(x,y)  x##y
 #define CAT(x,y)   CAT1(x,y)
 
-#define DO_DEFAULT_RTC \
-	.rtc_port = 0x70, \
-	.rtc_get_time = common_get_rtc_time, \
-	.rtc_set_time = common_set_rtc_time
+#define DO_DEFAULT_RTC			.rtc_port = 0x70
 
 #define DO_EV4_MMU							\
 	.max_asn =			EV4_MAX_ASN,			\
@@ -140,16 +137,18 @@
 #define __initmv __initdata
 #define ALIAS_MV(x)
 #else
-#define __initmv __initdata_refok
+#define __initmv __refdata
 
 /* GCC actually has a syntax for defining aliases, but is under some
    delusion that you shouldn't be able to declare it extern somewhere
    else beforehand.  Fine.  We'll do it ourselves.  */
 #if 0
 #define ALIAS_MV(system) \
-  struct alpha_machine_vector alpha_mv __attribute__((alias(#system "_mv")));
+  struct alpha_machine_vector alpha_mv __attribute__((alias(#system "_mv"))); \
+  EXPORT_SYMBOL(alpha_mv);
 #else
 #define ALIAS_MV(system) \
-  asm(".global alpha_mv\nalpha_mv = " #system "_mv");
+  asm(".global alpha_mv\nalpha_mv = " #system "_mv"); \
+  EXPORT_SYMBOL(alpha_mv);
 #endif
 #endif /* GENERIC */

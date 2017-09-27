@@ -1,11 +1,23 @@
 #
 config INTEGRITY
-	def_bool y
-	depends on IMA || EVM
+	bool "Integrity subsystem"
+	depends on SECURITY
+	default y
+	help
+	  This option enables the integrity subsystem, which is comprised
+	  of a number of different components including the Integrity
+	  Measurement Architecture (IMA), Extended Verification Module
+	  (EVM), IMA-appraisal extension, digital signature verification
+	  extension and audit measurement log support.
+
+	  Each of these components can be enabled/disabled separately.
+	  Refer to the individual components for additional details.
+
+if INTEGRITY
 
 config INTEGRITY_SIGNATURE
-	boolean "Digital signature verification using multiple keyrings"
-	depends on INTEGRITY && KEYS
+	bool "Digital signature verification using multiple keyrings"
+	depends on KEYS
 	default n
 	select SIGNATURE
 	help
@@ -17,9 +29,31 @@ config INTEGRITY_SIGNATURE
 	  This is useful for evm and module keyrings, when keys are
 	  usually only added from initramfs.
 
+config INTEGRITY_ASYMMETRIC_KEYS
+	bool "Enable asymmetric keys support"
+	depends on INTEGRITY_SIGNATURE
+	default n
+        select ASYMMETRIC_KEY_TYPE
+        select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+        select CRYPTO_RSA
+        select X509_CERTIFICATE_PARSER
+	help
+	  This option enables digital signature verification using
+	  asymmetric keys.
+
+config INTEGRITY_TRUSTED_KEYRING
+	bool "Require all keys on the integrity keyrings be signed"
+	depends on SYSTEM_TRUSTED_KEYRING
+	depends on INTEGRITY_ASYMMETRIC_KEYS
+	default y
+	help
+	   This option requires that all keys added to the .ima and
+	   .evm keyrings be signed by a key on the system trusted
+	   keyring.
+
 config INTEGRITY_AUDIT
 	bool "Enables integrity auditing support "
-	depends on INTEGRITY && AUDIT
+	depends on AUDIT
 	default y
 	help
 	  In addition to enabling integrity auditing support, this
@@ -32,17 +66,7 @@ config INTEGRITY_AUDIT
 	  be enabled by specifying 'integrity_audit=1' on the kernel
 	  command line.
 
-config INTEGRITY_ASYMMETRIC_KEYS
-	boolean "Enable asymmetric keys support"
-	depends on INTEGRITY_SIGNATURE
-	default n
-        select ASYMMETRIC_KEY_TYPE
-        select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
-        select PUBLIC_KEY_ALGO_RSA
-        select X509_CERTIFICATE_PARSER
-	help
-	  This option enables digital signature verification using
-	  asymmetric keys.
-
 source security/integrity/ima/Kconfig
 source security/integrity/evm/Kconfig
+
+endif   # if INTEGRITY

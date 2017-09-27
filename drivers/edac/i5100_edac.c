@@ -29,7 +29,7 @@
 #include <linux/mmzone.h>
 #include <linux/debugfs.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /* register addresses */
 
@@ -277,11 +277,6 @@ static inline u32 i5100_recmema_bank(u32 a)
 static inline u32 i5100_recmema_rank(u32 a)
 {
 	return i5100_nrecmema_rank(a);
-}
-
-static inline u32 i5100_recmema_dm_buf_id(u32 a)
-{
-	return i5100_nrecmema_dm_buf_id(a);
 }
 
 static inline u32 i5100_recmemb_cas(u32 a)
@@ -579,9 +574,7 @@ static void i5100_check_error(struct mem_ctl_info *mci)
 
 static void i5100_refresh_scrubbing(struct work_struct *work)
 {
-	struct delayed_work *i5100_scrubbing = container_of(work,
-							    struct delayed_work,
-							    work);
+	struct delayed_work *i5100_scrubbing = to_delayed_work(work);
 	struct i5100_priv *priv = container_of(i5100_scrubbing,
 					       struct i5100_priv,
 					       i5100_scrubbing);
@@ -869,16 +862,13 @@ static void i5100_init_csrows(struct mem_ctl_info *mci)
 			       chan, rank, 0);
 
 		dimm->nr_pages = npages;
-		if (npages) {
-			dimm->grain = 32;
-			dimm->dtype = (priv->mtr[chan][rank].width == 4) ?
-					DEV_X4 : DEV_X8;
-			dimm->mtype = MEM_RDDR2;
-			dimm->edac_mode = EDAC_SECDED;
-			snprintf(dimm->label, sizeof(dimm->label),
-				"DIMM%u",
-				i5100_rank_to_slot(mci, chan, rank));
-		}
+		dimm->grain = 32;
+		dimm->dtype = (priv->mtr[chan][rank].width == 4) ?
+				DEV_X4 : DEV_X8;
+		dimm->mtype = MEM_RDDR2;
+		dimm->edac_mode = EDAC_SECDED;
+		snprintf(dimm->label, sizeof(dimm->label), "DIMM%u",
+			 i5100_rank_to_slot(mci, chan, rank));
 
 		edac_dbg(2, "dimm channel %d, rank %d, size %ld\n",
 			 chan, rank, (long)PAGES_TO_MiB(npages));
@@ -974,25 +964,25 @@ static int i5100_setup_debugfs(struct mem_ctl_info *mci)
 	if (!i5100_debugfs)
 		return -ENODEV;
 
-	priv->debugfs = debugfs_create_dir(mci->bus->name, i5100_debugfs);
+	priv->debugfs = edac_debugfs_create_dir_at(mci->bus->name, i5100_debugfs);
 
 	if (!priv->debugfs)
 		return -ENOMEM;
 
-	debugfs_create_x8("inject_channel", S_IRUGO | S_IWUSR, priv->debugfs,
-			&priv->inject_channel);
-	debugfs_create_x8("inject_hlinesel", S_IRUGO | S_IWUSR, priv->debugfs,
-			&priv->inject_hlinesel);
-	debugfs_create_x8("inject_deviceptr1", S_IRUGO | S_IWUSR, priv->debugfs,
-			&priv->inject_deviceptr1);
-	debugfs_create_x8("inject_deviceptr2", S_IRUGO | S_IWUSR, priv->debugfs,
-			&priv->inject_deviceptr2);
-	debugfs_create_x16("inject_eccmask1", S_IRUGO | S_IWUSR, priv->debugfs,
-			&priv->inject_eccmask1);
-	debugfs_create_x16("inject_eccmask2", S_IRUGO | S_IWUSR, priv->debugfs,
-			&priv->inject_eccmask2);
-	debugfs_create_file("inject_enable", S_IWUSR, priv->debugfs,
-			&mci->dev, &i5100_inject_enable_fops);
+	edac_debugfs_create_x8("inject_channel", S_IRUGO | S_IWUSR, priv->debugfs,
+				&priv->inject_channel);
+	edac_debugfs_create_x8("inject_hlinesel", S_IRUGO | S_IWUSR, priv->debugfs,
+				&priv->inject_hlinesel);
+	edac_debugfs_create_x8("inject_deviceptr1", S_IRUGO | S_IWUSR, priv->debugfs,
+				&priv->inject_deviceptr1);
+	edac_debugfs_create_x8("inject_deviceptr2", S_IRUGO | S_IWUSR, priv->debugfs,
+				&priv->inject_deviceptr2);
+	edac_debugfs_create_x16("inject_eccmask1", S_IRUGO | S_IWUSR, priv->debugfs,
+				&priv->inject_eccmask1);
+	edac_debugfs_create_x16("inject_eccmask2", S_IRUGO | S_IWUSR, priv->debugfs,
+				&priv->inject_eccmask2);
+	edac_debugfs_create_file("inject_enable", S_IWUSR, priv->debugfs,
+				&mci->dev, &i5100_inject_enable_fops);
 
 	return 0;
 
@@ -1118,7 +1108,6 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = "i5100_edac.c";
-	mci->mod_ver = "not versioned";
 	mci->ctl_name = "i5100";
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
@@ -1197,7 +1186,7 @@ static void i5100_remove_one(struct pci_dev *pdev)
 
 	priv = mci->pvt_info;
 
-	debugfs_remove_recursive(priv->debugfs);
+	edac_debugfs_remove_recursive(priv->debugfs);
 
 	priv->scrub_enable = 0;
 	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
@@ -1213,7 +1202,7 @@ static void i5100_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(i5100_pci_tbl) = {
+static const struct pci_device_id i5100_pci_tbl[] = {
 	/* Device 16, Function 0, Channel 0 Memory Map, Error Flag/Mask, ... */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5100_16) },
 	{ 0, }
@@ -1231,7 +1220,7 @@ static int __init i5100_init(void)
 {
 	int pci_rc;
 
-	i5100_debugfs = debugfs_create_dir("i5100_edac", NULL);
+	i5100_debugfs = edac_debugfs_create_dir_at("i5100_edac", NULL);
 
 	pci_rc = pci_register_driver(&i5100_driver);
 	return (pci_rc < 0) ? pci_rc : 0;
@@ -1239,7 +1228,7 @@ static int __init i5100_init(void)
 
 static void __exit i5100_exit(void)
 {
-	debugfs_remove(i5100_debugfs);
+	edac_debugfs_remove(i5100_debugfs);
 
 	pci_unregister_driver(&i5100_driver);
 }

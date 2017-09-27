@@ -12,10 +12,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #ifndef __PVRUSB2_HDW_H
 #define __PVRUSB2_HDW_H
@@ -271,9 +267,6 @@ int pvr2_hdw_cmd_deep_reset(struct pvr2_hdw *);
 /* Execute simple reset command */
 int pvr2_hdw_cmd_powerup(struct pvr2_hdw *);
 
-/* suspend */
-int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *);
-
 /* Order decoder to reset */
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *);
 
@@ -343,13 +336,3 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw);
 int pvr2_upload_firmware2(struct pvr2_hdw *hdw);
 
 #endif /* __PVRUSB2_HDW_H */
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

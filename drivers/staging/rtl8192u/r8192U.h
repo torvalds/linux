@@ -1,6 +1,6 @@
 /*
  * This is part of rtl8187 OpenSource driver.
- * Copyright (C) Andrea Merello 2004-2005  <andreamrl@tiscali.it>
+ * Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
  * Released under the terms of GPL (General Public Licence)
  *
  * Parts of this driver are based on the GPL part of the
@@ -20,7 +20,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -35,49 +34,14 @@
 #include <linux/proc_fs.h>
 #include <linux/if_arp.h>
 #include <linux/random.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "ieee80211/ieee80211.h"
 
 #define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
 /* HW security */
-#define FALSE 0
-#define TRUE 1
 #define MAX_KEY_LEN     61
 #define KEY_BUF_SIZE    5
-
-#define BIT0            0x00000001
-#define BIT1            0x00000002
-#define BIT2            0x00000004
-#define BIT3            0x00000008
-#define BIT4            0x00000010
-#define BIT5            0x00000020
-#define BIT6            0x00000040
-#define BIT7            0x00000080
-#define BIT8            0x00000100
-#define BIT9            0x00000200
-#define BIT10           0x00000400
-#define BIT11           0x00000800
-#define BIT12           0x00001000
-#define BIT13           0x00002000
-#define BIT14           0x00004000
-#define BIT15           0x00008000
-#define BIT16           0x00010000
-#define BIT17           0x00020000
-#define BIT18           0x00040000
-#define BIT19           0x00080000
-#define BIT20           0x00100000
-#define BIT21           0x00200000
-#define BIT22           0x00400000
-#define BIT23           0x00800000
-#define BIT24           0x01000000
-#define BIT25           0x02000000
-#define BIT26           0x04000000
-#define BIT27           0x08000000
-#define BIT28           0x10000000
-#define BIT29           0x20000000
-#define BIT30           0x40000000
-#define BIT31           0x80000000
 
 #define	Rx_Smooth_Factor		20
 #define DMESG(x, a...)
@@ -90,44 +54,44 @@ extern u32 rt_global_debug_component;
 			pr_debug("RTL8192U: " x "\n", ##args);	\
 	} while (0)
 
-#define COMP_TRACE              BIT0  /* Function call tracing. */
-#define COMP_DBG                BIT1
-#define COMP_INIT               BIT2  /* Driver initialization/halt/reset. */
+#define COMP_TRACE              BIT(0)  /* Function call tracing. */
+#define COMP_DBG                BIT(1)
+#define COMP_INIT               BIT(2)  /* Driver initialization/halt/reset. */
 
 
-#define COMP_RECV               BIT3  /* Receive data path. */
-#define COMP_SEND               BIT4  /* Send data path. */
-#define COMP_IO                 BIT5
+#define COMP_RECV               BIT(3)  /* Receive data path. */
+#define COMP_SEND               BIT(4)  /* Send data path. */
+#define COMP_IO                 BIT(5)
 /* 802.11 Power Save mode or System/Device Power state. */
-#define COMP_POWER              BIT6
+#define COMP_POWER              BIT(6)
 /* 802.11 link related: join/start BSS, leave BSS. */
-#define COMP_EPROM              BIT7
-#define COMP_SWBW               BIT8  /* Bandwidth switch. */
-#define COMP_POWER_TRACKING     BIT9  /* 8190 TX Power Tracking */
-#define COMP_TURBO              BIT10 /* Turbo Mode */
-#define COMP_QOS                BIT11
-#define COMP_RATE               BIT12 /* Rate Adaptive mechanism */
-#define COMP_RM                 BIT13 /* Radio Measurement */
-#define COMP_DIG                BIT14
-#define COMP_PHY                BIT15
-#define COMP_CH                 BIT16 /* Channel setting debug */
-#define COMP_TXAGC              BIT17 /* Tx power */
-#define COMP_HIPWR              BIT18 /* High Power Mechanism */
-#define COMP_HALDM              BIT19 /* HW Dynamic Mechanism */
-#define COMP_SEC                BIT20 /* Event handling */
-#define COMP_LED                BIT21
-#define COMP_RF                 BIT22
-#define COMP_RXDESC             BIT23 /* Rx desc information for SD3 debug */
+#define COMP_EPROM              BIT(7)
+#define COMP_SWBW               BIT(8)  /* Bandwidth switch. */
+#define COMP_POWER_TRACKING     BIT(9)  /* 8190 TX Power Tracking */
+#define COMP_TURBO              BIT(10) /* Turbo Mode */
+#define COMP_QOS                BIT(11)
+#define COMP_RATE               BIT(12) /* Rate Adaptive mechanism */
+#define COMP_RM                 BIT(13) /* Radio Measurement */
+#define COMP_DIG                BIT(14)
+#define COMP_PHY                BIT(15)
+#define COMP_CH                 BIT(16) /* Channel setting debug */
+#define COMP_TXAGC              BIT(17) /* Tx power */
+#define COMP_HIPWR              BIT(18) /* High Power Mechanism */
+#define COMP_HALDM              BIT(19) /* HW Dynamic Mechanism */
+#define COMP_SEC                BIT(20) /* Event handling */
+#define COMP_LED                BIT(21)
+#define COMP_RF                 BIT(22)
+#define COMP_RXDESC             BIT(23) /* Rx desc information for SD3 debug */
 
 /* 11n or 8190 specific code */
 
-#define COMP_FIRMWARE           BIT24 /* Firmware downloading */
-#define COMP_HT                 BIT25 /* 802.11n HT related information */
-#define COMP_AMSDU              BIT26 /* A-MSDU Debugging */
-#define COMP_SCAN               BIT27
-#define COMP_DOWN               BIT29 /* rm driver module */
-#define COMP_RESET              BIT30 /* Silent reset */
-#define COMP_ERR                BIT31 /* Error out, always on */
+#define COMP_FIRMWARE           BIT(24) /* Firmware downloading */
+#define COMP_HT                 BIT(25) /* 802.11n HT related information */
+#define COMP_AMSDU              BIT(26) /* A-MSDU Debugging */
+#define COMP_SCAN               BIT(27)
+#define COMP_DOWN               BIT(29) /* rm driver module */
+#define COMP_RESET              BIT(30) /* Silent reset */
+#define COMP_ERR                BIT(31) /* Error out, always on */
 
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
@@ -338,11 +302,11 @@ typedef struct _tx_fwinfo_819x_usb {
 	u32	PacketID:13;
 } tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
 
-typedef struct rtl8192_rx_info {
+struct rtl8192_rx_info {
 	struct urb *urb;
 	struct net_device *dev;
 	u8 out_pipe;
-} rtl8192_rx_info ;
+};
 
 typedef struct rx_desc_819x_usb {
 	/* DOWRD 0 */
@@ -409,14 +373,10 @@ typedef struct rx_drvinfo_819x_usb {
 #define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
 #define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
-#ifdef RTL8192U
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define MAX_TRANSMIT_BUFFER_SIZE			32000
 #else
 #define MAX_TRANSMIT_BUFFER_SIZE			8000
-#endif
-#else
-#define MAX_TRANSMIT_BUFFER_SIZE	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
 #endif
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES (sizeof(tx_desc_819x_usb_aggr_subframe) + sizeof(tx_fwinfo_819x_usb))
@@ -573,7 +533,7 @@ typedef struct _rt_9x_tx_rate_history {
 	u32             ht_mcs[4][16];
 } rt_tx_rahis_t, *prt_tx_rahis_t;
 typedef struct _RT_SMOOTH_DATA_4RF {
-	char    elements[4][100]; /* array to store values */
+	s8    elements[4][100]; /* array to store values */
 	u32     index;            /* index to current array to store */
 	u32     TotalNum;         /* num of valid elements */
 	u32     TotalVal[4];      /* sum of valid elements */
@@ -666,7 +626,8 @@ typedef struct Stats {
 	long signal_quality;
 	long last_signal_strength_inpercent;
 	/* Correct smoothed ss in dbm, only used in driver
-	 * to report real power now */
+	 * to report real power now
+	 */
 	long recv_signal_power;
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
@@ -712,32 +673,40 @@ typedef struct _BB_REGISTER_DEFINITION {
 	/* Tx gain stage:               0x80c~0x80f [4 bytes]  */
 	u32 rfTxGainStage;
 	/* wire parameter control1:     0x820~0x823, 0x828~0x82b,
-	 *                              0x830~0x833, 0x838~0x83b [16 bytes] */
+	 *                              0x830~0x833, 0x838~0x83b [16 bytes]
+	 */
 	u32 rfHSSIPara1;
 	/* wire parameter control2:     0x824~0x827, 0x82c~0x82f,
-	 *                              0x834~0x837, 0x83c~0x83f [16 bytes] */
+	 *                              0x834~0x837, 0x83c~0x83f [16 bytes]
+	 */
 	u32 rfHSSIPara2;
 	/* Tx Rx antenna control:       0x858~0x85f [16 bytes] */
 	u32 rfSwitchControl;
 	/* AGC parameter control1:	0xc50~0xc53, 0xc58~0xc5b,
-	 *                              0xc60~0xc63, 0xc68~0xc6b [16 bytes] */
+	 *                              0xc60~0xc63, 0xc68~0xc6b [16 bytes]
+	 */
 	u32 rfAGCControl1;
 	/* AGC parameter control2:      0xc54~0xc57, 0xc5c~0xc5f,
-	 *                              0xc64~0xc67, 0xc6c~0xc6f [16 bytes] */
+	 *                              0xc64~0xc67, 0xc6c~0xc6f [16 bytes]
+	 */
 	u32 rfAGCControl2;
 	/* OFDM Rx IQ imbalance matrix:	0xc14~0xc17, 0xc1c~0xc1f,
-	 *                              0xc24~0xc27, 0xc2c~0xc2f [16 bytes] */
+	 *                              0xc24~0xc27, 0xc2c~0xc2f [16 bytes]
+	 */
 	u32 rfRxIQImbalance;
 	/* Rx IQ DC offset and Rx digital filter, Rx DC notch filter:
 	 *                              0xc10~0xc13, 0xc18~0xc1b,
-	 *                              0xc20~0xc23, 0xc28~0xc2b [16 bytes] */
+	 *                              0xc20~0xc23, 0xc28~0xc2b [16 bytes]
+	 */
 	u32 rfRxAFE;
 	/* OFDM Tx IQ imbalance matrix:	0xc80~0xc83, 0xc88~0xc8b,
-	 *                              0xc90~0xc93, 0xc98~0xc9b [16 bytes] */
+	 *                              0xc90~0xc93, 0xc98~0xc9b [16 bytes]
+	 */
 	u32 rfTxIQImbalance;
 	/* Tx IQ DC Offset and Tx DFIR type:
 	 *                              0xc84~0xc87, 0xc8c~0xc8f,
-	 *                              0xc94~0xc97, 0xc9c~0xc9f [16 bytes] */
+	 *                              0xc94~0xc97, 0xc9c~0xc9f [16 bytes]
+	 */
 	u32 rfTxAFE;
 	/* LSSI RF readback data:       0x8a0~0x8af [16 bytes] */
 	u32 rfLSSIReadBack;
@@ -816,19 +785,20 @@ typedef struct _phy_ofdm_rx_status_report_819xusb {
 typedef struct _phy_cck_rx_status_report_819xusb {
 	/* For CCK rate descriptor. This is an unsigned 8:1 variable.
 	 * LSB bit presend 0.5. And MSB 7 bts presend a signed value.
-	 * Range from -64~+63.5. */
+	 * Range from -64~+63.5.
+	 */
 	u8	adc_pwdb_X[4];
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
 } phy_sts_cck_819xusb_t;
 
 
-typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag {
+struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			reserved:4;
 	u8			rxsc:2;
 	u8			sgi_en:1;
 	u8			ex_intf_flag:1;
-} phy_ofdm_rx_status_rxsc_sgien_exintfflag;
+};
 
 typedef enum _RT_CUSTOMER_ID {
 	RT_CID_DEFAULT = 0,
@@ -919,8 +889,7 @@ typedef struct r8192_priv {
 	/* If 1, allow bad crc frame, reception in monitor mode */
 	short crcmon;
 
-	struct semaphore wx_sem;
-	struct semaphore rf_sem;	/* Used to lock rf write operation */
+	struct mutex wx_mutex;
 
 	u8 rf_type;			/* 0: 1T2R, 1: 2T4R */
 	RT_RF_TYPE_819xU rf_chip;
@@ -1032,7 +1001,8 @@ typedef struct r8192_priv {
 	/* Control channel sub-carrier */
 	u8	nCur40MhzPrimeSC;
 	/* Test for shorten RF configuration time.
-	 * We save RF reg0 in this variable to reduce RF reading. */
+	 * We save RF reg0 in this variable to reduce RF reading.
+	 */
 	u32					RfReg0Value[4];
 	u8					NumTotalRFPath;
 	bool				brfpath_rxenable[4];
@@ -1050,11 +1020,13 @@ typedef struct r8192_priv {
 
 	bool	bstore_last_dtpflag;
 	/* Define to discriminate on High power State or
-	 * on sitesurvey to change Tx gain index */
+	 * on sitesurvey to change Tx gain index
+	 */
 	bool	bstart_txctrl_bydtp;
 	rate_adaptive rate_adaptive;
 	/* TX power tracking
-	 * OPEN/CLOSE TX POWER TRACKING */
+	 * OPEN/CLOSE TX POWER TRACKING
+	 */
 	txbbgain_struct txbbgain_table[TxBBGainTableLength];
 	u8		txpower_count; /* For 6 sec do tracking again */
 	bool		btxpower_trackingInit;
@@ -1069,10 +1041,10 @@ typedef struct r8192_priv {
 	u8 rfc_txpowertrackingindex;
 	u8 rfc_txpowertrackingindex_real;
 
-	s8 cck_present_attentuation;
-	u8 cck_present_attentuation_20Mdefault;
-	u8 cck_present_attentuation_40Mdefault;
-	char cck_present_attentuation_difference;
+	s8 cck_present_attenuation;
+	u8 cck_present_attenuation_20Mdefault;
+	u8 cck_present_attenuation_40Mdefault;
+	s8 cck_present_attenuation_difference;
 	bool btxpower_tracking;
 	bool bcck_in_ch14;
 	bool btxpowerdata_readfromEEPORM;
@@ -1158,14 +1130,6 @@ typedef enum {
 	NIC_8192E = 3,
 } nic_t;
 
-
-#ifdef JOHN_HWSEC
-struct ssid_thread {
-	struct net_device *dev;
-	u8 name[IW_ESSID_MAX_SIZE + 1];
-};
-#endif
-
 bool init_firmware(struct net_device *dev);
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
@@ -1177,15 +1141,15 @@ int read_nic_byte(struct net_device *dev, int x, u8 *data);
 int read_nic_byte_E(struct net_device *dev, int x, u8 *data);
 int read_nic_dword(struct net_device *dev, int x, u32 *data);
 int read_nic_word(struct net_device *dev, int x, u16 *data);
-void write_nic_byte(struct net_device *dev, int x, u8 y);
-void write_nic_byte_E(struct net_device *dev, int x, u8 y);
-void write_nic_word(struct net_device *dev, int x, u16 y);
-void write_nic_dword(struct net_device *dev, int x, u32 y);
+int write_nic_byte(struct net_device *dev, int x, u8 y);
+int write_nic_byte_E(struct net_device *dev, int x, u8 y);
+int write_nic_word(struct net_device *dev, int x, u16 y);
+int write_nic_dword(struct net_device *dev, int x, u32 y);
 void force_pci_posting(struct net_device *dev);
 
-void rtl8192_rtx_disable(struct net_device *);
-void rtl8192_rx_enable(struct net_device *);
-void rtl8192_tx_enable(struct net_device *);
+void rtl8192_rtx_disable(struct net_device *dev);
+void rtl8192_rx_enable(struct net_device *dev);
+void rtl8192_tx_enable(struct net_device *dev);
 
 void rtl8192_disassociate(struct net_device *dev);
 void rtl8185_set_rf_pins_enable(struct net_device *dev, u32 a);
@@ -1202,7 +1166,7 @@ void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8192_set_rxconf(struct net_device *dev);
-extern void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
+void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);

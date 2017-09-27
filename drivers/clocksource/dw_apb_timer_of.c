@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <linux/delay.h>
 #include <linux/dw_apb_timer.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -23,7 +24,7 @@
 #include <linux/clk.h>
 #include <linux/sched_clock.h>
 
-static void timer_get_base_and_rate(struct device_node *np,
+static void __init timer_get_base_and_rate(struct device_node *np,
 				    void __iomem **base, u32 *rate)
 {
 	struct clk *timer_clk;
@@ -55,11 +56,11 @@ static void timer_get_base_and_rate(struct device_node *np,
 
 try_clock_freq:
 	if (of_property_read_u32(np, "clock-freq", rate) &&
-		of_property_read_u32(np, "clock-frequency", rate))
+	    of_property_read_u32(np, "clock-frequency", rate))
 		panic("No clock nor clock-frequency property for %s", np->name);
 }
 
-static void add_clockevent(struct device_node *event_timer)
+static void __init add_clockevent(struct device_node *event_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clock_event_device *ced;
@@ -82,7 +83,7 @@ static void add_clockevent(struct device_node *event_timer)
 static void __iomem *sched_io_base;
 static u32 sched_rate;
 
-static void add_clocksource(struct device_node *source_timer)
+static void __init add_clocksource(struct device_node *source_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clocksource *cs;
@@ -106,18 +107,17 @@ static void add_clocksource(struct device_node *source_timer)
 	sched_rate = rate;
 }
 
-static u32 read_sched_clock(void)
+static u64 notrace read_sched_clock(void)
 {
-	return __raw_readl(sched_io_base);
+	return ~readl_relaxed(sched_io_base);
 }
 
 static const struct of_device_id sptimer_ids[] __initconst = {
 	{ .compatible = "picochip,pc3x2-rtc" },
-	{ .compatible = "snps,dw-apb-timer-sp" },
 	{ /* Sentinel */ },
 };
 
-static void init_sched_clock(void)
+static void __init init_sched_clock(void)
 {
 	struct device_node *sched_timer;
 
@@ -128,29 +128,46 @@ static void init_sched_clock(void)
 		of_node_put(sched_timer);
 	}
 
-	setup_sched_clock(read_sched_clock, 32, sched_rate);
+	sched_clock_register(read_sched_clock, 32, sched_rate);
 }
 
+#ifdef CONFIG_ARM
+static unsigned long dw_apb_delay_timer_read(void)
+{
+	return ~readl_relaxed(sched_io_base);
+}
+
+static struct delay_timer dw_apb_delay_timer = {
+	.read_current_timer	= dw_apb_delay_timer_read,
+};
+#endif
+
 static int num_called;
-static void __init dw_apb_timer_init(struct device_node *timer)
+static int __init dw_apb_timer_init(struct device_node *timer)
 {
 	switch (num_called) {
 	case 0:
 		pr_debug("%s: found clockevent timer\n", __func__);
 		add_clockevent(timer);
-		of_node_put(timer);
 		break;
 	case 1:
 		pr_debug("%s: found clocksource timer\n", __func__);
 		add_clocksource(timer);
-		of_node_put(timer);
 		init_sched_clock();
+#ifdef CONFIG_ARM
+		dw_apb_delay_timer.freq = sched_rate;
+		register_current_timer_delay(&dw_apb_delay_timer);
+#endif
 		break;
 	default:
 		break;
 	}
 
 	num_called++;
+
+	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(pc3x2_timer, "picochip,pc3x2-timer", dw_apb_timer_init);
-CLOCKSOURCE_OF_DECLARE(apb_timer, "snps,dw-apb-timer-osc", dw_apb_timer_init);
+TIMER_OF_DECLARE(pc3x2_timer, "picochip,pc3x2-timer", dw_apb_timer_init);
+TIMER_OF_DECLARE(apb_timer_osc, "snps,dw-apb-timer-osc", dw_apb_timer_init);
+TIMER_OF_DECLARE(apb_timer_sp, "snps,dw-apb-timer-sp", dw_apb_timer_init);
+TIMER_OF_DECLARE(apb_timer, "snps,dw-apb-timer", dw_apb_timer_init);

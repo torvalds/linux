@@ -408,8 +408,26 @@
 #define __NR_kern_features	340
 #define __NR_kcmp		341
 #define __NR_finit_module	342
+#define __NR_sched_setattr	343
+#define __NR_sched_getattr	344
+#define __NR_renameat2		345
+#define __NR_seccomp		346
+#define __NR_getrandom		347
+#define __NR_memfd_create	348
+#define __NR_bpf		349
+#define __NR_execveat		350
+#define __NR_membarrier		351
+#define __NR_userfaultfd	352
+#define __NR_bind		353
+#define __NR_listen		354
+#define __NR_setsockopt		355
+#define __NR_mlock2		356
+#define __NR_copy_file_range	357
+#define __NR_preadv2		358
+#define __NR_pwritev2		359
+#define __NR_statx		360
 
-#define NR_syscalls		343
+#define NR_syscalls		361
 
 /* Bitmask values returned from kern_features system call.  */
 #define KERN_FEATURE_MIXED_MODE_STACK	0x00000001
@@ -424,5 +442,10 @@
 #define __IGNORE_setresgid
 #define __IGNORE_getresgid
 #endif
+
+/* Sparc doesn't have protection keys. */
+#define __IGNORE_pkey_mprotect
+#define __IGNORE_pkey_alloc
+#define __IGNORE_pkey_free
 
 #endif /* _UAPI_SPARC_UNISTD_H */

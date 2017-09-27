@@ -17,9 +17,42 @@
 #include <linux/workqueue.h>
 
 struct vt_struct;
+struct uni_pagedir;
 
 #define NPAR 16
 
+/*
+ * Example: vc_data of a console that was scrolled 3 lines down.
+ *
+ *                              Console buffer
+ * vc_screenbuf ---------> +----------------------+-.
+ *                         | initializing W       |  \
+ *                         | initializing X       |   |
+ *                         | initializing Y       |    > scroll-back area
+ *                         | initializing Z       |   |
+ *                         |                      |  /
+ * vc_visible_origin ---> ^+----------------------+-:
+ * (changes by scroll)    || Welcome to linux     |  \
+ *                        ||                      |   |
+ *           vc_rows --->< | login: root          |   |  visible on console
+ *                        || password:            |    > (vc_screenbuf_size is
+ * vc_origin -----------> ||                      |   |   vc_size_row * vc_rows)
+ * (start when no scroll) || Last login: 12:28    |  /
+ *                        v+----------------------+-:
+ *                         | Have a lot of fun... |  \
+ * vc_pos -----------------|--------v             |   > scroll-front area
+ *                         | ~ # cat_             |  /
+ * vc_scr_end -----------> +----------------------+-:
+ * (vc_origin +            |                      |  \ EMPTY, to be filled by
+ *  vc_screenbuf_size)     |                      |  / vc_video_erase_char
+ *                         +----------------------+-'
+ *                         <---- 2 * vc_cols ----->
+ *                         <---- vc_size_row ----->
+ *
+ * Note that every character in the console buffer is accompanied with an
+ * attribute in the buffer right after the character. This is not depicted
+ * in the figure.
+ */
 struct vc_data {
 	struct tty_port port;			/* Upper level data */
 
@@ -73,7 +106,6 @@ struct vc_data {
 	unsigned int	vc_decawm	: 1;	/* Autowrap Mode */
 	unsigned int	vc_deccm	: 1;	/* Cursor Visible */
 	unsigned int	vc_decim	: 1;	/* Insert Mode */
-	unsigned int	vc_deccolm	: 1;	/* 80/132 Column Mode */
 	/* attribute flags */
 	unsigned int	vc_intensity	: 2;	/* 0=half-bright, 1=normal, 2=bold */
 	unsigned int    vc_italic:1;
@@ -103,9 +135,10 @@ struct vc_data {
 	unsigned int    vc_resize_user;         /* resize request from user */
 	unsigned int	vc_bell_pitch;		/* Console bell pitch */
 	unsigned int	vc_bell_duration;	/* Console bell duration */
+	unsigned short	vc_cur_blink_ms;	/* Cursor blink duration */
 	struct vc_data **vc_display_fg;		/* [!] Ptr to var holding fg console for this display */
-	unsigned long	vc_uni_pagedir;
-	unsigned long	*vc_uni_pagedir_loc;  /* [!] Location of uni_pagedir variable for this console */
+	struct uni_pagedir *vc_uni_pagedir;
+	struct uni_pagedir **vc_uni_pagedir_loc; /* [!] Location of uni_pagedir variable for this console */
 	bool vc_panic_force_write; /* when oops/panic this VC can accept forced output/blanking */
 	/* additional information is in vt_kern.h */
 };
@@ -134,6 +167,9 @@ extern void vc_SAK(struct work_struct *work);
 
 #define CUR_DEFAULT CUR_UNDERLINE
 
-#define CON_IS_VISIBLE(conp) (*conp->vc_display_fg == conp)
+static inline bool con_is_visible(const struct vc_data *vc)
+{
+	return *vc->vc_display_fg == vc;
+}
 
 #endif /* _LINUX_CONSOLE_STRUCT_H */

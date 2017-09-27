@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 
 struct device;
+struct device_node;
 struct v4l2_device;
 struct v4l2_subdev;
 struct v4l2_async_notifier;
@@ -22,25 +23,43 @@ struct v4l2_async_notifier;
 /* A random max subdevice number, used to allocate an array on stack */
 #define V4L2_MAX_SUBDEVS 128U
 
-enum v4l2_async_bus_type {
-	V4L2_ASYNC_BUS_CUSTOM,
-	V4L2_ASYNC_BUS_PLATFORM,
-	V4L2_ASYNC_BUS_I2C,
+/**
+ * enum v4l2_async_match_type - type of asynchronous subdevice logic to be used
+ *	in order to identify a match
+ *
+ * @V4L2_ASYNC_MATCH_CUSTOM: Match will use the logic provided by &struct
+ * 	v4l2_async_subdev.match ops
+ * @V4L2_ASYNC_MATCH_DEVNAME: Match will use the device name
+ * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
+ * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
+ *
+ * This enum is used by the asyncrhronous sub-device logic to define the
+ * algorithm that will be used to match an asynchronous device.
+ */
+enum v4l2_async_match_type {
+	V4L2_ASYNC_MATCH_CUSTOM,
+	V4L2_ASYNC_MATCH_DEVNAME,
+	V4L2_ASYNC_MATCH_I2C,
+	V4L2_ASYNC_MATCH_FWNODE,
 };
 
 /**
  * struct v4l2_async_subdev - sub-device descriptor, as known to a bridge
- * @bus_type:	subdevice bus type to select the appropriate matching method
+ *
+ * @match_type:	type of match that will be used
  * @match:	union of per-bus type matching data sets
  * @list:	used to link struct v4l2_async_subdev objects, waiting to be
  *		probed, to a notifier->waiting list
  */
 struct v4l2_async_subdev {
-	enum v4l2_async_bus_type bus_type;
+	enum v4l2_async_match_type match_type;
 	union {
 		struct {
+			struct fwnode_handle *fwnode;
+		} fwnode;
+		struct {
 			const char *name;
-		} platform;
+		} device_name;
 		struct {
 			int adapter_id;
 			unsigned short address;
@@ -57,25 +76,13 @@ struct v4l2_async_subdev {
 };
 
 /**
- * v4l2_async_subdev_list - provided by subdevices
- * @list:	links struct v4l2_async_subdev_list objects to a global list
- *		before probing, and onto notifier->done after probing
- * @asd:	pointer to respective struct v4l2_async_subdev
- * @notifier:	pointer to managing notifier
- */
-struct v4l2_async_subdev_list {
-	struct list_head list;
-	struct v4l2_async_subdev *asd;
-	struct v4l2_async_notifier *notifier;
-};
-
-/**
- * v4l2_async_notifier - v4l2_device notifier data
- * @num_subdevs:number of subdevices
- * @subdev:	array of pointers to subdevice descriptors
+ * struct v4l2_async_notifier - v4l2_device notifier data
+ *
+ * @num_subdevs: number of subdevices
+ * @subdevs:	array of pointers to subdevice descriptors
  * @v4l2_dev:	pointer to struct v4l2_device
  * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
- * @done:	list of struct v4l2_async_subdev_list, already probed
+ * @done:	list of struct v4l2_subdev, already probed
  * @list:	member in a global list of notifiers
  * @bound:	a subdevice driver has successfully probed one of subdevices
  * @complete:	all subdevices have been probed successfully
@@ -83,7 +90,7 @@ struct v4l2_async_subdev_list {
  */
 struct v4l2_async_notifier {
 	unsigned int num_subdevs;
-	struct v4l2_async_subdev **subdev;
+	struct v4l2_async_subdev **subdevs;
 	struct v4l2_device *v4l2_dev;
 	struct list_head waiting;
 	struct list_head done;
@@ -97,9 +104,35 @@ struct v4l2_async_notifier {
 		       struct v4l2_async_subdev *asd);
 };
 
+/**
+ * v4l2_async_notifier_register - registers a subdevice asynchronous notifier
+ *
+ * @v4l2_dev: pointer to &struct v4l2_device
+ * @notifier: pointer to &struct v4l2_async_notifier
+ */
 int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 				 struct v4l2_async_notifier *notifier);
+
+/**
+ * v4l2_async_notifier_unregister - unregisters a subdevice asynchronous notifier
+ *
+ * @notifier: pointer to &struct v4l2_async_notifier
+ */
 void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier);
+
+/**
+ * v4l2_async_register_subdev - registers a sub-device to the asynchronous
+ * 	subdevice framework
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ */
 int v4l2_async_register_subdev(struct v4l2_subdev *sd);
+
+/**
+ * v4l2_async_unregister_subdev - unregisters a sub-device to the asynchronous
+ * 	subdevice framework
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ */
 void v4l2_async_unregister_subdev(struct v4l2_subdev *sd);
 #endif

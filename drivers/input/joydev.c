@@ -22,7 +22,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -88,7 +87,7 @@ static int joydev_correct(int value, struct js_corr *corr)
 		return 0;
 	}
 
-	return value < -32767 ? -32767 : (value > 32767 ? 32767 : value);
+	return clamp(value, -32767, 32767);
 }
 
 static void joydev_pass_event(struct joydev_client *client,
@@ -188,6 +187,17 @@ static void joydev_detach_client(struct joydev *joydev,
 	synchronize_rcu();
 }
 
+static void joydev_refresh_state(struct joydev *joydev)
+{
+	struct input_dev *dev = joydev->handle.dev;
+	int i, val;
+
+	for (i = 0; i < joydev->nabs; i++) {
+		val = input_abs_get_val(dev, joydev->abspam[i]);
+		joydev->abs[i] = joydev_correct(val, &joydev->corr[i]);
+	}
+}
+
 static int joydev_open_device(struct joydev *joydev)
 {
 	int retval;
@@ -202,6 +212,8 @@ static int joydev_open_device(struct joydev *joydev)
 		retval = input_open_device(&joydev->handle);
 		if (retval)
 			joydev->open--;
+		else
+			joydev_refresh_state(joydev);
 	}
 
 	mutex_unlock(&joydev->mutex);
@@ -444,14 +456,9 @@ static int joydev_handle_JSIOCSAXMAP(struct joydev *joydev,
 	len = min(len, sizeof(joydev->abspam));
 
 	/* Validate the map. */
-	abspam = kmalloc(len, GFP_KERNEL);
-	if (!abspam)
-		return -ENOMEM;
-
-	if (copy_from_user(abspam, argp, len)) {
-		retval = -EFAULT;
-		goto out;
-	}
+	abspam = memdup_user(argp, len);
+	if (IS_ERR(abspam))
+		return PTR_ERR(abspam);
 
 	for (i = 0; i < joydev->nabs; i++) {
 		if (abspam[i] > ABS_MAX) {
@@ -480,14 +487,9 @@ static int joydev_handle_JSIOCSBTNMAP(struct joydev *joydev,
 	len = min(len, sizeof(joydev->keypam));
 
 	/* Validate the map. */
-	keypam = kmalloc(len, GFP_KERNEL);
-	if (!keypam)
-		return -ENOMEM;
-
-	if (copy_from_user(keypam, argp, len)) {
-		retval = -EFAULT;
-		goto out;
-	}
+	keypam = memdup_user(argp, len);
+	if (IS_ERR(keypam))
+		return PTR_ERR(keypam);
 
 	for (i = 0; i < joydev->nkey; i++) {
 		if (keypam[i] > KEY_MAX || keypam[i] < BTN_MISC) {
@@ -740,13 +742,68 @@ static void joydev_cleanup(struct joydev *joydev)
 	joydev_mark_dead(joydev);
 	joydev_hangup(joydev);
 
-	cdev_del(&joydev->cdev);
-
 	/* joydev is marked dead so no one else accesses joydev->open */
 	if (joydev->open)
 		input_close_device(handle);
 }
 
+static bool joydev_dev_is_absolute_mouse(struct input_dev *dev)
+{
+	DECLARE_BITMAP(jd_scratch, KEY_CNT);
+
+	BUILD_BUG_ON(ABS_CNT > KEY_CNT || EV_CNT > KEY_CNT);
+
+	/*
+	 * Virtualization (VMware, etc) and remote management (HP
+	 * ILO2) solutions use absolute coordinates for their virtual
+	 * pointing devices so that there is one-to-one relationship
+	 * between pointer position on the host screen and virtual
+	 * guest screen, and so their mice use ABS_X, ABS_Y and 3
+	 * primary button events. This clashes with what joydev
+	 * considers to be joysticks (a device with at minimum ABS_X
+	 * axis).
+	 *
+	 * Here we are trying to separate absolute mice from
+	 * joysticks. A device is, for joystick detection purposes,
+	 * considered to be an absolute mouse if the following is
+	 * true:
+	 *
+	 * 1) Event types are exactly EV_ABS, EV_KEY and EV_SYN.
+	 * 2) Absolute events are exactly ABS_X and ABS_Y.
+	 * 3) Keys are exactly BTN_LEFT, BTN_RIGHT and BTN_MIDDLE.
+	 * 4) Device is not on "Amiga" bus.
+	 */
+
+	bitmap_zero(jd_scratch, EV_CNT);
+	__set_bit(EV_ABS, jd_scratch);
+	__set_bit(EV_KEY, jd_scratch);
+	__set_bit(EV_SYN, jd_scratch);
+	if (!bitmap_equal(jd_scratch, dev->evbit, EV_CNT))
+		return false;
+
+	bitmap_zero(jd_scratch, ABS_CNT);
+	__set_bit(ABS_X, jd_scratch);
+	__set_bit(ABS_Y, jd_scratch);
+	if (!bitmap_equal(dev->absbit, jd_scratch, ABS_CNT))
+		return false;
+
+	bitmap_zero(jd_scratch, KEY_CNT);
+	__set_bit(BTN_LEFT, jd_scratch);
+	__set_bit(BTN_RIGHT, jd_scratch);
+	__set_bit(BTN_MIDDLE, jd_scratch);
+
+	if (!bitmap_equal(dev->keybit, jd_scratch, KEY_CNT))
+		return false;
+
+	/*
+	 * Amiga joystick (amijoy) historically uses left/middle/right
+	 * button events.
+	 */
+	if (dev->id.bustype == BUS_AMIGA)
+		return false;
+
+	return true;
+}
 
 static bool joydev_match(struct input_handler *handler, struct input_dev *dev)
 {
@@ -756,6 +813,10 @@ static bool joydev_match(struct input_handler *handler, struct input_dev *dev)
 
 	/* Avoid tablets, digitisers and similar devices */
 	if (test_bit(EV_KEY, dev->evbit) && test_bit(BTN_DIGI, dev->keybit))
+		return false;
+
+	/* Avoid absolute mice */
+	if (joydev_dev_is_absolute_mouse(dev))
 		return false;
 
 	return true;
@@ -798,12 +859,11 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	joydev->handle.handler = handler;
 	joydev->handle.private = joydev;
 
-	for (i = 0; i < ABS_CNT; i++)
-		if (test_bit(i, dev->absbit)) {
-			joydev->absmap[i] = joydev->nabs;
-			joydev->abspam[joydev->nabs] = i;
-			joydev->nabs++;
-		}
+	for_each_set_bit(i, dev->absbit, ABS_CNT) {
+		joydev->absmap[i] = joydev->nabs;
+		joydev->abspam[joydev->nabs] = i;
+		joydev->nabs++;
+	}
 
 	for (i = BTN_JOYSTICK - BTN_MISC; i < KEY_MAX - BTN_MISC + 1; i++)
 		if (test_bit(i + BTN_MISC, dev->keybit)) {
@@ -823,7 +883,6 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		j = joydev->abspam[i];
 		if (input_abs_get_max(dev, j) == input_abs_get_min(dev, j)) {
 			joydev->corr[i].type = JS_CORR_NONE;
-			joydev->abs[i] = input_abs_get_val(dev, j);
 			continue;
 		}
 		joydev->corr[i].type = JS_CORR_BROKEN;
@@ -838,10 +897,6 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		if (t) {
 			joydev->corr[i].coef[2] = (1 << 29) / t;
 			joydev->corr[i].coef[3] = (1 << 29) / t;
-
-			joydev->abs[i] =
-				joydev_correct(input_abs_get_val(dev, j),
-					       joydev->corr + i);
 		}
 	}
 
@@ -856,12 +911,8 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		goto err_free_joydev;
 
 	cdev_init(&joydev->cdev, &joydev_fops);
-	joydev->cdev.kobj.parent = &joydev->dev.kobj;
-	error = cdev_add(&joydev->cdev, joydev->dev.devt, 1);
-	if (error)
-		goto err_unregister_handle;
 
-	error = device_add(&joydev->dev);
+	error = cdev_device_add(&joydev->cdev, &joydev->dev);
 	if (error)
 		goto err_cleanup_joydev;
 
@@ -869,7 +920,6 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 
  err_cleanup_joydev:
 	joydev_cleanup(joydev);
- err_unregister_handle:
 	input_unregister_handle(&joydev->handle);
  err_free_joydev:
 	put_device(&joydev->dev);
@@ -882,7 +932,7 @@ static void joydev_disconnect(struct input_handle *handle)
 {
 	struct joydev *joydev = handle->private;
 
-	device_del(&joydev->dev);
+	cdev_device_del(&joydev->cdev, &joydev->dev);
 	joydev_cleanup(joydev);
 	input_free_minor(MINOR(joydev->dev.devt));
 	input_unregister_handle(handle);
@@ -895,6 +945,12 @@ static const struct input_device_id joydev_ids[] = {
 				INPUT_DEVICE_ID_MATCH_ABSBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
 		.absbit = { BIT_MASK(ABS_X) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { BIT_MASK(ABS_Z) },
 	},
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |

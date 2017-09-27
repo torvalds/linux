@@ -24,8 +24,8 @@ There are three main ways of managing scheduling-clock interrupts
 	workloads, you will normally -not- want this option.
 
 These three cases are described in the following three sections, followed
-by a third section on RCU-specific considerations and a fourth and final
-section listing known issues.
+by a third section on RCU-specific considerations, a fourth section
+discussing testing, and a fifth and final section listing known issues.
 
 
 NEVER OMIT SCHEDULING-CLOCK TICKS
@@ -121,14 +121,15 @@ boot parameter specifies the adaptive-ticks CPUs.  For example,
 "nohz_full=1,6-8" says that CPUs 1, 6, 7, and 8 are to be adaptive-ticks
 CPUs.  Note that you are prohibited from marking all of the CPUs as
 adaptive-tick CPUs:  At least one non-adaptive-tick CPU must remain
-online to handle timekeeping tasks in order to ensure that system calls
-like gettimeofday() returns accurate values on adaptive-tick CPUs.
-(This is not an issue for CONFIG_NO_HZ_IDLE=y because there are no
-running user processes to observe slight drifts in clock rate.)
-Therefore, the boot CPU is prohibited from entering adaptive-ticks
-mode.  Specifying a "nohz_full=" mask that includes the boot CPU will
-result in a boot-time error message, and the boot CPU will be removed
-from the mask.
+online to handle timekeeping tasks in order to ensure that system
+calls like gettimeofday() returns accurate values on adaptive-tick CPUs.
+(This is not an issue for CONFIG_NO_HZ_IDLE=y because there are no running
+user processes to observe slight drifts in clock rate.)  Therefore, the
+boot CPU is prohibited from entering adaptive-ticks mode.  Specifying a
+"nohz_full=" mask that includes the boot CPU will result in a boot-time
+error message, and the boot CPU will be removed from the mask.  Note that
+this means that your system must have at least two CPUs in order for
+CONFIG_NO_HZ_FULL=y to do anything for you.
 
 Alternatively, the CONFIG_NO_HZ_FULL_ALL=y Kconfig parameter specifies
 that all CPUs other than the boot CPU are adaptive-ticks CPUs.  This
@@ -157,13 +158,9 @@ not come for free:
 	to the need to inform kernel subsystems (such as RCU) about
 	the change in mode.
 
-3.	POSIX CPU timers on adaptive-tick CPUs may miss their deadlines
-	(perhaps indefinitely) because they currently rely on
-	scheduling-tick interrupts.  This will likely be fixed in
-	one of two ways: (1) Prevent CPUs with POSIX CPU timers from
-	entering adaptive-tick mode, or (2) Use hrtimers or other
-	adaptive-ticks-immune mechanism to cause the POSIX CPU timer to
-	fire properly.
+3.	POSIX CPU timers prevent CPUs from entering adaptive-tick mode.
+	Real-time applications needing to take actions based on CPU time
+	consumption need to use other means of doing so.
 
 4.	If there are more perf events pending than the hardware can
 	accommodate, they are normally round-robined so as to collect
@@ -197,32 +194,9 @@ that the RCU callbacks are processed in a timely fashion.
 
 Another approach is to offload RCU callback processing to "rcuo" kthreads
 using the CONFIG_RCU_NOCB_CPU=y Kconfig option.  The specific CPUs to
-offload may be selected via several methods:
-
-1.	One of three mutually exclusive Kconfig options specify a
-	build-time default for the CPUs to offload:
-
-	a.	The CONFIG_RCU_NOCB_CPU_NONE=y Kconfig option results in
-		no CPUs being offloaded.
-
-	b.	The CONFIG_RCU_NOCB_CPU_ZERO=y Kconfig option causes
-		CPU 0 to be offloaded.
-
-	c.	The CONFIG_RCU_NOCB_CPU_ALL=y Kconfig option causes all
-		CPUs to be offloaded.  Note that the callbacks will be
-		offloaded to "rcuo" kthreads, and that those kthreads
-		will in fact run on some CPU.  However, this approach
-		gives fine-grained control on exactly which CPUs the
-		callbacks run on, along with their scheduling priority
-		(including the default of SCHED_OTHER), and it further
-		allows this control to be varied dynamically at runtime.
-
-2.	The "rcu_nocbs=" kernel boot parameter, which takes a comma-separated
-	list of CPUs and CPU ranges, for example, "1,3-5" selects CPUs 1,
-	3, 4, and 5.  The specified CPUs will be offloaded in addition to
-	any CPUs specified as offloaded by CONFIG_RCU_NOCB_CPU_ZERO=y or
-	CONFIG_RCU_NOCB_CPU_ALL=y.  This means that the "rcu_nocbs=" boot
-	parameter has no effect for kernels built with RCU_NOCB_CPU_ALL=y.
+offload may be selected using The "rcu_nocbs=" kernel boot parameter,
+which takes a comma-separated list of CPUs and CPU ranges, for example,
+"1,3-5" selects CPUs 1, 3, 4, and 5.
 
 The offloaded CPUs will never queue RCU callbacks, and therefore RCU
 never prevents offloaded CPUs from entering either dyntick-idle mode
@@ -230,6 +204,29 @@ or adaptive-tick mode.  That said, note that it is up to userspace to
 pin the "rcuo" kthreads to specific CPUs if desired.  Otherwise, the
 scheduler will decide where to run them, which might or might not be
 where you want them to run.
+
+
+TESTING
+
+So you enable all the OS-jitter features described in this document,
+but do not see any change in your workload's behavior.  Is this because
+your workload isn't affected that much by OS jitter, or is it because
+something else is in the way?  This section helps answer this question
+by providing a simple OS-jitter test suite, which is available on branch
+master of the following git archive:
+
+git://git.kernel.org/pub/scm/linux/kernel/git/frederic/dynticks-testing.git
+
+Clone this archive and follow the instructions in the README file.
+This test procedure will produce a trace that will allow you to evaluate
+whether or not you have succeeded in removing OS jitter from your system.
+If this trace shows that you have removed OS jitter as much as is
+possible, then you can conclude that your workload is not all that
+sensitive to OS jitter.
+
+Note: this test requires that your system have at least two CPUs.
+We do not currently have a good way to remove OS jitter from single-CPU
+systems.
 
 
 KNOWN ISSUES

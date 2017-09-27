@@ -13,10 +13,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * TODO:
  * - add smart card reader support for Conditional Access (CA)
  *
@@ -55,8 +51,11 @@ struct anysee_state {
 	u8 buf[64];
 	u8 seq;
 	u8 hw; /* PCB ID */
+	#define ANYSEE_I2C_CLIENT_MAX 1
+	struct i2c_client *i2c_client[ANYSEE_I2C_CLIENT_MAX];
 	u8 fe_id:1; /* frondend ID */
 	u8 has_ci:1;
+	u8 has_tda18212:1;
 	u8 ci_attached:1;
 	struct dvb_ca_en50221 ci;
 	unsigned long ci_cam_ready; /* jiffies */

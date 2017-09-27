@@ -1,0 +1,119 @@
+* Freescale Management Complex
+
+The Freescale Management Complex (fsl-mc) is a hardware resource
+manager that manages specialized hardware objects used in
+network-oriented packet processing applications. After the fsl-mc
+block is enabled, pools of hardware resources are available, such as
+queues, buffer pools, I/O interfaces. These resources are building
+blocks that can be used to create functional hardware objects/devices
+such as network interfaces, crypto accelerator instances, L2 switches,
+etc.
+
+Required properties:
+
+    - compatible
+        Value type: <string>
+        Definition: Must be "fsl,qoriq-mc".  A Freescale Management Complex
+                    compatible with this binding must have Block Revision
+                    Registers BRR1 and BRR2 at offset 0x0BF8 and 0x0BFC in
+                    the MC control register region.
+
+    - reg
+        Value type: <prop-encoded-array>
+        Definition: A standard property.  Specifies one or two regions
+                    defining the MC's registers:
+
+                       -the first region is the command portal for the
+                        this machine and must always be present
+
+                       -the second region is the MC control registers. This
+                        region may not be present in some scenarios, such
+                        as in the device tree presented to a virtual machine.
+
+    - msi-parent
+        Value type: <phandle>
+        Definition: Must be present and point to the MSI controller node
+                    handling message interrupts for the MC.
+
+    - ranges
+        Value type: <prop-encoded-array>
+        Definition: A standard property.  Defines the mapping between the child
+                    MC address space and the parent system address space.
+
+                    The MC address space is defined by 3 components:
+                       <region type> <offset hi> <offset lo>
+
+                    Valid values for region type are
+                       0x0 - MC portals
+                       0x1 - QBMAN portals
+
+    - #address-cells
+        Value type: <u32>
+        Definition: Must be 3.  (see definition in 'ranges' property)
+
+    - #size-cells
+        Value type: <u32>
+        Definition: Must be 1.
+
+Sub-nodes:
+
+        The fsl-mc node may optionally have dpmac sub-nodes that describe
+        the relationship between the Ethernet MACs which belong to the MC
+        and the Ethernet PHYs on the system board.
+
+        The dpmac nodes must be under a node named "dpmacs" which contains
+        the following properties:
+
+            - #address-cells
+              Value type: <u32>
+              Definition: Must be present if dpmac sub-nodes are defined and must
+                          have a value of 1.
+
+            - #size-cells
+              Value type: <u32>
+              Definition: Must be present if dpmac sub-nodes are defined and must
+                          have a value of 0.
+
+        These nodes must have the following properties:
+
+            - compatible
+              Value type: <string>
+              Definition: Must be "fsl,qoriq-mc-dpmac".
+
+            - reg
+              Value type: <prop-encoded-array>
+              Definition: Specifies the id of the dpmac.
+
+            - phy-handle
+              Value type: <phandle>
+              Definition: Specifies the phandle to the PHY device node associated
+                          with the this dpmac.
+
+Example:
+
+        fsl_mc: fsl-mc@80c000000 {
+                compatible = "fsl,qoriq-mc";
+                reg = <0x00000008 0x0c000000 0 0x40>,    /* MC portal base */
+                      <0x00000000 0x08340000 0 0x40000>; /* MC control reg */
+                msi-parent = <&its>;
+                #address-cells = <3>;
+                #size-cells = <1>;
+
+                /*
+                 * Region type 0x0 - MC portals
+                 * Region type 0x1 - QBMAN portals
+                 */
+                ranges = <0x0 0x0 0x0 0x8 0x0c000000 0x4000000
+                          0x1 0x0 0x0 0x8 0x18000000 0x8000000>;
+
+                dpmacs {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    dpmac@1 {
+                        compatible = "fsl,qoriq-mc-dpmac";
+                        reg = <1>;
+                        phy-handle = <&mdio0_phy0>;
+                    }
+                }
+        };

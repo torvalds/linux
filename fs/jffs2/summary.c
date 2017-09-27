@@ -476,7 +476,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				fd->next = NULL;
 				fd->version = je32_to_cpu(spd->version);
 				fd->ino = je32_to_cpu(spd->ino);
-				fd->nhash = full_name_hash(fd->name, checkedlen);
+				fd->nhash = full_name_hash(NULL, fd->name, checkedlen);
 				fd->type = spd->type;
 
 				jffs2_add_fd_to_list(c, fd, &ic->scan_dents);
@@ -844,6 +844,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 /* Write out summary information - called from jffs2_do_reserve_space */
 
 int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
+	__must_hold(&c->erase_completion_block)
 {
 	int datasize, infosize, padsize;
 	struct jffs2_eraseblock *jeb;

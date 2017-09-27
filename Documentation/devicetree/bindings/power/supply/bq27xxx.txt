@@ -1,0 +1,53 @@
+TI BQ27XXX fuel gauge family
+
+Required properties:
+- compatible: contains one of the following:
+ * "ti,bq27200" - BQ27200
+ * "ti,bq27210" - BQ27210
+ * "ti,bq27500" - deprecated, use revision specific property below
+ * "ti,bq27510" - deprecated, use revision specific property below
+ * "ti,bq27520" - deprecated, use revision specific property below
+ * "ti,bq27500-1" - BQ27500/1
+ * "ti,bq27510g1" - BQ27510-g1
+ * "ti,bq27510g2" - BQ27510-g2
+ * "ti,bq27510g3" - BQ27510-g3
+ * "ti,bq27520g1" - BQ27520-g1
+ * "ti,bq27520g2" - BQ27520-g2
+ * "ti,bq27520g3" - BQ27520-g3
+ * "ti,bq27520g4" - BQ27520-g4
+ * "ti,bq27530" - BQ27530
+ * "ti,bq27531" - BQ27531
+ * "ti,bq27541" - BQ27541
+ * "ti,bq27542" - BQ27542
+ * "ti,bq27546" - BQ27546
+ * "ti,bq27742" - BQ27742
+ * "ti,bq27545" - BQ27545
+ * "ti,bq27421" - BQ27421
+ * "ti,bq27425" - BQ27425
+ * "ti,bq27441" - BQ27441
+ * "ti,bq27621" - BQ27621
+- reg: integer, I2C address of the fuel gauge.
+
+Optional properties:
+- monitored-battery: phandle of battery characteristics node
+    The fuel gauge uses the following battery properties:
+    + energy-full-design-microwatt-hours
+    + charge-full-design-microamp-hours
+    + voltage-min-design-microvolt
+  Both or neither of the *-full-design-*-hours properties must be set.
+  See Documentation/devicetree/bindings/power/supply/battery.txt
+
+Example:
+
+	bat: battery {
+		compatible = "simple-battery";
+		voltage-min-design-microvolt = <3200000>;
+		energy-full-design-microwatt-hours = <5290000>;
+		charge-full-design-microamp-hours = <1430000>;
+	};
+
+	bq27510g3: fuel-gauge@55 {
+		compatible = "ti,bq27510g3";
+		reg = <0x55>;
+		monitored-battery = <&bat>;
+	};

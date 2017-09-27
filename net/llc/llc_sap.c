@@ -66,7 +66,7 @@ struct sk_buff *llc_alloc_frame(struct sock *sk, struct net_device *dev,
 	return skb;
 }
 
-void llc_save_primitive(struct sock *sk, struct sk_buff* skb, u8 prim)
+void llc_save_primitive(struct sock *sk, struct sk_buff *skb, u8 prim)
 {
 	struct sockaddr_llc *addr;
 
@@ -114,7 +114,7 @@ void llc_sap_rtn_pdu(struct llc_sap *sap, struct sk_buff *skb)
  *	failure.
  */
 static struct llc_sap_state_trans *llc_find_sap_trans(struct llc_sap *sap,
-						      struct sk_buff* skb)
+						      struct sk_buff *skb)
 {
 	int i = 0;
 	struct llc_sap_state_trans *rc = NULL;
@@ -146,7 +146,7 @@ static int llc_exec_sap_trans_actions(struct llc_sap *sap,
 				      struct sk_buff *skb)
 {
 	int rc = 0;
-	llc_sap_action_t *next_action = trans->ev_actions;
+	const llc_sap_action_t *next_action = trans->ev_actions;
 
 	for (; next_action && *next_action; next_action++)
 		if ((*next_action)(sap, skb))
@@ -290,7 +290,10 @@ static void llc_sap_rcv(struct llc_sap *sap, struct sk_buff *skb,
 
 	ev->type   = LLC_SAP_EV_TYPE_PDU;
 	ev->reason = 0;
+	skb_orphan(skb);
+	sock_hold(sk);
 	skb->sk = sk;
+	skb->destructor = sock_efree;
 	llc_sap_state_process(sap, skb);
 }
 
@@ -302,7 +305,7 @@ static inline bool llc_dgram_match(const struct llc_sap *sap,
 
      return sk->sk_type == SOCK_DGRAM &&
 	  llc->laddr.lsap == laddr->lsap &&
-	  llc_mac_match(llc->laddr.mac, laddr->mac);
+	  ether_addr_equal(llc->laddr.mac, laddr->mac);
 }
 
 /**
@@ -325,8 +328,8 @@ static struct sock *llc_lookup_dgram(struct llc_sap *sap,
 again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
 		if (llc_dgram_match(sap, laddr, rc)) {
-			/* Extra checks required by SLAB_DESTROY_BY_RCU */
-			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
+			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
 				     !llc_dgram_match(sap, laddr, rc))) {
@@ -425,7 +428,7 @@ void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_da(skb, laddr.mac);
 	llc_pdu_decode_dsap(skb, &laddr.lsap);
 
-	if (llc_mac_multicast(laddr.mac)) {
+	if (is_multicast_ether_addr(laddr.mac)) {
 		llc_sap_mcast(sap, &laddr, skb);
 		kfree_skb(skb);
 	} else {

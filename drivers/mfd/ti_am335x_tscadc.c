@@ -14,7 +14,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -24,22 +23,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/sched.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
-
-static unsigned int tscadc_readl(struct ti_tscadc_dev *tsadc, unsigned int reg)
-{
-	unsigned int val;
-
-	regmap_read(tsadc->regmap_tscadc, reg, &val);
-	return val;
-}
-
-static void tscadc_writel(struct ti_tscadc_dev *tsadc, unsigned int reg,
-					unsigned int val)
-{
-	regmap_write(tsadc->regmap_tscadc, reg, val);
-}
 
 static const struct regmap_config tscadc_regmap_config = {
 	.name = "ti_tscadc",
@@ -48,40 +34,89 @@ static const struct regmap_config tscadc_regmap_config = {
 	.val_bits = 32,
 };
 
-void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc)
+void am335x_tsc_se_set_cache(struct ti_tscadc_dev *tscadc, u32 val)
 {
-	tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tscadc->reg_lock, flags);
+	tscadc->reg_se_cache |= val;
+	if (tscadc->adc_waiting)
+		wake_up(&tscadc->reg_se_wait);
+	else if (!tscadc->adc_in_use)
+		regmap_write(tscadc->regmap, REG_SE, tscadc->reg_se_cache);
+
+	spin_unlock_irqrestore(&tscadc->reg_lock, flags);
 }
-EXPORT_SYMBOL_GPL(am335x_tsc_se_update);
+EXPORT_SYMBOL_GPL(am335x_tsc_se_set_cache);
 
-void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val)
+static void am335x_tscadc_need_adc(struct ti_tscadc_dev *tscadc)
 {
-	spin_lock(&tsadc->reg_lock);
-	tsadc->reg_se_cache |= val;
-	spin_unlock(&tsadc->reg_lock);
+	DEFINE_WAIT(wait);
+	u32 reg;
 
-	am335x_tsc_se_update(tsadc);
+	regmap_read(tscadc->regmap, REG_ADCFSM, &reg);
+	if (reg & SEQ_STATUS) {
+		tscadc->adc_waiting = true;
+		prepare_to_wait(&tscadc->reg_se_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		spin_unlock_irq(&tscadc->reg_lock);
+
+		schedule();
+
+		spin_lock_irq(&tscadc->reg_lock);
+		finish_wait(&tscadc->reg_se_wait, &wait);
+
+		/*
+		 * Sequencer should either be idle or
+		 * busy applying the charge step.
+		 */
+		regmap_read(tscadc->regmap, REG_ADCFSM, &reg);
+		WARN_ON((reg & SEQ_STATUS) && !(reg & CHARGE_STEP));
+		tscadc->adc_waiting = false;
+	}
+	tscadc->adc_in_use = true;
 }
-EXPORT_SYMBOL_GPL(am335x_tsc_se_set);
 
-void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val)
+void am335x_tsc_se_set_once(struct ti_tscadc_dev *tscadc, u32 val)
 {
-	spin_lock(&tsadc->reg_lock);
-	tsadc->reg_se_cache &= ~val;
-	spin_unlock(&tsadc->reg_lock);
+	spin_lock_irq(&tscadc->reg_lock);
+	am335x_tscadc_need_adc(tscadc);
 
-	am335x_tsc_se_update(tsadc);
+	regmap_write(tscadc->regmap, REG_SE, val);
+	spin_unlock_irq(&tscadc->reg_lock);
+}
+EXPORT_SYMBOL_GPL(am335x_tsc_se_set_once);
+
+void am335x_tsc_se_adc_done(struct ti_tscadc_dev *tscadc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&tscadc->reg_lock, flags);
+	tscadc->adc_in_use = false;
+	regmap_write(tscadc->regmap, REG_SE, tscadc->reg_se_cache);
+	spin_unlock_irqrestore(&tscadc->reg_lock, flags);
+}
+EXPORT_SYMBOL_GPL(am335x_tsc_se_adc_done);
+
+void am335x_tsc_se_clr(struct ti_tscadc_dev *tscadc, u32 val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&tscadc->reg_lock, flags);
+	tscadc->reg_se_cache &= ~val;
+	regmap_write(tscadc->regmap, REG_SE, tscadc->reg_se_cache);
+	spin_unlock_irqrestore(&tscadc->reg_lock, flags);
 }
 EXPORT_SYMBOL_GPL(am335x_tsc_se_clr);
 
-static void tscadc_idle_config(struct ti_tscadc_dev *config)
+static void tscadc_idle_config(struct ti_tscadc_dev *tscadc)
 {
 	unsigned int idleconfig;
 
 	idleconfig = STEPCONFIG_YNN | STEPCONFIG_INM_ADCREFM |
 			STEPCONFIG_INP_ADCREFM | STEPCONFIG_YPN;
 
-	tscadc_writel(config, REG_IDLECONFIG, idleconfig);
+	regmap_write(tscadc->regmap, REG_IDLECONFIG, idleconfig);
 }
 
 static	int ti_tscadc_probe(struct platform_device *pdev)
@@ -95,7 +130,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	const __be32            *cur;
 	u32			val;
 	int			err, ctrl;
-	int			clk_value, clock_rate;
+	int			clock_rate;
 	int			tsc_wires = 0, adc_channels = 0, total_channels;
 	int			readouts = 0;
 
@@ -132,15 +167,8 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no memory resource defined.\n");
-		return -EINVAL;
-	}
-
 	/* Allocate memory for device */
-	tscadc = devm_kzalloc(&pdev->dev,
-			sizeof(struct ti_tscadc_dev), GFP_KERNEL);
+	tscadc = devm_kzalloc(&pdev->dev, sizeof(*tscadc), GFP_KERNEL);
 	if (!tscadc) {
 		dev_err(&pdev->dev, "failed to allocate memory.\n");
 		return -ENOMEM;
@@ -154,29 +182,23 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	} else
 		tscadc->irq = err;
 
-	res = devm_request_mem_region(&pdev->dev,
-			res->start, resource_size(res), pdev->name);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to reserve registers.\n");
-		return -EBUSY;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	tscadc->tscadc_phys_base = res->start;
+	tscadc->tscadc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(tscadc->tscadc_base))
+		return PTR_ERR(tscadc->tscadc_base);
 
-	tscadc->tscadc_base = devm_ioremap(&pdev->dev,
-			res->start, resource_size(res));
-	if (!tscadc->tscadc_base) {
-		dev_err(&pdev->dev, "failed to map registers.\n");
-		return -ENOMEM;
-	}
-
-	tscadc->regmap_tscadc = devm_regmap_init_mmio(&pdev->dev,
+	tscadc->regmap = devm_regmap_init_mmio(&pdev->dev,
 			tscadc->tscadc_base, &tscadc_regmap_config);
-	if (IS_ERR(tscadc->regmap_tscadc)) {
+	if (IS_ERR(tscadc->regmap)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
-		err = PTR_ERR(tscadc->regmap_tscadc);
+		err = PTR_ERR(tscadc->regmap);
 		goto ret;
 	}
 
 	spin_lock_init(&tscadc->reg_lock);
+	init_waitqueue_head(&tscadc->reg_se_wait);
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -196,30 +218,29 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	}
 	clock_rate = clk_get_rate(clk);
 	clk_put(clk);
-	clk_value = clock_rate / ADC_CLK;
-	if (clk_value < MAX_CLK_DIV) {
-		dev_err(&pdev->dev, "clock input less than min clock requirement\n");
-		err = -EINVAL;
-		goto err_disable_clk;
-	}
+	tscadc->clk_div = clock_rate / ADC_CLK;
+
 	/* TSCADC_CLKDIV needs to be configured to the value minus 1 */
-	clk_value = clk_value - 1;
-	tscadc_writel(tscadc, REG_CLKDIV, clk_value);
+	tscadc->clk_div--;
+	regmap_write(tscadc->regmap, REG_CLKDIV, tscadc->clk_div);
 
 	/* Set the control register bits */
-	ctrl = CNTRLREG_STEPCONFIGWRT |
-			CNTRLREG_TSCENB |
-			CNTRLREG_STEPID |
-			CNTRLREG_4WIRE;
-	tscadc_writel(tscadc, REG_CTRL, ctrl);
+	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
+	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
 
 	/* Set register bits for Idle Config Mode */
-	tscadc_idle_config(tscadc);
+	if (tsc_wires > 0) {
+		tscadc->tsc_wires = tsc_wires;
+		if (tsc_wires == 5)
+			ctrl |= CNTRLREG_5WIRE | CNTRLREG_TSCENB;
+		else
+			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
+		tscadc_idle_config(tscadc);
+	}
 
 	/* Enable the TSC module enable bit */
-	ctrl = tscadc_readl(tscadc, REG_CTRL);
 	ctrl |= CNTRLREG_TSCSSENB;
-	tscadc_writel(tscadc, REG_CTRL, ctrl);
+	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
 
 	tscadc->used_cells = 0;
 	tscadc->tsc_cell = -1;
@@ -265,7 +286,7 @@ static int ti_tscadc_remove(struct platform_device *pdev)
 {
 	struct ti_tscadc_dev	*tscadc = platform_get_drvdata(pdev);
 
-	tscadc_writel(tscadc, REG_SE, 0x00);
+	regmap_write(tscadc->regmap, REG_SE, 0x00);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -275,45 +296,43 @@ static int ti_tscadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tscadc_suspend(struct device *dev)
+static int __maybe_unused tscadc_suspend(struct device *dev)
 {
-	struct ti_tscadc_dev	*tscadc_dev = dev_get_drvdata(dev);
+	struct ti_tscadc_dev	*tscadc = dev_get_drvdata(dev);
 
-	tscadc_writel(tscadc_dev, REG_SE, 0x00);
+	regmap_write(tscadc->regmap, REG_SE, 0x00);
 	pm_runtime_put_sync(dev);
 
 	return 0;
 }
 
-static int tscadc_resume(struct device *dev)
+static int __maybe_unused tscadc_resume(struct device *dev)
 {
-	struct ti_tscadc_dev	*tscadc_dev = dev_get_drvdata(dev);
-	unsigned int restore, ctrl;
+	struct ti_tscadc_dev	*tscadc = dev_get_drvdata(dev);
+	u32 ctrl;
 
 	pm_runtime_get_sync(dev);
 
 	/* context restore */
-	ctrl = CNTRLREG_STEPCONFIGWRT | CNTRLREG_TSCENB |
-			CNTRLREG_STEPID | CNTRLREG_4WIRE;
-	tscadc_writel(tscadc_dev, REG_CTRL, ctrl);
-	tscadc_idle_config(tscadc_dev);
-	am335x_tsc_se_update(tscadc_dev);
-	restore = tscadc_readl(tscadc_dev, REG_CTRL);
-	tscadc_writel(tscadc_dev, REG_CTRL,
-			(restore | CNTRLREG_TSCSSENB));
+	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
+	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
+
+	if (tscadc->tsc_cell != -1) {
+		if (tscadc->tsc_wires == 5)
+			ctrl |= CNTRLREG_5WIRE | CNTRLREG_TSCENB;
+		else
+			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
+		tscadc_idle_config(tscadc);
+	}
+	ctrl |= CNTRLREG_TSCSSENB;
+	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
+
+	regmap_write(tscadc->regmap, REG_CLKDIV, tscadc->clk_div);
 
 	return 0;
 }
 
-static const struct dev_pm_ops tscadc_pm_ops = {
-	.suspend = tscadc_suspend,
-	.resume = tscadc_resume,
-};
-#define TSCADC_PM_OPS (&tscadc_pm_ops)
-#else
-#define TSCADC_PM_OPS NULL
-#endif
+static SIMPLE_DEV_PM_OPS(tscadc_pm_ops, tscadc_suspend, tscadc_resume);
 
 static const struct of_device_id ti_tscadc_dt_ids[] = {
 	{ .compatible = "ti,am3359-tscadc", },
@@ -324,9 +343,8 @@ MODULE_DEVICE_TABLE(of, ti_tscadc_dt_ids);
 static struct platform_driver ti_tscadc_driver = {
 	.driver = {
 		.name   = "ti_am3359-tscadc",
-		.owner	= THIS_MODULE,
-		.pm	= TSCADC_PM_OPS,
-		.of_match_table = of_match_ptr(ti_tscadc_dt_ids),
+		.pm	= &tscadc_pm_ops,
+		.of_match_table = ti_tscadc_dt_ids,
 	},
 	.probe	= ti_tscadc_probe,
 	.remove	= ti_tscadc_remove,

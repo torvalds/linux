@@ -1,6 +1,6 @@
 /* asus-ps3-100.h - Keytable for asus_ps3_100 Remote Controller
  *
- * Copyright (c) 2012 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2012 by Mauro Carvalho Chehab
  *
  * Based on a previous patch from Remi Schwartz <remi.schwartz@gmail.com>
  *
@@ -67,10 +67,10 @@ static struct rc_map_table asus_ps3_100[] = {
 
 static struct rc_map_list asus_ps3_100_map = {
 .map = {
-	.scan    = asus_ps3_100,
-	.size    = ARRAY_SIZE(asus_ps3_100),
-	.rc_type = RC_TYPE_RC5,
-	.name    = RC_MAP_ASUS_PS3_100,
+	.scan     = asus_ps3_100,
+	.size     = ARRAY_SIZE(asus_ps3_100),
+	.rc_proto = RC_PROTO_RC5,
+	.name     = RC_MAP_ASUS_PS3_100,
 }
 };
 
@@ -88,4 +88,4 @@ module_init(init_rc_map_asus_ps3_100)
 module_exit(exit_rc_map_asus_ps3_100)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

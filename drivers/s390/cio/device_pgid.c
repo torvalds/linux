@@ -9,9 +9,10 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/bitops.h>
+#include <linux/slab.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 
@@ -133,7 +134,7 @@ static void spid_build_cp(struct ccw_device *cdev, u8 fn)
 {
 	struct ccw_request *req = &cdev->private->req;
 	struct ccw1 *cp = cdev->private->iccws;
-	int i = 8 - ffs(req->lpm);
+	int i = pathmask_to_pos(req->lpm);
 	struct pgid *pgid = &cdev->private->pgid[i];
 
 	pgid->inf.fc	= fn;
@@ -434,7 +435,7 @@ static void snid_build_cp(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
 	struct ccw1 *cp = cdev->private->iccws;
-	int i = 8 - ffs(req->lpm);
+	int i = pathmask_to_pos(req->lpm);
 
 	/* Channel program setup. */
 	cp->cmd_code	= CCW_CMD_SENSE_PGID;
@@ -616,6 +617,11 @@ void ccw_device_disband_start(struct ccw_device *cdev)
 	ccw_request_start(cdev);
 }
 
+struct stlck_data {
+	struct completion done;
+	int rc;
+};
+
 static void stlck_build_cp(struct ccw_device *cdev, void *buf1, void *buf2)
 {
 	struct ccw_request *req = &cdev->private->req;
@@ -634,7 +640,10 @@ static void stlck_build_cp(struct ccw_device *cdev, void *buf1, void *buf2)
 
 static void stlck_callback(struct ccw_device *cdev, void *data, int rc)
 {
-	ccw_device_stlck_done(cdev, data, rc);
+	struct stlck_data *sdata = data;
+
+	sdata->rc = rc;
+	complete(&sdata->done);
 }
 
 /**
@@ -645,11 +654,9 @@ static void stlck_callback(struct ccw_device *cdev, void *data, int rc)
  * @buf2: data pointer used in channel program
  *
  * Execute a channel program on @cdev to release an existing PGID reservation.
- * When finished, call ccw_device_stlck_done with a return code specifying the
- * result.
  */
-void ccw_device_stlck_start(struct ccw_device *cdev, void *data, void *buf1,
-			    void *buf2)
+static void ccw_device_stlck_start(struct ccw_device *cdev, void *data,
+				   void *buf1, void *buf2)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
@@ -667,3 +674,50 @@ void ccw_device_stlck_start(struct ccw_device *cdev, void *data, void *buf1,
 	ccw_request_start(cdev);
 }
 
+/*
+ * Perform unconditional reserve + release.
+ */
+int ccw_device_stlck(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct stlck_data data;
+	u8 *buffer;
+	int rc;
+
+	/* Check if steal lock operation is valid for this device. */
+	if (cdev->drv) {
+		if (!cdev->private->options.force)
+			return -EINVAL;
+	}
+	buffer = kzalloc(64, GFP_DMA | GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+	init_completion(&data.done);
+	data.rc = -EIO;
+	spin_lock_irq(sch->lock);
+	rc = cio_enable_subchannel(sch, (u32) (addr_t) sch);
+	if (rc)
+		goto out_unlock;
+	/* Perform operation. */
+	cdev->private->state = DEV_STATE_STEAL_LOCK;
+	ccw_device_stlck_start(cdev, &data, &buffer[0], &buffer[32]);
+	spin_unlock_irq(sch->lock);
+	/* Wait for operation to finish. */
+	if (wait_for_completion_interruptible(&data.done)) {
+		/* Got a signal. */
+		spin_lock_irq(sch->lock);
+		ccw_request_cancel(cdev);
+		spin_unlock_irq(sch->lock);
+		wait_for_completion(&data.done);
+	}
+	rc = data.rc;
+	/* Check results. */
+	spin_lock_irq(sch->lock);
+	cio_disable_subchannel(sch);
+	cdev->private->state = DEV_STATE_BOXED;
+out_unlock:
+	spin_unlock_irq(sch->lock);
+	kfree(buffer);
+
+	return rc;
+}

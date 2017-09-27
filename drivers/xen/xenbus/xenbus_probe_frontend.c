@@ -27,11 +27,9 @@
 
 #include <xen/platform_pci.h>
 
-#include "xenbus_comms.h"
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 
-static struct workqueue_struct *xenbus_frontend_wq;
 
 /* device/<type>/<id> => <type>-<id> */
 static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
@@ -88,9 +86,9 @@ static int xenbus_uevent_frontend(struct device *_dev,
 
 
 static void backend_changed(struct xenbus_watch *watch,
-			    const char **vec, unsigned int len)
+			    const char *path, const char *token)
 {
-	xenbus_otherend_changed(watch, vec, len, 1);
+	xenbus_otherend_changed(watch, path, token, 1);
 }
 
 static void xenbus_frontend_delayed_resume(struct work_struct *w)
@@ -109,13 +107,7 @@ static int xenbus_frontend_dev_resume(struct device *dev)
 	if (xen_store_domain_type == XS_LOCAL) {
 		struct xenbus_device *xdev = to_xenbus_device(dev);
 
-		if (!xenbus_frontend_wq) {
-			pr_err("%s: no workqueue to process delayed resume\n",
-			       xdev->nodename);
-			return -EFAULT;
-		}
-
-		queue_work(xenbus_frontend_wq, &xdev->work);
+		schedule_work(&xdev->work);
 
 		return 0;
 	}
@@ -154,18 +146,18 @@ static struct xen_bus_type xenbus_frontend = {
 		.probe		= xenbus_frontend_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
-		.dev_attrs	= xenbus_dev_attrs,
+		.dev_groups	= xenbus_dev_groups,
 
 		.pm		= &xenbus_pm_ops,
 	},
 };
 
 static void frontend_changed(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len)
+			     const char *path, const char *token)
 {
 	DPRINTK("");
 
-	xenbus_dev_changed(vec[XS_WATCH_PATH], &xenbus_frontend);
+	xenbus_dev_changed(path, &xenbus_frontend);
 }
 
 
@@ -317,13 +309,15 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 			 print_device_status);
 }
 
-int xenbus_register_frontend(struct xenbus_driver *drv)
+int __xenbus_register_frontend(struct xenbus_driver *drv, struct module *owner,
+			       const char *mod_name)
 {
 	int ret;
 
 	drv->read_otherend_details = read_backend_details;
 
-	ret = xenbus_register_driver_common(drv, &xenbus_frontend);
+	ret = xenbus_register_driver_common(drv, &xenbus_frontend,
+					    owner, mod_name);
 	if (ret)
 		return ret;
 
@@ -332,17 +326,19 @@ int xenbus_register_frontend(struct xenbus_driver *drv)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xenbus_register_frontend);
+EXPORT_SYMBOL_GPL(__xenbus_register_frontend);
 
 static DECLARE_WAIT_QUEUE_HEAD(backend_state_wq);
 static int backend_state;
 
 static void xenbus_reset_backend_state_changed(struct xenbus_watch *w,
-					const char **v, unsigned int l)
+					const char *path, const char *token)
 {
-	xenbus_scanf(XBT_NIL, v[XS_WATCH_PATH], "", "%i", &backend_state);
+	if (xenbus_scanf(XBT_NIL, path, "", "%i",
+			 &backend_state) != 1)
+		backend_state = XenbusStateUnknown;
 	printk(KERN_DEBUG "XENBUS: backend %s %s\n",
-			v[XS_WATCH_PATH], xenbus_strstate(backend_state));
+	       path, xenbus_strstate(backend_state));
 	wake_up(&backend_state_wq);
 }
 
@@ -483,12 +479,6 @@ static int __init xenbus_probe_frontend_init(void)
 
 	register_xenstore_notifier(&xenstore_notifier);
 
-	if (xen_store_domain_type == XS_LOCAL) {
-		xenbus_frontend_wq = create_workqueue("xenbus_frontend");
-		if (!xenbus_frontend_wq)
-			pr_warn("create xenbus frontend workqueue failed, S3 resume is likely to fail\n");
-	}
-
 	return 0;
 }
 subsys_initcall(xenbus_probe_frontend_init);
@@ -496,7 +486,7 @@ subsys_initcall(xenbus_probe_frontend_init);
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
-	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	ready_to_wait_for_devices = 1;

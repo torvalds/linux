@@ -21,6 +21,9 @@
 
 /*
  * Export flags.
+ *
+ * Please update the expflags[] array in fs/nfsd/export.c when adding
+ * a new flag.
  */
 #define NFSEXP_READONLY		0x0001
 #define NFSEXP_INSECURE_PORT	0x0002
@@ -28,7 +31,9 @@
 #define NFSEXP_ALLSQUASH	0x0008
 #define NFSEXP_ASYNC		0x0010
 #define NFSEXP_GATHERED_WRITES	0x0020
-/* 40 80 100 currently unused */
+#define NFSEXP_NOREADDIRPLUS    0x0040
+#define NFSEXP_SECURITY_LABEL	0x0080
+/* 0x100 currently unused */
 #define NFSEXP_NOHIDE		0x0200
 #define NFSEXP_NOSUBTREECHECK	0x0400
 #define	NFSEXP_NOAUTHNLM	0x0800		/* Don't authenticate NLM requests - just trust */
@@ -46,8 +51,10 @@
  * exported filesystem.
  */
 #define	NFSEXP_V4ROOT		0x10000
+#define NFSEXP_PNFS		0x20000
+
 /* All flags that we claim to support.  (Note we don't support NOACL.) */
-#define NFSEXP_ALLFLAGS		0x17E3F
+#define NFSEXP_ALLFLAGS		0x3FEFF
 
 /* The flags that may vary depending on security flavor: */
 #define NFSEXP_SECINFO_FLAGS	(NFSEXP_READONLY | NFSEXP_ROOTSQUASH \

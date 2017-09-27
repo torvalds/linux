@@ -12,8 +12,22 @@ config BATMAN_ADV
           B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
           a routing protocol for multi-hop ad-hoc mesh networks. The
           networks may be wired or wireless. See
-          http://www.open-mesh.org/ for more information and user space
+          https://www.open-mesh.org/ for more information and user space
           tools.
+
+config BATMAN_ADV_BATMAN_V
+	bool "B.A.T.M.A.N. V protocol (experimental)"
+	depends on BATMAN_ADV && !(CFG80211=m && BATMAN_ADV=y)
+	default n
+	help
+	  This option enables the B.A.T.M.A.N. V protocol, the successor
+	  of the currently used B.A.T.M.A.N. IV protocol. The main
+	  changes include splitting of the OGM protocol into a neighbor
+	  discovery protocol (Echo Location Protocol, ELP) and a new OGM
+	  Protocol OGMv2 for flooding protocol information through the
+	  network, as well as a throughput based metric.
+	  B.A.T.M.A.N. V is currently considered experimental and not
+	  compatible to B.A.T.M.A.N. IV networks.
 
 config BATMAN_ADV_BLA
 	bool "Bridge Loop Avoidance"
@@ -50,9 +64,30 @@ config BATMAN_ADV_NC
 	  If you think that your network does not need this feature you
 	  can safely disable it and save some space.
 
+config BATMAN_ADV_MCAST
+	bool "Multicast optimisation"
+	depends on BATMAN_ADV && INET && !(BRIDGE=m && BATMAN_ADV=y)
+	default n
+	help
+	  This option enables the multicast optimisation which aims to
+	  reduce the air overhead while improving the reliability of
+	  multicast messages.
+
+config BATMAN_ADV_DEBUGFS
+	bool "batman-adv debugfs entries"
+	depends on BATMAN_ADV
+	depends on DEBUG_FS
+	default y
+	help
+	  Enable this to export routing related debug tables via debugfs.
+	  The information for each soft-interface and used hard-interface can be
+	  found under batman_adv/
+
+	  If unsure, say Y.
+
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"
-	depends on BATMAN_ADV
+	depends on BATMAN_ADV_DEBUGFS
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for

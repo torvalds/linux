@@ -31,12 +31,10 @@ static int fscache_histogram_show(struct seq_file *m, void *v)
 
 	switch ((unsigned long) v) {
 	case 1:
-		seq_puts(m, "JIFS  SECS  OBJ INST  OP RUNS   OBJ RUNS "
-			 " RETRV DLY RETRIEVLS\n");
+		seq_puts(m, "JIFS  SECS  OBJ INST  OP RUNS   OBJ RUNS  RETRV DLY RETRIEVLS\n");
 		return 0;
 	case 2:
-		seq_puts(m, "===== ===== ========= ========= ========="
-			 " ========= =========\n");
+		seq_puts(m, "===== ===== ========= ========= ========= ========= =========\n");
 		return 0;
 	default:
 		index = (unsigned long) v - 3;
@@ -101,7 +99,6 @@ static int fscache_histogram_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations fscache_histogram_fops = {
-	.owner		= THIS_MODULE,
 	.open		= fscache_histogram_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

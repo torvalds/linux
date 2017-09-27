@@ -162,22 +162,6 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	}
 }
 
-static int a3000_bus_reset(struct scsi_cmnd *cmd)
-{
-	struct Scsi_Host *instance = cmd->device->host;
-
-	/* FIXME perform bus-specific reset */
-
-	/* FIXME 2: kill this entire function, which should
-	   cause mid-layer to call wd33c93_host_reset anyway? */
-
-	spin_lock_irq(instance->host_lock);
-	wd33c93_host_reset(cmd);
-	spin_unlock_irq(instance->host_lock);
-
-	return SUCCESS;
-}
-
 static struct scsi_host_template amiga_a3000_scsi_template = {
 	.module			= THIS_MODULE,
 	.name			= "Amiga 3000 built-in SCSI",
@@ -186,7 +170,6 @@ static struct scsi_host_template amiga_a3000_scsi_template = {
 	.proc_name		= "A3000",
 	.queuecommand		= wd33c93_queuecommand,
 	.eh_abort_handler	= wd33c93_abort,
-	.eh_bus_reset_handler	= a3000_bus_reset,
 	.eh_host_reset_handler	= wd33c93_host_reset,
 	.can_queue		= CAN_QUEUE,
 	.this_id		= 7,
@@ -220,7 +203,7 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 
 	instance->irq = IRQ_AMIGA_PORTS;
 
-	regs = (struct a3000_scsiregs *)ZTWO_VADDR(res->start);
+	regs = ZTWO_VADDR(res->start);
 	regs->DAWR = DAWR_A3000;
 
 	wdregs.SASR = &regs->SASR;
@@ -276,7 +259,6 @@ static struct platform_driver amiga_a3000_scsi_driver = {
 	.remove = __exit_p(amiga_a3000_scsi_remove),
 	.driver   = {
 		.name	= "amiga-a3000-scsi",
-		.owner	= THIS_MODULE,
 	},
 };
 

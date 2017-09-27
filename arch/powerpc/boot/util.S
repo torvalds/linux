@@ -45,7 +45,7 @@ udelay:
 	mfspr	r4,SPRN_PVR
 	srwi	r4,r4,16
 	cmpwi	0,r4,1		/* 601 ? */
-	bne	.udelay_not_601
+	bne	.Ludelay_not_601
 00:	li	r0,86	/* Instructions / microsecond? */
 	mtctr	r0
 10:	addi	r0,r0,0 /* NOP */
@@ -54,7 +54,7 @@ udelay:
 	bne	00b
 	blr
 
-.udelay_not_601:
+.Ludelay_not_601:
 	mulli	r4,r3,1000	/* nanoseconds */
 	/*  Change r4 to be the number of ticks using:
 	 *	(nanoseconds + (timebase_period_ns - 1 )) / timebase_period_ns
@@ -71,18 +71,18 @@ udelay:
 	add	r4,r4,r5
 	addi	r4,r4,-1
 	divw	r4,r4,r5	/* BUS ticks */
-1:	mftbu	r5
-	mftb	r6
-	mftbu	r7
+1:	MFTBU(r5)
+	MFTBL(r6)
+	MFTBU(r7)
 	cmpw	0,r5,r7
 	bne	1b		/* Get [synced] base time */
 	addc	r9,r6,r4	/* Compute end time */
 	addze	r8,r5
-2:	mftbu	r5
+2:	MFTBU(r5)
 	cmpw	0,r5,r8
 	blt	2b
 	bgt	3f
-	mftb	r6
+	MFTBL(r6)
 	cmpw	0,r6,r9
 	blt	2b
 3:	blr

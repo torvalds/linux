@@ -1,0 +1,439 @@
+Allwinner A10 Display Pipeline
+==============================
+
+The Allwinner A10 Display pipeline is composed of several components
+that are going to be documented below:
+
+For all connections between components up to the TCONs in the display
+pipeline, when there are multiple components of the same type at the
+same depth, the local endpoint ID must be the same as the remote
+component's index. For example, if the remote endpoint is Frontend 1,
+then the local endpoint ID must be 1.
+
+    Frontend 0  [0] ------- [0]  Backend 0  [0] ------- [0]  TCON 0
+		[1] --   -- [1]             [1] --   -- [1]
+		      \ /                         \ /
+		       X                           X
+		      / \                         / \
+		[0] --   -- [0]             [0] --   -- [0]
+    Frontend 1  [1] ------- [1]  Backend 1  [1] ------- [1]  TCON 1
+
+For a two pipeline system such as the one depicted above, the lines
+represent the connections between the components, while the numbers
+within the square brackets corresponds to the ID of the local endpoint.
+
+The same rule also applies to DE 2.0 mixer-TCON connections:
+
+    Mixer 0  [0] ----------- [0]  TCON 0
+	     [1] ----   ---- [1]
+		     \ /
+		      X
+		     / \
+	     [0] ----   ---- [0]
+    Mixer 1  [1] ----------- [1]  TCON 1
+
+HDMI Encoder
+------------
+
+The HDMI Encoder supports the HDMI video and audio outputs, and does
+CEC. It is one end of the pipeline.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun5i-a10s-hdmi
+  - reg: base address and size of memory-mapped region
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the HDMI encoder
+    * ahb: the HDMI interface clock
+    * mod: the HDMI module clock
+    * pll-0: the first video PLL
+    * pll-1: the second video PLL
+  - clock-names: the clock names mentioned above
+  - dmas: phandles to the DMA channels used by the HDMI encoder
+    * ddc-tx: The channel for DDC transmission
+    * ddc-rx: The channel for DDC reception
+    * audio-tx: The channel used for audio transmission
+  - dma-names: the channel names mentioned above
+
+  - ports: A ports node with endpoint definitions as defined in
+    Documentation/devicetree/bindings/media/video-interfaces.txt. The
+    first port should be the input endpoint. The second should be the
+    output, usually to an HDMI connector.
+
+TV Encoder
+----------
+
+The TV Encoder supports the composite and VGA output. It is one end of
+the pipeline.
+
+Required properties:
+ - compatible: value should be "allwinner,sun4i-a10-tv-encoder".
+ - reg: base address and size of memory-mapped region
+ - clocks: the clocks driving the TV encoder
+ - resets: phandle to the reset controller driving the encoder
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoint.
+
+TCON
+----
+
+The TCON acts as a timing controller for RGB, LVDS and TV interfaces.
+
+Required properties:
+ - compatible: value must be either:
+   * allwinner,sun5i-a13-tcon
+   * allwinner,sun6i-a31-tcon
+   * allwinner,sun6i-a31s-tcon
+   * allwinner,sun8i-a33-tcon
+   * allwinner,sun8i-v3s-tcon
+ - reg: base address and size of memory-mapped region
+ - interrupts: interrupt associated to this IP
+ - clocks: phandles to the clocks feeding the TCON. Three are needed:
+   - 'ahb': the interface clocks
+   - 'tcon-ch0': The clock driving the TCON channel 0
+ - resets: phandles to the reset controllers driving the encoder
+   - "lcd": the reset line for the TCON channel 0
+
+ - clock-names: the clock names mentioned above
+ - reset-names: the reset names mentioned above
+ - clock-output-names: Name of the pixel clock created
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoint, the second one the output
+
+  The output may have multiple endpoints. The TCON has two channels,
+  usually with the first channel being used for the panels interfaces
+  (RGB, LVDS, etc.), and the second being used for the outputs that
+  require another controller (TV Encoder, HDMI, etc.). The endpoints
+  will take an extra property, allwinner,tcon-channel, to specify the
+  channel the endpoint is associated to. If that property is not
+  present, the endpoint number will be used as the channel number.
+
+On SoCs other than the A33 and V3s, there is one more clock required:
+   - 'tcon-ch1': The clock driving the TCON channel 1
+
+DRC
+---
+
+The DRC (Dynamic Range Controller), found in the latest Allwinner SoCs
+(A31, A23, A33), allows to dynamically adjust pixel
+brightness/contrast based on histogram measurements for LCD content
+adaptive backlight control.
+
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun6i-a31-drc
+    * allwinner,sun6i-a31s-drc
+    * allwinner,sun8i-a33-drc
+  - reg: base address and size of the memory-mapped region.
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the DRC
+    * ahb: the DRC interface clock
+    * mod: the DRC module clock
+    * ram: the DRC DRAM clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset line driving the DRC
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the outputs
+
+Display Engine Backend
+----------------------
+
+The display engine backend exposes layers and sprites to the
+system.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun5i-a13-display-backend
+    * allwinner,sun6i-a31-display-backend
+    * allwinner,sun8i-a33-display-backend
+  - reg: base address and size of the memory-mapped region.
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the frontend and backend
+    * ahb: the backend interface clock
+    * mod: the backend module clock
+    * ram: the backend DRAM clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset controllers driving the backend
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the output
+
+On the A33, some additional properties are required:
+  - reg needs to have an additional region corresponding to the SAT
+  - reg-names need to be set, with "be" and "sat"
+  - clocks and clock-names need to have a phandle to the SAT bus
+    clocks, whose name will be "sat"
+  - resets and reset-names need to have a phandle to the SAT bus
+    resets, whose name will be "sat"
+
+Display Engine Frontend
+-----------------------
+
+The display engine frontend does formats conversion, scaling,
+deinterlacing and color space conversion.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun5i-a13-display-frontend
+    * allwinner,sun6i-a31-display-frontend
+    * allwinner,sun8i-a33-display-frontend
+  - reg: base address and size of the memory-mapped region.
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the frontend and backend
+    * ahb: the backend interface clock
+    * mod: the backend module clock
+    * ram: the backend DRAM clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset controllers driving the backend
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the outputs
+
+Display Engine 2.0 Mixer
+------------------------
+
+The DE2 mixer have many functionalities, currently only layer blending is
+supported.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun8i-v3s-de2-mixer
+  - reg: base address and size of the memory-mapped region.
+  - clocks: phandles to the clocks feeding the mixer
+    * bus: the mixer interface clock
+    * mod: the mixer module clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset controllers driving the mixer
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the output
+
+
+Display Engine Pipeline
+-----------------------
+
+The display engine pipeline (and its entry point, since it can be
+either directly the backend or the frontend) is represented as an
+extra node.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun5i-a10s-display-engine
+    * allwinner,sun5i-a13-display-engine
+    * allwinner,sun6i-a31-display-engine
+    * allwinner,sun6i-a31s-display-engine
+    * allwinner,sun8i-a33-display-engine
+    * allwinner,sun8i-v3s-display-engine
+
+  - allwinner,pipelines: list of phandle to the display engine
+    frontends (DE 1.0) or mixers (DE 2.0) available.
+
+Example:
+
+panel: panel {
+	compatible = "olimex,lcd-olinuxino-43-ts";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		panel_input: endpoint {
+			remote-endpoint = <&tcon0_out_panel>;
+		};
+	};
+};
+
+connector {
+	compatible = "hdmi-connector";
+	type = "a";
+
+	port {
+		hdmi_con_in: endpoint {
+			remote-endpoint = <&hdmi_out_con>;
+		};
+	};
+};
+
+hdmi: hdmi@01c16000 {
+	compatible = "allwinner,sun5i-a10s-hdmi";
+	reg = <0x01c16000 0x1000>;
+	interrupts = <58>;
+	clocks = <&ccu CLK_AHB_HDMI>, <&ccu CLK_HDMI>,
+		 <&ccu CLK_PLL_VIDEO0_2X>,
+		 <&ccu CLK_PLL_VIDEO1_2X>;
+	clock-names = "ahb", "mod", "pll-0", "pll-1";
+	dmas = <&dma SUN4I_DMA_NORMAL 16>,
+	       <&dma SUN4I_DMA_NORMAL 16>,
+	       <&dma SUN4I_DMA_DEDICATED 24>;
+	dma-names = "ddc-tx", "ddc-rx", "audio-tx";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			hdmi_in_tcon0: endpoint {
+				remote-endpoint = <&tcon0_out_hdmi>;
+			};
+		};
+
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			hdmi_out_con: endpoint {
+				remote-endpoint = <&hdmi_con_in>;
+			};
+		};
+	};
+};
+
+tve0: tv-encoder@01c0a000 {
+	compatible = "allwinner,sun4i-a10-tv-encoder";
+	reg = <0x01c0a000 0x1000>;
+	clocks = <&ahb_gates 34>;
+	resets = <&tcon_ch0_clk 0>;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		tve0_in_tcon0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&tcon0_out_tve0>;
+		};
+	};
+};
+
+tcon0: lcd-controller@1c0c000 {
+	compatible = "allwinner,sun5i-a13-tcon";
+	reg = <0x01c0c000 0x1000>;
+	interrupts = <44>;
+	resets = <&tcon_ch0_clk 1>;
+	reset-names = "lcd";
+	clocks = <&ahb_gates 36>,
+		 <&tcon_ch0_clk>,
+		 <&tcon_ch1_clk>;
+	clock-names = "ahb",
+		      "tcon-ch0",
+		      "tcon-ch1";
+	clock-output-names = "tcon-pixel-clock";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		tcon0_in: port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			tcon0_in_be0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&be0_out_tcon0>;
+			};
+		};
+
+		tcon0_out: port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			tcon0_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_input>;
+			};
+
+			tcon0_out_tve0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&tve0_in_tcon0>;
+			};
+		};
+	};
+};
+
+fe0: display-frontend@1e00000 {
+	compatible = "allwinner,sun5i-a13-display-frontend";
+	reg = <0x01e00000 0x20000>;
+	interrupts = <47>;
+	clocks = <&ahb_gates 46>, <&de_fe_clk>,
+		 <&dram_gates 25>;
+	clock-names = "ahb", "mod",
+		      "ram";
+	resets = <&de_fe_clk>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		fe0_out: port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			fe0_out_be0: endpoint {
+				remote-endpoint = <&be0_in_fe0>;
+			};
+		};
+	};
+};
+
+be0: display-backend@1e60000 {
+	compatible = "allwinner,sun5i-a13-display-backend";
+	reg = <0x01e60000 0x10000>;
+	interrupts = <47>;
+	clocks = <&ahb_gates 44>, <&de_be_clk>,
+		 <&dram_gates 26>;
+	clock-names = "ahb", "mod",
+		      "ram";
+	resets = <&de_be_clk>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		be0_in: port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			be0_in_fe0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&fe0_out_be0>;
+			};
+		};
+
+		be0_out: port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			be0_out_tcon0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&tcon0_in_be0>;
+			};
+		};
+	};
+};
+
+display-engine {
+	compatible = "allwinner,sun5i-a13-display-engine";
+	allwinner,pipelines = <&fe0>;
+};

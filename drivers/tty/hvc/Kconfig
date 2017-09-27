@@ -4,7 +4,7 @@ config HVC_DRIVER
 	bool
 	help
 	  Generic "hypervisor virtual console" infrastructure for various
-	  hypervisors (pSeries, iSeries, Xen, lguest).
+	  hypervisors (pSeries, iSeries, Xen).
 	  It will automatically be selected if one of the back-end console drivers
 	  is selected.
 
@@ -42,16 +42,9 @@ config HVC_RTAS
 	help
 	  IBM Console device driver which makes use of RTAS
 
-config HVC_BEAT
-	bool "Toshiba's Beat Hypervisor Console support"
-	depends on PPC_CELLEB
-	select HVC_DRIVER
-	help
-	  Toshiba's Cell Reference Set Beat Console device driver
-
 config HVC_IUCV
 	bool "z/VM IUCV Hypervisor console support (VM only)"
-	depends on S390
+	depends on S390 && NET
 	select HVC_DRIVER
 	select IUCV
 	default y
@@ -88,7 +81,7 @@ config HVC_UDBG
 
 config HVC_DCC
        bool "ARM JTAG DCC console"
-       depends on ARM
+       depends on ARM || ARM64
        select HVC_DRIVER
        help
          This console uses the JTAG DCC on ARM to create a console under the HVC

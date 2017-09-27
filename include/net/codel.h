@@ -7,7 +7,7 @@
  *  Copyright (C) 2011-2012 Kathleen Nichols <nichols@pollere.com>
  *  Copyright (C) 2011-2012 Van Jacobson <van@pollere.net>
  *  Copyright (C) 2012 Michael D. Taht <dave.taht@bufferbloat.net>
- *  Copyright (C) 2012 Eric Dumazet <edumazet@google.com>
+ *  Copyright (C) 2012,2015 Eric Dumazet <edumazet@google.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,7 +46,6 @@
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
-#include <linux/reciprocal_div.h>
 
 /* Controlling Queue Delay (CoDel) algorithm
  * =========================================
@@ -67,36 +66,26 @@ typedef s32 codel_tdiff_t;
 
 static inline codel_time_t codel_get_time(void)
 {
-	u64 ns = ktime_to_ns(ktime_get());
+	u64 ns = ktime_get_ns();
 
 	return ns >> CODEL_SHIFT;
 }
 
-#define codel_time_after(a, b)		((s32)(a) - (s32)(b) > 0)
-#define codel_time_after_eq(a, b)	((s32)(a) - (s32)(b) >= 0)
-#define codel_time_before(a, b)		((s32)(a) - (s32)(b) < 0)
-#define codel_time_before_eq(a, b)	((s32)(a) - (s32)(b) <= 0)
+/* Dealing with timer wrapping, according to RFC 1982, as desc in wikipedia:
+ *  https://en.wikipedia.org/wiki/Serial_number_arithmetic#General_Solution
+ * codel_time_after(a,b) returns true if the time a is after time b.
+ */
+#define codel_time_after(a, b)						\
+	(typecheck(codel_time_t, a) &&					\
+	 typecheck(codel_time_t, b) &&					\
+	 ((s32)((a) - (b)) > 0))
+#define codel_time_before(a, b) 	codel_time_after(b, a)
 
-/* Qdiscs using codel plugin must use codel_skb_cb in their own cb[] */
-struct codel_skb_cb {
-	codel_time_t enqueue_time;
-};
-
-static struct codel_skb_cb *get_codel_cb(const struct sk_buff *skb)
-{
-	qdisc_cb_private_validate(skb, sizeof(struct codel_skb_cb));
-	return (struct codel_skb_cb *)qdisc_skb_cb(skb)->data;
-}
-
-static codel_time_t codel_get_enqueue_time(const struct sk_buff *skb)
-{
-	return get_codel_cb(skb)->enqueue_time;
-}
-
-static void codel_set_enqueue_time(struct sk_buff *skb)
-{
-	get_codel_cb(skb)->enqueue_time = codel_get_time();
-}
+#define codel_time_after_eq(a, b)					\
+	(typecheck(codel_time_t, a) &&					\
+	 typecheck(codel_time_t, b) &&					\
+	 ((s32)((a) - (b)) >= 0))
+#define codel_time_before_eq(a, b)	codel_time_after_eq(b, a)
 
 static inline u32 codel_time_to_us(codel_time_t val)
 {
@@ -109,12 +98,16 @@ static inline u32 codel_time_to_us(codel_time_t val)
 /**
  * struct codel_params - contains codel parameters
  * @target:	target queue size (in time units)
+ * @ce_threshold:  threshold for marking packets with ECN CE
  * @interval:	width of moving time window
+ * @mtu:	device mtu, or minimal queue backlog in bytes.
  * @ecn:	is Explicit Congestion Notification enabled
  */
 struct codel_params {
 	codel_time_t	target;
+	codel_time_t	ce_threshold;
 	codel_time_t	interval;
+	u32		mtu;
 	bool		ecn;
 };
 
@@ -148,199 +141,24 @@ struct codel_vars {
  * struct codel_stats - contains codel shared variables and stats
  * @maxpacket:	largest packet we've seen so far
  * @drop_count:	temp count of dropped packets in dequeue()
+ * @drop_len:	bytes of dropped packets in dequeue()
  * ecn_mark:	number of packets we ECN marked instead of dropping
+ * ce_mark:	number of packets CE marked because sojourn time was above ce_threshold
  */
 struct codel_stats {
 	u32		maxpacket;
 	u32		drop_count;
+	u32		drop_len;
 	u32		ecn_mark;
+	u32		ce_mark;
 };
 
-static void codel_params_init(struct codel_params *params)
-{
-	params->interval = MS2TIME(100);
-	params->target = MS2TIME(5);
-	params->ecn = false;
-}
+#define CODEL_DISABLED_THRESHOLD INT_MAX
 
-static void codel_vars_init(struct codel_vars *vars)
-{
-	memset(vars, 0, sizeof(*vars));
-}
-
-static void codel_stats_init(struct codel_stats *stats)
-{
-	stats->maxpacket = 256;
-}
-
-/*
- * http://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Iterative_methods_for_reciprocal_square_roots
- * new_invsqrt = (invsqrt / 2) * (3 - count * invsqrt^2)
- *
- * Here, invsqrt is a fixed point number (< 1.0), 32bit mantissa, aka Q0.32
- */
-static void codel_Newton_step(struct codel_vars *vars)
-{
-	u32 invsqrt = ((u32)vars->rec_inv_sqrt) << REC_INV_SQRT_SHIFT;
-	u32 invsqrt2 = ((u64)invsqrt * invsqrt) >> 32;
-	u64 val = (3LL << 32) - ((u64)vars->count * invsqrt2);
-
-	val >>= 2; /* avoid overflow in following multiply */
-	val = (val * invsqrt) >> (32 - 2 + 1);
-
-	vars->rec_inv_sqrt = val >> REC_INV_SQRT_SHIFT;
-}
-
-/*
- * CoDel control_law is t + interval/sqrt(count)
- * We maintain in rec_inv_sqrt the reciprocal value of sqrt(count) to avoid
- * both sqrt() and divide operation.
- */
-static codel_time_t codel_control_law(codel_time_t t,
-				      codel_time_t interval,
-				      u32 rec_inv_sqrt)
-{
-	return t + reciprocal_divide(interval, rec_inv_sqrt << REC_INV_SQRT_SHIFT);
-}
-
-
-static bool codel_should_drop(const struct sk_buff *skb,
-			      struct Qdisc *sch,
-			      struct codel_vars *vars,
-			      struct codel_params *params,
-			      struct codel_stats *stats,
-			      codel_time_t now)
-{
-	bool ok_to_drop;
-
-	if (!skb) {
-		vars->first_above_time = 0;
-		return false;
-	}
-
-	vars->ldelay = now - codel_get_enqueue_time(skb);
-	sch->qstats.backlog -= qdisc_pkt_len(skb);
-
-	if (unlikely(qdisc_pkt_len(skb) > stats->maxpacket))
-		stats->maxpacket = qdisc_pkt_len(skb);
-
-	if (codel_time_before(vars->ldelay, params->target) ||
-	    sch->qstats.backlog <= stats->maxpacket) {
-		/* went below - stay below for at least interval */
-		vars->first_above_time = 0;
-		return false;
-	}
-	ok_to_drop = false;
-	if (vars->first_above_time == 0) {
-		/* just went above from below. If we stay above
-		 * for at least interval we'll say it's ok to drop
-		 */
-		vars->first_above_time = now + params->interval;
-	} else if (codel_time_after(now, vars->first_above_time)) {
-		ok_to_drop = true;
-	}
-	return ok_to_drop;
-}
-
+typedef u32 (*codel_skb_len_t)(const struct sk_buff *skb);
+typedef codel_time_t (*codel_skb_time_t)(const struct sk_buff *skb);
+typedef void (*codel_skb_drop_t)(struct sk_buff *skb, void *ctx);
 typedef struct sk_buff * (*codel_skb_dequeue_t)(struct codel_vars *vars,
-						struct Qdisc *sch);
+						void *ctx);
 
-static struct sk_buff *codel_dequeue(struct Qdisc *sch,
-				     struct codel_params *params,
-				     struct codel_vars *vars,
-				     struct codel_stats *stats,
-				     codel_skb_dequeue_t dequeue_func)
-{
-	struct sk_buff *skb = dequeue_func(vars, sch);
-	codel_time_t now;
-	bool drop;
-
-	if (!skb) {
-		vars->dropping = false;
-		return skb;
-	}
-	now = codel_get_time();
-	drop = codel_should_drop(skb, sch, vars, params, stats, now);
-	if (vars->dropping) {
-		if (!drop) {
-			/* sojourn time below target - leave dropping state */
-			vars->dropping = false;
-		} else if (codel_time_after_eq(now, vars->drop_next)) {
-			/* It's time for the next drop. Drop the current
-			 * packet and dequeue the next. The dequeue might
-			 * take us out of dropping state.
-			 * If not, schedule the next drop.
-			 * A large backlog might result in drop rates so high
-			 * that the next drop should happen now,
-			 * hence the while loop.
-			 */
-			while (vars->dropping &&
-			       codel_time_after_eq(now, vars->drop_next)) {
-				vars->count++; /* dont care of possible wrap
-						* since there is no more divide
-						*/
-				codel_Newton_step(vars);
-				if (params->ecn && INET_ECN_set_ce(skb)) {
-					stats->ecn_mark++;
-					vars->drop_next =
-						codel_control_law(vars->drop_next,
-								  params->interval,
-								  vars->rec_inv_sqrt);
-					goto end;
-				}
-				qdisc_drop(skb, sch);
-				stats->drop_count++;
-				skb = dequeue_func(vars, sch);
-				if (!codel_should_drop(skb, sch,
-						       vars, params, stats, now)) {
-					/* leave dropping state */
-					vars->dropping = false;
-				} else {
-					/* and schedule the next drop */
-					vars->drop_next =
-						codel_control_law(vars->drop_next,
-								  params->interval,
-								  vars->rec_inv_sqrt);
-				}
-			}
-		}
-	} else if (drop) {
-		u32 delta;
-
-		if (params->ecn && INET_ECN_set_ce(skb)) {
-			stats->ecn_mark++;
-		} else {
-			qdisc_drop(skb, sch);
-			stats->drop_count++;
-
-			skb = dequeue_func(vars, sch);
-			drop = codel_should_drop(skb, sch, vars, params,
-						 stats, now);
-		}
-		vars->dropping = true;
-		/* if min went above target close to when we last went below it
-		 * assume that the drop rate that controlled the queue on the
-		 * last cycle is a good starting point to control it now.
-		 */
-		delta = vars->count - vars->lastcount;
-		if (delta > 1 &&
-		    codel_time_before(now - vars->drop_next,
-				      16 * params->interval)) {
-			vars->count = delta;
-			/* we dont care if rec_inv_sqrt approximation
-			 * is not very precise :
-			 * Next Newton steps will correct it quadratically.
-			 */
-			codel_Newton_step(vars);
-		} else {
-			vars->count = 1;
-			vars->rec_inv_sqrt = ~0U >> REC_INV_SQRT_SHIFT;
-		}
-		vars->lastcount = vars->count;
-		vars->drop_next = codel_control_law(now, params->interval,
-						    vars->rec_inv_sqrt);
-	}
-end:
-	return skb;
-}
 #endif

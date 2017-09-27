@@ -12,7 +12,7 @@
 #include <asm/thread_info.h>
 
 OUTPUT_ARCH(arc)
-ENTRY(_stext)
+ENTRY(res_service)
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 jiffies = jiffies_64 + 4;
@@ -82,14 +82,6 @@ SECTIONS
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
 
-	/*
-	 * .exit.text is discard at runtime, not link time, to deal with
-	 * references from .debug_frame
-	 * It will be init freed, being inside [__init_start : __init_end]
-	 */
-	.exit.text : { EXIT_TEXT }
-	.exit.data : { EXIT_DATA }
-
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 
@@ -97,6 +89,7 @@ SECTIONS
 		_text = .;
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		*(.fixup)
@@ -116,22 +109,17 @@ SECTIONS
 
 	_edata = .;
 
-	BSS_SECTION(0, 0, 0)
+	BSS_SECTION(4, 4, 4)
 
 #ifdef CONFIG_ARC_DW2_UNWIND
 	. = ALIGN(PAGE_SIZE);
-	.debug_frame  : {
+	.eh_frame  : {
 		__start_unwind = .;
-		*(.debug_frame)
+		*(.eh_frame)
 		__end_unwind = .;
 	}
-	/*
-	 * gcc 4.8 generates this for -fasynchonous-unwind-tables,
-	 * while we still use the .debug_frame based unwinder
-	 */
-	/DISCARD/ : {	*(.eh_frame) }
 #else
-	/DISCARD/ : {	*(.debug_frame) }
+	/DISCARD/ : {	*(.eh_frame) }
 #endif
 
 	NOTES
@@ -148,7 +136,7 @@ SECTIONS
 	}
 
 #ifndef CONFIG_DEBUG_INFO
-	/* open-coded because we need .debug_frame seperately for unwinding */
+	/DISCARD/ : { *(.debug_frame) }
 	/DISCARD/ : { *(.debug_aranges) }
 	/DISCARD/ : { *(.debug_pubnames) }
 	/DISCARD/ : { *(.debug_info) }

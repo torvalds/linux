@@ -24,7 +24,7 @@
 
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 #include "numa_internal.h"
 
@@ -52,6 +52,8 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 			nid, start, end);
 	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
 	printk(KERN_DEBUG "  ");
+	start = round_down(start, PAGES_PER_SECTION);
+	end = round_up(end, PAGES_PER_SECTION);
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
 		physnode_map[pfn / PAGES_PER_SECTION] = nid;
 		printk(KERN_CONT "%lx ", pfn);
@@ -98,5 +100,6 @@ void __init initmem_init(void)
 	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 
+	__vmalloc_start_set = true;
 	setup_bootmem_allocator();
 }

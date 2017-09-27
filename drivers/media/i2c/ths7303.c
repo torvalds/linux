@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <media/ths7303.h>
+#include <media/i2c/ths7303.h>
 #include <media/v4l2-device.h>
 
 #define THS7303_CHANNEL_1	1
@@ -51,10 +51,6 @@ enum ths7303_filter_mode {
 MODULE_DESCRIPTION("TI THS7303 video amplifier driver");
 MODULE_AUTHOR("Chaithrika U S");
 MODULE_LICENSE("GPL");
-
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level 0-1");
 
 static inline struct ths7303_state *to_state(struct v4l2_subdev *sd)
 {
@@ -83,7 +79,8 @@ static int ths7303_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 }
 
 /* following function is used to set ths7303 */
-int ths7303_setval(struct v4l2_subdev *sd, enum ths7303_filter_mode mode)
+static int ths7303_setval(struct v4l2_subdev *sd,
+			  enum ths7303_filter_mode mode)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ths7303_state *state = to_state(sd);
@@ -288,13 +285,11 @@ static int ths7303_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "stream %s\n", state->stream_on ? "On" : "Off");
 
 	if (state->bt.pixelclock) {
-		struct v4l2_bt_timings *bt = bt = &state->bt;
+		struct v4l2_bt_timings *bt = &state->bt;
 		u32 frame_width, frame_height;
 
-		frame_width = bt->width + bt->hfrontporch +
-			      bt->hsync + bt->hbackporch;
-		frame_height = bt->height + bt->vfrontporch +
-			       bt->vsync + bt->vbackporch;
+		frame_width = V4L2_DV_BT_FRAME_WIDTH(bt);
+		frame_height = V4L2_DV_BT_FRAME_HEIGHT(bt);
 		v4l2_info(sd,
 			  "timings: %dx%d%s%d (%dx%d). Pix freq. = %d Hz. Polarities = 0x%x\n",
 			  bt->width, bt->height, bt->interlaced ? "i" : "p",
@@ -382,7 +377,6 @@ MODULE_DEVICE_TABLE(i2c, ths7303_id);
 
 static struct i2c_driver ths7303_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ths73x3",
 	},
 	.probe		= ths7303_probe,

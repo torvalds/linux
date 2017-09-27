@@ -97,7 +97,7 @@ __ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *k
 	__ring_buffer_alloc((size), (flags), &__key);	\
 })
 
-void ring_buffer_wait(struct ring_buffer *buffer, int cpu);
+int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full);
 int ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
 			  struct file *filp, poll_table *poll_table);
 
@@ -154,8 +154,8 @@ ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 }
 #endif
 
-int ring_buffer_empty(struct ring_buffer *buffer);
-int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu);
+bool ring_buffer_empty(struct ring_buffer *buffer);
+bool ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu);
 
 void ring_buffer_record_disable(struct ring_buffer *buffer);
 void ring_buffer_record_enable(struct ring_buffer *buffer);
@@ -185,7 +185,7 @@ size_t ring_buffer_page_len(void *page);
 
 
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer, int cpu);
-void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
+void ring_buffer_free_read_page(struct ring_buffer *buffer, int cpu, void *data);
 int ring_buffer_read_page(struct ring_buffer *buffer, void **data_page,
 			  size_t len, int cpu, int full);
 
@@ -197,5 +197,11 @@ int ring_buffer_print_page_header(struct trace_seq *s);
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
 };
+
+#ifdef CONFIG_RING_BUFFER
+int trace_rb_cpu_prepare(unsigned int cpu, struct hlist_node *node);
+#else
+#define trace_rb_cpu_prepare	NULL
+#endif
 
 #endif /* _LINUX_RING_BUFFER_H */

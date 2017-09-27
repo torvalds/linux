@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,10 +75,10 @@ static struct rc_map_table fusionhdtv_mce[] = {
 
 static struct rc_map_list fusionhdtv_mce_map = {
 	.map = {
-		.scan    = fusionhdtv_mce,
-		.size    = ARRAY_SIZE(fusionhdtv_mce),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_FUSIONHDTV_MCE,
+		.scan     = fusionhdtv_mce,
+		.size     = ARRAY_SIZE(fusionhdtv_mce),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_FUSIONHDTV_MCE,
 	}
 };
 
@@ -96,4 +96,4 @@ module_init(init_rc_map_fusionhdtv_mce)
 module_exit(exit_rc_map_fusionhdtv_mce)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

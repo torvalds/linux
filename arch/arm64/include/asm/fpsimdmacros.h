@@ -40,6 +40,19 @@
 	str	w\tmpnr, [\state, #16 * 2 + 4]
 .endm
 
+.macro fpsimd_restore_fpcr state, tmp
+	/*
+	 * Writes to fpcr may be self-synchronising, so avoid restoring
+	 * the register if it hasn't changed.
+	 */
+	mrs	\tmp, fpcr
+	cmp	\tmp, \state
+	b.eq	9999f
+	msr	fpcr, \state
+9999:
+.endm
+
+/* Clobbers \state */
 .macro fpsimd_restore state, tmpnr
 	ldp	q0, q1, [\state, #16 * 0]
 	ldp	q2, q3, [\state, #16 * 2]
@@ -60,5 +73,5 @@
 	ldr	w\tmpnr, [\state, #16 * 2]
 	msr	fpsr, x\tmpnr
 	ldr	w\tmpnr, [\state, #16 * 2 + 4]
-	msr	fpcr, x\tmpnr
+	fpsimd_restore_fpcr x\tmpnr, \state
 .endm

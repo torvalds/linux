@@ -1,0 +1,101 @@
+/*
+ * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+/include/ "skeleton_hs_idu.dtsi"
+
+/ {
+	model = "snps,nsimosci_hs-smp";
+	compatible = "snps,nsimosci_hs";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&core_intc>;
+
+	chosen {
+		/* this is for console on serial */
+		bootargs = "earlycon=uart8250,mmio32,0xf0000000,115200n8 console=tty0 console=ttyS0,115200n8 consoleblan=0 debug video=640x480-24";
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	fpga {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* child and parent address space 1:1 mapped */
+		ranges;
+
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <5000000>;
+		};
+
+		core_intc: core-interrupt-controller {
+			compatible = "snps,archs-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		idu_intc: idu-interrupt-controller {
+			compatible = "snps,archs-idu-intc";
+			interrupt-controller;
+			interrupt-parent = <&core_intc>;
+			#interrupt-cells = <1>;
+		};
+
+		uart0: serial@f0000000 {
+			compatible = "ns8250";
+			reg = <0xf0000000 0x2000>;
+			interrupt-parent = <&idu_intc>;
+			interrupts = <0>;
+			clock-frequency = <3686400>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			no-loopback-test = <1>;
+		};
+
+		pguclk: pguclk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25175000>;
+		};
+
+		pgu@f9000000 {
+			compatible = "snps,arcpgu";
+			reg = <0xf9000000 0x400>;
+			clocks = <&pguclk>;
+			clock-names = "pxlclk";
+		};
+
+		ps2: ps2@f9001000 {
+			compatible = "snps,arc_ps2";
+			reg = <0xf9000400 0x14>;
+			interrupts = <3>;
+			interrupt-parent = <&idu_intc>;
+			interrupt-names = "arc_ps2_irq";
+		};
+
+		eth0: ethernet@f0003000 {
+			compatible = "ezchip,nps-mgt-enet";
+			reg = <0xf0003000 0x44>;
+			interrupt-parent = <&idu_intc>;
+			interrupts = <1>;
+		};
+
+		arcpct0: pct {
+			compatible = "snps,archs-pct";
+			#interrupt-cells = <1>;
+			interrupts = <20>;
+		};
+	};
+};

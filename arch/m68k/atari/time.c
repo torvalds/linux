@@ -32,8 +32,7 @@ atari_sched_init(irq_handler_t timer_routine)
     /* start timer C, div = 1:100 */
     st_mfp.tim_ct_cd = (st_mfp.tim_ct_cd & 15) | 0x60;
     /* install interrupt service routine for MFP Timer C */
-    if (request_irq(IRQ_MFP_TIMC, timer_routine, IRQ_TYPE_SLOW,
-		    "timer", timer_routine))
+    if (request_irq(IRQ_MFP_TIMC, timer_routine, 0, "timer", timer_routine))
 	pr_err("Couldn't register timer interrupt\n");
 }
 

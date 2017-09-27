@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,9 +51,11 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
+#include "acinterp.h"
 #include "acparser.h"
 #include "acdispat.h"
 #include "amlcode.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psloop")
@@ -91,6 +93,10 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			  "Get arguments for opcode [%s]\n",
+			  op->common.aml_op_name));
+
 	switch (op->common.aml_opcode) {
 	case AML_BYTE_OP:	/* AML_BYTEDATA_ARG */
 	case AML_WORD_OP:	/* AML_WORDDATA_ARG */
@@ -108,10 +114,10 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	case AML_INT_NAMEPATH_OP:	/* AML_NAMESTRING_ARG */
 
-		status =
-		    acpi_ps_get_next_namepath(walk_state,
-					      &(walk_state->parser_state), op,
-					      1);
+		status = acpi_ps_get_next_namepath(walk_state,
+						   &(walk_state->parser_state),
+						   op,
+						   ACPI_POSSIBLE_METHOD_CALL);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -123,12 +129,24 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		/*
 		 * Op is not a constant or string, append each argument to the Op
 		 */
-		while (GET_CURRENT_ARG_TYPE(walk_state->arg_types)
-		       && !walk_state->arg_count) {
-			walk_state->aml_offset =
-			    (u32) ACPI_PTR_DIFF(walk_state->parser_state.aml,
-						walk_state->parser_state.
-						aml_start);
+		while (GET_CURRENT_ARG_TYPE(walk_state->arg_types) &&
+		       !walk_state->arg_count) {
+			walk_state->aml = walk_state->parser_state.aml;
+
+			switch (op->common.aml_opcode) {
+			case AML_METHOD_OP:
+			case AML_BUFFER_OP:
+			case AML_PACKAGE_OP:
+			case AML_VARIABLE_PACKAGE_OP:
+			case AML_WHILE_OP:
+
+				break;
+
+			default:
+
+				ASL_CV_CAPTURE_COMMENTS(walk_state);
+				break;
+			}
 
 			status =
 			    acpi_ps_get_next_arg(walk_state,
@@ -140,12 +158,16 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			}
 
 			if (arg) {
-				arg->common.aml_offset = walk_state->aml_offset;
 				acpi_ps_append_arg(op, arg);
 			}
 
 			INCREMENT_ARG_LIST(walk_state->arg_types);
 		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Final argument count: %u pass %u\n",
+				  walk_state->arg_count,
+				  walk_state->pass_number));
 
 		/*
 		 * Handle executable code at "module-level". This refers to
@@ -253,13 +275,18 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 		case AML_BUFFER_OP:
 		case AML_PACKAGE_OP:
-		case AML_VAR_PACKAGE_OP:
+		case AML_VARIABLE_PACKAGE_OP:
 
 			if ((op->common.parent) &&
 			    (op->common.parent->common.aml_opcode ==
 			     AML_NAME_OP)
 			    && (walk_state->pass_number <=
 				ACPI_IMODE_LOAD_PASS2)) {
+				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+						  "Setup Package/Buffer: Pass %u, AML Ptr: %p\n",
+						  walk_state->pass_number,
+						  aml_op_start));
+
 				/*
 				 * Skip parsing of Buffers and Packages because we don't have
 				 * enough info in the first pass to parse them correctly.
@@ -324,6 +351,8 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
 	union acpi_operand_object *method_obj;
 	struct acpi_namespace_node *parent_node;
 
+	ACPI_FUNCTION_TRACE(ps_link_module_code);
+
 	/* Get the tail of the list */
 
 	prev = next = acpi_gbl_module_code_list;
@@ -343,8 +372,12 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
 
 		method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 		if (!method_obj) {
-			return;
+			return_VOID;
 		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Create/Link new code block: %p\n",
+				  method_obj));
 
 		if (parent_op->common.node) {
 			parent_node = parent_op->common.node;
@@ -370,8 +403,14 @@ acpi_ps_link_module_code(union acpi_parse_object *parent_op,
 			prev->method.mutex = method_obj;
 		}
 	} else {
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Appending to existing code block: %p\n",
+				  prev));
+
 		prev->method.aml_length += aml_length;
 	}
+
+	return_VOID;
 }
 
 /*******************************************************************************
@@ -467,6 +506,8 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	/* Iterative parsing loop, while there is more AML to process: */
 
 	while ((parser_state->aml < parser_state->aml_end) || (op)) {
+		ASL_CV_CAPTURE_COMMENTS(walk_state);
+
 		aml_op_start = parser_state->aml;
 		if (!op) {
 			status =
@@ -480,6 +521,10 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					status = AE_OK;
 				}
 
+				if (status == AE_CTRL_TERMINATE) {
+					return_ACPI_STATUS(status);
+				}
+
 				status =
 				    acpi_ps_complete_op(walk_state, &op,
 							status);
@@ -490,16 +535,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				continue;
 			}
 
-			op->common.aml_offset = walk_state->aml_offset;
-
-			if (walk_state->op_info) {
-				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Opcode %4.4X [%s] Op %p Aml %p AmlOffset %5.5X\n",
-						  (u32) op->common.aml_opcode,
-						  walk_state->op_info->name, op,
-						  parser_state->aml,
-						  op->common.aml_offset));
-			}
+			acpi_ex_start_trace_opcode(op, walk_state);
 		}
 
 		/*
@@ -507,6 +543,20 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		 * any args yet
 		 */
 		walk_state->arg_count = 0;
+
+		switch (op->common.aml_opcode) {
+		case AML_BYTE_OP:
+		case AML_WORD_OP:
+		case AML_DWORD_OP:
+		case AML_QWORD_OP:
+
+			break;
+
+		default:
+
+			ASL_CV_CAPTURE_COMMENTS(walk_state);
+			break;
+		}
 
 		/* Are there any arguments that must be processed? */
 
@@ -529,6 +579,10 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		}
 
 		/* Check for arguments that need to be processed */
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Parseloop: argument count: %u\n",
+				  walk_state->arg_count));
 
 		if (walk_state->arg_count) {
 			/*

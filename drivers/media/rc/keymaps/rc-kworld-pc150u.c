@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2010 by Kyle Strickland
  *   (based on kworld-plus-tv-analog.c by
- *    Mauro Carvalho Chehab <mchehab@redhat.com>)
+ *    Mauro Carvalho Chehab)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,10 +78,10 @@ static struct rc_map_table kworld_pc150u[] = {
 
 static struct rc_map_list kworld_pc150u_map = {
 	.map = {
-		.scan    = kworld_pc150u,
-		.size    = ARRAY_SIZE(kworld_pc150u),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_KWORLD_PC150U,
+		.scan     = kworld_pc150u,
+		.size     = ARRAY_SIZE(kworld_pc150u),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_KWORLD_PC150U,
 	}
 };
 

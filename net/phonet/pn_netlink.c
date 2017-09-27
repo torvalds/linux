@@ -61,7 +61,8 @@ static const struct nla_policy ifa_phonet_policy[IFA_MAX+1] = {
 	[IFA_LOCAL] = { .type = NLA_U8 },
 };
 
-static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+		     struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
@@ -70,15 +71,16 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 	int err;
 	u8 pnaddr;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	ASSERT_RTNL();
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_phonet_policy);
+	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_phonet_policy,
+			  extack);
 	if (err < 0)
 		return err;
 
@@ -121,7 +123,8 @@ static int fill_addr(struct sk_buff *skb, struct net_device *dev, u8 addr,
 	ifm->ifa_index = dev->ifindex;
 	if (nla_put_u8(skb, IFA_LOCAL, addr))
 		goto nla_put_failure;
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -190,7 +193,8 @@ static int fill_route(struct sk_buff *skb, struct net_device *dev, u8 dst,
 	if (nla_put_u8(skb, RTA_DST, dst) ||
 	    nla_put_u32(skb, RTA_OIF, dev->ifindex))
 		goto nla_put_failure;
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -224,7 +228,8 @@ static const struct nla_policy rtm_phonet_policy[RTA_MAX+1] = {
 	[RTA_OIF] = { .type = NLA_U32 },
 };
 
-static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[RTA_MAX+1];
@@ -233,15 +238,16 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 	int err;
 	u8 dst;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	ASSERT_RTNL();
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_phonet_policy);
+	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_phonet_policy,
+			  extack);
 	if (err < 0)
 		return err;
 
@@ -270,27 +276,23 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 static int route_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	u8 addr, addr_idx = 0, addr_start_idx = cb->args[0];
+	u8 addr;
 
 	rcu_read_lock();
-	for (addr = 0; addr < 64; addr++) {
-		struct net_device *dev;
+	for (addr = cb->args[0]; addr < 64; addr++) {
+		struct net_device *dev = phonet_route_get_rcu(net, addr << 2);
 
-		dev = phonet_route_get_rcu(net, addr << 2);
 		if (!dev)
 			continue;
 
-		if (addr_idx++ < addr_start_idx)
-			continue;
 		if (fill_route(skb, dev, addr << 2, NETLINK_CB(cb->skb).portid,
-				cb->nlh->nlmsg_seq, RTM_NEWROUTE))
+			       cb->nlh->nlmsg_seq, RTM_NEWROUTE) < 0)
 			goto out;
 	}
 
 out:
 	rcu_read_unlock();
-	cb->args[0] = addr_idx;
-	cb->args[1] = 0;
+	cb->args[0] = addr;
 
 	return skb->len;
 }
@@ -298,15 +300,15 @@ out:
 int __init phonet_netlink_register(void)
 {
 	int err = __rtnl_register(PF_PHONET, RTM_NEWADDR, addr_doit,
-				  NULL, NULL);
+				  NULL, 0);
 	if (err)
 		return err;
 
 	/* Further __rtnl_register() cannot fail */
-	__rtnl_register(PF_PHONET, RTM_DELADDR, addr_doit, NULL, NULL);
-	__rtnl_register(PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit, NULL);
-	__rtnl_register(PF_PHONET, RTM_NEWROUTE, route_doit, NULL, NULL);
-	__rtnl_register(PF_PHONET, RTM_DELROUTE, route_doit, NULL, NULL);
-	__rtnl_register(PF_PHONET, RTM_GETROUTE, NULL, route_dumpit, NULL);
+	__rtnl_register(PF_PHONET, RTM_DELADDR, addr_doit, NULL, 0);
+	__rtnl_register(PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit, 0);
+	__rtnl_register(PF_PHONET, RTM_NEWROUTE, route_doit, NULL, 0);
+	__rtnl_register(PF_PHONET, RTM_DELROUTE, route_doit, NULL, 0);
+	__rtnl_register(PF_PHONET, RTM_GETROUTE, NULL, route_dumpit, 0);
 	return 0;
 }

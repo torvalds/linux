@@ -289,7 +289,7 @@ static const struct i2c_algorithm kempld_i2c_algorithm = {
 	.functionality	= kempld_i2c_func,
 };
 
-static struct i2c_adapter kempld_i2c_adapter = {
+static const struct i2c_adapter kempld_i2c_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= "i2c-kempld",
 	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
@@ -394,7 +394,6 @@ static int kempld_i2c_resume(struct platform_device *pdev)
 static struct platform_driver kempld_i2c_driver = {
 	.driver = {
 		.name = "kempld-i2c",
-		.owner = THIS_MODULE,
 	},
 	.probe		= kempld_i2c_probe,
 	.remove		= kempld_i2c_remove,

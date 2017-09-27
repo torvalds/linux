@@ -22,12 +22,12 @@
 #include <linux/sizes.h>
 
 #include <media/media-entity.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s5p_fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #define dbg(fmt, args...) \
 	pr_debug("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
@@ -224,7 +224,7 @@ struct fimc_addr {
  * @index: buffer index for the output DMA engine
  */
 struct fimc_vid_buffer {
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head	list;
 	struct fimc_addr	paddr;
 	int			index;
@@ -307,7 +307,6 @@ struct fimc_m2m_device {
  */
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
-	struct vb2_alloc_ctx		*alloc_ctx;
 	struct v4l2_subdev		subdev;
 	struct exynos_video_entity	ve;
 	struct media_pad		vd_pad;
@@ -359,7 +358,7 @@ struct fimc_pix_limit {
  * @pix_limit: pixel size constraints for the scaler
  * @min_inp_pixsize: minimum input pixel size
  * @min_out_pixsize: minimum output pixel size
- * @hor_offs_align: horizontal pixel offset aligment
+ * @hor_offs_align: horizontal pixel offset alignment
  * @min_vsize_align: minimum vertical pixel size alignment
  */
 struct fimc_variant {
@@ -417,7 +416,6 @@ struct fimc_ctx;
  * @m2m:	memory-to-memory V4L2 device information
  * @vid_cap:	camera capture device information
  * @state:	flags used to synchronize m2m and capture mode operation
- * @alloc_ctx:	videobuf2 memory allocator context
  * @pipeline:	fimc video capture pipeline data structure
  */
 struct fimc_dev {
@@ -436,7 +434,6 @@ struct fimc_dev {
 	struct fimc_m2m_device		m2m;
 	struct fimc_vid_cap		vid_cap;
 	unsigned long			state;
-	struct vb2_alloc_ctx		*alloc_ctx;
 };
 
 /**
@@ -481,7 +478,6 @@ struct fimc_ctrls {
  * @flags:		additional flags for image conversion
  * @state:		flags to keep track of user configuration
  * @fimc_dev:		the FIMC device this context applies to
- * @m2m_ctx:		memory-to-memory device context
  * @fh:			v4l2 file handle
  * @ctrls:		v4l2 controls structure
  */
@@ -502,7 +498,6 @@ struct fimc_ctx {
 	u32			flags;
 	u32			state;
 	struct fimc_dev		*fimc_dev;
-	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct v4l2_fh		fh;
 	struct fimc_ctrls	ctrls;
 };
@@ -581,8 +576,8 @@ static inline bool fimc_jpeg_fourcc(u32 pixelformat)
 
 static inline bool fimc_user_defined_mbus_fmt(u32 code)
 {
-	return (code == V4L2_MBUS_FMT_JPEG_1X8 ||
-		code == V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8);
+	return (code == MEDIA_BUS_FMT_JPEG_1X8 ||
+		code == MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8);
 }
 
 /* Return the alpha component bit mask */

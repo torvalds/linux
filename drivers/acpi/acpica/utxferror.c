@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -52,6 +53,7 @@ ACPI_MODULE_NAME("utxferror")
  * This module is used for the in-kernel ACPICA as well as the ACPICA
  * tools/applications.
  */
+#ifndef ACPI_NO_ERROR_MESSAGES	/* Entire module */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_error
@@ -89,7 +91,7 @@ ACPI_EXPORT_SYMBOL(acpi_error)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              status              - Status to be formatted
+ *              status              - Status value to be decoded/formatted
  *              format              - Printf format string + additional args
  *
  * RETURN:      None
@@ -105,8 +107,16 @@ acpi_exception(const char *module_name,
 	va_list arg_list;
 
 	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_EXCEPTION "%s, ",
-		       acpi_format_exception(status));
+
+	/* For AE_OK, just print the message */
+
+	if (ACPI_SUCCESS(status)) {
+		acpi_os_printf(ACPI_MSG_EXCEPTION);
+
+	} else {
+		acpi_os_printf(ACPI_MSG_EXCEPTION "%s, ",
+			       acpi_format_exception(status));
+	}
 
 	va_start(arg_list, format);
 	acpi_os_vprintf(format, arg_list);
@@ -122,8 +132,8 @@ ACPI_EXPORT_SYMBOL(acpi_exception)
  *
  * FUNCTION:    acpi_warning
  *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
+ * PARAMETERS:  module_name         - Caller's module name (for warning output)
+ *              line_number         - Caller's line number (for warning output)
  *              format              - Printf format string + additional args
  *
  * RETURN:      None
@@ -153,20 +163,15 @@ ACPI_EXPORT_SYMBOL(acpi_warning)
  *
  * FUNCTION:    acpi_info
  *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
- *              format              - Printf format string + additional args
+ * PARAMETERS:  format              - Printf format string + additional args
  *
  * RETURN:      None
  *
  * DESCRIPTION: Print generic "ACPI:" information message. There is no
  *              module/line/version info in order to keep the message simple.
  *
- * TBD: module_name and line_number args are not needed, should be removed.
- *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE
-acpi_info(const char *module_name, u32 line_number, const char *format, ...)
+void ACPI_INTERNAL_VAR_XFACE acpi_info(const char *format, ...)
 {
 	va_list arg_list;
 
@@ -220,8 +225,8 @@ ACPI_EXPORT_SYMBOL(acpi_bios_error)
  *
  * FUNCTION:    acpi_bios_warning
  *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
+ * PARAMETERS:  module_name         - Caller's module name (for warning output)
+ *              line_number         - Caller's line number (for warning output)
  *              format              - Printf format string + additional args
  *
  * RETURN:      None
@@ -248,3 +253,4 @@ acpi_bios_warning(const char *module_name,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_bios_warning)
+#endif				/* ACPI_NO_ERROR_MESSAGES */

@@ -17,10 +17,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with Lustre; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef __LUSTRE_LU_REF_H
@@ -69,12 +65,12 @@
  *
  *	// current thread acquired a temporary reference to foo.
  *	foo_get(foo);
- *	lu_ref_add(&foo->reference, __FUNCTION__, current);
+ *	lu_ref_add(&foo->reference, __func__, current);
  *
  *	...
  *
  *	// temporary reference is released.
- *	lu_ref_del(&foo->reference, __FUNCTION__, current);
+ *	lu_ref_del(&foo->reference, __func__, current);
  *	foo_put(foo);
  * \endcode
  *
@@ -107,8 +103,12 @@
  * @{
  */
 
-
-struct lu_ref  {};
+/*
+ * dummy data structures/functions to pass compile for now.
+ * We need to reimplement them with kref.
+ */
+struct lu_ref {};
+struct lu_ref_link {};
 
 static inline void lu_ref_init(struct lu_ref *ref)
 {
@@ -130,6 +130,13 @@ static inline struct lu_ref_link *lu_ref_add_atomic(struct lu_ref *ref,
 						    const void *source)
 {
 	return NULL;
+}
+
+static inline void lu_ref_add_at(struct lu_ref *ref,
+				 struct lu_ref_link *link,
+				 const char *scope,
+				 const void *source)
+{
 }
 
 static inline void lu_ref_del(struct lu_ref *ref, const char *scope,

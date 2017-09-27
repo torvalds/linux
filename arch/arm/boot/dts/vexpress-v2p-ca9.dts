@@ -33,28 +33,28 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		A9_0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			next-level-cache = <&L2>;
 		};
 
-		cpu@1 {
+		A9_1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
 			next-level-cache = <&L2>;
 		};
 
-		cpu@2 {
+		A9_2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <2>;
 			next-level-cache = <&L2>;
 		};
 
-		cpu@3 {
+		A9_3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <3>;
@@ -70,9 +70,40 @@
 	clcd@10020000 {
 		compatible = "arm,pl111", "arm,primecell";
 		reg = <0x10020000 0x1000>;
+		interrupt-names = "combined";
 		interrupts = <0 44 4>;
 		clocks = <&oscclk1>, <&oscclk2>;
 		clock-names = "clcdclk", "apb_pclk";
+		max-memory-bandwidth = <130000000>; /* 16bpp @ 63.5MHz */
+
+		port {
+			clcd_pads: endpoint {
+				remote-endpoint = <&clcd_panel>;
+				arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+			};
+		};
+
+		panel {
+			compatible = "panel-dpi";
+
+			port {
+				clcd_panel: endpoint {
+					remote-endpoint = <&clcd_pads>;
+				};
+			};
+
+			panel-timing {
+				clock-frequency = <63500127>;
+				hactive = <1024>;
+				hback-porch = <152>;
+				hfront-porch = <48>;
+				hsync-len = <104>;
+				vactive = <768>;
+				vback-porch = <23>;
+				vfront-porch = <3>;
+				vsync-len = <4>;
+			};
+		};
 	};
 
 	memory-controller@100e0000 {
@@ -139,6 +170,7 @@
 		compatible = "arm,pl310-cache";
 		reg = <0x1e00a000 0x1000>;
 		interrupts = <0 43 4>;
+		cache-unified;
 		cache-level = <2>;
 		arm,data-latency = <1 1 1>;
 		arm,tag-latency = <1 1 1>;
@@ -150,13 +182,15 @@
 			     <0 61 4>,
 			     <0 62 4>,
 			     <0 63 4>;
+		interrupt-affinity = <&A9_0>, <&A9_1>, <&A9_2>, <&A9_3>;
+
 	};
 
 	dcc {
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		osc@0 {
+		oscclk0: extsaxiclk {
 			/* ACLK clock to the AXI master port on the test chip */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
@@ -165,7 +199,7 @@
 			clock-output-names = "extsaxiclk";
 		};
 
-		oscclk1: osc@1 {
+		oscclk1: clcdclk {
 			/* Reference clock for the CLCD */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 1>;
@@ -174,7 +208,7 @@
 			clock-output-names = "clcdclk";
 		};
 
-		smbclk: oscclk2: osc@2 {
+		smbclk: oscclk2: tcrefclk {
 			/* Reference clock for the test chip internal PLLs */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 2>;
@@ -183,7 +217,7 @@
 			clock-output-names = "tcrefclk";
 		};
 
-		volt@0 {
+		volt-vd10 {
 			/* Test Chip internal logic voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;
@@ -192,7 +226,7 @@
 			label = "VD10";
 		};
 
-		volt@1 {
+		volt-vd10-s2 {
 			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 1>;
@@ -201,7 +235,7 @@
 			label = "VD10_S2";
 		};
 
-		volt@2 {
+		volt-vd10-s3 {
 			/* Cortex-A9 system supply, Cores, MPEs, SCU and PL310 logic */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 2>;
@@ -210,7 +244,7 @@
 			label = "VD10_S3";
 		};
 
-		volt@3 {
+		volt-vcc1v8 {
 			/* DDR2 SDRAM and Test Chip DDR2 I/O supply */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 3>;
@@ -219,7 +253,7 @@
 			label = "VCC1V8";
 		};
 
-		volt@4 {
+		volt-ddr2vtt {
 			/* DDR2 SDRAM VTT termination voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 4>;
@@ -228,7 +262,7 @@
 			label = "DDR2VTT";
 		};
 
-		volt@5 {
+		volt-vcc3v3 {
 			/* Local board supply for miscellaneous logic external to the Test Chip */
 			arm,vexpress-sysreg,func = <2 5>;
 			compatible = "arm,vexpress-volt";
@@ -237,28 +271,28 @@
 			label = "VCC3V3";
 		};
 
-		amp@0 {
+		amp-vd10-s2 {
 			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 0>;
 			label = "VD10_S2";
 		};
 
-		amp@1 {
+		amp-vd10-s3 {
 			/* Cortex-A9 system supply, Cores, MPEs, SCU and PL310 logic */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 1>;
 			label = "VD10_S3";
 		};
 
-		power@0 {
+		power-vd10-s2 {
 			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "PVD10_S2";
 		};
 
-		power@1 {
+		power-vd10-s3 {
 			/* Cortex-A9 system supply, Cores, MPEs, SCU and PL310 logic */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 1>;
@@ -266,7 +300,7 @@
 		};
 	};
 
-	smb {
+	smb@4000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -324,5 +358,18 @@
 				<0 0 42 &gic 0 42 4>;
 
 		/include/ "vexpress-v2m.dtsi"
+	};
+
+	site2: hsb@e0000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xe0000000 0x20000000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 3>;
+		interrupt-map = <0 0 &gic 0 36 4>,
+				<0 1 &gic 0 37 4>,
+				<0 2 &gic 0 38 4>,
+				<0 3 &gic 0 39 4>;
 	};
 };

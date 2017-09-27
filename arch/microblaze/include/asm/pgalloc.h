@@ -60,7 +60,7 @@ extern unsigned long get_zero_page_fast(void);
 
 extern void __bad_pte(pmd_t *pmd);
 
-extern inline pgd_t *get_pgd_slow(void)
+static inline pgd_t *get_pgd_slow(void)
 {
 	pgd_t *ret;
 
@@ -70,7 +70,7 @@ extern inline pgd_t *get_pgd_slow(void)
 	return ret;
 }
 
-extern inline pgd_t *get_pgd_fast(void)
+static inline pgd_t *get_pgd_fast(void)
 {
 	unsigned long *ret;
 
@@ -84,14 +84,14 @@ extern inline pgd_t *get_pgd_fast(void)
 	return (pgd_t *)ret;
 }
 
-extern inline void free_pgd_fast(pgd_t *pgd)
+static inline void free_pgd_fast(pgd_t *pgd)
 {
 	*(unsigned long **)pgd = pgd_quicklist;
 	pgd_quicklist = (unsigned long *) pgd;
 	pgtable_cache_size++;
 }
 
-extern inline void free_pgd_slow(pgd_t *pgd)
+static inline void free_pgd_slow(pgd_t *pgd)
 {
 	free_page((unsigned long)pgd);
 }
@@ -116,14 +116,19 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	struct page *ptepage;
 
 #ifdef CONFIG_HIGHPTE
-	int flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_REPEAT;
+	int flags = GFP_KERNEL | __GFP_HIGHMEM;
 #else
-	int flags = GFP_KERNEL | __GFP_REPEAT;
+	int flags = GFP_KERNEL;
 #endif
 
 	ptepage = alloc_pages(flags, 0);
-	if (ptepage)
-		clear_highpage(ptepage);
+	if (!ptepage)
+		return NULL;
+	clear_highpage(ptepage);
+	if (!pgtable_page_ctor(ptepage)) {
+		__free_page(ptepage);
+		return NULL;
+	}
 	return ptepage;
 }
 
@@ -141,25 +146,26 @@ static inline pte_t *pte_alloc_one_fast(struct mm_struct *mm,
 	return (pte_t *)ret;
 }
 
-extern inline void pte_free_fast(pte_t *pte)
+static inline void pte_free_fast(pte_t *pte)
 {
 	*(unsigned long **)pte = pte_quicklist;
 	pte_quicklist = (unsigned long *) pte;
 	pgtable_cache_size++;
 }
 
-extern inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	free_page((unsigned long)pte);
 }
 
-extern inline void pte_free_slow(struct page *ptepage)
+static inline void pte_free_slow(struct page *ptepage)
 {
 	__free_page(ptepage);
 }
 
-extern inline void pte_free(struct mm_struct *mm, struct page *ptepage)
+static inline void pte_free(struct mm_struct *mm, struct page *ptepage)
 {
+	pgtable_page_dtor(ptepage);
 	__free_page(ptepage);
 }
 

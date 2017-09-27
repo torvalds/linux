@@ -32,16 +32,7 @@ int st_gyro_trig_set_state(struct iio_trigger *trig, bool state)
 
 static int st_gyro_buffer_preenable(struct iio_dev *indio_dev)
 {
-	int err;
-
-	err = st_sensors_set_enable(indio_dev, true);
-	if (err < 0)
-		goto st_gyro_set_enable_error;
-
-	err = iio_sw_buffer_preenable(indio_dev);
-
-st_gyro_set_enable_error:
-	return err;
+	return st_sensors_set_enable(indio_dev, true);
 }
 
 static int st_gyro_buffer_postenable(struct iio_dev *indio_dev)
@@ -100,7 +91,7 @@ static const struct iio_buffer_setup_ops st_gyro_buffer_setup_ops = {
 
 int st_gyro_allocate_ring(struct iio_dev *indio_dev)
 {
-	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+	return iio_triggered_buffer_setup(indio_dev, NULL,
 		&st_sensors_trigger_handler, &st_gyro_buffer_setup_ops);
 }
 

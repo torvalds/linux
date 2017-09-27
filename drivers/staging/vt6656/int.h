@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: int.h
  *
@@ -32,31 +28,30 @@
 
 #include "device.h"
 
-typedef struct tagSINTData {
-	u8 byTSR0;
-	u8 byPkt0;
-	u16 wTime0;
-	u8 byTSR1;
-	u8 byPkt1;
-	u16 wTime1;
-	u8 byTSR2;
-	u8 byPkt2;
-	u16 wTime2;
-	u8 byTSR3;
-	u8 byPkt3;
-	u16 wTime3;
-	u64 qwTSF;
-	u8 byISR0;
-	u8 byISR1;
-	u8 byRTSSuccess;
-	u8 byRTSFail;
-	u8 byACKFail;
-	u8 byFCSErr;
-	u8 abySW[2];
-} __attribute__ ((__packed__))
-SINTData, *PSINTData;
+struct vnt_interrupt_data {
+	u8 tsr0;
+	u8 pkt0;
+	u16 time0;
+	u8 tsr1;
+	u8 pkt1;
+	u16 time1;
+	u8 tsr2;
+	u8 pkt2;
+	u16 time2;
+	u8 tsr3;
+	u8 pkt3;
+	u16 time3;
+	__le64 tsf;
+	u8 isr0;
+	u8 isr1;
+	u8 rts_success;
+	u8 rts_fail;
+	u8 ack_fail;
+	u8 fcs_err;
+	u8 sw[2];
+} __packed;
 
-void INTvWorkItem(struct vnt_private *);
-void INTnsProcessData(struct vnt_private *);
+void vnt_int_start_interrupt(struct vnt_private *priv);
+void vnt_int_process_data(struct vnt_private *priv);
 
 #endif /* __INT_H__ */

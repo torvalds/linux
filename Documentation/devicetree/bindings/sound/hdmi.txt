@@ -1,0 +1,16 @@
+Device-Tree bindings for dummy HDMI codec
+
+Required properties:
+	- compatible: should be "linux,hdmi-audio".
+
+CODEC output pins:
+  * TX
+
+CODEC input pins:
+  * RX
+
+Example node:
+
+	hdmi_audio: hdmi_audio@0 {
+		compatible = "linux,hdmi-audio";
+	};

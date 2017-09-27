@@ -110,6 +110,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/mutex.h>
+#include <linux/pagemap.h>
 
 
 static DEFINE_MUTEX(nvram_mutex);
@@ -213,21 +214,8 @@ void nvram_set_checksum(void)
 
 static loff_t nvram_llseek(struct file *file, loff_t offset, int origin)
 {
-	switch (origin) {
-	case 0:
-		/* nothing to do */
-		break;
-	case 1:
-		offset += file->f_pos;
-		break;
-	case 2:
-		offset += NVRAM_BYTES;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return (offset >= 0) ? (file->f_pos = offset) : -EINVAL;
+	return generic_file_llseek_size(file, offset, origin, MAX_LFS_FILESIZE,
+					NVRAM_BYTES);
 }
 
 static ssize_t nvram_read(struct file *file, char __user *buf,
@@ -508,12 +496,12 @@ static void pc_set_checksum(void)
 
 #ifdef CONFIG_PROC_FS
 
-static char *floppy_types[] = {
+static const char * const floppy_types[] = {
 	"none", "5.25'' 360k", "5.25'' 1.2M", "3.5'' 720k", "3.5'' 1.44M",
 	"3.5'' 2.88M", "3.5'' 2.88M"
 };
 
-static char *gfx_types[] = {
+static const char * const gfx_types[] = {
 	"EGA, VGA, ... (with BIOS)",
 	"CGA (40 cols)",
 	"CGA (80 cols)",
@@ -614,7 +602,7 @@ static void atari_set_checksum(void)
 
 static struct {
 	unsigned char val;
-	char *name;
+	const char *name;
 } boot_prefs[] = {
 	{ 0x80, "TOS" },
 	{ 0x40, "ASV" },
@@ -623,7 +611,7 @@ static struct {
 	{ 0x00, "unspecified" }
 };
 
-static char *languages[] = {
+static const char * const languages[] = {
 	"English (US)",
 	"German",
 	"French",
@@ -635,7 +623,7 @@ static char *languages[] = {
 	"Swiss (German)"
 };
 
-static char *dateformat[] = {
+static const char * const dateformat[] = {
 	"MM%cDD%cYY",
 	"DD%cMM%cYY",
 	"YY%cMM%cDD",
@@ -646,7 +634,7 @@ static char *dateformat[] = {
 	"7 (undefined)"
 };
 
-static char *colors[] = {
+static const char * const colors[] = {
 	"2", "4", "16", "256", "65536", "??", "??", "??"
 };
 
@@ -702,7 +690,7 @@ static void atari_proc_infos(unsigned char *nvram, struct seq_file *seq,
 		seq_printf(seq, "%ds%s\n", nvram[10],
 		    nvram[10] < 8 ? ", no memory test" : "");
 
-	vmode = (nvram[14] << 8) || nvram[15];
+	vmode = (nvram[14] << 8) | nvram[15];
 	seq_printf(seq,
 	    "Video mode       : %s colors, %d columns, %s %s monitor\n",
 	    colors[vmode & 7],

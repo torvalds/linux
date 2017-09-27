@@ -85,7 +85,7 @@ static int fd_request_irq(void)
 {
 	if(MACH_IS_Q40)
 		return request_irq(FLOPPY_IRQ, floppy_hardint,
-				   IRQF_DISABLED, "floppy", floppy_hardint);
+				   0, "floppy", floppy_hardint);
 	else if(MACH_IS_SUN3X)
 		return sun3xflop_request_irq();
 	return -ENXIO;
@@ -234,9 +234,9 @@ asmlinkage irqreturn_t floppy_hardint(int irq, void *dev_id)
 		virtual_dma_residue += virtual_dma_count;
 		virtual_dma_count=0;
 #ifdef TRACE_FLPY_INT
-		printk("count=%x, residue=%x calls=%d bytes=%d dma_wait=%d\n",
-		       virtual_dma_count, virtual_dma_residue, calls, bytes,
-		       dma_wait);
+		pr_info("count=%x, residue=%x calls=%d bytes=%d dma_wait=%d\n",
+			virtual_dma_count, virtual_dma_residue, calls, bytes,
+			dma_wait);
 		calls = 0;
 		dma_wait=0;
 #endif

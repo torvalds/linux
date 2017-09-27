@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -21,6 +21,8 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 
+#define BE_ROCE_ABI_VERSION	1
+
 struct ocrdma_dev;
 
 enum be_interrupt_mode {
@@ -29,7 +31,7 @@ enum be_interrupt_mode {
 	BE_INTERRUPT_MODE_MSI	= 2,
 };
 
-#define MAX_ROCE_MSIX_VECTORS   16
+#define MAX_MSIX_VECTORS		32
 struct be_dev_info {
 	u8 __iomem *db;
 	u64 unmapped_db;
@@ -45,21 +47,21 @@ struct be_dev_info {
 	struct {
 		int num_vectors;
 		int start_vector;
-		u32 vector_list[MAX_ROCE_MSIX_VECTORS];
+		u32 vector_list[MAX_MSIX_VECTORS];
 	} msix;
 };
 
 /* ocrdma driver register's the callback functions with nic driver. */
 struct ocrdma_driver {
 	unsigned char name[32];
+	u32 be_abi_version;
 	struct ocrdma_dev *(*add) (struct be_dev_info *dev_info);
 	void (*remove) (struct ocrdma_dev *);
 	void (*state_change_handler) (struct ocrdma_dev *, u32 new_state);
 };
 
-enum {
-	BE_DEV_UP	= 0,
-	BE_DEV_DOWN	= 1
+enum be_roce_event {
+	BE_DEV_SHUTDOWN = 2
 };
 
 /* APIs for RoCE driver to register callback handlers,

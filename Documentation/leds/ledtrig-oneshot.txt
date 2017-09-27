@@ -21,24 +21,8 @@ below:
 
   echo oneshot > trigger
 
-This adds the following sysfs attributes to the LED:
-
-  delay_on - specifies for how many milliseconds the LED has to stay at
-             LED_FULL brightness after it has been armed.
-             Default to 100 ms.
-
-  delay_off - specifies for how many milliseconds the LED has to stay at
-              LED_OFF brightness after it has been armed.
-              Default to 100 ms.
-
-  invert - reverse the blink logic.  If set to 0 (default) blink on for delay_on
-           ms, then blink off for delay_off ms, leaving the LED normally off.  If
-           set to 1, blink off for delay_off ms, then blink on for delay_on ms,
-           leaving the LED normally on.
-           Setting this value also immediately change the LED state.
-
-  shot - write any non-empty string to signal an events, this starts a blink
-         sequence if not already running.
+This adds sysfs attributes to the LED that are documented in:
+Documentation/ABI/testing/sysfs-class-led-trigger-oneshot
 
 Example use-case: network devices, initialization:
 

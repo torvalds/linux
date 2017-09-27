@@ -13,10 +13,13 @@
 #include <linux/rwsem.h>
 #include <linux/device-mapper.h>
 #include <linux/stacktrace.h>
+#include <linux/sched/task.h>
 
 #define DM_MSG_PREFIX "block manager"
 
 /*----------------------------------------------------------------*/
+
+#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
 
 /*
  * This is a read/write semaphore with a couple of differences.
@@ -97,25 +100,16 @@ static void __del_holder(struct block_lock *lock, struct task_struct *task)
 static int __check_holder(struct block_lock *lock)
 {
 	unsigned i;
-#ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
-	static struct stack_trace t;
-	static stack_entries entries;
-#endif
 
 	for (i = 0; i < MAX_HOLDERS; i++) {
 		if (lock->holders[i] == current) {
-			DMERR("recursive lock detected in pool metadata");
+			DMERR("recursive lock detected in metadata");
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
 			DMERR("previously held here:");
 			print_stack_trace(lock->traces + i, 4);
 
 			DMERR("subsequent acquisition attempted here:");
-			t.nr_entries = 0;
-			t.max_entries = MAX_STACK;
-			t.entries = entries;
-			t.skip = 3;
-			save_stack_trace(&t);
-			print_stack_trace(&t, 4);
+			dump_stack();
 #endif
 			return -EINVAL;
 		}
@@ -127,7 +121,7 @@ static int __check_holder(struct block_lock *lock)
 static void __wait(struct waiter *w)
 {
 	for (;;) {
-		set_task_state(current, TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 
 		if (!w->task)
 			break;
@@ -135,7 +129,7 @@ static void __wait(struct waiter *w)
 		schedule();
 	}
 
-	set_task_state(current, TASK_RUNNING);
+	set_current_state(TASK_RUNNING);
 }
 
 static void __wake_waiter(struct waiter *w)
@@ -311,6 +305,18 @@ static void report_recursive_bug(dm_block_t b, int r)
 		      (unsigned long long) b);
 }
 
+#else  /* !CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+
+#define bl_init(x) do { } while (0)
+#define bl_down_read(x) 0
+#define bl_down_read_nonblock(x) 0
+#define bl_up_read(x) do { } while (0)
+#define bl_down_write(x) 0
+#define bl_up_write(x) do { } while (0)
+#define report_recursive_bug(x, y) do { } while (0)
+
+#endif /* CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+
 /*----------------------------------------------------------------*/
 
 /*
@@ -339,8 +345,11 @@ EXPORT_SYMBOL_GPL(dm_block_data);
 
 struct buffer_aux {
 	struct dm_block_validator *validator;
-	struct block_lock lock;
 	int write_locked;
+
+#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
+	struct block_lock lock;
+#endif
 };
 
 static void dm_block_manager_alloc_callback(struct dm_buffer *buf)
@@ -369,7 +378,6 @@ struct dm_block_manager {
 
 struct dm_block_manager *dm_block_manager_create(struct block_device *bdev,
 						 unsigned block_size,
-						 unsigned cache_size,
 						 unsigned max_held_per_thread)
 {
 	int r;
@@ -578,7 +586,7 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm,
 }
 EXPORT_SYMBOL_GPL(dm_bm_write_lock_zero);
 
-int dm_bm_unlock(struct dm_block *b)
+void dm_bm_unlock(struct dm_block *b)
 {
 	struct buffer_aux *aux;
 	aux = dm_bufio_get_aux_data(to_buffer(b));
@@ -590,36 +598,40 @@ int dm_bm_unlock(struct dm_block *b)
 		bl_up_read(&aux->lock);
 
 	dm_bufio_release(to_buffer(b));
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_bm_unlock);
 
-int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
-			   struct dm_block *superblock)
+int dm_bm_flush(struct dm_block_manager *bm)
 {
-	int r;
-
 	if (bm->read_only)
 		return -EPERM;
 
-	r = dm_bufio_write_dirty_buffers(bm->bufio);
-	if (unlikely(r)) {
-		dm_bm_unlock(superblock);
-		return r;
-	}
-
-	dm_bm_unlock(superblock);
-
 	return dm_bufio_write_dirty_buffers(bm->bufio);
 }
-EXPORT_SYMBOL_GPL(dm_bm_flush_and_unlock);
+EXPORT_SYMBOL_GPL(dm_bm_flush);
+
+void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b)
+{
+	dm_bufio_prefetch(bm->bufio, b, 1);
+}
+
+bool dm_bm_is_read_only(struct dm_block_manager *bm)
+{
+	return bm->read_only;
+}
+EXPORT_SYMBOL_GPL(dm_bm_is_read_only);
 
 void dm_bm_set_read_only(struct dm_block_manager *bm)
 {
 	bm->read_only = true;
 }
 EXPORT_SYMBOL_GPL(dm_bm_set_read_only);
+
+void dm_bm_set_read_write(struct dm_block_manager *bm)
+{
+	bm->read_only = false;
+}
+EXPORT_SYMBOL_GPL(dm_bm_set_read_write);
 
 u32 dm_bm_checksum(const void *data, size_t len, u32 init_xor)
 {

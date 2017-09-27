@@ -14,15 +14,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 // #define	DEBUG			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -86,6 +84,10 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u32			size;
 	u32			count;
 
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
+
 	header = (struct gl_header *) skb->data;
 
 	// get the packet count of the received skb
@@ -119,8 +121,7 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (gl_skb) {
 
 			// copy the packet data to the new skb
-			memcpy(skb_put(gl_skb, size),
-					packet->packet_data, size);
+			skb_put_data(gl_skb, packet->packet_data, size);
 			usbnet_skb_return(dev, gl_skb);
 		}
 
@@ -173,7 +174,7 @@ genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	}
 
 	// attach the packet count to the header
-	packet_count = (__le32 *) skb_push(skb, (4 + 4*1));
+	packet_count = skb_push(skb, (4 + 4 * 1));
 	packet_len = packet_count + 1;
 
 	*packet_count = cpu_to_le32(1);

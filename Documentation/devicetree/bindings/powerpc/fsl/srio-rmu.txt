@@ -124,8 +124,8 @@ Port-Write Unit:
 		A single IRQ that handles port-write conditions is
 		specified by this property.  (Typically shared with error).
 
-   Note: All other standard properties (see the ePAPR) are allowed
-   but are optional.
+   Note: All other standard properties (see the Devicetree Specification)
+   are allowed but are optional.
 
 Example:
 	rmu: rmu@d3000 {

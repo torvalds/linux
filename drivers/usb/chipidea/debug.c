@@ -7,11 +7,15 @@
 #include <linux/uaccess.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/phy.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/otg-fsm.h>
+#include <linux/usb/chipidea.h>
 
 #include "ci.h"
 #include "udc.h"
 #include "bits.h"
-#include "debug.h"
+#include "otg.h"
 
 /**
  * ci_device_show: prints information about device capabilities and status
@@ -62,9 +66,11 @@ static int ci_port_test_show(struct seq_file *s, void *data)
 	unsigned long flags;
 	unsigned mode;
 
+	pm_runtime_get_sync(ci->dev);
 	spin_lock_irqsave(&ci->lock, flags);
 	mode = hw_port_test_get(ci);
 	spin_unlock_irqrestore(&ci->lock, flags);
+	pm_runtime_put_sync(ci->dev);
 
 	seq_printf(s, "mode = %u\n", mode);
 
@@ -84,15 +90,24 @@ static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
 	char buf[32];
 	int ret;
 
-	if (copy_from_user(buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+	count = min_t(size_t, sizeof(buf) - 1, count);
+	if (copy_from_user(buf, ubuf, count))
 		return -EFAULT;
+
+	/* sscanf requires a zero terminated string */
+	buf[count] = '\0';
 
 	if (sscanf(buf, "%u", &mode) != 1)
 		return -EINVAL;
 
+	if (mode > 255)
+		return -EBADRQC;
+
+	pm_runtime_get_sync(ci->dev);
 	spin_lock_irqsave(&ci->lock, flags);
 	ret = hw_port_test_set(ci, mode);
 	spin_unlock_irqrestore(&ci->lock, flags);
+	pm_runtime_put_sync(ci->dev);
 
 	return ret ? ret : count;
 }
@@ -160,7 +175,6 @@ static int ci_requests_show(struct seq_file *s, void *data)
 {
 	struct ci_hdrc *ci = s->private;
 	unsigned long flags;
-	struct list_head   *ptr = NULL;
 	struct ci_hw_req *req = NULL;
 	struct td_node *node, *tmpnode;
 	unsigned i, j, qsize = sizeof(struct ci_hw_td)/sizeof(u32);
@@ -172,9 +186,7 @@ static int ci_requests_show(struct seq_file *s, void *data)
 
 	spin_lock_irqsave(&ci->lock, flags);
 	for (i = 0; i < ci->hw_ep_max; i++)
-		list_for_each(ptr, &ci->ci_hw_ep[i].qh.queue) {
-			req = list_entry(ptr, struct ci_hw_req, queue);
-
+		list_for_each_entry(req, &ci->ci_hw_ep[i].qh.queue, queue) {
 			list_for_each_entry_safe(node, tmpnode, &req->tds, td) {
 				seq_printf(s, "EP=%02i: TD=%08X %s\n",
 					   i % (ci->hw_ep_max / 2),
@@ -204,11 +216,86 @@ static const struct file_operations ci_requests_fops = {
 	.release	= single_release,
 };
 
+static int ci_otg_show(struct seq_file *s, void *unused)
+{
+	struct ci_hdrc *ci = s->private;
+	struct otg_fsm *fsm;
+
+	if (!ci || !ci_otg_is_fsm_mode(ci))
+		return 0;
+
+	fsm = &ci->fsm;
+
+	/* ------ State ----- */
+	seq_printf(s, "OTG state: %s\n\n",
+			usb_otg_state_string(ci->otg.state));
+
+	/* ------ State Machine Variables ----- */
+	seq_printf(s, "a_bus_drop: %d\n", fsm->a_bus_drop);
+
+	seq_printf(s, "a_bus_req: %d\n", fsm->a_bus_req);
+
+	seq_printf(s, "a_srp_det: %d\n", fsm->a_srp_det);
+
+	seq_printf(s, "a_vbus_vld: %d\n", fsm->a_vbus_vld);
+
+	seq_printf(s, "b_conn: %d\n", fsm->b_conn);
+
+	seq_printf(s, "adp_change: %d\n", fsm->adp_change);
+
+	seq_printf(s, "power_up: %d\n", fsm->power_up);
+
+	seq_printf(s, "a_bus_resume: %d\n", fsm->a_bus_resume);
+
+	seq_printf(s, "a_bus_suspend: %d\n", fsm->a_bus_suspend);
+
+	seq_printf(s, "a_conn: %d\n", fsm->a_conn);
+
+	seq_printf(s, "b_bus_req: %d\n", fsm->b_bus_req);
+
+	seq_printf(s, "b_bus_suspend: %d\n", fsm->b_bus_suspend);
+
+	seq_printf(s, "b_se0_srp: %d\n", fsm->b_se0_srp);
+
+	seq_printf(s, "b_ssend_srp: %d\n", fsm->b_ssend_srp);
+
+	seq_printf(s, "b_sess_vld: %d\n", fsm->b_sess_vld);
+
+	seq_printf(s, "b_srp_done: %d\n", fsm->b_srp_done);
+
+	seq_printf(s, "drv_vbus: %d\n", fsm->drv_vbus);
+
+	seq_printf(s, "loc_conn: %d\n", fsm->loc_conn);
+
+	seq_printf(s, "loc_sof: %d\n", fsm->loc_sof);
+
+	seq_printf(s, "adp_prb: %d\n", fsm->adp_prb);
+
+	seq_printf(s, "id: %d\n", fsm->id);
+
+	seq_printf(s, "protocol: %d\n", fsm->protocol);
+
+	return 0;
+}
+
+static int ci_otg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ci_otg_show, inode->i_private);
+}
+
+static const struct file_operations ci_otg_fops = {
+	.open			= ci_otg_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
 static int ci_role_show(struct seq_file *s, void *data)
 {
 	struct ci_hdrc *ci = s->private;
 
-	seq_printf(s, "%s\n", ci_role(ci)->name);
+	if (ci->role != CI_ROLE_END)
+		seq_printf(s, "%s\n", ci_role(ci)->name);
 
 	return 0;
 }
@@ -234,8 +321,12 @@ static ssize_t ci_role_write(struct file *file, const char __user *ubuf,
 	if (role == CI_ROLE_END || role == ci->role)
 		return -EINVAL;
 
+	pm_runtime_get_sync(ci->dev);
+	disable_irq(ci->irq);
 	ci_role_stop(ci);
 	ret = ci_role_start(ci, role);
+	enable_irq(ci->irq);
+	pm_runtime_put_sync(ci->dev);
 
 	return ret ? ret : count;
 }
@@ -251,6 +342,50 @@ static const struct file_operations ci_role_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
+};
+
+static int ci_registers_show(struct seq_file *s, void *unused)
+{
+	struct ci_hdrc *ci = s->private;
+	u32 tmp_reg;
+
+	if (!ci || ci->in_lpm)
+		return -EPERM;
+
+	/* ------ Registers ----- */
+	tmp_reg = hw_read_intr_enable(ci);
+	seq_printf(s, "USBINTR reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read_intr_status(ci);
+	seq_printf(s, "USBSTS reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read(ci, OP_USBMODE, ~0);
+	seq_printf(s, "USBMODE reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read(ci, OP_USBCMD, ~0);
+	seq_printf(s, "USBCMD reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read(ci, OP_PORTSC, ~0);
+	seq_printf(s, "PORTSC reg: %08x\n", tmp_reg);
+
+	if (ci->is_otg) {
+		tmp_reg = hw_read_otgsc(ci, ~0);
+		seq_printf(s, "OTGSC reg: %08x\n", tmp_reg);
+	}
+
+	return 0;
+}
+
+static int ci_registers_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ci_registers_show, inode->i_private);
+}
+
+static const struct file_operations ci_registers_fops = {
+	.open			= ci_registers_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
 };
 
 /**
@@ -287,8 +422,21 @@ int dbg_create_files(struct ci_hdrc *ci)
 	if (!dent)
 		goto err;
 
+	if (ci_otg_is_fsm_mode(ci)) {
+		dent = debugfs_create_file("otg", S_IRUGO, ci->debugfs, ci,
+					&ci_otg_fops);
+		if (!dent)
+			goto err;
+	}
+
 	dent = debugfs_create_file("role", S_IRUGO | S_IWUSR, ci->debugfs, ci,
 				   &ci_role_fops);
+	if (!dent)
+		goto err;
+
+	dent = debugfs_create_file("registers", S_IRUGO, ci->debugfs, ci,
+				&ci_registers_fops);
+
 	if (dent)
 		return 0;
 err:

@@ -129,7 +129,6 @@ struct cyttsp {
 	int irq;
 	struct input_dev *input;
 	char phys[32];
-	const struct cyttsp_platform_data *pdata;
 	const struct cyttsp_bus_ops *bus_ops;
 	struct cyttsp_bootloader_data bl_data;
 	struct cyttsp_sysinfo_data sysinfo_data;
@@ -138,12 +137,19 @@ struct cyttsp {
 	enum cyttsp_state state;
 	bool suspended;
 
+	struct gpio_desc *reset_gpio;
+	bool use_hndshk;
+	u8 act_dist;
+	u8 act_intrvl;
+	u8 tch_tmout;
+	u8 lp_intrvl;
+	u8 *bl_keys;
+
 	u8 xfer_buf[] ____cacheline_aligned;
 };
 
 struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size);
-void cyttsp_remove(struct cyttsp *ts);
 
 int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
 		u8 length, const void *values);

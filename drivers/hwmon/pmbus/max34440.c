@@ -19,6 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -38,10 +39,10 @@ enum chips { max34440, max34441, max34446, max34460, max34461 };
 #define MAX34446_MFR_IOUT_AVG		0xe2
 #define MAX34446_MFR_TEMPERATURE_AVG	0xe3
 
-#define MAX34440_STATUS_OC_WARN		(1 << 0)
-#define MAX34440_STATUS_OC_FAULT	(1 << 1)
-#define MAX34440_STATUS_OT_FAULT	(1 << 5)
-#define MAX34440_STATUS_OT_WARN		(1 << 6)
+#define MAX34440_STATUS_OC_WARN		BIT(0)
+#define MAX34440_STATUS_OC_FAULT	BIT(1)
+#define MAX34440_STATUS_OT_FAULT	BIT(5)
+#define MAX34440_STATUS_OT_WARN		BIT(6)
 
 struct max34440_data {
 	int id;

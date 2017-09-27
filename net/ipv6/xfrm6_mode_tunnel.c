@@ -20,11 +20,10 @@
 
 static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 {
-	const struct ipv6hdr *outer_iph = ipv6_hdr(skb);
 	struct ipv6hdr *inner_iph = ipipv6_hdr(skb);
 
-	if (INET_ECN_is_ce(ipv6_get_dsfield(outer_iph)))
-		IP6_ECN_set_ce(inner_iph);
+	if (INET_ECN_is_ce(XFRM_MODE_SKB_CB(skb)->tos))
+		IP6_ECN_set_ce(skb, inner_iph);
 }
 
 /* Add encapsulation header.
@@ -36,6 +35,9 @@ static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct ipv6hdr *top_iph;
 	int dsfield;
+
+	skb_set_inner_network_header(skb, skb_network_offset(skb));
+	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
 
 	skb_set_network_header(skb, -x->props.header_len);
 	skb->mac_header = skb->network_header +
@@ -62,6 +64,12 @@ static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->daddr = *(struct in6_addr *)&x->id.daddr;
 	return 0;
 }
+
+#define for_each_input_rcu(head, handler)	\
+	for (handler = rcu_dereference(head);	\
+	     handler != NULL;			\
+	     handler = rcu_dereference(handler->next))
+
 
 static int xfrm6_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
@@ -91,11 +99,35 @@ out:
 	return err;
 }
 
+static struct sk_buff *xfrm6_mode_tunnel_gso_segment(struct xfrm_state *x,
+						     struct sk_buff *skb,
+						     netdev_features_t features)
+{
+	__skb_push(skb, skb->mac_len);
+	return skb_mac_gso_segment(skb, features);
+
+}
+
+static void xfrm6_mode_tunnel_xmit(struct xfrm_state *x, struct sk_buff *skb)
+{
+	struct xfrm_offload *xo = xfrm_offload(skb);
+
+	if (xo->flags & XFRM_GSO_SEGMENT) {
+		skb->network_header = skb->network_header - x->props.header_len;
+		skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
+	}
+
+	skb_reset_mac_len(skb);
+	pskb_pull(skb, skb->mac_len + x->props.header_len);
+}
+
 static struct xfrm_mode xfrm6_tunnel_mode = {
 	.input2 = xfrm6_mode_tunnel_input,
 	.input = xfrm_prepare_input,
 	.output2 = xfrm6_mode_tunnel_output,
 	.output = xfrm6_prepare_output,
+	.gso_segment = xfrm6_mode_tunnel_gso_segment,
+	.xmit = xfrm6_mode_tunnel_xmit,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

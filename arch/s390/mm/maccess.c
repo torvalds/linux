@@ -1,7 +1,7 @@
 /*
  * Access kernel memory without faulting -- s390 specific implementation.
  *
- * Copyright IBM Corp. 2009
+ * Copyright IBM Corp. 2009, 2015
  *
  *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
@@ -14,52 +14,57 @@
 #include <linux/gfp.h>
 #include <linux/cpu.h>
 #include <asm/ctl_reg.h>
+#include <asm/io.h>
 
-/*
- * This function writes to kernel memory bypassing DAT and possible
- * write protection. It copies one to four bytes from src to dst
- * using the stura instruction.
- * Returns the number of bytes copied or -EFAULT.
- */
-static long probe_kernel_write_odd(void *dst, const void *src, size_t size)
+static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
 {
-	unsigned long count, aligned;
-	int offset, mask;
-	int rc = -EFAULT;
+	unsigned long aligned, offset, count;
+	char tmp[8];
 
-	aligned = (unsigned long) dst & ~3UL;
-	offset = (unsigned long) dst & 3;
-	count = min_t(unsigned long, 4 - offset, size);
-	mask = (0xf << (4 - count)) & 0xf;
-	mask >>= offset;
+	aligned = (unsigned long) dst & ~7UL;
+	offset = (unsigned long) dst & 7UL;
+	size = min(8UL - offset, size);
+	count = size - 1;
 	asm volatile(
 		"	bras	1,0f\n"
-		"	icm	0,0,0(%3)\n"
-		"0:	l	0,0(%1)\n"
-		"	lra	%1,0(%1)\n"
-		"1:	ex	%2,0(1)\n"
-		"2:	stura	0,%1\n"
-		"	la	%0,0\n"
-		"3:\n"
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b) EX_TABLE(2b,3b)
-		: "+d" (rc), "+a" (aligned)
-		: "a" (mask), "a" (src) : "cc", "memory", "0", "1");
-	return rc ? rc : count;
+		"	mvc	0(1,%4),0(%5)\n"
+		"0:	mvc	0(8,%3),0(%0)\n"
+		"	ex	%1,0(1)\n"
+		"	lg	%1,0(%3)\n"
+		"	lra	%0,0(%0)\n"
+		"	sturg	%1,%0\n"
+		: "+&a" (aligned), "+&a" (count), "=m" (tmp)
+		: "a" (&tmp), "a" (&tmp[offset]), "a" (src)
+		: "cc", "memory", "1");
+	return size;
 }
 
-long probe_kernel_write(void *dst, const void *src, size_t size)
+/*
+ * s390_kernel_write - write to kernel memory bypassing DAT
+ * @dst: destination address
+ * @src: source address
+ * @size: number of bytes to copy
+ *
+ * This function writes to kernel memory bypassing DAT and possible page table
+ * write protection. It writes to the destination using the sturg instruction.
+ * Therefore we have a read-modify-write sequence: the function reads eight
+ * bytes from destination at an eight byte boundary, modifies the bytes
+ * requested and writes the result back in a loop.
+ *
+ * Note: this means that this function may not be called concurrently on
+ *	 several cpus with overlapping words, since this may potentially
+ *	 cause data corruption.
+ */
+void notrace s390_kernel_write(void *dst, const void *src, size_t size)
 {
-	long copied = 0;
+	long copied;
 
 	while (size) {
-		copied = probe_kernel_write_odd(dst, src, size);
-		if (copied < 0)
-			break;
+		copied = s390_kernel_write_odd(dst, src, size);
 		dst += copied;
 		src += copied;
 		size -= copied;
 	}
-	return copied < 0 ? -EFAULT : 0;
 }
 
 static int __memcpy_real(void *dest, void *src, size_t count)
@@ -88,15 +93,19 @@ static int __memcpy_real(void *dest, void *src, size_t count)
  */
 int memcpy_real(void *dest, void *src, size_t count)
 {
+	int irqs_disabled, rc;
 	unsigned long flags;
-	int rc;
 
 	if (!count)
 		return 0;
-	local_irq_save(flags);
-	__arch_local_irq_stnsm(0xfbUL);
+	flags = __arch_local_irq_stnsm(0xf8UL);
+	irqs_disabled = arch_irqs_disabled_flags(flags);
+	if (!irqs_disabled)
+		trace_hardirqs_off();
 	rc = __memcpy_real(dest, src, count);
-	local_irq_restore(flags);
+	if (!irqs_disabled)
+		trace_hardirqs_on();
+	__arch_local_irq_ssm(flags);
 	return rc;
 }
 
@@ -127,7 +136,7 @@ void memcpy_absolute(void *dest, void *src, size_t count)
 /*
  * Copy memory from kernel (real) to user (virtual)
  */
-int copy_to_user_real(void __user *dest, void *src, size_t count)
+int copy_to_user_real(void __user *dest, void *src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;
@@ -151,32 +160,6 @@ out:
 }
 
 /*
- * Copy memory from user (virtual) to kernel (real)
- */
-int copy_from_user_real(void *dest, void __user *src, size_t count)
-{
-	int offs = 0, size, rc;
-	char *buf;
-
-	buf = (char *) __get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	rc = -EFAULT;
-	while (offs < count) {
-		size = min(PAGE_SIZE, count - offs);
-		if (copy_from_user(buf, src + offs, size))
-			goto out;
-		if (memcpy_real(dest + offs, buf, size))
-			goto out;
-		offs += size;
-	}
-	rc = 0;
-out:
-	free_page((unsigned long) buf);
-	return rc;
-}
-
-/*
  * Check if physical address is within prefix or zero page
  */
 static int is_swapped(unsigned long addr)
@@ -184,11 +167,11 @@ static int is_swapped(unsigned long addr)
 	unsigned long lc;
 	int cpu;
 
-	if (addr < sizeof(struct _lowcore))
+	if (addr < sizeof(struct lowcore))
 		return 1;
 	for_each_online_cpu(cpu) {
 		lc = (unsigned long) lowcore_ptr[cpu];
-		if (addr > lc + sizeof(struct _lowcore) - 1 || addr < lc)
+		if (addr > lc + sizeof(struct lowcore) - 1 || addr < lc)
 			continue;
 		return 1;
 	}
@@ -201,7 +184,7 @@ static int is_swapped(unsigned long addr)
  * For swapped prefix pages a new buffer is returned that contains a copy of
  * the absolute memory. The buffer size is maximum one page large.
  */
-void *xlate_dev_mem_ptr(unsigned long addr)
+void *xlate_dev_mem_ptr(phys_addr_t addr)
 {
 	void *bounce = (void *) addr;
 	unsigned long size;
@@ -222,7 +205,7 @@ void *xlate_dev_mem_ptr(unsigned long addr)
 /*
  * Free converted buffer for /dev/mem access (if necessary)
  */
-void unxlate_dev_mem_ptr(unsigned long addr, void *buf)
+void unxlate_dev_mem_ptr(phys_addr_t addr, void *buf)
 {
 	if ((void *) addr != buf)
 		free_page((unsigned long) buf);

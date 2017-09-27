@@ -3,8 +3,8 @@
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
-extern spinlock_t pnp_lock;
-extern struct device_attribute pnp_interface_attrs[];
+extern struct mutex pnp_lock;
+extern const struct attribute_group *pnp_dev_groups[];
 void *pnp_alloc(long size);
 
 int pnp_register_protocol(struct pnp_protocol *protocol);

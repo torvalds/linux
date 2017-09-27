@@ -1,0 +1,12 @@
+config DRM_ARMADA
+	tristate "DRM support for Marvell Armada SoCs"
+	depends on DRM && HAVE_CLK && ARM && MMU
+	select DRM_KMS_HELPER
+	help
+	  Support the "LCD" controllers found on the Marvell Armada 510
+	  devices.  There are two controllers on the device, each controller
+	  supports graphics and video overlays.
+
+	  This driver provides no built-in acceleration; acceleration is
+	  performed by other IP found on the SoC.  This driver provides
+	  kernel mode setting and buffer management to userspace.

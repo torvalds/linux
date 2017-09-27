@@ -18,17 +18,17 @@
  */
 
 /*
-Driver: dt9812
-Description: Data Translation DT9812 USB module
-Author: anders.blomdell@control.lth.se (Anders Blomdell)
-Status: in development
-Devices: [Data Translation] DT9812 (dt9812)
-Updated: Sun Nov 20 20:18:34 EST 2005
-
-This driver works, but bulk transfers not implemented. Might be a starting point
-for someone else. I found out too late that USB has too high latencies (>1 ms)
-for my needs.
-*/
+ * Driver: dt9812
+ * Description: Data Translation DT9812 USB module
+ * Devices: [Data Translation] DT9812 (dt9812)
+ * Author: anders.blomdell@control.lth.se (Anders Blomdell)
+ * Status: in development
+ * Updated: Sun Nov 20 20:18:34 EST 2005
+ *
+ * This driver works, but bulk transfers not implemented. Might be a
+ * starting point for someone else. I found out too late that USB has
+ * too high latencies (>1 ms) for my needs.
+ */
 
 /*
  * Nota Bene:
@@ -39,14 +39,11 @@ for my needs.
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/errno.h>
 #include <linux/uaccess.h>
-#include <linux/usb.h>
 
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 #define DT9812_DIAGS_BOARD_INFO_ADDR	0xFBFF
 #define DT9812_MAX_WRITE_CMD_PIPE_SIZE	32
@@ -83,16 +80,12 @@ for my needs.
 #define F020_MASK_ADC0CN_AD0INT		0x20
 #define F020_MASK_ADC0CN_AD0BUSY	0x10
 
-#define F020_MASK_DACxCN_DACxEN		0x80
+#define F020_MASK_DACXCN_DACXEN		0x80
 
 enum {
-	/* A/D  D/A  DI  DO  CT */
-	DT9812_DEVID_DT9812_10,	/*  8    2   8   8   1  +/- 10V */
-	DT9812_DEVID_DT9812_2PT5,	/* 8    2   8   8   1  0-2.44V */
-#if 0
-	DT9812_DEVID_DT9813,	/*  16   2   4   4   1  +/- 10V */
-	DT9812_DEVID_DT9814	/*  24   2   0   0   1  +/- 10V */
-#endif
+					/* A/D  D/A  DI  DO  CT */
+	DT9812_DEVID_DT9812_10,		/*  8    2   8   8   1  +/- 10V */
+	DT9812_DEVID_DT9812_2PT5,	/*  8    2   8   8   1  0-2.44V */
 };
 
 enum dt9812_gain {
@@ -188,8 +181,8 @@ enum {
 };
 
 struct dt9812_flash_data {
-	u16 numbytes;
-	u16 address;
+	__le16 numbytes;
+	__le16 address;
 };
 
 #define DT9812_MAX_NUM_MULTI_BYTE_RDS  \
@@ -230,7 +223,7 @@ struct dt9812_rmw_multi {
 };
 
 struct dt9812_usb_cmd {
-	u32 cmd;
+	__le32 cmd;
 	union {
 		struct dt9812_flash_data flash_data_info;
 		struct dt9812_read_multi read_multi_info;
@@ -240,13 +233,12 @@ struct dt9812_usb_cmd {
 };
 
 struct dt9812_private {
-	struct semaphore sem;
+	struct mutex mut;
 	struct {
 		__u8 addr;
 		size_t size;
 	} cmd_wr, cmd_rd;
 	u16 device;
-	u16 ao_shadow[2];
 };
 
 static int dt9812_read_info(struct comedi_device *dev,
@@ -343,7 +335,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 	u8 value[2];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = dt9812_read_multiple_registers(dev, 2, reg, value);
 	if (ret == 0) {
 		/*
@@ -353,7 +345,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 		 */
 		*bits = (value[0] & 0x7f) | ((value[1] & 0x08) << 4);
 	}
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -365,9 +357,9 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 	u8 value[1] = { bits };
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = dt9812_write_multiple_registers(dev, 1, reg, value);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -452,7 +444,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	u8 val[3];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	/* 1 select the gain */
 	dt9812_configure_gain(dev, &rmw[0], gain);
@@ -501,7 +493,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	}
 
 exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -512,22 +504,21 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 	struct dt9812_rmw_byte rmw[3];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	switch (channel) {
 	case 0:
 		/* 1. Set DAC mode */
 		rmw[0].address = F020_SFR_DAC0CN;
 		rmw[0].and_mask = 0xff;
-		rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
+		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
-		/* 2 load low byte of DAC value first */
+		/* 2. load lsb of DAC value first */
 		rmw[1].address = F020_SFR_DAC0L;
 		rmw[1].and_mask = 0xff;
 		rmw[1].or_value = value & 0xff;
 
-		/* 3 load high byte of DAC value next to latch the
-			12-bit value */
+		/* 3. load msb of DAC value next to latch the 12-bit value */
 		rmw[2].address = F020_SFR_DAC0H;
 		rmw[2].and_mask = 0xff;
 		rmw[2].or_value = (value >> 8) & 0xf;
@@ -537,24 +528,22 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		/* 1. Set DAC mode */
 		rmw[0].address = F020_SFR_DAC1CN;
 		rmw[0].and_mask = 0xff;
-		rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
+		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
-		/* 2 load low byte of DAC value first */
+		/* 2. load lsb of DAC value first */
 		rmw[1].address = F020_SFR_DAC1L;
 		rmw[1].and_mask = 0xff;
 		rmw[1].or_value = value & 0xff;
 
-		/* 3 load high byte of DAC value next to latch the
-			12-bit value */
+		/* 3. load msb of DAC value next to latch the 12-bit value */
 		rmw[2].address = F020_SFR_DAC1H;
 		rmw[2].and_mask = 0xff;
 		rmw[2].or_value = (value >> 8) & 0xf;
 		break;
 	}
 	ret = dt9812_rmw_multiple_registers(dev, 3, rmw);
-	devpriv->ao_shadow[channel] = value;
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -581,15 +570,8 @@ static int dt9812_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		dt9812_digital_out(dev, s->state);
-	}
 
 	data[1] = s->state;
 
@@ -622,15 +604,13 @@ static int dt9812_ao_insn_read(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct dt9812_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
+	int ret;
 
-	down(&devpriv->sem);
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_shadow[chan];
-	up(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
+	ret = comedi_readback_insn_read(dev, s, insn, data);
+	mutex_unlock(&devpriv->mut);
 
-	return insn->n;
+	return ret;
 }
 
 static int dt9812_ao_insn_write(struct comedi_device *dev,
@@ -639,13 +619,17 @@ static int dt9812_ao_insn_write(struct comedi_device *dev,
 				unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		ret = dt9812_analog_out(dev, chan, data[i]);
+		unsigned int val = data[i];
+		int ret;
+
+		ret = dt9812_analog_out(dev, chan, val);
 		if (ret)
 			return ret;
+
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
@@ -666,6 +650,7 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 
 	for (i = 0; i < host->desc.bNumEndpoints; ++i) {
 		int dir = -1;
+
 		ep = &host->endpoint[i].desc;
 		switch (i) {
 		case 0:
@@ -675,12 +660,12 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 		case 1:
 			dir = USB_DIR_OUT;
 			devpriv->cmd_wr.addr = ep->bEndpointAddress;
-			devpriv->cmd_wr.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_wr.size = usb_endpoint_maxp(ep);
 			break;
 		case 2:
 			dir = USB_DIR_IN;
 			devpriv->cmd_rd.addr = ep->bEndpointAddress;
-			devpriv->cmd_rd.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_rd.size = usb_endpoint_maxp(ep);
 			break;
 		case 3:
 			/* unused write stream */
@@ -707,8 +692,9 @@ static int dt9812_reset_device(struct comedi_device *dev)
 	u32 serial;
 	u16 vendor;
 	u16 product;
-	u16 tmp16;
 	u8 tmp8;
+	__le16 tmp16;
+	__le32 tmp32;
 	int ret;
 	int i;
 
@@ -731,19 +717,19 @@ static int dt9812_reset_device(struct comedi_device *dev)
 		}
 	}
 
-	ret = dt9812_read_info(dev, 1, &vendor, sizeof(vendor));
+	ret = dt9812_read_info(dev, 1, &tmp16, sizeof(tmp16));
 	if (ret) {
 		dev_err(dev->class_dev, "failed to read vendor id\n");
 		return ret;
 	}
-	vendor = le16_to_cpu(vendor);
+	vendor = le16_to_cpu(tmp16);
 
-	ret = dt9812_read_info(dev, 3, &product, sizeof(product));
+	ret = dt9812_read_info(dev, 3, &tmp16, sizeof(tmp16));
 	if (ret) {
 		dev_err(dev->class_dev, "failed to read product id\n");
 		return ret;
 	}
-	product = le16_to_cpu(product);
+	product = le16_to_cpu(tmp16);
 
 	ret = dt9812_read_info(dev, 5, &tmp16, sizeof(tmp16));
 	if (ret) {
@@ -752,12 +738,12 @@ static int dt9812_reset_device(struct comedi_device *dev)
 	}
 	devpriv->device = le16_to_cpu(tmp16);
 
-	ret = dt9812_read_info(dev, 7, &serial, sizeof(serial));
+	ret = dt9812_read_info(dev, 7, &tmp32, sizeof(tmp32));
 	if (ret) {
 		dev_err(dev->class_dev, "failed to read serial number\n");
 		return ret;
 	}
-	serial = le32_to_cpu(serial);
+	serial = le32_to_cpu(tmp32);
 
 	/* let the user know what node this device is now attached to */
 	dev_info(dev->class_dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
@@ -780,13 +766,13 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	bool is_unipolar;
 	int ret;
+	int i;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	sema_init(&devpriv->sem, 1);
+	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);
 
 	ret = dt9812_find_endpoints(dev);
@@ -815,7 +801,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Digital Output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -833,15 +819,19 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Analog Output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= is_unipolar ? &range_unipolar2_5 : &range_bipolar10;
 	s->insn_write	= dt9812_ao_insn_write;
 	s->insn_read	= dt9812_ao_insn_read;
 
-	devpriv->ao_shadow[0] = is_unipolar ? 0x0000 : 0x0800;
-	devpriv->ao_shadow[1] = is_unipolar ? 0x0000 : 0x0800;
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < s->n_chan; i++)
+		s->readback[i] = is_unipolar ? 0x0000 : 0x0800;
 
 	return 0;
 }
@@ -854,11 +844,11 @@ static void dt9812_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	usb_set_intfdata(intf, NULL);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver dt9812_driver = {

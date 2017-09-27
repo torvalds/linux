@@ -127,6 +127,7 @@ static const struct team_mode ab_mode = {
 	.owner		= THIS_MODULE,
 	.priv_size	= sizeof(struct ab_priv),
 	.ops		= &ab_mode_ops,
+	.lag_tx_type	= NETDEV_LAG_TX_TYPE_ACTIVEBACKUP,
 };
 
 static int __init ab_init_module(void)
@@ -145,4 +146,4 @@ module_exit(ab_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jpirko@redhat.com>");
 MODULE_DESCRIPTION("Active-backup mode for team");
-MODULE_ALIAS("team-mode-activebackup");
+MODULE_ALIAS_TEAM_MODE("activebackup");

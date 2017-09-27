@@ -31,8 +31,9 @@ module_param_string(edid_firmware, edid_firmware, sizeof(edid_firmware), 0644);
 MODULE_PARM_DESC(edid_firmware, "Do not probe monitor, use specified EDID blob "
 	"from built-in data or /lib/firmware instead. ");
 
-#define GENERIC_EDIDS 5
-static char *generic_edid_name[GENERIC_EDIDS] = {
+#define GENERIC_EDIDS 6
+static const char * const generic_edid_name[GENERIC_EDIDS] = {
+	"edid/800x600.bin",
 	"edid/1024x768.bin",
 	"edid/1280x1024.bin",
 	"edid/1600x1200.bin",
@@ -40,7 +41,25 @@ static char *generic_edid_name[GENERIC_EDIDS] = {
 	"edid/1920x1080.bin",
 };
 
-static u8 generic_edid[GENERIC_EDIDS][128] = {
+static const u8 generic_edid[GENERIC_EDIDS][128] = {
+	{
+	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+	0x31, 0xd8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x05, 0x16, 0x01, 0x03, 0x6d, 0x1b, 0x14, 0x78,
+	0xea, 0x5e, 0xc0, 0xa4, 0x59, 0x4a, 0x98, 0x25,
+	0x20, 0x50, 0x54, 0x01, 0x00, 0x00, 0x45, 0x40,
+	0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+	0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0xa0, 0x0f,
+	0x20, 0x00, 0x31, 0x58, 0x1c, 0x20, 0x28, 0x80,
+	0x14, 0x00, 0x15, 0xd0, 0x10, 0x00, 0x00, 0x1e,
+	0x00, 0x00, 0x00, 0xff, 0x00, 0x4c, 0x69, 0x6e,
+	0x75, 0x78, 0x20, 0x23, 0x30, 0x0a, 0x20, 0x20,
+	0x20, 0x20, 0x00, 0x00, 0x00, 0xfd, 0x00, 0x3b,
+	0x3d, 0x24, 0x26, 0x05, 0x00, 0x0a, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0xfc,
+	0x00, 0x4c, 0x69, 0x6e, 0x75, 0x78, 0x20, 0x53,
+	0x56, 0x47, 0x41, 0x0a, 0x20, 0x20, 0x00, 0xc2,
+	},
 	{
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
 	0x31, 0xd8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -133,143 +152,157 @@ static u8 generic_edid[GENERIC_EDIDS][128] = {
 	},
 };
 
-static u8 *edid_load(struct drm_connector *connector, const char *name,
+static int edid_size(const u8 *edid, int data_size)
+{
+	if (data_size < EDID_LENGTH)
+		return 0;
+
+	return (edid[0x7e] + 1) * EDID_LENGTH;
+}
+
+static void *edid_load(struct drm_connector *connector, const char *name,
 			const char *connector_name)
 {
-	const struct firmware *fw;
-	struct platform_device *pdev;
-	u8 *fwdata = NULL, *edid, *new_edid;
-	int fwsize, expected;
-	int builtin = 0, err = 0;
+	const struct firmware *fw = NULL;
+	const u8 *fwdata;
+	u8 *edid;
+	int fwsize, builtin;
 	int i, valid_extensions = 0;
 	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
 
-	pdev = platform_device_register_simple(connector_name, -1, NULL, 0);
-	if (IS_ERR(pdev)) {
-		DRM_ERROR("Failed to register EDID firmware platform device "
-		    "for connector \"%s\"\n", connector_name);
-		err = -EINVAL;
-		goto out;
-	}
+	builtin = match_string(generic_edid_name, GENERIC_EDIDS, name);
+	if (builtin >= 0) {
+		fwdata = generic_edid[builtin];
+		fwsize = sizeof(generic_edid[builtin]);
+	} else {
+		struct platform_device *pdev;
+		int err;
 
-	err = request_firmware(&fw, name, &pdev->dev);
-	platform_device_unregister(pdev);
-
-	if (err) {
-		i = 0;
-		while (i < GENERIC_EDIDS && strcmp(name, generic_edid_name[i]))
-			i++;
-		if (i < GENERIC_EDIDS) {
-			err = 0;
-			builtin = 1;
-			fwdata = generic_edid[i];
-			fwsize = sizeof(generic_edid[i]);
+		pdev = platform_device_register_simple(connector_name, -1, NULL, 0);
+		if (IS_ERR(pdev)) {
+			DRM_ERROR("Failed to register EDID firmware platform device "
+				  "for connector \"%s\"\n", connector_name);
+			return ERR_CAST(pdev);
 		}
-	}
 
-	if (err) {
-		DRM_ERROR("Requesting EDID firmware \"%s\" failed (err=%d)\n",
-		    name, err);
-		goto out;
-	}
+		err = request_firmware(&fw, name, &pdev->dev);
+		platform_device_unregister(pdev);
+		if (err) {
+			DRM_ERROR("Requesting EDID firmware \"%s\" failed (err=%d)\n",
+				  name, err);
+			return ERR_PTR(err);
+		}
 
-	if (fwdata == NULL) {
-		fwdata = (u8 *) fw->data;
+		fwdata = fw->data;
 		fwsize = fw->size;
 	}
 
-	expected = (fwdata[0x7e] + 1) * EDID_LENGTH;
-	if (expected != fwsize) {
+	if (edid_size(fwdata, fwsize) != fwsize) {
 		DRM_ERROR("Size of EDID firmware \"%s\" is invalid "
-		    "(expected %d, got %d)\n", name, expected, (int) fwsize);
-		err = -EINVAL;
-		goto relfw_out;
+			  "(expected %d, got %d\n", name,
+			  edid_size(fwdata, fwsize), (int)fwsize);
+		edid = ERR_PTR(-EINVAL);
+		goto out;
 	}
 
 	edid = kmemdup(fwdata, fwsize, GFP_KERNEL);
 	if (edid == NULL) {
-		err = -ENOMEM;
-		goto relfw_out;
+		edid = ERR_PTR(-ENOMEM);
+		goto out;
 	}
 
-	if (!drm_edid_block_valid(edid, 0, print_bad_edid)) {
+	if (!drm_edid_block_valid(edid, 0, print_bad_edid,
+				  &connector->edid_corrupt)) {
 		connector->bad_edid_counter++;
 		DRM_ERROR("Base block of EDID firmware \"%s\" is invalid ",
 		    name);
 		kfree(edid);
-		err = -EINVAL;
-		goto relfw_out;
+		edid = ERR_PTR(-EINVAL);
+		goto out;
 	}
 
 	for (i = 1; i <= edid[0x7e]; i++) {
 		if (i != valid_extensions + 1)
 			memcpy(edid + (valid_extensions + 1) * EDID_LENGTH,
 			    edid + i * EDID_LENGTH, EDID_LENGTH);
-		if (drm_edid_block_valid(edid + i * EDID_LENGTH, i, print_bad_edid))
+		if (drm_edid_block_valid(edid + i * EDID_LENGTH, i,
+					 print_bad_edid,
+					 NULL))
 			valid_extensions++;
 	}
 
 	if (valid_extensions != edid[0x7e]) {
+		u8 *new_edid;
+
 		edid[EDID_LENGTH-1] += edid[0x7e] - valid_extensions;
 		DRM_INFO("Found %d valid extensions instead of %d in EDID data "
 		    "\"%s\" for connector \"%s\"\n", valid_extensions,
 		    edid[0x7e], name, connector_name);
 		edid[0x7e] = valid_extensions;
+
 		new_edid = krealloc(edid, (valid_extensions + 1) * EDID_LENGTH,
-		    GFP_KERNEL);
-		if (new_edid == NULL) {
-			err = -ENOMEM;
-			kfree(edid);
-			goto relfw_out;
-		}
-		edid = new_edid;
+				    GFP_KERNEL);
+		if (new_edid)
+			edid = new_edid;
 	}
 
 	DRM_INFO("Got %s EDID base block and %d extension%s from "
-	    "\"%s\" for connector \"%s\"\n", builtin ? "built-in" :
+	    "\"%s\" for connector \"%s\"\n", (builtin >= 0) ? "built-in" :
 	    "external", valid_extensions, valid_extensions == 1 ? "" : "s",
 	    name, connector_name);
 
-relfw_out:
-	release_firmware(fw);
-
 out:
-	if (err)
-		return ERR_PTR(err);
-
+	release_firmware(fw);
 	return edid;
 }
 
-int drm_load_edid_firmware(struct drm_connector *connector)
+struct edid *drm_load_edid_firmware(struct drm_connector *connector)
 {
-	const char *connector_name = drm_get_connector_name(connector);
-	char *edidname = edid_firmware, *last, *colon;
-	int ret;
+	const char *connector_name = connector->name;
+	char *edidname, *last, *colon, *fwstr, *edidstr, *fallback = NULL;
 	struct edid *edid;
 
-	if (*edidname == '\0')
-		return 0;
+	if (edid_firmware[0] == '\0')
+		return ERR_PTR(-ENOENT);
 
-	colon = strchr(edidname, ':');
-	if (colon != NULL) {
-		if (strncmp(connector_name, edidname, colon - edidname))
-			return 0;
-		edidname = colon + 1;
-		if (*edidname == '\0')
-			return 0;
+	/*
+	 * If there are multiple edid files specified and separated
+	 * by commas, search through the list looking for one that
+	 * matches the connector.
+	 *
+	 * If there's one or more that doesn't specify a connector, keep
+	 * the last one found one as a fallback.
+	 */
+	fwstr = kstrdup(edid_firmware, GFP_KERNEL);
+	edidstr = fwstr;
+
+	while ((edidname = strsep(&edidstr, ","))) {
+		colon = strchr(edidname, ':');
+		if (colon != NULL) {
+			if (strncmp(connector_name, edidname, colon - edidname))
+				continue;
+			edidname = colon + 1;
+			break;
+		}
+
+		if (*edidname != '\0') /* corner case: multiple ',' */
+			fallback = edidname;
+	}
+
+	if (!edidname) {
+		if (!fallback) {
+			kfree(fwstr);
+			return ERR_PTR(-ENOENT);
+		}
+		edidname = fallback;
 	}
 
 	last = edidname + strlen(edidname) - 1;
 	if (*last == '\n')
 		*last = '\0';
 
-	edid = (struct edid *) edid_load(connector, edidname, connector_name);
-	if (IS_ERR_OR_NULL(edid))
-		return 0;
+	edid = edid_load(connector, edidname, connector_name);
+	kfree(fwstr);
 
-	drm_mode_connector_update_edid_property(connector, edid);
-	ret = drm_add_edid_modes(connector, edid);
-	kfree(edid);
-
-	return ret;
+	return edid;
 }

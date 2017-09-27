@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/i2c.h>
@@ -315,8 +311,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 			"dm1105: Updating to the latest version might help\n"
 			"dm1105: as well.\n");
 	}
-	printk(KERN_ERR "Here is a list of valid choices for the card=<n> "
-		   "insmod option:\n");
+	printk(KERN_ERR "Here is a list of valid choices for the card=<n> insmod option:\n");
 	for (i = 0; i < ARRAY_SIZE(dm1105_boards); i++)
 		printk(KERN_ERR "dm1105:    card=%d -> %s\n",
 				i, dm1105_boards[i].name);
@@ -576,7 +571,7 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dm1105_algo = {
+static const struct i2c_algorithm dm1105_algo = {
 	.master_xfer   = dm1105_i2c_xfer,
 	.functionality = functionality,
 };
@@ -591,7 +586,8 @@ static inline struct dm1105_dev *frontend_to_dm1105_dev(struct dvb_frontend *fe)
 	return container_of(fe->dvb, struct dm1105_dev, dvb_adapter);
 }
 
-static int dm1105_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int dm1105_set_voltage(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage)
 {
 	struct dm1105_dev *dev = frontend_to_dm1105_dev(fe);
 
@@ -614,7 +610,7 @@ static int dm1105_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 
 static void dm1105_set_dma_addr(struct dm1105_dev *dev)
 {
-	dm_writel(DM1105_STADR, cpu_to_le32(dev->dma_addr));
+	dm_writel(DM1105_STADR, (__force u32)cpu_to_le32(dev->dma_addr));
 }
 
 static int dm1105_dma_map(struct dm1105_dev *dev)
@@ -678,7 +674,8 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	rc_keydown(ir->dev, data, 0);
+	/* FIXME: UNKNOWN because we don't generate a full NEC scancode (yet?) */
+	rc_keydown(ir->dev, RC_PROTO_UNKNOWN, data, 0);
 }
 
 /* work handler */
@@ -742,7 +739,7 @@ static int dm1105_ir_init(struct dm1105_dev *dm1105)
 	struct rc_dev *dev;
 	int err = -ENOMEM;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev)
 		return -ENOMEM;
 
@@ -751,8 +748,7 @@ static int dm1105_ir_init(struct dm1105_dev *dm1105)
 
 	dev->driver_name = MODULE_NAME;
 	dev->map_name = RC_MAP_DM1105_NEC;
-	dev->driver_type = RC_DRIVER_SCANCODE;
-	dev->input_name = "DVB on-card IR receiver";
+	dev->device_name = "DVB on-card IR receiver";
 	dev->input_phys = dm1105->ir.input_phys;
 	dev->input_id.bustype = BUS_PCI;
 	dev->input_id.version = 1;
@@ -819,7 +815,7 @@ static void dm1105_hw_exit(struct dm1105_dev *dev)
 	dm1105_dma_unmap(dev);
 }
 
-static struct stv0299_config sharp_z0194a_config = {
+static const struct stv0299_config sharp_z0194a_config = {
 	.demod_address = 0x68,
 	.inittab = sharp_z0194a_inittab,
 	.mclk = 88000000UL,
@@ -1178,7 +1174,6 @@ err_pci_release_regions:
 err_pci_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(dev);
 	return ret;
 }
@@ -1202,21 +1197,18 @@ static void dm1105_remove(struct pci_dev *pdev)
 	dvb_dmxdev_release(&dev->dmxdev);
 	dvb_dmx_release(dvbdemux);
 	dvb_unregister_adapter(dvb_adapter);
-	if (&dev->i2c_adap)
-		i2c_del_adapter(&dev->i2c_adap);
+	i2c_del_adapter(&dev->i2c_adap);
 
 	dm1105_hw_exit(dev);
-	synchronize_irq(pdev->irq);
 	free_irq(pdev->irq, dev);
 	pci_iounmap(pdev, dev->io_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	dm1105_devcount--;
 	kfree(dev);
 }
 
-static struct pci_device_id dm1105_id_table[] = {
+static const struct pci_device_id dm1105_id_table[] = {
 	{
 		.vendor = PCI_VENDOR_ID_TRIGEM,
 		.device = PCI_DEVICE_ID_DM1105,

@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/gio_device.h>
@@ -574,19 +574,8 @@ static int newport_font_set(struct vc_data *vc, struct console_font *font, unsig
 	return newport_set_font(vc->vc_num, font);
 }
 
-static int newport_set_palette(struct vc_data *vc, unsigned char *table)
-{
-	return -EINVAL;
-}
-
-static int newport_scrolldelta(struct vc_data *vc, int lines)
-{
-	/* there is (nearly) no off-screen memory, so we can't scroll back */
-	return 0;
-}
-
-static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
-			  int lines)
+static bool newport_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int lines)
 {
 	int count, x, y;
 	unsigned short *s, *d;
@@ -606,7 +595,7 @@ static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
 					    (vc->vc_color & 0xf0) >> 4);
 		}
 		npregs->cset.topscan = (topscan - 1) & 0x3ff;
-		return 0;
+		return false;
 	}
 
 	count = (b - t - lines) * vc->vc_cols;
@@ -681,37 +670,7 @@ static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
 			}
 		}
 	}
-	return 1;
-}
-
-static void newport_bmove(struct vc_data *vc, int sy, int sx, int dy,
-			  int dx, int h, int w)
-{
-	short xs, ys, xe, ye, xoffs, yoffs, tmp;
-
-	xs = sx << 3;
-	xe = ((sx + w) << 3) - 1;
-	/*
-	 * as bmove is only used to move stuff around in the same line
-	 * (h == 1), we don't care about wrap arounds caused by topscan != 0
-	 */
-	ys = ((sy << 4) + topscan) & 0x3ff;
-	ye = (((sy + h) << 4) - 1 + topscan) & 0x3ff;
-	xoffs = (dx - sx) << 3;
-	yoffs = (dy - sy) << 4;
-	if (xoffs > 0) {
-		/* move to the right, exchange starting points */
-		tmp = xe;
-		xe = xs;
-		xs = tmp;
-	}
-	newport_wait(npregs);
-	npregs->set.drawmode0 = (NPORT_DMODE0_S2S | NPORT_DMODE0_BLOCK |
-				 NPORT_DMODE0_DOSETUP | NPORT_DMODE0_STOPX
-				 | NPORT_DMODE0_STOPY);
-	npregs->set.xystarti = (xs << 16) | ys;
-	npregs->set.xyendi = (xe << 16) | ye;
-	npregs->go.xymove = (xoffs << 16) | yoffs;
+	return true;
 }
 
 static int newport_dummy(struct vc_data *c)
@@ -731,13 +690,10 @@ const struct consw newport_con = {
 	.con_putcs	  = newport_putcs,
 	.con_cursor	  = newport_cursor,
 	.con_scroll	  = newport_scroll,
-	.con_bmove 	  = newport_bmove,
 	.con_switch	  = newport_switch,
 	.con_blank	  = newport_blank,
 	.con_font_set	  = newport_font_set,
 	.con_font_default = newport_font_default,
-	.con_set_palette  = newport_set_palette,
-	.con_scrolldelta  = newport_scrolldelta,
 	.con_set_origin	  = DUMMY,
 	.con_save_screen  = DUMMY
 };

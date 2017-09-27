@@ -33,16 +33,19 @@ extern int boot_cpuid;
 extern int spinning_secondaries;
 
 extern void cpu_die(void);
+extern int cpu_to_chip_id(int cpu);
 
 #ifdef CONFIG_SMP
 
 struct smp_ops_t {
 	void  (*message_pass)(int cpu, int msg);
 #ifdef CONFIG_PPC_SMP_MUXED_IPI
-	void  (*cause_ipi)(int cpu, unsigned long data);
+	void  (*cause_ipi)(int cpu);
 #endif
-	int   (*probe)(void);
+	int   (*cause_nmi_ipi)(int cpu);
+	void  (*probe)(void);
 	int   (*kick_cpu)(int nr);
+	int   (*prepare_cpu)(int nr);
 	void  (*setup_cpu)(int nr);
 	void  (*bringup_done)(void);
 	void  (*take_timebase)(void);
@@ -52,6 +55,8 @@ struct smp_ops_t {
 	int   (*cpu_bootable)(unsigned int nr);
 };
 
+extern void smp_flush_nmi_ipi(u64 delay_us);
+extern int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern void smp_send_debugger_break(void);
 extern void start_secondary_resume(void);
 extern void smp_generic_give_timebase(void);
@@ -60,21 +65,14 @@ extern void smp_generic_take_timebase(void);
 DECLARE_PER_CPU(unsigned int, cpu_pvr);
 
 #ifdef CONFIG_HOTPLUG_CPU
-extern void migrate_irqs(void);
 int generic_cpu_disable(void);
 void generic_cpu_die(unsigned int cpu);
-void generic_mach_cpu_die(void);
 void generic_set_cpu_dead(unsigned int cpu);
 void generic_set_cpu_up(unsigned int cpu);
 int generic_check_cpu_restart(unsigned int cpu);
-
-extern void inhibit_secondary_onlining(void);
-extern void uninhibit_secondary_onlining(void);
-
-#else /* HOTPLUG_CPU */
-static inline void inhibit_secondary_onlining(void) {}
-static inline void uninhibit_secondary_onlining(void) {}
-
+int is_cpu_dead(unsigned int cpu);
+#else
+#define generic_set_cpu_up(i)	do { } while (0)
 #endif
 
 #ifdef CONFIG_PPC64
@@ -99,6 +97,7 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 #endif
 
 DECLARE_PER_CPU(cpumask_var_t, cpu_sibling_map);
+DECLARE_PER_CPU(cpumask_var_t, cpu_l2_cache_map);
 DECLARE_PER_CPU(cpumask_var_t, cpu_core_map);
 
 static inline struct cpumask *cpu_sibling_mask(int cpu)
@@ -111,29 +110,45 @@ static inline struct cpumask *cpu_core_mask(int cpu)
 	return per_cpu(cpu_core_map, cpu);
 }
 
+static inline struct cpumask *cpu_l2_cache_mask(int cpu)
+{
+	return per_cpu(cpu_l2_cache_map, cpu);
+}
+
 extern int cpu_to_core_id(int cpu);
 
 /* Since OpenPIC has only 4 IPIs, we use slightly different message numbers.
  *
  * Make sure this matches openpic_request_IPIs in open_pic.c, or what shows up
  * in /proc/interrupts will be wrong!!! --Troy */
-#define PPC_MSG_CALL_FUNCTION   0
-#define PPC_MSG_RESCHEDULE      1
-#define PPC_MSG_CALL_FUNC_SINGLE	2
-#define PPC_MSG_DEBUGGER_BREAK  3
+#define PPC_MSG_CALL_FUNCTION	0
+#define PPC_MSG_RESCHEDULE	1
+#define PPC_MSG_TICK_BROADCAST	2
+#define PPC_MSG_NMI_IPI		3
+
+/* This is only used by the powernv kernel */
+#define PPC_MSG_RM_HOST_ACTION	4
+
+#define NMI_IPI_ALL_OTHERS		-2
+
+#ifdef CONFIG_NMI_IPI
+extern int smp_handle_nmi_ipi(struct pt_regs *regs);
+#else
+static inline int smp_handle_nmi_ipi(struct pt_regs *regs) { return 0; }
+#endif
 
 /* for irq controllers that have dedicated ipis per message (4) */
 extern int smp_request_message_ipi(int virq, int message);
 extern const char *smp_ipi_name[];
 
 /* for irq controllers with only a single ipi */
-extern void smp_muxed_ipi_set_data(int cpu, unsigned long data);
 extern void smp_muxed_ipi_message_pass(int cpu, int msg);
+extern void smp_muxed_ipi_set_message(int cpu, int msg);
 extern irqreturn_t smp_ipi_demux(void);
+extern irqreturn_t smp_ipi_demux_relaxed(void);
 
 void smp_init_pSeries(void);
 void smp_init_cell(void);
-void smp_init_celleb(void);
 void smp_setup_cpu_maps(void);
 
 extern int __cpu_disable(void);
@@ -162,9 +177,6 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 {
 	paca[cpu].hw_cpu_id = phys;
 }
-
-extern void smp_release_cpus(void);
-
 #else
 /* 32-bit */
 #ifndef CONFIG_SMP
@@ -181,11 +193,19 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 #endif /* !CONFIG_SMP */
 #endif /* !CONFIG_PPC64 */
 
+#if defined(CONFIG_PPC64) && (defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE))
+extern void smp_release_cpus(void);
+#else
+static inline void smp_release_cpus(void) { };
+#endif
+
 extern int smt_enabled_at_boot;
 
-extern int smp_mpic_probe(void);
+extern void smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
 extern int smp_generic_kick_cpu(int nr);
+extern int smp_generic_cpu_bootable(unsigned int nr);
+
 
 extern void smp_generic_give_timebase(void);
 extern void smp_generic_take_timebase(void);
@@ -204,6 +224,7 @@ extern void generic_secondary_thread_init(void);
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 extern char __secondary_hold;
+extern unsigned int booting_thread_hwid;
 
 extern void __early_start(void);
 #endif /* __ASSEMBLY__ */

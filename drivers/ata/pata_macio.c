@@ -22,6 +22,7 @@
 #include <linux/scatterlist.h>
 #include <linux/of.h>
 #include <linux/gfp.h>
+#include <linux/pci.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -30,7 +31,6 @@
 #include <asm/macio.h>
 #include <asm/io.h>
 #include <asm/dbdma.h>
-#include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/mediabay.h>
@@ -540,9 +540,9 @@ static void pata_macio_qc_prep(struct ata_queued_cmd *qc)
 			BUG_ON (pi++ >= MAX_DCMDS);
 
 			len = (sg_len < MAX_DBDMA_SEG) ? sg_len : MAX_DBDMA_SEG;
-			st_le16(&table->command, write ? OUTPUT_MORE: INPUT_MORE);
-			st_le16(&table->req_count, len);
-			st_le32(&table->phy_addr, addr);
+			table->command = cpu_to_le16(write ? OUTPUT_MORE: INPUT_MORE);
+			table->req_count = cpu_to_le16(len);
+			table->phy_addr = cpu_to_le32(addr);
 			table->cmd_dep = 0;
 			table->xfer_status = 0;
 			table->res_count = 0;
@@ -557,12 +557,12 @@ static void pata_macio_qc_prep(struct ata_queued_cmd *qc)
 
 	/* Convert the last command to an input/output */
 	table--;
-	st_le16(&table->command, write ? OUTPUT_LAST: INPUT_LAST);
+	table->command = cpu_to_le16(write ? OUTPUT_LAST: INPUT_LAST);
 	table++;
 
 	/* Add the stop command to the end of the list */
 	memset(table, 0, sizeof(struct dbdma_cmd));
-	st_le16(&table->command, DBDMA_STOP);
+	table->command = cpu_to_le16(DBDMA_STOP);
 
 	dev_dbgdma(priv->dev, "%s: %d DMA list entries\n", __func__, pi);
 }
@@ -845,8 +845,7 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int pata_macio_do_suspend(struct pata_macio_priv *priv, pm_message_t mesg)
 {
 	int rc;
@@ -907,8 +906,7 @@ static int pata_macio_do_resume(struct pata_macio_priv *priv)
 
 	return 0;
 }
-
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct scsi_host_template pata_macio_sht = {
 	ATA_BASE_SHT(DRV_NAME),
@@ -1208,8 +1206,7 @@ static int pata_macio_detach(struct macio_dev *mdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int pata_macio_suspend(struct macio_dev *mdev, pm_message_t mesg)
 {
 	struct ata_host *host = macio_get_drvdata(mdev);
@@ -1223,8 +1220,7 @@ static int pata_macio_resume(struct macio_dev *mdev)
 
 	return pata_macio_do_resume(host->private_data);
 }
-
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PMAC_MEDIABAY
 static void pata_macio_mb_event(struct macio_dev* mdev, int mb_state)
@@ -1316,8 +1312,7 @@ static void pata_macio_pci_detach(struct pci_dev *pdev)
 	ata_host_detach(host);
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int pata_macio_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);
@@ -1331,10 +1326,9 @@ static int pata_macio_pci_resume(struct pci_dev *pdev)
 
 	return pata_macio_do_resume(host->private_data);
 }
+#endif /* CONFIG_PM_SLEEP */
 
-#endif /* CONFIG_PM */
-
-static struct of_device_id pata_macio_match[] =
+static const struct of_device_id pata_macio_match[] =
 {
 	{
 	.name 		= "IDE",
@@ -1350,6 +1344,7 @@ static struct of_device_id pata_macio_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, pata_macio_match);
 
 static struct macio_driver pata_macio_driver =
 {
@@ -1360,7 +1355,7 @@ static struct macio_driver pata_macio_driver =
 	},
 	.probe		= pata_macio_attach,
 	.remove		= pata_macio_detach,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= pata_macio_suspend,
 	.resume		= pata_macio_resume,
 #endif
@@ -1383,7 +1378,7 @@ static struct pci_driver pata_macio_pci_driver = {
 	.id_table	= pata_macio_pci_match,
 	.probe		= pata_macio_pci_attach,
 	.remove		= pata_macio_pci_detach,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= pata_macio_pci_suspend,
 	.resume		= pata_macio_pci_resume,
 #endif

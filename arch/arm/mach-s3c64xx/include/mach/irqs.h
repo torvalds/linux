@@ -107,14 +107,6 @@
 #define IRQ_TC			IRQ_PENDN
 #define IRQ_ADC			S3C64XX_IRQ_VIC1(31)
 
-#define S3C64XX_TIMER_IRQ(x)	S3C_IRQ(64 + (x))
-
-#define IRQ_TIMER0		S3C64XX_TIMER_IRQ(0)
-#define IRQ_TIMER1		S3C64XX_TIMER_IRQ(1)
-#define IRQ_TIMER2		S3C64XX_TIMER_IRQ(2)
-#define IRQ_TIMER3		S3C64XX_TIMER_IRQ(3)
-#define IRQ_TIMER4		S3C64XX_TIMER_IRQ(4)
-
 /* compatibility for device defines */
 
 #define IRQ_IIC1		IRQ_S3C6410_IIC1
@@ -164,25 +156,11 @@
 
 #define IRQ_EINT_GROUP(group, no)	(IRQ_EINT_GROUP##group##_BASE + (no))
 
-/* Define a group of interrupts for board-specific use (eg, for MFD
- * interrupt controllers). */
+/* Some boards have their own IRQs behind this */
 #define IRQ_BOARD_START (IRQ_EINT_GROUP9_BASE + IRQ_EINT_GROUP9_NR + 1)
 
-#ifdef CONFIG_MACH_WLF_CRAGG_6410
-#define IRQ_BOARD_NR 160
-#elif defined(CONFIG_SMDK6410_WM1190_EV1)
-#define IRQ_BOARD_NR 64
-#elif defined(CONFIG_SMDK6410_WM1192_EV1)
-#define IRQ_BOARD_NR 64
-#else
-#define IRQ_BOARD_NR 16
-#endif
-
-#define IRQ_BOARD_END (IRQ_BOARD_START + IRQ_BOARD_NR)
-
-/* Set the default NR_IRQS */
-
-#define NR_IRQS	(IRQ_BOARD_END + 1)
+/* Set the default nr_irqs, boards can override if necessary */
+#define S3C64XX_NR_IRQS	IRQ_BOARD_START
 
 /* Compatibility */
 

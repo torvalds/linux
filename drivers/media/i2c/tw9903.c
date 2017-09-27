@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -187,10 +183,10 @@ static const struct v4l2_ctrl_ops tw9903_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops tw9903_core_ops = {
 	.log_status = tw9903_log_status,
-	.s_std = tw9903_s_std,
 };
 
 static const struct v4l2_subdev_video_ops tw9903_video_ops = {
+	.s_std = tw9903_s_std,
 	.s_routing = tw9903_s_video_routing,
 };
 
@@ -266,7 +262,6 @@ MODULE_DEVICE_TABLE(i2c, tw9903_id);
 
 static struct i2c_driver tw9903_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tw9903",
 	},
 	.probe = tw9903_probe,

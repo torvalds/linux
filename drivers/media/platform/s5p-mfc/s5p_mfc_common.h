@@ -21,32 +21,29 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include "regs-mfc.h"
-#include "regs-mfc-v6.h"
+#include "regs-mfc-v8.h"
+
+#define S5P_MFC_NAME		"s5p-mfc"
 
 /* Definitions related to MFC memory */
 
 /* Offset base used to differentiate between CAPTURE and OUTPUT
 *  while mmaping */
-#define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
+#define DST_QUEUE_OFF_BASE	(1 << 30)
 
-#define MFC_BANK1_ALLOC_CTX	0
-#define MFC_BANK2_ALLOC_CTX	1
+#define BANK_L_CTX	0
+#define BANK_R_CTX	1
+#define BANK_CTX_NUM	2
 
 #define MFC_BANK1_ALIGN_ORDER	13
 #define MFC_BANK2_ALIGN_ORDER	13
 #define MFC_BASE_ALIGN_ORDER	17
 
+#define MFC_FW_MAX_VERSIONS	2
+
 #include <media/videobuf2-dma-contig.h>
-
-static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
-{
-	/* Same functionality as the vb2_dma_contig_plane_paddr */
-	dma_addr_t *paddr = vb2_dma_contig_memops.cookie(b);
-
-	return *paddr;
-}
 
 /* MFC definitions */
 #define MFC_MAX_EXTRA_DPB       5
@@ -64,7 +61,7 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define MFC_ENC_CAP_PLANE_COUNT	1
 #define MFC_ENC_OUT_PLANE_COUNT	2
 #define STUFF_BYTE		4
-#define MFC_MAX_CTRLS		70
+#define MFC_MAX_CTRLS		77
 
 #define S5P_MFC_CODEC_NONE		-1
 #define S5P_MFC_CODEC_H264_DEC		0
@@ -80,6 +77,7 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define S5P_MFC_CODEC_H264_MVC_ENC	21
 #define S5P_MFC_CODEC_MPEG4_ENC		22
 #define S5P_MFC_CODEC_H263_ENC		23
+#define S5P_MFC_CODEC_VP8_ENC		24
 
 #define S5P_MFC_R2H_CMD_EMPTY			0
 #define S5P_MFC_R2H_CMD_SYS_INIT_RET		1
@@ -99,6 +97,8 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define S5P_MFC_R2H_CMD_ENC_BUFFER_FUL_RET	16
 #define S5P_MFC_R2H_CMD_ERR_RET			32
 
+#define MFC_MAX_CLOCKS		4
+
 #define mfc_read(dev, offset)		readl(dev->regs_base + (offset))
 #define mfc_write(dev, data, offset)	writel((data), dev->regs_base + \
 								(offset))
@@ -110,15 +110,6 @@ enum s5p_mfc_fmt_type {
 	MFC_FMT_DEC,
 	MFC_FMT_ENC,
 	MFC_FMT_RAW,
-};
-
-/**
- * enum s5p_mfc_node_type - The type of an MFC device node.
- */
-enum s5p_mfc_node_type {
-	MFCNODE_INVALID = -1,
-	MFCNODE_DECODER = 0,
-	MFCNODE_ENCODER = 1,
 };
 
 /**
@@ -171,6 +162,11 @@ enum s5p_mfc_decode_arg {
 	MFC_DEC_RES_CHANGE,
 };
 
+enum s5p_mfc_fw_ver {
+	MFC_FW_V1,
+	MFC_FW_V2,
+};
+
 #define MFC_BUF_FLAG_USED	(1 << 0)
 #define MFC_BUF_FLAG_EOS	(1 << 1)
 
@@ -180,8 +176,8 @@ struct s5p_mfc_ctx;
  * struct s5p_mfc_buf - MFC buffer
  */
 struct s5p_mfc_buf {
+	struct vb2_v4l2_buffer *b;
 	struct list_head list;
-	struct vb2_buffer *b;
 	union {
 		struct {
 			size_t luma;
@@ -196,9 +192,12 @@ struct s5p_mfc_buf {
  * struct s5p_mfc_pm - power management data structure
  */
 struct s5p_mfc_pm {
-	struct clk	*clock;
 	struct clk	*clock_gate;
-	atomic_t	power;
+	const char * const *clk_names;
+	struct clk	*clocks[MFC_MAX_CLOCKS];
+	int		num_clocks;
+	bool		use_clock_gating;
+
 	struct device	*device;
 };
 
@@ -223,34 +222,32 @@ struct s5p_mfc_buf_size {
 	void *priv;
 };
 
-struct s5p_mfc_buf_align {
-	unsigned int base;
-};
-
 struct s5p_mfc_variant {
 	unsigned int version;
 	unsigned int port_num;
+	u32 version_bit;
 	struct s5p_mfc_buf_size *buf_size;
-	struct s5p_mfc_buf_align *buf_align;
-	char	*fw_name;
+	char	*fw_name[MFC_FW_MAX_VERSIONS];
+	const char	*clk_names[MFC_MAX_CLOCKS];
+	int		num_clocks;
+	bool		use_clock_gating;
 };
 
 /**
  * struct s5p_mfc_priv_buf - represents internal used buffer
- * @alloc:		allocation-specific context for each buffer
- *			(videobuf2 allocator)
  * @ofs:		offset of each buffer, will be used for MFC
  * @virt:		kernel virtual address, only valid when the
  *			buffer accessed by driver
  * @dma:		DMA address, only valid when kernel DMA API used
  * @size:		size of the buffer
+ * @ctx:		memory context (bank) used for this allocation
  */
 struct s5p_mfc_priv_buf {
-	void		*alloc;
 	unsigned long	ofs;
 	void		*virt;
 	dma_addr_t	dma;
 	size_t		size;
+	unsigned int	ctx;
 };
 
 /**
@@ -260,8 +257,7 @@ struct s5p_mfc_priv_buf {
  * @vfd_dec:		video device for decoding
  * @vfd_enc:		video device for encoding
  * @plat_dev:		platform device
- * @mem_dev_l:		child device of the left memory bank (0)
- * @mem_dev_r:		child device of the right memory bank (1)
+ * @mem_dev[]:		child devices of the memory banks
  * @regs_base:		base address of the MFC hw registers
  * @irq:		irq resource
  * @dec_ctrl_handler:	control framework handler for decoding
@@ -279,8 +275,7 @@ struct s5p_mfc_priv_buf {
  * @queue:		waitqueue for waiting for completion of device commands
  * @fw_size:		size of firmware
  * @fw_virt_addr:	virtual firmware address
- * @bank1:		address of the beginning of bank 1 memory
- * @bank2:		address of the beginning of bank 2 memory
+ * @dma_base[]:		address of the beginning of memory banks
  * @hw_lock:		used for hardware locking
  * @ctx:		array of driver contexts
  * @curr_ctx:		number of the currently running context
@@ -288,12 +283,14 @@ struct s5p_mfc_priv_buf {
  * @watchdog_cnt:	counter for the watchdog
  * @watchdog_workqueue:	workqueue for the watchdog
  * @watchdog_work:	worker for the watchdog
- * @alloc_ctx:		videobuf2 allocator contexts for two memory banks
  * @enter_suspend:	flag set when entering suspend
  * @ctx_buf:		common context memory (MFCv6)
  * @warn_start:		hardware error code from which warnings start
  * @mfc_ops:		ops structure holding HW operation function pointers
  * @mfc_cmds:		cmd structure holding HW commands function pointers
+ * @mfc_regs:		structure holding MFC registers
+ * @fw_ver:		loaded firmware sub-version
+ * risc_on:		flag indicates RISC is on or off
  *
  */
 struct s5p_mfc_dev {
@@ -301,16 +298,15 @@ struct s5p_mfc_dev {
 	struct video_device	*vfd_dec;
 	struct video_device	*vfd_enc;
 	struct platform_device	*plat_dev;
-	struct device		*mem_dev_l;
-	struct device		*mem_dev_r;
+	struct device		*mem_dev[BANK_CTX_NUM];
 	void __iomem		*regs_base;
 	int			irq;
 	struct v4l2_ctrl_handler dec_ctrl_handler;
 	struct v4l2_ctrl_handler enc_ctrl_handler;
 	struct s5p_mfc_pm	pm;
-	struct s5p_mfc_variant	*variant;
+	const struct s5p_mfc_variant	*variant;
 	int num_inst;
-	spinlock_t irqlock;	/* lock when operating on videobuf2 queues */
+	spinlock_t irqlock;	/* lock when operating on context */
 	spinlock_t condlock;	/* lock when changing/checking if a context is
 					ready to be processed */
 	struct mutex mfc_mutex; /* video_device lock */
@@ -318,10 +314,12 @@ struct s5p_mfc_dev {
 	int int_type;
 	unsigned int int_err;
 	wait_queue_head_t queue;
-	size_t fw_size;
-	void *fw_virt_addr;
-	dma_addr_t bank1;
-	dma_addr_t bank2;
+	struct s5p_mfc_priv_buf fw_buf;
+	size_t mem_size;
+	dma_addr_t mem_base;
+	unsigned long *mem_bitmap;
+	void *mem_virt;
+	dma_addr_t dma_base[BANK_CTX_NUM];
 	unsigned long hw_lock;
 	struct s5p_mfc_ctx *ctx[MFC_NUM_CONTEXTS];
 	int curr_ctx;
@@ -330,13 +328,15 @@ struct s5p_mfc_dev {
 	struct timer_list watchdog_timer;
 	struct workqueue_struct *watchdog_workqueue;
 	struct work_struct watchdog_work;
-	void *alloc_ctx[2];
 	unsigned long enter_suspend;
 
 	struct s5p_mfc_priv_buf ctx_buf;
 	int warn_start;
 	struct s5p_mfc_hw_ops *mfc_ops;
 	struct s5p_mfc_hw_cmds *mfc_cmds;
+	const struct s5p_mfc_regs *mfc_regs;
+	enum s5p_mfc_fw_ver fw_ver;
+	bool risc_on; /* indicates if RISC is on or off */
 };
 
 /**
@@ -408,11 +408,33 @@ struct s5p_mfc_mpeg4_enc_params {
 };
 
 /**
+ * struct s5p_mfc_vp8_enc_params - encoding parameters for vp8
+ */
+struct s5p_mfc_vp8_enc_params {
+	u8 imd_4x4;
+	enum v4l2_vp8_num_partitions num_partitions;
+	enum v4l2_vp8_num_ref_frames num_ref;
+	u8 filter_level;
+	u8 filter_sharpness;
+	u32 golden_frame_ref_period;
+	enum v4l2_vp8_golden_frame_sel golden_frame_sel;
+	u8 hier_layer;
+	u8 hier_layer_qp[3];
+	u8 rc_min_qp;
+	u8 rc_max_qp;
+	u8 rc_frame_qp;
+	u8 rc_p_frame_qp;
+	u8 profile;
+};
+
+/**
  * struct s5p_mfc_enc_params - general encoding parameters
  */
 struct s5p_mfc_enc_params {
 	u16 width;
 	u16 height;
+	u32 mv_h_range;
+	u32 mv_v_range;
 
 	u16 gop_size;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
@@ -441,6 +463,7 @@ struct s5p_mfc_enc_params {
 	struct {
 		struct s5p_mfc_h264_enc_params h264;
 		struct s5p_mfc_mpeg4_enc_params mpeg4;
+		struct s5p_mfc_vp8_enc_params vp8;
 	} codec;
 
 };
@@ -629,7 +652,7 @@ struct s5p_mfc_ctx {
 		unsigned int bits;
 	} slice_size;
 
-	struct s5p_mfc_codec_ops *c_ops;
+	const struct s5p_mfc_codec_ops *c_ops;
 
 	struct v4l2_ctrl *ctrls[MFC_MAX_CTRLS];
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -647,6 +670,7 @@ struct s5p_mfc_fmt {
 	u32 codec_mode;
 	enum s5p_mfc_fmt_type type;
 	u32 num_planes;
+	u32 versions;
 };
 
 /**
@@ -669,7 +693,7 @@ struct mfc_control {
 
 /* Macro for making hardware specific calls */
 #define s5p_mfc_hw_call(f, op, args...) \
-	((f && f->op) ? f->op(args) : -ENODEV)
+	((f && f->op) ? f->op(args) : (typeof(f->op(args)))(-ENODEV))
 
 #define fh_to_ctx(__fh) container_of(__fh, struct s5p_mfc_ctx, fh)
 #define ctrl_to_ctx(__ctrl) \
@@ -679,10 +703,20 @@ void clear_work_bit(struct s5p_mfc_ctx *ctx);
 void set_work_bit(struct s5p_mfc_ctx *ctx);
 void clear_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
+int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev);
+void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq);
 
 #define HAS_PORTNUM(dev)	(dev ? (dev->variant ? \
 				(dev->variant->port_num ? 1 : 0) : 0) : 0)
 #define IS_TWOPORT(dev)		(dev->variant->port_num == 2 ? 1 : 0)
-#define IS_MFCV6(dev)		(dev->variant->version >= 0x60 ? 1 : 0)
+#define IS_MFCV6_PLUS(dev)	(dev->variant->version >= 0x60 ? 1 : 0)
+#define IS_MFCV7_PLUS(dev)	(dev->variant->version >= 0x70 ? 1 : 0)
+#define IS_MFCV8(dev)		(dev->variant->version >= 0x80 ? 1 : 0)
+
+#define MFC_V5_BIT	BIT(0)
+#define MFC_V6_BIT	BIT(1)
+#define MFC_V7_BIT	BIT(2)
+#define MFC_V8_BIT	BIT(3)
+
 
 #endif /* S5P_MFC_COMMON_H_ */

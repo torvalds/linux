@@ -20,7 +20,9 @@
  */
 
 #include "emu8000_local.h"
-#include <asm/uaccess.h>
+
+#include <linux/sched/signal.h>
+#include <linux/uaccess.h>
 #include <linux/moduleparam.h>
 
 static int emu8000_reset_addr;

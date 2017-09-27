@@ -186,9 +186,7 @@ static int ds1305_get_time(struct device *dev, struct rtc_time *time)
 	if (status < 0)
 		return status;
 
-	dev_vdbg(dev, "%s: %02x %02x %02x, %02x %02x %02x %02x\n",
-		"read", buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6]);
+	dev_vdbg(dev, "%s: %3ph, %4ph\n", "read", &buf[0], &buf[3]);
 
 	/* Decode the registers */
 	time->tm_sec = bcd2bin(buf[DS1305_SEC]);
@@ -232,9 +230,7 @@ static int ds1305_set_time(struct device *dev, struct rtc_time *time)
 	*bp++ = bin2bcd(time->tm_mon + 1);
 	*bp++ = bin2bcd(time->tm_year - 100);
 
-	dev_dbg(dev, "%s: %02x %02x %02x, %02x %02x %02x %02x\n",
-		"write", buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6], buf[7]);
+	dev_dbg(dev, "%s: %3ph, %4ph\n", "write", &buf[1], &buf[4]);
 
 	/* use write-then-read since dma from stack is nonportable */
 	return spi_write_then_read(ds1305->spi, buf, sizeof(buf),
@@ -317,13 +313,6 @@ static int ds1305_get_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	alm->time.tm_sec = bcd2bin(buf[DS1305_SEC]);
 	alm->time.tm_min = bcd2bin(buf[DS1305_MIN]);
 	alm->time.tm_hour = bcd2hour(buf[DS1305_HOUR]);
-	alm->time.tm_mday = -1;
-	alm->time.tm_mon = -1;
-	alm->time.tm_year = -1;
-	/* next three fields are unused by Linux */
-	alm->time.tm_wday = -1;
-	alm->time.tm_mday = -1;
-	alm->time.tm_isdst = -1;
 
 	return 0;
 }
@@ -434,9 +423,9 @@ static int ds1305_proc(struct device *dev, struct seq_file *seq)
 	}
 
 done:
-	return seq_printf(seq,
-			"trickle_charge\t: %s%s\n",
-			diodes, resistors);
+	seq_printf(seq, "trickle_charge\t: %s%s\n", diodes, resistors);
+
+	return 0;
 }
 
 #else
@@ -536,16 +525,7 @@ ds1305_nvram_read(struct file *filp, struct kobject *kobj,
 	struct spi_transfer	x[2];
 	int			status;
 
-	spi = container_of(kobj, struct spi_device, dev.kobj);
-
-	if (unlikely(off >= DS1305_NVRAM_LEN))
-		return 0;
-	if (count >= DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN;
-	if ((off + count) > DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN - off;
-	if (unlikely(!count))
-		return count;
+	spi = to_spi_device(kobj_to_dev(kobj));
 
 	addr = DS1305_NVRAM + off;
 	msg_init(&m, x, &addr, count, NULL, buf);
@@ -567,16 +547,7 @@ ds1305_nvram_write(struct file *filp, struct kobject *kobj,
 	struct spi_transfer	x[2];
 	int			status;
 
-	spi = container_of(kobj, struct spi_device, dev.kobj);
-
-	if (unlikely(off >= DS1305_NVRAM_LEN))
-		return -EFBIG;
-	if (count >= DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN;
-	if ((off + count) > DS1305_NVRAM_LEN)
-		count = DS1305_NVRAM_LEN - off;
-	if (unlikely(!count))
-		return count;
+	spi = to_spi_device(kobj_to_dev(kobj));
 
 	addr = (DS1305_WRITE | DS1305_NVRAM) + off;
 	msg_init(&m, x, &addr, count, buf, NULL);
@@ -606,7 +577,7 @@ static int ds1305_probe(struct spi_device *spi)
 	struct ds1305			*ds1305;
 	int				status;
 	u8				addr, value;
-	struct ds1305_platform_data	*pdata = spi->dev.platform_data;
+	struct ds1305_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	bool				write_ctrl = false;
 
 	/* Sanity check board setup data.  This may be hooked up
@@ -756,19 +727,17 @@ static int ds1305_probe(struct spi_device *spi)
 		status = devm_request_irq(&spi->dev, spi->irq, ds1305_irq,
 				0, dev_name(&ds1305->rtc->dev), ds1305);
 		if (status < 0) {
-			dev_dbg(&spi->dev, "request_irq %d --> %d\n",
+			dev_err(&spi->dev, "request_irq %d --> %d\n",
 					spi->irq, status);
-			return status;
+		} else {
+			device_set_wakeup_capable(&spi->dev, 1);
 		}
-
-		device_set_wakeup_capable(&spi->dev, 1);
 	}
 
 	/* export NVRAM */
 	status = sysfs_create_bin_file(&spi->dev.kobj, &nvram);
 	if (status < 0) {
-		dev_dbg(&spi->dev, "register nvram --> %d\n", status);
-		return status;
+		dev_err(&spi->dev, "register nvram --> %d\n", status);
 	}
 
 	return 0;
@@ -787,13 +756,11 @@ static int ds1305_remove(struct spi_device *spi)
 		cancel_work_sync(&ds1305->work);
 	}
 
-	spi_set_drvdata(spi, NULL);
 	return 0;
 }
 
 static struct spi_driver ds1305_driver = {
 	.driver.name	= "rtc-ds1305",
-	.driver.owner	= THIS_MODULE,
 	.probe		= ds1305_probe,
 	.remove		= ds1305_remove,
 	/* REVISIT add suspend/resume */

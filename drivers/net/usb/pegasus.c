@@ -42,7 +42,7 @@
 #include <linux/usb.h>
 #include <linux/module.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "pegasus.h"
 
 /*
@@ -126,40 +126,61 @@ static void async_ctrl_callback(struct urb *urb)
 
 static int get_registers(pegasus_t *pegasus, __u16 indx, __u16 size, void *data)
 {
+	u8 *buf;
 	int ret;
+
+	buf = kmalloc(size, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(pegasus->usb, usb_rcvctrlpipe(pegasus->usb, 0),
 			      PEGASUS_REQ_GET_REGS, PEGASUS_REQT_READ, 0,
-			      indx, data, size, 1000);
+			      indx, buf, size, 1000);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
+	else if (ret <= size)
+		memcpy(data, buf, ret);
+	kfree(buf);
 	return ret;
 }
 
-static int set_registers(pegasus_t *pegasus, __u16 indx, __u16 size, void *data)
+static int set_registers(pegasus_t *pegasus, __u16 indx, __u16 size,
+			 const void *data)
 {
+	u8 *buf;
 	int ret;
+
+	buf = kmemdup(data, size, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(pegasus->usb, usb_sndctrlpipe(pegasus->usb, 0),
 			      PEGASUS_REQ_SET_REGS, PEGASUS_REQT_WRITE, 0,
-			      indx, data, size, 100);
+			      indx, buf, size, 100);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
+	kfree(buf);
 	return ret;
 }
 
 static int set_register(pegasus_t *pegasus, __u16 indx, __u8 data)
 {
+	u8 *buf;
 	int ret;
+
+	buf = kmemdup(&data, 1, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(pegasus->usb, usb_sndctrlpipe(pegasus->usb, 0),
 			      PEGASUS_REQ_SET_REG, PEGASUS_REQT_WRITE, data,
-			      indx, &data, 1, 1000);
+			      indx, buf, 1, 1000);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
+	kfree(buf);
 	return ret;
 }
 
@@ -411,7 +432,7 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 	int ret;
 
 	read_mii_word(pegasus, pegasus->phy, MII_LPA, &linkpart);
-	data[0] = 0xc9;
+	data[0] = 0xc8; /* TX & RX enable, append status, no CRC */
 	data[1] = 0;
 	if (linkpart & (ADVERTISE_100FULL | ADVERTISE_10FULL))
 		data[1] |= 0x20;	/* set full duplex */
@@ -473,20 +494,20 @@ static void read_bulk_callback(struct urb *urb)
 		goto goon;
 	}
 
-	if (!count || count < 4)
+	if (count < 4)
 		goto goon;
 
 	rx_status = buf[count - 2];
 	if (rx_status & 0x1e) {
 		netif_dbg(pegasus, rx_err, net,
 			  "RX packet error %x\n", rx_status);
-		pegasus->stats.rx_errors++;
+		net->stats.rx_errors++;
 		if (rx_status & 0x06)	/* long or runt	*/
-			pegasus->stats.rx_length_errors++;
+			net->stats.rx_length_errors++;
 		if (rx_status & 0x08)
-			pegasus->stats.rx_crc_errors++;
+			net->stats.rx_crc_errors++;
 		if (rx_status & 0x10)	/* extra bits	*/
-			pegasus->stats.rx_frame_errors++;
+			net->stats.rx_frame_errors++;
 		goto goon;
 	}
 	if (pegasus->chip == 0x8513) {
@@ -497,7 +518,7 @@ static void read_bulk_callback(struct urb *urb)
 		pkt_len = buf[count - 3] << 8;
 		pkt_len += buf[count - 4];
 		pkt_len &= 0xfff;
-		pkt_len -= 8;
+		pkt_len -= 4;
 	}
 
 	/*
@@ -514,8 +535,8 @@ static void read_bulk_callback(struct urb *urb)
 	skb_put(pegasus->rx_skb, pkt_len);
 	pegasus->rx_skb->protocol = eth_type_trans(pegasus->rx_skb, net);
 	netif_rx(pegasus->rx_skb);
-	pegasus->stats.rx_packets++;
-	pegasus->stats.rx_bytes += pkt_len;
+	net->stats.rx_packets++;
+	net->stats.rx_bytes += pkt_len;
 
 	if (pegasus->flags & PEGASUS_UNPLUG)
 		return;
@@ -528,7 +549,7 @@ static void read_bulk_callback(struct urb *urb)
 goon:
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
 			  usb_rcvbulkpipe(pegasus->usb, 1),
-			  pegasus->rx_skb->data, PEGASUS_MTU + 8,
+			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	rx_status = usb_submit_urb(pegasus->rx_urb, GFP_ATOMIC);
 	if (rx_status == -ENODEV)
@@ -569,7 +590,7 @@ static void rx_fixup(unsigned long data)
 	}
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
 			  usb_rcvbulkpipe(pegasus->usb, 1),
-			  pegasus->rx_skb->data, PEGASUS_MTU + 8,
+			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 try_again:
 	status = usb_submit_urb(pegasus->rx_urb, GFP_ATOMIC);
@@ -615,7 +636,7 @@ static void write_bulk_callback(struct urb *urb)
 		break;
 	}
 
-	net->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(net); /* prevent tx timeout */
 	netif_wake_queue(net);
 }
 
@@ -649,13 +670,13 @@ static void intr_callback(struct urb *urb)
 		/* byte 0 == tx_status1, reg 2B */
 		if (d[0] & (TX_UNDERRUN|EXCESSIVE_COL
 					|LATE_COL|JABBER_TIMEOUT)) {
-			pegasus->stats.tx_errors++;
+			net->stats.tx_errors++;
 			if (d[0] & TX_UNDERRUN)
-				pegasus->stats.tx_fifo_errors++;
+				net->stats.tx_fifo_errors++;
 			if (d[0] & (EXCESSIVE_COL | JABBER_TIMEOUT))
-				pegasus->stats.tx_aborted_errors++;
+				net->stats.tx_aborted_errors++;
 			if (d[0] & LATE_COL)
-				pegasus->stats.tx_window_errors++;
+				net->stats.tx_window_errors++;
 		}
 
 		/* d[5].LINK_STATUS lies on some adapters.
@@ -664,7 +685,7 @@ static void intr_callback(struct urb *urb)
 		 */
 
 		/* bytes 3-4 == rx_lostpkt, reg 2E/2F */
-		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
+		net->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
 	}
 
 	res = usb_submit_urb(urb, GFP_ATOMIC);
@@ -680,7 +701,7 @@ static void pegasus_tx_timeout(struct net_device *net)
 	pegasus_t *pegasus = netdev_priv(net);
 	netif_warn(pegasus, timer, net, "tx timeout\n");
 	usb_unlink_urb(pegasus->tx_urb);
-	pegasus->stats.tx_errors++;
+	net->stats.tx_errors++;
 }
 
 static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
@@ -710,21 +731,16 @@ static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
 			netif_device_detach(pegasus->net);
 			break;
 		default:
-			pegasus->stats.tx_errors++;
+			net->stats.tx_errors++;
 			netif_start_queue(net);
 		}
 	} else {
-		pegasus->stats.tx_packets++;
-		pegasus->stats.tx_bytes += skb->len;
+		net->stats.tx_packets++;
+		net->stats.tx_bytes += skb->len;
 	}
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *pegasus_netdev_stats(struct net_device *dev)
-{
-	return &((pegasus_t *) netdev_priv(dev))->stats;
 }
 
 static inline void disable_net_traffic(pegasus_t *pegasus)
@@ -823,7 +839,7 @@ static int pegasus_open(struct net_device *net)
 
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
 			  usb_rcvbulkpipe(pegasus->usb, 1),
-			  pegasus->rx_skb->data, PEGASUS_MTU + 8,
+			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	if ((res = usb_submit_urb(pegasus->rx_urb, GFP_KERNEL))) {
 		if (res == -ENODEV)
@@ -932,20 +948,22 @@ static inline void pegasus_reset_wol(struct net_device *dev)
 }
 
 static int
-pegasus_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+pegasus_get_link_ksettings(struct net_device *dev,
+			   struct ethtool_link_ksettings *ecmd)
 {
 	pegasus_t *pegasus;
 
 	pegasus = netdev_priv(dev);
-	mii_ethtool_gset(&pegasus->mii, ecmd);
+	mii_ethtool_get_link_ksettings(&pegasus->mii, ecmd);
 	return 0;
 }
 
 static int
-pegasus_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+pegasus_set_link_ksettings(struct net_device *dev,
+			   const struct ethtool_link_ksettings *ecmd)
 {
 	pegasus_t *pegasus = netdev_priv(dev);
-	return mii_ethtool_sset(&pegasus->mii, ecmd);
+	return mii_ethtool_set_link_ksettings(&pegasus->mii, ecmd);
 }
 
 static int pegasus_nway_reset(struct net_device *dev)
@@ -974,14 +992,14 @@ static void pegasus_set_msglevel(struct net_device *dev, u32 v)
 
 static const struct ethtool_ops ops = {
 	.get_drvinfo = pegasus_get_drvinfo,
-	.get_settings = pegasus_get_settings,
-	.set_settings = pegasus_set_settings,
 	.nway_reset = pegasus_nway_reset,
 	.get_link = pegasus_get_link,
 	.get_msglevel = pegasus_get_msglevel,
 	.set_msglevel = pegasus_set_msglevel,
 	.get_wol = pegasus_get_wol,
 	.set_wol = pegasus_set_wol,
+	.get_link_ksettings = pegasus_get_link_ksettings,
+	.set_link_ksettings = pegasus_set_link_ksettings,
 };
 
 static int pegasus_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
@@ -1129,7 +1147,8 @@ static int pegasus_probe(struct usb_interface *intf,
 		return -ENODEV;
 
 	if (pegasus_count == 0) {
-		pegasus_workqueue = create_singlethread_workqueue("pegasus");
+		pegasus_workqueue = alloc_workqueue("pegasus", WQ_MEM_RECLAIM,
+						    0);
 		if (!pegasus_workqueue)
 			return -ENOMEM;
 	}
@@ -1159,7 +1178,7 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	net->watchdog_timeo = PEGASUS_TX_TIMEOUT;
 	net->netdev_ops = &pegasus_netdev_ops;
-	SET_ETHTOOL_OPS(net, &ops);
+	net->ethtool_ops = &ops;
 	pegasus->mii.dev = net;
 	pegasus->mii.mdio_read = mdio_read;
 	pegasus->mii.mdio_write = mdio_write;
@@ -1270,9 +1289,7 @@ static const struct net_device_ops pegasus_netdev_ops = {
 	.ndo_do_ioctl =			pegasus_ioctl,
 	.ndo_start_xmit =		pegasus_start_xmit,
 	.ndo_set_rx_mode =		pegasus_set_multicast,
-	.ndo_get_stats =		pegasus_netdev_stats,
 	.ndo_tx_timeout =		pegasus_tx_timeout,
-	.ndo_change_mtu =		eth_change_mtu,
 	.ndo_set_mac_address =		eth_mac_addr,
 	.ndo_validate_addr =		eth_validate_addr,
 };

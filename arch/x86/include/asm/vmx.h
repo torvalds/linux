@@ -25,6 +25,7 @@
 #define VMX_H
 
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <uapi/asm/vmx.h>
 
@@ -47,15 +48,20 @@
 #define CPU_BASED_MOV_DR_EXITING                0x00800000
 #define CPU_BASED_UNCOND_IO_EXITING             0x01000000
 #define CPU_BASED_USE_IO_BITMAPS                0x02000000
+#define CPU_BASED_MONITOR_TRAP_FLAG             0x08000000
 #define CPU_BASED_USE_MSR_BITMAPS               0x10000000
 #define CPU_BASED_MONITOR_EXITING               0x20000000
 #define CPU_BASED_PAUSE_EXITING                 0x40000000
 #define CPU_BASED_ACTIVATE_SECONDARY_CONTROLS   0x80000000
+
+#define CPU_BASED_ALWAYSON_WITHOUT_TRUE_MSR	0x0401e172
+
 /*
  * Definitions of Secondary Processor-Based VM-Execution Controls.
  */
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
 #define SECONDARY_EXEC_ENABLE_EPT               0x00000002
+#define SECONDARY_EXEC_DESC			0x00000004
 #define SECONDARY_EXEC_RDTSCP			0x00000008
 #define SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE   0x00000010
 #define SECONDARY_EXEC_ENABLE_VPID              0x00000020
@@ -64,9 +70,14 @@
 #define SECONDARY_EXEC_APIC_REGISTER_VIRT       0x00000100
 #define SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY    0x00000200
 #define SECONDARY_EXEC_PAUSE_LOOP_EXITING	0x00000400
+#define SECONDARY_EXEC_RDRAND			0x00000800
 #define SECONDARY_EXEC_ENABLE_INVPCID		0x00001000
+#define SECONDARY_EXEC_ENABLE_VMFUNC            0x00002000
 #define SECONDARY_EXEC_SHADOW_VMCS              0x00004000
-
+#define SECONDARY_EXEC_RDSEED			0x00010000
+#define SECONDARY_EXEC_ENABLE_PML               0x00020000
+#define SECONDARY_EXEC_XSAVES			0x00100000
+#define SECONDARY_EXEC_TSC_SCALING              0x02000000
 
 #define PIN_BASED_EXT_INTR_MASK                 0x00000001
 #define PIN_BASED_NMI_EXITING                   0x00000008
@@ -76,7 +87,7 @@
 
 #define PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR	0x00000016
 
-#define VM_EXIT_SAVE_DEBUG_CONTROLS             0x00000002
+#define VM_EXIT_SAVE_DEBUG_CONTROLS             0x00000004
 #define VM_EXIT_HOST_ADDR_SPACE_SIZE            0x00000200
 #define VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL      0x00001000
 #define VM_EXIT_ACK_INTR_ON_EXIT                0x00008000
@@ -85,21 +96,58 @@
 #define VM_EXIT_SAVE_IA32_EFER                  0x00100000
 #define VM_EXIT_LOAD_IA32_EFER                  0x00200000
 #define VM_EXIT_SAVE_VMX_PREEMPTION_TIMER       0x00400000
+#define VM_EXIT_CLEAR_BNDCFGS                   0x00800000
 
 #define VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR	0x00036dff
 
-#define VM_ENTRY_LOAD_DEBUG_CONTROLS            0x00000002
+#define VM_ENTRY_LOAD_DEBUG_CONTROLS            0x00000004
 #define VM_ENTRY_IA32E_MODE                     0x00000200
 #define VM_ENTRY_SMM                            0x00000400
 #define VM_ENTRY_DEACT_DUAL_MONITOR             0x00000800
 #define VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL     0x00002000
 #define VM_ENTRY_LOAD_IA32_PAT			0x00004000
 #define VM_ENTRY_LOAD_IA32_EFER                 0x00008000
+#define VM_ENTRY_LOAD_BNDCFGS                   0x00010000
 
 #define VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR	0x000011ff
 
 #define VMX_MISC_PREEMPTION_TIMER_RATE_MASK	0x0000001f
 #define VMX_MISC_SAVE_EFER_LMA			0x00000020
+#define VMX_MISC_ACTIVITY_HLT			0x00000040
+
+/* VMFUNC functions */
+#define VMX_VMFUNC_EPTP_SWITCHING               0x00000001
+#define VMFUNC_EPTP_ENTRIES  512
+
+static inline u32 vmx_basic_vmcs_revision_id(u64 vmx_basic)
+{
+	return vmx_basic & GENMASK_ULL(30, 0);
+}
+
+static inline u32 vmx_basic_vmcs_size(u64 vmx_basic)
+{
+	return (vmx_basic & GENMASK_ULL(44, 32)) >> 32;
+}
+
+static inline int vmx_misc_preemption_timer_rate(u64 vmx_misc)
+{
+	return vmx_misc & VMX_MISC_PREEMPTION_TIMER_RATE_MASK;
+}
+
+static inline int vmx_misc_cr3_count(u64 vmx_misc)
+{
+	return (vmx_misc & GENMASK_ULL(24, 16)) >> 16;
+}
+
+static inline int vmx_misc_max_msr(u64 vmx_misc)
+{
+	return (vmx_misc & GENMASK_ULL(27, 25)) >> 25;
+}
+
+static inline int vmx_misc_mseg_revid(u64 vmx_misc)
+{
+	return (vmx_misc & GENMASK_ULL(63, 32)) >> 32;
+}
 
 /* VMCS Encodings */
 enum vmcs_field {
@@ -114,6 +162,7 @@ enum vmcs_field {
 	GUEST_LDTR_SELECTOR             = 0x0000080c,
 	GUEST_TR_SELECTOR               = 0x0000080e,
 	GUEST_INTR_STATUS               = 0x00000810,
+	GUEST_PML_INDEX			= 0x00000812,
 	HOST_ES_SELECTOR                = 0x00000c00,
 	HOST_CS_SELECTOR                = 0x00000c02,
 	HOST_SS_SELECTOR                = 0x00000c04,
@@ -133,6 +182,8 @@ enum vmcs_field {
 	VM_EXIT_MSR_LOAD_ADDR_HIGH      = 0x00002009,
 	VM_ENTRY_MSR_LOAD_ADDR          = 0x0000200a,
 	VM_ENTRY_MSR_LOAD_ADDR_HIGH     = 0x0000200b,
+	PML_ADDRESS			= 0x0000200e,
+	PML_ADDRESS_HIGH		= 0x0000200f,
 	TSC_OFFSET                      = 0x00002010,
 	TSC_OFFSET_HIGH                 = 0x00002011,
 	VIRTUAL_APIC_PAGE_ADDR          = 0x00002012,
@@ -141,6 +192,8 @@ enum vmcs_field {
 	APIC_ACCESS_ADDR_HIGH		= 0x00002015,
 	POSTED_INTR_DESC_ADDR           = 0x00002016,
 	POSTED_INTR_DESC_ADDR_HIGH      = 0x00002017,
+	VM_FUNCTION_CONTROL             = 0x00002018,
+	VM_FUNCTION_CONTROL_HIGH        = 0x00002019,
 	EPT_POINTER                     = 0x0000201a,
 	EPT_POINTER_HIGH                = 0x0000201b,
 	EOI_EXIT_BITMAP0                = 0x0000201c,
@@ -151,8 +204,14 @@ enum vmcs_field {
 	EOI_EXIT_BITMAP2_HIGH           = 0x00002021,
 	EOI_EXIT_BITMAP3                = 0x00002022,
 	EOI_EXIT_BITMAP3_HIGH           = 0x00002023,
+	EPTP_LIST_ADDRESS               = 0x00002024,
+	EPTP_LIST_ADDRESS_HIGH          = 0x00002025,
 	VMREAD_BITMAP                   = 0x00002026,
 	VMWRITE_BITMAP                  = 0x00002028,
+	XSS_EXIT_BITMAP                 = 0x0000202C,
+	XSS_EXIT_BITMAP_HIGH            = 0x0000202D,
+	TSC_MULTIPLIER                  = 0x00002032,
+	TSC_MULTIPLIER_HIGH             = 0x00002033,
 	GUEST_PHYSICAL_ADDRESS          = 0x00002400,
 	GUEST_PHYSICAL_ADDRESS_HIGH     = 0x00002401,
 	VMCS_LINK_POINTER               = 0x00002800,
@@ -173,6 +232,8 @@ enum vmcs_field {
 	GUEST_PDPTR2_HIGH               = 0x0000280f,
 	GUEST_PDPTR3                    = 0x00002810,
 	GUEST_PDPTR3_HIGH               = 0x00002811,
+	GUEST_BNDCFGS                   = 0x00002812,
+	GUEST_BNDCFGS_HIGH              = 0x00002813,
 	HOST_IA32_PAT			= 0x00002c00,
 	HOST_IA32_PAT_HIGH		= 0x00002c01,
 	HOST_IA32_EFER			= 0x00002c02,
@@ -352,67 +413,84 @@ enum vmcs_field {
 #define TYPE_PHYSICAL_APIC_EVENT        (10 << 12)
 #define TYPE_PHYSICAL_APIC_INST         (15 << 12)
 
-/* segment AR */
-#define SEGMENT_AR_L_MASK (1 << 13)
+/* segment AR in VMCS -- these are different from what LAR reports */
+#define VMX_SEGMENT_AR_L_MASK (1 << 13)
 
-#define AR_TYPE_ACCESSES_MASK 1
-#define AR_TYPE_READABLE_MASK (1 << 1)
-#define AR_TYPE_WRITEABLE_MASK (1 << 2)
-#define AR_TYPE_CODE_MASK (1 << 3)
-#define AR_TYPE_MASK 0x0f
-#define AR_TYPE_BUSY_64_TSS 11
-#define AR_TYPE_BUSY_32_TSS 11
-#define AR_TYPE_BUSY_16_TSS 3
-#define AR_TYPE_LDT 2
+#define VMX_AR_TYPE_ACCESSES_MASK 1
+#define VMX_AR_TYPE_READABLE_MASK (1 << 1)
+#define VMX_AR_TYPE_WRITEABLE_MASK (1 << 2)
+#define VMX_AR_TYPE_CODE_MASK (1 << 3)
+#define VMX_AR_TYPE_MASK 0x0f
+#define VMX_AR_TYPE_BUSY_64_TSS 11
+#define VMX_AR_TYPE_BUSY_32_TSS 11
+#define VMX_AR_TYPE_BUSY_16_TSS 3
+#define VMX_AR_TYPE_LDT 2
 
-#define AR_UNUSABLE_MASK (1 << 16)
-#define AR_S_MASK (1 << 4)
-#define AR_P_MASK (1 << 7)
-#define AR_L_MASK (1 << 13)
-#define AR_DB_MASK (1 << 14)
-#define AR_G_MASK (1 << 15)
-#define AR_DPL_SHIFT 5
-#define AR_DPL(ar) (((ar) >> AR_DPL_SHIFT) & 3)
+#define VMX_AR_UNUSABLE_MASK (1 << 16)
+#define VMX_AR_S_MASK (1 << 4)
+#define VMX_AR_P_MASK (1 << 7)
+#define VMX_AR_L_MASK (1 << 13)
+#define VMX_AR_DB_MASK (1 << 14)
+#define VMX_AR_G_MASK (1 << 15)
+#define VMX_AR_DPL_SHIFT 5
+#define VMX_AR_DPL(ar) (((ar) >> VMX_AR_DPL_SHIFT) & 3)
 
-#define AR_RESERVD_MASK 0xfffe0f00
+#define VMX_AR_RESERVD_MASK 0xfffe0f00
 
 #define TSS_PRIVATE_MEMSLOT			(KVM_USER_MEM_SLOTS + 0)
 #define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	(KVM_USER_MEM_SLOTS + 1)
 #define IDENTITY_PAGETABLE_PRIVATE_MEMSLOT	(KVM_USER_MEM_SLOTS + 2)
 
 #define VMX_NR_VPIDS				(1 << 16)
+#define VMX_VPID_EXTENT_INDIVIDUAL_ADDR		0
 #define VMX_VPID_EXTENT_SINGLE_CONTEXT		1
 #define VMX_VPID_EXTENT_ALL_CONTEXT		2
+#define VMX_VPID_EXTENT_SINGLE_NON_GLOBAL	3
 
-#define VMX_EPT_EXTENT_INDIVIDUAL_ADDR		0
 #define VMX_EPT_EXTENT_CONTEXT			1
 #define VMX_EPT_EXTENT_GLOBAL			2
+#define VMX_EPT_EXTENT_SHIFT			24
 
 #define VMX_EPT_EXECUTE_ONLY_BIT		(1ull)
 #define VMX_EPT_PAGE_WALK_4_BIT			(1ull << 6)
+#define VMX_EPT_PAGE_WALK_5_BIT			(1ull << 7)
 #define VMX_EPTP_UC_BIT				(1ull << 8)
 #define VMX_EPTP_WB_BIT				(1ull << 14)
 #define VMX_EPT_2MB_PAGE_BIT			(1ull << 16)
 #define VMX_EPT_1GB_PAGE_BIT			(1ull << 17)
+#define VMX_EPT_INVEPT_BIT			(1ull << 20)
 #define VMX_EPT_AD_BIT				    (1ull << 21)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
 
+#define VMX_VPID_INVVPID_BIT                    (1ull << 0) /* (32 - 32) */
+#define VMX_VPID_EXTENT_INDIVIDUAL_ADDR_BIT     (1ull << 8) /* (40 - 32) */
 #define VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT      (1ull << 9) /* (41 - 32) */
 #define VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT      (1ull << 10) /* (42 - 32) */
+#define VMX_VPID_EXTENT_SINGLE_NON_GLOBAL_BIT   (1ull << 11) /* (43 - 32) */
 
-#define VMX_EPT_DEFAULT_GAW			3
-#define VMX_EPT_MAX_GAW				0x4
 #define VMX_EPT_MT_EPTE_SHIFT			3
-#define VMX_EPT_GAW_EPTP_SHIFT			3
-#define VMX_EPT_AD_ENABLE_BIT			(1ull << 6)
-#define VMX_EPT_DEFAULT_MT			0x6ull
+#define VMX_EPTP_PWL_MASK			0x38ull
+#define VMX_EPTP_PWL_4				0x18ull
+#define VMX_EPTP_PWL_5				0x20ull
+#define VMX_EPTP_AD_ENABLE_BIT			(1ull << 6)
+#define VMX_EPTP_MT_MASK			0x7ull
+#define VMX_EPTP_MT_WB				0x6ull
+#define VMX_EPTP_MT_UC				0x0ull
 #define VMX_EPT_READABLE_MASK			0x1ull
 #define VMX_EPT_WRITABLE_MASK			0x2ull
 #define VMX_EPT_EXECUTABLE_MASK			0x4ull
 #define VMX_EPT_IPAT_BIT    			(1ull << 6)
-#define VMX_EPT_ACCESS_BIT				(1ull << 8)
-#define VMX_EPT_DIRTY_BIT				(1ull << 9)
+#define VMX_EPT_ACCESS_BIT			(1ull << 8)
+#define VMX_EPT_DIRTY_BIT			(1ull << 9)
+#define VMX_EPT_RWX_MASK                        (VMX_EPT_READABLE_MASK |       \
+						 VMX_EPT_WRITABLE_MASK |       \
+						 VMX_EPT_EXECUTABLE_MASK)
+#define VMX_EPT_MT_MASK				(7ull << VMX_EPT_MT_EPTE_SHIFT)
+
+/* The mask to use to trigger an EPT Misconfiguration in order to track MMIO */
+#define VMX_EPT_MISCONFIG_WX_VALUE		(VMX_EPT_WRITABLE_MASK |       \
+						 VMX_EPT_EXECUTABLE_MASK)
 
 #define VMX_EPT_IDENTITY_PAGETABLE_ADDR		0xfffbc000ul
 
@@ -442,6 +520,24 @@ struct vmx_msr_entry {
 #define ENTRY_FAIL_PDPTE		2
 #define ENTRY_FAIL_NMI			3
 #define ENTRY_FAIL_VMCS_LINK_PTR	4
+
+/*
+ * Exit Qualifications for EPT Violations
+ */
+#define EPT_VIOLATION_ACC_READ_BIT	0
+#define EPT_VIOLATION_ACC_WRITE_BIT	1
+#define EPT_VIOLATION_ACC_INSTR_BIT	2
+#define EPT_VIOLATION_READABLE_BIT	3
+#define EPT_VIOLATION_WRITABLE_BIT	4
+#define EPT_VIOLATION_EXECUTABLE_BIT	5
+#define EPT_VIOLATION_GVA_TRANSLATED_BIT 8
+#define EPT_VIOLATION_ACC_READ		(1 << EPT_VIOLATION_ACC_READ_BIT)
+#define EPT_VIOLATION_ACC_WRITE		(1 << EPT_VIOLATION_ACC_WRITE_BIT)
+#define EPT_VIOLATION_ACC_INSTR		(1 << EPT_VIOLATION_ACC_INSTR_BIT)
+#define EPT_VIOLATION_READABLE		(1 << EPT_VIOLATION_READABLE_BIT)
+#define EPT_VIOLATION_WRITABLE		(1 << EPT_VIOLATION_WRITABLE_BIT)
+#define EPT_VIOLATION_EXECUTABLE	(1 << EPT_VIOLATION_EXECUTABLE_BIT)
+#define EPT_VIOLATION_GVA_TRANSLATED	(1 << EPT_VIOLATION_GVA_TRANSLATED_BIT)
 
 /*
  * VM-instruction error numbers

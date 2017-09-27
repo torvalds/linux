@@ -38,6 +38,7 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
+MODULE_SOFTDEP("pre: sctp");
 MODULE_AUTHOR("Wei Yongjun <yjwei@cn.fujitsu.com>");
 MODULE_DESCRIPTION("SCTP snooper");
 MODULE_LICENSE("GPL");
@@ -45,6 +46,10 @@ MODULE_LICENSE("GPL");
 static int port __read_mostly = 0;
 MODULE_PARM_DESC(port, "Port to match (0=all)");
 module_param(port, int, 0);
+
+static unsigned int fwmark __read_mostly = 0;
+MODULE_PARM_DESC(fwmark, "skb mark to match (0=no mark)");
+module_param(fwmark, uint, 0);
 
 static int bufsize __read_mostly = 64 * 1024;
 MODULE_PARM_DESC(bufsize, "Log buffer size (default 64k)");
@@ -60,7 +65,7 @@ static struct {
 	struct kfifo	  fifo;
 	spinlock_t	  lock;
 	wait_queue_head_t wait;
-	struct timespec	  tstart;
+	struct timespec64 tstart;
 } sctpw;
 
 static __printf(1, 2) void printl(const char *fmt, ...)
@@ -80,7 +85,7 @@ static __printf(1, 2) void printl(const char *fmt, ...)
 static int sctpprobe_open(struct inode *inode, struct file *file)
 {
 	kfifo_reset(&sctpw.fifo);
-	getnstimeofday(&sctpw.tstart);
+	ktime_get_ts64(&sctpw.tstart);
 
 	return 0;
 }
@@ -122,26 +127,31 @@ static const struct file_operations sctpprobe_fops = {
 	.llseek = noop_llseek,
 };
 
-static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
-					    const struct sctp_endpoint *ep,
-					    const struct sctp_association *asoc,
-					    const sctp_subtype_t type,
-					    void *arg,
-					    sctp_cmd_seq_t *commands)
+static enum sctp_disposition jsctp_sf_eat_sack(
+					struct net *net,
+					const struct sctp_endpoint *ep,
+					const struct sctp_association *asoc,
+					const union sctp_subtype type,
+					void *arg,
+					struct sctp_cmd_seq *commands)
 {
+	struct sctp_chunk *chunk = arg;
+	struct sk_buff *skb = chunk->skb;
 	struct sctp_transport *sp;
 	static __u32 lcwnd = 0;
-	struct timespec now;
+	struct timespec64 now;
 
 	sp = asoc->peer.primary_path;
 
-	if ((full || sp->cwnd != lcwnd) &&
-	    (!port || asoc->peer.port == port ||
-	     ep->base.bind_addr.port == port)) {
+	if (((port == 0 && fwmark == 0) ||
+	     asoc->peer.port == port ||
+	     ep->base.bind_addr.port == port ||
+	     (fwmark > 0 && skb->mark == fwmark)) &&
+	    (full || sp->cwnd != lcwnd)) {
 		lcwnd = sp->cwnd;
 
-		getnstimeofday(&now);
-		now = timespec_sub(now, sctpw.tstart);
+		ktime_get_ts64(&now);
+		now = timespec64_sub(now, sctpw.tstart);
 
 		printl("%lu.%06lu ", (unsigned long) now.tv_sec,
 		       (unsigned long) now.tv_nsec / NSEC_PER_USEC);
@@ -155,13 +165,8 @@ static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 			if (sp == asoc->peer.primary_path)
 				printl("*");
 
-			if (sp->ipaddr.sa.sa_family == AF_INET)
-				printl("%pI4 ", &sp->ipaddr.v4.sin_addr);
-			else
-				printl("%pI6 ", &sp->ipaddr.v6.sin6_addr);
-
-			printl("%2u %8u %8u %8u %8u %8u ",
-			       sp->state, sp->cwnd, sp->ssthresh,
+			printl("%pISc %2u %8u %8u %8u %8u %8u ",
+			       &sp->ipaddr, sp->state, sp->cwnd, sp->ssthresh,
 			       sp->flight_size, sp->partial_bytes_acked,
 			       sp->pathmtu);
 		}
@@ -178,6 +183,20 @@ static struct jprobe sctp_recv_probe = {
 	},
 	.entry	= jsctp_sf_eat_sack,
 };
+
+static __init int sctp_setup_jprobe(void)
+{
+	int ret = register_jprobe(&sctp_recv_probe);
+
+	if (ret) {
+		if (request_module("sctp"))
+			goto out;
+		ret = register_jprobe(&sctp_recv_probe);
+	}
+
+out:
+	return ret;
+}
 
 static __init int sctpprobe_init(void)
 {
@@ -199,12 +218,12 @@ static __init int sctpprobe_init(void)
 			 &sctpprobe_fops))
 		goto free_kfifo;
 
-	ret = register_jprobe(&sctp_recv_probe);
+	ret = sctp_setup_jprobe();
 	if (ret)
 		goto remove_proc;
 
-	pr_info("probe registered (port=%d)\n", port);
-
+	pr_info("probe registered (port=%d/fwmark=%u) bufsize=%u\n",
+		port, fwmark, bufsize);
 	return 0;
 
 remove_proc:

@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/gcd.h>
 #include <linux/io.h>
@@ -430,6 +430,9 @@ EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
+	if (!clk)
+		return 0;
+
 	return clk->rate;
 }
 EXPORT_SYMBOL(clk_get_rate);

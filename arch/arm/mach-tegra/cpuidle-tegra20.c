@@ -19,23 +19,25 @@
  * more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/clk/tegra.h>
+#include <linux/tick.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/clockchips.h>
-#include <linux/clk/tegra.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+
+#include <soc/tegra/flowctrl.h>
 
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
-#include <asm/suspend.h>
 #include <asm/smp_plat.h>
+#include <asm/suspend.h>
 
-#include "pm.h"
-#include "sleep.h"
+#include "cpuidle.h"
 #include "iomap.h"
 #include "irq.h"
-#include "flowctrl.h"
+#include "pm.h"
+#include "reset.h"
+#include "sleep.h"
 
 #ifdef CONFIG_PM_SLEEP
 static bool abort_flag;
@@ -59,8 +61,7 @@ static struct cpuidle_driver tegra_idle_driver = {
 			.exit_latency     = 5000,
 			.target_residency = 10000,
 			.power_usage      = 0,
-			.flags            = CPUIDLE_FLAG_TIME_VALID |
-			CPUIDLE_FLAG_COUPLED,
+			.flags            = CPUIDLE_FLAG_COUPLED,
 			.name             = "powered-down",
 			.desc             = "CPU power gated",
 		},
@@ -72,15 +73,13 @@ static struct cpuidle_driver tegra_idle_driver = {
 
 #ifdef CONFIG_PM_SLEEP
 #ifdef CONFIG_SMP
-static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
-
 static int tegra20_reset_sleeping_cpu_1(void)
 {
 	int ret = 0;
 
 	tegra_pen_lock();
 
-	if (readl(pmc + PMC_SCRATCH41) == CPU_RESETTABLE)
+	if (readb(tegra20_cpu1_resettable_status) == CPU_RESETTABLE)
 		tegra20_cpu_shutdown(1);
 	else
 		ret = -EINVAL;
@@ -137,11 +136,11 @@ static bool tegra20_cpu_cluster_power_down(struct cpuidle_device *dev,
 	if (tegra20_reset_cpu_1() || !tegra_cpu_rail_off_ready())
 		return false;
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+	tick_broadcast_enter();
 
 	tegra_idle_lp2_last();
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+	tick_broadcast_exit();
 
 	if (cpu_online(1))
 		tegra20_wake_cpu1_from_reset();
@@ -154,13 +153,13 @@ static bool tegra20_idle_enter_lp2_cpu_1(struct cpuidle_device *dev,
 					 struct cpuidle_driver *drv,
 					 int index)
 {
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+	tick_broadcast_enter();
 
 	cpu_suspend(0, tegra20_sleep_cpu_secondary_finish);
 
 	tegra20_cpu_clear_resettable();
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+	tick_broadcast_exit();
 
 	return true;
 }
@@ -210,6 +209,18 @@ static int tegra20_idle_lp2_coupled(struct cpuidle_device *dev,
 	return entered_lp2 ? index : 0;
 }
 #endif
+
+/*
+ * Tegra20 HW appears to have a bug such that PCIe device interrupts, whether
+ * they are legacy IRQs or MSI, are lost when LP2 is enabled. To work around
+ * this, simply disable LP2 if the PCI driver and DT node are both enabled.
+ */
+void tegra20_cpuidle_pcie_irqs_in_use(void)
+{
+	pr_info_once(
+		"Disabling cpuidle LP2 state, since PCIe IRQs are in use\n");
+	tegra_idle_driver.states[1].disabled = true;
+}
 
 int __init tegra20_cpuidle_init(void)
 {

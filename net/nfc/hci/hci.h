@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __LOCAL_HCI_H
@@ -67,6 +65,14 @@ struct hci_create_pipe_resp {
 	u8 pipe;
 } __packed;
 
+struct hci_delete_pipe_noti {
+	u8 pipe;
+} __packed;
+
+struct hci_all_pipe_cleared_noti {
+	u8 host;
+} __packed;
+
 #define NFC_HCI_FRAGMENT	0x7f
 
 #define HCP_HEADER(type, instr) ((((type) & 0x03) << 6) | ((instr) & 0x3f))
@@ -78,8 +84,6 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 			   const u8 *payload, size_t payload_len,
 			   data_exchange_cb_t cb, void *cb_context,
 			   unsigned long completion_delay);
-
-u8 nfc_hci_pipe2gate(struct nfc_hci_dev *hdev, u8 pipe);
 
 void nfc_hci_hcp_message_rx(struct nfc_hci_dev *hdev, u8 pipe, u8 type,
 			    u8 instruction, struct sk_buff *skb);

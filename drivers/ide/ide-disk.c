@@ -31,7 +31,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/div64.h>
 
@@ -184,14 +184,13 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	ide_hwif_t *hwif = drive->hwif;
 
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
-	BUG_ON(rq->cmd_type != REQ_TYPE_FS);
+	BUG_ON(blk_rq_is_passthrough(rq));
 
-	ledtrig_ide_activity();
+	ledtrig_disk_activity();
 
-	pr_debug("%s: %sing: block=%llu, sectors=%u, buffer=0x%08lx\n",
+	pr_debug("%s: %sing: block=%llu, sectors=%u\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
-		 (unsigned long long)block, blk_rq_sectors(rq),
-		 (unsigned long)rq->buffer);
+		 (unsigned long long)block, blk_rq_sectors(rq));
 
 	if (hwif->rw_disk)
 		hwif->rw_disk(drive, rq);
@@ -432,7 +431,7 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	ide_drive_t *drive = q->queuedata;
 	struct ide_cmd *cmd;
 
-	if (!(rq->cmd_flags & REQ_FLUSH))
+	if (req_op(rq) != REQ_OP_FLUSH)
 		return BLKPREP_OK;
 
 	if (rq->special) {
@@ -453,8 +452,9 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	cmd->valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd->tf_flags = IDE_TFLAG_DYN;
 	cmd->protocol = ATA_PROT_NODATA;
-
-	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq->cmd_flags &= ~REQ_OP_MASK;
+	rq->cmd_flags |= REQ_OP_DRV_OUT;
+	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 	rq->special = cmd;
 	cmd->rq = rq;
 
@@ -470,7 +470,6 @@ ide_devset_get(multcount, mult_count);
 static int set_multcount(ide_drive_t *drive, int arg)
 {
 	struct request *rq;
-	int error;
 
 	if (arg < 0 || arg > (drive->id[ATA_ID_MAX_MULTSECT] & 0xff))
 		return -EINVAL;
@@ -478,12 +477,12 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	if (drive->special_flags & IDE_SFLAG_SET_MULTMODE)
 		return -EBUSY;
 
-	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 
 	drive->mult_req = arg;
 	drive->special_flags |= IDE_SFLAG_SET_MULTMODE;
-	error = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_execute_rq(drive->queue, NULL, rq, 0);
 	blk_put_request(rq);
 
 	return (drive->mult_count == arg) ? 0 : -EIO;
@@ -523,7 +522,7 @@ static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
 static void update_flush(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
-	unsigned flush = 0;
+	bool wc = false;
 
 	if (drive->dev_flags & IDE_DFLAG_WCACHE) {
 		unsigned long long capacity;
@@ -547,12 +546,12 @@ static void update_flush(ide_drive_t *drive)
 		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
-			flush = REQ_FLUSH;
+			wc = true;
 			blk_queue_prep_rq(drive->queue, idedisk_prep_fn);
 		}
 	}
 
-	blk_queue_flush(drive->queue, flush);
+	blk_queue_write_cache(drive->queue, wc, false);
 }
 
 ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);
@@ -686,8 +685,10 @@ static void ide_disk_setup(ide_drive_t *drive)
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,
 	       queue_max_sectors(q) / 2);
 
-	if (ata_id_is_ssd(id))
+	if (ata_id_is_ssd(id)) {
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
+	}
 
 	/* calculate drive capacity, and select LBA if possible */
 	ide_disk_get_capacity(drive);

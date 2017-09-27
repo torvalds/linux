@@ -18,7 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
-#include <media/noon010pc30.h>
+#include <media/i2c/noon010pc30.h>
 #include <linux/videodev2.h>
 #include <linux/module.h>
 #include <media/v4l2-ctrls.h>
@@ -112,7 +112,7 @@ MODULE_PARM_DESC(debug, "Enable module debug trace. Set to 1 to enable.");
 #define REG_TERM		0xFFFF
 
 struct noon010_format {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	enum v4l2_colorspace colorspace;
 	u16 ispctl1_reg;
 };
@@ -175,23 +175,23 @@ static const struct noon010_frmsize noon010_sizes[] = {
 /* Supported pixel formats. */
 static const struct noon010_format noon010_formats[] = {
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x03,
 	}, {
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
+		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x02,
 	}, {
-		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
+		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0,
 	}, {
-		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x01,
 	}, {
-		.code		= V4L2_MBUS_FMT_RGB565_2X8_BE,
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x40,
 	},
@@ -492,7 +492,7 @@ unlock:
 }
 
 static int noon010_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(noon010_formats))
@@ -502,15 +502,16 @@ static int noon010_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int noon010_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int noon010_get_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct noon010_info *info = to_noon010(sd);
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (fh) {
-			mf = v4l2_subdev_get_try_format(fh, 0);
+		if (cfg) {
+			mf = v4l2_subdev_get_try_format(sd, cfg, 0);
 			fmt->format = *mf;
 		}
 		return 0;
@@ -542,7 +543,7 @@ static const struct noon010_format *noon010_try_fmt(struct v4l2_subdev *sd,
 	return &noon010_formats[i];
 }
 
-static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct noon010_info *info = to_noon010(sd);
@@ -554,10 +555,11 @@ static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	nf = noon010_try_fmt(sd, &fmt->format);
 	noon010_try_frame_size(&fmt->format, &size);
 	fmt->format.colorspace = V4L2_COLORSPACE_JPEG;
+	fmt->format.field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (fh) {
-			mf = v4l2_subdev_get_try_format(fh, 0);
+		if (cfg) {
+			mf = v4l2_subdev_get_try_format(sd, cfg, 0);
 			*mf = fmt->format;
 		}
 		return 0;
@@ -639,7 +641,7 @@ static int noon010_log_status(struct v4l2_subdev *sd)
 
 static int noon010_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(fh, 0);
+	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
 	mf->width = noon010_sizes[0].width;
 	mf->height = noon010_sizes[0].height;
@@ -662,13 +664,13 @@ static const struct v4l2_subdev_core_ops noon010_core_ops = {
 	.log_status	= noon010_log_status,
 };
 
-static struct v4l2_subdev_pad_ops noon010_pad_ops = {
+static const struct v4l2_subdev_pad_ops noon010_pad_ops = {
 	.enum_mbus_code	= noon010_enum_mbus_code,
 	.get_fmt	= noon010_get_fmt,
 	.set_fmt	= noon010_set_fmt,
 };
 
-static struct v4l2_subdev_video_ops noon010_video_ops = {
+static const struct v4l2_subdev_video_ops noon010_video_ops = {
 	.s_stream	= noon010_s_stream,
 };
 
@@ -777,8 +779,8 @@ static int noon010_probe(struct i2c_client *client,
 		goto np_err;
 
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &info->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &info->pad);
 	if (ret < 0)
 		goto np_err;
 

@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/dmaengine.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -40,11 +41,6 @@ static const struct snd_pcm_hardware txx9aclc_pcm_hardware = {
 	.info		  = SNDRV_PCM_INFO_INTERLEAVED |
 			    SNDRV_PCM_INFO_BATCH |
 			    SNDRV_PCM_INFO_PAUSE,
-#ifdef __BIG_ENDIAN
-	.formats	  = SNDRV_PCM_FMTBIT_S16_BE,
-#else
-	.formats	  = SNDRV_PCM_FMTBIT_S16_LE,
-#endif
 	.period_bytes_min = 1024,
 	.period_bytes_max = 8 * 1024,
 	.periods_min	  = 2,
@@ -115,8 +111,8 @@ static void txx9aclc_dma_complete(void *arg)
 	spin_lock_irqsave(&dmadata->dma_lock, flags);
 	if (dmadata->frag_count >= 0) {
 		dmadata->dmacount--;
-		BUG_ON(dmadata->dmacount < 0);
-		tasklet_schedule(&dmadata->tasklet);
+		if (!WARN_ON(dmadata->dmacount < 0))
+			tasklet_schedule(&dmadata->tasklet);
 	}
 	spin_unlock_irqrestore(&dmadata->dma_lock, flags);
 }
@@ -142,7 +138,7 @@ txx9aclc_dma_submit(struct txx9aclc_dmadata *dmadata, dma_addr_t buf_dma_addr)
 	}
 	desc->callback = txx9aclc_dma_complete;
 	desc->callback_param = dmadata;
-	desc->tx_submit(desc);
+	dmaengine_submit(desc);
 	return desc;
 }
 
@@ -165,7 +161,7 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 		void __iomem *base = drvdata->base;
 
 		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
-		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(chan);
 		/* first time */
 		for (i = 0; i < NR_DMA_CHAIN; i++) {
 			desc = txx9aclc_dma_submit(dmadata,
@@ -174,14 +170,17 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 				return;
 		}
 		dmadata->dmacount = NR_DMA_CHAIN;
-		chan->device->device_issue_pending(chan);
+		dma_async_issue_pending(chan);
 		spin_lock_irqsave(&dmadata->dma_lock, flags);
 		__raw_writel(ctlbit, base + ACCTLEN);
 		dmadata->frag_count = NR_DMA_CHAIN % dmadata->frags;
 		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
 		return;
 	}
-	BUG_ON(dmadata->dmacount >= NR_DMA_CHAIN);
+	if (WARN_ON(dmadata->dmacount >= NR_DMA_CHAIN)) {
+		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
+		return;
+	}
 	while (dmadata->dmacount < NR_DMA_CHAIN) {
 		dmadata->dmacount++;
 		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
@@ -190,7 +189,7 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 			dmadata->frag_count * dmadata->frag_bytes);
 		if (!desc)
 			return;
-		chan->device->device_issue_pending(chan);
+		dma_async_issue_pending(chan);
 
 		spin_lock_irqsave(&dmadata->dma_lock, flags);
 		dmadata->frag_count++;
@@ -207,7 +206,7 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 static int txx9aclc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct txx9aclc_dmadata *dmadata = substream->runtime->private_data;
-	struct txx9aclc_plat_drvdata *drvdata =txx9aclc_drvdata;
+	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_drvdata;
 	void __iomem *base = drvdata->base;
 	unsigned long flags;
 	int ret = 0;
@@ -268,11 +267,11 @@ static int txx9aclc_pcm_close(struct snd_pcm_substream *substream)
 	struct dma_chan *chan = dmadata->dma_chan;
 
 	dmadata->frag_count = -1;
-	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(chan);
 	return 0;
 }
 
-static struct snd_pcm_ops txx9aclc_pcm_ops = {
+static const struct snd_pcm_ops txx9aclc_pcm_ops = {
 	.open		= txx9aclc_pcm_open,
 	.close		= txx9aclc_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -283,17 +282,12 @@ static struct snd_pcm_ops txx9aclc_pcm_ops = {
 	.pointer	= txx9aclc_pcm_pointer,
 };
 
-static void txx9aclc_pcm_free_dma_buffers(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int txx9aclc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct platform_device *pdev = to_platform_device(dai->platform->dev);
+	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
 	struct txx9aclc_soc_device *dev;
 	struct resource *r;
 	int i;
@@ -346,7 +340,7 @@ static bool filter(struct dma_chan *chan, void *param)
 static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 			     struct txx9aclc_dmadata *dmadata)
 {
-	struct txx9aclc_plat_drvdata *drvdata =txx9aclc_drvdata;
+	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_drvdata;
 	struct txx9dmac_slave *ds = &dmadata->dma_slave;
 	dma_cap_mask_t mask;
 
@@ -398,10 +392,10 @@ static int txx9aclc_pcm_remove(struct snd_soc_platform *platform)
 	for (i = 0; i < 2; i++) {
 		struct txx9aclc_dmadata *dmadata = &dev->dmadata[i];
 		struct dma_chan *chan = dmadata->dma_chan;
+
 		if (chan) {
 			dmadata->frag_count = -1;
-			chan->device->device_control(chan,
-						     DMA_TERMINATE_ALL, 0);
+			dmaengine_terminate_all(chan);
 			dma_release_channel(chan);
 		}
 		dev->dmadata[i].dma_chan = NULL;
@@ -409,33 +403,25 @@ static int txx9aclc_pcm_remove(struct snd_soc_platform *platform)
 	return 0;
 }
 
-static struct snd_soc_platform_driver txx9aclc_soc_platform = {
+static const struct snd_soc_platform_driver txx9aclc_soc_platform = {
 	.probe		= txx9aclc_pcm_probe,
 	.remove		= txx9aclc_pcm_remove,
 	.ops		= &txx9aclc_pcm_ops,
 	.pcm_new	= txx9aclc_pcm_new,
-	.pcm_free	= txx9aclc_pcm_free_dma_buffers,
 };
 
 static int txx9aclc_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&pdev->dev, &txx9aclc_soc_platform);
-}
-
-static int txx9aclc_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_platform(&pdev->dev,
+					      &txx9aclc_soc_platform);
 }
 
 static struct platform_driver txx9aclc_pcm_driver = {
 	.driver = {
 			.name = "txx9aclc-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = txx9aclc_soc_platform_probe,
-	.remove = txx9aclc_soc_platform_remove,
 };
 
 module_platform_driver(txx9aclc_pcm_driver);

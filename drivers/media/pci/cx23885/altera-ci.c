@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -52,8 +48,11 @@
  * |  DATA7|  DATA6|  DATA5|  DATA4|  DATA3|  DATA2|  DATA1|  DATA0|
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  */
-#include <media/videobuf-dma-sg.h>
-#include <media/videobuf-dvb.h>
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <dvb_demux.h>
+#include <dvb_frontend.h>
 #include "altera-ci.h"
 #include "dvb_ca_en50221.h"
 
@@ -88,16 +87,18 @@ MODULE_DESCRIPTION("altera FPGA CI module");
 MODULE_AUTHOR("Igor M. Liplianin  <liplianin@netup.ru>");
 MODULE_LICENSE("GPL");
 
-#define ci_dbg_print(args...) \
+#define ci_dbg_print(fmt, args...) \
 	do { \
 		if (ci_dbg) \
-			printk(KERN_DEBUG args); \
+			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			       __func__, ##args); \
 	} while (0)
 
-#define pid_dbg_print(args...) \
+#define pid_dbg_print(fmt, args...) \
 	do { \
 		if (pid_dbg) \
-			printk(KERN_DEBUG args); \
+			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			       __func__, ##args); \
 	} while (0)
 
 struct altera_ci_state;
@@ -487,7 +488,6 @@ static void altera_hw_filt_release(void *main_dev, int filt_nr)
 	}
 
 }
-EXPORT_SYMBOL(altera_hw_filt_release);
 
 void altera_ci_release(void *dev, int ci_nr)
 {
@@ -602,7 +602,6 @@ static int altera_pid_feed_control(void *demux_dev, int filt_nr,
 
 	return 0;
 }
-EXPORT_SYMBOL(altera_pid_feed_control);
 
 static int altera_ci_start_feed(struct dvb_demux_feed *feed, int num)
 {
@@ -703,7 +702,6 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL(altera_hw_filt_init);
 
 int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 {
@@ -725,7 +723,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 	if (temp_int != NULL) {
 		inter = temp_int->internal;
 		(inter->cis_used)++;
-                inter->fpga_rw = config->fpga_rw;
+		inter->fpga_rw = config->fpga_rw;
 		ci_dbg_print("%s: Find Internal Structure!\n", __func__);
 	} else {
 		inter = kzalloc(sizeof(struct fpga_internal), GFP_KERNEL);
@@ -766,7 +764,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 	if (0 != ret)
 		goto err;
 
-       inter->state[ci_nr - 1] = state;
+	inter->state[ci_nr - 1] = state;
 
 	altera_hw_filt_init(config, ci_nr);
 

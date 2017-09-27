@@ -41,7 +41,7 @@ function find_length(f)
     else if (f ~ /0xf/)
 	return 4
 
-    printf "unknown legnth " f "\n" > "/dev/stderr"
+    printf "unknown length " f "\n" > "/dev/stderr"
     exit
 }
 
@@ -68,7 +68,6 @@ BEGIN {
 
     while (getline line < ARGV[1] > 0) {
 	if (line ~ /\#define.*_MASK/ &&
-	    !(line ~ /S5PC100_EPLL_MASK/) &&
 	    !(line ~ /USB_SIG_MASK/)) {
 	    splitdefine(line, fields)
 	    name = fields[0]

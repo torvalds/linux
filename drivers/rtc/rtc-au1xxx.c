@@ -32,7 +32,7 @@ static int au1xtoy_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long t;
 
-	t = au_readl(SYS_TOYREAD);
+	t = alchemy_rdsys(AU1000_SYS_TOYREAD);
 
 	rtc_time_to_tm(t, tm);
 
@@ -45,19 +45,18 @@ static int au1xtoy_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_tm_to_time(tm, &t);
 
-	au_writel(t, SYS_TOYWRITE);
-	au_sync();
+	alchemy_wrsys(t, AU1000_SYS_TOYWRITE);
 
 	/* wait for the pending register write to succeed.  This can
 	 * take up to 6 seconds...
 	 */
-	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S)
+	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
 	return 0;
 }
 
-static struct rtc_class_ops au1xtoy_rtc_ops = {
+static const struct rtc_class_ops au1xtoy_rtc_ops = {
 	.read_time	= au1xtoy_rtc_read_time,
 	.set_time	= au1xtoy_rtc_set_time,
 };
@@ -68,7 +67,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 	unsigned long t;
 	int ret;
 
-	t = au_readl(SYS_COUNTER_CNTRL);
+	t = alchemy_rdsys(AU1000_SYS_CNTRCTRL);
 	if (!(t & CNTR_OK)) {
 		dev_err(&pdev->dev, "counters not working; aborting.\n");
 		ret = -ENODEV;
@@ -78,10 +77,10 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 	ret = -ETIMEDOUT;
 
 	/* set counter0 tickrate to 1Hz if necessary */
-	if (au_readl(SYS_TOYTRIM) != 32767) {
+	if (alchemy_rdsys(AU1000_SYS_TOYTRIM) != 32767) {
 		/* wait until hardware gives access to TRIM register */
 		t = 0x00100000;
-		while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T0S) && --t)
+		while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_T0S) && --t)
 			msleep(1);
 
 		if (!t) {
@@ -93,12 +92,11 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 		}
 
 		/* set 1Hz TOY tick rate */
-		au_writel(32767, SYS_TOYTRIM);
-		au_sync();
+		alchemy_wrsys(32767, AU1000_SYS_TOYTRIM);
 	}
 
 	/* wait until the hardware allows writes to the counter reg */
-	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S)
+	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
 	rtcdev = devm_rtc_device_register(&pdev->dev, "rtc-au1xxx",
@@ -119,7 +117,6 @@ out_err:
 static struct platform_driver au1xrtc_driver = {
 	.driver		= {
 		.name	= "rtc-au1xxx",
-		.owner	= THIS_MODULE,
 	},
 };
 

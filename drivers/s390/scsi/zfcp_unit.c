@@ -21,12 +21,13 @@
 void zfcp_unit_scsi_scan(struct zfcp_unit *unit)
 {
 	struct fc_rport *rport = unit->port->rport;
-	unsigned int lun;
+	u64 lun;
 
 	lun = scsilun_to_int((struct scsi_lun *) &unit->fcp_lun);
 
 	if (rport && rport->port_state == FC_PORTSTATE_ONLINE)
-		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id, lun, 1);
+		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id, lun,
+				 SCSI_SCAN_MANUAL);
 }
 
 static void zfcp_unit_scsi_scan_work(struct work_struct *work)
@@ -188,7 +189,7 @@ struct scsi_device *zfcp_unit_sdev(struct zfcp_unit *unit)
 {
 	struct Scsi_Host *shost;
 	struct zfcp_port *port;
-	unsigned int lun;
+	u64 lun;
 
 	lun = scsilun_to_int((struct scsi_lun *) &unit->fcp_lun);
 	port = unit->port;

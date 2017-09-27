@@ -20,6 +20,7 @@
  */
 
 #include <asm/unaligned.h>
+#include <asm/early_ioremap.h>
 
 /* We don't use IO slowdowns on the ia64, but.. */
 #define __SLOW_DOWN_IO	do { } while (0)
@@ -116,7 +117,7 @@ extern int valid_mmap_phys_addr_range (unsigned long pfn, size_t count);
  * following the barrier will arrive after all previous writes.  For most
  * ia64 platforms, this is a simple 'mf.a' instruction.
  *
- * See Documentation/DocBook/deviceiobook.tmpl for more information.
+ * See Documentation/driver-api/device-io.rst for more information.
  */
 static inline void ___ia64_mmiowb(void)
 {
@@ -393,6 +394,10 @@ __writeq (unsigned long val, volatile void __iomem *addr)
 #define writew(v,a)	__writew((v), (a))
 #define writel(v,a)	__writel((v), (a))
 #define writeq(v,a)	__writeq((v), (a))
+#define writeb_relaxed(v,a)	__writeb((v), (a))
+#define writew_relaxed(v,a)	__writew((v), (a))
+#define writel_relaxed(v,a)	__writel((v), (a))
+#define writeq_relaxed(v,a)	__writeq((v), (a))
 #define __raw_writeb	writeb
 #define __raw_writew	writew
 #define __raw_writel	writel
@@ -423,12 +428,12 @@ __writeq (unsigned long val, volatile void __iomem *addr)
 extern void __iomem * ioremap(unsigned long offset, unsigned long size);
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 extern void iounmap (volatile void __iomem *addr);
-extern void __iomem * early_ioremap (unsigned long phys_addr, unsigned long size);
-extern void early_iounmap (volatile void __iomem *addr, unsigned long size);
 static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned long size)
 {
 	return ioremap(phys_addr, size);
 }
+#define ioremap_cache ioremap_cache
+#define ioremap_uc ioremap_nocache
 
 
 /*

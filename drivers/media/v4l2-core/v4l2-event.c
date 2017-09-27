@@ -15,17 +15,13 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 
+#include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -172,6 +168,9 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 	unsigned long flags;
 	struct timespec timestamp;
 
+	if (vdev == NULL)
+		return;
+
 	ktime_get_ts(&timestamp);
 
 	spin_lock_irqsave(&vdev->fh_lock, flags);
@@ -216,7 +215,8 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	if (elems < 1)
 		elems = 1;
 
-	sev = kzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems, GFP_KERNEL);
+	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
+		       GFP_KERNEL);
 	if (!sev)
 		return -ENOMEM;
 	for (i = 0; i < elems; i++)
@@ -234,7 +234,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 
 	if (found_ev) {
-		kfree(sev);
+		kvfree(sev);
 		return 0; /* Already listening */
 	}
 
@@ -306,7 +306,7 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 	if (sev && sev->ops && sev->ops->del)
 		sev->ops->del(sev);
 
-	kfree(sev);
+	kvfree(sev);
 
 	return 0;
 }
@@ -318,3 +318,39 @@ int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	return v4l2_event_unsubscribe(fh, sub);
 }
 EXPORT_SYMBOL_GPL(v4l2_event_subdev_unsubscribe);
+
+static void v4l2_event_src_replace(struct v4l2_event *old,
+				const struct v4l2_event *new)
+{
+	u32 old_changes = old->u.src_change.changes;
+
+	old->u.src_change = new->u.src_change;
+	old->u.src_change.changes |= old_changes;
+}
+
+static void v4l2_event_src_merge(const struct v4l2_event *old,
+				struct v4l2_event *new)
+{
+	new->u.src_change.changes |= old->u.src_change.changes;
+}
+
+static const struct v4l2_subscribed_event_ops v4l2_event_src_ch_ops = {
+	.replace = v4l2_event_src_replace,
+	.merge = v4l2_event_src_merge,
+};
+
+int v4l2_src_change_event_subscribe(struct v4l2_fh *fh,
+				const struct v4l2_event_subscription *sub)
+{
+	if (sub->type == V4L2_EVENT_SOURCE_CHANGE)
+		return v4l2_event_subscribe(fh, sub, 0, &v4l2_event_src_ch_ops);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(v4l2_src_change_event_subscribe);
+
+int v4l2_src_change_event_subdev_subscribe(struct v4l2_subdev *sd,
+		struct v4l2_fh *fh, struct v4l2_event_subscription *sub)
+{
+	return v4l2_src_change_event_subscribe(fh, sub);
+}
+EXPORT_SYMBOL_GPL(v4l2_src_change_event_subdev_subscribe);

@@ -59,6 +59,9 @@
 #ifndef _LINUX_SFI_H
 #define _LINUX_SFI_H
 
+#include <linux/init.h>
+#include <linux/types.h>
+
 /* Table signatures reserved by the SFI specification */
 #define SFI_SIG_SYST		"SYST"
 #define SFI_SIG_FREQ		"FREQ"
@@ -153,6 +156,7 @@ struct sfi_device_table_entry {
 #define SFI_DEV_TYPE_UART	2
 #define SFI_DEV_TYPE_HSI	3
 #define SFI_DEV_TYPE_IPC	4
+#define SFI_DEV_TYPE_SD		5
 
 	u8	host_num;	/* attached to host 0, 1...*/
 	u16	addr;

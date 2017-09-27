@@ -526,6 +526,21 @@ sys_call_table:
 	.quad sys_process_vm_writev		/* 505 */
 	.quad sys_kcmp
 	.quad sys_finit_module
+	.quad sys_sched_setattr
+	.quad sys_sched_getattr
+	.quad sys_renameat2			/* 510 */
+	.quad sys_getrandom
+	.quad sys_memfd_create
+	.quad sys_execveat
+	.quad sys_seccomp
+	.quad sys_bpf				/* 515 */
+	.quad sys_userfaultfd
+	.quad sys_membarrier
+	.quad sys_mlock2
+	.quad sys_copy_file_range
+	.quad sys_preadv2			/* 520 */
+	.quad sys_pwritev2
+	.quad sys_statx
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

@@ -11,7 +11,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 2 of the License.
  *
- * See Documentation/security/keys-trusted-encrypted.txt
+ * See Documentation/security/keys/trusted-encrypted.rst
  */
 
 #include <linux/uaccess.h>
@@ -29,7 +29,7 @@
  * data, trusted key type data is not visible decrypted from userspace.
  */
 struct key *request_trusted_key(const char *trusted_desc,
-				u8 **master_key, size_t *master_keylen)
+				const u8 **master_key, size_t *master_keylen)
 {
 	struct trusted_key_payload *tpayload;
 	struct key *tkey;
@@ -39,7 +39,7 @@ struct key *request_trusted_key(const char *trusted_desc,
 		goto error;
 
 	down_read(&tkey->sem);
-	tpayload = tkey->payload.data;
+	tpayload = tkey->payload.data[0];
 	*master_key = tpayload->key;
 	*master_keylen = tpayload->key_len;
 error:

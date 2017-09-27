@@ -38,6 +38,8 @@
 #define Q_XGETQSTAT	XQM_CMD(5)	/* get quota subsystem status */
 #define Q_XQUOTARM	XQM_CMD(6)	/* free disk space used by dquots */
 #define Q_XQUOTASYNC	XQM_CMD(7)	/* delalloc flush, updates dquots */
+#define Q_XGETQSTATV	XQM_CMD(8)	/* newer version of get quota */
+#define Q_XGETNEXTQUOTA	XQM_CMD(9)	/* get disk limits and usage >= ID */
 
 /*
  * fs_disk_quota structure:
@@ -162,5 +164,51 @@ typedef struct fs_quota_stat {
 	__u16		qs_bwarnlimit;	/* limit for num warnings */
 	__u16		qs_iwarnlimit;	/* limit for num warnings */
 } fs_quota_stat_t;
+
+/*
+ * fs_quota_statv is used by Q_XGETQSTATV for a given file system. It provides
+ * a centralized way to get meta information about the quota subsystem. eg.
+ * space taken up for user, group, and project quotas, number of dquots
+ * currently incore.
+ *
+ * This version has proper versioning support with appropriate padding for
+ * future expansions, and ability to expand for future without creating any
+ * backward compatibility issues.
+ *
+ * Q_XGETQSTATV uses the passed in value of the requested version via
+ * fs_quota_statv.qs_version to determine the return data layout of
+ * fs_quota_statv.  The kernel will fill the data fields relevant to that
+ * version.
+ *
+ * If kernel does not support user space caller specified version, EINVAL will
+ * be returned. User space caller can then reduce the version number and retry
+ * the same command.
+ */
+#define FS_QSTATV_VERSION1	1	/* fs_quota_statv.qs_version */
+/*
+ * Some basic information about 'quota files' for Q_XGETQSTATV command
+ */
+struct fs_qfilestatv {
+	__u64		qfs_ino;	/* inode number */
+	__u64		qfs_nblks;	/* number of BBs 512-byte-blks */
+	__u32		qfs_nextents;	/* number of extents */
+	__u32		qfs_pad;	/* pad for 8-byte alignment */
+};
+
+struct fs_quota_statv {
+	__s8			qs_version;	/* version for future changes */
+	__u8			qs_pad1;	/* pad for 16bit alignment */
+	__u16			qs_flags;	/* FS_QUOTA_.* flags */
+	__u32			qs_incoredqs;	/* number of dquots incore */
+	struct fs_qfilestatv	qs_uquota;	/* user quota information */
+	struct fs_qfilestatv	qs_gquota;	/* group quota information */
+	struct fs_qfilestatv	qs_pquota;	/* project quota information */
+	__s32			qs_btimelimit;  /* limit for blks timer */
+	__s32			qs_itimelimit;  /* limit for inodes timer */
+	__s32			qs_rtbtimelimit;/* limit for rt blks timer */
+	__u16			qs_bwarnlimit;	/* limit for num warnings */
+	__u16			qs_iwarnlimit;	/* limit for num warnings */
+	__u64			qs_pad2[8];	/* for future proofing */
+};
 
 #endif	/* _LINUX_DQBLK_XFS_H */

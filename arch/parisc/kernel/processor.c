@@ -30,6 +30,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <asm/param.h>
@@ -44,10 +45,12 @@
 
 struct system_cpuinfo_parisc boot_cpu_data __read_mostly;
 EXPORT_SYMBOL(boot_cpu_data);
+#ifdef CONFIG_PA8X00
+int _parisc_requires_coherency __read_mostly;
+EXPORT_SYMBOL(_parisc_requires_coherency);
+#endif
 
 DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
-
-extern int update_cr16_clocksource(void);	/* from time.c */
 
 /*
 **  	PARISC CPU driver - claim "device" and initialize CPU data structures.
@@ -76,11 +79,6 @@ extern int update_cr16_clocksource(void);	/* from time.c */
 static void
 init_percpu_prof(unsigned long cpunum)
 {
-	struct cpuinfo_parisc *p;
-
-	p = &per_cpu(cpu_data, cpunum);
-	p->prof_counter = 1;
-	p->prof_multiplier = 1;
 }
 
 
@@ -92,11 +90,12 @@ init_percpu_prof(unsigned long cpunum)
  * (return 1).  If so, initialize the chip and tell other partners in crime 
  * they have work to do.
  */
-static int processor_probe(struct parisc_device *dev)
+static int __init processor_probe(struct parisc_device *dev)
 {
 	unsigned long txn_addr;
 	unsigned long cpuid;
 	struct cpuinfo_parisc *p;
+	struct pdc_pat_cpu_num cpu_info = { };
 
 #ifdef CONFIG_SMP
 	if (num_online_cpus() >= nr_cpu_ids) {
@@ -115,16 +114,13 @@ static int processor_probe(struct parisc_device *dev)
 	 */
 	cpuid = boot_cpu_data.cpu_count;
 	txn_addr = dev->hpa.start;	/* for legacy PDC */
+	cpu_info.cpu_num = cpu_info.cpu_loc = cpuid;
 
 #ifdef CONFIG_64BIT
 	if (is_pdc_pat()) {
 		ulong status;
 		unsigned long bytecnt;
 	        pdc_pat_cell_mod_maddr_block_t *pa_pdc_cell;
-#undef USE_PAT_CPUID
-#ifdef USE_PAT_CPUID
-		struct pdc_pat_cpu_num cpu_info;
-#endif
 
 		pa_pdc_cell = kmalloc(sizeof (*pa_pdc_cell), GFP_KERNEL);
 		if (!pa_pdc_cell)
@@ -143,22 +139,27 @@ static int processor_probe(struct parisc_device *dev)
 
 		kfree(pa_pdc_cell);
 
+		/* get the cpu number */
+		status = pdc_pat_cpu_get_number(&cpu_info, dev->hpa.start);
+		BUG_ON(PDC_OK != status);
+
+		pr_info("Logical CPU #%lu is physical cpu #%lu at location "
+			"0x%lx with hpa %pa\n",
+			cpuid, cpu_info.cpu_num, cpu_info.cpu_loc,
+			&dev->hpa.start);
+
+#undef USE_PAT_CPUID
 #ifdef USE_PAT_CPUID
 /* We need contiguous numbers for cpuid. Firmware's notion
  * of cpuid is for physical CPUs and we just don't care yet.
  * We'll care when we need to query PAT PDC about a CPU *after*
  * boot time (ie shutdown a CPU from an OS perspective).
  */
-		/* get the cpu number */
-		status = pdc_pat_cpu_get_number(&cpu_info, dev->hpa.start);
-
-		BUG_ON(PDC_OK != status);
-
 		if (cpu_info.cpu_num >= NR_CPUS) {
-			printk(KERN_WARNING "IGNORING CPU at 0x%x,"
+			printk(KERN_WARNING "IGNORING CPU at %pa,"
 				" cpu_slot_id > NR_CPUS"
 				" (%ld > %d)\n",
-				dev->hpa.start, cpu_info.cpu_num, NR_CPUS);
+				&dev->hpa.start, cpu_info.cpu_num, NR_CPUS);
 			/* Ignore CPU since it will only crash */
 			boot_cpu_data.cpu_count--;
 			return 1;
@@ -181,6 +182,8 @@ static int processor_probe(struct parisc_device *dev)
 	p->hpa = dev->hpa.start;	/* save CPU hpa */
 	p->cpuid = cpuid;	/* save CPU id */
 	p->txn_addr = txn_addr;	/* save CPU IRQ address */
+	p->cpu_num = cpu_info.cpu_num;
+	p->cpu_loc = cpu_info.cpu_loc;
 #ifdef CONFIG_SMP
 	/*
 	** FIXME: review if any other initialization is clobbered
@@ -224,12 +227,6 @@ static int processor_probe(struct parisc_device *dev)
 	}
 #endif
 
-	/* If we've registered more than one cpu,
-	 * we'll use the jiffies clocksource since cr16
-	 * is not synchronized between CPUs.
-	 */
-	update_cr16_clocksource();
-
 	return 0;
 }
 
@@ -241,27 +238,44 @@ static int processor_probe(struct parisc_device *dev)
  */
 void __init collect_boot_cpu_data(void)
 {
+	unsigned long cr16_seed;
+
 	memset(&boot_cpu_data, 0, sizeof(boot_cpu_data));
+
+	cr16_seed = get_cycles();
+	add_device_randomness(&cr16_seed, sizeof(cr16_seed));
 
 	boot_cpu_data.cpu_hz = 100 * PAGE0->mem_10msec; /* Hz of this PARISC */
 
 	/* get CPU-Model Information... */
 #define p ((unsigned long *)&boot_cpu_data.pdc.model)
-	if (pdc_model_info(&boot_cpu_data.pdc.model) == PDC_OK)
+	if (pdc_model_info(&boot_cpu_data.pdc.model) == PDC_OK) {
 		printk(KERN_INFO 
 			"model %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
+
+		add_device_randomness(&boot_cpu_data.pdc.model,
+			sizeof(boot_cpu_data.pdc.model));
+	}
 #undef p
 
-	if (pdc_model_versions(&boot_cpu_data.pdc.versions, 0) == PDC_OK)
+	if (pdc_model_versions(&boot_cpu_data.pdc.versions, 0) == PDC_OK) {
 		printk(KERN_INFO "vers  %08lx\n", 
 			boot_cpu_data.pdc.versions);
 
-	if (pdc_model_cpuid(&boot_cpu_data.pdc.cpuid) == PDC_OK)
+		add_device_randomness(&boot_cpu_data.pdc.versions,
+			sizeof(boot_cpu_data.pdc.versions));
+	}
+
+	if (pdc_model_cpuid(&boot_cpu_data.pdc.cpuid) == PDC_OK) {
 		printk(KERN_INFO "CPUID vers %ld rev %ld (0x%08lx)\n",
 			(boot_cpu_data.pdc.cpuid >> 5) & 127,
 			boot_cpu_data.pdc.cpuid & 31,
 			boot_cpu_data.pdc.cpuid);
+
+		add_device_randomness(&boot_cpu_data.pdc.cpuid,
+			sizeof(boot_cpu_data.pdc.cpuid));
+	}
 
 	if (pdc_model_capabilities(&boot_cpu_data.pdc.capabilities) == PDC_OK)
 		printk(KERN_INFO "capabilities 0x%lx\n",
@@ -277,8 +291,12 @@ void __init collect_boot_cpu_data(void)
 	boot_cpu_data.cpu_type = parisc_get_cpu_type(boot_cpu_data.hversion);
 	boot_cpu_data.cpu_name = cpu_name_version[boot_cpu_data.cpu_type][0];
 	boot_cpu_data.family_name = cpu_name_version[boot_cpu_data.cpu_type][1];
-}
 
+#ifdef CONFIG_PA8X00
+	_parisc_requires_coherency = (boot_cpu_data.cpu_type == mako) ||
+				(boot_cpu_data.cpu_type == mako2);
+#endif
+}
 
 
 /**
@@ -299,7 +317,7 @@ void __init collect_boot_cpu_data(void)
  *
  * o Enable CPU profiling hooks.
  */
-int init_per_cpu(int cpunum)
+int __init init_per_cpu(int cpunum)
 {
 	int ret;
 	struct pdc_coproc_cfg coproc_cfg;
@@ -316,8 +334,9 @@ int init_per_cpu(int cpunum)
 		per_cpu(cpu_data, cpunum).fp_rev = coproc_cfg.revision;
 		per_cpu(cpu_data, cpunum).fp_model = coproc_cfg.model;
 
-		printk(KERN_INFO  "FP[%d] enabled: Rev %ld Model %ld\n",
-			cpunum, coproc_cfg.revision, coproc_cfg.model);
+		if (cpunum == 0)
+			printk(KERN_INFO  "FP[%d] enabled: Rev %ld Model %ld\n",
+				cpunum, coproc_cfg.revision, coproc_cfg.model);
 
 		/*
 		** store status register to stack (hopefully aligned)
@@ -413,12 +432,12 @@ show_cpuinfo (struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct parisc_device_id processor_tbl[] = {
+static const struct parisc_device_id processor_tbl[] __initconst = {
 	{ HPHW_NPROC, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, SVERSION_ANY_ID },
 	{ 0, }
 };
 
-static struct parisc_driver cpu_driver = {
+static struct parisc_driver cpu_driver __refdata = {
 	.name		= "CPU",
 	.id_table	= processor_tbl,
 	.probe		= processor_probe

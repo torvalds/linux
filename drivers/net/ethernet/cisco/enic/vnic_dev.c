@@ -27,46 +27,9 @@
 #include "vnic_resource.h"
 #include "vnic_devcmd.h"
 #include "vnic_dev.h"
+#include "vnic_wq.h"
 #include "vnic_stats.h"
-
-enum vnic_proxy_type {
-	PROXY_NONE,
-	PROXY_BY_BDF,
-	PROXY_BY_INDEX,
-};
-
-struct vnic_res {
-	void __iomem *vaddr;
-	dma_addr_t bus_addr;
-	unsigned int count;
-};
-
-struct vnic_intr_coal_timer_info {
-	u32 mul;
-	u32 div;
-	u32 max_usec;
-};
-
-struct vnic_dev {
-	void *priv;
-	struct pci_dev *pdev;
-	struct vnic_res res[RES_TYPE_MAX];
-	enum vnic_dev_intr_mode intr_mode;
-	struct vnic_devcmd __iomem *devcmd;
-	struct vnic_devcmd_notify *notify;
-	struct vnic_devcmd_notify notify_copy;
-	dma_addr_t notify_pa;
-	u32 notify_sz;
-	dma_addr_t linkstatus_pa;
-	struct vnic_stats *stats;
-	dma_addr_t stats_pa;
-	struct vnic_devcmd_fw_info *fw_info;
-	dma_addr_t fw_info_pa;
-	enum vnic_proxy_type proxy;
-	u32 proxy_index;
-	u64 args[VNIC_DEVCMD_NARGS];
-	struct vnic_intr_coal_timer_info intr_coal_timer_info;
-};
+#include "enic.h"
 
 #define VNIC_MAX_RES_HDR_SIZE \
 	(sizeof(struct vnic_resource_header) + \
@@ -90,14 +53,14 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		return -EINVAL;
 
 	if (bar->len < VNIC_MAX_RES_HDR_SIZE) {
-		pr_err("vNIC BAR0 res hdr length error\n");
+		vdev_err(vdev, "vNIC BAR0 res hdr length error\n");
 		return -EINVAL;
 	}
 
 	rh  = bar->vaddr;
 	mrh = bar->vaddr;
 	if (!rh) {
-		pr_err("vNIC BAR0 res hdr not mem-mapped\n");
+		vdev_err(vdev, "vNIC BAR0 res hdr not mem-mapped\n");
 		return -EINVAL;
 	}
 
@@ -106,11 +69,10 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		(ioread32(&rh->version) != VNIC_RES_VERSION)) {
 		if ((ioread32(&mrh->magic) != MGMTVNIC_MAGIC) ||
 			(ioread32(&mrh->version) != MGMTVNIC_VERSION)) {
-			pr_err("vNIC BAR0 res magic/version error "
-			"exp (%lx/%lx) or (%lx/%lx), curr (%x/%x)\n",
-			VNIC_RES_MAGIC, VNIC_RES_VERSION,
-			MGMTVNIC_MAGIC, MGMTVNIC_VERSION,
-			ioread32(&rh->magic), ioread32(&rh->version));
+			vdev_err(vdev, "vNIC BAR0 res magic/version error exp (%lx/%lx) or (%lx/%lx), curr (%x/%x)\n",
+				 VNIC_RES_MAGIC, VNIC_RES_VERSION,
+				 MGMTVNIC_MAGIC, MGMTVNIC_VERSION,
+				 ioread32(&rh->magic), ioread32(&rh->version));
 			return -EINVAL;
 		}
 	}
@@ -144,17 +106,15 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 			/* each count is stride bytes long */
 			len = count * VNIC_RES_STRIDE;
 			if (len + bar_offset > bar[bar_num].len) {
-				pr_err("vNIC BAR0 resource %d "
-					"out-of-bounds, offset 0x%x + "
-					"size 0x%x > bar len 0x%lx\n",
-					type, bar_offset,
-					len,
-					bar[bar_num].len);
+				vdev_err(vdev, "vNIC BAR0 resource %d out-of-bounds, offset 0x%x + size 0x%x > bar len 0x%lx\n",
+					 type, bar_offset, len,
+					 bar[bar_num].len);
 				return -EINVAL;
 			}
 			break;
 		case RES_TYPE_INTR_PBA_LEGACY:
 		case RES_TYPE_DEVCMD:
+		case RES_TYPE_DEVCMD2:
 			len = count;
 			break;
 		default:
@@ -175,6 +135,7 @@ unsigned int vnic_dev_get_res_count(struct vnic_dev *vdev,
 {
 	return vdev->res[type].count;
 }
+EXPORT_SYMBOL(vnic_dev_get_res_count);
 
 void __iomem *vnic_dev_get_res(struct vnic_dev *vdev, enum vnic_res_type type,
 	unsigned int index)
@@ -193,6 +154,7 @@ void __iomem *vnic_dev_get_res(struct vnic_dev *vdev, enum vnic_res_type type,
 		return (char __iomem *)vdev->res[type].vaddr;
 	}
 }
+EXPORT_SYMBOL(vnic_dev_get_res);
 
 static unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
 	unsigned int desc_count, unsigned int desc_size)
@@ -236,8 +198,8 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 		&ring->base_addr_unaligned);
 
 	if (!ring->descs_unaligned) {
-		pr_err("Failed to allocate ring (size=%d), aborting\n",
-			(int)ring->size);
+		vdev_err(vdev, "Failed to allocate ring (size=%d), aborting\n",
+			 (int)ring->size);
 		return -ENOMEM;
 	}
 
@@ -279,7 +241,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		return -ENODEV;
 	}
 	if (status & STAT_BUSY) {
-		pr_err("Busy devcmd %d\n", _CMD_N(cmd));
+		vdev_neterr(vdev, "Busy devcmd %d\n", _CMD_N(cmd));
 		return -EBUSY;
 	}
 
@@ -310,12 +272,12 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 				err = (int)readq(&devcmd->args[0]);
 				if (err == ERR_EINVAL &&
 				    cmd == CMD_CAPABILITY)
-					return err;
+					return -err;
 				if (err != ERR_ECMDUNKNOWN ||
 				    cmd != CMD_CAPABILITY)
-					pr_err("Error %d devcmd %d\n",
-						err, _CMD_N(cmd));
-				return err;
+					vdev_neterr(vdev, "Error %d devcmd %d\n",
+						    err, _CMD_N(cmd));
+				return -err;
 			}
 
 			if (_CMD_DIR(cmd) & _CMD_DIR_READ) {
@@ -328,8 +290,166 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		}
 	}
 
-	pr_err("Timedout devcmd %d\n", _CMD_N(cmd));
+	vdev_neterr(vdev, "Timedout devcmd %d\n", _CMD_N(cmd));
 	return -ETIMEDOUT;
+}
+
+static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+			  int wait)
+{
+	struct devcmd2_controller *dc2c = vdev->devcmd2;
+	struct devcmd2_result *result;
+	u8 color;
+	unsigned int i;
+	int delay, err;
+	u32 fetch_index, new_posted;
+	u32 posted = dc2c->posted;
+
+	fetch_index = ioread32(&dc2c->wq_ctrl->fetch_index);
+
+	if (fetch_index == 0xFFFFFFFF)
+		return -ENODEV;
+
+	new_posted = (posted + 1) % DEVCMD2_RING_SIZE;
+
+	if (new_posted == fetch_index) {
+		vdev_neterr(vdev, "devcmd2 %d: wq is full. fetch index: %u, posted index: %u\n",
+			    _CMD_N(cmd), fetch_index, posted);
+		return -EBUSY;
+	}
+	dc2c->cmd_ring[posted].cmd = cmd;
+	dc2c->cmd_ring[posted].flags = 0;
+
+	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_NOWAIT))
+		dc2c->cmd_ring[posted].flags |= DEVCMD2_FNORESULT;
+	if (_CMD_DIR(cmd) & _CMD_DIR_WRITE)
+		for (i = 0; i < VNIC_DEVCMD_NARGS; i++)
+			dc2c->cmd_ring[posted].args[i] = vdev->args[i];
+
+	/* Adding write memory barrier prevents compiler and/or CPU reordering,
+	 * thus avoiding descriptor posting before descriptor is initialized.
+	 * Otherwise, hardware can read stale descriptor fields.
+	 */
+	wmb();
+	iowrite32(new_posted, &dc2c->wq_ctrl->posted_index);
+	dc2c->posted = new_posted;
+
+	if (dc2c->cmd_ring[posted].flags & DEVCMD2_FNORESULT)
+		return 0;
+
+	result = dc2c->result + dc2c->next_result;
+	color = dc2c->color;
+
+	dc2c->next_result++;
+	if (dc2c->next_result == dc2c->result_size) {
+		dc2c->next_result = 0;
+		dc2c->color = dc2c->color ? 0 : 1;
+	}
+
+	for (delay = 0; delay < wait; delay++) {
+		if (result->color == color) {
+			if (result->error) {
+				err = result->error;
+				if (err != ERR_ECMDUNKNOWN ||
+				    cmd != CMD_CAPABILITY)
+					vdev_neterr(vdev, "Error %d devcmd %d\n",
+						    err, _CMD_N(cmd));
+				return -err;
+			}
+			if (_CMD_DIR(cmd) & _CMD_DIR_READ)
+				for (i = 0; i < VNIC_DEVCMD2_NARGS; i++)
+					vdev->args[i] = result->results[i];
+
+			return 0;
+		}
+		udelay(100);
+	}
+
+	vdev_neterr(vdev, "devcmd %d timed out\n", _CMD_N(cmd));
+
+	return -ETIMEDOUT;
+}
+
+static int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
+{
+	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
+	if (!vdev->devcmd)
+		return -ENODEV;
+	vdev->devcmd_rtn = _vnic_dev_cmd;
+
+	return 0;
+}
+
+static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
+{
+	int err;
+	unsigned int fetch_index;
+
+	if (vdev->devcmd2)
+		return 0;
+
+	vdev->devcmd2 = kzalloc(sizeof(*vdev->devcmd2), GFP_KERNEL);
+	if (!vdev->devcmd2)
+		return -ENOMEM;
+
+	vdev->devcmd2->color = 1;
+	vdev->devcmd2->result_size = DEVCMD2_RING_SIZE;
+	err = enic_wq_devcmd2_alloc(vdev, &vdev->devcmd2->wq, DEVCMD2_RING_SIZE,
+				    DEVCMD2_DESC_SIZE);
+	if (err)
+		goto err_free_devcmd2;
+
+	fetch_index = ioread32(&vdev->devcmd2->wq.ctrl->fetch_index);
+	if (fetch_index == 0xFFFFFFFF) { /* check for hardware gone  */
+		vdev_err(vdev, "Fatal error in devcmd2 init - hardware surprise removal\n");
+		err = -ENODEV;
+		goto err_free_wq;
+	}
+
+	enic_wq_init_start(&vdev->devcmd2->wq, 0, fetch_index, fetch_index, 0,
+			   0);
+	vdev->devcmd2->posted = fetch_index;
+	vnic_wq_enable(&vdev->devcmd2->wq);
+
+	err = vnic_dev_alloc_desc_ring(vdev, &vdev->devcmd2->results_ring,
+				       DEVCMD2_RING_SIZE, DEVCMD2_DESC_SIZE);
+	if (err)
+		goto err_disable_wq;
+
+	vdev->devcmd2->result = vdev->devcmd2->results_ring.descs;
+	vdev->devcmd2->cmd_ring = vdev->devcmd2->wq.ring.descs;
+	vdev->devcmd2->wq_ctrl = vdev->devcmd2->wq.ctrl;
+	vdev->args[0] = (u64)vdev->devcmd2->results_ring.base_addr |
+			VNIC_PADDR_TARGET;
+	vdev->args[1] = DEVCMD2_RING_SIZE;
+
+	err = _vnic_dev_cmd2(vdev, CMD_INITIALIZE_DEVCMD2, 1000);
+	if (err)
+		goto err_free_desc_ring;
+
+	vdev->devcmd_rtn = _vnic_dev_cmd2;
+
+	return 0;
+
+err_free_desc_ring:
+	vnic_dev_free_desc_ring(vdev, &vdev->devcmd2->results_ring);
+err_disable_wq:
+	vnic_wq_disable(&vdev->devcmd2->wq);
+err_free_wq:
+	vnic_wq_free(&vdev->devcmd2->wq);
+err_free_devcmd2:
+	kfree(vdev->devcmd2);
+	vdev->devcmd2 = NULL;
+
+	return err;
+}
+
+static void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
+{
+	vnic_dev_free_desc_ring(vdev, &vdev->devcmd2->results_ring);
+	vnic_wq_disable(&vdev->devcmd2->wq);
+	vnic_wq_free(&vdev->devcmd2->wq);
+	kfree(vdev->devcmd2);
 }
 
 static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
@@ -346,7 +466,7 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 	vdev->args[2] = *a0;
 	vdev->args[3] = *a1;
 
-	err = _vnic_dev_cmd(vdev, proxy_cmd, wait);
+	err = vdev->devcmd_rtn(vdev, proxy_cmd, wait);
 	if (err)
 		return err;
 
@@ -355,7 +475,8 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 		err = (int)vdev->args[1];
 		if (err != ERR_ECMDUNKNOWN ||
 		    cmd != CMD_CAPABILITY)
-			pr_err("Error %d proxy devcmd %d\n", err, _CMD_N(cmd));
+			vdev_neterr(vdev, "Error %d proxy devcmd %d\n",
+				    err, _CMD_N(cmd));
 		return err;
 	}
 
@@ -373,7 +494,7 @@ static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
 	vdev->args[0] = *a0;
 	vdev->args[1] = *a1;
 
-	err = _vnic_dev_cmd(vdev, cmd, wait);
+	err = vdev->devcmd_rtn(vdev, cmd, wait);
 
 	*a0 = vdev->args[0];
 	*a1 = vdev->args[1];
@@ -430,13 +551,11 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 	int err = 0;
 
 	if (!vdev->fw_info) {
-		vdev->fw_info = pci_alloc_consistent(vdev->pdev,
-			sizeof(struct vnic_devcmd_fw_info),
-			&vdev->fw_info_pa);
+		vdev->fw_info = pci_zalloc_consistent(vdev->pdev,
+						      sizeof(struct vnic_devcmd_fw_info),
+						      &vdev->fw_info_pa);
 		if (!vdev->fw_info)
 			return -ENOMEM;
-
-		memset(vdev->fw_info, 0, sizeof(struct vnic_devcmd_fw_info));
 
 		a0 = vdev->fw_info_pa;
 		a1 = sizeof(struct vnic_devcmd_fw_info);
@@ -546,14 +665,14 @@ int vnic_dev_open_done(struct vnic_dev *vdev, int *done)
 	return 0;
 }
 
-static int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg)
+int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg)
 {
 	u64 a0 = (u32)arg, a1 = 0;
 	int wait = 1000;
 	return vnic_dev_cmd(vdev, CMD_SOFT_RESET, &a0, &a1, wait);
 }
 
-static int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
+int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
 {
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
@@ -650,12 +769,12 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 
 	err = vnic_dev_cmd(vdev, CMD_PACKET_FILTER, &a0, &a1, wait);
 	if (err)
-		pr_err("Can't set packet filter\n");
+		vdev_neterr(vdev, "Can't set packet filter\n");
 
 	return err;
 }
 
-int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
+int vnic_dev_add_addr(struct vnic_dev *vdev, const u8 *addr)
 {
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
@@ -667,12 +786,12 @@ int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
 	if (err)
-		pr_err("Can't add addr [%pM], %d\n", addr, err);
+		vdev_neterr(vdev, "Can't add addr [%pM], %d\n", addr, err);
 
 	return err;
 }
 
-int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
+int vnic_dev_del_addr(struct vnic_dev *vdev, const u8 *addr)
 {
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
@@ -684,7 +803,7 @@ int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_DEL, &a0, &a1, wait);
 	if (err)
-		pr_err("Can't del addr [%pM], %d\n", addr, err);
+		vdev_neterr(vdev, "Can't del addr [%pM], %d\n", addr, err);
 
 	return err;
 }
@@ -728,7 +847,8 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 	dma_addr_t notify_pa;
 
 	if (vdev->notify || vdev->notify_pa) {
-		pr_err("notify block %p still allocated", vdev->notify);
+		vdev_neterr(vdev, "notify block %p still allocated\n",
+			    vdev->notify);
 		return -EINVAL;
 	}
 
@@ -838,7 +958,7 @@ int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev)
 	memset(vdev->args, 0, sizeof(vdev->args));
 
 	if (vnic_dev_capable(vdev, CMD_INTR_COAL_CONVERT))
-		err = _vnic_dev_cmd(vdev, CMD_INTR_COAL_CONVERT, wait);
+		err = vdev->devcmd_rtn(vdev, CMD_INTR_COAL_CONVERT, wait);
 	else
 		err = ERR_ECMDUNKNOWN;
 
@@ -847,8 +967,7 @@ int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev)
 	 */
 	if ((err == ERR_ECMDUNKNOWN) ||
 		(!err && !(vdev->args[0] && vdev->args[1] && vdev->args[2]))) {
-		pr_warning("Using default conversion factor for "
-			"interrupt coalesce timer\n");
+		vdev_netwarn(vdev, "Using default conversion factor for interrupt coalesce timer\n");
 		vnic_dev_intr_coal_timer_info_default(vdev);
 		return 0;
 	}
@@ -939,9 +1058,13 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 			pci_free_consistent(vdev->pdev,
 				sizeof(struct vnic_devcmd_fw_info),
 				vdev->fw_info, vdev->fw_info_pa);
+		if (vdev->devcmd2)
+			vnic_dev_deinit_devcmd2(vdev);
+
 		kfree(vdev);
 	}
 }
+EXPORT_SYMBOL(vnic_dev_unregister);
 
 struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar,
@@ -959,15 +1082,41 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	if (vnic_dev_discover_res(vdev, bar, num_bars))
 		goto err_out;
 
-	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
-	if (!vdev->devcmd)
-		goto err_out;
-
 	return vdev;
 
 err_out:
 	vnic_dev_unregister(vdev);
 	return NULL;
+}
+EXPORT_SYMBOL(vnic_dev_register);
+
+struct pci_dev *vnic_dev_get_pdev(struct vnic_dev *vdev)
+{
+	return vdev->pdev;
+}
+EXPORT_SYMBOL(vnic_dev_get_pdev);
+
+int vnic_devcmd_init(struct vnic_dev *vdev)
+{
+	void __iomem *res;
+	int err;
+
+	res = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD2, 0);
+	if (res) {
+		err = vnic_dev_init_devcmd2(vdev);
+		if (err)
+			vdev_warn(vdev, "DEVCMD2 init failed: %d, Using DEVCMD1\n",
+				  err);
+		else
+			return 0;
+	} else {
+		vdev_warn(vdev, "DEVCMD2 resource not found (old firmware?) Using DEVCMD1\n");
+	}
+	err = vnic_dev_init_devcmd1(vdev);
+	if (err)
+		vdev_err(vdev, "DEVCMD1 initialization failed: %d\n", err);
+
+	return err;
 }
 
 int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len)
@@ -1037,4 +1186,99 @@ int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
 		((u8 *)&a0)[i] = mac_addr[i];
 
 	return vnic_dev_cmd(vdev, CMD_SET_MAC_ADDR, &a0, &a1, wait);
+}
+
+/* vnic_dev_classifier: Add/Delete classifier entries
+ * @vdev: vdev of the device
+ * @cmd: CLSF_ADD for Add filter
+ *	 CLSF_DEL for Delete filter
+ * @entry: In case of ADD filter, the caller passes the RQ number in this
+ *	   variable.
+ *
+ *	   This function stores the filter_id returned by the firmware in the
+ *	   same variable before return;
+ *
+ *	   In case of DEL filter, the caller passes the RQ number. Return
+ *	   value is irrelevant.
+ * @data: filter data
+ */
+int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
+			struct filter *data)
+{
+	u64 a0, a1;
+	int wait = 1000;
+	dma_addr_t tlv_pa;
+	int ret = -EINVAL;
+	struct filter_tlv *tlv, *tlv_va;
+	struct filter_action *action;
+	u64 tlv_size;
+
+	if (cmd == CLSF_ADD) {
+		tlv_size = sizeof(struct filter) +
+			   sizeof(struct filter_action) +
+			   2 * sizeof(struct filter_tlv);
+		tlv_va = pci_alloc_consistent(vdev->pdev, tlv_size, &tlv_pa);
+		if (!tlv_va)
+			return -ENOMEM;
+		tlv = tlv_va;
+		a0 = tlv_pa;
+		a1 = tlv_size;
+		memset(tlv, 0, tlv_size);
+		tlv->type = CLSF_TLV_FILTER;
+		tlv->length = sizeof(struct filter);
+		*(struct filter *)&tlv->val = *data;
+
+		tlv = (struct filter_tlv *)((char *)tlv +
+					    sizeof(struct filter_tlv) +
+					    sizeof(struct filter));
+
+		tlv->type = CLSF_TLV_ACTION;
+		tlv->length = sizeof(struct filter_action);
+		action = (struct filter_action *)&tlv->val;
+		action->type = FILTER_ACTION_RQ_STEERING;
+		action->u.rq_idx = *entry;
+
+		ret = vnic_dev_cmd(vdev, CMD_ADD_FILTER, &a0, &a1, wait);
+		*entry = (u16)a0;
+		pci_free_consistent(vdev->pdev, tlv_size, tlv_va, tlv_pa);
+	} else if (cmd == CLSF_DEL) {
+		a0 = *entry;
+		ret = vnic_dev_cmd(vdev, CMD_DEL_FILTER, &a0, &a1, wait);
+	}
+
+	return ret;
+}
+
+int vnic_dev_overlay_offload_ctrl(struct vnic_dev *vdev, u8 overlay, u8 config)
+{
+	u64 a0 = overlay;
+	u64 a1 = config;
+	int wait = 1000;
+
+	return vnic_dev_cmd(vdev, CMD_OVERLAY_OFFLOAD_CTRL, &a0, &a1, wait);
+}
+
+int vnic_dev_overlay_offload_cfg(struct vnic_dev *vdev, u8 overlay,
+				 u16 vxlan_udp_port_number)
+{
+	u64 a1 = vxlan_udp_port_number;
+	u64 a0 = overlay;
+	int wait = 1000;
+
+	return vnic_dev_cmd(vdev, CMD_OVERLAY_OFFLOAD_CFG, &a0, &a1, wait);
+}
+
+int vnic_dev_get_supported_feature_ver(struct vnic_dev *vdev, u8 feature,
+				       u64 *supported_versions)
+{
+	u64 a0 = feature;
+	int wait = 1000;
+	u64 a1 = 0;
+	int ret;
+
+	ret = vnic_dev_cmd(vdev, CMD_GET_SUPP_FEATURE_VER, &a0, &a1, wait);
+	if (!ret)
+		*supported_versions = a0;
+
+	return ret;
 }

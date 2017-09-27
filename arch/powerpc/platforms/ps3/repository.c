@@ -170,14 +170,8 @@ int ps3_repository_read_bus_str(unsigned int bus_index, const char *bus_str,
 
 int ps3_repository_read_bus_id(unsigned int bus_index, u64 *bus_id)
 {
-	int result;
-
-	result = read_node(PS3_LPAR_ID_PME,
-		make_first_field("bus", bus_index),
-		make_field("id", 0),
-		0, 0,
-		bus_id, NULL);
-	return result;
+	return read_node(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
+			 make_field("id", 0), 0, 0, bus_id, NULL);
 }
 
 int ps3_repository_read_bus_type(unsigned int bus_index,
@@ -224,15 +218,9 @@ int ps3_repository_read_dev_str(unsigned int bus_index,
 int ps3_repository_read_dev_id(unsigned int bus_index, unsigned int dev_index,
 	u64 *dev_id)
 {
-	int result;
-
-	result = read_node(PS3_LPAR_ID_PME,
-		make_first_field("bus", bus_index),
-		make_field("dev", dev_index),
-		make_field("id", 0),
-		0,
-		dev_id, NULL);
-	return result;
+	return read_node(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
+			 make_field("dev", dev_index), make_field("id", 0), 0,
+			 dev_id, NULL);
 }
 
 int ps3_repository_read_dev_type(unsigned int bus_index,
@@ -1198,7 +1186,7 @@ int ps3_repository_delete_highmem_info(unsigned int region_index)
 	return result ? -1 : 0;
 }
 
-#endif /* defined(CONFIG_PS3_WRITE_REPOSITORY) */
+#endif /* defined(CONFIG_PS3_REPOSITORY_WRITE) */
 
 #if defined(DEBUG)
 

@@ -1,90 +1,64 @@
 config H8300
-	bool
-	default y
-	select HAVE_IDE
-	select HAVE_GENERIC_HARDIRQS
+        def_bool y
 	select GENERIC_ATOMIC64
 	select HAVE_UID16
 	select VIRT_TO_BUS
-	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_IRQ_SHOW
+	select FRAME_POINTER
 	select GENERIC_CPU_DEVICES
 	select MODULES_USE_ELF_RELA
-	select OLD_SIGSUSPEND3
-	select OLD_SIGACTION
-	select HAVE_UNDERSCORE_SYMBOL_PREFIX
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select ARCH_WANT_FRAME_POINTERS
+	select OF
+	select OF_IRQ
+	select OF_EARLY_FLATTREE
+	select HAVE_MEMBLOCK
+	select TIMER_OF
+	select H8300_TMR8
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
+	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_HASH
+	select CPU_NO_EFFICIENT_FFS
 
-config MMU
-	bool
-	default n
-
-config SWAP
-	bool
-	default n
-
-config ZONE_DMA
-	bool
-	default y
-
-config FPU
-	bool
-	default n
+config CPU_BIG_ENDIAN
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U32
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U64
-	bool
-	default n
+	def_bool y
 
 config GENERIC_HWEIGHT
-	bool
-	default y
-
-config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config GENERIC_BUG
-        bool
-        depends on BUG
-
-config TIME_LOW_RES
-	bool
-	default y
-
-config NO_IOPORT
 	def_bool y
 
-config NO_DMA
+config NO_IOPORT_MAP
 	def_bool y
 
-config ISA
-	bool
-	default y
-
-config PCI
-	bool
-	default n
+config GENERIC_CSUM
+        def_bool y
 
 config HZ
 	int
 	default 100
+
+config NR_CPUS
+	int
+	default 1
 
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
 source "arch/h8300/Kconfig.cpu"
+
+menu "Kernel Features"
+
+source "kernel/Kconfig.preempt"
+
+source "mm/Kconfig"
+
+endmenu
 
 menu "Executable file formats"
 
@@ -96,11 +70,13 @@ source "net/Kconfig"
 
 source "drivers/Kconfig"
 
-source "arch/h8300/Kconfig.ide"
-
 source "fs/Kconfig"
 
-source "arch/h8300/Kconfig.debug"
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+endmenu
 
 source "security/Kconfig"
 

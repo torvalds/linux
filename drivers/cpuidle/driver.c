@@ -10,9 +10,12 @@
 
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/sched/idle.h>
 #include <linux/cpuidle.h>
 #include <linux/cpumask.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
+#include <linux/cpu.h>
 
 #include "cpuidle.h"
 
@@ -56,7 +59,7 @@ static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
 }
 
 /**
- * __cpuidle_set_driver - set per CPU driver variables the the given driver.
+ * __cpuidle_set_driver - set per CPU driver variables for the given driver.
  * @drv: a valid pointer to a struct cpuidle_driver
  *
  * For each CPU in the driver's cpumask, unset the registered driver per CPU
@@ -129,30 +132,27 @@ static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
 #endif
 
 /**
- * cpuidle_setup_broadcast_timer - enable/disable the broadcast timer
+ * cpuidle_setup_broadcast_timer - enable/disable the broadcast timer on a cpu
  * @arg: a void pointer used to match the SMP cross call API
  *
- * @arg is used as a value of type 'long' with on of the two values:
- * - CLOCK_EVT_NOTIFY_BROADCAST_ON
- * - CLOCK_EVT_NOTIFY_BROADCAST_OFF
+ * If @arg is NULL broadcast is disabled otherwise enabled
  *
- * Set the broadcast timer notification for the current CPU.  This function
- * is executed per CPU by an SMP cross call.  It not supposed to be called
- * directly.
+ * This function is executed per CPU by an SMP cross call.  It's not
+ * supposed to be called directly.
  */
 static void cpuidle_setup_broadcast_timer(void *arg)
 {
-	int cpu = smp_processor_id();
-	clockevents_notify((long)(arg), &cpu);
+	if (arg)
+		tick_broadcast_enable();
+	else
+		tick_broadcast_disable();
 }
 
 /**
  * __cpuidle_driver_init - initialize the driver's internal data
  * @drv: a valid pointer to a struct cpuidle_driver
- *
- * Returns 0 on success, a negative error code otherwise.
  */
-static int __cpuidle_driver_init(struct cpuidle_driver *drv)
+static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 {
 	int i;
 
@@ -169,18 +169,14 @@ static int __cpuidle_driver_init(struct cpuidle_driver *drv)
 	/*
 	 * Look for the timer stop flag in the different states, so that we know
 	 * if the broadcast timer has to be set up.  The loop is in the reverse
-	 * order, because usually on of the the deeper states has this flag set.
+	 * order, because usually one of the deeper states have this flag set.
 	 */
 	for (i = drv->state_count - 1; i >= 0 ; i--) {
-
-		if (!(drv->states[i].flags & CPUIDLE_FLAG_TIMER_STOP))
-			continue;
-
-		drv->bctimer = 1;
-		break;
+		if (drv->states[i].flags & CPUIDLE_FLAG_TIMER_STOP) {
+			drv->bctimer = 1;
+			break;
+		}
 	}
-
-	return 0;
 }
 
 /**
@@ -203,12 +199,14 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
 	if (!drv || !drv->state_count)
 		return -EINVAL;
 
+	ret = cpuidle_coupled_state_verify(drv);
+	if (ret)
+		return ret;
+
 	if (cpuidle_disabled())
 		return -ENODEV;
 
-	ret = __cpuidle_driver_init(drv);
-	if (ret)
-		return ret;
+	__cpuidle_driver_init(drv);
 
 	ret = __cpuidle_set_driver(drv);
 	if (ret)
@@ -216,7 +214,7 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
 
 	if (drv->bctimer)
 		on_each_cpu_mask(drv->cpumask, cpuidle_setup_broadcast_timer,
-				 (void *)CLOCK_EVT_NOTIFY_BROADCAST_ON, 1);
+				 (void *)1, 1);
 
 	return 0;
 }
@@ -238,7 +236,7 @@ static void __cpuidle_unregister_driver(struct cpuidle_driver *drv)
 	if (drv->bctimer) {
 		drv->bctimer = 0;
 		on_each_cpu_mask(drv->cpumask, cpuidle_setup_broadcast_timer,
-				 (void *)CLOCK_EVT_NOTIFY_BROADCAST_OFF, 1);
+				 NULL, 1);
 	}
 
 	__cpuidle_unset_driver(drv);
@@ -331,7 +329,8 @@ struct cpuidle_driver *cpuidle_driver_ref(void)
 	spin_lock(&cpuidle_driver_lock);
 
 	drv = cpuidle_get_driver();
-	drv->refcnt++;
+	if (drv)
+		drv->refcnt++;
 
 	spin_unlock(&cpuidle_driver_lock);
 	return drv;
@@ -345,10 +344,11 @@ struct cpuidle_driver *cpuidle_driver_ref(void)
  */
 void cpuidle_driver_unref(void)
 {
-	struct cpuidle_driver *drv = cpuidle_get_driver();
+	struct cpuidle_driver *drv;
 
 	spin_lock(&cpuidle_driver_lock);
 
+	drv = cpuidle_get_driver();
 	if (drv && !WARN_ON(drv->refcnt <= 0))
 		drv->refcnt--;
 

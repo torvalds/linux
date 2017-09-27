@@ -4,6 +4,7 @@
  */
 
 #ifdef __KERNEL__
+#include <linux/linkage.h>
 #include <asm/asi.h>
 #include <asm/thread_info.h>
 #define GLOBAL_SPARE	%g7
@@ -27,15 +28,11 @@
 #endif
 
 #ifndef EX_LD
-#define EX_LD(x)	x
+#define EX_LD(x,y)	x
 #endif
 
 #ifndef EX_ST
-#define EX_ST(x)	x
-#endif
-
-#ifndef EX_RETVAL
-#define EX_RETVAL(x)	x
+#define EX_ST(x,y)	x
 #endif
 
 #ifndef LOAD
@@ -79,6 +76,92 @@
 	.register	%g3,#scratch
 
 	.text
+#ifndef EX_RETVAL
+#define EX_RETVAL(x)	x
+__restore_asi:
+	ret
+	wr	%g0, ASI_AIUS, %asi
+	 restore
+ENTRY(NG_ret_i2_plus_i4_plus_1)
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %i5, %i0
+ENDPROC(NG_ret_i2_plus_i4_plus_1)
+ENTRY(NG_ret_i2_plus_g1)
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1)
+ENTRY(NG_ret_i2_plus_g1_minus_8)
+	sub	%g1, 8, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_minus_8)
+ENTRY(NG_ret_i2_plus_g1_minus_16)
+	sub	%g1, 16, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_minus_16)
+ENTRY(NG_ret_i2_plus_g1_minus_24)
+	sub	%g1, 24, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_minus_24)
+ENTRY(NG_ret_i2_plus_g1_minus_32)
+	sub	%g1, 32, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_minus_32)
+ENTRY(NG_ret_i2_plus_g1_minus_40)
+	sub	%g1, 40, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_minus_40)
+ENTRY(NG_ret_i2_plus_g1_minus_48)
+	sub	%g1, 48, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_minus_48)
+ENTRY(NG_ret_i2_plus_g1_minus_56)
+	sub	%g1, 56, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_minus_56)
+ENTRY(NG_ret_i2_plus_i4)
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %i4, %i0
+ENDPROC(NG_ret_i2_plus_i4)
+ENTRY(NG_ret_i2_plus_i4_minus_8)
+	sub	%i4, 8, %i4
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %i4, %i0
+ENDPROC(NG_ret_i2_plus_i4_minus_8)
+ENTRY(NG_ret_i2_plus_8)
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, 8, %i0
+ENDPROC(NG_ret_i2_plus_8)
+ENTRY(NG_ret_i2_plus_4)
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, 4, %i0
+ENDPROC(NG_ret_i2_plus_4)
+ENTRY(NG_ret_i2_plus_1)
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, 1, %i0
+ENDPROC(NG_ret_i2_plus_1)
+ENTRY(NG_ret_i2_plus_g1_plus_1)
+	add	%g1, 1, %g1
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %g1, %i0
+ENDPROC(NG_ret_i2_plus_g1_plus_1)
+ENTRY(NG_ret_i2)
+	ba,pt	%xcc, __restore_asi
+	 mov	%i2, %i0
+ENDPROC(NG_ret_i2)
+ENTRY(NG_ret_i2_and_7_plus_i4)
+	and	%i2, 7, %i2
+	ba,pt	%xcc, __restore_asi
+	 add	%i2, %i4, %i0
+ENDPROC(NG_ret_i2_and_7_plus_i4)
+#endif
+
 	.align		64
 
 	.globl	FUNC_NAME
@@ -126,8 +209,8 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	sub		%g0, %i4, %i4	! bytes to align dst
 	sub		%i2, %i4, %i2
 1:	subcc		%i4, 1, %i4
-	EX_LD(LOAD(ldub, %i1, %g1))
-	EX_ST(STORE(stb, %g1, %o0))
+	EX_LD(LOAD(ldub, %i1, %g1), NG_ret_i2_plus_i4_plus_1)
+	EX_ST(STORE(stb, %g1, %o0), NG_ret_i2_plus_i4_plus_1)
 	add		%i1, 1, %i1
 	bne,pt		%XCC, 1b
 	add		%o0, 1, %o0
@@ -160,7 +243,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	and		%i4, 0x7, GLOBAL_SPARE
 	sll		GLOBAL_SPARE, 3, GLOBAL_SPARE
 	mov		64, %i5
-	EX_LD(LOAD_TWIN(%i1, %g2, %g3))
+	EX_LD(LOAD_TWIN(%i1, %g2, %g3), NG_ret_i2_plus_g1)
 	sub		%i5, GLOBAL_SPARE, %i5
 	mov		16, %o4
 	mov		32, %o5
@@ -178,31 +261,31 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	srlx		WORD3, PRE_SHIFT, TMP; \
 	or		WORD2, TMP, WORD2;
 
-8:	EX_LD(LOAD_TWIN(%i1 + %o4, %o2, %o3))
+8:	EX_LD(LOAD_TWIN(%i1 + %o4, %o2, %o3), NG_ret_i2_plus_g1)
 	MIX_THREE_WORDS(%g2, %g3, %o2, %i5, GLOBAL_SPARE, %o1)
 	LOAD(prefetch, %i1 + %i3, #one_read)
 
-	EX_ST(STORE_INIT(%g2, %o0 + 0x00))
-	EX_ST(STORE_INIT(%g3, %o0 + 0x08))
+	EX_ST(STORE_INIT(%g2, %o0 + 0x00), NG_ret_i2_plus_g1)
+	EX_ST(STORE_INIT(%g3, %o0 + 0x08), NG_ret_i2_plus_g1_minus_8)
 
-	EX_LD(LOAD_TWIN(%i1 + %o5, %g2, %g3))
+	EX_LD(LOAD_TWIN(%i1 + %o5, %g2, %g3), NG_ret_i2_plus_g1_minus_16)
 	MIX_THREE_WORDS(%o2, %o3, %g2, %i5, GLOBAL_SPARE, %o1)
 
-	EX_ST(STORE_INIT(%o2, %o0 + 0x10))
-	EX_ST(STORE_INIT(%o3, %o0 + 0x18))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x10), NG_ret_i2_plus_g1_minus_16)
+	EX_ST(STORE_INIT(%o3, %o0 + 0x18), NG_ret_i2_plus_g1_minus_24)
 
-	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3), NG_ret_i2_plus_g1_minus_32)
 	MIX_THREE_WORDS(%g2, %g3, %o2, %i5, GLOBAL_SPARE, %o1)
 
-	EX_ST(STORE_INIT(%g2, %o0 + 0x20))
-	EX_ST(STORE_INIT(%g3, %o0 + 0x28))
+	EX_ST(STORE_INIT(%g2, %o0 + 0x20), NG_ret_i2_plus_g1_minus_32)
+	EX_ST(STORE_INIT(%g3, %o0 + 0x28), NG_ret_i2_plus_g1_minus_40)
 
-	EX_LD(LOAD_TWIN(%i1 + %i3, %g2, %g3))
+	EX_LD(LOAD_TWIN(%i1 + %i3, %g2, %g3), NG_ret_i2_plus_g1_minus_48)
 	add		%i1, 64, %i1
 	MIX_THREE_WORDS(%o2, %o3, %g2, %i5, GLOBAL_SPARE, %o1)
 
-	EX_ST(STORE_INIT(%o2, %o0 + 0x30))
-	EX_ST(STORE_INIT(%o3, %o0 + 0x38))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x30), NG_ret_i2_plus_g1_minus_48)
+	EX_ST(STORE_INIT(%o3, %o0 + 0x38), NG_ret_i2_plus_g1_minus_56)
 
 	subcc		%g1, 64, %g1
 	bne,pt		%XCC, 8b
@@ -211,31 +294,31 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	ba,pt		%XCC, 60f
 	 add		%i1, %i4, %i1
 
-9:	EX_LD(LOAD_TWIN(%i1 + %o4, %o2, %o3))
+9:	EX_LD(LOAD_TWIN(%i1 + %o4, %o2, %o3), NG_ret_i2_plus_g1)
 	MIX_THREE_WORDS(%g3, %o2, %o3, %i5, GLOBAL_SPARE, %o1)
 	LOAD(prefetch, %i1 + %i3, #one_read)
 
-	EX_ST(STORE_INIT(%g3, %o0 + 0x00))
-	EX_ST(STORE_INIT(%o2, %o0 + 0x08))
+	EX_ST(STORE_INIT(%g3, %o0 + 0x00), NG_ret_i2_plus_g1)
+	EX_ST(STORE_INIT(%o2, %o0 + 0x08), NG_ret_i2_plus_g1_minus_8)
 
-	EX_LD(LOAD_TWIN(%i1 + %o5, %g2, %g3))
+	EX_LD(LOAD_TWIN(%i1 + %o5, %g2, %g3), NG_ret_i2_plus_g1_minus_16)
 	MIX_THREE_WORDS(%o3, %g2, %g3, %i5, GLOBAL_SPARE, %o1)
 
-	EX_ST(STORE_INIT(%o3, %o0 + 0x10))
-	EX_ST(STORE_INIT(%g2, %o0 + 0x18))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x10), NG_ret_i2_plus_g1_minus_16)
+	EX_ST(STORE_INIT(%g2, %o0 + 0x18), NG_ret_i2_plus_g1_minus_24)
 
-	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3), NG_ret_i2_plus_g1_minus_32)
 	MIX_THREE_WORDS(%g3, %o2, %o3, %i5, GLOBAL_SPARE, %o1)
 
-	EX_ST(STORE_INIT(%g3, %o0 + 0x20))
-	EX_ST(STORE_INIT(%o2, %o0 + 0x28))
+	EX_ST(STORE_INIT(%g3, %o0 + 0x20), NG_ret_i2_plus_g1_minus_32)
+	EX_ST(STORE_INIT(%o2, %o0 + 0x28), NG_ret_i2_plus_g1_minus_40)
 
-	EX_LD(LOAD_TWIN(%i1 + %i3, %g2, %g3))
+	EX_LD(LOAD_TWIN(%i1 + %i3, %g2, %g3), NG_ret_i2_plus_g1_minus_48)
 	add		%i1, 64, %i1
 	MIX_THREE_WORDS(%o3, %g2, %g3, %i5, GLOBAL_SPARE, %o1)
 
-	EX_ST(STORE_INIT(%o3, %o0 + 0x30))
-	EX_ST(STORE_INIT(%g2, %o0 + 0x38))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x30), NG_ret_i2_plus_g1_minus_48)
+	EX_ST(STORE_INIT(%g2, %o0 + 0x38), NG_ret_i2_plus_g1_minus_56)
 
 	subcc		%g1, 64, %g1
 	bne,pt		%XCC, 9b
@@ -249,25 +332,25 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	 * one twin load ahead, then add 8 back into source when
 	 * we finish the loop.
 	 */
-	EX_LD(LOAD_TWIN(%i1, %o4, %o5))
+	EX_LD(LOAD_TWIN(%i1, %o4, %o5), NG_ret_i2_plus_g1)
 	mov	16, %o7
 	mov	32, %g2
 	mov	48, %g3
 	mov	64, %o1
-1:	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+1:	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3), NG_ret_i2_plus_g1)
 	LOAD(prefetch, %i1 + %o1, #one_read)
-	EX_ST(STORE_INIT(%o5, %o0 + 0x00))	! initializes cache line
-	EX_ST(STORE_INIT(%o2, %o0 + 0x08))
-	EX_LD(LOAD_TWIN(%i1 + %g2, %o4, %o5))
-	EX_ST(STORE_INIT(%o3, %o0 + 0x10))
-	EX_ST(STORE_INIT(%o4, %o0 + 0x18))
-	EX_LD(LOAD_TWIN(%i1 + %g3, %o2, %o3))
-	EX_ST(STORE_INIT(%o5, %o0 + 0x20))
-	EX_ST(STORE_INIT(%o2, %o0 + 0x28))
-	EX_LD(LOAD_TWIN(%i1 + %o1, %o4, %o5))
+	EX_ST(STORE_INIT(%o5, %o0 + 0x00), NG_ret_i2_plus_g1)	! initializes cache line
+	EX_ST(STORE_INIT(%o2, %o0 + 0x08), NG_ret_i2_plus_g1_minus_8)
+	EX_LD(LOAD_TWIN(%i1 + %g2, %o4, %o5), NG_ret_i2_plus_g1_minus_16)
+	EX_ST(STORE_INIT(%o3, %o0 + 0x10), NG_ret_i2_plus_g1_minus_16)
+	EX_ST(STORE_INIT(%o4, %o0 + 0x18), NG_ret_i2_plus_g1_minus_24)
+	EX_LD(LOAD_TWIN(%i1 + %g3, %o2, %o3), NG_ret_i2_plus_g1_minus_32)
+	EX_ST(STORE_INIT(%o5, %o0 + 0x20), NG_ret_i2_plus_g1_minus_32)
+	EX_ST(STORE_INIT(%o2, %o0 + 0x28), NG_ret_i2_plus_g1_minus_40)
+	EX_LD(LOAD_TWIN(%i1 + %o1, %o4, %o5), NG_ret_i2_plus_g1_minus_48)
 	add		%i1, 64, %i1
-	EX_ST(STORE_INIT(%o3, %o0 + 0x30))
-	EX_ST(STORE_INIT(%o4, %o0 + 0x38))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x30), NG_ret_i2_plus_g1_minus_48)
+	EX_ST(STORE_INIT(%o4, %o0 + 0x38), NG_ret_i2_plus_g1_minus_56)
 	subcc		%g1, 64, %g1
 	bne,pt		%XCC, 1b
 	 add		%o0, 64, %o0
@@ -282,20 +365,20 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	mov	32, %g2
 	mov	48, %g3
 	mov	64, %o1
-1:	EX_LD(LOAD_TWIN(%i1 + %g0, %o4, %o5))
-	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+1:	EX_LD(LOAD_TWIN(%i1 + %g0, %o4, %o5), NG_ret_i2_plus_g1)
+	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3), NG_ret_i2_plus_g1)
 	LOAD(prefetch, %i1 + %o1, #one_read)
-	EX_ST(STORE_INIT(%o4, %o0 + 0x00))	! initializes cache line
-	EX_ST(STORE_INIT(%o5, %o0 + 0x08))
-	EX_LD(LOAD_TWIN(%i1 + %g2, %o4, %o5))
-	EX_ST(STORE_INIT(%o2, %o0 + 0x10))
-	EX_ST(STORE_INIT(%o3, %o0 + 0x18))
-	EX_LD(LOAD_TWIN(%i1 + %g3, %o2, %o3))
+	EX_ST(STORE_INIT(%o4, %o0 + 0x00), NG_ret_i2_plus_g1)	! initializes cache line
+	EX_ST(STORE_INIT(%o5, %o0 + 0x08), NG_ret_i2_plus_g1_minus_8)
+	EX_LD(LOAD_TWIN(%i1 + %g2, %o4, %o5), NG_ret_i2_plus_g1_minus_16)
+	EX_ST(STORE_INIT(%o2, %o0 + 0x10), NG_ret_i2_plus_g1_minus_16)
+	EX_ST(STORE_INIT(%o3, %o0 + 0x18), NG_ret_i2_plus_g1_minus_24)
+	EX_LD(LOAD_TWIN(%i1 + %g3, %o2, %o3), NG_ret_i2_plus_g1_minus_32)
 	add	%i1, 64, %i1
-	EX_ST(STORE_INIT(%o4, %o0 + 0x20))
-	EX_ST(STORE_INIT(%o5, %o0 + 0x28))
-	EX_ST(STORE_INIT(%o2, %o0 + 0x30))
-	EX_ST(STORE_INIT(%o3, %o0 + 0x38))
+	EX_ST(STORE_INIT(%o4, %o0 + 0x20), NG_ret_i2_plus_g1_minus_32)
+	EX_ST(STORE_INIT(%o5, %o0 + 0x28), NG_ret_i2_plus_g1_minus_40)
+	EX_ST(STORE_INIT(%o2, %o0 + 0x30), NG_ret_i2_plus_g1_minus_48)
+	EX_ST(STORE_INIT(%o3, %o0 + 0x38), NG_ret_i2_plus_g1_minus_56)
 	subcc	%g1, 64, %g1
 	bne,pt	%XCC, 1b
 	 add	%o0, 64, %o0
@@ -311,6 +394,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	brz,pt		%i2, 85f
 	 sub		%o0, %i1, %i3
 	ba,a,pt		%XCC, 90f
+	 nop
 
 	.align		64
 70: /* 16 < len <= 64 */
@@ -321,28 +405,28 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	andn		%i2, 0xf, %i4
 	and		%i2, 0xf, %i2
 1:	subcc		%i4, 0x10, %i4
-	EX_LD(LOAD(ldx, %i1, %o4))
+	EX_LD(LOAD(ldx, %i1, %o4), NG_ret_i2_plus_i4)
 	add		%i1, 0x08, %i1
-	EX_LD(LOAD(ldx, %i1, %g1))
+	EX_LD(LOAD(ldx, %i1, %g1), NG_ret_i2_plus_i4)
 	sub		%i1, 0x08, %i1
-	EX_ST(STORE(stx, %o4, %i1 + %i3))
+	EX_ST(STORE(stx, %o4, %i1 + %i3), NG_ret_i2_plus_i4)
 	add		%i1, 0x8, %i1
-	EX_ST(STORE(stx, %g1, %i1 + %i3))
+	EX_ST(STORE(stx, %g1, %i1 + %i3), NG_ret_i2_plus_i4_minus_8)
 	bgu,pt		%XCC, 1b
 	 add		%i1, 0x8, %i1
 73:	andcc		%i2, 0x8, %g0
 	be,pt		%XCC, 1f
 	 nop
 	sub		%i2, 0x8, %i2
-	EX_LD(LOAD(ldx, %i1, %o4))
-	EX_ST(STORE(stx, %o4, %i1 + %i3))
+	EX_LD(LOAD(ldx, %i1, %o4), NG_ret_i2_plus_8)
+	EX_ST(STORE(stx, %o4, %i1 + %i3), NG_ret_i2_plus_8)
 	add		%i1, 0x8, %i1
 1:	andcc		%i2, 0x4, %g0
 	be,pt		%XCC, 1f
 	 nop
 	sub		%i2, 0x4, %i2
-	EX_LD(LOAD(lduw, %i1, %i5))
-	EX_ST(STORE(stw, %i5, %i1 + %i3))
+	EX_LD(LOAD(lduw, %i1, %i5), NG_ret_i2_plus_4)
+	EX_ST(STORE(stw, %i5, %i1 + %i3), NG_ret_i2_plus_4)
 	add		%i1, 0x4, %i1
 1:	cmp		%i2, 0
 	be,pt		%XCC, 85f
@@ -358,8 +442,8 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	sub		%i2, %g1, %i2
 
 1:	subcc		%g1, 1, %g1
-	EX_LD(LOAD(ldub, %i1, %i5))
-	EX_ST(STORE(stb, %i5, %i1 + %i3))
+	EX_LD(LOAD(ldub, %i1, %i5), NG_ret_i2_plus_g1_plus_1)
+	EX_ST(STORE(stb, %i5, %i1 + %i3), NG_ret_i2_plus_g1_plus_1)
 	bgu,pt		%icc, 1b
 	 add		%i1, 1, %i1
 
@@ -375,16 +459,16 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 
 8:	mov		64, %i3
 	andn		%i1, 0x7, %i1
-	EX_LD(LOAD(ldx, %i1, %g2))
+	EX_LD(LOAD(ldx, %i1, %g2), NG_ret_i2)
 	sub		%i3, %g1, %i3
 	andn		%i2, 0x7, %i4
 	sllx		%g2, %g1, %g2
 1:	add		%i1, 0x8, %i1
-	EX_LD(LOAD(ldx, %i1, %g3))
+	EX_LD(LOAD(ldx, %i1, %g3), NG_ret_i2_and_7_plus_i4)
 	subcc		%i4, 0x8, %i4
 	srlx		%g3, %i3, %i5
 	or		%i5, %g2, %i5
-	EX_ST(STORE(stx, %i5, %o0))
+	EX_ST(STORE(stx, %i5, %o0), NG_ret_i2_and_7_plus_i4)
 	add		%o0, 0x8, %o0
 	bgu,pt		%icc, 1b
 	 sllx		%g3, %g1, %g2
@@ -404,8 +488,8 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 
 1:
 	subcc		%i2, 4, %i2
-	EX_LD(LOAD(lduw, %i1, %g1))
-	EX_ST(STORE(stw, %g1, %i1 + %i3))
+	EX_LD(LOAD(lduw, %i1, %g1), NG_ret_i2_plus_4)
+	EX_ST(STORE(stw, %g1, %i1 + %i3), NG_ret_i2_plus_4)
 	bgu,pt		%XCC, 1b
 	 add		%i1, 4, %i1
 
@@ -415,8 +499,8 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	.align		32
 90:
 	subcc		%i2, 1, %i2
-	EX_LD(LOAD(ldub, %i1, %g1))
-	EX_ST(STORE(stb, %g1, %i1 + %i3))
+	EX_LD(LOAD(ldub, %i1, %g1), NG_ret_i2_plus_1)
+	EX_ST(STORE(stb, %g1, %i1 + %i3), NG_ret_i2_plus_1)
 	bgu,pt		%XCC, 90b
 	 add		%i1, 1, %i1
 	ret

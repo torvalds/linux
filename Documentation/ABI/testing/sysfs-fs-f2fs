@@ -1,0 +1,153 @@
+What:		/sys/fs/f2fs/<disk>/gc_max_sleep_time
+Date:		July 2013
+Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
+Description:
+		 Controls the maximun sleep time for gc_thread. Time
+		 is in milliseconds.
+
+What:		/sys/fs/f2fs/<disk>/gc_min_sleep_time
+Date:		July 2013
+Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
+Description:
+		 Controls the minimum sleep time for gc_thread. Time
+		 is in milliseconds.
+
+What:		/sys/fs/f2fs/<disk>/gc_no_gc_sleep_time
+Date:		July 2013
+Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
+Description:
+		 Controls the default sleep time for gc_thread. Time
+		 is in milliseconds.
+
+What:		/sys/fs/f2fs/<disk>/gc_idle
+Date:		July 2013
+Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
+Description:
+		 Controls the victim selection policy for garbage collection.
+
+What:		/sys/fs/f2fs/<disk>/reclaim_segments
+Date:		October 2013
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the issue rate of segment discard commands.
+
+What:		/sys/fs/f2fs/<disk>/ipu_policy
+Date:		November 2013
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the in-place-update policy.
+
+What:		/sys/fs/f2fs/<disk>/min_ipu_util
+Date:		November 2013
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the FS utilization condition for the in-place-update
+		 policies.
+
+What:		/sys/fs/f2fs/<disk>/min_fsync_blocks
+Date:		September 2014
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the dirty page count condition for the in-place-update
+		 policies.
+
+What:		/sys/fs/f2fs/<disk>/max_small_discards
+Date:		November 2013
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the issue rate of small discard commands.
+
+What:          /sys/fs/f2fs/<disk>/discard_granularity
+Date:          July 2017
+Contact:       "Chao Yu" <yuchao0@huawei.com>
+Description:
+		Controls discard granularity of inner discard thread, inner thread
+		will not issue discards with size that is smaller than granularity.
+		The unit size is one block, now only support configuring in range
+		of [1, 512].
+
+What:		/sys/fs/f2fs/<disk>/max_victim_search
+Date:		January 2014
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the number of trials to find a victim segment.
+
+What:		/sys/fs/f2fs/<disk>/dir_level
+Date:		March 2014
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the directory level for large directory.
+
+What:		/sys/fs/f2fs/<disk>/ram_thresh
+Date:		March 2014
+Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
+Description:
+		 Controls the memory footprint used by f2fs.
+
+What:		/sys/fs/f2fs/<disk>/batched_trim_sections
+Date:		February 2015
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the trimming rate in batch mode.
+
+What:		/sys/fs/f2fs/<disk>/cp_interval
+Date:		October 2015
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the checkpoint timing.
+
+What:		/sys/fs/f2fs/<disk>/idle_interval
+Date:		January 2016
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the idle timing.
+
+What:		/sys/fs/f2fs/<disk>/ra_nid_pages
+Date:		October 2015
+Contact:	"Chao Yu" <chao2.yu@samsung.com>
+Description:
+		 Controls the count of nid pages to be readaheaded.
+
+What:		/sys/fs/f2fs/<disk>/dirty_nats_ratio
+Date:		January 2016
+Contact:	"Chao Yu" <chao2.yu@samsung.com>
+Description:
+		 Controls dirty nat entries ratio threshold, if current
+		 ratio exceeds configured threshold, checkpoint will
+		 be triggered for flushing dirty nat entries.
+
+What:		/sys/fs/f2fs/<disk>/lifetime_write_kbytes
+Date:		January 2016
+Contact:	"Shuoran Liu" <liushuoran@huawei.com>
+Description:
+		 Shows total written kbytes issued to disk.
+
+What:		/sys/fs/f2fs/<disk>/inject_rate
+Date:		May 2016
+Contact:	"Sheng Yong" <shengyong1@huawei.com>
+Description:
+		 Controls the injection rate.
+
+What:		/sys/fs/f2fs/<disk>/inject_type
+Date:		May 2016
+Contact:	"Sheng Yong" <shengyong1@huawei.com>
+Description:
+		 Controls the injection type.
+
+What:		/sys/fs/f2fs/<disk>/reserved_blocks
+Date:		June 2017
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:
+		 Controls current reserved blocks in system.
+
+What:		/sys/fs/f2fs/<disk>/gc_urgent
+Date:		August 2017
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Do background GC agressively
+
+What:		/sys/fs/f2fs/<disk>/gc_urgent_sleep_time
+Date:		August 2017
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls sleep time of GC urgent mode

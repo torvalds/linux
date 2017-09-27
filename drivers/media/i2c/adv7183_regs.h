@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ADV7183_REGS_H_
@@ -52,9 +48,9 @@
 #define ADV7183_VS_FIELD_CTRL_1    0x31 /* Vsync field control 1 */
 #define ADV7183_VS_FIELD_CTRL_2    0x32 /* Vsync field control 2 */
 #define ADV7183_VS_FIELD_CTRL_3    0x33 /* Vsync field control 3 */
-#define ADV7183_HS_POS_CTRL_1      0x34 /* Hsync positon control 1 */
-#define ADV7183_HS_POS_CTRL_2      0x35 /* Hsync positon control 2 */
-#define ADV7183_HS_POS_CTRL_3      0x36 /* Hsync positon control 3 */
+#define ADV7183_HS_POS_CTRL_1      0x34 /* Hsync position control 1 */
+#define ADV7183_HS_POS_CTRL_2      0x35 /* Hsync position control 2 */
+#define ADV7183_HS_POS_CTRL_3      0x36 /* Hsync position control 3 */
 #define ADV7183_POLARITY           0x37 /* Polarity */
 #define ADV7183_NTSC_COMB_CTRL     0x38 /* NTSC comb control */
 #define ADV7183_PAL_COMB_CTRL      0x39 /* PAL comb control */
@@ -87,7 +83,7 @@
 #define ADV7183_LETTERBOX_3        0x9D /* Letterbox 3 */
 #define ADV7183_CRC_EN             0xB2 /* CRC enable */
 #define ADV7183_ADC_SWITCH_1       0xC3 /* ADC switch 1 */
-#define ADV7183_ADC_SWITCH_2       0xC4 /* ADC swithc 2 */
+#define ADV7183_ADC_SWITCH_2       0xC4 /* ADC switch 2 */
 #define ADV7183_LETTERBOX_CTRL_1   0xDC /* Letterbox control 1 */
 #define ADV7183_LETTERBOX_CTRL_2   0xDD /* Letterbox control 2 */
 #define ADV7183_SD_OFFSET_CB       0xE1 /* SD offset Cb */

@@ -2,7 +2,7 @@
  * Driver for the ST Microelectronics SPEAr pinmux
  *
  * Copyright (C) 2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * Inspired from:
  * - U300 Pinctl drivers
@@ -268,16 +268,10 @@ static int spear_pinctrl_endisable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int spear_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
+static int spear_pinctrl_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 		unsigned group)
 {
 	return spear_pinctrl_endisable(pctldev, function, group, true);
-}
-
-static void spear_pinctrl_disable(struct pinctrl_dev *pctldev,
-		unsigned function, unsigned group)
-{
-	spear_pinctrl_endisable(pctldev, function, group, false);
 }
 
 /* gpio with pinmux */
@@ -344,8 +338,7 @@ static const struct pinmux_ops spear_pinmux_ops = {
 	.get_functions_count = spear_pinctrl_get_funcs_count,
 	.get_function_name = spear_pinctrl_get_func_name,
 	.get_function_groups = spear_pinctrl_get_func_groups,
-	.enable = spear_pinctrl_enable,
-	.disable = spear_pinctrl_disable,
+	.set_mux = spear_pinctrl_set_mux,
 	.gpio_request_enable = gpio_request_enable,
 	.gpio_disable_free = gpio_disable_free,
 };
@@ -367,21 +360,16 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 	if (!machdata)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx) {
 		dev_err(&pdev->dev, "Can't alloc spear_pmx\n");
 		return -ENOMEM;
 	}
 
-	pmx->vbase = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!pmx->vbase) {
-		dev_err(&pdev->dev, "Couldn't ioremap at index 0\n");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pmx->vbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmx->vbase))
+		return PTR_ERR(pmx->vbase);
 
 	pmx->dev = &pdev->dev;
 	pmx->machdata = machdata;
@@ -407,20 +395,11 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 	spear_pinctrl_desc.pins = machdata->pins;
 	spear_pinctrl_desc.npins = machdata->npins;
 
-	pmx->pctl = pinctrl_register(&spear_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	pmx->pctl = devm_pinctrl_register(&pdev->dev, &spear_pinctrl_desc, pmx);
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
-
-	return 0;
-}
-
-int spear_pinctrl_remove(struct platform_device *pdev)
-{
-	struct spear_pmx *pmx = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pmx->pctl);
 
 	return 0;
 }

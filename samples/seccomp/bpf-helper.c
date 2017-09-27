@@ -10,6 +10,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "bpf-helper.h"
@@ -17,41 +18,41 @@
 int bpf_resolve_jumps(struct bpf_labels *labels,
 		      struct sock_filter *filter, size_t count)
 {
-	struct sock_filter *begin = filter;
-	__u8 insn = count - 1;
+	size_t i;
 
-	if (count < 1)
+	if (count < 1 || count > BPF_MAXINSNS)
 		return -1;
 	/*
 	* Walk it once, backwards, to build the label table and do fixups.
 	* Since backward jumps are disallowed by BPF, this is easy.
 	*/
-	filter += insn;
-	for (; filter >= begin; --insn, --filter) {
-		if (filter->code != (BPF_JMP+BPF_JA))
+	for (i = 0; i < count; ++i) {
+		size_t offset = count - i - 1;
+		struct sock_filter *instr = &filter[offset];
+		if (instr->code != (BPF_JMP+BPF_JA))
 			continue;
-		switch ((filter->jt<<8)|filter->jf) {
+		switch ((instr->jt<<8)|instr->jf) {
 		case (JUMP_JT<<8)|JUMP_JF:
-			if (labels->labels[filter->k].location == 0xffffffff) {
+			if (labels->labels[instr->k].location == 0xffffffff) {
 				fprintf(stderr, "Unresolved label: '%s'\n",
-					labels->labels[filter->k].label);
+					labels->labels[instr->k].label);
 				return 1;
 			}
-			filter->k = labels->labels[filter->k].location -
-				    (insn + 1);
-			filter->jt = 0;
-			filter->jf = 0;
+			instr->k = labels->labels[instr->k].location -
+				    (offset + 1);
+			instr->jt = 0;
+			instr->jf = 0;
 			continue;
 		case (LABEL_JT<<8)|LABEL_JF:
-			if (labels->labels[filter->k].location != 0xffffffff) {
+			if (labels->labels[instr->k].location != 0xffffffff) {
 				fprintf(stderr, "Duplicate label use: '%s'\n",
-					labels->labels[filter->k].label);
+					labels->labels[instr->k].label);
 				return 1;
 			}
-			labels->labels[filter->k].location = insn;
-			filter->k = 0; /* fall through */
-			filter->jt = 0;
-			filter->jf = 0;
+			labels->labels[instr->k].location = offset;
+			instr->k = 0; /* fall through */
+			instr->jt = 0;
+			instr->jf = 0;
 			continue;
 		}
 	}
@@ -63,6 +64,11 @@ __u32 seccomp_bpf_label(struct bpf_labels *labels, const char *label)
 {
 	struct __bpf_label *begin = labels->labels, *end;
 	int id;
+
+	if (labels->count == BPF_LABELS_MAX) {
+		fprintf(stderr, "Too many labels\n");
+		exit(1);
+	}
 	if (labels->count == 0) {
 		begin->label = label;
 		begin->location = 0xffffffff;

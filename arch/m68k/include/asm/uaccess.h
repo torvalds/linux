@@ -3,3 +3,4 @@
 #else
 #include <asm/uaccess_mm.h>
 #endif
+#include <asm/extable.h>

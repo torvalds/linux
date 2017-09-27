@@ -1,5 +1,4 @@
-/* arch/arm/mach-s3c2410/include/mach/nand.h
- *
+/*
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -10,9 +9,13 @@
  * published by the Free Software Foundation.
 */
 
+#ifndef __MTD_NAND_S3C2410_H
+#define __MTD_NAND_S3C2410_H
+
+#include <linux/mtd/rawnand.h>
+
 /**
  * struct s3c2410_nand_set - define a set of one or more nand chips
- * @disable_ecc:	Entirely disable ECC - Dangerous
  * @flash_bbt: 		Openmoko u-boot can create a Bad Block Table
  *			Setting this flag will allow the kernel to
  *			look for it at boot time and also skip the NAND
@@ -29,7 +32,6 @@
  * a warning at boot time.
  */
 struct s3c2410_nand_set {
-	unsigned int		disable_ecc:1;
 	unsigned int		flash_bbt:1;
 
 	unsigned int		options;
@@ -38,7 +40,7 @@ struct s3c2410_nand_set {
 	char			*name;
 	int			*nr_map;
 	struct mtd_partition	*partitions;
-	struct nand_ecclayout	*ecc_layout;
+	struct device_node	*of_node;
 };
 
 struct s3c2410_platform_nand {
@@ -49,6 +51,8 @@ struct s3c2410_platform_nand {
 	int	twrph1;	/* time for release CLE/ALE from nWE/nOE inactive */
 
 	unsigned int	ignore_unset_ecc:1;
+
+	nand_ecc_modes_t	ecc_mode;
 
 	int			nr_sets;
 	struct s3c2410_nand_set *sets;
@@ -65,3 +69,5 @@ struct s3c2410_platform_nand {
  * it with the s3c_device_nand. This allows @nand to be __initdata.
 */
 extern void s3c_nand_set_platdata(struct s3c2410_platform_nand *nand);
+
+#endif /*__MTD_NAND_S3C2410_H */

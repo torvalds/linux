@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
@@ -24,10 +26,12 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_transport_fc.h>
+#include <scsi/fc/fc_fs.h>
 
-#include <scsi/scsi.h>
+#include <linux/nvme-fc-driver.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -35,19 +39,40 @@
 #include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
-#include "lpfc_scsi.h"
 #include "lpfc.h"
+#include "lpfc_scsi.h"
+#include "lpfc_nvme.h"
+#include "lpfc_nvmet.h"
 #include "lpfc_crtn.h"
+#include "lpfc_logmsg.h"
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
+#define LPFC_DEVICE_DATA_POOL_SIZE 64   /* max elements in device data pool */
 
+int
+lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
+	size_t bytes;
+	int max_xri = phba->sli4_hba.max_cfg_param.max_xri;
+
+	if (max_xri <= 0)
+		return -ENOMEM;
+	bytes = ((BITS_PER_LONG - 1 + max_xri) / BITS_PER_LONG) *
+		  sizeof(unsigned long);
+	phba->cfg_rrq_xri_bitmap_sz = bytes;
+	phba->active_rrq_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
+							    bytes);
+	if (!phba->active_rrq_pool)
+		return -ENOMEM;
+	else
+		return 0;
+}
 
 /**
  * lpfc_mem_alloc - create and allocate all PCI and memory pools
  * @phba: HBA to allocate pools for
  *
- * Description: Creates and allocates PCI pools lpfc_scsi_dma_buf_pool,
+ * Description: Creates and allocates PCI pools lpfc_sg_dma_buf_pool,
  * lpfc_mbuf_pool, lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
  * for LPFC_MBOXQ_t and lpfc_nodelist.  Also allocates the VPI bitmask.
  *
@@ -71,23 +96,25 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		else
 			i = SLI4_PAGE_SIZE;
 
-		phba->lpfc_scsi_dma_buf_pool =
-			pci_pool_create("lpfc_scsi_dma_buf_pool",
-				phba->pcidev,
-				phba->cfg_sg_dma_buf_size,
-				i,
-				0);
+		phba->lpfc_sg_dma_buf_pool =
+			dma_pool_create("lpfc_sg_dma_buf_pool",
+					&phba->pcidev->dev,
+					phba->cfg_sg_dma_buf_size,
+					i, 0);
+		if (!phba->lpfc_sg_dma_buf_pool)
+			goto fail;
+
 	} else {
-		phba->lpfc_scsi_dma_buf_pool =
-			pci_pool_create("lpfc_scsi_dma_buf_pool",
-				phba->pcidev, phba->cfg_sg_dma_buf_size,
-				align, 0);
+		phba->lpfc_sg_dma_buf_pool =
+			dma_pool_create("lpfc_sg_dma_buf_pool",
+					&phba->pcidev->dev, phba->cfg_sg_dma_buf_size,
+					align, 0);
+
+		if (!phba->lpfc_sg_dma_buf_pool)
+			goto fail;
 	}
 
-	if (!phba->lpfc_scsi_dma_buf_pool)
-		goto fail;
-
-	phba->lpfc_mbuf_pool = pci_pool_create("lpfc_mbuf_pool", phba->pcidev,
+	phba->lpfc_mbuf_pool = dma_pool_create("lpfc_mbuf_pool", &phba->pcidev->dev,
 							LPFC_BPL_SIZE,
 							align, 0);
 	if (!phba->lpfc_mbuf_pool)
@@ -101,7 +128,7 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	pool->max_count = 0;
 	pool->current_count = 0;
 	for ( i = 0; i < LPFC_MBUF_POOL_SIZE; i++) {
-		pool->elements[i].virt = pci_pool_alloc(phba->lpfc_mbuf_pool,
+		pool->elements[i].virt = dma_pool_alloc(phba->lpfc_mbuf_pool,
 				       GFP_KERNEL, &pool->elements[i].phys);
 		if (!pool->elements[i].virt)
 			goto fail_free_mbuf_pool;
@@ -125,30 +152,43 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 						sizeof(struct lpfc_node_rrq));
 		if (!phba->rrq_pool)
 			goto fail_free_nlp_mem_pool;
-		phba->lpfc_hrb_pool = pci_pool_create("lpfc_hrb_pool",
-					      phba->pcidev,
+		phba->lpfc_hrb_pool = dma_pool_create("lpfc_hrb_pool",
+					      &phba->pcidev->dev,
 					      LPFC_HDR_BUF_SIZE, align, 0);
 		if (!phba->lpfc_hrb_pool)
 			goto fail_free_rrq_mem_pool;
 
-		phba->lpfc_drb_pool = pci_pool_create("lpfc_drb_pool",
-					      phba->pcidev,
+		phba->lpfc_drb_pool = dma_pool_create("lpfc_drb_pool",
+					      &phba->pcidev->dev,
 					      LPFC_DATA_BUF_SIZE, align, 0);
 		if (!phba->lpfc_drb_pool)
 			goto fail_free_hrb_pool;
 		phba->lpfc_hbq_pool = NULL;
 	} else {
-		phba->lpfc_hbq_pool = pci_pool_create("lpfc_hbq_pool",
-			phba->pcidev, LPFC_BPL_SIZE, align, 0);
+		phba->lpfc_hbq_pool = dma_pool_create("lpfc_hbq_pool",
+			&phba->pcidev->dev, LPFC_BPL_SIZE, align, 0);
 		if (!phba->lpfc_hbq_pool)
 			goto fail_free_nlp_mem_pool;
 		phba->lpfc_hrb_pool = NULL;
 		phba->lpfc_drb_pool = NULL;
 	}
 
+	if (phba->cfg_EnableXLane) {
+		phba->device_data_mem_pool = mempool_create_kmalloc_pool(
+					LPFC_DEVICE_DATA_POOL_SIZE,
+					sizeof(struct lpfc_device_data));
+		if (!phba->device_data_mem_pool)
+			goto fail_free_drb_pool;
+	} else {
+		phba->device_data_mem_pool = NULL;
+	}
+
 	return 0;
+fail_free_drb_pool:
+	dma_pool_destroy(phba->lpfc_drb_pool);
+	phba->lpfc_drb_pool = NULL;
  fail_free_hrb_pool:
-	pci_pool_destroy(phba->lpfc_hrb_pool);
+	dma_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
  fail_free_rrq_mem_pool:
 	mempool_destroy(phba->rrq_pool);
@@ -161,17 +201,32 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	phba->mbox_mem_pool = NULL;
  fail_free_mbuf_pool:
 	while (i--)
-		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
+		dma_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
 						 pool->elements[i].phys);
 	kfree(pool->elements);
  fail_free_lpfc_mbuf_pool:
-	pci_pool_destroy(phba->lpfc_mbuf_pool);
+	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
  fail_free_dma_buf_pool:
-	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
-	phba->lpfc_scsi_dma_buf_pool = NULL;
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
  fail:
 	return -ENOMEM;
+}
+
+int
+lpfc_nvmet_mem_alloc(struct lpfc_hba *phba)
+{
+	phba->lpfc_nvmet_drb_pool =
+		dma_pool_create("lpfc_nvmet_drb_pool",
+				&phba->pcidev->dev, LPFC_NVMET_DATA_BUF_SIZE,
+				SGL_ALIGN_SZ, 0);
+	if (!phba->lpfc_nvmet_drb_pool) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"6024 Can't enable NVME Target - no memory\n");
+		return -ENOMEM;
+	}
+	return 0;
 }
 
 /**
@@ -188,18 +243,25 @@ lpfc_mem_free(struct lpfc_hba *phba)
 {
 	int i;
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
+	struct lpfc_device_data *device_data;
 
 	/* Free HBQ pools */
 	lpfc_sli_hbqbuf_free_all(phba);
+	if (phba->lpfc_nvmet_drb_pool)
+		dma_pool_destroy(phba->lpfc_nvmet_drb_pool);
+	phba->lpfc_nvmet_drb_pool = NULL;
 	if (phba->lpfc_drb_pool)
-		pci_pool_destroy(phba->lpfc_drb_pool);
+		dma_pool_destroy(phba->lpfc_drb_pool);
 	phba->lpfc_drb_pool = NULL;
 	if (phba->lpfc_hrb_pool)
-		pci_pool_destroy(phba->lpfc_hrb_pool);
+		dma_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
+	if (phba->txrdy_payload_pool)
+		dma_pool_destroy(phba->txrdy_payload_pool);
+	phba->txrdy_payload_pool = NULL;
 
 	if (phba->lpfc_hbq_pool)
-		pci_pool_destroy(phba->lpfc_hbq_pool);
+		dma_pool_destroy(phba->lpfc_hbq_pool);
 	phba->lpfc_hbq_pool = NULL;
 
 	if (phba->rrq_pool)
@@ -209,6 +271,10 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	/* Free NLP memory pool */
 	mempool_destroy(phba->nlp_mem_pool);
 	phba->nlp_mem_pool = NULL;
+	if (phba->sli_rev == LPFC_SLI_REV4 && phba->active_rrq_pool) {
+		mempool_destroy(phba->active_rrq_pool);
+		phba->active_rrq_pool = NULL;
+	}
 
 	/* Free mbox memory pool */
 	mempool_destroy(phba->mbox_mem_pool);
@@ -216,17 +282,30 @@ lpfc_mem_free(struct lpfc_hba *phba)
 
 	/* Free MBUF memory pool */
 	for (i = 0; i < pool->current_count; i++)
-		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
+		dma_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
 			      pool->elements[i].phys);
 	kfree(pool->elements);
 
-	pci_pool_destroy(phba->lpfc_mbuf_pool);
+	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
 
 	/* Free DMA buffer memory pool */
-	pci_pool_destroy(phba->lpfc_scsi_dma_buf_pool);
-	phba->lpfc_scsi_dma_buf_pool = NULL;
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
 
+	/* Free Device Data memory pool */
+	if (phba->device_data_mem_pool) {
+		/* Ensure all objects have been returned to the pool */
+		while (!list_empty(&phba->luns)) {
+			device_data = list_first_entry(&phba->luns,
+						       struct lpfc_device_data,
+						       listentry);
+			list_del(&device_data->listentry);
+			mempool_free(device_data, phba->device_data_mem_pool);
+		}
+		mempool_destroy(phba->device_data_mem_pool);
+	}
+	phba->device_data_mem_pool = NULL;
 	return;
 }
 
@@ -235,7 +314,7 @@ lpfc_mem_free(struct lpfc_hba *phba)
  * @phba: HBA to free memory for
  *
  * Description: Free memory from PCI and driver memory pools and also those
- * used : lpfc_scsi_dma_buf_pool, lpfc_mbuf_pool, lpfc_hrb_pool. Frees
+ * used : lpfc_sg_dma_buf_pool, lpfc_mbuf_pool, lpfc_hrb_pool. Frees
  * kmalloc-backed mempools for LPFC_MBOXQ_t and lpfc_nodelist. Also frees
  * the VPI bitmask.
  *
@@ -300,7 +379,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
  * @handle: used to return the DMA-mapped address of the mbuf
  *
  * Description: Allocates a DMA-mapped buffer from the lpfc_mbuf_pool PCI pool.
- * Allocates from generic pci_pool_alloc function first and if that fails and
+ * Allocates from generic dma_pool_alloc function first and if that fails and
  * mem_flags has MEM_PRI set (the only defined flag), returns an mbuf from the
  * HBA's pool.
  *
@@ -318,7 +397,7 @@ lpfc_mbuf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 	unsigned long iflags;
 	void *ret;
 
-	ret = pci_pool_alloc(phba->lpfc_mbuf_pool, GFP_KERNEL, handle);
+	ret = dma_pool_alloc(phba->lpfc_mbuf_pool, GFP_KERNEL, handle);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (!ret && (mem_flags & MEM_PRI) && pool->current_count) {
@@ -354,7 +433,7 @@ __lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 		pool->elements[pool->current_count].phys = dma;
 		pool->current_count++;
 	} else {
-		pci_pool_free(phba->lpfc_mbuf_pool, virt, dma);
+		dma_pool_free(phba->lpfc_mbuf_pool, virt, dma);
 	}
 	return;
 }
@@ -384,6 +463,44 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 }
 
 /**
+ * lpfc_nvmet_buf_alloc - Allocate an nvmet_buf from the
+ * lpfc_sg_dma_buf_pool PCI pool
+ * @phba: HBA which owns the pool to allocate from
+ * @mem_flags: indicates if this is a priority (MEM_PRI) allocation
+ * @handle: used to return the DMA-mapped address of the nvmet_buf
+ *
+ * Description: Allocates a DMA-mapped buffer from the lpfc_sg_dma_buf_pool
+ * PCI pool.  Allocates from generic dma_pool_alloc function.
+ *
+ * Returns:
+ *   pointer to the allocated nvmet_buf on success
+ *   NULL on failure
+ **/
+void *
+lpfc_nvmet_buf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
+{
+	void *ret;
+
+	ret = dma_pool_alloc(phba->lpfc_sg_dma_buf_pool, GFP_KERNEL, handle);
+	return ret;
+}
+
+/**
+ * lpfc_nvmet_buf_free - Free an nvmet_buf from the lpfc_sg_dma_buf_pool
+ * PCI pool
+ * @phba: HBA which owns the pool to return to
+ * @virt: nvmet_buf to free
+ * @dma: the DMA-mapped address of the lpfc_sg_dma_buf_pool to be freed
+ *
+ * Returns: None
+ **/
+void
+lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
+{
+	dma_pool_free(phba->lpfc_sg_dma_buf_pool, virt, dma);
+}
+
+/**
  * lpfc_els_hbq_alloc - Allocate an HBQ buffer
  * @phba: HBA to allocate HBQ buffer for
  *
@@ -405,13 +522,13 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 	if (!hbqbp)
 		return NULL;
 
-	hbqbp->dbuf.virt = pci_pool_alloc(phba->lpfc_hbq_pool, GFP_KERNEL,
+	hbqbp->dbuf.virt = dma_pool_alloc(phba->lpfc_hbq_pool, GFP_KERNEL,
 					  &hbqbp->dbuf.phys);
 	if (!hbqbp->dbuf.virt) {
 		kfree(hbqbp);
 		return NULL;
 	}
-	hbqbp->size = LPFC_BPL_SIZE;
+	hbqbp->total_size = LPFC_BPL_SIZE;
 	return hbqbp;
 }
 
@@ -430,7 +547,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 void
 lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
 {
-	pci_pool_free(phba->lpfc_hbq_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
+	dma_pool_free(phba->lpfc_hbq_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
 	kfree(hbqbp);
 	return;
 }
@@ -457,21 +574,21 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
 	if (!dma_buf)
 		return NULL;
 
-	dma_buf->hbuf.virt = pci_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
+	dma_buf->hbuf.virt = dma_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
 					    &dma_buf->hbuf.phys);
 	if (!dma_buf->hbuf.virt) {
 		kfree(dma_buf);
 		return NULL;
 	}
-	dma_buf->dbuf.virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
+	dma_buf->dbuf.virt = dma_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
 					    &dma_buf->dbuf.phys);
 	if (!dma_buf->dbuf.virt) {
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+		dma_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
 			      dma_buf->hbuf.phys);
 		kfree(dma_buf);
 		return NULL;
 	}
-	dma_buf->size = LPFC_BPL_SIZE;
+	dma_buf->total_size = LPFC_DATA_BUF_SIZE;
 	return dma_buf;
 }
 
@@ -490,10 +607,70 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
 void
 lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
 {
-	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
-	pci_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
+	dma_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
+	dma_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
 	kfree(dmab);
-	return;
+}
+
+/**
+ * lpfc_sli4_nvmet_alloc - Allocate an SLI4 Receive buffer
+ * @phba: HBA to allocate a receive buffer for
+ *
+ * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
+ * pool along a non-DMA-mapped container for it.
+ *
+ * Notes: Not interrupt-safe.  Must be called with no locks held.
+ *
+ * Returns:
+ *   pointer to HBQ on success
+ *   NULL on failure
+ **/
+struct rqb_dmabuf *
+lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
+{
+	struct rqb_dmabuf *dma_buf;
+
+	dma_buf = kzalloc(sizeof(struct rqb_dmabuf), GFP_KERNEL);
+	if (!dma_buf)
+		return NULL;
+
+	dma_buf->hbuf.virt = dma_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
+					    &dma_buf->hbuf.phys);
+	if (!dma_buf->hbuf.virt) {
+		kfree(dma_buf);
+		return NULL;
+	}
+	dma_buf->dbuf.virt = dma_pool_alloc(phba->lpfc_nvmet_drb_pool,
+					    GFP_KERNEL, &dma_buf->dbuf.phys);
+	if (!dma_buf->dbuf.virt) {
+		dma_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+			      dma_buf->hbuf.phys);
+		kfree(dma_buf);
+		return NULL;
+	}
+	dma_buf->total_size = LPFC_NVMET_DATA_BUF_SIZE;
+	return dma_buf;
+}
+
+/**
+ * lpfc_sli4_nvmet_free - Frees a receive buffer
+ * @phba: HBA buffer was allocated for
+ * @dmab: DMA Buffer container returned by lpfc_sli4_rbq_alloc
+ *
+ * Description: Frees both the container and the DMA-mapped buffers returned by
+ * lpfc_sli4_nvmet_alloc.
+ *
+ * Notes: Can be called with or without locks held.
+ *
+ * Returns: None
+ **/
+void
+lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab)
+{
+	dma_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
+	dma_pool_free(phba->lpfc_nvmet_drb_pool,
+		      dmab->dbuf.virt, dmab->dbuf.phys);
+	kfree(dmab);
 }
 
 /**
@@ -518,13 +695,13 @@ lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 		return;
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		hbq_entry = container_of(mp, struct hbq_dmabuf, dbuf);
 		/* Check whether HBQ is still in use */
 		spin_lock_irqsave(&phba->hbalock, flags);
 		if (!phba->hbq_in_use) {
 			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return;
 		}
-		hbq_entry = container_of(mp, struct hbq_dmabuf, dbuf);
 		list_del(&hbq_entry->dbuf.list);
 		if (hbq_entry->tag == -1) {
 			(phba->hbqs[LPFC_ELS_HBQ].hbq_free_buffer)
@@ -538,4 +715,54 @@ lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 		kfree(mp);
 	}
 	return;
+}
+
+/**
+ * lpfc_rq_buf_free - Free a RQ DMA buffer
+ * @phba: HBA buffer is associated with
+ * @mp: Buffer to free
+ *
+ * Description: Frees the given DMA buffer in the appropriate way given by
+ * reposting it to its associated RQ so it can be reused.
+ *
+ * Notes: Takes phba->hbalock.  Can be called with or without other locks held.
+ *
+ * Returns: None
+ **/
+void
+lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
+{
+	struct lpfc_rqb *rqbp;
+	struct lpfc_rqe hrqe;
+	struct lpfc_rqe drqe;
+	struct rqb_dmabuf *rqb_entry;
+	unsigned long flags;
+	int rc;
+
+	if (!mp)
+		return;
+
+	rqb_entry = container_of(mp, struct rqb_dmabuf, hbuf);
+	rqbp = rqb_entry->hrq->rqbp;
+
+	spin_lock_irqsave(&phba->hbalock, flags);
+	list_del(&rqb_entry->hbuf.list);
+	hrqe.address_lo = putPaddrLow(rqb_entry->hbuf.phys);
+	hrqe.address_hi = putPaddrHigh(rqb_entry->hbuf.phys);
+	drqe.address_lo = putPaddrLow(rqb_entry->dbuf.phys);
+	drqe.address_hi = putPaddrHigh(rqb_entry->dbuf.phys);
+	rc = lpfc_sli4_rq_put(rqb_entry->hrq, rqb_entry->drq, &hrqe, &drqe);
+	if (rc < 0) {
+		(rqbp->rqb_free_buffer)(phba, rqb_entry);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"6409 Cannot post to RQ %d: %x %x\n",
+				rqb_entry->hrq->queue_id,
+				rqb_entry->hrq->host_index,
+				rqb_entry->hrq->hba_index);
+	} else {
+		list_add_tail(&rqb_entry->hbuf.list, &rqbp->rqb_buffer_list);
+		rqbp->buffer_count++;
+	}
+
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 }

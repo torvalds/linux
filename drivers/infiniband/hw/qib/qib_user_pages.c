@@ -32,6 +32,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/device.h>
 
 #include "qib.h"
@@ -52,7 +53,7 @@ static void __qib_release_user_pages(struct page **p, size_t num_pages,
  * Call with current->mm->mmap_sem held.
  */
 static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
-				struct page **p, struct vm_area_struct **vma)
+				struct page **p)
 {
 	unsigned long lock_limit;
 	size_t got;
@@ -66,10 +67,10 @@ static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
 	}
 
 	for (got = 0; got < num_pages; got += ret) {
-		ret = get_user_pages(current, current->mm,
-				     start_page + got * PAGE_SIZE,
-				     num_pages - got, 1, 1,
-				     p + got, vma);
+		ret = get_user_pages(start_page + got * PAGE_SIZE,
+				     num_pages - got,
+				     FOLL_WRITE | FOLL_FORCE,
+				     p + got, NULL);
 		if (ret < 0)
 			goto bail_release;
 	}
@@ -136,7 +137,7 @@ int qib_get_user_pages(unsigned long start_page, size_t num_pages,
 
 	down_write(&current->mm->mmap_sem);
 
-	ret = __qib_get_user_pages(start_page, num_pages, p, NULL);
+	ret = __qib_get_user_pages(start_page, num_pages, p);
 
 	up_write(&current->mm->mmap_sem);
 

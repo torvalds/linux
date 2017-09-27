@@ -21,17 +21,16 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 
-/*
- * Hypervisor detect order.  This is specified explicitly here because
- * some hypervisors might implement compatibility modes for other
- * hypervisors and therefore need to be detected in specific sequence.
- */
 static const __initconst struct hypervisor_x86 * const hypervisors[] =
 {
+#ifdef CONFIG_XEN_PV
+	&x86_hyper_xen_pv,
+#endif
 #ifdef CONFIG_XEN_PVHVM
 	&x86_hyper_xen_hvm,
 #endif
@@ -49,21 +48,19 @@ static inline void __init
 detect_hypervisor_vendor(void)
 {
 	const struct hypervisor_x86 *h, * const *p;
+	uint32_t pri, max_pri = 0;
 
 	for (p = hypervisors; p < hypervisors + ARRAY_SIZE(hypervisors); p++) {
 		h = *p;
-		if (h->detect()) {
+		pri = h->detect();
+		if (pri != 0 && pri > max_pri) {
+			max_pri = pri;
 			x86_hyper = h;
-			printk(KERN_INFO "Hypervisor detected: %s\n", h->name);
-			break;
 		}
 	}
-}
 
-void init_hypervisor(struct cpuinfo_x86 *c)
-{
-	if (x86_hyper && x86_hyper->set_cpu_features)
-		x86_hyper->set_cpu_features(c);
+	if (max_pri)
+		pr_info("Hypervisor detected: %s\n", x86_hyper->name);
 }
 
 void __init init_hypervisor_platform(void)
@@ -74,8 +71,6 @@ void __init init_hypervisor_platform(void)
 	if (!x86_hyper)
 		return;
 
-	init_hypervisor(&boot_cpu_data);
-
 	if (x86_hyper->init_platform)
 		x86_hyper->init_platform();
 }
@@ -85,4 +80,15 @@ bool __init hypervisor_x2apic_available(void)
 	return x86_hyper                   &&
 	       x86_hyper->x2apic_available &&
 	       x86_hyper->x2apic_available();
+}
+
+void hypervisor_pin_vcpu(int cpu)
+{
+	if (!x86_hyper)
+		return;
+
+	if (x86_hyper->pin_vcpu)
+		x86_hyper->pin_vcpu(cpu);
+	else
+		WARN_ONCE(1, "vcpu pinning requested but not supported!\n");
 }

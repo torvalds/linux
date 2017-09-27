@@ -85,12 +85,12 @@ static int poll_quick = HZ/20;
 /* CCLK external clock time, in nanoseconds.  70 ns = 14.31818 MHz */
 static int cycle_time = 70;
 
-module_param(tcic_base, ulong, 0444);
+module_param_hw(tcic_base, ulong, ioport, 0444);
 module_param(ignore, int, 0444);
 module_param(do_scan, int, 0444);
-module_param(irq_mask, int, 0444);
-module_param_array(irq_list, int, &irq_list_count, 0444);
-module_param(cs_irq, int, 0444);
+module_param_hw(irq_mask, int, other, 0444);
+module_param_hw_array(irq_list, int, irq, &irq_list_count, 0444);
+module_param_hw(cs_irq, int, irq, 0444);
 module_param(poll_interval, int, 0444);
 module_param(poll_quick, int, 0444);
 module_param(cycle_time, int, 0444);
@@ -349,7 +349,6 @@ static int __init get_tcic_id(void)
 static struct platform_driver tcic_driver = {
 	.driver = {
 		.name = "tcic-pcmcia",
-		.owner		= THIS_MODULE,
 	},
 };
 

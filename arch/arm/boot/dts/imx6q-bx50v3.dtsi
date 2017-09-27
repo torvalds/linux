@@ -1,0 +1,328 @@
+/*
+ * Copyright 2015 Timesys Corporation.
+ * Copyright 2015 General Electric Company
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include "imx6q-ba16.dtsi"
+
+/ {
+	clocks {
+		mclk: clock@0 {
+			compatible = "fixed-clock";
+			reg = <0>;
+			#clock-cells = <0>;
+			clock-frequency = <22000000>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	reg_wl18xx_vmmc: regulator-wl18xx {
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1807";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pca9539 3 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	reg_wlan: regulator-wlan {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V_wlan";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio6 14 GPIO_ACTIVE_HIGH>;
+	};
+
+	sound {
+		compatible = "fsl,imx6q-ba16-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx6q-ba16-sgtl5000";
+		ssi-controller = <&ssi1>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"LINE_IN", "Line In Jack",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <1>;
+		mux-ext-port = <4>;
+	};
+};
+
+&ecspi5 {
+	cs-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi5>;
+	status = "okay";
+
+	m25_eeprom: m25p80@0 {
+		compatible = "atmel,at25";
+		spi-max-frequency = <10000000>;
+		size = <0x8000>;
+		pagesize = <64>;
+		reg = <0>;
+		address-width = <16>;
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	sda-gpios = <&gpio5 26 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;
+
+	pca9547: mux@70 {
+		compatible = "nxp,pca9547";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mux1_i2c1: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+
+			ads7830: ads7830@48 {
+				compatible = "ti,ads7830";
+				reg = <0x48>;
+			};
+
+			mma8453: mma8453@1c {
+				compatible = "fsl,mma8453";
+				reg = <0x1c>;
+			};
+		};
+
+		mux1_i2c2: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+
+			eeprom: eeprom@50 {
+				compatible = "atmel,24c08";
+				reg = <0x50>;
+			};
+
+			mpl3115: mpl3115@60 {
+				compatible = "fsl,mpl3115";
+				reg = <0x60>;
+			};
+		};
+
+		mux1_i2c3: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+		};
+
+		mux1_i2c4: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3>;
+
+			sgtl5000: codec@0a {
+				compatible = "fsl,sgtl5000";
+				reg = <0x0a>;
+				clocks = <&mclk>;
+				VDDA-supply = <&reg_1p8v>;
+				VDDIO-supply = <&reg_3p3v>;
+			};
+		};
+
+		mux1_i2c5: i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x4>;
+
+			pca9539: pca9539@74 {
+				compatible = "nxp,pca9539";
+				reg = <0x74>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				interrupt-parent = <&gpio2>;
+				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+
+				P10 {
+					gpio-hog;
+					gpios = <8 0>;
+					output-low;
+					line-name = "PCA9539-P10";
+				};
+
+				P11 {
+					gpio-hog;
+					gpios = <9 0>;
+					output-low;
+					line-name = "PCA9539-P11";
+				};
+
+				P12 {
+					gpio-hog;
+					gpios = <10 0>;
+					output-low;
+					line-name = "PCA9539-P12";
+				};
+
+				P13 {
+					gpio-hog;
+					gpios = <11 0>;
+					output-low;
+					line-name = "PCA9539-P13";
+				};
+
+				P14 {
+					gpio-hog;
+					gpios = <12 0>;
+					output-low;
+					line-name = "PCA9539-P14";
+				};
+
+				P15 {
+					gpio-hog;
+					gpios = <13 0>;
+					output-low;
+					line-name = "PCA9539-P15";
+				};
+
+				P16 {
+					gpio-hog;
+					gpios = <14 0>;
+					output-low;
+					line-name = "PCA9539-P16";
+				};
+
+				P17 {
+					gpio-hog;
+					gpios = <15 0>;
+					output-low;
+					line-name = "PCA9539-P17";
+				};
+			};
+		};
+
+		mux1_i2c6: i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x5>;
+		};
+
+		mux1_i2c7: i2c@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x6>;
+		};
+
+		mux1_i2c8: i2c@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x7>;
+		};
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	sda-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c3 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	sda-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+};
+
+&iomuxc {
+	pinctrl_i2c1_gpio: i2c1gpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26	0x1b0b0
+			MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27	0x1b0b0
+		>;
+	};
+
+	pinctrl_i2c2_gpio: i2c2gpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_COL3__GPIO4_IO12	0x1b0b0
+			MX6QDL_PAD_KEY_ROW3__GPIO4_IO13	0x1b0b0
+		>;
+	};
+
+	pinctrl_i2c3_gpio: i2c3gpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_3__GPIO1_IO03	0x1b0b0
+			MX6QDL_PAD_GPIO_6__GPIO1_IO06	0x1b0b0
+		>;
+	};
+};
+
+&usdhc4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc4>;
+	bus-width = <4>;
+	vmmc-supply = <&reg_wl18xx_vmmc>;
+	no-1-8-v;
+	non-removable;
+	wakeup-source;
+	keep-power-in-suspend;
+	cap-power-off-card;
+	max-frequency = <25000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1837";
+		reg = <2>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <6 IRQ_TYPE_LEVEL_HIGH>;
+		tcxo-clock-frequency = <26000000>;
+	};
+};

@@ -46,6 +46,7 @@ SECTIONS {
 		__end_ivt_text = .;
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		*(.gnu.linkonce.t*)
@@ -136,27 +137,6 @@ SECTIONS {
 		__end___mckinley_e9_bundles = .;
 	}
 
-#if defined(CONFIG_PARAVIRT)
-	. = ALIGN(16);
-	.paravirt_bundles : AT(ADDR(.paravirt_bundles) - LOAD_OFFSET) {
-		__start_paravirt_bundles = .;
-		*(.paravirt_bundles)
-		__stop_paravirt_bundles = .;
-	}
-	. = ALIGN(16);
-	.paravirt_insts : AT(ADDR(.paravirt_insts) - LOAD_OFFSET) {
-		__start_paravirt_insts = .;
-		*(.paravirt_insts)
-		__stop_paravirt_insts = .;
-	}
-	. = ALIGN(16);
-	.paravirt_branches : AT(ADDR(.paravirt_branches) - LOAD_OFFSET) {
-		__start_paravirt_branches = .;
-		*(.paravirt_branches)
-		__stop_paravirt_branches = .;
-	}
-#endif
-
 #if defined(CONFIG_IA64_GENERIC)
 	/* Machine Vector */
 	. = ALIGN(16);
@@ -182,12 +162,6 @@ SECTIONS {
 		__start_gate_section = .;
 		*(.data..gate)
 		__stop_gate_section = .;
-#ifdef CONFIG_XEN
-		. = ALIGN(PAGE_SIZE);
-		__xen_start_gate_section = .;
-		*(.data..gate.xen)
-		__xen_stop_gate_section = .;
-#endif
 	}
 	/*
 	 * make sure the gate page doesn't expose
@@ -217,6 +191,8 @@ SECTIONS {
 		*(.gnu.linkonce.d*)
 		CONSTRUCTORS
 	}
+
+	BUG_TABLE
 
 	. = ALIGN(16);	/* gp must be 16-byte aligned for exc. table */
 	.got : AT(ADDR(.got) - LOAD_OFFSET) {

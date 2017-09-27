@@ -137,7 +137,8 @@ static int sclp_async_send_wait(char *message)
 	 * Retain Queue
 	 * e.g. 5639CC140 500 Red Hat RHEL5 Linux for zSeries (RHEL AS)
 	 */
-	strncpy(sccb->evbuf.comp_id, "000000000", sizeof(sccb->evbuf.comp_id));
+	strncpy(sccb->evbuf.comp_id, CONFIG_SCLP_ASYNC_ID,
+		sizeof(sccb->evbuf.comp_id));
 	sccb->evbuf.header.length = sizeof(sccb->evbuf);
 	sccb->header.length = sizeof(sccb->evbuf) + sizeof(sccb->header);
 	sccb->header.function_code = SCLP_NORMAL_WRITE;

@@ -19,6 +19,7 @@ struct nfs_net {
 	struct rpc_pipe *bl_device_pipe;
 	struct bl_dev_msg bl_mount_reply;
 	wait_queue_head_t bl_wq;
+	struct mutex bl_mutex;
 	struct list_head nfs_client_list;
 	struct list_head nfs_volume_list;
 #if IS_ENABLED(CONFIG_NFS_V4)
@@ -28,9 +29,12 @@ struct nfs_net {
 	int cb_users[NFS4_MAX_MINOR_VERSION + 1];
 #endif
 	spinlock_t nfs_client_lock;
-	struct timespec boot_time;
+	ktime_t boot_time;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *proc_nfsfs;
+#endif
 };
 
-extern int nfs_net_id;
+extern unsigned int nfs_net_id;
 
 #endif

@@ -1,11 +1,10 @@
 /*
- * include/asm-xtensa/processor.h
- *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
  * Copyright (C) 2001 - 2008 Tensilica Inc.
+ * Copyright (C) 2015 Cadence Design Systems Inc.
  */
 
 #ifndef _XTENSA_PROCESSOR_H
@@ -38,11 +37,19 @@
 #ifdef CONFIG_MMU
 #define TASK_SIZE	__XTENSA_UL_CONST(0x40000000)
 #else
-#define TASK_SIZE	(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
+#define TASK_SIZE	__XTENSA_UL_CONST(0xffffffff)
 #endif
 
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	STACK_TOP
+
+/*
+ * General exception cause assigned to fake NMI. Fake NMI needs to be handled
+ * differently from other interrupts, but it uses common kernel entry/exit
+ * code.
+ */
+
+#define EXCCAUSE_MAPPED_NMI	62
 
 /*
  * General exception cause assigned to debug exceptions. Debug exceptions go
@@ -65,10 +72,28 @@
 
 #define VALID_DOUBLE_EXCEPTION_ADDRESS	64
 
+#define XTENSA_INT_LEVEL(intno) _XTENSA_INT_LEVEL(intno)
+#define _XTENSA_INT_LEVEL(intno) XCHAL_INT##intno##_LEVEL
+
+#define XTENSA_INTLEVEL_MASK(level) _XTENSA_INTLEVEL_MASK(level)
+#define _XTENSA_INTLEVEL_MASK(level) (XCHAL_INTLEVEL##level##_MASK)
+
+#define XTENSA_INTLEVEL_ANDBELOW_MASK(l) _XTENSA_INTLEVEL_ANDBELOW_MASK(l)
+#define _XTENSA_INTLEVEL_ANDBELOW_MASK(l) (XCHAL_INTLEVEL##l##_ANDBELOW_MASK)
+
+#define PROFILING_INTLEVEL XTENSA_INT_LEVEL(XCHAL_PROFILING_INTERRUPT)
+
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
+#if defined(CONFIG_XTENSA_FAKE_NMI) && defined(XCHAL_PROFILING_INTERRUPT)
+#define LOCKLEVEL (PROFILING_INTLEVEL - 1)
+#else
 #define LOCKLEVEL XCHAL_EXCM_LEVEL
+#endif
+
+#define TOPLEVEL XCHAL_EXCM_LEVEL
+#define XTENSA_FAKE_NMI (LOCKLEVEL < TOPLEVEL)
 
 /* WSBITS and WBBITS are the width of the WINDOWSTART and WINDOWBASE
  * registers
@@ -88,6 +113,21 @@
  */
 #define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
 
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp. reg must be in the range [0..4).
+ */
+#define SPILL_SLOT(sp, reg) (*(((unsigned long *)(sp)) - 4 + (reg)))
+
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp for the call8. reg must be in the range [4..8).
+ */
+#define SPILL_SLOT_CALL8(sp, reg) (*(((unsigned long *)(sp)) - 12 + (reg)))
+
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp for the call12. reg must be in the range [4..12).
+ */
+#define SPILL_SLOT_CALL12(sp, reg) (*(((unsigned long *)(sp)) - 16 + (reg)))
+
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
@@ -105,11 +145,10 @@ struct thread_struct {
 	unsigned long bad_vaddr; /* last user fault */
 	unsigned long bad_uaddr; /* last kernel fault accessing user space */
 	unsigned long error_code;
-
-	unsigned long ibreak[XCHAL_NUM_IBREAK];
-	unsigned long dbreaka[XCHAL_NUM_DBREAK];
-	unsigned long dbreakc[XCHAL_NUM_DBREAK];
-
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	struct perf_event *ptrace_bp[XCHAL_NUM_IBREAK];
+	struct perf_event *ptrace_wp[XCHAL_NUM_DBREAK];
+#endif
 	/* Make structure 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));
 };
@@ -169,13 +208,6 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
 
-/* Copy and release all segment info associated with a VM */
-#define copy_segments(p, mm)	do { } while(0)
-#define release_segments(mm)	do { } while(0)
-#define forget_segments()	do { } while (0)
-
-#define thread_saved_pc(tsk)	(task_pt_regs(tsk)->pc)
-
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
@@ -190,6 +222,26 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define set_sr(x,sr) ({unsigned int v=(unsigned int)x; WSR(v,sr);})
 #define get_sr(sr) ({unsigned int v; RSR(v,sr); v; })
+
+#ifndef XCHAL_HAVE_EXTERN_REGS
+#define XCHAL_HAVE_EXTERN_REGS 0
+#endif
+
+#if XCHAL_HAVE_EXTERN_REGS
+
+static inline void set_er(unsigned long value, unsigned long addr)
+{
+	asm volatile ("wer %0, %1" : : "a" (value), "a" (addr) : "memory");
+}
+
+static inline unsigned long get_er(unsigned long addr)
+{
+	register unsigned long value;
+	asm volatile ("rer %0, %1" : "=a" (value) : "a" (addr) : "memory");
+	return value;
+}
+
+#endif /* XCHAL_HAVE_EXTERN_REGS */
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* _XTENSA_PROCESSOR_H */

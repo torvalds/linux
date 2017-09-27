@@ -17,7 +17,7 @@
 #ifdef CONFIG_MTD_UCLINUX
 #include <linux/mtd/map.h>
 #include <linux/ext2_fs.h>
-#include <linux/cramfs_fs.h>
+#include <uapi/linux/cramfs_fs.h>
 #include <linux/romfs_fs.h>
 #endif
 
@@ -34,6 +34,9 @@
 #include <asm/pda.h>
 #ifdef CONFIG_BF60x
 #include <mach/pm.h>
+#endif
+#ifdef CONFIG_SCB_PRIORITY
+#include <asm/scb.h>
 #endif
 
 u16 _bfin_swrst;
@@ -1101,6 +1104,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	init_exception_vectors();
 	bfin_cache_init();	/* Initialize caches for the boot CPU */
+#ifdef CONFIG_SCB_PRIORITY
+	init_scb();
+#endif
 }
 
 static int __init topology_init(void)
@@ -1458,5 +1464,5 @@ void __init cmdline_init(const char *r0)
 {
 	early_shadow_stamp();
 	if (r0)
-		strncpy(command_line, r0, COMMAND_LINE_SIZE);
+		strlcpy(command_line, r0, COMMAND_LINE_SIZE);
 }

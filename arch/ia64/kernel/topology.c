@@ -148,7 +148,7 @@ static void cache_shared_cpu_map_setup(unsigned int cpu,
 
 	if (cpu_data(cpu)->threads_per_core <= 1 &&
 		cpu_data(cpu)->cores_per_socket <= 1) {
-		cpu_set(cpu, this_leaf->shared_cpu_map);
+		cpumask_set_cpu(cpu, &this_leaf->shared_cpu_map);
 		return;
 	}
 
@@ -164,7 +164,7 @@ static void cache_shared_cpu_map_setup(unsigned int cpu,
 			if (cpu_data(cpu)->socket_id == cpu_data(j)->socket_id
 				&& cpu_data(j)->core_id == csi.log1_cid
 				&& cpu_data(j)->thread_id == csi.log1_tid)
-				cpu_set(j, this_leaf->shared_cpu_map);
+				cpumask_set_cpu(j, &this_leaf->shared_cpu_map);
 
 		i++;
 	} while (i < num_shared &&
@@ -177,7 +177,7 @@ static void cache_shared_cpu_map_setup(unsigned int cpu,
 static void cache_shared_cpu_map_setup(unsigned int cpu,
 		struct cache_info * this_leaf)
 {
-	cpu_set(cpu, this_leaf->shared_cpu_map);
+	cpumask_set_cpu(cpu, &this_leaf->shared_cpu_map);
 	return;
 }
 #endif
@@ -217,14 +217,12 @@ static ssize_t show_number_of_sets(struct cache_info *this_leaf, char *buf)
 
 static ssize_t show_shared_cpu_map(struct cache_info *this_leaf, char *buf)
 {
-	ssize_t	len;
 	cpumask_t shared_cpu_map;
 
 	cpumask_and(&shared_cpu_map,
 				&this_leaf->shared_cpu_map, cpu_online_mask);
-	len = cpumask_scnprintf(buf, NR_CPUS+1, &shared_cpu_map);
-	len += sprintf(buf+len, "\n");
-	return len;
+	return scnprintf(buf, PAGE_SIZE, "%*pb\n",
+			 cpumask_pr_args(&shared_cpu_map));
 }
 
 static ssize_t show_type(struct cache_info *this_leaf, char *buf)
@@ -351,24 +349,18 @@ static int cpu_cache_sysfs_init(unsigned int cpu)
 }
 
 /* Add cache interface for CPU device */
-static int cache_add_dev(struct device *sys_dev)
+static int cache_add_dev(unsigned int cpu)
 {
-	unsigned int cpu = sys_dev->id;
+	struct device *sys_dev = get_cpu_device(cpu);
 	unsigned long i, j;
 	struct cache_info *this_object;
 	int retval = 0;
-	cpumask_t oldmask;
 
 	if (all_cpu_cache_info[cpu].kobj.parent)
 		return 0;
 
-	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed_ptr(current, cpumask_of(cpu));
-	if (unlikely(retval))
-		return retval;
 
 	retval = cpu_cache_sysfs_init(cpu);
-	set_cpus_allowed_ptr(current, &oldmask);
 	if (unlikely(retval < 0))
 		return retval;
 
@@ -401,9 +393,8 @@ static int cache_add_dev(struct device *sys_dev)
 }
 
 /* Remove cache interface for CPU device */
-static int cache_remove_dev(struct device *sys_dev)
+static int cache_remove_dev(unsigned int cpu)
 {
-	unsigned int cpu = sys_dev->id;
 	unsigned long i;
 
 	for (i = 0; i < all_cpu_cache_info[cpu].num_cache_leaves; i++)
@@ -421,48 +412,13 @@ static int cache_remove_dev(struct device *sys_dev)
 	return 0;
 }
 
-/*
- * When a cpu is hot-plugged, do a check and initiate
- * cache kobject if necessary
- */
-static int cache_cpu_callback(struct notifier_block *nfb,
-		unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-	struct device *sys_dev;
-
-	sys_dev = get_cpu_device(cpu);
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		cache_add_dev(sys_dev);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		cache_remove_dev(sys_dev);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block cache_cpu_notifier =
-{
-	.notifier_call = cache_cpu_callback
-};
-
 static int __init cache_sysfs_init(void)
 {
-	int i;
+	int ret;
 
-	for_each_online_cpu(i) {
-		struct device *sys_dev = get_cpu_device((unsigned int)i);
-		cache_add_dev(sys_dev);
-	}
-
-	register_hotcpu_notifier(&cache_cpu_notifier);
-
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "ia64/topology:online",
+				cache_add_dev, cache_remove_dev);
+	WARN_ON(ret < 0);
 	return 0;
 }
-
 device_initcall(cache_sysfs_init);
-

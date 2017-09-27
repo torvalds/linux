@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,10 +60,10 @@ static struct rc_map_table pixelview_new[] = {
 
 static struct rc_map_list pixelview_new_map = {
 	.map = {
-		.scan    = pixelview_new,
-		.size    = ARRAY_SIZE(pixelview_new),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_PIXELVIEW_NEW,
+		.scan     = pixelview_new,
+		.size     = ARRAY_SIZE(pixelview_new),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_PIXELVIEW_NEW,
 	}
 };
 
@@ -81,4 +81,4 @@ module_init(init_rc_map_pixelview_new)
 module_exit(exit_rc_map_pixelview_new)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

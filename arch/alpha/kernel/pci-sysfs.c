@@ -38,7 +38,7 @@ static int __pci_mmap_fits(struct pci_dev *pdev, int num,
 	unsigned long nr, start, size;
 	int shift = sparse ? 5 : 0;
 
-	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
 	size = ((pci_resource_len(pdev, num) - 1) >> (PAGE_SHIFT - shift)) + 1;
 
@@ -64,8 +64,7 @@ static int pci_mmap_resource(struct kobject *kobj,
 			     struct bin_attribute *attr,
 			     struct vm_area_struct *vma, int sparse)
 {
-	struct pci_dev *pdev = to_pci_dev(container_of(kobj,
-						       struct device, kobj));
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 	struct resource *res = attr->private;
 	enum pci_mmap_state mmap_type;
 	struct pci_bus_region bar;
@@ -77,13 +76,13 @@ static int pci_mmap_resource(struct kobject *kobj,
 	if (i >= PCI_ROM_RESOURCE)
 		return -ENODEV;
 
+	if (res->flags & IORESOURCE_MEM && iomem_is_exclusive(res->start))
+		return -EINVAL;
+
 	if (!__pci_mmap_fits(pdev, i, vma, sparse))
 		return -EINVAL;
 
-	if (iomem_is_exclusive(res->start))
-		return -EINVAL;
-
-	pcibios_resource_to_bus(pdev, &bar, res);
+	pcibios_resource_to_bus(pdev->bus, &bar, res);
 	vma->vm_pgoff += bar.start >> (PAGE_SHIFT - (sparse ? 5 : 0));
 	mmap_type = res->flags & IORESOURCE_MEM ? pci_mmap_mem : pci_mmap_io;
 
@@ -139,7 +138,7 @@ static int sparse_mem_mmap_fits(struct pci_dev *pdev, int num)
 	long dense_offset;
 	unsigned long sparse_size;
 
-	pcibios_resource_to_bus(pdev, &bar, &pdev->resource[num]);
+	pcibios_resource_to_bus(pdev->bus, &bar, &pdev->resource[num]);
 
 	/* All core logic chips have 4G sparse address space, except
 	   CIA which has 16G (see xxx_SPARSE_MEM and xxx_DENSE_MEM
@@ -255,7 +254,7 @@ static int __legacy_mmap_fits(struct pci_controller *hose,
 {
 	unsigned long nr, start, size;
 
-	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
 	size = ((res_size - 1) >> PAGE_SHIFT) + 1;
 

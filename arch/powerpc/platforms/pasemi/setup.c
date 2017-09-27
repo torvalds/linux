@@ -59,10 +59,10 @@ struct mce_regs {
 
 static struct mce_regs mce_regs[MAX_MCE_REGS];
 static int num_mce_regs;
-static int nmi_virq = NO_IRQ;
+static int nmi_virq = 0;
 
 
-static void pas_restart(char *cmd)
+static void __noreturn pas_restart(char *cmd)
 {
 	/* Need to put others cpu in hold loop so they're not sleeping */
 	smp_send_stop();
@@ -105,7 +105,7 @@ static void pas_take_timebase(void)
 	arch_spin_unlock(&timebase_lock);
 }
 
-struct smp_ops_t pas_smp_ops = {
+static struct smp_ops_t pas_smp_ops = {
 	.probe		= smp_mpic_probe,
 	.message_pass	= smp_mpic_message_pass,
 	.kick_cpu	= smp_generic_kick_cpu,
@@ -115,7 +115,7 @@ struct smp_ops_t pas_smp_ops = {
 };
 #endif /* CONFIG_SMP */
 
-void __init pas_setup_arch(void)
+static void __init pas_setup_arch(void)
 {
 #ifdef CONFIG_SMP
 	/* Setup SMP callback */
@@ -264,7 +264,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	srr0 = regs->nip;
 	srr1 = regs->msr;
 
-	if (nmi_virq != NO_IRQ && mpic_get_mcirq() == nmi_virq) {
+	if (nmi_virq && mpic_get_mcirq() == nmi_virq) {
 		printk(KERN_ERR "NMI delivered\n");
 		debugger(regs);
 		mpic_end_irq(irq_get_irq_data(nmi_virq));
@@ -339,11 +339,6 @@ out:
 	return !!(srr1 & 0x2);
 }
 
-static void __init pas_init_early(void)
-{
-	iommu_init_early_pasemi();
-}
-
 #ifdef CONFIG_PCMCIA
 static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
 			 void *data)
@@ -368,7 +363,7 @@ static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	/* We use the direct ops for localbus */
-	dev->archdata.dma_ops = &dma_direct_ops;
+	dev->dma_ops = &dma_direct_ops;
 
 	return 0;
 }
@@ -393,7 +388,7 @@ static inline void pasemi_pcmcia_init(void)
 #endif
 
 
-static struct of_device_id pasemi_bus_ids[] = {
+static const struct of_device_id pasemi_bus_ids[] = {
 	/* Unfortunately needed for legacy firmwares */
 	{ .type = "localbus", },
 	{ .type = "sdc", },
@@ -420,15 +415,11 @@ machine_device_initcall(pasemi, pasemi_publish_devices);
  */
 static int __init pas_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "PA6T-1682M") &&
-	    !of_flat_dt_is_compatible(root, "pasemi,pwrficient"))
+	if (!of_machine_is_compatible("PA6T-1682M") &&
+	    !of_machine_is_compatible("pasemi,pwrficient"))
 		return 0;
 
-	hpte_init_native();
-
-	alloc_iobmap_l2();
+	iommu_init_early_pasemi();
 
 	return 1;
 }
@@ -437,7 +428,6 @@ define_machine(pasemi) {
 	.name			= "PA Semi PWRficient",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
-	.init_early		= pas_init_early,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,

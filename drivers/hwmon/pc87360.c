@@ -1,7 +1,7 @@
 /*
  *  pc87360.c - Part of lm_sensors, Linux kernel modules
  *              for hardware monitoring
- *  Copyright (C) 2004, 2007 Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2004, 2007 Jean Delvare <jdelvare@suse.de>
  *
  *  Copied from smsc47m1.c:
  *  Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
@@ -244,7 +244,6 @@ static struct pc87360_data *pc87360_update_device(struct device *dev);
 
 static struct platform_driver pc87360_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "pc87360",
 	},
 	.probe		= pc87360_probe,
@@ -590,22 +589,22 @@ static struct sensor_device_attribute in_max_alarm[] = {
 	&in_min_alarm[X].dev_attr.attr,	\
 	&in_max_alarm[X].dev_attr.attr
 
-static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct pc87360_data *data = pc87360_update_device(dev);
 	return sprintf(buf, "%u\n", vid_from_reg(data->vid, data->vrm));
 }
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
-static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
+static ssize_t vrm_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct pc87360_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", data->vrm);
 }
-static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct pc87360_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -615,18 +614,21 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	if (err)
 		return err;
 
+	if (val > 255)
+		return -EINVAL;
+
 	data->vrm = val;
 	return count;
 }
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
+static DEVICE_ATTR_RW(vrm);
 
-static ssize_t show_in_alarms(struct device *dev,
+static ssize_t alarms_in_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct pc87360_data *data = pc87360_update_device(dev);
 	return sprintf(buf, "%u\n", data->in_alarms);
 }
-static DEVICE_ATTR(alarms_in, S_IRUGO, show_in_alarms, NULL);
+static DEVICE_ATTR_RO(alarms_in);
 
 static struct attribute *pc8736x_vin_attr_array[] = {
 	VIN_UNIT_ATTRS(0),
@@ -1004,14 +1006,14 @@ static struct sensor_device_attribute temp_crit[] = {
 		    show_temp_crit, set_temp_crit, 2),
 };
 
-static ssize_t show_temp_alarms(struct device *dev,
+static ssize_t alarms_temp_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct pc87360_data *data = pc87360_update_device(dev);
 	return sprintf(buf, "%u\n", data->temp_alarms);
 }
 
-static DEVICE_ATTR(alarms_temp, S_IRUGO, show_temp_alarms, NULL);
+static DEVICE_ATTR_RO(alarms_temp);
 
 /*
  * show_temp_min/max_alarm() reads data from the per-channel status
@@ -1104,14 +1106,14 @@ static const struct attribute_group pc8736x_temp_attr_group[] = {
 	{ .attrs = pc8736x_temp_attr[2] }
 };
 
-static ssize_t show_name(struct device *dev,
+static ssize_t name_show(struct device *dev,
 			struct device_attribute *devattr, char *buf)
 {
 	struct pc87360_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", data->name);
 }
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 /*
  * Device detection, registration and update
@@ -1225,7 +1227,7 @@ static int pc87360_probe(struct platform_device *pdev)
 	int i;
 	struct pc87360_data *data;
 	int err = 0;
-	const char *name = "pc87360";
+	const char *name;
 	int use_thermistors = 0;
 	struct device *dev = &pdev->dev;
 
@@ -1233,13 +1235,14 @@ static int pc87360_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->fannr = 2;
-	data->innr = 0;
-	data->tempnr = 0;
-
 	switch (devid) {
+	default:
+		name = "pc87360";
+		data->fannr = 2;
+		break;
 	case 0xe8:
 		name = "pc87363";
+		data->fannr = 2;
 		break;
 	case 0xe4:
 		name = "pc87364";
@@ -1260,7 +1263,6 @@ static int pc87360_probe(struct platform_device *pdev)
 	}
 
 	data->name = name;
-	data->valid = 0;
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 	platform_set_drvdata(pdev, data);
@@ -1808,7 +1810,7 @@ static void __exit pc87360_exit(void)
 }
 
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("PC8736x hardware monitor");
 MODULE_LICENSE("GPL");
 

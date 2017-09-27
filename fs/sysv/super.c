@@ -216,7 +216,7 @@ static int detect_sysv(struct sysv_sb_info *sbi, struct buffer_head *bh)
  	if (fs16_to_cpu(sbi, sbd->s_nfree) == 0xffff) {
  		sbi->s_type = FSTYPE_AFS;
 		sbi->s_forced_ro = 1;
- 		if (!(sb->s_flags & MS_RDONLY)) {
+ 		if (!sb_rdonly(sb)) {
  			printk("SysV FS: SCO EAFS on %s detected, " 
  				"forcing read-only mode.\n", 
  				sb->s_id);
@@ -487,6 +487,7 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;
 	sbi->s_type = FSTYPE_V7;
+	mutex_init(&sbi->s_lock);
 	sb->s_fs_info = sbi;
 	
 	sb_set_blocksize(sb, 512);

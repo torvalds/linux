@@ -5,39 +5,20 @@
 #   IPv6 as module will cause a CRASH if you try to unload it
 menuconfig IPV6
 	tristate "The IPv6 protocol"
-	default m
+	default y
 	---help---
-	  This is complemental support for the IP version 6.
-	  You will still be able to do traditional IPv4 networking as well.
+	  Support for IP version 6 (IPv6).
 
 	  For general information about IPv6, see
 	  <https://en.wikipedia.org/wiki/IPv6>.
-	  For Linux IPv6 development information, see <http://www.linux-ipv6.org>.
-	  For specific information about IPv6 under Linux, read the HOWTO at
-	  <http://www.bieringer.de/linux/IPv6/>.
+	  For specific information about IPv6 under Linux, see
+	  Documentation/networking/ipv6.txt and read the HOWTO at
+	  <http://www.tldp.org/HOWTO/Linux+IPv6-HOWTO/>
 
 	  To compile this protocol support as a module, choose M here: the 
 	  module will be called ipv6.
 
 if IPV6
-
-config IPV6_PRIVACY
-	bool "IPv6: Privacy Extensions (RFC 3041) support"
-	---help---
-	  Privacy Extensions for Stateless Address Autoconfiguration in IPv6
-	  support.  With this option, additional periodically-altered
-	  pseudo-random global-scope unicast address(es) will be assigned to
-	  your interface(s).
-	
-	  We use our standard pseudo-random algorithm to generate the
-          randomized interface identifier, instead of one described in RFC 3041.
-
-	  By default the kernel does not generate temporary addresses.
-	  To use temporary addresses, do
-	
-	        echo 2 >/proc/sys/net/ipv6/conf/all/use_tempaddr 
-
-	  See <file:Documentation/networking/ip-sysctl.txt> for details.
 
 config IPV6_ROUTER_PREF
 	bool "IPv6: Router Preference (RFC 4191) support"
@@ -88,10 +69,24 @@ config INET6_ESP
 	select CRYPTO_CBC
 	select CRYPTO_SHA1
 	select CRYPTO_DES
+	select CRYPTO_ECHAINIV
 	---help---
 	  Support for IPsec ESP.
 
 	  If unsure, say Y.
+
+config INET6_ESP_OFFLOAD
+	tristate "IPv6: ESP transformation offload"
+	depends on INET6_ESP
+	select XFRM_OFFLOAD
+	default n
+	---help---
+	  Support for ESP transformation offload. This makes sense
+	  only if this system really does IPsec and want to do it
+	  with high throughput. A typical desktop system does not
+	  need it, even if it does IPsec.
+
+	  If unsure, say N.
 
 config INET6_IPCOMP
 	tristate "IPv6: IPComp transformation"
@@ -108,6 +103,26 @@ config IPV6_MIP6
 	select XFRM
 	---help---
 	  Support for IPv6 Mobility described in RFC 3775.
+
+	  If unsure, say N.
+
+config IPV6_ILA
+	tristate "IPv6: Identifier Locator Addressing (ILA)"
+	depends on NETFILTER
+	select LWTUNNEL
+	---help---
+	  Support for IPv6 Identifier Locator Addressing (ILA).
+
+	  ILA is a mechanism to do network virtualization without
+	  encapsulation. The basic concept of ILA is that we split an
+	  IPv6 address into a 64 bit locator and 64 bit identifier. The
+	  identifier is the identity of an entity in communication
+	  ("who") and the locator expresses the location of the
+	  entity ("where").
+
+	  ILA can be configured using the "encap ila" option with
+	  "ip -6 route" command. ILA is described in
+	  https://tools.ietf.org/html/draft-herbert-nvo3-ila-00.
 
 	  If unsure, say N.
 
@@ -153,6 +168,18 @@ config INET6_XFRM_MODE_ROUTEOPTIMIZATION
 	---help---
 	  Support for MIPv6 route optimization mode.
 
+config IPV6_VTI
+tristate "Virtual (secure) IPv6: tunneling"
+	select IPV6_TUNNEL
+	select NET_IP_TUNNEL
+	depends on INET6_XFRM_MODE_TUNNEL
+	---help---
+	Tunneling means encapsulating data of one protocol type within
+	another protocol and sending it over a channel that understands the
+	encapsulating protocol. This can be used with xfrm mode tunnel to give
+	the notion of a secure tunnel for IPSEC and then use routing protocol
+	on top.
+
 config IPV6_SIT
 	tristate "IPv6: IPv6-in-IPv4 tunnel (SIT driver)"
 	select INET_TUNNEL
@@ -193,6 +220,8 @@ config IPV6_NDISC_NODETYPE
 config IPV6_TUNNEL
 	tristate "IPv6: IP-in-IPv6 tunnel (RFC2473)"
 	select INET6_TUNNEL
+	select DST_CACHE
+	select GRO_CELLS
 	---help---
 	  Support for IPv6-in-IPv6 and IPv4-in-IPv6 tunnels described in
 	  RFC 2473.
@@ -203,6 +232,7 @@ config IPV6_GRE
 	tristate "IPv6: GRE tunnel"
 	select IPV6_TUNNEL
 	select NET_IP_TUNNEL
+	depends on NET_IPGRE_DEMUX
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -215,6 +245,15 @@ config IPV6_GRE
 	  through the tunnel.
 
 	  Saying M here will produce a module called ip6_gre. If unsure, say N.
+
+config IPV6_FOU
+	tristate
+	default NET_FOU && IPV6
+
+config IPV6_FOU_TUNNEL
+	tristate
+	default NET_FOU_IP_TUNNELS && IPV6_FOU
+	select IPV6_TUNNEL
 
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"
@@ -262,6 +301,32 @@ config IPV6_PIMSM_V2
 	depends on IPV6_MROUTE
 	---help---
 	  Support for IPv6 PIM multicast routing protocol PIM-SMv2.
+	  If unsure, say N.
+
+config IPV6_SEG6_LWTUNNEL
+	bool "IPv6: Segment Routing Header encapsulation support"
+	depends on IPV6
+	select LWTUNNEL
+	select DST_CACHE
+	select IPV6_MULTIPLE_TABLES
+	---help---
+	  Support for encapsulation of packets within an outer IPv6
+	  header and a Segment Routing Header using the lightweight
+	  tunnels mechanism. Also enable support for advanced local
+	  processing of SRv6 packets based on their active segment.
+
+	  If unsure, say N.
+
+config IPV6_SEG6_HMAC
+	bool "IPv6: Segment Routing HMAC support"
+	depends on IPV6
+	select CRYPTO_HMAC
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	---help---
+	  Support for HMAC signature generation and verification
+	  of SR-enabled packets.
+
 	  If unsure, say N.
 
 endif # IPV6

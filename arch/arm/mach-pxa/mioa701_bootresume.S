@@ -16,6 +16,7 @@
  *       insist on it to be truly read-only.
  */
 	.data
+	.align	2
 ENTRY(mioa701_bootstrap)
 0:
 	b	1f
@@ -29,9 +30,10 @@ ENTRY(mioa701_jumpaddr)
 	str	r1, [r0]		@ Early disable resume for next boot
 	ldr	r0, mioa701_jumpaddr	@ (Murphy's Law)
 	ldr	r0, [r0]
-	mov	pc, r0
+	ret	r0
 2:
 
 ENTRY(mioa701_bootstrap_lg)
 	.data
+	.align	2
 	.word	2b-0b

@@ -25,13 +25,13 @@ extern FILE *yyin;
 extern int yyparse(void);
 extern YYLTYPE yylloc;
 
-struct boot_info *the_boot_info;
-int treesource_error;
+struct dt_info *parser_output;
+bool treesource_error;
 
-struct boot_info *dt_from_source(const char *fname)
+struct dt_info *dt_from_source(const char *fname)
 {
-	the_boot_info = NULL;
-	treesource_error = 0;
+	parser_output = NULL;
+	treesource_error = false;
 
 	srcfile_push(fname);
 	yyin = current_srcfile->f;
@@ -43,7 +43,7 @@ struct boot_info *dt_from_source(const char *fname)
 	if (treesource_error)
 		die("Syntax error parsing input tree\n");
 
-	return the_boot_info;
+	return parser_output;
 }
 
 static void write_prefix(FILE *f, int level)
@@ -54,9 +54,9 @@ static void write_prefix(FILE *f, int level)
 		fputc('\t', f);
 }
 
-static int isstring(char c)
+static bool isstring(char c)
 {
-	return (isprint(c)
+	return (isprint((unsigned char)c)
 		|| (c == '\0')
 		|| strchr("\a\b\t\n\v\f\r", c));
 }
@@ -109,7 +109,7 @@ static void write_propval_string(FILE *f, struct data val)
 			break;
 		case '\0':
 			fprintf(f, "\", ");
-			while (m && (m->offset < i)) {
+			while (m && (m->offset <= (i + 1))) {
 				if (m->type == LABEL) {
 					assert(m->offset == (i+1));
 					fprintf(f, "%s: ", m->ref);
@@ -119,7 +119,7 @@ static void write_propval_string(FILE *f, struct data val)
 			fprintf(f, "\"");
 			break;
 		default:
-			if (isprint(c))
+			if (isprint((unsigned char)c))
 				fprintf(f, "%c", c);
 			else
 				fprintf(f, "\\x%02hhx", c);
@@ -137,7 +137,7 @@ static void write_propval_string(FILE *f, struct data val)
 static void write_propval_cells(FILE *f, struct data val)
 {
 	void *propend = val.val + val.len;
-	cell_t *cp = (cell_t *)val.val;
+	fdt32_t *cp = (fdt32_t *)val.val;
 	struct marker *m = val.markers;
 
 	fprintf(f, "<");
@@ -178,7 +178,7 @@ static void write_propval_bytes(FILE *f, struct data val)
 			m = m->next;
 		}
 
-		fprintf(f, "%02hhx", *bp++);
+		fprintf(f, "%02hhx", (unsigned char)(*bp++));
 		if ((const void *)bp >= propend)
 			break;
 		fprintf(f, " ");
@@ -263,22 +263,22 @@ static void write_tree_source_node(FILE *f, struct node *tree, int level)
 }
 
 
-void dt_to_source(FILE *f, struct boot_info *bi)
+void dt_to_source(FILE *f, struct dt_info *dti)
 {
 	struct reserve_info *re;
 
 	fprintf(f, "/dts-v1/;\n\n");
 
-	for (re = bi->reservelist; re; re = re->next) {
+	for (re = dti->reservelist; re; re = re->next) {
 		struct label *l;
 
 		for_each_label(re->labels, l)
 			fprintf(f, "%s: ", l->label);
 		fprintf(f, "/memreserve/\t0x%016llx 0x%016llx;\n",
-			(unsigned long long)re->re.address,
-			(unsigned long long)re->re.size);
+			(unsigned long long)re->address,
+			(unsigned long long)re->size);
 	}
 
-	write_tree_source_node(f, bi->dt, 0);
+	write_tree_source_node(f, dti->dt, 0);
 }
 

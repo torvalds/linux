@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/asn1_decoder.h>
 #include <linux/asn1_ber_bytecode.h>
 
@@ -24,15 +25,20 @@ static const unsigned char asn1_op_lengths[ASN1_OP__NR] = {
 	[ASN1_OP_MATCH_JUMP]			= 1 + 1 + 1,
 	[ASN1_OP_MATCH_JUMP_OR_SKIP]		= 1 + 1 + 1,
 	[ASN1_OP_MATCH_ANY]			= 1,
+	[ASN1_OP_MATCH_ANY_OR_SKIP]		= 1,
 	[ASN1_OP_MATCH_ANY_ACT]			= 1         + 1,
+	[ASN1_OP_MATCH_ANY_ACT_OR_SKIP]		= 1         + 1,
 	[ASN1_OP_COND_MATCH_OR_SKIP]		= 1 + 1,
 	[ASN1_OP_COND_MATCH_ACT_OR_SKIP]	= 1 + 1     + 1,
 	[ASN1_OP_COND_MATCH_JUMP_OR_SKIP]	= 1 + 1 + 1,
 	[ASN1_OP_COND_MATCH_ANY]		= 1,
+	[ASN1_OP_COND_MATCH_ANY_OR_SKIP]	= 1,
 	[ASN1_OP_COND_MATCH_ANY_ACT]		= 1         + 1,
+	[ASN1_OP_COND_MATCH_ANY_ACT_OR_SKIP]	= 1         + 1,
 	[ASN1_OP_COND_FAIL]			= 1,
 	[ASN1_OP_COMPLETE]			= 1,
 	[ASN1_OP_ACT]				= 1         + 1,
+	[ASN1_OP_MAYBE_ACT]			= 1         + 1,
 	[ASN1_OP_RETURN]			= 1,
 	[ASN1_OP_END_SEQ]			= 1,
 	[ASN1_OP_END_SEQ_OF]			= 1     + 1,
@@ -69,7 +75,7 @@ next_tag:
 
 	/* Extract a tag from the data */
 	tag = data[dp++];
-	if (tag == 0) {
+	if (tag == ASN1_EOC) {
 		/* It appears to be an EOC. */
 		if (data[dp++] != 0)
 			goto invalid_eoc;
@@ -91,10 +97,8 @@ next_tag:
 
 	/* Extract the length */
 	len = data[dp++];
-	if (len <= 0x7f) {
-		dp += len;
-		goto next_tag;
-	}
+	if (len <= 0x7f)
+		goto check_length;
 
 	if (unlikely(len == ASN1_INDEFINITE_LENGTH)) {
 		/* Indefinite length */
@@ -105,14 +109,18 @@ next_tag:
 	}
 
 	n = len - 0x80;
-	if (unlikely(n > sizeof(size_t) - 1))
+	if (unlikely(n > sizeof(len) - 1))
 		goto length_too_long;
 	if (unlikely(n > datalen - dp))
 		goto data_overrun_error;
-	for (len = 0; n > 0; n--) {
+	len = 0;
+	for (; n > 0; n--) {
 		len <<= 8;
 		len |= data[dp++];
 	}
+check_length:
+	if (len > datalen - dp)
+		goto data_overrun_error;
 	dp += len;
 	goto next_tag;
 
@@ -140,7 +148,7 @@ error:
  * @decoder: The decoder definition (produced by asn1_compiler)
  * @context: The caller's context (to be passed to the action functions)
  * @data: The encoded data
- * @datasize: The size of the encoded data
+ * @datalen: The size of the encoded data
  *
  * Decode BER/DER/CER encoded ASN.1 data according to a bytecode pattern
  * produced by asn1_compiler.  Action functions are called on marked tags to
@@ -177,6 +185,7 @@ int asn1_ber_decoder(const struct asn1_decoder *decoder,
 	unsigned char flags = 0;
 #define FLAG_INDEFINITE_LENGTH	0x01
 #define FLAG_MATCHED		0x02
+#define FLAG_LAST_MATCHED	0x04 /* Last tag matched */
 #define FLAG_CONS		0x20 /* Corresponds to CONS bit in the opcode tag
 				      * - ie. whether or not we are going to parse
 				      *   a compound type.
@@ -208,9 +217,9 @@ next_op:
 		unsigned char tmp;
 
 		/* Skip conditional matches if possible */
-		if ((op & ASN1_OP_MATCH__COND &&
-		     flags & FLAG_MATCHED) ||
-		    dp == datalen) {
+		if ((op & ASN1_OP_MATCH__COND && flags & FLAG_MATCHED) ||
+		    (op & ASN1_OP_MATCH__SKIP && dp == datalen)) {
+			flags &= ~FLAG_LAST_MATCHED;
 			pc += asn1_op_lengths[op];
 			goto next_op;
 		}
@@ -302,7 +311,9 @@ next_op:
 	/* Decide how to handle the operation */
 	switch (op) {
 	case ASN1_OP_MATCH_ANY_ACT:
+	case ASN1_OP_MATCH_ANY_ACT_OR_SKIP:
 	case ASN1_OP_COND_MATCH_ANY_ACT:
+	case ASN1_OP_COND_MATCH_ANY_ACT_OR_SKIP:
 		ret = actions[machine[pc + 1]](context, hdr, tag, data + dp, len);
 		if (ret < 0)
 			return ret;
@@ -319,8 +330,10 @@ next_op:
 	case ASN1_OP_MATCH:
 	case ASN1_OP_MATCH_OR_SKIP:
 	case ASN1_OP_MATCH_ANY:
+	case ASN1_OP_MATCH_ANY_OR_SKIP:
 	case ASN1_OP_COND_MATCH_OR_SKIP:
 	case ASN1_OP_COND_MATCH_ANY:
+	case ASN1_OP_COND_MATCH_ANY_OR_SKIP:
 	skip_data:
 		if (!(flags & FLAG_CONS)) {
 			if (flags & FLAG_INDEFINITE_LENGTH) {
@@ -422,8 +435,15 @@ next_op:
 		pc += asn1_op_lengths[op];
 		goto next_op;
 
+	case ASN1_OP_MAYBE_ACT:
+		if (!(flags & FLAG_LAST_MATCHED)) {
+			pc += asn1_op_lengths[op];
+			goto next_op;
+		}
 	case ASN1_OP_ACT:
 		ret = actions[machine[pc + 1]](context, hdr, tag, data + tdp, len);
+		if (ret < 0)
+			return ret;
 		pc += asn1_op_lengths[op];
 		goto next_op;
 
@@ -431,6 +451,7 @@ next_op:
 		if (unlikely(jsp <= 0))
 			goto jump_stack_underflow;
 		pc = jump_stack[--jsp];
+		flags |= FLAG_MATCHED | FLAG_LAST_MATCHED;
 		goto next_op;
 
 	default:
@@ -438,7 +459,8 @@ next_op:
 	}
 
 	/* Shouldn't reach here */
-	pr_err("ASN.1 decoder error: Found reserved opcode (%u)\n", op);
+	pr_err("ASN.1 decoder error: Found reserved opcode (%u) pc=%zu\n",
+	       op, pc);
 	return -EBADMSG;
 
 data_overrun_error:
@@ -485,3 +507,5 @@ error:
 	return -EBADMSG;
 }
 EXPORT_SYMBOL_GPL(asn1_ber_decoder);
+
+MODULE_LICENSE("GPL");

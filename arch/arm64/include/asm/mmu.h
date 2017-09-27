@@ -16,16 +16,29 @@
 #ifndef __ASM_MMU_H
 #define __ASM_MMU_H
 
+#define MMCF_AARCH32	0x1	/* mm context flag for AArch32 executables */
+
 typedef struct {
-	unsigned int id;
-	raw_spinlock_t id_lock;
-	void *vdso;
+	atomic64_t	id;
+	void		*vdso;
+	unsigned long	flags;
 } mm_context_t;
 
-#define ASID(mm)	((mm)->context.id & 0xffff)
+/*
+ * This macro is only used by the TLBI code, which cannot race with an
+ * ASID change and therefore doesn't need to reload the counter using
+ * atomic64_read.
+ */
+#define ASID(mm)	((mm)->context.id.counter & 0xffff)
 
 extern void paging_init(void);
-extern void setup_mm_for_reboot(void);
+extern void bootmem_init(void);
 extern void __iomem *early_io_map(phys_addr_t phys, unsigned long virt);
+extern void init_mem_pgprot(void);
+extern void create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
+			       unsigned long virt, phys_addr_t size,
+			       pgprot_t prot, bool page_mappings_only);
+extern void *fixmap_remap_fdt(phys_addr_t dt_phys);
+extern void mark_linear_text_alias_ro(void);
 
 #endif

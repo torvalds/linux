@@ -1,7 +1,7 @@
 /*
  * f71805f.c - driver for the Fintek F71805F/FG and F71872F/FG Super-I/O
  *             chips integrated hardware monitoring features
- * Copyright (C) 2005-2006  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2005-2006  Jean Delvare <jdelvare@suse.de>
  *
  * The F71805F/FG is a LPC Super-I/O chip made by Fintek. It integrates
  * complete hardware monitoring features: voltage, fan and temperature
@@ -946,7 +946,7 @@ static ssize_t set_temp_hyst(struct device *dev, struct device_attribute
 	return count;
 }
 
-static ssize_t show_alarms_in(struct device *dev, struct device_attribute
+static ssize_t alarms_in_show(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
@@ -954,7 +954,7 @@ static ssize_t show_alarms_in(struct device *dev, struct device_attribute
 	return sprintf(buf, "%lu\n", data->alarms & 0x7ff);
 }
 
-static ssize_t show_alarms_fan(struct device *dev, struct device_attribute
+static ssize_t alarms_fan_show(struct device *dev, struct device_attribute
 			       *devattr, char *buf)
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
@@ -962,7 +962,7 @@ static ssize_t show_alarms_fan(struct device *dev, struct device_attribute
 	return sprintf(buf, "%lu\n", (data->alarms >> 16) & 0x07);
 }
 
-static ssize_t show_alarms_temp(struct device *dev, struct device_attribute
+static ssize_t alarms_temp_show(struct device *dev, struct device_attribute
 				*devattr, char *buf)
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
@@ -980,7 +980,7 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute
 	return sprintf(buf, "%lu\n", (data->alarms >> bitnr) & 1);
 }
 
-static ssize_t show_name(struct device *dev, struct device_attribute
+static ssize_t name_show(struct device *dev, struct device_attribute
 			 *devattr, char *buf)
 {
 	struct f71805f_data *data = dev_get_drvdata(dev);
@@ -1176,11 +1176,11 @@ static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13);
 static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 16);
 static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 17);
 static SENSOR_DEVICE_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 18);
-static DEVICE_ATTR(alarms_in, S_IRUGO, show_alarms_in, NULL);
-static DEVICE_ATTR(alarms_fan, S_IRUGO, show_alarms_fan, NULL);
-static DEVICE_ATTR(alarms_temp, S_IRUGO, show_alarms_temp, NULL);
+static DEVICE_ATTR_RO(alarms_in);
+static DEVICE_ATTR_RO(alarms_fan);
+static DEVICE_ATTR_RO(alarms_temp);
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct attribute *f71805f_attributes[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
@@ -1375,7 +1375,7 @@ static void f71805f_init_device(struct f71805f_data *data)
 
 static int f71805f_probe(struct platform_device *pdev)
 {
-	struct f71805f_sio_data *sio_data = pdev->dev.platform_data;
+	struct f71805f_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	struct f71805f_data *data;
 	struct resource *res;
 	int i, err;
@@ -1387,10 +1387,8 @@ static int f71805f_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct f71805f_data),
 			    GFP_KERNEL);
-	if (!data) {
-		pr_err("Out of memory\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start + ADDR_REG_OFFSET, 2,
@@ -1505,7 +1503,6 @@ static int f71805f_remove(struct platform_device *pdev)
 
 static struct platform_driver f71805f_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe		= f71805f_probe,
@@ -1648,7 +1645,7 @@ static void __exit f71805f_exit(void)
 	platform_driver_unregister(&f71805f_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("F71805F/F71872F hardware monitoring driver");
 

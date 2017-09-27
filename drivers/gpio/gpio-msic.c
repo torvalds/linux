@@ -20,7 +20,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -143,7 +142,7 @@ static int msic_gpio_get(struct gpio_chip *chip, unsigned offset)
 	if (ret < 0)
 		return ret;
 
-	return r & MSIC_GPIO_DIN_MASK;
+	return !!(r & MSIC_GPIO_DIN_MASK);
 }
 
 static void msic_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -179,7 +178,7 @@ static int msic_irq_type(struct irq_data *data, unsigned type)
 
 static int msic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct msic_gpio *mg = container_of(chip, struct msic_gpio, chip);
+	struct msic_gpio *mg = gpiochip_get_data(chip);
 	return mg->irq_base + offset;
 }
 
@@ -232,7 +231,7 @@ static struct irq_chip msic_irqchip = {
 	.irq_bus_sync_unlock	= msic_bus_sync_unlock,
 };
 
-static void msic_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void msic_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct msic_gpio *mg = irq_data_get_irq_handler_data(data);
@@ -259,15 +258,15 @@ static void msic_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 static int platform_msic_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct intel_msic_gpio_pdata *pdata = dev->platform_data;
+	struct intel_msic_gpio_pdata *pdata = dev_get_platdata(dev);
 	struct msic_gpio *mg;
 	int irq = platform_get_irq(pdev, 0);
 	int retval;
 	int i;
 
 	if (irq < 0) {
-		dev_err(dev, "no IRQ line\n");
-		return -EINVAL;
+		dev_err(dev, "no IRQ line: %d\n", irq);
+		return irq;
 	}
 
 	if (!pdata || !pdata->gpio_base) {
@@ -292,12 +291,12 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 	mg->chip.to_irq = msic_gpio_to_irq;
 	mg->chip.base = pdata->gpio_base;
 	mg->chip.ngpio = MSIC_NUM_GPIO;
-	mg->chip.can_sleep = 1;
-	mg->chip.dev = dev;
+	mg->chip.can_sleep = true;
+	mg->chip.parent = dev;
 
 	mutex_init(&mg->buslock);
 
-	retval = gpiochip_add(&mg->chip);
+	retval = gpiochip_add_data(&mg->chip, mg);
 	if (retval) {
 		dev_err(dev, "Adding MSIC gpio chip failed\n");
 		goto err;
@@ -305,13 +304,11 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < mg->chip.ngpio; i++) {
 		irq_set_chip_data(i + mg->irq_base, mg);
-		irq_set_chip_and_handler_name(i + mg->irq_base,
-					      &msic_irqchip,
-					      handle_simple_irq,
-					      "demux");
+		irq_set_chip_and_handler(i + mg->irq_base,
+					 &msic_irqchip,
+					 handle_simple_irq);
 	}
-	irq_set_chained_handler(mg->irq, msic_gpio_irq_handler);
-	irq_set_handler_data(mg->irq, mg);
+	irq_set_chained_handler_and_data(mg->irq, msic_gpio_irq_handler, mg);
 
 	return 0;
 err:
@@ -322,7 +319,6 @@ err:
 static struct platform_driver platform_msic_gpio_driver = {
 	.driver = {
 		.name		= "msic_gpio",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= platform_msic_gpio_probe,
 };
@@ -331,9 +327,4 @@ static int __init platform_msic_gpio_init(void)
 {
 	return platform_driver_register(&platform_msic_gpio_driver);
 }
-
 subsys_initcall(platform_msic_gpio_init);
-
-MODULE_AUTHOR("Mathias Nyman <mathias.nyman@linux.intel.com>");
-MODULE_DESCRIPTION("Intel Medfield MSIC GPIO driver");
-MODULE_LICENSE("GPL v2");

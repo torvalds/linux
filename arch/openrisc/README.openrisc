@@ -6,7 +6,7 @@ target architecture, specifically, is the 32-bit OpenRISC 1000 family (or1k).
 
 For information about OpenRISC processors and ongoing development:
 
-	website		http://openrisc.net
+	website		http://openrisc.io
 
 For more information about Linux on OpenRISC, please contact South Pole AB.
 
@@ -24,17 +24,17 @@ In order to build and run Linux for OpenRISC, you'll need at least a basic
 toolchain and, perhaps, the architectural simulator.  Steps to get these bits
 in place are outlined here.
 
-1)  The toolchain can be obtained from openrisc.net.  Instructions for building
+1)  The toolchain can be obtained from openrisc.io.  Instructions for building
 a toolchain can be found at:
 
-http://openrisc.net/toolchain-build.html
+https://github.com/openrisc/tutorials
 
 2) or1ksim (optional)
 
 or1ksim is the architectural simulator which will allow you to actually run
 your OpenRISC Linux kernel if you don't have an OpenRISC processor at hand.
 
-	git clone git://openrisc.net/jonas/or1ksim-svn
+	git clone https://github.com/openrisc/or1ksim.git
 
 	cd or1ksim
 	./configure --prefix=$OPENRISC_PREFIX

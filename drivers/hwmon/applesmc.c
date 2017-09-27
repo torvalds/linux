@@ -230,6 +230,7 @@ static int send_argument(const char *key)
 
 static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 {
+	u8 status, data = 0;
 	int i;
 
 	if (send_command(cmd) || send_argument(key)) {
@@ -237,6 +238,7 @@ static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 		return -EIO;
 	}
 
+	/* This has no effect on newer (2012) SMCs */
 	if (send_byte(len, APPLESMC_DATA_PORT)) {
 		pr_warn("%.4s: read len fail\n", key);
 		return -EIO;
@@ -249,6 +251,17 @@ static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 		}
 		buffer[i] = inb(APPLESMC_DATA_PORT);
 	}
+
+	/* Read the data port until bit0 is cleared */
+	for (i = 0; i < 16; i++) {
+		udelay(APPLESMC_MIN_WAIT);
+		status = inb(APPLESMC_CMD_PORT);
+		if (!(status & 0x01))
+			break;
+		data = inb(APPLESMC_DATA_PORT);
+	}
+	if (i)
+		pr_warn("flushed %d bytes, last value is: %d\n", i, data);
 
 	return 0;
 }
@@ -524,16 +537,25 @@ static int applesmc_init_index(struct applesmc_registers *s)
 static int applesmc_init_smcreg_try(void)
 {
 	struct applesmc_registers *s = &smcreg;
-	bool left_light_sensor, right_light_sensor;
+	bool left_light_sensor = 0, right_light_sensor = 0;
+	unsigned int count;
 	u8 tmp[1];
 	int ret;
 
 	if (s->init_complete)
 		return 0;
 
-	ret = read_register_count(&s->key_count);
+	ret = read_register_count(&count);
 	if (ret)
 		return ret;
+
+	if (s->cache && s->key_count != count) {
+		pr_warn("key count changed from %d to %d\n",
+			s->key_count, count);
+		kfree(s->cache);
+		s->cache = NULL;
+	}
+	s->key_count = count;
 
 	if (!s->cache)
 		s->cache = kcalloc(s->key_count, sizeof(*s->cache), GFP_KERNEL);
@@ -544,6 +566,8 @@ static int applesmc_init_smcreg_try(void)
 	if (ret)
 		return ret;
 	s->fan_count = tmp[0];
+	if (s->fan_count > 10)
+		s->fan_count = 10;
 
 	ret = applesmc_get_lower_bound(&s->temp_begin, "T");
 	if (ret)
@@ -654,7 +678,6 @@ static struct platform_driver applesmc_driver = {
 	.probe = applesmc_probe,
 	.driver	= {
 		.name = "applesmc",
-		.owner = THIS_MODULE,
 		.pm = &applesmc_pm_ops,
 	},
 };
@@ -790,7 +813,8 @@ static ssize_t applesmc_show_fan_speed(struct device *dev,
 	char newkey[5];
 	u8 buffer[2];
 
-	sprintf(newkey, fan_speed_fmt[to_option(attr)], to_index(attr));
+	scnprintf(newkey, sizeof(newkey), fan_speed_fmt[to_option(attr)],
+		  to_index(attr));
 
 	ret = applesmc_read_key(newkey, buffer, 2);
 	speed = ((buffer[0] << 8 | buffer[1]) >> 2);
@@ -813,7 +837,8 @@ static ssize_t applesmc_store_fan_speed(struct device *dev,
 	if (kstrtoul(sysfsbuf, 10, &speed) < 0 || speed >= 0x4000)
 		return -EINVAL;		/* Bigger than a 14-bit value */
 
-	sprintf(newkey, fan_speed_fmt[to_option(attr)], to_index(attr));
+	scnprintf(newkey, sizeof(newkey), fan_speed_fmt[to_option(attr)],
+		  to_index(attr));
 
 	buffer[0] = (speed >> 6) & 0xff;
 	buffer[1] = (speed << 2) & 0xff;
@@ -882,7 +907,7 @@ static ssize_t applesmc_show_fan_position(struct device *dev,
 	char newkey[5];
 	u8 buffer[17];
 
-	sprintf(newkey, FAN_ID_FMT, to_index(attr));
+	scnprintf(newkey, sizeof(newkey), FAN_ID_FMT, to_index(attr));
 
 	ret = applesmc_read_key(newkey, buffer, 16);
 	buffer[16] = 0;
@@ -1095,7 +1120,8 @@ static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
 		}
 		for (i = 0; i < num; i++) {
 			node = &grp->nodes[i];
-			sprintf(node->name, grp->format, i + 1);
+			scnprintf(node->name, sizeof(node->name), grp->format,
+				  i + 1);
 			node->sda.index = (grp->option << 16) | (i & 0xffff);
 			node->sda.dev_attr.show = grp->show;
 			node->sda.dev_attr.store = grp->store;
@@ -1117,7 +1143,7 @@ out:
 	return ret;
 }
 
-/* Create accelerometer ressources */
+/* Create accelerometer resources */
 static int applesmc_create_accelerometer(void)
 {
 	struct input_dev *idev;
@@ -1170,7 +1196,7 @@ out:
 	return ret;
 }
 
-/* Release all ressources used by the accelerometer */
+/* Release all resources used by the accelerometer */
 static void applesmc_release_accelerometer(void)
 {
 	if (!smcreg.has_accelerometer)
@@ -1221,7 +1247,7 @@ static int applesmc_dmi_match(const struct dmi_system_id *id)
  * Note that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
  * So we need to put "Apple MacBook Pro" before "Apple MacBook".
  */
-static __initdata struct dmi_system_id applesmc_whitelist[] = {
+static const struct dmi_system_id applesmc_whitelist[] __initconst = {
 	{ applesmc_dmi_match, "Apple MacBook Air", {
 	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir") },

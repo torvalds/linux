@@ -77,7 +77,7 @@ static int pdacf_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 	default:
 		return -EINVAL;
 	}
-	spin_lock(&chip->reg_lock);
+	mutex_lock(&chip->reg_lock);
 	chip->pcm_running += inc;
 	tmp = pdacf_reg_read(chip, PDAUDIOCF_REG_SCR);
 	if (chip->pcm_running) {
@@ -91,7 +91,7 @@ static int pdacf_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 	tmp |= val;
 	pdacf_reg_write(chip, PDAUDIOCF_REG_SCR, tmp);
       __end:
-	spin_unlock(&chip->reg_lock);
+	mutex_unlock(&chip->reg_lock);
 	snd_ak4117_check_rate_and_errors(chip->ak4117, AK4117_CHECK_NO_RATE);
 	return ret;
 }
@@ -193,7 +193,7 @@ static int pdacf_pcm_prepare(struct snd_pcm_substream *subs)
  * capture hw information
  */
 
-static struct snd_pcm_hardware pdacf_pcm_capture_hw = {
+static const struct snd_pcm_hardware pdacf_pcm_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -266,7 +266,7 @@ static snd_pcm_uframes_t pdacf_pcm_capture_pointer(struct snd_pcm_substream *sub
 /*
  * operators for PCM capture
  */
-static struct snd_pcm_ops pdacf_pcm_capture_ops = {
+static const struct snd_pcm_ops pdacf_pcm_capture_ops = {
 	.open =		pdacf_pcm_capture_open,
 	.close =	pdacf_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -296,6 +296,7 @@ int snd_pdacf_pcm_new(struct snd_pdacf *chip)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
+	pcm->nonatomic = true;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;
 	

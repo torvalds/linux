@@ -1,0 +1,56 @@
+QCOM device tree bindings
+-------------------------
+
+Some qcom based bootloaders identify the dtb blob based on a set of
+device properties like SoC and platform and revisions of those components.
+To support this scheme, we encode this information into the board compatible
+string.
+
+Each board must specify a top-level board compatible string with the following
+format:
+
+	compatible = "qcom,<SoC>[-<soc_version>][-<foundry_id>]-<board>[/<subtype>][-<board_version>]"
+
+The 'SoC' and 'board' elements are required. All other elements are optional.
+
+The 'SoC' element must be one of the following strings:
+
+	apq8016
+	apq8074
+	apq8084
+	apq8096
+	msm8916
+	msm8974
+	msm8992
+	msm8994
+	msm8996
+	mdm9615
+	ipq8074
+
+The 'board' element must be one of the following strings:
+
+	cdp
+	liquid
+	dragonboard
+	mtp
+	sbc
+	hk01
+
+The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
+where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
+as v1. If all versions of the 'board_version' elements match, then a
+wildcard '*' should be used, e.g. 'v*'.
+
+The 'foundry_id' and 'subtype' elements are one or more digits from 0 to 9.
+
+Examples:
+
+	"qcom,msm8916-v1-cdp-pm8916-v2.1"
+
+A CDP board with an msm8916 SoC, version 1 paired with a pm8916 PMIC of version
+2.1.
+
+	"qcom,apq8074-v2.0-2-dragonboard/1-v0.1"
+
+A dragonboard board v0.1 of subtype 1 with an apq8074 SoC version 2, made in
+foundry 2.

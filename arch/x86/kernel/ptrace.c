@@ -6,12 +6,12 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/ptrace.h>
-#include <linux/regset.h>
 #include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/elf.h>
@@ -25,11 +25,12 @@
 #include <linux/export.h>
 #include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
+#include <asm/fpu/signal.h>
+#include <asm/fpu/regset.h>
 #include <asm/debugreg.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>
@@ -37,11 +38,9 @@
 #include <asm/proto.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/traps.h>
+#include <asm/syscall.h>
 
 #include "tls.h"
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/syscalls.h>
 
 enum x86_regset {
 	REGSET_GENERAL,
@@ -126,21 +125,6 @@ const char *regs_query_register_name(unsigned int offset)
 	return NULL;
 }
 
-static const int arg_offs_table[] = {
-#ifdef CONFIG_X86_32
-	[0] = offsetof(struct pt_regs, ax),
-	[1] = offsetof(struct pt_regs, dx),
-	[2] = offsetof(struct pt_regs, cx)
-#else /* CONFIG_X86_64 */
-	[0] = offsetof(struct pt_regs, di),
-	[1] = offsetof(struct pt_regs, si),
-	[2] = offsetof(struct pt_regs, dx),
-	[3] = offsetof(struct pt_regs, cx),
-	[4] = offsetof(struct pt_regs, r8),
-	[5] = offsetof(struct pt_regs, r9)
-#endif
-};
-
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
@@ -184,14 +168,14 @@ unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
 	unsigned long context = (unsigned long)regs & ~(THREAD_SIZE - 1);
 	unsigned long sp = (unsigned long)&regs->sp;
-	struct thread_info *tinfo;
+	u32 *prev_esp;
 
 	if (context == (sp & ~(THREAD_SIZE - 1)))
 		return sp;
 
-	tinfo = (struct thread_info *)context;
-	if (tinfo->previous_esp)
-		return tinfo->previous_esp;
+	prev_esp = (u32 *)(context);
+	if (*prev_esp)
+		return (unsigned long)*prev_esp;
 
 	return (unsigned long)regs;
 }
@@ -320,29 +304,11 @@ static int set_segment_reg(struct task_struct *task,
 
 	switch (offset) {
 	case offsetof(struct user_regs_struct,fs):
-		/*
-		 * If this is setting fs as for normal 64-bit use but
-		 * setting fs_base has implicitly changed it, leave it.
-		 */
-		if ((value == FS_TLS_SEL && task->thread.fsindex == 0 &&
-		     task->thread.fs != 0) ||
-		    (value == 0 && task->thread.fsindex == FS_TLS_SEL &&
-		     task->thread.fs == 0))
-			break;
 		task->thread.fsindex = value;
 		if (task == current)
 			loadsegment(fs, task->thread.fsindex);
 		break;
 	case offsetof(struct user_regs_struct,gs):
-		/*
-		 * If this is setting gs as for normal 64-bit use but
-		 * setting gs_base has implicitly changed it, leave it.
-		 */
-		if ((value == GS_TLS_SEL && task->thread.gsindex == 0 &&
-		     task->thread.gs != 0) ||
-		    (value == 0 && task->thread.gsindex == GS_TLS_SEL &&
-		     task->thread.gs == 0))
-			break;
 		task->thread.gsindex = value;
 		if (task == current)
 			load_gs_index(task->thread.gsindex);
@@ -364,18 +330,12 @@ static int set_segment_reg(struct task_struct *task,
 	case offsetof(struct user_regs_struct,cs):
 		if (unlikely(value == 0))
 			return -EIO;
-#ifdef CONFIG_IA32_EMULATION
-		if (test_tsk_thread_flag(task, TIF_IA32))
-			task_pt_regs(task)->cs = value;
-#endif
+		task_pt_regs(task)->cs = value;
 		break;
 	case offsetof(struct user_regs_struct,ss):
 		if (unlikely(value == 0))
 			return -EIO;
-#ifdef CONFIG_IA32_EMULATION
-		if (test_tsk_thread_flag(task, TIF_IA32))
-			task_pt_regs(task)->ss = value;
-#endif
+		task_pt_regs(task)->ss = value;
 		break;
 	}
 
@@ -433,24 +393,24 @@ static int putreg(struct task_struct *child,
 
 #ifdef CONFIG_X86_64
 	case offsetof(struct user_regs_struct,fs_base):
-		if (value >= TASK_SIZE_OF(child))
+		if (value >= TASK_SIZE_MAX)
 			return -EIO;
 		/*
-		 * When changing the segment base, use do_arch_prctl
+		 * When changing the segment base, use do_arch_prctl_64
 		 * to set either thread.fs or thread.fsindex and the
 		 * corresponding GDT slot.
 		 */
-		if (child->thread.fs != value)
-			return do_arch_prctl(child, ARCH_SET_FS, value);
+		if (child->thread.fsbase != value)
+			return do_arch_prctl_64(child, ARCH_SET_FS, value);
 		return 0;
 	case offsetof(struct user_regs_struct,gs_base):
 		/*
 		 * Exactly the same here as the %fs handling above.
 		 */
-		if (value >= TASK_SIZE_OF(child))
+		if (value >= TASK_SIZE_MAX)
 			return -EIO;
-		if (child->thread.gs != value)
-			return do_arch_prctl(child, ARCH_SET_GS, value);
+		if (child->thread.gsbase != value)
+			return do_arch_prctl_64(child, ARCH_SET_GS, value);
 		return 0;
 #endif
 	}
@@ -476,31 +436,17 @@ static unsigned long getreg(struct task_struct *task, unsigned long offset)
 #ifdef CONFIG_X86_64
 	case offsetof(struct user_regs_struct, fs_base): {
 		/*
-		 * do_arch_prctl may have used a GDT slot instead of
-		 * the MSR.  To userland, it appears the same either
-		 * way, except the %fs segment selector might not be 0.
+		 * XXX: This will not behave as expected if called on
+		 * current or if fsindex != 0.
 		 */
-		unsigned int seg = task->thread.fsindex;
-		if (task->thread.fs != 0)
-			return task->thread.fs;
-		if (task == current)
-			asm("movl %%fs,%0" : "=r" (seg));
-		if (seg != FS_TLS_SEL)
-			return 0;
-		return get_desc_base(&task->thread.tls_array[FS_TLS]);
+		return task->thread.fsbase;
 	}
 	case offsetof(struct user_regs_struct, gs_base): {
 		/*
-		 * Exactly the same here as the %fs handling above.
+		 * XXX: This will not behave as expected if called on
+		 * current or if fsindex != 0.
 		 */
-		unsigned int seg = task->thread.gsindex;
-		if (task->thread.gs != 0)
-			return task->thread.gs;
-		if (task == current)
-			asm("movl %%gs,%0" : "=r" (seg));
-		if (seg != GS_TLS_SEL)
-			return 0;
-		return get_desc_base(&task->thread.tls_array[GS_TLS]);
+		return task->thread.gsbase;
 	}
 #endif
 	}
@@ -923,7 +869,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		   Works just like arch_prctl, except that the arguments
 		   are reversed. */
 	case PTRACE_ARCH_PRCTL:
-		ret = do_arch_prctl(child, data, addr);
+		ret = do_arch_prctl_64(child, data, addr);
 		break;
 #endif
 
@@ -978,15 +924,18 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 
 	case offsetof(struct user32, regs.orig_eax):
 		/*
-		 * A 32-bit debugger setting orig_eax means to restore
-		 * the state of the task restarting a 32-bit syscall.
-		 * Make sure we interpret the -ERESTART* codes correctly
-		 * in case the task is not actually still sitting at the
-		 * exit from a 32-bit syscall with TS_COMPAT still set.
+		 * Warning: bizarre corner case fixup here.  A 32-bit
+		 * debugger setting orig_eax to -1 wants to disable
+		 * syscall restart.  Make sure that the syscall
+		 * restart code sign-extends orig_ax.  Also make sure
+		 * we interpret the -ERESTART* codes correctly if
+		 * loaded into regs->ax in case the task is not
+		 * actually still sitting at the exit from a 32-bit
+		 * syscall with TS_COMPAT still set.
 		 */
 		regs->orig_ax = value;
 		if (syscall_get_nr(child, regs) >= 0)
-			task_thread_info(child)->status |= TS_COMPAT;
+			child->thread.status |= TS_I386_REGS_POKED;
 		break;
 
 	case offsetof(struct user32, regs.eflags):
@@ -1129,6 +1078,73 @@ static int genregs32_set(struct task_struct *target,
 	return ret;
 }
 
+static long ia32_arch_ptrace(struct task_struct *child, compat_long_t request,
+			     compat_ulong_t caddr, compat_ulong_t cdata)
+{
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
+	void __user *datap = compat_ptr(data);
+	int ret;
+	__u32 val;
+
+	switch (request) {
+	case PTRACE_PEEKUSR:
+		ret = getreg32(child, addr, &val);
+		if (ret == 0)
+			ret = put_user(val, (__u32 __user *)datap);
+		break;
+
+	case PTRACE_POKEUSR:
+		ret = putreg32(child, addr, data);
+		break;
+
+	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_GENERAL,
+					   0, sizeof(struct user_regs_struct32),
+					   datap);
+
+	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
+		return copy_regset_from_user(child, &user_x86_32_view,
+					     REGSET_GENERAL, 0,
+					     sizeof(struct user_regs_struct32),
+					     datap);
+
+	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_FP, 0,
+					   sizeof(struct user_i387_ia32_struct),
+					   datap);
+
+	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
+		return copy_regset_from_user(
+			child, &user_x86_32_view, REGSET_FP,
+			0, sizeof(struct user_i387_ia32_struct), datap);
+
+	case PTRACE_GETFPXREGS:	/* Get the child extended FPU state. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_XFP, 0,
+					   sizeof(struct user32_fxsr_struct),
+					   datap);
+
+	case PTRACE_SETFPXREGS:	/* Set the child extended FPU state. */
+		return copy_regset_from_user(child, &user_x86_32_view,
+					     REGSET_XFP, 0,
+					     sizeof(struct user32_fxsr_struct),
+					     datap);
+
+	case PTRACE_GET_THREAD_AREA:
+	case PTRACE_SET_THREAD_AREA:
+		return arch_ptrace(child, request, addr, data);
+
+	default:
+		return compat_ptrace_request(child, request, addr, data);
+	}
+
+	return ret;
+}
+#endif /* CONFIG_IA32_EMULATION */
+
 #ifdef CONFIG_X86_X32_ABI
 static long x32_arch_ptrace(struct task_struct *child,
 			    compat_long_t request, compat_ulong_t caddr,
@@ -1217,82 +1233,25 @@ static long x32_arch_ptrace(struct task_struct *child,
 }
 #endif
 
+#ifdef CONFIG_COMPAT
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	unsigned long addr = caddr;
-	unsigned long data = cdata;
-	void __user *datap = compat_ptr(data);
-	int ret;
-	__u32 val;
-
 #ifdef CONFIG_X86_X32_ABI
-	if (!is_ia32_task())
+	if (!in_ia32_syscall())
 		return x32_arch_ptrace(child, request, caddr, cdata);
 #endif
-
-	switch (request) {
-	case PTRACE_PEEKUSR:
-		ret = getreg32(child, addr, &val);
-		if (ret == 0)
-			ret = put_user(val, (__u32 __user *)datap);
-		break;
-
-	case PTRACE_POKEUSR:
-		ret = putreg32(child, addr, data);
-		break;
-
-	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
-		return copy_regset_to_user(child, &user_x86_32_view,
-					   REGSET_GENERAL,
-					   0, sizeof(struct user_regs_struct32),
-					   datap);
-
-	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
-		return copy_regset_from_user(child, &user_x86_32_view,
-					     REGSET_GENERAL, 0,
-					     sizeof(struct user_regs_struct32),
-					     datap);
-
-	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
-		return copy_regset_to_user(child, &user_x86_32_view,
-					   REGSET_FP, 0,
-					   sizeof(struct user_i387_ia32_struct),
-					   datap);
-
-	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
-		return copy_regset_from_user(
-			child, &user_x86_32_view, REGSET_FP,
-			0, sizeof(struct user_i387_ia32_struct), datap);
-
-	case PTRACE_GETFPXREGS:	/* Get the child extended FPU state. */
-		return copy_regset_to_user(child, &user_x86_32_view,
-					   REGSET_XFP, 0,
-					   sizeof(struct user32_fxsr_struct),
-					   datap);
-
-	case PTRACE_SETFPXREGS:	/* Set the child extended FPU state. */
-		return copy_regset_from_user(child, &user_x86_32_view,
-					     REGSET_XFP, 0,
-					     sizeof(struct user32_fxsr_struct),
-					     datap);
-
-	case PTRACE_GET_THREAD_AREA:
-	case PTRACE_SET_THREAD_AREA:
-		return arch_ptrace(child, request, addr, data);
-
-	default:
-		return compat_ptrace_request(child, request, addr, data);
-	}
-
-	return ret;
+#ifdef CONFIG_IA32_EMULATION
+	return ia32_arch_ptrace(child, request, caddr, cdata);
+#else
+	return 0;
+#endif
 }
-
-#endif	/* CONFIG_IA32_EMULATION */
+#endif	/* CONFIG_COMPAT */
 
 #ifdef CONFIG_X86_64
 
-static struct user_regset x86_64_regsets[] __read_mostly = {
+static struct user_regset x86_64_regsets[] __ro_after_init = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct) / sizeof(long),
@@ -1303,7 +1262,7 @@ static struct user_regset x86_64_regsets[] __read_mostly = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_i387_struct) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
-		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
+		.active = regset_xregset_fpregs_active, .get = xfpregs_get, .set = xfpregs_set
 	},
 	[REGSET_XSTATE] = {
 		.core_note_type = NT_X86_XSTATE,
@@ -1333,7 +1292,7 @@ static const struct user_regset_view user_x86_64_view = {
 #endif	/* CONFIG_X86_64 */
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
-static struct user_regset x86_32_regsets[] __read_mostly = {
+static struct user_regset x86_32_regsets[] __ro_after_init = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct32) / sizeof(u32),
@@ -1344,13 +1303,13 @@ static struct user_regset x86_32_regsets[] __read_mostly = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_i387_ia32_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = fpregs_active, .get = fpregs_get, .set = fpregs_set
+		.active = regset_fpregs_active, .get = fpregs_get, .set = fpregs_set
 	},
 	[REGSET_XFP] = {
 		.core_note_type = NT_PRXFPREG,
 		.n = sizeof(struct user32_fxsr_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
+		.active = regset_xregset_fpregs_active, .get = xfpregs_get, .set = xfpregs_set
 	},
 	[REGSET_XSTATE] = {
 		.core_note_type = NT_X86_XSTATE,
@@ -1386,7 +1345,7 @@ static const struct user_regset_view user_x86_32_view = {
  */
 u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 
-void update_regset_xstate_info(unsigned int size, u64 xstate_mask)
+void __init update_regset_xstate_info(unsigned int size, u64 xstate_mask)
 {
 #ifdef CONFIG_X86_64
 	x86_64_regsets[REGSET_XSTATE].n = size / sizeof(u64);
@@ -1400,7 +1359,7 @@ void update_regset_xstate_info(unsigned int size, u64 xstate_mask)
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
 #ifdef CONFIG_IA32_EMULATION
-	if (test_tsk_thread_flag(task, TIF_IA32))
+	if (!user_64bit_mode(task_pt_regs(task)))
 #endif
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 		return &user_x86_32_view;
@@ -1421,7 +1380,7 @@ static void fill_sigtrap_info(struct task_struct *tsk,
 	memset(info, 0, sizeof(*info));
 	info->si_signo = SIGTRAP;
 	info->si_code = si_code;
-	info->si_addr = user_mode_vm(regs) ? (void __user *)regs->ip : NULL;
+	info->si_addr = user_mode(regs) ? (void __user *)regs->ip : NULL;
 }
 
 void user_single_step_siginfo(struct task_struct *tsk,
@@ -1439,97 +1398,4 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 	fill_sigtrap_info(tsk, regs, error_code, si_code, &info);
 	/* Send us the fake SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
-}
-
-
-#ifdef CONFIG_X86_32
-# define IS_IA32	1
-#elif defined CONFIG_IA32_EMULATION
-# define IS_IA32	is_compat_task()
-#else
-# define IS_IA32	0
-#endif
-
-/*
- * We must return the syscall number to actually look up in the table.
- * This can be -1L to skip running any syscall at all.
- */
-long syscall_trace_enter(struct pt_regs *regs)
-{
-	long ret = 0;
-
-	user_exit();
-
-	/*
-	 * If we stepped into a sysenter/syscall insn, it trapped in
-	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
-	 * If user-mode had set TF itself, then it's still clear from
-	 * do_debug() and we need to set it again to restore the user
-	 * state.  If we entered on the slow path, TF was already set.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		regs->flags |= X86_EFLAGS_TF;
-
-	/* do the secure computing check first */
-	if (secure_computing(regs->orig_ax)) {
-		/* seccomp failures shouldn't expose any additional code. */
-		ret = -1L;
-		goto out;
-	}
-
-	if (unlikely(test_thread_flag(TIF_SYSCALL_EMU)))
-		ret = -1L;
-
-	if ((ret || test_thread_flag(TIF_SYSCALL_TRACE)) &&
-	    tracehook_report_syscall_entry(regs))
-		ret = -1L;
-
-	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_enter(regs, regs->orig_ax);
-
-	if (IS_IA32)
-		audit_syscall_entry(AUDIT_ARCH_I386,
-				    regs->orig_ax,
-				    regs->bx, regs->cx,
-				    regs->dx, regs->si);
-#ifdef CONFIG_X86_64
-	else
-		audit_syscall_entry(AUDIT_ARCH_X86_64,
-				    regs->orig_ax,
-				    regs->di, regs->si,
-				    regs->dx, regs->r10);
-#endif
-
-out:
-	return ret ?: regs->orig_ax;
-}
-
-void syscall_trace_leave(struct pt_regs *regs)
-{
-	bool step;
-
-	/*
-	 * We may come here right after calling schedule_user()
-	 * or do_notify_resume(), in which case we can be in RCU
-	 * user mode.
-	 */
-	user_exit();
-
-	audit_syscall_exit(regs);
-
-	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_exit(regs, regs->ax);
-
-	/*
-	 * If TIF_SYSCALL_EMU is set, we only get here because of
-	 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
-	 * We already reported this syscall instruction in
-	 * syscall_trace_enter().
-	 */
-	step = unlikely(test_thread_flag(TIF_SINGLESTEP)) &&
-			!test_thread_flag(TIF_SYSCALL_EMU);
-	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, step);
-
-	user_enter();
 }

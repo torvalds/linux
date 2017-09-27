@@ -1,3 +1,7 @@
+00-INDEX
+	- This file
+leds-blinkm.txt
+	- Driver for BlinkM LED-devices.
 leds-class.txt
 	- documents LED handling under Linux.
 leds-lp3944.txt
@@ -12,3 +16,7 @@ leds-lp55xx.txt
 	- description about lp55xx common driver.
 leds-lm3556.txt
 	- notes on how to use the leds-lm3556 driver.
+ledtrig-oneshot.txt
+	- One-shot LED trigger for both sporadic and dense events.
+ledtrig-transient.txt
+	- LED Transient Trigger, one shot timer activation.

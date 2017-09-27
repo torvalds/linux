@@ -58,7 +58,7 @@
 ENTRY(HYPERVISOR_##hypercall)			\
 	mov r12, #__HYPERVISOR_##hypercall;	\
 	__HVC(XEN_IMM);						\
-	mov pc, lr;							\
+	ret lr;					\
 ENDPROC(HYPERVISOR_##hypercall)
 
 #define HYPERCALL0 HYPERCALL_SIMPLE
@@ -74,7 +74,7 @@ ENTRY(HYPERVISOR_##hypercall)			\
 	mov r12, #__HYPERVISOR_##hypercall;	\
 	__HVC(XEN_IMM);						\
 	ldm sp!, {r4}						\
-	mov pc, lr							\
+	ret lr					\
 ENDPROC(HYPERVISOR_##hypercall)
 
                 .text
@@ -89,6 +89,10 @@ HYPERCALL2(memory_op);
 HYPERCALL2(physdev_op);
 HYPERCALL3(vcpu_op);
 HYPERCALL1(tmem_op);
+HYPERCALL1(platform_op_raw);
+HYPERCALL2(multicall);
+HYPERCALL2(vm_assist);
+HYPERCALL3(dm_op);
 
 ENTRY(privcmd_call)
 	stmdb sp!, {r4}
@@ -97,8 +101,23 @@ ENTRY(privcmd_call)
 	mov r1, r2
 	mov r2, r3
 	ldr r3, [sp, #8]
+	/*
+	 * Privcmd calls are issued by the userspace. We need to allow the
+	 * kernel to access the userspace memory before issuing the hypercall.
+	 */
+	uaccess_enable r4
+
+	/* r4 is loaded now as we use it as scratch register before */
 	ldr r4, [sp, #4]
 	__HVC(XEN_IMM)
+
+	/*
+	 * Disable userspace access from kernel. This is fine to do it
+	 * unconditionally as no set_fs(KERNEL_DS)/set_fs(get_ds()) is
+	 * called before.
+	 */
+	uaccess_disable r4
+
 	ldm sp!, {r4}
-	mov pc, lr
+	ret lr
 ENDPROC(privcmd_call);

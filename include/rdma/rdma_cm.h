@@ -62,6 +62,8 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_TIMEWAIT_EXIT
 };
 
+const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
+
 enum rdma_port_space {
 	RDMA_PS_SDP   = 0x0001,
 	RDMA_PS_IPOIB = 0x0002,
@@ -83,7 +85,7 @@ struct rdma_addr {
 
 struct rdma_route {
 	struct rdma_addr addr;
-	struct ib_sa_path_rec *path_rec;
+	struct sa_path_rec *path_rec;
 	int num_paths;
 };
 
@@ -104,7 +106,7 @@ struct rdma_conn_param {
 struct rdma_ud_param {
 	const void *private_data;
 	u8 private_data_len;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	u32 qp_num;
 	u32 qkey;
 };
@@ -158,13 +160,17 @@ struct rdma_cm_id {
 /**
  * rdma_create_id - Create an RDMA identifier.
  *
+ * @net: The network namespace in which to create the new id.
  * @event_handler: User callback invoked to report events associated with the
  *   returned rdma_id.
  * @context: User specified context associated with the id.
  * @ps: RDMA port space.
  * @qp_type: type of queue pair associated with the id.
+ *
+ * The id holds a reference on the network namespace until it is destroyed.
  */
-struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
+struct rdma_cm_id *rdma_create_id(struct net *net,
+				  rdma_cm_event_handler event_handler,
 				  void *context, enum rdma_port_space ps,
 				  enum ib_qp_type qp_type);
 
@@ -327,11 +333,13 @@ int rdma_disconnect(struct rdma_cm_id *id);
  *   address.
  * @id: Communication identifier associated with the request.
  * @addr: Multicast address identifying the group to join.
+ * @join_state: Multicast JoinState bitmap requested by port.
+ *		Bitmap is based on IB_SA_MCMEMBER_REC_JOIN_STATE bits.
  * @context: User-defined context associated with the join request, returned
  * to the user through the private_data pointer in multicast events.
  */
 int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
-			void *context);
+			u8 join_state, void *context);
 
 /**
  * rdma_leave_multicast - Leave the multicast group specified by the given
@@ -379,5 +387,30 @@ int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
  * @addr: Address for the service ID.
  */
 __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
+
+/**
+ * rdma_reject_msg - return a pointer to a reject message string.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
+						int reason);
+/**
+ * rdma_is_consumer_reject - return true if the consumer rejected the connect
+ *                           request.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason);
+
+/**
+ * rdma_consumer_reject_data - return the consumer reject private data and
+ *			       length, if any.
+ * @id: Communication identifier that received the REJECT event.
+ * @ev: RDMA CM reject event.
+ * @data_len: Pointer to the resulting length of the consumer data.
+ */
+const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
+				      struct rdma_cm_event *ev, u8 *data_len);
 
 #endif /* RDMA_CM_H */

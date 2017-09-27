@@ -14,18 +14,13 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
-
-#include <media/v4l2-device.h>
 
 #include "cx23885.h"
 #include "cx23885-ir.h"
 #include "cx23885-input.h"
+
+#include <media/v4l2-device.h>
 
 #define CX23885_IR_RX_FIFO_SERVICE_REQ		0
 #define CX23885_IR_RX_END_OF_RX_DETECTED	1

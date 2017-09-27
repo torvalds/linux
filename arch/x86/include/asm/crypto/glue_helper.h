@@ -5,9 +5,9 @@
 #ifndef _CRYPTO_GLUE_HELPER_H
 #define _CRYPTO_GLUE_HELPER_H
 
+#include <crypto/internal/skcipher.h>
 #include <linux/kernel.h>
-#include <linux/crypto.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <crypto/b128ops.h>
 
 typedef void (*common_glue_func_t)(void *ctx, u8 *dst, const u8 *src);
@@ -69,6 +69,31 @@ static inline bool glue_fpu_begin(unsigned int bsize, int fpu_blocks_limit,
 	return true;
 }
 
+static inline bool glue_skwalk_fpu_begin(unsigned int bsize,
+					 int fpu_blocks_limit,
+					 struct skcipher_walk *walk,
+					 bool fpu_enabled, unsigned int nbytes)
+{
+	if (likely(fpu_blocks_limit < 0))
+		return false;
+
+	if (fpu_enabled)
+		return true;
+
+	/*
+	 * Vector-registers are only used when chunk to be processed is large
+	 * enough, so do not enable FPU until it is necessary.
+	 */
+	if (nbytes < bsize * (unsigned int)fpu_blocks_limit)
+		return false;
+
+	/* prevent sleeping if FPU is in use */
+	skcipher_walk_atomise(walk);
+
+	kernel_fpu_begin();
+	return true;
+}
+
 static inline void glue_fpu_end(bool fpu_enabled)
 {
 	if (fpu_enabled)
@@ -100,16 +125,6 @@ static inline void le128_inc(le128 *i)
 	i->b = cpu_to_le64(b);
 }
 
-static inline void le128_gf128mul_x_ble(le128 *dst, const le128 *src)
-{
-	u64 a = le64_to_cpu(src->a);
-	u64 b = le64_to_cpu(src->b);
-	u64 _tt = ((s64)a >> 63) & 0x87;
-
-	dst->a = cpu_to_le64((a << 1) ^ (b >> 63));
-	dst->b = cpu_to_le64((b << 1) ^ _tt);
-}
-
 extern int glue_ecb_crypt_128bit(const struct common_glue_ctx *gctx,
 				 struct blkcipher_desc *desc,
 				 struct scatterlist *dst,
@@ -138,6 +153,18 @@ extern int glue_xts_crypt_128bit(const struct common_glue_ctx *gctx,
 				 struct scatterlist *src, unsigned int nbytes,
 				 common_glue_func_t tweak_fn, void *tweak_ctx,
 				 void *crypt_ctx);
+
+extern int glue_xts_crypt_128bit(const struct common_glue_ctx *gctx,
+				 struct blkcipher_desc *desc,
+				 struct scatterlist *dst,
+				 struct scatterlist *src, unsigned int nbytes,
+				 common_glue_func_t tweak_fn, void *tweak_ctx,
+				 void *crypt_ctx);
+
+extern int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
+			       struct skcipher_request *req,
+			       common_glue_func_t tweak_fn, void *tweak_ctx,
+			       void *crypt_ctx);
 
 extern void glue_xts_crypt_128bit_one(void *ctx, u128 *dst, const u128 *src,
 				      le128 *iv, common_glue_func_t fn);

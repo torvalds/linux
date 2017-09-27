@@ -67,7 +67,7 @@ struct fc_seq *fc_elsct_send(struct fc_lport *lport, u32 did,
 	fc_fill_fc_hdr(fp, r_ctl, did, lport->port_id, fh_type,
 		       FC_FCTL_REQ, 0);
 
-	return lport->tt.exch_seq_send(lport, fp, resp, NULL, arg, timer_msec);
+	return fc_exch_seq_send(lport, fp, resp, NULL, arg, timer_msec);
 }
 EXPORT_SYMBOL(fc_elsct_send);
 

@@ -7,6 +7,7 @@
 typedef u64	pteval_t;
 typedef u64	pmdval_t;
 typedef u64	pudval_t;
+typedef u64	p4dval_t;
 typedef u64	pgdval_t;
 typedef u64	pgprotval_t;
 
@@ -23,8 +24,6 @@ typedef union {
 #else
 #define SHARED_KERNEL_PMD	1
 #endif
-
-#define PAGETABLE_LEVELS	3
 
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map

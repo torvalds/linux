@@ -2,7 +2,7 @@
 #define _UAPI_ASM_X86_MCE_H
 
 #include <linux/types.h>
-#include <asm/ioctls.h>
+#include <linux/ioctl.h>
 
 /* Fields are zero when not available */
 struct mce {
@@ -15,7 +15,8 @@ struct mce {
 	__u64 time;	/* wall time_t when error was detected */
 	__u8  cpuvendor;	/* cpu vendor as encoded in system.h */
 	__u8  inject_flags;	/* software inject flags */
-	__u16  pad;
+	__u8  severity;
+	__u8  pad;
 	__u32 cpuid;	/* CPUID 1 EAX */
 	__u8  cs;		/* code segment */
 	__u8  bank;	/* machine check bank */
@@ -25,6 +26,9 @@ struct mce {
 	__u32 socketid;	/* CPU socket ID */
 	__u32 apicid;	/* CPU initial apic ID */
 	__u64 mcgcap;	/* MCGCAP MSR: machine check capabilities of CPU */
+	__u64 synd;	/* MCA_SYND MSR: only valid on SMCA systems */
+	__u64 ipid;	/* MCA_IPID MSR: only valid on SMCA systems */
+	__u64 ppin;	/* Protected Processor Inventory Number */
 };
 
 #define MCE_GET_RECORD_LEN   _IOR('M', 1, int)

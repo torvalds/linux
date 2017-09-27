@@ -1,0 +1,125 @@
+/*
+ * Marvell OpenRD (Base|Client|Ultimate) Board Description
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * This file contains the definitions that are common between the three
+ * variants of the Marvell Kirkwood Development Board.
+ */
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pinctrl-0 = <&pmx_select28 &pmx_sdio_cd &pmx_select34>;
+			pinctrl-names = "default";
+
+			pmx_select28: pmx-select-rs232-rs485 {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+			pmx_sdio_cd: pmx-sdio-cd {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+			pmx_select34: pmx-select-uart-sd {
+				marvell,pins = "mpp34";
+				marvell,function = "gpio";
+			};
+		};
+		serial@12000 {
+			status = "okay";
+
+		};
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+		mvsdio@90000 {
+			status = "okay";
+			cd-gpios = <&gpio0 29 9>;
+		};
+		gpio@10100 {
+			p28 {
+				gpio-hog;
+				gpios = <28 GPIO_ACTIVE_HIGH>;
+				/*
+				 * SelRS232or485 selects between RS-232 or RS-485
+				 * mode for the second UART.
+				 *
+				 * Low: RS-232
+				 * High: RS-485
+				 *
+				 * To use the second UART, you need to change also
+				 * the SelUARTorSD.
+				 */
+				output-low;
+				line-name = "SelRS232or485";
+			};
+		};
+		gpio@10140 {
+			p2 {
+				gpio-hog;
+				gpios = <2 GPIO_ACTIVE_HIGH>;
+				/*
+				 * SelUARTorSD selects between the second UART
+				 * (serial@12100) and SD (mvsdio@90000).
+				 *
+				 * Low: UART
+				 * High: SD
+				 *
+				 * When changing this line make sure the newly
+				 * selected device node is enabled and the
+				 * previously selected device node is disabled.
+				 */
+				output-high; /* Select SD by default */
+				line-name = "SelUARTorSD";
+			};
+		};
+	};
+};
+
+&nand {
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@600000 {
+		label = "root";
+		reg = <0x0600000 0x1FA00000>;
+	};
+};
+
+&pciec {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};

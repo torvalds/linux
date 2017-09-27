@@ -1,21 +1,24 @@
 #ifndef _LINUX_IRQDESC_H
 #define _LINUX_IRQDESC_H
 
+#include <linux/rcupdate.h>
+#include <linux/kobject.h>
+#include <linux/mutex.h>
+
 /*
  * Core internal functions to deal with irq descriptors
- *
- * This include will move to kernel/irq once we cleaned up the tree.
- * For now it's included from <linux/irq.h>
  */
 
 struct irq_affinity_notify;
 struct proc_dir_entry;
 struct module;
 struct irq_desc;
+struct irq_domain;
+struct pt_regs;
 
 /**
  * struct irq_desc - interrupt descriptor
- * @irq_data:		per irq and chip data passed down to chip functions
+ * @irq_common_data:	per irq and chip data passed down to chip functions
  * @kstat_irqs:		irq stats per cpu
  * @handle_irq:		highlevel irq-events handler
  * @preflow_handler:	handler called before the flow handler (currently used by sparc)
@@ -27,6 +30,8 @@ struct irq_desc;
  * @irq_count:		stats field to detect stalled irqs
  * @last_unhandled:	aging timer for unhandled count
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
+ * @threads_handled:	stats field for deferred spurious detection of threaded handlers
+ * @threads_handled_last: comparator field for deferred spurious detection of theraded handlers
  * @lock:		locking for SMP
  * @affinity_hint:	hint to user space for preferred irq affinity
  * @affinity_notify:	context for notification of affinity changes
@@ -34,10 +39,20 @@ struct irq_desc;
  * @threads_oneshot:	bitfield to handle shared oneshot threads
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
+ * @nr_actions:		number of installed actions on this descriptor
+ * @no_suspend_depth:	number of irqactions on a irq descriptor with
+ *			IRQF_NO_SUSPEND set
+ * @force_resume_depth:	number of irqactions on a irq descriptor with
+ *			IRQF_FORCE_RESUME set
+ * @rcu:		rcu head for delayed free
+ * @kobj:		kobject used to represent this struct in sysfs
+ * @request_mutex:	mutex to protect request/free before locking desc->lock
  * @dir:		/proc/irq/ procfs entry
+ * @debugfs_file:	dentry for the debugfs file
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
+	struct irq_common_data	irq_common_data;
 	struct irq_data		irq_data;
 	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
@@ -52,8 +67,11 @@ struct irq_desc {
 	unsigned int		irq_count;	/* For detecting broken IRQs */
 	unsigned long		last_unhandled;	/* Aging timer for unhandled count */
 	unsigned int		irqs_unhandled;
+	atomic_t		threads_handled;
+	int			threads_handled_last;
 	raw_spinlock_t		lock;
 	struct cpumask		*percpu_enabled;
+	const struct cpumask	*percpu_affinity;
 #ifdef CONFIG_SMP
 	const struct cpumask	*affinity_hint;
 	struct irq_affinity_notify *affinity_notify;
@@ -64,19 +82,46 @@ struct irq_desc {
 	unsigned long		threads_oneshot;
 	atomic_t		threads_active;
 	wait_queue_head_t       wait_for_threads;
+#ifdef CONFIG_PM_SLEEP
+	unsigned int		nr_actions;
+	unsigned int		no_suspend_depth;
+	unsigned int		cond_suspend_depth;
+	unsigned int		force_resume_depth;
+#endif
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
 #endif
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+	struct dentry		*debugfs_file;
+#endif
+#ifdef CONFIG_SPARSE_IRQ
+	struct rcu_head		rcu;
+	struct kobject		kobj;
+#endif
+	struct mutex		request_mutex;
 	int			parent_irq;
 	struct module		*owner;
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
-#ifndef CONFIG_SPARSE_IRQ
+#ifdef CONFIG_SPARSE_IRQ
+extern void irq_lock_sparse(void);
+extern void irq_unlock_sparse(void);
+#else
+static inline void irq_lock_sparse(void) { }
+static inline void irq_unlock_sparse(void) { }
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
 
-#ifdef CONFIG_GENERIC_HARDIRQS
+static inline struct irq_desc *irq_data_to_desc(struct irq_data *data)
+{
+	return container_of(data->common, struct irq_desc, irq_common_data);
+}
+
+static inline unsigned int irq_desc_get_irq(struct irq_desc *desc)
+{
+	return desc->irq_data.irq;
+}
 
 static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
 {
@@ -95,55 +140,92 @@ static inline void *irq_desc_get_chip_data(struct irq_desc *desc)
 
 static inline void *irq_desc_get_handler_data(struct irq_desc *desc)
 {
-	return desc->irq_data.handler_data;
+	return desc->irq_common_data.handler_data;
 }
 
 static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
 {
-	return desc->irq_data.msi_desc;
+	return desc->irq_common_data.msi_desc;
 }
 
 /*
  * Architectures call this to let the generic IRQ layer
- * handle an interrupt. If the descriptor is attached to an
- * irqchip-style controller then we call the ->handle_irq() handler,
- * and it calls __do_IRQ() if it's attached to an irqtype-style controller.
+ * handle an interrupt.
  */
-static inline void generic_handle_irq_desc(unsigned int irq, struct irq_desc *desc)
+static inline void generic_handle_irq_desc(struct irq_desc *desc)
 {
-	desc->handle_irq(irq, desc);
+	desc->handle_irq(desc);
 }
 
 int generic_handle_irq(unsigned int irq);
 
-/* Test to see if a driver has successfully requested an irq */
-static inline int irq_has_action(unsigned int irq)
+#ifdef CONFIG_HANDLE_DOMAIN_IRQ
+/*
+ * Convert a HW interrupt number to a logical one using a IRQ domain,
+ * and handle the result interrupt number. Return -EINVAL if
+ * conversion failed. Providing a NULL domain indicates that the
+ * conversion has already been done.
+ */
+int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
+			bool lookup, struct pt_regs *regs);
+
+static inline int handle_domain_irq(struct irq_domain *domain,
+				    unsigned int hwirq, struct pt_regs *regs)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	return __handle_domain_irq(domain, hwirq, true, regs);
+}
+#endif
+
+/* Test to see if a driver has successfully requested an irq */
+static inline int irq_desc_has_action(struct irq_desc *desc)
+{
 	return desc->action != NULL;
 }
 
-/* caller has locked the irq_desc and both params are valid */
-static inline void __irq_set_handler_locked(unsigned int irq,
-					    irq_flow_handler_t handler)
+static inline int irq_has_action(unsigned int irq)
 {
-	struct irq_desc *desc;
+	return irq_desc_has_action(irq_to_desc(irq));
+}
 
-	desc = irq_to_desc(irq);
+/**
+ * irq_set_handler_locked - Set irq handler from a locked region
+ * @data:	Pointer to the irq_data structure which identifies the irq
+ * @handler:	Flow control handler function for this interrupt
+ *
+ * Sets the handler in the irq descriptor associated to @data.
+ *
+ * Must be called with irq_desc locked and valid parameters. Typical
+ * call site is the irq_set_type() callback.
+ */
+static inline void irq_set_handler_locked(struct irq_data *data,
+					  irq_flow_handler_t handler)
+{
+	struct irq_desc *desc = irq_data_to_desc(data);
+
 	desc->handle_irq = handler;
 }
 
-/* caller has locked the irq_desc and both params are valid */
+/**
+ * irq_set_chip_handler_name_locked - Set chip, handler and name from a locked region
+ * @data:	Pointer to the irq_data structure for which the chip is set
+ * @chip:	Pointer to the new irq chip
+ * @handler:	Flow control handler function for this interrupt
+ * @name:	Name of the interrupt
+ *
+ * Replace the irq chip at the proper hierarchy level in @data and
+ * sets the handler and name in the associated irq descriptor.
+ *
+ * Must be called with irq_desc locked and valid parameters.
+ */
 static inline void
-__irq_set_chip_handler_name_locked(unsigned int irq, struct irq_chip *chip,
-				   irq_flow_handler_t handler, const char *name)
+irq_set_chip_handler_name_locked(struct irq_data *data, struct irq_chip *chip,
+				 irq_flow_handler_t handler, const char *name)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_data_to_desc(data);
 
-	desc = irq_to_desc(irq);
-	irq_desc_get_irq_data(desc)->chip = chip;
 	desc->handle_irq = handler;
 	desc->name = name;
+	data->chip = chip;
 }
 
 static inline int irq_balancing_disabled(unsigned int irq)
@@ -152,6 +234,14 @@ static inline int irq_balancing_disabled(unsigned int irq)
 
 	desc = irq_to_desc(irq);
 	return desc->status_use_accessors & IRQ_NO_BALANCING_MASK;
+}
+
+static inline int irq_is_percpu(unsigned int irq)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	return desc->status_use_accessors & IRQ_PER_CPU;
 }
 
 static inline void
@@ -172,7 +262,6 @@ __irq_set_preflow_handler(unsigned int irq, irq_preflow_handler_t handler)
 	desc = irq_to_desc(irq);
 	desc->preflow_handler = handler;
 }
-#endif
 #endif
 
 #endif

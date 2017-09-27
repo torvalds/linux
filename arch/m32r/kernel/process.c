@@ -22,6 +22,9 @@
 
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -29,20 +32,12 @@
 #include <linux/rcupdate.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/elf.h>
 #include <asm/m32r.h>
 
 #include <linux/err.h>
-
-/*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return tsk->thread.lr;
-}
 
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
@@ -99,15 +94,6 @@ void show_regs(struct pt_regs * regs)
 #else
 #error unknown isa configuration
 #endif
-}
-
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(void)
-{
-	/* Nothing to do. */
-	DPRINTK("pid = %d\n", current->pid);
 }
 
 void flush_thread(void)

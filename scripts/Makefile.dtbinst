@@ -1,0 +1,41 @@
+# ==========================================================================
+# Installing dtb files
+#
+# Installs all dtb files listed in $(dtb-y) either in the
+# INSTALL_DTBS_PATH directory or the default location:
+#
+#   $INSTALL_PATH/dtbs/$KERNELRELEASE
+#
+# Traverse through subdirectories listed in $(dts-dirs).
+# ==========================================================================
+
+src := $(obj)
+
+PHONY := __dtbs_install
+__dtbs_install:
+
+export dtbinst_root ?= $(obj)
+
+include include/config/auto.conf
+include scripts/Kbuild.include
+include $(src)/Makefile
+
+dtbinst-files	:= $(dtb-y)
+dtbinst-dirs	:= $(dts-dirs)
+
+# Helper targets for Installing DTBs into the boot directory
+quiet_cmd_dtb_install =	INSTALL $<
+      cmd_dtb_install =	mkdir -p $(2); cp $< $(2)
+
+install-dir = $(patsubst $(dtbinst_root)%,$(INSTALL_DTBS_PATH)%,$(obj))
+
+$(dtbinst-files): %.dtb: $(obj)/%.dtb
+	$(call cmd,dtb_install,$(install-dir))
+
+$(dtbinst-dirs):
+	$(Q)$(MAKE) $(dtbinst)=$(obj)/$@
+
+PHONY += $(dtbinst-files) $(dtbinst-dirs)
+__dtbs_install: $(dtbinst-files) $(dtbinst-dirs)
+
+.PHONY: $(PHONY)

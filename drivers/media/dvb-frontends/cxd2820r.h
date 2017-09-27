@@ -22,7 +22,6 @@
 #ifndef CXD2820R_H
 #define CXD2820R_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 #define CXD2820R_GPIO_D (0 << 0) /* disable */
@@ -36,6 +35,32 @@
 #define CXD2820R_TS_SERIAL_MSB    0x28
 #define CXD2820R_TS_PARALLEL      0x30
 #define CXD2820R_TS_PARALLEL_MSB  0x70
+
+/*
+ * I2C address: 0x6c, 0x6d
+ */
+
+/**
+ * struct cxd2820r_platform_data - Platform data for the cxd2820r driver
+ * @ts_mode: TS mode.
+ * @ts_clk_inv: TS clock inverted.
+ * @if_agc_polarity: IF AGC polarity.
+ * @spec_inv: Input spectrum inverted.
+ * @gpio_chip_base: GPIO.
+ * @get_dvb_frontend: Get DVB frontend.
+ */
+
+struct cxd2820r_platform_data {
+	u8 ts_mode;
+	bool ts_clk_inv;
+	bool if_agc_polarity;
+	bool spec_inv;
+	int **gpio_chip_base;
+
+	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
+/* private: For legacy media attach wrapper. Do not set value. */
+	bool attach_in_use;
+};
 
 struct cxd2820r_config {
 	/* Demodulator I2C address.
@@ -52,6 +77,12 @@ struct cxd2820r_config {
 	 */
 	u8 ts_mode;
 
+	/* TS clock inverted.
+	 * Default: 0
+	 * Values: 0, 1
+	 */
+	bool ts_clock_inv;
+
 	/* IF AGC polarity.
 	 * Default: 0
 	 * Values: 0, 1
@@ -66,7 +97,7 @@ struct cxd2820r_config {
 };
 
 
-#if IS_ENABLED(CONFIG_DVB_CXD2820R)
+#if IS_REACHABLE(CONFIG_DVB_CXD2820R)
 extern struct dvb_frontend *cxd2820r_attach(
 	const struct cxd2820r_config *config,
 	struct i2c_adapter *i2c,

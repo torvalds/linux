@@ -50,8 +50,6 @@
 #include <linux/pnp.h>
 #include <linux/spinlock.h>
 
-#define DEB(x)
-#define DEB1(x)
 #include "sound_config.h"
 
 #include "ad1848.h"
@@ -122,11 +120,6 @@ static int nr_ad1848_devs;
 static bool deskpro_xl;
 static bool deskpro_m;
 static bool soundpro;
-
-static volatile signed char irq2dev[17] = {
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1
-};
 
 #ifndef EXCLUDE_TIMERS
 static int timer_installed = -1;
@@ -256,7 +249,7 @@ static void ad_write(ad1848_info * devc, int reg, int data)
 
 static void wait_for_calibration(ad1848_info * devc)
 {
-	int timeout = 0;
+	int timeout;
 
 	/*
 	 * Wait until the auto calibration process has finished.
@@ -1015,8 +1008,6 @@ static void ad1848_close(int dev)
 	unsigned long   flags;
 	ad1848_info    *devc = (ad1848_info *) audio_devs[dev]->devc;
 	ad1848_port_info *portc = (ad1848_port_info *) audio_devs[dev]->portc;
-
-	DEB(printk("ad1848_close(void)\n"));
 
 	devc->intr_active = 0;
 	ad1848_halt(dev);
@@ -2064,7 +2055,7 @@ int ad1848_init (char *name, struct resource *ports, int irq, int dma_playback,
 		else
 			devc->irq_ok = 1;	/* Couldn't test. assume it's OK */
 	} else if (irq < 0)
-		irq2dev[-irq] = devc->dev_no = my_dev;
+		devc->dev_no = my_dev;
 
 #ifndef EXCLUDE_TIMERS
 	if ((capabilities[devc->model].flags & CAP_F_TIMER) &&
@@ -2814,10 +2805,10 @@ static int __initdata dma = -1;
 static int __initdata dma2 = -1;
 static int __initdata type = 0;
 
-module_param(io, int, 0);		/* I/O for a raw AD1848 card */
-module_param(irq, int, 0);		/* IRQ to use */
-module_param(dma, int, 0);		/* First DMA channel */
-module_param(dma2, int, 0);		/* Second DMA channel */
+module_param_hw(io, int, ioport, 0);	/* I/O for a raw AD1848 card */
+module_param_hw(irq, int, irq, 0);	/* IRQ to use */
+module_param_hw(dma, int, dma, 0);	/* First DMA channel */
+module_param_hw(dma2, int, dma, 0);	/* Second DMA channel */
 module_param(type, int, 0);		/* Card type */
 module_param(deskpro_xl, bool, 0);	/* Special magic for Deskpro XL boxen */
 module_param(deskpro_m, bool, 0);	/* Special magic for Deskpro M box */
@@ -2864,6 +2855,7 @@ static struct {
 	{NULL}
 };
 
+#ifdef MODULE
 static struct isapnp_device_id id_table[] = {
 	{	ISAPNP_VENDOR('C','M','I'), ISAPNP_DEVICE(0x0001),
 		ISAPNP_VENDOR('@','@','@'), ISAPNP_FUNCTION(0x0001), 0 },
@@ -2881,6 +2873,7 @@ static struct isapnp_device_id id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(isapnp, id_table);
+#endif
 
 static struct pnp_dev *activate_dev(char *devname, char *resname, struct pnp_dev *dev)
 {

@@ -27,21 +27,17 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/regmap.h>
 
 #include <sound/pcm.h>
 
 #include <linux/mfd/davinci_voicecodec.h>
+#include <mach/hardware.h>
 
-u32 davinci_vc_read(struct davinci_vc *davinci_vc, int reg)
-{
-	return __raw_readl(davinci_vc->base + reg);
-}
-
-void davinci_vc_write(struct davinci_vc *davinci_vc,
-					   int reg, u32 val)
-{
-	__raw_writel(val, davinci_vc->base + reg);
-}
+static const struct regmap_config davinci_vc_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+};
 
 static int __init davinci_vc_probe(struct platform_device *pdev)
 {
@@ -52,11 +48,8 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 
 	davinci_vc = devm_kzalloc(&pdev->dev,
 				  sizeof(struct davinci_vc), GFP_KERNEL);
-	if (!davinci_vc) {
-		dev_dbg(&pdev->dev,
-			    "could not allocate memory for private data\n");
+	if (!davinci_vc)
 		return -ENOMEM;
-	}
 
 	davinci_vc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(davinci_vc->clk)) {
@@ -71,6 +64,14 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	davinci_vc->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(davinci_vc->base)) {
 		ret = PTR_ERR(davinci_vc->base);
+		goto fail;
+	}
+
+	davinci_vc->regmap = devm_regmap_init_mmio(&pdev->dev,
+						   davinci_vc->base,
+						   &davinci_vc_regmap);
+	if (IS_ERR(davinci_vc->regmap)) {
+		ret = PTR_ERR(davinci_vc->regmap);
 		goto fail;
 	}
 
@@ -140,7 +141,6 @@ static int davinci_vc_remove(struct platform_device *pdev)
 static struct platform_driver davinci_vc_driver = {
 	.driver	= {
 		.name = "davinci_voicecodec",
-		.owner = THIS_MODULE,
 	},
 	.remove	= davinci_vc_remove,
 };

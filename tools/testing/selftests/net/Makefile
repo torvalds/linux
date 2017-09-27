@@ -1,19 +1,14 @@
 # Makefile for net selftests
 
-CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall -O2 -g
-
+CFLAGS =  -Wall -Wl,--no-as-needed -O2 -g
 CFLAGS += -I../../../../usr/include/
 
-NET_PROGS = socket psock_fanout psock_tpacket
+TEST_PROGS := run_netsocktests run_afpackettests test_bpf.sh netdevice.sh rtnetlink.sh
+TEST_GEN_FILES =  socket
+TEST_GEN_FILES += psock_fanout psock_tpacket
+TEST_GEN_FILES += reuseport_bpf reuseport_bpf_cpu reuseport_bpf_numa
+TEST_GEN_FILES += reuseport_dualstack msg_zerocopy
 
-all: $(NET_PROGS)
-%: %.c
-	$(CC) $(CFLAGS) -o $@ $^
+include ../lib.mk
 
-run_tests: all
-	@/bin/sh ./run_netsocktests || echo "sockettests: [FAIL]"
-	@/bin/sh ./run_afpackettests || echo "afpackettests: [FAIL]"
-
-clean:
-	$(RM) $(NET_PROGS)
+$(OUTPUT)/reuseport_bpf_numa: LDFLAGS += -lnuma

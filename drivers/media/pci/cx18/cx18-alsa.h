@@ -12,11 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 struct snd_card;
@@ -48,7 +43,6 @@ static inline void snd_cx18_unlock(struct snd_cx18_card *cxsc)
 	mutex_unlock(&cx->serialize_lock);
 }
 
-#define CX18_ALSA_DBGFLG_WARN  (1 << 0)
 #define CX18_ALSA_DBGFLG_WARN  (1 << 0)
 #define CX18_ALSA_DBGFLG_INFO  (1 << 1)
 

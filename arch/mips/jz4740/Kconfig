@@ -1,9 +1,24 @@
 choice
 	prompt "Machine type"
-	depends on MACH_JZ4740
+	depends on MACH_INGENIC
 	default JZ4740_QI_LB60
 
 config JZ4740_QI_LB60
 	bool "Qi Hardware Ben NanoNote"
+	select MACH_JZ4740
+
+config JZ4780_CI20
+	bool "MIPS Creator CI20"
+	select MACH_JZ4780
 
 endchoice
+
+config MACH_JZ4740
+	bool
+	select SYS_HAS_CPU_MIPS32_R1
+
+config MACH_JZ4780
+	bool
+	select MIPS_CPU_SCACHE
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_HIGHMEM

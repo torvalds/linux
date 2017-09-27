@@ -22,32 +22,6 @@
 
 #define DO_SAVE_MIN		IA64_NATIVE_DO_SAVE_MIN
 
-#define __paravirt_switch_to			ia64_native_switch_to
-#define __paravirt_leave_syscall		ia64_native_leave_syscall
-#define __paravirt_work_processed_syscall	ia64_native_work_processed_syscall
-#define __paravirt_leave_kernel			ia64_native_leave_kernel
-#define __paravirt_pending_syscall_end		ia64_work_pending_syscall_end
-#define __paravirt_work_processed_syscall_target \
-						ia64_work_processed_syscall
-
-#define paravirt_fsyscall_table			ia64_native_fsyscall_table
-#define paravirt_fsys_bubble_down		ia64_native_fsys_bubble_down
-
-#ifdef CONFIG_PARAVIRT_GUEST_ASM_CLOBBER_CHECK
-# define PARAVIRT_POISON	0xdeadbeefbaadf00d
-# define CLOBBER(clob)				\
-	;;					\
-	movl clob = PARAVIRT_POISON;		\
-	;;
-# define CLOBBER_PRED(pred_clob)		\
-	;;					\
-	cmp.eq pred_clob, p0 = r0, r0		\
-	;;
-#else
-# define CLOBBER(clob)			/* nothing */
-# define CLOBBER_PRED(pred_clob)	/* nothing */
-#endif
-
 #define MOV_FROM_IFA(reg)	\
 	mov reg = cr.ifa
 
@@ -70,106 +44,76 @@
 	mov reg = cr.iip
 
 #define MOV_FROM_IVR(reg, clob)	\
-	mov reg = cr.ivr	\
-	CLOBBER(clob)
+	mov reg = cr.ivr
 
 #define MOV_FROM_PSR(pred, reg, clob)	\
-(pred)	mov reg = psr			\
-	CLOBBER(clob)
+(pred)	mov reg = psr
 
 #define MOV_FROM_ITC(pred, pred_clob, reg, clob)	\
-(pred)	mov reg = ar.itc				\
-	CLOBBER(clob)					\
-	CLOBBER_PRED(pred_clob)
+(pred)	mov reg = ar.itc
 
 #define MOV_TO_IFA(reg, clob)	\
-	mov cr.ifa = reg	\
-	CLOBBER(clob)
+	mov cr.ifa = reg
 
 #define MOV_TO_ITIR(pred, reg, clob)	\
-(pred)	mov cr.itir = reg		\
-	CLOBBER(clob)
+(pred)	mov cr.itir = reg
 
 #define MOV_TO_IHA(pred, reg, clob)	\
-(pred)	mov cr.iha = reg		\
-	CLOBBER(clob)
+(pred)	mov cr.iha = reg
 
 #define MOV_TO_IPSR(pred, reg, clob)		\
-(pred)	mov cr.ipsr = reg			\
-	CLOBBER(clob)
+(pred)	mov cr.ipsr = reg
 
 #define MOV_TO_IFS(pred, reg, clob)	\
-(pred)	mov cr.ifs = reg		\
-	CLOBBER(clob)
+(pred)	mov cr.ifs = reg
 
 #define MOV_TO_IIP(reg, clob)	\
-	mov cr.iip = reg	\
-	CLOBBER(clob)
+	mov cr.iip = reg
 
 #define MOV_TO_KR(kr, reg, clob0, clob1)	\
-	mov IA64_KR(kr) = reg			\
-	CLOBBER(clob0)				\
-	CLOBBER(clob1)
+	mov IA64_KR(kr) = reg
 
 #define ITC_I(pred, reg, clob)	\
-(pred)	itc.i reg		\
-	CLOBBER(clob)
+(pred)	itc.i reg
 
 #define ITC_D(pred, reg, clob)	\
-(pred)	itc.d reg		\
-	CLOBBER(clob)
+(pred)	itc.d reg
 
 #define ITC_I_AND_D(pred_i, pred_d, reg, clob)	\
 (pred_i) itc.i reg;				\
-(pred_d) itc.d reg				\
-	CLOBBER(clob)
+(pred_d) itc.d reg
 
 #define THASH(pred, reg0, reg1, clob)		\
-(pred)	thash reg0 = reg1			\
-	CLOBBER(clob)
+(pred)	thash reg0 = reg1
 
 #define SSM_PSR_IC_AND_DEFAULT_BITS_AND_SRLZ_I(clob0, clob1)		\
 	ssm psr.ic | PSR_DEFAULT_BITS					\
-	CLOBBER(clob0)							\
-	CLOBBER(clob1)							\
 	;;								\
 	srlz.i /* guarantee that interruption collectin is on */	\
 	;;
 
 #define SSM_PSR_IC_AND_SRLZ_D(clob0, clob1)	\
 	ssm psr.ic				\
-	CLOBBER(clob0)				\
-	CLOBBER(clob1)				\
 	;;					\
 	srlz.d
 
 #define RSM_PSR_IC(clob)	\
-	rsm psr.ic		\
-	CLOBBER(clob)
+	rsm psr.ic
 
 #define SSM_PSR_I(pred, pred_clob, clob)	\
-(pred)	ssm psr.i				\
-	CLOBBER(clob)				\
-	CLOBBER_PRED(pred_clob)
+(pred)	ssm psr.i
 
 #define RSM_PSR_I(pred, clob0, clob1)	\
-(pred)	rsm psr.i			\
-	CLOBBER(clob0)			\
-	CLOBBER(clob1)
+(pred)	rsm psr.i
 
 #define RSM_PSR_I_IC(clob0, clob1, clob2)	\
-	rsm psr.i | psr.ic			\
-	CLOBBER(clob0)				\
-	CLOBBER(clob1)				\
-	CLOBBER(clob2)
+	rsm psr.i | psr.ic
 
 #define RSM_PSR_DT		\
 	rsm psr.dt
 
 #define RSM_PSR_BE_I(clob0, clob1)	\
-	rsm psr.be | psr.i		\
-	CLOBBER(clob0)			\
-	CLOBBER(clob1)
+	rsm psr.be | psr.i
 
 #define SSM_PSR_DT_AND_SRLZ_I	\
 	ssm psr.dt		\
@@ -177,15 +121,10 @@
 	srlz.i
 
 #define BSW_0(clob0, clob1, clob2)	\
-	bsw.0				\
-	CLOBBER(clob0)			\
-	CLOBBER(clob1)			\
-	CLOBBER(clob2)
+	bsw.0
 
 #define BSW_1(clob0, clob1)	\
-	bsw.1			\
-	CLOBBER(clob0)		\
-	CLOBBER(clob1)
+	bsw.1
 
 #define COVER	\
 	cover

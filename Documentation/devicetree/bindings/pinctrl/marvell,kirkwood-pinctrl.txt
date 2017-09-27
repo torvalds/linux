@@ -8,6 +8,7 @@ Required properties:
               "marvell,88f6190-pinctrl", "marvell,88f6192-pinctrl",
               "marvell,88f6281-pinctrl", "marvell,88f6282-pinctrl"
               "marvell,98dx4122-pinctrl"
+- reg: register specifier of MPP registers
 
 This driver supports all kirkwood variants, i.e. 88f6180, 88f619x, and 88f628x.
 It also support the 88f6281-based variant in the 98dx412x Bobcat SoCs.
@@ -43,16 +44,16 @@ mpp16         16       gpio, sdio(d2), uart0(cts), uart1(rxd), mii(crs)
 mpp17         17       gpio, sdio(d3)
 mpp18         18       gpo, nand(io0)
 mpp19         19       gpo, nand(io1)
-mpp20         20       gpio, mii(rxerr)
-mpp21         21       gpio, audio(spdifi)
-mpp22         22       gpio, audio(spdifo)
-mpp23         23       gpio, audio(rmclk)
-mpp24         24       gpio, audio(bclk)
-mpp25         25       gpio, audio(sdo)
-mpp26         26       gpio, audio(lrclk)
-mpp27         27       gpio, audio(mclk)
-mpp28         28       gpio, audio(sdi)
-mpp29         29       gpio, audio(extclk)
+mpp35         35       gpio, mii(rxerr)
+mpp36         36       gpio, audio(spdifi)
+mpp37         37       gpio, audio(spdifo)
+mpp38         38       gpio, audio(rmclk)
+mpp39         39       gpio, audio(bclk)
+mpp40         40       gpio, audio(sdo)
+mpp41         41       gpio, audio(lrclk)
+mpp42         42       gpio, audio(mclk)
+mpp43         43       gpio, audio(sdi)
+mpp44         44       gpio, audio(extclk)
 
 * Marvell Kirkwood 88f6190
 

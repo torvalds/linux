@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * File: device_cfg.h
  *
  * Purpose: Driver configuration header
@@ -27,10 +23,7 @@
 #ifndef __DEVICE_CONFIG_H
 #define __DEVICE_CONFIG_H
 
-//#include <linux/config.h>
 #include <linux/types.h>
-
-#include "ttype.h"
 
 typedef
 struct _version {
@@ -60,36 +53,16 @@ struct _version {
 #define DEVICE_VERSION       "1.19.12"
 #endif
 
-//config file
 #include <linux/fs.h>
 #include <linux/fcntl.h>
 #ifndef CONFIG_PATH
 #define CONFIG_PATH            "/etc/vntconfiguration.dat"
 #endif
 
-//Max: 2378=2312Payload + 30HD +4CRC + 2Padding + 4Len + 8TSF + 4RSR
 #define PKT_BUF_SZ          2390
-
-#define MAX_UINTS           8
-#define OPTION_DEFAULT      { [0 ... MAX_UINTS-1] = -1}
 
 typedef enum  _chip_type {
 	VT3253 = 1
 } CHIP_TYPE, *PCHIP_TYPE;
-
-#ifdef VIAWET_DEBUG
-#define ASSERT(x)							\
-do {									\
-	if (!(x)) {							\
-		printk(KERN_ERR "assertion %s failed: file %s line %d\n", \
-		       #x, __func__, __LINE__);				\
-		*(int *)0 = 0;						\
-	}								\
-} while (0)
-#define DBG_PORT80(value)                   outb(value, 0x80)
-#else
-#define ASSERT(x)
-#define DBG_PORT80(value)
-#endif
 
 #endif

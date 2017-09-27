@@ -55,7 +55,8 @@ static struct wusbhc *usbhc_dev_to_wusbhc(struct device *dev)
  * value of trust_timeout is jiffies.
  */
 static ssize_t wusb_trust_timeout_show(struct device *dev,
-				       struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
 
@@ -83,8 +84,7 @@ static ssize_t wusb_trust_timeout_store(struct device *dev,
 out:
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_trust_timeout, 0644, wusb_trust_timeout_show,
-					     wusb_trust_timeout_store);
+static DEVICE_ATTR_RW(wusb_trust_timeout);
 
 /*
  * Show the current WUSB CHID.
@@ -144,7 +144,7 @@ static ssize_t wusb_chid_store(struct device *dev,
 	result = wusbhc_chid_set(wusbhc, &chid);
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_chid, 0644, wusb_chid_show, wusb_chid_store);
+static DEVICE_ATTR_RW(wusb_chid);
 
 
 static ssize_t wusb_phy_rate_show(struct device *dev,
@@ -173,7 +173,7 @@ static ssize_t wusb_phy_rate_store(struct device *dev,
 	wusbhc->phy_rate = phy_rate;
 	return size;
 }
-static DEVICE_ATTR(wusb_phy_rate, 0644, wusb_phy_rate_show, wusb_phy_rate_store);
+static DEVICE_ATTR_RW(wusb_phy_rate);
 
 static ssize_t wusb_dnts_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -203,7 +203,7 @@ static ssize_t wusb_dnts_store(struct device *dev,
 
 	return size;
 }
-static DEVICE_ATTR(wusb_dnts, 0644, wusb_dnts_show, wusb_dnts_store);
+static DEVICE_ATTR_RW(wusb_dnts);
 
 static ssize_t wusb_retry_count_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -227,12 +227,12 @@ static ssize_t wusb_retry_count_store(struct device *dev,
 	if (result != 1)
 		return -EINVAL;
 
-	wusbhc->retry_count = max_t(uint8_t, retry_count, WUSB_RETRY_COUNT_MAX);
+	wusbhc->retry_count = max_t(uint8_t, retry_count,
+					WUSB_RETRY_COUNT_MAX);
 
 	return size;
 }
-static DEVICE_ATTR(wusb_retry_count, 0644, wusb_retry_count_show,
-	wusb_retry_count_store);
+static DEVICE_ATTR_RW(wusb_retry_count);
 
 /* Group all the WUSBHC attributes */
 static struct attribute *wusbhc_attrs[] = {
@@ -244,7 +244,7 @@ static struct attribute *wusbhc_attrs[] = {
 		NULL,
 };
 
-static struct attribute_group wusbhc_attr_group = {
+static const struct attribute_group wusbhc_attr_group = {
 	.name = NULL,	/* we want them in the same directory */
 	.attrs = wusbhc_attrs,
 };
@@ -321,7 +321,8 @@ int wusbhc_b_create(struct wusbhc *wusbhc)
 
 	result = sysfs_create_group(wusbhc_kobj(wusbhc), &wusbhc_attr_group);
 	if (result < 0) {
-		dev_err(dev, "Cannot register WUSBHC attributes: %d\n", result);
+		dev_err(dev, "Cannot register WUSBHC attributes: %d\n",
+			result);
 		goto error_create_attr_group;
 	}
 
@@ -419,13 +420,14 @@ EXPORT_SYMBOL_GPL(wusb_cluster_id_put);
  *  - After a successful transfer, update the trust timeout timestamp
  *    for the WUSB device.
  *
- *  - [WUSB] sections 4.13 and 7.5.1 specifies the stop retrasmittion
+ *  - [WUSB] sections 4.13 and 7.5.1 specify the stop retransmission
  *    condition for the WCONNECTACK_IE is that the host has observed
  *    the associated device responding to a control transfer.
  */
 void wusbhc_giveback_urb(struct wusbhc *wusbhc, struct urb *urb, int status)
 {
-	struct wusb_dev *wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc, urb->dev);
+	struct wusb_dev *wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc,
+					urb->dev);
 
 	if (status == 0 && wusb_dev) {
 		wusb_dev->entry_ts = jiffies;
@@ -491,11 +493,8 @@ static void __exit wusbcore_exit(void)
 {
 	clear_bit(0, wusb_cluster_id_table);
 	if (!bitmap_empty(wusb_cluster_id_table, CLUSTER_IDS)) {
-		char buf[256];
-		bitmap_scnprintf(buf, sizeof(buf), wusb_cluster_id_table,
-				 CLUSTER_IDS);
-		printk(KERN_ERR "BUG: WUSB Cluster IDs not released "
-		       "on exit: %s\n", buf);
+		printk(KERN_ERR "BUG: WUSB Cluster IDs not released on exit: %*pb\n",
+		       CLUSTER_IDS, wusb_cluster_id_table);
 		WARN_ON(1);
 	}
 	usb_unregister_notify(&wusb_usb_notifier);

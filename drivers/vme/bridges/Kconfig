@@ -9,7 +9,15 @@ config VME_CA91CX42
 
 config VME_TSI148
 	tristate "Tempe"
-	depends on VIRT_TO_BUS
+	depends on HAS_DMA
 	help
 	 If you say Y here you get support for the Tundra TSI148 VME bridge
 	 chip.
+
+config VME_FAKE
+	tristate "Fake"
+	help
+	 If you say Y here you get support for the fake VME bridge. This
+	 provides a virtualised VME Bus for devices with no VME bridge. This
+	 is mainly useful for VME development (in the absence of VME
+	 hardware).

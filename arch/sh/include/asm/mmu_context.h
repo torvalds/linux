@@ -10,7 +10,9 @@
 #ifdef __KERNEL__
 #include <cpu/mmu_context.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/mm_types.h>
+
 #include <asm/io.h>
 #include <asm-generic/mm_hooks.h>
 
@@ -81,7 +83,7 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 
 		/*
 		 * Fix version; Note that we avoid version #0
-		 * to distingush NO_CONTEXT.
+		 * to distinguish NO_CONTEXT.
 		 */
 		if (!asid)
 			asid = MMU_CONTEXT_FIRST_VERSION;
@@ -99,7 +101,7 @@ static inline int init_new_context(struct task_struct *tsk,
 {
 	int i;
 
-	for (i = 0; i < num_online_cpus(); i++)
+	for_each_online_cpu(i)
 		cpu_context(i, mm) = NO_CONTEXT;
 
 	return 0;

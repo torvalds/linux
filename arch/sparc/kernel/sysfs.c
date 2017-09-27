@@ -1,4 +1,4 @@
-/* sysfs.c: Toplogy sysfs support code for sparc64.
+/* sysfs.c: Topology sysfs support code for sparc64.
  *
  * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
  */
@@ -98,27 +98,7 @@ static struct attribute_group mmu_stat_group = {
 	.name = "mmu_stats",
 };
 
-/* XXX convert to rusty's on_one_cpu */
-static unsigned long run_on_cpu(unsigned long cpu,
-			        unsigned long (*func)(unsigned long),
-				unsigned long arg)
-{
-	cpumask_t old_affinity;
-	unsigned long ret;
-
-	cpumask_copy(&old_affinity, tsk_cpus_allowed(current));
-	/* should return -EINVAL to userspace */
-	if (set_cpus_allowed_ptr(current, cpumask_of(cpu)))
-		return 0;
-
-	ret = func(arg);
-
-	set_cpus_allowed_ptr(current, &old_affinity);
-
-	return ret;
-}
-
-static unsigned long read_mmustat_enable(unsigned long junk)
+static long read_mmustat_enable(void *data __maybe_unused)
 {
 	unsigned long ra = 0;
 
@@ -127,11 +107,11 @@ static unsigned long read_mmustat_enable(unsigned long junk)
 	return ra != 0;
 }
 
-static unsigned long write_mmustat_enable(unsigned long val)
+static long write_mmustat_enable(void *data)
 {
-	unsigned long ra, orig_ra;
+	unsigned long ra, orig_ra, *val = data;
 
-	if (val)
+	if (*val)
 		ra = __pa(&per_cpu(mmu_stats, smp_processor_id()));
 	else
 		ra = 0UL;
@@ -142,7 +122,8 @@ static unsigned long write_mmustat_enable(unsigned long val)
 static ssize_t show_mmustat_enable(struct device *s,
 				struct device_attribute *attr, char *buf)
 {
-	unsigned long val = run_on_cpu(s->id, read_mmustat_enable, 0);
+	long val = work_on_cpu(s->id, read_mmustat_enable, NULL);
+
 	return sprintf(buf, "%lx\n", val);
 }
 
@@ -150,13 +131,15 @@ static ssize_t store_mmustat_enable(struct device *s,
 			struct device_attribute *attr, const char *buf,
 			size_t count)
 {
-	unsigned long val, err;
-	int ret = sscanf(buf, "%ld", &val);
+	unsigned long val;
+	long err;
+	int ret;
 
+	ret = sscanf(buf, "%lu", &val);
 	if (ret != 1)
 		return -EINVAL;
 
-	err = run_on_cpu(s->id, write_mmustat_enable, val);
+	err = work_on_cpu(s->id, write_mmustat_enable, &val);
 	if (err)
 		return -EIO;
 
@@ -221,7 +204,7 @@ static struct device_attribute cpu_core_attrs[] = {
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
-static void register_cpu_online(unsigned int cpu)
+static int register_cpu_online(unsigned int cpu)
 {
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct device *s = &c->dev;
@@ -231,11 +214,12 @@ static void register_cpu_online(unsigned int cpu)
 		device_create_file(s, &cpu_core_attrs[i]);
 
 	register_mmu_stats(s);
+	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static void unregister_cpu_online(unsigned int cpu)
+static int unregister_cpu_online(unsigned int cpu)
 {
+#ifdef CONFIG_HOTPLUG_CPU
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct device *s = &c->dev;
 	int i;
@@ -243,32 +227,9 @@ static void unregister_cpu_online(unsigned int cpu)
 	unregister_mmu_stats(s);
 	for (i = 0; i < ARRAY_SIZE(cpu_core_attrs); i++)
 		device_remove_file(s, &cpu_core_attrs[i]);
-}
 #endif
-
-static int sysfs_cpu_notify(struct notifier_block *self,
-				      unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned int)(long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		register_cpu_online(cpu);
-		break;
-#ifdef CONFIG_HOTPLUG_CPU
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		unregister_cpu_online(cpu);
-		break;
-#endif
-	}
-	return NOTIFY_OK;
+	return 0;
 }
-
-static struct notifier_block sysfs_cpu_nb = {
-	.notifier_call	= sysfs_cpu_notify,
-};
 
 static void __init check_mmu_stats(void)
 {
@@ -294,22 +255,21 @@ static void register_nodes(void)
 
 static int __init topology_init(void)
 {
-	int cpu;
+	int cpu, ret;
 
 	register_nodes();
 
 	check_mmu_stats();
 
-	register_cpu_notifier(&sysfs_cpu_nb);
-
 	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
 
 		register_cpu(c, cpu);
-		if (cpu_online(cpu))
-			register_cpu_online(cpu);
 	}
 
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "sparc/topology:online",
+				register_cpu_online, unregister_cpu_online);
+	WARN_ON(ret < 0);
 	return 0;
 }
 

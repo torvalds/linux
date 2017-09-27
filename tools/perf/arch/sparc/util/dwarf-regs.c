@@ -39,5 +39,5 @@ const char *sparc_regs_table[SPARC_MAX_REGS] = {
  */
 const char *get_arch_regstr(unsigned int n)
 {
-	return (n <= SPARC_MAX_REGS) ? sparc_regs_table[n] : NULL;
+	return (n < SPARC_MAX_REGS) ? sparc_regs_table[n] : NULL;
 }

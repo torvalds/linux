@@ -24,30 +24,11 @@
 
 #include "internal.h"
 
-/*
- * capabilities for /dev/mem, /dev/kmem and similar directly mappable character
- * devices
- * - permits shared-mmap for read, write and/or exec
- * - does not permit private mmap in NOMMU mode (can't do COW)
- * - no readahead or I/O queue unplugging required
- */
-struct backing_dev_info directly_mappable_cdev_bdi = {
-	.name = "char",
-	.capabilities	= (
-#ifdef CONFIG_MMU
-		/* permit private copies of the data to be taken */
-		BDI_CAP_MAP_COPY |
-#endif
-		/* permit direct mmap, for read, write or exec */
-		BDI_CAP_MAP_DIRECT |
-		BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP | BDI_CAP_EXEC_MAP |
-		/* no writeback happens */
-		BDI_CAP_NO_ACCT_AND_WRITEBACK),
-};
-
 static struct kobj_map *cdev_map;
 
 static DEFINE_MUTEX(chrdevs_lock);
+
+#define CHRDEV_MAJOR_HASH_SIZE 255
 
 static struct char_device_struct {
 	struct char_device_struct *next;
@@ -70,15 +51,38 @@ void chrdev_show(struct seq_file *f, off_t offset)
 {
 	struct char_device_struct *cd;
 
-	if (offset < CHRDEV_MAJOR_HASH_SIZE) {
-		mutex_lock(&chrdevs_lock);
-		for (cd = chrdevs[offset]; cd; cd = cd->next)
+	mutex_lock(&chrdevs_lock);
+	for (cd = chrdevs[major_to_index(offset)]; cd; cd = cd->next) {
+		if (cd->major == offset)
 			seq_printf(f, "%3d %s\n", cd->major, cd->name);
-		mutex_unlock(&chrdevs_lock);
 	}
+	mutex_unlock(&chrdevs_lock);
 }
 
 #endif /* CONFIG_PROC_FS */
+
+static int find_dynamic_major(void)
+{
+	int i;
+	struct char_device_struct *cd;
+
+	for (i = ARRAY_SIZE(chrdevs)-1; i > CHRDEV_MAJOR_DYN_END; i--) {
+		if (chrdevs[i] == NULL)
+			return i;
+	}
+
+	for (i = CHRDEV_MAJOR_DYN_EXT_START;
+	     i > CHRDEV_MAJOR_DYN_EXT_END; i--) {
+		for (cd = chrdevs[major_to_index(i)]; cd; cd = cd->next)
+			if (cd->major == i)
+				break;
+
+		if (cd == NULL || cd->major != i)
+			return i;
+	}
+
+	return -EBUSY;
+}
 
 /*
  * Register a single major with a specified minor range.
@@ -105,19 +109,21 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 
 	mutex_lock(&chrdevs_lock);
 
-	/* temporary */
 	if (major == 0) {
-		for (i = ARRAY_SIZE(chrdevs)-1; i > 0; i--) {
-			if (chrdevs[i] == NULL)
-				break;
-		}
-
-		if (i == 0) {
-			ret = -EBUSY;
+		ret = find_dynamic_major();
+		if (ret < 0) {
+			pr_err("CHRDEV \"%s\" dynamic allocation region is full\n",
+			       name);
 			goto out;
 		}
-		major = i;
-		ret = major;
+		major = ret;
+	}
+
+	if (major >= CHRDEV_MAJOR_MAX) {
+		pr_err("CHRDEV \"%s\" major requested (%d) is greater than the maximum (%d)\n",
+		       name, major, CHRDEV_MAJOR_MAX);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	cd->major = major;
@@ -296,7 +302,7 @@ out2:
 }
 
 /**
- * unregister_chrdev_region() - return a range of device numbers
+ * unregister_chrdev_region() - unregister a range of device numbers
  * @from: the first in the range of numbers to unregister
  * @count: the number of device numbers to unregister
  *
@@ -368,6 +374,7 @@ void cdev_put(struct cdev *p)
  */
 static int chrdev_open(struct inode *inode, struct file *filp)
 {
+	const struct file_operations *fops;
 	struct cdev *p;
 	struct cdev *new = NULL;
 	int ret = 0;
@@ -400,10 +407,11 @@ static int chrdev_open(struct inode *inode, struct file *filp)
 		return ret;
 
 	ret = -ENXIO;
-	filp->f_op = fops_get(p->ops);
-	if (!filp->f_op)
+	fops = fops_get(p->ops);
+	if (!fops)
 		goto out_cdev_put;
 
+	replace_fops(filp, fops);
 	if (filp->f_op->open) {
 		ret = filp->f_op->open(inode, filp);
 		if (ret)
@@ -422,6 +430,7 @@ void cd_forget(struct inode *inode)
 	spin_lock(&cdev_lock);
 	list_del_init(&inode->i_devices);
 	inode->i_cdev = NULL;
+	inode->i_mapping = &inode->i_data;
 	spin_unlock(&cdev_lock);
 }
 
@@ -486,6 +495,85 @@ int cdev_add(struct cdev *p, dev_t dev, unsigned count)
 	return 0;
 }
 
+/**
+ * cdev_set_parent() - set the parent kobject for a char device
+ * @p: the cdev structure
+ * @kobj: the kobject to take a reference to
+ *
+ * cdev_set_parent() sets a parent kobject which will be referenced
+ * appropriately so the parent is not freed before the cdev. This
+ * should be called before cdev_add.
+ */
+void cdev_set_parent(struct cdev *p, struct kobject *kobj)
+{
+	WARN_ON(!kobj->state_initialized);
+	p->kobj.parent = kobj;
+}
+
+/**
+ * cdev_device_add() - add a char device and it's corresponding
+ *	struct device, linkink
+ * @dev: the device structure
+ * @cdev: the cdev structure
+ *
+ * cdev_device_add() adds the char device represented by @cdev to the system,
+ * just as cdev_add does. It then adds @dev to the system using device_add
+ * The dev_t for the char device will be taken from the struct device which
+ * needs to be initialized first. This helper function correctly takes a
+ * reference to the parent device so the parent will not get released until
+ * all references to the cdev are released.
+ *
+ * This helper uses dev->devt for the device number. If it is not set
+ * it will not add the cdev and it will be equivalent to device_add.
+ *
+ * This function should be used whenever the struct cdev and the
+ * struct device are members of the same structure whose lifetime is
+ * managed by the struct device.
+ *
+ * NOTE: Callers must assume that userspace was able to open the cdev and
+ * can call cdev fops callbacks at any time, even if this function fails.
+ */
+int cdev_device_add(struct cdev *cdev, struct device *dev)
+{
+	int rc = 0;
+
+	if (dev->devt) {
+		cdev_set_parent(cdev, &dev->kobj);
+
+		rc = cdev_add(cdev, dev->devt, 1);
+		if (rc)
+			return rc;
+	}
+
+	rc = device_add(dev);
+	if (rc)
+		cdev_del(cdev);
+
+	return rc;
+}
+
+/**
+ * cdev_device_del() - inverse of cdev_device_add
+ * @dev: the device structure
+ * @cdev: the cdev structure
+ *
+ * cdev_device_del() is a helper function to call cdev_del and device_del.
+ * It should be used whenever cdev_device_add is used.
+ *
+ * If dev->devt is not set it will not remove the cdev and will be equivalent
+ * to device_del.
+ *
+ * NOTE: This guarantees that associated sysfs callbacks are not running
+ * or runnable, however any cdevs already open will remain and their fops
+ * will still be callable even after this function returns.
+ */
+void cdev_device_del(struct cdev *cdev, struct device *dev)
+{
+	device_del(dev);
+	if (dev->devt)
+		cdev_del(cdev);
+}
+
 static void cdev_unmap(dev_t dev, unsigned count)
 {
 	kobj_unmap(cdev_map, dev, count);
@@ -497,6 +585,10 @@ static void cdev_unmap(dev_t dev, unsigned count)
  *
  * cdev_del() removes @p from the system, possibly freeing the structure
  * itself.
+ *
+ * NOTE: This guarantees that cdev device will no longer be able to be
+ * opened, however any cdevs already open will remain and their fops will
+ * still be callable even after cdev_del returns.
  */
 void cdev_del(struct cdev *p)
 {
@@ -574,7 +666,6 @@ static struct kobject *base_probe(dev_t dev, int *part, void *data)
 void __init chrdev_init(void)
 {
 	cdev_map = kobj_map_init(base_probe, &chrdevs_lock);
-	bdi_init(&directly_mappable_cdev_bdi);
 }
 
 
@@ -586,6 +677,8 @@ EXPORT_SYMBOL(cdev_init);
 EXPORT_SYMBOL(cdev_alloc);
 EXPORT_SYMBOL(cdev_del);
 EXPORT_SYMBOL(cdev_add);
+EXPORT_SYMBOL(cdev_set_parent);
+EXPORT_SYMBOL(cdev_device_add);
+EXPORT_SYMBOL(cdev_device_del);
 EXPORT_SYMBOL(__register_chrdev);
 EXPORT_SYMBOL(__unregister_chrdev);
-EXPORT_SYMBOL(directly_mappable_cdev_bdi);

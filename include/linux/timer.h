@@ -14,26 +14,16 @@ struct timer_list {
 	 * All fields that change during normal runtime grouped to the
 	 * same cacheline
 	 */
-	struct list_head entry;
-	unsigned long expires;
-	struct tvec_base *base;
+	struct hlist_node	entry;
+	unsigned long		expires;
+	void			(*function)(unsigned long);
+	unsigned long		data;
+	u32			flags;
 
-	void (*function)(unsigned long);
-	unsigned long data;
-
-	int slack;
-
-#ifdef CONFIG_TIMER_STATS
-	int start_pid;
-	void *start_site;
-	char start_comm[16];
-#endif
 #ifdef CONFIG_LOCKDEP
-	struct lockdep_map lockdep_map;
+	struct lockdep_map	lockdep_map;
 #endif
 };
-
-extern struct tvec_base boot_tvec_bases;
 
 #ifdef CONFIG_LOCKDEP
 /*
@@ -49,9 +39,6 @@ extern struct tvec_base boot_tvec_bases;
 #endif
 
 /*
- * Note that all tvec_bases are at least 4 byte aligned and lower two bits
- * of base in timer_list is guaranteed to be zero. Use them for flags.
- *
  * A deferrable timer will work normally when the system is busy, but
  * will not cause a CPU to come out of idle just to service it; instead,
  * the timer will be serviced when the CPU eventually wakes up with a
@@ -65,18 +52,23 @@ extern struct tvec_base boot_tvec_bases;
  * workqueue locking issues. It's not meant for executing random crap
  * with interrupts disabled. Abuse is monitored!
  */
-#define TIMER_DEFERRABLE		0x1LU
-#define TIMER_IRQSAFE			0x2LU
+#define TIMER_CPUMASK		0x0003FFFF
+#define TIMER_MIGRATING		0x00040000
+#define TIMER_BASEMASK		(TIMER_CPUMASK | TIMER_MIGRATING)
+#define TIMER_DEFERRABLE	0x00080000
+#define TIMER_PINNED		0x00100000
+#define TIMER_IRQSAFE		0x00200000
+#define TIMER_ARRAYSHIFT	22
+#define TIMER_ARRAYMASK		0xFFC00000
 
-#define TIMER_FLAG_MASK			0x3LU
+#define TIMER_TRACE_FLAGMASK	(TIMER_MIGRATING | TIMER_DEFERRABLE | TIMER_PINNED | TIMER_IRQSAFE)
 
 #define __TIMER_INITIALIZER(_function, _expires, _data, _flags) { \
-		.entry = { .prev = TIMER_ENTRY_STATIC },	\
+		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
 		.expires = (_expires),				\
 		.data = (_data),				\
-		.base = (void *)((unsigned long)&boot_tvec_bases + (_flags)), \
-		.slack = -1,					\
+		.flags = (_flags),				\
 		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
 			__FILE__ ":" __stringify(__LINE__))	\
 	}
@@ -84,8 +76,14 @@ extern struct tvec_base boot_tvec_bases;
 #define TIMER_INITIALIZER(_function, _expires, _data)		\
 	__TIMER_INITIALIZER((_function), (_expires), (_data), 0)
 
+#define TIMER_PINNED_INITIALIZER(_function, _expires, _data)	\
+	__TIMER_INITIALIZER((_function), (_expires), (_data), TIMER_PINNED)
+
 #define TIMER_DEFERRED_INITIALIZER(_function, _expires, _data)	\
 	__TIMER_INITIALIZER((_function), (_expires), (_data), TIMER_DEFERRABLE)
+
+#define TIMER_PINNED_DEFERRED_INITIALIZER(_function, _expires, _data)	\
+	__TIMER_INITIALIZER((_function), (_expires), (_data), TIMER_DEFERRABLE | TIMER_PINNED)
 
 #define DEFINE_TIMER(_name, _function, _expires, _data)		\
 	struct timer_list _name =				\
@@ -130,8 +128,12 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 
 #define init_timer(timer)						\
 	__init_timer((timer), 0)
+#define init_timer_pinned(timer)					\
+	__init_timer((timer), TIMER_PINNED)
 #define init_timer_deferrable(timer)					\
 	__init_timer((timer), TIMER_DEFERRABLE)
+#define init_timer_pinned_deferrable(timer)				\
+	__init_timer((timer), TIMER_DEFERRABLE | TIMER_PINNED)
 #define init_timer_on_stack(timer)					\
 	__init_timer_on_stack((timer), 0)
 
@@ -151,10 +153,20 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 
 #define setup_timer(timer, fn, data)					\
 	__setup_timer((timer), (fn), (data), 0)
+#define setup_pinned_timer(timer, fn, data)				\
+	__setup_timer((timer), (fn), (data), TIMER_PINNED)
+#define setup_deferrable_timer(timer, fn, data)				\
+	__setup_timer((timer), (fn), (data), TIMER_DEFERRABLE)
+#define setup_pinned_deferrable_timer(timer, fn, data)			\
+	__setup_timer((timer), (fn), (data), TIMER_DEFERRABLE | TIMER_PINNED)
 #define setup_timer_on_stack(timer, fn, data)				\
 	__setup_timer_on_stack((timer), (fn), (data), 0)
+#define setup_pinned_timer_on_stack(timer, fn, data)			\
+	__setup_timer_on_stack((timer), (fn), (data), TIMER_PINNED)
 #define setup_deferrable_timer_on_stack(timer, fn, data)		\
 	__setup_timer_on_stack((timer), (fn), (data), TIMER_DEFERRABLE)
+#define setup_pinned_deferrable_timer_on_stack(timer, fn, data)		\
+	__setup_timer_on_stack((timer), (fn), (data), TIMER_DEFERRABLE | TIMER_PINNED)
 
 /**
  * timer_pending - is a timer pending?
@@ -168,74 +180,19 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
  */
 static inline int timer_pending(const struct timer_list * timer)
 {
-	return timer->entry.next != NULL;
+	return timer->entry.pprev != NULL;
 }
 
 extern void add_timer_on(struct timer_list *timer, int cpu);
 extern int del_timer(struct timer_list * timer);
 extern int mod_timer(struct timer_list *timer, unsigned long expires);
 extern int mod_timer_pending(struct timer_list *timer, unsigned long expires);
-extern int mod_timer_pinned(struct timer_list *timer, unsigned long expires);
 
-extern void set_timer_slack(struct timer_list *time, int slack_hz);
-
-#define TIMER_NOT_PINNED	0
-#define TIMER_PINNED		1
 /*
  * The jiffies value which is added to now, when there is no timer
  * in the timer wheel:
  */
 #define NEXT_TIMER_MAX_DELTA	((1UL << 30) - 1)
-
-/*
- * Return when the next timer-wheel timeout occurs (in absolute jiffies),
- * locks the timer base and does the comparison against the given
- * jiffie.
- */
-extern unsigned long get_next_timer_interrupt(unsigned long now);
-
-/*
- * Timer-statistics info:
- */
-#ifdef CONFIG_TIMER_STATS
-
-extern int timer_stats_active;
-
-#define TIMER_STATS_FLAG_DEFERRABLE	0x1
-
-extern void init_timer_stats(void);
-
-extern void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
-				     void *timerf, char *comm,
-				     unsigned int timer_flag);
-
-extern void __timer_stats_timer_set_start_info(struct timer_list *timer,
-					       void *addr);
-
-static inline void timer_stats_timer_set_start_info(struct timer_list *timer)
-{
-	if (likely(!timer_stats_active))
-		return;
-	__timer_stats_timer_set_start_info(timer, __builtin_return_address(0));
-}
-
-static inline void timer_stats_timer_clear_start_info(struct timer_list *timer)
-{
-	timer->start_site = NULL;
-}
-#else
-static inline void init_timer_stats(void)
-{
-}
-
-static inline void timer_stats_timer_set_start_info(struct timer_list *timer)
-{
-}
-
-static inline void timer_stats_timer_clear_start_info(struct timer_list *timer)
-{
-}
-#endif
 
 extern void add_timer(struct timer_list *timer);
 
@@ -254,6 +211,15 @@ extern void run_local_timers(void);
 struct hrtimer;
 extern enum hrtimer_restart it_real_fn(struct hrtimer *);
 
+#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
+struct ctl_table;
+
+extern unsigned int sysctl_timer_migration;
+int timer_migration_handler(struct ctl_table *table, int write,
+			    void __user *buffer, size_t *lenp,
+			    loff_t *ppos);
+#endif
+
 unsigned long __round_jiffies(unsigned long j, int cpu);
 unsigned long __round_jiffies_relative(unsigned long j, int cpu);
 unsigned long round_jiffies(unsigned long j);
@@ -263,5 +229,11 @@ unsigned long __round_jiffies_up(unsigned long j, int cpu);
 unsigned long __round_jiffies_up_relative(unsigned long j, int cpu);
 unsigned long round_jiffies_up(unsigned long j);
 unsigned long round_jiffies_up_relative(unsigned long j);
+
+#ifdef CONFIG_HOTPLUG_CPU
+int timers_dead_cpu(unsigned int cpu);
+#else
+#define timers_dead_cpu NULL
+#endif
 
 #endif

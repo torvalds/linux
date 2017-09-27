@@ -25,8 +25,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.6"
-
 enum ds1511reg {
 	DS1511_SEC = 0x0,
 	DS1511_MIN = 0x1,
@@ -64,7 +62,7 @@ enum ds1511reg {
 #define DS1511_KIE	0x04
 #define DS1511_WDE	0x02
 #define DS1511_WDS	0x01
-#define DS1511_RAM_MAX	0xff
+#define DS1511_RAM_MAX	0x100
 
 #define RTC_CMD		DS1511_CONTROL_B
 #define RTC_CMD1	DS1511_CONTROL_A
@@ -89,7 +87,6 @@ enum ds1511reg {
 struct rtc_plat_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;		/* virtual base address */
-	int size;				/* amount of memory mapped */
 	int irq;
 	unsigned int irqen;
 	int alrm_sec;
@@ -160,7 +157,7 @@ ds1511_wdog_set(unsigned long deciseconds)
 	/*
 	 * set wdog enable and wdog 'steering' bit to issue a reset
 	 */
-	rtc_write(DS1511_WDE | DS1511_WDS, RTC_CMD);
+	rtc_write(rtc_read(RTC_CMD) | DS1511_WDE | DS1511_WDS, RTC_CMD);
 }
 
 void
@@ -372,8 +369,7 @@ ds1511_interrupt(int irq, void *dev_id)
 			events |= RTC_UF;
 		else
 			events |= RTC_AF;
-		if (likely(pdata->rtc))
-			rtc_update_irq(pdata->rtc, 1, events);
+		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
 	return events ? IRQ_HANDLED : IRQ_NONE;
@@ -409,25 +405,9 @@ ds1511_nvram_read(struct file *filp, struct kobject *kobj,
 {
 	ssize_t count;
 
-	/*
-	 * if count is more than one, turn on "burst" mode
-	 * turn it off when you're done
-	 */
-	if (size > 1)
-		rtc_write((rtc_read(RTC_CMD) | DS1511_BME), RTC_CMD);
-
-	if (pos > DS1511_RAM_MAX)
-		pos = DS1511_RAM_MAX;
-
-	if (size + pos > DS1511_RAM_MAX + 1)
-		size = DS1511_RAM_MAX - pos + 1;
-
 	rtc_write(pos, DS1511_RAMADDR_LSB);
-	for (count = 0; size > 0; count++, size--)
+	for (count = 0; count < size; count++)
 		*buf++ = rtc_read(DS1511_RAMDATA);
-
-	if (count > 1)
-		rtc_write((rtc_read(RTC_CMD) & ~DS1511_BME), RTC_CMD);
 
 	return count;
 }
@@ -439,25 +419,9 @@ ds1511_nvram_write(struct file *filp, struct kobject *kobj,
 {
 	ssize_t count;
 
-	/*
-	 * if count is more than one, turn on "burst" mode
-	 * turn it off when you're done
-	 */
-	if (size > 1)
-		rtc_write((rtc_read(RTC_CMD) | DS1511_BME), RTC_CMD);
-
-	if (pos > DS1511_RAM_MAX)
-		pos = DS1511_RAM_MAX;
-
-	if (size + pos > DS1511_RAM_MAX + 1)
-		size = DS1511_RAM_MAX - pos + 1;
-
 	rtc_write(pos, DS1511_RAMADDR_LSB);
-	for (count = 0; size > 0; count++, size--)
+	for (count = 0; count < size; count++)
 		rtc_write(*buf++, DS1511_RAMDATA);
-
-	if (count > 1)
-		rtc_write((rtc_read(RTC_CMD) & ~DS1511_BME), RTC_CMD);
 
 	return count;
 }
@@ -474,32 +438,25 @@ static struct bin_attribute ds1511_nvram_attr = {
 
 static int ds1511_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
 	struct resource *res;
 	struct rtc_plat_data *pdata;
 	int ret = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	pdata->size = resource_size(res);
-	if (!devm_request_mem_region(&pdev->dev, res->start, pdata->size,
-			pdev->name))
-		return -EBUSY;
-	ds1511_base = devm_ioremap(&pdev->dev, res->start, pdata->size);
-	if (!ds1511_base)
-		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ds1511_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ds1511_base))
+		return PTR_ERR(ds1511_base);
 	pdata->ioaddr = ds1511_base;
 	pdata->irq = platform_get_irq(pdev, 0);
 
 	/*
 	 * turn on the clock and the crystal, etc.
 	 */
-	rtc_write(0, RTC_CMD);
+	rtc_write(DS1511_BME, RTC_CMD);
 	rtc_write(0, RTC_CMD1);
 	/*
 	 * clear the wdog counter
@@ -519,6 +476,12 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->lock);
 	platform_set_drvdata(pdev, pdata);
+
+	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					      &ds1511_rtc_ops, THIS_MODULE);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
 	/*
 	 * if the platform has an interrupt in mind for this device,
 	 * then by all means, set it
@@ -533,15 +496,12 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &ds1511_rtc_ops,
-					THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-	pdata->rtc = rtc;
-
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1511_nvram_attr);
+	if (ret)
+		dev_err(&pdev->dev, "Unable to create sysfs entry: %s\n",
+			ds1511_nvram_attr.attr.name);
 
-	return ret;
+	return 0;
 }
 
 static int ds1511_rtc_remove(struct platform_device *pdev)
@@ -567,7 +527,6 @@ static struct platform_driver ds1511_rtc_driver = {
 	.remove		= ds1511_rtc_remove,
 	.driver		= {
 		.name	= "ds1511",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -576,4 +535,3 @@ module_platform_driver(ds1511_rtc_driver);
 MODULE_AUTHOR("Andrew Sharp <andy.sharp@lsi.com>");
 MODULE_DESCRIPTION("Dallas DS1511 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

@@ -6,7 +6,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  publishhed by the Free Software Foundation.
  *
- *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
 #include <linux/module.h>
@@ -257,9 +257,9 @@ static int match_group_mux(const struct ltq_pin_group *grp,
 	return ret;
 }
 
-static int ltq_pmx_enable(struct pinctrl_dev *pctrldev,
-				unsigned func,
-				unsigned group)
+static int ltq_pmx_set(struct pinctrl_dev *pctrldev,
+		       unsigned func,
+		       unsigned group)
 {
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctrldev);
 	const struct ltq_pin_group *pin_grp = &info->grps[group];
@@ -316,7 +316,7 @@ static const struct pinmux_ops ltq_pmx_ops = {
 	.get_functions_count	= ltq_pmx_func_count,
 	.get_function_name	= ltq_pmx_func_name,
 	.get_function_groups	= ltq_pmx_get_groups,
-	.enable			= ltq_pmx_enable,
+	.set_mux		= ltq_pmx_set,
 	.gpio_request_enable	= ltq_pmx_gpio_request_enable,
 };
 
@@ -336,10 +336,10 @@ int ltq_pinctrl_register(struct platform_device *pdev,
 	desc->pmxops = &ltq_pmx_ops;
 	info->dev = &pdev->dev;
 
-	info->pctrl = pinctrl_register(desc, &pdev->dev, info);
-	if (!info->pctrl) {
+	info->pctrl = devm_pinctrl_register(&pdev->dev, desc, info);
+	if (IS_ERR(info->pctrl)) {
 		dev_err(&pdev->dev, "failed to register LTQ pinmux driver\n");
-		return -EINVAL;
+		return PTR_ERR(info->pctrl);
 	}
 	platform_set_drvdata(pdev, info);
 	return 0;

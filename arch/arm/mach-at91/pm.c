@@ -10,98 +10,52 @@
  * (at your option) any later version.
  */
 
-#include <linux/gpio.h>
-#include <linux/suspend.h>
-#include <linux/sched.h>
-#include <linux/proc_fs.h>
-#include <linux/interrupt.h>
-#include <linux/sysfs.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
+#include <linux/genalloc.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/parser.h>
+#include <linux/suspend.h>
 
-#include <asm/irq.h>
-#include <linux/atomic.h>
-#include <asm/mach/time.h>
-#include <asm/mach/irq.h>
+#include <linux/clk/at91_pmc.h>
 
-#include <mach/at91_pmc.h>
-#include <mach/cpu.h>
+#include <asm/cacheflush.h>
+#include <asm/fncpy.h>
+#include <asm/system_misc.h>
+#include <asm/suspend.h>
 
-#include "at91_aic.h"
 #include "generic.h"
 #include "pm.h"
 
 /*
- * Show the reason for the previous system reset.
+ * FIXME: this is needed to communicate between the pinctrl driver and
+ * the PM implementation in the machine. Possibly part of the PM
+ * implementation should be moved down into the pinctrl driver and get
+ * called as part of the generic suspend/resume path.
  */
+#ifdef CONFIG_PINCTRL_AT91
+extern void at91_pinctrl_gpio_suspend(void);
+extern void at91_pinctrl_gpio_resume(void);
+#endif
 
-#include "at91_rstc.h"
-#include "at91_shdwc.h"
+static const match_table_t pm_modes __initconst = {
+	{ 0, "standby" },
+	{ AT91_PM_SLOW_CLOCK, "ulp0" },
+	{ AT91_PM_BACKUP, "backup" },
+	{ -1, NULL },
+};
 
-static void __init show_reset_status(void)
-{
-	static char reset[] __initdata = "reset";
+static struct at91_pm_data pm_data = {
+	.standby_mode = 0,
+	.suspend_mode = AT91_PM_SLOW_CLOCK,
+};
 
-	static char general[] __initdata = "general";
-	static char wakeup[] __initdata = "wakeup";
-	static char watchdog[] __initdata = "watchdog";
-	static char software[] __initdata = "software";
-	static char user[] __initdata = "user";
-	static char unknown[] __initdata = "unknown";
+#define at91_ramc_read(id, field) \
+	__raw_readl(pm_data.ramc[id] + field)
 
-	static char signal[] __initdata = "signal";
-	static char rtc[] __initdata = "rtc";
-	static char rtt[] __initdata = "rtt";
-	static char restore[] __initdata = "power-restored";
-
-	char *reason, *r2 = reset;
-	u32 reset_type, wake_type;
-
-	if (!at91_shdwc_base || !at91_rstc_base)
-		return;
-
-	reset_type = at91_rstc_read(AT91_RSTC_SR) & AT91_RSTC_RSTTYP;
-	wake_type = at91_shdwc_read(AT91_SHDW_SR);
-
-	switch (reset_type) {
-	case AT91_RSTC_RSTTYP_GENERAL:
-		reason = general;
-		break;
-	case AT91_RSTC_RSTTYP_WAKEUP:
-		/* board-specific code enabled the wakeup sources */
-		reason = wakeup;
-
-		/* "wakeup signal" */
-		if (wake_type & AT91_SHDW_WAKEUP0)
-			r2 = signal;
-		else {
-			r2 = reason;
-			if (wake_type & AT91_SHDW_RTTWK)	/* rtt wakeup */
-				reason = rtt;
-			else if (wake_type & AT91_SHDW_RTCWK)	/* rtc wakeup */
-				reason = rtc;
-			else if (wake_type == 0)	/* power-restored wakeup */
-				reason = restore;
-			else				/* unknown wakeup */
-				reason = unknown;
-		}
-		break;
-	case AT91_RSTC_RSTTYP_WATCHDOG:
-		reason = watchdog;
-		break;
-	case AT91_RSTC_RSTTYP_SOFTWARE:
-		reason = software;
-		break;
-	case AT91_RSTC_RSTTYP_USER:
-		reason = user;
-		break;
-	default:
-		reason = unknown;
-		break;
-	}
-	pr_info("AT91: Starting after %s %s\n", reason, r2);
-}
+#define at91_ramc_write(id, field, value) \
+	__raw_writel(value, pm_data.ramc[id] + field)
 
 static int at91_pm_valid_state(suspend_state_t state)
 {
@@ -116,15 +70,33 @@ static int at91_pm_valid_state(suspend_state_t state)
 	}
 }
 
+static int canary = 0xA5A5A5A5;
 
-static suspend_state_t target_state;
+static struct at91_pm_bu {
+	int suspended;
+	unsigned long reserved;
+	phys_addr_t canary;
+	phys_addr_t resume;
+} *pm_bu;
 
 /*
  * Called after processes are frozen, but before we shutdown devices.
  */
 static int at91_pm_begin(suspend_state_t state)
 {
-	target_state = state;
+	switch (state) {
+	case PM_SUSPEND_MEM:
+		pm_data.mode = pm_data.suspend_mode;
+		break;
+
+	case PM_SUSPEND_STANDBY:
+		pm_data.mode = pm_data.standby_mode;
+		break;
+
+	default:
+		pm_data.mode = -1;
+	}
+
 	return 0;
 }
 
@@ -137,24 +109,13 @@ static int at91_pm_verify_clocks(void)
 	unsigned long scsr;
 	int i;
 
-	scsr = at91_pmc_read(AT91_PMC_SCSR);
+	scsr = readl(pm_data.pmc + AT91_PMC_SCSR);
 
 	/* USB must not be using PLLB */
-	if (cpu_is_at91rm9200()) {
-		if ((scsr & (AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP)) != 0) {
-			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
-			return 0;
-		}
-	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()
-			|| cpu_is_at91sam9g20() || cpu_is_at91sam9g10()) {
-		if ((scsr & (AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP)) != 0) {
-			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
-			return 0;
-		}
+	if ((scsr & pm_data.uhp_udp_mask) != 0) {
+		pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
+		return 0;
 	}
-
-	if (!IS_ENABLED(CONFIG_AT91_PROGRAMMABLE_CLOCKS))
-		return 1;
 
 	/* PCK0..PCK3 must be disabled, or configured to use clk32k */
 	for (i = 0; i < 4; i++) {
@@ -162,8 +123,7 @@ static int at91_pm_verify_clocks(void)
 
 		if ((scsr & (AT91_PMC_PCK0 << i)) == 0)
 			continue;
-
-		css = at91_pmc_read(AT91_PMC_PCKR(i)) & AT91_PMC_CSS;
+		css = readl(pm_data.pmc + AT91_PMC_PCKR(i)) & AT91_PMC_CSS;
 		if (css != AT91_PMC_CSS_SLOW) {
 			pr_err("AT91: PM - Suspend-to-RAM with PCK%d src %d\n", i, css);
 			return 0;
@@ -185,116 +145,86 @@ static int at91_pm_verify_clocks(void)
  */
 int at91_suspend_entering_slow_clock(void)
 {
-	return (target_state == PM_SUSPEND_MEM);
+	return (pm_data.mode >= AT91_PM_SLOW_CLOCK);
 }
 EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 
+static void (*at91_suspend_sram_fn)(struct at91_pm_data *);
+extern void at91_pm_suspend_in_sram(struct at91_pm_data *pm_data);
+extern u32 at91_pm_suspend_in_sram_sz;
 
-static void (*slow_clock)(void __iomem *pmc, void __iomem *ramc0,
-			  void __iomem *ramc1, int memctrl);
-
-#ifdef CONFIG_AT91_SLOW_CLOCK
-extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0,
-			    void __iomem *ramc1, int memctrl);
-extern u32 at91_slow_clock_sz;
-#endif
-
-static int at91_pm_enter(suspend_state_t state)
+static int at91_suspend_finish(unsigned long val)
 {
-	if (of_have_populated_dt())
-		at91_pinctrl_gpio_suspend();
-	else
-		at91_gpio_suspend();
-	at91_irq_suspend();
+	flush_cache_all();
+	outer_disable();
 
-	pr_debug("AT91: PM - wake mask %08x, pm state %d\n",
-			/* remember all the always-wake irqs */
-			(at91_pmc_read(AT91_PMC_PCSR)
-					| (1 << AT91_ID_FIQ)
-					| (1 << AT91_ID_SYS)
-					| (at91_get_extern_irq()))
-				& at91_aic_read(AT91_AIC_IMR),
-			state);
+	at91_suspend_sram_fn(&pm_data);
 
-	switch (state) {
-		/*
-		 * Suspend-to-RAM is like STANDBY plus slow clock mode, so
-		 * drivers must suspend more deeply:  only the master clock
-		 * controller may be using the main oscillator.
-		 */
-		case PM_SUSPEND_MEM:
-			/*
-			 * Ensure that clocks are in a valid state.
-			 */
-			if (!at91_pm_verify_clocks())
-				goto error;
+	return 0;
+}
 
-			/*
-			 * Enter slow clock mode by switching over to clk32k and
-			 * turning off the main oscillator; reverse on wakeup.
-			 */
-			if (slow_clock) {
-				int memctrl = AT91_MEMCTRL_SDRAMC;
+static void at91_pm_suspend(suspend_state_t state)
+{
+	if (pm_data.mode == AT91_PM_BACKUP) {
+		pm_bu->suspended = 1;
 
-				if (cpu_is_at91rm9200())
-					memctrl = AT91_MEMCTRL_MC;
-				else if (cpu_is_at91sam9g45())
-					memctrl = AT91_MEMCTRL_DDRSDR;
-#ifdef CONFIG_AT91_SLOW_CLOCK
-				/* copy slow_clock handler to SRAM, and call it */
-				memcpy(slow_clock, at91_slow_clock, at91_slow_clock_sz);
-#endif
-				slow_clock(at91_pmc_base, at91_ramc_base[0],
-					   at91_ramc_base[1], memctrl);
-				break;
-			} else {
-				pr_info("AT91: PM - no slow clock mode enabled ...\n");
-				/* FALLTHROUGH leaving master clock alone */
-			}
+		cpu_suspend(0, at91_suspend_finish);
 
-		/*
-		 * STANDBY mode has *all* drivers suspended; ignores irqs not
-		 * marked as 'wakeup' event sources; and reduces DRAM power.
-		 * But otherwise it's identical to PM_SUSPEND_ON:  cpu idle, and
-		 * nothing fancy done with main or cpu clocks.
-		 */
-		case PM_SUSPEND_STANDBY:
-			/*
-			 * NOTE: the Wait-for-Interrupt instruction needs to be
-			 * in icache so no SDRAM accesses are needed until the
-			 * wakeup IRQ occurs and self-refresh is terminated.
-			 * For ARM 926 based chips, this requirement is weaker
-			 * as at91sam9 can access a RAM in self-refresh mode.
-			 */
-			if (cpu_is_at91rm9200())
-				at91rm9200_standby();
-			else if (cpu_is_at91sam9g45())
-				at91sam9g45_standby();
-			else if (cpu_is_at91sam9263())
-				at91sam9263_standby();
-			else
-				at91sam9_standby();
-			break;
-
-		case PM_SUSPEND_ON:
-			cpu_do_idle();
-			break;
-
-		default:
-			pr_debug("AT91: PM - bogus suspend state %d\n", state);
-			goto error;
+		/* The SRAM is lost between suspend cycles */
+		at91_suspend_sram_fn = fncpy(at91_suspend_sram_fn,
+					     &at91_pm_suspend_in_sram,
+					     at91_pm_suspend_in_sram_sz);
+	} else {
+		at91_suspend_finish(0);
 	}
 
-	pr_debug("AT91: PM - wakeup %08x\n",
-			at91_aic_read(AT91_AIC_IPR) & at91_aic_read(AT91_AIC_IMR));
+	outer_resume();
+}
+
+/*
+ * STANDBY mode has *all* drivers suspended; ignores irqs not marked as 'wakeup'
+ * event sources; and reduces DRAM power.  But otherwise it's identical to
+ * PM_SUSPEND_ON: cpu idle, and nothing fancy done with main or cpu clocks.
+ *
+ * AT91_PM_SLOW_CLOCK is like STANDBY plus slow clock mode, so drivers must
+ * suspend more deeply, the master clock switches to the clk32k and turns off
+ * the main oscillator
+ *
+ * AT91_PM_BACKUP turns off the whole SoC after placing the DDR in self refresh
+ */
+static int at91_pm_enter(suspend_state_t state)
+{
+#ifdef CONFIG_PINCTRL_AT91
+	at91_pinctrl_gpio_suspend();
+#endif
+
+	switch (state) {
+	case PM_SUSPEND_MEM:
+	case PM_SUSPEND_STANDBY:
+		/*
+		 * Ensure that clocks are in a valid state.
+		 */
+		if ((pm_data.mode >= AT91_PM_SLOW_CLOCK) &&
+		    !at91_pm_verify_clocks())
+			goto error;
+
+		at91_pm_suspend(state);
+
+		break;
+
+	case PM_SUSPEND_ON:
+		cpu_do_idle();
+		break;
+
+	default:
+		pr_debug("AT91: PM - bogus suspend state %d\n", state);
+		goto error;
+	}
 
 error:
-	target_state = PM_SUSPEND_ON;
-	at91_irq_resume();
-	if (of_have_populated_dt())
-		at91_pinctrl_gpio_resume();
-	else
-		at91_gpio_resume();
+#ifdef CONFIG_PINCTRL_AT91
+	at91_pinctrl_gpio_resume();
+#endif
 	return 0;
 }
 
@@ -303,7 +233,6 @@ error:
  */
 static void at91_pm_end(void)
 {
-	target_state = PM_SUSPEND_ON;
 }
 
 
@@ -314,21 +243,432 @@ static const struct platform_suspend_ops at91_pm_ops = {
 	.end	= at91_pm_end,
 };
 
-static int __init at91_pm_init(void)
+static struct platform_device at91_cpuidle_device = {
+	.name = "cpuidle-at91",
+};
+
+/*
+ * The AT91RM9200 goes into self-refresh mode with this command, and will
+ * terminate self-refresh automatically on the next SDRAM access.
+ *
+ * Self-refresh mode is exited as soon as a memory access is made, but we don't
+ * know for sure when that happens. However, we need to restore the low-power
+ * mode if it was enabled before going idle. Restoring low-power mode while
+ * still in self-refresh is "not recommended", but seems to work.
+ */
+static void at91rm9200_standby(void)
 {
-#ifdef CONFIG_AT91_SLOW_CLOCK
-	slow_clock = (void *) (AT91_IO_VIRT_BASE - at91_slow_clock_sz);
-#endif
+	asm volatile(
+		"b    1f\n\t"
+		".align    5\n\t"
+		"1:  mcr    p15, 0, %0, c7, c10, 4\n\t"
+		"    str    %2, [%1, %3]\n\t"
+		"    mcr    p15, 0, %0, c7, c0, 4\n\t"
+		:
+		: "r" (0), "r" (pm_data.ramc[0]),
+		  "r" (1), "r" (AT91_MC_SDRAMC_SRR));
+}
 
-	pr_info("AT91: Power Management%s\n", (slow_clock ? " (with slow clock mode)" : ""));
+/* We manage both DDRAM/SDRAM controllers, we need more than one value to
+ * remember.
+ */
+static void at91_ddr_standby(void)
+{
+	/* Those two values allow us to delay self-refresh activation
+	 * to the maximum. */
+	u32 lpr0, lpr1 = 0;
+	u32 mdr, saved_mdr0, saved_mdr1 = 0;
+	u32 saved_lpr0, saved_lpr1 = 0;
 
-	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
-	if (cpu_is_at91rm9200())
-		at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
+	/* LPDDR1 --> force DDR2 mode during self-refresh */
+	saved_mdr0 = at91_ramc_read(0, AT91_DDRSDRC_MDR);
+	if ((saved_mdr0 & AT91_DDRSDRC_MD) == AT91_DDRSDRC_MD_LOW_POWER_DDR) {
+		mdr = saved_mdr0 & ~AT91_DDRSDRC_MD;
+		mdr |= AT91_DDRSDRC_MD_DDR2;
+		at91_ramc_write(0, AT91_DDRSDRC_MDR, mdr);
+	}
 
-	suspend_set_ops(&at91_pm_ops);
+	if (pm_data.ramc[1]) {
+		saved_lpr1 = at91_ramc_read(1, AT91_DDRSDRC_LPR);
+		lpr1 = saved_lpr1 & ~AT91_DDRSDRC_LPCB;
+		lpr1 |= AT91_DDRSDRC_LPCB_SELF_REFRESH;
+		saved_mdr1 = at91_ramc_read(1, AT91_DDRSDRC_MDR);
+		if ((saved_mdr1 & AT91_DDRSDRC_MD) == AT91_DDRSDRC_MD_LOW_POWER_DDR) {
+			mdr = saved_mdr1 & ~AT91_DDRSDRC_MD;
+			mdr |= AT91_DDRSDRC_MD_DDR2;
+			at91_ramc_write(1, AT91_DDRSDRC_MDR, mdr);
+		}
+	}
 
-	show_reset_status();
+	saved_lpr0 = at91_ramc_read(0, AT91_DDRSDRC_LPR);
+	lpr0 = saved_lpr0 & ~AT91_DDRSDRC_LPCB;
+	lpr0 |= AT91_DDRSDRC_LPCB_SELF_REFRESH;
+
+	/* self-refresh mode now */
+	at91_ramc_write(0, AT91_DDRSDRC_LPR, lpr0);
+	if (pm_data.ramc[1])
+		at91_ramc_write(1, AT91_DDRSDRC_LPR, lpr1);
+
+	cpu_do_idle();
+
+	at91_ramc_write(0, AT91_DDRSDRC_MDR, saved_mdr0);
+	at91_ramc_write(0, AT91_DDRSDRC_LPR, saved_lpr0);
+	if (pm_data.ramc[1]) {
+		at91_ramc_write(0, AT91_DDRSDRC_MDR, saved_mdr1);
+		at91_ramc_write(1, AT91_DDRSDRC_LPR, saved_lpr1);
+	}
+}
+
+static void sama5d3_ddr_standby(void)
+{
+	u32 lpr0;
+	u32 saved_lpr0;
+
+	saved_lpr0 = at91_ramc_read(0, AT91_DDRSDRC_LPR);
+	lpr0 = saved_lpr0 & ~AT91_DDRSDRC_LPCB;
+	lpr0 |= AT91_DDRSDRC_LPCB_POWER_DOWN;
+
+	at91_ramc_write(0, AT91_DDRSDRC_LPR, lpr0);
+
+	cpu_do_idle();
+
+	at91_ramc_write(0, AT91_DDRSDRC_LPR, saved_lpr0);
+}
+
+/* We manage both DDRAM/SDRAM controllers, we need more than one value to
+ * remember.
+ */
+static void at91sam9_sdram_standby(void)
+{
+	u32 lpr0, lpr1 = 0;
+	u32 saved_lpr0, saved_lpr1 = 0;
+
+	if (pm_data.ramc[1]) {
+		saved_lpr1 = at91_ramc_read(1, AT91_SDRAMC_LPR);
+		lpr1 = saved_lpr1 & ~AT91_SDRAMC_LPCB;
+		lpr1 |= AT91_SDRAMC_LPCB_SELF_REFRESH;
+	}
+
+	saved_lpr0 = at91_ramc_read(0, AT91_SDRAMC_LPR);
+	lpr0 = saved_lpr0 & ~AT91_SDRAMC_LPCB;
+	lpr0 |= AT91_SDRAMC_LPCB_SELF_REFRESH;
+
+	/* self-refresh mode now */
+	at91_ramc_write(0, AT91_SDRAMC_LPR, lpr0);
+	if (pm_data.ramc[1])
+		at91_ramc_write(1, AT91_SDRAMC_LPR, lpr1);
+
+	cpu_do_idle();
+
+	at91_ramc_write(0, AT91_SDRAMC_LPR, saved_lpr0);
+	if (pm_data.ramc[1])
+		at91_ramc_write(1, AT91_SDRAMC_LPR, saved_lpr1);
+}
+
+struct ramc_info {
+	void (*idle)(void);
+	unsigned int memctrl;
+};
+
+static const struct ramc_info ramc_infos[] __initconst = {
+	{ .idle = at91rm9200_standby, .memctrl = AT91_MEMCTRL_MC},
+	{ .idle = at91sam9_sdram_standby, .memctrl = AT91_MEMCTRL_SDRAMC},
+	{ .idle = at91_ddr_standby, .memctrl = AT91_MEMCTRL_DDRSDR},
+	{ .idle = sama5d3_ddr_standby, .memctrl = AT91_MEMCTRL_DDRSDR},
+};
+
+static const struct of_device_id ramc_ids[] __initconst = {
+	{ .compatible = "atmel,at91rm9200-sdramc", .data = &ramc_infos[0] },
+	{ .compatible = "atmel,at91sam9260-sdramc", .data = &ramc_infos[1] },
+	{ .compatible = "atmel,at91sam9g45-ddramc", .data = &ramc_infos[2] },
+	{ .compatible = "atmel,sama5d3-ddramc", .data = &ramc_infos[3] },
+	{ /*sentinel*/ }
+};
+
+static __init void at91_dt_ramc(void)
+{
+	struct device_node *np;
+	const struct of_device_id *of_id;
+	int idx = 0;
+	void *standby = NULL;
+	const struct ramc_info *ramc;
+
+	for_each_matching_node_and_match(np, ramc_ids, &of_id) {
+		pm_data.ramc[idx] = of_iomap(np, 0);
+		if (!pm_data.ramc[idx])
+			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
+
+		ramc = of_id->data;
+		if (!standby)
+			standby = ramc->idle;
+		pm_data.memctrl = ramc->memctrl;
+
+		idx++;
+	}
+
+	if (!idx)
+		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
+
+	if (!standby) {
+		pr_warn("ramc no standby function available\n");
+		return;
+	}
+
+	at91_cpuidle_device.dev.platform_data = standby;
+}
+
+static void at91rm9200_idle(void)
+{
+	/*
+	 * Disable the processor clock.  The processor will be automatically
+	 * re-enabled by an interrupt or by a reset.
+	 */
+	writel(AT91_PMC_PCK, pm_data.pmc + AT91_PMC_SCDR);
+}
+
+static void at91sam9_idle(void)
+{
+	writel(AT91_PMC_PCK, pm_data.pmc + AT91_PMC_SCDR);
+	cpu_do_idle();
+}
+
+static void __init at91_pm_sram_init(void)
+{
+	struct gen_pool *sram_pool;
+	phys_addr_t sram_pbase;
+	unsigned long sram_base;
+	struct device_node *node;
+	struct platform_device *pdev = NULL;
+
+	for_each_compatible_node(node, NULL, "mmio-sram") {
+		pdev = of_find_device_by_node(node);
+		if (pdev) {
+			of_node_put(node);
+			break;
+		}
+	}
+
+	if (!pdev) {
+		pr_warn("%s: failed to find sram device!\n", __func__);
+		return;
+	}
+
+	sram_pool = gen_pool_get(&pdev->dev, NULL);
+	if (!sram_pool) {
+		pr_warn("%s: sram pool unavailable!\n", __func__);
+		return;
+	}
+
+	sram_base = gen_pool_alloc(sram_pool, at91_pm_suspend_in_sram_sz);
+	if (!sram_base) {
+		pr_warn("%s: unable to alloc sram!\n", __func__);
+		return;
+	}
+
+	sram_pbase = gen_pool_virt_to_phys(sram_pool, sram_base);
+	at91_suspend_sram_fn = __arm_ioremap_exec(sram_pbase,
+					at91_pm_suspend_in_sram_sz, false);
+	if (!at91_suspend_sram_fn) {
+		pr_warn("SRAM: Could not map\n");
+		return;
+	}
+
+	/* Copy the pm suspend handler to SRAM */
+	at91_suspend_sram_fn = fncpy(at91_suspend_sram_fn,
+			&at91_pm_suspend_in_sram, at91_pm_suspend_in_sram_sz);
+}
+
+static void __init at91_pm_backup_init(void)
+{
+	struct gen_pool *sram_pool;
+	struct device_node *np;
+	struct platform_device *pdev = NULL;
+
+	if ((pm_data.standby_mode != AT91_PM_BACKUP) &&
+	    (pm_data.suspend_mode != AT91_PM_BACKUP))
+		return;
+
+	pm_bu = NULL;
+
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-shdwc");
+	if (!np) {
+		pr_warn("%s: failed to find shdwc!\n", __func__);
+		return;
+	}
+
+	pm_data.shdwc = of_iomap(np, 0);
+	of_node_put(np);
+
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-sfrbu");
+	if (!np) {
+		pr_warn("%s: failed to find sfrbu!\n", __func__);
+		goto sfrbu_fail;
+	}
+
+	pm_data.sfrbu = of_iomap(np, 0);
+	of_node_put(np);
+	pm_bu = NULL;
+
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-securam");
+	if (!np)
+		goto securam_fail;
+
+	pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (!pdev) {
+		pr_warn("%s: failed to find securam device!\n", __func__);
+		goto securam_fail;
+	}
+
+	sram_pool = gen_pool_get(&pdev->dev, NULL);
+	if (!sram_pool) {
+		pr_warn("%s: securam pool unavailable!\n", __func__);
+		goto securam_fail;
+	}
+
+	pm_bu = (void *)gen_pool_alloc(sram_pool, sizeof(struct at91_pm_bu));
+	if (!pm_bu) {
+		pr_warn("%s: unable to alloc securam!\n", __func__);
+		goto securam_fail;
+	}
+
+	pm_bu->suspended = 0;
+	pm_bu->canary = virt_to_phys(&canary);
+	pm_bu->resume = virt_to_phys(cpu_resume);
+
+	return;
+
+sfrbu_fail:
+	iounmap(pm_data.shdwc);
+	pm_data.shdwc = NULL;
+securam_fail:
+	iounmap(pm_data.sfrbu);
+	pm_data.sfrbu = NULL;
+
+	if (pm_data.standby_mode == AT91_PM_BACKUP)
+		pm_data.standby_mode = AT91_PM_SLOW_CLOCK;
+	if (pm_data.suspend_mode == AT91_PM_BACKUP)
+		pm_data.suspend_mode = AT91_PM_SLOW_CLOCK;
+}
+
+struct pmc_info {
+	unsigned long uhp_udp_mask;
+};
+
+static const struct pmc_info pmc_infos[] __initconst = {
+	{ .uhp_udp_mask = AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP },
+	{ .uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP },
+	{ .uhp_udp_mask = AT91SAM926x_PMC_UHP },
+};
+
+static const struct of_device_id atmel_pmc_ids[] __initconst = {
+	{ .compatible = "atmel,at91rm9200-pmc", .data = &pmc_infos[0] },
+	{ .compatible = "atmel,at91sam9260-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,at91sam9g45-pmc", .data = &pmc_infos[2] },
+	{ .compatible = "atmel,at91sam9n12-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,at91sam9x5-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,sama5d3-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,sama5d2-pmc", .data = &pmc_infos[1] },
+	{ /* sentinel */ },
+};
+
+static void __init at91_pm_init(void (*pm_idle)(void))
+{
+	struct device_node *pmc_np;
+	const struct of_device_id *of_id;
+	const struct pmc_info *pmc;
+
+	if (at91_cpuidle_device.dev.platform_data)
+		platform_device_register(&at91_cpuidle_device);
+
+	pmc_np = of_find_matching_node_and_match(NULL, atmel_pmc_ids, &of_id);
+	pm_data.pmc = of_iomap(pmc_np, 0);
+	if (!pm_data.pmc) {
+		pr_err("AT91: PM not supported, PMC not found\n");
+		return;
+	}
+
+	pmc = of_id->data;
+	pm_data.uhp_udp_mask = pmc->uhp_udp_mask;
+
+	if (pm_idle)
+		arm_pm_idle = pm_idle;
+
+	at91_pm_sram_init();
+
+	if (at91_suspend_sram_fn) {
+		suspend_set_ops(&at91_pm_ops);
+		pr_info("AT91: PM: standby: %s, suspend: %s\n",
+			pm_modes[pm_data.standby_mode].pattern,
+			pm_modes[pm_data.suspend_mode].pattern);
+	} else {
+		pr_info("AT91: PM not supported, due to no SRAM allocated\n");
+	}
+}
+
+void __init at91rm9200_pm_init(void)
+{
+	if (!IS_ENABLED(CONFIG_SOC_AT91RM9200))
+		return;
+
+	at91_dt_ramc();
+
+	/*
+	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
+	 */
+	at91_ramc_write(0, AT91_MC_SDRAMC_LPR, 0);
+
+	at91_pm_init(at91rm9200_idle);
+}
+
+void __init at91sam9_pm_init(void)
+{
+	if (!IS_ENABLED(CONFIG_SOC_AT91SAM9))
+		return;
+
+	at91_dt_ramc();
+	at91_pm_init(at91sam9_idle);
+}
+
+void __init sama5_pm_init(void)
+{
+	if (!IS_ENABLED(CONFIG_SOC_SAMA5))
+		return;
+
+	at91_dt_ramc();
+	at91_pm_init(NULL);
+}
+
+void __init sama5d2_pm_init(void)
+{
+	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2))
+		return;
+
+	at91_pm_backup_init();
+	sama5_pm_init();
+}
+
+static int __init at91_pm_modes_select(char *str)
+{
+	char *s;
+	substring_t args[MAX_OPT_ARGS];
+	int standby, suspend;
+
+	if (!str)
+		return 0;
+
+	s = strsep(&str, ",");
+	standby = match_token(s, pm_modes, args);
+	if (standby < 0)
+		return 0;
+
+	suspend = match_token(str, pm_modes, args);
+	if (suspend < 0)
+		return 0;
+
+	pm_data.standby_mode = standby;
+	pm_data.suspend_mode = suspend;
+
 	return 0;
 }
-arch_initcall(at91_pm_init);
+early_param("atmel.pm_modes", at91_pm_modes_select);

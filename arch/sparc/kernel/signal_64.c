@@ -23,8 +23,9 @@
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
+#include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/pgtable.h>
 #include <asm/fpumacro.h>
@@ -34,22 +35,24 @@
 #include <asm/switch_to.h>
 #include <asm/cacheflush.h>
 
-#include "entry.h"
-#include "systbls.h"
 #include "sigutil.h"
+#include "systbls.h"
+#include "kernel.h"
+#include "entry.h"
 
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
 asmlinkage void sparc64_set_context(struct pt_regs *regs)
 {
 	struct ucontext __user *ucp = (struct ucontext __user *)
 		regs->u_regs[UREG_I0];
+	enum ctx_state prev_state = exception_enter();
 	mc_gregset_t __user *grp;
 	unsigned long pc, npc, tstate;
 	unsigned long fp, i7;
 	unsigned char fenab;
 	int err;
 
-	flush_user_windows();
+	synchronize_user_stack();
 	if (get_thread_wsaved()					||
 	    (((unsigned long)ucp) & (sizeof(unsigned long)-1))	||
 	    (!__access_ok(ucp, sizeof(*ucp))))
@@ -129,16 +132,19 @@ asmlinkage void sparc64_set_context(struct pt_regs *regs)
 	}
 	if (err)
 		goto do_sigsegv;
-
+out:
+	exception_exit(prev_state);
 	return;
 do_sigsegv:
 	force_sig(SIGSEGV, current);
+	goto out;
 }
 
 asmlinkage void sparc64_get_context(struct pt_regs *regs)
 {
 	struct ucontext __user *ucp = (struct ucontext __user *)
 		regs->u_regs[UREG_I0];
+	enum ctx_state prev_state = exception_enter();
 	mc_gregset_t __user *grp;
 	mcontext_t __user *mcp;
 	unsigned long fp, i7;
@@ -220,10 +226,23 @@ asmlinkage void sparc64_get_context(struct pt_regs *regs)
 	}
 	if (err)
 		goto do_sigsegv;
-
+out:
+	exception_exit(prev_state);
 	return;
 do_sigsegv:
 	force_sig(SIGSEGV, current);
+	goto out;
+}
+
+/* Checks if the fp is valid.  We always build rt signal frames which
+ * are 16-byte aligned, therefore we can always enforce that the
+ * restore frame has that property as well.
+ */
+static bool invalid_frame_pointer(void __user *fp)
+{
+	if (((unsigned long) fp) & 15)
+		return true;
+	return false;
 }
 
 struct rt_signal_frame {
@@ -238,25 +257,31 @@ struct rt_signal_frame {
 
 void do_rt_sigreturn(struct pt_regs *regs)
 {
+	unsigned long tpc, tnpc, tstate, ufp;
 	struct rt_signal_frame __user *sf;
-	unsigned long tpc, tnpc, tstate;
 	__siginfo_fpu_t __user *fpu_save;
 	__siginfo_rwin_t __user *rwin_save;
 	sigset_t set;
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	synchronize_user_stack ();
 	sf = (struct rt_signal_frame __user *)
 		(regs->u_regs [UREG_FP] + STACK_BIAS);
 
 	/* 1. Make sure we are not getting garbage from the user */
-	if (((unsigned long) sf) & 3)
+	if (invalid_frame_pointer(sf))
 		goto segv;
 
-	err = get_user(tpc, &sf->regs.tpc);
+	if (get_user(ufp, &sf->regs.u_regs[UREG_FP]))
+		goto segv;
+
+	if ((ufp + STACK_BIAS) & 0x7)
+		goto segv;
+
+	err = __get_user(tpc, &sf->regs.tpc);
 	err |= __get_user(tnpc, &sf->regs.tnpc);
 	if (test_thread_flag(TIF_32BIT)) {
 		tpc &= 0xffffffff;
@@ -298,14 +323,6 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	return;
 segv:
 	force_sig(SIGSEGV, current);
-}
-
-/* Checks if the fp is valid */
-static int invalid_frame_pointer(void __user *fp)
-{
-	if (((unsigned long) fp) & 15)
-		return 1;
-	return 0;
 }
 
 static inline void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs, unsigned long framesize)
@@ -485,7 +502,6 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 
 #ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
-		extern void do_signal32(struct pt_regs *);
 		do_signal32(regs);
 		return;
 	}
@@ -528,11 +544,15 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 
 void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long thread_info_flags)
 {
+	user_exit();
+	if (thread_info_flags & _TIF_UPROBE)
+		uprobe_notify_resume(regs);
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs, orig_i0);
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
+	user_enter();
 }
 

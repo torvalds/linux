@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 /* Common driver error constants */
 
@@ -188,7 +184,7 @@ struct stv0367_cab_signal_info {
 	u32 frequency; /* kHz */
 	u32 symbol_rate; /* Mbds */
 	enum stv0367cab_mod modulation;
-	fe_spectral_inversion_t spect_inv;
+	enum fe_spectral_inversion spect_inv;
 	s32 Power_dBmx10;	/* Power of the RF signal (dBm x 10) */
 	u32	CN_dBx10;	/* Carrier to noise ratio (dB x 10) */
 	u32	BER;		/* Bit error rate (x 10000000)	*/

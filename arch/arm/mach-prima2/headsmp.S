@@ -15,7 +15,6 @@
  * ready for them to initialise.
  */
 ENTRY(sirfsoc_secondary_startup)
-	bl v7_invalidate_l1
         mrc     p15, 0, r0, c0, c0, 5
         and     r0, r0, #15
         adr     r4, 1f

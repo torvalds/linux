@@ -16,11 +16,12 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <media/rc-core.h>
-#include <media/gpio-ir-recv.h>
+#include <linux/platform_data/media/gpio-ir-recv.h>
 
 #define GPIO_IR_DRIVER_NAME	"gpio-rc-recv"
 #define GPIO_IR_DEVICE_NAME	"gpio_ir_recv"
@@ -58,7 +59,7 @@ static int gpio_ir_recv_get_devtree_pdata(struct device *dev,
 	return 0;
 }
 
-static struct of_device_id gpio_ir_recv_of_match[] = {
+static const struct of_device_id gpio_ir_recv_of_match[] = {
 	{ .compatible = "gpio-ir-receiver", },
 	{ },
 };
@@ -75,9 +76,8 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	struct gpio_rc_dev *gpio_dev = dev_id;
 	int gval;
 	int rc = 0;
-	enum raw_event_type type = IR_SPACE;
 
-	gval = gpio_get_value_cansleep(gpio_dev->gpio_nr);
+	gval = gpio_get_value(gpio_dev->gpio_nr);
 
 	if (gval < 0)
 		goto err_get_value;
@@ -85,14 +85,9 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	if (gpio_dev->active_low)
 		gval = !gval;
 
-	if (gval == 1)
-		type = IR_PULSE;
-
-	rc = ir_raw_event_store_edge(gpio_dev->rcdev, type);
+	rc = ir_raw_event_store_edge(gpio_dev->rcdev, gval == 1);
 	if (rc < 0)
 		goto err_get_value;
-
-	ir_raw_event_handle(gpio_dev->rcdev);
 
 err_get_value:
 	return IRQ_HANDLED;
@@ -127,15 +122,14 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	if (!gpio_dev)
 		return -ENOMEM;
 
-	rcdev = rc_allocate_device();
+	rcdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rcdev) {
 		rc = -ENOMEM;
 		goto err_allocate_device;
 	}
 
 	rcdev->priv = gpio_dev;
-	rcdev->driver_type = RC_DRIVER_IR_RAW;
-	rcdev->input_name = GPIO_IR_DEVICE_NAME;
+	rcdev->device_name = GPIO_IR_DEVICE_NAME;
 	rcdev->input_phys = GPIO_IR_DEVICE_NAME "/input0";
 	rcdev->input_id.bustype = BUS_HOST;
 	rcdev->input_id.vendor = 0x0001;
@@ -143,10 +137,13 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->input_id.version = 0x0100;
 	rcdev->dev.parent = &pdev->dev;
 	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
+	rcdev->min_timeout = 1;
+	rcdev->timeout = IR_DEFAULT_TIMEOUT;
+	rcdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	if (pdata->allowed_protos)
-		rcdev->allowed_protos = pdata->allowed_protos;
+		rcdev->allowed_protocols = pdata->allowed_protos;
 	else
-		rcdev->allowed_protos = RC_BIT_ALL;
+		rcdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rcdev->map_name = pdata->map_name ?: RC_MAP_EMPTY;
 
 	gpio_dev->rcdev = rcdev;
@@ -239,7 +236,6 @@ static struct platform_driver gpio_ir_recv_driver = {
 	.remove = gpio_ir_recv_remove,
 	.driver = {
 		.name   = GPIO_IR_DRIVER_NAME,
-		.owner  = THIS_MODULE,
 		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
 #ifdef CONFIG_PM
 		.pm	= &gpio_ir_recv_pm_ops,

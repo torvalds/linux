@@ -1,0 +1,129 @@
+/*
+ * Support for peripherals on the AXS10x mainboard (VDK version)
+ *
+ * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	axs10x_mb_vdk {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0xe0000000 0x10000000>;
+		interrupt-parent = <&mb_intc>;
+
+		clocks {
+			apbclk: apbclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
+			mmcclk: mmcclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
+			pguclk: pguclk {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <25175000>;
+			};
+		};
+
+		ethernet@0x18000 {
+			#interrupt-cells = <1>;
+			compatible = "snps,dwmac";
+			reg = < 0x18000 0x2000 >;
+			interrupts = < 4 >;
+			interrupt-names = "macirq";
+			phy-mode = "rgmii";
+			snps,phy-addr = < 0 >;  // VDK model phy address is 0
+			snps,pbl = < 32 >;
+			clocks = <&apbclk>;
+			clock-names = "stmmaceth";
+		};
+
+		ehci@0x40000 {
+			compatible = "generic-ehci";
+			reg = < 0x40000 0x100 >;
+			interrupts = < 8 >;
+		};
+
+		uart@0x20000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x20000 0x100>;
+			clock-frequency = <2403200>;
+			interrupts = <17>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		uart@0x21000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x21000 0x100>;
+			clock-frequency = <2403200>;
+			interrupts = <18>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		uart@0x22000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x22000 0x100>;
+			clock-frequency = <2403200>;
+			interrupts = <19>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+/* PGU output directly sent to virtual LCD screen; hdmi controller not modelled */
+		pgu@17000 {
+			compatible = "snps,arcpgu";
+			reg = <0x17000 0x400>;
+			clocks = <&pguclk>;
+			clock-names = "pxlclk";
+		};
+
+/* VDK has additional ps2 keyboard/mouse interface integrated in LCD screen model */
+		ps2: ps2@e0017400 {
+			compatible = "snps,arc_ps2";
+			reg = <0x17400 0x14>;
+			interrupts = <5>;
+			interrupt-names = "arc_ps2_irq";
+		};
+
+		mmc@0x15000 {
+			compatible = "snps,dw-mshc";
+			reg = <0x15000 0x400>;
+			fifo-depth = <1024>;
+			card-detect-delay = <200>;
+			clocks = <&apbclk>, <&mmcclk>;
+			clock-names = "biu", "ciu";
+			interrupts = <7>;
+			bus-width = <4>;
+		};
+	};
+
+	/*
+	 * Embedded Vision subsystem UIO mappings; only relevant for EV VDK
+	 *
+	 * This node is intentionally put outside of MB above becase
+	 * it maps areas outside of MB's 0xEz-0xFz.
+	 */
+	uio_ev: uio@0xD0000000 {
+		compatible = "generic-uio";
+		reg = <0xD0000000 0x2000 0xD1000000 0x2000 0x90000000 0x10000000 0xC0000000 0x10000000>;
+		reg-names = "ev_gsa", "ev_ctrl", "ev_shared_mem", "ev_code_mem";
+		interrupt-parent = <&mb_intc>;
+		interrupts = <23>;
+	};
+};

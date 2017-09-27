@@ -18,7 +18,7 @@
 #include <asm/irq.h>
 #include <asm/atariints.h>
 
-static struct parport *this_port = NULL;
+static struct parport *this_port;
 
 static unsigned char
 parport_atari_read_data(struct parport *p)
@@ -192,8 +192,8 @@ static int __init parport_atari_init(void)
 					  &parport_atari_ops);
 		if (!p)
 			return -ENODEV;
-		if (request_irq(IRQ_MFP_BUSY, parport_irq_handler,
-				IRQ_TYPE_SLOW, p->name, p)) {
+		if (request_irq(IRQ_MFP_BUSY, parport_irq_handler, 0, p->name,
+				p)) {
 			parport_put_port (p);
 			return -ENODEV;
 		}

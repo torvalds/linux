@@ -15,7 +15,7 @@
 #define SYSC_DCPART(n)	(SYSC_DCPART0 + SYSC_xCPARTn_STRIDE * (n))
 #define SYSC_ICPART(n)	(SYSC_ICPART0 + SYSC_xCPARTn_STRIDE * (n))
 
-#define CACHE_ASSOCIATIVITY 4 /* 4 way set-assosiative */
+#define CACHE_ASSOCIATIVITY 4 /* 4 way set-associative */
 #define ICACHE 0
 #define DCACHE 1
 
@@ -55,7 +55,7 @@ unsigned int get_global_icache_size(void)
 	return (get_icache_size() * ((temp >> SYSC_xCPARTG_AND_S) + 1)) >> 4;
 }
 
-static unsigned int get_thread_cache_size(unsigned int cache, int thread_id)
+static int get_thread_cache_size(unsigned int cache, int thread_id)
 {
 	unsigned int cache_size;
 	unsigned int t_cache_part;
@@ -94,7 +94,7 @@ static unsigned int get_thread_cache_size(unsigned int cache, int thread_id)
 
 void check_for_cache_aliasing(int thread_id)
 {
-	unsigned int thread_cache_size;
+	int thread_cache_size;
 	unsigned int cache_type;
 	for (cache_type = ICACHE; cache_type <= DCACHE; cache_type++) {
 		thread_cache_size =

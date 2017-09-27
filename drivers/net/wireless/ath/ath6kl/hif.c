@@ -37,7 +37,6 @@ static int ath6kl_hif_cp_scat_dma_buf(struct hif_scatter_req *req,
 	buf = req->virt_dma_buf;
 
 	for (i = 0; i < req->scat_entries; i++) {
-
 		if (from_dma)
 			memcpy(req->scat_list[i].buf, buf,
 			       req->scat_list[i].len);
@@ -65,7 +64,7 @@ int ath6kl_hif_rw_comp_handler(void *context, int status)
 }
 EXPORT_SYMBOL(ath6kl_hif_rw_comp_handler);
 
-#define REG_DUMP_COUNT_AR6003   60
+#define REGISTER_DUMP_COUNT     60
 #define REGISTER_DUMP_LEN_MAX   60
 
 static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
@@ -73,9 +72,6 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 	__le32 regdump_val[REGISTER_DUMP_LEN_MAX];
 	u32 i, address, regdump_addr = 0;
 	int ret;
-
-	if (ar->target_type != TARGET_TYPE_AR6003)
-		return;
 
 	/* the reg dump pointer is copied to the host interest area */
 	address = ath6kl_get_hi_item_addr(ar, HI_ITEM(hi_failure_state));
@@ -96,7 +92,7 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 
 	/* fetch register dump data */
 	ret = ath6kl_diag_read(ar, regdump_addr, (u8 *)&regdump_val[0],
-				  REG_DUMP_COUNT_AR6003 * (sizeof(u32)));
+				  REGISTER_DUMP_COUNT * (sizeof(u32)));
 	if (ret) {
 		ath6kl_warn("failed to get register dump: %d\n", ret);
 		return;
@@ -106,9 +102,9 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 	ath6kl_info("hw 0x%x fw %s\n", ar->wiphy->hw_version,
 		    ar->wiphy->fw_version);
 
-	BUILD_BUG_ON(REG_DUMP_COUNT_AR6003 % 4);
+	BUILD_BUG_ON(REGISTER_DUMP_COUNT % 4);
 
-	for (i = 0; i < REG_DUMP_COUNT_AR6003; i += 4) {
+	for (i = 0; i < REGISTER_DUMP_COUNT; i += 4) {
 		ath6kl_info("%d: 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
 			    i,
 			    le32_to_cpu(regdump_val[i]),
@@ -116,7 +112,6 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 			    le32_to_cpu(regdump_val[i + 2]),
 			    le32_to_cpu(regdump_val[i + 3]));
 	}
-
 }
 
 static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
@@ -701,5 +696,4 @@ int ath6kl_hif_setup(struct ath6kl_device *dev)
 
 fail_setup:
 	return status;
-
 }

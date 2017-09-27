@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,10 +38,10 @@ static struct rc_map_table evga_indtube[] = {
 
 static struct rc_map_list evga_indtube_map = {
 	.map = {
-		.scan    = evga_indtube,
-		.size    = ARRAY_SIZE(evga_indtube),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_EVGA_INDTUBE,
+		.scan     = evga_indtube,
+		.size     = ARRAY_SIZE(evga_indtube),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_EVGA_INDTUBE,
 	}
 };
 
@@ -59,4 +59,4 @@ module_init(init_rc_map_evga_indtube)
 module_exit(exit_rc_map_evga_indtube)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

@@ -31,7 +31,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_mtd.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -39,30 +38,77 @@
 #include <linux/string.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/sh_flctl.h>
 
-static struct nand_ecclayout flctl_4secc_oob_16 = {
-	.eccbytes = 10,
-	.eccpos = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-	.oobfree = {
-		{.offset = 12,
-		. length = 4} },
+static int flctl_4secc_ooblayout_sp_ecc(struct mtd_info *mtd, int section,
+					struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+
+	if (section)
+		return -ERANGE;
+
+	oobregion->offset = 0;
+	oobregion->length = chip->ecc.bytes;
+
+	return 0;
+}
+
+static int flctl_4secc_ooblayout_sp_free(struct mtd_info *mtd, int section,
+					 struct mtd_oob_region *oobregion)
+{
+	if (section)
+		return -ERANGE;
+
+	oobregion->offset = 12;
+	oobregion->length = 4;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops flctl_4secc_oob_smallpage_ops = {
+	.ecc = flctl_4secc_ooblayout_sp_ecc,
+	.free = flctl_4secc_ooblayout_sp_free,
 };
 
-static struct nand_ecclayout flctl_4secc_oob_64 = {
-	.eccbytes = 4 * 10,
-	.eccpos = {
-		 6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-		22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-		38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-		54, 55, 56, 57, 58, 59, 60, 61, 62, 63 },
-	.oobfree = {
-		{.offset =  2, .length = 4},
-		{.offset = 16, .length = 6},
-		{.offset = 32, .length = 6},
-		{.offset = 48, .length = 6} },
+static int flctl_4secc_ooblayout_lp_ecc(struct mtd_info *mtd, int section,
+					struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+
+	if (section >= chip->ecc.steps)
+		return -ERANGE;
+
+	oobregion->offset = (section * 16) + 6;
+	oobregion->length = chip->ecc.bytes;
+
+	return 0;
+}
+
+static int flctl_4secc_ooblayout_lp_free(struct mtd_info *mtd, int section,
+					 struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+
+	if (section >= chip->ecc.steps)
+		return -ERANGE;
+
+	oobregion->offset = section * 16;
+	oobregion->length = 6;
+
+	if (!section) {
+		oobregion->offset += 2;
+		oobregion->length -= 2;
+	}
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops flctl_4secc_oob_largepage_ops = {
+	.ecc = flctl_4secc_ooblayout_lp_ecc,
+	.free = flctl_4secc_ooblayout_lp_free,
 };
 
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
@@ -137,7 +183,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	dma_cap_mask_t mask;
 	struct dma_slave_config cfg;
 	struct platform_device *pdev = flctl->pdev;
-	struct sh_flctl_platform_data *pdata = pdev->dev.platform_data;
+	struct sh_flctl_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	if (!pdata)
@@ -151,7 +197,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	flctl->chan_fifo0_tx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_fifo0_tx);
+				(void *)(uintptr_t)pdata->slave_id_fifo0_tx);
 	dev_dbg(&pdev->dev, "%s: TX: got channel %p\n", __func__,
 		flctl->chan_fifo0_tx);
 
@@ -159,26 +205,24 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 		return;
 
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.slave_id = pdata->slave_id_fifo0_tx;
 	cfg.direction = DMA_MEM_TO_DEV;
-	cfg.dst_addr = (dma_addr_t)FLDTFIFO(flctl);
+	cfg.dst_addr = flctl->fifo;
 	cfg.src_addr = 0;
 	ret = dmaengine_slave_config(flctl->chan_fifo0_tx, &cfg);
 	if (ret < 0)
 		goto err;
 
 	flctl->chan_fifo0_rx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_fifo0_rx);
+				(void *)(uintptr_t)pdata->slave_id_fifo0_rx);
 	dev_dbg(&pdev->dev, "%s: RX: got channel %p\n", __func__,
 		flctl->chan_fifo0_rx);
 
 	if (!flctl->chan_fifo0_rx)
 		goto err;
 
-	cfg.slave_id = pdata->slave_id_fifo0_rx;
 	cfg.direction = DMA_DEV_TO_MEM;
 	cfg.dst_addr = 0;
-	cfg.src_addr = (dma_addr_t)FLDTFIFO(flctl);
+	cfg.src_addr = flctl->fifo;
 	ret = dmaengine_slave_config(flctl->chan_fifo0_rx, &cfg);
 	if (ret < 0)
 		goto err;
@@ -353,7 +397,7 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 	struct dma_chan *chan;
 	enum dma_transfer_direction tr_dir;
 	dma_addr_t dma_addr;
-	dma_cookie_t cookie = -EINVAL;
+	dma_cookie_t cookie;
 	uint32_t reg;
 	int ret;
 
@@ -367,7 +411,7 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 
 	dma_addr = dma_map_single(chan->device->dev, buf, len, dir);
 
-	if (dma_addr)
+	if (!dma_mapping_error(chan->device->dev, dma_addr))
 		desc = dmaengine_prep_slave_single(chan, dma_addr, len,
 			tr_dir, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
@@ -379,6 +423,12 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 		desc->callback = flctl_dma_complete;
 		desc->callback_param = flctl;
 		cookie = dmaengine_submit(desc);
+		if (dma_submit_error(cookie)) {
+			ret = dma_submit_error(cookie);
+			dev_warn(&flctl->pdev->dev,
+				 "DMA submit failed, falling back to PIO\n");
+			goto out;
+		}
 
 		dma_async_issue_pending(chan);
 	} else {
@@ -395,7 +445,7 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 				msecs_to_jiffies(3000));
 
 	if (ret <= 0) {
-		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(chan);
 		dev_err(&flctl->pdev->dev, "wait_for_completion_timeout\n");
 	}
 
@@ -571,7 +621,8 @@ static int flctl_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int flctl_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				   const uint8_t *buf, int oob_required)
+				  const uint8_t *buf, int oob_required,
+				  int page)
 {
 	chip->write_buf(mtd, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -608,13 +659,13 @@ static void execmd_read_page_sector(struct mtd_info *mtd, int page_addr)
 		case FL_REPAIRABLE:
 			dev_info(&flctl->pdev->dev,
 				"applied ecc on page 0x%x", page_addr);
-			flctl->mtd.ecc_stats.corrected++;
+			mtd->ecc_stats.corrected++;
 			break;
 		case FL_ERROR:
 			dev_warn(&flctl->pdev->dev,
 				"page 0x%x contains corrupted data\n",
 				page_addr);
-			flctl->mtd.ecc_stats.failed++;
+			mtd->ecc_stats.failed++;
 			break;
 		default:
 			;
@@ -897,7 +948,7 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 		if (!flctl->qos_request) {
 			ret = dev_pm_qos_add_request(&flctl->pdev->dev,
 							&flctl->pm_qos,
-							DEV_PM_QOS_LATENCY,
+							DEV_PM_QOS_RESUME_LATENCY,
 							100);
 			if (ret < 0)
 				dev_err(&flctl->pdev->dev,
@@ -988,10 +1039,10 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 
 	if (flctl->hwecc) {
 		if (mtd->writesize == 512) {
-			chip->ecc.layout = &flctl_4secc_oob_16;
+			mtd_set_ooblayout(mtd, &flctl_4secc_oob_smallpage_ops);
 			chip->badblock_pattern = &flctl_4secc_smallpage;
 		} else {
-			chip->ecc.layout = &flctl_4secc_oob_64;
+			mtd_set_ooblayout(mtd, &flctl_4secc_oob_largepage_ops);
 			chip->badblock_pattern = &flctl_4secc_largepage;
 		}
 
@@ -1006,6 +1057,7 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 		flctl->flcmncr_base |= _4ECCEN;
 	} else {
 		chip->ecc.mode = NAND_ECC_SOFT;
+		chip->ecc.algo = NAND_ECC_HAMMING;
 	}
 
 	return 0;
@@ -1021,7 +1073,6 @@ static irqreturn_t flctl_handle_flste(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
 struct flctl_soc_config {
 	unsigned long flcmncr_val;
 	unsigned has_hwecc:1;
@@ -1046,8 +1097,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 	const struct of_device_id *match;
 	struct flctl_soc_config *config;
 	struct sh_flctl_platform_data *pdata;
-	struct device_node *dn = dev->of_node;
-	int ret;
 
 	match = of_match_device(of_flctl_match, dev);
 	if (match)
@@ -1059,33 +1108,16 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(struct sh_flctl_platform_data),
 								GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "%s: failed to allocate config data\n", __func__);
+	if (!pdata)
 		return NULL;
-	}
 
 	/* set SoC specific options */
 	pdata->flcmncr_val = config->flcmncr_val;
 	pdata->has_hwecc = config->has_hwecc;
 	pdata->use_holden = config->use_holden;
 
-	/* parse user defined options */
-	ret = of_get_nand_bus_width(dn);
-	if (ret == 16)
-		pdata->flcmncr_val |= SEL_16BIT;
-	else if (ret != 8) {
-		dev_err(dev, "%s: invalid bus width\n", __func__);
-		return NULL;
-	}
-
 	return pdata;
 }
-#else /* CONFIG_OF */
-static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
-{
-	return NULL;
-}
-#endif /* CONFIG_OF */
 
 static int flctl_probe(struct platform_device *pdev)
 {
@@ -1094,55 +1126,47 @@ static int flctl_probe(struct platform_device *pdev)
 	struct mtd_info *flctl_mtd;
 	struct nand_chip *nand;
 	struct sh_flctl_platform_data *pdata;
-	int ret = -ENXIO;
+	int ret;
 	int irq;
-	struct mtd_part_parser_data ppdata = {};
 
-	flctl = kzalloc(sizeof(struct sh_flctl), GFP_KERNEL);
-	if (!flctl) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	flctl = devm_kzalloc(&pdev->dev, sizeof(struct sh_flctl), GFP_KERNEL);
+	if (!flctl)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get I/O memory\n");
-		goto err_iomap;
-	}
-
-	flctl->reg = ioremap(res->start, resource_size(res));
-	if (flctl->reg == NULL) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		goto err_iomap;
-	}
+	flctl->reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(flctl->reg))
+		return PTR_ERR(flctl->reg);
+	flctl->fifo = res->start + 0x24; /* FLDTFIFO */
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get flste irq data\n");
-		goto err_flste;
+		dev_err(&pdev->dev, "failed to get flste irq data: %d\n", irq);
+		return irq;
 	}
 
-	ret = request_irq(irq, flctl_handle_flste, IRQF_SHARED, "flste", flctl);
+	ret = devm_request_irq(&pdev->dev, irq, flctl_handle_flste, IRQF_SHARED,
+			       "flste", flctl);
 	if (ret) {
 		dev_err(&pdev->dev, "request interrupt failed.\n");
-		goto err_flste;
+		return ret;
 	}
 
 	if (pdev->dev.of_node)
 		pdata = flctl_parse_dt(&pdev->dev);
 	else
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no setup data defined\n");
-		ret = -EINVAL;
-		goto err_pdata;
+		return -EINVAL;
 	}
 
 	platform_set_drvdata(pdev, flctl);
-	flctl_mtd = &flctl->mtd;
 	nand = &flctl->chip;
-	flctl_mtd->priv = nand;
+	flctl_mtd = nand_to_mtd(nand);
+	nand_set_flash_node(nand, pdev->dev.of_node);
+	flctl_mtd->dev.parent = &pdev->dev;
 	flctl->pdev = pdev;
 	flctl->hwecc = pdata->has_hwecc;
 	flctl->holden = pdata->use_holden;
@@ -1154,15 +1178,16 @@ static int flctl_probe(struct platform_device *pdev)
 	nand->chip_delay = 20;
 
 	nand->read_byte = flctl_read_byte;
+	nand->read_word = flctl_read_word;
 	nand->write_buf = flctl_write_buf;
 	nand->read_buf = flctl_read_buf;
 	nand->select_chip = flctl_select_chip;
 	nand->cmdfunc = flctl_cmdfunc;
+	nand->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	nand->onfi_get_features = nand_onfi_get_set_features_notsupp;
 
-	if (pdata->flcmncr_val & SEL_16BIT) {
+	if (pdata->flcmncr_val & SEL_16BIT)
 		nand->options |= NAND_BUSWIDTH_16;
-		nand->read_word = flctl_read_word;
-	}
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
@@ -1173,6 +1198,16 @@ static int flctl_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_chip;
 
+	if (nand->options & NAND_BUSWIDTH_16) {
+		/*
+		 * NAND_BUSWIDTH_16 may have been set by nand_scan_ident().
+		 * Add the SEL_16BIT flag in pdata->flcmncr_val and re-assign
+		 * flctl->flcmncr_base to pdata->flcmncr_val.
+		 */
+		pdata->flcmncr_val |= SEL_16BIT;
+		flctl->flcmncr_base = pdata->flcmncr_val;
+	}
+
 	ret = flctl_chip_init_tail(flctl_mtd);
 	if (ret)
 		goto err_chip;
@@ -1181,21 +1216,13 @@ static int flctl_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_chip;
 
-	ppdata.of_node = pdev->dev.of_node;
-	ret = mtd_device_parse_register(flctl_mtd, NULL, &ppdata, pdata->parts,
-			pdata->nr_parts);
+	ret = mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
 
 	return 0;
 
 err_chip:
 	flctl_release_dma(flctl);
 	pm_runtime_disable(&pdev->dev);
-err_pdata:
-	free_irq(irq, flctl);
-err_flste:
-	iounmap(flctl->reg);
-err_iomap:
-	kfree(flctl);
 	return ret;
 }
 
@@ -1204,11 +1231,8 @@ static int flctl_remove(struct platform_device *pdev)
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 
 	flctl_release_dma(flctl);
-	nand_release(&flctl->mtd);
+	nand_release(nand_to_mtd(&flctl->chip));
 	pm_runtime_disable(&pdev->dev);
-	free_irq(platform_get_irq(pdev, 0), flctl);
-	iounmap(flctl->reg);
-	kfree(flctl);
 
 	return 0;
 }
@@ -1217,7 +1241,6 @@ static struct platform_driver flctl_driver = {
 	.remove		= flctl_remove,
 	.driver = {
 		.name	= "sh_flctl",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(of_flctl_match),
 	},
 };

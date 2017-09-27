@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,10 +60,10 @@ static struct rc_map_table kworld_315u[] = {
 
 static struct rc_map_list kworld_315u_map = {
 	.map = {
-		.scan    = kworld_315u,
-		.size    = ARRAY_SIZE(kworld_315u),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_KWORLD_315U,
+		.scan     = kworld_315u,
+		.size     = ARRAY_SIZE(kworld_315u),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_KWORLD_315U,
 	}
 };
 
@@ -81,4 +81,4 @@ module_init(init_rc_map_kworld_315u)
 module_exit(exit_rc_map_kworld_315u)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

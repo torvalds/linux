@@ -13,15 +13,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
-#include <linux/inet_lro.h>
 
 #include <asm/pasemi_dma.h>
 #include "pasemi_mac.h"
@@ -63,32 +61,6 @@ static struct {
 	{ "tx-512-1023-byte-packets" },
 	{ "tx-1024-1518-byte-packets" },
 };
-
-static int
-pasemi_mac_ethtool_get_settings(struct net_device *netdev,
-			       struct ethtool_cmd *cmd)
-{
-	struct pasemi_mac *mac = netdev_priv(netdev);
-	struct phy_device *phydev = mac->phydev;
-
-	if (!phydev)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_gset(phydev, cmd);
-}
-
-static int
-pasemi_mac_ethtool_set_settings(struct net_device *netdev,
-			       struct ethtool_cmd *cmd)
-{
-	struct pasemi_mac *mac = netdev_priv(netdev);
-	struct phy_device *phydev = mac->phydev;
-
-	if (!phydev)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_sset(phydev, cmd);
-}
 
 static u32
 pasemi_mac_ethtool_get_msglevel(struct net_device *netdev)
@@ -147,8 +119,6 @@ static void pasemi_mac_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 const struct ethtool_ops pasemi_mac_ethtool_ops = {
-	.get_settings		= pasemi_mac_ethtool_get_settings,
-	.set_settings		= pasemi_mac_ethtool_set_settings,
 	.get_msglevel		= pasemi_mac_ethtool_get_msglevel,
 	.set_msglevel		= pasemi_mac_ethtool_set_msglevel,
 	.get_link		= ethtool_op_get_link,
@@ -156,5 +126,7 @@ const struct ethtool_ops pasemi_mac_ethtool_ops = {
 	.get_strings		= pasemi_mac_get_strings,
 	.get_sset_count		= pasemi_mac_get_sset_count,
 	.get_ethtool_stats	= pasemi_mac_get_ethtool_stats,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 

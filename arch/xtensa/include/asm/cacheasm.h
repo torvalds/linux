@@ -69,51 +69,58 @@
 	.endm
 
 
-#if XCHAL_DCACHE_LINE_LOCKABLE
-
 	.macro	___unlock_dcache_all ar at
 
+#if XCHAL_DCACHE_LINE_LOCKABLE && XCHAL_DCACHE_SIZE
 	__loop_cache_all \ar \at diu XCHAL_DCACHE_SIZE XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
-#endif
-
-#if XCHAL_ICACHE_LINE_LOCKABLE
 
 	.macro	___unlock_icache_all ar at
 
+#if XCHAL_ICACHE_LINE_LOCKABLE && XCHAL_ICACHE_SIZE
 	__loop_cache_all \ar \at iiu XCHAL_ICACHE_SIZE XCHAL_ICACHE_LINEWIDTH
+#endif
 
 	.endm
-#endif
+
 
 	.macro	___flush_invalidate_dcache_all ar at
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_all \ar \at diwbi XCHAL_DCACHE_SIZE XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___flush_dcache_all ar at
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_all \ar \at diwb XCHAL_DCACHE_SIZE XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___invalidate_dcache_all ar at
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_all \ar \at dii __stringify(DCACHE_WAY_SIZE) \
 			 XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___invalidate_icache_all ar at
 
+#if XCHAL_ICACHE_SIZE
 	__loop_cache_all \ar \at iii __stringify(ICACHE_WAY_SIZE) \
 			 XCHAL_ICACHE_LINEWIDTH
+#endif
 
 	.endm
 
@@ -121,28 +128,36 @@
 
 	.macro	___flush_invalidate_dcache_range ar as at
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_range \ar \as \at dhwbi XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___flush_dcache_range ar as at
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_range \ar \as \at dhwb XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___invalidate_dcache_range ar as at
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_range \ar \as \at dhi XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___invalidate_icache_range ar as at
 
+#if XCHAL_ICACHE_SIZE
 	__loop_cache_range \ar \as \at ihi XCHAL_ICACHE_LINEWIDTH
+#endif
 
 	.endm
 
@@ -150,27 +165,35 @@
 
 	.macro	___flush_invalidate_dcache_page ar as
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_page \ar \as dhwbi XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro ___flush_dcache_page ar as
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_page \ar \as dhwb XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___invalidate_dcache_page ar as
 
+#if XCHAL_DCACHE_SIZE
 	__loop_cache_page \ar \as dhi XCHAL_DCACHE_LINEWIDTH
+#endif
 
 	.endm
 
 
 	.macro	___invalidate_icache_page ar as
 
+#if XCHAL_ICACHE_SIZE
 	__loop_cache_page \ar \as ihi XCHAL_ICACHE_LINEWIDTH
+#endif
 
 	.endm

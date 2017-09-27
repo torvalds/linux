@@ -15,7 +15,7 @@
 #include <linux/input.h>
 #include <linux/libps2.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "psmouse.h"
 #include "trackpoint.h"
 
@@ -227,6 +227,7 @@ TRACKPOINT_INT_ATTR(thresh, TP_THRESH, TP_DEF_THRESH);
 TRACKPOINT_INT_ATTR(upthresh, TP_UP_THRESH, TP_DEF_UP_THRESH);
 TRACKPOINT_INT_ATTR(ztime, TP_Z_TIME, TP_DEF_Z_TIME);
 TRACKPOINT_INT_ATTR(jenks, TP_JENKS_CURV, TP_DEF_JENKS_CURV);
+TRACKPOINT_INT_ATTR(drift_time, TP_DRIFT_TIME, TP_DEF_DRIFT_TIME);
 
 TRACKPOINT_BIT_ATTR(press_to_select, TP_TOGGLE_PTSON, TP_MASK_PTSON, 0,
 		    TP_DEF_PTSON);
@@ -246,6 +247,7 @@ static struct attribute *trackpoint_attrs[] = {
 	&psmouse_attr_upthresh.dattr.attr,
 	&psmouse_attr_ztime.dattr.attr,
 	&psmouse_attr_jenks.dattr.attr,
+	&psmouse_attr_drift_time.dattr.attr,
 	&psmouse_attr_press_to_select.dattr.attr,
 	&psmouse_attr_skipback.dattr.attr,
 	&psmouse_attr_ext_dev.dattr.attr,
@@ -263,7 +265,8 @@ static int trackpoint_start_protocol(struct psmouse *psmouse, unsigned char *fir
 	if (ps2_command(&psmouse->ps2dev, param, MAKE_PS2_CMD(0, 2, TP_READ_ID)))
 		return -1;
 
-	if (param[0] != TP_MAGIC_IDENT)
+	/* add new TP ID. */
+	if (!(param[0] & TP_MAGIC_IDENT))
 		return -1;
 
 	if (firmware_id)
@@ -312,6 +315,7 @@ static int trackpoint_sync(struct psmouse *psmouse, bool in_power_on_state)
 	TRACKPOINT_UPDATE(in_power_on_state, psmouse, tp, upthresh);
 	TRACKPOINT_UPDATE(in_power_on_state, psmouse, tp, ztime);
 	TRACKPOINT_UPDATE(in_power_on_state, psmouse, tp, jenks);
+	TRACKPOINT_UPDATE(in_power_on_state, psmouse, tp, drift_time);
 
 	/* toggles */
 	TRACKPOINT_UPDATE(in_power_on_state, psmouse, tp, press_to_select);
@@ -332,6 +336,7 @@ static void trackpoint_defaults(struct trackpoint_data *tp)
 	TRACKPOINT_SET_POWER_ON_DEFAULT(tp, upthresh);
 	TRACKPOINT_SET_POWER_ON_DEFAULT(tp, ztime);
 	TRACKPOINT_SET_POWER_ON_DEFAULT(tp, jenks);
+	TRACKPOINT_SET_POWER_ON_DEFAULT(tp, drift_time);
 	TRACKPOINT_SET_POWER_ON_DEFAULT(tp, inertia);
 
 	/* toggles */
@@ -375,9 +380,9 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 	if (!set_properties)
 		return 0;
 
-	if (trackpoint_read(&psmouse->ps2dev, TP_EXT_BTN, &button_info)) {
-		psmouse_warn(psmouse, "failed to get extended button data\n");
-		button_info = 0;
+	if (trackpoint_read(ps2dev, TP_EXT_BTN, &button_info)) {
+		psmouse_warn(psmouse, "failed to get extended button data, assuming 3 buttons\n");
+		button_info = 0x33;
 	}
 
 	psmouse->private = kzalloc(sizeof(struct trackpoint_data), GFP_KERNEL);
@@ -393,9 +398,12 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 	if ((button_info & 0x0f) >= 3)
 		__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 
+	__set_bit(INPUT_PROP_POINTER, psmouse->dev->propbit);
+	__set_bit(INPUT_PROP_POINTING_STICK, psmouse->dev->propbit);
+
 	trackpoint_defaults(psmouse->private);
 
-	error = trackpoint_power_on_reset(&psmouse->ps2dev);
+	error = trackpoint_power_on_reset(ps2dev);
 
 	/* Write defaults to TP only if reset fails. */
 	if (error)

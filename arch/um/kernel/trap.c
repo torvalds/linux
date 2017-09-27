@@ -4,9 +4,11 @@
  */
 
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/hardirq.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
+#include <linux/sched/debug.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -30,18 +32,19 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	pmd_t *pmd;
 	pte_t *pte;
 	int err = -EFAULT;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-				 (is_write ? FAULT_FLAG_WRITE : 0);
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	*code_out = SEGV_MAPERR;
 
 	/*
-	 * If the fault was during atomic operation, don't take the fault, just
+	 * If the fault was with pagefaults disabled, don't take the fault, just
 	 * fail.
 	 */
-	if (in_atomic())
+	if (faulthandler_disabled())
 		goto out_nosemaphore;
 
+	if (is_user)
+		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
@@ -58,17 +61,20 @@ retry:
 
 good_area:
 	*code_out = SEGV_ACCERR;
-	if (is_write && !(vma->vm_flags & VM_WRITE))
-		goto out;
-
-	/* Don't require VM_READ|VM_EXEC for write faults! */
-	if (!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
-		goto out;
+	if (is_write) {
+		if (!(vma->vm_flags & VM_WRITE))
+			goto out;
+		flags |= FAULT_FLAG_WRITE;
+	} else {
+		/* Don't require VM_READ|VM_EXEC for write faults! */
+		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
+			goto out;
+	}
 
 	do {
 		int fault;
 
-		fault = handle_mm_fault(mm, vma, address, flags);
+		fault = handle_mm_fault(vma, address, flags);
 
 		if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 			goto out_nosemaphore;
@@ -76,6 +82,8 @@ good_area:
 		if (unlikely(fault & VM_FAULT_ERROR)) {
 			if (fault & VM_FAULT_OOM) {
 				goto out_of_memory;
+			} else if (fault & VM_FAULT_SIGSEGV) {
+				goto out;
 			} else if (fault & VM_FAULT_SIGBUS) {
 				err = -EACCES;
 				goto out;
@@ -124,6 +132,8 @@ out_of_memory:
 	 * (which will retry the fault, or kill us if we got oom-killed).
 	 */
 	up_read(&mm->mmap_sem);
+	if (!is_user)
+		goto out_nosemaphore;
 	pagefault_out_of_memory();
 	return 0;
 }
@@ -164,7 +174,7 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 void fatal_sigsegv(void)
 {
 	force_sigsegv(SIGSEGV, current);
-	do_signal();
+	do_signal(&current->thread.regs);
 	/*
 	 * This is to tell gcc that we're not returning - do_signal
 	 * can, in general, return, but in this case, it's not, since
@@ -173,6 +183,16 @@ void fatal_sigsegv(void)
 	os_dump_core();
 }
 
+/**
+ * segv_handler() - the SIGSEGV handler
+ * @sig:	the signal number
+ * @unused_si:	the signal info struct; unused in this handler
+ * @regs:	the ptrace register information
+ *
+ * The handler first extracts the faultinfo from the UML ptrace regs struct.
+ * If the userfault did not happen in an UML userspace process, bad_segv is called.
+ * Otherwise the signal did happen in a cloned userspace process, handle it.
+ */
 void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	struct faultinfo * fi = UPT_FAULTINFO(regs);
@@ -200,16 +220,24 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	int is_write = FAULT_WRITE(fi);
 	unsigned long address = FAULT_ADDRESS(fi);
 
+	if (!is_user && regs)
+		current->thread.segv_regs = container_of(regs, struct pt_regs, regs);
+
 	if (!is_user && (address >= start_vm) && (address < end_vm)) {
 		flush_tlb_kernel_vm();
-		return 0;
+		goto out;
 	}
 	else if (current->mm == NULL) {
 		show_regs(container_of(regs, struct pt_regs, regs));
 		panic("Segfault with no mm");
 	}
+	else if (!is_user && address > PAGE_SIZE && address < TASK_SIZE) {
+		show_regs(container_of(regs, struct pt_regs, regs));
+		panic("Kernel tried to access user memory at addr 0x%lx, ip 0x%lx",
+		       address, ip);
+	}
 
-	if (SEGV_IS_FIXABLE(&fi) || SEGV_MAYBE_FIXABLE(&fi))
+	if (SEGV_IS_FIXABLE(&fi))
 		err = handle_page_fault(address, ip, is_write, is_user,
 					&si.si_code);
 	else {
@@ -224,7 +252,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 
 	catcher = current->thread.fault_catcher;
 	if (!err)
-		return 0;
+		goto out;
 	else if (catcher != NULL) {
 		current->thread.fault_addr = (void *) address;
 		UML_LONGJMP(catcher, 1);
@@ -232,7 +260,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	else if (current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
 	else if (!is_user && arch_fixup(ip, regs))
-		return 0;
+		goto out;
 
 	if (!is_user) {
 		show_regs(container_of(regs, struct pt_regs, regs));
@@ -256,6 +284,11 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGSEGV, &si, current);
 	}
+
+out:
+	if (regs)
+		current->thread.segv_regs = NULL;
+
 	return 0;
 }
 

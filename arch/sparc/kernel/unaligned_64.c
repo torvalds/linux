@@ -11,18 +11,23 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <asm/asi.h>
 #include <asm/ptrace.h>
 #include <asm/pstate.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/perf_event.h>
 #include <linux/ratelimit.h>
+#include <linux/context_tracking.h>
 #include <asm/fpumacro.h>
 #include <asm/cacheflush.h>
+#include <asm/setup.h>
+
+#include "entry.h"
+#include "kernel.h"
 
 enum direction {
 	load,    /* ld, ldd, ldh, ldsh */
@@ -163,17 +168,23 @@ static unsigned long *fetch_reg_addr(unsigned int reg, struct pt_regs *regs)
 unsigned long compute_effective_address(struct pt_regs *regs,
 					unsigned int insn, unsigned int rd)
 {
+	int from_kernel = (regs->tstate & TSTATE_PRIV) != 0;
 	unsigned int rs1 = (insn >> 14) & 0x1f;
 	unsigned int rs2 = insn & 0x1f;
-	int from_kernel = (regs->tstate & TSTATE_PRIV) != 0;
+	unsigned long addr;
 
 	if (insn & 0x2000) {
 		maybe_flush_windows(rs1, 0, rd, from_kernel);
-		return (fetch_reg(rs1, regs) + sign_extend_imm13(insn));
+		addr = (fetch_reg(rs1, regs) + sign_extend_imm13(insn));
 	} else {
 		maybe_flush_windows(rs1, rs2, rd, from_kernel);
-		return (fetch_reg(rs1, regs) + fetch_reg(rs2, regs));
+		addr = (fetch_reg(rs1, regs) + fetch_reg(rs2, regs));
 	}
+
+	if (!from_kernel && test_thread_flag(TIF_32BIT))
+		addr &= 0xffffffff;
+
+	return addr;
 }
 
 /* This is just to make gcc think die_if_kernel does return... */
@@ -198,8 +209,8 @@ static inline int do_int_store(int reg_num, int size, unsigned long *dst_addr,
 	if (size == 16) {
 		size = 8;
 		zero = (((long)(reg_num ?
-		        (unsigned)fetch_reg(reg_num, regs) : 0)) << 32) |
-			(unsigned)fetch_reg(reg_num + 1, regs);
+		        (unsigned int)fetch_reg(reg_num, regs) : 0)) << 32) |
+			(unsigned int)fetch_reg(reg_num + 1, regs);
 	} else if (reg_num) {
 		src_val_p = fetch_reg_addr(reg_num, regs);
 	}
@@ -418,9 +429,6 @@ int handle_popc(u32 insn, struct pt_regs *regs)
 
 extern void do_fpother(struct pt_regs *regs);
 extern void do_privact(struct pt_regs *regs);
-extern void spitfire_data_access_exception(struct pt_regs *regs,
-					   unsigned long sfsr,
-					   unsigned long sfar);
 extern void sun4v_data_access_exception(struct pt_regs *regs,
 					unsigned long addr,
 					unsigned long type_ctx);
@@ -428,24 +436,26 @@ extern void sun4v_data_access_exception(struct pt_regs *regs,
 int handle_ldf_stq(u32 insn, struct pt_regs *regs)
 {
 	unsigned long addr = compute_effective_address(regs, insn, 0);
-	int freg = ((insn >> 25) & 0x1e) | ((insn >> 20) & 0x20);
+	int freg;
 	struct fpustate *f = FPUSTATE;
 	int asi = decode_asi(insn, regs);
-	int flag = (freg < 32) ? FPRS_DL : FPRS_DU;
+	int flag;
 
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 
 	save_and_clear_fpu();
 	current_thread_info()->xfsr[0] &= ~0x1c000;
-	if (freg & 3) {
-		current_thread_info()->xfsr[0] |= (6 << 14) /* invalid_fp_register */;
-		do_fpother(regs);
-		return 0;
-	}
 	if (insn & 0x200000) {
 		/* STQ */
 		u64 first = 0, second = 0;
 		
+		freg = ((insn >> 25) & 0x1e) | ((insn >> 20) & 0x20);
+		flag = (freg < 32) ? FPRS_DL : FPRS_DU;
+		if (freg & 3) {
+			current_thread_info()->xfsr[0] |= (6 << 14) /* invalid_fp_register */;
+			do_fpother(regs);
+			return 0;
+		}
 		if (current_thread_info()->fpsaved[0] & flag) {
 			first = *(u64 *)&f->regs[freg];
 			second = *(u64 *)&f->regs[freg+2];
@@ -505,6 +515,12 @@ int handle_ldf_stq(u32 insn, struct pt_regs *regs)
 		case 0x100000: size = 4; break;
 		default: size = 2; break;
 		}
+		if (size == 1)
+			freg = (insn >> 25) & 0x1f;
+		else
+			freg = ((insn >> 25) & 0x1e) | ((insn >> 20) & 0x20);
+		flag = (freg < 32) ? FPRS_DL : FPRS_DU;
+
 		for (i = 0; i < size; i++)
 			data[i] = 0;
 		
@@ -578,6 +594,7 @@ void handle_ld_nf(u32 insn, struct pt_regs *regs)
 
 void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
 {
+	enum ctx_state prev_state = exception_enter();
 	unsigned long pc = regs->tpc;
 	unsigned long tstate = regs->tstate;
 	u32 insn;
@@ -632,13 +649,16 @@ daex:
 			sun4v_data_access_exception(regs, sfar, sfsr);
 		else
 			spitfire_data_access_exception(regs, sfsr, sfar);
-		return;
+		goto out;
 	}
 	advance(regs);
+out:
+	exception_exit(prev_state);
 }
 
 void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
 {
+	enum ctx_state prev_state = exception_enter();
 	unsigned long pc = regs->tpc;
 	unsigned long tstate = regs->tstate;
 	u32 insn;
@@ -680,7 +700,9 @@ daex:
 			sun4v_data_access_exception(regs, sfar, sfsr);
 		else
 			spitfire_data_access_exception(regs, sfsr, sfar);
-		return;
+		goto out;
 	}
 	advance(regs);
+out:
+	exception_exit(prev_state);
 }

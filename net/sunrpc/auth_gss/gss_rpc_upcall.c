@@ -55,15 +55,15 @@ enum {
 #define PROC(proc, name)				\
 [GSSX_##proc] = {					\
 	.p_proc   = GSSX_##proc,			\
-	.p_encode = (kxdreproc_t)gssx_enc_##name,	\
-	.p_decode = (kxdrdproc_t)gssx_dec_##name,	\
+	.p_encode = gssx_enc_##name,	\
+	.p_decode = gssx_dec_##name,	\
 	.p_arglen = GSSX_ARG_##name##_sz,		\
 	.p_replen = GSSX_RES_##name##_sz, 		\
 	.p_statidx = GSSX_##proc,			\
 	.p_name   = #proc,				\
 }
 
-static struct rpc_procinfo gssp_procedures[] = {
+static const struct rpc_procinfo gssp_procedures[] = {
 	PROC(INDICATE_MECHS, indicate_mechs),
         PROC(GET_CALL_CONTEXT, get_call_context),
         PROC(IMPORT_AND_CANON_NAME, import_and_canon_name),
@@ -137,7 +137,6 @@ void init_gssp_clnt(struct sunrpc_net *sn)
 {
 	mutex_init(&sn->gssp_lock);
 	sn->gssp_clnt = NULL;
-	init_waitqueue_head(&sn->gssp_wq);
 }
 
 int set_gssp_clnt(struct net *net)
@@ -154,7 +153,6 @@ int set_gssp_clnt(struct net *net)
 		sn->gssp_clnt = clnt;
 	}
 	mutex_unlock(&sn->gssp_lock);
-	wake_up(&sn->gssp_wq);
 	return ret;
 }
 
@@ -213,6 +211,28 @@ static int gssp_call(struct net *net, struct rpc_message *msg)
 	return status;
 }
 
+static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
+{
+	int i;
+
+	for (i = 0; i < arg->npages && arg->pages[i]; i++)
+		__free_page(arg->pages[i]);
+
+	kfree(arg->pages);
+}
+
+static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
+{
+	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
+	arg->pages = kzalloc(arg->npages * sizeof(struct page *), GFP_KERNEL);
+	/*
+	 * XXX: actual pages are allocated by xdr layer in
+	 * xdr_partial_copy_from_skb.
+	 */
+	if (!arg->pages)
+		return -ENOMEM;
+	return 0;
+}
 
 /*
  * Public functions
@@ -261,9 +281,15 @@ int gssp_accept_sec_context_upcall(struct net *net,
 		arg.context_handle = &ctxh;
 	res.output_token->len = GSSX_max_output_token_sz;
 
+	ret = gssp_alloc_receive_pages(&arg);
+	if (ret)
+		return ret;
+
 	/* use nfs/ for targ_name ? */
 
 	ret = gssp_call(net, &msg);
+
+	gssp_free_receive_pages(&arg);
 
 	/* we need to fetch all data even in case of error so
 	 * that we can free special strctures is they have been allocated */
@@ -272,7 +298,8 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	if (res.context_handle) {
 		data->out_handle = rctxh.exported_context_token;
 		data->mech_oid.len = rctxh.mech.len;
-		memcpy(data->mech_oid.data, rctxh.mech.data,
+		if (rctxh.mech.data)
+			memcpy(data->mech_oid.data, rctxh.mech.data,
 						data->mech_oid.len);
 		client_name = rctxh.src_name.display_name;
 	}
@@ -298,6 +325,9 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	/* convert to GSS_NT_HOSTBASED_SERVICE form and set into creds */
 	if (data->found_creds && client_name.data != NULL) {
 		char *c;
+
+		data->creds.cr_raw_principal = kstrndup(client_name.data,
+						client_name.len, GFP_KERNEL);
 
 		data->creds.cr_principal = kstrndup(client_name.data,
 						client_name.len, GFP_KERNEL);
@@ -334,11 +364,12 @@ void gssp_free_upcall_data(struct gssp_upcall_data *data)
 /*
  * Initialization stuff
  */
-
+static unsigned int gssp_version1_counts[ARRAY_SIZE(gssp_procedures)];
 static const struct rpc_version gssp_version1 = {
 	.number		= GSSPROXY_VERS_1,
 	.nrprocs	= ARRAY_SIZE(gssp_procedures),
 	.procs		= gssp_procedures,
+	.counts		= gssp_version1_counts,
 };
 
 static const struct rpc_version *gssp_version[] = {

@@ -47,13 +47,10 @@ struct task_struct;
  */
 
 #define task_pt_regs(task) user_regs(task_thread_info(task))
-#define current_regs() task_pt_regs(current)
 
 unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_ESP(tsk)   ((tsk) == current ? rdusp() : (tsk)->thread.usp)
-
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 /* Free all resources held by a thread. */
 static inline void release_thread(struct task_struct *dead_task)

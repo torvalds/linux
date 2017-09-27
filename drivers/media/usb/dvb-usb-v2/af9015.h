@@ -15,10 +15,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef AF9015_H
@@ -51,8 +47,8 @@
 #define TS_USB20_MAX_PACKET_SIZE  512
 #define TS_USB11_MAX_PACKET_SIZE   64
 
-#define AF9015_I2C_EEPROM  0xa0
-#define AF9015_I2C_DEMOD   0x38
+#define AF9015_I2C_EEPROM  0x50
+#define AF9015_I2C_DEMOD   0x1c
 #define AF9015_USB_TIMEOUT 2000
 
 /* EEPROM locations */
@@ -133,7 +129,7 @@ struct af9015_state {
 
 	/* for demod callback override */
 	int (*set_frontend[2]) (struct dvb_frontend *fe);
-	int (*read_status[2]) (struct dvb_frontend *fe, fe_status_t *status);
+	int (*read_status[2]) (struct dvb_frontend *fe, enum fe_status *status);
 	int (*init[2]) (struct dvb_frontend *fe);
 	int (*sleep[2]) (struct dvb_frontend *fe);
 	int (*tuner_init[2]) (struct dvb_frontend *fe);

@@ -36,14 +36,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/init.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -117,7 +115,6 @@ enum {
 struct mcs7830_data {
 	u8 multi_filter[8];
 	u8 config;
-	u8 link_counter;
 };
 
 static const char driver_name[] = "MOSCHIP usb-ethernet driver";
@@ -448,7 +445,6 @@ static int mcs7830_get_regs_len(struct net_device *net)
 static void mcs7830_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *drvinfo)
 {
 	usbnet_get_drvinfo(net, drvinfo);
-	drvinfo->regdump_len = mcs7830_get_regs_len(net);
 }
 
 static void mcs7830_get_regs(struct net_device *net, struct ethtool_regs *regs, void *data)
@@ -468,9 +464,9 @@ static const struct ethtool_ops mcs7830_ethtool_ops = {
 	.get_link		= usbnet_get_link,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
-	.get_settings		= usbnet_get_settings,
-	.set_settings		= usbnet_set_settings,
 	.nway_reset		= usbnet_nway_reset,
+	.get_link_ksettings	= usbnet_get_link_ksettings,
+	.set_link_ksettings	= usbnet_set_link_ksettings,
 };
 
 static const struct net_device_ops mcs7830_netdev_ops = {
@@ -479,6 +475,7 @@ static const struct net_device_ops mcs7830_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl 		= mcs7830_ioctl,
 	.ndo_set_rx_mode	= mcs7830_set_multicast,
@@ -529,8 +526,9 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	u8 status;
 
-	if (skb->len == 0) {
-		dev_err(&dev->udev->dev, "unexpected empty rx frame\n");
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len) {
+		dev_err(&dev->udev->dev, "unexpected tiny rx frame\n");
 		return 0;
 	}
 
@@ -561,26 +559,16 @@ static void mcs7830_status(struct usbnet *dev, struct urb *urb)
 {
 	u8 *buf = urb->transfer_buffer;
 	bool link, link_changed;
-	struct mcs7830_data *data = mcs7830_get_data(dev);
 
 	if (urb->actual_length < 16)
 		return;
 
-	link = !(buf[1] & 0x20);
+	link = !(buf[1] == 0x20);
 	link_changed = netif_carrier_ok(dev->net) != link;
 	if (link_changed) {
-		data->link_counter++;
-		/*
-		   track link state 20 times to guard against erroneous
-		   link state changes reported sometimes by the chip
-		 */
-		if (data->link_counter > 20) {
-			data->link_counter = 0;
-			usbnet_link_change(dev, link, 0);
-			netdev_dbg(dev->net, "Link Status is: %d\n", link);
-		}
-	} else
-		data->link_counter = 0;
+		usbnet_link_change(dev, link, 0);
+		netdev_dbg(dev->net, "Link Status is: %d\n", link);
+	}
 }
 
 static const struct driver_info moschip_info = {

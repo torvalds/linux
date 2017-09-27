@@ -24,7 +24,6 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -43,7 +42,7 @@
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_SPARC
@@ -52,7 +51,6 @@
 #endif
 
 #ifdef CONFIG_PPC_PMAC
-#include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
@@ -86,7 +84,7 @@ MODULE_LICENSE("GPL");
 
 #define GEM_MODULE_NAME	"gem"
 
-static DEFINE_PCI_DEVICE_TABLE(gem_pci_tbl) = {
+static const struct pci_device_id gem_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_GEM,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 
@@ -116,7 +114,7 @@ static DEFINE_PCI_DEVICE_TABLE(gem_pci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, gem_pci_tbl);
 
-static u16 __phy_read(struct gem *gp, int phy_addr, int reg)
+static u16 __sungem_phy_read(struct gem *gp, int phy_addr, int reg)
 {
 	u32 cmd;
 	int limit = 10000;
@@ -142,18 +140,18 @@ static u16 __phy_read(struct gem *gp, int phy_addr, int reg)
 	return cmd & MIF_FRAME_DATA;
 }
 
-static inline int _phy_read(struct net_device *dev, int mii_id, int reg)
+static inline int _sungem_phy_read(struct net_device *dev, int mii_id, int reg)
 {
 	struct gem *gp = netdev_priv(dev);
-	return __phy_read(gp, mii_id, reg);
+	return __sungem_phy_read(gp, mii_id, reg);
 }
 
-static inline u16 phy_read(struct gem *gp, int reg)
+static inline u16 sungem_phy_read(struct gem *gp, int reg)
 {
-	return __phy_read(gp, gp->mii_phy_addr, reg);
+	return __sungem_phy_read(gp, gp->mii_phy_addr, reg);
 }
 
-static void __phy_write(struct gem *gp, int phy_addr, int reg, u16 val)
+static void __sungem_phy_write(struct gem *gp, int phy_addr, int reg, u16 val)
 {
 	u32 cmd;
 	int limit = 10000;
@@ -175,15 +173,15 @@ static void __phy_write(struct gem *gp, int phy_addr, int reg, u16 val)
 	}
 }
 
-static inline void _phy_write(struct net_device *dev, int mii_id, int reg, int val)
+static inline void _sungem_phy_write(struct net_device *dev, int mii_id, int reg, int val)
 {
 	struct gem *gp = netdev_priv(dev);
-	__phy_write(gp, mii_id, reg, val & 0xffff);
+	__sungem_phy_write(gp, mii_id, reg, val & 0xffff);
 }
 
-static inline void phy_write(struct gem *gp, int reg, u16 val)
+static inline void sungem_phy_write(struct gem *gp, int reg, u16 val)
 {
-	__phy_write(gp, gp->mii_phy_addr, reg, val);
+	__sungem_phy_write(gp, gp->mii_phy_addr, reg, val);
 }
 
 static inline void gem_enable_ints(struct gem *gp)
@@ -228,7 +226,7 @@ static void gem_put_cell(struct gem *gp)
 
 static inline void gem_netif_stop(struct gem *gp)
 {
-	gp->dev->trans_start = jiffies;	/* prevent tx timeout */
+	netif_trans_update(gp->dev);	/* prevent tx timeout */
 	napi_disable(&gp->napi);
 	netif_tx_disable(gp->dev);
 }
@@ -689,7 +687,7 @@ static __inline__ void gem_tx(struct net_device *dev, struct gem *gp, u32 gem_st
 		}
 
 		dev->stats.tx_packets++;
-		dev_kfree_skb(skb);
+		dev_consume_skb_any(skb);
 	}
 	gp->tx_old = entry;
 
@@ -719,7 +717,7 @@ static __inline__ void gem_post_rxds(struct gem *gp, int limit)
 	cluster_start = curr = (gp->rx_new & ~(4 - 1));
 	count = 0;
 	kick = -1;
-	wmb();
+	dma_wmb();
 	while (curr != limit) {
 		curr = NEXT_RX(curr);
 		if (++count == 4) {
@@ -924,7 +922,7 @@ static int gem_poll(struct napi_struct *napi, int budget)
 		gp->status = readl(gp->regs + GREG_STAT);
 	} while (gp->status & GREG_STAT_NAPI);
 
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 	gem_enable_ints(gp);
 
 	return work_done;
@@ -1039,7 +1037,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		if (gem_intme(entry))
 			ctrl |= TXDCTRL_INTME;
 		txd->buffer = cpu_to_le64(mapping);
-		wmb();
+		dma_wmb();
 		txd->control_word = cpu_to_le64(ctrl);
 		entry = NEXT_TX(entry);
 	} else {
@@ -1077,7 +1075,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 
 			txd = &gp->init_block->txd[entry];
 			txd->buffer = cpu_to_le64(mapping);
-			wmb();
+			dma_wmb();
 			txd->control_word = cpu_to_le64(this_ctrl | len);
 
 			if (gem_intme(entry))
@@ -1087,7 +1085,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		}
 		txd = &gp->init_block->txd[first_entry];
 		txd->buffer = cpu_to_le64(first_mapping);
-		wmb();
+		dma_wmb();
 		txd->control_word =
 			cpu_to_le64(ctrl | TXDCTRL_SOF | intme | first_len);
 	}
@@ -1252,12 +1250,18 @@ static void gem_stop_dma(struct gem *gp)
 
 
 // XXX dbl check what that function should do when called on PCS PHY
-static void gem_begin_auto_negotiation(struct gem *gp, struct ethtool_cmd *ep)
+static void gem_begin_auto_negotiation(struct gem *gp,
+				       const struct ethtool_link_ksettings *ep)
 {
 	u32 advertise, features;
 	int autoneg;
 	int speed;
 	int duplex;
+	u32 advertising;
+
+	if (ep)
+		ethtool_convert_link_mode_to_legacy_u32(
+			&advertising, ep->link_modes.advertising);
 
 	if (gp->phy_type != phy_mii_mdio0 &&
      	    gp->phy_type != phy_mii_mdio1)
@@ -1280,13 +1284,13 @@ static void gem_begin_auto_negotiation(struct gem *gp, struct ethtool_cmd *ep)
 	/* Setup link parameters */
 	if (!ep)
 		goto start_aneg;
-	if (ep->autoneg == AUTONEG_ENABLE) {
-		advertise = ep->advertising;
+	if (ep->base.autoneg == AUTONEG_ENABLE) {
+		advertise = advertising;
 		autoneg = 1;
 	} else {
 		autoneg = 0;
-		speed = ethtool_cmd_speed(ep);
-		duplex = ep->duplex;
+		speed = ep->base.speed;
+		duplex = ep->base.duplex;
 	}
 
 start_aneg:
@@ -1586,7 +1590,7 @@ static void gem_clean_rings(struct gem *gp)
 			gp->rx_skbs[i] = NULL;
 		}
 		rxd->status_word = 0;
-		wmb();
+		dma_wmb();
 		rxd->buffer = 0;
 	}
 
@@ -1648,7 +1652,7 @@ static void gem_init_rings(struct gem *gp)
 					RX_BUF_ALLOC_SIZE(gp),
 					PCI_DMA_FROMDEVICE);
 		rxd->buffer = cpu_to_le64(dma_addr);
-		wmb();
+		dma_wmb();
 		rxd->status_word = cpu_to_le64(RXDCTRL_FRESH(gp));
 		skb_reserve(skb, RX_OFFSET);
 	}
@@ -1657,7 +1661,7 @@ static void gem_init_rings(struct gem *gp)
 		struct gem_txd *txd = &gb->txd[i];
 
 		txd->control_word = 0;
-		wmb();
+		dma_wmb();
 		txd->buffer = 0;
 	}
 	wmb();
@@ -1688,9 +1692,9 @@ static void gem_init_phy(struct gem *gp)
 			/* Some PHYs used by apple have problem getting back to us,
 			 * we do an additional reset here
 			 */
-			phy_write(gp, MII_BMCR, BMCR_RESET);
+			sungem_phy_write(gp, MII_BMCR, BMCR_RESET);
 			msleep(20);
-			if (phy_read(gp, MII_BMCR) != 0xffff)
+			if (sungem_phy_read(gp, MII_BMCR) != 0xffff)
 				break;
 			if (i == 2)
 				netdev_warn(gp->dev, "GMAC PHY not responding !\n");
@@ -2013,7 +2017,7 @@ static int gem_check_invariants(struct gem *gp)
 
 		for (i = 0; i < 32; i++) {
 			gp->mii_phy_addr = i;
-			if (phy_read(gp, MII_BMCR) != 0xffff)
+			if (sungem_phy_read(gp, MII_BMCR) != 0xffff)
 				break;
 		}
 		if (i == 32) {
@@ -2176,7 +2180,7 @@ static int gem_do_start(struct net_device *dev)
 	}
 
 	/* Mark us as attached again if we come from resume(), this has
-	 * no effect if we weren't detatched and needs to be done now.
+	 * no effect if we weren't detached and needs to be done now.
 	 */
 	netif_device_attach(dev);
 
@@ -2478,9 +2482,9 @@ static void gem_set_multicast(struct net_device *dev)
 }
 
 /* Jumbo-grams don't seem to work :-( */
-#define GEM_MIN_MTU	68
+#define GEM_MIN_MTU	ETH_MIN_MTU
 #if 1
-#define GEM_MAX_MTU	1500
+#define GEM_MAX_MTU	ETH_DATA_LEN
 #else
 #define GEM_MAX_MTU	9000
 #endif
@@ -2488,9 +2492,6 @@ static void gem_set_multicast(struct net_device *dev)
 static int gem_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct gem *gp = netdev_priv(dev);
-
-	if (new_mtu < GEM_MIN_MTU || new_mtu > GEM_MAX_MTU)
-		return -EINVAL;
 
 	dev->mtu = new_mtu;
 
@@ -2520,85 +2521,96 @@ static void gem_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 	strlcpy(info->bus_info, pci_name(gp->pdev), sizeof(info->bus_info));
 }
 
-static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int gem_get_link_ksettings(struct net_device *dev,
+				  struct ethtool_link_ksettings *cmd)
 {
 	struct gem *gp = netdev_priv(dev);
+	u32 supported, advertising;
 
 	if (gp->phy_type == phy_mii_mdio0 ||
 	    gp->phy_type == phy_mii_mdio1) {
 		if (gp->phy_mii.def)
-			cmd->supported = gp->phy_mii.def->features;
+			supported = gp->phy_mii.def->features;
 		else
-			cmd->supported = (SUPPORTED_10baseT_Half |
+			supported = (SUPPORTED_10baseT_Half |
 					  SUPPORTED_10baseT_Full);
 
 		/* XXX hardcoded stuff for now */
-		cmd->port = PORT_MII;
-		cmd->transceiver = XCVR_EXTERNAL;
-		cmd->phy_address = 0; /* XXX fixed PHYAD */
+		cmd->base.port = PORT_MII;
+		cmd->base.phy_address = 0; /* XXX fixed PHYAD */
 
 		/* Return current PHY settings */
-		cmd->autoneg = gp->want_autoneg;
-		ethtool_cmd_speed_set(cmd, gp->phy_mii.speed);
-		cmd->duplex = gp->phy_mii.duplex;
-		cmd->advertising = gp->phy_mii.advertising;
+		cmd->base.autoneg = gp->want_autoneg;
+		cmd->base.speed = gp->phy_mii.speed;
+		cmd->base.duplex = gp->phy_mii.duplex;
+		advertising = gp->phy_mii.advertising;
 
 		/* If we started with a forced mode, we don't have a default
 		 * advertise set, we need to return something sensible so
 		 * userland can re-enable autoneg properly.
 		 */
-		if (cmd->advertising == 0)
-			cmd->advertising = cmd->supported;
+		if (advertising == 0)
+			advertising = supported;
 	} else { // XXX PCS ?
-		cmd->supported =
+		supported =
 			(SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
 			 SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 			 SUPPORTED_Autoneg);
-		cmd->advertising = cmd->supported;
-		ethtool_cmd_speed_set(cmd, 0);
-		cmd->duplex = cmd->port = cmd->phy_address =
-			cmd->transceiver = cmd->autoneg = 0;
+		advertising = supported;
+		cmd->base.speed = 0;
+		cmd->base.duplex = 0;
+		cmd->base.port = 0;
+		cmd->base.phy_address = 0;
+		cmd->base.autoneg = 0;
 
 		/* serdes means usually a Fibre connector, with most fixed */
 		if (gp->phy_type == phy_serdes) {
-			cmd->port = PORT_FIBRE;
-			cmd->supported = (SUPPORTED_1000baseT_Half |
+			cmd->base.port = PORT_FIBRE;
+			supported = (SUPPORTED_1000baseT_Half |
 				SUPPORTED_1000baseT_Full |
 				SUPPORTED_FIBRE | SUPPORTED_Autoneg |
 				SUPPORTED_Pause | SUPPORTED_Asym_Pause);
-			cmd->advertising = cmd->supported;
-			cmd->transceiver = XCVR_INTERNAL;
+			advertising = supported;
 			if (gp->lstate == link_up)
-				ethtool_cmd_speed_set(cmd, SPEED_1000);
-			cmd->duplex = DUPLEX_FULL;
-			cmd->autoneg = 1;
+				cmd->base.speed = SPEED_1000;
+			cmd->base.duplex = DUPLEX_FULL;
+			cmd->base.autoneg = 1;
 		}
 	}
-	cmd->maxtxpkt = cmd->maxrxpkt = 0;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
-static int gem_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int gem_set_link_ksettings(struct net_device *dev,
+				  const struct ethtool_link_ksettings *cmd)
 {
 	struct gem *gp = netdev_priv(dev);
-	u32 speed = ethtool_cmd_speed(cmd);
+	u32 speed = cmd->base.speed;
+	u32 advertising;
+
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
 
 	/* Verify the settings we care about. */
-	if (cmd->autoneg != AUTONEG_ENABLE &&
-	    cmd->autoneg != AUTONEG_DISABLE)
+	if (cmd->base.autoneg != AUTONEG_ENABLE &&
+	    cmd->base.autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 
-	if (cmd->autoneg == AUTONEG_ENABLE &&
-	    cmd->advertising == 0)
+	if (cmd->base.autoneg == AUTONEG_ENABLE &&
+	    advertising == 0)
 		return -EINVAL;
 
-	if (cmd->autoneg == AUTONEG_DISABLE &&
+	if (cmd->base.autoneg == AUTONEG_DISABLE &&
 	    ((speed != SPEED_1000 &&
 	      speed != SPEED_100 &&
 	      speed != SPEED_10) ||
-	     (cmd->duplex != DUPLEX_HALF &&
-	      cmd->duplex != DUPLEX_FULL)))
+	     (cmd->base.duplex != DUPLEX_HALF &&
+	      cmd->base.duplex != DUPLEX_FULL)))
 		return -EINVAL;
 
 	/* Apply settings and restart link process. */
@@ -2671,13 +2683,13 @@ static int gem_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 static const struct ethtool_ops gem_ethtool_ops = {
 	.get_drvinfo		= gem_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
-	.get_settings		= gem_get_settings,
-	.set_settings		= gem_set_settings,
 	.nway_reset		= gem_nway_reset,
 	.get_msglevel		= gem_get_msglevel,
 	.set_msglevel		= gem_set_msglevel,
 	.get_wol		= gem_get_wol,
 	.set_wol		= gem_set_wol,
+	.get_link_ksettings	= gem_get_link_ksettings,
+	.set_link_ksettings	= gem_set_link_ksettings,
 };
 
 static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -2697,13 +2709,13 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		/* Fallthrough... */
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
-		data->val_out = __phy_read(gp, data->phy_id & 0x1f,
+		data->val_out = __sungem_phy_read(gp, data->phy_id & 0x1f,
 					   data->reg_num & 0x1f);
 		rc = 0;
 		break;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		__phy_write(gp, data->phy_id & 0x1f, data->reg_num & 0x1f,
+		__sungem_phy_write(gp, data->phy_id & 0x1f, data->reg_num & 0x1f,
 			    data->val_in);
 		rc = 0;
 		break;
@@ -2779,7 +2791,7 @@ static int gem_get_device_address(struct gem *gp)
 		return -1;
 #endif
 	}
-	memcpy(dev->dev_addr, addr, 6);
+	memcpy(dev->dev_addr, addr, ETH_ALEN);
 #else
 	get_gem_mac_nonobp(gp->pdev, gp->dev->dev_addr);
 #endif
@@ -2795,7 +2807,7 @@ static void gem_remove_one(struct pci_dev *pdev)
 
 		unregister_netdev(dev);
 
-		/* Ensure reset task is truely gone */
+		/* Ensure reset task is truly gone */
 		cancel_work_sync(&gp->reset_task);
 
 		/* Free resources */
@@ -2806,8 +2818,6 @@ static void gem_remove_one(struct pci_dev *pdev)
 		iounmap(gp->regs);
 		pci_release_regions(pdev);
 		free_netdev(dev);
-
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 
@@ -2936,8 +2946,8 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Fill up the mii_phy structure (even if we won't use it) */
 	gp->phy_mii.dev = dev;
-	gp->phy_mii.mdio_read = _phy_read;
-	gp->phy_mii.mdio_write = _phy_write;
+	gp->phy_mii.mdio_read = _sungem_phy_read;
+	gp->phy_mii.mdio_write = _sungem_phy_write;
 #ifdef CONFIG_PPC_PMAC
 	gp->phy_mii.platform_data = gp->of_node;
 #endif
@@ -2980,6 +2990,10 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
+
+	/* MTU range: 68 - 1500 (Jumbo mode is broken) */
+	dev->min_mtu = GEM_MIN_MTU;
+	dev->max_mtu = GEM_MAX_MTU;
 
 	/* Register with kernel */
 	if (register_netdev(dev)) {

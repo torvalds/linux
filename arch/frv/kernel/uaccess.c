@@ -11,7 +11,7 @@
 
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*****************************************************************************/
 /*

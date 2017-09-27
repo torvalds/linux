@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -51,17 +47,14 @@
 #include <obd_class.h>
 #include <lustre_log.h>
 #include <linux/list.h>
-#include <lvfs.h>
-#include <lustre_fsfilt.h>
 
 int llog_initiator_connect(struct llog_ctxt *ctxt)
 {
 	struct obd_import *new_imp;
-	ENTRY;
 
 	LASSERT(ctxt);
 	new_imp = ctxt->loc_obd->u.cli.cl_import;
-	LASSERTF(ctxt->loc_imp == NULL || ctxt->loc_imp == new_imp,
+	LASSERTF(!ctxt->loc_imp || ctxt->loc_imp == new_imp,
 		 "%p - %p\n", ctxt->loc_imp, new_imp);
 	mutex_lock(&ctxt->loc_mutex);
 	if (ctxt->loc_imp != new_imp) {
@@ -70,6 +63,6 @@ int llog_initiator_connect(struct llog_ctxt *ctxt)
 		ctxt->loc_imp = class_import_get(new_imp);
 	}
 	mutex_unlock(&ctxt->loc_mutex);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(llog_initiator_connect);

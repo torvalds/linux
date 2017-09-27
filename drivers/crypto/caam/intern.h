@@ -9,9 +9,6 @@
 #ifndef INTERN_H
 #define INTERN_H
 
-#define JOBR_UNASSIGNED 0
-#define JOBR_ASSIGNED 1
-
 /* Currently comes from Kconfig param as a ^2 (driver-required) */
 #define JOBR_DEPTH (1 << CONFIG_CRYPTO_DEV_FSL_CAAM_RINGSIZE)
 
@@ -40,13 +37,15 @@ struct caam_jrentry_info {
 
 /* Private sub-storage for a single JobR */
 struct caam_drv_private_jr {
-	struct device *parentdev;	/* points back to controller dev */
-	struct platform_device *jr_pdev;/* points to platform device for JR */
+	struct list_head	list_node;	/* Job Ring device list */
+	struct device		*dev;
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
 	struct tasklet_struct irqtask;
 	int irq;			/* One per queue */
-	int assign;			/* busy/free */
+
+	/* Number of scatterlist crypt transforms active on the JobR */
+	atomic_t tfm_count ____cacheline_aligned;
 
 	/* Job ring info */
 	int ringsize;	/* Size of rings (assume input = output) */
@@ -65,17 +64,16 @@ struct caam_drv_private_jr {
  * Driver-private storage for a single CAAM block instance
  */
 struct caam_drv_private {
-
-	struct device *dev;
-	struct device **jrdev; /* Alloc'ed array per sub-device */
-	spinlock_t jr_alloc_lock;
-	struct platform_device *pdev;
+#ifdef CONFIG_CAAM_QI
+	struct device *qidev;
+#endif
 
 	/* Physical-presence section */
-	struct caam_ctrl *ctrl; /* controller region */
-	struct caam_deco **deco; /* DECO/CCB views */
-	struct caam_assurance *ac;
-	struct caam_queue_if *qi; /* QI control region */
+	struct caam_ctrl __iomem *ctrl; /* controller region */
+	struct caam_deco __iomem *deco; /* DECO/CCB views */
+	struct caam_assurance __iomem *assure;
+	struct caam_queue_if __iomem *qi; /* QI control region */
+	struct caam_job_ring __iomem *jr[4];	/* JobR's register space */
 
 	/*
 	 * Detected geometry block. Filled in from device tree if powerpc,
@@ -84,13 +82,18 @@ struct caam_drv_private {
 	u8 total_jobrs;		/* Total Job Rings in device */
 	u8 qi_present;		/* Nonzero if QI present in device */
 	int secvio_irq;		/* Security violation interrupt number */
+	int virt_en;		/* Virtualization enabled in CAAM */
 
-	/* which jr allocated to scatterlist crypto */
-	atomic_t tfm_count ____cacheline_aligned;
-	/* list of registered crypto algorithms (mk generic context handle?) */
-	struct list_head alg_list;
-	/* list of registered hash algorithms (mk generic context handle?) */
-	struct list_head hash_list;
+#define	RNG4_MAX_HANDLES 2
+	/* RNG4 block */
+	u32 rng4_sh_init;	/* This bitmap shows which of the State
+				   Handles of the RNG4 block are initialized
+				   by this driver */
+
+	struct clk *caam_ipg;
+	struct clk *caam_mem;
+	struct clk *caam_aclk;
+	struct clk *caam_emi_slow;
 
 	/*
 	 * debugfs entries for developer view into driver/device
@@ -99,11 +102,6 @@ struct caam_drv_private {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dfs_root;
 	struct dentry *ctl; /* controller dir */
-	struct dentry *ctl_rq_dequeued, *ctl_ob_enc_req, *ctl_ib_dec_req;
-	struct dentry *ctl_ob_enc_bytes, *ctl_ob_prot_bytes;
-	struct dentry *ctl_ib_dec_bytes, *ctl_ib_valid_bytes;
-	struct dentry *ctl_faultaddr, *ctl_faultdetail, *ctl_faultstatus;
-
 	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
 	struct dentry *ctl_kek, *ctl_tkek, *ctl_tdsk;
 #endif
@@ -111,4 +109,22 @@ struct caam_drv_private {
 
 void caam_jr_algapi_init(struct device *dev);
 void caam_jr_algapi_remove(struct device *dev);
+
+#ifdef CONFIG_DEBUG_FS
+static int caam_debugfs_u64_get(void *data, u64 *val)
+{
+	*val = caam64_to_cpu(*(u64 *)data);
+	return 0;
+}
+
+static int caam_debugfs_u32_get(void *data, u64 *val)
+{
+	*val = caam32_to_cpu(*(u32 *)data);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_debugfs_u32_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
+#endif
+
 #endif /* INTERN_H */

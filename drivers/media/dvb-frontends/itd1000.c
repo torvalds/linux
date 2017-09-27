@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include <linux/module.h>
@@ -30,6 +26,9 @@
 
 #include "itd1000.h"
 #include "itd1000_priv.h"
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 static int debug;
 module_param(debug, int, 0644);
@@ -52,10 +51,18 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 /* don't write more than one byte with flexcop behind */
 static int itd1000_write_regs(struct itd1000_state *state, u8 reg, u8 v[], u8 len)
 {
-	u8 buf[1+len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg = {
 		.addr = state->cfg->i2c_address, .flags = 0, .buf = buf, .len = len+1
 	};
+
+	if (1 + len > sizeof(buf)) {
+		printk(KERN_WARNING
+		       "itd1000: i2c wr reg=%04x: len=%d is too big!\n",
+		       reg, len);
+		return -EINVAL;
+	}
+
 	buf[0] = reg;
 	memcpy(&buf[1], v, len);
 
@@ -337,11 +344,10 @@ static int itd1000_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int itd1000_release(struct dvb_frontend *fe)
+static void itd1000_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops itd1000_tuner_ops = {

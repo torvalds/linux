@@ -317,7 +317,7 @@ csio_fcoe_isr(int irq, void *dev_id)
 
 	/* Disable the interrupt for this PCI function. */
 	if (hw->intr_mode == CSIO_IM_INTX)
-		csio_wr_reg32(hw, 0, MYPF_REG(PCIE_PF_CLI));
+		csio_wr_reg32(hw, 0, MYPF_REG(PCIE_PF_CLI_A));
 
 	/*
 	 * The read in the following function will flush the
@@ -383,17 +383,15 @@ csio_request_irqs(struct csio_hw *hw)
 	int rv, i, j, k = 0;
 	struct csio_msix_entries *entryp = &hw->msix_entries[0];
 	struct csio_scsi_cpu_info *info;
+	struct pci_dev *pdev = hw->pdev;
 
 	if (hw->intr_mode != CSIO_IM_MSIX) {
-		rv = request_irq(hw->pdev->irq, csio_fcoe_isr,
-					(hw->intr_mode == CSIO_IM_MSI) ?
-							0 : IRQF_SHARED,
-					KBUILD_MODNAME, hw);
+		rv = request_irq(pci_irq_vector(pdev, 0), csio_fcoe_isr,
+				hw->intr_mode == CSIO_IM_MSI ? 0 : IRQF_SHARED,
+				KBUILD_MODNAME, hw);
 		if (rv) {
-			if (hw->intr_mode == CSIO_IM_MSI)
-				pci_disable_msi(hw->pdev);
 			csio_err(hw, "Failed to allocate interrupt line.\n");
-			return -EINVAL;
+			goto out_free_irqs;
 		}
 
 		goto out;
@@ -402,22 +400,22 @@ csio_request_irqs(struct csio_hw *hw)
 	/* Add the MSIX vector descriptions */
 	csio_add_msix_desc(hw);
 
-	rv = request_irq(entryp[k].vector, csio_nondata_isr, 0,
+	rv = request_irq(pci_irq_vector(pdev, k), csio_nondata_isr, 0,
 			 entryp[k].desc, hw);
 	if (rv) {
 		csio_err(hw, "IRQ request failed for vec %d err:%d\n",
-			 entryp[k].vector, rv);
-		goto err;
+			 pci_irq_vector(pdev, k), rv);
+		goto out_free_irqs;
 	}
 
-	entryp[k++].dev_id = (void *)hw;
+	entryp[k++].dev_id = hw;
 
-	rv = request_irq(entryp[k].vector, csio_fwevt_isr, 0,
+	rv = request_irq(pci_irq_vector(pdev, k), csio_fwevt_isr, 0,
 			 entryp[k].desc, hw);
 	if (rv) {
 		csio_err(hw, "IRQ request failed for vec %d err:%d\n",
-			 entryp[k].vector, rv);
-		goto err;
+			 pci_irq_vector(pdev, k), rv);
+		goto out_free_irqs;
 	}
 
 	entryp[k++].dev_id = (void *)hw;
@@ -429,49 +427,29 @@ csio_request_irqs(struct csio_hw *hw)
 			struct csio_scsi_qset *sqset = &hw->sqset[i][j];
 			struct csio_q *q = hw->wrm.q_arr[sqset->iq_idx];
 
-			rv = request_irq(entryp[k].vector, csio_scsi_isr, 0,
+			rv = request_irq(pci_irq_vector(pdev, k), csio_scsi_isr, 0,
 					 entryp[k].desc, q);
 			if (rv) {
 				csio_err(hw,
 				       "IRQ request failed for vec %d err:%d\n",
-				       entryp[k].vector, rv);
-				goto err;
+				       pci_irq_vector(pdev, k), rv);
+				goto out_free_irqs;
 			}
 
-			entryp[k].dev_id = (void *)q;
+			entryp[k].dev_id = q;
 
 		} /* for all scsi cpus */
 	} /* for all ports */
 
 out:
 	hw->flags |= CSIO_HWF_HOST_INTR_ENABLED;
-
 	return 0;
 
-err:
-	for (i = 0; i < k; i++) {
-		entryp = &hw->msix_entries[i];
-		free_irq(entryp->vector, entryp->dev_id);
-	}
-	pci_disable_msix(hw->pdev);
-
+out_free_irqs:
+	for (i = 0; i < k; i++)
+		free_irq(pci_irq_vector(pdev, i), hw->msix_entries[i].dev_id);
+	pci_free_irq_vectors(hw->pdev);
 	return -EINVAL;
-}
-
-static void
-csio_disable_msix(struct csio_hw *hw, bool free)
-{
-	int i;
-	struct csio_msix_entries *entryp;
-	int cnt = hw->num_sqsets + CSIO_EXTRA_VECS;
-
-	if (free) {
-		for (i = 0; i < cnt; i++) {
-			entryp = &hw->msix_entries[i];
-			free_irq(entryp->vector, entryp->dev_id);
-		}
-	}
-	pci_disable_msix(hw->pdev);
 }
 
 /* Reduce per-port max possible CPUs */
@@ -499,11 +477,10 @@ csio_reduce_sqsets(struct csio_hw *hw, int cnt)
 static int
 csio_enable_msix(struct csio_hw *hw)
 {
-	int rv, i, j, k, n, min, cnt;
-	struct csio_msix_entries *entryp;
-	struct msix_entry *entries;
+	int i, j, k, n, min, cnt;
 	int extra = CSIO_EXTRA_VECS;
 	struct csio_scsi_cpu_info *info;
+	struct irq_affinity desc = { .pre_vectors = 2 };
 
 	min = hw->num_pports + extra;
 	cnt = hw->num_sqsets + extra;
@@ -512,56 +489,35 @@ csio_enable_msix(struct csio_hw *hw)
 	if (hw->flags & CSIO_HWF_USING_SOFT_PARAMS || !csio_is_hw_master(hw))
 		cnt = min_t(uint8_t, hw->cfg_niq, cnt);
 
-	entries = kzalloc(sizeof(struct msix_entry) * cnt, GFP_KERNEL);
-	if (!entries)
-		return -ENOMEM;
-
-	for (i = 0; i < cnt; i++)
-		entries[i].entry = (uint16_t)i;
-
 	csio_dbg(hw, "FW supp #niq:%d, trying %d msix's\n", hw->cfg_niq, cnt);
 
-	while ((rv = pci_enable_msix(hw->pdev, entries, cnt)) >= min)
-		cnt = rv;
-	if (!rv) {
-		if (cnt < (hw->num_sqsets + extra)) {
-			csio_dbg(hw, "Reducing sqsets to %d\n", cnt - extra);
-			csio_reduce_sqsets(hw, cnt - extra);
-		}
-	} else {
-		if (rv > 0) {
-			pci_disable_msix(hw->pdev);
-			csio_info(hw, "Not using MSI-X, remainder:%d\n", rv);
-		}
+	cnt = pci_alloc_irq_vectors_affinity(hw->pdev, min, cnt,
+			PCI_IRQ_MSIX | PCI_IRQ_AFFINITY, &desc);
+	if (cnt < 0)
+		return cnt;
 
-		kfree(entries);
-		return -ENOMEM;
-	}
-
-	/* Save off vectors */
-	for (i = 0; i < cnt; i++) {
-		entryp = &hw->msix_entries[i];
-		entryp->vector = entries[i].vector;
+	if (cnt < (hw->num_sqsets + extra)) {
+		csio_dbg(hw, "Reducing sqsets to %d\n", cnt - extra);
+		csio_reduce_sqsets(hw, cnt - extra);
 	}
 
 	/* Distribute vectors */
 	k = 0;
-	csio_set_nondata_intr_idx(hw, entries[k].entry);
-	csio_set_mb_intr_idx(csio_hw_to_mbm(hw), entries[k++].entry);
-	csio_set_fwevt_intr_idx(hw, entries[k++].entry);
+	csio_set_nondata_intr_idx(hw, k);
+	csio_set_mb_intr_idx(csio_hw_to_mbm(hw), k++);
+	csio_set_fwevt_intr_idx(hw, k++);
 
 	for (i = 0; i < hw->num_pports; i++) {
 		info = &hw->scsi_cpu_info[i];
 
 		for (j = 0; j < hw->num_scsi_msix_cpus; j++) {
 			n = (j % info->max_cpus) +  k;
-			hw->sqset[i][j].intr_idx = entries[n].entry;
+			hw->sqset[i][j].intr_idx = n;
 		}
 
 		k += info->max_cpus;
 	}
 
-	kfree(entries);
 	return 0;
 }
 
@@ -603,22 +559,26 @@ csio_intr_disable(struct csio_hw *hw, bool free)
 {
 	csio_hw_intr_disable(hw);
 
-	switch (hw->intr_mode) {
-	case CSIO_IM_MSIX:
-		csio_disable_msix(hw, free);
-		break;
-	case CSIO_IM_MSI:
-		if (free)
-			free_irq(hw->pdev->irq, hw);
-		pci_disable_msi(hw->pdev);
-		break;
-	case CSIO_IM_INTX:
-		if (free)
-			free_irq(hw->pdev->irq, hw);
-		break;
-	default:
-		break;
+	if (free) {
+		int i;
+
+		switch (hw->intr_mode) {
+		case CSIO_IM_MSIX:
+			for (i = 0; i < hw->num_sqsets + CSIO_EXTRA_VECS; i++) {
+				free_irq(pci_irq_vector(hw->pdev, i),
+					 hw->msix_entries[i].dev_id);
+			}
+			break;
+		case CSIO_IM_MSI:
+		case CSIO_IM_INTX:
+			free_irq(pci_irq_vector(hw->pdev, 0), hw);
+			break;
+		default:
+			break;
+		}
 	}
+
+	pci_free_irq_vectors(hw->pdev);
 	hw->intr_mode = CSIO_IM_NONE;
 	hw->flags &= ~CSIO_HWF_HOST_INTR_ENABLED;
 }

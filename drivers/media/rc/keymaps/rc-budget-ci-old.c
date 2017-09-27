@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,10 +70,10 @@ static struct rc_map_table budget_ci_old[] = {
 
 static struct rc_map_list budget_ci_old_map = {
 	.map = {
-		.scan    = budget_ci_old,
-		.size    = ARRAY_SIZE(budget_ci_old),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_BUDGET_CI_OLD,
+		.scan     = budget_ci_old,
+		.size     = ARRAY_SIZE(budget_ci_old),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_BUDGET_CI_OLD,
 	}
 };
 
@@ -91,4 +91,4 @@ module_init(init_rc_map_budget_ci_old)
 module_exit(exit_rc_map_budget_ci_old)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

@@ -8,7 +8,7 @@
 #define _LINUX_SIGNALFD_H
 
 #include <uapi/linux/signalfd.h>
-
+#include <linux/sched/signal.h>
 
 #ifdef CONFIG_SIGNALFD
 

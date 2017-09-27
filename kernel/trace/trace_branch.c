@@ -7,7 +7,6 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/irqflags.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/ftrace.h>
@@ -28,17 +27,20 @@ static DEFINE_MUTEX(branch_tracing_mutex);
 static struct trace_array *branch_tracer;
 
 static void
-probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
+probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
-	struct ftrace_event_call *call = &event_branch;
+	struct trace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
 	struct trace_array_cpu *data;
 	struct ring_buffer_event *event;
 	struct trace_branch *entry;
 	struct ring_buffer *buffer;
 	unsigned long flags;
-	int cpu, pc;
+	int pc;
 	const char *p;
+
+	if (current->trace_recursion & TRACE_BRANCH_BIT)
+		return;
 
 	/*
 	 * I would love to save just the ftrace_likely_data pointer, but
@@ -50,10 +52,10 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	if (unlikely(!tr))
 		return;
 
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
-	if (atomic_inc_return(&data->disabled) != 1)
+	raw_local_irq_save(flags);
+	current->trace_recursion |= TRACE_BRANCH_BIT;
+	data = this_cpu_ptr(tr->trace_buffer.data);
+	if (atomic_read(&data->disabled))
 		goto out;
 
 	pc = preempt_count();
@@ -66,28 +68,29 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry	= ring_buffer_event_data(event);
 
 	/* Strip off the path, only save the file */
-	p = f->file + strlen(f->file);
-	while (p >= f->file && *p != '/')
+	p = f->data.file + strlen(f->data.file);
+	while (p >= f->data.file && *p != '/')
 		p--;
 	p++;
 
-	strncpy(entry->func, f->func, TRACE_FUNC_SIZE);
+	strncpy(entry->func, f->data.func, TRACE_FUNC_SIZE);
 	strncpy(entry->file, p, TRACE_FILE_SIZE);
 	entry->func[TRACE_FUNC_SIZE] = 0;
 	entry->file[TRACE_FILE_SIZE] = 0;
-	entry->line = f->line;
+	entry->constant = f->constant;
+	entry->line = f->data.line;
 	entry->correct = val == expect;
 
-	if (!filter_check_discard(call, entry, buffer, event))
-		__buffer_unlock_commit(buffer, event);
+	if (!call_filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit_nostack(buffer, event);
 
  out:
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
+	current->trace_recursion &= ~TRACE_BRANCH_BIT;
+	raw_local_irq_restore(flags);
 }
 
 static inline
-void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
+void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
 	if (!branch_tracing_enabled)
 		return;
@@ -123,25 +126,14 @@ void disable_branch_tracing(void)
 	mutex_unlock(&branch_tracing_mutex);
 }
 
-static void start_branch_trace(struct trace_array *tr)
-{
-	enable_branch_tracing(tr);
-}
-
-static void stop_branch_trace(struct trace_array *tr)
-{
-	disable_branch_tracing();
-}
-
 static int branch_trace_init(struct trace_array *tr)
 {
-	start_branch_trace(tr);
-	return 0;
+	return enable_branch_tracing(tr);
 }
 
 static void branch_trace_reset(struct trace_array *tr)
 {
-	stop_branch_trace(tr);
+	disable_branch_tracing();
 }
 
 static enum print_line_t trace_branch_print(struct trace_iterator *iter,
@@ -151,22 +143,21 @@ static enum print_line_t trace_branch_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
-	if (trace_seq_printf(&iter->seq, "[%s] %s:%s:%d\n",
-			     field->correct ? "  ok  " : " MISS ",
-			     field->func,
-			     field->file,
-			     field->line))
-		return TRACE_TYPE_PARTIAL_LINE;
+	trace_seq_printf(&iter->seq, "[%s] %s:%s:%d\n",
+			 field->correct ? "  ok  " : " MISS ",
+			 field->func,
+			 field->file,
+			 field->line);
 
-	return TRACE_TYPE_HANDLED;
+	return trace_handle_return(&iter->seq);
 }
 
 static void branch_print_header(struct seq_file *s)
 {
 	seq_puts(s, "#           TASK-PID    CPU#    TIMESTAMP  CORRECT"
-		"  FUNC:FILE:LINE\n");
-	seq_puts(s, "#              | |       |          |         |   "
-		"    |\n");
+		    "  FUNC:FILE:LINE\n"
+		    "#              | |       |          |         |   "
+		    "    |\n");
 }
 
 static struct trace_event_functions trace_branch_funcs = {
@@ -193,7 +184,7 @@ __init static int init_branch_tracer(void)
 {
 	int ret;
 
-	ret = register_ftrace_event(&trace_branch_event);
+	ret = register_trace_event(&trace_branch_event);
 	if (!ret) {
 		printk(KERN_WARNING "Warning: could not register "
 				    "branch events\n");
@@ -205,13 +196,19 @@ core_initcall(init_branch_tracer);
 
 #else
 static inline
-void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
+void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
-void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect)
+void ftrace_likely_update(struct ftrace_likely_data *f, int val,
+			  int expect, int is_constant)
 {
+	/* A constant is always correct */
+	if (is_constant) {
+		f->constant++;
+		val = expect;
+	}
 	/*
 	 * I would love to have a trace point here instead, but the
 	 * trace point code is so inundated with unlikely and likely
@@ -222,9 +219,9 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect)
 
 	/* FIXME: Make this atomic! */
 	if (val == expect)
-		f->correct++;
+		f->data.correct++;
 	else
-		f->incorrect++;
+		f->data.incorrect++;
 }
 EXPORT_SYMBOL(ftrace_likely_update);
 
@@ -233,12 +230,12 @@ extern unsigned long __stop_annotated_branch_profile[];
 
 static int annotated_branch_stat_headers(struct seq_file *m)
 {
-	seq_printf(m, " correct incorrect  %% ");
-	seq_printf(m, "       Function                "
-			      "  File              Line\n"
-			      " ------- ---------  - "
-			      "       --------                "
-			      "  ----              ----\n");
+	seq_puts(m, " correct incorrect  % "
+		    "       Function                "
+		    "  File              Line\n"
+		    " ------- ---------  - "
+		    "       --------                "
+		    "  ----              ----\n");
 	return 0;
 }
 
@@ -255,29 +252,60 @@ static inline long get_incorrect_percent(struct ftrace_branch_data *p)
 	return percent;
 }
 
-static int branch_stat_show(struct seq_file *m, void *v)
+static const char *branch_stat_process_file(struct ftrace_branch_data *p)
 {
-	struct ftrace_branch_data *p = v;
 	const char *f;
-	long percent;
 
 	/* Only print the file, not the path */
 	f = p->file + strlen(p->file);
 	while (f >= p->file && *f != '/')
 		f--;
-	f++;
+	return ++f;
+}
+
+static void branch_stat_show(struct seq_file *m,
+			     struct ftrace_branch_data *p, const char *f)
+{
+	long percent;
 
 	/*
 	 * The miss is overlayed on correct, and hit on incorrect.
 	 */
 	percent = get_incorrect_percent(p);
 
-	seq_printf(m, "%8lu %8lu ",  p->correct, p->incorrect);
 	if (percent < 0)
-		seq_printf(m, "  X ");
+		seq_puts(m, "  X ");
 	else
 		seq_printf(m, "%3ld ", percent);
+
 	seq_printf(m, "%-30.30s %-20.20s %d\n", p->func, f, p->line);
+}
+
+static int branch_stat_show_normal(struct seq_file *m,
+				   struct ftrace_branch_data *p, const char *f)
+{
+	seq_printf(m, "%8lu %8lu ",  p->correct, p->incorrect);
+	branch_stat_show(m, p, f);
+	return 0;
+}
+
+static int annotate_branch_stat_show(struct seq_file *m, void *v)
+{
+	struct ftrace_likely_data *p = v;
+	const char *f;
+	int l;
+
+	f = branch_stat_process_file(&p->data);
+
+	if (!p->constant)
+		return branch_stat_show_normal(m, &p->data, f);
+
+	l = snprintf(NULL, 0, "/%lu", p->constant);
+	l = l > 8 ? 0 : 8 - l;
+
+	seq_printf(m, "%8lu/%lu %*lu ",
+		   p->data.correct, p->constant, l, p->data.incorrect);
+	branch_stat_show(m, &p->data, f);
 	return 0;
 }
 
@@ -289,7 +317,7 @@ static void *annotated_branch_stat_start(struct tracer_stat *trace)
 static void *
 annotated_branch_stat_next(void *v, int idx)
 {
-	struct ftrace_branch_data *p = v;
+	struct ftrace_likely_data *p = v;
 
 	++p;
 
@@ -338,7 +366,7 @@ static struct tracer_stat annotated_branch_stats = {
 	.stat_next = annotated_branch_stat_next,
 	.stat_cmp = annotated_branch_stat_cmp,
 	.stat_headers = annotated_branch_stat_headers,
-	.stat_show = branch_stat_show
+	.stat_show = annotate_branch_stat_show
 };
 
 __init static int init_annotated_branch_stats(void)
@@ -362,12 +390,12 @@ extern unsigned long __stop_branch_profile[];
 
 static int all_branch_stat_headers(struct seq_file *m)
 {
-	seq_printf(m, "   miss      hit    %% ");
-	seq_printf(m, "       Function                "
-			      "  File              Line\n"
-			      " ------- ---------  - "
-			      "       --------                "
-			      "  ----              ----\n");
+	seq_puts(m, "   miss      hit    % "
+		    "       Function                "
+		    "  File              Line\n"
+		    " ------- ---------  - "
+		    "       --------                "
+		    "  ----              ----\n");
 	return 0;
 }
 
@@ -389,12 +417,21 @@ all_branch_stat_next(void *v, int idx)
 	return p;
 }
 
+static int all_branch_stat_show(struct seq_file *m, void *v)
+{
+	struct ftrace_branch_data *p = v;
+	const char *f;
+
+	f = branch_stat_process_file(p);
+	return branch_stat_show_normal(m, p, f);
+}
+
 static struct tracer_stat all_branch_stats = {
 	.name = "branch_all",
 	.stat_start = all_branch_stat_start,
 	.stat_next = all_branch_stat_next,
 	.stat_headers = all_branch_stat_headers,
-	.stat_show = branch_stat_show
+	.stat_show = all_branch_stat_show
 };
 
 __init static int all_annotated_branch_stats(void)

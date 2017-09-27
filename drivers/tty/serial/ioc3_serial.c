@@ -377,7 +377,7 @@ static struct ioc3_port *get_ioc3_port(struct uart_port *the_port)
  *			called per port from attach...
  * @port: port to initialize
  */
-static int inline port_init(struct ioc3_port *port)
+static inline int port_init(struct ioc3_port *port)
 {
 	uint32_t sio_cr;
 	struct port_hooks *hooks = port->ip_hooks;
@@ -1430,7 +1430,7 @@ static int receive_chars(struct uart_port *the_port)
  * @pending: interrupts to handle
  */
 
-static int inline
+static inline int
 ioc3uart_intr_one(struct ioc3_submodule *is,
 			struct ioc3_driver_data *idd,
 			unsigned int pending)
@@ -1873,14 +1873,13 @@ static int ic3_request_port(struct uart_port *port)
 }
 
 /* Associate the uart functions above - given to serial core */
-static struct uart_ops ioc3_ops = {
+static const struct uart_ops ioc3_ops = {
 	.tx_empty = ic3_tx_empty,
 	.set_mctrl = ic3_set_mctrl,
 	.get_mctrl = ic3_get_mctrl,
 	.stop_tx = ic3_stop_tx,
 	.start_tx = ic3_start_tx,
 	.stop_rx = ic3_stop_rx,
-	.enable_ms = null_void_function,
 	.break_ctl = ic3_break_ctl,
 	.startup = ic3_startup,
 	.shutdown = ic3_shutdown,
@@ -2138,7 +2137,8 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 
 	/* register port with the serial core */
 
-	if ((ret = ioc3_serial_core_attach(is, idd)))
+	ret = ioc3_serial_core_attach(is, idd);
+	if (ret)
 		goto out4;
 
 	Num_of_ioc3_cards++;

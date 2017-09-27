@@ -15,9 +15,9 @@
 #include <linux/log2.h>
 #include <linux/module.h>
 
-#include <media/mt9v022.h>
+#include <media/i2c/mt9v022.h>
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-ctrls.h>
@@ -85,13 +85,13 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 
 /* MT9V022 has only one fixed colorspace per pixelcode */
 struct mt9v022_datafmt {
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	enum v4l2_colorspace		colorspace;
 };
 
 /* Find a data format by a pixel code in an array */
 static const struct mt9v022_datafmt *mt9v022_find_datafmt(
-	enum v4l2_mbus_pixelcode code, const struct mt9v022_datafmt *fmt,
+	u32 code, const struct mt9v022_datafmt *fmt,
 	int n)
 {
 	int i;
@@ -107,14 +107,14 @@ static const struct mt9v022_datafmt mt9v022_colour_fmts[] = {
 	 * Order important: first natively supported,
 	 * second supported with a GPIO extender
 	 */
-	{V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
 static const struct mt9v022_datafmt mt9v022_monochrome_fmts[] = {
 	/* Order important - see above */
-	{V4L2_MBUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
 };
 
 /* only registers with different addresses on different mt9v02x sensors */
@@ -276,13 +276,19 @@ static int mt9v022_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int mt9v022_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
+static int mt9v022_set_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct v4l2_rect rect = a->c;
+	struct v4l2_rect rect = sel->r;
 	int min_row, min_blank;
 	int ret;
+
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
+	    sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	/* Bayer format - even size lengths */
 	if (mt9v022->fmts == mt9v022_colour_fmts) {
@@ -350,36 +356,42 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	return 0;
 }
 
-static int mt9v022_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int mt9v022_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
-	a->c	= mt9v022->rect;
-	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.left = MT9V022_COLUMN_SKIP;
+		sel->r.top = MT9V022_ROW_SKIP;
+		sel->r.width = MT9V022_MAX_WIDTH;
+		sel->r.height = MT9V022_MAX_HEIGHT;
+		return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r = mt9v022->rect;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
-static int mt9v022_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+static int mt9v022_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
-	a->bounds.left			= MT9V022_COLUMN_SKIP;
-	a->bounds.top			= MT9V022_ROW_SKIP;
-	a->bounds.width			= MT9V022_MAX_WIDTH;
-	a->bounds.height		= MT9V022_MAX_HEIGHT;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
-}
-
-static int mt9v022_g_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
-{
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->width	= mt9v022->rect.width;
 	mf->height	= mt9v022->rect.height;
@@ -391,32 +403,33 @@ static int mt9v022_g_fmt(struct v4l2_subdev *sd,
 }
 
 static int mt9v022_s_fmt(struct v4l2_subdev *sd,
+			 const struct mt9v022_datafmt *fmt,
 			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct v4l2_crop a = {
-		.c = {
-			.left	= mt9v022->rect.left,
-			.top	= mt9v022->rect.top,
-			.width	= mf->width,
-			.height	= mf->height,
-		},
+	struct v4l2_subdev_selection sel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.target = V4L2_SEL_TGT_CROP,
+		.r.left = mt9v022->rect.left,
+		.r.top = mt9v022->rect.top,
+		.r.width = mf->width,
+		.r.height = mf->height,
 	};
 	int ret;
 
 	/*
 	 * The caller provides a supported format, as verified per call to
-	 * .try_mbus_fmt(), datawidth is from our supported format list
+	 * .set_fmt(FORMAT_TRY), datawidth is from our supported format list
 	 */
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_Y10_1X10:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y10_1X10:
 		if (mt9v022->model != MT9V022IX7ATM)
 			return -EINVAL;
 		break;
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
-	case V4L2_MBUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		if (mt9v022->model != MT9V022IX7ATC)
 			return -EINVAL;
 		break;
@@ -425,26 +438,30 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 	}
 
 	/* No support for scaling on this camera, just crop. */
-	ret = mt9v022_s_crop(sd, &a);
+	ret = mt9v022_set_selection(sd, NULL, &sel);
 	if (!ret) {
 		mf->width	= mt9v022->rect.width;
 		mf->height	= mt9v022->rect.height;
-		mt9v022->fmt	= mt9v022_find_datafmt(mf->code,
-					mt9v022->fmts, mt9v022->num_fmts);
-		mf->colorspace	= mt9v022->fmt->colorspace;
+		mt9v022->fmt	= fmt;
+		mf->colorspace	= fmt->colorspace;
 	}
 
 	return ret;
 }
 
-static int mt9v022_try_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
+static int mt9v022_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	const struct mt9v022_datafmt *fmt;
-	int align = mf->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
-		mf->code == V4L2_MBUS_FMT_SBGGR10_1X10;
+	int align = mf->code == MEDIA_BUS_FMT_SBGGR8_1X8 ||
+		mf->code == MEDIA_BUS_FMT_SBGGR10_1X10;
+
+	if (format->pad)
+		return -EINVAL;
 
 	v4l_bound_align_image(&mf->width, MT9V022_MIN_WIDTH,
 		MT9V022_MAX_WIDTH, align,
@@ -460,6 +477,9 @@ static int mt9v022_try_fmt(struct v4l2_subdev *sd,
 
 	mf->colorspace	= fmt->colorspace;
 
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		return mt9v022_s_fmt(sd, fmt, mf);
+	cfg->try_fmt = *mf;
 	return 0;
 }
 
@@ -583,7 +603,7 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
 			/* mt9v022 has minimum == default */
 			unsigned long range = gain->maximum - gain->minimum;
 			/* Valid values 16 to 64, 32 to 64 must be even. */
-			unsigned long gain_val = ((gain->val - gain->minimum) *
+			unsigned long gain_val = ((gain->val - (s32)gain->minimum) *
 					      48 + range / 2) / range + 16;
 
 			if (gain_val >= 32)
@@ -608,7 +628,7 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
 		} else {
 			struct v4l2_ctrl *exp = mt9v022->exposure;
 			unsigned long range = exp->maximum - exp->minimum;
-			unsigned long shutter = ((exp->val - exp->minimum) *
+			unsigned long shutter = ((exp->val - (s32)exp->minimum) *
 					479 + range / 2) / range + 1;
 
 			/*
@@ -750,7 +770,7 @@ static const struct v4l2_ctrl_ops mt9v022_ctrl_ops = {
 	.s_ctrl = mt9v022_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9v022_g_register,
 	.s_register	= mt9v022_s_register,
@@ -758,16 +778,17 @@ static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 	.s_power	= mt9v022_s_power,
 };
 
-static int mt9v022_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			    enum v4l2_mbus_pixelcode *code)
+static int mt9v022_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
-	if (index >= mt9v022->num_fmts)
+	if (code->pad || code->index >= mt9v022->num_fmts)
 		return -EINVAL;
 
-	*code = mt9v022->fmts[index].code;
+	code->code = mt9v022->fmts[code->index].code;
 	return 0;
 }
 
@@ -837,27 +858,29 @@ static int mt9v022_s_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_stream	= mt9v022_s_stream,
-	.s_mbus_fmt	= mt9v022_s_fmt,
-	.g_mbus_fmt	= mt9v022_g_fmt,
-	.try_mbus_fmt	= mt9v022_try_fmt,
-	.s_crop		= mt9v022_s_crop,
-	.g_crop		= mt9v022_g_crop,
-	.cropcap	= mt9v022_cropcap,
-	.enum_mbus_fmt	= mt9v022_enum_fmt,
 	.g_mbus_config	= mt9v022_g_mbus_config,
 	.s_mbus_config	= mt9v022_s_mbus_config,
 };
 
-static struct v4l2_subdev_sensor_ops mt9v022_subdev_sensor_ops = {
+static const struct v4l2_subdev_sensor_ops mt9v022_subdev_sensor_ops = {
 	.g_skip_top_lines	= mt9v022_g_skip_top_lines,
 };
 
-static struct v4l2_subdev_ops mt9v022_subdev_ops = {
+static const struct v4l2_subdev_pad_ops mt9v022_subdev_pad_ops = {
+	.enum_mbus_code = mt9v022_enum_mbus_code,
+	.get_selection	= mt9v022_get_selection,
+	.set_selection	= mt9v022_set_selection,
+	.get_fmt	= mt9v022_get_fmt,
+	.set_fmt	= mt9v022_set_fmt,
+};
+
+static const struct v4l2_subdev_ops mt9v022_subdev_ops = {
 	.core	= &mt9v022_subdev_core_ops,
 	.video	= &mt9v022_subdev_video_ops,
 	.sensor	= &mt9v022_subdev_sensor_ops,
+	.pad	= &mt9v022_subdev_pad_ops,
 };
 
 static int mt9v022_probe(struct i2c_client *client,

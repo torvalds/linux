@@ -1,14 +1,19 @@
-Say you've got a big slow raid 6, and an X-25E or three. Wouldn't it be
+============================
+A block layer cache (bcache)
+============================
+
+Say you've got a big slow raid 6, and an ssd or three. Wouldn't it be
 nice if you could use them as cache... Hence bcache.
 
 Wiki and git repositories are at:
-  http://bcache.evilpiepirate.org
-  http://evilpiepirate.org/git/linux-bcache.git
-  http://evilpiepirate.org/git/bcache-tools.git
+
+  - http://bcache.evilpiepirate.org
+  - http://evilpiepirate.org/git/linux-bcache.git
+  - http://evilpiepirate.org/git/bcache-tools.git
 
 It's designed around the performance characteristics of SSDs - it only allocates
 in erase block sized buckets, and it uses a hybrid btree/log to track cached
-extants (which can be anywhere from a single sector to the bucket size). It's
+extents (which can be anywhere from a single sector to the bucket size). It's
 designed to avoid random writes at all costs; it fills up an erase block
 sequentially, then issues a discard before reusing it.
 
@@ -37,17 +42,19 @@ to be flushed.
 
 Getting started:
 You'll need make-bcache from the bcache-tools repository. Both the cache device
-and backing device must be formatted before use.
+and backing device must be formatted before use::
+
   make-bcache -B /dev/sdb
   make-bcache -C /dev/sdc
 
 make-bcache has the ability to format multiple devices at the same time - if
 you format your backing devices and cache device at the same time, you won't
-have to manually attach:
+have to manually attach::
+
   make-bcache -B /dev/sda /dev/sdb -C /dev/sdc
 
 bcache-tools now ships udev rules, and bcache devices are known to the kernel
-immediately.  Without udev, you can manually register devices like this:
+immediately.  Without udev, you can manually register devices like this::
 
   echo /dev/sdb > /sys/fs/bcache/register
   echo /dev/sdc > /sys/fs/bcache/register
@@ -55,34 +62,39 @@ immediately.  Without udev, you can manually register devices like this:
 Registering the backing device makes the bcache device show up in /dev; you can
 now format it and use it as normal. But the first time using a new bcache
 device, it'll be running in passthrough mode until you attach it to a cache.
-See the section on attaching.
+If you are thinking about using bcache later, it is recommended to setup all your
+slow devices as bcache backing devices without a cache, and you can choose to add
+a caching device later.
+See 'ATTACHING' section below.
 
-The devices show up as:
+The devices show up as::
 
   /dev/bcache<N>
 
-As well as (with udev):
+As well as (with udev)::
 
   /dev/bcache/by-uuid/<uuid>
   /dev/bcache/by-label/<label>
 
-To get started:
+To get started::
 
   mkfs.ext4 /dev/bcache0
   mount /dev/bcache0 /mnt
 
 You can control bcache devices through sysfs at /sys/block/bcache<N>/bcache .
+You can also control them through /sys/fs//bcache/<cset-uuid>/ .
 
 Cache devices are managed as sets; multiple caches per set isn't supported yet
 but will allow for mirroring of metadata and dirty data in the future. Your new
 cache set shows up as /sys/fs/bcache/<UUID>
 
-ATTACHING:
+Attaching
+---------
 
 After your cache device and backing device are registered, the backing device
 must be attached to your cache set to enable caching. Attaching a backing
 device to a cache set is done thusly, with the UUID of the cache set in
-/sys/fs/bcache:
+/sys/fs/bcache::
 
   echo <CSET-UUID> > /sys/block/bcache0/bcache/attach
 
@@ -92,7 +104,7 @@ your bcache devices. If a backing device has data in a cache somewhere, the
 important if you have writeback caching turned on.
 
 If you're booting up and your cache device is gone and never coming back, you
-can force run the backing device:
+can force run the backing device::
 
   echo 1 > /sys/block/sdb/bcache/running
 
@@ -105,7 +117,8 @@ but all the cached data will be invalidated. If there was dirty data in the
 cache, don't expect the filesystem to be recoverable - you will have massive
 filesystem corruption, though ext4's fsck does work miracles.
 
-ERROR HANDLING:
+Error Handling
+--------------
 
 Bcache tries to transparently handle IO errors to/from the cache device without
 affecting normal operation; if it sees too many errors (the threshold is
@@ -127,20 +140,206 @@ the backing devices to passthrough mode.
    writeback mode). It currently doesn't do anything intelligent if it fails to
    read some of the dirty data, though.
 
-TROUBLESHOOTING PERFORMANCE:
+
+Howto/cookbook
+--------------
+
+A) Starting a bcache with a missing caching device
+
+If registering the backing device doesn't help, it's already there, you just need
+to force it to run without the cache::
+
+	host:~# echo /dev/sdb1 > /sys/fs/bcache/register
+	[  119.844831] bcache: register_bcache() error opening /dev/sdb1: device already registered
+
+Next, you try to register your caching device if it's present. However
+if it's absent, or registration fails for some reason, you can still
+start your bcache without its cache, like so::
+
+	host:/sys/block/sdb/sdb1/bcache# echo 1 > running
+
+Note that this may cause data loss if you were running in writeback mode.
+
+
+B) Bcache does not find its cache::
+
+	host:/sys/block/md5/bcache# echo 0226553a-37cf-41d5-b3ce-8b1e944543a8 > attach
+	[ 1933.455082] bcache: bch_cached_dev_attach() Couldn't find uuid for md5 in set
+	[ 1933.478179] bcache: __cached_dev_store() Can't attach 0226553a-37cf-41d5-b3ce-8b1e944543a8
+	[ 1933.478179] : cache set not found
+
+In this case, the caching device was simply not registered at boot
+or disappeared and came back, and needs to be (re-)registered::
+
+	host:/sys/block/md5/bcache# echo /dev/sdh2 > /sys/fs/bcache/register
+
+
+C) Corrupt bcache crashes the kernel at device registration time:
+
+This should never happen.  If it does happen, then you have found a bug!
+Please report it to the bcache development list: linux-bcache@vger.kernel.org
+
+Be sure to provide as much information that you can including kernel dmesg
+output if available so that we may assist.
+
+
+D) Recovering data without bcache:
+
+If bcache is not available in the kernel, a filesystem on the backing
+device is still available at an 8KiB offset. So either via a loopdev
+of the backing device created with --offset 8K, or any value defined by
+--data-offset when you originally formatted bcache with `make-bcache`.
+
+For example::
+
+	losetup -o 8192 /dev/loop0 /dev/your_bcache_backing_dev
+
+This should present your unmodified backing device data in /dev/loop0
+
+If your cache is in writethrough mode, then you can safely discard the
+cache device without loosing data.
+
+
+E) Wiping a cache device
+
+::
+
+	host:~# wipefs -a /dev/sdh2
+	16 bytes were erased at offset 0x1018 (bcache)
+	they were: c6 85 73 f6 4e 1a 45 ca 82 65 f5 7f 48 ba 6d 81
+
+After you boot back with bcache enabled, you recreate the cache and attach it::
+
+	host:~# make-bcache -C /dev/sdh2
+	UUID:                   7be7e175-8f4c-4f99-94b2-9c904d227045
+	Set UUID:               5bc072a8-ab17-446d-9744-e247949913c1
+	version:                0
+	nbuckets:               106874
+	block_size:             1
+	bucket_size:            1024
+	nr_in_set:              1
+	nr_this_dev:            0
+	first_bucket:           1
+	[  650.511912] bcache: run_cache_set() invalidating existing data
+	[  650.549228] bcache: register_cache() registered cache device sdh2
+
+start backing device with missing cache::
+
+	host:/sys/block/md5/bcache# echo 1 > running
+
+attach new cache::
+
+	host:/sys/block/md5/bcache# echo 5bc072a8-ab17-446d-9744-e247949913c1 > attach
+	[  865.276616] bcache: bch_cached_dev_attach() Caching md5 as bcache0 on set 5bc072a8-ab17-446d-9744-e247949913c1
+
+
+F) Remove or replace a caching device::
+
+	host:/sys/block/sda/sda7/bcache# echo 1 > detach
+	[  695.872542] bcache: cached_dev_detach_finish() Caching disabled for sda7
+
+	host:~# wipefs -a /dev/nvme0n1p4
+	wipefs: error: /dev/nvme0n1p4: probing initialization failed: Device or resource busy
+	Ooops, it's disabled, but not unregistered, so it's still protected
+
+We need to go and unregister it::
+
+	host:/sys/fs/bcache/b7ba27a1-2398-4649-8ae3-0959f57ba128# ls -l cache0
+	lrwxrwxrwx 1 root root 0 Feb 25 18:33 cache0 -> ../../../devices/pci0000:00/0000:00:1d.0/0000:70:00.0/nvme/nvme0/nvme0n1/nvme0n1p4/bcache/
+	host:/sys/fs/bcache/b7ba27a1-2398-4649-8ae3-0959f57ba128# echo 1 > stop
+	kernel: [  917.041908] bcache: cache_set_free() Cache set b7ba27a1-2398-4649-8ae3-0959f57ba128 unregistered
+
+Now we can wipe it::
+
+	host:~# wipefs -a /dev/nvme0n1p4
+	/dev/nvme0n1p4: 16 bytes were erased at offset 0x00001018 (bcache): c6 85 73 f6 4e 1a 45 ca 82 65 f5 7f 48 ba 6d 81
+
+
+G) dm-crypt and bcache
+
+First setup bcache unencrypted and then install dmcrypt on top of
+/dev/bcache<N> This will work faster than if you dmcrypt both the backing
+and caching devices and then install bcache on top. [benchmarks?]
+
+
+H) Stop/free a registered bcache to wipe and/or recreate it
+
+Suppose that you need to free up all bcache references so that you can
+fdisk run and re-register a changed partition table, which won't work
+if there are any active backing or caching devices left on it:
+
+1) Is it present in /dev/bcache* ? (there are times where it won't be)
+
+   If so, it's easy::
+
+	host:/sys/block/bcache0/bcache# echo 1 > stop
+
+2) But if your backing device is gone, this won't work::
+
+	host:/sys/block/bcache0# cd bcache
+	bash: cd: bcache: No such file or directory
+
+   In this case, you may have to unregister the dmcrypt block device that
+   references this bcache to free it up::
+
+	host:~# dmsetup remove oldds1
+	bcache: bcache_device_free() bcache0 stopped
+	bcache: cache_set_free() Cache set 5bc072a8-ab17-446d-9744-e247949913c1 unregistered
+
+   This causes the backing bcache to be removed from /sys/fs/bcache and
+   then it can be reused.  This would be true of any block device stacking
+   where bcache is a lower device.
+
+3) In other cases, you can also look in /sys/fs/bcache/::
+
+	host:/sys/fs/bcache# ls -l */{cache?,bdev?}
+	lrwxrwxrwx 1 root root 0 Mar  5 09:39 0226553a-37cf-41d5-b3ce-8b1e944543a8/bdev1 -> ../../../devices/virtual/block/dm-1/bcache/
+	lrwxrwxrwx 1 root root 0 Mar  5 09:39 0226553a-37cf-41d5-b3ce-8b1e944543a8/cache0 -> ../../../devices/virtual/block/dm-4/bcache/
+	lrwxrwxrwx 1 root root 0 Mar  5 09:39 5bc072a8-ab17-446d-9744-e247949913c1/cache0 -> ../../../devices/pci0000:00/0000:00:01.0/0000:01:00.0/ata10/host9/target9:0:0/9:0:0:0/block/sdl/sdl2/bcache/
+
+   The device names will show which UUID is relevant, cd in that directory
+   and stop the cache::
+
+	host:/sys/fs/bcache/5bc072a8-ab17-446d-9744-e247949913c1# echo 1 > stop
+
+   This will free up bcache references and let you reuse the partition for
+   other purposes.
+
+
+
+Troubleshooting performance
+---------------------------
 
 Bcache has a bunch of config options and tunables. The defaults are intended to
 be reasonable for typical desktop and server workloads, but they're not what you
 want for getting the best possible numbers when benchmarking.
+
+ - Backing device alignment
+
+   The default metadata size in bcache is 8k.  If your backing device is
+   RAID based, then be sure to align this by a multiple of your stride
+   width using `make-bcache --data-offset`. If you intend to expand your
+   disk array in the future, then multiply a series of primes by your
+   raid stripe size to get the disk multiples that you would like.
+
+   For example:  If you have a 64k stripe size, then the following offset
+   would provide alignment for many common RAID5 data spindle counts::
+
+	64k * 2*2*2*3*3*5*7 bytes = 161280k
+
+   That space is wasted, but for only 157.5MB you can grow your RAID 5
+   volume to the following data-spindle counts without re-aligning::
+
+	3,4,5,6,7,8,9,10,12,14,15,18,20,21 ...
 
  - Bad write performance
 
    If write performance is not what you expected, you probably wanted to be
    running in writeback mode, which isn't the default (not due to a lack of
    maturity, but simply because in writeback mode you'll lose data if something
-   happens to your SSD)
+   happens to your SSD)::
 
-   # echo writeback > /sys/block/bcache0/cache_mode
+	# echo writeback > /sys/block/bcache0/bcache/cache_mode
 
  - Bad performance, or traffic not going to the SSD that you'd expect
 
@@ -150,13 +349,13 @@ want for getting the best possible numbers when benchmarking.
    accessed data out of your cache.
 
    But if you want to benchmark reads from cache, and you start out with fio
-   writing an 8 gigabyte test file - so you want to disable that.
+   writing an 8 gigabyte test file - so you want to disable that::
 
-   # echo 0 > /sys/block/bcache0/bcache/sequential_cutoff
+	# echo 0 > /sys/block/bcache0/bcache/sequential_cutoff
 
-   To set it back to the default (4 mb), do
+   To set it back to the default (4 mb), do::
 
-   # echo 4M > /sys/block/bcache0/bcache/sequential_cutoff
+	# echo 4M > /sys/block/bcache0/bcache/sequential_cutoff
 
  - Traffic's still going to the spindle/still getting cache misses
 
@@ -169,10 +368,10 @@ want for getting the best possible numbers when benchmarking.
    throttles traffic if the latency exceeds a threshold (it does this by
    cranking down the sequential bypass).
 
-   You can disable this if you need to by setting the thresholds to 0:
+   You can disable this if you need to by setting the thresholds to 0::
 
-   # echo 0 > /sys/fs/bcache/<cache set>/congested_read_threshold_us
-   # echo 0 > /sys/fs/bcache/<cache set>/congested_write_threshold_us
+	# echo 0 > /sys/fs/bcache/<cache set>/congested_read_threshold_us
+	# echo 0 > /sys/fs/bcache/<cache set>/congested_write_threshold_us
 
    The default is 2000 us (2 milliseconds) for reads, and 20000 for writes.
 
@@ -193,7 +392,9 @@ want for getting the best possible numbers when benchmarking.
    Solution: warm the cache by doing writes, or use the testing branch (there's
    a fix for the issue there).
 
-SYSFS - BACKING DEVICE:
+
+Sysfs - backing device
+----------------------
 
 Available at /sys/block/<bdev>/bcache, /sys/block/bcache*/bcache and
 (if attached) /sys/fs/bcache/<cset-uuid>/bdev*
@@ -238,7 +439,7 @@ sequential_merge
   against all new requests to determine which new requests are sequential
   continuations of previous requests for the purpose of determining sequential
   cutoff. This is necessary if the sequential cutoff value is greater than the
-  maximum acceptable sequential size for any single request. 
+  maximum acceptable sequential size for any single request.
 
 state
   The backing device can be in one of four different states:
@@ -277,7 +478,8 @@ writeback_running
   still be added to the cache until it is mostly full; only meant for
   benchmarking. Defaults to on.
 
-SYSFS - BACKING DEVICE STATS:
+Sysfs - backing device stats
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are directories with these numbers for a running total, as well as
 versions that decay over the past day, hour and 5 minutes; they're also
@@ -286,14 +488,11 @@ aggregated in the cache set directory as well.
 bypassed
   Amount of IO (both reads and writes) that has bypassed the cache
 
-cache_hits
-cache_misses
-cache_hit_ratio
+cache_hits, cache_misses, cache_hit_ratio
   Hits and misses are counted per individual IO as bcache sees them; a
   partial hit is counted as a miss.
 
-cache_bypass_hits
-cache_bypass_misses
+cache_bypass_hits, cache_bypass_misses
   Hits and misses for IO that is intended to skip the cache are still counted,
   but broken out here.
 
@@ -305,7 +504,8 @@ cache_miss_collisions
 cache_readaheads
   Count of times readahead occurred.
 
-SYSFS - CACHE SET:
+Sysfs - cache set
+~~~~~~~~~~~~~~~~~
 
 Available at /sys/fs/bcache/<cset-uuid>
 
@@ -325,7 +525,7 @@ bucket_size
   Size of buckets
 
 cache<0..n>
-  Symlink to each of the cache devices comprising this cache set. 
+  Symlink to each of the cache devices comprising this cache set.
 
 cache_available_percent
   Percentage of cache device which doesn't contain dirty data, and could
@@ -343,8 +543,7 @@ flash_vol_create
   Echoing a size to this file (in human readable units, k/M/G) creates a thinly
   provisioned volume backed by the cache set.
 
-io_error_halflife
-io_error_limit
+io_error_halflife, io_error_limit
   These determines how many errors we accept before disabling the cache.
   Each error is decayed by the half life (in # ios).  If the decaying count
   reaches io_error_limit dirty data is written out and the cache is disabled.
@@ -368,7 +567,8 @@ unregister
   Detaches all backing devices and closes the cache devices; if dirty data is
   present it will disable writeback caching and wait for it to be flushed.
 
-SYSFS - CACHE SET INTERNAL:
+Sysfs - cache set internal
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This directory also exposes timings for a number of internal operations, with
 separate files for average duration, average frequency, last occurrence and max
@@ -397,7 +597,8 @@ cache_read_races
 trigger_gc
   Writing to this file forces garbage collection to run.
 
-SYSFS - CACHE DEVICE:
+Sysfs - Cache device
+~~~~~~~~~~~~~~~~~~~~
 
 Available at /sys/block/<cdev>/bcache
 

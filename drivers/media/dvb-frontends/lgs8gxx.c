@@ -17,10 +17,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <asm/div64.h>
@@ -672,7 +668,7 @@ static int lgs8gxx_write(struct dvb_frontend *fe, const u8 buf[], int len)
 
 static int lgs8gxx_set_fe(struct dvb_frontend *fe)
 {
-
+	struct dtv_frontend_properties *fe_params = &fe->dtv_property_cache;
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 
 	dprintk("%s\n", __func__);
@@ -689,17 +685,7 @@ static int lgs8gxx_set_fe(struct dvb_frontend *fe)
 
 	msleep(10);
 
-	return 0;
-}
-
-static int lgs8gxx_get_fe(struct dvb_frontend *fe)
-{
-	struct dtv_frontend_properties *fe_params = &fe->dtv_property_cache;
-	dprintk("%s\n", __func__);
-
 	/* TODO: get real readings from device */
-	/* inversion status */
-	fe_params->inversion = INVERSION_OFF;
 
 	/* bandwidth */
 	fe_params->bandwidth_hz = 8000000;
@@ -732,7 +718,8 @@ int lgs8gxx_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int lgs8gxx_read_status(struct dvb_frontend *fe, fe_status_t *fe_status)
+static int lgs8gxx_read_status(struct dvb_frontend *fe,
+			       enum fe_status *fe_status)
 {
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 	s8 ret;
@@ -994,7 +981,7 @@ static int lgs8gxx_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return lgs8gxx_write_reg(priv, 0x01, 0);
 }
 
-static struct dvb_frontend_ops lgs8gxx_ops = {
+static const struct dvb_frontend_ops lgs8gxx_ops = {
 	.delsys = { SYS_DTMB },
 	.info = {
 		.name = "Legend Silicon LGS8913/LGS8GXX DMB-TH",
@@ -1015,7 +1002,6 @@ static struct dvb_frontend_ops lgs8gxx_ops = {
 	.i2c_gate_ctrl = lgs8gxx_i2c_gate_ctrl,
 
 	.set_frontend = lgs8gxx_set_fe,
-	.get_frontend = lgs8gxx_get_fe,
 	.get_tune_settings = lgs8gxx_get_tune_settings,
 
 	.read_status = lgs8gxx_read_status,

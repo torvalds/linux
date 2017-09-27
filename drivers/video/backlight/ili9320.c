@@ -198,7 +198,7 @@ static void ili9320_setup_spi(struct ili9320 *ili,
 int ili9320_probe_spi(struct spi_device *spi,
 				struct ili9320_client *client)
 {
-	struct ili9320_platdata *cfg = spi->dev.platform_data;
+	struct ili9320_platdata *cfg = dev_get_platdata(&spi->dev);
 	struct device *dev = &spi->dev;
 	struct ili9320 *ili;
 	struct lcd_device *lcd;
@@ -219,10 +219,8 @@ int ili9320_probe_spi(struct spi_device *spi,
 	/* allocate and initialse our state */
 
 	ili = devm_kzalloc(&spi->dev, sizeof(struct ili9320), GFP_KERNEL);
-	if (ili == NULL) {
-		dev_err(dev, "no memory for device\n");
+	if (ili == NULL)
 		return -ENOMEM;
-	}
 
 	ili->access.spi.id = ILI9320_SPI_IDCODE | ILI9320_SPI_ID(1);
 
@@ -235,7 +233,8 @@ int ili9320_probe_spi(struct spi_device *spi,
 
 	ili9320_setup_spi(ili, spi);
 
-	lcd = lcd_device_register("ili9320", dev, ili, &ili9320_ops);
+	lcd = devm_lcd_device_register(&spi->dev, "ili9320", dev, ili,
+					&ili9320_ops);
 	if (IS_ERR(lcd)) {
 		dev_err(dev, "failed to register lcd device\n");
 		return PTR_ERR(lcd);
@@ -248,24 +247,16 @@ int ili9320_probe_spi(struct spi_device *spi,
 	ret = ili9320_power(ili, FB_BLANK_UNBLANK);
 	if (ret != 0) {
 		dev_err(dev, "failed to set lcd power state\n");
-		goto err_unregister;
+		return ret;
 	}
 
 	return 0;
-
- err_unregister:
-	lcd_device_unregister(lcd);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(ili9320_probe_spi);
 
 int ili9320_remove(struct ili9320 *ili)
 {
 	ili9320_power(ili, FB_BLANK_POWERDOWN);
-
-	lcd_device_unregister(ili->lcd);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ili9320_remove);

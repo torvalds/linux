@@ -7,48 +7,22 @@
  */
 
 #include <linux/module.h>
-#include <drm/drm_usb.h>
+#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
-static struct drm_driver driver;
-
-/*
- * There are many DisplayLink-based graphics products, all with unique PIDs.
- * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
- * We also require a match on SubClass (0x00) and Protocol (0x00),
- * which is compatible with all known USB 2.0 era graphics chips and firmware,
- * but allows DisplayLink to increment those for any future incompatible chips
- */
-static struct usb_device_id id_table[] = {
-	{.idVendor = 0x17e9, .bInterfaceClass = 0xff,
-	 .bInterfaceSubClass = 0x00,
-	 .bInterfaceProtocol = 0x00,
-	 .match_flags = USB_DEVICE_ID_MATCH_VENDOR |
-			USB_DEVICE_ID_MATCH_INT_CLASS |
-			USB_DEVICE_ID_MATCH_INT_SUBCLASS |
-			USB_DEVICE_ID_MATCH_INT_PROTOCOL,},
-	{},
-};
-MODULE_DEVICE_TABLE(usb, id_table);
-
-MODULE_LICENSE("GPL");
-
-static int udl_usb_probe(struct usb_interface *interface,
-			 const struct usb_device_id *id)
+static int udl_usb_suspend(struct usb_interface *interface,
+			   pm_message_t message)
 {
-	return drm_get_usb_dev(interface, id, &driver);
+	return 0;
 }
 
-static void udl_usb_disconnect(struct usb_interface *interface)
+static int udl_usb_resume(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 
-	drm_kms_helper_poll_disable(dev);
-	drm_connector_unplug_all(dev);
-	udl_fbdev_unplug(dev);
-	udl_drop_usb(dev);
-	drm_unplug_dev(dev);
+	udl_modeset_restore(dev);
+	return 0;
 }
 
 static const struct vm_operations_struct udl_gem_vm_ops = {
@@ -65,10 +39,7 @@ static const struct file_operations udl_driver_fops = {
 	.read = drm_read,
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
-	.fasync = drm_fasync,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
@@ -78,16 +49,16 @@ static struct drm_driver driver = {
 	.unload = udl_driver_unload,
 
 	/* gem hooks */
-	.gem_init_object = udl_gem_init_object,
 	.gem_free_object = udl_gem_free_object,
 	.gem_vm_ops = &udl_gem_vm_ops,
 
 	.dumb_create = udl_dumb_create,
 	.dumb_map_offset = udl_gem_mmap,
-	.dumb_destroy = udl_dumb_destroy,
 	.fops = &udl_driver_fops,
 
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = udl_gem_prime_export,
 	.gem_prime_import = udl_gem_prime_import,
 
 	.name = DRIVER_NAME,
@@ -98,22 +69,67 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+static int udl_usb_probe(struct usb_interface *interface,
+			 const struct usb_device_id *id)
+{
+	struct usb_device *udev = interface_to_usbdev(interface);
+	struct drm_device *dev;
+	int r;
+
+	dev = drm_dev_alloc(&driver, &interface->dev);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+
+	r = drm_dev_register(dev, (unsigned long)udev);
+	if (r)
+		goto err_free;
+
+	usb_set_intfdata(interface, dev);
+	DRM_INFO("Initialized udl on minor %d\n", dev->primary->index);
+
+	return 0;
+
+err_free:
+	drm_dev_unref(dev);
+	return r;
+}
+
+static void udl_usb_disconnect(struct usb_interface *interface)
+{
+	struct drm_device *dev = usb_get_intfdata(interface);
+
+	drm_kms_helper_poll_disable(dev);
+	udl_fbdev_unplug(dev);
+	udl_drop_usb(dev);
+	drm_dev_unplug(dev);
+}
+
+/*
+ * There are many DisplayLink-based graphics products, all with unique PIDs.
+ * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
+ * We also require a match on SubClass (0x00) and Protocol (0x00),
+ * which is compatible with all known USB 2.0 era graphics chips and firmware,
+ * but allows DisplayLink to increment those for any future incompatible chips
+ */
+static const struct usb_device_id id_table[] = {
+	{.idVendor = 0x17e9, .bInterfaceClass = 0xff,
+	 .bInterfaceSubClass = 0x00,
+	 .bInterfaceProtocol = 0x00,
+	 .match_flags = USB_DEVICE_ID_MATCH_VENDOR |
+			USB_DEVICE_ID_MATCH_INT_CLASS |
+			USB_DEVICE_ID_MATCH_INT_SUBCLASS |
+			USB_DEVICE_ID_MATCH_INT_PROTOCOL,},
+	{},
+};
+MODULE_DEVICE_TABLE(usb, id_table);
+
 static struct usb_driver udl_driver = {
 	.name = "udl",
 	.probe = udl_usb_probe,
 	.disconnect = udl_usb_disconnect,
+	.suspend = udl_usb_suspend,
+	.resume = udl_usb_resume,
 	.id_table = id_table,
 };
-
-static int __init udl_init(void)
-{
-	return drm_usb_init(&driver, &udl_driver);
-}
-
-static void __exit udl_exit(void)
-{
-	drm_usb_exit(&driver, &udl_driver);
-}
-
-module_init(udl_init);
-module_exit(udl_exit);
+module_usb_driver(udl_driver);
+MODULE_LICENSE("GPL");

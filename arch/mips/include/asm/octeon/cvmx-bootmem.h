@@ -95,6 +95,7 @@ struct cvmx_bootmem_named_block_desc {
  * positions for backwards compatibility.
  */
 struct cvmx_bootmem_desc {
+#if defined(__BIG_ENDIAN_BITFIELD) || defined(CVMX_BUILD_FOR_LINUX_HOST)
 	/* spinlock to control access to list */
 	uint32_t lock;
 	/* flags for indicating various conditions */
@@ -120,7 +121,20 @@ struct cvmx_bootmem_desc {
 	uint32_t named_block_name_len;
 	/* address of named memory block descriptors */
 	uint64_t named_block_array_addr;
+#else                           /* __LITTLE_ENDIAN */
+	uint32_t flags;
+	uint32_t lock;
+	uint64_t head_addr;
 
+	uint32_t minor_version;
+	uint32_t major_version;
+	uint64_t app_data_addr;
+	uint64_t app_data_size;
+
+	uint32_t named_block_name_len;
+	uint32_t named_block_num_blocks;
+	uint64_t named_block_array_addr;
+#endif
 };
 
 /**
@@ -240,6 +254,34 @@ extern void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address,
 extern void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr,
 					    uint64_t max_addr, uint64_t align,
 					    char *name);
+
+/**
+ * Allocate if needed a block of memory from a specific range of the
+ * free list that was passed to the application by the bootloader, and
+ * assign it a name in the global named block table.  (part of the
+ * cvmx_bootmem_descriptor_t structure) Named blocks can later be
+ * freed.  If the requested name block is already allocated, return
+ * the pointer to block of memory.  If request cannot be satisfied
+ * within the address range specified, NULL is returned
+ *
+ * @param size   Size in bytes of block to allocate
+ * @param min_addr  minimum address of range
+ * @param max_addr  maximum address of range
+ * @param align  Alignment of memory to be allocated. (must be a power of 2)
+ * @param name   name of block - must be less than CVMX_BOOTMEM_NAME_LEN bytes
+ * @param init   Initialization function
+ *
+ * The initialization function is optional, if omitted the named block
+ * is initialized to all zeros when it is created, i.e. once.
+ *
+ * @return pointer to block of memory, NULL on error
+ */
+void *cvmx_bootmem_alloc_named_range_once(uint64_t size,
+					  uint64_t min_addr,
+					  uint64_t max_addr,
+					  uint64_t align,
+					  char *name,
+					  void (*init) (void *));
 
 extern int cvmx_bootmem_free_named(char *name);
 

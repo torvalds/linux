@@ -18,11 +18,9 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#include "cx231xx.h"
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -35,11 +33,8 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/cx2341x.h>
+#include <media/drv-intf/cx2341x.h>
 #include <media/tuner.h>
-#include <linux/usb.h>
-
-#include "cx231xx.h"
 
 #define CX231xx_FIRM_IMAGE_SIZE 376836
 #define CX231xx_FIRM_IMAGE_NAME "v4l-cx23885-enc.fw"
@@ -90,10 +85,10 @@ static unsigned int v4l_debug = 1;
 module_param(v4l_debug, int, 0644);
 MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
 
-#define dprintk(level, fmt, arg...)\
-	do { if (v4l_debug >= level) \
-		pr_info("%s: " fmt, \
-		(dev) ? dev->name : "cx231xx[?]", ## arg); \
+#define dprintk(level, fmt, arg...)	\
+	do {				\
+		if (v4l_debug >= level) \
+			printk(KERN_DEBUG pr_fmt(fmt), ## arg); \
 	} while (0)
 
 static struct cx231xx_tvnorm cx231xx_tvnorms[] = {
@@ -361,7 +356,7 @@ static int wait_for_mci_complete(struct cx231xx *dev)
 
 		if (count++ > 100) {
 			dprintk(3, "ERROR: Timeout - gpio=%x\n", gpio);
-			return -1;
+			return -EIO;
 		}
 	}
 	return 0;
@@ -857,7 +852,7 @@ static int cx231xx_find_mailbox(struct cx231xx *dev)
 		}
 	}
 	dprintk(3, "Mailbox signature values not found!\n");
-	return -1;
+	return -EIO;
 }
 
 static void mci_write_memory_to_gpio(struct cx231xx *dev, u32 address, u32 value,
@@ -961,13 +956,14 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	p_fw = p_current_fw;
 	if (p_current_fw == NULL) {
 		dprintk(2, "FAIL!!!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	p_buffer = vmalloc(4096);
 	if (p_buffer == NULL) {
 		dprintk(2, "FAIL!!!\n");
-		return -1;
+		vfree(p_current_fw);
+		return -ENOMEM;
 	}
 
 	dprintk(2, "%s()\n", __func__);
@@ -988,31 +984,44 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 		IVTV_REG_APU, 0);
 
 	if (retval != 0) {
-		pr_err("%s: Error with mc417_register_write\n", __func__);
-		return -1;
+		dev_err(dev->dev,
+			"%s: Error with mc417_register_write\n", __func__);
+		vfree(p_current_fw);
+		vfree(p_buffer);
+		return retval;
 	}
 
 	retval = request_firmware(&firmware, CX231xx_FIRM_IMAGE_NAME,
-				  &dev->udev->dev);
+				  dev->dev);
 
 	if (retval != 0) {
-		pr_err("ERROR: Hotplug firmware request failed (%s).\n",
+		dev_err(dev->dev,
+			"ERROR: Hotplug firmware request failed (%s).\n",
 			CX231xx_FIRM_IMAGE_NAME);
-		pr_err("Please fix your hotplug setup, the board will not work without firmware loaded!\n");
-		return -1;
+		dev_err(dev->dev,
+			"Please fix your hotplug setup, the board will not work without firmware loaded!\n");
+		vfree(p_current_fw);
+		vfree(p_buffer);
+		return retval;
 	}
 
 	if (firmware->size != CX231xx_FIRM_IMAGE_SIZE) {
-		pr_err("ERROR: Firmware size mismatch (have %zd, expected %d)\n",
+		dev_err(dev->dev,
+			"ERROR: Firmware size mismatch (have %zd, expected %d)\n",
 			firmware->size, CX231xx_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
-		return -1;
+		vfree(p_current_fw);
+		vfree(p_buffer);
+		return -EINVAL;
 	}
 
 	if (0 != memcmp(firmware->data, magic, 8)) {
-		pr_err("ERROR: Firmware magic mismatch, wrong file?\n");
+		dev_err(dev->dev,
+			"ERROR: Firmware magic mismatch, wrong file?\n");
 		release_firmware(firmware);
-		return -1;
+		vfree(p_current_fw);
+		vfree(p_buffer);
+		return -EINVAL;
 	}
 
 	initGPIO(dev);
@@ -1057,7 +1066,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	retval |= mc417_register_write(dev, IVTV_REG_HW_BLOCKS,
 		IVTV_CMD_HW_BLOCKS_RST);
 	if (retval < 0) {
-		pr_err("%s: Error with mc417_register_write\n",
+		dev_err(dev->dev,
+			"%s: Error with mc417_register_write\n",
 			__func__);
 		return retval;
 	}
@@ -1069,7 +1079,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	retval |= mc417_register_write(dev, IVTV_REG_VPU, value & 0xFFFFFFE8);
 
 	if (retval < 0) {
-		pr_err("%s: Error with mc417_register_write\n",
+		dev_err(dev->dev,
+			"%s: Error with mc417_register_write\n",
 			__func__);
 		return retval;
 	}
@@ -1114,29 +1125,32 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 	cx231xx_disable656(dev);
 	retval = cx231xx_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
-		dprintk(2, "%s() PING OK\n", __func__);
+		dprintk(2, "%s: PING OK\n", __func__);
 		retval = cx231xx_load_firmware(dev);
 		if (retval < 0) {
-			pr_err("%s() f/w load failed\n", __func__);
+			dev_err(dev->dev,
+				"%s: f/w load failed\n", __func__);
 			return retval;
 		}
 		retval = cx231xx_find_mailbox(dev);
 		if (retval < 0) {
-			pr_err("%s() mailbox < 0, error\n",
+			dev_err(dev->dev, "%s: mailbox < 0, error\n",
 				__func__);
-			return -1;
+			return retval;
 		}
 		dev->cx23417_mailbox = retval;
 		retval = cx231xx_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0);
 		if (retval < 0) {
-			pr_err("ERROR: cx23417 firmware ping failed!\n");
-			return -1;
+			dev_err(dev->dev,
+				"ERROR: cx23417 firmware ping failed!\n");
+			return retval;
 		}
 		retval = cx231xx_api_cmd(dev, CX2341X_ENC_GET_VERSION, 0, 1,
 			&version);
 		if (retval < 0) {
-			pr_err("ERROR: cx23417 firmware get encoder: version failed!\n");
-			return -1;
+			dev_err(dev->dev,
+				"ERROR: cx23417 firmware get encoder: version failed!\n");
+			return retval;
 		}
 		dprintk(1, "cx23417 firmware version is 0x%08x\n", version);
 		msleep(200);
@@ -1151,9 +1165,9 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 	}
 
 	cx231xx_enable656(dev);
-			/* stop mpeg capture */
-			cx231xx_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE,
-				 3, 0, 1, 3, 4);
+
+	/* stop mpeg capture */
+	cx231xx_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE, 3, 0, 1, 3, 4);
 
 	cx231xx_codec_settings(dev);
 	msleep(60);
@@ -1240,8 +1254,7 @@ static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 	struct cx231xx *dev = fh->dev;
 	unsigned long flags = 0;
 
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 
 	spin_lock_irqsave(&dev->video_mode.slock, flags);
 	if (dev->USE_ISO) {
@@ -1374,6 +1387,8 @@ static int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 	buffer_size = urb->actual_length;
 
 	buffer = kmalloc(buffer_size, GFP_ATOMIC);
+	if (!buffer)
+		return -ENOMEM;
 
 	memcpy(buffer, dma_q->ps_head, 3);
 	memcpy(buffer+3, p_buffer, buffer_size-3);
@@ -1416,8 +1431,9 @@ static int bb_buf_prepare(struct videobuf_queue *q,
 		if (!dev->video_mode.bulk_ctl.num_bufs)
 			urb_init = 1;
 	}
-	/*cx231xx_info("urb_init=%d dev->video_mode.max_pkt_size=%d\n",
-		urb_init, dev->video_mode.max_pkt_size);*/
+	dev_dbg(dev->dev,
+		"urb_init=%d dev->video_mode.max_pkt_size=%d\n",
+		urb_init, dev->video_mode.max_pkt_size);
 	dev->mode_tv = 1;
 
 	if (urb_init) {
@@ -1474,7 +1490,7 @@ static void bb_buf_release(struct videobuf_queue *q,
 	free_buffer(q, buf);
 }
 
-static struct videobuf_queue_ops cx231xx_qops = {
+static const struct videobuf_queue_ops cx231xx_qops = {
 	.buf_setup    = bb_buf_setup,
 	.buf_prepare  = bb_buf_prepare,
 	.buf_queue    = bb_buf_queue,
@@ -1482,6 +1498,27 @@ static struct videobuf_queue_ops cx231xx_qops = {
 };
 
 /* ------------------------------------------------------------------ */
+
+static int vidioc_cropcap(struct file *file, void *priv,
+			  struct v4l2_cropcap *cc)
+{
+	struct cx231xx_fh *fh = priv;
+	struct cx231xx *dev = fh->dev;
+	bool is_50hz = dev->encodernorm.id & V4L2_STD_625_50;
+
+	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	cc->bounds.left = 0;
+	cc->bounds.top = 0;
+	cc->bounds.width = dev->ts1.width;
+	cc->bounds.height = dev->ts1.height;
+	cc->defrect = cc->bounds;
+	cc->pixelaspect.numerator = is_50hz ? 54 : 11;
+	cc->pixelaspect.denominator = is_50hz ? 59 : 10;
+
+	return 0;
+}
 
 static int vidioc_g_std(struct file *file, void *fh0, v4l2_std_id *norm)
 {
@@ -1516,7 +1553,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 		dev->ts1.height = 576;
 		cx2341x_handler_set_50hz(&dev->mpeg_ctrl_handler, true);
 	}
-	call_all(dev, core, s_std, dev->norm);
+	call_all(dev, video, s_std, dev->norm);
 	/* do mode control overrides */
 	cx231xx_do_mode_ctrl_overrides(dev);
 
@@ -1529,10 +1566,12 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct cx231xx_fh  *fh  = file->private_data;
 	struct cx231xx *dev = fh->dev;
+	struct v4l2_subdev *sd;
 
 	dprintk(3, "enter vidioc_s_ctrl()\n");
 	/* Update the A/V core */
-	call_all(dev, core, s_ctrl, ctl);
+	v4l2_device_for_each_subdev(sd, &dev->v4l2_dev)
+		v4l2_s_ctrl(NULL, sd->ctrl_handler, ctl);
 	dprintk(3, "exit vidioc_s_ctrl()\n");
 	return 0;
 }
@@ -1563,7 +1602,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.width = dev->ts1.width;
 	f->fmt.pix.height = dev->ts1.height;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
-	f->fmt.pix.priv = 0;
 	dprintk(1, "VIDIOC_G_FMT: w: %d, h: %d\n",
 		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_g_fmt_vid_cap()\n");
@@ -1582,7 +1620,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.sizeimage = mpeglines * mpeglinesize;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.priv = 0;
 	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d\n",
 		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_try_fmt_vid_cap()\n");
@@ -1690,7 +1727,7 @@ static int mpeg_open(struct file *file)
 			    sizeof(struct cx231xx_buffer), fh, &dev->lock);
 /*
 	videobuf_queue_sg_init(&fh->vidq, &cx231xx_qops,
-			    &dev->udev->dev, &dev->ts1.slock,
+			    dev->dev, &dev->ts1.slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx231xx_buffer),
@@ -1800,14 +1837,13 @@ static unsigned int mpeg_poll(struct file *file,
 static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct cx231xx_fh *fh = file->private_data;
-	struct cx231xx *dev = fh->dev;
 
 	dprintk(2, "%s()\n", __func__);
 
 	return videobuf_mmap_mapper(&fh->vidq, vma);
 }
 
-static struct v4l2_file_operations mpeg_fops = {
+static const struct v4l2_file_operations mpeg_fops = {
 	.owner	       = THIS_MODULE,
 	.open	       = mpeg_open,
 	.release       = mpeg_release,
@@ -1828,6 +1864,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_input		 = cx231xx_g_input,
 	.vidioc_s_input		 = cx231xx_s_input,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
+	.vidioc_cropcap		 = vidioc_cropcap,
 	.vidioc_querycap	 = cx231xx_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
@@ -1861,13 +1898,9 @@ void cx231xx_417_unregister(struct cx231xx *dev)
 	dprintk(1, "%s()\n", __func__);
 	dprintk(3, "%s()\n", __func__);
 
-	if (dev->v4l_device) {
-		if (-1 != dev->v4l_device->minor)
-			video_unregister_device(dev->v4l_device);
-		else
-			video_device_release(dev->v4l_device);
+	if (video_is_registered(&dev->v4l_device)) {
+		video_unregister_device(&dev->v4l_device);
 		v4l2_ctrl_handler_free(&dev->mpeg_ctrl_handler.hdl);
-		dev->v4l_device = NULL;
 	}
 }
 
@@ -1875,13 +1908,15 @@ static int cx231xx_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 {
 	struct cx231xx *dev = container_of(cxhdl, struct cx231xx, mpeg_ctrl_handler);
 	int is_mpeg1 = val == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-	struct v4l2_mbus_framefmt fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 
 	/* fix videodecoder resolution */
-	fmt.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
-	fmt.height = cxhdl->height;
-	fmt.code = V4L2_MBUS_FMT_FIXED;
-	v4l2_subdev_call(dev->sd_cx25840, video, s_mbus_fmt, &fmt);
+	format.format.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
+	format.format.height = cxhdl->height;
+	format.format.code = MEDIA_BUS_FMT_FIXED;
+	v4l2_subdev_call(dev->sd_cx25840, pad, set_fmt, NULL, &format);
 	return 0;
 }
 
@@ -1897,33 +1932,28 @@ static int cx231xx_s_audio_sampling_freq(struct cx2341x_handler *cxhdl, u32 idx)
 	return 0;
 }
 
-static struct cx2341x_handler_ops cx231xx_ops = {
+static const struct cx2341x_handler_ops cx231xx_ops = {
 	/* needed for the video clock freq */
 	.s_audio_sampling_freq = cx231xx_s_audio_sampling_freq,
 	/* needed for setting up the video resolution */
 	.s_video_encoding = cx231xx_s_video_encoding,
 };
 
-static struct video_device *cx231xx_video_dev_alloc(
+static void cx231xx_video_dev_init(
 	struct cx231xx *dev,
 	struct usb_device *usbdev,
-	struct video_device *template,
-	char *type)
+	struct video_device *vfd,
+	const struct video_device *template,
+	const char *type)
 {
-	struct video_device *vfd;
-
 	dprintk(1, "%s()\n", __func__);
-	vfd = video_device_alloc();
-	if (NULL == vfd)
-		return NULL;
 	*vfd = *template;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
 		type, cx231xx_boards[dev->model].name);
 
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->lock = &dev->lock;
-	vfd->release = video_device_release;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
+	vfd->release = video_device_release_empty;
 	vfd->ctrl_handler = &dev->mpeg_ctrl_handler.hdl;
 	video_set_drvdata(vfd, dev);
 	if (dev->tuner_type == TUNER_ABSENT) {
@@ -1932,9 +1962,6 @@ static struct video_device *cx231xx_video_dev_alloc(
 		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
 		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
 	}
-
-	return vfd;
-
 }
 
 int cx231xx_417_register(struct cx231xx *dev)
@@ -1977,9 +2004,9 @@ int cx231xx_417_register(struct cx231xx *dev)
 	cx2341x_handler_set_50hz(&dev->mpeg_ctrl_handler, false);
 
 	/* Allocate and initialize V4L video device */
-	dev->v4l_device = cx231xx_video_dev_alloc(dev,
-		dev->udev, &cx231xx_mpeg_template, "mpeg");
-	err = video_register_device(dev->v4l_device,
+	cx231xx_video_dev_init(dev, dev->udev,
+			&dev->v4l_device, &cx231xx_mpeg_template, "mpeg");
+	err = video_register_device(&dev->v4l_device,
 		VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
 		dprintk(3, "%s: can't register mpeg device\n", dev->name);
@@ -1988,7 +2015,7 @@ int cx231xx_417_register(struct cx231xx *dev)
 	}
 
 	dprintk(3, "%s: registered device video%d [mpeg]\n",
-	       dev->name, dev->v4l_device->num);
+	       dev->name, dev->v4l_device.num);
 
 	return 0;
 }

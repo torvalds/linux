@@ -6,7 +6,7 @@ config VSOCKETS
 	tristate "Virtual Socket protocol"
 	help
 	  Virtual Socket Protocol is a socket protocol similar to TCP/IP
-	  allowing comunication between Virtual Machines and hypervisor
+	  allowing communication between Virtual Machines and hypervisor
 	  or host.
 
 	  You should also select one or more hypervisor-specific transports
@@ -26,3 +26,35 @@ config VMWARE_VMCI_VSOCKETS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called vmw_vsock_vmci_transport. If unsure, say N.
+
+config VIRTIO_VSOCKETS
+	tristate "virtio transport for Virtual Sockets"
+	depends on VSOCKETS && VIRTIO
+	select VIRTIO_VSOCKETS_COMMON
+	help
+	  This module implements a virtio transport for Virtual Sockets.
+
+	  Enable this transport if your Virtual Machine host supports Virtual
+	  Sockets over virtio.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called vmw_vsock_virtio_transport. If unsure, say N.
+
+config VIRTIO_VSOCKETS_COMMON
+	tristate
+	help
+	  This option is selected by any driver which needs to access
+	  the virtio_vsock.  The module will be called
+	  vmw_vsock_virtio_transport_common.
+
+config HYPERV_VSOCKETS
+	tristate "Hyper-V transport for Virtual Sockets"
+	depends on VSOCKETS && HYPERV
+	help
+	  This module implements a Hyper-V transport for Virtual Sockets.
+
+	  Enable this transport if your Virtual Machine host supports Virtual
+	  Sockets over Hyper-V VMBus.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called hv_sock. If unsure, say N.

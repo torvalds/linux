@@ -50,6 +50,9 @@ struct zynq_pll {
 #define PLLCTRL_RESET_MASK	1
 #define PLLCTRL_RESET_SHIFT	0
 
+#define PLL_FBDIV_MIN	13
+#define PLL_FBDIV_MAX	66
+
 /**
  * zynq_pll_round_rate() - Round a clock frequency
  * @hw:		Handle between common and hardware-specific interfaces
@@ -63,10 +66,10 @@ static long zynq_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	u32 fbdiv;
 
 	fbdiv = DIV_ROUND_CLOSEST(rate, *prate);
-	if (fbdiv < 13)
-		fbdiv = 13;
-	else if (fbdiv > 66)
-		fbdiv = 66;
+	if (fbdiv < PLL_FBDIV_MIN)
+		fbdiv = PLL_FBDIV_MIN;
+	else if (fbdiv > PLL_FBDIV_MAX)
+		fbdiv = PLL_FBDIV_MAX;
 
 	return *prate * fbdiv;
 }
@@ -87,7 +90,7 @@ static unsigned long zynq_pll_recalc_rate(struct clk_hw *hw,
 	 * makes probably sense to redundantly save fbdiv in the struct
 	 * zynq_pll to save the IO access.
 	 */
-	fbdiv = (readl(clk->pll_ctrl) & PLLCTRL_FBDIV_MASK) >>
+	fbdiv = (clk_readl(clk->pll_ctrl) & PLLCTRL_FBDIV_MASK) >>
 			PLLCTRL_FBDIV_SHIFT;
 
 	return parent_rate * fbdiv;
@@ -109,7 +112,7 @@ static int zynq_pll_is_enabled(struct clk_hw *hw)
 
 	spin_lock_irqsave(clk->lock, flags);
 
-	reg = readl(clk->pll_ctrl);
+	reg = clk_readl(clk->pll_ctrl);
 
 	spin_unlock_irqrestore(clk->lock, flags);
 
@@ -135,10 +138,10 @@ static int zynq_pll_enable(struct clk_hw *hw)
 	/* Power up PLL and wait for lock */
 	spin_lock_irqsave(clk->lock, flags);
 
-	reg = readl(clk->pll_ctrl);
+	reg = clk_readl(clk->pll_ctrl);
 	reg &= ~(PLLCTRL_RESET_MASK | PLLCTRL_PWRDWN_MASK);
-	writel(reg, clk->pll_ctrl);
-	while (!(readl(clk->pll_status) & (1 << clk->lockbit)))
+	clk_writel(reg, clk->pll_ctrl);
+	while (!(clk_readl(clk->pll_status) & (1 << clk->lockbit)))
 		;
 
 	spin_unlock_irqrestore(clk->lock, flags);
@@ -165,9 +168,9 @@ static void zynq_pll_disable(struct clk_hw *hw)
 	/* shut down PLL */
 	spin_lock_irqsave(clk->lock, flags);
 
-	reg = readl(clk->pll_ctrl);
+	reg = clk_readl(clk->pll_ctrl);
 	reg |= PLLCTRL_RESET_MASK | PLLCTRL_PWRDWN_MASK;
-	writel(reg, clk->pll_ctrl);
+	clk_writel(reg, clk->pll_ctrl);
 
 	spin_unlock_irqrestore(clk->lock, flags);
 }
@@ -182,7 +185,13 @@ static const struct clk_ops zynq_pll_ops = {
 
 /**
  * clk_register_zynq_pll() - Register PLL with the clock framework
- * @np	Pointer to the DT device node
+ * @name	PLL name
+ * @parent	Parent clock name
+ * @pll_ctrl	Pointer to PLL control register
+ * @pll_status	Pointer to PLL status register
+ * @lock_index	Bit index to this PLL's lock status bit in @pll_status
+ * @lock	Register lock
+ * Returns handle to the registered clock.
  */
 struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 		void __iomem *pll_ctrl, void __iomem *pll_status, u8 lock_index,
@@ -202,10 +211,8 @@ struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 	};
 
 	pll = kmalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: Could not allocate Zynq PLL clk.\n", __func__);
+	if (!pll)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* Populate the struct */
 	pll->hw.init = &initd;
@@ -216,9 +223,9 @@ struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 
 	spin_lock_irqsave(pll->lock, flags);
 
-	reg = readl(pll->pll_ctrl);
+	reg = clk_readl(pll->pll_ctrl);
 	reg &= ~PLLCTRL_BPQUAL_MASK;
-	writel(reg, pll->pll_ctrl);
+	clk_writel(reg, pll->pll_ctrl);
 
 	spin_unlock_irqrestore(pll->lock, flags);
 

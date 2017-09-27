@@ -21,8 +21,11 @@
 #include <asm/byteorder.h>
 
 #include <linux/socket.h>
+#include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/if_pppol2tp.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 
 /* For user-space programs to pick up these definitions
  * which they wouldn't get otherwise without defining __KERNEL__
@@ -46,7 +49,7 @@ struct pppoe_addr {
  * PPTP addressing definition
  */
 struct pptp_addr {
-	__be16		call_id;
+	__u16		call_id;
 	struct in_addr	sin_addr;
 };
 

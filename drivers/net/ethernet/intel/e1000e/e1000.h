@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2015 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 /* Linux PRO/1000 Ethernet Driver main header file */
 
@@ -41,12 +34,13 @@
 #include <linux/pci-aspm.h>
 #include <linux/crc32.h>
 #include <linux/if_vlan.h>
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/ptp_classify.h>
 #include <linux/mii.h>
 #include <linux/mdio.h>
+#include <linux/pm_qos.h>
 #include "hw.h"
 
 struct e1000_info;
@@ -90,9 +84,6 @@ struct e1000_info;
 
 #define E1000_MNG_VLAN_NONE		(-1)
 
-/* Number of packet split data buffers (not including the header buffer) */
-#define PS_PAGE_BUFFERS			(MAX_PS_BUFFERS - 1)
-
 #define DEFAULT_JUMBO			9234
 
 /* Time to wait before putting the device into D3 if there's no link (in ms). */
@@ -107,6 +98,8 @@ struct e1000_info;
 #define DEFAULT_RADV			8
 #define BURST_RDTR			0x20
 #define BURST_RADV			0x20
+#define PCICFG_DESC_RING_STATUS		0xe4
+#define FLUSH_DESC_REQUIRED		0x100
 
 /* in the case of WTHRESH, it appears at least the 82571/2 hardware
  * writes back 4 descriptors when WTHRESH=5, and 3 descriptors when
@@ -116,18 +109,18 @@ struct e1000_info;
 #define E1000_TXDCTL_DMA_BURST_ENABLE                          \
 	(E1000_TXDCTL_GRAN | /* set descriptor granularity */  \
 	 E1000_TXDCTL_COUNT_DESC |                             \
-	 (1 << 16) | /* wthresh must be +1 more than desired */\
-	 (1 << 8)  | /* hthresh */                             \
-	 0x1f)       /* pthresh */
+	 (1u << 16) | /* wthresh must be +1 more than desired */\
+	 (1u << 8)  | /* hthresh */                             \
+	 0x1f)        /* pthresh */
 
 #define E1000_RXDCTL_DMA_BURST_ENABLE                          \
 	(0x01000000 | /* set descriptor granularity */         \
-	 (4 << 16)  | /* set writeback threshold    */         \
-	 (4 << 8)   | /* set prefetch threshold     */         \
+	 (4u << 16) | /* set writeback threshold    */         \
+	 (4u << 8)  | /* set prefetch threshold     */         \
 	 0x20)        /* set hthresh                */
 
-#define E1000_TIDV_FPD (1 << 31)
-#define E1000_RDTR_FPD (1 << 31)
+#define E1000_TIDV_FPD BIT(31)
+#define E1000_RDTR_FPD BIT(31)
 
 enum e1000_boards {
 	board_82571,
@@ -142,6 +135,8 @@ enum e1000_boards {
 	board_pchlan,
 	board_pch2lan,
 	board_pch_lpt,
+	board_pch_spt,
+	board_pch_cnp
 };
 
 struct e1000_ps_page {
@@ -272,12 +267,14 @@ struct e1000_adapter {
 	u32 tx_head_addr;
 	u32 tx_fifo_size;
 	u32 tx_dma_failed;
+	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
 
 	/* Rx */
-	bool (*clean_rx) (struct e1000_ring *ring, int *work_done,
-			  int work_to_do) ____cacheline_aligned_in_smp;
-	void (*alloc_rx_buf) (struct e1000_ring *ring, int cleaned_count,
-			      gfp_t gfp);
+	bool (*clean_rx)(struct e1000_ring *ring, int *work_done,
+			 int work_to_do) ____cacheline_aligned_in_smp;
+	void (*alloc_rx_buf)(struct e1000_ring *ring, int cleaned_count,
+			     gfp_t gfp);
 	struct e1000_ring *rx_ring;
 
 	u32 rx_int_delay;
@@ -336,7 +333,6 @@ struct e1000_adapter {
 	struct work_struct update_phy_task;
 	struct work_struct print_hang_task;
 
-	bool idle_check;
 	int phy_hang_count;
 
 	u16 tx_ring_count;
@@ -345,12 +341,15 @@ struct e1000_adapter {
 	struct hwtstamp_config hwtstamp_config;
 	struct delayed_work systim_overflow_work;
 	struct sk_buff *tx_hwtstamp_skb;
+	unsigned long tx_hwtstamp_start;
 	struct work_struct tx_hwtstamp_work;
 	spinlock_t systim_lock;	/* protects SYSTIML/H regsters */
 	struct cyclecounter cc;
 	struct timecounter tc;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
+	struct pm_qos_request pm_qos_req;
+	s32 ptp_delta;
 
 	u16 eee_advert;
 };
@@ -381,14 +380,22 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
  * INCVALUE_n into the TIMINCA register allowing 32+8+(24-INCVALUE_SHIFT_n)
  * bits to count nanoseconds leaving the rest for fractional nonseconds.
  */
-#define INCVALUE_96MHz		125
-#define INCVALUE_SHIFT_96MHz	17
-#define INCPERIOD_SHIFT_96MHz	2
-#define INCPERIOD_96MHz		(12 >> INCPERIOD_SHIFT_96MHz)
+#define INCVALUE_96MHZ		125
+#define INCVALUE_SHIFT_96MHZ	17
+#define INCPERIOD_SHIFT_96MHZ	2
+#define INCPERIOD_96MHZ		(12 >> INCPERIOD_SHIFT_96MHZ)
 
-#define INCVALUE_25MHz		40
-#define INCVALUE_SHIFT_25MHz	18
-#define INCPERIOD_25MHz		1
+#define INCVALUE_25MHZ		40
+#define INCVALUE_SHIFT_25MHZ	18
+#define INCPERIOD_25MHZ		1
+
+#define INCVALUE_24MHZ		125
+#define INCVALUE_SHIFT_24MHZ	14
+#define INCPERIOD_24MHZ		3
+
+#define INCVALUE_38400KHZ	26
+#define INCVALUE_SHIFT_38400KHZ	19
+#define INCPERIOD_38400KHZ	1
 
 /* Another drawback of scaling the incvalue by a large factor is the
  * 64-bit SYSTIM register overflows more quickly.  This is dealt with
@@ -400,55 +407,58 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
  * 25MHz	46-bit	2^46 / 10^9 / 3600 = 19.55 hours
  */
 #define E1000_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 60 * 4)
+#define E1000_MAX_82574_SYSTIM_REREADS	50
+#define E1000_82574_SYSTIM_EPSILON	(1ULL << 35ULL)
 
 /* hardware capability, feature, and workaround flags */
-#define FLAG_HAS_AMT                      (1 << 0)
-#define FLAG_HAS_FLASH                    (1 << 1)
-#define FLAG_HAS_HW_VLAN_FILTER           (1 << 2)
-#define FLAG_HAS_WOL                      (1 << 3)
-/* reserved bit4 */
-#define FLAG_HAS_CTRLEXT_ON_LOAD          (1 << 5)
-#define FLAG_HAS_SWSM_ON_LOAD             (1 << 6)
-#define FLAG_HAS_JUMBO_FRAMES             (1 << 7)
-#define FLAG_READ_ONLY_NVM                (1 << 8)
-#define FLAG_IS_ICH                       (1 << 9)
-#define FLAG_HAS_MSIX                     (1 << 10)
-#define FLAG_HAS_SMART_POWER_DOWN         (1 << 11)
-#define FLAG_IS_QUAD_PORT_A               (1 << 12)
-#define FLAG_IS_QUAD_PORT                 (1 << 13)
-#define FLAG_HAS_HW_TIMESTAMP             (1 << 14)
-#define FLAG_APME_IN_WUC                  (1 << 15)
-#define FLAG_APME_IN_CTRL3                (1 << 16)
-#define FLAG_APME_CHECK_PORT_B            (1 << 17)
-#define FLAG_DISABLE_FC_PAUSE_TIME        (1 << 18)
-#define FLAG_NO_WAKE_UCAST                (1 << 19)
-#define FLAG_MNG_PT_ENABLED               (1 << 20)
-#define FLAG_RESET_OVERWRITES_LAA         (1 << 21)
-#define FLAG_TARC_SPEED_MODE_BIT          (1 << 22)
-#define FLAG_TARC_SET_BIT_ZERO            (1 << 23)
-#define FLAG_RX_NEEDS_RESTART             (1 << 24)
-#define FLAG_LSC_GIG_SPEED_DROP           (1 << 25)
-#define FLAG_SMART_POWER_DOWN             (1 << 26)
-#define FLAG_MSI_ENABLED                  (1 << 27)
-/* reserved (1 << 28) */
-#define FLAG_TSO_FORCE                    (1 << 29)
-#define FLAG_RESTART_NOW                  (1 << 30)
-#define FLAG_MSI_TEST_FAILED              (1 << 31)
+#define FLAG_HAS_AMT                      BIT(0)
+#define FLAG_HAS_FLASH                    BIT(1)
+#define FLAG_HAS_HW_VLAN_FILTER           BIT(2)
+#define FLAG_HAS_WOL                      BIT(3)
+/* reserved BIT(4) */
+#define FLAG_HAS_CTRLEXT_ON_LOAD          BIT(5)
+#define FLAG_HAS_SWSM_ON_LOAD             BIT(6)
+#define FLAG_HAS_JUMBO_FRAMES             BIT(7)
+#define FLAG_READ_ONLY_NVM                BIT(8)
+#define FLAG_IS_ICH                       BIT(9)
+#define FLAG_HAS_MSIX                     BIT(10)
+#define FLAG_HAS_SMART_POWER_DOWN         BIT(11)
+#define FLAG_IS_QUAD_PORT_A               BIT(12)
+#define FLAG_IS_QUAD_PORT                 BIT(13)
+#define FLAG_HAS_HW_TIMESTAMP             BIT(14)
+#define FLAG_APME_IN_WUC                  BIT(15)
+#define FLAG_APME_IN_CTRL3                BIT(16)
+#define FLAG_APME_CHECK_PORT_B            BIT(17)
+#define FLAG_DISABLE_FC_PAUSE_TIME        BIT(18)
+#define FLAG_NO_WAKE_UCAST                BIT(19)
+#define FLAG_MNG_PT_ENABLED               BIT(20)
+#define FLAG_RESET_OVERWRITES_LAA         BIT(21)
+#define FLAG_TARC_SPEED_MODE_BIT          BIT(22)
+#define FLAG_TARC_SET_BIT_ZERO            BIT(23)
+#define FLAG_RX_NEEDS_RESTART             BIT(24)
+#define FLAG_LSC_GIG_SPEED_DROP           BIT(25)
+#define FLAG_SMART_POWER_DOWN             BIT(26)
+#define FLAG_MSI_ENABLED                  BIT(27)
+/* reserved BIT(28) */
+#define FLAG_TSO_FORCE                    BIT(29)
+#define FLAG_RESTART_NOW                  BIT(30)
+#define FLAG_MSI_TEST_FAILED              BIT(31)
 
-#define FLAG2_CRC_STRIPPING               (1 << 0)
-#define FLAG2_HAS_PHY_WAKEUP              (1 << 1)
-#define FLAG2_IS_DISCARDING               (1 << 2)
-#define FLAG2_DISABLE_ASPM_L1             (1 << 3)
-#define FLAG2_HAS_PHY_STATS               (1 << 4)
-#define FLAG2_HAS_EEE                     (1 << 5)
-#define FLAG2_DMA_BURST                   (1 << 6)
-#define FLAG2_DISABLE_ASPM_L0S            (1 << 7)
-#define FLAG2_DISABLE_AIM                 (1 << 8)
-#define FLAG2_CHECK_PHY_HANG              (1 << 9)
-#define FLAG2_NO_DISABLE_RX               (1 << 10)
-#define FLAG2_PCIM2PCI_ARBITER_WA         (1 << 11)
-#define FLAG2_DFLT_CRC_STRIPPING          (1 << 12)
-#define FLAG2_CHECK_RX_HWTSTAMP           (1 << 13)
+#define FLAG2_CRC_STRIPPING               BIT(0)
+#define FLAG2_HAS_PHY_WAKEUP              BIT(1)
+#define FLAG2_IS_DISCARDING               BIT(2)
+#define FLAG2_DISABLE_ASPM_L1             BIT(3)
+#define FLAG2_HAS_PHY_STATS               BIT(4)
+#define FLAG2_HAS_EEE                     BIT(5)
+#define FLAG2_DMA_BURST                   BIT(6)
+#define FLAG2_DISABLE_ASPM_L0S            BIT(7)
+#define FLAG2_DISABLE_AIM                 BIT(8)
+#define FLAG2_CHECK_PHY_HANG              BIT(9)
+#define FLAG2_NO_DISABLE_RX               BIT(10)
+#define FLAG2_PCIM2PCI_ARBITER_WA         BIT(11)
+#define FLAG2_DFLT_CRC_STRIPPING          BIT(12)
+#define FLAG2_CHECK_RX_HWTSTAMP           BIT(13)
+#define FLAG2_CHECK_SYSTIM_OVERFLOW       BIT(14)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))
@@ -475,26 +485,27 @@ enum latency_range {
 extern char e1000e_driver_name[];
 extern const char e1000e_driver_version[];
 
-extern void e1000e_check_options(struct e1000_adapter *adapter);
-extern void e1000e_set_ethtool_ops(struct net_device *netdev);
+void e1000e_check_options(struct e1000_adapter *adapter);
+void e1000e_set_ethtool_ops(struct net_device *netdev);
 
-extern int e1000e_up(struct e1000_adapter *adapter);
-extern void e1000e_down(struct e1000_adapter *adapter);
-extern void e1000e_reinit_locked(struct e1000_adapter *adapter);
-extern void e1000e_reset(struct e1000_adapter *adapter);
-extern void e1000e_power_up_phy(struct e1000_adapter *adapter);
-extern int e1000e_setup_rx_resources(struct e1000_ring *ring);
-extern int e1000e_setup_tx_resources(struct e1000_ring *ring);
-extern void e1000e_free_rx_resources(struct e1000_ring *ring);
-extern void e1000e_free_tx_resources(struct e1000_ring *ring);
-extern struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
-						    struct rtnl_link_stats64
-						    *stats);
-extern void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
-extern void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
-extern void e1000e_get_hw_control(struct e1000_adapter *adapter);
-extern void e1000e_release_hw_control(struct e1000_adapter *adapter);
-extern void e1000e_write_itr(struct e1000_adapter *adapter, u32 itr);
+int e1000e_open(struct net_device *netdev);
+int e1000e_close(struct net_device *netdev);
+void e1000e_up(struct e1000_adapter *adapter);
+void e1000e_down(struct e1000_adapter *adapter, bool reset);
+void e1000e_reinit_locked(struct e1000_adapter *adapter);
+void e1000e_reset(struct e1000_adapter *adapter);
+void e1000e_power_up_phy(struct e1000_adapter *adapter);
+int e1000e_setup_rx_resources(struct e1000_ring *ring);
+int e1000e_setup_tx_resources(struct e1000_ring *ring);
+void e1000e_free_rx_resources(struct e1000_ring *ring);
+void e1000e_free_tx_resources(struct e1000_ring *ring);
+void e1000e_get_stats64(struct net_device *netdev,
+			struct rtnl_link_stats64 *stats);
+void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
+void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
+void e1000e_get_hw_control(struct e1000_adapter *adapter);
+void e1000e_release_hw_control(struct e1000_adapter *adapter);
+void e1000e_write_itr(struct e1000_adapter *adapter, u32 itr);
 
 extern unsigned int copybreak;
 
@@ -509,10 +520,12 @@ extern const struct e1000_info e1000_ich10_info;
 extern const struct e1000_info e1000_pch_info;
 extern const struct e1000_info e1000_pch2_info;
 extern const struct e1000_info e1000_pch_lpt_info;
+extern const struct e1000_info e1000_pch_spt_info;
+extern const struct e1000_info e1000_pch_cnp_info;
 extern const struct e1000_info e1000_es2_info;
 
-extern void e1000e_ptp_init(struct e1000_adapter *adapter);
-extern void e1000e_ptp_remove(struct e1000_adapter *adapter);
+void e1000e_ptp_init(struct e1000_adapter *adapter);
+void e1000e_ptp_remove(struct e1000_adapter *adapter);
 
 static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {
@@ -539,7 +552,7 @@ static inline s32 e1e_wphy_locked(struct e1000_hw *hw, u32 offset, u16 data)
 	return hw->phy.ops.write_reg_locked(hw, offset, data);
 }
 
-extern void e1000e_reload_nvm_generic(struct e1000_hw *hw);
+void e1000e_reload_nvm_generic(struct e1000_hw *hw);
 
 static inline s32 e1000e_read_mac_addr(struct e1000_hw *hw)
 {
@@ -583,35 +596,8 @@ static inline u32 __er32(struct e1000_hw *hw, unsigned long reg)
 
 #define er32(reg)	__er32(hw, E1000_##reg)
 
-/**
- * __ew32_prepare - prepare to write to MAC CSR register on certain parts
- * @hw: pointer to the HW structure
- *
- * When updating the MAC CSR registers, the Manageability Engine (ME) could
- * be accessing the registers at the same time.  Normally, this is handled in
- * h/w by an arbiter but on some parts there is a bug that acknowledges Host
- * accesses later than it should which could result in the register to have
- * an incorrect value.  Workaround this by checking the FWSM register which
- * has bit 24 set while ME is accessing MAC CSR registers, wait if it is set
- * and try again a number of times.
- **/
-static inline s32 __ew32_prepare(struct e1000_hw *hw)
-{
-	s32 i = E1000_ICH_FWSM_PCIM2PCI_COUNT;
-
-	while ((er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI) && --i)
-		udelay(50);
-
-	return i;
-}
-
-static inline void __ew32(struct e1000_hw *hw, unsigned long reg, u32 val)
-{
-	if (hw->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
-		__ew32_prepare(hw);
-
-	writel(val, hw->hw_addr + reg);
-}
+s32 __ew32_prepare(struct e1000_hw *hw);
+void __ew32(struct e1000_hw *hw, unsigned long reg, u32 val);
 
 #define ew32(reg, val)	__ew32(hw, E1000_##reg, (val))
 

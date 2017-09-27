@@ -25,7 +25,7 @@
 
 #include <asm/irq.h>
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
 
@@ -141,7 +141,6 @@ static struct platform_driver amimouse_driver = {
 	.remove = __exit_p(amimouse_remove),
 	.driver   = {
 		.name	= "amiga-mouse",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 				break;
 		}
 		/* Decode an instruction */
-		insn_init(&insn, insn_buf, x86_64);
+		insn_init(&insn, insn_buf, sizeof(insn_buf), x86_64);
 		insn_get_length(&insn);
 		if (insn.length != nb) {
 			warnings++;
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Warning: decoded and checked %d"
 			" instructions with %d warnings\n", insns, warnings);
 	else
-		fprintf(stderr, "Succeed: decoded and checked %d"
+		fprintf(stdout, "Success: decoded and checked %d"
 			" instructions\n", insns);
 	return 0;
 }

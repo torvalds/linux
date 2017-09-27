@@ -1,10 +1,13 @@
 #ifndef DRIVERS_PCI_H
 #define DRIVERS_PCI_H
 
-#include <linux/workqueue.h>
+#define PCI_FIND_CAP_TTL	48
 
-#define PCI_CFG_SPACE_SIZE	256
-#define PCI_CFG_SPACE_EXP_SIZE	4096
+#define PCI_VSEC_ID_INTEL_TBT	0x1234	/* Thunderbolt */
+
+extern const unsigned char pcie_link_speed[];
+
+bool pcie_cap_has_lnkctl(const struct pci_dev *dev);
 
 /* Functions internal to the PCI core code */
 
@@ -20,14 +23,14 @@ void pci_create_firmware_label_files(struct pci_dev *pdev);
 void pci_remove_firmware_label_files(struct pci_dev *pdev);
 #endif
 void pci_cleanup_rom(struct pci_dev *dev);
-#ifdef HAVE_PCI_MMAP
+
 enum pci_mmap_api {
 	PCI_MMAP_SYSFS,	/* mmap on /sys/bus/pci/devices/<BDF>/resource<N> */
 	PCI_MMAP_PROCFS	/* mmap on /proc/bus/pci/<BDF> */
 };
 int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vmai,
 		  enum pci_mmap_api mmap_api);
-#endif
+
 int pci_probe_reset_function(struct pci_dev *dev);
 
 /**
@@ -38,15 +41,17 @@ int pci_probe_reset_function(struct pci_dev *dev);
  *
  * @set_state: invokes the platform firmware to set the device's power state
  *
+ * @get_state: queries the platform firmware for a device's current power state
+ *
  * @choose_state: returns PCI power state of given device preferred by the
  *                platform; to be used during system-wide transitions from a
  *                sleeping state to the working state and vice versa
  *
- * @sleep_wake: enables/disables the system wake up capability of given device
+ * @set_wakeup: enables/disables wakeup capability for the device
  *
- * @run_wake: enables/disables the platform to generate run-time wake-up events
- *		for given device (the device's wake-up capability has to be
- *		enabled by @sleep_wake for this feature to work)
+ * @need_resume: returns 'true' if the given device (which is currently
+ *		suspended) needs to be resumed to be configured for system
+ *		wakeup.
  *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
@@ -54,23 +59,29 @@ int pci_probe_reset_function(struct pci_dev *dev);
 struct pci_platform_pm_ops {
 	bool (*is_manageable)(struct pci_dev *dev);
 	int (*set_state)(struct pci_dev *dev, pci_power_t state);
+	pci_power_t (*get_state)(struct pci_dev *dev);
 	pci_power_t (*choose_state)(struct pci_dev *dev);
-	int (*sleep_wake)(struct pci_dev *dev, bool enable);
-	int (*run_wake)(struct pci_dev *dev, bool enable);
+	int (*set_wakeup)(struct pci_dev *dev, bool enable);
+	bool (*need_resume)(struct pci_dev *dev);
 };
 
-int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
+int pci_set_platform_pm(const struct pci_platform_pm_ops *ops);
 void pci_update_current_state(struct pci_dev *dev, pci_power_t state);
 void pci_power_up(struct pci_dev *dev);
 void pci_disable_enabled_device(struct pci_dev *dev);
 int pci_finish_runtime_suspend(struct pci_dev *dev);
 int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
-void pci_wakeup_bus(struct pci_bus *bus);
+void pci_pme_restore(struct pci_dev *dev);
+bool pci_dev_keep_suspended(struct pci_dev *dev);
+void pci_dev_complete_resume(struct pci_dev *pci_dev);
 void pci_config_pm_runtime_get(struct pci_dev *dev);
 void pci_config_pm_runtime_put(struct pci_dev *dev);
 void pci_pm_init(struct pci_dev *dev);
+void pci_ea_init(struct pci_dev *dev);
 void pci_allocate_cap_save_buffers(struct pci_dev *dev);
 void pci_free_cap_save_buffers(struct pci_dev *dev);
+bool pci_bridge_d3_possible(struct pci_dev *dev);
+void pci_bridge_d3_update(struct pci_dev *dev);
 
 static inline void pci_wakeup_event(struct pci_dev *dev)
 {
@@ -78,29 +89,39 @@ static inline void pci_wakeup_event(struct pci_dev *dev)
 	pm_wakeup_event(&dev->dev, 100);
 }
 
-static inline bool pci_is_bridge(struct pci_dev *pci_dev)
+static inline bool pci_has_subordinate(struct pci_dev *pci_dev)
 {
 	return !!(pci_dev->subordinate);
+}
+
+static inline bool pci_power_manageable(struct pci_dev *pci_dev)
+{
+	/*
+	 * Currently we allow normal PCI devices and PCI bridges transition
+	 * into D3 if their bridge_d3 is set.
+	 */
+	return !pci_has_subordinate(pci_dev) || pci_dev->bridge_d3;
 }
 
 struct pci_vpd_ops {
 	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
 	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
-	void (*release)(struct pci_dev *dev);
+	int (*set_size)(struct pci_dev *dev, size_t len);
 };
 
 struct pci_vpd {
-	unsigned int len;
 	const struct pci_vpd_ops *ops;
 	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
+	struct mutex	lock;
+	unsigned int	len;
+	u16		flag;
+	u8		cap;
+	u8		busy:1;
+	u8		valid:1;
 };
 
-int pci_vpd_pci22_init(struct pci_dev *dev);
-static inline void pci_vpd_release(struct pci_dev *dev)
-{
-	if (dev->vpd)
-		dev->vpd->ops->release(dev);
-}
+int pci_vpd_init(struct pci_dev *dev);
+void pci_vpd_release(struct pci_dev *dev);
 
 /* PCI /proc functions */
 #ifdef CONFIG_PROC_FS
@@ -133,11 +154,30 @@ extern unsigned int pci_pm_d3_delay;
 
 #ifdef CONFIG_PCI_MSI
 void pci_no_msi(void);
-void pci_msi_init_pci_dev(struct pci_dev *dev);
 #else
 static inline void pci_no_msi(void) { }
-static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
 #endif
+
+static inline void pci_msi_set_enable(struct pci_dev *dev, int enable)
+{
+	u16 control;
+
+	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
+	control &= ~PCI_MSI_FLAGS_ENABLE;
+	if (enable)
+		control |= PCI_MSI_FLAGS_ENABLE;
+	pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, control);
+}
+
+static inline void pci_msix_clear_and_set_ctrl(struct pci_dev *dev, u16 clear, u16 set)
+{
+	u16 ctrl;
+
+	pci_read_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, &ctrl);
+	ctrl &= ~clear;
+	ctrl |= set;
+	pci_write_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, ctrl);
+}
 
 void pci_realloc_get_opt(char *);
 
@@ -150,10 +190,10 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 	return (dev->no_d1d2 || parent_dstates);
 
 }
-extern struct device_attribute pci_dev_attrs[];
-extern struct device_attribute pcibus_dev_attrs[];
+extern const struct attribute_group *pci_dev_groups[];
+extern const struct attribute_group *pcibus_groups[];
 extern struct device_type pci_dev_type;
-extern struct bus_attribute pci_bus_attrs[];
+extern const struct attribute_group *pci_bus_groups[];
 
 
 /**
@@ -195,29 +235,19 @@ enum pci_bar_type {
 	pci_bar_mem64,		/* A 64-bit memory BAR */
 };
 
+int pci_configure_extended_tags(struct pci_dev *dev, void *ign);
 bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
 				int crs_timeout);
 int pci_setup_device(struct pci_dev *dev);
 int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		    struct resource *res, unsigned int reg);
-int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type);
 void pci_configure_ari(struct pci_dev *dev);
-void __ref __pci_bus_size_bridges(struct pci_bus *bus,
+void __pci_bus_size_bridges(struct pci_bus *bus,
 			struct list_head *realloc_head);
-void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
-				      struct list_head *realloc_head,
-				      struct list_head *fail_head);
-
-/**
- * pci_ari_enabled - query ARI forwarding status
- * @bus: the PCI bus
- *
- * Returns 1 if ARI forwarding is enabled, or 0 if not enabled;
- */
-static inline int pci_ari_enabled(struct pci_bus *bus)
-{
-	return bus->self && bus->self->ari_enabled;
-}
+void __pci_bus_assign_resources(const struct pci_bus *bus,
+				struct list_head *realloc_head,
+				struct list_head *fail_head);
+bool pci_bus_clip_resource(struct pci_dev *dev, int idx);
 
 void pci_reassigndev_resource_alignment(struct pci_dev *dev);
 void pci_disable_bridge_window(struct pci_dev *dev);
@@ -235,13 +265,27 @@ struct pci_sriov {
 	u16 stride;		/* following VF stride */
 	u32 pgsz;		/* page size for BAR alignment */
 	u8 link;		/* Function Dependency Link */
+	u8 max_VF_buses;	/* max buses consumed by VFs */
 	u16 driver_max_VFs;	/* max num VFs driver supports */
 	struct pci_dev *dev;	/* lowest numbered PF */
 	struct pci_dev *self;	/* this PF */
-	struct mutex lock;	/* lock for VF bus */
-	struct work_struct mtask; /* VF Migration task */
-	u8 __iomem *mstate;	/* VF Migration State Array */
+	resource_size_t barsz[PCI_SRIOV_NUM_BARS];	/* VF BAR size */
+	bool drivers_autoprobe;	/* auto probing of VFs by driver */
 };
+
+/* pci_dev priv_flags */
+#define PCI_DEV_DISCONNECTED 0
+
+static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
+{
+	set_bit(PCI_DEV_DISCONNECTED, &dev->priv_flags);
+	return 0;
+}
+
+static inline bool pci_dev_is_disconnected(const struct pci_dev *dev)
+{
+	return test_bit(PCI_DEV_DISCONNECTED, &dev->priv_flags);
+}
 
 #ifdef CONFIG_PCI_ATS
 void pci_restore_ats_state(struct pci_dev *dev);
@@ -254,8 +298,7 @@ static inline void pci_restore_ats_state(struct pci_dev *dev)
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
-int pci_iov_resource_bar(struct pci_dev *dev, int resno,
-			 enum pci_bar_type *type);
+void pci_iov_update_resource(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
 int pci_iov_bus_range(struct pci_bus *bus);
@@ -268,11 +311,6 @@ static inline int pci_iov_init(struct pci_dev *dev)
 static inline void pci_iov_release(struct pci_dev *dev)
 
 {
-}
-static inline int pci_iov_resource_bar(struct pci_dev *dev, int resno,
-				       enum pci_bar_type *type)
-{
-	return 0;
 }
 static inline void pci_restore_iov_state(struct pci_dev *dev)
 {
@@ -302,6 +340,12 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 
 void pci_enable_acs(struct pci_dev *dev);
 
+#ifdef CONFIG_PCIE_PTM
+void pci_ptm_init(struct pci_dev *dev);
+#else
+static inline void pci_ptm_init(struct pci_dev *dev) { }
+#endif
+
 struct pci_dev_reset_methods {
 	u16 vendor;
 	u16 device;
@@ -315,6 +359,11 @@ static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 {
 	return -ENOTTY;
 }
+#endif
+
+#if defined(CONFIG_PCI_QUIRKS) && defined(CONFIG_ARM64)
+int acpi_get_rc_resources(struct device *dev, const char *hid, u16 segment,
+			  struct resource *res);
 #endif
 
 #endif /* DRIVERS_PCI_H */

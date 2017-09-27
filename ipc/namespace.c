@@ -9,53 +9,82 @@
 #include <linux/rcupdate.h>
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/sched/task.h>
 
 #include "util.h"
+
+static struct ucounts *inc_ipc_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_IPC_NAMESPACES);
+}
+
+static void dec_ipc_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_IPC_NAMESPACES);
+}
 
 static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 					   struct ipc_namespace *old_ns)
 {
 	struct ipc_namespace *ns;
+	struct ucounts *ucounts;
 	int err;
 
+	err = -ENOSPC;
+	ucounts = inc_ipc_namespaces(user_ns);
+	if (!ucounts)
+		goto fail;
+
+	err = -ENOMEM;
 	ns = kmalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
 	if (ns == NULL)
-		return ERR_PTR(-ENOMEM);
+		goto fail_dec;
 
-	err = proc_alloc_inum(&ns->proc_inum);
-	if (err) {
-		kfree(ns);
-		return ERR_PTR(err);
-	}
+	err = ns_alloc_inum(&ns->ns);
+	if (err)
+		goto fail_free;
+	ns->ns.ops = &ipcns_operations;
 
-	atomic_set(&ns->count, 1);
-	err = mq_init_ns(ns);
-	if (err) {
-		proc_free_inum(ns->proc_inum);
-		kfree(ns);
-		return ERR_PTR(err);
-	}
-	atomic_inc(&nr_ipc_ns);
-
-	sem_init_ns(ns);
-	msg_init_ns(ns);
-	shm_init_ns(ns);
-
-	/*
-	 * msgmni has already been computed for the new ipc ns.
-	 * Thus, do the ipcns creation notification before registering that
-	 * new ipcns in the chain.
-	 */
-	ipcns_notify(IPCNS_CREATED);
-	register_ipcns_notifier(ns);
-
+	refcount_set(&ns->count, 1);
 	ns->user_ns = get_user_ns(user_ns);
+	ns->ucounts = ucounts;
+
+	err = sem_init_ns(ns);
+	if (err)
+		goto fail_put;
+	err = msg_init_ns(ns);
+	if (err)
+		goto fail_destroy_sem;
+	err = shm_init_ns(ns);
+	if (err)
+		goto fail_destroy_msg;
+
+	err = mq_init_ns(ns);
+	if (err)
+		goto fail_destroy_shm;
 
 	return ns;
+
+fail_destroy_shm:
+	shm_exit_ns(ns);
+fail_destroy_msg:
+	msg_exit_ns(ns);
+fail_destroy_sem:
+	sem_exit_ns(ns);
+fail_put:
+	put_user_ns(ns->user_ns);
+	ns_free_inum(&ns->ns);
+fail_free:
+	kfree(ns);
+fail_dec:
+	dec_ipc_namespaces(ucounts);
+fail:
+	return ERR_PTR(err);
 }
 
 struct ipc_namespace *copy_ipcs(unsigned long flags,
@@ -81,7 +110,7 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 	int next_id;
 	int total, in_use;
 
-	down_write(&ids->rw_mutex);
+	down_write(&ids->rwsem);
 
 	in_use = ids->in_use;
 
@@ -89,36 +118,23 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		perm = idr_find(&ids->ipcs_idr, next_id);
 		if (perm == NULL)
 			continue;
-		ipc_lock_by_ptr(perm);
+		rcu_read_lock();
+		ipc_lock_object(perm);
 		free(ns, perm);
 		total++;
 	}
-	up_write(&ids->rw_mutex);
+	up_write(&ids->rwsem);
 }
 
 static void free_ipc_ns(struct ipc_namespace *ns)
 {
-	/*
-	 * Unregistering the hotplug notifier at the beginning guarantees
-	 * that the ipc namespace won't be freed while we are inside the
-	 * callback routine. Since the blocking_notifier_chain_XXX routines
-	 * hold a rw lock on the notifier list, unregister_ipcns_notifier()
-	 * won't take the rw lock before blocking_notifier_call_chain() has
-	 * released the rd lock.
-	 */
-	unregister_ipcns_notifier(ns);
 	sem_exit_ns(ns);
 	msg_exit_ns(ns);
 	shm_exit_ns(ns);
-	atomic_dec(&nr_ipc_ns);
 
-	/*
-	 * Do the ipcns removal notification after decrementing nr_ipc_ns in
-	 * order to have a correct value when recomputing msgmni.
-	 */
-	ipcns_notify(IPCNS_REMOVED);
+	dec_ipc_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
-	proc_free_inum(ns->proc_inum);
+	ns_free_inum(&ns->ns);
 	kfree(ns);
 }
 
@@ -140,7 +156,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
  */
 void put_ipc_ns(struct ipc_namespace *ns)
 {
-	if (atomic_dec_and_lock(&ns->count, &mq_lock)) {
+	if (refcount_dec_and_lock(&ns->count, &mq_lock)) {
 		mq_clear_sbinfo(ns);
 		spin_unlock(&mq_lock);
 		mq_put_mnt(ns);
@@ -148,30 +164,35 @@ void put_ipc_ns(struct ipc_namespace *ns)
 	}
 }
 
-static void *ipcns_get(struct task_struct *task)
+static inline struct ipc_namespace *to_ipc_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct ipc_namespace, ns);
+}
+
+static struct ns_common *ipcns_get(struct task_struct *task)
 {
 	struct ipc_namespace *ns = NULL;
 	struct nsproxy *nsproxy;
 
-	rcu_read_lock();
-	nsproxy = task_nsproxy(task);
+	task_lock(task);
+	nsproxy = task->nsproxy;
 	if (nsproxy)
 		ns = get_ipc_ns(nsproxy->ipc_ns);
-	rcu_read_unlock();
+	task_unlock(task);
 
-	return ns;
+	return ns ? &ns->ns : NULL;
 }
 
-static void ipcns_put(void *ns)
+static void ipcns_put(struct ns_common *ns)
 {
-	return put_ipc_ns(ns);
+	return put_ipc_ns(to_ipc_ns(ns));
 }
 
-static int ipcns_install(struct nsproxy *nsproxy, void *new)
+static int ipcns_install(struct nsproxy *nsproxy, struct ns_common *new)
 {
-	struct ipc_namespace *ns = new;
+	struct ipc_namespace *ns = to_ipc_ns(new);
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* Ditch state from the old ipc namespace */
@@ -181,11 +202,9 @@ static int ipcns_install(struct nsproxy *nsproxy, void *new)
 	return 0;
 }
 
-static unsigned int ipcns_inum(void *vp)
+static struct user_namespace *ipcns_owner(struct ns_common *ns)
 {
-	struct ipc_namespace *ns = vp;
-
-	return ns->proc_inum;
+	return to_ipc_ns(ns)->user_ns;
 }
 
 const struct proc_ns_operations ipcns_operations = {
@@ -194,5 +213,5 @@ const struct proc_ns_operations ipcns_operations = {
 	.get		= ipcns_get,
 	.put		= ipcns_put,
 	.install	= ipcns_install,
-	.inum		= ipcns_inum,
+	.owner		= ipcns_owner,
 };

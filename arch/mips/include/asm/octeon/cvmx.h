@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2017 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -57,6 +57,7 @@ enum cvmx_mips_space {
 #include <asm/octeon/cvmx-sysinfo.h>
 
 #include <asm/octeon/cvmx-ciu-defs.h>
+#include <asm/octeon/cvmx-ciu3-defs.h>
 #include <asm/octeon/cvmx-gpio-defs.h>
 #include <asm/octeon/cvmx-iob-defs.h>
 #include <asm/octeon/cvmx-ipd-defs.h>
@@ -189,7 +190,7 @@ static inline uint64_t cvmx_ptr_to_phys(void *ptr)
 static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
 {
 	if (sizeof(void *) == 8) {
-		/* Just set the top bit, avoiding any TLB uglyness */
+		/* Just set the top bit, avoiding any TLB ugliness */
 		return CASTPTR(void,
 			       CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS,
 					    physical_address));
@@ -275,6 +276,11 @@ static inline void cvmx_write_csr(uint64_t csr_addr, uint64_t val)
 		cvmx_read64(CVMX_MIO_BOOT_BIST_STAT);
 }
 
+static inline void cvmx_writeq_csr(void __iomem *csr_addr, uint64_t val)
+{
+	cvmx_write_csr((__force uint64_t)csr_addr, val);
+}
+
 static inline void cvmx_write_io(uint64_t io_addr, uint64_t val)
 {
 	cvmx_write64(io_addr, val);
@@ -287,6 +293,10 @@ static inline uint64_t cvmx_read_csr(uint64_t csr_addr)
 	return val;
 }
 
+static inline uint64_t cvmx_readq_csr(void __iomem *csr_addr)
+{
+	return cvmx_read_csr((__force uint64_t) csr_addr);
+}
 
 static inline void cvmx_send_single(uint64_t data)
 {
@@ -330,6 +340,49 @@ static inline unsigned int cvmx_get_core_num(void)
 	unsigned int core_num;
 	CVMX_RDHWRNV(core_num, 0);
 	return core_num;
+}
+
+/* Maximum # of bits to define core in node */
+#define CVMX_NODE_NO_SHIFT	7
+#define CVMX_NODE_MASK		0x3
+static inline unsigned int cvmx_get_node_num(void)
+{
+	unsigned int core_num = cvmx_get_core_num();
+
+	return (core_num >> CVMX_NODE_NO_SHIFT) & CVMX_NODE_MASK;
+}
+
+static inline unsigned int cvmx_get_local_core_num(void)
+{
+	return cvmx_get_core_num() & ((1 << CVMX_NODE_NO_SHIFT) - 1);
+}
+
+#define CVMX_NODE_BITS         (2)     /* Number of bits to define a node */
+#define CVMX_MAX_NODES         (1 << CVMX_NODE_BITS)
+#define CVMX_NODE_IO_SHIFT     (36)
+#define CVMX_NODE_MEM_SHIFT    (40)
+#define CVMX_NODE_IO_MASK      ((uint64_t)CVMX_NODE_MASK << CVMX_NODE_IO_SHIFT)
+
+static inline void cvmx_write_csr_node(uint64_t node, uint64_t csr_addr,
+				       uint64_t val)
+{
+	uint64_t composite_csr_addr, node_addr;
+
+	node_addr = (node & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
+	composite_csr_addr = (csr_addr & ~CVMX_NODE_IO_MASK) | node_addr;
+
+	cvmx_write64_uint64(composite_csr_addr, val);
+	if (((csr_addr >> 40) & 0x7ffff) == (0x118))
+		cvmx_read64_uint64(CVMX_MIO_BOOT_BIST_STAT | node_addr);
+}
+
+static inline uint64_t cvmx_read_csr_node(uint64_t node, uint64_t csr_addr)
+{
+	uint64_t node_addr;
+
+	node_addr = (csr_addr & ~CVMX_NODE_IO_MASK) |
+		    (node & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
+	return cvmx_read_csr(node_addr);
 }
 
 /**
@@ -436,82 +489,18 @@ static inline uint64_t cvmx_get_cycle_global(void)
 
 /***************************************************************************/
 
-static inline void cvmx_reset_octeon(void)
-{
-	union cvmx_ciu_soft_rst ciu_soft_rst;
-	ciu_soft_rst.u64 = 0;
-	ciu_soft_rst.s.soft_rst = 1;
-	cvmx_write_csr(CVMX_CIU_SOFT_RST, ciu_soft_rst.u64);
-}
-
 /* Return the number of cores available in the chip */
 static inline uint32_t cvmx_octeon_num_cores(void)
 {
-	uint32_t ciu_fuse = (uint32_t) cvmx_read_csr(CVMX_CIU_FUSE) & 0xffff;
-	return cvmx_pop(ciu_fuse);
-}
+	u64 ciu_fuse_reg;
+	u64 ciu_fuse;
 
-/**
- * Read a byte of fuse data
- * @byte_addr:	 address to read
- *
- * Returns fuse value: 0 or 1
- */
-static uint8_t cvmx_fuse_read_byte(int byte_addr)
-{
-	union cvmx_mio_fus_rcmd read_cmd;
-
-	read_cmd.u64 = 0;
-	read_cmd.s.addr = byte_addr;
-	read_cmd.s.pend = 1;
-	cvmx_write_csr(CVMX_MIO_FUS_RCMD, read_cmd.u64);
-	while ((read_cmd.u64 = cvmx_read_csr(CVMX_MIO_FUS_RCMD))
-	       && read_cmd.s.pend)
-		;
-	return read_cmd.s.dat;
-}
-
-/**
- * Read a single fuse bit
- *
- * @fuse:   Fuse number (0-1024)
- *
- * Returns fuse value: 0 or 1
- */
-static inline int cvmx_fuse_read(int fuse)
-{
-	return (cvmx_fuse_read_byte(fuse >> 3) >> (fuse & 0x7)) & 1;
-}
-
-static inline int cvmx_octeon_model_CN36XX(void)
-{
-	return OCTEON_IS_MODEL(OCTEON_CN38XX)
-		&& !cvmx_octeon_is_pass1()
-		&& cvmx_fuse_read(264);
-}
-
-static inline int cvmx_octeon_zip_present(void)
-{
-	return octeon_has_feature(OCTEON_FEATURE_ZIP);
-}
-
-static inline int cvmx_octeon_dfa_present(void)
-{
-	if (!OCTEON_IS_MODEL(OCTEON_CN38XX)
-	    && !OCTEON_IS_MODEL(OCTEON_CN31XX)
-	    && !OCTEON_IS_MODEL(OCTEON_CN58XX))
-		return 0;
-	else if (OCTEON_IS_MODEL(OCTEON_CN3020))
-		return 0;
-	else if (cvmx_octeon_is_pass1())
-		return 1;
+	if (OCTEON_IS_OCTEON3() && !OCTEON_IS_MODEL(OCTEON_CN70XX))
+		ciu_fuse_reg = CVMX_CIU3_FUSE;
 	else
-		return !cvmx_fuse_read(120);
-}
-
-static inline int cvmx_octeon_crypto_present(void)
-{
-	return octeon_has_feature(OCTEON_FEATURE_CRYPTO);
+		ciu_fuse_reg = CVMX_CIU_FUSE;
+	ciu_fuse = cvmx_read_csr(ciu_fuse_reg);
+	return cvmx_dpop(ciu_fuse);
 }
 
 #endif /*  __CVMX_H__  */

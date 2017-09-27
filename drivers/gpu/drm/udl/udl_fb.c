@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/dma-buf.h>
+#include <linux/mem_encrypt.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -33,12 +34,11 @@ module_param(fb_defio, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 struct udl_fbdev {
 	struct drm_fb_helper helper;
 	struct udl_framebuffer ufb;
-	struct list_head fbdev_list;
 	int fb_count;
 };
 
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)
-#define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
+#define DL_ALIGN_DOWN(x, a) ALIGN_DOWN(x, a)
 
 /** Read the red component (0..255) of a 32 bpp colour. */
 #define DLO_RGB_GETRED(col) (uint8_t)((col) & 0xFF)
@@ -78,68 +78,6 @@ static uint16_t rgb16(uint32_t col)
 }
 #endif
 
-/*
- * NOTE: fb_defio.c is holding info->fbdefio.mutex
- *   Touching ANY framebuffer memory that triggers a page fault
- *   in fb_defio will cause a deadlock, when it also tries to
- *   grab the same mutex.
- */
-static void udlfb_dpy_deferred_io(struct fb_info *info,
-				  struct list_head *pagelist)
-{
-	struct page *cur;
-	struct fb_deferred_io *fbdefio = info->fbdefio;
-	struct udl_fbdev *ufbdev = info->par;
-	struct drm_device *dev = ufbdev->ufb.base.dev;
-	struct udl_device *udl = dev->dev_private;
-	struct urb *urb;
-	char *cmd;
-	cycles_t start_cycles, end_cycles;
-	int bytes_sent = 0;
-	int bytes_identical = 0;
-	int bytes_rendered = 0;
-
-	if (!fb_defio)
-		return;
-
-	start_cycles = get_cycles();
-
-	urb = udl_get_urb(dev);
-	if (!urb)
-		return;
-
-	cmd = urb->transfer_buffer;
-
-	/* walk the written page list and render each to device */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-
-		if (udl_render_hline(dev, (ufbdev->ufb.base.bits_per_pixel / 8),
-				     &urb, (char *) info->fix.smem_start,
-				     &cmd, cur->index << PAGE_SHIFT,
-				     cur->index << PAGE_SHIFT,
-				     PAGE_SIZE, &bytes_identical, &bytes_sent))
-			goto error;
-		bytes_rendered += PAGE_SIZE;
-	}
-
-	if (cmd > (char *) urb->transfer_buffer) {
-		/* Send partial buffer remaining before exiting */
-		int len = cmd - (char *) urb->transfer_buffer;
-		udl_submit_urb(dev, urb, len);
-		bytes_sent += len;
-	} else
-		udl_urb_completion(urb);
-
-error:
-	atomic_add(bytes_sent, &udl->bytes_sent);
-	atomic_add(bytes_identical, &udl->bytes_identical);
-	atomic_add(bytes_rendered, &udl->bytes_rendered);
-	end_cycles = get_cycles();
-	atomic_add(((unsigned int) ((end_cycles - start_cycles)
-		    >> 10)), /* Kcycles */
-		   &udl->cpu_kcycles_used);
-}
-
 int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 		      int width, int height)
 {
@@ -152,10 +90,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	int bytes_identical = 0;
 	struct urb *urb;
 	int aligned_x;
-	int bpp = (fb->base.bits_per_pixel / 8);
-	int x2, y2;
-	bool store_for_later = false;
-	unsigned long flags;
+	int bpp = fb->base.format->cpp[0];
 
 	if (!fb->active_16)
 		return 0;
@@ -181,38 +116,6 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	    (y + height > fb->base.height))
 		return -EINVAL;
 
-	/* if we are in atomic just store the info
-	   can't test inside spin lock */
-	if (in_atomic())
-		store_for_later = true;
-
-	x2 = x + width - 1;
-	y2 = y + height - 1;
-
-	spin_lock_irqsave(&fb->dirty_lock, flags);
-
-	if (fb->y1 < y)
-		y = fb->y1;
-	if (fb->y2 > y2)
-		y2 = fb->y2;
-	if (fb->x1 < x)
-		x = fb->x1;
-	if (fb->x2 > x2)
-		x2 = fb->x2;
-
-	if (store_for_later) {
-		fb->x1 = x;
-		fb->x2 = x2;
-		fb->y1 = y;
-		fb->y2 = y2;
-		spin_unlock_irqrestore(&fb->dirty_lock, flags);
-		return 0;
-	}
-
-	fb->x1 = fb->y1 = INT_MAX;
-	fb->x2 = fb->y2 = 0;
-
-	spin_unlock_irqrestore(&fb->dirty_lock, flags);
 	start_cycles = get_cycles();
 
 	urb = udl_get_urb(dev);
@@ -220,14 +123,14 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 		return 0;
 	cmd = urb->transfer_buffer;
 
-	for (i = y; i <= y2 ; i++) {
+	for (i = y; i < y + height ; i++) {
 		const int line_offset = fb->base.pitches[0] * i;
 		const int byte_offset = line_offset + (x * bpp);
 		const int dev_byte_offset = (fb->base.width * bpp * i) + (x * bpp);
 		if (udl_render_hline(dev, bpp, &urb,
 				     (char *) fb->obj->vmapping,
 				     &cmd, byte_offset, dev_byte_offset,
-				     (x2 - x + 1) * bpp,
+				     width * bpp,
 				     &bytes_identical, &bytes_sent))
 			goto error;
 	}
@@ -267,6 +170,9 @@ static int udl_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	pr_notice("mmap() framebuffer addr:%lu size:%lu\n",
 		  pos, size);
 
+	/* We don't want the framebuffer to be mapped encrypted */
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED))
@@ -284,36 +190,6 @@ static int udl_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static void udl_fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
-{
-	struct udl_fbdev *ufbdev = info->par;
-
-	sys_fillrect(info, rect);
-
-	udl_handle_damage(&ufbdev->ufb, rect->dx, rect->dy, rect->width,
-			  rect->height);
-}
-
-static void udl_fb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
-{
-	struct udl_fbdev *ufbdev = info->par;
-
-	sys_copyarea(info, region);
-
-	udl_handle_damage(&ufbdev->ufb, region->dx, region->dy, region->width,
-			  region->height);
-}
-
-static void udl_fb_imageblit(struct fb_info *info, const struct fb_image *image)
-{
-	struct udl_fbdev *ufbdev = info->par;
-
-	sys_imageblit(info, image);
-
-	udl_handle_damage(&ufbdev->ufb, image->dx, image->dy, image->width,
-			  image->height);
-}
-
 /*
  * It's common for several clients to have framebuffer open simultaneously.
  * e.g. both fbcon and X. Makes things interesting.
@@ -326,11 +202,12 @@ static int udl_fb_open(struct fb_info *info, int user)
 	struct udl_device *udl = dev->dev_private;
 
 	/* If the USB device is gone, we don't accept new opens */
-	if (drm_device_is_unplugged(udl->ddev))
+	if (drm_dev_is_unplugged(udl->ddev))
 		return -ENODEV;
 
 	ufbdev->fb_count++;
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fb_defio && (info->fbdefio == NULL)) {
 		/* enable defio at last moment if not disabled by client */
 
@@ -340,12 +217,13 @@ static int udl_fb_open(struct fb_info *info, int user)
 
 		if (fbdefio) {
 			fbdefio->delay = DL_DEFIO_WRITE_DELAY;
-			fbdefio->deferred_io = udlfb_dpy_deferred_io;
+			fbdefio->deferred_io = drm_fb_helper_deferred_io;
 		}
 
 		info->fbdefio = fbdefio;
 		fb_deferred_io_init(info);
 	}
+#endif
 
 	pr_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 		  info->node, user, info, ufbdev->fb_count);
@@ -363,12 +241,14 @@ static int udl_fb_release(struct fb_info *info, int user)
 
 	ufbdev->fb_count--;
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	if ((ufbdev->fb_count == 0) && (info->fbdefio)) {
 		fb_deferred_io_cleanup(info);
 		kfree(info->fbdefio);
 		info->fbdefio = NULL;
 		info->fbops->fb_mmap = udl_fb_mmap;
 	}
+#endif
 
 	pr_warn("released /dev/fb%d user=%d count=%d\n",
 		info->node, user, ufbdev->fb_count);
@@ -378,16 +258,10 @@ static int udl_fb_release(struct fb_info *info, int user)
 
 static struct fb_ops udlfb_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
-	.fb_fillrect = udl_fb_fillrect,
-	.fb_copyarea = udl_fb_copyarea,
-	.fb_imageblit = udl_fb_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
+	DRM_FB_HELPER_DEFAULT_OPS,
+	.fb_fillrect = drm_fb_helper_sys_fillrect,
+	.fb_copyarea = drm_fb_helper_sys_copyarea,
+	.fb_imageblit = drm_fb_helper_sys_imageblit,
 	.fb_mmap = udl_fb_mmap,
 	.fb_open = udl_fb_open,
 	.fb_release = udl_fb_release,
@@ -403,15 +277,16 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	int i;
 	int ret = 0;
 
+	drm_modeset_lock_all(fb->dev);
+
 	if (!ufb->active_16)
-		return 0;
+		goto unlock;
 
 	if (ufb->obj->base.import_attach) {
 		ret = dma_buf_begin_cpu_access(ufb->obj->base.import_attach->dmabuf,
-					       0, ufb->obj->base.size,
 					       DMA_FROM_DEVICE);
 		if (ret)
-			return ret;
+			goto unlock;
 	}
 
 	for (i = 0; i < num_clips; i++) {
@@ -423,10 +298,13 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	}
 
 	if (ufb->obj->base.import_attach) {
-		dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
-				       0, ufb->obj->base.size,
-				       DMA_FROM_DEVICE);
+		ret = dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
+					     DMA_FROM_DEVICE);
 	}
+
+ unlock:
+	drm_modeset_unlock_all(fb->dev);
+
 	return ret;
 }
 
@@ -435,7 +313,7 @@ static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct udl_framebuffer *ufb = to_udl_fb(fb);
 
 	if (ufb->obj)
-		drm_gem_object_unreference_unlocked(&ufb->obj->base);
+		drm_gem_object_put_unlocked(&ufb->obj->base);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(ufb);
@@ -450,14 +328,13 @@ static const struct drm_framebuffer_funcs udlfb_funcs = {
 static int
 udl_framebuffer_init(struct drm_device *dev,
 		     struct udl_framebuffer *ufb,
-		     struct drm_mode_fb_cmd2 *mode_cmd,
+		     const struct drm_mode_fb_cmd2 *mode_cmd,
 		     struct udl_gem_object *obj)
 {
 	int ret;
 
-	spin_lock_init(&ufb->dirty_lock);
 	ufb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&ufb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &ufb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
 	return ret;
 }
@@ -466,10 +343,10 @@ udl_framebuffer_init(struct drm_device *dev,
 static int udlfb_create(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes)
 {
-	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
+	struct udl_fbdev *ufbdev =
+		container_of(helper, struct udl_fbdev, helper);
 	struct drm_device *dev = ufbdev->helper.dev;
 	struct fb_info *info;
-	struct device *device = dev->dev;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct udl_gem_object *obj;
@@ -499,9 +376,9 @@ static int udlfb_create(struct drm_fb_helper *helper,
 		goto out_gfree;
 	}
 
-	info = framebuffer_alloc(0, device);
-	if (!info) {
-		ret = -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
 		goto out_gfree;
 	}
 	info->par = ufbdev;
@@ -513,7 +390,6 @@ static int udlfb_create(struct drm_fb_helper *helper,
 	fb = &ufbdev->ufb.base;
 
 	ufbdev->helper.fb = fb;
-	ufbdev->helper.fbdev = info;
 
 	strcpy(info->fix.id, "udldrmfb");
 
@@ -521,17 +397,9 @@ static int udlfb_create(struct drm_fb_helper *helper,
 	info->fix.smem_len = size;
 	info->fix.smem_start = (unsigned long)ufbdev->ufb.obj->vmapping;
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &udlfb_ops;
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &ufbdev->helper, sizes->fb_width, sizes->fb_height);
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto out_gfree;
-	}
-
 
 	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
 		      fb->width, fb->height,
@@ -539,30 +407,23 @@ static int udlfb_create(struct drm_fb_helper *helper,
 
 	return ret;
 out_gfree:
-	drm_gem_object_unreference(&ufbdev->ufb.obj->base);
+	drm_gem_object_put_unlocked(&ufbdev->ufb.obj->base);
 out:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs udl_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs udl_fb_helper_funcs = {
 	.fb_probe = udlfb_create,
 };
 
 static void udl_fbdev_destroy(struct drm_device *dev,
 			      struct udl_fbdev *ufbdev)
 {
-	struct fb_info *info;
-	if (ufbdev->helper.fbdev) {
-		info = ufbdev->helper.fbdev;
-		unregister_framebuffer(info);
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
-	}
+	drm_fb_helper_unregister_fbi(&ufbdev->helper);
 	drm_fb_helper_fini(&ufbdev->helper);
 	drm_framebuffer_unregister_private(&ufbdev->ufb.base);
 	drm_framebuffer_cleanup(&ufbdev->ufb.base);
-	drm_gem_object_unreference_unlocked(&ufbdev->ufb.obj->base);
+	drm_gem_object_put_unlocked(&ufbdev->ufb.obj->base);
 }
 
 int udl_fbdev_init(struct drm_device *dev)
@@ -577,23 +438,31 @@ int udl_fbdev_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	udl->fbdev = ufbdev;
-	ufbdev->helper.funcs = &udl_fb_helper_funcs;
 
-	ret = drm_fb_helper_init(dev, &ufbdev->helper,
-				 1, 1);
-	if (ret) {
-		kfree(ufbdev);
-		return ret;
+	drm_fb_helper_prepare(dev, &ufbdev->helper, &udl_fb_helper_funcs);
 
-	}
+	ret = drm_fb_helper_init(dev, &ufbdev->helper, 1);
+	if (ret)
+		goto free;
 
-	drm_fb_helper_single_add_all_connectors(&ufbdev->helper);
+	ret = drm_fb_helper_single_add_all_connectors(&ufbdev->helper);
+	if (ret)
+		goto fini;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	drm_fb_helper_initial_config(&ufbdev->helper, bpp_sel);
+	ret = drm_fb_helper_initial_config(&ufbdev->helper, bpp_sel);
+	if (ret)
+		goto fini;
+
 	return 0;
+
+fini:
+	drm_fb_helper_fini(&ufbdev->helper);
+free:
+	kfree(ufbdev);
+	return ret;
 }
 
 void udl_fbdev_cleanup(struct drm_device *dev)
@@ -615,24 +484,20 @@ void udl_fbdev_unplug(struct drm_device *dev)
 		return;
 
 	ufbdev = udl->fbdev;
-	if (ufbdev->helper.fbdev) {
-		struct fb_info *info;
-		info = ufbdev->helper.fbdev;
-		unlink_framebuffer(info);
-	}
+	drm_fb_helper_unlink_fbi(&ufbdev->helper);
 }
 
 struct drm_framebuffer *
 udl_fb_user_fb_create(struct drm_device *dev,
 		   struct drm_file *file,
-		   struct drm_mode_fb_cmd2 *mode_cmd)
+		   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct udl_framebuffer *ufb;
 	int ret;
 	uint32_t size;
 
-	obj = drm_gem_object_lookup(dev, file, mode_cmd->handles[0]);
+	obj = drm_gem_object_lookup(file, mode_cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 

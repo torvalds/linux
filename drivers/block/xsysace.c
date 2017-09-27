@@ -468,10 +468,10 @@ static struct request *ace_get_next_request(struct request_queue *q)
 	struct request *req;
 
 	while ((req = blk_peek_request(q)) != NULL) {
-		if (req->cmd_type == REQ_TYPE_FS)
+		if (!blk_rq_is_passthrough(req))
 			break;
 		blk_start_request(req);
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 	}
 	return req;
 }
@@ -499,11 +499,11 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 		/* Drop all in-flight and pending requests */
 		if (ace->req) {
-			__blk_end_request_all(ace->req, -EIO);
+			__blk_end_request_all(ace->req, BLK_STS_IOERR);
 			ace->req = NULL;
 		}
 		while ((req = blk_fetch_request(ace->queue)) != NULL)
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 
 		/* Drop back to IDLE state and notify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
@@ -661,7 +661,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			rq_data_dir(req));
 
 		ace->req = req;
-		ace->data_ptr = req->buffer;
+		ace->data_ptr = bio_data(req->bio);
 		ace->data_count = blk_rq_cur_sectors(req) * ACE_BUF_PER_SECTOR;
 		ace_out32(ace, ACE_MPULBA, blk_rq_pos(req) & 0x0FFFFFFF);
 
@@ -728,12 +728,12 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		}
 
 		/* bio finished; is there another one? */
-		if (__blk_end_request_cur(ace->req, 0)) {
+		if (__blk_end_request_cur(ace->req, BLK_STS_OK)) {
 			/* dev_dbg(ace->dev, "next block; h=%u c=%u\n",
 			 *      blk_rq_sectors(ace->req),
 			 *      blk_rq_cur_sectors(ace->req));
 			 */
-			ace->data_ptr = ace->req->buffer;
+			ace->data_ptr = bio_data(ace->req->bio);
 			ace->data_count = blk_rq_cur_sectors(ace->req) * 16;
 			ace_fsm_yieldirq(ace);
 			break;
@@ -993,6 +993,7 @@ static int ace_setup(struct ace_device *ace)
 	if (ace->queue == NULL)
 		goto err_blk_initq;
 	blk_queue_logical_block_size(ace->queue, 512);
+	blk_queue_bounce_limit(ace->queue, BLK_BOUNCE_HIGH);
 
 	/*
 	 * Allocate and initialize GD structure
@@ -1203,7 +1204,6 @@ static struct platform_driver ace_platform_driver = {
 	.probe = ace_probe,
 	.remove = ace_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "xsysace",
 		.of_match_table = ace_of_match,
 	},

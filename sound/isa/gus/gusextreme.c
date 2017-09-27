@@ -66,21 +66,21 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for " CRD_NAME " soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable " CRD_NAME " soundcard.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for " CRD_NAME " driver.");
-module_param_array(gf1_port, long, NULL, 0444);
+module_param_hw_array(gf1_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(gf1_port, "GF1 port # for " CRD_NAME " driver (optional).");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for " CRD_NAME " driver.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for " CRD_NAME " driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for " CRD_NAME " driver.");
-module_param_array(gf1_irq, int, NULL, 0444);
+module_param_hw_array(gf1_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(gf1_irq, "GF1 IRQ # for " CRD_NAME " driver.");
-module_param_array(dma8, int, NULL, 0444);
+module_param_hw_array(dma8, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for " CRD_NAME " driver.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "GF1 DMA # for " CRD_NAME " driver.");
 module_param_array(joystick_dac, int, NULL, 0444);
 MODULE_PARM_DESC(joystick_dac, "Joystick DAC level 0.59V-4.52V or 0.389V-2.98V for " CRD_NAME " driver.");
@@ -242,8 +242,8 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 	struct snd_opl3 *opl3;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE,
-				sizeof(struct snd_es1688), &card);
+	error = snd_card_new(dev, index[n], id[n], THIS_MODULE,
+			     sizeof(struct snd_es1688), &card);
 	if (error < 0)
 		return error;
 
@@ -284,7 +284,7 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 	}
 	gus->codec_flag = 1;
 
-	error = snd_es1688_pcm(card, es1688, 0, NULL);
+	error = snd_es1688_pcm(card, es1688, 0);
 	if (error < 0)
 		goto out;
 
@@ -295,7 +295,7 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 	snd_component_add(card, "ES1688");
 
 	if (pcm_channels[n] > 0) {
-		error = snd_gf1_pcm_new(gus, 1, 1, NULL);
+		error = snd_gf1_pcm_new(gus, 1, 1);
 		if (error < 0)
 			goto out;
 	}
@@ -328,8 +328,6 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 		"irq %i&%i, dma %i&%i", es1688->port,
 		gus->gf1.irq, es1688->irq, gus->gf1.dma1, es1688->dma8);
 
-	snd_card_set_dev(card, dev);
-
 	error = snd_card_register(card);
 	if (error < 0)
 		goto out;
@@ -360,15 +358,4 @@ static struct isa_driver snd_gusextreme_driver = {
 	}
 };
 
-static int __init alsa_card_gusextreme_init(void)
-{
-	return isa_register_driver(&snd_gusextreme_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_gusextreme_exit(void)
-{
-	isa_unregister_driver(&snd_gusextreme_driver);
-}
-
-module_init(alsa_card_gusextreme_init);
-module_exit(alsa_card_gusextreme_exit);
+module_isa_driver(snd_gusextreme_driver, SNDRV_CARDS);

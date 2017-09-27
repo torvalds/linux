@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2011 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
  * All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
@@ -902,7 +903,8 @@ static void sdma_7220_errors(struct qib_pportdata *ppd, u64 errs)
 	errs &= QLOGIC_IB_E_SDMAERRS;
 
 	msg = dd->cspec->sdmamsgbuf;
-	qib_decode_7220_sdma_errs(ppd, errs, msg, sizeof dd->cspec->sdmamsgbuf);
+	qib_decode_7220_sdma_errs(ppd, errs, msg,
+		sizeof(dd->cspec->sdmamsgbuf));
 	spin_lock_irqsave(&ppd->sdma_lock, flags);
 
 	if (errs & ERR_MASK(SendBufMisuseErr)) {
@@ -1043,6 +1045,7 @@ done:
 static void reenable_7220_chase(unsigned long opaque)
 {
 	struct qib_pportdata *ppd = (struct qib_pportdata *)opaque;
+
 	ppd->cpspec->chase_timer.expires = 0;
 	qib_set_ib_7220_lstate(ppd, QLOGIC_IB_IBCC_LINKCMD_DOWN,
 		QLOGIC_IB_IBCC_LINKINITCMD_POLL);
@@ -1101,7 +1104,7 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 
 	/* do these first, they are most important */
 	if (errs & ERR_MASK(HardwareErr))
-		qib_7220_handle_hwerrors(dd, msg, sizeof dd->cspec->emsgbuf);
+		qib_7220_handle_hwerrors(dd, msg, sizeof(dd->cspec->emsgbuf));
 	else
 		for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
 			if (errs & dd->eep_st_masks[log_idx].errs_to_log)
@@ -1155,7 +1158,7 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 		ERR_MASK(RcvEgrFullErr) | ERR_MASK(RcvHdrFullErr) |
 		ERR_MASK(HardwareErr) | ERR_MASK(SDmaDisabledErr);
 
-	qib_decode_7220_err(dd, msg, sizeof dd->cspec->emsgbuf, errs & ~mask);
+	qib_decode_7220_err(dd, msg, sizeof(dd->cspec->emsgbuf), errs & ~mask);
 
 	if (errs & E_SUM_PKTERRS)
 		qib_stats.sps_rcverrs++;
@@ -1257,7 +1260,7 @@ static void qib_7220_clear_freeze(struct qib_devdata *dd)
 	/* disable error interrupts, to avoid confusion */
 	qib_write_kreg(dd, kr_errmask, 0ULL);
 
-	/* also disable interrupts; errormask is sometimes overwriten */
+	/* also disable interrupts; errormask is sometimes overwritten */
 	qib_7220_set_intr_state(dd, 0);
 
 	qib_cancel_sends(dd->pport);
@@ -1380,7 +1383,7 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 		bits = (u32) ((hwerrs >>
 			       QLOGIC_IB_HWE_PCIEMEMPARITYERR_SHIFT) &
 			      QLOGIC_IB_HWE_PCIEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof dd->cspec->bitsmsgbuf,
+		snprintf(bitsmsg, sizeof(dd->cspec->bitsmsgbuf),
 			 "[PCIe Mem Parity Errs %x] ", bits);
 		strlcat(msg, bitsmsg, msgl);
 	}
@@ -1390,7 +1393,7 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	if (hwerrs & _QIB_PLL_FAIL) {
 		isfatal = 1;
-		snprintf(bitsmsg, sizeof dd->cspec->bitsmsgbuf,
+		snprintf(bitsmsg, sizeof(dd->cspec->bitsmsgbuf),
 			 "[PLL failed (%llx), InfiniPath hardware unusable]",
 			 (unsigned long long) hwerrs & _QIB_PLL_FAIL);
 		strlcat(msg, bitsmsg, msgl);
@@ -1962,10 +1965,7 @@ static irqreturn_t qib_7220intr(int irq, void *data)
 		goto bail;
 	}
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
-
+	this_cpu_inc(*dd->int_counter);
 	if (unlikely(istat & (~QLOGIC_IB_I_BITSEXTANT |
 			      QLOGIC_IB_I_GPIO | QLOGIC_IB_I_ERROR)))
 		unlikely_7220_intr(dd, istat);
@@ -2050,43 +2050,35 @@ static void qib_setup_7220_interrupt(struct qib_devdata *dd)
  */
 static void qib_7220_boardname(struct qib_devdata *dd)
 {
-	char *n;
-	u32 boardid, namelen;
+	u32 boardid;
 
 	boardid = SYM_FIELD(dd->revision, Revision,
 			    BoardID);
 
 	switch (boardid) {
 	case 1:
-		n = "InfiniPath_QLE7240";
+		dd->boardname = "InfiniPath_QLE7240";
 		break;
 	case 2:
-		n = "InfiniPath_QLE7280";
+		dd->boardname = "InfiniPath_QLE7280";
 		break;
 	default:
 		qib_dev_err(dd, "Unknown 7220 board with ID %u\n", boardid);
-		n = "Unknown_InfiniPath_7220";
+		dd->boardname = "Unknown_InfiniPath_7220";
 		break;
 	}
 
-	namelen = strlen(n) + 1;
-	dd->boardname = kmalloc(namelen, GFP_KERNEL);
-	if (!dd->boardname)
-		qib_dev_err(dd, "Failed allocation for board name: %s\n", n);
-	else
-		snprintf(dd->boardname, namelen, "%s", n);
-
 	if (dd->majrev != 5 || !dd->minrev || dd->minrev > 2)
 		qib_dev_err(dd,
-			"Unsupported InfiniPath hardware revision %u.%u!\n",
-			dd->majrev, dd->minrev);
+			    "Unsupported InfiniPath hardware revision %u.%u!\n",
+			    dd->majrev, dd->minrev);
 
 	snprintf(dd->boardversion, sizeof(dd->boardversion),
 		 "ChipABI %u.%u, %s, InfiniPath%u %u.%u, SW Compat %u\n",
 		 QIB_CHIP_VERS_MAJ, QIB_CHIP_VERS_MIN, dd->boardname,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, Arch),
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, Arch),
 		 dd->majrev, dd->minrev,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, SW));
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, SW));
 }
 
 /*
@@ -2120,7 +2112,8 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 	 * isn't set.
 	 */
 	dd->flags &= ~(QIB_INITTED | QIB_PRESENT);
-	dd->int_counter = 0; /* so we check interrupts work again */
+	/* so we check interrupts work again */
+	dd->z_int_counter = qib_int_counter(dd);
 	val = dd->control | QLOGIC_IB_C_RESET;
 	writeq(val, &dd->kregbase[kr_control]);
 	mb(); /* prevent compiler reordering around actual reset */
@@ -2150,7 +2143,7 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 
 bail:
 	if (ret) {
-		if (qib_pcie_params(dd, dd->lbus_width, NULL, NULL))
+		if (qib_pcie_params(dd, dd->lbus_width, NULL))
 			qib_dev_err(dd,
 				"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 
@@ -3179,8 +3172,6 @@ static void init_7220_cntrnames(struct qib_devdata *dd)
 		dd->cspec->cntrnamelen = 1 + s - cntr7220names;
 	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
 		* sizeof(u64), GFP_KERNEL);
-	if (!dd->cspec->cntrs)
-		qib_dev_err(dd, "Failed allocation for counters\n");
 
 	for (i = 0, s = (char *)portcntr7220names; s; i++)
 		s = strchr(s + 1, '\n');
@@ -3188,8 +3179,6 @@ static void init_7220_cntrnames(struct qib_devdata *dd)
 	dd->cspec->portcntrnamelen = sizeof(portcntr7220names) - 1;
 	dd->cspec->portcntrs = kmalloc(dd->cspec->nportcntrs
 		* sizeof(u64), GFP_KERNEL);
-	if (!dd->cspec->portcntrs)
-		qib_dev_err(dd, "Failed allocation for portcounters\n");
 }
 
 static u32 qib_read_7220cntrs(struct qib_devdata *dd, loff_t pos, char **namep,
@@ -3299,8 +3288,6 @@ static void qib_get_7220_faststats(unsigned long opaque)
 	spin_lock_irqsave(&dd->eep_st_lock, flags);
 	traffic_wds -= dd->traffic_wds;
 	dd->traffic_wds += traffic_wds;
-	if (traffic_wds  >= QIB_TRAFFIC_ACTIVE_THRESHOLD)
-		atomic_add(5, &dd->active_time); /* S/B #define */
 	spin_unlock_irqrestore(&dd->eep_st_lock, flags);
 done:
 	mod_timer(&dd->stats_timer, jiffies + HZ * ACTIVITY_TIMER);
@@ -3317,7 +3304,7 @@ static int qib_7220_intr_fallback(struct qib_devdata *dd)
 	qib_devinfo(dd->pcidev,
 		"MSI interrupt not detected, trying INTx interrupts\n");
 	qib_7220_free_irq(dd);
-	qib_enable_intx(dd->pcidev);
+	qib_enable_intx(dd);
 	/*
 	 * Some newer kernels require free_irq before disable_msi,
 	 * and irq can be changed during disable and INTx enable
@@ -4061,7 +4048,9 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	init_waitqueue_head(&cpspec->autoneg_wait);
 	INIT_DELAYED_WORK(&cpspec->autoneg_work, autoneg_7220_work);
 
-	qib_init_pportdata(ppd, dd, 0, 1);
+	ret = qib_init_pportdata(ppd, dd, 0, 1);
+	if (ret)
+		goto bail;
 	ppd->link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
 	ppd->link_speed_supported = QIB_IB_SDR | QIB_IB_DDR;
 
@@ -4080,9 +4069,8 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	if (!qib_mini_init)
 		qib_write_kreg(dd, kr_rcvbthqp, QIB_KD_QP);
 
-	init_timer(&ppd->cpspec->chase_timer);
-	ppd->cpspec->chase_timer.function = reenable_7220_chase;
-	ppd->cpspec->chase_timer.data = (unsigned long)ppd;
+	setup_timer(&ppd->cpspec->chase_timer, reenable_7220_chase,
+		    (unsigned long)ppd);
 
 	qib_num_cfg_vls = 1; /* if any 7220's, only one VL */
 
@@ -4126,11 +4114,9 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	qib_7220_config_ctxts(dd);
 	qib_set_ctxtcnt(dd);  /* needed for PAT setup */
 
-	if (qib_wc_pat) {
-		ret = init_chip_wc_pat(dd, 0);
-		if (ret)
-			goto bail;
-	}
+	ret = init_chip_wc_pat(dd, 0);
+	if (ret)
+		goto bail;
 	set_7220_baseaddrs(dd); /* set chip access pointers now */
 
 	ret = 0;
@@ -4628,7 +4614,7 @@ struct qib_devdata *qib_init_iba7220_funcs(struct pci_dev *pdev,
 		minwidth = 8; /* x8 capable boards */
 		break;
 	}
-	if (qib_pcie_params(dd, minwidth, NULL, NULL))
+	if (qib_pcie_params(dd, minwidth, NULL))
 		qib_dev_err(dd,
 			"Failed to setup PCIe or interrupts; continuing anyway\n");
 

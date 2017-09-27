@@ -76,8 +76,8 @@ enum {
 
 	BUZZER_ON = 1 << 5,
 
-	/* up to 256 normal keys, up to 16 special keys */
-	KEYMAP_SIZE = 256 + 16,
+	/* up to 256 normal keys, up to 15 special key combinations */
+	KEYMAP_SIZE = 256 + 15,
 };
 
 /* CM109 protocol packet */
@@ -139,7 +139,7 @@ static unsigned short special_keymap(int code)
 {
 	if (code > 0xff) {
 		switch (code - 0xff) {
-		case RECORD_MUTE:	return KEY_MUTE;
+		case RECORD_MUTE:	return KEY_MICMUTE;
 		case PLAYBACK_MUTE:	return KEY_MUTE;
 		case VOLUME_DOWN:	return KEY_VOLUMEDOWN;
 		case VOLUME_UP:		return KEY_VOLUMEUP;
@@ -312,6 +312,32 @@ static void report_key(struct cm109_dev *dev, int key)
 	input_sync(idev);
 }
 
+/*
+ * Converts data of special key presses (volume, mute) into events
+ * for the input subsystem, sends press-n-release for mute keys.
+ */
+static void cm109_report_special(struct cm109_dev *dev)
+{
+	static const u8 autorelease = RECORD_MUTE | PLAYBACK_MUTE;
+	struct input_dev *idev = dev->idev;
+	u8 data = dev->irq_data->byte[HID_IR0];
+	unsigned short keycode;
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		keycode = dev->keymap[0xff + BIT(i)];
+		if (keycode == KEY_RESERVED)
+			continue;
+
+		input_report_key(idev, keycode, data & BIT(i));
+		if (data & autorelease & BIT(i)) {
+			input_sync(idev);
+			input_report_key(idev, keycode, 0);
+		}
+	}
+	input_sync(idev);
+}
+
 /******************************************************************************
  * CM109 usb communication interface
  *****************************************************************************/
@@ -340,6 +366,7 @@ static void cm109_urb_irq_callback(struct urb *urb)
 	struct cm109_dev *dev = urb->context;
 	const int status = urb->status;
 	int error;
+	unsigned long flags;
 
 	dev_dbg(&dev->intf->dev, "### URB IRQ: [0x%02x 0x%02x 0x%02x 0x%02x] keybit=0x%02x\n",
 	     dev->irq_data->byte[0],
@@ -351,14 +378,13 @@ static void cm109_urb_irq_callback(struct urb *urb)
 	if (status) {
 		if (status == -ESHUTDOWN)
 			return;
-		dev_err(&dev->intf->dev, "%s: urb status %d\n", __func__, status);
+		dev_err_ratelimited(&dev->intf->dev, "%s: urb status %d\n",
+				    __func__, status);
+		goto out;
 	}
 
 	/* Special keys */
-	if (dev->irq_data->byte[HID_IR0] & 0x0f) {
-		const int code = (dev->irq_data->byte[HID_IR0] & 0x0f);
-		report_key(dev, dev->keymap[0xff + code]);
-	}
+	cm109_report_special(dev);
 
 	/* Scan key column */
 	if (dev->keybit == 0xf) {
@@ -379,7 +405,7 @@ static void cm109_urb_irq_callback(struct urb *urb)
 
  out:
 
-	spin_lock(&dev->ctl_submit_lock);
+	spin_lock_irqsave(&dev->ctl_submit_lock, flags);
 
 	dev->irq_urb_pending = 0;
 
@@ -403,7 +429,7 @@ static void cm109_urb_irq_callback(struct urb *urb)
 				__func__, error);
 	}
 
-	spin_unlock(&dev->ctl_submit_lock);
+	spin_unlock_irqrestore(&dev->ctl_submit_lock, flags);
 }
 
 static void cm109_urb_ctl_callback(struct urb *urb)
@@ -411,6 +437,7 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 	struct cm109_dev *dev = urb->context;
 	const int status = urb->status;
 	int error;
+	unsigned long flags;
 
 	dev_dbg(&dev->intf->dev, "### URB CTL: [0x%02x 0x%02x 0x%02x 0x%02x]\n",
 	     dev->ctl_data->byte[0],
@@ -418,16 +445,20 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 	     dev->ctl_data->byte[2],
 	     dev->ctl_data->byte[3]);
 
-	if (status)
-		dev_err(&dev->intf->dev, "%s: urb status %d\n", __func__, status);
+	if (status) {
+		if (status == -ESHUTDOWN)
+			return;
+		dev_err_ratelimited(&dev->intf->dev, "%s: urb status %d\n",
+				    __func__, status);
+	}
 
-	spin_lock(&dev->ctl_submit_lock);
+	spin_lock_irqsave(&dev->ctl_submit_lock, flags);
 
 	dev->ctl_urb_pending = 0;
 
 	if (likely(!dev->shutdown)) {
 
-		if (dev->buzzer_pending) {
+		if (dev->buzzer_pending || status) {
 			dev->buzzer_pending = 0;
 			dev->ctl_urb_pending = 1;
 			cm109_submit_buzz_toggle(dev);
@@ -442,7 +473,7 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 		}
 	}
 
-	spin_unlock(&dev->ctl_submit_lock);
+	spin_unlock_irqrestore(&dev->ctl_submit_lock, flags);
 }
 
 static void cm109_toggle_buzzer_async(struct cm109_dev *dev)
@@ -669,6 +700,10 @@ static int cm109_usb_probe(struct usb_interface *intf,
 	int error = -ENOMEM;
 
 	interface = intf->cur_altsetting;
+
+	if (interface->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	endpoint = &interface->endpoint[0].desc;
 
 	if (!usb_endpoint_is_int_in(endpoint))

@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/preempt.h>
@@ -22,11 +21,11 @@
 
 #define DRV_MODULE_NAME		"n2rng"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.2"
-#define DRV_MODULE_RELDATE	"July 27, 2011"
+#define DRV_MODULE_VERSION	"0.3"
+#define DRV_MODULE_RELDATE	"Jan 7, 2017"
 
 static char version[] =
-	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
+	DRV_MODULE_NAME " v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Niagara2 RNG driver");
@@ -303,26 +302,57 @@ static int n2rng_try_read_ctl(struct n2rng *np)
 	return n2rng_hv_err_trans(hv_err);
 }
 
-#define CONTROL_DEFAULT_BASE		\
-	((2 << RNG_CTL_ASEL_SHIFT) |	\
-	 (N2RNG_ACCUM_CYCLES_DEFAULT << RNG_CTL_WAIT_SHIFT) |	\
-	 RNG_CTL_LFSR)
+static u64 n2rng_control_default(struct n2rng *np, int ctl)
+{
+	u64 val = 0;
 
-#define CONTROL_DEFAULT_0		\
-	(CONTROL_DEFAULT_BASE |		\
-	 (1 << RNG_CTL_VCO_SHIFT) |	\
-	 RNG_CTL_ES1)
-#define CONTROL_DEFAULT_1		\
-	(CONTROL_DEFAULT_BASE |		\
-	 (2 << RNG_CTL_VCO_SHIFT) |	\
-	 RNG_CTL_ES2)
-#define CONTROL_DEFAULT_2		\
-	(CONTROL_DEFAULT_BASE |		\
-	 (3 << RNG_CTL_VCO_SHIFT) |	\
-	 RNG_CTL_ES3)
-#define CONTROL_DEFAULT_3		\
-	(CONTROL_DEFAULT_BASE |		\
-	 RNG_CTL_ES1 | RNG_CTL_ES2 | RNG_CTL_ES3)
+	if (np->data->chip_version == 1) {
+		val = ((2 << RNG_v1_CTL_ASEL_SHIFT) |
+			(N2RNG_ACCUM_CYCLES_DEFAULT << RNG_v1_CTL_WAIT_SHIFT) |
+			 RNG_CTL_LFSR);
+
+		switch (ctl) {
+		case 0:
+			val |= (1 << RNG_v1_CTL_VCO_SHIFT) | RNG_CTL_ES1;
+			break;
+		case 1:
+			val |= (2 << RNG_v1_CTL_VCO_SHIFT) | RNG_CTL_ES2;
+			break;
+		case 2:
+			val |= (3 << RNG_v1_CTL_VCO_SHIFT) | RNG_CTL_ES3;
+			break;
+		case 3:
+			val |= RNG_CTL_ES1 | RNG_CTL_ES2 | RNG_CTL_ES3;
+			break;
+		default:
+			break;
+		}
+
+	} else {
+		val = ((2 << RNG_v2_CTL_ASEL_SHIFT) |
+			(N2RNG_ACCUM_CYCLES_DEFAULT << RNG_v2_CTL_WAIT_SHIFT) |
+			 RNG_CTL_LFSR);
+
+		switch (ctl) {
+		case 0:
+			val |= (1 << RNG_v2_CTL_VCO_SHIFT) | RNG_CTL_ES1;
+			break;
+		case 1:
+			val |= (2 << RNG_v2_CTL_VCO_SHIFT) | RNG_CTL_ES2;
+			break;
+		case 2:
+			val |= (3 << RNG_v2_CTL_VCO_SHIFT) | RNG_CTL_ES3;
+			break;
+		case 3:
+			val |= RNG_CTL_ES1 | RNG_CTL_ES2 | RNG_CTL_ES3;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return val;
+}
 
 static void n2rng_control_swstate_init(struct n2rng *np)
 {
@@ -337,10 +367,10 @@ static void n2rng_control_swstate_init(struct n2rng *np)
 	for (i = 0; i < np->num_units; i++) {
 		struct n2rng_unit *up = &np->units[i];
 
-		up->control[0] = CONTROL_DEFAULT_0;
-		up->control[1] = CONTROL_DEFAULT_1;
-		up->control[2] = CONTROL_DEFAULT_2;
-		up->control[3] = CONTROL_DEFAULT_3;
+		up->control[0] = n2rng_control_default(np, 0);
+		up->control[1] = n2rng_control_default(np, 1);
+		up->control[2] = n2rng_control_default(np, 2);
+		up->control[3] = n2rng_control_default(np, 3);
 	}
 
 	np->hv_state = HV_RNG_STATE_UNCONFIGURED;
@@ -400,6 +430,7 @@ static int n2rng_data_read(struct hwrng *rng, u32 *data)
 	} else {
 		int err = n2rng_generic_read_data(ra);
 		if (!err) {
+			np->flags |= N2RNG_FLAG_BUFFER_VALID;
 			np->buffer = np->test_data >> 32;
 			*data = np->test_data & 0xffffffff;
 			len = 4;
@@ -488,8 +519,20 @@ static void n2rng_dump_test_buffer(struct n2rng *np)
 
 static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 {
-	u64 val = SELFTEST_VAL;
+	u64 val;
 	int err, matches, limit;
+
+	switch (np->data->id) {
+	case N2_n2_rng:
+	case N2_vf_rng:
+	case N2_kt_rng:
+	case N2_m4_rng:  /* yes, m4 uses the old value */
+		val = RNG_v1_SELFTEST_VAL;
+		break;
+	default:
+		val = RNG_v2_SELFTEST_VAL;
+		break;
+	}
 
 	matches = 0;
 	for (limit = 0; limit < SELFTEST_LOOPS_MAX; limit++) {
@@ -513,14 +556,32 @@ static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 static int n2rng_control_selftest(struct n2rng *np, unsigned long unit)
 {
 	int err;
+	u64 base, base3;
 
-	np->test_control[0] = (0x2 << RNG_CTL_ASEL_SHIFT);
-	np->test_control[1] = (0x2 << RNG_CTL_ASEL_SHIFT);
-	np->test_control[2] = (0x2 << RNG_CTL_ASEL_SHIFT);
-	np->test_control[3] = ((0x2 << RNG_CTL_ASEL_SHIFT) |
-			       RNG_CTL_LFSR |
-			       ((SELFTEST_TICKS - 2) << RNG_CTL_WAIT_SHIFT));
+	switch (np->data->id) {
+	case N2_n2_rng:
+	case N2_vf_rng:
+	case N2_kt_rng:
+		base = RNG_v1_CTL_ASEL_NOOUT << RNG_v1_CTL_ASEL_SHIFT;
+		base3 = base | RNG_CTL_LFSR |
+			((RNG_v1_SELFTEST_TICKS - 2) << RNG_v1_CTL_WAIT_SHIFT);
+		break;
+	case N2_m4_rng:
+		base = RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT;
+		base3 = base | RNG_CTL_LFSR |
+			((RNG_v1_SELFTEST_TICKS - 2) << RNG_v2_CTL_WAIT_SHIFT);
+		break;
+	default:
+		base = RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT;
+		base3 = base | RNG_CTL_LFSR |
+			(RNG_v2_SELFTEST_TICKS << RNG_v2_CTL_WAIT_SHIFT);
+		break;
+	}
 
+	np->test_control[0] = base;
+	np->test_control[1] = base;
+	np->test_control[2] = base;
+	np->test_control[3] = base3;
 
 	err = n2rng_entropy_diag_read(np, unit, np->test_control,
 				      HV_RNG_STATE_HEALTHCHECK,
@@ -558,11 +619,19 @@ static int n2rng_control_configure_units(struct n2rng *np)
 		struct n2rng_unit *up = &np->units[unit];
 		unsigned long ctl_ra = __pa(&up->control[0]);
 		int esrc;
-		u64 base;
+		u64 base, shift;
 
-		base = ((np->accum_cycles << RNG_CTL_WAIT_SHIFT) |
-			(2 << RNG_CTL_ASEL_SHIFT) |
-			RNG_CTL_LFSR);
+		if (np->data->chip_version == 1) {
+			base = ((np->accum_cycles << RNG_v1_CTL_WAIT_SHIFT) |
+			      (RNG_v1_CTL_ASEL_NOOUT << RNG_v1_CTL_ASEL_SHIFT) |
+			      RNG_CTL_LFSR);
+			shift = RNG_v1_CTL_VCO_SHIFT;
+		} else {
+			base = ((np->accum_cycles << RNG_v2_CTL_WAIT_SHIFT) |
+			      (RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT) |
+			      RNG_CTL_LFSR);
+			shift = RNG_v2_CTL_VCO_SHIFT;
+		}
 
 		/* XXX This isn't the best.  We should fetch a bunch
 		 * XXX of words using each entropy source combined XXX
@@ -571,7 +640,7 @@ static int n2rng_control_configure_units(struct n2rng *np)
 		 */
 		for (esrc = 0; esrc < 3; esrc++)
 			up->control[esrc] = base |
-				(esrc << RNG_CTL_VCO_SHIFT) |
+				(esrc << shift) |
 				(RNG_CTL_ES1 << esrc);
 
 		up->control[3] = base |
@@ -590,6 +659,7 @@ static void n2rng_work(struct work_struct *work)
 {
 	struct n2rng *np = container_of(work, struct n2rng, work.work);
 	int err = 0;
+	static int retries = 4;
 
 	if (!(np->flags & N2RNG_FLAG_CONTROL)) {
 		err = n2rng_guest_check(np);
@@ -607,7 +677,9 @@ static void n2rng_work(struct work_struct *work)
 		dev_info(&np->op->dev, "RNG ready\n");
 	}
 
-	if (err && !(np->flags & N2RNG_FLAG_SHUTDOWN))
+	if (--retries == 0)
+		dev_err(&np->op->dev, "Self-test retries failed, RNG not ready\n");
+	else if (err && !(np->flags & N2RNG_FLAG_SHUTDOWN))
 		schedule_delayed_work(&np->work, HZ * 2);
 }
 
@@ -623,24 +695,23 @@ static const struct of_device_id n2rng_match[];
 static int n2rng_probe(struct platform_device *op)
 {
 	const struct of_device_id *match;
-	int multi_capable;
 	int err = -ENOMEM;
 	struct n2rng *np;
 
 	match = of_match_device(n2rng_match, &op->dev);
 	if (!match)
 		return -EINVAL;
-	multi_capable = (match->data != NULL);
 
 	n2rng_driver_version();
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = devm_kzalloc(&op->dev, sizeof(*np), GFP_KERNEL);
 	if (!np)
 		goto out;
 	np->op = op;
+	np->data = (struct n2rng_template *)match->data;
 
 	INIT_DELAYED_WORK(&np->work, n2rng_work);
 
-	if (multi_capable)
+	if (np->data->multi_capable)
 		np->flags |= N2RNG_FLAG_MULTI;
 
 	err = -ENODEV;
@@ -654,7 +725,7 @@ static int n2rng_probe(struct platform_device *op)
 					 &np->hvapi_minor)) {
 			dev_err(&op->dev, "Cannot register suitable "
 				"HVAPI version.\n");
-			goto out_free;
+			goto out;
 		}
 	}
 
@@ -671,34 +742,34 @@ static int n2rng_probe(struct platform_device *op)
 			dev_err(&op->dev, "VF RNG lacks rng-#units property\n");
 			goto out_hvapi_unregister;
 		}
-	} else
+	} else {
 		np->num_units = 1;
+	}
 
 	dev_info(&op->dev, "Registered RNG HVAPI major %lu minor %lu\n",
 		 np->hvapi_major, np->hvapi_minor);
-
-	np->units = kzalloc(sizeof(struct n2rng_unit) * np->num_units,
-			    GFP_KERNEL);
+	np->units = devm_kcalloc(&op->dev, np->num_units, sizeof(*np->units),
+				 GFP_KERNEL);
 	err = -ENOMEM;
 	if (!np->units)
 		goto out_hvapi_unregister;
 
 	err = n2rng_init_control(np);
 	if (err)
-		goto out_free_units;
+		goto out_hvapi_unregister;
 
 	dev_info(&op->dev, "Found %s RNG, units: %d\n",
 		 ((np->flags & N2RNG_FLAG_MULTI) ?
 		  "multi-unit-capable" : "single-unit"),
 		 np->num_units);
 
-	np->hwrng.name = "n2rng";
+	np->hwrng.name = DRV_MODULE_NAME;
 	np->hwrng.data_read = n2rng_data_read;
 	np->hwrng.priv = (unsigned long) np;
 
 	err = hwrng_register(&np->hwrng);
 	if (err)
-		goto out_free_units;
+		goto out_hvapi_unregister;
 
 	platform_set_drvdata(op, np);
 
@@ -706,15 +777,9 @@ static int n2rng_probe(struct platform_device *op)
 
 	return 0;
 
-out_free_units:
-	kfree(np->units);
-	np->units = NULL;
-
 out_hvapi_unregister:
 	sun4v_hvapi_unregister(HV_GRP_RNG);
 
-out_free:
-	kfree(np);
 out:
 	return err;
 }
@@ -731,28 +796,64 @@ static int n2rng_remove(struct platform_device *op)
 
 	sun4v_hvapi_unregister(HV_GRP_RNG);
 
-	kfree(np->units);
-	np->units = NULL;
-
-	kfree(np);
-
 	return 0;
 }
+
+static struct n2rng_template n2_template = {
+	.id = N2_n2_rng,
+	.multi_capable = 0,
+	.chip_version = 1,
+};
+
+static struct n2rng_template vf_template = {
+	.id = N2_vf_rng,
+	.multi_capable = 1,
+	.chip_version = 1,
+};
+
+static struct n2rng_template kt_template = {
+	.id = N2_kt_rng,
+	.multi_capable = 1,
+	.chip_version = 1,
+};
+
+static struct n2rng_template m4_template = {
+	.id = N2_m4_rng,
+	.multi_capable = 1,
+	.chip_version = 2,
+};
+
+static struct n2rng_template m7_template = {
+	.id = N2_m7_rng,
+	.multi_capable = 1,
+	.chip_version = 2,
+};
 
 static const struct of_device_id n2rng_match[] = {
 	{
 		.name		= "random-number-generator",
 		.compatible	= "SUNW,n2-rng",
+		.data		= &n2_template,
 	},
 	{
 		.name		= "random-number-generator",
 		.compatible	= "SUNW,vf-rng",
-		.data		= (void *) 1,
+		.data		= &vf_template,
 	},
 	{
 		.name		= "random-number-generator",
 		.compatible	= "SUNW,kt-rng",
-		.data		= (void *) 1,
+		.data		= &kt_template,
+	},
+	{
+		.name		= "random-number-generator",
+		.compatible	= "ORCL,m4-rng",
+		.data		= &m4_template,
+	},
+	{
+		.name		= "random-number-generator",
+		.compatible	= "ORCL,m7-rng",
+		.data		= &m7_template,
 	},
 	{},
 };
@@ -761,7 +862,6 @@ MODULE_DEVICE_TABLE(of, n2rng_match);
 static struct platform_driver n2rng_driver = {
 	.driver = {
 		.name = "n2rng",
-		.owner = THIS_MODULE,
 		.of_match_table = n2rng_match,
 	},
 	.probe		= n2rng_probe,

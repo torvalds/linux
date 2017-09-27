@@ -112,11 +112,14 @@ ssize_t part_stat_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
+	struct request_queue *q = part_to_disk(p)->queue;
+	unsigned int inflight[2];
 	int cpu;
 
 	cpu = part_stat_lock();
-	part_round_stats(cpu, p);
+	part_round_stats(q, cpu, p);
 	part_stat_unlock();
+	part_in_flight(q, p, inflight);
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "
@@ -130,7 +133,7 @@ ssize_t part_stat_show(struct device *dev,
 		part_stat_read(p, merges[WRITE]),
 		(unsigned long long)part_stat_read(p, sectors[WRITE]),
 		jiffies_to_msecs(part_stat_read(p, ticks[WRITE])),
-		part_in_flight(p),
+		inflight[0],
 		jiffies_to_msecs(part_stat_read(p, io_ticks)),
 		jiffies_to_msecs(part_stat_read(p, time_in_queue)));
 }
@@ -211,15 +214,26 @@ static const struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	struct hd_struct *p = dev_to_part(dev);
-	free_part_stats(p);
-	free_part_info(p);
+	blk_free_devt(dev->devt);
+	hd_free_part(p);
 	kfree(p);
+}
+
+static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct hd_struct *part = dev_to_part(dev);
+
+	add_uevent_var(env, "PARTN=%u", part->partno);
+	if (part->info && part->info->volname[0])
+		add_uevent_var(env, "PARTNAME=%s", part->info->volname);
+	return 0;
 }
 
 struct device_type part_type = {
 	.name		= "partition",
 	.groups		= part_attr_groups,
 	.release	= part_release,
+	.uevent		= part_uevent,
 };
 
 static void delete_partition_rcu_cb(struct rcu_head *head)
@@ -232,20 +246,26 @@ static void delete_partition_rcu_cb(struct rcu_head *head)
 	put_device(part_to_dev(part));
 }
 
-void __delete_partition(struct hd_struct *part)
+void __delete_partition(struct percpu_ref *ref)
 {
+	struct hd_struct *part = container_of(ref, struct hd_struct, ref);
 	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
 }
 
+/*
+ * Must be called either with bd_mutex held, before a disk can be opened or
+ * after all disk users are gone.
+ */
 void delete_partition(struct gendisk *disk, int partno)
 {
-	struct disk_part_tbl *ptbl = disk->part_tbl;
+	struct disk_part_tbl *ptbl =
+		rcu_dereference_protected(disk->part_tbl, 1);
 	struct hd_struct *part;
 
 	if (partno >= ptbl->len)
 		return;
 
-	part = ptbl->part[partno];
+	part = rcu_dereference_protected(ptbl->part[partno], 1);
 	if (!part)
 		return;
 
@@ -253,9 +273,8 @@ void delete_partition(struct gendisk *disk, int partno)
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
-	blk_free_devt(part_devt(part));
 
-	hd_struct_put(part);
+	hd_struct_kill(part);
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -266,6 +285,10 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
+/*
+ * Must be called either with bd_mutex held, before a disk can be opened or
+ * after all disk users are gone.
+ */
 struct hd_struct *add_partition(struct gendisk *disk, int partno,
 				sector_t start, sector_t len, int flags,
 				struct partition_meta_info *info)
@@ -281,7 +304,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	err = disk_expand_part_tbl(disk, partno);
 	if (err)
 		return ERR_PTR(err);
-	ptbl = disk->part_tbl;
+	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
 
 	if (ptbl->part[partno])
 		return ERR_PTR(-EBUSY);
@@ -309,8 +332,10 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 
 	if (info) {
 		struct partition_meta_info *pinfo = alloc_part_info(disk);
-		if (!pinfo)
+		if (!pinfo) {
+			err = -ENOMEM;
 			goto out_free_stats;
+		}
 		memcpy(pinfo, info, sizeof(*info));
 		p->info = pinfo;
 	}
@@ -349,14 +374,19 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 			goto out_del;
 	}
 
+	err = hd_ref_init(p);
+	if (err) {
+		if (flags & ADDPART_FLAG_WHOLEDISK)
+			goto out_remove_file;
+		goto out_del;
+	}
+
 	/* everything is up and running, commence */
 	rcu_assign_pointer(ptbl->part[partno], p);
 
 	/* suppress uevent if the disk suppresses it */
 	if (!dev_get_uevent_suppress(ddev))
 		kobject_uevent(&pdev->kobj, KOBJ_ADD);
-
-	hd_ref_init(p);
 	return p;
 
 out_free_info:
@@ -366,12 +396,13 @@ out_free_stats:
 out_free:
 	kfree(p);
 	return ERR_PTR(err);
+out_remove_file:
+	device_remove_file(pdev, &dev_attr_whole_disk);
 out_del:
 	kobject_put(p->holder_dir);
 	device_del(pdev);
 out_put:
 	put_device(pdev);
-	blk_free_devt(devt);
 	return ERR_PTR(err);
 }
 
@@ -397,7 +428,7 @@ static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
 	struct hd_struct *part;
 	int res;
 
-	if (bdev->bd_part_count)
+	if (bdev->bd_part_count || bdev->bd_super)
 		return -EBUSY;
 	res = invalidate_partition(disk, 0);
 	if (res)
@@ -409,6 +440,56 @@ static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
 	disk_part_iter_exit(&piter);
 
 	return 0;
+}
+
+static bool part_zone_aligned(struct gendisk *disk,
+			      struct block_device *bdev,
+			      sector_t from, sector_t size)
+{
+	unsigned int zone_sectors = bdev_zone_sectors(bdev);
+
+	/*
+	 * If this function is called, then the disk is a zoned block device
+	 * (host-aware or host-managed). This can be detected even if the
+	 * zoned block device support is disabled (CONFIG_BLK_DEV_ZONED not
+	 * set). In this case, however, only host-aware devices will be seen
+	 * as a block device is not created for host-managed devices. Without
+	 * zoned block device support, host-aware drives can still be used as
+	 * regular block devices (no zone operation) and their zone size will
+	 * be reported as 0. Allow this case.
+	 */
+	if (!zone_sectors)
+		return true;
+
+	/*
+	 * Check partition start and size alignement. If the drive has a
+	 * smaller last runt zone, ignore it and allow the partition to
+	 * use it. Check the zone size too: it should be a power of 2 number
+	 * of sectors.
+	 */
+	if (WARN_ON_ONCE(!is_power_of_2(zone_sectors))) {
+		u32 rem;
+
+		div_u64_rem(from, zone_sectors, &rem);
+		if (rem)
+			return false;
+		if ((from + size) < get_capacity(disk)) {
+			div_u64_rem(size, zone_sectors, &rem);
+			if (rem)
+				return false;
+		}
+
+	} else {
+
+		if (from & (zone_sectors - 1))
+			return false;
+		if ((from + size) < get_capacity(disk) &&
+		    (size & (zone_sectors - 1)))
+			return false;
+
+	}
+
+	return true;
 }
 
 int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
@@ -475,7 +556,6 @@ rescan:
 	/* add partitions */
 	for (p = 1; p < state->limit; p++) {
 		sector_t size, from;
-		struct partition_meta_info *info = NULL;
 
 		size = state->parts[p].size;
 		if (!size)
@@ -510,8 +590,21 @@ rescan:
 			}
 		}
 
-		if (state->parts[p].has_info)
-			info = &state->parts[p].info;
+		/*
+		 * On a zoned block device, partitions should be aligned on the
+		 * device zone size (i.e. zone boundary crossing not allowed).
+		 * Otherwise, resetting the write pointer of the last zone of
+		 * one partition may impact the following partition.
+		 */
+		if (bdev_is_zoned(bdev) &&
+		    !part_zone_aligned(disk, bdev, from, size)) {
+			printk(KERN_WARNING
+			       "%s: p%d start %llu+%llu is not zone aligned\n",
+			       disk->disk_name, p, (unsigned long long) from,
+			       (unsigned long long) size);
+			continue;
+		}
+
 		part = add_partition(disk, p, from, size,
 				     state->parts[p].flags,
 				     &state->parts[p].info);
@@ -554,15 +647,14 @@ unsigned char *read_dev_sector(struct block_device *bdev, sector_t n, Sector *p)
 	struct address_space *mapping = bdev->bd_inode->i_mapping;
 	struct page *page;
 
-	page = read_mapping_page(mapping, (pgoff_t)(n >> (PAGE_CACHE_SHIFT-9)),
-				 NULL);
+	page = read_mapping_page(mapping, (pgoff_t)(n >> (PAGE_SHIFT-9)), NULL);
 	if (!IS_ERR(page)) {
 		if (PageError(page))
 			goto fail;
 		p->v = page;
-		return (unsigned char *)page_address(page) +  ((n & ((1 << (PAGE_CACHE_SHIFT - 9)) - 1)) << 9);
+		return (unsigned char *)page_address(page) +  ((n & ((1 << (PAGE_SHIFT - 9)) - 1)) << 9);
 fail:
-		page_cache_release(page);
+		put_page(page);
 	}
 	p->v = NULL;
 	return NULL;

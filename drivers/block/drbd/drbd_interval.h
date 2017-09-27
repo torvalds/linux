@@ -6,11 +6,13 @@
 
 struct drbd_interval {
 	struct rb_node rb;
-	sector_t sector;	/* start sector of the interval */
-	unsigned int size;	/* size in bytes */
-	sector_t end;		/* highest interval end in subtree */
-	int local:1		/* local or remote request? */;
-	int waiting:1;
+	sector_t sector;		/* start sector of the interval */
+	unsigned int size;		/* size in bytes */
+	sector_t end;			/* highest interval end in subtree */
+	unsigned int local:1		/* local or remote request? */;
+	unsigned int waiting:1;		/* someone is waiting for completion */
+	unsigned int completed:1;	/* this has been completed already;
+					 * ignore for conflict detection */
 };
 
 static inline void drbd_clear_interval(struct drbd_interval *i)

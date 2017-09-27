@@ -22,7 +22,10 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "em28xx.h"
+
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -31,51 +34,56 @@
 #include <sound/ac97_codec.h>
 #include <media/v4l2-common.h>
 
-#include "em28xx.h"
+#define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
+		      "Markus Rechberger <mrechberger@gmail.com>, " \
+		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
+		      "Sascha Sommer <saschasommer@freenet.de>"
+
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
+MODULE_VERSION(EM28XX_VERSION);
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
 static unsigned int core_debug;
 module_param(core_debug, int, 0644);
-MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
+MODULE_PARM_DESC(core_debug, "enable debug messages [core and isoc]");
 
-#define em28xx_coredbg(fmt, arg...) do {\
-	if (core_debug) \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
+#define em28xx_coredbg(fmt, arg...) do {				\
+	if (core_debug)							\
+		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+			   "core: %s: " fmt, __func__, ## arg);		\
+} while (0)
 
 static unsigned int reg_debug;
 module_param(reg_debug, int, 0644);
 MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 
-#define em28xx_regdbg(fmt, arg...) do {\
-	if (reg_debug) \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
 
-static int alt;
-module_param(alt, int, 0644);
-MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
+#define em28xx_regdbg(fmt, arg...) do {				\
+	if (reg_debug)							\
+		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+			   "reg: %s: " fmt, __func__, ## arg);		\
+} while (0)
 
-static unsigned int disable_vbi;
-module_param(disable_vbi, int, 0644);
-MODULE_PARM_DESC(disable_vbi, "disable vbi support");
-
-/* FIXME */
-#define em28xx_isocdbg(fmt, arg...) do {\
-	if (core_debug) \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
+/* FIXME: don't abuse core_debug */
+#define em28xx_isocdbg(fmt, arg...) do {				\
+	if (core_debug)							\
+		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+			   "core: %s: " fmt, __func__, ## arg);		\
+} while (0)
 
 /*
  * em28xx_read_reg_req()
  * reads data from the usb device specifying bRequest
  */
 int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
-				   char *buf, int len)
+			    char *buf, int len)
 {
 	int ret;
-	int pipe = usb_rcvctrlpipe(dev->udev, 0);
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
+	int pipe = usb_rcvctrlpipe(udev, 0);
 
 	if (dev->disconnected)
 		return -ENODEV;
@@ -83,23 +91,16 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	if (len > URB_MAX_CTRL_SIZE)
 		return -EINVAL;
 
-	if (reg_debug) {
-		printk(KERN_DEBUG "(pipe 0x%08x): "
-			"IN:  %02x %02x %02x %02x %02x %02x %02x %02x ",
-			pipe,
-			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			req, 0, 0,
-			reg & 0xff, reg >> 8,
-			len & 0xff, len >> 8);
-	}
-
 	mutex_lock(&dev->ctrl_urb_lock);
-	ret = usb_control_msg(dev->udev, pipe, req,
+	ret = usb_control_msg(udev, pipe, req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	if (ret < 0) {
-		if (reg_debug)
-			printk(" failed!\n");
+		em28xx_regdbg("(pipe 0x%08x): IN:  %02x %02x %02x %02x %02x %02x %02x %02x  failed with error %i\n",
+			     pipe, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			     req, 0, 0,
+			     reg & 0xff, reg >> 8,
+			     len & 0xff, len >> 8, ret);
 		mutex_unlock(&dev->ctrl_urb_lock);
 		return usb_translate_errors(ret);
 	}
@@ -109,14 +110,11 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 
 	mutex_unlock(&dev->ctrl_urb_lock);
 
-	if (reg_debug) {
-		int byte;
-
-		printk("<<<");
-		for (byte = 0; byte < len; byte++)
-			printk(" %02x", (unsigned char)buf[byte]);
-		printk("\n");
-	}
+	em28xx_regdbg("(pipe 0x%08x): IN:  %02x %02x %02x %02x %02x %02x %02x %02x <<< %*ph\n",
+		     pipe, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		     req, 0, 0,
+		     reg & 0xff, reg >> 8,
+		     len & 0xff, len >> 8, len, buf);
 
 	return ret;
 }
@@ -148,10 +146,11 @@ EXPORT_SYMBOL_GPL(em28xx_read_reg);
  * sends data to the usb device, specifying bRequest
  */
 int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
-				 int len)
+			  int len)
 {
 	int ret;
-	int pipe = usb_sndctrlpipe(dev->udev, 0);
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
+	int pipe = usb_sndctrlpipe(udev, 0);
 
 	if (dev->disconnected)
 		return -ENODEV;
@@ -159,31 +158,29 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	if ((len < 1) || (len > URB_MAX_CTRL_SIZE))
 		return -EINVAL;
 
-	if (reg_debug) {
-		int byte;
-
-		printk(KERN_DEBUG "(pipe 0x%08x): "
-			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
-			pipe,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			req, 0, 0,
-			reg & 0xff, reg >> 8,
-			len & 0xff, len >> 8);
-
-		for (byte = 0; byte < len; byte++)
-			printk(" %02x", (unsigned char)buf[byte]);
-		printk("\n");
-	}
-
 	mutex_lock(&dev->ctrl_urb_lock);
 	memcpy(dev->urb_buf, buf, len);
-	ret = usb_control_msg(dev->udev, pipe, req,
+	ret = usb_control_msg(udev, pipe, req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	mutex_unlock(&dev->ctrl_urb_lock);
 
-	if (ret < 0)
+	if (ret < 0) {
+		em28xx_regdbg("(pipe 0x%08x): OUT:  %02x %02x %02x %02x %02x %02x %02x %02x >>> %*ph  failed with error %i\n",
+			      pipe,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      req, 0, 0,
+			      reg & 0xff, reg >> 8,
+			      len & 0xff, len >> 8, len, buf, ret);
 		return usb_translate_errors(ret);
+	}
+
+	em28xx_regdbg("(pipe 0x%08x): OUT:  %02x %02x %02x %02x %02x %02x %02x %02x >>> %*ph\n",
+		      pipe,
+		      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		      req, 0, 0,
+		      reg & 0xff, reg >> 8,
+		      len & 0xff, len >> 8, len, buf);
 
 	if (dev->wait_after_write)
 		msleep(dev->wait_after_write);
@@ -210,7 +207,7 @@ EXPORT_SYMBOL_GPL(em28xx_write_reg);
  * the actual value
  */
 int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
-				 u8 bitmask)
+			  u8 bitmask)
 {
 	int oldval;
 	u8 newval;
@@ -219,11 +216,30 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 	if (oldval < 0)
 		return oldval;
 
-	newval = (((u8) oldval) & ~bitmask) | (val & bitmask);
+	newval = (((u8)oldval) & ~bitmask) | (val & bitmask);
 
 	return em28xx_write_regs(dev, reg, &newval, 1);
 }
 EXPORT_SYMBOL_GPL(em28xx_write_reg_bits);
+
+/*
+ * em28xx_toggle_reg_bits()
+ * toggles/inverts the bits (specified by bitmask) of a register
+ */
+int em28xx_toggle_reg_bits(struct em28xx *dev, u16 reg, u8 bitmask)
+{
+	int oldval;
+	u8 newval;
+
+	oldval = em28xx_read_reg(dev, reg);
+	if (oldval < 0)
+		return oldval;
+
+	newval = (~oldval & bitmask) | (oldval & ~bitmask);
+
+	return em28xx_write_reg(dev, reg, newval);
+}
+EXPORT_SYMBOL_GPL(em28xx_toggle_reg_bits);
 
 /*
  * em28xx_is_ac97_ready()
@@ -231,19 +247,22 @@ EXPORT_SYMBOL_GPL(em28xx_write_reg_bits);
  */
 static int em28xx_is_ac97_ready(struct em28xx *dev)
 {
-	int ret, i;
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_AC97_XFER_TIMEOUT);
+	int ret;
 
 	/* Wait up to 50 ms for AC97 command to complete */
-	for (i = 0; i < 10; i++, msleep(5)) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = em28xx_read_reg(dev, EM28XX_R43_AC97BUSY);
 		if (ret < 0)
 			return ret;
 
 		if (!(ret & 0x01))
 			return 0;
+		msleep(5);
 	}
 
-	em28xx_warn("AC97 command still being executed: not handled properly!\n");
+	dev_warn(&dev->intf->dev,
+		 "AC97 command still being executed: not handled properly!\n");
 	return -EBUSY;
 }
 
@@ -255,7 +274,7 @@ int em28xx_read_ac97(struct em28xx *dev, u8 reg)
 {
 	int ret;
 	u8 addr = (reg & 0x7f) | 0x80;
-	u16 val;
+	__le16 val;
 
 	ret = em28xx_is_ac97_ready(dev);
 	if (ret < 0)
@@ -290,7 +309,7 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_regs(dev, EM28XX_R40_AC97LSB, (u8 *) &value, 2);
+	ret = em28xx_write_regs(dev, EM28XX_R40_AC97LSB, (u8 *)&value, 2);
 	if (ret < 0)
 		return ret;
 
@@ -336,8 +355,9 @@ static int set_ac97_input(struct em28xx *dev)
 			ret = em28xx_write_ac97(dev, inputs[i].reg, 0x8000);
 
 		if (ret < 0)
-			em28xx_warn("couldn't setup AC97 register %d\n",
-				     inputs[i].reg);
+			dev_warn(&dev->intf->dev,
+				 "couldn't setup AC97 register %d\n",
+				 inputs[i].reg);
 	}
 	return 0;
 }
@@ -409,7 +429,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	int ret, i;
 	u8 xclk;
 
-	if (!dev->audio_mode.has_audio)
+	if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE)
 		return 0;
 
 	/* It is assumed that all devices use master volume for output.
@@ -420,8 +440,9 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 		for (i = 0; i < ARRAY_SIZE(outputs); i++) {
 			ret = em28xx_write_ac97(dev, outputs[i].reg, 0x8000);
 			if (ret < 0)
-				em28xx_warn("couldn't setup AC97 register %d\n",
-				     outputs[i].reg);
+				dev_warn(&dev->intf->dev,
+					 "couldn't setup AC97 register %d\n",
+					 outputs[i].reg);
 		}
 	}
 
@@ -458,8 +479,9 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 				ret = em28xx_write_ac97(dev, outputs[i].reg,
 							vol);
 			if (ret < 0)
-				em28xx_warn("couldn't setup AC97 register %d\n",
-				     outputs[i].reg);
+				dev_warn(&dev->intf->dev,
+					 "couldn't setup AC97 register %d\n",
+					 outputs[i].reg);
 		}
 
 		if (dev->ctl_aoutput & EM28XX_AOUT_PCM_IN) {
@@ -480,44 +502,49 @@ EXPORT_SYMBOL_GPL(em28xx_audio_analog_set);
 int em28xx_audio_setup(struct em28xx *dev)
 {
 	int vid1, vid2, feat, cfg;
-	u32 vid;
+	u32 vid = 0;
+	u8 i2s_samplerates;
 
-	if (dev->chip_id == CHIP_ID_EM2870 || dev->chip_id == CHIP_ID_EM2874
-		|| dev->chip_id == CHIP_ID_EM28174) {
+	if (dev->chip_id == CHIP_ID_EM2870 ||
+	    dev->chip_id == CHIP_ID_EM2874 ||
+	    dev->chip_id == CHIP_ID_EM28174 ||
+	    dev->chip_id == CHIP_ID_EM28178) {
 		/* Digital only device - don't load any alsa module */
-		dev->audio_mode.has_audio = false;
-		dev->has_audio_class = false;
-		dev->has_alsa_audio = false;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
+		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
 		return 0;
 	}
-
-	dev->audio_mode.has_audio = true;
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
-	em28xx_info("Config register raw data: 0x%02x\n", cfg);
-	if (cfg < 0) {
-		/* Register read error?  */
-		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
+	dev_info(&dev->intf->dev, "Config register raw data: 0x%02x\n", cfg);
+	if (cfg < 0) { /* Register read error */
+		/* Be conservative */
+		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
 		/* The device doesn't have vendor audio at all */
-		dev->has_alsa_audio = false;
-		dev->audio_mode.has_audio = false;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
+		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
 		return 0;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
-		em28xx_info("I2S Audio (3 sample rates)\n");
-		dev->audio_mode.i2s_3rates = 1;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
-		em28xx_info("I2S Audio (5 sample rates)\n");
-		dev->audio_mode.i2s_5rates = 1;
-	}
-
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+		dev->int_audio_type = EM28XX_INT_AUDIO_I2S;
+		if (dev->chip_id < CHIP_ID_EM2860 &&
+		    (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		    EM2820_CHIPCFG_I2S_1_SAMPRATE)
+			i2s_samplerates = 1;
+		else if (dev->chip_id >= CHIP_ID_EM2860 &&
+			 (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+			 EM2860_CHIPCFG_I2S_5_SAMPRATES)
+			i2s_samplerates = 5;
+		else
+			i2s_samplerates = 3;
+		dev_info(&dev->intf->dev, "I2S Audio (%d sample rate(s))\n",
+			i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
+	} else {
+		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	}
 
 	dev->audio_mode.ac97 = EM28XX_AC97_OTHER;
@@ -529,10 +556,12 @@ int em28xx_audio_setup(struct em28xx *dev)
 		 * Note: (some) em2800 devices without eeprom reports 0x91 on
 		 *	 CHIPCFG register, even not having an AC97 chip
 		 */
-		em28xx_warn("AC97 chip type couldn't be determined\n");
+		dev_warn(&dev->intf->dev,
+			 "AC97 chip type couldn't be determined\n");
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
-		dev->has_alsa_audio = false;
-		dev->audio_mode.has_audio = false;
+		if (dev->usb_audio_type == EM28XX_USB_AUDIO_VENDOR)
+			dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
 		goto init_audio;
 	}
 
@@ -541,16 +570,13 @@ int em28xx_audio_setup(struct em28xx *dev)
 		goto init_audio;
 
 	vid = vid1 << 16 | vid2;
-
-	dev->audio_mode.ac97_vendor_id = vid;
-	em28xx_warn("AC97 vendor ID = 0x%08x\n", vid);
+	dev_warn(&dev->intf->dev, "AC97 vendor ID = 0x%08x\n", vid);
 
 	feat = em28xx_read_ac97(dev, AC97_RESET);
 	if (feat < 0)
 		goto init_audio;
 
-	dev->audio_mode.ac97_feat = feat;
-	em28xx_warn("AC97 features = 0x%04x\n", feat);
+	dev_warn(&dev->intf->dev, "AC97 features = 0x%04x\n", feat);
 
 	/* Try to identify what audio processor we have */
 	if (((vid == 0xffffffff) || (vid == 0x83847650)) && (feat == 0x6a90))
@@ -562,17 +588,20 @@ init_audio:
 	/* Reports detected AC97 processor */
 	switch (dev->audio_mode.ac97) {
 	case EM28XX_NO_AC97:
-		em28xx_info("No AC97 audio processor\n");
+		dev_info(&dev->intf->dev, "No AC97 audio processor\n");
 		break;
 	case EM28XX_AC97_EM202:
-		em28xx_info("Empia 202 AC97 audio processor detected\n");
+		dev_info(&dev->intf->dev,
+			 "Empia 202 AC97 audio processor detected\n");
 		break;
 	case EM28XX_AC97_SIGMATEL:
-		em28xx_info("Sigmatel audio processor detected(stac 97%02x)\n",
-			    dev->audio_mode.ac97_vendor_id & 0xff);
+		dev_info(&dev->intf->dev,
+			 "Sigmatel audio processor detected (stac 97%02x)\n",
+			 vid & 0xff);
 		break;
 	case EM28XX_AC97_OTHER:
-		em28xx_warn("Unknown AC97 audio processor detected!\n");
+		dev_warn(&dev->intf->dev,
+			 "Unknown AC97 audio processor detected!\n");
 		break;
 	default:
 		break;
@@ -582,295 +611,84 @@ init_audio:
 }
 EXPORT_SYMBOL_GPL(em28xx_audio_setup);
 
-int em28xx_colorlevels_set_default(struct em28xx *dev)
+const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
+					 enum em28xx_led_role role)
 {
-	em28xx_write_reg(dev, EM28XX_R20_YGAIN, CONTRAST_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R21_YOFFSET, BRIGHTNESS_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R22_UVGAIN, SATURATION_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R23_UOFFSET, BLUE_BALANCE_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R24_VOFFSET, RED_BALANCE_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, SHARPNESS_DEFAULT);
+	if (dev->board.leds) {
+		u8 k = 0;
 
-	em28xx_write_reg(dev, EM28XX_R14_GAMMA, 0x20);
-	em28xx_write_reg(dev, EM28XX_R15_RGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R16_GGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R17_BGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R18_ROFFSET, 0x00);
-	em28xx_write_reg(dev, EM28XX_R19_GOFFSET, 0x00);
-	return em28xx_write_reg(dev, EM28XX_R1A_BOFFSET, 0x00);
+		while (dev->board.leds[k].role >= 0 &&
+		       dev->board.leds[k].role < EM28XX_NUM_LED_ROLES) {
+			if (dev->board.leds[k].role == role)
+				return &dev->board.leds[k];
+			k++;
+		}
+	}
+	return NULL;
 }
+EXPORT_SYMBOL_GPL(em28xx_find_led);
 
 int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
+	const struct em28xx_led *led = NULL;
 
 	if (dev->chip_id == CHIP_ID_EM2874 ||
 	    dev->chip_id == CHIP_ID_EM2884 ||
-	    dev->chip_id == CHIP_ID_EM28174) {
+	    dev->chip_id == CHIP_ID_EM28174 ||
+	    dev->chip_id == CHIP_ID_EM28178) {
 		/* The Transport Stream Enable Register moved in em2874 */
-		if (!start) {
-			rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
-						   0x00,
-						   EM2874_TS1_CAPTURE_ENABLE);
-			return rc;
-		}
-
-		/* Enable Transport Stream */
 		rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
-					   EM2874_TS1_CAPTURE_ENABLE,
+					   start ?
+					       EM2874_TS1_CAPTURE_ENABLE : 0x00,
 					   EM2874_TS1_CAPTURE_ENABLE);
-		return rc;
+	} else {
+		/* FIXME: which is the best order? */
+		/* video registers are sampled by VREF */
+		rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,
+					   start ? 0x10 : 0x00, 0x10);
+		if (rc < 0)
+			return rc;
+
+		if (start) {
+			if (dev->board.is_webcam)
+				rc = em28xx_write_reg(dev, 0x13, 0x0c);
+
+			/* Enable video capture */
+			rc = em28xx_write_reg(dev, 0x48, 0x00);
+			if (rc < 0)
+				return rc;
+
+			if (dev->mode == EM28XX_ANALOG_MODE)
+				rc = em28xx_write_reg(dev,
+						      EM28XX_R12_VINENABLE,
+						      0x67);
+			else
+				rc = em28xx_write_reg(dev,
+						      EM28XX_R12_VINENABLE,
+						      0x37);
+			if (rc < 0)
+				return rc;
+
+			msleep(6);
+		} else {
+			/* disable video capture */
+			rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
+		}
 	}
-
-
-	/* FIXME: which is the best order? */
-	/* video registers are sampled by VREF */
-	rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,
-				   start ? 0x10 : 0x00, 0x10);
-	if (rc < 0)
-		return rc;
-
-	if (!start) {
-		/* disable video capture */
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
-		return rc;
-	}
-
-	if (dev->board.is_webcam)
-		rc = em28xx_write_reg(dev, 0x13, 0x0c);
-
-	/* enable video capture */
-	rc = em28xx_write_reg(dev, 0x48, 0x00);
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x67);
+		led = em28xx_find_led(dev, EM28XX_LED_ANALOG_CAPTURING);
 	else
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
+		led = em28xx_find_led(dev, EM28XX_LED_DIGITAL_CAPTURING);
 
-	msleep(6);
+	if (led)
+		em28xx_write_reg_bits(dev, led->gpio_reg,
+				      (!start ^ led->inverted) ?
+				      ~led->gpio_mask : led->gpio_mask,
+				      led->gpio_mask);
 
 	return rc;
-}
-
-int em28xx_vbi_supported(struct em28xx *dev)
-{
-	/* Modprobe option to manually disable */
-	if (disable_vbi == 1)
-		return 0;
-
-	if (dev->board.is_webcam)
-		return 0;
-
-	/* FIXME: check subdevices for VBI support */
-
-	if (dev->chip_id == CHIP_ID_EM2860 ||
-	    dev->chip_id == CHIP_ID_EM2883)
-		return 1;
-
-	/* Version of em28xx that does not support VBI */
-	return 0;
-}
-
-int em28xx_set_outfmt(struct em28xx *dev)
-{
-	int ret;
-	u8 fmt, vinctrl;
-
-	fmt = dev->format->reg;
-	if (!dev->is_em25xx)
-		fmt |= 0x20;
-	/*
-	 * NOTE: it's not clear if this is really needed !
-	 * The datasheets say bit 5 is a reserved bit and devices seem to work
-	 * fine without it. But the Windows driver sets it for em2710/50+em28xx
-	 * devices and we've always been setting it, too.
-	 *
-	 * em2765 (em25xx, em276x/7x/8x) devices do NOT work with this bit set,
-	 * it's likely used for an additional (compressed ?) format there.
-	 */
-	ret = em28xx_write_reg(dev, EM28XX_R27_OUTFMT, fmt);
-	if (ret < 0)
-		return ret;
-
-	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, dev->vinmode);
-	if (ret < 0)
-		return ret;
-
-	vinctrl = dev->vinctl;
-	if (em28xx_vbi_supported(dev) == 1) {
-		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
-		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
-		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, dev->vbi_width/4);
-		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, dev->vbi_height);
-		if (dev->norm & V4L2_STD_525_60) {
-			/* NTSC */
-			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		} else if (dev->norm & V4L2_STD_625_50) {
-			/* PAL */
-			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
-		}
-	}
-
-	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctrl);
-}
-
-static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
-				  u8 ymin, u8 ymax)
-{
-	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n",
-			xmin, ymin, xmax, ymax);
-
-	em28xx_write_regs(dev, EM28XX_R28_XMIN, &xmin, 1);
-	em28xx_write_regs(dev, EM28XX_R29_XMAX, &xmax, 1);
-	em28xx_write_regs(dev, EM28XX_R2A_YMIN, &ymin, 1);
-	return em28xx_write_regs(dev, EM28XX_R2B_YMAX, &ymax, 1);
-}
-
-static void em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
-				   u16 width, u16 height)
-{
-	u8 cwidth = width >> 2;
-	u8 cheight = height >> 2;
-	u8 overflow = (height >> 9 & 0x02) | (width >> 10 & 0x01);
-	/* NOTE: size limit: 2047x1023 = 2MPix */
-
-	em28xx_coredbg("capture area set to (%d,%d): %dx%d\n",
-		       hstart, vstart,
-		       ((overflow & 2) << 9 | cwidth << 2),
-		       ((overflow & 1) << 10 | cheight << 2));
-
-	em28xx_write_regs(dev, EM28XX_R1C_HSTART, &hstart, 1);
-	em28xx_write_regs(dev, EM28XX_R1D_VSTART, &vstart, 1);
-	em28xx_write_regs(dev, EM28XX_R1E_CWIDTH, &cwidth, 1);
-	em28xx_write_regs(dev, EM28XX_R1F_CHEIGHT, &cheight, 1);
-	em28xx_write_regs(dev, EM28XX_R1B_OFLOW, &overflow, 1);
-
-	/* FIXME: function/meaning of these registers ? */
-	/* FIXME: align width+height to multiples of 4 ?! */
-	if (dev->is_em25xx) {
-		em28xx_write_reg(dev, 0x34, width >> 4);
-		em28xx_write_reg(dev, 0x35, height >> 4);
-	}
-}
-
-static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
-{
-	u8 mode;
-	/* the em2800 scaler only supports scaling down to 50% */
-
-	if (dev->board.is_em2800) {
-		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
-	} else {
-		u8 buf[2];
-
-		buf[0] = h;
-		buf[1] = h >> 8;
-		em28xx_write_regs(dev, EM28XX_R30_HSCALELOW, (char *)buf, 2);
-
-		buf[0] = v;
-		buf[1] = v >> 8;
-		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
-		/* it seems that both H and V scalers must be active
-		   to work correctly */
-		mode = (h || v) ? 0x30 : 0x00;
-	}
-	return em28xx_write_reg_bits(dev, EM28XX_R26_COMPR, mode, 0x30);
-}
-
-/* FIXME: this only function read values from dev */
-int em28xx_resolution_set(struct em28xx *dev)
-{
-	int width, height;
-	width = norm_maxw(dev);
-	height = norm_maxh(dev);
-
-	/* Properly setup VBI */
-	dev->vbi_width = 720;
-	if (dev->norm & V4L2_STD_525_60)
-		dev->vbi_height = 12;
-	else
-		dev->vbi_height = 18;
-
-	em28xx_set_outfmt(dev);
-
-	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
-
-	/* If we don't set the start position to 2 in VBI mode, we end up
-	   with line 20/21 being YUYV encoded instead of being in 8-bit
-	   greyscale.  The core of the issue is that line 21 (and line 23 for
-	   PAL WSS) are inside of active video region, and as a result they
-	   get the pixelformatting associated with that area.  So by cropping
-	   it out, we end up with the same format as the rest of the VBI
-	   region */
-	if (em28xx_vbi_supported(dev) == 1)
-		em28xx_capture_area_set(dev, 0, 2, width, height);
-	else
-		em28xx_capture_area_set(dev, 0, 0, width, height);
-
-	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
-}
-
-/* Set USB alternate setting for analog video */
-int em28xx_set_alternate(struct em28xx *dev)
-{
-	int errCode;
-	int i;
-	unsigned int min_pkt_size = dev->width * 2 + 4;
-
-	/* NOTE: for isoc transfers, only alt settings > 0 are allowed
-		 bulk transfers seem to work only with alt=0 ! */
-	dev->alt = 0;
-	if ((alt > 0) && (alt < dev->num_alt)) {
-		em28xx_coredbg("alternate forced to %d\n", dev->alt);
-		dev->alt = alt;
-		goto set_alt;
-	}
-	if (dev->analog_xfer_bulk)
-		goto set_alt;
-
-	/* When image size is bigger than a certain value,
-	   the frame size should be increased, otherwise, only
-	   green screen will be received.
-	 */
-	if (dev->width * 2 * dev->height > 720 * 240 * 2)
-		min_pkt_size *= 2;
-
-	for (i = 0; i < dev->num_alt; i++) {
-		/* stop when the selected alt setting offers enough bandwidth */
-		if (dev->alt_max_pkt_size_isoc[i] >= min_pkt_size) {
-			dev->alt = i;
-			break;
-		/* otherwise make sure that we end up with the maximum bandwidth
-		   because the min_pkt_size equation might be wrong...
-		*/
-		} else if (dev->alt_max_pkt_size_isoc[i] >
-			   dev->alt_max_pkt_size_isoc[dev->alt])
-			dev->alt = i;
-	}
-
-set_alt:
-	/* NOTE: for bulk transfers, we need to call usb_set_interface()
-	 * even if the previous settings were the same. Otherwise streaming
-	 * fails with all urbs having status = -EOVERFLOW ! */
-	if (dev->analog_xfer_bulk) {
-		dev->max_pkt_size = 512; /* USB 2.0 spec */
-		dev->packet_multiplier = EM28XX_BULK_PACKET_MULTIPLIER;
-	} else { /* isoc */
-		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
-			       min_pkt_size, dev->alt);
-		dev->max_pkt_size =
-				  dev->alt_max_pkt_size_isoc[dev->alt];
-		dev->packet_multiplier = EM28XX_NUM_ISOC_PACKETS;
-	}
-	em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
-		       dev->alt, dev->max_pkt_size);
-	errCode = usb_set_interface(dev->udev, 0, dev->alt);
-	if (errCode < 0) {
-		em28xx_errdev("cannot change alternate number to %d (error=%i)\n",
-			      dev->alt, errCode);
-		return errCode;
-	}
-	return 0;
 }
 
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
@@ -982,6 +800,7 @@ void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode)
 {
 	struct urb *urb;
 	struct em28xx_usb_bufs *usb_bufs;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int i;
 
 	em28xx_isocdbg("em28xx: called em28xx_uninit_usb_xfer in mode %d\n",
@@ -1001,10 +820,10 @@ void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode)
 				usb_unlink_urb(urb);
 
 			if (usb_bufs->transfer_buffer[i]) {
-				usb_free_coherent(dev->udev,
-					urb->transfer_buffer_length,
-					usb_bufs->transfer_buffer[i],
-					urb->transfer_dma);
+				usb_free_coherent(udev,
+						  urb->transfer_buffer_length,
+						  usb_bufs->transfer_buffer[i],
+						  urb->transfer_dma);
 			}
 			usb_free_urb(urb);
 			usb_bufs->urb[i] = NULL;
@@ -1055,9 +874,10 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		      int num_bufs, int max_pkt_size, int packet_multiplier)
 {
 	struct em28xx_usb_bufs *usb_bufs;
+	struct urb *urb;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int i;
 	int sb_size, pipe;
-	struct urb *urb;
 	int j, k;
 
 	em28xx_isocdbg("em28xx: called em28xx_alloc_isoc in mode %d\n", mode);
@@ -1067,21 +887,23 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 	if (mode == EM28XX_DIGITAL_MODE) {
 		if ((xfer_bulk && !dev->dvb_ep_bulk) ||
 		    (!xfer_bulk && !dev->dvb_ep_isoc)) {
-			em28xx_errdev("no endpoint for DVB mode and transfer type %d\n",
-				      xfer_bulk > 0);
+			dev_err(&dev->intf->dev,
+				"no endpoint for DVB mode and transfer type %d\n",
+				xfer_bulk > 0);
 			return -EINVAL;
 		}
 		usb_bufs = &dev->usb_ctl.digital_bufs;
 	} else if (mode == EM28XX_ANALOG_MODE) {
 		if ((xfer_bulk && !dev->analog_ep_bulk) ||
 		    (!xfer_bulk && !dev->analog_ep_isoc)) {
-			em28xx_errdev("no endpoint for analog mode and transfer type %d\n",
-				       xfer_bulk > 0);
+			dev_err(&dev->intf->dev,
+				"no endpoint for analog mode and transfer type %d\n",
+				xfer_bulk > 0);
 			return -EINVAL;
 		}
 		usb_bufs = &dev->usb_ctl.analog_bufs;
 	} else {
-		em28xx_errdev("invalid mode selected\n");
+		dev_err(&dev->intf->dev, "invalid mode selected\n");
 		return -EINVAL;
 	}
 
@@ -1091,15 +913,12 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 	usb_bufs->num_bufs = num_bufs;
 
 	usb_bufs->urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
-	if (!usb_bufs->urb) {
-		em28xx_errdev("cannot alloc memory for usb buffers\n");
+	if (!usb_bufs->urb)
 		return -ENOMEM;
-	}
 
 	usb_bufs->transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
 					     GFP_KERNEL);
 	if (!usb_bufs->transfer_buffer) {
-		em28xx_errdev("cannot allocate memory for usb transfer\n");
 		kfree(usb_bufs->urb);
 		return -ENOMEM;
 	}
@@ -1118,39 +937,38 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 	for (i = 0; i < usb_bufs->num_bufs; i++) {
 		urb = usb_alloc_urb(usb_bufs->num_packets, GFP_KERNEL);
 		if (!urb) {
-			em28xx_err("cannot alloc usb_ctl.urb %i\n", i);
 			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
 		usb_bufs->urb[i] = urb;
 
-		usb_bufs->transfer_buffer[i] = usb_alloc_coherent(dev->udev,
+		usb_bufs->transfer_buffer[i] = usb_alloc_coherent(udev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!usb_bufs->transfer_buffer[i]) {
-			em28xx_err("unable to allocate %i bytes for transfer"
-					" buffer %i%s\n",
-					sb_size, i,
-					in_interrupt() ? " while in int" : "");
+			dev_err(&dev->intf->dev,
+				"unable to allocate %i bytes for transfer buffer %i%s\n",
+			       sb_size, i,
+			       in_interrupt() ? " while in int" : "");
 			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
 		memset(usb_bufs->transfer_buffer[i], 0, sb_size);
 
 		if (xfer_bulk) { /* bulk */
-			pipe = usb_rcvbulkpipe(dev->udev,
+			pipe = usb_rcvbulkpipe(udev,
 					       mode == EM28XX_ANALOG_MODE ?
 					       dev->analog_ep_bulk :
 					       dev->dvb_ep_bulk);
-			usb_fill_bulk_urb(urb, dev->udev, pipe,
+			usb_fill_bulk_urb(urb, udev, pipe,
 					  usb_bufs->transfer_buffer[i], sb_size,
 					  em28xx_irq_callback, dev);
 			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 		} else { /* isoc */
-			pipe = usb_rcvisocpipe(dev->udev,
+			pipe = usb_rcvisocpipe(udev,
 					       mode == EM28XX_ANALOG_MODE ?
 					       dev->analog_ep_isoc :
 					       dev->dvb_ep_isoc);
-			usb_fill_int_urb(urb, dev->udev, pipe,
+			usb_fill_int_urb(urb, udev, pipe,
 					 usb_bufs->transfer_buffer[i], sb_size,
 					 em28xx_irq_callback, dev, 1);
 			urb->transfer_flags = URB_ISO_ASAP |
@@ -1175,13 +993,14 @@ EXPORT_SYMBOL_GPL(em28xx_alloc_urbs);
  * Allocate URBs and start IRQ
  */
 int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
-		    int xfer_bulk, int num_bufs, int max_pkt_size,
+			 int xfer_bulk, int num_bufs, int max_pkt_size,
 		    int packet_multiplier,
-		    int (*urb_data_copy) (struct em28xx *dev, struct urb *urb))
+		    int (*urb_data_copy)(struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
 	struct em28xx_dmaqueue *vbi_dma_q = &dev->vbiq;
 	struct em28xx_usb_bufs *usb_bufs;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int i;
 	int rc;
 	int alloc;
@@ -1208,10 +1027,11 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 	}
 
 	if (xfer_bulk) {
-		rc = usb_clear_halt(dev->udev, usb_bufs->urb[0]->pipe);
+		rc = usb_clear_halt(udev, usb_bufs->urb[0]->pipe);
 		if (rc < 0) {
-			em28xx_err("failed to clear USB bulk endpoint stall/halt condition (error=%i)\n",
-				   rc);
+			dev_err(&dev->intf->dev,
+				"failed to clear USB bulk endpoint stall/halt condition (error=%i)\n",
+			       rc);
 			em28xx_uninit_usb_xfer(dev, mode);
 			return rc;
 		}
@@ -1226,8 +1046,8 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 	for (i = 0; i < usb_bufs->num_bufs; i++) {
 		rc = usb_submit_urb(usb_bufs->urb[i], GFP_ATOMIC);
 		if (rc) {
-			em28xx_err("submit of urb %i failed (error=%i)\n", i,
-				   rc);
+			dev_err(&dev->intf->dev,
+				"submit of urb %i failed (error=%i)\n", i, rc);
 			em28xx_uninit_usb_xfer(dev, mode);
 			return rc;
 		}
@@ -1236,18 +1056,6 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(em28xx_init_usb_xfer);
-
-/*
- * em28xx_wake_i2c()
- * configure i2c attached devices
- */
-void em28xx_wake_i2c(struct em28xx *dev)
-{
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core,  reset, 0);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
-			INPUT(dev->ctl_input)->vmux, 0, 0);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
-}
 
 /*
  * Device control list
@@ -1272,7 +1080,7 @@ int em28xx_register_extension(struct em28xx_ops *ops)
 		ops->init(dev);
 	}
 	mutex_unlock(&em28xx_devlist_mutex);
-	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
+	pr_info("em28xx: Registered (%s) extension\n", ops->name);
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
@@ -1287,7 +1095,7 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 	}
 	list_del(&ops->next);
 	mutex_unlock(&em28xx_devlist_mutex);
-	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
+	pr_info("em28xx: Removed (%s) extension\n", ops->name);
 }
 EXPORT_SYMBOL(em28xx_unregister_extension);
 
@@ -1315,4 +1123,32 @@ void em28xx_close_extension(struct em28xx *dev)
 	}
 	list_del(&dev->devlist);
 	mutex_unlock(&em28xx_devlist_mutex);
+}
+
+int em28xx_suspend_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	dev_info(&dev->intf->dev, "Suspending extensions\n");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->suspend)
+			ops->suspend(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
+}
+
+int em28xx_resume_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	dev_info(&dev->intf->dev, "Resuming extensions\n");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->resume)
+			ops->resume(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
 }

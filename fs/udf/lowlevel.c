@@ -21,7 +21,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/cdrom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "udf_sb.h"
 
@@ -58,7 +58,7 @@ unsigned long udf_get_last_block(struct super_block *sb)
 	 */
 	if (ioctl_by_bdev(bdev, CDROM_LAST_WRITTEN, (unsigned long) &lblock) ||
 	    lblock == 0)
-		lblock = bdev->bd_inode->i_size >> sb->s_blocksize_bits;
+		lblock = i_size_read(bdev->bd_inode) >> sb->s_blocksize_bits;
 
 	if (lblock)
 		return lblock - 1;

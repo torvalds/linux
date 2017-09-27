@@ -224,7 +224,7 @@ static int wdt_keepalive(void)
 
 static int wdt_set_timeout(int t)
 {
-	int tmrval;
+	unsigned int tmrval;
 
 	/*
 	 * Convert seconds to watchdog counter time units, rounding up.
@@ -527,4 +527,3 @@ module_exit(w83977f_wdt_exit);
 MODULE_AUTHOR("Jose Goncalves <jose.goncalves@inov.pt>");
 MODULE_DESCRIPTION("Driver for watchdog timer in W83977F I/O chip");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

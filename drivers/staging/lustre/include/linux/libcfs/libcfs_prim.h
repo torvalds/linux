@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -40,46 +36,31 @@
 #ifndef __LIBCFS_PRIM_H__
 #define __LIBCFS_PRIM_H__
 
-#ifndef EXPORT_SYMBOL
-# define EXPORT_SYMBOL(s)
-#endif
-
-/*
- * Schedule
- */
-void cfs_pause(cfs_duration_t ticks);
-
-/*
- * Timer
- */
-typedef  void (cfs_timer_func_t)(ulong_ptr_t);
-void schedule_timeout_and_set_state(cfs_task_state_t, int64_t);
-
-void init_waitqueue_entry_current(wait_queue_t *link);
-int64_t waitq_timedwait(wait_queue_t *, cfs_task_state_t, int64_t);
-void waitq_wait(wait_queue_t *, cfs_task_state_t);
-void add_wait_queue_exclusive_head(wait_queue_head_t *, wait_queue_t *);
-
-void cfs_init_timer(timer_list_t *t);
-void cfs_timer_init(timer_list_t *t, cfs_timer_func_t *func, void *arg);
-void cfs_timer_done(timer_list_t *t);
-void cfs_timer_arm(timer_list_t *t, cfs_time_t deadline);
-void cfs_timer_disarm(timer_list_t *t);
-int  cfs_timer_is_armed(timer_list_t *t);
-cfs_time_t cfs_timer_deadline(timer_list_t *t);
-
 /*
  * Memory
  */
-#ifndef memory_pressure_get
-#define memory_pressure_get() (0)
+#if BITS_PER_LONG == 32
+/* limit to lowmem on 32-bit systems */
+#define NUM_CACHEPAGES \
+	min(totalram_pages, 1UL << (30 - PAGE_SHIFT) * 3 / 4)
+#else
+#define NUM_CACHEPAGES totalram_pages
 #endif
-#ifndef memory_pressure_set
-#define memory_pressure_set() do {} while (0)
-#endif
-#ifndef memory_pressure_clr
-#define memory_pressure_clr() do {} while (0)
-#endif
+
+static inline unsigned int memory_pressure_get(void)
+{
+	return current->flags & PF_MEMALLOC;
+}
+
+static inline void memory_pressure_set(void)
+{
+	current->flags |= PF_MEMALLOC;
+}
+
+static inline void memory_pressure_clr(void)
+{
+	current->flags &= ~PF_MEMALLOC;
+}
 
 static inline int cfs_memory_pressure_get_and_set(void)
 {
@@ -96,6 +77,5 @@ static inline void cfs_memory_pressure_restore(int old)
 		memory_pressure_set();
 	else
 		memory_pressure_clr();
-	return;
 }
 #endif

@@ -88,7 +88,7 @@ static const char * const boot_msg =
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include	"h/types.h"
 #undef ADDR			// undo Linux definition
@@ -149,7 +149,7 @@ extern void mac_drv_rx_mode(struct s_smc *smc, int mode);
 extern void mac_drv_clear_rx_queue(struct s_smc *smc);
 extern void enable_tx_irq(struct s_smc *smc, u_short queue);
 
-static DEFINE_PCI_DEVICE_TABLE(skfddi_pci_tbl) = {
+static const struct pci_device_id skfddi_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SK, PCI_DEVICE_ID_SK_FP, PCI_ANY_ID, PCI_ANY_ID, },
 	{ }			/* Terminating entry */
 };
@@ -166,7 +166,6 @@ static const struct net_device_ops skfp_netdev_ops = {
 	.ndo_stop		= skfp_close,
 	.ndo_start_xmit		= skfp_send_pkt,
 	.ndo_get_stats		= skfp_ctl_get_stats,
-	.ndo_change_mtu		= fddi_change_mtu,
 	.ndo_set_rx_mode	= skfp_ctl_set_multicast_list,
 	.ndo_set_mac_address	= skfp_ctl_set_mac_address,
 	.ndo_do_ioctl		= skfp_ioctl,
@@ -351,7 +350,6 @@ static void skfp_remove_one(struct pci_dev *pdev)
 	free_netdev(p);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /*
@@ -436,7 +434,7 @@ static  int skfp_driver_init(struct net_device *dev)
 	}
 	read_address(smc, NULL);
 	pr_debug("HW-Addr: %pMF\n", smc->hw.fddi_canon_addr.a);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, 6);
+	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
 
 	smt_reset_defaults(smc, 0);
 
@@ -503,7 +501,7 @@ static int skfp_open(struct net_device *dev)
 	 *               address.
 	 */
 	read_address(smc, NULL);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, 6);
+	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
 
 	init_smt(smc, NULL);
 	smt_online(smc, 1);
@@ -1213,7 +1211,7 @@ static void CheckSourceAddress(unsigned char *frame, unsigned char *hw_addr)
 	if ((unsigned short) frame[1 + 10] != 0)
 		return;
 	SRBit = frame[1 + 6] & 0x01;
-	memcpy(&frame[1 + 6], hw_addr, 6);
+	memcpy(&frame[1 + 6], hw_addr, ETH_ALEN);
 	frame[8] |= SRBit;
 }				// CheckSourceAddress
 

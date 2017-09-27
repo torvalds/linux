@@ -18,31 +18,17 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <mach/cputype.h>
-#include <mach/addr-map.h>
-#include <mach/pm-mmp2.h>
-#include <mach/regs-icu.h>
-#include <mach/irqs.h>
+
+#include "cputype.h"
+#include "addr-map.h"
+#include "pm-mmp2.h"
+#include "regs-icu.h"
+#include "irqs.h"
 
 int mmp2_set_wake(struct irq_data *d, unsigned int on)
 {
-	int irq = d->irq;
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long data = 0;
-
-	if (unlikely(irq >= nr_irqs)) {
-		pr_err("IRQ nubmers are out of boundary!\n");
-		return -EINVAL;
-	}
-
-	if (on) {
-		if (desc->action)
-			desc->action->flags |= IRQF_NO_SUSPEND;
-	} else {
-		if (desc->action)
-			desc->action->flags &= ~IRQF_NO_SUSPEND;
-	}
+	int irq = d->irq;
 
 	/* enable wakeup sources */
 	switch (irq) {

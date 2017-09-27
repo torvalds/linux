@@ -28,6 +28,7 @@ static void ohci_hcd_init (struct ohci_hcd *ohci)
 	ohci->next_statechange = jiffies;
 	spin_lock_init (&ohci->lock);
 	INIT_LIST_HEAD (&ohci->pending);
+	INIT_LIST_HEAD(&ohci->eds_in_use);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -87,10 +88,9 @@ td_alloc (struct ohci_hcd *hc, gfp_t mem_flags)
 	dma_addr_t	dma;
 	struct td	*td;
 
-	td = dma_pool_alloc (hc->td_cache, mem_flags, &dma);
+	td = dma_pool_zalloc (hc->td_cache, mem_flags, &dma);
 	if (td) {
 		/* in case hc fetches it, make it look dead */
-		memset (td, 0, sizeof *td);
 		td->hwNextTD = cpu_to_hc32 (hc, dma);
 		td->td_dma = dma;
 		/* hashed in td_fill */
@@ -121,9 +121,8 @@ ed_alloc (struct ohci_hcd *hc, gfp_t mem_flags)
 	dma_addr_t	dma;
 	struct ed	*ed;
 
-	ed = dma_pool_alloc (hc->ed_cache, mem_flags, &dma);
+	ed = dma_pool_zalloc (hc->ed_cache, mem_flags, &dma);
 	if (ed) {
-		memset (ed, 0, sizeof (*ed));
 		INIT_LIST_HEAD (&ed->td_list);
 		ed->dma = dma;
 	}

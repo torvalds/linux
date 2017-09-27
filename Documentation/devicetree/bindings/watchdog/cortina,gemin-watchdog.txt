@@ -1,0 +1,17 @@
+Cortina Systems Gemini SoC Watchdog
+
+Required properties:
+- compatible : must be "cortina,gemini-watchdog"
+- reg : shall contain base register location and length
+- interrupts : shall contain the interrupt for the watchdog
+
+Optional properties:
+- timeout-sec : the default watchdog timeout in seconds.
+
+Example:
+
+watchdog@41000000 {
+	compatible = "cortina,gemini-watchdog";
+	reg = <0x41000000 0x1000>;
+	interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+};

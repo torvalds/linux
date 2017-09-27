@@ -346,7 +346,8 @@ static void lanai_buf_allocate(struct lanai_buffer *buf,
 		 * everything, but the way the lanai uses DMA memory would
 		 * make that a terrific pain.  This is much simpler.
 		 */
-		buf->start = pci_alloc_consistent(pci, size, &buf->dmaaddr);
+		buf->start = dma_alloc_coherent(&pci->dev,
+						size, &buf->dmaaddr, GFP_KERNEL);
 		if (buf->start != NULL) {	/* Success */
 			/* Lanai requires 256-byte alignment of DMA bufs */
 			APRINTK((buf->dmaaddr & ~0xFFFFFF00) == 0,
@@ -372,8 +373,8 @@ static void lanai_buf_deallocate(struct lanai_buffer *buf,
 	struct pci_dev *pci)
 {
 	if (buf->start != NULL) {
-		pci_free_consistent(pci, lanai_buf_size(buf),
-		    buf->start, buf->dmaaddr);
+		dma_free_coherent(&pci->dev, lanai_buf_size(buf),
+				  buf->start, buf->dmaaddr);
 		buf->start = buf->end = buf->ptr = NULL;
 	}
 }
@@ -678,15 +679,6 @@ static inline void cardvcc_write(const struct lanai_vcc *lvcc,
 static inline int aal5_size(int size)
 {
 	int cells = (size + 8 + 47) / 48;
-	return cells * 48;
-}
-
-/* How many bytes can we send if we have "space" space, assuming we have
- * to send full cells
- */
-static inline int aal5_spacefor(int space)
-{
-	int cells = space / 48;
 	return cells * 48;
 }
 
@@ -1397,7 +1389,7 @@ static void vcc_rx_aal5(struct lanai_vcc *lvcc, int endptr)
 	if (n < 0)
 		n += lanai_buf_size(&lvcc->rx.buf);
 	APRINTK(n >= 0 && n < lanai_buf_size(&lvcc->rx.buf) && !(n & 15),
-	    "vcc_rx_aal5: n out of range (%d/%Zu)\n",
+	    "vcc_rx_aal5: n out of range (%d/%zu)\n",
 	    n, lanai_buf_size(&lvcc->rx.buf));
 	/* Recover the second-to-last word to get true pdu length */
 	if ((x = &end[-2]) < lvcc->rx.buf.start)
@@ -1501,9 +1493,9 @@ static int lanai_get_sized_buffer(struct lanai_dev *lanai,
 		return -ENOMEM;
 	if (unlikely(lanai_buf_size(buf) < size))
 		printk(KERN_WARNING DEV_LABEL "(itf %d): wanted %d bytes "
-		    "for %s buffer, got only %Zu\n", lanai->number, size,
+		    "for %s buffer, got only %zu\n", lanai->number, size,
 		    name, lanai_buf_size(buf));
-	DPRINTK("Allocated %Zu byte %s buffer\n", lanai_buf_size(buf), name);
+	DPRINTK("Allocated %zu byte %s buffer\n", lanai_buf_size(buf), name);
 	return 0;
 }
 
@@ -1594,7 +1586,7 @@ static int service_buffer_allocate(struct lanai_dev *lanai)
 	    lanai->pci);
 	if (unlikely(lanai->service.start == NULL))
 		return -ENOMEM;
-	DPRINTK("allocated service buffer at 0x%08lX, size %Zu(%d)\n",
+	DPRINTK("allocated service buffer at 0x%08lX, size %zu(%d)\n",
 	    (unsigned long) lanai->service.start,
 	    lanai_buf_size(&lanai->service),
 	    lanai_buf_size_cardorder(&lanai->service));
@@ -1953,12 +1945,7 @@ static int lanai_pci_start(struct lanai_dev *lanai)
 		return -ENXIO;
 	}
 	pci_set_master(pci);
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) != 0) {
-		printk(KERN_WARNING DEV_LABEL
-		    "(itf %d): No suitable DMA available.\n", lanai->number);
-		return -EBUSY;
-	}
-	if (pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32)) != 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32)) != 0) {
 		printk(KERN_WARNING DEV_LABEL
 		    "(itf %d): No suitable DMA available.\n", lanai->number);
 		return -EBUSY;
@@ -2156,6 +2143,7 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 	lanai->base = (bus_addr_t) ioremap(raw_base, LANAI_MAPPING_SIZE);
 	if (lanai->base == NULL) {
 		printk(KERN_ERR DEV_LABEL ": couldn't remap I/O space\n");
+		result = -ENOMEM;
 		goto error_pci;
 	}
 	/* 3.3: Reset lanai and PHY */
@@ -2479,8 +2467,8 @@ static int lanai_proc_read(struct atm_dev *atmdev, loff_t *pos, char *page)
 		    (lanai->status & STATUS_LED) ? 1 : 0,
 		    (lanai->status & STATUS_GPIN) ? 1 : 0);
 	if (left-- == 0)
-		return sprintf(page, "global buffer sizes: service=%Zu, "
-		    "aal0_rx=%Zu\n", lanai_buf_size(&lanai->service),
+		return sprintf(page, "global buffer sizes: service=%zu, "
+		    "aal0_rx=%zu\n", lanai_buf_size(&lanai->service),
 		    lanai->naal0 ? lanai_buf_size(&lanai->aal0buf) : 0);
 	if (left-- == 0) {
 		get_statistics(lanai);
@@ -2525,7 +2513,7 @@ static int lanai_proc_read(struct atm_dev *atmdev, loff_t *pos, char *page)
 		left += sprintf(&page[left], ",\n          rx_AAL=%d",
 		    lvcc->rx.atmvcc->qos.aal == ATM_AAL5 ? 5 : 0);
 		if (lvcc->rx.atmvcc->qos.aal == ATM_AAL5)
-			left += sprintf(&page[left], ", rx_buf_size=%Zu, "
+			left += sprintf(&page[left], ", rx_buf_size=%zu, "
 			    "rx_bad_len=%u,\n          rx_service_trash=%u, "
 			    "rx_service_stream=%u, rx_bad_crc=%u",
 			    lanai_buf_size(&lvcc->rx.buf),
@@ -2536,7 +2524,7 @@ static int lanai_proc_read(struct atm_dev *atmdev, loff_t *pos, char *page)
 	}
 	if (lvcc->tx.atmvcc != NULL)
 		left += sprintf(&page[left], ",\n          tx_AAL=%d, "
-		    "tx_buf_size=%Zu, tx_qos=%cBR, tx_backlogged=%c",
+		    "tx_buf_size=%zu, tx_qos=%cBR, tx_backlogged=%c",
 		    lvcc->tx.atmvcc->qos.aal == ATM_AAL5 ? 5 : 0,
 		    lanai_buf_size(&lvcc->tx.buf),
 		    lvcc->tx.atmvcc == lanai->cbrvcc ? 'C' : 'U',
@@ -2601,7 +2589,7 @@ static int lanai_init_one(struct pci_dev *pci,
 	return result;
 }
 
-static struct pci_device_id lanai_pci_tbl[] = {
+static const struct pci_device_id lanai_pci_tbl[] = {
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAI2) },
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAIHB) },
 	{ 0, }	/* terminal entry */
@@ -2614,27 +2602,7 @@ static struct pci_driver lanai_driver = {
 	.probe    = lanai_init_one,
 };
 
-static int __init lanai_module_init(void)
-{
-	int x;
-
-	x = pci_register_driver(&lanai_driver);
-	if (x != 0)
-		printk(KERN_ERR DEV_LABEL ": no adapter found\n");
-	return x;
-}
-
-static void __exit lanai_module_exit(void)
-{
-	/* We'll only get called when all the interfaces are already
-	 * gone, so there isn't much to do
-	 */
-	DPRINTK("cleanup_module()\n");
-	pci_unregister_driver(&lanai_driver);
-}
-
-module_init(lanai_module_init);
-module_exit(lanai_module_exit);
+module_pci_driver(lanai_driver);
 
 MODULE_AUTHOR("Mitchell Blank Jr <mitch@sfgoth.com>");
 MODULE_DESCRIPTION("Efficient Networks Speedstream 3010 driver");

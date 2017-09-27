@@ -40,7 +40,7 @@
 #include <asm/parisc-device.h>
 
 /* See comments in include/asm-parisc/pci.h */
-struct hppa_dma_ops *hppa_dma_ops __read_mostly;
+const struct dma_map_ops *hppa_dma_ops __read_mostly;
 EXPORT_SYMBOL(hppa_dma_ops);
 
 static struct device root = {
@@ -282,18 +282,6 @@ find_pa_parent_type(const struct parisc_device *padev, int type)
 	return NULL;
 }
 
-#ifdef CONFIG_PCI
-static inline int is_pci_dev(struct device *dev)
-{
-	return dev->bus == &pci_bus_type;
-}
-#else
-static inline int is_pci_dev(struct device *dev)
-{
-	return 0;
-}
-#endif
-
 /*
  * get_node_path fills in @path with the firmware path to the device.
  * Note that if @node is a parisc device, we don't fill in the 'mod' field.
@@ -306,7 +294,7 @@ static void get_node_path(struct device *dev, struct hardware_path *path)
 	int i = 5;
 	memset(&path->bc, -1, 6);
 
-	if (is_pci_dev(dev)) {
+	if (dev_is_pci(dev)) {
 		unsigned int devfn = to_pci_dev(dev)->devfn;
 		path->mod = PCI_FUNC(devfn);
 		path->bc[i--] = PCI_SLOT(devfn);
@@ -314,7 +302,7 @@ static void get_node_path(struct device *dev, struct hardware_path *path)
 	}
 
 	while (dev != &root) {
-		if (is_pci_dev(dev)) {
+		if (dev_is_pci(dev)) {
 			unsigned int devfn = to_pci_dev(dev)->devfn;
 			path->bc[i--] = PCI_SLOT(devfn) | (PCI_FUNC(devfn)<< 5);
 		} else if (dev->bus == &parisc_bus_type) {
@@ -587,7 +575,8 @@ static ssize_t name##_show(struct device *dev, struct device_attribute *attr, ch
 {									\
 	struct parisc_device *padev = to_parisc_device(dev);		\
 	return sprintf(buf, format_string, padev->field);		\
-}
+}									\
+static DEVICE_ATTR_RO(name);
 
 #define pa_dev_attr_id(field, format) pa_dev_attr(field, id.field, format)
 
@@ -601,22 +590,24 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 {
 	return make_modalias(dev, buf);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute parisc_device_attrs[] = {
-	__ATTR_RO(irq),
-	__ATTR_RO(hw_type),
-	__ATTR_RO(rev),
-	__ATTR_RO(hversion),
-	__ATTR_RO(sversion),
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *parisc_device_attrs[] = {
+	&dev_attr_irq.attr,
+	&dev_attr_hw_type.attr,
+	&dev_attr_rev.attr,
+	&dev_attr_hversion.attr,
+	&dev_attr_sversion.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(parisc_device);
 
 struct bus_type parisc_bus_type = {
 	.name = "parisc",
 	.match = parisc_generic_match,
 	.uevent = parisc_uevent,
-	.dev_attrs = parisc_device_attrs,
+	.dev_groups = parisc_device_groups,
 	.probe = parisc_driver_probe,
 	.remove = parisc_driver_remove,
 };
@@ -695,7 +686,7 @@ static int check_parent(struct device * dev, void * data)
 		if (dev->bus == &parisc_bus_type) {
 			if (match_parisc_device(dev, d->index, d->modpath))
 				d->dev = dev;
-		} else if (is_pci_dev(dev)) {
+		} else if (dev_is_pci(dev)) {
 			if (match_pci_device(dev, d->index, d->modpath))
 				d->dev = dev;
 		} else if (dev->bus == NULL) {
@@ -753,7 +744,7 @@ struct device *hwpath_to_device(struct hardware_path *modpath)
 		if (!parent)
 			return NULL;
 	}
-	if (is_pci_dev(parent)) /* pci devices already parse MOD */
+	if (dev_is_pci(parent)) /* pci devices already parse MOD */
 		return parent;
 	else
 		return parse_tree_node(parent, 6, modpath);
@@ -772,7 +763,7 @@ void device_to_hwpath(struct device *dev, struct hardware_path *path)
 		padev = to_parisc_device(dev);
 		get_node_path(dev->parent, path);
 		path->mod = padev->hw_path;
-	} else if (is_pci_dev(dev)) {
+	} else if (dev_is_pci(dev)) {
 		get_node_path(dev, path);
 	}
 }
@@ -885,11 +876,11 @@ static void print_parisc_device(struct parisc_device *dev)
 
 	if (dev->num_addrs) {
 		int k;
-		printk(", additional addresses: ");
+		pr_cont(", additional addresses: ");
 		for (k = 0; k < dev->num_addrs; k++)
-			printk("0x%lx ", dev->addr[k]);
+			pr_cont("0x%lx ", dev->addr[k]);
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 /**

@@ -249,19 +249,16 @@ static u8 fan_to_reg(long rpm, int div)
  * the bottom 7 bits will always be zero
  */
 #define TEMP23_FROM_REG(val)	((val) / 128 * 500)
-#define TEMP23_TO_REG(val)	((val) <= -128000 ? 0x8000 : \
-				 (val) >= 127500 ? 0x7F80 : \
-				 (val) < 0 ? ((val) - 250) / 500 * 128 : \
-				 ((val) + 250) / 500 * 128)
+#define TEMP23_TO_REG(val)	(DIV_ROUND_CLOSEST(clamp_val((val), -128000, \
+						   127500), 500) * 128)
 
 /* for thermal cruise target temp, 7-bits, LSB = 1 degree Celsius */
-#define TARGET_TEMP_TO_REG(val)		((val) < 0 ? 0 : \
-					(val) >= 127000 ? 127 : \
-					((val) + 500) / 1000)
+#define TARGET_TEMP_TO_REG(val)	DIV_ROUND_CLOSEST(clamp_val((val), 0, 127000), \
+						  1000)
 
 /* for thermal cruise temp tolerance, 4-bits, LSB = 1 degree Celsius */
-#define TOL_TEMP_TO_REG(val)		((val) >= 15000 ? 15 : \
-					((val) + 500) / 1000)
+#define TOL_TEMP_TO_REG(val)	DIV_ROUND_CLOSEST(clamp_val((val), 0, 15000), \
+						  1000)
 
 #define BEEP_MASK_TO_REG(val)		((val) & 0xffffff)
 #define BEEP_MASK_FROM_REG(val)		((val) & 0xffffff)
@@ -1043,15 +1040,15 @@ static struct sensor_device_attribute sda_temp_alarm[] = {
 	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13),
 };
 
-/* get reatime status of all sensors items: voltage, temp, fan */
-static ssize_t show_alarms_reg(struct device *dev,
-				struct device_attribute *attr, char *buf)
+/* get realtime status of all sensors items: voltage, temp, fan */
+static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct w83791d_data *data = w83791d_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);
 }
 
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
+static DEVICE_ATTR_RO(alarms);
 
 /* Beep control */
 
@@ -1150,25 +1147,24 @@ static struct sensor_device_attribute sda_beep_ctrl[] = {
 };
 
 /* cpu voltage regulation information */
-static ssize_t show_vid_reg(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct w83791d_data *data = w83791d_update_device(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
-static ssize_t show_vrm_reg(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t vrm_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	struct w83791d_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", data->vrm);
 }
 
-static ssize_t store_vrm_reg(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct w83791d_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -1184,11 +1180,14 @@ static ssize_t store_vrm_reg(struct device *dev,
 	if (err)
 		return err;
 
+	if (val > 255)
+		return -EINVAL;
+
 	data->vrm = val;
 	return count;
 }
 
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
+static DEVICE_ATTR_RW(vrm);
 
 #define IN_UNIT_ATTRS(X) \
 	&sda_in_input[X].dev_attr.attr,	\

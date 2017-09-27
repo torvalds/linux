@@ -3,6 +3,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/ptrace.h>
+
 struct task_struct;
 
 #ifdef CONFIG_SH_FPU
@@ -46,7 +48,7 @@ static inline void __unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)
 		save_fpu(tsk);
 		release_fpu(regs);
 	} else
-		tsk->fpu_counter = 0;
+		tsk->thread.fpu_counter = 0;
 }
 
 static inline void unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)

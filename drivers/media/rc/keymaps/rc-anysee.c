@@ -70,10 +70,10 @@ static struct rc_map_table anysee[] = {
 
 static struct rc_map_list anysee_map = {
 	.map = {
-		.scan    = anysee,
-		.size    = ARRAY_SIZE(anysee),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_ANYSEE,
+		.scan     = anysee,
+		.size     = ARRAY_SIZE(anysee),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_ANYSEE,
 	}
 };
 

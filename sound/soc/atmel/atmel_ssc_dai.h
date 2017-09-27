@@ -113,8 +113,10 @@ struct atmel_ssc_info {
 	unsigned short cmr_div;
 	unsigned short tcmr_period;
 	unsigned short rcmr_period;
+	unsigned int forced_divider;
 	struct atmel_pcm_dma_params *dma_params[2];
 	struct atmel_ssc_state ssc_state;
+	unsigned long mck_rate;
 };
 
 int atmel_ssc_set_audio(int ssc_id);

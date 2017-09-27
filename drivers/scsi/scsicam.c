@@ -116,8 +116,8 @@ EXPORT_SYMBOL(scsicam_bios_param);
  * @hds: put heads here
  * @secs: put sectors here
  *
- * Description: determine the BIOS mapping/geometry used to create the partition
- *      table, storing the results in *cyls, *hds, and *secs 
+ * Determine the BIOS mapping/geometry used to create the partition
+ * table, storing the results in @cyls, @hds, and @secs
  *
  * Returns: -1 on failure, 0 on success.
  */
@@ -163,8 +163,8 @@ int scsi_partsize(unsigned char *buf, unsigned long capacity,
 		    end_head * end_sector + end_sector;
 
 		/* This is the actual _sector_ number at the end */
-		logical_end = get_unaligned(&largest->start_sect)
-		    + get_unaligned(&largest->nr_sects);
+		logical_end = get_unaligned_le32(&largest->start_sect)
+		    + get_unaligned_le32(&largest->nr_sects);
 
 		/* This is for >1023 cylinders */
 		ext_cyl = (logical_end - (end_head * end_sector + end_sector))

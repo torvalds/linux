@@ -231,8 +231,4 @@
 #define MX27_DMA_REQ_SDHC3	36
 #define MX27_DMA_REQ_NFC	37
 
-#ifndef __ASSEMBLY__
-extern int mx27_revision(void);
-#endif
-
 #endif /* ifndef __MACH_MX27_H__ */

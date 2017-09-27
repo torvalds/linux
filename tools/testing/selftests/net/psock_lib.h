@@ -30,6 +30,7 @@
 
 #define DATA_LEN			100
 #define DATA_CHAR			'a'
+#define DATA_CHAR_1			'b'
 
 #define PORT_BASE			8000
 
@@ -39,20 +40,45 @@
 
 static __maybe_unused void pair_udp_setfilter(int fd)
 {
+	/* the filter below checks for all of the following conditions that
+	 * are based on the contents of create_payload()
+	 *  ether type 0x800 and
+	 *  ip proto udp     and
+	 *  skb->len == DATA_LEN and
+	 *  udp[38] == 'a' or udp[38] == 'b'
+	 * It can be generated from the following bpf_asm input:
+	 *	ldh [12]
+	 *	jne #0x800, drop	; ETH_P_IP
+	 *	ldb [23]
+	 *	jneq #17, drop		; IPPROTO_UDP
+	 *	ld len			; ld skb->len
+	 *	jlt #100, drop		; DATA_LEN
+	 *	ldb [80]
+	 *	jeq #97, pass		; DATA_CHAR
+	 *	jne #98, drop		; DATA_CHAR_1
+	 *	pass:
+	 *	  ret #-1
+	 *	drop:
+	 *	  ret #0
+	 */
 	struct sock_filter bpf_filter[] = {
-		{ 0x80, 0, 0, 0x00000000 },  /* LD  pktlen		      */
-		{ 0x35, 0, 5, DATA_LEN   },  /* JGE DATA_LEN  [f goto nomatch]*/
-		{ 0x30, 0, 0, 0x00000050 },  /* LD  ip[80]		      */
-		{ 0x15, 0, 3, DATA_CHAR  },  /* JEQ DATA_CHAR [f goto nomatch]*/
-		{ 0x30, 0, 0, 0x00000051 },  /* LD  ip[81]		      */
-		{ 0x15, 0, 1, DATA_CHAR  },  /* JEQ DATA_CHAR [f goto nomatch]*/
-		{ 0x06, 0, 0, 0x00000060 },  /* RET match	              */
-		{ 0x06, 0, 0, 0x00000000 },  /* RET no match		      */
+		{ 0x28,  0,  0, 0x0000000c },
+		{ 0x15,  0,  8, 0x00000800 },
+		{ 0x30,  0,  0, 0x00000017 },
+		{ 0x15,  0,  6, 0x00000011 },
+		{ 0x80,  0,  0, 0000000000 },
+		{ 0x35,  0,  4, 0x00000064 },
+		{ 0x30,  0,  0, 0x00000050 },
+		{ 0x15,  1,  0, 0x00000061 },
+		{ 0x15,  0,  1, 0x00000062 },
+		{ 0x06,  0,  0, 0xffffffff },
+		{ 0x06,  0,  0, 0000000000 },
 	};
 	struct sock_fprog bpf_prog;
 
 	bpf_prog.filter = bpf_filter;
 	bpf_prog.len = sizeof(bpf_filter) / sizeof(struct sock_filter);
+
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_prog,
 		       sizeof(bpf_prog))) {
 		perror("setsockopt SO_ATTACH_FILTER");
@@ -96,11 +122,11 @@ static __maybe_unused void pair_udp_open(int fds[], uint16_t port)
 	}
 }
 
-static __maybe_unused void pair_udp_send(int fds[], int num)
+static __maybe_unused void pair_udp_send_char(int fds[], int num, char payload)
 {
 	char buf[DATA_LEN], rbuf[DATA_LEN];
 
-	memset(buf, DATA_CHAR, sizeof(buf));
+	memset(buf, payload, sizeof(buf));
 	while (num--) {
 		/* Should really handle EINTR and EAGAIN */
 		if (write(fds[0], buf, sizeof(buf)) != sizeof(buf)) {
@@ -116,6 +142,11 @@ static __maybe_unused void pair_udp_send(int fds[], int num)
 			exit(1);
 		}
 	}
+}
+
+static __maybe_unused void pair_udp_send(int fds[], int num)
+{
+	return pair_udp_send_char(fds, num, DATA_CHAR);
 }
 
 static __maybe_unused void pair_udp_close(int fds[])

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,6 @@
  */
 
 #include <acpi/acpi.h>
-#include <linux/acpi.h>
 #include "accommon.h"
 
 #define _COMPONENT          ACPI_HARDWARE
@@ -80,8 +79,8 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state)
 
 	/* Clear wake status */
 
-	status =
-	    acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS, ACPI_CLEAR_STATUS);
+	status = acpi_write_bit_register(ACPI_BITREG_WAKE_STATUS,
+					 ACPI_CLEAR_STATUS);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -152,12 +151,14 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state)
 
 	ACPI_FLUSH_CPU_CACHE();
 
-	status = acpi_os_prepare_sleep(sleep_state, pm1a_control,
-				       pm1b_control);
-	if (ACPI_SKIP(status))
+	status = acpi_os_enter_sleep(sleep_state, pm1a_control, pm1b_control);
+	if (status == AE_CTRL_TERMINATE) {
 		return_ACPI_STATUS(AE_OK);
-	if (ACPI_FAILURE(status))
+	}
+	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
+	}
+
 	/* Write #2: Write both SLP_TYP + SLP_EN */
 
 	status = acpi_hw_write_pm1_control(pm1a_control, pm1b_control);

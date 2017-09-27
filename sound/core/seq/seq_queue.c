@@ -111,10 +111,8 @@ static struct snd_seq_queue *queue_new(int owner, int locked)
 	struct snd_seq_queue *q;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
-	if (q == NULL) {
-		snd_printd("malloc failed for snd_seq_queue_new()\n");
+	if (!q)
 		return NULL;
-	}
 
 	spin_lock_init(&q->owner_lock);
 	spin_lock_init(&q->check_lock);
@@ -144,8 +142,10 @@ static struct snd_seq_queue *queue_new(int owner, int locked)
 static void queue_delete(struct snd_seq_queue *q)
 {
 	/* stop and release the timer */
+	mutex_lock(&q->timer_mutex);
 	snd_seq_timer_stop(q->timer);
 	snd_seq_timer_close(q);
+	mutex_unlock(&q->timer_mutex);
 	/* wait until access free */
 	snd_use_lock_sync(&q->use_lock);
 	/* release resources... */
@@ -181,23 +181,29 @@ void __exit snd_seq_queues_delete(void)
 	}
 }
 
+static void queue_use(struct snd_seq_queue *queue, int client, int use);
+
 /* allocate a new queue -
- * return queue index value or negative value for error
+ * return pointer to new queue or ERR_PTR(-errno) for error
+ * The new queue's use_lock is set to 1. It is the caller's responsibility to
+ * call snd_use_lock_free(&q->use_lock).
  */
-int snd_seq_queue_alloc(int client, int locked, unsigned int info_flags)
+struct snd_seq_queue *snd_seq_queue_alloc(int client, int locked, unsigned int info_flags)
 {
 	struct snd_seq_queue *q;
 
 	q = queue_new(client, locked);
 	if (q == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	q->info_flags = info_flags;
+	queue_use(q, client, 1);
+	snd_use_lock_use(&q->use_lock);
 	if (queue_list_add(q) < 0) {
+		snd_use_lock_free(&q->use_lock);
 		queue_delete(q);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
-	snd_seq_queue_use(q->queue, client, 1); /* use this queue */
-	return q->queue;
+	return q;
 }
 
 /* delete a queue - queue must be owned by the client */
@@ -502,19 +508,9 @@ int snd_seq_queue_timer_set_tempo(int queueid, int client,
 	return result;
 }
 
-
-/* use or unuse this queue -
- * if it is the first client, starts the timer.
- * if it is not longer used by any clients, stop the timer.
- */
-int snd_seq_queue_use(int queueid, int client, int use)
+/* use or unuse this queue */
+static void queue_use(struct snd_seq_queue *queue, int client, int use)
 {
-	struct snd_seq_queue *queue;
-
-	queue = queueptr(queueid);
-	if (queue == NULL)
-		return -EINVAL;
-	mutex_lock(&queue->timer_mutex);
 	if (use) {
 		if (!test_and_set_bit(client, queue->clients_bitmap))
 			queue->clients++;
@@ -529,6 +525,21 @@ int snd_seq_queue_use(int queueid, int client, int use)
 	} else {
 		snd_seq_timer_close(queue);
 	}
+}
+
+/* use or unuse this queue -
+ * if it is the first client, starts the timer.
+ * if it is not longer used by any clients, stop the timer.
+ */
+int snd_seq_queue_use(int queueid, int client, int use)
+{
+	struct snd_seq_queue *queue;
+
+	queue = queueptr(queueid);
+	if (queue == NULL)
+		return -EINVAL;
+	mutex_lock(&queue->timer_mutex);
+	queue_use(queue, client, use);
 	mutex_unlock(&queue->timer_mutex);
 	queuefree(queue);
 	return 0;
@@ -755,7 +766,7 @@ int snd_seq_control_queue(struct snd_seq_event *ev, int atomic, int hop)
 
 /*----------------------------------------------------------------*/
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /* exported to seq_info.c */
 void snd_seq_info_queues_read(struct snd_info_entry *entry, 
 			      struct snd_info_buffer *buffer)
@@ -789,5 +800,5 @@ void snd_seq_info_queues_read(struct snd_info_entry *entry,
 		queuefree(q);
 	}
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 

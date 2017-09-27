@@ -30,6 +30,8 @@
 #include "scsiglue.h"
 #include "debug.h"
 
+#define DRV_NAME "ums-cypress"
+
 MODULE_DESCRIPTION("SAT support for Cypress USB/ATA bridges with ATACB");
 MODULE_AUTHOR("Matthieu Castet <castet.matthieu@free.fr>");
 MODULE_LICENSE("GPL");
@@ -96,25 +98,29 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 	if (save_cmnd[1] >> 5) /* MULTIPLE_COUNT */
 		goto invalid_fld;
 	/* check protocol */
-	switch((save_cmnd[1] >> 1) & 0xf) {
-		case 3: /*no DATA */
-		case 4: /* PIO in */
-		case 5: /* PIO out */
-			break;
-		default:
-			goto invalid_fld;
+	switch ((save_cmnd[1] >> 1) & 0xf) {
+	case 3: /*no DATA */
+	case 4: /* PIO in */
+	case 5: /* PIO out */
+		break;
+	default:
+		goto invalid_fld;
 	}
 
 	/* first build the ATACB command */
 	srb->cmd_len = 16;
 
-	srb->cmnd[0] = 0x24; /* bVSCBSignature : vendor-specific command
-	                        this value can change, but most(all ?) manufacturers
-							keep the cypress default : 0x24 */
+	srb->cmnd[0] = 0x24; /*
+			      * bVSCBSignature : vendor-specific command
+			      * this value can change, but most(all ?) manufacturers
+			      * keep the cypress default : 0x24
+			      */
 	srb->cmnd[1] = 0x24; /* bVSCBSubCommand : 0x24 for ATACB */
 
-	srb->cmnd[3] = 0xff - 1; /* features, sector count, lba low, lba med
-								lba high, device, command are valid */
+	srb->cmnd[3] = 0xff - 1; /*
+				  * features, sector count, lba low, lba med
+				  * lba high, device, command are valid
+				  */
 	srb->cmnd[4] = 1; /* TransferBlockCount : 512 */
 
 	if (save_cmnd[0] == ATA_16) {
@@ -132,8 +138,7 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 					|| save_cmnd[11])
 				goto invalid_fld;
 		}
-	}
-	else { /* ATA12 */
+	} else { /* ATA12 */
 		srb->cmnd[ 6] = save_cmnd[3]; /* features */
 		srb->cmnd[ 7] = save_cmnd[4]; /* sector count */
 		srb->cmnd[ 8] = save_cmnd[5]; /* lba low */
@@ -154,8 +159,7 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 
 	usb_stor_transparent_scsi_command(srb, us);
 
-	/* if the device doesn't support ATACB
-	 */
+	/* if the device doesn't support ATACB */
 	if (srb->result == SAM_STAT_CHECK_CONDITION &&
 			memcmp(srb->sense_buffer, usb_stor_sense_invalidCDB,
 				sizeof(usb_stor_sense_invalidCDB)) == 0) {
@@ -163,7 +167,8 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		goto end;
 	}
 
-	/* if ck_cond flags is set, and there wasn't critical error,
+	/*
+	 * if ck_cond flags is set, and there wasn't critical error,
 	 * build the special sense
 	 */
 	if ((srb->result != (DID_ERROR << 16) &&
@@ -175,11 +180,11 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		unsigned char *desc = sb + 8;
 		int tmp_result;
 
-		/* build the command for
-		 * reading the ATA registers */
+		/* build the command for reading the ATA registers */
 		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, sizeof(regs));
 
-		/* we use the same command as before, but we set
+		/*
+		 * we use the same command as before, but we set
 		 * the read taskfile bit, for not executing atacb command,
 		 * but reading register selected in srb->cmnd[4]
 		 */
@@ -203,10 +208,11 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		sb[2] = 0; /* ATA PASS THROUGH INFORMATION AVAILABLE */
 		sb[3] = 0x1D;
 
-		/* XXX we should generate sk, asc, ascq from status and error
+		/*
+		 * XXX we should generate sk, asc, ascq from status and error
 		 * regs
 		 * (see 11.1 Error translation ATA device error to SCSI error
-		 *  map, and ata_to_sense_error from libata.)
+		 * map, and ata_to_sense_error from libata.)
 		 */
 
 		/* Sense data is current and format is descriptor. */
@@ -242,6 +248,7 @@ end:
 		srb->cmd_len = 12;
 }
 
+static struct scsi_host_template cypress_host_template;
 
 static int cypress_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
@@ -251,11 +258,13 @@ static int cypress_probe(struct usb_interface *intf,
 	struct usb_device *device;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - cypress_usb_ids) + cypress_unusual_dev_list);
+			(id - cypress_usb_ids) + cypress_unusual_dev_list,
+			&cypress_host_template);
 	if (result)
 		return result;
 
-	/* Among CY7C68300 chips, the A revision does not support Cypress ATACB
+	/*
+	 * Among CY7C68300 chips, the A revision does not support Cypress ATACB
 	 * Filter out this revision from EEPROM default descriptor values
 	 */
 	device = interface_to_usbdev(intf);
@@ -274,7 +283,7 @@ static int cypress_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver cypress_driver = {
-	.name =		"ums-cypress",
+	.name =		DRV_NAME,
 	.probe =	cypress_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -287,4 +296,4 @@ static struct usb_driver cypress_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(cypress_driver);
+module_usb_stor_driver(cypress_driver, cypress_host_template, DRV_NAME);

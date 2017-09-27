@@ -9,7 +9,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -23,7 +22,7 @@ struct ezusb_fx_type {
 	unsigned short max_internal_adress;
 };
 
-static struct ezusb_fx_type ezusb_fx1 = {
+static const struct ezusb_fx_type ezusb_fx1 = {
 	.cpucs_reg = 0x7F92,
 	.max_internal_adress = 0x1B3F,
 };

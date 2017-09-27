@@ -52,7 +52,7 @@ static int ucb1400_core_probe(struct device *dev)
 	struct ucb1400_ts ucb_ts;
 	struct ucb1400_gpio ucb_gpio;
 	struct snd_ac97 *ac97;
-	struct ucb1400_pdata *pdata = dev->platform_data;
+	struct ucb1400_pdata *pdata = dev_get_platdata(dev);
 
 	memset(&ucb_ts, 0, sizeof(ucb_ts));
 	memset(&ucb_gpio, 0, sizeof(ucb_gpio));

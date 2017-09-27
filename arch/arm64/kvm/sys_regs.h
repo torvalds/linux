@@ -28,8 +28,10 @@ struct sys_reg_params {
 	u8	CRn;
 	u8	CRm;
 	u8	Op2;
-	u8	Rt;
+	u64	regval;
 	bool	is_write;
+	bool	is_aarch32;
+	bool	is_32bit;	/* Only valid if is_aarch32 is true */
 };
 
 struct sys_reg_desc {
@@ -42,7 +44,7 @@ struct sys_reg_desc {
 
 	/* Trapped access from guest, if non-NULL. */
 	bool (*access)(struct kvm_vcpu *,
-		       const struct sys_reg_params *,
+		       struct sys_reg_params *,
 		       const struct sys_reg_desc *);
 
 	/* Initialization for vcpu. */
@@ -53,6 +55,12 @@ struct sys_reg_desc {
 
 	/* Value (usually reset value) */
 	u64 val;
+
+	/* Custom get/set_user functions, fallback to generic if NULL */
+	int (*get_user)(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			const struct kvm_one_reg *reg, void __user *uaddr);
+	int (*set_user)(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			const struct kvm_one_reg *reg, void __user *uaddr);
 };
 
 static inline void print_sys_reg_instr(const struct sys_reg_params *p)
@@ -69,28 +77,10 @@ static inline bool ignore_write(struct kvm_vcpu *vcpu,
 }
 
 static inline bool read_zero(struct kvm_vcpu *vcpu,
-			     const struct sys_reg_params *p)
+			     struct sys_reg_params *p)
 {
-	*vcpu_reg(vcpu, p->Rt) = 0;
+	p->regval = 0;
 	return true;
-}
-
-static inline bool write_to_read_only(struct kvm_vcpu *vcpu,
-				      const struct sys_reg_params *params)
-{
-	kvm_debug("sys_reg write to read-only register at: %lx\n",
-		  *vcpu_pc(vcpu));
-	print_sys_reg_instr(params);
-	return false;
-}
-
-static inline bool read_from_write_only(struct kvm_vcpu *vcpu,
-					const struct sys_reg_params *params)
-{
-	kvm_debug("sys_reg read to write-only register at: %lx\n",
-		  *vcpu_pc(vcpu));
-	print_sys_reg_instr(params);
-	return false;
 }
 
 /* Reset functions */
@@ -128,11 +118,20 @@ static inline int cmp_sys_reg(const struct sys_reg_desc *i1,
 	return i1->Op2 - i2->Op2;
 }
 
+const struct sys_reg_desc *find_reg_by_id(u64 id,
+					  struct sys_reg_params *params,
+					  const struct sys_reg_desc table[],
+					  unsigned int num);
 
 #define Op0(_x) 	.Op0 = _x
 #define Op1(_x) 	.Op1 = _x
 #define CRn(_x)		.CRn = _x
 #define CRm(_x) 	.CRm = _x
 #define Op2(_x) 	.Op2 = _x
+
+#define SYS_DESC(reg)					\
+	Op0(sys_reg_Op0(reg)), Op1(sys_reg_Op1(reg)),	\
+	CRn(sys_reg_CRn(reg)), CRm(sys_reg_CRm(reg)),	\
+	Op2(sys_reg_Op2(reg))
 
 #endif /* __ARM64_KVM_SYS_REGS_LOCAL_H__ */

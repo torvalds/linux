@@ -76,21 +76,24 @@ See struct w1_bus_master definition in w1.h for details.
 
 w1 master sysfs interface
 ------------------------------------------------------------------
-<xx-xxxxxxxxxxxxx> - a directory for a found device. The format is family-serial
+<xx-xxxxxxxxxxxxx> - A directory for a found device. The format is family-serial
 bus                - (standard) symlink to the w1 bus
 driver             - (standard) symlink to the w1 driver
-w1_master_add      - Manually register a slave device
-w1_master_attempts - the number of times a search was attempted
+w1_master_add      - (rw) manually register a slave device
+w1_master_attempts - (ro) the number of times a search was attempted
 w1_master_max_slave_count
-                   - the maximum slaves that may be attached to a master
-w1_master_name     - the name of the device (w1_bus_masterX)
-w1_master_pullup   - 5V strong pullup 0 enabled, 1 disabled
-w1_master_remove   - Manually remove a slave device
-w1_master_search   - the number of searches left to do, -1=continual (default)
+                   - (rw) maximum number of slaves to search for at a time
+w1_master_name     - (ro) the name of the device (w1_bus_masterX)
+w1_master_pullup   - (rw) 5V strong pullup 0 enabled, 1 disabled
+w1_master_remove   - (rw) manually remove a slave device
+w1_master_search   - (rw) the number of searches left to do,
+		     -1=continual (default)
 w1_master_slave_count
-                   - the number of slaves found
-w1_master_slaves   - the names of the slaves, one per line
-w1_master_timeout  - the delay in seconds between searches
+                   - (ro) the number of slaves found
+w1_master_slaves   - (ro) the names of the slaves, one per line
+w1_master_timeout  - (ro) the delay in seconds between searches
+w1_master_timeout_us
+                   - (ro) the delay in microseconds beetwen searches
 
 If you have a w1 bus that never changes (you don't add or remove devices),
 you can set the module parameter search_count to a small positive number
@@ -101,6 +104,11 @@ generally only make sense when searching is disabled, as a search will
 redetect manually removed devices that are present and timeout manually
 added devices that aren't on the bus.
 
+Bus searches occur at an interval, specified as a summ of timeout and
+timeout_us module parameters (either of which may be 0) for as long as
+w1_master_search remains greater than 0 or is -1.  Each search attempt
+decrements w1_master_search by 1 (down to 0) and increments
+w1_master_attempts by 1.
 
 w1 slave sysfs interface
 ------------------------------------------------------------------

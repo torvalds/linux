@@ -9,6 +9,7 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <linux/crypto.h>
+#include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kthread.h>
@@ -17,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 #include <linux/of.h>
@@ -28,6 +30,8 @@
 #define MV_CESA	"MV-CESA:"
 #define MAX_HW_HASH_SIZE	0xFFFF
 #define MV_CESA_EXPIRE		500 /* msec */
+
+#define MV_CESA_DEFAULT_SRAM_SIZE	2048
 
 /*
  * STM:
@@ -83,6 +87,8 @@ struct req_progress {
 struct crypto_priv {
 	void __iomem *reg;
 	void __iomem *sram;
+	struct gen_pool *sram_pool;
+	dma_addr_t sram_dma;
 	int irq;
 	struct clk *clk;
 	struct task_struct *queue_th;
@@ -402,26 +408,23 @@ static int mv_hash_final_fallback(struct ahash_request *req)
 {
 	const struct mv_tfm_hash_ctx *tfm_ctx = crypto_tfm_ctx(req->base.tfm);
 	struct mv_req_hash_ctx *req_ctx = ahash_request_ctx(req);
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(tfm_ctx->fallback)];
-	} desc;
+	SHASH_DESC_ON_STACK(shash, tfm_ctx->fallback);
 	int rc;
 
-	desc.shash.tfm = tfm_ctx->fallback;
-	desc.shash.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	shash->tfm = tfm_ctx->fallback;
+	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	if (unlikely(req_ctx->first_hash)) {
-		crypto_shash_init(&desc.shash);
-		crypto_shash_update(&desc.shash, req_ctx->buffer,
+		crypto_shash_init(shash);
+		crypto_shash_update(shash, req_ctx->buffer,
 				    req_ctx->extra_bytes);
 	} else {
 		/* only SHA1 for now....
 		 */
-		rc = mv_hash_import_sha1_ctx(req_ctx, &desc.shash);
+		rc = mv_hash_import_sha1_ctx(req_ctx, shash);
 		if (rc)
 			goto out;
 	}
-	rc = crypto_shash_final(&desc.shash, req->result);
+	rc = crypto_shash_final(shash, req->result);
 out:
 	return rc;
 }
@@ -598,7 +601,7 @@ static int queue_manag(void *data)
 	cpg->eng_st = ENGINE_IDLE;
 	do {
 		struct crypto_async_request *async_req = NULL;
-		struct crypto_async_request *backlog;
+		struct crypto_async_request *backlog = NULL;
 
 		__set_current_state(TASK_INTERRUPTIBLE);
 
@@ -622,8 +625,8 @@ static int queue_manag(void *data)
 		}
 
 		if (async_req) {
-			if (async_req->tfm->__crt_alg->cra_type !=
-			    &crypto_ahash_type) {
+			if (crypto_tfm_alg_type(async_req->tfm) !=
+			    CRYPTO_ALG_TYPE_AHASH) {
 				struct ablkcipher_request *req =
 				    ablkcipher_request_cast(async_req);
 				mv_start_new_crypt_req(req);
@@ -794,23 +797,21 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 	ss = crypto_shash_statesize(ctx->base_hash);
 
 	{
-		struct {
-			struct shash_desc shash;
-			char ctx[crypto_shash_descsize(ctx->base_hash)];
-		} desc;
+		SHASH_DESC_ON_STACK(shash, ctx->base_hash);
+
 		unsigned int i;
 		char ipad[ss];
 		char opad[ss];
 
-		desc.shash.tfm = ctx->base_hash;
-		desc.shash.flags = crypto_shash_get_flags(ctx->base_hash) &
+		shash->tfm = ctx->base_hash;
+		shash->flags = crypto_shash_get_flags(ctx->base_hash) &
 		    CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		if (keylen > bs) {
 			int err;
 
 			err =
-			    crypto_shash_digest(&desc.shash, key, keylen, ipad);
+			    crypto_shash_digest(shash, key, keylen, ipad);
 			if (err)
 				return err;
 
@@ -822,16 +823,16 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 		memcpy(opad, ipad, bs);
 
 		for (i = 0; i < bs; i++) {
-			ipad[i] ^= 0x36;
-			opad[i] ^= 0x5c;
+			ipad[i] ^= HMAC_IPAD_VALUE;
+			opad[i] ^= HMAC_OPAD_VALUE;
 		}
 
-		rc = crypto_shash_init(&desc.shash) ? :
-		    crypto_shash_update(&desc.shash, ipad, bs) ? :
-		    crypto_shash_export(&desc.shash, ipad) ? :
-		    crypto_shash_init(&desc.shash) ? :
-		    crypto_shash_update(&desc.shash, opad, bs) ? :
-		    crypto_shash_export(&desc.shash, opad);
+		rc = crypto_shash_init(shash) ? :
+		    crypto_shash_update(shash, ipad, bs) ? :
+		    crypto_shash_export(shash, ipad) ? :
+		    crypto_shash_init(shash) ? :
+		    crypto_shash_update(shash, opad, bs) ? :
+		    crypto_shash_export(shash, opad);
 
 		if (rc == 0)
 			mv_hash_init_ivs(ctx, ipad, opad);
@@ -843,7 +844,7 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 static int mv_cra_hash_init(struct crypto_tfm *tfm, const char *base_hash_name,
 			    enum hash_op op, int count_add)
 {
-	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	const char *fallback_driver_name = crypto_tfm_alg_name(tfm);
 	struct mv_tfm_hash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_shash *fallback_tfm = NULL;
 	struct crypto_shash *base_hash = NULL;
@@ -907,7 +908,7 @@ static int mv_cra_hash_hmac_sha1_init(struct crypto_tfm *tfm)
 	return mv_cra_hash_init(tfm, "sha1", COP_HMAC_SHA1, SHA1_BLOCK_SIZE);
 }
 
-irqreturn_t crypto_int(int irq, void *priv)
+static irqreturn_t crypto_int(int irq, void *priv)
 {
 	u32 val;
 
@@ -928,7 +929,7 @@ irqreturn_t crypto_int(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-struct crypto_alg mv_aes_alg_ecb = {
+static struct crypto_alg mv_aes_alg_ecb = {
 	.cra_name		= "ecb(aes)",
 	.cra_driver_name	= "mv-ecb-aes",
 	.cra_priority	= 300,
@@ -951,7 +952,7 @@ struct crypto_alg mv_aes_alg_ecb = {
 	},
 };
 
-struct crypto_alg mv_aes_alg_cbc = {
+static struct crypto_alg mv_aes_alg_cbc = {
 	.cra_name		= "cbc(aes)",
 	.cra_driver_name	= "mv-cbc-aes",
 	.cra_priority	= 300,
@@ -975,7 +976,7 @@ struct crypto_alg mv_aes_alg_cbc = {
 	},
 };
 
-struct ahash_alg mv_sha1_alg = {
+static struct ahash_alg mv_sha1_alg = {
 	.init = mv_hash_init,
 	.update = mv_hash_update,
 	.final = mv_hash_final,
@@ -999,7 +1000,7 @@ struct ahash_alg mv_sha1_alg = {
 		 }
 };
 
-struct ahash_alg mv_hmac_sha1_alg = {
+static struct ahash_alg mv_hmac_sha1_alg = {
 	.init = mv_hash_init,
 	.update = mv_hash_update,
 	.final = mv_hash_final,
@@ -1024,6 +1025,39 @@ struct ahash_alg mv_hmac_sha1_alg = {
 		 }
 };
 
+static int mv_cesa_get_sram(struct platform_device *pdev,
+			    struct crypto_priv *cp)
+{
+	struct resource *res;
+	u32 sram_size = MV_CESA_DEFAULT_SRAM_SIZE;
+
+	of_property_read_u32(pdev->dev.of_node, "marvell,crypto-sram-size",
+			     &sram_size);
+
+	cp->sram_size = sram_size;
+	cp->sram_pool = of_gen_pool_get(pdev->dev.of_node,
+					"marvell,crypto-srams", 0);
+	if (cp->sram_pool) {
+		cp->sram = gen_pool_dma_alloc(cp->sram_pool, sram_size,
+					      &cp->sram_dma);
+		if (cp->sram)
+			return 0;
+
+		return -ENOMEM;
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					   "sram");
+	if (!res || resource_size(res) < cp->sram_size)
+		return -EINVAL;
+
+	cp->sram = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(cp->sram))
+		return PTR_ERR(cp->sram);
+
+	return 0;
+}
+
 static int mv_probe(struct platform_device *pdev)
 {
 	struct crypto_priv *cp;
@@ -1040,38 +1074,28 @@ static int mv_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+	cp = devm_kzalloc(&pdev->dev, sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
 
 	spin_lock_init(&cp->lock);
 	crypto_init_queue(&cp->queue, 50);
-	cp->reg = ioremap(res->start, resource_size(res));
-	if (!cp->reg) {
-		ret = -ENOMEM;
+	cp->reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(cp->reg)) {
+		ret = PTR_ERR(cp->reg);
 		goto err;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sram");
-	if (!res) {
-		ret = -ENXIO;
-		goto err_unmap_reg;
-	}
-	cp->sram_size = resource_size(res);
-	cp->max_req_size = cp->sram_size - SRAM_CFG_SPACE;
-	cp->sram = ioremap(res->start, cp->sram_size);
-	if (!cp->sram) {
-		ret = -ENOMEM;
-		goto err_unmap_reg;
-	}
+	ret = mv_cesa_get_sram(pdev, cp);
+	if (ret)
+		goto err;
 
-	if (pdev->dev.of_node)
-		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	else
-		irq = platform_get_irq(pdev, 0);
-	if (irq < 0 || irq == NO_IRQ) {
+	cp->max_req_size = cp->sram_size - SRAM_CFG_SPACE;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		ret = irq;
-		goto err_unmap_sram;
+		goto err;
 	}
 	cp->irq = irq;
 
@@ -1081,10 +1105,10 @@ static int mv_probe(struct platform_device *pdev)
 	cp->queue_th = kthread_run(queue_manag, cp, "mv_crypto");
 	if (IS_ERR(cp->queue_th)) {
 		ret = PTR_ERR(cp->queue_th);
-		goto err_unmap_sram;
+		goto err;
 	}
 
-	ret = request_irq(irq, crypto_int, IRQF_DISABLED, dev_name(&pdev->dev),
+	ret = request_irq(irq, crypto_int, 0, dev_name(&pdev->dev),
 			cp);
 	if (ret)
 		goto err_thread;
@@ -1139,12 +1163,7 @@ err_irq:
 	}
 err_thread:
 	kthread_stop(cp->queue_th);
-err_unmap_sram:
-	iounmap(cp->sram);
-err_unmap_reg:
-	iounmap(cp->reg);
 err:
-	kfree(cp);
 	cpg = NULL;
 	return ret;
 }
@@ -1162,21 +1181,20 @@ static int mv_remove(struct platform_device *pdev)
 	kthread_stop(cp->queue_th);
 	free_irq(cp->irq, cp);
 	memset(cp->sram, 0, cp->sram_size);
-	iounmap(cp->sram);
-	iounmap(cp->reg);
 
 	if (!IS_ERR(cp->clk)) {
 		clk_disable_unprepare(cp->clk);
 		clk_put(cp->clk);
 	}
 
-	kfree(cp);
 	cpg = NULL;
 	return 0;
 }
 
 static const struct of_device_id mv_cesa_of_match_table[] = {
 	{ .compatible = "marvell,orion-crypto", },
+	{ .compatible = "marvell,kirkwood-crypto", },
+	{ .compatible = "marvell,dove-crypto", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mv_cesa_of_match_table);
@@ -1185,9 +1203,8 @@ static struct platform_driver marvell_crypto = {
 	.probe		= mv_probe,
 	.remove		= mv_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "mv_crypto",
-		.of_match_table = of_match_ptr(mv_cesa_of_match_table),
+		.of_match_table = mv_cesa_of_match_table,
 	},
 };
 MODULE_ALIAS("platform:mv_crypto");

@@ -1,7 +1,2 @@
-filesystems/dnotify_test
-laptops/dslm
-timers/hpet_example
-vm/hugepage-mmap
-vm/hugepage-shm
-vm/map_hugetlb
-
+output
+*.pyc

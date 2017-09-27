@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/mmc/host.h>
@@ -20,10 +21,17 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/mmc/slot-gpio.h>
 
+#include <plat/gpio-cfg.h>
 #include <mach/dma.h>
+#include <mach/gpio-samsung.h>
 
 #include <linux/platform_data/mmc-s3cmci.h>
 
@@ -138,10 +146,6 @@ static const int dbgmap_debug = dbg_err | dbg_debug;
 		dev_dbg(&host->pdev->dev, args);  \
 	} while (0)
 
-static struct s3c2410_dma_client s3cmci_dma_client = {
-	.name		= "s3c-mci",
-};
-
 static void finalize_request(struct s3cmci_host *host);
 static void s3cmci_send_request(struct mmc_host *mmc);
 static void s3cmci_reset(struct s3cmci_host *host);
@@ -254,25 +258,8 @@ static inline bool s3cmci_host_usedma(struct s3cmci_host *host)
 {
 #ifdef CONFIG_MMC_S3C_PIO
 	return false;
-#elif defined(CONFIG_MMC_S3C_DMA)
+#else /* CONFIG_MMC_S3C_DMA */
 	return true;
-#else
-	return host->dodma;
-#endif
-}
-
-/**
- * s3cmci_host_canpio - return true if host has pio code available
- *
- * Return true if the driver has been compiled with the PIO support code
- * available.
- */
-static inline bool s3cmci_host_canpio(void)
-{
-#ifdef CONFIG_MMC_S3C_PIO
-	return true;
-#else
-	return false;
 #endif
 }
 
@@ -824,75 +811,24 @@ irq_out:
 
 }
 
-/*
- * ISR for the CardDetect Pin
-*/
-
-static irqreturn_t s3cmci_irq_cd(int irq, void *dev_id)
+static void s3cmci_dma_done_callback(void *arg)
 {
-	struct s3cmci_host *host = (struct s3cmci_host *)dev_id;
-
-	dbg(host, dbg_irq, "card detect\n");
-
-	mmc_detect_change(host->mmc, msecs_to_jiffies(500));
-
-	return IRQ_HANDLED;
-}
-
-static void s3cmci_dma_done_callback(struct s3c2410_dma_chan *dma_ch,
-				     void *buf_id, int size,
-				     enum s3c2410_dma_buffresult result)
-{
-	struct s3cmci_host *host = buf_id;
+	struct s3cmci_host *host = arg;
 	unsigned long iflags;
-	u32 mci_csta, mci_dsta, mci_fsta, mci_dcnt;
-
-	mci_csta = readl(host->base + S3C2410_SDICMDSTAT);
-	mci_dsta = readl(host->base + S3C2410_SDIDSTA);
-	mci_fsta = readl(host->base + S3C2410_SDIFSTA);
-	mci_dcnt = readl(host->base + S3C2410_SDIDCNT);
 
 	BUG_ON(!host->mrq);
 	BUG_ON(!host->mrq->data);
-	BUG_ON(!host->dmatogo);
 
 	spin_lock_irqsave(&host->complete_lock, iflags);
 
-	if (result != S3C2410_RES_OK) {
-		dbg(host, dbg_fail, "DMA FAILED: csta=0x%08x dsta=0x%08x "
-			"fsta=0x%08x dcnt:0x%08x result:0x%08x toGo:%u\n",
-			mci_csta, mci_dsta, mci_fsta,
-			mci_dcnt, result, host->dmatogo);
-
-		goto fail_request;
-	}
-
-	host->dmatogo--;
-	if (host->dmatogo) {
-		dbg(host, dbg_dma, "DMA DONE  Size:%i DSTA:[%08x] "
-			"DCNT:[%08x] toGo:%u\n",
-			size, mci_dsta, mci_dcnt, host->dmatogo);
-
-		goto out;
-	}
-
-	dbg(host, dbg_dma, "DMA FINISHED Size:%i DSTA:%08x DCNT:%08x\n",
-		size, mci_dsta, mci_dcnt);
+	dbg(host, dbg_dma, "DMA FINISHED\n");
 
 	host->dma_complete = 1;
 	host->complete_what = COMPLETION_FINALIZE;
 
-out:
 	tasklet_schedule(&host->pio_tasklet);
 	spin_unlock_irqrestore(&host->complete_lock, iflags);
-	return;
 
-fail_request:
-	host->mrq->data->error = -EINVAL;
-	host->complete_what = COMPLETION_FINALIZE;
-	clear_imask(host);
-
-	goto out;
 }
 
 static void finalize_request(struct s3cmci_host *host)
@@ -964,7 +900,7 @@ static void finalize_request(struct s3cmci_host *host)
 	 * DMA channel and the fifo to clear out any garbage. */
 	if (mrq->data->error != 0) {
 		if (s3cmci_host_usedma(host))
-			s3c2410_dma_ctrl(host->dma, S3C2410_DMAOP_FLUSH);
+			dmaengine_terminate_all(host->dma);
 
 		if (host->is2440) {
 			/* Clear failure register and reset fifo. */
@@ -988,29 +924,6 @@ request_done:
 
 	s3cmci_check_sdio_irq(host);
 	mmc_request_done(host->mmc, mrq);
-}
-
-static void s3cmci_dma_setup(struct s3cmci_host *host,
-			     enum dma_data_direction source)
-{
-	static enum dma_data_direction last_source = -1;
-	static int setup_ok;
-
-	if (last_source == source)
-		return;
-
-	last_source = source;
-
-	s3c2410_dma_devconfig(host->dma, source,
-			      host->mem->start + host->sdidata);
-
-	if (!setup_ok) {
-		s3c2410_dma_config(host->dma, 4);
-		s3c2410_dma_set_buffdone_fn(host->dma,
-					    s3cmci_dma_done_callback);
-		s3c2410_dma_setflags(host->dma, S3C2410_DMAF_AUTOSTART);
-		setup_ok = 1;
-	}
 }
 
 static void s3cmci_send_command(struct s3cmci_host *host,
@@ -1061,7 +974,8 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 		 * one block being transferred. */
 
 		if (data->blocks > 1) {
-			pr_warning("%s: can't do non-word sized block transfers (blksz %d)\n", __func__, data->blksz);
+			pr_warn("%s: can't do non-word sized block transfers (blksz %d)\n",
+				__func__, data->blksz);
 			return -EINVAL;
 		}
 	}
@@ -1089,8 +1003,7 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 	if (host->bus_width == MMC_BUS_WIDTH_4)
 		dcon |= S3C2410_SDIDCON_WIDEBUS;
 
-	if (!(data->flags & MMC_DATA_STREAM))
-		dcon |= S3C2410_SDIDCON_BLOCKMODE;
+	dcon |= S3C2410_SDIDCON_BLOCKMODE;
 
 	if (data->flags & MMC_DATA_WRITE) {
 		dcon |= S3C2410_SDIDCON_TXAFTERRESP;
@@ -1160,43 +1073,45 @@ static int s3cmci_prepare_pio(struct s3cmci_host *host, struct mmc_data *data)
 
 static int s3cmci_prepare_dma(struct s3cmci_host *host, struct mmc_data *data)
 {
-	int dma_len, i;
 	int rw = data->flags & MMC_DATA_WRITE;
+	struct dma_async_tx_descriptor *desc;
+	struct dma_slave_config conf = {
+		.src_addr = host->mem->start + host->sdidata,
+		.dst_addr = host->mem->start + host->sdidata,
+		.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+		.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+	};
 
 	BUG_ON((data->flags & BOTH_DIR) == BOTH_DIR);
 
-	s3cmci_dma_setup(host, rw ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	s3c2410_dma_ctrl(host->dma, S3C2410_DMAOP_FLUSH);
+	/* Restore prescaler value */
+	writel(host->prescaler, host->base + S3C2410_SDIPRE);
 
-	dma_len = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
-			     rw ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	if (!rw)
+		conf.direction = DMA_DEV_TO_MEM;
+	else
+		conf.direction = DMA_MEM_TO_DEV;
 
-	if (dma_len == 0)
-		return -ENOMEM;
+	dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
+		   mmc_get_dma_dir(data));
 
-	host->dma_complete = 0;
-	host->dmatogo = dma_len;
-
-	for (i = 0; i < dma_len; i++) {
-		int res;
-
-		dbg(host, dbg_dma, "enqueue %i: %08x@%u\n", i,
-		    sg_dma_address(&data->sg[i]),
-		    sg_dma_len(&data->sg[i]));
-
-		res = s3c2410_dma_enqueue(host->dma, host,
-					  sg_dma_address(&data->sg[i]),
-					  sg_dma_len(&data->sg[i]));
-
-		if (res) {
-			s3c2410_dma_ctrl(host->dma, S3C2410_DMAOP_FLUSH);
-			return -EBUSY;
-		}
-	}
-
-	s3c2410_dma_ctrl(host->dma, S3C2410_DMAOP_START);
+	dmaengine_slave_config(host->dma, &conf);
+	desc = dmaengine_prep_slave_sg(host->dma, data->sg, data->sg_len,
+		conf.direction,
+		DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
+	if (!desc)
+		goto unmap_exit;
+	desc->callback = s3cmci_dma_done_callback;
+	desc->callback_param = host;
+	dmaengine_submit(desc);
+	dma_async_issue_pending(host->dma);
 
 	return 0;
+
+unmap_exit:
+	dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
+		     mmc_get_dma_dir(data));
+	return -ENOMEM;
 }
 
 static void s3cmci_send_request(struct mmc_host *mmc)
@@ -1251,19 +1166,6 @@ static void s3cmci_send_request(struct mmc_host *mmc)
 	s3cmci_enable_irq(host, true);
 }
 
-static int s3cmci_card_present(struct mmc_host *mmc)
-{
-	struct s3cmci_host *host = mmc_priv(mmc);
-	struct s3c24xx_mci_pdata *pdata = host->pdata;
-	int ret;
-
-	if (pdata->no_detect)
-		return -ENOSYS;
-
-	ret = gpio_get_value(pdata->gpio_detect) ? 0 : 1;
-	return ret ^ pdata->detect_invert;
-}
-
 static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct s3cmci_host *host = mmc_priv(mmc);
@@ -1272,7 +1174,7 @@ static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->cmd_is_stop = 0;
 	host->mrq = mrq;
 
-	if (s3cmci_card_present(mmc) == 0) {
+	if (mmc_gpio_get_cd(mmc) == 0) {
 		dbg(host, dbg_err, "%s: no medium present\n", __func__);
 		host->mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
@@ -1316,8 +1218,9 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_ON:
 	case MMC_POWER_UP:
 		/* Configure GPE5...GPE10 pins in SD mode */
-		s3c_gpio_cfgall_range(S3C2410_GPE(5), 6, S3C_GPIO_SFN(2),
-				      S3C_GPIO_PULL_NONE);
+		if (!host->pdev->dev.of_node)
+			s3c_gpio_cfgall_range(S3C2410_GPE(5), 6, S3C_GPIO_SFN(2),
+					      S3C_GPIO_PULL_NONE);
 
 		if (host->pdata->set_power)
 			host->pdata->set_power(ios->power_mode, ios->vdd);
@@ -1329,7 +1232,8 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	case MMC_POWER_OFF:
 	default:
-		gpio_direction_output(S3C2410_GPE(5), 0);
+		if (!host->pdev->dev.of_node)
+			gpio_direction_output(S3C2410_GPE(5), 0);
 
 		if (host->is2440)
 			mci_con |= S3C2440_SDICON_SDRESET;
@@ -1367,21 +1271,6 @@ static void s3cmci_reset(struct s3cmci_host *host)
 
 	con |= S3C2440_SDICON_SDRESET;
 	writel(con, host->base + S3C2410_SDICON);
-}
-
-static int s3cmci_get_ro(struct mmc_host *mmc)
-{
-	struct s3cmci_host *host = mmc_priv(mmc);
-	struct s3c24xx_mci_pdata *pdata = host->pdata;
-	int ret;
-
-	if (pdata->no_wprotect)
-		return 0;
-
-	ret = gpio_get_value(pdata->gpio_wprotect) ? 1 : 0;
-	ret ^= pdata->wprotect_invert;
-
-	return ret;
 }
 
 static void s3cmci_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -1424,11 +1313,11 @@ static void s3cmci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	s3cmci_check_sdio_irq(host);
 }
 
-static struct mmc_host_ops s3cmci_ops = {
+static const struct mmc_host_ops s3cmci_ops = {
 	.request	= s3cmci_request,
 	.set_ios	= s3cmci_set_ios,
-	.get_ro		= s3cmci_get_ro,
-	.get_cd		= s3cmci_card_present,
+	.get_ro		= mmc_gpio_get_ro,
+	.get_cd		= mmc_gpio_get_cd,
 	.enable_sdio_irq = s3cmci_enable_sdio_irq,
 };
 
@@ -1439,7 +1328,7 @@ static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
 	 .no_detect = 1,
 };
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
 static int s3cmci_cpufreq_transition(struct notifier_block *nb,
 				     unsigned long val, void *data)
@@ -1619,21 +1508,14 @@ static inline void s3cmci_debugfs_remove(struct s3cmci_host *host) { }
 
 #endif /* CONFIG_DEBUG_FS */
 
-static int s3cmci_probe(struct platform_device *pdev)
+static int s3cmci_probe_pdata(struct s3cmci_host *host)
 {
-	struct s3cmci_host *host;
-	struct mmc_host	*mmc;
-	int ret;
-	int is2440;
-	int i;
+	struct platform_device *pdev = host->pdev;
+	struct mmc_host *mmc = host->mmc;
+	struct s3c24xx_mci_pdata *pdata;
+	int i, ret;
 
-	is2440 = platform_get_device_id(pdev)->driver_data;
-
-	mmc = mmc_alloc_host(sizeof(struct s3cmci_host), &pdev->dev);
-	if (!mmc) {
-		ret = -ENOMEM;
-		goto probe_out;
-	}
+	host->is2440 = platform_get_device_id(pdev)->driver_data;
 
 	for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++) {
 		ret = gpio_request(i, dev_name(&pdev->dev));
@@ -1643,25 +1525,101 @@ static int s3cmci_probe(struct platform_device *pdev)
 			for (i--; i >= S3C2410_GPE(5); i--)
 				gpio_free(i);
 
-			goto probe_free_host;
+			return ret;
 		}
+	}
+
+	if (!pdev->dev.platform_data)
+		pdev->dev.platform_data = &s3cmci_def_pdata;
+
+	pdata = pdev->dev.platform_data;
+
+	if (pdata->no_wprotect)
+		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+
+	if (pdata->no_detect)
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
+
+	if (pdata->wprotect_invert)
+		mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+	if (pdata->detect_invert)
+		 mmc->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+
+	if (gpio_is_valid(pdata->gpio_detect)) {
+		ret = mmc_gpio_request_cd(mmc, pdata->gpio_detect, 0);
+		if (ret) {
+			dev_err(&pdev->dev, "error requesting GPIO for CD %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	if (gpio_is_valid(pdata->gpio_wprotect)) {
+		ret = mmc_gpio_request_ro(mmc, pdata->gpio_wprotect);
+		if (ret) {
+			dev_err(&pdev->dev, "error requesting GPIO for WP %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int s3cmci_probe_dt(struct s3cmci_host *host)
+{
+	struct platform_device *pdev = host->pdev;
+	struct s3c24xx_mci_pdata *pdata;
+	struct mmc_host *mmc = host->mmc;
+	int ret;
+
+	host->is2440 = (int) of_device_get_match_data(&pdev->dev);
+
+	ret = mmc_of_parse(mmc);
+	if (ret)
+		return ret;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	pdev->dev.platform_data = pdata;
+
+	return 0;
+}
+
+static int s3cmci_probe(struct platform_device *pdev)
+{
+	struct s3cmci_host *host;
+	struct mmc_host	*mmc;
+	int ret;
+	int i;
+
+	mmc = mmc_alloc_host(sizeof(struct s3cmci_host), &pdev->dev);
+	if (!mmc) {
+		ret = -ENOMEM;
+		goto probe_out;
 	}
 
 	host = mmc_priv(mmc);
 	host->mmc 	= mmc;
 	host->pdev	= pdev;
-	host->is2440	= is2440;
+
+	if (pdev->dev.of_node)
+		ret = s3cmci_probe_dt(host);
+	else
+		ret = s3cmci_probe_pdata(host);
+
+	if (ret)
+		goto probe_free_host;
 
 	host->pdata = pdev->dev.platform_data;
-	if (!host->pdata) {
-		pdev->dev.platform_data = &s3cmci_def_pdata;
-		host->pdata = &s3cmci_def_pdata;
-	}
 
 	spin_lock_init(&host->complete_lock);
 	tasklet_init(&host->pio_tasklet, pio_tasklet, (unsigned long) host);
 
-	if (is2440) {
+	if (host->is2440) {
 		host->sdiimsk	= S3C2440_SDIIMSK;
 		host->sdidata	= S3C2440_SDIDATA;
 		host->clk_div	= 1;
@@ -1673,10 +1631,6 @@ static int s3cmci_probe(struct platform_device *pdev)
 
 	host->complete_what 	= COMPLETION_NONE;
 	host->pio_active 	= XFER_NONE;
-
-#ifdef CONFIG_MMC_S3C_PIODMA
-	host->dodma		= host->pdata->use_dma;
-#endif
 
 	host->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!host->mem) {
@@ -1723,57 +1677,14 @@ static int s3cmci_probe(struct platform_device *pdev)
 	disable_irq(host->irq);
 	host->irq_state = false;
 
-	if (!host->pdata->no_detect) {
-		ret = gpio_request(host->pdata->gpio_detect, "s3cmci detect");
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get detect gpio\n");
-			goto probe_free_irq;
-		}
-
-		host->irq_cd = gpio_to_irq(host->pdata->gpio_detect);
-
-		if (host->irq_cd >= 0) {
-			if (request_irq(host->irq_cd, s3cmci_irq_cd,
-					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING,
-					DRIVER_NAME, host)) {
-				dev_err(&pdev->dev,
-					"can't get card detect irq.\n");
-				ret = -ENOENT;
-				goto probe_free_gpio_cd;
-			}
-		} else {
-			dev_warn(&pdev->dev,
-				 "host detect has no irq available\n");
-			gpio_direction_input(host->pdata->gpio_detect);
-		}
-	} else
-		host->irq_cd = -1;
-
-	if (!host->pdata->no_wprotect) {
-		ret = gpio_request(host->pdata->gpio_wprotect, "s3cmci wp");
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get writeprotect\n");
-			goto probe_free_irq_cd;
-		}
-
-		gpio_direction_input(host->pdata->gpio_wprotect);
-	}
-
-	/* depending on the dma state, get a dma channel to use. */
+	/* Depending on the dma state, get a DMA channel to use. */
 
 	if (s3cmci_host_usedma(host)) {
-		host->dma = s3c2410_dma_request(DMACH_SDI, &s3cmci_dma_client,
-						host);
-		if (host->dma < 0) {
+		host->dma = dma_request_chan(&pdev->dev, "rx-tx");
+		ret = PTR_ERR_OR_ZERO(host->dma);
+		if (ret) {
 			dev_err(&pdev->dev, "cannot get DMA channel.\n");
-			if (!s3cmci_host_canpio()) {
-				ret = -EBUSY;
-				goto probe_free_gpio_wp;
-			} else {
-				dev_warn(&pdev->dev, "falling back to PIO.\n");
-				host->dodma = 0;
-			}
+			goto probe_free_irq;
 		}
 	}
 
@@ -1785,7 +1696,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 		goto probe_free_dma;
 	}
 
-	ret = clk_enable(host->clk);
+	ret = clk_prepare_enable(host->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock source.\n");
 		goto clk_free;
@@ -1814,7 +1725,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	mmc->max_segs		= 128;
 
 	dbg(host, dbg_debug,
-	    "probe: mode:%s mapped mci_base:%p irq:%u irq_cd:%u dma:%u.\n",
+	    "probe: mode:%s mapped mci_base:%p irq:%u irq_cd:%u dma:%p.\n",
 	    (host->is2440?"2440":""),
 	    host->base, host->irq, host->irq_cd, host->dma);
 
@@ -1843,26 +1754,14 @@ static int s3cmci_probe(struct platform_device *pdev)
 	s3cmci_cpufreq_deregister(host);
 
  free_dmabuf:
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 
  clk_free:
 	clk_put(host->clk);
 
  probe_free_dma:
 	if (s3cmci_host_usedma(host))
-		s3c2410_dma_free(host->dma, &s3cmci_dma_client);
-
- probe_free_gpio_wp:
-	if (!host->pdata->no_wprotect)
-		gpio_free(host->pdata->gpio_wprotect);
-
- probe_free_gpio_cd:
-	if (!host->pdata->no_detect)
-		gpio_free(host->pdata->gpio_detect);
-
- probe_free_irq_cd:
-	if (host->irq_cd >= 0)
-		free_irq(host->irq_cd, host);
+		dma_release_channel(host->dma);
 
  probe_free_irq:
 	free_irq(host->irq, host);
@@ -1874,8 +1773,9 @@ static int s3cmci_probe(struct platform_device *pdev)
 	release_mem_region(host->mem->start, resource_size(host->mem));
 
  probe_free_gpio:
-	for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
-		gpio_free(i);
+	if (!pdev->dev.of_node)
+		for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
+			gpio_free(i);
 
  probe_free_host:
 	mmc_free_host(mmc);
@@ -1895,14 +1795,13 @@ static void s3cmci_shutdown(struct platform_device *pdev)
 	s3cmci_debugfs_remove(host);
 	s3cmci_cpufreq_deregister(host);
 	mmc_remove_host(mmc);
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 }
 
 static int s3cmci_remove(struct platform_device *pdev)
 {
 	struct mmc_host		*mmc  = platform_get_drvdata(pdev);
 	struct s3cmci_host	*host = mmc_priv(mmc);
-	struct s3c24xx_mci_pdata *pd = host->pdata;
 	int i;
 
 	s3cmci_shutdown(pdev);
@@ -1912,19 +1811,13 @@ static int s3cmci_remove(struct platform_device *pdev)
 	tasklet_disable(&host->pio_tasklet);
 
 	if (s3cmci_host_usedma(host))
-		s3c2410_dma_free(host->dma, &s3cmci_dma_client);
+		dma_release_channel(host->dma);
 
 	free_irq(host->irq, host);
 
-	if (!pd->no_wprotect)
-		gpio_free(pd->gpio_wprotect);
-
-	if (!pd->no_detect)
-		gpio_free(pd->gpio_detect);
-
-	for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
-		gpio_free(i);
-
+	if (!pdev->dev.of_node)
+		for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
+			gpio_free(i);
 
 	iounmap(host->base);
 	release_mem_region(host->mem->start, resource_size(host->mem));
@@ -1933,7 +1826,24 @@ static int s3cmci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id s3cmci_driver_ids[] = {
+static const struct of_device_id s3cmci_dt_match[] = {
+	{
+		.compatible = "samsung,s3c2410-sdi",
+		.data = (void *)0,
+	},
+	{
+		.compatible = "samsung,s3c2412-sdi",
+		.data = (void *)1,
+	},
+	{
+		.compatible = "samsung,s3c2440-sdi",
+		.data = (void *)1,
+	},
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, s3cmci_dt_match);
+
+static const struct platform_device_id s3cmci_driver_ids[] = {
 	{
 		.name	= "s3c2410-sdi",
 		.driver_data	= 0,
@@ -1949,39 +1859,10 @@ static struct platform_device_id s3cmci_driver_ids[] = {
 
 MODULE_DEVICE_TABLE(platform, s3cmci_driver_ids);
 
-
-#ifdef CONFIG_PM
-
-static int s3cmci_suspend(struct device *dev)
-{
-	struct mmc_host *mmc = platform_get_drvdata(to_platform_device(dev));
-
-	return mmc_suspend_host(mmc);
-}
-
-static int s3cmci_resume(struct device *dev)
-{
-	struct mmc_host *mmc = platform_get_drvdata(to_platform_device(dev));
-
-	return mmc_resume_host(mmc);
-}
-
-static const struct dev_pm_ops s3cmci_pm = {
-	.suspend	= s3cmci_suspend,
-	.resume		= s3cmci_resume,
-};
-
-#define s3cmci_pm_ops &s3cmci_pm
-#else /* CONFIG_PM */
-#define s3cmci_pm_ops NULL
-#endif /* CONFIG_PM */
-
-
 static struct platform_driver s3cmci_driver = {
 	.driver	= {
 		.name	= "s3c-sdi",
-		.owner	= THIS_MODULE,
-		.pm	= s3cmci_pm_ops,
+		.of_match_table = s3cmci_dt_match,
 	},
 	.id_table	= s3cmci_driver_ids,
 	.probe		= s3cmci_probe,

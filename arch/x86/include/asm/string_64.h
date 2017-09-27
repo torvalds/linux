@@ -2,6 +2,7 @@
 #define _ASM_X86_STRING_64_H
 
 #ifdef __KERNEL__
+#include <linux/jump_label.h>
 
 /* Written 2002 by Andi Kleen */
 
@@ -27,11 +28,12 @@ static __always_inline void *__inline_memcpy(void *to, const void *from, size_t 
    function. */
 
 #define __HAVE_ARCH_MEMCPY 1
-#ifndef CONFIG_KMEMCHECK
-#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
 extern void *memcpy(void *to, const void *from, size_t len);
-#else
 extern void *__memcpy(void *to, const void *from, size_t len);
+
+#ifndef CONFIG_FORTIFY_SOURCE
+#ifndef CONFIG_KMEMCHECK
+#if (__GNUC__ == 4 && __GNUC_MINOR__ < 3) || __GNUC__ < 4
 #define memcpy(dst, src, len)					\
 ({								\
 	size_t __len = (len);					\
@@ -50,18 +52,110 @@ extern void *__memcpy(void *to, const void *from, size_t len);
  */
 #define memcpy(dst, src, len) __inline_memcpy((dst), (src), (len))
 #endif
+#endif /* !CONFIG_FORTIFY_SOURCE */
 
 #define __HAVE_ARCH_MEMSET
 void *memset(void *s, int c, size_t n);
+void *__memset(void *s, int c, size_t n);
+
+#define __HAVE_ARCH_MEMSET16
+static inline void *memset16(uint16_t *s, uint16_t v, size_t n)
+{
+	long d0, d1;
+	asm volatile("rep\n\t"
+		     "stosw"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
+
+#define __HAVE_ARCH_MEMSET32
+static inline void *memset32(uint32_t *s, uint32_t v, size_t n)
+{
+	long d0, d1;
+	asm volatile("rep\n\t"
+		     "stosl"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
+
+#define __HAVE_ARCH_MEMSET64
+static inline void *memset64(uint64_t *s, uint64_t v, size_t n)
+{
+	long d0, d1;
+	asm volatile("rep\n\t"
+		     "stosq"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
 
 #define __HAVE_ARCH_MEMMOVE
 void *memmove(void *dest, const void *src, size_t count);
+void *__memmove(void *dest, const void *src, size_t count);
 
 int memcmp(const void *cs, const void *ct, size_t count);
 size_t strlen(const char *s);
 char *strcpy(char *dest, const char *src);
 char *strcat(char *dest, const char *src);
 int strcmp(const char *cs, const char *ct);
+
+#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
+
+/*
+ * For files that not instrumented (e.g. mm/slub.c) we
+ * should use not instrumented version of mem* functions.
+ */
+
+#undef memcpy
+#define memcpy(dst, src, len) __memcpy(dst, src, len)
+#define memmove(dst, src, len) __memmove(dst, src, len)
+#define memset(s, c, n) __memset(s, c, n)
+
+#ifndef __NO_FORTIFY
+#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+#endif
+
+#endif
+
+#define __HAVE_ARCH_MEMCPY_MCSAFE 1
+__must_check int memcpy_mcsafe_unrolled(void *dst, const void *src, size_t cnt);
+DECLARE_STATIC_KEY_FALSE(mcsafe_key);
+
+/**
+ * memcpy_mcsafe - copy memory with indication if a machine check happened
+ *
+ * @dst:	destination address
+ * @src:	source address
+ * @cnt:	number of bytes to copy
+ *
+ * Low level memory copy function that catches machine checks
+ * We only call into the "safe" function on systems that can
+ * actually do machine check recovery. Everyone else can just
+ * use memcpy().
+ *
+ * Return 0 for success, -EFAULT for fail
+ */
+static __always_inline __must_check int
+memcpy_mcsafe(void *dst, const void *src, size_t cnt)
+{
+#ifdef CONFIG_X86_MCE
+	if (static_branch_unlikely(&mcsafe_key))
+		return memcpy_mcsafe_unrolled(dst, src, cnt);
+	else
+#endif
+		memcpy(dst, src, cnt);
+	return 0;
+}
+
+#ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
+#define __HAVE_ARCH_MEMCPY_FLUSHCACHE 1
+void memcpy_flushcache(void *dst, const void *src, size_t cnt);
+#endif
 
 #endif /* __KERNEL__ */
 

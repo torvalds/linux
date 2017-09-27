@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,10 +57,10 @@ static struct rc_map_table apac_viewcomp[] = {
 
 static struct rc_map_list apac_viewcomp_map = {
 	.map = {
-		.scan    = apac_viewcomp,
-		.size    = ARRAY_SIZE(apac_viewcomp),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_APAC_VIEWCOMP,
+		.scan     = apac_viewcomp,
+		.size     = ARRAY_SIZE(apac_viewcomp),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_APAC_VIEWCOMP,
 	}
 };
 
@@ -78,4 +78,4 @@ module_init(init_rc_map_apac_viewcomp)
 module_exit(exit_rc_map_apac_viewcomp)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

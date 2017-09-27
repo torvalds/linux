@@ -413,15 +413,15 @@ static int __initdata sb_irq	= -1;
 static int __initdata mpu_io	= -1;
 static int __initdata mpu_irq	= -1;
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
-module_param(dma, int, 0);
-module_param(dma2, int, 0);
-module_param(sb_io, int, 0);
-module_param(sb_dma, int, 0);
-module_param(sb_irq, int, 0);
-module_param(mpu_io, int, 0);
-module_param(mpu_irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
+module_param_hw(dma, int, dma, 0);
+module_param_hw(dma2, int, dma, 0);
+module_param_hw(sb_io, int, ioport, 0);
+module_param_hw(sb_dma, int, dma, 0);
+module_param_hw(sb_irq, int, irq, 0);
+module_param_hw(mpu_io, int, ioport, 0);
+module_param_hw(mpu_irq, int, irq, 0);
 module_param(joystick, bool, 0);
 
 static int __init init_trix(void)
@@ -487,7 +487,7 @@ static int __init init_trix(void)
 
 static void __exit cleanup_trix(void)
 {
-	if (fw_load && trix_boot)
+	if (fw_load)
 		vfree(trix_boot);
 	if (sb)
 		unload_trix_sb(&cfg2);

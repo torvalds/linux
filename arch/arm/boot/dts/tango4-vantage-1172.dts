@@ -1,0 +1,41 @@
+/dts-v1/;
+
+#include "tango4-smp8758.dtsi"
+
+/ {
+	model = "Sigma Designs SMP8758 Vantage-1172 Rev E1";
+	compatible = "sigma,vantage-1172", "sigma,smp8758", "sigma,tango4";
+
+	aliases {
+		serial = &uart;
+		eth0 = &eth0;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>; /* 2 GB */
+	};
+
+	chosen {
+		stdout-path = "serial:115200n8";
+	};
+};
+
+&eth0 {
+	phy-connection-type = "rgmii-id";
+	phy-handle = <&eth0_phy>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* Atheros AR8035 */
+	eth0_phy: ethernet-phy@4 {
+		compatible = "ethernet-phy-id004d.d072",
+			     "ethernet-phy-ieee802.3-c22";
+		interrupts = <37 IRQ_TYPE_EDGE_RISING>;
+		reg = <4>;
+	};
+};
+
+&mmc1 {
+	non-removable; /* eMMC */
+};

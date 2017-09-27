@@ -16,6 +16,7 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/platform_device.h>
 
 #include <asm/oplib.h>
 #include <asm/setup.h>
@@ -25,8 +26,8 @@
 #include <asm/pgalloc.h>
 #include <asm/sun3-head.h>
 #include <asm/sun3mmu.h>
-#include <asm/rtc.h>
 #include <asm/machdep.h>
+#include <asm/machines.h>
 #include <asm/idprom.h>
 #include <asm/intersil.h>
 #include <asm/irq.h>
@@ -116,13 +117,13 @@ static void __init sun3_bootmem_alloc(unsigned long memory_start,
 	memory_end = memory_end & PAGE_MASK;
 
 	start_page = __pa(memory_start) >> PAGE_SHIFT;
-	num_pages = __pa(memory_end) >> PAGE_SHIFT;
+	max_pfn = num_pages = __pa(memory_end) >> PAGE_SHIFT;
 
 	high_memory = (void *)memory_end;
 	availmem = memory_start;
 
 	m68k_setup_node(0);
-	availmem += init_bootmem_node(NODE_DATA(0), start_page, 0, num_pages);
+	availmem += init_bootmem(start_page, num_pages);
 	availmem = (availmem + (PAGE_SIZE-1)) & PAGE_MASK;
 
 	free_bootmem(__pa(availmem), memory_end - (availmem));
@@ -133,7 +134,7 @@ void __init config_sun3(void)
 {
 	unsigned long memory_start, memory_end;
 
-	printk("ARCH: SUN3\n");
+	pr_info("ARCH: SUN3\n");
 	idprom_init();
 
 	/* Subtract kernel memory from available memory */
@@ -169,3 +170,61 @@ static void __init sun3_sched_init(irq_handler_t timer_routine)
         intersil_clear();
 }
 
+#if IS_ENABLED(CONFIG_SUN3_SCSI)
+
+static const struct resource sun3_scsi_vme_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = SUN3_VEC_VMESCSI0,
+		.end   = SUN3_VEC_VMESCSI0,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0xff200000,
+		.end   = 0xff200021,
+	}, {
+		.flags = IORESOURCE_IRQ,
+		.start = SUN3_VEC_VMESCSI1,
+		.end   = SUN3_VEC_VMESCSI1,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0xff204000,
+		.end   = 0xff204021,
+	},
+};
+
+/*
+ * Int: level 2 autovector
+ * IO: type 1, base 0x00140000, 5 bits phys space: A<4..0>
+ */
+static const struct resource sun3_scsi_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = 2,
+		.end   = 2,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x00140000,
+		.end   = 0x0014001f,
+	},
+};
+
+int __init sun3_platform_init(void)
+{
+	switch (idprom->id_machtype) {
+	case SM_SUN3 | SM_3_160:
+	case SM_SUN3 | SM_3_260:
+		platform_device_register_simple("sun3_scsi_vme", -1,
+			sun3_scsi_vme_rsrc, ARRAY_SIZE(sun3_scsi_vme_rsrc));
+		break;
+	case SM_SUN3 | SM_3_50:
+	case SM_SUN3 | SM_3_60:
+		platform_device_register_simple("sun3_scsi", -1,
+			sun3_scsi_rsrc, ARRAY_SIZE(sun3_scsi_rsrc));
+		break;
+	}
+	return 0;
+}
+
+arch_initcall(sun3_platform_init);
+
+#endif

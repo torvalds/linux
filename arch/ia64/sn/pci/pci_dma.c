@@ -34,7 +34,7 @@
  */
 static int sn_dma_supported(struct device *dev, u64 mask)
 {
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	if (mask < 0x7fffffff)
 		return 0;
@@ -50,7 +50,7 @@ static int sn_dma_supported(struct device *dev, u64 mask)
  */
 int sn_dma_set_mask(struct device *dev, u64 dma_mask)
 {
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	if (!sn_dma_supported(dev, dma_mask))
 		return 0;
@@ -77,7 +77,7 @@ EXPORT_SYMBOL(sn_dma_set_mask);
  */
 static void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 				   dma_addr_t * dma_handle, gfp_t flags,
-				   struct dma_attrs *attrs)
+				   unsigned long attrs)
 {
 	void *cpuaddr;
 	unsigned long phys_addr;
@@ -85,14 +85,14 @@ static void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	/*
 	 * Allocate the memory.
 	 */
 	node = pcibus_to_node(pdev->bus);
 	if (likely(node >=0)) {
-		struct page *p = alloc_pages_exact_node(node,
+		struct page *p = __alloc_pages_node(node,
 						flags, get_order(size));
 
 		if (likely(p))
@@ -138,12 +138,12 @@ static void *sn_dma_alloc_coherent(struct device *dev, size_t size,
  * any associated IOMMU mappings.
  */
 static void sn_dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
-				 dma_addr_t dma_handle, struct dma_attrs *attrs)
+				 dma_addr_t dma_handle, unsigned long attrs)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	provider->dma_unmap(pdev, dma_handle, 0);
 	free_pages((unsigned long)cpu_addr, get_order(size));
@@ -176,21 +176,18 @@ static void sn_dma_free_coherent(struct device *dev, size_t size, void *cpu_addr
 static dma_addr_t sn_dma_map_page(struct device *dev, struct page *page,
 				  unsigned long offset, size_t size,
 				  enum dma_data_direction dir,
-				  struct dma_attrs *attrs)
+				  unsigned long attrs)
 {
 	void *cpu_addr = page_address(page) + offset;
 	dma_addr_t dma_addr;
 	unsigned long phys_addr;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
-	int dmabarr;
 
-	dmabarr = dma_get_attr(DMA_ATTR_WRITE_BARRIER, attrs);
-
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	phys_addr = __pa(cpu_addr);
-	if (dmabarr)
+	if (attrs & DMA_ATTR_WRITE_BARRIER)
 		dma_addr = provider->dma_map_consistent(pdev, phys_addr,
 							size, SN_DMA_ADDR_PHYS);
 	else
@@ -218,12 +215,12 @@ static dma_addr_t sn_dma_map_page(struct device *dev, struct page *page,
  */
 static void sn_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 			      size_t size, enum dma_data_direction dir,
-			      struct dma_attrs *attrs)
+			      unsigned long attrs)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	provider->dma_unmap(pdev, dma_addr, dir);
 }
@@ -240,14 +237,14 @@ static void sn_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
  */
 static void sn_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
 			    int nhwentries, enum dma_data_direction dir,
-			    struct dma_attrs *attrs)
+			    unsigned long attrs)
 {
 	int i;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 	struct scatterlist *sg;
 
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	for_each_sg(sgl, sg, nhwentries, i) {
 		provider->dma_unmap(pdev, sg->dma_address, dir);
@@ -273,18 +270,15 @@ static void sn_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
  */
 static int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 			 int nhwentries, enum dma_data_direction dir,
-			 struct dma_attrs *attrs)
+			 unsigned long attrs)
 {
 	unsigned long phys_addr;
 	struct scatterlist *saved_sg = sgl, *sg;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 	int i;
-	int dmabarr;
 
-	dmabarr = dma_get_attr(DMA_ATTR_WRITE_BARRIER, attrs);
-
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 
 	/*
 	 * Setup a DMA address for each entry in the scatterlist.
@@ -292,7 +286,7 @@ static int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 	for_each_sg(sgl, sg, nhwentries, i) {
 		dma_addr_t dma_addr;
 		phys_addr = SG_ENT_PHYS_ADDRESS(sg);
-		if (dmabarr)
+		if (attrs & DMA_ATTR_WRITE_BARRIER)
 			dma_addr = provider->dma_map_consistent(pdev,
 								phys_addr,
 								sg->length,
@@ -323,26 +317,26 @@ static int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 static void sn_dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
 				       size_t size, enum dma_data_direction dir)
 {
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 }
 
 static void sn_dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
 					  size_t size,
 					  enum dma_data_direction dir)
 {
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 }
 
 static void sn_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 				   int nelems, enum dma_data_direction dir)
 {
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 }
 
 static void sn_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 				      int nelems, enum dma_data_direction dir)
 {
-	BUG_ON(dev->bus != &pci_bus_type);
+	BUG_ON(!dev_is_pci(dev));
 }
 
 static int sn_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)

@@ -3,7 +3,7 @@
 
 #define ATOMIC_INIT(i)	{ (i) }
 
-#define atomic_set(v, i)		((v)->counter = (i))
+#define atomic_set(v, i)		WRITE_ONCE((v)->counter, (i))
 
 #include <linux/compiler.h>
 
@@ -27,119 +27,88 @@ static inline int atomic_read(const atomic_t *v)
 	return temp;
 }
 
-static inline void atomic_add(int i, atomic_t *v)
-{
-	int temp;
+#define ATOMIC_OP(op)							\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	int temp;							\
+									\
+	asm volatile (							\
+		"1:	LNKGETD %0, [%1]\n"				\
+		"	" #op "	%0, %0, %2\n"				\
+		"	LNKSETD [%1], %0\n"				\
+		"	DEFR	%0, TXSTAT\n"				\
+		"	ANDT	%0, %0, #HI(0x3f000000)\n"		\
+		"	CMPT	%0, #HI(0x02000000)\n"			\
+		"	BNZ	1b\n"					\
+		: "=&d" (temp)						\
+		: "da" (&v->counter), "bd" (i)				\
+		: "cc");						\
+}									\
 
-	asm volatile (
-		"1:	LNKGETD %0, [%1]\n"
-		"	ADD	%0, %0, %2\n"
-		"	LNKSETD [%1], %0\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ	1b\n"
-		: "=&d" (temp)
-		: "da" (&v->counter), "bd" (i)
-		: "cc");
+#define ATOMIC_OP_RETURN(op)						\
+static inline int atomic_##op##_return(int i, atomic_t *v)		\
+{									\
+	int result, temp;						\
+									\
+	smp_mb();							\
+									\
+	asm volatile (							\
+		"1:	LNKGETD %1, [%2]\n"				\
+		"	" #op "	%1, %1, %3\n"				\
+		"	LNKSETD [%2], %1\n"				\
+		"	DEFR	%0, TXSTAT\n"				\
+		"	ANDT	%0, %0, #HI(0x3f000000)\n"		\
+		"	CMPT	%0, #HI(0x02000000)\n"			\
+		"	BNZ 1b\n"					\
+		: "=&d" (temp), "=&da" (result)				\
+		: "da" (&v->counter), "br" (i)				\
+		: "cc");						\
+									\
+	smp_mb();							\
+									\
+	return result;							\
 }
 
-static inline void atomic_sub(int i, atomic_t *v)
-{
-	int temp;
-
-	asm volatile (
-		"1:	LNKGETD %0, [%1]\n"
-		"	SUB	%0, %0, %2\n"
-		"	LNKSETD [%1], %0\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ 1b\n"
-		: "=&d" (temp)
-		: "da" (&v->counter), "bd" (i)
-		: "cc");
+#define ATOMIC_FETCH_OP(op)						\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	int result, temp;						\
+									\
+	smp_mb();							\
+									\
+	asm volatile (							\
+		"1:	LNKGETD %1, [%2]\n"				\
+		"	" #op "	%0, %1, %3\n"				\
+		"	LNKSETD [%2], %0\n"				\
+		"	DEFR	%0, TXSTAT\n"				\
+		"	ANDT	%0, %0, #HI(0x3f000000)\n"		\
+		"	CMPT	%0, #HI(0x02000000)\n"			\
+		"	BNZ 1b\n"					\
+		: "=&d" (temp), "=&d" (result)				\
+		: "da" (&v->counter), "bd" (i)				\
+		: "cc");						\
+									\
+	smp_mb();							\
+									\
+	return result;							\
 }
 
-static inline int atomic_add_return(int i, atomic_t *v)
-{
-	int result, temp;
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op) ATOMIC_FETCH_OP(op)
 
-	smp_mb();
+ATOMIC_OPS(add)
+ATOMIC_OPS(sub)
 
-	asm volatile (
-		"1:	LNKGETD %1, [%2]\n"
-		"	ADD	%1, %1, %3\n"
-		"	LNKSETD [%2], %1\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ 1b\n"
-		: "=&d" (temp), "=&da" (result)
-		: "da" (&v->counter), "bd" (i)
-		: "cc");
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
 
-	smp_mb();
+ATOMIC_OPS(and)
+ATOMIC_OPS(or)
+ATOMIC_OPS(xor)
 
-	return result;
-}
-
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	int result, temp;
-
-	smp_mb();
-
-	asm volatile (
-		"1:	LNKGETD %1, [%2]\n"
-		"	SUB	%1, %1, %3\n"
-		"	LNKSETD [%2], %1\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ	1b\n"
-		: "=&d" (temp), "=&da" (result)
-		: "da" (&v->counter), "bd" (i)
-		: "cc");
-
-	smp_mb();
-
-	return result;
-}
-
-static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	int temp;
-
-	asm volatile (
-		"1:	LNKGETD %0, [%1]\n"
-		"	AND	%0, %0, %2\n"
-		"	LNKSETD	[%1] %0\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ	1b\n"
-		: "=&d" (temp)
-		: "da" (&v->counter), "bd" (~mask)
-		: "cc");
-}
-
-static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	int temp;
-
-	asm volatile (
-		"1:	LNKGETD %0, [%1]\n"
-		"	OR	%0, %0, %2\n"
-		"	LNKSETD	[%1], %0\n"
-		"	DEFR	%0, TXSTAT\n"
-		"	ANDT	%0, %0, #HI(0x3f000000)\n"
-		"	CMPT	%0, #HI(0x02000000)\n"
-		"	BNZ	1b\n"
-		: "=&d" (temp)
-		: "da" (&v->counter), "bd" (mask)
-		: "cc");
-}
+#undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
+#undef ATOMIC_OP_RETURN
+#undef ATOMIC_OP
 
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {

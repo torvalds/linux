@@ -6,6 +6,8 @@
 #define SETUP_E820_EXT			1
 #define SETUP_DTB			2
 #define SETUP_PCI			3
+#define SETUP_EFI			4
+#define SETUP_APPLE_PROPERTIES		5
 
 /* ram_size flags */
 #define RAMDISK_IMAGE_START_MASK	0x07FF
@@ -14,6 +16,7 @@
 
 /* loadflags */
 #define LOADED_HIGH	(1<<0)
+#define KASLR_FLAG	(1<<1)
 #define QUIET_FLAG	(1<<5)
 #define KEEP_SEGMENTS	(1<<6)
 #define CAN_USE_HEAP	(1<<7)
@@ -23,6 +26,7 @@
 #define XLF_CAN_BE_LOADED_ABOVE_4G	(1<<1)
 #define XLF_EFI_HANDOVER_32		(1<<2)
 #define XLF_EFI_HANDOVER_64		(1<<3)
+#define XLF_EFI_KEXEC			(1<<4)
 
 #ifndef __ASSEMBLY__
 
@@ -30,7 +34,6 @@
 #include <linux/screen_info.h>
 #include <linux/apm_bios.h>
 #include <linux/edd.h>
-#include <asm/e820.h>
 #include <asm/ist.h>
 #include <video/edid.h>
 
@@ -54,7 +57,7 @@ struct setup_header {
 	__u32	header;
 	__u16	version;
 	__u32	realmode_swtch;
-	__u16	start_sys;
+	__u16	start_sys_seg;
 	__u16	kernel_version;
 	__u8	type_of_loader;
 	__u8	loadflags;
@@ -107,6 +110,21 @@ struct efi_info {
 	__u32 efi_memmap_hi;
 };
 
+/*
+ * This is the maximum number of entries in struct boot_params::e820_table
+ * (the zeropage), which is part of the x86 boot protocol ABI:
+ */
+#define E820_MAX_ENTRIES_ZEROPAGE 128
+
+/*
+ * The E820 memory region entry of the boot protocol ABI:
+ */
+struct boot_e820_entry {
+	__u64 addr;
+	__u64 size;
+	__u32 type;
+} __attribute__((packed));
+
 /* The so-called "zeropage" */
 struct boot_params {
 	struct screen_info screen_info;			/* 0x000 */
@@ -117,7 +135,7 @@ struct boot_params {
 	__u8  _pad3[16];				/* 0x070 */
 	__u8  hd0_info[16];	/* obsolete! */		/* 0x080 */
 	__u8  hd1_info[16];	/* obsolete! */		/* 0x090 */
-	struct sys_desc_table sys_desc_table;		/* 0x0a0 */
+	struct sys_desc_table sys_desc_table; /* obsolete! */	/* 0x0a0 */
 	struct olpc_ofw_header olpc_ofw_header;		/* 0x0b0 */
 	__u32 ext_ramdisk_image;			/* 0x0c0 */
 	__u32 ext_ramdisk_size;				/* 0x0c4 */
@@ -131,7 +149,8 @@ struct boot_params {
 	__u8  eddbuf_entries;				/* 0x1e9 */
 	__u8  edd_mbr_sig_buf_entries;			/* 0x1ea */
 	__u8  kbd_status;				/* 0x1eb */
-	__u8  _pad5[3];					/* 0x1ec */
+	__u8  secure_boot;				/* 0x1ec */
+	__u8  _pad5[2];					/* 0x1ed */
 	/*
 	 * The sentinel is set to a nonzero value (0xff) in header.S.
 	 *
@@ -148,17 +167,56 @@ struct boot_params {
 	struct setup_header hdr;    /* setup header */	/* 0x1f1 */
 	__u8  _pad7[0x290-0x1f1-sizeof(struct setup_header)];
 	__u32 edd_mbr_sig_buffer[EDD_MBR_SIG_MAX];	/* 0x290 */
-	struct e820entry e820_map[E820MAX];		/* 0x2d0 */
+	struct boot_e820_entry e820_table[E820_MAX_ENTRIES_ZEROPAGE]; /* 0x2d0 */
 	__u8  _pad8[48];				/* 0xcd0 */
 	struct edd_info eddbuf[EDDMAXNR];		/* 0xd00 */
 	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
 
-enum {
+/**
+ * enum x86_hardware_subarch - x86 hardware subarchitecture
+ *
+ * The x86 hardware_subarch and hardware_subarch_data were added as of the x86
+ * boot protocol 2.07 to help distinguish and support custom x86 boot
+ * sequences. This enum represents accepted values for the x86
+ * hardware_subarch.  Custom x86 boot sequences (not X86_SUBARCH_PC) do not
+ * have or simply *cannot* make use of natural stubs like BIOS or EFI, the
+ * hardware_subarch can be used on the Linux entry path to revector to a
+ * subarchitecture stub when needed. This subarchitecture stub can be used to
+ * set up Linux boot parameters or for special care to account for nonstandard
+ * handling of page tables.
+ *
+ * These enums should only ever be used by x86 code, and the code that uses
+ * it should be well contained and compartamentalized.
+ *
+ * KVM and Xen HVM do not have a subarch as these are expected to follow
+ * standard x86 boot entries. If there is a genuine need for "hypervisor" type
+ * that should be considered separately in the future. Future guest types
+ * should seriously consider working with standard x86 boot stubs such as
+ * the BIOS or EFI boot stubs.
+ *
+ * WARNING: this enum is only used for legacy hacks, for platform features that
+ *	    are not easily enumerated or discoverable. You should not ever use
+ *	    this for new features.
+ *
+ * @X86_SUBARCH_PC: Should be used if the hardware is enumerable using standard
+ *	PC mechanisms (PCI, ACPI) and doesn't need a special boot flow.
+ * @X86_SUBARCH_LGUEST: Used for x86 hypervisor demo, lguest, deprecated
+ * @X86_SUBARCH_XEN: Used for Xen guest types which follow the PV boot path,
+ * 	which start at asm startup_xen() entry point and later jump to the C
+ * 	xen_start_kernel() entry point. Both domU and dom0 type of guests are
+ * 	currently supportd through this PV boot path.
+ * @X86_SUBARCH_INTEL_MID: Used for Intel MID (Mobile Internet Device) platform
+ *	systems which do not have the PCI legacy interfaces.
+ * @X86_SUBARCH_CE4100: Used for Intel CE media processor (CE4100) SoC for
+ * 	for settop boxes and media devices, the use of a subarch for CE4100
+ * 	is more of a hack...
+ */
+enum x86_hardware_subarch {
 	X86_SUBARCH_PC = 0,
 	X86_SUBARCH_LGUEST,
 	X86_SUBARCH_XEN,
-	X86_SUBARCH_MRST,
+	X86_SUBARCH_INTEL_MID,
 	X86_SUBARCH_CE4100,
 	X86_NR_SUBARCHS,
 };

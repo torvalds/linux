@@ -16,7 +16,7 @@
 #include <linux/jffs2.h>
 #include <linux/mtd/mtd.h>
 #include <linux/completion.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include "nodelist.h"
@@ -75,10 +75,12 @@ void jffs2_stop_garbage_collect_thread(struct jffs2_sb_info *c)
 static int jffs2_garbage_collect_thread(void *_c)
 {
 	struct jffs2_sb_info *c = _c;
+	sigset_t hupmask;
 
+	siginitset(&hupmask, sigmask(SIGHUP));
 	allow_signal(SIGKILL);
 	allow_signal(SIGSTOP);
-	allow_signal(SIGCONT);
+	allow_signal(SIGHUP);
 
 	c->gc_task = current;
 	complete(&c->gc_thread_start);
@@ -87,7 +89,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 
 	set_freezable();
 	for (;;) {
-		allow_signal(SIGHUP);
+		sigprocmask(SIG_UNBLOCK, &hupmask, NULL);
 	again:
 		spin_lock(&c->erase_completion_lock);
 		if (!jffs2_thread_should_wake(c)) {
@@ -95,10 +97,9 @@ static int jffs2_garbage_collect_thread(void *_c)
 			spin_unlock(&c->erase_completion_lock);
 			jffs2_dbg(1, "%s(): sleeping...\n", __func__);
 			schedule();
-		} else
+		} else {
 			spin_unlock(&c->erase_completion_lock);
-			
-
+		}
 		/* Problem - immediately after bootup, the GCD spends a lot
 		 * of time in places like jffs2_kill_fragtree(); so much so
 		 * that userspace processes (like gdm and X) are starved
@@ -119,20 +120,18 @@ static int jffs2_garbage_collect_thread(void *_c)
 		/* Put_super will send a SIGKILL and then wait on the sem.
 		 */
 		while (signal_pending(current) || freezing(current)) {
-			siginfo_t info;
 			unsigned long signr;
 
 			if (try_to_freeze())
 				goto again;
 
-			signr = dequeue_signal_lock(current, &current->blocked, &info);
+			signr = kernel_dequeue_signal(NULL);
 
 			switch(signr) {
 			case SIGSTOP:
 				jffs2_dbg(1, "%s(): SIGSTOP received\n",
 					  __func__);
-				set_current_state(TASK_STOPPED);
-				schedule();
+				kernel_signal_stop();
 				break;
 
 			case SIGKILL:
@@ -150,7 +149,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 			}
 		}
 		/* We don't want SIGHUP to interrupt us. STOP and KILL are OK though. */
-		disallow_signal(SIGHUP);
+		sigprocmask(SIG_BLOCK, &hupmask, NULL);
 
 		jffs2_dbg(1, "%s(): pass\n", __func__);
 		if (jffs2_garbage_collect_pass(c) == -ENOSPC) {

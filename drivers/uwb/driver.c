@@ -94,17 +94,18 @@ ssize_t beacon_timeout_ms_store(struct class *class,
 	beacon_timeout_ms = bt;
 	return size;
 }
+static CLASS_ATTR_RW(beacon_timeout_ms);
 
-static struct class_attribute uwb_class_attrs[] = {
-	__ATTR(beacon_timeout_ms, S_IWUSR | S_IRUGO,
-	       beacon_timeout_ms_show, beacon_timeout_ms_store),
-	__ATTR_NULL,
+static struct attribute *uwb_class_attrs[] = {
+	&class_attr_beacon_timeout_ms.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(uwb_class);
 
 /** Device model classes */
 struct class uwb_rc_class = {
 	.name        = "uwb_rc",
-	.class_attrs = uwb_class_attrs,
+	.class_groups = uwb_class_groups,
 };
 
 
@@ -121,9 +122,19 @@ static int __init uwb_subsys_init(void)
 	result = class_register(&uwb_rc_class);
 	if (result < 0)
 		goto error_uwb_rc_class_register;
+
+	/* Register the UWB bus */
+	result = bus_register(&uwb_bus_type);
+	if (result) {
+		pr_err("%s - registering bus driver failed\n", __func__);
+		goto exit_bus;
+	}
+
 	uwb_dbg_init();
 	return 0;
 
+exit_bus:
+	class_unregister(&uwb_rc_class);
 error_uwb_rc_class_register:
 	uwb_est_destroy();
 error_est_init:
@@ -134,6 +145,7 @@ module_init(uwb_subsys_init);
 static void __exit uwb_subsys_exit(void)
 {
 	uwb_dbg_exit();
+	bus_unregister(&uwb_bus_type);
 	class_unregister(&uwb_rc_class);
 	uwb_est_destroy();
 	return;

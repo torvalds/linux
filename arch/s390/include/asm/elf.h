@@ -102,17 +102,23 @@
 #define HWCAP_S390_ETF3EH	256
 #define HWCAP_S390_HIGH_GPRS	512
 #define HWCAP_S390_TE		1024
+#define HWCAP_S390_VXRS		2048
+#define HWCAP_S390_VXRS_BCD	4096
+#define HWCAP_S390_VXRS_EXT	8192
+#define HWCAP_S390_GS		16384
+
+/* Internal bits, not exposed via elf */
+#define HWCAP_INT_SIE		1UL
 
 /*
  * These are used to set parameters in the core dumps.
  */
-#ifndef CONFIG_64BIT
-#define ELF_CLASS	ELFCLASS32
-#else /* CONFIG_64BIT */
 #define ELF_CLASS	ELFCLASS64
-#endif /* CONFIG_64BIT */
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
+
+/* s390 specific phdr types */
+#define PT_S390_PGSTE	0x70000000
 
 /*
  * ELF register definitions..
@@ -129,7 +135,8 @@ typedef s390_regs elf_gregset_t;
 typedef s390_fp_regs compat_elf_fpregset_t;
 typedef s390_compat_regs compat_elf_gregset_t;
 
-#include <linux/sched.h>	/* for task_struct */
+#include <linux/compat.h>
+#include <linux/sched/mm.h>	/* for task_struct */
 #include <asm/mmu_context.h>
 
 #include <asm/vdso.h>
@@ -147,6 +154,35 @@ extern unsigned int vdso_enabled;
 	 && (x)->e_ident[EI_CLASS] == ELF_CLASS)
 #define compat_start_thread	start_thread31
 
+struct arch_elf_state {
+	int rc;
+};
+
+#define INIT_ARCH_ELF_STATE { .rc = 0 }
+
+#define arch_check_elf(ehdr, interp, interp_ehdr, state) (0)
+#ifdef CONFIG_PGSTE
+#define arch_elf_pt_proc(ehdr, phdr, elf, interp, state)	\
+({								\
+	struct arch_elf_state *_state = state;			\
+	if ((phdr)->p_type == PT_S390_PGSTE &&			\
+	    !page_table_allocate_pgste &&			\
+	    !test_thread_flag(TIF_PGSTE) &&			\
+	    !current->mm->context.alloc_pgste) {		\
+		set_thread_flag(TIF_PGSTE);			\
+		set_pt_regs_flag(task_pt_regs(current),		\
+				 PIF_SYSCALL_RESTART);		\
+		_state->rc = -EAGAIN;				\
+	}							\
+	_state->rc;						\
+})
+#else
+#define arch_elf_pt_proc(ehdr, phdr, elf, interp, state)	\
+({								\
+	(state)->rc;						\
+})
+#endif
+
 /* For SVR4/S390 the function pointer to be registered with `atexit` is
    passed in R14. */
 #define ELF_PLAT_INIT(_r, load_addr) \
@@ -155,21 +191,25 @@ extern unsigned int vdso_enabled;
 	} while (0)
 
 #define CORE_DUMP_USE_REGSET
-#define ELF_EXEC_PAGESIZE	4096
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
-/* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
-   use of this is to invoke "./ld.so someprog" to test out a new version of
-   the loader.  We need to make sure that it is out of the way of the program
-   that it will "exec", and that there is sufficient room for the brk.  */
-
-extern unsigned long randomize_et_dyn(unsigned long base);
-#define ELF_ET_DYN_BASE		(randomize_et_dyn(STACK_TOP / 3 * 2))
+/*
+ * This is the base location for PIE (ET_DYN with INTERP) loads. On
+ * 64-bit, this is raised to 4GB to leave the entire 32-bit address
+ * space open for things that want to use the area for 32-bit pointers.
+ */
+#define ELF_ET_DYN_BASE		(is_compat_task() ? 0x000400000UL : \
+						    0x100000000UL)
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports. */
 
 extern unsigned long elf_hwcap;
 #define ELF_HWCAP (elf_hwcap)
+
+/* Internal hardware capabilities, not exposed via elf */
+
+extern unsigned long int_hwcap;
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
@@ -187,7 +227,7 @@ extern char elf_platform[];
 do {								\
 	set_personality(PER_LINUX |				\
 		(current->personality & (~PER_MASK)));		\
-	current_thread_info()->sys_call_table = 		\
+	current->thread.sys_call_table =			\
 		(unsigned long) &sys_call_table;		\
 } while (0)
 #else /* CONFIG_COMPAT */
@@ -198,18 +238,28 @@ do {								\
 			(current->personality & ~PER_MASK));	\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32) {		\
 		set_thread_flag(TIF_31BIT);			\
-		current_thread_info()->sys_call_table =		\
+		current->thread.sys_call_table =		\
 			(unsigned long)	&sys_call_table_emu;	\
 	} else {						\
 		clear_thread_flag(TIF_31BIT);			\
-		current_thread_info()->sys_call_table =		\
+		current->thread.sys_call_table =		\
 			(unsigned long) &sys_call_table;	\
 	}							\
 } while (0)
 #endif /* CONFIG_COMPAT */
 
-#define STACK_RND_MASK	0x7ffUL
+/*
+ * Cache aliasing on the latest machines calls for a mapping granularity
+ * of 512KB. For 64-bit processes use a 512KB alignment and a randomization
+ * of up to 1GB. For 31-bit processes the virtual address space is limited,
+ * use no alignment and limit the randomization to 8MB.
+ */
+#define BRK_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x3ffffUL)
+#define MMAP_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x3ff80UL)
+#define MMAP_ALIGN_MASK	(is_compat_task() ? 0 : 0x7fUL)
+#define STACK_RND_MASK	MMAP_RND_MASK
 
+/* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 #define ARCH_DLINFO							    \
 do {									    \
 	if (vdso_enabled)						    \
@@ -221,10 +271,5 @@ struct linux_binprm;
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 int arch_setup_additional_pages(struct linux_binprm *, int);
-
-extern unsigned long arch_randomize_brk(struct mm_struct *mm);
-#define arch_randomize_brk arch_randomize_brk
-
-void *fill_cpu_elf_notes(void *ptr, struct save_area *sa);
 
 #endif

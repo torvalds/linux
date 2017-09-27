@@ -1,7 +1,7 @@
 /*
  * Technologic Systems TS-5500 Single Board Computer support
  *
- * Copyright (C) 2013 Savoir-faire Linux Inc.
+ * Copyright (C) 2013-2014 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -15,15 +15,15 @@
  * state or available options. For further information about sysfs entries, see
  * Documentation/ABI/testing/sysfs-platform-ts5500.
  *
- * This code actually supports the TS-5500 platform, but it may be extended to
- * support similar Technologic Systems x86-based platforms, such as the TS-5600.
+ * This code may be extended to support similar x86-based platforms.
+ * Actually, the TS-5500 and TS-5400 are supported.
  */
 
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_data/gpio-ts5500.h>
 #include <linux/platform_data/max197.h>
 #include <linux/platform_device.h>
@@ -32,6 +32,7 @@
 /* Product code register */
 #define TS5500_PRODUCT_CODE_ADDR	0x74
 #define TS5500_PRODUCT_CODE		0x60	/* TS-5500 product code */
+#define TS5400_PRODUCT_CODE		0x40	/* TS-5400 product code */
 
 /* SRAM/RS-485/ADC options, and RS-485 RTS/Automatic RS-485 flags register */
 #define TS5500_SRAM_RS485_ADC_ADDR	0x75
@@ -66,6 +67,7 @@
 
 /**
  * struct ts5500_sbc - TS-5500 board description
+ * @name:	Board model name.
  * @id:		Board product ID.
  * @sram:	Flag for SRAM option.
  * @rs485:	Flag for RS-485 option.
@@ -75,6 +77,7 @@
  * @jumpers:	Bitfield for jumpers' state.
  */
 struct ts5500_sbc {
+	const char *name;
 	int	id;
 	bool	sram;
 	bool	rs485;
@@ -88,7 +91,7 @@ struct ts5500_sbc {
 static const struct {
 	const char * const string;
 	const ssize_t offset;
-} ts5500_signatures[] __initdata = {
+} ts5500_signatures[] __initconst = {
 	{ "TS-5x00 AMD Elan", 0xb14 },
 };
 
@@ -122,13 +125,16 @@ static int __init ts5500_detect_config(struct ts5500_sbc *sbc)
 	if (!request_region(TS5500_PRODUCT_CODE_ADDR, 4, "ts5500"))
 		return -EBUSY;
 
-	tmp = inb(TS5500_PRODUCT_CODE_ADDR);
-	if (tmp != TS5500_PRODUCT_CODE) {
-		pr_err("This platform is not a TS-5500 (found ID 0x%x)\n", tmp);
+	sbc->id = inb(TS5500_PRODUCT_CODE_ADDR);
+	if (sbc->id == TS5500_PRODUCT_CODE) {
+		sbc->name = "TS-5500";
+	} else if (sbc->id == TS5400_PRODUCT_CODE) {
+		sbc->name = "TS-5400";
+	} else {
+		pr_err("ts5500: unknown product code 0x%x\n", sbc->id);
 		ret = -ENODEV;
 		goto cleanup;
 	}
-	sbc->id = tmp;
 
 	tmp = inb(TS5500_SRAM_RS485_ADC_ADDR);
 	sbc->sram = tmp & TS5500_SRAM;
@@ -147,48 +153,52 @@ cleanup:
 	return ret;
 }
 
-static ssize_t ts5500_show_id(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct ts5500_sbc *sbc = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", sbc->name);
+}
+static DEVICE_ATTR_RO(name);
+
+static ssize_t id_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct ts5500_sbc *sbc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "0x%.2x\n", sbc->id);
 }
+static DEVICE_ATTR_RO(id);
 
-static ssize_t ts5500_show_jumpers(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+static ssize_t jumpers_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct ts5500_sbc *sbc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "0x%.2x\n", sbc->jumpers >> 1);
 }
+static DEVICE_ATTR_RO(jumpers);
 
-#define TS5500_SHOW(field)					\
-	static ssize_t ts5500_show_##field(struct device *dev,	\
-			struct device_attribute *attr,		\
-			char *buf)				\
-	{							\
-		struct ts5500_sbc *sbc = dev_get_drvdata(dev);	\
-		return sprintf(buf, "%d\n", sbc->field);	\
-	}
+#define TS5500_ATTR_BOOL(_field)					\
+	static ssize_t _field##_show(struct device *dev,		\
+			struct device_attribute *attr, char *buf)	\
+	{								\
+		struct ts5500_sbc *sbc = dev_get_drvdata(dev);		\
+									\
+		return sprintf(buf, "%d\n", sbc->_field);		\
+	}								\
+	static DEVICE_ATTR_RO(_field)
 
-TS5500_SHOW(sram)
-TS5500_SHOW(rs485)
-TS5500_SHOW(adc)
-TS5500_SHOW(ereset)
-TS5500_SHOW(itr)
-
-static DEVICE_ATTR(id, S_IRUGO, ts5500_show_id, NULL);
-static DEVICE_ATTR(jumpers, S_IRUGO, ts5500_show_jumpers, NULL);
-static DEVICE_ATTR(sram, S_IRUGO, ts5500_show_sram, NULL);
-static DEVICE_ATTR(rs485, S_IRUGO, ts5500_show_rs485, NULL);
-static DEVICE_ATTR(adc, S_IRUGO, ts5500_show_adc, NULL);
-static DEVICE_ATTR(ereset, S_IRUGO, ts5500_show_ereset, NULL);
-static DEVICE_ATTR(itr, S_IRUGO, ts5500_show_itr, NULL);
+TS5500_ATTR_BOOL(sram);
+TS5500_ATTR_BOOL(rs485);
+TS5500_ATTR_BOOL(adc);
+TS5500_ATTR_BOOL(ereset);
+TS5500_ATTR_BOOL(itr);
 
 static struct attribute *ts5500_attributes[] = {
 	&dev_attr_id.attr,
+	&dev_attr_name.attr,
 	&dev_attr_jumpers.attr,
 	&dev_attr_sram.attr,
 	&dev_attr_rs485.attr,
@@ -311,12 +321,14 @@ static int __init ts5500_init(void)
 	if (err)
 		goto error;
 
-	ts5500_dio1_pdev.dev.parent = &pdev->dev;
-	if (platform_device_register(&ts5500_dio1_pdev))
-		dev_warn(&pdev->dev, "DIO1 block registration failed\n");
-	ts5500_dio2_pdev.dev.parent = &pdev->dev;
-	if (platform_device_register(&ts5500_dio2_pdev))
-		dev_warn(&pdev->dev, "DIO2 block registration failed\n");
+	if (sbc->id == TS5500_PRODUCT_CODE) {
+		ts5500_dio1_pdev.dev.parent = &pdev->dev;
+		if (platform_device_register(&ts5500_dio1_pdev))
+			dev_warn(&pdev->dev, "DIO1 block registration failed\n");
+		ts5500_dio2_pdev.dev.parent = &pdev->dev;
+		if (platform_device_register(&ts5500_dio2_pdev))
+			dev_warn(&pdev->dev, "DIO2 block registration failed\n");
+	}
 
 	if (led_classdev_register(&pdev->dev, &ts5500_led_cdev))
 		dev_warn(&pdev->dev, "LED registration failed\n");
@@ -333,7 +345,3 @@ error:
 	return err;
 }
 device_initcall(ts5500_init);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Savoir-faire Linux Inc. <kernel@savoirfairelinux.com>");
-MODULE_DESCRIPTION("Technologic Systems TS-5500 platform driver");

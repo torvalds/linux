@@ -14,16 +14,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _LNBH24_H
 #define _LNBH24_H
-
-#include <linux/kconfig.h>
 
 /* system register bits */
 #define LNBH24_OLF	0x01
@@ -37,7 +31,7 @@
 
 #include <linux/dvb/frontend.h>
 
-#if IS_ENABLED(CONFIG_DVB_LNBP21)
+#if IS_REACHABLE(CONFIG_DVB_LNBP21)
 /* override_set and override_clear control which
    system register bits (above) to always set & clear */
 extern struct dvb_frontend *lnbh24_attach(struct dvb_frontend *fe,

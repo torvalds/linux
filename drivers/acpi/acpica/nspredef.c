@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -151,6 +151,15 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	}
 
 	/*
+	 *
+	 * 4) If there is no return value and it is optional, just return
+	 * AE_OK (_WAK).
+	 */
+	if (!(*return_object_ptr)) {
+		goto exit;
+	}
+
+	/*
 	 * For returned Package objects, check the type of all sub-objects.
 	 * Note: Package may have been newly created by call above.
 	 */
@@ -217,7 +226,7 @@ acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	acpi_status status = AE_OK;
-	char type_buffer[48];	/* Room for 5 types */
+	char type_buffer[96];	/* Room for 10 types */
 
 	/* A Namespace node should not get here, but make sure */
 
@@ -262,13 +271,18 @@ acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 		return (AE_OK);	/* Successful repair */
 	}
 
-      type_error_exit:
+type_error_exit:
 
 	/* Create a string with all expected types for this predefined object */
 
 	acpi_ut_get_expected_return_types(type_buffer, expected_btypes);
 
-	if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
+	if (!return_object) {
+		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
+				      info->node_flags,
+				      "Expected return object of type %s",
+				      type_buffer));
+	} else if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
 				      info->node_flags,
 				      "Return type mismatch - found %s, expected %s",
@@ -309,7 +323,7 @@ acpi_ns_check_reference(struct acpi_evaluate_info *info,
 
 	/*
 	 * Check the reference object for the correct reference type (opcode).
-	 * The only type of reference that can be converted to an union acpi_object is
+	 * The only type of reference that can be converted to a union acpi_object is
 	 * a reference to a named object (reference class: NAME)
 	 */
 	if (return_object->reference.class == ACPI_REFCLASS_NAME) {

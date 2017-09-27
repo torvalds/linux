@@ -37,32 +37,31 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	DE_INIT(("init_hw() - Gina20\n"));
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != GINA20))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
-		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
+		dev_err(chip->card->dev,
+			"init_hw - could not initialize DSP comm page\n");
 		return err;
 	}
 
 	chip->device_id = device_id;
 	chip->subdevice_id = subdevice_id;
-	chip->bad_board = TRUE;
+	chip->bad_board = true;
 	chip->dsp_code_to_load = FW_GINA20_DSP;
 	chip->spdif_status = GD_SPDIF_STATUS_UNDEF;
 	chip->clock_state = GD_CLOCK_UNDEF;
 	/* Since this card has no ASIC, mark it as loaded so everything
 	   works OK */
-	chip->asic_loaded = TRUE;
+	chip->asic_loaded = true;
 	chip->input_clock_types = ECHO_CLOCK_BIT_INTERNAL |
 		ECHO_CLOCK_BIT_SPDIF;
 
 	if ((err = load_firmware(chip)) < 0)
 		return err;
-	chip->bad_board = FALSE;
+	chip->bad_board = false;
 
-	DE_INIT(("init_hw done\n"));
 	return err;
 }
 
@@ -70,7 +69,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 static int set_mixer_defaults(struct echoaudio *chip)
 {
-	chip->professional_spdif = FALSE;
+	chip->professional_spdif = false;
 	return init_line_levels(chip);
 }
 
@@ -149,7 +148,6 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 static int set_input_clock(struct echoaudio *chip, u16 clock)
 {
-	DE_ACT(("set_input_clock:\n"));
 
 	switch (clock) {
 	case ECHO_CLOCK_INTERNAL:
@@ -158,7 +156,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		chip->spdif_status = GD_SPDIF_STATUS_UNDEF;
 		set_sample_rate(chip, chip->sample_rate);
 		chip->input_clock = clock;
-		DE_ACT(("Set Gina clock to INTERNAL\n"));
 		break;
 	case ECHO_CLOCK_SPDIF:
 		chip->comm_page->gd_clock_state = GD_CLOCK_SPDIFIN;
@@ -166,7 +163,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		clear_handshake(chip);
 		send_vector(chip, DSP_VC_SET_GD_AUDIO_STATE);
 		chip->clock_state = GD_CLOCK_SPDIFIN;
-		DE_ACT(("Set Gina20 clock to SPDIF\n"));
 		chip->input_clock = clock;
 		break;
 	default:
@@ -208,7 +204,6 @@ static int update_flags(struct echoaudio *chip)
 
 static int set_professional_spdif(struct echoaudio *chip, char prof)
 {
-	DE_ACT(("set_professional_spdif %d\n", prof));
 	if (prof)
 		chip->comm_page->flags |=
 			cpu_to_le32(DSP_FLAG_PROFESSIONAL_SPDIF);

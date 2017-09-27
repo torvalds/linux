@@ -30,7 +30,7 @@
 u32 *uart;
 
 /* PORT_16C550A, in polled non-fifo mode */
-static void putc(char c)
+static inline void putc(char c)
 {
 	if (!uart)
 		return;
@@ -68,9 +68,6 @@ static inline void set_uart_info(u32 phys)
 #define DEBUG_LL_DA8XX(machine, port)				\
 	_DEBUG_LL_ENTRY(machine, DA8XX_UART##port##_BASE)
 
-#define DEBUG_LL_TNETV107X(machine, port)			\
-	_DEBUG_LL_ENTRY(machine, TNETV107X_UART##port##_BASE)
-
 static inline void __arch_decomp_setup(unsigned long arch_id)
 {
 	/*
@@ -94,9 +91,6 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 		DEBUG_LL_DA8XX(davinci_da850_evm,	2);
 		DEBUG_LL_DA8XX(mityomapl138,		1);
 		DEBUG_LL_DA8XX(omapl138_hawkboard,	2);
-
-		/* TNETV107x boards */
-		DEBUG_LL_TNETV107X(tnetv107x,		1);
 	} while (0);
 }
 

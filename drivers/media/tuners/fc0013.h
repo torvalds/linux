@@ -13,20 +13,15 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef _FC0013_H_
 #define _FC0013_H_
 
-#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 #include "fc001x-common.h"
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_FC0013)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_FC0013)
 extern struct dvb_frontend *fc0013_attach(struct dvb_frontend *fe,
 					struct i2c_adapter *i2c,
 					u8 i2c_address, int dual_master,

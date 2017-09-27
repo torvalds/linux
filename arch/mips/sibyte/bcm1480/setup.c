@@ -17,11 +17,12 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
+#include <asm/cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/io.h>
 #include <asm/sibyte/sb1250.h>
@@ -35,6 +36,7 @@ unsigned int soc_pass;
 unsigned int soc_type;
 EXPORT_SYMBOL(soc_type);
 unsigned int periph_rev;
+EXPORT_SYMBOL_GPL(periph_rev);
 unsigned int zbbus_mhz;
 EXPORT_SYMBOL(zbbus_mhz);
 
@@ -119,7 +121,7 @@ void __init bcm1480_setup(void)
 	uint64_t sys_rev;
 	int plldiv;
 
-	sb1_pass = read_c0_prid() & 0xff;
+	sb1_pass = read_c0_prid() & PRID_REV_MASK;
 	sys_rev = __raw_readq(IOADDR(A_SCD_SYSTEM_REVISION));
 	soc_type = SYS_SOC_TYPE(sys_rev);
 	part_type = G_SYS_PART(sys_rev);

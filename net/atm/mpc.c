@@ -451,7 +451,7 @@ static void lane2_assoc_ind(struct net_device *dev, const u8 *mac_addr,
 			return;
 	}
 	if (end_of_tlvs - tlvs != 0)
-		pr_info("(%s) ignoring %Zd bytes of trailing TLV garbage\n",
+		pr_info("(%s) ignoring %zd bytes of trailing TLV garbage\n",
 			dev->name, end_of_tlvs - tlvs);
 }
 
@@ -478,7 +478,7 @@ static const uint8_t *copy_macs(struct mpoa_client *mpc,
 			return NULL;
 		}
 	}
-	memcpy(mpc->mps_macs, router_mac, ETH_ALEN);
+	ether_addr_copy(mpc->mps_macs, router_mac);
 	tlvs += 20; if (device_type == MPS_AND_MPC) tlvs += 20;
 	if (mps_macs > 0)
 		memcpy(mpc->mps_macs, tlvs, mps_macs*ETH_ALEN);
@@ -555,7 +555,7 @@ static int send_via_shortcut(struct sk_buff *skb, struct mpoa_client *mpc)
 					sizeof(struct llc_snap_hdr));
 	}
 
-	atomic_add(skb->truesize, &sk_atm(entry->shortcut)->sk_wmem_alloc);
+	refcount_add(skb->truesize, &sk_atm(entry->shortcut)->sk_wmem_alloc);
 	ATM_SKB(skb)->atm_options = entry->shortcut->atm_options;
 	entry->shortcut->send(entry->shortcut, skb);
 	entry->packets_fwded++;
@@ -599,7 +599,7 @@ static netdev_tx_t mpc_send_packet(struct sk_buff *skb,
 	}
 
 non_ip:
-	return mpc->old_ops->ndo_start_xmit(skb, dev);
+	return __netdev_start_xmit(mpc->old_ops, skb, dev, false);
 }
 
 static int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)
@@ -706,7 +706,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		dprintk("(%s) control packet arrived\n", dev->name);
 		/* Pass control packets to daemon */
 		skb_queue_tail(&sk->sk_receive_queue, skb);
-		sk->sk_data_ready(sk, skb->len);
+		sk->sk_data_ready(sk);
 		return;
 	}
 
@@ -779,7 +779,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	netif_rx(new_skb);
 }
 
-static struct atmdev_ops mpc_ops = { /* only send is required */
+static const struct atmdev_ops mpc_ops = { /* only send is required */
 	.close	= mpoad_close,
 	.send	= msg_from_mpoad
 };
@@ -911,7 +911,7 @@ static int msg_from_mpoad(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	struct mpoa_client *mpc = find_mpc_by_vcc(vcc);
 	struct k_message *mesg = (struct k_message *)skb->data;
-	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
+	WARN_ON(refcount_sub_and_test(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc));
 
 	if (mpc == NULL) {
 		pr_info("no mpc found\n");
@@ -992,7 +992,7 @@ int msg_to_mpoad(struct k_message *mesg, struct mpoa_client *mpc)
 
 	sk = sk_atm(mpc->mpoad_vcc);
 	skb_queue_tail(&sk->sk_receive_queue, skb);
-	sk->sk_data_ready(sk, skb->len);
+	sk->sk_data_ready(sk);
 
 	return 0;
 }
@@ -1007,7 +1007,7 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier,
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	if (dev->name == NULL || strncmp(dev->name, "lec", 3))
+	if (strncmp(dev->name, "lec", 3))
 		return NOTIFY_DONE; /* we are only interested in lec:s */
 
 	switch (event) {
@@ -1273,7 +1273,7 @@ static void purge_egress_shortcut(struct atm_vcc *vcc, eg_cache_entry *entry)
 
 	sk = sk_atm(vcc);
 	skb_queue_tail(&sk->sk_receive_queue, skb);
-	sk->sk_data_ready(sk, skb->len);
+	sk->sk_data_ready(sk);
 	dprintk("exiting\n");
 }
 
@@ -1492,7 +1492,7 @@ static void __exit atm_mpoa_cleanup(void)
 
 	mpc_proc_clean();
 
-	del_timer(&mpc_timer);
+	del_timer_sync(&mpc_timer);
 	unregister_netdevice_notifier(&mpoa_notifier);
 	deregister_atm_ioctl(&atm_ioctl_ops);
 

@@ -48,10 +48,10 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
+#include <asm/export.h>
 
 #include "minstate.h"
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_NATIVE
 	/*
 	 * execve() is special because in case of success, we need to
 	 * setup a null register window frame.
@@ -161,7 +161,6 @@ GLOBAL_ENTRY(sys_clone)
 	mov rp=loc0
 	br.ret.sptk.many rp
 END(sys_clone)
-#endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */
 
 /*
  * prev_task <- ia64_switch_to(struct task_struct *next)
@@ -169,7 +168,7 @@ END(sys_clone)
  *	called.  The code starting at .map relies on this.  The rest of the code
  *	doesn't care about the interrupt masking status.
  */
-GLOBAL_ENTRY(__paravirt_switch_to)
+GLOBAL_ENTRY(ia64_switch_to)
 	.prologue
 	alloc r16=ar.pfs,1,0,0,0
 	DO_SAVE_SWITCH_STACK
@@ -221,9 +220,8 @@ GLOBAL_ENTRY(__paravirt_switch_to)
 	itr.d dtr[r25]=r23		// wire in new mapping...
 	SSM_PSR_IC_AND_SRLZ_D(r8, r9)	// reenable the psr.ic bit
 	br.cond.sptk .done
-END(__paravirt_switch_to)
+END(ia64_switch_to)
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_NATIVE
 /*
  * Note that interrupts are enabled during save_switch_stack and load_switch_stack.  This
  * means that we may get an interrupt with "sp" pointing to the new kernel stack while
@@ -457,29 +455,6 @@ GLOBAL_ENTRY(load_switch_stack)
 	br.cond.sptk.many b7
 END(load_switch_stack)
 
-GLOBAL_ENTRY(prefetch_stack)
-	add r14 = -IA64_SWITCH_STACK_SIZE, sp
-	add r15 = IA64_TASK_THREAD_KSP_OFFSET, in0
-	;;
-	ld8 r16 = [r15]				// load next's stack pointer
-	lfetch.fault.excl [r14], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault [r16], 128
-	br.ret.sptk.many rp
-END(prefetch_stack)
-
 	/*
 	 * Invoke a system call, but do some tracing before and after the call.
 	 * We MUST preserve the current register frame throughout this routine
@@ -639,16 +614,8 @@ GLOBAL_ENTRY(ia64_ret_from_syscall)
 	adds r2=PT(R8)+16,sp			// r2 = &pt_regs.r8
 	mov r10=r0				// clear error indication in r10
 (p7)	br.cond.spnt handle_syscall_error	// handle potential syscall failure
-#ifdef CONFIG_PARAVIRT
-	;;
-	br.cond.sptk.few ia64_leave_syscall
-	;;
-#endif /* CONFIG_PARAVIRT */
 END(ia64_ret_from_syscall)
-#ifndef CONFIG_PARAVIRT
 	// fall through
-#endif
-#endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */
 
 /*
  * ia64_leave_syscall(): Same as ia64_leave_kernel, except that it doesn't
@@ -694,7 +661,7 @@ END(ia64_ret_from_syscall)
  *	      ar.csd: cleared
  *	      ar.ssd: cleared
  */
-GLOBAL_ENTRY(__paravirt_leave_syscall)
+GLOBAL_ENTRY(ia64_leave_syscall)
 	PT_REGS_UNWIND_INFO(0)
 	/*
 	 * work.need_resched etc. mustn't get changed by this CPU before it returns to
@@ -722,8 +689,8 @@ GLOBAL_ENTRY(__paravirt_leave_syscall)
 	cmp.eq pLvSys,p0=r0,r0		// pLvSys=1: leave from syscall
 (pUStk)	cmp.eq.unc p6,p0=r0,r0		// p6 <- pUStk
 #endif
-.global __paravirt_work_processed_syscall;
-__paravirt_work_processed_syscall:
+.global ia64_work_processed_syscall;
+ia64_work_processed_syscall:
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	adds r2=PT(LOADRS)+16,r12
 	MOV_FROM_ITC(pUStk, p9, r22, r19)	// fetch time at leave
@@ -836,9 +803,9 @@ __paravirt_work_processed_syscall:
 	mov.m ar.ssd=r0			// M2   clear ar.ssd
 	mov f11=f0			// F    clear f11
 	br.cond.sptk.many rbs_switch	// B
-END(__paravirt_leave_syscall)
+END(ia64_leave_syscall)
 
-GLOBAL_ENTRY(__paravirt_leave_kernel)
+GLOBAL_ENTRY(ia64_leave_kernel)
 	PT_REGS_UNWIND_INFO(0)
 	/*
 	 * work.need_resched etc. mustn't get changed by this CPU before it returns to
@@ -1169,41 +1136,27 @@ skip_rbs_switch:
 .work_pending:
 	tbit.z p6,p0=r31,TIF_NEED_RESCHED	// is resched not needed?
 (p6)	br.cond.sptk.few .notify
-#ifdef CONFIG_PREEMPT
-(pKStk) dep r21=-1,r0,PREEMPT_ACTIVE_BIT,1
-	;;
-(pKStk) st4 [r20]=r21
-#endif
-	SSM_PSR_I(p0, p6, r2)	// enable interrupts
-	br.call.spnt.many rp=schedule
+	br.call.spnt.many rp=preempt_schedule_irq
 .ret9:	cmp.eq p6,p0=r0,r0	// p6 <- 1 (re-check)
-	RSM_PSR_I(p0, r2, r20)	// disable interrupts
-	;;
-#ifdef CONFIG_PREEMPT
-(pKStk)	adds r20=TI_PRE_COUNT+IA64_TASK_SIZE,r13
-	;;
-(pKStk)	st4 [r20]=r0		// preempt_count() <- 0
-#endif
-(pLvSys)br.cond.sptk.few  __paravirt_pending_syscall_end
+(pLvSys)br.cond.sptk.few  ia64_work_pending_syscall_end
 	br.cond.sptk.many .work_processed_kernel
 
 .notify:
 (pUStk)	br.call.spnt.many rp=notify_resume_user
 .ret10:	cmp.ne p6,p0=r0,r0	// p6 <- 0 (don't re-check)
-(pLvSys)br.cond.sptk.few  __paravirt_pending_syscall_end
+(pLvSys)br.cond.sptk.few  ia64_work_pending_syscall_end
 	br.cond.sptk.many .work_processed_kernel
 
-.global __paravirt_pending_syscall_end;
-__paravirt_pending_syscall_end:
+.global ia64_work_pending_syscall_end;
+ia64_work_pending_syscall_end:
 	adds r2=PT(R8)+16,r12
 	adds r3=PT(R10)+16,r12
 	;;
 	ld8 r8=[r2]
 	ld8 r10=[r3]
-	br.cond.sptk.many __paravirt_work_processed_syscall_target
-END(__paravirt_leave_kernel)
+	br.cond.sptk.many ia64_work_processed_syscall
+END(ia64_leave_kernel)
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_NATIVE
 ENTRY(handle_syscall_error)
 	/*
 	 * Some system calls (e.g., ptrace, mmap) can return arbitrary values which could
@@ -1307,7 +1260,7 @@ ENTRY(sys_rt_sigreturn)
 	adds sp=16,sp
 	;;
 	ld8 r9=[sp]				// load new ar.unat
-	mov.sptk b7=r8,ia64_native_leave_kernel
+	mov.sptk b7=r8,ia64_leave_kernel
 	;;
 	mov ar.unat=r9
 	br.many b7
@@ -1370,12 +1323,14 @@ GLOBAL_ENTRY(unw_init_running)
 	mov rp=loc0
 	br.ret.sptk.many rp
 END(unw_init_running)
+EXPORT_SYMBOL(unw_init_running)
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 GLOBAL_ENTRY(_mcount)
 	br ftrace_stub
 END(_mcount)
+EXPORT_SYMBOL(_mcount)
 
 .here:
 	br.ret.sptk.many b0
@@ -1786,6 +1741,19 @@ sys_call_table:
 	data8 sys_process_vm_writev
 	data8 sys_accept4
 	data8 sys_finit_module			// 1335
+	data8 sys_sched_setattr
+	data8 sys_sched_getattr
+	data8 sys_renameat2
+	data8 sys_getrandom
+	data8 sys_memfd_create			// 1340
+	data8 sys_bpf
+	data8 sys_execveat
+	data8 sys_userfaultfd
+	data8 sys_membarrier
+	data8 sys_kcmp				// 1345
+	data8 sys_mlock2
+	data8 sys_copy_file_range
+	data8 sys_preadv2
+	data8 sys_pwritev2
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
-#endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */

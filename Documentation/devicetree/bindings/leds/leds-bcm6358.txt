@@ -1,0 +1,145 @@
+LEDs connected to Broadcom BCM6358 controller
+
+This controller is present on BCM6358 and BCM6368.
+In these SoCs there are Serial LEDs (LEDs connected to a 74x164 controller),
+which can either be controlled by software (exporting the 74x164 as spi-gpio.
+See Documentation/devicetree/bindings/gpio/gpio-74x164.txt), or
+by hardware using this driver.
+
+Required properties:
+  - compatible : should be "brcm,bcm6358-leds".
+  - #address-cells : must be 1.
+  - #size-cells : must be 0.
+  - reg : BCM6358 LED controller address and size.
+
+Optional properties:
+  - brcm,clk-div : SCK signal divider. Possible values are 1, 2, 4 and 8.
+    Default : 1
+  - brcm,clk-dat-low : Boolean, makes clock and data signals active low.
+    Default : false
+
+Each LED is represented as a sub-node of the brcm,bcm6358-leds device.
+
+LED sub-node required properties:
+  - reg : LED pin number (only LEDs 0 to 31 are valid).
+
+LED sub-node optional properties:
+  - label : see Documentation/devicetree/bindings/leds/common.txt
+  - active-low : Boolean, makes LED active low.
+    Default : false
+  - default-state : see
+    Documentation/devicetree/bindings/leds/common.txt
+  - linux,default-trigger : see
+    Documentation/devicetree/bindings/leds/common.txt
+
+Examples:
+Scenario 1 : BCM6358
+	leds0: led-controller@fffe00d0 {
+		compatible = "brcm,bcm6358-leds";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0xfffe00d0 0x8>;
+
+		alarm_white {
+			reg = <0>;
+			active-low;
+			label = "white:alarm";
+		};
+		tv_white {
+			reg = <2>;
+			active-low;
+			label = "white:tv";
+		};
+		tel_white {
+			reg = <3>;
+			active-low;
+			label = "white:tel";
+		};
+		adsl_white {
+			reg = <4>;
+			active-low;
+			label = "white:adsl";
+		};
+	};
+
+Scenario 2 : BCM6368
+	leds0: led-controller@100000d0 {
+		compatible = "brcm,bcm6358-leds";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x100000d0 0x8>;
+		brcm,pol-low;
+		brcm,clk-div = <4>;
+
+		power_red {
+			reg = <0>;
+			active-low;
+			label = "red:power";
+		};
+		power_green {
+			reg = <1>;
+			active-low;
+			label = "green:power";
+			default-state = "on";
+		};
+		power_blue {
+			reg = <2>;
+			label = "blue:power";
+		};
+		broadband_red {
+			reg = <3>;
+			active-low;
+			label = "red:broadband";
+		};
+		broadband_green {
+			reg = <4>;
+			label = "green:broadband";
+		};
+		broadband_blue {
+			reg = <5>;
+			active-low;
+			label = "blue:broadband";
+		};
+		wireless_red {
+			reg = <6>;
+			active-low;
+			label = "red:wireless";
+		};
+		wireless_green {
+			reg = <7>;
+			active-low;
+			label = "green:wireless";
+		};
+		wireless_blue {
+			reg = <8>;
+			label = "blue:wireless";
+		};
+		phone_red {
+			reg = <9>;
+			active-low;
+			label = "red:phone";
+		};
+		phone_green {
+			reg = <10>;
+			active-low;
+			label = "green:phone";
+		};
+		phone_blue {
+			reg = <11>;
+			label = "blue:phone";
+		};
+		upgrading_red {
+			reg = <12>;
+			active-low;
+			label = "red:upgrading";
+		};
+		upgrading_green {
+			reg = <13>;
+			active-low;
+			label = "green:upgrading";
+		};
+		upgrading_blue {
+			reg = <14>;
+			label = "blue:upgrading";
+		};
+	};

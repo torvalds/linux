@@ -26,7 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/path.h>
 #include <linux/compat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* The dcookies are allocated from a kmem_cache and
  * hashed onto a small number of lists. None of the
@@ -90,7 +90,7 @@ static void hash_dcookie(struct dcookie_struct * dcs)
 }
 
 
-static struct dcookie_struct *alloc_dcookie(struct path *path)
+static struct dcookie_struct *alloc_dcookie(const struct path *path)
 {
 	struct dcookie_struct *dcs = kmem_cache_alloc(dcookie_cache,
 							GFP_KERNEL);
@@ -113,7 +113,7 @@ static struct dcookie_struct *alloc_dcookie(struct path *path)
 /* This is the main kernel-side routine that retrieves the cookie
  * value for a dentry/vfsmnt pair.
  */
-int get_dcookie(struct path *path, unsigned long *cookie)
+int get_dcookie(const struct path *path, unsigned long *cookie)
 {
 	int err = 0;
 	struct dcookie_struct * dcs;
@@ -204,7 +204,7 @@ out:
 }
 
 #ifdef CONFIG_COMPAT
-COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *, buf, size_t, len)
+COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *, buf, compat_size_t, len)
 {
 #ifdef __BIG_ENDIAN
 	return sys_lookup_dcookie(((u64)w0 << 32) | w1, buf, len);

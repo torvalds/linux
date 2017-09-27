@@ -178,35 +178,15 @@ static int pcf8523_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (err < 0)
 		return err;
 
-	if (regs[0] & REG_SECONDS_OS) {
-		/*
-		 * If the oscillator was stopped, try to clear the flag. Upon
-		 * power-up the flag is always set, but if we cannot clear it
-		 * the oscillator isn't running properly for some reason. The
-		 * sensible thing therefore is to return an error, signalling
-		 * that the clock cannot be assumed to be correct.
-		 */
-
-		regs[0] &= ~REG_SECONDS_OS;
-
-		err = pcf8523_write(client, REG_SECONDS, regs[0]);
-		if (err < 0)
-			return err;
-
-		err = pcf8523_read(client, REG_SECONDS, &regs[0]);
-		if (err < 0)
-			return err;
-
-		if (regs[0] & REG_SECONDS_OS)
-			return -EAGAIN;
-	}
+	if (regs[0] & REG_SECONDS_OS)
+		return -EINVAL;
 
 	tm->tm_sec = bcd2bin(regs[0] & 0x7f);
 	tm->tm_min = bcd2bin(regs[1] & 0x7f);
 	tm->tm_hour = bcd2bin(regs[2] & 0x3f);
 	tm->tm_mday = bcd2bin(regs[3] & 0x3f);
 	tm->tm_wday = regs[4] & 0x7;
-	tm->tm_mon = bcd2bin(regs[5] & 0x1f);
+	tm->tm_mon = bcd2bin(regs[5] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(regs[6]) + 100;
 
 	return rtc_valid_tm(tm);
@@ -219,17 +199,29 @@ static int pcf8523_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	u8 regs[8];
 	int err;
 
+	/*
+	 * The hardware can only store values between 0 and 99 in it's YEAR
+	 * register (with 99 overflowing to 0 on increment).
+	 * After 2100-02-28 we could start interpreting the year to be in the
+	 * interval [2100, 2199], but there is no path to switch in a smooth way
+	 * because the chip handles YEAR=0x00 (and the out-of-spec
+	 * YEAR=0xa0) as a leap year, but 2100 isn't.
+	 */
+	if (tm->tm_year < 100 || tm->tm_year >= 200)
+		return -EINVAL;
+
 	err = pcf8523_stop_rtc(client);
 	if (err < 0)
 		return err;
 
 	regs[0] = REG_SECONDS;
+	/* This will purposely overwrite REG_SECONDS_OS */
 	regs[1] = bin2bcd(tm->tm_sec);
 	regs[2] = bin2bcd(tm->tm_min);
 	regs[3] = bin2bcd(tm->tm_hour);
 	regs[4] = bin2bcd(tm->tm_mday);
 	regs[5] = tm->tm_wday;
-	regs[6] = bin2bcd(tm->tm_mon);
+	regs[6] = bin2bcd(tm->tm_mon + 1);
 	regs[7] = bin2bcd(tm->tm_year - 100);
 
 	msg.addr = client->addr;
@@ -334,7 +326,6 @@ MODULE_DEVICE_TABLE(of, pcf8523_of_match);
 static struct i2c_driver pcf8523_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(pcf8523_of_match),
 	},
 	.probe = pcf8523_probe,

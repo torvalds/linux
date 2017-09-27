@@ -14,7 +14,7 @@ A CDC ECM (Ethernet) function may be turned on via a Kconfig option
 and RNDIS can be turned off.  If they are both enabled the gadget will
 have two configurations -- one with RNDIS and another with CDC ECM[3].
 
-Please not that if you use non-standard configuration (that is enable
+Please note that if you use non-standard configuration (that is enable
 CDC ECM) you may need to change vendor and/or product ID.
 
 * Host drivers
@@ -36,14 +36,14 @@ configuration with CDC ECM which should work better under Linux.
 
 ** Windows host drivers
 
-For the gadget two work under Windows two conditions have to be met:
+For the gadget to work under Windows two conditions have to be met:
 
 *** Detecting as composite gadget
 
 First of all, Windows need to detect the gadget as an USB composite
 gadget which on its own have some conditions[4].  If they are met,
 Windows lets USB Generic Parent Driver[5] handle the device which then
-tries to much drivers for each individual interface (sort of, don't
+tries to match drivers for each individual interface (sort of, don't
 get into too many details).
 
 The good news is: you do not have to worry about most of the

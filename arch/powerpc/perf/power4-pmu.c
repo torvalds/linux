@@ -356,7 +356,7 @@ static int p4_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 }
 
 static int p4_compute_mmcr(u64 event[], int n_ev,
-			   unsigned int hwc[], unsigned long mmcr[])
+			   unsigned int hwc[], unsigned long mmcr[], struct perf_event *pevents[])
 {
 	unsigned long mmcr0 = 0, mmcr1 = 0, mmcra = 0;
 	unsigned int pmc, unit, byte, psel, lower;

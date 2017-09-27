@@ -1,0 +1,89 @@
+Freescale Synchronous Serial Interface
+
+The SSI is a serial device that communicates with audio codecs.  It can
+be programmed in AC97, I2S, left-justified, or right-justified modes.
+
+Required properties:
+- compatible:       Compatible list, should contain one of the following
+                    compatibles:
+                      fsl,mpc8610-ssi
+                      fsl,imx51-ssi
+                      fsl,imx35-ssi
+                      fsl,imx21-ssi
+- cell-index:       The SSI, <0> = SSI1, <1> = SSI2, and so on.
+- reg:              Offset and length of the register set for the device.
+- interrupts:       <a b> where a is the interrupt number and b is a
+                    field that represents an encoding of the sense and
+                    level information for the interrupt.  This should be
+                    encoded based on the information in section 2)
+                    depending on the type of interrupt controller you
+                    have.
+- interrupt-parent: The phandle for the interrupt controller that
+                    services interrupts for this device.
+- fsl,fifo-depth:   The number of elements in the transmit and receive FIFOs.
+                    This number is the maximum allowed value for SFCSR[TFWM0].
+ - clocks:          "ipg" - Required clock for the SSI unit
+                    "baud" - Required clock for SSI master mode. Otherwise this
+		      clock is not used
+
+Required are also ac97 link bindings if ac97 is used. See
+Documentation/devicetree/bindings/sound/soc-ac97link.txt for the necessary
+bindings.
+
+Optional properties:
+- codec-handle:     Phandle to a 'codec' node that defines an audio
+                    codec connected to this SSI.  This node is typically
+                    a child of an I2C or other control node.
+- fsl,fiq-stream-filter: Bool property. Disabled DMA and use FIQ instead to
+		    filter the codec stream. This is necessary for some boards
+		    where an incompatible codec is connected to this SSI, e.g.
+		    on pca100 and pcm043.
+- dmas:		    Generic dma devicetree binding as described in
+		    Documentation/devicetree/bindings/dma/dma.txt.
+- dma-names:	    Two dmas have to be defined, "tx" and "rx", if fsl,imx-fiq
+		    is not defined.
+- fsl,mode:         The operating mode for the AC97 interface only.
+                    "ac97-slave" - AC97 mode, SSI is clock slave
+                    "ac97-master" - AC97 mode, SSI is clock master
+- fsl,ssi-asynchronous:
+                    If specified, the SSI is to be programmed in asynchronous
+                    mode.  In this mode, pins SRCK, STCK, SRFS, and STFS must
+                    all be connected to valid signals.  In synchronous mode,
+                    SRCK and SRFS are ignored.  Asynchronous mode allows
+                    playback and capture to use different sample sizes and
+                    sample rates.  Some drivers may require that SRCK and STCK
+                    be connected together, and SRFS and STFS be connected
+                    together.  This would still allow different sample sizes,
+                    but not different sample rates.
+- fsl,playback-dma: Phandle to a node for the DMA channel to use for
+                    playback of audio.  This is typically dictated by SOC
+                    design.  See the notes below.
+                    Only used on Power Architecture.
+- fsl,capture-dma:  Phandle to a node for the DMA channel to use for
+                    capture (recording) of audio.  This is typically dictated
+                    by SOC design.  See the notes below.
+                    Only used on Power Architecture.
+
+Child 'codec' node required properties:
+- compatible:       Compatible list, contains the name of the codec
+
+Child 'codec' node optional properties:
+- clock-frequency:  The frequency of the input clock, which typically comes
+                    from an on-board dedicated oscillator.
+
+Notes on fsl,playback-dma and fsl,capture-dma:
+
+On SOCs that have an SSI, specific DMA channels are hard-wired for playback
+and capture.  On the MPC8610, for example, SSI1 must use DMA channel 0 for
+playback and DMA channel 1 for capture.  SSI2 must use DMA channel 2 for
+playback and DMA channel 3 for capture.  The developer can choose which
+DMA controller to use, but the channels themselves are hard-wired.  The
+purpose of these two properties is to represent this hardware design.
+
+The device tree nodes for the DMA channels that are referenced by
+"fsl,playback-dma" and "fsl,capture-dma" must be marked as compatible with
+"fsl,ssi-dma-channel".  The SOC-specific compatible string (e.g.
+"fsl,mpc8610-dma-channel") can remain.  If these nodes are left as
+"fsl,elo-dma-channel" or "fsl,eloplus-dma-channel", then the generic Elo DMA
+drivers (fsldma) will attempt to use them, and it will conflict with the
+sound drivers.

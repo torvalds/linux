@@ -10,6 +10,13 @@
 #ifndef _TLV320AIC32X4_H
 #define _TLV320AIC32X4_H
 
+struct device;
+struct regmap_config;
+
+extern const struct regmap_config aic32x4_regmap_config;
+int aic32x4_probe(struct device *dev, struct regmap *regmap);
+int aic32x4_remove(struct device *dev);
+
 /* tlv320aic32x4 register space (in decimal to match datasheet) */
 
 #define AIC32X4_PAGE1		128
@@ -37,8 +44,11 @@
 #define AIC32X4_IFACE4		31
 #define AIC32X4_IFACE5		32
 #define AIC32X4_IFACE6		33
+#define AIC32X4_GPIOCTL		52
 #define AIC32X4_DOUTCTL		53
 #define AIC32X4_DINCTL		54
+#define AIC32X4_MISOCTL		55
+#define AIC32X4_SCLKCTL		56
 #define AIC32X4_DACSPB		60
 #define AIC32X4_ADCSPB		61
 #define AIC32X4_DACSETUP	63
@@ -120,7 +130,9 @@
 #define AIC32X4_MICBIAS_2075V		0x60
 
 #define AIC32X4_LMICPGANIN_IN2R_10K	0x10
+#define AIC32X4_LMICPGANIN_CM1L_10K	0x40
 #define AIC32X4_RMICPGANIN_IN1L_10K	0x10
+#define AIC32X4_RMICPGANIN_CM1R_10K	0x40
 
 #define AIC32X4_LMICPGAVOL_NOGAIN	0x80
 #define AIC32X4_RMICPGAVOL_NOGAIN	0x80
@@ -138,6 +150,7 @@
 #define AIC32X4_LDAC2RCHN		(0x02 << 4)
 #define AIC32X4_LDAC2LCHN		(0x01 << 4)
 #define AIC32X4_RDAC2RCHN		(0x01 << 2)
+#define AIC32X4_DAC_CHAN_MASK		0x3c
 
 #define AIC32X4_SSTEP2WCLK		0x01
 #define AIC32X4_MUTEON			0x0C

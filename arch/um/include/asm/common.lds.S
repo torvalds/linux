@@ -15,7 +15,7 @@
   PROVIDE (_unprotected_end = .);
 
   . = ALIGN(4096);
-  .note : { *(.note.*) }
+  NOTES
   EXCEPTION_TABLE(0)
 
   BUG_TABLE
@@ -81,7 +81,7 @@
   .altinstr_replacement : { *(.altinstr_replacement) }
   /* .exit.text is discard at runtime, not link time, to deal with references
      from .altinstructions and .eh_frame */
-  .exit.text : { *(.exit.text) }
+  .exit.text : { EXIT_TEXT }
   .exit.data : { *(.exit.data) }
 
   .preinit_array : {

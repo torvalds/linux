@@ -46,6 +46,8 @@ void btc_adjust_clock_combinations(struct radeon_device *rdev,
 				   struct rv7xx_pl *pl);
 void btc_apply_voltage_dependency_rules(struct radeon_clock_voltage_dependency_table *table,
 					u32 clock, u16 max_voltage, u16 *voltage);
+void btc_get_max_clock_from_voltage_dependency_table(struct radeon_clock_voltage_dependency_table *table,
+						     u32 *max_clock);
 void btc_apply_voltage_delta_rules(struct radeon_device *rdev,
 				   u16 max_vddc, u16 max_vddci,
 				   u16 *vddc, u16 *vddci);

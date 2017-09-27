@@ -1,0 +1,21 @@
+menu "SOC (System On Chip) specific Drivers"
+
+source "drivers/soc/actions/Kconfig"
+source "drivers/soc/amlogic/Kconfig"
+source "drivers/soc/atmel/Kconfig"
+source "drivers/soc/bcm/Kconfig"
+source "drivers/soc/fsl/Kconfig"
+source "drivers/soc/imx/Kconfig"
+source "drivers/soc/mediatek/Kconfig"
+source "drivers/soc/qcom/Kconfig"
+source "drivers/soc/renesas/Kconfig"
+source "drivers/soc/rockchip/Kconfig"
+source "drivers/soc/samsung/Kconfig"
+source "drivers/soc/sunxi/Kconfig"
+source "drivers/soc/tegra/Kconfig"
+source "drivers/soc/ti/Kconfig"
+source "drivers/soc/ux500/Kconfig"
+source "drivers/soc/versatile/Kconfig"
+source "drivers/soc/zte/Kconfig"
+
+endmenu

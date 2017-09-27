@@ -13,22 +13,18 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <net/nfc/llc.h>
 
 #include "llc.h"
 
-static struct list_head llc_engines;
+static LIST_HEAD(llc_engines);
 
 int nfc_llc_init(void)
 {
 	int r;
-
-	INIT_LIST_HEAD(&llc_engines);
 
 	r = nfc_llc_nop_register();
 	if (r)
@@ -137,34 +133,29 @@ void nfc_llc_free(struct nfc_llc *llc)
 	kfree(llc);
 }
 
-inline void nfc_llc_get_rx_head_tail_room(struct nfc_llc *llc, int *rx_headroom,
-					  int *rx_tailroom)
-{
-	*rx_headroom = llc->rx_headroom;
-	*rx_tailroom = llc->rx_tailroom;
-}
-
-inline int nfc_llc_start(struct nfc_llc *llc)
+int nfc_llc_start(struct nfc_llc *llc)
 {
 	return llc->ops->start(llc);
 }
+EXPORT_SYMBOL(nfc_llc_start);
 
-inline int nfc_llc_stop(struct nfc_llc *llc)
+int nfc_llc_stop(struct nfc_llc *llc)
 {
 	return llc->ops->stop(llc);
 }
+EXPORT_SYMBOL(nfc_llc_stop);
 
-inline void nfc_llc_rcv_from_drv(struct nfc_llc *llc, struct sk_buff *skb)
+void nfc_llc_rcv_from_drv(struct nfc_llc *llc, struct sk_buff *skb)
 {
 	llc->ops->rcv_from_drv(llc, skb);
 }
 
-inline int nfc_llc_xmit_from_hci(struct nfc_llc *llc, struct sk_buff *skb)
+int nfc_llc_xmit_from_hci(struct nfc_llc *llc, struct sk_buff *skb)
 {
 	return llc->ops->xmit_from_hci(llc, skb);
 }
 
-inline void *nfc_llc_get_data(struct nfc_llc *llc)
+void *nfc_llc_get_data(struct nfc_llc *llc)
 {
 	return llc->data;
 }

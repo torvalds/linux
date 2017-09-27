@@ -28,9 +28,17 @@
 
 #include <linux/types.h>
 
+struct wake_irq;
+
 /**
  * struct wakeup_source - Representation of wakeup sources
  *
+ * @name: Name of the wakeup source
+ * @entry: Wakeup source list entry
+ * @lock: Wakeup source lock
+ * @wakeirq: Optional device specific wakeirq
+ * @timer: Wakeup timer list
+ * @timer_expires: Wakeup timer expiration
  * @total_time: Total time this wakeup source has been active.
  * @max_time: Maximum time this wakeup source has been continuously active.
  * @last_time: Monotonic clock when the wakeup source's was touched last time.
@@ -47,6 +55,7 @@ struct wakeup_source {
 	const char 		*name;
 	struct list_head	entry;
 	spinlock_t		lock;
+	struct wake_irq		*wakeirq;
 	struct timer_list	timer;
 	unsigned long		timer_expires;
 	ktime_t total_time;
@@ -97,8 +106,8 @@ extern void __pm_stay_awake(struct wakeup_source *ws);
 extern void pm_stay_awake(struct device *dev);
 extern void __pm_relax(struct wakeup_source *ws);
 extern void pm_relax(struct device *dev);
-extern void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec);
-extern void pm_wakeup_event(struct device *dev, unsigned int msec);
+extern void pm_wakeup_ws_event(struct wakeup_source *ws, unsigned int msec, bool hard);
+extern void pm_wakeup_dev_event(struct device *dev, unsigned int msec, bool hard);
 
 #else /* !CONFIG_PM_SLEEP */
 
@@ -173,9 +182,11 @@ static inline void __pm_relax(struct wakeup_source *ws) {}
 
 static inline void pm_relax(struct device *dev) {}
 
-static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec) {}
+static inline void pm_wakeup_ws_event(struct wakeup_source *ws,
+				      unsigned int msec, bool hard) {}
 
-static inline void pm_wakeup_event(struct device *dev, unsigned int msec) {}
+static inline void pm_wakeup_dev_event(struct device *dev, unsigned int msec,
+				       bool hard) {}
 
 #endif /* !CONFIG_PM_SLEEP */
 
@@ -190,6 +201,21 @@ static inline void wakeup_source_trash(struct wakeup_source *ws)
 {
 	wakeup_source_remove(ws);
 	wakeup_source_drop(ws);
+}
+
+static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
+{
+	return pm_wakeup_ws_event(ws, msec, false);
+}
+
+static inline void pm_wakeup_event(struct device *dev, unsigned int msec)
+{
+	return pm_wakeup_dev_event(dev, msec, false);
+}
+
+static inline void pm_wakeup_hard_event(struct device *dev)
+{
+	return pm_wakeup_dev_event(dev, 0, true);
 }
 
 #endif /* _LINUX_PM_WAKEUP_H */

@@ -17,6 +17,9 @@
 
 #include "ocfs2.h"
 
+/* Number of quota types we support */
+#define OCFS2_MAXQUOTAS 2
+
 /*
  * In-memory structures
  */
@@ -28,6 +31,7 @@ struct ocfs2_dquot {
 	unsigned int dq_use_count;	/* Number of nodes having reference to this entry in global quota file */
 	s64 dq_origspace;	/* Last globally synced space usage */
 	s64 dq_originodes;	/* Last globally synced inode usage */
+	struct llist_node list;	/* Member of list of dquots to drop */
 };
 
 /* Description of one chunk to recover in memory */
@@ -38,12 +42,13 @@ struct ocfs2_recovery_chunk {
 };
 
 struct ocfs2_quota_recovery {
-	struct list_head r_list[MAXQUOTAS];	/* List of chunks to recover */
+	struct list_head r_list[OCFS2_MAXQUOTAS];	/* List of chunks to recover */
 };
 
 /* In-memory structure with quota header information */
 struct ocfs2_mem_dqinfo {
 	unsigned int dqi_type;		/* Quota type this structure describes */
+	unsigned int dqi_flags;		/* Flags OLQF_* */
 	unsigned int dqi_chunks;	/* Number of chunks in local quota file */
 	unsigned int dqi_blocks;	/* Number of blocks allocated for local quota file */
 	unsigned int dqi_syncms;	/* How often should we sync with other nodes */
@@ -77,7 +82,7 @@ struct ocfs2_quota_chunk {
 extern struct kmem_cache *ocfs2_dquot_cachep;
 extern struct kmem_cache *ocfs2_qf_chunk_cachep;
 
-extern struct qtree_fmt_operations ocfs2_global_ops;
+extern const struct qtree_fmt_operations ocfs2_global_ops;
 
 struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 				struct ocfs2_super *osb, int slot_num);
@@ -110,6 +115,7 @@ int ocfs2_read_quota_phys_block(struct inode *inode, u64 p_block,
 int ocfs2_create_local_dquot(struct dquot *dquot);
 int ocfs2_local_release_dquot(handle_t *handle, struct dquot *dquot);
 int ocfs2_local_write_dquot(struct dquot *dquot);
+void ocfs2_drop_dquot_refs(struct work_struct *work);
 
 extern const struct dquot_operations ocfs2_quota_operations;
 extern struct quota_format_type ocfs2_quota_format;

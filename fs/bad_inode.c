@@ -15,161 +15,14 @@
 #include <linux/namei.h>
 #include <linux/poll.h>
 
-
-static loff_t bad_file_llseek(struct file *file, loff_t offset, int whence)
-{
-	return -EIO;
-}
-
-static ssize_t bad_file_read(struct file *filp, char __user *buf,
-			size_t size, loff_t *ppos)
-{
-        return -EIO;
-}
-
-static ssize_t bad_file_write(struct file *filp, const char __user *buf,
-			size_t siz, loff_t *ppos)
-{
-        return -EIO;
-}
-
-static ssize_t bad_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
-			unsigned long nr_segs, loff_t pos)
-{
-	return -EIO;
-}
-
-static ssize_t bad_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			unsigned long nr_segs, loff_t pos)
-{
-	return -EIO;
-}
-
-static int bad_file_readdir(struct file *file, struct dir_context *ctx)
-{
-	return -EIO;
-}
-
-static unsigned int bad_file_poll(struct file *filp, poll_table *wait)
-{
-	return POLLERR;
-}
-
-static long bad_file_unlocked_ioctl(struct file *file, unsigned cmd,
-			unsigned long arg)
-{
-	return -EIO;
-}
-
-static long bad_file_compat_ioctl(struct file *file, unsigned int cmd,
-			unsigned long arg)
-{
-	return -EIO;
-}
-
-static int bad_file_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	return -EIO;
-}
-
 static int bad_file_open(struct inode *inode, struct file *filp)
-{
-	return -EIO;
-}
-
-static int bad_file_flush(struct file *file, fl_owner_t id)
-{
-	return -EIO;
-}
-
-static int bad_file_release(struct inode *inode, struct file *filp)
-{
-	return -EIO;
-}
-
-static int bad_file_fsync(struct file *file, loff_t start, loff_t end,
-			  int datasync)
-{
-	return -EIO;
-}
-
-static int bad_file_aio_fsync(struct kiocb *iocb, int datasync)
-{
-	return -EIO;
-}
-
-static int bad_file_fasync(int fd, struct file *filp, int on)
-{
-	return -EIO;
-}
-
-static int bad_file_lock(struct file *file, int cmd, struct file_lock *fl)
-{
-	return -EIO;
-}
-
-static ssize_t bad_file_sendpage(struct file *file, struct page *page,
-			int off, size_t len, loff_t *pos, int more)
-{
-	return -EIO;
-}
-
-static unsigned long bad_file_get_unmapped_area(struct file *file,
-				unsigned long addr, unsigned long len,
-				unsigned long pgoff, unsigned long flags)
-{
-	return -EIO;
-}
-
-static int bad_file_check_flags(int flags)
-{
-	return -EIO;
-}
-
-static int bad_file_flock(struct file *filp, int cmd, struct file_lock *fl)
-{
-	return -EIO;
-}
-
-static ssize_t bad_file_splice_write(struct pipe_inode_info *pipe,
-			struct file *out, loff_t *ppos, size_t len,
-			unsigned int flags)
-{
-	return -EIO;
-}
-
-static ssize_t bad_file_splice_read(struct file *in, loff_t *ppos,
-			struct pipe_inode_info *pipe, size_t len,
-			unsigned int flags)
 {
 	return -EIO;
 }
 
 static const struct file_operations bad_file_ops =
 {
-	.llseek		= bad_file_llseek,
-	.read		= bad_file_read,
-	.write		= bad_file_write,
-	.aio_read	= bad_file_aio_read,
-	.aio_write	= bad_file_aio_write,
-	.iterate	= bad_file_readdir,
-	.poll		= bad_file_poll,
-	.unlocked_ioctl	= bad_file_unlocked_ioctl,
-	.compat_ioctl	= bad_file_compat_ioctl,
-	.mmap		= bad_file_mmap,
 	.open		= bad_file_open,
-	.flush		= bad_file_flush,
-	.release	= bad_file_release,
-	.fsync		= bad_file_fsync,
-	.aio_fsync	= bad_file_aio_fsync,
-	.fasync		= bad_file_fasync,
-	.lock		= bad_file_lock,
-	.sendpage	= bad_file_sendpage,
-	.get_unmapped_area = bad_file_get_unmapped_area,
-	.check_flags	= bad_file_check_flags,
-	.flock		= bad_file_flock,
-	.splice_write	= bad_file_splice_write,
-	.splice_read	= bad_file_splice_read,
 };
 
 static int bad_inode_create (struct inode *dir, struct dentry *dentry,
@@ -218,8 +71,9 @@ static int bad_inode_mknod (struct inode *dir, struct dentry *dentry,
 	return -EIO;
 }
 
-static int bad_inode_rename (struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+static int bad_inode_rename2(struct inode *old_dir, struct dentry *old_dentry,
+			     struct inode *new_dir, struct dentry *new_dentry,
+			     unsigned int flags)
 {
 	return -EIO;
 }
@@ -235,25 +89,13 @@ static int bad_inode_permission(struct inode *inode, int mask)
 	return -EIO;
 }
 
-static int bad_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			struct kstat *stat)
+static int bad_inode_getattr(const struct path *path, struct kstat *stat,
+			     u32 request_mask, unsigned int query_flags)
 {
 	return -EIO;
 }
 
 static int bad_inode_setattr(struct dentry *direntry, struct iattr *attrs)
-{
-	return -EIO;
-}
-
-static int bad_inode_setxattr(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags)
-{
-	return -EIO;
-}
-
-static ssize_t bad_inode_getxattr(struct dentry *dentry, const char *name,
-			void *buffer, size_t size)
 {
 	return -EIO;
 }
@@ -264,7 +106,46 @@ static ssize_t bad_inode_listxattr(struct dentry *dentry, char *buffer,
 	return -EIO;
 }
 
-static int bad_inode_removexattr(struct dentry *dentry, const char *name)
+static const char *bad_inode_get_link(struct dentry *dentry,
+				      struct inode *inode,
+				      struct delayed_call *done)
+{
+	return ERR_PTR(-EIO);
+}
+
+static struct posix_acl *bad_inode_get_acl(struct inode *inode, int type)
+{
+	return ERR_PTR(-EIO);
+}
+
+static int bad_inode_fiemap(struct inode *inode,
+			    struct fiemap_extent_info *fieinfo, u64 start,
+			    u64 len)
+{
+	return -EIO;
+}
+
+static int bad_inode_update_time(struct inode *inode, struct timespec *time,
+				 int flags)
+{
+	return -EIO;
+}
+
+static int bad_inode_atomic_open(struct inode *inode, struct dentry *dentry,
+				 struct file *file, unsigned int open_flag,
+				 umode_t create_mode, int *opened)
+{
+	return -EIO;
+}
+
+static int bad_inode_tmpfile(struct inode *inode, struct dentry *dentry,
+			     umode_t mode)
+{
+	return -EIO;
+}
+
+static int bad_inode_set_acl(struct inode *inode, struct posix_acl *acl,
+			     int type)
 {
 	return -EIO;
 }
@@ -279,19 +160,19 @@ static const struct inode_operations bad_inode_ops =
 	.mkdir		= bad_inode_mkdir,
 	.rmdir		= bad_inode_rmdir,
 	.mknod		= bad_inode_mknod,
-	.rename		= bad_inode_rename,
+	.rename		= bad_inode_rename2,
 	.readlink	= bad_inode_readlink,
-	/* follow_link must be no-op, otherwise unmounting this inode
-	   won't work */
-	/* put_link returns void */
-	/* truncate returns void */
 	.permission	= bad_inode_permission,
 	.getattr	= bad_inode_getattr,
 	.setattr	= bad_inode_setattr,
-	.setxattr	= bad_inode_setxattr,
-	.getxattr	= bad_inode_getxattr,
 	.listxattr	= bad_inode_listxattr,
-	.removexattr	= bad_inode_removexattr,
+	.get_link	= bad_inode_get_link,
+	.get_acl	= bad_inode_get_acl,
+	.fiemap		= bad_inode_fiemap,
+	.update_time	= bad_inode_update_time,
+	.atomic_open	= bad_inode_atomic_open,
+	.tmpfile	= bad_inode_tmpfile,
+	.set_acl	= bad_inode_set_acl,
 };
 
 
@@ -319,8 +200,9 @@ void make_bad_inode(struct inode *inode)
 
 	inode->i_mode = S_IFREG;
 	inode->i_atime = inode->i_mtime = inode->i_ctime =
-		current_fs_time(inode->i_sb);
+		current_time(inode);
 	inode->i_op = &bad_inode_ops;	
+	inode->i_opflags &= ~IOP_XATTR;
 	inode->i_fop = &bad_file_ops;	
 }
 EXPORT_SYMBOL(make_bad_inode);
@@ -338,7 +220,7 @@ EXPORT_SYMBOL(make_bad_inode);
  *	Returns true if the inode in question has been marked as bad.
  */
  
-int is_bad_inode(struct inode *inode)
+bool is_bad_inode(struct inode *inode)
 {
 	return (inode->i_op == &bad_inode_ops);	
 }

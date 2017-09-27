@@ -14,11 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #include <linux/module.h>
@@ -27,7 +22,7 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/upd64083.h>
+#include <media/i2c/upd64083.h>
 
 MODULE_DESCRIPTION("uPD64083 driver");
 MODULE_AUTHOR("T. Adachi, Takeru KOMORIYA, Hans Verkuil");
@@ -213,7 +208,6 @@ MODULE_DEVICE_TABLE(i2c, upd64083_id);
 
 static struct i2c_driver upd64083_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "upd64083",
 	},
 	.probe		= upd64083_probe,

@@ -36,26 +36,21 @@
  *   *(r8 + GPR11) = saved r11
  *
  * 64-bit host
- * Expected inputs (GEN/GDBELL/DBG/MC exception types):
+ * Expected inputs (GEN/GDBELL/DBG/CRIT/MC exception types):
  *  r10 = saved CR
  *  r13 = PACA_POINTER
  *  *(r13 + PACA_EX##type + EX_R10) = saved r10
  *  *(r13 + PACA_EX##type + EX_R11) = saved r11
  *  SPRN_SPRG_##type##_SCRATCH = saved r13
  *
-  * Expected inputs (CRIT exception type):
- *  r10 = saved CR
- *  r13 = PACA_POINTER
- *  *(r13 + PACA_EX##type + EX_R10) = saved r10
- *  *(r13 + PACA_EX##type + EX_R11) = saved r11
- *  *(r13 + PACA_EX##type + EX_R13) = saved r13
- *
  * Expected inputs (TLB exception type):
  *  r10 = saved CR
+ *  r12 = extlb pointer
  *  r13 = PACA_POINTER
- *  *(r13 + PACA_EX##type + EX_TLB_R10) = saved r10
- *  *(r13 + PACA_EX##type + EX_TLB_R11) = saved r11
- *  SPRN_SPRG_GEN_SCRATCH = saved r13
+ *  *(r12 + EX_TLB_R10) = saved r10
+ *  *(r12 + EX_TLB_R11) = saved r11
+ *  *(r12 + EX_TLB_R13) = saved r13
+ *  SPRN_SPRG_GEN_SCRATCH = saved r12
  *
  * Only the bolted version of TLB miss exception handlers is supported now.
  */

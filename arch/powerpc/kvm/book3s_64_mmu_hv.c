@@ -27,149 +27,169 @@
 #include <linux/srcu.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
+#include <linux/debugfs.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
-#include <asm/mmu-hash64.h>
+#include <asm/book3s/64/mmu-hash.h>
 #include <asm/hvcall.h>
 #include <asm/synch.h>
 #include <asm/ppc-opcode.h>
 #include <asm/cputable.h>
+#include <asm/pte-walk.h>
 
-/* POWER7 has 10-bit LPIDs, PPC970 has 6-bit LPIDs */
-#define MAX_LPID_970	63
+#include "trace_hv.h"
 
-/* Power architecture requires HPT is at least 256kB */
-#define PPC_MIN_HPT_ORDER	18
+//#define DEBUG_RESIZE_HPT	1
+
+#ifdef DEBUG_RESIZE_HPT
+#define resize_hpt_debug(resize, ...)				\
+	do {							\
+		printk(KERN_DEBUG "RESIZE HPT %p: ", resize);	\
+		printk(__VA_ARGS__);				\
+	} while (0)
+#else
+#define resize_hpt_debug(resize, ...)				\
+	do { } while (0)
+#endif
 
 static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 				long pte_index, unsigned long pteh,
 				unsigned long ptel, unsigned long *pte_idx_ret);
+
+struct kvm_resize_hpt {
+	/* These fields read-only after init */
+	struct kvm *kvm;
+	struct work_struct work;
+	u32 order;
+
+	/* These fields protected by kvm->lock */
+	int error;
+	bool prepare_done;
+
+	/* Private to the work thread, until prepare_done is true,
+	 * then protected by kvm->resize_hpt_sem */
+	struct kvm_hpt_info hpt;
+};
+
 static void kvmppc_rmap_reset(struct kvm *kvm);
 
-long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
+int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 order)
 {
-	unsigned long hpt;
+	unsigned long hpt = 0;
+	int cma = 0;
+	struct page *page = NULL;
 	struct revmap_entry *rev;
-	struct kvmppc_linear_info *li;
-	long order = kvm_hpt_order;
+	unsigned long npte;
 
-	if (htab_orderp) {
-		order = *htab_orderp;
-		if (order < PPC_MIN_HPT_ORDER)
-			order = PPC_MIN_HPT_ORDER;
+	if ((order < PPC_MIN_HPT_ORDER) || (order > PPC_MAX_HPT_ORDER))
+		return -EINVAL;
+
+	page = kvm_alloc_hpt_cma(1ul << (order - PAGE_SHIFT));
+	if (page) {
+		hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
+		memset((void *)hpt, 0, (1ul << order));
+		cma = 1;
 	}
 
-	/*
-	 * If the user wants a different size from default,
-	 * try first to allocate it from the kernel page allocator.
-	 */
-	hpt = 0;
-	if (order != kvm_hpt_order) {
-		hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|
-				       __GFP_NOWARN, order - PAGE_SHIFT);
-		if (!hpt)
-			--order;
-	}
-
-	/* Next try to allocate from the preallocated pool */
-	if (!hpt) {
-		li = kvm_alloc_hpt();
-		if (li) {
-			hpt = (ulong)li->base_virt;
-			kvm->arch.hpt_li = li;
-			order = kvm_hpt_order;
-		}
-	}
-
-	/* Lastly try successively smaller sizes from the page allocator */
-	while (!hpt && order > PPC_MIN_HPT_ORDER) {
-		hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|
-				       __GFP_NOWARN, order - PAGE_SHIFT);
-		if (!hpt)
-			--order;
-	}
+	if (!hpt)
+		hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_RETRY_MAYFAIL
+				       |__GFP_NOWARN, order - PAGE_SHIFT);
 
 	if (!hpt)
 		return -ENOMEM;
 
-	kvm->arch.hpt_virt = hpt;
-	kvm->arch.hpt_order = order;
 	/* HPTEs are 2**4 bytes long */
-	kvm->arch.hpt_npte = 1ul << (order - 4);
-	/* 128 (2**7) bytes in each HPTEG */
-	kvm->arch.hpt_mask = (1ul << (order - 7)) - 1;
+	npte = 1ul << (order - 4);
 
 	/* Allocate reverse map array */
-	rev = vmalloc(sizeof(struct revmap_entry) * kvm->arch.hpt_npte);
+	rev = vmalloc(sizeof(struct revmap_entry) * npte);
 	if (!rev) {
-		pr_err("kvmppc_alloc_hpt: Couldn't alloc reverse map array\n");
-		goto out_freehpt;
+		pr_err("kvmppc_allocate_hpt: Couldn't alloc reverse map array\n");
+		if (cma)
+			kvm_free_hpt_cma(page, 1 << (order - PAGE_SHIFT));
+		else
+			free_pages(hpt, order - PAGE_SHIFT);
+		return -ENOMEM;
 	}
-	kvm->arch.revmap = rev;
-	kvm->arch.sdr1 = __pa(hpt) | (order - 18);
 
-	pr_info("KVM guest htab at %lx (order %ld), LPID %x\n",
-		hpt, order, kvm->arch.lpid);
+	info->order = order;
+	info->virt = hpt;
+	info->cma = cma;
+	info->rev = rev;
 
-	if (htab_orderp)
-		*htab_orderp = order;
 	return 0;
-
- out_freehpt:
-	if (kvm->arch.hpt_li)
-		kvm_release_hpt(kvm->arch.hpt_li);
-	else
-		free_pages(hpt, order - PAGE_SHIFT);
-	return -ENOMEM;
 }
 
-long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
+void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info)
+{
+	atomic64_set(&kvm->arch.mmio_update, 0);
+	kvm->arch.hpt = *info;
+	kvm->arch.sdr1 = __pa(info->virt) | (info->order - 18);
+
+	pr_debug("KVM guest htab at %lx (order %ld), LPID %x\n",
+		 info->virt, (long)info->order, kvm->arch.lpid);
+}
+
+long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 {
 	long err = -EBUSY;
-	long order;
+	struct kvm_hpt_info info;
+
+	if (kvm_is_radix(kvm))
+		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
-	if (kvm->arch.rma_setup_done) {
-		kvm->arch.rma_setup_done = 0;
-		/* order rma_setup_done vs. vcpus_running */
+	if (kvm->arch.hpte_setup_done) {
+		kvm->arch.hpte_setup_done = 0;
+		/* order hpte_setup_done vs. vcpus_running */
 		smp_mb();
 		if (atomic_read(&kvm->arch.vcpus_running)) {
-			kvm->arch.rma_setup_done = 1;
+			kvm->arch.hpte_setup_done = 1;
 			goto out;
 		}
 	}
-	if (kvm->arch.hpt_virt) {
-		order = kvm->arch.hpt_order;
+	if (kvm->arch.hpt.order == order) {
+		/* We already have a suitable HPT */
+
 		/* Set the entire HPT to 0, i.e. invalid HPTEs */
-		memset((void *)kvm->arch.hpt_virt, 0, 1ul << order);
+		memset((void *)kvm->arch.hpt.virt, 0, 1ul << order);
 		/*
 		 * Reset all the reverse-mapping chains for all memslots
 		 */
 		kvmppc_rmap_reset(kvm);
 		/* Ensure that each vcpu will flush its TLB on next entry. */
 		cpumask_setall(&kvm->arch.need_tlb_flush);
-		*htab_orderp = order;
 		err = 0;
-	} else {
-		err = kvmppc_alloc_hpt(kvm, htab_orderp);
-		order = *htab_orderp;
+		goto out;
 	}
- out:
+
+	if (kvm->arch.hpt.virt) {
+		kvmppc_free_hpt(&kvm->arch.hpt);
+		kvmppc_rmap_reset(kvm);
+	}
+
+	err = kvmppc_allocate_hpt(&info, order);
+	if (err < 0)
+		goto out;
+	kvmppc_set_hpt(kvm, &info);
+
+out:
 	mutex_unlock(&kvm->lock);
 	return err;
 }
 
-void kvmppc_free_hpt(struct kvm *kvm)
+void kvmppc_free_hpt(struct kvm_hpt_info *info)
 {
-	kvmppc_free_lpid(kvm->arch.lpid);
-	vfree(kvm->arch.revmap);
-	if (kvm->arch.hpt_li)
-		kvm_release_hpt(kvm->arch.hpt_li);
-	else
-		free_pages(kvm->arch.hpt_virt,
-			   kvm->arch.hpt_order - PAGE_SHIFT);
+	vfree(info->rev);
+	if (info->cma)
+		kvm_free_hpt_cma(virt_to_page(info->virt),
+				 1 << (info->order - PAGE_SHIFT));
+	else if (info->virt)
+		free_pages(info->virt, info->order - PAGE_SHIFT);
+	info->virt = 0;
+	info->order = 0;
 }
 
 /* Bits in first HPTE dword for pagesize 4k, 64k or 16M */
@@ -204,8 +224,8 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 	if (npages > 1ul << (40 - porder))
 		npages = 1ul << (40 - porder);
 	/* Can't use more than 1 HPTE per HPTEG */
-	if (npages > kvm->arch.hpt_mask + 1)
-		npages = kvm->arch.hpt_mask + 1;
+	if (npages > kvmppc_hpt_mask(&kvm->arch.hpt) + 1)
+		npages = kvmppc_hpt_mask(&kvm->arch.hpt) + 1;
 
 	hp0 = HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)) |
 		HPTE_V_BOLTED | hpte0_pgsize_encoding(psize);
@@ -215,7 +235,8 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 	for (i = 0; i < npages; ++i) {
 		addr = i << porder;
 		/* can't use hpt_hash since va > 64 bits */
-		hash = (i ^ (VRMA_VSID ^ (VRMA_VSID << 25))) & kvm->arch.hpt_mask;
+		hash = (i ^ (VRMA_VSID ^ (VRMA_VSID << 25)))
+			& kvmppc_hpt_mask(&kvm->arch.hpt);
 		/*
 		 * We assume that the hash table is empty and no
 		 * vcpus are using it at this stage.  Since we create
@@ -242,14 +263,9 @@ int kvmppc_mmu_hv_init(void)
 	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return -EINVAL;
 
-	/* POWER7 has 10-bit LPIDs, PPC970 and e500mc have 6-bit LPIDs */
-	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
-		host_lpid = mfspr(SPRN_LPID);	/* POWER7 */
-		rsvd_lpid = LPID_RSVD;
-	} else {
-		host_lpid = 0;			/* PPC970 */
-		rsvd_lpid = MAX_LPID_970;
-	}
+	/* POWER7 has 10-bit LPIDs (12-bit in POWER8) */
+	host_lpid = mfspr(SPRN_LPID);
+	rsvd_lpid = LPID_RSVD;
 
 	kvmppc_init_lpid(rsvd_lpid + 1);
 
@@ -260,139 +276,24 @@ int kvmppc_mmu_hv_init(void)
 	return 0;
 }
 
-void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
-{
-}
-
 static void kvmppc_mmu_book3s_64_hv_reset_msr(struct kvm_vcpu *vcpu)
 {
-	kvmppc_set_msr(vcpu, MSR_SF | MSR_ME);
+	unsigned long msr = vcpu->arch.intr_msr;
+
+	/* If transactional, change to suspend mode on IRQ delivery */
+	if (MSR_TM_TRANSACTIONAL(vcpu->arch.shregs.msr))
+		msr |= MSR_TS_S;
+	else
+		msr |= vcpu->arch.shregs.msr & MSR_TS_MASK;
+	kvmppc_set_msr(vcpu, msr);
 }
 
-/*
- * This is called to get a reference to a guest page if there isn't
- * one already in the memslot->arch.slot_phys[] array.
- */
-static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
-				  struct kvm_memory_slot *memslot,
-				  unsigned long psize)
-{
-	unsigned long start;
-	long np, err;
-	struct page *page, *hpage, *pages[1];
-	unsigned long s, pgsize;
-	unsigned long *physp;
-	unsigned int is_io, got, pgorder;
-	struct vm_area_struct *vma;
-	unsigned long pfn, i, npages;
-
-	physp = memslot->arch.slot_phys;
-	if (!physp)
-		return -EINVAL;
-	if (physp[gfn - memslot->base_gfn])
-		return 0;
-
-	is_io = 0;
-	got = 0;
-	page = NULL;
-	pgsize = psize;
-	err = -EINVAL;
-	start = gfn_to_hva_memslot(memslot, gfn);
-
-	/* Instantiate and get the page we want access to */
-	np = get_user_pages_fast(start, 1, 1, pages);
-	if (np != 1) {
-		/* Look up the vma for the page */
-		down_read(&current->mm->mmap_sem);
-		vma = find_vma(current->mm, start);
-		if (!vma || vma->vm_start > start ||
-		    start + psize > vma->vm_end ||
-		    !(vma->vm_flags & VM_PFNMAP))
-			goto up_err;
-		is_io = hpte_cache_bits(pgprot_val(vma->vm_page_prot));
-		pfn = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
-		/* check alignment of pfn vs. requested page size */
-		if (psize > PAGE_SIZE && (pfn & ((psize >> PAGE_SHIFT) - 1)))
-			goto up_err;
-		up_read(&current->mm->mmap_sem);
-
-	} else {
-		page = pages[0];
-		got = KVMPPC_GOT_PAGE;
-
-		/* See if this is a large page */
-		s = PAGE_SIZE;
-		if (PageHuge(page)) {
-			hpage = compound_head(page);
-			s <<= compound_order(hpage);
-			/* Get the whole large page if slot alignment is ok */
-			if (s > psize && slot_is_aligned(memslot, s) &&
-			    !(memslot->userspace_addr & (s - 1))) {
-				start &= ~(s - 1);
-				pgsize = s;
-				get_page(hpage);
-				put_page(page);
-				page = hpage;
-			}
-		}
-		if (s < psize)
-			goto out;
-		pfn = page_to_pfn(page);
-	}
-
-	npages = pgsize >> PAGE_SHIFT;
-	pgorder = __ilog2(npages);
-	physp += (gfn - memslot->base_gfn) & ~(npages - 1);
-	spin_lock(&kvm->arch.slot_phys_lock);
-	for (i = 0; i < npages; ++i) {
-		if (!physp[i]) {
-			physp[i] = ((pfn + i) << PAGE_SHIFT) +
-				got + is_io + pgorder;
-			got = 0;
-		}
-	}
-	spin_unlock(&kvm->arch.slot_phys_lock);
-	err = 0;
-
- out:
-	if (got)
-		put_page(page);
-	return err;
-
- up_err:
-	up_read(&current->mm->mmap_sem);
-	return err;
-}
-
-long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
+static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 				long pte_index, unsigned long pteh,
 				unsigned long ptel, unsigned long *pte_idx_ret)
 {
-	unsigned long psize, gpa, gfn;
-	struct kvm_memory_slot *memslot;
 	long ret;
 
-	if (kvm->arch.using_mmu_notifiers)
-		goto do_insert;
-
-	psize = hpte_page_size(pteh, ptel);
-	if (!psize)
-		return H_PARAMETER;
-
-	pteh &= ~(HPTE_V_HVLOCK | HPTE_V_ABSENT | HPTE_V_VALID);
-
-	/* Find the memslot (if any) for this address */
-	gpa = (ptel & HPTE_R_RPN) & ~(psize - 1);
-	gfn = gpa >> PAGE_SHIFT;
-	memslot = gfn_to_memslot(kvm, gfn);
-	if (memslot && !(memslot->flags & KVM_MEMSLOT_INVALID)) {
-		if (!slot_is_aligned(memslot, psize))
-			return H_PARAMETER;
-		if (kvmppc_get_guest_page(kvm, gfn, memslot, psize) < 0)
-			return H_PARAMETER;
-	}
-
- do_insert:
 	/* Protect linux PTE lookup from page table destruction */
 	rcu_read_lock_sched();	/* this disables preemption too */
 	ret = kvmppc_do_h_enter(kvm, flags, pte_index, pteh, ptel,
@@ -405,19 +306,6 @@ long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 	}
 	return ret;
 
-}
-
-/*
- * We come here on a H_ENTER call from the guest when we are not
- * using mmu notifiers and we don't have the requested page pinned
- * already.
- */
-long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
-			     long pte_index, unsigned long pteh,
-			     unsigned long ptel)
-{
-	return kvmppc_virtmode_do_h_enter(vcpu->kvm, flags, pte_index,
-					  pteh, ptel, &vcpu->arch.gpr[4]);
 }
 
 static struct kvmppc_slb *kvmppc_mmu_book3s_hv_find_slbe(struct kvm_vcpu *vcpu,
@@ -451,14 +339,14 @@ static unsigned long kvmppc_mmu_get_real_addr(unsigned long v, unsigned long r,
 }
 
 static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
-			struct kvmppc_pte *gpte, bool data)
+			struct kvmppc_pte *gpte, bool data, bool iswrite)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvmppc_slb *slbe;
 	unsigned long slb_v;
 	unsigned long pp, key;
-	unsigned long v, gr;
-	unsigned long *hptep;
+	unsigned long v, orig_v, gr;
+	__be64 *hptep;
 	int index;
 	int virtmode = vcpu->arch.shregs.msr & (data ? MSR_DR : MSR_IR);
 
@@ -473,18 +361,22 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		slb_v = vcpu->kvm->arch.vrma_slb_v;
 	}
 
+	preempt_disable();
 	/* Find the HPTE in the hash table */
 	index = kvmppc_hv_find_lock_hpte(kvm, eaddr, slb_v,
 					 HPTE_V_VALID | HPTE_V_ABSENT);
-	if (index < 0)
+	if (index < 0) {
+		preempt_enable();
 		return -ENOENT;
-	hptep = (unsigned long *)(kvm->arch.hpt_virt + (index << 4));
-	v = hptep[0] & ~HPTE_V_HVLOCK;
-	gr = kvm->arch.revmap[index].guest_rpte;
+	}
+	hptep = (__be64 *)(kvm->arch.hpt.virt + (index << 4));
+	v = orig_v = be64_to_cpu(hptep[0]) & ~HPTE_V_HVLOCK;
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		v = hpte_new_to_old_v(v, be64_to_cpu(hptep[1]));
+	gr = kvm->arch.hpt.rev[index].guest_rpte;
 
-	/* Unlock the HPTE */
-	asm volatile("lwsync" : : : "memory");
-	hptep[0] = v;
+	unlock_hpte(hptep, orig_v);
+	preempt_enable();
 
 	gpte->eaddr = eaddr;
 	gpte->vpage = ((v & HPTE_V_AVPN) << 4) | ((eaddr >> 12) & 0xfff);
@@ -500,7 +392,7 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	gpte->may_execute = gpte->may_read && !(gr & (HPTE_R_N | HPTE_R_G));
 
 	/* Storage key permission check for POWER7 */
-	if (data && virtmode && cpu_has_feature(CPU_FTR_ARCH_206)) {
+	if (data && virtmode) {
 		int amrfield = hpte_get_skey_perm(gr, vcpu->arch.amr);
 		if (amrfield & 1)
 			gpte->may_read = 0;
@@ -531,24 +423,17 @@ static int instruction_is_store(unsigned int instr)
 	return (instr & mask) != 0;
 }
 
-static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
-				  unsigned long gpa, gva_t ea, int is_store)
+int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
+			   unsigned long gpa, gva_t ea, int is_store)
 {
-	int ret;
 	u32 last_inst;
-	unsigned long srr0 = kvmppc_get_pc(vcpu);
 
-	/* We try to load the last instruction.  We don't let
-	 * emulate_instruction do it as it doesn't check what
-	 * kvmppc_ld returns.
+	/*
 	 * If we fail, we just return to the guest and try executing it again.
 	 */
-	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED) {
-		ret = kvmppc_ld(vcpu, &srr0, sizeof(u32), &last_inst, false);
-		if (ret != EMULATE_DONE || last_inst == KVM_INST_FETCH_FAILED)
-			return RESUME_GUEST;
-		vcpu->arch.last_inst = last_inst;
-	}
+	if (kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst) !=
+		EMULATE_DONE)
+		return RESUME_GUEST;
 
 	/*
 	 * WARNING: We do not know for sure whether the instruction we just
@@ -562,7 +447,7 @@ static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * we just return and retry the instruction.
 	 */
 
-	if (instruction_is_store(vcpu->arch.last_inst) != !!is_store)
+	if (instruction_is_store(last_inst) != !!is_store)
 		return RESUME_GUEST;
 
 	/*
@@ -587,18 +472,25 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				unsigned long ea, unsigned long dsisr)
 {
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long *hptep, hpte[3], r;
+	unsigned long hpte[3], r;
+	unsigned long hnow_v, hnow_r;
+	__be64 *hptep;
 	unsigned long mmu_seq, psize, pte_size;
+	unsigned long gpa_base, gfn_base;
 	unsigned long gpa, gfn, hva, pfn;
 	struct kvm_memory_slot *memslot;
 	unsigned long *rmap;
 	struct revmap_entry *rev;
 	struct page *page, *pages[1];
 	long index, ret, npages;
-	unsigned long is_io;
+	bool is_ci;
 	unsigned int writing, write_ok;
 	struct vm_area_struct *vma;
 	unsigned long rcbits;
+	long mmio_update;
+
+	if (kvm_is_radix(kvm))
+		return kvmppc_book3s_radix_page_fault(run, vcpu, ea, dsisr);
 
 	/*
 	 * Real-mode code has already searched the HPT and found the
@@ -608,42 +500,67 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 	if (ea != vcpu->arch.pgfault_addr)
 		return RESUME_GUEST;
+
+	if (vcpu->arch.pgfault_cache) {
+		mmio_update = atomic64_read(&kvm->arch.mmio_update);
+		if (mmio_update == vcpu->arch.pgfault_cache->mmio_update) {
+			r = vcpu->arch.pgfault_cache->rpte;
+			psize = hpte_page_size(vcpu->arch.pgfault_hpte[0], r);
+			gpa_base = r & HPTE_R_RPN & ~(psize - 1);
+			gfn_base = gpa_base >> PAGE_SHIFT;
+			gpa = gpa_base | (ea & (psize - 1));
+			return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
+						dsisr & DSISR_ISSTORE);
+		}
+	}
 	index = vcpu->arch.pgfault_index;
-	hptep = (unsigned long *)(kvm->arch.hpt_virt + (index << 4));
-	rev = &kvm->arch.revmap[index];
+	hptep = (__be64 *)(kvm->arch.hpt.virt + (index << 4));
+	rev = &kvm->arch.hpt.rev[index];
 	preempt_disable();
 	while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
 		cpu_relax();
-	hpte[0] = hptep[0] & ~HPTE_V_HVLOCK;
-	hpte[1] = hptep[1];
+	hpte[0] = be64_to_cpu(hptep[0]) & ~HPTE_V_HVLOCK;
+	hpte[1] = be64_to_cpu(hptep[1]);
 	hpte[2] = r = rev->guest_rpte;
-	asm volatile("lwsync" : : : "memory");
-	hptep[0] = hpte[0];
+	unlock_hpte(hptep, hpte[0]);
 	preempt_enable();
 
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		hpte[0] = hpte_new_to_old_v(hpte[0], hpte[1]);
+		hpte[1] = hpte_new_to_old_r(hpte[1]);
+	}
 	if (hpte[0] != vcpu->arch.pgfault_hpte[0] ||
 	    hpte[1] != vcpu->arch.pgfault_hpte[1])
 		return RESUME_GUEST;
 
 	/* Translate the logical address and get the page */
 	psize = hpte_page_size(hpte[0], r);
-	gpa = (r & HPTE_R_RPN & ~(psize - 1)) | (ea & (psize - 1));
+	gpa_base = r & HPTE_R_RPN & ~(psize - 1);
+	gfn_base = gpa_base >> PAGE_SHIFT;
+	gpa = gpa_base | (ea & (psize - 1));
 	gfn = gpa >> PAGE_SHIFT;
 	memslot = gfn_to_memslot(kvm, gfn);
+
+	trace_kvm_page_fault_enter(vcpu, hpte, memslot, ea, dsisr);
 
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
 		return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
 					      dsisr & DSISR_ISSTORE);
 
-	if (!kvm->arch.using_mmu_notifiers)
-		return -EFAULT;		/* should never get here */
+	/*
+	 * This should never happen, because of the slot_is_aligned()
+	 * check in kvmppc_do_h_enter().
+	 */
+	if (gfn_base < memslot->base_gfn)
+		return -EFAULT;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
 	smp_rmb();
 
-	is_io = 0;
+	ret = -EFAULT;
+	is_ci = false;
 	pfn = 0;
 	page = NULL;
 	pte_size = PAGE_SIZE;
@@ -661,49 +578,46 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			pfn = vma->vm_pgoff +
 				((hva - vma->vm_start) >> PAGE_SHIFT);
 			pte_size = psize;
-			is_io = hpte_cache_bits(pgprot_val(vma->vm_page_prot));
+			is_ci = pte_ci(__pte((pgprot_val(vma->vm_page_prot))));
 			write_ok = vma->vm_flags & VM_WRITE;
 		}
 		up_read(&current->mm->mmap_sem);
 		if (!pfn)
-			return -EFAULT;
+			goto out_put;
 	} else {
 		page = pages[0];
+		pfn = page_to_pfn(page);
 		if (PageHuge(page)) {
 			page = compound_head(page);
 			pte_size <<= compound_order(page);
 		}
 		/* if the guest wants write access, see if that is OK */
 		if (!writing && hpte_is_writable(r)) {
-			unsigned int hugepage_shift;
 			pte_t *ptep, pte;
-
+			unsigned long flags;
 			/*
 			 * We need to protect against page table destruction
-			 * while looking up and updating the pte.
+			 * hugepage split and collapse.
 			 */
-			rcu_read_lock_sched();
-			ptep = find_linux_pte_or_hugepte(current->mm->pgd,
-							 hva, &hugepage_shift);
+			local_irq_save(flags);
+			ptep = find_current_mm_pte(current->mm->pgd,
+						   hva, NULL, NULL);
 			if (ptep) {
-				pte = kvmppc_read_update_linux_pte(ptep, 1,
-							   hugepage_shift);
-				if (pte_write(pte))
+				pte = kvmppc_read_update_linux_pte(ptep, 1);
+				if (__pte_write(pte))
 					write_ok = 1;
 			}
-			rcu_read_unlock_sched();
+			local_irq_restore(flags);
 		}
-		pfn = page_to_pfn(page);
 	}
 
-	ret = -EFAULT;
 	if (psize > pte_size)
 		goto out_put;
 
 	/* Check WIMG vs. the actual page we're accessing */
-	if (!hpte_cache_flags_ok(r, is_io)) {
-		if (is_io)
-			return -EFAULT;
+	if (!hpte_cache_flags_ok(r, is_ci)) {
+		if (is_ci)
+			goto out_put;
 		/*
 		 * Allow guest to map emulated device memory as
 		 * uncacheable, but actually make it cacheable.
@@ -711,21 +625,35 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = (r & ~(HPTE_R_W|HPTE_R_I|HPTE_R_G)) | HPTE_R_M;
 	}
 
-	/* Set the HPTE to point to pfn */
-	r = (r & ~(HPTE_R_PP0 - pte_size)) | (pfn << PAGE_SHIFT);
+	/*
+	 * Set the HPTE to point to pfn.
+	 * Since the pfn is at PAGE_SIZE granularity, make sure we
+	 * don't mask out lower-order bits if psize < PAGE_SIZE.
+	 */
+	if (psize < PAGE_SIZE)
+		psize = PAGE_SIZE;
+	r = (r & HPTE_R_KEY_HI) | (r & ~(HPTE_R_PP0 - psize)) |
+					((pfn << PAGE_SHIFT) & ~(psize - 1));
 	if (hpte_is_writable(r) && !write_ok)
 		r = hpte_make_readonly(r);
 	ret = RESUME_GUEST;
 	preempt_disable();
 	while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
 		cpu_relax();
-	if ((hptep[0] & ~HPTE_V_HVLOCK) != hpte[0] || hptep[1] != hpte[1] ||
+	hnow_v = be64_to_cpu(hptep[0]);
+	hnow_r = be64_to_cpu(hptep[1]);
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		hnow_v = hpte_new_to_old_v(hnow_v, hnow_r);
+		hnow_r = hpte_new_to_old_r(hnow_r);
+	}
+	if ((hnow_v & ~HPTE_V_HVLOCK) != hpte[0] || hnow_r != hpte[1] ||
 	    rev->guest_rpte != hpte[2])
 		/* HPTE has been changed under us; let the guest retry */
 		goto out_unlock;
 	hpte[0] = (hpte[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
 
-	rmap = &memslot->arch.rmap[gfn - memslot->base_gfn];
+	/* Always put the HPTE in the rmap chain for the page base address */
+	rmap = &memslot->arch.rmap[gfn_base - memslot->base_gfn];
 	lock_rmap(rmap);
 
 	/* Check if we might have been invalidated; let the guest retry if so */
@@ -739,26 +667,32 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	rcbits = *rmap >> KVMPPC_RMAP_RC_SHIFT;
 	r &= rcbits | ~(HPTE_R_R | HPTE_R_C);
 
-	if (hptep[0] & HPTE_V_VALID) {
+	if (be64_to_cpu(hptep[0]) & HPTE_V_VALID) {
 		/* HPTE was previously valid, so we need to invalidate it */
 		unlock_rmap(rmap);
-		hptep[0] |= HPTE_V_ABSENT;
+		hptep[0] |= cpu_to_be64(HPTE_V_ABSENT);
 		kvmppc_invalidate_hpte(kvm, hptep, index);
 		/* don't lose previous R and C bits */
-		r |= hptep[1] & (HPTE_R_R | HPTE_R_C);
+		r |= be64_to_cpu(hptep[1]) & (HPTE_R_R | HPTE_R_C);
 	} else {
 		kvmppc_add_revmap_chain(kvm, rev, rmap, index, 0);
 	}
 
-	hptep[1] = r;
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		r = hpte_old_to_new_r(hpte[0], r);
+		hpte[0] = hpte_old_to_new_v(hpte[0]);
+	}
+	hptep[1] = cpu_to_be64(r);
 	eieio();
-	hptep[0] = hpte[0];
+	__unlock_hpte(hptep, hpte[0]);
 	asm volatile("ptesync" : : : "memory");
 	preempt_enable();
 	if (page && hpte_is_writable(r))
 		SetPageDirty(page);
 
  out_put:
+	trace_kvm_page_fault_exit(vcpu, hpte, ret);
+
 	if (page) {
 		/*
 		 * We drop pages[0] here, not page because page might
@@ -771,7 +705,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return ret;
 
  out_unlock:
-	hptep[0] &= ~HPTE_V_HVLOCK;
+	__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	preempt_enable();
 	goto out_put;
 }
@@ -783,7 +717,7 @@ static void kvmppc_rmap_reset(struct kvm *kvm)
 	int srcu_idx;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	slots = kvm->memslots;
+	slots = kvm_memslots(kvm);
 	kvm_for_each_memslot(memslot, slots) {
 		/*
 		 * This assumes it is acceptable to lose reference and
@@ -795,12 +729,13 @@ static void kvmppc_rmap_reset(struct kvm *kvm)
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 }
 
+typedef int (*hva_handler_fn)(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			      unsigned long gfn);
+
 static int kvm_handle_hva_range(struct kvm *kvm,
 				unsigned long start,
 				unsigned long end,
-				int (*handler)(struct kvm *kvm,
-					       unsigned long *rmapp,
-					       unsigned long gfn))
+				hva_handler_fn handler)
 {
 	int ret;
 	int retval = 0;
@@ -825,9 +760,7 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
 
 		for (; gfn < gfn_end; ++gfn) {
-			gfn_t gfn_offset = gfn - memslot->base_gfn;
-
-			ret = handler(kvm, &memslot->arch.rmap[gfn_offset], gfn);
+			ret = handler(kvm, memslot, gfn);
 			retval |= ret;
 		}
 	}
@@ -836,20 +769,61 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 }
 
 static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
-			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
-					 unsigned long gfn))
+			  hva_handler_fn handler)
 {
 	return kvm_handle_hva_range(kvm, hva, hva + 1, handler);
 }
 
-static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
-			   unsigned long gfn)
+/* Must be called with both HPTE and rmap locked */
+static void kvmppc_unmap_hpte(struct kvm *kvm, unsigned long i,
+			      unsigned long *rmapp, unsigned long gfn)
 {
-	struct revmap_entry *rev = kvm->arch.revmap;
-	unsigned long h, i, j;
-	unsigned long *hptep;
+	__be64 *hptep = (__be64 *) (kvm->arch.hpt.virt + (i << 4));
+	struct revmap_entry *rev = kvm->arch.hpt.rev;
+	unsigned long j, h;
 	unsigned long ptel, psize, rcbits;
 
+	j = rev[i].forw;
+	if (j == i) {
+		/* chain is now empty */
+		*rmapp &= ~(KVMPPC_RMAP_PRESENT | KVMPPC_RMAP_INDEX);
+	} else {
+		/* remove i from chain */
+		h = rev[i].back;
+		rev[h].forw = j;
+		rev[j].back = h;
+		rev[i].forw = rev[i].back = i;
+		*rmapp = (*rmapp & ~KVMPPC_RMAP_INDEX) | j;
+	}
+
+	/* Now check and modify the HPTE */
+	ptel = rev[i].guest_rpte;
+	psize = hpte_page_size(be64_to_cpu(hptep[0]), ptel);
+	if ((be64_to_cpu(hptep[0]) & HPTE_V_VALID) &&
+	    hpte_rpn(ptel, psize) == gfn) {
+		hptep[0] |= cpu_to_be64(HPTE_V_ABSENT);
+		kvmppc_invalidate_hpte(kvm, hptep, i);
+		hptep[1] &= ~cpu_to_be64(HPTE_R_KEY_HI | HPTE_R_KEY_LO);
+		/* Harvest R and C */
+		rcbits = be64_to_cpu(hptep[1]) & (HPTE_R_R | HPTE_R_C);
+		*rmapp |= rcbits << KVMPPC_RMAP_RC_SHIFT;
+		if (rcbits & HPTE_R_C)
+			kvmppc_update_rmap_change(rmapp, psize);
+		if (rcbits & ~rev[i].guest_rpte) {
+			rev[i].guest_rpte = ptel | rcbits;
+			note_hpte_modification(kvm, &rev[i]);
+		}
+	}
+}
+
+static int kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			   unsigned long gfn)
+{
+	unsigned long i;
+	__be64 *hptep;
+	unsigned long *rmapp;
+
+	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
 	for (;;) {
 		lock_rmap(rmapp);
 		if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
@@ -863,72 +837,54 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 		 * rmap chain lock.
 		 */
 		i = *rmapp & KVMPPC_RMAP_INDEX;
-		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
+		hptep = (__be64 *) (kvm->arch.hpt.virt + (i << 4));
 		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
 			/* unlock rmap before spinning on the HPTE lock */
 			unlock_rmap(rmapp);
-			while (hptep[0] & HPTE_V_HVLOCK)
+			while (be64_to_cpu(hptep[0]) & HPTE_V_HVLOCK)
 				cpu_relax();
 			continue;
 		}
-		j = rev[i].forw;
-		if (j == i) {
-			/* chain is now empty */
-			*rmapp &= ~(KVMPPC_RMAP_PRESENT | KVMPPC_RMAP_INDEX);
-		} else {
-			/* remove i from chain */
-			h = rev[i].back;
-			rev[h].forw = j;
-			rev[j].back = h;
-			rev[i].forw = rev[i].back = i;
-			*rmapp = (*rmapp & ~KVMPPC_RMAP_INDEX) | j;
-		}
 
-		/* Now check and modify the HPTE */
-		ptel = rev[i].guest_rpte;
-		psize = hpte_page_size(hptep[0], ptel);
-		if ((hptep[0] & HPTE_V_VALID) &&
-		    hpte_rpn(ptel, psize) == gfn) {
-			if (kvm->arch.using_mmu_notifiers)
-				hptep[0] |= HPTE_V_ABSENT;
-			kvmppc_invalidate_hpte(kvm, hptep, i);
-			/* Harvest R and C */
-			rcbits = hptep[1] & (HPTE_R_R | HPTE_R_C);
-			*rmapp |= rcbits << KVMPPC_RMAP_RC_SHIFT;
-			if (rcbits & ~rev[i].guest_rpte) {
-				rev[i].guest_rpte = ptel | rcbits;
-				note_hpte_modification(kvm, &rev[i]);
-			}
-		}
+		kvmppc_unmap_hpte(kvm, i, rmapp, gfn);
 		unlock_rmap(rmapp);
-		hptep[0] &= ~HPTE_V_HVLOCK;
+		__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	}
 	return 0;
 }
 
-int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
+int kvm_unmap_hva_hv(struct kvm *kvm, unsigned long hva)
 {
-	if (kvm->arch.using_mmu_notifiers)
-		kvm_handle_hva(kvm, hva, kvm_unmap_rmapp);
+	hva_handler_fn handler;
+
+	handler = kvm_is_radix(kvm) ? kvm_unmap_radix : kvm_unmap_rmapp;
+	kvm_handle_hva(kvm, hva, handler);
 	return 0;
 }
 
-int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+int kvm_unmap_hva_range_hv(struct kvm *kvm, unsigned long start, unsigned long end)
 {
-	if (kvm->arch.using_mmu_notifiers)
-		kvm_handle_hva_range(kvm, start, end, kvm_unmap_rmapp);
+	hva_handler_fn handler;
+
+	handler = kvm_is_radix(kvm) ? kvm_unmap_radix : kvm_unmap_rmapp;
+	kvm_handle_hva_range(kvm, start, end, handler);
 	return 0;
 }
 
-void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
+void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
+				  struct kvm_memory_slot *memslot)
 {
-	unsigned long *rmapp;
 	unsigned long gfn;
 	unsigned long n;
+	unsigned long *rmapp;
 
-	rmapp = memslot->arch.rmap;
 	gfn = memslot->base_gfn;
-	for (n = memslot->npages; n; --n) {
+	rmapp = memslot->arch.rmap;
+	for (n = memslot->npages; n; --n, ++gfn) {
+		if (kvm_is_radix(kvm)) {
+			kvm_unmap_radix(kvm, memslot, gfn);
+			continue;
+		}
 		/*
 		 * Testing the present bit without locking is OK because
 		 * the memslot has been marked invalid already, and hence
@@ -936,20 +892,21 @@ void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
 		 * thus the present bit can't go from 0 to 1.
 		 */
 		if (*rmapp & KVMPPC_RMAP_PRESENT)
-			kvm_unmap_rmapp(kvm, rmapp, gfn);
+			kvm_unmap_rmapp(kvm, memslot, gfn);
 		++rmapp;
-		++gfn;
 	}
 }
 
-static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
+static int kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			 unsigned long gfn)
 {
-	struct revmap_entry *rev = kvm->arch.revmap;
+	struct revmap_entry *rev = kvm->arch.hpt.rev;
 	unsigned long head, i, j;
-	unsigned long *hptep;
+	__be64 *hptep;
 	int ret = 0;
+	unsigned long *rmapp;
 
+	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
  retry:
 	lock_rmap(rmapp);
 	if (*rmapp & KVMPPC_RMAP_REFERENCED) {
@@ -963,23 +920,24 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 	i = head = *rmapp & KVMPPC_RMAP_INDEX;
 	do {
-		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
+		hptep = (__be64 *) (kvm->arch.hpt.virt + (i << 4));
 		j = rev[i].forw;
 
 		/* If this HPTE isn't referenced, ignore it */
-		if (!(hptep[1] & HPTE_R_R))
+		if (!(be64_to_cpu(hptep[1]) & HPTE_R_R))
 			continue;
 
 		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
 			/* unlock rmap before spinning on the HPTE lock */
 			unlock_rmap(rmapp);
-			while (hptep[0] & HPTE_V_HVLOCK)
+			while (be64_to_cpu(hptep[0]) & HPTE_V_HVLOCK)
 				cpu_relax();
 			goto retry;
 		}
 
 		/* Now check and modify the HPTE */
-		if ((hptep[0] & HPTE_V_VALID) && (hptep[1] & HPTE_R_R)) {
+		if ((be64_to_cpu(hptep[0]) & HPTE_V_VALID) &&
+		    (be64_to_cpu(hptep[1]) & HPTE_R_R)) {
 			kvmppc_clear_ref_hpte(kvm, hptep, i);
 			if (!(rev[i].guest_rpte & HPTE_R_R)) {
 				rev[i].guest_rpte |= HPTE_R_R;
@@ -987,28 +945,31 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			}
 			ret = 1;
 		}
-		hptep[0] &= ~HPTE_V_HVLOCK;
+		__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	} while ((i = j) != head);
 
 	unlock_rmap(rmapp);
 	return ret;
 }
 
-int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+int kvm_age_hva_hv(struct kvm *kvm, unsigned long start, unsigned long end)
 {
-	if (!kvm->arch.using_mmu_notifiers)
-		return 0;
-	return kvm_handle_hva(kvm, hva, kvm_age_rmapp);
+	hva_handler_fn handler;
+
+	handler = kvm_is_radix(kvm) ? kvm_age_radix : kvm_age_rmapp;
+	return kvm_handle_hva_range(kvm, start, end, handler);
 }
 
-static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
+static int kvm_test_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			      unsigned long gfn)
 {
-	struct revmap_entry *rev = kvm->arch.revmap;
+	struct revmap_entry *rev = kvm->arch.hpt.rev;
 	unsigned long head, i, j;
 	unsigned long *hp;
 	int ret = 1;
+	unsigned long *rmapp;
 
+	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
 	if (*rmapp & KVMPPC_RMAP_REFERENCED)
 		return 1;
 
@@ -1019,9 +980,9 @@ static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	if (*rmapp & KVMPPC_RMAP_PRESENT) {
 		i = head = *rmapp & KVMPPC_RMAP_INDEX;
 		do {
-			hp = (unsigned long *)(kvm->arch.hpt_virt + (i << 4));
+			hp = (unsigned long *)(kvm->arch.hpt.virt + (i << 4));
 			j = rev[i].forw;
-			if (hp[1] & HPTE_R_R)
+			if (be64_to_cpu(hp[1]) & HPTE_R_R)
 				goto out;
 		} while ((i = j) != head);
 	}
@@ -1032,76 +993,121 @@ static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	return ret;
 }
 
-int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+int kvm_test_age_hva_hv(struct kvm *kvm, unsigned long hva)
 {
-	if (!kvm->arch.using_mmu_notifiers)
-		return 0;
-	return kvm_handle_hva(kvm, hva, kvm_test_age_rmapp);
+	hva_handler_fn handler;
+
+	handler = kvm_is_radix(kvm) ? kvm_test_age_radix : kvm_test_age_rmapp;
+	return kvm_handle_hva(kvm, hva, handler);
 }
 
-void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
+void kvm_set_spte_hva_hv(struct kvm *kvm, unsigned long hva, pte_t pte)
 {
-	if (!kvm->arch.using_mmu_notifiers)
-		return;
-	kvm_handle_hva(kvm, hva, kvm_unmap_rmapp);
+	hva_handler_fn handler;
+
+	handler = kvm_is_radix(kvm) ? kvm_unmap_radix : kvm_unmap_rmapp;
+	kvm_handle_hva(kvm, hva, handler);
 }
 
-static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
+static int vcpus_running(struct kvm *kvm)
 {
-	struct revmap_entry *rev = kvm->arch.revmap;
+	return atomic_read(&kvm->arch.vcpus_running) != 0;
+}
+
+/*
+ * Returns the number of system pages that are dirty.
+ * This can be more than 1 if we find a huge-page HPTE.
+ */
+static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
+{
+	struct revmap_entry *rev = kvm->arch.hpt.rev;
 	unsigned long head, i, j;
-	unsigned long *hptep;
-	int ret = 0;
+	unsigned long n;
+	unsigned long v, r;
+	__be64 *hptep;
+	int npages_dirty = 0;
 
  retry:
 	lock_rmap(rmapp);
 	if (*rmapp & KVMPPC_RMAP_CHANGED) {
-		*rmapp &= ~KVMPPC_RMAP_CHANGED;
-		ret = 1;
+		long change_order = (*rmapp & KVMPPC_RMAP_CHG_ORDER)
+			>> KVMPPC_RMAP_CHG_SHIFT;
+		*rmapp &= ~(KVMPPC_RMAP_CHANGED | KVMPPC_RMAP_CHG_ORDER);
+		npages_dirty = 1;
+		if (change_order > PAGE_SHIFT)
+			npages_dirty = 1ul << (change_order - PAGE_SHIFT);
 	}
 	if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
 		unlock_rmap(rmapp);
-		return ret;
+		return npages_dirty;
 	}
 
 	i = head = *rmapp & KVMPPC_RMAP_INDEX;
 	do {
-		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
+		unsigned long hptep1;
+		hptep = (__be64 *) (kvm->arch.hpt.virt + (i << 4));
 		j = rev[i].forw;
 
-		if (!(hptep[1] & HPTE_R_C))
+		/*
+		 * Checking the C (changed) bit here is racy since there
+		 * is no guarantee about when the hardware writes it back.
+		 * If the HPTE is not writable then it is stable since the
+		 * page can't be written to, and we would have done a tlbie
+		 * (which forces the hardware to complete any writeback)
+		 * when making the HPTE read-only.
+		 * If vcpus are running then this call is racy anyway
+		 * since the page could get dirtied subsequently, so we
+		 * expect there to be a further call which would pick up
+		 * any delayed C bit writeback.
+		 * Otherwise we need to do the tlbie even if C==0 in
+		 * order to pick up any delayed writeback of C.
+		 */
+		hptep1 = be64_to_cpu(hptep[1]);
+		if (!(hptep1 & HPTE_R_C) &&
+		    (!hpte_is_writable(hptep1) || vcpus_running(kvm)))
 			continue;
 
 		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
 			/* unlock rmap before spinning on the HPTE lock */
 			unlock_rmap(rmapp);
-			while (hptep[0] & HPTE_V_HVLOCK)
+			while (hptep[0] & cpu_to_be64(HPTE_V_HVLOCK))
 				cpu_relax();
 			goto retry;
 		}
 
 		/* Now check and modify the HPTE */
-		if ((hptep[0] & HPTE_V_VALID) && (hptep[1] & HPTE_R_C)) {
-			/* need to make it temporarily absent to clear C */
-			hptep[0] |= HPTE_V_ABSENT;
-			kvmppc_invalidate_hpte(kvm, hptep, i);
-			hptep[1] &= ~HPTE_R_C;
-			eieio();
-			hptep[0] = (hptep[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
+		if (!(hptep[0] & cpu_to_be64(HPTE_V_VALID))) {
+			__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
+			continue;
+		}
+
+		/* need to make it temporarily absent so C is stable */
+		hptep[0] |= cpu_to_be64(HPTE_V_ABSENT);
+		kvmppc_invalidate_hpte(kvm, hptep, i);
+		v = be64_to_cpu(hptep[0]);
+		r = be64_to_cpu(hptep[1]);
+		if (r & HPTE_R_C) {
+			hptep[1] = cpu_to_be64(r & ~HPTE_R_C);
 			if (!(rev[i].guest_rpte & HPTE_R_C)) {
 				rev[i].guest_rpte |= HPTE_R_C;
 				note_hpte_modification(kvm, &rev[i]);
 			}
-			ret = 1;
+			n = hpte_page_size(v, r);
+			n = (n + PAGE_SIZE - 1) >> PAGE_SHIFT;
+			if (n > npages_dirty)
+				npages_dirty = n;
+			eieio();
 		}
-		hptep[0] &= ~HPTE_V_HVLOCK;
+		v &= ~HPTE_V_ABSENT;
+		v |= HPTE_V_VALID;
+		__unlock_hpte(hptep, v);
 	} while ((i = j) != head);
 
 	unlock_rmap(rmapp);
-	return ret;
+	return npages_dirty;
 }
 
-static void harvest_vpa_dirty(struct kvmppc_vpa *vpa,
+void kvmppc_harvest_vpa_dirty(struct kvmppc_vpa *vpa,
 			      struct kvm_memory_slot *memslot,
 			      unsigned long *map)
 {
@@ -1119,28 +1125,25 @@ static void harvest_vpa_dirty(struct kvmppc_vpa *vpa,
 		__set_bit_le(gfn - memslot->base_gfn, map);
 }
 
-long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			     unsigned long *map)
+long kvmppc_hv_get_dirty_log_hpt(struct kvm *kvm,
+			struct kvm_memory_slot *memslot, unsigned long *map)
 {
-	unsigned long i;
+	unsigned long i, j;
 	unsigned long *rmapp;
-	struct kvm_vcpu *vcpu;
 
 	preempt_disable();
 	rmapp = memslot->arch.rmap;
 	for (i = 0; i < memslot->npages; ++i) {
-		if (kvm_test_clear_dirty(kvm, rmapp) && map)
-			__set_bit_le(i, map);
+		int npages = kvm_test_clear_dirty_npages(kvm, rmapp);
+		/*
+		 * Note that if npages > 0 then i must be a multiple of npages,
+		 * since we always put huge-page HPTEs in the rmap chain
+		 * corresponding to their page base address.
+		 */
+		if (npages && map)
+			for (j = i; npages; ++j, --npages)
+				__set_bit_le(j, map);
 		++rmapp;
-	}
-
-	/* Harvest dirty bits from VPA and DTL updates */
-	/* Note: we never modify the SLB shadow buffer areas */
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		spin_lock(&vcpu->arch.vpa_update_lock);
-		harvest_vpa_dirty(&vcpu->arch.vpa, memslot, map);
-		harvest_vpa_dirty(&vcpu->arch.dtl, memslot, map);
-		spin_unlock(&vcpu->arch.vpa_update_lock);
 	}
 	preempt_enable();
 	return 0;
@@ -1154,35 +1157,17 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	struct page *page, *pages[1];
 	int npages;
 	unsigned long hva, offset;
-	unsigned long pa;
-	unsigned long *physp;
 	int srcu_idx;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 	memslot = gfn_to_memslot(kvm, gfn);
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
 		goto err;
-	if (!kvm->arch.using_mmu_notifiers) {
-		physp = memslot->arch.slot_phys;
-		if (!physp)
-			goto err;
-		physp += gfn - memslot->base_gfn;
-		pa = *physp;
-		if (!pa) {
-			if (kvmppc_get_guest_page(kvm, gfn, memslot,
-						  PAGE_SIZE) < 0)
-				goto err;
-			pa = *physp;
-		}
-		page = pfn_to_page(pa >> PAGE_SHIFT);
-		get_page(page);
-	} else {
-		hva = gfn_to_hva_memslot(memslot, gfn);
-		npages = get_user_pages_fast(hva, 1, 1, pages);
-		if (npages < 1)
-			goto err;
-		page = pages[0];
-	}
+	hva = gfn_to_hva_memslot(memslot, gfn);
+	npages = get_user_pages_fast(hva, 1, 1, pages);
+	if (npages < 1)
+		goto err;
+	page = pages[0];
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 
 	offset = gpa & (PAGE_SIZE - 1);
@@ -1206,7 +1191,7 @@ void kvmppc_unpin_guest_page(struct kvm *kvm, void *va, unsigned long gpa,
 
 	put_page(page);
 
-	if (!dirty || !kvm->arch.using_mmu_notifiers)
+	if (!dirty)
 		return;
 
 	/* We need to mark this page dirty in the rmap chain */
@@ -1214,12 +1199,377 @@ void kvmppc_unpin_guest_page(struct kvm *kvm, void *va, unsigned long gpa,
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 	memslot = gfn_to_memslot(kvm, gfn);
 	if (memslot) {
-		rmap = &memslot->arch.rmap[gfn - memslot->base_gfn];
-		lock_rmap(rmap);
-		*rmap |= KVMPPC_RMAP_CHANGED;
-		unlock_rmap(rmap);
+		if (!kvm_is_radix(kvm)) {
+			rmap = &memslot->arch.rmap[gfn - memslot->base_gfn];
+			lock_rmap(rmap);
+			*rmap |= KVMPPC_RMAP_CHANGED;
+			unlock_rmap(rmap);
+		} else if (memslot->dirty_bitmap) {
+			mark_page_dirty(kvm, gfn);
+		}
 	}
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
+}
+
+/*
+ * HPT resizing
+ */
+static int resize_hpt_allocate(struct kvm_resize_hpt *resize)
+{
+	int rc;
+
+	rc = kvmppc_allocate_hpt(&resize->hpt, resize->order);
+	if (rc < 0)
+		return rc;
+
+	resize_hpt_debug(resize, "resize_hpt_allocate(): HPT @ 0x%lx\n",
+			 resize->hpt.virt);
+
+	return 0;
+}
+
+static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
+					    unsigned long idx)
+{
+	struct kvm *kvm = resize->kvm;
+	struct kvm_hpt_info *old = &kvm->arch.hpt;
+	struct kvm_hpt_info *new = &resize->hpt;
+	unsigned long old_hash_mask = (1ULL << (old->order - 7)) - 1;
+	unsigned long new_hash_mask = (1ULL << (new->order - 7)) - 1;
+	__be64 *hptep, *new_hptep;
+	unsigned long vpte, rpte, guest_rpte;
+	int ret;
+	struct revmap_entry *rev;
+	unsigned long apsize, psize, avpn, pteg, hash;
+	unsigned long new_idx, new_pteg, replace_vpte;
+
+	hptep = (__be64 *)(old->virt + (idx << 4));
+
+	/* Guest is stopped, so new HPTEs can't be added or faulted
+	 * in, only unmapped or altered by host actions.  So, it's
+	 * safe to check this before we take the HPTE lock */
+	vpte = be64_to_cpu(hptep[0]);
+	if (!(vpte & HPTE_V_VALID) && !(vpte & HPTE_V_ABSENT))
+		return 0; /* nothing to do */
+
+	while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
+		cpu_relax();
+
+	vpte = be64_to_cpu(hptep[0]);
+
+	ret = 0;
+	if (!(vpte & HPTE_V_VALID) && !(vpte & HPTE_V_ABSENT))
+		/* Nothing to do */
+		goto out;
+
+	/* Unmap */
+	rev = &old->rev[idx];
+	guest_rpte = rev->guest_rpte;
+
+	ret = -EIO;
+	apsize = hpte_page_size(vpte, guest_rpte);
+	if (!apsize)
+		goto out;
+
+	if (vpte & HPTE_V_VALID) {
+		unsigned long gfn = hpte_rpn(guest_rpte, apsize);
+		int srcu_idx = srcu_read_lock(&kvm->srcu);
+		struct kvm_memory_slot *memslot =
+			__gfn_to_memslot(kvm_memslots(kvm), gfn);
+
+		if (memslot) {
+			unsigned long *rmapp;
+			rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
+
+			lock_rmap(rmapp);
+			kvmppc_unmap_hpte(kvm, idx, rmapp, gfn);
+			unlock_rmap(rmapp);
+		}
+
+		srcu_read_unlock(&kvm->srcu, srcu_idx);
+	}
+
+	/* Reload PTE after unmap */
+	vpte = be64_to_cpu(hptep[0]);
+
+	BUG_ON(vpte & HPTE_V_VALID);
+	BUG_ON(!(vpte & HPTE_V_ABSENT));
+
+	ret = 0;
+	if (!(vpte & HPTE_V_BOLTED))
+		goto out;
+
+	rpte = be64_to_cpu(hptep[1]);
+	psize = hpte_base_page_size(vpte, rpte);
+	avpn = HPTE_V_AVPN_VAL(vpte) & ~((psize - 1) >> 23);
+	pteg = idx / HPTES_PER_GROUP;
+	if (vpte & HPTE_V_SECONDARY)
+		pteg = ~pteg;
+
+	if (!(vpte & HPTE_V_1TB_SEG)) {
+		unsigned long offset, vsid;
+
+		/* We only have 28 - 23 bits of offset in avpn */
+		offset = (avpn & 0x1f) << 23;
+		vsid = avpn >> 5;
+		/* We can find more bits from the pteg value */
+		if (psize < (1ULL << 23))
+			offset |= ((vsid ^ pteg) & old_hash_mask) * psize;
+
+		hash = vsid ^ (offset / psize);
+	} else {
+		unsigned long offset, vsid;
+
+		/* We only have 40 - 23 bits of seg_off in avpn */
+		offset = (avpn & 0x1ffff) << 23;
+		vsid = avpn >> 17;
+		if (psize < (1ULL << 23))
+			offset |= ((vsid ^ (vsid << 25) ^ pteg) & old_hash_mask) * psize;
+
+		hash = vsid ^ (vsid << 25) ^ (offset / psize);
+	}
+
+	new_pteg = hash & new_hash_mask;
+	if (vpte & HPTE_V_SECONDARY) {
+		BUG_ON(~pteg != (hash & old_hash_mask));
+		new_pteg = ~new_pteg;
+	} else {
+		BUG_ON(pteg != (hash & old_hash_mask));
+	}
+
+	new_idx = new_pteg * HPTES_PER_GROUP + (idx % HPTES_PER_GROUP);
+	new_hptep = (__be64 *)(new->virt + (new_idx << 4));
+
+	replace_vpte = be64_to_cpu(new_hptep[0]);
+
+	if (replace_vpte & (HPTE_V_VALID | HPTE_V_ABSENT)) {
+		BUG_ON(new->order >= old->order);
+
+		if (replace_vpte & HPTE_V_BOLTED) {
+			if (vpte & HPTE_V_BOLTED)
+				/* Bolted collision, nothing we can do */
+				ret = -ENOSPC;
+			/* Discard the new HPTE */
+			goto out;
+		}
+
+		/* Discard the previous HPTE */
+	}
+
+	new_hptep[1] = cpu_to_be64(rpte);
+	new->rev[new_idx].guest_rpte = guest_rpte;
+	/* No need for a barrier, since new HPT isn't active */
+	new_hptep[0] = cpu_to_be64(vpte);
+	unlock_hpte(new_hptep, vpte);
+
+out:
+	unlock_hpte(hptep, vpte);
+	return ret;
+}
+
+static int resize_hpt_rehash(struct kvm_resize_hpt *resize)
+{
+	struct kvm *kvm = resize->kvm;
+	unsigned  long i;
+	int rc;
+
+	/*
+	 * resize_hpt_rehash_hpte() doesn't handle the new-format HPTEs
+	 * that POWER9 uses, and could well hit a BUG_ON on POWER9.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return -EIO;
+	for (i = 0; i < kvmppc_hpt_npte(&kvm->arch.hpt); i++) {
+		rc = resize_hpt_rehash_hpte(resize, i);
+		if (rc != 0)
+			return rc;
+	}
+
+	return 0;
+}
+
+static void resize_hpt_pivot(struct kvm_resize_hpt *resize)
+{
+	struct kvm *kvm = resize->kvm;
+	struct kvm_hpt_info hpt_tmp;
+
+	/* Exchange the pending tables in the resize structure with
+	 * the active tables */
+
+	resize_hpt_debug(resize, "resize_hpt_pivot()\n");
+
+	spin_lock(&kvm->mmu_lock);
+	asm volatile("ptesync" : : : "memory");
+
+	hpt_tmp = kvm->arch.hpt;
+	kvmppc_set_hpt(kvm, &resize->hpt);
+	resize->hpt = hpt_tmp;
+
+	spin_unlock(&kvm->mmu_lock);
+
+	synchronize_srcu_expedited(&kvm->srcu);
+
+	resize_hpt_debug(resize, "resize_hpt_pivot() done\n");
+}
+
+static void resize_hpt_release(struct kvm *kvm, struct kvm_resize_hpt *resize)
+{
+	BUG_ON(kvm->arch.resize_hpt != resize);
+
+	if (!resize)
+		return;
+
+	if (resize->hpt.virt)
+		kvmppc_free_hpt(&resize->hpt);
+
+	kvm->arch.resize_hpt = NULL;
+	kfree(resize);
+}
+
+static void resize_hpt_prepare_work(struct work_struct *work)
+{
+	struct kvm_resize_hpt *resize = container_of(work,
+						     struct kvm_resize_hpt,
+						     work);
+	struct kvm *kvm = resize->kvm;
+	int err;
+
+	resize_hpt_debug(resize, "resize_hpt_prepare_work(): order = %d\n",
+			 resize->order);
+
+	err = resize_hpt_allocate(resize);
+
+	mutex_lock(&kvm->lock);
+
+	resize->error = err;
+	resize->prepare_done = true;
+
+	mutex_unlock(&kvm->lock);
+}
+
+long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
+				     struct kvm_ppc_resize_hpt *rhpt)
+{
+	unsigned long flags = rhpt->flags;
+	unsigned long shift = rhpt->shift;
+	struct kvm_resize_hpt *resize;
+	int ret;
+
+	if (flags != 0)
+		return -EINVAL;
+
+	if (shift && ((shift < 18) || (shift > 46)))
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+
+	resize = kvm->arch.resize_hpt;
+
+	if (resize) {
+		if (resize->order == shift) {
+			/* Suitable resize in progress */
+			if (resize->prepare_done) {
+				ret = resize->error;
+				if (ret != 0)
+					resize_hpt_release(kvm, resize);
+			} else {
+				ret = 100; /* estimated time in ms */
+			}
+
+			goto out;
+		}
+
+		/* not suitable, cancel it */
+		resize_hpt_release(kvm, resize);
+	}
+
+	ret = 0;
+	if (!shift)
+		goto out; /* nothing to do */
+
+	/* start new resize */
+
+	resize = kzalloc(sizeof(*resize), GFP_KERNEL);
+	if (!resize) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	resize->order = shift;
+	resize->kvm = kvm;
+	INIT_WORK(&resize->work, resize_hpt_prepare_work);
+	kvm->arch.resize_hpt = resize;
+
+	schedule_work(&resize->work);
+
+	ret = 100; /* estimated time in ms */
+
+out:
+	mutex_unlock(&kvm->lock);
+	return ret;
+}
+
+static void resize_hpt_boot_vcpu(void *opaque)
+{
+	/* Nothing to do, just force a KVM exit */
+}
+
+long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
+				    struct kvm_ppc_resize_hpt *rhpt)
+{
+	unsigned long flags = rhpt->flags;
+	unsigned long shift = rhpt->shift;
+	struct kvm_resize_hpt *resize;
+	long ret;
+
+	if (flags != 0)
+		return -EINVAL;
+
+	if (shift && ((shift < 18) || (shift > 46)))
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+
+	resize = kvm->arch.resize_hpt;
+
+	/* This shouldn't be possible */
+	ret = -EIO;
+	if (WARN_ON(!kvm->arch.hpte_setup_done))
+		goto out_no_hpt;
+
+	/* Stop VCPUs from running while we mess with the HPT */
+	kvm->arch.hpte_setup_done = 0;
+	smp_mb();
+
+	/* Boot all CPUs out of the guest so they re-read
+	 * hpte_setup_done */
+	on_each_cpu(resize_hpt_boot_vcpu, NULL, 1);
+
+	ret = -ENXIO;
+	if (!resize || (resize->order != shift))
+		goto out;
+
+	ret = -EBUSY;
+	if (!resize->prepare_done)
+		goto out;
+
+	ret = resize->error;
+	if (ret != 0)
+		goto out;
+
+	ret = resize_hpt_rehash(resize);
+	if (ret != 0)
+		goto out;
+
+	resize_hpt_pivot(resize);
+
+out:
+	/* Let VCPUs run again */
+	kvm->arch.hpte_setup_done = 1;
+	smp_mb();
+out_no_hpt:
+	resize_hpt_release(kvm, resize);
+	mutex_unlock(&kvm->lock);
+	return ret;
 }
 
 /*
@@ -1251,7 +1601,7 @@ struct kvm_htab_ctx {
  * Returns 1 if this HPT entry has been modified or has pending
  * R/C bit changes.
  */
-static int hpte_dirty(struct revmap_entry *revp, unsigned long *hptp)
+static int hpte_dirty(struct revmap_entry *revp, __be64 *hptp)
 {
 	unsigned long rcbits_unset;
 
@@ -1260,17 +1610,18 @@ static int hpte_dirty(struct revmap_entry *revp, unsigned long *hptp)
 
 	/* Also need to consider changes in reference and changed bits */
 	rcbits_unset = ~revp->guest_rpte & (HPTE_R_R | HPTE_R_C);
-	if ((hptp[0] & HPTE_V_VALID) && (hptp[1] & rcbits_unset))
+	if ((be64_to_cpu(hptp[0]) & HPTE_V_VALID) &&
+	    (be64_to_cpu(hptp[1]) & rcbits_unset))
 		return 1;
 
 	return 0;
 }
 
-static long record_hpte(unsigned long flags, unsigned long *hptp,
+static long record_hpte(unsigned long flags, __be64 *hptp,
 			unsigned long *hpte, struct revmap_entry *revp,
 			int want_valid, int first_pass)
 {
-	unsigned long v, r;
+	unsigned long v, r, hr;
 	unsigned long rcbits_unset;
 	int ok = 1;
 	int valid, dirty;
@@ -1281,10 +1632,10 @@ static long record_hpte(unsigned long flags, unsigned long *hptp,
 		return 0;
 
 	valid = 0;
-	if (hptp[0] & (HPTE_V_VALID | HPTE_V_ABSENT)) {
+	if (be64_to_cpu(hptp[0]) & (HPTE_V_VALID | HPTE_V_ABSENT)) {
 		valid = 1;
 		if ((flags & KVM_GET_HTAB_BOLTED_ONLY) &&
-		    !(hptp[0] & HPTE_V_BOLTED))
+		    !(be64_to_cpu(hptp[0]) & HPTE_V_BOLTED))
 			valid = 0;
 	}
 	if (valid != want_valid)
@@ -1296,7 +1647,12 @@ static long record_hpte(unsigned long flags, unsigned long *hptp,
 		preempt_disable();
 		while (!try_lock_hpte(hptp, HPTE_V_HVLOCK))
 			cpu_relax();
-		v = hptp[0];
+		v = be64_to_cpu(hptp[0]);
+		hr = be64_to_cpu(hptp[1]);
+		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+			v = hpte_new_to_old_v(v, hr);
+			hr = hpte_new_to_old_r(hr);
+		}
 
 		/* re-evaluate valid and dirty from synchronized HPTE value */
 		valid = !!(v & HPTE_V_VALID);
@@ -1304,9 +1660,9 @@ static long record_hpte(unsigned long flags, unsigned long *hptp,
 
 		/* Harvest R and C into guest view if necessary */
 		rcbits_unset = ~revp->guest_rpte & (HPTE_R_R | HPTE_R_C);
-		if (valid && (rcbits_unset & hptp[1])) {
-			revp->guest_rpte |= (hptp[1] & (HPTE_R_R | HPTE_R_C)) |
-				HPTE_GR_MODIFIED;
+		if (valid && (rcbits_unset & hr)) {
+			revp->guest_rpte |= (hr &
+				(HPTE_R_R | HPTE_R_C)) | HPTE_GR_MODIFIED;
 			dirty = 1;
 		}
 
@@ -1324,14 +1680,13 @@ static long record_hpte(unsigned long flags, unsigned long *hptp,
 			r &= ~HPTE_GR_MODIFIED;
 			revp->guest_rpte = r;
 		}
-		asm volatile(PPC_RELEASE_BARRIER "" : : : "memory");
-		hptp[0] &= ~HPTE_V_HVLOCK;
+		unlock_hpte(hptp, be64_to_cpu(hptp[0]));
 		preempt_enable();
 		if (!(valid == want_valid && (first_pass || dirty)))
 			ok = 0;
 	}
-	hpte[0] = v;
-	hpte[1] = r;
+	hpte[0] = cpu_to_be64(v);
+	hpte[1] = cpu_to_be64(r);
 	return ok;
 }
 
@@ -1341,7 +1696,7 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 	struct kvm_htab_ctx *ctx = file->private_data;
 	struct kvm *kvm = ctx->kvm;
 	struct kvm_get_htab_header hdr;
-	unsigned long *hptp;
+	__be64 *hptp;
 	struct revmap_entry *revp;
 	unsigned long i, nb, nw;
 	unsigned long __user *lbuf;
@@ -1357,8 +1712,8 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 	flags = ctx->flags;
 
 	i = ctx->index;
-	hptp = (unsigned long *)(kvm->arch.hpt_virt + (i * HPTE_SIZE));
-	revp = kvm->arch.revmap + i;
+	hptp = (__be64 *)(kvm->arch.hpt.virt + (i * HPTE_SIZE));
+	revp = kvm->arch.hpt.rev + i;
 	lbuf = (unsigned long __user *)buf;
 
 	nb = 0;
@@ -1373,7 +1728,7 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 
 		/* Skip uninteresting entries, i.e. clean on not-first pass */
 		if (!first_pass) {
-			while (i < kvm->arch.hpt_npte &&
+			while (i < kvmppc_hpt_npte(&kvm->arch.hpt) &&
 			       !hpte_dirty(revp, hptp)) {
 				++i;
 				hptp += 2;
@@ -1383,7 +1738,7 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 		hdr.index = i;
 
 		/* Grab a series of valid entries */
-		while (i < kvm->arch.hpt_npte &&
+		while (i < kvmppc_hpt_npte(&kvm->arch.hpt) &&
 		       hdr.n_valid < 0xffff &&
 		       nb + HPTE_SIZE < count &&
 		       record_hpte(flags, hptp, hpte, revp, 1, first_pass)) {
@@ -1399,7 +1754,7 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 			++revp;
 		}
 		/* Now skip invalid entries while we can */
-		while (i < kvm->arch.hpt_npte &&
+		while (i < kvmppc_hpt_npte(&kvm->arch.hpt) &&
 		       hdr.n_invalid < 0xffff &&
 		       record_hpte(flags, hptp, hpte, revp, 0, first_pass)) {
 			/* found an invalid entry */
@@ -1420,7 +1775,7 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 		}
 
 		/* Check if we've wrapped around the hash table */
-		if (i >= kvm->arch.hpt_npte) {
+		if (i >= kvmppc_hpt_npte(&kvm->arch.hpt)) {
 			i = 0;
 			ctx->first_pass = 0;
 			break;
@@ -1441,24 +1796,24 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 	unsigned long i, j;
 	unsigned long v, r;
 	unsigned long __user *lbuf;
-	unsigned long *hptp;
+	__be64 *hptp;
 	unsigned long tmp[2];
 	ssize_t nb;
 	long int err, ret;
-	int rma_setup;
+	int hpte_setup;
 
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
 	/* lock out vcpus from running while we're doing this */
 	mutex_lock(&kvm->lock);
-	rma_setup = kvm->arch.rma_setup_done;
-	if (rma_setup) {
-		kvm->arch.rma_setup_done = 0;	/* temporarily */
-		/* order rma_setup_done vs. vcpus_running */
+	hpte_setup = kvm->arch.hpte_setup_done;
+	if (hpte_setup) {
+		kvm->arch.hpte_setup_done = 0;	/* temporarily */
+		/* order hpte_setup_done vs. vcpus_running */
 		smp_mb();
 		if (atomic_read(&kvm->arch.vcpus_running)) {
-			kvm->arch.rma_setup_done = 1;
+			kvm->arch.hpte_setup_done = 1;
 			mutex_unlock(&kvm->lock);
 			return -EBUSY;
 		}
@@ -1479,23 +1834,29 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 
 		err = -EINVAL;
 		i = hdr.index;
-		if (i >= kvm->arch.hpt_npte ||
-		    i + hdr.n_valid + hdr.n_invalid > kvm->arch.hpt_npte)
+		if (i >= kvmppc_hpt_npte(&kvm->arch.hpt) ||
+		    i + hdr.n_valid + hdr.n_invalid > kvmppc_hpt_npte(&kvm->arch.hpt))
 			break;
 
-		hptp = (unsigned long *)(kvm->arch.hpt_virt + (i * HPTE_SIZE));
+		hptp = (__be64 *)(kvm->arch.hpt.virt + (i * HPTE_SIZE));
 		lbuf = (unsigned long __user *)buf;
 		for (j = 0; j < hdr.n_valid; ++j) {
+			__be64 hpte_v;
+			__be64 hpte_r;
+
 			err = -EFAULT;
-			if (__get_user(v, lbuf) || __get_user(r, lbuf + 1))
+			if (__get_user(hpte_v, lbuf) ||
+			    __get_user(hpte_r, lbuf + 1))
 				goto out;
+			v = be64_to_cpu(hpte_v);
+			r = be64_to_cpu(hpte_r);
 			err = -EINVAL;
 			if (!(v & HPTE_V_VALID))
 				goto out;
 			lbuf += 2;
 			nb += HPTE_SIZE;
 
-			if (hptp[0] & (HPTE_V_VALID | HPTE_V_ABSENT))
+			if (be64_to_cpu(hptp[0]) & (HPTE_V_VALID | HPTE_V_ABSENT))
 				kvmppc_do_h_remove(kvm, 0, i, 0, tmp);
 			err = -EIO;
 			ret = kvmppc_virtmode_do_h_enter(kvm, H_EXACT, i, v, r,
@@ -1505,24 +1866,23 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 				       "r=%lx\n", ret, i, v, r);
 				goto out;
 			}
-			if (!rma_setup && is_vrma_hpte(v)) {
-				unsigned long psize = hpte_page_size(v, r);
+			if (!hpte_setup && is_vrma_hpte(v)) {
+				unsigned long psize = hpte_base_page_size(v, r);
 				unsigned long senc = slb_pgsize_encoding(psize);
 				unsigned long lpcr;
 
 				kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
 					(VRMA_VSID << SLB_VSID_SHIFT_1T);
-				lpcr = kvm->arch.lpcr & ~LPCR_VRMASD;
-				lpcr |= senc << (LPCR_VRMASD_SH - 4);
-				kvm->arch.lpcr = lpcr;
-				rma_setup = 1;
+				lpcr = senc << (LPCR_VRMASD_SH - 4);
+				kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
+				hpte_setup = 1;
 			}
 			++i;
 			hptp += 2;
 		}
 
 		for (j = 0; j < hdr.n_invalid; ++j) {
-			if (hptp[0] & (HPTE_V_VALID | HPTE_V_ABSENT))
+			if (be64_to_cpu(hptp[0]) & (HPTE_V_VALID | HPTE_V_ABSENT))
 				kvmppc_do_h_remove(kvm, 0, i, 0, tmp);
 			++i;
 			hptp += 2;
@@ -1531,9 +1891,9 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 	}
 
  out:
-	/* Order HPTE updates vs. rma_setup_done */
+	/* Order HPTE updates vs. hpte_setup_done */
 	smp_wmb();
-	kvm->arch.rma_setup_done = rma_setup;
+	kvm->arch.hpte_setup_done = hpte_setup;
 	mutex_unlock(&kvm->lock);
 
 	if (err)
@@ -1579,8 +1939,9 @@ int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *ghf)
 	ctx->first_pass = 1;
 
 	rwflag = (ghf->flags & KVM_GET_HTAB_WRITE) ? O_WRONLY : O_RDONLY;
-	ret = anon_inode_getfd("kvm-htab", &kvm_htab_fops, ctx, rwflag);
+	ret = anon_inode_getfd("kvm-htab", &kvm_htab_fops, ctx, rwflag | O_CLOEXEC);
 	if (ret < 0) {
+		kfree(ctx);
 		kvm_put_kvm(kvm);
 		return ret;
 	}
@@ -1596,16 +1957,152 @@ int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *ghf)
 	return ret;
 }
 
+struct debugfs_htab_state {
+	struct kvm	*kvm;
+	struct mutex	mutex;
+	unsigned long	hpt_index;
+	int		chars_left;
+	int		buf_index;
+	char		buf[64];
+};
+
+static int debugfs_htab_open(struct inode *inode, struct file *file)
+{
+	struct kvm *kvm = inode->i_private;
+	struct debugfs_htab_state *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	kvm_get_kvm(kvm);
+	p->kvm = kvm;
+	mutex_init(&p->mutex);
+	file->private_data = p;
+
+	return nonseekable_open(inode, file);
+}
+
+static int debugfs_htab_release(struct inode *inode, struct file *file)
+{
+	struct debugfs_htab_state *p = file->private_data;
+
+	kvm_put_kvm(p->kvm);
+	kfree(p);
+	return 0;
+}
+
+static ssize_t debugfs_htab_read(struct file *file, char __user *buf,
+				 size_t len, loff_t *ppos)
+{
+	struct debugfs_htab_state *p = file->private_data;
+	ssize_t ret, r;
+	unsigned long i, n;
+	unsigned long v, hr, gr;
+	struct kvm *kvm;
+	__be64 *hptp;
+
+	ret = mutex_lock_interruptible(&p->mutex);
+	if (ret)
+		return ret;
+
+	if (p->chars_left) {
+		n = p->chars_left;
+		if (n > len)
+			n = len;
+		r = copy_to_user(buf, p->buf + p->buf_index, n);
+		n -= r;
+		p->chars_left -= n;
+		p->buf_index += n;
+		buf += n;
+		len -= n;
+		ret = n;
+		if (r) {
+			if (!n)
+				ret = -EFAULT;
+			goto out;
+		}
+	}
+
+	kvm = p->kvm;
+	i = p->hpt_index;
+	hptp = (__be64 *)(kvm->arch.hpt.virt + (i * HPTE_SIZE));
+	for (; len != 0 && i < kvmppc_hpt_npte(&kvm->arch.hpt);
+	     ++i, hptp += 2) {
+		if (!(be64_to_cpu(hptp[0]) & (HPTE_V_VALID | HPTE_V_ABSENT)))
+			continue;
+
+		/* lock the HPTE so it's stable and read it */
+		preempt_disable();
+		while (!try_lock_hpte(hptp, HPTE_V_HVLOCK))
+			cpu_relax();
+		v = be64_to_cpu(hptp[0]) & ~HPTE_V_HVLOCK;
+		hr = be64_to_cpu(hptp[1]);
+		gr = kvm->arch.hpt.rev[i].guest_rpte;
+		unlock_hpte(hptp, v);
+		preempt_enable();
+
+		if (!(v & (HPTE_V_VALID | HPTE_V_ABSENT)))
+			continue;
+
+		n = scnprintf(p->buf, sizeof(p->buf),
+			      "%6lx %.16lx %.16lx %.16lx\n",
+			      i, v, hr, gr);
+		p->chars_left = n;
+		if (n > len)
+			n = len;
+		r = copy_to_user(buf, p->buf, n);
+		n -= r;
+		p->chars_left -= n;
+		p->buf_index = n;
+		buf += n;
+		len -= n;
+		ret += n;
+		if (r) {
+			if (!ret)
+				ret = -EFAULT;
+			goto out;
+		}
+	}
+	p->hpt_index = i;
+
+ out:
+	mutex_unlock(&p->mutex);
+	return ret;
+}
+
+static ssize_t debugfs_htab_write(struct file *file, const char __user *buf,
+			   size_t len, loff_t *ppos)
+{
+	return -EACCES;
+}
+
+static const struct file_operations debugfs_htab_fops = {
+	.owner	 = THIS_MODULE,
+	.open	 = debugfs_htab_open,
+	.release = debugfs_htab_release,
+	.read	 = debugfs_htab_read,
+	.write	 = debugfs_htab_write,
+	.llseek	 = generic_file_llseek,
+};
+
+void kvmppc_mmu_debugfs_init(struct kvm *kvm)
+{
+	kvm->arch.htab_dentry = debugfs_create_file("htab", 0400,
+						    kvm->arch.debugfs_dir, kvm,
+						    &debugfs_htab_fops);
+}
+
 void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_mmu *mmu = &vcpu->arch.mmu;
 
-	if (cpu_has_feature(CPU_FTR_ARCH_206))
-		vcpu->arch.slb_nr = 32;		/* POWER7 */
-	else
-		vcpu->arch.slb_nr = 64;
+	vcpu->arch.slb_nr = 32;		/* POWER7/POWER8 */
 
-	mmu->xlate = kvmppc_mmu_book3s_64_hv_xlate;
+	if (kvm_is_radix(vcpu->kvm))
+		mmu->xlate = kvmppc_mmu_radix_xlate;
+	else
+		mmu->xlate = kvmppc_mmu_book3s_64_hv_xlate;
 	mmu->reset_msr = kvmppc_mmu_book3s_64_hv_reset_msr;
 
 	vcpu->arch.hflags |= BOOK3S_HFLAG_SLB;

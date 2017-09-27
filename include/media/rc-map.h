@@ -1,7 +1,7 @@
 /*
  * rc-map.h - define RC map names used by RC drivers
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,70 +11,173 @@
 
 #include <linux/input.h>
 
-enum rc_type {
-	RC_TYPE_UNKNOWN		= 0,	/* Protocol not known */
-	RC_TYPE_OTHER		= 1,	/* Protocol known but proprietary */
-	RC_TYPE_LIRC		= 2,	/* Pass raw IR to lirc userspace */
-	RC_TYPE_RC5		= 3,	/* Philips RC5 protocol */
-	RC_TYPE_RC5X		= 4,	/* Philips RC5x protocol */
-	RC_TYPE_RC5_SZ		= 5,	/* StreamZap variant of RC5 */
-	RC_TYPE_JVC		= 6,	/* JVC protocol */
-	RC_TYPE_SONY12		= 7,	/* Sony 12 bit protocol */
-	RC_TYPE_SONY15		= 8,	/* Sony 15 bit protocol */
-	RC_TYPE_SONY20		= 9,	/* Sony 20 bit protocol */
-	RC_TYPE_NEC		= 10,	/* NEC protocol */
-	RC_TYPE_SANYO		= 11,	/* Sanyo protocol */
-	RC_TYPE_MCE_KBD		= 12,	/* RC6-ish MCE keyboard/mouse */
-	RC_TYPE_RC6_0		= 13,	/* Philips RC6-0-16 protocol */
-	RC_TYPE_RC6_6A_20	= 14,	/* Philips RC6-6A-20 protocol */
-	RC_TYPE_RC6_6A_24	= 15,	/* Philips RC6-6A-24 protocol */
-	RC_TYPE_RC6_6A_32	= 16,	/* Philips RC6-6A-32 protocol */
-	RC_TYPE_RC6_MCE		= 17,	/* MCE (Philips RC6-6A-32 subtype) protocol */
+/**
+ * enum rc_proto - the Remote Controller protocol
+ *
+ * @RC_PROTO_UNKNOWN: Protocol not known
+ * @RC_PROTO_OTHER: Protocol known but proprietary
+ * @RC_PROTO_RC5: Philips RC5 protocol
+ * @RC_PROTO_RC5X_20: Philips RC5x 20 bit protocol
+ * @RC_PROTO_RC5_SZ: StreamZap variant of RC5
+ * @RC_PROTO_JVC: JVC protocol
+ * @RC_PROTO_SONY12: Sony 12 bit protocol
+ * @RC_PROTO_SONY15: Sony 15 bit protocol
+ * @RC_PROTO_SONY20: Sony 20 bit protocol
+ * @RC_PROTO_NEC: NEC protocol
+ * @RC_PROTO_NECX: Extended NEC protocol
+ * @RC_PROTO_NEC32: NEC 32 bit protocol
+ * @RC_PROTO_SANYO: Sanyo protocol
+ * @RC_PROTO_MCIR2_KBD: RC6-ish MCE keyboard
+ * @RC_PROTO_MCIR2_MSE: RC6-ish MCE mouse
+ * @RC_PROTO_RC6_0: Philips RC6-0-16 protocol
+ * @RC_PROTO_RC6_6A_20: Philips RC6-6A-20 protocol
+ * @RC_PROTO_RC6_6A_24: Philips RC6-6A-24 protocol
+ * @RC_PROTO_RC6_6A_32: Philips RC6-6A-32 protocol
+ * @RC_PROTO_RC6_MCE: MCE (Philips RC6-6A-32 subtype) protocol
+ * @RC_PROTO_SHARP: Sharp protocol
+ * @RC_PROTO_XMP: XMP protocol
+ * @RC_PROTO_CEC: CEC protocol
+ */
+enum rc_proto {
+	RC_PROTO_UNKNOWN	= 0,
+	RC_PROTO_OTHER		= 1,
+	RC_PROTO_RC5		= 2,
+	RC_PROTO_RC5X_20	= 3,
+	RC_PROTO_RC5_SZ		= 4,
+	RC_PROTO_JVC		= 5,
+	RC_PROTO_SONY12		= 6,
+	RC_PROTO_SONY15		= 7,
+	RC_PROTO_SONY20		= 8,
+	RC_PROTO_NEC		= 9,
+	RC_PROTO_NECX		= 10,
+	RC_PROTO_NEC32		= 11,
+	RC_PROTO_SANYO		= 12,
+	RC_PROTO_MCIR2_KBD	= 13,
+	RC_PROTO_MCIR2_MSE	= 14,
+	RC_PROTO_RC6_0		= 15,
+	RC_PROTO_RC6_6A_20	= 16,
+	RC_PROTO_RC6_6A_24	= 17,
+	RC_PROTO_RC6_6A_32	= 18,
+	RC_PROTO_RC6_MCE	= 19,
+	RC_PROTO_SHARP		= 20,
+	RC_PROTO_XMP		= 21,
+	RC_PROTO_CEC		= 22,
 };
 
-#define RC_BIT_NONE		0
-#define RC_BIT_UNKNOWN		(1 << RC_TYPE_UNKNOWN)
-#define RC_BIT_OTHER		(1 << RC_TYPE_OTHER)
-#define RC_BIT_LIRC		(1 << RC_TYPE_LIRC)
-#define RC_BIT_RC5		(1 << RC_TYPE_RC5)
-#define RC_BIT_RC5X		(1 << RC_TYPE_RC5X)
-#define RC_BIT_RC5_SZ		(1 << RC_TYPE_RC5_SZ)
-#define RC_BIT_JVC		(1 << RC_TYPE_JVC)
-#define RC_BIT_SONY12		(1 << RC_TYPE_SONY12)
-#define RC_BIT_SONY15		(1 << RC_TYPE_SONY15)
-#define RC_BIT_SONY20		(1 << RC_TYPE_SONY20)
-#define RC_BIT_NEC		(1 << RC_TYPE_NEC)
-#define RC_BIT_SANYO		(1 << RC_TYPE_SANYO)
-#define RC_BIT_MCE_KBD		(1 << RC_TYPE_MCE_KBD)
-#define RC_BIT_RC6_0		(1 << RC_TYPE_RC6_0)
-#define RC_BIT_RC6_6A_20	(1 << RC_TYPE_RC6_6A_20)
-#define RC_BIT_RC6_6A_24	(1 << RC_TYPE_RC6_6A_24)
-#define RC_BIT_RC6_6A_32	(1 << RC_TYPE_RC6_6A_32)
-#define RC_BIT_RC6_MCE		(1 << RC_TYPE_RC6_MCE)
+#define RC_PROTO_BIT_NONE		0ULL
+#define RC_PROTO_BIT_UNKNOWN		BIT_ULL(RC_PROTO_UNKNOWN)
+#define RC_PROTO_BIT_OTHER		BIT_ULL(RC_PROTO_OTHER)
+#define RC_PROTO_BIT_RC5		BIT_ULL(RC_PROTO_RC5)
+#define RC_PROTO_BIT_RC5X_20		BIT_ULL(RC_PROTO_RC5X_20)
+#define RC_PROTO_BIT_RC5_SZ		BIT_ULL(RC_PROTO_RC5_SZ)
+#define RC_PROTO_BIT_JVC		BIT_ULL(RC_PROTO_JVC)
+#define RC_PROTO_BIT_SONY12		BIT_ULL(RC_PROTO_SONY12)
+#define RC_PROTO_BIT_SONY15		BIT_ULL(RC_PROTO_SONY15)
+#define RC_PROTO_BIT_SONY20		BIT_ULL(RC_PROTO_SONY20)
+#define RC_PROTO_BIT_NEC		BIT_ULL(RC_PROTO_NEC)
+#define RC_PROTO_BIT_NECX		BIT_ULL(RC_PROTO_NECX)
+#define RC_PROTO_BIT_NEC32		BIT_ULL(RC_PROTO_NEC32)
+#define RC_PROTO_BIT_SANYO		BIT_ULL(RC_PROTO_SANYO)
+#define RC_PROTO_BIT_MCIR2_KBD		BIT_ULL(RC_PROTO_MCIR2_KBD)
+#define RC_PROTO_BIT_MCIR2_MSE		BIT_ULL(RC_PROTO_MCIR2_MSE)
+#define RC_PROTO_BIT_RC6_0		BIT_ULL(RC_PROTO_RC6_0)
+#define RC_PROTO_BIT_RC6_6A_20		BIT_ULL(RC_PROTO_RC6_6A_20)
+#define RC_PROTO_BIT_RC6_6A_24		BIT_ULL(RC_PROTO_RC6_6A_24)
+#define RC_PROTO_BIT_RC6_6A_32		BIT_ULL(RC_PROTO_RC6_6A_32)
+#define RC_PROTO_BIT_RC6_MCE		BIT_ULL(RC_PROTO_RC6_MCE)
+#define RC_PROTO_BIT_SHARP		BIT_ULL(RC_PROTO_SHARP)
+#define RC_PROTO_BIT_XMP		BIT_ULL(RC_PROTO_XMP)
+#define RC_PROTO_BIT_CEC		BIT_ULL(RC_PROTO_CEC)
 
-#define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | RC_BIT_LIRC | \
-			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
-			 RC_BIT_JVC | \
-			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
-			 RC_BIT_NEC | RC_BIT_SANYO | RC_BIT_MCE_KBD | \
-			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
-			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE)
+#define RC_PROTO_BIT_ALL \
+			(RC_PROTO_BIT_UNKNOWN | RC_PROTO_BIT_OTHER | \
+			 RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 | \
+			 RC_PROTO_BIT_RC5_SZ | RC_PROTO_BIT_JVC | \
+			 RC_PROTO_BIT_SONY12 | RC_PROTO_BIT_SONY15 | \
+			 RC_PROTO_BIT_SONY20 | RC_PROTO_BIT_NEC | \
+			 RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 | \
+			 RC_PROTO_BIT_SANYO | \
+			 RC_PROTO_BIT_MCIR2_KBD | RC_PROTO_BIT_MCIR2_MSE | \
+			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
+			 RC_PROTO_BIT_RC6_6A_24 | RC_PROTO_BIT_RC6_6A_32 | \
+			 RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_SHARP | \
+			 RC_PROTO_BIT_XMP | RC_PROTO_BIT_CEC)
+/* All rc protocols for which we have decoders */
+#define RC_PROTO_BIT_ALL_IR_DECODER \
+			(RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 | \
+			 RC_PROTO_BIT_RC5_SZ | RC_PROTO_BIT_JVC | \
+			 RC_PROTO_BIT_SONY12 | RC_PROTO_BIT_SONY15 | \
+			 RC_PROTO_BIT_SONY20 | RC_PROTO_BIT_NEC | \
+			 RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 | \
+			 RC_PROTO_BIT_SANYO | RC_PROTO_BIT_MCIR2_KBD | \
+			 RC_PROTO_BIT_MCIR2_MSE | \
+			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
+			 RC_PROTO_BIT_RC6_6A_24 |  RC_PROTO_BIT_RC6_6A_32 | \
+			 RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_SHARP | \
+			 RC_PROTO_BIT_XMP)
 
+#define RC_PROTO_BIT_ALL_IR_ENCODER \
+			(RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 | \
+			 RC_PROTO_BIT_RC5_SZ | RC_PROTO_BIT_JVC | \
+			 RC_PROTO_BIT_SONY12 | RC_PROTO_BIT_SONY15 | \
+			 RC_PROTO_BIT_SONY20 |  RC_PROTO_BIT_NEC | \
+			 RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 | \
+			 RC_PROTO_BIT_SANYO | RC_PROTO_BIT_MCIR2_KBD | \
+			 RC_PROTO_BIT_MCIR2_MSE | \
+			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
+			 RC_PROTO_BIT_RC6_6A_24 | \
+			 RC_PROTO_BIT_RC6_6A_32 | RC_PROTO_BIT_RC6_MCE | \
+			 RC_PROTO_BIT_SHARP)
+
+#define RC_SCANCODE_UNKNOWN(x)			(x)
+#define RC_SCANCODE_OTHER(x)			(x)
+#define RC_SCANCODE_NEC(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NECX(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NEC32(data)			((data) & 0xffffffff)
+#define RC_SCANCODE_RC5(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC5_SZ(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_0(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_6A(vendor, sys, cmd)	(((vendor) << 16) | ((sys) << 8) | (cmd))
+
+/**
+ * struct rc_map_table - represents a scancode/keycode pair
+ *
+ * @scancode: scan code (u32)
+ * @keycode: Linux input keycode
+ */
 struct rc_map_table {
 	u32	scancode;
 	u32	keycode;
 };
 
+/**
+ * struct rc_map - represents a keycode map table
+ *
+ * @scan: pointer to struct &rc_map_table
+ * @size: Max number of entries
+ * @len: Number of entries that are in use
+ * @alloc: size of \*scan, in bytes
+ * @rc_proto: type of the remote controller protocol, as defined at
+ *	     enum &rc_proto
+ * @name: name of the key map table
+ * @lock: lock to protect access to this structure
+ */
 struct rc_map {
 	struct rc_map_table	*scan;
-	unsigned int		size;	/* Max number of entries */
-	unsigned int		len;	/* Used number of entries */
-	unsigned int		alloc;	/* Size of *scan in bytes */
-	enum rc_type		rc_type;
+	unsigned int		size;
+	unsigned int		len;
+	unsigned int		alloc;
+	enum rc_proto		rc_proto;
 	const char		*name;
 	spinlock_t		lock;
 };
 
+/**
+ * struct rc_map_list - list of the registered &rc_map maps
+ *
+ * @list: pointer to struct &list_head
+ * @map: pointer to struct &rc_map
+ */
 struct rc_map_list {
 	struct list_head	 list;
 	struct rc_map map;
@@ -82,10 +185,25 @@ struct rc_map_list {
 
 /* Routines from rc-map.c */
 
+/**
+ * rc_map_register() - Registers a Remote Controler scancode map
+ *
+ * @map:	pointer to struct rc_map_list
+ */
 int rc_map_register(struct rc_map_list *map);
+
+/**
+ * rc_map_unregister() - Unregisters a Remote Controler scancode map
+ *
+ * @map:	pointer to struct rc_map_list
+ */
 void rc_map_unregister(struct rc_map_list *map);
+
+/**
+ * rc_map_get - gets an RC map from its name
+ * @name: name of the RC scancode map
+ */
 struct rc_map *rc_map_get(const char *name);
-void rc_map_init(void);
 
 /* Names of the several keytables defined in-kernel */
 
@@ -109,8 +227,10 @@ void rc_map_init(void);
 #define RC_MAP_BEHOLD_COLUMBUS           "rc-behold-columbus"
 #define RC_MAP_BEHOLD                    "rc-behold"
 #define RC_MAP_BUDGET_CI_OLD             "rc-budget-ci-old"
+#define RC_MAP_CEC                       "rc-cec"
 #define RC_MAP_CINERGY_1400              "rc-cinergy-1400"
 #define RC_MAP_CINERGY                   "rc-cinergy"
+#define RC_MAP_D680_DMB                  "rc-d680-dmb"
 #define RC_MAP_DELOCK_61959              "rc-delock-61959"
 #define RC_MAP_DIB0700_NEC_TABLE         "rc-dib0700-nec"
 #define RC_MAP_DIB0700_RC5_TABLE         "rc-dib0700-rc5"
@@ -119,6 +239,10 @@ void rc_map_init(void);
 #define RC_MAP_DM1105_NEC                "rc-dm1105-nec"
 #define RC_MAP_DNTV_LIVE_DVBT_PRO        "rc-dntv-live-dvbt-pro"
 #define RC_MAP_DNTV_LIVE_DVB_T           "rc-dntv-live-dvb-t"
+#define RC_MAP_DTT200U                   "rc-dtt200u"
+#define RC_MAP_DVBSKY                    "rc-dvbsky"
+#define RC_MAP_DVICO_MCE		 "rc-dvico-mce"
+#define RC_MAP_DVICO_PORTABLE		 "rc-dvico-portable"
 #define RC_MAP_EMPTY                     "rc-empty"
 #define RC_MAP_EM_TERRATEC               "rc-em-terratec"
 #define RC_MAP_ENCORE_ENLTV2             "rc-encore-enltv2"
@@ -130,6 +254,7 @@ void rc_map_init(void);
 #define RC_MAP_FLYVIDEO                  "rc-flyvideo"
 #define RC_MAP_FUSIONHDTV_MCE            "rc-fusionhdtv-mce"
 #define RC_MAP_GADMEI_RM008Z             "rc-gadmei-rm008z"
+#define RC_MAP_GEEKBOX                   "rc-geekbox"
 #define RC_MAP_GENIUS_TVGO_A11MCE        "rc-genius-tvgo-a11mce"
 #define RC_MAP_GOTVIEW7135               "rc-gotview7135"
 #define RC_MAP_HAUPPAUGE_NEW             "rc-hauppauge"
@@ -143,7 +268,6 @@ void rc_map_init(void);
 #define RC_MAP_KWORLD_PC150U             "rc-kworld-pc150u"
 #define RC_MAP_KWORLD_PLUS_TV_ANALOG     "rc-kworld-plus-tv-analog"
 #define RC_MAP_LEADTEK_Y04G0051          "rc-leadtek-y04g0051"
-#define RC_MAP_LIRC                      "rc-lirc"
 #define RC_MAP_LME2510                   "rc-lme2510"
 #define RC_MAP_MANLI                     "rc-manli"
 #define RC_MAP_MEDION_X10                "rc-medion-x10"
@@ -177,7 +301,10 @@ void rc_map_init(void);
 #define RC_MAP_SNAPSTREAM_FIREFLY        "rc-snapstream-firefly"
 #define RC_MAP_STREAMZAP                 "rc-streamzap"
 #define RC_MAP_TBS_NEC                   "rc-tbs-nec"
+#define RC_MAP_TECHNISAT_TS35            "rc-technisat-ts35"
 #define RC_MAP_TECHNISAT_USB2            "rc-technisat-usb2"
+#define RC_MAP_TERRATEC_CINERGY_C_PCI    "rc-terratec-cinergy-c-pci"
+#define RC_MAP_TERRATEC_CINERGY_S2_HD    "rc-terratec-cinergy-s2-hd"
 #define RC_MAP_TERRATEC_CINERGY_XS       "rc-terratec-cinergy-xs"
 #define RC_MAP_TERRATEC_SLIM             "rc-terratec-slim"
 #define RC_MAP_TERRATEC_SLIM_2           "rc-terratec-slim-2"
@@ -187,12 +314,15 @@ void rc_map_init(void);
 #define RC_MAP_TOTAL_MEDIA_IN_HAND_02    "rc-total-media-in-hand-02"
 #define RC_MAP_TREKSTOR                  "rc-trekstor"
 #define RC_MAP_TT_1500                   "rc-tt-1500"
+#define RC_MAP_TWINHAN_DTV_CAB_CI        "rc-twinhan-dtv-cab-ci"
 #define RC_MAP_TWINHAN_VP1027_DVBS       "rc-twinhan1027"
 #define RC_MAP_VIDEOMATE_K100            "rc-videomate-k100"
 #define RC_MAP_VIDEOMATE_S350            "rc-videomate-s350"
 #define RC_MAP_VIDEOMATE_TV_PVR          "rc-videomate-tv-pvr"
 #define RC_MAP_WINFAST                   "rc-winfast"
 #define RC_MAP_WINFAST_USBII_DELUXE      "rc-winfast-usbii-deluxe"
+#define RC_MAP_SU3000                    "rc-su3000"
+#define RC_MAP_ZX_IRDEC                  "rc-zx-irdec"
 
 /*
  * Please, do not just append newer Remote Controller names at the end.

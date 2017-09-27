@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/gcd.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -117,7 +118,7 @@ WM8996_REGULATOR_EVENT(0)
 WM8996_REGULATOR_EVENT(1)
 WM8996_REGULATOR_EVENT(2)
 
-static struct reg_default wm8996_reg[] = {
+static const struct reg_default wm8996_reg[] = {
 	{ WM8996_POWER_MANAGEMENT_1, 0x0 },
 	{ WM8996_POWER_MANAGEMENT_2, 0x0 },
 	{ WM8996_POWER_MANAGEMENT_3, 0x0 },
@@ -311,28 +312,28 @@ static const char *sidetone_hpf_text[] = {
 	"2.9kHz", "1.5kHz", "735Hz", "403Hz", "196Hz", "98Hz", "49Hz"
 };
 
-static const struct soc_enum sidetone_hpf =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 7, 7, sidetone_hpf_text);
+static SOC_ENUM_SINGLE_DECL(sidetone_hpf,
+			    WM8996_SIDETONE, 7, sidetone_hpf_text);
 
 static const char *hpf_mode_text[] = {
 	"HiFi", "Custom", "Voice"
 };
 
-static const struct soc_enum dsp1tx_hpf_mode =
-	SOC_ENUM_SINGLE(WM8996_DSP1_TX_FILTERS, 3, 3, hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(dsp1tx_hpf_mode,
+			    WM8996_DSP1_TX_FILTERS, 3, hpf_mode_text);
 
-static const struct soc_enum dsp2tx_hpf_mode =
-	SOC_ENUM_SINGLE(WM8996_DSP2_TX_FILTERS, 3, 3, hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(dsp2tx_hpf_mode,
+			    WM8996_DSP2_TX_FILTERS, 3, hpf_mode_text);
 
 static const char *hpf_cutoff_text[] = {
 	"50Hz", "75Hz", "100Hz", "150Hz", "200Hz", "300Hz", "400Hz"
 };
 
-static const struct soc_enum dsp1tx_hpf_cutoff =
-	SOC_ENUM_SINGLE(WM8996_DSP1_TX_FILTERS, 0, 7, hpf_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(dsp1tx_hpf_cutoff,
+			    WM8996_DSP1_TX_FILTERS, 0, hpf_cutoff_text);
 
-static const struct soc_enum dsp2tx_hpf_cutoff =
-	SOC_ENUM_SINGLE(WM8996_DSP2_TX_FILTERS, 0, 7, hpf_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(dsp2tx_hpf_cutoff,
+			    WM8996_DSP2_TX_FILTERS, 0, hpf_cutoff_text);
 
 static void wm8996_set_retune_mobile(struct snd_soc_codec *codec, int block)
 {
@@ -412,11 +413,11 @@ static int wm8996_get_retune_mobile_block(const char *name)
 static int wm8996_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct wm8996_pdata *pdata = &wm8996->pdata;
 	int block = wm8996_get_retune_mobile_block(kcontrol->id.name);
-	int value = ucontrol->value.integer.value[0];
+	int value = ucontrol->value.enumerated.item[0];
 
 	if (block < 0)
 		return block;
@@ -434,10 +435,12 @@ static int wm8996_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 static int wm8996_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	int block = wm8996_get_retune_mobile_block(kcontrol->id.name);
 
+	if (block < 0)
+		return block;
 	ucontrol->value.enumerated.item[0] = wm8996->retune_mobile_cfg[block];
 
 	return 0;
@@ -597,7 +600,7 @@ static void wm8996_bg_disable(struct snd_soc_codec *codec)
 static int bg_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int ret = 0;
 
 	switch (event) {
@@ -608,7 +611,7 @@ static int bg_event(struct snd_soc_dapm_widget *w,
 		wm8996_bg_disable(codec);
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		ret = -EINVAL;
 	}
 
@@ -618,15 +621,12 @@ static int bg_event(struct snd_soc_dapm_widget *w,
 static int cp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	int ret = 0;
-
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		msleep(5);
 		break;
 	default:
-		BUG();
-		ret = -EINVAL;
+		WARN(1, "Invalid event %d\n", event);
 	}
 
 	return 0;
@@ -635,7 +635,8 @@ static int cp_event(struct snd_soc_dapm_widget *w,
 static int rmv_short_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 
 	/* Record which outputs we enabled */
 	switch (event) {
@@ -646,7 +647,7 @@ static int rmv_short_event(struct snd_soc_dapm_widget *w,
 		wm8996->hpout_pending |= w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -688,8 +689,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, u16 mask)
 static void wm8996_seq_notifier(struct snd_soc_dapm_context *dapm,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = container_of(dapm,
-						   struct snd_soc_codec, dapm);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	u16 val, mask;
 
@@ -760,14 +760,15 @@ static void wm8996_seq_notifier(struct snd_soc_dapm_context *dapm,
 static int dcs_start(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event)
 {
-	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		wm8996->dcs_pending |= 1 << w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -778,14 +779,14 @@ static const char *sidetone_text[] = {
 	"IN1", "IN2",
 };
 
-static const struct soc_enum left_sidetone_enum =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 0, 2, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(left_sidetone_enum,
+			    WM8996_SIDETONE, 0, sidetone_text);
 
 static const struct snd_kcontrol_new left_sidetone =
 	SOC_DAPM_ENUM("Left Sidetone", left_sidetone_enum);
 
-static const struct soc_enum right_sidetone_enum =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 1, 2, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(right_sidetone_enum,
+			    WM8996_SIDETONE, 1, sidetone_text);
 
 static const struct snd_kcontrol_new right_sidetone =
 	SOC_DAPM_ENUM("Right Sidetone", right_sidetone_enum);
@@ -794,14 +795,14 @@ static const char *spk_text[] = {
 	"DAC1L", "DAC1R", "DAC2L", "DAC2R"
 };
 
-static const struct soc_enum spkl_enum =
-	SOC_ENUM_SINGLE(WM8996_LEFT_PDM_SPEAKER, 0, 4, spk_text);
+static SOC_ENUM_SINGLE_DECL(spkl_enum,
+			    WM8996_LEFT_PDM_SPEAKER, 0, spk_text);
 
 static const struct snd_kcontrol_new spkl_mux =
 	SOC_DAPM_ENUM("SPKL", spkl_enum);
 
-static const struct soc_enum spkr_enum =
-	SOC_ENUM_SINGLE(WM8996_RIGHT_PDM_SPEAKER, 0, 4, spk_text);
+static SOC_ENUM_SINGLE_DECL(spkr_enum,
+			    WM8996_RIGHT_PDM_SPEAKER, 0, spk_text);
 
 static const struct snd_kcontrol_new spkr_mux =
 	SOC_DAPM_ENUM("SPKR", spkr_enum);
@@ -810,8 +811,8 @@ static const char *dsp1rx_text[] = {
 	"AIF1", "AIF2"
 };
 
-static const struct soc_enum dsp1rx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 0, 2, dsp1rx_text);
+static SOC_ENUM_SINGLE_DECL(dsp1rx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 0, dsp1rx_text);
 
 static const struct snd_kcontrol_new dsp1rx =
 	SOC_DAPM_ENUM("DSP1RX", dsp1rx_enum);
@@ -820,8 +821,8 @@ static const char *dsp2rx_text[] = {
 	 "AIF2", "AIF1"
 };
 
-static const struct soc_enum dsp2rx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 4, 2, dsp2rx_text);
+static SOC_ENUM_SINGLE_DECL(dsp2rx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 4, dsp2rx_text);
 
 static const struct snd_kcontrol_new dsp2rx =
 	SOC_DAPM_ENUM("DSP2RX", dsp2rx_enum);
@@ -830,8 +831,8 @@ static const char *aif2tx_text[] = {
 	"DSP2", "DSP1", "AIF1"
 };
 
-static const struct soc_enum aif2tx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 6, 3, aif2tx_text);
+static SOC_ENUM_SINGLE_DECL(aif2tx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 6, aif2tx_text);
 
 static const struct snd_kcontrol_new aif2tx =
 	SOC_DAPM_ENUM("AIF2TX", aif2tx_enum);
@@ -840,14 +841,14 @@ static const char *inmux_text[] = {
 	"ADC", "DMIC1", "DMIC2"
 };
 
-static const struct soc_enum in1_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_7, 0, 3, inmux_text);
+static SOC_ENUM_SINGLE_DECL(in1_enum,
+			    WM8996_POWER_MANAGEMENT_7, 0, inmux_text);
 
 static const struct snd_kcontrol_new in1_mux =
 	SOC_DAPM_ENUM("IN1 Mux", in1_enum);
 
-static const struct soc_enum in2_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_7, 4, 3, inmux_text);
+static SOC_ENUM_SINGLE_DECL(in2_enum,
+			    WM8996_POWER_MANAGEMENT_7, 4, inmux_text);
 
 static const struct snd_kcontrol_new in2_mux =
 	SOC_DAPM_ENUM("IN2 Mux", in2_enum);
@@ -1590,7 +1591,7 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8996->supplies),
 						    wm8996->supplies);
 			if (ret != 0) {
@@ -1606,8 +1607,8 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 				msleep(5);
 			}
 
-			regcache_cache_only(codec->control_data, false);
-			regcache_sync(codec->control_data);
+			regcache_cache_only(wm8996->regmap, false);
+			regcache_sync(wm8996->regmap);
 		}
 
 		/* Bypass the MICBIASes for lowest power */
@@ -1618,17 +1619,15 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(codec->control_data, true);
+		regcache_cache_only(wm8996->regmap, true);
 		if (wm8996->pdata.ldo_ena >= 0) {
 			gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
-			regcache_cache_only(codec->control_data, true);
+			regcache_cache_only(wm8996->regmap, true);
 		}
 		regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies),
 				       wm8996->supplies);
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1656,7 +1655,7 @@ static int wm8996_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrclk_rx_reg = WM8996_AIF2_RX_LRCLK_2;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -1768,7 +1767,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 		dsp_shift = WM8996_DSP2_DIV_SHIFT;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -1782,7 +1781,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 	wm8996->rx_rate[dai->id] = params_rate(params);
 
 	/* Needs looking at for TDM */
-	bits = snd_pcm_format_width(params_format(params));
+	bits = params_width(params);
 	if (bits < 0)
 		return bits;
 	aifdata |= (bits << WM8996_AIF1TX_WL_SHIFT) | bits;
@@ -2009,7 +2008,7 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct _fll_div fll_div;
-	unsigned long timeout;
+	unsigned long timeout, time_left;
 	int ret, reg, retry;
 
 	/* Any change? */
@@ -2110,13 +2109,15 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	if (i2c->irq)
 		timeout *= 10;
 	else
-		timeout /= 2;
+		/* ensure timeout of atleast 1 jiffies */
+		timeout = timeout/2 ? : 1;
 
 	for (retry = 0; retry < 10; retry++) {
-		ret = wait_for_completion_timeout(&wm8996->fll_lock,
-						  timeout);
-		if (ret != 0) {
+		time_left = wait_for_completion_timeout(&wm8996->fll_lock,
+							timeout);
+		if (time_left != 0) {
 			WARN_ON(!i2c->irq);
+			ret = 1;
 			break;
 		}
 
@@ -2139,14 +2140,9 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 }
 
 #ifdef CONFIG_GPIOLIB
-static inline struct wm8996_priv *gpio_to_wm8996(struct gpio_chip *chip)
-{
-	return container_of(chip, struct wm8996_priv, gpio_chip);
-}
-
 static void wm8996_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct wm8996_priv *wm8996 = gpio_to_wm8996(chip);
+	struct wm8996_priv *wm8996 = gpiochip_get_data(chip);
 
 	regmap_update_bits(wm8996->regmap, WM8996_GPIO_1 + offset,
 			   WM8996_GP1_LVL, !!value << WM8996_GP1_LVL_SHIFT);
@@ -2155,7 +2151,7 @@ static void wm8996_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int wm8996_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	struct wm8996_priv *wm8996 = gpio_to_wm8996(chip);
+	struct wm8996_priv *wm8996 = gpiochip_get_data(chip);
 	int val;
 
 	val = (1 << WM8996_GP1_FN_SHIFT) | (!!value << WM8996_GP1_LVL_SHIFT);
@@ -2167,7 +2163,7 @@ static int wm8996_gpio_direction_out(struct gpio_chip *chip,
 
 static int wm8996_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct wm8996_priv *wm8996 = gpio_to_wm8996(chip);
+	struct wm8996_priv *wm8996 = gpiochip_get_data(chip);
 	unsigned int reg;
 	int ret;
 
@@ -2180,7 +2176,7 @@ static int wm8996_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static int wm8996_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct wm8996_priv *wm8996 = gpio_to_wm8996(chip);
+	struct wm8996_priv *wm8996 = gpiochip_get_data(chip);
 
 	return regmap_update_bits(wm8996->regmap, WM8996_GPIO_1 + offset,
 				  WM8996_GP1_FN_MASK | WM8996_GP1_DIR,
@@ -2188,7 +2184,7 @@ static int wm8996_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 				  (1 << WM8996_GP1_DIR_SHIFT));
 }
 
-static struct gpio_chip wm8996_template_chip = {
+static const struct gpio_chip wm8996_template_chip = {
 	.label			= "wm8996",
 	.owner			= THIS_MODULE,
 	.direction_output	= wm8996_gpio_direction_out,
@@ -2204,25 +2200,21 @@ static void wm8996_init_gpio(struct wm8996_priv *wm8996)
 
 	wm8996->gpio_chip = wm8996_template_chip;
 	wm8996->gpio_chip.ngpio = 5;
-	wm8996->gpio_chip.dev = wm8996->dev;
+	wm8996->gpio_chip.parent = wm8996->dev;
 
 	if (wm8996->pdata.gpio_base)
 		wm8996->gpio_chip.base = wm8996->pdata.gpio_base;
 	else
 		wm8996->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&wm8996->gpio_chip);
+	ret = gpiochip_add_data(&wm8996->gpio_chip, wm8996);
 	if (ret != 0)
 		dev_err(wm8996->dev, "Failed to add GPIOs: %d\n", ret);
 }
 
 static void wm8996_free_gpio(struct wm8996_priv *wm8996)
 {
-	int ret;
-
-	ret = gpiochip_remove(&wm8996->gpio_chip);
-	if (ret != 0)
-		dev_err(wm8996->dev, "Failed to remove GPIOs: %d\n", ret);
+	gpiochip_remove(&wm8996->gpio_chip);
 }
 #else
 static void wm8996_init_gpio(struct wm8996_priv *wm8996)
@@ -2249,6 +2241,7 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		  wm8996_polarity_fn polarity_cb)
 {
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	wm8996->jack = jack;
 	wm8996->detecting = true;
@@ -2265,8 +2258,12 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 			    WM8996_MICB2_DISCH, 0);
 
 	/* LDO2 powers the microphones, SYSCLK clocks detection */
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
+	snd_soc_dapm_mutex_lock(dapm);
+
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "LDO2");
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "SYSCLK");
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	/* We start off just enabling microphone detection - even a
 	 * plain headphone will trigger detection.
@@ -2289,6 +2286,7 @@ EXPORT_SYMBOL_GPL(wm8996_detect);
 
 static void wm8996_hpdet_irq(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	int val, reg, report;
 
@@ -2342,12 +2340,14 @@ out:
 	snd_soc_update_bits(codec, WM8996_MIC_DETECT_1, WM8996_MICD_ENA,
 			    WM8996_MICD_ENA);
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "Bandgap");
-	snd_soc_dapm_sync(&codec->dapm);
+	snd_soc_dapm_disable_pin(dapm, "Bandgap");
+	snd_soc_dapm_sync(dapm);
 }
 
 static void wm8996_hpdet_start(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+
 	/* Unclamp the output, we can't measure while we're shorting it */
 	snd_soc_update_bits(codec, WM8996_ANALOGUE_HP_1,
 			    WM8996_HPOUT1L_RMV_SHORT |
@@ -2356,8 +2356,8 @@ static void wm8996_hpdet_start(struct snd_soc_codec *codec)
 			    WM8996_HPOUT1R_RMV_SHORT);
 
 	/* We need bandgap for HPDET */
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "Bandgap");
-	snd_soc_dapm_sync(&codec->dapm);
+	snd_soc_dapm_force_enable_pin(dapm, "Bandgap");
+	snd_soc_dapm_sync(dapm);
 
 	/* Go into headphone detect left mode */
 	snd_soc_update_bits(codec, WM8996_MIC_DETECT_1, WM8996_MICD_ENA, 0);
@@ -2593,7 +2593,7 @@ static void wm8996_retune_mobile_pdata(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Allocated %d unique ReTune Mobile names\n",
 		wm8996->num_retune_mobile_texts);
 
-	wm8996->retune_mobile_enum.max = wm8996->num_retune_mobile_texts;
+	wm8996->retune_mobile_enum.items = wm8996->num_retune_mobile_texts;
 	wm8996->retune_mobile_enum.texts = wm8996->retune_mobile_texts;
 
 	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
@@ -2625,14 +2625,6 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 
 	init_completion(&wm8996->dcs_done);
 	init_completion(&wm8996->fll_lock);
-
-	codec->control_data = wm8996->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
-	}
 
 	if (wm8996->pdata.num_retune_mobile_cfgs)
 		wm8996_retune_mobile_pdata(codec);
@@ -2672,13 +2664,11 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 		} else {
 			dev_err(codec->dev, "Failed to request IRQ: %d\n",
 				ret);
+			return ret;
 		}
 	}
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static int wm8996_remove(struct snd_soc_codec *codec)
@@ -2694,18 +2684,20 @@ static int wm8996_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
 	.probe =	wm8996_probe,
 	.remove =	wm8996_remove,
 	.set_bias_level = wm8996_set_bias_level,
 	.idle_bias_off	= true,
 	.seq_notifier = wm8996_seq_notifier,
-	.controls = wm8996_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8996_snd_controls),
-	.dapm_widgets = wm8996_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8996_dapm_widgets),
-	.dapm_routes = wm8996_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8996_dapm_routes),
+	.component_driver = {
+		.controls		= wm8996_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8996_snd_controls),
+		.dapm_widgets		= wm8996_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8996_dapm_widgets),
+		.dapm_routes		= wm8996_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8996_dapm_routes),
+	},
 	.set_pll = wm8996_set_fll,
 };
 
@@ -3104,7 +3096,6 @@ MODULE_DEVICE_TABLE(i2c, wm8996_i2c_id);
 static struct i2c_driver wm8996_i2c_driver = {
 	.driver = {
 		.name = "wm8996",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8996_i2c_probe,
 	.remove =   wm8996_i2c_remove,

@@ -11,12 +11,14 @@
 #ifndef _ASM_PROCESSOR_H
 #define _ASM_PROCESSOR_H
 
+#include <linux/atomic.h>
 #include <linux/cpumask.h>
 #include <linux/threads.h>
 
 #include <asm/cachectl.h>
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/dsemul.h>
 #include <asm/mipsregs.h>
 #include <asm/prefetch.h>
 
@@ -36,12 +38,6 @@ extern unsigned int vced_count, vcei_count;
  */
 #define HAVE_ARCH_PICK_MMAP_LAYOUT 1
 
-/*
- * A special page (the vdso) is mapped into all processes at the very
- * top of the virtual memory space.
- */
-#define SPECIAL_PAGES_SIZE PAGE_SIZE
-
 #ifdef CONFIG_32BIT
 #ifdef CONFIG_KVM_GUEST
 /* User space process size is limited to 1GB in KVM Guest Mode */
@@ -51,12 +47,10 @@ extern unsigned int vced_count, vcei_count;
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
-#define TASK_SIZE	0x7fff8000UL
+#define TASK_SIZE	0x80000000UL
 #endif
 
-#ifdef __KERNEL__
 #define STACK_TOP_MAX	TASK_SIZE
-#endif
 
 #define TASK_IS_32BIT_ADDR 1
 
@@ -71,13 +65,13 @@ extern unsigned int vced_count, vcei_count;
  * 8192EB ...
  */
 #define TASK_SIZE32	0x7fff8000UL
-#define TASK_SIZE64	0x10000000000UL
-#define TASK_SIZE (test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
-
-#ifdef __KERNEL__
-#define STACK_TOP_MAX	TASK_SIZE64
+#ifdef CONFIG_MIPS_VA_BITS_48
+#define TASK_SIZE64     (0x1UL << ((cpu_data[0].vmbits>48)?48:cpu_data[0].vmbits))
+#else
+#define TASK_SIZE64     0x10000000000UL
 #endif
-
+#define TASK_SIZE (test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
+#define STACK_TOP_MAX	TASK_SIZE64
 
 #define TASK_SIZE_OF(tsk)						\
 	(test_tsk_thread_flag(tsk, TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
@@ -86,7 +80,11 @@ extern unsigned int vced_count, vcei_count;
 
 #endif
 
-#define STACK_TOP	((TASK_SIZE & PAGE_MASK) - SPECIAL_PAGES_SIZE)
+/*
+ * One page above the stack is used for branch delay slot "emulation".
+ * See dsemul.c for details.
+ */
+#define STACK_TOP	((TASK_SIZE & PAGE_MASK) - PAGE_SIZE)
 
 /*
  * This decides where the kernel will search for a free chunk of vm
@@ -97,18 +95,48 @@ extern unsigned int vced_count, vcei_count;
 
 #define NUM_FPU_REGS	32
 
-typedef __u64 fpureg_t;
+#ifdef CONFIG_CPU_HAS_MSA
+# define FPU_REG_WIDTH	128
+#else
+# define FPU_REG_WIDTH	64
+#endif
+
+union fpureg {
+	__u32	val32[FPU_REG_WIDTH / 32];
+	__u64	val64[FPU_REG_WIDTH / 64];
+};
+
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+# define FPR_IDX(width, idx)	(idx)
+#else
+# define FPR_IDX(width, idx)	((idx) ^ ((64 / (width)) - 1))
+#endif
+
+#define BUILD_FPR_ACCESS(width) \
+static inline u##width get_fpr##width(union fpureg *fpr, unsigned idx)	\
+{									\
+	return fpr->val##width[FPR_IDX(width, idx)];			\
+}									\
+									\
+static inline void set_fpr##width(union fpureg *fpr, unsigned idx,	\
+				  u##width val)				\
+{									\
+	fpr->val##width[FPR_IDX(width, idx)] = val;			\
+}
+
+BUILD_FPR_ACCESS(32)
+BUILD_FPR_ACCESS(64)
 
 /*
- * It would be nice to add some more fields for emulator statistics, but there
- * are a number of fixed offsets in offset.h and elsewhere that would have to
- * be recalculated by hand.  So the additional information will be private to
- * the FPU emulator for now.  See asm-mips/fpu_emulator.h.
+ * It would be nice to add some more fields for emulator statistics,
+ * the additional information is private to the FPU emulator for now.
+ * See arch/mips/include/asm/fpu_emulator.h.
  */
 
 struct mips_fpu_struct {
-	fpureg_t	fpr[NUM_FPU_REGS];
+	union fpureg	fpr[NUM_FPU_REGS];
 	unsigned int	fcr31;
+	unsigned int	msacsr;
 };
 
 #define NUM_DSP_REGS   6
@@ -181,6 +209,8 @@ struct octeon_cop2_state {
 	unsigned long	cop2_gfm_poly;
 	/* DMFC2 rt, 0x025A; DMFC2 rt, 0x025B - Pass2 */
 	unsigned long	cop2_gfm_result[2];
+	/* DMFC2 rt, 0x24F, DMFC2 rt, 0x50, OCTEON III */
+	unsigned long	cop2_sha3[2];
 };
 #define COP2_INIT						\
 	.cp2			= {0,},
@@ -208,7 +238,13 @@ typedef struct {
 	unsigned long seg;
 } mm_segment_t;
 
-#define ARCH_MIN_TASKALIGN	8
+#ifdef CONFIG_CPU_HAS_MSA
+# define ARCH_MIN_TASKALIGN	16
+# define FPU_ALIGN		__aligned(16)
+#else
+# define ARCH_MIN_TASKALIGN	8
+# define FPU_ALIGN
+#endif
 
 struct mips_abi;
 
@@ -225,7 +261,13 @@ struct thread_struct {
 	unsigned long cp0_status;
 
 	/* Saved fpu/fpu emulator stuff. */
-	struct mips_fpu_struct fpu;
+	struct mips_fpu_struct fpu FPU_ALIGN;
+	/* Assigned branch delay slot 'emulation' frame */
+	atomic_t bd_emu_frame;
+	/* PC of the branch from a branch delay slot 'emulation' */
+	unsigned long bd_emu_branch_pc;
+	/* PC to continue from following a branch delay slot 'emulation' */
+	unsigned long bd_emu_cont_pc;
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* Emulated instruction count */
 	unsigned long emulated_fp;
@@ -243,6 +285,7 @@ struct thread_struct {
 	unsigned long cp0_badvaddr;	/* Last user fault */
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
 	unsigned long error_code;
+	unsigned long trap_nr;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
 	struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
@@ -284,13 +327,18 @@ struct thread_struct {
 	 * Saved FPU/FPU emulator stuff				\
 	 */							\
 	.fpu			= {				\
-		.fpr		= {0,},				\
+		.fpr		= {{{0,},},},			\
 		.fcr31		= 0,				\
+		.msacsr		= 0,				\
 	},							\
 	/*							\
 	 * FPU affinity state (null if not FPAFF)		\
 	 */							\
 	FPAFF_INIT						\
+	/* Delay slot emulation */				\
+	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_NONE),		\
+	.bd_emu_branch_pc = 0,					\
+	.bd_emu_cont_pc = 0,					\
 	/*							\
 	 * Saved DSP stuff					\
 	 */							\
@@ -308,6 +356,7 @@ struct thread_struct {
 	.cp0_badvaddr		= 0,				\
 	.cp0_baduaddr		= 0,				\
 	.error_code		= 0,				\
+	.trap_nr		= 0,				\
 	/*							\
 	 * Platform specific cop2 registers(null if no COP2)	\
 	 */							\
@@ -325,6 +374,10 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
  * Do necessary setup to start up a newly executed thread.
  */
 extern void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp);
+
+static inline void flush_thread(void)
+{
+}
 
 unsigned long get_wchan(struct task_struct *p);
 
@@ -359,12 +412,17 @@ unsigned long get_wchan(struct task_struct *p);
 #define ARCH_HAS_PREFETCHW
 #define prefetchw(x) __builtin_prefetch((x), 1, 1)
 
-/*
- * See Documentation/scheduler/sched-arch.txt; prevents deadlock on SMP
- * systems.
- */
-#define __ARCH_WANT_UNLOCKED_CTXSW
-
 #endif
+
+/*
+ * Functions & macros implementing the PR_GET_FP_MODE & PR_SET_FP_MODE options
+ * to the prctl syscall.
+ */
+extern int mips_get_process_fp_mode(struct task_struct *task);
+extern int mips_set_process_fp_mode(struct task_struct *task,
+				    unsigned int value);
+
+#define GET_FP_MODE(task)		mips_get_process_fp_mode(task)
+#define SET_FP_MODE(task,value)		mips_set_process_fp_mode(task, value)
 
 #endif /* _ASM_PROCESSOR_H */

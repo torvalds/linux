@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "reiserfs.h"
 #include <linux/init.h>
 #include <linux/proc_fs.h>
@@ -303,11 +303,10 @@ static int show_journal(struct seq_file *m, void *unused)
 	struct reiserfs_sb_info *r = REISERFS_SB(sb);
 	struct reiserfs_super_block *rs = r->s_rs;
 	struct journal_params *jp = &rs->s_v1.s_journal;
-	char b[BDEVNAME_SIZE];
 
 	seq_printf(m,		/* on-disk fields */
 		   "jp_journal_1st_block: \t%i\n"
-		   "jp_journal_dev: \t%s[%x]\n"
+		   "jp_journal_dev: \t%pg[%x]\n"
 		   "jp_journal_size: \t%i\n"
 		   "jp_journal_trans_max: \t%i\n"
 		   "jp_journal_magic: \t%i\n"
@@ -348,7 +347,7 @@ static int show_journal(struct seq_file *m, void *unused)
 		   "prepare: \t%12lu\n"
 		   "prepare_retry: \t%12lu\n",
 		   DJP(jp_journal_1st_block),
-		   bdevname(SB_JOURNAL(sb)->j_dev_bd, b),
+		   SB_JOURNAL(sb)->j_dev_bd,
 		   DJP(jp_journal_dev),
 		   DJP(jp_journal_size),
 		   DJP(jp_journal_trans_max),
@@ -419,7 +418,7 @@ int reiserfs_proc_info_init(struct super_block *sb)
 	char *s;
 
 	/* Some block devices use /'s */
-	strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
+	strlcpy(b, sb->s_id, BDEVNAME_SIZE);
 	s = strchr(b, '/');
 	if (s)
 		*s = '!';
@@ -449,7 +448,7 @@ int reiserfs_proc_info_done(struct super_block *sb)
 		char *s;
 
 		/* Some block devices use /'s */
-		strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
+		strlcpy(b, sb->s_id, BDEVNAME_SIZE);
 		s = strchr(b, '/');
 		if (s)
 			*s = '!';

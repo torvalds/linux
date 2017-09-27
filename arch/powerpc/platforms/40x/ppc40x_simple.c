@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <linux/of_platform.h>
 
-static __initdata struct of_device_id ppc40x_of_bus[] = {
+static const struct of_device_id ppc40x_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb3", },
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
@@ -63,7 +63,7 @@ static const char * const board[] __initconst = {
 
 static int __init ppc40x_probe(void)
 {
-	if (of_flat_dt_match(of_get_flat_dt_root(), board)) {
+	if (of_device_compatible_match(of_root, board)) {
 		pci_set_flags(PCI_REASSIGN_ALL_RSRC);
 		return 1;
 	}

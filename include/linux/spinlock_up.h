@@ -6,6 +6,7 @@
 #endif
 
 #include <asm/processor.h>	/* for cpu_relax() */
+#include <asm/barrier.h>
 
 /*
  * include/linux/spinlock_up.h - UP-debug version of spinlocks.
@@ -78,8 +79,5 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 
 #define arch_read_can_lock(lock)	(((void)(lock), 1))
 #define arch_write_can_lock(lock)	(((void)(lock), 1))
-
-#define arch_spin_unlock_wait(lock) \
-		do { cpu_relax(); } while (arch_spin_is_locked(lock))
 
 #endif /* __LINUX_SPINLOCK_UP_H */

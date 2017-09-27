@@ -11,7 +11,7 @@
 
 Many PCI bus controllers are able to detect a variety of hardware
 PCI errors on the bus, such as parity errors on the data and address
-busses, as well as SERR and PERR errors.  Some of the more advanced
+buses, as well as SERR and PERR errors.  Some of the more advanced
 chipsets are able to deal with these errors; these include PCI-E chipsets,
 and the PCI-host bridges found on IBM Power4, Power5 and Power6-based
 pSeries boxes. A typical action taken is to disconnect the affected device,
@@ -78,7 +78,6 @@ struct pci_error_handlers
 {
 	int (*error_detected)(struct pci_dev *dev, enum pci_channel_state);
 	int (*mmio_enabled)(struct pci_dev *dev);
-	int (*link_reset)(struct pci_dev *dev);
 	int (*slot_reset)(struct pci_dev *dev);
 	void (*resume)(struct pci_dev *dev);
 };
@@ -104,8 +103,7 @@ if it implements any, it must implement error_detected(). If a callback
 is not implemented, the corresponding feature is considered unsupported.
 For example, if mmio_enabled() and resume() aren't there, then it
 is assumed that the driver is not doing any direct recovery and requires
-a slot reset. If link_reset() is not implemented, the card is assumed to
-not care about link resets. Typically a driver will want to know about
+a slot reset.  Typically a driver will want to know about
 a slot_reset().
 
 The actual steps taken by a platform to recover from a PCI error
@@ -175,7 +173,7 @@ is STEP 6 (Permanent Failure).
 >>> a value of 0xff on read, and writes will be dropped. If more than
 >>> EEH_MAX_FAILS I/O's are attempted to a frozen adapter, EEH
 >>> assumes that the device driver has gone into an infinite loop
->>> and prints an error to syslog.  A reboot is then required to 
+>>> and prints an error to syslog.  A reboot is then required to
 >>> get the device working again.
 
 STEP 2: MMIO Enabled
@@ -232,31 +230,15 @@ proceeds to STEP 4 (Slot Reset)
 
 STEP 3: Link Reset
 ------------------
-The platform resets the link, and then calls the link_reset() callback
-on all affected device drivers.  This is a PCI-Express specific state
-and is done whenever a non-fatal error has been detected that can be
-"solved" by resetting the link. This call informs the driver of the
-reset and the driver should check to see if the device appears to be
-in working condition.
-
-The driver is not supposed to restart normal driver I/O operations
-at this point.  It should limit itself to "probing" the device to
-check its recoverability status. If all is right, then the platform
-will call resume() once all drivers have ack'd link_reset().
-
-	Result codes:
-		(identical to STEP 3 (MMIO Enabled)
-
-The platform then proceeds to either STEP 4 (Slot Reset) or STEP 5
-(Resume Operations).
-
->>> The current powerpc implementation does not implement this callback.
+The platform resets the link.  This is a PCI-Express specific step
+and is done whenever a fatal error has been detected that can be
+"solved" by resetting the link.
 
 STEP 4: Slot Reset
 ------------------
 
 In response to a return value of PCI_ERS_RESULT_NEED_RESET, the
-the platform will peform a slot reset on the requesting PCI device(s). 
+the platform will perform a slot reset on the requesting PCI device(s).
 The actual steps taken by a platform to perform a slot reset
 will be platform-dependent. Upon completion of slot reset, the
 platform will call the device slot_reset() callback.
@@ -276,7 +258,7 @@ configuration registers to initialize to their default conditions.
 
 For most PCI devices, a soft reset will be sufficient for recovery.
 Optional fundamental reset is provided to support a limited number
-of PCI Express PCI devices  for which a soft reset is not sufficient
+of PCI Express devices for which a soft reset is not sufficient
 for recovery.
 
 If the platform supports PCI hotplug, then the reset might be
@@ -321,7 +303,7 @@ driver performs device init only from PCI function 0:
 		Same as above.
 
 Drivers for PCI Express cards that require a fundamental reset must
-set the needs_freset bit in the pci_dev structure in their probe function.  
+set the needs_freset bit in the pci_dev structure in their probe function.
 For example, the QLogic qla2xxx driver sets the needs_freset bit for certain
 PCI card types:
 

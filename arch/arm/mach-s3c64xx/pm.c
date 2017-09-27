@@ -22,12 +22,14 @@
 #include <mach/map.h>
 #include <mach/irqs.h>
 
+#include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/wakeup-mask.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
+#include <mach/gpio-samsung.h>
 
 #include "regs-gpio-memport.h"
 #include "regs-modem.h"
@@ -193,30 +195,10 @@ void s3c_pm_debug_smdkled(u32 set, u32 clear)
 }
 #endif
 
+#ifdef CONFIG_PM_SLEEP
 static struct sleep_save core_save[] = {
-	SAVE_ITEM(S3C_APLL_LOCK),
-	SAVE_ITEM(S3C_MPLL_LOCK),
-	SAVE_ITEM(S3C_EPLL_LOCK),
-	SAVE_ITEM(S3C_CLK_SRC),
-	SAVE_ITEM(S3C_CLK_DIV0),
-	SAVE_ITEM(S3C_CLK_DIV1),
-	SAVE_ITEM(S3C_CLK_DIV2),
-	SAVE_ITEM(S3C_CLK_OUT),
-	SAVE_ITEM(S3C_HCLK_GATE),
-	SAVE_ITEM(S3C_PCLK_GATE),
-	SAVE_ITEM(S3C_SCLK_GATE),
-	SAVE_ITEM(S3C_MEM0_GATE),
-
-	SAVE_ITEM(S3C_EPLL_CON1),
-	SAVE_ITEM(S3C_EPLL_CON0),
-
 	SAVE_ITEM(S3C64XX_MEM0DRVCON),
 	SAVE_ITEM(S3C64XX_MEM1DRVCON),
-
-#ifndef CONFIG_CPU_FREQ
-	SAVE_ITEM(S3C_APLL_CON),
-	SAVE_ITEM(S3C_MPLL_CON),
-#endif
 };
 
 static struct sleep_save misc_save[] = {
@@ -258,6 +240,7 @@ void s3c_pm_save_core(void)
 	s3c_pm_do_save(misc_save, ARRAY_SIZE(misc_save));
 	s3c_pm_do_save(core_save, ARRAY_SIZE(core_save));
 }
+#endif
 
 /* since both s3c6400 and s3c6410 share the same sleep pm calls, we
  * put the per-cpu code in here until any new cpu comes along and changes
@@ -302,7 +285,7 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 }
 
 /* mapping of interrupts to parts of the wakeup mask */
-static struct samsung_wakeup_mask wake_irqs[] = {
+static const struct samsung_wakeup_mask wake_irqs[] = {
 	{ .irq = IRQ_RTC_ALARM,	.bit = S3C64XX_PWRCFG_RTC_ALARM_DISABLE, },
 	{ .irq = IRQ_RTC_TIC,	.bit = S3C64XX_PWRCFG_RTC_TICK_DISABLE, },
 	{ .irq = IRQ_PENDN,	.bit = S3C64XX_PWRCFG_TS_DISABLE, },
@@ -321,7 +304,7 @@ static void s3c64xx_pm_prepare(void)
 			      wake_irqs, ARRAY_SIZE(wake_irqs));
 
 	/* store address of resume. */
-	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C64XX_INFORM0);
+	__raw_writel(__pa_symbol(s3c_cpu_resume), S3C64XX_INFORM0);
 
 	/* ensure previous wakeup state is cleared before sleeping */
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT), S3C64XX_WAKEUP_STAT);
@@ -350,9 +333,11 @@ int __init s3c64xx_pm_init(void)
 
 static __init int s3c64xx_pm_initcall(void)
 {
+	if (!soc_is_s3c64xx())
+		return 0;
+
 	pm_cpu_prep = s3c64xx_pm_prepare;
 	pm_cpu_sleep = s3c64xx_cpu_suspend;
-	pm_uart_udivslot = 1;
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
 	gpio_request(S3C64XX_GPN(12), "DEBUG_LED0");
@@ -368,10 +353,3 @@ static __init int s3c64xx_pm_initcall(void)
 	return 0;
 }
 arch_initcall(s3c64xx_pm_initcall);
-
-int __init s3c64xx_pm_late_initcall(void)
-{
-	pm_genpd_poweroff_unused();
-
-	return 0;
-}

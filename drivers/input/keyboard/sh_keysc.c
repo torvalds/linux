@@ -12,7 +12,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
@@ -171,7 +170,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	int i;
 	int irq, error;
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		error = -EINVAL;
 		goto err0;
@@ -198,7 +197,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, priv);
-	memcpy(&priv->pdata, pdev->dev.platform_data, sizeof(priv->pdata));
+	memcpy(&priv->pdata, dev_get_platdata(&pdev->dev), sizeof(priv->pdata));
 	pdata = &priv->pdata;
 
 	priv->iomem_base = ioremap_nocache(res->start, resource_size(res));

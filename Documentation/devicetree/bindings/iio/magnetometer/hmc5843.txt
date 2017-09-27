@@ -1,0 +1,21 @@
+* Honeywell HMC5843 magnetometer sensor
+
+Required properties:
+
+  - compatible : should be "honeywell,hmc5843"
+  Other models which are supported with driver are:
+	"honeywell,hmc5883"
+	"honeywell,hmc5883l"
+	"honeywell,hmc5983"
+  - reg : the I2C address of the magnetometer - typically 0x1e
+
+Optional properties:
+
+  - gpios : should be device tree identifier of the magnetometer DRDY pin
+
+Example:
+
+hmc5843@1e {
+        compatible = "honeywell,hmc5843"
+        reg = <0x1e>;
+};

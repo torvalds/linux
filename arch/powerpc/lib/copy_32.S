@@ -12,6 +12,7 @@
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 #define COPY_16_BYTES		\
 	lwz	r7,4(r4);	\
@@ -48,17 +49,14 @@
 9 ## n ## 1:					\
 	addi	r5,r5,-(16 * n);		\
 	b	105f;				\
-.section __ex_table,"a";			\
-	.align	2;				\
-	.long	8 ## n ## 0b,9 ## n ## 0b;	\
-	.long	8 ## n ## 1b,9 ## n ## 0b;	\
-	.long	8 ## n ## 2b,9 ## n ## 0b;	\
-	.long	8 ## n ## 3b,9 ## n ## 0b;	\
-	.long	8 ## n ## 4b,9 ## n ## 1b;	\
-	.long	8 ## n ## 5b,9 ## n ## 1b;	\
-	.long	8 ## n ## 6b,9 ## n ## 1b;	\
-	.long	8 ## n ## 7b,9 ## n ## 1b;	\
-	.text
+	EX_TABLE(8 ## n ## 0b,9 ## n ## 0b);	\
+	EX_TABLE(8 ## n ## 1b,9 ## n ## 0b);	\
+	EX_TABLE(8 ## n ## 2b,9 ## n ## 0b);	\
+	EX_TABLE(8 ## n ## 3b,9 ## n ## 0b);	\
+	EX_TABLE(8 ## n ## 4b,9 ## n ## 1b);	\
+	EX_TABLE(8 ## n ## 5b,9 ## n ## 1b);	\
+	EX_TABLE(8 ## n ## 6b,9 ## n ## 1b);	\
+	EX_TABLE(8 ## n ## 7b,9 ## n ## 1b)
 
 	.text
 	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
@@ -69,22 +67,49 @@ CACHELINE_BYTES = L1_CACHE_BYTES
 LG_CACHELINE_BYTES = L1_CACHE_SHIFT
 CACHELINE_MASK = (L1_CACHE_BYTES-1)
 
+_GLOBAL(memset16)
+	rlwinm.	r0 ,r5, 31, 1, 31
+	addi	r6, r3, -4
+	beq-	2f
+	rlwimi	r4 ,r4 ,16 ,0 ,15
+	mtctr	r0
+1:	stwu	r4, 4(r6)
+	bdnz	1b
+2:	andi.	r0, r5, 1
+	beqlr
+	sth	r4, 4(r6)
+	blr
+EXPORT_SYMBOL(memset16)
+
 /*
  * Use dcbz on the complete cache lines in the destination
  * to set them to zero.  This requires that the destination
  * area is cacheable.  -- paulus
+ *
+ * During early init, cache might not be active yet, so dcbz cannot be used.
+ * We therefore skip the optimised bloc that uses dcbz. This jump is
+ * replaced by a nop once cache is active. This is done in machine_init()
  */
-_GLOBAL(cacheable_memzero)
-	mr	r5,r4
-	li	r4,0
-	addi	r6,r3,-4
+_GLOBAL(memset)
 	cmplwi	0,r5,4
 	blt	7f
-	stwu	r4,4(r6)
+
+	rlwimi	r4,r4,8,16,23
+	rlwimi	r4,r4,16,0,15
+
+	stw	r4,0(r3)
 	beqlr
-	andi.	r0,r6,3
+	andi.	r0,r3,3
 	add	r5,r0,r5
-	subf	r6,r0,r6
+	subf	r6,r0,r3
+	cmplwi	0,r4,0
+	/*
+	 * Skip optimised bloc until cache is enabled. Will be replaced
+	 * by 'bne' during boot to use normal procedure if r4 is not zero
+	 */
+_GLOBAL(memset_nocache_branch)
+	b	2f
+
 	clrlwi	r7,r6,32-LG_CACHELINE_BYTES
 	add	r8,r7,r5
 	srwi	r9,r8,LG_CACHELINE_BYTES
@@ -103,13 +128,13 @@ _GLOBAL(cacheable_memzero)
 	bdnz	10b
 	clrlwi	r5,r8,32-LG_CACHELINE_BYTES
 	addi	r5,r5,4
+
 2:	srwi	r0,r5,2
 	mtctr	r0
 	bdz	6f
 1:	stwu	r4,4(r6)
 	bdnz	1b
 6:	andi.	r5,r5,3
-7:	cmpwi	0,r5,0
 	beqlr
 	mtctr	r5
 	addi	r6,r6,3
@@ -117,30 +142,14 @@ _GLOBAL(cacheable_memzero)
 	bdnz	8b
 	blr
 
-_GLOBAL(memset)
-	rlwimi	r4,r4,8,16,23
-	rlwimi	r4,r4,16,0,15
-	addi	r6,r3,-4
-	cmplwi	0,r5,4
-	blt	7f
-	stwu	r4,4(r6)
-	beqlr
-	andi.	r0,r6,3
-	add	r5,r0,r5
-	subf	r6,r0,r6
-	srwi	r0,r5,2
-	mtctr	r0
-	bdz	6f
-1:	stwu	r4,4(r6)
-	bdnz	1b
-6:	andi.	r5,r5,3
 7:	cmpwi	0,r5,0
 	beqlr
 	mtctr	r5
-	addi	r6,r6,3
-8:	stbu	r4,1(r6)
-	bdnz	8b
+	addi	r6,r3,-1
+9:	stbu	r4,1(r6)
+	bdnz	9b
 	blr
+EXPORT_SYMBOL(memset)
 
 /*
  * This version uses dcbz on the complete cache lines in the
@@ -148,14 +157,24 @@ _GLOBAL(memset)
  * the destination area is cacheable.
  * We only use this version if the source and dest don't overlap.
  * -- paulus.
+ *
+ * During early init, cache might not be active yet, so dcbz cannot be used.
+ * We therefore jump to generic_memcpy which doesn't use dcbz. This jump is
+ * replaced by a nop once cache is active. This is done in machine_init()
  */
-_GLOBAL(cacheable_memcpy)
+_GLOBAL(memmove)
+	cmplw	0,r3,r4
+	bgt	backwards_memcpy
+	/* fall through */
+
+_GLOBAL(memcpy)
+	b	generic_memcpy
 	add	r7,r3,r5		/* test if the src & dst overlap */
 	add	r8,r4,r5
 	cmplw	0,r4,r7
 	cmplw	1,r3,r8
 	crand	0,0,4			/* cr0.lt &= cr1.lt */
-	blt	memcpy			/* if regions overlap */
+	blt	generic_memcpy		/* if regions overlap */
 
 	addi	r4,r4,-4
 	addi	r6,r3,-4
@@ -170,9 +189,9 @@ _GLOBAL(cacheable_memcpy)
 	mtctr	r8
 	beq+	61f
 70:	lbz	r9,4(r4)		/* do some bytes */
-	stb	r9,4(r6)
 	addi	r4,r4,1
 	addi	r6,r6,1
+	stb	r9,3(r6)
 	bdnz	70b
 61:	srwi.	r0,r0,2
 	mtctr	r0
@@ -214,19 +233,16 @@ _GLOBAL(cacheable_memcpy)
 64:	andi.	r0,r5,3
 	mtctr	r0
 	beq+	65f
-40:	lbz	r0,4(r4)
-	stb	r0,4(r6)
-	addi	r4,r4,1
-	addi	r6,r6,1
+	addi	r4,r4,3
+	addi	r6,r6,3
+40:	lbzu	r0,1(r4)
+	stbu	r0,1(r6)
 	bdnz	40b
 65:	blr
+EXPORT_SYMBOL(memcpy)
+EXPORT_SYMBOL(memmove)
 
-_GLOBAL(memmove)
-	cmplw	0,r3,r4
-	bgt	backwards_memcpy
-	/* fall through */
-
-_GLOBAL(memcpy)
+generic_memcpy:
 	srwi.	r7,r5,3
 	addi	r6,r3,-4
 	addi	r4,r4,-4
@@ -328,13 +344,10 @@ _GLOBAL(__copy_tofrom_user)
 73:	stwu	r9,4(r6)
 	bdnz	72b
 
-	.section __ex_table,"a"
-	.align	2
-	.long	70b,100f
-	.long	71b,101f
-	.long	72b,102f
-	.long	73b,103f
-	.text
+	EX_TABLE(70b,100f)
+	EX_TABLE(71b,101f)
+	EX_TABLE(72b,102f)
+	EX_TABLE(73b,103f)
 
 58:	srwi.	r0,r5,LG_CACHELINE_BYTES /* # complete cachelines */
 	clrlwi	r5,r5,32-LG_CACHELINE_BYTES
@@ -369,10 +382,7 @@ _GLOBAL(__copy_tofrom_user)
 
 53:	dcbt	r3,r4
 54:	dcbz	r11,r6
-	.section __ex_table,"a"
-	.align	2
-	.long	54b,105f
-	.text
+	EX_TABLE(54b,105f)
 /* the main body of the cacheline loop */
 	COPY_16_BYTES_WITHEX(0)
 #if L1_CACHE_BYTES >= 32
@@ -491,28 +501,13 @@ _GLOBAL(__copy_tofrom_user)
 	bdnz	130b
 /* then clear out the destination: r3 bytes starting at 4(r6) */
 132:	mfctr	r3
-	srwi.	r0,r3,2
-	li	r9,0
-	mtctr	r0
-	beq	113f
-112:	stwu	r9,4(r6)
-	bdnz	112b
-113:	andi.	r0,r3,3
-	mtctr	r0
-	beq	120f
-114:	stb	r9,4(r6)
-	addi	r6,r6,1
-	bdnz	114b
 120:	blr
 
-	.section __ex_table,"a"
-	.align	2
-	.long	30b,108b
-	.long	31b,109b
-	.long	40b,110b
-	.long	41b,111b
-	.long	130b,132b
-	.long	131b,120b
-	.long	112b,120b
-	.long	114b,120b
-	.text
+	EX_TABLE(30b,108b)
+	EX_TABLE(31b,109b)
+	EX_TABLE(40b,110b)
+	EX_TABLE(41b,111b)
+	EX_TABLE(130b,132b)
+	EX_TABLE(131b,120b)
+
+EXPORT_SYMBOL(__copy_tofrom_user)

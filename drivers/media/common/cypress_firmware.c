@@ -1,6 +1,6 @@
 /*  cypress_firmware.c is part of the DVB USB library.
  *
- * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
  * see dvb-usb-init.c for copyright information.
  *
  * This file contains functions for downloading the firmware to Cypress FX 1

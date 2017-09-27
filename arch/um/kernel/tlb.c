@@ -5,13 +5,15 @@
 
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <as-layout.h>
 #include <mem_user.h>
 #include <os.h>
 #include <skas.h>
+#include <kern_util.h>
 
 struct host_vm_change {
 	struct host_vm_op {
@@ -49,6 +51,13 @@ struct host_vm_change {
 	   .index	= 0, \
 	   .force	= force })
 
+static void report_enomem(void)
+{
+	printk(KERN_ERR "UML ran out of memory on the host side! "
+			"This can happen due to a memory limitation or "
+			"vm.max_map_count has been reached.\n");
+}
+
 static int do_ops(struct host_vm_change *hvc, int end,
 		  int finished)
 {
@@ -79,6 +88,9 @@ static int do_ops(struct host_vm_change *hvc, int end,
 			break;
 		}
 	}
+
+	if (ret == -ENOMEM)
+		report_enomem();
 
 	return ret;
 }
@@ -123,6 +135,9 @@ static int add_munmap(unsigned long addr, unsigned long len,
 {
 	struct host_vm_op *last;
 	int ret = 0;
+
+	if ((addr >= STUB_START) && (addr < STUB_END))
+		return -EINVAL;
 
 	if (hvc->index != 0) {
 		last = &hvc->ops[hvc->index - 1];
@@ -283,8 +298,11 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 	/* This is not an else because ret is modified above */
 	if (ret) {
 		printk(KERN_ERR "fix_range_common: failed, killing current "
-		       "process\n");
+		       "process: %d\n", task_tgid_vnr(current));
+		/* We are under mmap_sem, release it such that current can terminate */
+		up_write(&current->mm->mmap_sem);
 		force_sig(SIGKILL, current);
+		do_signal(&current->thread.regs);
 	}
 }
 
@@ -426,8 +444,12 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 	else if (pte_newprot(*pte))
 		err = protect(mm_id, address, PAGE_SIZE, prot, 1, &flush);
 
-	if (err)
+	if (err) {
+		if (err == -ENOMEM)
+			report_enomem();
+
 		goto kill;
+	}
 
 	*pte = pte_mkuptodate(*pte);
 

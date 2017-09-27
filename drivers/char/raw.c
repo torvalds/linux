@@ -12,6 +12,7 @@
 #include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/module.h>
 #include <linux/raw.h>
 #include <linux/capability.h>
@@ -23,7 +24,7 @@
 #include <linux/compat.h>
 #include <linux/vmalloc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct raw_device_data {
 	struct block_device *binding;
@@ -70,7 +71,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 	err = -ENODEV;
 	if (!bdev)
 		goto out;
-	igrab(bdev->bd_inode);
+	bdgrab(bdev);
 	err = blkdev_get(bdev, filp->f_mode | FMODE_EXCL, raw_open);
 	if (err)
 		goto out;
@@ -104,11 +105,9 @@ static int raw_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&raw_mutex);
 	bdev = raw_devices[minor].binding;
-	if (--raw_devices[minor].inuse == 0) {
+	if (--raw_devices[minor].inuse == 0)
 		/* Here  inode->i_mapping == bdev->bd_inode->i_mapping  */
 		inode->i_mapping = &inode->i_data;
-		inode->i_mapping->backing_dev_info = &default_backing_dev_info;
-	}
 	mutex_unlock(&raw_mutex);
 
 	blkdev_put(bdev, filp->f_mode | FMODE_EXCL);
@@ -190,7 +189,7 @@ static int bind_get(int number, dev_t *dev)
 	struct raw_device_data *rawdev;
 	struct block_device *bdev;
 
-	if (number <= 0 || number >= MAX_RAW_MINORS)
+	if (number <= 0 || number >= max_raw_minors)
 		return -EINVAL;
 
 	rawdev = &raw_devices[number];
@@ -284,10 +283,8 @@ static long raw_ctl_compat_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 static const struct file_operations raw_fops = {
-	.read		= do_sync_read,
-	.aio_read	= generic_file_aio_read,
-	.write		= do_sync_write,
-	.aio_write	= blkdev_aio_write,
+	.read_iter	= blkdev_read_iter,
+	.write_iter	= blkdev_write_iter,
 	.fsync		= blkdev_fsync,
 	.open		= raw_open,
 	.release	= raw_release,
@@ -337,10 +334,8 @@ static int __init raw_init(void)
 
 	cdev_init(&raw_cdev, &raw_fops);
 	ret = cdev_add(&raw_cdev, dev, max_raw_minors);
-	if (ret) {
+	if (ret)
 		goto error_region;
-	}
-
 	raw_class = class_create(THIS_MODULE, "raw");
 	if (IS_ERR(raw_class)) {
 		printk(KERN_ERR "Error creating raw class.\n");

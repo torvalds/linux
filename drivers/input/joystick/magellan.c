@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 
 #define DRIVER_DESC	"Magellan and SpaceMouse 6dof controller driver"
 
@@ -199,7 +198,7 @@ static int magellan_connect(struct serio *serio, struct serio_driver *drv)
  * The serio driver structure.
  */
 
-static struct serio_device_id magellan_serio_ids[] = {
+static const struct serio_device_id magellan_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_MAGELLAN,

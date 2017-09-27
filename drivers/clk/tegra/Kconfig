@@ -1,0 +1,7 @@
+config TEGRA_CLK_EMC
+	def_bool y
+	depends on TEGRA124_EMC
+
+config CLK_TEGRA_BPMP
+	def_bool y
+	depends on TEGRA_BPMP

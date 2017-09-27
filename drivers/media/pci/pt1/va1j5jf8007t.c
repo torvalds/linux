@@ -15,10 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -98,7 +94,7 @@ static int va1j5jf8007t_get_frontend_algo(struct dvb_frontend *fe)
 }
 
 static int
-va1j5jf8007t_read_status(struct dvb_frontend *fe, fe_status_t *status)
+va1j5jf8007t_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct va1j5jf8007t_state *state;
 
@@ -266,7 +262,7 @@ static int
 va1j5jf8007t_tune(struct dvb_frontend *fe,
 		  bool re_tune,
 		  unsigned int mode_flags,  unsigned int *delay,
-		  fe_status_t *status)
+		  enum fe_status *status)
 {
 	struct va1j5jf8007t_state *state;
 	int ret;
@@ -427,7 +423,7 @@ static void va1j5jf8007t_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops va1j5jf8007t_ops = {
+static const struct dvb_frontend_ops va1j5jf8007t_ops = {
 	.delsys = { SYS_ISDBT },
 	.info = {
 		.name = "VA1J5JF8007/VA1J5JF8011 ISDB-T",

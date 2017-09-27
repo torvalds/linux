@@ -130,7 +130,7 @@
 
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
@@ -353,7 +353,7 @@ static int probe_eisa_isa = 0;
 static int force_dma32 = 0;
 
 /* parameters for modprobe/insmod */
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param(disable, int, 0);
 module_param(reserve_mode, int, 0);
 module_param_array(reserve_list, int, NULL, 0);
@@ -593,8 +593,6 @@ static struct pci_driver gdth_pci_driver = {
 static void gdth_pci_remove_one(struct pci_dev *pdev)
 {
 	gdth_ha_str *ha = pci_get_drvdata(pdev);
-
-	pci_set_drvdata(pdev, NULL);
 
 	list_del(&ha->list);
 	gdth_remove_one(ha);
@@ -2161,7 +2159,7 @@ static void gdth_next(gdth_ha_str *ha)
               case VERIFY:
               case START_STOP:
               case MODE_SENSE:
-              case SERVICE_ACTION_IN:
+              case SERVICE_ACTION_IN_16:
                 TRACE(("cache cmd %x/%x/%x/%x/%x/%x\n",nscp->cmnd[0],
                        nscp->cmnd[1],nscp->cmnd[2],nscp->cmnd[3],
                        nscp->cmnd[4],nscp->cmnd[5]));
@@ -2356,7 +2354,7 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, Scsi_Cmnd *scp)
         inq.resp_aenc = 2;
         inq.add_length= 32;
         strcpy(inq.vendor,ha->oem_name);
-        sprintf(inq.product,"Host Drive  #%02d",t);
+        snprintf(inq.product, sizeof(inq.product), "Host Drive  #%02d",t);
         strcpy(inq.revision,"   ");
         gdth_copy_internal_data(ha, scp, (char*)&inq, sizeof(gdth_inq_data));
         break;
@@ -2393,7 +2391,7 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, Scsi_Cmnd *scp)
         gdth_copy_internal_data(ha, scp, (char*)&rdc, sizeof(gdth_rdcap_data));
         break;
 
-      case SERVICE_ACTION_IN:
+      case SERVICE_ACTION_IN_16:
         if ((scp->cmnd[1] & 0x1f) == SAI_READ_CAPACITY_16 &&
             (ha->cache_feat & GDT_64BIT)) {
             gdth_rdcap16_data rdc16;
@@ -2840,7 +2838,6 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
                                       u16 idx, gdth_evt_data *evt)
 {
     gdth_evt_str *e;
-    struct timeval tv;
 
     /* no GDTH_LOCK_HA() ! */
     TRACE2(("gdth_store_event() source %d idx %d\n", source, idx));
@@ -2856,8 +2853,7 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
             !strcmp((char *)&ebuffer[elastidx].event_data.event_string,
             (char *)&evt->event_string)))) { 
         e = &ebuffer[elastidx];
-        do_gettimeofday(&tv);
-        e->last_stamp = tv.tv_sec;
+	e->last_stamp = (u32)ktime_get_real_seconds();
         ++e->same_count;
     } else {
         if (ebuffer[elastidx].event_source != 0) {  /* entry not free ? */
@@ -2873,8 +2869,7 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
         e = &ebuffer[elastidx];
         e->event_source = source;
         e->event_idx = idx;
-        do_gettimeofday(&tv);
-        e->first_stamp = e->last_stamp = tv.tv_sec;
+	e->first_stamp = e->last_stamp = (u32)ktime_get_real_seconds();
         e->same_count = 1;
         e->event_data = *evt;
         e->application = 0;
@@ -4663,7 +4658,6 @@ static void gdth_flush(gdth_ha_str *ha)
 /* configure lun */
 static int gdth_slave_configure(struct scsi_device *sdev)
 {
-    scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
     sdev->skip_ms_page_3f = 1;
     sdev->skip_ms_page_8 = 1;
     return 0;
@@ -4686,6 +4680,7 @@ static struct scsi_host_template gdth_template = {
         .cmd_per_lun            = GDTH_MAXC_P_L,
         .unchecked_isa_dma      = 1,
         .use_clustering         = ENABLE_CLUSTERING,
+	.no_write_same		= 1,
 };
 
 #ifdef CONFIG_ISA
@@ -4712,7 +4707,7 @@ static int __init gdth_isa_probe_one(u32 isa_bios)
 	printk("Configuring GDT-ISA HA at BIOS 0x%05X IRQ %u DRQ %u\n",
 		isa_bios, ha->irq, ha->drq);
 
-	error = request_irq(ha->irq, gdth_interrupt, IRQF_DISABLED, "gdth", ha);
+	error = request_irq(ha->irq, gdth_interrupt, 0, "gdth", ha);
 	if (error) {
 		printk("GDT-ISA: Unable to allocate IRQ\n");
 		goto out_host_put;
@@ -4844,7 +4839,7 @@ static int __init gdth_eisa_probe_one(u16 eisa_slot)
 	printk("Configuring GDT-EISA HA at Slot %d IRQ %u\n",
 		eisa_slot >> 12, ha->irq);
 
-	error = request_irq(ha->irq, gdth_interrupt, IRQF_DISABLED, "gdth", ha);
+	error = request_irq(ha->irq, gdth_interrupt, 0, "gdth", ha);
 	if (error) {
 		printk("GDT-EISA: Unable to allocate IRQ\n");
 		goto out_host_put;
@@ -4980,7 +4975,7 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 		ha->irq);
 
 	error = request_irq(ha->irq, gdth_interrupt,
-				IRQF_DISABLED|IRQF_SHARED, "gdth", ha);
+				IRQF_SHARED, "gdth", ha);
 	if (error) {
 		printk("GDT-PCI: Unable to allocate IRQ\n");
 		goto out_host_put;

@@ -57,7 +57,7 @@ Note: To get the ACPI debug object output (Store (AAAA, Debug)),
 3. undo your changes
    The "undo" operation is not supported for a new inserted method
    right now, i.e. we can not remove a method currently.
-   For an overrided method, in order to undo your changes, please
+   For an overridden method, in order to undo your changes, please
    save a copy of the method original ASL code in step c) section 1,
    and redo step c) ~ g) to override the method with the original one.
 

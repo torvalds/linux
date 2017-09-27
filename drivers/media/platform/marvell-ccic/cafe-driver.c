@@ -326,7 +326,7 @@ static u32 cafe_smbus_func(struct i2c_adapter *adapter)
 	       I2C_FUNC_SMBUS_WRITE_BYTE_DATA;
 }
 
-static struct i2c_algorithm cafe_smbus_algo = {
+static const struct i2c_algorithm cafe_smbus_algo = {
 	.smbus_xfer = cafe_smbus_xfer,
 	.functionality = cafe_smbus_func
 };
@@ -339,17 +339,21 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (adap == NULL)
 		return -ENOMEM;
-	cam->mcam.i2c_adapter = adap;
-	cafe_smbus_enable_irq(cam);
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
 	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, cam);
 	ret = i2c_add_adapter(adap);
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR "Unable to register cafe i2c adapter\n");
-	return ret;
+		kfree(adap);
+		return ret;
+	}
+
+	cam->mcam.i2c_adapter = adap;
+	cafe_smbus_enable_irq(cam);
+	return 0;
 }
 
 static void cafe_smbus_shutdown(struct cafe_camera *cam)
@@ -399,7 +403,7 @@ static void cafe_ctlr_init(struct mcam_camera *mcam)
 }
 
 
-static void cafe_ctlr_power_up(struct mcam_camera *mcam)
+static int cafe_ctlr_power_up(struct mcam_camera *mcam)
 {
 	/*
 	 * Part one of the sensor dance: turn the global
@@ -414,6 +418,8 @@ static void cafe_ctlr_power_up(struct mcam_camera *mcam)
 	 */
 	mcam_reg_write(mcam, REG_GPR, GPR_C1EN|GPR_C0EN); /* pwr up, reset */
 	mcam_reg_write(mcam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
+
+	return 0;
 }
 
 static void cafe_ctlr_power_down(struct mcam_camera *mcam)
@@ -474,6 +480,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	mcam->plat_power_up = cafe_ctlr_power_up;
 	mcam->plat_power_down = cafe_ctlr_power_down;
 	mcam->dev = &pdev->dev;
+	snprintf(mcam->bus_info, sizeof(mcam->bus_info), "PCI:%s", pci_name(pdev));
 	/*
 	 * Set the clock speed for the XO 1; I don't believe this
 	 * driver has ever run anywhere else.
@@ -605,7 +612,7 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 
 #endif  /* CONFIG_PM */
 
-static struct pci_device_id cafe_ids[] = {
+static const struct pci_device_id cafe_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL,
 		     PCI_DEVICE_ID_MARVELL_88ALP01_CCIC) },
 	{ 0, }

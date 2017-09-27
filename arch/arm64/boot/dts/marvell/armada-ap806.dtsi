@@ -1,0 +1,279 @@
+/*
+ * Copyright (C) 2016 Marvell Technology Group Ltd.
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPLv2 or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/*
+ * Device Tree file for Marvell Armada AP806.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/dts-v1/;
+
+/ {
+	model = "Marvell Armada AP806";
+	compatible = "marvell,armada-ap806";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		gpio0 = &ap_gpio;
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	ap806 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		config-space@f0000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0x0 0x0 0xf0000000 0x1000000>;
+
+			gic: interrupt-controller@210000 {
+				compatible = "arm,gic-400";
+				#interrupt-cells = <3>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+				interrupt-controller;
+				interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+				reg = <0x210000 0x10000>,
+				      <0x220000 0x20000>,
+				      <0x240000 0x20000>,
+				      <0x260000 0x20000>;
+
+				gic_v2m0: v2m@280000 {
+					compatible = "arm,gic-v2m-frame";
+					msi-controller;
+					reg = <0x280000 0x1000>;
+					arm,msi-base-spi = <160>;
+					arm,msi-num-spis = <32>;
+				};
+				gic_v2m1: v2m@290000 {
+					compatible = "arm,gic-v2m-frame";
+					msi-controller;
+					reg = <0x290000 0x1000>;
+					arm,msi-base-spi = <192>;
+					arm,msi-num-spis = <32>;
+				};
+				gic_v2m2: v2m@2a0000 {
+					compatible = "arm,gic-v2m-frame";
+					msi-controller;
+					reg = <0x2a0000 0x1000>;
+					arm,msi-base-spi = <224>;
+					arm,msi-num-spis = <32>;
+				};
+				gic_v2m3: v2m@2b0000 {
+					compatible = "arm,gic-v2m-frame";
+					msi-controller;
+					reg = <0x2b0000 0x1000>;
+					arm,msi-base-spi = <256>;
+					arm,msi-num-spis = <32>;
+				};
+			};
+
+			timer {
+				compatible = "arm,armv8-timer";
+				interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+					     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+					     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+					     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+			};
+
+			pmu {
+				compatible = "arm,cortex-a72-pmu";
+				interrupt-parent = <&pic>;
+				interrupts = <17>;
+			};
+
+			odmi: odmi@300000 {
+				compatible = "marvell,odmi-controller";
+				interrupt-controller;
+				msi-controller;
+				marvell,odmi-frames = <4>;
+				reg = <0x300000 0x4000>,
+				      <0x304000 0x4000>,
+				      <0x308000 0x4000>,
+				      <0x30C000 0x4000>;
+				marvell,spi-base = <128>, <136>, <144>, <152>;
+			};
+
+			gicp: gicp@3f0040 {
+				compatible = "marvell,ap806-gicp";
+				reg = <0x3f0040 0x10>;
+				marvell,spi-ranges = <64 64>, <288 64>;
+				msi-controller;
+			};
+
+			pic: interrupt-controller@3f0100 {
+				compatible = "marvell,armada-8k-pic";
+				reg = <0x3f0100 0x10>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			xor@400000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x400000 0x1000>,
+				      <0x410000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
+				dma-coherent;
+			};
+
+			xor@420000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x420000 0x1000>,
+				      <0x430000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
+				dma-coherent;
+			};
+
+			xor@440000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x440000 0x1000>,
+				      <0x450000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
+				dma-coherent;
+			};
+
+			xor@460000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x460000 0x1000>,
+				      <0x470000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
+				dma-coherent;
+			};
+
+			spi0: spi@510600 {
+				compatible = "marvell,armada-380-spi";
+				reg = <0x510600 0x50>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <0>;
+				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&ap_clk 3>;
+				status = "disabled";
+			};
+
+			i2c0: i2c@511000 {
+				compatible = "marvell,mv78230-i2c";
+				reg = <0x511000 0x20>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				timeout-ms = <1000>;
+				clocks = <&ap_clk 3>;
+				status = "disabled";
+			};
+
+			uart0: serial@512000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x512000 0x100>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+				reg-io-width = <1>;
+				clocks = <&ap_clk 3>;
+				status = "disabled";
+			};
+
+			uart1: serial@512100 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x512100 0x100>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+				reg-io-width = <1>;
+				clocks = <&ap_clk 3>;
+				status = "disabled";
+
+			};
+
+			ap_sdhci0: sdhci@6e0000 {
+				compatible = "marvell,armada-ap806-sdhci";
+				reg = <0x6e0000 0x300>;
+				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "core";
+				clocks = <&ap_clk 4>;
+				dma-coherent;
+				marvell,xenon-phy-slow-mode;
+				status = "disabled";
+			};
+
+			ap_syscon: system-controller@6f4000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x6f4000 0x1000>;
+
+				ap_clk: clock {
+					compatible = "marvell,ap806-clock";
+					#clock-cells = <1>;
+				};
+
+				ap_pinctrl: pinctrl {
+					compatible = "marvell,ap806-pinctrl";
+				};
+
+				ap_gpio: gpio {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x1040>;
+					ngpios = <20>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&ap_pinctrl 0 0 20>;
+				};
+			};
+		};
+	};
+};

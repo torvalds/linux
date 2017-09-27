@@ -1,11 +1,12 @@
 /*
- * arch/xtensa/kernel/stacktrace.c
+ * Kernel and userspace stack tracing.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
  * Copyright (C) 2001 - 2013 Tensilica Inc.
+ * Copyright (C) 2015 Cadence Design Systems Inc.
  */
 #include <linux/export.h>
 #include <linux/sched.h>
@@ -13,6 +14,151 @@
 
 #include <asm/stacktrace.h>
 #include <asm/traps.h>
+#include <linux/uaccess.h>
+
+#if IS_ENABLED(CONFIG_OPROFILE) || IS_ENABLED(CONFIG_PERF_EVENTS)
+
+/* Address of common_exception_return, used to check the
+ * transition from kernel to user space.
+ */
+extern int common_exception_return;
+
+void xtensa_backtrace_user(struct pt_regs *regs, unsigned int depth,
+			   int (*ufn)(struct stackframe *frame, void *data),
+			   void *data)
+{
+	unsigned long windowstart = regs->windowstart;
+	unsigned long windowbase = regs->windowbase;
+	unsigned long a0 = regs->areg[0];
+	unsigned long a1 = regs->areg[1];
+	unsigned long pc = regs->pc;
+	struct stackframe frame;
+	int index;
+
+	if (!depth--)
+		return;
+
+	frame.pc = pc;
+	frame.sp = a1;
+
+	if (pc == 0 || pc >= TASK_SIZE || ufn(&frame, data))
+		return;
+
+	/* Two steps:
+	 *
+	 * 1. Look through the register window for the
+	 * previous PCs in the call trace.
+	 *
+	 * 2. Look on the stack.
+	 */
+
+	/* Step 1.  */
+	/* Rotate WINDOWSTART to move the bit corresponding to
+	 * the current window to the bit #0.
+	 */
+	windowstart = (windowstart << WSBITS | windowstart) >> windowbase;
+
+	/* Look for bits that are set, they correspond to
+	 * valid windows.
+	 */
+	for (index = WSBITS - 1; (index > 0) && depth; depth--, index--)
+		if (windowstart & (1 << index)) {
+			/* Get the PC from a0 and a1. */
+			pc = MAKE_PC_FROM_RA(a0, pc);
+			/* Read a0 and a1 from the
+			 * corresponding position in AREGs.
+			 */
+			a0 = regs->areg[index * 4];
+			a1 = regs->areg[index * 4 + 1];
+
+			frame.pc = pc;
+			frame.sp = a1;
+
+			if (pc == 0 || pc >= TASK_SIZE || ufn(&frame, data))
+				return;
+		}
+
+	/* Step 2. */
+	/* We are done with the register window, we need to
+	 * look through the stack.
+	 */
+	if (!depth)
+		return;
+
+	/* Start from the a1 register. */
+	/* a1 = regs->areg[1]; */
+	while (a0 != 0 && depth--) {
+		pc = MAKE_PC_FROM_RA(a0, pc);
+
+		/* Check if the region is OK to access. */
+		if (!access_ok(VERIFY_READ, &SPILL_SLOT(a1, 0), 8))
+			return;
+		/* Copy a1, a0 from user space stack frame. */
+		if (__get_user(a0, &SPILL_SLOT(a1, 0)) ||
+		    __get_user(a1, &SPILL_SLOT(a1, 1)))
+			return;
+
+		frame.pc = pc;
+		frame.sp = a1;
+
+		if (pc == 0 || pc >= TASK_SIZE || ufn(&frame, data))
+			return;
+	}
+}
+EXPORT_SYMBOL(xtensa_backtrace_user);
+
+void xtensa_backtrace_kernel(struct pt_regs *regs, unsigned int depth,
+			     int (*kfn)(struct stackframe *frame, void *data),
+			     int (*ufn)(struct stackframe *frame, void *data),
+			     void *data)
+{
+	unsigned long pc = regs->depc > VALID_DOUBLE_EXCEPTION_ADDRESS ?
+		regs->depc : regs->pc;
+	unsigned long sp_start, sp_end;
+	unsigned long a0 = regs->areg[0];
+	unsigned long a1 = regs->areg[1];
+
+	sp_start = a1 & ~(THREAD_SIZE - 1);
+	sp_end = sp_start + THREAD_SIZE;
+
+	/* Spill the register window to the stack first. */
+	spill_registers();
+
+	/* Read the stack frames one by one and create the PC
+	 * from the a0 and a1 registers saved there.
+	 */
+	while (a1 > sp_start && a1 < sp_end && depth--) {
+		struct stackframe frame;
+
+		frame.pc = pc;
+		frame.sp = a1;
+
+		if (kernel_text_address(pc) && kfn(&frame, data))
+			return;
+
+		if (pc == (unsigned long)&common_exception_return) {
+			regs = (struct pt_regs *)a1;
+			if (user_mode(regs)) {
+				if (ufn == NULL)
+					return;
+				xtensa_backtrace_user(regs, depth, ufn, data);
+				return;
+			}
+			a0 = regs->areg[0];
+			a1 = regs->areg[1];
+			continue;
+		}
+
+		sp_start = a1;
+
+		pc = MAKE_PC_FROM_RA(a0, pc);
+		a0 = SPILL_SLOT(a1, 0);
+		a1 = SPILL_SLOT(a1, 1);
+	}
+}
+EXPORT_SYMBOL(xtensa_backtrace_kernel);
+
+#endif
 
 void walk_stackframe(unsigned long *sp,
 		int (*fn)(struct stackframe *frame, void *data),
@@ -31,8 +177,8 @@ void walk_stackframe(unsigned long *sp,
 
 		sp = (unsigned long *)a1;
 
-		a0 = *(sp - 4);
-		a1 = *(sp - 3);
+		a0 = SPILL_SLOT(a1, 0);
+		a1 = SPILL_SLOT(a1, 1);
 
 		if (a1 <= (unsigned long)sp)
 			break;

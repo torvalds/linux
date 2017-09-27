@@ -6,7 +6,7 @@
  * GPL v2, can be found in COPYING.
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -778,7 +778,7 @@ static snd_pcm_uframes_t i2sbus_playback_pointer(struct snd_pcm_substream
 	return i2sbus_pcm_pointer(i2sdev, 0);
 }
 
-static struct snd_pcm_ops i2sbus_playback_ops = {
+static const struct snd_pcm_ops i2sbus_playback_ops = {
 	.open =		i2sbus_playback_open,
 	.close =	i2sbus_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -848,7 +848,7 @@ static snd_pcm_uframes_t i2sbus_record_pointer(struct snd_pcm_substream
 	return i2sbus_pcm_pointer(i2sdev, 1);
 }
 
-static struct snd_pcm_ops i2sbus_record_ops = {
+static const struct snd_pcm_ops i2sbus_record_ops = {
 	.open =		i2sbus_record_open,
 	.close =	i2sbus_record_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -968,7 +968,6 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			printk(KERN_DEBUG "i2sbus: failed to create pcm\n");
 			goto out_put_ci_module;
 		}
-		dev->pcm->dev = &dev->ofdev.dev;
 	}
 
 	/* ALSA yet again sucks.
@@ -988,6 +987,8 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				&i2sbus_playback_ops);
+		dev->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].dev.parent =
+			&dev->ofdev.dev;
 		i2sdev->out.created = 1;
 	}
 
@@ -1003,6 +1004,8 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&i2sbus_record_ops);
+		dev->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].dev.parent =
+			&dev->ofdev.dev;
 		i2sdev->in.created = 1;
 	}
 

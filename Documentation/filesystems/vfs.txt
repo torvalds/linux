@@ -237,7 +237,7 @@ noted. This means that most methods can block safely. All methods are
 only called from a process context (i.e. not from an interrupt handler
 or bottom half).
 
-  alloc_inode: this method is called by inode_alloc() to allocate memory
+  alloc_inode: this method is called by alloc_inode() to allocate memory
  	for struct inode and initialize it.  If this function is not
  	defined, a simple 'struct inode' is allocated.  Normally
  	alloc_inode will be used to allocate a larger structure which
@@ -323,6 +323,35 @@ Whoever sets up the inode is responsible for filling in the "i_op" field. This
 is a pointer to a "struct inode_operations" which describes the methods that
 can be performed on individual inodes.
 
+struct xattr_handlers
+---------------------
+
+On filesystems that support extended attributes (xattrs), the s_xattr
+superblock field points to a NULL-terminated array of xattr handlers.  Extended
+attributes are name:value pairs.
+
+  name: Indicates that the handler matches attributes with the specified name
+	(such as "system.posix_acl_access"); the prefix field must be NULL.
+
+  prefix: Indicates that the handler matches all attributes with the specified
+	name prefix (such as "user."); the name field must be NULL.
+
+  list: Determine if attributes matching this xattr handler should be listed
+	for a particular dentry.  Used by some listxattr implementations like
+	generic_listxattr.
+
+  get: Called by the VFS to get the value of a particular extended attribute.
+	This method is called by the getxattr(2) system call.
+
+  set: Called by the VFS to set the value of a particular extended attribute.
+	When the new value is NULL, called to remove a particular extended
+	attribute.  This method is called by the the setxattr(2) and
+	removexattr(2) system calls.
+
+When none of the xattr handlers of a filesystem match the specified attribute
+name or when a filesystem doesn't support extended attributes, the various
+*xattr(2) system calls return -EOPNOTSUPP.
+
 
 The Inode Object
 ================
@@ -346,24 +375,19 @@ struct inode_operations {
 	int (*rmdir) (struct inode *,struct dentry *);
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
-			struct inode *, struct dentry *);
+			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
-        void * (*follow_link) (struct dentry *, struct nameidata *);
-        void (*put_link) (struct dentry *, struct nameidata *, void *);
+	const char *(*get_link) (struct dentry *, struct inode *,
+				 struct delayed_call *);
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
-	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
-	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
-	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
+	int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
-	int (*removexattr) (struct dentry *, const char *);
 	void (*update_time)(struct inode *, struct timespec *, int);
-	int (*atomic_open)(struct inode *, struct dentry *,
+	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
+			unsigned open_flag, umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
-} ____cacheline_aligned;
-				struct file *, unsigned open_flag,
-				umode_t create_mode, int *opened);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -416,21 +440,36 @@ otherwise noted.
   rename: called by the rename(2) system call to rename the object to
 	have the parent and name given by the second inode and dentry.
 
-  readlink: called by the readlink(2) system call. Only required if
-	you want to support reading symbolic links
+	The filesystem must return -EINVAL for any unsupported or
+	unknown	flags.  Currently the following flags are implemented:
+	(1) RENAME_NOREPLACE: this flag indicates that if the target
+	of the rename exists the rename should fail with -EEXIST
+	instead of replacing the target.  The VFS already checks for
+	existence, so for local filesystems the RENAME_NOREPLACE
+	implementation is equivalent to plain rename.
+	(2) RENAME_EXCHANGE: exchange source and target.  Both must
+	exist; this is checked by the VFS.  Unlike plain rename,
+	source and target may be of different type.
 
-  follow_link: called by the VFS to follow a symbolic link to the
+  get_link: called by the VFS to follow a symbolic link to the
 	inode it points to.  Only required if you want to support
-	symbolic links.  This method returns a void pointer cookie
-	that is passed to put_link().
+	symbolic links.  This method returns the symlink body
+	to traverse (and possibly resets the current position with
+	nd_jump_link()).  If the body won't go away until the inode
+	is gone, nothing else is needed; if it needs to be otherwise
+	pinned, arrange for its release by having get_link(..., ..., done)
+	do set_delayed_call(done, destructor, argument).
+	In that case destructor(argument) will be called once VFS is
+	done with the body you've returned.
+	May be called in RCU mode; that is indicated by NULL dentry
+	argument.  If request can't be handled without leaving RCU mode,
+	have it return ERR_PTR(-ECHILD).
 
-  put_link: called by the VFS to release resources allocated by
-  	follow_link().  The cookie returned by follow_link() is passed
-  	to this method as the last parameter.  It is used by
-  	filesystems such as NFS where page cache is not stable
-  	(i.e. page that was installed when the symbolic link walk
-  	started might not be in the page cache at the end of the
-  	walk).
+  readlink: this is now just an override for use by readlink(2) for the
+	cases when ->get_link uses nd_jump_link() or object is not in
+	fact a symlink.  Normally filesystems should only implement
+	->get_link for symlinks and readlink(2) will automatically use
+	that.
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
@@ -448,19 +487,8 @@ otherwise noted.
   getattr: called by the VFS to get attributes of a file. This method
   	is called by stat(2) and related system calls.
 
-  setxattr: called by the VFS to set an extended attribute for a file.
-  	Extended attribute is a name:value pair associated with an
-  	inode. This method is called by setxattr(2) system call.
-
-  getxattr: called by the VFS to retrieve the value of an extended
-  	attribute name. This method is called by getxattr(2) function
-  	call.
-
   listxattr: called by the VFS to list all extended attributes for a
-  	given file. This method is called by listxattr(2) system call.
-
-  removexattr: called by the VFS to remove an extended attribute from
-  	a file. This method is called by removexattr(2) system call.
+	given file. This method is called by the listxattr(2) system call.
 
   update_time: called by the VFS to update a specific time or the i_version of
   	an inode.  If this is not defined the VFS will update the inode itself
@@ -470,9 +498,11 @@ otherwise noted.
   	method the filesystem can look up, possibly create and open the file in
   	one atomic operation.  If it cannot perform this (e.g. the file type
   	turned out to be wrong) it may signal this by returning 1 instead of
-  	usual 0 or -ve .  This method is only called if the last
-  	component is negative or needs lookup.  Cached positive dentries are
-  	still handled by f_op->open().
+	usual 0 or -ve .  This method is only called if the last component is
+	negative or needs lookup.  Cached positive dentries are still handled by
+	f_op->open().  If the file was created, the FILE_CREATED flag should be
+	set in "opened".  In case of O_EXCL the method must only succeed if the
+	file didn't exist and hence FILE_CREATED shall always be set on success.
 
   tmpfile: called in the end of O_TMPFILE open().  Optional, equivalent to
 	atomically creating, opening and unlinking a file in given directory.
@@ -516,9 +546,7 @@ __sync_single_inode) to check if ->writepages has been successful in
 writing out the whole address_space.
 
 The Writeback tag is used by filemap*wait* and sync_page* functions,
-via filemap_fdatawait_range, to wait for all writeback to
-complete.  While waiting ->sync_page (if defined) will be called on
-each page that is found to require writeback.
+via filemap_fdatawait_range, to wait for all writeback to complete.
 
 An address_space handler may attach extra information to a page,
 typically using the 'private' field in the 'struct page'.  If such
@@ -536,8 +564,8 @@ address_space has finer control of write sizes.
 
 The read process essentially only requires 'readpage'.  The write
 process is more complicated and uses write_begin/write_end or
-set_page_dirty to write data into the address_space, and writepage,
-sync_page, and writepages to writeback data to storage.
+set_page_dirty to write data into the address_space, and writepage
+and writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
 inode's i_mutex.
@@ -548,7 +576,43 @@ should clear PG_Dirty and set PG_Writeback.  It can be actually
 written at any point after PG_Dirty is clear.  Once it is known to be
 safe, PG_Writeback is cleared.
 
-Writeback makes use of a writeback_control structure...
+Writeback makes use of a writeback_control structure to direct the
+operations.  This gives the the writepage and writepages operations some
+information about the nature of and reason for the writeback request,
+and the constraints under which it is being done.  It is also used to
+return information back to the caller about the result of a writepage or
+writepages request.
+
+Handling errors during writeback
+--------------------------------
+Most applications that do buffered I/O will periodically call a file
+synchronization call (fsync, fdatasync, msync or sync_file_range) to
+ensure that data written has made it to the backing store.  When there
+is an error during writeback, they expect that error to be reported when
+a file sync request is made.  After an error has been reported on one
+request, subsequent requests on the same file descriptor should return
+0, unless further writeback errors have occurred since the previous file
+syncronization.
+
+Ideally, the kernel would report errors only on file descriptions on
+which writes were done that subsequently failed to be written back.  The
+generic pagecache infrastructure does not track the file descriptions
+that have dirtied each individual page however, so determining which
+file descriptors should get back an error is not possible.
+
+Instead, the generic writeback error tracking infrastructure in the
+kernel settles for reporting errors to fsync on all file descriptions
+that were open at the time that the error occurred.  In a situation with
+multiple writers, all of them will get back an error on a subsequent fsync,
+even if all of the writes done through that particular file descriptor
+succeeded (or even if there were no writes on that file descriptor at all).
+
+Filesystems that wish to use this infrastructure should call
+mapping_set_error to record the error in the address_space when it
+occurs.  Then, after writing back data from the pagecache in their
+file->fsync operation, they should call file_check_and_advance_wb_err to
+ensure that the struct file's error cursor has advanced to the correct
+point in the stream of errors emitted by the backing device(s).
 
 struct address_space_operations
 -------------------------------
@@ -573,14 +637,16 @@ struct address_space_operations {
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
-			loff_t offset, unsigned long nr_segs);
-	struct page* (*get_xip_page)(struct address_space *, sector_t,
-			int);
+	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
+	/* isolate a page for migration */
+	bool (*isolate_page) (struct page *, isolate_mode_t);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
+	/* put migration-failed page back to right list */
+	void (*putback_page) (struct page *);
 	int (*launder_page) (struct page *);
-	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
+
+	int (*is_partially_uptodate) (struct page *, unsigned long,
 					unsigned long);
 	void (*is_dirty_writeback) (struct page *, bool *, bool *);
 	int (*error_remove_page) (struct mapping *mapping, struct page *page);
@@ -664,8 +730,7 @@ struct address_space_operations {
 
   write_end: After a successful write_begin, and data copy, write_end must
         be called. len is the original len passed to write_begin, and copied
-        is the amount that was able to be copied (copied == len is always true
-	if write_begin was called with the AOP_FLAG_UNINTERRUPTIBLE flag).
+        is the amount that was able to be copied.
 
         The filesystem must take care of unlocking the page and releasing it
         refcount, and updating i_size.
@@ -681,15 +746,14 @@ struct address_space_operations {
   	but instead uses bmap to find out where the blocks in the file
   	are and uses those addresses directly.
 
-
   invalidatepage: If a page has PagePrivate set, then invalidatepage
         will be called when part or all of the page is to be removed
 	from the address space.  This generally corresponds to either a
 	truncation, punch hole  or a complete invalidation of the address
 	space (in the latter case 'offset' will always be 0 and 'length'
-	will be PAGE_CACHE_SIZE). Any private data associated with the page
+	will be PAGE_SIZE). Any private data associated with the page
 	should be updated to reflect this truncation.  If offset is 0 and
-	length is PAGE_CACHE_SIZE, then the private data should be released,
+	length is PAGE_SIZE, then the private data should be released,
 	because the page must be able to be completely discarded.  This may
 	be done by calling the ->releasepage function, but in this case the
 	release MUST succeed.
@@ -706,7 +770,7 @@ struct address_space_operations {
 
 	The second case is when a request has been made to invalidate
         some or all pages in an address_space.  This can happen
-        through the fadvice(POSIX_FADV_DONTNEED) system call or by the
+        through the fadvise(POSIX_FADV_DONTNEED) system call or by the
         filesystem explicitly requesting it as nfs and 9fs do (when
         they believe the cache may be out of date with storage) by
         calling invalidate_inode_pages2().
@@ -726,10 +790,9 @@ struct address_space_operations {
         and transfer data directly between the storage and the
         application's address space.
 
-  get_xip_page: called by the VM to translate a block number to a page.
-	The page is valid until the corresponding filesystem is unmounted.
-	Filesystems that want to use execute-in-place (XIP) need to implement
-	it.  An example implementation can be found in fs/ext2/xip.c.
+  isolate_page: Called by the VM when isolating a movable non-lru page.
+	If page is successfully isolated, VM marks the page as PG_isolated
+	via __SetPageIsolated.
 
   migrate_page:  This is used to compact the physical memory usage.
         If the VM wants to relocate a page (maybe off a memory card
@@ -737,6 +800,8 @@ struct address_space_operations {
 	and an old page to this function.  migrate_page should
 	transfer any private data across and update any references
         that it has to the page.
+
+  putback_page: Called by the VM when isolated page's migration fails.
 
   launder_page: Called before freeing a page - it writes back the dirty page. To
   	prevent redirtying the page, it is kept locked during the whole
@@ -752,7 +817,7 @@ struct address_space_operations {
 	to stall to allow flushers a chance to complete some IO. Ordinarily
 	it can use PageDirty and PageWriteback but some filesystems have
 	more complex state (unstable pages in NFS prevent reclaim) or
-	do not set those flags due to locking problems (jbd). This callback
+	do not set those flags due to locking problems. This callback
 	allows a filesystem to indicate to the VM if a page should be
 	treated as dirty or writeback for the purposes of stalling.
 
@@ -764,9 +829,7 @@ struct address_space_operations {
   swap_activate: Called when swapon is used on a file to allocate
 	space if necessary and pin the block lookup information in
 	memory. A return value of zero indicates success,
-	in which case this file can be used to back swapspace. The
-	swapspace operations will be proxied to this address space's
-	->swap_{out,in} methods.
+	in which case this file can be used to back swapspace.
 
   swap_deactivate: Called during swapoff on files where swap_activate
 	was successful.
@@ -775,45 +838,48 @@ struct address_space_operations {
 The File Object
 ===============
 
-A file object represents a file opened by a process.
+A file object represents a file opened by a process. This is also known
+as an "open file description" in POSIX parlance.
 
 
 struct file_operations
 ----------------------
 
 This describes how the VFS can manipulate an open file. As of kernel
-3.5, the following members are defined:
+4.1, the following members are defined:
 
 struct file_operations {
 	struct module *owner;
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
+	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
+	int (*mremap)(struct file *, struct vm_area_struct *);
 	int (*open) (struct inode *, struct file *);
-	int (*flush) (struct file *);
+	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
 	int (*fsync) (struct file *, loff_t, loff_t, int datasync);
-	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
-	ssize_t (*readv) (struct file *, const struct iovec *, unsigned long, loff_t *);
-	ssize_t (*writev) (struct file *, const struct iovec *, unsigned long, loff_t *);
-	ssize_t (*sendfile) (struct file *, loff_t *, size_t, read_actor_t, void *);
 	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
 	int (*flock) (struct file *, int, struct file_lock *);
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned int);
-	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
-	int (*setlease)(struct file *, long arg, struct file_lock **);
-	long (*fallocate)(struct file *, int mode, loff_t offset, loff_t len);
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+	int (*setlease)(struct file *, long, struct file_lock **, void **);
+	long (*fallocate)(struct file *file, int mode, loff_t offset,
+			  loff_t len);
+	void (*show_fdinfo)(struct seq_file *m, struct file *f);
+#ifndef CONFIG_MMU
+	unsigned (*mmap_capabilities)(struct file *);
+#endif
 };
 
 Again, all methods are called without any locks being held, unless
@@ -823,11 +889,11 @@ otherwise noted.
 
   read: called by read(2) and related system calls
 
-  aio_read: called by io_submit(2) and other asynchronous I/O operations
+  read_iter: possibly asynchronous read with iov_iter as destination
 
   write: called by write(2) and related system calls
 
-  aio_write: called by io_submit(2) and other asynchronous I/O operations
+  write_iter: possibly asynchronous write with iov_iter as source
 
   iterate: called when the VFS needs to read the directory contents
 
@@ -856,19 +922,14 @@ otherwise noted.
 
   release: called when the last reference to an open file is closed
 
-  fsync: called by the fsync(2) system call
+  fsync: called by the fsync(2) system call. Also see the section above
+	 entitled "Handling errors during writeback".
 
   fasync: called by the fcntl(2) system call when asynchronous
 	(non-blocking) mode is enabled for a file
 
   lock: called by the fcntl(2) system call for F_GETLK, F_SETLK, and F_SETLKW
   	commands
-
-  readv: called by the readv(2) system call
-
-  writev: called by the writev(2) system call
-
-  sendfile: called by the sendfile(2) system call
 
   get_unmapped_area: called by the mmap(2) system call
 
@@ -882,8 +943,9 @@ otherwise noted.
   splice_read: called by the VFS to splice data from file to a pipe. This
 	       method is used by the splice(2) system call
 
-  setlease: called by the VFS to set or release a file lock lease.
-	    setlease has the file_lock_lock held and must not sleep.
+  setlease: called by the VFS to set or release a file lock lease. setlease
+	    implementations should call generic_setlease to record or remove
+	    the lease in the inode after setting it.
 
   fallocate: called by the VFS to preallocate blocks or punch a hole.
 
@@ -916,14 +978,17 @@ struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct dentry *,
+	int (*d_compare)(const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
+	int (*d_init)(struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
-	int (*d_manage)(struct dentry *, bool);
+	int (*d_manage)(const struct path *, bool);
+	struct dentry *(*d_real)(struct dentry *, const struct inode *,
+				 unsigned int, unsigned int);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -989,6 +1054,8 @@ struct dentry_operations {
 	always cache a reachable dentry. d_delete must be constant and
 	idempotent.
 
+  d_init: called when a dentry is allocated
+
   d_release: called when a dentry is really deallocated
 
   d_iput: called when a dentry loses its inode (just prior to its
@@ -1007,6 +1074,14 @@ struct dentry_operations {
 	tricky. The correct way to return for example "Hello" is to put it
 	at the end of the buffer, and returns a pointer to the first char.
 	dynamic_dname() helper function is provided to take care of this.
+
+	Example :
+
+	static char *pipefs_dname(struct dentry *dent, char *buffer, int buflen)
+	{
+		return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
+				dentry->d_inode->i_ino);
+	}
 
   d_automount: called when an automount dentry is to be traversed (optional).
 	This should create a new VFS mount record and return the record to the
@@ -1040,18 +1115,29 @@ struct dentry_operations {
 	If the 'rcu_walk' parameter is true, then the caller is doing a
 	pathwalk in RCU-walk mode.  Sleeping is not permitted in this mode,
 	and the caller can be asked to leave it and call again by returning
-	-ECHILD.
+	-ECHILD.  -EISDIR may also be returned to tell pathwalk to
+	ignore d_automount or any mounts.
 
 	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
 	dentry being transited from.
 
-Example :
+  d_real: overlay/union type filesystems implement this method to return one of
+	the underlying dentries hidden by the overlay.  It is used in three
+	different modes:
 
-static char *pipefs_dname(struct dentry *dent, char *buffer, int buflen)
-{
-	return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
-				dentry->d_inode->i_ino);
-}
+	Called from open it may need to copy-up the file depending on the
+	supplied open flags.  This mode is selected with a non-zero flags
+	argument.  In this mode the d_real method can return an error.
+
+	Called from file_dentry() it returns the real dentry matching the inode
+	argument.  The real dentry may be from a lower layer already copied up,
+	but still referenced from the file.  This mode is selected with a
+	non-NULL inode argument.  This will always succeed.
+
+	With NULL inode and zero flags the topmost real underlying dentry is
+	returned.  This will always succeed.
+
+	This method is never called with both non-NULL inode and non-zero flags.
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries. Child dentries are basically like files in a
@@ -1136,12 +1222,6 @@ from the above rules.
 The underlying reason for the above rules is to make sure, that a
 mount can be accurately replicated (e.g. umounting and mounting again)
 based on the information found in /proc/mounts.
-
-A simple method of saving options at mount/remount time and showing
-them is provided with the save_mount_options() and
-generic_show_options() helper functions.  Please note, that using
-these may have drawbacks.  For more info see header comments for these
-functions in fs/namespace.c.
 
 Resources
 =========

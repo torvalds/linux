@@ -23,13 +23,16 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/bug.h>
+#include <asm/pte-walk.h>
+
+
+#include <trace/events/thp.h>
 
 DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
@@ -92,12 +95,10 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 
 	/*
 	 * Check if we have an active batch on this CPU. If not, just
-	 * flush now and return. For now, we don global invalidates
-	 * in that case, might be worth testing the mm cpu mask though
-	 * and decide to use local invalidates instead...
+	 * flush now and return.
 	 */
 	if (!batch->active) {
-		flush_hash_page(vpn, rpte, psize, ssize, 0);
+		flush_hash_page(vpn, rpte, psize, ssize, mm_is_thread_local(mm));
 		put_cpu_var(ppc64_tlb_batch);
 		return;
 	}
@@ -139,13 +140,10 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
  */
 void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 {
-	const struct cpumask *tmp;
-	int i, local = 0;
+	int i, local;
 
 	i = batch->index;
-	tmp = cpumask_of(smp_processor_id());
-	if (cpumask_equal(mm_cpumask(batch->mm), tmp))
-		local = 1;
+	local = mm_is_thread_local(batch->mm);
 	if (i == 1)
 		flush_hash_page(batch->vpn[0], batch->pte[0],
 				batch->psize, batch->ssize, local);
@@ -154,7 +152,7 @@ void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 	batch->index = 0;
 }
 
-void tlb_flush(struct mmu_gather *tlb)
+void hash__tlb_flush(struct mmu_gather *tlb)
 {
 	struct ppc64_tlb_batch *tlbbatch = &get_cpu_var(ppc64_tlb_batch);
 
@@ -189,6 +187,7 @@ void tlb_flush(struct mmu_gather *tlb)
 void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)
 {
+	bool is_thp;
 	int hugepage_shift;
 	unsigned long flags;
 
@@ -207,19 +206,21 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 	local_irq_save(flags);
 	arch_enter_lazy_mmu_mode();
 	for (; start < end; start += PAGE_SIZE) {
-		pte_t *ptep = find_linux_pte_or_hugepte(mm->pgd, start,
-							&hugepage_shift);
+		pte_t *ptep = find_current_mm_pte(mm->pgd, start, &is_thp,
+						  &hugepage_shift);
 		unsigned long pte;
 
 		if (ptep == NULL)
 			continue;
 		pte = pte_val(*ptep);
-		if (!(pte & _PAGE_HASHPTE))
+		if (is_thp)
+			trace_hugepage_invalidate(start, pte);
+		if (!(pte & H_PAGE_HASHPTE))
 			continue;
-		if (unlikely(hugepage_shift && pmd_trans_huge(*(pmd_t *)pte)))
-			hpte_do_hugepage_flush(mm, start, (pmd_t *)pte);
+		if (unlikely(is_thp))
+			hpte_do_hugepage_flush(mm, start, (pmd_t *)ptep, pte);
 		else
-			hpte_need_flush(mm, start, ptep, pte, 0);
+			hpte_need_flush(mm, start, ptep, pte, hugepage_shift);
 	}
 	arch_leave_lazy_mmu_mode();
 	local_irq_restore(flags);
@@ -244,7 +245,7 @@ void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr)
 	start_pte = pte_offset_map(pmd, addr);
 	for (pte = start_pte; pte < start_pte + PTRS_PER_PTE; pte++) {
 		unsigned long pteval = pte_val(*pte);
-		if (pteval & _PAGE_HASHPTE)
+		if (pteval & H_PAGE_HASHPTE)
 			hpte_need_flush(mm, addr, pte, pteval, 0);
 		addr += PAGE_SIZE;
 	}

@@ -100,7 +100,7 @@ static int gx_fix;
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
 #include <linux/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/unaligned.h>
 #include <asm/io.h>
@@ -236,7 +236,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{ }
 };
 
-static DEFINE_PCI_DEVICE_TABLE(yellowfin_pci_tbl) = {
+static const struct pci_device_id yellowfin_pci_tbl[] = {
 	{ 0x1000, 0x0702, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1000, 0x0701, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
 	{ }
@@ -360,7 +360,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_stop 		= yellowfin_close,
 	.ndo_start_xmit 	= yellowfin_start_xmit,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_do_ioctl 		= netdev_ioctl,
@@ -472,7 +471,7 @@ static int yellowfin_init_one(struct pci_dev *pdev,
 
 	/* The Yellowfin-specific entries in the device structure. */
 	dev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	if (mtu)
@@ -513,7 +512,6 @@ err_out_unmap_rx:
 err_out_unmap_tx:
         pci_free_consistent(pdev, TX_TOTAL_SIZE, np->tx_ring, np->tx_ring_dma);
 err_out_cleardev:
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
 	pci_release_regions(pdev);
@@ -694,11 +692,11 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 	/* Note: these should be KERN_DEBUG. */
 	if (yellowfin_debug) {
 		int i;
-		pr_warning("  Rx ring %p: ", yp->rx_ring);
+		pr_warn("  Rx ring %p: ", yp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
 			pr_cont(" %08x", yp->rx_ring[i].result_status);
 		pr_cont("\n");
-		pr_warning("  Tx ring %p: ", yp->tx_ring);
+		pr_warn("  Tx ring %p: ", yp->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			pr_cont(" %04x /%08x",
 			       yp->tx_status[i].tx_errs,
@@ -715,7 +713,7 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 	if (yp->cur_tx - yp->dirty_tx < TX_QUEUE_SIZE)
 		netif_wake_queue (dev);		/* Typical path */
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 }
 
@@ -1054,7 +1052,7 @@ static int yellowfin_rx(struct net_device *dev)
 		struct sk_buff *rx_skb = yp->rx_skbuff[entry];
 		s16 frame_status;
 		u16 desc_status;
-		int data_size;
+		int data_size, yf_size;
 		u8 *buf_addr;
 
 		if(!desc->result_status)
@@ -1071,6 +1069,9 @@ static int yellowfin_rx(struct net_device *dev)
 			       __func__, frame_status);
 		if (--boguscnt < 0)
 			break;
+
+		yf_size = sizeof(struct yellowfin_desc);
+
 		if ( ! (desc_status & RX_EOP)) {
 			if (data_size != 0)
 				netdev_warn(dev, "Oversized Ethernet frame spanned multiple buffers, status %04x, data_size %d!\n",
@@ -1097,12 +1098,12 @@ static int yellowfin_rx(struct net_device *dev)
 			if (status2 & 0x80) dev->stats.rx_dropped++;
 #ifdef YF_PROTOTYPE		/* Support for prototype hardware errata. */
 		} else if ((yp->flags & HasMACAddrBug)  &&
-			memcmp(le32_to_cpu(yp->rx_ring_dma +
-				entry*sizeof(struct yellowfin_desc)),
-				dev->dev_addr, 6) != 0 &&
-			memcmp(le32_to_cpu(yp->rx_ring_dma +
-				entry*sizeof(struct yellowfin_desc)),
-				"\377\377\377\377\377\377", 6) != 0) {
+			!ether_addr_equal(le32_to_cpu(yp->rx_ring_dma +
+						      entry * yf_size),
+					  dev->dev_addr) &&
+			!ether_addr_equal(le32_to_cpu(yp->rx_ring_dma +
+						      entry * yf_size),
+					  "\377\377\377\377\377\377")) {
 			if (bogus_rx++ == 0)
 				netdev_warn(dev, "Bad frame to %pM\n",
 					    buf_addr);
@@ -1392,7 +1393,6 @@ static void yellowfin_remove_one(struct pci_dev *pdev)
 	pci_release_regions (pdev);
 
 	free_netdev (dev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 

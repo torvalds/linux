@@ -76,6 +76,7 @@ static void raid6_mmx1_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_mmxx1 = {
 	raid6_mmx1_gen_syndrome,
+	NULL,			/* XOR not yet implemented */
 	raid6_have_mmx,
 	"mmxx1",
 	0
@@ -134,6 +135,7 @@ static void raid6_mmx2_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_mmxx2 = {
 	raid6_mmx2_gen_syndrome,
+	NULL,			/* XOR not yet implemented */
 	raid6_have_mmx,
 	"mmxx2",
 	0

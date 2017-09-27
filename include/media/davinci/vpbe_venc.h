@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _VPBE_VENC_H
 #define _VPBE_VENC_H
@@ -30,11 +26,10 @@
 #define VENC_SECOND_FIELD	BIT(2)
 
 struct venc_platform_data {
-	int (*setup_pinmux)(enum v4l2_mbus_pixelcode if_type,
-			    int field);
+	int (*setup_pinmux)(u32 if_type, int field);
 	int (*setup_clock)(enum vpbe_enc_timings_type type,
 			   unsigned int pixclock);
-	int (*setup_if_config)(enum v4l2_mbus_pixelcode pixcode);
+	int (*setup_if_config)(u32 pixcode);
 	/* Number of LCD outputs supported */
 	int num_lcd_outputs;
 	struct vpbe_if_params *lcd_if_params;

@@ -13,12 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/kernel.h>
@@ -45,10 +41,6 @@
 #define DRX_I2C_SINGLE_MASTER 0xC0
 #define DRX_I2C_MODEFLAGS     0xC0
 #define DRX_I2C_FLAGS         0xF0
-
-#ifndef SIZEOF_ARRAY
-#define SIZEOF_ARRAY(array) (sizeof((array))/sizeof((array)[0]))
-#endif
 
 #define DEFAULT_LOCK_TIMEOUT    1100
 
@@ -646,8 +638,10 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 			/* == Speed == */
 			{
 				const u16 maxRur = 8;
-				const u16 slowIncrDecLUT[] = { 3, 4, 4, 5, 6 };
-				const u16 fastIncrDecLUT[] = { 14, 15, 15, 16,
+				static const u16 slowIncrDecLUT[] = {
+					3, 4, 4, 5, 6 };
+				const u16 fastIncrDecLUT[] = {
+					14, 15, 15, 16,
 					17, 18, 18, 19,
 					20, 21, 22, 23,
 					24, 26, 27, 28,
@@ -1018,7 +1012,7 @@ static int HI_CfgCommand(struct drxd_state *state)
 		status = Write16(state, HI_RA_RAM_SRV_CMD__A,
 				 HI_RA_RAM_SRV_CMD_CONFIG, 0);
 	else
-		status = HI_Command(state, HI_RA_RAM_SRV_CMD_CONFIG, 0);
+		status = HI_Command(state, HI_RA_RAM_SRV_CMD_CONFIG, NULL);
 	mutex_unlock(&state->mutex);
 	return status;
 }
@@ -1039,7 +1033,7 @@ static int HI_ResetCommand(struct drxd_state *state)
 	status = Write16(state, HI_RA_RAM_SRV_RST_KEY__A,
 			 HI_RA_RAM_SRV_RST_KEY_ACT, 0);
 	if (status == 0)
-		status = HI_Command(state, HI_RA_RAM_SRV_CMD_RESET, 0);
+		status = HI_Command(state, HI_RA_RAM_SRV_CMD_RESET, NULL);
 	mutex_unlock(&state->mutex);
 	msleep(1);
 	return status;
@@ -1525,12 +1519,14 @@ static int SetDeviceTypeId(struct drxd_state *state)
 			switch (deviceId) {
 			case 4:
 				state->diversity = 1;
+				/* fall through */
 			case 3:
 			case 7:
 				state->PGA = 1;
 				break;
 			case 6:
 				state->diversity = 1;
+				/* fall through */
 			case 5:
 			case 8:
 				break;
@@ -1977,7 +1973,8 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->transmission_mode) {
 		default:	/* Not set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_MODE__M;
-			/* fall through , try first guess DRX_FFTMODE_8K */
+			/* try first guess DRX_FFTMODE_8K */
+			/* fall through */
 		case TRANSMISSION_MODE_8K:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_MODE_8K;
 			if (state->type_A) {
@@ -2151,8 +2148,8 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->modulation) {
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_CONST__M;
-			/* fall through , try first guess
-			   DRX_CONSTELLATION_QAM64 */
+			/* try first guess DRX_CONSTELLATION_QAM64 */
+			/* fall through */
 		case QAM_64:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QAM64;
 			if (state->type_A) {
@@ -2288,6 +2285,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_RATE__M;
+			/* fall through */
 		case FEC_2_3:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_2_3;
 			if (state->type_A) {
@@ -2632,10 +2630,11 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 			break;
 
 		/* Apply I2c address patch to B1 */
-		if (!state->type_A && state->m_HiI2cPatch != NULL)
+		if (!state->type_A && state->m_HiI2cPatch != NULL) {
 			status = WriteTable(state, state->m_HiI2cPatch);
 			if (status < 0)
 				break;
+		}
 
 		if (state->type_A) {
 			/* HI firmware patch for UIO readout,
@@ -2692,11 +2691,11 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 		status = EnableAndResetMB(state);
 		if (status < 0)
 			break;
-		if (state->type_A)
+		if (state->type_A) {
 			status = ResetCEFR(state);
 			if (status < 0)
 				break;
-
+		}
 		if (fw) {
 			status = DownloadMicrocode(state, fw, fw_size);
 			if (status < 0)
@@ -2808,7 +2807,7 @@ static int drxd_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 	return 0;
 }
 
-static int drxd_read_status(struct dvb_frontend *fe, fe_status_t * status)
+static int drxd_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct drxd_state *state = fe->demodulator_priv;
 	u32 lock;
@@ -2834,17 +2833,11 @@ static int drxd_read_status(struct dvb_frontend *fe, fe_status_t * status)
 static int drxd_init(struct dvb_frontend *fe)
 {
 	struct drxd_state *state = fe->demodulator_priv;
-	int err = 0;
 
-/*	if (request_firmware(&state->fw, "drxd.fw", state->dev)<0) */
-	return DRXD_init(state, 0, 0);
-
-	err = DRXD_init(state, state->fw->data, state->fw->size);
-	release_firmware(state->fw);
-	return err;
+	return DRXD_init(state, NULL, 0);
 }
 
-int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
+static int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 {
 	struct drxd_state *state = fe->demodulator_priv;
 
@@ -2853,7 +2846,6 @@ int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 
 	return DRX_ConfigureI2CBridge(state, onoff);
 }
-EXPORT_SYMBOL(drxd_config_i2c);
 
 static int drxd_get_tune_settings(struct dvb_frontend *fe,
 				  struct dvb_frontend_tune_settings *sets)
@@ -2922,7 +2914,7 @@ static void drxd_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops drxd_ops = {
+static const struct dvb_frontend_ops drxd_ops = {
 	.delsys = { SYS_DVBT},
 	.info = {
 		 .name = "Micronas DRXD DVB-T",
@@ -2960,10 +2952,9 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 {
 	struct drxd_state *state = NULL;
 
-	state = kmalloc(sizeof(struct drxd_state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return NULL;
-	memset(state, 0, sizeof(*state));
 
 	state->ops = drxd_ops;
 	state->dev = dev;
@@ -2973,7 +2964,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 
 	mutex_init(&state->mutex);
 
-	if (Read16(state, 0, 0, 0) < 0)
+	if (Read16(state, 0, NULL, 0) < 0)
 		goto error;
 
 	state->frontend.ops = drxd_ops;

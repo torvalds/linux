@@ -15,29 +15,32 @@
 *******************************************************************************/
 /* dn_nsp.c functions prototyping */
 
-extern void dn_nsp_send_data_ack(struct sock *sk);
-extern void dn_nsp_send_oth_ack(struct sock *sk);
-extern void dn_nsp_delayed_ack(struct sock *sk);
-extern void dn_send_conn_ack(struct sock *sk);
-extern void dn_send_conn_conf(struct sock *sk, gfp_t gfp);
-extern void dn_nsp_send_disc(struct sock *sk, unsigned char type, 
-			unsigned short reason, gfp_t gfp);
-extern void dn_nsp_return_disc(struct sk_buff *skb, unsigned char type,
-				unsigned short reason);
-extern void dn_nsp_send_link(struct sock *sk, unsigned char lsflags, char fcval);
-extern void dn_nsp_send_conninit(struct sock *sk, unsigned char flags);
+void dn_nsp_send_data_ack(struct sock *sk);
+void dn_nsp_send_oth_ack(struct sock *sk);
+void dn_nsp_delayed_ack(struct sock *sk);
+void dn_send_conn_ack(struct sock *sk);
+void dn_send_conn_conf(struct sock *sk, gfp_t gfp);
+void dn_nsp_send_disc(struct sock *sk, unsigned char type,
+		      unsigned short reason, gfp_t gfp);
+void dn_nsp_return_disc(struct sk_buff *skb, unsigned char type,
+			unsigned short reason);
+void dn_nsp_send_link(struct sock *sk, unsigned char lsflags, char fcval);
+void dn_nsp_send_conninit(struct sock *sk, unsigned char flags);
 
-extern void dn_nsp_output(struct sock *sk);
-extern int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff_head *q, unsigned short acknum);
-extern void dn_nsp_queue_xmit(struct sock *sk, struct sk_buff *skb, gfp_t gfp, int oob);
-extern unsigned long dn_nsp_persist(struct sock *sk);
-extern int dn_nsp_xmit_timeout(struct sock *sk);
+void dn_nsp_output(struct sock *sk);
+int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb,
+			    struct sk_buff_head *q, unsigned short acknum);
+void dn_nsp_queue_xmit(struct sock *sk, struct sk_buff *skb, gfp_t gfp,
+		       int oob);
+unsigned long dn_nsp_persist(struct sock *sk);
+int dn_nsp_xmit_timeout(struct sock *sk);
 
-extern int dn_nsp_rx(struct sk_buff *);
-extern int dn_nsp_backlog_rcv(struct sock *sk, struct sk_buff *skb);
+int dn_nsp_rx(struct sk_buff *);
+int dn_nsp_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 
-extern struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri);
-extern struct sk_buff *dn_alloc_send_skb(struct sock *sk, size_t *size, int noblock, long timeo, int *err);
+struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri);
+struct sk_buff *dn_alloc_send_skb(struct sock *sk, size_t *size, int noblock,
+				  long timeo, int *err);
 
 #define NSP_REASON_OK 0		/* No error */
 #define NSP_REASON_NR 1		/* No resources */

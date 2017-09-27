@@ -1,0 +1,52 @@
+config DRM_SUN4I
+	tristate "DRM Support for Allwinner A10 Display Engine"
+	depends on DRM && ARM && COMMON_CLK
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_PANEL
+	select REGMAP_MMIO
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have an Allwinner SoC with a
+	  Display Engine. If M is selected the module will be called
+	  sun4i-drm.
+
+if DRM_SUN4I
+
+config DRM_SUN4I_HDMI
+       tristate "Allwinner A10 HDMI Controller Support"
+       default DRM_SUN4I
+       help
+	  Choose this option if you have an Allwinner SoC with an HDMI
+	  controller.
+
+config DRM_SUN4I_HDMI_CEC
+       bool "Allwinner A10 HDMI CEC Support"
+       depends on DRM_SUN4I_HDMI
+       select CEC_CORE
+       depends on CEC_PIN
+       help
+	  Choose this option if you have an Allwinner SoC with an HDMI
+	  controller and want to use CEC.
+
+config DRM_SUN4I_BACKEND
+	tristate "Support for Allwinner A10 Display Engine Backend"
+	default DRM_SUN4I
+	help
+	  Choose this option if you have an Allwinner SoC with the
+	  original Allwinner Display Engine, which has a backend to
+	  do some alpha blending and feed graphics to TCON. If M is
+	  selected the module will be called sun4i-backend.
+
+config DRM_SUN8I_MIXER
+	tristate "Support for Allwinner Display Engine 2.0 Mixer"
+	default MACH_SUN8I
+	help
+	  Choose this option if you have an Allwinner SoC with the
+	  Allwinner Display Engine 2.0, which has a mixer to do some
+	  graphics mixture and feed graphics to TCON, If M is
+	  selected the module will be called sun8i-mixer.
+
+endif

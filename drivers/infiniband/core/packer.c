@@ -44,7 +44,7 @@ static u64 value_read(int offset, int size, void *structure)
 	case 4: return be32_to_cpup((__be32 *) (structure + offset));
 	case 8: return be64_to_cpup((__be64 *) (structure + offset));
 	default:
-		printk(KERN_WARNING "Field size %d bits not handled\n", size * 8);
+		pr_warn("Field size %d bits not handled\n", size * 8);
 		return 0;
 	}
 }
@@ -104,9 +104,8 @@ void ib_pack(const struct ib_field        *desc,
 		} else {
 			if (desc[i].offset_bits % 8 ||
 			    desc[i].size_bits   % 8) {
-				printk(KERN_WARNING "Structure field %s of size %d "
-				       "bits is not byte-aligned\n",
-				       desc[i].field_name, desc[i].size_bits);
+				pr_warn("Structure field %s of size %d bits is not byte-aligned\n",
+					desc[i].field_name, desc[i].size_bits);
 			}
 
 			if (desc[i].struct_size_bytes)
@@ -132,7 +131,7 @@ static void value_write(int offset, int size, u64 val, void *structure)
 	case 32: *(__be32 *) (structure + offset) = cpu_to_be32(val); break;
 	case 64: *(__be64 *) (structure + offset) = cpu_to_be64(val); break;
 	default:
-		printk(KERN_WARNING "Field size %d bits not handled\n", size * 8);
+		pr_warn("Field size %d bits not handled\n", size * 8);
 	}
 }
 
@@ -188,9 +187,8 @@ void ib_unpack(const struct ib_field        *desc,
 		} else {
 			if (desc[i].offset_bits % 8 ||
 			    desc[i].size_bits   % 8) {
-				printk(KERN_WARNING "Structure field %s of size %d "
-				       "bits is not byte-aligned\n",
-				       desc[i].field_name, desc[i].size_bits);
+				pr_warn("Structure field %s of size %d bits is not byte-aligned\n",
+					desc[i].field_name, desc[i].size_bits);
 			}
 
 			memcpy(structure + desc[i].struct_offset_bytes,

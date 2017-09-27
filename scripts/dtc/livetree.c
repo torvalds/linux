@@ -204,7 +204,7 @@ struct node *merge_nodes(struct node *old_node, struct node *new_node)
 			}
 		}
 
-		/* if no collision occured, add child to the old node. */
+		/* if no collision occurred, add child to the old node. */
 		if (new_child)
 			add_child(old_node, new_child);
 	}
@@ -242,7 +242,7 @@ void delete_property_by_name(struct node *node, char *name)
 	struct property *prop = node->proplist;
 
 	while (prop) {
-		if (!strcmp(prop->name, name)) {
+		if (streq(prop->name, name)) {
 			delete_property(prop);
 			return;
 		}
@@ -275,7 +275,7 @@ void delete_node_by_name(struct node *parent, char *name)
 	struct node *node = parent->children;
 
 	while (node) {
-		if (!strcmp(node->name, name)) {
+		if (streq(node->name, name)) {
 			delete_node(node);
 			return;
 		}
@@ -296,14 +296,31 @@ void delete_node(struct node *node)
 	delete_labels(&node->labels);
 }
 
+void append_to_property(struct node *node,
+				    char *name, const void *data, int len)
+{
+	struct data d;
+	struct property *p;
+
+	p = get_property(node, name);
+	if (p) {
+		d = data_append_data(p->val, data, len);
+		p->val = d;
+	} else {
+		d = data_append_data(empty_data, data, len);
+		p = build_property(name, d);
+		add_property(node, p);
+	}
+}
+
 struct reserve_info *build_reserve_entry(uint64_t address, uint64_t size)
 {
 	struct reserve_info *new = xmalloc(sizeof(*new));
 
 	memset(new, 0, sizeof(*new));
 
-	new->re.address = address;
-	new->re.size = size;
+	new->address = address;
+	new->size = size;
 
 	return new;
 }
@@ -335,17 +352,19 @@ struct reserve_info *add_reserve_entry(struct reserve_info *list,
 	return list;
 }
 
-struct boot_info *build_boot_info(struct reserve_info *reservelist,
-				  struct node *tree, uint32_t boot_cpuid_phys)
+struct dt_info *build_dt_info(unsigned int dtsflags,
+			      struct reserve_info *reservelist,
+			      struct node *tree, uint32_t boot_cpuid_phys)
 {
-	struct boot_info *bi;
+	struct dt_info *dti;
 
-	bi = xmalloc(sizeof(*bi));
-	bi->reservelist = reservelist;
-	bi->dt = tree;
-	bi->boot_cpuid_phys = boot_cpuid_phys;
+	dti = xmalloc(sizeof(*dti));
+	dti->dtsflags = dtsflags;
+	dti->reservelist = reservelist;
+	dti->dt = tree;
+	dti->boot_cpuid_phys = boot_cpuid_phys;
 
-	return bi;
+	return dti;
 }
 
 /*
@@ -374,7 +393,7 @@ struct property *get_property(struct node *node, const char *propname)
 cell_t propval_cell(struct property *prop)
 {
 	assert(prop->val.len == sizeof(cell_t));
-	return fdt32_to_cpu(*((cell_t *)prop->val.val));
+	return fdt32_to_cpu(*((fdt32_t *)prop->val.val));
 }
 
 struct property *get_property_by_label(struct node *tree, const char *label,
@@ -511,7 +530,9 @@ struct node *get_node_by_phandle(struct node *tree, cell_t phandle)
 
 struct node *get_node_by_ref(struct node *tree, const char *ref)
 {
-	if (ref[0] == '/')
+	if (streq(ref, "/"))
+		return tree;
+	else if (ref[0] == '/')
 		return get_node_by_path(tree, ref);
 	else
 		return get_node_by_label(tree, ref);
@@ -578,24 +599,24 @@ static int cmp_reserve_info(const void *ax, const void *bx)
 	a = *((const struct reserve_info * const *)ax);
 	b = *((const struct reserve_info * const *)bx);
 
-	if (a->re.address < b->re.address)
+	if (a->address < b->address)
 		return -1;
-	else if (a->re.address > b->re.address)
+	else if (a->address > b->address)
 		return 1;
-	else if (a->re.size < b->re.size)
+	else if (a->size < b->size)
 		return -1;
-	else if (a->re.size > b->re.size)
+	else if (a->size > b->size)
 		return 1;
 	else
 		return 0;
 }
 
-static void sort_reserve_entries(struct boot_info *bi)
+static void sort_reserve_entries(struct dt_info *dti)
 {
 	struct reserve_info *ri, **tbl;
 	int n = 0, i = 0;
 
-	for (ri = bi->reservelist;
+	for (ri = dti->reservelist;
 	     ri;
 	     ri = ri->next)
 		n++;
@@ -605,14 +626,14 @@ static void sort_reserve_entries(struct boot_info *bi)
 
 	tbl = xmalloc(n * sizeof(*tbl));
 
-	for (ri = bi->reservelist;
+	for (ri = dti->reservelist;
 	     ri;
 	     ri = ri->next)
 		tbl[i++] = ri;
 
 	qsort(tbl, n, sizeof(*tbl), cmp_reserve_info);
 
-	bi->reservelist = tbl[0];
+	dti->reservelist = tbl[0];
 	for (i = 0; i < (n-1); i++)
 		tbl[i]->next = tbl[i+1];
 	tbl[n-1]->next = NULL;
@@ -702,8 +723,258 @@ static void sort_node(struct node *node)
 		sort_node(c);
 }
 
-void sort_tree(struct boot_info *bi)
+void sort_tree(struct dt_info *dti)
 {
-	sort_reserve_entries(bi);
-	sort_node(bi->dt);
+	sort_reserve_entries(dti);
+	sort_node(dti->dt);
+}
+
+/* utility helper to avoid code duplication */
+static struct node *build_and_name_child_node(struct node *parent, char *name)
+{
+	struct node *node;
+
+	node = build_node(NULL, NULL);
+	name_node(node, xstrdup(name));
+	add_child(parent, node);
+
+	return node;
+}
+
+static struct node *build_root_node(struct node *dt, char *name)
+{
+	struct node *an;
+
+	an = get_subnode(dt, name);
+	if (!an)
+		an = build_and_name_child_node(dt, name);
+
+	if (!an)
+		die("Could not build root node /%s\n", name);
+
+	return an;
+}
+
+static bool any_label_tree(struct dt_info *dti, struct node *node)
+{
+	struct node *c;
+
+	if (node->labels)
+		return true;
+
+	for_each_child(node, c)
+		if (any_label_tree(dti, c))
+			return true;
+
+	return false;
+}
+
+static void generate_label_tree_internal(struct dt_info *dti,
+					 struct node *an, struct node *node,
+					 bool allocph)
+{
+	struct node *dt = dti->dt;
+	struct node *c;
+	struct property *p;
+	struct label *l;
+
+	/* if there are labels */
+	if (node->labels) {
+
+		/* now add the label in the node */
+		for_each_label(node->labels, l) {
+
+			/* check whether the label already exists */
+			p = get_property(an, l->label);
+			if (p) {
+				fprintf(stderr, "WARNING: label %s already"
+					" exists in /%s", l->label,
+					an->name);
+				continue;
+			}
+
+			/* insert it */
+			p = build_property(l->label,
+				data_copy_mem(node->fullpath,
+						strlen(node->fullpath) + 1));
+			add_property(an, p);
+		}
+
+		/* force allocation of a phandle for this node */
+		if (allocph)
+			(void)get_node_phandle(dt, node);
+	}
+
+	for_each_child(node, c)
+		generate_label_tree_internal(dti, an, c, allocph);
+}
+
+static bool any_fixup_tree(struct dt_info *dti, struct node *node)
+{
+	struct node *c;
+	struct property *prop;
+	struct marker *m;
+
+	for_each_property(node, prop) {
+		m = prop->val.markers;
+		for_each_marker_of_type(m, REF_PHANDLE) {
+			if (!get_node_by_ref(dti->dt, m->ref))
+				return true;
+		}
+	}
+
+	for_each_child(node, c) {
+		if (any_fixup_tree(dti, c))
+			return true;
+	}
+
+	return false;
+}
+
+static void add_fixup_entry(struct dt_info *dti, struct node *fn,
+			    struct node *node, struct property *prop,
+			    struct marker *m)
+{
+	char *entry;
+
+	/* m->ref can only be a REF_PHANDLE, but check anyway */
+	assert(m->type == REF_PHANDLE);
+
+	/* there shouldn't be any ':' in the arguments */
+	if (strchr(node->fullpath, ':') || strchr(prop->name, ':'))
+		die("arguments should not contain ':'\n");
+
+	xasprintf(&entry, "%s:%s:%u",
+			node->fullpath, prop->name, m->offset);
+	append_to_property(fn, m->ref, entry, strlen(entry) + 1);
+
+	free(entry);
+}
+
+static void generate_fixups_tree_internal(struct dt_info *dti,
+					  struct node *fn,
+					  struct node *node)
+{
+	struct node *dt = dti->dt;
+	struct node *c;
+	struct property *prop;
+	struct marker *m;
+	struct node *refnode;
+
+	for_each_property(node, prop) {
+		m = prop->val.markers;
+		for_each_marker_of_type(m, REF_PHANDLE) {
+			refnode = get_node_by_ref(dt, m->ref);
+			if (!refnode)
+				add_fixup_entry(dti, fn, node, prop, m);
+		}
+	}
+
+	for_each_child(node, c)
+		generate_fixups_tree_internal(dti, fn, c);
+}
+
+static bool any_local_fixup_tree(struct dt_info *dti, struct node *node)
+{
+	struct node *c;
+	struct property *prop;
+	struct marker *m;
+
+	for_each_property(node, prop) {
+		m = prop->val.markers;
+		for_each_marker_of_type(m, REF_PHANDLE) {
+			if (get_node_by_ref(dti->dt, m->ref))
+				return true;
+		}
+	}
+
+	for_each_child(node, c) {
+		if (any_local_fixup_tree(dti, c))
+			return true;
+	}
+
+	return false;
+}
+
+static void add_local_fixup_entry(struct dt_info *dti,
+		struct node *lfn, struct node *node,
+		struct property *prop, struct marker *m,
+		struct node *refnode)
+{
+	struct node *wn, *nwn;	/* local fixup node, walk node, new */
+	fdt32_t value_32;
+	char **compp;
+	int i, depth;
+
+	/* walk back retreiving depth */
+	depth = 0;
+	for (wn = node; wn; wn = wn->parent)
+		depth++;
+
+	/* allocate name array */
+	compp = xmalloc(sizeof(*compp) * depth);
+
+	/* store names in the array */
+	for (wn = node, i = depth - 1; wn; wn = wn->parent, i--)
+		compp[i] = wn->name;
+
+	/* walk the path components creating nodes if they don't exist */
+	for (wn = lfn, i = 1; i < depth; i++, wn = nwn) {
+		/* if no node exists, create it */
+		nwn = get_subnode(wn, compp[i]);
+		if (!nwn)
+			nwn = build_and_name_child_node(wn, compp[i]);
+	}
+
+	free(compp);
+
+	value_32 = cpu_to_fdt32(m->offset);
+	append_to_property(wn, prop->name, &value_32, sizeof(value_32));
+}
+
+static void generate_local_fixups_tree_internal(struct dt_info *dti,
+						struct node *lfn,
+						struct node *node)
+{
+	struct node *dt = dti->dt;
+	struct node *c;
+	struct property *prop;
+	struct marker *m;
+	struct node *refnode;
+
+	for_each_property(node, prop) {
+		m = prop->val.markers;
+		for_each_marker_of_type(m, REF_PHANDLE) {
+			refnode = get_node_by_ref(dt, m->ref);
+			if (refnode)
+				add_local_fixup_entry(dti, lfn, node, prop, m, refnode);
+		}
+	}
+
+	for_each_child(node, c)
+		generate_local_fixups_tree_internal(dti, lfn, c);
+}
+
+void generate_label_tree(struct dt_info *dti, char *name, bool allocph)
+{
+	if (!any_label_tree(dti, dti->dt))
+		return;
+	generate_label_tree_internal(dti, build_root_node(dti->dt, name),
+				     dti->dt, allocph);
+}
+
+void generate_fixups_tree(struct dt_info *dti, char *name)
+{
+	if (!any_fixup_tree(dti, dti->dt))
+		return;
+	generate_fixups_tree_internal(dti, build_root_node(dti->dt, name),
+				      dti->dt);
+}
+
+void generate_local_fixups_tree(struct dt_info *dti, char *name)
+{
+	if (!any_local_fixup_tree(dti, dti->dt))
+		return;
+	generate_local_fixups_tree_internal(dti, build_root_node(dti->dt, name),
+					    dti->dt);
 }

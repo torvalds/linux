@@ -19,7 +19,6 @@
 #include <linux/ptrace.h>
 #include <linux/interrupt.h>
 #include <linux/random.h>
-#include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -27,7 +26,7 @@
 #include <linux/bitops.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 volatile unsigned long irq_err_count;
 DEFINE_PER_CPU(unsigned long, irq_pmi_count);
@@ -60,7 +59,7 @@ int irq_select_affinity(unsigned int irq)
 		cpu = (cpu < (NR_CPUS-1) ? cpu + 1 : 0);
 	last_cpu = cpu;
 
-	cpumask_copy(data->affinity, cpumask_of(cpu));
+	cpumask_copy(irq_data_get_affinity_mask(data), cpumask_of(cpu));
 	chip->irq_set_affinity(data, cpumask_of(cpu), false);
 	return 0;
 }
@@ -118,6 +117,6 @@ handle_irq(int irq)
 	}
 
 	irq_enter();
-	generic_handle_irq_desc(irq, desc);
+	generic_handle_irq_desc(desc);
 	irq_exit();
 }

@@ -35,7 +35,7 @@
 #include "cq_enet_desc.h"
 #include "cq_exch_desc.h"
 
-static u8 fcoe_all_fcfs[ETH_ALEN];
+static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
 struct workqueue_struct *fnic_fip_queue;
 struct workqueue_struct *fnic_event_queue;
 
@@ -65,45 +65,105 @@ void fnic_handle_link(struct work_struct *work)
 	fnic->link_status = vnic_dev_link_status(fnic->vdev);
 	fnic->link_down_cnt = vnic_dev_link_down_cnt(fnic->vdev);
 
+	switch (vnic_dev_port_speed(fnic->vdev)) {
+	case DCEM_PORTSPEED_10G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_10GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_10GBIT;
+		break;
+	case DCEM_PORTSPEED_25G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_25GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_25GBIT;
+		break;
+	case DCEM_PORTSPEED_40G:
+	case DCEM_PORTSPEED_4x10G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_40GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_40GBIT;
+		break;
+	case DCEM_PORTSPEED_100G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_100GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_100GBIT;
+		break;
+	default:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_UNKNOWN;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_UNKNOWN;
+		break;
+	}
+
 	if (old_link_status == fnic->link_status) {
-		if (!fnic->link_status)
+		if (!fnic->link_status) {
 			/* DOWN -> DOWN */
 			spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-		else {
+			fnic_fc_trace_set_data(fnic->lport->host->host_no,
+				FNIC_FC_LE, "Link Status: DOWN->DOWN",
+				strlen("Link Status: DOWN->DOWN"));
+		} else {
 			if (old_link_down_cnt != fnic->link_down_cnt) {
 				/* UP -> DOWN -> UP */
 				fnic->lport->host_stats.link_failure_count++;
 				spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+				fnic_fc_trace_set_data(
+					fnic->lport->host->host_no,
+					FNIC_FC_LE,
+					"Link Status:UP_DOWN_UP",
+					strlen("Link_Status:UP_DOWN_UP")
+					);
 				FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
 					     "link down\n");
 				fcoe_ctlr_link_down(&fnic->ctlr);
 				if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 					/* start FCoE VLAN discovery */
+					fnic_fc_trace_set_data(
+						fnic->lport->host->host_no,
+						FNIC_FC_LE,
+						"Link Status: UP_DOWN_UP_VLAN",
+						strlen(
+						"Link Status: UP_DOWN_UP_VLAN")
+						);
 					fnic_fcoe_send_vlan_req(fnic);
 					return;
 				}
 				FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
 					     "link up\n");
 				fcoe_ctlr_link_up(&fnic->ctlr);
-			} else
+			} else {
 				/* UP -> UP */
 				spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+				fnic_fc_trace_set_data(
+					fnic->lport->host->host_no, FNIC_FC_LE,
+					"Link Status: UP_UP",
+					strlen("Link Status: UP_UP"));
+			}
 		}
 	} else if (fnic->link_status) {
 		/* DOWN -> UP */
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 			/* start FCoE VLAN discovery */
+				fnic_fc_trace_set_data(
+				fnic->lport->host->host_no,
+				FNIC_FC_LE, "Link Status: DOWN_UP_VLAN",
+				strlen("Link Status: DOWN_UP_VLAN"));
 			fnic_fcoe_send_vlan_req(fnic);
 			return;
 		}
 		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, "link up\n");
+		fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_LE,
+			"Link Status: DOWN_UP", strlen("Link Status: DOWN_UP"));
 		fcoe_ctlr_link_up(&fnic->ctlr);
 	} else {
 		/* UP -> DOWN */
 		fnic->lport->host_stats.link_failure_count++;
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, "link down\n");
+		fnic_fc_trace_set_data(
+			fnic->lport->host->host_no, FNIC_FC_LE,
+			"Link Status: UP_DOWN",
+			strlen("Link Status: UP_DOWN"));
+		if (fnic->config.flags & VFCF_FIP_CAPABLE) {
+			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
+				"deleting fip-timer during link-down\n");
+			del_timer_sync(&fnic->fip_timer);
+		}
 		fcoe_ctlr_link_down(&fnic->ctlr);
 	}
 
@@ -267,11 +327,6 @@ static inline int is_fnic_fip_flogi_reject(struct fcoe_ctlr *fip,
 
 	if (desc->fip_dtype == FIP_DT_FLOGI) {
 
-		shost_printk(KERN_DEBUG, lport->host,
-			  " FIP TYPE FLOGI: fab name:%llx "
-			  "vfid:%d map:%x\n",
-			  fip->sel_fcf->fabric_name, fip->sel_fcf->vfid,
-			  fip->sel_fcf->fc_map);
 		if (dlen < sizeof(*els) + sizeof(*fh) + 1)
 			return 0;
 
@@ -302,6 +357,7 @@ static inline int is_fnic_fip_flogi_reject(struct fcoe_ctlr *fip,
 static void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 {
 	struct fcoe_ctlr *fip = &fnic->ctlr;
+	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 	struct sk_buff *skb;
 	char *eth_fr;
 	int fr_len;
@@ -310,8 +366,11 @@ static void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 
 	fnic_fcoe_reset_vlans(fnic);
 	fnic->set_vlan(fnic, 0);
-	FNIC_FCS_DBG(KERN_INFO, fnic->lport->host,
-		  "Sending VLAN request...\n");
+
+	if (printk_ratelimit())
+		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host,
+			  "Sending VLAN request...\n");
+
 	skb = dev_alloc_skb(sizeof(struct fip_vlan));
 	if (!skb)
 		return;
@@ -337,6 +396,7 @@ static void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 	vlan->desc.wwnn.fd_desc.fip_dtype = FIP_DT_NAME;
 	vlan->desc.wwnn.fd_desc.fip_dlen = sizeof(vlan->desc.wwnn) / FIP_BPW;
 	put_unaligned_be64(fip->lp->wwnn, &vlan->desc.wwnn.fd_wwn);
+	atomic64_inc(&fnic_stats->vlan_stats.vlan_disc_reqs);
 
 	skb_put(skb, sizeof(*vlan));
 	skb->protocol = htons(ETH_P_FIP);
@@ -354,6 +414,7 @@ static void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct sk_buff *skb)
 	struct fcoe_ctlr *fip = &fnic->ctlr;
 	struct fip_header *fiph;
 	struct fip_desc *desc;
+	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 	u16 vid;
 	size_t rlen;
 	size_t dlen;
@@ -402,6 +463,7 @@ static void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct sk_buff *skb)
 	/* any VLAN descriptors present ? */
 	if (list_empty(&fnic->vlans)) {
 		/* retry from timer */
+		atomic64_inc(&fnic_stats->vlan_stats.resp_withno_vlanID);
 		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host,
 			  "No VLAN descriptors in FIP VLAN response\n");
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
@@ -516,7 +578,7 @@ static int fnic_fcoe_handle_fip_frame(struct fnic *fnic, struct sk_buff *skb)
 			goto drop;
 		/* pass it on to fcoe */
 		ret = 1;
-	} else if (op == FIP_OP_VLAN && sub == FIP_SC_VL_REP) {
+	} else if (op == FIP_OP_VLAN && sub == FIP_SC_VL_NOTE) {
 		/* set the vlan as used */
 		fnic_fcoe_process_vlan_resp(fnic, skb);
 		ret = 0;
@@ -533,6 +595,7 @@ drop:
 void fnic_handle_fip_frame(struct work_struct *work)
 {
 	struct fnic *fnic = container_of(work, struct fnic, fip_frame_work);
+	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 	unsigned long flags;
 	struct sk_buff *skb;
 	struct ethhdr *eh;
@@ -567,6 +630,8 @@ void fnic_handle_fip_frame(struct work_struct *work)
 			 * fcf's & restart from scratch
 			 */
 			if (is_fnic_fip_flogi_reject(&fnic->ctlr, skb)) {
+				atomic64_inc(
+					&fnic_stats->vlan_stats.flogi_rejects);
 				shost_printk(KERN_INFO, fnic->lport->host,
 					  "Trigger a Link down - VLAN Disc\n");
 				fcoe_ctlr_link_down(&fnic->ctlr);
@@ -599,7 +664,7 @@ static inline int fnic_import_rq_eth_pkt(struct fnic *fnic, struct sk_buff *skb)
 	eh = (struct ethhdr *)skb->data;
 	if (eh->h_proto == htons(ETH_P_8021Q)) {
 		memmove((u8 *)eh + VLAN_HLEN, eh, ETH_ALEN * 2);
-		eh = (struct ethhdr *)skb_pull(skb, VLAN_HLEN);
+		eh = skb_pull(skb, VLAN_HLEN);
 		skb_reset_mac_header(skb);
 	}
 	if (eh->h_proto == htons(ETH_P_FIP)) {
@@ -608,6 +673,10 @@ static inline int fnic_import_rq_eth_pkt(struct fnic *fnic, struct sk_buff *skb)
 					"uses non-FIP mode, Enable FIP "
 					"using UCSM\n");
 			goto drop;
+		}
+		if ((fnic_fc_trace_set_data(fnic->lport->host->host_no,
+			FNIC_FC_RECV|0x80, (char *)skb->data, skb->len)) != 0) {
+			printk(KERN_ERR "fnic ctlr frame trace error!!!");
 		}
 		skb_queue_tail(&fnic->fip_frame_queue, skb);
 		queue_work(fnic_fip_queue, &fnic->fip_frame_work);
@@ -651,13 +720,13 @@ void fnic_update_mac_locked(struct fnic *fnic, u8 *new)
 
 	if (is_zero_ether_addr(new))
 		new = ctl;
-	if (!compare_ether_addr(data, new))
+	if (ether_addr_equal(data, new))
 		return;
 	FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, "update_mac %pM\n", new);
-	if (!is_zero_ether_addr(data) && compare_ether_addr(data, ctl))
+	if (!is_zero_ether_addr(data) && !ether_addr_equal(data, ctl))
 		vnic_dev_del_addr(fnic->vdev, data);
 	memcpy(data, new, ETH_ALEN);
-	if (compare_ether_addr(new, ctl))
+	if (!ether_addr_equal(new, ctl))
 		vnic_dev_add_addr(fnic->vdev, new);
 }
 
@@ -753,6 +822,7 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 	struct fnic *fnic = vnic_dev_priv(rq->vdev);
 	struct sk_buff *skb;
 	struct fc_frame *fp;
+	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 	unsigned int eth_hdrs_stripped;
 	u8 type, color, eop, sop, ingress_port, vlan_stripped;
 	u8 fcoe = 0, fcoe_sof, fcoe_eof;
@@ -803,6 +873,7 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 		eth_hdrs_stripped = 0;
 		skb_trim(skb, bytes_written);
 		if (!fcs_ok) {
+			atomic64_inc(&fnic_stats->misc_stats.frame_errors);
 			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
 				     "fcs error.  dropping packet.\n");
 			goto drop;
@@ -818,6 +889,7 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 	}
 
 	if (!fcs_ok || packet_error || !fcoe_fc_crc_ok || fcoe_enc_error) {
+		atomic64_inc(&fnic_stats->misc_stats.frame_errors);
 		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
 			     "fnic rq_cmpl fcoe x%x fcsok x%x"
 			     " pkterr x%x fcoe_fc_crc_ok x%x, fcoe_enc_err"
@@ -834,6 +906,10 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 	}
 	fr_dev(fp) = fnic->lport;
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+	if ((fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_RECV,
+					(char *)skb->data, skb->len)) != 0) {
+		printk(KERN_ERR "fnic ctlr frame trace error!!!");
+	}
 
 	skb_queue_tail(&fnic->frame_queue, skb);
 	queue_work(fnic_event_queue, &fnic->frame_work);
@@ -890,6 +966,7 @@ int fnic_alloc_rq_frame(struct vnic_rq *rq)
 	struct sk_buff *skb;
 	u16 len;
 	dma_addr_t pa;
+	int r;
 
 	len = FC_FRAME_HEADROOM + FC_MAX_FRAME + FC_FRAME_TAILROOM;
 	skb = dev_alloc_skb(len);
@@ -903,8 +980,19 @@ int fnic_alloc_rq_frame(struct vnic_rq *rq)
 	skb_reset_network_header(skb);
 	skb_put(skb, len);
 	pa = pci_map_single(fnic->pdev, skb->data, len, PCI_DMA_FROMDEVICE);
+
+	if (pci_dma_mapping_error(fnic->pdev, pa)) {
+		r = -ENOMEM;
+		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+		goto free_skb;
+	}
+
 	fnic_queue_rq_desc(rq, skb, pa, len);
 	return 0;
+
+free_skb:
+	kfree_skb(skb);
+	return r;
 }
 
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf)
@@ -932,31 +1020,49 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	struct ethhdr *eth_hdr;
 	struct vlan_ethhdr *vlan_hdr;
 	unsigned long flags;
+	int r;
 
 	if (!fnic->vlan_hw_insert) {
 		eth_hdr = (struct ethhdr *)skb_mac_header(skb);
-		vlan_hdr = (struct vlan_ethhdr *)skb_push(skb,
-				sizeof(*vlan_hdr) - sizeof(*eth_hdr));
+		vlan_hdr = skb_push(skb, sizeof(*vlan_hdr) - sizeof(*eth_hdr));
 		memcpy(vlan_hdr, eth_hdr, 2 * ETH_ALEN);
 		vlan_hdr->h_vlan_proto = htons(ETH_P_8021Q);
 		vlan_hdr->h_vlan_encapsulated_proto = eth_hdr->h_proto;
 		vlan_hdr->h_vlan_TCI = htons(fnic->vlan_id);
+		if ((fnic_fc_trace_set_data(fnic->lport->host->host_no,
+			FNIC_FC_SEND|0x80, (char *)eth_hdr, skb->len)) != 0) {
+			printk(KERN_ERR "fnic ctlr frame trace error!!!");
+		}
+	} else {
+		if ((fnic_fc_trace_set_data(fnic->lport->host->host_no,
+			FNIC_FC_SEND|0x80, (char *)skb->data, skb->len)) != 0) {
+			printk(KERN_ERR "fnic ctlr frame trace error!!!");
+		}
 	}
 
 	pa = pci_map_single(fnic->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
 
-	spin_lock_irqsave(&fnic->wq_lock[0], flags);
-	if (!vnic_wq_desc_avail(wq)) {
-		pci_unmap_single(fnic->pdev, pa, skb->len, PCI_DMA_TODEVICE);
-		spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
-		kfree_skb(skb);
-		return;
+	r = pci_dma_mapping_error(fnic->pdev, pa);
+	if (r) {
+		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+		goto free_skb;
 	}
+
+	spin_lock_irqsave(&fnic->wq_lock[0], flags);
+	if (!vnic_wq_desc_avail(wq))
+		goto irq_restore;
 
 	fnic_queue_wq_eth_desc(wq, skb, pa, skb->len,
 			       0 /* hw inserts cos value */,
 			       fnic->vlan_id, 1);
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
+	return;
+
+irq_restore:
+	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
+	pci_unmap_single(fnic->pdev, pa, skb->len, PCI_DMA_TODEVICE);
+free_skb:
+	kfree_skb(skb);
 }
 
 /*
@@ -984,7 +1090,7 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 
 	if (!fnic->vlan_hw_insert) {
 		eth_hdr_len = sizeof(*vlan_hdr) + sizeof(*fcoe_hdr);
-		vlan_hdr = (struct vlan_ethhdr *)skb_push(skb, eth_hdr_len);
+		vlan_hdr = skb_push(skb, eth_hdr_len);
 		eth_hdr = (struct ethhdr *)vlan_hdr;
 		vlan_hdr->h_vlan_proto = htons(ETH_P_8021Q);
 		vlan_hdr->h_vlan_encapsulated_proto = htons(ETH_P_FCOE);
@@ -992,7 +1098,7 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 		fcoe_hdr = (struct fcoe_hdr *)(vlan_hdr + 1);
 	} else {
 		eth_hdr_len = sizeof(*eth_hdr) + sizeof(*fcoe_hdr);
-		eth_hdr = (struct ethhdr *)skb_push(skb, eth_hdr_len);
+		eth_hdr = skb_push(skb, eth_hdr_len);
 		eth_hdr->h_proto = htons(ETH_P_FCOE);
 		fcoe_hdr = (struct fcoe_hdr *)(eth_hdr + 1);
 	}
@@ -1013,21 +1119,34 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 
 	pa = pci_map_single(fnic->pdev, eth_hdr, tot_len, PCI_DMA_TODEVICE);
 
+	if (pci_dma_mapping_error(fnic->pdev, pa)) {
+		ret = -ENOMEM;
+		printk(KERN_ERR "DMA map failed with error %d\n", ret);
+		goto free_skb_on_err;
+	}
+
+	if ((fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_SEND,
+				(char *)eth_hdr, tot_len)) != 0) {
+		printk(KERN_ERR "fnic ctlr frame trace error!!!");
+	}
+
 	spin_lock_irqsave(&fnic->wq_lock[0], flags);
 
 	if (!vnic_wq_desc_avail(wq)) {
 		pci_unmap_single(fnic->pdev, pa,
 				 tot_len, PCI_DMA_TODEVICE);
 		ret = -1;
-		goto fnic_send_frame_end;
+		goto irq_restore;
 	}
 
 	fnic_queue_wq_desc(wq, skb, pa, tot_len, fr_eof(fp),
 			   0 /* hw inserts cos value */,
 			   fnic->vlan_id, 1, 1, 1);
-fnic_send_frame_end:
+
+irq_restore:
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
 
+free_skb_on_err:
 	if (ret)
 		dev_kfree_skb_any(fp_skb(fp));
 
@@ -1205,6 +1324,7 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 {
 	unsigned long flags;
 	struct fcoe_vlan *vlan;
+	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 	u64 sol_time;
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
@@ -1214,15 +1334,16 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 	}
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
-	if (fnic->ctlr.mode == FIP_ST_NON_FIP)
+	if (fnic->ctlr.mode == FIP_MODE_NON_FIP)
 		return;
 
 	spin_lock_irqsave(&fnic->vlans_lock, flags);
 	if (list_empty(&fnic->vlans)) {
-		/* no vlans available, try again */
-		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
-			  "Start VLAN Discovery\n");
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
+		/* no vlans available, try again */
+		if (printk_ratelimit())
+			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
+				  "Start VLAN Discovery\n");
 		fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);
 		return;
 	}
@@ -1238,10 +1359,11 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
 		break;
 	case FIP_VLAN_FAILED:
-		/* if all vlans are in failed state, restart vlan disc */
-		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
-			  "Start VLAN Discovery\n");
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
+		/* if all vlans are in failed state, restart vlan disc */
+		if (printk_ratelimit())
+			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
+				  "Start VLAN Discovery\n");
 		fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);
 		break;
 	case FIP_VLAN_SENT:
@@ -1273,6 +1395,7 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 			vlan->state = FIP_VLAN_SENT; /* sent now */
 		}
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
+		atomic64_inc(&fnic_stats->vlan_stats.sol_expiry_count);
 		vlan->sol_count++;
 		sol_time = jiffies + msecs_to_jiffies
 					(FCOE_CTLR_START_DELAY);

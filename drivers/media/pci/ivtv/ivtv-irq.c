@@ -75,7 +75,7 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 
 	IVTV_DEBUG_HI_DMA("ivtv_pio_work_handler\n");
 	if (itv->cur_pio_stream < 0 || itv->cur_pio_stream >= IVTV_MAX_STREAMS ||
-			s->vdev == NULL || !ivtv_use_pio(s)) {
+			s->vdev.v4l2_dev == NULL || !ivtv_use_pio(s)) {
 		itv->cur_pio_stream = -1;
 		/* trigger PIO complete user interrupt */
 		write_reg(IVTV_IRQ_ENC_PIO_COMPLETE, 0x44);
@@ -132,7 +132,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 	int rc;
 
 	/* sanity checks */
-	if (s->vdev == NULL) {
+	if (s->vdev.v4l2_dev == NULL) {
 		IVTV_DEBUG_WARN("Stream %s not started\n", s->name);
 		return -1;
 	}
@@ -192,11 +192,11 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 		if (itv->has_cx23415 && (s->type == IVTV_ENC_STREAM_TYPE_PCM ||
 		    s->type == IVTV_DEC_STREAM_TYPE_VBI)) {
 			s->pending_backup = read_dec(offset - IVTV_DECODER_OFFSET);
-			write_dec_sync(cpu_to_le32(DMA_MAGIC_COOKIE), offset - IVTV_DECODER_OFFSET);
+			write_dec_sync(DMA_MAGIC_COOKIE, offset - IVTV_DECODER_OFFSET);
 		}
 		else {
 			s->pending_backup = read_enc(offset);
-			write_enc_sync(cpu_to_le32(DMA_MAGIC_COOKIE), offset);
+			write_enc_sync(DMA_MAGIC_COOKIE, offset);
 		}
 		s->pending_offset = offset;
 	}
@@ -275,13 +275,11 @@ static void dma_post(struct ivtv_stream *s)
 
 		if (x == 0 && ivtv_use_dma(s)) {
 			offset = s->dma_last_offset;
-			if (u32buf[offset / 4] != DMA_MAGIC_COOKIE)
+			if (le32_to_cpu(u32buf[offset / 4]) != DMA_MAGIC_COOKIE)
 			{
-				for (offset = 0; offset < 64; offset++) {
-					if (u32buf[offset] == DMA_MAGIC_COOKIE) {
+				for (offset = 0; offset < 64; offset++)
+					if (le32_to_cpu(u32buf[offset]) == DMA_MAGIC_COOKIE)
 						break;
-					}
-				}
 				offset *= 4;
 				if (offset == 256) {
 					IVTV_DEBUG_WARN("%s: Couldn't find start of buffer within the first 256 bytes\n", s->name);
@@ -359,7 +357,6 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 	u32 uv_offset = offset + IVTV_YUV_BUFFER_UV_OFFSET;
 	int y_done = 0;
 	int bytes_written = 0;
-	unsigned long flags = 0;
 	int idx = 0;
 
 	IVTV_DEBUG_HI_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
@@ -409,16 +406,21 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 
 	/* Sync Hardware SG List of buffers */
 	ivtv_stream_sync_for_device(s);
-	if (lock)
+	if (lock) {
+		unsigned long flags = 0;
+
 		spin_lock_irqsave(&itv->dma_reg_lock, flags);
-	if (!test_bit(IVTV_F_I_DMA, &itv->i_flags)) {
-		ivtv_dma_dec_start(s);
-	}
-	else {
-		set_bit(IVTV_F_S_DMA_PENDING, &s->s_flags);
-	}
-	if (lock)
+		if (!test_bit(IVTV_F_I_DMA, &itv->i_flags))
+			ivtv_dma_dec_start(s);
+		else
+			set_bit(IVTV_F_S_DMA_PENDING, &s->s_flags);
 		spin_unlock_irqrestore(&itv->dma_reg_lock, flags);
+	} else {
+		if (!test_bit(IVTV_F_I_DMA, &itv->i_flags))
+			ivtv_dma_dec_start(s);
+		else
+			set_bit(IVTV_F_S_DMA_PENDING, &s->s_flags);
+	}
 }
 
 static void ivtv_dma_enc_start_xfer(struct ivtv_stream *s)
@@ -888,8 +890,8 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 			if (s)
 				wake_up(&s->waitq);
 		}
-		if (s && s->vdev)
-			v4l2_event_queue(s->vdev, frame ? &evtop : &evbottom);
+		if (s && s->vdev.v4l2_dev)
+			v4l2_event_queue(&s->vdev, frame ? &evtop : &evbottom);
 		wake_up(&itv->vsync_waitq);
 
 		/* Send VBI to saa7127 */
@@ -1060,7 +1062,7 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	}
 
 	if (test_and_clear_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags)) {
-		queue_kthread_work(&itv->irq_worker, &itv->irq_work);
+		kthread_queue_work(&itv->irq_worker, &itv->irq_work);
 	}
 
 	spin_unlock(&itv->dma_reg_lock);

@@ -19,7 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 
 #include <asm/spu.h>
@@ -138,18 +138,18 @@ int spufs_handle_class1(struct spu_context *ctx)
 	if (ctx->state == SPU_STATE_RUNNABLE)
 		ctx->spu->stats.hash_flt++;
 
-	/* we must not hold the lock when entering spu_handle_mm_fault */
+	/* we must not hold the lock when entering copro_handle_mm_fault */
 	spu_release(ctx);
 
-	access = (_PAGE_PRESENT | _PAGE_USER);
-	access |= (dsisr & MFC_DSISR_ACCESS_PUT) ? _PAGE_RW : 0UL;
+	access = (_PAGE_PRESENT | _PAGE_READ);
+	access |= (dsisr & MFC_DSISR_ACCESS_PUT) ? _PAGE_WRITE : 0UL;
 	local_irq_save(flags);
-	ret = hash_page(ea, access, 0x300);
+	ret = hash_page(ea, access, 0x300, dsisr);
 	local_irq_restore(flags);
 
 	/* hashing failed, so try the actual fault handler */
 	if (ret)
-		ret = spu_handle_mm_fault(current->mm, ea, dsisr, &flt);
+		ret = copro_handle_mm_fault(current->mm, ea, dsisr, &flt);
 
 	/*
 	 * This is nasty: we need the state_mutex for all the bookkeeping even

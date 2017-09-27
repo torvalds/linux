@@ -36,7 +36,11 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 		     mbox->scheduled_scan_channels);
 
 	if (wl->scanning) {
-		ieee80211_scan_completed(wl->hw, false);
+		struct cfg80211_scan_info info = {
+			.aborted = false,
+		};
+
+		ieee80211_scan_completed(wl->hw, &info);
 		wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan completed");
 		wl->scanning = false;
 		if (wl->hw->conf.flags & IEEE80211_CONF_IDLE)
@@ -44,6 +48,43 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 	}
 
 	return ret;
+}
+
+#define WL1251_PSM_ENTRY_RETRIES  3
+static int wl1251_event_ps_report(struct wl1251 *wl,
+				  struct event_mailbox *mbox)
+{
+	int ret = 0;
+
+	wl1251_debug(DEBUG_EVENT, "ps status: %x", mbox->ps_status);
+
+	switch (mbox->ps_status) {
+	case EVENT_ENTER_POWER_SAVE_FAIL:
+		wl1251_debug(DEBUG_PSM, "PSM entry failed");
+
+		if (wl->station_mode != STATION_POWER_SAVE_MODE) {
+			/* remain in active mode */
+			wl->psm_entry_retry = 0;
+			break;
+		}
+
+		if (wl->psm_entry_retry < WL1251_PSM_ENTRY_RETRIES) {
+			wl->psm_entry_retry++;
+			ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+		} else {
+			wl1251_error("Power save entry failed, giving up");
+			wl->psm_entry_retry = 0;
+		}
+		break;
+	case EVENT_ENTER_POWER_SAVE_SUCCESS:
+	case EVENT_EXIT_POWER_SAVE_FAIL:
+	case EVENT_EXIT_POWER_SAVE_SUCCESS:
+	default:
+		wl->psm_entry_retry = 0;
+		break;
+	}
+
+	return 0;
 }
 
 static void wl1251_event_mbox_dump(struct event_mailbox *mbox)
@@ -80,11 +121,19 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 		}
 	}
 
+	if (vector & PS_REPORT_EVENT_ID) {
+		wl1251_debug(DEBUG_EVENT, "PS_REPORT_EVENT");
+		ret = wl1251_event_ps_report(wl, mbox);
+		if (ret < 0)
+			return ret;
+	}
+
 	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID) {
 		wl1251_debug(DEBUG_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */
-		ieee80211_beacon_loss(wl->vif);
+		if (wl->vif && wl->vif->type == NL80211_IFTYPE_STATION)
+			ieee80211_beacon_loss(wl->vif);
 	}
 
 	if (vector & REGAINED_BSS_EVENT_ID) {
@@ -101,7 +150,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 				     "ROAMING_TRIGGER_LOW_RSSI_EVENT");
 			ieee80211_cqm_rssi_notify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
-				GFP_KERNEL);
+				0, GFP_KERNEL);
 		}
 
 		if (vector & ROAMING_TRIGGER_REGAINED_RSSI_EVENT_ID) {
@@ -109,7 +158,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 				     "ROAMING_TRIGGER_REGAINED_RSSI_EVENT");
 			ieee80211_cqm_rssi_notify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
-				GFP_KERNEL);
+				0, GFP_KERNEL);
 		}
 	}
 

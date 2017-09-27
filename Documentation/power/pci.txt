@@ -8,7 +8,7 @@ management.  Based on previous work by Patrick Mochel <mochel@transmeta.com>
 
 This document only covers the aspects of power management specific to PCI
 devices.  For general description of the kernel's interfaces related to device
-power management refer to Documentation/power/devices.txt and
+power management refer to Documentation/power/admin-guide/devices.rst and
 Documentation/power/runtime_pm.txt.
 
 ---------------------------------------------------------------------------
@@ -417,7 +417,7 @@ pm->runtime_idle() callback.
 2.4. System-Wide Power Transitions
 ----------------------------------
 There are a few different types of system-wide power transitions, described in
-Documentation/power/devices.txt.  Each of them requires devices to be handled
+Documentation/power/admin-guide/devices.rst.  Each of them requires devices to be handled
 in a specific way and the PM core executes subsystem-level power management
 callbacks for this purpose.  They are executed in phases such that each phase
 involves executing the same subsystem-level callback for every device belonging
@@ -623,7 +623,7 @@ System restore requires a hibernation image to be loaded into memory and the
 pre-hibernation memory contents to be restored before the pre-hibernation system
 activity can be resumed.
 
-As described in Documentation/power/devices.txt, the hibernation image is loaded
+As described in Documentation/power/admin-guide/devices.rst, the hibernation image is loaded
 into memory by a fresh instance of the kernel, called the boot kernel, which in
 turn is loaded and run by a boot loader in the usual way.  After the boot kernel
 has loaded the image, it needs to replace its own code and data with the code
@@ -677,7 +677,7 @@ controlling the runtime power management of their devices.
 
 At the time of this writing there are two ways to define power management
 callbacks for a PCI device driver, the recommended one, based on using a
-dev_pm_ops structure described in Documentation/power/devices.txt, and the
+dev_pm_ops structure described in Documentation/power/admin-guide/devices.rst, and the
 "legacy" one, in which the .suspend(), .suspend_late(), .resume_early(), and
 .resume() callbacks from struct pci_driver are used.  The legacy approach,
 however, doesn't allow one to define runtime power management callbacks and is
@@ -713,7 +713,7 @@ In addition to that the prepare() callback may carry out some operations
 preparing the device to be suspended, although it should not allocate memory
 (if additional memory is required to suspend the device, it has to be
 preallocated earlier, for example in a suspend/hibernate notifier as described
-in Documentation/power/notifiers.txt).
+in Documentation/driver-api/pm/notifiers.rst).
 
 3.1.2. suspend()
 
@@ -979,20 +979,45 @@ every time right after the runtime_resume() callback has returned
 (alternatively, the runtime_suspend() callback will have to check if the
 device should really be suspended and return -EAGAIN if that is not the case).
 
-The runtime PM of PCI devices is disabled by default.  It is also blocked by
-pci_pm_init() that runs the pm_runtime_forbid() helper function.  If a PCI
-driver implements the runtime PM callbacks and intends to use the runtime PM
-framework provided by the PM core and the PCI subsystem, it should enable this
-feature by executing the pm_runtime_enable() helper function.  However, the
-driver should not call the pm_runtime_allow() helper function unblocking
-the runtime PM of the device.  Instead, it should allow user space or some
-platform-specific code to do that (user space can do it via sysfs), although
-once it has called pm_runtime_enable(), it must be prepared to handle the
+The runtime PM of PCI devices is enabled by default by the PCI core.  PCI
+device drivers do not need to enable it and should not attempt to do so.
+However, it is blocked by pci_pm_init() that runs the pm_runtime_forbid()
+helper function.  In addition to that, the runtime PM usage counter of
+each PCI device is incremented by local_pci_probe() before executing the
+probe callback provided by the device's driver.
+
+If a PCI driver implements the runtime PM callbacks and intends to use the
+runtime PM framework provided by the PM core and the PCI subsystem, it needs
+to decrement the device's runtime PM usage counter in its probe callback
+function.  If it doesn't do that, the counter will always be different from
+zero for the device and it will never be runtime-suspended.  The simplest
+way to do that is by calling pm_runtime_put_noidle(), but if the driver
+wants to schedule an autosuspend right away, for example, it may call
+pm_runtime_put_autosuspend() instead for this purpose.  Generally, it
+just needs to call a function that decrements the devices usage counter
+from its probe routine to make runtime PM work for the device.
+
+It is important to remember that the driver's runtime_suspend() callback
+may be executed right after the usage counter has been decremented, because
+user space may already have caused the pm_runtime_allow() helper function
+unblocking the runtime PM of the device to run via sysfs, so the driver must
+be prepared to cope with that.
+
+The driver itself should not call pm_runtime_allow(), though.  Instead, it
+should let user space or some platform-specific code do that (user space can
+do it via sysfs as stated above), but it must be prepared to handle the
 runtime PM of the device correctly as soon as pm_runtime_allow() is called
-(which may happen at any time).  [It also is possible that user space causes
-pm_runtime_allow() to be called via sysfs before the driver is loaded, so in
-fact the driver has to be prepared to handle the runtime PM of the device as
-soon as it calls pm_runtime_enable().]
+(which may happen at any time, even before the driver is loaded).
+
+When the driver's remove callback runs, it has to balance the decrementation
+of the device's runtime PM usage counter at the probe time.  For this reason,
+if it has decremented the counter in its probe callback, it must run
+pm_runtime_get_noresume() in its remove callback.  [Since the core carries
+out a runtime resume of the device and bumps up the device's usage counter
+before running the driver's remove callback, the runtime PM of the device
+is effectively disabled for the duration of the remove execution and all
+runtime PM helper functions incrementing the device's usage counter are
+then effectively equivalent to pm_runtime_get_noresume().]
 
 The runtime PM framework works by processing requests to suspend or resume
 devices, or to check if they are idle (in which cases it is reasonable to
@@ -1021,5 +1046,5 @@ PCI Local Bus Specification, Rev. 3.0
 PCI Bus Power Management Interface Specification, Rev. 1.2
 Advanced Configuration and Power Interface (ACPI) Specification, Rev. 3.0b
 PCI Express Base Specification, Rev. 2.0
-Documentation/power/devices.txt
+Documentation/power/admin-guide/devices.rst
 Documentation/power/runtime_pm.txt

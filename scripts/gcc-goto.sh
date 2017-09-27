@@ -5,7 +5,7 @@
 cat << "END" | $@ -x c - -c -o /dev/null >/dev/null 2>&1 && echo "y"
 int main(void)
 {
-#ifdef __arm__
+#if defined(__arm__) || defined(__aarch64__)
 	/*
 	 * Not related to asm goto, but used by jump label
 	 * and broken on some ARM GCC versions (see GCC Bug 48637).

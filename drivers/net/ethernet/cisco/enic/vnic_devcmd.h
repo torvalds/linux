@@ -281,11 +281,25 @@ enum vnic_devcmd_cmd {
 	 *              0 if no VIF-CONFIG-INFO TLV was ever received. */
 	CMD_CONFIG_INFO_GET     = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 44),
 
+	/* INT13 API: (u64)a0=paddr to vnic_int13_params struct
+	 *            (u32)a1=INT13_CMD_xxx
+	 */
+	CMD_INT13_ALL = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 45),
+
+	/* Set default vlan:
+	 * in: (u16)a0=new default vlan
+	 *     (u16)a1=zero for overriding vlan with param a0,
+	 *		       non-zero for resetting vlan to the default
+	 * out: (u16)a0=old default vlan
+	 */
+	CMD_SET_DEFAULT_VLAN = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 46),
+
 	/* init_prov_info2:
 	 * Variant of CMD_INIT_PROV_INFO, where it will not try to enable
 	 * the vnic until CMD_ENABLE2 is issued.
 	 *     (u64)a0=paddr of vnic_devcmd_provinfo
-	 *     (u32)a1=sizeof provision info */
+	 *     (u32)a1=sizeof provision info
+	 */
 	CMD_INIT_PROV_INFO2  = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 47),
 
 	/* enable2:
@@ -339,16 +353,88 @@ enum vnic_devcmd_cmd {
 	CMD_INTR_COAL_CONVERT = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 50),
 
 	/*
-	 * cmd_set_mac_addr
-	 *	set mac address
+	 * Set the predefined mac address as default
 	 * in:
 	 *   (u48)a0 = mac addr
-	 *
 	 */
 	CMD_SET_MAC_ADDR = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 55),
+
+	/* Update the provisioning info of the given VIF
+	 *     (u64)a0=paddr of vnic_devcmd_provinfo
+	 *     (u32)a1=sizeof provision info
+	 */
+	CMD_PROV_INFO_UPDATE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 56),
+
+	/* Initialization for the devcmd2 interface.
+	 * in: (u64) a0 = host result buffer physical address
+	 * in: (u16) a1 = number of entries in result buffer
+	 */
+	CMD_INITIALIZE_DEVCMD2 = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 57),
+
+	/* Add a filter.
+	 * in: (u64) a0= filter address
+	 *     (u32) a1= size of filter
+	 * out: (u32) a0=filter identifier
+	 */
+	CMD_ADD_FILTER = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ENET, 58),
+
+	/* Delete a filter.
+	 * in: (u32) a0=filter identifier
+	 */
+	CMD_DEL_FILTER = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 59),
+
+	/* Enable a Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 *     (u32) a1= command
+	 */
+	CMD_QP_ENABLE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 60),
+
+	/* Disable a Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 *     (u32) a1= command
+	 */
+	CMD_QP_DISABLE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 61),
+
+	/* Stats dump Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 *     (u64) a1=host buffer addr for status dump
+	 *     (u32) a2=length of the buffer
+	 */
+	CMD_QP_STATS_DUMP = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 62),
+
+	/* Clear stats for Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 */
+	CMD_QP_STATS_CLEAR = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 63),
+
+	/* Use this devcmd for agreeing on the highest common version supported
+	 * by both driver and fw for features who need such a facility.
+	 * in:	(u64) a0 = feature (driver requests for the supported versions
+	 *	on this feature)
+	 * out: (u64) a0 = bitmap of all supported versions for that feature
+	 */
+	CMD_GET_SUPP_FEATURE_VER = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ENET, 69),
+
+	/* Control (Enable/Disable) overlay offloads on the given vnic
+	 * in: (u8) a0 = OVERLAY_FEATURE_NVGRE : NVGRE
+	 *	    a0 = OVERLAY_FEATURE_VXLAN : VxLAN
+	 * in: (u8) a1 = OVERLAY_OFFLOAD_ENABLE : Enable or
+	 *	    a1 = OVERLAY_OFFLOAD_DISABLE : Disable or
+	 *	    a1 = OVERLAY_OFFLOAD_ENABLE_V2 : Enable with version 2
+	 */
+	CMD_OVERLAY_OFFLOAD_CTRL = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 72),
+
+	/* Configuration of overlay offloads feature on a given vNIC
+	 * in: (u8) a0 = DEVCMD_OVERLAY_NVGRE : NVGRE
+	 *	    a0 = DEVCMD_OVERLAY_VXLAN : VxLAN
+	 * in: (u8) a1 = VXLAN_PORT_UPDATE : VxLAN
+	 * in: (u16) a2 = unsigned short int port information
+	 */
+	CMD_OVERLAY_OFFLOAD_CFG = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 73),
 };
 
 /* CMD_ENABLE2 flags */
+#define CMD_ENABLE2_STANDBY 0x0
 #define CMD_ENABLE2_ACTIVE  0x1
 
 /* flags for CMD_OPEN */
@@ -363,6 +449,9 @@ enum vnic_devcmd_cmd {
 #define CMD_PFILTER_BROADCAST		0x04
 #define CMD_PFILTER_PROMISCUOUS		0x08
 #define CMD_PFILTER_ALL_MULTICAST	0x10
+
+/* Commands for CMD_QP_ENABLE/CM_QP_DISABLE */
+#define CMD_QP_RQWQ                     0x0
 
 /* rewrite modes for CMD_IG_VLAN_REWRITE_MODE */
 #define IG_VLAN_REWRITE_MODE_DEFAULT_TRUNK              0
@@ -390,6 +479,7 @@ enum vnic_devcmd_error {
 	ERR_EMAXRES = 10,
 	ERR_ENOTSUPPORTED = 11,
 	ERR_EINPROGRESS = 12,
+	ERR_MAX
 };
 
 /*
@@ -435,6 +525,120 @@ struct vnic_devcmd_provinfo {
 	u8 data[0];
 };
 
+/* These are used in flags field of different filters to denote
+ * valid fields used.
+ */
+#define FILTER_FIELD_VALID(fld) (1 << (fld - 1))
+
+#define FILTER_FIELDS_USNIC ( \
+			FILTER_FIELD_VALID(1) | \
+			FILTER_FIELD_VALID(2) | \
+			FILTER_FIELD_VALID(3) | \
+			FILTER_FIELD_VALID(4))
+
+#define FILTER_FIELDS_IPV4_5TUPLE ( \
+			FILTER_FIELD_VALID(1) | \
+			FILTER_FIELD_VALID(2) | \
+			FILTER_FIELD_VALID(3) | \
+			FILTER_FIELD_VALID(4) | \
+			FILTER_FIELD_VALID(5))
+
+#define FILTER_FIELDS_MAC_VLAN ( \
+			FILTER_FIELD_VALID(1) | \
+			FILTER_FIELD_VALID(2))
+
+#define FILTER_FIELD_USNIC_VLAN    FILTER_FIELD_VALID(1)
+#define FILTER_FIELD_USNIC_ETHTYPE FILTER_FIELD_VALID(2)
+#define FILTER_FIELD_USNIC_PROTO   FILTER_FIELD_VALID(3)
+#define FILTER_FIELD_USNIC_ID      FILTER_FIELD_VALID(4)
+
+struct filter_usnic_id {
+	u32 flags;
+	u16 vlan;
+	u16 ethtype;
+	u8 proto_version;
+	u32 usnic_id;
+} __packed;
+
+#define FILTER_FIELD_5TUP_PROTO  FILTER_FIELD_VALID(1)
+#define FILTER_FIELD_5TUP_SRC_AD FILTER_FIELD_VALID(2)
+#define FILTER_FIELD_5TUP_DST_AD FILTER_FIELD_VALID(3)
+#define FILTER_FIELD_5TUP_SRC_PT FILTER_FIELD_VALID(4)
+#define FILTER_FIELD_5TUP_DST_PT FILTER_FIELD_VALID(5)
+
+/* Enums for the protocol field. */
+enum protocol_e {
+	PROTO_UDP = 0,
+	PROTO_TCP = 1,
+};
+
+struct filter_ipv4_5tuple {
+	u32 flags;
+	u32 protocol;
+	u32 src_addr;
+	u32 dst_addr;
+	u16 src_port;
+	u16 dst_port;
+} __packed;
+
+#define FILTER_FIELD_VMQ_VLAN   FILTER_FIELD_VALID(1)
+#define FILTER_FIELD_VMQ_MAC    FILTER_FIELD_VALID(2)
+
+struct filter_mac_vlan {
+	u32 flags;
+	u16 vlan;
+	u8 mac_addr[6];
+} __packed;
+
+/* Specifies the filter_action type. */
+enum {
+	FILTER_ACTION_RQ_STEERING = 0,
+	FILTER_ACTION_MAX
+};
+
+struct filter_action {
+	u32 type;
+	union {
+		u32 rq_idx;
+	} u;
+} __packed;
+
+/* Specifies the filter type. */
+enum filter_type {
+	FILTER_USNIC_ID = 0,
+	FILTER_IPV4_5TUPLE = 1,
+	FILTER_MAC_VLAN = 2,
+	FILTER_MAX
+};
+
+struct filter {
+	u32 type;
+	union {
+		struct filter_usnic_id usnic;
+		struct filter_ipv4_5tuple ipv4;
+		struct filter_mac_vlan mac_vlan;
+	} u;
+} __packed;
+
+enum {
+	CLSF_TLV_FILTER = 0,
+	CLSF_TLV_ACTION = 1,
+};
+
+/* Maximum size of buffer to CMD_ADD_FILTER */
+#define FILTER_MAX_BUF_SIZE 100
+
+struct filter_tlv {
+	u_int32_t type;
+	u_int32_t length;
+	u_int32_t val[0];
+};
+
+enum {
+	CLSF_ADD = 0,
+	CLSF_DEL = 1,
+};
+
 /*
  * Writing cmd register causes STAT_BUSY to get set in status register.
  * When cmd completes, STAT_BUSY will be cleared.
@@ -454,6 +658,54 @@ struct vnic_devcmd {
 	u32 status;			/* RO */
 	u32 cmd;			/* RW */
 	u64 args[VNIC_DEVCMD_NARGS];	/* RW cmd args (little-endian) */
+};
+
+#define DEVCMD2_FNORESULT	0x1	/* Don't copy result to host */
+
+#define VNIC_DEVCMD2_NARGS	VNIC_DEVCMD_NARGS
+struct vnic_devcmd2 {
+	u16 pad;
+	u16 flags;
+	u32 cmd;
+	u64 args[VNIC_DEVCMD2_NARGS];
+};
+
+#define VNIC_DEVCMD2_NRESULTS	VNIC_DEVCMD_NARGS
+struct devcmd2_result {
+	u64 results[VNIC_DEVCMD2_NRESULTS];
+	u32 pad;
+	u16 completed_index;
+	u8  error;
+	u8  color;
+};
+
+#define DEVCMD2_RING_SIZE	32
+#define DEVCMD2_DESC_SIZE	128
+
+enum overlay_feature_t {
+	OVERLAY_FEATURE_NVGRE = 1,
+	OVERLAY_FEATURE_VXLAN,
+	OVERLAY_FEATURE_MAX,
+};
+
+enum overlay_ofld_cmd {
+	OVERLAY_OFFLOAD_ENABLE,
+	OVERLAY_OFFLOAD_DISABLE,
+	OVERLAY_OFFLOAD_ENABLE_P2,
+	OVERLAY_OFFLOAD_MAX,
+};
+
+#define OVERLAY_CFG_VXLAN_PORT_UPDATE	0
+
+/* Use this enum to get the supported versions for each of these features
+ * If you need to use the devcmd_get_supported_feature_version(), add
+ * the new feature into this enum and install function handler in devcmd.c
+ */
+enum vic_feature_t {
+	VIC_FEATURE_VXLAN,
+	VIC_FEATURE_RDMA,
+	VIC_FEATURE_VXLAN_PATCH,
+	VIC_FEATURE_MAX,
 };
 
 #endif /* _VNIC_DEVCMD_H_ */

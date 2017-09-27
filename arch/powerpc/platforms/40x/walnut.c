@@ -28,7 +28,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc4xx.h>
 
-static __initdata struct of_device_id walnut_of_bus[] = {
+static const struct of_device_id walnut_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb3", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },
@@ -46,9 +46,7 @@ machine_device_initcall(walnut, walnut_device_probe);
 
 static int __init walnut_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "ibm,walnut"))
+	if (!of_machine_is_compatible("ibm,walnut"))
 		return 0;
 
 	pci_set_flags(PCI_REASSIGN_ALL_RSRC);

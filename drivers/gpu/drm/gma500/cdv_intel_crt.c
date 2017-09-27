@@ -81,13 +81,6 @@ static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool cdv_intel_crt_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
@@ -95,13 +88,12 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct psb_intel_crtc *psb_intel_crtc =
-					to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int dpll_md_reg;
 	u32 adpa, dpll_md;
 	u32 adpa_reg;
 
-	if (psb_intel_crtc->pipe == 0)
+	if (gma_crtc->pipe == 0)
 		dpll_md_reg = DPLL_A_MD;
 	else
 		dpll_md_reg = DPLL_B_MD;
@@ -124,7 +116,7 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
-	if (psb_intel_crtc->pipe == 0)
+	if (gma_crtc->pipe == 0)
 		adpa |= ADPA_PIPE_A_SELECT;
 	else
 		adpa |= ADPA_PIPE_B_SELECT;
@@ -197,20 +189,19 @@ static enum drm_connector_status cdv_intel_crt_detect(
 
 static void cdv_intel_crt_destroy(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	psb_intel_i2c_destroy(psb_intel_encoder->ddc_bus);
-	drm_sysfs_connector_remove(connector);
+	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
 
 static int cdv_intel_crt_get_modes(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-				psb_intel_attached_encoder(connector);
-	return psb_intel_ddc_get_modes(connector, &psb_intel_encoder->ddc_bus->adapter);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	return psb_intel_ddc_get_modes(connector,
+				       &gma_encoder->ddc_bus->adapter);
 }
 
 static int cdv_intel_crt_set_property(struct drm_connector *connector,
@@ -226,9 +217,8 @@ static int cdv_intel_crt_set_property(struct drm_connector *connector,
 
 static const struct drm_encoder_helper_funcs cdv_intel_crt_helper_funcs = {
 	.dpms = cdv_intel_crt_dpms,
-	.mode_fixup = cdv_intel_crt_mode_fixup,
-	.prepare = psb_intel_encoder_prepare,
-	.commit = psb_intel_encoder_commit,
+	.prepare = gma_encoder_prepare,
+	.commit = gma_encoder_commit,
 	.mode_set = cdv_intel_crt_mode_set,
 };
 
@@ -244,7 +234,7 @@ static const struct drm_connector_helper_funcs
 				cdv_intel_crt_connector_helper_funcs = {
 	.mode_valid = cdv_intel_crt_mode_valid,
 	.get_modes = cdv_intel_crt_get_modes,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static void cdv_intel_crt_enc_destroy(struct drm_encoder *encoder)
@@ -260,32 +250,31 @@ void cdv_intel_crt_init(struct drm_device *dev,
 			struct psb_intel_mode_device *mode_dev)
 {
 
-	struct psb_intel_connector *psb_intel_connector;
-	struct psb_intel_encoder *psb_intel_encoder;
+	struct gma_connector *gma_connector;
+	struct gma_encoder *gma_encoder;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 
 	u32 i2c_reg;
 
-	psb_intel_encoder = kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
-	if (!psb_intel_encoder)
+	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
+	if (!gma_encoder)
 		return;
 
-	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
-	if (!psb_intel_connector)
+	gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+	if (!gma_connector)
 		goto failed_connector;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	drm_connector_init(dev, connector,
 		&cdv_intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 
-	encoder = &psb_intel_encoder->base;
+	encoder = &gma_encoder->base;
 	drm_encoder_init(dev, encoder,
-		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC);
+		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC, NULL);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector,
-					   psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
 	/* Set up the DDC bus. */
 	i2c_reg = GPIOA;
@@ -294,15 +283,15 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	if (dev_priv->crt_ddc_bus != 0)
 		i2c_reg = dev_priv->crt_ddc_bus;
 	}*/
-	psb_intel_encoder->ddc_bus = psb_intel_i2c_create(dev,
+	gma_encoder->ddc_bus = psb_intel_i2c_create(dev,
 							  i2c_reg, "CRTDDC_A");
-	if (!psb_intel_encoder->ddc_bus) {
+	if (!gma_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
 			   "failed.\n");
 		goto failed_ddc;
 	}
 
-	psb_intel_encoder->type = INTEL_OUTPUT_ANALOG;
+	gma_encoder->type = INTEL_OUTPUT_ANALOG;
 	/*
 	psb_intel_output->clone_mask = (1 << INTEL_ANALOG_CLONE_BIT);
 	psb_intel_output->crtc_mask = (1 << 0) | (1 << 1);
@@ -314,14 +303,14 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	drm_connector_helper_add(connector,
 					&cdv_intel_crt_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	return;
 failed_ddc:
-	drm_encoder_cleanup(&psb_intel_encoder->base);
-	drm_connector_cleanup(&psb_intel_connector->base);
-	kfree(psb_intel_connector);
+	drm_encoder_cleanup(&gma_encoder->base);
+	drm_connector_cleanup(&gma_connector->base);
+	kfree(gma_connector);
 failed_connector:
-	kfree(psb_intel_encoder);
+	kfree(gma_encoder);
 	return;
 }

@@ -31,6 +31,8 @@
 #ifndef __MGA_DRV_H__
 #define __MGA_DRV_H__
 
+#include <drm/drm_legacy.h>
+
 /* General customization:
  */
 
@@ -149,13 +151,15 @@ typedef struct drm_mga_private {
 	unsigned int agp_size;
 } drm_mga_private_t;
 
-extern struct drm_ioctl_desc mga_ioctls[];
+extern const struct drm_ioctl_desc mga_ioctls[];
 extern int mga_max_ioctl;
 
 				/* mga_dma.c */
 extern int mga_dma_bootstrap(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 extern int mga_dma_init(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+extern int mga_getparam(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 extern int mga_dma_flush(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
@@ -164,7 +168,7 @@ extern int mga_dma_reset(struct drm_device *dev, void *data,
 extern int mga_dma_buffers(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 extern int mga_driver_load(struct drm_device *dev, unsigned long flags);
-extern int mga_driver_unload(struct drm_device *dev);
+extern void mga_driver_unload(struct drm_device *dev);
 extern void mga_driver_lastclose(struct drm_device *dev);
 extern int mga_driver_dma_quiescent(struct drm_device *dev);
 
@@ -181,19 +185,19 @@ extern int mga_warp_install_microcode(drm_mga_private_t *dev_priv);
 extern int mga_warp_init(drm_mga_private_t *dev_priv);
 
 				/* mga_irq.c */
-extern int mga_enable_vblank(struct drm_device *dev, int crtc);
-extern void mga_disable_vblank(struct drm_device *dev, int crtc);
-extern u32 mga_get_vblank_counter(struct drm_device *dev, int crtc);
+extern int mga_enable_vblank(struct drm_device *dev, unsigned int pipe);
+extern void mga_disable_vblank(struct drm_device *dev, unsigned int pipe);
+extern u32 mga_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
 extern int mga_driver_fence_wait(struct drm_device *dev, unsigned int *sequence);
 extern int mga_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence);
-extern irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS);
+extern irqreturn_t mga_driver_irq_handler(int irq, void *arg);
 extern void mga_driver_irq_preinstall(struct drm_device *dev);
 extern int mga_driver_irq_postinstall(struct drm_device *dev);
 extern void mga_driver_irq_uninstall(struct drm_device *dev);
 extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
 
-#define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
+#define mga_flush_write_combine()	wmb()
 
 #define MGA_READ8(reg)		DRM_READ8(dev_priv->mmio, (reg))
 #define MGA_READ(reg)		DRM_READ32(dev_priv->mmio, (reg))
@@ -264,7 +268,7 @@ do {									\
 do {									\
 	if (MGA_VERBOSE) {						\
 		DRM_INFO("BEGIN_DMA(%d)\n", (n));			\
-		DRM_INFO("   space=0x%x req=0x%Zx\n",			\
+		DRM_INFO("   space=0x%x req=0x%zx\n",			\
 			 dev_priv->prim.space, (n) * DMA_BLOCK_SIZE);	\
 	}								\
 	prim = dev_priv->prim.start;					\
@@ -311,7 +315,7 @@ do {									\
 #define DMA_WRITE(offset, val)						\
 do {									\
 	if (MGA_VERBOSE)						\
-		DRM_INFO("   DMA_WRITE( 0x%08x ) at 0x%04Zx\n",		\
+		DRM_INFO("   DMA_WRITE( 0x%08x ) at 0x%04zx\n",		\
 			 (u32)(val), write + (offset) * sizeof(u32));	\
 	*(volatile u32 *)(prim + write + (offset) * sizeof(u32)) = val;	\
 } while (0)

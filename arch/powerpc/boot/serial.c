@@ -33,7 +33,7 @@ static void serial_write(const char *buf, int len)
 		scdp->putc(*buf++);
 }
 
-static void serial_edit_cmdline(char *buf, int len)
+static void serial_edit_cmdline(char *buf, int len, unsigned int timeout)
 {
 	int timer = 0, count;
 	char ch, *cp;
@@ -44,7 +44,7 @@ static void serial_edit_cmdline(char *buf, int len)
 	cp = &buf[count];
 	count++;
 
-	while (timer++ < 5*1000) {
+	do {
 		if (scdp->tstc()) {
 			while (((ch = scdp->getc()) != '\n') && (ch != '\r')) {
 				/* Test for backspace/delete */
@@ -70,7 +70,7 @@ static void serial_edit_cmdline(char *buf, int len)
 			break;  /* Exit 'timer' loop */
 		}
 		udelay(1000);  /* 1 msec */
-	}
+	} while (timer++ < timeout);
 	*cp = 0;
 }
 
@@ -120,18 +120,24 @@ int serial_console_init(void)
 	if (dt_is_compatible(devp, "ns16550") ||
 	    dt_is_compatible(devp, "pnpPNP,501"))
 		rc = ns16550_console_init(devp, &serial_cd);
+#ifdef CONFIG_EMBEDDED6xx
 	else if (dt_is_compatible(devp, "marvell,mv64360-mpsc"))
 		rc = mpsc_console_init(devp, &serial_cd);
+#endif
 	else if (dt_is_compatible(devp, "fsl,cpm1-scc-uart") ||
 	         dt_is_compatible(devp, "fsl,cpm1-smc-uart") ||
 	         dt_is_compatible(devp, "fsl,cpm2-scc-uart") ||
 	         dt_is_compatible(devp, "fsl,cpm2-smc-uart"))
 		rc = cpm_console_init(devp, &serial_cd);
+#ifdef CONFIG_PPC_MPC52XX
 	else if (dt_is_compatible(devp, "fsl,mpc5200-psc-uart"))
 		rc = mpc5200_psc_console_init(devp, &serial_cd);
+#endif
 	else if (dt_is_compatible(devp, "xlnx,opb-uartlite-1.00.b") ||
 		 dt_is_compatible(devp, "xlnx,xps-uartlite-1.00.a"))
 		rc = uartlite_console_init(devp, &serial_cd);
+	else if (dt_is_compatible(devp, "ibm,opal-console-raw"))
+		rc = opal_console_init(devp, &serial_cd);
 
 	/* Add other serial console driver calls here */
 

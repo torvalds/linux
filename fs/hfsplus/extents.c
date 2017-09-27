@@ -227,17 +227,15 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 	u32 ablock, dblock, mask;
 	sector_t sector;
 	int was_dirty = 0;
-	int shift;
 
 	/* Convert inode block to disk allocation block */
-	shift = sbi->alloc_blksz_shift - sb->s_blocksize_bits;
 	ablock = iblock >> sbi->fs_shift;
 
 	if (iblock >= hip->fs_blocks) {
 		if (iblock > hip->fs_blocks || !create)
 			return -EIO;
 		if (ablock >= hip->alloc_blocks) {
-			res = hfsplus_file_extend(inode);
+			res = hfsplus_file_extend(inode, false);
 			if (res)
 				return res;
 		}
@@ -427,7 +425,7 @@ int hfsplus_free_fork(struct super_block *sb, u32 cnid,
 	return res;
 }
 
-int hfsplus_file_extend(struct inode *inode)
+int hfsplus_file_extend(struct inode *inode, bool zeroout)
 {
 	struct super_block *sb = inode->i_sb;
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
@@ -438,10 +436,9 @@ int hfsplus_file_extend(struct inode *inode)
 	if (sbi->alloc_file->i_size * 8 <
 	    sbi->total_blocks - sbi->free_blocks + 8) {
 		/* extend alloc file */
-		pr_err("extend alloc file! "
-				"(%llu,%u,%u)\n",
-			sbi->alloc_file->i_size * 8,
-			sbi->total_blocks, sbi->free_blocks);
+		pr_err("extend alloc file! (%llu,%u,%u)\n",
+		       sbi->alloc_file->i_size * 8,
+		       sbi->total_blocks, sbi->free_blocks);
 		return -ENOSPC;
 	}
 
@@ -463,6 +460,12 @@ int hfsplus_file_extend(struct inode *inode)
 			res = -ENOSPC;
 			goto out;
 		}
+	}
+
+	if (zeroout) {
+		res = sb_issue_zeroout(sb, start, len, GFP_NOFS);
+		if (res)
+			goto out;
 	}
 
 	hfs_dbg(EXTENT, "extend %lu: %u,%u\n", inode->i_ino, start, len);
@@ -498,11 +501,13 @@ int hfsplus_file_extend(struct inode *inode)
 			goto insert_extent;
 	}
 out:
-	mutex_unlock(&hip->extents_lock);
 	if (!res) {
 		hip->alloc_blocks += len;
+		mutex_unlock(&hip->extents_lock);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ALLOC_DIRTY);
+		return 0;
 	}
+	mutex_unlock(&hip->extents_lock);
 	return res;
 
 insert_extent:
@@ -540,9 +545,8 @@ void hfsplus_file_truncate(struct inode *inode)
 		void *fsdata;
 		loff_t size = inode->i_size;
 
-		res = pagecache_write_begin(NULL, mapping, size, 0,
-						AOP_FLAG_UNINTERRUPTIBLE,
-						&page, &fsdata);
+		res = pagecache_write_begin(NULL, mapping, size, 0, 0,
+					    &page, &fsdata);
 		if (res)
 			return;
 		res = pagecache_write_end(NULL, mapping, size,
@@ -556,11 +560,13 @@ void hfsplus_file_truncate(struct inode *inode)
 
 	blk_cnt = (inode->i_size + HFSPLUS_SB(sb)->alloc_blksz - 1) >>
 			HFSPLUS_SB(sb)->alloc_blksz_shift;
-	alloc_cnt = hip->alloc_blocks;
-	if (blk_cnt == alloc_cnt)
-		goto out;
 
 	mutex_lock(&hip->extents_lock);
+
+	alloc_cnt = hip->alloc_blocks;
+	if (blk_cnt == alloc_cnt)
+		goto out_unlock;
+
 	res = hfs_find_init(HFSPLUS_SB(sb)->ext_tree, &fd);
 	if (res) {
 		mutex_unlock(&hip->extents_lock);
@@ -592,10 +598,10 @@ void hfsplus_file_truncate(struct inode *inode)
 		hfs_brec_remove(&fd);
 	}
 	hfs_find_exit(&fd);
-	mutex_unlock(&hip->extents_lock);
 
 	hip->alloc_blocks = blk_cnt;
-out:
+out_unlock:
+	mutex_unlock(&hip->extents_lock);
 	hip->phys_size = inode->i_size;
 	hip->fs_blocks = (inode->i_size + sb->s_blocksize - 1) >>
 		sb->s_blocksize_bits;

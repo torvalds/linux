@@ -7,6 +7,7 @@
 #include <linux/syscalls.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/sched/task.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
@@ -21,10 +22,12 @@
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
+#include <linux/shmem_fs.h>
+#include <linux/compat.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT | O_NOATIME)
 
@@ -50,13 +53,14 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	       if (arg & O_NDELAY)
 		   arg |= O_NONBLOCK;
 
-	if (arg & O_DIRECT) {
+	/* Pipe packetized mode is controlled by O_DIRECT flag */
+	if (!S_ISFIFO(inode->i_mode) && (arg & O_DIRECT)) {
 		if (!filp->f_mapping || !filp->f_mapping->a_ops ||
 			!filp->f_mapping->a_ops->direct_IO)
 				return -EINVAL;
 	}
 
-	if (filp->f_op && filp->f_op->check_flags)
+	if (filp->f_op->check_flags)
 		error = filp->f_op->check_flags(arg);
 	if (error)
 		return error;
@@ -64,8 +68,7 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	/*
 	 * ->fasync() is responsible for setting the FASYNC bit.
 	 */
-	if (((arg ^ filp->f_flags) & FASYNC) && filp->f_op &&
-			filp->f_op->fasync) {
+	if (((arg ^ filp->f_flags) & FASYNC) && filp->f_op->fasync) {
 		error = filp->f_op->fasync(fd, filp, (arg & FASYNC) != 0);
 		if (error < 0)
 			goto out;
@@ -98,36 +101,42 @@ static void f_modown(struct file *filp, struct pid *pid, enum pid_type type,
 	write_unlock_irq(&filp->f_owner.lock);
 }
 
-int __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
+void __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 		int force)
 {
-	int err;
-
-	err = security_file_set_fowner(filp);
-	if (err)
-		return err;
-
+	security_file_set_fowner(filp);
 	f_modown(filp, pid, type, force);
-	return 0;
 }
 EXPORT_SYMBOL(__f_setown);
 
 int f_setown(struct file *filp, unsigned long arg, int force)
 {
 	enum pid_type type;
-	struct pid *pid;
-	int who = arg;
-	int result;
+	struct pid *pid = NULL;
+	int who = arg, ret = 0;
+
 	type = PIDTYPE_PID;
 	if (who < 0) {
+		/* avoid overflow below */
+		if (who == INT_MIN)
+			return -EINVAL;
+
 		type = PIDTYPE_PGID;
 		who = -who;
 	}
+
 	rcu_read_lock();
-	pid = find_vpid(who);
-	result = __f_setown(filp, pid, type, force);
+	if (who) {
+		pid = find_vpid(who);
+		if (!pid)
+			ret = -ESRCH;
+	}
+
+	if (!ret)
+		__f_setown(filp, pid, type, force);
 	rcu_read_unlock();
-	return result;
+
+	return ret;
 }
 EXPORT_SYMBOL(f_setown);
 
@@ -181,7 +190,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 	if (owner.pid && !pid)
 		ret = -ESRCH;
 	else
-		ret = __f_setown(filp, pid, type, 1);
+		 __f_setown(filp, pid, type, 1);
 	rcu_read_unlock();
 
 	return ret;
@@ -248,9 +257,72 @@ static int f_getowner_uids(struct file *filp, unsigned long arg)
 }
 #endif
 
+static bool rw_hint_valid(enum rw_hint hint)
+{
+	switch (hint) {
+	case RWF_WRITE_LIFE_NOT_SET:
+	case RWH_WRITE_LIFE_NONE:
+	case RWH_WRITE_LIFE_SHORT:
+	case RWH_WRITE_LIFE_MEDIUM:
+	case RWH_WRITE_LIFE_LONG:
+	case RWH_WRITE_LIFE_EXTREME:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static long fcntl_rw_hint(struct file *file, unsigned int cmd,
+			  unsigned long arg)
+{
+	struct inode *inode = file_inode(file);
+	u64 *argp = (u64 __user *)arg;
+	enum rw_hint hint;
+	u64 h;
+
+	switch (cmd) {
+	case F_GET_FILE_RW_HINT:
+		h = file_write_hint(file);
+		if (copy_to_user(argp, &h, sizeof(*argp)))
+			return -EFAULT;
+		return 0;
+	case F_SET_FILE_RW_HINT:
+		if (copy_from_user(&h, argp, sizeof(h)))
+			return -EFAULT;
+		hint = (enum rw_hint) h;
+		if (!rw_hint_valid(hint))
+			return -EINVAL;
+
+		spin_lock(&file->f_lock);
+		file->f_write_hint = hint;
+		spin_unlock(&file->f_lock);
+		return 0;
+	case F_GET_RW_HINT:
+		h = inode->i_write_hint;
+		if (copy_to_user(argp, &h, sizeof(*argp)))
+			return -EFAULT;
+		return 0;
+	case F_SET_RW_HINT:
+		if (copy_from_user(&h, argp, sizeof(h)))
+			return -EFAULT;
+		hint = (enum rw_hint) h;
+		if (!rw_hint_valid(hint))
+			return -EINVAL;
+
+		inode_lock(inode);
+		inode->i_write_hint = hint;
+		inode_unlock(inode);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
+	void __user *argp = (void __user *)arg;
+	struct flock flock;
 	long err = -EINVAL;
 
 	switch (cmd) {
@@ -273,12 +345,28 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_SETFL:
 		err = setfl(fd, filp, arg);
 		break;
+#if BITS_PER_LONG != 32
+	/* 32-bit arches must use fcntl64() */
+	case F_OFD_GETLK:
+#endif
 	case F_GETLK:
-		err = fcntl_getlk(filp, (struct flock __user *) arg);
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			return -EFAULT;
+		err = fcntl_getlk(filp, cmd, &flock);
+		if (!err && copy_to_user(argp, &flock, sizeof(flock)))
+			return -EFAULT;
 		break;
+#if BITS_PER_LONG != 32
+	/* 32-bit arches must use fcntl64() */
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+#endif
+		/* Fallthrough */
 	case F_SETLK:
 	case F_SETLKW:
-		err = fcntl_setlk(fd, filp, cmd, (struct flock __user *) arg);
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			return -EFAULT;
+		err = fcntl_setlk(fd, filp, cmd, &flock);
 		break;
 	case F_GETOWN:
 		/*
@@ -327,6 +415,16 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_GETPIPE_SZ:
 		err = pipe_fcntl(filp, cmd, arg);
 		break;
+	case F_ADD_SEALS:
+	case F_GET_SEALS:
+		err = shmem_fcntl(filp, cmd, arg);
+		break;
+	case F_GET_RW_HINT:
+	case F_SET_RW_HINT:
+	case F_GET_FILE_RW_HINT:
+	case F_SET_FILE_RW_HINT:
+		err = fcntl_rw_hint(filp, cmd, arg);
+		break;
 	default:
 		break;
 	}
@@ -373,7 +471,9 @@ out:
 SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		unsigned long, arg)
 {	
+	void __user *argp = (void __user *)arg;
 	struct fd f = fdget_raw(fd);
+	struct flock64 flock;
 	long err = -EBADF;
 
 	if (!f.file)
@@ -389,22 +489,203 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		goto out1;
 	
 	switch (cmd) {
-		case F_GETLK64:
-			err = fcntl_getlk64(f.file, (struct flock64 __user *) arg);
+	case F_GETLK64:
+	case F_OFD_GETLK:
+		err = -EFAULT;
+		if (copy_from_user(&flock, argp, sizeof(flock)))
 			break;
-		case F_SETLK64:
-		case F_SETLKW64:
-			err = fcntl_setlk64(fd, f.file, cmd,
-					(struct flock64 __user *) arg);
+		err = fcntl_getlk64(f.file, cmd, &flock);
+		if (!err && copy_to_user(argp, &flock, sizeof(flock)))
+			err = -EFAULT;
+		break;
+	case F_SETLK64:
+	case F_SETLKW64:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+		err = -EFAULT;
+		if (copy_from_user(&flock, argp, sizeof(flock)))
 			break;
-		default:
-			err = do_fcntl(fd, cmd, arg, f.file);
-			break;
+		err = fcntl_setlk64(fd, f.file, cmd, &flock);
+		break;
+	default:
+		err = do_fcntl(fd, cmd, arg, f.file);
+		break;
 	}
 out1:
 	fdput(f);
 out:
 	return err;
+}
+#endif
+
+#ifdef CONFIG_COMPAT
+/* careful - don't use anywhere else */
+#define copy_flock_fields(dst, src)		\
+	(dst)->l_type = (src)->l_type;		\
+	(dst)->l_whence = (src)->l_whence;	\
+	(dst)->l_start = (src)->l_start;	\
+	(dst)->l_len = (src)->l_len;		\
+	(dst)->l_pid = (src)->l_pid;
+
+static int get_compat_flock(struct flock *kfl, const struct compat_flock __user *ufl)
+{
+	struct compat_flock fl;
+
+	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock)))
+		return -EFAULT;
+	copy_flock_fields(kfl, &fl);
+	return 0;
+}
+
+static int get_compat_flock64(struct flock *kfl, const struct compat_flock64 __user *ufl)
+{
+	struct compat_flock64 fl;
+
+	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock64)))
+		return -EFAULT;
+	copy_flock_fields(kfl, &fl);
+	return 0;
+}
+
+static int put_compat_flock(const struct flock *kfl, struct compat_flock __user *ufl)
+{
+	struct compat_flock fl;
+
+	memset(&fl, 0, sizeof(struct compat_flock));
+	copy_flock_fields(&fl, kfl);
+	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock)))
+		return -EFAULT;
+	return 0;
+}
+
+static int put_compat_flock64(const struct flock *kfl, struct compat_flock64 __user *ufl)
+{
+	struct compat_flock64 fl;
+
+	memset(&fl, 0, sizeof(struct compat_flock64));
+	copy_flock_fields(&fl, kfl);
+	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock64)))
+		return -EFAULT;
+	return 0;
+}
+#undef copy_flock_fields
+
+static unsigned int
+convert_fcntl_cmd(unsigned int cmd)
+{
+	switch (cmd) {
+	case F_GETLK64:
+		return F_GETLK;
+	case F_SETLK64:
+		return F_SETLK;
+	case F_SETLKW64:
+		return F_SETLKW;
+	}
+
+	return cmd;
+}
+
+/*
+ * GETLK was successful and we need to return the data, but it needs to fit in
+ * the compat structure.
+ * l_start shouldn't be too big, unless the original start + end is greater than
+ * COMPAT_OFF_T_MAX, in which case the app was asking for trouble, so we return
+ * -EOVERFLOW in that case.  l_len could be too big, in which case we just
+ * truncate it, and only allow the app to see that part of the conflicting lock
+ * that might make sense to it anyway
+ */
+static int fixup_compat_flock(struct flock *flock)
+{
+	if (flock->l_start > COMPAT_OFF_T_MAX)
+		return -EOVERFLOW;
+	if (flock->l_len > COMPAT_OFF_T_MAX)
+		flock->l_len = COMPAT_OFF_T_MAX;
+	return 0;
+}
+
+COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
+{
+	struct fd f = fdget_raw(fd);
+	struct flock flock;
+	long err = -EBADF;
+
+	if (!f.file)
+		return err;
+
+	if (unlikely(f.file->f_mode & FMODE_PATH)) {
+		if (!check_fcntl_cmd(cmd))
+			goto out_put;
+	}
+
+	err = security_file_fcntl(f.file, cmd, arg);
+	if (err)
+		goto out_put;
+
+	switch (cmd) {
+	case F_GETLK:
+		err = get_compat_flock(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		if (err)
+			break;
+		err = fixup_compat_flock(&flock);
+		if (err)
+			return err;
+		err = put_compat_flock(&flock, compat_ptr(arg));
+		break;
+	case F_GETLK64:
+	case F_OFD_GETLK:
+		err = get_compat_flock64(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		if (err)
+			break;
+		err = fixup_compat_flock(&flock);
+		if (err)
+			return err;
+		err = put_compat_flock64(&flock, compat_ptr(arg));
+		break;
+	case F_SETLK:
+	case F_SETLKW:
+		err = get_compat_flock(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
+		break;
+	case F_SETLK64:
+	case F_SETLKW64:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+		err = get_compat_flock64(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
+		break;
+	default:
+		err = do_fcntl(fd, cmd, arg, f.file);
+		break;
+	}
+out_put:
+	fdput(f);
+	return err;
+}
+
+COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
+{
+	switch (cmd) {
+	case F_GETLK64:
+	case F_SETLK64:
+	case F_SETLKW64:
+	case F_OFD_GETLK:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+		return -EINVAL;
+	}
+	return compat_sys_fcntl64(fd, cmd, arg);
 }
 #endif
 
@@ -460,10 +741,21 @@ static void send_sigio_to_task(struct task_struct *p,
 			si.si_signo = signum;
 			si.si_errno = 0;
 		        si.si_code  = reason;
+			/*
+			 * Posix definies POLL_IN and friends to be signal
+			 * specific si_codes for SIG_POLL.  Linux extended
+			 * these si_codes to other signals in a way that is
+			 * ambiguous if other signals also have signal
+			 * specific si_codes.  In that case use SI_SIGIO instead
+			 * to remove the ambiguity.
+			 */
+			if ((signum != SIGPOLL) && sig_specific_sicodes(signum))
+				si.si_code = SI_SIGIO;
+
 			/* Make sure we are called with one of the POLL_*
 			   reasons, otherwise we could leak kernel stack into
 			   userspace.  */
-			BUG_ON((reason & __SI_MASK) != __SI_POLL);
+			BUG_ON((reason < POLL_IN) || ((reason - POLL_IN) >= NSIGPOLL));
 			if (reason - POLL_IN >= NSIGPOLL)
 				si.si_band  = ~0L;
 			else
@@ -730,15 +1022,10 @@ static int __init fcntl_init(void)
 	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
 	 * is defined as O_NONBLOCK on some platforms and not on others.
 	 */
-	BUILD_BUG_ON(20 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
-		O_RDONLY	| O_WRONLY	| O_RDWR	|
-		O_CREAT		| O_EXCL	| O_NOCTTY	|
-		O_TRUNC		| O_APPEND	| /* O_NONBLOCK	| */
-		__O_SYNC	| O_DSYNC	| FASYNC	|
-		O_DIRECT	| O_LARGEFILE	| O_DIRECTORY	|
-		O_NOFOLLOW	| O_NOATIME	| O_CLOEXEC	|
-		__FMODE_EXEC	| O_PATH	| __O_TMPFILE
-		));
+	BUILD_BUG_ON(21 - 1 /* for O_RDONLY being 0 */ !=
+		HWEIGHT32(
+			(VALID_OPEN_FLAGS & ~(O_NONBLOCK | O_NDELAY)) |
+			__FMODE_EXEC | __FMODE_NONOTIFY));
 
 	fasync_cache = kmem_cache_create("fasync_cache",
 		sizeof(struct fasync_struct), 0, SLAB_PANIC, NULL);

@@ -224,75 +224,76 @@ def trace_end():
 			(len(rx_skb_list), of_count_rx_skb_list)
 
 # called from perf, when it finds a correspoinding event
-def irq__softirq_entry(name, context, cpu, sec, nsec, pid, comm, vec):
+def irq__softirq_entry(name, context, cpu, sec, nsec, pid, comm, callchain, vec):
 	if symbol_str("irq__softirq_entry", "vec", vec) != "NET_RX":
 		return
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm, vec)
 	all_event_list.append(event_info)
 
-def irq__softirq_exit(name, context, cpu, sec, nsec, pid, comm, vec):
+def irq__softirq_exit(name, context, cpu, sec, nsec, pid, comm, callchain, vec):
 	if symbol_str("irq__softirq_entry", "vec", vec) != "NET_RX":
 		return
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm, vec)
 	all_event_list.append(event_info)
 
-def irq__softirq_raise(name, context, cpu, sec, nsec, pid, comm, vec):
+def irq__softirq_raise(name, context, cpu, sec, nsec, pid, comm, callchain, vec):
 	if symbol_str("irq__softirq_entry", "vec", vec) != "NET_RX":
 		return
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm, vec)
 	all_event_list.append(event_info)
 
 def irq__irq_handler_entry(name, context, cpu, sec, nsec, pid, comm,
-			irq, irq_name):
+			callchain, irq, irq_name):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			irq, irq_name)
 	all_event_list.append(event_info)
 
-def irq__irq_handler_exit(name, context, cpu, sec, nsec, pid, comm, irq, ret):
+def irq__irq_handler_exit(name, context, cpu, sec, nsec, pid, comm, callchain, irq, ret):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm, irq, ret)
 	all_event_list.append(event_info)
 
-def napi__napi_poll(name, context, cpu, sec, nsec, pid, comm, napi, dev_name):
+def napi__napi_poll(name, context, cpu, sec, nsec, pid, comm, callchain, napi,
+                    dev_name, work=None, budget=None):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
-			napi, dev_name)
+			napi, dev_name, work, budget)
 	all_event_list.append(event_info)
 
-def net__netif_receive_skb(name, context, cpu, sec, nsec, pid, comm, skbaddr,
+def net__netif_receive_skb(name, context, cpu, sec, nsec, pid, comm, callchain, skbaddr,
 			skblen, dev_name):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			skbaddr, skblen, dev_name)
 	all_event_list.append(event_info)
 
-def net__netif_rx(name, context, cpu, sec, nsec, pid, comm, skbaddr,
+def net__netif_rx(name, context, cpu, sec, nsec, pid, comm, callchain, skbaddr,
 			skblen, dev_name):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			skbaddr, skblen, dev_name)
 	all_event_list.append(event_info)
 
-def net__net_dev_queue(name, context, cpu, sec, nsec, pid, comm,
+def net__net_dev_queue(name, context, cpu, sec, nsec, pid, comm, callchain,
 			skbaddr, skblen, dev_name):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			skbaddr, skblen, dev_name)
 	all_event_list.append(event_info)
 
-def net__net_dev_xmit(name, context, cpu, sec, nsec, pid, comm,
+def net__net_dev_xmit(name, context, cpu, sec, nsec, pid, comm, callchain,
 			skbaddr, skblen, rc, dev_name):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			skbaddr, skblen, rc ,dev_name)
 	all_event_list.append(event_info)
 
-def skb__kfree_skb(name, context, cpu, sec, nsec, pid, comm,
+def skb__kfree_skb(name, context, cpu, sec, nsec, pid, comm, callchain,
 			skbaddr, protocol, location):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			skbaddr, protocol, location)
 	all_event_list.append(event_info)
 
-def skb__consume_skb(name, context, cpu, sec, nsec, pid, comm, skbaddr):
+def skb__consume_skb(name, context, cpu, sec, nsec, pid, comm, callchain, skbaddr):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			skbaddr)
 	all_event_list.append(event_info)
 
-def skb__skb_copy_datagram_iovec(name, context, cpu, sec, nsec, pid, comm,
+def skb__skb_copy_datagram_iovec(name, context, cpu, sec, nsec, pid, comm, callchain,
 	skbaddr, skblen):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			skbaddr, skblen)
@@ -354,11 +355,13 @@ def handle_irq_softirq_exit(event_info):
 	receive_hunk_list.append(rec_data)
 
 def handle_napi_poll(event_info):
-	(name, context, cpu, time, pid, comm, napi, dev_name) = event_info
+	(name, context, cpu, time, pid, comm, napi, dev_name,
+		work, budget) = event_info
 	if cpu in net_rx_dic.keys():
 		event_list = net_rx_dic[cpu]['event_list']
 		rec_data = {'event_name':'napi_poll',
-				'dev':dev_name, 'event_t':time}
+				'dev':dev_name, 'event_t':time,
+				'work':work, 'budget':budget}
 		event_list.append(rec_data)
 
 def handle_netif_rx(event_info):

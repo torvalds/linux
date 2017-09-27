@@ -69,14 +69,14 @@ struct wm8350_data {
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
 	int fll_freq_out;
 	int fll_freq_in;
+	struct delayed_work pga_work;
 };
 
 /*
  * Ramp OUT1 PGA volume to minimise pops at stream startup and shutdown.
  */
-static inline int wm8350_out1_ramp_step(struct snd_soc_codec *codec)
+static inline int wm8350_out1_ramp_step(struct wm8350_data *wm8350_data)
 {
-	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_data->out1;
 	struct wm8350 *wm8350 = wm8350_data->wm8350;
 	int left_complete = 0, right_complete = 0;
@@ -140,9 +140,8 @@ static inline int wm8350_out1_ramp_step(struct snd_soc_codec *codec)
 /*
  * Ramp OUT2 PGA volume to minimise pops at stream startup and shutdown.
  */
-static inline int wm8350_out2_ramp_step(struct snd_soc_codec *codec)
+static inline int wm8350_out2_ramp_step(struct wm8350_data *wm8350_data)
 {
-	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out2 = &wm8350_data->out2;
 	struct wm8350 *wm8350 = wm8350_data->wm8350;
 	int left_complete = 0, right_complete = 0;
@@ -210,10 +209,8 @@ static inline int wm8350_out2_ramp_step(struct snd_soc_codec *codec)
  */
 static void wm8350_pga_work(struct work_struct *work)
 {
-	struct snd_soc_dapm_context *dapm =
-	    container_of(work, struct snd_soc_dapm_context, delayed_work.work);
-	struct snd_soc_codec *codec = dapm->codec;
-	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
+	struct wm8350_data *wm8350_data =
+		container_of(work, struct wm8350_data, pga_work.work);
 	struct wm8350_output *out1 = &wm8350_data->out1,
 	    *out2 = &wm8350_data->out2;
 	int i, out1_complete, out2_complete;
@@ -226,9 +223,9 @@ static void wm8350_pga_work(struct work_struct *work)
 	for (i = 0; i <= 63; i++) {
 		out1_complete = 1, out2_complete = 1;
 		if (out1->ramp != WM8350_RAMP_NONE)
-			out1_complete = wm8350_out1_ramp_step(codec);
+			out1_complete = wm8350_out1_ramp_step(wm8350_data);
 		if (out2->ramp != WM8350_RAMP_NONE)
-			out2_complete = wm8350_out2_ramp_step(codec);
+			out2_complete = wm8350_out2_ramp_step(wm8350_data);
 
 		/* ramp finished ? */
 		if (out1_complete && out2_complete)
@@ -259,7 +256,7 @@ static void wm8350_pga_work(struct work_struct *work)
 static int pga_event(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out;
 
@@ -274,7 +271,7 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid shift %d\n", w->shift);
 		return -1;
 	}
 
@@ -283,7 +280,7 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		out->ramp = WM8350_RAMP_UP;
 		out->active = 1;
 
-		schedule_delayed_work(&codec->dapm.delayed_work,
+		schedule_delayed_work(&wm8350_data->pga_work,
 				      msecs_to_jiffies(1));
 		break;
 
@@ -291,7 +288,7 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		out->ramp = WM8350_RAMP_DOWN;
 		out->active = 0;
 
-		schedule_delayed_work(&codec->dapm.delayed_work,
+		schedule_delayed_work(&wm8350_data->pga_work,
 				      msecs_to_jiffies(1));
 		break;
 	}
@@ -302,7 +299,7 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8350_data *wm8350_priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out = NULL;
 	struct soc_mixer_control *mc =
@@ -345,7 +342,7 @@ static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 static int wm8350_get_volsw_2r(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8350_data *wm8350_priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_priv->out1;
 	struct wm8350_output *out2 = &wm8350_priv->out2;
@@ -397,11 +394,10 @@ static DECLARE_TLV_DB_SCALE(dac_pcm_tlv, -7163, 36, 1);
 static DECLARE_TLV_DB_SCALE(adc_pcm_tlv, -12700, 50, 1);
 static DECLARE_TLV_DB_SCALE(out_mix_tlv, -1500, 300, 1);
 
-static const unsigned int capture_sd_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(capture_sd_tlv,
 	0, 12, TLV_DB_SCALE_ITEM(-3600, 300, 1),
-	13, 15, TLV_DB_SCALE_ITEM(0, 0, 0),
-};
+	13, 15, TLV_DB_SCALE_ITEM(0, 0, 0)
+);
 
 static const struct snd_kcontrol_new wm8350_snd_controls[] = {
 	SOC_ENUM("Playback Deemphasis", wm8350_enum[0]),
@@ -918,16 +914,16 @@ static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 	    ~WM8350_AIF_WL_MASK;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x1 << 10;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x2 << 10;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= 0x3 << 10;
 		break;
 	}
@@ -1105,7 +1101,7 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies),
 						    priv->supplies);
 			if (ret != 0)
@@ -1238,20 +1234,6 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 				       priv->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
-	return 0;
-}
-
-static int wm8350_suspend(struct snd_soc_codec *codec)
-{
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8350_resume(struct snd_soc_codec *codec)
-{
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
@@ -1301,7 +1283,8 @@ static irqreturn_t wm8350_hpl_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpl.work, msecs_to_jiffies(200));
+	queue_delayed_work(system_power_efficient_wq,
+			   &priv->hpl.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -1318,7 +1301,8 @@ static irqreturn_t wm8350_hpr_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpr.work, msecs_to_jiffies(200));
+	queue_delayed_work(system_power_efficient_wq,
+			   &priv->hpr.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -1339,21 +1323,18 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 {
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350 *wm8350 = priv->wm8350;
-	int irq;
 	int ena;
 
 	switch (which) {
 	case WM8350_JDL:
 		priv->hpl.jack = jack;
 		priv->hpl.report = report;
-		irq = WM8350_IRQ_CODEC_JCK_DET_L;
 		ena = WM8350_JDL_ENA;
 		break;
 
 	case WM8350_JDR:
 		priv->hpr.jack = jack;
 		priv->hpr.report = report;
-		irq = WM8350_IRQ_CODEC_JCK_DET_R;
 		ena = WM8350_JDR_ENA;
 		break;
 
@@ -1503,14 +1484,10 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
-	codec->control_data = wm8350->regmap;
-
-	snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-
 	/* Put the codec into reset if it wasn't already */
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
-	INIT_DELAYED_WORK(&codec->dapm.delayed_work, wm8350_pga_work);
+	INIT_DELAYED_WORK(&priv->pga_work, wm8350_pga_work);
 	INIT_DELAYED_WORK(&priv->hpl.work, wm8350_hpl_work);
 	INIT_DELAYED_WORK(&priv->hpr.work, wm8350_hpr_work);
 
@@ -1570,9 +1547,6 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_MICD,
 			    wm8350_mic_handler, 0, "Microphone detect", priv);
 
-
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
@@ -1599,28 +1573,35 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 
 	/* if there was any work waiting then we run it now and
 	 * wait for its completion */
-	flush_delayed_work(&codec->dapm.delayed_work);
-
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	flush_delayed_work(&priv->pga_work);
 
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
+static struct regmap *wm8350_get_regmap(struct device *dev)
+{
+	struct wm8350 *wm8350 = dev_get_platdata(dev);
+
+	return wm8350->regmap;
+}
+
+static const struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.probe =	wm8350_codec_probe,
 	.remove =	wm8350_codec_remove,
-	.suspend = 	wm8350_suspend,
-	.resume =	wm8350_resume,
+	.get_regmap =	wm8350_get_regmap,
 	.set_bias_level = wm8350_set_bias_level,
+	.suspend_bias_off = true,
 
-	.controls = wm8350_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8350_snd_controls),
-	.dapm_widgets = wm8350_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8350_dapm_widgets),
-	.dapm_routes = wm8350_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8350_dapm_routes),
+	.component_driver = {
+		.controls		= wm8350_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8350_snd_controls),
+		.dapm_widgets		= wm8350_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8350_dapm_widgets),
+		.dapm_routes		= wm8350_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8350_dapm_routes),
+	},
 };
 
 static int wm8350_probe(struct platform_device *pdev)
@@ -1638,7 +1619,6 @@ static int wm8350_remove(struct platform_device *pdev)
 static struct platform_driver wm8350_codec_driver = {
 	.driver = {
 		   .name = "wm8350-codec",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8350_probe,
 	.remove = wm8350_remove,

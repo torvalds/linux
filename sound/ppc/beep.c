@@ -18,7 +18,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -206,7 +206,7 @@ static int snd_pmac_put_beep(struct snd_kcontrol *kcontrol,
 	return oval != chip->beep->volume;
 }
 
-static struct snd_kcontrol_new snd_pmac_beep_mixer = {
+static const struct snd_kcontrol_new snd_pmac_beep_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Beep Playback Volume",
 	.info = snd_pmac_info_beep,

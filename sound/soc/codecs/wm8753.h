@@ -112,7 +112,4 @@
 #define WM8753_VXCLK_DIV_8	(3 << 6)
 #define WM8753_VXCLK_DIV_16	(4 << 6)
 
-#define WM8753_DAI_HIFI		0
-#define WM8753_DAI_VOICE		1
-
 #endif

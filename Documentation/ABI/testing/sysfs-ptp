@@ -54,7 +54,27 @@ Description:
 		This file contains the number of programmable periodic
 		output channels offered by the PTP hardware clock.
 
-What:		/sys/class/ptp/ptpN/pps_avaiable
+What:		/sys/class/ptp/ptpN/n_pins
+Date:		March 2014
+Contact:	Richard Cochran <richardcochran@gmail.com>
+Description:
+		This file contains the number of programmable pins
+		offered by the PTP hardware clock.
+
+What:		/sys/class/ptp/ptpN/pins
+Date:		March 2014
+Contact:	Richard Cochran <richardcochran@gmail.com>
+Description:
+		This directory contains one file for each programmable
+		pin offered by the PTP hardware clock. The file name
+		is the hardware dependent pin name. Reading from this
+		file produces two numbers, the assigned function (see
+		the PTP_PF_ enumeration values in linux/ptp_clock.h)
+		and the channel number. The function and channel
+		assignment may be changed by two writing numbers into
+		the file.
+
+What:		/sys/class/ptp/ptpN/pps_available
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:

@@ -26,15 +26,13 @@
 
 #include "vnic_dev.h"
 #include "vnic_rq.h"
+#include "enic.h"
 
 static int vnic_rq_alloc_bufs(struct vnic_rq *rq)
 {
 	struct vnic_rq_buf *buf;
-	struct vnic_dev *vdev;
 	unsigned int i, j, count = rq->ring.desc_count;
 	unsigned int blks = VNIC_RQ_BUF_BLKS_NEEDED(count);
-
-	vdev = rq->vdev;
 
 	for (i = 0; i < blks; i++) {
 		rq->bufs[i] = kzalloc(VNIC_RQ_BUF_BLK_SZ(count), GFP_ATOMIC);
@@ -94,7 +92,7 @@ int vnic_rq_alloc(struct vnic_dev *vdev, struct vnic_rq *rq, unsigned int index,
 
 	rq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_RQ, index);
 	if (!rq->ctrl) {
-		pr_err("Failed to hook RQ[%d] resource\n", index);
+		vdev_err(vdev, "Failed to hook RQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 
@@ -141,7 +139,7 @@ void vnic_rq_init(struct vnic_rq *rq, unsigned int cq_index,
 	unsigned int error_interrupt_enable,
 	unsigned int error_interrupt_offset)
 {
-	u32 fetch_index;
+	u32 fetch_index = 0;
 
 	/* Use current fetch_index as the ring starting point */
 	fetch_index = ioread32(&rq->ctrl->fetch_index);
@@ -170,19 +168,29 @@ void vnic_rq_enable(struct vnic_rq *rq)
 int vnic_rq_disable(struct vnic_rq *rq)
 {
 	unsigned int wait;
+	struct vnic_dev *vdev = rq->vdev;
+	int i;
 
-	iowrite32(0, &rq->ctrl->enable);
+	/* Due to a race condition with clearing RQ "mini-cache" in hw, we need
+	 * to disable the RQ twice to guarantee that stale descriptors are not
+	 * used when this RQ is re-enabled.
+	 */
+	for (i = 0; i < 2; i++) {
+		iowrite32(0, &rq->ctrl->enable);
 
-	/* Wait for HW to ACK disable request */
-	for (wait = 0; wait < 1000; wait++) {
-		if (!(ioread32(&rq->ctrl->running)))
-			return 0;
-		udelay(10);
+		/* Wait for HW to ACK disable request */
+		for (wait = 20000; wait > 0; wait--)
+			if (!ioread32(&rq->ctrl->running))
+				break;
+		if (!wait) {
+			vdev_neterr(vdev, "Failed to disable RQ[%d]\n",
+				    rq->index);
+
+			return -ETIMEDOUT;
+		}
 	}
 
-	pr_err("Failed to disable RQ[%d]\n", rq->index);
-
-	return -ETIMEDOUT;
+	return 0;
 }
 
 void vnic_rq_clean(struct vnic_rq *rq,
@@ -191,16 +199,15 @@ void vnic_rq_clean(struct vnic_rq *rq,
 	struct vnic_rq_buf *buf;
 	u32 fetch_index;
 	unsigned int count = rq->ring.desc_count;
+	int i;
 
 	buf = rq->to_clean;
 
-	while (vnic_rq_desc_used(rq) > 0) {
-
+	for (i = 0; i < rq->ring.desc_count; i++) {
 		(*buf_clean)(rq, buf);
-
-		buf = rq->to_clean = buf->next;
-		rq->ring.desc_avail++;
+		buf = buf->next;
 	}
+	rq->ring.desc_avail = rq->ring.desc_count - 1;
 
 	/* Use current fetch_index as the ring starting point */
 	fetch_index = ioread32(&rq->ctrl->fetch_index);
@@ -213,6 +220,11 @@ void vnic_rq_clean(struct vnic_rq *rq,
 		&rq->bufs[fetch_index / VNIC_RQ_BUF_BLK_ENTRIES(count)]
 			[fetch_index % VNIC_RQ_BUF_BLK_ENTRIES(count)];
 	iowrite32(fetch_index, &rq->ctrl->posted_index);
+
+	/* Anytime we write fetch_index, we need to re-write 0 to rq->enable
+	 * to re-sync internal VIC state.
+	 */
+	iowrite32(0, &rq->ctrl->enable);
 
 	vnic_dev_clear_desc_ring(&rq->ring);
 }

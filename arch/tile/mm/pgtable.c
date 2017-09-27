@@ -36,102 +36,6 @@
 
 #define K(x) ((x) << (PAGE_SHIFT-10))
 
-/*
- * The normal show_free_areas() is too verbose on Tile, with dozens
- * of processors and often four NUMA zones each with high and lowmem.
- */
-void show_mem(unsigned int filter)
-{
-	struct zone *zone;
-
-	pr_err("Active:%lu inactive:%lu dirty:%lu writeback:%lu unstable:%lu"
-	       " free:%lu\n slab:%lu mapped:%lu pagetables:%lu bounce:%lu"
-	       " pagecache:%lu swap:%lu\n",
-	       (global_page_state(NR_ACTIVE_ANON) +
-		global_page_state(NR_ACTIVE_FILE)),
-	       (global_page_state(NR_INACTIVE_ANON) +
-		global_page_state(NR_INACTIVE_FILE)),
-	       global_page_state(NR_FILE_DIRTY),
-	       global_page_state(NR_WRITEBACK),
-	       global_page_state(NR_UNSTABLE_NFS),
-	       global_page_state(NR_FREE_PAGES),
-	       (global_page_state(NR_SLAB_RECLAIMABLE) +
-		global_page_state(NR_SLAB_UNRECLAIMABLE)),
-	       global_page_state(NR_FILE_MAPPED),
-	       global_page_state(NR_PAGETABLE),
-	       global_page_state(NR_BOUNCE),
-	       global_page_state(NR_FILE_PAGES),
-	       get_nr_swap_pages());
-
-	for_each_zone(zone) {
-		unsigned long flags, order, total = 0, largest_order = -1;
-
-		if (!populated_zone(zone))
-			continue;
-
-		spin_lock_irqsave(&zone->lock, flags);
-		for (order = 0; order < MAX_ORDER; order++) {
-			int nr = zone->free_area[order].nr_free;
-			total += nr << order;
-			if (nr)
-				largest_order = order;
-		}
-		spin_unlock_irqrestore(&zone->lock, flags);
-		pr_err("Node %d %7s: %lukB (largest %luKb)\n",
-		       zone_to_nid(zone), zone->name,
-		       K(total), largest_order ? K(1UL) << largest_order : 0);
-	}
-}
-
-/*
- * Associate a virtual page frame with a given physical page frame
- * and protection flags for that frame.
- */
-static void set_pte_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	pgd = swapper_pg_dir + pgd_index(vaddr);
-	if (pgd_none(*pgd)) {
-		BUG();
-		return;
-	}
-	pud = pud_offset(pgd, vaddr);
-	if (pud_none(*pud)) {
-		BUG();
-		return;
-	}
-	pmd = pmd_offset(pud, vaddr);
-	if (pmd_none(*pmd)) {
-		BUG();
-		return;
-	}
-	pte = pte_offset_kernel(pmd, vaddr);
-	/* <pfn,flags> stored as-is, to permit clearing entries */
-	set_pte(pte, pfn_pte(pfn, flags));
-
-	/*
-	 * It's enough to flush this one mapping.
-	 * This appears conservative since it is only called
-	 * from __set_fixmap.
-	 */
-	local_flush_tlb_page(NULL, vaddr, PAGE_SIZE);
-}
-
-void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
-{
-	unsigned long address = __fix_to_virt(idx);
-
-	if (idx >= __end_of_fixed_addresses) {
-		BUG();
-		return;
-	}
-	set_pte_pfn(address, phys >> PAGE_SHIFT, flags);
-}
-
 /**
  * shatter_huge_page() - ensure a given address is mapped by a small page.
  *
@@ -176,8 +80,7 @@ void shatter_huge_page(unsigned long addr)
 	}
 
 	/* Shatter the huge page into the preallocated L2 page table. */
-	pmd_populate_kernel(&init_mm, pmd,
-			    get_prealloc_pte(pte_pfn(*(pte_t *)pmd)));
+	pmd_populate_kernel(&init_mm, pmd, get_prealloc_pte(pmd_pfn(*pmd)));
 
 #ifdef __PAGETABLE_PMD_FOLDED
 	/* Walk every pgd on the system and update the pmd there. */
@@ -283,13 +186,18 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
 			       int order)
 {
-	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO;
+	gfp_t flags = GFP_KERNEL|__GFP_ZERO;
 	struct page *p;
 	int i;
 
 	p = alloc_pages(flags, L2_USER_PGTABLE_ORDER);
 	if (p == NULL)
 		return NULL;
+
+	if (!pgtable_page_ctor(p)) {
+		__free_pages(p, L2_USER_PGTABLE_ORDER);
+		return NULL;
+	}
 
 	/*
 	 * Make every page have a page_count() of one, not just the first.
@@ -301,7 +209,6 @@ struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
 		inc_zone_page_state(p+i, NR_PAGETABLE);
 	}
 
-	pgtable_page_ctor(p);
 	return p;
 }
 
@@ -374,6 +281,17 @@ void ptep_set_wrprotect(struct mm_struct *mm,
 
 #endif
 
+/*
+ * Return a pointer to the PTE that corresponds to the given
+ * address in the given page table.  A NULL page table just uses
+ * the standard kernel page table; the preferred API in this case
+ * is virt_to_kpte().
+ *
+ * The returned pointer can point to a huge page in other levels
+ * of the page table than the bottom, if the huge page is present
+ * in the page table.  For bottom-level PTEs, the returned pointer
+ * can point to a PTE that is either present or not.
+ */
 pte_t *virt_to_pte(struct mm_struct* mm, unsigned long addr)
 {
 	pgd_t *pgd;
@@ -387,13 +305,23 @@ pte_t *virt_to_pte(struct mm_struct* mm, unsigned long addr)
 	pud = pud_offset(pgd, addr);
 	if (!pud_present(*pud))
 		return NULL;
+	if (pud_huge_page(*pud))
+		return (pte_t *)pud;
 	pmd = pmd_offset(pud, addr);
-	if (pmd_huge_page(*pmd))
-		return (pte_t *)pmd;
 	if (!pmd_present(*pmd))
 		return NULL;
+	if (pmd_huge_page(*pmd))
+		return (pte_t *)pmd;
 	return pte_offset_kernel(pmd, addr);
 }
+EXPORT_SYMBOL(virt_to_pte);
+
+pte_t *virt_to_kpte(unsigned long kaddr)
+{
+	BUG_ON(kaddr < PAGE_OFFSET);
+	return virt_to_pte(NULL, kaddr);
+}
+EXPORT_SYMBOL(virt_to_kpte);
 
 pgprot_t set_remote_cache_cpu(pgprot_t prot, int cpu)
 {
@@ -568,12 +496,23 @@ void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
 	addr = area->addr;
 	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
 			       phys_addr, pgprot)) {
-		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
+		free_vm_area(area);
 		return NULL;
 	}
 	return (__force void __iomem *) (offset + (char *)addr);
 }
 EXPORT_SYMBOL(ioremap_prot);
+
+#if !defined(CONFIG_PCI) || !defined(CONFIG_TILEGX)
+/* ioremap is conditionally declared in pci_gx.c */
+
+void __iomem *ioremap(resource_size_t phys_addr, unsigned long size)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(ioremap);
+
+#endif
 
 /* Unmap an MMIO VA mapping. */
 void iounmap(volatile void __iomem *addr_in)

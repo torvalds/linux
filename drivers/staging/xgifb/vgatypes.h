@@ -2,10 +2,9 @@
 #define _VGATYPES_
 
 #include <linux/fb.h>	/* for struct fb_var_screeninfo for sis.h */
-#include "../../video/sis/vgatypes.h"
-#include "../../video/sis/sis.h"		/* for LCD_TYPE */
+#include "../../video/fbdev/sis/vgatypes.h"
+#include "../../video/fbdev/sis/sis.h"		/* for LCD_TYPE */
 
-#ifndef XGI_VB_CHIP_TYPE
 enum XGI_VB_CHIP_TYPE {
 	VB_CHIP_Legacy = 0,
 	VB_CHIP_301,
@@ -19,7 +18,6 @@ enum XGI_VB_CHIP_TYPE {
 	VB_CHIP_UNKNOWN, /* other video bridge or no video bridge */
 	MAX_VB_CHIP
 };
-#endif
 
 struct xgi_hw_device_info {
 	unsigned long ulExternalChip; /* NO VB or other video bridge*/
@@ -29,14 +27,16 @@ struct xgi_hw_device_info {
 					    /* of Linear VGA memory */
 
 	unsigned long ulVideoMemorySize; /* size, in bytes, of the
-					    memory on the board */
+					  * memory on the board
+					  */
 
 	unsigned char jChipType; /* Used to Identify Graphics Chip */
 				 /* defined in the data structure type  */
 				 /* "XGI_CHIP_TYPE" */
 
 	unsigned char jChipRevision; /* Used to Identify Graphics
-					Chip Revision */
+				      * Chip Revision
+				      */
 
 	unsigned char ujVBChipID; /* the ID of video bridge */
 				  /* defined in the data structure type */
@@ -48,4 +48,3 @@ struct xgi_hw_device_info {
 /* Additional IOCTL for communication xgifb <> X driver        */
 /* If changing this, xgifb.h must also be changed (for xgifb) */
 #endif
-

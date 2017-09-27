@@ -23,10 +23,10 @@
 #include <linux/parport.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #undef DEBUG
 
@@ -44,7 +44,7 @@ static struct daisydev {
 } *topology = NULL;
 static DEFINE_SPINLOCK(topology_lock);
 
-static int numdevs = 0;
+static int numdevs;
 
 /* Forward-declaration of lower-level functions. */
 static int mux_present(struct parport *port);

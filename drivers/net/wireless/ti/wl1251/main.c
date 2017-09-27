@@ -28,6 +28,7 @@
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/netdevice.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
@@ -447,7 +448,11 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	WARN_ON(wl->state != WL1251_STATE_ON);
 
 	if (wl->scanning) {
-		ieee80211_scan_completed(wl->hw, true);
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		ieee80211_scan_completed(wl->hw, &info);
 		wl->scanning = false;
 	}
 
@@ -467,7 +472,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
-	memset(wl->bssid, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
 	wl->listen_int = 1;
 	wl->bss_type = MAX_BSS_TYPE;
 
@@ -479,10 +484,13 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl->next_tx_complete = 0;
 	wl->elp = false;
 	wl->station_mode = STATION_ACTIVE_MODE;
+	wl->psm_entry_retry = 0;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
 	wl->rssi_thold = 0;
 	wl->channel = WL1251_DEFAULT_CHANNEL;
+	wl->monitor_present = false;
+	wl->joined = false;
 
 	wl1251_debugfs_reset(wl);
 
@@ -496,6 +504,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+			     IEEE80211_VIF_SUPPORTS_UAPSD |
 			     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
@@ -521,7 +530,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (memcmp(wl->mac_addr, vif->addr, ETH_ALEN)) {
+	if (!ether_addr_equal_unaligned(wl->mac_addr, vif->addr)) {
 		memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 		SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
 		ret = wl1251_acx_station_id(wl);
@@ -542,7 +551,36 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
 	wl->vif = NULL;
+	eth_zero_addr(wl->bssid);
 	mutex_unlock(&wl->mutex);
+}
+
+static int wl1251_build_null_data(struct wl1251 *wl)
+{
+	struct sk_buff *skb = NULL;
+	int size;
+	void *ptr;
+	int ret = -ENOMEM;
+
+	if (wl->bss_type == BSS_TYPE_IBSS) {
+		size = sizeof(struct wl12xx_null_data_template);
+		ptr = NULL;
+	} else {
+		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+		if (!skb)
+			goto out;
+		size = skb->len;
+		ptr = skb->data;
+	}
+
+	ret = wl1251_cmd_template_set(wl, CMD_NULL_DATA, ptr, size);
+
+out:
+	dev_kfree_skb(skb);
+	if (ret)
+		wl1251_warning("cmd buld null data failed: %d", ret);
+
+	return ret;
 }
 
 static int wl1251_build_qos_null_data(struct wl1251 *wl)
@@ -566,6 +604,11 @@ static int wl1251_build_qos_null_data(struct wl1251 *wl)
 				       sizeof(template));
 }
 
+static bool wl1251_can_do_pm(struct ieee80211_conf *conf, struct wl1251 *wl)
+{
+	return (conf->flags & IEEE80211_CONF_PS) && !wl->monitor_present;
+}
+
 static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct wl1251 *wl = hw->priv;
@@ -575,8 +618,10 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 	channel = ieee80211_frequency_to_channel(
 			conf->chandef.chan->center_freq);
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d",
+	wl1251_debug(DEBUG_MAC80211,
+		     "mac80211 config ch %d monitor %s psm %s power %d",
 		     channel,
+		     conf->flags & IEEE80211_CONF_MONITOR ? "on" : "off",
 		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
 		     conf->power_level);
 
@@ -586,16 +631,44 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (ret < 0)
 		goto out;
 
-	if (channel != wl->channel) {
-		wl->channel = channel;
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		u32 mode;
 
-		ret = wl1251_join(wl, wl->bss_type, wl->channel,
-				  wl->beacon_int, wl->dtim_period);
+		if (conf->flags & IEEE80211_CONF_MONITOR) {
+			wl->monitor_present = true;
+			mode = DF_SNIFF_MODE_ENABLE | DF_ENCRYPTION_DISABLE;
+		} else {
+			wl->monitor_present = false;
+			mode = 0;
+		}
+
+		ret = wl1251_acx_feature_cfg(wl, mode);
 		if (ret < 0)
 			goto out_sleep;
 	}
 
-	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
+	if (channel != wl->channel) {
+		wl->channel = channel;
+
+		/*
+		 * Use ENABLE_RX command for channel switching when no
+		 * interface is present (monitor mode only).
+		 * This leaves the tx path disabled in firmware, whereas
+		 * the usual JOIN command seems to transmit some frames
+		 * at firmware level.
+		 */
+		if (wl->vif == NULL) {
+			wl->joined = false;
+			ret = wl1251_cmd_data_path_rx(wl, wl->channel, 1);
+		} else {
+			ret = wl1251_join(wl, wl->bss_type, wl->channel,
+					  wl->beacon_int, wl->dtim_period);
+		}
+		if (ret < 0)
+			goto out_sleep;
+	}
+
+	if (wl1251_can_do_pm(conf, wl) && !wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm enabled");
 
 		wl->psm_requested = true;
@@ -611,8 +684,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			goto out_sleep;
-	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
-		   wl->psm_requested) {
+	} else if (!wl1251_can_do_pm(conf, wl) && wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm disabled");
 
 		wl->psm_requested = false;
@@ -657,8 +729,45 @@ out:
 	return ret;
 }
 
-#define WL1251_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
-				  FIF_ALLMULTI | \
+struct wl1251_filter_params {
+	bool enabled;
+	int mc_list_length;
+	u8 mc_list[ACX_MC_ADDRESS_GROUP_MAX][ETH_ALEN];
+};
+
+static u64 wl1251_op_prepare_multicast(struct ieee80211_hw *hw,
+				       struct netdev_hw_addr_list *mc_list)
+{
+	struct wl1251_filter_params *fp;
+	struct netdev_hw_addr *ha;
+	struct wl1251 *wl = hw->priv;
+
+	if (unlikely(wl->state == WL1251_STATE_OFF))
+		return 0;
+
+	fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
+	if (!fp) {
+		wl1251_error("Out of memory setting filters.");
+		return 0;
+	}
+
+	/* update multicast filtering parameters */
+	fp->mc_list_length = 0;
+	if (netdev_hw_addr_list_count(mc_list) > ACX_MC_ADDRESS_GROUP_MAX) {
+		fp->enabled = false;
+	} else {
+		fp->enabled = true;
+		netdev_hw_addr_list_for_each(ha, mc_list) {
+			memcpy(fp->mc_list[fp->mc_list_length],
+					ha->addr, ETH_ALEN);
+			fp->mc_list_length++;
+		}
+	}
+
+	return (u64)(unsigned long)fp;
+}
+
+#define WL1251_SUPPORTED_FILTERS (FIF_ALLMULTI | \
 				  FIF_FCSFAIL | \
 				  FIF_BCN_PRBRESP_PROMISC | \
 				  FIF_CONTROL | \
@@ -667,8 +776,9 @@ out:
 
 static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed,
-				       unsigned int *total,u64 multicast)
+				       unsigned int *total, u64 multicast)
 {
+	struct wl1251_filter_params *fp = (void *)(unsigned long)multicast;
 	struct wl1251 *wl = hw->priv;
 	int ret;
 
@@ -677,19 +787,17 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	*total &= WL1251_SUPPORTED_FILTERS;
 	changed &= WL1251_SUPPORTED_FILTERS;
 
-	if (changed == 0)
+	if (changed == 0) {
 		/* no filters which we support changed */
+		kfree(fp);
 		return;
+	}
 
 	mutex_lock(&wl->mutex);
 
 	wl->rx_config = WL1251_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1251_DEFAULT_RX_FILTER;
 
-	if (*total & FIF_PROMISC_IN_BSS) {
-		wl->rx_config |= CFG_BSSID_FILTER_EN;
-		wl->rx_config |= CFG_RX_ALL_GOOD;
-	}
 	if (*total & FIF_ALLMULTI)
 		/*
 		 * CFG_MC_FILTER_EN in rx_config needs to be 0 to receive
@@ -716,6 +824,15 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	if (*total & FIF_ALLMULTI)
+		ret = wl1251_acx_group_address_tbl(wl, false, NULL, 0);
+	else if (fp)
+		ret = wl1251_acx_group_address_tbl(wl, fp->enabled,
+						   fp->mc_list,
+						   fp->mc_list_length);
+	if (ret < 0)
+		goto out;
+
 	/* send filters to firmware */
 	wl1251_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
 
@@ -723,6 +840,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 
 out:
 	mutex_unlock(&wl->mutex);
+	kfree(fp);
 }
 
 /* HW encryption */
@@ -802,12 +920,12 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mutex_lock(&wl->mutex);
 
-	ret = wl1251_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out_unlock;
-
 	switch (cmd) {
 	case SET_KEY:
+		if (wl->monitor_present) {
+			ret = -EOPNOTSUPP;
+			goto out_unlock;
+		}
 		wl_cmd->key_action = KEY_ADD_OR_REPLACE;
 		break;
 	case DISABLE_KEY:
@@ -817,6 +935,10 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		wl1251_error("Unsupported key cmd 0x%x", cmd);
 		break;
 	}
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out_unlock;
 
 	ret = wl1251_set_key_type(wl, wl_cmd, cmd, key, addr);
 	if (ret < 0) {
@@ -869,8 +991,9 @@ out:
 
 static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
-			     struct cfg80211_scan_request *req)
+			     struct ieee80211_scan_request *hw_req)
 {
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct wl1251 *wl = hw->priv;
 	struct sk_buff *skb;
 	size_t ssid_len = 0;
@@ -906,14 +1029,14 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			goto out_sleep;
 	}
 
-	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
+	skb = ieee80211_probereq_get(wl->hw, wl->vif->addr, ssid, ssid_len,
 				     req->ie_len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out_idle;
 	}
 	if (req->ie_len)
-		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
+		skb_put_data(skb, req->ie, req->ie_len);
 
 	ret = wl1251_cmd_template_set(wl, CMD_PROBE_REQ, skb->data,
 				      skb->len);
@@ -930,6 +1053,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 	ret = wl1251_cmd_scan(wl, ssid, ssid_len, req->channels,
 			      req->n_channels, WL1251_SCAN_NUM_PROBES);
 	if (ret < 0) {
+		wl1251_debug(DEBUG_SCAN, "scan failed %d", ret);
 		wl->scanning = false;
 		goto out_idle;
 	}
@@ -977,6 +1101,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct wl1251 *wl = hw->priv;
 	struct sk_buff *beacon, *skb;
+	bool enable;
 	int ret;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 bss info changed");
@@ -997,24 +1122,19 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		wl->rssi_thold = bss_conf->cqm_rssi_thold;
 	}
 
-	if (changed & BSS_CHANGED_BSSID) {
+	if ((changed & BSS_CHANGED_BSSID) &&
+	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
 		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
 
-		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
-		if (!skb)
-			goto out_sleep;
+		if (!is_zero_ether_addr(wl->bssid)) {
+			ret = wl1251_build_null_data(wl);
+			if (ret < 0)
+				goto out_sleep;
 
-		ret = wl1251_cmd_template_set(wl, CMD_NULL_DATA,
-					      skb->data, skb->len);
-		dev_kfree_skb(skb);
-		if (ret < 0)
-			goto out_sleep;
+			ret = wl1251_build_qos_null_data(wl);
+			if (ret < 0)
+				goto out_sleep;
 
-		ret = wl1251_build_qos_null_data(wl);
-		if (ret < 0)
-			goto out;
-
-		if (wl->bss_type != BSS_TYPE_IBSS) {
 			ret = wl1251_join(wl, wl->bss_type, wl->channel,
 					  wl->beacon_int, wl->dtim_period);
 			if (ret < 0)
@@ -1075,6 +1195,17 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		__be32 addr = bss_conf->arp_addr_list[0];
+		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
+
+		enable = bss_conf->arp_addr_cnt == 1 && bss_conf->assoc;
+		wl1251_acx_arp_ip_filter(wl, enable, addr);
+
+		if (ret < 0)
+			goto out_sleep;
+	}
+
 	if (changed & BSS_CHANGED_BEACON) {
 		beacon = ieee80211_beacon_get(hw, vif);
 		if (!beacon)
@@ -1096,8 +1227,8 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out_sleep;
 
-		ret = wl1251_join(wl, wl->bss_type, wl->beacon_int,
-				  wl->channel, wl->dtim_period);
+		ret = wl1251_join(wl, wl->bss_type, wl->channel,
+				  wl->beacon_int, wl->dtim_period);
 
 		if (ret < 0)
 			goto out_sleep;
@@ -1245,6 +1376,7 @@ static const struct ieee80211_ops wl1251_ops = {
 	.add_interface = wl1251_op_add_interface,
 	.remove_interface = wl1251_op_remove_interface,
 	.config = wl1251_op_config,
+	.prepare_multicast = wl1251_op_prepare_multicast,
 	.configure_filter = wl1251_op_configure_filter,
 	.tx = wl1251_op_tx,
 	.set_key = wl1251_op_set_key,
@@ -1347,16 +1479,14 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 
 	/* unit us */
 	/* FIXME: find a proper value */
-	wl->hw->channel_change_time = 10000;
 
-	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_SUPPORTS_UAPSD;
+	ieee80211_hw_set(wl->hw, SIGNAL_DBM);
+	ieee80211_hw_set(wl->hw, SUPPORTS_PS);
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					 BIT(NL80211_IFTYPE_ADHOC);
 	wl->hw->wiphy->max_scan_ssids = 1;
-	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
+	wl->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
 	wl->hw->queues = 4;
 
@@ -1401,7 +1531,10 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1251_elp_work);
 	wl->channel = WL1251_DEFAULT_CHANNEL;
+	wl->monitor_present = false;
+	wl->joined = false;
 	wl->scanning = false;
+	wl->bss_type = MAX_BSS_TYPE;
 	wl->default_key = 0;
 	wl->listen_int = 1;
 	wl->rx_counter = 0;
@@ -1413,6 +1546,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	wl->elp = false;
 	wl->station_mode = STATION_ACTIVE_MODE;
 	wl->psm_requested = false;
+	wl->psm_entry_retry = 0;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
 	wl->rssi_thold = 0;
@@ -1437,6 +1571,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	wl->state = WL1251_STATE_OFF;
 	mutex_init(&wl->mutex);
+	spin_lock_init(&wl->wl_lock);
 
 	wl->tx_mgmt_frm_rate = DEFAULT_HW_GEN_TX_RATE;
 	wl->tx_mgmt_frm_mod = DEFAULT_HW_GEN_MODULATION_TYPE;
@@ -1474,7 +1609,8 @@ int wl1251_free_hw(struct wl1251 *wl)
 }
 EXPORT_SYMBOL_GPL(wl1251_free_hw);
 
-MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
+MODULE_DESCRIPTION("TI wl1251 Wireless LAN Driver Core");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");
 MODULE_FIRMWARE(WL1251_FW_NAME);
+MODULE_FIRMWARE(WL1251_NVS_NAME);

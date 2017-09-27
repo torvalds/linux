@@ -23,23 +23,24 @@
  *          Alon Levy
  */
 
-#include "drmP.h"
-#include "drm/drm.h"
+#include <drm/drmP.h>
+#include <drm/drm.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
-
-int qxl_gem_object_init(struct drm_gem_object *obj)
-{
-	/* we do nothings here */
-	return 0;
-}
 
 void qxl_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct qxl_bo *qobj = gem_to_qxl_bo(gobj);
+	struct qxl_device *qdev;
+	struct ttm_buffer_object *tbo;
 
-	if (qobj)
-		qxl_bo_unref(&qobj);
+	qdev = (struct qxl_device *)gobj->dev->dev_private;
+
+	qxl_surface_evict(qdev, qobj, false);
+
+	tbo = &qobj->tbo;
+	ttm_bo_unref(&tbo);
 }
 
 int qxl_gem_object_create(struct qxl_device *qdev, int size,
@@ -101,32 +102,6 @@ int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 	return 0;
 }
 
-int qxl_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
-			  uint64_t *gpu_addr)
-{
-	struct qxl_bo *qobj = obj->driver_private;
-	int r;
-
-	r = qxl_bo_reserve(qobj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = qxl_bo_pin(qobj, pin_domain, gpu_addr);
-	qxl_bo_unreserve(qobj);
-	return r;
-}
-
-void qxl_gem_object_unpin(struct drm_gem_object *obj)
-{
-	struct qxl_bo *qobj = obj->driver_private;
-	int r;
-
-	r = qxl_bo_reserve(qobj, false);
-	if (likely(r == 0)) {
-		qxl_bo_unpin(qobj);
-		qxl_bo_unreserve(qobj);
-	}
-}
-
 int qxl_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
 	return 0;
@@ -137,10 +112,9 @@ void qxl_gem_object_close(struct drm_gem_object *obj,
 {
 }
 
-int qxl_gem_init(struct qxl_device *qdev)
+void qxl_gem_init(struct qxl_device *qdev)
 {
 	INIT_LIST_HEAD(&qdev->gem.objects);
-	return 0;
 }
 
 void qxl_gem_fini(struct qxl_device *qdev)

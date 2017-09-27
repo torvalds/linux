@@ -25,7 +25,7 @@
 #include <linux/vmalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/sizes.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mmu.h>

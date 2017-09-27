@@ -389,22 +389,49 @@ zsau_resp[] =
 	{NULL,				ZSAU_UNKNOWN}
 };
 
-/* retrieve CID from parsed response
- * returns 0 if no CID, -1 if invalid CID, or CID value 1..65535
+/* check for and remove fixed string prefix
+ * If s starts with prefix terminated by a non-alphanumeric character,
+ * return pointer to the first character after that, otherwise return NULL.
  */
-static int cid_of_response(char *s)
+static char *skip_prefix(char *s, const char *prefix)
 {
-	int cid;
-	int rc;
+	while (*prefix)
+		if (*s++ != *prefix++)
+			return NULL;
+	if (isalnum(*s))
+		return NULL;
+	return s;
+}
 
-	if (s[-1] != ';')
-		return 0;	/* no CID separator */
-	rc = kstrtoint(s, 10, &cid);
-	if (rc)
-		return 0;	/* CID not numeric */
-	if (cid < 1 || cid > 65535)
-		return -1;	/* CID out of range */
-	return cid;
+/* queue event with CID */
+static void add_cid_event(struct cardstate *cs, int cid, int type,
+			  void *ptr, int parameter)
+{
+	unsigned long flags;
+	unsigned next, tail;
+	struct event_t *event;
+
+	gig_dbg(DEBUG_EVENT, "queueing event %d for cid %d", type, cid);
+
+	spin_lock_irqsave(&cs->ev_lock, flags);
+
+	tail = cs->ev_tail;
+	next = (tail + 1) % MAX_EVENTS;
+	if (unlikely(next == cs->ev_head)) {
+		dev_err(cs->dev, "event queue full\n");
+		kfree(ptr);
+	} else {
+		event = cs->events + tail;
+		event->type = type;
+		event->cid = cid;
+		event->ptr = ptr;
+		event->arg = NULL;
+		event->parameter = parameter;
+		event->at_state = NULL;
+		cs->ev_tail = next;
+	}
+
+	spin_unlock_irqrestore(&cs->ev_lock, flags);
 }
 
 /**
@@ -417,201 +444,199 @@ static int cid_of_response(char *s)
  */
 void gigaset_handle_modem_response(struct cardstate *cs)
 {
-	unsigned char *argv[MAX_REC_PARAMS + 1];
-	int params;
-	int i, j;
+	char *eoc, *psep, *ptr;
 	const struct resp_type_t *rt;
 	const struct zsau_resp_t *zr;
-	int curarg;
-	unsigned long flags;
-	unsigned next, tail, head;
-	struct event_t *event;
-	int resp_code;
-	int param_type;
-	int abort;
-	size_t len;
-	int cid;
-	int rawstring;
+	int cid, parameter;
+	u8 type, value;
 
-	len = cs->cbytes;
-	if (!len) {
+	if (!cs->cbytes) {
 		/* ignore additional LFs/CRs (M10x config mode or cx100) */
 		gig_dbg(DEBUG_MCMD, "skipped EOL [%02X]", cs->respdata[0]);
 		return;
 	}
-	cs->respdata[len] = 0;
-	argv[0] = cs->respdata;
-	params = 1;
+	cs->respdata[cs->cbytes] = 0;
+
 	if (cs->at_state.getstring) {
-		/* getstring only allowed without cid at the moment */
+		/* state machine wants next line verbatim */
 		cs->at_state.getstring = 0;
-		rawstring = 1;
-		cid = 0;
+		ptr = kstrdup(cs->respdata, GFP_ATOMIC);
+		gig_dbg(DEBUG_EVENT, "string==%s", ptr ? ptr : "NULL");
+		add_cid_event(cs, 0, RSP_STRING, ptr, 0);
+		return;
+	}
+
+	/* look up response type */
+	for (rt = resp_type; rt->response; ++rt) {
+		eoc = skip_prefix(cs->respdata, rt->response);
+		if (eoc)
+			break;
+	}
+	if (!rt->response) {
+		add_cid_event(cs, 0, RSP_NONE, NULL, 0);
+		gig_dbg(DEBUG_EVENT, "unknown modem response: '%s'\n",
+			cs->respdata);
+		return;
+	}
+
+	/* check for CID */
+	psep = strrchr(cs->respdata, ';');
+	if (psep &&
+	    !kstrtoint(psep + 1, 10, &cid) &&
+	    cid >= 1 && cid <= 65535) {
+		/* valid CID: chop it off */
+		*psep = 0;
 	} else {
-		/* parse line */
-		for (i = 0; i < len; i++)
-			switch (cs->respdata[i]) {
-			case ';':
-			case ',':
-			case '=':
-				if (params > MAX_REC_PARAMS) {
-					dev_warn(cs->dev,
-						 "too many parameters in response\n");
-					/* need last parameter (might be CID) */
-					params--;
-				}
-				argv[params++] = cs->respdata + i + 1;
-			}
-
-		rawstring = 0;
-		cid = params > 1 ? cid_of_response(argv[params - 1]) : 0;
-		if (cid < 0) {
-			gigaset_add_event(cs, &cs->at_state, RSP_INVAL,
-					  NULL, 0, NULL);
-			return;
-		}
-
-		for (j = 1; j < params; ++j)
-			argv[j][-1] = 0;
-
-		gig_dbg(DEBUG_EVENT, "CMD received: %s", argv[0]);
-		if (cid) {
-			--params;
-			gig_dbg(DEBUG_EVENT, "CID: %s", argv[params]);
-		}
-		gig_dbg(DEBUG_EVENT, "available params: %d", params - 1);
-		for (j = 1; j < params; j++)
-			gig_dbg(DEBUG_EVENT, "param %d: %s", j, argv[j]);
+		/* no valid CID: leave unchanged */
+		cid = 0;
 	}
 
-	spin_lock_irqsave(&cs->ev_lock, flags);
-	head = cs->ev_head;
-	tail = cs->ev_tail;
+	gig_dbg(DEBUG_EVENT, "CMD received: %s", cs->respdata);
+	if (cid)
+		gig_dbg(DEBUG_EVENT, "CID: %d", cid);
 
-	abort = 1;
-	curarg = 0;
-	while (curarg < params) {
-		next = (tail + 1) % MAX_EVENTS;
-		if (unlikely(next == head)) {
-			dev_err(cs->dev, "event queue full\n");
-			break;
-		}
+	switch (rt->type) {
+	case RT_NOTHING:
+		/* check parameter separator */
+		if (*eoc)
+			goto bad_param;	/* extra parameter */
 
-		event = cs->events + tail;
-		event->at_state = NULL;
-		event->cid = cid;
-		event->ptr = NULL;
-		event->arg = NULL;
-		tail = next;
+		add_cid_event(cs, cid, rt->resp_code, NULL, 0);
+		break;
 
-		if (rawstring) {
-			resp_code = RSP_STRING;
-			param_type = RT_STRING;
-		} else {
-			for (rt = resp_type; rt->response; ++rt)
-				if (!strcmp(argv[curarg], rt->response))
+	case RT_RING:
+		/* check parameter separator */
+		if (!*eoc)
+			eoc = NULL;	/* no parameter */
+		else if (*eoc++ != ',')
+			goto bad_param;
+
+		add_cid_event(cs, 0, rt->resp_code, NULL, cid);
+
+		/* process parameters as individual responses */
+		while (eoc) {
+			/* look up parameter type */
+			psep = NULL;
+			for (rt = resp_type; rt->response; ++rt) {
+				psep = skip_prefix(eoc, rt->response);
+				if (psep)
 					break;
-
-			if (!rt->response) {
-				event->type = RSP_NONE;
-				gig_dbg(DEBUG_EVENT,
-					"unknown modem response: '%s'\n",
-					argv[curarg]);
-				break;
 			}
 
-			resp_code = rt->resp_code;
-			param_type = rt->type;
-			++curarg;
-		}
-
-		event->type = resp_code;
-
-		switch (param_type) {
-		case RT_NOTHING:
-			break;
-		case RT_RING:
-			if (!cid) {
-				dev_err(cs->dev,
-					"received RING without CID!\n");
-				event->type = RSP_INVAL;
-				abort = 1;
-			} else {
-				event->cid = 0;
-				event->parameter = cid;
-				abort = 0;
-			}
-			break;
-		case RT_ZSAU:
-			if (curarg >= params) {
-				event->parameter = ZSAU_NONE;
-				break;
-			}
-			for (zr = zsau_resp; zr->str; ++zr)
-				if (!strcmp(argv[curarg], zr->str))
-					break;
-			event->parameter = zr->code;
-			if (!zr->str)
+			/* all legal parameters are of type RT_STRING */
+			if (!psep || rt->type != RT_STRING) {
 				dev_warn(cs->dev,
-					 "%s: unknown parameter %s after ZSAU\n",
-					 __func__, argv[curarg]);
-			++curarg;
-			break;
-		case RT_STRING:
-			if (curarg < params) {
-				event->ptr = kstrdup(argv[curarg], GFP_ATOMIC);
-				if (!event->ptr)
-					dev_err(cs->dev, "out of memory\n");
-				++curarg;
+					 "illegal RING parameter: '%s'\n",
+					 eoc);
+				return;
 			}
-			gig_dbg(DEBUG_EVENT, "string==%s",
-				event->ptr ? (char *) event->ptr : "NULL");
-			break;
-		case RT_ZCAU:
-			event->parameter = -1;
-			if (curarg + 1 < params) {
-				u8 type, value;
 
-				i = kstrtou8(argv[curarg++], 16, &type);
-				j = kstrtou8(argv[curarg++], 16, &value);
-				if (i == 0 && j == 0)
-					event->parameter = (type << 8) | value;
-			} else
-				curarg = params - 1;
-			break;
-		case RT_NUMBER:
-			if (curarg >= params ||
-			    kstrtoint(argv[curarg++], 10, &event->parameter))
-				event->parameter = -1;
-			gig_dbg(DEBUG_EVENT, "parameter==%d", event->parameter);
+			/* skip parameter value separator */
+			if (*psep++ != '=')
+				goto bad_param;
+
+			/* look up end of parameter */
+			eoc = strchr(psep, ',');
+			if (eoc)
+				*eoc++ = 0;
+
+			/* retrieve parameter value */
+			ptr = kstrdup(psep, GFP_ATOMIC);
+
+			/* queue event */
+			add_cid_event(cs, cid, rt->resp_code, ptr, 0);
+		}
+		break;
+
+	case RT_ZSAU:
+		/* check parameter separator */
+		if (!*eoc) {
+			/* no parameter */
+			add_cid_event(cs, cid, rt->resp_code, NULL, ZSAU_NONE);
 			break;
 		}
+		if (*eoc++ != '=')
+			goto bad_param;
 
-		if (resp_code == RSP_ZDLE)
-			cs->dle = event->parameter;
+		/* look up parameter value */
+		for (zr = zsau_resp; zr->str; ++zr)
+			if (!strcmp(eoc, zr->str))
+				break;
+		if (!zr->str)
+			goto bad_param;
 
-		if (abort)
-			break;
+		add_cid_event(cs, cid, rt->resp_code, NULL, zr->code);
+		break;
+
+	case RT_STRING:
+		/* check parameter separator */
+		if (*eoc++ != '=')
+			goto bad_param;
+
+		/* retrieve parameter value */
+		ptr = kstrdup(eoc, GFP_ATOMIC);
+
+		/* queue event */
+		add_cid_event(cs, cid, rt->resp_code, ptr, 0);
+		break;
+
+	case RT_ZCAU:
+		/* check parameter separators */
+		if (*eoc++ != '=')
+			goto bad_param;
+		psep = strchr(eoc, ',');
+		if (!psep)
+			goto bad_param;
+		*psep++ = 0;
+
+		/* decode parameter values */
+		if (kstrtou8(eoc, 16, &type) || kstrtou8(psep, 16, &value)) {
+			*--psep = ',';
+			goto bad_param;
+		}
+		parameter = (type << 8) | value;
+
+		add_cid_event(cs, cid, rt->resp_code, NULL, parameter);
+		break;
+
+	case RT_NUMBER:
+		/* check parameter separator */
+		if (*eoc++ != '=')
+			goto bad_param;
+
+		/* decode parameter value */
+		if (kstrtoint(eoc, 10, &parameter))
+			goto bad_param;
+
+		/* special case ZDLE: set flag before queueing event */
+		if (rt->resp_code == RSP_ZDLE)
+			cs->dle = parameter;
+
+		add_cid_event(cs, cid, rt->resp_code, NULL, parameter);
+		break;
+
+bad_param:
+		/* parameter unexpected, incomplete or malformed */
+		dev_warn(cs->dev, "bad parameter in response '%s'\n",
+			 cs->respdata);
+		add_cid_event(cs, cid, rt->resp_code, NULL, -1);
+		break;
+
+	default:
+		dev_err(cs->dev, "%s: internal error on '%s'\n",
+			__func__, cs->respdata);
 	}
-
-	cs->ev_tail = tail;
-	spin_unlock_irqrestore(&cs->ev_lock, flags);
-
-	if (curarg != params)
-		gig_dbg(DEBUG_EVENT,
-			"invalid number of processed parameters: %d/%d",
-			curarg, params);
 }
 EXPORT_SYMBOL_GPL(gigaset_handle_modem_response);
 
-/* disconnect
+/* disconnect_nobc
  * process closing of connection associated with given AT state structure
+ * without B channel
  */
-static void disconnect(struct at_state_t **at_state_p)
+static void disconnect_nobc(struct at_state_t **at_state_p,
+			    struct cardstate *cs)
 {
 	unsigned long flags;
-	struct bc_state *bcs = (*at_state_p)->bcs;
-	struct cardstate *cs = (*at_state_p)->cs;
 
 	spin_lock_irqsave(&cs->lock, flags);
 	++(*at_state_p)->seq_index;
@@ -622,23 +647,44 @@ static void disconnect(struct at_state_t **at_state_p)
 		gig_dbg(DEBUG_EVENT, "Scheduling PC_UMMODE");
 		cs->commands_pending = 1;
 	}
-	spin_unlock_irqrestore(&cs->lock, flags);
 
-	if (bcs) {
-		/* B channel assigned: invoke hardware specific handler */
-		cs->ops->close_bchannel(bcs);
-		/* notify LL */
-		if (bcs->chstate & (CHS_D_UP | CHS_NOTIFY_LL)) {
-			bcs->chstate &= ~(CHS_D_UP | CHS_NOTIFY_LL);
-			gigaset_isdn_hupD(bcs);
-		}
-	} else {
-		/* no B channel assigned: just deallocate */
-		spin_lock_irqsave(&cs->lock, flags);
+	/* check for and deallocate temporary AT state */
+	if (!list_empty(&(*at_state_p)->list)) {
 		list_del(&(*at_state_p)->list);
 		kfree(*at_state_p);
 		*at_state_p = NULL;
-		spin_unlock_irqrestore(&cs->lock, flags);
+	}
+
+	spin_unlock_irqrestore(&cs->lock, flags);
+}
+
+/* disconnect_bc
+ * process closing of connection associated with given AT state structure
+ * and B channel
+ */
+static void disconnect_bc(struct at_state_t *at_state,
+			  struct cardstate *cs, struct bc_state *bcs)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cs->lock, flags);
+	++at_state->seq_index;
+
+	/* revert to selected idle mode */
+	if (!cs->cidmode) {
+		cs->at_state.pending_commands |= PC_UMMODE;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_UMMODE");
+		cs->commands_pending = 1;
+	}
+	spin_unlock_irqrestore(&cs->lock, flags);
+
+	/* invoke hardware specific handler */
+	cs->ops->close_bchannel(bcs);
+
+	/* notify LL */
+	if (bcs->chstate & (CHS_D_UP | CHS_NOTIFY_LL)) {
+		bcs->chstate &= ~(CHS_D_UP | CHS_NOTIFY_LL);
+		gigaset_isdn_hupD(bcs);
 	}
 }
 
@@ -646,7 +692,7 @@ static void disconnect(struct at_state_t **at_state_p)
  * get a free AT state structure: either one of those associated with the
  * B channels of the Gigaset device, or if none of those is available,
  * a newly allocated one with bcs=NULL
- * The structure should be freed by calling disconnect() after use.
+ * The structure should be freed by calling disconnect_nobc() after use.
  */
 static inline struct at_state_t *get_free_channel(struct cardstate *cs,
 						  int cid)
@@ -1057,7 +1103,7 @@ static void do_action(int action, struct cardstate *cs,
 		      struct event_t *ev)
 {
 	struct at_state_t *at_state = *p_at_state;
-	struct at_state_t *at_state2;
+	struct bc_state *bcs2;
 	unsigned long flags;
 
 	int channel;
@@ -1156,8 +1202,8 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_RING:
 		/* get fresh AT state structure for new CID */
-		at_state2 = get_free_channel(cs, ev->parameter);
-		if (!at_state2) {
+		at_state = get_free_channel(cs, ev->parameter);
+		if (!at_state) {
 			dev_warn(cs->dev,
 				 "RING ignored: could not allocate channel structure\n");
 			break;
@@ -1166,16 +1212,16 @@ static void do_action(int action, struct cardstate *cs,
 		/* initialize AT state structure
 		 * note that bcs may be NULL if no B channel is free
 		 */
-		at_state2->ConState = 700;
+		at_state->ConState = 700;
 		for (i = 0; i < STR_NUM; ++i) {
-			kfree(at_state2->str_var[i]);
-			at_state2->str_var[i] = NULL;
+			kfree(at_state->str_var[i]);
+			at_state->str_var[i] = NULL;
 		}
-		at_state2->int_var[VAR_ZCTP] = -1;
+		at_state->int_var[VAR_ZCTP] = -1;
 
 		spin_lock_irqsave(&cs->lock, flags);
-		at_state2->timer_expires = RING_TIMEOUT;
-		at_state2->timer_active = 1;
+		at_state->timer_expires = RING_TIMEOUT;
+		at_state->timer_active = 1;
 		spin_unlock_irqrestore(&cs->lock, flags);
 		break;
 	case ACT_ICALL:
@@ -1213,14 +1259,17 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_DISCONNECT:
 		cs->cur_at_seq = SEQ_NONE;
 		at_state->cid = -1;
-		if (bcs && cs->onechannel && cs->dle) {
+		if (!bcs) {
+			disconnect_nobc(p_at_state, cs);
+		} else if (cs->onechannel && cs->dle) {
 			/* Check for other open channels not needed:
 			 * DLE only used for M10x with one B channel.
 			 */
 			at_state->pending_commands |= PC_DLE0;
 			cs->commands_pending = 1;
-		} else
-			disconnect(p_at_state);
+		} else {
+			disconnect_bc(at_state, cs, bcs);
+		}
 		break;
 	case ACT_FAKEDLE0:
 		at_state->int_var[VAR_ZDLE] = 0;
@@ -1228,24 +1277,27 @@ static void do_action(int action, struct cardstate *cs,
 		/* fall through */
 	case ACT_DLE0:
 		cs->cur_at_seq = SEQ_NONE;
-		at_state2 = &cs->bcs[cs->curchannel].at_state;
-		disconnect(&at_state2);
+		bcs2 = cs->bcs + cs->curchannel;
+		disconnect_bc(&bcs2->at_state, cs, bcs2);
 		break;
 	case ACT_ABORTHUP:
 		cs->cur_at_seq = SEQ_NONE;
 		dev_warn(cs->dev, "Could not hang up.\n");
 		at_state->cid = -1;
-		if (bcs && cs->onechannel)
+		if (!bcs)
+			disconnect_nobc(p_at_state, cs);
+		else if (cs->onechannel)
 			at_state->pending_commands |= PC_DLE0;
 		else
-			disconnect(p_at_state);
+			disconnect_bc(at_state, cs, bcs);
 		schedule_init(cs, MS_RECOVER);
 		break;
 	case ACT_FAILDLE0:
 		cs->cur_at_seq = SEQ_NONE;
-		dev_warn(cs->dev, "Could not leave DLE mode.\n");
-		at_state2 = &cs->bcs[cs->curchannel].at_state;
-		disconnect(&at_state2);
+		dev_warn(cs->dev, "Error leaving DLE mode.\n");
+		cs->dle = 0;
+		bcs2 = cs->bcs + cs->curchannel;
+		disconnect_bc(&bcs2->at_state, cs, bcs2);
 		schedule_init(cs, MS_RECOVER);
 		break;
 	case ACT_FAILDLE1:
@@ -1274,14 +1326,14 @@ static void do_action(int action, struct cardstate *cs,
 		if (reinit_and_retry(cs, channel) < 0) {
 			dev_warn(cs->dev,
 				 "Could not get a call ID. Cannot dial.\n");
-			at_state2 = &cs->bcs[channel].at_state;
-			disconnect(&at_state2);
+			bcs2 = cs->bcs + channel;
+			disconnect_bc(&bcs2->at_state, cs, bcs2);
 		}
 		break;
 	case ACT_ABORTCID:
 		cs->cur_at_seq = SEQ_NONE;
-		at_state2 = &cs->bcs[cs->curchannel].at_state;
-		disconnect(&at_state2);
+		bcs2 = cs->bcs + cs->curchannel;
+		disconnect_bc(&bcs2->at_state, cs, bcs2);
 		break;
 
 	case ACT_DIALING:
@@ -1290,7 +1342,10 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 
 	case ACT_ABORTACCEPT:	/* hangup/error/timeout during ICALL procssng */
-		disconnect(p_at_state);
+		if (bcs)
+			disconnect_bc(at_state, cs, bcs);
+		else
+			disconnect_nobc(p_at_state, cs);
 		break;
 
 	case ACT_ABORTDIAL:	/* error/timeout during dial preparation */
@@ -1379,6 +1434,11 @@ static void do_action(int action, struct cardstate *cs,
 	/* events from the LL */
 
 	case ACT_DIAL:
+		if (!ev->ptr) {
+			*p_genresp = 1;
+			*p_resp_code = RSP_ERROR;
+			break;
+		}
 		start_dial(at_state, ev->ptr, ev->parameter);
 		break;
 	case ACT_ACCEPT:

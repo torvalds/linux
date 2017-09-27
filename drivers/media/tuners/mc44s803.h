@@ -13,16 +13,10 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #ifndef MC44S803_H
 #define MC44S803_H
-
-#include <linux/kconfig.h>
 
 struct dvb_frontend;
 struct i2c_adapter;
@@ -32,7 +26,7 @@ struct mc44s803_config {
 	u8 dig_out;
 };
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_MC44S803)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_MC44S803)
 extern struct dvb_frontend *mc44s803_attach(struct dvb_frontend *fe,
 	 struct i2c_adapter *i2c, struct mc44s803_config *cfg);
 #else

@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* TODO: Cleanup and shorten the namespace */
@@ -78,9 +74,9 @@ enum tmBusType {
 struct tmComResBusInfo {
 	enum tmBusType Type;
 	u16	m_wMaxReqSize;
-	u8	*m_pdwSetRing;
+	u8 __iomem *m_pdwSetRing;
 	u32	m_dwSizeSetRing;
-	u8	*m_pdwGetRing;
+	u8 __iomem *m_pdwGetRing;
 	u32	m_dwSizeGetRing;
 	u32	m_dwSetWritePos;
 	u32	m_dwSetReadPos;

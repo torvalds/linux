@@ -31,6 +31,7 @@ struct netns_sctp {
 	struct list_head addr_waitq;
 	struct timer_list addr_wq_timer;
 	struct list_head auto_asconf_splist;
+	/* Lock that protects both addr_waitq and auto_asconf_splist */
 	spinlock_t addr_wq_lock;
 
 	/* Lock that protects the local_addr_list writers */
@@ -88,6 +89,13 @@ struct netns_sctp {
 	int pf_retrans;
 
 	/*
+	 * Disable Potentially-Failed feature, the feature is enabled by default
+	 * pf_enable	-  0  : disable pf
+	 *		- >0  : enable pf
+	 */
+	int pf_enable;
+
+	/*
 	 * Policy for preforming sctp/socket accounting
 	 * 0   - do socket level accounting, all assocs share sk_sndbuf
 	 * 1   - do sctp accounting, each asoc may use sk_sndbuf bytes
@@ -109,6 +117,9 @@ struct netns_sctp {
 
 	/* Flag to indicate if PR-SCTP is enabled. */
 	int prsctp_enable;
+
+	/* Flag to indicate if PR-CONFIG is enabled. */
+	int reconf_enable;
 
 	/* Flag to idicate if SCTP-AUTH is enabled */
 	int auth_enable;

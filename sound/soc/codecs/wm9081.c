@@ -30,7 +30,7 @@
 #include <sound/wm9081.h>
 #include "wm9081.h"
 
-static struct reg_default wm9081_reg[] = {
+static const struct reg_default wm9081_reg[] = {
 	{  2, 0x00B9 },     /* R2  - Analogue Lineout */
 	{  3, 0x00B9 },     /* R3  - Analogue Speaker PGA */
 	{  4, 0x0001 },     /* R4  - VMID Control */
@@ -243,13 +243,12 @@ static int wm9081_reset(struct regmap *map)
 static const DECLARE_TLV_DB_SCALE(drc_in_tlv, -4500, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_out_tlv, -2250, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_min_tlv, -1800, 600, 0);
-static unsigned int drc_max_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(drc_max_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(1200, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(1800, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(2400, 0, 0),
-	3, 3, TLV_DB_SCALE_ITEM(3600, 0, 0),
-};
+	3, 3, TLV_DB_SCALE_ITEM(3600, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(drc_qr_tlv, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(drc_startup_tlv, -300, 50, 0);
 
@@ -268,8 +267,7 @@ static const char *drc_high_text[] = {
 	"0",
 };
 
-static const struct soc_enum drc_high =
-	SOC_ENUM_SINGLE(WM9081_DRC_3, 3, 6, drc_high_text);
+static SOC_ENUM_SINGLE_DECL(drc_high, WM9081_DRC_3, 3, drc_high_text);
 
 static const char *drc_low_text[] = {
 	"1",
@@ -279,8 +277,7 @@ static const char *drc_low_text[] = {
 	"0",
 };
 
-static const struct soc_enum drc_low =
-	SOC_ENUM_SINGLE(WM9081_DRC_3, 0, 5, drc_low_text);
+static SOC_ENUM_SINGLE_DECL(drc_low, WM9081_DRC_3, 0, drc_low_text);
 
 static const char *drc_atk_text[] = {
 	"181us",
@@ -297,8 +294,7 @@ static const char *drc_atk_text[] = {
 	"185.6ms",
 };
 
-static const struct soc_enum drc_atk =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 12, 12, drc_atk_text);
+static SOC_ENUM_SINGLE_DECL(drc_atk, WM9081_DRC_2, 12, drc_atk_text);
 
 static const char *drc_dcy_text[] = {
 	"186ms",
@@ -312,8 +308,7 @@ static const char *drc_dcy_text[] = {
 	"47.56s",
 };
 
-static const struct soc_enum drc_dcy =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 8, 9, drc_dcy_text);
+static SOC_ENUM_SINGLE_DECL(drc_dcy, WM9081_DRC_2, 8, drc_dcy_text);
 
 static const char *drc_qr_dcy_text[] = {
 	"0.725ms",
@@ -321,8 +316,7 @@ static const char *drc_qr_dcy_text[] = {
 	"5.8ms",
 };
 
-static const struct soc_enum drc_qr_dcy =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 4, 3, drc_qr_dcy_text);
+static SOC_ENUM_SINGLE_DECL(drc_qr_dcy, WM9081_DRC_2, 4, drc_qr_dcy_text);
 
 static const char *dac_deemph_text[] = {
 	"None",
@@ -331,28 +325,28 @@ static const char *dac_deemph_text[] = {
 	"48kHz",
 };
 
-static const struct soc_enum dac_deemph =
-	SOC_ENUM_SINGLE(WM9081_DAC_DIGITAL_2, 1, 4, dac_deemph_text);
+static SOC_ENUM_SINGLE_DECL(dac_deemph, WM9081_DAC_DIGITAL_2, 1,
+			    dac_deemph_text);
 
 static const char *speaker_mode_text[] = {
 	"Class D",
 	"Class AB",
 };
 
-static const struct soc_enum speaker_mode =
-	SOC_ENUM_SINGLE(WM9081_ANALOGUE_SPEAKER_2, 6, 2, speaker_mode_text);
+static SOC_ENUM_SINGLE_DECL(speaker_mode, WM9081_ANALOGUE_SPEAKER_2, 6,
+			    speaker_mode_text);
 
 static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned int reg;
 
 	reg = snd_soc_read(codec, WM9081_ANALOGUE_SPEAKER_2);
 	if (reg & WM9081_SPK_MODE)
-		ucontrol->value.integer.value[0] = 1;
+		ucontrol->value.enumerated.item[0] = 1;
 	else
-		ucontrol->value.integer.value[0] = 0;
+		ucontrol->value.enumerated.item[0] = 0;
 
 	return 0;
 }
@@ -366,12 +360,12 @@ static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 static int speaker_mode_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned int reg_pwr = snd_soc_read(codec, WM9081_POWER_MANAGEMENT);
 	unsigned int reg2 = snd_soc_read(codec, WM9081_ANALOGUE_SPEAKER_2);
 
 	/* Are we changing anything? */
-	if (ucontrol->value.integer.value[0] ==
+	if (ucontrol->value.enumerated.item[0] ==
 	    ((reg2 & WM9081_SPK_MODE) != 0))
 		return 0;
 
@@ -379,7 +373,7 @@ static int speaker_mode_put(struct snd_kcontrol *kcontrol,
 	if (reg_pwr & WM9081_SPK_ENA)
 		return -EINVAL;
 
-	if (ucontrol->value.integer.value[0]) {
+	if (ucontrol->value.enumerated.item[0]) {
 		/* Class AB */
 		reg2 &= ~(WM9081_SPK_INV_MUTE | WM9081_OUT_SPK_CTRL);
 		reg2 |= WM9081_SPK_MODE;
@@ -739,7 +733,7 @@ static int configure_clock(struct snd_soc_codec *codec)
 static int clk_sys_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
 	/* This should be done on init() for bypass paths */
@@ -843,7 +837,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Initial cold start */
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			regcache_cache_only(wm9081->regmap, false);
 			regcache_sync(wm9081->regmap);
 
@@ -902,8 +896,6 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		regcache_cache_only(wm9081->regmap, true);
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1034,19 +1026,19 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 		/* Otherwise work out a BCLK from the sample size */
 		wm9081->bclk = 2 * wm9081->fs;
 
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			wm9081->bclk *= 16;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			wm9081->bclk *= 20;
 			aif2 |= 0x4;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			wm9081->bclk *= 24;
 			aif2 |= 0x8;
 			break;
-		case SNDRV_PCM_FORMAT_S32_LE:
+		case 32:
 			wm9081->bclk *= 32;
 			aif2 |= 0xc;
 			break;
@@ -1265,15 +1257,6 @@ static struct snd_soc_dai_driver wm9081_dai = {
 static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = wm9081->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* Enable zero cross by default */
 	snd_soc_update_bits(codec, WM9081_ANALOGUE_LINEOUT,
@@ -1288,30 +1271,25 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 
-	return ret;
-}
-
-static int wm9081_remove(struct snd_soc_codec *codec)
-{
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.probe = 	wm9081_probe,
-	.remove = 	wm9081_remove,
 
 	.set_sysclk = wm9081_set_sysclk,
 	.set_bias_level = wm9081_set_bias_level,
 
 	.idle_bias_off = true,
 
-	.controls         = wm9081_snd_controls,
-	.num_controls     = ARRAY_SIZE(wm9081_snd_controls),
-	.dapm_widgets	  = wm9081_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm9081_dapm_widgets),
-	.dapm_routes     = wm9081_audio_paths,
-	.num_dapm_routes = ARRAY_SIZE(wm9081_audio_paths),
+	.component_driver = {
+		.controls		= wm9081_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm9081_snd_controls),
+		.dapm_widgets		= wm9081_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm9081_dapm_widgets),
+		.dapm_routes		= wm9081_audio_paths,
+		.num_dapm_routes	= ARRAY_SIZE(wm9081_audio_paths),
+	},
 };
 
 static const struct regmap_config wm9081_regmap = {
@@ -1326,7 +1304,6 @@ static const struct regmap_config wm9081_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int wm9081_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1401,13 +1378,11 @@ MODULE_DEVICE_TABLE(i2c, wm9081_i2c_id);
 static struct i2c_driver wm9081_i2c_driver = {
 	.driver = {
 		.name = "wm9081",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm9081_i2c_probe,
 	.remove =   wm9081_i2c_remove,
 	.id_table = wm9081_i2c_id,
 };
-#endif
 
 module_i2c_driver(wm9081_i2c_driver);
 

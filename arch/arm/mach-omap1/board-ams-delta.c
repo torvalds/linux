@@ -11,7 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -41,7 +41,7 @@
 
 #include <mach/hardware.h>
 #include <mach/ams-delta-fiq.h>
-#include <mach/camera.h>
+#include "camera.h"
 #include <mach/usb.h>
 
 #include "iomap.h"
@@ -510,6 +510,7 @@ static void __init ams_delta_init(void)
 static void modem_pm(struct uart_port *port, unsigned int state, unsigned old)
 {
 	struct modem_private_data *priv = port->private_data;
+	int ret;
 
 	if (IS_ERR(priv->regulator))
 		return;
@@ -518,9 +519,16 @@ static void modem_pm(struct uart_port *port, unsigned int state, unsigned old)
 		return;
 
 	if (state == 0)
-		regulator_enable(priv->regulator);
+		ret = regulator_enable(priv->regulator);
 	else if (old == 0)
-		regulator_disable(priv->regulator);
+		ret = regulator_disable(priv->regulator);
+	else
+		ret = 0;
+
+	if (ret)
+		dev_warn(port->dev,
+			 "ams_delta modem_pm: failed to %sable regulator: %d\n",
+			 state ? "dis" : "en", ret);
 }
 
 static struct plat_serial8250_port ams_delta_modem_ports[] = {
@@ -626,6 +634,7 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.map_io		= ams_delta_map_io,
 	.init_early	= omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= ams_delta_init,
 	.init_late	= ams_delta_init_late,
 	.init_time	= omap1_timer_init,

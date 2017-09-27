@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/tty.h>
 #include <linux/timer.h>
 #include <linux/kernel.h>
@@ -29,7 +29,7 @@
 #include <linux/timex.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/kbd_kern.h>
 #include <linux/vt_kern.h>
@@ -266,10 +266,6 @@ do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud, int perm, struct vc_
 
 	if (copy_from_user(&tmp, user_ud, sizeof tmp))
 		return -EFAULT;
-	if (tmp.entries)
-		if (!access_ok(VERIFY_WRITE, tmp.entries,
-				tmp.entry_ct*sizeof(struct unipair)))
-			return -EFAULT;
 	switch (cmd) {
 	case PIO_UNIMAP:
 		if (!perm)
@@ -388,7 +384,7 @@ int vt_ioctl(struct tty_struct *tty,
 		 * Generate the tone for the appropriate number of ticks.
 		 * If the time is zero, turn off sound ourselves.
 		 */
-		ticks = HZ * ((arg >> 16) & 0xffff) / 1000;
+		ticks = msecs_to_jiffies((arg >> 16) & 0xffff);
 		count = ticks ? (arg & 0xffff) : 0;
 		if (count)
 			count = PIT_TICK_RATE / count;
@@ -1006,16 +1002,10 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 	case PIO_UNIMAPCLR:
-	      { struct unimapinit ui;
 		if (!perm)
 			return -EPERM;
-		ret = copy_from_user(&ui, up, sizeof(struct unimapinit));
-		if (ret)
-			ret = -EFAULT;
-		else
-			con_clear_unimap(vc, &ui);
+		con_clear_unimap(vc);
 		break;
-	      }
 
 	case PIO_UNIMAP:
 	case GIO_UNIMAP:
@@ -1176,10 +1166,6 @@ compat_unimap_ioctl(unsigned int cmd, struct compat_unimapdesc __user *user_ud,
 	if (copy_from_user(&tmp, user_ud, sizeof tmp))
 		return -EFAULT;
 	tmp_entries = compat_ptr(tmp.entries);
-	if (tmp_entries)
-		if (!access_ok(VERIFY_WRITE, tmp_entries,
-				tmp.entry_ct*sizeof(struct unipair)))
-			return -EFAULT;
 	switch (cmd) {
 	case PIO_UNIMAP:
 		if (!perm)

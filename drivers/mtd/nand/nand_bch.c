@@ -25,20 +25,18 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_bch.h>
 #include <linux/bch.h>
 
 /**
  * struct nand_bch_control - private NAND BCH control structure
  * @bch:       BCH control structure
- * @ecclayout: private ecc layout for this BCH configuration
  * @errloc:    error location array
  * @eccmask:   XOR ecc mask, allows erased pages to be decoded as valid
  */
 struct nand_bch_control {
 	struct bch_control   *bch;
-	struct nand_ecclayout ecclayout;
 	unsigned int         *errloc;
 	unsigned char        *eccmask;
 };
@@ -52,7 +50,7 @@ struct nand_bch_control {
 int nand_bch_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
 			   unsigned char *code)
 {
-	const struct nand_chip *chip = mtd->priv;
+	const struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_bch_control *nbc = chip->ecc.priv;
 	unsigned int i;
 
@@ -79,7 +77,7 @@ EXPORT_SYMBOL(nand_bch_calculate_ecc);
 int nand_bch_correct_data(struct mtd_info *mtd, unsigned char *buf,
 			  unsigned char *read_ecc, unsigned char *calc_ecc)
 {
-	const struct nand_chip *chip = mtd->priv;
+	const struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_bch_control *nbc = chip->ecc.priv;
 	unsigned int *errloc = nbc->errloc;
 	int i, count;
@@ -98,7 +96,7 @@ int nand_bch_correct_data(struct mtd_info *mtd, unsigned char *buf,
 		}
 	} else if (count < 0) {
 		printk(KERN_ERR "ecc unrecoverable error\n");
-		count = -1;
+		count = -EBADMSG;
 	}
 	return count;
 }
@@ -107,9 +105,6 @@ EXPORT_SYMBOL(nand_bch_correct_data);
 /**
  * nand_bch_init - [NAND Interface] Initialize NAND BCH error correction
  * @mtd:	MTD block structure
- * @eccsize:	ecc block size in bytes
- * @eccbytes:	ecc length in bytes
- * @ecclayout:	output default layout
  *
  * Returns:
  *  a pointer to a new NAND BCH control structure, or NULL upon failure
@@ -123,14 +118,20 @@ EXPORT_SYMBOL(nand_bch_correct_data);
  * @eccsize = 512  (thus, m=13 is the smallest integer such that 2^m-1 > 512*8)
  * @eccbytes = 7   (7 bytes are required to store m*t = 13*4 = 52 bits)
  */
-struct nand_bch_control *
-nand_bch_init(struct mtd_info *mtd, unsigned int eccsize, unsigned int eccbytes,
-	      struct nand_ecclayout **ecclayout)
+struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 {
+	struct nand_chip *nand = mtd_to_nand(mtd);
 	unsigned int m, t, eccsteps, i;
-	struct nand_ecclayout *layout;
 	struct nand_bch_control *nbc = NULL;
 	unsigned char *erased_page;
+	unsigned int eccsize = nand->ecc.size;
+	unsigned int eccbytes = nand->ecc.bytes;
+	unsigned int eccstrength = nand->ecc.strength;
+
+	if (!eccbytes && eccstrength) {
+		eccbytes = DIV_ROUND_UP(eccstrength * fls(8 * eccsize), 8);
+		nand->ecc.bytes = eccbytes;
+	}
 
 	if (!eccsize || !eccbytes) {
 		printk(KERN_WARNING "ecc parameters not supplied\n");
@@ -157,34 +158,10 @@ nand_bch_init(struct mtd_info *mtd, unsigned int eccsize, unsigned int eccbytes,
 
 	eccsteps = mtd->writesize/eccsize;
 
-	/* if no ecc placement scheme was provided, build one */
-	if (!*ecclayout) {
-
-		/* handle large page devices only */
-		if (mtd->oobsize < 64) {
-			printk(KERN_WARNING "must provide an oob scheme for "
-			       "oobsize %d\n", mtd->oobsize);
-			goto fail;
-		}
-
-		layout = &nbc->ecclayout;
-		layout->eccbytes = eccsteps*eccbytes;
-
-		/* reserve 2 bytes for bad block marker */
-		if (layout->eccbytes+2 > mtd->oobsize) {
-			printk(KERN_WARNING "no suitable oob scheme available "
-			       "for oobsize %d eccbytes %u\n", mtd->oobsize,
-			       eccbytes);
-			goto fail;
-		}
-		/* put ecc bytes at oob tail */
-		for (i = 0; i < layout->eccbytes; i++)
-			layout->eccpos[i] = mtd->oobsize-layout->eccbytes+i;
-
-		layout->oobfree[0].offset = 2;
-		layout->oobfree[0].length = mtd->oobsize-2-layout->eccbytes;
-
-		*ecclayout = layout;
+	/* Check that we have an oob layout description. */
+	if (!mtd->ooblayout) {
+		pr_warn("missing oob scheme");
+		goto fail;
 	}
 
 	/* sanity checks */
@@ -192,7 +169,18 @@ nand_bch_init(struct mtd_info *mtd, unsigned int eccsize, unsigned int eccbytes,
 		printk(KERN_WARNING "eccsize %u is too large\n", eccsize);
 		goto fail;
 	}
-	if ((*ecclayout)->eccbytes != (eccsteps*eccbytes)) {
+
+	/*
+	 * ecc->steps and ecc->total might be used by mtd->ooblayout->ecc(),
+	 * which is called by mtd_ooblayout_count_eccbytes().
+	 * Make sure they are properly initialized before calling
+	 * mtd_ooblayout_count_eccbytes().
+	 * FIXME: we should probably rework the sequencing in nand_scan_tail()
+	 * to avoid setting those fields twice.
+	 */
+	nand->ecc.steps = eccsteps;
+	nand->ecc.total = eccsteps * eccbytes;
+	if (mtd_ooblayout_count_eccbytes(mtd) != (eccsteps*eccbytes)) {
 		printk(KERN_WARNING "invalid ecc layout\n");
 		goto fail;
 	}
@@ -215,6 +203,9 @@ nand_bch_init(struct mtd_info *mtd, unsigned int eccsize, unsigned int eccbytes,
 
 	for (i = 0; i < eccbytes; i++)
 		nbc->eccmask[i] ^= 0xff;
+
+	if (!eccstrength)
+		nand->ecc.strength = (eccbytes * 8) / fls(8 * eccsize);
 
 	return nbc;
 fail:

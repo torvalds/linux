@@ -34,5 +34,8 @@
 #define N_TI_WL		22	/* for TI's WL BT, FM, GPS combo chips */
 #define N_TRACESINK	23	/* Trace data routing for MIPI P1149.7 */
 #define N_TRACEROUTER	24	/* Trace data routing for MIPI P1149.7 */
+#define N_NCI		25	/* NFC NCI UART */
+#define N_SPEAKUP	26	/* Speakup communication with synths */
+#define N_NULL		27	/* Null ldisc used for error handling */
 
 #endif /* _UAPI_LINUX_TTY_H */

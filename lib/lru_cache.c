@@ -169,7 +169,7 @@ out_fail:
 	return NULL;
 }
 
-void lc_free_by_index(struct lru_cache *lc, unsigned i)
+static void lc_free_by_index(struct lru_cache *lc, unsigned i)
 {
 	void *p = lc->lc_element[i];
 	WARN_ON(!p);
@@ -238,7 +238,7 @@ void lc_reset(struct lru_cache *lc)
  * @seq: the seq_file to print into
  * @lc: the lru cache to print statistics of
  */
-size_t lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
+void lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
 {
 	/* NOTE:
 	 * total calls to lc_get are
@@ -247,10 +247,9 @@ size_t lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
 	 * progress) and "changed", when this in fact lead to an successful
 	 * update of the cache.
 	 */
-	return seq_printf(seq, "\t%s: used:%u/%u "
-		"hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
-		lc->name, lc->used, lc->nr_elements,
-		lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
+	seq_printf(seq, "\t%s: used:%u/%u hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
+		   lc->name, lc->used, lc->nr_elements,
+		   lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
 }
 
 static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
@@ -643,9 +642,10 @@ void lc_set(struct lru_cache *lc, unsigned int enr, int index)
  * lc_dump - Dump a complete LRU cache to seq in textual form.
  * @lc: the lru cache to operate on
  * @seq: the &struct seq_file pointer to seq_printf into
- * @utext: user supplied "heading" or other info
+ * @utext: user supplied additional "heading" or other info
  * @detail: function pointer the user may provide to dump further details
- * of the object the lc_element is embedded in.
+ * of the object the lc_element is embedded in. May be NULL.
+ * Note: a leading space ' ' and trailing newline '\n' is implied.
  */
 void lc_seq_dump_details(struct seq_file *seq, struct lru_cache *lc, char *utext,
 	     void (*detail) (struct seq_file *, struct lc_element *))
@@ -654,16 +654,18 @@ void lc_seq_dump_details(struct seq_file *seq, struct lru_cache *lc, char *utext
 	struct lc_element *e;
 	int i;
 
-	seq_printf(seq, "\tnn: lc_number refcnt %s\n ", utext);
+	seq_printf(seq, "\tnn: lc_number (new nr) refcnt %s\n ", utext);
 	for (i = 0; i < nr_elements; i++) {
 		e = lc_element_by_index(lc, i);
-		if (e->lc_number == LC_FREE) {
-			seq_printf(seq, "\t%2d: FREE\n", i);
-		} else {
-			seq_printf(seq, "\t%2d: %4u %4u    ", i,
-				   e->lc_number, e->refcnt);
+		if (e->lc_number != e->lc_new_number)
+			seq_printf(seq, "\t%5d: %6d %8d %6d ",
+				i, e->lc_number, e->lc_new_number, e->refcnt);
+		else
+			seq_printf(seq, "\t%5d: %6d %-8s %6d ",
+				i, e->lc_number, "-\"-", e->refcnt);
+		if (detail)
 			detail(seq, e);
-		}
+		seq_putc(seq, '\n');
 	}
 }
 

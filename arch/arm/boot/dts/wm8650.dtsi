@@ -187,6 +187,15 @@
 			interrupts = <43>;
 		};
 
+		sdhc@d800a000 {
+			compatible = "wm,wm8505-sdhc";
+			reg = <0xd800a000 0x400>;
+			interrupts = <20>, <21>;
+			clocks = <&clksdhc>;
+			bus-width = <4>;
+			sdon-inverted;
+		};
+
 		fb: fb@d8050800 {
 			compatible = "wm,wm8505-fb";
 			reg = <0xd8050800 0x200>;
@@ -217,6 +226,12 @@
 			compatible = "via,vt8500-rtc";
 			reg = <0xd8100000 0x10000>;
 			interrupts = <48>;
+		};
+
+		ethernet@d8004000 {
+			compatible = "via,vt8500-rhine";
+			reg = <0xd8004000 0x100>;
+			interrupts = <10>;
 		};
 	};
 };

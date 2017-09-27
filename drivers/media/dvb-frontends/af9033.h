@@ -13,23 +13,15 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef AF9033_H
 #define AF9033_H
 
-#include <linux/kconfig.h>
-
+/*
+ * I2C address: 0x1c, 0x1d, 0x1e, 0x1f
+ */
 struct af9033_config {
-	/*
-	 * I2C address
-	 */
-	u8 i2c_addr;
-
 	/*
 	 * clock Hz
 	 * 12000000, 22000000, 24000000, 34000000, 32000000, 28000000, 26000000,
@@ -75,19 +67,34 @@ struct af9033_config {
 	 * input spectrum inversion
 	 */
 	bool spec_inv;
+
+	/*
+	 *
+	 */
+	bool dyn0_clk;
+
+	/*
+	 * PID filter ops
+	 */
+	struct af9033_ops *ops;
+
+	/*
+	 * frontend
+	 * returned by that driver
+	 */
+	struct dvb_frontend **fe;
+
+	/*
+	 * regmap for IT913x integrated tuner driver
+	 * returned by that driver
+	 */
+	struct regmap *regmap;
 };
 
-
-#if IS_ENABLED(CONFIG_DVB_AF9033)
-extern struct dvb_frontend *af9033_attach(const struct af9033_config *config,
-	struct i2c_adapter *i2c);
-#else
-static inline struct dvb_frontend *af9033_attach(
-	const struct af9033_config *config, struct i2c_adapter *i2c)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
+struct af9033_ops {
+	int (*pid_filter_ctrl)(struct dvb_frontend *fe, int onoff);
+	int (*pid_filter)(struct dvb_frontend *fe, int index, u16 pid,
+			  int onoff);
+};
 
 #endif /* AF9033_H */

@@ -64,6 +64,14 @@ enum {
 
 #define NUM_OF_RSSI_SNR_TRIGGERS 8
 
+struct fw_logger_information {
+	__le32 max_buff_size;
+	__le32 actual_buff_size;
+	__le32 num_trace_drop;
+	__le32 buff_read_ptr;
+	__le32 buff_write_ptr;
+} __packed;
+
 struct wl1271;
 
 int wl1271_event_unmask(struct wl1271 *wl);
@@ -84,4 +92,5 @@ void wlcore_event_max_tx_failure(struct wl1271 *wl, unsigned long sta_bitmap);
 void wlcore_event_inactive_sta(struct wl1271 *wl, unsigned long sta_bitmap);
 void wlcore_event_roc_complete(struct wl1271 *wl);
 void wlcore_event_rssi_trigger(struct wl1271 *wl, s8 *metric_arr);
+int  wlcore_event_fw_logger(struct wl1271 *wl);
 #endif

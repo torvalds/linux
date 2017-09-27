@@ -40,8 +40,8 @@
  * The general purpose timer ticks at 1MHz independent if
  * the rest of the system
  */
-static void sibyte_set_mode(enum clock_event_mode mode,
-			   struct clock_event_device *evt)
+
+static int sibyte_set_periodic(struct clock_event_device *evt)
 {
 	unsigned int cpu = smp_processor_id();
 	void __iomem *cfg, *init;
@@ -49,24 +49,22 @@ static void sibyte_set_mode(enum clock_event_mode mode,
 	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
 	init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		__raw_writeq(0, cfg);
-		__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1, init);
-		__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-			     cfg);
-		break;
+	__raw_writeq(0, cfg);
+	__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1, init);
+	__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS, cfg);
+	return 0;
+}
 
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* Stop the timer until we actually program a shot */
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		__raw_writeq(0, cfg);
-		break;
+static int sibyte_shutdown(struct clock_event_device *evt)
+{
+	unsigned int cpu = smp_processor_id();
+	void __iomem *cfg;
 
-	case CLOCK_EVT_MODE_UNUSED:	/* shuddup gcc */
-	case CLOCK_EVT_MODE_RESUME:
-		;
-	}
+	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+
+	/* Stop the timer until we actually program a shot */
+	__raw_writeq(0, cfg);
+	return 0;
 }
 
 static int sibyte_next_event(unsigned long delta, struct clock_event_device *cd)
@@ -91,7 +89,7 @@ static irqreturn_t sibyte_counter_handler(int irq, void *dev_id)
 	void __iomem *cfg;
 	unsigned long tmode;
 
-	if (cd->mode == CLOCK_EVT_MODE_PERIODIC)
+	if (clockevent_state_periodic(cd))
 		tmode = M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS;
 	else
 		tmode = 0;
@@ -125,12 +123,16 @@ void sb1480_clockevent_init(void)
 				  CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, V_SCD_TIMER_FREQ);
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffff, cd);
+	cd->max_delta_ticks	= 0x7fffff;
 	cd->min_delta_ns	= clockevent_delta2ns(2, cd);
+	cd->min_delta_ticks	= 2;
 	cd->rating		= 200;
 	cd->irq			= irq;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= sibyte_next_event;
-	cd->set_mode		= sibyte_set_mode;
+	cd->set_state_shutdown	= sibyte_shutdown;
+	cd->set_state_periodic	= sibyte_set_periodic;
+	cd->set_state_oneshot	= sibyte_shutdown;
 	clockevents_register_device(cd);
 
 	bcm1480_mask_irq(cpu, irq);

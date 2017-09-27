@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * P/N 861037:      Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0010: Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0020: Sensor Photobit PB100  ASIC STV0600-1 - QuickCam Express
@@ -120,9 +116,6 @@ static int vv6410_init(struct sd *sd)
 	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++)
 		stv06xx_write_bridge(sd, stv_bridge_init[i].addr, stv_bridge_init[i].data);
 
-	if (err < 0)
-		return err;
-
 	err = stv06xx_write_sensor_bytes(sd, (u8 *) vv6410_sensor_init,
 					 ARRAY_SIZE(vv6410_sensor_init));
 	return (err < 0) ? err : 0;
@@ -178,7 +171,7 @@ static int vv6410_stop(struct sd *sd)
 
 	PDEBUG(D_STREAM, "Halting stream");
 
-	return (err < 0) ? err : 0;
+	return 0;
 }
 
 static int vv6410_dump(struct sd *sd)
@@ -259,7 +252,7 @@ static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	fine = val % VV6410_CIF_LINELENGTH;
 	coarse = min(512, val / VV6410_CIF_LINELENGTH);
 
-	PDEBUG(D_CONF, "Set coarse exposure to %d, fine expsure to %d",
+	PDEBUG(D_CONF, "Set coarse exposure to %d, fine exposure to %d",
 	       coarse, fine);
 
 	err = stv06xx_write_sensor(sd, VV6410_FINEH, fine >> 8);

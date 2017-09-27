@@ -90,7 +90,7 @@ uint32_t jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, 
 
 	/* If the last fragment starts at the RAM page boundary, it is
 	 * REF_PRISTINE irrespective of its size. */
-	if (frag->node && (frag->ofs & (PAGE_CACHE_SIZE - 1)) == 0) {
+	if (frag->node && (frag->ofs & (PAGE_SIZE - 1)) == 0) {
 		dbg_fragtree2("marking the last fragment 0x%08x-0x%08x REF_PRISTINE.\n",
 			frag->ofs, frag->ofs + frag->size);
 		frag->node->raw->flash_offset = ref_offset(frag->node->raw) | REF_PRISTINE;
@@ -237,7 +237,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 		   If so, both 'this' and the new node get marked REF_NORMAL so
 		   the GC can take a look.
 		*/
-		if (lastend && (lastend-1) >> PAGE_CACHE_SHIFT == newfrag->ofs >> PAGE_CACHE_SHIFT) {
+		if (lastend && (lastend-1) >> PAGE_SHIFT == newfrag->ofs >> PAGE_SHIFT) {
 			if (this->node)
 				mark_ref_normal(this->node->raw);
 			mark_ref_normal(newfrag->node->raw);
@@ -382,7 +382,7 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 
 	/* If we now share a page with other nodes, mark either previous
 	   or next node REF_NORMAL, as appropriate.  */
-	if (newfrag->ofs & (PAGE_CACHE_SIZE-1)) {
+	if (newfrag->ofs & (PAGE_SIZE-1)) {
 		struct jffs2_node_frag *prev = frag_prev(newfrag);
 
 		mark_ref_normal(fn->raw);
@@ -391,7 +391,7 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 			mark_ref_normal(prev->node->raw);
 	}
 
-	if ((newfrag->ofs+newfrag->size) & (PAGE_CACHE_SIZE-1)) {
+	if ((newfrag->ofs+newfrag->size) & (PAGE_SIZE-1)) {
 		struct jffs2_node_frag *next = frag_next(newfrag);
 
 		if (next) {
@@ -564,25 +564,10 @@ struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_
    they're killed. */
 void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 {
-	struct jffs2_node_frag *frag;
-	struct jffs2_node_frag *parent;
-
-	if (!root->rb_node)
-		return;
+	struct jffs2_node_frag *frag, *next;
 
 	dbg_fragtree("killing\n");
-
-	frag = (rb_entry(root->rb_node, struct jffs2_node_frag, rb));
-	while(frag) {
-		if (frag->rb.rb_left) {
-			frag = frag_left(frag);
-			continue;
-		}
-		if (frag->rb.rb_right) {
-			frag = frag_right(frag);
-			continue;
-		}
-
+	rbtree_postorder_for_each_entry_safe(frag, next, root, rb) {
 		if (frag->node && !(--frag->node->frags)) {
 			/* Not a hole, and it's the final remaining frag
 			   of this node. Free the node */
@@ -591,17 +576,8 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 
 			jffs2_free_full_dnode(frag->node);
 		}
-		parent = frag_parent(frag);
-		if (parent) {
-			if (frag_left(parent) == frag)
-				parent->rb.rb_left = NULL;
-			else
-				parent->rb.rb_right = NULL;
-		}
 
 		jffs2_free_node_frag(frag);
-		frag = parent;
-
 		cond_resched();
 	}
 }

@@ -1,1 +1,1 @@
-#include <../../arm/include/asm/xen/hypervisor.h>
+#include <xen/arm/hypervisor.h>

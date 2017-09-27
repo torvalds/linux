@@ -249,7 +249,7 @@ lgs8gl5_init(struct dvb_frontend *fe)
 
 
 static int
-lgs8gl5_read_status(struct dvb_frontend *fe, fe_status_t *status)
+lgs8gl5_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct lgs8gl5_state *state = fe->demodulator_priv;
 	u8 level = lgs8gl5_read_reg(state, REG_STRENGTH);
@@ -336,10 +336,11 @@ lgs8gl5_set_frontend(struct dvb_frontend *fe)
 
 
 static int
-lgs8gl5_get_frontend(struct dvb_frontend *fe)
+lgs8gl5_get_frontend(struct dvb_frontend *fe,
+		     struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgs8gl5_state *state = fe->demodulator_priv;
+
 	u8 inv = lgs8gl5_read_reg(state, REG_INVERSION);
 
 	p->inversion = (inv & REG_INVERSION_ON) ? INVERSION_ON : INVERSION_OFF;
@@ -375,7 +376,7 @@ lgs8gl5_release(struct dvb_frontend *fe)
 }
 
 
-static struct dvb_frontend_ops lgs8gl5_ops;
+static const struct dvb_frontend_ops lgs8gl5_ops;
 
 
 struct dvb_frontend*
@@ -411,7 +412,7 @@ error:
 EXPORT_SYMBOL(lgs8gl5_attach);
 
 
-static struct dvb_frontend_ops lgs8gl5_ops = {
+static const struct dvb_frontend_ops lgs8gl5_ops = {
 	.delsys = { SYS_DTMB },
 	.info = {
 		.name			= "Legend Silicon LGS-8GL5 DMB-TH",

@@ -1,0 +1,256 @@
+/*
+ * Copyright 2014 Carlo Caione <carlo@caione.org>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public
+ *     License along with this library; if not, write to the Free
+ *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+ *     MA 02110-1301 USA
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+/include/ "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&gic>;
+
+	L2: l2-cache-controller@c4200000 {
+		compatible = "arm,pl310-cache";
+		reg = <0xc4200000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	gic: interrupt-controller@c4301000 {
+		compatible = "arm,cortex-a9-gic";
+		reg = <0xc4301000 0x1000>,
+		      <0xc4300100 0x0100>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		cbus: cbus@c1100000 {
+			compatible = "simple-bus";
+			reg = <0xc1100000 0x200000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xc1100000 0x200000>;
+
+			hwrng: rng@8100 {
+				compatible = "amlogic,meson-rng";
+				reg = <0x8100 0x8>;
+			};
+
+			uart_A: serial@84c0 {
+				compatible = "amlogic,meson6-uart", "amlogic,meson-uart";
+				reg = <0x84c0 0x18>;
+				interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			uart_B: serial@84dc {
+				compatible = "amlogic,meson6-uart", "amlogic,meson-uart";
+				reg = <0x84dc 0x18>;
+				interrupts = <GIC_SPI 75 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			i2c_A: i2c@8500 {
+				compatible = "amlogic,meson6-i2c";
+				reg = <0x8500 0x20>;
+				interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			pwm_ab: pwm@8550 {
+				compatible = "amlogic,meson-pwm";
+				reg = <0x8550 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			pwm_cd: pwm@8650 {
+				compatible = "amlogic,meson-pwm";
+				reg = <0x8650 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			saradc: adc@8680 {
+				compatible = "amlogic,meson-saradc";
+				reg = <0x8680 0x34>;
+				#io-channel-cells = <1>;
+				interrupts = <GIC_SPI 73 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			uart_C: serial@8700 {
+				compatible = "amlogic,meson6-uart", "amlogic,meson-uart";
+				reg = <0x8700 0x18>;
+				interrupts = <GIC_SPI 93 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			i2c_B: i2c@87c0 {
+				compatible = "amlogic,meson6-i2c";
+				reg = <0x87c0 0x20>;
+				interrupts = <GIC_SPI 128 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			usb0_phy: phy@8800 {
+				compatible = "amlogic,meson-mx-usb2-phy";
+				#phy-cells = <0>;
+				reg = <0x8800 0x20>;
+				status = "disabled";
+			};
+
+			usb1_phy: phy@8820 {
+				compatible = "amlogic,meson-mx-usb2-phy";
+				#phy-cells = <0>;
+				reg = <0x8820 0x20>;
+				status = "disabled";
+			};
+
+			spifc: spi@8c80 {
+				compatible = "amlogic,meson6-spifc";
+				reg = <0x8c80 0x80>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			wdt: watchdog@9900 {
+				compatible = "amlogic,meson6-wdt";
+				reg = <0x9900 0x8>;
+				interrupts = <GIC_SPI 0 IRQ_TYPE_EDGE_RISING>;
+			};
+
+			timer@9940 {
+				compatible = "amlogic,meson6-timer";
+				reg = <0x9940 0x18>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		aobus: aobus@c8100000 {
+			compatible = "simple-bus";
+			reg = <0xc8100000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xc8100000 0x100000>;
+
+			ir_receiver: ir-receiver@480 {
+				compatible= "amlogic,meson6-ir";
+				reg = <0x480 0x20>;
+				interrupts = <GIC_SPI 15 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			uart_AO: serial@4c0 {
+				compatible = "amlogic,meson6-uart", "amlogic,meson-ao-uart", "amlogic,meson-uart";
+				reg = <0x4c0 0x18>;
+				interrupts = <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			i2c_AO: i2c@500 {
+				compatible = "amlogic,meson6-i2c";
+				reg = <0x500 0x20>;
+				interrupts = <GIC_SPI 92 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		usb0: usb@c9040000 {
+			compatible = "snps,dwc2";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xc9040000 0x40000>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_EDGE_RISING>;
+			phys = <&usb0_phy>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		usb1: usb@c90c0000 {
+			compatible = "snps,dwc2";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xc90c0000 0x40000>;
+			interrupts = <GIC_SPI 31 IRQ_TYPE_EDGE_RISING>;
+			phys = <&usb1_phy>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		ethmac: ethernet@c9410000 {
+			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
+			reg = <0xc9410000 0x10000
+			       0xc1108108 0x4>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "macirq";
+			status = "disabled";
+		};
+
+		ahb_sram: sram@d9000000 {
+			compatible = "mmio-sram";
+			reg = <0xd9000000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xd9000000 0x20000>;
+		};
+	};
+}; /* end of / */

@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <asm/dmi.h>
 
 #define MAX_ENTRY_TYPE 255 /* Most of these aren't used, but we consider
 			      the top entry type is only 8 bits */
@@ -380,7 +381,7 @@ static ssize_t dmi_sel_raw_read_phys32(struct dmi_sysfs_entry *entry,
 	u8 __iomem *mapped;
 	ssize_t wrote = 0;
 
-	mapped = ioremap(sel->access_method_address, sel->area_length);
+	mapped = dmi_remap(sel->access_method_address, sel->area_length);
 	if (!mapped)
 		return -EIO;
 
@@ -390,7 +391,7 @@ static ssize_t dmi_sel_raw_read_phys32(struct dmi_sysfs_entry *entry,
 		wrote++;
 	}
 
-	iounmap(mapped);
+	dmi_unmap(mapped);
 	return wrote;
 }
 
@@ -553,7 +554,7 @@ static const struct bin_attribute dmi_entry_raw_attr = {
 static void dmi_sysfs_entry_release(struct kobject *kobj)
 {
 	struct dmi_sysfs_entry *entry = to_entry(kobj);
-	sysfs_remove_bin_file(&entry->kobj, &dmi_entry_raw_attr);
+
 	spin_lock(&entry_list_lock);
 	list_del(&entry->list);
 	spin_unlock(&entry_list_lock);
@@ -566,7 +567,6 @@ static struct kobj_type dmi_sysfs_entry_ktype = {
 	.default_attrs = dmi_sysfs_entry_attrs,
 };
 
-static struct kobject *dmi_kobj;
 static struct kset *dmi_kset;
 
 /* Global count of all instances seen.  Only for setup */
@@ -648,17 +648,20 @@ static void cleanup_entry_list(void)
 
 static int __init dmi_sysfs_init(void)
 {
-	int error = -ENOMEM;
+	int error;
 	int val;
 
-	/* Set up our directory */
-	dmi_kobj = kobject_create_and_add("dmi", firmware_kobj);
-	if (!dmi_kobj)
+	if (!dmi_kobj) {
+		pr_err("dmi-sysfs: dmi entry is absent.\n");
+		error = -ENODATA;
 		goto err;
+	}
 
 	dmi_kset = kset_create_and_add("entries", NULL, dmi_kobj);
-	if (!dmi_kset)
+	if (!dmi_kset) {
+		error = -ENOMEM;
 		goto err;
+	}
 
 	val = 0;
 	error = dmi_walk(dmi_sysfs_register_handle, &val);
@@ -675,7 +678,6 @@ static int __init dmi_sysfs_init(void)
 err:
 	cleanup_entry_list();
 	kset_unregister(dmi_kset);
-	kobject_put(dmi_kobj);
 	return error;
 }
 
@@ -685,7 +687,6 @@ static void __exit dmi_sysfs_exit(void)
 	pr_debug("dmi-sysfs: unloading.\n");
 	cleanup_entry_list();
 	kset_unregister(dmi_kset);
-	kobject_put(dmi_kobj);
 }
 
 module_init(dmi_sysfs_init);

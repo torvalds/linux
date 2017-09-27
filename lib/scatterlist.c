@@ -56,6 +56,38 @@ int sg_nents(struct scatterlist *sg)
 }
 EXPORT_SYMBOL(sg_nents);
 
+/**
+ * sg_nents_for_len - return total count of entries in scatterlist
+ *                    needed to satisfy the supplied length
+ * @sg:		The scatterlist
+ * @len:	The total required length
+ *
+ * Description:
+ * Determines the number of entries in sg that are required to meet
+ * the supplied length, taking into acount chaining as well
+ *
+ * Returns:
+ *   the number of sg entries needed, negative error on failure
+ *
+ **/
+int sg_nents_for_len(struct scatterlist *sg, u64 len)
+{
+	int nents;
+	u64 total;
+
+	if (!len)
+		return 0;
+
+	for (nents = 0, total = 0; sg; sg = sg_next(sg)) {
+		nents++;
+		total += sg->length;
+		if (total >= len)
+			return nents;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(sg_nents_for_len);
 
 /**
  * sg_last - return the last scatterlist entry in a list
@@ -73,16 +105,12 @@ EXPORT_SYMBOL(sg_nents);
  **/
 struct scatterlist *sg_last(struct scatterlist *sgl, unsigned int nents)
 {
-#ifndef ARCH_HAS_SG_CHAIN
-	struct scatterlist *ret = &sgl[nents - 1];
-#else
 	struct scatterlist *sg, *ret = NULL;
 	unsigned int i;
 
 	for_each_sg(sgl, sg, nents, i)
 		ret = sg;
 
-#endif
 #ifdef CONFIG_DEBUG_SG
 	BUG_ON(sgl[0].sg_magic != SG_MAGIC);
 	BUG_ON(!sg_is_last(ret));
@@ -165,6 +193,7 @@ static void sg_kfree(struct scatterlist *sg, unsigned int nents)
  * __sg_free_table - Free a previously mapped sg table
  * @table:	The sg table header to use
  * @max_ents:	The maximum number of entries per single scatterlist
+ * @skip_first_chunk: don't free the (preallocated) first scatterlist chunk
  * @free_fn:	Free function
  *
  *  Description:
@@ -174,7 +203,7 @@ static void sg_kfree(struct scatterlist *sg, unsigned int nents)
  *
  **/
 void __sg_free_table(struct sg_table *table, unsigned int max_ents,
-		     sg_free_fn *free_fn)
+		     bool skip_first_chunk, sg_free_fn *free_fn)
 {
 	struct scatterlist *sgl, *next;
 
@@ -202,7 +231,10 @@ void __sg_free_table(struct sg_table *table, unsigned int max_ents,
 		}
 
 		table->orig_nents -= sg_size;
-		free_fn(sgl, alloc_size);
+		if (skip_first_chunk)
+			skip_first_chunk = false;
+		else
+			free_fn(sgl, alloc_size);
 		sgl = next;
 	}
 
@@ -217,7 +249,7 @@ EXPORT_SYMBOL(__sg_free_table);
  **/
 void sg_free_table(struct sg_table *table)
 {
-	__sg_free_table(table, SG_MAX_SINGLE_ALLOC, sg_kfree);
+	__sg_free_table(table, SG_MAX_SINGLE_ALLOC, false, sg_kfree);
 }
 EXPORT_SYMBOL(sg_free_table);
 
@@ -241,8 +273,8 @@ EXPORT_SYMBOL(sg_free_table);
  *
  **/
 int __sg_alloc_table(struct sg_table *table, unsigned int nents,
-		     unsigned int max_ents, gfp_t gfp_mask,
-		     sg_alloc_fn *alloc_fn)
+		     unsigned int max_ents, struct scatterlist *first_chunk,
+		     gfp_t gfp_mask, sg_alloc_fn *alloc_fn)
 {
 	struct scatterlist *sg, *prv;
 	unsigned int left;
@@ -251,7 +283,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 
 	if (nents == 0)
 		return -EINVAL;
-#ifndef ARCH_HAS_SG_CHAIN
+#ifndef CONFIG_ARCH_HAS_SG_CHAIN
 	if (WARN_ON_ONCE(nents > max_ents))
 		return -EINVAL;
 #endif
@@ -269,7 +301,12 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 
 		left -= sg_size;
 
-		sg = alloc_fn(alloc_size, gfp_mask);
+		if (first_chunk) {
+			sg = first_chunk;
+			first_chunk = NULL;
+		} else {
+			sg = alloc_fn(alloc_size, gfp_mask);
+		}
 		if (unlikely(!sg)) {
 			/*
 			 * Adjust entry count to reflect that the last
@@ -324,9 +361,9 @@ int sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 	int ret;
 
 	ret = __sg_alloc_table(table, nents, SG_MAX_SINGLE_ALLOC,
-			       gfp_mask, sg_kmalloc);
+			       NULL, gfp_mask, sg_kmalloc);
 	if (unlikely(ret))
-		__sg_free_table(table, SG_MAX_SINGLE_ALLOC, sg_kfree);
+		__sg_free_table(table, SG_MAX_SINGLE_ALLOC, false, sg_kfree);
 
 	return ret;
 }
@@ -495,7 +532,7 @@ static bool sg_miter_get_next_page(struct sg_mapping_iter *miter)
  *   true if @miter contains the valid mapping.  false if end of sg
  *   list is reached.
  */
-static bool sg_miter_skip(struct sg_mapping_iter *miter, off_t offset)
+bool sg_miter_skip(struct sg_mapping_iter *miter, off_t offset)
 {
 	sg_miter_stop(miter);
 
@@ -513,6 +550,7 @@ static bool sg_miter_skip(struct sg_mapping_iter *miter, off_t offset)
 
 	return true;
 }
+EXPORT_SYMBOL(sg_miter_skip);
 
 /**
  * sg_miter_next - proceed mapping iterator to the next mapping
@@ -560,9 +598,9 @@ EXPORT_SYMBOL(sg_miter_next);
  *
  * Description:
  *   Stops mapping iterator @miter.  @miter should have been started
- *   started using sg_miter_start().  A stopped iteration can be
- *   resumed by calling sg_miter_next() on it.  This is useful when
- *   resources (kmap) need to be released during iteration.
+ *   using sg_miter_start().  A stopped iteration can be resumed by
+ *   calling sg_miter_next() on it.  This is useful when resources (kmap)
+ *   need to be released during iteration.
  *
  * Context:
  *   Preemption disabled if the SG_MITER_ATOMIC is set.  Don't care
@@ -577,7 +615,8 @@ void sg_miter_stop(struct sg_mapping_iter *miter)
 		miter->__offset += miter->consumed;
 		miter->__remaining -= miter->consumed;
 
-		if (miter->__flags & SG_MITER_TO_SG)
+		if ((miter->__flags & SG_MITER_TO_SG) &&
+		    !PageSlab(miter->page))
 			flush_kernel_dcache_page(miter->page);
 
 		if (miter->__flags & SG_MITER_ATOMIC) {
@@ -607,13 +646,11 @@ EXPORT_SYMBOL(sg_miter_stop);
  * Returns the number of copied bytes.
  *
  **/
-static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
-			     void *buf, size_t buflen, off_t skip,
-			     bool to_buffer)
+size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
+		      size_t buflen, off_t skip, bool to_buffer)
 {
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
-	unsigned long flags;
 	unsigned int sg_flags = SG_MITER_ATOMIC;
 
 	if (to_buffer)
@@ -626,9 +663,7 @@ static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 	if (!sg_miter_skip(&miter, skip))
 		return false;
 
-	local_irq_save(flags);
-
-	while (sg_miter_next(&miter) && offset < buflen) {
+	while ((offset < buflen) && sg_miter_next(&miter)) {
 		unsigned int len;
 
 		len = min(miter.length, buflen - offset);
@@ -643,9 +678,9 @@ static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 
 	sg_miter_stop(&miter);
 
-	local_irq_restore(flags);
 	return offset;
 }
+EXPORT_SYMBOL(sg_copy_buffer);
 
 /**
  * sg_copy_from_buffer - Copy from a linear buffer to an SG list
@@ -658,9 +693,9 @@ static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
  *
  **/
 size_t sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			   void *buf, size_t buflen)
+			   const void *buf, size_t buflen)
 {
-	return sg_copy_buffer(sgl, nents, buf, buflen, 0, false);
+	return sg_copy_buffer(sgl, nents, (void *)buf, buflen, 0, false);
 }
 EXPORT_SYMBOL(sg_copy_from_buffer);
 
@@ -686,16 +721,16 @@ EXPORT_SYMBOL(sg_copy_to_buffer);
  * @sgl:		 The SG list
  * @nents:		 Number of SG entries
  * @buf:		 Where to copy from
- * @skip:		 Number of bytes to skip before copying
  * @buflen:		 The number of bytes to copy
+ * @skip:		 Number of bytes to skip before copying
  *
  * Returns the number of copied bytes.
  *
  **/
 size_t sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			    void *buf, size_t buflen, off_t skip)
+			    const void *buf, size_t buflen, off_t skip)
 {
-	return sg_copy_buffer(sgl, nents, buf, buflen, skip, false);
+	return sg_copy_buffer(sgl, nents, (void *)buf, buflen, skip, false);
 }
 EXPORT_SYMBOL(sg_pcopy_from_buffer);
 
@@ -704,8 +739,8 @@ EXPORT_SYMBOL(sg_pcopy_from_buffer);
  * @sgl:		 The SG list
  * @nents:		 Number of SG entries
  * @buf:		 Where to copy to
- * @skip:		 Number of bytes to skip before copying
  * @buflen:		 The number of bytes to copy
+ * @skip:		 Number of bytes to skip before copying
  *
  * Returns the number of copied bytes.
  *
@@ -716,3 +751,38 @@ size_t sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 	return sg_copy_buffer(sgl, nents, buf, buflen, skip, true);
 }
 EXPORT_SYMBOL(sg_pcopy_to_buffer);
+
+/**
+ * sg_zero_buffer - Zero-out a part of a SG list
+ * @sgl:		 The SG list
+ * @nents:		 Number of SG entries
+ * @buflen:		 The number of bytes to zero out
+ * @skip:		 Number of bytes to skip before zeroing
+ *
+ * Returns the number of bytes zeroed.
+ **/
+size_t sg_zero_buffer(struct scatterlist *sgl, unsigned int nents,
+		       size_t buflen, off_t skip)
+{
+	unsigned int offset = 0;
+	struct sg_mapping_iter miter;
+	unsigned int sg_flags = SG_MITER_ATOMIC | SG_MITER_TO_SG;
+
+	sg_miter_start(&miter, sgl, nents, sg_flags);
+
+	if (!sg_miter_skip(&miter, skip))
+		return false;
+
+	while (offset < buflen && sg_miter_next(&miter)) {
+		unsigned int len;
+
+		len = min(miter.length, buflen - offset);
+		memset(miter.addr, 0, len);
+
+		offset += len;
+	}
+
+	sg_miter_stop(&miter);
+	return offset;
+}
+EXPORT_SYMBOL(sg_zero_buffer);

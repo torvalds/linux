@@ -38,7 +38,8 @@ struct tsi148_driver {
 	void __iomem *base;	/* Base Address of device registers */
 	wait_queue_head_t dma_queue[2];
 	wait_queue_head_t iack_queue;
-	void (*lm_callback[4])(int);	/* Called in interrupt handler */
+	void (*lm_callback[4])(void *);	/* Called in interrupt handler */
+	void *lm_data[4];
 	void *crcsr_kernel;
 	dma_addr_t crcsr_bus;
 	struct vme_master_resource *flush_image;

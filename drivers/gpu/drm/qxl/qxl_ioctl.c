@@ -64,7 +64,7 @@ static int qxl_map_ioctl(struct drm_device *dev, void *data,
 	struct qxl_device *qdev = dev->dev_private;
 	struct drm_qxl_map *qxl_map = data;
 
-	return qxl_mode_dumb_mmap(file_priv, qdev->ddev, qxl_map->handle,
+	return qxl_mode_dumb_mmap(file_priv, &qdev->ddev, qxl_map->handle,
 				  &qxl_map->offset);
 }
 
@@ -107,25 +107,26 @@ apply_surf_reloc(struct qxl_device *qdev, struct qxl_reloc_info *info)
 }
 
 /* return holding the reference to this object */
-static struct qxl_bo *qxlhw_handle_to_bo(struct qxl_device *qdev,
-					 struct drm_file *file_priv, uint64_t handle,
-					 struct qxl_release *release)
+static int qxlhw_handle_to_bo(struct drm_file *file_priv, uint64_t handle,
+			      struct qxl_release *release, struct qxl_bo **qbo_p)
 {
 	struct drm_gem_object *gobj;
 	struct qxl_bo *qobj;
 	int ret;
 
-	gobj = drm_gem_object_lookup(qdev->ddev, file_priv, handle);
+	gobj = drm_gem_object_lookup(file_priv, handle);
 	if (!gobj)
-		return NULL;
+		return -EINVAL;
 
 	qobj = gem_to_qxl_bo(gobj);
 
 	ret = qxl_release_list_add(release, qobj);
+	drm_gem_object_unreference_unlocked(gobj);
 	if (ret)
-		return NULL;
+		return ret;
 
-	return qobj;
+	*qbo_p = qobj;
+	return 0;
 }
 
 /*
@@ -143,7 +144,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 	struct qxl_release *release;
 	struct qxl_bo *cmd_bo;
 	void *fb_cmd;
-	int i, j, ret, num_relocs;
+	int i, ret, num_relocs;
 	int unwritten;
 
 	switch (cmd->type) {
@@ -162,11 +163,12 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		return -EINVAL;
 
 	if (!access_ok(VERIFY_READ,
-		       (void *)(unsigned long)cmd->command,
+		       u64_to_user_ptr(cmd->command),
 		       cmd->command_size))
 		return -EFAULT;
 
-	reloc_info = kmalloc(sizeof(struct qxl_reloc_info) * cmd->relocs_num, GFP_KERNEL);
+	reloc_info = kmalloc_array(cmd->relocs_num,
+				   sizeof(struct qxl_reloc_info), GFP_KERNEL);
 	if (!reloc_info)
 		return -ENOMEM;
 
@@ -181,7 +183,9 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 
 	/* TODO copy slow path code from i915 */
 	fb_cmd = qxl_bo_kmap_atomic_page(qdev, cmd_bo, (release->release_offset & PAGE_SIZE));
-	unwritten = __copy_from_user_inatomic_nocache(fb_cmd + sizeof(union qxl_release_info) + (release->release_offset & ~PAGE_SIZE), (void *)(unsigned long)cmd->command, cmd->command_size);
+	unwritten = __copy_from_user_inatomic_nocache
+		(fb_cmd + sizeof(union qxl_release_info) + (release->release_offset & ~PAGE_SIZE),
+		 u64_to_user_ptr(cmd->command), cmd->command_size);
 
 	{
 		struct qxl_drawable *draw = fb_cmd;
@@ -199,10 +203,9 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 	num_relocs = 0;
 	for (i = 0; i < cmd->relocs_num; ++i) {
 		struct drm_qxl_reloc reloc;
+		struct drm_qxl_reloc __user *u = u64_to_user_ptr(cmd->relocs);
 
-		if (DRM_COPY_FROM_USER(&reloc,
-				       &((struct drm_qxl_reloc *)(uintptr_t)cmd->relocs)[i],
-				       sizeof(reloc))) {
+		if (copy_from_user(&reloc, u + i, sizeof(reloc))) {
 			ret = -EFAULT;
 			goto out_free_bos;
 		}
@@ -210,7 +213,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		/* add the bos to the list of bos to validate -
 		   need to validate first then process relocs? */
 		if (reloc.reloc_type != QXL_RELOC_TYPE_BO && reloc.reloc_type != QXL_RELOC_TYPE_SURF) {
-			DRM_DEBUG("unknown reloc type %d\n", reloc_info[i].type);
+			DRM_DEBUG("unknown reloc type %d\n", reloc.reloc_type);
 
 			ret = -EINVAL;
 			goto out_free_bos;
@@ -218,13 +221,10 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		reloc_info[i].type = reloc.reloc_type;
 
 		if (reloc.dst_handle) {
-			reloc_info[i].dst_bo = qxlhw_handle_to_bo(qdev, file_priv,
-								  reloc.dst_handle, release);
-			if (!reloc_info[i].dst_bo) {
-				ret = -EINVAL;
-				reloc_info[i].src_bo = NULL;
+			ret = qxlhw_handle_to_bo(file_priv, reloc.dst_handle, release,
+						 &reloc_info[i].dst_bo);
+			if (ret)
 				goto out_free_bos;
-			}
 			reloc_info[i].dst_offset = reloc.dst_offset;
 		} else {
 			reloc_info[i].dst_bo = cmd_bo;
@@ -233,16 +233,11 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		num_relocs++;
 
 		/* reserve and validate the reloc dst bo */
-		if (reloc.reloc_type == QXL_RELOC_TYPE_BO || reloc.src_handle > 0) {
-			reloc_info[i].src_bo =
-				qxlhw_handle_to_bo(qdev, file_priv,
-						   reloc.src_handle, release);
-			if (!reloc_info[i].src_bo) {
-				if (reloc_info[i].dst_bo != cmd_bo)
-					drm_gem_object_unreference_unlocked(&reloc_info[i].dst_bo->gem_base);
-				ret = -EINVAL;
+		if (reloc.reloc_type == QXL_RELOC_TYPE_BO || reloc.src_handle) {
+			ret = qxlhw_handle_to_bo(file_priv, reloc.src_handle, release,
+						 &reloc_info[i].src_bo);
+			if (ret)
 				goto out_free_bos;
-			}
 			reloc_info[i].src_offset = reloc.src_offset;
 		} else {
 			reloc_info[i].src_bo = NULL;
@@ -269,12 +264,6 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		qxl_release_fence_buffer_objects(release);
 
 out_free_bos:
-	for (j = 0; j < num_relocs; j++) {
-		if (reloc_info[j].dst_bo != cmd_bo)
-			drm_gem_object_unreference_unlocked(&reloc_info[j].dst_bo->gem_base);
-		if (reloc_info[j].src_bo && reloc_info[j].src_bo != cmd_bo)
-			drm_gem_object_unreference_unlocked(&reloc_info[j].src_bo->gem_base);
-	}
 out_free_release:
 	if (ret)
 		qxl_release_free(qdev, release);
@@ -294,10 +283,10 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 
 	for (cmd_num = 0; cmd_num < execbuffer->commands_num; ++cmd_num) {
 
-		struct drm_qxl_command *commands =
-			(struct drm_qxl_command *)(uintptr_t)execbuffer->commands;
+		struct drm_qxl_command __user *commands =
+			u64_to_user_ptr(execbuffer->commands);
 
-		if (DRM_COPY_FROM_USER(&user_cmd, &commands[cmd_num],
+		if (copy_from_user(&user_cmd, commands + cmd_num,
 				       sizeof(user_cmd)))
 			return -EFAULT;
 
@@ -325,7 +314,7 @@ static int qxl_update_area_ioctl(struct drm_device *dev, void *data,
 	    update_area->top >= update_area->bottom)
 		return -EINVAL;
 
-	gobj = drm_gem_object_lookup(dev, file, update_area->handle);
+	gobj = drm_gem_object_lookup(file, update_area->handle);
 	if (gobj == NULL)
 		return -ENOENT;
 
@@ -387,7 +376,7 @@ static int qxl_clientcap_ioctl(struct drm_device *dev, void *data,
 	byte = param->index / 8;
 	idx = param->index % 8;
 
-	if (qdev->pdev->revision < 4)
+	if (dev->pdev->revision < 4)
 		return -ENOSYS;
 
 	if (byte >= 58)
@@ -433,22 +422,22 @@ static int qxl_alloc_surf_ioctl(struct drm_device *dev, void *data,
 	return ret;
 }
 
-struct drm_ioctl_desc qxl_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(QXL_ALLOC, qxl_alloc_ioctl, DRM_AUTH|DRM_UNLOCKED),
+const struct drm_ioctl_desc qxl_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(QXL_ALLOC, qxl_alloc_ioctl, DRM_AUTH),
 
-	DRM_IOCTL_DEF_DRV(QXL_MAP, qxl_map_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(QXL_MAP, qxl_map_ioctl, DRM_AUTH),
 
 	DRM_IOCTL_DEF_DRV(QXL_EXECBUFFER, qxl_execbuffer_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(QXL_UPDATE_AREA, qxl_update_area_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(QXL_GETPARAM, qxl_getparam_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(QXL_CLIENTCAP, qxl_clientcap_ioctl,
-							DRM_AUTH|DRM_UNLOCKED),
+							DRM_AUTH),
 
 	DRM_IOCTL_DEF_DRV(QXL_ALLOC_SURF, qxl_alloc_surf_ioctl,
-			  DRM_AUTH|DRM_UNLOCKED),
+			  DRM_AUTH),
 };
 
-int qxl_max_ioctls = DRM_ARRAY_SIZE(qxl_ioctls);
+int qxl_max_ioctls = ARRAY_SIZE(qxl_ioctls);

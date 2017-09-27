@@ -1,0 +1,198 @@
+/*
+ * Copyright 2013-2014 Texas Instruments, Inc.
+ *
+ * Keystone 2 Edison soc device tree
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/reset/ti-syscon.h>
+
+/ {
+	compatible = "ti,k2e", "ti,keystone";
+	model = "Texas Instruments Keystone 2 Edison SoC";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gic>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <1>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <3>;
+		};
+	};
+
+	aliases {
+		rproc0 = &dsp0;
+	};
+
+	soc {
+		/include/ "keystone-k2e-clocks.dtsi"
+
+		usb: usb@2680000 {
+			interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
+			dwc3@2690000 {
+				interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		usb1_phy: usb_phy@2620750 {
+			compatible = "ti,keystone-usbphy";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2620750 24>;
+			status = "disabled";
+		};
+
+		keystone_usb1: usb@25000000 {
+			compatible = "ti,keystone-dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x25000000 0x10000>;
+			clocks = <&clkusb1>;
+			clock-names = "usb";
+			interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
+			ranges;
+			dma-coherent;
+			dma-ranges;
+			status = "disabled";
+
+			usb1: dwc3@25010000 {
+				compatible = "synopsys,dwc3";
+				reg = <0x25010000 0x70000>;
+				interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
+				usb-phy = <&usb1_phy>, <&usb1_phy>;
+			};
+		};
+
+		msm_ram: msmram@0c000000 {
+			compatible = "mmio-sram";
+			reg = <0x0c000000 0x200000>;
+			ranges = <0x0 0x0c000000 0x200000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			sram-bm@1f0000 {
+				reg = <0x001f0000 0x8000>;
+			};
+		};
+
+		psc: power-sleep-controller@02350000 {
+			pscrst: reset-controller {
+				compatible = "ti,k2e-pscrst", "ti,syscon-reset";
+				#reset-cells = <1>;
+
+				ti,reset-bits = <
+					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 0: dsp0 */
+				>;
+			};
+		};
+
+		dspgpio0: keystone_dsp_gpio@02620240 {
+			compatible = "ti,keystone-dsp-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio,syscon-dev = <&devctrl 0x240>;
+		};
+
+		dsp0: dsp@10800000 {
+			compatible = "ti,k2e-dsp";
+			reg = <0x10800000 0x00080000>,
+			      <0x10e00000 0x00008000>,
+			      <0x10f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem0>;
+			ti,syscon-dev = <&devctrl 0x844>;
+			resets = <&pscrst 0>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <0 8>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio0 27 0>;
+			status = "disabled";
+		};
+
+		pcie1: pcie@21020000 {
+			compatible = "ti,keystone-pcie","snps,dw-pcie";
+			clocks = <&clkpcie1>;
+			clock-names = "pcie";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			reg =  <0x21021000 0x2000>, <0x21020000 0x1000>, <0x02620128 4>;
+			ranges = <0x82000000 0 0x60000000 0x60000000
+				  0 0x10000000>;
+
+			status = "disabled";
+			device_type = "pci";
+			num-lanes = <2>;
+			bus-range = <0x00 0xff>;
+
+			/* error interrupt */
+			interrupts = <GIC_SPI 385 IRQ_TYPE_EDGE_RISING>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc1 0>, /* INT A */
+					<0 0 0 2 &pcie_intc1 1>, /* INT B */
+					<0 0 0 3 &pcie_intc1 2>, /* INT C */
+					<0 0 0 4 &pcie_intc1 3>; /* INT D */
+
+			pcie_msi_intc1: msi-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 377 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 378 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 379 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 380 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 381 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 382 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 383 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 384 IRQ_TYPE_EDGE_RISING>;
+			};
+
+			pcie_intc1: legacy-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 373 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 374 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 375 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 376 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		mdio: mdio@24200f00 {
+			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x24200f00 0x100>;
+			status = "disabled";
+			clocks = <&clkcpgmac>;
+			clock-names = "fck";
+			bus_freq	= <2500000>;
+		};
+		/include/ "keystone-k2e-netcp.dtsi"
+	};
+};

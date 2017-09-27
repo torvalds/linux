@@ -45,7 +45,7 @@
 	.level 2.0
 #endif
 
-	.import         pa_dbit_lock,data
+	.import		pa_tlb_lock,data
 
 	/* space_to_prot macro creates a prot id from a space id */
 
@@ -398,7 +398,7 @@
 	 * can address up to 1TB
 	 */
 	.macro		L2_ptep	pmd,pte,index,va,fault
-#if PT_NLEVELS == 3
+#if CONFIG_PGTABLE_LEVELS == 3
 	extru		\va,31-ASM_PMD_SHIFT,ASM_BITS_PER_PMD,\index
 #else
 # if defined(CONFIG_64BIT)
@@ -420,8 +420,8 @@
 	SHLREG		%r9,PxD_VALUE_SHIFT,\pmd
 	extru		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
 	dep		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
-	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd
-	LDREG		%r0(\pmd),\pte		/* pmd is now pte */
+	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd /* pmd is now pte */
+	LDREG		%r0(\pmd),\pte
 	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
 	.endm
 
@@ -436,7 +436,7 @@
 	 * all ILP32 processes and all the kernel for machines with
 	 * under 4GB of memory) */
 	.macro		L3_ptep pgd,pte,index,va,fault
-#if PT_NLEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
+#if CONFIG_PGTABLE_LEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
 	extrd,u		\va,63-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
 	copy		%r0,\pte
 	extrd,u,*=	\va,63-ASM_PGDIR_SHIFT,64-ASM_PGDIR_SHIFT,%r0
@@ -453,74 +453,87 @@
 	L2_ptep		\pgd,\pte,\index,\va,\fault
 	.endm
 
-	/* Acquire pa_dbit_lock lock. */
-	.macro		dbit_lock	spc,tmp,tmp1
+	/* Acquire pa_tlb_lock lock and recheck page is still present. */
+	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
 	cmpib,COND(=),n	0,\spc,2f
-	load32		PA(pa_dbit_lock),\tmp
+	load32		PA(pa_tlb_lock),\tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
 	nop
+	LDREG		0(\ptp),\pte
+	bb,<,n		\pte,_PAGE_PRESENT_BIT,2f
+	b		\fault
+	stw		 \spc,0(\tmp)
 2:
 #endif
 	.endm
 
-	/* Release pa_dbit_lock lock without reloading lock address. */
-	.macro		dbit_unlock0	spc,tmp
+	/* Release pa_tlb_lock lock without reloading lock address. */
+	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
 	or,COND(=)	%r0,\spc,%r0
 	stw             \spc,0(\tmp)
 #endif
 	.endm
 
-	/* Release pa_dbit_lock lock. */
-	.macro		dbit_unlock1	spc,tmp
+	/* Release pa_tlb_lock lock. */
+	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
-	load32		PA(pa_dbit_lock),\tmp
-	dbit_unlock0	\spc,\tmp
+	load32		PA(pa_tlb_lock),\tmp
+	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
 
 	/* Set the _PAGE_ACCESSED bit of the PTE.  Be clever and
 	 * don't needlessly dirty the cache line if it was already set */
-	.macro		update_ptep	spc,ptep,pte,tmp,tmp1
-#ifdef CONFIG_SMP
-	or,COND(=)	%r0,\spc,%r0
-	LDREG		0(\ptep),\pte
-#endif
+	.macro		update_accessed	ptp,pte,tmp,tmp1
 	ldi		_PAGE_ACCESSED,\tmp1
 	or		\tmp1,\pte,\tmp
 	and,COND(<>)	\tmp1,\pte,%r0
-	STREG		\tmp,0(\ptep)
+	STREG		\tmp,0(\ptp)
 	.endm
 
 	/* Set the dirty bit (and accessed bit).  No need to be
 	 * clever, this is only used from the dirty fault */
-	.macro		update_dirty	spc,ptep,pte,tmp
-#ifdef CONFIG_SMP
-	or,COND(=)	%r0,\spc,%r0
-	LDREG		0(\ptep),\pte
-#endif
+	.macro		update_dirty	ptp,pte,tmp
 	ldi		_PAGE_ACCESSED|_PAGE_DIRTY,\tmp
 	or		\tmp,\pte,\pte
-	STREG		\pte,0(\ptep)
+	STREG		\pte,0(\ptp)
 	.endm
 
+	/* We have (depending on the page size):
+	 * - 38 to 52-bit Physical Page Number
+	 * - 12 to 26-bit page offset
+	 */
 	/* bitshift difference between a PFN (based on kernel's PAGE_SIZE)
 	 * to a CPU TLB 4k PFN (4k => 12 bits to shift) */
-	#define PAGE_ADD_SHIFT  (PAGE_SHIFT-12)
+	#define PAGE_ADD_SHIFT		(PAGE_SHIFT-12)
+	#define PAGE_ADD_HUGE_SHIFT	(REAL_HPAGE_SHIFT-12)
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-	.macro		convert_for_tlb_insert20 pte
+	.macro		convert_for_tlb_insert20 pte,tmp
+#ifdef CONFIG_HUGETLB_PAGE
+	copy		\pte,\tmp
+	extrd,u		\tmp,(63-ASM_PFN_PTE_SHIFT)+(63-58)+PAGE_ADD_SHIFT,\
+				64-PAGE_SHIFT-PAGE_ADD_SHIFT,\pte
+
+	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,\
+				(63-58)+PAGE_ADD_SHIFT,\pte
+	extrd,u,*=	\tmp,_PAGE_HPAGE_BIT+32,1,%r0
+	depdi		_HUGE_PAGE_SIZE_ENCODING_DEFAULT,63,\
+				(63-58)+PAGE_ADD_HUGE_SHIFT,\pte
+#else /* Huge pages disabled */
 	extrd,u		\pte,(63-ASM_PFN_PTE_SHIFT)+(63-58)+PAGE_ADD_SHIFT,\
 				64-PAGE_SHIFT-PAGE_ADD_SHIFT,\pte
 	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,\
 				(63-58)+PAGE_ADD_SHIFT,\pte
+#endif
 	.endm
 
 	/* Convert the pte and prot to tlb insertion values.  How
 	 * this happens is quite subtle, read below */
-	.macro		make_insert_tlb	spc,pte,prot
+	.macro		make_insert_tlb	spc,pte,prot,tmp
 	space_to_prot   \spc \prot        /* create prot id from space */
 	/* The following is the real subtlety.  This is depositing
 	 * T <-> _PAGE_REFTRAP
@@ -557,7 +570,7 @@
 	depdi		1,12,1,\prot
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-	convert_for_tlb_insert20 \pte
+	convert_for_tlb_insert20 \pte \tmp
 	.endm
 
 	/* Identical macro to make_insert_tlb above, except it
@@ -650,17 +663,12 @@
 
 
 	/*
-	 * Align fault_vector_20 on 4K boundary so that both
-	 * fault_vector_11 and fault_vector_20 are on the
-	 * same page. This is only necessary as long as we
-	 * write protect the kernel text, which we may stop
-	 * doing once we use large page translations to cover
-	 * the static part of the kernel address space.
+	 * Fault_vectors are architecturally required to be aligned on a 2K
+	 * boundary
 	 */
 
-	.text
-
-	.align 4096
+	.section .text.hot
+	.align 2048
 
 ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */
@@ -758,7 +766,7 @@ ENTRY(end_fault_vector)
 	 * copy_thread moved args into task save area.
 	 */
 
-ENTRY(ret_from_kernel_thread)
+ENTRY_CFI(ret_from_kernel_thread)
 
 	/* Call schedule_tail first though */
 	BL	schedule_tail, %r2
@@ -774,7 +782,7 @@ ENTRY(ret_from_kernel_thread)
 	copy	%r31, %r2
 	b	finish_child_return
 	nop
-ENDPROC(ret_from_kernel_thread)
+ENDPROC_CFI(ret_from_kernel_thread)
 
 
 	/*
@@ -782,7 +790,7 @@ ENDPROC(ret_from_kernel_thread)
 	 *	struct task_struct *next)
 	 *
 	 * switch kernel stacks and return prev */
-ENTRY(_switch_to)
+ENTRY_CFI(_switch_to)
 	STREG	 %r2, -RP_OFFSET(%r30)
 
 	callee_save_float
@@ -807,7 +815,7 @@ _switch_to_ret:
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)
 	copy	%r26, %r28
-ENDPROC(_switch_to)
+ENDPROC_CFI(_switch_to)
 
 	/*
 	 * Common rfi return path for interruptions, kernel execve, and
@@ -825,7 +833,7 @@ ENDPROC(_switch_to)
 
 	.align	PAGE_SIZE
 
-ENTRY(syscall_exit_rfi)
+ENTRY_CFI(syscall_exit_rfi)
 	mfctl   %cr30,%r16
 	LDREG	TI_TASK(%r16), %r16	/* thread_info -> task_struct */
 	ldo	TASK_REGS(%r16),%r16
@@ -870,6 +878,9 @@ ENTRY(syscall_exit_rfi)
 	STREG   %r19,PT_SR7(%r16)
 
 intr_return:
+	/* NOTE: Need to enable interrupts incase we schedule. */
+	ssm     PSW_SM_I, %r0
+
 	/* check for reschedule */
 	mfctl   %cr30,%r1
 	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
@@ -895,11 +906,6 @@ intr_check_sig:
 	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
 	LDREG	PT_IASQ1(%r16), %r20
 	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
-
-	/* NOTE: We need to enable interrupts if we have to deliver
-	 * signals. We used to do this earlier but it caused kernel
-	 * stack overflows. */
-	ssm     PSW_SM_I, %r0
 
 	copy	%r0, %r25			/* long in_syscall = 0 */
 #ifdef CONFIG_64BIT
@@ -951,10 +957,6 @@ intr_do_resched:
 	LDREG	PT_IASQ1(%r16), %r20
 	cmpib,COND(=)	0, %r20, intr_do_preempt
 	nop
-
-	/* NOTE: We need to enable interrupts if we schedule.  We used
-	 * to do this earlier but it caused kernel stack overflows. */
-	ssm     PSW_SM_I, %r0
 
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29		/* Reference param save area */
@@ -1029,12 +1031,12 @@ intr_extint:
 
 	b	do_cpu_irq_mask
 	ldo	R%intr_return(%r2), %r2	/* return to intr_return, not here */
-ENDPROC(syscall_exit_rfi)
+ENDPROC_CFI(syscall_exit_rfi)
 
 
 	/* Generic interruptions (illegal insn, unaligned, page fault, etc) */
 
-ENTRY(intr_save)		/* for os_hpmc */
+ENTRY_CFI(intr_save)		/* for os_hpmc */
 	mfsp    %sr7,%r16
 	cmpib,COND(=),n 0,%r16,1f
 	get_stack_use_cr30
@@ -1109,7 +1111,7 @@ skip_save_ior:
 
 	b		handle_interruption
 	ldo		R%intr_check_sig(%r2), %r2
-ENDPROC(intr_save)
+ENDPROC_CFI(intr_save)
 
 
 	/*
@@ -1148,14 +1150,14 @@ dtlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,dtlb_check_alias_20w
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_20w
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 	
 	idtlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1174,14 +1176,14 @@ nadtlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,nadtlb_check_alias_20w
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_20w
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	idtlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1202,20 +1204,20 @@ dtlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,dtlb_check_alias_11
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_11
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	idtlba		pte,(%sr1,va)
 	idtlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1235,21 +1237,20 @@ nadtlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_11
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_11
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	idtlba		pte,(%sr1,va)
 	idtlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1269,16 +1270,16 @@ dtlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,dtlb_check_alias_20
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dtlb_check_alias_20
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0
+	f_extend	pte,t1
 
 	idtlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1297,16 +1298,16 @@ nadtlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_20
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,nadtlb_check_alias_20
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0
+	f_extend	pte,t1
 	
-        idtlbt          pte,prot
-	dbit_unlock1	spc,t0
+	idtlbt		pte,prot
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1368,7 +1369,7 @@ nadtlb_nullify:
 
 	/* 
 		When there is no translation for the probe address then we
-		must nullify the insn and return zero in the target regsiter.
+		must nullify the insn and return zero in the target register.
 		This will indicate to the calling code that it does not have 
 		write/read privileges to this address.
 
@@ -1406,14 +1407,14 @@ itlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,itlb_fault
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 	
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1430,14 +1431,14 @@ naitlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,naitlb_check_alias_20w
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_20w
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1458,20 +1459,20 @@ itlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,itlb_fault
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	iitlba		pte,(%sr1,va)
 	iitlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1482,20 +1483,20 @@ naitlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_11
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_11
+	update_accessed	ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
+	mfsp		%sr1,t1  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
 
 	iitlba		pte,(%sr1,va)
 	iitlbp		prot,(%sr1,va)
 
-	mtsp		t0, %sr1	/* Restore sr1 */
-	dbit_unlock1	spc,t0
+	mtsp		t1, %sr1	/* Restore sr1 */
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1516,16 +1517,16 @@ itlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,itlb_fault
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,itlb_fault
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0	
+	f_extend	pte,t1
 
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1536,16 +1537,16 @@ naitlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_20
 
-	dbit_lock	spc,t0,t1
-	update_ptep	spc,ptp,pte,t0,t1
+	tlb_lock	spc,ptp,pte,t0,t1,naitlb_check_alias_20
+	update_accessed	ptp,pte,t0,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
-	f_extend	pte,t0
+	f_extend	pte,t1
 
 	iitlbt          pte,prot
-	dbit_unlock1	spc,t0
 
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1568,14 +1569,14 @@ dbit_trap_20w:
 
 	L3_ptep		ptp,pte,t0,va,dbit_fault
 
-	dbit_lock	spc,t0,t1
-	update_dirty	spc,ptp,pte,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
+	update_dirty	ptp,pte,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 		
 	idtlbt          pte,prot
-	dbit_unlock0	spc,t0
 
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #else
@@ -1588,8 +1589,8 @@ dbit_trap_11:
 
 	L2_ptep		ptp,pte,t0,va,dbit_fault
 
-	dbit_lock	spc,t0,t1
-	update_dirty	spc,ptp,pte,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
+	update_dirty	ptp,pte,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
@@ -1600,8 +1601,8 @@ dbit_trap_11:
 	idtlbp		prot,(%sr1,va)
 
 	mtsp            t1, %sr1     /* Restore sr1 */
-	dbit_unlock0	spc,t0
 
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 
@@ -1612,16 +1613,16 @@ dbit_trap_20:
 
 	L2_ptep		ptp,pte,t0,va,dbit_fault
 
-	dbit_lock	spc,t0,t1
-	update_dirty	spc,ptp,pte,t1
+	tlb_lock	spc,ptp,pte,t0,t1,dbit_fault
+	update_dirty	ptp,pte,t1
 
-	make_insert_tlb	spc,pte,prot
+	make_insert_tlb	spc,pte,prot,t1
 
 	f_extend	pte,t1
 	
-        idtlbt          pte,prot
-	dbit_unlock0	spc,t0
+	idtlbt		pte,prot
 
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #endif
@@ -1713,7 +1714,7 @@ dtlb_fault:
 	.endm
 
 	.macro	fork_like name
-ENTRY(sys_\name\()_wrapper)
+ENTRY_CFI(sys_\name\()_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
 	ldo	TASK_REGS(%r1),%r1
 	reg_save %r1
@@ -1721,7 +1722,7 @@ ENTRY(sys_\name\()_wrapper)
 	ldil	L%sys_\name, %r31
 	be	R%sys_\name(%sr4,%r31)
 	STREG	%r28, PT_CR27(%r1)
-ENDPROC(sys_\name\()_wrapper)
+ENDPROC_CFI(sys_\name\()_wrapper)
 	.endm
 
 fork_like clone
@@ -1729,7 +1730,7 @@ fork_like fork
 fork_like vfork
 
 	/* Set the return value for the child */
-ENTRY(child_return)
+ENTRY_CFI(child_return)
 	BL	schedule_tail, %r2
 	nop
 finish_child_return:
@@ -1741,9 +1742,9 @@ finish_child_return:
 	reg_restore %r1
 	b	syscall_exit
 	copy	%r0,%r28
-ENDPROC(child_return)
+ENDPROC_CFI(child_return)
 
-ENTRY(sys_rt_sigreturn_wrapper)
+ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
 	ldo	TASK_REGS(%r26),%r26	/* get pt regs */
 	/* Don't save regs, we are going to restore them from sigcontext. */
@@ -1771,13 +1772,9 @@ ENTRY(sys_rt_sigreturn_wrapper)
 	 */
 	bv	%r0(%r2)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
-ENDPROC(sys_rt_sigreturn_wrapper)
+ENDPROC_CFI(sys_rt_sigreturn_wrapper)
 
-ENTRY(syscall_exit)
-	/* NOTE: HP-UX syscalls also come through here
-	 * after hpux_syscall_exit fixes up return
-	 * values. */
-
+ENTRY_CFI(syscall_exit)
 	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
@@ -1788,22 +1785,6 @@ ENTRY(syscall_exit)
 	mfctl     %cr30, %r1
 	LDREG     TI_TASK(%r1),%r1
 	STREG     %r28,TASK_PT_GR28(%r1)
-
-#ifdef CONFIG_HPUX
-/* <linux/personality.h> cannot be easily included */
-#define PER_HPUX 0x10
-	ldw	TASK_PERSONALITY(%r1),%r19
-
-	/* We can't use "CMPIB<> PER_HPUX" since "im5" field is sign extended */
-	ldo	  -PER_HPUX(%r19), %r19
-	cmpib,COND(<>),n 0,%r19,1f
-
-	/* Save other hpux returns if personality is PER_HPUX */
-	STREG     %r22,TASK_PT_GR22(%r1)
-	STREG     %r29,TASK_PT_GR29(%r1)
-1:
-
-#endif /* CONFIG_HPUX */
 
 	/* Seems to me that dp could be wrong here, if the syscall involved
 	 * calling a module, and nothing got round to restoring dp on return.
@@ -1983,49 +1964,113 @@ pt_regs_ok:
 	b	intr_restore
 	copy	%r25,%r16
 
-	.import schedule,code
 syscall_do_resched:
-	BL	schedule,%r2
+	load32	syscall_check_resched,%r2 /* if resched, we start over again */
+	load32	schedule,%r19
+	bv	%r0(%r19)		/* jumps to schedule() */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
 	nop
 #endif
-	b	syscall_check_resched	/* if resched, we start over again */
-	nop
-ENDPROC(syscall_exit)
+ENDPROC_CFI(syscall_exit)
 
 
 #ifdef CONFIG_FUNCTION_TRACER
+
 	.import ftrace_function_trampoline,code
-ENTRY(_mcount)
-	copy	%r3, %arg2
+	.align L1_CACHE_BYTES
+	.globl mcount
+	.type  mcount, @function
+ENTRY(mcount)
+_mcount:
+	.export _mcount,data
+	.proc
+	.callinfo caller,frame=0
+	.entry
+	/*
+	 * The 64bit mcount() function pointer needs 4 dwords, of which the
+	 * first two are free.  We optimize it here and put 2 instructions for
+	 * calling mcount(), and 2 instructions for ftrace_stub().  That way we
+	 * have all on one L1 cacheline.
+	 */
 	b	ftrace_function_trampoline
-	nop
-ENDPROC(_mcount)
-
-ENTRY(return_to_handler)
-	load32	return_trampoline, %rp
-	copy	%ret0, %arg0
-	copy	%ret1, %arg1
-	b	ftrace_return_to_handler
-	nop
-return_trampoline:
-	copy	%ret0, %rp
-	copy	%r23, %ret0
-	copy	%r24, %ret1
-
-.globl ftrace_stub
+	copy	%r3, %arg2	/* caller original %sp */
 ftrace_stub:
+	.globl ftrace_stub
+        .type  ftrace_stub, @function
+#ifdef CONFIG_64BIT
+	bve	(%rp)
+#else
 	bv	%r0(%rp)
+#endif
 	nop
-ENDPROC(return_to_handler)
+#ifdef CONFIG_64BIT
+	.dword mcount
+	.dword 0 /* code in head.S puts value of global gp here */
+#endif
+	.exit
+	.procend
+ENDPROC(mcount)
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.align 8
+	.globl return_to_handler
+	.type  return_to_handler, @function
+ENTRY_CFI(return_to_handler)
+	.proc
+	.callinfo caller,frame=FRAME_SIZE
+	.entry
+	.export parisc_return_to_handler,data
+parisc_return_to_handler:
+	copy %r3,%r1
+	STREG %r0,-RP_OFFSET(%sp)	/* store 0 as %rp */
+	copy %sp,%r3
+	STREGM %r1,FRAME_SIZE(%sp)
+	STREG %ret0,8(%r3)
+	STREG %ret1,16(%r3)
+
+#ifdef CONFIG_64BIT
+	loadgp
+#endif
+
+	/* call ftrace_return_to_handler(0) */
+	.import ftrace_return_to_handler,code
+	load32 ftrace_return_to_handler,%ret0
+	load32 .Lftrace_ret,%r2
+#ifdef CONFIG_64BIT
+	ldo -16(%sp),%ret1		/* Reference param save area */
+	bve	(%ret0)
+#else
+	bv	%r0(%ret0)
+#endif
+	ldi 0,%r26
+.Lftrace_ret:
+	copy %ret0,%rp
+
+	/* restore original return values */
+	LDREG 8(%r3),%ret0
+	LDREG 16(%r3),%ret1
+
+	/* return from function */
+#ifdef CONFIG_64BIT
+	bve	(%rp)
+#else
+	bv	%r0(%rp)
+#endif
+	LDREGM -FRAME_SIZE(%sp),%r3
+	.exit
+	.procend
+ENDPROC_CFI(return_to_handler)
+
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
 #endif	/* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_IRQSTACKS
 /* void call_on_stack(unsigned long param1, void *func,
 		      unsigned long new_stack) */
-ENTRY(call_on_stack)
+ENTRY_CFI(call_on_stack)
 	copy	%sp, %r1
 
 	/* Regarding the HPPA calling conventions for function pointers,
@@ -2061,10 +2106,10 @@ ENTRY(call_on_stack)
 	bv	(%rp)
 	LDREG	-68(%sp), %sp
 # endif /* CONFIG_64BIT */
-ENDPROC(call_on_stack)
+ENDPROC_CFI(call_on_stack)
 #endif /* CONFIG_IRQSTACKS */
 
-get_register:
+ENTRY_CFI(get_register)
 	/*
 	 * get_register is used by the non access tlb miss handlers to
 	 * copy the value of the general register specified in r8 into
@@ -2141,9 +2186,10 @@ get_register:
 	copy    %r30,%r1
 	bv      %r0(%r25)    /* r31 */
 	copy    %r31,%r1
+ENDPROC_CFI(get_register)
 
 
-set_register:
+ENTRY_CFI(set_register)
 	/*
 	 * set_register is used by the non access tlb miss handlers to
 	 * copy the value of r1 into the general register specified in
@@ -2215,4 +2261,5 @@ set_register:
 	copy    %r1,%r30
 	bv      %r0(%r25)    /* r31 */
 	copy    %r1,%r31
+ENDPROC_CFI(set_register)
 

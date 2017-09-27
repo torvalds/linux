@@ -119,8 +119,8 @@ static const struct snd_soc_dapm_route z2_audio_map[] = {
 	{"Headphone Jack", NULL, "ROUT1"},
 
 	/* ext speaker connected to LOUT2, ROUT2  */
-	{"Ext Spk", NULL , "ROUT2"},
-	{"Ext Spk", NULL , "LOUT2"},
+	{"Ext Spk", NULL, "ROUT2"},
+	{"Ext Spk", NULL, "LOUT2"},
 
 	/* mic is connected to R input 2 - with bias */
 	{"RINPUT2", NULL, "Mic Bias"},
@@ -132,24 +132,12 @@ static const struct snd_soc_dapm_route z2_audio_map[] = {
  */
 static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	/* NC codec pins */
-	snd_soc_dapm_disable_pin(dapm, "LINPUT3");
-	snd_soc_dapm_disable_pin(dapm, "RINPUT3");
-	snd_soc_dapm_disable_pin(dapm, "OUT3");
-	snd_soc_dapm_disable_pin(dapm, "MONO1");
-
 	/* Jack detection API stuff */
-	ret = snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
-				&hs_jack);
-	if (ret)
-		goto err;
-
-	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
-				hs_jack_pins);
+	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
+				    &hs_jack, hs_jack_pins,
+				    ARRAY_SIZE(hs_jack_pins));
 	if (ret)
 		goto err;
 
@@ -164,7 +152,7 @@ err:
 	return ret;
 }
 
-static struct snd_soc_ops z2_ops = {
+static const struct snd_soc_ops z2_ops = {
 	.hw_params = z2_hw_params,
 };
 
@@ -193,6 +181,7 @@ static struct snd_soc_card snd_soc_z2 = {
 	.num_dapm_widgets = ARRAY_SIZE(wm8750_dapm_widgets),
 	.dapm_routes = z2_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(z2_audio_map),
+	.fully_routed = true,
 };
 
 static struct platform_device *z2_snd_device;

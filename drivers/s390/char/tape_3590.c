@@ -312,15 +312,10 @@ static int tape_3592_ioctl_kekl_set(struct tape_device *device,
 		return -ENOSYS;
 	if (!crypt_enabled(device))
 		return -EUNATCH;
-	ext_kekls = kmalloc(sizeof(*ext_kekls), GFP_KERNEL);
-	if (!ext_kekls)
-		return -ENOMEM;
-	if (copy_from_user(ext_kekls, (char __user *)arg, sizeof(*ext_kekls))) {
-		rc = -EFAULT;
-		goto out;
-	}
+	ext_kekls = memdup_user((char __user *)arg, sizeof(*ext_kekls));
+	if (IS_ERR(ext_kekls))
+		return PTR_ERR(ext_kekls);
 	rc = tape_3592_kekl_set(device, ext_kekls);
-out:
 	kfree(ext_kekls);
 	return rc;
 }
@@ -1090,7 +1085,7 @@ tape_3590_print_io_sim_msg_f1(struct tape_device *device, struct irb *irb)
 				"channel path 0x%x on CU",
 				sense->fmt.f71.md[1]);
 		else
-			snprintf(service, BUFSIZE, "Repair will disable cannel"
+			snprintf(service, BUFSIZE, "Repair will disable channel"
 				" paths (0x%x-0x%x) on CU",
 				sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
@@ -1481,7 +1476,7 @@ tape_3590_irq(struct tape_device *device, struct tape_request *request,
 	}
 
 	if (irb->scsw.cmd.dstat & DEV_STAT_CHN_END) {
-		DBF_EVENT(2, "cannel end\n");
+		DBF_EVENT(2, "channel end\n");
 		return TAPE_IO_PENDING;
 	}
 

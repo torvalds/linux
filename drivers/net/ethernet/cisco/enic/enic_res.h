@@ -30,7 +30,7 @@
 #define ENIC_MIN_RQ_DESCS		64
 #define ENIC_MAX_RQ_DESCS		4096
 
-#define ENIC_MIN_MTU			68
+#define ENIC_MIN_MTU			ETH_MIN_MTU
 #define ENIC_MAX_MTU			9000
 
 #define ENIC_MULTICAST_PERFECT_FILTERS	32
@@ -47,6 +47,9 @@ static inline void enic_queue_wq_desc_ex(struct vnic_wq *wq,
 	int offload_mode, int cq_entry, int sop, int eop, int loopback)
 {
 	struct wq_enet_desc *desc = vnic_wq_next_desc(wq);
+	u8 desc_skip_cnt = 1;
+	u8 compressed_send = 0;
+	u64 wrid = 0;
 
 	wq_enet_desc_enc(desc,
 		(u64)dma_addr | VNIC_PADDR_TARGET,
@@ -59,7 +62,8 @@ static inline void enic_queue_wq_desc_ex(struct vnic_wq *wq,
 		(u16)vlan_tag,
 		(u8)loopback);
 
-	vnic_wq_post(wq, os_buf, dma_addr, len, sop, eop);
+	vnic_wq_post(wq, os_buf, dma_addr, len, sop, eop, desc_skip_cnt,
+			(u8)cq_entry, compressed_send, wrid);
 }
 
 static inline void enic_queue_wq_desc_cont(struct vnic_wq *wq,
@@ -120,6 +124,7 @@ static inline void enic_queue_rq_desc(struct vnic_rq *rq,
 	dma_addr_t dma_addr, unsigned int len)
 {
 	struct rq_enet_desc *desc = vnic_rq_next_desc(rq);
+	u64 wrid = 0;
 	u8 type = os_buf_index ?
 		RQ_ENET_TYPE_NOT_SOP : RQ_ENET_TYPE_ONLY_SOP;
 
@@ -127,7 +132,7 @@ static inline void enic_queue_rq_desc(struct vnic_rq *rq,
 		(u64)dma_addr | VNIC_PADDR_TARGET,
 		type, (u16)len);
 
-	vnic_rq_post(rq, os_buf, os_buf_index, dma_addr, len);
+	vnic_rq_post(rq, os_buf, os_buf_index, dma_addr, len, wrid);
 }
 
 struct enic;

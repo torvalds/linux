@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -25,8 +21,7 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
-		"Serge A. Suchkov <Serge.A.S@tochka.ru>");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, Serge A. Suchkov <Serge.A.S@tochka.ru>");
 MODULE_DESCRIPTION("GSPCA ZC03xx/VC3xx USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -53,7 +48,6 @@ struct sd {
 	struct v4l2_ctrl *jpegqual;
 
 	struct work_struct work;
-	struct workqueue_struct *work_thread;
 
 	u8 reg08;		/* webcam compression quality */
 
@@ -5942,23 +5936,23 @@ static void transfer_update(struct work_struct *work)
 	reg07 = 0;
 
 	good = 0;
-	for (;;) {
+	while (1) {
 		msleep(100);
 
 		/* To protect gspca_dev->usb_buf and gspca_dev->usb_err */
 		mutex_lock(&gspca_dev->usb_lock);
 #ifdef CONFIG_PM
 		if (gspca_dev->frozen)
-			goto err;
+			break;
 #endif
 		if (!gspca_dev->present || !gspca_dev->streaming)
-			goto err;
+			break;
 
 		/* Bit 0 of register 11 indicates FIFO overflow */
 		gspca_dev->usb_err = 0;
 		reg11 = reg_r(gspca_dev, 0x0011);
 		if (gspca_dev->usb_err)
-			goto err;
+			break;
 
 		change = reg11 & 0x01;
 		if (change) {				/* overflow */
@@ -5987,12 +5981,12 @@ static void transfer_update(struct work_struct *work)
 			gspca_dev->usb_err = 0;
 			reg_w(gspca_dev, reg07, 0x0007);
 			if (gspca_dev->usb_err)
-				goto err;
+				break;
 		}
 		mutex_unlock(&gspca_dev->usb_lock);
 	}
-	return;
-err:
+
+	/* Something went wrong. Unlock and return */
 	mutex_unlock(&gspca_dev->usb_lock);
 }
 
@@ -6360,7 +6354,7 @@ static int zcxx_s_ctrl(struct v4l2_ctrl *ctrl)
 			if (ctrl->val <= jpeg_qual[i])
 				break;
 		}
-		if (i > 0 && i == qual && ctrl->val < jpeg_qual[i])
+		if (i == ARRAY_SIZE(jpeg_qual) || (i > 0 && i == qual && ctrl->val < jpeg_qual[i]))
 			i--;
 
 		/* With high quality settings we need max bandwidth */
@@ -6700,7 +6694,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	};
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x21);		/* JPEG 422 */
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
@@ -6825,8 +6820,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return gspca_dev->usb_err;
 
 	/* Start the transfer parameters update thread */
-	sd->work_thread = create_singlethread_workqueue(KBUILD_MODNAME);
-	queue_work(sd->work_thread, &sd->work);
+	schedule_work(&sd->work);
 
 	return 0;
 }
@@ -6837,12 +6831,9 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->work_thread != NULL) {
-		mutex_unlock(&gspca_dev->usb_lock);
-		destroy_workqueue(sd->work_thread);
-		mutex_lock(&gspca_dev->usb_lock);
-		sd->work_thread = NULL;
-	}
+	mutex_unlock(&gspca_dev->usb_lock);
+	flush_work(&sd->work);
+	mutex_lock(&gspca_dev->usb_lock);
 	if (!gspca_dev->present)
 		return;
 	send_unknown(gspca_dev, sd->sensor);
@@ -6904,7 +6895,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 #if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
-			int len)		/* interrput packet length */
+			int len)		/* interrupt packet length */
 {
 	if (len == 8 && data[4] == 1) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);

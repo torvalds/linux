@@ -1,0 +1,147 @@
+menuconfig NVMEM
+	tristate "NVMEM Support"
+	help
+	  Support for NVMEM(Non Volatile Memory) devices like EEPROM, EFUSES...
+
+	  This framework is designed to provide a generic interface to NVMEM
+	  from both the Linux Kernel and the userspace.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_core.
+
+	  If unsure, say no.
+
+if NVMEM
+
+config NVMEM_IMX_IIM
+	tristate "i.MX IC Identification Module support"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  This is a driver for the IC Identification Module (IIM) available on
+	  i.MX SoCs, providing access to 4 Kbits of programmable
+	  eFuses.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-imx-iim.
+
+config NVMEM_IMX_OCOTP
+	tristate "i.MX6 On-Chip OTP Controller support"
+	depends on SOC_IMX6 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
+	  i.MX6 SoCs, providing access to 4 Kbits of one-time programmable
+	  eFuses.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-imx-ocotp.
+
+config NVMEM_LPC18XX_EEPROM
+	tristate "NXP LPC18XX EEPROM Memory Support"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say Y here to include support for NXP LPC18xx EEPROM memory found in
+	  NXP LPC185x/3x and LPC435x/3x/2x/1x devices.
+	  To compile this driver as a module, choose M here: the module
+	  will be called nvmem_lpc18xx_eeprom.
+
+config NVMEM_LPC18XX_OTP
+	tristate "NXP LPC18XX OTP Memory Support"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say Y here to include support for NXP LPC18xx OTP memory found on
+	  all LPC18xx and LPC43xx devices.
+	  To compile this driver as a module, choose M here: the module
+	  will be called nvmem_lpc18xx_otp.
+
+config NVMEM_MXS_OCOTP
+	tristate "Freescale MXS On-Chip OTP Memory Support"
+	depends on ARCH_MXS || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  If you say Y here, you will get readonly access to the
+	  One Time Programmable memory pages that are stored
+	  on the Freescale i.MX23/i.MX28 processor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-mxs-ocotp.
+
+config MTK_EFUSE
+	tristate "Mediatek SoCs EFUSE support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a driver to access hardware related data like sensor
+	  calibration, HDMI impedance etc.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called efuse-mtk.
+
+config QCOM_QFPROM
+	tristate "QCOM QFPROM Support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say y here to enable QFPROM support. The QFPROM provides access
+	  functions for QFPROM data to rest of the drivers via nvmem interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_qfprom.
+
+config ROCKCHIP_EFUSE
+	tristate "Rockchip eFuse Support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a simple drive to dump specified values of Rockchip SoC
+	  from eFuse, such as cpu-leakage.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_rockchip_efuse.
+
+config NVMEM_BCM_OCOTP
+	tristate "Broadcom On-Chip OTP Controller support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM
+	default ARCH_BCM_IPROC
+	help
+	  Say y here to enable read/write access to the Broadcom OTP
+	  controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-bcm-ocotp.
+
+config NVMEM_SUNXI_SID
+	tristate "Allwinner SoCs SID support"
+	depends on ARCH_SUNXI
+	help
+	  This is a driver for the 'security ID' available on various Allwinner
+	  devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_sunxi_sid.
+
+config NVMEM_VF610_OCOTP
+	tristate "VF610 SoC OCOTP support"
+	depends on SOC_VF610 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a driver for the 'OCOTP' peripheral available on Vybrid
+	  devices like VF5xx and VF6xx.
+
+	  This driver can also be build as a module. If so, the module will
+	  be called nvmem-vf610-ocotp.
+
+config MESON_EFUSE
+	tristate "Amlogic eFuse Support"
+	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_efuse.
+
+endif

@@ -23,6 +23,7 @@
 
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -62,22 +63,22 @@ MODULE_PARM_DESC(index, "Index number for SoundScape soundcard");
 module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "Description for SoundScape card");
 
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for SoundScape driver.");
 
-module_param_array(wss_port, long, NULL, 0444);
+module_param_hw_array(wss_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(wss_port, "WSS Port # for SoundScape driver.");
 
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for SoundScape driver.");
 
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU401 IRQ # for SoundScape driver.");
 
-module_param_array(dma, int, NULL, 0444);
+module_param_hw_array(dma, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for SoundScape driver.");
 
 module_param_array(joystick, bool, NULL, 0444);
@@ -87,7 +88,7 @@ MODULE_PARM_DESC(joystick, "Enable gameport.");
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id sscape_pnpids[] = {
+static const struct pnp_card_device_id sscape_pnpids[] = {
 	{ .id = "ENS3081", .devs = { { "ENS0000" } } }, /* Soundscape PnP */
 	{ .id = "ENS4081", .devs = { { "ENS1011" } } },	/* VIVO90 */
 	{ .id = "" }	/* end */
@@ -590,7 +591,7 @@ static int sscape_upload_microcode(struct snd_card *card, int version)
 	}
 	err = upload_dma_data(sscape, init_fw->data, init_fw->size);
 	if (err == 0)
-		snd_printk(KERN_INFO "sscape: MIDI firmware loaded %d KBs\n",
+		snd_printk(KERN_INFO "sscape: MIDI firmware loaded %zu KBs\n",
 				init_fw->size >> 10);
 
 	release_firmware(init_fw);
@@ -670,7 +671,7 @@ __skip_change:
 	return change;
 }
 
-static struct snd_kcontrol_new midi_mixer_ctl = {
+static const struct snd_kcontrol_new midi_mixer_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "MIDI",
 	.info = sscape_midi_info,
@@ -877,7 +878,6 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 			     codec_type, WSS_HWSHARE_DMA1, &chip);
 	if (!err) {
 		unsigned long flags;
-		struct snd_pcm *pcm;
 
 		if (sscape->type != SSCAPE_VIVO) {
 			/*
@@ -893,7 +893,7 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 
 		}
 
-		err = snd_wss_pcm(chip, 0, &pcm);
+		err = snd_wss_pcm(chip, 0);
 		if (err < 0) {
 			snd_printk(KERN_ERR "sscape: No PCM device "
 					    "for AD1845 chip\n");
@@ -907,7 +907,7 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 			goto _error;
 		}
 		if (chip->hardware != WSS_HW_AD1848) {
-			err = snd_wss_timer(chip, 0, NULL);
+			err = snd_wss_timer(chip, 0);
 			if (err < 0) {
 				snd_printk(KERN_ERR "sscape: No timer device "
 						    "for AD1845 chip\n");
@@ -1169,8 +1169,8 @@ static int snd_sscape_probe(struct device *pdev, unsigned int dev)
 	struct soundscape *sscape;
 	int ret;
 
-	ret = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct soundscape), &card);
+	ret = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct soundscape), &card);
 	if (ret < 0)
 		return ret;
 
@@ -1178,7 +1178,6 @@ static int snd_sscape_probe(struct device *pdev, unsigned int dev)
 	sscape->type = SSCAPE;
 
 	dma[dev] &= 0x03;
-	snd_card_set_dev(card, pdev);
 
 	ret = create_sscape(dev, card);
 	if (ret < 0)
@@ -1259,8 +1258,9 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 	 * Create a new ALSA sound card entry, in anticipation
 	 * of detecting our hardware ...
 	 */
-	ret = snd_card_create(index[idx], id[idx], THIS_MODULE,
-			      sizeof(struct soundscape), &card);
+	ret = snd_card_new(&pcard->card->dev,
+			   index[idx], id[idx], THIS_MODULE,
+			   sizeof(struct soundscape), &card);
 	if (ret < 0)
 		return ret;
 
@@ -1288,7 +1288,6 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 		wss_port[idx] = pnp_port_start(dev, 1);
 		dma2[idx] = pnp_dma(dev, 1);
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 
 	ret = create_sscape(idx, card);
 	if (ret < 0)

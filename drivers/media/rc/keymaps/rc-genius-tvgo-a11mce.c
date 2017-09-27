@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,10 +61,10 @@ static struct rc_map_table genius_tvgo_a11mce[] = {
 
 static struct rc_map_list genius_tvgo_a11mce_map = {
 	.map = {
-		.scan    = genius_tvgo_a11mce,
-		.size    = ARRAY_SIZE(genius_tvgo_a11mce),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_GENIUS_TVGO_A11MCE,
+		.scan     = genius_tvgo_a11mce,
+		.size     = ARRAY_SIZE(genius_tvgo_a11mce),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_GENIUS_TVGO_A11MCE,
 	}
 };
 
@@ -82,4 +82,4 @@ module_init(init_rc_map_genius_tvgo_a11mce)
 module_exit(exit_rc_map_genius_tvgo_a11mce)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

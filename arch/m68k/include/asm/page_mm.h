@@ -6,9 +6,6 @@
 #include <linux/compiler.h>
 #include <asm/module.h>
 
-#define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
-#define free_user_page(page, addr)	free_page(addr)
-
 /*
  * We don't need to check for alignment etc.
  */
@@ -172,8 +169,5 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 #define pfn_valid(pfn)		virt_addr_valid(pfn_to_virt(pfn))
 
 #endif /* __ASSEMBLY__ */
-
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #endif /* _M68K_PAGE_MM_H */

@@ -1,5 +1,8 @@
 #ifndef _ASM_POWERPC_KPROBES_H
 #define _ASM_POWERPC_KPROBES_H
+
+#include <asm-generic/kprobes.h>
+
 #ifdef __KERNEL__
 /*
  *  Kernel Probes (KProbes)
@@ -29,45 +32,34 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <linux/module.h>
 #include <asm/probes.h>
+#include <asm/code-patching.h>
 
+#ifdef CONFIG_KPROBES
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
 
 struct pt_regs;
 struct kprobe;
 
 typedef ppc_opcode_t kprobe_opcode_t;
-#define MAX_INSN_SIZE 1
 
-#ifdef CONFIG_PPC64
-/*
- * 64bit powerpc uses function descriptors.
- * Handle cases where:
- * 		- User passes a <.symbol> or <module:.symbol>
- * 		- User passes a <symbol> or <module:symbol>
- * 		- User passes a non-existent symbol, kallsyms_lookup_name
- * 		  returns 0. Don't deref the NULL pointer in that case
- */
-#define kprobe_lookup_name(name, addr)					\
-{									\
-	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);		\
-	if (addr) {							\
-		char *colon;						\
-		if ((colon = strchr(name, ':')) != NULL) {		\
-			colon++;					\
-			if (*colon != '\0' && *colon != '.')		\
-				addr = *(kprobe_opcode_t **)addr;	\
-		} else if (name[0] != '.')				\
-			addr = *(kprobe_opcode_t **)addr;		\
-	} else {							\
-		char dot_name[KSYM_NAME_LEN];				\
-		dot_name[0] = '.';					\
-		dot_name[1] = '\0';					\
-		strncat(dot_name, name, KSYM_NAME_LEN - 2);		\
-		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name); \
-	}								\
-}
-#endif
+extern kprobe_opcode_t optinsn_slot;
+
+/* Optinsn template address */
+extern kprobe_opcode_t optprobe_template_entry[];
+extern kprobe_opcode_t optprobe_template_op_address[];
+extern kprobe_opcode_t optprobe_template_call_handler[];
+extern kprobe_opcode_t optprobe_template_insn[];
+extern kprobe_opcode_t optprobe_template_call_emulate[];
+extern kprobe_opcode_t optprobe_template_ret[];
+extern kprobe_opcode_t optprobe_template_end[];
+
+/* Fixed instruction size for powerpc */
+#define MAX_INSN_SIZE		1
+#define MAX_OPTIMIZED_LENGTH	sizeof(kprobe_opcode_t)	/* 4 bytes */
+#define MAX_OPTINSN_SIZE	(optprobe_template_end - optprobe_template_entry)
+#define RELATIVEJUMP_SIZE	sizeof(kprobe_opcode_t)	/* 4 bytes */
 
 #define flush_insn_slot(p)	do { } while (0)
 #define kretprobe_blacklist_size 0
@@ -100,8 +92,31 @@ struct kprobe_ctlblk {
 	struct prev_kprobe prev_kprobe;
 };
 
+struct arch_optimized_insn {
+	kprobe_opcode_t copied_insn[1];
+	/* detour buffer */
+	kprobe_opcode_t *insn;
+};
+
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 					unsigned long val, void *data);
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+extern int kprobe_handler(struct pt_regs *regs);
+extern int kprobe_post_handler(struct pt_regs *regs);
+extern int is_current_kprobe_addr(unsigned long addr);
+#ifdef CONFIG_KPROBES_ON_FTRACE
+extern int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
+			   struct kprobe_ctlblk *kcb);
+#else
+static inline int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
+				  struct kprobe_ctlblk *kcb)
+{
+	return 0;
+}
+#endif
+#else
+static inline int kprobe_handler(struct pt_regs *regs) { return 0; }
+static inline int kprobe_post_handler(struct pt_regs *regs) { return 0; }
+#endif /* CONFIG_KPROBES */
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_KPROBES_H */

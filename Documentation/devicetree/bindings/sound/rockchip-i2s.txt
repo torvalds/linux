@@ -1,0 +1,48 @@
+* Rockchip I2S controller
+
+The I2S bus (Inter-IC sound bus) is a serial link for digital
+audio data transfer between devices in the system.
+
+Required properties:
+
+- compatible: should be one of the following:
+   - "rockchip,rk3066-i2s": for rk3066
+   - "rockchip,rk3036-i2s", "rockchip,rk3066-i2s": for rk3036
+   - "rockchip,rk3188-i2s", "rockchip,rk3066-i2s": for rk3188
+   - "rockchip,rk3228-i2s", "rockchip,rk3066-i2s": for rk3228
+   - "rockchip,rk3288-i2s", "rockchip,rk3066-i2s": for rk3288
+   - "rockchip,rk3328-i2s", "rockchip,rk3066-i2s": for rk3328
+   - "rockchip,rk3366-i2s", "rockchip,rk3066-i2s": for rk3366
+   - "rockchip,rk3368-i2s", "rockchip,rk3066-i2s": for rk3368
+   - "rockchip,rk3399-i2s", "rockchip,rk3066-i2s": for rk3399
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: should contain the I2S interrupt.
+- dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
+	Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: should include "tx" and "rx".
+- clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
+- clock-names: should contain the following:
+   - "i2s_hclk": clock for I2S BUS
+   - "i2s_clk" : clock for I2S controller
+- rockchip,playback-channels: max playback channels, if not set, 8 channels default.
+- rockchip,capture-channels: max capture channels, if not set, 2 channels default.
+
+Required properties for controller which support multi channels
+playback/capture:
+
+- rockchip,grf: the phandle of the syscon node for GRF register.
+
+Example for rk3288 I2S controller:
+
+i2s@ff890000 {
+	compatible = "rockchip,rk3288-i2s", "rockchip,rk3066-i2s";
+	reg = <0xff890000 0x10000>;
+	interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+	dmas = <&pdma1 0>, <&pdma1 1>;
+	dma-names = "tx", "rx";
+	clock-names = "i2s_hclk", "i2s_clk";
+	clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <2>;
+};

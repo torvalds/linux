@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
-#include <linux/moduleparam.h>
 #include <linux/ip.h>
 #include <linux/sched.h>
 #include <linux/sockios.h>
@@ -45,7 +44,6 @@ enum caif_states {
 
 struct chnl_net {
 	struct cflayer chnl;
-	struct net_device_stats stats;
 	struct caif_connect_request conn_req;
 	struct list_head list_field;
 	struct net_device *netdev;
@@ -285,7 +283,7 @@ static int chnl_net_open(struct net_device *dev)
 				goto error;
 		}
 
-		lldev = dev_get_by_index(dev_net(dev), llifindex);
+		lldev = __dev_get_by_index(dev_net(dev), llifindex);
 
 		if (lldev == NULL) {
 			pr_debug("no interface?\n");
@@ -307,7 +305,6 @@ static int chnl_net_open(struct net_device *dev)
 		mtu = min_t(int, dev->mtu, lldev->mtu - (headroom + tailroom));
 		mtu = min_t(int, GPRS_PDP_MTU, mtu);
 		dev_set_mtu(dev, mtu);
-		dev_put(lldev);
 
 		if (mtu < 100) {
 			pr_warn("CAIF Interface MTU too small (%d)\n", mtu);
@@ -395,14 +392,14 @@ static void chnl_net_destructor(struct net_device *dev)
 {
 	struct chnl_net *priv = netdev_priv(dev);
 	caif_free_client(&priv->chnl);
-	free_netdev(dev);
 }
 
 static void ipcaif_net_setup(struct net_device *dev)
 {
 	struct chnl_net *priv;
 	dev->netdev_ops = &netdev_ops;
-	dev->destructor = chnl_net_destructor;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = chnl_net_destructor;
 	dev->flags |= IFF_NOARP;
 	dev->flags |= IFF_POINTOPOINT;
 	dev->mtu = GPRS_PDP_MTU;
@@ -464,14 +461,14 @@ static void caif_netlink_parms(struct nlattr *data[],
 }
 
 static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct chnl_net *caifdev;
 	ASSERT_RTNL();
 	caifdev = netdev_priv(dev);
 	caif_netlink_parms(data, &caifdev->conn_req);
-	dev_net_set(caifdev->netdev, src_net);
 
 	ret = register_netdevice(dev);
 	if (ret)
@@ -488,7 +485,8 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 }
 
 static int ipcaif_changelink(struct net_device *dev, struct nlattr *tb[],
-			     struct nlattr *data[])
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
 {
 	struct chnl_net *caifdev;
 	ASSERT_RTNL();

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -43,11 +39,8 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
-
-#include <obd.h>
-#include <lu_object.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/module.h>
 #include <lustre_fid.h>
 
 /**
@@ -56,9 +49,9 @@
  *
  * Fid namespace:
  * <pre>
- * Normal FID:	seq:64 [2^33,2^64-1]      oid:32	  ver:32
- * IGIF      :	0:32, ino:32	      gen:32	  0:32
- * IDIF      :	0:31, 1:1, ost-index:16,  objd:48	 0:32
+ * Normal FID:        seq:64 [2^33,2^64-1]      oid:32          ver:32
+ * IGIF      :        0:32, ino:32              gen:32          0:32
+ * IDIF      :        0:31, 1:1, ost-index:16,  objd:48         0:32
  * </pre>
  *
  * The first 0x400 sequences of normal FID are reserved for special purpose.
@@ -66,17 +59,14 @@
  * FID_SEQ_START + 2 is for .lustre directory and its objects
  */
 const struct lu_seq_range LUSTRE_SEQ_SPACE_RANGE = {
-	FID_SEQ_NORMAL,
-	(__u64)~0ULL
+	.lsr_start	= FID_SEQ_NORMAL,
+	.lsr_end	= (__u64)~0ULL,
 };
-EXPORT_SYMBOL(LUSTRE_SEQ_SPACE_RANGE);
 
 /* Zero range, used for init and other purposes. */
 const struct lu_seq_range LUSTRE_SEQ_ZERO_RANGE = {
-	0,
-	0
+	.lsr_start	= 0,
 };
-EXPORT_SYMBOL(LUSTRE_SEQ_ZERO_RANGE);
 
 /* Lustre Big Fs Lock fid. */
 const struct lu_fid LUSTRE_BFL_FID = { .f_seq = FID_SEQ_SPECIAL,

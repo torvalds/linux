@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  * The full GNU General Public License is included in this distribution in the
  * file called COPYING.
  */
@@ -25,11 +21,6 @@
 #define IOAT_MMIO_BAR		0
 
 /* CB device ID's */
-#define IOAT_PCI_DID_5000       0x1A38
-#define IOAT_PCI_DID_CNB        0x360B
-#define IOAT_PCI_DID_SCNB       0x65FF
-#define IOAT_PCI_DID_SNB        0x402F
-
 #define PCI_DEVICE_ID_INTEL_IOAT_IVB0	0x0e20
 #define PCI_DEVICE_ID_INTEL_IOAT_IVB1	0x0e21
 #define PCI_DEVICE_ID_INTEL_IOAT_IVB2	0x0e22
@@ -57,6 +48,24 @@
 #define PCI_DEVICE_ID_INTEL_IOAT_BWD2	0x0C52
 #define PCI_DEVICE_ID_INTEL_IOAT_BWD3	0x0C53
 
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE0	0x6f50
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE1	0x6f51
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE2	0x6f52
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE3	0x6f53
+
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX0	0x6f20
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX1	0x6f21
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX2	0x6f22
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX3	0x6f23
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX4	0x6f24
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX5	0x6f25
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX6	0x6f26
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX7	0x6f27
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX8	0x6f2e
+#define PCI_DEVICE_ID_INTEL_IOAT_BDX9	0x6f2f
+
+#define PCI_DEVICE_ID_INTEL_IOAT_SKX	0x2021
+
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */
 #define IOAT_VER_3_0            0x30    /* Version 3.0 */
@@ -65,6 +74,8 @@
 
 
 int system_has_dca_enabled(struct pci_dev *pdev);
+
+#define IOAT_DESC_SZ	64
 
 struct ioat_dma_descriptor {
 	uint32_t	size;

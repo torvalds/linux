@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/bug.h>
@@ -19,9 +20,12 @@
 
 #define PAGE_SIZE getpagesize()
 #define PAGE_MASK (~(PAGE_SIZE-1))
+#define PAGE_ALIGN(x) ((x + PAGE_SIZE - 1) & PAGE_MASK)
 
+typedef unsigned long long phys_addr_t;
 typedef unsigned long long dma_addr_t;
 typedef size_t __kernel_size_t;
+typedef unsigned int __wsum;
 
 struct page {
 	unsigned long long dummy;
@@ -38,13 +42,6 @@ struct page {
 
 #define __printf(a,b) __attribute__((format(printf,a,b)))
 
-typedef enum {
-	GFP_KERNEL,
-	GFP_ATOMIC,
-	__GFP_HIGHMEM,
-	__GFP_HIGH
-} gfp_t;
-
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 extern void *__kmalloc_fake, *__kfree_ignore_start, *__kfree_ignore_end;
@@ -54,12 +51,29 @@ static inline void *kmalloc(size_t s, gfp_t gfp)
 		return __kmalloc_fake;
 	return malloc(s);
 }
+static inline void *kzalloc(size_t s, gfp_t gfp)
+{
+	void *p = kmalloc(s, gfp);
+
+	memset(p, 0, s);
+	return p;
+}
+
+static inline void *alloc_pages_exact(size_t s, gfp_t gfp)
+{
+	return kmalloc(s, gfp);
+}
 
 static inline void kfree(void *p)
 {
 	if (p >= __kfree_ignore_start && p < __kfree_ignore_end)
 		return;
 	free(p);
+}
+
+static inline void free_pages_exact(void *p, size_t s)
+{
+	kfree(p);
 }
 
 static inline void *krealloc(void *p, size_t s, gfp_t gfp)
@@ -103,10 +117,18 @@ static inline void free_page(unsigned long addr)
 #define dev_err(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)
 #define dev_warn(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)
 
+#define WARN_ON_ONCE(cond) ((cond) && fprintf (stderr, "WARNING\n"))
+
 #define min(x, y) ({				\
 	typeof(x) _min1 = (x);			\
 	typeof(y) _min2 = (y);			\
 	(void) (&_min1 == &_min2);		\
 	_min1 < _min2 ? _min1 : _min2; })
+
+/* TODO: empty stubs for now. Broken but enough for virtio_ring.c */
+#define list_add_tail(a, b) do {} while (0)
+#define list_del(a) do {} while (0)
+#define list_for_each_entry(a, b, c) while (0)
+/* end of stubs */
 
 #endif /* KERNEL_H */

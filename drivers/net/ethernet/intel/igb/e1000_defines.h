@@ -1,29 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -43,17 +39,43 @@
 #define E1000_WUFC_MC   0x00000008 /* Directed Multicast Wakeup Enable */
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
 
+/* Wake Up Status */
+#define E1000_WUS_EX	0x00000004 /* Directed Exact */
+#define E1000_WUS_ARPD	0x00000020 /* Directed ARP Request */
+#define E1000_WUS_IPV4	0x00000040 /* Directed IPv4 */
+#define E1000_WUS_IPV6	0x00000080 /* Directed IPv6 */
+#define E1000_WUS_NSD	0x00000400 /* Directed IPv6 Neighbor Solicitation */
+
+/* Packet types that are enabled for wake packet delivery */
+#define WAKE_PKT_WUS ( \
+	E1000_WUS_EX   | \
+	E1000_WUS_ARPD | \
+	E1000_WUS_IPV4 | \
+	E1000_WUS_IPV6 | \
+	E1000_WUS_NSD)
+
+/* Wake Up Packet Length */
+#define E1000_WUPL_MASK	0x00000FFF
+
+/* Wake Up Packet Memory stores the first 128 bytes of the wake up packet */
+#define E1000_WUPM_BYTES	128
+
 /* Extended Device Control */
+#define E1000_CTRL_EXT_SDP2_DATA 0x00000040 /* Value of SW Defineable Pin 2 */
 #define E1000_CTRL_EXT_SDP3_DATA 0x00000080 /* Value of SW Defineable Pin 3 */
+#define E1000_CTRL_EXT_SDP2_DIR  0x00000400 /* SDP2 Data direction */
+#define E1000_CTRL_EXT_SDP3_DIR  0x00000800 /* SDP3 Data direction */
+
 /* Physical Func Reset Done Indication */
-#define E1000_CTRL_EXT_PFRSTD    0x00004000
-#define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
-#define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
-#define E1000_CTRL_EXT_LINK_MODE_1000BASE_KX  0x00400000
-#define E1000_CTRL_EXT_LINK_MODE_SGMII   0x00800000
-#define E1000_CTRL_EXT_LINK_MODE_GMII   0x00000000
-#define E1000_CTRL_EXT_EIAME          0x01000000
-#define E1000_CTRL_EXT_IRCA           0x00000001
+#define E1000_CTRL_EXT_PFRSTD	0x00004000
+#define E1000_CTRL_EXT_SDLPE	0X00040000  /* SerDes Low Power Enable */
+#define E1000_CTRL_EXT_LINK_MODE_MASK	0x00C00000
+#define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES	0x00C00000
+#define E1000_CTRL_EXT_LINK_MODE_1000BASE_KX	0x00400000
+#define E1000_CTRL_EXT_LINK_MODE_SGMII	0x00800000
+#define E1000_CTRL_EXT_LINK_MODE_GMII	0x00000000
+#define E1000_CTRL_EXT_EIAME	0x01000000
+#define E1000_CTRL_EXT_IRCA		0x00000001
 /* Interrupt delay cancellation */
 /* Driver loaded bit for FW */
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000
@@ -62,6 +84,7 @@
 /* packet buffer parity error detection enabled */
 /* descriptor FIFO parity error detection enable */
 #define E1000_CTRL_EXT_PBA_CLR		0x80000000 /* PBA Clear */
+#define E1000_CTRL_EXT_PHYPDEN		0x00100000
 #define E1000_I2CCMD_REG_ADDR_SHIFT	16
 #define E1000_I2CCMD_PHY_ADDR_SHIFT	24
 #define E1000_I2CCMD_OPCODE_READ	0x08000000
@@ -98,11 +121,11 @@
 
 /* Same mask, but for extended and packet split descriptors */
 #define E1000_RXDEXT_ERR_FRAME_ERR_MASK ( \
-    E1000_RXDEXT_STATERR_CE  |            \
-    E1000_RXDEXT_STATERR_SE  |            \
-    E1000_RXDEXT_STATERR_SEQ |            \
-    E1000_RXDEXT_STATERR_CXE |            \
-    E1000_RXDEXT_STATERR_RXE)
+	E1000_RXDEXT_STATERR_CE  |            \
+	E1000_RXDEXT_STATERR_SE  |            \
+	E1000_RXDEXT_STATERR_SEQ |            \
+	E1000_RXDEXT_STATERR_CXE |            \
+	E1000_RXDEXT_STATERR_RXE)
 
 #define E1000_MRQC_RSS_FIELD_IPV4_TCP          0x00010000
 #define E1000_MRQC_RSS_FIELD_IPV4              0x00020000
@@ -191,7 +214,8 @@
 /* enable link status from external LINK_0 and LINK_1 pins */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
-#define E1000_CTRL_SWDPIO0  0x00400000  /* SWDPIN 0 Input or output */
+#define E1000_CTRL_SDP0_DIR 0x00400000  /* SDP0 Data direction */
+#define E1000_CTRL_SDP1_DIR 0x00800000  /* SDP1 Data direction */
 #define E1000_CTRL_RST      0x04000000  /* Global reset */
 #define E1000_CTRL_RFCE     0x08000000  /* Receive Flow Control enable */
 #define E1000_CTRL_TFCE     0x10000000  /* Transmit flow control enable */
@@ -205,6 +229,11 @@
  */
 
 #define E1000_CONNSW_ENRGSRC             0x4
+#define E1000_CONNSW_PHYSD		0x400
+#define E1000_CONNSW_PHY_PDN		0x800
+#define E1000_CONNSW_SERDESD		0x200
+#define E1000_CONNSW_AUTOSENSE_CONF	0x2
+#define E1000_CONNSW_AUTOSENSE_EN	0x1
 #define E1000_PCS_CFG_PCS_EN             8
 #define E1000_PCS_LCTL_FLV_LINK_UP       1
 #define E1000_PCS_LCTL_FSV_100           2
@@ -298,38 +327,33 @@
 #define E1000_TCTL_RTLC   0x01000000    /* Re-transmit on late collision */
 
 /* DMA Coalescing register fields */
-#define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coalescing
-							* Watchdog Timer */
-#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coalescing Receive
-							* Threshold */
+#define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coal Watchdog Timer */
+#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coal Rx Threshold */
 #define E1000_DMACR_DMACTHR_SHIFT       16
-#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe
-							* transactions */
+#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe trans */
 #define E1000_DMACR_DMAC_LX_SHIFT       28
 #define E1000_DMACR_DMAC_EN             0x80000000 /* Enable DMA Coalescing */
 /* DMA Coalescing BMC-to-OS Watchdog Enable */
 #define E1000_DMACR_DC_BMC2OSW_EN	0x00008000
 
-#define E1000_DMCTXTH_DMCTTHR_MASK      0x00000FFF /* DMA Coalescing Transmit
-							* Threshold */
+#define E1000_DMCTXTH_DMCTTHR_MASK      0x00000FFF /* DMA Coal Tx Threshold */
 
 #define E1000_DMCTLX_TTLX_MASK          0x00000FFF /* Time to LX request */
 
-#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Receive Traffic Rate
-							* Threshold */
-#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rcv packet rate in
-							* current window */
+#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Rx Traffic Rate Thresh */
+#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rx pkt rate curr window */
 
-#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rcv Traffic
-							* Current Cnt */
+#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rx Current Cnt */
 
-#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* Flow ctrl Rcv Threshold
-							* High val */
+#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* FC Rx Thresh High val */
 #define E1000_FCRTC_RTH_COAL_SHIFT      4
 #define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision */
 
 /* Timestamp in Rx buffer */
 #define E1000_RXPBS_CFG_TS_EN           0x80000000
+
+#define I210_RXPBSIZE_DEFAULT		0x000000A2 /* RXPBSIZE default */
+#define I210_TXPBSIZE_DEFAULT		0x04000014 /* TXPBSIZE default */
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
@@ -341,7 +365,8 @@
 #define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
 /* Header split receive */
-#define E1000_RFCTL_LEF        0x00040000
+#define E1000_RFCTL_IPV6_EX_DIS         0x00010000
+#define E1000_RFCTL_LEF                 0x00040000
 
 /* Collision related configuration parameters */
 #define E1000_COLLISION_THRESHOLD       15
@@ -352,7 +377,9 @@
 /* Ethertype field values */
 #define ETHERNET_IEEE_VLAN_TYPE 0x8100  /* 802.3ac packet */
 
-#define MAX_JUMBO_FRAME_SIZE    0x3F00
+/* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
+#define MAX_JUMBO_FRAME_SIZE		0x2600
+#define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* PBA constants */
 #define E1000_PBA_34K 0x0022
@@ -397,12 +424,12 @@
  *   o LSC    = Link Status Change
  */
 #define IMS_ENABLE_MASK ( \
-    E1000_IMS_RXT0   |    \
-    E1000_IMS_TXDW   |    \
-    E1000_IMS_RXDMT0 |    \
-    E1000_IMS_RXSEQ  |    \
-    E1000_IMS_LSC    |    \
-    E1000_IMS_DOUTSYNC)
+	E1000_IMS_RXT0   |    \
+	E1000_IMS_TXDW   |    \
+	E1000_IMS_RXDMT0 |    \
+	E1000_IMS_RXSEQ  |    \
+	E1000_IMS_LSC    |    \
+	E1000_IMS_DOUTSYNC)
 
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -458,7 +485,6 @@
 #define E1000_RAH_POOL_1 0x00040000
 
 /* Error Codes */
-#define E1000_SUCCESS      0
 #define E1000_ERR_NVM      1
 #define E1000_ERR_PHY      2
 #define E1000_ERR_CONFIG   3
@@ -524,13 +550,87 @@
 
 #define E1000_TIMINCA_16NS_SHIFT 24
 
-#define E1000_TSICR_TXTS 0x00000002
-#define E1000_TSIM_TXTS 0x00000002
+/* Time Sync Interrupt Cause/Mask Register Bits */
+
+#define TSINTR_SYS_WRAP  BIT(0) /* SYSTIM Wrap around. */
+#define TSINTR_TXTS      BIT(1) /* Transmit Timestamp. */
+#define TSINTR_RXTS      BIT(2) /* Receive Timestamp. */
+#define TSINTR_TT0       BIT(3) /* Target Time 0 Trigger. */
+#define TSINTR_TT1       BIT(4) /* Target Time 1 Trigger. */
+#define TSINTR_AUTT0     BIT(5) /* Auxiliary Timestamp 0 Taken. */
+#define TSINTR_AUTT1     BIT(6) /* Auxiliary Timestamp 1 Taken. */
+#define TSINTR_TADJ      BIT(7) /* Time Adjust Done. */
+
+#define TSYNC_INTERRUPTS TSINTR_TXTS
+#define E1000_TSICR_TXTS TSINTR_TXTS
+
+/* TSAUXC Configuration Bits */
+#define TSAUXC_EN_TT0    BIT(0)  /* Enable target time 0. */
+#define TSAUXC_EN_TT1    BIT(1)  /* Enable target time 1. */
+#define TSAUXC_EN_CLK0   BIT(2)  /* Enable Configurable Frequency Clock 0. */
+#define TSAUXC_SAMP_AUT0 BIT(3)  /* Latch SYSTIML/H into AUXSTMPL/0. */
+#define TSAUXC_ST0       BIT(4)  /* Start Clock 0 Toggle on Target Time 0. */
+#define TSAUXC_EN_CLK1   BIT(5)  /* Enable Configurable Frequency Clock 1. */
+#define TSAUXC_SAMP_AUT1 BIT(6)  /* Latch SYSTIML/H into AUXSTMPL/1. */
+#define TSAUXC_ST1       BIT(7)  /* Start Clock 1 Toggle on Target Time 1. */
+#define TSAUXC_EN_TS0    BIT(8)  /* Enable hardware timestamp 0. */
+#define TSAUXC_AUTT0     BIT(9)  /* Auxiliary Timestamp Taken. */
+#define TSAUXC_EN_TS1    BIT(10) /* Enable hardware timestamp 0. */
+#define TSAUXC_AUTT1     BIT(11) /* Auxiliary Timestamp Taken. */
+#define TSAUXC_PLSG      BIT(17) /* Generate a pulse. */
+#define TSAUXC_DISABLE   BIT(31) /* Disable SYSTIM Count Operation. */
+
+/* SDP Configuration Bits */
+#define AUX0_SEL_SDP0    (0u << 0)  /* Assign SDP0 to auxiliary time stamp 0. */
+#define AUX0_SEL_SDP1    (1u << 0)  /* Assign SDP1 to auxiliary time stamp 0. */
+#define AUX0_SEL_SDP2    (2u << 0)  /* Assign SDP2 to auxiliary time stamp 0. */
+#define AUX0_SEL_SDP3    (3u << 0)  /* Assign SDP3 to auxiliary time stamp 0. */
+#define AUX0_TS_SDP_EN   (1u << 2)  /* Enable auxiliary time stamp trigger 0. */
+#define AUX1_SEL_SDP0    (0u << 3)  /* Assign SDP0 to auxiliary time stamp 1. */
+#define AUX1_SEL_SDP1    (1u << 3)  /* Assign SDP1 to auxiliary time stamp 1. */
+#define AUX1_SEL_SDP2    (2u << 3)  /* Assign SDP2 to auxiliary time stamp 1. */
+#define AUX1_SEL_SDP3    (3u << 3)  /* Assign SDP3 to auxiliary time stamp 1. */
+#define AUX1_TS_SDP_EN   (1u << 5)  /* Enable auxiliary time stamp trigger 1. */
+#define TS_SDP0_SEL_TT0  (0u << 6)  /* Target time 0 is output on SDP0. */
+#define TS_SDP0_SEL_TT1  (1u << 6)  /* Target time 1 is output on SDP0. */
+#define TS_SDP0_SEL_FC0  (2u << 6)  /* Freq clock  0 is output on SDP0. */
+#define TS_SDP0_SEL_FC1  (3u << 6)  /* Freq clock  1 is output on SDP0. */
+#define TS_SDP0_EN       (1u << 8)  /* SDP0 is assigned to Tsync. */
+#define TS_SDP1_SEL_TT0  (0u << 9)  /* Target time 0 is output on SDP1. */
+#define TS_SDP1_SEL_TT1  (1u << 9)  /* Target time 1 is output on SDP1. */
+#define TS_SDP1_SEL_FC0  (2u << 9)  /* Freq clock  0 is output on SDP1. */
+#define TS_SDP1_SEL_FC1  (3u << 9)  /* Freq clock  1 is output on SDP1. */
+#define TS_SDP1_EN       (1u << 11) /* SDP1 is assigned to Tsync. */
+#define TS_SDP2_SEL_TT0  (0u << 12) /* Target time 0 is output on SDP2. */
+#define TS_SDP2_SEL_TT1  (1u << 12) /* Target time 1 is output on SDP2. */
+#define TS_SDP2_SEL_FC0  (2u << 12) /* Freq clock  0 is output on SDP2. */
+#define TS_SDP2_SEL_FC1  (3u << 12) /* Freq clock  1 is output on SDP2. */
+#define TS_SDP2_EN       (1u << 14) /* SDP2 is assigned to Tsync. */
+#define TS_SDP3_SEL_TT0  (0u << 15) /* Target time 0 is output on SDP3. */
+#define TS_SDP3_SEL_TT1  (1u << 15) /* Target time 1 is output on SDP3. */
+#define TS_SDP3_SEL_FC0  (2u << 15) /* Freq clock  0 is output on SDP3. */
+#define TS_SDP3_SEL_FC1  (3u << 15) /* Freq clock  1 is output on SDP3. */
+#define TS_SDP3_EN       (1u << 17) /* SDP3 is assigned to Tsync. */
 
 #define E1000_MDICNFG_EXT_MDIO    0x80000000      /* MDI ext/int destination */
 #define E1000_MDICNFG_COM_MDIO    0x40000000      /* MDI shared w/ lan 0 */
 #define E1000_MDICNFG_PHY_MASK    0x03E00000
 #define E1000_MDICNFG_PHY_SHIFT   21
+
+#define E1000_MEDIA_PORT_COPPER			1
+#define E1000_MEDIA_PORT_OTHER			2
+#define E1000_M88E1112_AUTO_COPPER_SGMII	0x2
+#define E1000_M88E1112_AUTO_COPPER_BASEX	0x3
+#define E1000_M88E1112_STATUS_LINK		0x0004 /* Interface Link Bit */
+#define E1000_M88E1112_MAC_CTRL_1		0x10
+#define E1000_M88E1112_MAC_CTRL_1_MODE_MASK	0x0380 /* Mode Select */
+#define E1000_M88E1112_MAC_CTRL_1_MODE_SHIFT	7
+#define E1000_M88E1112_PAGE_ADDR		0x16
+#define E1000_M88E1112_STATUS			0x01
+#define E1000_M88E1512_CFG_REG_1		0x0010
+#define E1000_M88E1512_CFG_REG_2		0x0011
+#define E1000_M88E1512_CFG_REG_3		0x0007
+#define E1000_M88E1512_MODE			0x0014
 
 /* PCI Express Control */
 #define E1000_GCR_CMPL_TMOUT_MASK       0x0000F000
@@ -620,6 +720,7 @@
 #define E1000_EECD_SIZE_EX_SHIFT     11
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
+#define E1000_EECD_FLASH_DETECTED_I210	0x00080000 /* FLASH detected */
 #define E1000_FLUDONE_ATTEMPTS		20000
 #define E1000_EERD_EEWR_MAX_COUNT	512 /* buffered EEPROM words rw */
 #define E1000_I210_FIFO_SEL_RX		0x00
@@ -627,6 +728,11 @@
 #define E1000_I210_FIFO_SEL_TX_LEGACY	E1000_I210_FIFO_SEL_TX_QAV(0)
 #define E1000_I210_FIFO_SEL_BMC2OS_TX	0x06
 #define E1000_I210_FIFO_SEL_BMC2OS_RX	0x01
+#define E1000_I210_FLASH_SECTOR_SIZE	0x1000 /* 4KB FLASH sector unit size */
+/* Secure FLASH mode requires removing MSb */
+#define E1000_I210_FW_PTR_MASK		0x7FFF
+/* Firmware code revision field word offset*/
+#define E1000_I210_FW_VER_OFFSET	328
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
 #define E1000_FLUDONE_ATTEMPTS		20000
@@ -665,20 +771,26 @@
 #define NVM_INIT_CTRL_4            0x0013
 #define NVM_LED_1_CFG              0x001C
 #define NVM_LED_0_2_CFG            0x001F
-
-/* NVM version defines */
 #define NVM_ETRACK_WORD            0x0042
+#define NVM_ETRACK_HIWORD          0x0043
 #define NVM_COMB_VER_OFF           0x0083
 #define NVM_COMB_VER_PTR           0x003d
-#define NVM_MAJOR_MASK             0xF000
-#define NVM_MINOR_MASK             0x0FF0
-#define NVM_BUILD_MASK             0x000F
-#define NVM_COMB_VER_MASK          0x00FF
-#define NVM_MAJOR_SHIFT                12
-#define NVM_MINOR_SHIFT                 4
-#define NVM_COMB_VER_SHFT               8
-#define NVM_VER_INVALID            0xFFFF
-#define NVM_ETRACK_SHIFT               16
+
+/* NVM version defines */
+#define NVM_MAJOR_MASK			0xF000
+#define NVM_MINOR_MASK			0x0FF0
+#define NVM_IMAGE_ID_MASK		0x000F
+#define NVM_COMB_VER_MASK		0x00FF
+#define NVM_MAJOR_SHIFT			12
+#define NVM_MINOR_SHIFT			4
+#define NVM_COMB_VER_SHFT		8
+#define NVM_VER_INVALID			0xFFFF
+#define NVM_ETRACK_SHIFT		16
+#define NVM_ETRACK_VALID		0x8000
+#define NVM_NEW_DEC_MASK		0x0F00
+#define NVM_HEX_CONV			16
+#define NVM_HEX_TENS			10
+
 #define NVM_ETS_CFG			0x003E
 #define NVM_ETS_LTHRES_DELTA_MASK	0x07C0
 #define NVM_ETS_LTHRES_DELTA_SHIFT	6
@@ -775,7 +887,9 @@
 #define I350_I_PHY_ID        0x015403B0
 #define M88_VENDOR           0x0141
 #define I210_I_PHY_ID        0x01410C00
-#define M88E1545_E_PHY_ID    0x01410EA0
+#define M88E1543_E_PHY_ID    0x01410EA0
+#define M88E1512_E_PHY_ID    0x01410DD0
+#define BCM54616_E_PHY_ID    0x03625D10
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -837,7 +951,10 @@
 
 /* Intel i347-AT4 Registers */
 
-#define I347AT4_PCDL                   0x10 /* PHY Cable Diagnostics Length */
+#define I347AT4_PCDL0                  0x10 /* Pair 0 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL1                  0x11 /* Pair 1 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL2                  0x12 /* Pair 2 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL3                  0x13 /* Pair 3 PHY Cable Diagnostics Length */
 #define I347AT4_PCDC                   0x15 /* PHY Cable Diagnostics Control */
 #define I347AT4_PAGE_SELECT            0x16
 
@@ -897,13 +1014,14 @@
 #define E1000_EEE_LP_ADV_DEV_I210    7           /* EEE LP Adv Device */
 #define E1000_EEE_LP_ADV_ADDR_I210   61          /* EEE LP Adv Register */
 #define E1000_MMDAC_FUNC_DATA        0x4000      /* Data, no post increment */
-#define E1000_M88E1545_PAGE_ADDR	0x16       /* Page Offset Register */
-#define E1000_M88E1545_EEE_CTRL_1	0x0
-#define E1000_M88E1545_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
+#define E1000_M88E1543_PAGE_ADDR	0x16       /* Page Offset Register */
+#define E1000_M88E1543_EEE_CTRL_1	0x0
+#define E1000_M88E1543_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
+#define E1000_M88E1543_FIBER_CTRL	0x0
 #define E1000_EEE_ADV_DEV_I354		7
 #define E1000_EEE_ADV_ADDR_I354		60
-#define E1000_EEE_ADV_100_SUPPORTED	(1 << 1)   /* 100BaseTx EEE Supported */
-#define E1000_EEE_ADV_1000_SUPPORTED	(1 << 2)   /* 1000BaseT EEE Supported */
+#define E1000_EEE_ADV_100_SUPPORTED	BIT(1)   /* 100BaseTx EEE Supported */
+#define E1000_EEE_ADV_1000_SUPPORTED	BIT(2)   /* 1000BaseT EEE Supported */
 #define E1000_PCS_STATUS_DEV_I354	3
 #define E1000_PCS_STATUS_ADDR_I354	1
 #define E1000_PCS_STATUS_TX_LPI_IND	0x0200     /* Tx in LPI state */
@@ -920,8 +1038,7 @@
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK      0x1F
 
 /* DMA Coalescing register fields */
-#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision based
-                                                      on DMA coal */
+#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power on DMA coal */
 
 /* Tx Rate-Scheduler Config fields */
 #define E1000_RTTBCNRC_RS_ENA		0x80000000
@@ -929,5 +1046,9 @@
 #define E1000_RTTBCNRC_RF_INT_SHIFT	14
 #define E1000_RTTBCNRC_RF_INT_MASK	\
 	(E1000_RTTBCNRC_RF_DEC_MASK << E1000_RTTBCNRC_RF_INT_SHIFT)
+
+#define E1000_VLAPQF_QUEUE_SEL(_n, q_idx) (q_idx << ((_n) * 4))
+#define E1000_VLAPQF_P_VALID(_n)	(0x1 << (3 + (_n) * 4))
+#define E1000_VLAPQF_QUEUE_MASK	0x03
 
 #endif

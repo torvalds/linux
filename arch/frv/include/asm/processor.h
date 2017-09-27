@@ -35,22 +35,6 @@
 struct task_struct;
 
 /*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- */
-struct cpuinfo_frv {
-#ifdef CONFIG_MMU
-	unsigned long	*pgd_quick;
-	unsigned long	*pte_quick;
-	unsigned long	pgtable_cache_sz;
-#endif
-} __cacheline_aligned;
-
-extern struct cpuinfo_frv __nongprelbss boot_cpu_data;
-
-#define cpu_data		(&boot_cpu_data)
-#define current_cpu_data	boot_cpu_data
-
-/*
  * Bus types
  */
 #define EISA_bus 0
@@ -108,28 +92,12 @@ static inline void release_thread(struct task_struct *dead_task)
 extern asmlinkage void save_user_regs(struct user_context *target);
 extern asmlinkage void *restore_user_regs(const struct user_context *target, ...);
 
-#define copy_segments(tsk, mm)		do { } while (0)
-#define release_segments(mm)		do { } while (0)
-#define forget_segments()		do { } while (0)
-
-/*
- * Free current thread data structures etc..
- */
-static inline void exit_thread(void)
-{
-}
-
-/*
- * Return saved PC of a blocked thread.
- */
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
-
 unsigned long get_wchan(struct task_struct *p);
 
 #define	KSTK_EIP(tsk)	((tsk)->thread.frame0->pc)
 #define	KSTK_ESP(tsk)	((tsk)->thread.frame0->sp)
 
-#define cpu_relax()    barrier()
+#define cpu_relax() barrier()
 
 /* data cache prefetch */
 #define ARCH_HAS_PREFETCH

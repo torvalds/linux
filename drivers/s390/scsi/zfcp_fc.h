@@ -4,7 +4,7 @@
  * Fibre Channel related definitions and inline functions for the zfcp
  * device driver
  *
- * Copyright IBM Corp. 2009
+ * Copyright IBM Corp. 2009, 2017
  */
 
 #ifndef ZFCP_FC_H
@@ -212,7 +212,7 @@ static inline
 void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi,
 			 u8 tm_flags)
 {
-	char tag[2];
+	u32 datalen;
 
 	int_to_scsilun(scsi->device->lun, (struct scsi_lun *) &fcp->fc_lun);
 
@@ -221,17 +221,7 @@ void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi,
 		return;
 	}
 
-	if (scsi_populate_tag_msg(scsi, tag)) {
-		switch (tag[0]) {
-		case MSG_ORDERED_TAG:
-			fcp->fc_pri_ta |= FCP_PTA_ORDERED;
-			break;
-		case MSG_SIMPLE_TAG:
-			fcp->fc_pri_ta |= FCP_PTA_SIMPLE;
-			break;
-		};
-	} else
-		fcp->fc_pri_ta = FCP_PTA_SIMPLE;
+	fcp->fc_pri_ta = FCP_PTA_SIMPLE;
 
 	if (scsi->sc_data_direction == DMA_FROM_DEVICE)
 		fcp->fc_flags |= FCP_CFL_RDDATA;
@@ -240,10 +230,13 @@ void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi,
 
 	memcpy(fcp->fc_cdb, scsi->cmnd, scsi->cmd_len);
 
-	fcp->fc_dl = scsi_bufflen(scsi);
+	datalen = scsi_bufflen(scsi);
+	fcp->fc_dl = cpu_to_be32(datalen);
 
-	if (scsi_get_prot_type(scsi) == SCSI_PROT_DIF_TYPE1)
-		fcp->fc_dl += fcp->fc_dl / scsi->device->sector_size * 8;
+	if (scsi_get_prot_type(scsi) == SCSI_PROT_DIF_TYPE1) {
+		datalen += datalen / scsi->device->sector_size * 8;
+		fcp->fc_dl = cpu_to_be32(datalen);
+	}
 }
 
 /**
@@ -278,18 +271,22 @@ void zfcp_fc_eval_fcp_rsp(struct fcp_resp_with_ext *fcp_rsp,
 	if (unlikely(rsp_flags & FCP_SNS_LEN_VAL)) {
 		sense = (char *) &fcp_rsp[1];
 		if (rsp_flags & FCP_RSP_LEN_VAL)
-			sense += fcp_rsp->ext.fr_rsp_len;
-		sense_len = min(fcp_rsp->ext.fr_sns_len,
-				(u32) SCSI_SENSE_BUFFERSIZE);
+			sense += be32_to_cpu(fcp_rsp->ext.fr_rsp_len);
+		sense_len = min_t(u32, be32_to_cpu(fcp_rsp->ext.fr_sns_len),
+				  SCSI_SENSE_BUFFERSIZE);
 		memcpy(scsi->sense_buffer, sense, sense_len);
 	}
 
 	if (unlikely(rsp_flags & FCP_RESID_UNDER)) {
-		resid = fcp_rsp->ext.fr_resid;
+		resid = be32_to_cpu(fcp_rsp->ext.fr_resid);
 		scsi_set_resid(scsi, resid);
 		if (scsi_bufflen(scsi) - resid < scsi->underflow &&
 		     !(rsp_flags & FCP_SNS_LEN_VAL) &&
 		     fcp_rsp->resp.fr_status == SAM_STAT_GOOD)
+			set_host_byte(scsi, DID_ERROR);
+	} else if (unlikely(rsp_flags & FCP_RESID_OVER)) {
+		/* FCP_DL was not sufficient for SCSI data length */
+		if (fcp_rsp->resp.fr_status == SAM_STAT_GOOD)
 			set_host_byte(scsi, DID_ERROR);
 	}
 }

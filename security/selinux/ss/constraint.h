@@ -10,7 +10,7 @@
  * process from labeling an object with a different user
  * identity.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 #ifndef _SS_CONSTRAINT_H_
 #define _SS_CONSTRAINT_H_
@@ -48,6 +48,7 @@ struct constraint_expr {
 	u32 op;			/* operator */
 
 	struct ebitmap names;	/* names */
+	struct type_set *type_names;
 
 	struct constraint_expr *next;   /* next expression */
 };

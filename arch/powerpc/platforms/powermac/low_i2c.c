@@ -15,7 +15,7 @@
  * This file thus provides a simple low level unified i2c interface for
  * powermac that covers the various types of i2c busses used in Apple machines.
  * For now, keywest, PMU and SMU, though we could add Cuda, or other bit
- * banging busses found on older chipstes in earlier machines if we ever need
+ * banging busses found on older chipsets in earlier machines if we ever need
  * one of them.
  *
  * The drivers in this file are synchronous/blocking. In addition, the
@@ -90,6 +90,7 @@ struct pmac_i2c_bus
 	int			opened;
 	int			polled;		/* open mode */
 	struct platform_device	*platform_dev;
+	struct lock_class_key   lock_key;
 
 	/* ops */
 	int (*open)(struct pmac_i2c_bus *bus);
@@ -401,7 +402,7 @@ static int kw_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 {
 	struct pmac_i2c_host_kw *host = bus->hostdata;
 	u8 mode_reg = host->speed;
-	int use_irq = host->irq != NO_IRQ && !bus->polled;
+	int use_irq = host->irq && !bus->polled;
 
 	/* Setup mode & subaddress if any */
 	switch(bus->mode) {
@@ -452,7 +453,7 @@ static int kw_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	 */
 	if (use_irq) {
 		/* Clear completion */
-		INIT_COMPLETION(host->complete);
+		reinit_completion(&host->complete);
 		/* Ack stale interrupts */
 		kw_write_reg(reg_isr, kw_read_reg(reg_isr));
 		/* Arm timeout */
@@ -493,8 +494,8 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 
 	host = kzalloc(sizeof(struct pmac_i2c_host_kw), GFP_KERNEL);
 	if (host == NULL) {
-		printk(KERN_ERR "low_i2c: Can't allocate host for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "low_i2c: Can't allocate host for %pOF\n",
+		       np);
 		return NULL;
 	}
 
@@ -504,8 +505,8 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	 */
 	addrp = of_get_property(np, "AAPL,address", NULL);
 	if (addrp == NULL) {
-		printk(KERN_ERR "low_i2c: Can't find address for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "low_i2c: Can't find address for %pOF\n",
+		       np);
 		kfree(host);
 		return NULL;
 	}
@@ -535,15 +536,15 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 		break;
 	}	
 	host->irq = irq_of_parse_and_map(np, 0);
-	if (host->irq == NO_IRQ)
+	if (!host->irq)
 		printk(KERN_WARNING
-		       "low_i2c: Failed to map interrupt for %s\n",
-		       np->full_name);
+		       "low_i2c: Failed to map interrupt for %pOF\n",
+		       np);
 
 	host->base = ioremap((*addrp), 0x1000);
 	if (host->base == NULL) {
-		printk(KERN_ERR "low_i2c: Can't map registers for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "low_i2c: Can't map registers for %pOF\n",
+		       np);
 		kfree(host);
 		return NULL;
 	}
@@ -557,10 +558,10 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	 */
 	if (request_irq(host->irq, kw_i2c_irq, IRQF_NO_SUSPEND,
 			"keywest i2c", host))
-		host->irq = NO_IRQ;
+		host->irq = 0;
 
-	printk(KERN_INFO "KeyWest i2c @0x%08x irq %d %s\n",
-	       *addrp, host->irq, np->full_name);
+	printk(KERN_INFO "KeyWest i2c @0x%08x irq %d %pOF\n",
+	       *addrp, host->irq, np);
 
 	return host;
 }
@@ -587,6 +588,7 @@ static void __init kw_i2c_add(struct pmac_i2c_host_kw *host,
 	bus->close = kw_i2c_close;
 	bus->xfer = kw_i2c_xfer;
 	mutex_init(&bus->mutex);
+	lockdep_set_class(&bus->mutex, &bus->lock_key);
 	if (controller == busnode)
 		bus->flags = pmac_i2c_multibus;
 	list_add(&bus->link, &pmac_i2c_busses);
@@ -717,7 +719,7 @@ static int pmu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 			return -EINVAL;
 		}
 
-		INIT_COMPLETION(comp);
+		reinit_completion(&comp);
 		req->data[0] = PMU_I2C_CMD;
 		req->reply[0] = 0xff;
 		req->nbytes = sizeof(struct pmu_i2c_hdr) + 1;
@@ -748,7 +750,7 @@ static int pmu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 
 		hdr->bus = PMU_I2C_BUS_STATUS;
 
-		INIT_COMPLETION(comp);
+		reinit_completion(&comp);
 		req->data[0] = PMU_I2C_CMD;
 		req->reply[0] = 0xff;
 		req->nbytes = 2;
@@ -796,7 +798,7 @@ static void __init pmu_i2c_probe(void)
 	if (busnode == NULL)
 		return;
 
-	printk(KERN_INFO "PMU i2c %s\n", busnode->full_name);
+	printk(KERN_INFO "PMU i2c %pOF\n", busnode);
 
 	/*
 	 * We add bus 1 and 2 only for now, bus 0 is "special"
@@ -815,6 +817,7 @@ static void __init pmu_i2c_probe(void)
 		bus->hostdata = bus + 1;
 		bus->xfer = pmu_i2c_xfer;
 		mutex_init(&bus->mutex);
+		lockdep_set_class(&bus->mutex, &bus->lock_key);
 		bus->flags = pmac_i2c_multibus;
 		list_add(&bus->link, &pmac_i2c_busses);
 
@@ -910,7 +913,7 @@ static void __init smu_i2c_probe(void)
 	if (controller == NULL)
 		return;
 
-	printk(KERN_INFO "SMU i2c %s\n", controller->full_name);
+	printk(KERN_INFO "SMU i2c %pOF\n", controller);
 
 	/* Look for childs, note that they might not be of the right
 	 * type as older device trees mix i2c busses and other things
@@ -938,11 +941,12 @@ static void __init smu_i2c_probe(void)
 		bus->hostdata = bus + 1;
 		bus->xfer = smu_i2c_xfer;
 		mutex_init(&bus->mutex);
+		lockdep_set_class(&bus->mutex, &bus->lock_key);
 		bus->flags = 0;
 		list_add(&bus->link, &pmac_i2c_busses);
 
-		printk(KERN_INFO " channel %x bus %s\n",
-		       bus->channel, busnode->full_name);
+		printk(KERN_INFO " channel %x bus %pOF\n",
+		       bus->channel, busnode);
 	}
 }
 
@@ -1125,7 +1129,7 @@ int pmac_i2c_setmode(struct pmac_i2c_bus *bus, int mode)
 	 */
 	if (mode < pmac_i2c_mode_dumb || mode > pmac_i2c_mode_combined) {
 		printk(KERN_ERR "low_i2c: Invalid mode %d requested on"
-		       " bus %s !\n", mode, bus->busnode->full_name);
+		       " bus %pOF !\n", mode, bus->busnode);
 		return -EINVAL;
 	}
 	bus->mode = mode;
@@ -1142,8 +1146,8 @@ int pmac_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	WARN_ON(!bus->opened);
 
 	DBG("xfer() chan=%d, addrdir=0x%x, mode=%d, subsize=%d, subaddr=0x%x,"
-	    " %d bytes, bus %s\n", bus->channel, addrdir, bus->mode, subsize,
-	    subaddr, len, bus->busnode->full_name);
+	    " %d bytes, bus %pOF\n", bus->channel, addrdir, bus->mode, subsize,
+	    subaddr, len, bus->busnode);
 
 	rc = bus->xfer(bus, addrdir, subsize, subaddr, data, len);
 
@@ -1237,13 +1241,13 @@ static void* pmac_i2c_do_begin(struct pmf_function *func, struct pmf_args *args)
 
 	bus = pmac_i2c_find_bus(func->node);
 	if (bus == NULL) {
-		printk(KERN_ERR "low_i2c: Can't find bus for %s (pfunc)\n",
-		       func->node->full_name);
+		printk(KERN_ERR "low_i2c: Can't find bus for %pOF (pfunc)\n",
+		       func->node);
 		return NULL;
 	}
 	if (pmac_i2c_open(bus, 0)) {
-		printk(KERN_ERR "low_i2c: Can't open i2c bus for %s (pfunc)\n",
-		       func->node->full_name);
+		printk(KERN_ERR "low_i2c: Can't open i2c bus for %pOF (pfunc)\n",
+		       func->node);
 		return NULL;
 	}
 
@@ -1413,7 +1417,7 @@ static struct pmf_handlers pmac_i2c_pfunc_handlers = {
 
 static void __init pmac_i2c_dev_create(struct device_node *np, int quirks)
 {
-	DBG("dev_create(%s)\n", np->full_name);
+	DBG("dev_create(%pOF)\n", np);
 
 	pmf_register_driver(np, &pmac_i2c_pfunc_handlers,
 			    (void *)(long)quirks);
@@ -1421,20 +1425,20 @@ static void __init pmac_i2c_dev_create(struct device_node *np, int quirks)
 
 static void __init pmac_i2c_dev_init(struct device_node *np, int quirks)
 {
-	DBG("dev_create(%s)\n", np->full_name);
+	DBG("dev_create(%pOF)\n", np);
 
 	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_INIT, NULL);
 }
 
 static void pmac_i2c_dev_suspend(struct device_node *np, int quirks)
 {
-	DBG("dev_suspend(%s)\n", np->full_name);
+	DBG("dev_suspend(%pOF)\n", np);
 	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_SLEEP, NULL);
 }
 
 static void pmac_i2c_dev_resume(struct device_node *np, int quirks)
 {
-	DBG("dev_resume(%s)\n", np->full_name);
+	DBG("dev_resume(%pOF)\n", np);
 	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_WAKE, NULL);
 }
 

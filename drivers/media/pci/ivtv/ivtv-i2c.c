@@ -63,7 +63,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-gpio.h"
 #include "ivtv-i2c.h"
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 
 /* i2c implementation for cx23415/6 chip, ivtv project.
  * Author: Kevin Thayer (nufan_wfk at yahoo.com)
@@ -148,7 +148,8 @@ static const char * const hw_devicenames[] = {
 	"ir_video",		/* IVTV_HW_I2C_IR_RX_ADAPTEC */
 };
 
-static int get_key_adaptec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_adaptec(struct IR_i2c *ir, enum rc_proto *protocol,
+			   u32 *scancode, u8 *toggle)
 {
 	unsigned char keybuf[4];
 
@@ -167,9 +168,9 @@ static int get_key_adaptec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	keybuf[2] &= 0x7f;
 	keybuf[3] |= 0x80;
 
-	*ir_key = keybuf[3] | keybuf[2] << 8 | keybuf[1] << 16 |keybuf[0] << 24;
-	*ir_raw = *ir_key;
-
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = keybuf[3] | keybuf[2] << 8 | keybuf[1] << 16 |keybuf[0] << 24;
+	*toggle = 0;
 	return 1;
 }
 
@@ -200,21 +201,22 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 		init_data->ir_codes = RC_MAP_AVERMEDIA_CARDBUS;
 		init_data->internal_get_key_func =
 					IR_KBD_GET_KEY_AVERMEDIA_CARDBUS;
-		init_data->type = RC_BIT_OTHER;
+		init_data->type = RC_PROTO_BIT_OTHER;
 		init_data->name = "AVerMedia AVerTV card";
 		break;
 	case IVTV_HW_I2C_IR_RX_HAUP_EXT:
 	case IVTV_HW_I2C_IR_RX_HAUP_INT:
 		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
-		init_data->type = RC_BIT_RC5;
+		init_data->type = RC_PROTO_BIT_RC5;
 		init_data->name = itv->card_name;
 		break;
 	case IVTV_HW_Z8F0811_IR_RX_HAUP:
 		/* Default to grey remote */
 		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type = RC_BIT_RC5;
+		init_data->type = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
+							RC_PROTO_BIT_RC6_6A_32;
 		init_data->name = itv->card_name;
 		break;
 	case IVTV_HW_I2C_IR_RX_ADAPTEC:
@@ -222,7 +224,7 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 		init_data->name = itv->card_name;
 		/* FIXME: The protocol and RC_MAP needs to be corrected */
 		init_data->ir_codes = RC_MAP_EMPTY;
-		init_data->type = RC_BIT_UNKNOWN;
+		init_data->type = RC_PROTO_BIT_UNKNOWN;
 		break;
 	}
 
@@ -624,13 +626,13 @@ static u32 ivtv_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm ivtv_algo = {
+static const struct i2c_algorithm ivtv_algo = {
 	.master_xfer   = ivtv_xfer,
 	.functionality = ivtv_functionality,
 };
 
 /* template for our-bit banger */
-static struct i2c_adapter ivtv_i2c_adap_hw_template = {
+static const struct i2c_adapter ivtv_i2c_adap_hw_template = {
 	.name = "ivtv i2c driver",
 	.algo = &ivtv_algo,
 	.algo_data = NULL,			/* filled from template */
@@ -680,7 +682,7 @@ static int ivtv_getsda_old(void *data)
 }
 
 /* template for i2c-bit-algo */
-static struct i2c_adapter ivtv_i2c_adap_template = {
+static const struct i2c_adapter ivtv_i2c_adap_template = {
 	.name = "ivtv i2c driver",
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */

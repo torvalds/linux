@@ -1,7 +1,7 @@
 /*
  * shmob_drm_plane.c  --  SH Mobile DRM Planes
  *
- * Copyright (C) 2012 Renesas Corporation
+ * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -177,16 +177,17 @@ shmob_drm_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		       unsigned int crtc_w, unsigned int crtc_h,
 		       uint32_t src_x, uint32_t src_y,
-		       uint32_t src_w, uint32_t src_h)
+		       uint32_t src_w, uint32_t src_h,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
 	struct shmob_drm_device *sdev = plane->dev->dev_private;
 	const struct shmob_drm_format_info *format;
 
-	format = shmob_drm_format_info(fb->pixel_format);
+	format = shmob_drm_format_info(fb->format->format);
 	if (format == NULL) {
 		dev_dbg(sdev->dev, "update_plane: unsupported format %08x\n",
-			fb->pixel_format);
+			fb->format->format);
 		return -EINVAL;
 	}
 
@@ -208,7 +209,8 @@ shmob_drm_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	return 0;
 }
 
-static int shmob_drm_plane_disable(struct drm_plane *plane)
+static int shmob_drm_plane_disable(struct drm_plane *plane,
+				   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
 	struct shmob_drm_device *sdev = plane->dev->dev_private;
@@ -221,7 +223,7 @@ static int shmob_drm_plane_disable(struct drm_plane *plane)
 
 static void shmob_drm_plane_destroy(struct drm_plane *plane)
 {
-	shmob_drm_plane_disable(plane);
+	drm_plane_force_disable(plane);
 	drm_plane_cleanup(plane);
 }
 

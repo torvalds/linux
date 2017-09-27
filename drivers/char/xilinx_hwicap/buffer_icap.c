@@ -269,8 +269,7 @@ int buffer_icap_set_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 {
 	int status;
 	s32 buffer_count = 0;
-	s32 num_writes = 0;
-	bool dirty = 0;
+	bool dirty = false;
 	u32 i;
 	void __iomem *base_address = drvdata->base_address;
 
@@ -279,7 +278,7 @@ int buffer_icap_set_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 
 		/* Copy data to bram */
 		buffer_icap_set_bram(base_address, buffer_count, data[i]);
-		dirty = 1;
+		dirty = true;
 
 		if (buffer_count < XHI_MAX_BUFFER_INTS - 1) {
 			buffer_count++;
@@ -298,8 +297,7 @@ int buffer_icap_set_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 		}
 
 		buffer_count = 0;
-		num_writes++;
-		dirty = 0;
+		dirty = false;
 	}
 
 	/* Write unwritten data to ICAP */
@@ -328,7 +326,6 @@ int buffer_icap_get_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 {
 	int status;
 	s32 buffer_count = 0;
-	s32 read_count = 0;
 	u32 i;
 	void __iomem *base_address = drvdata->base_address;
 
@@ -353,7 +350,6 @@ int buffer_icap_get_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 			}
 
 			buffer_count = 0;
-			read_count++;
 		}
 
 		/* Copy data from bram */

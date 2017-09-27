@@ -113,7 +113,6 @@ static void pptp_expectfn(struct nf_conn *ct,
 	/* Can you see how rusty this code is, compared with the pre-2.6.11
 	 * one? That's what happened to my shiny newnat of 2002 ;( -HW */
 
-	rcu_read_lock();
 	nf_nat_pptp_expectfn = rcu_dereference(nf_nat_pptp_hook_expectfn);
 	if (nf_nat_pptp_expectfn && ct->master->status & IPS_NAT_MASK)
 		nf_nat_pptp_expectfn(ct, exp);
@@ -136,28 +135,27 @@ static void pptp_expectfn(struct nf_conn *ct,
 			pr_debug("not found\n");
 		}
 	}
-	rcu_read_unlock();
 }
 
 static int destroy_sibling_or_exp(struct net *net, struct nf_conn *ct,
 				  const struct nf_conntrack_tuple *t)
 {
 	const struct nf_conntrack_tuple_hash *h;
+	const struct nf_conntrack_zone *zone;
 	struct nf_conntrack_expect *exp;
 	struct nf_conn *sibling;
-	u16 zone = nf_ct_zone(ct);
 
 	pr_debug("trying to timeout ct or exp for tuple ");
 	nf_ct_dump_tuple(t);
 
+	zone = nf_ct_zone(ct);
 	h = nf_conntrack_find_get(net, zone, t);
 	if (h)  {
 		sibling = nf_ct_tuplehash_to_ctrack(h);
 		pr_debug("setting timeout of conntrack %p to 0\n", sibling);
 		sibling->proto.gre.timeout	  = 0;
 		sibling->proto.gre.stream_timeout = 0;
-		if (del_timer(&sibling->timeout))
-			sibling->timeout.function((unsigned long)sibling);
+		nf_ct_kill(sibling);
 		nf_ct_put(sibling);
 		return 1;
 	} else {
@@ -263,7 +261,7 @@ out_unexpect_orig:
 	goto out_put_both;
 }
 
-static inline int
+static int
 pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		 struct PptpControlHeader *ctlh,
 		 union pptp_ctrl_union *pptpReq,
@@ -391,7 +389,7 @@ invalid:
 	return NF_ACCEPT;
 }
 
-static inline int
+static int
 pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		  struct PptpControlHeader *ctlh,
 		  union pptp_ctrl_union *pptpReq,
@@ -523,6 +521,14 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 	int ret;
 	u_int16_t msg;
 
+#if IS_ENABLED(CONFIG_NF_NAT)
+	if (!nf_ct_is_confirmed(ct) && (ct->status & IPS_NAT_MASK)) {
+		struct nf_conn_nat *nat = nf_ct_ext_find(ct, NF_CT_EXT_NAT);
+
+		if (!nat && !nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC))
+			return NF_DROP;
+	}
+#endif
 	/* don't do any tracking before tcp handshake complete */
 	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
@@ -596,7 +602,6 @@ static const struct nf_conntrack_expect_policy pptp_exp_policy = {
 static struct nf_conntrack_helper pptp __read_mostly = {
 	.name			= "pptp",
 	.me			= THIS_MODULE,
-	.data_len		= sizeof(struct nf_ct_pptp_master),
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.tcp.port	= cpu_to_be16(PPTP_CONTROL_PORT),
 	.tuple.dst.protonum	= IPPROTO_TCP,
@@ -605,32 +610,16 @@ static struct nf_conntrack_helper pptp __read_mostly = {
 	.expect_policy		= &pptp_exp_policy,
 };
 
-static void nf_conntrack_pptp_net_exit(struct net *net)
-{
-	nf_ct_gre_keymap_flush(net);
-}
-
-static struct pernet_operations nf_conntrack_pptp_net_ops = {
-	.exit = nf_conntrack_pptp_net_exit,
-};
-
 static int __init nf_conntrack_pptp_init(void)
 {
-	int rv;
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_pptp_master));
 
-	rv = nf_conntrack_helper_register(&pptp);
-	if (rv < 0)
-		return rv;
-	rv = register_pernet_subsys(&nf_conntrack_pptp_net_ops);
-	if (rv < 0)
-		nf_conntrack_helper_unregister(&pptp);
-	return rv;
+	return nf_conntrack_helper_register(&pptp);
 }
 
 static void __exit nf_conntrack_pptp_fini(void)
 {
 	nf_conntrack_helper_unregister(&pptp);
-	unregister_pernet_subsys(&nf_conntrack_pptp_net_ops);
 }
 
 module_init(nf_conntrack_pptp_init);

@@ -1,7 +1,7 @@
 /*
  * Implementation of the extensible bitmap type.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 /*
  * Updated: Hewlett-Packard <paul@paul-moore.com>
@@ -23,6 +23,8 @@
 #include "policydb.h"
 
 #define BITS_PER_U64	(sizeof(u64) * 8)
+
+static struct kmem_cache *ebitmap_node_cachep;
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
 {
@@ -54,7 +56,7 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
 	n = src->node;
 	prev = NULL;
 	while (n) {
-		new = kzalloc(sizeof(*new), GFP_ATOMIC);
+		new = kmem_cache_zalloc(ebitmap_node_cachep, GFP_ATOMIC);
 		if (!new) {
 			ebitmap_destroy(dst);
 			return -ENOMEM;
@@ -86,51 +88,36 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
  *
  */
 int ebitmap_netlbl_export(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap **catmap)
+			  struct netlbl_lsm_catmap **catmap)
 {
 	struct ebitmap_node *e_iter = ebmap->node;
-	struct netlbl_lsm_secattr_catmap *c_iter;
-	u32 cmap_idx, cmap_sft;
-	int i;
-
-	/* NetLabel's NETLBL_CATMAP_MAPTYPE is defined as an array of u64,
-	 * however, it is not always compatible with an array of unsigned long
-	 * in ebitmap_node.
-	 * In addition, you should pay attention the following implementation
-	 * assumes unsigned long has a width equal with or less than 64-bit.
-	 */
+	unsigned long e_map;
+	u32 offset;
+	unsigned int iter;
+	int rc;
 
 	if (e_iter == NULL) {
 		*catmap = NULL;
 		return 0;
 	}
 
-	c_iter = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
-	if (c_iter == NULL)
-		return -ENOMEM;
-	*catmap = c_iter;
-	c_iter->startbit = e_iter->startbit & ~(NETLBL_CATMAP_SIZE - 1);
+	if (*catmap != NULL)
+		netlbl_catmap_free(*catmap);
+	*catmap = NULL;
 
 	while (e_iter) {
-		for (i = 0; i < EBITMAP_UNIT_NUMS; i++) {
-			unsigned int delta, e_startbit, c_endbit;
-
-			e_startbit = e_iter->startbit + i * EBITMAP_UNIT_SIZE;
-			c_endbit = c_iter->startbit + NETLBL_CATMAP_SIZE;
-			if (e_startbit >= c_endbit) {
-				c_iter->next
-				  = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
-				if (c_iter->next == NULL)
+		offset = e_iter->startbit;
+		for (iter = 0; iter < EBITMAP_UNIT_NUMS; iter++) {
+			e_map = e_iter->maps[iter];
+			if (e_map != 0) {
+				rc = netlbl_catmap_setlong(catmap,
+							   offset,
+							   e_map,
+							   GFP_ATOMIC);
+				if (rc != 0)
 					goto netlbl_export_failure;
-				c_iter = c_iter->next;
-				c_iter->startbit
-				  = e_startbit & ~(NETLBL_CATMAP_SIZE - 1);
 			}
-			delta = e_startbit - c_iter->startbit;
-			cmap_idx = delta / NETLBL_CATMAP_MAPSIZE;
-			cmap_sft = delta % NETLBL_CATMAP_MAPSIZE;
-			c_iter->bitmap[cmap_idx]
-				|= e_iter->maps[i] << cmap_sft;
+			offset += EBITMAP_UNIT_SIZE;
 		}
 		e_iter = e_iter->next;
 	}
@@ -138,7 +125,7 @@ int ebitmap_netlbl_export(struct ebitmap *ebmap,
 	return 0;
 
 netlbl_export_failure:
-	netlbl_secattr_catmap_free(*catmap);
+	netlbl_catmap_free(*catmap);
 	return -ENOMEM;
 }
 
@@ -153,58 +140,50 @@ netlbl_export_failure:
  *
  */
 int ebitmap_netlbl_import(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap *catmap)
+			  struct netlbl_lsm_catmap *catmap)
 {
+	int rc;
 	struct ebitmap_node *e_iter = NULL;
-	struct ebitmap_node *emap_prev = NULL;
-	struct netlbl_lsm_secattr_catmap *c_iter = catmap;
-	u32 c_idx, c_pos, e_idx, e_sft;
+	struct ebitmap_node *e_prev = NULL;
+	u32 offset = 0, idx;
+	unsigned long bitmap;
 
-	/* NetLabel's NETLBL_CATMAP_MAPTYPE is defined as an array of u64,
-	 * however, it is not always compatible with an array of unsigned long
-	 * in ebitmap_node.
-	 * In addition, you should pay attention the following implementation
-	 * assumes unsigned long has a width equal with or less than 64-bit.
-	 */
+	for (;;) {
+		rc = netlbl_catmap_getlong(catmap, &offset, &bitmap);
+		if (rc < 0)
+			goto netlbl_import_failure;
+		if (offset == (u32)-1)
+			return 0;
 
-	do {
-		for (c_idx = 0; c_idx < NETLBL_CATMAP_MAPCNT; c_idx++) {
-			unsigned int delta;
-			u64 map = c_iter->bitmap[c_idx];
-
-			if (!map)
-				continue;
-
-			c_pos = c_iter->startbit
-				+ c_idx * NETLBL_CATMAP_MAPSIZE;
-			if (!e_iter
-			    || c_pos >= e_iter->startbit + EBITMAP_SIZE) {
-				e_iter = kzalloc(sizeof(*e_iter), GFP_ATOMIC);
-				if (!e_iter)
-					goto netlbl_import_failure;
-				e_iter->startbit
-					= c_pos - (c_pos % EBITMAP_SIZE);
-				if (emap_prev == NULL)
-					ebmap->node = e_iter;
-				else
-					emap_prev->next = e_iter;
-				emap_prev = e_iter;
-			}
-			delta = c_pos - e_iter->startbit;
-			e_idx = delta / EBITMAP_UNIT_SIZE;
-			e_sft = delta % EBITMAP_UNIT_SIZE;
-			while (map) {
-				e_iter->maps[e_idx++] |= map & (-1UL);
-				map = EBITMAP_SHIFT_UNIT_SIZE(map);
-			}
+		/* don't waste ebitmap space if the netlabel bitmap is empty */
+		if (bitmap == 0) {
+			offset += EBITMAP_UNIT_SIZE;
+			continue;
 		}
-		c_iter = c_iter->next;
-	} while (c_iter);
-	if (e_iter != NULL)
-		ebmap->highbit = e_iter->startbit + EBITMAP_SIZE;
-	else
-		ebitmap_destroy(ebmap);
 
+		if (e_iter == NULL ||
+		    offset >= e_iter->startbit + EBITMAP_SIZE) {
+			e_prev = e_iter;
+			e_iter = kmem_cache_zalloc(ebitmap_node_cachep, GFP_ATOMIC);
+			if (e_iter == NULL)
+				goto netlbl_import_failure;
+			e_iter->startbit = offset - (offset % EBITMAP_SIZE);
+			if (e_prev == NULL)
+				ebmap->node = e_iter;
+			else
+				e_prev->next = e_iter;
+			ebmap->highbit = e_iter->startbit + EBITMAP_SIZE;
+		}
+
+		/* offset will always be aligned to an unsigned long */
+		idx = EBITMAP_NODE_INDEX(e_iter, offset);
+		e_iter->maps[idx] = bitmap;
+
+		/* next */
+		offset += EBITMAP_UNIT_SIZE;
+	}
+
+	/* NOTE: we should never reach this return */
 	return 0;
 
 netlbl_import_failure:
@@ -213,7 +192,12 @@ netlbl_import_failure:
 }
 #endif /* CONFIG_NETLABEL */
 
-int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2)
+/*
+ * Check to see if all the bits set in e2 are also set in e1. Optionally,
+ * if last_e2bit is non-zero, the highest set bit in e2 cannot exceed
+ * last_e2bit.
+ */
+int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2, u32 last_e2bit)
 {
 	struct ebitmap_node *n1, *n2;
 	int i;
@@ -223,14 +207,25 @@ int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2)
 
 	n1 = e1->node;
 	n2 = e2->node;
+
 	while (n1 && n2 && (n1->startbit <= n2->startbit)) {
 		if (n1->startbit < n2->startbit) {
 			n1 = n1->next;
 			continue;
 		}
-		for (i = 0; i < EBITMAP_UNIT_NUMS; i++) {
+		for (i = EBITMAP_UNIT_NUMS - 1; (i >= 0) && !n2->maps[i]; )
+			i--;	/* Skip trailing NULL map entries */
+		if (last_e2bit && (i >= 0)) {
+			u32 lastsetbit = n2->startbit + i * EBITMAP_UNIT_SIZE +
+					 __fls(n2->maps[i]);
+			if (lastsetbit > last_e2bit)
+				return 0;
+		}
+
+		while (i >= 0) {
 			if ((n1->maps[i] & n2->maps[i]) != n2->maps[i])
 				return 0;
+			i--;
 		}
 
 		n1 = n1->next;
@@ -295,7 +290,7 @@ int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value)
 					prev->next = n->next;
 				else
 					e->node = n->next;
-				kfree(n);
+				kmem_cache_free(ebitmap_node_cachep, n);
 			}
 			return 0;
 		}
@@ -306,7 +301,7 @@ int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value)
 	if (!value)
 		return 0;
 
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+	new = kmem_cache_zalloc(ebitmap_node_cachep, GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
 
@@ -339,7 +334,7 @@ void ebitmap_destroy(struct ebitmap *e)
 	while (n) {
 		temp = n;
 		n = n->next;
-		kfree(temp);
+		kmem_cache_free(ebitmap_node_cachep, temp);
 	}
 
 	e->highbit = 0;
@@ -367,7 +362,7 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 
 	if (mapunit != BITS_PER_U64) {
 		printk(KERN_ERR "SELinux: ebitmap: map size %u does not "
-		       "match my size %Zd (high bit was %d)\n",
+		       "match my size %zd (high bit was %d)\n",
 		       mapunit, BITS_PER_U64, e->highbit);
 		goto bad;
 	}
@@ -380,6 +375,9 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 		e->node = NULL;
 		goto ok;
 	}
+
+	if (e->highbit && !count)
+		goto bad;
 
 	for (i = 0; i < count; i++) {
 		rc = next_entry(&startbit, fp, sizeof(u32));
@@ -404,7 +402,7 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 
 		if (!n || startbit >= n->startbit + EBITMAP_SIZE) {
 			struct ebitmap_node *tmp;
-			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+			tmp = kmem_cache_zalloc(ebitmap_node_cachep, GFP_KERNEL);
 			if (!tmp) {
 				printk(KERN_ERR
 				       "SELinux: ebitmap: out of memory\n");
@@ -522,4 +520,16 @@ int ebitmap_write(struct ebitmap *e, void *fp)
 			return rc;
 	}
 	return 0;
+}
+
+void ebitmap_cache_init(void)
+{
+	ebitmap_node_cachep = kmem_cache_create("ebitmap_node",
+							sizeof(struct ebitmap_node),
+							0, SLAB_PANIC, NULL);
+}
+
+void ebitmap_cache_destroy(void)
+{
+	kmem_cache_destroy(ebitmap_node_cachep);
 }

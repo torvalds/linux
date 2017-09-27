@@ -11,16 +11,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pch_dma.h>
@@ -360,14 +357,13 @@ static void pdc_chain_complete(struct pch_dma_chan *pd_chan,
 			       struct pch_dma_desc *desc)
 {
 	struct dma_async_tx_descriptor *txd = &desc->txd;
-	dma_async_tx_callback callback = txd->callback;
-	void *param = txd->callback_param;
+	struct dmaengine_desc_callback cb;
 
+	dmaengine_desc_get_callback(txd, &cb);
 	list_splice_init(&desc->tx_list, &pd_chan->free_list);
 	list_move(&desc->desc_node, &pd_chan->free_list);
 
-	if (callback)
-		callback(param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 }
 
 static void pdc_complete_all(struct pch_dma_chan *pd_chan)
@@ -421,10 +417,8 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 {
 	struct pch_dma_desc *desc = to_pd_desc(txd);
 	struct pch_dma_chan *pd_chan = to_pd_chan(txd->chan);
-	dma_cookie_t cookie;
 
 	spin_lock(&pd_chan->lock);
-	cookie = dma_cookie_assign(txd);
 
 	if (list_empty(&pd_chan->active_list)) {
 		list_add_tail(&desc->desc_node, &pd_chan->active_list);
@@ -443,9 +437,8 @@ static struct pch_dma_desc *pdc_alloc_desc(struct dma_chan *chan, gfp_t flags)
 	struct pch_dma *pd = to_pd(chan->device);
 	dma_addr_t addr;
 
-	desc = pci_pool_alloc(pd->pool, flags, &addr);
+	desc = pci_pool_zalloc(pd->pool, flags, &addr);
 	if (desc) {
-		memset(desc, 0, sizeof(struct pch_dma_desc));
 		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		desc->txd.tx_submit = pd_tx_submit;
@@ -564,14 +557,7 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				    struct dma_tx_state *txstate)
 {
-	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
-	enum dma_status ret;
-
-	spin_lock_irq(&pd_chan->lock);
-	ret = dma_cookie_status(chan, cookie, txstate);
-	spin_unlock_irq(&pd_chan->lock);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void pd_issue_pending(struct dma_chan *chan)
@@ -671,15 +657,11 @@ err_desc_get:
 	return NULL;
 }
 
-static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-			     unsigned long arg)
+static int pd_device_terminate_all(struct dma_chan *chan)
 {
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 	struct pch_dma_desc *desc, *_d;
 	LIST_HEAD(list);
-
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
 
 	spin_lock_irq(&pd_chan->lock);
 
@@ -938,7 +920,7 @@ static int pch_dma_probe(struct pci_dev *pdev,
 	pd->dma.device_tx_status = pd_tx_status;
 	pd->dma.device_issue_pending = pd_issue_pending;
 	pd->dma.device_prep_slave_sg = pd_prep_slave_sg;
-	pd->dma.device_control = pd_device_control;
+	pd->dma.device_terminate_all = pd_device_terminate_all;
 
 	err = dma_async_device_register(&pd->dma);
 	if (err) {
@@ -959,6 +941,7 @@ err_free_res:
 err_disable_pdev:
 	pci_disable_device(pdev);
 err_free_mem:
+	kfree(pd);
 	return err;
 }
 
@@ -971,16 +954,16 @@ static void pch_dma_remove(struct pci_dev *pdev)
 	if (pd) {
 		dma_async_device_unregister(&pd->dma);
 
+		free_irq(pdev->irq, pd);
+
 		list_for_each_entry_safe(chan, _c, &pd->dma.channels,
 					 device_node) {
 			pd_chan = to_pd_chan(chan);
 
-			tasklet_disable(&pd_chan->tasklet);
 			tasklet_kill(&pd_chan->tasklet);
 		}
 
 		pci_pool_destroy(pd->pool);
-		free_irq(pdev->irq, pd);
 		pci_iounmap(pdev, pd->membase);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
@@ -1003,7 +986,7 @@ static void pch_dma_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_ML7831_DMA1_8CH	0x8810
 #define PCI_DEVICE_ID_ML7831_DMA2_4CH	0x8815
 
-DEFINE_PCI_DEVICE_TABLE(pch_dma_id_table) = {
+static const struct pci_device_id pch_dma_id_table[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_8CH), 8 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_4CH), 4 },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA1_8CH), 8}, /* UART Video */
@@ -1036,3 +1019,4 @@ MODULE_DESCRIPTION("Intel EG20T PCH / LAPIS Semicon ML7213/ML7223/ML7831 IOH "
 		   "DMA controller driver");
 MODULE_AUTHOR("Yong Wang <yong.y.wang@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(pci, pch_dma_id_table);

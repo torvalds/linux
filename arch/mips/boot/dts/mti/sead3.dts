@@ -1,0 +1,258 @@
+/dts-v1/;
+
+/memreserve/ 0x00000000 0x00001000;	// reserved
+/memreserve/ 0x00001000 0x000ef000;	// ROM data
+/memreserve/ 0x000f0000 0x004cc000;	// reserved
+
+#include <dt-bindings/interrupt-controller/mips-gic.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "mti,sead-3";
+	model = "MIPS SEAD-3";
+
+	chosen {
+		stdout-path = "serial1:115200";
+	};
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	cpus {
+		cpu@0 {
+			compatible = "mti,mips14KEc", "mti,mips14Kc";
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x08000000>;
+	};
+
+	cpu_intc: interrupt-controller {
+		compatible = "mti,cpu-interrupt-controller";
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	gic: interrupt-controller@1b1c0000 {
+		compatible = "mti,gic";
+		reg = <0x1b1c0000 0x20000>;
+
+		interrupt-controller;
+		#interrupt-cells = <3>;
+
+		/*
+		 * Declare the interrupt-parent even though the mti,gic
+		 * binding doesn't require it, such that the kernel can
+		 * figure out that cpu_intc is the root interrupt
+		 * controller & should be probed first.
+		 */
+		interrupt-parent = <&cpu_intc>;
+	};
+
+	ehci@1b200000 {
+		compatible = "generic-ehci";
+		reg = <0x1b200000 0x1000>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 0 IRQ_TYPE_LEVEL_HIGH>; /* GIC 0 or CPU 6 */
+
+		has-transaction-translator;
+	};
+
+	flash@1c000000 {
+		compatible = "intel,28f128j3", "cfi-flash";
+		reg = <0x1c000000 0x2000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			user-fs@0 {
+				label = "User FS";
+				reg = <0x0 0x1fc0000>;
+			};
+
+			board-config@3e0000 {
+				label = "Board Config";
+				reg = <0x1fc0000 0x40000>;
+			};
+		};
+	};
+
+	fpga_regs: system-controller@1f000000 {
+		compatible = "mti,sead3-fpga", "syscon", "simple-mfd";
+		reg = <0x1f000000 0x200>;
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&fpga_regs>;
+			offset = <0x50>;
+			mask = <0x4d>;
+		};
+
+		poweroff {
+			compatible = "restart-poweroff";
+		};
+	};
+
+	system-controller@1f000200 {
+		compatible = "mti,sead3-cpld", "syscon", "simple-mfd";
+		reg = <0x1f000200 0x300>;
+
+		led@10.0 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x1>;
+			label = "pled0";
+		};
+		led@10.1 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x2>;
+			label = "pled1";
+		};
+		led@10.2 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x4>;
+			label = "pled2";
+		};
+		led@10.3 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x8>;
+			label = "pled3";
+		};
+		led@10.4 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x10>;
+			label = "pled4";
+		};
+		led@10.5 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x20>;
+			label = "pled5";
+		};
+		led@10.6 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x40>;
+			label = "pled6";
+		};
+		led@10.7 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x80>;
+			label = "pled7";
+		};
+
+		led@18.0 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x1>;
+			label = "fled0";
+		};
+		led@18.1 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x2>;
+			label = "fled1";
+		};
+		led@18.2 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x4>;
+			label = "fled2";
+		};
+		led@18.3 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x8>;
+			label = "fled3";
+		};
+		led@18.4 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x10>;
+			label = "fled4";
+		};
+		led@18.5 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x20>;
+			label = "fled5";
+		};
+		led@18.6 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x40>;
+			label = "fled6";
+		};
+		led@18.7 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x80>;
+			label = "fled7";
+		};
+
+		lcd@200 {
+			compatible = "mti,sead3-lcd";
+			offset = <0x200>;
+		};
+	};
+
+	/* UART connected to FTDI & miniUSB socket */
+	uart0: uart@1f000900 {
+		compatible = "ns16550a";
+		reg = <0x1f000900 0x20>;
+		reg-io-width = <4>;
+		reg-shift = <2>;
+
+		clock-frequency = <14745600>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>; /* GIC 3 or CPU 4 */
+
+		no-loopback-test;
+	};
+
+	/* UART connected to RS232 socket */
+	uart1: uart@1f000800 {
+		compatible = "ns16550a";
+		reg = <0x1f000800 0x20>;
+		reg-io-width = <4>;
+		reg-shift = <2>;
+
+		clock-frequency = <14745600>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 2 IRQ_TYPE_LEVEL_HIGH>; /* GIC 2 or CPU 4 */
+
+		no-loopback-test;
+	};
+
+	eth@1f010000 {
+		compatible = "smsc,lan9115";
+		reg = <0x1f010000 0x10000>;
+		reg-io-width = <4>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 0 IRQ_TYPE_LEVEL_HIGH>; /* GIC 0 or CPU 6 */
+
+		phy-mode = "mii";
+		smsc,irq-push-pull;
+		smsc,save-mac-address;
+	};
+};

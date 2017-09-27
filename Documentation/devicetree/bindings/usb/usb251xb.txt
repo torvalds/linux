@@ -1,0 +1,66 @@
+Microchip USB 2.0 Hi-Speed Hub Controller
+
+The device node for the configuration of a Microchip USB251xB/xBi USB 2.0
+Hi-Speed Controller.
+
+Required properties :
+ - compatible : Should be "microchip,usb251xb" or one of the specific types:
+	"microchip,usb2512b", "microchip,usb2512bi", "microchip,usb2513b",
+	"microchip,usb2513bi", "microchip,usb2514b", "microchip,usb2514bi"
+ - reset-gpios : Should specify the gpio for hub reset
+ - reg : I2C address on the selected bus (default is <0x2C>)
+
+Optional properties :
+ - skip-config : Skip Hub configuration, but only send the USB-Attach command
+ - vendor-id : Set USB Vendor ID of the hub (16 bit, default is 0x0424)
+ - product-id : Set USB Product ID of the hub (16 bit, default depends on type)
+ - device-id : Set USB Device ID of the hub (16 bit, default is 0x0bb3)
+ - language-id : Set USB Language ID (16 bit, default is 0x0000)
+ - manufacturer : Set USB Manufacturer string (max 31 characters long)
+ - product : Set USB Product string (max 31 characters long)
+ - serial : Set USB Serial string (max 31 characters long)
+ - {bus,self}-powered : selects between self- and bus-powered operation (default
+	is self-powered)
+ - disable-hi-speed : disable USB Hi-Speed support
+ - {multi,single}-tt : selects between multi- and single-transaction-translator
+	(default is multi-tt)
+ - disable-eop : disable End of Packet generation in full-speed mode
+ - {ganged,individual}-sensing : select over-current sense type in self-powered
+	mode (default is individual)
+ - {ganged,individual}-port-switching : select port power switching mode
+	(default is individual)
+ - dynamic-power-switching : enable auto-switching from self- to bus-powered
+	operation if the local power source is removed or unavailable
+ - oc-delay-us : Delay time (in microseconds) for filtering the over-current
+	sense inputs. Valid values are 100, 4000, 8000 (default) and 16000. If
+	an invalid value is given, the default is used instead.
+ - compound-device : indicate the hub is part of a compound device
+ - port-mapping-mode : enable port mapping mode
+ - string-support : enable string descriptor support (required for manufacturer,
+	product and serial string configuration)
+ - non-removable-ports : Should specify the ports which have a non-removable
+	device connected.
+ - sp-disabled-ports : Specifies the ports which will be self-power disabled
+ - bp-disabled-ports : Specifies the ports which will be bus-power disabled
+ - power-on-time-ms : Specifies the time it takes from the time the host
+	initiates the power-on sequence to a port until the port has adequate
+	power. The value is given in ms in a 0 - 510 range (default is 100ms).
+
+Examples:
+	usb2512b@2c {
+		compatible = "microchip,usb2512b";
+		reg = <0x2c>;
+		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	};
+
+	usb2514b@2c {
+		compatible = "microchip,usb2514b";
+		reg = <0x2c>;
+		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		vendor-id = /bits/ 16 <0x0000>;
+		product-id = /bits/ 16 <0x0000>;
+		string-support;
+		manufacturer = "Foo";
+		product = "Foo-Bar";
+		serial = "1234567890A";
+	};

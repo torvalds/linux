@@ -12,6 +12,7 @@
 #ifndef _RT5640_H
 #define _RT5640_H
 
+#include <linux/clk.h>
 #include <sound/rt5640.h>
 
 /* Info */
@@ -145,6 +146,8 @@
 
 
 /* Index of Codec Private Register definition */
+#define RT5640_CHPUMP_INT_REG1			0x24
+#define RT5640_MAMP_INT_REG2			0x37
 #define RT5640_3D_SPK				0x63
 #define RT5640_WND_1				0x6c
 #define RT5640_WND_2				0x6d
@@ -153,6 +156,7 @@
 #define RT5640_WND_5				0x70
 #define RT5640_WND_8				0x73
 #define RT5640_DIP_SPK_INF			0x75
+#define RT5640_HP_DCC_INT1			0x77
 #define RT5640_EQ_BW_LOP			0xa0
 #define RT5640_EQ_GN_LOP			0xa1
 #define RT5640_EQ_FC_BP1			0xa2
@@ -188,6 +192,13 @@
 #define RT5640_L_VOL_SFT			8
 #define RT5640_R_VOL_MASK			(0x3f)
 #define RT5640_R_VOL_SFT			0
+
+/* SW Reset & Device ID (0x00) */
+#define RT5640_ID_MASK				(0x3 << 1)
+#define RT5640_ID_5639				(0x0 << 1)
+#define RT5640_ID_5640				(0x2 << 1)
+#define RT5640_ID_5642				(0x3 << 1)
+
 
 /* IN1 and IN2 Control (0x0d) */
 /* IN3 and IN4 Control (0x0e) */
@@ -432,39 +443,39 @@
 #define RT5640_IF1_DAC_SEL_MASK			(0x3 << 14)
 #define RT5640_IF1_DAC_SEL_SFT			14
 #define RT5640_IF1_DAC_SEL_NOR			(0x0 << 14)
-#define RT5640_IF1_DAC_SEL_L2R			(0x1 << 14)
-#define RT5640_IF1_DAC_SEL_R2L			(0x2 << 14)
-#define RT5640_IF1_DAC_SEL_SWAP			(0x3 << 14)
+#define RT5640_IF1_DAC_SEL_SWAP			(0x1 << 14)
+#define RT5640_IF1_DAC_SEL_L2R			(0x2 << 14)
+#define RT5640_IF1_DAC_SEL_R2L			(0x3 << 14)
 #define RT5640_IF1_ADC_SEL_MASK			(0x3 << 12)
 #define RT5640_IF1_ADC_SEL_SFT			12
 #define RT5640_IF1_ADC_SEL_NOR			(0x0 << 12)
-#define RT5640_IF1_ADC_SEL_L2R			(0x1 << 12)
-#define RT5640_IF1_ADC_SEL_R2L			(0x2 << 12)
-#define RT5640_IF1_ADC_SEL_SWAP			(0x3 << 12)
+#define RT5640_IF1_ADC_SEL_SWAP			(0x1 << 12)
+#define RT5640_IF1_ADC_SEL_L2R			(0x2 << 12)
+#define RT5640_IF1_ADC_SEL_R2L			(0x3 << 12)
 #define RT5640_IF2_DAC_SEL_MASK			(0x3 << 10)
 #define RT5640_IF2_DAC_SEL_SFT			10
 #define RT5640_IF2_DAC_SEL_NOR			(0x0 << 10)
-#define RT5640_IF2_DAC_SEL_L2R			(0x1 << 10)
-#define RT5640_IF2_DAC_SEL_R2L			(0x2 << 10)
-#define RT5640_IF2_DAC_SEL_SWAP			(0x3 << 10)
+#define RT5640_IF2_DAC_SEL_SWAP			(0x1 << 10)
+#define RT5640_IF2_DAC_SEL_L2R			(0x2 << 10)
+#define RT5640_IF2_DAC_SEL_R2L			(0x3 << 10)
 #define RT5640_IF2_ADC_SEL_MASK			(0x3 << 8)
 #define RT5640_IF2_ADC_SEL_SFT			8
 #define RT5640_IF2_ADC_SEL_NOR			(0x0 << 8)
-#define RT5640_IF2_ADC_SEL_L2R			(0x1 << 8)
-#define RT5640_IF2_ADC_SEL_R2L			(0x2 << 8)
-#define RT5640_IF2_ADC_SEL_SWAP			(0x3 << 8)
+#define RT5640_IF2_ADC_SEL_SWAP			(0x1 << 8)
+#define RT5640_IF2_ADC_SEL_L2R			(0x2 << 8)
+#define RT5640_IF2_ADC_SEL_R2L			(0x3 << 8)
 #define RT5640_IF3_DAC_SEL_MASK			(0x3 << 6)
 #define RT5640_IF3_DAC_SEL_SFT			6
 #define RT5640_IF3_DAC_SEL_NOR			(0x0 << 6)
-#define RT5640_IF3_DAC_SEL_L2R			(0x1 << 6)
-#define RT5640_IF3_DAC_SEL_R2L			(0x2 << 6)
-#define RT5640_IF3_DAC_SEL_SWAP			(0x3 << 6)
+#define RT5640_IF3_DAC_SEL_SWAP			(0x1 << 6)
+#define RT5640_IF3_DAC_SEL_L2R			(0x2 << 6)
+#define RT5640_IF3_DAC_SEL_R2L			(0x3 << 6)
 #define RT5640_IF3_ADC_SEL_MASK			(0x3 << 4)
 #define RT5640_IF3_ADC_SEL_SFT			4
 #define RT5640_IF3_ADC_SEL_NOR			(0x0 << 4)
-#define RT5640_IF3_ADC_SEL_L2R			(0x1 << 4)
-#define RT5640_IF3_ADC_SEL_R2L			(0x2 << 4)
-#define RT5640_IF3_ADC_SEL_SWAP			(0x3 << 4)
+#define RT5640_IF3_ADC_SEL_SWAP			(0x1 << 4)
+#define RT5640_IF3_ADC_SEL_L2R			(0x2 << 4)
+#define RT5640_IF3_ADC_SEL_R2L			(0x3 << 4)
 
 /* REC Left Mixer Control 1 (0x3b) */
 #define RT5640_G_HP_L_RM_L_MASK			(0x7 << 13)
@@ -973,8 +984,7 @@
 #define RT5640_SCLK_SRC_SFT			14
 #define RT5640_SCLK_SRC_MCLK			(0x0 << 14)
 #define RT5640_SCLK_SRC_PLL1			(0x1 << 14)
-#define RT5640_SCLK_SRC_PLL1T			(0x2 << 14)
-#define RT5640_SCLK_SRC_RCCLK			(0x3 << 14) /* 15MHz */
+#define RT5640_SCLK_SRC_RCCLK			(0x2 << 14)
 #define RT5640_PLL1_SRC_MASK			(0x3 << 12)
 #define RT5640_PLL1_SRC_SFT			12
 #define RT5640_PLL1_SRC_MCLK			(0x0 << 12)
@@ -1024,6 +1034,10 @@
 #define RT5640_DMIC_2_M_SFT			8
 #define RT5640_DMIC_2_M_NOR			(0x0 << 8)
 #define RT5640_DMIC_2_M_ASYN			(0x1 << 8)
+
+/* ASRC clock source selection (0x84) */
+#define RT5640_CLK_SEL_SYS			(0x0)
+#define RT5640_CLK_SEL_ASRC			(0x1)
 
 /* ASRC Control 2 (0x84) */
 #define RT5640_MDA_L_M_MASK			(0x1 << 15)
@@ -1201,6 +1215,14 @@
 #define RT5640_CP_FQ2_SFT			4
 #define RT5640_CP_FQ3_MASK			(0x7)
 #define RT5640_CP_FQ3_SFT			0
+#define RT5640_CP_FQ_1_5_KHZ			0
+#define RT5640_CP_FQ_3_KHZ			1
+#define RT5640_CP_FQ_6_KHZ			2
+#define RT5640_CP_FQ_12_KHZ			3
+#define RT5640_CP_FQ_24_KHZ			4
+#define RT5640_CP_FQ_48_KHZ			5
+#define RT5640_CP_FQ_96_KHZ			6
+#define RT5640_CP_FQ_192_KHZ			7
 
 /* HPOUT charge pump (0x91) */
 #define RT5640_OSW_L_MASK			(0x1 << 11)
@@ -1948,6 +1970,12 @@
 #define RT5640_ZCD_HP_DIS			(0x0 << 15)
 #define RT5640_ZCD_HP_EN			(0x1 << 15)
 
+/* General Control 1 (0xfa) */
+#define RT5640_M_MONO_ADC_L			(0x1 << 13)
+#define RT5640_M_MONO_ADC_L_SFT			13
+#define RT5640_M_MONO_ADC_R			(0x1 << 12)
+#define RT5640_M_MONO_ADC_R_SFT			12
+#define RT5640_MCLK_DET				(0x1 << 11)
 
 /* Codec Private Register definition */
 /* 3D Speaker Control (0x63) */
@@ -2063,17 +2091,21 @@ enum {
 	RT5640_DMIC2,
 };
 
-struct rt5640_pll_code {
-	bool m_bp; /* Indicates bypass m code or not. */
-	int m_code;
-	int n_code;
-	int k_code;
+/* filter mask */
+enum {
+	RT5640_DA_STEREO_FILTER = 0x1,
+	RT5640_DA_MONO_L_FILTER = (0x1 << 1),
+	RT5640_DA_MONO_R_FILTER = (0x1 << 2),
+	RT5640_AD_STEREO_FILTER = (0x1 << 3),
+	RT5640_AD_MONO_L_FILTER = (0x1 << 4),
+	RT5640_AD_MONO_R_FILTER = (0x1 << 5),
 };
 
 struct rt5640_priv {
 	struct snd_soc_codec *codec;
 	struct rt5640_platform_data pdata;
 	struct regmap *regmap;
+	struct clk *mclk;
 
 	int sysclk;
 	int sysclk_src;
@@ -2081,12 +2113,17 @@ struct rt5640_priv {
 	int bclk[RT5640_AIFS];
 	int master[RT5640_AIFS];
 
-	struct rt5640_pll_code pll_code;
 	int pll_src;
 	int pll_in;
 	int pll_out;
 
-	int dmic_en;
+	bool hp_mute;
+	bool asrc_en;
 };
+
+int rt5640_dmic_enable(struct snd_soc_codec *codec,
+		       bool dmic1_data_pin, bool dmic2_data_pin);
+int rt5640_sel_asrc_clk_src(struct snd_soc_codec *codec,
+		unsigned int filter_mask, unsigned int clk_src);
 
 #endif

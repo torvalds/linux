@@ -25,6 +25,8 @@
 #include <linux/fs_uart_pd.h>
 #include <linux/fsl_devices.h>
 #include <linux/mii.h>
+#include <linux/of_address.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
 #include <asm/delay.h>
@@ -33,7 +35,6 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/time.h>
-#include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/cpm1.h>
 #include <asm/fs_pd.h>
@@ -43,61 +44,6 @@
 #include "mpc8xx.h"
 
 static u32 __iomem *bcsr, *bcsr5;
-
-#ifdef CONFIG_PCMCIA_M8XX
-static void pcmcia_hw_setup(int slot, int enable)
-{
-	if (enable)
-		clrbits32(&bcsr[1], BCSR1_PCCEN);
-	else
-		setbits32(&bcsr[1], BCSR1_PCCEN);
-}
-
-static int pcmcia_set_voltage(int slot, int vcc, int vpp)
-{
-	u32 reg = 0;
-
-	switch (vcc) {
-	case 0:
-		break;
-	case 33:
-		reg |= BCSR1_PCCVCC0;
-		break;
-	case 50:
-		reg |= BCSR1_PCCVCC1;
-		break;
-	default:
-		return 1;
-	}
-
-	switch (vpp) {
-	case 0:
-		break;
-	case 33:
-	case 50:
-		if (vcc == vpp)
-			reg |= BCSR1_PCCVPP1;
-		else
-			return 1;
-		break;
-	case 120:
-		if ((vcc == 33) || (vcc == 50))
-			reg |= BCSR1_PCCVPP0;
-		else
-			return 1;
-	default:
-		return 1;
-	}
-
-	/* first, turn off all power */
-	clrbits32(&bcsr[1], 0x00610000);
-
-	/* enable new powersettings */
-	setbits32(&bcsr[1], reg);
-
-	return 0;
-}
-#endif
 
 struct cpm_pin {
 	int port, pin, flags;
@@ -243,21 +189,14 @@ static void __init mpc885ads_setup_arch(void)
 		of_detach_node(np);
 		of_node_put(np);
 	}
-
-#ifdef CONFIG_PCMCIA_M8XX
-	/* Set up board specific hook-ups.*/
-	m8xx_pcmcia_ops.hw_ctrl = pcmcia_hw_setup;
-	m8xx_pcmcia_ops.voltage_set = pcmcia_set_voltage;
-#endif
 }
 
 static int __init mpc885ads_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	return of_flat_dt_is_compatible(root, "fsl,mpc885ads");
+	return of_machine_is_compatible("fsl,mpc885ads");
 }
 
-static struct of_device_id __initdata of_bus_ids[] = {
+static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .name = "soc", },
 	{ .name = "cpm", },
 	{ .name = "localbus", },

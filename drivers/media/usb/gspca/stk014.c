@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -250,7 +246,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int ret, value;
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x22);		/* JPEG 411 */
 	jpeg_set_qual(sd->jpeg_hdr, QUALITY);
 
@@ -261,7 +258,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	set_par(gspca_dev, 0x00000000);
 	set_par(gspca_dev, 0x8002e001);
 	set_par(gspca_dev, 0x14000000);
-	if (gspca_dev->width > 320)
+	if (gspca_dev->pixfmt.width > 320)
 		value = 0x8002e001;		/* 640x480 */
 	else
 		value = 0x4001f000;		/* 320x240 */
@@ -275,7 +272,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		gspca_dev->usb_err = ret;
 		goto out;
 	}
-	 reg_r(gspca_dev, 0x0630);
+	reg_r(gspca_dev, 0x0630);
 	rcv_val(gspca_dev, 0x000020);	/* << (value ff ff ff ff) */
 	reg_r(gspca_dev, 0x0650);
 	snd_val(gspca_dev, 0x000020, 0xffffffff);

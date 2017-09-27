@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
 #include <asm/cpu_device_id.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 struct padlock_sha_desc {
 	struct shash_desc fallback;
@@ -89,7 +89,6 @@ static int padlock_sha1_finup(struct shash_desc *desc, const u8 *in,
 	struct sha1_state state;
 	unsigned int space;
 	unsigned int leftover;
-	int ts_state;
 	int err;
 
 	dctx->fallback.flags = desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -120,14 +119,11 @@ static int padlock_sha1_finup(struct shash_desc *desc, const u8 *in,
 
 	memcpy(result, &state.state, SHA1_DIGEST_SIZE);
 
-	/* prevent taking the spurious DNA fault with padlock. */
-	ts_state = irq_ts_save();
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xc8" /* rep xsha1 */
 		      : \
 		      : "c"((unsigned long)state.count + count), \
 			"a"((unsigned long)state.count), \
 			"S"(in), "D"(result));
-	irq_ts_restore(ts_state);
 
 	padlock_output_block((uint32_t *)result, (uint32_t *)out, 5);
 
@@ -155,7 +151,6 @@ static int padlock_sha256_finup(struct shash_desc *desc, const u8 *in,
 	struct sha256_state state;
 	unsigned int space;
 	unsigned int leftover;
-	int ts_state;
 	int err;
 
 	dctx->fallback.flags = desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -186,14 +181,11 @@ static int padlock_sha256_finup(struct shash_desc *desc, const u8 *in,
 
 	memcpy(result, &state.state, SHA256_DIGEST_SIZE);
 
-	/* prevent taking the spurious DNA fault with padlock. */
-	ts_state = irq_ts_save();
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xd0" /* rep xsha256 */
 		      : \
 		      : "c"((unsigned long)state.count + count), \
 			"a"((unsigned long)state.count), \
 			"S"(in), "D"(result));
-	irq_ts_restore(ts_state);
 
 	padlock_output_block((uint32_t *)result, (uint32_t *)out, 8);
 
@@ -211,7 +203,7 @@ static int padlock_sha256_final(struct shash_desc *desc, u8 *out)
 static int padlock_cra_init(struct crypto_tfm *tfm)
 {
 	struct crypto_shash *hash = __crypto_shash_cast(tfm);
-	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	const char *fallback_driver_name = crypto_tfm_alg_name(tfm);
 	struct padlock_sha_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_shash *fallback_tfm;
 	int err = -ENOMEM;
@@ -312,7 +304,6 @@ static int padlock_sha1_update_nano(struct shash_desc *desc,
 	u8 buf[128 + PADLOCK_ALIGNMENT - STACK_ALIGN] __attribute__
 		((aligned(STACK_ALIGN)));
 	u8 *dst = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
-	int ts_state;
 
 	partial = sctx->count & 0x3f;
 	sctx->count += len;
@@ -328,23 +319,19 @@ static int padlock_sha1_update_nano(struct shash_desc *desc,
 			memcpy(sctx->buffer + partial, data,
 				done + SHA1_BLOCK_SIZE);
 			src = sctx->buffer;
-			ts_state = irq_ts_save();
 			asm volatile (".byte 0xf3,0x0f,0xa6,0xc8"
 			: "+S"(src), "+D"(dst) \
 			: "a"((long)-1), "c"((unsigned long)1));
-			irq_ts_restore(ts_state);
 			done += SHA1_BLOCK_SIZE;
 			src = data + done;
 		}
 
 		/* Process the left bytes from the input data */
 		if (len - done >= SHA1_BLOCK_SIZE) {
-			ts_state = irq_ts_save();
 			asm volatile (".byte 0xf3,0x0f,0xa6,0xc8"
 			: "+S"(src), "+D"(dst)
 			: "a"((long)-1),
 			"c"((unsigned long)((len - done) / SHA1_BLOCK_SIZE)));
-			irq_ts_restore(ts_state);
 			done += ((len - done) - (len - done) % SHA1_BLOCK_SIZE);
 			src = data + done;
 		}
@@ -401,7 +388,6 @@ static int padlock_sha256_update_nano(struct shash_desc *desc, const u8 *data,
 	u8 buf[128 + PADLOCK_ALIGNMENT - STACK_ALIGN] __attribute__
 		((aligned(STACK_ALIGN)));
 	u8 *dst = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
-	int ts_state;
 
 	partial = sctx->count & 0x3f;
 	sctx->count += len;
@@ -417,23 +403,19 @@ static int padlock_sha256_update_nano(struct shash_desc *desc, const u8 *data,
 			memcpy(sctx->buf + partial, data,
 				done + SHA256_BLOCK_SIZE);
 			src = sctx->buf;
-			ts_state = irq_ts_save();
 			asm volatile (".byte 0xf3,0x0f,0xa6,0xd0"
 			: "+S"(src), "+D"(dst)
 			: "a"((long)-1), "c"((unsigned long)1));
-			irq_ts_restore(ts_state);
 			done += SHA256_BLOCK_SIZE;
 			src = data + done;
 		}
 
 		/* Process the left bytes from input data*/
 		if (len - done >= SHA256_BLOCK_SIZE) {
-			ts_state = irq_ts_save();
 			asm volatile (".byte 0xf3,0x0f,0xa6,0xd0"
 			: "+S"(src), "+D"(dst)
 			: "a"((long)-1),
 			"c"((unsigned long)((len - done) / 64)));
-			irq_ts_restore(ts_state);
 			done += ((len - done) - (len - done) % 64);
 			src = data + done;
 		}
@@ -540,7 +522,7 @@ static int __init padlock_init(void)
 	struct shash_alg *sha1;
 	struct shash_alg *sha256;
 
-	if (!x86_match_cpu(padlock_sha_ids) || !cpu_has_phe_enabled)
+	if (!x86_match_cpu(padlock_sha_ids) || !boot_cpu_has(X86_FEATURE_PHE_EN))
 		return -ENODEV;
 
 	/* Register the newly added algorithm module if on *
@@ -593,7 +575,7 @@ MODULE_DESCRIPTION("VIA PadLock SHA1/SHA256 algorithms support.");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Ludvig");
 
-MODULE_ALIAS("sha1-all");
-MODULE_ALIAS("sha256-all");
-MODULE_ALIAS("sha1-padlock");
-MODULE_ALIAS("sha256-padlock");
+MODULE_ALIAS_CRYPTO("sha1-all");
+MODULE_ALIAS_CRYPTO("sha256-all");
+MODULE_ALIAS_CRYPTO("sha1-padlock");
+MODULE_ALIAS_CRYPTO("sha256-padlock");

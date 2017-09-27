@@ -540,11 +540,11 @@ static int carl9170_init_phy_from_eeprom(struct ar9170 *ar,
 	return carl9170_regwrite_result();
 }
 
-static int carl9170_init_phy(struct ar9170 *ar, enum ieee80211_band band)
+static int carl9170_init_phy(struct ar9170 *ar, enum nl80211_band band)
 {
 	int i, err;
 	u32 val;
-	bool is_2ghz = band == IEEE80211_BAND_2GHZ;
+	bool is_2ghz = band == NL80211_BAND_2GHZ;
 	bool is_40mhz = conf_is_ht40(&ar->hw->conf);
 
 	carl9170_regwrite_begin(ar);
@@ -994,7 +994,7 @@ static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
 			refsel0 = 0;
 			refsel1 = 1;
 		}
-		chansel = byte_rev_table[chansel];
+		chansel = bitrev8(chansel);
 	} else {
 		if (freq == 2484) {
 			chansel = 10 + (freq - 2274) / 5;
@@ -1002,7 +1002,7 @@ static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
 		} else
 			chansel = 16 + (freq - 2272) / 5;
 		chansel *= 4;
-		chansel = byte_rev_table[chansel];
+		chansel = bitrev8(chansel);
 	}
 
 	d1 =	chansel;
@@ -1125,13 +1125,13 @@ static int carl9170_set_freq_cal_data(struct ar9170 *ar,
 	u8 f, tmp;
 
 	switch (channel->band) {
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		f = channel->center_freq - 2300;
 		cal_freq_pier = ar->eeprom.cal_freq_pier_2G;
 		i = AR5416_NUM_2G_CAL_PIERS - 1;
 		break;
 
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		f = (channel->center_freq - 4800) / 5;
 		cal_freq_pier = ar->eeprom.cal_freq_pier_5G;
 		i = AR5416_NUM_5G_CAL_PIERS - 1;
@@ -1139,7 +1139,6 @@ static int carl9170_set_freq_cal_data(struct ar9170 *ar,
 
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	for (; i >= 0; i--) {
@@ -1159,12 +1158,12 @@ static int carl9170_set_freq_cal_data(struct ar9170 *ar,
 			int j;
 
 			switch (channel->band) {
-			case IEEE80211_BAND_2GHZ:
+			case NL80211_BAND_2GHZ:
 				cal_pier_data = &ar->eeprom.
 					cal_pier_data_2G[chain][idx];
 				break;
 
-			case IEEE80211_BAND_5GHZ:
+			case NL80211_BAND_5GHZ:
 				cal_pier_data = &ar->eeprom.
 					cal_pier_data_5G[chain][idx];
 				break;
@@ -1341,7 +1340,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 		/* skip CTL and heavy clip for CTL_MKK and CTL_ETSI */
 		return;
 
-	if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
+	if (ar->hw->conf.chandef.chan->band == NL80211_BAND_2GHZ) {
 		modes = mode_list_2ghz;
 		nr_modes = ARRAY_SIZE(mode_list_2ghz);
 	} else {
@@ -1608,7 +1607,7 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		return err;
 
 	err = carl9170_init_rf_banks_0_7(ar,
-					 channel->band == IEEE80211_BAND_5GHZ);
+					 channel->band == NL80211_BAND_5GHZ);
 	if (err)
 		return err;
 
@@ -1622,7 +1621,7 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		return err;
 
 	err = carl9170_init_rf_bank4_pwr(ar,
-					 channel->band == IEEE80211_BAND_5GHZ,
+					 channel->band == NL80211_BAND_5GHZ,
 					 channel->center_freq, bw);
 	if (err)
 		return err;

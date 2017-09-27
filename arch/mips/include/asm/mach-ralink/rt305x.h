@@ -7,31 +7,22 @@
  *
  * Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- * Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2013 John Crispin <john@phrozen.org>
  */
 
 #ifndef _RT305X_REGS_H_
 #define _RT305X_REGS_H_
 
-enum rt305x_soc_type {
-	RT305X_SOC_UNKNOWN = 0,
-	RT305X_SOC_RT3050,
-	RT305X_SOC_RT3052,
-	RT305X_SOC_RT3350,
-	RT305X_SOC_RT3352,
-	RT305X_SOC_RT5350,
-};
-
-extern enum rt305x_soc_type rt305x_soc;
+extern enum ralink_soc_type ralink_soc;
 
 static inline int soc_is_rt3050(void)
 {
-	return rt305x_soc == RT305X_SOC_RT3050;
+	return ralink_soc == RT305X_SOC_RT3050;
 }
 
 static inline int soc_is_rt3052(void)
 {
-	return rt305x_soc == RT305X_SOC_RT3052;
+	return ralink_soc == RT305X_SOC_RT3052;
 }
 
 static inline int soc_is_rt305x(void)
@@ -41,17 +32,17 @@ static inline int soc_is_rt305x(void)
 
 static inline int soc_is_rt3350(void)
 {
-	return rt305x_soc == RT305X_SOC_RT3350;
+	return ralink_soc == RT305X_SOC_RT3350;
 }
 
 static inline int soc_is_rt3352(void)
 {
-	return rt305x_soc == RT305X_SOC_RT3352;
+	return ralink_soc == RT305X_SOC_RT3352;
 }
 
 static inline int soc_is_rt5350(void)
 {
-	return rt305x_soc == RT305X_SOC_RT5350;
+	return ralink_soc == RT305X_SOC_RT5350;
 }
 
 #define RT305X_SYSC_BASE		0x10000000
@@ -125,24 +116,29 @@ static inline int soc_is_rt5350(void)
 #define RT305X_GPIO_GE0_TXD0		40
 #define RT305X_GPIO_GE0_RXCLK		51
 
-#define RT305X_GPIO_MODE_I2C		BIT(0)
-#define RT305X_GPIO_MODE_SPI		BIT(1)
 #define RT305X_GPIO_MODE_UART0_SHIFT	2
 #define RT305X_GPIO_MODE_UART0_MASK	0x7
 #define RT305X_GPIO_MODE_UART0(x)	((x) << RT305X_GPIO_MODE_UART0_SHIFT)
-#define RT305X_GPIO_MODE_UARTF		0x0
-#define RT305X_GPIO_MODE_PCM_UARTF	0x1
-#define RT305X_GPIO_MODE_PCM_I2S	0x2
-#define RT305X_GPIO_MODE_I2S_UARTF	0x3
-#define RT305X_GPIO_MODE_PCM_GPIO	0x4
-#define RT305X_GPIO_MODE_GPIO_UARTF	0x5
-#define RT305X_GPIO_MODE_GPIO_I2S	0x6
-#define RT305X_GPIO_MODE_GPIO		0x7
-#define RT305X_GPIO_MODE_UART1		BIT(5)
-#define RT305X_GPIO_MODE_JTAG		BIT(6)
-#define RT305X_GPIO_MODE_MDIO		BIT(7)
-#define RT305X_GPIO_MODE_SDRAM		BIT(8)
-#define RT305X_GPIO_MODE_RGMII		BIT(9)
+#define RT305X_GPIO_MODE_UARTF		0
+#define RT305X_GPIO_MODE_PCM_UARTF	1
+#define RT305X_GPIO_MODE_PCM_I2S	2
+#define RT305X_GPIO_MODE_I2S_UARTF	3
+#define RT305X_GPIO_MODE_PCM_GPIO	4
+#define RT305X_GPIO_MODE_GPIO_UARTF	5
+#define RT305X_GPIO_MODE_GPIO_I2S	6
+#define RT305X_GPIO_MODE_GPIO		7
+
+#define RT305X_GPIO_MODE_I2C		0
+#define RT305X_GPIO_MODE_SPI		1
+#define RT305X_GPIO_MODE_UART1		5
+#define RT305X_GPIO_MODE_JTAG		6
+#define RT305X_GPIO_MODE_MDIO		7
+#define RT305X_GPIO_MODE_SDRAM		8
+#define RT305X_GPIO_MODE_RGMII		9
+#define RT5350_GPIO_MODE_PHY_LED	14
+#define RT5350_GPIO_MODE_SPI_CS1	21
+#define RT3352_GPIO_MODE_LNA		18
+#define RT3352_GPIO_MODE_PA		20
 
 #define RT3352_SYSC_REG_SYSCFG0		0x010
 #define RT3352_SYSC_REG_SYSCFG1         0x014

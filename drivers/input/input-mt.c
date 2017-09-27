@@ -88,9 +88,12 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 			goto err_mem;
 	}
 
-	/* Mark slots as 'unused' */
+	/* Mark slots as 'inactive' */
 	for (i = 0; i < num_slots; i++)
 		input_mt_set_value(&mt->slots[i], ABS_MT_TRACKING_ID, -1);
+
+	/* Mark slots as 'unused' */
+	mt->frame = 1;
 
 	dev->mt = mt;
 	return 0;
@@ -215,8 +218,23 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 	}
 
 	input_event(dev, EV_KEY, BTN_TOUCH, count > 0);
-	if (use_count)
+
+	if (use_count) {
+		if (count == 0 &&
+		    !test_bit(ABS_MT_DISTANCE, dev->absbit) &&
+		    test_bit(ABS_DISTANCE, dev->absbit) &&
+		    input_abs_get_val(dev, ABS_DISTANCE) != 0) {
+			/*
+			 * Force reporting BTN_TOOL_FINGER for devices that
+			 * only report general hover (and not per-contact
+			 * distance) when contact is in proximity but not
+			 * on the surface.
+			 */
+			count = 1;
+		}
+
 		input_mt_report_finger_count(dev, count);
+	}
 
 	if (oldest) {
 		int x = input_mt_get_value(oldest, ABS_MT_POSITION_X);
@@ -236,6 +254,35 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 }
 EXPORT_SYMBOL(input_mt_report_pointer_emulation);
 
+static void __input_mt_drop_unused(struct input_dev *dev, struct input_mt *mt)
+{
+	int i;
+
+	for (i = 0; i < mt->num_slots; i++) {
+		if (!input_mt_is_used(mt, &mt->slots[i])) {
+			input_mt_slot(dev, i);
+			input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
+		}
+	}
+}
+
+/**
+ * input_mt_drop_unused() - Inactivate slots not seen in this frame
+ * @dev: input device with allocated MT slots
+ *
+ * Lift all slots not seen since the last call to this function.
+ */
+void input_mt_drop_unused(struct input_dev *dev)
+{
+	struct input_mt *mt = dev->mt;
+
+	if (mt) {
+		__input_mt_drop_unused(dev, mt);
+		mt->frame++;
+	}
+}
+EXPORT_SYMBOL(input_mt_drop_unused);
+
 /**
  * input_mt_sync_frame() - synchronize mt frame
  * @dev: input device with allocated MT slots
@@ -247,20 +294,13 @@ EXPORT_SYMBOL(input_mt_report_pointer_emulation);
 void input_mt_sync_frame(struct input_dev *dev)
 {
 	struct input_mt *mt = dev->mt;
-	struct input_mt_slot *s;
 	bool use_count = false;
 
 	if (!mt)
 		return;
 
-	if (mt->flags & INPUT_MT_DROP_UNUSED) {
-		for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
-			if (input_mt_is_used(mt, s))
-				continue;
-			input_mt_slot(dev, s - mt->slots);
-			input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-		}
-	}
+	if (mt->flags & INPUT_MT_DROP_UNUSED)
+		__input_mt_drop_unused(dev, mt);
 
 	if ((mt->flags & INPUT_MT_POINTER) && !(mt->flags & INPUT_MT_SEMI_MT))
 		use_count = true;
@@ -271,7 +311,7 @@ void input_mt_sync_frame(struct input_dev *dev)
 }
 EXPORT_SYMBOL(input_mt_sync_frame);
 
-static int adjust_dual(int *begin, int step, int *end, int eq)
+static int adjust_dual(int *begin, int step, int *end, int eq, int mu)
 {
 	int f, *p, s, c;
 
@@ -289,9 +329,10 @@ static int adjust_dual(int *begin, int step, int *end, int eq)
 			s = *p;
 
 	c = (f + s + 1) / 2;
-	if (c == 0 || (c > 0 && !eq))
+	if (c == 0 || (c > mu && (!eq || mu > 0)))
 		return 0;
-	if (s < 0)
+	/* Improve convergence for positive matrices by penalizing overcovers */
+	if (s < 0 && mu <= 0)
 		c *= 2;
 
 	for (p = begin; p != end; p += step)
@@ -300,23 +341,24 @@ static int adjust_dual(int *begin, int step, int *end, int eq)
 	return (c < s && s <= 0) || (f >= 0 && f < c);
 }
 
-static void find_reduced_matrix(int *w, int nr, int nc, int nrc)
+static void find_reduced_matrix(int *w, int nr, int nc, int nrc, int mu)
 {
 	int i, k, sum;
 
 	for (k = 0; k < nrc; k++) {
 		for (i = 0; i < nr; i++)
-			adjust_dual(w + i, nr, w + i + nrc, nr <= nc);
+			adjust_dual(w + i, nr, w + i + nrc, nr <= nc, mu);
 		sum = 0;
 		for (i = 0; i < nrc; i += nr)
-			sum += adjust_dual(w + i, 1, w + i + nr, nc <= nr);
+			sum += adjust_dual(w + i, 1, w + i + nr, nc <= nr, mu);
 		if (!sum)
 			break;
 	}
 }
 
 static int input_mt_set_matrix(struct input_mt *mt,
-			       const struct input_mt_pos *pos, int num_pos)
+			       const struct input_mt_pos *pos, int num_pos,
+			       int mu)
 {
 	const struct input_mt_pos *p;
 	struct input_mt_slot *s;
@@ -330,7 +372,7 @@ static int input_mt_set_matrix(struct input_mt *mt,
 		y = input_mt_get_value(s, ABS_MT_POSITION_Y);
 		for (p = pos; p != pos + num_pos; p++) {
 			int dx = x - p->x, dy = y - p->y;
-			*w++ = dx * dx + dy * dy;
+			*w++ = dx * dx + dy * dy - mu;
 		}
 	}
 
@@ -341,27 +383,35 @@ static void input_mt_set_slots(struct input_mt *mt,
 			       int *slots, int num_pos)
 {
 	struct input_mt_slot *s;
-	int *w = mt->red, *p;
+	int *w = mt->red, j;
 
-	for (p = slots; p != slots + num_pos; p++)
-		*p = -1;
+	for (j = 0; j != num_pos; j++)
+		slots[j] = -1;
 
 	for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
 		if (!input_mt_is_active(s))
 			continue;
-		for (p = slots; p != slots + num_pos; p++)
-			if (*w++ < 0)
-				*p = s - mt->slots;
+
+		for (j = 0; j != num_pos; j++) {
+			if (w[j] < 0) {
+				slots[j] = s - mt->slots;
+				break;
+			}
+		}
+
+		w += num_pos;
 	}
 
 	for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
 		if (input_mt_is_active(s))
 			continue;
-		for (p = slots; p != slots + num_pos; p++)
-			if (*p < 0) {
-				*p = s - mt->slots;
+
+		for (j = 0; j != num_pos; j++) {
+			if (slots[j] < 0) {
+				slots[j] = s - mt->slots;
 				break;
 			}
+		}
 	}
 }
 
@@ -371,17 +421,24 @@ static void input_mt_set_slots(struct input_mt *mt,
  * @slots: the slot assignment to be filled
  * @pos: the position array to match
  * @num_pos: number of positions
+ * @dmax: maximum ABS_MT_POSITION displacement (zero for infinite)
  *
  * Performs a best match against the current contacts and returns
  * the slot assignment list. New contacts are assigned to unused
  * slots.
  *
+ * The assignments are balanced so that all coordinate displacements are
+ * below the euclidian distance dmax. If no such assignment can be found,
+ * some contacts are assigned to unused slots.
+ *
  * Returns zero on success, or negative error in case of failure.
  */
 int input_mt_assign_slots(struct input_dev *dev, int *slots,
-			  const struct input_mt_pos *pos, int num_pos)
+			  const struct input_mt_pos *pos, int num_pos,
+			  int dmax)
 {
 	struct input_mt *mt = dev->mt;
+	int mu = 2 * dmax * dmax;
 	int nrc;
 
 	if (!mt || !mt->red)
@@ -391,8 +448,8 @@ int input_mt_assign_slots(struct input_dev *dev, int *slots,
 	if (num_pos < 1)
 		return 0;
 
-	nrc = input_mt_set_matrix(mt, pos, num_pos);
-	find_reduced_matrix(mt->red, num_pos, nrc / num_pos, nrc);
+	nrc = input_mt_set_matrix(mt, pos, num_pos, mu);
+	find_reduced_matrix(mt->red, num_pos, nrc / num_pos, nrc, mu);
 	input_mt_set_slots(mt, slots, num_pos);
 
 	return 0;
@@ -408,6 +465,8 @@ EXPORT_SYMBOL(input_mt_assign_slots);
  * set the key on the first unused slot and return.
  *
  * If no available slot can be found, -1 is returned.
+ * Note that for this function to work properly, input_mt_sync_frame() has
+ * to be called at each frame.
  */
 int input_mt_get_slot_by_key(struct input_dev *dev, int key)
 {
@@ -422,7 +481,7 @@ int input_mt_get_slot_by_key(struct input_dev *dev, int key)
 			return s - mt->slots;
 
 	for (s = mt->slots; s != mt->slots + mt->num_slots; s++)
-		if (!input_mt_is_active(s)) {
+		if (!input_mt_is_active(s) && !input_mt_is_used(mt, s)) {
 			s->key = key;
 			return s - mt->slots;
 		}

@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef PASEMI_MAC_H
@@ -32,7 +31,6 @@
 #define CS_RING_SIZE (TX_RING_SIZE*2)
 
 
-#define MAX_LRO_DESCRIPTORS 8
 #define MAX_CS	2
 
 struct pasemi_mac_txring {
@@ -72,7 +70,6 @@ struct pasemi_mac {
 	struct pci_dev *pdev;
 	struct pci_dev *dma_pdev;
 	struct pci_dev *iob_pdev;
-	struct phy_device *phydev;
 	struct napi_struct napi;
 
 	int		bufsz; /* RX ring buffer size */
@@ -83,12 +80,9 @@ struct pasemi_mac {
 #define MAC_TYPE_GMAC	1
 #define MAC_TYPE_XAUI	2
 
-	u8		mac_addr[6];
+	u8		mac_addr[ETH_ALEN];
 
-	struct net_lro_mgr	lro_mgr;
-	struct net_lro_desc	lro_desc[MAX_LRO_DESCRIPTORS];
 	struct timer_list	rxtimer;
-	unsigned int		lro_max_aggr;
 
 	struct pasemi_mac_txring *tx;
 	struct pasemi_mac_rxring *rx;

@@ -14,7 +14,13 @@ Optional properties :
  - i2c-sda-hold-time-ns : should contain the SDA hold time in nanoseconds.
    This option is only supported in hardware blocks version 1.11a or newer.
 
-Example :
+ - i2c-scl-falling-time-ns : should contain the SCL falling time in nanoseconds.
+   This value which is by default 300ns is used to compute the tLOW period.
+
+ - i2c-sda-falling-time-ns : should contain the SDA falling time in nanoseconds.
+   This value which is by default 300ns is used to compute the tHIGH period.
+
+Examples :
 
 	i2c@f0000 {
 		#address-cells = <1>;
@@ -34,4 +40,20 @@ Example :
 		interrupts = <12 1>;
 		clock-frequency = <400000>;
 		i2c-sda-hold-time-ns = <300>;
+		i2c-sda-falling-time-ns = <300>;
+		i2c-scl-falling-time-ns = <300>;
+	};
+
+	i2c@1120000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x2000 0x100>;
+		clock-frequency = <400000>;
+		clocks = <&i2cclk>;
+		interrupts = <0>;
+
+		eeprom@64 {
+			compatible = "linux,slave-24c02";
+			reg = <0x40000064>;
+		};
 	};

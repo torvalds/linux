@@ -52,7 +52,7 @@ static void snd_wm8776_activate_ctl(struct snd_wm8776 *wm,
 	unsigned int index_offset;
 
 	memset(&elem_id, 0, sizeof(elem_id));
-	strncpy(elem_id.name, ctl_name, sizeof(elem_id.name));
+	strlcpy(elem_id.name, ctl_name, sizeof(elem_id.name));
 	elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	kctl = snd_ctl_find_id(card, &elem_id);
 	if (!kctl)
@@ -452,21 +452,6 @@ void snd_wm8776_resume(struct snd_wm8776 *wm)
 		snd_wm8776_write(wm, i, wm->regs[i]);
 }
 
-void snd_wm8776_set_dac_if(struct snd_wm8776 *wm, u16 dac)
-{
-	snd_wm8776_write(wm, WM8776_REG_DACIFCTRL, dac);
-}
-
-void snd_wm8776_set_adc_if(struct snd_wm8776 *wm, u16 adc)
-{
-	snd_wm8776_write(wm, WM8776_REG_ADCIFCTRL, adc);
-}
-
-void snd_wm8776_set_master_mode(struct snd_wm8776 *wm, u16 mode)
-{
-	snd_wm8776_write(wm, WM8776_REG_MSTRCTRL, mode);
-}
-
 void snd_wm8776_set_power(struct snd_wm8776 *wm, u16 power)
 {
 	snd_wm8776_write(wm, WM8776_REG_PWRDOWN, power);
@@ -526,7 +511,8 @@ static int snd_wm8776_ctl_get(struct snd_kcontrol *kcontrol,
 	}
 	if (wm->ctl[n].flags & WM8776_FLAG_INVERT) {
 		val1 = wm->ctl[n].max - (val1 - wm->ctl[n].min);
-		val2 = wm->ctl[n].max - (val2 - wm->ctl[n].min);
+		if (wm->ctl[n].flags & WM8776_FLAG_STEREO)
+			val2 = wm->ctl[n].max - (val2 - wm->ctl[n].min);
 	}
 	ucontrol->value.integer.value[0] = val1;
 	if (wm->ctl[n].flags & WM8776_FLAG_STEREO)
@@ -542,7 +528,7 @@ static int snd_wm8776_ctl_put(struct snd_kcontrol *kcontrol,
 	int n = kcontrol->private_value;
 	u16 val, regval1, regval2;
 
-	/* this also works for enum because value is an union */
+	/* this also works for enum because value is a union */
 	regval1 = ucontrol->value.integer.value[0];
 	regval2 = ucontrol->value.integer.value[1];
 	if (wm->ctl[n].flags & WM8776_FLAG_INVERT) {

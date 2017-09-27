@@ -25,25 +25,31 @@
 
 static inline void scr_writew(u16 val, volatile u16 *addr)
 {
-    st_le16(addr, val);
+	*addr = cpu_to_le16(val);
 }
 
 static inline u16 scr_readw(volatile const u16 *addr)
 {
-    return ld_le16(addr);
+	return le16_to_cpu(*addr);
+}
+
+#define VT_BUF_HAVE_MEMSETW
+static inline void scr_memsetw(u16 *s, u16 v, unsigned int n)
+{
+	memset16(s, cpu_to_le16(v), n / 2);
 }
 
 #define VT_BUF_HAVE_MEMCPYW
+#define VT_BUF_HAVE_MEMMOVEW
 #define scr_memcpyw	memcpy
+#define scr_memmovew	memmove
 
 #endif /* !CONFIG_VGA_CONSOLE && !CONFIG_MDA_CONSOLE */
-
-extern unsigned long vgacon_remap_base;
 
 #ifdef __powerpc64__
 #define VGA_MAP_MEM(x,s) ((unsigned long) ioremap((x), s))
 #else
-#define VGA_MAP_MEM(x,s) (x + vgacon_remap_base)
+#define VGA_MAP_MEM(x,s) (x)
 #endif
 
 #define vga_readb(x) (*(x))

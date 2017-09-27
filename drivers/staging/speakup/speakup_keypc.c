@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * specificly written as a driver for the speakup screenreview
  * package it's not a general device driver.
  * This driver is for the Keynote Gold internal synthesizer.
@@ -59,24 +55,24 @@ static struct var_t vars[] = {
  * These attributes will appear in /sys/accessibility/speakup/keypc.
  */
 static struct kobj_attribute caps_start_attribute =
-	__ATTR(caps_start, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_start, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
-	__ATTR(caps_stop, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_stop, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
-	__ATTR(pitch, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
-	__ATTR(rate, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(rate, 0644, spk_var_show, spk_var_store);
 
 static struct kobj_attribute delay_time_attribute =
-	__ATTR(delay_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(delay_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute direct_attribute =
-	__ATTR(direct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(direct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
-	__ATTR(full_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(full_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
-	__ATTR(jiffy_delta, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(jiffy_delta, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
-	__ATTR(trigger_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(trigger_time, 0644, spk_var_show, spk_var_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -109,6 +105,7 @@ static struct spk_synth synth_keypc = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = keynote_release,
 	.synth_immediate = synth_immediate,
@@ -143,10 +140,11 @@ static inline bool synth_full(void)
 static char *oops(void)
 {
 	int s1, s2, s3, s4;
+
 	s1 = inb_p(synth_port);
-	s2 = inb_p(synth_port+1);
-	s3 = inb_p(synth_port+2);
-	s4 = inb_p(synth_port+3);
+	s2 = inb_p(synth_port + 1);
+	s3 = inb_p(synth_port + 2);
+	s4 = inb_p(synth_port + 3);
 	pr_warn("synth timeout %d %d %d %d\n", s1, s2, s3, s4);
 	return NULL;
 }
@@ -155,6 +153,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
 	int timeout;
+
 	while ((ch = *buf)) {
 		if (ch == '\n')
 			ch = PROCSPEECH;
@@ -200,6 +199,7 @@ spin_lock_irqsave(&speakup_info.spinlock, flags);
 			synth->flush(synth);
 			continue;
 		}
+		synth_buffer_skip_nonlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -227,7 +227,7 @@ spin_lock_irqsave(&speakup_info.spinlock, flags);
 			ch = PROCSPEECH;
 		outb_p(ch, synth_port);
 		SWAIT;
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			timeout = 1000;
 			while (synth_writable())
 				if (--timeout <= 0)
@@ -264,6 +264,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	unsigned int port_val = 0;
 	int i = 0;
+
 	pr_info("Probing for %s.\n", synth->long_name);
 	if (port_forced) {
 		synth_port = port_forced;
@@ -305,29 +306,20 @@ static int synth_probe(struct spk_synth *synth)
 
 static void keynote_release(void)
 {
+	spk_stop_serial_interrupt();
 	if (synth_port)
 		synth_release_region(synth_port, SYNTH_IO_EXTENT);
 	synth_port = 0;
 }
 
-module_param_named(port, port_forced, int, S_IRUGO);
-module_param_named(start, synth_keypc.startup, short, S_IRUGO);
+module_param_hw_named(port, port_forced, int, ioport, 0444);
+module_param_named(start, synth_keypc.startup, short, 0444);
 
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init keypc_init(void)
-{
-	return synth_add(&synth_keypc);
-}
+module_spk_synth(synth_keypc);
 
-static void __exit keypc_exit(void)
-{
-	synth_remove(&synth_keypc);
-}
-
-module_init(keypc_init);
-module_exit(keypc_exit);
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for Keynote Gold PC synthesizers");
 MODULE_LICENSE("GPL");

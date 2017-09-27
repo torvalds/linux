@@ -46,9 +46,9 @@ static u64 swiotlb_powerpc_get_required(struct device *dev)
  * map_page, and unmap_page on highmem, use normal dma_ops
  * for everything else.
  */
-struct dma_map_ops swiotlb_dma_ops = {
-	.alloc = dma_direct_alloc_coherent,
-	.free = dma_direct_free_coherent,
+const struct dma_map_ops swiotlb_dma_ops = {
+	.alloc = __dma_direct_alloc_coherent,
+	.free = __dma_direct_free_coherent,
 	.mmap = dma_direct_mmap_coherent,
 	.map_sg = swiotlb_map_sg_attrs,
 	.unmap_sg = swiotlb_unmap_sg_attrs,
@@ -106,22 +106,23 @@ int __init swiotlb_setup_bus_notifier(void)
 	return 0;
 }
 
-void swiotlb_detect_4g(void)
+void __init swiotlb_detect_4g(void)
 {
-	if ((memblock_end_of_DRAM() - 1) > 0xffffffff)
+	if ((memblock_end_of_DRAM() - 1) > 0xffffffff) {
 		ppc_swiotlb_enable = 1;
+#ifdef CONFIG_ZONE_DMA32
+		limit_zone_pfn(ZONE_DMA32, (1ULL << 32) >> PAGE_SHIFT);
+#endif
+	}
 }
 
-static int __init swiotlb_late_init(void)
+static int __init check_swiotlb_enabled(void)
 {
-	if (ppc_swiotlb_enable) {
+	if (ppc_swiotlb_enable)
 		swiotlb_print_info();
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
-	} else {
+	else
 		swiotlb_free();
-	}
 
 	return 0;
 }
-subsys_initcall(swiotlb_late_init);
+subsys_initcall(check_swiotlb_enabled);

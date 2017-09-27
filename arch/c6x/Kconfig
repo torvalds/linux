@@ -10,7 +10,6 @@ config C6X
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_GENERIC_HARDIRQS
 	select HAVE_MEMBLOCK
 	select SPARSE_IRQ
 	select IRQ_DOMAIN
@@ -18,6 +17,7 @@ config C6X
 	select OF_EARLY_FLATTREE
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
+	select ARCH_NO_COHERENT_DMA_MMAP
 
 config MMU
 	def_bool n
@@ -36,9 +36,7 @@ config GENERIC_HWEIGHT
 
 config GENERIC_BUG
 	def_bool y
-
-config COMMON_CLKDEV
-	def_bool y
+	depends on BUG
 
 config C6X_BIG_KERNEL
 	bool "Build a big kernel"
@@ -105,10 +103,6 @@ config FORCE_MAX_ZONEORDER
 menu "Processor type and features"
 
 source "arch/c6x/platforms/Kconfig"
-
-config TMS320C6X_CACHES_ON
-	bool "L2 cache support"
-	default y
 
 config KERNEL_RAM_BASE_ADDRESS
 	hex "Virtual address of memory base"

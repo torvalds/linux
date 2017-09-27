@@ -60,8 +60,8 @@ struct s3c_i2sv2_info {
 
 	unsigned char	 master;
 
-	struct s3c_dma_params	*dma_playback;
-	struct s3c_dma_params	*dma_capture;
+	struct snd_dmaengine_dai_dma_data *dma_playback;
+	struct snd_dmaengine_dai_dma_data *dma_capture;
 
 	u32		 suspend_iismod;
 	u32		 suspend_iiscon;
@@ -92,6 +92,13 @@ extern int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 			   unsigned long base);
 
 /**
+ * s3c_i2sv2_cleanup - cleanup resources allocated in s3c_i2sv2_probe
+ * @dai: The ASoC DAI structure supplied to the original probe.
+ * @i2s: Our local i2s structure to fill in.
+ */
+extern void s3c_i2sv2_cleanup(struct snd_soc_dai *dai,
+			      struct s3c_i2sv2_info *i2s);
+/**
  * s3c_i2sv2_register_component - register component and dai with soc core
  * @dev: DAI device
  * @id: DAI ID
@@ -101,7 +108,7 @@ extern int s3c_i2sv2_probe(struct snd_soc_dai *dai,
  * soc core.
  */
 extern int s3c_i2sv2_register_component(struct device *dev, int id,
-					struct snd_soc_component_driver *cmp_drv,
+					const struct snd_soc_component_driver *cmp_drv,
 					struct snd_soc_dai_driver *dai_drv);
 
 #endif /* __SND_SOC_S3C24XX_S3C_I2SV2_I2S_H */

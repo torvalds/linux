@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx23885.h"
@@ -44,7 +40,7 @@ static void i2c_av_write(struct i2c_adapter *i2c, u16 reg, u8 val)
 	ret = i2c_transfer(i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: i2c write error!\n", __func__);
+		pr_err("%s: i2c write error!\n", __func__);
 }
 
 static void i2c_av_write4(struct i2c_adapter *i2c, u16 reg, u32 val)
@@ -68,7 +64,7 @@ static void i2c_av_write4(struct i2c_adapter *i2c, u16 reg, u32 val)
 	ret = i2c_transfer(i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: i2c write error!\n", __func__);
+		pr_err("%s: i2c write error!\n", __func__);
 }
 
 static u8 i2c_av_read(struct i2c_adapter *i2c, u16 reg)
@@ -88,7 +84,7 @@ static u8 i2c_av_read(struct i2c_adapter *i2c, u16 reg)
 	ret = i2c_transfer(i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: i2c write error!\n", __func__);
+		pr_err("%s: i2c write error!\n", __func__);
 
 	msg.flags = I2C_M_RD;
 	msg.len = 1;
@@ -96,7 +92,7 @@ static u8 i2c_av_read(struct i2c_adapter *i2c, u16 reg)
 	ret = i2c_transfer(i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: i2c read error!\n", __func__);
+		pr_err("%s: i2c read error!\n", __func__);
 
 	return buf[0];
 }

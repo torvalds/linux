@@ -8,7 +8,7 @@
  * and HeungJun Kim <riverful.kim@samsung.com>.
  *
  * Based on mt9v011 Micron Digital Image Sensor driver
- * Copyright (c) 2009 Mauro Carvalho Chehab (mchehab@redhat.com)
+ * Copyright (c) 2009 Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-ctrls.h>
-#include <media/sr030pc30.h>
+#include <media/i2c/sr030pc30.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -165,7 +165,7 @@ struct sr030pc30_info {
 };
 
 struct sr030pc30_format {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	enum v4l2_colorspace colorspace;
 	u16 ispctl1_reg;
 };
@@ -201,23 +201,23 @@ static const struct sr030pc30_frmsize sr030pc30_sizes[] = {
 /* supported pixel formats */
 static const struct sr030pc30_format sr030pc30_formats[] = {
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x03,
 	}, {
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
+		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x02,
 	}, {
-		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
+		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0,
 	}, {
-		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x01,
 	}, {
-		.code		= V4L2_MBUS_FMT_RGB565_2X8_BE,
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x40,
 	},
@@ -471,30 +471,32 @@ static int sr030pc30_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int sr030pc30_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			      enum v4l2_mbus_pixelcode *code)
+static int sr030pc30_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (!code || index >= ARRAY_SIZE(sr030pc30_formats))
+	if (!code || code->pad ||
+	    code->index >= ARRAY_SIZE(sr030pc30_formats))
 		return -EINVAL;
 
-	*code = sr030pc30_formats[index].code;
+	code->code = sr030pc30_formats[code->index].code;
 	return 0;
 }
 
-static int sr030pc30_g_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
+static int sr030pc30_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf;
 	struct sr030pc30_info *info = to_sr030pc30(sd);
-	int ret;
 
-	if (!mf)
+	if (!format || format->pad)
 		return -EINVAL;
 
-	if (!info->curr_win || !info->curr_fmt) {
-		ret = sr030pc30_set_params(sd);
-		if (ret)
-			return ret;
-	}
+	mf = &format->format;
+
+	if (!info->curr_win || !info->curr_fmt)
+		return -EINVAL;
 
 	mf->width	= info->curr_win->width;
 	mf->height	= info->curr_win->height;
@@ -523,25 +525,28 @@ static const struct sr030pc30_format *try_fmt(struct v4l2_subdev *sd,
 }
 
 /* Return nearest media bus frame format. */
-static int sr030pc30_try_fmt(struct v4l2_subdev *sd,
-			     struct v4l2_mbus_framefmt *mf)
+static int sr030pc30_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
-	if (!sd || !mf)
+	struct sr030pc30_info *info = sd ? to_sr030pc30(sd) : NULL;
+	const struct sr030pc30_format *fmt;
+	struct v4l2_mbus_framefmt *mf;
+
+	if (!sd || !format)
 		return -EINVAL;
 
-	try_fmt(sd, mf);
-	return 0;
-}
-
-static int sr030pc30_s_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
-{
-	struct sr030pc30_info *info = to_sr030pc30(sd);
-
-	if (!sd || !mf)
+	mf = &format->format;
+	if (format->pad)
 		return -EINVAL;
 
-	info->curr_fmt = try_fmt(sd, mf);
+	fmt = try_fmt(sd, mf);
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
+
+	info->curr_fmt = fmt;
 
 	return sr030pc30_set_params(sd);
 }
@@ -627,25 +632,17 @@ static const struct v4l2_ctrl_ops sr030pc30_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops sr030pc30_core_ops = {
 	.s_power	= sr030pc30_s_power,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 };
 
-static const struct v4l2_subdev_video_ops sr030pc30_video_ops = {
-	.g_mbus_fmt	= sr030pc30_g_fmt,
-	.s_mbus_fmt	= sr030pc30_s_fmt,
-	.try_mbus_fmt	= sr030pc30_try_fmt,
-	.enum_mbus_fmt	= sr030pc30_enum_fmt,
+static const struct v4l2_subdev_pad_ops sr030pc30_pad_ops = {
+	.enum_mbus_code = sr030pc30_enum_mbus_code,
+	.get_fmt	= sr030pc30_get_fmt,
+	.set_fmt	= sr030pc30_set_fmt,
 };
 
 static const struct v4l2_subdev_ops sr030pc30_ops = {
 	.core	= &sr030pc30_core_ops,
-	.video	= &sr030pc30_video_ops,
+	.pad	= &sr030pc30_pad_ops,
 };
 
 /*

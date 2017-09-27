@@ -16,9 +16,9 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_EEPROM_DS2431	0x2D
 
 #define W1_F2D_EEPROM_SIZE		128
 #define W1_F2D_PAGE_COUNT		4
@@ -96,9 +96,9 @@ static int w1_f2d_readblock(struct w1_slave *sl, int off, int count, char *buf)
 	return -1;
 }
 
-static ssize_t w1_f2d_read_bin(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buf, loff_t off, size_t count)
+static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
+			   struct bin_attribute *bin_attr, char *buf,
+			   loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	int todo = count;
@@ -202,9 +202,9 @@ retry:
 	return 0;
 }
 
-static ssize_t w1_f2d_write_bin(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
-				char *buf, loff_t off, size_t count)
+static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
+			    struct bin_attribute *bin_attr, char *buf,
+			    loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	int addr, len;
@@ -264,50 +264,33 @@ out_up:
 	return count;
 }
 
-static struct bin_attribute w1_f2d_bin_attr = {
-	.attr = {
-		.name = "eeprom",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.size = W1_F2D_EEPROM_SIZE,
-	.read = w1_f2d_read_bin,
-	.write = w1_f2d_write_bin,
+static BIN_ATTR_RW(eeprom, W1_F2D_EEPROM_SIZE);
+
+static struct bin_attribute *w1_f2d_bin_attrs[] = {
+	&bin_attr_eeprom,
+	NULL,
 };
 
-static int w1_f2d_add_slave(struct w1_slave *sl)
-{
-	return sysfs_create_bin_file(&sl->dev.kobj, &w1_f2d_bin_attr);
-}
+static const struct attribute_group w1_f2d_group = {
+	.bin_attrs = w1_f2d_bin_attrs,
+};
 
-static void w1_f2d_remove_slave(struct w1_slave *sl)
-{
-	sysfs_remove_bin_file(&sl->dev.kobj, &w1_f2d_bin_attr);
-}
+static const struct attribute_group *w1_f2d_groups[] = {
+	&w1_f2d_group,
+	NULL,
+};
 
 static struct w1_family_ops w1_f2d_fops = {
-	.add_slave      = w1_f2d_add_slave,
-	.remove_slave   = w1_f2d_remove_slave,
+	.groups		= w1_f2d_groups,
 };
 
 static struct w1_family w1_family_2d = {
 	.fid = W1_EEPROM_DS2431,
 	.fops = &w1_f2d_fops,
 };
+module_w1_family(w1_family_2d);
 
-static int __init w1_f2d_init(void)
-{
-	return w1_register_family(&w1_family_2d);
-}
-
-static void __exit w1_f2d_fini(void)
-{
-	w1_unregister_family(&w1_family_2d);
-}
-
-module_init(w1_f2d_init);
-module_exit(w1_f2d_fini);
-
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bernhard Weirich <bernhard.weirich@riedel.net>");
 MODULE_DESCRIPTION("w1 family 2d driver for DS2431, 1kb EEPROM");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_EEPROM_DS2431));

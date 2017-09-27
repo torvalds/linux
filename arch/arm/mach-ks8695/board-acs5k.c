@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-gpio.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -33,7 +33,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/devices.h>
+#include "devices.h"
 #include <mach/gpio-ks8695.h>
 
 #include "generic.h"

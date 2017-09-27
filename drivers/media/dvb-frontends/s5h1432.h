@@ -13,16 +13,11 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef __S5H1432_H__
 #define __S5H1432_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 #define S5H1432_I2C_TOP_ADDR (0x02 >> 1)
@@ -75,7 +70,7 @@ struct s5h1432_config {
 	u8 status_mode;
 };
 
-#if IS_ENABLED(CONFIG_DVB_S5H1432)
+#if IS_REACHABLE(CONFIG_DVB_S5H1432)
 extern struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 					   struct i2c_adapter *i2c);
 #else

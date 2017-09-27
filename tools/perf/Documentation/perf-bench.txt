@@ -16,6 +16,10 @@ This 'perf bench' command is a general framework for benchmark suites.
 
 COMMON OPTIONS
 --------------
+-r::
+--repeat=::
+Specify amount of times to repeat the run (default 10).
+
 -f::
 --format=::
 Specify format style.
@@ -48,6 +52,12 @@ SUBSYSTEM
 'mem'::
 	Memory access performance.
 
+'numa'::
+	NUMA scheduling and MM benchmarks.
+
+'futex'::
+	Futex stressing benchmarks.
+
 'all'::
 	All benchmark subsystems.
 
@@ -72,7 +82,7 @@ Be multi thread instead of multi process
 Specify number of groups
 
 -l::
---loop=::
+--nr_loops=::
 Specify number of loops
 
 Example of *messaging*
@@ -129,31 +139,23 @@ Suite for evaluating performance of simple memory copy in various ways.
 Options of *memcpy*
 ^^^^^^^^^^^^^^^^^^^
 -l::
---length::
-Specify length of memory to copy (default: 1MB).
+--size::
+Specify size of memory to copy (default: 1MB).
 Available units are B, KB, MB, GB and TB (case insensitive).
 
--r::
---routine::
-Specify routine to copy (default: default).
-Available routines are depend on the architecture.
+-f::
+--function::
+Specify function to copy (default: default).
+Available functions are depend on the architecture.
 On x86-64, x86-64-unrolled, x86-64-movsq and x86-64-movsb are supported.
 
--i::
---iterations::
+-l::
+--nr_loops::
 Repeat memcpy invocation this number of times.
 
 -c::
---cycle::
+--cycles::
 Use perf's cpu-cycles event instead of gettimeofday syscall.
-
--o::
---only-prefault::
-Show only the result with page faults before memcpy.
-
--n::
---no-prefault::
-Show only the result without page faults before memcpy.
 
 *memset*::
 Suite for evaluating performance of simple memory set in various ways.
@@ -161,31 +163,46 @@ Suite for evaluating performance of simple memory set in various ways.
 Options of *memset*
 ^^^^^^^^^^^^^^^^^^^
 -l::
---length::
-Specify length of memory to set (default: 1MB).
+--size::
+Specify size of memory to set (default: 1MB).
 Available units are B, KB, MB, GB and TB (case insensitive).
 
--r::
---routine::
-Specify routine to set (default: default).
-Available routines are depend on the architecture.
+-f::
+--function::
+Specify function to set (default: default).
+Available functions are depend on the architecture.
 On x86-64, x86-64-unrolled, x86-64-stosq and x86-64-stosb are supported.
 
--i::
---iterations::
+-l::
+--nr_loops::
 Repeat memset invocation this number of times.
 
 -c::
---cycle::
+--cycles::
 Use perf's cpu-cycles event instead of gettimeofday syscall.
 
--o::
---only-prefault::
-Show only the result with page faults before memset.
+SUITES FOR 'numa'
+~~~~~~~~~~~~~~~~~
+*mem*::
+Suite for evaluating NUMA workloads.
 
--n::
---no-prefault::
-Show only the result without page faults before memset.
+SUITES FOR 'futex'
+~~~~~~~~~~~~~~~~~~
+*hash*::
+Suite for evaluating hash tables.
+
+*wake*::
+Suite for evaluating wake calls.
+
+*wake-parallel*::
+Suite for evaluating parallel wake calls.
+
+*requeue*::
+Suite for evaluating requeue calls.
+
+*lock-pi*::
+Suite for evaluating futex lock_pi calls.
+
 
 SEE ALSO
 --------

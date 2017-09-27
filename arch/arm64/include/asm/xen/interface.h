@@ -1,1 +1,1 @@
-#include <../../arm/include/asm/xen/interface.h>
+#include <xen/arm/interface.h>

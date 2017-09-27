@@ -24,9 +24,25 @@
 
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
-#define atomic_set(v, i)	((v)->counter = (i))
+
+/*  Normal writes in our arch don't clear lock reservations  */
+
+static inline void atomic_set(atomic_t *v, int new)
+{
+	asm volatile(
+		"1:	r6 = memw_locked(%0);\n"
+		"	memw_locked(%0,p0) = %1;\n"
+		"	if (!P0) jump 1b;\n"
+		:
+		: "r" (&v->counter), "r" (new)
+		: "memory", "p0", "r6"
+	);
+}
+
+#define atomic_set_release(v, i)	atomic_set((v), (i))
 
 /**
  * atomic_read - reads a word, atomically
@@ -34,7 +50,7 @@
  *
  * Assumes all word reads on our architecture are atomic.
  */
-#define atomic_read(v)		((v)->counter)
+#define atomic_read(v)		READ_ONCE((v)->counter)
 
 /**
  * atomic_xchg - atomic
@@ -80,41 +96,72 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return __oldval;
 }
 
-static inline int atomic_add_return(int i, atomic_t *v)
-{
-	int output;
+#define ATOMIC_OP(op)							\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	int output;							\
+									\
+	__asm__ __volatile__ (						\
+		"1:	%0 = memw_locked(%1);\n"			\
+		"	%0 = "#op "(%0,%2);\n"				\
+		"	memw_locked(%1,P3)=%0;\n"			\
+		"	if !P3 jump 1b;\n"				\
+		: "=&r" (output)					\
+		: "r" (&v->counter), "r" (i)				\
+		: "memory", "p3"					\
+	);								\
+}									\
 
-	__asm__ __volatile__ (
-		"1:	%0 = memw_locked(%1);\n"
-		"	%0 = add(%0,%2);\n"
-		"	memw_locked(%1,P3)=%0;\n"
-		"	if !P3 jump 1b;\n"
-		: "=&r" (output)
-		: "r" (&v->counter), "r" (i)
-		: "memory", "p3"
-	);
-	return output;
-
+#define ATOMIC_OP_RETURN(op)						\
+static inline int atomic_##op##_return(int i, atomic_t *v)		\
+{									\
+	int output;							\
+									\
+	__asm__ __volatile__ (						\
+		"1:	%0 = memw_locked(%1);\n"			\
+		"	%0 = "#op "(%0,%2);\n"				\
+		"	memw_locked(%1,P3)=%0;\n"			\
+		"	if !P3 jump 1b;\n"				\
+		: "=&r" (output)					\
+		: "r" (&v->counter), "r" (i)				\
+		: "memory", "p3"					\
+	);								\
+	return output;							\
 }
 
-#define atomic_add(i, v) atomic_add_return(i, (v))
-
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	int output;
-	__asm__ __volatile__ (
-		"1:	%0 = memw_locked(%1);\n"
-		"	%0 = sub(%0,%2);\n"
-		"	memw_locked(%1,P3)=%0\n"
-		"	if !P3 jump 1b;\n"
-		: "=&r" (output)
-		: "r" (&v->counter), "r" (i)
-		: "memory", "p3"
-	);
-	return output;
+#define ATOMIC_FETCH_OP(op)						\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	int output, val;						\
+									\
+	__asm__ __volatile__ (						\
+		"1:	%0 = memw_locked(%2);\n"			\
+		"	%1 = "#op "(%0,%3);\n"				\
+		"	memw_locked(%2,P3)=%1;\n"			\
+		"	if !P3 jump 1b;\n"				\
+		: "=&r" (output), "=&r" (val)				\
+		: "r" (&v->counter), "r" (i)				\
+		: "memory", "p3"					\
+	);								\
+	return output;							\
 }
 
-#define atomic_sub(i, v) atomic_sub_return(i, (v))
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op) ATOMIC_FETCH_OP(op)
+
+ATOMIC_OPS(add)
+ATOMIC_OPS(sub)
+
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
+
+ATOMIC_OPS(and)
+ATOMIC_OPS(or)
+ATOMIC_OPS(xor)
+
+#undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
+#undef ATOMIC_OP_RETURN
+#undef ATOMIC_OP
 
 /**
  * __atomic_add_unless - add unless the number is a given value
@@ -159,7 +206,6 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
 #define atomic_sub_and_test(i, v) (atomic_sub_return(i, (v)) == 0)
 #define atomic_add_negative(i, v) (atomic_add_return(i, (v)) < 0)
-
 
 #define atomic_inc_return(v) (atomic_add_return(1, v))
 #define atomic_dec_return(v) (atomic_sub_return(1, v))

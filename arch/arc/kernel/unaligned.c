@@ -12,9 +12,20 @@
  */
 
 #include <linux/types.h>
+#include <linux/perf_event.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <asm/disasm.h>
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define BE		1
+#define FIRST_BYTE_16	"swap %1, %1\n swape %1, %1\n"
+#define FIRST_BYTE_32	"swape %1, %1\n"
+#else
+#define BE		0
+#define FIRST_BYTE_16
+#define FIRST_BYTE_32
+#endif
 
 #define __get8_unaligned_check(val, addr, err)		\
 	__asm__(					\
@@ -23,7 +34,7 @@
 	"	.section .fixup,\"ax\"\n"		\
 	"	.align	4\n"				\
 	"3:	mov	%0, 1\n"			\
-	"	b	2b\n"				\
+	"	j	2b\n"				\
 	"	.previous\n"				\
 	"	.section __ex_table,\"a\"\n"		\
 	"	.align	4\n"				\
@@ -36,9 +47,9 @@
 	do {						\
 		unsigned int err = 0, v, a = addr;	\
 		__get8_unaligned_check(v, a, err);	\
-		val =  v ;				\
+		val =  v << ((BE) ? 8 : 0);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 8;				\
+		val |= v << ((BE) ? 0 : 8);		\
 		if (err)				\
 			goto fault;			\
 	} while (0)
@@ -47,13 +58,13 @@
 	do {						\
 		unsigned int err = 0, v, a = addr;	\
 		__get8_unaligned_check(v, a, err);	\
-		val =  v << 0;				\
+		val =  v << ((BE) ? 24 : 0);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 8;				\
+		val |= v << ((BE) ? 16 : 8);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 16;				\
+		val |= v << ((BE) ? 8 : 16);		\
 		__get8_unaligned_check(v, a, err);	\
-		val |= v << 24;				\
+		val |= v << ((BE) ? 0 : 24);		\
 		if (err)				\
 			goto fault;			\
 	} while (0)
@@ -63,6 +74,7 @@
 		unsigned int err = 0, v = val, a = addr;\
 							\
 		__asm__(				\
+		FIRST_BYTE_16				\
 		"1:	stb.ab	%1, [%2, 1]\n"		\
 		"	lsr %1, %1, 8\n"		\
 		"2:	stb	%1, [%2]\n"		\
@@ -70,7 +82,7 @@
 		"	.section .fixup,\"ax\"\n"	\
 		"	.align	4\n"			\
 		"4:	mov	%0, 1\n"		\
-		"	b	3b\n"			\
+		"	j	3b\n"			\
 		"	.previous\n"			\
 		"	.section __ex_table,\"a\"\n"	\
 		"	.align	4\n"			\
@@ -87,8 +99,9 @@
 #define put32_unaligned_check(val, addr)		\
 	do {						\
 		unsigned int err = 0, v = val, a = addr;\
-		__asm__(				\
 							\
+		__asm__(				\
+		FIRST_BYTE_32				\
 		"1:	stb.ab	%1, [%2, 1]\n"		\
 		"	lsr %1, %1, 8\n"		\
 		"2:	stb.ab	%1, [%2, 1]\n"		\
@@ -100,7 +113,7 @@
 		"	.section .fixup,\"ax\"\n"	\
 		"	.align	4\n"			\
 		"6:	mov	%0, 1\n"		\
-		"	b	5b\n"			\
+		"	j	5b\n"			\
 		"	.previous\n"			\
 		"	.section __ex_table,\"a\"\n"	\
 		"	.align	4\n"			\
@@ -228,13 +241,21 @@ int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 	if (state.fault)
 		goto fault;
 
+	/* clear any remanants of delay slot */
 	if (delay_mode(regs)) {
-		regs->ret = regs->bta;
+		regs->ret = regs->bta & ~1U;
 		regs->status32 &= ~STATUS_DE_MASK;
 	} else {
 		regs->ret += state.instr_len;
+
+		/* handle zero-overhead-loop */
+		if ((regs->ret == regs->lp_end) && (regs->lp_count)) {
+			regs->ret = regs->lp_start;
+			regs->lp_count--;
+		}
 	}
 
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, address);
 	return 0;
 
 fault:

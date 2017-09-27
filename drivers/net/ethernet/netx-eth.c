@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/init.h>
@@ -305,7 +304,6 @@ static const struct net_device_ops netx_eth_netdev_ops = {
 	.ndo_start_xmit		= netx_eth_hard_start_xmit,
 	.ndo_tx_timeout		= netx_eth_timeout,
 	.ndo_set_rx_mode	= netx_eth_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
@@ -314,9 +312,8 @@ static int netx_eth_enable(struct net_device *ndev)
 {
 	struct netx_eth_priv *priv = netdev_priv(ndev);
 	unsigned int mac4321, mac65;
-	int running, i;
-
-	ether_setup(ndev);
+	int running, i, ret;
+	bool inv_mac_addr = false;
 
 	ndev->netdev_ops = &netx_eth_netdev_ops;
 	ndev->watchdog_timeo = msecs_to_jiffies(5000);
@@ -361,15 +358,18 @@ static int netx_eth_enable(struct net_device *ndev)
 	xc_start(priv->xc);
 
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		printk("%s: Invalid ethernet MAC address.  Please "
-		       "set using ifconfig\n", ndev->name);
+		inv_mac_addr = true;
 
 	for (i=2; i<=18; i++)
 		pfifo_push(EMPTY_PTR_FIFO(priv->id),
 			FIFO_PTR_FRAMENO(i) | FIFO_PTR_SEGMENT(priv->id));
 
-	return register_netdev(ndev);
+	ret = register_netdev(ndev);
+	if (inv_mac_addr)
+		printk("%s: Invalid ethernet MAC address. Please set using ip\n",
+		       ndev->name);
 
+	return ret;
 }
 
 static int netx_eth_drv_probe(struct platform_device *pdev)
@@ -390,7 +390,7 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 
-	pdata = (struct netxeth_platform_data *)pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	priv->xc = request_xc(pdata->xcno, &pdev->dev);
 	if (!priv->xc) {
 		dev_err(&pdev->dev, "unable to request xc engine\n");
@@ -460,7 +460,6 @@ static struct platform_driver netx_eth_driver = {
 	.resume		= netx_eth_drv_resume,
 	.driver		= {
 		.name	= CARDNAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

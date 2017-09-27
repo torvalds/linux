@@ -153,7 +153,7 @@ void
 newl3state(struct l3_process *pc, int state)
 {
 	if (pc->debug & L3_DEB_STATE)
-		l3_debug(pc->st, "newstate cr %d %d --> %d",
+		l3_debug(pc->st, "%s cr %d %d --> %d", __func__,
 			 pc->callref & 0x7F,
 			 pc->state, state);
 	pc->state = state;
@@ -169,9 +169,7 @@ void
 L3InitTimer(struct l3_process *pc, struct L3Timer *t)
 {
 	t->pc = pc;
-	t->tl.function = (void *) L3ExpireTimer;
-	t->tl.data = (long) t;
-	init_timer(&t->tl);
+	setup_timer(&t->tl, (void *)L3ExpireTimer, (long)t);
 }
 
 void

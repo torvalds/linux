@@ -34,6 +34,7 @@
 #define MLX4_CQ_H
 
 #include <linux/types.h>
+#include <uapi/linux/if_ether.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -43,10 +44,15 @@ struct mlx4_cqe {
 	__be32			immed_rss_invalid;
 	__be32			g_mlpath_rqpn;
 	__be16			sl_vid;
-	__be16			rlid;
-	__be16			status;
-	u8			ipv6_ext_mask;
-	u8			badfcs_enc;
+	union {
+		struct {
+			__be16	rlid;
+			__be16  status;
+			u8      ipv6_ext_mask;
+			u8      badfcs_enc;
+		};
+		u8  smac[ETH_ALEN];
+	};
 	__be32			byte_cnt;
 	__be16			wqe_index;
 	__be16			checksum;
@@ -81,8 +87,15 @@ struct mlx4_ts_cqe {
 } __packed;
 
 enum {
-	MLX4_CQE_VLAN_PRESENT_MASK	= 1 << 29,
+	MLX4_CQE_L2_TUNNEL_IPOK		= 1 << 31,
+	MLX4_CQE_CVLAN_PRESENT_MASK	= 1 << 29,
+	MLX4_CQE_SVLAN_PRESENT_MASK	= 1 << 30,
+	MLX4_CQE_L2_TUNNEL		= 1 << 27,
+	MLX4_CQE_L2_TUNNEL_CSUM		= 1 << 26,
+	MLX4_CQE_L2_TUNNEL_IPV4		= 1 << 25,
+
 	MLX4_CQE_QPN_MASK		= 0xffffff,
+	MLX4_CQE_VID_MASK		= 0xfff,
 };
 
 enum {

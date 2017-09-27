@@ -10,6 +10,8 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
+
 #include <asm/bootinfo.h>
 #include <asm/cacheflush.h>
 #include <asm/idle.h>
@@ -27,7 +29,6 @@
 #endif
 
 extern void msp_serial_setup(void);
-extern void pmctwiled_setup(void);
 
 #if defined(CONFIG_PMC_MSP7120_EVAL) || \
     defined(CONFIG_PMC_MSP7120_GW) || \
@@ -38,7 +39,6 @@ extern void pmctwiled_setup(void);
 void msp7120_reset(void)
 {
 	void *start, *end, *iptr;
-	register int i;
 
 	/* Diasble all interrupts */
 	local_irq_disable();
@@ -49,7 +49,7 @@ void msp7120_reset(void)
 	/* Cache the reset code of this function */
 	__asm__ __volatile__ (
 		"	.set	push				\n"
-		"	.set	mips3				\n"
+		"	.set	arch=r4000			\n"
 		"	la	%0,startpoint			\n"
 		"	la	%1,endpoint			\n"
 		"	.set	pop				\n"
@@ -78,7 +78,7 @@ void msp7120_reset(void)
 	 */
 
 	/* Wait a bit for the DDRC to settle */
-	for (i = 0; i < 100000000; i++);
+	mdelay(125);
 
 #if defined(CONFIG_PMC_MSP7120_GW)
 	/*
@@ -118,7 +118,7 @@ void msp_restart(char *command)
 	/* No chip-specific reset code, just jump to the ROM reset vector */
 	set_c0_status(ST0_BEV | ST0_ERL);
 	change_c0_config(CONF_CM_CMASK, CONF_CM_UNCACHED);
-	flush_cache_all();
+	__flush_cache_all();
 	write_c0_wired(0);
 
 	__asm__ __volatile__("jr\t%0"::"r"(0xbfc00000));
@@ -147,8 +147,6 @@ void __init plat_mem_setup(void)
 	_machine_halt = msp_halt;
 	pm_power_off = msp_power_off;
 }
-
-extern struct plat_smp_ops msp_smtc_smp_ops;
 
 void __init prom_init(void)
 {
@@ -230,17 +228,5 @@ void __init prom_init(void)
 	 */
 	msp_serial_setup();
 
-	if (register_vsmp_smp_ops()) {
-#ifdef CONFIG_MIPS_MT_SMTC
-		register_smp_ops(&msp_smtc_smp_ops);
-#endif
-	}
-
-#ifdef CONFIG_PMCTWILED
-	/*
-	 * Setup LED states before the subsys_initcall loads other
-	 * dependent drivers/modules.
-	 */
-	pmctwiled_setup();
-#endif
+	register_vsmp_smp_ops();
 }

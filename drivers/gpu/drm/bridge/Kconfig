@@ -1,0 +1,109 @@
+config DRM_BRIDGE
+	def_bool y
+	depends on DRM
+	help
+	  Bridge registration and lookup framework.
+
+config DRM_PANEL_BRIDGE
+	def_bool y
+	depends on DRM_BRIDGE
+	depends on DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  DRM bridge wrapper of DRM panels
+
+menu "Display Interface Bridges"
+	depends on DRM && DRM_BRIDGE
+
+config DRM_ANALOGIX_ANX78XX
+	tristate "Analogix ANX78XX bridge"
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	---help---
+	  ANX78XX is an ultra-low Full-HD SlimPort transmitter
+	  designed for portable devices. The ANX78XX transforms
+	  the HDMI output of an application processor to MyDP
+	  or DisplayPort.
+
+config DRM_DUMB_VGA_DAC
+	tristate "Dumb VGA DAC Bridge support"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Support for RGB to VGA DAC based bridges
+
+config DRM_LVDS_ENCODER
+	tristate "Transparent parallel to LVDS encoder support"
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	help
+	  Support for transparent parallel to LVDS encoders that don't require
+	  any configuration.
+
+config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
+	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	---help---
+          This is a driver for the display bridges of
+          GE B850v3 that convert dual channel LVDS
+          to DP++. This is used with the i.MX6 imx-ldb
+          driver. You are likely to say N here.
+
+config DRM_NXP_PTN3460
+	tristate "NXP PTN3460 DP/LVDS bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	---help---
+	  NXP PTN3460 eDP-LVDS bridge chip driver.
+
+config DRM_PARADE_PS8622
+	tristate "Parade eDP/LVDS bridge"
+	depends on OF
+	select DRM_PANEL
+	select DRM_KMS_HELPER
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	---help---
+	  Parade eDP-LVDS bridge chip driver.
+
+config DRM_SIL_SII8620
+	tristate "Silicon Image SII8620 HDMI/MHL bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
+
+config DRM_SII902X
+	tristate "Silicon Image sii902x RGB/HDMI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	---help---
+	  Silicon Image sii902x bridge chip driver.
+
+config DRM_TOSHIBA_TC358767
+	tristate "Toshiba TC358767 eDP bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	---help---
+	  Toshiba TC358767 eDP bridge chip driver.
+
+config DRM_TI_TFP410
+	tristate "TI TFP410 DVI/HDMI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	---help---
+	  Texas Instruments TFP410 DVI/HDMI Transmitter driver
+
+source "drivers/gpu/drm/bridge/analogix/Kconfig"
+
+source "drivers/gpu/drm/bridge/adv7511/Kconfig"
+
+source "drivers/gpu/drm/bridge/synopsys/Kconfig"
+
+endmenu

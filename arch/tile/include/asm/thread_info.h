@@ -26,7 +26,6 @@
  */
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
 	unsigned long		status;		/* thread-synchronous flags */
 	__u32			homecache_cpu;	/* CPU we are homecached on */
@@ -36,9 +35,14 @@ struct thread_info {
 
 	mm_segment_t		addr_limit;	/* thread address space
 						   (KERNEL_DS or USER_DS) */
-	struct restart_block	restart_block;
 	struct single_step_state *step_state;	/* single step state
 						   (if non-zero) */
+	int			align_ctl;	/* controls unaligned access */
+#ifdef __tilegx__
+	unsigned long		unalign_jit_tmp[4]; /* temp r0..r3 storage */
+	void __user		*unalign_jit_base; /* unalign fixup JIT base */
+#endif
+	bool in_backtrace;			/* currently doing backtrace? */
 };
 
 /*
@@ -47,15 +51,12 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
-	.restart_block	= {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 	.step_state	= NULL,			\
+	.align_ctl	= 0,			\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -77,7 +78,7 @@ struct thread_info {
 
 #ifndef __ASSEMBLY__
 
-void arch_release_thread_info(struct thread_info *info);
+void arch_release_thread_stack(unsigned long *stack);
 
 /* How to get the thread information struct from C. */
 register unsigned long stack_pointer __asm__("sp");
@@ -88,7 +89,7 @@ register unsigned long stack_pointer __asm__("sp");
 /* Sit on a nap instruction until interrupted. */
 extern void smp_nap(void);
 
-/* Enable interrupts racelessly and nap forever: helper for cpu_idle(). */
+/* Enable interrupts racelessly and nap forever: helper for arch_cpu_idle(). */
 extern void _cpu_idle(void);
 
 #else /* __ASSEMBLY__ */
@@ -107,8 +108,6 @@ extern void _cpu_idle(void);
 
 #endif /* !__ASSEMBLY__ */
 
-#define PREEMPT_ACTIVE		0x10000000
-
 /*
  * Thread information flags that various assembly files may need to access.
  * Keep flags accessed frequently in low bits, particular since it makes
@@ -125,6 +124,8 @@ extern void _cpu_idle(void);
 #define TIF_MEMDIE		7	/* OOM killer at work */
 #define TIF_NOTIFY_RESUME	8	/* callback before returning to user */
 #define TIF_SYSCALL_TRACEPOINT	9	/* syscall tracepoint instrumentation */
+#define TIF_POLLING_NRFLAG	10	/* idle is polling for TIF_NEED_RESCHED */
+#define TIF_NOHZ		11	/* in adaptive nohz mode */
 
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
@@ -136,14 +137,21 @@ extern void _cpu_idle(void);
 #define _TIF_MEMDIE		(1<<TIF_MEMDIE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
+#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_NOHZ		(1<<TIF_NOHZ)
+
+/* Work to do as we loop to exit to user space. */
+#define _TIF_WORK_MASK \
+	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+	 _TIF_ASYNC_TLB | _TIF_NOTIFY_RESUME)
 
 /* Work to do on any return to user space. */
 #define _TIF_ALLWORK_MASK \
-  (_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_SINGLESTEP|\
-   _TIF_ASYNC_TLB|_TIF_NOTIFY_RESUME)
+	(_TIF_WORK_MASK | _TIF_SINGLESTEP | _TIF_NOHZ)
 
 /* Work to do at syscall entry. */
-#define _TIF_SYSCALL_ENTRY_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)
+#define _TIF_SYSCALL_ENTRY_WORK \
+	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_NOHZ)
 
 /* Work to do at syscall exit. */
 #define _TIF_SYSCALL_EXIT_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)
@@ -158,33 +166,5 @@ extern void _cpu_idle(void);
 #ifdef __tilegx__
 #define TS_COMPAT		0x0001	/* 32-bit compatibility mode */
 #endif
-#define TS_POLLING		0x0004	/* in idle loop but not sleeping */
-#define TS_RESTORE_SIGMASK	0x0008	/* restore signal mask in do_signal */
-
-#ifndef __ASSEMBLY__
-#define HAVE_SET_RESTORE_SIGMASK	1
-static inline void set_restore_sigmask(void)
-{
-	struct thread_info *ti = current_thread_info();
-	ti->status |= TS_RESTORE_SIGMASK;
-	WARN_ON(!test_bit(TIF_SIGPENDING, &ti->flags));
-}
-static inline void clear_restore_sigmask(void)
-{
-	current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-}
-static inline bool test_restore_sigmask(void)
-{
-	return current_thread_info()->status & TS_RESTORE_SIGMASK;
-}
-static inline bool test_and_clear_restore_sigmask(void)
-{
-	struct thread_info *ti = current_thread_info();
-	if (!(ti->status & TS_RESTORE_SIGMASK))
-		return false;
-	ti->status &= ~TS_RESTORE_SIGMASK;
-	return true;
-}
-#endif	/* !__ASSEMBLY__ */
 
 #endif /* _ASM_TILE_THREAD_INFO_H */

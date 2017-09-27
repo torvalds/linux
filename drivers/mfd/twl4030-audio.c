@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl4030-audio.h>
 
@@ -187,7 +187,7 @@ static bool twl4030_audio_has_vibra(struct twl4030_audio_data *pdata,
 static int twl4030_audio_probe(struct platform_device *pdev)
 {
 	struct twl4030_audio *audio;
-	struct twl4030_audio_data *pdata = pdev->dev.platform_data;
+	struct twl4030_audio_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
 	struct mfd_cell *cell = NULL;
 	int ret, childs = 0;
@@ -283,7 +283,6 @@ MODULE_DEVICE_TABLE(of, twl4030_audio_of_match);
 
 static struct platform_driver twl4030_audio_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "twl4030-audio",
 		.of_match_table = twl4030_audio_of_match,
 	},

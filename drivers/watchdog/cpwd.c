@@ -21,7 +21,6 @@
 #include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -539,12 +538,9 @@ static int cpwd_probe(struct platform_device *op)
 	if (cpwd_device)
 		return -EINVAL;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!p) {
-		pr_err("Unable to allocate struct cpwd\n");
-		goto out;
-	}
+	p = devm_kzalloc(&op->dev, sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
 
 	p->irq = op->archdata.irqs[0];
 
@@ -554,12 +550,12 @@ static int cpwd_probe(struct platform_device *op)
 			     4 * WD_TIMER_REGSZ, DRIVER_NAME);
 	if (!p->regs) {
 		pr_err("Unable to map registers\n");
-		goto out_free;
+		return -ENOMEM;
 	}
 
 	options = of_find_node_by_path("/options");
-	err = -ENODEV;
 	if (!options) {
+		err = -ENODEV;
 		pr_err("Unable to find /options node\n");
 		goto out_iounmap;
 	}
@@ -612,9 +608,7 @@ static int cpwd_probe(struct platform_device *op)
 	}
 
 	if (p->broken) {
-		init_timer(&cpwd_timer);
-		cpwd_timer.function	= cpwd_brokentimer;
-		cpwd_timer.data		= (unsigned long) p;
+		setup_timer(&cpwd_timer, cpwd_brokentimer, (unsigned long)p);
 		cpwd_timer.expires	= WD_BTIMEOUT;
 
 		pr_info("PLD defect workaround enabled for model %s\n",
@@ -623,10 +617,7 @@ static int cpwd_probe(struct platform_device *op)
 
 	platform_set_drvdata(op, p);
 	cpwd_device = p;
-	err = 0;
-
-out:
-	return err;
+	return 0;
 
 out_unregister:
 	for (i--; i >= 0; i--)
@@ -635,9 +626,7 @@ out_unregister:
 out_iounmap:
 	of_iounmap(&op->resource[0], p->regs, 4 * WD_TIMER_REGSZ);
 
-out_free:
-	kfree(p);
-	goto out;
+	return err;
 }
 
 static int cpwd_remove(struct platform_device *op)
@@ -662,7 +651,6 @@ static int cpwd_remove(struct platform_device *op)
 		free_irq(p->irq, p);
 
 	of_iounmap(&op->resource[0], p->regs, 4 * WD_TIMER_REGSZ);
-	kfree(p);
 
 	cpwd_device = NULL;
 
@@ -680,7 +668,6 @@ MODULE_DEVICE_TABLE(of, cpwd_match);
 static struct platform_driver cpwd_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = cpwd_match,
 	},
 	.probe		= cpwd_probe,

@@ -1,0 +1,47 @@
+menuconfig PINCTRL_UNIPHIER
+	bool "UniPhier SoC pinctrl drivers"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && MFD_SYSCON
+	default y
+	select PINMUX
+	select GENERIC_PINCONF
+
+if PINCTRL_UNIPHIER
+
+config PINCTRL_UNIPHIER_LD4
+	bool "UniPhier LD4 SoC pinctrl driver"
+	default ARM
+
+config PINCTRL_UNIPHIER_PRO4
+	bool "UniPhier Pro4 SoC pinctrl driver"
+	default ARM
+
+config PINCTRL_UNIPHIER_SLD8
+	bool "UniPhier sLD8 SoC pinctrl driver"
+	default ARM
+
+config PINCTRL_UNIPHIER_PRO5
+	bool "UniPhier Pro5 SoC pinctrl driver"
+	default ARM
+
+config PINCTRL_UNIPHIER_PXS2
+	bool "UniPhier PXs2 SoC pinctrl driver"
+	default ARM
+
+config PINCTRL_UNIPHIER_LD6B
+	bool "UniPhier LD6b SoC pinctrl driver"
+	default ARM
+
+config PINCTRL_UNIPHIER_LD11
+	bool "UniPhier LD11 SoC pinctrl driver"
+	default ARM64
+
+config PINCTRL_UNIPHIER_LD20
+	bool "UniPhier LD20 SoC pinctrl driver"
+	default ARM64
+
+config PINCTRL_UNIPHIER_PXS3
+	bool "UniPhier PXs3 SoC pinctrl driver"
+	default ARM64
+
+endif

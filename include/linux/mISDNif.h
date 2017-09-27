@@ -554,7 +554,7 @@ _alloc_mISDN_skb(u_int prim, u_int id, u_int len, void *dp, gfp_t gfp_mask)
 	if (!skb)
 		return NULL;
 	if (len)
-		memcpy(skb_put(skb, len), dp, len);
+		skb_put_data(skb, dp, len);
 	hh = mISDN_HEAD_P(skb);
 	hh->prim = prim;
 	hh->id = id;
@@ -596,7 +596,7 @@ static inline struct mISDNdevice *dev_to_mISDN(struct device *dev)
 }
 
 extern void	set_channel_address(struct mISDNchannel *, u_int, u_int);
-extern void	mISDN_clock_update(struct mISDNclock *, int, struct timeval *);
+extern void	mISDN_clock_update(struct mISDNclock *, int, ktime_t *);
 extern unsigned short mISDN_clock_get(void);
 extern const char *mISDNDevName4ch(struct mISDNchannel *);
 

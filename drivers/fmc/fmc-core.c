@@ -13,6 +13,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/fmc.h>
+#include <linux/fmc-sdb.h>
+
+#include "fmc-private.h"
 
 static int fmc_check_version(unsigned long version, const char *name)
 {
@@ -99,11 +102,79 @@ static ssize_t fmc_read_eeprom(struct file *file, struct kobject *kobj,
 	return count;
 }
 
+static ssize_t fmc_write_eeprom(struct file *file, struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
+{
+	struct device *dev;
+	struct fmc_device *fmc;
+
+	dev = container_of(kobj, struct device, kobj);
+	fmc = container_of(dev, struct fmc_device, dev);
+	return fmc->op->write_ee(fmc, off, buf, count);
+}
+
 static struct bin_attribute fmc_eeprom_attr = {
-	.attr = { .name = "eeprom", .mode = S_IRUGO, },
+	.attr = { .name = "eeprom", .mode = S_IRUGO | S_IWUSR, },
 	.size = 8192, /* more or less standard */
 	.read = fmc_read_eeprom,
+	.write = fmc_write_eeprom,
 };
+
+int fmc_irq_request(struct fmc_device *fmc, irq_handler_t h,
+		    char *name, int flags)
+{
+	if (fmc->op->irq_request)
+		return fmc->op->irq_request(fmc, h, name, flags);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_irq_request);
+
+void fmc_irq_free(struct fmc_device *fmc)
+{
+	if (fmc->op->irq_free)
+		fmc->op->irq_free(fmc);
+}
+EXPORT_SYMBOL(fmc_irq_free);
+
+void fmc_irq_ack(struct fmc_device *fmc)
+{
+	if (likely(fmc->op->irq_ack))
+		fmc->op->irq_ack(fmc);
+}
+EXPORT_SYMBOL(fmc_irq_ack);
+
+int fmc_validate(struct fmc_device *fmc, struct fmc_driver *drv)
+{
+	if (fmc->op->validate)
+		return fmc->op->validate(fmc, drv);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_validate);
+
+int fmc_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio, int ngpio)
+{
+	if (fmc->op->gpio_config)
+		return fmc->op->gpio_config(fmc, gpio, ngpio);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_gpio_config);
+
+int fmc_read_ee(struct fmc_device *fmc, int pos, void *d, int l)
+{
+	if (fmc->op->read_ee)
+		return fmc->op->read_ee(fmc, pos, d, l);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_read_ee);
+
+int fmc_write_ee(struct fmc_device *fmc, int pos, const void *d, int l)
+{
+	if (fmc->op->write_ee)
+		return fmc->op->write_ee(fmc, pos, d, l);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_write_ee);
 
 /*
  * Functions for client modules follow
@@ -128,7 +199,8 @@ EXPORT_SYMBOL(fmc_driver_unregister);
  * When a device set is registered, all eeproms must be read
  * and all FRUs must be parsed
  */
-int fmc_device_register_n(struct fmc_device **devs, int n)
+int fmc_device_register_n_gw(struct fmc_device **devs, int n,
+			  struct fmc_gateware *gw)
 {
 	struct fmc_device *fmc, **devarray;
 	uint32_t device_id;
@@ -154,7 +226,7 @@ int fmc_device_register_n(struct fmc_device **devs, int n)
 			ret = -EINVAL;
 			break;
 		}
-		if (fmc->flags == FMC_DEVICE_NO_MEZZANINE) {
+		if (fmc->flags & FMC_DEVICE_NO_MEZZANINE) {
 			dev_info(fmc->hwdev, "absent mezzanine in slot %d\n",
 				 fmc->slot_id);
 			continue;
@@ -189,9 +261,6 @@ int fmc_device_register_n(struct fmc_device **devs, int n)
 	for (i = 0; i < n; i++) {
 		fmc = devarray[i];
 
-		if (fmc->flags == FMC_DEVICE_NO_MEZZANINE)
-			continue; /* dev_info already done above */
-
 		fmc->nr_slots = n; /* each slot must know how many are there */
 		fmc->devarray = devarray;
 
@@ -211,6 +280,21 @@ int fmc_device_register_n(struct fmc_device **devs, int n)
 		else
 			dev_set_name(&fmc->dev, "%s-%04x", fmc->mezzanine_name,
 				     device_id);
+
+		if (gw) {
+			/*
+			 * The carrier already know the bitstream to load
+			 * for this set of FMC mezzanines.
+			 */
+			ret = fmc->op->reprogram_raw(fmc, NULL,
+						     gw->bitstream, gw->len);
+			if (ret) {
+				dev_warn(fmc->hwdev,
+					 "Invalid gateware for FMC mezzanine\n");
+				goto out;
+			}
+		}
+
 		ret = device_add(&fmc->dev);
 		if (ret < 0) {
 			dev_err(fmc->hwdev, "Slot %i: Failed in registering "
@@ -224,18 +308,16 @@ int fmc_device_register_n(struct fmc_device **devs, int n)
 		}
 		/* This device went well, give information to the user */
 		fmc_dump_eeprom(fmc);
-		fmc_dump_sdb(fmc);
+		fmc_debug_init(fmc);
 	}
 	return 0;
 
 out1:
 	device_del(&fmc->dev);
 out:
-	fmc_free_id_info(fmc);
-	put_device(&fmc->dev);
-
 	kfree(devarray);
 	for (i--; i >= 0; i--) {
+		fmc_debug_exit(devs[i]);
 		sysfs_remove_bin_file(&devs[i]->dev.kobj, &fmc_eeprom_attr);
 		device_del(&devs[i]->dev);
 		fmc_free_id_info(devs[i]);
@@ -244,7 +326,19 @@ out:
 	return ret;
 
 }
+EXPORT_SYMBOL(fmc_device_register_n_gw);
+
+int fmc_device_register_n(struct fmc_device **devs, int n)
+{
+	return fmc_device_register_n_gw(devs, n, NULL);
+}
 EXPORT_SYMBOL(fmc_device_register_n);
+
+int fmc_device_register_gw(struct fmc_device *fmc, struct fmc_gateware *gw)
+{
+	return fmc_device_register_n_gw(&fmc, 1, gw);
+}
+EXPORT_SYMBOL(fmc_device_register_gw);
 
 int fmc_device_register(struct fmc_device *fmc)
 {
@@ -263,8 +357,7 @@ void fmc_device_unregister_n(struct fmc_device **devs, int n)
 	kfree(devs[0]->devarray);
 
 	for (i = 0; i < n; i++) {
-		if (devs[i]->flags == FMC_DEVICE_NO_MEZZANINE)
-			continue;
+		fmc_debug_exit(devs[i]);
 		sysfs_remove_bin_file(&devs[i]->dev.kobj, &fmc_eeprom_attr);
 		device_del(&devs[i]->dev);
 		fmc_free_id_info(devs[i]);

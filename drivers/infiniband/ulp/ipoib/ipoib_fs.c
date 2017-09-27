@@ -210,16 +210,16 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 	seq_printf(file,
 		   "GID: %s\n"
 		   "  complete: %6s\n",
-		   gid_buf, path.pathrec.dlid ? "yes" : "no");
+		   gid_buf, sa_path_get_dlid(&path.pathrec) ? "yes" : "no");
 
-	if (path.pathrec.dlid) {
+	if (sa_path_get_dlid(&path.pathrec)) {
 		rate = ib_rate_to_mbps(path.pathrec.rate);
 
 		seq_printf(file,
 			   "  DLID:     0x%04x\n"
 			   "  SL: %12d\n"
 			   "  rate: %8d.%d Gb/sec\n",
-			   be16_to_cpu(path.pathrec.dlid),
+			   be32_to_cpu(sa_path_get_dlid(&path.pathrec)),
 			   path.pathrec.sl,
 			   rate / 1000, rate % 1000);
 	}
@@ -261,7 +261,7 @@ static const struct file_operations ipoib_path_fops = {
 
 void ipoib_create_debug_files(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	char name[IFNAMSIZ + sizeof "_path"];
 
 	snprintf(name, sizeof name, "%s_mcg", dev->name);
@@ -279,12 +279,13 @@ void ipoib_create_debug_files(struct net_device *dev)
 
 void ipoib_delete_debug_files(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	if (priv->mcg_dentry)
-		debugfs_remove(priv->mcg_dentry);
-	if (priv->path_dentry)
-		debugfs_remove(priv->path_dentry);
+	WARN_ONCE(!priv->mcg_dentry, "null mcg debug file\n");
+	WARN_ONCE(!priv->path_dentry, "null path debug file\n");
+	debugfs_remove(priv->mcg_dentry);
+	debugfs_remove(priv->path_dentry);
+	priv->mcg_dentry = priv->path_dentry = NULL;
 }
 
 int ipoib_register_debugfs(void)

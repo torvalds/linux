@@ -16,15 +16,15 @@ Example scripts
 [[
 #!/bin/sh
 # Create an identity mapping for a device
-echo "0 `blockdev --getsize $1` linear $1 0" | dmsetup create identity
+echo "0 `blockdev --getsz $1` linear $1 0" | dmsetup create identity
 ]]
 
 
 [[
 #!/bin/sh
 # Join 2 devices together
-size1=`blockdev --getsize $1`
-size2=`blockdev --getsize $2`
+size1=`blockdev --getsz $1`
+size2=`blockdev --getsz $2`
 echo "0 $size1 linear $1 0
 $size1 $size2 linear $2 0" | dmsetup create joined
 ]]
@@ -44,7 +44,7 @@ if (!defined($dev)) {
         die("Please specify a device.\n");
 }
 
-my $dev_size = `blockdev --getsize $dev`;
+my $dev_size = `blockdev --getsz $dev`;
 my $extents = int($dev_size / $extent_size) -
               (($dev_size % $extent_size) ? 1 : 0);
 

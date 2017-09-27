@@ -1,0 +1,34 @@
+Atmel maXTouch touchscreen/touchpad
+
+Required properties:
+- compatible:
+    atmel,maxtouch
+
+- reg: The I2C address of the device
+
+- interrupts: The sink for the touchpad's IRQ output
+    See ../interrupt-controller/interrupts.txt
+
+Optional properties for main touchpad device:
+
+- linux,gpio-keymap: When enabled, the SPT_GPIOPWN_T19 object sends messages
+    on GPIO bit changes. An array of up to 8 entries can be provided
+    indicating the Linux keycode mapped to each bit of the status byte,
+    starting at the LSB. Linux keycodes are defined in
+    <dt-bindings/input/input.h>.
+
+    Note: the numbering of the GPIOs and the bit they start at varies between
+    maXTouch devices. You must either refer to the documentation, or
+    experiment to determine which bit corresponds to which input. Use
+    KEY_RESERVED for unused padding values.
+
+- reset-gpios: GPIO specifier for the touchscreen's reset pin (active low)
+
+Example:
+
+	touch@4b {
+		compatible = "atmel,maxtouch";
+		reg = <0x4b>;
+		interrupt-parent = <&gpio>;
+		interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_LOW>;
+	};

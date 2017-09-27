@@ -6,10 +6,11 @@
 #define _CRIS_PGTABLE_H
 
 #include <asm/page.h>
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 #ifndef __ASSEMBLY__
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <asm/mmu.h>
 #endif
 #include <arch/pgtable.h>
@@ -67,7 +68,7 @@ extern void paging_init(void);
  */
 
 #define USER_PTRS_PER_PGD       (TASK_SIZE/PGDIR_SIZE)
-#define FIRST_USER_ADDRESS      0
+#define FIRST_USER_ADDRESS      0UL
 
 /* zero page used for uninitialized stuff */
 #ifndef __ASSEMBLY__
@@ -114,7 +115,6 @@ extern unsigned long empty_zero_page;
 static inline int pte_write(pte_t pte)          { return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)          { return pte_val(pte) & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)          { return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)           { return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_special(pte_t pte)	{ return 0; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
@@ -289,9 +289,6 @@ static inline void update_mmu_cache(struct vm_area_struct * vma,
  * No page table caches to initialise
  */
 #define pgtable_cache_init()   do { } while (0)
-
-#define pte_to_pgoff(x)	(pte_val(x) >> 6)
-#define pgoff_to_pte(x)	__pte(((x) << 6) | _PAGE_FILE)
 
 typedef pte_t *pte_addr_t;
 

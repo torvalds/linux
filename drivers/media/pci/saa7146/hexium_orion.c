@@ -25,7 +25,7 @@
 
 #define DEBUG_VARIABLE debug
 
-#include <media/saa7146_vv.h>
+#include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
 
 static int debug;
@@ -63,7 +63,7 @@ struct hexium_data
 struct hexium
 {
 	int type;
-	struct video_device	*video_dev;
+	struct video_device	video_dev;
 	struct i2c_adapter	i2c_adapter;
 
 	int cur_input;	/* current input */
@@ -427,7 +427,7 @@ static struct saa7146_pci_extension_data hexium_orion_4bnc = {
 	.ext = &extension,
 };
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	{
 	 .vendor = PCI_VENDOR_ID_PHILIPS,
 	 .device = PCI_DEVICE_ID_PHILIPS_SAA7146,

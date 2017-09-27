@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -36,12 +35,9 @@
 #include "../perf.h"
 #include "util.h"
 #include "trace-event.h"
+#include "debug.h"
 
 static int input_fd;
-
-int file_bigendian;
-int host_bigendian;
-static int long_size;
 
 static ssize_t trace_data_size;
 static bool repipe;
@@ -166,25 +162,23 @@ out:
 static int read_proc_kallsyms(struct pevent *pevent)
 {
 	unsigned int size;
-	char *buf;
 
 	size = read4(pevent);
 	if (!size)
 		return 0;
-
-	buf = malloc(size + 1);
-	if (buf == NULL)
-		return -1;
-
-	if (do_read(buf, size) < 0) {
-		free(buf);
-		return -1;
-	}
-	buf[size] = '\0';
-
-	parse_proc_kallsyms(pevent, buf, size);
-
-	free(buf);
+	/*
+	 * Just skip it, now that we configure libtraceevent to use the
+	 * tools/perf/ symbol resolver.
+	 *
+	 * We need to skip it so that we can continue parsing old perf.data
+	 * files, that contains this /proc/kallsyms payload.
+	 *
+	 * Newer perf.data files will have just the 4-bytes zeros "kallsyms
+	 * payload", so that older tools can continue reading it and interpret
+	 * it as "no kallsyms payload is present".
+	 */
+	lseek(input_fd, size, SEEK_CUR);
+	trace_data_size += size;
 	return 0;
 }
 
@@ -198,7 +192,7 @@ static int read_ftrace_printk(struct pevent *pevent)
 	if (!size)
 		return 0;
 
-	buf = malloc(size);
+	buf = malloc(size + 1);
 	if (buf == NULL)
 		return -1;
 
@@ -206,6 +200,8 @@ static int read_ftrace_printk(struct pevent *pevent)
 		free(buf);
 		return -1;
 	}
+
+	buf[size] = '\0';
 
 	parse_ftrace_printk(pevent, buf, size);
 
@@ -216,7 +212,7 @@ static int read_ftrace_printk(struct pevent *pevent)
 static int read_header_files(struct pevent *pevent)
 {
 	unsigned long long size;
-	char *header_event;
+	char *header_page;
 	char buf[BUFSIZ];
 	int ret = 0;
 
@@ -229,13 +225,26 @@ static int read_header_files(struct pevent *pevent)
 	}
 
 	size = read8(pevent);
-	skip(size);
 
-	/*
-	 * The size field in the page is of type long,
-	 * use that instead, since it represents the kernel.
-	 */
-	long_size = header_page_size_size;
+	header_page = malloc(size);
+	if (header_page == NULL)
+		return -1;
+
+	if (do_read(header_page, size) < 0) {
+		pr_debug("did not read header page");
+		free(header_page);
+		return -1;
+	}
+
+	if (!pevent_parse_header_page(pevent, header_page, size,
+				      pevent_get_long_size(pevent))) {
+		/*
+		 * The commit field in the page is of type long,
+		 * use that instead, since it represents the kernel.
+		 */
+		pevent_set_long_size(pevent, pevent->header_page_size_size);
+	}
+	free(header_page);
 
 	if (do_read(buf, 13) < 0)
 		return -1;
@@ -246,52 +255,60 @@ static int read_header_files(struct pevent *pevent)
 	}
 
 	size = read8(pevent);
-	header_event = malloc(size);
-	if (header_event == NULL)
-		return -1;
+	skip(size);
 
-	if (do_read(header_event, size) < 0)
-		ret = -1;
-
-	free(header_event);
 	return ret;
 }
 
 static int read_ftrace_file(struct pevent *pevent, unsigned long long size)
 {
+	int ret;
 	char *buf;
 
 	buf = malloc(size);
-	if (buf == NULL)
-		return -1;
-
-	if (do_read(buf, size) < 0) {
-		free(buf);
+	if (buf == NULL) {
+		pr_debug("memory allocation failure\n");
 		return -1;
 	}
 
-	parse_ftrace_file(pevent, buf, size);
+	ret = do_read(buf, size);
+	if (ret < 0) {
+		pr_debug("error reading ftrace file.\n");
+		goto out;
+	}
+
+	ret = parse_ftrace_file(pevent, buf, size);
+	if (ret < 0)
+		pr_debug("error parsing ftrace file.\n");
+out:
 	free(buf);
-	return 0;
+	return ret;
 }
 
 static int read_event_file(struct pevent *pevent, char *sys,
 			    unsigned long long size)
 {
+	int ret;
 	char *buf;
 
 	buf = malloc(size);
-	if (buf == NULL)
-		return -1;
-
-	if (do_read(buf, size) < 0) {
-		free(buf);
+	if (buf == NULL) {
+		pr_debug("memory allocation failure\n");
 		return -1;
 	}
 
-	parse_event_file(pevent, buf, size, sys);
+	ret = do_read(buf, size);
+	if (ret < 0) {
+		free(buf);
+		goto out;
+	}
+
+	ret = parse_event_file(pevent, buf, size, sys);
+	if (ret < 0)
+		pr_debug("error parsing event file.\n");
+out:
 	free(buf);
-	return 0;
+	return ret;
 }
 
 static int read_ftrace_files(struct pevent *pevent)
@@ -340,7 +357,37 @@ static int read_event_files(struct pevent *pevent)
 	return 0;
 }
 
-ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
+static int read_saved_cmdline(struct pevent *pevent)
+{
+	unsigned long long size;
+	char *buf;
+	int ret;
+
+	/* it can have 0 size */
+	size = read8(pevent);
+	if (!size)
+		return 0;
+
+	buf = malloc(size + 1);
+	if (buf == NULL) {
+		pr_debug("memory allocation failure\n");
+		return -1;
+	}
+
+	ret = do_read(buf, size);
+	if (ret < 0) {
+		pr_debug("error reading saved cmdlines\n");
+		goto out;
+	}
+
+	parse_saved_cmdline(pevent, buf, size);
+	ret = 0;
+out:
+	free(buf);
+	return ret;
+}
+
+ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 {
 	char buf[BUFSIZ];
 	char test[] = { 23, 8, 68 };
@@ -349,10 +396,12 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	int show_funcs = 0;
 	int show_printk = 0;
 	ssize_t size = -1;
-	struct pevent *pevent;
+	int file_bigendian;
+	int host_bigendian;
+	int file_long_size;
+	int file_page_size;
+	struct pevent *pevent = NULL;
 	int err;
-
-	*ppevent = NULL;
 
 	repipe = __repipe;
 	input_fd = fd;
@@ -376,26 +425,35 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 		return -1;
 	if (show_version)
 		printf("version = %s\n", version);
-	free(version);
 
-	if (do_read(buf, 1) < 0)
+	if (do_read(buf, 1) < 0) {
+		free(version);
 		return -1;
+	}
 	file_bigendian = buf[0];
 	host_bigendian = bigendian();
 
-	pevent = read_trace_init(file_bigendian, host_bigendian);
-	if (pevent == NULL) {
-		pr_debug("read_trace_init failed");
+	if (trace_event__init(tevent)) {
+		pr_debug("trace_event__init failed");
 		goto out;
 	}
 
+	pevent = tevent->pevent;
+
+	pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
+	pevent_set_file_bigendian(pevent, file_bigendian);
+	pevent_set_host_bigendian(pevent, host_bigendian);
+
 	if (do_read(buf, 1) < 0)
 		goto out;
-	long_size = buf[0];
+	file_long_size = buf[0];
 
-	page_size = read4(pevent);
-	if (!page_size)
+	file_page_size = read4(pevent);
+	if (!file_page_size)
 		goto out;
+
+	pevent_set_long_size(pevent, file_long_size);
+	pevent_set_page_size(pevent, file_page_size);
 
 	err = read_header_files(pevent);
 	if (err)
@@ -412,6 +470,11 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	err = read_ftrace_printk(pevent);
 	if (err)
 		goto out;
+	if (atof(version) >= 0.6) {
+		err = read_saved_cmdline(pevent);
+		if (err)
+			goto out;
+	}
 
 	size = trace_data_size;
 	repipe = false;
@@ -422,11 +485,11 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 		pevent_print_printk(pevent);
 	}
 
-	*ppevent = pevent;
 	pevent = NULL;
 
 out:
 	if (pevent)
-		pevent_free(pevent);
+		trace_event__cleanup(tevent);
+	free(version);
 	return size;
 }

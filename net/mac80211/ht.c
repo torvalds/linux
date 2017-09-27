@@ -7,6 +7,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
+ * Copyright 2017	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,29 +20,59 @@
 #include "ieee80211_i.h"
 #include "rate.h"
 
-static void __check_htcap_disable(struct ieee80211_sub_if_data *sdata,
+static void __check_htcap_disable(struct ieee80211_ht_cap *ht_capa,
+				  struct ieee80211_ht_cap *ht_capa_mask,
 				  struct ieee80211_sta_ht_cap *ht_cap,
 				  u16 flag)
 {
 	__le16 le_flag = cpu_to_le16(flag);
-	if (sdata->u.mgd.ht_capa_mask.cap_info & le_flag) {
-		if (!(sdata->u.mgd.ht_capa.cap_info & le_flag))
+	if (ht_capa_mask->cap_info & le_flag) {
+		if (!(ht_capa->cap_info & le_flag))
 			ht_cap->cap &= ~flag;
 	}
+}
+
+static void __check_htcap_enable(struct ieee80211_ht_cap *ht_capa,
+				  struct ieee80211_ht_cap *ht_capa_mask,
+				  struct ieee80211_sta_ht_cap *ht_cap,
+				  u16 flag)
+{
+	__le16 le_flag = cpu_to_le16(flag);
+
+	if ((ht_capa_mask->cap_info & le_flag) &&
+	    (ht_capa->cap_info & le_flag))
+		ht_cap->cap |= flag;
 }
 
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_sta_ht_cap *ht_cap)
 {
-	u8 *scaps = (u8 *)(&sdata->u.mgd.ht_capa.mcs.rx_mask);
-	u8 *smask = (u8 *)(&sdata->u.mgd.ht_capa_mask.mcs.rx_mask);
+	struct ieee80211_ht_cap *ht_capa, *ht_capa_mask;
+	u8 *scaps, *smask;
 	int i;
 
 	if (!ht_cap->ht_supported)
 		return;
 
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		ht_capa = &sdata->u.mgd.ht_capa;
+		ht_capa_mask = &sdata->u.mgd.ht_capa_mask;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		ht_capa = &sdata->u.ibss.ht_capa;
+		ht_capa_mask = &sdata->u.ibss.ht_capa_mask;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	scaps = (u8 *)(&ht_capa->mcs.rx_mask);
+	smask = (u8 *)(&ht_capa_mask->mcs.rx_mask);
+
 	/* NOTE:  If you add more over-rides here, update register_hw
-	 * ht_capa_mod_msk logic in main.c as well.
+	 * ht_capa_mod_mask logic in main.c as well.
 	 * And, if this method can ever change ht_cap.ht_supported, fix
 	 * the check in ieee80211_add_ht_ie.
 	 */
@@ -55,28 +86,40 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* Force removal of HT-40 capabilities? */
-	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SUP_WIDTH_20_40);
-	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SGI_40);
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_SUP_WIDTH_20_40);
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_SGI_40);
 
 	/* Allow user to disable SGI-20 (SGI-40 is handled above) */
-	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SGI_20);
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_SGI_20);
 
 	/* Allow user to disable the max-AMSDU bit. */
-	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_MAX_AMSDU);
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_MAX_AMSDU);
+
+	/* Allow user to disable LDPC */
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_LDPC_CODING);
+
+	/* Allow user to enable 40 MHz intolerant bit. */
+	__check_htcap_enable(ht_capa, ht_capa_mask, ht_cap,
+			     IEEE80211_HT_CAP_40MHZ_INTOLERANT);
 
 	/* Allow user to decrease AMPDU factor */
-	if (sdata->u.mgd.ht_capa_mask.ampdu_params_info &
+	if (ht_capa_mask->ampdu_params_info &
 	    IEEE80211_HT_AMPDU_PARM_FACTOR) {
-		u8 n = sdata->u.mgd.ht_capa.ampdu_params_info
-			& IEEE80211_HT_AMPDU_PARM_FACTOR;
+		u8 n = ht_capa->ampdu_params_info &
+		       IEEE80211_HT_AMPDU_PARM_FACTOR;
 		if (n < ht_cap->ampdu_factor)
 			ht_cap->ampdu_factor = n;
 	}
 
 	/* Allow the user to increase AMPDU density. */
-	if (sdata->u.mgd.ht_capa_mask.ampdu_params_info &
+	if (ht_capa_mask->ampdu_params_info &
 	    IEEE80211_HT_AMPDU_PARM_DENSITY) {
-		u8 n = (sdata->u.mgd.ht_capa.ampdu_params_info &
+		u8 n = (ht_capa->ampdu_params_info &
 			IEEE80211_HT_AMPDU_PARM_DENSITY)
 			>> IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT;
 		if (n > ht_cap->ampdu_density)
@@ -108,12 +151,12 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * If user has specified capability over-rides, take care
-	 * of that if the station we're setting up is the AP that
+	 * of that if the station we're setting up is the AP or TDLS peer that
 	 * we advertised a restricted capability set to. Override
 	 * our own capabilities and then use those below.
 	 */
-	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		ieee80211_apply_htcap_overrides(sdata, &own_cap);
 
 	/*
@@ -185,6 +228,14 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	if (own_cap.mcs.rx_mask[32/8] & ht_cap_ie->mcs.rx_mask[32/8] & 1)
 		ht_cap.mcs.rx_mask[32/8] |= 1;
 
+	/* set Rx highest rate */
+	ht_cap.mcs.rx_highest = ht_cap_ie->mcs.rx_highest;
+
+	if (ht_cap.cap & IEEE80211_HT_CAP_MAX_AMSDU)
+		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_7935;
+	else
+		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_3839;
+
  apply:
 	changed = memcmp(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
 
@@ -207,8 +258,6 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	if (bw != sta->sta.bandwidth)
-		changed = true;
 	sta->sta.bandwidth = bw;
 
 	sta->cur_max_bandwidth =
@@ -241,8 +290,6 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 {
 	int i;
 
-	cancel_work_sync(&sta->ampdu_mlme.work);
-
 	for (i = 0; i <  IEEE80211_NUM_TIDS; i++) {
 		__ieee80211_stop_tx_ba_session(sta, i, reason);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
@@ -250,6 +297,27 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 					       reason != AGG_STOP_DESTROY_STA &&
 					       reason != AGG_STOP_PEER_REQUEST);
 	}
+
+	/* stopping might queue the work again - so cancel only afterwards */
+	cancel_work_sync(&sta->ampdu_mlme.work);
+
+	/*
+	 * In case the tear down is part of a reconfigure due to HW restart
+	 * request, it is possible that the low level driver requested to stop
+	 * the BA session, so handle it to properly clean tid_tx data.
+	 */
+	mutex_lock(&sta->ampdu_mlme.mtx);
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		struct tid_ampdu_tx *tid_tx =
+			rcu_dereference_protected_tid_tx(sta, i);
+
+		if (!tid_tx)
+			continue;
+
+		if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
+			ieee80211_stop_tx_ba_cb(sta, i, tid_tx);
+	}
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
 void ieee80211_ba_session_work(struct work_struct *work)
@@ -281,6 +349,18 @@ void ieee80211_ba_session_work(struct work_struct *work)
 				sta, tid, WLAN_BACK_RECIPIENT,
 				WLAN_REASON_UNSPECIFIED, true);
 
+		if (test_and_clear_bit(tid,
+				       sta->ampdu_mlme.tid_rx_manage_offl))
+			___ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
+							 IEEE80211_MAX_AMPDU_BUF,
+							 false, true);
+
+		if (test_and_clear_bit(tid + IEEE80211_NUM_TIDS,
+				       sta->ampdu_mlme.tid_rx_manage_offl))
+			___ieee80211_stop_rx_ba_session(
+				sta, tid, WLAN_BACK_RECIPIENT,
+				0, false);
+
 		spin_lock_bh(&sta->lock);
 
 		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
@@ -304,10 +384,16 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		spin_unlock_bh(&sta->lock);
 
 		tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
-		if (tid_tx && test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
-						 &tid_tx->state))
+		if (!tid_tx)
+			continue;
+
+		if (test_and_clear_bit(HT_AGG_STATE_START_CB, &tid_tx->state))
+			ieee80211_start_tx_ba_cb(sta, tid, tid_tx);
+		if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,
 							AGG_STOP_LOCAL_REQUEST);
+		if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
+			ieee80211_stop_tx_ba_cb(sta, tid, tid_tx);
 	}
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
@@ -326,8 +412,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
-	memset(mgmt, 0, 24);
+	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -352,7 +437,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.delba.params = cpu_to_le16(params);
 	mgmt->u.action.u.delba.reason_code = cpu_to_le16(reason_code);
 
-	ieee80211_tx_skb_tid(sdata, skb, tid);
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
@@ -392,7 +477,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 		return -ENOMEM;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	action_frame = (void *)skb_put(skb, 27);
+	action_frame = skb_put(skb, 27);
 	memcpy(action_frame->da, da, ETH_ALEN);
 	memcpy(action_frame->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(action_frame->bssid, bssid, ETH_ALEN);
@@ -425,14 +510,27 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-void ieee80211_request_smps_work(struct work_struct *work)
+void ieee80211_request_smps_mgd_work(struct work_struct *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.request_smps_work);
 
 	sdata_lock(sdata);
-	__ieee80211_request_smps(sdata, sdata->u.mgd.driver_smps_mode);
+	__ieee80211_request_smps_mgd(sdata, sdata->u.mgd.driver_smps_mode);
+	sdata_unlock(sdata);
+}
+
+void ieee80211_request_smps_ap_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.ap.request_smps_work);
+
+	sdata_lock(sdata);
+	if (sdata_dereference(sdata->u.ap.beacon, sdata))
+		__ieee80211_request_smps_ap(sdata,
+					    sdata->u.ap.driver_smps_mode);
 	sdata_unlock(sdata);
 }
 
@@ -441,19 +539,26 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
-	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+	if (WARN_ON_ONCE(vif->type != NL80211_IFTYPE_STATION &&
+			 vif->type != NL80211_IFTYPE_AP))
 		return;
 
-	if (WARN_ON(smps_mode == IEEE80211_SMPS_OFF))
-		smps_mode = IEEE80211_SMPS_AUTOMATIC;
-
-	if (sdata->u.mgd.driver_smps_mode == smps_mode)
-		return;
-
-	sdata->u.mgd.driver_smps_mode = smps_mode;
-
-	ieee80211_queue_work(&sdata->local->hw,
-			     &sdata->u.mgd.request_smps_work);
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (sdata->u.mgd.driver_smps_mode == smps_mode)
+			return;
+		sdata->u.mgd.driver_smps_mode = smps_mode;
+		ieee80211_queue_work(&sdata->local->hw,
+				     &sdata->u.mgd.request_smps_work);
+	} else {
+		/* AUTOMATIC is meaningless in AP mode */
+		if (WARN_ON_ONCE(smps_mode == IEEE80211_SMPS_AUTOMATIC))
+			return;
+		if (sdata->u.ap.driver_smps_mode == smps_mode)
+			return;
+		sdata->u.ap.driver_smps_mode = smps_mode;
+		ieee80211_queue_work(&sdata->local->hw,
+				     &sdata->u.ap.request_smps_work);
+	}
 }
 /* this might change ... don't want non-open drivers using it */
 EXPORT_SYMBOL_GPL(ieee80211_request_smps);

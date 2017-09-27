@@ -40,39 +40,18 @@ struct microcode_amd {
 	unsigned int			mpb[0];
 };
 
-static inline u16 find_equiv_id(struct equiv_cpu_entry *equiv_cpu_table,
-				unsigned int sig)
-{
-	int i = 0;
+#define PATCH_MAX_SIZE PAGE_SIZE
 
-	if (!equiv_cpu_table)
-		return 0;
-
-	while (equiv_cpu_table[i].installed_cpu != 0) {
-		if (sig == equiv_cpu_table[i].installed_cpu)
-			return equiv_cpu_table[i].equiv_cpu;
-
-		i++;
-	}
-	return 0;
-}
-
-extern int __apply_microcode_amd(struct microcode_amd *mc_amd);
-extern int apply_microcode_amd(int cpu);
-extern enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size);
-
-#ifdef CONFIG_MICROCODE_AMD_EARLY
-#ifdef CONFIG_X86_32
-#define MPB_MAX_SIZE PAGE_SIZE
-extern u8 amd_bsp_mpb[MPB_MAX_SIZE];
-#endif
-extern void __init load_ucode_amd_bsp(void);
-extern void load_ucode_amd_ap(void);
-extern int __init save_microcode_in_initrd_amd(void);
+#ifdef CONFIG_MICROCODE_AMD
+extern void __init load_ucode_amd_bsp(unsigned int family);
+extern void load_ucode_amd_ap(unsigned int family);
+extern int __init save_microcode_in_initrd_amd(unsigned int family);
+void reload_ucode_amd(void);
 #else
-static inline void __init load_ucode_amd_bsp(void) {}
-static inline void load_ucode_amd_ap(void) {}
-static inline int __init save_microcode_in_initrd_amd(void) { return -EINVAL; }
+static inline void __init load_ucode_amd_bsp(unsigned int family) {}
+static inline void load_ucode_amd_ap(unsigned int family) {}
+static inline int __init
+save_microcode_in_initrd_amd(unsigned int family) { return -EINVAL; }
+void reload_ucode_amd(void) {}
 #endif
-
 #endif /* _ASM_X86_MICROCODE_AMD_H */

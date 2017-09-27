@@ -91,6 +91,59 @@ Often we ellipsize arguments not important to the discussion, e.g.:
     in_port(1), eth(...), eth_type(0x0800), ipv4(...), tcp(...)
 
 
+Wildcarded flow key format
+--------------------------
+
+A wildcarded flow is described with two sequences of Netlink attributes
+passed over the Netlink socket. A flow key, exactly as described above, and an
+optional corresponding flow mask.
+
+A wildcarded flow can represent a group of exact match flows. Each '1' bit
+in the mask specifies a exact match with the corresponding bit in the flow key.
+A '0' bit specifies a don't care bit, which will match either a '1' or '0' bit
+of a incoming packet. Using wildcarded flow can improve the flow set up rate
+by reduce the number of new flows need to be processed by the user space program.
+
+Support for the mask Netlink attribute is optional for both the kernel and user
+space program. The kernel can ignore the mask attribute, installing an exact
+match flow, or reduce the number of don't care bits in the kernel to less than
+what was specified by the user space program. In this case, variations in bits
+that the kernel does not implement will simply result in additional flow setups.
+The kernel module will also work with user space programs that neither support
+nor supply flow mask attributes.
+
+Since the kernel may ignore or modify wildcard bits, it can be difficult for
+the userspace program to know exactly what matches are installed. There are
+two possible approaches: reactively install flows as they miss the kernel
+flow table (and therefore not attempt to determine wildcard changes at all)
+or use the kernel's response messages to determine the installed wildcards.
+
+When interacting with userspace, the kernel should maintain the match portion
+of the key exactly as originally installed. This will provides a handle to
+identify the flow for all future operations. However, when reporting the
+mask of an installed flow, the mask should include any restrictions imposed
+by the kernel.
+
+The behavior when using overlapping wildcarded flows is undefined. It is the
+responsibility of the user space program to ensure that any incoming packet
+can match at most one flow, wildcarded or not. The current implementation
+performs best-effort detection of overlapping wildcarded flows and may reject
+some but not all of them. However, this behavior may change in future versions.
+
+
+Unique flow identifiers
+-----------------------
+
+An alternative to using the original match portion of a key as the handle for
+flow identification is a unique flow identifier, or "UFID". UFIDs are optional
+for both the kernel and user space program.
+
+User space programs that support UFID are expected to provide it during flow
+setup in addition to the flow, then refer to the flow using the UFID for all
+future operations. The kernel is not required to index flows by the original
+flow key if a UFID is specified.
+
+
 Basic rule for evolving flow keys
 ---------------------------------
 

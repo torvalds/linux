@@ -24,8 +24,7 @@
  * the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program;  if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program;  if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -52,6 +51,7 @@ struct netlbl_dommap_def {
 	union {
 		struct netlbl_domaddr_map *addrsel;
 		struct cipso_v4_doi *cipso;
+		struct calipso_doi *calipso;
 	};
 };
 #define netlbl_domhsh_addr4_entry(iter) \
@@ -71,6 +71,7 @@ struct netlbl_domaddr6_map {
 
 struct netlbl_dom_map {
 	char *domain;
+	u16 family;
 	struct netlbl_dommap_def def;
 
 	u32 valid;
@@ -92,14 +93,23 @@ int netlbl_domhsh_remove_af4(const char *domain,
 			     const struct in_addr *addr,
 			     const struct in_addr *mask,
 			     struct netlbl_audit *audit_info);
-int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
-int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info);
-struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain);
+int netlbl_domhsh_remove_af6(const char *domain,
+			     const struct in6_addr *addr,
+			     const struct in6_addr *mask,
+			     struct netlbl_audit *audit_info);
+int netlbl_domhsh_remove(const char *domain, u16 family,
+			 struct netlbl_audit *audit_info);
+int netlbl_domhsh_remove_default(u16 family, struct netlbl_audit *audit_info);
+struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain, u16 family);
 struct netlbl_dommap_def *netlbl_domhsh_getentry_af4(const char *domain,
 						     __be32 addr);
 #if IS_ENABLED(CONFIG_IPV6)
 struct netlbl_dommap_def *netlbl_domhsh_getentry_af6(const char *domain,
 						   const struct in6_addr *addr);
+int netlbl_domhsh_remove_af6(const char *domain,
+			     const struct in6_addr *addr,
+			     const struct in6_addr *mask,
+			     struct netlbl_audit *audit_info);
 #endif /* IPv6 */
 
 int netlbl_domhsh_walk(u32 *skip_bkt,

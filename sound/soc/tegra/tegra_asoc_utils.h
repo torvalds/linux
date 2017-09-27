@@ -21,7 +21,7 @@
  */
 
 #ifndef __TEGRA_ASOC_UTILS_H__
-#define __TEGRA_ASOC_UTILS_H_
+#define __TEGRA_ASOC_UTILS_H__
 
 struct clk;
 struct device;
@@ -30,6 +30,7 @@ enum tegra_asoc_utils_soc {
 	TEGRA_ASOC_UTILS_SOC_TEGRA20,
 	TEGRA_ASOC_UTILS_SOC_TEGRA30,
 	TEGRA_ASOC_UTILS_SOC_TEGRA114,
+	TEGRA_ASOC_UTILS_SOC_TEGRA124,
 };
 
 struct tegra_asoc_utils_data {

@@ -1,71 +1,56 @@
 /*
-    comedi/drivers/ni_labpc_cs.c
-    Driver for National Instruments daqcard-1200 boards
-    Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    PCMCIA crap is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
-    from the pcmcia package.
-    The initial developer of the pcmcia dummy_cs.c code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
-/*
-Driver: ni_labpc_cs
-Description: National Instruments Lab-PC (& compatibles)
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [National Instruments] DAQCard-1200 (daqcard-1200)
-Status: works
-
-Thanks go to Fredrik Lingvall for much testing and perseverance in
-helping to debug daqcard-1200 support.
-
-The 1200 series boards have onboard calibration dacs for correcting
-analog input/output offsets and gains.  The proper settings for these
-caldacs are stored on the board's eeprom.  To read the caldac values
-from the eeprom and store them into a file that can be then be used by
-comedilib, use the comedi_calibrate program.
-
-Configuration options:
-  none
-
-The daqcard-1200 has quirky chanlist requirements
-when scanning multiple channels.  Multiple channel scan
-sequence must start at highest channel, then decrement down to
-channel 0.  Chanlists consisting of all one channel
-are also legal, and allow you to pace conversions in bursts.
-
-*/
+ * Driver for National Instruments daqcard-1200 boards
+ * Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * PCMCIA crap is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
+ * from the pcmcia package.
+ * The initial developer of the pcmcia dummy_cs.c code is David A. Hinds
+ * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+ * are Copyright (C) 1999 David A. Hinds.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * General Public License for more details.
+ */
 
 /*
+ * Driver: ni_labpc_cs
+ * Description: National Instruments Lab-PC (& compatibles)
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Devices: [National Instruments] DAQCard-1200 (daqcard-1200)
+ * Status: works
+ *
+ * Thanks go to Fredrik Lingvall for much testing and perseverance in
+ * helping to debug daqcard-1200 support.
+ *
+ * The 1200 series boards have onboard calibration dacs for correcting
+ * analog input/output offsets and gains. The proper settings for these
+ * caldacs are stored on the board's eeprom. To read the caldac values
+ * from the eeprom and store them into a file that can be then be used by
+ * comedilib, use the comedi_calibrate program.
+ *
+ * Configuration options: none
+ *
+ * The daqcard-1200 has quirky chanlist requirements when scanning multiple
+ * channels. Multiple channel scan sequence must start at highest channel,
+ * then decrement down to channel 0.  Chanlists consisting of all one channel
+ * are also legal, and allow you to pace conversions in bursts.
+ *
+ * NI manuals:
+ *   340988a (daqcard-1200)
+ */
 
-NI manuals:
-340988a (daqcard-1200)
+#include <linux/module.h>
 
-*/
+#include "../comedi_pcmcia.h"
 
-#include "../comedidev.h"
-
-#include <linux/delay.h>
-#include <linux/slab.h>
-
-#include "8253.h"
-#include "8255.h"
-#include "comedi_fc.h"
 #include "ni_labpc.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
 
 static const struct labpc_boardinfo labpc_cs_boards[] = {
 	{
@@ -76,11 +61,10 @@ static const struct labpc_boardinfo labpc_cs_boards[] = {
 	},
 };
 
-static int labpc_auto_attach(struct comedi_device *dev,
-			     unsigned long context)
+static int labpc_cs_auto_attach(struct comedi_device *dev,
+				unsigned long context)
 {
 	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-	struct labpc_private *devpriv;
 	int ret;
 
 	/* The ni_labpc driver needs the board_ptr */
@@ -96,19 +80,20 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	if (!link->irq)
 		return -EINVAL;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
 	return labpc_common_attach(dev, link->irq, IRQF_SHARED);
+}
+
+static void labpc_cs_detach(struct comedi_device *dev)
+{
+	labpc_common_detach(dev);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_labpc_cs = {
 	.driver_name	= "ni_labpc_cs",
 	.module		= THIS_MODULE,
-	.auto_attach	= labpc_auto_attach,
-	.detach		= comedi_pcmcia_disable,
+	.auto_attach	= labpc_cs_auto_attach,
+	.detach		= labpc_cs_detach,
 };
 
 static int labpc_cs_attach(struct pcmcia_device *link)

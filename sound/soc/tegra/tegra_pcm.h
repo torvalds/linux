@@ -31,7 +31,12 @@
 #ifndef __TEGRA_PCM_H__
 #define __TEGRA_PCM_H__
 
+struct snd_dmaengine_pcm_config;
+
 int tegra_pcm_platform_register(struct device *dev);
+int tegra_pcm_platform_register_with_chan_names(struct device *dev,
+				struct snd_dmaengine_pcm_config *config,
+				char *txdmachan, char *rxdmachan);
 void tegra_pcm_platform_unregister(struct device *dev);
 
 #endif

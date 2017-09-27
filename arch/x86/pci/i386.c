@@ -34,7 +34,7 @@
 #include <linux/bootmem.h>
 
 #include <asm/pat.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/pci_x86.h>
 #include <asm/io_apic.h>
 
@@ -162,6 +162,10 @@ pcibios_align_resource(void *data, const struct resource *res,
 			return start;
 		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
+	} else if (res->flags & IORESOURCE_MEM) {
+		/* The low 1MB range is reserved for ISA cards */
+		if (start < BIOS_END)
+			start = BIOS_END;
 	}
 	return start;
 }
@@ -210,7 +214,9 @@ static void pcibios_allocate_bridge_resources(struct pci_dev *dev)
 		r = &dev->resource[idx];
 		if (!r->flags)
 			continue;
-		if (!r->start || pci_claim_resource(dev, idx) < 0) {
+		if (r->parent)	/* Already allocated */
+			continue;
+		if (!r->start || pci_claim_bridge_resource(dev, idx) < 0) {
 			/*
 			 * Something is wrong with the region.
 			 * Invalidate the resource to prevent
@@ -269,11 +275,16 @@ static void pcibios_allocate_dev_resources(struct pci_dev *dev, int pass)
 					"BAR %d: reserving %pr (d=%d, p=%d)\n",
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					/* We'll assign a new address later */
-					pcibios_save_fw_addr(dev,
-							idx, r->start);
-					r->end -= r->start;
-					r->start = 0;
+					if (r->flags & IORESOURCE_PCI_FIXED) {
+						dev_info(&dev->dev, "BAR %d %pR is immovable\n",
+							 idx, r);
+					} else {
+						/* We'll assign a new address later */
+						pcibios_save_fw_addr(dev,
+								idx, r->start);
+						r->end -= r->start;
+						r->start = 0;
+					}
 				}
 			}
 		}
@@ -318,6 +329,8 @@ static void pcibios_allocate_dev_rom_resource(struct pci_dev *dev)
 	r = &dev->resource[PCI_ROM_RESOURCE];
 	if (!r->flags || !r->start)
 		return;
+	if (r->parent) /* Already allocated */
+		return;
 
 	if (pci_claim_resource(dev, PCI_ROM_RESOURCE) < 0) {
 		r->end -= r->start;
@@ -352,6 +365,12 @@ static int __init pcibios_assign_resources(void)
 	return 0;
 }
 
+/**
+ * called in fs_initcall (one below subsys_initcall),
+ * give a chance for motherboard reserve resources
+ */
+fs_initcall(pcibios_assign_resources);
+
 void pcibios_resource_survey_bus(struct pci_bus *bus)
 {
 	dev_printk(KERN_DEBUG, &bus->dev, "Allocating resources\n");
@@ -379,66 +398,11 @@ void __init pcibios_resource_survey(void)
 	list_for_each_entry(bus, &pci_root_buses, node)
 		pcibios_allocate_resources(bus, 1);
 
-	e820_reserve_resources_late();
+	e820__reserve_resources_late();
 	/*
 	 * Insert the IO APIC resources after PCI initialization has
 	 * occurred to handle IO APICS that are mapped in on a BAR in
 	 * PCI space, but before trying to assign unassigned pci res.
 	 */
 	ioapic_insert_resources();
-}
-
-/**
- * called in fs_initcall (one below subsys_initcall),
- * give a chance for motherboard reserve resources
- */
-fs_initcall(pcibios_assign_resources);
-
-static const struct vm_operations_struct pci_mmap_ops = {
-	.access = generic_access_phys,
-};
-
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
-{
-	unsigned long prot;
-
-	/* I/O space cannot be accessed via normal processor loads and
-	 * stores on this platform.
-	 */
-	if (mmap_state == pci_mmap_io)
-		return -EINVAL;
-
-	prot = pgprot_val(vma->vm_page_prot);
-
-	/*
- 	 * Return error if pat is not enabled and write_combine is requested.
- 	 * Caller can followup with UC MINUS request and add a WC mtrr if there
- 	 * is a free mtrr slot.
- 	 */
-	if (!pat_enabled && write_combine)
-		return -EINVAL;
-
-	if (pat_enabled && write_combine)
-		prot |= _PAGE_CACHE_WC;
-	else if (pat_enabled || boot_cpu_data.x86 > 3)
-		/*
-		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
-		 * To avoid attribute conflicts, request UC MINUS here
-		 * as well.
-		 */
-		prot |= _PAGE_CACHE_UC_MINUS;
-
-	prot |= _PAGE_IOMAP;	/* creating a mapping for IO */
-
-	vma->vm_page_prot = __pgprot(prot);
-
-	if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot))
-		return -EAGAIN;
-
-	vma->vm_ops = &pci_mmap_ops;
-
-	return 0;
 }

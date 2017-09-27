@@ -14,12 +14,17 @@
  * published by the Free Software Foundation.
  */
 
+/*
+ * NOTE: Code in this file is not used when booting with Device Tree support.
+ */
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
@@ -27,27 +32,42 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/irqchip/arm-vic.h>
+#include <clocksource/samsung_pwm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/cpu.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/gpio-cfg.h>
-#include <plat/irq-uart.h>
-#include <plat/irq-vic-timer.h>
+#include <plat/pwm-core.h>
 #include <plat/regs-irqtype.h>
-#include <plat/regs-serial.h>
-#include <plat/watchdog-reset.h>
 
 #include "common.h"
+#include "irq-uart.h"
+#include "watchdog-reset.h"
+
+/* External clock frequency */
+static unsigned long xtal_f __ro_after_init = 12000000;
+static unsigned long xusbxti_f __ro_after_init = 48000000;
+
+void __init s3c64xx_set_xtal_freq(unsigned long freq)
+{
+	xtal_f = freq;
+}
+
+void __init s3c64xx_set_xusbxti_freq(unsigned long freq)
+{
+	xusbxti_f = freq;
+}
 
 /* uart registration process */
 
@@ -66,7 +86,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= S3C6400_CPU_ID,
 		.idmask		= S3C64XX_CPU_MASK,
 		.map_io		= s3c6400_map_io,
-		.init_clocks	= s3c6400_init_clocks,
 		.init_uarts	= s3c64xx_init_uarts,
 		.init		= s3c6400_init,
 		.name		= name_s3c6400,
@@ -74,7 +93,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= S3C6410_CPU_ID,
 		.idmask		= S3C64XX_CPU_MASK,
 		.map_io		= s3c6410_map_io,
-		.init_clocks	= s3c6410_init_clocks,
 		.init_uarts	= s3c64xx_init_uarts,
 		.init		= s3c6410_init,
 		.name		= name_s3c6410,
@@ -149,6 +167,30 @@ static struct device s3c64xx_dev = {
 	.bus	= &s3c64xx_subsys,
 };
 
+static struct samsung_pwm_variant s3c64xx_pwm_variant = {
+	.bits		= 32,
+	.div_base	= 0,
+	.has_tint_cstat	= true,
+	.tclk_mask	= (1 << 7) | (1 << 6) | (1 << 5),
+};
+
+void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+{
+	s3c64xx_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	s3c64xx_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
+}
+
+void __init samsung_timer_init(void)
+{
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		IRQ_TIMER0_VIC, IRQ_TIMER1_VIC, IRQ_TIMER2_VIC,
+		IRQ_TIMER3_VIC, IRQ_TIMER4_VIC,
+	};
+
+	samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &s3c64xx_pwm_variant);
+}
+
 /* read cpu identification code */
 
 void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
@@ -161,10 +203,16 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	s3c64xx_init_cpu();
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+
+	samsung_pwm_set_platdata(&s3c64xx_pwm_variant);
 }
 
 static __init int s3c64xx_dev_init(void)
 {
+	/* Not applicable when using DT. */
+	if (of_have_populated_dt() || !soc_is_s3c64xx())
+		return 0;
+
 	subsys_system_register(&s3c64xx_subsys, NULL);
 	return device_register(&s3c64xx_dev);
 }
@@ -186,8 +234,10 @@ void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 {
 	/*
 	 * FIXME: there is no better place to put this at the moment
-	 * (samsung_wdt_reset_init needs clocks)
+	 * (s3c64xx_clk_init needs ioremap and must happen before init_time
+	 * samsung_wdt_reset_init needs clocks)
 	 */
+	s3c64xx_clk_init(NULL, xtal_f, xusbxti_f, soc_is_s3c6400(), S3C_VA_SYS);
 	samsung_wdt_reset_init(S3C_VA_WATCHDOG);
 
 	printk(KERN_DEBUG "%s: initialising interrupts\n", __func__);
@@ -195,9 +245,6 @@ void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 	/* initialise the pair of VICs */
 	vic_init(VA_VIC0, IRQ_VIC0_BASE, vic0_valid, IRQ_VIC0_RESUME);
 	vic_init(VA_VIC1, IRQ_VIC1_BASE, vic1_valid, IRQ_VIC1_RESUME);
-
-	/* add the timer sub-irqs */
-	s3c_init_vic_timer_irq(5, IRQ_TIMER0);
 }
 
 #define eint_offset(irq)	((irq) - IRQ_EINT(0))
@@ -343,22 +390,22 @@ static inline void s3c_irq_demux_eint(unsigned int start, unsigned int end)
 	}
 }
 
-static void s3c_irq_demux_eint0_3(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint0_3(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(0, 3);
 }
 
-static void s3c_irq_demux_eint4_11(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint4_11(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(4, 11);
 }
 
-static void s3c_irq_demux_eint12_19(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint12_19(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(12, 19);
 }
 
-static void s3c_irq_demux_eint20_27(unsigned int irq, struct irq_desc *desc)
+static void s3c_irq_demux_eint20_27(struct irq_desc *desc)
 {
 	s3c_irq_demux_eint(20, 27);
 }
@@ -367,10 +414,14 @@ static int __init s3c64xx_init_irq_eint(void)
 {
 	int irq;
 
+	/* On DT-enabled systems EINTs are handled by pinctrl-s3c64xx driver. */
+	if (of_have_populated_dt() || !soc_is_s3c64xx())
+		return -ENODEV;
+
 	for (irq = IRQ_EINT(0); irq <= IRQ_EINT(27); irq++) {
 		irq_set_chip_and_handler(irq, &s3c_irq_eint, handle_level_irq);
 		irq_set_chip_data(irq, (void *)eint_irq_to_bit(irq));
-		set_irq_flags(irq, IRQF_VALID);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST);
 	}
 
 	irq_set_chained_handler(IRQ_EINT0_3, s3c_irq_demux_eint0_3);
@@ -389,9 +440,4 @@ void s3c64xx_restart(enum reboot_mode mode, const char *cmd)
 
 	/* if all else fails, or mode was for soft, jump to 0 */
 	soft_restart(0);
-}
-
-void __init s3c64xx_init_late(void)
-{
-	s3c64xx_pm_late_initcall();
 }

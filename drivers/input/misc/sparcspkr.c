@@ -86,13 +86,13 @@ static int bbc_spkr_event(struct input_dev *dev, unsigned int type, unsigned int
 	spin_lock_irqsave(&state->lock, flags);
 
 	if (count) {
-		outb(0x01,                 info->regs + 0);
-		outb(0x00,                 info->regs + 2);
-		outb((count >> 16) & 0xff, info->regs + 3);
-		outb((count >>  8) & 0xff, info->regs + 4);
-		outb(0x00,                 info->regs + 5);
+		sbus_writeb(0x01,                 info->regs + 0);
+		sbus_writeb(0x00,                 info->regs + 2);
+		sbus_writeb((count >> 16) & 0xff, info->regs + 3);
+		sbus_writeb((count >>  8) & 0xff, info->regs + 4);
+		sbus_writeb(0x00,                 info->regs + 5);
 	} else {
-		outb(0x00,                 info->regs + 0);
+		sbus_writeb(0x00,                 info->regs + 0);
 	}
 
 	spin_unlock_irqrestore(&state->lock, flags);
@@ -123,15 +123,15 @@ static int grover_spkr_event(struct input_dev *dev, unsigned int type, unsigned 
 
 	if (count) {
 		/* enable counter 2 */
-		outb(inb(info->enable_reg) | 3, info->enable_reg);
+		sbus_writeb(sbus_readb(info->enable_reg) | 3, info->enable_reg);
 		/* set command for counter 2, 2 byte write */
-		outb(0xB6, info->freq_regs + 1);
+		sbus_writeb(0xB6, info->freq_regs + 1);
 		/* select desired HZ */
-		outb(count & 0xff, info->freq_regs + 0);
-		outb((count >> 8) & 0xff, info->freq_regs + 0);
+		sbus_writeb(count & 0xff, info->freq_regs + 0);
+		sbus_writeb((count >> 8) & 0xff, info->freq_regs + 0);
 	} else {
 		/* disable counter 2 */
-		outb(inb_p(info->enable_reg) & 0xFC, info->enable_reg);
+		sbus_writeb(sbus_readb(info->enable_reg) & 0xFC, info->enable_reg);
 	}
 
 	spin_unlock_irqrestore(&state->lock, flags);
@@ -253,11 +253,11 @@ static const struct of_device_id bbc_beep_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, bbc_beep_match);
 
 static struct platform_driver bbc_beep_driver = {
 	.driver = {
 		.name = "bbcbeep",
-		.owner = THIS_MODULE,
 		.of_match_table = bbc_beep_match,
 	},
 	.probe		= bbc_beep_probe,
@@ -333,11 +333,11 @@ static const struct of_device_id grover_beep_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, grover_beep_match);
 
 static struct platform_driver grover_beep_driver = {
 	.driver = {
 		.name = "groverbeep",
-		.owner = THIS_MODULE,
 		.of_match_table = grover_beep_match,
 	},
 	.probe		= grover_beep_probe,
@@ -345,23 +345,19 @@ static struct platform_driver grover_beep_driver = {
 	.shutdown	= sparcspkr_shutdown,
 };
 
+static struct platform_driver * const drivers[] = {
+	&bbc_beep_driver,
+	&grover_beep_driver,
+};
+
 static int __init sparcspkr_init(void)
 {
-	int err = platform_driver_register(&bbc_beep_driver);
-
-	if (!err) {
-		err = platform_driver_register(&grover_beep_driver);
-		if (err)
-			platform_driver_unregister(&bbc_beep_driver);
-	}
-
-	return err;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit sparcspkr_exit(void)
 {
-	platform_driver_unregister(&bbc_beep_driver);
-	platform_driver_unregister(&grover_beep_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_init(sparcspkr_init);

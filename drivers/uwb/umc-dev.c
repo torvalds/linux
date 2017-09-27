@@ -66,6 +66,7 @@ int umc_device_register(struct umc_dev *umc)
 	return 0;
 
 error_device_register:
+	put_device(&umc->dev);
 	release_resource(&umc->resource);
 error_request_resource:
 	return err;

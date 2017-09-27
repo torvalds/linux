@@ -2,7 +2,7 @@
  * i2c-smbus.c - SMBus extensions to the I2C protocol
  *
  * Copyright (C) 2008 David Brownell
- * Copyright (C) 2010 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,21 +13,16 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301 USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 struct i2c_smbus_alert {
 	unsigned int		alert_edge_triggered:1;
@@ -38,7 +33,8 @@ struct i2c_smbus_alert {
 
 struct alert_data {
 	unsigned short		addr;
-	u8			flag:1;
+	enum i2c_alert_protocol	type;
+	unsigned int		data;
 };
 
 /* If this is the alerting device, notify its driver */
@@ -46,6 +42,7 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
 	struct alert_data *data = addrp;
+	struct i2c_driver *driver;
 
 	if (!client || client->addr != data->addr)
 		return 0;
@@ -54,12 +51,13 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 
 	/*
 	 * Drivers should either disable alerts, or provide at least
-	 * a minimal handler.  Lock so client->driver won't change.
+	 * a minimal handler.  Lock so the driver won't change.
 	 */
 	device_lock(dev);
-	if (client->driver) {
-		if (client->driver->alert)
-			client->driver->alert(client, data->flag);
+	if (client->dev.driver) {
+		driver = to_i2c_driver(client->dev.driver);
+		if (driver->alert)
+			driver->alert(client, data->type, data->data);
 		else
 			dev_warn(&client->dev, "no driver alert()!\n");
 	} else
@@ -92,15 +90,16 @@ static void smbus_alert(struct work_struct *work)
 		 * to high, because of slave transmit arbitration.  After
 		 * responding, an SMBus device stops asserting SMBALERT#.
 		 *
-		 * Note that SMBus 2.0 reserves 10-bit addresess for future
+		 * Note that SMBus 2.0 reserves 10-bit addresses for future
 		 * use.  We neither handle them, nor try to use PEC here.
 		 */
 		status = i2c_smbus_read_byte(ara);
 		if (status < 0)
 			break;
 
-		data.flag = status & 1;
+		data.data = status & 1;
 		data.addr = status >> 1;
+		data.type = I2C_PROTOCOL_SMBUS_ALERT;
 
 		if (data.addr == prev_addr) {
 			dev_warn(&ara->dev, "Duplicate SMBALERT# from dev "
@@ -108,7 +107,7 @@ static void smbus_alert(struct work_struct *work)
 			break;
 		}
 		dev_dbg(&ara->dev, "SMBALERT# from dev 0x%02x, flag %d\n",
-			data.addr, data.flag);
+			data.addr, data.data);
 
 		/* Notify driver for the device which issued the alert */
 		device_for_each_child(&ara->adapter->dev, &data,
@@ -137,7 +136,7 @@ static irqreturn_t smbalert_irq(int irq, void *d)
 static int smbalert_probe(struct i2c_client *ara,
 			  const struct i2c_device_id *id)
 {
-	struct i2c_smbus_alert_setup *setup = ara->dev.platform_data;
+	struct i2c_smbus_alert_setup *setup = dev_get_platdata(&ara->dev);
 	struct i2c_smbus_alert *alert;
 	struct i2c_adapter *adapter = ara->adapter;
 	int res;
@@ -244,6 +243,6 @@ EXPORT_SYMBOL_GPL(i2c_handle_smbus_alert);
 
 module_i2c_driver(smbalert_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("SMBus protocol extensions support");
 MODULE_LICENSE("GPL");

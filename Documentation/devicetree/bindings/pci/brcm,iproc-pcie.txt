@@ -1,0 +1,134 @@
+* Broadcom iProc PCIe controller with the platform bus interface
+
+Required properties:
+- compatible:
+      "brcm,iproc-pcie" for the first generation of PAXB based controller,
+used in SoCs including NSP, Cygnus, NS2, and Pegasus
+      "brcm,iproc-pcie-paxb-v2" for the second generation of PAXB-based
+controllers, used in Stingray
+      "brcm,iproc-pcie-paxc" for the first generation of PAXC based
+controller, used in NS2
+      "brcm,iproc-pcie-paxc-v2" for the second generation of PAXC based
+controller, used in Stingray
+  PAXB-based root complex is used for external endpoint devices. PAXC-based
+root complex is connected to emulated endpoint devices internal to the ASIC
+- reg: base address and length of the PCIe controller I/O register space
+- #interrupt-cells: set to <1>
+- interrupt-map-mask and interrupt-map, standard PCI properties to define the
+  mapping of the PCIe interface to interrupt numbers
+- linux,pci-domain: PCI domain ID. Should be unique for each host controller
+- bus-range: PCI bus numbers covered
+- #address-cells: set to <3>
+- #size-cells: set to <2>
+- device_type: set to "pci"
+- ranges: ranges for the PCI memory and I/O regions
+
+Optional properties:
+- phys: phandle of the PCIe PHY device
+- phy-names: must be "pcie-phy"
+- dma-coherent: present if DMA operations are coherent
+- dma-ranges: Some PAXB-based root complexes do not have inbound mapping done
+  by the ASIC after power on reset.  In this case, SW is required to configure
+the mapping, based on inbound memory regions specified by this property.
+
+- brcm,pcie-ob: Some iProc SoCs do not have the outbound address mapping done
+by the ASIC after power on reset. In this case, SW needs to configure it
+
+If the brcm,pcie-ob property is present, the following properties become
+effective:
+
+Required:
+- brcm,pcie-ob-axi-offset: The offset from the AXI address to the internal
+address used by the iProc PCIe core (not the PCIe address)
+
+MSI support (optional):
+
+For older platforms without MSI integrated in the GIC, iProc PCIe core provides
+an event queue based MSI support.  The iProc MSI uses host memories to store
+MSI posted writes in the event queues
+
+On newer iProc platforms, gicv2m or gicv3-its based MSI support should be used
+
+- msi-map: Maps a Requester ID to an MSI controller and associated MSI
+sideband data
+
+- msi-parent: Link to the device node of the MSI controller, used when no MSI
+sideband data is passed between the iProc PCIe controller and the MSI
+controller
+
+Refer to the following binding documents for more detailed description on
+the use of 'msi-map' and 'msi-parent':
+  Documentation/devicetree/bindings/pci/pci-msi.txt
+  Documentation/devicetree/bindings/interrupt-controller/msi.txt
+
+When the iProc event queue based MSI is used, one needs to define the
+following properties in the MSI device node:
+- compatible: Must be "brcm,iproc-msi"
+- msi-controller: claims itself as an MSI controller
+- interrupt-parent: Link to its parent interrupt device
+- interrupts: List of interrupt IDs from its parent interrupt device
+
+Optional properties:
+- brcm,pcie-msi-inten: Needs to be present for some older iProc platforms that
+require the interrupt enable registers to be set explicitly to enable MSI
+
+Example:
+	pcie0: pcie@18012000 {
+		compatible = "brcm,iproc-pcie";
+		reg = <0x18012000 0x1000>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 100 IRQ_TYPE_NONE>;
+
+		linux,pci-domain = <0>;
+
+		bus-range = <0x00 0xff>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x81000000 0 0	  0x28000000 0 0x00010000
+			  0x82000000 0 0x20000000 0x20000000 0 0x04000000>;
+
+		phys = <&phy 0 5>;
+		phy-names = "pcie-phy";
+
+		brcm,pcie-ob;
+		brcm,pcie-ob-axi-offset = <0x00000000>;
+
+		msi-parent = <&msi0>;
+
+		/* iProc event queue based MSI */
+		msi0: msi@18012000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_NONE>,
+				     <GIC_SPI 97 IRQ_TYPE_NONE>,
+				     <GIC_SPI 98 IRQ_TYPE_NONE>,
+				     <GIC_SPI 99 IRQ_TYPE_NONE>,
+		};
+	};
+
+	pcie1: pcie@18013000 {
+		compatible = "brcm,iproc-pcie";
+		reg = <0x18013000 0x1000>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 106 IRQ_TYPE_NONE>;
+
+		linux,pci-domain = <1>;
+
+		bus-range = <0x00 0xff>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x81000000 0 0	  0x48000000 0 0x00010000
+			  0x82000000 0 0x40000000 0x40000000 0 0x04000000>;
+
+		phys = <&phy 1 6>;
+		phy-names = "pcie-phy";
+	};

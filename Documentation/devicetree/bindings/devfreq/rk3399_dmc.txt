@@ -1,0 +1,208 @@
+* Rockchip rk3399 DMC(Dynamic Memory Controller) device
+
+Required properties:
+- compatible:		 Must be "rockchip,rk3399-dmc".
+- devfreq-events:	 Node to get DDR loading, Refer to
+			 Documentation/devicetree/bindings/devfreq/
+			 rockchip-dfi.txt
+- interrupts:		 The interrupt number to the CPU. The interrupt
+			 specifier format depends on the interrupt controller.
+			 It should be DCF interrupts, when DDR dvfs finish,
+			 it will happen.
+- clocks:		 Phandles for clock specified in "clock-names" property
+- clock-names :		 The name of clock used by the DFI, must be
+			 "pclk_ddr_mon";
+- operating-points-v2:	 Refer to Documentation/devicetree/bindings/power/opp.txt
+			 for details.
+- center-supply:	 DMC supply node.
+- status:		 Marks the node enabled/disabled.
+
+Following properties are ddr timing:
+
+- rockchip,dram_speed_bin :	  Value reference include/dt-bindings/clock/ddr.h,
+				  it select ddr3 cl-trp-trcd type, default value
+				  "DDR3_DEFAULT".it must selected according to
+				  "Speed Bin" in ddr3 datasheet, DO NOT use
+				  smaller "Speed Bin" than ddr3 exactly is.
+
+- rockchip,pd_idle :		  Config the PD_IDLE value, defined the power-down
+				  idle period, memories are places into power-down
+				  mode if bus is idle for PD_IDLE DFI clocks.
+
+- rockchip,sr_idle :		  Configure the SR_IDLE value, defined the
+				  selfrefresh idle period, memories are places
+				  into self-refresh mode if bus is idle for
+				  SR_IDLE*1024 DFI clocks (DFI clocks freq is
+				  half of dram's clocks), defaule value is "0".
+
+- rockchip,sr_mc_gate_idle :	  Defined the self-refresh with memory and
+				  controller clock gating idle period, memories
+				  are places into self-refresh mode and memory
+				  controller clock arg gating if bus is idle for
+				  sr_mc_gate_idle*1024 DFI clocks.
+
+- rockchip,srpd_lite_idle :	  Defined the self-refresh power down idle
+				  period, memories are places into self-refresh
+				  power down mode if bus is idle for
+				  srpd_lite_idle*1024 DFI clocks. This parameter
+				  is for LPDDR4 only.
+
+- rockchip,standby_idle :	  Defined the standby idle period, memories are
+				  places into self-refresh than controller, pi,
+				  phy and dram clock will gating if bus is idle
+				  for standby_idle * DFI clocks.
+
+- rockchip,dram_dll_disb_freq :  It's defined the DDR3 dll bypass frequency in
+				  MHz, when ddr freq less than DRAM_DLL_DISB_FREQ,
+				  ddr3 dll will bypssed note: if dll was bypassed,
+				  the odt also stop working.
+
+- rockchip,phy_dll_disb_freq :	  Defined the PHY dll bypass frequency in
+				  MHz (Mega Hz), when ddr freq less than
+				  DRAM_DLL_DISB_FREQ, phy dll will bypssed.
+				  note: phy dll and phy odt are independent.
+
+- rockchip,ddr3_odt_disb_freq :  When dram type is DDR3, this parameter defined
+				  the odt disable frequency in MHz (Mega Hz),
+				  when ddr frequency less then ddr3_odt_disb_freq,
+				  the odt on dram side and controller side are
+				  both disabled.
+
+- rockchip,ddr3_drv :		  When dram type is DDR3, this parameter define
+				  the dram side driver stength in ohm, default
+				  value is DDR3_DS_40ohm.
+
+- rockchip,ddr3_odt :		  When dram type is DDR3, this parameter define
+				  the dram side ODT stength in ohm, default value
+				  is DDR3_ODT_120ohm.
+
+- rockchip,phy_ddr3_ca_drv :	  When dram type is DDR3, this parameter define
+				  the phy side CA line(incluing command line,
+				  address line and clock line) driver strength.
+				  Default value is PHY_DRV_ODT_40.
+
+- rockchip,phy_ddr3_dq_drv :	  When dram type is DDR3, this parameter define
+				  the phy side DQ line(incluing DQS/DQ/DM line)
+				  driver strength. default value is PHY_DRV_ODT_40.
+
+- rockchip,phy_ddr3_odt : 	  When dram type is DDR3, this parameter define the
+				  phy side odt strength, default value is
+				  PHY_DRV_ODT_240.
+
+- rockchip,lpddr3_odt_disb_freq : When dram type is LPDDR3, this parameter defined
+				  then odt disable frequency in MHz (Mega Hz),
+				  when ddr frequency less then ddr3_odt_disb_freq,
+				  the odt on dram side and controller side are
+				  both disabled.
+
+- rockchip,lpddr3_drv :	  When dram type is LPDDR3, this parameter define
+				  the dram side driver stength in ohm, default
+				  value is LP3_DS_34ohm.
+
+- rockchip,lpddr3_odt :	  When dram type is LPDDR3, this parameter define
+				  the dram side ODT stength in ohm, default value
+				  is LP3_ODT_240ohm.
+
+- rockchip,phy_lpddr3_ca_drv :	  When dram type is LPDDR3, this parameter define
+				  the phy side CA line(incluing command line,
+				  address line and clock line) driver strength.
+				  default value is PHY_DRV_ODT_40.
+
+- rockchip,phy_lpddr3_dq_drv :	  When dram type is LPDDR3, this parameter define
+				  the phy side DQ line(incluing DQS/DQ/DM line)
+				  driver strength. default value is
+				  PHY_DRV_ODT_40.
+
+- rockchip,phy_lpddr3_odt : 	  When dram type is LPDDR3, this parameter define
+				  the phy side odt strength, default value is
+				  PHY_DRV_ODT_240.
+
+- rockchip,lpddr4_odt_disb_freq : When dram type is LPDDR4, this parameter
+				  defined the odt disable frequency in
+				  MHz (Mega Hz), when ddr frequency less then
+				  ddr3_odt_disb_freq, the odt on dram side and
+				  controller side are both disabled.
+
+- rockchip,lpddr4_drv :	  When dram type is LPDDR4, this parameter define
+				  the dram side driver stength in ohm, default
+				  value is LP4_PDDS_60ohm.
+
+- rockchip,lpddr4_dq_odt : 	  When dram type is LPDDR4, this parameter define
+				  the dram side ODT on dqs/dq line stength in ohm,
+				  default value is LP4_DQ_ODT_40ohm.
+
+- rockchip,lpddr4_ca_odt :	  When dram type is LPDDR4, this parameter define
+				  the dram side ODT on ca line stength in ohm,
+				  default value is LP4_CA_ODT_40ohm.
+
+- rockchip,phy_lpddr4_ca_drv :	  When dram type is LPDDR4, this parameter define
+				  the phy side  CA line(incluing command address
+				  line) driver strength. default value is
+				  PHY_DRV_ODT_40.
+
+- rockchip,phy_lpddr4_ck_cs_drv : When dram type is LPDDR4, this parameter define
+				  the phy side clock line and cs line driver
+				  strength. default value is PHY_DRV_ODT_80.
+
+- rockchip,phy_lpddr4_dq_drv :	  When dram type is LPDDR4, this parameter define
+				  the phy side DQ line(incluing DQS/DQ/DM line)
+				  driver strength. default value is PHY_DRV_ODT_80.
+
+- rockchip,phy_lpddr4_odt :	  When dram type is LPDDR4, this parameter define
+				  the phy side odt strength, default value is
+				  PHY_DRV_ODT_60.
+
+Example:
+	dmc_opp_table: dmc_opp_table {
+		compatible = "operating-points-v2";
+
+		opp00 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <900000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <666000000>;
+			opp-microvolt = <900000>;
+		};
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3399-dmc";
+		devfreq-events = <&dfi>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_DDRCLK>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		center-supply = <&ppvar_centerlogic>;
+		upthreshold = <15>;
+		downdifferential = <10>;
+		rockchip,ddr3_speed_bin = <21>;
+		rockchip,pd_idle = <0x40>;
+		rockchip,sr_idle = <0x2>;
+		rockchip,sr_mc_gate_idle = <0x3>;
+		rockchip,srpd_lite_idle	= <0x4>;
+		rockchip,standby_idle = <0x2000>;
+		rockchip,dram_dll_dis_freq = <300>;
+		rockchip,phy_dll_dis_freq = <125>;
+		rockchip,auto_pd_dis_freq = <666>;
+		rockchip,ddr3_odt_dis_freq = <333>;
+		rockchip,ddr3_drv = <DDR3_DS_40ohm>;
+		rockchip,ddr3_odt = <DDR3_ODT_120ohm>;
+		rockchip,phy_ddr3_ca_drv = <PHY_DRV_ODT_40>;
+		rockchip,phy_ddr3_dq_drv = <PHY_DRV_ODT_40>;
+		rockchip,phy_ddr3_odt = <PHY_DRV_ODT_240>;
+		rockchip,lpddr3_odt_dis_freq = <333>;
+		rockchip,lpddr3_drv = <LP3_DS_34ohm>;
+		rockchip,lpddr3_odt = <LP3_ODT_240ohm>;
+		rockchip,phy_lpddr3_ca_drv = <PHY_DRV_ODT_40>;
+		rockchip,phy_lpddr3_dq_drv = <PHY_DRV_ODT_40>;
+		rockchip,phy_lpddr3_odt = <PHY_DRV_ODT_240>;
+		rockchip,lpddr4_odt_dis_freq = <333>;
+		rockchip,lpddr4_drv = <LP4_PDDS_60ohm>;
+		rockchip,lpddr4_dq_odt = <LP4_DQ_ODT_40ohm>;
+		rockchip,lpddr4_ca_odt = <LP4_CA_ODT_40ohm>;
+		rockchip,phy_lpddr4_ca_drv = <PHY_DRV_ODT_40>;
+		rockchip,phy_lpddr4_ck_cs_drv = <PHY_DRV_ODT_80>;
+		rockchip,phy_lpddr4_dq_drv = <PHY_DRV_ODT_80>;
+		rockchip,phy_lpddr4_odt = <PHY_DRV_ODT_60>;
+	};

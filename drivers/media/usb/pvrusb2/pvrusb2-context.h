@@ -11,10 +11,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #ifndef __PVRUSB2_CONTEXT_H
 #define __PVRUSB2_CONTEXT_H
@@ -83,12 +79,3 @@ int pvr2_context_global_init(void);
 void pvr2_context_global_done(void);
 
 #endif /* __PVRUSB2_CONTEXT_H */
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

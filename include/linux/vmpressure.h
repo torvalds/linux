@@ -7,10 +7,14 @@
 #include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/cgroup.h>
+#include <linux/eventfd.h>
 
 struct vmpressure {
 	unsigned long scanned;
 	unsigned long reclaimed;
+
+	unsigned long tree_scanned;
+	unsigned long tree_reclaimed;
 	/* The lock is used to keep the scanned/reclaimed above in sync. */
 	struct spinlock sr_lock;
 
@@ -25,7 +29,7 @@ struct vmpressure {
 struct mem_cgroup;
 
 #ifdef CONFIG_MEMCG
-extern void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+extern void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 		       unsigned long scanned, unsigned long reclaimed);
 extern void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio);
 
@@ -33,14 +37,13 @@ extern void vmpressure_init(struct vmpressure *vmpr);
 extern void vmpressure_cleanup(struct vmpressure *vmpr);
 extern struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg);
 extern struct cgroup_subsys_state *vmpressure_to_css(struct vmpressure *vmpr);
-extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
-extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+extern int vmpressure_register_event(struct mem_cgroup *memcg,
 				     struct eventfd_ctx *eventfd,
 				     const char *args);
-extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
+extern void vmpressure_unregister_event(struct mem_cgroup *memcg,
 					struct eventfd_ctx *eventfd);
 #else
-static inline void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+static inline void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 			      unsigned long scanned, unsigned long reclaimed) {}
 static inline void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg,
 				   int prio) {}

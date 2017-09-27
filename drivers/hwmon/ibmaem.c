@@ -3,7 +3,7 @@
  * temperature/power/energy sensors and capping functionality.
  * Copyright (C) 2008 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -292,7 +292,7 @@ static int aem_init_ipmi_data(struct aem_ipmi_data *data, int iface,
 		dev_err(bmc,
 			"Unable to register user with IPMI interface %d\n",
 			data->interface);
-		return -EACCES;
+		return err;
 	}
 
 	return 0;
@@ -842,11 +842,10 @@ static ssize_t aem_show_power(struct device *dev,
 	struct aem_data *data = dev_get_drvdata(dev);
 	u64 before, after, delta, time;
 	signed long leftover;
-	struct timespec b, a;
 
 	mutex_lock(&data->lock);
 	update_aem_energy_one(data, attr->index);
-	getnstimeofday(&b);
+	time = ktime_get_ns();
 	before = data->energy[attr->index];
 
 	leftover = schedule_timeout_interruptible(
@@ -858,11 +857,10 @@ static ssize_t aem_show_power(struct device *dev,
 	}
 
 	update_aem_energy_one(data, attr->index);
-	getnstimeofday(&a);
+	time = ktime_get_ns() - time;
 	after = data->energy[attr->index];
 	mutex_unlock(&data->lock);
 
-	time = timespec_to_ns(&a) - timespec_to_ns(&b);
 	delta = (after - before) * UJ_PER_MJ;
 
 	return sprintf(buf, "%llu\n",
@@ -922,8 +920,8 @@ static ssize_t aem_set_power_period(struct device *dev,
 
 /* Discover sensors on an AEM device */
 static int aem_register_sensors(struct aem_data *data,
-				struct aem_ro_sensor_template *ro,
-				struct aem_rw_sensor_template *rw)
+				const struct aem_ro_sensor_template *ro,
+				const struct aem_rw_sensor_template *rw)
 {
 	struct device *dev = &data->pdev->dev;
 	struct sensor_device_attribute *sensors = data->sensors;
@@ -1022,19 +1020,19 @@ static void aem_remove_sensors(struct aem_data *data)
 /* Sensor probe functions */
 
 /* Description of AEM1 sensors */
-static struct aem_ro_sensor_template aem1_ro_sensors[] = {
+static const struct aem_ro_sensor_template aem1_ro_sensors[] = {
 {"energy1_input",  aem_show_energy, 0},
 {"power1_average", aem_show_power,  0},
 {NULL,		   NULL,	    0},
 };
 
-static struct aem_rw_sensor_template aem1_rw_sensors[] = {
+static const struct aem_rw_sensor_template aem1_rw_sensors[] = {
 {"power1_average_interval", aem_show_power_period, aem_set_power_period, 0},
 {NULL,			    NULL,                  NULL,                 0},
 };
 
 /* Description of AEM2 sensors */
-static struct aem_ro_sensor_template aem2_ro_sensors[] = {
+static const struct aem_ro_sensor_template aem2_ro_sensors[] = {
 {"energy1_input",	  aem_show_energy,	0},
 {"energy2_input",	  aem_show_energy,	1},
 {"power1_average",	  aem_show_power,	0},
@@ -1052,7 +1050,7 @@ static struct aem_ro_sensor_template aem2_ro_sensors[] = {
 {NULL,                    NULL,                 0},
 };
 
-static struct aem_rw_sensor_template aem2_rw_sensors[] = {
+static const struct aem_rw_sensor_template aem2_rw_sensors[] = {
 {"power1_average_interval", aem_show_power_period, aem_set_power_period, 0},
 {"power2_average_interval", aem_show_power_period, aem_set_power_period, 1},
 {NULL,			    NULL,                  NULL,                 0},
@@ -1103,7 +1101,7 @@ static void __exit aem_exit(void)
 		aem_delete(p1);
 }
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("IBM AEM power/temp/energy sensor driver");
 MODULE_LICENSE("GPL");
 

@@ -1,0 +1,46 @@
+
+/dts-v1/;
+
+#include "zx296702.dtsi"
+
+/ {
+	model = "ZTE ZX296702 AD1 Board";
+	compatible = "zte,zx296702-ad1", "zte,zx296702";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	memory {
+		reg = <0x50000000 0x20000000>;
+	};
+};
+
+&mmc0 {
+	supports-highspeed;
+	non-removable;
+	disable-wp;
+	status = "okay";
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+	};
+};
+
+&mmc1 {
+	supports-highspeed;
+	non-removable;
+	disable-wp;
+	status = "okay";
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <8>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

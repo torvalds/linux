@@ -6,16 +6,12 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ ******************************************************************************/
 #include "dot11d.h"
 
 struct channel_list {
@@ -49,14 +45,14 @@ static struct channel_list ChannelPlan[] = {
 void dot11d_init(struct rtllib_device *ieee)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
+
 	pDot11dInfo->bEnabled = false;
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;
 	pDot11dInfo->CountryIeLen = 0;
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
-	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	RESET_CIE_WATCHDOG(ieee);
-
 }
 EXPORT_SYMBOL(dot11d_init);
 
@@ -102,14 +98,13 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
 }
 EXPORT_SYMBOL(Dot11d_Channelmap);
 
-
 void Dot11d_Reset(struct rtllib_device *ieee)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
 	u32 i;
 
-	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
-	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
+	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	for (i = 1; i <= 11; i++)
 		(pDot11dInfo->channel_map)[i] = 1;
 	for (i = 12; i <= 14; i++)
@@ -126,32 +121,30 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 	u8 i, j, NumTriples, MaxChnlNum;
 	struct chnl_txpow_triple *pTriple;
 
-	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
-	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
+	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	MaxChnlNum = 0;
 	NumTriples = (CoutryIeLen - 3) / 3;
 	pTriple = (struct chnl_txpow_triple *)(pCoutryIe + 3);
 	for (i = 0; i < NumTriples; i++) {
 		if (MaxChnlNum >= pTriple->FirstChnl) {
-			printk(KERN_INFO "Dot11d_UpdateCountryIe(): Invalid"
-			       " country IE, skip it........1\n");
+			netdev_info(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
 			return;
 		}
 		if (MAX_CHANNEL_NUMBER < (pTriple->FirstChnl +
 		    pTriple->NumChnls)) {
-			printk(KERN_INFO "Dot11d_UpdateCountryIe(): Invalid "
-			       "country IE, skip it........2\n");
+			netdev_info(dev->dev, "Dot11d_UpdateCountryIe(): Invalid country IE, skip it........2\n");
 			return;
 		}
 
-		for (j = 0 ; j < pTriple->NumChnls; j++) {
+		for (j = 0; j < pTriple->NumChnls; j++) {
 			pDot11dInfo->channel_map[pTriple->FirstChnl + j] = 1;
 			pDot11dInfo->MaxTxPwrDbmList[pTriple->FirstChnl + j] =
 						 pTriple->MaxTxPowerInDbm;
 			MaxChnlNum = pTriple->FirstChnl + j;
 		}
 
-		pTriple = (struct chnl_txpow_triple *)((u8*)pTriple + 3);
+		pTriple = (struct chnl_txpow_triple *)((u8 *)pTriple + 3);
 	}
 
 	UPDATE_CIE_SRC(dev, pTaddr);
@@ -159,22 +152,6 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 	pDot11dInfo->CountryIeLen = CoutryIeLen;
 	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe, CoutryIeLen);
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
-}
-
-u8 DOT11D_GetMaxTxPwrInDbm(struct rtllib_device *dev, u8 Channel)
-{
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
-	u8 MaxTxPwrInDbm = 255;
-
-	if (MAX_CHANNEL_NUMBER < Channel) {
-		printk(KERN_INFO "DOT11D_GetMaxTxPwrInDbm(): Invalid "
-		       "Channel\n");
-		return MaxTxPwrInDbm;
-	}
-	if (pDot11dInfo->channel_map[Channel])
-		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
-
-	return MaxTxPwrInDbm;
 }
 
 void DOT11D_ScanComplete(struct rtllib_device *dev)
@@ -191,28 +168,4 @@ void DOT11D_ScanComplete(struct rtllib_device *dev)
 	case DOT11D_STATE_NONE:
 		break;
 	}
-}
-
-int ToLegalChannel(struct rtllib_device *dev, u8 channel)
-{
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
-	u8 default_chn = 0;
-	u32 i;
-
-	for (i = 1; i <= MAX_CHANNEL_NUMBER; i++) {
-		if (pDot11dInfo->channel_map[i] > 0) {
-			default_chn = i;
-			break;
-		}
-	}
-
-	if (MAX_CHANNEL_NUMBER < channel) {
-		printk(KERN_ERR "%s(): Invalid Channel\n", __func__);
-		return default_chn;
-	}
-
-	if (pDot11dInfo->channel_map[channel] > 0)
-		return channel;
-
-	return default_chn;
 }

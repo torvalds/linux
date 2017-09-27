@@ -10,38 +10,37 @@
  */
 
 /dts-v1/;
-#include "imx53.dtsi"
+#include "imx53-m53.dtsi"
 
 / {
-	model = "DENX M53EVK";
-	compatible = "denx,imx53-m53evk", "fsl,imx53";
+	model = "Aries/DENX M53EVK";
+	compatible = "aries,imx53-m53evk", "denx,imx53-m53evk", "fsl,imx53";
 
-	memory {
-		reg = <0x70000000 0x20000000>;
-	};
+	display1: display@di1 {
+		compatible = "fsl,imx-parallel-display";
+		interface-pix-fmt = "bgr666";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu_disp1>;
 
-	soc {
-		display@di1 {
-			compatible = "fsl,imx-parallel-display";
-			crtcs = <&ipu 1>;
-			interface-pix-fmt = "bgr666";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_ipu_disp2_1>;
+		display-timings {
+			800x480p60 {
+				native-mode;
+				clock-frequency = <31500000>;
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <40>;
+				hback-porch = <88>;
+				hsync-len = <128>;
+				vback-porch = <33>;
+				vfront-porch = <9>;
+				vsync-len = <3>;
+				vsync-active = <1>;
+			};
+		};
 
-			display-timings {
-				800x480p60 {
-					native-mode;
-					clock-frequency = <31500000>;
-					hactive = <800>;
-					vactive = <480>;
-					hfront-porch = <40>;
-					hback-porch = <88>;
-					hsync-len = <128>;
-					vback-porch = <33>;
-					vfront-porch = <9>;
-					vsync-len = <3>;
-					vsync-active = <1>;
-				};
+		port {
+			display1_in: endpoint {
+				remote-endpoint = <&ipu_di1_disp1>;
 			};
 		};
 	};
@@ -51,6 +50,7 @@
 		pwms = <&pwm1 0 3000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+		power-supply = <&reg_backlight>;
 	};
 
 	leds {
@@ -73,13 +73,25 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_3p2v: 3p2v {
+		reg_usbh1_vbus: regulator@3 {
 			compatible = "regulator-fixed";
-			regulator-name = "3P2V";
-			regulator-min-microvolt = <3200000>;
-			regulator-max-microvolt = <3200000>;
-			regulator-always-on;
+			reg = <3>;
+			regulator-name = "vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 2 0>;
+		};
+
+		reg_usb_otg_vbus: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "usb_otg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 4 0>;
 		};
 	};
 
@@ -102,40 +114,40 @@
 
 &audmux {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux_2>;
+	pinctrl-0 = <&pinctrl_audmux>;
 	status = "okay";
 };
 
 &can1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_can1_3>;
+	pinctrl-0 = <&pinctrl_can1>;
 	status = "okay";
 };
 
 &can2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_can2_1>;
+	pinctrl-0 = <&pinctrl_can2>;
 	status = "okay";
 };
 
 &esdhc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_esdhc1_1>;
-	cd-gpios = <&gpio1 1 0>;
-	wp-gpios = <&gpio1 9 0>;
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &fec {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_fec_1>;
+	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
 	status = "okay";
 };
 
 &i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c1_2>;
+	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
 	sgtl5000: codec@0a {
@@ -143,57 +155,13 @@
 		reg = <0x0a>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
-		clocks = <&clks 150>;
-	};
-};
-
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c2_2>;
-	clock-frequency = <400000>;
-	status = "okay";
-
-	stmpe610@41 {
-		compatible = "st,stmpe610";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x41>;
-		id = <0>;
-		blocks = <0x5>;
-		interrupts = <6 0x0>;
-		interrupt-parent = <&gpio7>;
-		irq-trigger = <0x1>;
-
-		stmpe_touchscreen {
-			compatible = "stmpe,ts";
-			reg = <0>;
-			ts,sample-time = <4>;
-			ts,mod-12b = <1>;
-			ts,ref-sel = <0>;
-			ts,adc-freq = <1>;
-			ts,ave-ctrl = <3>;
-			ts,touch-det-delay = <3>;
-			ts,settling = <4>;
-			ts,fraction-z = <7>;
-			ts,i-drive = <1>;
-		};
-	};
-
-	eeprom: eeprom@50 {
-		compatible = "atmel,24c128";
-		reg = <0x50>;
-		pagesize = <32>;
-	};
-
-	rtc: rtc@68 {
-		compatible = "stm,m41t62";
-		reg = <0x68>;
+		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
 	};
 };
 
 &i2c3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c3_1>;
+	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 };
 
@@ -201,14 +169,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
-	hog {
-		pinctrl_hog: hoggrp {
+	imx53-m53evk {
+		pinctrl_usb: usbgrp {
 			fsl,pins = <
-				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK	0x80000000
-				MX53_PAD_EIM_EB3__GPIO2_31		0x80000000
-				MX53_PAD_PATA_DA_0__GPIO7_6		0x80000000
-				MX53_PAD_DISP0_DAT8__PWM1_PWMO		0x5
+				MX53_PAD_GPIO_2__GPIO1_2		0x80000000
+				MX53_PAD_GPIO_3__USBOH3_USBH1_OC	0x80000000
+			>;
+		};
 
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX53_PAD_GPIO_4__GPIO1_4		0x000b0
 			>;
 		};
 
@@ -218,42 +189,187 @@
 				MX53_PAD_PATA_DATA9__GPIO2_9		0x80000000
 			>;
 		};
+
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX53_PAD_SD2_DATA3__AUDMUX_AUD4_TXC	0x80000000
+				MX53_PAD_SD2_DATA2__AUDMUX_AUD4_TXD	0x80000000
+				MX53_PAD_SD2_DATA1__AUDMUX_AUD4_TXFS	0x80000000
+				MX53_PAD_SD2_DATA0__AUDMUX_AUD4_RXD	0x80000000
+			>;
+		};
+
+		pinctrl_can1: can1grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_7__CAN1_TXCAN		0x80000000
+				MX53_PAD_GPIO_8__CAN1_RXCAN		0x80000000
+			>;
+		};
+
+		pinctrl_can2: can2grp {
+			fsl,pins = <
+				MX53_PAD_KEY_COL4__CAN2_TXCAN		0x80000000
+				MX53_PAD_KEY_ROW4__CAN2_RXCAN		0x80000000
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX53_PAD_SD1_DATA0__ESDHC1_DAT0		0x1d5
+				MX53_PAD_SD1_DATA1__ESDHC1_DAT1		0x1d5
+				MX53_PAD_SD1_DATA2__ESDHC1_DAT2		0x1d5
+				MX53_PAD_SD1_DATA3__ESDHC1_DAT3		0x1d5
+				MX53_PAD_SD1_CMD__ESDHC1_CMD		0x1d5
+				MX53_PAD_SD1_CLK__ESDHC1_CLK		0x1d5
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX53_PAD_FEC_MDC__FEC_MDC		0x80000000
+				MX53_PAD_FEC_MDIO__FEC_MDIO		0x80000000
+				MX53_PAD_FEC_REF_CLK__FEC_TX_CLK	0x80000000
+				MX53_PAD_FEC_RX_ER__FEC_RX_ER		0x80000000
+				MX53_PAD_FEC_CRS_DV__FEC_RX_DV		0x80000000
+				MX53_PAD_FEC_RXD1__FEC_RDATA_1		0x80000000
+				MX53_PAD_FEC_RXD0__FEC_RDATA_0		0x80000000
+				MX53_PAD_FEC_TX_EN__FEC_TX_EN		0x80000000
+				MX53_PAD_FEC_TXD1__FEC_TDATA_1		0x80000000
+				MX53_PAD_FEC_TXD0__FEC_TDATA_0		0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX53_PAD_EIM_D21__I2C1_SCL		0xc0000000
+				MX53_PAD_EIM_D28__I2C1_SDA		0xc0000000
+			>;
+		};
+
+		pinctrl_i2c3: i2c3grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_6__I2C3_SDA		0xc0000000
+				MX53_PAD_GPIO_5__I2C3_SCL		0xc0000000
+			>;
+		};
+
+		pinctrl_ipu_disp1: ipudisp1grp {
+			fsl,pins = <
+				MX53_PAD_EIM_DA9__IPU_DISP1_DAT_0	0x5
+				MX53_PAD_EIM_DA8__IPU_DISP1_DAT_1	0x5
+				MX53_PAD_EIM_DA7__IPU_DISP1_DAT_2	0x5
+				MX53_PAD_EIM_DA6__IPU_DISP1_DAT_3	0x5
+				MX53_PAD_EIM_DA5__IPU_DISP1_DAT_4	0x5
+				MX53_PAD_EIM_DA4__IPU_DISP1_DAT_5	0x5
+				MX53_PAD_EIM_DA3__IPU_DISP1_DAT_6	0x5
+				MX53_PAD_EIM_DA2__IPU_DISP1_DAT_7	0x5
+				MX53_PAD_EIM_DA1__IPU_DISP1_DAT_8	0x5
+				MX53_PAD_EIM_DA0__IPU_DISP1_DAT_9	0x5
+				MX53_PAD_EIM_EB1__IPU_DISP1_DAT_10	0x5
+				MX53_PAD_EIM_EB0__IPU_DISP1_DAT_11	0x5
+				MX53_PAD_EIM_A17__IPU_DISP1_DAT_12	0x5
+				MX53_PAD_EIM_A18__IPU_DISP1_DAT_13	0x5
+				MX53_PAD_EIM_A19__IPU_DISP1_DAT_14	0x5
+				MX53_PAD_EIM_A20__IPU_DISP1_DAT_15	0x5
+				MX53_PAD_EIM_A21__IPU_DISP1_DAT_16	0x5
+				MX53_PAD_EIM_A22__IPU_DISP1_DAT_17	0x5
+				MX53_PAD_EIM_A23__IPU_DISP1_DAT_18	0x5
+				MX53_PAD_EIM_A24__IPU_DISP1_DAT_19	0x5
+				MX53_PAD_EIM_D31__IPU_DISP1_DAT_20	0x5
+				MX53_PAD_EIM_D30__IPU_DISP1_DAT_21	0x5
+				MX53_PAD_EIM_D26__IPU_DISP1_DAT_22	0x5
+				MX53_PAD_EIM_D27__IPU_DISP1_DAT_23	0x5
+				MX53_PAD_EIM_A16__IPU_DI1_DISP_CLK	0x5
+				MX53_PAD_EIM_DA13__IPU_DI1_D0_CS	0x5
+				MX53_PAD_EIM_DA14__IPU_DI1_D1_CS	0x5
+				MX53_PAD_EIM_DA15__IPU_DI1_PIN1		0x5
+				MX53_PAD_EIM_DA11__IPU_DI1_PIN2		0x5
+				MX53_PAD_EIM_DA12__IPU_DI1_PIN3		0x5
+				MX53_PAD_EIM_A25__IPU_DI1_PIN12		0x5
+				MX53_PAD_EIM_DA10__IPU_DI1_PIN15	0x5
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX53_PAD_DISP0_DAT8__PWM1_PWMO		0x5
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX53_PAD_PATA_DIOW__UART1_TXD_MUX	0x1e4
+				MX53_PAD_PATA_DMACK__UART1_RXD_MUX	0x1e4
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX	0x1e4
+				MX53_PAD_PATA_DMARQ__UART2_TXD_MUX	0x1e4
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX53_PAD_PATA_CS_0__UART3_TXD_MUX	0x1e4
+				MX53_PAD_PATA_CS_1__UART3_RXD_MUX	0x1e4
+				MX53_PAD_PATA_DA_1__UART3_CTS		0x1e4
+				MX53_PAD_PATA_DA_2__UART3_RTS		0x1e4
+			>;
+		};
 	};
 };
 
-&nfc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_nand_1>;
-	nand-bus-width = <8>;
-	nand-ecc-mode = "hw";
-	status = "okay";
+&ipu_di1_disp1 {
+	remote-endpoint = <&display1_in>;
 };
 
 &pwm1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm1_1>;
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };
 
 &ssi2 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_2>;
+	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2_1>;
+	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart3_1>;
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb>;
+	vbus-supply = <&reg_usbh1_vbus>;
+	phy_type = "utmi";
+	status = "okay";
+};
+
+&usbotg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	dr_mode = "otg";
+	vbus-supply = <&reg_usb_otg_vbus>;
+	disable-over-current;
 	status = "okay";
 };

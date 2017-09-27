@@ -18,16 +18,12 @@
 
 #include <linux/linkage.h>
 #include <asm/inst.h>
+#include <asm/frame.h>
 
-.data
-
+.section	.rodata.cst16.bswap_mask, "aM", @progbits, 16
 .align 16
 .Lbswap_mask:
 	.octa 0x000102030405060708090a0b0c0d0e0f
-.Lpoly:
-	.octa 0xc2000000000000000000000000000001
-.Ltwo_one:
-	.octa 0x00000001000000000000000000000001
 
 #define DATA	%xmm0
 #define SHASH	%xmm1
@@ -96,8 +92,9 @@ __clmul_gf128mul_ble:
 	ret
 ENDPROC(__clmul_gf128mul_ble)
 
-/* void clmul_ghash_mul(char *dst, const be128 *shash) */
+/* void clmul_ghash_mul(char *dst, const u128 *shash) */
 ENTRY(clmul_ghash_mul)
+	FRAME_BEGIN
 	movups (%rdi), DATA
 	movups (%rsi), SHASH
 	movaps .Lbswap_mask, BSWAP
@@ -105,14 +102,16 @@ ENTRY(clmul_ghash_mul)
 	call __clmul_gf128mul_ble
 	PSHUFB_XMM BSWAP DATA
 	movups DATA, (%rdi)
+	FRAME_END
 	ret
 ENDPROC(clmul_ghash_mul)
 
 /*
  * void clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
- *			   const be128 *shash);
+ *			   const u128 *shash);
  */
 ENTRY(clmul_ghash_update)
+	FRAME_BEGIN
 	cmp $16, %rdx
 	jb .Lupdate_just_ret	# check length
 	movaps .Lbswap_mask, BSWAP
@@ -132,30 +131,6 @@ ENTRY(clmul_ghash_update)
 	PSHUFB_XMM BSWAP DATA
 	movups DATA, (%rdi)
 .Lupdate_just_ret:
+	FRAME_END
 	ret
 ENDPROC(clmul_ghash_update)
-
-/*
- * void clmul_ghash_setkey(be128 *shash, const u8 *key);
- *
- * Calculate hash_key << 1 mod poly
- */
-ENTRY(clmul_ghash_setkey)
-	movaps .Lbswap_mask, BSWAP
-	movups (%rsi), %xmm0
-	PSHUFB_XMM BSWAP %xmm0
-	movaps %xmm0, %xmm1
-	psllq $1, %xmm0
-	psrlq $63, %xmm1
-	movaps %xmm1, %xmm2
-	pslldq $8, %xmm1
-	psrldq $8, %xmm2
-	por %xmm1, %xmm0
-	# reduction
-	pshufd $0b00100100, %xmm2, %xmm1
-	pcmpeqd .Ltwo_one, %xmm1
-	pand .Lpoly, %xmm1
-	pxor %xmm1, %xmm0
-	movups %xmm0, (%rdi)
-	ret
-ENDPROC(clmul_ghash_setkey)

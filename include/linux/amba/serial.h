@@ -40,7 +40,7 @@
 #define UART010_LCRL		0x10	/* Line control register, low byte. */
 #define UART010_CR		0x14	/* Control register. */
 #define UART01x_FR		0x18	/* Flag register (Read only). */
-#define UART010_IIR		0x1C	/* Interrupt indentification register (Read). */
+#define UART010_IIR		0x1C	/* Interrupt identification register (Read). */
 #define UART010_ICR		0x1C	/* Interrupt clear register (Write). */
 #define ST_UART011_LCRH_RX	0x1C    /* Rx line control register. */
 #define UART01x_ILPR		0x20	/* IrDA low power counter register. */
@@ -65,6 +65,24 @@
 #define ST_UART011_ABCR		0x100	/* Autobaud control register. */
 #define ST_UART011_ABIMSC	0x15C	/* Autobaud interrupt mask/clear register. */
 
+/*
+ * ZTE UART register offsets.  This UART has a radically different address
+ * allocation from the ARM and ST variants, so we list all registers here.
+ * We assume unlisted registers do not exist.
+ */
+#define ZX_UART011_DR		0x04
+#define ZX_UART011_FR		0x14
+#define ZX_UART011_IBRD		0x24
+#define ZX_UART011_FBRD		0x28
+#define ZX_UART011_LCRH		0x30
+#define ZX_UART011_CR		0x34
+#define ZX_UART011_IFLS		0x38
+#define ZX_UART011_IMSC		0x40
+#define ZX_UART011_RIS		0x44
+#define ZX_UART011_MIS		0x48
+#define ZX_UART011_ICR		0x4c
+#define ZX_UART011_DMACR	0x50
+
 #define UART011_DR_OE		(1 << 11)
 #define UART011_DR_BE		(1 << 10)
 #define UART011_DR_PE		(1 << 9)
@@ -85,6 +103,15 @@
 #define UART01x_FR_DSR 		0x002
 #define UART01x_FR_CTS 		0x001
 #define UART01x_FR_TMSK		(UART01x_FR_TXFF + UART01x_FR_BUSY)
+
+/*
+ * Some bits of Flag Register on ZTE device have different position from
+ * standard ones.
+ */
+#define ZX_UART01x_FR_BUSY	0x100
+#define ZX_UART01x_FR_DSR	0x008
+#define ZX_UART01x_FR_CTS	0x002
+#define ZX_UART011_FR_RI	0x001
 
 #define UART011_CR_CTSEN	0x8000	/* CTS hardware flow control */
 #define UART011_CR_RTSEN	0x4000	/* RTS hardware flow control */

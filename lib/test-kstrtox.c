@@ -3,7 +3,7 @@
 #include <linux/module.h>
 
 #define for_each_test(i, test)	\
-	for (i = 0; i < sizeof(test) / sizeof(test[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(test); i++)
 
 struct test_fail {
 	const char *str;
@@ -260,6 +260,7 @@ static void __init test_kstrtoll_ok(void)
 		{"4294967297",	10,	4294967297LL},
 		{"9223372036854775807",	10,	9223372036854775807LL},
 
+		{"-0",	10,	0LL},
 		{"-1",	10,	-1LL},
 		{"-2",	10,	-2LL},
 		{"-9223372036854775808",	10,	LLONG_MIN},
@@ -277,11 +278,6 @@ static void __init test_kstrtoll_fail(void)
 		{"-9223372036854775809",	10},
 		{"-18446744073709551614",	10},
 		{"-18446744073709551615",	10},
-		/* negative zero isn't an integer in Linux */
-		{"-0",	0},
-		{"-0",	8},
-		{"-0",	10},
-		{"-0",	16},
 		/* sign is first character if any */
 		{"-+1", 0},
 		{"-+1", 8},

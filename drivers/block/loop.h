@@ -11,8 +11,10 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/kthread.h>
 #include <uapi/linux/loop.h>
 
 /* Possible states of device */
@@ -26,7 +28,7 @@ struct loop_func_table;
 
 struct loop_device {
 	int		lo_number;
-	int		lo_refcnt;
+	atomic_t	lo_refcnt;
 	loff_t		lo_offset;
 	loff_t		lo_sizelimit;
 	int		lo_flags;
@@ -46,23 +48,30 @@ struct loop_device {
 
 	struct file *	lo_backing_file;
 	struct block_device *lo_device;
-	unsigned	lo_blocksize;
 	void		*key_data; 
 
 	gfp_t		old_gfp_mask;
 
 	spinlock_t		lo_lock;
-	struct bio_list		lo_bio_list;
-	unsigned int		lo_bio_count;
 	int			lo_state;
 	struct mutex		lo_ctl_mutex;
-	struct task_struct	*lo_thread;
-	wait_queue_head_t	lo_event;
-	/* wait queue for incoming requests */
-	wait_queue_head_t	lo_req_wait;
+	struct kthread_worker	worker;
+	struct task_struct	*worker_task;
+	bool			use_dio;
 
 	struct request_queue	*lo_queue;
+	struct blk_mq_tag_set	tag_set;
 	struct gendisk		*lo_disk;
+};
+
+struct loop_cmd {
+	struct kthread_work work;
+	struct request *rq;
+	bool use_aio; /* use AIO interface to handle I/O */
+	atomic_t ref; /* only for aio */
+	long ret;
+	struct kiocb iocb;
+	struct bio_vec *bvec;
 };
 
 /* Support for loadable transfer modules */

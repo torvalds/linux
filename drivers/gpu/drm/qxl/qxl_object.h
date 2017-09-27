@@ -31,11 +31,11 @@ static inline int qxl_bo_reserve(struct qxl_bo *bo, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
-			struct qxl_device *qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
-			dev_err(qdev->dev, "%p reserve failed\n", bo);
+			struct drm_device *ddev = bo->gem_base.dev;
+			dev_err(ddev->dev, "%p reserve failed\n", bo);
 		}
 		return r;
 	}
@@ -59,7 +59,7 @@ static inline unsigned long qxl_bo_size(struct qxl_bo *bo)
 
 static inline u64 qxl_bo_mmap_offset(struct qxl_bo *bo)
 {
-	return bo->tbo.addr_space_offset;
+	return drm_vma_node_offset_addr(&bo->tbo.vma_node);
 }
 
 static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
@@ -67,21 +67,19 @@ static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
-			struct qxl_device *qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
-			dev_err(qdev->dev, "%p reserve failed for wait\n",
+			struct drm_device *ddev = bo->gem_base.dev;
+			dev_err(ddev->dev, "%p reserve failed for wait\n",
 				bo);
 		}
 		return r;
 	}
-	spin_lock(&bo->tbo.bdev->fence_lock);
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
-	if (bo->tbo.sync_obj)
-		r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
-	spin_unlock(&bo->tbo.bdev->fence_lock);
+
+	r = ttm_bo_wait(&bo->tbo, true, no_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }

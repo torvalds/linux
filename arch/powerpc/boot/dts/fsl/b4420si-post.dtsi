@@ -76,23 +76,22 @@
 		compatible = "fsl,b4420-l3-cache-controller", "cache";
 	};
 
-	corenet-cf@18000 {
-		compatible = "fsl,b4420-corenet-cf";
-	};
-
 	guts: global-utilities@e0000 {
 		compatible = "fsl,b4420-device-config", "fsl,qoriq-device-config-2.0";
 	};
 
-	clockgen: global-utilities@e1000 {
-		compatible = "fsl,b4420-clockgen", "fsl,qoriq-clockgen-2.0";
+	global-utilities@e1000 {
+		compatible = "fsl,b4420-clockgen", "fsl,b4-clockgen",
+			      "fsl,qoriq-clockgen-2.0";
 	};
 
 	rcpm: global-utilities@e2000 {
 		compatible = "fsl,b4420-rcpm", "fsl,qoriq-rcpm-2.0";
 	};
 
-	L2: l2-cache-controller@c20000 {
+	L2_1: l2-cache-controller@c20000 {
 		compatible = "fsl,b4420-l2-cache-controller";
+		reg = <0xc20000 0x40000>;
+		next-level-cache = <&cpc>;
 	};
 };

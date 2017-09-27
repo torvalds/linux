@@ -278,17 +278,16 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 
 	mapping = tree->inode->i_mapping;
 	off = (loff_t)cnid * tree->node_size;
-	block = off >> PAGE_CACHE_SHIFT;
-	node->page_offset = off & ~PAGE_CACHE_MASK;
+	block = off >> PAGE_SHIFT;
+	node->page_offset = off & ~PAGE_MASK;
 	for (i = 0; i < tree->pages_per_bnode; i++) {
 		page = read_mapping_page(mapping, block++, NULL);
 		if (IS_ERR(page))
 			goto fail;
 		if (PageError(page)) {
-			page_cache_release(page);
+			put_page(page);
 			goto fail;
 		}
-		page_cache_release(page);
 		node->page[i] = page;
 	}
 
@@ -398,11 +397,11 @@ node_error:
 
 void hfs_bnode_free(struct hfs_bnode *node)
 {
-	//int i;
+	int i;
 
-	//for (i = 0; i < node->tree->pages_per_bnode; i++)
-	//	if (node->page[i])
-	//		page_cache_release(node->page[i]);
+	for (i = 0; i < node->tree->pages_per_bnode; i++)
+		if (node->page[i])
+			put_page(node->page[i]);
 	kfree(node);
 }
 
@@ -430,11 +429,11 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
 
 	pagep = node->page;
 	memset(kmap(*pagep) + node->page_offset, 0,
-	       min((int)PAGE_CACHE_SIZE, (int)tree->node_size));
+	       min((int)PAGE_SIZE, (int)tree->node_size));
 	set_page_dirty(*pagep);
 	kunmap(*pagep);
 	for (i = 1; i < tree->pages_per_bnode; i++) {
-		memset(kmap(*++pagep), 0, PAGE_CACHE_SIZE);
+		memset(kmap(*++pagep), 0, PAGE_SIZE);
 		set_page_dirty(*pagep);
 		kunmap(*pagep);
 	}

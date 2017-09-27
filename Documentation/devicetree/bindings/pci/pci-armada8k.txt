@@ -1,0 +1,37 @@
+* Marvell Armada 7K/8K PCIe interface
+
+This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+and thus inherits all the common properties defined in designware-pcie.txt.
+
+Required properties:
+- compatible: "marvell,armada8k-pcie"
+- reg: must contain two register regions
+   - the control register region
+   - the config space region
+- reg-names:
+   - "ctrl" for the control register region
+   - "config" for the config space region
+- interrupts: Interrupt specifier for the PCIe controler
+- clocks: reference to the PCIe controller clock
+
+Example:
+
+	pcie@f2600000 {
+		compatible = "marvell,armada8k-pcie", "snps,dw-pcie";
+		reg = <0 0xf2600000 0 0x10000>, <0 0xf6f00000 0 0x80000>;
+		reg-names = "ctrl", "config";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		device_type = "pci";
+		dma-coherent;
+
+		bus-range = <0 0xff>;
+		ranges = <0x81000000 0 0xf9000000 0  0xf9000000 0 0x10000	/* downstream I/O */
+			  0x82000000 0 0xf6000000 0  0xf6000000 0 0xf00000>;	/* non-prefetchable memory */
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic 0 GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		num-lanes = <1>;
+		clocks = <&cpm_syscon0 1 13>;
+	};

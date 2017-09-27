@@ -137,9 +137,9 @@ static void prepare_set(void)
 	u32 cr0;
 
 	/*  Save value of CR4 and clear Page Global Enable (bit 7)  */
-	if (cpu_has_pge) {
-		cr4 = read_cr4();
-		write_cr4(cr4 & ~X86_CR4_PGE);
+	if (boot_cpu_has(X86_FEATURE_PGE)) {
+		cr4 = __read_cr4();
+		__write_cr4(cr4 & ~X86_CR4_PGE);
 	}
 
 	/*
@@ -170,8 +170,8 @@ static void post_set(void)
 	write_cr0(read_cr0() & ~X86_CR0_CD);
 
 	/* Restore value of CR4 */
-	if (cpu_has_pge)
-		write_cr4(cr4);
+	if (boot_cpu_has(X86_FEATURE_PGE))
+		__write_cr4(cr4);
 }
 
 static void cyrix_set_arr(unsigned int reg, unsigned long base,

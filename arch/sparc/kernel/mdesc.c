@@ -17,7 +17,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/oplib.h>
 #include <asm/smp.h>
 
@@ -75,6 +75,74 @@ struct mdesc_handle {
 	struct mdesc_hdr	mdesc;
 };
 
+typedef int (*mdesc_node_info_get_f)(struct mdesc_handle *, u64,
+				     union md_node_info *);
+typedef void (*mdesc_node_info_rel_f)(union md_node_info *);
+typedef bool (*mdesc_node_match_f)(union md_node_info *, union md_node_info *);
+
+struct md_node_ops {
+	char			*name;
+	mdesc_node_info_get_f	get_info;
+	mdesc_node_info_rel_f	rel_info;
+	mdesc_node_match_f	node_match;
+};
+
+static int get_vdev_port_node_info(struct mdesc_handle *md, u64 node,
+				   union md_node_info *node_info);
+static void rel_vdev_port_node_info(union md_node_info *node_info);
+static bool vdev_port_node_match(union md_node_info *a_node_info,
+				 union md_node_info *b_node_info);
+
+static int get_ds_port_node_info(struct mdesc_handle *md, u64 node,
+				 union md_node_info *node_info);
+static void rel_ds_port_node_info(union md_node_info *node_info);
+static bool ds_port_node_match(union md_node_info *a_node_info,
+			       union md_node_info *b_node_info);
+
+/* supported node types which can be registered */
+static struct md_node_ops md_node_ops_table[] = {
+	{"virtual-device-port", get_vdev_port_node_info,
+	 rel_vdev_port_node_info, vdev_port_node_match},
+	{"domain-services-port", get_ds_port_node_info,
+	 rel_ds_port_node_info, ds_port_node_match},
+	{NULL, NULL, NULL, NULL}
+};
+
+static void mdesc_get_node_ops(const char *node_name,
+			       mdesc_node_info_get_f *get_info_f,
+			       mdesc_node_info_rel_f *rel_info_f,
+			       mdesc_node_match_f *match_f)
+{
+	int i;
+
+	if (get_info_f)
+		*get_info_f = NULL;
+
+	if (rel_info_f)
+		*rel_info_f = NULL;
+
+	if (match_f)
+		*match_f = NULL;
+
+	if (!node_name)
+		return;
+
+	for (i = 0; md_node_ops_table[i].name != NULL; i++) {
+		if (strcmp(md_node_ops_table[i].name, node_name) == 0) {
+			if (get_info_f)
+				*get_info_f = md_node_ops_table[i].get_info;
+
+			if (rel_info_f)
+				*rel_info_f = md_node_ops_table[i].rel_info;
+
+			if (match_f)
+				*match_f = md_node_ops_table[i].node_match;
+
+			break;
+		}
+	}
+}
+
 static void mdesc_handle_init(struct mdesc_handle *hp,
 			      unsigned int handle_size,
 			      void *base)
@@ -130,26 +198,24 @@ static struct mdesc_mem_ops memblock_mdesc_ops = {
 static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
 {
 	unsigned int handle_size;
+	struct mdesc_handle *hp;
+	unsigned long addr;
 	void *base;
 
 	handle_size = (sizeof(struct mdesc_handle) -
 		       sizeof(struct mdesc_hdr) +
 		       mdesc_size);
+	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	if (!base)
+		return NULL;
 
-	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_NOFAIL);
-	if (base) {
-		struct mdesc_handle *hp;
-		unsigned long addr;
+	addr = (unsigned long)base;
+	addr = (addr + 15UL) & ~15UL;
+	hp = (struct mdesc_handle *) addr;
 
-		addr = (unsigned long)base;
-		addr = (addr + 15UL) & ~15UL;
-		hp = (struct mdesc_handle *) addr;
+	mdesc_handle_init(hp, handle_size, base);
 
-		mdesc_handle_init(hp, handle_size, base);
-		return hp;
-	}
-
-	return NULL;
+	return hp;
 }
 
 static void mdesc_kfree(struct mdesc_handle *hp)
@@ -218,14 +284,31 @@ static struct mdesc_notifier_client *client_list;
 
 void mdesc_register_notifier(struct mdesc_notifier_client *client)
 {
+	bool supported = false;
 	u64 node;
+	int i;
 
 	mutex_lock(&mdesc_mutex);
+
+	/* check to see if the node is supported for registration */
+	for (i = 0; md_node_ops_table[i].name != NULL; i++) {
+		if (strcmp(md_node_ops_table[i].name, client->node_name) == 0) {
+			supported = true;
+			break;
+		}
+	}
+
+	if (!supported) {
+		pr_err("MD: %s node not supported\n", client->node_name);
+		mutex_unlock(&mdesc_mutex);
+		return;
+	}
+
 	client->next = client_list;
 	client_list = client;
 
 	mdesc_for_each_node_by_name(cur_mdesc, node, client->node_name)
-		client->add(cur_mdesc, node);
+		client->add(cur_mdesc, node, client->node_name);
 
 	mutex_unlock(&mdesc_mutex);
 }
@@ -249,59 +332,145 @@ static const u64 *parent_cfg_handle(struct mdesc_handle *hp, u64 node)
 	return id;
 }
 
+static int get_vdev_port_node_info(struct mdesc_handle *md, u64 node,
+				   union md_node_info *node_info)
+{
+	const u64 *parent_cfg_hdlp;
+	const char *name;
+	const u64 *idp;
+
+	/*
+	 * Virtual device nodes are distinguished by:
+	 * 1. "id" property
+	 * 2. "name" property
+	 * 3. parent node "cfg-handle" property
+	 */
+	idp = mdesc_get_property(md, node, "id", NULL);
+	name = mdesc_get_property(md, node, "name", NULL);
+	parent_cfg_hdlp = parent_cfg_handle(md, node);
+
+	if (!idp || !name || !parent_cfg_hdlp)
+		return -1;
+
+	node_info->vdev_port.id = *idp;
+	node_info->vdev_port.name = kstrdup_const(name, GFP_KERNEL);
+	node_info->vdev_port.parent_cfg_hdl = *parent_cfg_hdlp;
+
+	return 0;
+}
+
+static void rel_vdev_port_node_info(union md_node_info *node_info)
+{
+	if (node_info && node_info->vdev_port.name) {
+		kfree_const(node_info->vdev_port.name);
+		node_info->vdev_port.name = NULL;
+	}
+}
+
+static bool vdev_port_node_match(union md_node_info *a_node_info,
+				 union md_node_info *b_node_info)
+{
+	if (a_node_info->vdev_port.id != b_node_info->vdev_port.id)
+		return false;
+
+	if (a_node_info->vdev_port.parent_cfg_hdl !=
+	    b_node_info->vdev_port.parent_cfg_hdl)
+		return false;
+
+	if (strncmp(a_node_info->vdev_port.name,
+		    b_node_info->vdev_port.name, MDESC_MAX_STR_LEN) != 0)
+		return false;
+
+	return true;
+}
+
+static int get_ds_port_node_info(struct mdesc_handle *md, u64 node,
+				 union md_node_info *node_info)
+{
+	const u64 *idp;
+
+	/* DS port nodes use the "id" property to distinguish them */
+	idp = mdesc_get_property(md, node, "id", NULL);
+	if (!idp)
+		return -1;
+
+	node_info->ds_port.id = *idp;
+
+	return 0;
+}
+
+static void rel_ds_port_node_info(union md_node_info *node_info)
+{
+}
+
+static bool ds_port_node_match(union md_node_info *a_node_info,
+			       union md_node_info *b_node_info)
+{
+	if (a_node_info->ds_port.id != b_node_info->ds_port.id)
+		return false;
+
+	return true;
+}
+
 /* Run 'func' on nodes which are in A but not in B.  */
 static void invoke_on_missing(const char *name,
 			      struct mdesc_handle *a,
 			      struct mdesc_handle *b,
-			      void (*func)(struct mdesc_handle *, u64))
+			      void (*func)(struct mdesc_handle *, u64,
+					   const char *node_name))
 {
-	u64 node;
+	mdesc_node_info_get_f get_info_func;
+	mdesc_node_info_rel_f rel_info_func;
+	mdesc_node_match_f node_match_func;
+	union md_node_info a_node_info;
+	union md_node_info b_node_info;
+	bool found;
+	u64 a_node;
+	u64 b_node;
+	int rv;
 
-	mdesc_for_each_node_by_name(a, node, name) {
-		int found = 0, is_vdc_port = 0;
-		const char *name_prop;
-		const u64 *id;
-		u64 fnode;
+	/*
+	 * Find the get_info, rel_info and node_match ops for the given
+	 * node name
+	 */
+	mdesc_get_node_ops(name, &get_info_func, &rel_info_func,
+			   &node_match_func);
 
-		name_prop = mdesc_get_property(a, node, "name", NULL);
-		if (name_prop && !strcmp(name_prop, "vdc-port")) {
-			is_vdc_port = 1;
-			id = parent_cfg_handle(a, node);
-		} else
-			id = mdesc_get_property(a, node, "id", NULL);
+	/* If we didn't find a match, the node type is not supported */
+	if (!get_info_func || !rel_info_func || !node_match_func) {
+		pr_err("MD: %s node type is not supported\n", name);
+		return;
+	}
 
-		if (!id) {
-			printk(KERN_ERR "MD: Cannot find ID for %s node.\n",
-			       (name_prop ? name_prop : name));
+	mdesc_for_each_node_by_name(a, a_node, name) {
+		found = false;
+
+		rv = get_info_func(a, a_node, &a_node_info);
+		if (rv != 0) {
+			pr_err("MD: Cannot find 1 or more required match properties for %s node.\n",
+			       name);
 			continue;
 		}
 
-		mdesc_for_each_node_by_name(b, fnode, name) {
-			const u64 *fid;
+		/* Check each node in B for node matching a_node */
+		mdesc_for_each_node_by_name(b, b_node, name) {
+			rv = get_info_func(b, b_node, &b_node_info);
+			if (rv != 0)
+				continue;
 
-			if (is_vdc_port) {
-				name_prop = mdesc_get_property(b, fnode,
-							       "name", NULL);
-				if (!name_prop ||
-				    strcmp(name_prop, "vdc-port"))
-					continue;
-				fid = parent_cfg_handle(b, fnode);
-				if (!fid) {
-					printk(KERN_ERR "MD: Cannot find ID "
-					       "for vdc-port node.\n");
-					continue;
-				}
-			} else
-				fid = mdesc_get_property(b, fnode,
-							 "id", NULL);
-
-			if (*id == *fid) {
-				found = 1;
+			if (node_match_func(&a_node_info, &b_node_info)) {
+				found = true;
+				rel_info_func(&b_node_info);
 				break;
 			}
+
+			rel_info_func(&b_node_info);
 		}
+
+		rel_info_func(&a_node_info);
+
 		if (!found)
-			func(a, node);
+			func(a, a_node, name);
 	}
 }
 
@@ -366,6 +535,76 @@ void mdesc_update(void)
 out:
 	mutex_unlock(&mdesc_mutex);
 }
+
+u64 mdesc_get_node(struct mdesc_handle *hp, const char *node_name,
+		   union md_node_info *node_info)
+{
+	mdesc_node_info_get_f get_info_func;
+	mdesc_node_info_rel_f rel_info_func;
+	mdesc_node_match_f node_match_func;
+	union md_node_info hp_node_info;
+	u64 hp_node;
+	int rv;
+
+	if (hp == NULL || node_name == NULL || node_info == NULL)
+		return MDESC_NODE_NULL;
+
+	/* Find the ops for the given node name */
+	mdesc_get_node_ops(node_name, &get_info_func, &rel_info_func,
+			   &node_match_func);
+
+	/* If we didn't find ops for the given node name, it is not supported */
+	if (!get_info_func || !rel_info_func || !node_match_func) {
+		pr_err("MD: %s node is not supported\n", node_name);
+		return -EINVAL;
+	}
+
+	mdesc_for_each_node_by_name(hp, hp_node, node_name) {
+		rv = get_info_func(hp, hp_node, &hp_node_info);
+		if (rv != 0)
+			continue;
+
+		if (node_match_func(node_info, &hp_node_info))
+			break;
+
+		rel_info_func(&hp_node_info);
+	}
+
+	rel_info_func(&hp_node_info);
+
+	return hp_node;
+}
+EXPORT_SYMBOL(mdesc_get_node);
+
+int mdesc_get_node_info(struct mdesc_handle *hp, u64 node,
+			const char *node_name, union md_node_info *node_info)
+{
+	mdesc_node_info_get_f get_info_func;
+	int rv;
+
+	if (hp == NULL || node == MDESC_NODE_NULL ||
+	    node_name == NULL || node_info == NULL)
+		return -EINVAL;
+
+	/* Find the get_info op for the given node name */
+	mdesc_get_node_ops(node_name, &get_info_func, NULL, NULL);
+
+	/* If we didn't find a get_info_func, the node name is not supported */
+	if (get_info_func == NULL) {
+		pr_err("MD: %s node is not supported\n", node_name);
+		return -EINVAL;
+	}
+
+	rv = get_info_func(hp, node, node_info);
+	if (rv != 0) {
+		pr_err("MD: Cannot find 1 or more required match properties for %s node.\n",
+		       node_name);
+		return -1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mdesc_get_node_info);
 
 static struct mdesc_elem *node_block(struct mdesc_hdr *mdesc)
 {
@@ -614,37 +853,64 @@ static void fill_in_one_cache(cpuinfo_sparc *c, struct mdesc_handle *hp, u64 mp)
 	}
 }
 
-static void mark_core_ids(struct mdesc_handle *hp, u64 mp, int core_id)
+static void find_back_node_value(struct mdesc_handle *hp, u64 node,
+				 char *srch_val,
+				 void (*func)(struct mdesc_handle *, u64, int),
+				 u64 val, int depth)
 {
-	u64 a;
+	u64 arc;
 
-	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_BACK) {
-		u64 t = mdesc_arc_target(hp, a);
-		const char *name;
-		const u64 *id;
+	/* Since we have an estimate of recursion depth, do a sanity check. */
+	if (depth == 0)
+		return;
 
-		name = mdesc_node_name(hp, t);
-		if (!strcmp(name, "cpu")) {
-			id = mdesc_get_property(hp, t, "id", NULL);
-			if (*id < NR_CPUS)
-				cpu_data(*id).core_id = core_id;
-		} else {
-			u64 j;
+	mdesc_for_each_arc(arc, hp, node, MDESC_ARC_TYPE_BACK) {
+		u64 n = mdesc_arc_target(hp, arc);
+		const char *name = mdesc_node_name(hp, n);
 
-			mdesc_for_each_arc(j, hp, t, MDESC_ARC_TYPE_BACK) {
-				u64 n = mdesc_arc_target(hp, j);
-				const char *n_name;
+		if (!strcmp(srch_val, name))
+			(*func)(hp, n, val);
 
-				n_name = mdesc_node_name(hp, n);
-				if (strcmp(n_name, "cpu"))
-					continue;
-
-				id = mdesc_get_property(hp, n, "id", NULL);
-				if (*id < NR_CPUS)
-					cpu_data(*id).core_id = core_id;
-			}
-		}
+		find_back_node_value(hp, n, srch_val, func, val, depth-1);
 	}
+}
+
+static void __mark_core_id(struct mdesc_handle *hp, u64 node,
+			   int core_id)
+{
+	const u64 *id = mdesc_get_property(hp, node, "id", NULL);
+
+	if (*id < num_possible_cpus())
+		cpu_data(*id).core_id = core_id;
+}
+
+static void __mark_max_cache_id(struct mdesc_handle *hp, u64 node,
+				int max_cache_id)
+{
+	const u64 *id = mdesc_get_property(hp, node, "id", NULL);
+
+	if (*id < num_possible_cpus()) {
+		cpu_data(*id).max_cache_id = max_cache_id;
+
+		/**
+		 * On systems without explicit socket descriptions socket
+		 * is max_cache_id
+		 */
+		cpu_data(*id).sock_id = max_cache_id;
+	}
+}
+
+static void mark_core_ids(struct mdesc_handle *hp, u64 mp,
+			  int core_id)
+{
+	find_back_node_value(hp, mp, "cpu", __mark_core_id, core_id, 10);
+}
+
+static void mark_max_cache_ids(struct mdesc_handle *hp, u64 mp,
+			       int max_cache_id)
+{
+	find_back_node_value(hp, mp, "cpu", __mark_max_cache_id,
+			     max_cache_id, 10);
 }
 
 static void set_core_ids(struct mdesc_handle *hp)
@@ -653,6 +919,10 @@ static void set_core_ids(struct mdesc_handle *hp)
 	u64 mp;
 
 	idx = 1;
+
+	/* Identify unique cores by looking for cpus backpointed to by
+	 * level 1 instruction caches.
+	 */
 	mdesc_for_each_node_by_name(hp, mp, "cache") {
 		const u64 *level;
 		const char *type;
@@ -667,9 +937,72 @@ static void set_core_ids(struct mdesc_handle *hp)
 			continue;
 
 		mark_core_ids(hp, mp, idx);
-
 		idx++;
 	}
+}
+
+static int set_max_cache_ids_by_cache(struct mdesc_handle *hp, int level)
+{
+	u64 mp;
+	int idx = 1;
+	int fnd = 0;
+
+	/**
+	 * Identify unique highest level of shared cache by looking for cpus
+	 * backpointed to by shared level N caches.
+	 */
+	mdesc_for_each_node_by_name(hp, mp, "cache") {
+		const u64 *cur_lvl;
+
+		cur_lvl = mdesc_get_property(hp, mp, "level", NULL);
+		if (*cur_lvl != level)
+			continue;
+		mark_max_cache_ids(hp, mp, idx);
+		idx++;
+		fnd = 1;
+	}
+	return fnd;
+}
+
+static void set_sock_ids_by_socket(struct mdesc_handle *hp, u64 mp)
+{
+	int idx = 1;
+
+	mdesc_for_each_node_by_name(hp, mp, "socket") {
+		u64 a;
+
+		mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
+			u64 t = mdesc_arc_target(hp, a);
+			const char *name;
+			const u64 *id;
+
+			name = mdesc_node_name(hp, t);
+			if (strcmp(name, "cpu"))
+				continue;
+
+			id = mdesc_get_property(hp, t, "id", NULL);
+			if (*id < num_possible_cpus())
+				cpu_data(*id).sock_id = idx;
+		}
+		idx++;
+	}
+}
+
+static void set_sock_ids(struct mdesc_handle *hp)
+{
+	u64 mp;
+
+	/**
+	 * Find the highest level of shared cache which pre-T7 is also
+	 * the socket.
+	 */
+	if (!set_max_cache_ids_by_cache(hp, 3))
+		set_max_cache_ids_by_cache(hp, 2);
+
+	/* If machine description exposes sockets data use it.*/
+	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "sockets");
+	if (mp != MDESC_NODE_NULL)
+		set_sock_ids_by_socket(hp, mp);
 }
 
 static void mark_proc_ids(struct mdesc_handle *hp, u64 mp, int proc_id)
@@ -707,7 +1040,6 @@ static void __set_proc_ids(struct mdesc_handle *hp, const char *exec_unit_name)
 			continue;
 
 		mark_proc_ids(hp, mp, idx);
-
 		idx++;
 	}
 }
@@ -896,43 +1228,80 @@ void mdesc_fill_in_cpu_data(cpumask_t *mask)
 
 	mdesc_iterate_over_cpus(fill_in_one_cpu, NULL, mask);
 
-#ifdef CONFIG_SMP
-	sparc64_multi_core = 1;
-#endif
-
 	hp = mdesc_grab();
 
 	set_core_ids(hp);
 	set_proc_ids(hp);
+	set_sock_ids(hp);
 
 	mdesc_release(hp);
 
 	smp_fill_in_sib_core_maps();
 }
 
-static ssize_t mdesc_read(struct file *file, char __user *buf,
-			  size_t len, loff_t *offp)
+/* mdesc_open() - Grab a reference to mdesc_handle when /dev/mdesc is
+ * opened. Hold this reference until /dev/mdesc is closed to ensure
+ * mdesc data structure is not released underneath us. Store the
+ * pointer to mdesc structure in private_data for read and seek to use
+ */
+static int mdesc_open(struct inode *inode, struct file *file)
 {
 	struct mdesc_handle *hp = mdesc_grab();
-	int err;
 
 	if (!hp)
 		return -ENODEV;
 
-	err = hp->handle_size;
-	if (len < hp->handle_size)
-		err = -EMSGSIZE;
-	else if (copy_to_user(buf, &hp->mdesc, hp->handle_size))
-		err = -EFAULT;
-	mdesc_release(hp);
+	file->private_data = hp;
 
-	return err;
+	return 0;
+}
+
+static ssize_t mdesc_read(struct file *file, char __user *buf,
+			  size_t len, loff_t *offp)
+{
+	struct mdesc_handle *hp = file->private_data;
+	unsigned char *mdesc;
+	int bytes_left, count = len;
+
+	if (*offp >= hp->handle_size)
+		return 0;
+
+	bytes_left = hp->handle_size - *offp;
+	if (count > bytes_left)
+		count = bytes_left;
+
+	mdesc = (unsigned char *)&hp->mdesc;
+	mdesc += *offp;
+	if (!copy_to_user(buf, mdesc, count)) {
+		*offp += count;
+		return count;
+	} else {
+		return -EFAULT;
+	}
+}
+
+static loff_t mdesc_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct mdesc_handle *hp = file->private_data;
+
+	return no_seek_end_llseek_size(file, offset, whence, hp->handle_size);
+}
+
+/* mdesc_close() - /dev/mdesc is being closed, release the reference to
+ * mdesc structure.
+ */
+static int mdesc_close(struct inode *inode, struct file *file)
+{
+	mdesc_release(file->private_data);
+	return 0;
 }
 
 static const struct file_operations mdesc_fops = {
-	.read	= mdesc_read,
-	.owner	= THIS_MODULE,
-	.llseek = noop_llseek,
+	.open    = mdesc_open,
+	.read	 = mdesc_read,
+	.llseek  = mdesc_llseek,
+	.release = mdesc_close,
+	.owner	 = THIS_MODULE,
 };
 
 static struct miscdevice mdesc_misc = {

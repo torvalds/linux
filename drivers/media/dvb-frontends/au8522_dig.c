@@ -29,6 +29,7 @@
 #include "au8522_priv.h"
 
 static int debug;
+static int zv_mode = 1; /* default to on */
 
 #define dprintk(arg...)\
 	do { if (debug)\
@@ -270,9 +271,9 @@ static int au8522_set_if(struct dvb_frontend *fe, enum au8522_if_freq if_freq)
 		return -EINVAL;
 	}
 	dprintk("%s() %s MHz\n", __func__, ifmhz);
-	au8522_writereg(state, 0x80b5, r0b5);
-	au8522_writereg(state, 0x80b6, r0b6);
-	au8522_writereg(state, 0x80b7, r0b7);
+	au8522_writereg(state, 0x00b5, r0b5);
+	au8522_writereg(state, 0x00b6, r0b6);
+	au8522_writereg(state, 0x00b7, r0b7);
 
 	return 0;
 }
@@ -282,33 +283,32 @@ static struct {
 	u16 reg;
 	u16 data;
 } VSB_mod_tab[] = {
-	{ 0x8090, 0x84 },
-	{ 0x4092, 0x11 },
+	{ 0x0090, 0x84 },
 	{ 0x2005, 0x00 },
-	{ 0x8091, 0x80 },
-	{ 0x80a3, 0x0c },
-	{ 0x80a4, 0xe8 },
-	{ 0x8081, 0xc4 },
-	{ 0x80a5, 0x40 },
-	{ 0x80a7, 0x40 },
-	{ 0x80a6, 0x67 },
-	{ 0x8262, 0x20 },
-	{ 0x821c, 0x30 },
-	{ 0x80d8, 0x1a },
-	{ 0x8227, 0xa0 },
-	{ 0x8121, 0xff },
-	{ 0x80a8, 0xf0 },
-	{ 0x80a9, 0x05 },
-	{ 0x80aa, 0x77 },
-	{ 0x80ab, 0xf0 },
-	{ 0x80ac, 0x05 },
-	{ 0x80ad, 0x77 },
-	{ 0x80ae, 0x41 },
-	{ 0x80af, 0x66 },
-	{ 0x821b, 0xcc },
-	{ 0x821d, 0x80 },
-	{ 0x80a4, 0xe8 },
-	{ 0x8231, 0x13 },
+	{ 0x0091, 0x80 },
+	{ 0x00a3, 0x0c },
+	{ 0x00a4, 0xe8 },
+	{ 0x0081, 0xc4 },
+	{ 0x00a5, 0x40 },
+	{ 0x00a7, 0x40 },
+	{ 0x00a6, 0x67 },
+	{ 0x0262, 0x20 },
+	{ 0x021c, 0x30 },
+	{ 0x00d8, 0x1a },
+	{ 0x0227, 0xa0 },
+	{ 0x0121, 0xff },
+	{ 0x00a8, 0xf0 },
+	{ 0x00a9, 0x05 },
+	{ 0x00aa, 0x77 },
+	{ 0x00ab, 0xf0 },
+	{ 0x00ac, 0x05 },
+	{ 0x00ad, 0x77 },
+	{ 0x00ae, 0x41 },
+	{ 0x00af, 0x66 },
+	{ 0x021b, 0xcc },
+	{ 0x021d, 0x80 },
+	{ 0x00a4, 0xe8 },
+	{ 0x0231, 0x13 },
 };
 
 /* QAM64 Modulation table */
@@ -395,10 +395,91 @@ static struct {
 	u16 reg;
 	u16 data;
 } QAM256_mod_tab[] = {
+	{ 0x00a3, 0x09 },
+	{ 0x00a4, 0x00 },
+	{ 0x0081, 0xc4 },
+	{ 0x00a5, 0x40 },
+	{ 0x00aa, 0x77 },
+	{ 0x00ad, 0x77 },
+	{ 0x00a6, 0x67 },
+	{ 0x0262, 0x20 },
+	{ 0x021c, 0x30 },
+	{ 0x00b8, 0x3e },
+	{ 0x00b9, 0xf0 },
+	{ 0x00ba, 0x01 },
+	{ 0x00bb, 0x18 },
+	{ 0x00bc, 0x50 },
+	{ 0x00bd, 0x00 },
+	{ 0x00be, 0xea },
+	{ 0x00bf, 0xef },
+	{ 0x00c0, 0xfc },
+	{ 0x00c1, 0xbd },
+	{ 0x00c2, 0x1f },
+	{ 0x00c3, 0xfc },
+	{ 0x00c4, 0xdd },
+	{ 0x00c5, 0xaf },
+	{ 0x00c6, 0x00 },
+	{ 0x00c7, 0x38 },
+	{ 0x00c8, 0x30 },
+	{ 0x00c9, 0x05 },
+	{ 0x00ca, 0x4a },
+	{ 0x00cb, 0xd0 },
+	{ 0x00cc, 0x01 },
+	{ 0x00cd, 0xd9 },
+	{ 0x00ce, 0x6f },
+	{ 0x00cf, 0xf9 },
+	{ 0x00d0, 0x70 },
+	{ 0x00d1, 0xdf },
+	{ 0x00d2, 0xf7 },
+	{ 0x00d3, 0xc2 },
+	{ 0x00d4, 0xdf },
+	{ 0x00d5, 0x02 },
+	{ 0x00d6, 0x9a },
+	{ 0x00d7, 0xd0 },
+	{ 0x0250, 0x0d },
+	{ 0x0251, 0xcd },
+	{ 0x0252, 0xe0 },
+	{ 0x0253, 0x05 },
+	{ 0x0254, 0xa7 },
+	{ 0x0255, 0xff },
+	{ 0x0256, 0xed },
+	{ 0x0257, 0x5b },
+	{ 0x0258, 0xae },
+	{ 0x0259, 0xe6 },
+	{ 0x025a, 0x3d },
+	{ 0x025b, 0x0f },
+	{ 0x025c, 0x0d },
+	{ 0x025d, 0xea },
+	{ 0x025e, 0xf2 },
+	{ 0x025f, 0x51 },
+	{ 0x0260, 0xf5 },
+	{ 0x0261, 0x06 },
+	{ 0x021a, 0x00 },
+	{ 0x0546, 0x40 },
+	{ 0x0210, 0x26 },
+	{ 0x0211, 0xf6 },
+	{ 0x0212, 0x84 },
+	{ 0x0213, 0x02 },
+	{ 0x0502, 0x01 },
+	{ 0x0121, 0x04 },
+	{ 0x0122, 0x04 },
+	{ 0x052e, 0x10 },
+	{ 0x00a4, 0xca },
+	{ 0x00a7, 0x40 },
+	{ 0x0526, 0x01 },
+};
+
+static struct {
+	u16 reg;
+	u16 data;
+} QAM256_mod_tab_zv_mode[] = {
 	{ 0x80a3, 0x09 },
 	{ 0x80a4, 0x00 },
 	{ 0x8081, 0xc4 },
 	{ 0x80a5, 0x40 },
+	{ 0x80b5, 0xfb },
+	{ 0x80b6, 0x8e },
+	{ 0x80b7, 0x39 },
 	{ 0x80aa, 0x77 },
 	{ 0x80ad, 0x77 },
 	{ 0x80a6, 0x67 },
@@ -454,7 +535,7 @@ static struct {
 	{ 0x825f, 0x51 },
 	{ 0x8260, 0xf5 },
 	{ 0x8261, 0x06 },
-	{ 0x821a, 0x00 },
+	{ 0x821a, 0x01 },
 	{ 0x8546, 0x40 },
 	{ 0x8210, 0x26 },
 	{ 0x8211, 0xf6 },
@@ -470,7 +551,7 @@ static struct {
 };
 
 static int au8522_enable_modulation(struct dvb_frontend *fe,
-				    fe_modulation_t m)
+				    enum fe_modulation m)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	int i;
@@ -484,7 +565,7 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 			au8522_writereg(state,
 				VSB_mod_tab[i].reg,
 				VSB_mod_tab[i].data);
-		au8522_set_if(fe, state->config->vsb_if);
+		au8522_set_if(fe, state->config.vsb_if);
 		break;
 	case QAM_64:
 		dprintk("%s() QAM 64\n", __func__);
@@ -492,15 +573,26 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 			au8522_writereg(state,
 				QAM64_mod_tab[i].reg,
 				QAM64_mod_tab[i].data);
-		au8522_set_if(fe, state->config->qam_if);
+		au8522_set_if(fe, state->config.qam_if);
 		break;
 	case QAM_256:
-		dprintk("%s() QAM 256\n", __func__);
-		for (i = 0; i < ARRAY_SIZE(QAM256_mod_tab); i++)
-			au8522_writereg(state,
-				QAM256_mod_tab[i].reg,
-				QAM256_mod_tab[i].data);
-		au8522_set_if(fe, state->config->qam_if);
+		if (zv_mode) {
+			dprintk("%s() QAM 256 (zv_mode)\n", __func__);
+			for (i = 0; i < ARRAY_SIZE(QAM256_mod_tab_zv_mode); i++)
+				au8522_writereg(state,
+					QAM256_mod_tab_zv_mode[i].reg,
+					QAM256_mod_tab_zv_mode[i].data);
+			au8522_set_if(fe, state->config.qam_if);
+			msleep(100);
+			au8522_writereg(state, 0x821a, 0x00);
+		} else {
+			dprintk("%s() QAM 256\n", __func__);
+			for (i = 0; i < ARRAY_SIZE(QAM256_mod_tab); i++)
+				au8522_writereg(state,
+					QAM256_mod_tab[i].reg,
+					QAM256_mod_tab[i].data);
+			au8522_set_if(fe, state->config.qam_if);
+		}
 		break;
 	default:
 		dprintk("%s() Invalid modulation\n", __func__);
@@ -537,7 +629,12 @@ static int au8522_set_frontend(struct dvb_frontend *fe)
 		return ret;
 
 	/* Allow the tuner to settle */
-	msleep(100);
+	if (zv_mode) {
+		dprintk("%s() increase tuner settling time for zv_mode\n",
+			__func__);
+		msleep(250);
+	} else
+		msleep(100);
 
 	au8522_enable_modulation(fe, c->modulation);
 
@@ -546,7 +643,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int au8522_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	u8 reg;
@@ -556,19 +653,19 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	if (state->current_modulation == VSB_8) {
 		dprintk("%s() Checking VSB_8\n", __func__);
-		reg = au8522_readreg(state, 0x4088);
+		reg = au8522_readreg(state, 0x0088);
 		if ((reg & 0x03) == 0x03)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC | FE_HAS_VITERBI;
 	} else {
 		dprintk("%s() Checking QAM\n", __func__);
-		reg = au8522_readreg(state, 0x4541);
+		reg = au8522_readreg(state, 0x0541);
 		if (reg & 0x80)
 			*status |= FE_HAS_VITERBI;
 		if (reg & 0x20)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
 	}
 
-	switch (state->config->status_mode) {
+	switch (state->config.status_mode) {
 	case AU8522_DEMODLOCKING:
 		dprintk("%s() DEMODLOCKING\n", __func__);
 		if (*status & FE_HAS_VITERBI)
@@ -606,7 +703,7 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int au8522_led_status(struct au8522_state *state, const u16 *snr)
 {
-	struct au8522_led_config *led_config = state->config->led_cfg;
+	struct au8522_led_config *led_config = state->config.led_cfg;
 	int led;
 	u16 strong;
 
@@ -647,20 +744,20 @@ static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 	if (state->current_modulation == QAM_256)
 		ret = au8522_mse2snr_lookup(qam256_mse2snr_tab,
 					    ARRAY_SIZE(qam256_mse2snr_tab),
-					    au8522_readreg(state, 0x4522),
+					    au8522_readreg(state, 0x0522),
 					    snr);
 	else if (state->current_modulation == QAM_64)
 		ret = au8522_mse2snr_lookup(qam64_mse2snr_tab,
 					    ARRAY_SIZE(qam64_mse2snr_tab),
-					    au8522_readreg(state, 0x4522),
+					    au8522_readreg(state, 0x0522),
 					    snr);
 	else /* VSB_8 */
 		ret = au8522_mse2snr_lookup(vsb_mse2snr_tab,
 					    ARRAY_SIZE(vsb_mse2snr_tab),
-					    au8522_readreg(state, 0x4311),
+					    au8522_readreg(state, 0x0311),
 					    snr);
 
-	if (state->config->led_cfg)
+	if (state->config.led_cfg)
 		au8522_led_status(state, snr);
 
 	return ret;
@@ -706,9 +803,9 @@ static int au8522_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	struct au8522_state *state = fe->demodulator_priv;
 
 	if (state->current_modulation == VSB_8)
-		*ucblocks = au8522_readreg(state, 0x4087);
+		*ucblocks = au8522_readreg(state, 0x0087);
 	else
-		*ucblocks = au8522_readreg(state, 0x4543);
+		*ucblocks = au8522_readreg(state, 0x0543);
 
 	return 0;
 }
@@ -718,9 +815,9 @@ static int au8522_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return au8522_read_ucblocks(fe, ber);
 }
 
-static int au8522_get_frontend(struct dvb_frontend *fe)
+static int au8522_get_frontend(struct dvb_frontend *fe,
+			       struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct au8522_state *state = fe->demodulator_priv;
 
 	c->frequency = state->current_frequency;
@@ -736,7 +833,7 @@ static int au8522_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct dvb_frontend_ops au8522_ops;
+static const struct dvb_frontend_ops au8522_ops;
 
 
 static void au8522_release(struct dvb_frontend *fe)
@@ -768,7 +865,7 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	}
 
 	/* setup the state */
-	state->config = config;
+	state->config = *config;
 	state->i2c = i2c;
 	state->operational_mode = AU8522_DIGITAL_MODE;
 
@@ -796,7 +893,7 @@ error:
 }
 EXPORT_SYMBOL(au8522_attach);
 
-static struct dvb_frontend_ops au8522_ops = {
+static const struct dvb_frontend_ops au8522_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Auvitek AU8522 QAM/8VSB Frontend",
@@ -822,6 +919,11 @@ static struct dvb_frontend_ops au8522_ops = {
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable verbose debug messages");
+
+module_param(zv_mode, int, 0644);
+MODULE_PARM_DESC(zv_mode, "Turn on/off ZeeVee modulator compatibility mode (default:on).\n"
+	"\t\ton - modified AU8522 QAM256 initialization.\n"
+	"\t\tProvides faster lock when using ZeeVee modulator based sources");
 
 MODULE_DESCRIPTION("Auvitek AU8522 QAM-B/ATSC Demodulator driver");
 MODULE_AUTHOR("Steven Toth");

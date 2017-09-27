@@ -17,14 +17,14 @@
 */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 
 /* image constants */
@@ -33,8 +33,6 @@
 #define HEADER "P5 225 289 255 "
 #define IMGSIZE ((WIDTH * HEIGHT) + sizeof(HEADER)-1)
 
-/* version information */
-#define DRIVER_VERSION "0.6"
 #define DRIVER_SHORT   "idmouse"
 #define DRIVER_AUTHOR  "Florian 'Floe' Echtler <echtler@fs.tum.de>"
 #define DRIVER_DESC    "Siemens ID Mouse FingerTIP Sensor Driver"
@@ -258,9 +256,9 @@ static int idmouse_open(struct inode *inode, struct file *file)
 		if (result)
 			goto error;
 		result = idmouse_create_image (dev);
+		usb_autopm_put_interface(interface);
 		if (result)
 			goto error;
-		usb_autopm_put_interface(interface);
 
 		/* increment our usage count for the driver */
 		++dev->open;
@@ -347,6 +345,9 @@ static int idmouse_probe(struct usb_interface *interface,
 	if (iface_desc->desc.bInterfaceClass != 0x0A)
 		return -ENODEV;
 
+	if (iface_desc->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
@@ -357,27 +358,22 @@ static int idmouse_probe(struct usb_interface *interface,
 	dev->interface = interface;
 
 	/* set up the endpoint information - use only the first bulk-in endpoint */
-	endpoint = &iface_desc->endpoint[0].desc;
-	if (!dev->bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
-		/* we found a bulk in endpoint */
-		dev->orig_bi_size = usb_endpoint_maxp(endpoint);
-		dev->bulk_in_size = 0x200; /* works _much_ faster */
-		dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
-		dev->bulk_in_buffer =
-			kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
-
-		if (!dev->bulk_in_buffer) {
-			dev_err(&interface->dev, "Unable to allocate input buffer.\n");
-			idmouse_delete(dev);
-			return -ENOMEM;
-		}
-	}
-
-	if (!(dev->bulk_in_endpointAddr)) {
+	result = usb_find_bulk_in_endpoint(iface_desc, &endpoint);
+	if (result) {
 		dev_err(&interface->dev, "Unable to find bulk-in endpoint.\n");
 		idmouse_delete(dev);
-		return -ENODEV;
+		return result;
 	}
+
+	dev->orig_bi_size = usb_endpoint_maxp(endpoint);
+	dev->bulk_in_size = 0x200; /* works _much_ faster */
+	dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
+	dev->bulk_in_buffer = kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
+	if (!dev->bulk_in_buffer) {
+		idmouse_delete(dev);
+		return -ENOMEM;
+	}
+
 	/* allow device read, write and ioctl */
 	dev->present = 1;
 
@@ -386,7 +382,7 @@ static int idmouse_probe(struct usb_interface *interface,
 	result = usb_register_dev(interface, &idmouse_class);
 	if (result) {
 		/* something prevented us from registering this device */
-		dev_err(&interface->dev, "Unble to allocate minor number.\n");
+		dev_err(&interface->dev, "Unable to allocate minor number.\n");
 		usb_set_intfdata(interface, NULL);
 		idmouse_delete(dev);
 		return result;

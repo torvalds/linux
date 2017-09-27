@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/string.h>
-#include <linux/module.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -78,7 +77,7 @@ static struct platform_device net5501_leds_dev = {
 	.dev.platform_data = &net5501_leds_data,
 };
 
-static struct __initdata platform_device *net5501_devs[] = {
+static struct platform_device *net5501_devs[] __initdata = {
 	&net5501_buttons_dev,
 	&net5501_leds_dev,
 };
@@ -146,9 +145,4 @@ static int __init net5501_init(void)
 
 	return 0;
 }
-
-module_init(net5501_init);
-
-MODULE_AUTHOR("Philip Prindeville <philipp@redfish-solutions.com>");
-MODULE_DESCRIPTION("Soekris net5501 System Setup");
-MODULE_LICENSE("GPL");
+device_initcall(net5501_init);

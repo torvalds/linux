@@ -15,6 +15,10 @@ o fail_page_alloc
 
   injects page allocation failures. (alloc_pages(), get_free_pages(), ...)
 
+o fail_futex
+
+  injects futex deadlock and uaddr fault errors.
+
 o fail_make_request
 
   injects disk IO errors on devices permitted by setting
@@ -113,6 +117,12 @@ configuration of fault-injection capabilities.
 	specifies the minimum page allocation order to be injected
 	failures.
 
+- /sys/kernel/debug/fail_futex/ignore-private:
+
+	Format: { 'Y' | 'N' }
+	default is 'N', setting it to 'Y' will disable failure injections
+	when dealing with private (address space) futexes.
+
 o Boot option
 
 In order to inject faults while debugfs is not available (early boot time),
@@ -121,7 +131,25 @@ use the boot option:
 	failslab=
 	fail_page_alloc=
 	fail_make_request=
+	fail_futex=
 	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
+
+o proc entries
+
+- /proc/<pid>/fail-nth:
+- /proc/self/task/<tid>/fail-nth:
+
+	Write to this file of integer N makes N-th call in the task fail.
+	Read from this file returns a integer value. A value of '0' indicates
+	that the fault setup with a previous write to this file was injected.
+	A positive integer N indicates that the fault wasn't yet injected.
+	Note that this file enables all types of faults (slab, futex, etc).
+	This setting takes precedence over all other generic debugfs settings
+	like probability, interval, times, etc. But per-capability settings
+	(e.g. fail_futex/ignore-private) take precedence over it.
+
+	This feature is intended for systematic testing of faults in a single
+	system call. See an example below.
 
 How to add new fault injection capability
 -----------------------------------------
@@ -267,3 +295,65 @@ allocation failure.
 	# env FAILCMD_TYPE=fail_page_alloc \
 		./tools/testing/fault-injection/failcmd.sh --times=100 \
                 -- make -C tools/testing/selftests/ run_tests
+
+Systematic faults using fail-nth
+---------------------------------
+
+The following code systematically faults 0-th, 1-st, 2-nd and so on
+capabilities in the socketpair() system call.
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/syscall.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
+int main()
+{
+	int i, err, res, fail_nth, fds[2];
+	char buf[128];
+
+	system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
+	sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
+	fail_nth = open(buf, O_RDWR);
+	for (i = 1;; i++) {
+		sprintf(buf, "%d", i);
+		write(fail_nth, buf, strlen(buf));
+		res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
+		err = errno;
+		pread(fail_nth, buf, sizeof(buf), 0);
+		if (res == 0) {
+			close(fds[0]);
+			close(fds[1]);
+		}
+		printf("%d-th fault %c: res=%d/%d\n", i, atoi(buf) ? 'N' : 'Y',
+			res, err);
+		if (atoi(buf))
+			break;
+	}
+	return 0;
+}
+
+An example output:
+
+1-th fault Y: res=-1/23
+2-th fault Y: res=-1/23
+3-th fault Y: res=-1/12
+4-th fault Y: res=-1/12
+5-th fault Y: res=-1/23
+6-th fault Y: res=-1/23
+7-th fault Y: res=-1/23
+8-th fault Y: res=-1/12
+9-th fault Y: res=-1/12
+10-th fault Y: res=-1/12
+11-th fault Y: res=-1/12
+12-th fault Y: res=-1/12
+13-th fault Y: res=-1/12
+14-th fault Y: res=-1/12
+15-th fault Y: res=-1/12
+16-th fault N: res=0/12

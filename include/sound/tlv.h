@@ -22,80 +22,39 @@
  *
  */
 
+#include <uapi/sound/tlv.h>
+
+/* For historical reasons, these macros are aliases to the ones in UAPI. */
+#define TLV_ITEM			SNDRV_CTL_TLVD_ITEM
+#define TLV_LENGTH			SNDRV_CTL_TLVD_LENGTH
+
+#define TLV_CONTAINER_ITEM		SNDRV_CTL_TLVD_CONTAINER_ITEM
+#define DECLARE_TLV_CONTAINER		SNDRV_CTL_TLVD_DECLARE_CONTAINER
+
+#define TLV_DB_SCALE_MASK		SNDRV_CTL_TLVD_DB_SCALE_MASK
+#define TLV_DB_SCALE_MUTE		SNDRV_CTL_TLVD_DB_SCALE_MUTE
+#define TLV_DB_SCALE_ITEM		SNDRV_CTL_TLVD_DB_SCALE_ITEM
+#define DECLARE_TLV_DB_SCALE		SNDRV_CTL_TLVD_DECLARE_DB_SCALE
+
+#define TLV_DB_MINMAX_ITEM		SNDRV_CTL_TLVD_DB_MINMAX_ITEM
+#define TLV_DB_MINMAX_MUTE_ITEM		SNDRV_CTL_TLVD_DB_MINMAX_MUTE_ITEM
+#define DECLARE_TLV_DB_MINMAX		SNDRV_CTL_TLVD_DECLARE_DB_MINMAX
+#define DECLARE_TLV_DB_MINMAX_MUTE	SNDRV_CTL_TLVD_DECLARE_DB_MINMAX_MUTE
+
+#define TLV_DB_LINEAR_ITEM		SNDRV_CTL_TLVD_DB_LINEAR_ITEM
+#define DECLARE_TLV_DB_LINEAR		SNDRV_CTL_TLVD_DECLARE_DB_LINEAR
+
+#define TLV_DB_RANGE_ITEM		SNDRV_CTL_TLVD_DB_RANGE_ITEM
+#define DECLARE_TLV_DB_RANGE		SNDRV_CTL_TLVD_DECLARE_DB_RANGE
+
+#define TLV_DB_GAIN_MUTE		SNDRV_CTL_TLVD_DB_GAIN_MUTE
+
 /*
- * TLV structure is right behind the struct snd_ctl_tlv:
- *   unsigned int type  	- see SNDRV_CTL_TLVT_*
- *   unsigned int length
- *   .... data aligned to sizeof(unsigned int), use
- *        block_length = (length + (sizeof(unsigned int) - 1)) &
- *                       ~(sizeof(unsigned int) - 1)) ....
+ * The below assumes that each item TLV is 4 words like DB_SCALE or LINEAR.
+ * This is an old fasion and obsoleted by commit bf1d1c9b6179("ALSA: tlv: add
+ * DECLARE_TLV_DB_RANGE()").
  */
-
-#define SNDRV_CTL_TLVT_CONTAINER 0	/* one level down - group of TLVs */
-#define SNDRV_CTL_TLVT_DB_SCALE	1       /* dB scale */
-#define SNDRV_CTL_TLVT_DB_LINEAR 2	/* linear volume */
-#define SNDRV_CTL_TLVT_DB_RANGE 3	/* dB range container */
-#define SNDRV_CTL_TLVT_DB_MINMAX 4	/* dB scale with min/max */
-#define SNDRV_CTL_TLVT_DB_MINMAX_MUTE 5	/* dB scale with min/max with mute */
-
-#define TLV_ITEM(type, ...) \
-	(type), TLV_LENGTH(__VA_ARGS__), __VA_ARGS__
-#define TLV_LENGTH(...) \
-	((unsigned int)sizeof((const unsigned int[]) { __VA_ARGS__ }))
-
-#define TLV_CONTAINER_ITEM(...) \
-	TLV_ITEM(SNDRV_CTL_TLVT_CONTAINER, __VA_ARGS__)
-#define DECLARE_TLV_CONTAINER(name, ...) \
-	unsigned int name[] = { TLV_CONTAINER_ITEM(__VA_ARGS__) }
-
-#define TLV_DB_SCALE_MASK	0xffff
-#define TLV_DB_SCALE_MUTE	0x10000
-#define TLV_DB_SCALE_ITEM(min, step, mute)			\
-	TLV_ITEM(SNDRV_CTL_TLVT_DB_SCALE,			\
-		 (min),					\
-		 ((step) & TLV_DB_SCALE_MASK) |		\
-			((mute) ? TLV_DB_SCALE_MUTE : 0))
-#define DECLARE_TLV_DB_SCALE(name, min, step, mute) \
-	unsigned int name[] = { TLV_DB_SCALE_ITEM(min, step, mute) }
-
-/* dB scale specified with min/max values instead of step */
-#define TLV_DB_MINMAX_ITEM(min_dB, max_dB)			\
-	TLV_ITEM(SNDRV_CTL_TLVT_DB_MINMAX, (min_dB), (max_dB))
-#define TLV_DB_MINMAX_MUTE_ITEM(min_dB, max_dB)			\
-	TLV_ITEM(SNDRV_CTL_TLVT_DB_MINMAX_MUTE, (min_dB), (max_dB))
-#define DECLARE_TLV_DB_MINMAX(name, min_dB, max_dB) \
-	unsigned int name[] = { TLV_DB_MINMAX_ITEM(min_dB, max_dB) }
-#define DECLARE_TLV_DB_MINMAX_MUTE(name, min_dB, max_dB) \
-	unsigned int name[] = { TLV_DB_MINMAX_MUTE_ITEM(min_dB, max_dB) }
-
-/* linear volume between min_dB and max_dB (.01dB unit) */
-#define TLV_DB_LINEAR_ITEM(min_dB, max_dB)		    \
-	TLV_ITEM(SNDRV_CTL_TLVT_DB_LINEAR, (min_dB), (max_dB))
-#define DECLARE_TLV_DB_LINEAR(name, min_dB, max_dB)	\
-	unsigned int name[] = { TLV_DB_LINEAR_ITEM(min_dB, max_dB) }
-
-/* dB range container:
- * Items in dB range container must be ordered by their values and by their
- * dB values. This implies that larger values must correspond with larger
- * dB values (which is also required for all other mixer controls).
- */
-/* Each item is: <min> <max> <TLV> */
-#define TLV_DB_RANGE_ITEM(...) \
-	TLV_ITEM(SNDRV_CTL_TLVT_DB_RANGE, __VA_ARGS__)
-#define DECLARE_TLV_DB_RANGE(name, ...) \
-	unsigned int name[] = { TLV_DB_RANGE_ITEM(__VA_ARGS__) }
-/* The below assumes that each item TLV is 4 words like DB_SCALE or LINEAR */
-#define TLV_DB_RANGE_HEAD(num)			\
+#define TLV_DB_RANGE_HEAD(num) \
 	SNDRV_CTL_TLVT_DB_RANGE, 6 * (num) * sizeof(unsigned int)
-
-#define TLV_DB_GAIN_MUTE	-9999999
-
-/*
- * channel-mapping TLV items
- *  TLV length must match with num_channels
- */
-#define SNDRV_CTL_TLVT_CHMAP_FIXED	0x101	/* fixed channel position */
-#define SNDRV_CTL_TLVT_CHMAP_VAR	0x102	/* channels freely swappable */
-#define SNDRV_CTL_TLVT_CHMAP_PAIRED	0x103	/* pair-wise swappable */
 
 #endif /* __SOUND_TLV_H */

@@ -1,3 +1,6 @@
+NOTE: this document is outdated and will eventually be removed.  See
+Documentation/doc-guide/ for current information.
+
 kernel-doc nano-HOWTO
 =====================
 
@@ -14,8 +17,8 @@ The format for this documentation is called the kernel-doc format.
 It is documented in this Documentation/kernel-doc-nano-HOWTO.txt file.
 
 This style embeds the documentation within the source files, using
-a few simple conventions.  The scripts/kernel-doc perl script, some
-SGML templates in Documentation/DocBook, and other tools understand
+a few simple conventions.  The scripts/kernel-doc perl script, the
+Documentation/sphinx/kerneldoc.py Sphinx extension and other tools understand
 these conventions, and are used to extract this embedded documentation
 into various documents.
 
@@ -119,16 +122,10 @@ are:
 - scripts/kernel-doc
 
   This is a perl script that hunts for the block comments and can mark
-  them up directly into DocBook, man, text, and HTML. (No, not
+  them up directly into DocBook, ReST, man, text, and HTML. (No, not
   texinfo.)
 
-- Documentation/DocBook/*.tmpl
-
-  These are SGML template files, which are normal SGML files with
-  special place-holders for where the extracted documentation should
-  go.
-
-- scripts/basic/docproc.c
+- scripts/docproc.c
 
   This is a program for converting SGML template files into SGML
   files. When a file is referenced it is searched for symbols
@@ -142,25 +139,18 @@ are:
 
 - Makefile
 
-  The targets 'xmldocs', 'psdocs', 'pdfdocs', and 'htmldocs' are used
-  to build XML DocBook files, PostScript files, PDF files, and html files
-  in Documentation/DocBook. The older target 'sgmldocs' is equivalent
-  to 'xmldocs'.
-
-- Documentation/DocBook/Makefile
-
-  This is where C files are associated with SGML templates.
-
+  The targets 'xmldocs', 'latexdocs', 'pdfdocs', 'epubdocs'and 'htmldocs'
+  are used to build XML DocBook files, LaTeX files, PDF files,
+  ePub files and html files in Documentation/.
 
 How to extract the documentation
 --------------------------------
 
 If you just want to read the ready-made books on the various
-subsystems (see Documentation/DocBook/*.tmpl), just type 'make
-psdocs', or 'make pdfdocs', or 'make htmldocs', depending on your
-preference.  If you would rather read a different format, you can type
-'make xmldocs' and then use DocBook tools to convert
-Documentation/DocBook/*.xml to a format of your choice (for example,
+subsystems, just type 'make epubdocs', or 'make pdfdocs', or 'make htmldocs',
+depending on your preference.  If you would rather read a different format,
+you can type 'make xmldocs' and then use DocBook tools to convert
+Documentation/output/*.xml to a format of your choice (for example,
 'db2html ...' if 'make htmldocs' was not defined).
 
 If you want to see man pages instead, you can do this:
@@ -326,37 +316,7 @@ This is done by using a DOC: section keyword with a section title.  E.g.:
  * hardware, software, or its subject(s).
  */
 
-DOC: sections are used in SGML templates files as indicated below.
-
-
-How to make new SGML template files
------------------------------------
-
-SGML template files (*.tmpl) are like normal SGML files, except that
-they can contain escape sequences where extracted documentation should
-be inserted.
-
-!E<filename> is replaced by the documentation, in <filename>, for
-functions that are exported using EXPORT_SYMBOL: the function list is
-collected from files listed in Documentation/DocBook/Makefile.
-
-!I<filename> is replaced by the documentation for functions that are
-_not_ exported using EXPORT_SYMBOL.
-
-!D<filename> is used to name additional files to search for functions
-exported using EXPORT_SYMBOL.
-
-!F<filename> <function [functions...]> is replaced by the
-documentation, in <filename>, for the functions listed.
-
-!P<filename> <section title> is replaced by the contents of the DOC:
-section titled <section title> from <filename>.
-Spaces are allowed in <section title>; do not quote the <section title>.
-
-!C<filename> is replaced by nothing, but makes the tools check that
-all DOC: sections and documented functions, symbols, etc. are used.
-This makes sense to use when you use !F/!P only and want to verify
-that all documentation is included.
+DOC: sections are used in ReST files.
 
 Tim.
 */ <twaugh@redhat.com>

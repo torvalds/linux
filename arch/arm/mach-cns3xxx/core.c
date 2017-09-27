@@ -47,6 +47,38 @@ static struct map_desc cns3xxx_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(CNS3XXX_PM_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
+#ifdef CONFIG_PCI
+	}, {
+		.virtual	= CNS3XXX_PCIE0_HOST_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE0_HOST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE0_CFG0_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE0_CFG0_BASE),
+		.length		= SZ_64K, /* really 4 KiB at offset 32 KiB */
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE0_CFG1_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE0_CFG1_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE1_HOST_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE1_HOST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE1_CFG0_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE1_CFG0_BASE),
+		.length		= SZ_64K, /* really 4 KiB at offset 32 KiB */
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= CNS3XXX_PCIE1_CFG1_BASE_VIRT,
+		.pfn		= __phys_to_pfn(CNS3XXX_PCIE1_CFG1_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE,
+#endif
 	},
 };
 
@@ -81,30 +113,33 @@ void cns3xxx_power_off(void)
  */
 static void __iomem *cns3xxx_tmr1;
 
-static void cns3xxx_timer_set_mode(enum clock_event_mode mode,
-				   struct clock_event_device *clk)
+static int cns3xxx_shutdown(struct clock_event_device *clk)
+{
+	writel(0, cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+	return 0;
+}
+
+static int cns3xxx_set_oneshot(struct clock_event_device *clk)
+{
+	unsigned long ctrl = readl(cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+
+	/* period set, and timer enabled in 'next_event' hook */
+	ctrl |= (1 << 2) | (1 << 9);
+	writel(ctrl, cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+	return 0;
+}
+
+static int cns3xxx_set_periodic(struct clock_event_device *clk)
 {
 	unsigned long ctrl = readl(cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
 	int pclk = cns3xxx_cpu_clock() / 8;
 	int reload;
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		reload = pclk * 20 / (3 * HZ) * 0x25000;
-		writel(reload, cns3xxx_tmr1 + TIMER1_AUTO_RELOAD_OFFSET);
-		ctrl |= (1 << 0) | (1 << 2) | (1 << 9);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* period set, and timer enabled in 'next_event' hook */
-		ctrl |= (1 << 2) | (1 << 9);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		ctrl = 0;
-	}
-
+	reload = pclk * 20 / (3 * HZ) * 0x25000;
+	writel(reload, cns3xxx_tmr1 + TIMER1_AUTO_RELOAD_OFFSET);
+	ctrl |= (1 << 0) | (1 << 2) | (1 << 9);
 	writel(ctrl, cns3xxx_tmr1 + TIMER1_2_CONTROL_OFFSET);
+	return 0;
 }
 
 static int cns3xxx_timer_set_next_event(unsigned long evt,
@@ -119,12 +154,16 @@ static int cns3xxx_timer_set_next_event(unsigned long evt,
 }
 
 static struct clock_event_device cns3xxx_tmr1_clockevent = {
-	.name		= "cns3xxx timer1",
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= cns3xxx_timer_set_mode,
-	.set_next_event	= cns3xxx_timer_set_next_event,
-	.rating		= 350,
-	.cpumask	= cpu_all_mask,
+	.name			= "cns3xxx timer1",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_shutdown	= cns3xxx_shutdown,
+	.set_state_periodic	= cns3xxx_set_periodic,
+	.set_state_oneshot	= cns3xxx_set_oneshot,
+	.tick_resume		= cns3xxx_shutdown,
+	.set_next_event		= cns3xxx_timer_set_next_event,
+	.rating			= 350,
+	.cpumask		= cpu_all_mask,
 };
 
 static void __init cns3xxx_clockevents_init(unsigned int timer_irq)
@@ -155,7 +194,7 @@ static irqreturn_t cns3xxx_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction cns3xxx_timer_irq = {
 	.name		= "timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= cns3xxx_timer_interrupt,
 };
 
@@ -240,9 +279,9 @@ void __init cns3xxx_l2x0_init(void)
 	 *
 	 * 1 cycle of latency for setup, read and write accesses
 	 */
-	val = readl(base + L2X0_TAG_LATENCY_CTRL);
+	val = readl(base + L310_TAG_LATENCY_CTRL);
 	val &= 0xfffff888;
-	writel(val, base + L2X0_TAG_LATENCY_CTRL);
+	writel(val, base + L310_TAG_LATENCY_CTRL);
 
 	/*
 	 * Data RAM Control register
@@ -253,12 +292,12 @@ void __init cns3xxx_l2x0_init(void)
 	 *
 	 * 1 cycle of latency for setup, read and write accesses
 	 */
-	val = readl(base + L2X0_DATA_LATENCY_CTRL);
+	val = readl(base + L310_DATA_LATENCY_CTRL);
 	val &= 0xfffff888;
-	writel(val, base + L2X0_DATA_LATENCY_CTRL);
+	writel(val, base + L310_DATA_LATENCY_CTRL);
 
 	/* 32 KiB, 8-way, parity disable */
-	l2x0_init(base, 0x00540000, 0xfe000fff);
+	l2x0_init(base, 0x00500000, 0xfe0f0fff);
 }
 
 #endif /* CONFIG_CACHE_L2X0 */
@@ -307,7 +346,7 @@ static struct usb_ohci_pdata cns3xxx_usb_ohci_pdata = {
 	.power_off	= csn3xxx_usb_power_off,
 };
 
-static struct of_dev_auxdata cns3xxx_auxdata[] __initconst = {
+static const struct of_dev_auxdata cns3xxx_auxdata[] __initconst = {
 	{ "intel,usb-ehci", CNS3XXX_USB_BASE, "ehci-platform", &cns3xxx_usb_ehci_pdata },
 	{ "intel,usb-ohci", CNS3XXX_USB_OHCI_BASE, "ohci-platform", &cns3xxx_usb_ohci_pdata },
 	{ "cavium,cns3420-ahci", CNS3XXX_SATA2_BASE, "ahci", NULL },
@@ -356,11 +395,10 @@ static void __init cns3xxx_init(void)
 
 	pm_power_off = cns3xxx_power_off;
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-                        cns3xxx_auxdata, NULL);
+	of_platform_default_populate(NULL, cns3xxx_auxdata, NULL);
 }
 
-static const char *cns3xxx_dt_compat[] __initdata = {
+static const char *const cns3xxx_dt_compat[] __initconst = {
 	"cavium,cns3410",
 	"cavium,cns3420",
 	NULL,
@@ -368,10 +406,10 @@ static const char *cns3xxx_dt_compat[] __initdata = {
 
 DT_MACHINE_START(CNS3XXX_DT, "Cavium Networks CNS3xxx")
 	.dt_compat	= cns3xxx_dt_compat,
-	.nr_irqs	= NR_IRQS_CNS3XXX,
 	.map_io		= cns3xxx_map_io,
 	.init_irq	= cns3xxx_init_irq,
 	.init_time	= cns3xxx_timer_init,
 	.init_machine	= cns3xxx_init,
+	.init_late	= cns3xxx_pcie_init_late,
 	.restart	= cns3xxx_restart,
 MACHINE_END

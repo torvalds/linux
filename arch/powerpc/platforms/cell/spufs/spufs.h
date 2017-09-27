@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 #include <linux/cpumask.h>
+#include <linux/sched/signal.h>
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
@@ -34,7 +35,6 @@
 
 #define SPUFS_PS_MAP_SIZE	0x20000
 #define SPUFS_MFC_MAP_SIZE	0x1000
-#define SPUFS_CNTL_MAP_SIZE	0x1000
 #define SPUFS_CNTL_MAP_SIZE	0x1000
 #define SPUFS_SIGNAL_MAP_SIZE	PAGE_SIZE
 #define SPUFS_MSS_MAP_SIZE	0x1000
@@ -103,9 +103,6 @@ struct spu_context {
 	wait_queue_head_t stop_wq;
 	wait_queue_head_t mfc_wq;
 	wait_queue_head_t run_wq;
-	struct fasync_struct *ibox_fasync;
-	struct fasync_struct *wbox_fasync;
-	struct fasync_struct *mfc_fasync;
 	u32 tagwait;
 	struct spu_context_ops *ops;
 	struct work_struct reap_work;
@@ -247,12 +244,13 @@ extern const struct spufs_tree_descr spufs_dir_debug_contents[];
 
 /* system call implementation */
 extern struct spufs_calls spufs_calls;
+struct coredump_params;
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create(struct path *nd, struct dentry *dentry, unsigned int flags,
 			umode_t mode, struct file *filp);
 /* ELF coredump callbacks for writing SPU ELF notes */
 extern int spufs_coredump_extra_notes_size(void);
-extern int spufs_coredump_extra_notes_write(struct file *file, loff_t *foffset);
+extern int spufs_coredump_extra_notes_write(struct coredump_params *cprm);
 
 extern const struct file_operations spufs_context_fops;
 

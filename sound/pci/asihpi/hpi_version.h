@@ -11,13 +11,13 @@ Production releases have even minor version.
 /* Use single digits for versions less that 10 to avoid octal. */
 /* *** HPI_VER is the only edit required to update version *** */
 /** HPI version */
-#define HPI_VER HPI_VERSION_CONSTRUCTOR(4, 10, 1)
+#define HPI_VER HPI_VERSION_CONSTRUCTOR(4, 14, 3)
 
 /** HPI version string in dotted decimal format */
-#define HPI_VER_STRING "4.10.01"
+#define HPI_VER_STRING "4.14.03"
 
 /** Library version as documented in hpi-api-versions.txt */
-#define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(10, 2, 0)
+#define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(10, 4, 0)
 
 /** Construct hpi version number from major, minor, release numbers */
 #define HPI_VERSION_CONSTRUCTOR(maj, min, r) ((maj << 16) + (min << 8) + r)

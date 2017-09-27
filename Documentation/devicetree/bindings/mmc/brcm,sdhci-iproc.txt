@@ -1,0 +1,35 @@
+Broadcom IPROC SDHCI controller
+
+This file documents differences between the core properties described
+by mmc.txt and the properties that represent the IPROC SDHCI controller.
+
+Required properties:
+- compatible : Should be one of the following
+	       "brcm,bcm2835-sdhci"
+	       "brcm,sdhci-iproc-cygnus"
+	       "brcm,sdhci-iproc"
+
+Use brcm2835-sdhci for Rasperry PI.
+
+Use sdhci-iproc-cygnus for Broadcom SDHCI Controllers
+restricted to 32bit host accesses to SDHCI registers.
+
+Use sdhci-iproc for Broadcom SDHCI Controllers that allow standard
+8, 16, 32-bit host access to SDHCI register.
+
+- clocks : The clock feeding the SDHCI controller.
+
+Optional properties:
+  - sdhci,auto-cmd12: specifies that controller should use auto CMD12.
+
+Example:
+
+sdhci0: sdhci@0x18041000 {
+	compatible = "brcm,sdhci-iproc-cygnus";
+	reg = <0x18041000 0x100>;
+	interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&lcpll0_clks BCM_CYGNUS_LCPLL0_SDIO_CLK>;
+	bus-width = <4>;
+	sdhci,auto-cmd12;
+	no-1-8-v;
+};

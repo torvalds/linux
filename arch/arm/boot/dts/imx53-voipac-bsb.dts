@@ -1,0 +1,158 @@
+/*
+ * Copyright 2013 Rostislav Lisovy <lisovy@gmail.com>, PiKRON s.r.o.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "imx53-voipac-dmm-668.dtsi"
+
+/ {
+	sound {
+		compatible = "fsl,imx53-voipac-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx53-voipac-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio>;
+
+		led1 {
+			label = "led-red";
+			gpios = <&gpio3 29 0>;
+			default-state = "off";
+		};
+
+		led2 {
+			label = "led-orange";
+			gpios = <&gpio2 31 0>;
+			default-state = "off";
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	imx53-voipac {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				/* SD2_CD */
+				MX53_PAD_EIM_D25__GPIO3_25	0x80000000
+				/* SD2_WP */
+				MX53_PAD_EIM_A19__GPIO2_19 	0x80000000
+			>;
+		};
+
+		led_pin_gpio: led_gpio {
+			fsl,pins = <
+				MX53_PAD_EIM_D29__GPIO3_29	0x80000000
+				MX53_PAD_EIM_EB3__GPIO2_31	0x80000000
+			>;
+		};
+
+		/* Keyboard controller */
+		pinctrl_kpp_1: kppgrp-1 {
+			fsl,pins = <
+				MX53_PAD_GPIO_9__KPP_COL_6	0xe8
+				MX53_PAD_GPIO_4__KPP_COL_7	0xe8
+				MX53_PAD_KEY_COL2__KPP_COL_2	0xe8
+				MX53_PAD_KEY_COL3__KPP_COL_3	0xe8
+				MX53_PAD_KEY_COL4__KPP_COL_4	0xe8
+				MX53_PAD_GPIO_2__KPP_ROW_6	0xe0
+				MX53_PAD_GPIO_5__KPP_ROW_7	0xe0
+				MX53_PAD_KEY_ROW2__KPP_ROW_2	0xe0
+				MX53_PAD_KEY_ROW3__KPP_ROW_3	0xe0
+				MX53_PAD_KEY_ROW4__KPP_ROW_4	0xe0
+			>;
+		};
+
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC	0x80000000
+				MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD	0x80000000
+				MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS	0x80000000
+				MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD	0x80000000
+			>;
+		};
+
+		pinctrl_esdhc2: esdhc2grp {
+			fsl,pins = <
+				MX53_PAD_SD2_CMD__ESDHC2_CMD		0x1d5
+				MX53_PAD_SD2_CLK__ESDHC2_CLK		0x1d5
+				MX53_PAD_SD2_DATA0__ESDHC2_DAT0		0x1d5
+				MX53_PAD_SD2_DATA1__ESDHC2_DAT1		0x1d5
+				MX53_PAD_SD2_DATA2__ESDHC2_DAT2		0x1d5
+				MX53_PAD_SD2_DATA3__ESDHC2_DAT3		0x1d5
+			>;
+		};
+
+		pinctrl_i2c3: i2c3grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_3__I2C3_SCL		0xc0000000
+				MX53_PAD_GPIO_6__I2C3_SDA		0xc0000000
+			>;
+		};
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>; /* SSI1 */
+	status = "okay";
+};
+
+&esdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc2>;
+	cd-gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&reg_3p3v>;
+	status = "okay";
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	status = "okay";
+
+	sgtl5000: codec@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		VDDA-supply = <&reg_3p3v>;
+		VDDIO-supply = <&reg_3p3v>;
+		clocks = <&clks 150>;
+	};
+};
+
+&kpp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_kpp_1>;
+	linux,keymap = <
+			0x0203003b	/* KEY_F1 */
+			0x0603003c	/* KEY_F2 */
+			0x0207003d	/* KEY_F3 */
+			0x0607003e	/* KEY_F4 */
+			>;
+	keypad,num-rows = <8>;
+	keypad,num-columns = <1>;
+	status = "okay";
+};
+
+&ssi2 {
+	status = "okay";
+};

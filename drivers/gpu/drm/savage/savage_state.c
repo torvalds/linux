@@ -992,7 +992,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 		if (kcmd_addr == NULL)
 			return -ENOMEM;
 
-		if (DRM_COPY_FROM_USER(kcmd_addr, cmdbuf->cmd_addr,
+		if (copy_from_user(kcmd_addr, cmdbuf->cmd_addr,
 				       cmdbuf->size * 8))
 		{
 			kfree(kcmd_addr);
@@ -1001,15 +1001,10 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 		cmdbuf->cmd_addr = kcmd_addr;
 	}
 	if (cmdbuf->vb_size) {
-		kvb_addr = kmalloc(cmdbuf->vb_size, GFP_KERNEL);
-		if (kvb_addr == NULL) {
-			ret = -ENOMEM;
-			goto done;
-		}
-
-		if (DRM_COPY_FROM_USER(kvb_addr, cmdbuf->vb_addr,
-				       cmdbuf->vb_size)) {
-			ret = -EFAULT;
+		kvb_addr = memdup_user(cmdbuf->vb_addr, cmdbuf->vb_size);
+		if (IS_ERR(kvb_addr)) {
+			ret = PTR_ERR(kvb_addr);
+			kvb_addr = NULL;
 			goto done;
 		}
 		cmdbuf->vb_addr = kvb_addr;
@@ -1022,7 +1017,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 			goto done;
 		}
 
-		if (DRM_COPY_FROM_USER(kbox_addr, cmdbuf->box_addr,
+		if (copy_from_user(kbox_addr, cmdbuf->box_addr,
 				       cmdbuf->nbox * sizeof(struct drm_clip_rect))) {
 			ret = -EFAULT;
 			goto done;
@@ -1032,7 +1027,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 
 	/* Make sure writes to DMA buffers are finished before sending
 	 * DMA commands to the graphics hardware. */
-	DRM_MEMORYBARRIER();
+	mb();
 
 	/* Coming from user space. Don't know if the Xserver has
 	 * emitted wait commands. Assuming the worst. */

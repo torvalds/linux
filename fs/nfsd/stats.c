@@ -24,7 +24,6 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/sunrpc/stats.h>
-#include <linux/nfsd/stats.h>
 #include <net/net_namespace.h>
 
 #include "nfsd.h"
@@ -85,7 +84,6 @@ static int nfsd_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nfsd_proc_fops = {
-	.owner = THIS_MODULE,
 	.open = nfsd_proc_open,
 	.read  = seq_read,
 	.llseek = seq_lseek,

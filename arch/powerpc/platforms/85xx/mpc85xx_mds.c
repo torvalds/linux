@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2010, 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2006-2010, 2012-2013 Freescale Semiconductor, Inc.
  * All rights reserved.
  *
  * Author: Andy Fleming <afleming@freescale.com>
@@ -34,6 +34,7 @@
 #include <linux/of_device.h>
 #include <linux/phy.h>
 #include <linux/memblock.h>
+#include <linux/fsl/guts.h>
 
 #include <linux/atomic.h>
 #include <asm/time.h>
@@ -47,11 +48,10 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 #include <sysdev/simple_gpio.h>
-#include <asm/qe.h>
-#include <asm/qe_ic.h>
+#include <soc/fsl/qe/qe.h>
+#include <soc/fsl/qe/qe_ic.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
-#include <asm/fsl_guts.h>
 #include "smp.h"
 
 #include "mpc85xx.h"
@@ -62,6 +62,8 @@
 #else
 #define DBG(fmt...)
 #endif
+
+#if IS_BUILTIN(CONFIG_PHYLIB)
 
 #define MV88E1111_SCR	0x10
 #define MV88E1111_SCR_125CLK	0x0010
@@ -152,6 +154,8 @@ static int mpc8568_mds_phy_fixups(struct phy_device *phydev)
 	return err;
 }
 
+#endif
+
 /* ************************************************************************
  *
  * Setup the architecture
@@ -238,32 +242,8 @@ static void __init mpc85xx_mds_qe_init(void)
 {
 	struct device_node *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!np) {
-		np = of_find_node_by_name(NULL, "qe");
-		if (!np)
-			return;
-	}
-
-	if (!of_device_is_available(np)) {
-		of_node_put(np);
-		return;
-	}
-
-	qe_reset();
-	of_node_put(np);
-
-	np = of_find_node_by_name(NULL, "par_io");
-	if (np) {
-		struct device_node *ucc;
-
-		par_io_init(np);
-		of_node_put(np);
-
-		for_each_node_by_name(ucc, "ucc")
-			par_io_of_config(ucc);
-	}
-
+	mpc85xx_qe_init();
+	mpc85xx_qe_par_io_init();
 	mpc85xx_mds_reset_ucc_phys();
 
 	if (machine_is(p1021_mds)) {
@@ -337,6 +317,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 	swiotlb_detect_4g();
 }
 
+#if IS_BUILTIN(CONFIG_PHYLIB)
 
 static int __init board_fixups(void)
 {
@@ -366,8 +347,11 @@ static int __init board_fixups(void)
 
 	return 0;
 }
+
 machine_arch_initcall(mpc8568_mds, board_fixups);
 machine_arch_initcall(mpc8569_mds, board_fixups);
+
+#endif
 
 static int __init mpc85xx_publish_devices(void)
 {
@@ -400,9 +384,7 @@ static void __init mpc85xx_mds_pic_init(void)
 
 static int __init mpc85xx_mds_probe(void)
 {
-        unsigned long root = of_get_flat_dt_root();
-
-        return of_flat_dt_is_compatible(root, "MPC85xxMDS");
+	return of_machine_is_compatible("MPC85xxMDS");
 }
 
 define_machine(mpc8568_mds) {
@@ -411,19 +393,17 @@ define_machine(mpc8568_mds) {
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
-	.restart	= fsl_rstcr_restart,
 	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 };
 
 static int __init mpc8569_mds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,MPC8569EMDS");
+	return of_machine_is_compatible("fsl,MPC8569EMDS");
 }
 
 define_machine(mpc8569_mds) {
@@ -432,19 +412,17 @@ define_machine(mpc8569_mds) {
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
-	.restart	= fsl_rstcr_restart,
 	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 };
 
 static int __init p1021_mds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,P1021MDS");
+	return of_machine_is_compatible("fsl,P1021MDS");
 
 }
 
@@ -454,11 +432,10 @@ define_machine(p1021_mds) {
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
-	.restart	= fsl_rstcr_restart,
 	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 };
-

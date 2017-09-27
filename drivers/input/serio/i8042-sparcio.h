@@ -17,7 +17,6 @@ static int i8042_aux_irq = -1;
 #define I8042_MUX_PHYS_DESC "sparcps2/serio%d"
 
 static void __iomem *kbd_iobase;
-static struct resource *kbd_res;
 
 #define I8042_COMMAND_REG	(kbd_iobase + 0x64UL)
 #define I8042_DATA_REG		(kbd_iobase + 0x60UL)
@@ -43,6 +42,8 @@ static inline void i8042_write_command(int val)
 }
 
 #ifdef CONFIG_PCI
+
+static struct resource *kbd_res;
 
 #define OBP_PS2KBD_NAME1	"kb_ps2"
 #define OBP_PS2KBD_NAME2	"keyboard"
@@ -98,7 +99,6 @@ MODULE_DEVICE_TABLE(of, sparc_i8042_match);
 static struct platform_driver sparc_i8042_driver = {
 	.driver = {
 		.name = "i8042",
-		.owner = THIS_MODULE,
 		.of_match_table = sparc_i8042_match,
 	},
 	.probe		= sparc_i8042_probe,
@@ -130,7 +130,7 @@ static int __init i8042_platform_init(void)
 		}
 	}
 
-	i8042_reset = 1;
+	i8042_reset = I8042_RESET_ALWAYS;
 
 	return 0;
 }

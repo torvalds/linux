@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,10 +59,10 @@ static struct rc_map_table winfast_usbii_deluxe[] = {
 
 static struct rc_map_list winfast_usbii_deluxe_map = {
 	.map = {
-		.scan    = winfast_usbii_deluxe,
-		.size    = ARRAY_SIZE(winfast_usbii_deluxe),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_WINFAST_USBII_DELUXE,
+		.scan     = winfast_usbii_deluxe,
+		.size     = ARRAY_SIZE(winfast_usbii_deluxe),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_WINFAST_USBII_DELUXE,
 	}
 };
 
@@ -80,4 +80,4 @@ module_init(init_rc_map_winfast_usbii_deluxe)
 module_exit(exit_rc_map_winfast_usbii_deluxe)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

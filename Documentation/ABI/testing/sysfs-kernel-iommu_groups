@@ -12,3 +12,15 @@ Description:	/sys/kernel/iommu_groups/ contains a number of sub-
 		file if the IOMMU driver has chosen to register a more
 		common name for the group.
 Users:
+
+What:		/sys/kernel/iommu_groups/reserved_regions
+Date: 		January 2017
+KernelVersion:  v4.11
+Contact: 	Eric Auger <eric.auger@redhat.com>
+Description:    /sys/kernel/iommu_groups/reserved_regions list IOVA
+		regions that are reserved. Not necessarily all
+		reserved regions are listed. This is typically used to
+		output direct-mapped, MSI, non mappable regions. Each
+		region is described on a single line: the 1st field is
+		the base IOVA, the second is the end IOVA and the third
+		field describes the type of the region.

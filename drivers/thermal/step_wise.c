@@ -23,6 +23,7 @@
  */
 
 #include <linux/thermal.h>
+#include <trace/events/thermal.h>
 
 #include "thermal_core.h"
 
@@ -44,51 +45,72 @@
  *    c. if the trend is THERMAL_TREND_RAISE_FULL, do nothing
  *    d. if the trend is THERMAL_TREND_DROP_FULL, use lower limit,
  *       if the cooling state already equals lower limit,
- *       deactive the thermal instance
+ *       deactivate the thermal instance
  */
 static unsigned long get_target_state(struct thermal_instance *instance,
 				enum thermal_trend trend, bool throttle)
 {
 	struct thermal_cooling_device *cdev = instance->cdev;
 	unsigned long cur_state;
+	unsigned long next_target;
 
+	/*
+	 * We keep this instance the way it is by default.
+	 * Otherwise, we use the current state of the
+	 * cdev in use to determine the next_target.
+	 */
 	cdev->ops->get_cur_state(cdev, &cur_state);
+	next_target = instance->target;
+	dev_dbg(&cdev->device, "cur_state=%ld\n", cur_state);
+
+	if (!instance->initialized) {
+		if (throttle) {
+			next_target = (cur_state + 1) >= instance->upper ?
+					instance->upper :
+					((cur_state + 1) < instance->lower ?
+					instance->lower : (cur_state + 1));
+		} else {
+			next_target = THERMAL_NO_TARGET;
+		}
+
+		return next_target;
+	}
 
 	switch (trend) {
 	case THERMAL_TREND_RAISING:
 		if (throttle) {
-			cur_state = cur_state < instance->upper ?
+			next_target = cur_state < instance->upper ?
 				    (cur_state + 1) : instance->upper;
-			if (cur_state < instance->lower)
-				cur_state = instance->lower;
+			if (next_target < instance->lower)
+				next_target = instance->lower;
 		}
 		break;
 	case THERMAL_TREND_RAISE_FULL:
 		if (throttle)
-			cur_state = instance->upper;
+			next_target = instance->upper;
 		break;
 	case THERMAL_TREND_DROPPING:
-		if (cur_state == instance->lower) {
+		if (cur_state <= instance->lower) {
 			if (!throttle)
-				cur_state = -1;
+				next_target = THERMAL_NO_TARGET;
 		} else {
-			cur_state -= 1;
-			if (cur_state > instance->upper)
-				cur_state = instance->upper;
+			next_target = cur_state - 1;
+			if (next_target > instance->upper)
+				next_target = instance->upper;
 		}
 		break;
 	case THERMAL_TREND_DROP_FULL:
 		if (cur_state == instance->lower) {
 			if (!throttle)
-				cur_state = -1;
+				next_target = THERMAL_NO_TARGET;
 		} else
-			cur_state = instance->lower;
+			next_target = instance->lower;
 		break;
 	default:
 		break;
 	}
 
-	return cur_state;
+	return next_target;
 }
 
 static void update_passive_instance(struct thermal_zone_device *tz,
@@ -104,7 +126,7 @@ static void update_passive_instance(struct thermal_zone_device *tz,
 
 static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 {
-	long trip_temp;
+	int trip_temp;
 	enum thermal_trip_type trip_type;
 	enum thermal_trend trend;
 	struct thermal_instance *instance;
@@ -121,8 +143,13 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 	trend = get_tz_trend(tz, trip);
 
-	if (tz->temperature >= trip_temp)
+	if (tz->temperature >= trip_temp) {
 		throttle = true;
+		trace_thermal_zone_trip(tz, trip, trip_type);
+	}
+
+	dev_dbg(&tz->device, "Trip%d[type=%d,temp=%d]:trend=%d,throttle=%d\n",
+				trip, trip_type, trip_temp, trend, throttle);
 
 	mutex_lock(&tz->lock);
 
@@ -132,6 +159,11 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 		old_target = instance->target;
 		instance->target = get_target_state(instance, trend, throttle);
+		dev_dbg(&instance->cdev->device, "old_target=%d, target=%d\n",
+					old_target, (int)instance->target);
+
+		if (instance->initialized && old_target == instance->target)
+			continue;
 
 		/* Activate a passive thermal instance */
 		if (old_target == THERMAL_NO_TARGET &&
@@ -142,18 +174,19 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 			instance->target == THERMAL_NO_TARGET)
 			update_passive_instance(tz, trip_type, -1);
 
-
+		instance->initialized = true;
+		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false; /* cdev needs update */
+		mutex_unlock(&instance->cdev->lock);
 	}
 
 	mutex_unlock(&tz->lock);
 }
 
 /**
- * step_wise_throttle - throttles devices asscciated with the given zone
+ * step_wise_throttle - throttles devices associated with the given zone
  * @tz - thermal_zone_device
- * @trip - the trip point
- * @trip_type - type of the trip point
+ * @trip - trip point index
  *
  * Throttling Logic: This uses the trend of the thermal zone to throttle.
  * If the thermal zone is 'heating up' this throttles all the cooling

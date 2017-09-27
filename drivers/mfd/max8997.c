@@ -2,7 +2,7 @@
  * max8997.c - mfd core driver for the Maxim 8966 and 8997
  *
  * Copyright (C) 2011 Samsung Electronics
- * MyungJoo Ham <myungjoo.ham@smasung.com>
+ * MyungJoo Ham <myungjoo.ham@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +24,11 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8997.h>
@@ -39,7 +40,7 @@
 #define I2C_ADDR_RTC	(0x0C >> 1)
 #define I2C_ADDR_HAPTIC	(0x90 >> 1)
 
-static struct mfd_cell max8997_devs[] = {
+static const struct mfd_cell max8997_devs[] = {
 	{ .name = "max8997-pmic", },
 	{ .name = "max8997-rtc", },
 	{ .name = "max8997-battery", },
@@ -50,8 +51,8 @@ static struct mfd_cell max8997_devs[] = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id max8997_pmic_dt_match[] = {
-	{ .compatible = "maxim,max8997-pmic", .data = TYPE_MAX8997 },
+static const struct of_device_id max8997_pmic_dt_match[] = {
+	{ .compatible = "maxim,max8997-pmic", .data = (void *)TYPE_MAX8997 },
 	{},
 };
 #endif
@@ -132,7 +133,6 @@ int max8997_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 }
 EXPORT_SYMBOL_GPL(max8997_update_reg);
 
-#ifdef CONFIG_OF
 /*
  * Only the common platform data elements for max8997 are parsed here from the
  * device tree. Other sub-modules of max8997 such as pmic, rtc and others have
@@ -163,35 +163,27 @@ static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
 
 	return pd;
 }
-#else
-static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
-					struct device *dev)
-{
-	return 0;
-}
-#endif
 
-static inline int max8997_i2c_get_driver_data(struct i2c_client *i2c,
+static inline unsigned long max8997_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
-#ifdef CONFIG_OF
-	if (i2c->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(max8997_pmic_dt_match, i2c->dev.of_node);
-		return (int)match->data;
+		return (unsigned long)match->data;
 	}
-#endif
-	return (int)id->driver_data;
+	return id->driver_data;
 }
 
 static int max8997_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct max8997_dev *max8997;
-	struct max8997_platform_data *pdata = i2c->dev.platform_data;
+	struct max8997_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret = 0;
 
-	max8997 = kzalloc(sizeof(struct max8997_dev), GFP_KERNEL);
+	max8997 = devm_kzalloc(&i2c->dev, sizeof(struct max8997_dev),
+				GFP_KERNEL);
 	if (max8997 == NULL)
 		return -ENOMEM;
 
@@ -201,16 +193,14 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	max8997->type = max8997_i2c_get_driver_data(i2c, id);
 	max8997->irq = i2c->irq;
 
-	if (max8997->dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && max8997->dev->of_node) {
 		pdata = max8997_i2c_parse_dt_pdata(max8997->dev);
-		if (IS_ERR(pdata)) {
-			ret = PTR_ERR(pdata);
-			goto err;
-		}
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
 	}
 
 	if (!pdata)
-		goto err;
+		return ret;
 
 	max8997->pdata = pdata;
 	max8997->ono = pdata->ono;
@@ -218,27 +208,44 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	mutex_init(&max8997->iolock);
 
 	max8997->rtc = i2c_new_dummy(i2c->adapter, I2C_ADDR_RTC);
+	if (!max8997->rtc) {
+		dev_err(max8997->dev, "Failed to allocate I2C device for RTC\n");
+		return -ENODEV;
+	}
 	i2c_set_clientdata(max8997->rtc, max8997);
+
 	max8997->haptic = i2c_new_dummy(i2c->adapter, I2C_ADDR_HAPTIC);
+	if (!max8997->haptic) {
+		dev_err(max8997->dev, "Failed to allocate I2C device for Haptic\n");
+		ret = -ENODEV;
+		goto err_i2c_haptic;
+	}
 	i2c_set_clientdata(max8997->haptic, max8997);
+
 	max8997->muic = i2c_new_dummy(i2c->adapter, I2C_ADDR_MUIC);
+	if (!max8997->muic) {
+		dev_err(max8997->dev, "Failed to allocate I2C device for MUIC\n");
+		ret = -ENODEV;
+		goto err_i2c_muic;
+	}
 	i2c_set_clientdata(max8997->muic, max8997);
 
 	pm_runtime_set_active(max8997->dev);
 
 	max8997_irq_init(max8997);
 
-	mfd_add_devices(max8997->dev, -1, max8997_devs,
+	ret = mfd_add_devices(max8997->dev, -1, max8997_devs,
 			ARRAY_SIZE(max8997_devs),
 			NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(max8997->dev, "failed to add MFD devices %d\n", ret);
+		goto err_mfd;
+	}
 
 	/*
 	 * TODO: enable others (flash, muic, rtc, battery, ...) and
 	 * check the return value
 	 */
-
-	if (ret < 0)
-		goto err_mfd;
 
 	/* MAX8997 has a power button input. */
 	device_init_wakeup(max8997->dev, pdata->wakeup);
@@ -248,24 +255,11 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 err_mfd:
 	mfd_remove_devices(max8997->dev);
 	i2c_unregister_device(max8997->muic);
+err_i2c_muic:
 	i2c_unregister_device(max8997->haptic);
+err_i2c_haptic:
 	i2c_unregister_device(max8997->rtc);
-err:
-	kfree(max8997);
 	return ret;
-}
-
-static int max8997_i2c_remove(struct i2c_client *i2c)
-{
-	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
-
-	mfd_remove_devices(max8997->dev);
-	i2c_unregister_device(max8997->muic);
-	i2c_unregister_device(max8997->haptic);
-	i2c_unregister_device(max8997->rtc);
-	kfree(max8997);
-
-	return 0;
 }
 
 static const struct i2c_device_id max8997_i2c_id[] = {
@@ -273,7 +267,6 @@ static const struct i2c_device_id max8997_i2c_id[] = {
 	{ "max8966", TYPE_MAX8966 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
 
 static u8 max8997_dumpaddr_pmic[] = {
 	MAX8997_REG_INT1MSK,
@@ -430,7 +423,7 @@ static u8 max8997_dumpaddr_haptic[] = {
 
 static int max8997_freeze(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 	int i;
 
@@ -452,7 +445,7 @@ static int max8997_freeze(struct device *dev)
 
 static int max8997_restore(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 	int i;
 
@@ -474,7 +467,7 @@ static int max8997_restore(struct device *dev)
 
 static int max8997_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -484,7 +477,7 @@ static int max8997_suspend(struct device *dev)
 
 static int max8997_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8997_dev *max8997 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -502,12 +495,11 @@ static const struct dev_pm_ops max8997_pm = {
 static struct i2c_driver max8997_i2c_driver = {
 	.driver = {
 		   .name = "max8997",
-		   .owner = THIS_MODULE,
 		   .pm = &max8997_pm,
+		   .suppress_bind_attrs = true,
 		   .of_match_table = of_match_ptr(max8997_pmic_dt_match),
 	},
 	.probe = max8997_i2c_probe,
-	.remove = max8997_i2c_remove,
 	.id_table = max8997_i2c_id,
 };
 
@@ -517,13 +509,3 @@ static int __init max8997_i2c_init(void)
 }
 /* init early so consumer devices can complete system boot */
 subsys_initcall(max8997_i2c_init);
-
-static void __exit max8997_i2c_exit(void)
-{
-	i2c_del_driver(&max8997_i2c_driver);
-}
-module_exit(max8997_i2c_exit);
-
-MODULE_DESCRIPTION("MAXIM 8997 multi-function core driver");
-MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_LICENSE("GPL");

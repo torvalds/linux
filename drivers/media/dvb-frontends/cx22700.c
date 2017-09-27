@@ -169,6 +169,9 @@ static int cx22700_set_tps(struct cx22700_state *state,
 
 	cx22700_writereg (state, 0x04, val);
 
+	if (p->code_rate_HP - FEC_1_2 >= sizeof(fec_tab) ||
+	    p->code_rate_LP - FEC_1_2 >= sizeof(fec_tab))
+		return -EINVAL;
 	val = fec_tab[p->code_rate_HP - FEC_1_2] << 3;
 	val |= fec_tab[p->code_rate_LP - FEC_1_2];
 
@@ -188,9 +191,10 @@ static int cx22700_set_tps(struct cx22700_state *state,
 static int cx22700_get_tps(struct cx22700_state *state,
 			   struct dtv_frontend_properties *p)
 {
-	static const fe_modulation_t qam_tab [3] = { QPSK, QAM_16, QAM_64 };
-	static const fe_code_rate_t fec_tab [5] = { FEC_1_2, FEC_2_3, FEC_3_4,
-						    FEC_5_6, FEC_7_8 };
+	static const enum fe_modulation qam_tab[3] = { QPSK, QAM_16, QAM_64 };
+	static const enum fe_code_rate fec_tab[5] = {
+		FEC_1_2, FEC_2_3, FEC_3_4, FEC_5_6, FEC_7_8
+	};
 	u8 val;
 
 	dprintk ("%s\n", __func__);
@@ -250,7 +254,7 @@ static int cx22700_init (struct dvb_frontend* fe)
 	return 0;
 }
 
-static int cx22700_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int cx22700_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cx22700_state* state = fe->demodulator_priv;
 
@@ -341,9 +345,9 @@ static int cx22700_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx22700_get_frontend(struct dvb_frontend *fe)
+static int cx22700_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx22700_state* state = fe->demodulator_priv;
 	u8 reg09 = cx22700_readreg (state, 0x09);
 
@@ -376,7 +380,7 @@ static void cx22700_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx22700_ops;
+static const struct dvb_frontend_ops cx22700_ops;
 
 struct dvb_frontend* cx22700_attach(const struct cx22700_config* config,
 				    struct i2c_adapter* i2c)
@@ -404,7 +408,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops cx22700_ops = {
+static const struct dvb_frontend_ops cx22700_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Conexant CX22700 DVB-T",

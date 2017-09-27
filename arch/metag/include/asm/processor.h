@@ -22,6 +22,8 @@
 /* Add an extra page of padding at the top of the stack for the guard page. */
 #define STACK_TOP	(TASK_SIZE - PAGE_SIZE)
 #define STACK_TOP_MAX	STACK_TOP
+/* Maximum virtual space for stack */
+#define STACK_SIZE_MAX	(CONFIG_MAX_STACK_SIZE_MB*1024*1024)
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
@@ -109,7 +111,6 @@ struct thread_struct {
  */
 #define start_thread(regs, pc, usp) do {				   \
 	unsigned int *argc = (unsigned int *) bprm->exec;		   \
-	set_fs(USER_DS);						   \
 	current->thread.int_depth = 1;					   \
 	/* Force this process down to user land */			   \
 	regs->ctx.SaveMask = TBICTX_PRIV_BIT;				   \
@@ -130,11 +131,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-#define copy_segments(tsk, mm)		do { } while (0)
-#define release_segments(mm)		do { } while (0)
-
-extern void exit_thread(void);
-
 /*
  * Return saved PC of a blocked thread.
  */
@@ -147,8 +143,8 @@ extern void exit_thread(void);
 
 unsigned long get_wchan(struct task_struct *p);
 
-#define	KSTK_EIP(tsk)	((tsk)->thread.kernel_context->CurrPC)
-#define	KSTK_ESP(tsk)	((tsk)->thread.kernel_context->AX[0].U0)
+#define	KSTK_EIP(tsk)	(task_pt_regs(tsk)->ctx.CurrPC)
+#define	KSTK_ESP(tsk)	(task_pt_regs(tsk)->ctx.AX[0].U0)
 
 #define user_stack_pointer(regs)        ((regs)->ctx.AX[0].U0)
 

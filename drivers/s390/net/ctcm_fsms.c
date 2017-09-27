@@ -217,7 +217,7 @@ void ctcm_purge_skb_queue(struct sk_buff_head *q)
 	CTCM_DBF_TEXT(TRACE, CTC_DBF_DEBUG, __func__);
 
 	while ((skb = skb_dequeue(q))) {
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_any(skb);
 	}
 }
@@ -251,13 +251,11 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 	int first = 1;
 	int i;
 	unsigned long duration;
-	struct timespec done_stamp = current_kernel_time(); /* xtime */
+	unsigned long done_stamp = jiffies;
 
 	CTCM_PR_DEBUG("%s(%s): %s\n", __func__, ch->id, dev->name);
 
-	duration =
-	    (done_stamp.tv_sec - ch->prof.send_stamp.tv_sec) * 1000000 +
-	    (done_stamp.tv_nsec - ch->prof.send_stamp.tv_nsec) / 1000;
+	duration = done_stamp - ch->prof.send_stamp;
 	if (duration > ch->prof.tx_time)
 		ch->prof.tx_time = duration;
 
@@ -273,7 +271,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 			priv->stats.tx_bytes += 2;
 			first = 0;
 		}
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_irq(skb);
 	}
 	spin_lock(&ch->collect_lock);
@@ -299,7 +297,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 				skb_put(ch->trans_skb, skb->len), skb->len);
 			priv->stats.tx_packets++;
 			priv->stats.tx_bytes += skb->len - LL_HEADER_LENGTH;
-			atomic_dec(&skb->users);
+			refcount_dec(&skb->users);
 			dev_kfree_skb_irq(skb);
 			i++;
 		}
@@ -307,7 +305,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 		spin_unlock(&ch->collect_lock);
 		ch->ccw[1].count = ch->trans_skb->len;
 		fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
-		ch->prof.send_stamp = current_kernel_time(); /* xtime */
+		ch->prof.send_stamp = jiffies;
 		rc = ccw_device_start(ch->cdev, &ch->ccw[0],
 						(unsigned long)ch, 0xff, 0);
 		ch->prof.doios_multi++;
@@ -1229,14 +1227,12 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	int		rc;
 	struct th_header *header;
 	struct pdu	*p_header;
-	struct timespec done_stamp = current_kernel_time(); /* xtime */
+	unsigned long done_stamp = jiffies;
 
 	CTCM_PR_DEBUG("Enter %s: %s cp:%i\n",
 			__func__, dev->name, smp_processor_id());
 
-	duration =
-		(done_stamp.tv_sec - ch->prof.send_stamp.tv_sec) * 1000000 +
-		(done_stamp.tv_nsec - ch->prof.send_stamp.tv_nsec) / 1000;
+	duration = done_stamp - ch->prof.send_stamp;
 	if (duration > ch->prof.tx_time)
 		ch->prof.tx_time = duration;
 
@@ -1252,7 +1248,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 			priv->stats.tx_bytes += 2;
 			first = 0;
 		}
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_irq(skb);
 	}
 	spin_lock(&ch->collect_lock);
@@ -1283,11 +1279,11 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		       __func__, data_space);
 
 	while ((skb = skb_dequeue(&ch->collect_queue))) {
-		memcpy(skb_put(ch->trans_skb, skb->len), skb->data, skb->len);
+		skb_put_data(ch->trans_skb, skb->data, skb->len);
 		p_header = (struct pdu *)
 			(skb_tail_pointer(ch->trans_skb) - skb->len);
 		p_header->pdu_flag = 0x00;
-		if (skb->protocol == ntohs(ETH_P_SNAP))
+		if (be16_to_cpu(skb->protocol) == ETH_P_SNAP)
 			p_header->pdu_flag |= 0x60;
 		else
 			p_header->pdu_flag |= 0x20;
@@ -1302,7 +1298,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		data_space -= skb->len;
 		priv->stats.tx_packets++;
 		priv->stats.tx_bytes += skb->len;
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_any(skb);
 		peekskb = skb_peek(&ch->collect_queue);
 		if (peekskb->len > data_space)
@@ -1361,7 +1357,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 
 	ch->ccw[1].count = ch->trans_skb->len;
 	fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
-	ch->prof.send_stamp = current_kernel_time(); /* xtime */
+	ch->prof.send_stamp = jiffies;
 	if (do_debug_ccw)
 		ctcmpc_dumpit((char *)&ch->ccw[0], sizeof(struct ccw1) * 3);
 	rc = ccw_device_start(ch->cdev, &ch->ccw[0],
@@ -1435,13 +1431,12 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 			break;
 		case MPCG_STATE_FLOWC:
 		case MPCG_STATE_READY:
-			memcpy(skb_put(new_skb, block_len),
-					       skb->data, block_len);
+			skb_put_data(new_skb, skb->data, block_len);
 			skb_queue_tail(&ch->io_queue, new_skb);
 			tasklet_schedule(&ch->ch_tasklet);
 			break;
 		default:
-			memcpy(skb_put(new_skb, len), skb->data, len);
+			skb_put_data(new_skb, skb->data, len);
 			skb_queue_tail(&ch->io_queue, new_skb);
 			tasklet_hi_schedule(&ch->ch_tasklet);
 			break;
@@ -1800,7 +1795,7 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg)
 		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
 				goto done;
 	} else {
-		atomic_inc(&skb->users);
+		refcount_inc(&skb->users);
 		skb_queue_tail(&wch->io_queue, skb);
 	}
 
@@ -1827,7 +1822,7 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg)
 	fsm_newstate(wch->fsm, CTC_STATE_TX);
 
 	spin_lock_irqsave(get_ccwdev_lock(wch->cdev), saveflags);
-	wch->prof.send_stamp = current_kernel_time(); /* xtime */
+	wch->prof.send_stamp = jiffies;
 	rc = ccw_device_start(wch->cdev, &wch->ccw[3],
 					(unsigned long) wch, 0xff, 0);
 	spin_unlock_irqrestore(get_ccwdev_lock(wch->cdev), saveflags);

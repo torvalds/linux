@@ -1,7 +1,6 @@
 #ifndef _DRXK_H_
 #define _DRXK_H_
 
-#include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
 
@@ -29,7 +28,6 @@
  *				A value of 0 (default) or lower indicates that
  *				the correct number of parameters will be
  *				automatically detected.
- * @load_firmware_sync:		Force the firmware load to be synchronous.
  *
  * On the *_gpio vars, bit 0 is UIO-1, bit 1 is UIO-2 and bit 2 is
  * UIO-3.
@@ -41,7 +39,6 @@ struct drxk_config {
 	bool	parallel_ts;
 	bool	dynamic_clk;
 	bool	enable_merr_cfg;
-	bool	load_firmware_sync;
 
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
@@ -53,7 +50,7 @@ struct drxk_config {
 	int		 qam_demod_parameter_count;
 };
 
-#if IS_ENABLED(CONFIG_DVB_DRXK)
+#if IS_REACHABLE(CONFIG_DVB_DRXK)
 extern struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 					struct i2c_adapter *i2c);
 #else

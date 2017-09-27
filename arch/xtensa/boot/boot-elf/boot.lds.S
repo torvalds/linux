@@ -23,7 +23,7 @@ SECTIONS
 		*(.ResetVector.text)
 	}
 
-	.image KERNELOFFSET: AT (LOAD_MEMORY_ADDRESS)
+	.image KERNELOFFSET: AT (CONFIG_KERNEL_LOAD_ADDRESS)
 	{
 		_image_start = .;
 		*(image)
@@ -39,16 +39,5 @@ SECTIONS
 		*(.dynbss)
 		*(.bss)
 		__bss_end = .;
-	}
-
-	/*
-	 * This is a remapped copy of the Reset Vector Code.
-	 * It keeps gdb in sync with the PC after switching
-	 * to the temporary mapping used while setting up
-	 * the V2 MMU mappings for Linux.
-	 */
-	.ResetVector.remapped_text 0x46000000 (INFO):
-	{
-		*(.ResetVector.remapped_text)
 	}
 }

@@ -43,6 +43,8 @@
 
 #include "ti-bandgap.h"
 
+static int ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id);
+
 /***   Helper functions to access registers and their bitfields   ***/
 
 /**
@@ -103,19 +105,46 @@ do {								\
  */
 static int ti_bandgap_power(struct ti_bandgap *bgp, bool on)
 {
-	int i, ret = 0;
+	int i;
 
-	if (!TI_BANDGAP_HAS(bgp, POWER_SWITCH)) {
-		ret = -ENOTSUPP;
-		goto exit;
-	}
+	if (!TI_BANDGAP_HAS(bgp, POWER_SWITCH))
+		return -ENOTSUPP;
 
 	for (i = 0; i < bgp->conf->sensor_count; i++)
 		/* active on 0 */
 		RMW_BITS(bgp, i, temp_sensor_ctrl, bgap_tempsoff_mask, !on);
+	return 0;
+}
 
-exit:
-	return ret;
+/**
+ * ti_errata814_bandgap_read_temp() - helper function to read dra7 sensor temperature
+ * @bgp: pointer to ti_bandgap structure
+ * @reg: desired register (offset) to be read
+ *
+ * Function to read dra7 bandgap sensor temperature. This is done separately
+ * so as to workaround the errata "Bandgap Temperature read Dtemp can be
+ * corrupted" - Errata ID: i814".
+ * Read accesses to registers listed below can be corrupted due to incorrect
+ * resynchronization between clock domains.
+ * Read access to registers below can be corrupted :
+ * CTRL_CORE_DTEMP_MPU/GPU/CORE/DSPEVE/IVA_n (n = 0 to 4)
+ * CTRL_CORE_TEMP_SENSOR_MPU/GPU/CORE/DSPEVE/IVA_n
+ *
+ * Return: the register value.
+ */
+static u32 ti_errata814_bandgap_read_temp(struct ti_bandgap *bgp,  u32 reg)
+{
+	u32 val1, val2;
+
+	val1 = ti_bandgap_readl(bgp, reg);
+	val2 = ti_bandgap_readl(bgp, reg);
+
+	/* If both times we read the same value then that is right */
+	if (val1 == val2)
+		return val1;
+
+	/* if val1 and val2 are different read it third time */
+	return ti_bandgap_readl(bgp, reg);
 }
 
 /**
@@ -148,7 +177,11 @@ static u32 ti_bandgap_read_temp(struct ti_bandgap *bgp, int id)
 	}
 
 	/* read temperature */
-	temp = ti_bandgap_readl(bgp, reg);
+	if (TI_BANDGAP_HAS(bgp, ERRATA_814))
+		temp = ti_errata814_bandgap_read_temp(bgp, reg);
+	else
+		temp = ti_bandgap_readl(bgp, reg);
+
 	temp &= tsr->bgap_dtemp_mask;
 
 	if (TI_BANDGAP_HAS(bgp, FREEZE_BIT))
@@ -263,18 +296,13 @@ static
 int ti_bandgap_adc_to_mcelsius(struct ti_bandgap *bgp, int adc_val, int *t)
 {
 	const struct ti_bandgap_data *conf = bgp->conf;
-	int ret = 0;
 
 	/* look up for temperature in the table and return the temperature */
-	if (adc_val < conf->adc_start_val || adc_val > conf->adc_end_val) {
-		ret = -ERANGE;
-		goto exit;
-	}
+	if (adc_val < conf->adc_start_val || adc_val > conf->adc_end_val)
+		return -ERANGE;
 
 	*t = bgp->conf->conv_table[adc_val - conf->adc_start_val];
-
-exit:
-	return ret;
+	return 0;
 }
 
 /**
@@ -295,16 +323,14 @@ int ti_bandgap_mcelsius_to_adc(struct ti_bandgap *bgp, long temp, int *adc)
 {
 	const struct ti_bandgap_data *conf = bgp->conf;
 	const int *conv_table = bgp->conf->conv_table;
-	int high, low, mid, ret = 0;
+	int high, low, mid;
 
 	low = 0;
 	high = conf->adc_end_val - conf->adc_start_val;
 	mid = (high + low) / 2;
 
-	if (temp < conv_table[low] || temp > conv_table[high]) {
-		ret = -ERANGE;
-		goto exit;
-	}
+	if (temp < conv_table[low] || temp > conv_table[high])
+		return -ERANGE;
 
 	while (low < high) {
 		if (temp < conv_table[mid])
@@ -315,9 +341,7 @@ int ti_bandgap_mcelsius_to_adc(struct ti_bandgap *bgp, long temp, int *adc)
 	}
 
 	*adc = conf->adc_start_val + low;
-
-exit:
-	return ret;
+	return 0;
 }
 
 /**
@@ -343,13 +367,11 @@ int ti_bandgap_add_hyst(struct ti_bandgap *bgp, int adc_val, int hyst_val,
 	 */
 	ret = ti_bandgap_adc_to_mcelsius(bgp, adc_val, &temp);
 	if (ret < 0)
-		goto exit;
+		return ret;
 
 	temp += hyst_val;
 
 	ret = ti_bandgap_mcelsius_to_adc(bgp, temp, sum);
-
-exit:
 	return ret;
 }
 
@@ -410,7 +432,7 @@ static int ti_bandgap_update_alert_threshold(struct ti_bandgap *bgp, int id,
 {
 	struct temp_sensor_data *ts_data = bgp->conf->sensors[id].ts_data;
 	struct temp_sensor_registers *tsr;
-	u32 thresh_val, reg_val, t_hot, t_cold;
+	u32 thresh_val, reg_val, t_hot, t_cold, ctrl;
 	int err = 0;
 
 	tsr = bgp->conf->sensors[id].registers;
@@ -442,7 +464,46 @@ static int ti_bandgap_update_alert_threshold(struct ti_bandgap *bgp, int id,
 		  ~(tsr->threshold_thot_mask | tsr->threshold_tcold_mask);
 	reg_val |= (t_hot << __ffs(tsr->threshold_thot_mask)) |
 		   (t_cold << __ffs(tsr->threshold_tcold_mask));
+
+	/**
+	 * Errata i813:
+	 * Spurious Thermal Alert: Talert can happen randomly while the device
+	 * remains under the temperature limit defined for this event to trig.
+	 * This spurious event is caused by a incorrect re-synchronization
+	 * between clock domains. The comparison between configured threshold
+	 * and current temperature value can happen while the value is
+	 * transitioning (metastable), thus causing inappropriate event
+	 * generation. No spurious event occurs as long as the threshold value
+	 * stays unchanged. Spurious event can be generated while a thermal
+	 * alert threshold is modified in
+	 * CONTROL_BANDGAP_THRESHOLD_MPU/GPU/CORE/DSPEVE/IVA_n.
+	 */
+
+	if (TI_BANDGAP_HAS(bgp, ERRATA_813)) {
+		/* Mask t_hot and t_cold events at the IP Level */
+		ctrl = ti_bandgap_readl(bgp, tsr->bgap_mask_ctrl);
+
+		if (hot)
+			ctrl &= ~tsr->mask_hot_mask;
+		else
+			ctrl &= ~tsr->mask_cold_mask;
+
+		ti_bandgap_writel(bgp, ctrl, tsr->bgap_mask_ctrl);
+	}
+
+	/* Write the threshold value */
 	ti_bandgap_writel(bgp, reg_val, tsr->bgap_threshold);
+
+	if (TI_BANDGAP_HAS(bgp, ERRATA_813)) {
+		/* Unmask t_hot and t_cold events at the IP Level */
+		ctrl = ti_bandgap_readl(bgp, tsr->bgap_mask_ctrl);
+		if (hot)
+			ctrl |= tsr->mask_hot_mask;
+		else
+			ctrl |= tsr->mask_cold_mask;
+
+		ti_bandgap_writel(bgp, ctrl, tsr->bgap_mask_ctrl);
+	}
 
 	if (err) {
 		dev_err(bgp->dev, "failed to reprogram thot threshold\n");
@@ -468,22 +529,18 @@ exit:
  */
 static inline int ti_bandgap_validate(struct ti_bandgap *bgp, int id)
 {
-	int ret = 0;
-
 	if (!bgp || IS_ERR(bgp)) {
 		pr_err("%s: invalid bandgap pointer\n", __func__);
-		ret = -EINVAL;
-		goto exit;
+		return -EINVAL;
 	}
 
 	if ((id < 0) || (id >= bgp->conf->sensor_count)) {
 		dev_err(bgp->dev, "%s: sensor id out of range (%d)\n",
 			__func__, id);
-		ret = -ERANGE;
+		return -ERANGE;
 	}
 
-exit:
-	return ret;
+	return 0;
 }
 
 /**
@@ -511,12 +568,10 @@ static int _ti_bandgap_write_threshold(struct ti_bandgap *bgp, int id, int val,
 
 	ret = ti_bandgap_validate(bgp, id);
 	if (ret)
-		goto exit;
+		return ret;
 
-	if (!TI_BANDGAP_HAS(bgp, TALERT)) {
-		ret = -ENOTSUPP;
-		goto exit;
-	}
+	if (!TI_BANDGAP_HAS(bgp, TALERT))
+		return -ENOTSUPP;
 
 	ts_data = bgp->conf->sensors[id].ts_data;
 	tsr = bgp->conf->sensors[id].registers;
@@ -529,17 +584,15 @@ static int _ti_bandgap_write_threshold(struct ti_bandgap *bgp, int id, int val,
 	}
 
 	if (ret)
-		goto exit;
+		return ret;
 
 	ret = ti_bandgap_mcelsius_to_adc(bgp, val, &adc_val);
 	if (ret < 0)
-		goto exit;
+		return ret;
 
 	spin_lock(&bgp->lock);
 	ret = ti_bandgap_update_alert_threshold(bgp, id, adc_val, hot);
 	spin_unlock(&bgp->lock);
-
-exit:
 	return ret;
 }
 
@@ -582,7 +635,7 @@ static int _ti_bandgap_read_threshold(struct ti_bandgap *bgp, int id,
 
 	temp = ti_bandgap_readl(bgp, tsr->bgap_threshold);
 	temp = (temp & mask) >> __ffs(mask);
-	ret |= ti_bandgap_adc_to_mcelsius(bgp, temp, &temp);
+	ret = ti_bandgap_adc_to_mcelsius(bgp, temp, &temp);
 	if (ret) {
 		dev_err(bgp->dev, "failed to read thot\n");
 		ret = -EIO;
@@ -852,11 +905,17 @@ int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
 	if (ret)
 		return ret;
 
+	if (!TI_BANDGAP_HAS(bgp, MODE_CONFIG)) {
+		ret = ti_bandgap_force_single_read(bgp, id);
+		if (ret)
+			return ret;
+	}
+
 	spin_lock(&bgp->lock);
 	temp = ti_bandgap_read_temp(bgp, id);
 	spin_unlock(&bgp->lock);
 
-	ret |= ti_bandgap_adc_to_mcelsius(bgp, temp, &temp);
+	ret = ti_bandgap_adc_to_mcelsius(bgp, temp, &temp);
 	if (ret)
 		return -EIO;
 
@@ -917,7 +976,8 @@ void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id)
 static int
 ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 {
-	u32 temp = 0, counter = 1000;
+	u32 counter = 1000;
+	struct temp_sensor_registers *tsr;
 
 	/* Select single conversion mode */
 	if (TI_BANDGAP_HAS(bgp, MODE_CONFIG))
@@ -925,21 +985,32 @@ ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 
 	/* Start of Conversion = 1 */
 	RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 1);
-	/* Wait until DTEMP is updated */
-	temp = ti_bandgap_read_temp(bgp, id);
 
-	while ((temp == 0) && --counter)
-		temp = ti_bandgap_read_temp(bgp, id);
-	/* REVISIT: Check correct condition for end of conversion */
+	/* Wait for EOCZ going up */
+	tsr = bgp->conf->sensors[id].registers;
+
+	while (--counter) {
+		if (ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
+		    tsr->bgap_eocz_mask)
+			break;
+	}
 
 	/* Start of Conversion = 0 */
 	RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 0);
+
+	/* Wait for EOCZ going down */
+	counter = 1000;
+	while (--counter) {
+		if (!(ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
+		      tsr->bgap_eocz_mask))
+			break;
+	}
 
 	return 0;
 }
 
 /**
- * ti_bandgap_set_continous_mode() - One time enabling of continuous mode
+ * ti_bandgap_set_continuous_mode() - One time enabling of continuous mode
  * @bgp: pointer to struct ti_bandgap
  *
  * Call this function only if HAS(MODE_CONFIG) is set. As this driver may
@@ -1020,8 +1091,12 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 
 	/* Fetch the update interval */
 	ret = ti_bandgap_read_update_interval(bgp, id, &interval);
-	if (ret || !interval)
+	if (ret)
 		goto unfreeze;
+
+	/* Set the interval to 1 ms if bandgap counter delay is not set */
+	if (interval == 0)
+		interval = 1;
 
 	*trend = (t1 - t2) / interval;
 
@@ -1139,22 +1214,18 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	}
 
 	bgp = devm_kzalloc(&pdev->dev, sizeof(*bgp), GFP_KERNEL);
-	if (!bgp) {
-		dev_err(&pdev->dev, "Unable to allocate mem for driver ref\n");
+	if (!bgp)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	of_id = of_match_device(of_ti_bandgap_match, &pdev->dev);
 	if (of_id)
 		bgp->conf = of_id->data;
 
 	/* register shadow for context save and restore */
-	bgp->regval = devm_kzalloc(&pdev->dev, sizeof(*bgp->regval) *
-				   bgp->conf->sensor_count, GFP_KERNEL);
-	if (!bgp) {
-		dev_err(&pdev->dev, "Unable to allocate mem for driver ref\n");
+	bgp->regval = devm_kcalloc(&pdev->dev, bgp->conf->sensor_count,
+				   sizeof(*bgp->regval), GFP_KERNEL);
+	if (!bgp->regval)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	i = 0;
 	do {
@@ -1190,7 +1261,7 @@ static
 int ti_bandgap_probe(struct platform_device *pdev)
 {
 	struct ti_bandgap *bgp;
-	int clk_rate, ret = 0, i;
+	int clk_rate, ret, i;
 
 	bgp = ti_bandgap_build(pdev);
 	if (IS_ERR(bgp)) {
@@ -1198,6 +1269,10 @@ int ti_bandgap_probe(struct platform_device *pdev)
 		return PTR_ERR(bgp);
 	}
 	bgp->dev = &pdev->dev;
+
+	if (TI_BANDGAP_HAS(bgp, UNRELIABLE))
+		dev_warn(&pdev->dev,
+			 "This OMAP thermal sensor is unreliable. You've been warned\n");
 
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
 		ret = ti_bandgap_tshut_init(bgp, pdev);
@@ -1209,20 +1284,17 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	}
 
 	bgp->fclock = clk_get(NULL, bgp->conf->fclock_name);
-	ret = IS_ERR(bgp->fclock);
-	if (ret) {
+	if (IS_ERR(bgp->fclock)) {
 		dev_err(&pdev->dev, "failed to request fclock reference\n");
 		ret = PTR_ERR(bgp->fclock);
 		goto free_irqs;
 	}
 
-	bgp->div_clk = clk_get(NULL,  bgp->conf->div_ck_name);
-	ret = IS_ERR(bgp->div_clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"failed to request div_ts_ck clock ref\n");
+	bgp->div_clk = clk_get(NULL, bgp->conf->div_ck_name);
+	if (IS_ERR(bgp->div_clk)) {
+		dev_err(&pdev->dev, "failed to request div_ts_ck clock ref\n");
 		ret = PTR_ERR(bgp->div_clk);
-		goto free_irqs;
+		goto put_fclock;
 	}
 
 	for (i = 0; i < bgp->conf->sensor_count; i++) {
@@ -1236,7 +1308,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 		 * may not be accurate
 		 */
 		val = ti_bandgap_readl(bgp, tsr->bgap_efuse);
-		if (ret || !val)
+		if (!val)
 			dev_info(&pdev->dev,
 				 "Non-trimmed BGAP, Temp not accurate\n");
 	}
@@ -1244,7 +1316,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	clk_rate = clk_round_rate(bgp->div_clk,
 				  bgp->conf->sensors[0].ts_data->max_freq);
 	if (clk_rate < bgp->conf->sensors[0].ts_data->min_freq ||
-	    clk_rate == 0xffffffff) {
+	    clk_rate <= 0) {
 		ret = -ENODEV;
 		dev_err(&pdev->dev, "wrong clock rate (%d)\n", clk_rate);
 		goto put_clks;
@@ -1354,8 +1426,9 @@ disable_clk:
 	if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
 		clk_disable_unprepare(bgp->fclock);
 put_clks:
-	clk_put(bgp->fclock);
 	clk_put(bgp->div_clk);
+put_fclock:
+	clk_put(bgp->fclock);
 free_irqs:
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
 		free_irq(gpio_to_irq(bgp->tshut_gpio), NULL);
@@ -1398,7 +1471,7 @@ int ti_bandgap_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ti_bandgap_save_ctxt(struct ti_bandgap *bgp)
 {
 	int i;
@@ -1496,10 +1569,8 @@ static int ti_bandgap_resume(struct device *dev)
 
 	return ti_bandgap_restore_ctxt(bgp);
 }
-static const struct dev_pm_ops ti_bandgap_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ti_bandgap_suspend,
-				ti_bandgap_resume)
-};
+static SIMPLE_DEV_PM_OPS(ti_bandgap_dev_pm_ops, ti_bandgap_suspend,
+			 ti_bandgap_resume);
 
 #define DEV_PM_OPS	(&ti_bandgap_dev_pm_ops)
 #else
@@ -1507,6 +1578,16 @@ static const struct dev_pm_ops ti_bandgap_dev_pm_ops = {
 #endif
 
 static const struct of_device_id of_ti_bandgap_match[] = {
+#ifdef CONFIG_OMAP3_THERMAL
+	{
+		.compatible = "ti,omap34xx-bandgap",
+		.data = (void *)&omap34xx_data,
+	},
+	{
+		.compatible = "ti,omap36xx-bandgap",
+		.data = (void *)&omap36xx_data,
+	},
+#endif
 #ifdef CONFIG_OMAP4_THERMAL
 	{
 		.compatible = "ti,omap4430-bandgap",

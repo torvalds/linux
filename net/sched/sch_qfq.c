@@ -132,12 +132,11 @@ struct qfq_aggregate;
 struct qfq_class {
 	struct Qdisc_class_common common;
 
-	unsigned int refcnt;
 	unsigned int filter_cnt;
 
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
-	struct gnet_stats_rate_est64 rate_est;
+	struct net_rate_estimator __rcu *rate_est;
 	struct Qdisc *qdisc;
 	struct list_head alist;		/* Link for active-classes list. */
 	struct qfq_aggregate *agg;	/* Parent aggregate. */
@@ -181,12 +180,12 @@ struct qfq_group {
 };
 
 struct qfq_sched {
-	struct tcf_proto *filter_list;
+	struct tcf_proto __rcu *filter_list;
+	struct tcf_block	*block;
 	struct Qdisc_class_hash clhash;
 
 	u64			oldV, V;	/* Precise virtual times. */
 	struct qfq_aggregate	*in_serv_agg;   /* Aggregate being served. */
-	u32			num_active_agg; /* Num. of active aggregates */
 	u32			wsum;		/* weight sum */
 	u32			iwsum;		/* inverse weight sum */
 
@@ -221,9 +220,10 @@ static struct qfq_class *qfq_find_class(struct Qdisc *sch, u32 classid)
 static void qfq_purge_queue(struct qfq_class *cl)
 {
 	unsigned int len = cl->qdisc->q.qlen;
+	unsigned int backlog = cl->qdisc->qstats.backlog;
 
 	qdisc_reset(cl->qdisc);
-	qdisc_tree_decrease_qlen(cl->qdisc, len);
+	qdisc_tree_reduce_backlog(cl->qdisc, len, backlog);
 }
 
 static const struct nla_policy qfq_policy[TCA_QFQ_MAX + 1] = {
@@ -339,8 +339,7 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *);
 
 static void qfq_destroy_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 {
-	if (!hlist_unhashed(&agg->nonfull_next))
-		hlist_del_init(&agg->nonfull_next);
+	hlist_del_init(&agg->nonfull_next);
 	q->wsum -= agg->class_weight;
 	if (q->wsum != 0)
 		q->iwsum = ONE_FP / q->wsum;
@@ -419,7 +418,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS], qfq_policy);
+	err = nla_parse_nested(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS], qfq_policy,
+			       NULL);
 	if (err < 0)
 		return err;
 
@@ -459,8 +459,10 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 	if (cl != NULL) { /* modify existing class */
 		if (tca[TCA_RATE]) {
-			err = gen_replace_estimator(&cl->bstats, &cl->rate_est,
-						    qdisc_root_sleeping_lock(sch),
+			err = gen_replace_estimator(&cl->bstats, NULL,
+						    &cl->rate_est,
+						    NULL,
+						    qdisc_root_sleeping_running(sch),
 						    tca[TCA_RATE]);
 			if (err)
 				return err;
@@ -474,7 +476,6 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl == NULL)
 		return -ENOBUFS;
 
-	cl->refcnt = 1;
 	cl->common.classid = classid;
 	cl->deficit = lmax;
 
@@ -484,13 +485,17 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		cl->qdisc = &noop_qdisc;
 
 	if (tca[TCA_RATE]) {
-		err = gen_new_estimator(&cl->bstats, &cl->rate_est,
-					qdisc_root_sleeping_lock(sch),
+		err = gen_new_estimator(&cl->bstats, NULL,
+					&cl->rate_est,
+					NULL,
+					qdisc_root_sleeping_running(sch),
 					tca[TCA_RATE]);
 		if (err)
 			goto destroy_class;
 	}
 
+	if (cl->qdisc != &noop_qdisc)
+		qdisc_hash_add(cl->qdisc, true);
 	sch_tree_lock(sch);
 	qdisc_class_hash_insert(&q->clhash, &cl->common);
 	sch_tree_unlock(sch);
@@ -505,7 +510,7 @@ set_change_agg:
 		new_agg = kzalloc(sizeof(*new_agg), GFP_KERNEL);
 		if (new_agg == NULL) {
 			err = -ENOBUFS;
-			gen_kill_estimator(&cl->bstats, &cl->rate_est);
+			gen_kill_estimator(&cl->rate_est);
 			goto destroy_class;
 		}
 		sch_tree_lock(sch);
@@ -530,7 +535,7 @@ static void qfq_destroy_class(struct Qdisc *sch, struct qfq_class *cl)
 	struct qfq_sched *q = qdisc_priv(sch);
 
 	qfq_rm_from_agg(q, cl);
-	gen_kill_estimator(&cl->bstats, &cl->rate_est);
+	gen_kill_estimator(&cl->rate_est);
 	qdisc_destroy(cl->qdisc);
 	kfree(cl);
 }
@@ -548,42 +553,25 @@ static int qfq_delete_class(struct Qdisc *sch, unsigned long arg)
 	qfq_purge_queue(cl);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
 	sch_tree_unlock(sch);
+
+	qfq_destroy_class(sch, cl);
 	return 0;
 }
 
-static unsigned long qfq_get_class(struct Qdisc *sch, u32 classid)
+static unsigned long qfq_search_class(struct Qdisc *sch, u32 classid)
 {
-	struct qfq_class *cl = qfq_find_class(sch, classid);
-
-	if (cl != NULL)
-		cl->refcnt++;
-
-	return (unsigned long)cl;
+	return (unsigned long)qfq_find_class(sch, classid);
 }
 
-static void qfq_put_class(struct Qdisc *sch, unsigned long arg)
-{
-	struct qfq_class *cl = (struct qfq_class *)arg;
-
-	if (--cl->refcnt == 0)
-		qfq_destroy_class(sch, cl);
-}
-
-static struct tcf_proto **qfq_tcf_chain(struct Qdisc *sch, unsigned long cl)
+static struct tcf_block *qfq_tcf_block(struct Qdisc *sch, unsigned long cl)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 
 	if (cl)
 		return NULL;
 
-	return &q->filter_list;
+	return q->block;
 }
 
 static unsigned long qfq_bind_tcf(struct Qdisc *sch, unsigned long parent,
@@ -616,11 +604,7 @@ static int qfq_graft_class(struct Qdisc *sch, unsigned long arg,
 			new = &noop_qdisc;
 	}
 
-	sch_tree_lock(sch);
-	qfq_purge_queue(cl);
-	*old = cl->qdisc;
-	cl->qdisc = new;
-	sch_tree_unlock(sch);
+	*old = qdisc_replace(sch, new, &cl->qdisc);
 	return 0;
 }
 
@@ -661,14 +645,15 @@ static int qfq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	struct tc_qfq_stats xstats;
 
 	memset(&xstats, 0, sizeof(xstats));
-	cl->qdisc->qstats.qlen = cl->qdisc->q.qlen;
 
 	xstats.weight = cl->agg->class_weight;
 	xstats.lmax = cl->agg->lmax;
 
-	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
-	    gnet_stats_copy_rate_est(d, &cl->bstats, &cl->rate_est) < 0 ||
-	    gnet_stats_copy_queue(d, &cl->qdisc->qstats) < 0)
+	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
+				  d, NULL, &cl->bstats) < 0 ||
+	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
+	    gnet_stats_copy_queue(d, NULL,
+				  &cl->qdisc->qstats, cl->qdisc->q.qlen) < 0)
 		return -1;
 
 	return gnet_stats_copy_app(d, &xstats, sizeof(xstats));
@@ -704,6 +689,7 @@ static struct qfq_class *qfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
 	struct tcf_result res;
+	struct tcf_proto *fl;
 	int result;
 
 	if (TC_H_MAJ(skb->priority ^ sch->handle) == 0) {
@@ -714,12 +700,14 @@ static struct qfq_class *qfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	result = tc_classify(skb, q->filter_list, &res);
+	fl = rcu_dereference_bh(q->filter_list);
+	result = tcf_classify(skb, fl, &res, false);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
+		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return NULL;
@@ -1150,6 +1138,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 	if (!skb)
 		return NULL;
 
+	qdisc_qstats_backlog_dec(sch, skb);
 	sch->q.qlen--;
 	qdisc_bstats_update(sch, skb);
 
@@ -1214,7 +1203,8 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *q)
 	return agg;
 }
 
-static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+		       struct sk_buff **to_free)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
@@ -1224,8 +1214,8 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	cl = qfq_classify(skb, sch, &err);
 	if (cl == NULL) {
 		if (err & __NET_XMIT_BYPASS)
-			sch->qstats.drops++;
-		kfree_skb(skb);
+			qdisc_qstats_drop(sch);
+		__qdisc_drop(skb, to_free);
 		return err;
 	}
 	pr_debug("qfq_enqueue: cl = %x\n", cl->common.classid);
@@ -1235,21 +1225,24 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			 cl->agg->lmax, qdisc_pkt_len(skb), cl->common.classid);
 		err = qfq_change_agg(sch, cl, cl->agg->class_weight,
 				     qdisc_pkt_len(skb));
-		if (err)
-			return err;
+		if (err) {
+			cl->qstats.drops++;
+			return qdisc_drop(skb, sch, to_free);
+		}
 	}
 
-	err = qdisc_enqueue(skb, cl->qdisc);
+	err = qdisc_enqueue(skb, cl->qdisc, to_free);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		pr_debug("qfq_enqueue: enqueue failed %d\n", err);
 		if (net_xmit_drop_count(err)) {
 			cl->qstats.drops++;
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		}
 		return err;
 	}
 
 	bstats_update(&cl->bstats, skb);
+	qdisc_qstats_backlog_inc(sch, skb);
 	++sch->q.qlen;
 
 	agg = cl->agg;
@@ -1416,54 +1409,7 @@ static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl = (struct qfq_class *)arg;
 
-	if (cl->qdisc->q.qlen == 0)
-		qfq_deactivate_class(q, cl);
-}
-
-static unsigned int qfq_drop_from_slot(struct qfq_sched *q,
-				       struct hlist_head *slot)
-{
-	struct qfq_aggregate *agg;
-	struct qfq_class *cl;
-	unsigned int len;
-
-	hlist_for_each_entry(agg, slot, next) {
-		list_for_each_entry(cl, &agg->active, alist) {
-
-			if (!cl->qdisc->ops->drop)
-				continue;
-
-			len = cl->qdisc->ops->drop(cl->qdisc);
-			if (len > 0) {
-				if (cl->qdisc->q.qlen == 0)
-					qfq_deactivate_class(q, cl);
-
-				return len;
-			}
-		}
-	}
-	return 0;
-}
-
-static unsigned int qfq_drop(struct Qdisc *sch)
-{
-	struct qfq_sched *q = qdisc_priv(sch);
-	struct qfq_group *grp;
-	unsigned int i, j, len;
-
-	for (i = 0; i <= QFQ_MAX_INDEX; i++) {
-		grp = &q->groups[i];
-		for (j = 0; j < QFQ_MAX_SLOTS; j++) {
-			len = qfq_drop_from_slot(q, &grp->slots[j]);
-			if (len > 0) {
-				sch->q.qlen--;
-				return len;
-			}
-		}
-
-	}
-
-	return 0;
+	qfq_deactivate_class(q, cl);
 }
 
 static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
@@ -1472,6 +1418,10 @@ static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	struct qfq_group *grp;
 	int i, j, err;
 	u32 max_cl_shift, maxbudg_shift, max_classes;
+
+	err = tcf_block_get(&q->block, &q->filter_list);
+	if (err)
+		return err;
 
 	err = qdisc_class_hash_init(&q->clhash);
 	if (err < 0)
@@ -1516,6 +1466,7 @@ static void qfq_reset_qdisc(struct Qdisc *sch)
 			qdisc_reset(cl->qdisc);
 		}
 	}
+	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
 }
 
@@ -1526,7 +1477,7 @@ static void qfq_destroy_qdisc(struct Qdisc *sch)
 	struct hlist_node *next;
 	unsigned int i;
 
-	tcf_destroy_chain(&q->filter_list);
+	tcf_block_put(q->block);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
@@ -1540,9 +1491,8 @@ static void qfq_destroy_qdisc(struct Qdisc *sch)
 static const struct Qdisc_class_ops qfq_class_ops = {
 	.change		= qfq_change_class,
 	.delete		= qfq_delete_class,
-	.get		= qfq_get_class,
-	.put		= qfq_put_class,
-	.tcf_chain	= qfq_tcf_chain,
+	.find		= qfq_search_class,
+	.tcf_block	= qfq_tcf_block,
 	.bind_tcf	= qfq_bind_tcf,
 	.unbind_tcf	= qfq_unbind_tcf,
 	.graft		= qfq_graft_class,
@@ -1560,7 +1510,6 @@ static struct Qdisc_ops qfq_qdisc_ops __read_mostly = {
 	.enqueue	= qfq_enqueue,
 	.dequeue	= qfq_dequeue,
 	.peek		= qdisc_peek_dequeued,
-	.drop		= qfq_drop,
 	.init		= qfq_init_qdisc,
 	.reset		= qfq_reset_qdisc,
 	.destroy	= qfq_destroy_qdisc,

@@ -111,7 +111,6 @@ enum tx3589x_block {
 #define TC3589x_INT_PORIRQ	7
 
 #define TC3589x_NR_INTERNAL_IRQS	8
-#define TC3589x_INT_GPIO(x)	(TC3589x_NR_INTERNAL_IRQS + (x))
 
 struct tc3589x {
 	struct mutex lock;
@@ -141,56 +140,13 @@ extern int tc3589x_set_bits(struct tc3589x *tc3589x, u8 reg, u8 mask, u8 val);
 #define TC_KPD_DEBOUNCE_PERIOD  0xA3
 #define TC_KPD_SETTLE_TIME      0xA3
 
-/**
- * struct tc35893_platform_data - data structure for platform specific data
- * @keymap_data:        matrix scan code table for keycodes
- * @krow:               mask for available rows, value is 0xFF
- * @kcol:               mask for available columns, value is 0xFF
- * @debounce_period:    platform specific debounce time
- * @settle_time:        platform specific settle down time
- * @irqtype:            type of interrupt, falling or rising edge
- * @enable_wakeup:      specifies if keypad event can wake up system from sleep
- * @no_autorepeat:      flag for auto repetition
- */
-struct tc3589x_keypad_platform_data {
-	const struct matrix_keymap_data *keymap_data;
-	u8                      krow;
-	u8                      kcol;
-	u8                      debounce_period;
-	u8                      settle_time;
-	unsigned long           irqtype;
-	bool                    enable_wakeup;
-	bool                    no_autorepeat;
-};
-
-/**
- * struct tc3589x_gpio_platform_data - TC3589x GPIO platform data
- * @gpio_base: first gpio number assigned to TC3589x.  A maximum of
- *	       %TC3589x_NR_GPIOS GPIOs will be allocated.
- * @setup: callback for board-specific initialization
- * @remove: callback for board-specific teardown
- */
-struct tc3589x_gpio_platform_data {
-	int gpio_base;
-	void (*setup)(struct tc3589x *tc3589x, unsigned gpio_base);
-	void (*remove)(struct tc3589x *tc3589x, unsigned gpio_base);
-};
 
 /**
  * struct tc3589x_platform_data - TC3589x platform data
  * @block: bitmask of blocks to enable (use TC3589x_BLOCK_*)
- * @irq_base: base IRQ number.  %TC3589x_NR_IRQS irqs will be used.
- * @gpio: GPIO-specific platform data
- * @keypad: keypad-specific platform data
  */
 struct tc3589x_platform_data {
 	unsigned int block;
-	int irq_base;
-	struct tc3589x_gpio_platform_data *gpio;
-	const struct tc3589x_keypad_platform_data *keypad;
 };
-
-#define TC3589x_NR_GPIOS	24
-#define TC3589x_NR_IRQS		TC3589x_INT_GPIO(TC3589x_NR_GPIOS)
 
 #endif

@@ -56,7 +56,7 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const char* version = "SDLA driver v0.30, 12 Sep 1996, mike.mclagan@linux.org";
 
@@ -1322,10 +1322,6 @@ NOTE:  This is rather a useless action right now, as the
 
 static int sdla_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct frad_local *flp;
-
-	flp = netdev_priv(dev);
-
 	if (netif_running(dev))
 		return -EBUSY;
 
@@ -1635,7 +1631,8 @@ static int __init init_sdla(void)
 
 	printk("%s.\n", version);
 
-	sdla = alloc_netdev(sizeof(struct frad_local), "sdla0", setup_sdla);
+	sdla = alloc_netdev(sizeof(struct frad_local), "sdla0",
+			    NET_NAME_UNKNOWN, setup_sdla);
 	if (!sdla) 
 		return -ENOMEM;
 

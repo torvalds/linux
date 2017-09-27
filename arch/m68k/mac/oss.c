@@ -21,7 +21,6 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_via.h>
@@ -48,9 +47,8 @@ void __init oss_init(void)
 	/* Disable all interrupts. Unlike a VIA it looks like we    */
 	/* do this by setting the source's interrupt level to zero. */
 
-	for (i = 0; i <= OSS_NUM_SOURCES; i++) {
+	for (i = 0; i < OSS_NUM_SOURCES; i++)
 		oss->irq_level[i] = 0;
-	}
 }
 
 /*
@@ -65,17 +63,10 @@ void __init oss_nubus_init(void)
  * Handle miscellaneous OSS interrupts.
  */
 
-static void oss_irq(unsigned int irq, struct irq_desc *desc)
+static void oss_irq(struct irq_desc *desc)
 {
 	int events = oss->irq_pending &
-	             (OSS_IP_IOPSCC | OSS_IP_SCSI | OSS_IP_IOPISM);
-
-#ifdef DEBUG_IRQS
-	if ((console_loglevel == 10) && !(events & OSS_IP_SCSI)) {
-		printk("oss_irq: irq %u events = 0x%04X\n", irq,
-			(int) oss->irq_pending);
-	}
-#endif
+		(OSS_IP_IOPSCC | OSS_IP_SCSI | OSS_IP_IOPISM);
 
 	if (events & OSS_IP_IOPSCC) {
 		oss->irq_pending &= ~OSS_IP_IOPSCC;
@@ -99,7 +90,7 @@ static void oss_irq(unsigned int irq, struct irq_desc *desc)
  * Unlike the VIA/RBV this is on its own autovector interrupt level.
  */
 
-static void oss_nubus_irq(unsigned int irq, struct irq_desc *desc)
+static void oss_nubus_irq(struct irq_desc *desc)
 {
 	int events, irq_bit, i;
 
@@ -107,11 +98,6 @@ static void oss_nubus_irq(unsigned int irq, struct irq_desc *desc)
 	if (!events)
 		return;
 
-#ifdef DEBUG_NUBUS_INT
-	if (console_loglevel > 7) {
-		printk("oss_nubus_irq: events = 0x%04X\n", events);
-	}
-#endif
 	/* There are only six slots on the OSS, not seven */
 
 	i = 6;
@@ -163,9 +149,6 @@ void __init oss_register_interrupts(void)
  */
 
 void oss_irq_enable(int irq) {
-#ifdef DEBUG_IRQUSE
-	printk("oss_irq_enable(%d)\n", irq);
-#endif
 	switch(irq) {
 		case IRQ_MAC_SCC:
 			oss->irq_level[OSS_IOPSCC] = OSS_IRQLEV_IOPSCC;
@@ -199,9 +182,6 @@ void oss_irq_enable(int irq) {
  */
 
 void oss_irq_disable(int irq) {
-#ifdef DEBUG_IRQUSE
-	printk("oss_irq_disable(%d)\n", irq);
-#endif
 	switch(irq) {
 		case IRQ_MAC_SCC:
 			oss->irq_level[OSS_IOPSCC] = 0;

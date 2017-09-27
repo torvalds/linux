@@ -66,6 +66,7 @@ static void hydra_block_input(struct net_device *dev, int count,
 static void hydra_block_output(struct net_device *dev, int count,
 			       const unsigned char *buf, int start_page);
 static void hydra_remove_one(struct zorro_dev *z);
+static u32 hydra_msg_enable;
 
 static struct zorro_device_id hydra_zorro_tbl[] = {
     { ZORRO_PROD_HYDRA_SYSTEMS_AMIGANET },
@@ -104,7 +105,6 @@ static const struct net_device_ops hydra_netdev_ops = {
 	.ndo_set_rx_mode	= __ei_set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= __ei_poll,
 #endif
@@ -113,12 +113,13 @@ static const struct net_device_ops hydra_netdev_ops = {
 static int hydra_init(struct zorro_dev *z)
 {
     struct net_device *dev;
-    unsigned long board = ZTWO_VADDR(z->resource.start);
+    unsigned long board = (unsigned long)ZTWO_VADDR(z->resource.start);
     unsigned long ioaddr = board+HYDRA_NIC_BASE;
     const char name[] = "NE2000";
     int start_page, stop_page;
     int j;
     int err;
+    struct ei_device *ei_local;
 
     static u32 hydra_offsets[16] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e,
@@ -137,6 +138,8 @@ static int hydra_init(struct zorro_dev *z)
     start_page = NESM_START_PG;
     stop_page = NESM_STOP_PG;
 
+    ei_local = netdev_priv(dev);
+    ei_local->msg_enable = hydra_msg_enable;
     dev->base_addr = ioaddr;
     dev->irq = IRQ_AMIGA_PORTS;
 
@@ -187,15 +190,16 @@ static int hydra_open(struct net_device *dev)
 
 static int hydra_close(struct net_device *dev)
 {
-    if (ei_debug > 1)
-	printk(KERN_DEBUG "%s: Shutting down ethercard.\n", dev->name);
+    struct ei_device *ei_local = netdev_priv(dev);
+
+    netif_dbg(ei_local, ifdown, dev, "Shutting down ethercard.\n");
     __ei_close(dev);
     return 0;
 }
 
 static void hydra_reset_8390(struct net_device *dev)
 {
-    printk(KERN_INFO "Hydra hw reset not there\n");
+    netdev_info(dev, "Hydra hw reset not there\n");
 }
 
 static void hydra_get_8390_hdr(struct net_device *dev,

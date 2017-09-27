@@ -1,0 +1,141 @@
+/*
+ * Device Tree file for LaCie 2Big NAS
+ *
+ * Copyright (C) 2015 Seagate
+ *
+ * Author: Simon Guinot <simon.guinot@sequanux.org>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+*/
+
+/dts-v1/;
+
+#include "kirkwood-netxbig.dtsi"
+
+/ {
+	model = "LaCie 2Big NAS";
+	compatible = "lacie,nas2big", "lacie,netxbig", "marvell,kirkwood-88f6282", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		rtc@10300 {
+			/* The on-chip RTC is not powered (no supercap). */
+			status = "disabled";
+		};
+		spi@10600 {
+			/*
+			 * A NAND flash is used instead of an SPI flash for
+			 * the other netxbig-compatible boards.
+			 */
+			status = "disabled";
+		};
+	};
+
+	fan {
+		/*
+		 * An I2C fan controller (GMT G762) is used but alarm is
+		 * wired to a separate GPIO.
+		 */
+		compatible = "gpio-fan";
+		alarm-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+	};
+
+	regulators: regulators {
+		status = "okay";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+
+		regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "hdd1power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+		};
+		clocks {
+			g762_clk: g762-oscillator {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <32768>;
+			};
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	/*
+	 * An external I2C RTC (Dallas DS1337S+) is used. This allows
+	 * to power-up the board on an RTC alarm. The external RTC can
+	 * be kept powered, even when the SoC is off.
+	 */
+	rtc@68 {
+		compatible = "dallas,ds1307";
+		reg = <0x68>;
+		interrupts = <43>;
+	};
+	g762@3e {
+		compatible = "gmt,g762";
+		reg = <0x3e>;
+		clocks = <&g762_clk>;
+	};
+};
+
+&nand {
+	chip-delay = <50>;
+	status = "okay";
+
+	partition@0 {
+		label = "U-Boot";
+		reg = <0x0 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x100000 0x1000000>;
+	};
+
+	partition@1100000 {
+		label = "root";
+		reg = <0x1100000 0x8000000>;
+	};
+
+	partition@9100000 {
+		label = "unused";
+		reg = <0x9100000 0x6f00000>;
+	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};

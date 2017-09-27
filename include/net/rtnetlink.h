@@ -4,18 +4,20 @@
 #include <linux/rtnetlink.h>
 #include <net/netlink.h>
 
-typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *);
+typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *,
+			      struct netlink_ext_ack *);
 typedef int (*rtnl_dumpit_func)(struct sk_buff *, struct netlink_callback *);
-typedef u16 (*rtnl_calcit_func)(struct sk_buff *, struct nlmsghdr *);
 
-extern int	__rtnl_register(int protocol, int msgtype,
-				rtnl_doit_func, rtnl_dumpit_func,
-				rtnl_calcit_func);
-extern void	rtnl_register(int protocol, int msgtype,
-			      rtnl_doit_func, rtnl_dumpit_func,
-			      rtnl_calcit_func);
-extern int	rtnl_unregister(int protocol, int msgtype);
-extern void	rtnl_unregister_all(int protocol);
+enum rtnl_link_flags {
+	RTNL_FLAG_DOIT_UNLOCKED = 1,
+};
+
+int __rtnl_register(int protocol, int msgtype,
+		    rtnl_doit_func, rtnl_dumpit_func, unsigned int flags);
+void rtnl_register(int protocol, int msgtype,
+		   rtnl_doit_func, rtnl_dumpit_func, unsigned int flags);
+int rtnl_unregister(int protocol, int msgtype);
+void rtnl_unregister_all(int protocol);
 
 static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
 {
@@ -48,6 +50,10 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
  *			    to create when creating a new device.
  *	@get_num_rx_queues: Function to determine number of receive queues
  *			    to create when creating a new device.
+ *	@get_link_net: Function to get the i/o netns of the device
+ *	@get_linkxstats_size: Function to calculate the required room for
+ *			      dumping device-specific extended link stats
+ *	@fill_linkxstats: Function to dump device-specific extended link stats
  */
 struct rtnl_link_ops {
 	struct list_head	list;
@@ -60,15 +66,18 @@ struct rtnl_link_ops {
 	int			maxtype;
 	const struct nla_policy	*policy;
 	int			(*validate)(struct nlattr *tb[],
-					    struct nlattr *data[]);
+					    struct nlattr *data[],
+					    struct netlink_ext_ack *extack);
 
 	int			(*newlink)(struct net *src_net,
 					   struct net_device *dev,
 					   struct nlattr *tb[],
-					   struct nlattr *data[]);
+					   struct nlattr *data[],
+					   struct netlink_ext_ack *extack);
 	int			(*changelink)(struct net_device *dev,
 					      struct nlattr *tb[],
-					      struct nlattr *data[]);
+					      struct nlattr *data[],
+					      struct netlink_ext_ack *extack);
 	void			(*dellink)(struct net_device *dev,
 					   struct list_head *head);
 
@@ -81,13 +90,35 @@ struct rtnl_link_ops {
 					       const struct net_device *dev);
 	unsigned int		(*get_num_tx_queues)(void);
 	unsigned int		(*get_num_rx_queues)(void);
+
+	int			slave_maxtype;
+	const struct nla_policy	*slave_policy;
+	int			(*slave_validate)(struct nlattr *tb[],
+						  struct nlattr *data[],
+						  struct netlink_ext_ack *extack);
+	int			(*slave_changelink)(struct net_device *dev,
+						    struct net_device *slave_dev,
+						    struct nlattr *tb[],
+						    struct nlattr *data[],
+						    struct netlink_ext_ack *extack);
+	size_t			(*get_slave_size)(const struct net_device *dev,
+						  const struct net_device *slave_dev);
+	int			(*fill_slave_info)(struct sk_buff *skb,
+						   const struct net_device *dev,
+						   const struct net_device *slave_dev);
+	struct net		*(*get_link_net)(const struct net_device *dev);
+	size_t			(*get_linkxstats_size)(const struct net_device *dev,
+						       int attr);
+	int			(*fill_linkxstats)(struct sk_buff *skb,
+						   const struct net_device *dev,
+						   int *prividx, int attr);
 };
 
-extern int	__rtnl_link_register(struct rtnl_link_ops *ops);
-extern void	__rtnl_link_unregister(struct rtnl_link_ops *ops);
+int __rtnl_link_register(struct rtnl_link_ops *ops);
+void __rtnl_link_unregister(struct rtnl_link_ops *ops);
 
-extern int	rtnl_link_register(struct rtnl_link_ops *ops);
-extern void	rtnl_link_unregister(struct rtnl_link_ops *ops);
+int rtnl_link_register(struct rtnl_link_ops *ops);
+void rtnl_link_unregister(struct rtnl_link_ops *ops);
 
 /**
  * 	struct rtnl_af_ops - rtnetlink address family operations
@@ -108,28 +139,36 @@ struct rtnl_af_ops {
 	int			family;
 
 	int			(*fill_link_af)(struct sk_buff *skb,
-						const struct net_device *dev);
-	size_t			(*get_link_af_size)(const struct net_device *dev);
+						const struct net_device *dev,
+						u32 ext_filter_mask);
+	size_t			(*get_link_af_size)(const struct net_device *dev,
+						    u32 ext_filter_mask);
 
 	int			(*validate_link_af)(const struct net_device *dev,
 						    const struct nlattr *attr);
 	int			(*set_link_af)(struct net_device *dev,
 					       const struct nlattr *attr);
+
+	int			(*fill_stats_af)(struct sk_buff *skb,
+						 const struct net_device *dev);
+	size_t			(*get_stats_af_size)(const struct net_device *dev);
 };
 
-extern int	__rtnl_af_register(struct rtnl_af_ops *ops);
-extern void	__rtnl_af_unregister(struct rtnl_af_ops *ops);
+void __rtnl_af_unregister(struct rtnl_af_ops *ops);
 
-extern int	rtnl_af_register(struct rtnl_af_ops *ops);
-extern void	rtnl_af_unregister(struct rtnl_af_ops *ops);
+void rtnl_af_register(struct rtnl_af_ops *ops);
+void rtnl_af_unregister(struct rtnl_af_ops *ops);
 
+struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[]);
+struct net_device *rtnl_create_link(struct net *net, const char *ifname,
+				    unsigned char name_assign_type,
+				    const struct rtnl_link_ops *ops,
+				    struct nlattr *tb[]);
+int rtnl_delete_link(struct net_device *dev);
+int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm);
 
-extern struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[]);
-extern struct net_device *rtnl_create_link(struct net *net,
-	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[]);
-extern int rtnl_configure_link(struct net_device *dev,
-			       const struct ifinfomsg *ifm);
-extern const struct nla_policy ifla_policy[IFLA_MAX+1];
+int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len,
+			struct netlink_ext_ack *exterr);
 
 #define MODULE_ALIAS_RTNL_LINK(kind) MODULE_ALIAS("rtnl-link-" kind)
 

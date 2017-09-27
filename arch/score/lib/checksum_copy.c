@@ -25,7 +25,7 @@
 
 #include <net/checksum.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 unsigned int csum_partial_copy(const char *src, char *dst,
 				int len, unsigned int sum)
@@ -50,3 +50,4 @@ unsigned int csum_partial_copy_from_user(const char *src, char *dst,
 
 	return csum_partial(dst, len, sum);
 }
+EXPORT_SYMBOL(csum_partial_copy_from_user);

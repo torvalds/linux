@@ -124,6 +124,13 @@ int __cvmx_helper_xaui_enable(int interface)
 	union cvmx_gmxx_tx_int_en gmx_tx_int_en;
 	union cvmx_pcsxx_int_en_reg pcsx_int_en_reg;
 
+	/* Setup PKND */
+	if (octeon_has_feature(OCTEON_FEATURE_PKND)) {
+		gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(0, interface));
+		gmx_cfg.s.pknd = cvmx_helper_get_ipd_port(interface, 0);
+		cvmx_write_csr(CVMX_GMXX_PRTX_CFG(0, interface), gmx_cfg.u64);
+	}
+
 	/* (1) Interface has already been enabled. */
 
 	/* (2) Disable GMX. */
@@ -151,7 +158,12 @@ int __cvmx_helper_xaui_enable(int interface)
 	/* (4)c Aply reset sequence */
 	xauiCtl.u64 = cvmx_read_csr(CVMX_PCSXX_CONTROL1_REG(interface));
 	xauiCtl.s.lo_pwr = 0;
-	xauiCtl.s.reset = 1;
+
+	/* Issuing a reset here seems to hang some CN68XX chips. */
+	if (!OCTEON_IS_MODEL(OCTEON_CN68XX_PASS1_X) &&
+	    !OCTEON_IS_MODEL(OCTEON_CN68XX_PASS2_X))
+		xauiCtl.s.reset = 1;
+
 	cvmx_write_csr(CVMX_PCSXX_CONTROL1_REG(interface), xauiCtl.u64);
 
 	/* Wait for PCS to come out of reset */
@@ -222,8 +234,6 @@ int __cvmx_helper_xaui_enable(int interface)
 	cvmx_write_csr(CVMX_GMXX_TX_INT_EN(interface), gmx_tx_int_en.u64);
 	cvmx_write_csr(CVMX_PCSXX_INT_EN_REG(interface), pcsx_int_en_reg.u64);
 
-	cvmx_helper_link_autoconf(cvmx_helper_get_ipd_port(interface, 0));
-
 	/* (8) Enable packet reception */
 	xauiMiscCtl.s.gmxeno = 0;
 	cvmx_write_csr(CVMX_PCSXX_MISC_CTL_REG(interface), xauiMiscCtl.u64);
@@ -285,8 +295,7 @@ cvmx_helper_link_info_t __cvmx_helper_xaui_link_get(int ipd_port)
  * Configure an IPD/PKO port for the specified link state. This
  * function does not influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
- * by cvmx_helper_link_get(). It is normally best to use
- * cvmx_helper_link_autoconf() instead.
+ * by cvmx_helper_link_get().
  *
  * @ipd_port:  IPD/PKO port to configure
  * @link_info: The new link state

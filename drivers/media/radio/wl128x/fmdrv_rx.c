@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include "fmdrv.h"
@@ -116,12 +112,12 @@ int fm_rx_set_freq(struct fmdev *fmdev, u32 freq)
 	if (ret < 0)
 		goto exit;
 
-	curr_frq = be16_to_cpu(curr_frq);
+	curr_frq = be16_to_cpu((__force __be16)curr_frq);
 	curr_frq_in_khz = (fmdev->rx.region.bot_freq + ((u32)curr_frq * FM_FREQ_MUL));
 
 	if (curr_frq_in_khz != freq) {
-		pr_info("Frequency is set to (%d) but "
-			   "requested freq is (%d)\n", curr_frq_in_khz, freq);
+		pr_info("Frequency is set to (%d) but requested freq is (%d)\n",
+			curr_frq_in_khz, freq);
 	}
 
 	/* Update local cache  */
@@ -189,7 +185,7 @@ int fm_rx_seek(struct fmdev *fmdev, u32 seek_upward,
 	if (ret < 0)
 		return ret;
 
-	curr_frq = be16_to_cpu(curr_frq);
+	curr_frq = be16_to_cpu((__force __be16)curr_frq);
 	last_frq = (fmdev->rx.region.top_freq - fmdev->rx.region.bot_freq) / FM_FREQ_MUL;
 
 	/* Check the offset in order to be aligned to the channel spacing*/
@@ -285,7 +281,7 @@ again:
 		if (ret < 0)
 			return ret;
 
-		curr_frq = be16_to_cpu(curr_frq);
+		curr_frq = be16_to_cpu((__force __be16)curr_frq);
 		fmdev->rx.freq = (fmdev->rx.region.bot_freq +
 				((u32)curr_frq * FM_FREQ_MUL));
 
@@ -390,8 +386,8 @@ int fm_rx_set_region(struct fmdev *fmdev, u8 region_to_set)
 		new_frq = fmdev->rx.region.top_freq;
 
 	if (new_frq) {
-		fmdbg("Current freq is not within band limit boundary,"
-				"switching to %d KHz\n", new_frq);
+		fmdbg("Current freq is not within band limit boundary,switching to %d KHz\n",
+		      new_frq);
 		 /* Current RX frequency is not in range. So, update it */
 		ret = fm_rx_set_freq(fmdev, new_frq);
 	}
@@ -517,7 +513,7 @@ int fm_rx_set_rfdepend_softmute(struct fmdev *fmdev, u8 rfdepend_mute)
 /* Returns the signal strength level of current channel */
 int fm_rx_get_rssi_level(struct fmdev *fmdev, u16 *rssilvl)
 {
-	u16 curr_rssi_lel;
+	__be16 curr_rssi_lel;
 	u32 resp_len;
 	int ret;
 
@@ -608,7 +604,7 @@ int fm_rx_set_stereo_mono(struct fmdev *fmdev, u16 mode)
 /* Gets current RX stereo/mono mode */
 int fm_rx_get_stereo_mono(struct fmdev *fmdev, u16 *mode)
 {
-	u16 curr_mode;
+	__be16 curr_mode;
 	u32 resp_len;
 	int ret;
 
@@ -781,22 +777,6 @@ int fm_rx_set_rds_system(struct fmdev *fmdev, u8 rds_mode)
 		return ret;
 
 	fmdev->rx.rds_mode = rds_mode;
-
-	return 0;
-}
-
-/* Returns current RDS operation mode */
-int fm_rx_get_rds_system(struct fmdev *fmdev, u8 *rds_mode)
-{
-	if (fmdev->curr_fmmode != FM_MODE_RX)
-		return -EPERM;
-
-	if (rds_mode == NULL) {
-		fmerr("Invalid memory\n");
-		return -ENOMEM;
-	}
-
-	*rds_mode = fmdev->rx.rds_mode;
 
 	return 0;
 }

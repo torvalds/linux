@@ -1,0 +1,80 @@
+if ARCH_SUNXI
+
+config PINCTRL_SUNXI
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+
+config PINCTRL_SUN4I_A10
+	def_bool MACH_SUN4I || MACH_SUN7I || MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN5I
+	def_bool MACH_SUN5I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN6I_A31
+	def_bool MACH_SUN6I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN6I_A31_R
+	def_bool MACH_SUN6I
+	depends on RESET_CONTROLLER
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_A23
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_A33
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_A83T
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_A83T_R
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_A23_R
+	def_bool MACH_SUN8I
+	depends on RESET_CONTROLLER
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_H3
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_H3_R
+	def_bool MACH_SUN8I || (ARM64 && ARCH_SUNXI)
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_V3S
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN9I_A80
+	def_bool MACH_SUN9I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN9I_A80_R
+	def_bool MACH_SUN9I
+	depends on RESET_CONTROLLER
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN50I_A64
+	def_bool ARM64 && ARCH_SUNXI
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN50I_A64_R
+	def_bool ARM64 && ARCH_SUNXI
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN50I_H5
+	def_bool ARM64 && ARCH_SUNXI
+	select PINCTRL_SUNXI
+
+endif

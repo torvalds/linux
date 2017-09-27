@@ -9,7 +9,7 @@
 #include <asm/head.h>
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
@@ -93,7 +93,7 @@ void leon_cpu_pre_online(void *arg)
 			     : "memory" /* paranoid */);
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
@@ -130,7 +130,7 @@ void leon_configure_cache_smp(void)
 	local_ops->tlb_all();
 }
 
-void leon_smp_setbroadcast(unsigned int mask)
+static void leon_smp_setbroadcast(unsigned int mask)
 {
 	int broadcast =
 	    ((LEON3_BYPASS_LOAD_PA(&(leon3_irqctrl_regs->mpstatus)) >>
@@ -146,13 +146,6 @@ void leon_smp_setbroadcast(unsigned int mask)
 		}
 	}
 	LEON_BYPASS_STORE_PA(&(leon3_irqctrl_regs->mpbroadcast), mask);
-}
-
-unsigned int leon_smp_getbroadcast(void)
-{
-	unsigned int mask;
-	mask = LEON_BYPASS_LOAD_PA(&(leon3_irqctrl_regs->mpbroadcast));
-	return mask;
 }
 
 int leon_smp_nrcpus(void)
@@ -266,10 +259,6 @@ void __init leon_smp_done(void)
 
 }
 
-void leon_irq_rotate(int cpu)
-{
-}
-
 struct leon_ipi_work {
 	int single;
 	int msk;
@@ -354,7 +343,7 @@ static void leon_ipi_resched(int cpu)
 
 void leonsmp_ipi_interrupt(void)
 {
-	struct leon_ipi_work *work = &__get_cpu_var(leon_ipi_work);
+	struct leon_ipi_work *work = this_cpu_ptr(&leon_ipi_work);
 
 	if (work->single) {
 		work->single = 0;
@@ -379,7 +368,7 @@ static struct smp_funcall {
 	unsigned long arg5;
 	unsigned long processors_in[NR_CPUS];	/* Set when ipi entered. */
 	unsigned long processors_out[NR_CPUS];	/* Set when ipi exited. */
-} ccall_info;
+} ccall_info __attribute__((aligned(8)));
 
 static DEFINE_SPINLOCK(cross_call_lock);
 

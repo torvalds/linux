@@ -16,6 +16,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "hardware.h"
 #include "common.h"
@@ -24,10 +26,26 @@ static int mx5_cpu_rev = -1;
 
 #define IIM_SREV 0x24
 
+static u32 imx5_read_srev_reg(const char *compat)
+{
+	void __iomem *iim_base;
+	struct device_node *np;
+	u32 srev;
+
+	np = of_find_compatible_node(NULL, NULL, compat);
+	iim_base = of_iomap(np, 0);
+	WARN_ON(!iim_base);
+
+	srev = readl(iim_base + IIM_SREV) & 0xff;
+
+	iounmap(iim_base);
+
+	return srev;
+}
+
 static int get_mx51_srev(void)
 {
-	void __iomem *iim_base = MX51_IO_ADDRESS(MX51_IIM_BASE_ADDR);
-	u32 rev = readl(iim_base + IIM_SREV) & 0xff;
+	u32 rev = imx5_read_srev_reg("fsl,imx51-iim");
 
 	switch (rev) {
 	case 0x0:
@@ -42,13 +60,9 @@ static int get_mx51_srev(void)
 /*
  * Returns:
  *	the silicon revision of the cpu
- *	-EINVAL - not a mx51
  */
 int mx51_revision(void)
 {
-	if (!cpu_is_mx51())
-		return -EINVAL;
-
 	if (mx5_cpu_rev == -1)
 		mx5_cpu_rev = get_mx51_srev();
 
@@ -77,8 +91,7 @@ int __init mx51_neon_fixup(void)
 
 static int get_mx53_srev(void)
 {
-	void __iomem *iim_base = MX51_IO_ADDRESS(MX53_IIM_BASE_ADDR);
-	u32 rev = readl(iim_base + IIM_SREV) & 0xff;
+	u32 rev = imx5_read_srev_reg("fsl,imx53-iim");
 
 	switch (rev) {
 	case 0x0:
@@ -95,13 +108,9 @@ static int get_mx53_srev(void)
 /*
  * Returns:
  *	the silicon revision of the cpu
- *	-EINVAL - not a mx53
  */
 int mx53_revision(void)
 {
-	if (!cpu_is_mx53())
-		return -EINVAL;
-
 	if (mx5_cpu_rev == -1)
 		mx5_cpu_rev = get_mx53_srev();
 

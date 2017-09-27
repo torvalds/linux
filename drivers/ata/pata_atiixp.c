@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <scsi/scsi_host.h>
@@ -184,8 +183,8 @@ static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	 *	We must now look at the PIO mode situation. We may need to
 	 *	adjust the PIO mode to keep the timings acceptable
 	 */
-	 if (adev->dma_mode >= XFER_MW_DMA_2)
-	 	wanted_pio = 4;
+	if (adev->dma_mode >= XFER_MW_DMA_2)
+		wanted_pio = 4;
 	else if (adev->dma_mode == XFER_MW_DMA_1)
 		wanted_pio = 3;
 	else if (adev->dma_mode == XFER_MW_DMA_0)
@@ -299,7 +298,7 @@ static struct pci_driver atiixp_pci_driver = {
 	.id_table	= atiixp,
 	.probe 		= atiixp_init_one,
 	.remove		= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.resume		= ata_pci_device_resume,
 	.suspend	= ata_pci_device_suspend,
 #endif

@@ -12,11 +12,16 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-"perf mem -t <TYPE> record" runs a command and gathers memory operation data
+"perf mem record" runs a command and gathers memory operation data
 from it, into perf.data. Perf record options are accepted and are passed through.
 
-"perf mem -t <TYPE> report" displays the result. It invokes perf report with the
-right set of options to display a memory access profile.
+"perf mem report" displays the result. It invokes perf report with the
+right set of options to display a memory access profile. By default, loads
+and stores are sampled. Use the -t option to limit to loads or stores.
+
+Note that on Intel systems the memory latency reported is the use-latency,
+not the pure load (or store latency). Use latency includes any pipeline
+queueing delays in addition to the memory subsystem latency.
 
 OPTIONS
 -------
@@ -25,7 +30,7 @@ OPTIONS
 
 -t::
 --type=::
-	Select the memory operation type: load or store (default: load)
+	Select the memory operation type: load or store (default: load,store)
 
 -D::
 --dump-raw-samples=::
@@ -42,6 +47,21 @@ OPTIONS
 	Restrict dump of raw samples to those provided via this option. Note that the same
 	option can be passed in record mode. It will be interpreted the same way as perf
 	record.
+
+-K::
+--all-kernel::
+	Configure all used events to run in kernel space.
+
+-U::
+--all-user::
+	Configure all used events to run in user space.
+
+--ldload::
+	Specify desired latency for loads event.
+
+-p::
+--phys-data::
+	Record/Report sample physical addresses
 
 SEE ALSO
 --------

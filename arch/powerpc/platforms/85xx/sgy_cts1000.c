@@ -14,8 +14,8 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/of_gpio.h>
+#include <linux/of_irq.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
@@ -24,7 +24,7 @@
 
 static struct device_node *halt_node;
 
-static struct of_device_id child_match[] = {
+static const struct of_device_id child_match[] = {
 	{
 		.compatible = "sgy,gpio-halt",
 	},
@@ -38,18 +38,18 @@ static void gpio_halt_wfn(struct work_struct *work)
 }
 static DECLARE_WORK(gpio_halt_wq, gpio_halt_wfn);
 
-static void gpio_halt_cb(void)
+static void __noreturn gpio_halt_cb(void)
 {
 	enum of_gpio_flags flags;
 	int trigger, gpio;
 
 	if (!halt_node)
-		return;
+		panic("No reset GPIO information was provided in DT\n");
 
 	gpio = of_get_gpio_flags(halt_node, 0, &flags);
 
 	if (!gpio_is_valid(gpio))
-		return;
+		panic("Provided GPIO is invalid\n");
 
 	trigger = (flags == OF_GPIO_ACTIVE_LOW);
 
@@ -57,6 +57,8 @@ static void gpio_halt_cb(void)
 
 	/* Probably wont return */
 	gpio_set_value(gpio, trigger);
+
+	panic("Halt failed\n");
 }
 
 /* This IRQ means someone pressed the power button and it is waiting for us
@@ -120,7 +122,7 @@ static int gpio_halt_probe(struct platform_device *pdev)
 
 	/* Register our halt function */
 	ppc_md.halt = gpio_halt_cb;
-	ppc_md.power_off = gpio_halt_cb;
+	pm_power_off = gpio_halt_cb;
 
 	printk(KERN_INFO "gpio-halt: registered GPIO %d (%d trigger, %d"
 	       " irq).\n", gpio, trigger, irq);
@@ -137,7 +139,7 @@ static int gpio_halt_remove(struct platform_device *pdev)
 		free_irq(irq, halt_node);
 
 		ppc_md.halt = NULL;
-		ppc_md.power_off = NULL;
+		pm_power_off = NULL;
 
 		gpio_free(gpio);
 
@@ -147,7 +149,7 @@ static int gpio_halt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id gpio_halt_match[] = {
+static const struct of_device_id gpio_halt_match[] = {
 	/* We match on the gpio bus itself and scan the children since they
 	 * wont be matched against us. We know the bus wont match until it
 	 * has been registered too. */
@@ -161,7 +163,6 @@ MODULE_DEVICE_TABLE(of, gpio_halt_match);
 static struct platform_driver gpio_halt_driver = {
 	.driver = {
 		.name		= "gpio-halt",
-		.owner		= THIS_MODULE,
 		.of_match_table = gpio_halt_match,
 	},
 	.probe		= gpio_halt_probe,

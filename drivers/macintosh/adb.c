@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
@@ -38,7 +38,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_PPC
 #include <asm/prom.h>
 #include <asm/machdep.h>
@@ -48,7 +48,6 @@
 EXPORT_SYMBOL(adb_client_list);
 
 extern struct adb_driver via_macii_driver;
-extern struct adb_driver via_maciisi_driver;
 extern struct adb_driver via_cuda_driver;
 extern struct adb_driver adb_iop_driver;
 extern struct adb_driver via_pmu_driver;
@@ -58,9 +57,6 @@ static DEFINE_MUTEX(adb_mutex);
 static struct adb_driver *adb_driver_list[] = {
 #ifdef CONFIG_ADB_MACII
 	&via_macii_driver,
-#endif
-#ifdef CONFIG_ADB_MACIISI
-	&via_maciisi_driver,
 #endif
 #ifdef CONFIG_ADB_CUDA
 	&via_cuda_driver,
@@ -193,8 +189,7 @@ static int adb_scan_bus(void)
 					break;
 
 				noMovement = 0;
-			}
-			else {
+			} else {
 				/*
 				 * No devices left at address i; move the
 				 * one(s) we moved to `highFree' back to i.
@@ -263,7 +258,7 @@ adb_reset_bus(void)
 /*
  * notify clients before sleep
  */
-static int adb_suspend(struct platform_device *dev, pm_message_t state)
+static int __adb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	adb_got_sleep = 1;
 	/* We need to get a lock on the probe thread */
@@ -276,16 +271,36 @@ static int adb_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
+static int adb_suspend(struct device *dev)
+{
+	return __adb_suspend(to_platform_device(dev), PMSG_SUSPEND);
+}
+
+static int adb_freeze(struct device *dev)
+{
+	return __adb_suspend(to_platform_device(dev), PMSG_FREEZE);
+}
+
+static int adb_poweroff(struct device *dev)
+{
+	return __adb_suspend(to_platform_device(dev), PMSG_HIBERNATE);
+}
+
 /*
  * reset bus after sleep
  */
-static int adb_resume(struct platform_device *dev)
+static int __adb_resume(struct platform_device *dev)
 {
 	adb_got_sleep = 0;
 	up(&adb_probe_mutex);
 	adb_reset_bus();
 
 	return 0;
+}
+
+static int adb_resume(struct device *dev)
+{
+	return __adb_resume(to_platform_device(dev));
 }
 #endif /* CONFIG_PM */
 
@@ -392,6 +407,7 @@ adb_poll(void)
 		return;
 	adb_controller->poll();
 }
+EXPORT_SYMBOL(adb_poll);
 
 static void adb_sync_req_done(struct adb_request *req)
 {
@@ -441,6 +457,7 @@ adb_request(struct adb_request *req, void (*done)(struct adb_request *),
 
 	return rc;
 }
+EXPORT_SYMBOL(adb_request);
 
  /* Ultimately this should return the number of devices with
     the given default id.
@@ -476,6 +493,7 @@ adb_register(int default_id, int handler_id, struct adb_ids *ids,
 	mutex_unlock(&adb_handler_mutex);
 	return ids->nids;
 }
+EXPORT_SYMBOL(adb_register);
 
 int
 adb_unregister(int index)
@@ -497,12 +515,13 @@ adb_unregister(int index)
 	mutex_unlock(&adb_handler_mutex);
 	return ret;
 }
+EXPORT_SYMBOL(adb_unregister);
 
 void
 adb_input(unsigned char *buf, int nb, int autopoll)
 {
 	int i, id;
-	static int dump_adb_input = 0;
+	static int dump_adb_input;
 	unsigned long flags;
 	
 	void (*handler)(unsigned char *, int, int);
@@ -563,6 +582,7 @@ adb_try_handler_change(int address, int new_id)
 	mutex_unlock(&adb_handler_mutex);
 	return ret;
 }
+EXPORT_SYMBOL(adb_try_handler_change);
 
 int
 adb_get_infos(int address, int *original_address, int *handler_id)
@@ -624,8 +644,7 @@ do_adb_query(struct adb_request *req)
 {
 	int	ret = -EINVAL;
 
-	switch(req->data[1])
-	{
+	switch(req->data[1]) {
 	case ADB_QUERY_GETDEVINFO:
 		if (req->nbytes < 3)
 			break;
@@ -697,15 +716,13 @@ static ssize_t adb_read(struct file *file, char __user *buf,
 	int ret = 0;
 	struct adbdev_state *state = file->private_data;
 	struct adb_request *req;
-	DECLARE_WAITQUEUE(wait,current);
+	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
 
 	if (count < 2)
 		return -EINVAL;
 	if (count > sizeof(req->reply))
 		count = sizeof(req->reply);
-	if (!access_ok(VERIFY_WRITE, buf, count))
-		return -EFAULT;
 
 	req = NULL;
 	spin_lock_irqsave(&state->lock, flags);
@@ -762,8 +779,6 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 		return -EINVAL;
 	if (adb_controller == NULL)
 		return -ENXIO;
-	if (!access_ok(VERIFY_READ, buf, count))
-		return -EFAULT;
 
 	req = kmalloc(sizeof(struct adb_request),
 					     GFP_KERNEL);
@@ -794,8 +809,8 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 	}
 	/* Special case for ADB_BUSRESET request, all others are sent to
 	   the controller */
-	else if ((req->data[0] == ADB_PACKET)&&(count > 1)
-		&&(req->data[1] == ADB_BUSRESET)) {
+	else if ((req->data[0] == ADB_PACKET) && (count > 1)
+		&& (req->data[1] == ADB_BUSRESET)) {
 		ret = do_adb_reset_bus();
 		up(&adb_probe_mutex);
 		atomic_dec(&state->n_pending);
@@ -831,14 +846,25 @@ static const struct file_operations adb_fops = {
 	.release	= adb_release,
 };
 
+#ifdef CONFIG_PM
+static const struct dev_pm_ops adb_dev_pm_ops = {
+	.suspend = adb_suspend,
+	.resume = adb_resume,
+	/* Hibernate hooks */
+	.freeze = adb_freeze,
+	.thaw = adb_resume,
+	.poweroff = adb_poweroff,
+	.restore = adb_resume,
+};
+#endif
+
 static struct platform_driver adb_pfdrv = {
 	.driver = {
 		.name = "adb",
-	},
 #ifdef CONFIG_PM
-	.suspend = adb_suspend,
-	.resume = adb_resume,
+		.pm = &adb_dev_pm_ops,
 #endif
+	},
 };
 
 static struct platform_device adb_pfdev = {

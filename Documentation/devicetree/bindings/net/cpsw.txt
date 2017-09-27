@@ -2,7 +2,11 @@ TI SoC Ethernet Switch Controller Device Tree Bindings
 ------------------------------------------------------
 
 Required properties:
-- compatible		: Should be "ti,cpsw"
+- compatible		: Should be one of the below:-
+			  "ti,cpsw" for backward compatible
+			  "ti,am335x-cpsw" for AM335x controllers
+			  "ti,am4372-cpsw" for AM437x controllers
+			  "ti,dra7-cpsw" for DRA7x controllers
 - reg			: physical base address and size of the cpsw
 			  registers map
 - interrupts		: property with a value describing the interrupt
@@ -11,29 +15,43 @@ Required properties:
 - cpdma_channels 	: Specifies number of channels in CPDMA
 - ale_entries		: Specifies No of entries ALE can hold
 - bd_ram_size		: Specifies internal descriptor RAM size
-- rx_descs		: Specifies number of Rx descriptors
 - mac_control		: Specifies Default MAC control register content
 			  for the specific platform
 - slaves		: Specifies number for slaves
 - active_slave		: Specifies the slave to use for time stamping,
 			  ethtool and SIOCGMIIPHY
-- cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
-- cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
 
 Optional properties:
 - ti,hwmods		: Must be "cpgmac0"
-- no_bd_ram		: Must be 0 or 1
 - dual_emac		: Specifies Switch to act as Dual EMAC
+- syscon		: Phandle to the system control device node, which is
+			  the control module device of the am33x
+- mode-gpios		: Should be added if one/multiple gpio lines are
+			  required to be driven so that cpsw data lines
+			  can be connected to the phy via selective mux.
+			  For example in dra72x-evm, pcf gpio has to be
+			  driven low so that cpsw slave 0 and phy data
+			  lines are connected via mux.
+- cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
+- cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
+			  Mult and shift will be calculated basing on CPTS
+			  rftclk frequency if both cpts_clock_shift and
+			  cpts_clock_mult properties are not provided.
 
 Slave Properties:
 Required properties:
-- phy_id		: Specifies slave phy id
-- phy-mode		: The interface between the SoC and the PHY (a string
-			  that of_get_phy_mode() can understand)
-- mac-address		: Specifies slave MAC address
+- phy-mode		: See ethernet.txt file in the same directory
 
 Optional properties:
 - dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
+- mac-address		: See ethernet.txt file in the same directory
+- phy_id		: Specifies slave phy id (deprecated, use phy-handle)
+- phy-handle		: See ethernet.txt file in the same directory
+
+Slave sub-nodes:
+- fixed-link		: See fixed-link.txt file in the same directory
+
+Note: Exactly one of phy_id, phy-handle, or fixed-link must be specified.
 
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.
@@ -51,13 +69,13 @@ Examples:
 		cpdma_channels = <8>;
 		ale_entries = <1024>;
 		bd_ram_size = <0x2000>;
-		no_bd_ram = <0>;
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;
 		active_slave = <0>;
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
+		syscon = <&cm>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
 			phy-mode = "rgmii-txid";
@@ -79,13 +97,13 @@ Examples:
 		cpdma_channels = <8>;
 		ale_entries = <1024>;
 		bd_ram_size = <0x2000>;
-		no_bd_ram = <0>;
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;
 		active_slave = <0>;
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
+		syscon = <&cm>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
 			phy-mode = "rgmii-txid";

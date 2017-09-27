@@ -4,6 +4,7 @@
  * Based on code by Randy Vinson <rvinson@mvista.com>,
  * which was based on the m41t00.c by Mark Greer <mgreer@mvista.com>.
  *
+ * Copyright (C) 2014 Rose Technology
  * Copyright (C) 2006-2007 Freescale Semiconductor
  *
  * 2005 (c) MontaVista Software, Inc. This file is licensed under
@@ -17,6 +18,8 @@
  * "Sending and receiving", using SMBus level communication is preferred.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -26,6 +29,13 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/pm.h>
+#ifdef CONFIG_RTC_DRV_DS1374_WDT
+#include <linux/fs.h>
+#include <linux/ioctl.h>
+#include <linux/miscdevice.h>
+#include <linux/reboot.h>
+#include <linux/watchdog.h>
+#endif
 
 #define DS1374_REG_TOD0		0x00 /* Time of Day */
 #define DS1374_REG_TOD1		0x01
@@ -49,6 +59,14 @@ static const struct i2c_device_id ds1374_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds1374_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id ds1374_of_match[] = {
+	{ .compatible = "dallas,ds1374" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ds1374_of_match);
+#endif
+
 struct ds1374 {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
@@ -71,10 +89,8 @@ static int ds1374_read_rtc(struct i2c_client *client, u32 *time,
 	int ret;
 	int i;
 
-	if (nbytes > 4) {
-		WARN_ON(1);
+	if (WARN_ON(nbytes > 4))
 		return -EINVAL;
-	}
 
 	ret = i2c_smbus_read_i2c_block_data(client, reg, nbytes, buf);
 
@@ -162,6 +178,7 @@ static int ds1374_set_time(struct device *dev, struct rtc_time *time)
 	return ds1374_write_rtc(client, itime, DS1374_REG_TOD0, 4);
 }
 
+#ifndef CONFIG_RTC_DRV_DS1374_WDT
 /* The ds1374 has a decrementer for an alarm, rather than a comparator.
  * If the time of day is changed, then the alarm will need to be
  * reset.
@@ -263,6 +280,7 @@ out:
 	mutex_unlock(&ds1374->mutex);
 	return ret;
 }
+#endif
 
 static irqreturn_t ds1374_irq(int irq, void *dev_id)
 {
@@ -307,6 +325,7 @@ unlock:
 	mutex_unlock(&ds1374->mutex);
 }
 
+#ifndef CONFIG_RTC_DRV_DS1374_WDT
 static int ds1374_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -331,15 +350,266 @@ out:
 	mutex_unlock(&ds1374->mutex);
 	return ret;
 }
+#endif
 
 static const struct rtc_class_ops ds1374_rtc_ops = {
 	.read_time = ds1374_read_time,
 	.set_time = ds1374_set_time,
+#ifndef CONFIG_RTC_DRV_DS1374_WDT
 	.read_alarm = ds1374_read_alarm,
 	.set_alarm = ds1374_set_alarm,
 	.alarm_irq_enable = ds1374_alarm_irq_enable,
+#endif
 };
 
+#ifdef CONFIG_RTC_DRV_DS1374_WDT
+/*
+ *****************************************************************************
+ *
+ * Watchdog Driver
+ *
+ *****************************************************************************
+ */
+static struct i2c_client *save_client;
+/* Default margin */
+#define WD_TIMO 131762
+
+#define DRV_NAME "DS1374 Watchdog"
+
+static int wdt_margin = WD_TIMO;
+static unsigned long wdt_is_open;
+module_param(wdt_margin, int, 0);
+MODULE_PARM_DESC(wdt_margin, "Watchdog timeout in seconds (default 32s)");
+
+static const struct watchdog_info ds1374_wdt_info = {
+	.identity       = "DS1374 WTD",
+	.options        = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
+						WDIOF_MAGICCLOSE,
+};
+
+static int ds1374_wdt_settimeout(unsigned int timeout)
+{
+	int ret = -ENOIOCTLCMD;
+	int cr;
+
+	ret = cr = i2c_smbus_read_byte_data(save_client, DS1374_REG_CR);
+	if (ret < 0)
+		goto out;
+
+	/* Disable any existing watchdog/alarm before setting the new one */
+	cr &= ~DS1374_REG_CR_WACE;
+
+	ret = i2c_smbus_write_byte_data(save_client, DS1374_REG_CR, cr);
+	if (ret < 0)
+		goto out;
+
+	/* Set new watchdog time */
+	ret = ds1374_write_rtc(save_client, timeout, DS1374_REG_WDALM0, 3);
+	if (ret) {
+		pr_info("couldn't set new watchdog time\n");
+		goto out;
+	}
+
+	/* Enable watchdog timer */
+	cr |= DS1374_REG_CR_WACE | DS1374_REG_CR_WDALM;
+	cr &= ~DS1374_REG_CR_AIE;
+
+	ret = i2c_smbus_write_byte_data(save_client, DS1374_REG_CR, cr);
+	if (ret < 0)
+		goto out;
+
+	return 0;
+out:
+	return ret;
+}
+
+
+/*
+ * Reload the watchdog timer.  (ie, pat the watchdog)
+ */
+static void ds1374_wdt_ping(void)
+{
+	u32 val;
+	int ret = 0;
+
+	ret = ds1374_read_rtc(save_client, &val, DS1374_REG_WDALM0, 3);
+	if (ret)
+		pr_info("WD TICK FAIL!!!!!!!!!! %i\n", ret);
+}
+
+static void ds1374_wdt_disable(void)
+{
+	int ret = -ENOIOCTLCMD;
+	int cr;
+
+	cr = i2c_smbus_read_byte_data(save_client, DS1374_REG_CR);
+	/* Disable watchdog timer */
+	cr &= ~DS1374_REG_CR_WACE;
+
+	ret = i2c_smbus_write_byte_data(save_client, DS1374_REG_CR, cr);
+}
+
+/*
+ * Watchdog device is opened, and watchdog starts running.
+ */
+static int ds1374_wdt_open(struct inode *inode, struct file *file)
+{
+	struct ds1374 *ds1374 = i2c_get_clientdata(save_client);
+
+	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR) {
+		mutex_lock(&ds1374->mutex);
+		if (test_and_set_bit(0, &wdt_is_open)) {
+			mutex_unlock(&ds1374->mutex);
+			return -EBUSY;
+		}
+		/*
+		 *      Activate
+		 */
+		wdt_is_open = 1;
+		mutex_unlock(&ds1374->mutex);
+		return nonseekable_open(inode, file);
+	}
+	return -ENODEV;
+}
+
+/*
+ * Close the watchdog device.
+ */
+static int ds1374_wdt_release(struct inode *inode, struct file *file)
+{
+	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR)
+		clear_bit(0, &wdt_is_open);
+
+	return 0;
+}
+
+/*
+ * Pat the watchdog whenever device is written to.
+ */
+static ssize_t ds1374_wdt_write(struct file *file, const char __user *data,
+				size_t len, loff_t *ppos)
+{
+	if (len) {
+		ds1374_wdt_ping();
+		return 1;
+	}
+	return 0;
+}
+
+static ssize_t ds1374_wdt_read(struct file *file, char __user *data,
+				size_t len, loff_t *ppos)
+{
+	return 0;
+}
+
+/*
+ * Handle commands from user-space.
+ */
+static long ds1374_wdt_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
+{
+	int new_margin, options;
+
+	switch (cmd) {
+	case WDIOC_GETSUPPORT:
+		return copy_to_user((struct watchdog_info __user *)arg,
+		&ds1374_wdt_info, sizeof(ds1374_wdt_info)) ? -EFAULT : 0;
+
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		return put_user(0, (int __user *)arg);
+	case WDIOC_KEEPALIVE:
+		ds1374_wdt_ping();
+		return 0;
+	case WDIOC_SETTIMEOUT:
+		if (get_user(new_margin, (int __user *)arg))
+			return -EFAULT;
+
+		/* the hardware's tick rate is 4096 Hz, so
+		 * the counter value needs to be scaled accordingly
+		 */
+		new_margin <<= 12;
+		if (new_margin < 1 || new_margin > 16777216)
+			return -EINVAL;
+
+		wdt_margin = new_margin;
+		ds1374_wdt_settimeout(new_margin);
+		ds1374_wdt_ping();
+		/* fallthrough */
+	case WDIOC_GETTIMEOUT:
+		/* when returning ... inverse is true */
+		return put_user((wdt_margin >> 12), (int __user *)arg);
+	case WDIOC_SETOPTIONS:
+		if (copy_from_user(&options, (int __user *)arg, sizeof(int)))
+			return -EFAULT;
+
+		if (options & WDIOS_DISABLECARD) {
+			pr_info("disable watchdog\n");
+			ds1374_wdt_disable();
+			return 0;
+		}
+
+		if (options & WDIOS_ENABLECARD) {
+			pr_info("enable watchdog\n");
+			ds1374_wdt_settimeout(wdt_margin);
+			ds1374_wdt_ping();
+			return 0;
+		}
+		return -EINVAL;
+	}
+	return -ENOTTY;
+}
+
+static long ds1374_wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
+{
+	int ret;
+	struct ds1374 *ds1374 = i2c_get_clientdata(save_client);
+
+	mutex_lock(&ds1374->mutex);
+	ret = ds1374_wdt_ioctl(file, cmd, arg);
+	mutex_unlock(&ds1374->mutex);
+
+	return ret;
+}
+
+static int ds1374_wdt_notify_sys(struct notifier_block *this,
+			unsigned long code, void *unused)
+{
+	if (code == SYS_DOWN || code == SYS_HALT)
+		/* Disable Watchdog */
+		ds1374_wdt_disable();
+	return NOTIFY_DONE;
+}
+
+static const struct file_operations ds1374_wdt_fops = {
+	.owner			= THIS_MODULE,
+	.read			= ds1374_wdt_read,
+	.unlocked_ioctl		= ds1374_wdt_unlocked_ioctl,
+	.write			= ds1374_wdt_write,
+	.open                   = ds1374_wdt_open,
+	.release                = ds1374_wdt_release,
+	.llseek			= no_llseek,
+};
+
+static struct miscdevice ds1374_miscdev = {
+	.minor          = WATCHDOG_MINOR,
+	.name           = "watchdog",
+	.fops           = &ds1374_wdt_fops,
+};
+
+static struct notifier_block ds1374_wdt_notifier = {
+	.notifier_call = ds1374_wdt_notify_sys,
+};
+
+#endif /*CONFIG_RTC_DRV_DS1374_WDT*/
+/*
+ *****************************************************************************
+ *
+ *	Driver Interface
+ *
+ *****************************************************************************
+ */
 static int ds1374_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -378,12 +648,30 @@ static int ds1374_probe(struct i2c_client *client,
 		return PTR_ERR(ds1374->rtc);
 	}
 
+#ifdef CONFIG_RTC_DRV_DS1374_WDT
+	save_client = client;
+	ret = misc_register(&ds1374_miscdev);
+	if (ret)
+		return ret;
+	ret = register_reboot_notifier(&ds1374_wdt_notifier);
+	if (ret) {
+		misc_deregister(&ds1374_miscdev);
+		return ret;
+	}
+	ds1374_wdt_settimeout(131072);
+#endif
+
 	return 0;
 }
 
 static int ds1374_remove(struct i2c_client *client)
 {
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
+#ifdef CONFIG_RTC_DRV_DS1374_WDT
+	misc_deregister(&ds1374_miscdev);
+	ds1374_miscdev.parent = NULL;
+	unregister_reboot_notifier(&ds1374_wdt_notifier);
+#endif
 
 	if (client->irq > 0) {
 		mutex_lock(&ds1374->mutex);
@@ -402,7 +690,7 @@ static int ds1374_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	if (client->irq >= 0 && device_may_wakeup(&client->dev))
+	if (client->irq > 0 && device_may_wakeup(&client->dev))
 		enable_irq_wake(client->irq);
 	return 0;
 }
@@ -411,7 +699,7 @@ static int ds1374_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	if (client->irq >= 0 && device_may_wakeup(&client->dev))
+	if (client->irq > 0 && device_may_wakeup(&client->dev))
 		disable_irq_wake(client->irq);
 	return 0;
 }
@@ -422,7 +710,7 @@ static SIMPLE_DEV_PM_OPS(ds1374_pm, ds1374_suspend, ds1374_resume);
 static struct i2c_driver ds1374_driver = {
 	.driver = {
 		.name = "rtc-ds1374",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(ds1374_of_match),
 		.pm = &ds1374_pm,
 	},
 	.probe = ds1374_probe,

@@ -13,6 +13,7 @@
 #include <generated/utsrelease.h>
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <asm/dma.h>
 #include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -98,7 +99,7 @@ static void __init efika_pcisetup(void)
 	bus_range = of_get_property(pcictrl, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
-		       ": Can't get bus-range for %s\n", pcictrl->full_name);
+		       ": Can't get bus-range for %pOF\n", pcictrl);
 		goto out_put;
 	}
 
@@ -108,14 +109,14 @@ static void __init efika_pcisetup(void)
 	else
 		printk(KERN_INFO EFIKA_PLATFORM_NAME ": PCI buses %d..%d",
 		       bus_range[0], bus_range[1]);
-	printk(" controlled by %s\n", pcictrl->full_name);
+	printk(" controlled by %pOF\n", pcictrl);
 	printk("\n");
 
 	hose = pcibios_alloc_controller(pcictrl);
 	if (!hose) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
-		       ": Can't allocate PCI controller structure for %s\n",
-		       pcictrl->full_name);
+		       ": Can't allocate PCI controller structure for %pOF\n",
+		       pcictrl);
 		goto out_put;
 	}
 
@@ -199,8 +200,7 @@ static void __init efika_setup_arch(void)
 
 static int __init efika_probe(void)
 {
-	char *model = of_get_flat_dt_prop(of_get_flat_dt_root(),
-					  "model", NULL);
+	const char *model = of_get_property(of_root, "model", NULL);
 
 	if (model == NULL)
 		return 0;
@@ -210,6 +210,8 @@ static int __init efika_probe(void)
 	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
+
+	pm_power_off = rtas_power_off;
 
 	return 1;
 }
@@ -224,7 +226,6 @@ define_machine(efika)
 	.init_IRQ		= mpc52xx_init_irq,
 	.get_irq		= mpc52xx_get_irq,
 	.restart		= rtas_restart,
-	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.set_rtc_time		= rtas_set_rtc_time,
 	.get_rtc_time		= rtas_get_rtc_time,

@@ -106,7 +106,7 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 				if (!r->flags)
 					continue;
 				if (!r->start ||
-				    pci_claim_resource(dev, idx) < 0) {
+				    pci_claim_bridge_resource(dev, idx) < 0) {
 					printk(KERN_ERR "PCI:"
 					       " Cannot allocate resource"
 					       " region %d of bridge %s\n",
@@ -183,18 +183,16 @@ static int __init pcibios_assign_resources(void)
 	struct pci_dev *dev = NULL;
 	struct resource *r;
 
-	if (!(pci_probe & PCI_ASSIGN_ROMS)) {
-		/* Try to use BIOS settings for ROMs, otherwise let
-		   pci_assign_unassigned_resources() allocate the new
-		   addresses. */
-		for_each_pci_dev(dev) {
-			r = &dev->resource[PCI_ROM_RESOURCE];
-			if (!r->flags || !r->start)
-				continue;
-			if (pci_claim_resource(dev, PCI_ROM_RESOURCE) < 0) {
-				r->end -= r->start;
-				r->start = 0;
-			}
+	/* Try to use BIOS settings for ROMs, otherwise let
+	   pci_assign_unassigned_resources() allocate the new
+	   addresses. */
+	for_each_pci_dev(dev) {
+		r = &dev->resource[PCI_ROM_RESOURCE];
+		if (!r->flags || !r->start)
+			continue;
+		if (pci_claim_resource(dev, PCI_ROM_RESOURCE) < 0) {
+			r->end -= r->start;
+			r->start = 0;
 		}
 	}
 
@@ -211,27 +209,4 @@ void __init pcibios_resource_survey(void)
 	pcibios_allocate_bus_resources(&pci_root_buses);
 	pcibios_allocate_resources(0);
 	pcibios_allocate_resources(1);
-}
-
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
-{
-	unsigned long prot;
-
-	/* Leave vm_pgoff as-is, the PCI space address is the physical
-	 * address on this platform.
-	 */
-	vma->vm_flags |= VM_LOCKED;
-
-	prot = pgprot_val(vma->vm_page_prot);
-	prot &= ~_PAGE_CACHE;
-	vma->vm_page_prot = __pgprot(prot);
-
-	/* Write-combine setting is ignored */
-	if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot))
-		return -EAGAIN;
-
-	return 0;
 }

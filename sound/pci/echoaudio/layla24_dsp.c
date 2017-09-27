@@ -40,19 +40,19 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	DE_INIT(("init_hw() - Layla24\n"));
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != LAYLA24))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
-		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
+		dev_err(chip->card->dev,
+			"init_hw - could not initialize DSP comm page\n");
 		return err;
 	}
 
 	chip->device_id = device_id;
 	chip->subdevice_id = subdevice_id;
-	chip->bad_board = TRUE;
-	chip->has_midi = TRUE;
+	chip->bad_board = true;
+	chip->has_midi = true;
 	chip->dsp_code_to_load = FW_LAYLA24_DSP;
 	chip->input_clock_types =
 		ECHO_CLOCK_BIT_INTERNAL | ECHO_CLOCK_BIT_SPDIF |
@@ -64,12 +64,11 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	if ((err = load_firmware(chip)) < 0)
 		return err;
-	chip->bad_board = FALSE;
+	chip->bad_board = false;
 
 	if ((err = init_line_levels(chip)) < 0)
 		return err;
 
-	DE_INIT(("init_hw done\n"));
 	return err;
 }
 
@@ -78,8 +77,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 static int set_mixer_defaults(struct echoaudio *chip)
 {
 	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
-	chip->professional_spdif = FALSE;
-	chip->digital_in_automute = TRUE;
+	chip->professional_spdif = false;
+	chip->digital_in_automute = true;
 	return init_line_levels(chip);
 }
 
@@ -117,7 +116,6 @@ static int load_asic(struct echoaudio *chip)
 	if (chip->asic_loaded)
 		return 1;
 
-	DE_INIT(("load_asic\n"));
 
 	/* Give the DSP a few milliseconds to settle down */
 	mdelay(10);
@@ -137,7 +135,7 @@ static int load_asic(struct echoaudio *chip)
 	err = load_asic_generic(chip, DSP_FNC_LOAD_LAYLA24_EXTERNAL_ASIC,
 				FW_LAYLA24_2S_ASIC);
 	if (err < 0)
-		return FALSE;
+		return err;
 
 	/* Now give the external ASIC a little time to set up */
 	mdelay(10);
@@ -149,9 +147,8 @@ static int load_asic(struct echoaudio *chip)
 	   48 kHz, internal clock, S/PDIF RCA mode */
 	if (!err)
 		err = write_control_reg(chip, GML_CONVERTER_ENABLE | GML_48KHZ,
-					TRUE);
+					true);
 	
-	DE_INIT(("load_asic() done\n"));
 	return err;
 }
 
@@ -167,8 +164,8 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	/* Only set the clock for internal mode. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
-		DE_ACT(("set_sample_rate: Cannot set sample rate - "
-			"clock not set to CLK_CLOCKININTERNAL\n"));
+		dev_warn(chip->card->dev,
+			 "Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
 		/* Save the rate anyhow */
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
@@ -241,9 +238,10 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP ? */
 	chip->sample_rate = rate;
-	DE_ACT(("set_sample_rate: %d clock %d\n", rate, control_reg));
+	dev_dbg(chip->card->dev,
+		"set_sample_rate: %d clock %d\n", rate, control_reg);
 
-	return write_control_reg(chip, control_reg, FALSE);
+	return write_control_reg(chip, control_reg, false);
 }
 
 
@@ -260,7 +258,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 	/* Pick the new clock */
 	switch (clock) {
 	case ECHO_CLOCK_INTERNAL:
-		DE_ACT(("Set Layla24 clock to INTERNAL\n"));
 		chip->input_clock = ECHO_CLOCK_INTERNAL;
 		return set_sample_rate(chip, chip->sample_rate);
 	case ECHO_CLOCK_SPDIF:
@@ -269,7 +266,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		control_reg |= GML_SPDIF_CLOCK;
 		/* Layla24 doesn't support 96KHz S/PDIF */
 		control_reg &= ~GML_DOUBLE_SPEED_MODE;
-		DE_ACT(("Set Layla24 clock to SPDIF\n"));
 		break;
 	case ECHO_CLOCK_WORD:
 		control_reg |= GML_WORD_CLOCK;
@@ -277,22 +273,21 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 			control_reg |= GML_DOUBLE_SPEED_MODE;
 		else
 			control_reg &= ~GML_DOUBLE_SPEED_MODE;
-		DE_ACT(("Set Layla24 clock to WORD\n"));
 		break;
 	case ECHO_CLOCK_ADAT:
 		if (chip->digital_mode != DIGITAL_MODE_ADAT)
 			return -EAGAIN;
 		control_reg |= GML_ADAT_CLOCK;
 		control_reg &= ~GML_DOUBLE_SPEED_MODE;
-		DE_ACT(("Set Layla24 clock to ADAT\n"));
 		break;
 	default:
-		DE_ACT(("Input clock 0x%x not supported for Layla24\n", clock));
+		dev_err(chip->card->dev,
+			"Input clock 0x%x not supported for Layla24\n", clock);
 		return -EINVAL;
 	}
 
 	chip->input_clock = clock;
-	return write_control_reg(chip, control_reg, TRUE);
+	return write_control_reg(chip, control_reg, true);
 }
 
 
@@ -339,21 +334,22 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	short asic;
 
 	/* Set clock to "internal" if it's not compatible with the new mode */
-	incompatible_clock = FALSE;
+	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
 	case DIGITAL_MODE_SPDIF_RCA:
 		if (chip->input_clock == ECHO_CLOCK_ADAT)
-			incompatible_clock = TRUE;
+			incompatible_clock = true;
 		asic = FW_LAYLA24_2S_ASIC;
 		break;
 	case DIGITAL_MODE_ADAT:
 		if (chip->input_clock == ECHO_CLOCK_SPDIF)
-			incompatible_clock = TRUE;
+			incompatible_clock = true;
 		asic = FW_LAYLA24_2A_ASIC;
 		break;
 	default:
-		DE_ACT(("Digital mode not supported: %d\n", mode));
+		dev_err(chip->card->dev,
+			"Digital mode not supported: %d\n", mode);
 		return -EINVAL;
 	}
 
@@ -387,12 +383,12 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		break;
 	}
 
-	err = write_control_reg(chip, control_reg, TRUE);
+	err = write_control_reg(chip, control_reg, true);
 	spin_unlock_irq(&chip->lock);
 	if (err < 0)
 		return err;
 	chip->digital_mode = mode;
 
-	DE_ACT(("set_digital_mode to %d\n", mode));
+	dev_dbg(chip->card->dev, "set_digital_mode to %d\n", mode);
 	return incompatible_clock;
 }

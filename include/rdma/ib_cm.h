@@ -105,17 +105,20 @@ enum ib_cm_data_size {
 	IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE = 216,
 	IB_CM_SIDR_REP_PRIVATE_DATA_SIZE = 136,
 	IB_CM_SIDR_REP_INFO_LENGTH	 = 72,
-	IB_CM_COMPARE_SIZE		 = 64
 };
 
 struct ib_cm_id;
 
 struct ib_cm_req_event_param {
 	struct ib_cm_id		*listen_id;
+
+	/* P_Key that was used by the GMP's BTH header */
+	u16			bth_pkey;
+
 	u8			port;
 
-	struct ib_sa_path_rec	*primary_path;
-	struct ib_sa_path_rec	*alternate_path;
+	struct sa_path_rec	*primary_path;
+	struct sa_path_rec	*alternate_path;
 
 	__be64			remote_ca_guid;
 	u32			remote_qkey;
@@ -194,7 +197,7 @@ struct ib_cm_mra_event_param {
 };
 
 struct ib_cm_lap_event_param {
-	struct ib_sa_path_rec	*alternate_path;
+	struct sa_path_rec	*alternate_path;
 };
 
 enum ib_cm_apr_status {
@@ -222,6 +225,9 @@ struct ib_cm_apr_event_param {
 
 struct ib_cm_sidr_req_event_param {
 	struct ib_cm_id		*listen_id;
+	__be64			service_id;
+	/* P_Key that was used by the GMP's BTH header */
+	u16			bth_pkey;
 	u8			port;
 	u16			pkey;
 };
@@ -336,11 +342,6 @@ void ib_destroy_cm_id(struct ib_cm_id *cm_id);
 #define IB_SDP_SERVICE_ID	cpu_to_be64(0x0000000000010000ULL)
 #define IB_SDP_SERVICE_ID_MASK	cpu_to_be64(0xFFFFFFFFFFFF0000ULL)
 
-struct ib_cm_compare_data {
-	u8  data[IB_CM_COMPARE_SIZE];
-	u8  mask[IB_CM_COMPARE_SIZE];
-};
-
 /**
  * ib_cm_listen - Initiates listening on the specified service ID for
  *   connection and service ID resolution requests.
@@ -353,16 +354,17 @@ struct ib_cm_compare_data {
  *   range of service IDs.  If set to 0, the service ID is matched
  *   exactly.  This parameter is ignored if %service_id is set to
  *   IB_CM_ASSIGN_SERVICE_ID.
- * @compare_data: This parameter is optional.  It specifies data that must
- *   appear in the private data of a connection request for the specified
- *   listen request.
  */
-int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
-		 struct ib_cm_compare_data *compare_data);
+int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id,
+		 __be64 service_mask);
+
+struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
+				     ib_cm_handler cm_handler,
+				     __be64 service_id);
 
 struct ib_cm_req_param {
-	struct ib_sa_path_rec	*primary_path;
-	struct ib_sa_path_rec	*alternate_path;
+	struct sa_path_rec	*primary_path;
+	struct sa_path_rec	*alternate_path;
 	__be64			service_id;
 	u32			qp_num;
 	enum ib_qp_type		qp_type;
@@ -519,7 +521,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
  * @private_data_len: Size of the private data buffer, in bytes.
  */
 int ib_send_cm_lap(struct ib_cm_id *cm_id,
-		   struct ib_sa_path_rec *alternate_path,
+		   struct sa_path_rec *alternate_path,
 		   const void *private_data,
 		   u8 private_data_len);
 
@@ -563,7 +565,7 @@ int ib_send_cm_apr(struct ib_cm_id *cm_id,
 		   u8 private_data_len);
 
 struct ib_cm_sidr_req_param {
-	struct ib_sa_path_rec	*path;
+	struct sa_path_rec	*path;
 	__be64			service_id;
 	int			timeout_ms;
 	const void		*private_data;
@@ -600,5 +602,11 @@ struct ib_cm_sidr_rep_param {
  */
 int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 			struct ib_cm_sidr_rep_param *param);
+
+/**
+ * ibcm_reject_msg - return a pointer to a reject message string.
+ * @reason: Value returned in the REJECT event status field.
+ */
+const char *__attribute_const__ ibcm_reject_msg(int reason);
 
 #endif /* IB_CM_H */

@@ -18,7 +18,7 @@
 #include <linux/bootmem.h>
 
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
@@ -44,9 +44,6 @@ void __init paging_init(void)
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 	unsigned long size;
 
-#ifdef TEST_VERIFY_AREA
-	wp_works_ok = 0;
-#endif
 	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
 
 	address = PAGE_OFFSET;

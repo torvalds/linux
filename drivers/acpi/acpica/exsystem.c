@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,8 +77,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 
 		/* We must wait, so unlock the interpreter */
 
-		acpi_ex_relinquish_interpreter();
-
+		acpi_ex_exit_interpreter();
 		status = acpi_os_wait_semaphore(semaphore, 1, timeout);
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -87,7 +86,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 
 		/* Reacquire the interpreter */
 
-		acpi_ex_reacquire_interpreter();
+		acpi_ex_enter_interpreter();
 	}
 
 	return_ACPI_STATUS(status);
@@ -123,8 +122,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 
 		/* We must wait, so unlock the interpreter */
 
-		acpi_ex_relinquish_interpreter();
-
+		acpi_ex_exit_interpreter();
 		status = acpi_os_acquire_mutex(mutex, timeout);
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -133,7 +131,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 
 		/* Reacquire the interpreter */
 
-		acpi_ex_reacquire_interpreter();
+		acpi_ex_enter_interpreter();
 	}
 
 	return_ACPI_STATUS(status);
@@ -169,8 +167,8 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
 		 * (ACPI specifies 100 usec as max, but this gives some slack in
 		 * order to support existing BIOSs)
 		 */
-		ACPI_ERROR((AE_INFO, "Time parameter is too large (%u)",
-			    how_long));
+		ACPI_ERROR((AE_INFO,
+			    "Time parameter is too large (%u)", how_long));
 		status = AE_AML_OPERAND_VALUE;
 	} else {
 		acpi_os_stall(how_long);
@@ -198,7 +196,7 @@ acpi_status acpi_ex_system_do_sleep(u64 how_long)
 
 	/* Since this thread will sleep, we must release the interpreter */
 
-	acpi_ex_relinquish_interpreter();
+	acpi_ex_exit_interpreter();
 
 	/*
 	 * For compatibility with other ACPI implementations and to prevent
@@ -212,7 +210,7 @@ acpi_status acpi_ex_system_do_sleep(u64 how_long)
 
 	/* And now we must get the interpreter again */
 
-	acpi_ex_reacquire_interpreter();
+	acpi_ex_enter_interpreter();
 	return (AE_OK);
 }
 

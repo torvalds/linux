@@ -81,7 +81,7 @@
 	.endm
 
 /*
- * Do SMP slave processor setup necessary before we can savely execute C code.
+ * Do SMP slave processor setup necessary before we can safely execute C code.
  */
 	.macro	smp_slave_setup
 	GET_NASID_ASM	t1

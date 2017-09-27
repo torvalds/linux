@@ -17,8 +17,24 @@
 
 unsigned int vced_count, vcei_count;
 
+/*
+ *  * No lock; only written during early bootup by CPU 0.
+ *   */
+static RAW_NOTIFIER_HEAD(proc_cpuinfo_chain);
+
+int __ref register_proc_cpuinfo_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&proc_cpuinfo_chain, nb);
+}
+
+int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
+{
+	return raw_notifier_call_chain(&proc_cpuinfo_chain, val, v);
+}
+
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
+	struct proc_cpuinfo_notifier_args proc_cpuinfo_notifier_args;
 	unsigned long n = (unsigned long) v - 1;
 	unsigned int version = cpu_data[n].processor_id;
 	unsigned int fp_vers = cpu_data[n].fpu_id;
@@ -65,37 +81,48 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				cpu_data[n].watch_reg_masks[i]);
 		seq_printf(m, "]\n");
 	}
-	if (cpu_has_mips_r) {
-		seq_printf(m, "isa\t\t\t: mips1");
-		if (cpu_has_mips_2)
-			seq_printf(m, "%s", " mips2");
-		if (cpu_has_mips_3)
-			seq_printf(m, "%s", " mips3");
-		if (cpu_has_mips_4)
-			seq_printf(m, "%s", " mips4");
-		if (cpu_has_mips_5)
-			seq_printf(m, "%s", " mips5");
-		if (cpu_has_mips32r1)
-			seq_printf(m, "%s", " mips32r1");
-		if (cpu_has_mips32r2)
-			seq_printf(m, "%s", " mips32r2");
-		if (cpu_has_mips64r1)
-			seq_printf(m, "%s", " mips64r1");
-		if (cpu_has_mips64r2)
-			seq_printf(m, "%s", " mips64r2");
-		seq_printf(m, "\n");
-	}
+
+	seq_printf(m, "isa\t\t\t:"); 
+	if (cpu_has_mips_1)
+		seq_printf(m, " mips1");
+	if (cpu_has_mips_2)
+		seq_printf(m, "%s", " mips2");
+	if (cpu_has_mips_3)
+		seq_printf(m, "%s", " mips3");
+	if (cpu_has_mips_4)
+		seq_printf(m, "%s", " mips4");
+	if (cpu_has_mips_5)
+		seq_printf(m, "%s", " mips5");
+	if (cpu_has_mips32r1)
+		seq_printf(m, "%s", " mips32r1");
+	if (cpu_has_mips32r2)
+		seq_printf(m, "%s", " mips32r2");
+	if (cpu_has_mips32r6)
+		seq_printf(m, "%s", " mips32r6");
+	if (cpu_has_mips64r1)
+		seq_printf(m, "%s", " mips64r1");
+	if (cpu_has_mips64r2)
+		seq_printf(m, "%s", " mips64r2");
+	if (cpu_has_mips64r6)
+		seq_printf(m, "%s", " mips64r6");
+	seq_printf(m, "\n");
 
 	seq_printf(m, "ASEs implemented\t:");
 	if (cpu_has_mips16)	seq_printf(m, "%s", " mips16");
+	if (cpu_has_mips16e2)	seq_printf(m, "%s", " mips16e2");
 	if (cpu_has_mdmx)	seq_printf(m, "%s", " mdmx");
 	if (cpu_has_mips3d)	seq_printf(m, "%s", " mips3d");
 	if (cpu_has_smartmips)	seq_printf(m, "%s", " smartmips");
 	if (cpu_has_dsp)	seq_printf(m, "%s", " dsp");
 	if (cpu_has_dsp2)	seq_printf(m, "%s", " dsp2");
+	if (cpu_has_dsp3)	seq_printf(m, "%s", " dsp3");
 	if (cpu_has_mipsmt)	seq_printf(m, "%s", " mt");
 	if (cpu_has_mmips)	seq_printf(m, "%s", " micromips");
 	if (cpu_has_vz)		seq_printf(m, "%s", " vz");
+	if (cpu_has_msa)	seq_printf(m, "%s", " msa");
+	if (cpu_has_eva)	seq_printf(m, "%s", " eva");
+	if (cpu_has_htw)	seq_printf(m, "%s", " htw");
+	if (cpu_has_xpa)	seq_printf(m, "%s", " xpa");
 	seq_printf(m, "\n");
 
 	if (cpu_has_mmips) {
@@ -106,12 +133,27 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		      cpu_data[n].srsets);
 	seq_printf(m, "kscratch registers\t: %d\n",
 		      hweight8(cpu_data[n].kscratch_mask));
-	seq_printf(m, "core\t\t\t: %d\n", cpu_data[n].core);
+	seq_printf(m, "package\t\t\t: %d\n", cpu_data[n].package);
+	seq_printf(m, "core\t\t\t: %d\n", cpu_core(&cpu_data[n]));
+
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
+	if (cpu_has_mipsmt)
+		seq_printf(m, "VPE\t\t\t: %d\n", cpu_vpe_id(&cpu_data[n]));
+	else if (cpu_has_vp)
+		seq_printf(m, "VP\t\t\t: %d\n", cpu_vpe_id(&cpu_data[n]));
+#endif
 
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
 		      cpu_has_vce ? "%u" : "not available");
 	seq_printf(m, fmt, 'D', vced_count);
 	seq_printf(m, fmt, 'I', vcei_count);
+
+	proc_cpuinfo_notifier_args.m = m;
+	proc_cpuinfo_notifier_args.n = n;
+
+	raw_notifier_call_chain(&proc_cpuinfo_chain, 0,
+				&proc_cpuinfo_notifier_args);
+
 	seq_printf(m, "\n");
 
 	return 0;

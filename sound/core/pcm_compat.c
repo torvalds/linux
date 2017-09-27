@@ -27,17 +27,13 @@ static int snd_pcm_ioctl_delay_compat(struct snd_pcm_substream *substream,
 				      s32 __user *src)
 {
 	snd_pcm_sframes_t delay;
-	mm_segment_t fs;
-	int err;
 
-	fs = snd_enter_user();
-	err = snd_pcm_delay(substream, &delay);
-	snd_leave_user(fs);
-	if (err < 0)
-		return err;
+	delay = snd_pcm_delay(substream);
+	if (delay < 0)
+		return delay;
 	if (put_user(delay, src))
 		return -EFAULT;
-	return err;
+	return 0;
 }
 
 static int snd_pcm_ioctl_rewind_compat(struct snd_pcm_substream *substream,
@@ -101,7 +97,9 @@ struct snd_pcm_sw_params32 {
 	u32 silence_threshold;
 	u32 silence_size;
 	u32 boundary;
-	unsigned char reserved[64];
+	u32 proto;
+	u32 tstamp_type;
+	unsigned char reserved[56];
 };
 
 /* recalcuate the boundary within 32bit */
@@ -133,7 +131,9 @@ static int snd_pcm_ioctl_sw_params_compat(struct snd_pcm_substream *substream,
 	    get_user(params.start_threshold, &src->start_threshold) ||
 	    get_user(params.stop_threshold, &src->stop_threshold) ||
 	    get_user(params.silence_threshold, &src->silence_threshold) ||
-	    get_user(params.silence_size, &src->silence_size))
+	    get_user(params.silence_size, &src->silence_size) ||
+	    get_user(params.tstamp_type, &src->tstamp_type) ||
+	    get_user(params.proto, &src->proto))
 		return -EFAULT;
 	/*
 	 * Check silent_size parameter.  Since we have 64bit boundary,
@@ -179,6 +179,14 @@ static int snd_pcm_ioctl_channel_info_compat(struct snd_pcm_substream *substream
 	return err;
 }
 
+#ifdef CONFIG_X86_X32
+/* X32 ABI has the same struct as x86-64 for snd_pcm_channel_info */
+static int snd_pcm_channel_info_user(struct snd_pcm_substream *substream,
+				     struct snd_pcm_channel_info __user *src);
+#define snd_pcm_ioctl_channel_info_x32(s, p)	\
+	snd_pcm_channel_info_user(s, p)
+#endif /* CONFIG_X86_X32 */
+
 struct snd_pcm_status32 {
 	s32 state;
 	struct compat_timespec trigger_tstamp;
@@ -190,22 +198,36 @@ struct snd_pcm_status32 {
 	u32 avail_max;
 	u32 overrange;
 	s32 suspended_state;
-	u32 reserved_alignment;
+	u32 audio_tstamp_data;
 	struct compat_timespec audio_tstamp;
-	unsigned char reserved[56-sizeof(struct compat_timespec)];
+	struct compat_timespec driver_tstamp;
+	u32 audio_tstamp_accuracy;
+	unsigned char reserved[52-2*sizeof(struct compat_timespec)];
 } __attribute__((packed));
 
 
 static int snd_pcm_status_user_compat(struct snd_pcm_substream *substream,
-				      struct snd_pcm_status32 __user *src)
+				      struct snd_pcm_status32 __user *src,
+				      bool ext)
 {
 	struct snd_pcm_status status;
 	int err;
 
+	memset(&status, 0, sizeof(status));
+	/*
+	 * with extension, parameters are read/write,
+	 * get audio_tstamp_data from user,
+	 * ignore rest of status structure
+	 */
+	if (ext && get_user(status.audio_tstamp_data,
+				(u32 __user *)(&src->audio_tstamp_data)))
+		return -EFAULT;
 	err = snd_pcm_status(substream, &status);
 	if (err < 0)
 		return err;
 
+	if (clear_user(src, sizeof(*src)))
+		return -EFAULT;
 	if (put_user(status.state, &src->state) ||
 	    compat_put_timespec(&status.trigger_tstamp, &src->trigger_tstamp) ||
 	    compat_put_timespec(&status.tstamp, &src->tstamp) ||
@@ -216,11 +238,79 @@ static int snd_pcm_status_user_compat(struct snd_pcm_substream *substream,
 	    put_user(status.avail_max, &src->avail_max) ||
 	    put_user(status.overrange, &src->overrange) ||
 	    put_user(status.suspended_state, &src->suspended_state) ||
-	    compat_put_timespec(&status.audio_tstamp, &src->audio_tstamp))
+	    put_user(status.audio_tstamp_data, &src->audio_tstamp_data) ||
+	    compat_put_timespec(&status.audio_tstamp, &src->audio_tstamp) ||
+	    compat_put_timespec(&status.driver_tstamp, &src->driver_tstamp) ||
+	    put_user(status.audio_tstamp_accuracy, &src->audio_tstamp_accuracy))
 		return -EFAULT;
 
 	return err;
 }
+
+#ifdef CONFIG_X86_X32
+/* X32 ABI has 64bit timespec and 64bit alignment */
+struct snd_pcm_status_x32 {
+	s32 state;
+	u32 rsvd; /* alignment */
+	struct timespec trigger_tstamp;
+	struct timespec tstamp;
+	u32 appl_ptr;
+	u32 hw_ptr;
+	s32 delay;
+	u32 avail;
+	u32 avail_max;
+	u32 overrange;
+	s32 suspended_state;
+	u32 audio_tstamp_data;
+	struct timespec audio_tstamp;
+	struct timespec driver_tstamp;
+	u32 audio_tstamp_accuracy;
+	unsigned char reserved[52-2*sizeof(struct timespec)];
+} __packed;
+
+#define put_timespec(src, dst) copy_to_user(dst, src, sizeof(*dst))
+
+static int snd_pcm_status_user_x32(struct snd_pcm_substream *substream,
+				   struct snd_pcm_status_x32 __user *src,
+				   bool ext)
+{
+	struct snd_pcm_status status;
+	int err;
+
+	memset(&status, 0, sizeof(status));
+	/*
+	 * with extension, parameters are read/write,
+	 * get audio_tstamp_data from user,
+	 * ignore rest of status structure
+	 */
+	if (ext && get_user(status.audio_tstamp_data,
+				(u32 __user *)(&src->audio_tstamp_data)))
+		return -EFAULT;
+	err = snd_pcm_status(substream, &status);
+	if (err < 0)
+		return err;
+
+	if (clear_user(src, sizeof(*src)))
+		return -EFAULT;
+	if (put_user(status.state, &src->state) ||
+	    put_timespec(&status.trigger_tstamp, &src->trigger_tstamp) ||
+	    put_timespec(&status.tstamp, &src->tstamp) ||
+	    put_user(status.appl_ptr, &src->appl_ptr) ||
+	    put_user(status.hw_ptr, &src->hw_ptr) ||
+	    put_user(status.delay, &src->delay) ||
+	    put_user(status.avail, &src->avail) ||
+	    put_user(status.avail_max, &src->avail_max) ||
+	    put_user(status.overrange, &src->overrange) ||
+	    put_user(status.suspended_state, &src->suspended_state) ||
+	    put_user(status.audio_tstamp_data, &src->audio_tstamp_data) ||
+	    put_timespec(&status.audio_tstamp, &src->audio_tstamp) ||
+	    put_timespec(&status.driver_tstamp, &src->driver_tstamp) ||
+	    put_user(status.audio_tstamp_accuracy, &src->audio_tstamp_accuracy))
+		return -EFAULT;
+
+	return err;
+}
+#endif /* CONFIG_X86_X32 */
 
 /* both for HW_PARAMS and HW_REFINE */
 static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
@@ -234,10 +324,15 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 	if (! (runtime = substream->runtime))
 		return -ENOTTY;
 
-	/* only fifo_size is different, so just copy all */
-	data = memdup_user(data32, sizeof(*data32));
-	if (IS_ERR(data))
-		return PTR_ERR(data);
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	/* only fifo_size (RO from userspace) is different, so just copy all */
+	if (copy_from_user(data, data32, sizeof(*data32))) {
+		err = -EFAULT;
+		goto error;
+	}
 
 	if (refine)
 		err = snd_pcm_hw_refine(substream, data);
@@ -443,6 +538,93 @@ static int snd_pcm_ioctl_sync_ptr_compat(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+#ifdef CONFIG_X86_X32
+/* X32 ABI has 64bit timespec and 64bit alignment */
+struct snd_pcm_mmap_status_x32 {
+	s32 state;
+	s32 pad1;
+	u32 hw_ptr;
+	u32 pad2; /* alignment */
+	struct timespec tstamp;
+	s32 suspended_state;
+	struct timespec audio_tstamp;
+} __packed;
+
+struct snd_pcm_mmap_control_x32 {
+	u32 appl_ptr;
+	u32 avail_min;
+};
+
+struct snd_pcm_sync_ptr_x32 {
+	u32 flags;
+	u32 rsvd; /* alignment */
+	union {
+		struct snd_pcm_mmap_status_x32 status;
+		unsigned char reserved[64];
+	} s;
+	union {
+		struct snd_pcm_mmap_control_x32 control;
+		unsigned char reserved[64];
+	} c;
+} __packed;
+
+static int snd_pcm_ioctl_sync_ptr_x32(struct snd_pcm_substream *substream,
+				      struct snd_pcm_sync_ptr_x32 __user *src)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	volatile struct snd_pcm_mmap_status *status;
+	volatile struct snd_pcm_mmap_control *control;
+	u32 sflags;
+	struct snd_pcm_mmap_control scontrol;
+	struct snd_pcm_mmap_status sstatus;
+	snd_pcm_uframes_t boundary;
+	int err;
+
+	if (snd_BUG_ON(!runtime))
+		return -EINVAL;
+
+	if (get_user(sflags, &src->flags) ||
+	    get_user(scontrol.appl_ptr, &src->c.control.appl_ptr) ||
+	    get_user(scontrol.avail_min, &src->c.control.avail_min))
+		return -EFAULT;
+	if (sflags & SNDRV_PCM_SYNC_PTR_HWSYNC) {
+		err = snd_pcm_hwsync(substream);
+		if (err < 0)
+			return err;
+	}
+	status = runtime->status;
+	control = runtime->control;
+	boundary = recalculate_boundary(runtime);
+	if (!boundary)
+		boundary = 0x7fffffff;
+	snd_pcm_stream_lock_irq(substream);
+	/* FIXME: we should consider the boundary for the sync from app */
+	if (!(sflags & SNDRV_PCM_SYNC_PTR_APPL))
+		control->appl_ptr = scontrol.appl_ptr;
+	else
+		scontrol.appl_ptr = control->appl_ptr % boundary;
+	if (!(sflags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
+		control->avail_min = scontrol.avail_min;
+	else
+		scontrol.avail_min = control->avail_min;
+	sstatus.state = status->state;
+	sstatus.hw_ptr = status->hw_ptr % boundary;
+	sstatus.tstamp = status->tstamp;
+	sstatus.suspended_state = status->suspended_state;
+	sstatus.audio_tstamp = status->audio_tstamp;
+	snd_pcm_stream_unlock_irq(substream);
+	if (put_user(sstatus.state, &src->s.status.state) ||
+	    put_user(sstatus.hw_ptr, &src->s.status.hw_ptr) ||
+	    put_timespec(&sstatus.tstamp, &src->s.status.tstamp) ||
+	    put_user(sstatus.suspended_state, &src->s.status.suspended_state) ||
+	    put_timespec(&sstatus.audio_tstamp, &src->s.status.audio_tstamp) ||
+	    put_user(scontrol.appl_ptr, &src->c.control.appl_ptr) ||
+	    put_user(scontrol.avail_min, &src->c.control.avail_min))
+		return -EFAULT;
+
+	return 0;
+}
+#endif /* CONFIG_X86_X32 */
 
 /*
  */
@@ -451,6 +633,7 @@ enum {
 	SNDRV_PCM_IOCTL_HW_PARAMS32 = _IOWR('A', 0x11, struct snd_pcm_hw_params32),
 	SNDRV_PCM_IOCTL_SW_PARAMS32 = _IOWR('A', 0x13, struct snd_pcm_sw_params32),
 	SNDRV_PCM_IOCTL_STATUS32 = _IOR('A', 0x20, struct snd_pcm_status32),
+	SNDRV_PCM_IOCTL_STATUS_EXT32 = _IOWR('A', 0x24, struct snd_pcm_status32),
 	SNDRV_PCM_IOCTL_DELAY32 = _IOR('A', 0x21, s32),
 	SNDRV_PCM_IOCTL_CHANNEL_INFO32 = _IOR('A', 0x32, struct snd_pcm_channel_info32),
 	SNDRV_PCM_IOCTL_REWIND32 = _IOW('A', 0x46, u32),
@@ -460,7 +643,12 @@ enum {
 	SNDRV_PCM_IOCTL_WRITEN_FRAMES32 = _IOW('A', 0x52, struct snd_xfern32),
 	SNDRV_PCM_IOCTL_READN_FRAMES32 = _IOR('A', 0x53, struct snd_xfern32),
 	SNDRV_PCM_IOCTL_SYNC_PTR32 = _IOWR('A', 0x23, struct snd_pcm_sync_ptr32),
-
+#ifdef CONFIG_X86_X32
+	SNDRV_PCM_IOCTL_CHANNEL_INFO_X32 = _IOR('A', 0x32, struct snd_pcm_channel_info),
+	SNDRV_PCM_IOCTL_STATUS_X32 = _IOR('A', 0x20, struct snd_pcm_status_x32),
+	SNDRV_PCM_IOCTL_STATUS_EXT_X32 = _IOWR('A', 0x24, struct snd_pcm_status_x32),
+	SNDRV_PCM_IOCTL_SYNC_PTR_X32 = _IOWR('A', 0x23, struct snd_pcm_sync_ptr_x32),
+#endif /* CONFIG_X86_X32 */
 };
 
 static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
@@ -488,6 +676,7 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_PCM_IOCTL_INFO:
 	case SNDRV_PCM_IOCTL_TSTAMP:
 	case SNDRV_PCM_IOCTL_TTSTAMP:
+	case SNDRV_PCM_IOCTL_USER_PVERSION:
 	case SNDRV_PCM_IOCTL_HWSYNC:
 	case SNDRV_PCM_IOCTL_PREPARE:
 	case SNDRV_PCM_IOCTL_RESET:
@@ -500,10 +689,7 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_PCM_IOCTL_XRUN:
 	case SNDRV_PCM_IOCTL_LINK:
 	case SNDRV_PCM_IOCTL_UNLINK:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			return snd_pcm_playback_ioctl1(file, substream, cmd, argp);
-		else
-			return snd_pcm_capture_ioctl1(file, substream, cmd, argp);
+		return snd_pcm_common_ioctl(file, substream, cmd, argp);
 	case SNDRV_PCM_IOCTL_HW_REFINE32:
 		return snd_pcm_ioctl_hw_params_compat(substream, 1, argp);
 	case SNDRV_PCM_IOCTL_HW_PARAMS32:
@@ -511,7 +697,9 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_PCM_IOCTL_SW_PARAMS32:
 		return snd_pcm_ioctl_sw_params_compat(substream, argp);
 	case SNDRV_PCM_IOCTL_STATUS32:
-		return snd_pcm_status_user_compat(substream, argp);
+		return snd_pcm_status_user_compat(substream, argp, false);
+	case SNDRV_PCM_IOCTL_STATUS_EXT32:
+		return snd_pcm_status_user_compat(substream, argp, true);
 	case SNDRV_PCM_IOCTL_SYNC_PTR32:
 		return snd_pcm_ioctl_sync_ptr_compat(substream, argp);
 	case SNDRV_PCM_IOCTL_CHANNEL_INFO32:
@@ -530,6 +718,16 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 		return snd_pcm_ioctl_rewind_compat(substream, argp);
 	case SNDRV_PCM_IOCTL_FORWARD32:
 		return snd_pcm_ioctl_forward_compat(substream, argp);
+#ifdef CONFIG_X86_X32
+	case SNDRV_PCM_IOCTL_STATUS_X32:
+		return snd_pcm_status_user_x32(substream, argp, false);
+	case SNDRV_PCM_IOCTL_STATUS_EXT_X32:
+		return snd_pcm_status_user_x32(substream, argp, true);
+	case SNDRV_PCM_IOCTL_SYNC_PTR_X32:
+		return snd_pcm_ioctl_sync_ptr_x32(substream, argp);
+	case SNDRV_PCM_IOCTL_CHANNEL_INFO_X32:
+		return snd_pcm_ioctl_channel_info_x32(substream, argp);
+#endif /* CONFIG_X86_X32 */
 	}
 
 	return -ENOIOCTLCMD;

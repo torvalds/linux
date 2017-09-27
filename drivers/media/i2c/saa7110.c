@@ -19,10 +19,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -31,7 +27,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
@@ -357,18 +353,8 @@ static const struct v4l2_ctrl_ops saa7110_ctrl_ops = {
 	.s_ctrl = saa7110_s_ctrl,
 };
 
-static const struct v4l2_subdev_core_ops saa7110_core_ops = {
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
-	.s_std = saa7110_s_std,
-};
-
 static const struct v4l2_subdev_video_ops saa7110_video_ops = {
+	.s_std = saa7110_s_std,
 	.s_routing = saa7110_s_routing,
 	.s_stream = saa7110_s_stream,
 	.querystd = saa7110_querystd,
@@ -376,7 +362,6 @@ static const struct v4l2_subdev_video_ops saa7110_video_ops = {
 };
 
 static const struct v4l2_subdev_ops saa7110_ops = {
-	.core = &saa7110_core_ops,
 	.video = &saa7110_video_ops,
 };
 
@@ -472,7 +457,6 @@ MODULE_DEVICE_TABLE(i2c, saa7110_id);
 
 static struct i2c_driver saa7110_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "saa7110",
 	},
 	.probe		= saa7110_probe,

@@ -1,6 +1,7 @@
 /*
  * Copyright 2002-2004, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
+ * Copyright (C) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -142,15 +143,14 @@ static void tkip_mixing_phase2(const u8 *tk, struct tkip_ctx *ctx,
 /* Add TKIP IV and Ext. IV at @pos. @iv0, @iv1, and @iv2 are the first octets
  * of the IV. Returns pointer to the octet following IVs (i.e., beginning of
  * the packet payload). */
-u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key)
+u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key_conf *keyconf, u64 pn)
 {
-	lockdep_assert_held(&key->u.tkip.txlock);
-
-	pos = write_tkip_iv(pos, key->u.tkip.tx.iv16);
-	*pos++ = (key->conf.keyidx << 6) | (1 << 5) /* Ext IV */;
-	put_unaligned_le32(key->u.tkip.tx.iv32, pos);
+	pos = write_tkip_iv(pos, TKIP_PN_TO_IV16(pn));
+	*pos++ = (keyconf->keyidx << 6) | (1 << 5) /* Ext IV */;
+	put_unaligned_le32(TKIP_PN_TO_IV32(pn), pos);
 	return pos + 4;
 }
+EXPORT_SYMBOL_GPL(ieee80211_tkip_add_iv);
 
 static void ieee80211_compute_tkip_p1k(struct ieee80211_key *key, u32 iv32)
 {
@@ -186,7 +186,7 @@ void ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *keyconf,
 EXPORT_SYMBOL(ieee80211_get_tkip_p1k_iv);
 
 void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
-                               const u8 *ta, u32 iv32, u16 *p1k)
+			       const u8 *ta, u32 iv32, u16 *p1k)
 {
 	const u8 *tk = &keyconf->key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 	struct tkip_ctx ctx;
@@ -250,6 +250,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 	u8 rc4key[16], keyid, *pos = payload;
 	int res;
 	const u8 *tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
+	struct tkip_ctx_rx *rx_ctx = &key->u.tkip.rx[queue];
 
 	if (payload_len < 12)
 		return -1;
@@ -265,37 +266,36 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 	if ((keyid >> 6) != key->conf.keyidx)
 		return TKIP_DECRYPT_INVALID_KEYIDX;
 
-	if (key->u.tkip.rx[queue].state != TKIP_STATE_NOT_INIT &&
-	    (iv32 < key->u.tkip.rx[queue].iv32 ||
-	     (iv32 == key->u.tkip.rx[queue].iv32 &&
-	      iv16 <= key->u.tkip.rx[queue].iv16)))
+	if (rx_ctx->ctx.state != TKIP_STATE_NOT_INIT &&
+	    (iv32 < rx_ctx->iv32 ||
+	     (iv32 == rx_ctx->iv32 && iv16 <= rx_ctx->iv16)))
 		return TKIP_DECRYPT_REPLAY;
 
 	if (only_iv) {
 		res = TKIP_DECRYPT_OK;
-		key->u.tkip.rx[queue].state = TKIP_STATE_PHASE1_HW_UPLOADED;
+		rx_ctx->ctx.state = TKIP_STATE_PHASE1_HW_UPLOADED;
 		goto done;
 	}
 
-	if (key->u.tkip.rx[queue].state == TKIP_STATE_NOT_INIT ||
-	    key->u.tkip.rx[queue].iv32 != iv32) {
+	if (rx_ctx->ctx.state == TKIP_STATE_NOT_INIT ||
+	    rx_ctx->iv32 != iv32) {
 		/* IV16 wrapped around - perform TKIP phase 1 */
-		tkip_mixing_phase1(tk, &key->u.tkip.rx[queue], ta, iv32);
+		tkip_mixing_phase1(tk, &rx_ctx->ctx, ta, iv32);
 	}
 	if (key->local->ops->update_tkip_key &&
 	    key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
-	    key->u.tkip.rx[queue].state != TKIP_STATE_PHASE1_HW_UPLOADED) {
+	    rx_ctx->ctx.state != TKIP_STATE_PHASE1_HW_UPLOADED) {
 		struct ieee80211_sub_if_data *sdata = key->sdata;
 
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			sdata = container_of(key->sdata->bss,
 					struct ieee80211_sub_if_data, u.ap);
 		drv_update_tkip_key(key->local, sdata, &key->conf, key->sta,
-				iv32, key->u.tkip.rx[queue].p1k);
-		key->u.tkip.rx[queue].state = TKIP_STATE_PHASE1_HW_UPLOADED;
+				iv32, rx_ctx->ctx.p1k);
+		rx_ctx->ctx.state = TKIP_STATE_PHASE1_HW_UPLOADED;
 	}
 
-	tkip_mixing_phase2(tk, &key->u.tkip.rx[queue], iv16, rc4key);
+	tkip_mixing_phase2(tk, &rx_ctx->ctx, iv16, rc4key);
 
 	res = ieee80211_wep_decrypt_data(tfm, rc4key, 16, pos, payload_len - 12);
  done:

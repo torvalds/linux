@@ -27,7 +27,7 @@ FMC_PARAM_BUSID(fwe_drv);
 /* The "file=" is like the generic "gateware=" used elsewhere */
 static char *fwe_file[FMC_MAX_CARDS];
 static int fwe_file_n;
-module_param_array_named(file, fwe_file, charp, &fwe_file_n, 444);
+module_param_array_named(file, fwe_file, charp, &fwe_file_n, 0444);
 
 static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
 	int write)
@@ -50,7 +50,7 @@ static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
 		if (write) {
 			dev_info(&fmc->dev, "write %i bytes at 0x%04x\n",
 				 thislen, thisaddr);
-			err = fmc->op->write_ee(fmc, thisaddr, p + 5, thislen);
+			err = fmc_write_ee(fmc, thisaddr, p + 5, thislen);
 		}
 		if (err < 0) {
 			dev_err(&fmc->dev, "write failure @0x%04x\n",
@@ -70,7 +70,7 @@ static int fwe_run_bin(struct fmc_device *fmc, const struct firmware *fw)
 	int ret;
 
 	dev_info(&fmc->dev, "programming %zi bytes\n", fw->size);
-	ret = fmc->op->write_ee(fmc, 0, (void *)fw->data, fw->size);
+	ret = fmc_write_ee(fmc, 0, (void *)fw->data, fw->size);
 	if (ret < 0) {
 		dev_info(&fmc->dev, "write_eeprom: error %i\n", ret);
 		return ret;
@@ -103,7 +103,7 @@ static int fwe_run(struct fmc_device *fmc, const struct firmware *fw, char *s)
  * difficult to know in advance when probing the first card if others
  * are there.
  */
-int fwe_probe(struct fmc_device *fmc)
+static int fwe_probe(struct fmc_device *fmc)
 {
 	int err, index = 0;
 	const struct firmware *fw;
@@ -115,8 +115,8 @@ int fwe_probe(struct fmc_device *fmc)
 			KBUILD_MODNAME);
 		return -ENODEV;
 	}
-	if (fmc->op->validate)
-		index = fmc->op->validate(fmc, &fwe_drv);
+
+	index = fmc_validate(fmc, &fwe_drv);
 	if (index < 0) {
 		pr_err("%s: refusing device \"%s\"\n", KBUILD_MODNAME,
 		       dev_name(dev));
@@ -144,7 +144,7 @@ int fwe_probe(struct fmc_device *fmc)
 	return 0;
 }
 
-int fwe_remove(struct fmc_device *fmc)
+static int fwe_remove(struct fmc_device *fmc)
 {
 	return 0;
 }

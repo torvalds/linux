@@ -32,9 +32,9 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 
 /*-------------------------------------------------------------------------*/
@@ -242,8 +242,8 @@ static int dbg_show(struct seq_file *s, void *_)
 	seq_printf(s, "mask2     %s\n", buf);
 	/* ignore ackint2 */
 
-	schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
-
+	queue_delayed_work(system_power_efficient_wq, &tps->work,
+			   POWER_POLL_DELAY);
 
 	/* VMAIN voltage, enable lowpower, etc */
 	value = i2c_smbus_read_byte_data(tps->client, TPS_VDCDC1);
@@ -400,7 +400,8 @@ static void tps65010_interrupt(struct tps65010 *tps)
 			&& (tps->chgstatus & (TPS_CHG_USB|TPS_CHG_AC)))
 		poll = 1;
 	if (poll)
-		schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
+		queue_delayed_work(system_power_efficient_wq, &tps->work,
+				   POWER_POLL_DELAY);
 
 	/* also potentially gpio-in rise or fall */
 }
@@ -448,7 +449,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 	disable_irq_nosync(irq);
 	set_bit(FLAG_IRQ_ENABLE, &tps->flags);
-	schedule_delayed_work(&tps->work, 0);
+	queue_delayed_work(system_power_efficient_wq, &tps->work, 0);
 	return IRQ_HANDLED;
 }
 
@@ -476,7 +477,7 @@ tps65010_output(struct gpio_chip *chip, unsigned offset, int value)
 	if (offset < 4) {
 		struct tps65010		*tps;
 
-		tps = container_of(chip, struct tps65010, chip);
+		tps = gpiochip_get_data(chip);
 		if (!(tps->outmask & (1 << offset)))
 			return -EINVAL;
 		tps65010_set_gpio_out_value(offset + 1, value);
@@ -493,16 +494,16 @@ static int tps65010_gpio_get(struct gpio_chip *chip, unsigned offset)
 	int			value;
 	struct tps65010		*tps;
 
-	tps = container_of(chip, struct tps65010, chip);
+	tps = gpiochip_get_data(chip);
 
 	if (offset < 4) {
 		value = i2c_smbus_read_byte_data(tps->client, TPS_DEFGPIO);
 		if (value < 0)
-			return 0;
+			return value;
 		if (value & (1 << (offset + 4)))	/* output */
 			return !(value & (1 << offset));
 		else					/* input */
-			return (value & (1 << offset));
+			return !!(value & (1 << offset));
 	}
 
 	/* REVISIT we *could* report LED1/nPG and LED2 state ... */
@@ -514,10 +515,10 @@ static int tps65010_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static struct tps65010 *the_tps;
 
-static int __exit tps65010_remove(struct i2c_client *client)
+static int tps65010_remove(struct i2c_client *client)
 {
 	struct tps65010		*tps = i2c_get_clientdata(client);
-	struct tps65010_board	*board = client->dev.platform_data;
+	struct tps65010_board	*board = dev_get_platdata(&client->dev);
 
 	if (board && board->teardown) {
 		int status = board->teardown(client, board->context);
@@ -529,7 +530,6 @@ static int __exit tps65010_remove(struct i2c_client *client)
 		free_irq(client->irq, tps);
 	cancel_delayed_work_sync(&tps->work);
 	debugfs_remove(tps->file);
-	kfree(tps);
 	the_tps = NULL;
 	return 0;
 }
@@ -539,7 +539,7 @@ static int tps65010_probe(struct i2c_client *client,
 {
 	struct tps65010		*tps;
 	int			status;
-	struct tps65010_board	*board = client->dev.platform_data;
+	struct tps65010_board	*board = dev_get_platdata(&client->dev);
 
 	if (the_tps) {
 		dev_dbg(&client->dev, "only one tps6501x chip allowed\n");
@@ -549,7 +549,7 @@ static int tps65010_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EINVAL;
 
-	tps = kzalloc(sizeof *tps, GFP_KERNEL);
+	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
 
@@ -567,7 +567,7 @@ static int tps65010_probe(struct i2c_client *client,
 		if (status < 0) {
 			dev_dbg(&client->dev, "can't get IRQ %d, err %d\n",
 					client->irq, status);
-			goto fail1;
+			return status;
 		}
 		/* annoying race here, ideally we'd have an option
 		 * to claim the irq now and enable it later.
@@ -638,7 +638,7 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->outmask = board->outmask;
 
 		tps->chip.label = client->name;
-		tps->chip.dev = &client->dev;
+		tps->chip.parent = &client->dev;
 		tps->chip.owner = THIS_MODULE;
 
 		tps->chip.set = tps65010_gpio_set;
@@ -651,7 +651,7 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->chip.ngpio = 7;
 		tps->chip.can_sleep = 1;
 
-		status = gpiochip_add(&tps->chip);
+		status = gpiochip_add_data(&tps->chip, tps);
 		if (status < 0)
 			dev_err(&client->dev, "can't add gpiochip, err %d\n",
 					status);
@@ -667,9 +667,6 @@ static int tps65010_probe(struct i2c_client *client,
 	}
 
 	return 0;
-fail1:
-	kfree(tps);
-	return status;
 }
 
 static const struct i2c_device_id tps65010_id[] = {
@@ -687,7 +684,7 @@ static struct i2c_driver tps65010_driver = {
 		.name	= "tps65010",
 	},
 	.probe	= tps65010_probe,
-	.remove	= __exit_p(tps65010_remove),
+	.remove	= tps65010_remove,
 	.id_table = tps65010_id,
 };
 
@@ -718,7 +715,8 @@ int tps65010_set_vbus_draw(unsigned mA)
 			&& test_and_set_bit(
 				FLAG_VBUS_CHANGED, &the_tps->flags)) {
 		/* gadget drivers call this in_irq() */
-		schedule_delayed_work(&the_tps->work, 0);
+		queue_delayed_work(system_power_efficient_wq, &the_tps->work,
+				   0);
 	}
 	local_irq_restore(flags);
 
@@ -1061,26 +1059,7 @@ EXPORT_SYMBOL(tps65013_set_low_pwr);
 
 static int __init tps_init(void)
 {
-	u32	tries = 3;
-	int	status = -ENODEV;
-
-	printk(KERN_INFO "%s: version %s\n", DRIVER_NAME, DRIVER_VERSION);
-
-	/* some boards have startup glitches */
-	while (tries--) {
-		status = i2c_add_driver(&tps65010_driver);
-		if (the_tps)
-			break;
-		i2c_del_driver(&tps65010_driver);
-		if (!tries) {
-			printk(KERN_ERR "%s: no chip?\n", DRIVER_NAME);
-			return -ENODEV;
-		}
-		pr_debug("%s: re-probe ...\n", DRIVER_NAME);
-		msleep(10);
-	}
-
-	return status;
+	return i2c_add_driver(&tps65010_driver);
 }
 /* NOTE:  this MUST be initialized before the other parts of the system
  * that rely on it ... but after the i2c bus on which this relies.

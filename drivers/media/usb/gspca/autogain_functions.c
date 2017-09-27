@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "gspca.h"
 
@@ -121,9 +117,9 @@ int gspca_coarse_grained_expo_autogain(
 	orig_gain = gain = v4l2_ctrl_g_ctrl(gspca_dev->gain);
 	orig_exposure = exposure = v4l2_ctrl_g_ctrl(gspca_dev->exposure);
 
-	gain_low  = (gspca_dev->gain->maximum - gspca_dev->gain->minimum) /
+	gain_low  = (s32)(gspca_dev->gain->maximum - gspca_dev->gain->minimum) /
 		    5 * 2 + gspca_dev->gain->minimum;
-	gain_high = (gspca_dev->gain->maximum - gspca_dev->gain->minimum) /
+	gain_high = (s32)(gspca_dev->gain->maximum - gspca_dev->gain->minimum) /
 		    5 * 4 + gspca_dev->gain->minimum;
 
 	/* If we are of a multiple of deadzone, do multiple steps to reach the

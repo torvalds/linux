@@ -36,7 +36,7 @@ Supported chips:
     Datasheet: Available from Nuvoton upon request
 
 Authors:
-        Jean Delvare <khali@linux-fr.org>
+        Jean Delvare <jdelvare@suse.de>
         Yuan Mu (Winbond)
         Rudolf Marek <r.marek@assembler.cz>
         David Hubbard <david.c.hubbard@gmail.com>

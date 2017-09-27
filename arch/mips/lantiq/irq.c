@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- * Copyright (C) 2010 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2010 John Crispin <john@phrozen.org>
  * Copyright (C) 2010 Thomas Langer <thomas.langer@lantiq.com>
  */
 
@@ -61,20 +61,17 @@
 /* we have a cascade of 8 irqs */
 #define MIPS_CPU_IRQ_CASCADE		8
 
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
-int gic_present;
-#endif
-
 static int exin_avail;
-static struct resource ltq_eiu_irq[MAX_EIU];
+static u32 ltq_eiu_irq[MAX_EIU];
 static void __iomem *ltq_icu_membase[MAX_IM];
 static void __iomem *ltq_eiu_membase;
 static struct irq_domain *ltq_domain;
+static int ltq_perfcount_irq;
 
 int ltq_eiu_get_irq(int exin)
 {
 	if (exin < exin_avail)
-		return ltq_eiu_irq[exin].start;
+		return ltq_eiu_irq[exin];
 	return -1;
 }
 
@@ -124,8 +121,8 @@ static int ltq_eiu_settype(struct irq_data *d, unsigned int type)
 {
 	int i;
 
-	for (i = 0; i < MAX_EIU; i++) {
-		if (d->hwirq == ltq_eiu_irq[i].start) {
+	for (i = 0; i < exin_avail; i++) {
+		if (d->hwirq == ltq_eiu_irq[i]) {
 			int val = 0;
 			int edge = 0;
 
@@ -172,8 +169,8 @@ static unsigned int ltq_startup_eiu_irq(struct irq_data *d)
 	int i;
 
 	ltq_enable_irq(d);
-	for (i = 0; i < MAX_EIU; i++) {
-		if (d->hwirq == ltq_eiu_irq[i].start) {
+	for (i = 0; i < exin_avail; i++) {
+		if (d->hwirq == ltq_eiu_irq[i]) {
 			/* by default we are low level triggered */
 			ltq_eiu_settype(d, IRQF_TRIGGER_LOW);
 			/* clear all pending */
@@ -194,8 +191,8 @@ static void ltq_shutdown_eiu_irq(struct irq_data *d)
 	int i;
 
 	ltq_disable_irq(d);
-	for (i = 0; i < MAX_EIU; i++) {
-		if (d->hwirq == ltq_eiu_irq[i].start) {
+	for (i = 0; i < exin_avail; i++) {
+		if (d->hwirq == ltq_eiu_irq[i]) {
 			/* disable */
 			ltq_eiu_w32(ltq_eiu_r32(LTQ_EIU_EXIN_INEN) & ~BIT(i),
 				LTQ_EIU_EXIN_INEN);
@@ -205,7 +202,7 @@ static void ltq_shutdown_eiu_irq(struct irq_data *d)
 }
 
 static struct irq_chip ltq_irq_type = {
-	"icu",
+	.name = "icu",
 	.irq_enable = ltq_enable_irq,
 	.irq_disable = ltq_disable_irq,
 	.irq_unmask = ltq_enable_irq,
@@ -215,7 +212,7 @@ static struct irq_chip ltq_irq_type = {
 };
 
 static struct irq_chip ltq_eiu_type = {
-	"eiu",
+	.name = "eiu",
 	.irq_startup = ltq_startup_eiu_irq,
 	.irq_shutdown = ltq_shutdown_eiu_irq,
 	.irq_enable = ltq_enable_irq,
@@ -268,67 +265,27 @@ static void ltq_hw5_irqdispatch(void)
 DEFINE_HWx_IRQDISPATCH(5)
 #endif
 
-#ifdef CONFIG_MIPS_MT_SMP
-void __init arch_init_ipiirq(int irq, struct irqaction *action)
+static void ltq_hw_irq_handler(struct irq_desc *desc)
 {
-	setup_irq(irq, action);
-	irq_set_handler(irq, handle_percpu_irq);
+	ltq_hw_irqdispatch(irq_desc_get_irq(desc) - 2);
 }
-
-static void ltq_sw0_irqdispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
-}
-
-static void ltq_sw1_irqdispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
-}
-static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
-{
-	scheduler_ipi();
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
-{
-	smp_call_function_interrupt();
-	return IRQ_HANDLED;
-}
-
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_call"
-};
-#endif
 
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
-	unsigned int i;
+	int irq;
 
-	if ((MIPS_CPU_TIMER_IRQ == 7) && (pending & CAUSEF_IP7)) {
-		do_IRQ(MIPS_CPU_TIMER_IRQ);
-		goto out;
-	} else {
-		for (i = 0; i < MAX_IM; i++) {
-			if (pending & (CAUSEF_IP2 << i)) {
-				ltq_hw_irqdispatch(i);
-				goto out;
-			}
-		}
+	if (!pending) {
+		spurious_interrupt();
+		return;
 	}
-	pr_alert("Spurious IRQ: CAUSE=0x%08x\n", read_c0_status());
 
-out:
-	return;
+	pending >>= CAUSEB_IP;
+	while (pending) {
+		irq = fls(pending) - 1;
+		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
+		pending &= ~BIT(irq);
+	}
 }
 
 static int icu_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
@@ -340,10 +297,10 @@ static int icu_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 		return 0;
 
 	for (i = 0; i < exin_avail; i++)
-		if (hw == ltq_eiu_irq[i].start)
+		if (hw == ltq_eiu_irq[i])
 			chip = &ltq_eiu_type;
 
-	irq_set_chip_and_handler(hw, chip, handle_level_irq);
+	irq_set_chip_and_handler(irq, chip, handle_level_irq);
 
 	return 0;
 }
@@ -351,11 +308,6 @@ static int icu_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 static const struct irq_domain_ops irq_domain_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 	.map = icu_map,
-};
-
-static struct irqaction cascade = {
-	.handler = no_action,
-	.name = "cascade",
 };
 
 int __init icu_of_init(struct device_node *node, struct device_node *parent)
@@ -368,38 +320,14 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		if (of_address_to_resource(node, i, &res))
 			panic("Failed to get icu memory range");
 
-		if (request_mem_region(res.start, resource_size(&res),
-					res.name) < 0)
+		if (!request_mem_region(res.start, resource_size(&res),
+					res.name))
 			pr_err("Failed to request icu memory");
 
 		ltq_icu_membase[i] = ioremap_nocache(res.start,
 					resource_size(&res));
 		if (!ltq_icu_membase[i])
 			panic("Failed to remap icu memory");
-	}
-
-	/* the external interrupts are optional and xway only */
-	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu-xway");
-	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
-		/* find out how many external irq sources we have */
-		exin_avail = of_irq_count(eiu_node);
-
-		if (exin_avail > MAX_EIU)
-			exin_avail = MAX_EIU;
-
-		ret = of_irq_to_resource_table(eiu_node,
-						ltq_eiu_irq, exin_avail);
-		if (ret != exin_avail)
-			panic("failed to load external irq resources\n");
-
-		if (request_mem_region(res.start, resource_size(&res),
-							res.name) < 0)
-			pr_err("Failed to request eiu memory");
-
-		ltq_eiu_membase = ioremap_nocache(res.start,
-							resource_size(&res));
-		if (!ltq_eiu_membase)
-			panic("Failed to remap eiu memory");
 	}
 
 	/* turn off all irqs by default */
@@ -413,7 +341,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	mips_cpu_irq_init();
 
 	for (i = 0; i < MAX_IM; i++)
-		setup_irq(i + 2, &cascade);
+		irq_set_chained_handler(i + 2, ltq_hw_irq_handler);
 
 	if (cpu_has_vint) {
 		pr_info("Setting up vectored interrupts\n");
@@ -429,18 +357,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		(MAX_IM * INT_NUM_IM_OFFSET) + MIPS_CPU_IRQ_CASCADE,
 		&irq_domain_ops, 0);
 
-#if defined(CONFIG_MIPS_MT_SMP)
-	if (cpu_has_vint) {
-		pr_info("Setting up IPI vectored interrupts\n");
-		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ltq_sw0_irqdispatch);
-		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ltq_sw1_irqdispatch);
-	}
-	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ,
-		&irq_resched);
-	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ, &irq_call);
-#endif
-
-#if !defined(CONFIG_MIPS_MT_SMP) && !defined(CONFIG_MIPS_MT_SMTC)
+#ifndef CONFIG_MIPS_MT_SMP
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 |
 		IE_IRQ3 | IE_IRQ4 | IE_IRQ5);
 #else
@@ -449,7 +366,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 #endif
 
 	/* tell oprofile which irq to use */
-	cp0_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);
+	ltq_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);
 
 	/*
 	 * if the timer irq is not one of the mips irqs we need to
@@ -458,8 +375,39 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	if (MIPS_CPU_TIMER_IRQ != 7)
 		irq_create_mapping(ltq_domain, MIPS_CPU_TIMER_IRQ);
 
+	/* the external interrupts are optional and xway only */
+	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu-xway");
+	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
+		/* find out how many external irq sources we have */
+		exin_avail = of_property_count_u32_elems(eiu_node,
+							 "lantiq,eiu-irqs");
+
+		if (exin_avail > MAX_EIU)
+			exin_avail = MAX_EIU;
+
+		ret = of_property_read_u32_array(eiu_node, "lantiq,eiu-irqs",
+						ltq_eiu_irq, exin_avail);
+		if (ret)
+			panic("failed to load external irq resources");
+
+		if (!request_mem_region(res.start, resource_size(&res),
+							res.name))
+			pr_err("Failed to request eiu memory");
+
+		ltq_eiu_membase = ioremap_nocache(res.start,
+							resource_size(&res));
+		if (!ltq_eiu_membase)
+			panic("Failed to remap eiu memory");
+	}
+
 	return 0;
 }
+
+int get_c0_perfcount_int(void)
+{
+	return ltq_perfcount_irq;
+}
+EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
 unsigned int get_c0_compare_int(void)
 {

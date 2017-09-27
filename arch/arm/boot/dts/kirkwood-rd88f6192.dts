@@ -1,0 +1,109 @@
+/*
+ * Marvell RD88F6192 Board descrition
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * This file contains the definitions that are common between the three
+ * variants of the Marvell Kirkwood Development Board.
+ */
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6192.dtsi"
+
+/ {
+	model = "Marvell RD88F6192 reference design";
+	compatible = "marvell,rd88f6192", "marvell,kirkwood-88f6192", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pinctrl-0 = <&pmx_usb_power>;
+			pinctrl-names = "default";
+
+                        pmx_usb_power: pmx-usb-power {
+                                marvell,pins = "mpp10";
+                                marvell,function = "gpo";
+                        };
+		};
+
+		serial@12000 {
+			status = "okay";
+
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			m25p128@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "st,m25p128", "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				mode = <0>;
+			};
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+	};
+
+	regulators {
+                compatible = "simple-bus";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                pinctrl-0 = <&pmx_usb_power>;
+                pinctrl-names = "default";
+
+                usb_power: regulator@0 {
+                        compatible = "regulator-fixed";
+                        reg = <0>;
+                        regulator-name = "USB VBUS";
+                        regulator-min-microvolt = <5000000>;
+                        regulator-max-microvolt = <5000000>;
+                        enable-active-high;
+                        regulator-always-on;
+                        regulator-boot-on;
+                        gpio = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+                };
+	};
+};
+
+&mdio {
+        status = "okay";
+
+        ethphy0: ethernet-phy@8 {
+                reg = <8>;
+        };
+};
+
+&eth0 {
+        status = "okay";
+        ethernet0-port@0 {
+                phy-handle = <&ethphy0>;
+        };
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};

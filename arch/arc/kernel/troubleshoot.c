@@ -13,7 +13,11 @@
 #include <linux/fs_struct.h>
 #include <linux/proc_fs.h>
 #include <linux/file.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/debug.h>
+
 #include <asm/arcregs.h>
+#include <asm/irqflags.h>
 
 /*
  * Common routine to print scratch regs (r0-r12) or callee regs (r13-r25)
@@ -34,7 +38,10 @@ static noinline void print_reg_file(long *reg_rev, int start_num)
 			n += scnprintf(buf + n, len - n, "\n");
 
 		/* because pt_regs has regs reversed: r12..r0, r25..r13 */
-		reg_rev--;
+		if (is_isa_arcv2() && start_num == 0)
+			reg_rev++;
+		else
+			reg_rev--;
 	}
 
 	if (start_num != 0)
@@ -52,9 +59,8 @@ static void show_callee_regs(struct callee_regs *cregs)
 	print_reg_file(&(cregs->r13), 13);
 }
 
-void print_task_path_n_nm(struct task_struct *tsk, char *buf)
+static void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 {
-	struct path path;
 	char *path_nm = NULL;
 	struct mm_struct *mm;
 	struct file *exe_file;
@@ -67,17 +73,13 @@ void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 	mmput(mm);
 
 	if (exe_file) {
-		path = exe_file->f_path;
-		path_get(&exe_file->f_path);
+		path_nm = file_path(exe_file, buf, 255);
 		fput(exe_file);
-		path_nm = d_path(&path, buf, 255);
-		path_put(&path);
 	}
 
 done:
-	pr_info("Path: %s\n", path_nm);
+	pr_info("Path: %s\n", !IS_ERR(path_nm) ? path_nm : "?");
 }
-EXPORT_SYMBOL(print_task_path_n_nm);
 
 static void show_faulting_vma(unsigned long address, char *buf)
 {
@@ -86,12 +88,13 @@ static void show_faulting_vma(unsigned long address, char *buf)
 	unsigned long ino = 0;
 	dev_t dev = 0;
 	char *nm = buf;
+	struct mm_struct *active_mm = current->active_mm;
 
 	/* can't use print_vma_addr() yet as it doesn't check for
 	 * non-inclusive vma
 	 */
-
-	vma = find_vma(current->active_mm, address);
+	down_read(&active_mm->mmap_sem);
+	vma = find_vma(active_mm, address);
 
 	/* check against the find_vma( ) behaviour which returns the next VMA
 	 * if the container VMA is not found
@@ -99,8 +102,7 @@ static void show_faulting_vma(unsigned long address, char *buf)
 	if (vma && (vma->vm_start <= address)) {
 		struct file *file = vma->vm_file;
 		if (file) {
-			struct path *path = &file->f_path;
-			nm = d_path(path, buf, PAGE_SIZE - 1);
+			nm = file_path(file, buf, PAGE_SIZE - 1);
 			inode = file_inode(vma->vm_file);
 			dev = inode->i_sb->s_dev;
 			ino = inode->i_ino;
@@ -110,9 +112,10 @@ static void show_faulting_vma(unsigned long address, char *buf)
 			vma->vm_start < TASK_UNMAPPED_BASE ?
 				address : address - vma->vm_start,
 			nm, vma->vm_start, vma->vm_end);
-	} else {
+	} else
 		pr_info("    @No matching VMA found\n");
-	}
+
+	up_read(&active_mm->mmap_sem);
 }
 
 static void show_ecr_verbose(struct pt_regs *regs)
@@ -137,7 +140,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 	} else if (vec == ECR_V_ITLB_MISS) {
 		pr_cont("Insn could not be fetched\n");
 	} else if (vec == ECR_V_MACH_CHK) {
-		pr_cont("%s\n", (cause_code == 0x0) ?
+		pr_cont("Machine Check (%s)\n", (cause_code == 0x0) ?
 					"Double Fault" : "Other Fatal Err");
 
 	} else if (vec == ECR_V_PROTV) {
@@ -151,6 +154,15 @@ static void show_ecr_verbose(struct pt_regs *regs)
 				((cause_code == 0x02) ? "Write" : "EX"));
 	} else if (vec == ECR_V_INSN_ERR) {
 		pr_cont("Illegal Insn\n");
+#ifdef CONFIG_ISA_ARCV2
+	} else if (vec == ECR_V_MEM_ERR) {
+		if (cause_code == 0x00)
+			pr_cont("Bus Error from Insn Mem\n");
+		else if (cause_code == 0x10)
+			pr_cont("Bus Error from Data Mem\n");
+		else
+			pr_cont("Bus Error, check PRM\n");
+#endif
 	} else {
 		pr_cont("Check Programmer's Manual\n");
 	}
@@ -166,7 +178,7 @@ void show_regs(struct pt_regs *regs)
 	struct callee_regs *cregs;
 	char *buf;
 
-	buf = (char *)__get_free_page(GFP_TEMPORARY);
+	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -184,12 +196,20 @@ void show_regs(struct pt_regs *regs)
 
 	pr_info("[STAT32]: 0x%08lx", regs->status32);
 
-#define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit : ""
-	if (!user_mode(regs))
-		pr_cont(" : %2s %2s %2s %2s %2s\n",
-			STS_BIT(regs, AE), STS_BIT(regs, A2), STS_BIT(regs, A1),
-			STS_BIT(regs, E2), STS_BIT(regs, E1));
+#define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit" " : ""
 
+#ifdef CONFIG_ISA_ARCOMPACT
+	pr_cont(" : %2s%2s%2s%2s%2s%2s%2s\n",
+			(regs->status32 & STATUS_U_MASK) ? "U " : "K ",
+			STS_BIT(regs, DE), STS_BIT(regs, AE),
+			STS_BIT(regs, A2), STS_BIT(regs, A1),
+			STS_BIT(regs, E2), STS_BIT(regs, E1));
+#else
+	pr_cont(" : %2s%2s%2s%2s\n",
+			STS_BIT(regs, IE),
+			(regs->status32 & STATUS_U_MASK) ? "U " : "K ",
+			STS_BIT(regs, DE), STS_BIT(regs, AE));
+#endif
 	pr_info("BTA: 0x%08lx\t SP: 0x%08lx\t FP: 0x%08lx\n",
 		regs->bta, regs->sp, regs->fp);
 	pr_info("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",
@@ -213,6 +233,9 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
 {
 	current->thread.fault_address = address;
 
+	/* Show fault description */
+	pr_info("\n%s\n", str);
+
 	/* Caller and Callee regs */
 	show_regs(regs);
 
@@ -220,113 +243,3 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
 	if (!user_mode(regs))
 		show_stacktrace(current, regs);
 }
-
-#ifdef CONFIG_DEBUG_FS
-
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/mount.h>
-#include <linux/pagemap.h>
-#include <linux/init.h>
-#include <linux/namei.h>
-#include <linux/debugfs.h>
-
-static struct dentry *test_dentry;
-static struct dentry *test_dir;
-static struct dentry *test_u32_dentry;
-
-static u32 clr_on_read = 1;
-
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-u32 numitlb, numdtlb, num_pte_not_present;
-
-static int fill_display_data(char *kbuf)
-{
-	size_t num = 0;
-	num += sprintf(kbuf + num, "I-TLB Miss %x\n", numitlb);
-	num += sprintf(kbuf + num, "D-TLB Miss %x\n", numdtlb);
-	num += sprintf(kbuf + num, "PTE not present %x\n", num_pte_not_present);
-
-	if (clr_on_read)
-		numitlb = numdtlb = num_pte_not_present = 0;
-
-	return num;
-}
-
-static int tlb_stats_open(struct inode *inode, struct file *file)
-{
-	file->private_data = (void *)__get_free_page(GFP_KERNEL);
-	return 0;
-}
-
-/* called on user read(): display the couters */
-static ssize_t tlb_stats_output(struct file *file,	/* file descriptor */
-				char __user *user_buf,	/* user buffer */
-				size_t len,		/* length of buffer */
-				loff_t *offset)		/* offset in the file */
-{
-	size_t num;
-	char *kbuf = (char *)file->private_data;
-
-	/* All of the data can he shoved in one iteration */
-	if (*offset != 0)
-		return 0;
-
-	num = fill_display_data(kbuf);
-
-	/* simple_read_from_buffer() is helper for copy to user space
-	   It copies up to @2 (num) bytes from kernel buffer @4 (kbuf) at offset
-	   @3 (offset) into the user space address starting at @1 (user_buf).
-	   @5 (len) is max size of user buffer
-	 */
-	return simple_read_from_buffer(user_buf, num, offset, kbuf, len);
-}
-
-/* called on user write : clears the counters */
-static ssize_t tlb_stats_clear(struct file *file, const char __user *user_buf,
-			       size_t length, loff_t *offset)
-{
-	numitlb = numdtlb = num_pte_not_present = 0;
-	return length;
-}
-
-static int tlb_stats_close(struct inode *inode, struct file *file)
-{
-	free_page((unsigned long)(file->private_data));
-	return 0;
-}
-
-static const struct file_operations tlb_stats_file_ops = {
-	.read = tlb_stats_output,
-	.write = tlb_stats_clear,
-	.open = tlb_stats_open,
-	.release = tlb_stats_close
-};
-#endif
-
-static int __init arc_debugfs_init(void)
-{
-	test_dir = debugfs_create_dir("arc", NULL);
-
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	test_dentry = debugfs_create_file("tlb_stats", 0444, test_dir, NULL,
-					  &tlb_stats_file_ops);
-#endif
-
-	test_u32_dentry =
-	    debugfs_create_u32("clr_on_read", 0444, test_dir, &clr_on_read);
-
-	return 0;
-}
-
-module_init(arc_debugfs_init);
-
-static void __exit arc_debugfs_exit(void)
-{
-	debugfs_remove(test_u32_dentry);
-	debugfs_remove(test_dentry);
-	debugfs_remove(test_dir);
-}
-module_exit(arc_debugfs_exit);
-
-#endif

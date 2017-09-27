@@ -22,16 +22,14 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _BUZ_H_
 #define _BUZ_H_
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 
 struct zoran_sync {
 	unsigned long frame;	/* number of buffer that has been free'd */
@@ -216,6 +214,7 @@ struct zoran;
 
 /* zoran_fh contains per-open() settings */
 struct zoran_fh {
+	struct v4l2_fh fh;
 	struct zoran *zr;
 
 	enum zoran_map_mode map_mode;		/* Flag which bufferset will map by next mmap() */
@@ -268,6 +267,7 @@ struct card_info {
 
 struct zoran {
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler hdl;
 	struct video_device *video_dev;
 
 	struct i2c_adapter i2c_adapter;	/* */
@@ -280,8 +280,7 @@ struct zoran {
 	struct videocodec *codec;	/* video codec */
 	struct videocodec *vfe;	/* video front end */
 
-	struct mutex resource_lock;	/* prevent evil stuff */
-	struct mutex other_lock;	/* please merge with above */
+	struct mutex lock;	/* file ops serialize lock */
 
 	u8 initialized;		/* flag if zoran has been correctly initialized */
 	int user;		/* number of current users */

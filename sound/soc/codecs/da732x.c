@@ -35,7 +35,6 @@
 
 struct da732x_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
 
 	unsigned int sysclk;
 	bool pll_en;
@@ -44,7 +43,7 @@ struct da732x_priv {
 /*
  * da732x register cache - default settings
  */
-static struct reg_default da732x_reg_cache[] = {
+static const struct reg_default da732x_reg_cache[] = {
 	{ DA732X_REG_REF1		, 0x02 },
 	{ DA732X_REG_BIAS_EN		, 0x80 },
 	{ DA732X_REG_BIAS1		, 0x00 },
@@ -217,7 +216,7 @@ static void da732x_set_charge_pump(struct snd_soc_codec *codec, int state)
 		snd_soc_write(codec, DA732X_REG_CP_CTRL1, DA723X_CP_DIS);
 		break;
 	default:
-		pr_err(KERN_ERR "Wrong charge pump state\n");
+		pr_err("Wrong charge pump state\n");
 		break;
 	}
 }
@@ -269,89 +268,73 @@ static const char *da732x_hpf_voice[] = {
 	"150Hz", "200Hz", "300Hz", "400Hz"
 };
 
-static const struct soc_enum da732x_dac1_hpf_mode_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC1_HPF, DA732X_HPF_MODE_SHIFT,
-			DA732X_HPF_MODE_MAX, da732x_hpf_mode)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac1_hpf_mode_enum,
+			    DA732X_REG_DAC1_HPF, DA732X_HPF_MODE_SHIFT,
+			    da732x_hpf_mode);
 
-static const struct soc_enum da732x_dac2_hpf_mode_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC2_HPF, DA732X_HPF_MODE_SHIFT,
-			DA732X_HPF_MODE_MAX, da732x_hpf_mode)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac2_hpf_mode_enum,
+			    DA732X_REG_DAC2_HPF, DA732X_HPF_MODE_SHIFT,
+			    da732x_hpf_mode);
 
-static const struct soc_enum da732x_dac3_hpf_mode_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC3_HPF, DA732X_HPF_MODE_SHIFT,
-			DA732X_HPF_MODE_MAX, da732x_hpf_mode)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac3_hpf_mode_enum,
+			    DA732X_REG_DAC3_HPF, DA732X_HPF_MODE_SHIFT,
+			    da732x_hpf_mode);
 
-static const struct soc_enum da732x_adc1_hpf_mode_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_ADC1_HPF, DA732X_HPF_MODE_SHIFT,
-			DA732X_HPF_MODE_MAX, da732x_hpf_mode)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_adc1_hpf_mode_enum,
+			    DA732X_REG_ADC1_HPF, DA732X_HPF_MODE_SHIFT,
+			    da732x_hpf_mode);
 
-static const struct soc_enum da732x_adc2_hpf_mode_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_ADC2_HPF, DA732X_HPF_MODE_SHIFT,
-			DA732X_HPF_MODE_MAX, da732x_hpf_mode)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_adc2_hpf_mode_enum,
+			    DA732X_REG_ADC2_HPF, DA732X_HPF_MODE_SHIFT,
+			    da732x_hpf_mode);
 
-static const struct soc_enum da732x_dac1_hp_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC1_HPF, DA732X_HPF_MUSIC_SHIFT,
-			DA732X_HPF_MUSIC_MAX, da732x_hpf_music)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac1_hp_filter_enum,
+			    DA732X_REG_DAC1_HPF, DA732X_HPF_MUSIC_SHIFT,
+			    da732x_hpf_music);
 
-static const struct soc_enum da732x_dac2_hp_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC2_HPF, DA732X_HPF_MUSIC_SHIFT,
-			DA732X_HPF_MUSIC_MAX, da732x_hpf_music)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac2_hp_filter_enum,
+			    DA732X_REG_DAC2_HPF, DA732X_HPF_MUSIC_SHIFT,
+			    da732x_hpf_music);
 
-static const struct soc_enum da732x_dac3_hp_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC3_HPF, DA732X_HPF_MUSIC_SHIFT,
-			DA732X_HPF_MUSIC_MAX, da732x_hpf_music)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac3_hp_filter_enum,
+			    DA732X_REG_DAC3_HPF, DA732X_HPF_MUSIC_SHIFT,
+			    da732x_hpf_music);
 
-static const struct soc_enum da732x_adc1_hp_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_ADC1_HPF, DA732X_HPF_MUSIC_SHIFT,
-			DA732X_HPF_MUSIC_MAX, da732x_hpf_music)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_adc1_hp_filter_enum,
+			    DA732X_REG_ADC1_HPF, DA732X_HPF_MUSIC_SHIFT,
+			    da732x_hpf_music);
 
-static const struct soc_enum da732x_adc2_hp_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_ADC2_HPF, DA732X_HPF_MUSIC_SHIFT,
-			DA732X_HPF_MUSIC_MAX, da732x_hpf_music)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_adc2_hp_filter_enum,
+			    DA732X_REG_ADC2_HPF, DA732X_HPF_MUSIC_SHIFT,
+			    da732x_hpf_music);
 
-static const struct soc_enum da732x_dac1_voice_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC1_HPF, DA732X_HPF_VOICE_SHIFT,
-			DA732X_HPF_VOICE_MAX, da732x_hpf_voice)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac1_voice_filter_enum,
+			    DA732X_REG_DAC1_HPF, DA732X_HPF_VOICE_SHIFT,
+			    da732x_hpf_voice);
 
-static const struct soc_enum da732x_dac2_voice_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC2_HPF, DA732X_HPF_VOICE_SHIFT,
-			DA732X_HPF_VOICE_MAX, da732x_hpf_voice)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac2_voice_filter_enum,
+			    DA732X_REG_DAC2_HPF, DA732X_HPF_VOICE_SHIFT,
+			    da732x_hpf_voice);
 
-static const struct soc_enum da732x_dac3_voice_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_DAC3_HPF, DA732X_HPF_VOICE_SHIFT,
-			DA732X_HPF_VOICE_MAX, da732x_hpf_voice)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_dac3_voice_filter_enum,
+			    DA732X_REG_DAC3_HPF, DA732X_HPF_VOICE_SHIFT,
+			    da732x_hpf_voice);
 
-static const struct soc_enum da732x_adc1_voice_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_ADC1_HPF, DA732X_HPF_VOICE_SHIFT,
-			DA732X_HPF_VOICE_MAX, da732x_hpf_voice)
-};
+static SOC_ENUM_SINGLE_DECL(da732x_adc1_voice_filter_enum,
+			    DA732X_REG_ADC1_HPF, DA732X_HPF_VOICE_SHIFT,
+			    da732x_hpf_voice);
 
-static const struct soc_enum da732x_adc2_voice_filter_enum[] = {
-	SOC_ENUM_SINGLE(DA732X_REG_ADC2_HPF, DA732X_HPF_VOICE_SHIFT,
-			DA732X_HPF_VOICE_MAX, da732x_hpf_voice)
-};
-
+static SOC_ENUM_SINGLE_DECL(da732x_adc2_voice_filter_enum,
+			    DA732X_REG_ADC2_HPF, DA732X_HPF_VOICE_SHIFT,
+			    da732x_hpf_voice);
 
 static int da732x_hpf_set(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_enum *enum_ctrl = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg = enum_ctrl->reg;
-	unsigned int sel = ucontrol->value.integer.value[0];
+	unsigned int sel = ucontrol->value.enumerated.item[0];
 	unsigned int bits;
 
 	switch (sel) {
@@ -376,7 +359,7 @@ static int da732x_hpf_set(struct snd_kcontrol *kcontrol,
 static int da732x_hpf_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_enum *enum_ctrl = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg = enum_ctrl->reg;
 	int val;
@@ -385,13 +368,13 @@ static int da732x_hpf_get(struct snd_kcontrol *kcontrol,
 
 	switch (val) {
 	case DA732X_HPF_VOICE_EN:
-		ucontrol->value.integer.value[0] = DA732X_HPF_VOICE;
+		ucontrol->value.enumerated.item[0] = DA732X_HPF_VOICE;
 		break;
 	case DA732X_HPF_MUSIC_EN:
-		ucontrol->value.integer.value[0] = DA732X_HPF_MUSIC;
+		ucontrol->value.enumerated.item[0] = DA732X_HPF_MUSIC;
 		break;
 	default:
-		ucontrol->value.integer.value[0] = DA732X_HPF_DISABLED;
+		ucontrol->value.enumerated.item[0] = DA732X_HPF_DISABLED;
 		break;
 	}
 
@@ -626,7 +609,7 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 static int da732x_adc_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -680,7 +663,7 @@ static int da732x_adc_event(struct snd_soc_dapm_widget *w,
 static int da732x_out_pga_event(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -714,65 +697,65 @@ static const char *enable_text[] = {
 };
 
 /* ADC1LMUX */
-static const struct soc_enum adc1l_enum =
-	SOC_ENUM_SINGLE(DA732X_REG_INP_MUX, DA732X_ADC1L_MUX_SEL_SHIFT,
-			DA732X_ADCL_MUX_MAX, adcl_text);
+static SOC_ENUM_SINGLE_DECL(adc1l_enum,
+			    DA732X_REG_INP_MUX, DA732X_ADC1L_MUX_SEL_SHIFT,
+			    adcl_text);
 static const struct snd_kcontrol_new adc1l_mux =
 	SOC_DAPM_ENUM("ADC Route", adc1l_enum);
 
 /* ADC1RMUX */
-static const struct soc_enum adc1r_enum =
-	SOC_ENUM_SINGLE(DA732X_REG_INP_MUX, DA732X_ADC1R_MUX_SEL_SHIFT,
-			DA732X_ADCR_MUX_MAX, adcr_text);
+static SOC_ENUM_SINGLE_DECL(adc1r_enum,
+			    DA732X_REG_INP_MUX, DA732X_ADC1R_MUX_SEL_SHIFT,
+			    adcr_text);
 static const struct snd_kcontrol_new adc1r_mux =
 	SOC_DAPM_ENUM("ADC Route", adc1r_enum);
 
 /* ADC2LMUX */
-static const struct soc_enum adc2l_enum =
-	SOC_ENUM_SINGLE(DA732X_REG_INP_MUX, DA732X_ADC2L_MUX_SEL_SHIFT,
-			DA732X_ADCL_MUX_MAX, adcl_text);
+static SOC_ENUM_SINGLE_DECL(adc2l_enum,
+			    DA732X_REG_INP_MUX, DA732X_ADC2L_MUX_SEL_SHIFT,
+			    adcl_text);
 static const struct snd_kcontrol_new adc2l_mux =
 	SOC_DAPM_ENUM("ADC Route", adc2l_enum);
 
 /* ADC2RMUX */
-static const struct soc_enum adc2r_enum =
-	SOC_ENUM_SINGLE(DA732X_REG_INP_MUX, DA732X_ADC2R_MUX_SEL_SHIFT,
-			DA732X_ADCR_MUX_MAX, adcr_text);
+static SOC_ENUM_SINGLE_DECL(adc2r_enum,
+			    DA732X_REG_INP_MUX, DA732X_ADC2R_MUX_SEL_SHIFT,
+			    adcr_text);
 
 static const struct snd_kcontrol_new adc2r_mux =
 	SOC_DAPM_ENUM("ADC Route", adc2r_enum);
 
-static const struct soc_enum da732x_hp_left_output =
-	SOC_ENUM_SINGLE(DA732X_REG_HPL, DA732X_HP_OUT_DAC_EN_SHIFT,
-			DA732X_DAC_EN_MAX, enable_text);
+static SOC_ENUM_SINGLE_DECL(da732x_hp_left_output,
+			    DA732X_REG_HPL, DA732X_HP_OUT_DAC_EN_SHIFT,
+			    enable_text);
 
 static const struct snd_kcontrol_new hpl_mux =
 	SOC_DAPM_ENUM("HPL Switch", da732x_hp_left_output);
 
-static const struct soc_enum da732x_hp_right_output =
-	SOC_ENUM_SINGLE(DA732X_REG_HPR, DA732X_HP_OUT_DAC_EN_SHIFT,
-			DA732X_DAC_EN_MAX, enable_text);
+static SOC_ENUM_SINGLE_DECL(da732x_hp_right_output,
+			    DA732X_REG_HPR, DA732X_HP_OUT_DAC_EN_SHIFT,
+			    enable_text);
 
 static const struct snd_kcontrol_new hpr_mux =
 	SOC_DAPM_ENUM("HPR Switch", da732x_hp_right_output);
 
-static const struct soc_enum da732x_speaker_output =
-	SOC_ENUM_SINGLE(DA732X_REG_LIN3, DA732X_LOUT_DAC_EN_SHIFT,
-			DA732X_DAC_EN_MAX, enable_text);
+static SOC_ENUM_SINGLE_DECL(da732x_speaker_output,
+			    DA732X_REG_LIN3, DA732X_LOUT_DAC_EN_SHIFT,
+			    enable_text);
 
 static const struct snd_kcontrol_new spk_mux =
 	SOC_DAPM_ENUM("SPK Switch", da732x_speaker_output);
 
-static const struct soc_enum da732x_lout4_output =
-	SOC_ENUM_SINGLE(DA732X_REG_LIN4, DA732X_LOUT_DAC_EN_SHIFT,
-			DA732X_DAC_EN_MAX, enable_text);
+static SOC_ENUM_SINGLE_DECL(da732x_lout4_output,
+			    DA732X_REG_LIN4, DA732X_LOUT_DAC_EN_SHIFT,
+			    enable_text);
 
 static const struct snd_kcontrol_new lout4_mux =
 	SOC_DAPM_ENUM("LOUT4 Switch", da732x_lout4_output);
 
-static const struct soc_enum da732x_lout2_output =
-	SOC_ENUM_SINGLE(DA732X_REG_LIN2, DA732X_LOUT_DAC_EN_SHIFT,
-			DA732X_DAC_EN_MAX, enable_text);
+static SOC_ENUM_SINGLE_DECL(da732x_lout2_output,
+			    DA732X_REG_LIN2, DA732X_LOUT_DAC_EN_SHIFT,
+			    enable_text);
 
 static const struct snd_kcontrol_new lout2_mux =
 	SOC_DAPM_ENUM("LOUT2 Switch", da732x_lout2_output);
@@ -893,11 +876,11 @@ static const struct snd_soc_dapm_widget da732x_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route da732x_dapm_routes[] = {
 	/* Inputs */
-	{"AUX1L PGA", "NULL", "AUX1L"},
-	{"AUX1R PGA", "NULL", "AUX1R"},
+	{"AUX1L PGA", NULL, "AUX1L"},
+	{"AUX1R PGA", NULL, "AUX1R"},
 	{"MIC1 PGA", NULL, "MIC1"},
-	{"MIC2 PGA", "NULL", "MIC2"},
-	{"MIC3 PGA", "NULL", "MIC3"},
+	{"MIC2 PGA", NULL, "MIC2"},
+	{"MIC3 PGA", NULL, "MIC3"},
 
 	/* Capture Path */
 	{"ADC1 Left MUX", "MIC1", "MIC1 PGA"},
@@ -973,17 +956,17 @@ static int da732x_hw_params(struct snd_pcm_substream *substream,
 
 	reg_aif = dai->driver->base;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		aif |= DA732X_AIF_WORD_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		aif |= DA732X_AIF_WORD_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		aif |= DA732X_AIF_WORD_24;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		aif |= DA732X_AIF_WORD_32;
 		break;
 	default:
@@ -1213,13 +1196,7 @@ static int da732x_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 #define	DA732X_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops da732x_dai1_ops = {
-	.hw_params	= da732x_hw_params,
-	.set_fmt	= da732x_set_dai_fmt,
-	.set_sysclk	= da732x_set_dai_sysclk,
-};
-
-static struct snd_soc_dai_ops da732x_dai2_ops = {
+static const struct snd_soc_dai_ops da732x_dai_ops = {
 	.hw_params	= da732x_hw_params,
 	.set_fmt	= da732x_set_dai_fmt,
 	.set_sysclk	= da732x_set_dai_sysclk,
@@ -1244,7 +1221,7 @@ static struct snd_soc_dai_driver da732x_dai[] = {
 			.rates = DA732X_RATES,
 			.formats = DA732X_FORMATS,
 		},
-		.ops = &da732x_dai1_ops,
+		.ops = &da732x_dai_ops,
 	},
 	{
 		.name	= "DA732X_AIFB",
@@ -1264,15 +1241,27 @@ static struct snd_soc_dai_driver da732x_dai[] = {
 			.rates = DA732X_RATES,
 			.formats = DA732X_FORMATS,
 		},
-		.ops = &da732x_dai2_ops,
+		.ops = &da732x_dai_ops,
 	},
 };
+
+static bool da732x_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case DA732X_REG_HPL_DAC_OFF_CNTL:
+	case DA732X_REG_HPR_DAC_OFF_CNTL:
+		return true;
+	default:
+		return false;
+	}
+}
 
 static const struct regmap_config da732x_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 
 	.max_register		= DA732X_MAX_REG,
+	.volatile_reg		= da732x_volatile,
 	.reg_defaults		= da732x_reg_cache,
 	.num_reg_defaults	= ARRAY_SIZE(da732x_reg_cache),
 	.cache_type		= REGCACHE_RBTREE,
@@ -1301,9 +1290,9 @@ static void da732x_dac_offset_adjust(struct snd_soc_codec *codec)
 	msleep(DA732X_WAIT_FOR_STABILIZATION);
 
 	/* Check DAC offset sign */
-	sign[DA732X_HPL_DAC] = (codec->hw_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
+	sign[DA732X_HPL_DAC] = (snd_soc_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
 				DA732X_HP_DAC_OFF_CNTL_COMPO);
-	sign[DA732X_HPR_DAC] = (codec->hw_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
+	sign[DA732X_HPR_DAC] = (snd_soc_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
 				DA732X_HP_DAC_OFF_CNTL_COMPO);
 
 	/* Binary search DAC offset values (both channels at once) */
@@ -1320,10 +1309,10 @@ static void da732x_dac_offset_adjust(struct snd_soc_codec *codec)
 
 		msleep(DA732X_WAIT_FOR_STABILIZATION);
 
-		if ((codec->hw_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
+		if ((snd_soc_read(codec, DA732X_REG_HPL_DAC_OFF_CNTL) &
 		     DA732X_HP_DAC_OFF_CNTL_COMPO) ^ sign[DA732X_HPL_DAC])
 			offset[DA732X_HPL_DAC] &= ~step;
-		if ((codec->hw_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
+		if ((snd_soc_read(codec, DA732X_REG_HPR_DAC_OFF_CNTL) &
 		     DA732X_HP_DAC_OFF_CNTL_COMPO) ^ sign[DA732X_HPR_DAC])
 			offset[DA732X_HPR_DAC] &= ~step;
 
@@ -1364,9 +1353,9 @@ static void da732x_output_offset_adjust(struct snd_soc_codec *codec)
 	msleep(DA732X_WAIT_FOR_STABILIZATION);
 
 	/* Check output offset sign */
-	sign[DA732X_HPL_AMP] = codec->hw_read(codec, DA732X_REG_HPL) &
+	sign[DA732X_HPL_AMP] = snd_soc_read(codec, DA732X_REG_HPL) &
 			       DA732X_HP_OUT_COMPO;
-	sign[DA732X_HPR_AMP] = codec->hw_read(codec, DA732X_REG_HPR) &
+	sign[DA732X_HPR_AMP] = snd_soc_read(codec, DA732X_REG_HPR) &
 			       DA732X_HP_OUT_COMPO;
 
 	snd_soc_write(codec, DA732X_REG_HPL, DA732X_HP_OUT_COMP |
@@ -1387,10 +1376,10 @@ static void da732x_output_offset_adjust(struct snd_soc_codec *codec)
 
 		msleep(DA732X_WAIT_FOR_STABILIZATION);
 
-		if ((codec->hw_read(codec, DA732X_REG_HPL) &
+		if ((snd_soc_read(codec, DA732X_REG_HPL) &
 		     DA732X_HP_OUT_COMPO) ^ sign[DA732X_HPL_AMP])
 			offset[DA732X_HPL_AMP] &= ~step;
-		if ((codec->hw_read(codec, DA732X_REG_HPR) &
+		if ((snd_soc_read(codec, DA732X_REG_HPR) &
 		     DA732X_HP_OUT_COMPO) ^ sign[DA732X_HPR_AMP])
 			offset[DA732X_HPR_AMP] &= ~step;
 
@@ -1437,7 +1426,7 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Init Codec */
 			snd_soc_write(codec, DA732X_REG_REF1,
 				      DA732X_VMID_FASTCHG);
@@ -1487,8 +1476,8 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 
 			da732x_hp_dc_offset_cancellation(codec);
 
-			regcache_cache_only(codec->control_data, false);
-			regcache_sync(codec->control_data);
+			regcache_cache_only(da732x->regmap, false);
+			regcache_sync(da732x->regmap);
 		} else {
 			snd_soc_update_bits(codec, DA732X_REG_BIAS_EN,
 					    DA732X_BIAS_BOOST_MASK,
@@ -1499,7 +1488,7 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(codec->control_data, true);
+		regcache_cache_only(da732x->regmap, true);
 		da732x_set_charge_pump(codec, DA732X_DISABLE_CP);
 		snd_soc_update_bits(codec, DA732X_REG_BIAS_EN, DA732X_BIAS_EN,
 				    DA732X_BIAS_DIS);
@@ -1507,54 +1496,20 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
-
 	return 0;
 }
 
-static int da732x_probe(struct snd_soc_codec *codec)
-{
-	struct da732x_priv *da732x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret = 0;
-
-	da732x->codec = codec;
-
-	dapm->idle_bias_off = false;
-
-	codec->control_data = da732x->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec.\n");
-		goto err;
-	}
-
-	da732x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-err:
-	return ret;
-}
-
-static int da732x_remove(struct snd_soc_codec *codec)
-{
-
-	da732x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static struct snd_soc_codec_driver soc_codec_dev_da732x = {
-	.probe			= da732x_probe,
-	.remove			= da732x_remove,
+static const struct snd_soc_codec_driver soc_codec_dev_da732x = {
 	.set_bias_level		= da732x_set_bias_level,
-	.controls		= da732x_snd_controls,
-	.num_controls		= ARRAY_SIZE(da732x_snd_controls),
-	.dapm_widgets		= da732x_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da732x_dapm_widgets),
-	.dapm_routes		= da732x_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(da732x_dapm_routes),
+	.component_driver = {
+		.controls		= da732x_snd_controls,
+		.num_controls		= ARRAY_SIZE(da732x_snd_controls),
+		.dapm_widgets		= da732x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(da732x_dapm_widgets),
+		.dapm_routes		= da732x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(da732x_dapm_routes),
+	},
 	.set_pll		= da732x_set_dai_pll,
-	.reg_cache_size		= ARRAY_SIZE(da732x_reg_cache),
 };
 
 static int da732x_i2c_probe(struct i2c_client *i2c,
@@ -1585,7 +1540,8 @@ static int da732x_i2c_probe(struct i2c_client *i2c,
 	}
 
 	dev_info(&i2c->dev, "Revision: %d.%d\n",
-		 (reg & DA732X_ID_MAJOR_MASK), (reg & DA732X_ID_MINOR_MASK));
+		 (reg & DA732X_ID_MAJOR_MASK) >> 4,
+		 (reg & DA732X_ID_MINOR_MASK));
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_da732x,
 				     da732x_dai, ARRAY_SIZE(da732x_dai));
@@ -1612,7 +1568,6 @@ MODULE_DEVICE_TABLE(i2c, da732x_i2c_id);
 static struct i2c_driver da732x_i2c_driver = {
 	.driver		= {
 		.name	= "da7320",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= da732x_i2c_probe,
 	.remove		= da732x_i2c_remove,

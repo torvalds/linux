@@ -2,8 +2,8 @@
 #define _ASMARM_BUG_H
 
 #include <linux/linkage.h>
-
-#ifdef CONFIG_BUG
+#include <linux/types.h>
+#include <asm/opcodes.h>
 
 /*
  * Use a suitable undefined instruction to use for ARM/Thumb2 bug handling.
@@ -12,10 +12,10 @@
  */
 #ifdef CONFIG_THUMB2_KERNEL
 #define BUG_INSTR_VALUE 0xde02
-#define BUG_INSTR_TYPE ".hword "
+#define BUG_INSTR(__value) __inst_thumb16(__value)
 #else
 #define BUG_INSTR_VALUE 0xe7f001f2
-#define BUG_INSTR_TYPE ".word "
+#define BUG_INSTR(__value) __inst_arm(__value)
 #endif
 
 
@@ -33,28 +33,28 @@
 
 #define __BUG(__file, __line, __value)				\
 do {								\
-	asm volatile("1:\t" BUG_INSTR_TYPE #__value "\n"	\
+	asm volatile("1:\t" BUG_INSTR(__value) "\n"  \
 		".pushsection .rodata.str, \"aMS\", %progbits, 1\n" \
 		"2:\t.asciz " #__file "\n" 			\
 		".popsection\n" 				\
-		".pushsection __bug_table,\"a\"\n"		\
+		".pushsection __bug_table,\"aw\"\n"		\
+		".align 2\n"					\
 		"3:\t.word 1b, 2b\n"				\
 		"\t.hword " #__line ", 0\n"			\
 		".popsection");					\
 	unreachable();						\
 } while (0)
 
-#else  /* not CONFIG_DEBUG_BUGVERBOSE */
+#else
 
 #define __BUG(__file, __line, __value)				\
 do {								\
-	asm volatile(BUG_INSTR_TYPE #__value);			\
+	asm volatile(BUG_INSTR(__value) "\n");			\
 	unreachable();						\
 } while (0)
 #endif  /* CONFIG_DEBUG_BUGVERBOSE */
 
 #define HAVE_ARCH_BUG
-#endif  /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>
 

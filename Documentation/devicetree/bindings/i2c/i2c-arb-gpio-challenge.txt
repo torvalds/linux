@@ -8,6 +8,12 @@ the standard I2C multi-master rules.  Using GPIOs is generally useful in
 the case where there is a device on the bus that has errata and/or bugs
 that makes standard multimaster mode not feasible.
 
+Note that this scheme works well enough but has some downsides:
+* It is nonstandard (not using standard I2C multimaster)
+* Having two masters on a bus in general makes it relatively hard to debug
+  problems (hard to tell if i2c issues were caused by one master, another, or
+  some device on the bus).
+
 
 Algorithm:
 
@@ -38,8 +44,7 @@ Required properties:
 - our-claim-gpio: The GPIO that we use to claim the bus.
 - their-claim-gpios: The GPIOs that the other sides use to claim the bus.
   Note that some implementations may only support a single other master.
-- Standard I2C mux properties. See mux.txt in this directory.
-- Single I2C child bus node at reg 0. See mux.txt in this directory.
+- I2C arbitration bus node. See i2c-arb.txt in this directory.
 
 Optional properties:
 - slew-delay-us: microseconds to wait for a GPIO to go high. Default is 10 us.
@@ -57,8 +62,6 @@ Example:
 
 	i2c-arbitrator {
 		compatible = "i2c-arb-gpio-challenge";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		i2c-parent = <&{/i2c@12CA0000}>;
 
@@ -68,8 +71,7 @@ Example:
 		wait-retry-us = <3000>;
 		wait-free-us = <50000>;
 
-		i2c@0 {
-			reg = <0>;
+		i2c-arb {
 			#address-cells = <1>;
 			#size-cells = <0>;
 

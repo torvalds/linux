@@ -1,0 +1,143 @@
+/*
+ * dts file for Xilinx ZynqMP ep108 development board
+ *
+ * (C) Copyright 2014 - 2015, Xilinx, Inc.
+ *
+ * Michal Simek <michal.simek@xilinx.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ */
+
+/dts-v1/;
+
+#include "zynqmp.dtsi"
+#include "zynqmp-ep108-clk.dtsi"
+
+/ {
+	model = "ZynqMP EP108";
+
+	aliases {
+		mmc0 = &sdhci0;
+		mmc1 = &sdhci1;
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
+};
+
+&can0 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
+&gem0 {
+	status = "okay";
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	phy0: phy@0{
+		reg = <0>;
+		max-speed = <100>;
+	};
+};
+
+&gpio {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+	eeprom@55 {
+		compatible = "atmel,24c64";
+		reg = <0x55>;
+	};
+};
+
+&sata {
+	status = "okay";
+	ceva,broken-gen2;
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
+&sdhci1 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	num-cs = <1>;
+	spi0_flash0: spi0_flash0@0 {
+		compatible = "m25p80";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+
+		spi0_flash0@0 {
+			label = "spi0_flash0";
+			reg = <0x0 0x100000>;
+		};
+	};
+};
+
+&spi1 {
+	status = "okay";
+	num-cs = <1>;
+	spi1_flash0: spi1_flash0@0 {
+		compatible = "m25p80";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+
+		spi1_flash0@0 {
+			label = "spi1_flash0";
+			reg = <0x0 0x100000>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+};
+
+&usb1 {
+	status = "okay";
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+};
+
+&watchdog0 {
+	status = "okay";
+};

@@ -63,7 +63,7 @@
  */
 #define KZM_ARM11_16550		(MX31_CS4_BASE_ADDR + 0x1050)
 
-#if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_8250)
 /*
  * KZM-ARM11-01 has an external UART on FPGA
  */
@@ -141,7 +141,7 @@ static inline int kzm_init_ext_uart(void)
 /*
  * SMSC LAN9118
  */
-#if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
+#if IS_ENABLED(CONFIG_SMSC911X)
 static struct smsc911x_platform_config kzm_smsc9118_config = {
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_HIGH,
@@ -201,7 +201,7 @@ static inline int kzm_init_smsc9118(void)
 }
 #endif
 
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_IMX)
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -245,11 +245,15 @@ static void __init kzm_board_init(void)
 
 	mxc_iomux_setup_multiple_pins(kzm_pins,
 				      ARRAY_SIZE(kzm_pins), "kzm");
-	kzm_init_ext_uart();
-	kzm_init_smsc9118();
 	kzm_init_imx_uart();
 
 	pr_info("Clock input source is 26MHz\n");
+}
+
+static void __init kzm_late_init(void)
+{
+	kzm_init_ext_uart();
+	kzm_init_smsc9118();
 }
 
 /*
@@ -289,8 +293,8 @@ MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
 	.map_io = kzm_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
 	.init_time	= kzm_timer_init,
 	.init_machine = kzm_board_init,
+	.init_late	= kzm_late_init,
 	.restart	= mxc_restart,
 MACHINE_END

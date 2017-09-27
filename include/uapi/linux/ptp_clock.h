@@ -50,7 +50,10 @@ struct ptp_clock_caps {
 	int n_ext_ts;  /* Number of external time stamp channels. */
 	int n_per_out; /* Number of programmable periodic signals. */
 	int pps;       /* Whether the clock supports a PPS callback. */
-	int rsv[15];   /* Reserved for future use. */
+	int n_pins;    /* Number of input/output pins. */
+	/* Whether the clock supports precise system-device cross timestamps */
+	int cross_timestamping;
+	int rsv[13];   /* Reserved for future use. */
 };
 
 struct ptp_extts_request {
@@ -80,6 +83,47 @@ struct ptp_sys_offset {
 	struct ptp_clock_time ts[2 * PTP_MAX_SAMPLES + 1];
 };
 
+struct ptp_sys_offset_precise {
+	struct ptp_clock_time device;
+	struct ptp_clock_time sys_realtime;
+	struct ptp_clock_time sys_monoraw;
+	unsigned int rsv[4];    /* Reserved for future use. */
+};
+
+enum ptp_pin_function {
+	PTP_PF_NONE,
+	PTP_PF_EXTTS,
+	PTP_PF_PEROUT,
+	PTP_PF_PHYSYNC,
+};
+
+struct ptp_pin_desc {
+	/*
+	 * Hardware specific human readable pin name. This field is
+	 * set by the kernel during the PTP_PIN_GETFUNC ioctl and is
+	 * ignored for the PTP_PIN_SETFUNC ioctl.
+	 */
+	char name[64];
+	/*
+	 * Pin index in the range of zero to ptp_clock_caps.n_pins - 1.
+	 */
+	unsigned int index;
+	/*
+	 * Which of the PTP_PF_xxx functions to use on this pin.
+	 */
+	unsigned int func;
+	/*
+	 * The specific channel to use for this function.
+	 * This corresponds to the 'index' field of the
+	 * PTP_EXTTS_REQUEST and PTP_PEROUT_REQUEST ioctls.
+	 */
+	unsigned int chan;
+	/*
+	 * Reserved for future use.
+	 */
+	unsigned int rsv[5];
+};
+
 #define PTP_CLK_MAGIC '='
 
 #define PTP_CLOCK_GETCAPS  _IOR(PTP_CLK_MAGIC, 1, struct ptp_clock_caps)
@@ -87,6 +131,10 @@ struct ptp_sys_offset {
 #define PTP_PEROUT_REQUEST _IOW(PTP_CLK_MAGIC, 3, struct ptp_perout_request)
 #define PTP_ENABLE_PPS     _IOW(PTP_CLK_MAGIC, 4, int)
 #define PTP_SYS_OFFSET     _IOW(PTP_CLK_MAGIC, 5, struct ptp_sys_offset)
+#define PTP_PIN_GETFUNC    _IOWR(PTP_CLK_MAGIC, 6, struct ptp_pin_desc)
+#define PTP_PIN_SETFUNC    _IOW(PTP_CLK_MAGIC, 7, struct ptp_pin_desc)
+#define PTP_SYS_OFFSET_PRECISE \
+	_IOWR(PTP_CLK_MAGIC, 8, struct ptp_sys_offset_precise)
 
 struct ptp_extts_event {
 	struct ptp_clock_time t; /* Time event occured. */

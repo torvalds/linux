@@ -21,7 +21,8 @@
 
 */
 
-static char *version = "sun3lance.c: v1.2 1/12/2001  Sam Creasey (sammy@sammy.net)\n";
+static const char version[] =
+"sun3lance.c: v1.2 1/12/2001  Sam Creasey (sammy@sammy.net)\n";
 
 #include <linux/module.h>
 #include <linux/stddef.h>
@@ -299,7 +300,6 @@ static const struct net_device_ops lance_netdev_ops = {
 	.ndo_start_xmit		= lance_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_set_mac_address	= NULL,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -358,7 +358,7 @@ static int __init lance_probe( struct net_device *dev)
 
 	REGA(CSR0) = CSR0_STOP;
 
-	if (request_irq(LANCE_IRQ, lance_interrupt, IRQF_DISABLED, "SUN3 Lance", dev) < 0) {
+	if (request_irq(LANCE_IRQ, lance_interrupt, 0, "SUN3 Lance", dev) < 0) {
 #ifdef CONFIG_SUN3
 		iounmap((void __iomem *)ioaddr);
 #endif
@@ -940,7 +940,7 @@ static struct net_device *sun3lance_dev;
 int __init init_module(void)
 {
 	sun3lance_dev = sun3lance_probe(-1);
-	return PTR_RET(sun3lance_dev);
+	return PTR_ERR_OR_ZERO(sun3lance_dev);
 }
 
 void __exit cleanup_module(void)

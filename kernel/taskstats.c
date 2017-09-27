@@ -30,6 +30,7 @@
 #include <linux/pid_namespace.h>
 #include <net/genetlink.h>
 #include <linux/atomic.h>
+#include <linux/sched/cputime.h>
 
 /*
  * Maximum length of a cpumask that can be specified in
@@ -41,12 +42,7 @@ static DEFINE_PER_CPU(__u32, taskstats_seqnum);
 static int family_registered;
 struct kmem_cache *taskstats_cache;
 
-static struct genl_family family = {
-	.id		= GENL_ID_GENERATE,
-	.name		= TASKSTATS_GENL_NAME,
-	.version	= TASKSTATS_GENL_VERSION,
-	.maxattr	= TASKSTATS_CMD_ATTR_MAX,
-};
+static struct genl_family family;
 
 static const struct nla_policy taskstats_cmd_get_policy[TASKSTATS_CMD_ATTR_MAX+1] = {
 	[TASKSTATS_CMD_ATTR_PID]  = { .type = NLA_U32 },
@@ -54,7 +50,11 @@ static const struct nla_policy taskstats_cmd_get_policy[TASKSTATS_CMD_ATTR_MAX+1
 	[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK] = { .type = NLA_STRING },
 	[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK] = { .type = NLA_STRING },};
 
-static const struct nla_policy cgroupstats_cmd_get_policy[CGROUPSTATS_CMD_ATTR_MAX+1] = {
+/*
+ * We have to use TASKSTATS_CMD_ATTR_MAX here, it is the maxattr in the family.
+ * Make sure they are always aligned.
+ */
+static const struct nla_policy cgroupstats_cmd_get_policy[TASKSTATS_CMD_ATTR_MAX+1] = {
 	[CGROUPSTATS_CMD_ATTR_FD] = { .type = NLA_U32 },
 };
 
@@ -111,13 +111,8 @@ static int send_reply(struct sk_buff *skb, struct genl_info *info)
 {
 	struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(skb));
 	void *reply = genlmsg_data(genlhdr);
-	int rc;
 
-	rc = genlmsg_end(skb, reply);
-	if (rc < 0) {
-		nlmsg_free(skb);
-		return rc;
-	}
+	genlmsg_end(skb, reply);
 
 	return genlmsg_reply(skb, info);
 }
@@ -134,11 +129,7 @@ static void send_cpu_listeners(struct sk_buff *skb,
 	void *reply = genlmsg_data(genlhdr);
 	int rc, delcount = 0;
 
-	rc = genlmsg_end(skb, reply);
-	if (rc < 0) {
-		nlmsg_free(skb);
-		return;
-	}
+	genlmsg_end(skb, reply);
 
 	rc = 0;
 	down_read(&listeners->sem);
@@ -220,6 +211,8 @@ static int fill_stats_for_tgid(pid_t tgid, struct taskstats *stats)
 	struct task_struct *tsk, *first;
 	unsigned long flags;
 	int rc = -ESRCH;
+	u64 delta, utime, stime;
+	u64 start_time;
 
 	/*
 	 * Add additional stats from live tasks except zombie thread group
@@ -237,6 +230,7 @@ static int fill_stats_for_tgid(pid_t tgid, struct taskstats *stats)
 		memset(stats, 0, sizeof(*stats));
 
 	tsk = first;
+	start_time = ktime_get_ns();
 	do {
 		if (tsk->exit_state)
 			continue;
@@ -247,6 +241,16 @@ static int fill_stats_for_tgid(pid_t tgid, struct taskstats *stats)
 		 *	per-task-foo(stats, tsk);
 		 */
 		delayacct_add_tsk(stats, tsk);
+
+		/* calculate task elapsed time in nsec */
+		delta = start_time - tsk->start_time;
+		/* Convert to micro seconds */
+		do_div(delta, NSEC_PER_USEC);
+		stats->ac_etime += delta;
+
+		task_cputime(tsk, &utime, &stime);
+		stats->ac_utime += div_u64(utime, NSEC_PER_USEC);
+		stats->ac_stime += div_u64(stime, NSEC_PER_USEC);
 
 		stats->nvcsw += tsk->nvcsw;
 		stats->nivcsw += tsk->nivcsw;
@@ -290,6 +294,7 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 	struct listener_list *listeners;
 	struct listener *s, *tmp, *s2;
 	unsigned int cpu;
+	int ret = 0;
 
 	if (!cpumask_subset(mask, cpu_possible_mask))
 		return -EINVAL;
@@ -304,9 +309,10 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 		for_each_cpu(cpu, mask) {
 			s = kmalloc_node(sizeof(struct listener),
 					GFP_KERNEL, cpu_to_node(cpu));
-			if (!s)
+			if (!s) {
+				ret = -ENOMEM;
 				goto cleanup;
-
+			}
 			s->pid = pid;
 			s->valid = 1;
 
@@ -339,7 +345,7 @@ cleanup:
 		}
 		up_write(&listeners->sem);
 	}
-	return 0;
+	return ret;
 }
 
 static int parse(struct nlattr *na, struct cpumask *mask)
@@ -364,10 +370,6 @@ static int parse(struct nlattr *na, struct cpumask *mask)
 	return ret;
 }
 
-#if defined(CONFIG_64BIT) && !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
-#define TASKSTATS_NEEDS_PADDING 1
-#endif
-
 static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 {
 	struct nlattr *na, *ret;
@@ -377,38 +379,20 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 			? TASKSTATS_TYPE_AGGR_PID
 			: TASKSTATS_TYPE_AGGR_TGID;
 
-	/*
-	 * The taskstats structure is internally aligned on 8 byte
-	 * boundaries but the layout of the aggregrate reply, with
-	 * two NLA headers and the pid (each 4 bytes), actually
-	 * force the entire structure to be unaligned. This causes
-	 * the kernel to issue unaligned access warnings on some
-	 * architectures like ia64. Unfortunately, some software out there
-	 * doesn't properly unroll the NLA packet and assumes that the start
-	 * of the taskstats structure will always be 20 bytes from the start
-	 * of the netlink payload. Aligning the start of the taskstats
-	 * structure breaks this software, which we don't want. So, for now
-	 * the alignment only happens on architectures that require it
-	 * and those users will have to update to fixed versions of those
-	 * packages. Space is reserved in the packet only when needed.
-	 * This ifdef should be removed in several years e.g. 2012 once
-	 * we can be confident that fixed versions are installed on most
-	 * systems. We add the padding before the aggregate since the
-	 * aggregate is already a defined type.
-	 */
-#ifdef TASKSTATS_NEEDS_PADDING
-	if (nla_put(skb, TASKSTATS_TYPE_NULL, 0, NULL) < 0)
-		goto err;
-#endif
 	na = nla_nest_start(skb, aggr);
 	if (!na)
 		goto err;
 
-	if (nla_put(skb, type, sizeof(pid), &pid) < 0)
+	if (nla_put(skb, type, sizeof(pid), &pid) < 0) {
+		nla_nest_cancel(skb, na);
 		goto err;
-	ret = nla_reserve(skb, TASKSTATS_TYPE_STATS, sizeof(struct taskstats));
-	if (!ret)
+	}
+	ret = nla_reserve_64bit(skb, TASKSTATS_TYPE_STATS,
+				sizeof(struct taskstats), TASKSTATS_TYPE_NULL);
+	if (!ret) {
+		nla_nest_cancel(skb, na);
 		goto err;
+	}
 	nla_nest_end(skb, na);
 
 	return nla_data(ret);
@@ -453,7 +437,7 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	stats = nla_data(na);
 	memset(stats, 0, sizeof(*stats));
 
-	rc = cgroupstats_build(stats, f.file->f_dentry);
+	rc = cgroupstats_build(stats, f.file->f_path.dentry);
 	if (rc < 0) {
 		nlmsg_free(rep_skb);
 		goto err;
@@ -503,10 +487,9 @@ static size_t taskstats_packet_size(void)
 	size_t size;
 
 	size = nla_total_size(sizeof(u32)) +
-		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
-#ifdef TASKSTATS_NEEDS_PADDING
-	size += nla_total_size(0); /* Padding for alignment */
-#endif
+		nla_total_size_64bit(sizeof(struct taskstats)) +
+		nla_total_size(0);
+
 	return size;
 }
 
@@ -632,7 +615,7 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 		fill_tgid_exit(tsk);
 	}
 
-	listeners = __this_cpu_ptr(&listener_array);
+	listeners = raw_cpu_ptr(&listener_array);
 	if (list_empty(&listeners->list))
 		return;
 
@@ -667,17 +650,27 @@ err:
 	nlmsg_free(rep_skb);
 }
 
-static struct genl_ops taskstats_ops = {
-	.cmd		= TASKSTATS_CMD_GET,
-	.doit		= taskstats_user_cmd,
-	.policy		= taskstats_cmd_get_policy,
-	.flags		= GENL_ADMIN_PERM,
+static const struct genl_ops taskstats_ops[] = {
+	{
+		.cmd		= TASKSTATS_CMD_GET,
+		.doit		= taskstats_user_cmd,
+		.policy		= taskstats_cmd_get_policy,
+		.flags		= GENL_ADMIN_PERM,
+	},
+	{
+		.cmd		= CGROUPSTATS_CMD_GET,
+		.doit		= cgroupstats_user_cmd,
+		.policy		= cgroupstats_cmd_get_policy,
+	},
 };
 
-static struct genl_ops cgroupstats_ops = {
-	.cmd		= CGROUPSTATS_CMD_GET,
-	.doit		= cgroupstats_user_cmd,
-	.policy		= cgroupstats_cmd_get_policy,
+static struct genl_family family __ro_after_init = {
+	.name		= TASKSTATS_GENL_NAME,
+	.version	= TASKSTATS_GENL_VERSION,
+	.maxattr	= TASKSTATS_CMD_ATTR_MAX,
+	.module		= THIS_MODULE,
+	.ops		= taskstats_ops,
+	.n_ops		= ARRAY_SIZE(taskstats_ops),
 };
 
 /* Needed early in initialization */
@@ -700,22 +693,9 @@ static int __init taskstats_init(void)
 	if (rc)
 		return rc;
 
-	rc = genl_register_ops(&family, &taskstats_ops);
-	if (rc < 0)
-		goto err;
-
-	rc = genl_register_ops(&family, &cgroupstats_ops);
-	if (rc < 0)
-		goto err_cgroup_ops;
-
 	family_registered = 1;
 	pr_info("registered taskstats version %d\n", TASKSTATS_GENL_VERSION);
 	return 0;
-err_cgroup_ops:
-	genl_unregister_ops(&family, &taskstats_ops);
-err:
-	genl_unregister_family(&family);
-	return rc;
 }
 
 /*

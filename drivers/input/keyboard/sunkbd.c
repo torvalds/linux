@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/serio.h>
 #include <linux/workqueue.h>
@@ -340,7 +339,7 @@ static void sunkbd_disconnect(struct serio *serio)
 	kfree(sunkbd);
 }
 
-static struct serio_device_id sunkbd_serio_ids[] = {
+static const struct serio_device_id sunkbd_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_SUNKBD,

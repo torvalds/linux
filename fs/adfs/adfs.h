@@ -43,22 +43,25 @@ struct adfs_dir_ops;
  * ADFS file system superblock data in memory
  */
 struct adfs_sb_info {
-	struct adfs_discmap *s_map;	/* bh list containing map		 */
-	struct adfs_dir_ops *s_dir;	/* directory operations			 */
-
-	kuid_t		s_uid;		/* owner uid				 */
-	kgid_t		s_gid;		/* owner gid				 */
-	umode_t		s_owner_mask;	/* ADFS owner perm -> unix perm		 */
-	umode_t		s_other_mask;	/* ADFS other perm -> unix perm		 */
+	union { struct {
+		struct adfs_discmap *s_map;	/* bh list containing map */
+		const struct adfs_dir_ops *s_dir; /* directory operations */
+		};
+		struct rcu_head rcu;	/* used only at shutdown time	 */
+	};
+	kuid_t		s_uid;		/* owner uid */
+	kgid_t		s_gid;		/* owner gid */
+	umode_t		s_owner_mask;	/* ADFS owner perm -> unix perm */
+	umode_t		s_other_mask;	/* ADFS other perm -> unix perm	*/
 	int		s_ftsuffix;	/* ,xyz hex filetype suffix option */
 
-	__u32		s_ids_per_zone;	/* max. no ids in one zone		 */
-	__u32		s_idlen;	/* length of ID in map			 */
-	__u32		s_map_size;	/* sector size of a map			 */
-	unsigned long	s_size;		/* total size (in blocks) of this fs	 */
-	signed int	s_map2blk;	/* shift left by this for map->sector	 */
-	unsigned int	s_log2sharesize;/* log2 share size			 */
-	__le32		s_version;	/* disc format version			 */
+	__u32		s_ids_per_zone;	/* max. no ids in one zone */
+	__u32		s_idlen;	/* length of ID in map */
+	__u32		s_map_size;	/* sector size of a map	*/
+	unsigned long	s_size;		/* total size (in blocks) of this fs */
+	signed int	s_map2blk;	/* shift left by this for map->sector*/
+	unsigned int	s_log2sharesize;/* log2 share size */
+	__le32		s_version;	/* disc format version */
 	unsigned int	s_namelen;	/* maximum number of characters in name	 */
 };
 
@@ -150,6 +153,7 @@ extern int adfs_map_lookup(struct super_block *sb, unsigned int frag_id, unsigne
 extern unsigned int adfs_map_free(struct super_block *sb);
 
 /* Misc */
+__printf(3, 4)
 void __adfs_error(struct super_block *sb, const char *function,
 		  const char *fmt, ...);
 #define adfs_error(sb, fmt...) __adfs_error(sb, __func__, fmt)
@@ -164,8 +168,8 @@ void __adfs_error(struct super_block *sb, const char *function,
 extern const struct inode_operations adfs_dir_inode_operations;
 extern const struct file_operations adfs_dir_operations;
 extern const struct dentry_operations adfs_dentry_operations;
-extern struct adfs_dir_ops adfs_f_dir_ops;
-extern struct adfs_dir_ops adfs_fplus_dir_ops;
+extern const struct adfs_dir_ops adfs_f_dir_ops;
+extern const struct adfs_dir_ops adfs_fplus_dir_ops;
 
 extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);

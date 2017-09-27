@@ -37,6 +37,7 @@
 #include <linux/types.h>
 #include <linux/mdio.h>
 #include <linux/pci.h>
+#include <linux/if_vlan.h>
 #include "reg.h"
 
 /* Transmit Packet Descriptor, contains 4 32-bit words.
@@ -343,12 +344,13 @@ struct alx_rrd {
 					 ALX_RSS_HASH_TYPE_IPV4_TCP | \
 					 ALX_RSS_HASH_TYPE_IPV6 | \
 					 ALX_RSS_HASH_TYPE_IPV6_TCP)
-#define ALX_DEF_RXBUF_SIZE	1536
+#define ALX_FRAME_PAD		16
+#define ALX_RAW_MTU(_mtu)	(_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN)
+#define ALX_MAX_FRAME_LEN(_mtu)	(ALIGN((ALX_RAW_MTU(_mtu) + ALX_FRAME_PAD), 8))
+#define ALX_DEF_RXBUF_SIZE	ALX_MAX_FRAME_LEN(1500)
 #define ALX_MAX_JUMBO_PKT_SIZE	(9*1024)
 #define ALX_MAX_TSO_PKT_SIZE	(7*1024)
 #define ALX_MAX_FRAME_SIZE	ALX_MAX_JUMBO_PKT_SIZE
-#define ALX_MIN_FRAME_SIZE	68
-#define ALX_RAW_MTU(_mtu)	(_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN)
 
 #define ALX_MAX_RX_QUEUES	8
 #define ALX_MAX_TX_QUEUES	4
@@ -380,6 +382,73 @@ struct alx_rrd {
 				 ALX_ISR_RX_Q5 | \
 				 ALX_ISR_RX_Q6 | \
 				 ALX_ISR_RX_Q7)
+
+/* Statistics counters collected by the MAC
+ *
+ * The order of the fields must match the strings in alx_gstrings_stats
+ * All stats fields should be u64
+ * See ethtool.c
+ */
+struct alx_hw_stats {
+	/* rx */
+	u64 rx_ok;		/* good RX packets */
+	u64 rx_bcast;		/* good RX broadcast packets */
+	u64 rx_mcast;		/* good RX multicast packets */
+	u64 rx_pause;		/* RX pause frames */
+	u64 rx_ctrl;		/* RX control packets other than pause frames */
+	u64 rx_fcs_err;		/* RX packets with bad FCS */
+	u64 rx_len_err;		/* RX packets with length != actual size */
+	u64 rx_byte_cnt;	/* good bytes received. FCS is NOT included */
+	u64 rx_runt;		/* RX packets < 64 bytes with good FCS */
+	u64 rx_frag;		/* RX packets < 64 bytes with bad FCS */
+	u64 rx_sz_64B;		/* 64 byte RX packets */
+	u64 rx_sz_127B;		/* 65-127 byte RX packets */
+	u64 rx_sz_255B;		/* 128-255 byte RX packets */
+	u64 rx_sz_511B;		/* 256-511 byte RX packets */
+	u64 rx_sz_1023B;	/* 512-1023 byte RX packets */
+	u64 rx_sz_1518B;	/* 1024-1518 byte RX packets */
+	u64 rx_sz_max;		/* 1519 byte to MTU RX packets */
+	u64 rx_ov_sz;		/* truncated RX packets, size > MTU */
+	u64 rx_ov_rxf;		/* frames dropped due to RX FIFO overflow */
+	u64 rx_ov_rrd;		/* frames dropped due to RRD overflow */
+	u64 rx_align_err;	/* alignment errors */
+	u64 rx_bc_byte_cnt;	/* RX broadcast bytes, excluding FCS */
+	u64 rx_mc_byte_cnt;	/* RX multicast bytes, excluding FCS */
+	u64 rx_err_addr;	/* packets dropped due to address filtering */
+
+	/* tx */
+	u64 tx_ok;		/* good TX packets */
+	u64 tx_bcast;		/* good TX broadcast packets */
+	u64 tx_mcast;		/* good TX multicast packets */
+	u64 tx_pause;		/* TX pause frames */
+	u64 tx_exc_defer;	/* TX packets deferred excessively */
+	u64 tx_ctrl;		/* TX control frames, excluding pause frames */
+	u64 tx_defer;		/* TX packets deferred */
+	u64 tx_byte_cnt;	/* bytes transmitted, FCS is NOT included */
+	u64 tx_sz_64B;		/* 64 byte TX packets */
+	u64 tx_sz_127B;		/* 65-127 byte TX packets */
+	u64 tx_sz_255B;		/* 128-255 byte TX packets */
+	u64 tx_sz_511B;		/* 256-511 byte TX packets */
+	u64 tx_sz_1023B;	/* 512-1023 byte TX packets */
+	u64 tx_sz_1518B;	/* 1024-1518 byte TX packets */
+	u64 tx_sz_max;		/* 1519 byte to MTU TX packets */
+	u64 tx_single_col;	/* packets TX after a single collision */
+	u64 tx_multi_col;	/* packets TX after multiple collisions */
+	u64 tx_late_col;	/* TX packets with late collisions */
+	u64 tx_abort_col;	/* TX packets aborted w/excessive collisions */
+	u64 tx_underrun;	/* TX packets aborted due to TX FIFO underrun
+				 * or TRD FIFO underrun
+				 */
+	u64 tx_trd_eop;		/* reads beyond the EOP into the next frame
+				 * when TRD was not written timely
+				 */
+	u64 tx_len_err;		/* TX packets where length != actual size */
+	u64 tx_trunc;		/* TX packets truncated due to size > MTU */
+	u64 tx_bc_byte_cnt;	/* broadcast bytes transmitted, excluding FCS */
+	u64 tx_mc_byte_cnt;	/* multicast bytes transmitted, excluding FCS */
+	u64 update;
+};
+
 
 /* maximum interrupt vectors for msix */
 #define ALX_MAX_MSIX_INTRS	16
@@ -424,6 +493,9 @@ struct alx_hw {
 
 	/* PHY link patch flag */
 	bool lnk_patch;
+
+	/* cumulated stats from the hardware (registers are cleared on read) */
+	struct alx_hw_stats stats;
 };
 
 static inline int alx_hw_revision(struct alx_hw *hw)
@@ -489,8 +561,10 @@ int alx_reset_mac(struct alx_hw *hw);
 void alx_set_macaddr(struct alx_hw *hw, const u8 *addr);
 bool alx_phy_configured(struct alx_hw *hw);
 void alx_configure_basic(struct alx_hw *hw);
+void alx_mask_msix(struct alx_hw *hw, int index, bool mask);
 void alx_disable_rss(struct alx_hw *hw);
 bool alx_get_phy_info(struct alx_hw *hw);
+void alx_update_hw_stats(struct alx_hw *hw);
 
 static inline u32 alx_speed_to_ethadv(int speed, u8 duplex)
 {

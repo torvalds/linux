@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2007, 2014 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +20,10 @@
 #ifndef __ASM_ARCH_MXC_HARDWARE_H__
 #define __ASM_ARCH_MXC_HARDWARE_H__
 
+#ifndef __ASSEMBLY__
 #include <asm/io.h>
+#include <soc/imx/revision.h>
+#endif
 #include <asm/sizes.h>
 
 #define addr_in_module(addr, mod) \
@@ -103,16 +106,12 @@
 
 #include "mxc.h"
 
-#include "mx51.h"
-#include "mx53.h"
 #include "mx3x.h"
 #include "mx31.h"
 #include "mx35.h"
 #include "mx2x.h"
 #include "mx21.h"
 #include "mx27.h"
-#include "mx1.h"
-#include "mx25.h"
 
 #define imx_map_entry(soc, name, _type)	{				\
 	.virtual = soc ## _IO_P2V(soc ## _ ## name ## _BASE_ADDR),	\
@@ -121,7 +120,7 @@
 	.type = _type,							\
 }
 
-/* There's a off-by-one betweem the gpio bank number and the gpiochip */
+/* There's an off-by-one between the gpio bank number and the gpiochip */
 /* range e.g. GPIO_1_5 is gpio 5 under linux */
 #define IMX_GPIO_NR(bank, nr)		(((bank) - 1) * 32 + (nr))
 

@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,10 +64,10 @@ static struct rc_map_table kaiomy[] = {
 
 static struct rc_map_list kaiomy_map = {
 	.map = {
-		.scan    = kaiomy,
-		.size    = ARRAY_SIZE(kaiomy),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_KAIOMY,
+		.scan     = kaiomy,
+		.size     = ARRAY_SIZE(kaiomy),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_KAIOMY,
 	}
 };
 
@@ -85,4 +85,4 @@ module_init(init_rc_map_kaiomy)
 module_exit(exit_rc_map_kaiomy)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

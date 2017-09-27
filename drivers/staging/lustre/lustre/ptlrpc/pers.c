@@ -15,17 +15,15 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
 /*
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
+ *
+ * Copyright (c) 2014, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -42,34 +40,32 @@
 
 #include "ptlrpc_internal.h"
 
-
-void ptlrpc_fill_bulk_md(lnet_md_t *md, struct ptlrpc_bulk_desc *desc,
+void ptlrpc_fill_bulk_md(struct lnet_md *md, struct ptlrpc_bulk_desc *desc,
 			 int mdidx)
 {
-	CLASSERT(PTLRPC_MAX_BRW_PAGES < LI_POISON);
+	int offset = mdidx * LNET_MAX_IOV;
+
+	BUILD_BUG_ON(PTLRPC_MAX_BRW_PAGES >= LI_POISON);
 
 	LASSERT(mdidx < desc->bd_md_max_brw);
 	LASSERT(desc->bd_iov_count <= PTLRPC_MAX_BRW_PAGES);
 	LASSERT(!(md->options & (LNET_MD_IOVEC | LNET_MD_KIOV |
 				 LNET_MD_PHYS)));
 
-	md->options |= LNET_MD_KIOV;
 	md->length = max(0, desc->bd_iov_count - mdidx * LNET_MAX_IOV);
 	md->length = min_t(unsigned int, LNET_MAX_IOV, md->length);
-	if (desc->bd_enc_iov)
-		md->start = &desc->bd_enc_iov[mdidx * LNET_MAX_IOV];
-	else
-		md->start = &desc->bd_iov[mdidx * LNET_MAX_IOV];
-}
 
-void ptlrpc_add_bulk_page(struct ptlrpc_bulk_desc *desc, struct page *page,
-			  int pageoffset, int len)
-{
-	lnet_kiov_t *kiov = &desc->bd_iov[desc->bd_iov_count];
-
-	kiov->kiov_page = page;
-	kiov->kiov_offset = pageoffset;
-	kiov->kiov_len = len;
-
-	desc->bd_iov_count++;
+	if (ptlrpc_is_bulk_desc_kiov(desc->bd_type)) {
+		md->options |= LNET_MD_KIOV;
+		if (GET_ENC_KIOV(desc))
+			md->start = &BD_GET_ENC_KIOV(desc, offset);
+		else
+			md->start = &BD_GET_KIOV(desc, offset);
+	} else {
+		md->options |= LNET_MD_IOVEC;
+		if (GET_ENC_KVEC(desc))
+			md->start = &BD_GET_ENC_KVEC(desc, offset);
+		else
+			md->start = &BD_GET_KVEC(desc, offset);
+	}
 }

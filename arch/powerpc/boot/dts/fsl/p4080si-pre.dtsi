@@ -1,7 +1,7 @@
 /*
  * P4080/P4040 Silicon/SoC Device Tree Source (pre include)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2011 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -72,6 +72,19 @@
 		rtic_c = &rtic_c;
 		rtic_d = &rtic_d;
 		sec_mon = &sec_mon;
+
+		fman0 = &fman0;
+		fman1 = &fman1;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		ethernet4 = &enet4;
+		ethernet5 = &enet5;
+		ethernet6 = &enet6;
+		ethernet7 = &enet7;
+		ethernet8 = &enet8;
+		ethernet9 = &enet9;
 	};
 
 	cpus {
@@ -81,7 +94,9 @@
 		cpu0: PowerPC,e500mc@0 {
 			device_type = "cpu";
 			reg = <0>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_0>;
+			fsl,portid-mapping = <0x80000000>;
 			L2_0: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -89,7 +104,9 @@
 		cpu1: PowerPC,e500mc@1 {
 			device_type = "cpu";
 			reg = <1>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x40000000>;
 			L2_1: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -97,7 +114,9 @@
 		cpu2: PowerPC,e500mc@2 {
 			device_type = "cpu";
 			reg = <2>;
+			clocks = <&mux2>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x20000000>;
 			L2_2: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -105,7 +124,9 @@
 		cpu3: PowerPC,e500mc@3 {
 			device_type = "cpu";
 			reg = <3>;
+			clocks = <&mux3>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x10000000>;
 			L2_3: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -113,7 +134,9 @@
 		cpu4: PowerPC,e500mc@4 {
 			device_type = "cpu";
 			reg = <4>;
+			clocks = <&mux4>;
 			next-level-cache = <&L2_4>;
+			fsl,portid-mapping = <0x08000000>;
 			L2_4: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -121,7 +144,9 @@
 		cpu5: PowerPC,e500mc@5 {
 			device_type = "cpu";
 			reg = <5>;
+			clocks = <&mux5>;
 			next-level-cache = <&L2_5>;
+			fsl,portid-mapping = <0x04000000>;
 			L2_5: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -129,7 +154,9 @@
 		cpu6: PowerPC,e500mc@6 {
 			device_type = "cpu";
 			reg = <6>;
+			clocks = <&mux6>;
 			next-level-cache = <&L2_6>;
+			fsl,portid-mapping = <0x02000000>;
 			L2_6: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -137,7 +164,9 @@
 		cpu7: PowerPC,e500mc@7 {
 			device_type = "cpu";
 			reg = <7>;
+			clocks = <&mux7>;
 			next-level-cache = <&L2_7>;
+			fsl,portid-mapping = <0x01000000>;
 			L2_7: l2-cache {
 				next-level-cache = <&cpc>;
 			};

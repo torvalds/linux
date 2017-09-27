@@ -26,7 +26,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
@@ -466,7 +465,6 @@ MODULE_DEVICE_TABLE(i2c, isl29003_id);
 static struct i2c_driver isl29003_driver = {
 	.driver = {
 		.name	= ISL29003_DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= ISL29003_PM_OPS,
 	},
 	.probe	= isl29003_probe,

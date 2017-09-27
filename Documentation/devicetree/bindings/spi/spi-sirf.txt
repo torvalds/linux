@@ -1,0 +1,42 @@
+* CSR SiRFprimaII Serial Peripheral Interface
+
+Required properties:
+- compatible : Should be "sirf,prima2-spi", "sirf,prima2-usp"
+               or "sirf,atlas7-usp"
+- reg : Offset and length of the register set for the device
+- interrupts : Should contain SPI interrupt
+- resets: phandle to the reset controller asserting this device in
+          reset
+  See ../reset/reset.txt for details.
+- dmas : Must contain an entry for each entry in clock-names.
+  See ../dma/dma.txt for details.
+- dma-names : Must include the following entries:
+  - rx
+  - tx
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+
+- #address-cells: Number of cells required to define a chip select
+                  address on the SPI bus. Should be set to 1.
+- #size-cells:    Should be zero.
+
+Optional properties:
+- spi-max-frequency: Specifies maximum SPI clock frequency,
+                     Units - Hz. Definition as per
+                     Documentation/devicetree/bindings/spi/spi-bus.txt
+- cs-gpios:     should specify GPIOs used for chipselects.
+
+Example:
+
+spi0: spi@b00d0000 {
+	compatible = "sirf,prima2-spi";
+	reg = <0xb00d0000 0x10000>;
+	interrupts = <15>;
+	dmas = <&dmac1 9>,
+		<&dmac1 4>;
+	dma-names = "rx", "tx";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clocks = <&clks 19>;
+	resets = <&rstc 26>;
+};

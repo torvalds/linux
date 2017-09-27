@@ -34,23 +34,29 @@
 /* I2C command bytes */
 #define SHT21_TRIG_T_MEASUREMENT_HM  0xe3
 #define SHT21_TRIG_RH_MEASUREMENT_HM 0xe5
+#define SHT21_READ_SNB_CMD1 0xFA
+#define SHT21_READ_SNB_CMD2 0x0F
+#define SHT21_READ_SNAC_CMD1 0xFC
+#define SHT21_READ_SNAC_CMD2 0xC9
 
 /**
  * struct sht21 - SHT21 device specific data
  * @hwmon_dev: device registered with hwmon
  * @lock: mutex to protect measurement values
- * @valid: only 0 before first measurement is taken
  * @last_update: time of last update (jiffies)
  * @temperature: cached temperature measurement value
  * @humidity: cached humidity measurement value
+ * @valid: only 0 before first measurement is taken
+ * @eic: cached electronic identification code text
  */
 struct sht21 {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	struct mutex lock;
-	char valid;
 	unsigned long last_update;
 	int temperature;
 	int humidity;
+	char valid;
+	char eic[18];
 };
 
 /**
@@ -85,14 +91,15 @@ static inline int sht21_rh_ticks_to_per_cent_mille(int ticks)
 
 /**
  * sht21_update_measurements() - get updated measurements from device
- * @client: I2C client device
+ * @dev: device
  *
  * Returns 0 on success, else negative errno.
  */
-static int sht21_update_measurements(struct i2c_client *client)
+static int sht21_update_measurements(struct device *dev)
 {
 	int ret = 0;
-	struct sht21 *sht21 = i2c_get_clientdata(client);
+	struct sht21 *sht21 = dev_get_drvdata(dev);
+	struct i2c_client *client = sht21->client;
 
 	mutex_lock(&sht21->lock);
 	/*
@@ -133,9 +140,10 @@ static ssize_t sht21_show_temperature(struct device *dev,
 	struct device_attribute *attr,
 	char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct sht21 *sht21 = i2c_get_clientdata(client);
-	int ret = sht21_update_measurements(client);
+	struct sht21 *sht21 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = sht21_update_measurements(dev);
 	if (ret < 0)
 		return ret;
 	return sprintf(buf, "%d\n", sht21->temperature);
@@ -154,12 +162,93 @@ static ssize_t sht21_show_humidity(struct device *dev,
 	struct device_attribute *attr,
 	char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct sht21 *sht21 = i2c_get_clientdata(client);
-	int ret = sht21_update_measurements(client);
+	struct sht21 *sht21 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = sht21_update_measurements(dev);
 	if (ret < 0)
 		return ret;
 	return sprintf(buf, "%d\n", sht21->humidity);
+}
+
+static ssize_t eic_read(struct sht21 *sht21)
+{
+	struct i2c_client *client = sht21->client;
+	u8 tx[2];
+	u8 rx[8];
+	u8 eic[8];
+	struct i2c_msg msgs[2] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 2,
+			.buf = tx,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 8,
+			.buf = rx,
+		},
+	};
+	int ret;
+
+	tx[0] = SHT21_READ_SNB_CMD1;
+	tx[1] = SHT21_READ_SNB_CMD2;
+	ret = i2c_transfer(client->adapter, msgs, 2);
+	if (ret < 0)
+		goto out;
+	eic[2] = rx[0];
+	eic[3] = rx[2];
+	eic[4] = rx[4];
+	eic[5] = rx[6];
+
+	tx[0] = SHT21_READ_SNAC_CMD1;
+	tx[1] = SHT21_READ_SNAC_CMD2;
+	msgs[1].len = 6;
+	ret = i2c_transfer(client->adapter, msgs, 2);
+	if (ret < 0)
+		goto out;
+	eic[0] = rx[3];
+	eic[1] = rx[4];
+	eic[6] = rx[0];
+	eic[7] = rx[1];
+
+	ret = snprintf(sht21->eic, sizeof(sht21->eic),
+		       "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		       eic[0], eic[1], eic[2], eic[3],
+		       eic[4], eic[5], eic[6], eic[7]);
+out:
+	if (ret < 0)
+		sht21->eic[0] = 0;
+
+	return ret;
+}
+
+/**
+ * eic_show() - show Electronic Identification Code in sysfs
+ * @dev: device
+ * @attr: device attribute
+ * @buf: sysfs buffer (PAGE_SIZE) where EIC is written
+ *
+ * Will be called on read access to eic sysfs attribute.
+ * Returns number of bytes written into buffer, negative errno on error.
+ */
+static ssize_t eic_show(struct device *dev,
+	struct device_attribute *attr,
+	char *buf)
+{
+	struct sht21 *sht21 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = sizeof(sht21->eic) - 1;
+	mutex_lock(&sht21->lock);
+	if (!sht21->eic[0])
+		ret = eic_read(sht21);
+	if (ret > 0)
+		memcpy(buf, sht21->eic, ret);
+	mutex_unlock(&sht21->lock);
+	return ret;
 }
 
 /* sysfs attributes */
@@ -167,31 +256,23 @@ static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, sht21_show_temperature,
 	NULL, 0);
 static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO, sht21_show_humidity,
 	NULL, 0);
+static DEVICE_ATTR_RO(eic);
 
-static struct attribute *sht21_attributes[] = {
+static struct attribute *sht21_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_humidity1_input.dev_attr.attr,
+	&dev_attr_eic.attr,
 	NULL
 };
 
-static const struct attribute_group sht21_attr_group = {
-	.attrs = sht21_attributes,
-};
+ATTRIBUTE_GROUPS(sht21);
 
-/**
- * sht21_probe() - probe device
- * @client: I2C client device
- * @id: device ID
- *
- * Called by the I2C core when an entry in the ID table matches a
- * device's name.
- * Returns 0 on success.
- */
 static int sht21_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
+	struct device *hwmon_dev;
 	struct sht21 *sht21;
-	int err;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
@@ -200,47 +281,17 @@ static int sht21_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	sht21 = devm_kzalloc(&client->dev, sizeof(*sht21), GFP_KERNEL);
+	sht21 = devm_kzalloc(dev, sizeof(*sht21), GFP_KERNEL);
 	if (!sht21)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, sht21);
+	sht21->client = client;
 
 	mutex_init(&sht21->lock);
 
-	err = sysfs_create_group(&client->dev.kobj, &sht21_attr_group);
-	if (err) {
-		dev_dbg(&client->dev, "could not create sysfs files\n");
-		return err;
-	}
-	sht21->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(sht21->hwmon_dev)) {
-		dev_dbg(&client->dev, "unable to register hwmon device\n");
-		err = PTR_ERR(sht21->hwmon_dev);
-		goto fail_remove_sysfs;
-	}
-
-	dev_info(&client->dev, "initialized\n");
-
-	return 0;
-
-fail_remove_sysfs:
-	sysfs_remove_group(&client->dev.kobj, &sht21_attr_group);
-	return err;
-}
-
-/**
- * sht21_remove() - remove device
- * @client: I2C client device
- */
-static int sht21_remove(struct i2c_client *client)
-{
-	struct sht21 *sht21 = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(sht21->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &sht21_attr_group);
-
-	return 0;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   sht21, sht21_groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 /* Device ID table */
@@ -253,7 +304,6 @@ MODULE_DEVICE_TABLE(i2c, sht21_id);
 static struct i2c_driver sht21_driver = {
 	.driver.name = "sht21",
 	.probe       = sht21_probe,
-	.remove      = sht21_remove,
 	.id_table    = sht21_id,
 };
 

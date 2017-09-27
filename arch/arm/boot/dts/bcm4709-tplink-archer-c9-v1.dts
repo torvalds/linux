@@ -1,0 +1,107 @@
+/*
+ * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
+ *
+ * Licensed under the ISC license.
+ */
+
+/dts-v1/;
+
+#include "bcm4709.dtsi"
+
+/ {
+	compatible = "tplink,archer-c9-v1", "brcm,bcm4709", "brcm,bcm4708";
+	model = "TP-LINK Archer C9 V1";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon";
+	};
+
+	memory {
+		reg = <0x00000000 0x08000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		lan {
+			label = "bcm53xx:blue:lan";
+			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		wps {
+			label = "bcm53xx:blue:wps";
+			gpios = <&chipcommon 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		2ghz {
+			label = "bcm53xx:blue:2ghz";
+			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		5ghz {
+			label = "bcm53xx:blue:5ghz";
+			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb3 {
+			label = "bcm53xx:blue:usb3";
+			gpios = <&chipcommon 6 GPIO_ACTIVE_HIGH>;
+			trigger-sources = <&ohci_port1>, <&ehci_port1>,
+					  <&xhci_port1>;
+			linux,default-trigger = "usbport";
+		};
+
+		usb2 {
+			label = "bcm53xx:blue:usb2";
+			gpios = <&chipcommon 7 GPIO_ACTIVE_HIGH>;
+			trigger-sources = <&ohci_port2>, <&ehci_port2>;
+			linux,default-trigger = "usbport";
+		};
+
+		wan-blue {
+			label = "bcm53xx:blue:wan";
+			gpios = <&chipcommon 14 GPIO_ACTIVE_HIGH>;
+		};
+
+		wan-amber {
+			label = "bcm53xx:amber:wan";
+			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
+		};
+
+		power {
+			label = "bcm53xx:blue:power";
+			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
+		};
+
+		restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&usb2 {
+	vcc-gpio = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3 {
+	vcc-gpio = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
+};
+
+&spi_nor {
+	status = "okay";
+};

@@ -1,7 +1,7 @@
 /*
  * fam15h_power.c - AMD Family 15h processor power monitoring
  *
- * Copyright (c) 2011 Advanced Micro Devices, Inc.
+ * Copyright (c) 2011-2016 Advanced Micro Devices, Inc.
  * Author: Andreas Herrmann <herrmann.der.user@googlemail.com>
  *
  *
@@ -25,14 +25,16 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
+#include <linux/cpu.h>
+#include <linux/cpumask.h>
+#include <linux/time.h>
+#include <linux/sched.h>
 #include <asm/processor.h>
+#include <asm/msr.h>
 
 MODULE_DESCRIPTION("AMD Family 15h CPU processor power monitor");
 MODULE_AUTHOR("Andreas Herrmann <herrmann.der.user@googlemail.com>");
 MODULE_LICENSE("GPL");
-
-/* Family 16h Northbridge's function 4 PCI ID */
-#define PCI_DEVICE_ID_AMD_16H_NB_F4	0x1534
 
 /* D18F3 */
 #define REG_NORTHBRIDGE_CAP		0xe8
@@ -44,32 +46,81 @@ MODULE_LICENSE("GPL");
 #define REG_TDP_RUNNING_AVERAGE		0xe0
 #define REG_TDP_LIMIT3			0xe8
 
+#define FAM15H_MIN_NUM_ATTRS		2
+#define FAM15H_NUM_GROUPS		2
+#define MAX_CUS				8
+
+/* set maximum interval as 1 second */
+#define MAX_INTERVAL			1000
+
+#define MSR_F15H_CU_PWR_ACCUMULATOR	0xc001007a
+#define MSR_F15H_CU_MAX_PWR_ACCUMULATOR	0xc001007b
+#define MSR_F15H_PTSC			0xc0010280
+
+#define PCI_DEVICE_ID_AMD_15H_M70H_NB_F4 0x15b4
+
 struct fam15h_power_data {
-	struct device *hwmon_dev;
+	struct pci_dev *pdev;
 	unsigned int tdp_to_watts;
 	unsigned int base_tdp;
 	unsigned int processor_pwr_watts;
+	unsigned int cpu_pwr_sample_ratio;
+	const struct attribute_group *groups[FAM15H_NUM_GROUPS];
+	struct attribute_group group;
+	/* maximum accumulated power of a compute unit */
+	u64 max_cu_acc_power;
+	/* accumulated power of the compute units */
+	u64 cu_acc_power[MAX_CUS];
+	/* performance timestamp counter */
+	u64 cpu_sw_pwr_ptsc[MAX_CUS];
+	/* online/offline status of current compute unit */
+	int cu_on[MAX_CUS];
+	unsigned long power_period;
 };
 
-static ssize_t show_power(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+static bool is_carrizo_or_later(void)
+{
+	return boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60;
+}
+
+static ssize_t power1_input_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	u32 val, tdp_limit, running_avg_range;
 	s32 running_avg_capture;
 	u64 curr_pwr_watts;
-	struct pci_dev *f4 = to_pci_dev(dev);
 	struct fam15h_power_data *data = dev_get_drvdata(dev);
+	struct pci_dev *f4 = data->pdev;
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_RUNNING_AVERAGE, &val);
-	running_avg_capture = (val >> 4) & 0x3fffff;
-	running_avg_capture = sign_extend32(running_avg_capture, 21);
+
+	/*
+	 * On Carrizo and later platforms, TdpRunAvgAccCap bit field
+	 * is extended to 4:31 from 4:25.
+	 */
+	if (is_carrizo_or_later()) {
+		running_avg_capture = val >> 4;
+		running_avg_capture = sign_extend32(running_avg_capture, 27);
+	} else {
+		running_avg_capture = (val >> 4) & 0x3fffff;
+		running_avg_capture = sign_extend32(running_avg_capture, 21);
+	}
+
 	running_avg_range = (val & 0xf) + 1;
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_LIMIT3, &val);
 
-	tdp_limit = val >> 16;
+	/*
+	 * On Carrizo and later platforms, ApmTdpLimit bit field
+	 * is extended to 16:31 from 16:28.
+	 */
+	if (is_carrizo_or_later())
+		tdp_limit = val >> 16;
+	else
+		tdp_limit = (val >> 16) & 0x1fff;
+
 	curr_pwr_watts = ((u64)(tdp_limit +
 				data->base_tdp)) << running_avg_range;
 	curr_pwr_watts -= running_avg_capture;
@@ -85,36 +136,213 @@ static ssize_t show_power(struct device *dev,
 	curr_pwr_watts = (curr_pwr_watts * 15625) >> (10 + running_avg_range);
 	return sprintf(buf, "%u\n", (unsigned int) curr_pwr_watts);
 }
-static DEVICE_ATTR(power1_input, S_IRUGO, show_power, NULL);
+static DEVICE_ATTR_RO(power1_input);
 
-static ssize_t show_power_crit(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t power1_crit_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct fam15h_power_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", data->processor_pwr_watts);
 }
-static DEVICE_ATTR(power1_crit, S_IRUGO, show_power_crit, NULL);
+static DEVICE_ATTR_RO(power1_crit);
 
-static ssize_t show_name(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static void do_read_registers_on_cu(void *_data)
 {
-	return sprintf(buf, "fam15h_power\n");
+	struct fam15h_power_data *data = _data;
+	int cpu, cu;
+
+	cpu = smp_processor_id();
+
+	/*
+	 * With the new x86 topology modelling, cpu core id actually
+	 * is compute unit id.
+	 */
+	cu = cpu_data(cpu).cpu_core_id;
+
+	rdmsrl_safe(MSR_F15H_CU_PWR_ACCUMULATOR, &data->cu_acc_power[cu]);
+	rdmsrl_safe(MSR_F15H_PTSC, &data->cpu_sw_pwr_ptsc[cu]);
+
+	data->cu_on[cu] = 1;
 }
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
-static struct attribute *fam15h_power_attrs[] = {
-	&dev_attr_power1_input.attr,
-	&dev_attr_power1_crit.attr,
-	&dev_attr_name.attr,
-	NULL
-};
+/*
+ * This function is only able to be called when CPUID
+ * Fn8000_0007:EDX[12] is set.
+ */
+static int read_registers(struct fam15h_power_data *data)
+{
+	int core, this_core;
+	cpumask_var_t mask;
+	int ret, cpu;
 
-static const struct attribute_group fam15h_power_attr_group = {
-	.attrs	= fam15h_power_attrs,
-};
+	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
+	if (!ret)
+		return -ENOMEM;
 
-static bool fam15h_power_is_internal_node0(struct pci_dev *f4)
+	memset(data->cu_on, 0, sizeof(int) * MAX_CUS);
+
+	get_online_cpus();
+
+	/*
+	 * Choose the first online core of each compute unit, and then
+	 * read their MSR value of power and ptsc in a single IPI,
+	 * because the MSR value of CPU core represent the compute
+	 * unit's.
+	 */
+	core = -1;
+
+	for_each_online_cpu(cpu) {
+		this_core = topology_core_id(cpu);
+
+		if (this_core == core)
+			continue;
+
+		core = this_core;
+
+		/* get any CPU on this compute unit */
+		cpumask_set_cpu(cpumask_any(topology_sibling_cpumask(cpu)), mask);
+	}
+
+	on_each_cpu_mask(mask, do_read_registers_on_cu, data, true);
+
+	put_online_cpus();
+	free_cpumask_var(mask);
+
+	return 0;
+}
+
+static ssize_t power1_average_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct fam15h_power_data *data = dev_get_drvdata(dev);
+	u64 prev_cu_acc_power[MAX_CUS], prev_ptsc[MAX_CUS],
+	    jdelta[MAX_CUS];
+	u64 tdelta, avg_acc;
+	int cu, cu_num, ret;
+	signed long leftover;
+
+	/*
+	 * With the new x86 topology modelling, x86_max_cores is the
+	 * compute unit number.
+	 */
+	cu_num = boot_cpu_data.x86_max_cores;
+
+	ret = read_registers(data);
+	if (ret)
+		return 0;
+
+	for (cu = 0; cu < cu_num; cu++) {
+		prev_cu_acc_power[cu] = data->cu_acc_power[cu];
+		prev_ptsc[cu] = data->cpu_sw_pwr_ptsc[cu];
+	}
+
+	leftover = schedule_timeout_interruptible(msecs_to_jiffies(data->power_period));
+	if (leftover)
+		return 0;
+
+	ret = read_registers(data);
+	if (ret)
+		return 0;
+
+	for (cu = 0, avg_acc = 0; cu < cu_num; cu++) {
+		/* check if current compute unit is online */
+		if (data->cu_on[cu] == 0)
+			continue;
+
+		if (data->cu_acc_power[cu] < prev_cu_acc_power[cu]) {
+			jdelta[cu] = data->max_cu_acc_power + data->cu_acc_power[cu];
+			jdelta[cu] -= prev_cu_acc_power[cu];
+		} else {
+			jdelta[cu] = data->cu_acc_power[cu] - prev_cu_acc_power[cu];
+		}
+		tdelta = data->cpu_sw_pwr_ptsc[cu] - prev_ptsc[cu];
+		jdelta[cu] *= data->cpu_pwr_sample_ratio * 1000;
+		do_div(jdelta[cu], tdelta);
+
+		/* the unit is microWatt */
+		avg_acc += jdelta[cu];
+	}
+
+	return sprintf(buf, "%llu\n", (unsigned long long)avg_acc);
+}
+static DEVICE_ATTR_RO(power1_average);
+
+static ssize_t power1_average_interval_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct fam15h_power_data *data = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%lu\n", data->power_period);
+}
+
+static ssize_t power1_average_interval_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct fam15h_power_data *data = dev_get_drvdata(dev);
+	unsigned long temp;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &temp);
+	if (ret)
+		return ret;
+
+	if (temp > MAX_INTERVAL)
+		return -EINVAL;
+
+	/* the interval value should be greater than 0 */
+	if (temp <= 0)
+		return -EINVAL;
+
+	data->power_period = temp;
+
+	return count;
+}
+static DEVICE_ATTR_RW(power1_average_interval);
+
+static int fam15h_power_init_attrs(struct pci_dev *pdev,
+				   struct fam15h_power_data *data)
+{
+	int n = FAM15H_MIN_NUM_ATTRS;
+	struct attribute **fam15h_power_attrs;
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	if (c->x86 == 0x15 &&
+	    (c->x86_model <= 0xf ||
+	     (c->x86_model >= 0x60 && c->x86_model <= 0x7f)))
+		n += 1;
+
+	/* check if processor supports accumulated power */
+	if (boot_cpu_has(X86_FEATURE_ACC_POWER))
+		n += 2;
+
+	fam15h_power_attrs = devm_kcalloc(&pdev->dev, n,
+					  sizeof(*fam15h_power_attrs),
+					  GFP_KERNEL);
+
+	if (!fam15h_power_attrs)
+		return -ENOMEM;
+
+	n = 0;
+	fam15h_power_attrs[n++] = &dev_attr_power1_crit.attr;
+	if (c->x86 == 0x15 &&
+	    (c->x86_model <= 0xf ||
+	     (c->x86_model >= 0x60 && c->x86_model <= 0x7f)))
+		fam15h_power_attrs[n++] = &dev_attr_power1_input.attr;
+
+	if (boot_cpu_has(X86_FEATURE_ACC_POWER)) {
+		fam15h_power_attrs[n++] = &dev_attr_power1_average.attr;
+		fam15h_power_attrs[n++] = &dev_attr_power1_average_interval.attr;
+	}
+
+	data->group.attrs = fam15h_power_attrs;
+
+	return 0;
+}
+
+static bool should_load_on_this_node(struct pci_dev *f4)
 {
 	u32 val;
 
@@ -171,11 +399,12 @@ static int fam15h_power_resume(struct pci_dev *pdev)
 #define fam15h_power_resume NULL
 #endif
 
-static void fam15h_power_init_data(struct pci_dev *f4,
-					     struct fam15h_power_data *data)
+static int fam15h_power_init_data(struct pci_dev *f4,
+				  struct fam15h_power_data *data)
 {
 	u32 val;
 	u64 tmp;
+	int ret;
 
 	pci_read_config_dword(f4, REG_PROCESSOR_TDP, &val);
 	data->base_tdp = val >> 16;
@@ -195,14 +424,48 @@ static void fam15h_power_init_data(struct pci_dev *f4,
 
 	/* convert to microWatt */
 	data->processor_pwr_watts = (tmp * 15625) >> 10;
+
+	ret = fam15h_power_init_attrs(f4, data);
+	if (ret)
+		return ret;
+
+
+	/* CPUID Fn8000_0007:EDX[12] indicates to support accumulated power */
+	if (!boot_cpu_has(X86_FEATURE_ACC_POWER))
+		return 0;
+
+	/*
+	 * determine the ratio of the compute unit power accumulator
+	 * sample period to the PTSC counter period by executing CPUID
+	 * Fn8000_0007:ECX
+	 */
+	data->cpu_pwr_sample_ratio = cpuid_ecx(0x80000007);
+
+	if (rdmsrl_safe(MSR_F15H_CU_MAX_PWR_ACCUMULATOR, &tmp)) {
+		pr_err("Failed to read max compute unit power accumulator MSR\n");
+		return -ENODEV;
+	}
+
+	data->max_cu_acc_power = tmp;
+
+	/*
+	 * Milliseconds are a reasonable interval for the measurement.
+	 * But it shouldn't set too long here, because several seconds
+	 * would cause the read function to hang. So set default
+	 * interval as 10 ms.
+	 */
+	data->power_period = 10;
+
+	return read_registers(data);
 }
 
 static int fam15h_power_probe(struct pci_dev *pdev,
-					const struct pci_device_id *id)
+			      const struct pci_device_id *id)
 {
 	struct fam15h_power_data *data;
 	struct device *dev = &pdev->dev;
-	int err;
+	struct device *hwmon_dev;
+	int ret;
 
 	/*
 	 * though we ignore every other northbridge, we still have to
@@ -211,47 +474,34 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!fam15h_power_is_internal_node0(pdev))
+	if (!should_load_on_this_node(pdev))
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	fam15h_power_init_data(pdev, data);
+	ret = fam15h_power_init_data(pdev, data);
+	if (ret)
+		return ret;
 
-	dev_set_drvdata(dev, data);
-	err = sysfs_create_group(&dev->kobj, &fam15h_power_attr_group);
-	if (err)
-		return err;
+	data->pdev = pdev;
 
-	data->hwmon_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_group;
-	}
+	data->groups[0] = &data->group;
 
-	return 0;
-
-exit_remove_group:
-	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-	return err;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, "fam15h_power",
+							   data,
+							   &data->groups[0]);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static void fam15h_power_remove(struct pci_dev *pdev)
-{
-	struct device *dev;
-	struct fam15h_power_data *data;
-
-	dev = &pdev->dev;
-	data = dev_get_drvdata(dev);
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-}
-
-static DEFINE_PCI_DEVICE_TABLE(fam15h_power_id_table) = {
+static const struct pci_device_id fam15h_power_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M30H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M70H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F4) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, fam15h_power_id_table);
@@ -260,7 +510,6 @@ static struct pci_driver fam15h_power_driver = {
 	.name = "fam15h_power",
 	.id_table = fam15h_power_id_table,
 	.probe = fam15h_power_probe,
-	.remove = fam15h_power_remove,
 	.resume = fam15h_power_resume,
 };
 

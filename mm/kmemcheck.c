@@ -2,6 +2,7 @@
 #include <linux/mm_types.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include "slab.h"
 #include <linux/kmemcheck.h>
 
 void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
@@ -19,8 +20,7 @@ void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
 	shadow = alloc_pages_node(node, flags | __GFP_NOTRACK, order);
 	if (!shadow) {
 		if (printk_ratelimit())
-			printk(KERN_ERR "kmemcheck: failed to allocate "
-				"shadow bitmap\n");
+			pr_err("kmemcheck: failed to allocate shadow bitmap\n");
 		return;
 	}
 
@@ -59,6 +59,9 @@ void kmemcheck_free_shadow(struct page *page, int order)
 void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
 			  size_t size)
 {
+	if (unlikely(!object)) /* Skip object if allocation failed */
+		return;
+
 	/*
 	 * Has already been memset(), which initializes the shadow for us
 	 * as well.
@@ -92,7 +95,7 @@ void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
 void kmemcheck_slab_free(struct kmem_cache *s, void *object, size_t size)
 {
 	/* TODO: RCU freeing is unsupported for now; hide false positives. */
-	if (!s->ctor && !(s->flags & SLAB_DESTROY_BY_RCU))
+	if (!s->ctor && !(s->flags & SLAB_TYPESAFE_BY_RCU))
 		kmemcheck_mark_freed(object, size);
 }
 

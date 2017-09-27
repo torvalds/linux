@@ -1,0 +1,45 @@
+ZTE ZX296702 I2S controller
+
+Required properties:
+ - compatible : Must be one of:
+	"zte,zx296718-i2s", "zte,zx296702-i2s"
+	"zte,zx296702-i2s"
+ - reg : Must contain I2S core's registers location and length
+ - clocks : Pairs of phandle and specifier referencing the controller's clocks.
+ - clock-names: "wclk" for the wclk, "pclk" for the pclk to the I2S interface.
+ - dmas: Pairs of phandle and specifier for the DMA channel that is used by
+   the core. The core expects two dma channels for transmit.
+ - dma-names : Must be "tx" and "rx"
+
+For more details on the 'dma', 'dma-names', 'clock' and 'clock-names' properties
+please check:
+	* resource-names.txt
+	* clock/clock-bindings.txt
+	* dma/dma.txt
+
+Example:
+	i2s0: i2s@b005000 {
+		#sound-dai-cells = <0>;
+		compatible = "zte,zx296718-i2s", "zte,zx296702-i2s";
+		reg = <0x0b005000 0x1000>;
+		clocks = <&audiocrm AUDIO_I2S0_WCLK>, <&audiocrm AUDIO_I2S0_PCLK>;
+		clock-names = "wclk", "pclk";
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&dma 5>, <&dma 6>;
+		dma-names = "tx", "rx";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "zx296702_snd";
+		simple-audio-card,format = "left_j";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};

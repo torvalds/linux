@@ -34,8 +34,9 @@ static ssize_t ctcm_buffer_write(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct net_device *ndev;
-	int bs1;
+	unsigned int bs1;
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
+	int rc;
 
 	ndev = priv->channel[CTCM_READ]->netdev;
 	if (!(priv && priv->channel[CTCM_READ] && ndev)) {
@@ -43,7 +44,9 @@ static ssize_t ctcm_buffer_write(struct device *dev,
 		return -ENODEV;
 	}
 
-	sscanf(buf, "%u", &bs1);
+	rc = kstrtouint(buf, 0, &bs1);
+	if (rc)
+		goto einval;
 	if (bs1 > CTCM_BUFSIZE_LIMIT)
 					goto einval;
 	if (bs1 < (576 + LL_HEADER_LENGTH + 2))
@@ -97,8 +100,8 @@ static void ctcm_print_statistics(struct ctcm_priv *priv)
 		     priv->channel[WRITE]->prof.doios_multi);
 	p += sprintf(p, "  Netto bytes written: %ld\n",
 		     priv->channel[WRITE]->prof.txlen);
-	p += sprintf(p, "  Max. TX IO-time: %ld\n",
-		     priv->channel[WRITE]->prof.tx_time);
+	p += sprintf(p, "  Max. TX IO-time: %u\n",
+		     jiffies_to_usecs(priv->channel[WRITE]->prof.tx_time));
 
 	printk(KERN_INFO "Statistics for %s:\n%s",
 				priv->channel[CTCM_WRITE]->netdev->name, sbuf);
@@ -143,13 +146,14 @@ static ssize_t ctcm_proto_show(struct device *dev,
 static ssize_t ctcm_proto_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	int value;
+	int value, rc;
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
 		return -ENODEV;
-	sscanf(buf, "%u", &value);
-	if (!((value == CTCM_PROTO_S390)  ||
+	rc = kstrtoint(buf, 0, &value);
+	if (rc ||
+	    !((value == CTCM_PROTO_S390)  ||
 	      (value == CTCM_PROTO_LINUX) ||
 	      (value == CTCM_PROTO_MPC) ||
 	      (value == CTCM_PROTO_OS390)))

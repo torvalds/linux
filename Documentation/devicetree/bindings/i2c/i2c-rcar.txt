@@ -1,0 +1,52 @@
+I2C for R-Car platforms
+
+Required properties:
+- compatible:
+	"renesas,i2c-r8a7743" if the device is a part of a R8A7743 SoC.
+	"renesas,i2c-r8a7745" if the device is a part of a R8A7745 SoC.
+	"renesas,i2c-r8a7778" if the device is a part of a R8A7778 SoC.
+	"renesas,i2c-r8a7779" if the device is a part of a R8A7779 SoC.
+	"renesas,i2c-r8a7790" if the device is a part of a R8A7790 SoC.
+	"renesas,i2c-r8a7791" if the device is a part of a R8A7791 SoC.
+	"renesas,i2c-r8a7792" if the device is a part of a R8A7792 SoC.
+	"renesas,i2c-r8a7793" if the device is a part of a R8A7793 SoC.
+	"renesas,i2c-r8a7794" if the device is a part of a R8A7794 SoC.
+	"renesas,i2c-r8a7795" if the device is a part of a R8A7795 SoC.
+	"renesas,i2c-r8a7796" if the device is a part of a R8A7796 SoC.
+	"renesas,rcar-gen1-i2c" for a generic R-Car Gen1 compatible device.
+	"renesas,rcar-gen2-i2c" for a generic R-Car Gen2 or RZ/G1 compatible
+				device.
+	"renesas,rcar-gen3-i2c" for a generic R-Car Gen3 compatible device.
+	"renesas,i2c-rcar" (deprecated)
+
+	When compatible with the generic version, nodes must list the
+	SoC-specific version corresponding to the platform first followed
+	by the generic version.
+
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: interrupt specifier.
+
+Optional properties:
+- clock-frequency: desired I2C bus clock frequency in Hz. The absence of this
+  property indicates the default frequency 100 kHz.
+- clocks: clock specifier.
+- dmas: Must contain a list of two references to DMA specifiers, one for
+  transmission, and one for reception.
+- dma-names: Must contain a list of two DMA names, "tx" and "rx".
+
+- i2c-scl-falling-time-ns: see i2c.txt
+- i2c-scl-internal-delay-ns: see i2c.txt
+- i2c-scl-rising-time-ns: see i2c.txt
+
+Examples :
+
+i2c0: i2c@e6508000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "renesas,i2c-r8a7791", "renesas,rcar-gen2-i2c";
+	reg = <0 0xe6508000 0 0x40>;
+	interrupts = <0 287 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&mstp9_clks R8A7791_CLK_I2C0>;
+	clock-frequency = <400000>;
+};

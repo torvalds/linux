@@ -21,6 +21,7 @@
  * objects.
  */
 
+#include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
@@ -30,6 +31,8 @@
 #include <linux/fs.h>
 #include <linux/oprofile.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/gfp.h>
 
 #include "oprofile_stats.h"
@@ -205,7 +208,7 @@ void sync_stop(void)
  * because we cannot reach this code without at least one
  * dcookie user still being registered (namely, the reader
  * of the event buffer). */
-static inline unsigned long fast_get_dcookie(struct path *path)
+static inline unsigned long fast_get_dcookie(const struct path *path)
 {
 	unsigned long cookie;
 
@@ -224,10 +227,18 @@ static inline unsigned long fast_get_dcookie(struct path *path)
 static unsigned long get_exec_dcookie(struct mm_struct *mm)
 {
 	unsigned long cookie = NO_COOKIE;
+	struct file *exe_file;
 
-	if (mm && mm->exe_file)
-		cookie = fast_get_dcookie(&mm->exe_file->f_path);
+	if (!mm)
+		goto done;
 
+	exe_file = get_mm_exe_file(mm);
+	if (!exe_file)
+		goto done;
+
+	cookie = fast_get_dcookie(&exe_file->f_path);
+	fput(exe_file);
+done:
 	return cookie;
 }
 
@@ -236,6 +247,8 @@ static unsigned long get_exec_dcookie(struct mm_struct *mm)
  * pair that can then be added to the global event buffer. We make
  * sure to do this lookup before a mm->mmap modification happens so
  * we don't lose track.
+ *
+ * The caller must ensure the mm is not nil (ie: not a kernel thread).
  */
 static unsigned long
 lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
@@ -243,6 +256,7 @@ lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
 	unsigned long cookie = NO_COOKIE;
 	struct vm_area_struct *vma;
 
+	down_read(&mm->mmap_sem);
 	for (vma = find_vma(mm, addr); vma; vma = vma->vm_next) {
 
 		if (addr < vma->vm_start || addr >= vma->vm_end)
@@ -262,6 +276,7 @@ lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
 
 	if (!vma)
 		cookie = INVALID_COOKIE;
+	up_read(&mm->mmap_sem);
 
 	return cookie;
 }
@@ -402,19 +417,8 @@ static void release_mm(struct mm_struct *mm)
 {
 	if (!mm)
 		return;
-	up_read(&mm->mmap_sem);
 	mmput(mm);
 }
-
-
-static struct mm_struct *take_tasks_mm(struct task_struct *task)
-{
-	struct mm_struct *mm = get_task_mm(task);
-	if (mm)
-		down_read(&mm->mmap_sem);
-	return mm;
-}
-
 
 static inline int is_code(unsigned long val)
 {
@@ -532,7 +536,7 @@ void sync_buffer(int cpu)
 				new = (struct task_struct *)val;
 				oldmm = mm;
 				release_mm(oldmm);
-				mm = take_tasks_mm(new);
+				mm = get_task_mm(new);
 				if (mm != oldmm)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);

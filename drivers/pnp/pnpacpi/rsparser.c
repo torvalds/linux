@@ -15,10 +15,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/kernel.h>
 #include <linux/acpi.h>
@@ -28,8 +24,8 @@
 #include "../base.h"
 #include "pnpacpi.h"
 
-static void decode_irq_flags(struct pnp_dev *dev, int flags, int *triggering,
-			     int *polarity, int *shareable)
+static void decode_irq_flags(struct pnp_dev *dev, int flags, u8 *triggering,
+			     u8 *polarity, u8 *shareable)
 {
 	switch (flags & (IORESOURCE_IRQ_LOWLEVEL | IORESOURCE_IRQ_HIGHLEVEL |
 			 IORESOURCE_IRQ_LOWEDGE  | IORESOURCE_IRQ_HIGHEDGE)) {
@@ -149,8 +145,8 @@ static int vendor_resource_matches(struct pnp_dev *dev,
 	    uuid_len == sizeof(match->data) &&
 	    memcmp(uuid, match->data, uuid_len) == 0) {
 		if (expected_len && expected_len != actual_len) {
-			dev_err(&dev->dev, "wrong vendor descriptor size; "
-				"expected %d, found %d bytes\n",
+			dev_err(&dev->dev,
+				"wrong vendor descriptor size; expected %d, found %d bytes\n",
 				expected_len, actual_len);
 			return 0;
 		}
@@ -180,22 +176,22 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct pnp_dev *dev = data;
 	struct acpi_resource_dma *dma;
 	struct acpi_resource_vendor_typed *vendor_typed;
-	struct resource r = {0};
+	struct acpi_resource_gpio *gpio;
+	struct resource_win win = {{0}, 0};
+	struct resource *r = &win.res;
 	int i, flags;
 
-	if (acpi_dev_resource_memory(res, &r)
-	    || acpi_dev_resource_io(res, &r)
-	    || acpi_dev_resource_address_space(res, &r)
-	    || acpi_dev_resource_ext_address_space(res, &r)) {
-		pnp_add_resource(dev, &r);
+	if (acpi_dev_resource_address_space(res, &win)
+	    || acpi_dev_resource_ext_address_space(res, &win)) {
+		pnp_add_resource(dev, &win.res);
 		return AE_OK;
 	}
 
-	r.flags = 0;
-	if (acpi_dev_resource_interrupt(res, 0, &r)) {
-		pnpacpi_add_irqresource(dev, &r);
-		for (i = 1; acpi_dev_resource_interrupt(res, i, &r); i++)
-			pnpacpi_add_irqresource(dev, &r);
+	r->flags = 0;
+	if (acpi_dev_resource_interrupt(res, 0, r)) {
+		pnpacpi_add_irqresource(dev, r);
+		for (i = 1; acpi_dev_resource_interrupt(res, i, r); i++)
+			pnpacpi_add_irqresource(dev, r);
 
 		if (i > 1) {
 			/*
@@ -204,19 +200,44 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 			 * one interrupt, we won't be able to re-encode it.
 			 */
 			if (pnp_can_write(dev)) {
-				dev_warn(&dev->dev, "multiple interrupts in "
-					 "_CRS descriptor; configuration can't "
-					 "be changed\n");
+				dev_warn(&dev->dev,
+					 "multiple interrupts in _CRS descriptor; configuration can't be changed\n");
 				dev->capabilities &= ~PNP_WRITE;
 			}
 		}
 		return AE_OK;
-	} else if (r.flags & IORESOURCE_DISABLED) {
+	} else if (acpi_gpio_get_irq_resource(res, &gpio)) {
+		/*
+		 * If the resource is GpioInt() type then extract the IRQ
+		 * from GPIO resource and fill it into IRQ resource type.
+		 */
+		i = acpi_dev_gpio_irq_get(dev->data, 0);
+		if (i >= 0) {
+			flags = acpi_dev_irq_flags(gpio->triggering,
+						   gpio->polarity,
+						   gpio->sharable);
+		} else {
+			flags = IORESOURCE_DISABLED;
+		}
+		pnp_add_irq_resource(dev, i, flags);
+		return AE_OK;
+	} else if (r->flags & IORESOURCE_DISABLED) {
 		pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);
 		return AE_OK;
 	}
 
 	switch (res->type) {
+	case ACPI_RESOURCE_TYPE_MEMORY24:
+	case ACPI_RESOURCE_TYPE_MEMORY32:
+	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+		if (acpi_dev_resource_memory(res, r))
+			pnp_add_resource(dev, r);
+		break;
+	case ACPI_RESOURCE_TYPE_IO:
+	case ACPI_RESOURCE_TYPE_FIXED_IO:
+		if (acpi_dev_resource_io(res, r))
+			pnp_add_resource(dev, r);
+		break;
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;
 		if (dma->channel_count > 0 && dma->channels[0] != (u8) -1)
@@ -240,6 +261,10 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
+		break;
+
+	case ACPI_RESOURCE_TYPE_SERIAL_BUS:
+		/* serial bus connections (I2C/SPI/UART) are not pnp */
 		break;
 
 	default:
@@ -317,8 +342,8 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 			if (p->interrupts[i] < PNP_IRQ_NR)
 				__set_bit(p->interrupts[i], map.bits);
 			else
-				dev_err(&dev->dev, "ignoring IRQ %d option "
-					"(too large for %d entry bitmap)\n",
+				dev_err(&dev->dev,
+					"ignoring IRQ %d option (too large for %d entry bitmap)\n",
 					p->interrupts[i], PNP_IRQ_NR);
 		}
 	}
@@ -401,12 +426,12 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
 		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
 			flags = IORESOURCE_MEM_WRITEABLE;
-		pnp_register_mem_resource(dev, option_flags, p->minimum,
-					  p->minimum, 0, p->address_length,
+		pnp_register_mem_resource(dev, option_flags, p->address.minimum,
+					  p->address.minimum, 0, p->address.address_length,
 					  flags);
 	} else if (p->resource_type == ACPI_IO_RANGE)
-		pnp_register_port_resource(dev, option_flags, p->minimum,
-					   p->minimum, 0, p->address_length,
+		pnp_register_port_resource(dev, option_flags, p->address.minimum,
+					   p->address.minimum, 0, p->address.address_length,
 					   IORESOURCE_IO_FIXED);
 }
 
@@ -420,12 +445,12 @@ static __init void pnpacpi_parse_ext_address_option(struct pnp_dev *dev,
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
 		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
 			flags = IORESOURCE_MEM_WRITEABLE;
-		pnp_register_mem_resource(dev, option_flags, p->minimum,
-					  p->minimum, 0, p->address_length,
+		pnp_register_mem_resource(dev, option_flags, p->address.minimum,
+					  p->address.minimum, 0, p->address.address_length,
 					  flags);
 	} else if (p->resource_type == ACPI_IO_RANGE)
-		pnp_register_port_resource(dev, option_flags, p->minimum,
-					   p->minimum, 0, p->address_length,
+		pnp_register_port_resource(dev, option_flags, p->address.minimum,
+					   p->address.minimum, 0, p->address.address_length,
 					   IORESOURCE_IO_FIXED);
 }
 
@@ -644,7 +669,7 @@ static void pnpacpi_encode_irq(struct pnp_dev *dev,
 			       struct resource *p)
 {
 	struct acpi_resource_irq *irq = &resource->data.irq;
-	int triggering, polarity, shareable;
+	u8 triggering, polarity, shareable;
 
 	if (!pnp_resource_enabled(p)) {
 		irq->interrupt_count = 0;
@@ -673,7 +698,7 @@ static void pnpacpi_encode_ext_irq(struct pnp_dev *dev,
 				   struct resource *p)
 {
 	struct acpi_resource_extended_irq *extended_irq = &resource->data.extended_irq;
-	int triggering, polarity, shareable;
+	u8 triggering, polarity, shareable;
 
 	if (!pnp_resource_enabled(p)) {
 		extended_irq->interrupt_count = 0;
@@ -863,7 +888,7 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 	/* pnpacpi_build_resource_template allocates extra mem */
 	int res_cnt = (buffer->length - 1) / sizeof(struct acpi_resource) - 1;
 	struct acpi_resource *resource = buffer->pointer;
-	int port = 0, irq = 0, dma = 0, mem = 0;
+	unsigned int port = 0, irq = 0, dma = 0, mem = 0;
 
 	pnp_dbg(&dev->dev, "encode %d resources\n", res_cnt);
 	while (i < res_cnt) {
@@ -919,8 +944,9 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 		case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 		case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
 		default:	/* other type */
-			dev_warn(&dev->dev, "can't encode unknown resource "
-				 "type %d\n", resource->type);
+			dev_warn(&dev->dev,
+				 "can't encode unknown resource type %d\n",
+				 resource->type);
 			return -EINVAL;
 		}
 		resource++;

@@ -58,7 +58,7 @@ static int fddi_header(struct sk_buff *skb, struct net_device *dev,
 
 	if(type != ETH_P_IP && type != ETH_P_IPV6 && type != ETH_P_ARP)
 		hl=FDDI_K_8022_HLEN-3;
-	fddi = (struct fddihdr *)skb_push(skb, hl);
+	fddi = skb_push(skb, hl);
 	fddi->fc			 = FDDI_FC_K_ASYNC_LLC_DEF;
 	if(type == ETH_P_IP || type == ETH_P_IPV6 || type == ETH_P_ARP)
 	{
@@ -86,31 +86,6 @@ static int fddi_header(struct sk_buff *skb, struct net_device *dev,
 
 	return -hl;
 }
-
-
-/*
- * Rebuild the FDDI MAC header. This is called after an ARP
- * (or in future other address resolution) has completed on
- * this sk_buff.  We now let ARP fill in the other fields.
- */
-
-static int fddi_rebuild_header(struct sk_buff	*skb)
-{
-	struct fddihdr *fddi = (struct fddihdr *)skb->data;
-
-#ifdef CONFIG_INET
-	if (fddi->hdr.llc_snap.ethertype == htons(ETH_P_IP))
-		/* Try to get ARP to resolve the header and fill destination address */
-		return arp_find(fddi->daddr, skb);
-	else
-#endif
-	{
-		printk("%s: Don't know how to resolve type %04X addresses.\n",
-		       skb->dev->name, ntohs(fddi->hdr.llc_snap.ethertype));
-		return 0;
-	}
-}
-
 
 /*
  * Determine the packet's protocol ID and fill in skb fields.
@@ -166,18 +141,8 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 EXPORT_SYMBOL(fddi_type_trans);
 
-int fddi_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < FDDI_K_SNAP_HLEN) || (new_mtu > FDDI_K_SNAP_DLEN))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(fddi_change_mtu);
-
 static const struct header_ops fddi_header_ops = {
 	.create		= fddi_header,
-	.rebuild	= fddi_rebuild_header,
 };
 
 
@@ -187,6 +152,8 @@ static void fddi_setup(struct net_device *dev)
 	dev->type		= ARPHRD_FDDI;
 	dev->hard_header_len	= FDDI_K_SNAP_HLEN+3;	/* Assume 802.2 SNAP hdr len + 3 pad bytes */
 	dev->mtu		= FDDI_K_SNAP_DLEN;	/* Assume max payload of 802.2 SNAP frame */
+	dev->min_mtu		= FDDI_K_SNAP_HLEN;
+	dev->max_mtu		= FDDI_K_SNAP_DLEN;
 	dev->addr_len		= FDDI_K_ALEN;
 	dev->tx_queue_len	= 100;			/* Long queues on FDDI */
 	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
@@ -207,7 +174,8 @@ static void fddi_setup(struct net_device *dev)
  */
 struct net_device *alloc_fddidev(int sizeof_priv)
 {
-	return alloc_netdev(sizeof_priv, "fddi%d", fddi_setup);
+	return alloc_netdev(sizeof_priv, "fddi%d", NET_NAME_UNKNOWN,
+			    fddi_setup);
 }
 EXPORT_SYMBOL(alloc_fddidev);
 

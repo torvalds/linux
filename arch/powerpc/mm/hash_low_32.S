@@ -26,11 +26,11 @@
 #include <asm/ppc_asm.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 
 #ifdef CONFIG_SMP
 	.section .bss
 	.align	2
-	.globl mmu_hash_lock
 mmu_hash_lock:
 	.space	4
 #endif /* CONFIG_SMP */
@@ -633,6 +633,7 @@ _GLOBAL(flush_hash_patch_B)
 	SYNC_601
 	isync
 	blr
+EXPORT_SYMBOL(flush_hash_pages)
 
 /*
  * Flush an entry from the TLB

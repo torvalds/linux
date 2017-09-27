@@ -14,12 +14,12 @@
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
-#include <linux/mc146818rtc.h>	/* For struct rtc_time and ioctls, etc */
+#include <linux/rtc.h>	/* For struct rtc_time and ioctls, etc */
 #include <linux/bcd.h>
 #include <asm/mvme16xhw.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/setup.h>
 
 /*
@@ -158,7 +158,7 @@ static int __init rtc_MK48T08_init(void)
 	if (!MACH_IS_MVME16x)
 		return -ENODEV;
 
-	printk(KERN_INFO "MK48T08 Real Time Clock Driver v%s\n", RTC_VERSION);
+	pr_info("MK48T08 Real Time Clock Driver v%s\n", RTC_VERSION);
 	return misc_register(&rtc_dev);
 }
-module_init(rtc_MK48T08_init);
+device_initcall(rtc_MK48T08_init);

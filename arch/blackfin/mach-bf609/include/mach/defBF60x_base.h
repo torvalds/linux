@@ -839,6 +839,16 @@
 #define PORTG_LOCK                  0xFFC03344         /* PORTG Port x GPIO Lock Register */
 #define PORTG_REVID                 0xFFC0337C         /* PORTG Port x GPIO Revision ID */
 
+/* ==================================================
+        Pads Controller Registers
+   ================================================== */
+
+/* =========================
+        PADS0
+   ========================= */
+#define PADS0_EMAC_PTP_CLKSEL	    0xFFC03404         /* PADS0 Clock Selection for EMAC and PTP */
+#define PADS0_TWI_VSEL		    0xFFC03408         /* PADS0 TWI Voltage Selection */
+#define PADS0_PORTS_HYST	    0xFFC03440         /* PADS0 Hysteresis Enable Register */
 
 /* =========================
         PINT Registers
@@ -2679,7 +2689,7 @@
 #define L2CTL0_STAT                 0xFFCA3010         /* L2CTL0 L2 Status Register */
 #define L2CTL0_RPCR                 0xFFCA3014         /* L2CTL0 L2 Read Priority Count Register */
 #define L2CTL0_WPCR                 0xFFCA3018         /* L2CTL0 L2 Write Priority Count Register */
-#define L2CTL0_RFA                  0xFFCA3024         /* L2CTL0 L2 Refresh Address Regsiter */
+#define L2CTL0_RFA                  0xFFCA3024         /* L2CTL0 L2 Refresh Address Register */
 #define L2CTL0_ERRADDR0             0xFFCA3040         /* L2CTL0 L2 Bank 0 ECC Error Address Register */
 #define L2CTL0_ERRADDR1             0xFFCA3044         /* L2CTL0 L2 Bank 1 ECC Error Address Register */
 #define L2CTL0_ERRADDR2             0xFFCA3048         /* L2CTL0 L2 Bank 2 ECC Error Address Register */

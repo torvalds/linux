@@ -39,11 +39,13 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/io.h>
-#include <linux/aio.h>
 #include <linux/jiffies.h>
 #include <asm/pgtable.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/uio.h>
+
+#include <rdma/ib.h>
 
 #include "qib.h"
 #include "qib_common.h"
@@ -55,15 +57,19 @@
 static int qib_open(struct inode *, struct file *);
 static int qib_close(struct inode *, struct file *);
 static ssize_t qib_write(struct file *, const char __user *, size_t, loff_t *);
-static ssize_t qib_aio_write(struct kiocb *, const struct iovec *,
-			     unsigned long, loff_t);
+static ssize_t qib_write_iter(struct kiocb *, struct iov_iter *);
 static unsigned int qib_poll(struct file *, struct poll_table_struct *);
 static int qib_mmapf(struct file *, struct vm_area_struct *);
 
+/*
+ * This is really, really weird shit - write() and writev() here
+ * have completely unrelated semantics.  Sucky userland ABI,
+ * film at 11.
+ */
 static const struct file_operations qib_file_ops = {
 	.owner = THIS_MODULE,
 	.write = qib_write,
-	.aio_write = qib_aio_write,
+	.write_iter = qib_write_iter,
 	.open = qib_open,
 	.release = qib_close,
 	.poll = qib_poll,
@@ -351,9 +357,10 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 		 * unless perhaps the user has mpin'ed the pages
 		 * themselves.
 		 */
-		qib_devinfo(dd->pcidev,
-			 "Failed to lock addr %p, %u pages: "
-			 "errno %d\n", (void *) vaddr, cnt, -ret);
+		qib_devinfo(
+			dd->pcidev,
+			"Failed to lock addr %p, %u pages: errno %d\n",
+			(void *) vaddr, cnt, -ret);
 		goto done;
 	}
 	for (i = 0; i < cnt; i++, vaddr += PAGE_SIZE) {
@@ -437,7 +444,7 @@ cleanup:
 			goto cleanup;
 		}
 		if (copy_to_user((void __user *) (unsigned long) ti->tidmap,
-				 tidmap, sizeof tidmap)) {
+				 tidmap, sizeof(tidmap))) {
 			ret = -EFAULT;
 			goto cleanup;
 		}
@@ -484,7 +491,7 @@ static int qib_tid_free(struct qib_ctxtdata *rcd, unsigned subctxt,
 	}
 
 	if (copy_from_user(tidmap, (void __user *)(unsigned long)ti->tidmap,
-			   sizeof tidmap)) {
+			   sizeof(tidmap))) {
 		ret = -EFAULT;
 		goto done;
 	}
@@ -817,10 +824,7 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	phys = dd->physaddr + piobufs;
 
 #if defined(__powerpc__)
-	/* There isn't a generic way to specify writethrough mappings */
-	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
-	pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
-	pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #endif
 
 	/*
@@ -830,7 +834,8 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	vma->vm_flags &= ~VM_MAYREAD;
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 
-	if (qib_wc_pat)
+	/* We used PAT if wc_cookie == 0 */
+	if (!dd->wc_cookie)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	ret = io_remap_pfn_range(vma, vma->vm_start, phys >> PAGE_SHIFT,
@@ -888,7 +893,7 @@ bail:
 /*
  * qib_file_vma_fault - handle a VMA page fault.
  */
-static int qib_file_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int qib_file_vma_fault(struct vm_fault *vmf)
 {
 	struct page *page;
 
@@ -902,7 +907,7 @@ static int qib_file_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct qib_file_vm_ops = {
+static const struct vm_operations_struct qib_file_vm_ops = {
 	.fault = qib_file_vma_fault,
 };
 
@@ -951,8 +956,8 @@ static int mmap_kvaddr(struct vm_area_struct *vma, u64 pgaddr,
 		/* rcvegrbufs are read-only on the slave */
 		if (vma->vm_flags & VM_WRITE) {
 			qib_devinfo(dd->pcidev,
-				 "Can't map eager buffers as "
-				 "writable (flags=%lx)\n", vma->vm_flags);
+				 "Can't map eager buffers as writable (flags=%lx)\n",
+				 vma->vm_flags);
 			ret = -EPERM;
 			goto bail;
 		}
@@ -1185,6 +1190,7 @@ static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 	 */
 	if (weight >= qib_cpulist_count) {
 		int cpu;
+
 		cpu = find_first_zero_bit(qib_cpulist,
 					  qib_cpulist_count);
 		if (cpu == qib_cpulist_count)
@@ -1220,7 +1226,7 @@ static int qib_compatible_subctxts(int user_swmajor, int user_swminor)
 			return user_swminor == 3;
 		default:
 			/* >= 4 are compatible (or are expected to be) */
-			return user_swminor >= 4;
+			return user_swminor <= QIB_USER_SWMINOR;
 		}
 	}
 	/* make no promises yet for future major versions */
@@ -1247,10 +1253,7 @@ static int init_subctxts(struct qib_devdata *dd,
 	if (!qib_compatible_subctxts(uinfo->spu_userversion >> 16,
 		uinfo->spu_userversion & 0xffff)) {
 		qib_devinfo(dd->pcidev,
-			 "Mismatched user version (%d.%d) and driver "
-			 "version (%d.%d) while context sharing. Ensure "
-			 "that driver and library are from the same "
-			 "release.\n",
+			 "Mismatched user version (%d.%d) and driver version (%d.%d) while context sharing. Ensure that driver and library are from the same release.\n",
 			 (int) (uinfo->spu_userversion >> 16),
 			 (int) (uinfo->spu_userversion & 0xffff),
 			 QIB_USER_SWMAJOR, QIB_USER_SWMINOR);
@@ -1391,6 +1394,7 @@ static int choose_port_ctxt(struct file *fp, struct qib_devdata *dd, u32 port,
 	}
 	if (!ppd) {
 		u32 pidx = ctxt % dd->num_pports;
+
 		if (usable(dd->pport + pidx))
 			ppd = dd->pport + pidx;
 		else {
@@ -1438,10 +1442,12 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 
 	if (alg == QIB_PORT_ALG_ACROSS) {
 		unsigned inuse = ~0U;
+
 		/* find device (with ACTIVE ports) with fewest ctxts in use */
 		for (ndev = 0; ndev < devmax; ndev++) {
 			struct qib_devdata *dd = qib_lookup(ndev);
 			unsigned cused = 0, cfree = 0, pusable = 0;
+
 			if (!dd)
 				continue;
 			if (port && port <= dd->num_pports &&
@@ -1459,7 +1465,7 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 					cused++;
 				else
 					cfree++;
-			if (pusable && cfree && cused < inuse) {
+			if (cfree && cused < inuse) {
 				udd = dd;
 				inuse = cused;
 			}
@@ -1471,6 +1477,7 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 	} else {
 		for (ndev = 0; ndev < devmax; ndev++) {
 			struct qib_devdata *dd = qib_lookup(ndev);
+
 			if (dd) {
 				ret = choose_port_ctxt(fp, dd, port, uinfo);
 				if (!ret)
@@ -1556,6 +1563,7 @@ static int find_hca(unsigned int cpu, int *unit)
 	}
 	for (ndev = 0; ndev < devmax; ndev++) {
 		struct qib_devdata *dd = qib_lookup(ndev);
+
 		if (dd) {
 			if (pcibus_to_node(dd->pcidev->bus) < 0) {
 				ret = -EINVAL;
@@ -1578,7 +1586,7 @@ static int do_qib_user_sdma_queue_create(struct file *fp)
 	struct qib_ctxtdata *rcd = fd->rcd;
 	struct qib_devdata *dd = rcd->dd;
 
-	if (dd->flags & QIB_HAS_SEND_DMA)
+	if (dd->flags & QIB_HAS_SEND_DMA) {
 
 		fd->pq = qib_user_sdma_queue_create(&dd->pcidev->dev,
 						    dd->unit,
@@ -1586,6 +1594,7 @@ static int do_qib_user_sdma_queue_create(struct file *fp)
 						    fd->subctxt);
 		if (!fd->pq)
 			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -2057,6 +2066,12 @@ static ssize_t qib_write(struct file *fp, const char __user *data,
 	ssize_t ret = 0;
 	void *dest;
 
+	if (!ib_safe_file_access(fp)) {
+		pr_err_once("qib_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+			    task_tgid_vnr(current), current->comm);
+		return -EACCES;
+	}
+
 	if (count < sizeof(cmd.type)) {
 		ret = -EINVAL;
 		goto bail;
@@ -2166,6 +2181,11 @@ static ssize_t qib_write(struct file *fp, const char __user *data,
 
 	switch (cmd.type) {
 	case QIB_CMD_ASSIGN_CTXT:
+		if (rcd) {
+			ret = -EINVAL;
+			goto bail;
+		}
+
 		ret = qib_assign_ctxt(fp, &cmd.cmd.user_info);
 		if (ret)
 			goto bail;
@@ -2244,17 +2264,16 @@ bail:
 	return ret;
 }
 
-static ssize_t qib_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			     unsigned long dim, loff_t off)
+static ssize_t qib_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct qib_filedata *fp = iocb->ki_filp->private_data;
 	struct qib_ctxtdata *rcd = ctxt_fp(iocb->ki_filp);
 	struct qib_user_sdma_queue *pq = fp->pq;
 
-	if (!dim || !pq)
+	if (!iter_is_iovec(from) || !from->nr_segs || !pq)
 		return -EINVAL;
-
-	return qib_user_sdma_writev(rcd, pq, iov, dim);
+			 
+	return qib_user_sdma_writev(rcd, pq, from->iov, from->nr_segs);
 }
 
 static struct class *qib_class;

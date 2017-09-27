@@ -1,0 +1,38 @@
+Sigma Designs Tango4 NAND Flash Controller (NFC)
+
+Required properties:
+
+- compatible: "sigma,smp8758-nand"
+- reg: address/size of nfc_reg, nfc_mem, and pbus_reg
+- dmas: reference to the DMA channel used by the controller
+- dma-names: "rxtx"
+- clocks: reference to the system clock
+- #address-cells: <1>
+- #size-cells: <0>
+
+Children nodes represent the available NAND chips.
+See Documentation/devicetree/bindings/mtd/nand.txt for generic bindings.
+
+Example:
+
+	nandc: nand-controller@2c000 {
+		compatible = "sigma,smp8758-nand";
+		reg = <0x2c000 0x30>, <0x2d000 0x800>, <0x20000 0x1000>;
+		dmas = <&dma0 3>;
+		dma-names = "rxtx";
+		clocks = <&clkgen SYS_CLK>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		nand@0 {
+			reg = <0>; /* CS0 */
+			nand-ecc-strength = <14>;
+			nand-ecc-step-size = <1024>;
+		};
+
+		nand@1 {
+			reg = <1>; /* CS1 */
+			nand-ecc-strength = <14>;
+			nand-ecc-step-size = <1024>;
+		};
+	};

@@ -2,7 +2,7 @@
  * Copyright (C) 2005, 2006
  * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
- * Boaz Harrosh <bharrosh@panasas.com>
+ * Boaz Harrosh <ooo@electrozaur.com>
  *
  * Copyrights for code taken from ext2:
  *     Copyright (C) 1992, 1993, 1994, 1995
@@ -64,7 +64,6 @@ struct exofs_dev {
  * our extension to the in-memory superblock
  */
 struct exofs_sb_info {
-	struct backing_dev_info bdi;		/* register our bdi with VFS  */
 	struct exofs_sb_stats s_ess;		/* Written often, pre-allocate*/
 	int		s_timeout;		/* timeout for OSD operations */
 	uint64_t	s_nextid;		/* highest object ID used     */
@@ -206,10 +205,6 @@ extern const struct address_space_operations exofs_aops;
 /* namei.c           */
 extern const struct inode_operations exofs_dir_inode_operations;
 extern const struct inode_operations exofs_special_inode_operations;
-
-/* symlink.c         */
-extern const struct inode_operations exofs_symlink_inode_operations;
-extern const struct inode_operations exofs_fast_symlink_inode_operations;
 
 /* exofs_init_comps will initialize an ore_components device array
  * pointing to a single ore_comp struct, and a round-robin view

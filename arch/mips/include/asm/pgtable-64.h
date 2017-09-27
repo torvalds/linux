@@ -17,9 +17,10 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
-#ifdef CONFIG_PAGE_SIZE_64KB
+#define __ARCH_USE_5LEVEL_HACK
+#if defined(CONFIG_PAGE_SIZE_64KB) && !defined(CONFIG_MIPS_VA_BITS_48)
 #include <asm-generic/pgtable-nopmd.h>
-#else
+#elif !(defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS_VA_BITS_48))
 #include <asm-generic/pgtable-nopud.h>
 #endif
 
@@ -53,9 +54,18 @@
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
-
-#define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_ORDER - 3))
+# ifdef __PAGETABLE_PUD_FOLDED
+# define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_ORDER - 3))
+# endif
 #endif
+
+#ifndef __PAGETABLE_PUD_FOLDED
+#define PUD_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_ORDER - 3))
+#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE-1))
+#define PGDIR_SHIFT	(PUD_SHIFT + (PAGE_SHIFT + PUD_ORDER - 3))
+#endif
+
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -78,8 +88,13 @@
  * of virtual address space.
  */
 #ifdef CONFIG_PAGE_SIZE_4KB
-#define PGD_ORDER		1
-#define PUD_ORDER		aieeee_attempt_to_allocate_pud
+# ifdef CONFIG_MIPS_VA_BITS_48
+#  define PGD_ORDER		0
+#  define PUD_ORDER		0
+# else
+#  define PGD_ORDER		1
+#  define PUD_ORDER		aieeee_attempt_to_allocate_pud
+# endif
 #define PMD_ORDER		0
 #define PTE_ORDER		0
 #endif
@@ -90,7 +105,11 @@
 #define PTE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_16KB
-#define PGD_ORDER		0
+#ifdef CONFIG_MIPS_VA_BITS_48
+#define PGD_ORDER               1
+#else
+#define PGD_ORDER               0
+#endif
 #define PUD_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_ORDER		0
 #define PTE_ORDER		0
@@ -104,21 +123,24 @@
 #ifdef CONFIG_PAGE_SIZE_64KB
 #define PGD_ORDER		0
 #define PUD_ORDER		aieeee_attempt_to_allocate_pud
+#ifdef CONFIG_MIPS_VA_BITS_48
+#define PMD_ORDER		0
+#else
 #define PMD_ORDER		aieeee_attempt_to_allocate_pmd
+#endif
 #define PTE_ORDER		0
 #endif
 
 #define PTRS_PER_PGD	((PAGE_SIZE << PGD_ORDER) / sizeof(pgd_t))
+#ifndef __PAGETABLE_PUD_FOLDED
+#define PTRS_PER_PUD	((PAGE_SIZE << PUD_ORDER) / sizeof(pud_t))
+#endif
 #ifndef __PAGETABLE_PMD_FOLDED
 #define PTRS_PER_PMD	((PAGE_SIZE << PMD_ORDER) / sizeof(pmd_t))
 #endif
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
-#if PGDIR_SIZE >= TASK_SIZE64
-#define USER_PTRS_PER_PGD	(1)
-#else
-#define USER_PTRS_PER_PGD	(TASK_SIZE64 / PGDIR_SIZE)
-#endif
+#define USER_PTRS_PER_PGD       ((TASK_SIZE64 / PGDIR_SIZE)?(TASK_SIZE64 / PGDIR_SIZE):1)
 #define FIRST_USER_ADDRESS	0UL
 
 /*
@@ -129,7 +151,7 @@
 #define VMALLOC_START		(MAP_BASE + (2 * PAGE_SIZE))
 #define VMALLOC_END	\
 	(MAP_BASE + \
-	 min(PTRS_PER_PGD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE, \
+	 min(PTRS_PER_PGD * PTRS_PER_PUD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE, \
 	     (1UL << cpu_vmbits)) - (1UL << 32))
 
 #if defined(CONFIG_MODULES) && defined(KBUILD_64BIT_SYM32) && \
@@ -145,12 +167,72 @@
 #define pmd_ERROR(e) \
 	printk("%s:%d: bad pmd %016lx.\n", __FILE__, __LINE__, pmd_val(e))
 #endif
+#ifndef __PAGETABLE_PUD_FOLDED
+#define pud_ERROR(e) \
+	printk("%s:%d: bad pud %016lx.\n", __FILE__, __LINE__, pud_val(e))
+#endif
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %016lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 extern pte_t invalid_pte_table[PTRS_PER_PTE];
 extern pte_t empty_bad_page_table[PTRS_PER_PTE];
 
+#ifndef __PAGETABLE_PUD_FOLDED
+/*
+ * For 4-level pagetables we defines these ourselves, for 3-level the
+ * definitions are below, for 2-level the
+ * definitions are supplied by <asm-generic/pgtable-nopmd.h>.
+ */
+typedef struct { unsigned long pud; } pud_t;
+#define pud_val(x)	((x).pud)
+#define __pud(x)	((pud_t) { (x) })
+
+extern pud_t invalid_pud_table[PTRS_PER_PUD];
+
+/*
+ * Empty pgd entries point to the invalid_pud_table.
+ */
+static inline int pgd_none(pgd_t pgd)
+{
+	return pgd_val(pgd) == (unsigned long)invalid_pud_table;
+}
+
+static inline int pgd_bad(pgd_t pgd)
+{
+	if (unlikely(pgd_val(pgd) & ~PAGE_MASK))
+		return 1;
+
+	return 0;
+}
+
+static inline int pgd_present(pgd_t pgd)
+{
+	return pgd_val(pgd) != (unsigned long)invalid_pud_table;
+}
+
+static inline void pgd_clear(pgd_t *pgdp)
+{
+	pgd_val(*pgdp) = (unsigned long)invalid_pud_table;
+}
+
+#define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
+
+static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+{
+	return pgd_val(pgd);
+}
+
+static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
+{
+	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
+}
+
+static inline void set_pgd(pgd_t *pgd, pgd_t pgdval)
+{
+	*pgd = pgdval;
+}
+
+#endif
 
 #ifndef __PAGETABLE_PMD_FOLDED
 /*
@@ -276,28 +358,20 @@ static inline pmd_t *pmd_offset(pud_t * pud, unsigned long address)
  * Initialize a new pgd / pmd table with invalid pointers.
  */
 extern void pgd_init(unsigned long page);
+extern void pud_init(unsigned long page, unsigned long pagetable);
 extern void pmd_init(unsigned long page, unsigned long pagetable);
 
 /*
- * Non-present pages:  high 24 bits are offset, next 8 bits type,
- * low 32 bits zero.
+ * Non-present pages:  high 40 bits are offset, next 8 bits type,
+ * low 16 bits zero.
  */
 static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
-{ pte_t pte; pte_val(pte) = (type << 32) | (offset << 40); return pte; }
+{ pte_t pte; pte_val(pte) = (type << 16) | (offset << 24); return pte; }
 
-#define __swp_type(x)		(((x).val >> 32) & 0xff)
-#define __swp_offset(x)		((x).val >> 40)
+#define __swp_type(x)		(((x).val >> 16) & 0xff)
+#define __swp_offset(x)		((x).val >> 24)
 #define __swp_entry(type, offset) ((swp_entry_t) { pte_val(mk_swap_pte((type), (offset))) })
 #define __pte_to_swp_entry(pte) ((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
-
-/*
- * Bits 0, 4, 6, and 7 are taken. Let's leave bits 1, 2, 3, and 5 alone to
- * make things easier, and only use the upper 56 bits for the page offset...
- */
-#define PTE_FILE_MAX_BITS	56
-
-#define pte_to_pgoff(_pte)	((_pte).pte >> 8)
-#define pgoff_to_pte(off)	((pte_t) { ((off) << 8) | _PAGE_FILE })
 
 #endif /* _ASM_PGTABLE_64_H */

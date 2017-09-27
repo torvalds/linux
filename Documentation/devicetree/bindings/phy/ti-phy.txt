@@ -1,0 +1,134 @@
+TI PHY: DT DOCUMENTATION FOR PHYs in TI PLATFORMs
+
+OMAP CONTROL PHY
+
+Required properties:
+ - compatible: Should be one of
+ "ti,control-phy-otghs" - if it has otghs_control mailbox register as on OMAP4.
+ "ti,control-phy-usb2" - if it has Power down bit in control_dev_conf register
+                        e.g. USB2_PHY on OMAP5.
+ "ti,control-phy-pipe3" - if it has DPLL and individual Rx & Tx power control
+                        e.g. USB3 PHY and SATA PHY on OMAP5.
+ "ti,control-phy-pcie" - for pcie to support external clock for pcie and to
+			set PCS delay value.
+			e.g. PCIE PHY in DRA7x
+ "ti,control-phy-usb2-dra7" - if it has power down register like USB2 PHY on
+                        DRA7 platform.
+ "ti,control-phy-usb2-am437" - if it has power down register like USB2 PHY on
+                        AM437 platform.
+ - reg : register ranges as listed in the reg-names property
+ - reg-names: "otghs_control" for control-phy-otghs
+	      "power", "pcie_pcs" and "control_sma" for control-phy-pcie
+	      "power" for all other types
+
+omap_control_usb: omap-control-usb@4a002300 {
+        compatible = "ti,control-phy-otghs";
+        reg = <0x4a00233c 0x4>;
+        reg-names = "otghs_control";
+};
+
+OMAP USB2 PHY
+
+Required properties:
+ - compatible: Should be "ti,omap-usb2"
+	       Should be "ti,dra7x-usb2" for the 1st instance of USB2 PHY on
+	       DRA7x
+	       Should be "ti,dra7x-usb2-phy2" for the 2nd instance of USB2 PHY
+	       in DRA7x
+ - reg : Address and length of the register set for the device.
+ - #phy-cells: determine the number of cells that should be given in the
+   phandle while referencing this phy.
+ - clocks: a list of phandles and clock-specifier pairs, one for each entry in
+   clock-names.
+ - clock-names: should include:
+   * "wkupclk" - wakeup clock.
+   * "refclk" - reference clock (optional).
+
+Deprecated properties:
+ - ctrl-module : phandle of the control module used by PHY driver to power on
+   the PHY.
+
+Recommended properies:
+- syscon-phy-power : phandle/offset pair. Phandle to the system control
+  module and the register offset to power on/off the PHY.
+
+This is usually a subnode of ocp2scp to which it is connected.
+
+usb2phy@4a0ad080 {
+	compatible = "ti,omap-usb2";
+	reg = <0x4a0ad080 0x58>;
+	ctrl-module = <&omap_control_usb>;
+	#phy-cells = <0>;
+	clocks = <&usb_phy_cm_clk32k>, <&usb_otg_ss_refclk960m>;
+	clock-names = "wkupclk", "refclk";
+};
+
+TI PIPE3 PHY
+
+Required properties:
+ - compatible: Should be "ti,phy-usb3", "ti,phy-pipe3-sata" or
+   "ti,phy-pipe3-pcie. "ti,omap-usb3" is deprecated.
+ - reg : Address and length of the register set for the device.
+ - reg-names: The names of the register addresses corresponding to the registers
+   filled in "reg".
+ - #phy-cells: determine the number of cells that should be given in the
+   phandle while referencing this phy.
+ - clocks: a list of phandles and clock-specifier pairs, one for each entry in
+   clock-names.
+ - clock-names: should include:
+   * "wkupclk" - wakeup clock.
+   * "sysclk" - system clock.
+   * "refclk" - reference clock.
+   * "dpll_ref" - external dpll ref clk
+   * "dpll_ref_m2" - external dpll ref clk
+   * "phy-div" - divider for apll
+   * "div-clk" - apll clock
+
+Optional properties:
+ - id: If there are multiple instance of the same type, in order to
+   differentiate between each instance "id" can be used (e.g., multi-lane PCIe
+   PHY). If "id" is not provided, it is set to default value of '1'.
+ - syscon-pllreset: Handle to system control region that contains the
+   CTRL_CORE_SMA_SW_0 register and register offset to the CTRL_CORE_SMA_SW_0
+   register that contains the SATA_PLL_SOFT_RESET bit. Only valid for sata_phy.
+ - syscon-pcs : phandle/offset pair. Phandle to the system control module and the
+   register offset to write the PCS delay value.
+
+Deprecated properties:
+ - ctrl-module : phandle of the control module used by PHY driver to power on
+   the PHY.
+
+Recommended properies:
+ - syscon-phy-power : phandle/offset pair. Phandle to the system control
+   module and the register offset to power on/off the PHY.
+
+This is usually a subnode of ocp2scp to which it is connected.
+
+usb3phy@4a084400 {
+	compatible = "ti,phy-usb3";
+	reg = <0x4a084400 0x80>,
+	      <0x4a084800 0x64>,
+	      <0x4a084c00 0x40>;
+	reg-names = "phy_rx", "phy_tx", "pll_ctrl";
+	ctrl-module = <&omap_control_usb>;
+	#phy-cells = <0>;
+	clocks = <&usb_phy_cm_clk32k>,
+		 <&sys_clkin>,
+		 <&usb_otg_ss_refclk960m>;
+	clock-names =	"wkupclk",
+			"sysclk",
+			"refclk";
+};
+
+sata_phy: phy@4A096000 {
+	compatible = "ti,phy-pipe3-sata";
+	reg = <0x4A096000 0x80>, /* phy_rx */
+	      <0x4A096400 0x64>, /* phy_tx */
+	      <0x4A096800 0x40>; /* pll_ctrl */
+	reg-names = "phy_rx", "phy_tx", "pll_ctrl";
+	ctrl-module = <&omap_control_sata>;
+	clocks = <&sys_clkin1>, <&sata_ref_clk>;
+	clock-names = "sysclk", "refclk";
+	syscon-pllreset = <&scm_conf 0x3fc>;
+	#phy-cells = <0>;
+};

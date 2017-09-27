@@ -31,6 +31,8 @@
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 #define FE_ERROR		0
 #define FE_NOTICE		1
@@ -59,7 +61,7 @@ struct stb6100_lkup {
 	u8   reg;
 };
 
-static int stb6100_release(struct dvb_frontend *fe);
+static void stb6100_release(struct dvb_frontend *fe);
 
 static const struct stb6100_lkup lkup[] = {
 	{       0,  950000, 0x0a },
@@ -183,13 +185,20 @@ static int stb6100_read_reg(struct stb6100_state *state, u8 reg)
 static int stb6100_write_reg_range(struct stb6100_state *state, u8 buf[], int start, int len)
 {
 	int rc;
-	u8 cmdbuf[len + 1];
+	u8 cmdbuf[MAX_XFER_SIZE];
 	struct i2c_msg msg = {
 		.addr	= state->config->tuner_address,
 		.flags	= 0,
 		.buf	= cmdbuf,
 		.len	= len + 1
 	};
+
+	if (1 + len > sizeof(cmdbuf)) {
+		printk(KERN_WARNING
+		       "%s: i2c wr: len=%d is too big!\n",
+		       KBUILD_MODNAME, len);
+		return -EINVAL;
+	}
 
 	if (unlikely(start < 1 || start + len > STB6100_NUMREGS)) {
 		dprintk(verbose, FE_ERROR, 1, "Invalid register range %d:%d",
@@ -243,6 +252,7 @@ static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 {
 	int rc;
 	u8 f;
+	u32 bw;
 	struct stb6100_state *state = fe->tuner_priv;
 
 	rc = stb6100_read_reg(state, STB6100_F);
@@ -250,9 +260,9 @@ static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 		return rc;
 	f = rc & STB6100_F_F;
 
-	state->status.bandwidth = (f + 5) * 2000;	/* x2 for ZIF	*/
+	bw = (f + 5) * 2000;	/* x2 for ZIF	*/
 
-	*bandwidth = state->bandwidth = state->status.bandwidth * 1000;
+	*bandwidth = state->bandwidth = bw * 1000;
 	dprintk(verbose, FE_DEBUG, 1, "bandwidth = %u Hz", state->bandwidth);
 	return 0;
 }
@@ -336,7 +346,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 
 	if (fe->ops.get_frontend) {
 		dprintk(verbose, FE_DEBUG, 1, "Get frontend parameters");
-		fe->ops.get_frontend(fe);
+		fe->ops.get_frontend(fe, p);
 	}
 	srate = p->symbol_rate;
 
@@ -486,73 +496,33 @@ static int stb6100_sleep(struct dvb_frontend *fe)
 static int stb6100_init(struct dvb_frontend *fe)
 {
 	struct stb6100_state *state = fe->tuner_priv;
-	struct tuner_state *status = &state->status;
+	int refclk = 27000000; /* Hz */
 
-	status->tunerstep	= 125000;
-	status->ifreq		= 0;
-	status->refclock	= 27000000;	/* Hz	*/
-	status->iqsense		= 1;
-	status->bandwidth	= 36000;	/* kHz	*/
-	state->bandwidth	= status->bandwidth * 1000;	/* Hz	*/
-	state->reference	= status->refclock / 1000;	/* kHz	*/
+	/*
+	 * iqsense = 1
+	 * tunerstep = 125000
+	 */
+	state->bandwidth        = 36000000;		/* Hz	*/
+	state->reference	= refclk / 1000;	/* kHz	*/
 
 	/* Set default bandwidth. Modified, PN 13-May-10	*/
 	return 0;
 }
 
-static int stb6100_get_state(struct dvb_frontend *fe,
-			     enum tuner_param param,
-			     struct tuner_state *state)
+static int stb6100_set_params(struct dvb_frontend *fe)
 {
-	switch (param) {
-	case DVBFE_TUNER_FREQUENCY:
-		stb6100_get_frequency(fe, &state->frequency);
-		break;
-	case DVBFE_TUNER_TUNERSTEP:
-		break;
-	case DVBFE_TUNER_IFFREQ:
-		break;
-	case DVBFE_TUNER_BANDWIDTH:
-		stb6100_get_bandwidth(fe, &state->bandwidth);
-		break;
-	case DVBFE_TUNER_REFCLOCK:
-		break;
-	default:
-		break;
-	}
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	if (c->frequency > 0)
+		stb6100_set_frequency(fe, c->frequency);
+
+	if (c->bandwidth_hz > 0)
+		stb6100_set_bandwidth(fe, c->bandwidth_hz);
 
 	return 0;
 }
 
-static int stb6100_set_state(struct dvb_frontend *fe,
-			     enum tuner_param param,
-			     struct tuner_state *state)
-{
-	struct stb6100_state *tstate = fe->tuner_priv;
-
-	switch (param) {
-	case DVBFE_TUNER_FREQUENCY:
-		stb6100_set_frequency(fe, state->frequency);
-		tstate->frequency = state->frequency;
-		break;
-	case DVBFE_TUNER_TUNERSTEP:
-		break;
-	case DVBFE_TUNER_IFFREQ:
-		break;
-	case DVBFE_TUNER_BANDWIDTH:
-		stb6100_set_bandwidth(fe, state->bandwidth);
-		tstate->bandwidth = state->bandwidth;
-		break;
-	case DVBFE_TUNER_REFCLOCK:
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static struct dvb_tuner_ops stb6100_ops = {
+static const struct dvb_tuner_ops stb6100_ops = {
 	.info = {
 		.name			= "STB6100 Silicon Tuner",
 		.frequency_min		= 950000,
@@ -563,8 +533,9 @@ static struct dvb_tuner_ops stb6100_ops = {
 	.init		= stb6100_init,
 	.sleep          = stb6100_sleep,
 	.get_status	= stb6100_get_status,
-	.get_state	= stb6100_get_state,
-	.set_state	= stb6100_set_state,
+	.set_params	= stb6100_set_params,
+	.get_frequency  = stb6100_get_frequency,
+	.get_bandwidth  = stb6100_get_bandwidth,
 	.release	= stb6100_release
 };
 
@@ -589,14 +560,12 @@ struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 	return fe;
 }
 
-static int stb6100_release(struct dvb_frontend *fe)
+static void stb6100_release(struct dvb_frontend *fe)
 {
 	struct stb6100_state *state = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(state);
-
-	return 0;
 }
 
 EXPORT_SYMBOL(stb6100_attach);

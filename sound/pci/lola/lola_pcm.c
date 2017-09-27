@@ -103,7 +103,7 @@ static void wait_for_srst_clear(struct lola *chip, struct lola_stream *str)
 			return;
 		msleep(1);
 	}
-	printk(KERN_WARNING SFX "SRST not clear (stream %d)\n", str->dsd);
+	dev_warn(chip->card->dev, "SRST not clear (stream %d)\n", str->dsd);
 }
 
 static int lola_stream_wait_for_fifo(struct lola *chip,
@@ -118,7 +118,7 @@ static int lola_stream_wait_for_fifo(struct lola *chip,
 			return 0;
 		msleep(1);
 	}
-	printk(KERN_WARNING SFX "FIFO not ready (stream %d)\n", str->dsd);
+	dev_warn(chip->card->dev, "FIFO not ready (stream %d)\n", str->dsd);
 	return -EIO;
 }
 
@@ -156,7 +156,7 @@ static int lola_sync_wait_for_fifo(struct lola *chip,
 			return 0;
 		msleep(1);
 	}
-	printk(KERN_WARNING SFX "FIFO not ready (pending %d)\n", pending - 1);
+	dev_warn(chip->card->dev, "FIFO not ready (pending %d)\n", pending - 1);
 	return -EIO;
 }
 
@@ -197,7 +197,7 @@ static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
 	}
 }
 
-static struct snd_pcm_hardware lola_pcm_hw = {
+static const struct snd_pcm_hardware lola_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -373,7 +373,7 @@ static int lola_setup_periods(struct lola *chip, struct lola_pcm *pcm,
 	return 0;
 
  error:
-	snd_printk(KERN_ERR SFX "Too many BDL entries: buffer=%d, period=%d\n",
+	dev_err(chip->card->dev, "Too many BDL entries: buffer=%d, period=%d\n",
 		   str->bufsize, period_bytes);
 	return -EINVAL;
 }
@@ -415,7 +415,7 @@ static int lola_set_stream_config(struct lola *chip,
 	err = lola_codec_read(chip, str->nid, LOLA_VERB_SET_STREAM_FORMAT,
 			      str->format_verb, 0, &val, NULL);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Cannot set stream format 0x%x\n",
+		dev_err(chip->card->dev, "Cannot set stream format 0x%x\n",
 		       str->format_verb);
 		return err;
 	}
@@ -427,7 +427,8 @@ static int lola_set_stream_config(struct lola *chip,
 				      LOLA_VERB_SET_CHANNEL_STREAMID, 0, verb,
 				      &val, NULL);
 		if (err < 0) {
-			printk(KERN_ERR SFX "Cannot set stream channel %d\n", i);
+			dev_err(chip->card->dev,
+				"Cannot set stream channel %d\n", i);
 			return err;
 		}
 	}
@@ -585,7 +586,7 @@ void lola_pcm_update(struct lola *chip, struct lola_pcm *pcm, unsigned int bits)
 	}
 }
 
-static struct snd_pcm_ops lola_pcm_ops = {
+static const struct snd_pcm_ops lola_pcm_ops = {
 	.open = lola_pcm_open,
 	.close = lola_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -651,13 +652,14 @@ static int lola_init_stream(struct lola *chip, struct lola_stream *str,
 		str->dsd += MAX_STREAM_IN_COUNT;
 	err = lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read wcaps for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read wcaps for 0x%x\n", nid);
 		return err;
 	}
 	if (dir == PLAY) {
 		/* test TYPE and bits 0..11 (no test bit9 : Digital = 0/1) */
 		if ((val & 0x00f00dff) != 0x00000010) {
-			printk(KERN_ERR SFX "Invalid wcaps 0x%x for 0x%x\n",
+			dev_err(chip->card->dev,
+				"Invalid wcaps 0x%x for 0x%x\n",
 			       val, nid);
 			return -EINVAL;
 		}
@@ -666,7 +668,8 @@ static int lola_init_stream(struct lola *chip, struct lola_stream *str,
 		 * (bug : ignore bit8: Conn list = 0/1)
 		 */
 		if ((val & 0x00f00cff) != 0x00100010) {
-			printk(KERN_ERR SFX "Invalid wcaps 0x%x for 0x%x\n",
+			dev_err(chip->card->dev,
+				"Invalid wcaps 0x%x for 0x%x\n",
 			       val, nid);
 			return -EINVAL;
 		}
@@ -677,14 +680,15 @@ static int lola_init_stream(struct lola *chip, struct lola_stream *str,
 
 	err = lola_read_param(chip, nid, LOLA_PAR_STREAM_FORMATS, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read FORMATS 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read FORMATS 0x%x\n", nid);
 		return err;
 	}
 	val &= 3;
 	if (val == 3)
 		str->can_float = true;
 	if (!(val & 1)) {
-		printk(KERN_ERR SFX "Invalid formats 0x%x for 0x%x", val, nid);
+		dev_err(chip->card->dev,
+			"Invalid formats 0x%x for 0x%x", val, nid);
 		return -EINVAL;
 	}
 	return 0;

@@ -9,15 +9,23 @@
 
 #include <linux/signal.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/perf_event.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu.h>
 
-static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long address)
+/*
+ * kernel virtual address is required to implement vmalloc/pkmap/fixmap
+ * Refer to asm/processor.h for System Memory Map
+ *
+ * It simply copies the PMD entry (pointer to 2nd level page table or hugepage)
+ * from swapper pgdir to task pgdir. The 2nd level table/page is thus shared
+ */
+noinline static int handle_kernel_vaddr_fault(unsigned long address)
 {
 	/*
 	 * Synchronize this task's top level page-table
@@ -27,7 +35,7 @@ static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long address)
 	pud_t *pud, *pud_k;
 	pmd_t *pmd, *pmd_k;
 
-	pgd = pgd_offset_fast(mm, address);
+	pgd = pgd_offset_fast(current->active_mm, address);
 	pgd_k = pgd_offset_k(address);
 
 	if (!pgd_present(*pgd_k))
@@ -52,7 +60,7 @@ bad_area:
 	return 1;
 }
 
-void do_page_fault(struct pt_regs *regs, unsigned long address)
+void do_page_fault(unsigned long address, struct pt_regs *regs)
 {
 	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk = current;
@@ -60,8 +68,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address)
 	siginfo_t info;
 	int fault, ret;
 	int write = regs->ecr_cause & ECR_C_PROTV_STORE;  /* ST/EX */
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-				(write ? FAULT_FLAG_WRITE : 0);
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -72,8 +79,8 @@ void do_page_fault(struct pt_regs *regs, unsigned long address)
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
-	if (address >= VMALLOC_START && address <= VMALLOC_END) {
-		ret = handle_vmalloc_fault(mm, address);
+	if (address >= VMALLOC_START) {
+		ret = handle_kernel_vaddr_fault(address);
 		if (unlikely(ret))
 			goto bad_area_nosemaphore;
 		else
@@ -86,9 +93,11 @@ void do_page_fault(struct pt_regs *regs, unsigned long address)
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
@@ -117,18 +126,18 @@ good_area:
 	if (write) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
+		flags |= FAULT_FLAG_WRITE;
 	} else {
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto bad_area;
 	}
 
-survive:
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags);
 
 	/* If Pagefault was interrupted by SIGKILL, exit page fault "early" */
 	if (unlikely(fatal_signal_pending(current))) {
@@ -138,13 +147,20 @@ survive:
 			return;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+
 	if (likely(!(fault & VM_FAULT_ERROR))) {
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
 			/* To avoid updating stats twice for retry case */
-			if (fault & VM_FAULT_MAJOR)
+			if (fault & VM_FAULT_MAJOR) {
 				tsk->maj_flt++;
-			else
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
+					      regs, address);
+			} else {
 				tsk->min_flt++;
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
+					      regs, address);
+			}
 
 			if (fault & VM_FAULT_RETRY) {
 				flags &= ~FAULT_FLAG_ALLOW_RETRY;
@@ -158,9 +174,10 @@ survive:
 		return;
 	}
 
-	/* TBD: switch to pagefault_out_of_memory() */
 	if (fault & VM_FAULT_OOM)
 		goto out_of_memory;
+	else if (fault & VM_FAULT_SIGSEGV)
+		goto bad_area;
 	else if (fault & VM_FAULT_SIGBUS)
 		goto do_sigbus;
 
@@ -190,7 +207,7 @@ no_context:
 	/* Are we prepared to handle this kernel fault?
 	 *
 	 * (The kernel has valid exception-points in the source
-	 *  when it acesses user-memory. When it fails in one
+	 *  when it accesses user-memory. When it fails in one
 	 *  of those points, we find it in a table and do a jump
 	 *  to some fixup code that loads an appropriate error
 	 *  code)
@@ -201,10 +218,6 @@ no_context:
 	die("Oops", regs, address);
 
 out_of_memory:
-	if (is_global_init(tsk)) {
-		yield();
-		goto survive;
-	}
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs)) {

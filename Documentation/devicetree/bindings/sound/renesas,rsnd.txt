@@ -1,0 +1,675 @@
+Renesas R-Car sound
+
+=============================================
+* Modules
+=============================================
+
+Renesas R-Car sound is constructed from below modules
+(for Gen2 or later)
+
+ SCU		: Sampling Rate Converter Unit
+  - SRC		: Sampling Rate Converter
+  - CMD
+   - CTU	: Channel Transfer Unit
+   - MIX	: Mixer
+   - DVC	: Digital Volume and Mute Function
+ SSIU		: Serial Sound Interface Unit
+ SSI		: Serial Sound Interface
+
+See detail of each module's channels, connection, limitation on datasheet
+
+=============================================
+* Multi channel
+=============================================
+
+Multi channel is supported by Multi-SSI, or TDM-SSI.
+
+ Multi-SSI	: 6ch case, you can use stereo x 3 SSI
+ TDM-SSI	: 6ch case, you can use TDM
+
+=============================================
+* Enable/Disable each modules
+=============================================
+
+See datasheet to check SRC/CTU/MIX/DVC connect-limitation.
+DT controls enabling/disabling module.
+${LINUX}/arch/arm/boot/dts/r8a7790-lager.dts can be good example.
+This is example of
+
+Playback: [MEM] -> [SRC2] -> [DVC0] -> [SSIU0/SSI0] -> [codec]
+Capture:  [MEM] <- [DVC1] <- [SRC3] <- [SSIU1/SSI1] <- [codec]
+
+	&rcar_sound {
+		...
+		rcar_sound,dai {
+			dai0 {
+				playback = <&ssi0 &src2 &dvc0>;
+				capture  = <&ssi1 &src3 &dvc1>;
+			};
+		};
+	};
+
+You can use below.
+${LINUX}/arch/arm/boot/dts/r8a7790.dts can be good example.
+
+	&src0	&ctu00	&mix0	&dvc0	&ssi0
+	&src1	&ctu01	&mix1	&dvc1	&ssi1
+	&src2	&ctu02			&ssi2
+	&src3	&ctu03			&ssi3
+	&src4				&ssi4
+	&src5	&ctu10			&ssi5
+	&src6	&ctu11			&ssi6
+	&src7	&ctu12			&ssi7
+	&src8	&ctu13			&ssi8
+	&src9				&ssi9
+
+=============================================
+* SRC (Sampling Rate Converter)
+=============================================
+
+ [xx]Hz        [yy]Hz
+ ------> [SRC] ------>
+
+SRC can convert [xx]Hz to [yy]Hz. Then, it has below 2 modes
+
+ Asynchronous mode:	input data / output data are based on different clocks.
+			you can use this mode on Playback / Capture
+ Synchronous mode:	input data / output data are based on same clocks.
+			This mode will be used if system doesn't have its input clock,
+			for example digital TV case.
+			you can use this mode on Playback
+
+------------------
+**     Asynchronous mode
+------------------
+
+You need to use "simple-scu-audio-card" sound card for it.
+example)
+
+	sound {
+		compatible = "simple-scu-audio-card";
+		...
+		/*
+		 * SRC Asynchronous mode setting
+		 * Playback:
+		 * All input data will be converted to 48kHz
+		 * Capture:
+		 * Inputed 48kHz data will be converted to
+		 * system specified Hz
+		 */
+		simple-audio-card,convert-rate = <48000>;
+		...
+		simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+		simple-audio-card,codec {
+			...
+		};
+	};
+
+------------------
+**     Synchronous mode
+------------------
+
+	> amixer set "SRC Out Rate" on
+	> aplay xxxx.wav
+	> amixer set "SRC Out Rate" 48000
+	> amixer set "SRC Out Rate" 44100
+
+=============================================
+* CTU (Channel Transfer Unit)
+=============================================
+
+ [xx]ch        [yy]ch
+ ------> [CTU] -------->
+
+CTU can convert [xx]ch to [yy]ch, or exchange outputed channel.
+CTU conversion needs matrix settings.
+For more detail information, see below
+
+	Renesas R-Car datasheet
+	 - Sampling Rate Converter Unit (SCU)
+	  - SCU Operation
+	   - CMD Block
+	    - Functional Blocks in CMD
+
+	Renesas R-Car datasheet
+	 - Sampling Rate Converter Unit (SCU)
+	  - Register Description
+	   - CTUn Scale Value exx Register (CTUn_SVxxR)
+
+	${LINUX}/sound/soc/sh/rcar/ctu.c
+	 - comment of header
+
+You need to use "simple-scu-audio-card" sound card for it.
+example)
+
+	sound {
+		compatible = "simple-scu-audio-card";
+		...
+		/*
+		 * CTU setting
+		 * All input data will be converted to 2ch
+		 * as output data
+		 */
+		simple-audio-card,convert-channels = <2>;
+		...
+		simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+		simple-audio-card,codec {
+			...
+		};
+	};
+
+Ex) Exchange output channel
+ Input -> Output
+  1ch  ->  0ch
+  0ch  ->  1ch
+
+  example of using matrix
+	output 0ch = (input 0ch x 0) + (input 1ch x 1)
+	output 1ch = (input 0ch x 1) + (input 1ch x 0)
+
+	amixer set "CTU Reset" on
+	amixer set "CTU Pass" 9,10
+	amixer set "CTU SV0" 0,4194304
+	amixer set "CTU SV1" 4194304,0
+
+ example of changing connection
+	amixer set "CTU Reset" on
+	amixer set "CTU Pass" 2,1
+
+=============================================
+* MIX (Mixer)
+=============================================
+
+MIX merges 2 sounds path. You can see 2 sound interface on system,
+and these sounds will be merged by MIX.
+
+	aplay -D plughw:0,0 xxxx.wav &
+	aplay -D plughw:0,1 yyyy.wav
+
+You need to use "simple-scu-audio-card" sound card for it.
+Ex)
+	[MEM] -> [SRC1] -> [CTU02] -+-> [MIX0] -> [DVC0] -> [SSI0]
+	                            |
+	[MEM] -> [SRC2] -> [CTU03] -+
+
+	sound {
+		compatible = "simple-scu-audio-card";
+		...
+		simple-audio-card,cpu-0 {
+			sound-dai = <&rcar_sound 0>;
+		};
+		simple-audio-card,cpu-1 {
+			sound-dai = <&rcar_sound 1>;
+		};
+		simple-audio-card,codec {
+			...
+		};
+	};
+
+	&rcar_sound {
+		...
+		rcar_sound,dai {
+			dai0 {
+				playback = <&src1 &ctu02 &mix0 &dvc0 &ssi0>;
+			};
+			dai1 {
+				playback = <&src2 &ctu03 &mix0 &dvc0 &ssi0>;
+			};
+		};
+	};
+
+=============================================
+* DVC (Digital Volume and Mute Function)
+=============================================
+
+DVC controls Playback/Capture volume.
+
+Playback Volume
+	amixer set "DVC Out" 100%
+
+Capture Volume
+	amixer set "DVC In" 100%
+
+Playback Mute
+	amixer set "DVC Out Mute" on
+
+Capture Mute
+	amixer set "DVC In Mute" on
+
+Volume Ramp
+	amixer set "DVC Out Ramp Up Rate"   "0.125 dB/64 steps"
+	amixer set "DVC Out Ramp Down Rate" "0.125 dB/512 steps"
+	amixer set "DVC Out Ramp" on
+	aplay xxx.wav &
+	amixer set "DVC Out"  80%  // Volume Down
+	amixer set "DVC Out" 100%  // Volume Up
+
+=============================================
+* SSIU (Serial Sound Interface Unit)
+=============================================
+
+There is no DT settings for SSIU, because SSIU will be automatically
+selected via SSI.
+SSIU can avoid some under/over run error, because it has some buffer.
+But you can't use it if SSI was PIO mode.
+In DMA mode, you can select not to use SSIU by using "no-busif" on DT.
+
+	&ssi0 {
+		no-busif;
+	};
+
+=============================================
+* SSI (Serial Sound Interface)
+=============================================
+
+**  PIO mode
+
+You can use PIO mode which is for connection check by using.
+Note: The system will drop non-SSI modules in PIO mode
+even though if DT is selecting other modules.
+
+	&ssi0 {
+		pio-transfer
+	};
+
+** DMA mode without SSIU
+
+You can use DMA without SSIU.
+Note: under/over run, or noise are likely to occur
+
+	&ssi0 {
+		no-busif;
+	};
+
+** PIN sharing
+
+Each SSI can share WS pin. It is based on platform.
+This is example if SSI1 want to share WS pin with SSI0
+
+	&ssi1 {
+		shared-pin;
+	};
+
+** Multi-SSI
+
+You can use Multi-SSI.
+This is example of SSI0/SSI1/SSI2 (= for 6ch)
+
+	&rcar_sound {
+		...
+		rcar_sound,dai {
+			dai0 {
+				playback = <&ssi0 &ssi1 &ssi2 &src0 &dvc0>;
+			};
+		};
+	};
+
+** TDM-SSI
+
+You can use TDM with SSI.
+This is example of TDM 6ch.
+Driver can automatically switches TDM <-> stereo mode in this case.
+
+	rsnd_tdm: sound {
+		compatible = "simple-audio-card";
+		...
+		simple-audio-card,cpu {
+			/* system can use TDM 6ch */
+			dai-tdm-slot-num = <6>;
+			sound-dai = <&rcar_sound>;
+		};
+		simple-audio-card,codec {
+			...
+		};
+	};
+
+
+=============================================
+Required properties:
+=============================================
+
+- compatible			: "renesas,rcar_sound-<soctype>", fallbacks
+				  "renesas,rcar_sound-gen1" if generation1, and
+				  "renesas,rcar_sound-gen2" if generation2
+				  "renesas,rcar_sound-gen3" if generation3
+				  Examples with soctypes are:
+				    - "renesas,rcar_sound-r8a7778" (R-Car M1A)
+				    - "renesas,rcar_sound-r8a7779" (R-Car H1)
+				    - "renesas,rcar_sound-r8a7790" (R-Car H2)
+				    - "renesas,rcar_sound-r8a7791" (R-Car M2-W)
+				    - "renesas,rcar_sound-r8a7793" (R-Car M2-N)
+				    - "renesas,rcar_sound-r8a7794" (R-Car E2)
+				    - "renesas,rcar_sound-r8a7795" (R-Car H3)
+- reg				: Should contain the register physical address.
+				  required register is
+				   SRU/ADG/SSI      if generation1
+				   SRU/ADG/SSIU/SSI if generation2
+- rcar_sound,ssi		: Should contain SSI feature.
+				  The number of SSI subnode should be same as HW.
+				  see below for detail.
+- rcar_sound,src		: Should contain SRC feature.
+				  The number of SRC subnode should be same as HW.
+				  see below for detail.
+- rcar_sound,ctu		: Should contain CTU feature.
+				  The number of CTU subnode should be same as HW.
+				  see below for detail.
+- rcar_sound,mix		: Should contain MIX feature.
+				  The number of MIX subnode should be same as HW.
+				  see below for detail.
+- rcar_sound,dvc		: Should contain DVC feature.
+				  The number of DVC subnode should be same as HW.
+				  see below for detail.
+- rcar_sound,dai		: DAI contents.
+				  The number of DAI subnode should be same as HW.
+				  see below for detail.
+- #sound-dai-cells		: it must be 0 if your system is using single DAI
+				  it must be 1 if your system is using multi  DAI
+- clocks			: References to SSI/SRC/MIX/CTU/DVC/AUDIO_CLK clocks.
+- clock-names			: List of necessary clock names.
+				  "ssi-all", "ssi.X", "src.X", "mix.X", "ctu.X",
+				  "dvc.X", "clk_a", "clk_b", "clk_c", "clk_i"
+
+Optional properties:
+- #clock-cells			: it must be 0 if your system has audio_clkout
+				  it must be 1 if your system has audio_clkout0/1/2/3
+- clock-frequency		: for all audio_clkout0/1/2/3
+- clkout-lr-asynchronous	: boolean property. it indicates that audio_clkoutn
+				  is asynchronizes with lr-clock.
+- resets			: References to SSI resets.
+- reset-names			: List of valid reset names.
+				  "ssi-all", "ssi.X"
+
+SSI subnode properties:
+- interrupts			: Should contain SSI interrupt for PIO transfer
+- shared-pin			: if shared clock pin
+- pio-transfer			: use PIO transfer mode
+- no-busif			: BUSIF is not ussed when [mem -> SSI] via DMA case
+- dma				: Should contain Audio DMAC entry
+- dma-names			: SSI  case "rx"  (=playback), "tx"  (=capture)
+				  SSIU case "rxu" (=playback), "txu" (=capture)
+
+SRC subnode properties:
+- dma				: Should contain Audio DMAC entry
+- dma-names			: "rx" (=playback), "tx" (=capture)
+
+DVC subnode properties:
+- dma				: Should contain Audio DMAC entry
+- dma-names			: "tx" (=playback/capture)
+
+DAI subnode properties:
+- playback			: list of playback modules
+- capture			: list of capture  modules
+
+
+=============================================
+Example:
+=============================================
+
+rcar_sound: sound@ec500000 {
+	#sound-dai-cells = <1>;
+	compatible = "renesas,rcar_sound-r8a7791", "renesas,rcar_sound-gen2";
+	reg =	<0 0xec500000 0 0x1000>, /* SCU */
+		<0 0xec5a0000 0 0x100>,  /* ADG */
+		<0 0xec540000 0 0x1000>, /* SSIU */
+		<0 0xec541000 0 0x1280>, /* SSI */
+		<0 0xec740000 0 0x200>;  /* Audio DMAC peri peri*/
+	reg-names = "scu", "adg", "ssiu", "ssi", "audmapp";
+
+	clocks = <&mstp10_clks R8A7790_CLK_SSI_ALL>,
+		<&mstp10_clks R8A7790_CLK_SSI9>, <&mstp10_clks R8A7790_CLK_SSI8>,
+		<&mstp10_clks R8A7790_CLK_SSI7>, <&mstp10_clks R8A7790_CLK_SSI6>,
+		<&mstp10_clks R8A7790_CLK_SSI5>, <&mstp10_clks R8A7790_CLK_SSI4>,
+		<&mstp10_clks R8A7790_CLK_SSI3>, <&mstp10_clks R8A7790_CLK_SSI2>,
+		<&mstp10_clks R8A7790_CLK_SSI1>, <&mstp10_clks R8A7790_CLK_SSI0>,
+		<&mstp10_clks R8A7790_CLK_SCU_SRC9>, <&mstp10_clks R8A7790_CLK_SCU_SRC8>,
+		<&mstp10_clks R8A7790_CLK_SCU_SRC7>, <&mstp10_clks R8A7790_CLK_SCU_SRC6>,
+		<&mstp10_clks R8A7790_CLK_SCU_SRC5>, <&mstp10_clks R8A7790_CLK_SCU_SRC4>,
+		<&mstp10_clks R8A7790_CLK_SCU_SRC3>, <&mstp10_clks R8A7790_CLK_SCU_SRC2>,
+		<&mstp10_clks R8A7790_CLK_SCU_SRC1>, <&mstp10_clks R8A7790_CLK_SCU_SRC0>,
+		<&mstp10_clks R8A7790_CLK_SCU_DVC0>, <&mstp10_clks R8A7790_CLK_SCU_DVC1>,
+		<&audio_clk_a>, <&audio_clk_b>, <&audio_clk_c>, <&m2_clk>;
+	clock-names = "ssi-all",
+			"ssi.9", "ssi.8", "ssi.7", "ssi.6", "ssi.5",
+			"ssi.4", "ssi.3", "ssi.2", "ssi.1", "ssi.0",
+			"src.9", "src.8", "src.7", "src.6", "src.5",
+			"src.4", "src.3", "src.2", "src.1", "src.0",
+			"dvc.0", "dvc.1",
+			"clk_a", "clk_b", "clk_c", "clk_i";
+
+	rcar_sound,dvc {
+		dvc0: dvc-0 {
+			dmas = <&audma0 0xbc>;
+			dma-names = "tx";
+		};
+		dvc1: dvc-1 {
+			dmas = <&audma0 0xbe>;
+			dma-names = "tx";
+		};
+	};
+
+	rcar_sound,mix {
+		mix0: mix-0 { };
+		mix1: mix-1 { };
+	};
+
+	rcar_sound,ctu {
+		ctu00: ctu-0 { };
+		ctu01: ctu-1 { };
+		ctu02: ctu-2 { };
+		ctu03: ctu-3 { };
+		ctu10: ctu-4 { };
+		ctu11: ctu-5 { };
+		ctu12: ctu-6 { };
+		ctu13: ctu-7 { };
+	};
+
+	rcar_sound,src {
+		src0: src-0 {
+			interrupts = <0 352 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x85>, <&audma1 0x9a>;
+			dma-names = "rx", "tx";
+		};
+		src1: src-1 {
+			interrupts = <0 353 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x87>, <&audma1 0x9c>;
+			dma-names = "rx", "tx";
+		};
+		src2: src-2 {
+			interrupts = <0 354 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x89>, <&audma1 0x9e>;
+			dma-names = "rx", "tx";
+		};
+		src3: src-3 {
+			interrupts = <0 355 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x8b>, <&audma1 0xa0>;
+			dma-names = "rx", "tx";
+		};
+		src4: src-4 {
+			interrupts = <0 356 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x8d>, <&audma1 0xb0>;
+			dma-names = "rx", "tx";
+		};
+		src5: src-5 {
+			interrupts = <0 357 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x8f>, <&audma1 0xb2>;
+			dma-names = "rx", "tx";
+		};
+		src6: src-6 {
+			interrupts = <0 358 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x91>, <&audma1 0xb4>;
+			dma-names = "rx", "tx";
+		};
+		src7: src-7 {
+			interrupts = <0 359 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x93>, <&audma1 0xb6>;
+			dma-names = "rx", "tx";
+		};
+		src8: src-8 {
+			interrupts = <0 360 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x95>, <&audma1 0xb8>;
+			dma-names = "rx", "tx";
+		};
+		src9: src-9 {
+			interrupts = <0 361 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x97>, <&audma1 0xba>;
+			dma-names = "rx", "tx";
+		};
+	};
+
+	rcar_sound,ssi {
+		ssi0: ssi-0 {
+			interrupts = <0 370 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x01>, <&audma1 0x02>, <&audma0 0x15>, <&audma1 0x16>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi1: ssi-1 {
+			interrupts = <0 371 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x03>, <&audma1 0x04>, <&audma0 0x49>, <&audma1 0x4a>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi2: ssi-2 {
+			interrupts = <0 372 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x05>, <&audma1 0x06>, <&audma0 0x63>, <&audma1 0x64>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi3: ssi-3 {
+			interrupts = <0 373 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x07>, <&audma1 0x08>, <&audma0 0x6f>, <&audma1 0x70>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi4: ssi-4 {
+			interrupts = <0 374 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x09>, <&audma1 0x0a>, <&audma0 0x71>, <&audma1 0x72>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi5: ssi-5 {
+			interrupts = <0 375 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x0b>, <&audma1 0x0c>, <&audma0 0x73>, <&audma1 0x74>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi6: ssi-6 {
+			interrupts = <0 376 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x0d>, <&audma1 0x0e>, <&audma0 0x75>, <&audma1 0x76>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi7: ssi-7 {
+			interrupts = <0 377 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x0f>, <&audma1 0x10>, <&audma0 0x79>, <&audma1 0x7a>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi8: ssi-8 {
+			interrupts = <0 378 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x11>, <&audma1 0x12>, <&audma0 0x7b>, <&audma1 0x7c>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+		ssi9: ssi-9 {
+			interrupts = <0 379 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&audma0 0x13>, <&audma1 0x14>, <&audma0 0x7d>, <&audma1 0x7e>;
+			dma-names = "rx", "tx", "rxu", "txu";
+		};
+	};
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi5 &src5>;
+			capture  = <&ssi6>;
+		};
+		dai1 {
+			playback = <&ssi3>;
+		};
+		dai2 {
+			capture  = <&ssi4>;
+		};
+		dai3 {
+			playback = <&ssi7>;
+		};
+		dai4 {
+			capture  = <&ssi8>;
+		};
+	};
+};
+
+=============================================
+Example: simple sound card
+=============================================
+
+	rsnd_ak4643: sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "left_j";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&ak4643>;
+			clocks = <&audio_clock>;
+		};
+	};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	/* Single DAI */
+	#sound-dai-cells = <0>;
+
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi0 &src2 &dvc0>;
+			capture  = <&ssi1 &src3 &dvc1>;
+		};
+	};
+};
+
+&ssi1 {
+	shared-pin;
+};
+
+=============================================
+Example: simple sound card for TDM
+=============================================
+
+	rsnd_tdm: sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "left_j";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+			dai-tdm-slot-num = <6>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&xxx>;
+		};
+	};
+
+=============================================
+Example: simple sound card for Multi channel
+=============================================
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	/* Single DAI */
+	#sound-dai-cells = <0>;
+
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi0 &ssi1 &ssi2 &src0 &dvc0>;
+		};
+	};
+};

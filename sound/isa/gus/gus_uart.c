@@ -227,27 +227,25 @@ static void snd_gf1_uart_output_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_gf1_uart_output =
+static const struct snd_rawmidi_ops snd_gf1_uart_output =
 {
 	.open =		snd_gf1_uart_output_open,
 	.close =	snd_gf1_uart_output_close,
 	.trigger =	snd_gf1_uart_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_gf1_uart_input =
+static const struct snd_rawmidi_ops snd_gf1_uart_input =
 {
 	.open =		snd_gf1_uart_input_open,
 	.close =	snd_gf1_uart_input_close,
 	.trigger =	snd_gf1_uart_input_trigger,
 };
 
-int snd_gf1_rawmidi_new(struct snd_gus_card * gus, int device, struct snd_rawmidi ** rrawmidi)
+int snd_gf1_rawmidi_new(struct snd_gus_card *gus, int device)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if (rrawmidi)
-		*rrawmidi = NULL;
 	if ((err = snd_rawmidi_new(gus->card, "GF1", device, 1, 1, &rmidi)) < 0)
 		return err;
 	strcpy(rmidi->name, gus->interwave ? "AMD InterWave" : "GF1");
@@ -256,7 +254,5 @@ int snd_gf1_rawmidi_new(struct snd_gus_card * gus, int device, struct snd_rawmid
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT | SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = gus;
 	gus->midi_uart = rmidi;
-	if (rrawmidi)
-		*rrawmidi = rmidi;
 	return err;
 }

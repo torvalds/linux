@@ -22,15 +22,27 @@ extern void * __memcpy(void *, const void *, size_t);
 
 #define __HAVE_ARCH_MEMSET
 extern void * __constant_c_memset(void *, unsigned long, size_t);
+extern void * ___memset(void *, int, size_t);
 extern void * __memset(void *, int, size_t);
 extern void * memset(void *, int, size_t);
 
-#define memset(s, c, n)							    \
-(__builtin_constant_p(c)						    \
- ? (__builtin_constant_p(n) && (c) == 0					    \
-    ? __builtin_memset((s),0,(n)) 					    \
-    : __constant_c_memset((s),0x0101010101010101UL*(unsigned char)(c),(n))) \
- : __memset((s),(c),(n)))
+/* For gcc 3.x, we cannot have the inline function named "memset" because
+   the __builtin_memset will attempt to resolve to the inline as well,
+   leading to a "sorry" about unimplemented recursive inlining.  */
+extern inline void *__memset(void *s, int c, size_t n)
+{
+	if (__builtin_constant_p(c)) {
+		if (__builtin_constant_p(n)) {
+			return __builtin_memset(s, c, n);
+		} else {
+			unsigned long c8 = (c & 0xff) * 0x0101010101010101UL;
+			return __constant_c_memset(s, c8, n);
+		}
+	}
+	return ___memset(s, c, n);
+}
+
+#define memset __memset
 
 #define __HAVE_ARCH_STRCPY
 extern char * strcpy(char *,const char *);
@@ -53,13 +65,14 @@ extern void * memchr(const void *, int, size_t);
    aligned values.  The DEST and COUNT parameters must be even for 
    correct operation.  */
 
-#define __HAVE_ARCH_MEMSETW
-extern void * __memsetw(void *dest, unsigned short, size_t count);
-
-#define memsetw(s, c, n)						 \
-(__builtin_constant_p(c)						 \
- ? __constant_c_memset((s),0x0001000100010001UL*(unsigned short)(c),(n)) \
- : __memsetw((s),(c),(n)))
+#define __HAVE_ARCH_MEMSET16
+extern void * __memset16(void *dest, unsigned short, size_t count);
+static inline void *memset16(uint16_t *p, uint16_t v, size_t n)
+{
+	if (__builtin_constant_p(v))
+		return __constant_c_memset(p, 0x0001000100010001UL * v, n * 2);
+	return __memset16(p, v, n * 2);
+}
 
 #endif /* __KERNEL__ */
 

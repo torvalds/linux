@@ -12,12 +12,16 @@
  *
  */
 
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/sysctl.h>
 #include <linux/ptrace.h>
 #include <linux/prctl.h>
 #include <linux/ratelimit.h>
 #include <linux/workqueue.h>
+#include <linux/string_helpers.h>
+#include <linux/task_work.h>
+#include <linux/sched.h>
+#include <linux/spinlock.h>
 
 #define YAMA_SCOPE_DISABLED	0
 #define YAMA_SCOPE_RELATIONAL	1
@@ -40,6 +44,73 @@ static DEFINE_SPINLOCK(ptracer_relations_lock);
 
 static void yama_relation_cleanup(struct work_struct *work);
 static DECLARE_WORK(yama_relation_work, yama_relation_cleanup);
+
+struct access_report_info {
+	struct callback_head work;
+	const char *access;
+	struct task_struct *target;
+	struct task_struct *agent;
+};
+
+static void __report_access(struct callback_head *work)
+{
+	struct access_report_info *info =
+		container_of(work, struct access_report_info, work);
+	char *target_cmd, *agent_cmd;
+
+	target_cmd = kstrdup_quotable_cmdline(info->target, GFP_KERNEL);
+	agent_cmd = kstrdup_quotable_cmdline(info->agent, GFP_KERNEL);
+
+	pr_notice_ratelimited(
+		"ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
+		info->access, target_cmd, info->target->pid, agent_cmd,
+		info->agent->pid);
+
+	kfree(agent_cmd);
+	kfree(target_cmd);
+
+	put_task_struct(info->agent);
+	put_task_struct(info->target);
+	kfree(info);
+}
+
+/* defers execution because cmdline access can sleep */
+static void report_access(const char *access, struct task_struct *target,
+				struct task_struct *agent)
+{
+	struct access_report_info *info;
+	char agent_comm[sizeof(agent->comm)];
+
+	assert_spin_locked(&target->alloc_lock); /* for target->comm */
+
+	if (current->flags & PF_KTHREAD) {
+		/* I don't think kthreads call task_work_run() before exiting.
+		 * Imagine angry ranting about procfs here.
+		 */
+		pr_notice_ratelimited(
+		    "ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
+		    access, target->comm, target->pid,
+		    get_task_comm(agent_comm, agent), agent->pid);
+		return;
+	}
+
+	info = kmalloc(sizeof(*info), GFP_ATOMIC);
+	if (!info)
+		return;
+	init_task_work(&info->work, __report_access);
+	get_task_struct(target);
+	get_task_struct(agent);
+	info->access = access;
+	info->target = target;
+	info->agent = agent;
+	if (task_work_add(current, &info->work, true) == 0)
+		return; /* success */
+
+	WARN(1, "report_access called from exiting task");
+	put_task_struct(target);
+	put_task_struct(agent);
+	kfree(info);
+}
 
 /**
  * yama_relation_cleanup - remove invalid entries from the relation list
@@ -154,12 +225,8 @@ void yama_task_free(struct task_struct *task)
 int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			   unsigned long arg4, unsigned long arg5)
 {
-	int rc;
+	int rc = -ENOSYS;
 	struct task_struct *myself = current;
-
-	rc = cap_task_prctl(option, arg2, arg3, arg4, arg5);
-	if (rc != -ENOSYS)
-		return rc;
 
 	switch (option) {
 	case PR_SET_PTRACER:
@@ -242,7 +309,7 @@ static int task_is_descendant(struct task_struct *parent,
  * @tracer: the task_struct of the process attempting ptrace
  * @tracee: the task_struct of the process to be ptraced
  *
- * Returns 1 if tracer has is ptracer exception ancestor for tracee.
+ * Returns 1 if tracer has a ptracer exception ancestor for tracee.
  */
 static int ptracer_exception_found(struct task_struct *tracer,
 				   struct task_struct *tracee)
@@ -253,6 +320,18 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	bool found = false;
 
 	rcu_read_lock();
+
+	/*
+	 * If there's already an active tracing relationship, then make an
+	 * exception for the sake of other accesses, like process_vm_rw().
+	 */
+	parent = ptrace_parent(tracee);
+	if (parent != NULL && same_thread_group(parent, tracer)) {
+		rc = 1;
+		goto unlock;
+	}
+
+	/* Look for a PR_SET_PTRACER relationship. */
 	if (!thread_group_leader(tracee))
 		tracee = rcu_dereference(tracee->group_leader);
 	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
@@ -267,6 +346,8 @@ static int ptracer_exception_found(struct task_struct *tracer,
 
 	if (found && (parent == NULL || task_is_descendant(parent, tracer)))
 		rc = 1;
+
+unlock:
 	rcu_read_unlock();
 
 	return rc;
@@ -279,20 +360,13 @@ static int ptracer_exception_found(struct task_struct *tracer,
  *
  * Returns 0 if following the ptrace is allowed, -ve on error.
  */
-int yama_ptrace_access_check(struct task_struct *child,
+static int yama_ptrace_access_check(struct task_struct *child,
 				    unsigned int mode)
 {
-	int rc;
-
-	/* If standard caps disallows it, so does Yama.  We should
-	 * only tighten restrictions further.
-	 */
-	rc = cap_ptrace_access_check(child, mode);
-	if (rc)
-		return rc;
+	int rc = 0;
 
 	/* require ptrace target be a child of ptracer on attach */
-	if (mode == PTRACE_MODE_ATTACH) {
+	if (mode & PTRACE_MODE_ATTACH) {
 		switch (ptrace_scope) {
 		case YAMA_SCOPE_DISABLED:
 			/* No additional restrictions. */
@@ -318,11 +392,8 @@ int yama_ptrace_access_check(struct task_struct *child,
 		}
 	}
 
-	if (rc) {
-		printk_ratelimited(KERN_NOTICE
-			"ptrace of pid %d was attempted by: %s (pid %d)\n",
-			child->pid, current->comm, current->pid);
-	}
+	if (rc && (mode & PTRACE_MODE_NOAUDIT) == 0)
+		report_access("attach", child, current);
 
 	return rc;
 }
@@ -335,14 +406,7 @@ int yama_ptrace_access_check(struct task_struct *child,
  */
 int yama_ptrace_traceme(struct task_struct *parent)
 {
-	int rc;
-
-	/* If standard caps disallows it, so does Yama.  We should
-	 * only tighten restrictions further.
-	 */
-	rc = cap_ptrace_traceme(parent);
-	if (rc)
-		return rc;
+	int rc = 0;
 
 	/* Only disallow PTRACE_TRACEME on more aggressive settings. */
 	switch (ptrace_scope) {
@@ -356,43 +420,36 @@ int yama_ptrace_traceme(struct task_struct *parent)
 	}
 
 	if (rc) {
-		printk_ratelimited(KERN_NOTICE
-			"ptraceme of pid %d was attempted by: %s (pid %d)\n",
-			current->pid, parent->comm, parent->pid);
+		task_lock(current);
+		report_access("traceme", current, parent);
+		task_unlock(current);
 	}
 
 	return rc;
 }
 
-#ifndef CONFIG_SECURITY_YAMA_STACKED
-static struct security_operations yama_ops = {
-	.name =			"yama",
-
-	.ptrace_access_check =	yama_ptrace_access_check,
-	.ptrace_traceme =	yama_ptrace_traceme,
-	.task_prctl =		yama_task_prctl,
-	.task_free =		yama_task_free,
+static struct security_hook_list yama_hooks[] __lsm_ro_after_init = {
+	LSM_HOOK_INIT(ptrace_access_check, yama_ptrace_access_check),
+	LSM_HOOK_INIT(ptrace_traceme, yama_ptrace_traceme),
+	LSM_HOOK_INIT(task_prctl, yama_task_prctl),
+	LSM_HOOK_INIT(task_free, yama_task_free),
 };
-#endif
 
 #ifdef CONFIG_SYSCTL
 static int yama_dointvec_minmax(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int rc;
+	struct ctl_table table_copy;
 
 	if (write && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
-	rc = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (rc)
-		return rc;
-
 	/* Lock the max value if it ever gets set. */
-	if (write && *(int *)table->data == *(int *)table->extra2)
-		table->extra1 = table->extra2;
+	table_copy = *table;
+	if (*(int *)table_copy.data == *(int *)table_copy.extra2)
+		table_copy.extra1 = table_copy.extra2;
 
-	return rc;
+	return proc_dointvec_minmax(&table_copy, write, buffer, lenp, ppos);
 }
 
 static int zero;
@@ -416,28 +473,18 @@ static struct ctl_table yama_sysctl_table[] = {
 	},
 	{ }
 };
-#endif /* CONFIG_SYSCTL */
-
-static __init int yama_init(void)
+static void __init yama_init_sysctl(void)
 {
-#ifndef CONFIG_SECURITY_YAMA_STACKED
-	if (!security_module_enable(&yama_ops))
-		return 0;
-#endif
-
-	printk(KERN_INFO "Yama: becoming mindful.\n");
-
-#ifndef CONFIG_SECURITY_YAMA_STACKED
-	if (register_security(&yama_ops))
-		panic("Yama: kernel registration failed.\n");
-#endif
-
-#ifdef CONFIG_SYSCTL
 	if (!register_sysctl_paths(yama_sysctl_path, yama_sysctl_table))
 		panic("Yama: sysctl registration failed.\n");
-#endif
-
-	return 0;
 }
+#else
+static inline void yama_init_sysctl(void) { }
+#endif /* CONFIG_SYSCTL */
 
-security_initcall(yama_init);
+void __init yama_add_hooks(void)
+{
+	pr_info("Yama: becoming mindful.\n");
+	security_add_hooks(yama_hooks, ARRAY_SIZE(yama_hooks), "yama");
+	yama_init_sysctl();
+}

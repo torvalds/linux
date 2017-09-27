@@ -22,24 +22,13 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-#include <mach/r8a7740.h>
-#include <mach/irqs.h>
-
-#include "core.h"
 #include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx)					\
-	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx),		\
-	PORT_10(fn, pfx##10, sfx),	PORT_90(fn, pfx##1, sfx),	\
-	PORT_10(fn, pfx##20, sfx),					\
-	PORT_1(fn, pfx##210, sfx),	PORT_1(fn, pfx##211, sfx)
-
-#undef _GPIO_PORT
-#define _GPIO_PORT(gpio, sfx)						\
-	[gpio] = {							\
-		.name = __stringify(PORT##gpio),			\
-		.enum_id = PORT##gpio##_DATA,				\
-	}
+	PORT_10(0,  fn, pfx, sfx),	PORT_90(0,   fn, pfx, sfx),	\
+	PORT_10(100, fn, pfx##10, sfx),	PORT_90(100, fn, pfx##1, sfx),	\
+	PORT_10(200, fn, pfx##20, sfx),					\
+	PORT_1(210, fn, pfx##210, sfx),	PORT_1(211, fn, pfx##211, sfx)
 
 #define IRQC_PIN_MUX(irq, pin)						\
 static const unsigned int intc_irq##irq##_pins[] = {			\
@@ -264,7 +253,7 @@ enum {
 	/* SCIFA7 */
 	SCIFA7_TXD_MARK,	SCIFA7_RXD_MARK,
 
-	/* SCIFAB */
+	/* SCIFB */
 	SCIFB_SCK_PORT190_MARK, /* MSEL5CR_17_0 */
 	SCIFB_RXD_PORT191_MARK,
 	SCIFB_TXD_PORT192_MARK,
@@ -590,11 +579,8 @@ enum {
 	PINMUX_MARK_END,
 };
 
-#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
-#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_PORT_DATA, , unused)
-
-static const pinmux_enum_t pinmux_data[] = {
-	PINMUX_DATA_GP_ALL(),
+static const u16 pinmux_data[] = {
+	PINMUX_DATA_ALL(),
 
 	/* Port0 */
 	PINMUX_DATA(DBGMDT2_MARK,		PORT0_FN1),
@@ -1537,13 +1523,6 @@ static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(TRACEAUD_FROM_MEMC_MARK,			MSEL5CR_30_1,	MSEL5CR_29_0),
 };
 
-#define R8A7740_PIN(pin, cfgs)						\
-	{								\
-		.name = __stringify(PORT##pin),				\
-		.enum_id = PORT##pin##_DATA,				\
-		.configs = cfgs,					\
-	}
-
 #define __I		(SH_PFC_PIN_CFG_INPUT)
 #define __O		(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
@@ -1551,17 +1530,17 @@ static const pinmux_enum_t pinmux_data[] = {
 #define __PU		(SH_PFC_PIN_CFG_PULL_UP)
 #define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
 
-#define R8A7740_PIN_I_PD(pin)		R8A7740_PIN(pin, __I | __PD)
-#define R8A7740_PIN_I_PU(pin)		R8A7740_PIN(pin, __I | __PU)
-#define R8A7740_PIN_I_PU_PD(pin)		R8A7740_PIN(pin, __I | __PUD)
-#define R8A7740_PIN_IO(pin)		R8A7740_PIN(pin, __IO)
-#define R8A7740_PIN_IO_PD(pin)		R8A7740_PIN(pin, __IO | __PD)
-#define R8A7740_PIN_IO_PU(pin)		R8A7740_PIN(pin, __IO | __PU)
-#define R8A7740_PIN_IO_PU_PD(pin)	R8A7740_PIN(pin, __IO | __PUD)
-#define R8A7740_PIN_O(pin)		R8A7740_PIN(pin, __O)
-#define R8A7740_PIN_O_PU_PD(pin)		R8A7740_PIN(pin, __O | __PUD)
+#define R8A7740_PIN_I_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PD)
+#define R8A7740_PIN_I_PU(pin)		SH_PFC_PIN_CFG(pin, __I | __PU)
+#define R8A7740_PIN_I_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __I | __PUD)
+#define R8A7740_PIN_IO(pin)		SH_PFC_PIN_CFG(pin, __IO)
+#define R8A7740_PIN_IO_PD(pin)		SH_PFC_PIN_CFG(pin, __IO | __PD)
+#define R8A7740_PIN_IO_PU(pin)		SH_PFC_PIN_CFG(pin, __IO | __PU)
+#define R8A7740_PIN_IO_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __IO | __PUD)
+#define R8A7740_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
+#define R8A7740_PIN_O_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __O | __PUD)
 
-static struct sh_pfc_pin pinmux_pins[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 56-1 (I/O and Pull U/D) */
 	R8A7740_PIN_IO_PD(0),		R8A7740_PIN_IO_PD(1),
 	R8A7740_PIN_IO_PD(2),		R8A7740_PIN_IO_PD(3),
@@ -2234,7 +2213,7 @@ static const unsigned int lcd1_data9_mux[] = {
 	LCD1_D8_MARK,
 };
 static const unsigned int lcd1_data12_pins[] = {
-	/* D[0:12] */
+	/* D[0:11] */
 	4, 3, 2, 1, 0, 91, 92, 23,
 	93, 94, 21, 201,
 };
@@ -3252,17 +3231,6 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(tpu0),
 };
 
-#undef PORTCR
-#define PORTCR(nr, reg)							\
-	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
-	}
-
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0,	0xe6050000), /* PORT0CR */
 	PORTCR(1,	0xe6050001), /* PORT1CR */
@@ -3682,38 +3650,38 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {
-	PINMUX_IRQ(irq_pin(0), 2,   13),	/* IRQ0A */
-	PINMUX_IRQ(irq_pin(1), 20),		/* IRQ1A */
-	PINMUX_IRQ(irq_pin(2), 11,  12),	/* IRQ2A */
-	PINMUX_IRQ(irq_pin(3), 10,  14),	/* IRQ3A */
-	PINMUX_IRQ(irq_pin(4), 15,  172),	/* IRQ4A */
-	PINMUX_IRQ(irq_pin(5), 0,   1),		/* IRQ5A */
-	PINMUX_IRQ(irq_pin(6), 121, 173),	/* IRQ6A */
-	PINMUX_IRQ(irq_pin(7), 120, 209),	/* IRQ7A */
-	PINMUX_IRQ(irq_pin(8), 119),		/* IRQ8A */
-	PINMUX_IRQ(irq_pin(9), 118, 210),	/* IRQ9A */
-	PINMUX_IRQ(irq_pin(10), 19),		/* IRQ10A */
-	PINMUX_IRQ(irq_pin(11), 104),		/* IRQ11A */
-	PINMUX_IRQ(irq_pin(12), 42,  97),	/* IRQ12A */
-	PINMUX_IRQ(irq_pin(13), 64,  98),	/* IRQ13A */
-	PINMUX_IRQ(irq_pin(14), 63,  99),	/* IRQ14A */
-	PINMUX_IRQ(irq_pin(15), 62,  100),	/* IRQ15A */
-	PINMUX_IRQ(irq_pin(16), 68,  211),	/* IRQ16A */
-	PINMUX_IRQ(irq_pin(17), 69),		/* IRQ17A */
-	PINMUX_IRQ(irq_pin(18), 70),		/* IRQ18A */
-	PINMUX_IRQ(irq_pin(19), 71),		/* IRQ19A */
-	PINMUX_IRQ(irq_pin(20), 67),		/* IRQ20A */
-	PINMUX_IRQ(irq_pin(21), 202),		/* IRQ21A */
-	PINMUX_IRQ(irq_pin(22), 95),		/* IRQ22A */
-	PINMUX_IRQ(irq_pin(23), 96),		/* IRQ23A */
-	PINMUX_IRQ(irq_pin(24), 180),		/* IRQ24A */
-	PINMUX_IRQ(irq_pin(25), 38),		/* IRQ25A */
-	PINMUX_IRQ(irq_pin(26), 58,  81),	/* IRQ26A */
-	PINMUX_IRQ(irq_pin(27), 57,  168),	/* IRQ27A */
-	PINMUX_IRQ(irq_pin(28), 56,  169),	/* IRQ28A */
-	PINMUX_IRQ(irq_pin(29), 50,  170),	/* IRQ29A */
-	PINMUX_IRQ(irq_pin(30), 49,  171),	/* IRQ30A */
-	PINMUX_IRQ(irq_pin(31), 41,  167),	/* IRQ31A */
+	PINMUX_IRQ(2,   13),	/* IRQ0A */
+	PINMUX_IRQ(20),		/* IRQ1A */
+	PINMUX_IRQ(11,  12),	/* IRQ2A */
+	PINMUX_IRQ(10,  14),	/* IRQ3A */
+	PINMUX_IRQ(15,  172),	/* IRQ4A */
+	PINMUX_IRQ(0,   1),	/* IRQ5A */
+	PINMUX_IRQ(121, 173),	/* IRQ6A */
+	PINMUX_IRQ(120, 209),	/* IRQ7A */
+	PINMUX_IRQ(119),	/* IRQ8A */
+	PINMUX_IRQ(118, 210),	/* IRQ9A */
+	PINMUX_IRQ(19),		/* IRQ10A */
+	PINMUX_IRQ(104),	/* IRQ11A */
+	PINMUX_IRQ(42,  97),	/* IRQ12A */
+	PINMUX_IRQ(64,  98),	/* IRQ13A */
+	PINMUX_IRQ(63,  99),	/* IRQ14A */
+	PINMUX_IRQ(62,  100),	/* IRQ15A */
+	PINMUX_IRQ(68,  211),	/* IRQ16A */
+	PINMUX_IRQ(69),		/* IRQ17A */
+	PINMUX_IRQ(70),		/* IRQ18A */
+	PINMUX_IRQ(71),		/* IRQ19A */
+	PINMUX_IRQ(67),		/* IRQ20A */
+	PINMUX_IRQ(202),	/* IRQ21A */
+	PINMUX_IRQ(95),		/* IRQ22A */
+	PINMUX_IRQ(96),		/* IRQ23A */
+	PINMUX_IRQ(180),	/* IRQ24A */
+	PINMUX_IRQ(38),		/* IRQ25A */
+	PINMUX_IRQ(58,  81),	/* IRQ26A */
+	PINMUX_IRQ(57,  168),	/* IRQ27A */
+	PINMUX_IRQ(56,  169),	/* IRQ28A */
+	PINMUX_IRQ(50,  170),	/* IRQ29A */
+	PINMUX_IRQ(49,  171),	/* IRQ30A */
+	PINMUX_IRQ(41,  167),	/* IRQ31A */
 };
 
 #define PORTnCR_PULMD_OFF	(0 << 6)
@@ -3738,8 +3706,8 @@ static void __iomem *r8a7740_pinmux_portcr(struct sh_pfc *pfc, unsigned int pin)
 		const struct r8a7740_portcr_group *group =
 			&r8a7740_portcr_offsets[i];
 
-		if (i <= group->end_pin)
-			return pfc->window->virt + group->offset + pin;
+		if (pin <= group->end_pin)
+			return pfc->windows->virt + group->offset + pin;
 	}
 
 	return NULL;
@@ -3779,14 +3747,14 @@ static void r8a7740_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	iowrite8(value, addr);
 }
 
-static const struct sh_pfc_soc_operations r8a7740_pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a7740_pfc_ops = {
 	.get_bias = r8a7740_pinmux_get_bias,
 	.set_bias = r8a7740_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.name		= "r8a7740_pfc",
-	.ops		= &r8a7740_pinmux_ops,
+	.ops		= &r8a7740_pfc_ops,
 
 	.input		= { PINMUX_INPUT_BEGIN,
 			    PINMUX_INPUT_END },
@@ -3805,8 +3773,8 @@ const struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.cfg_regs	= pinmux_config_regs,
 	.data_regs	= pinmux_data_regs,
 
-	.gpio_data	= pinmux_data,
-	.gpio_data_size	= ARRAY_SIZE(pinmux_data),
+	.pinmux_data	= pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
 
 	.gpio_irq	= pinmux_irqs,
 	.gpio_irq_size	= ARRAY_SIZE(pinmux_irqs),

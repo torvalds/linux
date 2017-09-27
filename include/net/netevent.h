@@ -24,10 +24,11 @@ struct netevent_redirect {
 enum netevent_notif_type {
 	NETEVENT_NEIGH_UPDATE = 1, /* arg is struct neighbour ptr */
 	NETEVENT_REDIRECT,	   /* arg is struct netevent_redirect ptr */
+	NETEVENT_DELAY_PROBE_TIME_UPDATE, /* arg is struct neigh_parms ptr */
 };
 
-extern int register_netevent_notifier(struct notifier_block *nb);
-extern int unregister_netevent_notifier(struct notifier_block *nb);
-extern int call_netevent_notifiers(unsigned long val, void *v);
+int register_netevent_notifier(struct notifier_block *nb);
+int unregister_netevent_notifier(struct notifier_block *nb);
+int call_netevent_notifiers(unsigned long val, void *v);
 
 #endif

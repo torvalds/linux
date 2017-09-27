@@ -13,6 +13,8 @@
 #include <asm/cmpxchg-grb.h>
 #elif defined(CONFIG_CPU_SH4A)
 #include <asm/cmpxchg-llsc.h>
+#elif defined(CONFIG_CPU_J2) && defined(CONFIG_SMP)
+#include <asm/cmpxchg-cas.h>
 #else
 #include <asm/cmpxchg-irq.h>
 #endif
@@ -26,6 +28,9 @@ extern void __xchg_called_with_bad_pointer(void);
 	switch (size) {					\
 	case 4:						\
 		__xchg__res = xchg_u32(__xchg_ptr, x);	\
+		break;					\
+	case 2:						\
+		__xchg__res = xchg_u16(__xchg_ptr, x);	\
 		break;					\
 	case 1:						\
 		__xchg__res = xchg_u8(__xchg_ptr, x);	\
@@ -45,8 +50,6 @@ extern void __xchg_called_with_bad_pointer(void);
 /* This function doesn't exist, so you'll get a linker error
  * if something tries to do an invalid cmpxchg(). */
 extern void __cmpxchg_called_with_bad_pointer(void);
-
-#define __HAVE_ARCH_CMPXCHG 1
 
 static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
 		unsigned long new, int size)

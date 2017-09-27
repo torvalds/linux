@@ -20,7 +20,6 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -32,7 +31,9 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/gfp.h>
 
 #include <asm/immap_cpm2.h>
@@ -41,7 +42,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "fs_enet.h"
 
@@ -88,8 +89,8 @@ static int do_pd_setup(struct fs_enet_private *fep)
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
 
-	fep->interrupt = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
-	if (fep->interrupt == NO_IRQ)
+	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	if (!fep->interrupt)
 		goto out;
 
 	fep->fcc.fccp = of_iomap(ofdev->dev.of_node, 0);
@@ -123,9 +124,8 @@ out:
 	return ret;
 }
 
-#define FCC_NAPI_RX_EVENT_MSK	(FCC_ENET_RXF | FCC_ENET_RXB)
-#define FCC_RX_EVENT		(FCC_ENET_RXF)
-#define FCC_TX_EVENT		(FCC_ENET_TXB)
+#define FCC_NAPI_EVENT_MSK	(FCC_ENET_RXF | FCC_ENET_RXB | FCC_ENET_TXB)
+#define FCC_EVENT		(FCC_ENET_RXF | FCC_ENET_TXB)
 #define FCC_ERR_EVENT_MSK	(FCC_ENET_TXE)
 
 static int setup_data(struct net_device *dev)
@@ -135,9 +135,8 @@ static int setup_data(struct net_device *dev)
 	if (do_pd_setup(fep) != 0)
 		return -EINVAL;
 
-	fep->ev_napi_rx = FCC_NAPI_RX_EVENT_MSK;
-	fep->ev_rx = FCC_RX_EVENT;
-	fep->ev_tx = FCC_TX_EVENT;
+	fep->ev_napi = FCC_NAPI_EVENT_MSK;
+	fep->ev = FCC_EVENT;
 	fep->ev_err = FCC_ERR_EVENT_MSK;
 
 	return 0;
@@ -367,7 +366,7 @@ static void restart(struct net_device *dev)
 
 	/* adjust to speed (for RMII mode) */
 	if (fpi->use_rmii) {
-		if (fep->phydev->speed == 100)
+		if (dev->phydev->speed == 100)
 			C8(fcccp, fcc_gfemr, 0x20);
 		else
 			S8(fcccp, fcc_gfemr, 0x20);
@@ -393,7 +392,7 @@ static void restart(struct net_device *dev)
 		S32(fccp, fcc_fpsmr, FCC_PSMR_RMII);
 
 	/* adjust to duplex mode */
-	if (fep->phydev->duplex)
+	if (dev->phydev->duplex)
 		S32(fccp, fcc_fpsmr, FCC_PSMR_FDE | FCC_PSMR_LPB);
 	else
 		C32(fccp, fcc_fpsmr, FCC_PSMR_FDE | FCC_PSMR_LPB);
@@ -421,28 +420,28 @@ static void stop(struct net_device *dev)
 	fs_cleanup_bds(dev);
 }
 
-static void napi_clear_rx_event(struct net_device *dev)
+static void napi_clear_event_fs(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	fcc_t __iomem *fccp = fep->fcc.fccp;
 
-	W16(fccp, fcc_fcce, FCC_NAPI_RX_EVENT_MSK);
+	W16(fccp, fcc_fcce, FCC_NAPI_EVENT_MSK);
 }
 
-static void napi_enable_rx(struct net_device *dev)
+static void napi_enable_fs(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	fcc_t __iomem *fccp = fep->fcc.fccp;
 
-	S16(fccp, fcc_fccm, FCC_NAPI_RX_EVENT_MSK);
+	S16(fccp, fcc_fccm, FCC_NAPI_EVENT_MSK);
 }
 
-static void napi_disable_rx(struct net_device *dev)
+static void napi_disable_fs(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	fcc_t __iomem *fccp = fep->fcc.fccp;
 
-	C16(fccp, fcc_fccm, FCC_NAPI_RX_EVENT_MSK);
+	C16(fccp, fcc_fccm, FCC_NAPI_EVENT_MSK);
 }
 
 static void rx_bd_done(struct net_device *dev)
@@ -525,7 +524,7 @@ static void tx_restart(struct net_device *dev)
 	cbd_t __iomem *prev_bd;
 	cbd_t __iomem *last_tx_bd;
 
-	last_tx_bd = fep->tx_bd_base + (fpi->tx_ring * sizeof(cbd_t));
+	last_tx_bd = fep->tx_bd_base + (fpi->tx_ring - 1);
 
 	/* get the current bd held in TBPTR  and scan back from this point */
 	recheck_bd = curr_tbptr = (cbd_t __iomem *)
@@ -568,9 +567,9 @@ const struct fs_ops fs_fcc_ops = {
 	.set_multicast_list	= set_multicast_list,
 	.restart		= restart,
 	.stop			= stop,
-	.napi_clear_rx_event	= napi_clear_rx_event,
-	.napi_enable_rx		= napi_enable_rx,
-	.napi_disable_rx	= napi_disable_rx,
+	.napi_clear_event	= napi_clear_event_fs,
+	.napi_enable		= napi_enable_fs,
+	.napi_disable		= napi_disable_fs,
 	.rx_bd_done		= rx_bd_done,
 	.tx_kickstart		= tx_kickstart,
 	.get_int_events		= get_int_events,

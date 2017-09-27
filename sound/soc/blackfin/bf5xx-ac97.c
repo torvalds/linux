@@ -260,7 +260,7 @@ static int bf5xx_ac97_resume(struct snd_soc_dai *dai)
 #endif
 
 static struct snd_soc_dai_driver bfin_ac97_dai = {
-	.ac97_control = 1,
+	.bus_control = true,
 	.suspend = bf5xx_ac97_suspend,
 	.resume = bf5xx_ac97_resume,
 	.playback = {
@@ -375,7 +375,6 @@ static int asoc_bfin_ac97_remove(struct platform_device *pdev)
 static struct platform_driver asoc_bfin_ac97_driver = {
 	.driver = {
 			.name = "bfin-ac97",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = asoc_bfin_ac97_probe,

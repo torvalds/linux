@@ -24,20 +24,19 @@ tarball="${objtree}/linux-${KERNELRELEASE}-${ARCH}.tar"
 #
 case "${1}" in
 	tar-pkg)
-		compress="cat"
-		file_ext=""
+		opts=
 		;;
 	targz-pkg)
-		compress="gzip"
-		file_ext=".gz"
+		opts=--gzip
+		tarball=${tarball}.gz
 		;;
 	tarbz2-pkg)
-		compress="bzip2"
-		file_ext=".bz2"
+		opts=--bzip2
+		tarball=${tarball}.bz2
 		;;
 	tarxz-pkg)
-		compress="xz"
-		file_ext=".xz"
+		opts=--xz
+		tarball=${tarball}.xz
 		;;
 	*)
 		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
@@ -51,13 +50,14 @@ esac
 #
 rm -rf -- "${tmpdir}"
 mkdir -p -- "${tmpdir}/boot"
-
+dirs=boot
 
 #
 # Try to install modules
 #
-if grep -q '^CONFIG_MODULES=y' "${objtree}/.config"; then
+if grep -q '^CONFIG_MODULES=y' "${KCONFIG_CONFIG}"; then
 	make ARCH="${ARCH}" O="${objtree}" KBUILD_SRC= INSTALL_MOD_PATH="${tmpdir}" modules_install
+	dirs="$dirs lib"
 fi
 
 
@@ -65,7 +65,7 @@ fi
 # Install basic kernel files
 #
 cp -v -- "${objtree}/System.map" "${tmpdir}/boot/System.map-${KERNELRELEASE}"
-cp -v -- "${objtree}/.config" "${tmpdir}/boot/config-${KERNELRELEASE}"
+cp -v -- "${KCONFIG_CONFIG}" "${tmpdir}/boot/config-${KERNELRELEASE}"
 cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 
 
@@ -87,6 +87,27 @@ case "${ARCH}" in
 		[ -f "${objtree}/vmlinux.SYS" ] && cp -v -- "${objtree}/vmlinux.SYS" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.SYS"
 		[ -f "${objtree}/vmlinux.dsk" ] && cp -v -- "${objtree}/vmlinux.dsk" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.dsk"
 		;;
+	mips)
+		if [ -f "${objtree}/arch/mips/boot/compressed/vmlinux.bin" ]; then
+			cp -v -- "${objtree}/arch/mips/boot/compressed/vmlinux.bin" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+		elif [ -f "${objtree}/arch/mips/boot/compressed/vmlinux.ecoff" ]; then
+			cp -v -- "${objtree}/arch/mips/boot/compressed/vmlinux.ecoff" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+		elif [ -f "${objtree}/arch/mips/boot/compressed/vmlinux.srec" ]; then
+			cp -v -- "${objtree}/arch/mips/boot/compressed/vmlinux.srec" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+		elif [ -f "${objtree}/vmlinux.32" ]; then
+			cp -v -- "${objtree}/vmlinux.32" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+		elif [ -f "${objtree}/vmlinux.64" ]; then
+			cp -v -- "${objtree}/vmlinux.64" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+		elif [ -f "${objtree}/arch/mips/boot/vmlinux.bin" ]; then
+			cp -v -- "${objtree}/arch/mips/boot/vmlinux.bin" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+		elif [ -f "${objtree}/arch/mips/boot/vmlinux.ecoff" ]; then
+			cp -v -- "${objtree}/arch/mips/boot/vmlinux.ecoff" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+		elif [ -f "${objtree}/arch/mips/boot/vmlinux.srec" ]; then
+			cp -v -- "${objtree}/arch/mips/boot/vmlinux.srec" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+		elif [ -f "${objtree}/vmlinux" ]; then
+			cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+		fi
+		;;
 	*)
 		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${KERNELRELEASE}"
 		echo "" >&2
@@ -103,16 +124,12 @@ esac
 #
 # Create the tarball
 #
-(
-	cd "${tmpdir}"
-	opts=
-	if tar --owner=root --group=root --help >/dev/null 2>&1; then
-		opts="--owner=root --group=root"
-	fi
-	tar cf - boot/* lib/* $opts | ${compress} > "${tarball}${file_ext}"
-)
+if tar --owner=root --group=root --help >/dev/null 2>&1; then
+	opts="$opts --owner=root --group=root"
+fi
 
-echo "Tarball successfully created in ${tarball}${file_ext}"
+tar cf $tarball -C $tmpdir $opts $dirs
+
+echo "Tarball successfully created in $tarball"
 
 exit 0
-

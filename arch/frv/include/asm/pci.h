@@ -14,8 +14,7 @@
 #define _ASM_FRV_PCI_H
 
 #include <linux/mm.h>
-#include <asm/scatterlist.h>
-#include <asm-generic/pci-dma-compat.h>
+#include <linux/scatterlist.h>
 #include <asm-generic/pci.h>
 
 struct pci_dev;
@@ -23,8 +22,6 @@ struct pci_dev;
 #define pcibios_assign_all_busses()	0
 
 extern void pcibios_set_master(struct pci_dev *dev);
-
-extern void pcibios_penalize_isa_irq(int irq);
 
 #ifdef CONFIG_MMU
 extern void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle);
@@ -34,24 +31,8 @@ extern void consistent_sync_page(struct page *page, unsigned long offset,
 				 size_t size, int direction);
 #endif
 
-extern void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
-				  dma_addr_t *dma_handle);
-
-extern void pci_free_consistent(struct pci_dev *hwdev, size_t size,
-				void *vaddr, dma_addr_t dma_handle);
-
 /* Return the index of the PCI controller for device PDEV. */
 #define pci_controller_num(PDEV)	(0)
-
-#ifdef CONFIG_PCI
-static inline void pci_dma_burst_advice(struct pci_dev *pdev,
-					enum pci_dma_burst_strategy *strat,
-					unsigned long *strategy_parameter)
-{
-	*strat = PCI_DMA_BURST_INFINITY;
-	*strategy_parameter = ~0UL;
-}
-#endif
 
 /*
  *	These are pretty much arbitrary with the CoMEM implementation.

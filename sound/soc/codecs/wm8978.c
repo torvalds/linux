@@ -117,21 +117,21 @@ static const char *wm8978_eq5[] = {"5.3kHz", "6.9kHz", "9kHz", "11.7kHz"};
 static const char *wm8978_alc3[] = {"ALC", "Limiter"};
 static const char *wm8978_alc1[] = {"Off", "Right", "Left", "Both"};
 
-static const SOC_ENUM_SINGLE_DECL(adc_compand, WM8978_COMPANDING_CONTROL, 1,
-				  wm8978_companding);
-static const SOC_ENUM_SINGLE_DECL(dac_compand, WM8978_COMPANDING_CONTROL, 3,
-				  wm8978_companding);
-static const SOC_ENUM_SINGLE_DECL(eqmode, WM8978_EQ1, 8, wm8978_eqmode);
-static const SOC_ENUM_SINGLE_DECL(eq1, WM8978_EQ1, 5, wm8978_eq1);
-static const SOC_ENUM_SINGLE_DECL(eq2bw, WM8978_EQ2, 8, wm8978_bw);
-static const SOC_ENUM_SINGLE_DECL(eq2, WM8978_EQ2, 5, wm8978_eq2);
-static const SOC_ENUM_SINGLE_DECL(eq3bw, WM8978_EQ3, 8, wm8978_bw);
-static const SOC_ENUM_SINGLE_DECL(eq3, WM8978_EQ3, 5, wm8978_eq3);
-static const SOC_ENUM_SINGLE_DECL(eq4bw, WM8978_EQ4, 8, wm8978_bw);
-static const SOC_ENUM_SINGLE_DECL(eq4, WM8978_EQ4, 5, wm8978_eq4);
-static const SOC_ENUM_SINGLE_DECL(eq5, WM8978_EQ5, 5, wm8978_eq5);
-static const SOC_ENUM_SINGLE_DECL(alc3, WM8978_ALC_CONTROL_3, 8, wm8978_alc3);
-static const SOC_ENUM_SINGLE_DECL(alc1, WM8978_ALC_CONTROL_1, 7, wm8978_alc1);
+static SOC_ENUM_SINGLE_DECL(adc_compand, WM8978_COMPANDING_CONTROL, 1,
+			    wm8978_companding);
+static SOC_ENUM_SINGLE_DECL(dac_compand, WM8978_COMPANDING_CONTROL, 3,
+			    wm8978_companding);
+static SOC_ENUM_SINGLE_DECL(eqmode, WM8978_EQ1, 8, wm8978_eqmode);
+static SOC_ENUM_SINGLE_DECL(eq1, WM8978_EQ1, 5, wm8978_eq1);
+static SOC_ENUM_SINGLE_DECL(eq2bw, WM8978_EQ2, 8, wm8978_bw);
+static SOC_ENUM_SINGLE_DECL(eq2, WM8978_EQ2, 5, wm8978_eq2);
+static SOC_ENUM_SINGLE_DECL(eq3bw, WM8978_EQ3, 8, wm8978_bw);
+static SOC_ENUM_SINGLE_DECL(eq3, WM8978_EQ3, 5, wm8978_eq3);
+static SOC_ENUM_SINGLE_DECL(eq4bw, WM8978_EQ4, 8, wm8978_bw);
+static SOC_ENUM_SINGLE_DECL(eq4, WM8978_EQ4, 5, wm8978_eq4);
+static SOC_ENUM_SINGLE_DECL(eq5, WM8978_EQ5, 5, wm8978_eq5);
+static SOC_ENUM_SINGLE_DECL(alc3, WM8978_ALC_CONTROL_3, 8, wm8978_alc3);
+static SOC_ENUM_SINGLE_DECL(alc1, WM8978_ALC_CONTROL_1, 7, wm8978_alc1);
 
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
@@ -736,16 +736,16 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface_ctl |= 0x20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface_ctl |= 0x40;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface_ctl |= 0x60;
 		break;
 	}
@@ -817,8 +817,8 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 			wm8978->sysclk == WM8978_MCLK ?
 			", consider using PLL" : "");
 
-	dev_dbg(codec->dev, "%s: fmt %d, rate %u, MCLK divisor #%d\n", __func__,
-		params_format(params), params_rate(params), best);
+	dev_dbg(codec->dev, "%s: width %d, rate %u, MCLK divisor #%d\n", __func__,
+		params_width(params), params_rate(params), best);
 
 	/* MCLK divisor mask = 0xe0 */
 	snd_soc_update_bits(codec, WM8978_CLOCKING, 0xe0, best << 5);
@@ -868,7 +868,7 @@ static int wm8978_set_bias_level(struct snd_soc_codec *codec,
 		/* bit 3: enable bias, bit 2: enable I/O tie off buffer */
 		power1 |= 0xc;
 
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Initial cap charge at VMID 5k */
 			snd_soc_write(codec, WM8978_POWER_MANAGEMENT_1,
 				      power1 | 0x3);
@@ -888,7 +888,6 @@ static int wm8978_set_bias_level(struct snd_soc_codec *codec,
 
 	dev_dbg(codec->dev, "%s: %d, %x\n", __func__, level, power1);
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -928,7 +927,7 @@ static int wm8978_suspend(struct snd_soc_codec *codec)
 {
 	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 
-	wm8978_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 	/* Also switch PLL off */
 	snd_soc_write(codec, WM8978_POWER_MANAGEMENT_1, 0);
 
@@ -944,7 +943,7 @@ static int wm8978_resume(struct snd_soc_codec *codec)
 	/* Sync reg_cache with the hardware */
 	regcache_sync(wm8978->regmap);
 
-	wm8978_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	if (wm8978->f_pllout)
 		/* Switch PLL on */
@@ -975,19 +974,13 @@ static const int update_reg[] = {
 static int wm8978_probe(struct snd_soc_codec *codec)
 {
 	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0, i;
+	int i;
 
 	/*
 	 * Set default system clock to PLL, it is more precise, this is also the
 	 * default hardware setting
 	 */
 	wm8978->sysclk = WM8978_PLL;
-	codec->control_data = wm8978->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/*
 	 * Set the update bit in all registers, that have one. This way all
@@ -997,31 +990,23 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(update_reg); i++)
 		snd_soc_update_bits(codec, update_reg[i], 0x100, 0x100);
 
-	wm8978_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
-/* power down chip */
-static int wm8978_remove(struct snd_soc_codec *codec)
-{
-	wm8978_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static struct snd_soc_codec_driver soc_codec_dev_wm8978 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8978 = {
 	.probe =	wm8978_probe,
-	.remove =	wm8978_remove,
 	.suspend =	wm8978_suspend,
 	.resume =	wm8978_resume,
 	.set_bias_level = wm8978_set_bias_level,
 
-	.controls = wm8978_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8978_snd_controls),
-	.dapm_widgets = wm8978_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8978_dapm_widgets),
-	.dapm_routes = wm8978_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8978_dapm_routes),
+	.component_driver = {
+		.controls		= wm8978_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8978_snd_controls),
+		.dapm_widgets		= wm8978_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8978_dapm_widgets),
+		.dapm_routes		= wm8978_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8978_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8978_regmap_config = {
@@ -1086,10 +1071,16 @@ static const struct i2c_device_id wm8978_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8978_i2c_id);
 
+static const struct of_device_id wm8978_of_match[] = {
+	{ .compatible = "wlf,wm8978", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8978_of_match);
+
 static struct i2c_driver wm8978_i2c_driver = {
 	.driver = {
 		.name = "wm8978",
-		.owner = THIS_MODULE,
+		.of_match_table = wm8978_of_match,
 	},
 	.probe =    wm8978_i2c_probe,
 	.remove =   wm8978_i2c_remove,

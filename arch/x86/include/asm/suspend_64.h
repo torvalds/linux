@@ -7,7 +7,7 @@
 #define _ASM_X86_SUSPEND_64_H
 
 #include <asm/desc.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 /*
  * Image of the saved processor state, used by the low level ACPI suspend to
@@ -24,6 +24,7 @@ struct saved_context {
 	unsigned long cr0, cr2, cr3, cr4, cr8;
 	u64 misc_enable;
 	bool misc_enable_saved;
+	struct saved_msrs saved_msrs;
 	unsigned long efer;
 	u16 gdt_pad; /* Unused */
 	struct desc_ptr gdt_desc;
@@ -41,8 +42,7 @@ struct saved_context {
 	set_debugreg((thread)->debugreg##register, register)
 
 /* routines for saving/restoring kernel state */
-extern int acpi_save_state_mem(void);
-extern char core_restore_code;
-extern char restore_registers;
+extern char core_restore_code[];
+extern char restore_registers[];
 
 #endif /* _ASM_X86_SUSPEND_64_H */

@@ -75,15 +75,21 @@
  */
 #define VCPUOP_get_runstate_info	 4
 struct vcpu_runstate_info {
-		/* VCPU's current state (RUNSTATE_*). */
-		int		 state;
-		/* When was current state entered (system time, ns)? */
-		uint64_t state_entry_time;
-		/*
-		 * Time spent in each RUNSTATE_* (ns). The sum of these times is
-		 * guaranteed not to drift from system time.
-		 */
-		uint64_t time[4];
+	/* VCPU's current state (RUNSTATE_*). */
+	int		 state;
+	/* When was current state entered (system time, ns)? */
+	uint64_t state_entry_time;
+	/*
+	 * Update indicator set in state_entry_time:
+	 * When activated via VMASST_TYPE_runstate_update_flag, set during
+	 * updates in guest memory mapped copy of vcpu_runstate_info.
+	 */
+#define XEN_RUNSTATE_UPDATE	(1ULL << 63)
+	/*
+	 * Time spent in each RUNSTATE_* (ns). The sum of these times is
+	 * guaranteed not to drift from system time.
+	 */
+	uint64_t time[4];
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_runstate_info);
 
@@ -170,4 +176,6 @@ struct vcpu_register_vcpu_info {
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_register_vcpu_info);
 
+/* Send an NMI to the specified VCPU. @extra_arg == NULL. */
+#define VCPUOP_send_nmi             11
 #endif /* __XEN_PUBLIC_VCPU_H__ */

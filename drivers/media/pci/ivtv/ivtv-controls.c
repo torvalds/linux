@@ -64,13 +64,15 @@ static int ivtv_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 {
 	struct ivtv *itv = container_of(cxhdl, struct ivtv, cxhdl);
 	int is_mpeg1 = val == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-	struct v4l2_mbus_framefmt fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 
 	/* fix videodecoder resolution */
-	fmt.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
-	fmt.height = cxhdl->height;
-	fmt.code = V4L2_MBUS_FMT_FIXED;
-	v4l2_subdev_call(itv->sd_video, video, s_mbus_fmt, &fmt);
+	format.format.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
+	format.format.height = cxhdl->height;
+	format.format.code = MEDIA_BUS_FMT_FIXED;
+	v4l2_subdev_call(itv->sd_video, pad, set_fmt, NULL, &format);
 	return 0;
 }
 
@@ -94,7 +96,7 @@ static int ivtv_s_audio_mode(struct cx2341x_handler *cxhdl, u32 val)
 	return 0;
 }
 
-struct cx2341x_handler_ops ivtv_cxhdl_ops = {
+const struct cx2341x_handler_ops ivtv_cxhdl_ops = {
 	.s_audio_mode = ivtv_s_audio_mode,
 	.s_audio_sampling_freq = ivtv_s_audio_sampling_freq,
 	.s_video_encoding = ivtv_s_video_encoding,
@@ -135,8 +137,8 @@ static int ivtv_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	/* V4L2_CID_MPEG_VIDEO_DEC_PTS and V4L2_CID_MPEG_VIDEO_DEC_FRAME
 	   control cluster */
 	case V4L2_CID_MPEG_VIDEO_DEC_PTS:
-		return ivtv_g_pts_frame(itv, &itv->ctrl_pts->val64,
-					     &itv->ctrl_frame->val64);
+		return ivtv_g_pts_frame(itv, itv->ctrl_pts->p_new.p_s64,
+					     itv->ctrl_frame->p_new.p_s64);
 	}
 	return 0;
 }

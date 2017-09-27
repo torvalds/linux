@@ -25,6 +25,9 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -38,7 +41,7 @@
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
@@ -52,46 +55,46 @@ asmlinkage void ret_from_kernel_thread(void);
 /*
  * The idle loop on an H8/300..
  */
-#if !defined(CONFIG_H8300H_SIM) && !defined(CONFIG_H8S_SIM)
 void arch_cpu_idle(void)
 {
 	local_irq_enable();
-	/* XXX: race here! What if need_resched() gets set now? */
 	__asm__("sleep");
 }
-#endif
 
-void machine_restart(char * __unused)
+void machine_restart(char *__unused)
 {
 	local_irq_disable();
-	__asm__("jmp @@0"); 
+	__asm__("jmp @@0");
 }
 
 void machine_halt(void)
 {
 	local_irq_disable();
 	__asm__("sleep");
-	for (;;);
+	for (;;)
+		;
 }
 
 void machine_power_off(void)
 {
 	local_irq_disable();
 	__asm__("sleep");
-	for (;;);
+	for (;;)
+		;
 }
 
-void show_regs(struct pt_regs * regs)
+void show_regs(struct pt_regs *regs)
 {
 	show_regs_print_info(KERN_DEFAULT);
 
-	printk("\nPC: %08lx  Status: %02x",
+	pr_notice("\n");
+	pr_notice("PC: %08lx  Status: %02x\n",
 	       regs->pc, regs->ccr);
-	printk("\nORIG_ER0: %08lx ER0: %08lx ER1: %08lx",
+	pr_notice("ORIG_ER0: %08lx ER0: %08lx ER1: %08lx\n",
 	       regs->orig_er0, regs->er0, regs->er1);
-	printk("\nER2: %08lx ER3: %08lx ER4: %08lx ER5: %08lx",
+	pr_notice("ER2: %08lx ER3: %08lx ER4: %08lx ER5: %08lx\n",
 	       regs->er2, regs->er3, regs->er4, regs->er5);
-	printk("\nER6' %08lx ",regs->er6);
+	pr_notice("ER6' %08lx ", regs->er6);
 	if (user_mode(regs))
 		printk("USP: %08lx\n", rdusp());
 	else
@@ -103,10 +106,10 @@ void flush_thread(void)
 }
 
 int copy_thread(unsigned long clone_flags,
-                unsigned long usp, unsigned long topstk,
-		 struct task_struct * p)
+		unsigned long usp, unsigned long topstk,
+		struct task_struct *p)
 {
-	struct pt_regs * childregs;
+	struct pt_regs *childregs;
 
 	childregs = (struct pt_regs *) (THREAD_SIZE + task_stack_page(p)) - 1;
 
@@ -115,20 +118,15 @@ int copy_thread(unsigned long clone_flags,
 		childregs->retpc = (unsigned long) ret_from_kernel_thread;
 		childregs->er4 = topstk; /* arg */
 		childregs->er5 = usp; /* fn */
-		p->thread.ksp = (unsigned long)childregs;
+	}  else {
+		*childregs = *current_pt_regs();
+		childregs->er0 = 0;
+		childregs->retpc = (unsigned long) ret_from_fork;
+		p->thread.usp = usp ?: rdusp();
 	}
-	*childregs = *current_pt_regs();
-	childregs->retpc = (unsigned long) ret_from_fork;
-	childregs->er0 = 0;
-	p->thread.usp = usp ?: rdusp();
 	p->thread.ksp = (unsigned long)childregs;
 
 	return 0;
-}
-
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return ((struct pt_regs *)tsk->thread.esp0)->pc;
 }
 
 unsigned long get_wchan(struct task_struct *p)
@@ -136,6 +134,7 @@ unsigned long get_wchan(struct task_struct *p)
 	unsigned long fp, pc;
 	unsigned long stack_page;
 	int count = 0;
+
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 
@@ -151,4 +150,20 @@ unsigned long get_wchan(struct task_struct *p)
 		fp = *(unsigned long *) fp;
 	} while (count++ < 16);
 	return 0;
+}
+
+/* generic sys_clone is not enough registers */
+asmlinkage int sys_clone(unsigned long __user *args)
+{
+	unsigned long clone_flags;
+	unsigned long  newsp;
+	uintptr_t parent_tidptr;
+	uintptr_t child_tidptr;
+
+	get_user(clone_flags, &args[0]);
+	get_user(newsp, &args[1]);
+	get_user(parent_tidptr, &args[2]);
+	get_user(child_tidptr, &args[3]);
+	return do_fork(clone_flags, newsp, 0,
+		       (int __user *)parent_tidptr, (int __user *)child_tidptr);
 }

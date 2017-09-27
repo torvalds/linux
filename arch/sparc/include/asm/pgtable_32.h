@@ -14,7 +14,7 @@
 #include <asm-generic/4level-fixup.h>
 
 #include <linux/spinlock.h>
-#include <linux/swap.h>
+#include <linux/mm_types.h>
 #include <asm/types.h>
 #include <asm/pgtsrmmu.h>
 #include <asm/vaddrs.h>
@@ -25,8 +25,9 @@
 struct vm_area_struct;
 struct page;
 
-extern void load_mmu(void);
-extern unsigned long calc_highpages(void);
+void load_mmu(void);
+unsigned long calc_highpages(void);
+unsigned long __init bootmem_init(unsigned long *pages_avail);
 
 #define pte_ERROR(e)   __builtin_trap()
 #define pmd_ERROR(e)   __builtin_trap()
@@ -43,7 +44,7 @@ extern unsigned long calc_highpages(void);
 #define PTRS_PER_PMD    	SRMMU_PTRS_PER_PMD
 #define PTRS_PER_PGD    	SRMMU_PTRS_PER_PGD
 #define USER_PTRS_PER_PGD	PAGE_OFFSET / SRMMU_PGDIR_SIZE
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
 #define PAGE_NONE	SRMMU_PAGE_NONE
@@ -56,7 +57,7 @@ extern unsigned long calc_highpages(void);
  * srmmu.c will assign the real one (which is dynamically sized) */
 #define swapper_pg_dir NULL
 
-extern void paging_init(void);
+void paging_init(void);
 
 extern unsigned long ptr_in_current_pgd;
 
@@ -90,9 +91,9 @@ extern unsigned long pfn_base;
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
-extern unsigned long empty_zero_page;
+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
-#define ZERO_PAGE(vaddr) (virt_to_page(&empty_zero_page))
+#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
 /*
  * In general all page table modifications should use the V8 atomic
@@ -101,7 +102,8 @@ extern unsigned long empty_zero_page;
  */
 static inline unsigned long srmmu_swap(unsigned long *addr, unsigned long value)
 {
-	__asm__ __volatile__("swap [%2], %0" : "=&r" (value) : "0" (value), "r" (addr));
+	__asm__ __volatile__("swap [%2], %0" :
+			"=&r" (value) : "0" (value), "r" (addr) : "memory");
 	return value;
 }
 
@@ -220,14 +222,6 @@ static inline int pte_young(pte_t pte)
 	return pte_val(pte) & SRMMU_REF;
 }
 
-/*
- * The following only work if pte_present() is not true.
- */
-static inline int pte_file(pte_t pte)
-{
-	return pte_val(pte) & SRMMU_FILE;
-}
-
 static inline int pte_special(pte_t pte)
 {
 	return 0;
@@ -304,7 +298,7 @@ static inline pte_t mk_pte_io(unsigned long page, pgprot_t pgprot, int space)
 #define pgprot_noncached pgprot_noncached
 static inline pgprot_t pgprot_noncached(pgprot_t prot)
 {
-	prot &= ~__pgprot(SRMMU_CACHE);
+	pgprot_val(prot) &= ~pgprot_val(__pgprot(SRMMU_CACHE));
 	return prot;
 }
 
@@ -374,22 +368,6 @@ static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
-/* file-offset-in-pte helpers */
-static inline unsigned long pte_to_pgoff(pte_t pte)
-{
-	return pte_val(pte) >> SRMMU_PTE_FILE_SHIFT;
-}
-
-static inline pte_t pgoff_to_pte(unsigned long pgoff)
-{
-	return __pte((pgoff << SRMMU_PTE_FILE_SHIFT) | SRMMU_FILE);
-}
-
-/*
- * This is made a constant because mm/fremap.c required a constant.
- */
-#define PTE_FILE_MAX_BITS 24
-
 static inline unsigned long
 __get_phys (unsigned long addr)
 {
@@ -428,8 +406,8 @@ extern unsigned long *sparc_valid_addr_bitmap;
 #define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
 #define GET_PFN(pfn)			(pfn & 0x0fffffffUL)
 
-extern int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
-			   unsigned long, pgprot_t);
+int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
+		    unsigned long, pgprot_t);
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 				     unsigned long from, unsigned long pfn,

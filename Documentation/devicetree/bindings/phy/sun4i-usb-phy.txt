@@ -1,0 +1,65 @@
+Allwinner sun4i USB PHY
+-----------------------
+
+Required properties:
+- compatible : should be one of
+  * allwinner,sun4i-a10-usb-phy
+  * allwinner,sun5i-a13-usb-phy
+  * allwinner,sun6i-a31-usb-phy
+  * allwinner,sun7i-a20-usb-phy
+  * allwinner,sun8i-a23-usb-phy
+  * allwinner,sun8i-a33-usb-phy
+  * allwinner,sun8i-a83t-usb-phy
+  * allwinner,sun8i-h3-usb-phy
+  * allwinner,sun8i-v3s-usb-phy
+  * allwinner,sun50i-a64-usb-phy
+- reg : a list of offset + length pairs
+- reg-names :
+  * "phy_ctrl"
+  * "pmu0" for H3, V3s and A64
+  * "pmu1"
+  * "pmu2" for sun4i, sun6i, sun7i, sun8i-a83t or sun8i-h3
+  * "pmu3" for sun8i-h3
+- #phy-cells : from the generic phy bindings, must be 1
+- clocks : phandle + clock specifier for the phy clocks
+- clock-names :
+  * "usb_phy" for sun4i, sun5i or sun7i
+  * "usb0_phy", "usb1_phy" and "usb2_phy" for sun6i
+  * "usb0_phy", "usb1_phy" for sun8i
+  * "usb0_phy", "usb1_phy", "usb2_phy" and "usb2_hsic_12M" for sun8i-a83t
+  * "usb0_phy", "usb1_phy", "usb2_phy" and "usb3_phy" for sun8i-h3
+- resets : a list of phandle + reset specifier pairs
+- reset-names :
+  * "usb0_reset"
+  * "usb1_reset"
+  * "usb2_reset" for sun4i, sun6i, sun7i, sun8i-a83t or sun8i-h3
+  * "usb3_reset" for sun8i-h3
+
+Optional properties:
+- usb0_id_det-gpios : gpio phandle for reading the otg id pin value
+- usb0_vbus_det-gpios : gpio phandle for detecting the presence of usb0 vbus
+- usb0_vbus_power-supply: power-supply phandle for usb0 vbus presence detect
+- usb0_vbus-supply : regulator phandle for controller usb0 vbus
+- usb1_vbus-supply : regulator phandle for controller usb1 vbus
+- usb2_vbus-supply : regulator phandle for controller usb2 vbus
+- usb3_vbus-supply : regulator phandle for controller usb3 vbus
+
+Example:
+	usbphy: phy@0x01c13400 {
+		#phy-cells = <1>;
+		compatible = "allwinner,sun4i-a10-usb-phy";
+		/* phy base regs, phy1 pmu reg, phy2 pmu reg */
+		reg = <0x01c13400 0x10 0x01c14800 0x4 0x01c1c800 0x4>;
+		reg-names = "phy_ctrl", "pmu1", "pmu2";
+		clocks = <&usb_clk 8>;
+		clock-names = "usb_phy";
+		resets = <&usb_clk 0>, <&usb_clk 1>, <&usb_clk 2>;
+		reset-names = "usb0_reset", "usb1_reset", "usb2_reset";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
+		usb0_id_det-gpios = <&pio 7 19 GPIO_ACTIVE_HIGH>; /* PH19 */
+		usb0_vbus_det-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
+		usb0_vbus-supply = <&reg_usb0_vbus>;
+		usb1_vbus-supply = <&reg_usb1_vbus>;
+		usb2_vbus-supply = <&reg_usb2_vbus>;
+	};

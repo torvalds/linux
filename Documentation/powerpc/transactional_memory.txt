@@ -74,22 +74,23 @@ Causes of transaction aborts
 Syscalls
 ========
 
-Performing syscalls from within transaction is not recommended, and can lead
-to unpredictable results.
+Syscalls made from within an active transaction will not be performed and the
+transaction will be doomed by the kernel with the failure code TM_CAUSE_SYSCALL
+| TM_CAUSE_PERSISTENT.
 
-Syscalls do not by design abort transactions, but beware: The kernel code will
-not be running in transactional state.  The effect of syscalls will always
-remain visible, but depending on the call they may abort your transaction as a
-side-effect, read soon-to-be-aborted transactional data that should not remain
-invisible, etc.  If you constantly retry a transaction that constantly aborts
-itself by calling a syscall, you'll have a livelock & make no progress.
+Syscalls made from within a suspended transaction are performed as normal and
+the transaction is not explicitly doomed by the kernel.  However, what the
+kernel does to perform the syscall may result in the transaction being doomed
+by the hardware.  The syscall is performed in suspended mode so any side
+effects will be persistent, independent of transaction success or failure.  No
+guarantees are provided by the kernel about which syscalls will affect
+transaction success.
 
-Simple syscalls (e.g. sigprocmask()) "could" be OK.  Even things like write()
-from, say, printf() should be OK as long as the kernel does not access any
-memory that was accessed transactionally.
-
-Consider any syscalls that happen to work as debug-only -- not recommended for
-production use.  Best to queue them up till after the transaction is over.
+Care must be taken when relying on syscalls to abort during active transactions
+if the calls are made via a library.  Libraries may cache values (which may
+give the appearance of success) or perform operations that cause transaction
+failure before entering the kernel (which may produce different failure codes).
+Examples are glibc's getpid() and lazy symbol resolution.
 
 
 Signals
@@ -160,12 +161,14 @@ To avoid this, when taking a signal in an active transaction, we need to use
 the stack pointer from the checkpointed state, rather than the speculated
 state.  This ensures that the signal context (written tm suspended) will be
 written below the stack required for the rollback.  The transaction is aborted
-becuase of the treclaim, so any memory written between the tbegin and the
+because of the treclaim, so any memory written between the tbegin and the
 signal will be rolled back anyway.
 
 For signals taken in non-TM or suspended mode, we use the
 normal/non-checkpointed stack pointer.
 
+Any transaction initiated inside a sighandler and suspended on return
+from the sighandler to the kernel will get reclaimed and discarded.
 
 Failure cause codes used by kernel
 ==================================
@@ -174,10 +177,9 @@ These are defined in <asm/reg.h>, and distinguish different reasons why the
 kernel aborted a transaction:
 
  TM_CAUSE_RESCHED       Thread was rescheduled.
- TM_CAUSE_TLBI          Software TLB invalide.
+ TM_CAUSE_TLBI          Software TLB invalid.
  TM_CAUSE_FAC_UNAV      FP/VEC/VSX unavailable trap.
- TM_CAUSE_SYSCALL       Currently unused; future syscalls that must abort
-                        transactions for consistency will use this.
+ TM_CAUSE_SYSCALL       Syscall from active transaction.
  TM_CAUSE_SIGNAL        Signal delivered.
  TM_CAUSE_MISC          Currently unused.
  TM_CAUSE_ALIGNMENT     Alignment fault.
@@ -185,7 +187,7 @@ kernel aborted a transaction:
 
 These can be checked by the user program's abort handler as TEXASR[0:7].  If
 bit 7 is set, it indicates that the error is consider persistent.  For example
-a TM_CAUSE_ALIGNMENT will be persistent while a TM_CAUSE_RESCHED will not.q
+a TM_CAUSE_ALIGNMENT will be persistent while a TM_CAUSE_RESCHED will not.
 
 GDB
 ===

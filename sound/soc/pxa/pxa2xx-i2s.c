@@ -23,9 +23,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <mach/hardware.h>
-#include <mach/dma.h>
 #include <mach/audio.h>
 
 #include "pxa2xx-i2s.h"
@@ -46,10 +46,10 @@
 #define SACR0_STRF	(1 << 5)	/* FIFO Select for EFWR Special Function */
 #define SACR0_EFWR	(1 << 4)	/* Enable EFWR Function  */
 #define SACR0_RST	(1 << 3)	/* FIFO, i2s Register Reset */
-#define SACR0_BCKD	(1 << 2) 	/* Bit Clock Direction */
+#define SACR0_BCKD	(1 << 2)	/* Bit Clock Direction */
 #define SACR0_ENB	(1 << 0)	/* Enable I2S Link */
 #define SACR1_ENLBF	(1 << 5)	/* Enable Loopback */
-#define SACR1_DRPL	(1 << 4) 	/* Disable Replaying Function */
+#define SACR1_DRPL	(1 << 4)	/* Disable Replaying Function */
 #define SACR1_DREC	(1 << 3)	/* Disable Recording Function */
 #define SACR1_AMSL	(1 << 0)	/* Specify Alternate Mode */
 
@@ -60,7 +60,7 @@
 #define SASR0_TFS	(1 << 3)	/* Tx FIFO Service Request */
 #define SASR0_BSY	(1 << 2)	/* I2S Busy */
 #define SASR0_RNE	(1 << 1)	/* Rx FIFO Not Empty */
-#define SASR0_TNF	(1 << 0) 	/* Tx FIFO Not Empty */
+#define SASR0_TNF	(1 << 0)	/* Tx FIFO Not Empty */
 
 #define SAICR_ROR	(1 << 6)	/* Clear Rx FIFO Overrun Interrupt */
 #define SAICR_TUR	(1 << 5)	/* Clear Tx FIFO Underrun Interrupt */
@@ -82,20 +82,20 @@ static struct pxa_i2s_port pxa_i2s;
 static struct clk *clk_i2s;
 static int clk_ena = 0;
 
-static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_out = {
-	.name			= "I2S PCM Stereo out",
-	.dev_addr		= __PREG(SADR),
-	.drcmr			= &DRCMR(3),
-	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_i2s_pcm_stereo_out_req = 3;
+static struct snd_dmaengine_dai_dma_data pxa2xx_i2s_pcm_stereo_out = {
+	.addr		= __PREG(SADR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_i2s_pcm_stereo_out_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_in = {
-	.name			= "I2S PCM Stereo in",
-	.dev_addr		= __PREG(SADR),
-	.drcmr			= &DRCMR(2),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_i2s_pcm_stereo_in_req = 2;
+static struct snd_dmaengine_dai_dma_data pxa2xx_i2s_pcm_stereo_in = {
+	.addr		= __PREG(SADR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_i2s_pcm_stereo_in_req,
 };
 
 static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
@@ -119,7 +119,7 @@ static int pxa_i2s_wait(void)
 	int i;
 
 	/* flush the Rx FIFO */
-	for(i = 0; i < 16; i++)
+	for (i = 0; i < 16; i++)
 		SADR;
 	return 0;
 }
@@ -163,9 +163,10 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct pxa2xx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
-	BUG_ON(IS_ERR(clk_i2s));
+	if (WARN_ON(IS_ERR(clk_i2s)))
+		return -EINVAL;
 	clk_prepare_enable(clk_i2s);
 	clk_ena = 1;
 	pxa_i2s_wait();
@@ -318,6 +319,9 @@ static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
 	/* Along with FIFO servicing */
 	SAIMR &= ~(SAIMR_RFS | SAIMR_TFS);
 
+	snd_soc_dai_init_dma_data(dai, &pxa2xx_i2s_pcm_stereo_out,
+		&pxa2xx_i2s_pcm_stereo_in);
+
 	return 0;
 }
 
@@ -366,23 +370,15 @@ static const struct snd_soc_component_driver pxa_i2s_component = {
 
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_component(&pdev->dev, &pxa_i2s_component,
-					  &pxa_i2s_dai, 1);
-}
-
-static int pxa2xx_i2s_drv_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_component(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev, &pxa_i2s_component,
+					       &pxa_i2s_dai, 1);
 }
 
 static struct platform_driver pxa2xx_i2s_driver = {
 	.probe = pxa2xx_i2s_drv_probe,
-	.remove = pxa2xx_i2s_drv_remove,
 
 	.driver = {
 		.name = "pxa2xx-i2s",
-		.owner = THIS_MODULE,
 	},
 };
 

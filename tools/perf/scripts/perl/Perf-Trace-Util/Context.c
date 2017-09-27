@@ -5,7 +5,10 @@
  *	ANY CHANGES MADE HERE WILL BE LOST! 
  *
  */
-
+#include <stdbool.h>
+#ifndef HAS_BOOL
+# define HAS_BOOL 1
+#endif
 #line 1 "Context.xs"
 /*
  * Context.xs.  XS interfaces for perf script.

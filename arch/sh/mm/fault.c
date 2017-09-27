@@ -13,10 +13,12 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/perf_event.h>
 #include <linux/kdebug.h>
+#include <linux/uaccess.h>
 #include <asm/io_trapped.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -353,6 +355,8 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	} else {
 		if (fault & VM_FAULT_SIGBUS)
 			do_sigbus(regs, error_code, address);
+		else if (fault & VM_FAULT_SIGSEGV)
+			bad_area(regs, error_code, address);
 		else
 			BUG();
 	}
@@ -400,9 +404,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	int fault;
-	int write = error_code & FAULT_CODE_WRITE;
-	unsigned int flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-			      (write ? FAULT_FLAG_WRITE : 0));
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	tsk = current;
 	mm = tsk->mm;
@@ -438,9 +440,9 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
-	 * in an atomic region then we must not take the fault:
+	 * with pagefaults disabled then we must not take the fault:
 	 */
-	if (unlikely(in_atomic() || !mm)) {
+	if (unlikely(faulthandler_disabled() || !mm)) {
 		bad_area_nosemaphore(regs, error_code, address);
 		return;
 	}
@@ -476,12 +478,17 @@ good_area:
 
 	set_thread_fault_code(error_code);
 
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
+	if (error_code & FAULT_CODE_WRITE)
+		flags |= FAULT_FLAG_WRITE;
+
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags);
 
 	if (unlikely(fault & (VM_FAULT_RETRY | VM_FAULT_ERROR)))
 		if (mm_fault_error(regs, error_code, address, fault))

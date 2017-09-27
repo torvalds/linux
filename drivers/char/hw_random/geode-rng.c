@@ -24,12 +24,12 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/pci.h>
-#include <linux/hw_random.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/hw_random.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 
 
 #define PFX	KBUILD_MODNAME ": "
@@ -109,10 +109,10 @@ found:
 		goto out;
 	geode_rng.priv = (unsigned long)mem;
 
-	printk(KERN_INFO "AMD Geode RNG detected\n");
+	pr_info("AMD Geode RNG detected\n");
 	err = hwrng_register(&geode_rng);
 	if (err) {
-		printk(KERN_ERR PFX "RNG registering failed (%d)\n",
+		pr_err(PFX "RNG registering failed (%d)\n",
 		       err);
 		goto err_unmap;
 	}

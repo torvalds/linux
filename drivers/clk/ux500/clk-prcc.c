@@ -8,7 +8,6 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clk-private.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/err.h>
@@ -80,13 +79,13 @@ static int clk_prcc_is_enabled(struct clk_hw *hw)
 	return clk->is_enabled;
 }
 
-static struct clk_ops clk_prcc_pclk_ops = {
+static const struct clk_ops clk_prcc_pclk_ops = {
 	.enable = clk_prcc_pclk_enable,
 	.disable = clk_prcc_pclk_disable,
 	.is_enabled = clk_prcc_is_enabled,
 };
 
-static struct clk_ops clk_prcc_kclk_ops = {
+static const struct clk_ops clk_prcc_kclk_ops = {
 	.enable = clk_prcc_kclk_enable,
 	.disable = clk_prcc_kclk_disable,
 	.is_enabled = clk_prcc_is_enabled,
@@ -97,7 +96,7 @@ static struct clk *clk_reg_prcc(const char *name,
 				resource_size_t phy_base,
 				u32 cg_sel,
 				unsigned long flags,
-				struct clk_ops *clk_prcc_ops)
+				const struct clk_ops *clk_prcc_ops)
 {
 	struct clk_prcc *clk;
 	struct clk_init_data clk_prcc_init;

@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/drbd.h>
 #include "drbd_int.h"
-#include "drbd_wrappers.h"
 
 /* The request callbacks will be called in irq context by the IDE drivers,
    and in Softirqs/Tasklets/BH context by the SCSI drivers,
@@ -111,11 +110,14 @@ enum drbd_req_event {
 	BARRIER_ACKED, /* in protocol A and B */
 	DATA_RECEIVED, /* (remote read) */
 
+	COMPLETED_OK,
 	READ_COMPLETED_WITH_ERROR,
 	READ_AHEAD_COMPLETED_WITH_ERROR,
 	WRITE_COMPLETED_WITH_ERROR,
+	DISCARD_COMPLETED_NOTSUPP,
+	DISCARD_COMPLETED_WITH_ERROR,
+
 	ABORT_DISK_IO,
-	COMPLETED_OK,
 	RESEND,
 	FAIL_FROZEN_DISK_IO,
 	RESTART_FROZEN_DISK_IO,
@@ -204,9 +206,16 @@ enum drbd_req_state_bits {
 
 	/* Set when this is a write, clear for a read */
 	__RQ_WRITE,
+	__RQ_WSAME,
+	__RQ_UNMAP,
 
 	/* Should call drbd_al_complete_io() for this request... */
 	__RQ_IN_ACT_LOG,
+
+	/* This was the most recent request during some blk_finish_plug()
+	 * or its implicit from-schedule equivalent.
+	 * We may use it as hint to send a P_UNPLUG_REMOTE */
+	__RQ_UNPLUG,
 
 	/* The peer has sent a retry ACK */
 	__RQ_POSTPONED,
@@ -239,11 +248,13 @@ enum drbd_req_state_bits {
 #define RQ_NET_OK          (1UL << __RQ_NET_OK)
 #define RQ_NET_SIS         (1UL << __RQ_NET_SIS)
 
-/* 0x1f8 */
 #define RQ_NET_MASK        (((1UL << __RQ_NET_MAX)-1) & ~RQ_LOCAL_MASK)
 
 #define RQ_WRITE           (1UL << __RQ_WRITE)
+#define RQ_WSAME           (1UL << __RQ_WSAME)
+#define RQ_UNMAP           (1UL << __RQ_UNMAP)
 #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+#define RQ_UNPLUG          (1UL << __RQ_UNPLUG)
 #define RQ_POSTPONED	   (1UL << __RQ_POSTPONED)
 #define RQ_COMPLETION_SUSP (1UL << __RQ_COMPLETION_SUSP)
 #define RQ_EXP_RECEIVE_ACK (1UL << __RQ_EXP_RECEIVE_ACK)
@@ -258,7 +269,7 @@ enum drbd_req_state_bits {
 static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
 {
 	struct bio *bio;
-	bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+	bio = bio_clone_fast(bio_src, GFP_NOIO, drbd_io_bio_set);
 
 	req->private_bio = bio;
 
@@ -269,23 +280,24 @@ static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bi
 
 /* Short lived temporary struct on the stack.
  * We could squirrel the error to be returned into
- * bio->bi_size, or similar. But that would be too ugly. */
+ * bio->bi_iter.bi_size, or similar. But that would be too ugly. */
 struct bio_and_error {
 	struct bio *bio;
 	int error;
 };
 
-extern void start_new_tl_epoch(struct drbd_tconn *tconn);
+extern void start_new_tl_epoch(struct drbd_connection *connection);
 extern void drbd_req_destroy(struct kref *kref);
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);
 extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m);
-extern void complete_master_bio(struct drbd_conf *mdev,
+extern void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m);
 extern void request_timer_fn(unsigned long data);
-extern void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
-extern void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
+extern void tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
+extern void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
+extern void tl_abort_disk_io(struct drbd_device *device);
 
 /* this is in drbd_main.c */
 extern void drbd_restart_request(struct drbd_request *req);
@@ -294,14 +306,14 @@ extern void drbd_restart_request(struct drbd_request *req);
  * outside the spinlock, e.g. when walking some list on cleanup. */
 static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *device = req->device;
 	struct bio_and_error m;
 	int rv;
 
 	/* __req_mod possibly frees req, do not touch req after that! */
 	rv = __req_mod(req, what, &m);
 	if (m.bio)
-		complete_master_bio(mdev, &m);
+		complete_master_bio(device, &m);
 
 	return rv;
 }
@@ -314,35 +326,20 @@ static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {
 	unsigned long flags;
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *device = req->device;
 	struct bio_and_error m;
 	int rv;
 
-	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+	spin_lock_irqsave(&device->resource->req_lock, flags);
 	rv = __req_mod(req, what, &m);
-	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	if (m.bio)
-		complete_master_bio(mdev, &m);
+		complete_master_bio(device, &m);
 
 	return rv;
 }
 
-static inline bool drbd_should_do_remote(union drbd_dev_state s)
-{
-	return s.pdsk == D_UP_TO_DATE ||
-		(s.pdsk >= D_INCONSISTENT &&
-		 s.conn >= C_WF_BITMAP_T &&
-		 s.conn < C_AHEAD);
-	/* Before proto 96 that was >= CONNECTED instead of >= C_WF_BITMAP_T.
-	   That is equivalent since before 96 IO was frozen in the C_WF_BITMAP*
-	   states. */
-}
-static inline bool drbd_should_send_out_of_sync(union drbd_dev_state s)
-{
-	return s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S;
-	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check not necessary
-	   since we enter state C_AHEAD only if proto >= 96 */
-}
+extern bool drbd_should_do_remote(union drbd_dev_state);
 
 #endif

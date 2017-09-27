@@ -80,7 +80,7 @@ struct pci_dev;
 #define  BCMA_CORE_PCI_MDIODATA_DEV_TX		0x1e	/* SERDES TX Dev */
 #define  BCMA_CORE_PCI_MDIODATA_DEV_RX		0x1f	/* SERDES RX Dev */
 #define BCMA_CORE_PCI_PCIEIND_ADDR		0x0130	/* indirect access to the internal register */
-#define BCMA_CORE_PCI_PCIEIND_DATA		0x0134	/* Data to/from the internal regsiter */
+#define BCMA_CORE_PCI_PCIEIND_DATA		0x0134	/* Data to/from the internal register */
 #define BCMA_CORE_PCI_CLKREQENCTRL		0x0138	/*  >= rev 6, Clkreq rdma control */
 #define BCMA_CORE_PCI_PCICFG0			0x0400	/* PCI config space 0 (rev >= 8) */
 #define BCMA_CORE_PCI_PCICFG1			0x0500	/* PCI config space 1 (rev >= 8) */
@@ -181,10 +181,31 @@ struct pci_dev;
 
 #define BCMA_CORE_PCI_CFG_DEVCTRL		0xd8
 
+#define BCMA_CORE_PCI_
+
+/* MDIO devices (SERDES modules) */
+#define BCMA_CORE_PCI_MDIO_IEEE0		0x000
+#define BCMA_CORE_PCI_MDIO_IEEE1		0x001
+#define BCMA_CORE_PCI_MDIO_BLK0			0x800
+#define BCMA_CORE_PCI_MDIO_BLK1			0x801
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT0		0x16
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT1		0x17
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT2		0x18
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT3		0x19
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT4		0x1A
+#define BCMA_CORE_PCI_MDIO_BLK2			0x802
+#define BCMA_CORE_PCI_MDIO_BLK3			0x803
+#define BCMA_CORE_PCI_MDIO_BLK4			0x804
+#define BCMA_CORE_PCI_MDIO_TXPLL		0x808	/* TXPLL register block idx */
+#define BCMA_CORE_PCI_MDIO_TXCTRL0		0x820
+#define BCMA_CORE_PCI_MDIO_SERDESID		0x831
+#define BCMA_CORE_PCI_MDIO_RXCTRL0		0x840
+
 /* PCIE Root Capability Register bits (Host mode only) */
 #define BCMA_CORE_PCI_RC_CRS_VISIBILITY		0x0001
 
 struct bcma_drv_pci;
+struct bcma_bus;
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 struct bcma_drv_pci_host {
@@ -202,6 +223,7 @@ struct bcma_drv_pci_host {
 
 struct bcma_drv_pci {
 	struct bcma_device *core;
+	u8 early_setup_done:1;
 	u8 setup_done:1;
 	u8 hostmode:1;
 
@@ -216,12 +238,26 @@ struct bcma_drv_pci {
 #define pcicore_write16(pc, offset, val)	bcma_write16((pc)->core, offset, val)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
-extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
-extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
-				 struct bcma_device *core, bool enable);
-extern void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend);
+#ifdef CONFIG_BCMA_DRIVER_PCI
+extern void bcma_core_pci_power_save(struct bcma_bus *bus, bool up);
+#else
+static inline void bcma_core_pci_power_save(struct bcma_bus *bus, bool up)
+{
+}
+#endif
 
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
 extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);
+#else
+static inline int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev)
+{
+	return -ENOTSUPP;
+}
+static inline int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
+{
+	return -ENOTSUPP;
+}
+#endif
 
 #endif /* LINUX_BCMA_DRIVER_PCI_H_ */

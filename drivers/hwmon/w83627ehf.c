@@ -1,7 +1,7 @@
 /*
  *  w83627ehf - Driver for the hardware monitoring functionality of
  *		the Winbond W83627EHF Super-I/O chip
- *  Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  *  Copyright (C) 2006  Yuan Mu (Winbond),
  *			Rudolf Marek <r.marek@assembler.cz>
  *			David Hubbard <david.c.hubbard@gmail.com>
@@ -135,11 +135,16 @@ superio_select(int ioreg, int ld)
 	outb(ld, ioreg + 1);
 }
 
-static inline void
+static inline int
 superio_enter(int ioreg)
 {
+	if (!request_muxed_region(ioreg, 2, DRVNAME))
+		return -EBUSY;
+
 	outb(0x87, ioreg);
 	outb(0x87, ioreg);
+
+	return 0;
 }
 
 static inline void
@@ -148,6 +153,7 @@ superio_exit(int ioreg)
 	outb(0xaa, ioreg);
 	outb(0x02, ioreg);
 	outb(0x02, ioreg + 1);
+	release_region(ioreg, 2);
 }
 
 /*
@@ -673,7 +679,7 @@ static void w83627ehf_write_fan_div(struct w83627ehf_data *data, int nr)
 static void w83627ehf_write_fan_div_common(struct device *dev,
 					   struct w83627ehf_data *data, int nr)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
 		; /* no dividers, do nothing */
@@ -724,7 +730,7 @@ static void w83627ehf_update_fan_div(struct w83627ehf_data *data)
 static void w83627ehf_update_fan_div_common(struct device *dev,
 					    struct w83627ehf_data *data)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
 		; /* no dividers, do nothing */
@@ -781,7 +787,7 @@ static void w83627ehf_update_pwm(struct w83627ehf_data *data)
 static void w83627ehf_update_pwm_common(struct device *dev,
 					struct w83627ehf_data *data)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6775 || sio_data->kind == nct6776)
 		nct6775_update_pwm(data);
@@ -792,7 +798,7 @@ static void w83627ehf_update_pwm_common(struct device *dev,
 static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	int i;
 
@@ -1392,7 +1398,7 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	int nr = sensor_attr->index;
 	unsigned long val;
 	int err;
@@ -1448,7 +1454,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	unsigned long val;
@@ -1527,7 +1533,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	u16 reg;
@@ -1687,14 +1693,14 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 
 fan_time_functions(fan_stop_time, FAN_STOP_TIME)
 
-static ssize_t show_name(struct device *dev, struct device_attribute *attr,
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", data->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct sensor_device_attribute sda_sf3_arrays_fan4[] = {
 	SENSOR_ATTR(pwm4_stop_time, S_IWUSR | S_IRUGO, show_fan_stop_time,
@@ -1754,12 +1760,12 @@ static struct sensor_device_attribute sda_sf3_max_step_arrays[] = {
 };
 
 static ssize_t
-show_vid(struct device *dev, struct device_attribute *attr, char *buf)
+cpu0_vid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
 
 /* Case open detection */
@@ -1937,27 +1943,11 @@ static inline void w83627ehf_init_device(struct w83627ehf_data *data,
 static void w82627ehf_swap_tempreg(struct w83627ehf_data *data,
 				   int r1, int r2)
 {
-	u16 tmp;
-
-	tmp = data->temp_src[r1];
-	data->temp_src[r1] = data->temp_src[r2];
-	data->temp_src[r2] = tmp;
-
-	tmp = data->reg_temp[r1];
-	data->reg_temp[r1] = data->reg_temp[r2];
-	data->reg_temp[r2] = tmp;
-
-	tmp = data->reg_temp_over[r1];
-	data->reg_temp_over[r1] = data->reg_temp_over[r2];
-	data->reg_temp_over[r2] = tmp;
-
-	tmp = data->reg_temp_hyst[r1];
-	data->reg_temp_hyst[r1] = data->reg_temp_hyst[r2];
-	data->reg_temp_hyst[r2] = tmp;
-
-	tmp = data->reg_temp_config[r1];
-	data->reg_temp_config[r1] = data->reg_temp_config[r2];
-	data->reg_temp_config[r2] = tmp;
+	swap(data->temp_src[r1], data->temp_src[r2]);
+	swap(data->reg_temp[r1], data->reg_temp[r2]);
+	swap(data->reg_temp_over[r1], data->reg_temp_over[r2]);
+	swap(data->reg_temp_hyst[r1], data->reg_temp_hyst[r2]);
+	swap(data->reg_temp_config[r1], data->reg_temp_config[r2]);
 }
 
 static void
@@ -1985,8 +1975,6 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 		data->has_fan_min = 0x03;
 		return;
 	}
-
-	superio_enter(sio_data->sioreg);
 
 	/* fan4 and fan5 share some pins with the GPIO and serial flash */
 	if (sio_data->kind == nct6775) {
@@ -2029,8 +2017,6 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 		fan4min = fan4pin;
 	}
 
-	superio_exit(sio_data->sioreg);
-
 	data->has_fan = data->has_fan_min = 0x03; /* fan1 and fan2 */
 	data->has_fan |= (fan3pin << 2);
 	data->has_fan_min |= (fan3pin << 2);
@@ -2065,7 +2051,7 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 static int w83627ehf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct w83627ehf_data *data;
 	struct resource *res;
 	u8 en_vrm10;
@@ -2368,7 +2354,11 @@ static int w83627ehf_probe(struct platform_device *pdev)
 	w83627ehf_init_device(data, sio_data->kind);
 
 	data->vrm = vid_which_vrm();
-	superio_enter(sio_data->sioreg);
+
+	err = superio_enter(sio_data->sioreg);
+	if (err)
+		goto exit_release;
+
 	/* Read VID value */
 	if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b ||
 	    sio_data->kind == nct6775 || sio_data->kind == nct6776) {
@@ -2380,8 +2370,10 @@ static int w83627ehf_probe(struct platform_device *pdev)
 		superio_select(sio_data->sioreg, W83667HG_LD_VID);
 		data->vid = superio_inb(sio_data->sioreg, 0xe3);
 		err = device_create_file(dev, &dev_attr_cpu0_vid);
-		if (err)
+		if (err) {
+			superio_exit(sio_data->sioreg);
 			goto exit_release;
+		}
 	} else if (sio_data->kind != w83627uhg) {
 		superio_select(sio_data->sioreg, W83627EHF_LD_HWM);
 		if (superio_inb(sio_data->sioreg, SIO_REG_VID_CTRL) & 0x80) {
@@ -2417,8 +2409,10 @@ static int w83627ehf_probe(struct platform_device *pdev)
 				data->vid &= 0x3f;
 
 			err = device_create_file(dev, &dev_attr_cpu0_vid);
-			if (err)
+			if (err) {
+				superio_exit(sio_data->sioreg);
 				goto exit_release;
+			}
 		} else {
 			dev_info(dev,
 				 "VID pins in output mode, CPU VID not available\n");
@@ -2440,9 +2434,9 @@ static int w83627ehf_probe(struct platform_device *pdev)
 		pr_info("Enabled fan debounce for chip %s\n", data->name);
 	}
 
-	superio_exit(sio_data->sioreg);
-
 	w83627ehf_check_fan_inputs(sio_data, data);
+
+	superio_exit(sio_data->sioreg);
 
 	/* Read fan clock dividers immediately */
 	w83627ehf_update_fan_div_common(dev, data);
@@ -2618,7 +2612,7 @@ static int w83627ehf_remove(struct platform_device *pdev)
 static int w83627ehf_suspend(struct device *dev)
 {
 	struct w83627ehf_data *data = w83627ehf_update_device(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	mutex_lock(&data->update_lock);
 	data->vbat = w83627ehf_read_value(data, W83627EHF_REG_VBAT);
@@ -2634,7 +2628,7 @@ static int w83627ehf_suspend(struct device *dev)
 static int w83627ehf_resume(struct device *dev)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	int i;
 
 	mutex_lock(&data->update_lock);
@@ -2694,6 +2688,8 @@ static int w83627ehf_resume(struct device *dev)
 static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
 	.suspend = w83627ehf_suspend,
 	.resume = w83627ehf_resume,
+	.freeze = w83627ehf_suspend,
+	.restore = w83627ehf_resume,
 };
 
 #define W83627EHF_DEV_PM_OPS	(&w83627ehf_dev_pm_ops)
@@ -2703,7 +2699,6 @@ static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 		.pm	= W83627EHF_DEV_PM_OPS,
 	},
@@ -2727,8 +2722,11 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 
 	u16 val;
 	const char *sio_name;
+	int err;
 
-	superio_enter(sioaddr);
+	err = superio_enter(sioaddr);
+	if (err)
+		return err;
 
 	if (force_id)
 		val = force_id;
@@ -2887,7 +2885,7 @@ static void __exit sensors_w83627ehf_exit(void)
 	platform_driver_unregister(&w83627ehf_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83627EHF driver");
 MODULE_LICENSE("GPL");
 

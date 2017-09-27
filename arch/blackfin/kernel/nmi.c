@@ -17,6 +17,7 @@
 #include <linux/nmi.h>
 #include <linux/smp.h>
 #include <linux/timer.h>
+#include <linux/sched/debug.h>
 #include <asm/blackfin.h>
 #include <linux/atomic.h>
 #include <asm/cacheflush.h>
@@ -189,7 +190,7 @@ static int __init init_nmi_wdt(void)
 }
 device_initcall(init_nmi_wdt);
 
-void touch_nmi_watchdog(void)
+void arch_touch_nmi_watchdog(void)
 {
 	atomic_set(&nmi_touched[smp_processor_id()], 1);
 }

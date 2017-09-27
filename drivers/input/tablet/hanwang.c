@@ -26,7 +26,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/usb/input.h>
 
 #define DRIVER_AUTHOR   "Xing Wei <weixing@hanwang.com.cn>"
@@ -340,6 +339,9 @@ static int hanwang_probe(struct usb_interface *intf, const struct usb_device_id 
 	struct input_dev *input_dev;
 	int error;
 	int i;
+
+	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
+		return -ENODEV;
 
 	hanwang = kzalloc(sizeof(struct hanwang), GFP_KERNEL);
 	input_dev = input_allocate_device();

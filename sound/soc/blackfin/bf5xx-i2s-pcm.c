@@ -52,9 +52,6 @@ static const struct snd_pcm_hardware bf5xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_MMAP_VALID |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 0x10000,
 	.periods_min		= 1,
@@ -228,8 +225,9 @@ static int bf5xx_pcm_mmap(struct snd_pcm_substream *substream,
 	return 0 ;
 }
 
-static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
-	snd_pcm_uframes_t pos, void *buf, snd_pcm_uframes_t count)
+static int bf5xx_pcm_copy(struct snd_pcm_substream *substream,
+			  int channel, unsigned long pos,
+			  void *buf, unsigned long count)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -241,6 +239,8 @@ static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (dma_data->tdm_mode) {
+		pos = bytes_to_frames(runtime, pos);
+		count = bytes_to_frames(runtime, count);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			src = buf;
 			dst = runtime->dma_area;
@@ -272,45 +272,53 @@ static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			src = buf;
 			dst = runtime->dma_area;
-			dst += frames_to_bytes(runtime, pos);
+			dst += pos;
 		} else {
 			src = runtime->dma_area;
-			src += frames_to_bytes(runtime, pos);
+			src += pos;
 			dst = buf;
 		}
 
-		memcpy(dst, src, frames_to_bytes(runtime, count));
+		memcpy(dst, src, count);
 	}
 
 	return 0;
 }
 
+static int bf5xx_pcm_copy_user(struct snd_pcm_substream *substream,
+			       int channel, unsigned long pos,
+			       void __user *buf, unsigned long count)
+{
+	return bf5xx_pcm_copy(substream, channel, pos, (void *)buf, count);
+}
+
 static int bf5xx_pcm_silence(struct snd_pcm_substream *substream,
-	int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count)
+			     int channel, unsigned long pos,
+			     unsigned long count)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int sample_size = runtime->sample_bits / 8;
 	void *buf = runtime->dma_area;
 	struct bf5xx_i2s_pcm_data *dma_data;
-	unsigned int offset, size;
+	unsigned int offset, samples;
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (dma_data->tdm_mode) {
-		offset = pos * 8 * sample_size;
-		size = count * 8 * sample_size;
+		offset = bytes_to_frames(runtime, pos) * 8 * sample_size;
+		samples = bytes_to_frames(runtime, count) * 8;
 	} else {
-		offset = frames_to_bytes(runtime, pos);
-		size = frames_to_bytes(runtime, count);
+		offset = pos;
+		samples = bytes_to_samples(runtime, count);
 	}
 
-	snd_pcm_format_set_silence(runtime->format, buf + offset, size);
+	snd_pcm_format_set_silence(runtime->format, buf + offset, samples);
 
 	return 0;
 }
 
-static struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
+static const struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
 	.open		= bf5xx_pcm_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= bf5xx_pcm_hw_params,
@@ -319,22 +327,21 @@ static struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
 	.trigger	= bf5xx_pcm_trigger,
 	.pointer	= bf5xx_pcm_pointer,
 	.mmap		= bf5xx_pcm_mmap,
-	.copy		= bf5xx_pcm_copy,
-	.silence	= bf5xx_pcm_silence,
+	.copy_user	= bf5xx_pcm_copy_user,
+	.copy_kernel	= bf5xx_pcm_copy,
+	.fill_silence	= bf5xx_pcm_silence,
 };
-
-static u64 bf5xx_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int bf5xx_pcm_i2s_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = bf5xx_pcm_hardware.buffer_bytes_max;
+	int ret;
 
 	pr_debug("%s enter\n", __func__);
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &bf5xx_pcm_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
 				SNDRV_DMA_TYPE_DEV, card->dev, size, size);
@@ -347,23 +354,16 @@ static struct snd_soc_platform_driver bf5xx_i2s_soc_platform = {
 
 static int bfin_i2s_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&pdev->dev, &bf5xx_i2s_soc_platform);
-}
-
-static int bfin_i2s_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_platform(&pdev->dev,
+					      &bf5xx_i2s_soc_platform);
 }
 
 static struct platform_driver bfin_i2s_pcm_driver = {
 	.driver = {
 		.name = "bfin-i2s-pcm-audio",
-		.owner = THIS_MODULE,
 	},
 
 	.probe = bfin_i2s_soc_platform_probe,
-	.remove = bfin_i2s_soc_platform_remove,
 };
 
 module_platform_driver(bfin_i2s_pcm_driver);

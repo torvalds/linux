@@ -45,13 +45,14 @@
 #include <linux/interrupt.h>
 struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
-#define ARCMSR_MAX_OUTSTANDING_CMD						256
 #ifdef CONFIG_XEN
 	#define ARCMSR_MAX_FREECCB_NUM	160
+#define ARCMSR_MAX_OUTSTANDING_CMD	155
 #else
 	#define ARCMSR_MAX_FREECCB_NUM	320
+#define ARCMSR_MAX_OUTSTANDING_CMD	255
 #endif
-#define ARCMSR_DRIVER_VERSION		     "Driver Version 1.20.00.15 2010/08/05"
+#define ARCMSR_DRIVER_VERSION		"v1.30.00.22-20151126"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512
 #define ARCMSR_MAX_XFER_SECTORS_B						4096
@@ -62,11 +63,20 @@ struct device_attribute;
 #define ARCMSR_MAX_QBUFFER							4096
 #define ARCMSR_DEFAULT_SG_ENTRIES						38
 #define ARCMSR_MAX_HBB_POSTQUEUE						264
+#define ARCMSR_MAX_ARC1214_POSTQUEUE	256
+#define ARCMSR_MAX_ARC1214_DONEQUEUE	257
 #define ARCMSR_MAX_XFER_LEN							0x26000 /* 152K */
 #define ARCMSR_CDB_SG_PAGE_LENGTH						256 
+#define ARCMST_NUM_MSIX_VECTORS		4
 #ifndef PCI_DEVICE_ID_ARECA_1880
 #define PCI_DEVICE_ID_ARECA_1880 0x1880
  #endif
+#ifndef PCI_DEVICE_ID_ARECA_1214
+	#define PCI_DEVICE_ID_ARECA_1214	0x1214
+#endif
+#ifndef PCI_DEVICE_ID_ARECA_1203
+	#define PCI_DEVICE_ID_ARECA_1203	0x1203
+#endif
 /*
 **********************************************************************************
 **
@@ -100,10 +110,11 @@ struct CMD_MESSAGE
 **        IOP Message Transfer Data for user space
 *******************************************************************************
 */
+#define	ARCMSR_API_DATA_BUFLEN	1032
 struct CMD_MESSAGE_FIELD
 {
     struct CMD_MESSAGE			cmdmessage;
-    uint8_t				messagedatabuffer[1032];
+    uint8_t				messagedatabuffer[ARCMSR_API_DATA_BUFLEN];
 };
 /* IOP message transfer */
 #define ARCMSR_MESSAGE_FAIL			0x0001
@@ -237,6 +248,12 @@ struct FIRMWARE_INFO
 /* window of "instruction flags" from iop to driver */
 #define ARCMSR_IOP2DRV_DOORBELL                       0x00020408
 #define ARCMSR_IOP2DRV_DOORBELL_MASK                  0x0002040C
+/* window of "instruction flags" from iop to driver */
+#define ARCMSR_IOP2DRV_DOORBELL_1203                  0x00021870
+#define ARCMSR_IOP2DRV_DOORBELL_MASK_1203             0x00021874
+/* window of "instruction flags" from driver to iop */
+#define ARCMSR_DRV2IOP_DOORBELL_1203                  0x00021878
+#define ARCMSR_DRV2IOP_DOORBELL_MASK_1203             0x0002187C
 /* ARECA FLAG LANGUAGE */
 /* ioctl transfer */
 #define ARCMSR_IOP2DRV_DATA_WRITE_OK                  0x00000001
@@ -280,6 +297,9 @@ struct FIRMWARE_INFO
 #define ARCMSR_MESSAGE_RBUFFER			      0x0000ff00
 /* iop message_rwbuffer for message command */
 #define ARCMSR_MESSAGE_RWBUFFER			      0x0000fa00
+
+#define MEM_BASE0(x)	(u32 __iomem *)((unsigned long)acb->mem_base0 + x)
+#define MEM_BASE1(x)	(u32 __iomem *)((unsigned long)acb->mem_base1 + x)
 /* 
 ************************************************************************
 **                SPEC. for Areca HBC adapter
@@ -337,6 +357,56 @@ struct FIRMWARE_INFO
 #define ARCMSR_HBCMU_MESSAGE_FIRMWARE_OK			0x80000000
 /*
 *******************************************************************************
+**                SPEC. for Areca Type D adapter
+*******************************************************************************
+*/
+#define ARCMSR_ARC1214_CHIP_ID				0x00004
+#define ARCMSR_ARC1214_CPU_MEMORY_CONFIGURATION		0x00008
+#define ARCMSR_ARC1214_I2_HOST_INTERRUPT_MASK		0x00034
+#define ARCMSR_ARC1214_SAMPLE_RESET			0x00100
+#define ARCMSR_ARC1214_RESET_REQUEST			0x00108
+#define ARCMSR_ARC1214_MAIN_INTERRUPT_STATUS		0x00200
+#define ARCMSR_ARC1214_PCIE_F0_INTERRUPT_ENABLE		0x0020C
+#define ARCMSR_ARC1214_INBOUND_MESSAGE0			0x00400
+#define ARCMSR_ARC1214_INBOUND_MESSAGE1			0x00404
+#define ARCMSR_ARC1214_OUTBOUND_MESSAGE0		0x00420
+#define ARCMSR_ARC1214_OUTBOUND_MESSAGE1		0x00424
+#define ARCMSR_ARC1214_INBOUND_DOORBELL			0x00460
+#define ARCMSR_ARC1214_OUTBOUND_DOORBELL		0x00480
+#define ARCMSR_ARC1214_OUTBOUND_DOORBELL_ENABLE		0x00484
+#define ARCMSR_ARC1214_INBOUND_LIST_BASE_LOW		0x01000
+#define ARCMSR_ARC1214_INBOUND_LIST_BASE_HIGH		0x01004
+#define ARCMSR_ARC1214_INBOUND_LIST_WRITE_POINTER	0x01018
+#define ARCMSR_ARC1214_OUTBOUND_LIST_BASE_LOW		0x01060
+#define ARCMSR_ARC1214_OUTBOUND_LIST_BASE_HIGH		0x01064
+#define ARCMSR_ARC1214_OUTBOUND_LIST_COPY_POINTER	0x0106C
+#define ARCMSR_ARC1214_OUTBOUND_LIST_READ_POINTER	0x01070
+#define ARCMSR_ARC1214_OUTBOUND_INTERRUPT_CAUSE		0x01088
+#define ARCMSR_ARC1214_OUTBOUND_INTERRUPT_ENABLE	0x0108C
+#define ARCMSR_ARC1214_MESSAGE_WBUFFER			0x02000
+#define ARCMSR_ARC1214_MESSAGE_RBUFFER			0x02100
+#define ARCMSR_ARC1214_MESSAGE_RWBUFFER			0x02200
+/* Host Interrupt Mask */
+#define ARCMSR_ARC1214_ALL_INT_ENABLE			0x00001010
+#define ARCMSR_ARC1214_ALL_INT_DISABLE			0x00000000
+/* Host Interrupt Status */
+#define ARCMSR_ARC1214_OUTBOUND_DOORBELL_ISR		0x00001000
+#define ARCMSR_ARC1214_OUTBOUND_POSTQUEUE_ISR		0x00000010
+/* DoorBell*/
+#define ARCMSR_ARC1214_DRV2IOP_DATA_IN_READY		0x00000001
+#define ARCMSR_ARC1214_DRV2IOP_DATA_OUT_READ		0x00000002
+/*inbound message 0 ready*/
+#define ARCMSR_ARC1214_IOP2DRV_DATA_WRITE_OK		0x00000001
+/*outbound DATA WRITE isr door bell clear*/
+#define ARCMSR_ARC1214_IOP2DRV_DATA_READ_OK		0x00000002
+/*outbound message 0 ready*/
+#define ARCMSR_ARC1214_IOP2DRV_MESSAGE_CMD_DONE		0x02000000
+/*outbound message cmd isr door bell clear*/
+/*ARCMSR_HBAMU_MESSAGE_FIRMWARE_OK*/
+#define ARCMSR_ARC1214_MESSAGE_FIRMWARE_OK		0x80000000
+#define ARCMSR_ARC1214_OUTBOUND_LIST_INTERRUPT_CLEAR	0x00000001
+/*
+*******************************************************************************
 **    ARECA SCSI COMMAND DESCRIPTOR BLOCK size 0x1F8 (504)
 *******************************************************************************
 */
@@ -357,7 +427,7 @@ struct ARCMSR_CDB
 #define ARCMSR_CDB_FLAG_ORDEREDQ           0x10
 
 	uint8_t							msgPages;
-	uint32_t						Context;
+	uint32_t						msgContext;
 	uint32_t						DataLength;
 	uint8_t							Cdb[16];
 	uint8_t							DeviceStatus;
@@ -494,6 +564,56 @@ struct MessageUnit_C{
 	uint32_t	msgcode_rwbuffer[256];			/*2200 23FF*/
 };
 /*
+*********************************************************************
+**     Messaging Unit (MU) of Type D processor
+*********************************************************************
+*/
+struct InBound_SRB {
+	uint32_t addressLow; /* pointer to SRB block */
+	uint32_t addressHigh;
+	uint32_t length; /* in DWORDs */
+	uint32_t reserved0;
+};
+
+struct OutBound_SRB {
+	uint32_t addressLow; /* pointer to SRB block */
+	uint32_t addressHigh;
+};
+
+struct MessageUnit_D {
+	struct InBound_SRB	post_qbuffer[ARCMSR_MAX_ARC1214_POSTQUEUE];
+	volatile struct OutBound_SRB
+				done_qbuffer[ARCMSR_MAX_ARC1214_DONEQUEUE];
+	u16 postq_index;
+	volatile u16 doneq_index;
+	u32 __iomem *chip_id;			/* 0x00004 */
+	u32 __iomem *cpu_mem_config;		/* 0x00008 */
+	u32 __iomem *i2o_host_interrupt_mask;	/* 0x00034 */
+	u32 __iomem *sample_at_reset;		/* 0x00100 */
+	u32 __iomem *reset_request;		/* 0x00108 */
+	u32 __iomem *host_int_status;		/* 0x00200 */
+	u32 __iomem *pcief0_int_enable;		/* 0x0020C */
+	u32 __iomem *inbound_msgaddr0;		/* 0x00400 */
+	u32 __iomem *inbound_msgaddr1;		/* 0x00404 */
+	u32 __iomem *outbound_msgaddr0;		/* 0x00420 */
+	u32 __iomem *outbound_msgaddr1;		/* 0x00424 */
+	u32 __iomem *inbound_doorbell;		/* 0x00460 */
+	u32 __iomem *outbound_doorbell;		/* 0x00480 */
+	u32 __iomem *outbound_doorbell_enable;	/* 0x00484 */
+	u32 __iomem *inboundlist_base_low;	/* 0x01000 */
+	u32 __iomem *inboundlist_base_high;	/* 0x01004 */
+	u32 __iomem *inboundlist_write_pointer;	/* 0x01018 */
+	u32 __iomem *outboundlist_base_low;	/* 0x01060 */
+	u32 __iomem *outboundlist_base_high;	/* 0x01064 */
+	u32 __iomem *outboundlist_copy_pointer;	/* 0x0106C */
+	u32 __iomem *outboundlist_read_pointer;	/* 0x01070 0x01072 */
+	u32 __iomem *outboundlist_interrupt_cause;	/* 0x1088 */
+	u32 __iomem *outboundlist_interrupt_enable;	/* 0x108C */
+	u32 __iomem *message_wbuffer;		/* 0x2000 */
+	u32 __iomem *message_rbuffer;		/* 0x2100 */
+	u32 __iomem *msgcode_rwbuffer;		/* 0x2200 */
+};
+/*
 *******************************************************************************
 **                 Adapter Control Block
 *******************************************************************************
@@ -505,6 +625,7 @@ struct AdapterControlBlock
 	#define ACB_ADAPTER_TYPE_B            0x00000002	/* hbb M IOP */
 	#define ACB_ADAPTER_TYPE_C            0x00000004	/* hbc P IOP */
 	#define ACB_ADAPTER_TYPE_D            0x00000008	/* hbd A IOP */
+	u32				roundup_ccbsize;
 	struct pci_dev *		pdev;
 	struct Scsi_Host *		host;
 	unsigned long			vir2phy_offset;
@@ -514,10 +635,15 @@ struct AdapterControlBlock
 	uint32_t			reg_mu_acc_handle0;
 	spinlock_t                      			eh_lock;
 	spinlock_t                      			ccblist_lock;
+	spinlock_t			postq_lock;
+	spinlock_t			doneq_lock;
+	spinlock_t			rqbuffer_lock;
+	spinlock_t			wqbuffer_lock;
 	union {
 		struct MessageUnit_A __iomem *pmuA;
 		struct MessageUnit_B 	*pmuB;
 		struct MessageUnit_C __iomem *pmuC;
+		struct MessageUnit_D 	*pmuD;
 	};
 	/* message unit ATU inbound base address0 */
 	void __iomem *mem_base0;
@@ -557,19 +683,20 @@ struct AdapterControlBlock
 	/* dma_coherent used for memory free */
 	dma_addr_t			dma_coherent_handle;
 	/* dma_coherent_handle used for memory free */
-	dma_addr_t				dma_coherent_handle_hbb_mu;
+	dma_addr_t				dma_coherent_handle2;
+	void				*dma_coherent2;
 	unsigned int				uncache_size;
 	uint8_t				rqbuffer[ARCMSR_MAX_QBUFFER];
 	/* data collection buffer for read from 80331 */
-	int32_t				rqbuf_firstindex;
+	int32_t				rqbuf_getIndex;
 	/* first of read buffer  */
-	int32_t				rqbuf_lastindex;
+	int32_t				rqbuf_putIndex;
 	/* last of read buffer   */
 	uint8_t				wqbuffer[ARCMSR_MAX_QBUFFER];
 	/* data collection buffer for write to 80331  */
-	int32_t				wqbuf_firstindex;
+	int32_t				wqbuf_getIndex;
 	/* first of write buffer */
-	int32_t				wqbuf_lastindex;
+	int32_t				wqbuf_putIndex;
 	/* last of write buffer  */
 	uint8_t				devstate[ARCMSR_MAX_TARGETID][ARCMSR_MAX_TARGETLUN];
 	/* id0 ..... id15, lun0...lun7 */
@@ -594,6 +721,8 @@ struct AdapterControlBlock
 				#define	FW_DEADLOCK	0x0010
 	atomic_t 			rq_map_token;
 	atomic_t			ante_token_value;
+	uint32_t	maxOutstanding;
+	int		vector_count;
 };/* HW_DEVICE_EXTENSION */
 /*
 *******************************************************************************
@@ -606,7 +735,7 @@ struct CommandControlBlock{
 	struct list_head		list;				/*x32: 8byte, x64: 16byte*/
 	struct scsi_cmnd		*pcmd;				/*8 bytes pointer of linux scsi command */
 	struct AdapterControlBlock	*acb;				/*x32: 4byte, x64: 8byte*/
-	uint32_t			cdb_phyaddr_pattern;		/*x32: 4byte, x64: 4byte*/
+	uint32_t			cdb_phyaddr;			/*x32: 4byte, x64: 4byte*/
 	uint32_t			arc_cdb_size;			/*x32:4byte,x64:4byte*/
 	uint16_t			ccb_flags;			/*x32: 2byte, x64: 2byte*/
 	#define			CCB_FLAG_READ			0x0000
@@ -684,8 +813,10 @@ struct SENSE_DATA
 #define     ARCMSR_MU_OUTBOUND_MESSAGE0_INTMASKENABLE               0x01
 #define     ARCMSR_MU_OUTBOUND_ALL_INTMASKENABLE                    0x1F
 
-extern void arcmsr_post_ioctldata2iop(struct AdapterControlBlock *);
-extern void arcmsr_iop_message_read(struct AdapterControlBlock *);
+extern void arcmsr_write_ioctldata2iop(struct AdapterControlBlock *);
+extern uint32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *,
+	struct QBUFFER __iomem *);
+extern void arcmsr_clear_iop2drv_rqueue_buffer(struct AdapterControlBlock *);
 extern struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
 extern struct device_attribute *arcmsr_host_attrs[];
 extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *);

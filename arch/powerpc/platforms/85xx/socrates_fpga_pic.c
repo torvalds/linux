@@ -9,6 +9,8 @@
  */
 
 #include <linux/irq.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 
@@ -76,7 +78,7 @@ static inline unsigned int socrates_fpga_pic_get_irq(unsigned int irq)
 			break;
 	}
 	if (i == 3)
-		return NO_IRQ;
+		return 0;
 
 	raw_spin_lock_irqsave(&socrates_fpga_pic_lock, flags);
 	cause = socrates_fpga_pic_read(FPGA_PIC_IRQMASK(i));
@@ -89,9 +91,10 @@ static inline unsigned int socrates_fpga_pic_get_irq(unsigned int irq)
 			(irq_hw_number_t)i);
 }
 
-void socrates_fpga_pic_cascade(unsigned int irq, struct irq_desc *desc)
+static void socrates_fpga_pic_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int cascade_irq;
 
 	/*
@@ -100,7 +103,7 @@ void socrates_fpga_pic_cascade(unsigned int irq, struct irq_desc *desc)
 	 */
 	cascade_irq = socrates_fpga_pic_get_irq(irq);
 
-	if (cascade_irq != NO_IRQ)
+	if (cascade_irq)
 		generic_handle_irq(cascade_irq);
 	chip->irq_eoi(&desc->irq_data);
 }
@@ -289,7 +292,7 @@ void socrates_fpga_pic_init(struct device_node *pic)
 
 	for (i = 0; i < 3; i++) {
 		socrates_fpga_irqs[i] = irq_of_parse_and_map(pic, i);
-		if (socrates_fpga_irqs[i] == NO_IRQ) {
+		if (!socrates_fpga_irqs[i]) {
 			pr_warning("FPGA PIC: can't get irq%d.\n", i);
 			continue;
 		}

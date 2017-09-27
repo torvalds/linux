@@ -17,8 +17,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/err.h>
-
-#define DRV_VERSION "0.1"
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 /* ISL register offsets */
 #define ISL12022_REG_SC		0x00
@@ -149,12 +149,7 @@ static int isl12022_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	/* The clock can give out invalid datetime, but we cannot return
-	 * -EINVAL otherwise hwclock will refuse to set the time on bootup. */
-	if (rtc_valid_tm(tm) < 0)
-		dev_err(&client->dev, "retrieved date and time is invalid.\n");
-
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 static int isl12022_set_datetime(struct i2c_client *client, struct rtc_time *tm)
@@ -261,15 +256,22 @@ static int isl12022_probe(struct i2c_client *client,
 	if (!isl12022)
 		return -ENOMEM;
 
-	dev_dbg(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	i2c_set_clientdata(client, isl12022);
 
 	isl12022->rtc = devm_rtc_device_register(&client->dev,
 					isl12022_driver.driver.name,
 					&isl12022_rtc_ops, THIS_MODULE);
-	return PTR_RET(isl12022->rtc);
+	return PTR_ERR_OR_ZERO(isl12022->rtc);
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id isl12022_dt_match[] = {
+	{ .compatible = "isl,isl12022" }, /* for backward compat., don't use */
+	{ .compatible = "isil,isl12022" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, isl12022_dt_match);
+#endif
 
 static const struct i2c_device_id isl12022_id[] = {
 	{ "isl12022", 0 },
@@ -280,6 +282,9 @@ MODULE_DEVICE_TABLE(i2c, isl12022_id);
 static struct i2c_driver isl12022_driver = {
 	.driver		= {
 		.name	= "rtc-isl12022",
+#ifdef CONFIG_OF
+		.of_match_table = of_match_ptr(isl12022_dt_match),
+#endif
 	},
 	.probe		= isl12022_probe,
 	.id_table	= isl12022_id,
@@ -290,4 +295,3 @@ module_i2c_driver(isl12022_driver);
 MODULE_AUTHOR("roman.fietze@telemotive.de");
 MODULE_DESCRIPTION("ISL 12022 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

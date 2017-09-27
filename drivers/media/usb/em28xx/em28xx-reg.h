@@ -25,10 +25,12 @@
 #define EM28XX_R00_CHIPCFG	0x00
 
 /* em28xx Chip Configuration 0x00 */
-#define EM28XX_CHIPCFG_VENDOR_AUDIO		0x80
-#define EM28XX_CHIPCFG_I2S_VOLUME_CAPABLE	0x40
-#define EM28XX_CHIPCFG_I2S_5_SAMPRATES		0x30
-#define EM28XX_CHIPCFG_I2S_3_SAMPRATES		0x20
+#define EM2860_CHIPCFG_VENDOR_AUDIO		0x80
+#define EM2860_CHIPCFG_I2S_VOLUME_CAPABLE	0x40
+#define EM2820_CHIPCFG_I2S_3_SAMPRATES		0x30
+#define EM2860_CHIPCFG_I2S_5_SAMPRATES		0x30
+#define EM2820_CHIPCFG_I2S_1_SAMPRATE		0x20
+#define EM2860_CHIPCFG_I2S_3_SAMPRATES		0x20
 #define EM28XX_CHIPCFG_AC97			0x10
 #define EM28XX_CHIPCFG_AUDIOMASK		0x30
 
@@ -47,7 +49,6 @@
 #define EM28XX_CHIPCFG2_TS_PACKETSIZE_564	0x02
 #define EM28XX_CHIPCFG2_TS_PACKETSIZE_752	0x03
 
-
 /* GPIO/GPO registers */
 #define EM2880_R04_GPO		0x04    /* em2880-em2883 only */
 #define EM2820_R08_GPIO_CTRL	0x08	/* em2820-em2873/83 only */
@@ -65,7 +66,6 @@
 #define EM28XX_I2C_FREQ_25_KHZ		0x02
 #define EM28XX_I2C_FREQ_400_KHZ		0x01
 #define EM28XX_I2C_FREQ_100_KHZ		0x00
-
 
 #define EM28XX_R0A_CHIPID	0x0a
 #define EM28XX_R0C_USBSUSP	0x0c
@@ -93,6 +93,24 @@
 #define EM28XX_XCLK_FREQUENCY_24MHZ	0x0b
 
 #define EM28XX_R10_VINMODE	0x10
+	  /* used by all non-camera devices: */
+#define   EM28XX_VINMODE_YUV422_CbYCrY  0x10
+	  /* used by camera devices: */
+#define   EM28XX_VINMODE_YUV422_YUYV    0x08
+#define   EM28XX_VINMODE_YUV422_YVYU    0x09
+#define   EM28XX_VINMODE_YUV422_UYVY    0x0a
+#define   EM28XX_VINMODE_YUV422_VYUY    0x0b
+#define   EM28XX_VINMODE_RGB8_BGGR      0x0c
+#define   EM28XX_VINMODE_RGB8_GRBG      0x0d
+#define   EM28XX_VINMODE_RGB8_GBRG      0x0e
+#define   EM28XX_VINMODE_RGB8_RGGB      0x0f
+	  /*
+	   * apparently:
+	   *   bit 0: swap component 1+2 with 3+4
+	   *                 => e.g.: YUYV => YVYU, BGGR => GRBG
+	   *   bit 1: swap component 1 with 2 and 3 with 4
+	   *                 => e.g.: YUYV => UYVY, BGGR => GBRG
+	   */
 
 #define EM28XX_R11_VINCTRL	0x11
 
@@ -155,7 +173,6 @@
 #define EM28XX_OUTFMT_YUV422_Y1UY0V	0x15
 #define EM28XX_OUTFMT_YUV411		0x18
 
-
 #define EM28XX_R28_XMIN	0x28
 #define EM28XX_R29_XMAX	0x29
 #define EM28XX_R2A_YMIN	0x2a
@@ -194,6 +211,19 @@
 /* em2874 registers */
 #define EM2874_R50_IR_CONFIG    0x50
 #define EM2874_R51_IR           0x51
+#define EM2874_R5D_TS1_PKT_SIZE 0x5d
+#define EM2874_R5E_TS2_PKT_SIZE 0x5e
+	/*
+	 * For both TS1 and TS2, In isochronous mode:
+	 *  0x01  188 bytes
+	 *  0x02  376 bytes
+	 *  0x03  564 bytes
+	 *  0x04  752 bytes
+	 *  0x05  940 bytes
+	 * In bulk mode:
+	 *  0x01..0xff  total packet count in 188-byte
+	 */
+
 #define EM2874_R5F_TS_ENABLE    0x5f
 
 /* em2874/174/84, em25xx, em276x/7x/8x GPIO registers */
@@ -245,6 +275,7 @@ enum em28xx_chip_id {
 	CHIP_ID_EM2874 = 65,
 	CHIP_ID_EM2884 = 68,
 	CHIP_ID_EM28174 = 113,
+	CHIP_ID_EM28178 = 114,
 };
 
 /*

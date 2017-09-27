@@ -10,6 +10,8 @@
 #ifndef _ASM_PGTABLE_2LEVEL_H
 #define _ASM_PGTABLE_2LEVEL_H
 
+#define __PAGETABLE_PMD_FOLDED
+
 /*
  * Hardware-wise, we have a two level page table structure, where the first
  * level has 4096 entries, and the second level has 256 entries.  Each entry
@@ -118,7 +120,6 @@
 #define L_PTE_VALID		(_AT(pteval_t, 1) << 0)		/* Valid */
 #define L_PTE_PRESENT		(_AT(pteval_t, 1) << 0)
 #define L_PTE_YOUNG		(_AT(pteval_t, 1) << 1)
-#define L_PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !PRESENT */
 #define L_PTE_DIRTY		(_AT(pteval_t, 1) << 6)
 #define L_PTE_RDONLY		(_AT(pteval_t, 1) << 7)
 #define L_PTE_USER		(_AT(pteval_t, 1) << 8)
@@ -128,7 +129,36 @@
 
 /*
  * These are the memory types, defined to be compatible with
- * pre-ARMv6 CPUs cacheable and bufferable bits:   XXCB
+ * pre-ARMv6 CPUs cacheable and bufferable bits: n/a,n/a,C,B
+ * ARMv6+ without TEX remapping, they are a table index.
+ * ARMv6+ with TEX remapping, they correspond to n/a,TEX(0),C,B
+ *
+ * MT type		Pre-ARMv6	ARMv6+ type / cacheable status
+ * UNCACHED		Uncached	Strongly ordered
+ * BUFFERABLE		Bufferable	Normal memory / non-cacheable
+ * WRITETHROUGH		Writethrough	Normal memory / write through
+ * WRITEBACK		Writeback	Normal memory / write back, read alloc
+ * MINICACHE		Minicache	N/A
+ * WRITEALLOC		Writeback	Normal memory / write back, write alloc
+ * DEV_SHARED		Uncached	Device memory (shared)
+ * DEV_NONSHARED	Uncached	Device memory (non-shared)
+ * DEV_WC		Bufferable	Normal memory / non-cacheable
+ * DEV_CACHED		Writeback	Normal memory / write back, read alloc
+ * VECTORS		Variable	Normal memory / variable
+ *
+ * All normal memory mappings have the following properties:
+ * - reads can be repeated with no side effects
+ * - repeated reads return the last value written
+ * - reads can fetch additional locations without side effects
+ * - writes can be repeated (in certain cases) with no side effects
+ * - writes can be merged before accessing the target
+ * - unaligned accesses can be supported
+ *
+ * All device mappings have the following properties:
+ * - no access speculation
+ * - no repetition (eg, on return from an exception)
+ * - number, order and size of accesses are maintained
+ * - unaligned accesses are "unpredictable"
  */
 #define L_PTE_MT_UNCACHED	(_AT(pteval_t, 0x00) << 2)	/* 0000 */
 #define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 0x01) << 2)	/* 0001 */
@@ -140,6 +170,7 @@
 #define L_PTE_MT_DEV_NONSHARED	(_AT(pteval_t, 0x0c) << 2)	/* 1100 */
 #define L_PTE_MT_DEV_WC		(_AT(pteval_t, 0x09) << 2)	/* 1001 */
 #define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 0x0b) << 2)	/* 1011 */
+#define L_PTE_MT_VECTORS	(_AT(pteval_t, 0x0f) << 2)	/* 1111 */
 #define L_PTE_MT_MASK		(_AT(pteval_t, 0x0f) << 2)
 
 #ifndef __ASSEMBLY__
@@ -160,7 +191,9 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 	return (pmd_t *)pud;
 }
 
+#define pmd_large(pmd)		(pmd_val(pmd) & 2)
 #define pmd_bad(pmd)		(pmd_val(pmd) & 2)
+#define pmd_present(pmd)	(pmd_val(pmd))
 
 #define copy_pmd(pmdpd,pmdps)		\
 	do {				\
@@ -180,6 +213,15 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 #define pmd_addr_end(addr,end) (end)
 
 #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
+#define pte_special(pte)	(0)
+static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
+
+/*
+ * We don't have huge page support for short descriptors, for the moment
+ * define empty stubs for use by pin_page_for_write.
+ */
+#define pmd_hugewillfault(pmd)	(0)
+#define pmd_thp_or_huge(pmd)	(0)
 
 #endif /* __ASSEMBLY__ */
 

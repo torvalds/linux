@@ -43,7 +43,11 @@ static int ext4_journal_check_start(struct super_block *sb)
 	journal_t *journal;
 
 	might_sleep();
-	if (sb->s_flags & MS_RDONLY)
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+		return -EIO;
+
+	if (sb_rdonly(sb))
 		return -EROFS;
 	WARN_ON(sb->s_writers.frozen == SB_FREEZE_COMPLETE);
 	journal = EXT4_SB(sb)->s_journal;
@@ -87,8 +91,14 @@ int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 		ext4_put_nojournal(handle);
 		return 0;
 	}
-	sb = handle->h_transaction->t_journal->j_private;
+
 	err = handle->h_err;
+	if (!handle->h_transaction) {
+		rc = jbd2_journal_stop(handle);
+		return err ? err : rc;
+	}
+
+	sb = handle->h_transaction->t_journal->j_private;
 	rc = jbd2_journal_stop(handle);
 
 	if (!err)
@@ -122,9 +132,10 @@ handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 	return handle;
 }
 
-void ext4_journal_abort_handle(const char *caller, unsigned int line,
-			       const char *err_fn, struct buffer_head *bh,
-			       handle_t *handle, int err)
+static void ext4_journal_abort_handle(const char *caller, unsigned int line,
+				      const char *err_fn,
+				      struct buffer_head *bh,
+				      handle_t *handle, int err)
 {
 	char nbuf[16];
 	const char *errstr = ext4_decode_error(NULL, err, nbuf);
@@ -154,6 +165,13 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 	might_sleep();
 
 	if (ext4_handle_valid(handle)) {
+		struct super_block *sb;
+
+		sb = handle->h_transaction->t_journal->j_private;
+		if (unlikely(ext4_forced_shutdown(EXT4_SB(sb)))) {
+			jbd2_journal_abort_handle(handle);
+			return -EIO;
+		}
 		err = jbd2_journal_get_write_access(handle, bh);
 		if (err)
 			ext4_journal_abort_handle(where, line, __func__, bh,
@@ -255,10 +273,29 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 	set_buffer_prio(bh);
 	if (ext4_handle_valid(handle)) {
 		err = jbd2_journal_dirty_metadata(handle, bh);
-		if (err) {
-			/* Errors can only happen if there is a bug */
-			handle->h_err = err;
-			__ext4_journal_stop(where, line, handle);
+		/* Errors can only happen due to aborted journal or a nasty bug */
+		if (!is_handle_aborted(handle) && WARN_ON_ONCE(err)) {
+			ext4_journal_abort_handle(where, line, __func__, bh,
+						  handle, err);
+			if (inode == NULL) {
+				pr_err("EXT4: jbd2_journal_dirty_metadata "
+				       "failed: handle type %u started at "
+				       "line %u, credits %u/%u, errcode %d",
+				       handle->h_type,
+				       handle->h_line_no,
+				       handle->h_requested_credits,
+				       handle->h_buffer_credits, err);
+				return err;
+			}
+			ext4_error_inode(inode, where, line,
+					 bh->b_blocknr,
+					 "journal_dirty_metadata failed: "
+					 "handle type %u started at line %u, "
+					 "credits %u/%u, errcode %d",
+					 handle->h_type,
+					 handle->h_line_no,
+					 handle->h_requested_credits,
+					 handle->h_buffer_credits, err);
 		}
 	} else {
 		if (inode)

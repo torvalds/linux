@@ -1,0 +1,68 @@
+Binding for a Clockgen hardware block found on
+certain STMicroelectronics consumer electronics SoC devices.
+
+A Clockgen node can contain pll, diviser or multiplexer nodes.
+
+We will find only the base address of the Clockgen, this base
+address is common of all subnode.
+
+	clockgen_node {
+		reg = <>;
+
+		pll_node {
+			...
+		};
+
+		quadfs_node {
+			...
+		};
+
+		mux_node {
+			...
+		};
+
+		flexgen_node {
+			...
+		};
+		...
+	};
+
+This binding uses the common clock binding[1].
+Each subnode should use the binding described in [2]..[7]
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[3] Documentation/devicetree/bindings/clock/st,clkgen-mux.txt
+[4] Documentation/devicetree/bindings/clock/st,clkgen-pll.txt
+[7] Documentation/devicetree/bindings/clock/st,quadfs.txt
+[8] Documentation/devicetree/bindings/clock/st,flexgen.txt
+
+
+Required properties:
+- reg : A Base address and length of the register set.
+
+Example:
+
+	clockgen-a@090ff000 {
+		compatible = "st,clkgen-c32";
+		reg = <0x90ff000 0x1000>;
+
+		clk_s_a0_pll: clk-s-a0-pll {
+			#clock-cells = <1>;
+			compatible = "st,clkgen-pll0";
+
+			clocks = <&clk_sysin>;
+
+			clock-output-names = "clk-s-a0-pll-ofd-0";
+		};
+
+		clk_s_a0_flexgen: clk-s-a0-flexgen {
+			compatible = "st,flexgen";
+
+			#clock-cells = <1>;
+
+			clocks = <&clk_s_a0_pll 0>,
+				 <&clk_sysin>;
+
+			clock-output-names = "clk-ic-lmi0";
+		};
+	};

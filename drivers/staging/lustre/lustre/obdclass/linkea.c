@@ -14,32 +14,33 @@
  * in the LICENSE file that accompanied this code).
  *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA
+ * version 2 along with this program; If not, see
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
 /*
- * Copyright (c) 2013, Intel Corporation.
+ * Copyright (c) 2013, 2014, Intel Corporation.
  * Use is subject to license terms.
  *
  * Author: Di Wang <di.wang@intel.com>
  */
 
-#include <lustre/lustre_idl.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 #include <obd.h>
 #include <lustre_linkea.h>
 
 int linkea_data_new(struct linkea_data *ldata, struct lu_buf *buf)
 {
-	ldata->ld_buf = lu_buf_check_and_alloc(buf, PAGE_CACHE_SIZE);
-	if (ldata->ld_buf->lb_buf == NULL)
+	ldata->ld_buf = lu_buf_check_and_alloc(buf, PAGE_SIZE);
+	if (!ldata->ld_buf->lb_buf)
 		return -ENOMEM;
 	ldata->ld_leh = ldata->ld_buf->lb_buf;
 	ldata->ld_leh->leh_magic = LINK_EA_MAGIC;
 	ldata->ld_leh->leh_len = sizeof(struct link_ea_header);
 	ldata->ld_leh->leh_reccount = 0;
+	ldata->ld_leh->leh_overflow_time = 0;
+	ldata->ld_leh->leh_padding = 0;
 	return 0;
 }
 EXPORT_SYMBOL(linkea_data_new);
@@ -48,17 +49,21 @@ int linkea_init(struct linkea_data *ldata)
 {
 	struct link_ea_header *leh;
 
-	LASSERT(ldata->ld_buf != NULL);
+	LASSERT(ldata->ld_buf);
 	leh = ldata->ld_buf->lb_buf;
 	if (leh->leh_magic == __swab32(LINK_EA_MAGIC)) {
 		leh->leh_magic = LINK_EA_MAGIC;
 		leh->leh_reccount = __swab32(leh->leh_reccount);
 		leh->leh_len = __swab64(leh->leh_len);
-		/* entries are swabbed by linkea_entry_unpack */
+		leh->leh_overflow_time = __swab32(leh->leh_overflow_time);
+		leh->leh_padding = __swab32(leh->leh_padding);
+		/* individual entries are swabbed by linkea_entry_unpack() */
 	}
+
 	if (leh->leh_magic != LINK_EA_MAGIC)
 		return -EINVAL;
-	if (leh->leh_reccount == 0)
+
+	if (leh->leh_reccount == 0 && leh->leh_overflow_time == 0)
 		return -ENODATA;
 
 	ldata->ld_leh = leh;
@@ -66,22 +71,34 @@ int linkea_init(struct linkea_data *ldata)
 }
 EXPORT_SYMBOL(linkea_init);
 
+int linkea_init_with_rec(struct linkea_data *ldata)
+{
+	int rc;
+
+	rc = linkea_init(ldata);
+	if (!rc && ldata->ld_leh->leh_reccount == 0)
+		rc = -ENODATA;
+
+	return rc;
+}
+EXPORT_SYMBOL(linkea_init_with_rec);
+
 /**
  * Pack a link_ea_entry.
  * All elements are stored as chars to avoid alignment issues.
  * Numbers are always big-endian
  * \retval record length
  */
-static int linkea_entry_pack(struct link_ea_entry *lee,
-			     const struct lu_name *lname,
-			     const struct lu_fid *pfid)
+int linkea_entry_pack(struct link_ea_entry *lee, const struct lu_name *lname,
+		      const struct lu_fid *pfid)
 {
 	struct lu_fid   tmpfid;
-	int	     reclen;
+	int             reclen;
 
-	fid_cpu_to_be(&tmpfid, pfid);
+	tmpfid = *pfid;
 	if (OBD_FAIL_CHECK(OBD_FAIL_LFSCK_LINKEA_CRASH))
 		tmpfid.f_ver = ~0;
+	fid_cpu_to_be(&tmpfid, &tmpfid);
 	memcpy(&lee->lee_parent_fid, &tmpfid, sizeof(tmpfid));
 	memcpy(lee->lee_name, lname->ln_name, lname->ln_namelen);
 	reclen = sizeof(struct link_ea_entry) + lname->ln_namelen;
@@ -90,15 +107,20 @@ static int linkea_entry_pack(struct link_ea_entry *lee,
 	lee->lee_reclen[1] = reclen & 0xff;
 	return reclen;
 }
+EXPORT_SYMBOL(linkea_entry_pack);
 
 void linkea_entry_unpack(const struct link_ea_entry *lee, int *reclen,
 			 struct lu_name *lname, struct lu_fid *pfid)
 {
+	LASSERT(lee);
+
 	*reclen = (lee->lee_reclen[0] << 8) | lee->lee_reclen[1];
 	memcpy(pfid, &lee->lee_parent_fid, sizeof(*pfid));
 	fid_be_to_cpu(pfid, pfid);
-	lname->ln_name = lee->lee_name;
-	lname->ln_namelen = *reclen - sizeof(struct link_ea_entry);
+	if (lname) {
+		lname->ln_name = lee->lee_name;
+		lname->ln_namelen = *reclen - sizeof(struct link_ea_entry);
+	}
 }
 EXPORT_SYMBOL(linkea_entry_unpack);
 
@@ -108,27 +130,46 @@ EXPORT_SYMBOL(linkea_entry_unpack);
 int linkea_add_buf(struct linkea_data *ldata, const struct lu_name *lname,
 		   const struct lu_fid *pfid)
 {
-	LASSERT(ldata->ld_leh != NULL);
+	struct link_ea_header *leh = ldata->ld_leh;
+	int reclen;
 
-	if (lname == NULL || pfid == NULL)
+	LASSERT(leh);
+
+	if (!lname || !pfid)
 		return -EINVAL;
 
-	ldata->ld_reclen = lname->ln_namelen + sizeof(struct link_ea_entry);
-	if (ldata->ld_leh->leh_len + ldata->ld_reclen >
-	    ldata->ld_buf->lb_len) {
-		if (lu_buf_check_and_grow(ldata->ld_buf,
-					  ldata->ld_leh->leh_len +
-					  ldata->ld_reclen) < 0)
-			return -ENOMEM;
+	reclen = lname->ln_namelen + sizeof(struct link_ea_entry);
+	if (unlikely(leh->leh_len + reclen > MAX_LINKEA_SIZE)) {
+		/*
+		 * Use 32-bits to save the overflow time, although it will
+		 * shrink the ktime_get_real_seconds() returned 64-bits value
+		 * to 32-bits value, it is still quite large and can be used
+		 * for about 140 years. That is enough.
+		 */
+		leh->leh_overflow_time = ktime_get_real_seconds();
+		if (unlikely(leh->leh_overflow_time == 0))
+			leh->leh_overflow_time++;
+
+		CDEBUG(D_INODE, "No enough space to hold linkea entry '" DFID ": %.*s' at %u\n",
+		       PFID(pfid), lname->ln_namelen,
+		       lname->ln_name, leh->leh_overflow_time);
+		return 0;
 	}
 
-	ldata->ld_leh = ldata->ld_buf->lb_buf;
-	ldata->ld_lee = ldata->ld_buf->lb_buf + ldata->ld_leh->leh_len;
+	if (leh->leh_len + reclen > ldata->ld_buf->lb_len) {
+		if (lu_buf_check_and_grow(ldata->ld_buf,
+					  leh->leh_len + reclen) < 0)
+			return -ENOMEM;
+
+		leh = ldata->ld_leh = ldata->ld_buf->lb_buf;
+	}
+
+	ldata->ld_lee = ldata->ld_buf->lb_buf + leh->leh_len;
 	ldata->ld_reclen = linkea_entry_pack(ldata->ld_lee, lname, pfid);
-	ldata->ld_leh->leh_len += ldata->ld_reclen;
-	ldata->ld_leh->leh_reccount++;
-	CDEBUG(D_INODE, "New link_ea name '%.*s' is added\n",
-	       lname->ln_namelen, lname->ln_name);
+	leh->leh_len += ldata->ld_reclen;
+	leh->leh_reccount++;
+	CDEBUG(D_INODE, "New link_ea name '" DFID ":%.*s' is added\n",
+	       PFID(pfid), lname->ln_namelen, lname->ln_name);
 	return 0;
 }
 EXPORT_SYMBOL(linkea_add_buf);
@@ -136,7 +177,8 @@ EXPORT_SYMBOL(linkea_add_buf);
 /** Del the current record from the link ea buf */
 void linkea_del_buf(struct linkea_data *ldata, const struct lu_name *lname)
 {
-	LASSERT(ldata->ld_leh != NULL && ldata->ld_lee != NULL);
+	LASSERT(ldata->ld_leh && ldata->ld_lee);
+	LASSERT(ldata->ld_leh->leh_reccount > 0);
 
 	ldata->ld_leh->leh_reccount--;
 	ldata->ld_leh->leh_len -= ldata->ld_reclen;
@@ -145,6 +187,10 @@ void linkea_del_buf(struct linkea_data *ldata, const struct lu_name *lname)
 		(char *)ldata->ld_lee);
 	CDEBUG(D_INODE, "Old link_ea name '%.*s' is removed\n",
 	       lname->ln_namelen, lname->ln_name);
+
+	if ((char *)ldata->ld_lee >= ((char *)ldata->ld_leh +
+				      ldata->ld_leh->leh_len))
+		ldata->ld_lee = NULL;
 }
 EXPORT_SYMBOL(linkea_del_buf);
 
@@ -166,10 +212,11 @@ int linkea_links_find(struct linkea_data *ldata, const struct lu_name *lname,
 	struct lu_fid  tmpfid;
 	int count;
 
-	LASSERT(ldata->ld_leh != NULL);
+	LASSERT(ldata->ld_leh);
 
-	/* link #0 */
-	ldata->ld_lee = (struct link_ea_entry *)(ldata->ld_leh + 1);
+	/* link #0, if leh_reccount == 0 we skip the loop and return -ENOENT */
+	if (likely(ldata->ld_leh->leh_reccount > 0))
+		ldata->ld_lee = (struct link_ea_entry *)(ldata->ld_leh + 1);
 
 	for (count = 0; count < ldata->ld_leh->leh_reccount; count++) {
 		linkea_entry_unpack(ldata->ld_lee, &ldata->ld_reclen,
@@ -187,6 +234,7 @@ int linkea_links_find(struct linkea_data *ldata, const struct lu_name *lname,
 		CDEBUG(D_INODE, "Old link_ea name '%.*s' not found\n",
 		       lname->ln_namelen, lname->ln_name);
 		ldata->ld_lee = NULL;
+		ldata->ld_reclen = 0;
 		return -ENOENT;
 	}
 	return 0;

@@ -30,7 +30,7 @@
 #define VORTEX_PCM_TYPE(x) (x->name[40])
 
 /* hardware definition */
-static struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
 	.info =
 	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
@@ -51,7 +51,7 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
 };
 
 #ifndef CHIP_AU8820
-static struct snd_pcm_hardware snd_vortex_playback_hw_a3d = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_a3d = {
 	.info =
 	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
@@ -71,7 +71,7 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_a3d = {
 	.periods_max = 64,
 };
 #endif
-static struct snd_pcm_hardware snd_vortex_playback_hw_spdif = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_spdif = {
 	.info =
 	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
@@ -94,7 +94,7 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_spdif = {
 };
 
 #ifndef CHIP_AU8810
-static struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
@@ -112,11 +112,11 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
 };
 #endif
 #ifdef CHIP_AU8830
-static unsigned int au8830_channels[3] = {
+static const unsigned int au8830_channels[3] = {
 	1, 2, 4,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
 	.count = ARRAY_SIZE(au8830_channels),
 	.list = au8830_channels,
 	.mask = 0,
@@ -227,11 +227,11 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 	err =
 	    snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 	if (err < 0) {
-		printk(KERN_ERR "Vortex: pcm page alloc failed!\n");
+		dev_err(chip->card->dev, "Vortex: pcm page alloc failed!\n");
 		return err;
 	}
 	/*
-	   printk(KERN_INFO "Vortex: periods %d, period_bytes %d, channels = %d\n", params_periods(hw_params),
+	   pr_info( "Vortex: periods %d, period_bytes %d, channels = %d\n", params_periods(hw_params),
 	   params_period_bytes(hw_params), params_channels(hw_params));
 	 */
 	spin_lock_irq(&chip->lock);
@@ -332,7 +332,7 @@ static int snd_vortex_pcm_prepare(struct snd_pcm_substream *substream)
 		dir = 1;
 	else
 		dir = 0;
-	fmt = vortex_alsafmt_aspfmt(runtime->format);
+	fmt = vortex_alsafmt_aspfmt(runtime->format, chip);
 	spin_lock_irq(&chip->lock);
 	if (VORTEX_PCM_TYPE(substream->pcm) != VORTEX_PCM_WT) {
 		vortex_adbdma_setmode(chip, dma, 1, dir, fmt,
@@ -371,7 +371,7 @@ static int snd_vortex_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		}
 #ifndef CHIP_AU8810
 		else {
-			printk(KERN_INFO "vortex: wt start %d\n", dma);
+			dev_info(chip->card->dev, "wt start %d\n", dma);
 			vortex_wtdma_startfifo(chip, dma);
 		}
 #endif
@@ -384,7 +384,7 @@ static int snd_vortex_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			vortex_adbdma_stopfifo(chip, dma);
 #ifndef CHIP_AU8810
 		else {
-			printk(KERN_INFO "vortex: wt stop %d\n", dma);
+			dev_info(chip->card->dev, "wt stop %d\n", dma);
 			vortex_wtdma_stopfifo(chip, dma);
 		}
 #endif
@@ -432,11 +432,14 @@ static snd_pcm_uframes_t snd_vortex_pcm_pointer(struct snd_pcm_substream *substr
 #endif
 	//printk(KERN_INFO "vortex: pointer = 0x%x\n", current_ptr);
 	spin_unlock(&chip->lock);
-	return (bytes_to_frames(substream->runtime, current_ptr));
+	current_ptr = bytes_to_frames(substream->runtime, current_ptr);
+	if (current_ptr >= substream->runtime->buffer_size)
+		current_ptr = 0;
+	return current_ptr;
 }
 
 /* operators */
-static struct snd_pcm_ops snd_vortex_playback_ops = {
+static const struct snd_pcm_ops snd_vortex_playback_ops = {
 	.open = snd_vortex_pcm_open,
 	.close = snd_vortex_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -598,7 +601,7 @@ static int snd_vortex_pcm_vol_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_MINMAX(vortex_pcm_vol_db_scale, -9600, 2400);
 
-static struct snd_kcontrol_new snd_vortex_pcm_vol = {
+static const struct snd_kcontrol_new snd_vortex_pcm_vol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "PCM Playback Volume",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -671,7 +674,7 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 			return err;
 		break;
 #endif
-	};
+	}
 
 	if (VORTEX_PCM_TYPE(pcm) == VORTEX_PCM_SPDIF) {
 		for (i = 0; i < ARRAY_SIZE(snd_vortex_mixer_spdif); i++) {

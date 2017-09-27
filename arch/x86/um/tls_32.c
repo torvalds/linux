@@ -6,7 +6,8 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <asm/ptrace-abi.h>
 #include <os.h>
 #include <skas.h>
 #include <sysdep/tls.h>

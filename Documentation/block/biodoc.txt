@@ -48,8 +48,7 @@ Description of Contents:
 	- Highmem I/O support
 	- I/O scheduler modularization
   1.2 Tuning based on high level requirements/capabilities
-	1.2.1 I/O Barriers
-	1.2.2 Request Priority/Latency
+	1.2.1 Request Priority/Latency
   1.3 Direct access/bypass to lower layers for diagnostics and special
       device operations
 	1.3.1 Pre-built commands
@@ -116,7 +115,7 @@ i. Per-queue limits/values exported to the generic layer by the driver
 
 Various parameters that the generic i/o scheduler logic uses are set at
 a per-queue level (e.g maximum request size, maximum number of segments in
-a scatter-gather list, hardsect size)
+a scatter-gather list, logical block size)
 
 Some parameters that were earlier available as global arrays indexed by
 major/minor are now directly associated with the queue. Some of these may
@@ -157,7 +156,7 @@ Some new queue property settings:
 	blk_queue_max_segment_size(q, max_seg_size)
 		Maximum size of a clustered segment, 64kB default.
 
-	blk_queue_hardsect_size(q, hardsect_size)
+	blk_queue_logical_block_size(q, logical_block_size)
 		Lowest possible sector size that the hardware can operate
 		on, 512 bytes default.
 
@@ -255,29 +254,12 @@ some control over i/o ordering.
 What kind of support exists at the generic block layer for this ?
 
 The flags and rw fields in the bio structure can be used for some tuning
-from above e.g indicating that an i/o is just a readahead request, or for
-marking  barrier requests (discussed next), or priority settings (currently
-unused). As far as user applications are concerned they would need an
-additional mechanism either via open flags or ioctls, or some other upper
-level mechanism to communicate such settings to block.
+from above e.g indicating that an i/o is just a readahead request, or priority
+settings (currently unused). As far as user applications are concerned they
+would need an additional mechanism either via open flags or ioctls, or some
+other upper level mechanism to communicate such settings to block.
 
-1.2.1 I/O Barriers
-
-There is a way to enforce strict ordering for i/os through barriers.
-All requests before a barrier point must be serviced before the barrier
-request and any other requests arriving after the barrier will not be
-serviced until after the barrier has completed. This is useful for higher
-level control on write ordering, e.g flushing a log of committed updates
-to disk before the corresponding updates themselves.
-
-A flag in the bio structure, BIO_BARRIER is used to identify a barrier i/o.
-The generic i/o scheduler would make sure that it places the barrier request and
-all other requests coming after it after all the previous requests in the
-queue. Barriers may be implemented in different ways depending on the
-driver. For more details regarding I/O barriers, please read barrier.txt
-in this directory.
-
-1.2.2 Request Priority/Latency
+1.2.1 Request Priority/Latency
 
 Todo/Under discussion:
 Arjan's proposed request priority scheme allows higher levels some broad
@@ -287,7 +269,7 @@ Arjan's proposed request priority scheme allows higher levels some broad
   requests which haven't aged too much on the queue. Potentially this priority
   could even be exposed to applications in some manner, providing higher level
   tunability. Time based aging avoids starvation of lower priority
-  requests. Some bits in the bi_rw flags field in the bio structure are
+  requests. Some bits in the bi_opf flags field in the bio structure are
   intended to be used for this priority information.
 
 
@@ -366,7 +348,7 @@ Drivers can now specify a request prepare function (q->prep_rq_fn) that the
 block layer would invoke to pre-build device commands for a given request,
 or perform other preparatory processing for the request. This is routine is
 called by elv_next_request(), i.e. typically just before servicing a request.
-(The prepare function would not be called for requests that have REQ_DONTPREP
+(The prepare function would not be called for requests that have RQF_DONTPREP
 enabled)
 
 Aside:
@@ -447,14 +429,13 @@ struct bio_vec {
  * main unit of I/O for the block layer and lower layers (ie drivers)
  */
 struct bio {
-       sector_t            bi_sector;
        struct bio          *bi_next;    /* request queue link */
        struct block_device *bi_bdev;	/* target device */
        unsigned long       bi_flags;    /* status, command, etc */
-       unsigned long       bi_rw;       /* low bits: r/w, high: priority */
+       unsigned long       bi_opf;       /* low bits: r/w, high: priority */
 
        unsigned int	bi_vcnt;     /* how may bio_vec's */
-       unsigned int	bi_idx;		/* current index into bio_vec array */
+       struct bvec_iter	bi_iter;	/* current index into bio_vec array */
 
        unsigned int	bi_size;     /* total size in bytes */
        unsigned short 	bi_phys_segments; /* segments after physaddr coalesce*/
@@ -480,7 +461,7 @@ With this multipage bio design:
 - Code that traverses the req list can find all the segments of a bio
   by using rq_for_each_segment.  This handles the fact that a request
   has multiple bios, each of which can have multiple segments.
-- Drivers which can't process a large bio in one shot can use the bi_idx
+- Drivers which can't process a large bio in one shot can use the bi_iter
   field to keep track of the next bio_vec entry to process.
   (e.g a 1MB bio_vec needs to be handled in max 128kB chunks for IDE)
   [TBD: Should preferably also have a bi_voffset and bi_vlen to avoid modifying
@@ -572,8 +553,8 @@ struct request {
 	struct request_list *rl;
 }
 	
-See the rq_flag_bits definitions for an explanation of the various flags
-available. Some bits are used by the block layer or i/o scheduler.
+See the req_ops and req_flag_bits definitions for an explanation of the various
+flags available. Some bits are used by the block layer or i/o scheduler.
 	
 The behaviour of the various sector counts are almost the same as before,
 except that since we have multi-segment bios, current_nr_sectors refers
@@ -589,7 +570,7 @@ driver should not modify these values. The block layer sets up the
 nr_sectors and current_nr_sectors fields (based on the corresponding
 hard_xxx values and the number of bytes transferred) and updates it on
 every transfer that invokes end_that_request_first. It does the same for the
-buffer, bio, bio->bi_idx fields too.
+buffer, bio, bio->bi_iter fields too.
 
 The buffer field is just a virtual address mapping of the current segment
 of the i/o buffer in cases where the buffer resides in low-memory. For high
@@ -651,7 +632,7 @@ to i/o submission, if the bio fields are likely to be accessed after the
 i/o is issued (since the bio may otherwise get freed in case i/o completion
 happens in the meantime).
 
-The bio_clone() routine may be used to duplicate a bio, where the clone
+The bio_clone_fast() routine may be used to duplicate a bio, where the clone
 shares the bio_vec_list with the original bio (i.e. both point to the
 same bio_vec_list). This would typically be used for splitting i/o requests
 in lvm or md.
@@ -828,10 +809,6 @@ but in the event of any barrier requests in the tag queue we need to ensure
 that requests are restarted in the order they were queue. This may happen
 if the driver needs to use blk_queue_invalidate_tags().
 
-Tagging also defines a new request flag, REQ_QUEUED. This is set whenever
-a request is currently tagged. You should not use this flag directly,
-blk_rq_tagged(rq) is the portable way to do so.
-
 3.3 I/O Submission
 
 The routine submit_bio() is used to submit a single io. Higher level i/o
@@ -911,8 +888,8 @@ queue and specific I/O schedulers.  Unless stated otherwise, elevator is used
 to refer to both parts and I/O scheduler to specific I/O schedulers.
 
 Block layer implements generic dispatch queue in block/*.c.
-The generic dispatch queue is responsible for properly ordering barrier
-requests, requeueing, handling non-fs requests and all other subtleties.
+The generic dispatch queue is responsible for requeueing, handling non-fs
+requests and all other subtleties.
 
 Specific I/O schedulers are responsible for ordering normal filesystem
 requests.  They can also choose to delay certain requests to improve
@@ -947,7 +924,11 @@ elevator_allow_merge_fn		called whenever the block layer determines
 				request safely. The io scheduler may still
 				want to stop a merge at this point if it
 				results in some sort of conflict internally,
-				this hook allows it to do that.
+				this hook allows it to do that. Note however
+				that two *requests* can still be merged at later
+				time. Currently the io scheduler has no way to
+				prevent that. It can only learn about the fact
+				from elevator_merge_req_fn callback.
 
 elevator_dispatch_fn*		fills the dispatch queue with ready requests.
 				I/O schedulers are free to postpone requests by
@@ -1043,8 +1024,7 @@ could be on demand. For example wait_on_buffer sets the unplugging going
 through sync_buffer() running blk_run_address_space(mapping). Or the caller
 can do it explicity through blk_unplug(bdev). So in the read case,
 the queue gets explicitly unplugged as part of waiting for completion on that
-buffer. For page driven IO, the address space ->sync_page() takes care of
-doing the blk_run_address_space().
+buffer.
 
 Aside:
   This is kind of controversial territory, as it's not clear if plugging is
@@ -1128,7 +1108,7 @@ it will loop and handle as many sectors (on a bio-segment granularity)
 as specified.
 
 Now bh->b_end_io is replaced by bio->bi_end_io, but most of the time the
-right thing to use is bio_endio(bio, uptodate) instead.
+right thing to use is bio_endio(bio) instead.
 
 If the driver is dropping the io_request_lock from its request_fn strategy,
 then it just needs to replace that with q->queue_lock instead.

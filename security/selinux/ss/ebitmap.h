@@ -9,14 +9,20 @@
  * an explicitly specified starting bit position within
  * the total bitmap.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 #ifndef _SS_EBITMAP_H_
 #define _SS_EBITMAP_H_
 
 #include <net/netlabel.h>
 
-#define EBITMAP_UNIT_NUMS	((32 - sizeof(void *) - sizeof(u32))	\
+#ifdef CONFIG_64BIT
+#define	EBITMAP_NODE_SIZE	64
+#else
+#define	EBITMAP_NODE_SIZE	32
+#endif
+
+#define EBITMAP_UNIT_NUMS	((EBITMAP_NODE_SIZE-sizeof(void *)-sizeof(u32))\
 					/ sizeof(unsigned long))
 #define EBITMAP_UNIT_SIZE	BITS_PER_LONG
 #define EBITMAP_SIZE		(EBITMAP_UNIT_NUMS * EBITMAP_UNIT_SIZE)
@@ -117,26 +123,29 @@ static inline void ebitmap_node_clr_bit(struct ebitmap_node *n,
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2);
 int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src);
-int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2);
+int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2, u32 last_e2bit);
 int ebitmap_get_bit(struct ebitmap *e, unsigned long bit);
 int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value);
 void ebitmap_destroy(struct ebitmap *e);
 int ebitmap_read(struct ebitmap *e, void *fp);
 int ebitmap_write(struct ebitmap *e, void *fp);
 
+void ebitmap_cache_init(void);
+void ebitmap_cache_destroy(void);
+
 #ifdef CONFIG_NETLABEL
 int ebitmap_netlbl_export(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap **catmap);
+			  struct netlbl_lsm_catmap **catmap);
 int ebitmap_netlbl_import(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap *catmap);
+			  struct netlbl_lsm_catmap *catmap);
 #else
 static inline int ebitmap_netlbl_export(struct ebitmap *ebmap,
-				struct netlbl_lsm_secattr_catmap **catmap)
+					struct netlbl_lsm_catmap **catmap)
 {
 	return -ENOMEM;
 }
 static inline int ebitmap_netlbl_import(struct ebitmap *ebmap,
-				struct netlbl_lsm_secattr_catmap *catmap)
+					struct netlbl_lsm_catmap *catmap)
 {
 	return -ENOMEM;
 }

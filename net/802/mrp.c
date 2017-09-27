@@ -24,6 +24,11 @@
 static unsigned int mrp_join_time __read_mostly = 200;
 module_param(mrp_join_time, uint, 0644);
 MODULE_PARM_DESC(mrp_join_time, "Join time in ms (default 200ms)");
+
+static unsigned int mrp_periodic_time __read_mostly = 1000;
+module_param(mrp_periodic_time, uint, 0644);
+MODULE_PARM_DESC(mrp_periodic_time, "Periodic time in ms (default 1s)");
+
 MODULE_LICENSE("GPL");
 
 static const u8
@@ -306,7 +311,7 @@ static int mrp_pdu_init(struct mrp_applicant *app)
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
 
-	ph = (struct mrp_pdu_hdr *)__skb_put(skb, sizeof(*ph));
+	ph = __skb_put(skb, sizeof(*ph));
 	ph->version = app->app->version;
 
 	app->pdu = skb;
@@ -319,7 +324,7 @@ static int mrp_pdu_append_end_mark(struct mrp_applicant *app)
 
 	if (skb_tailroom(app->pdu) < sizeof(*endmark))
 		return -1;
-	endmark = (__be16 *)__skb_put(app->pdu, sizeof(*endmark));
+	endmark = __skb_put(app->pdu, sizeof(*endmark));
 	put_unaligned(MRP_END_MARK, endmark);
 	return 0;
 }
@@ -363,7 +368,7 @@ static int mrp_pdu_append_msg_hdr(struct mrp_applicant *app,
 
 	if (skb_tailroom(app->pdu) < sizeof(*mh))
 		return -1;
-	mh = (struct mrp_msg_hdr *)__skb_put(app->pdu, sizeof(*mh));
+	mh = __skb_put(app->pdu, sizeof(*mh));
 	mh->attrtype = attrtype;
 	mh->attrlen = attrlen;
 	mrp_cb(app->pdu)->mh = mh;
@@ -377,8 +382,7 @@ static int mrp_pdu_append_vecattr_hdr(struct mrp_applicant *app,
 
 	if (skb_tailroom(app->pdu) < sizeof(*vah) + attrlen)
 		return -1;
-	vah = (struct mrp_vecattr_hdr *)__skb_put(app->pdu,
-						  sizeof(*vah) + attrlen);
+	vah = __skb_put(app->pdu, sizeof(*vah) + attrlen);
 	put_unaligned(0, &vah->lenflags);
 	memcpy(vah->firstattrvalue, firstattrvalue, attrlen);
 	mrp_cb(app->pdu)->vah = vah;
@@ -430,7 +434,7 @@ again:
 	if (!pos) {
 		if (skb_tailroom(app->pdu) < sizeof(u8))
 			goto queue;
-		vaevents = (u8 *)__skb_put(app->pdu, sizeof(u8));
+		vaevents = __skb_put(app->pdu, sizeof(u8));
 	} else {
 		vaevents = (u8 *)(skb_tail_pointer(app->pdu) - sizeof(u8));
 	}
@@ -578,7 +582,7 @@ static void mrp_join_timer_arm(struct mrp_applicant *app)
 {
 	unsigned long delay;
 
-	delay = (u64)msecs_to_jiffies(mrp_join_time) * net_random() >> 32;
+	delay = (u64)msecs_to_jiffies(mrp_join_time) * prandom_u32() >> 32;
 	mod_timer(&app->join_timer, jiffies + delay);
 }
 
@@ -593,6 +597,24 @@ static void mrp_join_timer(unsigned long data)
 
 	mrp_queue_xmit(app);
 	mrp_join_timer_arm(app);
+}
+
+static void mrp_periodic_timer_arm(struct mrp_applicant *app)
+{
+	mod_timer(&app->periodic_timer,
+		  jiffies + msecs_to_jiffies(mrp_periodic_time));
+}
+
+static void mrp_periodic_timer(unsigned long data)
+{
+	struct mrp_applicant *app = (struct mrp_applicant *)data;
+
+	spin_lock(&app->lock);
+	mrp_mad_event(app, MRP_EVENT_PERIODIC);
+	mrp_pdu_queue(app);
+	spin_unlock(&app->lock);
+
+	mrp_periodic_timer_arm(app);
 }
 
 static int mrp_pdu_parse_end_mark(struct sk_buff *skb, int *offset)
@@ -845,6 +867,9 @@ int mrp_init_applicant(struct net_device *dev, struct mrp_application *appl)
 	rcu_assign_pointer(dev->mrp_port->applicants[appl->type], app);
 	setup_timer(&app->join_timer, mrp_join_timer, (unsigned long)app);
 	mrp_join_timer_arm(app);
+	setup_timer(&app->periodic_timer, mrp_periodic_timer,
+		    (unsigned long)app);
+	mrp_periodic_timer_arm(app);
 	return 0;
 
 err3:
@@ -870,6 +895,7 @@ void mrp_uninit_applicant(struct net_device *dev, struct mrp_application *appl)
 	 * all pending messages before the applicant is gone.
 	 */
 	del_timer_sync(&app->join_timer);
+	del_timer_sync(&app->periodic_timer);
 
 	spin_lock_bh(&app->lock);
 	mrp_mad_event(app, MRP_EVENT_TX);

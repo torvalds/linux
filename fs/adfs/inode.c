@@ -50,7 +50,7 @@ static void adfs_write_failed(struct address_space *mapping, loff_t to)
 	struct inode *inode = mapping->host;
 
 	if (to > inode->i_size)
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 }
 
 static int adfs_write_begin(struct file *file, struct address_space *mapping,
@@ -199,7 +199,7 @@ adfs_adfs2unix_time(struct timespec *tv, struct inode *inode)
 	return;
 
  cur_time:
-	*tv = CURRENT_TIME;
+	*tv = current_time(inode);
 	return;
 
  too_early:
@@ -298,12 +298,12 @@ out:
 int
 adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	unsigned int ia_valid = attr->ia_valid;
 	int error;
 	
-	error = inode_change_ok(inode, attr);
+	error = setattr_prepare(dentry, attr);
 
 	/*
 	 * we can't change the UID or GID of any file -

@@ -23,7 +23,7 @@
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
 #include <linux/console.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/seq_file.h>
@@ -146,7 +146,7 @@ void mpc7448_hpc2_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "vendor\t\t: Freescale Semiconductor\n");
 }
 
-void mpc7448_hpc2_restart(char *cmd)
+static void __noreturn mpc7448_hpc2_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -156,25 +156,12 @@ void mpc7448_hpc2_restart(char *cmd)
 	for (;;) ;		/* Spin until reset happens */
 }
 
-void mpc7448_hpc2_power_off(void)
-{
-	local_irq_disable();
-	for (;;) ;		/* No way to shut power off with software */
-}
-
-void mpc7448_hpc2_halt(void)
-{
-	mpc7448_hpc2_power_off();
-}
-
 /*
  * Called very early, device-tree isn't unflattened
  */
 static int __init mpc7448_hpc2_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "mpc74xx"))
+	if (!of_machine_is_compatible("mpc74xx"))
 		return 0;
 	return 1;
 }
@@ -187,7 +174,7 @@ static int mpc7448_machine_check_exception(struct pt_regs *regs)
 	if ((entry = search_exception_tables(regs->nip)) != NULL) {
 		tsi108_clear_pci_cfg_error();
 		regs->msr |= MSR_RI;
-		regs->nip = entry->fixup;
+		regs->nip = extable_fixup(entry);
 		return 1;
 	}
 	return 0;

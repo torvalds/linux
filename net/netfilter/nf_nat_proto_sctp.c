@@ -7,9 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/sctp.h>
-#include <linux/module.h>
 #include <net/sctp/checksum.h>
 
 #include <net/netfilter/nf_nat_l4proto.h>
@@ -34,11 +32,17 @@ sctp_manip_pkt(struct sk_buff *skb,
 	       const struct nf_conntrack_tuple *tuple,
 	       enum nf_nat_manip_type maniptype)
 {
-	struct sk_buff *frag;
-	sctp_sctphdr_t *hdr;
-	__u32 crc32;
+	struct sctphdr *hdr;
+	int hdrsize = 8;
 
-	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
+	/* This could be an inner header returned in imcp packet; in such
+	 * cases we cannot update the checksum field since it is outside
+	 * of the 8 bytes of transport layer headers we are guaranteed.
+	 */
+	if (skb->len >= hdroff + sizeof(*hdr))
+		hdrsize = sizeof(*hdr);
+
+	if (!skb_make_writable(skb, hdroff + hdrsize))
 		return false;
 
 	hdr = (struct sctphdr *)(skb->data + hdroff);
@@ -51,52 +55,23 @@ sctp_manip_pkt(struct sk_buff *skb,
 		hdr->dest = tuple->dst.u.sctp.port;
 	}
 
-	crc32 = sctp_start_cksum((u8 *)hdr, skb_headlen(skb) - hdroff);
-	skb_walk_frags(skb, frag)
-		crc32 = sctp_update_cksum((u8 *)frag->data, skb_headlen(frag),
-					  crc32);
-	hdr->checksum = sctp_end_cksum(crc32);
+	if (hdrsize < sizeof(*hdr))
+		return true;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		hdr->checksum = sctp_compute_cksum(skb, hdroff);
+		skb->ip_summed = CHECKSUM_NONE;
+	}
 
 	return true;
 }
 
-static const struct nf_nat_l4proto nf_nat_l4proto_sctp = {
+const struct nf_nat_l4proto nf_nat_l4proto_sctp = {
 	.l4proto		= IPPROTO_SCTP,
 	.manip_pkt		= sctp_manip_pkt,
 	.in_range		= nf_nat_l4proto_in_range,
 	.unique_tuple		= sctp_unique_tuple,
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
 };
-
-static int __init nf_nat_proto_sctp_init(void)
-{
-	int err;
-
-	err = nf_nat_l4proto_register(NFPROTO_IPV4, &nf_nat_l4proto_sctp);
-	if (err < 0)
-		goto err1;
-	err = nf_nat_l4proto_register(NFPROTO_IPV6, &nf_nat_l4proto_sctp);
-	if (err < 0)
-		goto err2;
-	return 0;
-
-err2:
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_sctp);
-err1:
-	return err;
-}
-
-static void __exit nf_nat_proto_sctp_exit(void)
-{
-	nf_nat_l4proto_unregister(NFPROTO_IPV6, &nf_nat_l4proto_sctp);
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_sctp);
-}
-
-module_init(nf_nat_proto_sctp_init);
-module_exit(nf_nat_proto_sctp_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("SCTP NAT protocol helper");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

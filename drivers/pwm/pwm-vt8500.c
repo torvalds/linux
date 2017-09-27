@@ -184,7 +184,7 @@ static int vt8500_pwm_set_polarity(struct pwm_chip *chip,
 	return 0;
 }
 
-static struct pwm_ops vt8500_pwm_ops = {
+static const struct pwm_ops vt8500_pwm_ops = {
 	.enable = vt8500_pwm_enable,
 	.disable = vt8500_pwm_disable,
 	.config = vt8500_pwm_config,
@@ -211,10 +211,8 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 	}
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (chip == NULL)
 		return -ENOMEM;
-	}
 
 	chip->chip.dev = &pdev->dev;
 	chip->chip.ops = &vt8500_pwm_ops;
@@ -243,6 +241,7 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 	ret = pwmchip_add(&chip->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add PWM chip\n");
+		clk_unprepare(chip->clk);
 		return ret;
 	}
 
@@ -268,7 +267,6 @@ static struct platform_driver vt8500_pwm_driver = {
 	.remove		= vt8500_pwm_remove,
 	.driver		= {
 		.name	= "vt8500-pwm",
-		.owner	= THIS_MODULE,
 		.of_match_table = vt8500_pwm_dt_ids,
 	},
 };

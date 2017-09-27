@@ -1,10 +1,19 @@
 /* Copyright 2002 Andi Kleen */
 
 #include <linux/linkage.h>
-
-#include <asm/cpufeature.h>
-#include <asm/dwarf2.h>
+#include <asm/errno.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
+#include <asm/export.h>
+
+/*
+ * We build a jump to memcpy_orig by default which gets NOPped out on
+ * the majority of x86 CPUs which set REP_GOOD. In addition, CPUs which
+ * have the enhanced REP MOVSB/STOSB feature (ERMS), change those NOPs
+ * to a jmp to memcpy_erms which does the REP; MOVSB mem copy.
+ */
+
+.weak memcpy
 
 /*
  * memcpy - Copy a memory block.
@@ -17,15 +26,11 @@
  * Output:
  * rax original destination
  */
+ENTRY(__memcpy)
+ENTRY(memcpy)
+	ALTERNATIVE_2 "jmp memcpy_orig", "", X86_FEATURE_REP_GOOD, \
+		      "jmp memcpy_erms", X86_FEATURE_ERMS
 
-/*
- * memcpy_c() - fast string ops (REP MOVSQ) based variant.
- *
- * This gets patched over the unrolled variant (below) via the
- * alternative instructions framework:
- */
-	.section .altinstr_replacement, "ax", @progbits
-.Lmemcpy_c:
 	movq %rdi, %rax
 	movq %rdx, %rcx
 	shrq $3, %rcx
@@ -34,28 +39,23 @@
 	movl %edx, %ecx
 	rep movsb
 	ret
-.Lmemcpy_e:
-	.previous
+ENDPROC(memcpy)
+ENDPROC(__memcpy)
+EXPORT_SYMBOL(memcpy)
+EXPORT_SYMBOL(__memcpy)
 
 /*
- * memcpy_c_e() - enhanced fast string memcpy. This is faster and simpler than
- * memcpy_c. Use memcpy_c_e when possible.
- *
- * This gets patched over the unrolled variant (below) via the
- * alternative instructions framework:
+ * memcpy_erms() - enhanced fast string memcpy. This is faster and
+ * simpler than memcpy. Use memcpy_erms when possible.
  */
-	.section .altinstr_replacement, "ax", @progbits
-.Lmemcpy_c_e:
+ENTRY(memcpy_erms)
 	movq %rdi, %rax
 	movq %rdx, %rcx
 	rep movsb
 	ret
-.Lmemcpy_e_e:
-	.previous
+ENDPROC(memcpy_erms)
 
-ENTRY(__memcpy)
-ENTRY(memcpy)
-	CFI_STARTPROC
+ENTRY(memcpy_orig)
 	movq %rdi, %rax
 
 	cmpq $0x20, %rdx
@@ -180,27 +180,122 @@ ENTRY(memcpy)
 
 .Lend:
 	retq
-	CFI_ENDPROC
-ENDPROC(memcpy)
-ENDPROC(__memcpy)
+ENDPROC(memcpy_orig)
 
-	/*
-	 * Some CPUs are adding enhanced REP MOVSB/STOSB feature
-	 * If the feature is supported, memcpy_c_e() is the first choice.
-	 * If enhanced rep movsb copy is not available, use fast string copy
-	 * memcpy_c() when possible. This is faster and code is simpler than
-	 * original memcpy().
-	 * Otherwise, original memcpy() is used.
-	 * In .altinstructions section, ERMS feature is placed after REG_GOOD
-         * feature to implement the right patch order.
-	 *
-	 * Replace only beginning, memcpy is used to apply alternatives,
-	 * so it is silly to overwrite itself with nops - reboot is the
-	 * only outcome...
-	 */
-	.section .altinstructions, "a"
-	altinstruction_entry memcpy,.Lmemcpy_c,X86_FEATURE_REP_GOOD,\
-			     .Lmemcpy_e-.Lmemcpy_c,.Lmemcpy_e-.Lmemcpy_c
-	altinstruction_entry memcpy,.Lmemcpy_c_e,X86_FEATURE_ERMS, \
-			     .Lmemcpy_e_e-.Lmemcpy_c_e,.Lmemcpy_e_e-.Lmemcpy_c_e
+#ifndef CONFIG_UML
+/*
+ * memcpy_mcsafe_unrolled - memory copy with machine check exception handling
+ * Note that we only catch machine checks when reading the source addresses.
+ * Writes to target are posted and don't generate machine checks.
+ */
+ENTRY(memcpy_mcsafe_unrolled)
+	cmpl $8, %edx
+	/* Less than 8 bytes? Go to byte copy loop */
+	jb .L_no_whole_words
+
+	/* Check for bad alignment of source */
+	testl $7, %esi
+	/* Already aligned */
+	jz .L_8byte_aligned
+
+	/* Copy one byte at a time until source is 8-byte aligned */
+	movl %esi, %ecx
+	andl $7, %ecx
+	subl $8, %ecx
+	negl %ecx
+	subl %ecx, %edx
+.L_copy_leading_bytes:
+	movb (%rsi), %al
+	movb %al, (%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz .L_copy_leading_bytes
+
+.L_8byte_aligned:
+	/* Figure out how many whole cache lines (64-bytes) to copy */
+	movl %edx, %ecx
+	andl $63, %edx
+	shrl $6, %ecx
+	jz .L_no_whole_cache_lines
+
+	/* Loop copying whole cache lines */
+.L_cache_w0: movq (%rsi), %r8
+.L_cache_w1: movq 1*8(%rsi), %r9
+.L_cache_w2: movq 2*8(%rsi), %r10
+.L_cache_w3: movq 3*8(%rsi), %r11
+	movq %r8, (%rdi)
+	movq %r9, 1*8(%rdi)
+	movq %r10, 2*8(%rdi)
+	movq %r11, 3*8(%rdi)
+.L_cache_w4: movq 4*8(%rsi), %r8
+.L_cache_w5: movq 5*8(%rsi), %r9
+.L_cache_w6: movq 6*8(%rsi), %r10
+.L_cache_w7: movq 7*8(%rsi), %r11
+	movq %r8, 4*8(%rdi)
+	movq %r9, 5*8(%rdi)
+	movq %r10, 6*8(%rdi)
+	movq %r11, 7*8(%rdi)
+	leaq 64(%rsi), %rsi
+	leaq 64(%rdi), %rdi
+	decl %ecx
+	jnz .L_cache_w0
+
+	/* Are there any trailing 8-byte words? */
+.L_no_whole_cache_lines:
+	movl %edx, %ecx
+	andl $7, %edx
+	shrl $3, %ecx
+	jz .L_no_whole_words
+
+	/* Copy trailing words */
+.L_copy_trailing_words:
+	movq (%rsi), %r8
+	mov %r8, (%rdi)
+	leaq 8(%rsi), %rsi
+	leaq 8(%rdi), %rdi
+	decl %ecx
+	jnz .L_copy_trailing_words
+
+	/* Any trailing bytes? */
+.L_no_whole_words:
+	andl %edx, %edx
+	jz .L_done_memcpy_trap
+
+	/* Copy trailing bytes */
+	movl %edx, %ecx
+.L_copy_trailing_bytes:
+	movb (%rsi), %al
+	movb %al, (%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz .L_copy_trailing_bytes
+
+	/* Copy successful. Return zero */
+.L_done_memcpy_trap:
+	xorq %rax, %rax
+	ret
+ENDPROC(memcpy_mcsafe_unrolled)
+EXPORT_SYMBOL_GPL(memcpy_mcsafe_unrolled)
+
+	.section .fixup, "ax"
+	/* Return -EFAULT for any failure */
+.L_memcpy_mcsafe_fail:
+	mov	$-EFAULT, %rax
+	ret
+
 	.previous
+
+	_ASM_EXTABLE_FAULT(.L_copy_leading_bytes, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w0, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w1, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w2, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w3, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w4, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w5, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w6, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w7, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_copy_trailing_words, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_copy_trailing_bytes, .L_memcpy_mcsafe_fail)
+#endif

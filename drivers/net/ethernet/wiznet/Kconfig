@@ -7,9 +7,7 @@ config NET_VENDOR_WIZNET
 	depends on HAS_IOMEM
 	default y
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -70,5 +68,19 @@ config WIZNET_BUS_ANY
 
 	  Performance may decrease compared to explicitly selected bus mode.
 endchoice
+
+config WIZNET_W5100_SPI
+	tristate "WIZnet W5100/W5200/W5500 Ethernet support for SPI mode"
+	depends on WIZNET_BUS_ANY && WIZNET_W5100
+	depends on SPI
+	---help---
+	  In SPI mode host system accesses registers using SPI protocol
+	  (mode 0) on the SPI bus.
+
+	  Performance decreases compared to other bus interface mode.
+	  In W5100 SPI mode, burst READ/WRITE processing are not provided.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called w5100-spi.
 
 endif # NET_VENDOR_WIZNET

@@ -3,7 +3,7 @@ TODO:
 	- Lindent
 	- remove all wrappers
 	- audit userspace interface
-	- reserve major number
+		- Fix coverity 1195261
 	- cleanup the individual comedi drivers as well
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and

@@ -13,14 +13,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *****************************************************************************/
 
 #include <linux/module.h>
 #include <linux/kmod.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -31,10 +29,11 @@
 #include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
 #include <linux/slab.h>
+#include <linux/of_net.h>
 #include "smsc95xx.h"
 
 #define SMSC_CHIPNAME			"smsc95xx"
-#define SMSC_DRIVER_VERSION		"1.0.4"
+#define SMSC_DRIVER_VERSION		"1.0.6"
 #define HS_USB_PKT_SIZE			(512)
 #define FS_USB_PKT_SIZE			(64)
 #define DEFAULT_HS_BURST_CAP_SIZE	(16 * 1024 + 5 * HS_USB_PKT_SIZE)
@@ -62,7 +61,10 @@
 #define SUSPEND_ALLMODES		(SUSPEND_SUSPEND0 | SUSPEND_SUSPEND1 | \
 					 SUSPEND_SUSPEND2 | SUSPEND_SUSPEND3)
 
+#define CARRIER_CHECK_DELAY (2 * HZ)
+
 struct smsc95xx_priv {
+	u32 chip_id;
 	u32 mac_cr;
 	u32 hash_hi;
 	u32 hash_lo;
@@ -70,6 +72,10 @@ struct smsc95xx_priv {
 	spinlock_t mac_cr_lock;
 	u8 features;
 	u8 suspend_flags;
+	u8 mdix_ctrl;
+	bool link_ok;
+	struct delayed_work carrier_check;
+	struct usbnet *dev;
 };
 
 static bool turbo_mode = true;
@@ -93,9 +99,11 @@ static int __must_check __smsc95xx_read_reg(struct usbnet *dev, u32 index,
 	ret = fn(dev, USB_VENDOR_REQUEST_READ_REGISTER, USB_DIR_IN
 		 | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 0, index, &buf, 4);
-	if (unlikely(ret < 0))
+	if (unlikely(ret < 0)) {
 		netdev_warn(dev->net, "Failed to read reg index 0x%08x: %d\n",
 			    index, ret);
+		return ret;
+	}
 
 	le32_to_cpus(&buf);
 	*data = buf;
@@ -518,7 +526,7 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 static int smsc95xx_phy_update_flowcontrol(struct usbnet *dev, u8 duplex,
 					   u16 lcladv, u16 rmtadv)
 {
-	u32 flow, afc_cfg = 0;
+	u32 flow = 0, afc_cfg;
 
 	int ret = smsc95xx_read_reg(dev, AFC_CFG, &afc_cfg);
 	if (ret < 0)
@@ -529,20 +537,19 @@ static int smsc95xx_phy_update_flowcontrol(struct usbnet *dev, u8 duplex,
 
 		if (cap & FLOW_CTRL_RX)
 			flow = 0xFFFF0002;
-		else
-			flow = 0;
 
-		if (cap & FLOW_CTRL_TX)
+		if (cap & FLOW_CTRL_TX) {
 			afc_cfg |= 0xF;
-		else
+			flow |= 0xFFFF0000;
+		} else {
 			afc_cfg &= ~0xF;
+		}
 
 		netif_dbg(dev, link, dev->net, "rx pause %s, tx pause %s\n",
 				   cap & FLOW_CTRL_RX ? "enabled" : "disabled",
 				   cap & FLOW_CTRL_TX ? "enabled" : "disabled");
 	} else {
 		netif_dbg(dev, link, dev->net, "half duplex\n");
-		flow = 0;
 		afc_cfg |= 0xF;
 	}
 
@@ -623,6 +630,44 @@ static void smsc95xx_status(struct usbnet *dev, struct urb *urb)
 			    intdata);
 }
 
+static void set_carrier(struct usbnet *dev, bool link)
+{
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+
+	if (pdata->link_ok == link)
+		return;
+
+	pdata->link_ok = link;
+
+	if (link)
+		usbnet_link_change(dev, 1, 0);
+	else
+		usbnet_link_change(dev, 0, 0);
+}
+
+static void check_carrier(struct work_struct *work)
+{
+	struct smsc95xx_priv *pdata = container_of(work, struct smsc95xx_priv,
+						carrier_check.work);
+	struct usbnet *dev = pdata->dev;
+	int ret;
+
+	if (pdata->suspend_flags != 0)
+		return;
+
+	ret = smsc95xx_mdio_read(dev->net, dev->mii.phy_id, MII_BMSR);
+	if (ret < 0) {
+		netdev_warn(dev->net, "Failed to read MII_BMSR\n");
+		return;
+	}
+	if (ret & BMSR_LSTATUS)
+		set_carrier(dev, 1);
+	else
+		set_carrier(dev, 0);
+
+	schedule_delayed_work(&pdata->carrier_check, CARRIER_CHECK_DELAY);
+}
+
 /* Enable or disable Tx & Rx checksum offload engines */
 static int smsc95xx_set_features(struct net_device *netdev,
 	netdev_features_t features)
@@ -635,7 +680,7 @@ static int smsc95xx_set_features(struct net_device *netdev,
 	if (ret < 0)
 		return ret;
 
-	if (features & NETIF_F_HW_CSUM)
+	if (features & NETIF_F_IP_CSUM)
 		read_buf |= Tx_COE_EN_;
 	else
 		read_buf &= ~Tx_COE_EN_;
@@ -738,14 +783,111 @@ static int smsc95xx_ethtool_set_wol(struct net_device *net,
 	return ret;
 }
 
+static int get_mdix_status(struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+	u32 val;
+	int buf;
+
+	buf = smsc95xx_mdio_read(dev->net, dev->mii.phy_id, SPECIAL_CTRL_STS);
+	if (buf & SPECIAL_CTRL_STS_OVRRD_AMDIX_) {
+		if (buf & SPECIAL_CTRL_STS_AMDIX_ENABLE_)
+			return ETH_TP_MDI_AUTO;
+		else if (buf & SPECIAL_CTRL_STS_AMDIX_STATE_)
+			return ETH_TP_MDI_X;
+	} else {
+		buf = smsc95xx_read_reg(dev, STRAP_STATUS, &val);
+		if (val & STRAP_STATUS_AMDIX_EN_)
+			return ETH_TP_MDI_AUTO;
+	}
+
+	return ETH_TP_MDI;
+}
+
+static void set_mdix_status(struct net_device *net, __u8 mdix_ctrl)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	int buf;
+
+	if ((pdata->chip_id == ID_REV_CHIP_ID_9500A_) ||
+	    (pdata->chip_id == ID_REV_CHIP_ID_9530_) ||
+	    (pdata->chip_id == ID_REV_CHIP_ID_89530_) ||
+	    (pdata->chip_id == ID_REV_CHIP_ID_9730_)) {
+		/* Extend Manual AutoMDIX timer for 9500A/9500Ai */
+		buf = smsc95xx_mdio_read(dev->net, dev->mii.phy_id,
+					 PHY_EDPD_CONFIG);
+		buf |= PHY_EDPD_CONFIG_EXT_CROSSOVER_;
+		smsc95xx_mdio_write(dev->net, dev->mii.phy_id,
+				    PHY_EDPD_CONFIG, buf);
+	}
+
+	if (mdix_ctrl == ETH_TP_MDI) {
+		buf = smsc95xx_mdio_read(dev->net, dev->mii.phy_id,
+					 SPECIAL_CTRL_STS);
+		buf |= SPECIAL_CTRL_STS_OVRRD_AMDIX_;
+		buf &= ~(SPECIAL_CTRL_STS_AMDIX_ENABLE_ |
+			 SPECIAL_CTRL_STS_AMDIX_STATE_);
+		smsc95xx_mdio_write(dev->net, dev->mii.phy_id,
+				    SPECIAL_CTRL_STS, buf);
+	} else if (mdix_ctrl == ETH_TP_MDI_X) {
+		buf = smsc95xx_mdio_read(dev->net, dev->mii.phy_id,
+					 SPECIAL_CTRL_STS);
+		buf |= SPECIAL_CTRL_STS_OVRRD_AMDIX_;
+		buf &= ~(SPECIAL_CTRL_STS_AMDIX_ENABLE_ |
+			 SPECIAL_CTRL_STS_AMDIX_STATE_);
+		buf |= SPECIAL_CTRL_STS_AMDIX_STATE_;
+		smsc95xx_mdio_write(dev->net, dev->mii.phy_id,
+				    SPECIAL_CTRL_STS, buf);
+	} else if (mdix_ctrl == ETH_TP_MDI_AUTO) {
+		buf = smsc95xx_mdio_read(dev->net, dev->mii.phy_id,
+					 SPECIAL_CTRL_STS);
+		buf &= ~SPECIAL_CTRL_STS_OVRRD_AMDIX_;
+		buf &= ~(SPECIAL_CTRL_STS_AMDIX_ENABLE_ |
+			 SPECIAL_CTRL_STS_AMDIX_STATE_);
+		buf |= SPECIAL_CTRL_STS_AMDIX_ENABLE_;
+		smsc95xx_mdio_write(dev->net, dev->mii.phy_id,
+				    SPECIAL_CTRL_STS, buf);
+	}
+	pdata->mdix_ctrl = mdix_ctrl;
+}
+
+static int smsc95xx_get_link_ksettings(struct net_device *net,
+				       struct ethtool_link_ksettings *cmd)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	int retval;
+
+	retval = usbnet_get_link_ksettings(net, cmd);
+
+	cmd->base.eth_tp_mdix = pdata->mdix_ctrl;
+	cmd->base.eth_tp_mdix_ctrl = pdata->mdix_ctrl;
+
+	return retval;
+}
+
+static int smsc95xx_set_link_ksettings(struct net_device *net,
+				       const struct ethtool_link_ksettings *cmd)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	int retval;
+
+	if (pdata->mdix_ctrl != cmd->base.eth_tp_mdix_ctrl)
+		set_mdix_status(net, cmd->base.eth_tp_mdix_ctrl);
+
+	retval = usbnet_set_link_ksettings(net, cmd);
+
+	return retval;
+}
+
 static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link	= usbnet_get_link,
 	.nway_reset	= usbnet_nway_reset,
 	.get_drvinfo	= usbnet_get_drvinfo,
 	.get_msglevel	= usbnet_get_msglevel,
 	.set_msglevel	= usbnet_set_msglevel,
-	.get_settings	= usbnet_get_settings,
-	.set_settings	= usbnet_set_settings,
 	.get_eeprom_len	= smsc95xx_ethtool_get_eeprom_len,
 	.get_eeprom	= smsc95xx_ethtool_get_eeprom,
 	.set_eeprom	= smsc95xx_ethtool_set_eeprom,
@@ -753,6 +895,9 @@ static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_regs	= smsc95xx_ethtool_getregs,
 	.get_wol	= smsc95xx_ethtool_get_wol,
 	.set_wol	= smsc95xx_ethtool_set_wol,
+	.get_link_ksettings	= smsc95xx_get_link_ksettings,
+	.set_link_ksettings	= smsc95xx_set_link_ksettings,
+	.get_ts_info	= ethtool_op_get_ts_info,
 };
 
 static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
@@ -767,6 +912,15 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
+	const u8 *mac_addr;
+
+	/* maybe the boot loader passed the MAC address in devicetree */
+	mac_addr = of_get_mac_address(dev->udev->dev.of_node);
+	if (mac_addr) {
+		memcpy(dev->net->dev_addr, mac_addr, ETH_ALEN);
+		return;
+	}
+
 	/* try reading mac address from EEPROM */
 	if (smsc95xx_read_eeprom(dev, EEPROM_MAC_OFFSET, ETH_ALEN,
 			dev->net->dev_addr) == 0) {
@@ -777,7 +931,7 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 		}
 	}
 
-	/* no eeprom, or eeprom values are invalid. generate random MAC */
+	/* no useful static MAC address found. generate a random one */
 	eth_hw_addr_random(dev->net);
 	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr\n");
 }
@@ -1094,6 +1248,7 @@ static const struct net_device_ops smsc95xx_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl 		= smsc95xx_ioctl,
@@ -1124,12 +1279,19 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	spin_lock_init(&pdata->mac_cr_lock);
 
+	/* LAN95xx devices do not alter the computed checksum of 0 to 0xffff.
+	 * RFC 2460, ipv6 UDP calculated checksum yields a result of zero must
+	 * be changed to 0xffff. RFC 768, ipv4 UDP computed checksum is zero,
+	 * it is transmitted as all ones. The zero transmitted checksum means
+	 * transmitter generated no checksum. Hence, enable csum offload only
+	 * for ipv4 packets.
+	 */
 	if (DEFAULT_TX_CSUM_ENABLE)
-		dev->net->features |= NETIF_F_HW_CSUM;
+		dev->net->features |= NETIF_F_IP_CSUM;
 	if (DEFAULT_RX_CSUM_ENABLE)
 		dev->net->features |= NETIF_F_RXCSUM;
 
-	dev->net->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
+	dev->net->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 
 	smsc95xx_init_mac_address(dev);
 
@@ -1141,6 +1303,8 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret < 0)
 		return ret;
 	val >>= 16;
+	pdata->chip_id = val;
+	pdata->mdix_ctrl = get_mdix_status(dev->net);
 
 	if ((val == ID_REV_CHIP_ID_9500A_) || (val == ID_REV_CHIP_ID_9530_) ||
 	    (val == ID_REV_CHIP_ID_89530_) || (val == ID_REV_CHIP_ID_9730_))
@@ -1155,13 +1319,20 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->flags |= IFF_MULTICAST;
 	dev->net->hard_header_len += SMSC95XX_TX_OVERHEAD_CSUM;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
+
+	pdata->dev = dev;
+	INIT_DELAYED_WORK(&pdata->carrier_check, check_carrier);
+	schedule_delayed_work(&pdata->carrier_check, CARRIER_CHECK_DELAY);
+
 	return 0;
 }
 
 static void smsc95xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+
 	if (pdata) {
+		cancel_delayed_work(&pdata->carrier_check);
 		netif_dbg(dev, ifdown, dev->net, "free pdata\n");
 		kfree(pdata);
 		pdata = NULL;
@@ -1335,7 +1506,7 @@ static int smsc95xx_enter_suspend3(struct usbnet *dev)
 	if (ret < 0)
 		return ret;
 
-	if (val & 0xFFFF) {
+	if (val & RX_FIFO_INF_USED_) {
 		netdev_info(dev->net, "rx fifo not empty in autosuspend\n");
 		return -EBUSY;
 	}
@@ -1672,17 +1843,20 @@ done:
 static int smsc95xx_resume(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
-	u8 suspend_flags = pdata->suspend_flags;
+	struct smsc95xx_priv *pdata;
+	u8 suspend_flags;
 	int ret;
 	u32 val;
 
 	BUG_ON(!dev);
+	pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	suspend_flags = pdata->suspend_flags;
 
 	netdev_dbg(dev->net, "resume suspend_flags=0x%02x\n", suspend_flags);
 
 	/* do this first to ensure it's cleared even in error case */
 	pdata->suspend_flags = 0;
+	schedule_delayed_work(&pdata->carrier_check, CARRIER_CHECK_DELAY);
 
 	if (suspend_flags & SUSPEND_ALLMODES) {
 		/* clear wake-up sources */
@@ -1716,6 +1890,18 @@ static int smsc95xx_resume(struct usb_interface *intf)
 	return ret;
 }
 
+static int smsc95xx_reset_resume(struct usb_interface *intf)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	int ret;
+
+	ret = smsc95xx_reset(dev);
+	if (ret < 0)
+		return ret;
+
+	return smsc95xx_resume(intf);
+}
+
 static void smsc95xx_rx_csum_offload(struct sk_buff *skb)
 {
 	skb->csum = *(u16 *)(skb_tail_pointer(skb) - 2);
@@ -1725,6 +1911,10 @@ static void smsc95xx_rx_csum_offload(struct sk_buff *skb)
 
 static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
+
 	while (skb->len > 0) {
 		u32 header, align_count;
 		struct sk_buff *ax_skb;
@@ -1799,11 +1989,6 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			skb_pull(skb, align_count);
 	}
 
-	if (unlikely(skb->len < 0)) {
-		netdev_warn(dev->net, "invalid rx length<0 %d\n", skb->len);
-		return 0;
-	}
-
 	return 1;
 }
 
@@ -1824,13 +2009,13 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 	/* We do not advertise SG, so skbs should be already linearized */
 	BUG_ON(skb_shinfo(skb)->nr_frags);
 
-	if (skb_headroom(skb) < overhead) {
-		struct sk_buff *skb2 = skb_copy_expand(skb,
-			overhead, 0, flags);
+	/* Make writable and expand header space by overhead if required */
+	if (skb_cow_head(skb, overhead)) {
+		/* Must deallocate here as returning NULL to indicate error
+		 * means the skb won't be deallocated in the caller.
+		 */
 		dev_kfree_skb_any(skb);
-		skb = skb2;
-		if (!skb)
-			return NULL;
+		return NULL;
 	}
 
 	if (csum) {
@@ -2002,7 +2187,7 @@ static struct usb_driver smsc95xx_driver = {
 	.probe		= usbnet_probe,
 	.suspend	= smsc95xx_suspend,
 	.resume		= smsc95xx_resume,
-	.reset_resume	= smsc95xx_resume,
+	.reset_resume	= smsc95xx_reset_resume,
 	.disconnect	= usbnet_disconnect,
 	.disable_hub_initiated_lpm = 1,
 	.supports_autosuspend = 1,

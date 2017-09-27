@@ -67,7 +67,7 @@
 #endif
 
 /* Ensure if the instruction can be boostable */
-extern int can_boost(kprobe_opcode_t *instruction);
+extern int can_boost(struct insn *insn, void *orig_addr);
 /* Recover instruction if given address is probed */
 extern unsigned long recover_probed_instruction(kprobe_opcode_t *buf,
 					 unsigned long addr);
@@ -75,21 +75,16 @@ extern unsigned long recover_probed_instruction(kprobe_opcode_t *buf,
  * Copy an instruction and adjust the displacement if the instruction
  * uses the %rip-relative addressing mode.
  */
-extern int __copy_instruction(u8 *dest, u8 *src);
+extern int __copy_instruction(u8 *dest, u8 *src, struct insn *insn);
 
 /* Generate a relative-jump/call instruction */
 extern void synthesize_reljump(void *from, void *to);
 extern void synthesize_relcall(void *from, void *to);
 
 #ifdef	CONFIG_OPTPROBES
-extern int arch_init_optprobes(void);
 extern int setup_detour_execution(struct kprobe *p, struct pt_regs *regs, int reenter);
 extern unsigned long __recover_optprobed_insn(kprobe_opcode_t *buf, unsigned long addr);
 #else	/* !CONFIG_OPTPROBES */
-static inline int arch_init_optprobes(void)
-{
-	return 0;
-}
 static inline int setup_detour_execution(struct kprobe *p, struct pt_regs *regs, int reenter)
 {
 	return 0;

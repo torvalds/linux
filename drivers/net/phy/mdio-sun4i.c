@@ -13,7 +13,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -91,17 +90,13 @@ static int sun4i_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
-static int sun4i_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static int sun4i_mdio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mii_bus *bus;
 	struct sun4i_mdio_data *data;
-	int ret, i;
+	struct resource *res;
+	int ret;
 
 	bus = mdiobus_alloc_size(sizeof(*data));
 	if (!bus)
@@ -110,24 +105,15 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 	bus->name = "sun4i_mii_bus";
 	bus->read = &sun4i_mdio_read;
 	bus->write = &sun4i_mdio_write;
-	bus->reset = &sun4i_mdio_reset;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(&pdev->dev));
 	bus->parent = &pdev->dev;
 
-	bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!bus->irq) {
-		ret = -ENOMEM;
-		goto err_out_free_mdiobus;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		bus->irq[i] = PHY_POLL;
-
 	data = bus->priv;
-	data->membase = of_iomap(np, 0);
-	if (!data->membase) {
-		ret = -ENOMEM;
-		goto err_out_free_mdio_irq;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data->membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->membase)) {
+		ret = PTR_ERR(data->membase);
+		goto err_out_free_mdiobus;
 	}
 
 	data->regulator = devm_regulator_get(&pdev->dev, "phy");
@@ -136,10 +122,11 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 
 		dev_info(&pdev->dev, "no regulator found\n");
+		data->regulator = NULL;
 	} else {
 		ret = regulator_enable(data->regulator);
 		if (ret)
-			goto err_out_free_mdio_irq;
+			goto err_out_free_mdiobus;
 	}
 
 	ret = of_mdiobus_register(bus, np);
@@ -151,9 +138,8 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 	return 0;
 
 err_out_disable_regulator:
-	regulator_disable(data->regulator);
-err_out_free_mdio_irq:
-	kfree(bus->irq);
+	if (data->regulator)
+		regulator_disable(data->regulator);
 err_out_free_mdiobus:
 	mdiobus_free(bus);
 	return ret;
@@ -164,13 +150,15 @@ static int sun4i_mdio_remove(struct platform_device *pdev)
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(bus);
-	kfree(bus->irq);
 	mdiobus_free(bus);
 
 	return 0;
 }
 
 static const struct of_device_id sun4i_mdio_dt_ids[] = {
+	{ .compatible = "allwinner,sun4i-a10-mdio" },
+
+	/* Deprecated */
 	{ .compatible = "allwinner,sun4i-mdio" },
 	{ }
 };

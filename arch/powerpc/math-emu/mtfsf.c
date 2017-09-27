@@ -1,6 +1,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/sfp-machine.h>
 #include <math-emu/soft-fp.h>
@@ -11,48 +11,36 @@ mtfsf(unsigned int FM, u32 *frB)
 	u32 mask;
 	u32 fpscr;
 
-	if (FM == 0)
-		return 0;
-
-	if (FM == 0xff)
-		mask = 0x9fffffff;
+	if (likely(FM == 1))
+		mask = 0x0f;
+	else if (likely(FM == 0xff))
+		mask = ~0;
 	else {
-		mask = 0;
-		if (FM & (1 << 0))
-			mask |= 0x90000000;
-		if (FM & (1 << 1))
-			mask |= 0x0f000000;
-		if (FM & (1 << 2))
-			mask |= 0x00f00000;
-		if (FM & (1 << 3))
-			mask |= 0x000f0000;
-		if (FM & (1 << 4))
-			mask |= 0x0000f000;
-		if (FM & (1 << 5))
-			mask |= 0x00000f00;
-		if (FM & (1 << 6))
-			mask |= 0x000000f0;
-		if (FM & (1 << 7))
-			mask |= 0x0000000f;
+		mask = ((FM & 1) |
+				((FM << 3) & 0x10) |
+				((FM << 6) & 0x100) |
+				((FM << 9) & 0x1000) |
+				((FM << 12) & 0x10000) |
+				((FM << 15) & 0x100000) |
+				((FM << 18) & 0x1000000) |
+				((FM << 21) & 0x10000000)) * 15;
 	}
 
-	__FPU_FPSCR &= ~(mask);
-	__FPU_FPSCR |= (frB[1] & mask);
+	fpscr = ((__FPU_FPSCR & ~mask) | (frB[1] & mask)) &
+		~(FPSCR_VX | FPSCR_FEX | 0x800);
 
-	__FPU_FPSCR &= ~(FPSCR_VX);
-	if (__FPU_FPSCR & (FPSCR_VXSNAN | FPSCR_VXISI | FPSCR_VXIDI |
+	if (fpscr & (FPSCR_VXSNAN | FPSCR_VXISI | FPSCR_VXIDI |
 		     FPSCR_VXZDZ | FPSCR_VXIMZ | FPSCR_VXVC |
 		     FPSCR_VXSOFT | FPSCR_VXSQRT | FPSCR_VXCVI))
-		__FPU_FPSCR |= FPSCR_VX;
+		fpscr |= FPSCR_VX;
 
-	fpscr = __FPU_FPSCR;
-	fpscr &= ~(FPSCR_FEX);
-	if (((fpscr & FPSCR_VX) && (fpscr & FPSCR_VE)) ||
-	    ((fpscr & FPSCR_OX) && (fpscr & FPSCR_OE)) ||
-	    ((fpscr & FPSCR_UX) && (fpscr & FPSCR_UE)) ||
-	    ((fpscr & FPSCR_ZX) && (fpscr & FPSCR_ZE)) ||
-	    ((fpscr & FPSCR_XX) && (fpscr & FPSCR_XE)))
+	/* The bit order of exception enables and exception status
+	 * is the same. Simply shift and mask to check for enabled
+	 * exceptions.
+	 */
+	if (fpscr & (fpscr >> 22) &  0xf8)
 		fpscr |= FPSCR_FEX;
+
 	__FPU_FPSCR = fpscr;
 
 #ifdef DEBUG

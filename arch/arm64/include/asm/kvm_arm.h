@@ -18,9 +18,12 @@
 #ifndef __ARM64_KVM_ARM_H__
 #define __ARM64_KVM_ARM_H__
 
+#include <asm/esr.h>
+#include <asm/memory.h>
 #include <asm/types.h>
 
 /* Hyp Configuration Register (HCR) bits */
+#define HCR_E2H		(UL(1) << 34)
 #define HCR_ID		(UL(1) << 33)
 #define HCR_CD		(UL(1) << 32)
 #define HCR_RW_SHIFT	31
@@ -47,7 +50,7 @@
 #define HCR_BSU		(3 << 10)
 #define HCR_BSU_IS	(UL(1) << 10)
 #define HCR_FB		(UL(1) << 9)
-#define HCR_VA		(UL(1) << 8)
+#define HCR_VSE		(UL(1) << 8)
 #define HCR_VI		(UL(1) << 7)
 #define HCR_VF		(UL(1) << 6)
 #define HCR_AMO		(UL(1) << 5)
@@ -59,10 +62,12 @@
 
 /*
  * The bits we set in HCR:
- * RW:		64bit by default, can be overriden for 32bit VMs
+ * RW:		64bit by default, can be overridden for 32bit VMs
  * TAC:		Trap ACTLR
  * TSC:		Trap SMC
+ * TVM:		Trap VM ops (until M+C set in SCTLR_EL1)
  * TSW:		Trap cache operations by set/way
+ * TWE:		Trap WFE
  * TWI:		Trap WFI
  * TIDCP:	Trap L2CTLR/L2ECTLR
  * BSU_IS:	Upgrade barriers to the inner shareable domain
@@ -72,96 +77,120 @@
  * FMO:		Override CPSR.F and enable signaling with VF
  * SWIO:	Turn set/way invalidates into set/way clean+invalidate
  */
-#define HCR_GUEST_FLAGS (HCR_TSC | HCR_TSW | HCR_TWI | HCR_VM | HCR_BSU_IS | \
-			 HCR_FB | HCR_TAC | HCR_AMO | HCR_IMO | HCR_FMO | \
-			 HCR_SWIO | HCR_TIDCP | HCR_RW)
-#define HCR_VIRT_EXCP_MASK (HCR_VA | HCR_VI | HCR_VF)
-
-/* Hyp System Control Register (SCTLR_EL2) bits */
-#define SCTLR_EL2_EE	(1 << 25)
-#define SCTLR_EL2_WXN	(1 << 19)
-#define SCTLR_EL2_I	(1 << 12)
-#define SCTLR_EL2_SA	(1 << 3)
-#define SCTLR_EL2_C	(1 << 2)
-#define SCTLR_EL2_A	(1 << 1)
-#define SCTLR_EL2_M	1
-#define SCTLR_EL2_FLAGS	(SCTLR_EL2_M | SCTLR_EL2_A | SCTLR_EL2_C |	\
-			 SCTLR_EL2_SA | SCTLR_EL2_I)
+#define HCR_GUEST_FLAGS (HCR_TSC | HCR_TSW | HCR_TWE | HCR_TWI | HCR_VM | \
+			 HCR_TVM | HCR_BSU_IS | HCR_FB | HCR_TAC | \
+			 HCR_AMO | HCR_SWIO | HCR_TIDCP | HCR_RW)
+#define HCR_VIRT_EXCP_MASK (HCR_VSE | HCR_VI | HCR_VF)
+#define HCR_INT_OVERRIDE   (HCR_FMO | HCR_IMO)
+#define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H)
 
 /* TCR_EL2 Registers bits */
-#define TCR_EL2_TBI	(1 << 20)
-#define TCR_EL2_PS	(7 << 16)
-#define TCR_EL2_PS_40B	(2 << 16)
-#define TCR_EL2_TG0	(1 << 14)
-#define TCR_EL2_SH0	(3 << 12)
-#define TCR_EL2_ORGN0	(3 << 10)
-#define TCR_EL2_IRGN0	(3 << 8)
-#define TCR_EL2_T0SZ	0x3f
-#define TCR_EL2_MASK	(TCR_EL2_TG0 | TCR_EL2_SH0 | \
-			 TCR_EL2_ORGN0 | TCR_EL2_IRGN0 | TCR_EL2_T0SZ)
-
-#define TCR_EL2_FLAGS	(TCR_EL2_PS_40B)
+#define TCR_EL2_RES1		((1 << 31) | (1 << 23))
+#define TCR_EL2_TBI		(1 << 20)
+#define TCR_EL2_PS_SHIFT	16
+#define TCR_EL2_PS_MASK		(7 << TCR_EL2_PS_SHIFT)
+#define TCR_EL2_PS_40B		(2 << TCR_EL2_PS_SHIFT)
+#define TCR_EL2_TG0_MASK	TCR_TG0_MASK
+#define TCR_EL2_SH0_MASK	TCR_SH0_MASK
+#define TCR_EL2_ORGN0_MASK	TCR_ORGN0_MASK
+#define TCR_EL2_IRGN0_MASK	TCR_IRGN0_MASK
+#define TCR_EL2_T0SZ_MASK	0x3f
+#define TCR_EL2_MASK	(TCR_EL2_TG0_MASK | TCR_EL2_SH0_MASK | \
+			 TCR_EL2_ORGN0_MASK | TCR_EL2_IRGN0_MASK | TCR_EL2_T0SZ_MASK)
 
 /* VTCR_EL2 Registers bits */
-#define VTCR_EL2_PS_MASK	(7 << 16)
-#define VTCR_EL2_PS_40B		(2 << 16)
-#define VTCR_EL2_TG0_MASK	(1 << 14)
-#define VTCR_EL2_TG0_4K		(0 << 14)
-#define VTCR_EL2_TG0_64K	(1 << 14)
-#define VTCR_EL2_SH0_MASK	(3 << 12)
-#define VTCR_EL2_SH0_INNER	(3 << 12)
-#define VTCR_EL2_ORGN0_MASK	(3 << 10)
-#define VTCR_EL2_ORGN0_WBWA	(1 << 10)
-#define VTCR_EL2_IRGN0_MASK	(3 << 8)
-#define VTCR_EL2_IRGN0_WBWA	(1 << 8)
-#define VTCR_EL2_SL0_MASK	(3 << 6)
-#define VTCR_EL2_SL0_LVL1	(1 << 6)
+#define VTCR_EL2_RES1		(1 << 31)
+#define VTCR_EL2_HD		(1 << 22)
+#define VTCR_EL2_HA		(1 << 21)
+#define VTCR_EL2_PS_MASK	TCR_EL2_PS_MASK
+#define VTCR_EL2_TG0_MASK	TCR_TG0_MASK
+#define VTCR_EL2_TG0_4K		TCR_TG0_4K
+#define VTCR_EL2_TG0_16K	TCR_TG0_16K
+#define VTCR_EL2_TG0_64K	TCR_TG0_64K
+#define VTCR_EL2_SH0_MASK	TCR_SH0_MASK
+#define VTCR_EL2_SH0_INNER	TCR_SH0_INNER
+#define VTCR_EL2_ORGN0_MASK	TCR_ORGN0_MASK
+#define VTCR_EL2_ORGN0_WBWA	TCR_ORGN0_WBWA
+#define VTCR_EL2_IRGN0_MASK	TCR_IRGN0_MASK
+#define VTCR_EL2_IRGN0_WBWA	TCR_IRGN0_WBWA
+#define VTCR_EL2_SL0_SHIFT	6
+#define VTCR_EL2_SL0_MASK	(3 << VTCR_EL2_SL0_SHIFT)
+#define VTCR_EL2_SL0_LVL1	(1 << VTCR_EL2_SL0_SHIFT)
 #define VTCR_EL2_T0SZ_MASK	0x3f
 #define VTCR_EL2_T0SZ_40B	24
+#define VTCR_EL2_VS_SHIFT	19
+#define VTCR_EL2_VS_8BIT	(0 << VTCR_EL2_VS_SHIFT)
+#define VTCR_EL2_VS_16BIT	(1 << VTCR_EL2_VS_SHIFT)
+
+/*
+ * We configure the Stage-2 page tables to always restrict the IPA space to be
+ * 40 bits wide (T0SZ = 24).  Systems with a PARange smaller than 40 bits are
+ * not known to exist and will break with this configuration.
+ *
+ * VTCR_EL2.PS is extracted from ID_AA64MMFR0_EL1.PARange at boot time
+ * (see hyp-init.S).
+ *
+ * Note that when using 4K pages, we concatenate two first level page tables
+ * together. With 16K pages, we concatenate 16 first level page tables.
+ *
+ * The magic numbers used for VTTBR_X in this patch can be found in Tables
+ * D4-23 and D4-25 in ARM DDI 0487A.b.
+ */
+
+#define VTCR_EL2_T0SZ_IPA	VTCR_EL2_T0SZ_40B
+#define VTCR_EL2_COMMON_BITS	(VTCR_EL2_SH0_INNER | VTCR_EL2_ORGN0_WBWA | \
+				 VTCR_EL2_IRGN0_WBWA | VTCR_EL2_RES1)
 
 #ifdef CONFIG_ARM64_64K_PAGES
 /*
  * Stage2 translation configuration:
- * 40bits output (PS = 2)
- * 40bits input  (T0SZ = 24)
  * 64kB pages (TG0 = 1)
  * 2 level page tables (SL = 1)
  */
-#define VTCR_EL2_FLAGS		(VTCR_EL2_PS_40B | VTCR_EL2_TG0_64K | \
-				 VTCR_EL2_SH0_INNER | VTCR_EL2_ORGN0_WBWA | \
-				 VTCR_EL2_IRGN0_WBWA | VTCR_EL2_SL0_LVL1 | \
-				 VTCR_EL2_T0SZ_40B)
-#define VTTBR_X		(38 - VTCR_EL2_T0SZ_40B)
-#else
+#define VTCR_EL2_TGRAN_FLAGS		(VTCR_EL2_TG0_64K | VTCR_EL2_SL0_LVL1)
+#define VTTBR_X_TGRAN_MAGIC		38
+#elif defined(CONFIG_ARM64_16K_PAGES)
 /*
  * Stage2 translation configuration:
- * 40bits output (PS = 2)
- * 40bits input  (T0SZ = 24)
+ * 16kB pages (TG0 = 2)
+ * 2 level page tables (SL = 1)
+ */
+#define VTCR_EL2_TGRAN_FLAGS		(VTCR_EL2_TG0_16K | VTCR_EL2_SL0_LVL1)
+#define VTTBR_X_TGRAN_MAGIC		42
+#else	/* 4K */
+/*
+ * Stage2 translation configuration:
  * 4kB pages (TG0 = 0)
  * 3 level page tables (SL = 1)
  */
-#define VTCR_EL2_FLAGS		(VTCR_EL2_PS_40B | VTCR_EL2_TG0_4K | \
-				 VTCR_EL2_SH0_INNER | VTCR_EL2_ORGN0_WBWA | \
-				 VTCR_EL2_IRGN0_WBWA | VTCR_EL2_SL0_LVL1 | \
-				 VTCR_EL2_T0SZ_40B)
-#define VTTBR_X		(37 - VTCR_EL2_T0SZ_40B)
+#define VTCR_EL2_TGRAN_FLAGS		(VTCR_EL2_TG0_4K | VTCR_EL2_SL0_LVL1)
+#define VTTBR_X_TGRAN_MAGIC		37
 #endif
 
+#define VTCR_EL2_FLAGS			(VTCR_EL2_COMMON_BITS | VTCR_EL2_TGRAN_FLAGS)
+#define VTTBR_X				(VTTBR_X_TGRAN_MAGIC - VTCR_EL2_T0SZ_IPA)
+
 #define VTTBR_BADDR_SHIFT (VTTBR_X - 1)
-#define VTTBR_BADDR_MASK  (((1LLU << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
-#define VTTBR_VMID_SHIFT  (48LLU)
-#define VTTBR_VMID_MASK	  (0xffLLU << VTTBR_VMID_SHIFT)
+#define VTTBR_BADDR_MASK  (((UL(1) << (PHYS_MASK_SHIFT - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
+#define VTTBR_VMID_SHIFT  (UL(48))
+#define VTTBR_VMID_MASK(size) (_AT(u64, (1 << size) - 1) << VTTBR_VMID_SHIFT)
 
 /* Hyp System Trap Register */
-#define HSTR_EL2_TTEE	(1 << 16)
 #define HSTR_EL2_T(x)	(1 << x)
+
+/* Hyp Coprocessor Trap Register Shifts */
+#define CPTR_EL2_TFP_SHIFT 10
 
 /* Hyp Coprocessor Trap Register */
 #define CPTR_EL2_TCPAC	(1 << 31)
 #define CPTR_EL2_TTA	(1 << 20)
-#define CPTR_EL2_TFP	(1 << 10)
+#define CPTR_EL2_TFP	(1 << CPTR_EL2_TFP_SHIFT)
+#define CPTR_EL2_DEFAULT	0x000033ff
 
 /* Hyp Debug Configuration Register bits */
+#define MDCR_EL2_TPMS		(1 << 14)
+#define MDCR_EL2_E2PB_MASK	(UL(0x3))
+#define MDCR_EL2_E2PB_SHIFT	(UL(12))
 #define MDCR_EL2_TDRA		(1 << 11)
 #define MDCR_EL2_TDOSA		(1 << 10)
 #define MDCR_EL2_TDA		(1 << 9)
@@ -171,75 +200,41 @@
 #define MDCR_EL2_TPMCR		(1 << 5)
 #define MDCR_EL2_HPMN_MASK	(0x1F)
 
-/* Exception Syndrome Register (ESR) bits */
-#define ESR_EL2_EC_SHIFT	(26)
-#define ESR_EL2_EC		(0x3fU << ESR_EL2_EC_SHIFT)
-#define ESR_EL2_IL		(1U << 25)
-#define ESR_EL2_ISS		(ESR_EL2_IL - 1)
-#define ESR_EL2_ISV_SHIFT	(24)
-#define ESR_EL2_ISV		(1U << ESR_EL2_ISV_SHIFT)
-#define ESR_EL2_SAS_SHIFT	(22)
-#define ESR_EL2_SAS		(3U << ESR_EL2_SAS_SHIFT)
-#define ESR_EL2_SSE		(1 << 21)
-#define ESR_EL2_SRT_SHIFT	(16)
-#define ESR_EL2_SRT_MASK	(0x1f << ESR_EL2_SRT_SHIFT)
-#define ESR_EL2_SF 		(1 << 15)
-#define ESR_EL2_AR 		(1 << 14)
-#define ESR_EL2_EA 		(1 << 9)
-#define ESR_EL2_CM 		(1 << 8)
-#define ESR_EL2_S1PTW 		(1 << 7)
-#define ESR_EL2_WNR		(1 << 6)
-#define ESR_EL2_FSC		(0x3f)
-#define ESR_EL2_FSC_TYPE	(0x3c)
-
-#define ESR_EL2_CV_SHIFT	(24)
-#define ESR_EL2_CV		(1U << ESR_EL2_CV_SHIFT)
-#define ESR_EL2_COND_SHIFT	(20)
-#define ESR_EL2_COND		(0xfU << ESR_EL2_COND_SHIFT)
-
-
-#define FSC_FAULT	(0x04)
-#define FSC_PERM	(0x0c)
+/* For compatibility with fault code shared with 32-bit */
+#define FSC_FAULT	ESR_ELx_FSC_FAULT
+#define FSC_ACCESS	ESR_ELx_FSC_ACCESS
+#define FSC_PERM	ESR_ELx_FSC_PERM
+#define FSC_SEA		ESR_ELx_FSC_EXTABT
+#define FSC_SEA_TTW0	(0x14)
+#define FSC_SEA_TTW1	(0x15)
+#define FSC_SEA_TTW2	(0x16)
+#define FSC_SEA_TTW3	(0x17)
+#define FSC_SECC	(0x18)
+#define FSC_SECC_TTW0	(0x1c)
+#define FSC_SECC_TTW1	(0x1d)
+#define FSC_SECC_TTW2	(0x1e)
+#define FSC_SECC_TTW3	(0x1f)
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
-#define HPFAR_MASK	(~0xFUL)
+#define HPFAR_MASK	(~UL(0xf))
 
-#define ESR_EL2_EC_UNKNOWN	(0x00)
-#define ESR_EL2_EC_WFI		(0x01)
-#define ESR_EL2_EC_CP15_32	(0x03)
-#define ESR_EL2_EC_CP15_64	(0x04)
-#define ESR_EL2_EC_CP14_MR	(0x05)
-#define ESR_EL2_EC_CP14_LS	(0x06)
-#define ESR_EL2_EC_FP_ASIMD	(0x07)
-#define ESR_EL2_EC_CP10_ID	(0x08)
-#define ESR_EL2_EC_CP14_64	(0x0C)
-#define ESR_EL2_EC_ILL_ISS	(0x0E)
-#define ESR_EL2_EC_SVC32	(0x11)
-#define ESR_EL2_EC_HVC32	(0x12)
-#define ESR_EL2_EC_SMC32	(0x13)
-#define ESR_EL2_EC_SVC64	(0x15)
-#define ESR_EL2_EC_HVC64	(0x16)
-#define ESR_EL2_EC_SMC64	(0x17)
-#define ESR_EL2_EC_SYS64	(0x18)
-#define ESR_EL2_EC_IABT		(0x20)
-#define ESR_EL2_EC_IABT_HYP	(0x21)
-#define ESR_EL2_EC_PC_ALIGN	(0x22)
-#define ESR_EL2_EC_DABT		(0x24)
-#define ESR_EL2_EC_DABT_HYP	(0x25)
-#define ESR_EL2_EC_SP_ALIGN	(0x26)
-#define ESR_EL2_EC_FP_EXC32	(0x28)
-#define ESR_EL2_EC_FP_EXC64	(0x2C)
-#define ESR_EL2_EC_SERRROR	(0x2F)
-#define ESR_EL2_EC_BREAKPT	(0x30)
-#define ESR_EL2_EC_BREAKPT_HYP	(0x31)
-#define ESR_EL2_EC_SOFTSTP	(0x32)
-#define ESR_EL2_EC_SOFTSTP_HYP	(0x33)
-#define ESR_EL2_EC_WATCHPT	(0x34)
-#define ESR_EL2_EC_WATCHPT_HYP	(0x35)
-#define ESR_EL2_EC_BKPT32	(0x38)
-#define ESR_EL2_EC_VECTOR32	(0x3A)
-#define ESR_EL2_EC_BRK64	(0x3C)
+#define kvm_arm_exception_type	\
+	{0, "IRQ" }, 		\
+	{1, "TRAP" }
 
-#define ESR_EL2_EC_xABT_xFSR_EXTABT	0x10
+#define ECN(x) { ESR_ELx_EC_##x, #x }
+
+#define kvm_arm_exception_class \
+	ECN(UNKNOWN), ECN(WFx), ECN(CP15_32), ECN(CP15_64), ECN(CP14_MR), \
+	ECN(CP14_LS), ECN(FP_ASIMD), ECN(CP10_ID), ECN(CP14_64), ECN(SVC64), \
+	ECN(HVC64), ECN(SMC64), ECN(SYS64), ECN(IMP_DEF), ECN(IABT_LOW), \
+	ECN(IABT_CUR), ECN(PC_ALIGN), ECN(DABT_LOW), ECN(DABT_CUR), \
+	ECN(SP_ALIGN), ECN(FP_EXC32), ECN(FP_EXC64), ECN(SERROR), \
+	ECN(BREAKPT_LOW), ECN(BREAKPT_CUR), ECN(SOFTSTP_LOW), \
+	ECN(SOFTSTP_CUR), ECN(WATCHPT_LOW), ECN(WATCHPT_CUR), \
+	ECN(BKPT32), ECN(VECTOR32), ECN(BRK64)
+
+#define CPACR_EL1_FPEN		(3 << 20)
+#define CPACR_EL1_TTA		(1 << 28)
 
 #endif /* __ARM64_KVM_ARM_H__ */

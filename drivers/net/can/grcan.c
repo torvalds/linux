@@ -15,7 +15,7 @@
  * See "Documentation/ABI/testing/sysfs-class-net-grcan" for information on the
  * sysfs interface.
  *
- * See "Documentation/kernel-parameters.txt" for information on the module
+ * See "Documentation/admin-guide/kernel-parameters.rst" for information on the module
  * parameters.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -34,10 +34,7 @@
 #include <linux/io.h>
 #include <linux/can/dev.h>
 #include <linux/spinlock.h>
-
 #include <linux/of_platform.h>
-#include <asm/prom.h>
-
 #include <linux/of_irq.h>
 
 #include <linux/dma-mapping.h>
@@ -1219,11 +1216,12 @@ static int grcan_receive(struct net_device *dev, int budget)
 				cf->data[i] = (u8)(slot[j] >> shift);
 			}
 		}
-		netif_receive_skb(skb);
 
 		/* Update statistics and read pointer */
 		stats->rx_packets++;
 		stats->rx_bytes += cf->can_dlc;
+		netif_receive_skb(skb);
+
 		rd = grcan_ring_add(rd, GRCAN_MSG_SIZE, dma->rx.size);
 	}
 
@@ -1581,6 +1579,7 @@ static const struct net_device_ops grcan_netdev_ops = {
 	.ndo_open	= grcan_open,
 	.ndo_stop	= grcan_close,
 	.ndo_start_xmit	= grcan_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static int grcan_setup_netdev(struct platform_device *ofdev,
@@ -1727,7 +1726,7 @@ static int grcan_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id grcan_match[] = {
+static const struct of_device_id grcan_match[] = {
 	{.name = "GAISLER_GRCAN"},
 	{.name = "01_03d"},
 	{.name = "GAISLER_GRHCAN"},
@@ -1740,7 +1739,6 @@ MODULE_DEVICE_TABLE(of, grcan_match);
 static struct platform_driver grcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = grcan_match,
 	},
 	.probe = grcan_probe,

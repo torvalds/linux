@@ -113,7 +113,7 @@ cpufreq-bench Command Usage
 -c, --cpu=<unsigned int>        CPU Number to use, starting at 0
 -p, --prio=<priority>           scheduler priority, HIGH, LOW or DEFAULT
 -g, --governor=<governor>       cpufreq governor to test
--n, --cycles=<int>              load/sleep cycles to get an avarage value to compare
+-n, --cycles=<int>              load/sleep cycles to get an average value to compare
 -r, --rounds<int>               load/sleep rounds
 -f, --file=<configfile>         config file to use
 -o, --output=<dir>              output dir, must exist

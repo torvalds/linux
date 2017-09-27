@@ -6,58 +6,31 @@
  * Handler for trusted extended attributes.
  */
 
+#include <linux/nls.h>
+
 #include "hfsplus_fs.h"
 #include "xattr.h"
 
-static int hfsplus_trusted_getxattr(struct dentry *dentry, const char *name,
-					void *buffer, size_t size, int type)
+static int hfsplus_trusted_getxattr(const struct xattr_handler *handler,
+				    struct dentry *unused, struct inode *inode,
+				    const char *name, void *buffer, size_t size)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN + 1] = {0};
-	size_t len = strlen(name);
-
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
-	if (len + XATTR_TRUSTED_PREFIX_LEN > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
-
-	strcpy(xattr_name, XATTR_TRUSTED_PREFIX);
-	strcpy(xattr_name + XATTR_TRUSTED_PREFIX_LEN, name);
-
-	return hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	return hfsplus_getxattr(inode, name, buffer, size,
+				XATTR_TRUSTED_PREFIX,
+				XATTR_TRUSTED_PREFIX_LEN);
 }
 
-static int hfsplus_trusted_setxattr(struct dentry *dentry, const char *name,
-		const void *buffer, size_t size, int flags, int type)
+static int hfsplus_trusted_setxattr(const struct xattr_handler *handler,
+				    struct dentry *unused, struct inode *inode,
+				    const char *name, const void *buffer,
+				    size_t size, int flags)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN + 1] = {0};
-	size_t len = strlen(name);
-
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
-	if (len + XATTR_TRUSTED_PREFIX_LEN > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
-
-	strcpy(xattr_name, XATTR_TRUSTED_PREFIX);
-	strcpy(xattr_name + XATTR_TRUSTED_PREFIX_LEN, name);
-
-	return hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
-}
-
-static size_t hfsplus_trusted_listxattr(struct dentry *dentry, char *list,
-		size_t list_size, const char *name, size_t name_len, int type)
-{
-	/*
-	 * This method is not used.
-	 * It is used hfsplus_listxattr() instead of generic_listxattr().
-	 */
-	return -EOPNOTSUPP;
+	return hfsplus_setxattr(inode, name, buffer, size, flags,
+				XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
 }
 
 const struct xattr_handler hfsplus_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
-	.list	= hfsplus_trusted_listxattr,
 	.get	= hfsplus_trusted_getxattr,
 	.set	= hfsplus_trusted_setxattr,
 };

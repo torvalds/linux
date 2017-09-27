@@ -139,7 +139,7 @@ static int siu_pcm_wr_set(struct siu_port *port_info,
 
 	desc->callback = siu_dma_tx_complete;
 	desc->callback_param = siu_stream;
-	cookie = desc->tx_submit(desc);
+	cookie = dmaengine_submit(desc);
 	if (cookie < 0) {
 		dev_err(dev, "Failed to submit a dma transfer\n");
 		return cookie;
@@ -189,7 +189,7 @@ static int siu_pcm_rd_set(struct siu_port *port_info,
 
 	desc->callback = siu_dma_tx_complete;
 	desc->callback_param = siu_stream;
-	cookie = desc->tx_submit(desc);
+	cookie = dmaengine_submit(desc);
 	if (cookie < 0) {
 		dev_err(dev, "Failed to submit dma descriptor\n");
 		return cookie;
@@ -589,12 +589,11 @@ static void siu_pcm_free(struct snd_pcm *pcm)
 	tasklet_kill(&port_info->playback.tasklet);
 
 	siu_free_port(port_info);
-	snd_pcm_lib_preallocate_free_for_all(pcm);
 
 	dev_dbg(pcm->card->dev, "%s\n", __func__);
 }
 
-static struct snd_pcm_ops siu_pcm_ops = {
+static const struct snd_pcm_ops siu_pcm_ops = {
 	.open		= siu_pcm_open,
 	.close		= siu_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,

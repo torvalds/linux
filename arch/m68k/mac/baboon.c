@@ -14,8 +14,6 @@
 #include <asm/macints.h>
 #include <asm/mac_baboon.h>
 
-/* #define DEBUG_IRQS */
-
 int baboon_present;
 static volatile struct baboon *baboon;
 
@@ -45,16 +43,10 @@ void __init baboon_init(void)
  * Baboon interrupt handler. This works a lot like a VIA.
  */
 
-static void baboon_irq(unsigned int irq, struct irq_desc *desc)
+static void baboon_irq(struct irq_desc *desc)
 {
 	int irq_bit, irq_num;
 	unsigned char events;
-
-#ifdef DEBUG_IRQS
-	printk("baboon_irq: mb_control %02X mb_ifr %02X mb_status %02X\n",
-		(uint) baboon->mb_control, (uint) baboon->mb_ifr,
-		(uint) baboon->mb_status);
-#endif
 
 	events = baboon->mb_ifr & 0x07;
 	if (!events)
@@ -97,18 +89,10 @@ void __init baboon_register_interrupts(void)
 
 void baboon_irq_enable(int irq)
 {
-#ifdef DEBUG_IRQUSE
-	printk("baboon_irq_enable(%d)\n", irq);
-#endif
-
 	mac_irq_enable(irq_get_irq_data(IRQ_NUBUS_C));
 }
 
 void baboon_irq_disable(int irq)
 {
-#ifdef DEBUG_IRQUSE
-	printk("baboon_irq_disable(%d)\n", irq);
-#endif
-
 	mac_irq_disable(irq_get_irq_data(IRQ_NUBUS_C));
 }

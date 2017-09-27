@@ -194,6 +194,12 @@
 #define WM8741_DITHER_SHIFT                          0  /* DITHER - [1:0] */
 #define WM8741_DITHER_WIDTH                          2  /* DITHER - [1:0] */
 
+/* DIFF field values */
+#define WM8741_DIFF_MODE_STEREO                      0  /* stereo normal */
+#define WM8741_DIFF_MODE_STEREO_REVERSED             2  /* stereo reversed */
+#define WM8741_DIFF_MODE_MONO_LEFT                   1  /* mono left */
+#define WM8741_DIFF_MODE_MONO_RIGHT                  3  /* mono right */
+
 /*
  * R32 (0x20) - ADDITONAL_CONTROL_1
  */
@@ -207,5 +213,9 @@
 #define WM8741_DSD_NO_NOTCH_WIDTH                    1  /* DSD_NO_NOTCH */
 
 #define  WM8741_SYSCLK 0
+
+struct wm8741_platform_data {
+	u32 diff_mode;   /* Differential Output Mode */
+};
 
 #endif

@@ -37,40 +37,8 @@ compute_subtree_last(struct drbd_interval *node)
 	return max;
 }
 
-static void augment_propagate(struct rb_node *rb, struct rb_node *stop)
-{
-	while (rb != stop) {
-		struct drbd_interval *node = rb_entry(rb, struct drbd_interval, rb);
-		sector_t subtree_last = compute_subtree_last(node);
-		if (node->end == subtree_last)
-			break;
-		node->end = subtree_last;
-		rb = rb_parent(&node->rb);
-	}
-}
-
-static void augment_copy(struct rb_node *rb_old, struct rb_node *rb_new)
-{
-	struct drbd_interval *old = rb_entry(rb_old, struct drbd_interval, rb);
-	struct drbd_interval *new = rb_entry(rb_new, struct drbd_interval, rb);
-
-	new->end = old->end;
-}
-
-static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
-{
-	struct drbd_interval *old = rb_entry(rb_old, struct drbd_interval, rb);
-	struct drbd_interval *new = rb_entry(rb_new, struct drbd_interval, rb);
-
-	new->end = old->end;
-	old->end = compute_subtree_last(old);
-}
-
-static const struct rb_augment_callbacks augment_callbacks = {
-	augment_propagate,
-	augment_copy,
-	augment_rotate,
-};
+RB_DECLARE_CALLBACKS(static, augment_callbacks, struct drbd_interval, rb,
+		     sector_t, end, compute_subtree_last);
 
 /**
  * drbd_insert_interval  -  insert a new interval into a tree
@@ -79,6 +47,7 @@ bool
 drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
 {
 	struct rb_node **new = &root->rb_node, *parent = NULL;
+	sector_t this_end = this->sector + (this->size >> 9);
 
 	BUG_ON(!IS_ALIGNED(this->size, 512));
 
@@ -87,6 +56,8 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
 			rb_entry(*new, struct drbd_interval, rb);
 
 		parent = *new;
+		if (here->end < this_end)
+			here->end = this_end;
 		if (this->sector < here->sector)
 			new = &(*new)->rb_left;
 		else if (this->sector > here->sector)
@@ -99,6 +70,7 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
 			return false;
 	}
 
+	this->end = this_end;
 	rb_link_node(&this->rb, parent, new);
 	rb_insert_augmented(&this->rb, root, &augment_callbacks);
 	return true;

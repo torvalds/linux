@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -24,7 +25,6 @@ BFA_TRC_FILE(HAL, FCPIM);
  *  BFA ITNIM Related definitions
  */
 static void bfa_itnim_update_del_itn_stats(struct bfa_itnim_s *itnim);
-static void bfa_ioim_lm_init(struct bfa_s *bfa);
 
 #define BFA_ITNIM_FROM_TAG(_fcpim, _tag)                                \
 	(((_fcpim)->itnim_arr + ((_tag) & ((_fcpim)->num_itnims - 1))))
@@ -338,7 +338,7 @@ bfa_fcpim_attach(struct bfa_fcp_mod_s *fcp, void *bfad,
 	bfa_ioim_attach(fcpim);
 }
 
-static void
+void
 bfa_fcpim_iocdisable(struct bfa_fcp_mod_s *fcp)
 {
 	struct bfa_fcpim_s *fcpim = &fcp->fcpim;
@@ -2104,7 +2104,7 @@ bfa_ioim_sm_resfree(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
  * is complete by driver. now invalidate the stale content of lun mask
  * like unit attention, rp tag and lp tag.
  */
-static void
+void
 bfa_ioim_lm_init(struct bfa_s *bfa)
 {
 	struct bfa_lun_mask_s *lunm_list;
@@ -3633,11 +3633,7 @@ bfa_tskim_res_recfg(struct bfa_s *bfa, u16 num_tskim_fw)
 	}
 }
 
-/* BFA FCP module - parent module for fcpim */
-
-BFA_MODULE(fcp);
-
-static void
+void
 bfa_fcp_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		struct bfa_s *bfa)
 {
@@ -3695,7 +3691,7 @@ bfa_fcp_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 	bfa_mem_kva_setup(minfo, fcp_kva, km_len);
 }
 
-static void
+void
 bfa_fcp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_pcidev_s *pcidev)
 {
@@ -3738,29 +3734,7 @@ bfa_fcp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 			(fcp->num_itns * sizeof(struct bfa_itn_s)));
 }
 
-static void
-bfa_fcp_detach(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_fcp_start(struct bfa_s *bfa)
-{
-	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
-
-	/*
-	 * bfa_init() with flash read is complete. now invalidate the stale
-	 * content of lun mask like unit attention, rp tag and lp tag.
-	 */
-	bfa_ioim_lm_init(fcp->bfa);
-}
-
-static void
-bfa_fcp_stop(struct bfa_s *bfa)
-{
-}
-
-static void
+void
 bfa_fcp_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);

@@ -13,11 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Koji Sato <koji@osrg.net>.
+ * Written by Koji Sato.
  */
 
 #ifndef _NILFS_BMAP_H
@@ -26,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_fs.h>
+#include <linux/nilfs2_ondisk.h>	/* nilfs_binfo, nilfs_inode, etc */
 #include "alloc.h"
 #include "dat.h"
 
@@ -61,7 +57,7 @@ struct nilfs_bmap_stats {
 struct nilfs_bmap_operations {
 	int (*bop_lookup)(const struct nilfs_bmap *, __u64, int, __u64 *);
 	int (*bop_lookup_contig)(const struct nilfs_bmap *, __u64, __u64 *,
-				 unsigned);
+				 unsigned int);
 	int (*bop_insert)(struct nilfs_bmap *, __u64, __u64);
 	int (*bop_delete)(struct nilfs_bmap *, __u64);
 	void (*bop_clear)(struct nilfs_bmap *);
@@ -76,8 +72,10 @@ struct nilfs_bmap_operations {
 			  union nilfs_binfo *);
 	int (*bop_mark)(struct nilfs_bmap *, __u64, int);
 
-	/* The following functions are internal use only. */
+	int (*bop_seek_key)(const struct nilfs_bmap *, __u64, __u64 *);
 	int (*bop_last_key)(const struct nilfs_bmap *, __u64 *);
+
+	/* The following functions are internal use only. */
 	int (*bop_check_insert)(const struct nilfs_bmap *, __u64);
 	int (*bop_check_delete)(struct nilfs_bmap *, __u64);
 	int (*bop_gather_data)(struct nilfs_bmap *, __u64 *, __u64 *, int);
@@ -124,10 +122,14 @@ struct nilfs_bmap {
 
 /* pointer type */
 #define NILFS_BMAP_PTR_P	0	/* physical block number (i.e. LBN) */
-#define NILFS_BMAP_PTR_VS	1	/* virtual block number (single
-					   version) */
-#define NILFS_BMAP_PTR_VM	2	/* virtual block number (has multiple
-					   versions) */
+#define NILFS_BMAP_PTR_VS	1	/*
+					 * virtual block number (single
+					 * version)
+					 */
+#define NILFS_BMAP_PTR_VM	2	/*
+					 * virtual block number (has multiple
+					 * versions)
+					 */
 #define NILFS_BMAP_PTR_U	(-1)	/* never perform pointer operations */
 
 #define NILFS_BMAP_USE_VBN(bmap)	((bmap)->b_ptr_type > 0)
@@ -152,11 +154,12 @@ struct nilfs_bmap_store {
 int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *);
 int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_inode *);
 void nilfs_bmap_write(struct nilfs_bmap *, struct nilfs_inode *);
-int nilfs_bmap_lookup_contig(struct nilfs_bmap *, __u64, __u64 *, unsigned);
-int nilfs_bmap_insert(struct nilfs_bmap *, unsigned long, unsigned long);
-int nilfs_bmap_delete(struct nilfs_bmap *, unsigned long);
-int nilfs_bmap_last_key(struct nilfs_bmap *, unsigned long *);
-int nilfs_bmap_truncate(struct nilfs_bmap *, unsigned long);
+int nilfs_bmap_lookup_contig(struct nilfs_bmap *, __u64, __u64 *, unsigned int);
+int nilfs_bmap_insert(struct nilfs_bmap *bmap, __u64 key, unsigned long rec);
+int nilfs_bmap_delete(struct nilfs_bmap *bmap, __u64 key);
+int nilfs_bmap_seek_key(struct nilfs_bmap *bmap, __u64 start, __u64 *keyp);
+int nilfs_bmap_last_key(struct nilfs_bmap *bmap, __u64 *keyp);
+int nilfs_bmap_truncate(struct nilfs_bmap *bmap, __u64 key);
 void nilfs_bmap_clear(struct nilfs_bmap *);
 int nilfs_bmap_propagate(struct nilfs_bmap *, struct buffer_head *);
 void nilfs_bmap_lookup_dirty_buffers(struct nilfs_bmap *, struct list_head *);

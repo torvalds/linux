@@ -132,12 +132,12 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("cpu_clk", &div4_clks[DIV4_I]),
 
 	/* MSTP32 clocks */
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.5", &mstp_clks[MSTP029]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.4", &mstp_clks[MSTP028]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.3", &mstp_clks[MSTP027]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.2", &mstp_clks[MSTP026]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.1", &mstp_clks[MSTP025]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.0", &mstp_clks[MSTP024]),
+	CLKDEV_ICK_ID("fck", "sh-sci.5", &mstp_clks[MSTP029]),
+	CLKDEV_ICK_ID("fck", "sh-sci.4", &mstp_clks[MSTP028]),
+	CLKDEV_ICK_ID("fck", "sh-sci.3", &mstp_clks[MSTP027]),
+	CLKDEV_ICK_ID("fck", "sh-sci.2", &mstp_clks[MSTP026]),
+	CLKDEV_ICK_ID("fck", "sh-sci.1", &mstp_clks[MSTP025]),
+	CLKDEV_ICK_ID("fck", "sh-sci.0", &mstp_clks[MSTP024]),
 
 	CLKDEV_CON_ID("ssi1_fck", &mstp_clks[MSTP021]),
 	CLKDEV_CON_ID("ssi0_fck", &mstp_clks[MSTP020]),
@@ -146,12 +146,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("mmcif_fck", &mstp_clks[MSTP013]),
 	CLKDEV_CON_ID("flctl_fck", &mstp_clks[MSTP012]),
 
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.0", &mstp_clks[MSTP008]),
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.1", &mstp_clks[MSTP008]),
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.2", &mstp_clks[MSTP008]),
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.3", &mstp_clks[MSTP009]),
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.4", &mstp_clks[MSTP009]),
-	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.5", &mstp_clks[MSTP009]),
+	CLKDEV_ICK_ID("fck", "sh-tmu.0", &mstp_clks[MSTP008]),
+	CLKDEV_ICK_ID("fck", "sh-tmu.1", &mstp_clks[MSTP009]),
 
 	CLKDEV_CON_ID("siof_fck", &mstp_clks[MSTP003]),
 	CLKDEV_CON_ID("hspi_fck", &mstp_clks[MSTP002]),
@@ -168,8 +164,8 @@ int __init arch_clk_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++)
 		ret |= clk_register(clks[i]);
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, ARRAY_SIZE(div4_clks),

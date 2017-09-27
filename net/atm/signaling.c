@@ -19,39 +19,18 @@
 #include "resources.h"
 #include "signaling.h"
 
-#undef WAIT_FOR_DEMON		/* #define this if system calls on SVC sockets
-				   should block until the demon runs.
-				   Danger: may cause nasty hangs if the demon
-				   crashes. */
-
 struct atm_vcc *sigd = NULL;
-#ifdef WAIT_FOR_DEMON
-static DECLARE_WAIT_QUEUE_HEAD(sigd_sleep);
-#endif
 
 static void sigd_put_skb(struct sk_buff *skb)
 {
-#ifdef WAIT_FOR_DEMON
-	DECLARE_WAITQUEUE(wait, current);
-
-	add_wait_queue(&sigd_sleep, &wait);
-	while (!sigd) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		pr_debug("atmsvc: waiting for signaling daemon...\n");
-		schedule();
-	}
-	current->state = TASK_RUNNING;
-	remove_wait_queue(&sigd_sleep, &wait);
-#else
 	if (!sigd) {
 		pr_debug("atmsvc: no signaling daemon\n");
 		kfree_skb(skb);
 		return;
 	}
-#endif
 	atm_force_charge(sigd, skb->truesize);
 	skb_queue_tail(&sk_atm(sigd)->sk_receive_queue, skb);
-	sk_atm(sigd)->sk_data_ready(sk_atm(sigd), skb->len);
+	sk_atm(sigd)->sk_data_ready(sk_atm(sigd));
 }
 
 static void modify_qos(struct atm_vcc *vcc, struct atmsvc_msg *msg)
@@ -88,7 +67,7 @@ static int sigd_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct sock *sk;
 
 	msg = (struct atmsvc_msg *) skb->data;
-	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
+	WARN_ON(refcount_sub_and_test(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc));
 	vcc = *(struct atm_vcc **) &msg->vcc;
 	pr_debug("%d (0x%lx)\n", (int)msg->type, (unsigned long)vcc);
 	sk = sk_atm(vcc);
@@ -145,7 +124,7 @@ as_indicate_complete:
 		break;
 	case as_addparty:
 	case as_dropparty:
-		sk->sk_err_soft = msg->reply;
+		sk->sk_err_soft = -msg->reply;
 					/* < 0 failure, otherwise ep_ref */
 		clear_bit(ATM_VF_WAITING, &vcc->flags);
 		break;
@@ -171,8 +150,7 @@ void sigd_enq2(struct atm_vcc *vcc, enum atmsvc_msg_type type,
 	pr_debug("%d (0x%p)\n", (int)type, vcc);
 	while (!(skb = alloc_skb(sizeof(struct atmsvc_msg), GFP_KERNEL)))
 		schedule();
-	msg = (struct atmsvc_msg *)skb_put(skb, sizeof(struct atmsvc_msg));
-	memset(msg, 0, sizeof(*msg));
+	msg = skb_put_zero(skb, sizeof(struct atmsvc_msg));
 	msg->type = type;
 	*(struct atm_vcc **) &msg->vcc = vcc;
 	*(struct atm_vcc **) &msg->listen_vcc = listen_vcc;
@@ -239,7 +217,7 @@ static void sigd_close(struct atm_vcc *vcc)
 	read_unlock(&vcc_sklist_lock);
 }
 
-static struct atmdev_ops sigd_dev_ops = {
+static const struct atmdev_ops sigd_dev_ops = {
 	.close = sigd_close,
 	.send =	sigd_send
 };
@@ -261,8 +239,5 @@ int sigd_attach(struct atm_vcc *vcc)
 	vcc_insert_socket(sk_atm(vcc));
 	set_bit(ATM_VF_META, &vcc->flags);
 	set_bit(ATM_VF_READY, &vcc->flags);
-#ifdef WAIT_FOR_DEMON
-	wake_up(&sigd_sleep);
-#endif
 	return 0;
 }

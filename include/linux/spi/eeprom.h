@@ -30,8 +30,6 @@ struct spi_eeprom {
 	 */
 #define EE_INSTR_BIT3_IS_ADDR	0x0010
 
-	/* for exporting this chip's data to other kernel code */
-	void (*setup)(struct memory_accessor *mem, void *context);
 	void *context;
 };
 

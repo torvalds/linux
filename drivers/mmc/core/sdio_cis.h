@@ -14,6 +14,9 @@
 #ifndef _MMC_SDIO_CIS_H
 #define _MMC_SDIO_CIS_H
 
+struct mmc_card;
+struct sdio_func;
+
 int sdio_read_common_cis(struct mmc_card *card);
 void sdio_free_common_cis(struct mmc_card *card);
 

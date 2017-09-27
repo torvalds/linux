@@ -19,6 +19,7 @@
 #ifndef __ARM_KVM_ARM_H__
 #define __ARM_KVM_ARM_H__
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 /* Hyp Configuration Register (HCR) bits */
@@ -55,8 +56,10 @@
  * The bits we set in HCR:
  * TAC:		Trap ACTLR
  * TSC:		Trap SMC
+ * TVM:		Trap VM ops (until MMU and caches are on)
  * TSW:		Trap cache operations by set/way
  * TWI:		Trap WFI
+ * TWE:		Trap WFE
  * TIDCP:	Trap L2CTLR/L2ECTLR
  * BSU_IS:	Upgrade barriers to the inner shareable domain
  * FB:		Force broadcast of all maintainance operations
@@ -67,8 +70,7 @@
  */
 #define HCR_GUEST_MASK (HCR_TSC | HCR_TSW | HCR_TWI | HCR_VM | HCR_BSU_IS | \
 			HCR_FB | HCR_TAC | HCR_AMO | HCR_IMO | HCR_FMO | \
-			HCR_SWIO | HCR_TIDCP)
-#define HCR_VIRT_EXCP_MASK (HCR_VA | HCR_VI | HCR_VF)
+			HCR_TVM | HCR_TWE | HCR_SWIO | HCR_TIDCP)
 
 /* System Control Register (SCTLR) bits */
 #define SCTLR_TE	(1 << 30)
@@ -95,12 +97,12 @@
 #define TTBCR_IRGN1	(3 << 24)
 #define TTBCR_EPD1	(1 << 23)
 #define TTBCR_A1	(1 << 22)
-#define TTBCR_T1SZ	(3 << 16)
+#define TTBCR_T1SZ	(7 << 16)
 #define TTBCR_SH0	(3 << 12)
 #define TTBCR_ORGN0	(3 << 10)
 #define TTBCR_IRGN0	(3 << 8)
 #define TTBCR_EPD0	(1 << 7)
-#define TTBCR_T0SZ	3
+#define TTBCR_T0SZ	(7 << 0)
 #define HTCR_MASK	(TTBCR_T0SZ | TTBCR_IRGN0 | TTBCR_ORGN0 | TTBCR_SH0)
 
 /* Hyp System Trap Register */
@@ -131,10 +133,9 @@
  * space.
  */
 #define KVM_PHYS_SHIFT	(40)
-#define KVM_PHYS_SIZE	(1ULL << KVM_PHYS_SHIFT)
-#define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1ULL)
-#define PTRS_PER_S2_PGD	(1ULL << (KVM_PHYS_SHIFT - 30))
-#define S2_PGD_ORDER	get_order(PTRS_PER_S2_PGD * sizeof(pgd_t))
+#define KVM_PHYS_SIZE	(_AC(1, ULL) << KVM_PHYS_SHIFT)
+#define KVM_PHYS_MASK	(KVM_PHYS_SIZE - _AC(1, ULL))
+#define PTRS_PER_S2_PGD	(_AC(1, ULL) << (KVM_PHYS_SHIFT - 30))
 
 /* Virtualization Translation Control Register (VTCR) bits */
 #define VTCR_SH0	(3 << 12)
@@ -161,17 +162,17 @@
 #define VTTBR_X		(5 - KVM_T0SZ)
 #endif
 #define VTTBR_BADDR_SHIFT (VTTBR_X - 1)
-#define VTTBR_BADDR_MASK  (((1LLU << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
-#define VTTBR_VMID_SHIFT  (48LLU)
-#define VTTBR_VMID_MASK	  (0xffLLU << VTTBR_VMID_SHIFT)
+#define VTTBR_BADDR_MASK  (((_AC(1, ULL) << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
+#define VTTBR_VMID_SHIFT  _AC(48, ULL)
+#define VTTBR_VMID_MASK(size)	(_AT(u64, (1 << size) - 1) << VTTBR_VMID_SHIFT)
 
 /* Hyp Syndrome Register (HSR) bits */
 #define HSR_EC_SHIFT	(26)
-#define HSR_EC		(0x3fU << HSR_EC_SHIFT)
-#define HSR_IL		(1U << 25)
+#define HSR_EC		(_AC(0x3f, UL) << HSR_EC_SHIFT)
+#define HSR_IL		(_AC(1, UL) << 25)
 #define HSR_ISS		(HSR_IL - 1)
 #define HSR_ISV_SHIFT	(24)
-#define HSR_ISV		(1U << HSR_ISV_SHIFT)
+#define HSR_ISV		(_AC(1, UL) << HSR_ISV_SHIFT)
 #define HSR_SRT_SHIFT	(16)
 #define HSR_SRT_MASK	(0xf << HSR_SRT_SHIFT)
 #define HSR_FSC		(0x3f)
@@ -179,12 +180,23 @@
 #define HSR_SSE		(1 << 21)
 #define HSR_WNR		(1 << 6)
 #define HSR_CV_SHIFT	(24)
-#define HSR_CV		(1U << HSR_CV_SHIFT)
+#define HSR_CV		(_AC(1, UL) << HSR_CV_SHIFT)
 #define HSR_COND_SHIFT	(20)
-#define HSR_COND	(0xfU << HSR_COND_SHIFT)
+#define HSR_COND	(_AC(0xf, UL) << HSR_COND_SHIFT)
 
 #define FSC_FAULT	(0x04)
+#define FSC_ACCESS	(0x08)
 #define FSC_PERM	(0x0c)
+#define FSC_SEA		(0x10)
+#define FSC_SEA_TTW0	(0x14)
+#define FSC_SEA_TTW1	(0x15)
+#define FSC_SEA_TTW2	(0x16)
+#define FSC_SEA_TTW3	(0x17)
+#define FSC_SECC	(0x18)
+#define FSC_SECC_TTW0	(0x1c)
+#define FSC_SECC_TTW1	(0x1d)
+#define FSC_SECC_TTW2	(0x1e)
+#define FSC_SECC_TTW3	(0x1f)
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~0xf)
@@ -207,11 +219,33 @@
 #define HSR_EC_IABT_HYP	(0x21)
 #define HSR_EC_DABT	(0x24)
 #define HSR_EC_DABT_HYP	(0x25)
+#define HSR_EC_MAX	(0x3f)
 
-#define HSR_HVC_IMM_MASK	((1UL << 16) - 1)
+#define HSR_WFI_IS_WFE		(_AC(1, UL) << 0)
 
-#define HSR_DABT_S1PTW		(1U << 7)
-#define HSR_DABT_CM		(1U << 8)
-#define HSR_DABT_EA		(1U << 9)
+#define HSR_HVC_IMM_MASK	((_AC(1, UL) << 16) - 1)
+
+#define HSR_DABT_S1PTW		(_AC(1, UL) << 7)
+#define HSR_DABT_CM		(_AC(1, UL) << 8)
+
+#define kvm_arm_exception_type	\
+	{0, "RESET" }, 		\
+	{1, "UNDEFINED" },	\
+	{2, "SOFTWARE" },	\
+	{3, "PREF_ABORT" },	\
+	{4, "DATA_ABORT" },	\
+	{5, "IRQ" },		\
+	{6, "FIQ" },		\
+	{7, "HVC" }
+
+#define HSRECN(x) { HSR_EC_##x, #x }
+
+#define kvm_arm_exception_class \
+	HSRECN(UNKNOWN), HSRECN(WFI), HSRECN(CP15_32), HSRECN(CP15_64), \
+	HSRECN(CP14_MR), HSRECN(CP14_LS), HSRECN(CP_0_13), HSRECN(CP10_ID), \
+	HSRECN(JAZELLE), HSRECN(BXJ), HSRECN(CP14_64), HSRECN(SVC_HYP), \
+	HSRECN(HVC), HSRECN(SMC), HSRECN(IABT), HSRECN(IABT_HYP), \
+	HSRECN(DABT), HSRECN(DABT_HYP)
+
 
 #endif /* __ARM_KVM_ARM_H__ */

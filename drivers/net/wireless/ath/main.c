@@ -20,6 +20,7 @@
 #include <linux/module.h>
 
 #include "ath.h"
+#include "trace.h"
 
 MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Shared library for Atheros wireless LAN cards.");
@@ -59,6 +60,14 @@ struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
 }
 EXPORT_SYMBOL(ath_rxbuf_alloc);
 
+bool ath_is_mybeacon(struct ath_common *common, struct ieee80211_hdr *hdr)
+{
+	return ieee80211_is_beacon(hdr->frame_control) &&
+		!is_zero_ether_addr(common->curbssid) &&
+		ether_addr_equal_64bits(hdr->addr3, common->curbssid);
+}
+EXPORT_SYMBOL(ath_is_mybeacon);
+
 void ath_printk(const char *level, const struct ath_common* common,
 		const char *fmt, ...)
 {
@@ -70,12 +79,21 @@ void ath_printk(const char *level, const struct ath_common* common,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (common && common->hw && common->hw->wiphy)
+	if (common && common->hw && common->hw->wiphy) {
 		printk("%sath: %s: %pV",
 		       level, wiphy_name(common->hw->wiphy), &vaf);
-	else
+		trace_ath_log(common->hw->wiphy, &vaf);
+	} else {
 		printk("%sath: %pV", level, &vaf);
+	}
 
 	va_end(args);
 }
 EXPORT_SYMBOL(ath_printk);
+
+const char *ath_bus_type_strings[] = {
+	[ATH_PCI] = "pci",
+	[ATH_AHB] = "ahb",
+	[ATH_USB] = "usb",
+};
+EXPORT_SYMBOL(ath_bus_type_strings);

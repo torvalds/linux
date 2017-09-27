@@ -46,32 +46,23 @@ puv3_osmr0_set_next_event(unsigned long delta, struct clock_event_device *c)
 	return (signed)(next - oscr) <= MIN_OSCR_DELTA ? -ETIME : 0;
 }
 
-static void
-puv3_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *c)
+static int puv3_osmr0_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		writel(readl(OST_OIER) & ~OST_OIER_E0, OST_OIER);
-		writel(readl(OST_OSSR) & ~OST_OSSR_M0, OST_OSSR);
-		break;
-
-	case CLOCK_EVT_MODE_RESUME:
-	case CLOCK_EVT_MODE_PERIODIC:
-		break;
-	}
+	writel(readl(OST_OIER) & ~OST_OIER_E0, OST_OIER);
+	writel(readl(OST_OSSR) & ~OST_OSSR_M0, OST_OSSR);
+	return 0;
 }
 
 static struct clock_event_device ckevt_puv3_osmr0 = {
-	.name		= "osmr0",
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.rating		= 200,
-	.set_next_event	= puv3_osmr0_set_next_event,
-	.set_mode	= puv3_osmr0_set_mode,
+	.name			= "osmr0",
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.rating			= 200,
+	.set_next_event		= puv3_osmr0_set_next_event,
+	.set_state_shutdown	= puv3_osmr0_shutdown,
+	.set_state_oneshot	= puv3_osmr0_shutdown,
 };
 
-static cycle_t puv3_read_oscr(struct clocksource *cs)
+static u64 puv3_read_oscr(struct clocksource *cs)
 {
 	return readl(OST_OSCR);
 }
@@ -100,8 +91,10 @@ void __init time_init(void)
 
 	ckevt_puv3_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_puv3_osmr0);
+	ckevt_puv3_osmr0.max_delta_ticks = 0x7fffffff;
 	ckevt_puv3_osmr0.min_delta_ns =
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_puv3_osmr0) + 1;
+	ckevt_puv3_osmr0.min_delta_ticks = MIN_OSCR_DELTA * 2;
 	ckevt_puv3_osmr0.cpumask = cpumask_of(0);
 
 	setup_irq(IRQ_TIMER0, &puv3_timer_irq);

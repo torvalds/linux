@@ -1,0 +1,60 @@
+#
+# PHY
+#
+
+menu "PHY Subsystem"
+
+config GENERIC_PHY
+	bool "PHY Core"
+	help
+	  Generic PHY support.
+
+	  This framework is designed to provide a generic interface for PHY
+	  devices present in the kernel. This layer will have the generic
+	  API by which phy drivers can create PHY using the phy framework and
+	  phy users can obtain reference to the PHY. All the users of this
+	  framework should select this config.
+
+config PHY_LPC18XX_USB_OTG
+	tristate "NXP LPC18xx/43xx SoC USB OTG PHY driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	depends on MFD_SYSCON
+	select GENERIC_PHY
+	help
+	  Enable this to support NXP LPC18xx/43xx internal USB OTG PHY.
+
+	  This driver is need for USB0 support on LPC18xx/43xx and takes
+	  care of enabling and clock setup.
+
+config PHY_PISTACHIO_USB
+	tristate "IMG Pistachio USB2.0 PHY driver"
+	depends on MACH_PISTACHIO
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB2.0 PHY on the IMG Pistachio SoC.
+
+config PHY_XGENE
+	tristate "APM X-Gene 15Gbps PHY support"
+	depends on HAS_IOMEM && OF && (ARM64 || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  This option enables support for APM X-Gene SoC multi-purpose PHY.
+
+source "drivers/phy/allwinner/Kconfig"
+source "drivers/phy/amlogic/Kconfig"
+source "drivers/phy/broadcom/Kconfig"
+source "drivers/phy/hisilicon/Kconfig"
+source "drivers/phy/lantiq/Kconfig"
+source "drivers/phy/marvell/Kconfig"
+source "drivers/phy/mediatek/Kconfig"
+source "drivers/phy/motorola/Kconfig"
+source "drivers/phy/qualcomm/Kconfig"
+source "drivers/phy/ralink/Kconfig"
+source "drivers/phy/renesas/Kconfig"
+source "drivers/phy/rockchip/Kconfig"
+source "drivers/phy/samsung/Kconfig"
+source "drivers/phy/st/Kconfig"
+source "drivers/phy/tegra/Kconfig"
+source "drivers/phy/ti/Kconfig"
+
+endmenu

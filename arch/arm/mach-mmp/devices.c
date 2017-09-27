@@ -12,10 +12,10 @@
 #include <linux/delay.h>
 
 #include <asm/irq.h>
-#include <mach/irqs.h>
-#include <mach/devices.h>
-#include <mach/cputype.h>
-#include <mach/regs-usb.h>
+#include "irqs.h"
+#include "devices.h"
+#include "cputype.h"
+#include "regs-usb.h"
 
 int __init pxa_register_device(struct pxa_device_desc *desc,
 				void *data, size_t size)
@@ -72,7 +72,9 @@ int __init pxa_register_device(struct pxa_device_desc *desc,
 	return platform_device_add(pdev);
 }
 
-#if defined(CONFIG_USB) || defined(CONFIG_USB_GADGET)
+#if IS_ENABLED(CONFIG_USB) || IS_ENABLED(CONFIG_USB_GADGET)
+#if IS_ENABLED(CONFIG_USB_MV_UDC) || IS_ENABLED(CONFIG_USB_EHCI_MV)
+#if IS_ENABLED(CONFIG_CPU_PXA910) || IS_ENABLED(CONFIG_CPU_PXA168)
 
 /*****************************************************************************
  * The registers read/write routines
@@ -112,9 +114,6 @@ static void u2o_write(void __iomem *base, unsigned int offset,
 	readl_relaxed(base + offset);
 }
 
-#if defined(CONFIG_USB_MV_UDC) || defined(CONFIG_USB_EHCI_MV)
-
-#if defined(CONFIG_CPU_PXA910) || defined(CONFIG_CPU_PXA168)
 
 static DEFINE_MUTEX(phy_lock);
 static int phy_init_cnt;
@@ -238,10 +237,10 @@ void pxa_usb_phy_deinit(void __iomem *phy_reg)
 #endif
 #endif
 
-#ifdef CONFIG_USB_SUPPORT
-static u64 usb_dma_mask = ~(u32)0;
+#if IS_ENABLED(CONFIG_USB_SUPPORT)
+static u64 __maybe_unused usb_dma_mask = ~(u32)0;
 
-#ifdef CONFIG_USB_MV_UDC
+#if IS_ENABLED(CONFIG_USB_MV_UDC)
 struct resource pxa168_u2o_resources[] = {
 	/* regbase */
 	[0] = {
@@ -276,7 +275,7 @@ struct platform_device pxa168_device_u2o = {
 };
 #endif /* CONFIG_USB_MV_UDC */
 
-#ifdef CONFIG_USB_EHCI_MV_U2O
+#if IS_ENABLED(CONFIG_USB_EHCI_MV_U2O)
 struct resource pxa168_u2oehci_resources[] = {
 	/* regbase */
 	[0] = {
@@ -312,7 +311,7 @@ struct platform_device pxa168_device_u2oehci = {
 };
 #endif
 
-#if defined(CONFIG_USB_MV_OTG)
+#if IS_ENABLED(CONFIG_USB_MV_OTG)
 struct resource pxa168_u2ootg_resources[] = {
 	/* regbase */
 	[0] = {

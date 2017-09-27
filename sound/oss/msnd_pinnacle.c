@@ -41,6 +41,8 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
+#include <linux/sched/signal.h>
+
 #include <asm/irq.h>
 #include <asm/io.h>
 #include "sound_config.h"
@@ -664,15 +666,18 @@ static long dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static void dsp_write_flush(void)
 {
+	int timeout = get_play_delay_jiffies(dev.DAPF.len);
+
 	if (!(dev.mode & FMODE_WRITE) || !test_bit(F_WRITING, &dev.flags))
 		return;
 	set_bit(F_WRITEFLUSH, &dev.flags);
-	interruptible_sleep_on_timeout(
-		&dev.writeflush,
-		get_play_delay_jiffies(dev.DAPF.len));
+	wait_event_interruptible_timeout(
+		dev.writeflush,
+		!test_bit(F_WRITEFLUSH, &dev.flags),
+		timeout);
 	clear_bit(F_WRITEFLUSH, &dev.flags);
 	if (!signal_pending(current)) {
-		current->state = TASK_INTERRUPTIBLE;
+		__set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(get_play_delay_jiffies(DAP_BUFF_SIZE));
 	}
 	clear_bit(F_WRITING, &dev.flags);
@@ -897,6 +902,7 @@ static int dsp_read(char __user *buf, size_t len)
 {
 	int count = len;
 	char *page = (char *)__get_free_page(GFP_KERNEL);
+	int timeout = get_rec_delay_jiffies(DAR_BUFF_SIZE);
 
 	if (!page)
 		return -ENOMEM;
@@ -936,11 +942,11 @@ static int dsp_read(char __user *buf, size_t len)
 
 		if (count > 0) {
 			set_bit(F_READBLOCK, &dev.flags);
-			if (!interruptible_sleep_on_timeout(
-				&dev.readblock,
-				get_rec_delay_jiffies(DAR_BUFF_SIZE)))
+			if (wait_event_interruptible_timeout(
+					dev.readblock,
+					test_bit(F_READBLOCK, &dev.flags),
+					timeout) <= 0)
 				clear_bit(F_READING, &dev.flags);
-			clear_bit(F_READBLOCK, &dev.flags);
 			if (signal_pending(current)) {
 				free_page((unsigned long)page);
 				return -EINTR;
@@ -955,6 +961,7 @@ static int dsp_write(const char __user *buf, size_t len)
 {
 	int count = len;
 	char *page = (char *)__get_free_page(GFP_KERNEL);
+	int timeout = get_play_delay_jiffies(DAP_BUFF_SIZE);
 
 	if (!page)
 		return -ENOMEM;
@@ -995,10 +1002,10 @@ static int dsp_write(const char __user *buf, size_t len)
 
 		if (count > 0) {
 			set_bit(F_WRITEBLOCK, &dev.flags);
-			interruptible_sleep_on_timeout(
-				&dev.writeblock,
-				get_play_delay_jiffies(DAP_BUFF_SIZE));
-			clear_bit(F_WRITEBLOCK, &dev.flags);
+			wait_event_interruptible_timeout(
+				dev.writeblock,
+				test_bit(F_WRITEBLOCK, &dev.flags),
+				timeout);
 			if (signal_pending(current)) {
 				free_page((unsigned long)page);
 				return -EINTR;
@@ -1044,7 +1051,7 @@ static __inline__ void eval_dsp_msg(register WORD wMessage)
 			clear_bit(F_WRITING, &dev.flags);
 		}
 
-		if (test_bit(F_WRITEBLOCK, &dev.flags))
+		if (test_and_clear_bit(F_WRITEBLOCK, &dev.flags))
 			wake_up_interruptible(&dev.writeblock);
 		break;
 
@@ -1055,7 +1062,7 @@ static __inline__ void eval_dsp_msg(register WORD wMessage)
 
 		pack_DARQ_to_DARF(dev.last_recbank);
 
-		if (test_bit(F_READBLOCK, &dev.flags))
+		if (test_and_clear_bit(F_READBLOCK, &dev.flags))
 			wake_up_interruptible(&dev.readblock);
 		break;
 
@@ -1283,8 +1290,7 @@ static int __init calibrate_adc(WORD srate)
 		       & ~0x0001, dev.SMA + SMA_wCurrHostStatusFlags);
 	if (msnd_send_word(&dev, 0, 0, HDEXAR_CAL_A_TO_D) == 0 &&
 	    chk_send_dsp_cmd(&dev, HDEX_AUX_REQ) == 0) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(HZ / 3);
+		schedule_timeout_interruptible(HZ / 3);
 		return 0;
 	}
 	printk(KERN_WARNING LOGNAME ": ADC calibration failed\n");
@@ -1721,22 +1727,22 @@ static int
 calibrate_signal __initdata =		CONFIG_MSND_CALSIGNAL;
 #endif /* MODULE */
 
-module_param				(io, int, 0);
-module_param				(irq, int, 0);
-module_param				(mem, int, 0);
+module_param_hw				(io, int, ioport, 0);
+module_param_hw				(irq, int, irq, 0);
+module_param_hw				(mem, int, iomem, 0);
 module_param				(write_ndelay, int, 0);
 module_param				(fifosize, int, 0);
 module_param				(calibrate_signal, int, 0);
 #ifndef MSND_CLASSIC
 module_param				(digital, bool, 0);
-module_param				(cfg, int, 0);
+module_param_hw				(cfg, int, ioport, 0);
 module_param				(reset, int, 0);
-module_param				(mpu_io, int, 0);
-module_param				(mpu_irq, int, 0);
-module_param				(ide_io0, int, 0);
-module_param				(ide_io1, int, 0);
-module_param				(ide_irq, int, 0);
-module_param				(joystick_io, int, 0);
+module_param_hw				(mpu_io, int, ioport, 0);
+module_param_hw				(mpu_irq, int, irq, 0);
+module_param_hw				(ide_io0, int, ioport, 0);
+module_param_hw				(ide_io1, int, ioport, 0);
+module_param_hw				(ide_irq, int, irq, 0);
+module_param_hw				(joystick_io, int, ioport, 0);
 #endif
 
 static int __init msnd_init(void)

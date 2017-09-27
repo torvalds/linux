@@ -1,0 +1,13 @@
+* Linear Technology / Analog Devices LTC2497 ADC
+
+Required properties:
+ - compatible: Must be "lltc,ltc2497"
+ - reg: Must contain the ADC I2C address
+ - vref-supply: The regulator supply for ADC reference voltage
+
+Example:
+	ltc2497: adc@76 {
+		compatible = "lltc,ltc2497";
+		reg = <0x76>;
+		vref-supply = <&ltc2497_reg>;
+	};

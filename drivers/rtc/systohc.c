@@ -11,7 +11,7 @@
  * rtc_set_ntp_time - Save NTP synchronized time to the RTC
  * @now: Current time of day
  *
- * Replacement for the NTP platform function update_persistent_clock
+ * Replacement for the NTP platform function update_persistent_clock64
  * that stores time for later retrieval by rtc_hctosys.
  *
  * Returns 0 on successful RTC update, -ENODEV if a RTC update is not
@@ -20,22 +20,25 @@
  *
  * If temporary failure is indicated the caller should try again 'soon'
  */
-int rtc_set_ntp_time(struct timespec now)
+int rtc_set_ntp_time(struct timespec64 now)
 {
 	struct rtc_device *rtc;
 	struct rtc_time tm;
 	int err = -ENODEV;
 
 	if (now.tv_nsec < (NSEC_PER_SEC >> 1))
-		rtc_time_to_tm(now.tv_sec, &tm);
+		rtc_time64_to_tm(now.tv_sec, &tm);
 	else
-		rtc_time_to_tm(now.tv_sec + 1, &tm);
+		rtc_time64_to_tm(now.tv_sec + 1, &tm);
 
-	rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+	rtc = rtc_class_open(CONFIG_RTC_SYSTOHC_DEVICE);
 	if (rtc) {
 		/* rtc_hctosys exclusively uses UTC, so we call set_time here,
 		 * not set_mmss. */
-		if (rtc->ops && (rtc->ops->set_time || rtc->ops->set_mmss))
+		if (rtc->ops &&
+		    (rtc->ops->set_time ||
+		     rtc->ops->set_mmss64 ||
+		     rtc->ops->set_mmss))
 			err = rtc_set_time(rtc, &tm);
 		rtc_class_close(rtc);
 	}

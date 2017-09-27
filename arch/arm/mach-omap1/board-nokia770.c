@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/clkdev.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -14,7 +15,6 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/clk.h>
 #include <linux/omapfb.h>
 
 #include <linux/spi/spi.h>
@@ -156,9 +156,10 @@ static struct omap_usb_config nokia770_usb_config __initdata = {
 	.register_dev	= 1,
 	.hmc_mode	= 16,
 	.pins[0]	= 6,
+	.extcon		= "tahvo-usb",
 };
 
-#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
+#if IS_ENABLED(CONFIG_MMC_OMAP)
 
 #define NOKIA770_GPIO_MMC_POWER		41
 #define NOKIA770_GPIO_MMC_SWITCH	23
@@ -215,7 +216,7 @@ static inline void nokia770_mmc_init(void)
 }
 #endif
 
-#if defined(CONFIG_I2C_CBUS_GPIO) || defined(CONFIG_I2C_CBUS_GPIO_MODULE)
+#if IS_ENABLED(CONFIG_I2C_CBUS_GPIO)
 static struct i2c_cbus_platform_data nokia770_cbus_data = {
 	.clk_gpio = OMAP_MPUIO(9),
 	.dat_gpio = OMAP_MPUIO(10),
@@ -232,10 +233,10 @@ static struct platform_device nokia770_cbus_device = {
 
 static struct i2c_board_info nokia770_i2c_board_info_2[] __initdata = {
 	{
-		I2C_BOARD_INFO("retu-mfd", 0x01),
+		I2C_BOARD_INFO("retu", 0x01),
 	},
 	{
-		I2C_BOARD_INFO("tahvo-mfd", 0x02),
+		I2C_BOARD_INFO("tahvo", 0x02),
 	},
 };
 
@@ -293,6 +294,7 @@ MACHINE_START(NOKIA770, "Nokia 770")
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_nokia770_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

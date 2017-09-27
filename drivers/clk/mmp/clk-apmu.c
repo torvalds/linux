@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/delay.h>
@@ -61,7 +60,7 @@ static void clk_apmu_disable(struct clk_hw *hw)
 		spin_unlock_irqrestore(apmu->lock, flags);
 }
 
-struct clk_ops clk_apmu_ops = {
+static struct clk_ops clk_apmu_ops = {
 	.enable = clk_apmu_enable,
 	.disable = clk_apmu_disable,
 };

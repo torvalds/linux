@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -18,34 +19,84 @@
 #include <linux/iio/common/st_sensors_i2c.h>
 #include "st_pressure.h"
 
+#ifdef CONFIG_OF
+static const struct of_device_id st_press_of_match[] = {
+	{
+		.compatible = "st,lps001wp-press",
+		.data = LPS001WP_PRESS_DEV_NAME,
+	},
+	{
+		.compatible = "st,lps25h-press",
+		.data = LPS25H_PRESS_DEV_NAME,
+	},
+	{
+		.compatible = "st,lps331ap-press",
+		.data = LPS331AP_PRESS_DEV_NAME,
+	},
+	{
+		.compatible = "st,lps22hb-press",
+		.data = LPS22HB_PRESS_DEV_NAME,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, st_press_of_match);
+#else
+#define st_press_of_match NULL
+#endif
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id st_press_acpi_match[] = {
+	{"SNO9210", LPS22HB},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, st_press_acpi_match);
+#else
+#define st_press_acpi_match NULL
+#endif
+
+static const struct i2c_device_id st_press_id_table[] = {
+	{ LPS001WP_PRESS_DEV_NAME, LPS001WP },
+	{ LPS25H_PRESS_DEV_NAME,  LPS25H },
+	{ LPS331AP_PRESS_DEV_NAME, LPS331AP },
+	{ LPS22HB_PRESS_DEV_NAME, LPS22HB },
+	{},
+};
+MODULE_DEVICE_TABLE(i2c, st_press_id_table);
+
 static int st_press_i2c_probe(struct i2c_client *client,
 						const struct i2c_device_id *id)
 {
 	struct iio_dev *indio_dev;
-	struct st_sensor_data *pdata;
-	int err;
+	struct st_sensor_data *press_data;
+	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*pdata));
-	if (indio_dev == NULL) {
-		err = -ENOMEM;
-		goto iio_device_alloc_error;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*press_data));
+	if (!indio_dev)
+		return -ENOMEM;
 
-	pdata = iio_priv(indio_dev);
-	pdata->dev = &client->dev;
+	press_data = iio_priv(indio_dev);
 
-	st_sensors_i2c_configure(indio_dev, client, pdata);
+	if (client->dev.of_node) {
+		st_sensors_of_name_probe(&client->dev, st_press_of_match,
+					 client->name, sizeof(client->name));
+	} else if (ACPI_HANDLE(&client->dev)) {
+		ret = st_sensors_match_acpi_device(&client->dev);
+		if ((ret < 0) || (ret >= ST_PRESS_MAX))
+			return -ENODEV;
 
-	err = st_press_common_probe(indio_dev);
-	if (err < 0)
-		goto st_press_common_probe_error;
+		strncpy(client->name, st_press_id_table[ret].name,
+				sizeof(client->name));
+		client->name[sizeof(client->name) - 1] = '\0';
+	} else if (!id)
+		return -ENODEV;
+
+	st_sensors_i2c_configure(indio_dev, client, press_data);
+
+	ret = st_press_common_probe(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	return 0;
-
-st_press_common_probe_error:
-	iio_device_free(indio_dev);
-iio_device_alloc_error:
-	return err;
 }
 
 static int st_press_i2c_remove(struct i2c_client *client)
@@ -55,16 +106,11 @@ static int st_press_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id st_press_id_table[] = {
-	{ LPS331AP_PRESS_DEV_NAME },
-	{},
-};
-MODULE_DEVICE_TABLE(i2c, st_press_id_table);
-
 static struct i2c_driver st_press_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "st-press-i2c",
+		.of_match_table = of_match_ptr(st_press_of_match),
+		.acpi_match_table = ACPI_PTR(st_press_acpi_match),
 	},
 	.probe = st_press_i2c_probe,
 	.remove = st_press_i2c_remove,

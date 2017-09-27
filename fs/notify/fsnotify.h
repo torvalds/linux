@@ -6,34 +6,39 @@
 #include <linux/srcu.h>
 #include <linux/types.h>
 
+#include "../mount.h"
+
+struct fsnotify_iter_info {
+	struct fsnotify_mark *inode_mark;
+	struct fsnotify_mark *vfsmount_mark;
+	int srcu_idx;
+};
+
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 
 /* protects reads of inode and vfsmount marks list */
 extern struct srcu_struct fsnotify_mark_srcu;
 
-extern void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *fsn_mark,
-						__u32 mask);
-/* add a mark to an inode */
-extern int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
-				   struct fsnotify_group *group, struct inode *inode,
-				   int allow_dups);
-/* add a mark to a vfsmount */
-extern int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
-				      struct fsnotify_group *group, struct vfsmount *mnt,
-				      int allow_dups);
+/* compare two groups for sorting of marks lists */
+extern int fsnotify_compare_groups(struct fsnotify_group *a,
+				   struct fsnotify_group *b);
 
-/* final kfree of a group */
-extern void fsnotify_final_destroy_group(struct fsnotify_group *group);
+/* Destroy all marks connected via given connector */
+extern void fsnotify_destroy_marks(struct fsnotify_mark_connector __rcu **connp);
+/* run the list of all marks associated with inode and destroy them */
+static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
+{
+	fsnotify_destroy_marks(&inode->i_fsnotify_marks);
+}
+/* run the list of all marks associated with vfsmount and destroy them */
+static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
+{
+	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks);
+}
+/* Wait until all marks queued for destruction are destroyed */
+extern void fsnotify_wait_marks_destroyed(void);
 
-/* vfsmount specific destruction of a mark */
-extern void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark);
-/* inode specific destruction of a mark */
-extern void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark);
-/* run the list of all marks associated with inode and flag them to be freed */
-extern void fsnotify_clear_marks_by_inode(struct inode *inode);
-/* run the list of all marks associated with vfsmount and flag them to be freed */
-extern void fsnotify_clear_marks_by_mount(struct vfsmount *mnt);
 /*
  * update the dentry->d_flags of all of inode's children to indicate if inode cares
  * about events that happen to its children.

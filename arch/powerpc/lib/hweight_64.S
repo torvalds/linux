@@ -19,12 +19,13 @@
  */
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 /* Note: This code relies on -mminimal-toc */
 
 _GLOBAL(__arch_hweight8)
 BEGIN_FTR_SECTION
-	b .__sw_hweight8
+	b __sw_hweight8
 	nop
 	nop
 FTR_SECTION_ELSE
@@ -32,10 +33,11 @@ FTR_SECTION_ELSE
 	clrldi	r3,r3,64-8
 	blr
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_POPCNTB)
+EXPORT_SYMBOL(__arch_hweight8)
 
 _GLOBAL(__arch_hweight16)
 BEGIN_FTR_SECTION
-	b .__sw_hweight16
+	b __sw_hweight16
 	nop
 	nop
 	nop
@@ -54,10 +56,11 @@ FTR_SECTION_ELSE
 	blr
   ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_POPCNTD, 50)
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_POPCNTB)
+EXPORT_SYMBOL(__arch_hweight16)
 
 _GLOBAL(__arch_hweight32)
 BEGIN_FTR_SECTION
-	b .__sw_hweight32
+	b __sw_hweight32
 	nop
 	nop
 	nop
@@ -79,10 +82,11 @@ FTR_SECTION_ELSE
 	blr
   ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_POPCNTD, 51)
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_POPCNTB)
+EXPORT_SYMBOL(__arch_hweight32)
 
 _GLOBAL(__arch_hweight64)
 BEGIN_FTR_SECTION
-	b .__sw_hweight64
+	b __sw_hweight64
 	nop
 	nop
 	nop
@@ -108,3 +112,4 @@ FTR_SECTION_ELSE
 	blr
   ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_POPCNTD, 52)
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_POPCNTB)
+EXPORT_SYMBOL(__arch_hweight64)

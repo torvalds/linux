@@ -74,9 +74,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/usb/input.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 /*
@@ -308,7 +307,6 @@ struct aiptek_settings {
 
 struct aiptek {
 	struct input_dev *inputdev;		/* input device struct           */
-	struct usb_device *usbdev;		/* usb device struct             */
 	struct usb_interface *intf;		/* usb interface struct          */
 	struct urb *urb;			/* urb for incoming reports      */
 	dma_addr_t data_dma;			/* our dma stuffage              */
@@ -848,7 +846,7 @@ static int aiptek_open(struct input_dev *inputdev)
 {
 	struct aiptek *aiptek = input_get_drvdata(inputdev);
 
-	aiptek->urb->dev = aiptek->usbdev;
+	aiptek->urb->dev = interface_to_usbdev(aiptek->intf);
 	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0)
 		return -EIO;
 
@@ -874,8 +872,10 @@ aiptek_set_report(struct aiptek *aiptek,
 		  unsigned char report_type,
 		  unsigned char report_id, void *buffer, int size)
 {
-	return usb_control_msg(aiptek->usbdev,
-			       usb_sndctrlpipe(aiptek->usbdev, 0),
+	struct usb_device *udev = interface_to_usbdev(aiptek->intf);
+
+	return usb_control_msg(udev,
+			       usb_sndctrlpipe(udev, 0),
 			       USB_REQ_SET_REPORT,
 			       USB_TYPE_CLASS | USB_RECIP_INTERFACE |
 			       USB_DIR_OUT, (report_type << 8) + report_id,
@@ -887,8 +887,10 @@ aiptek_get_report(struct aiptek *aiptek,
 		  unsigned char report_type,
 		  unsigned char report_id, void *buffer, int size)
 {
-	return usb_control_msg(aiptek->usbdev,
-			       usb_rcvctrlpipe(aiptek->usbdev, 0),
+	struct usb_device *udev = interface_to_usbdev(aiptek->intf);
+
+	return usb_control_msg(udev,
+			       usb_rcvctrlpipe(udev, 0),
 			       USB_REQ_GET_REPORT,
 			       USB_TYPE_CLASS | USB_RECIP_INTERFACE |
 			       USB_DIR_IN, (report_type << 8) + report_id,
@@ -1674,7 +1676,7 @@ static struct attribute *aiptek_attributes[] = {
 	NULL
 };
 
-static struct attribute_group aiptek_attribute_group = {
+static const struct attribute_group aiptek_attribute_group = {
 	.attrs	= aiptek_attributes,
 };
 
@@ -1730,7 +1732,6 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	aiptek->inputdev = inputdev;
-	aiptek->usbdev = usbdev;
 	aiptek->intf = intf;
 	aiptek->ifnum = intf->altsetting[0].desc.bInterfaceNumber;
 	aiptek->inDelay = 0;
@@ -1820,14 +1821,22 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	input_set_abs_params(inputdev, ABS_TILT_Y, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);
 	input_set_abs_params(inputdev, ABS_WHEEL, AIPTEK_WHEEL_MIN, AIPTEK_WHEEL_MAX - 1, 0, 0);
 
+	/* Verify that a device really has an endpoint */
+	if (intf->altsetting[0].desc.bNumEndpoints < 1) {
+		dev_err(&intf->dev,
+			"interface has %d endpoints, but must have minimum 1\n",
+			intf->altsetting[0].desc.bNumEndpoints);
+		err = -EINVAL;
+		goto fail3;
+	}
 	endpoint = &intf->altsetting[0].endpoint[0].desc;
 
 	/* Go set up our URB, which is called when the tablet receives
 	 * input.
 	 */
 	usb_fill_int_urb(aiptek->urb,
-			 aiptek->usbdev,
-			 usb_rcvintpipe(aiptek->usbdev,
+			 usbdev,
+			 usb_rcvintpipe(usbdev,
 					endpoint->bEndpointAddress),
 			 aiptek->data, 8, aiptek_irq, aiptek,
 			 endpoint->bInterval);
@@ -1862,6 +1871,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (i == ARRAY_SIZE(speeds)) {
 		dev_info(&intf->dev,
 			 "Aiptek tried all speeds, no sane response\n");
+		err = -EINVAL;
 		goto fail3;
 	}
 

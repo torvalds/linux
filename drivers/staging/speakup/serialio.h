@@ -4,8 +4,11 @@
 #include <linux/serial.h>	/* for rs_table, serial constants */
 #include <linux/serial_reg.h>	/* for more serial constants */
 #ifndef __sparc__
-#include <asm/serial.h>
+#include <linux/serial.h>
 #endif
+#include <linux/serial_core.h>
+
+#include "spk_priv.h"
 
 /*
  * this is cut&paste from 8250.h. Get rid of the structure, the definitions
@@ -16,11 +19,11 @@ struct old_serial_port {
 	unsigned int baud_base;
 	unsigned int port;
 	unsigned int irq;
-	unsigned int flags; /* unused */
+	upf_t flags; /* unused */
 };
 
 /* countdown values for serial timeouts in us */
-#define SPK_SERIAL_TIMEOUT 100000
+#define SPK_SERIAL_TIMEOUT SPK_SYNTH_TIMEOUT
 /* countdown values transmitter/dsr timeouts in us */
 #define SPK_XMITR_TIMEOUT 100000
 /* countdown values cts timeouts in us */
@@ -34,32 +37,7 @@ struct old_serial_port {
 #define SPK_TIMEOUT 100
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-#define spk_serial_tx_busy() ((inb(speakup_info.port_tts + UART_LSR) & BOTH_EMPTY) != BOTH_EMPTY)
-
-/* 2.6.22 doesn't have them any more, hardcode it for now (these values should
- * be fine for 99% cases) */
-#ifndef BASE_BAUD
-#define BASE_BAUD (1843200 / 16)
-#endif
-#ifndef STD_COM_FLAGS
-#ifdef CONFIG_SERIAL_DETECT_IRQ
-#define STD_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ)
-#define STD_COM4_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_AUTO_IRQ)
-#else
-#define STD_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST)
-#define STD_COM4_FLAGS ASYNC_BOOT_AUTOCONF
-#endif
-#endif
-#ifndef SERIAL_PORT_DFNS
-#define SERIAL_PORT_DFNS			\
-	/* UART CLK   PORT IRQ     FLAGS        */			\
-	{ 0, BASE_BAUD, 0x3F8, 4, STD_COM_FLAGS },	/* ttyS0 */	\
-	{ 0, BASE_BAUD, 0x2F8, 3, STD_COM_FLAGS },	/* ttyS1 */	\
-	{ 0, BASE_BAUD, 0x3E8, 4, STD_COM_FLAGS },	/* ttyS2 */	\
-	{ 0, BASE_BAUD, 0x2E8, 3, STD_COM4_FLAGS },	/* ttyS3 */
-#endif
-#ifndef IRQF_SHARED
-#define IRQF_SHARED SA_SHIRQ
-#endif
+#define spk_serial_tx_busy() \
+	((inb(speakup_info.port_tts + UART_LSR) & BOTH_EMPTY) != BOTH_EMPTY)
 
 #endif

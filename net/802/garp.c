@@ -221,7 +221,7 @@ static int garp_pdu_init(struct garp_applicant *app)
 	skb->protocol = htons(ETH_P_802_2);
 	skb_reserve(skb, LL_RESERVED_SPACE(app->dev) + LLC_RESERVE);
 
-	gp = (struct garp_pdu_hdr *)__skb_put(skb, sizeof(*gp));
+	gp = __skb_put(skb, sizeof(*gp));
 	put_unaligned(htons(GARP_PROTOCOL_ID), &gp->protocol);
 
 	app->pdu = skb;
@@ -232,7 +232,7 @@ static int garp_pdu_append_end_mark(struct garp_applicant *app)
 {
 	if (skb_tailroom(app->pdu) < sizeof(u8))
 		return -1;
-	*(u8 *)__skb_put(app->pdu, sizeof(u8)) = GARP_END_MARK;
+	__skb_put_u8(app->pdu, GARP_END_MARK);
 	return 0;
 }
 
@@ -268,7 +268,7 @@ static int garp_pdu_append_msg(struct garp_applicant *app, u8 attrtype)
 
 	if (skb_tailroom(app->pdu) < sizeof(*gm))
 		return -1;
-	gm = (struct garp_msg_hdr *)__skb_put(app->pdu, sizeof(*gm));
+	gm = __skb_put(app->pdu, sizeof(*gm));
 	gm->attrtype = attrtype;
 	garp_cb(app->pdu)->cur_type = attrtype;
 	return 0;
@@ -299,7 +299,7 @@ again:
 	len = sizeof(*ga) + attr->dlen;
 	if (skb_tailroom(app->pdu) < len)
 		goto queue;
-	ga = (struct garp_attr_hdr *)__skb_put(app->pdu, len);
+	ga = __skb_put(app->pdu, len);
 	ga->len   = len;
 	ga->event = event;
 	memcpy(ga->data, attr->data, attr->dlen);
@@ -397,7 +397,7 @@ static void garp_join_timer_arm(struct garp_applicant *app)
 {
 	unsigned long delay;
 
-	delay = (u64)msecs_to_jiffies(garp_join_time) * net_random() >> 32;
+	delay = (u64)msecs_to_jiffies(garp_join_time) * prandom_u32() >> 32;
 	mod_timer(&app->join_timer, jiffies + delay);
 }
 

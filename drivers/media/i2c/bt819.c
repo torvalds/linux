@@ -22,10 +22,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -37,7 +33,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/bt819.h>
+#include <media/i2c/bt819.h>
 
 MODULE_DESCRIPTION("Brooktree-819 video decoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
@@ -379,18 +375,8 @@ static const struct v4l2_ctrl_ops bt819_ctrl_ops = {
 	.s_ctrl = bt819_s_ctrl,
 };
 
-static const struct v4l2_subdev_core_ops bt819_core_ops = {
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
-	.s_std = bt819_s_std,
-};
-
 static const struct v4l2_subdev_video_ops bt819_video_ops = {
+	.s_std = bt819_s_std,
 	.s_routing = bt819_s_routing,
 	.s_stream = bt819_s_stream,
 	.querystd = bt819_querystd,
@@ -398,7 +384,6 @@ static const struct v4l2_subdev_video_ops bt819_video_ops = {
 };
 
 static const struct v4l2_subdev_ops bt819_ops = {
-	.core = &bt819_core_ops,
 	.video = &bt819_video_ops,
 };
 
@@ -492,7 +477,6 @@ MODULE_DEVICE_TABLE(i2c, bt819_id);
 
 static struct i2c_driver bt819_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "bt819",
 	},
 	.probe		= bt819_probe,

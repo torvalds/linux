@@ -1,7 +1,8 @@
 /*
  * Copyright 2012 IBM Corporation
  *
- * Author: Ashley Lai <adlai@us.ibm.com>
+ * Author: Ashley Lai <ashleydlai@gmail.com>
+ *         Nayna Jain <nayna@linux.vnet.ibm.com>
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
@@ -20,54 +21,60 @@
 #include "tpm.h"
 #include "tpm_eventlog.h"
 
-int read_log(struct tpm_bios_log *log)
+int tpm_read_log_of(struct tpm_chip *chip)
 {
 	struct device_node *np;
 	const u32 *sizep;
-	const __be64 *basep;
+	const u64 *basep;
+	struct tpm_bios_log *log;
+	u32 size;
+	u64 base;
 
-	if (log->bios_event_log != NULL) {
-		pr_err("%s: ERROR - Eventlog already initialized\n", __func__);
-		return -EFAULT;
-	}
-
-	np = of_find_node_by_name(NULL, "ibm,vtpm");
-	if (!np) {
-		pr_err("%s: ERROR - IBMVTPM not supported\n", __func__);
+	log = &chip->log;
+	if (chip->dev.parent && chip->dev.parent->of_node)
+		np = chip->dev.parent->of_node;
+	else
 		return -ENODEV;
-	}
+
+	if (of_property_read_bool(np, "powered-while-suspended"))
+		chip->flags |= TPM_CHIP_FLAG_ALWAYS_POWERED;
 
 	sizep = of_get_property(np, "linux,sml-size", NULL);
-	if (sizep == NULL) {
-		pr_err("%s: ERROR - SML size not found\n", __func__);
-		goto cleanup_eio;
-	}
-	if (*sizep == 0) {
-		pr_err("%s: ERROR - event log area empty\n", __func__);
-		goto cleanup_eio;
-	}
-
 	basep = of_get_property(np, "linux,sml-base", NULL);
-	if (basep == NULL) {
-		pr_err(KERN_ERR "%s: ERROR - SML not found\n", __func__);
-		goto cleanup_eio;
+	if (sizep == NULL && basep == NULL)
+		return -ENODEV;
+	if (sizep == NULL || basep == NULL)
+		return -EIO;
+
+	/*
+	 * For both vtpm/tpm, firmware has log addr and log size in big
+	 * endian format. But in case of vtpm, there is a method called
+	 * sml-handover which is run during kernel init even before
+	 * device tree is setup. This sml-handover function takes care
+	 * of endianness and writes to sml-base and sml-size in little
+	 * endian format. For this reason, vtpm doesn't need conversion
+	 * but physical tpm needs the conversion.
+	 */
+	if (of_property_match_string(np, "compatible", "IBM,vtpm") < 0) {
+		size = be32_to_cpup(sizep);
+		base = be64_to_cpup(basep);
+	} else {
+		size = *sizep;
+		base = *basep;
 	}
 
-	of_node_put(np);
-	log->bios_event_log = kmalloc(*sizep, GFP_KERNEL);
-	if (!log->bios_event_log) {
-		pr_err("%s: ERROR - Not enough memory for BIOS measurements\n",
-		       __func__);
+	if (size == 0) {
+		dev_warn(&chip->dev, "%s: Event log area empty\n", __func__);
+		return -EIO;
+	}
+
+	log->bios_event_log = kmalloc(size, GFP_KERNEL);
+	if (!log->bios_event_log)
 		return -ENOMEM;
-	}
 
-	log->bios_event_log_end = log->bios_event_log + *sizep;
+	log->bios_event_log_end = log->bios_event_log + size;
 
-	memcpy(log->bios_event_log, __va(be64_to_cpup(basep)), *sizep);
+	memcpy(log->bios_event_log, __va(base), size);
 
 	return 0;
-
-cleanup_eio:
-	of_node_put(np);
-	return -EIO;
 }

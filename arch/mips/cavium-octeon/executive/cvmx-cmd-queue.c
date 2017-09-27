@@ -47,6 +47,7 @@
  * state. It points to a bootmem named block.
  */
 __cvmx_cmd_queue_all_state_t *__cvmx_cmd_queue_state_ptr;
+EXPORT_SYMBOL_GPL(__cvmx_cmd_queue_state_ptr);
 
 /**
  * Initialize the Global queue state pointer.

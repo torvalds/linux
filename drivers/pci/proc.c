@@ -11,21 +11,20 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/capability.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include "pci.h"
 
 static int proc_initialized;	/* = 0 */
 
-static loff_t
-proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
+static loff_t proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
 	struct pci_dev *dev = PDE_DATA(file_inode(file));
 	return fixed_size_llseek(file, off, whence, dev->cfg_size);
 }
 
-static ssize_t
-proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
+static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
+				 size_t nbytes, loff_t *ppos)
 {
 	struct pci_dev *dev = PDE_DATA(file_inode(file));
 	unsigned int pos = *ppos;
@@ -108,8 +107,8 @@ proc_bus_pci_read(struct file *file, char __user *buf, size_t nbytes, loff_t *pp
 	return nbytes;
 }
 
-static ssize_t
-proc_bus_pci_write(struct file *file, const char __user *buf, size_t nbytes, loff_t *ppos)
+static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
+				  size_t nbytes, loff_t *ppos)
 {
 	struct inode *ino = file_inode(file);
 	struct pci_dev *dev = PDE_DATA(ino);
@@ -203,6 +202,8 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 
 #ifdef HAVE_PCI_MMAP
 	case PCIIOC_MMAP_IS_IO:
+		if (!arch_can_pci_mmap_io())
+			return -EINVAL;
 		fpriv->mmap_state = pci_mmap_io;
 		break;
 
@@ -211,18 +212,19 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case PCIIOC_WRITE_COMBINE:
-		if (arg)
-			fpriv->write_combine = 1;
-		else
-			fpriv->write_combine = 0;
-		break;
-
+		if (arch_can_pci_mmap_wc()) {
+			if (arg)
+				fpriv->write_combine = 1;
+			else
+				fpriv->write_combine = 0;
+			break;
+		}
+		/* If arch decided it can't, fall through... */
 #endif /* HAVE_PCI_MMAP */
-
 	default:
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -232,23 +234,36 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct pci_dev *dev = PDE_DATA(file_inode(file));
 	struct pci_filp_private *fpriv = file->private_data;
-	int i, ret;
+	int i, ret, write_combine = 0, res_bit = IORESOURCE_MEM;
 
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
+	if (fpriv->mmap_state == pci_mmap_io) {
+		if (!arch_can_pci_mmap_io())
+			return -EINVAL;
+		res_bit = IORESOURCE_IO;
+	}
+
 	/* Make sure the caller is mapping a real resource for this device */
 	for (i = 0; i < PCI_ROM_RESOURCE; i++) {
-		if (pci_mmap_fits(dev, i, vma,  PCI_MMAP_PROCFS))
+		if (dev->resource[i].flags & res_bit &&
+		    pci_mmap_fits(dev, i, vma,  PCI_MMAP_PROCFS))
 			break;
 	}
 
 	if (i >= PCI_ROM_RESOURCE)
 		return -ENODEV;
 
-	ret = pci_mmap_page_range(dev, vma,
-				  fpriv->mmap_state,
-				  fpriv->write_combine);
+	if (fpriv->mmap_state == pci_mmap_mem &&
+	    fpriv->write_combine) {
+		if (dev->resource[i].flags & IORESOURCE_PREFETCH)
+			write_combine = 1;
+		else
+			return -EINVAL;
+	}
+	ret = pci_mmap_page_range(dev, i, vma,
+				  fpriv->mmap_state, write_combine);
 	if (ret < 0)
 		return ret;
 
@@ -413,7 +428,7 @@ int pci_proc_detach_device(struct pci_dev *dev)
 	return 0;
 }
 
-int pci_proc_detach_bus(struct pci_bus* bus)
+int pci_proc_detach_bus(struct pci_bus *bus)
 {
 	proc_remove(bus->procdir);
 	return 0;
@@ -423,6 +438,7 @@ static int proc_bus_pci_dev_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &proc_bus_pci_devices_op);
 }
+
 static const struct file_operations proc_bus_pci_dev_operations = {
 	.owner		= THIS_MODULE,
 	.open		= proc_bus_pci_dev_open,
@@ -443,6 +459,4 @@ static int __init pci_proc_init(void)
 
 	return 0;
 }
-
 device_initcall(pci_proc_init);
-

@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/slab.h>
@@ -56,8 +52,7 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 	eeprom = kmalloc(EEPROM_SIZE,GFP_KERNEL);
 	if (!eeprom) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Failed to allocate memory"
-			   " required to read eeprom");
+			   "Failed to allocate memory required to read eeprom");
 		return NULL;
 	}
 
@@ -74,8 +69,8 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 	   strange but it's what they do) */
 	mode16 = (addr & 1);
 	eepromSize = (mode16 ? 4096 : 256);
-	trace_eeprom("Examining %d byte eeprom at location 0x%x"
-		     " using %d bit addressing",eepromSize,addr,
+	trace_eeprom("Examining %d byte eeprom at location 0x%x using %d bit addressing",
+		     eepromSize, addr,
 		     mode16 ? 16 : 8);
 
 	msg[0].addr = addr;
@@ -123,15 +118,10 @@ int pvr2_eeprom_analyze(struct pvr2_hdw *hdw)
 	memset(&tvdata,0,sizeof(tvdata));
 
 	eeprom = pvr2_eeprom_fetch(hdw);
-	if (!eeprom) return -EINVAL;
+	if (!eeprom)
+		return -EINVAL;
 
-	{
-		struct i2c_client fake_client;
-		/* Newer version expects a useless client interface */
-		fake_client.addr = hdw->eeprom_addr;
-		fake_client.adapter = &hdw->i2c_adap;
-		tveeprom_hauppauge_analog(&fake_client,&tvdata,eeprom);
-	}
+	tveeprom_hauppauge_analog(&tvdata, eeprom);
 
 	trace_eeprom("eeprom assumed v4l tveeprom module");
 	trace_eeprom("eeprom direct call results:");
@@ -152,13 +142,3 @@ int pvr2_eeprom_analyze(struct pvr2_hdw *hdw)
 
 	return 0;
 }
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 70 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

@@ -16,6 +16,7 @@
 #include <linux/time.h>
 
 #include <asm/irq_cpu.h>
+#include <asm/setup.h>
 
 #include <msp_int.h>
 
@@ -32,7 +33,7 @@ extern void msp_vsmp_int_init(void);
 
 /* vectored interrupt implementation */
 
-/* SW0/1 interrupts are used for SMP/SMTC */
+/* SW0/1 interrupts are used for SMP  */
 static inline void mac0_int_dispatch(void) { do_IRQ(MSP_INT_MAC0); }
 static inline void mac1_int_dispatch(void) { do_IRQ(MSP_INT_MAC1); }
 static inline void mac2_int_dispatch(void) { do_IRQ(MSP_INT_SAR); }
@@ -51,7 +52,7 @@ static inline void sec_int_dispatch(void)  { do_IRQ(MSP_INT_SEC);  }
  * the range 40-71.
  */
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	u32 pending;
 
@@ -138,14 +139,6 @@ void __init arch_init_irq(void)
 	set_vi_handler(MSP_INT_SEC, sec_int_dispatch);
 #ifdef CONFIG_MIPS_MT_SMP
 	msp_vsmp_int_init();
-#elif defined CONFIG_MIPS_MT_SMTC
-	/*Set hwmask for all platform devices */
-	irq_hwmask[MSP_INT_MAC0] = C_IRQ0;
-	irq_hwmask[MSP_INT_MAC1] = C_IRQ1;
-	irq_hwmask[MSP_INT_USB] = C_IRQ2;
-	irq_hwmask[MSP_INT_SAR] = C_IRQ3;
-	irq_hwmask[MSP_INT_SEC] = C_IRQ5;
-
 #endif	/* CONFIG_MIPS_MT_SMP */
 #endif	/* CONFIG_MIPS_MT */
 	/* setup the cascaded interrupts */
@@ -153,8 +146,10 @@ void __init arch_init_irq(void)
 	setup_irq(MSP_INT_PER, &per_cascade_msp);
 
 #else
-	/* setup the 2nd-level SLP register based interrupt controller */
-	/* VSMP /SMTC support support is not enabled for SLP */
+	/*
+	 * Setup the 2nd-level SLP register based interrupt controller.
+	 * VSMP support support is not enabled for SLP.
+	 */
 	msp_slp_irq_init();
 
 	/* setup the cascaded SLP/PER interrupts */

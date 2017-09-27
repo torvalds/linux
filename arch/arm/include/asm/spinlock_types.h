@@ -25,7 +25,7 @@ typedef struct {
 #define __ARCH_SPIN_LOCK_UNLOCKED	{ { 0 } }
 
 typedef struct {
-	volatile unsigned int lock;
+	u32 lock;
 } arch_rwlock_t;
 
 #define __ARCH_RW_LOCK_UNLOCKED		{ 0 }

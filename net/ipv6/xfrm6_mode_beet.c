@@ -54,7 +54,7 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	skb->mac_header = skb->network_header +
 			  offsetof(struct ipv6hdr, nexthdr);
 	skb->transport_header = skb->network_header + sizeof(*top_iph);
-	ph = (struct ip_beet_phdr *)__skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl-hdr_len);
+	ph = __skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl - hdr_len);
 
 	xfrm6_beet_make_header(skb);
 
@@ -95,8 +95,8 @@ static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	ip6h = ipv6_hdr(skb);
 	ip6h->payload_len = htons(skb->len - size);
-	ip6h->daddr = *(struct in6_addr *)&x->sel.daddr.a6;
-	ip6h->saddr = *(struct in6_addr *)&x->sel.saddr.a6;
+	ip6h->daddr = x->sel.daddr.in6;
+	ip6h->saddr = x->sel.saddr.in6;
 	err = 0;
 out:
 	return err;

@@ -18,7 +18,7 @@
 #ifdef CONFIG_AS_AVX
 
 #include <linux/compiler.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 #define BLOCK4(i) \
 		BLOCK(32 * i, 0) \
@@ -167,12 +167,12 @@ static struct xor_block_template xor_block_avx = {
 
 #define AVX_XOR_SPEED \
 do { \
-	if (cpu_has_avx) \
+	if (boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_OSXSAVE)) \
 		xor_speed(&xor_block_avx); \
 } while (0)
 
 #define AVX_SELECT(FASTEST) \
-	(cpu_has_avx ? &xor_block_avx : FASTEST)
+	(boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_OSXSAVE) ? &xor_block_avx : FASTEST)
 
 #else
 

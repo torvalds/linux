@@ -8,23 +8,10 @@
 
 #include <uapi/asm/unistd.h>
 
-
-#ifndef CONFIG_64BIT
-#define __IGNORE_select
-#else
 #define __IGNORE_time
-#endif
-
-/* Ignore NUMA system calls. Not wired up on s390. */
-#define __IGNORE_mbind
-#define __IGNORE_get_mempolicy
-#define __IGNORE_set_mempolicy
-#define __IGNORE_migrate_pages
-#define __IGNORE_move_pages
-
-/* Ignore system calls that are also reachable via sys_socket */
-#define __IGNORE_recvmmsg
-#define __IGNORE_sendmmsg
+#define __IGNORE_pkey_mprotect
+#define __IGNORE_pkey_alloc
+#define __IGNORE_pkey_free
 
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_ALARM
@@ -43,10 +30,6 @@
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
-# ifndef CONFIG_64BIT
-#   define __ARCH_WANT_STAT64
-#   define __ARCH_WANT_SYS_TIME
-# endif
 # ifdef CONFIG_COMPAT
 #   define __ARCH_WANT_COMPAT_SYS_TIME
 # endif

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -50,69 +46,78 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
-# include <linux/libcfs/libcfs.h>
-
+#include <linux/libcfs/libcfs.h>
 #include <lustre_dlm.h>
 #include <obd_support.h>
 #include <obd.h>
 #include <obd_class.h>
 #include <lustre_lib.h>
-
 #include "ldlm_internal.h"
-
 
 /* When a lock is cancelled by a client, the KMS may undergo change if this
  * is the "highest lock".  This function returns the new KMS value.
  * Caller must hold lr_lock already.
  *
- * NB: A lock on [x,y] protects a KMS of up to y + 1 bytes! */
+ * NB: A lock on [x,y] protects a KMS of up to y + 1 bytes!
+ */
 __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 {
 	struct ldlm_resource *res = lock->l_resource;
 	struct list_head *tmp;
 	struct ldlm_lock *lck;
 	__u64 kms = 0;
-	ENTRY;
 
 	/* don't let another thread in ldlm_extent_shift_kms race in
 	 * just after we finish and take our lock into account in its
-	 * calculation of the kms */
-	lock->l_flags |= LDLM_FL_KMS_IGNORE;
+	 * calculation of the kms
+	 */
+	ldlm_set_kms_ignore(lock);
 
 	list_for_each(tmp, &res->lr_granted) {
 		lck = list_entry(tmp, struct ldlm_lock, l_res_link);
 
-		if (lck->l_flags & LDLM_FL_KMS_IGNORE)
+		if (ldlm_is_kms_ignore(lck))
 			continue;
 
 		if (lck->l_policy_data.l_extent.end >= old_kms)
-			RETURN(old_kms);
+			return old_kms;
 
 		/* This extent _has_ to be smaller than old_kms (checked above)
-		 * so kms can only ever be smaller or the same as old_kms. */
+		 * so kms can only ever be smaller or the same as old_kms.
+		 */
 		if (lck->l_policy_data.l_extent.end + 1 > kms)
 			kms = lck->l_policy_data.l_extent.end + 1;
 	}
-	LASSERTF(kms <= old_kms, "kms "LPU64" old_kms "LPU64"\n", kms, old_kms);
+	LASSERTF(kms <= old_kms, "kms %llu old_kms %llu\n", kms, old_kms);
 
-	RETURN(kms);
+	return kms;
 }
 EXPORT_SYMBOL(ldlm_extent_shift_kms);
 
 struct kmem_cache *ldlm_interval_slab;
+
+/* interval tree, for LDLM_EXTENT. */
+static void ldlm_interval_attach(struct ldlm_interval *n, struct ldlm_lock *l)
+{
+	LASSERT(!l->l_tree_node);
+	LASSERT(l->l_resource->lr_type == LDLM_EXTENT);
+
+	list_add_tail(&l->l_sl_policy, &n->li_group);
+	l->l_tree_node = n;
+}
+
 struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 {
 	struct ldlm_interval *node;
-	ENTRY;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
-	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
-	if (node == NULL)
-		RETURN(NULL);
+	node = kmem_cache_zalloc(ldlm_interval_slab, GFP_NOFS);
+	if (!node)
+		return NULL;
 
 	INIT_LIST_HEAD(&node->li_group);
 	ldlm_interval_attach(node, lock);
-	RETURN(node);
+	return node;
 }
 
 void ldlm_interval_free(struct ldlm_interval *node)
@@ -120,42 +125,32 @@ void ldlm_interval_free(struct ldlm_interval *node)
 	if (node) {
 		LASSERT(list_empty(&node->li_group));
 		LASSERT(!interval_is_intree(&node->li_node));
-		OBD_SLAB_FREE(node, ldlm_interval_slab, sizeof(*node));
+		kmem_cache_free(ldlm_interval_slab, node);
 	}
-}
-
-/* interval tree, for LDLM_EXTENT. */
-void ldlm_interval_attach(struct ldlm_interval *n,
-			  struct ldlm_lock *l)
-{
-	LASSERT(l->l_tree_node == NULL);
-	LASSERT(l->l_resource->lr_type == LDLM_EXTENT);
-
-	list_add_tail(&l->l_sl_policy, &n->li_group);
-	l->l_tree_node = n;
 }
 
 struct ldlm_interval *ldlm_interval_detach(struct ldlm_lock *l)
 {
 	struct ldlm_interval *n = l->l_tree_node;
 
-	if (n == NULL)
+	if (!n)
 		return NULL;
 
 	LASSERT(!list_empty(&n->li_group));
 	l->l_tree_node = NULL;
 	list_del_init(&l->l_sl_policy);
 
-	return (list_empty(&n->li_group) ? n : NULL);
+	return list_empty(&n->li_group) ? n : NULL;
 }
 
-static inline int lock_mode_to_index(ldlm_mode_t mode)
+static inline int lock_mode_to_index(enum ldlm_mode mode)
 {
 	int index;
 
 	LASSERT(mode != 0);
-	LASSERT(IS_PO2(mode));
-	for (index = -1; mode; index++, mode >>= 1) ;
+	LASSERT(is_power_of_2(mode));
+	for (index = -1; mode; index++)
+		mode >>= 1;
 	LASSERT(index < LCK_MODE_NUM);
 	return index;
 }
@@ -167,12 +162,12 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 	struct interval_node *found, **root;
 	struct ldlm_interval *node;
 	struct ldlm_extent *extent;
-	int idx;
+	int idx, rc;
 
 	LASSERT(lock->l_granted_mode == lock->l_req_mode);
 
 	node = lock->l_tree_node;
-	LASSERT(node != NULL);
+	LASSERT(node);
 	LASSERT(!interval_is_intree(&node->li_node));
 
 	idx = lock_mode_to_index(lock->l_granted_mode);
@@ -181,21 +176,44 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 
 	/* node extent initialize */
 	extent = &lock->l_policy_data.l_extent;
-	interval_set(&node->li_node, extent->start, extent->end);
+	rc = interval_set(&node->li_node, extent->start, extent->end);
+	LASSERT(!rc);
 
 	root = &res->lr_itree[idx].lit_root;
 	found = interval_insert(&node->li_node, root);
 	if (found) { /* The policy group found. */
-		struct ldlm_interval *tmp = ldlm_interval_detach(lock);
-		LASSERT(tmp != NULL);
+		struct ldlm_interval *tmp;
+
+		tmp = ldlm_interval_detach(lock);
 		ldlm_interval_free(tmp);
 		ldlm_interval_attach(to_ldlm_interval(found), lock);
 	}
 	res->lr_itree[idx].lit_size++;
 
 	/* even though we use interval tree to manage the extent lock, we also
-	 * add the locks into grant list, for debug purpose, .. */
+	 * add the locks into grant list, for debug purpose, ..
+	 */
 	ldlm_resource_add_lock(res, &res->lr_granted, lock);
+
+	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_GRANT_CHECK)) {
+		struct ldlm_lock *lck;
+
+		list_for_each_entry_reverse(lck, &res->lr_granted,
+					    l_res_link) {
+			if (lck == lock)
+				continue;
+			if (lockmode_compat(lck->l_granted_mode,
+					    lock->l_granted_mode))
+				continue;
+			if (ldlm_extent_overlap(&lck->l_req_extent,
+						&lock->l_req_extent)) {
+				CDEBUG(D_ERROR, "granting conflicting lock %p %p\n",
+				       lck, lock);
+				ldlm_resource_dump(D_ERROR, res);
+				LBUG();
+			}
+		}
+	}
 }
 
 /** Remove cancelled lock from resource interval tree. */
@@ -213,7 +231,7 @@ void ldlm_extent_unlink_lock(struct ldlm_lock *lock)
 	LASSERT(lock->l_granted_mode == 1 << idx);
 	tree = &res->lr_itree[idx];
 
-	LASSERT(tree->lit_root != NULL); /* assure the tree is not null */
+	LASSERT(tree->lit_root); /* assure the tree is not null */
 
 	tree->lit_size--;
 	node = ldlm_interval_detach(lock);
@@ -223,17 +241,16 @@ void ldlm_extent_unlink_lock(struct ldlm_lock *lock)
 	}
 }
 
-void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				     ldlm_policy_data_t *lpolicy)
+void ldlm_extent_policy_wire_to_local(const union ldlm_wire_policy_data *wpolicy,
+				      union ldlm_policy_data *lpolicy)
 {
-	memset(lpolicy, 0, sizeof(*lpolicy));
 	lpolicy->l_extent.start = wpolicy->l_extent.start;
 	lpolicy->l_extent.end = wpolicy->l_extent.end;
 	lpolicy->l_extent.gid = wpolicy->l_extent.gid;
 }
 
-void ldlm_extent_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
-				     ldlm_wire_policy_data_t *wpolicy)
+void ldlm_extent_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
+				      union ldlm_wire_policy_data *wpolicy)
 {
 	memset(wpolicy, 0, sizeof(*wpolicy));
 	wpolicy->l_extent.start = lpolicy->l_extent.start;

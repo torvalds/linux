@@ -31,20 +31,18 @@
 
 void flush_cache_all(void);
 
-void flush_icache_range(unsigned long start, unsigned long end);
-void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len);
-void __inv_icache_page(unsigned long paddr, unsigned long vaddr);
-void ___flush_dcache_page(unsigned long paddr, unsigned long vaddr);
-#define __flush_dcache_page(p, v)	\
-		___flush_dcache_page((unsigned long)p, (unsigned long)v)
+void flush_icache_range(unsigned long kstart, unsigned long kend);
+void __sync_icache_dcache(phys_addr_t paddr, unsigned long vaddr, int len);
+void __inv_icache_page(phys_addr_t paddr, unsigned long vaddr);
+void __flush_dcache_page(phys_addr_t paddr, unsigned long vaddr);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 
 void flush_dcache_page(struct page *page);
 
-void dma_cache_wback_inv(unsigned long start, unsigned long sz);
-void dma_cache_inv(unsigned long start, unsigned long sz);
-void dma_cache_wback(unsigned long start, unsigned long sz);
+void dma_cache_wback_inv(phys_addr_t start, unsigned long sz);
+void dma_cache_inv(phys_addr_t start, unsigned long sz);
+void dma_cache_wback(phys_addr_t start, unsigned long sz);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
@@ -87,6 +85,10 @@ void flush_anon_page(struct vm_area_struct *vma,
  */
 #define PG_dc_clean	PG_arch_1
 
+#define CACHE_COLORS_NUM	4
+#define CACHE_COLORS_MSK	(CACHE_COLORS_NUM - 1)
+#define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & CACHE_COLORS_MSK)
+
 /*
  * Simple wrapper over config option
  * Bootup code ensures that hardware matches kernel configuration
@@ -95,8 +97,6 @@ static inline int cache_is_vipt_aliasing(void)
 {
 	return IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
 }
-
-#define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & 1)
 
 /*
  * checks if two addresses (after page aligning) index into same cache set

@@ -1,6 +1,7 @@
 #ifndef _LINUX_XFRM_H
 #define _LINUX_XFRM_H
 
+#include <linux/in6.h>
 #include <linux/types.h>
 
 /* All of the structures in this file may not change size as they are
@@ -13,6 +14,7 @@
 typedef union {
 	__be32		a4;
 	__be32		a6[4];
+	struct in6_addr	in6;
 } xfrm_address_t;
 
 /* Ident of a specific xfrm_state. It is used on input to lookup
@@ -296,8 +298,13 @@ enum xfrm_attr_type_t {
 	XFRMA_ALG_AUTH_TRUNC,	/* struct xfrm_algo_auth */
 	XFRMA_MARK,		/* struct xfrm_mark */
 	XFRMA_TFCPAD,		/* __u32 */
-	XFRMA_REPLAY_ESN_VAL,	/* struct xfrm_replay_esn */
+	XFRMA_REPLAY_ESN_VAL,	/* struct xfrm_replay_state_esn */
 	XFRMA_SA_EXTRA_FLAGS,	/* __u32 */
+	XFRMA_PROTO,		/* __u8 */
+	XFRMA_ADDRESS_FILTER,	/* struct xfrm_address_filter */
+	XFRMA_PAD,
+	XFRMA_OFFLOAD_DEV,	/* struct xfrm_state_offload */
+	XFRMA_OUTPUT_MARK,	/* __u32 */
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
@@ -326,6 +333,8 @@ enum xfrm_spdattr_type_t {
 	XFRMA_SPD_UNSPEC,
 	XFRMA_SPD_INFO,
 	XFRMA_SPD_HINFO,
+	XFRMA_SPD_IPV4_HTHRESH,
+	XFRMA_SPD_IPV6_HTHRESH,
 	__XFRMA_SPD_MAX
 
 #define XFRMA_SPD_MAX (__XFRMA_SPD_MAX - 1)
@@ -343,6 +352,11 @@ struct xfrmu_spdinfo {
 struct xfrmu_spdhinfo {
 	__u32 spdhcnt;
 	__u32 spdhmcnt;
+};
+
+struct xfrmu_spdhthresh {
+	__u8 lbits;
+	__u8 rbits;
 };
 
 struct xfrm_usersa_info {
@@ -473,6 +487,21 @@ struct xfrm_user_mapping {
 	__be16				old_sport;
 	__be16				new_sport;
 };
+
+struct xfrm_address_filter {
+	xfrm_address_t			saddr;
+	xfrm_address_t			daddr;
+	__u16				family;
+	__u8				splen;
+	__u8				dplen;
+};
+
+struct xfrm_user_offload {
+	int				ifindex;
+	__u8				flags;
+};
+#define XFRM_OFFLOAD_IPV6	1
+#define XFRM_OFFLOAD_INBOUND	2
 
 #ifndef __KERNEL__
 /* backwards compatibility for userspace */

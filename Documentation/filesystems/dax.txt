@@ -1,0 +1,133 @@
+Direct Access for files
+-----------------------
+
+Motivation
+----------
+
+The page cache is usually used to buffer reads and writes to files.
+It is also used to provide the pages which are mapped into userspace
+by a call to mmap.
+
+For block devices that are memory-like, the page cache pages would be
+unnecessary copies of the original storage.  The DAX code removes the
+extra copy by performing reads and writes directly to the storage device.
+For file mappings, the storage device is mapped directly into userspace.
+
+
+Usage
+-----
+
+If you have a block device which supports DAX, you can make a filesystem
+on it as usual.  The DAX code currently only supports files with a block
+size equal to your kernel's PAGE_SIZE, so you may need to specify a block
+size when creating the filesystem.  When mounting it, use the "-o dax"
+option on the command line or add 'dax' to the options in /etc/fstab.
+
+
+Implementation Tips for Block Driver Writers
+--------------------------------------------
+
+To support DAX in your block driver, implement the 'direct_access'
+block device operation.  It is used to translate the sector number
+(expressed in units of 512-byte sectors) to a page frame number (pfn)
+that identifies the physical page for the memory.  It also returns a
+kernel virtual address that can be used to access the memory.
+
+The direct_access method takes a 'size' parameter that indicates the
+number of bytes being requested.  The function should return the number
+of bytes that can be contiguously accessed at that offset.  It may also
+return a negative errno if an error occurs.
+
+In order to support this method, the storage must be byte-accessible by
+the CPU at all times.  If your device uses paging techniques to expose
+a large amount of memory through a smaller window, then you cannot
+implement direct_access.  Equally, if your device can occasionally
+stall the CPU for an extended period, you should also not attempt to
+implement direct_access.
+
+These block devices may be used for inspiration:
+- axonram: Axon DDR2 device driver
+- brd: RAM backed block device driver
+- dcssblk: s390 dcss block device driver
+- pmem: NVDIMM persistent memory driver
+
+
+Implementation Tips for Filesystem Writers
+------------------------------------------
+
+Filesystem support consists of
+- adding support to mark inodes as being DAX by setting the S_DAX flag in
+  i_flags
+- implementing ->read_iter and ->write_iter operations which use dax_iomap_rw()
+  when inode has S_DAX flag set
+- implementing an mmap file operation for DAX files which sets the
+  VM_MIXEDMAP and VM_HUGEPAGE flags on the VMA, and setting the vm_ops to
+  include handlers for fault, pmd_fault, page_mkwrite, pfn_mkwrite. These
+  handlers should probably call dax_iomap_fault() passing the appropriate
+  fault size and iomap operations.
+- calling iomap_zero_range() passing appropriate iomap operations instead of
+  block_truncate_page() for DAX files
+- ensuring that there is sufficient locking between reads, writes,
+  truncates and page faults
+
+The iomap handlers for allocating blocks must make sure that allocated blocks
+are zeroed out and converted to written extents before being returned to avoid
+exposure of uninitialized data through mmap.
+
+These filesystems may be used for inspiration:
+- ext2: see Documentation/filesystems/ext2.txt
+- ext4: see Documentation/filesystems/ext4.txt
+- xfs:  see Documentation/filesystems/xfs.txt
+
+
+Handling Media Errors
+---------------------
+
+The libnvdimm subsystem stores a record of known media error locations for
+each pmem block device (in gendisk->badblocks). If we fault at such location,
+or one with a latent error not yet discovered, the application can expect
+to receive a SIGBUS. Libnvdimm also allows clearing of these errors by simply
+writing the affected sectors (through the pmem driver, and if the underlying
+NVDIMM supports the clear_poison DSM defined by ACPI).
+
+Since DAX IO normally doesn't go through the driver/bio path, applications or
+sysadmins have an option to restore the lost data from a prior backup/inbuilt
+redundancy in the following ways:
+
+1. Delete the affected file, and restore from a backup (sysadmin route):
+   This will free the file system blocks that were being used by the file,
+   and the next time they're allocated, they will be zeroed first, which
+   happens through the driver, and will clear bad sectors.
+
+2. Truncate or hole-punch the part of the file that has a bad-block (at least
+   an entire aligned sector has to be hole-punched, but not necessarily an
+   entire filesystem block).
+
+These are the two basic paths that allow DAX filesystems to continue operating
+in the presence of media errors. More robust error recovery mechanisms can be
+built on top of this in the future, for example, involving redundancy/mirroring
+provided at the block layer through DM, or additionally, at the filesystem
+level. These would have to rely on the above two tenets, that error clearing
+can happen either by sending an IO through the driver, or zeroing (also through
+the driver).
+
+
+Shortcomings
+------------
+
+Even if the kernel or its modules are stored on a filesystem that supports
+DAX on a block device that supports DAX, they will still be copied into RAM.
+
+The DAX code does not work correctly on architectures which have virtually
+mapped caches such as ARM, MIPS and SPARC.
+
+Calling get_user_pages() on a range of user memory that has been mmaped
+from a DAX file will fail when there are no 'struct page' to describe
+those pages.  This problem has been addressed in some device drivers
+by adding optional struct page support for pages under the control of
+the driver (see CONFIG_NVDIMM_PFN in drivers/nvdimm for an example of
+how to do this). In the non struct page cases O_DIRECT reads/writes to
+those memory ranges from a non-DAX file will fail (note that O_DIRECT
+reads/writes _of a DAX file_ do work, it is the memory that is being
+accessed that is key here).  Other things that will not work in the
+non struct page case include RDMA, sendfile() and splice().

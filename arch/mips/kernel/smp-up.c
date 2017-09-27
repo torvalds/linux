@@ -36,16 +36,12 @@ static void up_smp_finish(void)
 {
 }
 
-/* Hook for after all CPUs are online */
-static void up_cpus_done(void)
-{
-}
-
 /*
  * Firmware CPU startup hook
  */
-static void up_boot_secondary(int cpu, struct task_struct *idle)
+static int up_boot_secondary(int cpu, struct task_struct *idle)
 {
+	return 0;
 }
 
 static void __init up_smp_setup(void)
@@ -68,12 +64,11 @@ static void up_cpu_die(unsigned int cpu)
 }
 #endif
 
-struct plat_smp_ops up_smp_ops = {
+const struct plat_smp_ops up_smp_ops = {
 	.send_ipi_single	= up_send_ipi_single,
 	.send_ipi_mask		= up_send_ipi_mask,
 	.init_secondary		= up_init_secondary,
 	.smp_finish		= up_smp_finish,
-	.cpus_done		= up_cpus_done,
 	.boot_secondary		= up_boot_secondary,
 	.smp_setup		= up_smp_setup,
 	.prepare_cpus		= up_prepare_cpus,

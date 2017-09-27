@@ -82,7 +82,6 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 
 	u64 total_size = 0;
 	struct mlx4_resource *profile;
-	struct mlx4_resource tmp;
 	struct sysinfo si;
 	int i, j;
 
@@ -126,8 +125,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	profile[MLX4_RES_AUXC].num    = request->num_qp;
 	profile[MLX4_RES_SRQ].num     = request->num_srq;
 	profile[MLX4_RES_CQ].num      = request->num_cq;
-	profile[MLX4_RES_EQ].num      = mlx4_is_mfunc(dev) ?
-					dev->phys_caps.num_phys_eqs :
+	profile[MLX4_RES_EQ].num = mlx4_is_mfunc(dev) ? dev->phys_caps.num_phys_eqs :
 					min_t(unsigned, dev_cap->max_eqs, MAX_MSIX);
 	profile[MLX4_RES_DMPT].num    = request->num_mpt;
 	profile[MLX4_RES_CMPT].num    = MLX4_NUM_CMPTS;
@@ -150,11 +148,8 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	 */
 	for (i = MLX4_RES_NUM; i > 0; --i)
 		for (j = 1; j < i; ++j) {
-			if (profile[j].size > profile[j - 1].size) {
-				tmp	       = profile[j];
-				profile[j]     = profile[j - 1];
-				profile[j - 1] = tmp;
-			}
+			if (profile[j].size > profile[j - 1].size)
+				swap(profile[j], profile[j - 1]);
 		}
 
 	for (i = 0; i < MLX4_RES_NUM; ++i) {
@@ -164,18 +159,17 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 		}
 
 		if (total_size > dev_cap->max_icm_sz) {
-			mlx4_err(dev, "Profile requires 0x%llx bytes; "
-				  "won't fit in 0x%llx bytes of context memory.\n",
-				  (unsigned long long) total_size,
-				  (unsigned long long) dev_cap->max_icm_sz);
+			mlx4_err(dev, "Profile requires 0x%llx bytes; won't fit in 0x%llx bytes of context memory\n",
+				 (unsigned long long) total_size,
+				 (unsigned long long) dev_cap->max_icm_sz);
 			kfree(profile);
 			return -ENOMEM;
 		}
 
 		if (profile[i].size)
-			mlx4_dbg(dev, "  profile[%2d] (%6s): 2^%02d entries @ 0x%10llx, "
-				  "size 0x%10llx\n",
-				 i, res_name[profile[i].type], profile[i].log_num,
+			mlx4_dbg(dev, "  profile[%2d] (%6s): 2^%02d entries @ 0x%10llx, size 0x%10llx\n",
+				 i, res_name[profile[i].type],
+				 profile[i].log_num,
 				 (unsigned long long) profile[i].start,
 				 (unsigned long long) profile[i].size);
 	}
@@ -217,10 +211,18 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 			init_hca->log_num_cqs = profile[i].log_num;
 			break;
 		case MLX4_RES_EQ:
-			dev->caps.num_eqs     = roundup_pow_of_two(min_t(unsigned, dev_cap->max_eqs,
-									 MAX_MSIX));
-			init_hca->eqc_base    = profile[i].start;
-			init_hca->log_num_eqs = ilog2(dev->caps.num_eqs);
+			if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+				init_hca->log_num_eqs = 0x1f;
+				init_hca->eqc_base    = profile[i].start;
+				init_hca->num_sys_eqs = dev_cap->num_sys_eqs;
+			} else {
+				dev->caps.num_eqs     = roundup_pow_of_two(
+								min_t(unsigned,
+								      dev_cap->max_eqs,
+								      MAX_MSIX));
+				init_hca->eqc_base    = profile[i].start;
+				init_hca->log_num_eqs = ilog2(dev->caps.num_eqs);
+			}
 			break;
 		case MLX4_RES_DMPT:
 			dev->caps.num_mpts	= profile[i].num;

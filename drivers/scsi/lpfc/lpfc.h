@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
@@ -20,6 +22,7 @@
  *******************************************************************/
 
 #include <scsi/scsi_host.h>
+#include <linux/ktime.h>
 
 #if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
 #define CONFIG_SCSI_LPFC_DEBUG_FS
@@ -53,6 +56,7 @@ struct lpfc_sli2_slim;
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
 #define LPFC_MAX_SGL_SEG_CNT	512	/* SGL element count per scsi cmnd */
 #define LPFC_MAX_BPL_SEG_CNT	4096	/* BPL element count per scsi cmnd */
+#define LPFC_MAX_NVME_SEG_CNT	128	/* max SGL element cnt per NVME cmnd */
 
 #define LPFC_MAX_SGE_SIZE       0x80000000 /* Maximum data allowed in a SGE */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
@@ -73,8 +77,6 @@ struct lpfc_sli2_slim;
  */
 /* 1 Second */
 #define QUEUE_RAMP_DOWN_INTERVAL	(msecs_to_jiffies(1000 * 1))
-/* 5 minutes */
-#define QUEUE_RAMP_UP_INTERVAL		(msecs_to_jiffies(1000 * 300))
 
 /* Number of exchanges reserved for discovery to complete */
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
@@ -97,12 +99,13 @@ struct lpfc_sli2_slim;
 #define FC_MAX_ADPTMSG		64
 
 #define MAX_HBAEVT	32
+#define MAX_HBAS_NO_RESET 16
 
 /* Number of MSI-X vectors the driver uses */
 #define LPFC_MSIX_VECTORS	2
 
 /* lpfc wait event data ready flag */
-#define LPFC_DATA_READY		(1<<0)
+#define LPFC_DATA_READY		0	/* bit 0 */
 
 /* queue dump line buffer size */
 #define LPFC_LBUF_SZ		128
@@ -116,12 +119,33 @@ enum lpfc_polling_flags {
 	DISABLE_FCP_RING_INT    = 0x2
 };
 
+struct perf_prof {
+	uint16_t cmd_cpu[40];
+	uint16_t rsp_cpu[40];
+	uint16_t qh_cpu[40];
+	uint16_t wqidx[40];
+};
+
+/*
+ * Provide for FC4 TYPE x28 - NVME.  The
+ * bit mask for FCP and NVME is 0x8 identically
+ * because they are 32 bit positions distance.
+ */
+#define LPFC_FC4_TYPE_BITMASK	0x00000100
+
 /* Provide DMA memory definitions the driver uses per port instance. */
 struct lpfc_dmabuf {
 	struct list_head list;
 	void *virt;		/* virtual address ptr */
 	dma_addr_t phys;	/* mapped address */
 	uint32_t   buffer_tag;	/* used for tagged queue ring */
+};
+
+struct lpfc_nvmet_ctxbuf {
+	struct list_head list;
+	struct lpfc_nvmet_rcv_ctx *context;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_sglq *sglq;
 };
 
 struct lpfc_dma_pool {
@@ -133,10 +157,22 @@ struct lpfc_dma_pool {
 struct hbq_dmabuf {
 	struct lpfc_dmabuf hbuf;
 	struct lpfc_dmabuf dbuf;
-	uint32_t size;
+	uint16_t total_size;
+	uint16_t bytes_recv;
 	uint32_t tag;
 	struct lpfc_cq_event cq_event;
 	unsigned long time_stamp;
+	void *context;
+};
+
+struct rqb_dmabuf {
+	struct lpfc_dmabuf hbuf;
+	struct lpfc_dmabuf dbuf;
+	uint16_t total_size;
+	uint16_t bytes_recv;
+	uint16_t idx;
+	struct lpfc_queue *hrq;	  /* ptr to associated Header RQ */
+	struct lpfc_queue *drq;	  /* ptr to associated Data RQ */
 };
 
 /* Priority bit.  Set value to exceed low water mark in lpfc_mem. */
@@ -232,6 +268,8 @@ struct lpfc_stats {
 	uint32_t elsRcvRRQ;
 	uint32_t elsRcvRTV;
 	uint32_t elsRcvECHO;
+	uint32_t elsRcvLCB;
+	uint32_t elsRcvRDP;
 	uint32_t elsXmitFLOGI;
 	uint32_t elsXmitFDISC;
 	uint32_t elsXmitPLOGI;
@@ -367,7 +405,8 @@ struct lpfc_vport {
 	int32_t stopped;   /* HBA has not been restarted since last ERATT */
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
 
-	uint32_t num_disc_nodes;	/*in addition to hba_state */
+	uint32_t num_disc_nodes;	/* in addition to hba_state */
+	uint32_t gidft_inp;		/* cnt of outstanding GID_FTs */
 
 	uint32_t fc_nlp_cnt;	/* outstanding NODELIST requests */
 	uint32_t fc_rscn_id_cnt;	/* count of RSCNs payloads in list */
@@ -386,7 +425,6 @@ struct lpfc_vport {
 	uint32_t work_port_events; /* Timeout to be handled  */
 #define WORKER_DISC_TMO                0x1	/* vport: Discovery timeout */
 #define WORKER_ELS_TMO                 0x2	/* vport: ELS timeout */
-#define WORKER_FDMI_TMO                0x4	/* vport: FDMI timeout */
 #define WORKER_DELAYED_DISC_TMO        0x8	/* vport: delayed discovery */
 
 #define WORKER_MBOX_TMO                0x100	/* hba: MBOX timeout */
@@ -396,7 +434,6 @@ struct lpfc_vport {
 #define WORKER_RAMP_UP_QUEUE           0x1000	/* hba: Increase Q depth */
 #define WORKER_SERVICE_TXQ             0x2000	/* hba: IOCBs on the txq */
 
-	struct timer_list fc_fdmitmo;
 	struct timer_list els_tmofunc;
 	struct timer_list delayed_disc_tmo;
 
@@ -405,6 +442,7 @@ struct lpfc_vport {
 	uint8_t load_flag;
 #define FC_LOADING		0x1	/* HBA in process of loading drvr */
 #define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
+#define FC_ALLOW_FDMI		0x4	/* port is ready for FDMI requests */
 	/* Vport Config Parameters */
 	uint32_t cfg_scan_down;
 	uint32_t cfg_lun_queue_depth;
@@ -414,14 +452,13 @@ struct lpfc_vport {
 	uint32_t cfg_peer_port_login;
 	uint32_t cfg_fcp_class;
 	uint32_t cfg_use_adisc;
-	uint32_t cfg_fdmi_on;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_max_luns;
 	uint32_t cfg_enable_da_id;
 	uint32_t cfg_max_scsicmpl_time;
 	uint32_t cfg_tgt_queue_depth;
-
+	uint32_t cfg_first_burst_size;
 	uint32_t dev_loss_tmo_changed;
 
 	struct fc_vport *fc_vport;
@@ -429,6 +466,9 @@ struct lpfc_vport {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *debug_disc_trc;
 	struct dentry *debug_nodelist;
+	struct dentry *debug_nvmestat;
+	struct dentry *debug_nvmektime;
+	struct dentry *debug_cpucheck;
 	struct dentry *vport_debugfs_root;
 	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
@@ -439,6 +479,17 @@ struct lpfc_vport {
 	unsigned long rcv_buffer_time_stamp;
 	uint32_t vport_flag;
 #define STATIC_VPORT	1
+#define FAWWPN_SET	2
+#define FAWWPN_PARAM_CHG	4
+
+	uint16_t fdmi_num_disc;
+	uint32_t fdmi_hba_mask;
+	uint32_t fdmi_port_mask;
+
+	/* There is a single nvme instance per vport. */
+	struct nvme_fc_local_port *localport;
+	uint8_t  nvmei_support; /* driver supports NVME Initiator */
+	uint32_t last_fcp_wqidx;
 };
 
 struct hbq_s {
@@ -456,10 +507,9 @@ struct hbq_s {
 					       struct hbq_dmabuf *);
 };
 
-#define LPFC_MAX_HBQS  4
 /* this matches the position in the lpfc_hbq_defs array */
 #define LPFC_ELS_HBQ	0
-#define LPFC_EXTRA_HBQ	1
+#define LPFC_MAX_HBQS	1
 
 enum hba_temp_state {
 	HBA_NORMAL_TEMP,
@@ -491,15 +541,17 @@ struct unsol_rcv_ct_ctx {
 #define LPFC_USER_LINK_SPEED_8G		8	/* 8 Gigabaud */
 #define LPFC_USER_LINK_SPEED_10G	10	/* 10 Gigabaud */
 #define LPFC_USER_LINK_SPEED_16G	16	/* 16 Gigabaud */
-#define LPFC_USER_LINK_SPEED_MAX	LPFC_USER_LINK_SPEED_16G
-#define LPFC_USER_LINK_SPEED_BITMAP ((1 << LPFC_USER_LINK_SPEED_16G) | \
+#define LPFC_USER_LINK_SPEED_32G	32	/* 32 Gigabaud */
+#define LPFC_USER_LINK_SPEED_MAX	LPFC_USER_LINK_SPEED_32G
+#define LPFC_USER_LINK_SPEED_BITMAP  ((1ULL << LPFC_USER_LINK_SPEED_32G) | \
+				     (1 << LPFC_USER_LINK_SPEED_16G) | \
 				     (1 << LPFC_USER_LINK_SPEED_10G) | \
 				     (1 << LPFC_USER_LINK_SPEED_8G) | \
 				     (1 << LPFC_USER_LINK_SPEED_4G) | \
 				     (1 << LPFC_USER_LINK_SPEED_2G) | \
 				     (1 << LPFC_USER_LINK_SPEED_1G) | \
 				     (1 << LPFC_USER_LINK_SPEED_AUTO))
-#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16"
+#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16, 32"
 
 enum nemb_type {
 	nemb_mse = 1,
@@ -623,6 +675,8 @@ struct lpfc_hba {
 					/* INIT_LINK mailbox command */
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
 #define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
+#define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
+#define LS_MDS_LOOPBACK      0x16	/* MDS Diagnostics Link Up (Loopback) */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
@@ -641,6 +695,15 @@ struct lpfc_hba {
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
 #define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
+#define HBA_FW_DUMP_OP		0x10000 /* Skips fn reset before FW dump */
+#define HBA_RECOVERABLE_UE	0x20000 /* Firmware supports recoverable UE */
+#define HBA_FORCED_LINK_SPEED	0x40000 /*
+					 * Firmware supports Forced Link Speed
+					 * capability
+					 */
+#define HBA_NVME_IOQ_FLUSH      0x80000 /* NVME IO queues flushed. */
+#define NVME_XRI_ABORT_EVENT	0x100000
+
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 
@@ -670,7 +733,6 @@ struct lpfc_hba {
 	uint32_t fc_rttov;	/* R_T_TOV timer value */
 	uint32_t fc_altov;	/* AL_TOV timer value */
 	uint32_t fc_crtov;	/* C_R_TOV timer value */
-	uint32_t fc_citov;	/* C_I_TOV timer value */
 
 	struct serv_parm fc_fabparam;	/* fabric service parameters buffer */
 	uint8_t alpa_map[128];	/* AL_PA map from READ_LA */
@@ -688,6 +750,13 @@ struct lpfc_hba {
 	uint8_t  wwnn[8];
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
+	uint8_t  fcp_embed_io;
+	uint8_t  nvme_support;	/* Firmware supports NVME */
+	uint8_t  nvmet_support;	/* driver supports NVMET */
+#define LPFC_NVMET_MAX_PORTS	32
+	uint8_t  mds_diags_support;
+	uint32_t initial_imax;
+	uint8_t  bbcredit_support;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -707,22 +776,46 @@ struct lpfc_hba {
 	uint32_t cfg_multi_ring_type;
 	uint32_t cfg_poll;
 	uint32_t cfg_poll_tmo;
+	uint32_t cfg_task_mgmt_tmo;
 	uint32_t cfg_use_msi;
+	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
-	uint32_t cfg_fcp_wq_count;
-	uint32_t cfg_fcp_eq_count;
 	uint32_t cfg_fcp_io_channel;
+	uint32_t cfg_suppress_rsp;
+	uint32_t cfg_nvme_oas;
+	uint32_t cfg_nvme_io_channel;
+	uint32_t cfg_nvmet_mrq;
+	uint32_t cfg_enable_nvmet;
+	uint32_t cfg_nvme_enable_fb;
+	uint32_t cfg_nvmet_fb_size;
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
-	uint32_t cfg_prot_sg_seg_cnt;
+	uint32_t cfg_nvme_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
+	uint32_t cfg_fof;
+	uint32_t cfg_EnableXLane;
+	uint8_t cfg_oas_tgt_wwpn[8];
+	uint8_t cfg_oas_vpt_wwpn[8];
+	uint32_t cfg_oas_lun_state;
+#define OAS_LUN_ENABLE	1
+#define OAS_LUN_DISABLE	0
+	uint32_t cfg_oas_lun_status;
+#define OAS_LUN_STATUS_EXISTS	0x01
+	uint32_t cfg_oas_flags;
+#define OAS_FIND_ANY_VPORT	0x01
+#define OAS_FIND_ANY_TARGET	0x02
+#define OAS_LUN_VALID	0x04
+	uint32_t cfg_oas_priority;
+	uint32_t cfg_XLanePriority;
 	uint32_t cfg_enable_bg;
+	uint32_t cfg_prot_mask;
+	uint32_t cfg_prot_guard;
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
@@ -730,10 +823,26 @@ struct lpfc_hba {
 	uint32_t cfg_request_firmware_upgrade;
 	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
+	uint32_t cfg_rrq_xri_bitmap_sz;
+	uint32_t cfg_delay_discovery;
+	uint32_t cfg_sli_mode;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
 	uint32_t cfg_enable_dss;
+	uint32_t cfg_fdmi_on;
+#define LPFC_FDMI_NO_SUPPORT	0	/* FDMI not supported */
+#define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
+	uint32_t cfg_enable_SmartSAN;
+	uint32_t cfg_enable_mds_diags;
+	uint32_t cfg_enable_fc4_type;
+	uint32_t cfg_enable_bbcr;	/*Enable BB Credit Recovery*/
+	uint32_t cfg_xri_split;
+#define LPFC_ENABLE_FCP  1
+#define LPFC_ENABLE_NVME 2
+#define LPFC_ENABLE_BOTH 3
+	uint32_t io_channel_irqs;	/* number of irqs for io channels */
+	struct nvmet_fc_target_port *targetport;
 	lpfc_vpd_t vpd;		/* vital product data */
 
 	struct pci_dev *pcidev;
@@ -748,15 +857,15 @@ struct lpfc_hba {
 	unsigned long data_flags;
 
 	uint32_t hbq_in_use;		/* HBQs in use flag */
-	struct list_head rb_pend_list;  /* Received buffers to be processed */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
-	atomic_t fcp_qidx;		/* next work queue to post work to */
+	atomic_t fcp_qidx;         /* next FCP WQ (RR Policy) */
+	atomic_t nvme_qidx;        /* next NVME WQ (RR Policy) */
 
-	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
-	unsigned long pci_bar1_map;     /* Physical address for PCI BAR1 */
-	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
+	phys_addr_t pci_bar0_map;     /* Physical address for PCI BAR0 */
+	phys_addr_t pci_bar1_map;     /* Physical address for PCI BAR1 */
+	phys_addr_t pci_bar2_map;     /* Physical address for PCI BAR2 */
 	void __iomem *slim_memmap_p;	/* Kernel memory mapped address for
 					   PCI BAR0 */
 	void __iomem *ctrl_regs_memmap_p;/* Kernel memory mapped address for
@@ -802,13 +911,22 @@ struct lpfc_hba {
 
 	struct timer_list fcp_poll_timer;
 	struct timer_list eratt_poll;
+	uint32_t eratt_poll_interval;
 
 	/*
 	 * stat  counters
 	 */
-	uint64_t fc4InputRequests;
-	uint64_t fc4OutputRequests;
-	uint64_t fc4ControlRequests;
+	atomic_t fc4ScsiInputRequests;
+	atomic_t fc4ScsiOutputRequests;
+	atomic_t fc4ScsiControlRequests;
+	atomic_t fc4ScsiIoCmpls;
+	atomic_t fc4NvmeInputRequests;
+	atomic_t fc4NvmeOutputRequests;
+	atomic_t fc4NvmeControlRequests;
+	atomic_t fc4NvmeIoCmpls;
+	atomic_t fc4NvmeLsRequests;
+	atomic_t fc4NvmeLsCmpls;
+
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
 	uint64_t bg_reftag_err_cnt;
@@ -819,29 +937,35 @@ struct lpfc_hba {
 	struct list_head lpfc_scsi_buf_list_get;
 	struct list_head lpfc_scsi_buf_list_put;
 	uint32_t total_scsi_bufs;
+	spinlock_t nvme_buf_list_get_lock;  /* NVME buf alloc list lock */
+	spinlock_t nvme_buf_list_put_lock;  /* NVME buf free list lock */
+	struct list_head lpfc_nvme_buf_list_get;
+	struct list_head lpfc_nvme_buf_list_put;
+	uint32_t total_nvme_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;
 	spinlock_t hbalock;
 
-	/* pci_mem_pools */
-	struct pci_pool *lpfc_scsi_dma_buf_pool;
-	struct pci_pool *lpfc_mbuf_pool;
-	struct pci_pool *lpfc_hrb_pool;	/* header receive buffer pool */
-	struct pci_pool *lpfc_drb_pool; /* data receive buffer pool */
-	struct pci_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
+	/* dma_mem_pools */
+	struct dma_pool *lpfc_sg_dma_buf_pool;
+	struct dma_pool *lpfc_mbuf_pool;
+	struct dma_pool *lpfc_hrb_pool;	/* header receive buffer pool */
+	struct dma_pool *lpfc_drb_pool; /* data receive buffer pool */
+	struct dma_pool *lpfc_nvmet_drb_pool; /* data receive buffer pool */
+	struct dma_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
+	struct dma_pool *txrdy_payload_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;
 	mempool_t *nlp_mem_pool;
 	mempool_t *rrq_pool;
+	mempool_t *active_rrq_pool;
 
 	struct fc_host_statistics link_stats;
 	enum intr_type_t intr_type;
 	uint32_t intr_mode;
 #define LPFC_INTR_ERROR	0xFFFFFFFF
-	struct msix_entry msix_entries[LPFC_MSIX_VECTORS];
-
 	struct list_head port_list;
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
 	uint16_t max_vpi;		/* Maximum virtual nports */
@@ -869,7 +993,6 @@ struct lpfc_hba {
 	atomic_t num_cmd_success;
 	unsigned long last_rsrc_error_time;
 	unsigned long last_ramp_down_time;
-	unsigned long last_ramp_up_time;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
@@ -887,6 +1010,12 @@ struct lpfc_hba {
 	struct dentry *debug_readGuard;  /* inject read guard_tag errors */
 	struct dentry *debug_readApp;    /* inject read app_tag errors */
 	struct dentry *debug_readRef;    /* inject read ref_tag errors */
+
+	struct dentry *debug_nvmeio_trc;
+	struct lpfc_debugfs_nvmeio_trc *nvmeio_trc;
+	atomic_t nvmeio_trc_cnt;
+	uint32_t nvmeio_trc_size;
+	uint32_t nvmeio_trc_output_idx;
 
 	/* T10 DIF error injection */
 	uint32_t lpfc_injerr_wgrd_cnt;
@@ -913,7 +1042,9 @@ struct lpfc_hba {
 	struct dentry *idiag_ctl_acc;
 	struct dentry *idiag_mbx_acc;
 	struct dentry *idiag_ext_acc;
+	uint8_t lpfc_idiag_last_eq;
 #endif
+	uint16_t nvmeio_trc_on;
 
 	/* Used for deferred freeing of ELS data buffers */
 	struct list_head elsbuf;
@@ -922,6 +1053,7 @@ struct lpfc_hba {
 
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
+	unsigned long last_eqdelay_time;
 	unsigned long last_completion_time;
 	unsigned long skipped_hb;
 	struct timer_list hb_tmofunc;
@@ -971,6 +1103,68 @@ struct lpfc_hba {
 	atomic_t sdev_cnt;
 	uint8_t fips_spec_rev;
 	uint8_t fips_level;
+	spinlock_t devicelock;	/* lock for luns list */
+	mempool_t *device_data_mem_pool;
+	struct list_head luns;
+#define LPFC_TRANSGRESSION_HIGH_TEMPERATURE	0x0080
+#define LPFC_TRANSGRESSION_LOW_TEMPERATURE	0x0040
+#define LPFC_TRANSGRESSION_HIGH_VOLTAGE		0x0020
+#define LPFC_TRANSGRESSION_LOW_VOLTAGE		0x0010
+#define LPFC_TRANSGRESSION_HIGH_TXBIAS		0x0008
+#define LPFC_TRANSGRESSION_LOW_TXBIAS		0x0004
+#define LPFC_TRANSGRESSION_HIGH_TXPOWER		0x0002
+#define LPFC_TRANSGRESSION_LOW_TXPOWER		0x0001
+#define LPFC_TRANSGRESSION_HIGH_RXPOWER		0x8000
+#define LPFC_TRANSGRESSION_LOW_RXPOWER		0x4000
+	uint16_t sfp_alarm;
+	uint16_t sfp_warning;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#define LPFC_CHECK_CPU_CNT    32
+	uint32_t cpucheck_rcv_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_ccmpl_io[LPFC_CHECK_CPU_CNT];
+	uint16_t cpucheck_on;
+#define LPFC_CHECK_OFF		0
+#define LPFC_CHECK_NVME_IO	1
+#define LPFC_CHECK_NVMET_RCV	2
+#define LPFC_CHECK_NVMET_IO	4
+	uint16_t ktime_on;
+	uint64_t ktime_data_samples;
+	uint64_t ktime_status_samples;
+	uint64_t ktime_last_cmd;
+	uint64_t ktime_seg1_total;
+	uint64_t ktime_seg1_min;
+	uint64_t ktime_seg1_max;
+	uint64_t ktime_seg2_total;
+	uint64_t ktime_seg2_min;
+	uint64_t ktime_seg2_max;
+	uint64_t ktime_seg3_total;
+	uint64_t ktime_seg3_min;
+	uint64_t ktime_seg3_max;
+	uint64_t ktime_seg4_total;
+	uint64_t ktime_seg4_min;
+	uint64_t ktime_seg4_max;
+	uint64_t ktime_seg5_total;
+	uint64_t ktime_seg5_min;
+	uint64_t ktime_seg5_max;
+	uint64_t ktime_seg6_total;
+	uint64_t ktime_seg6_min;
+	uint64_t ktime_seg6_max;
+	uint64_t ktime_seg7_total;
+	uint64_t ktime_seg7_min;
+	uint64_t ktime_seg7_max;
+	uint64_t ktime_seg8_total;
+	uint64_t ktime_seg8_min;
+	uint64_t ktime_seg8_max;
+	uint64_t ktime_seg9_total;
+	uint64_t ktime_seg9_min;
+	uint64_t ktime_seg9_max;
+	uint64_t ktime_seg10_total;
+	uint64_t ktime_seg10_min;
+	uint64_t ktime_seg10_max;
+#endif
 };
 
 static inline struct Scsi_Host *
@@ -1040,4 +1234,16 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 	phba->pport->stopped = 1;
 
 	return 0;
+}
+
+static inline struct lpfc_sli_ring *
+lpfc_phba_elsring(struct lpfc_hba *phba)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (phba->sli4_hba.els_wq)
+			return phba->sli4_hba.els_wq->pring;
+		else
+			return NULL;
+	}
+	return &phba->sli.sli3_ring[LPFC_ELS_RING];
 }

@@ -24,8 +24,8 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
-/**
- * @file SDVO command definitions and structures.
+/*
+ * SDVO command definitions and structures.
  */
 
 #define SDVO_OUTPUT_FIRST   (0)
@@ -59,47 +59,47 @@ struct intel_sdvo_caps {
 	unsigned int stall_support:1;
 	unsigned int pad:1;
 	u16 output_flags;
-} __attribute__((packed));
+} __packed;
 
 /* Note: SDVO detailed timing flags match EDID misc flags. */
 #define DTD_FLAG_HSYNC_POSITIVE (1 << 1)
 #define DTD_FLAG_VSYNC_POSITIVE (1 << 2)
 #define DTD_FLAG_INTERLACE	(1 << 7)
 
-/** This matches the EDID DTD structure, more or less */
+/* This matches the EDID DTD structure, more or less */
 struct intel_sdvo_dtd {
 	struct {
-		u16 clock;	/**< pixel clock, in 10kHz units */
-		u8 h_active;	/**< lower 8 bits (pixels) */
-		u8 h_blank;	/**< lower 8 bits (pixels) */
-		u8 h_high;	/**< upper 4 bits each h_active, h_blank */
-		u8 v_active;	/**< lower 8 bits (lines) */
-		u8 v_blank;	/**< lower 8 bits (lines) */
-		u8 v_high;	/**< upper 4 bits each v_active, v_blank */
+		u16 clock;	/* pixel clock, in 10kHz units */
+		u8 h_active;	/* lower 8 bits (pixels) */
+		u8 h_blank;	/* lower 8 bits (pixels) */
+		u8 h_high;	/* upper 4 bits each h_active, h_blank */
+		u8 v_active;	/* lower 8 bits (lines) */
+		u8 v_blank;	/* lower 8 bits (lines) */
+		u8 v_high;	/* upper 4 bits each v_active, v_blank */
 	} part1;
 
 	struct {
-		u8 h_sync_off;	/**< lower 8 bits, from hblank start */
-		u8 h_sync_width;	/**< lower 8 bits (pixels) */
-		/** lower 4 bits each vsync offset, vsync width */
+		u8 h_sync_off;	/* lower 8 bits, from hblank start */
+		u8 h_sync_width;	/* lower 8 bits (pixels) */
+		/* lower 4 bits each vsync offset, vsync width */
 		u8 v_sync_off_width;
-		/**
+		/*
 		* 2 high bits of hsync offset, 2 high bits of hsync width,
 		* bits 4-5 of vsync offset, and 2 high bits of vsync width.
 		*/
 		u8 sync_off_width_high;
 		u8 dtd_flags;
 		u8 sdvo_flags;
-		/** bits 6-7 of vsync offset at bits 6-7 */
+		/* bits 6-7 of vsync offset at bits 6-7 */
 		u8 v_sync_off_high;
 		u8 reserved;
 	} part2;
-} __attribute__((packed));
+} __packed;
 
 struct intel_sdvo_pixel_clock_range {
-	u16 min;	/**< pixel clock, in 10kHz units */
-	u16 max;	/**< pixel clock, in 10kHz units */
-} __attribute__((packed));
+	u16 min;	/* pixel clock, in 10kHz units */
+	u16 max;	/* pixel clock, in 10kHz units */
+} __packed;
 
 struct intel_sdvo_preferred_input_timing_args {
 	u16 clock;
@@ -108,7 +108,7 @@ struct intel_sdvo_preferred_input_timing_args {
 	u8	interlace:1;
 	u8	scaled:1;
 	u8	pad:6;
-} __attribute__((packed));
+} __packed;
 
 /* I2C registers for SDVO */
 #define SDVO_I2C_ARG_0				0x07
@@ -144,7 +144,7 @@ struct intel_sdvo_preferred_input_timing_args {
 
 #define SDVO_CMD_RESET					0x01
 
-/** Returns a struct intel_sdvo_caps */
+/* Returns a struct intel_sdvo_caps */
 #define SDVO_CMD_GET_DEVICE_CAPS			0x02
 
 #define SDVO_CMD_GET_FIRMWARE_REV			0x86
@@ -152,7 +152,7 @@ struct intel_sdvo_preferred_input_timing_args {
 # define SDVO_DEVICE_FIRMWARE_MAJOR			SDVO_I2C_RETURN_1
 # define SDVO_DEVICE_FIRMWARE_PATCH			SDVO_I2C_RETURN_2
 
-/**
+/*
  * Reports which inputs are trained (managed to sync).
  *
  * Devices must have trained within 2 vsyncs of a mode change.
@@ -162,12 +162,12 @@ struct intel_sdvo_get_trained_inputs_response {
 	unsigned int input0_trained:1;
 	unsigned int input1_trained:1;
 	unsigned int pad:6;
-} __attribute__((packed));
+} __packed;
 
-/** Returns a struct intel_sdvo_output_flags of active outputs. */
+/* Returns a struct intel_sdvo_output_flags of active outputs. */
 #define SDVO_CMD_GET_ACTIVE_OUTPUTS			0x04
 
-/**
+/*
  * Sets the current set of active outputs.
  *
  * Takes a struct intel_sdvo_output_flags.  Must be preceded by a SET_IN_OUT_MAP
@@ -175,7 +175,7 @@ struct intel_sdvo_get_trained_inputs_response {
  */
 #define SDVO_CMD_SET_ACTIVE_OUTPUTS			0x05
 
-/**
+/*
  * Returns the current mapping of SDVO inputs to outputs on the device.
  *
  * Returns two struct intel_sdvo_output_flags structures.
@@ -185,29 +185,29 @@ struct intel_sdvo_in_out_map {
 	u16 in0, in1;
 };
 
-/**
+/*
  * Sets the current mapping of SDVO inputs to outputs on the device.
  *
  * Takes two struct i380_sdvo_output_flags structures.
  */
 #define SDVO_CMD_SET_IN_OUT_MAP				0x07
 
-/**
+/*
  * Returns a struct intel_sdvo_output_flags of attached displays.
  */
 #define SDVO_CMD_GET_ATTACHED_DISPLAYS			0x0b
 
-/**
+/*
  * Returns a struct intel_sdvo_ouptut_flags of displays supporting hot plugging.
  */
 #define SDVO_CMD_GET_HOT_PLUG_SUPPORT			0x0c
 
-/**
+/*
  * Takes a struct intel_sdvo_output_flags.
  */
 #define SDVO_CMD_SET_ACTIVE_HOT_PLUG			0x0d
 
-/**
+/*
  * Returns a struct intel_sdvo_output_flags of displays with hot plug
  * interrupts enabled.
  */
@@ -219,9 +219,9 @@ struct intel_sdvo_get_interrupt_event_source_response {
 	unsigned int ambient_light_interrupt:1;
 	unsigned int hdmi_audio_encrypt_change:1;
 	unsigned int pad:6;
-} __attribute__((packed));
+} __packed;
 
-/**
+/*
  * Selects which input is affected by future input commands.
  *
  * Commands affected include SET_INPUT_TIMINGS_PART[12],
@@ -232,9 +232,9 @@ struct intel_sdvo_get_interrupt_event_source_response {
 struct intel_sdvo_set_target_input_args {
 	unsigned int target_1:1;
 	unsigned int pad:7;
-} __attribute__((packed));
+} __packed;
 
-/**
+/*
  * Takes a struct intel_sdvo_output_flags of which outputs are targeted by
  * future output commands.
  *
@@ -280,7 +280,7 @@ struct intel_sdvo_set_target_input_args {
 # define SDVO_DTD_SDVO_FLAG_SCALING_SMOOTH			(2 << 4)
 # define SDVO_DTD_VSYNC_OFF_HIGH			SDVO_I2C_ARG_6
 
-/**
+/*
  * Generates a DTD based on the given width, height, and flags.
  *
  * This will be supported by any device supporting scaling or interlaced
@@ -300,24 +300,24 @@ struct intel_sdvo_set_target_input_args {
 #define SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART1	0x1b
 #define SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART2	0x1c
 
-/** Returns a struct intel_sdvo_pixel_clock_range */
+/* Returns a struct intel_sdvo_pixel_clock_range */
 #define SDVO_CMD_GET_INPUT_PIXEL_CLOCK_RANGE		0x1d
-/** Returns a struct intel_sdvo_pixel_clock_range */
+/* Returns a struct intel_sdvo_pixel_clock_range */
 #define SDVO_CMD_GET_OUTPUT_PIXEL_CLOCK_RANGE		0x1e
 
-/** Returns a byte bitfield containing SDVO_CLOCK_RATE_MULT_* flags */
+/* Returns a byte bitfield containing SDVO_CLOCK_RATE_MULT_* flags */
 #define SDVO_CMD_GET_SUPPORTED_CLOCK_RATE_MULTS		0x1f
 
-/** Returns a byte containing a SDVO_CLOCK_RATE_MULT_* flag */
+/* Returns a byte containing a SDVO_CLOCK_RATE_MULT_* flag */
 #define SDVO_CMD_GET_CLOCK_RATE_MULT			0x20
-/** Takes a byte containing a SDVO_CLOCK_RATE_MULT_* flag */
+/* Takes a byte containing a SDVO_CLOCK_RATE_MULT_* flag */
 #define SDVO_CMD_SET_CLOCK_RATE_MULT			0x21
 # define SDVO_CLOCK_RATE_MULT_1X				(1 << 0)
 # define SDVO_CLOCK_RATE_MULT_2X				(1 << 1)
 # define SDVO_CLOCK_RATE_MULT_4X				(1 << 3)
 
 #define SDVO_CMD_GET_SUPPORTED_TV_FORMATS		0x27
-/** 6 bytes of bit flags for TV formats shared by all TV format functions */
+/* 6 bytes of bit flags for TV formats shared by all TV format functions */
 struct intel_sdvo_tv_format {
 	unsigned int ntsc_m:1;
 	unsigned int ntsc_j:1;
@@ -370,13 +370,13 @@ struct intel_sdvo_tv_format {
 	unsigned int hdtv_std_eia_7702a_480i_60:1;
 	unsigned int hdtv_std_eia_7702a_480p_60:1;
 	unsigned int pad:3;
-} __attribute__((packed));
+} __packed;
 
 #define SDVO_CMD_GET_TV_FORMAT				0x28
 
 #define SDVO_CMD_SET_TV_FORMAT				0x29
 
-/** Returns the resolutiosn that can be used with the given TV format */
+/* Returns the resolutiosn that can be used with the given TV format */
 #define SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT		0x83
 struct intel_sdvo_sdtv_resolution_request {
 	unsigned int ntsc_m:1;
@@ -401,7 +401,7 @@ struct intel_sdvo_sdtv_resolution_request {
 	unsigned int secam_l:1;
 	unsigned int secam_60:1;
 	unsigned int pad:5;
-} __attribute__((packed));
+} __packed;
 
 struct intel_sdvo_sdtv_resolution_reply {
 	unsigned int res_320x200:1;
@@ -426,7 +426,7 @@ struct intel_sdvo_sdtv_resolution_reply {
 	unsigned int res_1024x768:1;
 	unsigned int res_1280x1024:1;
 	unsigned int pad:5;
-} __attribute__((packed));
+} __packed;
 
 /* Get supported resolution with squire pixel aspect ratio that can be
    scaled for the requested HDTV format */
@@ -463,7 +463,7 @@ struct intel_sdvo_hdtv_resolution_request {
 	unsigned int hdtv_std_eia_7702a_480i_60:1;
 	unsigned int hdtv_std_eia_7702a_480p_60:1;
 	unsigned int pad:6;
-} __attribute__((packed));
+} __packed;
 
 struct intel_sdvo_hdtv_resolution_reply {
 	unsigned int res_640x480:1;
@@ -517,7 +517,7 @@ struct intel_sdvo_hdtv_resolution_reply {
 
 	unsigned int res_1280x768:1;
 	unsigned int pad5:7;
-} __attribute__((packed));
+} __packed;
 
 /* Get supported power state returns info for encoder and monitor, rely on
    last SetTargetInput and SetTargetOutput calls */
@@ -539,7 +539,7 @@ struct intel_sdvo_hdtv_resolution_reply {
 #define SDVO_CMD_GET_MAX_PANEL_POWER_SEQUENCING		0x2d
 #define SDVO_CMD_GET_PANEL_POWER_SEQUENCING		0x2e
 #define SDVO_CMD_SET_PANEL_POWER_SEQUENCING		0x2f
-/**
+/*
  * The panel power sequencing parameters are in units of milliseconds.
  * The high fields are bits 8:9 of the 10-bit values.
  */
@@ -557,13 +557,13 @@ struct sdvo_panel_power_sequencing {
 
 	unsigned int t4_high:2;
 	unsigned int pad:6;
-} __attribute__((packed));
+} __packed;
 
 #define SDVO_CMD_GET_MAX_BACKLIGHT_LEVEL		0x30
 struct sdvo_max_backlight_reply {
 	u8 max_value;
 	u8 default_value;
-} __attribute__((packed));
+} __packed;
 
 #define SDVO_CMD_GET_BACKLIGHT_LEVEL			0x31
 #define SDVO_CMD_SET_BACKLIGHT_LEVEL			0x32
@@ -573,14 +573,14 @@ struct sdvo_get_ambient_light_reply {
 	u16 trip_low;
 	u16 trip_high;
 	u16 value;
-} __attribute__((packed));
+} __packed;
 #define SDVO_CMD_SET_AMBIENT_LIGHT			0x34
 struct sdvo_set_ambient_light_reply {
 	u16 trip_low;
 	u16 trip_high;
 	unsigned int enable:1;
 	unsigned int pad:7;
-} __attribute__((packed));
+} __packed;
 
 /* Set display power state */
 #define SDVO_CMD_SET_DISPLAY_POWER_STATE		0x7d
@@ -608,7 +608,7 @@ struct intel_sdvo_enhancements_reply {
 	unsigned int dither:1;
 	unsigned int tv_chroma_filter:1;
 	unsigned int tv_luma_filter:1;
-} __attribute__((packed));
+} __packed;
 
 /* Picture enhancement limits below are dependent on the current TV format,
  * and thus need to be queried and set after it.
@@ -630,7 +630,7 @@ struct intel_sdvo_enhancements_reply {
 struct intel_sdvo_enhancement_limits_reply {
 	u16 max_value;
 	u16 default_value;
-} __attribute__((packed));
+} __packed;
 
 #define SDVO_CMD_GET_LVDS_PANEL_INFORMATION		0x7f
 #define SDVO_CMD_SET_LVDS_PANEL_INFORMATION		0x80
@@ -671,7 +671,7 @@ struct intel_sdvo_enhancement_limits_reply {
 #define SDVO_CMD_SET_TV_LUMA_FILTER			0x79
 struct intel_sdvo_enhancements_arg {
 	u16 value;
-} __attribute__((packed));
+} __packed;
 
 #define SDVO_CMD_GET_DOT_CRAWL				0x70
 #define SDVO_CMD_SET_DOT_CRAWL				0x71
@@ -727,4 +727,4 @@ struct intel_sdvo_enhancements_arg {
 struct intel_sdvo_encode {
 	u8 dvi_rev;
 	u8 hdmi_rev;
-} __attribute__ ((packed));
+} __packed;

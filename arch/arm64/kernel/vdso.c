@@ -18,12 +18,13 @@
  * Author: Will Deacon <will.deacon@arm.com>
  */
 
-#include <linux/kernel.h>
+#include <linux/cache.h>
 #include <linux/clocksource.h>
 #include <linux/elf.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/gfp.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
@@ -36,9 +37,8 @@
 #include <asm/vdso.h>
 #include <asm/vdso_datapage.h>
 
-extern char vdso_start, vdso_end;
-static unsigned long vdso_pages;
-static struct page **vdso_pagelist;
+extern char vdso_start[], vdso_end[];
+static unsigned long vdso_pages __ro_after_init;
 
 /*
  * The vDSO data page.
@@ -53,12 +53,15 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
 /*
  * Create and map the vectors page for AArch32 tasks.
  */
-static struct page *vectors_page[1];
+static struct page *vectors_page[1] __ro_after_init;
 
-static int alloc_vectors_page(void)
+static int __init alloc_vectors_page(void)
 {
 	extern char __kuser_helper_start[], __kuser_helper_end[];
+	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
+
 	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
+	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
 	unsigned long vpage;
 
 	vpage = get_zeroed_page(GFP_ATOMIC);
@@ -72,7 +75,7 @@ static int alloc_vectors_page(void)
 
 	/* sigreturn code */
 	memcpy((void *)vpage + AARCH32_KERN_SIGRET_CODE_OFFSET,
-		aarch32_sigret_code, sizeof(aarch32_sigret_code));
+               __aarch32_sigret_code_start, sigret_sz);
 
 	flush_icache_range(vpage, vpage + PAGE_SIZE);
 	vectors_page[0] = virt_to_page(vpage);
@@ -85,67 +88,87 @@ int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = AARCH32_VECTORS_BASE;
-	int ret;
+	static const struct vm_special_mapping spec = {
+		.name	= "[vectors]",
+		.pages	= vectors_page,
 
-	down_write(&mm->mmap_sem);
+	};
+	void *ret;
+
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 	current->mm->context.vdso = (void *)addr;
 
 	/* Map vectors page at the high address. */
-	ret = install_special_mapping(mm, addr, PAGE_SIZE,
-				      VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
-				      vectors_page);
+	ret = _install_special_mapping(mm, addr, PAGE_SIZE,
+				       VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
+				       &spec);
 
 	up_write(&mm->mmap_sem);
 
-	return ret;
+	return PTR_ERR_OR_ZERO(ret);
 }
 #endif /* CONFIG_COMPAT */
 
+static int vdso_mremap(const struct vm_special_mapping *sm,
+		struct vm_area_struct *new_vma)
+{
+	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
+	unsigned long vdso_size = vdso_end - vdso_start;
+
+	if (vdso_size != new_size)
+		return -EINVAL;
+
+	current->mm->context.vdso = (void *)new_vma->vm_start;
+
+	return 0;
+}
+
+static struct vm_special_mapping vdso_spec[2] __ro_after_init = {
+	{
+		.name	= "[vvar]",
+	},
+	{
+		.name	= "[vdso]",
+		.mremap = vdso_mremap,
+	},
+};
+
 static int __init vdso_init(void)
 {
-	struct page *pg;
-	char *vbase;
-	int i, ret = 0;
+	int i;
+	struct page **vdso_pagelist;
+	unsigned long pfn;
 
-	vdso_pages = (&vdso_end - &vdso_start) >> PAGE_SHIFT;
-	pr_info("vdso: %ld pages (%ld code, %ld data) at base %p\n",
-		vdso_pages + 1, vdso_pages, 1L, &vdso_start);
+	if (memcmp(vdso_start, "\177ELF", 4)) {
+		pr_err("vDSO is not a valid ELF object!\n");
+		return -EINVAL;
+	}
+
+	vdso_pages = (vdso_end - vdso_start) >> PAGE_SHIFT;
+	pr_info("vdso: %ld pages (%ld code @ %p, %ld data @ %p)\n",
+		vdso_pages + 1, vdso_pages, vdso_start, 1L, vdso_data);
 
 	/* Allocate the vDSO pagelist, plus a page for the data. */
-	vdso_pagelist = kzalloc(sizeof(struct page *) * (vdso_pages + 1),
+	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
 				GFP_KERNEL);
-	if (vdso_pagelist == NULL) {
-		pr_err("Failed to allocate vDSO pagelist!\n");
+	if (vdso_pagelist == NULL)
 		return -ENOMEM;
-	}
-
-	/* Grab the vDSO code pages. */
-	for (i = 0; i < vdso_pages; i++) {
-		pg = virt_to_page(&vdso_start + i*PAGE_SIZE);
-		ClearPageReserved(pg);
-		get_page(pg);
-		vdso_pagelist[i] = pg;
-	}
-
-	/* Sanity check the shared object header. */
-	vbase = vmap(vdso_pagelist, 1, 0, PAGE_KERNEL);
-	if (vbase == NULL) {
-		pr_err("Failed to map vDSO pagelist!\n");
-		return -ENOMEM;
-	} else if (memcmp(vbase, "\177ELF", 4)) {
-		pr_err("vDSO is not a valid ELF object!\n");
-		ret = -EINVAL;
-		goto unmap;
-	}
 
 	/* Grab the vDSO data page. */
-	pg = virt_to_page(vdso_data);
-	get_page(pg);
-	vdso_pagelist[i] = pg;
+	vdso_pagelist[0] = phys_to_page(__pa_symbol(vdso_data));
 
-unmap:
-	vunmap(vbase);
-	return ret;
+
+	/* Grab the vDSO code pages. */
+	pfn = sym_to_pfn(vdso_start);
+
+	for (i = 0; i < vdso_pages; i++)
+		vdso_pagelist[i + 1] = pfn_to_page(pfn + i);
+
+	vdso_spec[0].pages = &vdso_pagelist[0];
+	vdso_spec[1].pages = &vdso_pagelist[1];
+
+	return 0;
 }
 arch_initcall(vdso_init);
 
@@ -153,71 +176,43 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 				int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long vdso_base, vdso_mapping_len;
-	int ret;
+	unsigned long vdso_base, vdso_text_len, vdso_mapping_len;
+	void *ret;
 
+	vdso_text_len = vdso_pages << PAGE_SHIFT;
 	/* Be sure to map the data page */
-	vdso_mapping_len = (vdso_pages + 1) << PAGE_SHIFT;
+	vdso_mapping_len = vdso_text_len + PAGE_SIZE;
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
-		ret = vdso_base;
+		ret = ERR_PTR(vdso_base);
 		goto up_fail;
 	}
-	mm->context.vdso = (void *)vdso_base;
+	ret = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
+				       VM_READ|VM_MAYREAD,
+				       &vdso_spec[0]);
+	if (IS_ERR(ret))
+		goto up_fail;
 
-	ret = install_special_mapping(mm, vdso_base, vdso_mapping_len,
-				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				      vdso_pagelist);
-	if (ret) {
-		mm->context.vdso = NULL;
+	vdso_base += PAGE_SIZE;
+	mm->context.vdso = (void *)vdso_base;
+	ret = _install_special_mapping(mm, vdso_base, vdso_text_len,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				       &vdso_spec[1]);
+	if (IS_ERR(ret))
 		goto up_fail;
-	}
+
+
+	up_write(&mm->mmap_sem);
+	return 0;
 
 up_fail:
+	mm->context.vdso = NULL;
 	up_write(&mm->mmap_sem);
-
-	return ret;
-}
-
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	/*
-	 * We can re-use the vdso pointer in mm_context_t for identifying
-	 * the vectors page for compat applications. The vDSO will always
-	 * sit above TASK_UNMAPPED_BASE and so we don't need to worry about
-	 * it conflicting with the vectors base.
-	 */
-	if (vma->vm_mm && vma->vm_start == (long)vma->vm_mm->context.vdso) {
-#ifdef CONFIG_COMPAT
-		if (vma->vm_start == AARCH32_VECTORS_BASE)
-			return "[vectors]";
-#endif
-		return "[vdso]";
-	}
-
-	return NULL;
-}
-
-/*
- * We define AT_SYSINFO_EHDR, so we need these function stubs to keep
- * Linux happy.
- */
-int in_gate_area_no_mm(unsigned long addr)
-{
-	return 0;
-}
-
-int in_gate_area(struct mm_struct *mm, unsigned long addr)
-{
-	return 0;
-}
-
-struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
-{
-	return NULL;
+	return PTR_ERR(ret);
 }
 
 /*
@@ -225,25 +220,29 @@ struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
  */
 void update_vsyscall(struct timekeeper *tk)
 {
-	struct timespec xtime_coarse;
-	u32 use_syscall = strcmp(tk->clock->name, "arch_sys_counter");
+	u32 use_syscall = !tk->tkr_mono.clock->archdata.vdso_direct;
 
 	++vdso_data->tb_seq_count;
 	smp_wmb();
 
-	xtime_coarse = __current_kernel_time();
 	vdso_data->use_syscall			= use_syscall;
-	vdso_data->xtime_coarse_sec		= xtime_coarse.tv_sec;
-	vdso_data->xtime_coarse_nsec		= xtime_coarse.tv_nsec;
+	vdso_data->xtime_coarse_sec		= tk->xtime_sec;
+	vdso_data->xtime_coarse_nsec		= tk->tkr_mono.xtime_nsec >>
+							tk->tkr_mono.shift;
+	vdso_data->wtm_clock_sec		= tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtm_clock_nsec		= tk->wall_to_monotonic.tv_nsec;
 
 	if (!use_syscall) {
-		vdso_data->cs_cycle_last	= tk->clock->cycle_last;
+		/* tkr_mono.cycle_last == tkr_raw.cycle_last */
+		vdso_data->cs_cycle_last	= tk->tkr_mono.cycle_last;
+		vdso_data->raw_time_sec         = tk->raw_sec;
+		vdso_data->raw_time_nsec        = tk->tkr_raw.xtime_nsec;
 		vdso_data->xtime_clock_sec	= tk->xtime_sec;
-		vdso_data->xtime_clock_nsec	= tk->xtime_nsec;
-		vdso_data->cs_mult		= tk->mult;
-		vdso_data->cs_shift		= tk->shift;
-		vdso_data->wtm_clock_sec	= tk->wall_to_monotonic.tv_sec;
-		vdso_data->wtm_clock_nsec	= tk->wall_to_monotonic.tv_nsec;
+		vdso_data->xtime_clock_nsec	= tk->tkr_mono.xtime_nsec;
+		vdso_data->cs_mono_mult		= tk->tkr_mono.mult;
+		vdso_data->cs_raw_mult		= tk->tkr_raw.mult;
+		/* tkr_mono.shift == tkr_raw.shift */
+		vdso_data->cs_shift		= tk->tkr_mono.shift;
 	}
 
 	smp_wmb();

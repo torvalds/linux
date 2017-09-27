@@ -5,11 +5,10 @@
  * This assembly file is re-written from memmove_64.c file.
  *	- Copyright 2011 Fenghua Yu <fenghua.yu@intel.com>
  */
-#define _STRING_C
 #include <linux/linkage.h>
-#include <asm/dwarf2.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
+#include <asm/export.h>
 
 #undef memmove
 
@@ -24,8 +23,10 @@
  * Output:
  * rax: dest
  */
+.weak memmove
+
 ENTRY(memmove)
-	CFI_STARTPROC
+ENTRY(__memmove)
 
 	/* Handle more 32 bytes in loop */
 	mov %rdi, %rax
@@ -41,6 +42,8 @@ ENTRY(memmove)
 	jg 2f
 
 .Lmemmove_begin_forward:
+	ALTERNATIVE "", "movq %rdx, %rcx; rep movsb; retq", X86_FEATURE_ERMS
+
 	/*
 	 * movsq instruction have many startup latency
 	 * so we handle small size by general register.
@@ -203,21 +206,7 @@ ENTRY(memmove)
 	movb %r11b, (%rdi)
 13:
 	retq
-	CFI_ENDPROC
-
-	.section .altinstr_replacement,"ax"
-.Lmemmove_begin_forward_efs:
-	/* Forward moving data. */
-	movq %rdx, %rcx
-	rep movsb
-	retq
-.Lmemmove_end_forward_efs:
-	.previous
-
-	.section .altinstructions,"a"
-	altinstruction_entry .Lmemmove_begin_forward,		\
-		.Lmemmove_begin_forward_efs,X86_FEATURE_ERMS,	\
-		.Lmemmove_end_forward-.Lmemmove_begin_forward,	\
-		.Lmemmove_end_forward_efs-.Lmemmove_begin_forward_efs
-	.previous
+ENDPROC(__memmove)
 ENDPROC(memmove)
+EXPORT_SYMBOL(__memmove)
+EXPORT_SYMBOL(memmove)

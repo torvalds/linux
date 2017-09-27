@@ -50,32 +50,13 @@ static struct of_mmc_spi *to_of_mmc_spi(struct device *dev)
 	return container_of(dev->platform_data, struct of_mmc_spi, pdata);
 }
 
-static int of_mmc_spi_read_gpio(struct device *dev, int gpio_num)
-{
-	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
-	bool active_low = oms->alow_gpios[gpio_num];
-	bool value = gpio_get_value(oms->gpios[gpio_num]);
-
-	return active_low ^ value;
-}
-
-static int of_mmc_spi_get_cd(struct device *dev)
-{
-	return of_mmc_spi_read_gpio(dev, CD_GPIO);
-}
-
-static int of_mmc_spi_get_ro(struct device *dev)
-{
-	return of_mmc_spi_read_gpio(dev, WP_GPIO);
-}
-
 static int of_mmc_spi_init(struct device *dev,
 			   irqreturn_t (*irqhandler)(int, void *), void *mmc)
 {
 	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
 
-	return request_threaded_irq(oms->detect_irq, NULL, irqhandler, 0,
-				    dev_name(dev), mmc);
+	return request_threaded_irq(oms->detect_irq, NULL, irqhandler,
+					IRQF_ONESHOT, dev_name(dev), mmc);
 }
 
 static void of_mmc_spi_exit(struct device *dev, void *mmc)
@@ -90,10 +71,9 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms;
-	const u32 *voltage_ranges;
+	const __be32 *voltage_ranges;
 	int num_ranges;
 	int i;
-	int ret = -EINVAL;
 
 	if (dev->platform_data || !np)
 		return dev->platform_data;
@@ -116,7 +96,6 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 		mask = mmc_vddrange_to_ocrmask(be32_to_cpu(voltage_ranges[j]),
 					       be32_to_cpu(voltage_ranges[j + 1]));
 		if (!mask) {
-			ret = -EINVAL;
 			dev_err(dev, "OF: voltage-range #%d is invalid\n", i);
 			goto err_ocr;
 		}
@@ -130,20 +109,22 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 		if (!gpio_is_valid(oms->gpios[i]))
 			continue;
 
-		ret = gpio_request(oms->gpios[i], dev_name(dev));
-		if (ret < 0) {
-			oms->gpios[i] = -EINVAL;
-			continue;
-		}
-
 		if (gpio_flags & OF_GPIO_ACTIVE_LOW)
 			oms->alow_gpios[i] = true;
 	}
 
-	if (gpio_is_valid(oms->gpios[CD_GPIO]))
-		oms->pdata.get_cd = of_mmc_spi_get_cd;
-	if (gpio_is_valid(oms->gpios[WP_GPIO]))
-		oms->pdata.get_ro = of_mmc_spi_get_ro;
+	if (gpio_is_valid(oms->gpios[CD_GPIO])) {
+		oms->pdata.cd_gpio = oms->gpios[CD_GPIO];
+		oms->pdata.flags |= MMC_SPI_USE_CD_GPIO;
+		if (!oms->alow_gpios[CD_GPIO])
+			oms->pdata.caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+	}
+	if (gpio_is_valid(oms->gpios[WP_GPIO])) {
+		oms->pdata.ro_gpio = oms->gpios[WP_GPIO];
+		oms->pdata.flags |= MMC_SPI_USE_RO_GPIO;
+		if (!oms->alow_gpios[WP_GPIO])
+			oms->pdata.caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+	}
 
 	oms->detect_irq = irq_of_parse_and_map(np, 0);
 	if (oms->detect_irq != 0) {
@@ -166,15 +147,10 @@ void mmc_spi_put_pdata(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
-	int i;
 
 	if (!dev->platform_data || !np)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(oms->gpios); i++) {
-		if (gpio_is_valid(oms->gpios[i]))
-			gpio_free(oms->gpios[i]);
-	}
 	kfree(oms);
 	dev->platform_data = NULL;
 }

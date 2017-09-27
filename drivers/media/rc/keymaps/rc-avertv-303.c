@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,10 +62,10 @@ static struct rc_map_table avertv_303[] = {
 
 static struct rc_map_list avertv_303_map = {
 	.map = {
-		.scan    = avertv_303,
-		.size    = ARRAY_SIZE(avertv_303),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERTV_303,
+		.scan     = avertv_303,
+		.size     = ARRAY_SIZE(avertv_303),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERTV_303,
 	}
 };
 
@@ -83,4 +83,4 @@ module_init(init_rc_map_avertv_303)
 module_exit(exit_rc_map_avertv_303)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

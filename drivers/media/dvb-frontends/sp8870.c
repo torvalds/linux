@@ -350,7 +350,8 @@ static int sp8870_init (struct dvb_frontend* fe)
 	return 0;
 }
 
-static int sp8870_read_status (struct dvb_frontend* fe, fe_status_t * fe_status)
+static int sp8870_read_status(struct dvb_frontend *fe,
+			      enum fe_status *fe_status)
 {
 	struct sp8870_state* state = fe->demodulator_priv;
 	int status;
@@ -394,8 +395,7 @@ static int sp8870_read_ber (struct dvb_frontend* fe, u32 * ber)
 	if (ret < 0)
 		return -EIO;
 
-	 tmp = ret << 6;
-
+	tmp = ret << 6;
 	if (tmp >= 0x3FFF0)
 		tmp = ~0;
 
@@ -551,7 +551,7 @@ static void sp8870_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops sp8870_ops;
+static const struct dvb_frontend_ops sp8870_ops;
 
 struct dvb_frontend* sp8870_attach(const struct sp8870_config* config,
 				   struct i2c_adapter* i2c)
@@ -580,7 +580,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops sp8870_ops = {
+static const struct dvb_frontend_ops sp8870_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Spase SP8870 DVB-T",

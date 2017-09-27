@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -60,9 +60,9 @@ static int x3proto_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 	return virq;
 }
 
-static void x3proto_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void x3proto_gpio_irq_handler(struct irq_desc *desc)
 {
-	struct irq_data *data = irq_get_irq_data(irq);
+	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	unsigned long mask;
 	int pin;
@@ -107,7 +107,7 @@ int __init x3proto_gpio_setup(void)
 	if (unlikely(ilsel < 0))
 		return ilsel;
 
-	ret = gpiochip_add(&x3proto_gpio_chip);
+	ret = gpiochip_add_data(&x3proto_gpio_chip, NULL);
 	if (unlikely(ret))
 		goto err_gpio;
 
@@ -128,10 +128,8 @@ int __init x3proto_gpio_setup(void)
 	return 0;
 
 err_irq:
-	ret = gpiochip_remove(&x3proto_gpio_chip);
-	if (unlikely(ret))
-		pr_err("Failed deregistering GPIO\n");
-
+	gpiochip_remove(&x3proto_gpio_chip);
+	ret = 0;
 err_gpio:
 	synchronize_irq(ilsel);
 

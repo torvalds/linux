@@ -13,7 +13,9 @@ static __always_inline __init void *dmi_alloc(unsigned len)
 }
 
 /* Use early IO mappings for DMI because it's initialized early */
-#define dmi_ioremap early_ioremap
-#define dmi_iounmap early_iounmap
+#define dmi_early_remap		early_memremap
+#define dmi_early_unmap		early_memunmap
+#define dmi_remap(_x, _l)	memremap(_x, _l, MEMREMAP_WB)
+#define dmi_unmap(_x)		memunmap(_x)
 
 #endif /* _ASM_X86_DMI_H */

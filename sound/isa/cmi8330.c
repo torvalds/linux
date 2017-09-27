@@ -95,27 +95,27 @@ module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "PnP detection for specified soundcard.");
 #endif
 
-module_param_array(sbport, long, NULL, 0444);
+module_param_hw_array(sbport, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(sbport, "Port # for CMI8330/CMI8329 SB driver.");
-module_param_array(sbirq, int, NULL, 0444);
+module_param_hw_array(sbirq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(sbirq, "IRQ # for CMI8330/CMI8329 SB driver.");
-module_param_array(sbdma8, int, NULL, 0444);
+module_param_hw_array(sbdma8, int, dma, NULL, 0444);
 MODULE_PARM_DESC(sbdma8, "DMA8 for CMI8330/CMI8329 SB driver.");
-module_param_array(sbdma16, int, NULL, 0444);
+module_param_hw_array(sbdma16, int, dma, NULL, 0444);
 MODULE_PARM_DESC(sbdma16, "DMA16 for CMI8330/CMI8329 SB driver.");
 
-module_param_array(wssport, long, NULL, 0444);
+module_param_hw_array(wssport, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(wssport, "Port # for CMI8330/CMI8329 WSS driver.");
-module_param_array(wssirq, int, NULL, 0444);
+module_param_hw_array(wssirq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(wssirq, "IRQ # for CMI8330/CMI8329 WSS driver.");
-module_param_array(wssdma, int, NULL, 0444);
+module_param_hw_array(wssdma, int, dma, NULL, 0444);
 MODULE_PARM_DESC(wssdma, "DMA for CMI8330/CMI8329 WSS driver.");
 
-module_param_array(fmport, long, NULL, 0444);
+module_param_hw_array(fmport, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fmport, "FM port # for CMI8330/CMI8329 driver.");
-module_param_array(mpuport, long, NULL, 0444);
+module_param_hw_array(mpuport, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpuport, "MPU-401 port # for CMI8330/CMI8329 driver.");
-module_param_array(mpuirq, int, NULL, 0444);
+module_param_hw_array(mpuirq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpuirq, "IRQ # for CMI8330/CMI8329 MPU-401 port.");
 #ifdef CONFIG_PNP
 static int isa_registered;
@@ -182,7 +182,7 @@ struct snd_cmi8330 {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_cmi8330_pnpids[] = {
+static const struct pnp_card_device_id snd_cmi8330_pnpids[] = {
 	{ .id = "CMI0001", .devs = { { "@X@0001" }, { "@@@0001" }, { "@H@0001" }, { "A@@0001" } } },
 	{ .id = "CMI0001", .devs = { { "@@@0001" }, { "@X@0001" }, { "@H@0001" } } },
 	{ .id = "" }
@@ -514,14 +514,15 @@ static int snd_cmi8330_resume(struct snd_card *card)
 
 #define PFX	"cmi8330: "
 
-static int snd_cmi8330_card_new(int dev, struct snd_card **cardp)
+static int snd_cmi8330_card_new(struct device *pdev, int dev,
+				struct snd_card **cardp)
 {
 	struct snd_card *card;
 	struct snd_cmi8330 *acard;
 	int err;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_cmi8330), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_cmi8330), &card);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX "could not get a new card\n");
 		return err;
@@ -635,10 +636,9 @@ static int snd_cmi8330_isa_probe(struct device *pdev,
 	struct snd_card *card;
 	int err;
 
-	err = snd_cmi8330_card_new(dev, &card);
+	err = snd_cmi8330_card_new(pdev, dev, &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, pdev);
 	if ((err = snd_cmi8330_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -698,7 +698,7 @@ static int snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 			       
-	res = snd_cmi8330_card_new(dev, &card);
+	res = snd_cmi8330_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;
 	if ((res = snd_cmi8330_pnp(dev, card->private_data, pcard, pid)) < 0) {
@@ -706,7 +706,6 @@ static int snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
 		snd_card_free(card);
 		return res;
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 	if ((res = snd_cmi8330_probe(card, dev)) < 0) {
 		snd_card_free(card);
 		return res;

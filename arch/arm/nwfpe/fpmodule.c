@@ -31,7 +31,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 
 #include <asm/thread_notify.h>
@@ -86,20 +86,20 @@ extern void nwfpe_enter(void);
 static int __init fpe_init(void)
 {
 	if (sizeof(FPA11) > sizeof(union fp_state)) {
-		printk(KERN_ERR "nwfpe: bad structure size\n");
+		pr_err("nwfpe: bad structure size\n");
 		return -EINVAL;
 	}
 
 	if (sizeof(FPREG) != 12) {
-		printk(KERN_ERR "nwfpe: bad register size\n");
+		pr_err("nwfpe: bad register size\n");
 		return -EINVAL;
 	}
 	if (fpe_type[0] && strcmp(fpe_type, "nwfpe"))
 		return 0;
 
 	/* Display title, version and copyright information. */
-	printk(KERN_WARNING "NetWinder Floating Point Emulator V0.97 ("
-	       NWFPE_BITS " precision)\n");
+	pr_info("NetWinder Floating Point Emulator V0.97 ("
+	        NWFPE_BITS " precision)\n");
 
 	thread_register_notifier(&nwfpe_notifier_block);
 

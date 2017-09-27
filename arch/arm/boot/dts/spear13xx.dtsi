@@ -1,7 +1,7 @@
 /*
  * DTS file for all SPEAr13xx SoCs
  *
- * Copyright 2012 Viresh Kumar <viresh.linux@gmail.com>
+ * Copyright 2012 Viresh Kumar <vireshk@kernel.org>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -83,8 +83,8 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges = <0x50000000 0x50000000 0x10000000
-			  0xb0000000 0xb0000000 0x10000000
-			  0xd0000000 0xd0000000 0x02000000
+			  0x80000000 0x80000000 0x20000000
+			  0xb0000000 0xb0000000 0x22000000
 			  0xd8000000 0xd8000000 0x01000000
 			  0xe0000000 0xe0000000 0x10000000>;
 
@@ -117,7 +117,8 @@
 			chan_priority = <1>;
 			block_size = <0xfff>;
 			dma-masters = <2>;
-			data_width = <3 3 0 0>;
+			data-width = <8 8>;
+			multi-block = <1 1 1 1 1 1 1 1>;
 		};
 
 		dma@eb000000 {
@@ -133,7 +134,8 @@
 			chan_allocation_order = <1>;
 			chan_priority = <1>;
 			block_size = <0xfff>;
-			data_width = <3 3 0 0>;
+			data-width = <8 8>;
+			multi-block = <1 1 1 1 1 1 1 1>;
 		};
 
 		fsmc: flash@b0000000 {
@@ -219,6 +221,11 @@
 				  0xd0000000 0xd0000000 0x02000000
 				  0xd8000000 0xd8000000 0x01000000
 				  0xe0000000 0xe0000000 0x10000000>;
+
+			misc: syscon@e0700000 {
+				compatible = "st,spear1340-misc", "syscon";
+				reg = <0xe0700000 0x1000>;
+			};
 
 			gpio0: gpio@e0600000 {
 				compatible = "arm,pl061", "arm,primecell";

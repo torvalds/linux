@@ -36,6 +36,7 @@
 #include "tdfx_drv.h"
 
 #include <drm/drm_pciids.h>
+#include <drm/drm_legacy.h>
 
 static struct pci_device_id pciidlist[] = {
 	tdfx_PCI_IDS
@@ -46,17 +47,14 @@ static const struct file_operations tdfx_driver_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_mmap,
+	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_USE_MTRR,
+	.driver_features = DRIVER_LEGACY,
 	.fops = &tdfx_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -73,12 +71,12 @@ static struct pci_driver tdfx_pci_driver = {
 
 static int __init tdfx_init(void)
 {
-	return drm_pci_init(&driver, &tdfx_pci_driver);
+	return drm_legacy_pci_init(&driver, &tdfx_pci_driver);
 }
 
 static void __exit tdfx_exit(void)
 {
-	drm_pci_exit(&driver, &tdfx_pci_driver);
+	drm_legacy_pci_exit(&driver, &tdfx_pci_driver);
 }
 
 module_init(tdfx_init);

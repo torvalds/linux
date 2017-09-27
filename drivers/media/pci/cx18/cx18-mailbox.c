@@ -13,11 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include <stdarg.h>
@@ -123,8 +118,8 @@ static void dump_mb(struct cx18 *cx, struct cx18_mailbox *mb, char *name)
 	if (!(cx18_debug & CX18_DBGFLG_API))
 		return;
 
-	CX18_DEBUG_API("%s: req %#010x ack %#010x cmd %#010x err %#010x args%s"
-		       "\n", name, mb->request, mb->ack, mb->cmd, mb->error,
+	CX18_DEBUG_API("%s: req %#010x ack %#010x cmd %#010x err %#010x args%s\n",
+		       name, mb->request, mb->ack, mb->cmd, mb->error,
 		       u32arr2hex(mb->args, MAX_MB_ARGUMENTS, argstr));
 }
 
@@ -202,7 +197,7 @@ static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
 	}
 
 	if (dispatch) {
-		vb_buf->vb.ts = ktime_to_timeval(ktime_get());
+		v4l2_get_timestamp(&vb_buf->vb.ts);
 		list_del(&vb_buf->vb.queue);
 		vb_buf->vb.state = VIDEOBUF_DONE;
 		wake_up(&vb_buf->vb.done);
@@ -255,8 +250,8 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 	s = cx18_handle_to_stream(cx, handle);
 
 	if (s == NULL) {
-		CX18_WARN("Got DMA done notification for unknown/inactive"
-			  " handle %d, %s mailbox seq no %d\n", handle,
+		CX18_WARN("Got DMA done notification for unknown/inactive handle %d, %s mailbox seq no %d\n",
+			  handle,
 			  (order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) ?
 			  "stale" : "good", mb->request);
 		return;
@@ -290,9 +285,8 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		if ((order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) &&
 		    !(id >= s->mdl_base_idx &&
 		      id < (s->mdl_base_idx + s->buffers))) {
-			CX18_WARN("Fell behind! Ignoring stale mailbox with "
-				  " inconsistent data. Lost MDL for mailbox "
-				  "seq no %d\n", mb->request);
+			CX18_WARN("Fell behind! Ignoring stale mailbox with  inconsistent data. Lost MDL for mailbox seq no %d\n",
+				  mb->request);
 			break;
 		}
 		mdl = cx18_queue_get_mdl(s, id, mdl_ack->data_used);
@@ -418,9 +412,7 @@ static void mb_ack_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 	/* Don't ack if the RPU has gotten impatient and timed us out */
 	if (req != cx18_readl(cx, &ack_mb->request) ||
 	    req == cx18_readl(cx, &ack_mb->ack)) {
-		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our "
-				"incoming %s to EPU mailbox (sequence no. %u) "
-				"while processing\n",
+		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u) while processing\n",
 				rpu_str[order->rpu], rpu_str[order->rpu], req);
 		order->flags |= CX18_F_EWO_MB_STALE_WHILE_PROC;
 		return;
@@ -555,8 +547,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 
 	order = alloc_in_work_order_irq(cx);
 	if (order == NULL) {
-		CX18_WARN("Unable to find blank work order form to schedule "
-			  "incoming mailbox command processing\n");
+		CX18_WARN("Unable to find blank work order form to schedule incoming mailbox command processing\n");
 		return;
 	}
 
@@ -573,9 +564,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 		(&order_mb->request)[i] = cx18_readl(cx, &mb->request + i);
 
 	if (order_mb->request == order_mb->ack) {
-		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our "
-				"incoming %s to EPU mailbox (sequence no. %u)"
-				"\n",
+		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u)\n",
 				rpu_str[rpu], rpu_str[rpu], order_mb->request);
 		if (cx18_debug & CX18_DBGFLG_WARN)
 			dump_mb(cx, order_mb, "incoming");
@@ -663,8 +652,8 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	if (req != ack) {
 		/* waited long enough, make the mbox "not busy" from our end */
 		cx18_writel(cx, req, &mb->ack);
-		CX18_ERR("mbox was found stuck busy when setting up for %s; "
-			 "clearing busy and trying to proceed\n", info->name);
+		CX18_ERR("mbox was found stuck busy when setting up for %s; clearing busy and trying to proceed\n",
+			 info->name);
 	} else if (ret != timeout)
 		CX18_DEBUG_API("waited %u msecs for busy mbox to be acked\n",
 			       jiffies_to_msecs(timeout-ret));
@@ -707,14 +696,10 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		mutex_unlock(mb_lock);
 		if (ret >= timeout) {
 			/* Timed out */
-			CX18_DEBUG_WARN("sending %s timed out waiting %d msecs "
-					"for RPU acknowledgement\n",
+			CX18_DEBUG_WARN("sending %s timed out waiting %d msecs for RPU acknowledgment\n",
 					info->name, jiffies_to_msecs(ret));
 		} else {
-			CX18_DEBUG_WARN("woken up before mailbox ack was ready "
-					"after submitting %s to RPU.  only "
-					"waited %d msecs on req %u but awakened"
-					" with unmatched ack %u\n",
+			CX18_DEBUG_WARN("woken up before mailbox ack was ready after submitting %s to RPU.  only waited %d msecs on req %u but awakened with unmatched ack %u\n",
 					info->name,
 					jiffies_to_msecs(ret),
 					req, ack);
@@ -723,8 +708,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 
 	if (ret >= timeout)
-		CX18_DEBUG_WARN("failed to be awakened upon RPU acknowledgment "
-				"sending %s; timed out waiting %d msecs\n",
+		CX18_DEBUG_WARN("failed to be awakened upon RPU acknowledgment sending %s; timed out waiting %d msecs\n",
 				info->name, jiffies_to_msecs(ret));
 	else
 		CX18_DEBUG_HI_API("waited %u msecs for %s to be acked\n",

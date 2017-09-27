@@ -29,7 +29,7 @@
 #include <linux/inet.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -154,6 +154,7 @@ static void lapb_t1timer_expiry(unsigned long param)
 			} else {
 				lapb->n2count++;
 				lapb_requeue_frames(lapb);
+				lapb_kick(lapb);
 			}
 			break;
 

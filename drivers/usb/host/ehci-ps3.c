@@ -71,7 +71,7 @@ static const struct hc_driver ps3_ehci_hc_driver = {
 	.product_desc		= "PS3 EHCI Host Controller",
 	.hcd_priv_size		= sizeof(struct ehci_hcd),
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 	.reset			= ps3_ehci_hc_reset,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
@@ -189,6 +189,7 @@ static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 		goto fail_add_hcd;
 	}
 
+	device_wakeup_enable(hcd->self.controller);
 	return result;
 
 fail_add_hcd:

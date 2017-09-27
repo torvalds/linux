@@ -9,6 +9,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -23,9 +26,9 @@ extern void stop_watchdog(void);
 /* We use this if we don't have any better idle routine. */
 void default_idle(void)
 {
+	local_irq_enable();
 	/* Halt until exception. */
-	__asm__ volatile("ei    \n\t"
-			 "halt      ");
+	__asm__ volatile("halt");
 }
 
 /*
@@ -33,9 +36,9 @@ void default_idle(void)
  */
 
 extern void deconfigure_bp(long pid);
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	deconfigure_bp(current->pid);
+	deconfigure_bp(tsk->pid);
 }
 
 /*
@@ -79,14 +82,6 @@ hard_reset_now(void)
 
 	while (1)
 		; /* Wait for reset. */
-}
-
-/*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return task_pt_regs(t)->erp;
 }
 
 /*

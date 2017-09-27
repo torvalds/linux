@@ -712,7 +712,7 @@ static void max3100_break_ctl(struct uart_port *port, int break_state)
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 }
 
-static struct uart_ops max3100_ops = {
+static const struct uart_ops max3100_ops = {
 	.tx_empty	= max3100_tx_empty,
 	.set_mctrl	= max3100_set_mctrl,
 	.get_mctrl	= max3100_get_mctrl,
@@ -779,10 +779,10 @@ static int max3100_probe(struct spi_device *spi)
 	max3100s[i]->irq = spi->irq;
 	spin_lock_init(&max3100s[i]->conf_lock);
 	spi_set_drvdata(spi, max3100s[i]);
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	max3100s[i]->crystal = pdata->crystal;
 	max3100s[i]->loopback = pdata->loopback;
-	max3100s[i]->poll_time = pdata->poll_time * HZ / 1000;
+	max3100s[i]->poll_time = msecs_to_jiffies(pdata->poll_time);
 	if (pdata->poll_time > 0 && max3100s[i]->poll_time == 0)
 		max3100s[i]->poll_time = 1;
 	max3100s[i]->max3100_hw_suspend = pdata->max3100_hw_suspend;
@@ -904,7 +904,6 @@ static SIMPLE_DEV_PM_OPS(max3100_pm_ops, max3100_suspend, max3100_resume);
 static struct spi_driver max3100_driver = {
 	.driver = {
 		.name		= "max3100",
-		.owner		= THIS_MODULE,
 		.pm		= MAX3100_PM_OPS,
 	},
 	.probe		= max3100_probe,

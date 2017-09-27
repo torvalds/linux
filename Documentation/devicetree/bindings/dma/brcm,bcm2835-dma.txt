@@ -1,0 +1,83 @@
+* BCM2835 DMA controller
+
+The BCM2835 DMA controller has 16 channels in total.
+Only the lower 13 channels have an associated IRQ.
+Some arbitrary channels are used by the firmware
+(1,3,6,7 in the current firmware version).
+The channels 0,2 and 3 have special functionality
+and should not be used by the driver.
+
+Required properties:
+- compatible: Should be "brcm,bcm2835-dma".
+- reg: Should contain DMA registers location and length.
+- interrupts: Should contain the DMA interrupts associated
+		to the DMA channels in ascending order.
+- interrupt-names: Should contain the names of the interrupt
+		   in the form "dmaXX".
+		   Use "dma-shared-all" for the common interrupt line
+		   that is shared by all dma channels.
+- #dma-cells: Must be <1>, the cell in the dmas property of the
+		client device represents the DREQ number.
+- brcm,dma-channel-mask: Bit mask representing the channels
+			 not used by the firmware in ascending order,
+			 i.e. first channel corresponds to LSB.
+
+Example:
+
+dma: dma@7e007000 {
+	compatible = "brcm,bcm2835-dma";
+	reg = <0x7e007000 0xf00>;
+	interrupts = <1 16>,
+		     <1 17>,
+		     <1 18>,
+		     <1 19>,
+		     <1 20>,
+		     <1 21>,
+		     <1 22>,
+		     <1 23>,
+		     <1 24>,
+		     <1 25>,
+		     <1 26>,
+		     /* dma channel 11-14 share one irq */
+		     <1 27>,
+		     <1 27>,
+		     <1 27>,
+		     <1 27>,
+		     /* unused shared irq for all channels */
+		     <1 28>;
+	interrupt-names = "dma0",
+			  "dma1",
+			  "dma2",
+			  "dma3",
+			  "dma4",
+			  "dma5",
+			  "dma6",
+			  "dma7",
+			  "dma8",
+			  "dma9",
+			  "dma10",
+			  "dma11",
+			  "dma12",
+			  "dma13",
+			  "dma14",
+			  "dma-shared-all";
+
+	#dma-cells = <1>;
+	brcm,dma-channel-mask = <0x7f35>;
+};
+
+
+DMA clients connected to the BCM2835 DMA controller must use the format
+described in the dma.txt file, using a two-cell specifier for each channel.
+
+Example:
+
+bcm2835_i2s: i2s@7e203000 {
+	compatible = "brcm,bcm2835-i2s";
+	reg = <	0x7e203000 0x20>,
+	      < 0x7e101098 0x02>;
+
+	dmas = <&dma 2>,
+	       <&dma 3>;
+	dma-names = "tx", "rx";
+};

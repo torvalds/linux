@@ -223,7 +223,7 @@ static void
 ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 			 bool ofdm_trigger)
 {
-	int rssi = ewma_read(&ah->ah_beacon_rssi_avg);
+	int rssi = ewma_beacon_rssi_read(&ah->ah_beacon_rssi_avg);
 
 	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "raise immunity (%s)",
 		ofdm_trigger ? "ODFM" : "CCK");
@@ -279,7 +279,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 		if (as->firstep_level < ATH5K_ANI_MAX_FIRSTEP_LVL)
 			ath5k_ani_set_firstep_level(ah, as->firstep_level + 1);
 		return;
-	} else if (ah->ah_current_channel->band == IEEE80211_BAND_2GHZ) {
+	} else if (ah->ah_current_channel->band == NL80211_BAND_2GHZ) {
 		/* beacon RSSI is low. in B/G mode turn of OFDM weak signal
 		 * detect and zero firstep level to maximize CCK sensitivity */
 		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
@@ -309,7 +309,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 static void
 ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 {
-	int rssi = ewma_read(&ah->ah_beacon_rssi_avg);
+	int rssi = ewma_beacon_rssi_read(&ah->ah_beacon_rssi_avg);
 
 	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "lower immunity");
 

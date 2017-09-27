@@ -152,7 +152,7 @@ static int txx9aclc_ac97_remove(struct snd_soc_dai *dai)
 }
 
 static struct snd_soc_dai_driver txx9aclc_ac97_dai = {
-	.ac97_control		= 1,
+	.bus_control		= true,
 	.probe			= txx9aclc_ac97_probe,
 	.remove			= txx9aclc_ac97_remove,
 	.playback = {
@@ -183,17 +183,16 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -EBUSY;
-
-	drvdata->base = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(drvdata->base))
-		return PTR_ERR(drvdata->base);
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	drvdata->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(drvdata->base))
+		return PTR_ERR(drvdata->base);
+
 	platform_set_drvdata(pdev, drvdata);
 	drvdata->physbase = r->start;
 	if (sizeof(drvdata->physbase) > sizeof(r->start) &&
@@ -225,7 +224,6 @@ static struct platform_driver txx9aclc_ac97_driver = {
 	.remove		= txx9aclc_ac97_dev_remove,
 	.driver		= {
 		.name	= "txx9aclc-ac97",
-		.owner	= THIS_MODULE,
 	},
 };
 

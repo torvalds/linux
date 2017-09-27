@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -25,72 +26,51 @@
 
 #include "internal.h"
 
-struct dw_dma_of_filter_args {
-	struct dw_dma *dw;
-	unsigned int req;
-	unsigned int src;
-	unsigned int dst;
-};
-
-static bool dw_dma_of_filter(struct dma_chan *chan, void *param)
-{
-	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
-	struct dw_dma_of_filter_args *fargs = param;
-
-	/* Ensure the device matches our channel */
-	if (chan->device != &fargs->dw->dma)
-		return false;
-
-	dwc->request_line = fargs->req;
-	dwc->src_master	= fargs->src;
-	dwc->dst_master	= fargs->dst;
-
-	return true;
-}
+#define DRV_NAME	"dw_dmac"
 
 static struct dma_chan *dw_dma_of_xlate(struct of_phandle_args *dma_spec,
 					struct of_dma *ofdma)
 {
 	struct dw_dma *dw = ofdma->of_dma_data;
-	struct dw_dma_of_filter_args fargs = {
-		.dw = dw,
+	struct dw_dma_slave slave = {
+		.dma_dev = dw->dma.dev,
 	};
 	dma_cap_mask_t cap;
 
 	if (dma_spec->args_count != 3)
 		return NULL;
 
-	fargs.req = dma_spec->args[0];
-	fargs.src = dma_spec->args[1];
-	fargs.dst = dma_spec->args[2];
+	slave.src_id = dma_spec->args[0];
+	slave.dst_id = dma_spec->args[0];
+	slave.m_master = dma_spec->args[1];
+	slave.p_master = dma_spec->args[2];
 
-	if (WARN_ON(fargs.req >= DW_DMA_MAX_NR_REQUESTS ||
-		    fargs.src >= dw->nr_masters ||
-		    fargs.dst >= dw->nr_masters))
+	if (WARN_ON(slave.src_id >= DW_DMA_MAX_NR_REQUESTS ||
+		    slave.dst_id >= DW_DMA_MAX_NR_REQUESTS ||
+		    slave.m_master >= dw->pdata->nr_masters ||
+		    slave.p_master >= dw->pdata->nr_masters))
 		return NULL;
 
 	dma_cap_zero(cap);
 	dma_cap_set(DMA_SLAVE, cap);
 
 	/* TODO: there should be a simpler way to do this */
-	return dma_request_channel(cap, dw_dma_of_filter, &fargs);
+	return dma_request_channel(cap, dw_dma_filter, &slave);
 }
 
 #ifdef CONFIG_ACPI
 static bool dw_dma_acpi_filter(struct dma_chan *chan, void *param)
 {
-	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
 	struct acpi_dma_spec *dma_spec = param;
+	struct dw_dma_slave slave = {
+		.dma_dev = dma_spec->dev,
+		.src_id = dma_spec->slave_id,
+		.dst_id = dma_spec->slave_id,
+		.m_master = 0,
+		.p_master = 1,
+	};
 
-	if (chan->device->dev != dma_spec->dev ||
-	    chan->chan_id != dma_spec->chan_id)
-		return false;
-
-	dwc->request_line = dma_spec->slave_id;
-	dwc->src_master = dwc_get_sms(NULL);
-	dwc->dst_master = dwc_get_dms(NULL);
-
-	return true;
+	return dw_dma_filter(chan, &slave);
 }
 
 static void dw_dma_acpi_controller_register(struct dw_dma *dw)
@@ -122,22 +102,40 @@ dw_dma_parse_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
-	u32 tmp, arr[4];
+	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS], mb[DW_DMA_MAX_NR_CHANNELS];
+	u32 nr_masters;
+	u32 nr_channels;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing DT data\n");
 		return NULL;
 	}
 
+	if (of_property_read_u32(np, "dma-masters", &nr_masters))
+		return NULL;
+	if (nr_masters < 1 || nr_masters > DW_DMA_MAX_NR_MASTERS)
+		return NULL;
+
+	if (of_property_read_u32(np, "dma-channels", &nr_channels))
+		return NULL;
+	if (nr_channels > DW_DMA_MAX_NR_CHANNELS)
+		return NULL;
+
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_u32(np, "dma-channels", &pdata->nr_channels))
-		return NULL;
+	pdata->nr_masters = nr_masters;
+	pdata->nr_channels = nr_channels;
 
 	if (of_property_read_bool(np, "is_private"))
 		pdata->is_private = true;
+
+	/*
+	 * All known devices, which use DT for configuration, support
+	 * memory-to-memory transfers. So enable it by default.
+	 */
+	pdata->is_memcpy = true;
 
 	if (!of_property_read_u32(np, "chan_allocation_order", &tmp))
 		pdata->chan_allocation_order = (unsigned char)tmp;
@@ -148,17 +146,21 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "block_size", &tmp))
 		pdata->block_size = tmp;
 
-	if (!of_property_read_u32(np, "dma-masters", &tmp)) {
-		if (tmp > 4)
-			return NULL;
-
-		pdata->nr_masters = tmp;
+	if (!of_property_read_u32_array(np, "data-width", arr, nr_masters)) {
+		for (tmp = 0; tmp < nr_masters; tmp++)
+			pdata->data_width[tmp] = arr[tmp];
+	} else if (!of_property_read_u32_array(np, "data_width", arr, nr_masters)) {
+		for (tmp = 0; tmp < nr_masters; tmp++)
+			pdata->data_width[tmp] = BIT(arr[tmp] & 0x07);
 	}
 
-	if (!of_property_read_u32_array(np, "data_width", arr,
-				pdata->nr_masters))
-		for (tmp = 0; tmp < pdata->nr_masters; tmp++)
-			pdata->data_width[tmp] = arr[tmp];
+	if (!of_property_read_u32_array(np, "multi-block", mb, nr_channels)) {
+		for (tmp = 0; tmp < nr_channels; tmp++)
+			pdata->multi_block[tmp] = mb[tmp];
+	} else {
+		for (tmp = 0; tmp < nr_channels; tmp++)
+			pdata->multi_block[tmp] = 1;
+	}
 
 	return pdata;
 }
@@ -175,7 +177,7 @@ static int dw_probe(struct platform_device *pdev)
 	struct dw_dma_chip *chip;
 	struct device *dev = &pdev->dev;
 	struct resource *mem;
-	struct dw_dma_platform_data *pdata;
+	const struct dw_dma_platform_data *pdata;
 	int err;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
@@ -191,21 +193,30 @@ static int dw_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->regs))
 		return PTR_ERR(chip->regs);
 
-	/* Apply default dma_mask if needed */
-	if (!dev->dma_mask) {
-		dev->dma_mask = &dev->coherent_dma_mask;
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	}
+	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err)
+		return err;
 
 	pdata = dev_get_platdata(dev);
 	if (!pdata)
 		pdata = dw_dma_parse_dt(pdev);
 
 	chip->dev = dev;
+	chip->id = pdev->id;
+	chip->pdata = pdata;
 
-	err = dw_dma_probe(chip, pdata);
+	chip->clk = devm_clk_get(chip->dev, "hclk");
+	if (IS_ERR(chip->clk))
+		return PTR_ERR(chip->clk);
+	err = clk_prepare_enable(chip->clk);
 	if (err)
 		return err;
+
+	pm_runtime_enable(&pdev->dev);
+
+	err = dw_dma_probe(chip);
+	if (err)
+		goto err_dw_dma_probe;
 
 	platform_set_drvdata(pdev, chip);
 
@@ -221,6 +232,11 @@ static int dw_probe(struct platform_device *pdev)
 		dw_dma_acpi_controller_register(chip->dw);
 
 	return 0;
+
+err_dw_dma_probe:
+	pm_runtime_disable(&pdev->dev);
+	clk_disable_unprepare(chip->clk);
+	return err;
 }
 
 static int dw_remove(struct platform_device *pdev)
@@ -230,14 +246,31 @@ static int dw_remove(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
 
-	return dw_dma_remove(chip);
+	dw_dma_remove(chip);
+	pm_runtime_disable(&pdev->dev);
+	clk_disable_unprepare(chip->clk);
+
+	return 0;
 }
 
 static void dw_shutdown(struct platform_device *pdev)
 {
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
 
-	dw_dma_shutdown(chip);
+	/*
+	 * We have to call dw_dma_disable() to stop any ongoing transfer. On
+	 * some platforms we can't do that since DMA device is powered off.
+	 * Moreover we have no possibility to check if the platform is affected
+	 * or not. That's why we call pm_runtime_get_sync() / pm_runtime_put()
+	 * unconditionally. On the other hand we can't use
+	 * pm_runtime_suspended() because runtime PM framework is not fully
+	 * used by the driver.
+	 */
+	pm_runtime_get_sync(chip->dev);
+	dw_dma_disable(chip);
+	pm_runtime_put_sync_suspend(chip->dev);
+
+	clk_disable_unprepare(chip->clk);
 }
 
 #ifdef CONFIG_OF
@@ -253,48 +286,47 @@ static const struct acpi_device_id dw_dma_acpi_id_table[] = {
 	{ "INTL9C60", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
 
-static int dw_suspend_noirq(struct device *dev)
+static int dw_suspend_late(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
 
-	return dw_dma_suspend(chip);
+	dw_dma_disable(chip);
+	clk_disable_unprepare(chip->clk);
+
+	return 0;
 }
 
-static int dw_resume_noirq(struct device *dev)
+static int dw_resume_early(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
+	int ret;
 
-	return dw_dma_resume(chip);
+	ret = clk_prepare_enable(chip->clk);
+	if (ret)
+		return ret;
+
+	return dw_dma_enable(chip);
 }
 
-#else /* !CONFIG_PM_SLEEP */
-
-#define dw_suspend_noirq	NULL
-#define dw_resume_noirq		NULL
-
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops dw_dev_pm_ops = {
-	.suspend_noirq = dw_suspend_noirq,
-	.resume_noirq = dw_resume_noirq,
-	.freeze_noirq = dw_suspend_noirq,
-	.thaw_noirq = dw_resume_noirq,
-	.restore_noirq = dw_resume_noirq,
-	.poweroff_noirq = dw_suspend_noirq,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_suspend_late, dw_resume_early)
 };
 
 static struct platform_driver dw_driver = {
 	.probe		= dw_probe,
 	.remove		= dw_remove,
-	.shutdown	= dw_shutdown,
+	.shutdown       = dw_shutdown,
 	.driver = {
-		.name	= "dw_dmac",
+		.name	= DRV_NAME,
 		.pm	= &dw_dev_pm_ops,
 		.of_match_table = of_match_ptr(dw_dma_of_id_table),
 		.acpi_match_table = ACPI_PTR(dw_dma_acpi_id_table),
@@ -315,3 +347,4 @@ module_exit(dw_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller platform driver");
+MODULE_ALIAS("platform:" DRV_NAME);

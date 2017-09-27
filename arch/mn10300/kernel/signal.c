@@ -25,7 +25,7 @@
 #include <linux/tracehook.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/fpu.h>
 #include "sigframe.h"
 
@@ -40,7 +40,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 	unsigned int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	if (is_using_fpu(current))
 		fpu_kill_state(current);
@@ -75,7 +75,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 		struct fpucontext *buf;
 		err |= __get_user(buf, &sc->fpucontext);
 		if (buf) {
-			if (verify_area(VERIFY_READ, buf, sizeof(*buf)))
+			if (!access_ok(VERIFY_READ, buf, sizeof(*buf)))
 				goto badframe;
 			err |= fpu_restore_sigcontext(buf);
 		}
@@ -98,7 +98,7 @@ asmlinkage long sys_sigreturn(void)
 	long d0;
 
 	frame = (struct sigframe __user *) current_frame()->sp;
-	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__get_user(set.sig[0], &frame->sc.oldmask))
 		goto badframe;
@@ -130,7 +130,7 @@ asmlinkage long sys_rt_sigreturn(void)
 	long d0;
 
 	frame = (struct rt_sigframe __user *) current_frame()->sp;
-	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
@@ -186,20 +186,11 @@ static int setup_sigcontext(struct sigcontext __user *sc,
 /*
  * determine which stack to use..
  */
-static inline void __user *get_sigframe(struct k_sigaction *ka,
+static inline void __user *get_sigframe(struct ksignal *ksig,
 					struct pt_regs *regs,
 					size_t frame_size)
 {
-	unsigned long sp;
-
-	/* default to using normal stack */
-	sp = regs->sp;
-
-	/* this is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (sas_ss_flags(sp) == 0)
-			sp = current->sas_ss_sp + current->sas_ss_size;
-	}
+	unsigned long sp = sigsp(regs->sp, ksig);
 
 	return (void __user *) ((sp - frame_size) & ~7UL);
 }
@@ -207,59 +198,53 @@ static inline void __user *get_sigframe(struct k_sigaction *ka,
 /*
  * set up a normal signal frame
  */
-static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
+static int setup_frame(struct ksignal *ksig, sigset_t *set,
 		       struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
-	int rsig;
+	int sig = ksig->sig;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
-	rsig = sig;
-	if (sig < 32 &&
-	    current_thread_info()->exec_domain &&
-	    current_thread_info()->exec_domain->signal_invmap)
-		rsig = current_thread_info()->exec_domain->signal_invmap[sig];
-
-	if (__put_user(rsig, &frame->sig) < 0 ||
+	if (__put_user(sig, &frame->sig) < 0 ||
 	    __put_user(&frame->sc, &frame->psc) < 0)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	if (setup_sigcontext(&frame->sc, &frame->fpuctx, regs, set->sig[0]))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	if (_NSIG_WORDS > 1) {
 		if (__copy_to_user(frame->extramask, &set->sig[1],
 				   sizeof(frame->extramask)))
-			goto give_sigsegv;
+			return -EFAULT;
 	}
 
 	/* set up to return from userspace.  If provided, use a stub already in
 	 * userspace */
-	if (ka->sa.sa_flags & SA_RESTORER) {
-		if (__put_user(ka->sa.sa_restorer, &frame->pretcode))
-			goto give_sigsegv;
+	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
+		if (__put_user(ksig->ka.sa.sa_restorer, &frame->pretcode))
+			return -EFAULT;
 	} else {
 		if (__put_user((void (*)(void))frame->retcode,
 			       &frame->pretcode))
-			goto give_sigsegv;
+			return -EFAULT;
 		/* this is mov $,d0; syscall 0 */
 		if (__put_user(0x2c, (char *)(frame->retcode + 0)) ||
 		    __put_user(__NR_sigreturn, (char *)(frame->retcode + 1)) ||
 		    __put_user(0x00, (char *)(frame->retcode + 2)) ||
 		    __put_user(0xf0, (char *)(frame->retcode + 3)) ||
 		    __put_user(0xe0, (char *)(frame->retcode + 4)))
-			goto give_sigsegv;
+			return -EFAULT;
 		flush_icache_range((unsigned long) frame->retcode,
 				   (unsigned long) frame->retcode + 5);
 	}
 
 	/* set up registers for signal handler */
 	regs->sp = (unsigned long) frame;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
+	regs->pc = (unsigned long) ksig->ka.sa.sa_handler;
 	regs->d0 = sig;
 	regs->d1 = (unsigned long) &frame->sc;
 
@@ -270,37 +255,27 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 #endif
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 /*
  * set up a realtime signal frame
  */
-static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			  sigset_t *set, struct pt_regs *regs)
+static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
+			  struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
-	int rsig;
+	int sig = ksig->sig;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
-	rsig = sig;
-	if (sig < 32 &&
-	    current_thread_info()->exec_domain &&
-	    current_thread_info()->exec_domain->signal_invmap)
-		rsig = current_thread_info()->exec_domain->signal_invmap[sig];
-
-	if (__put_user(rsig, &frame->sig) ||
+	if (__put_user(sig, &frame->sig) ||
 	    __put_user(&frame->info, &frame->pinfo) ||
 	    __put_user(&frame->uc, &frame->puc) ||
-	    copy_siginfo_to_user(&frame->info, info))
-		goto give_sigsegv;
+	    copy_siginfo_to_user(&frame->info, &ksig->info))
+		return -EFAULT;
 
 	/* create the ucontext.  */
 	if (__put_user(0, &frame->uc.uc_flags) ||
@@ -309,13 +284,14 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	    setup_sigcontext(&frame->uc.uc_mcontext,
 			     &frame->fpuctx, regs, set->sig[0]) ||
 	    __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* set up to return from userspace.  If provided, use a stub already in
 	 * userspace */
-	if (ka->sa.sa_flags & SA_RESTORER) {
-		if (__put_user(ka->sa.sa_restorer, &frame->pretcode))
-			goto give_sigsegv;
+	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
+		if (__put_user(ksig->ka.sa.sa_restorer, &frame->pretcode))
+			return -EFAULT;
+
 	} else {
 		if (__put_user((void(*)(void))frame->retcode,
 			       &frame->pretcode) ||
@@ -326,7 +302,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		    __put_user(0x00, (char *)(frame->retcode + 2)) ||
 		    __put_user(0xf0, (char *)(frame->retcode + 3)) ||
 		    __put_user(0xe0, (char *)(frame->retcode + 4)))
-			goto give_sigsegv;
+			return -EFAULT;
 
 		flush_icache_range((u_long) frame->retcode,
 				   (u_long) frame->retcode + 5);
@@ -334,7 +310,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up registers for signal handler */
 	regs->sp = (unsigned long) frame;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
+	regs->pc = (unsigned long) ksig->ka.sa.sa_handler;
 	regs->d0 = sig;
 	regs->d1 = (long) &frame->info;
 
@@ -345,10 +321,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 #endif
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 static inline void stepback(struct pt_regs *regs)
@@ -360,9 +332,7 @@ static inline void stepback(struct pt_regs *regs)
 /*
  * handle the actual delivery of a signal to userspace
  */
-static int handle_signal(int sig,
-			 siginfo_t *info, struct k_sigaction *ka,
-			 struct pt_regs *regs)
+static int handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
@@ -377,7 +347,7 @@ static int handle_signal(int sig,
 			break;
 
 		case -ERESTARTSYS:
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
+			if (!(ksig->ka.sa.sa_flags & SA_RESTART)) {
 				regs->d0 = -EINTR;
 				break;
 			}
@@ -390,15 +360,12 @@ static int handle_signal(int sig,
 	}
 
 	/* Set up the stack frame */
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		ret = setup_rt_frame(sig, ka, info, oldset, regs);
+	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
+		ret = setup_rt_frame(ksig, oldset, regs);
 	else
-		ret = setup_frame(sig, ka, oldset, regs);
-	if (ret)
-		return ret;
+		ret = setup_frame(ksig, oldset, regs);
 
-	signal_delivered(sig, info, ka, regs,
-			 test_thread_flag(TIF_SINGLESTEP));
+	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
 	return 0;
 }
 
@@ -407,15 +374,10 @@ static int handle_signal(int sig,
  */
 static void do_signal(struct pt_regs *regs)
 {
-	struct k_sigaction ka;
-	siginfo_t info;
-	int signr;
+	struct ksignal ksig;
 
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
-		if (handle_signal(signr, &info, &ka, regs) == 0) {
-		}
-
+	if (get_signal(&ksig)) {
+		handle_signal(&ksig, regs);
 		return;
 	}
 

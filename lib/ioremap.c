@@ -13,6 +13,50 @@
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 
+#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+static int __read_mostly ioremap_p4d_capable;
+static int __read_mostly ioremap_pud_capable;
+static int __read_mostly ioremap_pmd_capable;
+static int __read_mostly ioremap_huge_disabled;
+
+static int __init set_nohugeiomap(char *str)
+{
+	ioremap_huge_disabled = 1;
+	return 0;
+}
+early_param("nohugeiomap", set_nohugeiomap);
+
+void __init ioremap_huge_init(void)
+{
+	if (!ioremap_huge_disabled) {
+		if (arch_ioremap_pud_supported())
+			ioremap_pud_capable = 1;
+		if (arch_ioremap_pmd_supported())
+			ioremap_pmd_capable = 1;
+	}
+}
+
+static inline int ioremap_p4d_enabled(void)
+{
+	return ioremap_p4d_capable;
+}
+
+static inline int ioremap_pud_enabled(void)
+{
+	return ioremap_pud_capable;
+}
+
+static inline int ioremap_pmd_enabled(void)
+{
+	return ioremap_pmd_capable;
+}
+
+#else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+static inline int ioremap_p4d_enabled(void) { return 0; }
+static inline int ioremap_pud_enabled(void) { return 0; }
+static inline int ioremap_pmd_enabled(void) { return 0; }
+#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+
 static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
 {
@@ -43,27 +87,69 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
 		return -ENOMEM;
 	do {
 		next = pmd_addr_end(addr, end);
+
+		if (ioremap_pmd_enabled() &&
+		    ((next - addr) == PMD_SIZE) &&
+		    IS_ALIGNED(phys_addr + addr, PMD_SIZE)) {
+			if (pmd_set_huge(pmd, phys_addr + addr, prot))
+				continue;
+		}
+
 		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
 			return -ENOMEM;
 	} while (pmd++, addr = next, addr != end);
 	return 0;
 }
 
-static inline int ioremap_pud_range(pgd_t *pgd, unsigned long addr,
+static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
 {
 	pud_t *pud;
 	unsigned long next;
 
 	phys_addr -= addr;
-	pud = pud_alloc(&init_mm, pgd, addr);
+	pud = pud_alloc(&init_mm, p4d, addr);
 	if (!pud)
 		return -ENOMEM;
 	do {
 		next = pud_addr_end(addr, end);
+
+		if (ioremap_pud_enabled() &&
+		    ((next - addr) == PUD_SIZE) &&
+		    IS_ALIGNED(phys_addr + addr, PUD_SIZE)) {
+			if (pud_set_huge(pud, phys_addr + addr, prot))
+				continue;
+		}
+
 		if (ioremap_pmd_range(pud, addr, next, phys_addr + addr, prot))
 			return -ENOMEM;
 	} while (pud++, addr = next, addr != end);
+	return 0;
+}
+
+static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+{
+	p4d_t *p4d;
+	unsigned long next;
+
+	phys_addr -= addr;
+	p4d = p4d_alloc(&init_mm, pgd, addr);
+	if (!p4d)
+		return -ENOMEM;
+	do {
+		next = p4d_addr_end(addr, end);
+
+		if (ioremap_p4d_enabled() &&
+		    ((next - addr) == P4D_SIZE) &&
+		    IS_ALIGNED(phys_addr + addr, P4D_SIZE)) {
+			if (p4d_set_huge(p4d, phys_addr + addr, prot))
+				continue;
+		}
+
+		if (ioremap_pud_range(p4d, addr, next, phys_addr + addr, prot))
+			return -ENOMEM;
+	} while (p4d++, addr = next, addr != end);
 	return 0;
 }
 
@@ -82,7 +168,7 @@ int ioremap_page_range(unsigned long addr,
 	pgd = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		err = ioremap_pud_range(pgd, addr, next, phys_addr+addr, prot);
+		err = ioremap_p4d_range(pgd, addr, next, phys_addr+addr, prot);
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
@@ -91,4 +177,3 @@ int ioremap_page_range(unsigned long addr,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(ioremap_page_range);

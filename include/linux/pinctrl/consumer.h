@@ -29,6 +29,7 @@ extern int pinctrl_request_gpio(unsigned gpio);
 extern void pinctrl_free_gpio(unsigned gpio);
 extern int pinctrl_gpio_direction_input(unsigned gpio);
 extern int pinctrl_gpio_direction_output(unsigned gpio);
+extern int pinctrl_gpio_set_config(unsigned gpio, unsigned long config);
 
 extern struct pinctrl * __must_check pinctrl_get(struct device *dev);
 extern void pinctrl_put(struct pinctrl *p);
@@ -76,6 +77,11 @@ static inline int pinctrl_gpio_direction_input(unsigned gpio)
 }
 
 static inline int pinctrl_gpio_direction_output(unsigned gpio)
+{
+	return 0;
+}
+
+static inline int pinctrl_gpio_set_config(unsigned gpio, unsigned long config)
 {
 	return 0;
 }
@@ -142,7 +148,7 @@ static inline struct pinctrl * __must_check pinctrl_get_select(
 	s = pinctrl_lookup_state(p, name);
 	if (IS_ERR(s)) {
 		pinctrl_put(p);
-		return ERR_PTR(PTR_ERR(s));
+		return ERR_CAST(s);
 	}
 
 	ret = pinctrl_select_state(p, s);

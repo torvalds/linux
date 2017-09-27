@@ -48,11 +48,11 @@
  */
 struct pci_io_addr_range {
 	struct rb_node rb_node;
-	unsigned long addr_lo;
-	unsigned long addr_hi;
+	resource_size_t addr_lo;
+	resource_size_t addr_hi;
 	struct eeh_dev *edev;
 	struct pci_dev *pcidev;
-	unsigned int flags;
+	unsigned long flags;
 };
 
 static struct pci_io_addr_cache {
@@ -114,9 +114,9 @@ static void eeh_addr_cache_print(struct pci_io_addr_cache *cache)
 	while (n) {
 		struct pci_io_addr_range *piar;
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
-		pr_debug("PCI: %s addr range %d [%lx-%lx]: %s\n",
+		pr_debug("PCI: %s addr range %d [%pap-%pap]: %s\n",
 		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem", cnt,
-		       piar->addr_lo, piar->addr_hi, pci_name(piar->pcidev));
+		       &piar->addr_lo, &piar->addr_hi, pci_name(piar->pcidev));
 		cnt++;
 		n = rb_next(n);
 	}
@@ -125,8 +125,8 @@ static void eeh_addr_cache_print(struct pci_io_addr_cache *cache)
 
 /* Insert address range into the rb tree. */
 static struct pci_io_addr_range *
-eeh_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
-		      unsigned long ahi, unsigned int flags)
+eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
+		      resource_size_t ahi, unsigned long flags)
 {
 	struct rb_node **p = &pci_io_addr_cache_root.rb_root.rb_node;
 	struct rb_node *parent = NULL;
@@ -143,7 +143,7 @@ eeh_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 		} else {
 			if (dev != piar->pcidev ||
 			    alo != piar->addr_lo || ahi != piar->addr_hi) {
-				pr_warning("PIAR: overlapping address range\n");
+				pr_warn("PIAR: overlapping address range\n");
 			}
 			return piar;
 		}
@@ -159,8 +159,8 @@ eeh_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 	piar->flags = flags;
 
 #ifdef DEBUG
-	pr_debug("PIAR: insert range=[%lx:%lx] dev=%s\n",
-	                  alo, ahi, pci_name(dev));
+	pr_debug("PIAR: insert range=[%pap:%pap] dev=%s\n",
+		 &alo, &ahi, pci_name(dev));
 #endif
 
 	rb_link_node(&piar->rb_node, parent, p);
@@ -171,37 +171,38 @@ eeh_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 
 static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 {
-	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 	int i;
 
-	dn = pci_device_to_OF_node(dev);
-	if (!dn) {
-		pr_warning("PCI: no pci dn found for dev=%s\n", pci_name(dev));
+	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
+	if (!pdn) {
+		pr_warn("PCI: no pci dn found for dev=%s\n",
+			pci_name(dev));
 		return;
 	}
 
-	edev = of_node_to_eeh_dev(dn);
+	edev = pdn_to_eeh_dev(pdn);
 	if (!edev) {
-		pr_warning("PCI: no EEH dev found for dn=%s\n",
-			dn->full_name);
+		pr_warn("PCI: no EEH dev found for %s\n",
+			pci_name(dev));
 		return;
 	}
 
 	/* Skip any devices for which EEH is not enabled. */
-	if (!eeh_probe_mode_dev() && !edev->pe) {
-#ifdef DEBUG
-		pr_info("PCI: skip building address cache for=%s - %s\n",
-			pci_name(dev), dn->full_name);
-#endif
+	if (!edev->pe) {
+		dev_dbg(&dev->dev, "EEH: Skip building address cache\n");
 		return;
 	}
 
-	/* Walk resources on this device, poke them into the tree */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		unsigned long start = pci_resource_start(dev,i);
-		unsigned long end = pci_resource_end(dev,i);
-		unsigned int flags = pci_resource_flags(dev,i);
+	/*
+	 * Walk resources on this device, poke the first 7 (6 normal BAR and 1
+	 * ROM BAR) into the tree.
+	 */
+	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
+		resource_size_t start = pci_resource_start(dev,i);
+		resource_size_t end = pci_resource_end(dev,i);
+		unsigned long flags = pci_resource_flags(dev,i);
 
 		/* We are interested only bus addresses, not dma or other stuff */
 		if (0 == (flags & (IORESOURCE_IO | IORESOURCE_MEM)))
@@ -223,10 +224,6 @@ static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 void eeh_addr_cache_insert_dev(struct pci_dev *dev)
 {
 	unsigned long flags;
-
-	/* Ignore PCI bridges */
-	if ((dev->class >> 16) == PCI_BASE_CLASS_BRIDGE)
-		return;
 
 	spin_lock_irqsave(&pci_io_addr_cache_root.piar_lock, flags);
 	__eeh_addr_cache_insert_dev(dev);
@@ -281,18 +278,18 @@ void eeh_addr_cache_rmv_dev(struct pci_dev *dev)
  */
 void eeh_addr_cache_build(void)
 {
-	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 	struct pci_dev *dev = NULL;
 
 	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
 
 	for_each_pci_dev(dev) {
-		dn = pci_device_to_OF_node(dev);
-		if (!dn)
+		pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
+		if (!pdn)
 			continue;
 
-		edev = of_node_to_eeh_dev(dn);
+		edev = pdn_to_eeh_dev(pdn);
 		if (!edev)
 			continue;
 

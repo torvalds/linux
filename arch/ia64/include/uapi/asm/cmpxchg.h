@@ -61,8 +61,6 @@ extern void ia64_xchg_called_with_bad_pointer(void);
  * indicated by comparing RETURN with OLD.
  */
 
-#define __HAVE_ARCH_CMPXCHG 1
-
 /*
  * This function doesn't exist, so you'll get a linker error
  * if something tries to do an invalid cmpxchg().
@@ -117,6 +115,15 @@ extern long ia64_cmpxchg_called_with_bad_pointer(void);
 	ia64_cmpxchg(acq, (ptr), (o), (n), sizeof(*(ptr)))
 #define cmpxchg_rel(ptr, o, n)	\
 	ia64_cmpxchg(rel, (ptr), (o), (n), sizeof(*(ptr)))
+
+/*
+ * Worse still - early processor implementations actually just ignored
+ * the acquire/release and did a full fence all the time.  Unfortunately
+ * this meant a lot of badly written code that used .acq when they really
+ * wanted .rel became legacy out in the wild - so when we made a cpu
+ * that strictly did the .acq or .rel ... all that code started breaking - so
+ * we had to back-pedal and keep the "legacy" behavior of a full fence :-(
+ */
 
 /* for compatibility with other platforms: */
 #define cmpxchg(ptr, o, n)	cmpxchg_acq((ptr), (o), (n))

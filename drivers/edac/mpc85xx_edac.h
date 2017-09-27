@@ -1,5 +1,5 @@
 /*
- * Freescale MPC85xx Memory Controller kenel module
+ * Freescale MPC85xx Memory Controller kernel module
  * Author: Dave Jiang <djiang@mvista.com>
  *
  * 2006-2007 (c) MontaVista Software, Inc. This file is licensed under
@@ -16,64 +16,6 @@
 
 #define mpc85xx_printk(level, fmt, arg...) \
 	edac_printk(level, "MPC85xx", fmt, ##arg)
-
-#define mpc85xx_mc_printk(mci, level, fmt, arg...) \
-	edac_mc_chipset_printk(mci, level, "MPC85xx", fmt, ##arg)
-
-/*
- * DRAM error defines
- */
-
-/* DDR_SDRAM_CFG */
-#define MPC85XX_MC_DDR_SDRAM_CFG	0x0110
-#define MPC85XX_MC_CS_BNDS_0		0x0000
-#define MPC85XX_MC_CS_BNDS_1		0x0008
-#define MPC85XX_MC_CS_BNDS_2		0x0010
-#define MPC85XX_MC_CS_BNDS_3		0x0018
-#define MPC85XX_MC_CS_BNDS_OFS		0x0008
-
-#define MPC85XX_MC_DATA_ERR_INJECT_HI	0x0e00
-#define MPC85XX_MC_DATA_ERR_INJECT_LO	0x0e04
-#define MPC85XX_MC_ECC_ERR_INJECT	0x0e08
-#define MPC85XX_MC_CAPTURE_DATA_HI	0x0e20
-#define MPC85XX_MC_CAPTURE_DATA_LO	0x0e24
-#define MPC85XX_MC_CAPTURE_ECC		0x0e28
-#define MPC85XX_MC_ERR_DETECT		0x0e40
-#define MPC85XX_MC_ERR_DISABLE		0x0e44
-#define MPC85XX_MC_ERR_INT_EN		0x0e48
-#define MPC85XX_MC_CAPTURE_ATRIBUTES	0x0e4c
-#define MPC85XX_MC_CAPTURE_ADDRESS	0x0e50
-#define MPC85XX_MC_ERR_SBE		0x0e58
-
-#define DSC_MEM_EN	0x80000000
-#define DSC_ECC_EN	0x20000000
-#define DSC_RD_EN	0x10000000
-#define DSC_DBW_MASK	0x00180000
-#define DSC_DBW_32	0x00080000
-#define DSC_DBW_64	0x00000000
-
-#define DSC_SDTYPE_MASK		0x07000000
-
-#define DSC_SDTYPE_DDR		0x02000000
-#define DSC_SDTYPE_DDR2		0x03000000
-#define DSC_SDTYPE_DDR3		0x07000000
-#define DSC_X32_EN	0x00000020
-
-/* Err_Int_En */
-#define DDR_EIE_MSEE	0x1	/* memory select */
-#define DDR_EIE_SBEE	0x4	/* single-bit ECC error */
-#define DDR_EIE_MBEE	0x8	/* multi-bit ECC error */
-
-/* Err_Detect */
-#define DDR_EDE_MSE		0x1	/* memory select */
-#define DDR_EDE_SBE		0x4	/* single-bit ECC error */
-#define DDR_EDE_MBE		0x8	/* multi-bit ECC error */
-#define DDR_EDE_MME		0x80000000	/* multiple memory errors */
-
-/* Err_Disable */
-#define DDR_EDI_MSED	0x1	/* memory select disable */
-#define	DDR_EDI_SBED	0x4	/* single-bit ECC error disable */
-#define	DDR_EDI_MBED	0x8	/* multi-bit ECC error disable */
 
 /*
  * L2 Err defines
@@ -134,20 +76,19 @@
 #define MPC85XX_PCI_ERR_DR		0x0000
 #define MPC85XX_PCI_ERR_CAP_DR		0x0004
 #define MPC85XX_PCI_ERR_EN		0x0008
+#define   PEX_ERR_ICCAIE_EN_BIT		0x00020000
 #define MPC85XX_PCI_ERR_ATTRIB		0x000c
 #define MPC85XX_PCI_ERR_ADDR		0x0010
+#define   PEX_ERR_ICCAD_DISR_BIT	0x00020000
 #define MPC85XX_PCI_ERR_EXT_ADDR	0x0014
 #define MPC85XX_PCI_ERR_DL		0x0018
 #define MPC85XX_PCI_ERR_DH		0x001c
 #define MPC85XX_PCI_GAS_TIMR		0x0020
 #define MPC85XX_PCI_PCIX_TIMR		0x0024
-
-struct mpc85xx_mc_pdata {
-	char *name;
-	int edac_idx;
-	void __iomem *mc_vbase;
-	int irq;
-};
+#define MPC85XX_PCIE_ERR_CAP_R0		0x0028
+#define MPC85XX_PCIE_ERR_CAP_R1		0x002c
+#define MPC85XX_PCIE_ERR_CAP_R2		0x0030
+#define MPC85XX_PCIE_ERR_CAP_R3		0x0034
 
 struct mpc85xx_l2_pdata {
 	char *name;
@@ -158,6 +99,7 @@ struct mpc85xx_l2_pdata {
 
 struct mpc85xx_pci_pdata {
 	char *name;
+	bool is_pcie;
 	int edac_idx;
 	void __iomem *pci_vbase;
 	int irq;

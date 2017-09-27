@@ -449,16 +449,16 @@ static int wm8510_pcm_hw_params(struct snd_pcm_substream *substream,
 	u16 adn = snd_soc_read(codec, WM8510_ADD) & 0x1f1;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x0020;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x0040;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= 0x0060;
 		break;
 	}
@@ -519,7 +519,7 @@ static int wm8510_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		power1 |= WM8510_POWER1_BIASEN | WM8510_POWER1_BUFIOEN;
 
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			regcache_sync(wm8510->regmap);
 
 			/* Initial cap charge at VMID 5k */
@@ -538,7 +538,6 @@ static int wm8510_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -575,62 +574,33 @@ static struct snd_soc_dai_driver wm8510_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8510_suspend(struct snd_soc_codec *codec)
-{
-	wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8510_resume(struct snd_soc_codec *codec)
-{
-	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8510_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8510: failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	wm8510_reset(codec);
 
-	/* power on device */
-	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return ret;
-}
-
-/* power down chip */
-static int wm8510_remove(struct snd_soc_codec *codec)
-{
-	wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8510 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8510 = {
 	.probe =	wm8510_probe,
-	.remove =	wm8510_remove,
-	.suspend =	wm8510_suspend,
-	.resume =	wm8510_resume,
 	.set_bias_level = wm8510_set_bias_level,
+	.suspend_bias_off = true,
 
-	.controls = wm8510_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8510_snd_controls),
-	.dapm_widgets = wm8510_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8510_dapm_widgets),
-	.dapm_routes = wm8510_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8510_dapm_routes),
+	.component_driver = {
+		.controls		= wm8510_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8510_snd_controls),
+		.dapm_widgets		= wm8510_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8510_dapm_widgets),
+		.dapm_routes		= wm8510_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8510_dapm_routes),
+	},
 };
 
 static const struct of_device_id wm8510_of_match[] = {
 	{ .compatible = "wlf,wm8510" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, wm8510_of_match);
 
 static const struct regmap_config wm8510_regmap = {
 	.reg_bits = 7,
@@ -676,7 +646,6 @@ static int wm8510_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8510_spi_driver = {
 	.driver = {
 		.name	= "wm8510",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8510_of_match,
 	},
 	.probe		= wm8510_spi_probe,
@@ -684,7 +653,7 @@ static struct spi_driver wm8510_spi_driver = {
 };
 #endif /* CONFIG_SPI_MASTER */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8510_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -723,7 +692,6 @@ MODULE_DEVICE_TABLE(i2c, wm8510_i2c_id);
 static struct i2c_driver wm8510_i2c_driver = {
 	.driver = {
 		.name = "wm8510",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8510_of_match,
 	},
 	.probe =    wm8510_i2c_probe,
@@ -735,7 +703,7 @@ static struct i2c_driver wm8510_i2c_driver = {
 static int __init wm8510_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8510_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register WM8510 I2C driver: %d\n",
@@ -755,7 +723,7 @@ module_init(wm8510_modinit);
 
 static void __exit wm8510_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8510_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

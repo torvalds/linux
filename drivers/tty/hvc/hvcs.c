@@ -81,7 +81,7 @@
 #include <linux/tty_flip.h>
 #include <asm/hvconsole.h>
 #include <asm/hvcserver.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/vio.h>
 
 /*
@@ -189,7 +189,7 @@ MODULE_VERSION(HVCS_DRIVER_VERSION);
  * that will cause echoing or we'll go into recursive loop echoing chars back
  * and forth with the console drivers.
  */
-static struct ktermios hvcs_tty_termios = {
+static const struct ktermios hvcs_tty_termios = {
 	.c_iflag = IGNBRK | IGNPAR,
 	.c_oflag = OPOST,
 	.c_cflag = B38400 | CS8 | CREAD | HUPCL,
@@ -484,13 +484,13 @@ static struct attribute_group hvcs_attr_group = {
 	.attrs = hvcs_attrs,
 };
 
-static ssize_t hvcs_rescan_show(struct device_driver *ddp, char *buf)
+static ssize_t rescan_show(struct device_driver *ddp, char *buf)
 {
 	/* A 1 means it is updating, a 0 means it is done updating */
 	return snprintf(buf, PAGE_SIZE, "%d\n", hvcs_rescan_status);
 }
 
-static ssize_t hvcs_rescan_store(struct device_driver *ddp, const char * buf,
+static ssize_t rescan_store(struct device_driver *ddp, const char * buf,
 		size_t count)
 {
 	if ((simple_strtol(buf, NULL, 0) != 1)
@@ -505,8 +505,7 @@ static ssize_t hvcs_rescan_store(struct device_driver *ddp, const char * buf,
 	return count;
 }
 
-static DRIVER_ATTR(rescan,
-	S_IRUGO | S_IWUSR, hvcs_rescan_show, hvcs_rescan_store);
+static DRIVER_ATTR_RW(rescan);
 
 static void hvcs_kick(void)
 {
@@ -600,7 +599,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 
 	hvcs_try_write(hvcsd);
 
-	if (!tty || test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (!tty || tty_throttled(tty)) {
 		hvcsd->todo_mask &= ~(HVCS_READ_MASK);
 		goto bail;
 	} else if (!(hvcsd->todo_mask & (HVCS_READ_MASK)))
@@ -676,7 +675,7 @@ static int khvcsd(void *unused)
 	return 0;
 }
 
-static struct vio_device_id hvcs_driver_table[] = {
+static const struct vio_device_id hvcs_driver_table[] = {
 	{"serial-server", "hvterm2"},
 	{ "", "" }
 };
@@ -1044,8 +1043,8 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
 	 * It is possible that the vty-server was removed between the time that
 	 * the conn was registered and now.
 	 */
-	if (!(rc = request_irq(irq, &hvcs_handle_interrupt,
-				0, "ibmhvcs", hvcsd))) {
+	rc = request_irq(irq, &hvcs_handle_interrupt, 0, "ibmhvcs", hvcsd);
+	if (!rc) {
 		/*
 		 * It is possible the vty-server was removed after the irq was
 		 * requested but before we have time to enable interrupts.
@@ -1230,7 +1229,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		irq = hvcsd->vdev->irq;
 		spin_unlock_irqrestore(&hvcsd->lock, flags);
 
-		tty_wait_until_sent_from_close(tty, HVCS_CLOSE_WAIT);
+		tty_wait_until_sent(tty, HVCS_CLOSE_WAIT);
 
 		/*
 		 * This line is important because it tells hvcs_open that this
@@ -1242,8 +1241,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		free_irq(irq, hvcsd);
 		return;
 	} else if (hvcsd->port.count < 0) {
-		printk(KERN_ERR "HVCS: vty-server@%X open_count: %d"
-				" is missmanaged.\n",
+		printk(KERN_ERR "HVCS: vty-server@%X open_count: %d is mismanaged.\n",
 		hvcsd->vdev->unit_address, hvcsd->port.count);
 	}
 
@@ -1575,7 +1573,7 @@ static int __init hvcs_module_init(void)
 	 */
 	rc = driver_create_file(&(hvcs_vio_driver.driver), &driver_attr_rescan);
 	if (rc)
-		pr_warning(KERN_ERR "HVCS: Failed to create rescan file (err %d)\n", rc);
+		pr_warn("HVCS: Failed to create rescan file (err %d)\n", rc);
 
 	return 0;
 }

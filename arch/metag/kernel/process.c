@@ -8,6 +8,9 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/unistd.h>
@@ -174,8 +177,11 @@ void show_regs(struct pt_regs *regs)
 	show_trace(NULL, (unsigned long *)regs->ctx.AX[0].U0, regs);
 }
 
+/*
+ * Copy architecture-specific thread state
+ */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *tsk)
+		unsigned long kthread_arg, struct task_struct *tsk)
 {
 	struct pt_regs *childregs = task_pt_regs(tsk);
 	void *kernel_context = ((void *) childregs +
@@ -202,12 +208,13 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		global_base = __core_reg_get(A1GbP);
 		childregs->ctx.AX[0].U1 = (unsigned long) global_base;
 		childregs->ctx.AX[0].U0 = (unsigned long) kernel_context;
-		/* Set D1Ar1=arg and D1RtP=usp (fn) */
+		/* Set D1Ar1=kthread_arg and D1RtP=usp (fn) */
 		childregs->ctx.DX[4].U1 = usp;
-		childregs->ctx.DX[3].U1 = arg;
+		childregs->ctx.DX[3].U1 = kthread_arg;
 		tsk->thread.int_depth = 2;
 		return 0;
 	}
+
 	/*
 	 * Get a pointer to where the new child's register block should have
 	 * been pushed.
@@ -341,10 +348,10 @@ void flush_thread(void)
 /*
  * Free current thread data structures etc.
  */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	clear_fpu(&current->thread);
-	clear_dsp(&current->thread);
+	clear_fpu(&tsk->thread);
+	clear_dsp(&tsk->thread);
 }
 
 /* TODO: figure out how to unwind the kernel stack here to figure out

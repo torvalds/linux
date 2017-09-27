@@ -16,7 +16,7 @@
 
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <linux/buffer_head.h>
+#include <linux/bio.h>
 
 struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					 struct udf_fileident_bh *fibh,
@@ -88,7 +88,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					brelse(tmp);
 			}
 			if (num) {
-				ll_rw_block(READA, num, bha);
+				ll_rw_block(REQ_OP_READ, REQ_RAHEAD, num, bha);
 				for (i = 0; i < num; i++)
 					brelse(bha[i]);
 			}

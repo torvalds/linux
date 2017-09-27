@@ -2,7 +2,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,10 +55,10 @@ static struct rc_map_table real_audio_220_32_keys[] = {
 
 static struct rc_map_list real_audio_220_32_keys_map = {
 	.map = {
-		.scan    = real_audio_220_32_keys,
-		.size    = ARRAY_SIZE(real_audio_220_32_keys),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_REAL_AUDIO_220_32_KEYS,
+		.scan     = real_audio_220_32_keys,
+		.size     = ARRAY_SIZE(real_audio_220_32_keys),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_REAL_AUDIO_220_32_KEYS,
 	}
 };
 
@@ -76,4 +76,4 @@ module_init(init_rc_map_real_audio_220_32_keys)
 module_exit(exit_rc_map_real_audio_220_32_keys)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

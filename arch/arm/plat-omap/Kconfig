@@ -1,3 +1,6 @@
+config ARCH_OMAP
+	bool
+
 if ARCH_OMAP
 
 menu "TI OMAP Common Features"
@@ -60,35 +63,6 @@ config OMAP_RESET_CLOCKS
 	  probably do not want this option enabled until your
 	  device drivers work properly.
 
-config OMAP_MUX
-	bool "OMAP multiplexing support"
-	depends on ARCH_OMAP
-	default y
-	help
-	  Pin multiplexing support for OMAP boards. If your bootloader
-	  sets the multiplexing correctly, say N. Otherwise, or if unsure,
-	  say Y.
-
-config OMAP_MUX_DEBUG
-	bool "Multiplexing debug output"
-	depends on OMAP_MUX
-	help
-	  Makes the multiplexing functions print out a lot of debug info.
-	  This is useful if you want to find out the correct values of the
-	  multiplexing registers.
-
-config OMAP_MUX_WARNINGS
-	bool "Warn about pins the bootloader didn't set up"
-	depends on OMAP_MUX
-	default y
-	help
-	  Choose Y here to warn whenever driver initialization logic needs
-	  to change the pin multiplexing setup.	 When there are no warnings
-	  printed, it's safe to deselect OMAP_MUX for your product.
-
-config OMAP_IOMMU_IVA2
-	bool
-
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"
 	depends on ARCH_OMAP1
@@ -106,7 +80,7 @@ config OMAP_32K_TIMER
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
 	  support for no tick during idle. The 32KHz timer provides less
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
-	  currently only available for OMAP16XX, 24XX, 34XX and OMAP4/5.
+	  currently only available for OMAP16XX, 24XX, 34XX, OMAP4/5 and DRA7XX.
 
 	  On OMAP2PLUS this value is only used for CONFIG_HZ and
 	  CLOCK_TICK_RATE compile time calculation.

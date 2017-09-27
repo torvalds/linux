@@ -72,6 +72,8 @@ static unsigned event_delays_ns[] = {
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_DEAD */
 	1125 * NSEC_PER_USEC,	/* EHCI_HRTIMER_UNLINK_INTR */
 	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_FREE_ITDS */
+	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_ACTIVE_UNLINK */
+	5 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_START_UNLINK_INTR */
 	6 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_ASYNC_UNLINKS */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_IAA_WATCHDOG */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_DISABLE_PERIODIC */
@@ -86,8 +88,7 @@ static void ehci_enable_event(struct ehci_hcd *ehci, unsigned event,
 	ktime_t		*timeout = &ehci->hr_timeouts[event];
 
 	if (resched)
-		*timeout = ktime_add(ktime_get(),
-				ktime_set(0, event_delays_ns[event]));
+		*timeout = ktime_add(ktime_get(), event_delays_ns[event]);
 	ehci->enabled_hrtimer_events |= (1 << event);
 
 	/* Track only the lowest-numbered pending event */
@@ -215,6 +216,37 @@ static void ehci_handle_controller_death(struct ehci_hcd *ehci)
 	/* Not in process context, so don't try to reset the controller */
 }
 
+/* start to unlink interrupt QHs  */
+static void ehci_handle_start_intr_unlinks(struct ehci_hcd *ehci)
+{
+	bool		stopped = (ehci->rh_state < EHCI_RH_RUNNING);
+
+	/*
+	 * Process all the QHs on the intr_unlink list that were added
+	 * before the current unlink cycle began.  The list is in
+	 * temporal order, so stop when we reach the first entry in the
+	 * current cycle.  But if the root hub isn't running then
+	 * process all the QHs on the list.
+	 */
+	while (!list_empty(&ehci->intr_unlink_wait)) {
+		struct ehci_qh	*qh;
+
+		qh = list_first_entry(&ehci->intr_unlink_wait,
+				struct ehci_qh, unlink_node);
+		if (!stopped && (qh->unlink_cycle ==
+				ehci->intr_unlink_wait_cycle))
+			break;
+		list_del_init(&qh->unlink_node);
+		qh->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
+		start_unlink_intr(ehci, qh);
+	}
+
+	/* Handle remaining entries later */
+	if (!list_empty(&ehci->intr_unlink_wait)) {
+		ehci_enable_event(ehci, EHCI_HRTIMER_START_UNLINK_INTR, true);
+		++ehci->intr_unlink_wait_cycle;
+	}
+}
 
 /* Handle unlinked interrupt QHs once they are gone from the hardware */
 static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
@@ -236,7 +268,7 @@ static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 				unlink_node);
 		if (!stopped && qh->unlink_cycle == ehci->intr_unlink_cycle)
 			break;
-		list_del(&qh->unlink_node);
+		list_del_init(&qh->unlink_node);
 		end_unlink_intr(ehci, qh);
 	}
 
@@ -329,7 +361,7 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	}
 
 	ehci_dbg(ehci, "IAA watchdog: status %x cmd %x\n", status, cmd);
-	end_unlink_async(ehci);
+	end_iaa_cycle(ehci);
 }
 
 
@@ -363,6 +395,8 @@ static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_handle_controller_death,	/* EHCI_HRTIMER_POLL_DEAD */
 	ehci_handle_intr_unlinks,	/* EHCI_HRTIMER_UNLINK_INTR */
 	end_free_itds,			/* EHCI_HRTIMER_FREE_ITDS */
+	end_unlink_async,		/* EHCI_HRTIMER_ACTIVE_UNLINK */
+	ehci_handle_start_intr_unlinks,	/* EHCI_HRTIMER_START_UNLINK_INTR */
 	unlink_empty_async,		/* EHCI_HRTIMER_ASYNC_UNLINKS */
 	ehci_iaa_watchdog,		/* EHCI_HRTIMER_IAA_WATCHDOG */
 	ehci_disable_PSE,		/* EHCI_HRTIMER_DISABLE_PERIODIC */
@@ -390,7 +424,7 @@ static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
 	 */
 	now = ktime_get();
 	for_each_set_bit(e, &events, EHCI_HRTIMER_NUM_EVENTS) {
-		if (now.tv64 >= ehci->hr_timeouts[e].tv64)
+		if (ktime_compare(now, ehci->hr_timeouts[e]) >= 0)
 			event_handlers[e](ehci);
 		else
 			ehci_enable_event(ehci, e, false);

@@ -289,10 +289,14 @@ static struct miscdevice nv_tco_miscdev = {
  * register a pci_driver, because someone else might one day
  * want to register another driver on the same PCI id.
  */
-static DEFINE_PCI_DEVICE_TABLE(tco_pci_tbl) = {
+static const struct pci_device_id tco_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS,
 	  PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS,
+	  PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP78S_SMBUS,
+	  PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP79_SMBUS,
 	  PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, },			/* End of list */
 };
@@ -471,7 +475,6 @@ static struct platform_driver nv_tco_driver = {
 	.remove		= nv_tco_remove,
 	.shutdown	= nv_tco_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= TCO_MODULE_NAME,
 	},
 };
@@ -513,4 +516,3 @@ module_exit(nv_tco_cleanup_module);
 MODULE_AUTHOR("Mike Waychison");
 MODULE_DESCRIPTION("TCO timer driver for NV chipsets");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

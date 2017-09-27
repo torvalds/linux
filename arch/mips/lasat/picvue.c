@@ -9,7 +9,6 @@
 #include <asm/bootinfo.h>
 #include <asm/lasat/lasat.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 

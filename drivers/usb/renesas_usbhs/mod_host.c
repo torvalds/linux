@@ -111,9 +111,9 @@ static const char usbhsh_hcd_name[] = "renesas_usbhs host";
 	container_of(usbhs_mod_get(priv, USBHS_HOST), struct usbhsh_hpriv, mod)
 
 #define __usbhsh_for_each_udev(start, pos, h, i)	\
-	for (i = start, pos = (h)->udev + i;		\
-	     i < USBHSH_DEVICE_MAX;			\
-	     i++, pos = (h)->udev + i)
+	for ((i) = start;						\
+	     ((i) < USBHSH_DEVICE_MAX) && ((pos) = (h)->udev + (i));	\
+	     (i)++)
 
 #define usbhsh_for_each_udev(pos, hpriv, i)	\
 	__usbhsh_for_each_udev(1, pos, hpriv, i)
@@ -166,14 +166,10 @@ static struct usbhsh_request *usbhsh_ureq_alloc(struct usbhsh_hpriv *hpriv,
 					       gfp_t mem_flags)
 {
 	struct usbhsh_request *ureq;
-	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
-	struct device *dev = usbhs_priv_to_dev(priv);
 
 	ureq = kzalloc(sizeof(struct usbhsh_request), mem_flags);
-	if (!ureq) {
-		dev_err(dev, "ureq alloc fail\n");
+	if (!ureq)
 		return NULL;
-	}
 
 	usbhs_pkt_init(&ureq->pkt);
 	ureq->urb = urb;
@@ -388,10 +384,8 @@ static int usbhsh_endpoint_attach(struct usbhsh_hpriv *hpriv,
 	unsigned long flags;
 
 	uep = kzalloc(sizeof(struct usbhsh_ep), mem_flags);
-	if (!uep) {
-		dev_err(dev, "usbhsh_ep alloc fail\n");
+	if (!uep)
 		return -ENOMEM;
-	}
 
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
@@ -583,7 +577,7 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 		upphub	= usbhsh_device_number(hpriv, parent);
 		hubport	= usbhsh_device_hubport(udev);
 
-		dev_dbg(dev, "%s connecte to Hub [%d:%d](%p)\n", __func__,
+		dev_dbg(dev, "%s connected to Hub [%d:%d](%p)\n", __func__,
 			upphub, hubport, parent);
 	}
 
@@ -929,7 +923,8 @@ static int usbhsh_dcp_queue_push(struct usb_hcd *hcd,
 /*
  *		dma map functions
  */
-static int usbhsh_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+static int usbhsh_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
+			       int map)
 {
 	if (map) {
 		struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
@@ -1229,12 +1224,13 @@ static int __usbhsh_hub_get_status(struct usbhsh_hpriv *hpriv,
 		break;
 
 	case GetHubDescriptor:
-		desc->bDescriptorType		= 0x29;
+		desc->bDescriptorType		= USB_DT_HUB;
 		desc->bHubContrCurrent		= 0;
 		desc->bNbrPorts			= roothub_id;
 		desc->bDescLength		= 9;
 		desc->bPwrOn2PwrGood		= 0;
-		desc->wHubCharacteristics	= cpu_to_le16(0x0011);
+		desc->wHubCharacteristics	=
+			cpu_to_le16(HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_NO_OCPM);
 		desc->u.hs.DeviceRemovable[0]	= (roothub_id << 1);
 		desc->u.hs.DeviceRemovable[1]	= ~0;
 		dev_dbg(dev, "%s :: GetHubDescriptor\n", __func__);
@@ -1289,7 +1285,7 @@ static int usbhsh_bus_nop(struct usb_hcd *hcd)
 	return 0;
 }
 
-static struct hc_driver usbhsh_driver = {
+static const struct hc_driver usbhsh_driver = {
 	.description =		usbhsh_hcd_name,
 	.hcd_priv_size =	sizeof(struct usbhsh_hpriv),
 
@@ -1413,7 +1409,8 @@ static void usbhsh_pipe_init_for_host(struct usbhs_priv *priv)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usbhs_pipe *pipe;
-	u32 *pipe_type = usbhs_get_dparam(priv, pipe_type);
+	struct renesas_usbhs_driver_pipe_config *pipe_configs =
+					usbhs_get_dparam(priv, pipe_configs);
 	int pipe_size = usbhs_get_dparam(priv, pipe_size);
 	int old_type, dir_in, i;
 
@@ -1441,15 +1438,15 @@ static void usbhsh_pipe_init_for_host(struct usbhs_priv *priv)
 		 * USB_ENDPOINT_XFER_BULK -> dir in
 		 * ...
 		 */
-		dir_in = (pipe_type[i] == old_type);
-		old_type = pipe_type[i];
+		dir_in = (pipe_configs[i].type == old_type);
+		old_type = pipe_configs[i].type;
 
-		if (USB_ENDPOINT_XFER_CONTROL == pipe_type[i]) {
+		if (USB_ENDPOINT_XFER_CONTROL == pipe_configs[i].type) {
 			pipe = usbhs_dcp_malloc(priv);
 			usbhsh_hpriv_to_dcp(hpriv) = pipe;
 		} else {
 			pipe = usbhs_pipe_malloc(priv,
-						 pipe_type[i],
+						 pipe_configs[i].type,
 						 dir_in);
 		}
 
@@ -1469,13 +1466,14 @@ static int usbhsh_start(struct usbhs_priv *priv)
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret < 0)
 		return 0;
+	device_wakeup_enable(hcd->self.controller);
 
 	/*
 	 * pipe initialize and enable DCP
 	 */
+	usbhs_fifo_init(priv);
 	usbhs_pipe_init(priv,
 			usbhsh_dma_map_ctrl);
-	usbhs_fifo_init(priv);
 	usbhsh_pipe_init_for_host(priv);
 
 	/*

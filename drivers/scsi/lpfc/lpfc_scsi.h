@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
  * modify it under the terms of version 2 of the GNU General       *
@@ -41,6 +43,21 @@ struct lpfc_rport_data {
 	struct lpfc_nodelist *pnode;	/* Pointer to the node structure. */
 };
 
+struct lpfc_device_id {
+	struct lpfc_name vport_wwpn;
+	struct lpfc_name target_wwpn;
+	uint64_t lun;
+};
+
+struct lpfc_device_data {
+	struct list_head listentry;
+	struct lpfc_rport_data *rport_data;
+	struct lpfc_device_id device_id;
+	uint8_t priority;
+	bool oas_enabled;
+	bool available;
+};
+
 struct fcp_rsp {
 	uint32_t rspRsvd1;	/* FC Word 0, byte 0:3 */
 	uint32_t rspRsvd2;	/* FC Word 1, byte 0:3 */
@@ -73,6 +90,7 @@ struct fcp_rsp {
 #define RSP_RO_MISMATCH_ERR  0x03
 #define RSP_TM_NOT_SUPPORTED 0x04	/* Task mgmt function not supported */
 #define RSP_TM_NOT_COMPLETED 0x05	/* Task mgmt function not performed */
+#define RSP_TM_INVALID_LU    0x09	/* Task mgmt function to invalid LU */
 
 	uint32_t rspInfoRsvd;	/* FCP_RSP_INFO bytes 4-7 (reserved) */
 
@@ -119,6 +137,8 @@ struct lpfc_scsi_buf {
 
 	uint32_t timeout;
 
+	uint16_t flags;  /* TBD convert exch_busy to flags */
+#define LPFC_SBUF_XBUSY         0x1     /* SLI4 hba reported XB on WCQE cmpl */
 	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint32_t result;	/* From IOCB Word 4. */
@@ -148,6 +168,8 @@ struct lpfc_scsi_buf {
 	 * Iotag is in here
 	 */
 	struct lpfc_iocbq cur_iocbq;
+	uint16_t cpu;
+
 	wait_queue_head_t *waitq;
 	unsigned long start_time;
 
@@ -162,6 +184,15 @@ struct lpfc_scsi_buf {
 #endif
 };
 
-#define LPFC_SCSI_DMA_EXT_SIZE 264
-#define LPFC_BPL_SIZE          1024
-#define MDAC_DIRECT_CMD                  0x22
+#define LPFC_SCSI_DMA_EXT_SIZE	264
+#define LPFC_BPL_SIZE		1024
+#define MDAC_DIRECT_CMD		0x22
+
+#define FIND_FIRST_OAS_LUN	0
+#define NO_MORE_OAS_LUN		-1
+#define NOT_OAS_ENABLED_LUN	NO_MORE_OAS_LUN
+
+#define TXRDY_PAYLOAD_LEN	12
+
+int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
+				  struct lpfc_scsi_buf *lpfc_cmd);

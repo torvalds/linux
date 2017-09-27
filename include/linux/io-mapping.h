@@ -21,7 +21,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/bug.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/page.h>
 
 /*
@@ -31,16 +31,16 @@
  * See Documentation/io-mapping.txt
  */
 
-#ifdef CONFIG_HAVE_ATOMIC_IOMAP
-
-#include <asm/iomap.h>
-
 struct io_mapping {
 	resource_size_t base;
 	unsigned long size;
 	pgprot_t prot;
+	void __iomem *iomem;
 };
 
+#ifdef CONFIG_HAVE_ATOMIC_IOMAP
+
+#include <asm/iomap.h>
 /*
  * For small address space machines, mapping large objects
  * into the kernel virtual space isn't practical. Where
@@ -49,34 +49,25 @@ struct io_mapping {
  */
 
 static inline struct io_mapping *
-io_mapping_create_wc(resource_size_t base, unsigned long size)
+io_mapping_init_wc(struct io_mapping *iomap,
+		   resource_size_t base,
+		   unsigned long size)
 {
-	struct io_mapping *iomap;
 	pgprot_t prot;
 
-	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
-	if (!iomap)
-		goto out_err;
-
 	if (iomap_create_wc(base, size, &prot))
-		goto out_free;
+		return NULL;
 
 	iomap->base = base;
 	iomap->size = size;
 	iomap->prot = prot;
 	return iomap;
-
-out_free:
-	kfree(iomap);
-out_err:
-	return NULL;
 }
 
 static inline void
-io_mapping_free(struct io_mapping *mapping)
+io_mapping_fini(struct io_mapping *mapping)
 {
 	iomap_free(mapping->base, mapping->size);
-	kfree(mapping);
 }
 
 /* Atomic map/unmap */
@@ -100,14 +91,16 @@ io_mapping_unmap_atomic(void __iomem *vaddr)
 }
 
 static inline void __iomem *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+io_mapping_map_wc(struct io_mapping *mapping,
+		  unsigned long offset,
+		  unsigned long size)
 {
 	resource_size_t phys_addr;
 
 	BUG_ON(offset >= mapping->size);
 	phys_addr = mapping->base + offset;
 
-	return ioremap_wc(phys_addr, PAGE_SIZE);
+	return ioremap_wc(phys_addr, size);
 }
 
 static inline void
@@ -119,43 +112,41 @@ io_mapping_unmap(void __iomem *vaddr)
 #else
 
 #include <linux/uaccess.h>
-
-/* this struct isn't actually defined anywhere */
-struct io_mapping;
+#include <asm/pgtable.h>
 
 /* Create the io_mapping object*/
 static inline struct io_mapping *
-io_mapping_create_wc(resource_size_t base, unsigned long size)
+io_mapping_init_wc(struct io_mapping *iomap,
+		   resource_size_t base,
+		   unsigned long size)
 {
-	return (struct io_mapping __force *) ioremap_wc(base, size);
+	iomap->base = base;
+	iomap->size = size;
+	iomap->iomem = ioremap_wc(base, size);
+#if defined(pgprot_noncached_wc) /* archs can't agree on a name ... */
+	iomap->prot = pgprot_noncached_wc(PAGE_KERNEL);
+#elif defined(pgprot_writecombine)
+	iomap->prot = pgprot_writecombine(PAGE_KERNEL);
+#else
+	iomap->prot = pgprot_noncached(PAGE_KERNEL);
+#endif
+
+	return iomap;
 }
 
 static inline void
-io_mapping_free(struct io_mapping *mapping)
+io_mapping_fini(struct io_mapping *mapping)
 {
-	iounmap((void __force __iomem *) mapping);
-}
-
-/* Atomic map/unmap */
-static inline void __iomem *
-io_mapping_map_atomic_wc(struct io_mapping *mapping,
-			 unsigned long offset)
-{
-	pagefault_disable();
-	return ((char __force __iomem *) mapping) + offset;
-}
-
-static inline void
-io_mapping_unmap_atomic(void __iomem *vaddr)
-{
-	pagefault_enable();
+	iounmap(mapping->iomem);
 }
 
 /* Non-atomic map/unmap */
 static inline void __iomem *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+io_mapping_map_wc(struct io_mapping *mapping,
+		  unsigned long offset,
+		  unsigned long size)
 {
-	return ((char __force __iomem *) mapping) + offset;
+	return mapping->iomem + offset;
 }
 
 static inline void
@@ -163,6 +154,49 @@ io_mapping_unmap(void __iomem *vaddr)
 {
 }
 
+/* Atomic map/unmap */
+static inline void __iomem *
+io_mapping_map_atomic_wc(struct io_mapping *mapping,
+			 unsigned long offset)
+{
+	preempt_disable();
+	pagefault_disable();
+	return io_mapping_map_wc(mapping, offset, PAGE_SIZE);
+}
+
+static inline void
+io_mapping_unmap_atomic(void __iomem *vaddr)
+{
+	io_mapping_unmap(vaddr);
+	pagefault_enable();
+	preempt_enable();
+}
+
 #endif /* HAVE_ATOMIC_IOMAP */
+
+static inline struct io_mapping *
+io_mapping_create_wc(resource_size_t base,
+		     unsigned long size)
+{
+	struct io_mapping *iomap;
+
+	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
+	if (!iomap)
+		return NULL;
+
+	if (!io_mapping_init_wc(iomap, base, size)) {
+		kfree(iomap);
+		return NULL;
+	}
+
+	return iomap;
+}
+
+static inline void
+io_mapping_free(struct io_mapping *iomap)
+{
+	io_mapping_fini(iomap);
+	kfree(iomap);
+}
 
 #endif /* _LINUX_IO_MAPPING_H */

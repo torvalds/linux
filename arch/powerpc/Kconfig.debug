@@ -56,17 +56,36 @@ config PPC_EMULATED_STATS
 	  emulated.
 
 config CODE_PATCHING_SELFTEST
-	bool "Run self-tests of the code-patching code."
+	bool "Run self-tests of the code-patching code"
 	depends on DEBUG_KERNEL
 	default n
 
+config JUMP_LABEL_FEATURE_CHECKS
+	bool "Enable use of jump label for cpu/mmu_has_feature()"
+	depends on JUMP_LABEL
+	default y
+	help
+	  Selecting this options enables use of jump labels for some internal
+	  feature checks. This should generate more optimal code for those
+	  checks.
+
+config JUMP_LABEL_FEATURE_CHECK_DEBUG
+	bool "Do extra check on feature fixup calls"
+	depends on DEBUG_KERNEL && JUMP_LABEL_FEATURE_CHECKS
+	default n
+	help
+	  This tries to catch incorrect usage of cpu_has_feature() and
+	  mmu_has_feature() in the code.
+
+	  If you don't know what this means, say N.
+
 config FTR_FIXUP_SELFTEST
-	bool "Run self-tests of the feature-fixup code."
+	bool "Run self-tests of the feature-fixup code"
 	depends on DEBUG_KERNEL
 	default n
 
 config MSI_BITMAP_SELFTEST
-	bool "Run self-tests of the MSI bitmap code."
+	bool "Run self-tests of the MSI bitmap code"
 	depends on DEBUG_KERNEL
 	default n
 
@@ -117,7 +136,7 @@ config BDI_SWITCH
 
 config BOOTX_TEXT
 	bool "Support for early boot text console (BootX or OpenFirmware only)"
-	depends on PPC_OF && PPC_BOOK3S
+	depends on PPC_BOOK3S
 	help
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires either BootX or Open Firmware.
@@ -149,14 +168,14 @@ config PPC_EARLY_DEBUG_BOOTX
 
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Select this to enable early debugging for a machine with a HVC
 	  console on vterm 0.
 
 config PPC_EARLY_DEBUG_LPAR_HVSI
 	bool "LPAR HVSI Console"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Select this to enable early debugging for a machine with a HVSI
 	  console on a specified vterm.
@@ -193,18 +212,9 @@ config PPC_EARLY_DEBUG_PAS_REALMODE
 	  Select this to enable early debugging for PA Semi.
 	  Output will be on UART0.
 
-config PPC_EARLY_DEBUG_BEAT
-	bool "Beat HV Console"
-	depends on PPC_CELLEB
-	select PPC_UDBG_BEAT
-	help
-	  Select this to enable early debugging for Celleb with Beat.
-
 config PPC_EARLY_DEBUG_44x
 	bool "Early serial debugging for IBM/AMCC 44x CPUs"
-	# PPC_EARLY_DEBUG on 440 leaves AS=1 mappings above the TLB high water
-	# mark, which doesn't work with current 440 KVM.
-	depends on 44x && !KVM
+	depends on 44x
 	help
 	  Select this to enable early debugging for IBM 44x chips via the
 	  inbuilt serial port.  If you enable this, ensure you set
@@ -221,7 +231,6 @@ config PPC_EARLY_DEBUG_40x
 config PPC_EARLY_DEBUG_CPM
 	bool "Early serial debugging for Freescale CPM-based serial ports"
 	depends on SERIAL_CPM
-	select PIN_TLB if PPC_8xx
 	help
 	  Select this to enable early debugging for Freescale chips
 	  using a CPM-based serial port.  This assumes that the bootwrapper
@@ -234,11 +243,6 @@ config PPC_EARLY_DEBUG_USBGECKO
 	help
 	  Select this to enable early debugging for Nintendo GameCube/Wii
 	  consoles via an external USB Gecko adapter.
-
-config PPC_EARLY_DEBUG_WSP
-	bool "Early debugging via WSP's internal UART"
-	depends on PPC_WSP
-	select PPC_UDBG_16550
 
 config PPC_EARLY_DEBUG_PS3GELIC
 	bool "Early debugging through the PS3 Ethernet port"
@@ -308,7 +312,6 @@ config PPC_EARLY_DEBUG_OPAL_VTERMNO
 	  This correspond to which /dev/hvcN you want to use for early
 	  debug.
 
-	  On OPAL v1 (takeover) this should always be 0
 	  On OPAL v2, this will be 0 for network console and 1 or 2 for
 	  the machine built-in serial ports.
 
@@ -342,18 +345,6 @@ config PPC_EARLY_DEBUG_CPM_ADDR
 	  platform probing is done, all platforms selected must
 	  share the same address.
 
-config STRICT_DEVMEM
-	def_bool y
-	prompt "Filter access to /dev/mem"
-	help
-	  This option restricts access to /dev/mem.  If this option is
-	  disabled, you allow userspace access to all memory, including
-	  kernel and userspace memory. Accidental memory access is likely
-	  to be disastrous.
-	  Memory access is required for experts who want to debug the kernel.
-
-	  If you are unsure, say Y.
-
 config FAIL_IOMMU
 	bool "Fault-injection capability for IOMMU"
 	depends on FAULT_INJECTION
@@ -362,5 +353,20 @@ config FAIL_IOMMU
 	  be selectively enabled via the fail_iommu property.
 
 	  If you are unsure, say N.
+
+config PPC_PTDUMP
+        bool "Export kernel pagetable layout to userspace via debugfs"
+        depends on DEBUG_KERNEL && DEBUG_FS
+        help
+	  This option exports the state of the kernel pagetables to a
+	  debugfs file. This is only useful for kernel developers who are
+	  working in architecture specific areas of the kernel - probably
+	  not a good idea to enable this feature in a production kernel.
+
+	  If you are unsure, say N.
+
+config PPC_HTDUMP
+	def_bool y
+	depends on PPC_PTDUMP && PPC_BOOK3S
 
 endmenu

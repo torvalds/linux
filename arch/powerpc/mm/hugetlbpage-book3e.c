@@ -8,10 +8,103 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 
+#include <asm/mmu.h>
+
+#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC64
+static inline int tlb1_next(void)
+{
+	struct paca_struct *paca = get_paca();
+	struct tlb_core_data *tcd;
+	int this, next;
+
+	tcd = paca->tcd_ptr;
+	this = tcd->esel_next;
+
+	next = this + 1;
+	if (next >= tcd->esel_max)
+		next = tcd->esel_first;
+
+	tcd->esel_next = next;
+	return this;
+}
+#else
+static inline int tlb1_next(void)
+{
+	int index, ncams;
+
+	ncams = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
+
+	index = this_cpu_read(next_tlbcam_idx);
+
+	/* Just round-robin the entries and wrap when we hit the end */
+	if (unlikely(index == ncams - 1))
+		__this_cpu_write(next_tlbcam_idx, tlbcam_index);
+	else
+		__this_cpu_inc(next_tlbcam_idx);
+
+	return index;
+}
+#endif /* !PPC64 */
+#endif /* FSL */
+
 static inline int mmu_get_tsize(int psize)
 {
 	return mmu_psize_defs[psize].enc;
 }
+
+#if defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_PPC64)
+#include <asm/paca.h>
+
+static inline void book3e_tlb_lock(void)
+{
+	struct paca_struct *paca = get_paca();
+	unsigned long tmp;
+	int token = smp_processor_id() + 1;
+
+	/*
+	 * Besides being unnecessary in the absence of SMT, this
+	 * check prevents trying to do lbarx/stbcx. on e5500 which
+	 * doesn't implement either feature.
+	 */
+	if (!cpu_has_feature(CPU_FTR_SMT))
+		return;
+
+	asm volatile("1: lbarx %0, 0, %1;"
+		     "cmpwi %0, 0;"
+		     "bne 2f;"
+		     "stbcx. %2, 0, %1;"
+		     "bne 1b;"
+		     "b 3f;"
+		     "2: lbzx %0, 0, %1;"
+		     "cmpwi %0, 0;"
+		     "bne 2b;"
+		     "b 1b;"
+		     "3:"
+		     : "=&r" (tmp)
+		     : "r" (&paca->tcd_ptr->lock), "r" (token)
+		     : "memory");
+}
+
+static inline void book3e_tlb_unlock(void)
+{
+	struct paca_struct *paca = get_paca();
+
+	if (!cpu_has_feature(CPU_FTR_SMT))
+		return;
+
+	isync();
+	paca->tcd_ptr->lock = 0;
+}
+#else
+static inline void book3e_tlb_lock(void)
+{
+}
+
+static inline void book3e_tlb_unlock(void)
+{
+}
+#endif
 
 static inline int book3e_tlb_exists(unsigned long ea, unsigned long pid)
 {
@@ -47,7 +140,7 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 	struct mm_struct *mm;
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-	int index, ncams;
+	int index;
 #endif
 
 	if (unlikely(is_kernel_addr(ea)))
@@ -55,40 +148,29 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 
 	mm = vma->vm_mm;
 
-#ifdef CONFIG_PPC_MM_SLICES
-	psize = get_slice_psize(mm, ea);
-	tsize = mmu_get_tsize(psize);
-	shift = mmu_psize_defs[psize].shift;
-#else
 	psize = vma_mmu_pagesize(vma);
 	shift = __ilog2(psize);
 	tsize = shift - 10;
-#endif
-
 	/*
 	 * We can't be interrupted while we're setting up the MAS
 	 * regusters or after we've confirmed that no tlb exists.
 	 */
 	local_irq_save(flags);
 
+	book3e_tlb_lock();
+
 	if (unlikely(book3e_tlb_exists(ea, mm->context.id))) {
+		book3e_tlb_unlock();
 		local_irq_restore(flags);
 		return;
 	}
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-	ncams = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
-
 	/* We have to use the CAM(TLB1) on FSL parts for hugepages */
-	index = __get_cpu_var(next_tlbcam_idx);
+	index = tlb1_next();
 	mtspr(SPRN_MAS0, MAS0_ESEL(index) | MAS0_TLBSEL(1));
-
-	/* Just round-robin the entries and wrap when we hit the end */
-	if (unlikely(index == ncams - 1))
-		__get_cpu_var(next_tlbcam_idx) = tlbcam_index;
-	else
-		__get_cpu_var(next_tlbcam_idx)++;
 #endif
+
 	mas1 = MAS1_VALID | MAS1_TID(mm->context.id) | MAS1_TSIZE(tsize);
 	mas2 = ea & ~((1UL << shift) - 1);
 	mas2 |= (pte_val(pte) >> PTE_WIMGE_SHIFT) & MAS2_WIMGE_MASK;
@@ -103,12 +185,14 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 	if (mmu_has_feature(MMU_FTR_USE_PAIRED_MAS)) {
 		mtspr(SPRN_MAS7_MAS3, mas7_3);
 	} else {
-		mtspr(SPRN_MAS7, upper_32_bits(mas7_3));
+		if (mmu_has_feature(MMU_FTR_BIG_PHYS))
+			mtspr(SPRN_MAS7, upper_32_bits(mas7_3));
 		mtspr(SPRN_MAS3, lower_32_bits(mas7_3));
 	}
 
 	asm volatile ("tlbwe");
 
+	book3e_tlb_unlock();
 	local_irq_restore(flags);
 }
 
@@ -117,6 +201,5 @@ void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	struct hstate *hstate = hstate_file(vma->vm_file);
 	unsigned long tsize = huge_page_shift(hstate) - 10;
 
-	__flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr, tsize, 0);
-
+	__flush_tlb_page(vma->vm_mm, vmaddr, tsize, 0);
 }

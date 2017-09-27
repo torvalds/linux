@@ -16,14 +16,21 @@
 #include <asm/watch.h>
 #include <asm/dsp.h>
 #include <asm/cop2.h>
+#include <asm/fpu.h>
 
 struct task_struct;
 
-/*
- * switch_to(n) should switch tasks to task nr n, first
- * checking that n isn't the current task, in which case it does nothing.
+/**
+ * resume - resume execution of a task
+ * @prev:	The task previously executed.
+ * @next:	The task to begin executing.
+ * @next_ti:	task_thread_info(next).
+ *
+ * This function is used whilst scheduling to save the context of prev & load
+ * the context of next. Returns prev.
  */
-extern asmlinkage void *resume(void *last, void *next, void *next_ti, u32 __usedfpu);
+extern asmlinkage struct task_struct *resume(struct task_struct *prev,
+		struct task_struct *next, struct thread_info *next_ti);
 
 extern unsigned int ll_bit;
 extern struct task_struct *ll_task;
@@ -59,46 +66,71 @@ do {									\
 #define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
 #endif
 
-#define __clear_software_ll_bit()					\
-do {									\
+/*
+ * Clear LLBit during context switches on MIPSr6 such that eretnc can be used
+ * unconditionally when returning to userland in entry.S.
+ */
+#define __clear_r6_hw_ll_bit() do {					\
+	if (cpu_has_mips_r6)						\
+		write_c0_lladdr(0);					\
+} while (0)
+
+#define __clear_software_ll_bit() do {					\
 	if (!__builtin_constant_p(cpu_has_llsc) || !cpu_has_llsc)	\
 		ll_bit = 0;						\
 } while (0)
 
-#define switch_to(prev, next, last)					\
+/*
+ * Check FCSR for any unmasked exceptions pending set with `ptrace',
+ * clear them and send a signal.
+ */
+#define __sanitize_fcr31(next)						\
 do {									\
-	u32 __usedfpu, __c0_stat;					\
-	__mips_mt_fpaff_switch_to(prev);				\
-	if (cpu_has_dsp)						\
-		__save_dsp(prev);					\
-	if (cop2_present && (KSTK_STATUS(prev) & ST0_CU2)) {		\
-		if (cop2_lazy_restore)					\
-			KSTK_STATUS(prev) &= ~ST0_CU2;			\
-		__c0_stat = read_c0_status();				\
-		write_c0_status(__c0_stat | ST0_CU2);			\
-		cop2_save(&prev->thread.cp2);				\
-		write_c0_status(__c0_stat & ~ST0_CU2);			\
+	unsigned long fcr31 = mask_fcr31_x(next->thread.fpu.fcr31);	\
+	void __user *pc;						\
+									\
+	if (unlikely(fcr31)) {						\
+		pc = (void __user *)task_pt_regs(next)->cp0_epc;	\
+		next->thread.fpu.fcr31 &= ~fcr31;			\
+		force_fcr31_sig(fcr31, pc, next);			\
 	}								\
-	__clear_software_ll_bit();					\
-	__usedfpu = test_and_clear_tsk_thread_flag(prev, TIF_USEDFPU);	\
-	(last) = resume(prev, next, task_thread_info(next), __usedfpu); \
 } while (0)
 
-#define finish_arch_switch(prev)					\
+/*
+ * For newly created kernel threads switch_to() will return to
+ * ret_from_kernel_thread, newly created user threads to ret_from_fork.
+ * That is, everything following resume() will be skipped for new threads.
+ * So everything that matters to new threads should be placed before resume().
+ */
+#define switch_to(prev, next, last)					\
 do {									\
-	u32 __c0_stat;							\
-	if (cop2_present && !cop2_lazy_restore &&			\
-			(KSTK_STATUS(current) & ST0_CU2)) {		\
-		__c0_stat = read_c0_status();				\
-		write_c0_status(__c0_stat | ST0_CU2);			\
-		cop2_restore(&current->thread.cp2);			\
-		write_c0_status(__c0_stat & ~ST0_CU2);			\
+	__mips_mt_fpaff_switch_to(prev);				\
+	lose_fpu_inatomic(1, prev);					\
+	if (tsk_used_math(next))					\
+		__sanitize_fcr31(next);					\
+	if (cpu_has_dsp) {						\
+		__save_dsp(prev);					\
+		__restore_dsp(next);					\
 	}								\
-	if (cpu_has_dsp)						\
-		__restore_dsp(current);					\
+	if (cop2_present) {						\
+		set_c0_status(ST0_CU2);					\
+		if ((KSTK_STATUS(prev) & ST0_CU2)) {			\
+			if (cop2_lazy_restore)				\
+				KSTK_STATUS(prev) &= ~ST0_CU2;		\
+			cop2_save(prev);				\
+		}							\
+		if (KSTK_STATUS(next) & ST0_CU2 &&			\
+		    !cop2_lazy_restore) {				\
+			cop2_restore(next);				\
+		}							\
+		clear_c0_status(ST0_CU2);				\
+	}								\
+	__clear_r6_hw_ll_bit();						\
+	__clear_software_ll_bit();					\
 	if (cpu_has_userlocal)						\
-		write_c0_userlocal(current_thread_info()->tp_value);	\
-	__restore_watch();						\
+		write_c0_userlocal(task_thread_info(next)->tp_value);	\
+	__restore_watch(next);						\
+	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 
 #endif /* _ASM_SWITCH_TO_H */

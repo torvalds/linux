@@ -45,21 +45,21 @@ int mxc_iomux_v3_setup_pad(iomux_v3_cfg_t pad)
 	u32 pad_ctrl = (pad & MUX_PAD_CTRL_MASK) >> MUX_PAD_CTRL_SHIFT;
 
 	if (mux_ctrl_ofs)
-		__raw_writel(mux_mode, base + mux_ctrl_ofs);
+		imx_writel(mux_mode, base + mux_ctrl_ofs);
 
 	if (sel_input_ofs)
-		__raw_writel(sel_input, base + sel_input_ofs);
+		imx_writel(sel_input, base + sel_input_ofs);
 
 	if (!(pad_ctrl & NO_PAD_CTRL) && pad_ctrl_ofs)
-		__raw_writel(pad_ctrl, base + pad_ctrl_ofs);
+		imx_writel(pad_ctrl, base + pad_ctrl_ofs);
 
 	return 0;
 }
-EXPORT_SYMBOL(mxc_iomux_v3_setup_pad);
 
-int mxc_iomux_v3_setup_multiple_pads(iomux_v3_cfg_t *pad_list, unsigned count)
+int mxc_iomux_v3_setup_multiple_pads(const iomux_v3_cfg_t *pad_list,
+		unsigned count)
 {
-	iomux_v3_cfg_t *p = pad_list;
+	const iomux_v3_cfg_t *p = pad_list;
 	int i;
 	int ret;
 
@@ -71,7 +71,6 @@ int mxc_iomux_v3_setup_multiple_pads(iomux_v3_cfg_t *pad_list, unsigned count)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(mxc_iomux_v3_setup_multiple_pads);
 
 void mxc_iomux_v3_init(void __iomem *iomux_v3_base)
 {

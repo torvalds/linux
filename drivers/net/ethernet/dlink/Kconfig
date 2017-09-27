@@ -7,9 +7,7 @@ config NET_VENDOR_DLINK
 	default y
 	depends on PCI
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -19,15 +17,16 @@ config NET_VENDOR_DLINK
 if NET_VENDOR_DLINK
 
 config DL2K
-	tristate "DL2000/TC902x-based Gigabit Ethernet support"
+	tristate "DL2000/TC902x/IP1000A-based Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
 	---help---
-	  This driver supports DL2000/TC902x-based Gigabit ethernet cards,
+	  This driver supports DL2000/TC902x/IP1000A-based Gigabit ethernet cards,
 	  which includes
 	  D-Link DGE-550T Gigabit Ethernet Adapter.
 	  D-Link DL2000-based Gigabit Ethernet Adapter.
 	  Sundance/Tamarack TC902x Gigabit Ethernet Adapter.
+	  ICPlus IP1000A-based cards
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dl2k.

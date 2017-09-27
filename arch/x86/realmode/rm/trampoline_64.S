@@ -25,12 +25,12 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/init.h>
 #include <asm/pgtable_types.h>
 #include <asm/page_types.h>
 #include <asm/msr.h>
 #include <asm/segment.h>
 #include <asm/processor-flags.h>
+#include <asm/realmode.h>
 #include "realmode.h"
 
 	.text
@@ -93,6 +93,28 @@ ENTRY(startup_32)
 	movl	%edx, %fs
 	movl	%edx, %gs
 
+	/*
+	 * Check for memory encryption support. This is a safety net in
+	 * case BIOS hasn't done the necessary step of setting the bit in
+	 * the MSR for this AP. If SME is active and we've gotten this far
+	 * then it is safe for us to set the MSR bit and continue. If we
+	 * don't we'll eventually crash trying to execute encrypted
+	 * instructions.
+	 */
+	bt	$TH_FLAGS_SME_ACTIVE_BIT, pa_tr_flags
+	jnc	.Ldone
+	movl	$MSR_K8_SYSCFG, %ecx
+	rdmsr
+	bts	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
+	jc	.Ldone
+
+	/*
+	 * Memory encryption is enabled but the SME enable bit for this
+	 * CPU has has not been set.  It is safe to set it, so do so.
+	 */
+	wrmsr
+.Ldone:
+
 	movl	pa_tr_cr4, %eax
 	movl	%eax, %cr4		# Enable PAE mode
 
@@ -148,6 +170,7 @@ GLOBAL(trampoline_header)
 	tr_start:		.space	8
 	GLOBAL(tr_efer)		.space	8
 	GLOBAL(tr_cr4)		.space	4
+	GLOBAL(tr_flags)	.space	4
 END(trampoline_header)
 
 #include "trampoline_common.S"

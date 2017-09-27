@@ -83,10 +83,6 @@
 		regulator-always-on;
 	};
 
-	clk32kg: regulator-clk32kg {
-		compatible = "ti,twl6030-clk32kg";
-	};
-
 	twl_usb_comparator: usb-comparator {
 		compatible = "ti,twl6030-usb";
 		interrupts = <4>, <10>;
@@ -102,5 +98,11 @@
 		/* provides one PWM (id 0 for Charging indicator LED) */
 		compatible = "ti,twl6030-pwmled";
 		#pwm-cells = <2>;
+	};
+
+	gpadc {
+		compatible = "ti,twl6030-gpadc";
+		interrupts = <3>;
+		#io-channel-cells = <1>;
 	};
 };

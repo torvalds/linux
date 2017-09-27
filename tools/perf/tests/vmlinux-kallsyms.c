@@ -1,5 +1,6 @@
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
+#include <inttypes.h>
 #include <string.h>
 #include "map.h"
 #include "symbol.h"
@@ -8,23 +9,19 @@
 #include "debug.h"
 #include "machine.h"
 
-static int vmlinux_matches_kallsyms_filter(struct map *map __maybe_unused,
-					   struct symbol *sym)
-{
-	bool *visited = symbol__priv(sym);
-	*visited = true;
-	return 0;
-}
+#define UM(x) kallsyms_map->unmap_ip(kallsyms_map, (x))
 
-int test__vmlinux_matches_kallsyms(void)
+int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
 	struct rb_node *nd;
 	struct symbol *sym;
-	struct map *kallsyms_map, *vmlinux_map;
+	struct map *kallsyms_map, *vmlinux_map, *map;
 	struct machine kallsyms, vmlinux;
 	enum map_type type = MAP__FUNCTION;
-	struct ref_reloc_sym ref_reloc_sym = { .name = "_stext", };
+	struct maps *maps = &vmlinux.kmaps.maps[type];
+	u64 mem_start, mem_end;
+	bool header_printed;
 
 	/*
 	 * Step 1:
@@ -51,8 +48,14 @@ int test__vmlinux_matches_kallsyms(void)
 	 * Step 3:
 	 *
 	 * Load and split /proc/kallsyms into multiple maps, one per module.
+	 * Do not use kcore, as this test was designed before kcore support
+	 * and has parts that only make sense if using the non-kcore code.
+	 * XXX: extend it to stress the kcorre code as well, hint: the list
+	 * of modules extracted from /proc/kcore, in its current form, can't
+	 * be compacted against the list of modules found in the "vmlinux"
+	 * code and with the one got from /proc/modules from the "kallsyms" code.
 	 */
-	if (machine__load_kallsyms(&kallsyms, "/proc/kallsyms", type, NULL) <= 0) {
+	if (__machine__load_kallsyms(&kallsyms, "/proc/kallsyms", type, true) <= 0) {
 		pr_debug("dso__load_kallsyms ");
 		goto out;
 	}
@@ -65,15 +68,7 @@ int test__vmlinux_matches_kallsyms(void)
 	 * to see if the running kernel was relocated by checking if it has the
 	 * same value in the vmlinux file we load.
 	 */
-	kallsyms_map = machine__kernel_map(&kallsyms, type);
-
-	sym = map__find_symbol_by_name(kallsyms_map, ref_reloc_sym.name, NULL);
-	if (sym == NULL) {
-		pr_debug("dso__find_symbol_by_name ");
-		goto out;
-	}
-
-	ref_reloc_sym.addr = sym->start;
+	kallsyms_map = machine__kernel_map(&kallsyms);
 
 	/*
 	 * Step 5:
@@ -85,8 +80,7 @@ int test__vmlinux_matches_kallsyms(void)
 		goto out;
 	}
 
-	vmlinux_map = machine__kernel_map(&vmlinux, type);
-	map__kmap(vmlinux_map)->ref_reloc_sym = &ref_reloc_sym;
+	vmlinux_map = machine__kernel_map(&vmlinux);
 
 	/*
 	 * Step 6:
@@ -99,8 +93,7 @@ int test__vmlinux_matches_kallsyms(void)
 	 * maps__reloc_vmlinux will notice and set proper ->[un]map_ip routines
 	 * to fixup the symbols.
 	 */
-	if (machine__load_vmlinux_path(&vmlinux, type,
-				       vmlinux_matches_kallsyms_filter) <= 0) {
+	if (machine__load_vmlinux_path(&vmlinux, type) <= 0) {
 		pr_debug("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
 		err = TEST_SKIP;
 		goto out;
@@ -116,17 +109,20 @@ int test__vmlinux_matches_kallsyms(void)
 	 */
 	for (nd = rb_first(&vmlinux_map->dso->symbols[type]); nd; nd = rb_next(nd)) {
 		struct symbol *pair, *first_pair;
-		bool backwards = true;
 
 		sym  = rb_entry(nd, struct symbol, rb_node);
 
 		if (sym->start == sym->end)
 			continue;
 
-		first_pair = machine__find_kernel_symbol(&kallsyms, type, sym->start, NULL, NULL);
+		mem_start = vmlinux_map->unmap_ip(vmlinux_map, sym->start);
+		mem_end = vmlinux_map->unmap_ip(vmlinux_map, sym->end);
+
+		first_pair = machine__find_kernel_symbol(&kallsyms, type,
+							 mem_start, NULL);
 		pair = first_pair;
 
-		if (pair && pair->start == sym->start) {
+		if (pair && UM(pair->start) == mem_start) {
 next_pair:
 			if (strcmp(sym->name, pair->name) == 0) {
 				/*
@@ -138,48 +134,48 @@ next_pair:
 				 * off the real size. More than that and we
 				 * _really_ have a problem.
 				 */
-				s64 skew = sym->end - pair->end;
-				if (llabs(skew) < page_size)
-					continue;
+				s64 skew = mem_end - UM(pair->end);
+				if (llabs(skew) >= page_size)
+					pr_debug("WARN: %#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
+						 mem_start, sym->name, mem_end,
+						 UM(pair->end));
 
-				pr_debug("%#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
-					 sym->start, sym->name, sym->end, pair->end);
+				/*
+				 * Do not count this as a failure, because we
+				 * could really find a case where it's not
+				 * possible to get proper function end from
+				 * kallsyms.
+				 */
+				continue;
 			} else {
-				struct rb_node *nnd;
-detour:
-				nnd = backwards ? rb_prev(&pair->rb_node) :
-						  rb_next(&pair->rb_node);
-				if (nnd) {
-					struct symbol *next = rb_entry(nnd, struct symbol, rb_node);
-
-					if (next->start == sym->start) {
-						pair = next;
+				pair = machine__find_kernel_symbol_by_name(&kallsyms, type, sym->name, NULL);
+				if (pair) {
+					if (UM(pair->start) == mem_start)
 						goto next_pair;
-					}
+
+					pr_debug("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
+						 mem_start, sym->name, pair->name);
+				} else {
+					pr_debug("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
+						 mem_start, sym->name, first_pair->name);
 				}
 
-				if (backwards) {
-					backwards = false;
-					pair = first_pair;
-					goto detour;
-				}
-
-				pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
-					 sym->start, sym->name, pair->name);
+				continue;
 			}
 		} else
-			pr_debug("%#" PRIx64 ": %s not on kallsyms\n", sym->start, sym->name);
+			pr_debug("ERR : %#" PRIx64 ": %s not on kallsyms\n",
+				 mem_start, sym->name);
 
 		err = -1;
 	}
 
-	if (!verbose)
+	if (verbose <= 0)
 		goto out;
 
-	pr_info("Maps only in vmlinux:\n");
+	header_printed = false;
 
-	for (nd = rb_first(&vmlinux.kmaps.maps[type]); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node), *pair;
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		struct map *
 		/*
 		 * If it is the kernel, kallsyms is always "[kernel.kallsyms]", while
 		 * the kernel will have the path for the vmlinux file being used,
@@ -187,44 +183,60 @@ detour:
 		 * both cases.
 		 */
 		pair = map_groups__find_by_name(&kallsyms.kmaps, type,
-						(pos->dso->kernel ?
-							pos->dso->short_name :
-							pos->dso->name));
-		if (pair)
+						(map->dso->kernel ?
+							map->dso->short_name :
+							map->dso->name));
+		if (pair) {
 			pair->priv = 1;
-		else
-			map__fprintf(pos, stderr);
+		} else {
+			if (!header_printed) {
+				pr_info("WARN: Maps only in vmlinux:\n");
+				header_printed = true;
+			}
+			map__fprintf(map, stderr);
+		}
 	}
 
-	pr_info("Maps in vmlinux with a different name in kallsyms:\n");
+	header_printed = false;
 
-	for (nd = rb_first(&vmlinux.kmaps.maps[type]); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node), *pair;
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		struct map *pair;
 
-		pair = map_groups__find(&kallsyms.kmaps, type, pos->start);
+		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map->start);
+		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map->end);
+
+		pair = map_groups__find(&kallsyms.kmaps, type, mem_start);
 		if (pair == NULL || pair->priv)
 			continue;
 
-		if (pair->start == pos->start) {
-			pair->priv = 1;
-			pr_info(" %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
-				pos->start, pos->end, pos->pgoff, pos->dso->name);
-			if (pos->pgoff != pair->pgoff || pos->end != pair->end)
-				pr_info(": \n*%" PRIx64 "-%" PRIx64 " %" PRIx64 "",
+		if (pair->start == mem_start) {
+			if (!header_printed) {
+				pr_info("WARN: Maps in vmlinux with a different name in kallsyms:\n");
+				header_printed = true;
+			}
+
+			pr_info("WARN: %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
+				map->start, map->end, map->pgoff, map->dso->name);
+			if (mem_end != pair->end)
+				pr_info(":\nWARN: *%" PRIx64 "-%" PRIx64 " %" PRIx64,
 					pair->start, pair->end, pair->pgoff);
 			pr_info(" %s\n", pair->dso->name);
 			pair->priv = 1;
 		}
 	}
 
-	pr_info("Maps only in kallsyms:\n");
+	header_printed = false;
 
-	for (nd = rb_first(&kallsyms.kmaps.maps[type]);
-	     nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node);
+	maps = &kallsyms.kmaps.maps[type];
 
-		if (!pos->priv)
-			map__fprintf(pos, stderr);
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		if (!map->priv) {
+			if (!header_printed) {
+				pr_info("WARN: Maps only in kallsyms:\n");
+				header_printed = true;
+			}
+			map__fprintf(map, stderr);
+		}
 	}
 out:
 	machine__exit(&kallsyms);

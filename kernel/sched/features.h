@@ -36,19 +36,14 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
  */
 SCHED_FEAT(WAKEUP_PREEMPTION, true)
 
-/*
- * Use arch dependent cpu power functions
- */
-SCHED_FEAT(ARCH_POWER, true)
-
 SCHED_FEAT(HRTICK, false)
 SCHED_FEAT(DOUBLE_TICK, false)
 SCHED_FEAT(LB_BIAS, true)
 
 /*
- * Decrement CPU power based on time not spent running tasks
+ * Decrement CPU capacity based on time not spent running tasks
  */
-SCHED_FEAT(NONTASK_POWER, true)
+SCHED_FEAT(NONTASK_CAPACITY, true)
 
 /*
  * Queue remote wakeups on the target CPU and process them
@@ -56,17 +51,33 @@ SCHED_FEAT(NONTASK_POWER, true)
  */
 SCHED_FEAT(TTWU_QUEUE, true)
 
-SCHED_FEAT(FORCE_SD_OVERLAP, false)
-SCHED_FEAT(RT_RUNTIME_SHARE, true)
-SCHED_FEAT(LB_MIN, false)
+/*
+ * When doing wakeups, attempt to limit superfluous scans of the LLC domain.
+ */
+SCHED_FEAT(SIS_AVG_CPU, false)
+SCHED_FEAT(SIS_PROP, true)
 
 /*
- * Apply the automatic NUMA scheduling policy. Enabled automatically
- * at runtime if running on a NUMA machine. Can be controlled via
- * numa_balancing=. Allow PTE scanning to be forced on UMA machines
- * for debugging the core machinery.
+ * Issue a WARN when we do multiple update_rq_clock() calls
+ * in a single rq->lock section. Default disabled because the
+ * annotations are not complete.
  */
-#ifdef CONFIG_NUMA_BALANCING
-SCHED_FEAT(NUMA,	false)
-SCHED_FEAT(NUMA_FORCE,	false)
+SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
+
+#ifdef HAVE_RT_PUSH_IPI
+/*
+ * In order to avoid a thundering herd attack of CPUs that are
+ * lowering their priorities at the same time, and there being
+ * a single CPU that has an RT task that can migrate and is waiting
+ * to run, where the other CPUs will try to take that CPUs
+ * rq lock and possibly create a large contention, sending an
+ * IPI to that CPU and let that CPU push the RT task to where
+ * it should go may be a better scenario.
+ */
+SCHED_FEAT(RT_PUSH_IPI, true)
 #endif
+
+SCHED_FEAT(RT_RUNTIME_SHARE, true)
+SCHED_FEAT(LB_MIN, false)
+SCHED_FEAT(ATTACH_AGE_LOAD, true)
+

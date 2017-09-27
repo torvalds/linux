@@ -48,8 +48,9 @@ static bool
 ipvs_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_ipvs_mtinfo *data = par->matchinfo;
+	struct netns_ipvs *ipvs = net_ipvs(xt_net(par));
 	/* ipvs_mt_check ensures that family is only NFPROTO_IPV[46]. */
-	const u_int8_t family = par->family;
+	const u_int8_t family = xt_family(par);
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
@@ -67,7 +68,7 @@ ipvs_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		goto out;
 	}
 
-	ip_vs_fill_iph_skb(family, skb, &iph);
+	ip_vs_fill_iph_skb(family, skb, true, &iph);
 
 	if (data->bitmask & XT_IPVS_PROTO)
 		if ((iph.protocol == data->l4proto) ^
@@ -85,7 +86,7 @@ ipvs_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	/*
 	 * Check if the packet belongs to an existing entry
 	 */
-	cp = pp->conn_out_get(family, skb, &iph, 1 /* inverse */);
+	cp = pp->conn_out_get(ipvs, family, skb, &iph);
 	if (unlikely(cp == NULL)) {
 		match = false;
 		goto out;
@@ -115,7 +116,7 @@ ipvs_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct == NULL || nf_ct_is_untracked(ct)) {
+		if (ct == NULL) {
 			match = false;
 			goto out_put_cp;
 		}

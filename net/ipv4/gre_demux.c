@@ -31,7 +31,6 @@
 #include <net/xfrm.h>
 
 static const struct gre_protocol __rcu *gre_proto[GREPROTO_MAX] __read_mostly;
-static struct gre_cisco_protocol __rcu *gre_cisco_proto_list[GRE_IP_PROTO_MAX];
 
 int gre_add_protocol(const struct gre_protocol *proto, u8 version)
 {
@@ -61,234 +60,67 @@ int gre_del_protocol(const struct gre_protocol *proto, u8 version)
 }
 EXPORT_SYMBOL_GPL(gre_del_protocol);
 
-void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
-		      int hdr_len)
+/* Fills in tpi and returns header length to be pulled. */
+int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
+		     bool *csum_err, __be16 proto, int nhs)
 {
-	struct gre_base_hdr *greh;
-
-	skb_push(skb, hdr_len);
-
-	greh = (struct gre_base_hdr *)skb->data;
-	greh->flags = tnl_flags_to_gre_flags(tpi->flags);
-	greh->protocol = tpi->proto;
-
-	if (tpi->flags&(TUNNEL_KEY|TUNNEL_CSUM|TUNNEL_SEQ)) {
-		__be32 *ptr = (__be32 *)(((u8 *)greh) + hdr_len - 4);
-
-		if (tpi->flags&TUNNEL_SEQ) {
-			*ptr = tpi->seq;
-			ptr--;
-		}
-		if (tpi->flags&TUNNEL_KEY) {
-			*ptr = tpi->key;
-			ptr--;
-		}
-		if (tpi->flags&TUNNEL_CSUM &&
-		    !(skb_shinfo(skb)->gso_type & SKB_GSO_GRE)) {
-			*ptr = 0;
-			*(__sum16 *)ptr = csum_fold(skb_checksum(skb, 0,
-								 skb->len, 0));
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(gre_build_header);
-
-struct sk_buff *gre_handle_offloads(struct sk_buff *skb, bool gre_csum)
-{
-	int err;
-
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
-
-	if (skb_is_gso(skb)) {
-		err = skb_unclone(skb, GFP_ATOMIC);
-		if (unlikely(err))
-			goto error;
-		skb_shinfo(skb)->gso_type |= SKB_GSO_GRE;
-		return skb;
-	} else if (skb->ip_summed == CHECKSUM_PARTIAL && gre_csum) {
-		err = skb_checksum_help(skb);
-		if (unlikely(err))
-			goto error;
-	} else if (skb->ip_summed != CHECKSUM_PARTIAL)
-		skb->ip_summed = CHECKSUM_NONE;
-
-	return skb;
-error:
-	kfree_skb(skb);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(gre_handle_offloads);
-
-static __sum16 check_checksum(struct sk_buff *skb)
-{
-	__sum16 csum = 0;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		csum = csum_fold(skb->csum);
-
-		if (!csum)
-			break;
-		/* Fall through. */
-
-	case CHECKSUM_NONE:
-		skb->csum = 0;
-		csum = __skb_checksum_complete(skb);
-		skb->ip_summed = CHECKSUM_COMPLETE;
-		break;
-	}
-
-	return csum;
-}
-
-static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
-			    bool *csum_err)
-{
-	unsigned int ip_hlen = ip_hdrlen(skb);
 	const struct gre_base_hdr *greh;
 	__be32 *options;
 	int hdr_len;
 
-	if (unlikely(!pskb_may_pull(skb, sizeof(struct gre_base_hdr))))
+	if (unlikely(!pskb_may_pull(skb, nhs + sizeof(struct gre_base_hdr))))
 		return -EINVAL;
 
-	greh = (struct gre_base_hdr *)(skb_network_header(skb) + ip_hlen);
+	greh = (struct gre_base_hdr *)(skb->data + nhs);
 	if (unlikely(greh->flags & (GRE_VERSION | GRE_ROUTING)))
 		return -EINVAL;
 
 	tpi->flags = gre_flags_to_tnl_flags(greh->flags);
-	hdr_len = ip_gre_calc_hlen(tpi->flags);
+	hdr_len = gre_calc_hlen(tpi->flags);
 
-	if (!pskb_may_pull(skb, hdr_len))
+	if (!pskb_may_pull(skb, nhs + hdr_len))
 		return -EINVAL;
 
-	greh = (struct gre_base_hdr *)(skb_network_header(skb) + ip_hlen);
+	greh = (struct gre_base_hdr *)(skb->data + nhs);
 	tpi->proto = greh->protocol;
 
 	options = (__be32 *)(greh + 1);
 	if (greh->flags & GRE_CSUM) {
-		if (check_checksum(skb)) {
+		if (skb_checksum_simple_validate(skb)) {
 			*csum_err = true;
 			return -EINVAL;
 		}
+
+		skb_checksum_try_convert(skb, IPPROTO_GRE, 0,
+					 null_compute_pseudo);
 		options++;
 	}
 
 	if (greh->flags & GRE_KEY) {
 		tpi->key = *options;
 		options++;
-	} else
+	} else {
 		tpi->key = 0;
-
+	}
 	if (unlikely(greh->flags & GRE_SEQ)) {
 		tpi->seq = *options;
 		options++;
-	} else
+	} else {
 		tpi->seq = 0;
-
+	}
 	/* WCCP version 1 and 2 protocol decoding.
-	 * - Change protocol to IP
+	 * - Change protocol to IPv4/IPv6
 	 * - When dealing with WCCPv2, Skip extra 4 bytes in GRE header
 	 */
 	if (greh->flags == 0 && tpi->proto == htons(ETH_P_WCCP)) {
-		tpi->proto = htons(ETH_P_IP);
-		if ((*(u8 *)options & 0xF0) != 0x40) {
+		tpi->proto = proto;
+		if ((*(u8 *)options & 0xF0) != 0x40)
 			hdr_len += 4;
-			if (!pskb_may_pull(skb, hdr_len))
-				return -EINVAL;
-		}
 	}
-
-	return iptunnel_pull_header(skb, hdr_len, tpi->proto);
+	tpi->hdr_len = hdr_len;
+	return hdr_len;
 }
-
-static int gre_cisco_rcv(struct sk_buff *skb)
-{
-	struct tnl_ptk_info tpi;
-	int i;
-	bool csum_err = false;
-
-	if (parse_gre_header(skb, &tpi, &csum_err) < 0)
-		goto drop;
-
-	rcu_read_lock();
-	for (i = 0; i < GRE_IP_PROTO_MAX; i++) {
-		struct gre_cisco_protocol *proto;
-		int ret;
-
-		proto = rcu_dereference(gre_cisco_proto_list[i]);
-		if (!proto)
-			continue;
-		ret = proto->handler(skb, &tpi);
-		if (ret == PACKET_RCVD) {
-			rcu_read_unlock();
-			return 0;
-		}
-	}
-	rcu_read_unlock();
-
-	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
-drop:
-	kfree_skb(skb);
-	return 0;
-}
-
-static void gre_cisco_err(struct sk_buff *skb, u32 info)
-{
-	/* All the routers (except for Linux) return only
-	 * 8 bytes of packet payload. It means, that precise relaying of
-	 * ICMP in the real Internet is absolutely infeasible.
-	 *
-	 * Moreover, Cisco "wise men" put GRE key to the third word
-	 * in GRE header. It makes impossible maintaining even soft
-	 * state for keyed
-	 * GRE tunnels with enabled checksum. Tell them "thank you".
-	 *
-	 * Well, I wonder, rfc1812 was written by Cisco employee,
-	 * what the hell these idiots break standards established
-	 * by themselves???
-	 */
-
-	const int type = icmp_hdr(skb)->type;
-	const int code = icmp_hdr(skb)->code;
-	struct tnl_ptk_info tpi;
-	bool csum_err = false;
-	int i;
-
-	if (parse_gre_header(skb, &tpi, &csum_err)) {
-		if (!csum_err)		/* ignore csum errors. */
-			return;
-	}
-
-	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				skb->dev->ifindex, 0, IPPROTO_GRE, 0);
-		return;
-	}
-	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, dev_net(skb->dev), skb->dev->ifindex, 0,
-				IPPROTO_GRE, 0);
-		return;
-	}
-
-	rcu_read_lock();
-	for (i = 0; i < GRE_IP_PROTO_MAX; i++) {
-		struct gre_cisco_protocol *proto;
-
-		proto = rcu_dereference(gre_cisco_proto_list[i]);
-		if (!proto)
-			continue;
-
-		if (proto->err_handler(skb, info, &tpi) == PACKET_RCVD)
-			goto out;
-
-	}
-out:
-	rcu_read_unlock();
-}
+EXPORT_SYMBOL(gre_parse_header);
 
 static int gre_rcv(struct sk_buff *skb)
 {
@@ -340,69 +172,19 @@ static const struct net_protocol net_gre_protocol = {
 	.netns_ok    = 1,
 };
 
-static const struct gre_protocol ipgre_protocol = {
-	.handler     = gre_cisco_rcv,
-	.err_handler = gre_cisco_err,
-};
-
-int gre_cisco_register(struct gre_cisco_protocol *newp)
-{
-	struct gre_cisco_protocol **proto = (struct gre_cisco_protocol **)
-					    &gre_cisco_proto_list[newp->priority];
-
-	return (cmpxchg(proto, NULL, newp) == NULL) ? 0 : -EBUSY;
-}
-EXPORT_SYMBOL_GPL(gre_cisco_register);
-
-int gre_cisco_unregister(struct gre_cisco_protocol *del_proto)
-{
-	struct gre_cisco_protocol **proto = (struct gre_cisco_protocol **)
-					    &gre_cisco_proto_list[del_proto->priority];
-	int ret;
-
-	ret = (cmpxchg(proto, del_proto, NULL) == del_proto) ? 0 : -EINVAL;
-
-	if (ret)
-		return ret;
-
-	synchronize_net();
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gre_cisco_unregister);
-
 static int __init gre_init(void)
 {
 	pr_info("GRE over IPv4 demultiplexor driver\n");
 
 	if (inet_add_protocol(&net_gre_protocol, IPPROTO_GRE) < 0) {
 		pr_err("can't add protocol\n");
-		goto err;
+		return -EAGAIN;
 	}
-
-	if (gre_add_protocol(&ipgre_protocol, GREPROTO_CISCO) < 0) {
-		pr_info("%s: can't add ipgre handler\n", __func__);
-		goto err_gre;
-	}
-
-	if (gre_offload_init()) {
-		pr_err("can't add protocol offload\n");
-		goto err_gso;
-	}
-
 	return 0;
-err_gso:
-	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
-err_gre:
-	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
-err:
-	return -EAGAIN;
 }
 
 static void __exit gre_exit(void)
 {
-	gre_offload_exit();
-
-	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
 }
 

@@ -32,7 +32,12 @@ enum {
 	ACX_SIM_CONFIG			 = 0x0053,
 	ACX_CLEAR_STATISTICS		 = 0x0054,
 	ACX_AUTO_RX_STREAMING		 = 0x0055,
-	ACX_PEER_CAP			 = 0x0056
+	ACX_PEER_CAP			 = 0x0056,
+	ACX_INTERRUPT_NOTIFY		 = 0x0057,
+	ACX_RX_BA_FILTER		 = 0x0058,
+	ACX_AP_SLEEP_CFG                 = 0x0059,
+	ACX_DYNAMIC_TRACES_CFG		 = 0x005A,
+	ACX_TIME_SYNC_CFG		 = 0x005B,
 };
 
 /* numbers of bits the length field takes (add 1 for the actual number) */
@@ -89,27 +94,26 @@ struct wl18xx_acx_checksum_state {
 
 
 struct wl18xx_acx_error_stats {
-	u32 error_frame;
-	u32 error_null_Frame_tx_start;
-	u32 error_numll_frame_cts_start;
-	u32 error_bar_retry;
-	u32 error_frame_cts_nul_flid;
+	u32 error_frame_non_ctrl;
+	u32 error_frame_ctrl;
+	u32 error_frame_during_protection;
+	u32 null_frame_tx_start;
+	u32 null_frame_cts_start;
+	u32 bar_retry;
+	u32 num_frame_cts_nul_flid;
+	u32 tx_abort_failure;
+	u32 tx_resume_failure;
+	u32 rx_cmplt_db_overflow_cnt;
+	u32 elp_while_rx_exch;
+	u32 elp_while_tx_exch;
+	u32 elp_while_tx;
+	u32 elp_while_nvic_pending;
+	u32 rx_excessive_frame_len;
+	u32 burst_mismatch;
+	u32 tbc_exch_mismatch;
 } __packed;
 
-struct wl18xx_acx_debug_stats {
-	u32 debug1;
-	u32 debug2;
-	u32 debug3;
-	u32 debug4;
-	u32 debug5;
-	u32 debug6;
-} __packed;
-
-struct wl18xx_acx_ring_stats {
-	u32 prepared_descs;
-	u32 tx_cmplt;
-} __packed;
-
+#define NUM_OF_RATES_INDEXES 30
 struct wl18xx_acx_tx_stats {
 	u32 tx_prepared_descs;
 	u32 tx_cmplt;
@@ -119,7 +123,7 @@ struct wl18xx_acx_tx_stats {
 	u32 tx_data_programmed;
 	u32 tx_burst_programmed;
 	u32 tx_starts;
-	u32 tx_imm_resp;
+	u32 tx_stop;
 	u32 tx_start_templates;
 	u32 tx_start_int_templates;
 	u32 tx_start_fw_gen;
@@ -128,13 +132,14 @@ struct wl18xx_acx_tx_stats {
 	u32 tx_exch;
 	u32 tx_retry_template;
 	u32 tx_retry_data;
+	u32 tx_retry_per_rate[NUM_OF_RATES_INDEXES];
 	u32 tx_exch_pending;
 	u32 tx_exch_expiry;
 	u32 tx_done_template;
 	u32 tx_done_data;
 	u32 tx_done_int_template;
-	u32 tx_frame_checksum;
-	u32 tx_checksum_result;
+	u32 tx_cfe1;
+	u32 tx_cfe2;
 	u32 frag_called;
 	u32 frag_mpdu_alloc_failed;
 	u32 frag_init_called;
@@ -162,11 +167,8 @@ struct wl18xx_acx_rx_stats {
 	u32 rx_cmplt_task;
 	u32 rx_phy_hdr;
 	u32 rx_timeout;
+	u32 rx_rts_timeout;
 	u32 rx_timeout_wa;
-	u32 rx_wa_density_dropped_frame;
-	u32 rx_wa_ba_not_expected;
-	u32 rx_frame_checksum;
-	u32 rx_checksum_result;
 	u32 defrag_called;
 	u32 defrag_init_called;
 	u32 defrag_in_process_called;
@@ -176,6 +178,7 @@ struct wl18xx_acx_rx_stats {
 	u32 decrypt_key_not_found;
 	u32 defrag_need_decrypt;
 	u32 rx_tkip_replays;
+	u32 rx_xfr;
 } __packed;
 
 struct wl18xx_acx_isr_stats {
@@ -190,21 +193,13 @@ struct wl18xx_acx_pwr_stats {
 	u32 connection_out_of_sync;
 	u32 cont_miss_bcns_spread[PWR_STAT_MAX_CONT_MISSED_BCNS_SPREAD];
 	u32 rcvd_awake_bcns_cnt;
-} __packed;
-
-struct wl18xx_acx_event_stats {
-	u32 calibration;
-	u32 rx_mismatch;
-	u32 rx_mem_empty;
-} __packed;
-
-struct wl18xx_acx_ps_poll_stats {
-	u32 ps_poll_timeouts;
-	u32 upsd_timeouts;
-	u32 upsd_max_ap_turn;
-	u32 ps_poll_max_ap_turn;
-	u32 ps_poll_utilization;
-	u32 upsd_utilization;
+	u32 sleep_time_count;
+	u32 sleep_time_avg;
+	u32 sleep_cycle_avg;
+	u32 sleep_percent;
+	u32 ap_sleep_active_conf;
+	u32 ap_sleep_user_conf;
+	u32 ap_sleep_counter;
 } __packed;
 
 struct wl18xx_acx_rx_filter_stats {
@@ -224,11 +219,11 @@ struct wl18xx_acx_rx_rate_stats {
 } __packed;
 
 #define AGGR_STATS_TX_AGG	16
-#define AGGR_STATS_TX_RATE	16
 #define AGGR_STATS_RX_SIZE_LEN	16
 
 struct wl18xx_acx_aggr_stats {
-	u32 tx_agg_vs_rate[AGGR_STATS_TX_AGG * AGGR_STATS_TX_RATE];
+	u32 tx_agg_rate[AGGR_STATS_TX_AGG];
+	u32 tx_agg_len[AGGR_STATS_TX_AGG];
 	u32 rx_size[AGGR_STATS_RX_SIZE_LEN];
 } __packed;
 
@@ -237,8 +232,6 @@ struct wl18xx_acx_aggr_stats {
 struct wl18xx_acx_pipeline_stats {
 	u32 hs_tx_stat_fifo_int;
 	u32 hs_rx_stat_fifo_int;
-	u32 tcp_tx_stat_fifo_int;
-	u32 tcp_rx_stat_fifo_int;
 	u32 enc_tx_stat_fifo_int;
 	u32 enc_rx_stat_fifo_int;
 	u32 rx_complete_stat_fifo_int;
@@ -246,38 +239,61 @@ struct wl18xx_acx_pipeline_stats {
 	u32 post_proc_swi;
 	u32 sec_frag_swi;
 	u32 pre_to_defrag_swi;
-	u32 defrag_to_csum_swi;
-	u32 csum_to_rx_xfer_swi;
+	u32 defrag_to_rx_xfer_swi;
 	u32 dec_packet_in;
 	u32 dec_packet_in_fifo_full;
 	u32 dec_packet_out;
-	u32 cs_rx_packet_in;
-	u32 cs_rx_packet_out;
 	u16 pipeline_fifo_full[PIPE_STATS_HW_FIFO];
+	u16 padding;
 } __packed;
 
-struct wl18xx_acx_mem_stats {
-	u32 rx_free_mem_blks;
-	u32 tx_free_mem_blks;
-	u32 fwlog_free_mem_blks;
-	u32 fw_gen_free_mem_blks;
+#define DIVERSITY_STATS_NUM_OF_ANT	2
+
+struct wl18xx_acx_diversity_stats {
+	u32 num_of_packets_per_ant[DIVERSITY_STATS_NUM_OF_ANT];
+	u32 total_num_of_toggles;
+} __packed;
+
+struct wl18xx_acx_thermal_stats {
+	u16 irq_thr_low;
+	u16 irq_thr_high;
+	u16 tx_stop;
+	u16 tx_resume;
+	u16 false_irq;
+	u16 adc_source_unexpected;
+} __packed;
+
+#define WL18XX_NUM_OF_CALIBRATIONS_ERRORS 18
+struct wl18xx_acx_calib_failure_stats {
+	u16 fail_count[WL18XX_NUM_OF_CALIBRATIONS_ERRORS];
+	u32 calib_count;
+} __packed;
+
+struct wl18xx_roaming_stats {
+	s32 rssi_level;
+} __packed;
+
+struct wl18xx_dfs_stats {
+	u32 num_of_radar_detections;
 } __packed;
 
 struct wl18xx_acx_statistics {
 	struct acx_header header;
 
 	struct wl18xx_acx_error_stats		error;
-	struct wl18xx_acx_debug_stats		debug;
 	struct wl18xx_acx_tx_stats		tx;
 	struct wl18xx_acx_rx_stats		rx;
 	struct wl18xx_acx_isr_stats		isr;
 	struct wl18xx_acx_pwr_stats		pwr;
-	struct wl18xx_acx_ps_poll_stats		ps_poll;
 	struct wl18xx_acx_rx_filter_stats	rx_filter;
 	struct wl18xx_acx_rx_rate_stats		rx_rate;
 	struct wl18xx_acx_aggr_stats		aggr_size;
 	struct wl18xx_acx_pipeline_stats	pipeline;
-	struct wl18xx_acx_mem_stats		mem;
+	struct wl18xx_acx_diversity_stats	diversity;
+	struct wl18xx_acx_thermal_stats		thermal;
+	struct wl18xx_acx_calib_failure_stats	calib;
+	struct wl18xx_roaming_stats		roaming;
+	struct wl18xx_dfs_stats			dfs;
 } __packed;
 
 struct wl18xx_acx_clear_statistics {
@@ -326,6 +342,64 @@ struct wlcore_acx_peer_cap {
 	u8 padding;
 } __packed;
 
+/*
+ * ACX_INTERRUPT_NOTIFY
+ * enable/disable fast-link/PSM notification from FW
+ */
+struct wl18xx_acx_interrupt_notify {
+	struct acx_header header;
+	u32 enable;
+};
+
+/*
+ * ACX_RX_BA_FILTER
+ * enable/disable RX BA filtering in FW
+ */
+struct wl18xx_acx_rx_ba_filter {
+	struct acx_header header;
+	u32 enable;
+};
+
+struct acx_ap_sleep_cfg {
+	struct acx_header header;
+	/* Duty Cycle (20-80% of staying Awake) for IDLE AP
+	 * (0: disable)
+	 */
+	u8 idle_duty_cycle;
+	/* Duty Cycle (20-80% of staying Awake) for Connected AP
+	 * (0: disable)
+	 */
+	u8 connected_duty_cycle;
+	/* Maximum stations that are allowed to be connected to AP
+	 *  (255: no limit)
+	 */
+	u8 max_stations_thresh;
+	/* Timeout till enabling the Sleep Mechanism after data stops
+	 * [unit: 100 msec]
+	 */
+	u8 idle_conn_thresh;
+} __packed;
+
+/*
+ * ACX_DYNAMIC_TRACES_CFG
+ * configure the FW dynamic traces
+ */
+struct acx_dynamic_fw_traces_cfg {
+	struct acx_header header;
+	__le32 dynamic_fw_traces;
+} __packed;
+
+/*
+ * ACX_TIME_SYNC_CFG
+ * configure the time sync parameters
+ */
+struct acx_time_sync_cfg {
+	struct acx_header header;
+	u8 sync_mode;
+	u8 zone_mac_addr[ETH_ALEN];
+	u8 padding[1];
+} __packed;
+
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
 				  u32 len_field_size);
@@ -336,5 +410,10 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 			    struct ieee80211_sta_ht_cap *ht_cap,
 			    bool allow_ht_operation,
 			    u32 rate_set, u8 hlid);
+int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl, bool action);
+int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action);
+int wl18xx_acx_ap_sleep(struct wl1271 *wl);
+int wl18xx_acx_dynamic_fw_traces(struct wl1271 *wl);
+int wl18xx_acx_time_sync_cfg(struct wl1271 *wl);
 
 #endif /* __WL18XX_ACX_H__ */

@@ -233,9 +233,9 @@ static int get_ablock(struct dm_array_info *info, dm_block_t b,
 /*
  * Unlocks an array block.
  */
-static int unlock_ablock(struct dm_array_info *info, struct dm_block *block)
+static void unlock_ablock(struct dm_array_info *info, struct dm_block *block)
 {
-	return dm_tm_unlock(info->btree_info.tm, block);
+	dm_tm_unlock(info->btree_info.tm, block);
 }
 
 /*----------------------------------------------------------------*/
@@ -277,6 +277,48 @@ static int insert_ablock(struct dm_array_info *info, uint64_t index,
 	return dm_btree_insert(&info->btree_info, *root, &index, &block_le, root);
 }
 
+/*----------------------------------------------------------------*/
+
+static int __shadow_ablock(struct dm_array_info *info, dm_block_t b,
+			   struct dm_block **block, struct array_block **ab)
+{
+	int inc;
+	int r = dm_tm_shadow_block(info->btree_info.tm, b,
+				   &array_validator, block, &inc);
+	if (r)
+		return r;
+
+	*ab = dm_block_data(*block);
+	if (inc)
+		inc_ablock_entries(info, *ab);
+
+	return 0;
+}
+
+/*
+ * The shadow op will often be a noop.  Only insert if it really
+ * copied data.
+ */
+static int __reinsert_ablock(struct dm_array_info *info, unsigned index,
+			     struct dm_block *block, dm_block_t b,
+			     dm_block_t *root)
+{
+	int r = 0;
+
+	if (dm_block_location(block) != b) {
+		/*
+		 * dm_tm_shadow_block will have already decremented the old
+		 * block, but it is still referenced by the btree.  We
+		 * increment to stop the insert decrementing it below zero
+		 * when overwriting the old value.
+		 */
+		dm_tm_inc(info->btree_info.tm, b);
+		r = insert_ablock(info, index, block, root);
+	}
+
+	return r;
+}
+
 /*
  * Looks up an array block in the btree.  Then shadows it, and updates the
  * btree to point to this new shadow.  'root' is an input/output parameter
@@ -286,41 +328,21 @@ static int shadow_ablock(struct dm_array_info *info, dm_block_t *root,
 			 unsigned index, struct dm_block **block,
 			 struct array_block **ab)
 {
-	int r, inc;
+	int r;
 	uint64_t key = index;
 	dm_block_t b;
 	__le64 block_le;
 
-	/*
-	 * lookup
-	 */
 	r = dm_btree_lookup(&info->btree_info, *root, &key, &block_le);
 	if (r)
 		return r;
 	b = le64_to_cpu(block_le);
 
-	/*
-	 * shadow
-	 */
-	r = dm_tm_shadow_block(info->btree_info.tm, b,
-			       &array_validator, block, &inc);
+	r = __shadow_ablock(info, b, block, ab);
 	if (r)
 		return r;
 
-	*ab = dm_block_data(*block);
-	if (inc)
-		inc_ablock_entries(info, *ab);
-
-	/*
-	 * Reinsert.
-	 *
-	 * The shadow op will often be a noop.  Only insert if it really
-	 * copied data.
-	 */
-	if (dm_block_location(*block) != b)
-		r = insert_ablock(info, index, *block, root);
-
-	return r;
+	return __reinsert_ablock(info, index, *block, b, root);
 }
 
 /*
@@ -509,15 +531,18 @@ static int grow_add_tail_block(struct resize *resize)
 static int grow_needs_more_blocks(struct resize *resize)
 {
 	int r;
+	unsigned old_nr_blocks = resize->old_nr_full_blocks;
 
 	if (resize->old_nr_entries_in_last_block > 0) {
+		old_nr_blocks++;
+
 		r = grow_extend_tail_block(resize, resize->max_entries);
 		if (r)
 			return r;
 	}
 
 	r = insert_full_ablocks(resize->info, resize->size_of_block,
-				resize->old_nr_full_blocks,
+				old_nr_blocks,
 				resize->new_nr_full_blocks,
 				resize->max_entries, resize->value,
 				&resize->root);
@@ -634,8 +659,10 @@ static int array_resize(struct dm_array_info *info, dm_block_t root,
 	int r;
 	struct resize resize;
 
-	if (old_size == new_size)
+	if (old_size == new_size) {
+		*new_root = root;
 		return 0;
+	}
 
 	resize.info = info;
 	resize.root = root;
@@ -667,6 +694,70 @@ int dm_array_resize(struct dm_array_info *info, dm_block_t root,
 	return r;
 }
 EXPORT_SYMBOL_GPL(dm_array_resize);
+
+static int populate_ablock_with_values(struct dm_array_info *info, struct array_block *ab,
+				       value_fn fn, void *context, unsigned base, unsigned new_nr)
+{
+	int r;
+	unsigned i;
+	struct dm_btree_value_type *vt = &info->value_type;
+
+	BUG_ON(le32_to_cpu(ab->nr_entries));
+	BUG_ON(new_nr > le32_to_cpu(ab->max_entries));
+
+	for (i = 0; i < new_nr; i++) {
+		r = fn(base + i, element_at(info, ab, i), context);
+		if (r)
+			return r;
+
+		if (vt->inc)
+			vt->inc(vt->context, element_at(info, ab, i));
+	}
+
+	ab->nr_entries = cpu_to_le32(new_nr);
+	return 0;
+}
+
+int dm_array_new(struct dm_array_info *info, dm_block_t *root,
+		 uint32_t size, value_fn fn, void *context)
+{
+	int r;
+	struct dm_block *block;
+	struct array_block *ab;
+	unsigned block_index, end_block, size_of_block, max_entries;
+
+	r = dm_array_empty(info, root);
+	if (r)
+		return r;
+
+	size_of_block = dm_bm_block_size(dm_tm_get_bm(info->btree_info.tm));
+	max_entries = calc_max_entries(info->value_type.size, size_of_block);
+	end_block = dm_div_up(size, max_entries);
+
+	for (block_index = 0; block_index != end_block; block_index++) {
+		r = alloc_ablock(info, size_of_block, max_entries, &block, &ab);
+		if (r)
+			break;
+
+		r = populate_ablock_with_values(info, ab, fn, context,
+						block_index * max_entries,
+						min(max_entries, size));
+		if (r) {
+			unlock_ablock(info, block);
+			break;
+		}
+
+		r = insert_ablock(info, block_index, block, root);
+		unlock_ablock(info, block);
+		if (r)
+			break;
+
+		size -= max_entries;
+	}
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_array_new);
 
 int dm_array_del(struct dm_array_info *info, dm_block_t root)
 {
@@ -804,5 +895,112 @@ int dm_array_walk(struct dm_array_info *info, dm_block_t root,
 	return dm_btree_walk(&info->btree_info, root, walk_ablock, &wi);
 }
 EXPORT_SYMBOL_GPL(dm_array_walk);
+
+/*----------------------------------------------------------------*/
+
+static int load_ablock(struct dm_array_cursor *c)
+{
+	int r;
+	__le64 value_le;
+	uint64_t key;
+
+	if (c->block)
+		unlock_ablock(c->info, c->block);
+
+	c->block = NULL;
+	c->ab = NULL;
+	c->index = 0;
+
+	r = dm_btree_cursor_get_value(&c->cursor, &key, &value_le);
+	if (r) {
+		DMERR("dm_btree_cursor_get_value failed");
+		dm_btree_cursor_end(&c->cursor);
+
+	} else {
+		r = get_ablock(c->info, le64_to_cpu(value_le), &c->block, &c->ab);
+		if (r) {
+			DMERR("get_ablock failed");
+			dm_btree_cursor_end(&c->cursor);
+		}
+	}
+
+	return r;
+}
+
+int dm_array_cursor_begin(struct dm_array_info *info, dm_block_t root,
+			  struct dm_array_cursor *c)
+{
+	int r;
+
+	memset(c, 0, sizeof(*c));
+	c->info = info;
+	r = dm_btree_cursor_begin(&info->btree_info, root, true, &c->cursor);
+	if (r) {
+		DMERR("couldn't create btree cursor");
+		return r;
+	}
+
+	return load_ablock(c);
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_begin);
+
+void dm_array_cursor_end(struct dm_array_cursor *c)
+{
+	if (c->block) {
+		unlock_ablock(c->info, c->block);
+		dm_btree_cursor_end(&c->cursor);
+	}
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_end);
+
+int dm_array_cursor_next(struct dm_array_cursor *c)
+{
+	int r;
+
+	if (!c->block)
+		return -ENODATA;
+
+	c->index++;
+
+	if (c->index >= le32_to_cpu(c->ab->nr_entries)) {
+		r = dm_btree_cursor_next(&c->cursor);
+		if (r)
+			return r;
+
+		r = load_ablock(c);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_next);
+
+int dm_array_cursor_skip(struct dm_array_cursor *c, uint32_t count)
+{
+	int r;
+
+	do {
+		uint32_t remaining = le32_to_cpu(c->ab->nr_entries) - c->index;
+
+		if (count < remaining) {
+			c->index += count;
+			return 0;
+		}
+
+		count -= remaining;
+		r = dm_array_cursor_next(c);
+
+	} while (!r);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_skip);
+
+void dm_array_cursor_get_value(struct dm_array_cursor *c, void **value_le)
+{
+	*value_le = element_at(c->info, c->ab, c->index);
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_get_value);
 
 /*----------------------------------------------------------------*/

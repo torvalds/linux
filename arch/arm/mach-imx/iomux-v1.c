@@ -38,12 +38,12 @@ static unsigned imx_iomuxv1_numports;
 
 static inline unsigned long imx_iomuxv1_readl(unsigned offset)
 {
-	return __raw_readl(imx_iomuxv1_baseaddr + offset);
+	return imx_readl(imx_iomuxv1_baseaddr + offset);
 }
 
 static inline void imx_iomuxv1_writel(unsigned long val, unsigned offset)
 {
-	__raw_writel(val, imx_iomuxv1_baseaddr + offset);
+	imx_writel(val, imx_iomuxv1_baseaddr + offset);
 }
 
 static inline void imx_iomuxv1_rmwl(unsigned offset,
@@ -153,7 +153,6 @@ int mxc_gpio_mode(int gpio_mode)
 
 	return 0;
 }
-EXPORT_SYMBOL(mxc_gpio_mode);
 
 static int imx_iomuxv1_setup_multiple(const int *list, unsigned count)
 {
@@ -178,7 +177,6 @@ int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 	ret = imx_iomuxv1_setup_multiple(pin_list, count);
 	return ret;
 }
-EXPORT_SYMBOL(mxc_gpio_setup_multiple_pins);
 
 int __init imx_iomuxv1_init(void __iomem *base, int numports)
 {

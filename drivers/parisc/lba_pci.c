@@ -111,8 +111,10 @@ static u32 lba_t32;
 
 
 /* Looks nice and keeps the compiler happy */
-#define LBA_DEV(d) ((struct lba_device *) (d))
-
+#define LBA_DEV(d) ({				\
+	void *__pdata = d;			\
+	BUG_ON(!__pdata);			\
+	(struct lba_device *)__pdata; })
 
 /*
 ** Only allow 8 subsidiary busses per LBA
@@ -624,6 +626,10 @@ extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 {
 	struct resource *tmp;
 
+	/* exit if not a C8000 */
+	if (boot_cpu_data.cpu_type < mako)
+		return end;
+
 	pr_debug("LMMIO mismatch: PAT length = 0x%lx, MASK register = 0x%lx\n",
 		end - start, lba_len);
 
@@ -631,10 +637,6 @@ extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 
 	pr_debug("LBA: lmmio_space [0x%lx-0x%lx] - original\n", start, end);
 
-	if (boot_cpu_data.cpu_type < mako) {
-		pr_info("LBA: Not a C8000 system - not extending LMMIO range.\n");
-		return end;
-	}
 
 	end += lba_len;
 	if (end < start) /* fix overflow */
@@ -665,6 +667,42 @@ extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 #define truncate_pat_collision(r,n)  (0)
 #endif
 
+static void pcibios_allocate_bridge_resources(struct pci_dev *dev)
+{
+	int idx;
+	struct resource *r;
+
+	for (idx = PCI_BRIDGE_RESOURCES; idx < PCI_NUM_RESOURCES; idx++) {
+		r = &dev->resource[idx];
+		if (!r->flags)
+			continue;
+		if (r->parent)	/* Already allocated */
+			continue;
+		if (!r->start || pci_claim_bridge_resource(dev, idx) < 0) {
+			/*
+			 * Something is wrong with the region.
+			 * Invalidate the resource to prevent
+			 * child resource allocations in this
+			 * range.
+			 */
+			r->start = r->end = 0;
+			r->flags = 0;
+		}
+	}
+}
+
+static void pcibios_allocate_bus_resources(struct pci_bus *bus)
+{
+	struct pci_bus *child;
+
+	/* Depth-First Search on bus tree */
+	if (bus->self)
+		pcibios_allocate_bridge_resources(bus->self);
+	list_for_each_entry(child, &bus->children, node)
+		pcibios_allocate_bus_resources(child);
+}
+
+
 /*
 ** The algorithm is generic code.
 ** But it needs to access local data structures to get the IRQ base.
@@ -691,12 +729,11 @@ lba_fixup_bus(struct pci_bus *bus)
 	** pci_alloc_primary_bus() mangles this.
 	*/
 	if (bus->parent) {
-		int i;
 		/* PCI-PCI Bridge */
 		pci_read_bridge_bases(bus);
-		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
-			pci_claim_resource(bus->self, i);
-		}
+
+		/* check and allocate bridge resources */
+		pcibios_allocate_bus_resources(bus);
 	} else {
 		/* Host-PCI Bridge */
 		int err;
@@ -791,8 +828,10 @@ lba_fixup_bus(struct pci_bus *bus)
                 /*
 		** P2PB's have no IRQs. ignore them.
 		*/
-		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)
+		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+			pcibios_init_bridge(dev);
 			continue;
+		}
 
 		/* Adjust INTERRUPT_LINE for this dev */
 		iosapic_fixup_irq(ldev->iosapic_obj, dev);
@@ -1557,8 +1596,11 @@ lba_driver_probe(struct parisc_device *dev)
 	if (lba_dev->hba.lmmio_space.flags)
 		pci_add_resource_offset(&resources, &lba_dev->hba.lmmio_space,
 					lba_dev->hba.lmmio_space_offset);
-	if (lba_dev->hba.gmmio_space.flags)
-		pci_add_resource(&resources, &lba_dev->hba.gmmio_space);
+	if (lba_dev->hba.gmmio_space.flags) {
+		/* Not registering GMMIO space - according to docs it's not
+		 * even used on HP-UX. */
+		/* pci_add_resource(&resources, &lba_dev->hba.gmmio_space); */
+	}
 
 	pci_add_resource(&resources, &lba_dev->hba.bus_num);
 
@@ -1590,7 +1632,6 @@ lba_driver_probe(struct parisc_device *dev)
 		lba_dump_res(&lba_dev->hba.lmmio_space, 2);
 #endif
 	}
-	pci_enable_bridges(lba_bus);
 
 	/*
 	** Once PCI register ops has walked the bus, access to config
@@ -1608,14 +1649,14 @@ lba_driver_probe(struct parisc_device *dev)
 	return 0;
 }
 
-static struct parisc_device_id lba_tbl[] = {
+static const struct parisc_device_id lba_tbl[] __initconst = {
 	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, ELROY_HVERS, 0xa },
 	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, MERCURY_HVERS, 0xa },
 	{ HPHW_BRIDGE, HVERSION_REV_ANY_ID, QUICKSILVER_HVERS, 0xa },
 	{ 0, }
 };
 
-static struct parisc_driver lba_driver = {
+static struct parisc_driver lba_driver __refdata = {
 	.name =		MODULE_NAME,
 	.id_table =	lba_tbl,
 	.probe =	lba_driver_probe,

@@ -176,7 +176,7 @@ l2up_create(struct layer2 *l2, u_int prim, int len, void *arg)
 	hh->prim = prim;
 	hh->id = (l2->ch.nr << 16) | l2->ch.addr;
 	if (len)
-		memcpy(skb_put(skb, len), arg, len);
+		skb_put_data(skb, arg, len);
 	err = l2->up->send(l2->up, skb);
 	if (err) {
 		printk(KERN_WARNING "%s: dev %s err=%d\n", __func__,
@@ -235,7 +235,7 @@ l2down_create(struct layer2 *l2, u_int prim, u_int id, int len, void *arg)
 	hh->prim = prim;
 	hh->id = id;
 	if (len)
-		memcpy(skb_put(skb, len), arg, len);
+		skb_put_data(skb, arg, len);
 	err = l2down_raw(l2, skb);
 	if (err)
 		dev_kfree_skb(skb);
@@ -640,7 +640,7 @@ send_uframe(struct layer2 *l2, struct sk_buff *skb, u_char cmd, u_char cr)
 			return;
 		}
 	}
-	memcpy(skb_put(skb, i), tmp, i);
+	skb_put_data(skb, tmp, i);
 	enqueue_super(l2, skb);
 }
 
@@ -1125,7 +1125,7 @@ enquiry_cr(struct layer2 *l2, u_char typ, u_char cr, u_char pf)
 		       mISDNDevName4ch(&l2->ch), __func__);
 		return;
 	}
-	memcpy(skb_put(skb, i), tmp, i);
+	skb_put_data(skb, tmp, i);
 	enqueue_super(l2, skb);
 }
 
@@ -1476,7 +1476,7 @@ static void
 l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer2	*l2 = fi->userdata;
-	struct sk_buff	*skb, *nskb, *oskb;
+	struct sk_buff	*skb, *nskb;
 	u_char		header[MAX_L2HEADER_LEN];
 	u_int		i, p1;
 
@@ -1486,11 +1486,26 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 	skb = skb_dequeue(&l2->i_queue);
 	if (!skb)
 		return;
-
-	if (test_bit(FLG_MOD128, &l2->flag))
+	i = sethdraddr(l2, header, CMD);
+	if (test_bit(FLG_MOD128, &l2->flag)) {
+		header[i++] = l2->vs << 1;
+		header[i++] = l2->vr << 1;
+	} else
+		header[i++] = (l2->vr << 5) | (l2->vs << 1);
+	nskb = skb_realloc_headroom(skb, i);
+	if (!nskb) {
+		printk(KERN_WARNING "%s: no headroom(%d) copy for IFrame\n",
+		       mISDNDevName4ch(&l2->ch), i);
+		skb_queue_head(&l2->i_queue, skb);
+		return;
+	}
+	if (test_bit(FLG_MOD128, &l2->flag)) {
 		p1 = (l2->vs - l2->va) % 128;
-	else
+		l2->vs = (l2->vs + 1) % 128;
+	} else {
 		p1 = (l2->vs - l2->va) % 8;
+		l2->vs = (l2->vs + 1) % 8;
+	}
 	p1 = (p1 + l2->sow) % l2->window;
 	if (l2->windowar[p1]) {
 		printk(KERN_WARNING "%s: l2 try overwrite ack queue entry %d\n",
@@ -1498,36 +1513,7 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		dev_kfree_skb(l2->windowar[p1]);
 	}
 	l2->windowar[p1] = skb;
-	i = sethdraddr(l2, header, CMD);
-	if (test_bit(FLG_MOD128, &l2->flag)) {
-		header[i++] = l2->vs << 1;
-		header[i++] = l2->vr << 1;
-		l2->vs = (l2->vs + 1) % 128;
-	} else {
-		header[i++] = (l2->vr << 5) | (l2->vs << 1);
-		l2->vs = (l2->vs + 1) % 8;
-	}
-
-	nskb = skb_clone(skb, GFP_ATOMIC);
-	p1 = skb_headroom(nskb);
-	if (p1 >= i)
-		memcpy(skb_push(nskb, i), header, i);
-	else {
-		printk(KERN_WARNING
-		       "%s: L2 pull_iqueue skb header(%d/%d) too short\n",
-		       mISDNDevName4ch(&l2->ch), i, p1);
-		oskb = nskb;
-		nskb = mI_alloc_skb(oskb->len + i, GFP_ATOMIC);
-		if (!nskb) {
-			dev_kfree_skb(oskb);
-			printk(KERN_WARNING "%s: no skb mem in %s\n",
-			       mISDNDevName4ch(&l2->ch), __func__);
-			return;
-		}
-		memcpy(skb_put(nskb, i), header, i);
-		memcpy(skb_put(nskb, oskb->len), oskb->data, oskb->len);
-		dev_kfree_skb(oskb);
-	}
+	memcpy(skb_push(nskb, i), header, i);
 	l2down(l2, PH_DATA_REQ, l2_newid(l2), nskb);
 	test_and_clear_bit(FLG_ACK_PEND, &l2->flag);
 	if (!test_and_set_bit(FLG_T200_RUN, &l2->flag)) {
@@ -2261,15 +2247,26 @@ static struct Bprotocol X75SLP = {
 int
 Isdnl2_Init(u_int *deb)
 {
+	int res;
 	debug = deb;
 	mISDN_register_Bprotocol(&X75SLP);
 	l2fsm.state_count = L2_STATE_COUNT;
 	l2fsm.event_count = L2_EVENT_COUNT;
 	l2fsm.strEvent = strL2Event;
 	l2fsm.strState = strL2State;
-	mISDN_FsmNew(&l2fsm, L2FnList, ARRAY_SIZE(L2FnList));
-	TEIInit(deb);
+	res = mISDN_FsmNew(&l2fsm, L2FnList, ARRAY_SIZE(L2FnList));
+	if (res)
+		goto error;
+	res = TEIInit(deb);
+	if (res)
+		goto error_fsm;
 	return 0;
+
+error_fsm:
+	mISDN_FsmFree(&l2fsm);
+error:
+	mISDN_unregister_Bprotocol(&X75SLP);
+	return res;
 }
 
 void

@@ -223,7 +223,7 @@ static int mv64x60_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops mv64x60_host_ops = {
+static const struct irq_domain_ops mv64x60_host_ops = {
 	.map   = mv64x60_host_map,
 };
 
@@ -272,7 +272,7 @@ unsigned int mv64x60_get_irq(void)
 	u32 cause;
 	int level1;
 	irq_hw_number_t hwirq;
-	int virq = NO_IRQ;
+	int virq = 0;
 
 	cause = in_le32(mv64x60_irq_reg_base + MV64X60_IC_CPU0_SELECT_CAUSE);
 	if (cause & MV64X60_SELECT_CAUSE_HIGH) {

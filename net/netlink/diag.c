@@ -4,43 +4,9 @@
 #include <linux/netlink.h>
 #include <linux/sock_diag.h>
 #include <linux/netlink_diag.h>
+#include <linux/rhashtable.h>
 
 #include "af_netlink.h"
-
-#ifdef CONFIG_NETLINK_MMAP
-static int sk_diag_put_ring(struct netlink_ring *ring, int nl_type,
-			    struct sk_buff *nlskb)
-{
-	struct netlink_diag_ring ndr;
-
-	ndr.ndr_block_size = ring->pg_vec_pages << PAGE_SHIFT;
-	ndr.ndr_block_nr   = ring->pg_vec_len;
-	ndr.ndr_frame_size = ring->frame_size;
-	ndr.ndr_frame_nr   = ring->frame_max + 1;
-
-	return nla_put(nlskb, nl_type, sizeof(ndr), &ndr);
-}
-
-static int sk_diag_put_rings_cfg(struct sock *sk, struct sk_buff *nlskb)
-{
-	struct netlink_sock *nlk = nlk_sk(sk);
-	int ret;
-
-	mutex_lock(&nlk->pg_vec_lock);
-	ret = sk_diag_put_ring(&nlk->rx_ring, NETLINK_DIAG_RX_RING, nlskb);
-	if (!ret)
-		ret = sk_diag_put_ring(&nlk->tx_ring, NETLINK_DIAG_TX_RING,
-				       nlskb);
-	mutex_unlock(&nlk->pg_vec_lock);
-
-	return ret;
-}
-#else
-static int sk_diag_put_rings_cfg(struct sock *sk, struct sk_buff *nlskb)
-{
-	return 0;
-}
-#endif
 
 static int sk_diag_dump_groups(struct sock *sk, struct sk_buff *nlskb)
 {
@@ -51,6 +17,27 @@ static int sk_diag_dump_groups(struct sock *sk, struct sk_buff *nlskb)
 
 	return nla_put(nlskb, NETLINK_DIAG_GROUPS, NLGRPSZ(nlk->ngroups),
 		       nlk->groups);
+}
+
+static int sk_diag_put_flags(struct sock *sk, struct sk_buff *skb)
+{
+	struct netlink_sock *nlk = nlk_sk(sk);
+	u32 flags = 0;
+
+	if (nlk->cb_running)
+		flags |= NDIAG_FLAG_CB_RUNNING;
+	if (nlk->flags & NETLINK_F_RECV_PKTINFO)
+		flags |= NDIAG_FLAG_PKTINFO;
+	if (nlk->flags & NETLINK_F_BROADCAST_SEND_ERROR)
+		flags |= NDIAG_FLAG_BROADCAST_ERROR;
+	if (nlk->flags & NETLINK_F_RECV_NO_ENOBUFS)
+		flags |= NDIAG_FLAG_NO_ENOBUFS;
+	if (nlk->flags & NETLINK_F_LISTEN_ALL_NSID)
+		flags |= NDIAG_FLAG_LISTEN_ALL_NSID;
+	if (nlk->flags & NETLINK_F_CAP_ACK)
+		flags |= NDIAG_FLAG_CAP_ACK;
+
+	return nla_put_u32(skb, NETLINK_DIAG_FLAGS, flags);
 }
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
@@ -86,11 +73,12 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	    sock_diag_put_meminfo(sk, skb, NETLINK_DIAG_MEMINFO))
 		goto out_nlmsg_trim;
 
-	if ((req->ndiag_show & NDIAG_SHOW_RING_CFG) &&
-	    sk_diag_put_rings_cfg(sk, skb))
+	if ((req->ndiag_show & NDIAG_SHOW_FLAGS) &&
+	    sk_diag_put_flags(sk, skb))
 		goto out_nlmsg_trim;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 out_nlmsg_trim:
 	nlmsg_cancel(skb, nlh);
@@ -100,37 +88,74 @@ out_nlmsg_trim:
 static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 				int protocol, int s_num)
 {
+	struct rhashtable_iter *hti = (void *)cb->args[2];
 	struct netlink_table *tbl = &nl_table[protocol];
-	struct nl_portid_hash *hash = &tbl->hash;
 	struct net *net = sock_net(skb->sk);
 	struct netlink_diag_req *req;
+	struct netlink_sock *nlsk;
 	struct sock *sk;
-	int ret = 0, num = 0, i;
+	int num = 2;
+	int ret = 0;
 
 	req = nlmsg_data(cb->nlh);
 
-	for (i = 0; i <= hash->mask; i++) {
-		sk_for_each(sk, &hash->table[i]) {
-			if (!net_eq(sock_net(sk), net))
-				continue;
-			if (num < s_num) {
-				num++;
+	if (s_num > 1)
+		goto mc_list;
+
+	num--;
+
+	if (!hti) {
+		hti = kmalloc(sizeof(*hti), GFP_KERNEL);
+		if (!hti)
+			return -ENOMEM;
+
+		cb->args[2] = (long)hti;
+	}
+
+	if (!s_num)
+		rhashtable_walk_enter(&tbl->hash, hti);
+
+	ret = rhashtable_walk_start(hti);
+	if (ret == -EAGAIN)
+		ret = 0;
+	if (ret)
+		goto stop;
+
+	while ((nlsk = rhashtable_walk_next(hti))) {
+		if (IS_ERR(nlsk)) {
+			ret = PTR_ERR(nlsk);
+			if (ret == -EAGAIN) {
+				ret = 0;
 				continue;
 			}
+			break;
+		}
 
-			if (sk_diag_fill(sk, skb, req,
-					 NETLINK_CB(cb->skb).portid,
-					 cb->nlh->nlmsg_seq,
-					 NLM_F_MULTI,
-					 sock_i_ino(sk)) < 0) {
-				ret = 1;
-				goto done;
-			}
+		sk = (struct sock *)nlsk;
 
-			num++;
+		if (!net_eq(sock_net(sk), net))
+			continue;
+
+		if (sk_diag_fill(sk, skb, req,
+				 NETLINK_CB(cb->skb).portid,
+				 cb->nlh->nlmsg_seq,
+				 NLM_F_MULTI,
+				 sock_i_ino(sk)) < 0) {
+			ret = 1;
+			break;
 		}
 	}
 
+stop:
+	rhashtable_walk_stop(hti);
+	if (ret)
+		goto done;
+
+	rhashtable_walk_exit(hti);
+	num++;
+
+mc_list:
+	read_lock(&nl_table_lock);
 	sk_for_each_bound(sk, &tbl->mc_list) {
 		if (sk_hashed(sk))
 			continue;
@@ -147,13 +172,14 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 				 NLM_F_MULTI,
 				 sock_i_ino(sk)) < 0) {
 			ret = 1;
-			goto done;
+			break;
 		}
 		num++;
 	}
+	read_unlock(&nl_table_lock);
+
 done:
 	cb->args[0] = num;
-	cb->args[1] = protocol;
 
 	return ret;
 }
@@ -162,31 +188,40 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct netlink_diag_req *req;
 	int s_num = cb->args[0];
+	int err = 0;
 
 	req = nlmsg_data(cb->nlh);
-
-	read_lock(&nl_table_lock);
 
 	if (req->sdiag_protocol == NDIAG_PROTO_ALL) {
 		int i;
 
 		for (i = cb->args[1]; i < MAX_LINKS; i++) {
-			if (__netlink_diag_dump(skb, cb, i, s_num))
+			err = __netlink_diag_dump(skb, cb, i, s_num);
+			if (err)
 				break;
 			s_num = 0;
 		}
+		cb->args[1] = i;
 	} else {
-		if (req->sdiag_protocol >= MAX_LINKS) {
-			read_unlock(&nl_table_lock);
+		if (req->sdiag_protocol >= MAX_LINKS)
 			return -ENOENT;
-		}
 
-		__netlink_diag_dump(skb, cb, req->sdiag_protocol, s_num);
+		err = __netlink_diag_dump(skb, cb, req->sdiag_protocol, s_num);
 	}
 
-	read_unlock(&nl_table_lock);
+	return err < 0 ? err : skb->len;
+}
 
-	return skb->len;
+static int netlink_diag_dump_done(struct netlink_callback *cb)
+{
+	struct rhashtable_iter *hti = (void *)cb->args[2];
+
+	if (cb->args[0] == 1)
+		rhashtable_walk_exit(hti);
+
+	kfree(hti);
+
+	return 0;
 }
 
 static int netlink_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
@@ -200,6 +235,7 @@ static int netlink_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 	if (h->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = netlink_diag_dump,
+			.done = netlink_diag_dump_done,
 		};
 		return netlink_dump_start(net->diag_nlsk, skb, h, &c);
 	} else

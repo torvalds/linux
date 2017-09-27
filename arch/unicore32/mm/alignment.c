@@ -15,12 +15,14 @@
  */
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/sched/debug.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
+#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/unaligned.h>
 

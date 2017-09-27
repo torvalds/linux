@@ -1,0 +1,85 @@
+* Renesas Clock Pulse Generator / Module Standby and Software Reset
+
+On Renesas ARM SoCs (SH/R-Mobile, R-Car, RZ), the CPG (Clock Pulse Generator)
+and MSSR (Module Standby and Software Reset) blocks are intimately connected,
+and share the same register block.
+
+They provide the following functionalities:
+  - The CPG block generates various core clocks,
+  - The MSSR block provides two functions:
+      1. Module Standby, providing a Clock Domain to control the clock supply
+	 to individual SoC devices,
+      2. Reset Control, to perform a software reset of individual SoC devices.
+
+Required Properties:
+  - compatible: Must be one of:
+      - "renesas,r8a7743-cpg-mssr" for the r8a7743 SoC (RZ/G1M)
+      - "renesas,r8a7745-cpg-mssr" for the r8a7745 SoC (RZ/G1E)
+      - "renesas,r8a7790-cpg-mssr" for the r8a7790 SoC (R-Car H2)
+      - "renesas,r8a7791-cpg-mssr" for the r8a7791 SoC (R-Car M2-W)
+      - "renesas,r8a7792-cpg-mssr" for the r8a7792 SoC (R-Car V2H)
+      - "renesas,r8a7793-cpg-mssr" for the r8a7793 SoC (R-Car M2-N)
+      - "renesas,r8a7794-cpg-mssr" for the r8a7794 SoC (R-Car E2)
+      - "renesas,r8a7795-cpg-mssr" for the r8a7795 SoC (R-Car H3)
+      - "renesas,r8a7796-cpg-mssr" for the r8a7796 SoC (R-Car M3-W)
+      - "renesas,r8a77995-cpg-mssr" for the r8a77995 SoC (R-Car D3)
+
+  - reg: Base address and length of the memory resource used by the CPG/MSSR
+    block
+
+  - clocks: References to external parent clocks, one entry for each entry in
+    clock-names
+  - clock-names: List of external parent clock names. Valid names are:
+      - "extal" (r8a7743, r8a7745, r8a7790, r8a7791, r8a7792, r8a7793, r8a7794,
+		 r8a7795, r8a7796, r8a77995)
+      - "extalr" (r8a7795, r8a7796)
+      - "usb_extal" (r8a7743, r8a7745, r8a7790, r8a7791, r8a7793, r8a7794)
+
+  - #clock-cells: Must be 2
+      - For CPG core clocks, the two clock specifier cells must be "CPG_CORE"
+	and a core clock reference, as defined in
+	<dt-bindings/clock/*-cpg-mssr.h>.
+      - For module clocks, the two clock specifier cells must be "CPG_MOD" and
+	a module number, as defined in the datasheet.
+
+  - #power-domain-cells: Must be 0
+      - SoC devices that are part of the CPG/MSSR Clock Domain and can be
+	power-managed through Module Standby should refer to the CPG device
+	node in their "power-domains" property, as documented by the generic PM
+	Domain bindings in
+	Documentation/devicetree/bindings/power/power_domain.txt.
+
+  - #reset-cells: Must be 1
+      - The single reset specifier cell must be the module number, as defined
+	in the datasheet.
+
+
+Examples
+--------
+
+  - CPG device node:
+
+	cpg: clock-controller@e6150000 {
+		compatible = "renesas,r8a7795-cpg-mssr";
+		reg = <0 0xe6150000 0 0x1000>;
+		clocks = <&extal_clk>, <&extalr_clk>;
+		clock-names = "extal", "extalr";
+		#clock-cells = <2>;
+		#power-domain-cells = <0>;
+		#reset-cells = <1>;
+	};
+
+
+  - CPG/MSSR Clock Domain member device node:
+
+	scif2: serial@e6e88000 {
+		compatible = "renesas,scif-r8a7795", "renesas,scif";
+		reg = <0 0xe6e88000 0 64>;
+		interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 310>;
+		clock-names = "fck";
+		dmas = <&dmac1 0x13>, <&dmac1 0x12>;
+		dma-names = "tx", "rx";
+		power-domains = <&cpg>;
+		resets = <&cpg 310>;
+	};

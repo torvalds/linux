@@ -1,0 +1,65 @@
+#!/bin/sh
+# description: event trigger - test event enable/disable trigger
+# flags: instance
+
+do_reset() {
+    reset_trigger
+    echo > set_event
+    clear_trace
+}
+
+fail() { #msg
+    do_reset
+    echo $1
+    exit $FAIL
+}
+
+if [ ! -f set_event -o ! -d events/sched ]; then
+    echo "event tracing is not supported"
+    exit_unsupported
+fi
+
+if [ ! -f events/sched/sched_process_fork/trigger ]; then
+    echo "event trigger is not supported"
+    exit_unsupported
+fi
+
+reset_tracer
+do_reset
+
+FEATURE=`grep enable_event events/sched/sched_process_fork/trigger`
+if [ -z "$FEATURE" ]; then
+    echo "event enable/disable trigger is not supported"
+    exit_unsupported
+fi
+
+echo "Test enable_event trigger"
+echo 0 > events/sched/sched_switch/enable
+echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
+( echo "forked")
+if [ `cat events/sched/sched_switch/enable` != '1*' ]; then
+    fail "enable_event trigger on sched_process_fork did not work"
+fi
+
+reset_trigger
+
+echo "Test disable_event trigger"
+echo 1 > events/sched/sched_switch/enable
+echo 'disable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
+( echo "forked")
+if [ `cat events/sched/sched_switch/enable` != '0*' ]; then
+    fail "disable_event trigger on sched_process_fork did not work"
+fi
+
+reset_trigger
+
+echo "Test semantic error for event enable/disable trigger"
+! echo 'enable_event:nogroup:noevent' > events/sched/sched_process_fork/trigger
+! echo 'disable_event+1' > events/sched/sched_process_fork/trigger
+echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
+! echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
+! echo 'disable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
+
+do_reset
+
+exit 0

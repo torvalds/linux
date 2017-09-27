@@ -1,7 +1,7 @@
 /* DVB frontend part of the Linux driver for TwinhanDTV Alpha/MagicBoxII USB2.0
  * DVB-T receiver.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * Thanks to Twinhan who kindly provided hardware and information.
  *
@@ -26,7 +26,8 @@ struct vp7045_fe_state {
 	struct dvb_usb_device *d;
 };
 
-static int vp7045_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
+static int vp7045_fe_read_status(struct dvb_frontend *fe,
+				 enum fe_status *status)
 {
 	struct vp7045_fe_state *state = fe->demodulator_priv;
 	u8 s0 = vp7045_read_reg(state->d,0x00),
@@ -139,7 +140,7 @@ static void vp7045_fe_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops vp7045_fe_ops;
+static const struct dvb_frontend_ops vp7045_fe_ops;
 
 struct dvb_frontend * vp7045_fe_attach(struct dvb_usb_device *d)
 {
@@ -157,7 +158,7 @@ error:
 }
 
 
-static struct dvb_frontend_ops vp7045_fe_ops = {
+static const struct dvb_frontend_ops vp7045_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Twinhan VP7045/46 USB DVB-T",

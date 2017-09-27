@@ -187,7 +187,7 @@ static irqreturn_t at32_rtc_interrupt(int irq, void *dev_id)
 	return ret;
 }
 
-static struct rtc_class_ops at32_rtc_ops = {
+static const struct rtc_class_ops at32_rtc_ops = {
 	.read_time	= at32_rtc_readtime,
 	.set_time	= at32_rtc_settime,
 	.read_alarm	= at32_rtc_readalarm,
@@ -204,10 +204,8 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct rtc_at32ap700x),
 			   GFP_KERNEL);
-	if (!rtc) {
-		dev_dbg(&pdev->dev, "out of memory\n");
+	if (!rtc)
 		return -ENOMEM;
-	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -279,12 +277,11 @@ static struct platform_driver at32_rtc_driver = {
 	.remove		= __exit_p(at32_rtc_remove),
 	.driver		= {
 		.name	= "at32ap700x_rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 
 module_platform_driver_probe(at32_rtc_driver, at32_rtc_probe);
 
-MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("Real time clock for AVR32 AT32AP700x");
 MODULE_LICENSE("GPL");

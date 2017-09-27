@@ -15,11 +15,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include <linux/init.h>
@@ -145,11 +140,12 @@ static int snd_cx18_init(struct v4l2_device *v4l2_dev)
 	/* This is a no-op for us.  We'll use the cx->instance */
 
 	/* (2) Create a card instance */
-	ret = snd_card_create(SNDRV_DEFAULT_IDX1, /* use first available id */
-			      SNDRV_DEFAULT_STR1, /* xid from end of shortname*/
-			      THIS_MODULE, 0, &sc);
+	ret = snd_card_new(&cx->pci_dev->dev,
+			   SNDRV_DEFAULT_IDX1, /* use first available id */
+			   SNDRV_DEFAULT_STR1, /* xid from end of shortname*/
+			   THIS_MODULE, 0, &sc);
 	if (ret) {
-		CX18_ALSA_ERR("%s: snd_card_create() failed with err %d\n",
+		CX18_ALSA_ERR("%s: snd_card_new() failed with err %d\n",
 			      __func__, ret);
 		goto err_exit;
 	}
@@ -215,9 +211,9 @@ static int cx18_alsa_load(struct cx18 *cx)
 	}
 
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
-	if (s->video_dev == NULL) {
-		CX18_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - "
-				     "skipping\n", __func__);
+	if (s->video_dev.v4l2_dev == NULL) {
+		CX18_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - skipping\n",
+				     __func__);
 		return 0;
 	}
 
@@ -231,8 +227,8 @@ static int cx18_alsa_load(struct cx18 *cx)
 		CX18_ALSA_ERR("%s: failed to create struct snd_cx18_card\n",
 			      __func__);
 	} else {
-		CX18_DEBUG_ALSA_INFO("%s: created cx18 ALSA interface instance "
-				     "\n", __func__);
+		CX18_DEBUG_ALSA_INFO("%s: created cx18 ALSA interface instance\n",
+				     __func__);
 	}
 	return 0;
 }

@@ -112,7 +112,7 @@ unsigned long __init wii_mmu_mapin_mem2(unsigned long top)
 	return delta + bl;
 }
 
-static void wii_spin(void)
+static void __noreturn wii_spin(void)
 {
 	local_irq_disable();
 	for (;;)
@@ -160,7 +160,7 @@ static void __init wii_setup_arch(void)
 	}
 }
 
-static void wii_restart(char *cmd)
+static void __noreturn wii_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -185,16 +185,11 @@ static void wii_power_off(void)
 	wii_spin();
 }
 
-static void wii_halt(void)
+static void __noreturn wii_halt(void)
 {
 	if (ppc_md.restart)
 		ppc_md.restart(NULL);
 	wii_spin();
-}
-
-static void __init wii_init_early(void)
-{
-	ug_udbg_init();
 }
 
 static void __init wii_pic_probe(void)
@@ -205,11 +200,12 @@ static void __init wii_pic_probe(void)
 
 static int __init wii_probe(void)
 {
-	unsigned long dt_root;
-
-	dt_root = of_get_flat_dt_root();
-	if (!of_flat_dt_is_compatible(dt_root, "nintendo,wii"))
+	if (!of_machine_is_compatible("nintendo,wii"))
 		return 0;
+
+	pm_power_off = wii_power_off;
+
+	ug_udbg_init();
 
 	return 1;
 }
@@ -223,10 +219,8 @@ static void wii_shutdown(void)
 define_machine(wii) {
 	.name			= "wii",
 	.probe			= wii_probe,
-	.init_early		= wii_init_early,
 	.setup_arch		= wii_setup_arch,
 	.restart		= wii_restart,
-	.power_off		= wii_power_off,
 	.halt			= wii_halt,
 	.init_IRQ		= wii_pic_probe,
 	.get_irq		= flipper_pic_get_irq,
@@ -235,7 +229,7 @@ define_machine(wii) {
 	.machine_shutdown	= wii_shutdown,
 };
 
-static struct of_device_id wii_of_bus[] = {
+static const struct of_device_id wii_of_bus[] = {
 	{ .compatible = "nintendo,hollywood", },
 	{ },
 };

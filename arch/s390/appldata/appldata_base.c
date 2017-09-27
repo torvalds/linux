@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/module.h>
+#include <linux/sched/stat.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -28,7 +29,7 @@
 #include <linux/platform_device.h>
 #include <asm/appldata.h>
 #include <asm/vtimer.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 
@@ -48,9 +49,9 @@ static struct platform_device *appldata_pdev;
  * /proc entries (sysctl)
  */
 static const char appldata_proc_name[APPLDATA_PROC_NAME_LENGTH] = "appldata";
-static int appldata_timer_handler(ctl_table *ctl, int write,
+static int appldata_timer_handler(struct ctl_table *ctl, int write,
 				  void __user *buffer, size_t *lenp, loff_t *ppos);
-static int appldata_interval_handler(ctl_table *ctl, int write,
+static int appldata_interval_handler(struct ctl_table *ctl, int write,
 					 void __user *buffer,
 					 size_t *lenp, loff_t *ppos);
 
@@ -201,10 +202,10 @@ static void __appldata_vtimer_setup(int cmd)
  * Start/Stop timer, show status of timer (0 = not active, 1 = active)
  */
 static int
-appldata_timer_handler(ctl_table *ctl, int write,
+appldata_timer_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int len;
+	unsigned int len;
 	char buf[2];
 
 	if (!*lenp || *ppos) {
@@ -243,10 +244,11 @@ out:
  * current timer interval.
  */
 static int
-appldata_interval_handler(ctl_table *ctl, int write,
+appldata_interval_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int len, interval;
+	unsigned int len;
+	int interval;
 	char buf[16];
 
 	if (!*lenp || *ppos) {
@@ -286,11 +288,12 @@ out:
  * monitoring (0 = not in process, 1 = in process)
  */
 static int
-appldata_generic_handler(ctl_table *ctl, int write,
+appldata_generic_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct appldata_ops *ops = NULL, *tmp_ops;
-	int rc, len, found;
+	unsigned int len;
+	int rc, found;
 	char buf[2];
 	struct list_head *lh;
 
@@ -509,7 +512,6 @@ static const struct dev_pm_ops appldata_pm_ops = {
 static struct platform_driver appldata_pdrv = {
 	.driver = {
 		.name	= "appldata",
-		.owner	= THIS_MODULE,
 		.pm	= &appldata_pm_ops,
 	},
 };
@@ -527,6 +529,7 @@ static int __init appldata_init(void)
 {
 	int rc;
 
+	init_virt_timer(&appldata_timer);
 	appldata_timer.function = appldata_timer_function;
 	appldata_timer.data = (unsigned long) &appldata_work;
 
@@ -540,7 +543,7 @@ static int __init appldata_init(void)
 		rc = PTR_ERR(appldata_pdev);
 		goto out_driver;
 	}
-	appldata_wq = create_singlethread_workqueue("appldata");
+	appldata_wq = alloc_ordered_workqueue("appldata", 0);
 	if (!appldata_wq) {
 		rc = -ENOMEM;
 		goto out_device;

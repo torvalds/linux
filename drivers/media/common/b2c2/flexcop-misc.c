@@ -23,18 +23,15 @@ void flexcop_determine_revision(struct flexcop_device *fc)
 		fc->rev = FLEXCOP_III;
 		break;
 	default:
-		err("unknown FlexCop Revision: %x. Please report this to "
-				"linux-dvb@linuxtv.org.",
+		err("unknown FlexCop Revision: %x. Please report this to linux-dvb@linuxtv.org.",
 				v.misc_204.Rev_N_sig_revision_hi);
 		break;
 	}
 
 	if ((fc->has_32_hw_pid_filter = v.misc_204.Rev_N_sig_caps))
-		deb_info("this FlexCop has "
-				"the additional 32 hardware pid filter.\n");
+		deb_info("this FlexCop has the additional 32 hardware pid filter.\n");
 	else
-		deb_info("this FlexCop has "
-				"the 6 basic main hardware pid filter.\n");
+		deb_info("this FlexCop has the 6 basic main hardware pid filter.\n");
 	/* bus parts have to decide if hw pid filtering is used or not. */
 }
 
@@ -56,6 +53,7 @@ static const char *flexcop_device_names[] = {
 	[FC_SKY_REV26]	= "Sky2PC/SkyStar 2 DVB-S rev 2.6",
 	[FC_SKY_REV27]	= "Sky2PC/SkyStar 2 DVB-S rev 2.7a/u",
 	[FC_SKY_REV28]	= "Sky2PC/SkyStar 2 DVB-S rev 2.8",
+	[FC_SKYS2_REV33] = "Sky2PC/SkyStar S2 DVB-S/S2 rev 3.3",
 };
 
 static const char *flexcop_bus_names[] = {

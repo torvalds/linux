@@ -1,6 +1,6 @@
 /* Header file for all dibusb-based-receivers.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the Free
@@ -36,7 +36,7 @@
 
 /*
  * i2c read
- * bulk write: 0x02 ((7bit i2c_addr << 1) & 0x01) register_bytes length_word
+ * bulk write: 0x02 ((7bit i2c_addr << 1) | 0x01) register_bytes length_word
  * bulk read:  byte_buffer (length_word bytes)
  */
 #define DIBUSB_REQ_I2C_READ			0x02
@@ -95,6 +95,9 @@
 /* modify streaming of the FX2 */
 #define DIBUSB_IOCTL_CMD_ENABLE_STREAM	0x01
 #define DIBUSB_IOCTL_CMD_DISABLE_STREAM	0x02
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;

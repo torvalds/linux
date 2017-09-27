@@ -24,15 +24,13 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  * 
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@suse.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -44,7 +42,7 @@
 #include <linux/crc32.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #undef DEBUG
 
@@ -378,7 +376,7 @@ static int catc_tx_run(struct catc *catc)
 	catc->tx_idx = !catc->tx_idx;
 	catc->tx_ptr = 0;
 
-	catc->netdev->trans_start = jiffies;
+	netif_trans_update(catc->netdev);
 	return status;
 }
 
@@ -391,7 +389,7 @@ static void catc_tx_done(struct urb *urb)
 	if (status == -ECONNRESET) {
 		dev_dbg(&urb->dev->dev, "Tx Reset.\n");
 		urb->status = 0;
-		catc->netdev->trans_start = jiffies;
+		netif_trans_update(catc->netdev);
 		catc->netdev->stats.tx_errors++;
 		clear_bit(TX_RUNNING, &catc->flags);
 		netif_wake_queue(catc->netdev);
@@ -640,10 +638,10 @@ static void catc_set_multicast_list(struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
 	struct netdev_hw_addr *ha;
-	u8 broadcast[6];
+	u8 broadcast[ETH_ALEN];
 	u8 rx = RxEnable | RxPolarity | RxMultiCast;
 
-	memset(broadcast, 0xff, 6);
+	eth_broadcast_addr(broadcast);
 	memset(catc->multicast, 0, 64);
 
 	catc_multicast(broadcast, catc->multicast);
@@ -690,29 +688,34 @@ static void catc_get_drvinfo(struct net_device *dev,
 	usb_make_path(catc->usbdev, info->bus_info, sizeof(info->bus_info));
 }
 
-static int catc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int catc_get_link_ksettings(struct net_device *dev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct catc *catc = netdev_priv(dev);
 	if (!catc->is_f5u011)
 		return -EOPNOTSUPP;
 
-	cmd->supported = SUPPORTED_10baseT_Half | SUPPORTED_TP;
-	cmd->advertising = ADVERTISED_10baseT_Half | ADVERTISED_TP;
-	ethtool_cmd_speed_set(cmd, SPEED_10);
-	cmd->duplex = DUPLEX_HALF;
-	cmd->port = PORT_TP; 
-	cmd->phy_address = 0;
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->autoneg = AUTONEG_DISABLE;
-	cmd->maxtxpkt = 1;
-	cmd->maxrxpkt = 1;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 10baseT_Half);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
+
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, 10baseT_Half);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
+
+	cmd->base.speed = SPEED_10;
+	cmd->base.duplex = DUPLEX_HALF;
+	cmd->base.port = PORT_TP;
+	cmd->base.phy_address = 0;
+	cmd->base.autoneg = AUTONEG_DISABLE;
+
 	return 0;
 }
 
 static const struct ethtool_ops ops = {
 	.get_drvinfo = catc_get_drvinfo,
-	.get_settings = catc_get_settings,
-	.get_link = ethtool_op_get_link
+	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = catc_get_link_ksettings,
 };
 
 /*
@@ -763,7 +766,6 @@ static const struct net_device_ops catc_netdev_ops = {
 
 	.ndo_tx_timeout		= catc_tx_timeout,
 	.ndo_set_rx_mode	= catc_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -778,8 +780,8 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct usb_device *usbdev = interface_to_usbdev(intf);
 	struct net_device *netdev;
 	struct catc *catc;
-	u8 broadcast[6];
-	int i, pktsz;
+	u8 broadcast[ETH_ALEN];
+	int pktsz, ret;
 
 	if (usb_set_interface(usbdev,
 			intf->altsetting->desc.bInterfaceNumber, 1)) {
@@ -795,7 +797,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	netdev->netdev_ops = &catc_netdev_ops;
 	netdev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(netdev, &ops);
+	netdev->ethtool_ops = &ops;
 
 	catc->usbdev = usbdev;
 	catc->netdev = netdev;
@@ -814,12 +816,8 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if ((!catc->ctrl_urb) || (!catc->tx_urb) || 
 	    (!catc->rx_urb) || (!catc->irq_urb)) {
 		dev_err(&intf->dev, "No free urbs available.\n");
-		usb_free_urb(catc->ctrl_urb);
-		usb_free_urb(catc->tx_urb);
-		usb_free_urb(catc->rx_urb);
-		usb_free_urb(catc->irq_urb);
-		free_netdev(netdev);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail_free;
 	}
 
 	/* The F5U011 has the same vendor/product as the netmate but a device version of 0x130 */
@@ -847,15 +845,24 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
                 catc->irq_buf, 2, catc_irq_done, catc, 1);
 
 	if (!catc->is_f5u011) {
+		u32 *buf;
+		int i;
+
 		dev_dbg(dev, "Checking memory size\n");
 
-		i = 0x12345678;
-		catc_write_mem(catc, 0x7a80, &i, 4);
-		i = 0x87654321;	
-		catc_write_mem(catc, 0xfa80, &i, 4);
-		catc_read_mem(catc, 0x7a80, &i, 4);
+		buf = kmalloc(4, GFP_KERNEL);
+		if (!buf) {
+			ret = -ENOMEM;
+			goto fail_free;
+		}
+
+		*buf = 0x12345678;
+		catc_write_mem(catc, 0x7a80, buf, 4);
+		*buf = 0x87654321;
+		catc_write_mem(catc, 0xfa80, buf, 4);
+		catc_read_mem(catc, 0x7a80, buf, 4);
 	  
-		switch (i) {
+		switch (*buf) {
 		case 0x12345678:
 			catc_set_reg(catc, TxBufCount, 8);
 			catc_set_reg(catc, RxBufCount, 32);
@@ -870,6 +877,8 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 			dev_dbg(dev, "32k Memory\n");
 			break;
 		}
+
+		kfree(buf);
 	  
 		dev_dbg(dev, "Getting MAC from SEEROM.\n");
 	  
@@ -882,7 +891,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 		
 		dev_dbg(dev, "Filling the multicast list.\n");
 	  
-		memset(broadcast, 0xff, 6);
+		eth_broadcast_addr(broadcast);
 		catc_multicast(broadcast, catc->multicast);
 		catc_multicast(netdev->dev_addr, catc->multicast);
 		catc_write_mem(catc, 0xfa80, catc->multicast, 64);
@@ -916,16 +925,21 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	usb_set_intfdata(intf, catc);
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
-	if (register_netdev(netdev) != 0) {
-		usb_set_intfdata(intf, NULL);
-		usb_free_urb(catc->ctrl_urb);
-		usb_free_urb(catc->tx_urb);
-		usb_free_urb(catc->rx_urb);
-		usb_free_urb(catc->irq_urb);
-		free_netdev(netdev);
-		return -EIO;
-	}
+	ret = register_netdev(netdev);
+	if (ret)
+		goto fail_clear_intfdata;
+
 	return 0;
+
+fail_clear_intfdata:
+	usb_set_intfdata(intf, NULL);
+fail_free:
+	usb_free_urb(catc->ctrl_urb);
+	usb_free_urb(catc->tx_urb);
+	usb_free_urb(catc->rx_urb);
+	usb_free_urb(catc->irq_urb);
+	free_netdev(netdev);
+	return ret;
 }
 
 static void catc_disconnect(struct usb_interface *intf)
@@ -947,7 +961,7 @@ static void catc_disconnect(struct usb_interface *intf)
  * Module functions and tables.
  */
 
-static struct usb_device_id catc_id_table [] = {
+static const struct usb_device_id catc_id_table[] = {
 	{ USB_DEVICE(0x0423, 0xa) },	/* CATC Netmate, Belkin F5U011 */
 	{ USB_DEVICE(0x0423, 0xc) },	/* CATC Netmate II, Belkin F5U111 */
 	{ USB_DEVICE(0x08d1, 0x1) },	/* smartBridges smartNIC */

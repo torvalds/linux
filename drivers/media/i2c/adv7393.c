@@ -31,7 +31,7 @@
 #include <linux/videodev2.h>
 #include <linux/uaccess.h>
 
-#include <media/adv7393.h>
+#include <media/i2c/adv7393.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
@@ -306,13 +306,6 @@ static const struct v4l2_ctrl_ops adv7393_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops adv7393_core_ops = {
 	.log_status = adv7393_log_status,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 };
 
 static int adv7393_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
@@ -463,7 +456,6 @@ MODULE_DEVICE_TABLE(i2c, adv7393_id);
 
 static struct i2c_driver adv7393_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "adv7393",
 	},
 	.probe		= adv7393_probe,

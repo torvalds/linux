@@ -16,6 +16,10 @@
 	struct hlist_head name[1 << (bits)] =					\
 			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
 
+#define DEFINE_READ_MOSTLY_HASHTABLE(name, bits)				\
+	struct hlist_head name[1 << (bits)] __read_mostly =			\
+			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
+
 #define DECLARE_HASHTABLE(name, bits)                                   	\
 	struct hlist_head name[1 << (bits)]
 
@@ -163,7 +167,6 @@ static inline void hash_del_rcu(struct hlist_node *node)
 /**
  * hash_for_each_possible_rcu - iterate over all possible objects hashing to the
  * same bucket in an rcu enabled hashtable
- * in a rcu enabled hashtable
  * @name: hashtable to iterate
  * @obj: the type * to use as a loop cursor for each entry
  * @member: the name of the hlist_node within the struct
@@ -172,6 +175,21 @@ static inline void hash_del_rcu(struct hlist_node *node)
 #define hash_for_each_possible_rcu(name, obj, member, key)		\
 	hlist_for_each_entry_rcu(obj, &name[hash_min(key, HASH_BITS(name))],\
 		member)
+
+/**
+ * hash_for_each_possible_rcu_notrace - iterate over all possible objects hashing
+ * to the same bucket in an rcu enabled hashtable in a rcu enabled hashtable
+ * @name: hashtable to iterate
+ * @obj: the type * to use as a loop cursor for each entry
+ * @member: the name of the hlist_node within the struct
+ * @key: the key of the objects to iterate over
+ *
+ * This is the same as hash_for_each_possible_rcu() except that it does
+ * not do any RCU debugging or tracing.
+ */
+#define hash_for_each_possible_rcu_notrace(name, obj, member, key) \
+	hlist_for_each_entry_rcu_notrace(obj, \
+		&name[hash_min(key, HASH_BITS(name))], member)
 
 /**
  * hash_for_each_possible_safe - iterate over all possible objects hashing to the

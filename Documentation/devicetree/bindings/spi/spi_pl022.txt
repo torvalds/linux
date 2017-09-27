@@ -4,9 +4,9 @@ Required properties:
 - compatible : "arm,pl022", "arm,primecell"
 - reg : Offset and length of the register set for the device
 - interrupts : Should contain SPI controller interrupt
+- num-cs : total number of chipselects
 
 Optional properties:
-- num-cs : total number of chipselects
 - cs-gpios : should specify GPIOs used for chipselects.
   The gpios will be referred to as reg = <index> in the SPI child nodes.
   If unspecified, a single SPI device without a chip select can be used.
@@ -30,7 +30,10 @@ contain the following properties.
 	0: SPI
 	1: Texas Instruments Synchronous Serial Frame Format
 	2: Microwire (Half Duplex)
-- pl022,com-mode : polling, interrupt or dma
+- pl022,com-mode : specifies the transfer mode:
+	0: interrupt mode
+	1: polling mode (default mode if property not present)
+	2: DMA mode
 - pl022,rx-level-trig : Rx FIFO watermark level
 - pl022,tx-level-trig : Tx FIFO watermark level
 - pl022,ctrl-len : Microwire interface: Control length
@@ -56,9 +59,7 @@ Example:
 			spi-max-frequency = <12000000>;
 			spi-cpol;
 			spi-cpha;
-			pl022,hierarchy = <0>;
 			pl022,interface = <0>;
-			pl022,slave-tx-disable;
 			pl022,com-mode = <0x2>;
 			pl022,rx-level-trig = <0>;
 			pl022,tx-level-trig = <0>;
@@ -67,4 +68,3 @@ Example:
 			pl022,duplex = <0>;
 		};
 	};
-	

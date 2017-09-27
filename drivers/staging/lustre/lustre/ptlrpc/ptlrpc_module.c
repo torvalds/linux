@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -36,7 +32,6 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-
 #include <obd_support.h>
 #include <obd_class.h>
 #include <lustre_net.h>
@@ -48,13 +43,10 @@ extern spinlock_t ptlrpc_last_xid_lock;
 #if RS_DEBUG
 extern spinlock_t ptlrpc_rs_debug_lock;
 #endif
-extern struct mutex pinger_mutex;
-extern struct mutex ptlrpcd_mutex;
 
-__init int ptlrpc_init(void)
+static int __init ptlrpc_init(void)
 {
 	int rc, cleanup_phase = 0;
-	ENTRY;
 
 	lustre_assert_wire_constants();
 #if RS_DEBUG
@@ -67,69 +59,85 @@ __init int ptlrpc_init(void)
 
 	rc = req_layout_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = ptlrpc_hr_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	cleanup_phase = 1;
+	rc = ptlrpc_request_cache_init();
+	if (rc)
+		goto cleanup;
 
+	cleanup_phase = 2;
 	rc = ptlrpc_init_portals();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 2;
+		goto cleanup;
+
+	cleanup_phase = 3;
 
 	rc = ptlrpc_connection_init();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 3;
+		goto cleanup;
 
+	cleanup_phase = 4;
 	ptlrpc_put_connection_superhack = ptlrpc_connection_put;
 
 	rc = ptlrpc_start_pinger();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 4;
+		goto cleanup;
 
+	cleanup_phase = 5;
 	rc = ldlm_init();
 	if (rc)
-		GOTO(cleanup, rc);
-	cleanup_phase = 5;
+		goto cleanup;
 
+	cleanup_phase = 6;
 	rc = sptlrpc_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 7;
 	rc = ptlrpc_nrs_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 8;
 	rc = tgt_mod_init();
 	if (rc)
-		GOTO(cleanup, rc);
-	RETURN(0);
+		goto cleanup;
+	return 0;
 
 cleanup:
-	switch(cleanup_phase) {
+	switch (cleanup_phase) {
 	case 8:
 		ptlrpc_nrs_fini();
+		/* Fall through */
 	case 7:
 		sptlrpc_fini();
-	case 5:
+		/* Fall through */
+	case 6:
 		ldlm_exit();
-	case 4:
+		/* Fall through */
+	case 5:
 		ptlrpc_stop_pinger();
-	case 3:
+		/* Fall through */
+	case 4:
 		ptlrpc_connection_fini();
-	case 2:
+		/* Fall through */
+	case 3:
 		ptlrpc_exit_portals();
+		/* Fall through */
+	case 2:
+		ptlrpc_request_cache_fini();
+		/* Fall through */
 	case 1:
 		ptlrpc_hr_fini();
 		req_layout_fini();
-	default: ;
+		/* Fall through */
+	default:
+		;
 	}
 
 	return rc;
@@ -143,12 +151,15 @@ static void __exit ptlrpc_exit(void)
 	ldlm_exit();
 	ptlrpc_stop_pinger();
 	ptlrpc_exit_portals();
+	ptlrpc_request_cache_fini();
 	ptlrpc_hr_fini();
 	ptlrpc_connection_fini();
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Request Processor and Lock Management");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
 
-cfs_module(ptlrpc, "1.0.0", ptlrpc_init, ptlrpc_exit);
+module_init(ptlrpc_init);
+module_exit(ptlrpc_exit);

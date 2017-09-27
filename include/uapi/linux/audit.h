@@ -68,6 +68,8 @@
 #define AUDIT_MAKE_EQUIV	1015	/* Append to watched tree */
 #define AUDIT_TTY_GET		1016	/* Get TTY auditing status */
 #define AUDIT_TTY_SET		1017	/* Set TTY auditing status */
+#define AUDIT_SET_FEATURE	1018	/* Turn an audit feature on or off */
+#define AUDIT_GET_FEATURE	1019	/* Get which features are enabled */
 
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */
@@ -106,6 +108,10 @@
 #define AUDIT_NETFILTER_PKT	1324	/* Packets traversing netfilter chains */
 #define AUDIT_NETFILTER_CFG	1325	/* Netfilter chain modifications */
 #define AUDIT_SECCOMP		1326	/* Secure Computing event */
+#define AUDIT_PROCTITLE		1327	/* Proctitle emit event */
+#define AUDIT_FEATURE_CHANGE	1328	/* audit log listing feature changes */
+#define AUDIT_REPLACE		1329	/* Replace auditd if this packet unanswerd */
+#define AUDIT_KERN_MODULE	1330	/* Kernel Module events */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -125,6 +131,8 @@
 #define AUDIT_MAC_IPSEC_EVENT	1415	/* Audit an IPSec event */
 #define AUDIT_MAC_UNLBL_STCADD	1416	/* NetLabel: add a static label */
 #define AUDIT_MAC_UNLBL_STCDEL	1417	/* NetLabel: del a static label */
+#define AUDIT_MAC_CALIPSO_ADD	1418	/* NetLabel: add CALIPSO DOI entry */
+#define AUDIT_MAC_CALIPSO_DEL	1419	/* NetLabel: del CALIPSO DOI entry */
 
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
@@ -247,6 +255,7 @@
 #define AUDIT_OBJ_LEV_LOW	22
 #define AUDIT_OBJ_LEV_HIGH	23
 #define AUDIT_LOGINUID_SET	24
+#define AUDIT_SESSIONID	25	/* Session ID */
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -262,6 +271,7 @@
 #define AUDIT_OBJ_UID	109
 #define AUDIT_OBJ_GID	110
 #define AUDIT_FIELD_COMPARE	111
+#define AUDIT_EXE	112
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)
@@ -316,33 +326,70 @@ enum {
 #define AUDIT_STATUS_PID		0x0004
 #define AUDIT_STATUS_RATE_LIMIT		0x0008
 #define AUDIT_STATUS_BACKLOG_LIMIT	0x0010
+#define AUDIT_STATUS_BACKLOG_WAIT_TIME	0x0020
+#define AUDIT_STATUS_LOST		0x0040
+
+#define AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT	0x00000001
+#define AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME	0x00000002
+#define AUDIT_FEATURE_BITMAP_EXECUTABLE_PATH	0x00000004
+#define AUDIT_FEATURE_BITMAP_EXCLUDE_EXTEND	0x00000008
+#define AUDIT_FEATURE_BITMAP_SESSIONID_FILTER	0x00000010
+#define AUDIT_FEATURE_BITMAP_LOST_RESET		0x00000020
+
+#define AUDIT_FEATURE_BITMAP_ALL (AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT | \
+				  AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME | \
+				  AUDIT_FEATURE_BITMAP_EXECUTABLE_PATH | \
+				  AUDIT_FEATURE_BITMAP_EXCLUDE_EXTEND | \
+				  AUDIT_FEATURE_BITMAP_SESSIONID_FILTER | \
+				  AUDIT_FEATURE_BITMAP_LOST_RESET)
+
+/* deprecated: AUDIT_VERSION_* */
+#define AUDIT_VERSION_LATEST 		AUDIT_FEATURE_BITMAP_ALL
+#define AUDIT_VERSION_BACKLOG_LIMIT	AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT
+#define AUDIT_VERSION_BACKLOG_WAIT_TIME	AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME
+
 				/* Failure-to-log actions */
 #define AUDIT_FAIL_SILENT	0
 #define AUDIT_FAIL_PRINTK	1
 #define AUDIT_FAIL_PANIC	2
 
+/*
+ * These bits disambiguate different calling conventions that share an
+ * ELF machine type, bitness, and endianness
+ */
+#define __AUDIT_ARCH_CONVENTION_MASK 0x30000000
+#define __AUDIT_ARCH_CONVENTION_MIPS64_N32 0x20000000
+
 /* distinguish syscall tables */
 #define __AUDIT_ARCH_64BIT 0x80000000
 #define __AUDIT_ARCH_LE	   0x40000000
+
+#define AUDIT_ARCH_AARCH64	(EM_AARCH64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_ALPHA	(EM_ALPHA|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_ARM		(EM_ARM|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_ARMEB	(EM_ARM)
 #define AUDIT_ARCH_CRIS		(EM_CRIS|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_FRV		(EM_FRV)
-#define AUDIT_ARCH_H8300	(EM_H8_300)
 #define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_IA64		(EM_IA_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_M32R		(EM_M32R)
 #define AUDIT_ARCH_M68K		(EM_68K)
+#define AUDIT_ARCH_MICROBLAZE	(EM_MICROBLAZE)
 #define AUDIT_ARCH_MIPS		(EM_MIPS)
 #define AUDIT_ARCH_MIPSEL	(EM_MIPS|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_MIPS64	(EM_MIPS|__AUDIT_ARCH_64BIT)
+#define AUDIT_ARCH_MIPS64N32	(EM_MIPS|__AUDIT_ARCH_64BIT|\
+				 __AUDIT_ARCH_CONVENTION_MIPS64_N32)
 #define AUDIT_ARCH_MIPSEL64	(EM_MIPS|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
+#define AUDIT_ARCH_MIPSEL64N32	(EM_MIPS|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE|\
+				 __AUDIT_ARCH_CONVENTION_MIPS64_N32)
 #define AUDIT_ARCH_OPENRISC	(EM_OPENRISC)
 #define AUDIT_ARCH_PARISC	(EM_PARISC)
 #define AUDIT_ARCH_PARISC64	(EM_PARISC|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_PPC		(EM_PPC)
+/* do not define AUDIT_ARCH_PPCLE since it is not supported by audit */
 #define AUDIT_ARCH_PPC64	(EM_PPC64|__AUDIT_ARCH_64BIT)
+#define AUDIT_ARCH_PPC64LE	(EM_PPC64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_S390		(EM_S390)
 #define AUDIT_ARCH_S390X	(EM_S390|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_SH		(EM_SH)
@@ -351,12 +398,29 @@ enum {
 #define AUDIT_ARCH_SHEL64	(EM_SH|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_SPARC	(EM_SPARC)
 #define AUDIT_ARCH_SPARC64	(EM_SPARCV9|__AUDIT_ARCH_64BIT)
+#define AUDIT_ARCH_TILEGX	(EM_TILEGX|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
+#define AUDIT_ARCH_TILEGX32	(EM_TILEGX|__AUDIT_ARCH_LE)
+#define AUDIT_ARCH_TILEPRO	(EM_TILEPRO|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_X86_64	(EM_X86_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 
 #define AUDIT_PERM_EXEC		1
 #define AUDIT_PERM_WRITE	2
 #define AUDIT_PERM_READ		4
 #define AUDIT_PERM_ATTR		8
+
+/* MAX_AUDIT_MESSAGE_LENGTH is set in audit:lib/libaudit.h as:
+ * 8970 // PATH_MAX*2+CONTEXT_SIZE*2+11+256+1
+ * max header+body+tailer: 44 + 29 + 32 + 262 + 7 + pad
+ */
+#define AUDIT_MESSAGE_TEXT_MAX	8560
+
+/* Multicast Netlink socket groups (default up to 32) */
+enum audit_nlgrps {
+	AUDIT_NLGRP_NONE,	/* Group 0 not used */
+	AUDIT_NLGRP_READLOG,	/* "best effort" read only socket */
+	__AUDIT_NLGRP_MAX
+};
+#define AUDIT_NLGRP_MAX                (__AUDIT_NLGRP_MAX - 1)
 
 struct audit_status {
 	__u32		mask;		/* Bit mask for valid entries */
@@ -367,12 +431,34 @@ struct audit_status {
 	__u32		backlog_limit;	/* waiting messages limit */
 	__u32		lost;		/* messages lost */
 	__u32		backlog;	/* messages waiting in queue */
+	union {
+		__u32	version;	/* deprecated: audit api version num */
+		__u32	feature_bitmap;	/* bitmap of kernel audit features */
+	};
+	__u32		backlog_wait_time;/* message queue wait timeout */
 };
+
+struct audit_features {
+#define AUDIT_FEATURE_VERSION	1
+	__u32	vers;
+	__u32	mask;		/* which bits we are dealing with */
+	__u32	features;	/* which feature to enable/disable */
+	__u32	lock;		/* which features to lock */
+};
+
+#define AUDIT_FEATURE_ONLY_UNSET_LOGINUID	0
+#define AUDIT_FEATURE_LOGINUID_IMMUTABLE	1
+#define AUDIT_LAST_FEATURE			AUDIT_FEATURE_LOGINUID_IMMUTABLE
+
+#define audit_feature_valid(x)		((x) >= 0 && (x) <= AUDIT_LAST_FEATURE)
+#define AUDIT_FEATURE_TO_MASK(x)	(1 << ((x) & 31)) /* mask for __u32 */
 
 struct audit_tty_status {
 	__u32		enabled;	/* 1 = enabled, 0 = disabled */
 	__u32		log_passwd;	/* 1 = enabled, 0 = disabled */
 };
+
+#define AUDIT_UID_UNSET (unsigned int)-1
 
 /* audit_rule_data supports filter rules with both integer and string
  * fields.  It corresponds with AUDIT_ADD_RULE, AUDIT_DEL_RULE and
@@ -388,19 +474,6 @@ struct audit_rule_data {
 	__u32		fieldflags[AUDIT_MAX_FIELDS];
 	__u32		buflen;	/* total length of string fields */
 	char		buf[0];	/* string fields buffer */
-};
-
-/* audit_rule is supported to maintain backward compatibility with
- * userspace.  It supports integer fields only and corresponds to
- * AUDIT_ADD, AUDIT_DEL and AUDIT_LIST requests.
- */
-struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
-	__u32		flags;	/* AUDIT_PER_{TASK,CALL}, AUDIT_PREPEND */
-	__u32		action;	/* AUDIT_NEVER, AUDIT_POSSIBLE, AUDIT_ALWAYS */
-	__u32		field_count;
-	__u32		mask[AUDIT_BITMASK_SIZE];
-	__u32		fields[AUDIT_MAX_FIELDS];
-	__u32		values[AUDIT_MAX_FIELDS];
 };
 
 #endif /* _UAPI_LINUX_AUDIT_H_ */

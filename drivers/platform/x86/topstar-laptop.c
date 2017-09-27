@@ -80,13 +80,9 @@ static void acpi_topstar_notify(struct acpi_device *device, u32 event)
 static int acpi_topstar_fncx_switch(struct acpi_device *device, bool state)
 {
 	acpi_status status;
-	union acpi_object fncx_params[1] = {
-		{ .type = ACPI_TYPE_INTEGER }
-	};
-	struct acpi_object_list fncx_arg_list = { 1, &fncx_params[0] };
 
-	fncx_params[0].integer.value = state ? 0x86 : 0x87;
-	status = acpi_evaluate_object(device->handle, "FNCX", &fncx_arg_list, NULL);
+	status = acpi_execute_simple_method(device->handle, "FNCX",
+						state ? 0x86 : 0x87);
 	if (ACPI_FAILURE(status)) {
 		pr_err("Unable to switch FNCX notifications\n");
 		return -ENODEV;
@@ -101,10 +97,8 @@ static int acpi_topstar_init_hkey(struct topstar_hkey *hkey)
 	int error;
 
 	input = input_allocate_device();
-	if (!input) {
-		pr_err("Unable to allocate input device\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = "Topstar Laptop extra buttons";
 	input->phys = "topstar/input0";
@@ -119,14 +113,12 @@ static int acpi_topstar_init_hkey(struct topstar_hkey *hkey)
 	error = input_register_device(input);
 	if (error) {
 		pr_err("Unable to register input device\n");
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 
 	hkey->inputdev = input;
 	return 0;
 
- err_free_keymap:
-	sparse_keymap_free(input);
  err_free_dev:
 	input_free_device(input);
 	return error;
@@ -163,7 +155,6 @@ static int acpi_topstar_remove(struct acpi_device *device)
 
 	acpi_topstar_fncx_switch(device, false);
 
-	sparse_keymap_free(tps_hkey->inputdev);
 	input_unregister_device(tps_hkey->inputdev);
 	kfree(tps_hkey);
 
@@ -171,6 +162,7 @@ static int acpi_topstar_remove(struct acpi_device *device)
 }
 
 static const struct acpi_device_id topstar_device_ids[] = {
+	{ "TPS0001", 0 },
 	{ "TPSACPI01", 0 },
 	{ "", 0 },
 };

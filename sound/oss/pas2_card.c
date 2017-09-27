@@ -74,8 +74,6 @@ static char    *pas_model_names[] = {
  * to support other than the default base address
  */
 
-extern void     mix_write(unsigned char data, int ioaddr);
-
 unsigned char pas_read(int ioaddr)
 {
 	return inb(ioaddr + pas_translate_code);
@@ -385,15 +383,15 @@ static int __initdata sb_irq	= -1;
 static int __initdata sb_dma	= -1;
 static int __initdata sb_dma16	= -1;
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
-module_param(dma, int, 0);
-module_param(dma16, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
+module_param_hw(dma, int, dma, 0);
+module_param_hw(dma16, int, dma, 0);
 
-module_param(sb_io, int, 0);
-module_param(sb_irq, int, 0);
-module_param(sb_dma, int, 0);
-module_param(sb_dma16, int, 0);
+module_param_hw(sb_io, int, ioport, 0);
+module_param_hw(sb_irq, int, irq, 0);
+module_param_hw(sb_dma, int, dma, 0);
+module_param_hw(sb_dma16, int, dma, 0);
 
 module_param(joystick, bool, 0);
 module_param(symphony, bool, 0);

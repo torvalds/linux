@@ -65,11 +65,8 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(ip, call, sizeof(call));
 }
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
-	/* return value is done indirectly via data */
-	*(unsigned long *)data = 0;
-
 	return 0;
 }
 
@@ -110,7 +107,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 
 	if (ftrace_push_return_trace(*parent, self_addr, &trace.depth,
-	                             frame_pointer) == -EBUSY)
+				     frame_pointer, NULL) == -EBUSY)
 		return;
 
 	trace.func = self_addr;

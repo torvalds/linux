@@ -29,12 +29,9 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
+#include <asm/unaligned.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -47,7 +44,7 @@
 #include <linux/workqueue.h>
 
 #include <media/rc-core.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 
 /* ----------------------------------------------------------------------- */
 /* insmod parameters                                                       */
@@ -62,63 +59,85 @@ module_param(debug, int, 0644);    /* debug level (0,1,2) */
 
 /* ----------------------------------------------------------------------- */
 
-static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
-			       int size, int offset)
+static int get_key_haup_common(struct IR_i2c *ir, enum rc_proto *protocol,
+			       u32 *scancode, u8 *ptoggle, int size)
 {
 	unsigned char buf[6];
-	int start, range, toggle, dev, code, ircode;
+	int start, range, toggle, dev, code, ircode, vendor;
 
 	/* poll IR chip */
 	if (size != i2c_master_recv(ir->c, buf, size))
 		return -EIO;
 
-	/* split rc5 data block ... */
-	start  = (buf[offset] >> 7) &    1;
-	range  = (buf[offset] >> 6) &    1;
-	toggle = (buf[offset] >> 5) &    1;
-	dev    =  buf[offset]       & 0x1f;
-	code   = (buf[offset+1] >> 2) & 0x3f;
+	if (buf[0] & 0x80) {
+		int offset = (size == 6) ? 3 : 0;
 
-	/* rc5 has two start bits
-	 * the first bit must be one
-	 * the second bit defines the command range (1 = 0-63, 0 = 64 - 127)
-	 */
-	if (!start)
-		/* no key pressed */
-		return 0;
-	/*
-	 * Hauppauge remotes (black/silver) always use
-	 * specific device ids. If we do not filter the
-	 * device ids then messages destined for devices
-	 * such as TVs (id=0) will get through causing
-	 * mis-fired events.
-	 *
-	 * We also filter out invalid key presses which
-	 * produce annoying debug log entries.
-	 */
-	ircode= (start << 12) | (toggle << 11) | (dev << 6) | code;
-	if ((ircode & 0x1fff)==0x1fff)
-		/* invalid key press */
-		return 0;
+		/* split rc5 data block ... */
+		start  = (buf[offset] >> 7) &    1;
+		range  = (buf[offset] >> 6) &    1;
+		toggle = (buf[offset] >> 5) &    1;
+		dev    =  buf[offset]       & 0x1f;
+		code   = (buf[offset+1] >> 2) & 0x3f;
 
-	if (!range)
-		code += 64;
+		/* rc5 has two start bits
+		 * the first bit must be one
+		 * the second bit defines the command range:
+		 * 1 = 0-63, 0 = 64 - 127
+		 */
+		if (!start)
+			/* no key pressed */
+			return 0;
 
-	dprintk(1,"ir hauppauge (rc5): s%d r%d t%d dev=%d code=%d\n",
-		start, range, toggle, dev, code);
+		/* filter out invalid key presses */
+		ircode = (start << 12) | (toggle << 11) | (dev << 6) | code;
+		if ((ircode & 0x1fff) == 0x1fff)
+			return 0;
 
-	/* return key */
-	*ir_key = (dev << 8) | code;
-	*ir_raw = ircode;
-	return 1;
+		if (!range)
+			code += 64;
+
+		dprintk(1, "ir hauppauge (rc5): s%d r%d t%d dev=%d code=%d\n",
+			start, range, toggle, dev, code);
+
+		*protocol = RC_PROTO_RC5;
+		*scancode = RC_SCANCODE_RC5(dev, code);
+		*ptoggle = toggle;
+
+		return 1;
+	} else if (size == 6 && (buf[0] & 0x40)) {
+		code = buf[4];
+		dev = buf[3];
+		vendor = get_unaligned_be16(buf + 1);
+
+		if (vendor == 0x800f) {
+			*ptoggle = (dev & 0x80) != 0;
+			*protocol = RC_PROTO_RC6_MCE;
+			dev &= 0x7f;
+			dprintk(1, "ir hauppauge (rc6-mce): t%d vendor=%d dev=%d code=%d\n",
+						*ptoggle, vendor, dev, code);
+		} else {
+			*ptoggle = 0;
+			*protocol = RC_PROTO_RC6_6A_32;
+			dprintk(1, "ir hauppauge (rc6-6a-32): vendor=%d dev=%d code=%d\n",
+							vendor, dev, code);
+		}
+
+		*scancode = RC_SCANCODE_RC6_6A(vendor, dev, code);
+
+		return 1;
+	}
+
+	return 0;
 }
 
-static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup(struct IR_i2c *ir, enum rc_proto *protocol,
+			u32 *scancode, u8 *toggle)
 {
-	return get_key_haup_common (ir, ir_key, ir_raw, 3, 0);
+	return get_key_haup_common(ir, protocol, scancode, toggle, 3);
 }
 
-static int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup_xvr(struct IR_i2c *ir, enum rc_proto *protocol,
+			    u32 *scancode, u8 *toggle)
 {
 	int ret;
 	unsigned char buf[1] = { 0 };
@@ -133,10 +152,11 @@ static int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (ret != 1)
 		return (ret < 0) ? ret : -EINVAL;
 
-	return get_key_haup_common (ir, ir_key, ir_raw, 6, 3);
+	return get_key_haup_common(ir, protocol, scancode, toggle, 6);
 }
 
-static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pixelview(struct IR_i2c *ir, enum rc_proto *protocol,
+			     u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 
@@ -145,12 +165,15 @@ static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		dprintk(1,"read error\n");
 		return -EIO;
 	}
-	*ir_key = b;
-	*ir_raw = b;
+
+	*protocol = RC_PROTO_OTHER;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_fusionhdtv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_fusionhdtv(struct IR_i2c *ir, enum rc_proto *protocol,
+			      u32 *scancode, u8 *toggle)
 {
 	unsigned char buf[4];
 
@@ -168,13 +191,14 @@ static int get_key_fusionhdtv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if(buf[0] != 0x1 ||  buf[1] != 0xfe)
 		return 0;
 
-	*ir_key = buf[2];
-	*ir_raw = (buf[2] << 8) | buf[3];
-
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = buf[2];
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_knc1(struct IR_i2c *ir, enum rc_proto *protocol,
+			u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 
@@ -197,13 +221,14 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		/* keep old data */
 		return 1;
 
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 
-static int get_key_avermedia_cardbus(struct IR_i2c *ir,
-				     u32 *ir_key, u32 *ir_raw)
+static int get_key_avermedia_cardbus(struct IR_i2c *ir, enum rc_proto *protocol,
+				     u32 *scancode, u8 *toggle)
 {
 	unsigned char subaddr, key, keygroup;
 	struct i2c_msg msg[] = { { .addr = ir->c->addr, .flags = 0,
@@ -237,12 +262,11 @@ static int get_key_avermedia_cardbus(struct IR_i2c *ir,
 	}
 	key |= (keygroup & 1) << 6;
 
-	*ir_key = key;
-	*ir_raw = key;
-	if (!strcmp(ir->ir_codes, RC_MAP_AVERMEDIA_M733A_RM_K6)) {
-		*ir_key |= keygroup << 8;
-		*ir_raw |= keygroup << 8;
-	}
+	*protocol = RC_PROTO_UNKNOWN;
+	*scancode = key;
+	if (ir->c->addr == 0x41) /* AVerMedia EM78P153 */
+		*scancode |= keygroup << 8;
+	*toggle = 0;
 	return 1;
 }
 
@@ -250,19 +274,22 @@ static int get_key_avermedia_cardbus(struct IR_i2c *ir,
 
 static int ir_key_poll(struct IR_i2c *ir)
 {
-	static u32 ir_key, ir_raw;
+	enum rc_proto protocol;
+	u32 scancode;
+	u8 toggle;
 	int rc;
 
 	dprintk(3, "%s\n", __func__);
-	rc = ir->get_key(ir, &ir_key, &ir_raw);
+	rc = ir->get_key(ir, &protocol, &scancode, &toggle);
 	if (rc < 0) {
 		dprintk(2,"error\n");
 		return rc;
 	}
 
 	if (rc) {
-		dprintk(1, "%s: keycode = 0x%04x\n", __func__, ir_key);
-		rc_keydown(ir->rc, ir_key, 0);
+		dprintk(1, "%s: proto = 0x%04x, scancode = 0x%08x\n",
+			__func__, protocol, scancode);
+		rc_keydown(ir->rc, protocol, scancode, toggle);
 	}
 	return 0;
 }
@@ -288,7 +315,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	char *ir_codes = NULL;
 	const char *name = NULL;
-	u64 rc_type = RC_BIT_UNKNOWN;
+	u64 rc_proto = RC_PROTO_BIT_UNKNOWN;
 	struct IR_i2c *ir;
 	struct rc_dev *rc = NULL;
 	struct i2c_adapter *adap = client->adapter;
@@ -307,7 +334,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x64:
 		name        = "Pixelview";
 		ir->get_key = get_key_pixelview;
-		rc_type     = RC_BIT_OTHER;
+		rc_proto    = RC_PROTO_BIT_OTHER;
 		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x18:
@@ -315,38 +342,39 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x1a:
 		name        = "Hauppauge";
 		ir->get_key = get_key_haup;
-		rc_type     = RC_BIT_RC5;
+		rc_proto    = RC_PROTO_BIT_RC5;
 		ir_codes    = RC_MAP_HAUPPAUGE;
 		break;
 	case 0x30:
 		name        = "KNC One";
 		ir->get_key = get_key_knc1;
-		rc_type     = RC_BIT_OTHER;
+		rc_proto    = RC_PROTO_BIT_OTHER;
 		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x6b:
 		name        = "FusionHDTV";
 		ir->get_key = get_key_fusionhdtv;
-		rc_type     = RC_BIT_RC5;
+		rc_proto    = RC_PROTO_BIT_UNKNOWN;
 		ir_codes    = RC_MAP_FUSIONHDTV_MCE;
 		break;
 	case 0x40:
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
-		rc_type     = RC_BIT_OTHER;
+		rc_proto    = RC_PROTO_BIT_OTHER;
 		ir_codes    = RC_MAP_AVERMEDIA_CARDBUS;
 		break;
 	case 0x41:
 		name        = "AVerMedia EM78P153";
 		ir->get_key = get_key_avermedia_cardbus;
-		rc_type     = RC_BIT_OTHER;
+		rc_proto    = RC_PROTO_BIT_OTHER;
 		/* RM-KV remote, seems to be same as RM-K6 */
 		ir_codes    = RC_MAP_AVERMEDIA_M733A_RM_K6;
 		break;
 	case 0x71:
 		name        = "Hauppauge/Zilog Z8";
 		ir->get_key = get_key_haup_xvr;
-		rc_type     = RC_BIT_RC5;
+		rc_proto    = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
+							RC_PROTO_BIT_RC6_6A_32;
 		ir_codes    = RC_MAP_HAUPPAUGE;
 		break;
 	}
@@ -361,7 +389,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		name = init_data->name;
 		if (init_data->type)
-			rc_type = init_data->type;
+			rc_proto = init_data->type;
 
 		if (init_data->polling_interval)
 			ir->polling_interval = init_data->polling_interval;
@@ -394,17 +422,17 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	if (!rc) {
 		/*
-		 * If platform_data doesn't specify rc_dev, initilize it
+		 * If platform_data doesn't specify rc_dev, initialize it
 		 * internally
 		 */
-		rc = rc_allocate_device();
+		rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 		if (!rc)
 			return -ENOMEM;
 	}
 	ir->rc = rc;
 
 	/* Make sure we are all setup before going on */
-	if (!name || !ir->get_key || !rc_type || !ir_codes) {
+	if (!name || !ir->get_key || !rc_proto || !ir_codes) {
 		dprintk(1, ": Unsupported device at address 0x%02x\n",
 			addr);
 		err = -ENODEV;
@@ -425,14 +453,14 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 */
 	rc->input_id.bustype = BUS_I2C;
 	rc->input_phys       = ir->phys;
-	rc->input_name	     = ir->name;
+	rc->device_name	     = ir->name;
 
 	/*
 	 * Initialize the other fields of rc_dev
 	 */
 	rc->map_name       = ir->ir_codes;
-	rc->allowed_protos = rc_type;
-	rc->enabled_protocols = rc_type;
+	rc->allowed_protocols = rc_proto;
+	rc->enabled_protocols = rc_proto;
 	if (!rc->driver_name)
 		rc->driver_name = MODULE_NAME;
 
@@ -463,8 +491,7 @@ static int ir_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister device */
-	if (ir->rc)
-		rc_unregister_device(ir->rc);
+	rc_unregister_device(ir->rc);
 
 	/* free memory */
 	return 0;

@@ -28,6 +28,20 @@
 #ifndef _SSM2602_H
 #define _SSM2602_H
 
+#include <linux/regmap.h>
+
+struct device;
+
+enum ssm2602_type {
+	SSM2602,
+	SSM2604,
+};
+
+extern const struct regmap_config ssm2602_regmap_config;
+
+int ssm2602_probe(struct device *dev, enum ssm2602_type type,
+	struct regmap *regmap);
+
 /* SSM2602 Codec Register definitions */
 
 #define SSM2602_LINVOL   0x00

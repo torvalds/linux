@@ -221,7 +221,7 @@ static ssize_t show_min(struct device *dev,
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return sprintf(buf, "%ld\n", data->min[attr->index]);
+	return sprintf(buf, "%lu\n", data->min[attr->index]);
 }
 
 static ssize_t show_max(struct device *dev,
@@ -230,7 +230,7 @@ static ssize_t show_max(struct device *dev,
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return sprintf(buf, "%ld\n", data->max[attr->index]);
+	return sprintf(buf, "%lu\n", data->max[attr->index]);
 }
 
 static ssize_t show_max_hyst(struct device *dev,
@@ -239,7 +239,7 @@ static ssize_t show_max_hyst(struct device *dev,
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return sprintf(buf, "%ld\n", data->max_hyst[attr->index]);
+	return sprintf(buf, "%lu\n", data->max_hyst[attr->index]);
 }
 
 static ssize_t show_min_alarm(struct device *dev,
@@ -377,7 +377,7 @@ static int setup_irqs(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-		abx500_temp_irq_handler, IRQF_NO_SUSPEND, "abx500-temp", pdev);
+		abx500_temp_irq_handler, 0, "abx500-temp", pdev);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Request threaded irq failed (%d)\n", ret);
 
@@ -470,11 +470,11 @@ static const struct of_device_id abx500_temp_match[] = {
 	{ .compatible = "stericsson,abx500-temp" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, abx500_temp_match);
 #endif
 
 static struct platform_driver abx500_temp_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "abx500-temp",
 		.of_match_table = of_match_ptr(abx500_temp_match),
 	},

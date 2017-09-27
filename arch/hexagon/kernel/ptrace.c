@@ -22,6 +22,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
@@ -183,6 +184,7 @@ static const struct user_regset_view hexagon_user_view = {
 	.e_machine = ELF_ARCH,
 	.ei_osabi = ELF_OSABI,
 	.regsets = hexagon_regsets,
+	.e_flags = ELF_CORE_EFLAGS,
 	.n = ARRAY_SIZE(hexagon_regsets)
 };
 

@@ -10,9 +10,9 @@
 #ifndef _LINUX_IF_TEAM_H_
 #define _LINUX_IF_TEAM_H_
 
-
 #include <linux/netpoll.h>
 #include <net/sch_generic.h>
+#include <linux/types.h>
 #include <uapi/linux/if_team.h>
 
 struct team_pcpu_stats {
@@ -24,6 +24,7 @@ struct team_pcpu_stats {
 	struct u64_stats_sync	syncp;
 	u32			rx_dropped;
 	u32			tx_dropped;
+	u32			rx_nohandler;
 };
 
 struct team;
@@ -164,6 +165,7 @@ struct team_mode {
 	size_t priv_size;
 	size_t port_priv_size;
 	const struct team_mode_ops *ops;
+	enum netdev_lag_tx_type lag_tx_type;
 };
 
 #define TEAM_PORT_HASHBITS 4
@@ -194,6 +196,19 @@ struct team {
 	bool user_carrier_enabled;
 	bool queue_override_enabled;
 	struct list_head *qom_lists; /* array of queue override mapping lists */
+	bool port_mtu_change_allowed;
+	struct {
+		unsigned int count;
+		unsigned int interval; /* in ms */
+		atomic_t count_pending;
+		struct delayed_work dw;
+	} notify_peers;
+	struct {
+		unsigned int count;
+		unsigned int interval; /* in ms */
+		atomic_t count_pending;
+		struct delayed_work dw;
+	} mcast_rejoin;
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
 
@@ -230,7 +245,7 @@ static inline struct team_port *team_get_port_by_index(struct team *team,
 	return NULL;
 }
 
-static inline int team_num_to_port_index(struct team *team, int num)
+static inline int team_num_to_port_index(struct team *team, unsigned int num)
 {
 	int en_port_count = ACCESS_ONCE(team->en_port_count);
 
@@ -282,5 +297,7 @@ extern void team_mode_unregister(const struct team_mode *mode);
 
 #define TEAM_DEFAULT_NUM_TX_QUEUES 16
 #define TEAM_DEFAULT_NUM_RX_QUEUES 16
+
+#define MODULE_ALIAS_TEAM_MODE(kind) MODULE_ALIAS("team-mode-" kind)
 
 #endif /* _LINUX_IF_TEAM_H_ */

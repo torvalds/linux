@@ -72,7 +72,6 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
-#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -102,6 +101,8 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+
+#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -159,7 +160,15 @@ typedef unsigned int flex_uint32_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -365,323 +374,338 @@ int zconflineno = 1;
 
 extern char *zconftext;
 #define yytext_ptr zconftext
-static yyconst flex_int16_t yy_nxt[][17] =
+static yyconst flex_int16_t yy_nxt[][18] =
     {
     {
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-        0,    0,    0,    0,    0,    0,    0
+        0,    0,    0,    0,    0,    0,    0,    0
     },
 
     {
        11,   12,   13,   14,   12,   12,   15,   12,   12,   12,
-       12,   12,   12,   12,   12,   12,   12
+       12,   12,   12,   12,   12,   12,   12,   12
     },
 
     {
        11,   12,   13,   14,   12,   12,   15,   12,   12,   12,
-       12,   12,   12,   12,   12,   12,   12
+       12,   12,   12,   12,   12,   12,   12,   12
     },
 
     {
        11,   16,   16,   17,   16,   16,   16,   16,   16,   16,
-       16,   16,   16,   18,   16,   16,   16
+       16,   18,   16,   16,   16,   16,   16,   16
     },
 
     {
        11,   16,   16,   17,   16,   16,   16,   16,   16,   16,
-       16,   16,   16,   18,   16,   16,   16
+       16,   18,   16,   16,   16,   16,   16,   16
 
     },
 
     {
        11,   19,   20,   21,   19,   19,   19,   19,   19,   19,
-       19,   19,   19,   19,   19,   19,   19
+       19,   19,   19,   19,   19,   19,   19,   19
     },
 
     {
        11,   19,   20,   21,   19,   19,   19,   19,   19,   19,
-       19,   19,   19,   19,   19,   19,   19
+       19,   19,   19,   19,   19,   19,   19,   19
     },
 
     {
        11,   22,   22,   23,   22,   24,   22,   22,   24,   22,
-       22,   22,   22,   22,   22,   25,   22
+       22,   22,   22,   22,   22,   22,   25,   22
     },
 
     {
        11,   22,   22,   23,   22,   24,   22,   22,   24,   22,
-       22,   22,   22,   22,   22,   25,   22
+       22,   22,   22,   22,   22,   22,   25,   22
     },
 
     {
-       11,   26,   26,   27,   28,   29,   30,   31,   29,   32,
-       33,   34,   35,   35,   36,   37,   38
+       11,   26,   27,   28,   29,   30,   31,   32,   30,   33,
+       34,   35,   35,   36,   37,   38,   39,   40
 
     },
 
     {
-       11,   26,   26,   27,   28,   29,   30,   31,   29,   32,
-       33,   34,   35,   35,   36,   37,   38
+       11,   26,   27,   28,   29,   30,   31,   32,   30,   33,
+       34,   35,   35,   36,   37,   38,   39,   40
     },
 
     {
       -11,  -11,  -11,  -11,  -11,  -11,  -11,  -11,  -11,  -11,
-      -11,  -11,  -11,  -11,  -11,  -11,  -11
+      -11,  -11,  -11,  -11,  -11,  -11,  -11,  -11
     },
 
     {
        11,  -12,  -12,  -12,  -12,  -12,  -12,  -12,  -12,  -12,
-      -12,  -12,  -12,  -12,  -12,  -12,  -12
+      -12,  -12,  -12,  -12,  -12,  -12,  -12,  -12
     },
 
     {
-       11,  -13,   39,   40,  -13,  -13,   41,  -13,  -13,  -13,
-      -13,  -13,  -13,  -13,  -13,  -13,  -13
+       11,  -13,   41,   42,  -13,  -13,   43,  -13,  -13,  -13,
+      -13,  -13,  -13,  -13,  -13,  -13,  -13,  -13
     },
 
     {
        11,  -14,  -14,  -14,  -14,  -14,  -14,  -14,  -14,  -14,
-      -14,  -14,  -14,  -14,  -14,  -14,  -14
+      -14,  -14,  -14,  -14,  -14,  -14,  -14,  -14
 
     },
 
     {
-       11,   42,   42,   43,   42,   42,   42,   42,   42,   42,
-       42,   42,   42,   42,   42,   42,   42
+       11,   44,   44,   45,   44,   44,   44,   44,   44,   44,
+       44,   44,   44,   44,   44,   44,   44,   44
     },
 
     {
        11,  -16,  -16,  -16,  -16,  -16,  -16,  -16,  -16,  -16,
-      -16,  -16,  -16,  -16,  -16,  -16,  -16
+      -16,  -16,  -16,  -16,  -16,  -16,  -16,  -16
     },
 
     {
        11,  -17,  -17,  -17,  -17,  -17,  -17,  -17,  -17,  -17,
-      -17,  -17,  -17,  -17,  -17,  -17,  -17
+      -17,  -17,  -17,  -17,  -17,  -17,  -17,  -17
     },
 
     {
        11,  -18,  -18,  -18,  -18,  -18,  -18,  -18,  -18,  -18,
-      -18,  -18,  -18,   44,  -18,  -18,  -18
+      -18,   46,  -18,  -18,  -18,  -18,  -18,  -18
     },
 
     {
-       11,   45,   45,  -19,   45,   45,   45,   45,   45,   45,
-       45,   45,   45,   45,   45,   45,   45
+       11,   47,   47,  -19,   47,   47,   47,   47,   47,   47,
+       47,   47,   47,   47,   47,   47,   47,   47
 
     },
 
     {
-       11,  -20,   46,   47,  -20,  -20,  -20,  -20,  -20,  -20,
-      -20,  -20,  -20,  -20,  -20,  -20,  -20
+       11,  -20,   48,   49,  -20,  -20,  -20,  -20,  -20,  -20,
+      -20,  -20,  -20,  -20,  -20,  -20,  -20,  -20
     },
 
     {
-       11,   48,  -21,  -21,   48,   48,   48,   48,   48,   48,
-       48,   48,   48,   48,   48,   48,   48
+       11,   50,  -21,  -21,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50
     },
 
     {
-       11,   49,   49,   50,   49,  -22,   49,   49,  -22,   49,
-       49,   49,   49,   49,   49,  -22,   49
+       11,   51,   51,   52,   51,  -22,   51,   51,  -22,   51,
+       51,   51,   51,   51,   51,   51,  -22,   51
     },
 
     {
        11,  -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,
-      -23,  -23,  -23,  -23,  -23,  -23,  -23
+      -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23
     },
 
     {
        11,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,
-      -24,  -24,  -24,  -24,  -24,  -24,  -24
+      -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24
 
     },
 
     {
-       11,   51,   51,   52,   51,   51,   51,   51,   51,   51,
-       51,   51,   51,   51,   51,   51,   51
+       11,   53,   53,   54,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53
     },
 
     {
        11,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
-      -26,  -26,  -26,  -26,  -26,  -26,  -26
+      -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26
     },
 
     {
-       11,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
-      -27,  -27,  -27,  -27,  -27,  -27,  -27
+       11,  -27,   55,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
+      -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27
     },
 
     {
        11,  -28,  -28,  -28,  -28,  -28,  -28,  -28,  -28,  -28,
-      -28,  -28,  -28,  -28,   53,  -28,  -28
+      -28,  -28,  -28,  -28,  -28,  -28,  -28,  -28
     },
 
     {
        11,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,
-      -29,  -29,  -29,  -29,  -29,  -29,  -29
+      -29,  -29,  -29,  -29,   56,  -29,  -29,  -29
 
     },
 
     {
-       11,   54,   54,  -30,   54,   54,   54,   54,   54,   54,
-       54,   54,   54,   54,   54,   54,   54
+       11,  -30,  -30,  -30,  -30,  -30,  -30,  -30,  -30,  -30,
+      -30,  -30,  -30,  -30,  -30,  -30,  -30,  -30
     },
 
     {
-       11,  -31,  -31,  -31,  -31,  -31,  -31,   55,  -31,  -31,
-      -31,  -31,  -31,  -31,  -31,  -31,  -31
+       11,   57,   57,  -31,   57,   57,   57,   57,   57,   57,
+       57,   57,   57,   57,   57,   57,   57,   57
     },
 
     {
-       11,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32,
-      -32,  -32,  -32,  -32,  -32,  -32,  -32
+       11,  -32,  -32,  -32,  -32,  -32,  -32,   58,  -32,  -32,
+      -32,  -32,  -32,  -32,  -32,  -32,  -32,  -32
     },
 
     {
        11,  -33,  -33,  -33,  -33,  -33,  -33,  -33,  -33,  -33,
-      -33,  -33,  -33,  -33,  -33,  -33,  -33
+      -33,  -33,  -33,  -33,  -33,  -33,  -33,  -33
     },
 
     {
        11,  -34,  -34,  -34,  -34,  -34,  -34,  -34,  -34,  -34,
-      -34,   56,   57,   57,  -34,  -34,  -34
+      -34,  -34,  -34,  -34,  -34,  -34,  -34,  -34
 
     },
 
     {
        11,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,
-      -35,   57,   57,   57,  -35,  -35,  -35
+      -35,   59,   59,  -35,  -35,  -35,  -35,  -35
     },
 
     {
        11,  -36,  -36,  -36,  -36,  -36,  -36,  -36,  -36,  -36,
-      -36,  -36,  -36,  -36,  -36,  -36,  -36
+      -36,  -36,  -36,  -36,   60,  -36,  -36,  -36
     },
 
     {
-       11,  -37,  -37,   58,  -37,  -37,  -37,  -37,  -37,  -37,
-      -37,  -37,  -37,  -37,  -37,  -37,  -37
+       11,  -37,  -37,  -37,  -37,  -37,  -37,  -37,  -37,  -37,
+      -37,  -37,  -37,  -37,  -37,  -37,  -37,  -37
     },
 
     {
        11,  -38,  -38,  -38,  -38,  -38,  -38,  -38,  -38,  -38,
-      -38,  -38,  -38,  -38,  -38,  -38,   59
+      -38,  -38,  -38,  -38,   61,  -38,  -38,  -38
     },
 
     {
-       11,  -39,   39,   40,  -39,  -39,   41,  -39,  -39,  -39,
-      -39,  -39,  -39,  -39,  -39,  -39,  -39
+       11,  -39,  -39,   62,  -39,  -39,  -39,  -39,  -39,  -39,
+      -39,  -39,  -39,  -39,  -39,  -39,  -39,  -39
 
     },
 
     {
        11,  -40,  -40,  -40,  -40,  -40,  -40,  -40,  -40,  -40,
-      -40,  -40,  -40,  -40,  -40,  -40,  -40
+      -40,  -40,  -40,  -40,  -40,  -40,  -40,   63
     },
 
     {
-       11,   42,   42,   43,   42,   42,   42,   42,   42,   42,
-       42,   42,   42,   42,   42,   42,   42
+       11,  -41,   41,   42,  -41,  -41,   43,  -41,  -41,  -41,
+      -41,  -41,  -41,  -41,  -41,  -41,  -41,  -41
     },
 
     {
-       11,   42,   42,   43,   42,   42,   42,   42,   42,   42,
-       42,   42,   42,   42,   42,   42,   42
+       11,  -42,  -42,  -42,  -42,  -42,  -42,  -42,  -42,  -42,
+      -42,  -42,  -42,  -42,  -42,  -42,  -42,  -42
     },
 
     {
-       11,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43
+       11,   44,   44,   45,   44,   44,   44,   44,   44,   44,
+       44,   44,   44,   44,   44,   44,   44,   44
     },
 
     {
-       11,  -44,  -44,  -44,  -44,  -44,  -44,  -44,  -44,  -44,
-      -44,  -44,  -44,   44,  -44,  -44,  -44
+       11,   44,   44,   45,   44,   44,   44,   44,   44,   44,
+       44,   44,   44,   44,   44,   44,   44,   44
 
     },
 
     {
-       11,   45,   45,  -45,   45,   45,   45,   45,   45,   45,
-       45,   45,   45,   45,   45,   45,   45
+       11,  -45,  -45,  -45,  -45,  -45,  -45,  -45,  -45,  -45,
+      -45,  -45,  -45,  -45,  -45,  -45,  -45,  -45
     },
 
     {
-       11,  -46,   46,   47,  -46,  -46,  -46,  -46,  -46,  -46,
-      -46,  -46,  -46,  -46,  -46,  -46,  -46
+       11,  -46,  -46,  -46,  -46,  -46,  -46,  -46,  -46,  -46,
+      -46,   46,  -46,  -46,  -46,  -46,  -46,  -46
     },
 
     {
-       11,   48,  -47,  -47,   48,   48,   48,   48,   48,   48,
-       48,   48,   48,   48,   48,   48,   48
+       11,   47,   47,  -47,   47,   47,   47,   47,   47,   47,
+       47,   47,   47,   47,   47,   47,   47,   47
     },
 
     {
-       11,  -48,  -48,  -48,  -48,  -48,  -48,  -48,  -48,  -48,
-      -48,  -48,  -48,  -48,  -48,  -48,  -48
+       11,  -48,   48,   49,  -48,  -48,  -48,  -48,  -48,  -48,
+      -48,  -48,  -48,  -48,  -48,  -48,  -48,  -48
     },
 
     {
-       11,   49,   49,   50,   49,  -49,   49,   49,  -49,   49,
-       49,   49,   49,   49,   49,  -49,   49
+       11,   50,  -49,  -49,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50
 
     },
 
     {
        11,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50
+      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50
     },
 
     {
-       11,  -51,  -51,   52,  -51,  -51,  -51,  -51,  -51,  -51,
-      -51,  -51,  -51,  -51,  -51,  -51,  -51
+       11,   51,   51,   52,   51,  -51,   51,   51,  -51,   51,
+       51,   51,   51,   51,   51,   51,  -51,   51
     },
 
     {
        11,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
-      -52,  -52,  -52,  -52,  -52,  -52,  -52
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52
     },
 
     {
-       11,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53
+       11,  -53,  -53,   54,  -53,  -53,  -53,  -53,  -53,  -53,
+      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53
     },
 
     {
-       11,   54,   54,  -54,   54,   54,   54,   54,   54,   54,
-       54,   54,   54,   54,   54,   54,   54
+       11,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54
 
     },
 
     {
-       11,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,
-      -55,  -55,  -55,  -55,  -55,  -55,  -55
+       11,  -55,   55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,
+      -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55
     },
 
     {
        11,  -56,  -56,  -56,  -56,  -56,  -56,  -56,  -56,  -56,
-      -56,   60,   57,   57,  -56,  -56,  -56
+      -56,  -56,  -56,  -56,  -56,  -56,  -56,  -56
     },
 
     {
-       11,  -57,  -57,  -57,  -57,  -57,  -57,  -57,  -57,  -57,
-      -57,   57,   57,   57,  -57,  -57,  -57
+       11,   57,   57,  -57,   57,   57,   57,   57,   57,   57,
+       57,   57,   57,   57,   57,   57,   57,   57
     },
 
     {
        11,  -58,  -58,  -58,  -58,  -58,  -58,  -58,  -58,  -58,
-      -58,  -58,  -58,  -58,  -58,  -58,  -58
+      -58,  -58,  -58,  -58,  -58,  -58,  -58,  -58
     },
 
     {
        11,  -59,  -59,  -59,  -59,  -59,  -59,  -59,  -59,  -59,
-      -59,  -59,  -59,  -59,  -59,  -59,  -59
+      -59,   59,   59,  -59,  -59,  -59,  -59,  -59
 
     },
 
     {
        11,  -60,  -60,  -60,  -60,  -60,  -60,  -60,  -60,  -60,
-      -60,   57,   57,   57,  -60,  -60,  -60
+      -60,  -60,  -60,  -60,  -60,  -60,  -60,  -60
+    },
+
+    {
+       11,  -61,  -61,  -61,  -61,  -61,  -61,  -61,  -61,  -61,
+      -61,  -61,  -61,  -61,  -61,  -61,  -61,  -61
+    },
+
+    {
+       11,  -62,  -62,  -62,  -62,  -62,  -62,  -62,  -62,  -62,
+      -62,  -62,  -62,  -62,  -62,  -62,  -62,  -62
+    },
+
+    {
+       11,  -63,  -63,  -63,  -63,  -63,  -63,  -63,  -63,  -63,
+      -63,  -63,  -63,  -63,  -63,  -63,  -63,  -63
     },
 
     } ;
@@ -701,8 +725,8 @@ static void yy_fatal_error (yyconst char msg[]  );
 	*yy_cp = '\0'; \
 	(yy_c_buf_p) = yy_cp;
 
-#define YY_NUM_RULES 33
-#define YY_END_OF_BUFFER 34
+#define YY_NUM_RULES 37
+#define YY_END_OF_BUFFER 38
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -710,14 +734,15 @@ struct yy_trans_info
 	flex_int32_t yy_verify;
 	flex_int32_t yy_nxt;
 	};
-static yyconst flex_int16_t yy_accept[61] =
+static yyconst flex_int16_t yy_accept[64] =
     {   0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-       34,    5,    4,    2,    3,    7,    8,    6,   32,   29,
-       31,   24,   28,   27,   26,   22,   17,   13,   16,   20,
-       22,   11,   12,   19,   19,   14,   22,   22,    4,    2,
-        3,    3,    1,    6,   32,   29,   31,   30,   24,   23,
-       26,   25,   15,   20,    9,   19,   19,   21,   10,   18
+       38,    5,    4,    2,    3,    7,    8,    6,   36,   33,
+       35,   28,   32,   31,   30,   26,   25,   21,   13,   20,
+       23,   26,   11,   12,   22,   18,   14,   19,   26,   26,
+        4,    2,    3,    3,    1,    6,   36,   33,   35,   34,
+       28,   27,   30,   29,   25,   15,   23,    9,   22,   16,
+       17,   24,   10
     } ;
 
 static yyconst flex_int32_t yy_ec[256] =
@@ -726,16 +751,16 @@ static yyconst flex_int32_t yy_ec[256] =
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    2,    4,    5,    6,    1,    1,    7,    8,    9,
-       10,    1,    1,    1,   11,   12,   12,   13,   13,   13,
-       13,   13,   13,   13,   13,   13,   13,    1,    1,    1,
-       14,    1,    1,    1,   13,   13,   13,   13,   13,   13,
-       13,   13,   13,   13,   13,   13,   13,   13,   13,   13,
-       13,   13,   13,   13,   13,   13,   13,   13,   13,   13,
-        1,   15,    1,    1,   13,    1,   13,   13,   13,   13,
+       10,    1,    1,    1,   11,   12,   12,   11,   11,   11,
+       11,   11,   11,   11,   11,   11,   11,    1,    1,   13,
+       14,   15,    1,    1,   11,   11,   11,   11,   11,   11,
+       11,   11,   11,   11,   11,   11,   11,   11,   11,   11,
+       11,   11,   11,   11,   11,   11,   11,   11,   11,   11,
+        1,   16,    1,    1,   11,    1,   11,   11,   11,   11,
 
-       13,   13,   13,   13,   13,   13,   13,   13,   13,   13,
-       13,   13,   13,   13,   13,   13,   13,   13,   13,   13,
-       13,   13,    1,   16,    1,    1,    1,    1,    1,    1,
+       11,   11,   11,   11,   11,   11,   11,   11,   11,   11,
+       11,   11,   11,   11,   11,   11,   11,   11,   11,   11,
+       11,   11,    1,   17,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
@@ -789,8 +814,8 @@ static char *text;
 static int text_size, text_asize;
 
 struct buffer {
-        struct buffer *parent;
-        YY_BUFFER_STATE state;
+	struct buffer *parent;
+	YY_BUFFER_STATE state;
 };
 
 struct buffer *current_buf;
@@ -827,6 +852,13 @@ static void alloc_string(const char *str, int size)
 	text = xmalloc(size + 1);
 	memcpy(text, str, size);
 	text[size] = 0;
+}
+
+static void warn_ignored_character(char chr)
+{
+	fprintf(stderr,
+	        "%s:%d:warning: ignoring unsupported character '%c'\n",
+	        zconf_curname(), zconf_lineno(), chr);
 }
 
 #define INITIAL 0
@@ -912,7 +944,12 @@ static int input (void );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1100,7 +1137,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-
+warn_ignored_character(*zconftext);
 	YY_BREAK
 case 8:
 /* rule 8 can match eol */
@@ -1142,22 +1179,34 @@ return T_UNEQUAL;
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
+return T_LESS_EQUAL;
+	YY_BREAK
+case 17:
+YY_RULE_SETUP
+return T_GREATER_EQUAL;
+	YY_BREAK
+case 18:
+YY_RULE_SETUP
+return T_LESS;
+	YY_BREAK
+case 19:
+YY_RULE_SETUP
+return T_GREATER;
+	YY_BREAK
+case 20:
+YY_RULE_SETUP
 {
 		str = zconftext[0];
 		new_string();
 		BEGIN(STRING);
 	}
 	YY_BREAK
-case 17:
-/* rule 17 can match eol */
+case 21:
+/* rule 21 can match eol */
 YY_RULE_SETUP
 BEGIN(INITIAL); current_file->lineno++; return T_EOL;
 	YY_BREAK
-case 18:
-YY_RULE_SETUP
-/* ignore */
-	YY_BREAK
-case 19:
+case 22:
 YY_RULE_SETUP
 {
 		const struct kconf_id *id = kconf_id_lookup(zconftext, zconfleng);
@@ -1170,18 +1219,22 @@ YY_RULE_SETUP
 		return T_WORD;
 	}
 	YY_BREAK
-case 20:
+case 23:
 YY_RULE_SETUP
 /* comment */
 	YY_BREAK
-case 21:
-/* rule 21 can match eol */
+case 24:
+/* rule 24 can match eol */
 YY_RULE_SETUP
 current_file->lineno++;
 	YY_BREAK
-case 22:
+case 25:
 YY_RULE_SETUP
 
+	YY_BREAK
+case 26:
+YY_RULE_SETUP
+warn_ignored_character(*zconftext);
 	YY_BREAK
 case YY_STATE_EOF(PARAM):
 {
@@ -1189,43 +1242,43 @@ case YY_STATE_EOF(PARAM):
 	}
 	YY_BREAK
 
-case 23:
-/* rule 23 can match eol */
-*yy_cp = (yy_hold_char); /* undo effects of setting up zconftext */
-(yy_c_buf_p) = yy_cp -= 1;
-YY_DO_BEFORE_ACTION; /* set up zconftext again */
-YY_RULE_SETUP
-{
-		append_string(zconftext, zconfleng);
-		zconflval.string = text;
-		return T_WORD_QUOTE;
-	}
-	YY_BREAK
-case 24:
-YY_RULE_SETUP
-{
-		append_string(zconftext, zconfleng);
-	}
-	YY_BREAK
-case 25:
-/* rule 25 can match eol */
-*yy_cp = (yy_hold_char); /* undo effects of setting up zconftext */
-(yy_c_buf_p) = yy_cp -= 1;
-YY_DO_BEFORE_ACTION; /* set up zconftext again */
-YY_RULE_SETUP
-{
-		append_string(zconftext + 1, zconfleng - 1);
-		zconflval.string = text;
-		return T_WORD_QUOTE;
-	}
-	YY_BREAK
-case 26:
-YY_RULE_SETUP
-{
-		append_string(zconftext + 1, zconfleng - 1);
-	}
-	YY_BREAK
 case 27:
+/* rule 27 can match eol */
+*yy_cp = (yy_hold_char); /* undo effects of setting up zconftext */
+(yy_c_buf_p) = yy_cp -= 1;
+YY_DO_BEFORE_ACTION; /* set up zconftext again */
+YY_RULE_SETUP
+{
+		append_string(zconftext, zconfleng);
+		zconflval.string = text;
+		return T_WORD_QUOTE;
+	}
+	YY_BREAK
+case 28:
+YY_RULE_SETUP
+{
+		append_string(zconftext, zconfleng);
+	}
+	YY_BREAK
+case 29:
+/* rule 29 can match eol */
+*yy_cp = (yy_hold_char); /* undo effects of setting up zconftext */
+(yy_c_buf_p) = yy_cp -= 1;
+YY_DO_BEFORE_ACTION; /* set up zconftext again */
+YY_RULE_SETUP
+{
+		append_string(zconftext + 1, zconfleng - 1);
+		zconflval.string = text;
+		return T_WORD_QUOTE;
+	}
+	YY_BREAK
+case 30:
+YY_RULE_SETUP
+{
+		append_string(zconftext + 1, zconfleng - 1);
+	}
+	YY_BREAK
+case 31:
 YY_RULE_SETUP
 {
 		if (str == zconftext[0]) {
@@ -1236,8 +1289,8 @@ YY_RULE_SETUP
 			append_string(zconftext, 1);
 	}
 	YY_BREAK
-case 28:
-/* rule 28 can match eol */
+case 32:
+/* rule 32 can match eol */
 YY_RULE_SETUP
 {
 		printf("%s:%d:warning: multi-line strings not supported\n", zconf_curname(), zconf_lineno());
@@ -1252,7 +1305,7 @@ case YY_STATE_EOF(STRING):
 	}
 	YY_BREAK
 
-case 29:
+case 33:
 YY_RULE_SETUP
 {
 		ts = 0;
@@ -1277,8 +1330,8 @@ YY_RULE_SETUP
 		}
 	}
 	YY_BREAK
-case 30:
-/* rule 30 can match eol */
+case 34:
+/* rule 34 can match eol */
 *yy_cp = (yy_hold_char); /* undo effects of setting up zconftext */
 (yy_c_buf_p) = yy_cp -= 1;
 YY_DO_BEFORE_ACTION; /* set up zconftext again */
@@ -1289,15 +1342,15 @@ YY_RULE_SETUP
 		return T_HELPTEXT;
 	}
 	YY_BREAK
-case 31:
-/* rule 31 can match eol */
+case 35:
+/* rule 35 can match eol */
 YY_RULE_SETUP
 {
 		current_file->lineno++;
 		append_string("\n", 1);
 	}
 	YY_BREAK
-case 32:
+case 36:
 YY_RULE_SETUP
 {
 		while (zconfleng) {
@@ -1328,7 +1381,7 @@ case YY_STATE_EOF(COMMAND):
 	yyterminate();
 }
 	YY_BREAK
-case 33:
+case 37:
 YY_RULE_SETUP
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
@@ -2058,8 +2111,8 @@ YY_BUFFER_STATE zconf_scan_string (yyconst char * yystr )
 
 /** Setup the input buffer state to scan the given bytes. The next call to zconflex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * 
  * @return the newly allocated buffer state object.
  */

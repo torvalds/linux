@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2015 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000E_REGS_H_
 #define _E1000E_REGS_H_
@@ -39,11 +32,15 @@
 #define E1000_SCTL	0x00024	/* SerDes Control - RW */
 #define E1000_FCAL	0x00028	/* Flow Control Address Low - RW */
 #define E1000_FCAH	0x0002C	/* Flow Control Address High -RW */
+#define E1000_FEXT	0x0002C	/* Future Extended - RW */
 #define E1000_FEXTNVM	0x00028	/* Future Extended NVM - RW */
 #define E1000_FEXTNVM3	0x0003C	/* Future Extended NVM 3 - RW */
 #define E1000_FEXTNVM4	0x00024	/* Future Extended NVM 4 - RW */
 #define E1000_FEXTNVM6	0x00010	/* Future Extended NVM 6 - RW */
 #define E1000_FEXTNVM7	0x000E4	/* Future Extended NVM 7 - RW */
+#define E1000_FEXTNVM9	0x5BB4	/* Future Extended NVM 9 - RW */
+#define E1000_FEXTNVM11	0x5BBC	/* Future Extended NVM 11 - RW */
+#define E1000_PCIEANACFG	0x00F18	/* PCIE Analog Config */
 #define E1000_FCT	0x00030	/* Flow Control Type - RW */
 #define E1000_VET	0x00038	/* VLAN Ether Type - RW */
 #define E1000_ICR	0x000C0	/* Interrupt Cause Read - R/clr */
@@ -73,6 +70,7 @@
 #define E1000_PBA	0x01000	/* Packet Buffer Allocation - RW */
 #define E1000_PBS	0x01008	/* Packet Buffer Size */
 #define E1000_PBECCSTS	0x0100C	/* Packet Buffer ECC Status - RW */
+#define E1000_IOSFPC	0x00F28	/* TX corrupted data  */
 #define E1000_EEMNGCTL	0x01010	/* MNG EEprom Control */
 #define E1000_EEWR	0x0102C	/* EEPROM Write Register - RW */
 #define E1000_FLOP	0x0103C	/* FLASH Opcode Register */
@@ -247,6 +245,10 @@
 #define E1000_SYSTIML	0x0B600	/* System time register Low - RO */
 #define E1000_SYSTIMH	0x0B604	/* System time register High - RO */
 #define E1000_TIMINCA	0x0B608	/* Increment attributes register - RW */
+#define E1000_SYSSTMPL  0x0B648 /* HH Timesync system stamp low register */
+#define E1000_SYSSTMPH  0x0B64C /* HH Timesync system stamp hi register */
+#define E1000_PLTSTMPL  0x0B640 /* HH Timesync platform stamp low register */
+#define E1000_PLTSTMPH  0x0B644 /* HH Timesync platform stamp hi register */
 #define E1000_RXMTRL	0x0B634	/* Time sync Rx EtherType and Msg Type - RW */
 #define E1000_RXUDP	0x0B638	/* Time Sync Rx UDP Port - RW */
 

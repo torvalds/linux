@@ -12,11 +12,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors	Mitsuru KANDA  <mk@linux-ipv6.org>
- * 		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
+ *		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
  */
 
 #define pr_fmt(fmt) "IPv6: " fmt
@@ -65,7 +64,6 @@ err:
 
 	return ret;
 }
-
 EXPORT_SYMBOL(xfrm6_tunnel_register);
 
 int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
@@ -93,7 +91,6 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(xfrm6_tunnel_deregister);
 
 #define for_each_tunnel_rcu(head, handler)		\
@@ -147,6 +144,16 @@ static void tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			break;
 }
 
+static void tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			 u8 type, u8 code, int offset, __be32 info)
+{
+	struct xfrm6_tunnel *handler;
+
+	for_each_tunnel_rcu(tunnel46_handlers, handler)
+		if (!handler->err_handler(skb, opt, type, code, offset, info))
+			break;
+}
+
 static const struct inet6_protocol tunnel6_protocol = {
 	.handler	= tunnel6_rcv,
 	.err_handler	= tunnel6_err,
@@ -155,7 +162,7 @@ static const struct inet6_protocol tunnel6_protocol = {
 
 static const struct inet6_protocol tunnel46_protocol = {
 	.handler	= tunnel46_rcv,
-	.err_handler	= tunnel6_err,
+	.err_handler	= tunnel46_err,
 	.flags          = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 

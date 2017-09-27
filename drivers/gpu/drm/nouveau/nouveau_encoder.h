@@ -30,22 +30,27 @@
 #include <subdev/bios/dcb.h>
 
 #include <drm/drm_encoder_slave.h>
+#include <drm/drm_dp_mst_helper.h>
 #include "dispnv04/disp.h"
 
 #define NV_DPMS_CLEARED 0x80
 
-struct nouveau_i2c_port;
+struct nvkm_i2c_port;
 
 struct nouveau_encoder {
 	struct drm_encoder_slave base;
 
 	struct dcb_output *dcb;
 	int or;
-	struct nouveau_i2c_port *i2c;
+	int link;
+
+	struct i2c_adapter *i2c;
+	struct nvkm_i2c_aux *aux;
 
 	/* different to drm_encoder.crtc, this reflects what's
 	 * actually programmed on the hw, not the proposed crtc */
 	struct drm_crtc *crtc;
+	u32 ctrl;
 
 	struct drm_display_mode mode;
 	int last_dpms;
@@ -54,12 +59,16 @@ struct nouveau_encoder {
 
 	union {
 		struct {
-			u8  dpcd[8];
+			struct nv50_mstm *mstm;
 			int link_nr;
 			int link_bw;
-			u32 datarate;
 		} dp;
 	};
+
+	void (*enc_save)(struct drm_encoder *encoder);
+	void (*enc_restore)(struct drm_encoder *encoder);
+	void (*update)(struct nouveau_encoder *, u8 head,
+		       struct drm_display_mode *, u8 proto, u8 depth);
 };
 
 struct nouveau_encoder *
@@ -77,18 +86,24 @@ static inline struct drm_encoder *to_drm_encoder(struct nouveau_encoder *enc)
 	return &enc->base.base;
 }
 
-static inline struct drm_encoder_slave_funcs *
+static inline const struct drm_encoder_slave_funcs *
 get_slave_funcs(struct drm_encoder *enc)
 {
 	return to_encoder_slave(enc)->slave_funcs;
 }
 
 /* nouveau_dp.c */
-bool nouveau_dp_detect(struct drm_encoder *);
-void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
-		     struct nouveau_object *);
+enum nouveau_dp_status {
+	NOUVEAU_DP_SST,
+	NOUVEAU_DP_MST,
+};
+
+int nouveau_dp_detect(struct nouveau_encoder *);
 
 struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
 
+int nv50_mstm_detect(struct nv50_mstm *, u8 dpcd[8], int allow);
+void nv50_mstm_remove(struct nv50_mstm *);
+void nv50_mstm_service(struct nv50_mstm *);
 #endif /* __NOUVEAU_ENCODER_H__ */

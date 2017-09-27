@@ -3,34 +3,13 @@
 #include <linux/scatterlist.h>
 #include <linux/kernel.h>
 
-/* TODO: empty stubs for now. Broken but enough for virtio_ring.c */
-#define list_add_tail(a, b) do {} while (0)
-#define list_del(a) do {} while (0)
-
-#define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
-#define BITS_PER_BYTE		8
-#define BITS_PER_LONG (sizeof(long) * BITS_PER_BYTE)
-#define BIT_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
-
-/* TODO: Not atomic as it should be:
- * we don't use this for anything important. */
-static inline void clear_bit(int nr, volatile unsigned long *addr)
-{
-	unsigned long mask = BIT_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
-
-	*p &= ~mask;
-}
-
-static inline int test_bit(int nr, const volatile unsigned long *addr)
-{
-        return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
-}
-/* end of stubs */
+struct device {
+	void *parent;
+};
 
 struct virtio_device {
-	void *dev;
-	unsigned long features[1];
+	struct device dev;
+	u64 features;
 };
 
 struct virtqueue {
@@ -63,7 +42,7 @@ int virtqueue_add_inbuf(struct virtqueue *vq,
 			void *data,
 			gfp_t gfp);
 
-void virtqueue_kick(struct virtqueue *vq);
+bool virtqueue_kick(struct virtqueue *vq);
 
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
 
@@ -78,8 +57,9 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,
+				      bool ctx,
 				      void *pages,
-				      void (*notify)(struct virtqueue *vq),
+				      bool (*notify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name);
 void vring_del_virtqueue(struct virtqueue *vq);

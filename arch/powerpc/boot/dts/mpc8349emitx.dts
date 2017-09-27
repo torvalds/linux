@@ -92,7 +92,7 @@
 			dfsrr;
 
 			eeprom: at24@50 {
-				compatible = "st-micro,24c256";
+				compatible = "st,24c256", "atmel,24c256";
 				reg = <0x50>;
 			};
 
@@ -130,7 +130,7 @@
 			};
 
 			spd: at24@51 {
-				compatible = "at24,spd";
+				compatible = "atmel,spd";
 				reg = <0x51>;
 			};
 
@@ -240,7 +240,6 @@
 					interrupt-parent = <&ipic>;
 					interrupts = <18 0x8>;
 					reg = <0x1c>;
-					device_type = "ethernet-phy";
 				};
 
 				tbi0: tbi-phy@11 {

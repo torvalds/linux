@@ -26,6 +26,7 @@
 #include <asm/errno.h>
 #include <asm/xics.h>
 #include <asm/kvm_ppc.h>
+#include <asm/dbell.h>
 
 struct icp_ipl {
 	union {
@@ -123,10 +124,10 @@ static unsigned int icp_native_get_irq(void)
 	unsigned int irq;
 
 	if (vec == XICS_IRQ_SPURIOUS)
-		return NO_IRQ;
+		return 0;
 
 	irq = irq_find_mapping(xics_host, vec);
-	if (likely(irq != NO_IRQ)) {
+	if (likely(irq)) {
 		xics_push_cppr(vec);
 		return irq;
 	}
@@ -137,15 +138,61 @@ static unsigned int icp_native_get_irq(void)
 	/* We might learn about it later, so EOI it */
 	icp_native_set_xirr(xirr);
 
-	return NO_IRQ;
+	return 0;
 }
 
 #ifdef CONFIG_SMP
 
-static void icp_native_cause_ipi(int cpu, unsigned long data)
+static void icp_native_cause_ipi(int cpu)
 {
 	kvmppc_set_host_ipi(cpu, 1);
 	icp_native_set_qirr(cpu, IPI_PRIORITY);
+}
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+void icp_native_cause_ipi_rm(int cpu)
+{
+	/*
+	 * Currently not used to send IPIs to another CPU
+	 * on the same core. Only caller is KVM real mode.
+	 * Need the physical address of the XICS to be
+	 * previously saved in kvm_hstate in the paca.
+	 */
+	void __iomem *xics_phys;
+
+	/*
+	 * Just like the cause_ipi functions, it is required to
+	 * include a full barrier before causing the IPI.
+	 */
+	xics_phys = paca[cpu].kvm_hstate.xics_phys;
+	mb();
+	__raw_rm_writeb(IPI_PRIORITY, xics_phys + XICS_MFRR);
+}
+#endif
+
+/*
+ * Called when an interrupt is received on an off-line CPU to
+ * clear the interrupt, so that the CPU can go back to nap mode.
+ */
+void icp_native_flush_interrupt(void)
+{
+	unsigned int xirr = icp_native_get_xirr();
+	unsigned int vec = xirr & 0x00ffffff;
+
+	if (vec == XICS_IRQ_SPURIOUS)
+		return;
+	if (vec == XICS_IPI) {
+		/* Clear pending IPI */
+		int cpu = smp_processor_id();
+		kvmppc_set_host_ipi(cpu, 0);
+		icp_native_set_qirr(cpu, 0xff);
+	} else {
+		pr_err("XICS: hw interrupt 0x%x to offline cpu, disabling\n",
+		       vec);
+		xics_mask_unknown_vec(vec);
+	}
+	/* EOI the interrupt */
+	icp_native_set_xirr(xirr);
 }
 
 void xics_wake_cpu(int cpu)
@@ -216,7 +263,7 @@ static int __init icp_native_init_one_node(struct device_node *np,
 					   unsigned int *indx)
 {
 	unsigned int ilen;
-	const u32 *ireg;
+	const __be32 *ireg;
 	int i;
 	int reg_tuple_size;
 	int num_servers = 0;

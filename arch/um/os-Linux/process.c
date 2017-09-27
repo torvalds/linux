@@ -1,9 +1,11 @@
 /*
+ * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
@@ -15,7 +17,6 @@
 #include <init.h>
 #include <longjmp.h>
 #include <os.h>
-#include <skas_ptrace.h>
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -89,6 +90,11 @@ int os_process_parent(int pid)
 	return parent;
 }
 
+void os_alarm_process(int pid)
+{
+	kill(pid, SIGALRM);
+}
+
 void os_stop_process(int pid)
 {
 	kill(pid, SIGSTOP);
@@ -99,21 +105,6 @@ void os_kill_process(int pid, int reap_child)
 	kill(pid, SIGKILL);
 	if (reap_child)
 		CATCH_EINTR(waitpid(pid, NULL, __WALL));
-}
-
-/* This is here uniquely to have access to the userspace errno, i.e. the one
- * used by ptrace in case of error.
- */
-
-long os_ptrace_ldt(long pid, long addr, long data)
-{
-	int ret;
-
-	ret = ptrace(PTRACE_LDT, pid, addr, data);
-
-	if (ret < 0)
-		return -errno;
-	return ret;
 }
 
 /* Kill off a ptraced child by all means available.  kill it normally first,
@@ -232,6 +223,57 @@ out:
 	return ok;
 }
 
+static int os_page_mincore(void *addr)
+{
+	char vec[2];
+	int ret;
+
+	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
+	if (ret < 0) {
+		if (errno == ENOMEM || errno == EINVAL)
+			return 0;
+		else
+			return -errno;
+	}
+
+	return vec[0] & 1;
+}
+
+int os_mincore(void *addr, unsigned long len)
+{
+	char *vec;
+	int ret, i;
+
+	if (len <= UM_KERN_PAGE_SIZE)
+		return os_page_mincore(addr);
+
+	vec = calloc(1, (len + UM_KERN_PAGE_SIZE - 1) / UM_KERN_PAGE_SIZE);
+	if (!vec)
+		return -ENOMEM;
+
+	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
+	if (ret < 0) {
+		if (errno == ENOMEM || errno == EINVAL)
+			ret = 0;
+		else
+			ret = -errno;
+
+		goto out;
+	}
+
+	for (i = 0; i < ((len + UM_KERN_PAGE_SIZE - 1) / UM_KERN_PAGE_SIZE); i++) {
+		if (!(vec[i] & 1)) {
+			ret = 0;
+			goto out;
+		}
+	}
+
+	ret = 1;
+out:
+	free(vec);
+	return ret;
+}
+
 void init_new_thread_signals(void)
 {
 	set_handler(SIGSEGV);
@@ -242,5 +284,4 @@ void init_new_thread_signals(void)
 	signal(SIGHUP, SIG_IGN);
 	set_handler(SIGIO);
 	signal(SIGWINCH, SIG_IGN);
-	signal(SIGTERM, SIG_DFL);
 }

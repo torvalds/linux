@@ -20,6 +20,8 @@
 #include <linux/mmc/host.h>
 
 #include "core.h"
+#include "card.h"
+#include "host.h"
 #include "mmc_ops.h"
 
 #ifdef CONFIG_FAIL_MMC_REQUEST
@@ -126,6 +128,12 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 	case MMC_TIMING_SD_HS:
 		str = "sd high-speed";
 		break;
+	case MMC_TIMING_UHS_SDR12:
+		str = "sd uhs SDR12";
+		break;
+	case MMC_TIMING_UHS_SDR25:
+		str = "sd uhs SDR25";
+		break;
 	case MMC_TIMING_UHS_SDR50:
 		str = "sd uhs SDR50";
 		break;
@@ -135,8 +143,15 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 	case MMC_TIMING_UHS_DDR50:
 		str = "sd uhs DDR50";
 		break;
+	case MMC_TIMING_MMC_DDR52:
+		str = "mmc DDR52";
+		break;
 	case MMC_TIMING_MMC_HS200:
-		str = "mmc high-speed SDR200";
+		str = "mmc HS200";
+		break;
+	case MMC_TIMING_MMC_HS400:
+		str = mmc_card_hs400es(host->card) ?
+			"mmc HS400 enhanced strobe" : "mmc HS400";
 		break;
 	default:
 		str = "invalid";
@@ -158,7 +173,26 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 		str = "invalid";
 		break;
 	}
-	seq_printf(s, "signal voltage:\t%u (%s)\n", ios->chip_select, str);
+	seq_printf(s, "signal voltage:\t%u (%s)\n", ios->signal_voltage, str);
+
+	switch (ios->drv_type) {
+	case MMC_SET_DRIVER_TYPE_A:
+		str = "driver type A";
+		break;
+	case MMC_SET_DRIVER_TYPE_B:
+		str = "driver type B";
+		break;
+	case MMC_SET_DRIVER_TYPE_C:
+		str = "driver type C";
+		break;
+	case MMC_SET_DRIVER_TYPE_D:
+		str = "driver type D";
+		break;
+	default:
+		str = "invalid";
+		break;
+	}
+	seq_printf(s, "driver type:\t%u (%s)\n", ios->drv_type, str);
 
 	return 0;
 }
@@ -189,7 +223,7 @@ static int mmc_clock_opt_set(void *data, u64 val)
 	struct mmc_host *host = data;
 
 	/* We need this check due to input value is u64 */
-	if (val > host->f_max)
+	if (val != 0 && (val > host->f_max || val < host->f_min))
 		return -EINVAL;
 
 	mmc_claim_host(host);
@@ -224,11 +258,6 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 			&mmc_clock_fops))
 		goto err_node;
 
-#ifdef CONFIG_MMC_CLKGATE
-	if (!debugfs_create_u32("clk_delay", (S_IRUSR | S_IWUSR),
-				root, &host->clk_delay))
-		goto err_node;
-#endif
 #ifdef CONFIG_FAIL_MMC_REQUEST
 	if (fail_request)
 		setup_fault_attr(&fail_default_attr, fail_request);
@@ -252,88 +281,6 @@ void mmc_remove_host_debugfs(struct mmc_host *host)
 	debugfs_remove_recursive(host->debugfs_root);
 }
 
-static int mmc_dbg_card_status_get(void *data, u64 *val)
-{
-	struct mmc_card	*card = data;
-	u32		status;
-	int		ret;
-
-	mmc_get_card(card);
-
-	ret = mmc_send_status(data, &status);
-	if (!ret)
-		*val = status;
-
-	mmc_put_card(card);
-
-	return ret;
-}
-DEFINE_SIMPLE_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
-		NULL, "%08llx\n");
-
-#define EXT_CSD_STR_LEN 1025
-
-static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
-{
-	struct mmc_card *card = inode->i_private;
-	char *buf;
-	ssize_t n = 0;
-	u8 *ext_csd;
-	int err, i;
-
-	buf = kmalloc(EXT_CSD_STR_LEN + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ext_csd = kmalloc(512, GFP_KERNEL);
-	if (!ext_csd) {
-		err = -ENOMEM;
-		goto out_free;
-	}
-
-	mmc_get_card(card);
-	err = mmc_send_ext_csd(card, ext_csd);
-	mmc_put_card(card);
-	if (err)
-		goto out_free;
-
-	for (i = 0; i < 512; i++)
-		n += sprintf(buf + n, "%02x", ext_csd[i]);
-	n += sprintf(buf + n, "\n");
-	BUG_ON(n != EXT_CSD_STR_LEN);
-
-	filp->private_data = buf;
-	kfree(ext_csd);
-	return 0;
-
-out_free:
-	kfree(buf);
-	kfree(ext_csd);
-	return err;
-}
-
-static ssize_t mmc_ext_csd_read(struct file *filp, char __user *ubuf,
-				size_t cnt, loff_t *ppos)
-{
-	char *buf = filp->private_data;
-
-	return simple_read_from_buffer(ubuf, cnt, ppos,
-				       buf, EXT_CSD_STR_LEN);
-}
-
-static int mmc_ext_csd_release(struct inode *inode, struct file *file)
-{
-	kfree(file->private_data);
-	return 0;
-}
-
-static const struct file_operations mmc_dbg_ext_csd_fops = {
-	.open		= mmc_ext_csd_open,
-	.read		= mmc_ext_csd_read,
-	.release	= mmc_ext_csd_release,
-	.llseek		= default_llseek,
-};
-
 void mmc_add_card_debugfs(struct mmc_card *card)
 {
 	struct mmc_host	*host = card->host;
@@ -355,16 +302,6 @@ void mmc_add_card_debugfs(struct mmc_card *card)
 
 	if (!debugfs_create_x32("state", S_IRUSR, root, &card->state))
 		goto err;
-
-	if (mmc_card_mmc(card) || mmc_card_sd(card))
-		if (!debugfs_create_file("status", S_IRUSR, root, card,
-					&mmc_dbg_card_status_fops))
-			goto err;
-
-	if (mmc_card_mmc(card))
-		if (!debugfs_create_file("ext_csd", S_IRUSR, root, card,
-					&mmc_dbg_ext_csd_fops))
-			goto err;
 
 	return;
 

@@ -10,8 +10,13 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/v7m.h>
 
-	.arch	armv7-a
+#include "efi-header.S"
+
+ AR_CLASS(	.arch	armv7-a	)
+ M_CLASS(	.arch	armv7-m	)
+
 /*
  * Debugging stuff
  *
@@ -59,11 +64,6 @@
 #else
 		add	\rb, \rb, #0x00010000	@ Ser1
 #endif
-		.endm
-#elif defined(CONFIG_ARCH_S3C24XX)
-		.macro loadsp, rb, tmp
-		mov	\rb, #0x50000000
-		add	\rb, \rb, #0x4000 * CONFIG_S3C_LOWLEVEL_UART_PORT
 		.endm
 #else
 		.macro	loadsp,	rb, tmp
@@ -119,29 +119,42 @@
  * sort out different calling conventions
  */
 		.align
-		.arm				@ Always enter in ARM state
+		/*
+		 * Always enter in ARM state for CPUs that support the ARM ISA.
+		 * As of today (2014) that's exactly the members of the A and R
+		 * classes.
+		 */
+ AR_CLASS(	.arm	)
 start:
 		.type	start,#function
 		.rept	7
-		mov	r0, r0
+		__nop
 		.endr
-   ARM(		mov	r0, r0		)
-   ARM(		b	1f		)
- THUMB(		adr	r12, BSYM(1f)	)
- THUMB(		bx	r12		)
+#ifndef CONFIG_THUMB2_KERNEL
+		mov	r0, r0
+#else
+ AR_CLASS(	sub	pc, pc, #3	)	@ A/R: switch to Thumb2 mode
+  M_CLASS(	nop.w			)	@ M: already in Thumb2 mode
+		.thumb
+#endif
+		W(b)	1f
 
-		.word	0x016f2818		@ Magic numbers to help the loader
-		.word	start			@ absolute load/run zImage address
-		.word	_edata			@ zImage end address
- THUMB(		.thumb			)
+		.word	_magic_sig	@ Magic numbers to help the loader
+		.word	_magic_start	@ absolute load/run zImage address
+		.word	_magic_end	@ zImage end address
+		.word	0x04030201	@ endianness flag
+
+		__EFI_HEADER
 1:
-		mrs	r9, cpsr
+ ARM_BE8(	setend	be		)	@ go BE8 if compiled for BE8
+ AR_CLASS(	mrs	r9, cpsr	)
 #ifdef CONFIG_ARM_VIRT_EXT
 		bl	__hyp_stub_install	@ get into SVC mode, reversibly
 #endif
 		mov	r7, r1			@ save architecture ID
 		mov	r8, r2			@ save atags pointer
 
+#ifndef CONFIG_CPU_V7M
 		/*
 		 * Booting from Angel - need to enter SVC mode and disable
 		 * FIQs/IRQs (numeric definitions from angel arm.h source).
@@ -157,6 +170,7 @@ not_angel:
 		safe_svcmode_maskall r0
 		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
 						@ SPSR
+#endif
 		/*
 		 * Note that some cache flushing and other stuff may
 		 * be needed here - is there an Angel SWI call for this?
@@ -170,9 +184,26 @@ not_angel:
 		.text
 
 #ifdef CONFIG_AUTO_ZRELADDR
-		@ determine final kernel image address
+		/*
+		 * Find the start of physical memory.  As we are executing
+		 * without the MMU on, we are in the physical address space.
+		 * We just need to get rid of any offset by aligning the
+		 * address.
+		 *
+		 * This alignment is a balance between the requirements of
+		 * different platforms - we have chosen 128MB to allow
+		 * platforms which align the start of their physical memory
+		 * to 128MB to use this feature, while allowing the zImage
+		 * to be placed within the first 128MB of memory on other
+		 * platforms.  Increasing the alignment means we place
+		 * stricter alignment requirements on the start of physical
+		 * memory, but relaxing it means that we break people who
+		 * are already placing their zImage in (eg) the top 64MB
+		 * of this range.
+		 */
 		mov	r4, pc
 		and	r4, r4, #0xf8000000
+		/* Determine final kernel image address. */
 		add	r4, r4, #TEXT_OFFSET
 #else
 		ldr	r4, =zreladdr
@@ -180,7 +211,7 @@ not_angel:
 
 		/*
 		 * Set up a page table only if it won't overwrite ourself.
-		 * That means r4 < pc && r4 - 16k page directory > &_end.
+		 * That means r4 < pc || r4 - 16k page directory > &_end.
 		 * Given that r4 > &_end is most unfrequent, we add a rough
 		 * additional 1MB of room for a possible appended DTB.
 		 */
@@ -265,16 +296,37 @@ restart:	adr	r0, LC0
 		 * OK... Let's do some funky business here.
 		 * If we do have a DTB appended to zImage, and we do have
 		 * an ATAG list around, we want the later to be translated
-		 * and folded into the former here.  To be on the safe side,
-		 * let's temporarily move  the stack away into the malloc
-		 * area.  No GOT fixup has occurred yet, but none of the
-		 * code we're about to call uses any global variable.
+		 * and folded into the former here. No GOT fixup has occurred
+		 * yet, but none of the code we're about to call uses any
+		 * global variable.
 		*/
-		add	sp, sp, #0x10000
+
+		/* Get the initial DTB size */
+		ldr	r5, [r6, #4]
+#ifndef __ARMEB__
+		/* convert to little endian */
+		eor	r1, r5, r5, ror #16
+		bic	r1, r1, #0x00ff0000
+		mov	r5, r5, ror #8
+		eor	r5, r5, r1, lsr #8
+#endif
+		/* 50% DTB growth should be good enough */
+		add	r5, r5, r5, lsr #1
+		/* preserve 64-bit alignment */
+		add	r5, r5, #7
+		bic	r5, r5, #7
+		/* clamp to 32KB min and 1MB max */
+		cmp	r5, #(1 << 15)
+		movlo	r5, #(1 << 15)
+		cmp	r5, #(1 << 20)
+		movhi	r5, #(1 << 20)
+		/* temporarily relocate the stack past the DTB work space */
+		add	sp, sp, r5
+
 		stmfd	sp!, {r0-r3, ip, lr}
 		mov	r0, r8
 		mov	r1, r6
-		sub	r2, sp, r6
+		mov	r2, r5
 		bl	atags_to_fdt
 
 		/*
@@ -287,11 +339,11 @@ restart:	adr	r0, LC0
 		bic	r0, r0, #1
 		add	r0, r0, #0x100
 		mov	r1, r6
-		sub	r2, sp, r6
+		mov	r2, r5
 		bleq	atags_to_fdt
 
 		ldmfd	sp!, {r0-r3, ip, lr}
-		sub	sp, sp, #0x10000
+		sub	sp, sp, r5
 #endif
 
 		mov	r8, r6			@ use the appended device tree
@@ -308,7 +360,7 @@ restart:	adr	r0, LC0
 		subs	r1, r5, r1
 		addhi	r9, r9, r1
 
-		/* Get the dtb's size */
+		/* Get the current DTB size */
 		ldr	r5, [r6, #4]
 #ifndef __ARMEB__
 		/* convert r5 (dtb size) to little endian */
@@ -373,7 +425,17 @@ dtb_check_done:
 		cmp	r0, #HYP_MODE
 		bne	1f
 
-		bl	__hyp_get_vectors
+		/*
+		 * Compute the address of the hyp vectors after relocation.
+		 * This requires some arithmetic since we cannot directly
+		 * reference __hyp_stub_vectors in a PC-relative way.
+		 * Call __hyp_set_vectors with the new address so that we
+		 * can HVC again after the copy.
+		 */
+0:		adr	r0, 0b
+		movw	r1, #:lower16:__hyp_stub_vectors - 0b
+		movt	r1, #:upper16:__hyp_stub_vectors - 0b
+		add	r0, r0, r1
 		sub	r0, r0, r5
 		add	r0, r0, r10
 		bl	__hyp_set_vectors
@@ -399,10 +461,9 @@ dtb_check_done:
 		add	sp, sp, r6
 #endif
 
-		tst	r4, #1
-		bleq	cache_clean_flush
+		bl	cache_clean_flush
 
-		adr	r0, BSYM(restart)
+		badr	r0, restart
 		add	r0, r0, r6
 		mov	pc, r0
 
@@ -699,9 +760,7 @@ __armv4_mmu_cache_on:
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x0030
-#ifdef CONFIG_CPU_ENDIAN_BE8
-		orr	r0, r0, #1 << 25	@ big-endian page tables
-#endif
+ ARM_BE8(	orr	r0, r0, #1 << 25 )	@ big-endian page tables
 		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
@@ -728,14 +787,12 @@ __armv7_mmu_cache_on:
 		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
 						@ (needed for ARM1176)
 #ifdef CONFIG_MMU
-#ifdef CONFIG_CPU_ENDIAN_BE8
-		orr	r0, r0, #1 << 25	@ big-endian page tables
-#endif
+ ARM_BE8(	orr	r0, r0, #1 << 25 )	@ big-endian page tables
 		mrcne   p15, 0, r6, c2, c0, 2   @ read ttb control reg
 		orrne	r0, r0, #1		@ MMU enabled
 		movne	r1, #0xfffffffd		@ domain 0 = client
 		bic     r6, r6, #1 << 31        @ 32-bit translation system
-		bic     r6, r6, #3 << 0         @ use only ttbr0
+		bic     r6, r6, #(7 << 0) | (1 << 4)	@ use only ttbr0
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
 		mcrne   p15, 0, r6, c2, c0, 2   @ load ttb control
@@ -796,6 +853,16 @@ __common_mmu_cache_on:
 call_cache_fn:	adr	r12, proc_types
 #ifdef CONFIG_CPU_CP15
 		mrc	p15, 0, r9, c0, c0	@ get processor ID
+#elif defined(CONFIG_CPU_V7M)
+		/*
+		 * On v7-M the processor id is located in the V7M_SCB_CPUID
+		 * register, but as cache handling is IMPLEMENTATION DEFINED on
+		 * v7-M (if existant at all) we just return early here.
+		 * If V7M_SCB_CPUID were used the cpu ID functions (i.e.
+		 * __armv7_mmu_cache_{on,off,flush}) would be selected which
+		 * use cp15 registers that are not implemented on v7-M.
+		 */
+		bx	lr
 #else
 		ldr	r9, =CONFIG_PROCESSOR_ID
 #endif
@@ -1053,6 +1120,8 @@ cache_clean_flush:
 		b	call_cache_fn
 
 __armv4_mpu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r2, #1
 		mov	r3, #0
 		mcr	p15, 0, ip, c7, c6, 0	@ invalidate D cache
@@ -1070,6 +1139,8 @@ __armv4_mpu_cache_flush:
 		mov	pc, lr
 		
 __fa526_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c14, 0	@ clean and invalidate D cache
 		mcr	p15, 0, r1, c7, c5, 0	@ flush I cache
@@ -1078,13 +1149,16 @@ __fa526_cache_flush:
 
 __armv6_mmu_cache_flush:
 		mov	r1, #0
-		mcr	p15, 0, r1, c7, c14, 0	@ clean+invalidate D
+		tst	r4, #1
+		mcreq	p15, 0, r1, c7, c14, 0	@ clean+invalidate D
 		mcr	p15, 0, r1, c7, c5, 0	@ invalidate I+BTB
-		mcr	p15, 0, r1, c7, c15, 0	@ clean+invalidate unified
+		mcreq	p15, 0, r1, c7, c15, 0	@ clean+invalidate unified
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
 __armv7_mmu_cache_flush:
+		tst	r4, #1
+		bne	iflush
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
 		mov	r10, #0
@@ -1135,7 +1209,7 @@ skip:
 		bgt	loop1
 finished:
 		ldmfd	sp!, {r0-r7, r9-r11}
-		mov	r10, #0			@ swith back to cache level 0
+		mov	r10, #0			@ switch back to cache level 0
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
 iflush:
 		mcr	p15, 0, r10, c7, c10, 4	@ DSB
@@ -1145,6 +1219,8 @@ iflush:
 		mov	pc, lr
 
 __armv5tej_mmu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 1:		mrc	p15, 0, r15, c7, c14, 3	@ test,clean,invalidate D cache
 		bne	1b
 		mcr	p15, 0, r0, c7, c5, 0	@ flush I cache
@@ -1152,6 +1228,8 @@ __armv5tej_mmu_cache_flush:
 		mov	pc, lr
 
 __armv4_mmu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r2, #64*1024		@ default: 32K dcache size (*2)
 		mov	r11, #32		@ default: 32 byte line size
 		mrc	p15, 0, r3, c0, c0, 1	@ read cache type
@@ -1185,6 +1263,8 @@ no_cache_id:
 
 __armv3_mmu_cache_flush:
 __armv3_mpu_cache_flush:
+		tst	r4, #1
+		movne	pc, lr
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr
@@ -1283,10 +1363,58 @@ __hyp_reentry_vectors:
 
 __enter_kernel:
 		mov	r0, #0			@ must be 0
- ARM(		mov	pc, r4	)		@ call kernel
- THUMB(		bx	r4	)		@ entry point is always ARM
+ ARM(		mov	pc, r4		)	@ call kernel
+ M_CLASS(	add	r4, r4, #1	)	@ enter in Thumb mode for M class
+ THUMB(		bx	r4		)	@ entry point is always ARM for A/R classes
 
 reloc_code_end:
+
+#ifdef CONFIG_EFI_STUB
+		.align	2
+_start:		.long	start - .
+
+ENTRY(efi_stub_entry)
+		@ allocate space on stack for passing current zImage address
+		@ and for the EFI stub to return of new entry point of
+		@ zImage, as EFI stub may copy the kernel. Pointer address
+		@ is passed in r2. r0 and r1 are passed through from the
+		@ EFI firmware to efi_entry
+		adr	ip, _start
+		ldr	r3, [ip]
+		add	r3, r3, ip
+		stmfd	sp!, {r3, lr}
+		mov	r2, sp			@ pass zImage address in r2
+		bl	efi_entry
+
+		@ Check for error return from EFI stub. r0 has FDT address
+		@ or error code.
+		cmn	r0, #1
+		beq	efi_load_fail
+
+		@ Preserve return value of efi_entry() in r4
+		mov	r4, r0
+		bl	cache_clean_flush
+		bl	cache_off
+
+		@ Set parameters for booting zImage according to boot protocol
+		@ put FDT address in r2, it was returned by efi_entry()
+		@ r1 is the machine type, and r0 needs to be 0
+		mov	r0, #0
+		mov	r1, #0xFFFFFFFF
+		mov	r2, r4
+
+		@ Branch to (possibly) relocated zImage that is in [sp]
+		ldr	lr, [sp]
+		ldr	ip, =start_offset
+		add	lr, lr, ip
+		mov	pc, lr				@ no mode switch
+
+efi_load_fail:
+		@ Return EFI_LOAD_ERROR to EFI firmware on error.
+		ldr	r0, =0x80000001
+		ldmfd	sp!, {ip, pc}
+ENDPROC(efi_stub_entry)
+#endif
 
 		.align
 		.section ".stack", "aw", %nobits

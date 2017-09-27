@@ -18,7 +18,6 @@
 #include <asm/segment.h>
 #include <generated/utsrelease.h>
 #include <asm/boot.h>
-#include <asm/e820.h>
 #include <asm/page_types.h>
 #include <asm/setup.h>
 #include <asm/bootparam.h>
@@ -91,10 +90,9 @@ bs_die:
 
 	.section ".bsdata", "a"
 bugger_off_msg:
-	.ascii	"Direct floppy boot is not supported. "
-	.ascii	"Use a boot loader program instead.\r\n"
+	.ascii	"Use a boot loader.\r\n"
 	.ascii	"\n"
-	.ascii	"Remove disk and press any key to reboot ...\r\n"
+	.ascii	"Remove disk and press any key to reboot...\r\n"
 	.byte	0
 
 #ifdef CONFIG_EFI_STUB
@@ -108,7 +106,7 @@ coff_header:
 #else
 	.word	0x8664				# x86-64
 #endif
-	.word	3				# nr_sections
+	.word	4				# nr_sections
 	.long	0 				# TimeDateStamp
 	.long	0				# PointerToSymbolTable
 	.long	1				# NumberOfSymbols
@@ -250,6 +248,25 @@ section_table:
 	.word	0				# NumberOfLineNumbers
 	.long	0x60500020			# Characteristics (section flags)
 
+	#
+	# The offset & size fields are filled in by build.c.
+	#
+	.ascii	".bss"
+	.byte	0
+	.byte	0
+	.byte	0
+	.byte	0
+	.long	0
+	.long	0x0
+	.long	0				# Size of initialized data
+						# on disk
+	.long	0x0
+	.long	0				# PointerToRelocations
+	.long	0				# PointerToLineNumbers
+	.word	0				# NumberOfRelocations
+	.word	0				# NumberOfLineNumbers
+	.long	0xc8000080			# Characteristics (section flags)
+
 #endif /* CONFIG_EFI_STUB */
 
 	# Kernel attributes; used by setup.  This is part 1 of the
@@ -283,7 +300,7 @@ _start:
 	# Part 2 of the header, from the old setup.S
 
 		.ascii	"HdrS"		# header signature
-		.word	0x020c		# header version number (>= 0x0105)
+		.word	0x020d		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 		.globl realmode_swtch
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
@@ -350,7 +367,7 @@ cmd_line_ptr:	.long	0		# (Header version 0x0202 or later)
 					# can be located anywhere in
 					# low memory 0x10000 or higher.
 
-ramdisk_max:	.long 0x7fffffff
+initrd_addr_max: .long 0x7fffffff
 					# (Header version 0x0203 or later)
 					# The highest safe address for
 					# the contents of an initrd
@@ -383,15 +400,26 @@ xloadflags:
 #endif
 
 #ifdef CONFIG_EFI_STUB
-# ifdef CONFIG_X86_64
-#  define XLF23 XLF_EFI_HANDOVER_64		/* 64-bit EFI handover ok */
+# ifdef CONFIG_EFI_MIXED
+#  define XLF23 (XLF_EFI_HANDOVER_32|XLF_EFI_HANDOVER_64)
 # else
-#  define XLF23 XLF_EFI_HANDOVER_32		/* 32-bit EFI handover ok */
+#  ifdef CONFIG_X86_64
+#   define XLF23 XLF_EFI_HANDOVER_64		/* 64-bit EFI handover ok */
+#  else
+#   define XLF23 XLF_EFI_HANDOVER_32		/* 32-bit EFI handover ok */
+#  endif
 # endif
 #else
 # define XLF23 0
 #endif
-			.word XLF0 | XLF1 | XLF23
+
+#if defined(CONFIG_X86_64) && defined(CONFIG_EFI) && defined(CONFIG_KEXEC_CORE)
+# define XLF4 XLF_EFI_KEXEC
+#else
+# define XLF4 0
+#endif
+
+			.word XLF0 | XLF1 | XLF23 | XLF4
 
 cmdline_size:   .long   COMMAND_LINE_SIZE-1     #length of the command line,
                                                 #added with boot protocol
@@ -411,21 +439,124 @@ setup_data:		.quad 0			# 64-bit physical pointer to
 
 pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 
-#define ZO_INIT_SIZE	(ZO__end - ZO_startup_32 + ZO_z_extract_offset)
+#
+# Getting to provably safe in-place decompression is hard. Worst case
+# behaviours need to be analyzed. Here let's take the decompression of
+# a gzip-compressed kernel as example, to illustrate it:
+#
+# The file layout of gzip compressed kernel is:
+#
+#    magic[2]
+#    method[1]
+#    flags[1]
+#    timestamp[4]
+#    extraflags[1]
+#    os[1]
+#    compressed data blocks[N]
+#    crc[4] orig_len[4]
+#
+# ... resulting in +18 bytes overhead of uncompressed data.
+#
+# (For more information, please refer to RFC 1951 and RFC 1952.)
+#
+# Files divided into blocks
+# 1 bit (last block flag)
+# 2 bits (block type)
+#
+# 1 block occurs every 32K -1 bytes or when there 50% compression
+# has been achieved. The smallest block type encoding is always used.
+#
+# stored:
+#    32 bits length in bytes.
+#
+# fixed:
+#    magic fixed tree.
+#    symbols.
+#
+# dynamic:
+#    dynamic tree encoding.
+#    symbols.
+#
+#
+# The buffer for decompression in place is the length of the uncompressed
+# data, plus a small amount extra to keep the algorithm safe. The
+# compressed data is placed at the end of the buffer.  The output pointer
+# is placed at the start of the buffer and the input pointer is placed
+# where the compressed data starts. Problems will occur when the output
+# pointer overruns the input pointer.
+#
+# The output pointer can only overrun the input pointer if the input
+# pointer is moving faster than the output pointer.  A condition only
+# triggered by data whose compressed form is larger than the uncompressed
+# form.
+#
+# The worst case at the block level is a growth of the compressed data
+# of 5 bytes per 32767 bytes.
+#
+# The worst case internal to a compressed block is very hard to figure.
+# The worst case can at least be bounded by having one bit that represents
+# 32764 bytes and then all of the rest of the bytes representing the very
+# very last byte.
+#
+# All of which is enough to compute an amount of extra data that is required
+# to be safe.  To avoid problems at the block level allocating 5 extra bytes
+# per 32767 bytes of data is sufficient.  To avoid problems internal to a
+# block adding an extra 32767 bytes (the worst case uncompressed block size)
+# is sufficient, to ensure that in the worst case the decompressed data for
+# block will stop the byte before the compressed data for a block begins.
+# To avoid problems with the compressed data's meta information an extra 18
+# bytes are needed.  Leading to the formula:
+#
+# extra_bytes = (uncompressed_size >> 12) + 32768 + 18
+#
+# Adding 8 bytes per 32K is a bit excessive but much easier to calculate.
+# Adding 32768 instead of 32767 just makes for round numbers.
+#
+# Above analysis is for decompressing gzip compressed kernel only. Up to
+# now 6 different decompressor are supported all together. And among them
+# xz stores data in chunks and has maximum chunk of 64K. Hence safety
+# margin should be updated to cover all decompressors so that we don't
+# need to deal with each of them separately. Please check
+# the description in lib/decompressor_xxx.c for specific information.
+#
+# extra_bytes = (uncompressed_size >> 12) + 65536 + 128
+#
+# LZ4 is even worse: data that cannot be further compressed grows by 0.4%,
+# or one byte per 256 bytes. OTOH, we can safely get rid of the +128 as
+# the size-dependent part now grows so fast.
+#
+# extra_bytes = (uncompressed_size >> 8) + 65536
+
+#define ZO_z_extra_bytes	((ZO_z_output_len >> 8) + 65536)
+#if ZO_z_output_len > ZO_z_input_len
+# define ZO_z_extract_offset	(ZO_z_output_len + ZO_z_extra_bytes - \
+				 ZO_z_input_len)
+#else
+# define ZO_z_extract_offset	ZO_z_extra_bytes
+#endif
+
+/*
+ * The extract_offset has to be bigger than ZO head section. Otherwise when
+ * the head code is running to move ZO to the end of the buffer, it will
+ * overwrite the head code itself.
+ */
+#if (ZO__ehead - ZO_startup_32) > ZO_z_extract_offset
+# define ZO_z_min_extract_offset ((ZO__ehead - ZO_startup_32 + 4095) & ~4095)
+#else
+# define ZO_z_min_extract_offset ((ZO_z_extract_offset + 4095) & ~4095)
+#endif
+
+#define ZO_INIT_SIZE	(ZO__end - ZO_startup_32 + ZO_z_min_extract_offset)
+
 #define VO_INIT_SIZE	(VO__end - VO__text)
 #if ZO_INIT_SIZE > VO_INIT_SIZE
-#define INIT_SIZE ZO_INIT_SIZE
+# define INIT_SIZE ZO_INIT_SIZE
 #else
-#define INIT_SIZE VO_INIT_SIZE
+# define INIT_SIZE VO_INIT_SIZE
 #endif
+
 init_size:		.long INIT_SIZE		# kernel initialization size
-handover_offset:
-#ifdef CONFIG_EFI_STUB
-  			.long 0x30		# offset to the handover
-						# protocol entry point
-#else
-			.long 0
-#endif
+handover_offset:	.long 0			# Filled in by build.c
 
 # End of setup header #####################################################
 

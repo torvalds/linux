@@ -1,15 +1,17 @@
-/* bnx2x_init.h: Broadcom Everest network driver.
+/* bnx2x_init.h: Qlogic Everest network driver.
  *               Structures and macroes needed during the initialization.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
- * Modified by: Vladislav Zolotarov <vladz@broadcom.com>
+ * Modified by: Vladislav Zolotarov
  */
 
 #ifndef BNX2X_INIT_H
@@ -278,7 +280,7 @@ static inline void bnx2x_dcb_config_qm(struct bnx2x *bp, enum cos_mode mode,
 }
 
 
-/* congestion managment port init api description
+/* congestion management port init api description
  * the api works as follows:
  * the driver should pass the cmng_init_input struct, the port_init function
  * will prepare the required internal ram structure which will be passed back
@@ -640,23 +642,35 @@ static const struct {
  * [30] MCP Latched ump_tx_parity
  * [31] MCP Latched scpad_parity
  */
-#define MISC_AEU_ENABLE_MCP_PRTY_BITS	\
+#define MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS	\
 	(AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY | \
 	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY | \
-	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY | \
+	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY)
+
+#define MISC_AEU_ENABLE_MCP_PRTY_BITS	\
+	(MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS | \
 	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY)
 
 /* Below registers control the MCP parity attention output. When
  * MISC_AEU_ENABLE_MCP_PRTY_BITS are set - attentions are
  * enabled, when cleared - disabled.
  */
-static const u32 mcp_attn_ctl_regs[] = {
-	MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0,
-	MISC_REG_AEU_ENABLE4_NIG_0,
-	MISC_REG_AEU_ENABLE4_PXP_0,
-	MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0,
-	MISC_REG_AEU_ENABLE4_NIG_1,
-	MISC_REG_AEU_ENABLE4_PXP_1
+static const struct {
+	u32 addr;
+	u32 bits;
+} mcp_attn_ctl_regs[] = {
+	{ MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0,
+		MISC_AEU_ENABLE_MCP_PRTY_BITS },
+	{ MISC_REG_AEU_ENABLE4_NIG_0,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS },
+	{ MISC_REG_AEU_ENABLE4_PXP_0,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS },
+	{ MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0,
+		MISC_AEU_ENABLE_MCP_PRTY_BITS },
+	{ MISC_REG_AEU_ENABLE4_NIG_1,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS },
+	{ MISC_REG_AEU_ENABLE4_PXP_1,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS }
 };
 
 static inline void bnx2x_set_mcp_parity(struct bnx2x *bp, u8 enable)
@@ -665,14 +679,14 @@ static inline void bnx2x_set_mcp_parity(struct bnx2x *bp, u8 enable)
 	u32 reg_val;
 
 	for (i = 0; i < ARRAY_SIZE(mcp_attn_ctl_regs); i++) {
-		reg_val = REG_RD(bp, mcp_attn_ctl_regs[i]);
+		reg_val = REG_RD(bp, mcp_attn_ctl_regs[i].addr);
 
 		if (enable)
-			reg_val |= MISC_AEU_ENABLE_MCP_PRTY_BITS;
+			reg_val |= mcp_attn_ctl_regs[i].bits;
 		else
-			reg_val &= ~MISC_AEU_ENABLE_MCP_PRTY_BITS;
+			reg_val &= ~mcp_attn_ctl_regs[i].bits;
 
-		REG_WR(bp, mcp_attn_ctl_regs[i], reg_val);
+		REG_WR(bp, mcp_attn_ctl_regs[i].addr, reg_val);
 	}
 }
 

@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/slab.h>
@@ -29,6 +25,9 @@
 #include <linux/types.h>
 
 #include "stv6110.h"
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 
 static int debug;
 
@@ -56,11 +55,10 @@ static s32 abssub(s32 a, s32 b)
 		return b - a;
 };
 
-static int stv6110_release(struct dvb_frontend *fe)
+static void stv6110_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int stv6110_write_regs(struct dvb_frontend *fe, u8 buf[],
@@ -68,7 +66,7 @@ static int stv6110_write_regs(struct dvb_frontend *fe, u8 buf[],
 {
 	struct stv6110_priv *priv = fe->tuner_priv;
 	int rc;
-	u8 cmdbuf[len + 1];
+	u8 cmdbuf[MAX_XFER_SIZE];
 	struct i2c_msg msg = {
 		.addr	= priv->i2c_address,
 		.flags	= 0,
@@ -77,6 +75,13 @@ static int stv6110_write_regs(struct dvb_frontend *fe, u8 buf[],
 	};
 
 	dprintk("%s\n", __func__);
+
+	if (1 + len > sizeof(cmdbuf)) {
+		printk(KERN_WARNING
+		       "%s: i2c wr: len=%d is too big!\n",
+		       KBUILD_MODNAME, len);
+		return -EINVAL;
+	}
 
 	if (start + len > 8)
 		return -EINVAL;
@@ -148,7 +153,7 @@ static int stv6110_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static u32 carrier_width(u32 symbol_rate, fe_rolloff_t rolloff)
+static u32 carrier_width(u32 symbol_rate, enum fe_rolloff rolloff)
 {
 	u32 rlf;
 
@@ -372,7 +377,7 @@ static int stv6110_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
-static struct dvb_tuner_ops stv6110_tuner_ops = {
+static const struct dvb_tuner_ops stv6110_tuner_ops = {
 	.info = {
 		.name = "ST STV6110",
 		.frequency_min = 950000,

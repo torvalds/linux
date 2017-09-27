@@ -10,7 +10,6 @@
  */
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -212,9 +211,8 @@ static void meth_check_link(struct net_device *dev)
 static int meth_init_tx_ring(struct meth_private *priv)
 {
 	/* Init TX ring */
-	priv->tx_ring = dma_alloc_coherent(NULL, TX_RING_BUFFER_SIZE,
-	                                   &priv->tx_ring_dma,
-					   GFP_ATOMIC | __GFP_ZERO);
+	priv->tx_ring = dma_zalloc_coherent(NULL, TX_RING_BUFFER_SIZE,
+					    &priv->tx_ring_dma, GFP_ATOMIC);
 	if (!priv->tx_ring)
 		return -ENOMEM;
 
@@ -710,7 +708,7 @@ static int meth_tx(struct sk_buff *skb, struct net_device *dev)
 	mace->eth.dma_ctrl = priv->dma_ctrl;
 
 	meth_add_to_tx_ring(priv, skb);
-	dev->trans_start = jiffies; /* save the timestamp */
+	netif_trans_update(dev); /* save the timestamp */
 
 	/* If TX ring is full, tell the upper layer to stop sending packets */
 	if (meth_tx_full(dev)) {
@@ -758,7 +756,7 @@ static void meth_tx_timeout(struct net_device *dev)
 	/* Enable interrupt */
 	spin_unlock_irqrestore(&priv->meth_lock, flags);
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -817,7 +815,6 @@ static const struct net_device_ops meth_netdev_ops = {
 	.ndo_start_xmit		= meth_tx,
 	.ndo_do_ioctl		= meth_ioctl,
 	.ndo_tx_timeout		= meth_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_rx_mode    	= meth_set_rx_mode,
@@ -840,7 +837,7 @@ static int meth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo	= timeout;
 	dev->irq		= MACE_ETHERNET_IRQ;
 	dev->base_addr		= (unsigned long)&mace->eth;
-	memcpy(dev->dev_addr, o2meth_eaddr, 6);
+	memcpy(dev->dev_addr, o2meth_eaddr, ETH_ALEN);
 
 	priv = netdev_priv(dev);
 	spin_lock_init(&priv->meth_lock);
@@ -857,7 +854,7 @@ static int meth_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit meth_remove(struct platform_device *pdev)
+static int meth_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
@@ -869,10 +866,9 @@ static int __exit meth_remove(struct platform_device *pdev)
 
 static struct platform_driver meth_driver = {
 	.probe	= meth_probe,
-	.remove	= __exit_p(meth_remove),
+	.remove	= meth_remove,
 	.driver = {
 		.name	= "meth",
-		.owner	= THIS_MODULE,
 	}
 };
 

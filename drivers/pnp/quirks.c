@@ -15,6 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
@@ -245,11 +246,14 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 	 */
 	for_each_pci_dev(pdev) {
 		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			unsigned long type;
+			unsigned long flags, type;
 
-			type = pci_resource_flags(pdev, i) &
-					(IORESOURCE_IO | IORESOURCE_MEM);
+			flags = pci_resource_flags(pdev, i);
+			type = flags & (IORESOURCE_IO | IORESOURCE_MEM);
 			if (!type || pci_resource_len(pdev, i) == 0)
+				continue;
+
+			if (flags & IORESOURCE_UNSET)
 				continue;
 
 			pci_start = pci_resource_start(pdev, i);
@@ -334,6 +338,83 @@ static void quirk_amd_mmconfig_area(struct pnp_dev *dev)
 }
 #endif
 
+#ifdef CONFIG_PCI
+/* Device IDs of parts that have 32KB MCH space */
+static const unsigned int mch_quirk_devices[] = {
+	0x0154,	/* Ivy Bridge */
+	0x0a04, /* Haswell-ULT */
+	0x0c00,	/* Haswell */
+	0x1604, /* Broadwell */
+};
+
+static struct pci_dev *get_intel_host(void)
+{
+	int i;
+	struct pci_dev *host;
+
+	for (i = 0; i < ARRAY_SIZE(mch_quirk_devices); i++) {
+		host = pci_get_device(PCI_VENDOR_ID_INTEL, mch_quirk_devices[i],
+				      NULL);
+		if (host)
+			return host;
+	}
+	return NULL;
+}
+
+static void quirk_intel_mch(struct pnp_dev *dev)
+{
+	struct pci_dev *host;
+	u32 addr_lo, addr_hi;
+	struct pci_bus_region region;
+	struct resource mch;
+	struct pnp_resource *pnp_res;
+	struct resource *res;
+
+	host = get_intel_host();
+	if (!host)
+		return;
+
+	/*
+	 * MCHBAR is not an architected PCI BAR, so MCH space is usually
+	 * reported as a PNP0C02 resource.  The MCH space was originally
+	 * 16KB, but is 32KB in newer parts.  Some BIOSes still report a
+	 * PNP0C02 resource that is only 16KB, which means the rest of the
+	 * MCH space is consumed but unreported.
+	 */
+
+	/*
+	 * Read MCHBAR for Host Member Mapped Register Range Base
+	 * https://www-ssl.intel.com/content/www/us/en/processors/core/4th-gen-core-family-desktop-vol-2-datasheet
+	 * Sec 3.1.12.
+	 */
+	pci_read_config_dword(host, 0x48, &addr_lo);
+	region.start = addr_lo & ~0x7fff;
+	pci_read_config_dword(host, 0x4c, &addr_hi);
+	region.start |= (u64) addr_hi << 32;
+	region.end = region.start + 32*1024 - 1;
+
+	memset(&mch, 0, sizeof(mch));
+	mch.flags = IORESOURCE_MEM;
+	pcibios_bus_to_resource(host->bus, &mch, &region);
+
+	list_for_each_entry(pnp_res, &dev->resources, list) {
+		res = &pnp_res->res;
+		if (res->end < mch.start || res->start > mch.end)
+			continue;	/* no overlap */
+		if (res->start == mch.start && res->end == mch.end)
+			continue;	/* exact match */
+
+		dev_info(&dev->dev, FW_BUG "PNP resource %pR covers only part of %s Intel MCH; extending to %pR\n",
+			 res, pci_name(host), &mch);
+		res->start = mch.start;
+		res->end = mch.end;
+		break;
+	}
+
+	pci_dev_put(host);
+}
+#endif
+
 /*
  *  PnP Quirks
  *  Cards or devices that need some tweaking due to incomplete resource info
@@ -363,6 +444,9 @@ static struct pnp_fixup pnp_fixups[] = {
 	{"PNP0c02", quirk_system_pci_resources},
 #ifdef CONFIG_AMD_NB
 	{"PNP0c01", quirk_amd_mmconfig_area},
+#endif
+#ifdef CONFIG_PCI
+	{"PNP0c02", quirk_intel_mch},
 #endif
 	{""}
 };

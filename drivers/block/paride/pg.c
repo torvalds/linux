@@ -84,7 +84,7 @@
 			the slower the port i/o.  In some cases, setting
 			this to zero will speed up the device. (default -1)
 
-	    major	You may use this parameter to overide the
+	    major	You may use this parameter to override the
 			default major number (97) that this driver
 			will use.  Be sure to change the device
 			name as well.
@@ -137,7 +137,7 @@
 
 */
 
-static bool verbose = 0;
+static int verbose;
 static int major = PG_MAJOR;
 static char *name = PG_NAME;
 static int disable = 0;
@@ -166,9 +166,9 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
-module_param(verbose, bool, 0644);
+module_param(verbose, int, 0644);
 module_param(major, int, 0);
 module_param(name, charp, 0);
 module_param_array(drive0, int, NULL, 0);
@@ -227,6 +227,7 @@ static int pg_identify(struct pg *dev, int log);
 static char pg_scratch[512];	/* scratch block buffer */
 
 static struct class *pg_class;
+static void *par_drv;		/* reference of parport driver */
 
 /* kernel glue structures */
 
@@ -481,6 +482,12 @@ static int pg_detect(void)
 
 	printk("%s: %s version %s, major %d\n", name, name, PG_VERSION, major);
 
+	par_drv = pi_register_driver(name);
+	if (!par_drv) {
+		pr_err("failed to register %s driver\n", name);
+		return -1;
+	}
+
 	k = 0;
 	if (pg_drive_count == 0) {
 		if (pi_init(dev->pi, 1, -1, -1, -1, -1, -1, pg_scratch,
@@ -511,6 +518,7 @@ static int pg_detect(void)
 	if (k)
 		return 0;
 
+	pi_unregister_driver(par_drv);
 	printk("%s: No ATAPI device detected\n", name);
 	return -1;
 }
@@ -581,7 +589,7 @@ static ssize_t pg_write(struct file *filp, const char __user *buf, size_t count,
 
 	if (hdr.magic != PG_MAGIC)
 		return -EINVAL;
-	if (hdr.dlen > PG_MAX_DATA)
+	if (hdr.dlen < 0 || hdr.dlen > PG_MAX_DATA)
 		return -EINVAL;
 	if ((count - hs) > PG_MAX_DATA)
 		return -EINVAL;

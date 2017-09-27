@@ -1,0 +1,91 @@
+.TH USBIP "8" "February 2009" "usbip" "System Administration Utilities"
+.SH NAME
+usbipd \- USB/IP server daemon
+.SH SYNOPSIS
+.B usbipd
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+.B usbipd
+provides USB/IP clients access to exported USB devices.
+
+Devices have to explicitly be exported using
+.B usbip bind
+before usbipd makes them available to other hosts.
+
+The daemon accepts connections from USB/IP clients
+on TCP port 3240 by default.
+
+.SH OPTIONS
+.HP
+\fB\-4\fR, \fB\-\-ipv4\fR
+.IP
+Bind to IPv4. Default is both.
+.PP
+
+.HP
+\fB\-6\fR, \fB\-\-ipv6\fR
+.IP
+Bind to IPv6. Default is both.
+.PP
+
+.HP
+\fB\-D\fR, \fB\-\-daemon\fR
+.IP
+Run as a daemon process.
+.PP
+
+.HP
+\fB\-d\fR, \fB\-\-debug\fR
+.IP
+Print debugging information.
+.PP
+
+.HP
+\fB\-PFILE\fR, \fB\-\-pid FILE\fR
+.IP
+Write process id to FILE.
+.br
+If no FILE specified, use /var/run/usbipd.pid
+.PP
+
+\fB\-tPORT\fR, \fB\-\-tcp\-port PORT\fR
+.IP
+Listen on TCP/IP port PORT.
+.PP
+
+\fB\-h\fR, \fB\-\-help\fR
+.IP
+Print the program help message and exit.
+.PP
+
+.HP
+\fB\-v\fR, \fB\-\-version\fR
+.IP
+Show version.
+.PP
+
+.SH LIMITATIONS
+
+.B usbipd
+offers no authentication or authorization for USB/IP. Any
+USB/IP client can connect and use exported devices.
+
+.SH EXAMPLES
+
+    server:# modprobe usbip
+
+    server:# usbipd -D
+        - Start usbip daemon.
+
+    server:# usbip list --local
+        - List driver assignments for usb devices.
+
+    server:# usbip bind --busid=1-2
+        - Bind usbip-host.ko to the device of busid 1-2.
+        - A usb device 1-2 is now exportable to other hosts!
+        - Use 'usbip unbind --busid=1-2' when you want to shutdown exporting and use the device locally.
+
+.SH "SEE ALSO"
+\fBusbip\fP\fB(8)\fB\fP
+

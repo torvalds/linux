@@ -15,14 +15,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org
+ * the project's page is at https://linuxtv.org
  */
 
 #ifndef _ISL6405_H
@@ -55,7 +52,7 @@
 #define ISL6405_ENT2	0x20
 #define ISL6405_ISEL2	0x40
 
-#if IS_ENABLED(CONFIG_DVB_ISL6405)
+#if IS_REACHABLE(CONFIG_DVB_ISL6405)
 /* override_set and override_clear control which system register bits (above)
  * to always set & clear
  */

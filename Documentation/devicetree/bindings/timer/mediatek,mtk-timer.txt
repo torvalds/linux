@@ -1,0 +1,25 @@
+Mediatek MT6577, MT6572 and MT6589 Timers
+---------------------------------------
+
+Required properties:
+- compatible should contain:
+	* "mediatek,mt2701-timer" for MT2701 compatible timers
+	* "mediatek,mt6580-timer" for MT6580 compatible timers
+	* "mediatek,mt6589-timer" for MT6589 compatible timers
+	* "mediatek,mt7623-timer" for MT7623 compatible timers
+	* "mediatek,mt8127-timer" for MT8127 compatible timers
+	* "mediatek,mt8135-timer" for MT8135 compatible timers
+	* "mediatek,mt8173-timer" for MT8173 compatible timers
+	* "mediatek,mt6577-timer" for MT6577 and all above compatible timers
+- reg: Should contain location and length for timers register.
+- clocks: Clocks driving the timer hardware. This list should include two
+	clocks. The order is system clock and as second clock the RTC clock.
+
+Examples:
+
+	timer@10008000 {
+		compatible = "mediatek,mt6577-timer";
+		reg = <0x10008000 0x80>;
+		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&system_clk>, <&rtc_clk>;
+	};

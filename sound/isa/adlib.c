@@ -27,7 +27,7 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for " CRD_NAME " soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable " CRD_NAME " soundcard.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for " CRD_NAME " driver.");
 
 static int snd_adlib_match(struct device *dev, unsigned int n)
@@ -53,7 +53,7 @@ static int snd_adlib_probe(struct device *dev, unsigned int n)
 	struct snd_opl3 *opl3;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
 	if (error < 0) {
 		dev_err(dev, "could not create card\n");
 		return error;
@@ -82,8 +82,6 @@ static int snd_adlib_probe(struct device *dev, unsigned int n)
 		dev_err(dev, "could not create FM\n");
 		goto out;
 	}
-
-	snd_card_set_dev(card, dev);
 
 	error = snd_card_register(card);
 	if (error < 0) {
@@ -114,15 +112,4 @@ static struct isa_driver snd_adlib_driver = {
 	}
 };
 
-static int __init alsa_card_adlib_init(void)
-{
-	return isa_register_driver(&snd_adlib_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_adlib_exit(void)
-{
-	isa_unregister_driver(&snd_adlib_driver);
-}
-
-module_init(alsa_card_adlib_init);
-module_exit(alsa_card_adlib_exit);
+module_isa_driver(snd_adlib_driver, SNDRV_CARDS);

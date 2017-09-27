@@ -626,31 +626,20 @@ static int soundcore_open(struct inode *inode, struct file *file)
 		if (s)
 			new_fops = fops_get(s->unit_fops);
 	}
+	spin_unlock(&sound_loader_lock);
 	if (new_fops) {
 		/*
 		 * We rely upon the fact that we can't be unloaded while the
-		 * subdriver is there, so if ->open() is successful we can
-		 * safely drop the reference counter and if it is not we can
-		 * revert to old ->f_op. Ugly, indeed, but that's the cost of
-		 * switching ->f_op in the first place.
+		 * subdriver is there.
 		 */
 		int err = 0;
-		const struct file_operations *old_fops = file->f_op;
-		file->f_op = new_fops;
-		spin_unlock(&sound_loader_lock);
+		replace_fops(file, new_fops);
 
 		if (file->f_op->open)
 			err = file->f_op->open(inode,file);
 
-		if (err) {
-			fops_put(file->f_op);
-			file->f_op = fops_get(old_fops);
-		}
-
-		fops_put(old_fops);
 		return err;
 	}
-	spin_unlock(&sound_loader_lock);
 	return -ENODEV;
 }
 
@@ -666,7 +655,7 @@ static void cleanup_oss_soundcore(void)
 static int __init init_oss_soundcore(void)
 {
 	if (preclaim_oss &&
-	    register_chrdev(SOUND_MAJOR, "sound", &soundcore_fops) == -1) {
+	    register_chrdev(SOUND_MAJOR, "sound", &soundcore_fops) < 0) {
 		printk(KERN_ERR "soundcore: sound device already in use.\n");
 		return -EBUSY;
 	}

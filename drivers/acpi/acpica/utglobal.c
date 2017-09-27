@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,9 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#define EXPORT_ACPI_INTERFACES
 #define DEFINE_ACPI_GLOBALS
 
-#include <linux/export.h>
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -55,32 +55,7 @@ ACPI_MODULE_NAME("utglobal")
  * Static global variable initialization.
  *
  ******************************************************************************/
-/*
- * We want the debug switches statically initialized so they
- * are already set when the debugger is entered.
- */
-/* Debug switch - level and trace mask */
-u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
-
-/* Debug switch - layer (component) mask */
-
-u32 acpi_dbg_layer = 0;
-u32 acpi_gbl_nesting_level = 0;
-
-/* Debugger globals */
-
-u8 acpi_gbl_db_terminate_threads = FALSE;
-u8 acpi_gbl_abort_method = FALSE;
-u8 acpi_gbl_method_executing = FALSE;
-
-/* System flags */
-
-u32 acpi_gbl_startup_flags = 0;
-
-/* System starts uninitialized */
-
-u8 acpi_gbl_shutdown = TRUE;
-
+/* Various state name strings */
 const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
 	"\\_S0_",
 	"\\_S1_",
@@ -105,6 +80,11 @@ const char *acpi_gbl_highest_dstate_names[ACPI_NUM_sx_d_METHODS] = {
 	"_S4D"
 };
 
+/* Hex-to-ascii */
+
+const char acpi_gbl_lower_hex_digits[] = "0123456789abcdef";
+const char acpi_gbl_upper_hex_digits[] = "0123456789ABCDEF";
+
 /*******************************************************************************
  *
  * Namespace globals
@@ -127,12 +107,19 @@ const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
 	{"_SB_", ACPI_TYPE_DEVICE, NULL},
 	{"_SI_", ACPI_TYPE_LOCAL_SCOPE, NULL},
 	{"_TZ_", ACPI_TYPE_DEVICE, NULL},
-	{"_REV", ACPI_TYPE_INTEGER, (char *)ACPI_CA_SUPPORT_LEVEL},
+	/*
+	 * March, 2015:
+	 * The _REV object is in the process of being deprecated, because
+	 * other ACPI implementations permanently return 2. Thus, it
+	 * has little or no value. Return 2 for compatibility with
+	 * other ACPI implementations.
+	 */
+	{"_REV", ACPI_TYPE_INTEGER, ACPI_CAST_PTR(char, 2)},
 	{"_OS_", ACPI_TYPE_STRING, ACPI_OS_NAME},
-	{"_GL_", ACPI_TYPE_MUTEX, (char *)1},
+	{"_GL_", ACPI_TYPE_MUTEX, ACPI_CAST_PTR(char, 1)},
 
 #if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
-	{"_OSI", ACPI_TYPE_METHOD, (char *)1},
+	{"_OSI", ACPI_TYPE_METHOD, ACPI_CAST_PTR(char, 1)},
 #endif
 
 	/* Table terminator */
@@ -239,145 +226,53 @@ struct acpi_fixed_event_info acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS] = 
 };
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_init_globals
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Initialize ACPICA globals. All globals that require specific
- *              initialization should be initialized here. This allows for
- *              a warm restart.
- *
- ******************************************************************************/
+#if defined (ACPI_DISASSEMBLER) || defined (ACPI_ASL_COMPILER)
 
-acpi_status acpi_ut_init_globals(void)
-{
-	acpi_status status;
-	u32 i;
+/* to_pld macro: compile/disassemble strings */
 
-	ACPI_FUNCTION_TRACE(ut_init_globals);
+const char *acpi_gbl_pld_panel_list[] = {
+	"TOP",
+	"BOTTOM",
+	"LEFT",
+	"RIGHT",
+	"FRONT",
+	"BACK",
+	"UNKNOWN",
+	NULL
+};
 
-	/* Create all memory caches */
+const char *acpi_gbl_pld_vertical_position_list[] = {
+	"UPPER",
+	"CENTER",
+	"LOWER",
+	NULL
+};
 
-	status = acpi_ut_create_caches();
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
+const char *acpi_gbl_pld_horizontal_position_list[] = {
+	"LEFT",
+	"CENTER",
+	"RIGHT",
+	NULL
+};
 
-	/* Address Range lists */
-
-	for (i = 0; i < ACPI_ADDRESS_RANGE_MAX; i++) {
-		acpi_gbl_address_range_list[i] = NULL;
-	}
-
-	/* Mutex locked flags */
-
-	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
-		acpi_gbl_mutex_info[i].mutex = NULL;
-		acpi_gbl_mutex_info[i].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
-		acpi_gbl_mutex_info[i].use_count = 0;
-	}
-
-	for (i = 0; i < ACPI_NUM_OWNERID_MASKS; i++) {
-		acpi_gbl_owner_id_mask[i] = 0;
-	}
-
-	/* Last owner_ID is never valid */
-
-	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;
-
-#if (!ACPI_REDUCED_HARDWARE)
-
-	/* GPE support */
-
-	acpi_gbl_all_gpes_initialized = FALSE;
-	acpi_gbl_gpe_xrupt_list_head = NULL;
-	acpi_gbl_gpe_fadt_blocks[0] = NULL;
-	acpi_gbl_gpe_fadt_blocks[1] = NULL;
-	acpi_current_gpe_count = 0;
-
-	acpi_gbl_global_event_handler = NULL;
-
-#endif				/* !ACPI_REDUCED_HARDWARE */
-
-	/* Global handlers */
-
-	acpi_gbl_global_notify[0].handler = NULL;
-	acpi_gbl_global_notify[1].handler = NULL;
-	acpi_gbl_exception_handler = NULL;
-	acpi_gbl_init_handler = NULL;
-	acpi_gbl_table_handler = NULL;
-	acpi_gbl_interface_handler = NULL;
-
-	/* Global Lock support */
-
-	acpi_gbl_global_lock_semaphore = NULL;
-	acpi_gbl_global_lock_mutex = NULL;
-	acpi_gbl_global_lock_acquired = FALSE;
-	acpi_gbl_global_lock_handle = 0;
-	acpi_gbl_global_lock_present = FALSE;
-
-	/* Miscellaneous variables */
-
-	acpi_gbl_DSDT = NULL;
-	acpi_gbl_cm_single_step = FALSE;
-	acpi_gbl_db_terminate_threads = FALSE;
-	acpi_gbl_shutdown = FALSE;
-	acpi_gbl_ns_lookup_count = 0;
-	acpi_gbl_ps_find_count = 0;
-	acpi_gbl_acpi_hardware_present = TRUE;
-	acpi_gbl_last_owner_id_index = 0;
-	acpi_gbl_next_owner_id_offset = 0;
-	acpi_gbl_trace_method_name = 0;
-	acpi_gbl_trace_dbg_level = 0;
-	acpi_gbl_trace_dbg_layer = 0;
-	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
-	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
-	acpi_gbl_osi_data = 0;
-	acpi_gbl_osi_mutex = NULL;
-	acpi_gbl_reg_methods_executed = FALSE;
-
-	/* Hardware oriented */
-
-	acpi_gbl_events_initialized = FALSE;
-	acpi_gbl_system_awake_and_running = TRUE;
-
-	/* Namespace */
-
-	acpi_gbl_module_code_list = NULL;
-	acpi_gbl_root_node = NULL;
-	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
-	acpi_gbl_root_node_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;
-	acpi_gbl_root_node_struct.type = ACPI_TYPE_DEVICE;
-	acpi_gbl_root_node_struct.parent = NULL;
-	acpi_gbl_root_node_struct.child = NULL;
-	acpi_gbl_root_node_struct.peer = NULL;
-	acpi_gbl_root_node_struct.object = NULL;
-
-#ifdef ACPI_DISASSEMBLER
-	acpi_gbl_external_list = NULL;
-	acpi_gbl_num_external_methods = 0;
-	acpi_gbl_resolved_external_methods = 0;
+const char *acpi_gbl_pld_shape_list[] = {
+	"ROUND",
+	"OVAL",
+	"SQUARE",
+	"VERTICALRECTANGLE",
+	"HORIZONTALRECTANGLE",
+	"VERTICALTRAPEZOID",
+	"HORIZONTALTRAPEZOID",
+	"UNKNOWN",
+	"CHAMFERED",
+	NULL
+};
 #endif
-
-#ifdef ACPI_DEBUG_OUTPUT
-	acpi_gbl_lowest_stack_pointer = ACPI_CAST_PTR(acpi_size, ACPI_SIZE_MAX);
-#endif
-
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-	acpi_gbl_display_final_mem_stats = FALSE;
-	acpi_gbl_disable_mem_tracking = FALSE;
-#endif
-
-	return_ACPI_STATUS(AE_OK);
-}
 
 /* Public globals */
 
 ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
 ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+ACPI_EXPORT_SYMBOL(acpi_gpe_count)
 ACPI_EXPORT_SYMBOL(acpi_current_gpe_count)

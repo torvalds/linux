@@ -3,8 +3,6 @@
 extern void __init rtc_dev_init(void);
 extern void __exit rtc_dev_exit(void);
 extern void rtc_dev_prepare(struct rtc_device *rtc);
-extern void rtc_dev_add_device(struct rtc_device *rtc);
-extern void rtc_dev_del_device(struct rtc_device *rtc);
 
 #else
 
@@ -17,14 +15,6 @@ static inline void rtc_dev_exit(void)
 }
 
 static inline void rtc_dev_prepare(struct rtc_device *rtc)
-{
-}
-
-static inline void rtc_dev_add_device(struct rtc_device *rtc)
-{
-}
-
-static inline void rtc_dev_del_device(struct rtc_device *rtc)
 {
 }
 
@@ -48,23 +38,18 @@ static inline void rtc_proc_del_device(struct rtc_device *rtc)
 #endif
 
 #ifdef CONFIG_RTC_INTF_SYSFS
-
-extern void __init rtc_sysfs_init(struct class *);
-extern void rtc_sysfs_add_device(struct rtc_device *rtc);
-extern void rtc_sysfs_del_device(struct rtc_device *rtc);
-
+const struct attribute_group **rtc_get_dev_attribute_groups(void);
 #else
-
-static inline void rtc_sysfs_init(struct class *rtc)
+static inline const struct attribute_group **rtc_get_dev_attribute_groups(void)
 {
+	return NULL;
 }
+#endif
 
-static inline void rtc_sysfs_add_device(struct rtc_device *rtc)
-{
-}
-
-static inline void rtc_sysfs_del_device(struct rtc_device *rtc)
-{
-}
-
+#ifdef CONFIG_RTC_NVMEM
+void rtc_nvmem_register(struct rtc_device *rtc);
+void rtc_nvmem_unregister(struct rtc_device *rtc);
+#else
+static inline void rtc_nvmem_register(struct rtc_device *rtc) {}
+static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif

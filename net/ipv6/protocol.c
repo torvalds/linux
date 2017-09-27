@@ -26,7 +26,7 @@
 #include <net/protocol.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
-const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS] __read_mostly;
+struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS] __read_mostly;
 EXPORT_SYMBOL(inet6_protos);
 
 int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char protocol)
@@ -35,10 +35,6 @@ int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char protocol
 			NULL, prot) ? 0 : -1;
 }
 EXPORT_SYMBOL(inet6_add_protocol);
-
-/*
- *	Remove a protocol from the hash tables.
- */
 
 int inet6_del_protocol(const struct inet6_protocol *prot, unsigned char protocol)
 {
@@ -55,6 +51,7 @@ EXPORT_SYMBOL(inet6_del_protocol);
 #endif
 
 const struct net_offload __rcu *inet6_offloads[MAX_INET_PROTOS] __read_mostly;
+EXPORT_SYMBOL(inet6_offloads);
 
 int inet6_add_offload(const struct net_offload *prot, unsigned char protocol)
 {

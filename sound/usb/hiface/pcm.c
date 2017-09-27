@@ -110,7 +110,7 @@ static const struct snd_pcm_hardware pcm_hw = {
 #define HIFACE_RATE_96000  0x4a
 #define HIFACE_RATE_176400 0x40
 #define HIFACE_RATE_192000 0x48
-#define HIFACE_RATE_352000 0x58
+#define HIFACE_RATE_352800 0x58
 #define HIFACE_RATE_384000 0x68
 
 static int hiface_pcm_set_rate(struct pcm_runtime *rt, unsigned int rate)
@@ -141,8 +141,8 @@ static int hiface_pcm_set_rate(struct pcm_runtime *rt, unsigned int rate)
 	case 192000:
 		rate_value = HIFACE_RATE_192000;
 		break;
-	case 352000:
-		rate_value = HIFACE_RATE_352000;
+	case 352800:
+		rate_value = HIFACE_RATE_352800;
 		break;
 	case 384000:
 		rate_value = HIFACE_RATE_384000;
@@ -445,6 +445,8 @@ static int hiface_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 
 	mutex_lock(&rt->stream_mutex);
 
+	hiface_pcm_stream_stop(rt);
+
 	sub->dma_off = 0;
 	sub->period_off = 0;
 
@@ -511,7 +513,7 @@ static snd_pcm_uframes_t hiface_pcm_pointer(struct snd_pcm_substream *alsa_sub)
 	return bytes_to_frames(alsa_sub->runtime, dma_offset);
 }
 
-static struct snd_pcm_ops pcm_ops = {
+static const struct snd_pcm_ops pcm_ops = {
 	.open = hiface_pcm_open,
 	.close = hiface_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,

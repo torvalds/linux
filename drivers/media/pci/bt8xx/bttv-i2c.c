@@ -44,15 +44,13 @@ static int i2c_scan;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "configure i2c debug level");
 module_param(i2c_hw,    int, 0444);
-MODULE_PARM_DESC(i2c_hw,"force use of hardware i2c support, "
-			"instead of software bitbang");
+MODULE_PARM_DESC(i2c_hw, "force use of hardware i2c support, instead of software bitbang");
 module_param(i2c_scan,  int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 static unsigned int i2c_udelay = 5;
 module_param(i2c_udelay, int, 0444);
-MODULE_PARM_DESC(i2c_udelay,"soft i2c delay at insmod time, in usecs "
-		"(should be 5 or higher). Lower value means higher bus speed.");
+MODULE_PARM_DESC(i2c_udelay, "soft i2c delay at insmod time, in usecs (should be 5 or higher). Lower value means higher bus speed.");
 
 /* ----------------------------------------------------------------------- */
 /* I2C functions - bitbanging adapter (software i2c)                       */
@@ -99,7 +97,7 @@ static int bttv_bit_getsda(void *data)
 	return state;
 }
 
-static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
+static const struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
 	.setsda  = bttv_bit_setsda,
 	.setscl  = bttv_bit_setscl,
 	.getsda  = bttv_bit_getsda,

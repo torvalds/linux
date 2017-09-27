@@ -1,12 +1,12 @@
 #include <linux/string.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #undef memcpy
 #undef memset
 
-void *memcpy(void *to, const void *from, size_t n)
+__visible void *memcpy(void *to, const void *from, size_t n)
 {
-#ifdef CONFIG_X86_USE_3DNOW
+#if defined(CONFIG_X86_USE_3DNOW) && !defined(CONFIG_FORTIFY_SOURCE)
 	return __memcpy3d(to, from, n);
 #else
 	return __memcpy(to, from, n);
@@ -14,13 +14,13 @@ void *memcpy(void *to, const void *from, size_t n)
 }
 EXPORT_SYMBOL(memcpy);
 
-void *memset(void *s, int c, size_t count)
+__visible void *memset(void *s, int c, size_t count)
 {
 	return __memset(s, c, count);
 }
 EXPORT_SYMBOL(memset);
 
-void *memmove(void *dest, const void *src, size_t n)
+__visible void *memmove(void *dest, const void *src, size_t n)
 {
 	int d0,d1,d2,d3,d4,d5;
 	char *ret = dest;

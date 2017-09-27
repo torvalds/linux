@@ -158,7 +158,7 @@ static void crisv32_arbiter_config(int region, int unused_slots)
 	}
 }
 
-extern char _stext, _etext;
+extern char _stext[], _etext[];
 
 static void crisv32_arbiter_init(void)
 {
@@ -184,13 +184,13 @@ static void crisv32_arbiter_init(void)
 	crisv32_arbiter_config(EXT_REGION, 0);
 	crisv32_arbiter_config(INT_REGION, 0);
 
-	if (request_irq(MEMARB_INTR_VECT, crisv32_arbiter_irq, IRQF_DISABLED,
+	if (request_irq(MEMARB_INTR_VECT, crisv32_arbiter_irq, 0,
 			"arbiter", NULL))
 		printk(KERN_ERR "Couldn't allocate arbiter IRQ\n");
 
 #ifndef CONFIG_ETRAX_KGDB
 	/* Global watch for writes to kernel text segment. */
-	crisv32_arbiter_watch(virt_to_phys(&_stext), &_etext - &_stext,
+	crisv32_arbiter_watch(virt_to_phys(_stext), _etext - _stext,
 			      arbiter_all_clients, arbiter_all_write, NULL);
 #endif
 }

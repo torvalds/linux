@@ -25,8 +25,12 @@ OPTIONS
 -------
 -s::
 --skip::
-	Tests to skip (comma separater numeric list).
+	Tests to skip (comma separated numeric list).
 
 -v::
 --verbose::
 	Be more verbose.
+
+-F::
+--dont-fork::
+	Do not fork child for each test, run all tests within single process.

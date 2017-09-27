@@ -1,0 +1,10 @@
+config FSL_FMAN
+	tristate "FMan support"
+	depends on FSL_SOC || ARCH_LAYERSCAPE || COMPILE_TEST
+	select GENERIC_ALLOCATOR
+	depends on HAS_DMA
+	select PHYLIB
+	default n
+	help
+		Freescale Data-Path Acceleration Architecture Frame Manager
+		(FMan) support

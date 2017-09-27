@@ -14,7 +14,7 @@
 #include <linux/io.h>		/* outb, outb_p			*/
 #include <linux/isa.h>
 #include <linux/pnp.h>
-#include <sound/tea575x-tuner.h>
+#include <media/drv-intf/tea575x.h>
 
 MODULE_AUTHOR("Ondrej Zary");
 MODULE_DESCRIPTION("MediaForte SF16-FMR2 and SF16-FMD2 FM radio card driver");
@@ -74,15 +74,15 @@ static u8 fmr2_tea575x_get_pins(struct snd_tea575x *tea)
 	struct fmr2 *fmr2 = tea->private_data;
 	u8 bits = inb(fmr2->io);
 
-	return  (bits & STR_DATA) ? TEA575X_DATA : 0 |
-		(bits & STR_MOST) ? TEA575X_MOST : 0;
+	return  ((bits & STR_DATA) ? TEA575X_DATA : 0) |
+		((bits & STR_MOST) ? TEA575X_MOST : 0);
 }
 
 static void fmr2_tea575x_set_direction(struct snd_tea575x *tea, bool output)
 {
 }
 
-static struct snd_tea575x_ops fmr2_tea_ops = {
+static const struct snd_tea575x_ops fmr2_tea_ops = {
 	.set_pins = fmr2_tea575x_set_pins,
 	.get_pins = fmr2_tea575x_get_pins,
 	.set_direction = fmr2_tea575x_set_direction,
@@ -197,7 +197,7 @@ static int fmr2_tea_ext_init(struct snd_tea575x *tea)
 	return 0;
 }
 
-static struct pnp_device_id fmr2_pnp_ids[] = {
+static const struct pnp_device_id fmr2_pnp_ids[] = {
 	{ .id = "MFRad13" }, /* tuner subdevice of SF16-FMD2 */
 	{ .id = "" }
 };
@@ -295,7 +295,6 @@ static void fmr2_remove(struct fmr2 *fmr2)
 static int fmr2_isa_remove(struct device *pdev, unsigned int ndev)
 {
 	fmr2_remove(dev_get_drvdata(pdev));
-	dev_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -306,7 +305,7 @@ static void fmr2_pnp_remove(struct pnp_dev *pdev)
 	pnp_set_drvdata(pdev, NULL);
 }
 
-struct isa_driver fmr2_isa_driver = {
+static struct isa_driver fmr2_isa_driver = {
 	.match		= fmr2_isa_match,
 	.remove		= fmr2_isa_remove,
 	.driver		= {
@@ -314,7 +313,7 @@ struct isa_driver fmr2_isa_driver = {
 	},
 };
 
-struct pnp_driver fmr2_pnp_driver = {
+static struct pnp_driver fmr2_pnp_driver = {
 	.name		= "radio-sf16fmr2",
 	.id_table	= fmr2_pnp_ids,
 	.probe		= fmr2_pnp_probe,

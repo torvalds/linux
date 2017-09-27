@@ -15,6 +15,8 @@
 
 #include <linux/atomic.h>
 #include <asm/intrinsics.h>
+#include <asm/barrier.h>
+#include <asm/processor.h>
 
 #define arch_spin_lock_init(x)			((x)->lock = 0)
 
@@ -74,20 +76,6 @@ static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
 	ACCESS_ONCE(*p) = (tmp + 2) & ~1;
 }
 
-static __always_inline void __ticket_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	int	*p = (int *)&lock->lock, ticket;
-
-	ia64_invala();
-
-	for (;;) {
-		asm volatile ("ld4.c.nc %0=[%1]" : "=r"(ticket) : "r"(p) : "memory");
-		if (!(((ticket >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
-			return;
-		cpu_relax();
-	}
-}
-
 static inline int __ticket_spin_is_locked(arch_spinlock_t *lock)
 {
 	long tmp = ACCESS_ONCE(lock->lock);
@@ -100,6 +88,11 @@ static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
 	long tmp = ACCESS_ONCE(lock->lock);
 
 	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
+}
+
+static __always_inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return !(((lock.lock >> TICKET_SHIFT) ^ lock.lock) & TICKET_MASK);
 }
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
@@ -132,11 +125,6 @@ static __always_inline void arch_spin_lock_flags(arch_spinlock_t *lock,
 						  unsigned long flags)
 {
 	arch_spin_lock(lock);
-}
-
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	__ticket_spin_unlock_wait(lock);
 }
 
 #define arch_read_can_lock(rw)		(*(volatile int *)(rw) >= 0)

@@ -14,7 +14,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/bug.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -498,7 +497,8 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 	if (pdata && pdata->irq_base > 0)
 		irq_base = pdata->irq_base;
 
-	wm8350->irq_base = irq_alloc_descs(irq_base, 0, ARRAY_SIZE(wm8350_irqs), 0);
+	wm8350->irq_base =
+		irq_alloc_descs(irq_base, 0, ARRAY_SIZE(wm8350_irqs), 0);
 	if (wm8350->irq_base < 0) {
 		dev_warn(wm8350->dev, "Allocating irqs failed with %d\n",
 			wm8350->irq_base);
@@ -526,13 +526,7 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 					 handle_edge_irq);
 		irq_set_nested_thread(cur_irq, 1);
 
-		/* ARM needs us to explicitly flag the IRQ as valid
-		 * and will set them noprobe when we do so. */
-#ifdef CONFIG_ARM
-		set_irq_flags(cur_irq, IRQF_VALID);
-#else
-		irq_set_noprobe(cur_irq);
-#endif
+		irq_clear_status_flags(cur_irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	ret = request_threaded_irq(irq, NULL, wm8350_irq, flags,

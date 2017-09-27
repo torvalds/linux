@@ -28,12 +28,30 @@
 
 #ifdef __powerpc64__
 
+/*
+ * Size of redzone that userspace is allowed to use below the stack
+ * pointer.  This is 288 in the 64-bit big-endian ELF ABI, and 512 in
+ * the new ELFv2 little-endian ABI, so we allow the larger amount.
+ *
+ * For kernel code we allow a 288-byte redzone, in order to conserve
+ * kernel stack space; gcc currently only uses 288 bytes, and will
+ * hopefully allow explicit control of the redzone size in future.
+ */
+#define USER_REDZONE_SIZE	512
+#define KERNEL_REDZONE_SIZE	288
+
 #define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
 #define STACK_FRAME_LR_SAVE	2	/* Location of LR in stack frame */
 #define STACK_FRAME_REGS_MARKER	ASM_CONST(0x7265677368657265)
 #define STACK_INT_FRAME_SIZE	(sizeof(struct pt_regs) + \
-					STACK_FRAME_OVERHEAD + 288)
+				 STACK_FRAME_OVERHEAD + KERNEL_REDZONE_SIZE)
 #define STACK_FRAME_MARKER	12
+
+#ifdef PPC64_ELF_ABI_v2
+#define STACK_FRAME_MIN_SIZE	32
+#else
+#define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD
+#endif
 
 /* Size of dummy stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	128
@@ -41,11 +59,14 @@
 
 #else /* __powerpc64__ */
 
+#define USER_REDZONE_SIZE	0
+#define KERNEL_REDZONE_SIZE	0
 #define STACK_FRAME_OVERHEAD	16	/* size of minimum stack frame */
 #define STACK_FRAME_LR_SAVE	1	/* Location of LR in stack frame */
 #define STACK_FRAME_REGS_MARKER	ASM_CONST(0x72656773)
 #define STACK_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD)
 #define STACK_FRAME_MARKER	2
+#define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD
 
 /* Size of stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	64

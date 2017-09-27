@@ -1,0 +1,79 @@
+.TH "CPUPOWER-IDLE-SET" "1" "0.1" "" "cpupower Manual"
+.SH "NAME"
+.LP
+cpupower\-idle\-set \- Utility to set cpu idle state specific kernel options
+.SH "SYNTAX"
+.LP
+cpupower [ \-c cpulist ] idle\-info [\fIoptions\fP]
+.SH "DESCRIPTION"
+.LP
+The cpupower idle\-set subcommand allows to set cpu idle, also called cpu
+sleep state, specific options offered by the kernel. One example is disabling
+sleep states. This can be handy for power vs performance tuning.
+.SH "OPTIONS"
+.LP
+.TP
+\fB\-d\fR \fB\-\-disable\fR <STATE_NO>
+Disable a specific processor sleep state.
+.TP
+\fB\-e\fR \fB\-\-enable\fR <STATE_NO>
+Enable a specific processor sleep state.
+.TP
+\fB\-D\fR \fB\-\-disable-by-latency\fR <LATENCY>
+Disable all idle states with a equal or higher latency than <LATENCY>.
+
+Enable all idle states with a latency lower than <LATENCY>.
+.TP
+\fB\-E\fR \fB\-\-enable-all\fR
+Enable all idle states if not enabled already.
+
+.SH "REMARKS"
+.LP
+Cpuidle Governors Policy on Disabling Sleep States
+
+.RS 4
+Depending on the used  cpuidle governor, implementing the kernel policy
+how to choose sleep states, subsequent sleep states on this core, might get
+disabled as well.
+
+There are two cpuidle governors ladder and menu. While the ladder
+governor is always available, if CONFIG_CPU_IDLE is selected, the
+menu governor additionally requires CONFIG_NO_HZ.
+
+The behavior and the effect of the disable variable depends on the
+implementation of a particular governor. In the ladder governor, for
+example, it is not coherent, i.e. if one is disabling a light state,
+then all deeper states are disabled as well. Likewise, if one enables a
+deep state but a lighter state still is disabled, then this has no effect.
+.RE
+.LP
+Disabling the Lightest Sleep State may not have any Affect
+
+.RS 4
+If criteria are not met to enter deeper sleep states and the lightest sleep
+state is chosen when idle, the kernel may still enter this sleep state,
+irrespective of whether it is disabled or not. This is also reflected in
+the usage count of the disabled sleep state when using the cpupower idle-info
+command.
+.RE
+.LP
+Selecting specific CPU Cores
+
+.RS 4
+By default processor sleep states of all CPU cores are set. Please refer
+to the cpupower(1) manpage in the \-\-cpu option section how to disable
+C-states of specific cores.
+.RE
+.SH "FILES"
+.nf
+\fI/sys/devices/system/cpu/cpu*/cpuidle/state*\fP
+\fI/sys/devices/system/cpu/cpuidle/*\fP
+.fi
+.SH "AUTHORS"
+.nf
+Thomas Renninger <trenn@suse.de>
+.fi
+.SH "SEE ALSO"
+.LP
+cpupower(1), cpupower\-monitor(1), cpupower\-info(1), cpupower\-set(1),
+cpupower\-idle\-info(1)

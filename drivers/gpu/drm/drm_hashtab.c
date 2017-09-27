@@ -125,7 +125,7 @@ int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 		parent = &entry->head;
 	}
 	if (parent) {
-		hlist_add_after_rcu(parent, &item->head);
+		hlist_add_behind_rcu(&item->head, parent);
 	} else {
 		hlist_add_head_rcu(&item->head, h_list);
 	}
@@ -142,7 +142,7 @@ int drm_ht_just_insert_please(struct drm_open_hash *ht, struct drm_hash_item *it
 			      unsigned long add)
 {
 	int ret;
-	unsigned long mask = (1 << bits) - 1;
+	unsigned long mask = (1UL << bits) - 1;
 	unsigned long first, unshifted_key;
 
 	unshifted_key = hash_long(seed, bits);
@@ -198,10 +198,7 @@ EXPORT_SYMBOL(drm_ht_remove_item);
 void drm_ht_remove(struct drm_open_hash *ht)
 {
 	if (ht->table) {
-		if ((PAGE_SIZE / sizeof(*ht->table)) >> ht->order)
-			kfree(ht->table);
-		else
-			vfree(ht->table);
+		kvfree(ht->table);
 		ht->table = NULL;
 	}
 }

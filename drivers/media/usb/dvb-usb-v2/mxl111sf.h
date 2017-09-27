@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Michael Krufky (mkrufky@kernellabs.com)
+ * Copyright (C) 2010-2014 Michael Krufky (mkrufky@linuxtv.org)
  *
  *   This program is free software; you can redistribute it and/or modify it
  *   under the terms of the GNU General Public License as published by the Free
@@ -17,6 +17,10 @@
 #define DVB_USB_LOG_PREFIX "mxl111sf"
 #include "dvb_usb.h"
 #include <media/tveeprom.h>
+#include <media/media-entity.h>
+
+/* Max transfer size done by I2C transfer functions */
+#define MXL_MAX_XFER_SIZE  64
 
 #define MXL_EP1_REG_READ     1
 #define MXL_EP2_REG_WRITE    2
@@ -85,6 +89,13 @@ struct mxl111sf_state {
 	struct mutex fe_lock;
 	u8 num_frontends;
 	struct mxl111sf_adap_state adap_state[3];
+	u8 sndbuf[MXL_MAX_XFER_SIZE];
+	u8 rcvbuf[MXL_MAX_XFER_SIZE];
+	struct mutex msg_lock;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct media_entity tuner;
+	struct media_pad tuner_pads[2];
+#endif
 };
 
 int mxl111sf_read_reg(struct mxl111sf_state *state, u8 addr, u8 *data);
@@ -103,7 +114,7 @@ int mxl111sf_ctrl_program_regs(struct mxl111sf_state *state,
 
 /* needed for hardware i2c functions in mxl111sf-i2c.c:
  * mxl111sf_i2c_send_data / mxl111sf_i2c_get_data */
-int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
+int mxl111sf_ctrl_msg(struct mxl111sf_state *state,
 		      u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen);
 
 #define mxl_printk(kern, fmt, arg...) \
@@ -152,9 +163,3 @@ extern int dvb_usb_mxl111sf_debug;
 })
 
 #endif /* _DVB_USB_MXL111SF_H_ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

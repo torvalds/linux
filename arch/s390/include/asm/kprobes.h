@@ -28,36 +28,48 @@
  *		<grundym@us.ibm.com>
  */
 #include <linux/types.h>
-#include <linux/ptrace.h>
-#include <linux/percpu.h>
+#include <asm-generic/kprobes.h>
 
-struct pt_regs;
-struct kprobe;
-
-typedef u16 kprobe_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0x0002
-
-/* Maximum instruction size is 3 (16bit) halfwords: */
-#define MAX_INSN_SIZE		0x0003
-#define MAX_STACK_SIZE		64
-#define MIN_STACK_SIZE(ADDR) (((MAX_STACK_SIZE) < \
-	(((unsigned long)current_thread_info()) + THREAD_SIZE - (ADDR))) \
-	? (MAX_STACK_SIZE) \
-	: (((unsigned long)current_thread_info()) + THREAD_SIZE - (ADDR)))
-
-#define kretprobe_blacklist_size 0
-
-#define KPROBE_SWAP_INST	0x10
 
 #define FIXUP_PSW_NORMAL	0x08
 #define FIXUP_BRANCH_NOT_TAKEN	0x04
 #define FIXUP_RETURN_REGISTER	0x02
 #define FIXUP_NOT_REQUIRED	0x01
 
+int probe_is_prohibited_opcode(u16 *insn);
+int probe_get_fixup_type(u16 *insn);
+int probe_is_insn_relative_long(u16 *insn);
+
+#ifdef CONFIG_KPROBES
+#include <linux/ptrace.h>
+#include <linux/percpu.h>
+#include <linux/sched/task_stack.h>
+
+#define __ARCH_WANT_KPROBES_INSN_SLOT
+
+struct pt_regs;
+struct kprobe;
+
+typedef u16 kprobe_opcode_t;
+
+/* Maximum instruction size is 3 (16bit) halfwords: */
+#define MAX_INSN_SIZE		0x0003
+#define MAX_STACK_SIZE		64
+#define MIN_STACK_SIZE(ADDR) (((MAX_STACK_SIZE) < \
+	(((unsigned long)task_stack_page(current)) + THREAD_SIZE - (ADDR))) \
+	? (MAX_STACK_SIZE) \
+	: (((unsigned long)task_stack_page(current)) + THREAD_SIZE - (ADDR)))
+
+#define kretprobe_blacklist_size 0
+
+#define KPROBE_SWAP_INST	0x10
+
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
 	/* copy of original instruction */
-	kprobe_opcode_t insn[MAX_INSN_SIZE];
+	kprobe_opcode_t *insn;
+	unsigned int is_ftrace_insn : 1;
 };
 
 struct prev_kprobe {
@@ -84,4 +96,5 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 
 #define flush_insn_slot(p)	do { } while (0)
 
+#endif /* CONFIG_KPROBES */
 #endif	/* _ASM_S390_KPROBES_H */

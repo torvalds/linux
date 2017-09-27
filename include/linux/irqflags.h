@@ -23,10 +23,26 @@
 # define trace_softirq_context(p)	((p)->softirq_context)
 # define trace_hardirqs_enabled(p)	((p)->hardirqs_enabled)
 # define trace_softirqs_enabled(p)	((p)->softirqs_enabled)
-# define trace_hardirq_enter()	do { current->hardirq_context++; } while (0)
-# define trace_hardirq_exit()	do { current->hardirq_context--; } while (0)
-# define lockdep_softirq_enter()	do { current->softirq_context++; } while (0)
-# define lockdep_softirq_exit()	do { current->softirq_context--; } while (0)
+# define trace_hardirq_enter()			\
+do {						\
+	current->hardirq_context++;		\
+	crossrelease_hist_start(XHLOCK_HARD);	\
+} while (0)
+# define trace_hardirq_exit()			\
+do {						\
+	current->hardirq_context--;		\
+	crossrelease_hist_end(XHLOCK_HARD);	\
+} while (0)
+# define lockdep_softirq_enter()		\
+do {						\
+	current->softirq_context++;		\
+	crossrelease_hist_start(XHLOCK_SOFT);	\
+} while (0)
+# define lockdep_softirq_exit()			\
+do {						\
+	current->softirq_context--;		\
+	crossrelease_hist_end(XHLOCK_SOFT);	\
+} while (0)
 # define INIT_TRACE_IRQFLAGS	.softirqs_enabled = 1,
 #else
 # define trace_hardirqs_on()		do { } while (0)
@@ -85,7 +101,7 @@
  * The local_irq_*() APIs are equal to the raw_local_irq*()
  * if !TRACE_IRQFLAGS.
  */
-#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
+#ifdef CONFIG_TRACE_IRQFLAGS
 #define local_irq_enable() \
 	do { trace_hardirqs_on(); raw_local_irq_enable(); } while (0)
 #define local_irq_disable() \
@@ -107,22 +123,6 @@
 			raw_local_irq_restore(flags);	\
 		}					\
 	} while (0)
-#define local_save_flags(flags)				\
-	do {						\
-		raw_local_save_flags(flags);		\
-	} while (0)
-
-#define irqs_disabled_flags(flags)			\
-	({						\
-		raw_irqs_disabled_flags(flags);		\
-	})
-
-#define irqs_disabled()					\
-	({						\
-		unsigned long _flags;			\
-		raw_local_save_flags(_flags);		\
-		raw_irqs_disabled_flags(_flags);	\
-	})
 
 #define safe_halt()				\
 	do {					\
@@ -131,7 +131,7 @@
 	} while (0)
 
 
-#else /* !CONFIG_TRACE_IRQFLAGS_SUPPORT */
+#else /* !CONFIG_TRACE_IRQFLAGS */
 
 #define local_irq_enable()	do { raw_local_irq_enable(); } while (0)
 #define local_irq_disable()	do { raw_local_irq_disable(); } while (0)
@@ -140,11 +140,28 @@
 		raw_local_irq_save(flags);			\
 	} while (0)
 #define local_irq_restore(flags) do { raw_local_irq_restore(flags); } while (0)
-#define local_save_flags(flags)	do { raw_local_save_flags(flags); } while (0)
-#define irqs_disabled()		(raw_irqs_disabled())
-#define irqs_disabled_flags(flags) (raw_irqs_disabled_flags(flags))
 #define safe_halt()		do { raw_safe_halt(); } while (0)
 
+#endif /* CONFIG_TRACE_IRQFLAGS */
+
+#define local_save_flags(flags)	raw_local_save_flags(flags)
+
+/*
+ * Some architectures don't define arch_irqs_disabled(), so even if either
+ * definition would be fine we need to use different ones for the time being
+ * to avoid build issues.
+ */
+#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
+#define irqs_disabled()					\
+	({						\
+		unsigned long _flags;			\
+		raw_local_save_flags(_flags);		\
+		raw_irqs_disabled_flags(_flags);	\
+	})
+#else /* !CONFIG_TRACE_IRQFLAGS_SUPPORT */
+#define irqs_disabled()	raw_irqs_disabled()
 #endif /* CONFIG_TRACE_IRQFLAGS_SUPPORT */
+
+#define irqs_disabled_flags(flags) raw_irqs_disabled_flags(flags)
 
 #endif

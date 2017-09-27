@@ -27,7 +27,6 @@
 /*#include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>
-#include <linux/init.h>
 #include <linux/namei.h>
 #include <linux/sched.h>*/
 #include <linux/platform_device.h>
@@ -59,7 +58,7 @@
 #define CCR_PM_CKRNEN    0x0002
 #define CCR_PM_USBPW1    0x0004
 #define CCR_PM_USBPW2    0x0008
-#define CCR_PM_USBPW3    0x0008
+#define CCR_PM_USBPW3    0x0010
 #define CCR_PM_PMEE      0x0100
 #define CCR_PM_PMES      0x8000
 
@@ -228,13 +227,10 @@ static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 		goto err_ioremap_regs;
 	}
 
-	if (!dma_declare_coherent_memory(&dev->dev, sram->start,
-				sram->start,
-				resource_size(sram),
-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE)) {
-		ret = -EBUSY;
+	ret = dma_declare_coherent_memory(&dev->dev, sram->start, sram->start,
+				resource_size(sram), DMA_MEMORY_EXCLUSIVE);
+	if (ret)
 		goto err_dma_declare;
-	}
 
 	if (cell->enable) {
 		ret = cell->enable(dev);
@@ -250,6 +246,7 @@ static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 	if (ret)
 		goto err_add_hcd;
 
+	device_wakeup_enable(hcd->self.controller);
 	if (ret == 0)
 		return ret;
 
@@ -368,6 +365,5 @@ static struct platform_driver ohci_hcd_tmio_driver = {
 	.resume		= ohci_hcd_tmio_drv_resume,
 	.driver		= {
 		.name	= "tmio-ohci",
-		.owner	= THIS_MODULE,
 	},
 };

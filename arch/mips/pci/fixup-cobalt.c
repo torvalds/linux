@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/pci.h>
 #include <asm/io.h>
 #include <asm/gt64120.h>
 
@@ -148,7 +147,7 @@ static void qube_raq_via_board_id_fixup(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_0,
 	 qube_raq_via_board_id_fixup);
 
-static char irq_tab_qube1[] __initdata = {
+static char irq_tab_qube1[] = {
   [COBALT_PCICONF_CPU]	   = 0,
   [COBALT_PCICONF_ETH0]	   = QUBE1_ETH0_IRQ,
   [COBALT_PCICONF_RAQSCSI] = SCSI_IRQ,
@@ -157,7 +156,7 @@ static char irq_tab_qube1[] __initdata = {
   [COBALT_PCICONF_ETH1]	   = 0
 };
 
-static char irq_tab_cobalt[] __initdata = {
+static char irq_tab_cobalt[] = {
   [COBALT_PCICONF_CPU]	   = 0,
   [COBALT_PCICONF_ETH0]	   = ETH0_IRQ,
   [COBALT_PCICONF_RAQSCSI] = SCSI_IRQ,
@@ -166,7 +165,7 @@ static char irq_tab_cobalt[] __initdata = {
   [COBALT_PCICONF_ETH1]	   = ETH1_IRQ
 };
 
-static char irq_tab_raq2[] __initdata = {
+static char irq_tab_raq2[] = {
   [COBALT_PCICONF_CPU]	   = 0,
   [COBALT_PCICONF_ETH0]	   = ETH0_IRQ,
   [COBALT_PCICONF_RAQSCSI] = RAQ2_SCSI_IRQ,
@@ -175,7 +174,7 @@ static char irq_tab_raq2[] __initdata = {
   [COBALT_PCICONF_ETH1]	   = ETH1_IRQ
 };
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (cobalt_board_id <= COBALT_BRD_ID_QUBE1)
 		return irq_tab_qube1[slot];

@@ -1,5 +1,5 @@
 #include <linux/ioport.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 
 static void resource_clip(struct resource *res, resource_size_t start,
 			  resource_size_t end)
@@ -25,10 +25,10 @@ static void resource_clip(struct resource *res, resource_size_t start,
 static void remove_e820_regions(struct resource *avail)
 {
 	int i;
-	struct e820entry *entry;
+	struct e820_entry *entry;
 
-	for (i = 0; i < e820.nr_map; i++) {
-		entry = &e820.map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		entry = &e820_table->entries[i];
 
 		resource_clip(avail, entry->addr,
 			      entry->addr + entry->size - 1);
@@ -37,10 +37,12 @@ static void remove_e820_regions(struct resource *avail)
 
 void arch_remove_reservations(struct resource *avail)
 {
-	/* Trim out BIOS areas (low 1MB and high 2MB) and E820 regions */
+	/*
+	 * Trim out BIOS area (high 2MB) and E820 regions. We do not remove
+	 * the low 1MB unconditionally, as this area is needed for some ISA
+	 * cards requiring a memory range, e.g. the i82365 PCMCIA controller.
+	 */
 	if (avail->flags & IORESOURCE_MEM) {
-		if (avail->start < BIOS_END)
-			avail->start = BIOS_END;
 		resource_clip(avail, BIOS_ROM_BASE, BIOS_ROM_END);
 
 		remove_e820_regions(avail);

@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 
 #define DRIVER_DESC	"Fujitsu serial touchscreen driver"
 
@@ -152,7 +151,7 @@ static int fujitsu_connect(struct serio *serio, struct serio_driver *drv)
 /*
  * The serio driver structure.
  */
-static struct serio_device_id fujitsu_serio_ids[] = {
+static const struct serio_device_id fujitsu_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_FUJITSU,

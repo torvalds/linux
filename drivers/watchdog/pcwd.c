@@ -61,7 +61,7 @@
 #include <linux/delay.h>	/* For mdelay function */
 #include <linux/timer.h>	/* For timer related operations */
 #include <linux/jiffies.h>	/* For jiffies stuff */
-#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>	/* For struct miscdevice */
 #include <linux/watchdog.h>	/* For the watchdog specific items */
 #include <linux/reboot.h>	/* For kernel_power_off() */
 #include <linux/init.h>		/* For __init/__exit/... */
@@ -992,24 +992,10 @@ static struct isa_driver pcwd_isa_driver = {
 	},
 };
 
-static int __init pcwd_init_module(void)
-{
-	return isa_register_driver(&pcwd_isa_driver, PCWD_ISA_NR_CARDS);
-}
-
-static void __exit pcwd_cleanup_module(void)
-{
-	isa_unregister_driver(&pcwd_isa_driver);
-	pr_info("Watchdog Module Unloaded\n");
-}
-
-module_init(pcwd_init_module);
-module_exit(pcwd_cleanup_module);
+module_isa_driver(pcwd_isa_driver, PCWD_ISA_NR_CARDS);
 
 MODULE_AUTHOR("Ken Hollis <kenji@bitgate.com>, "
 		"Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("Berkshire ISA-PC Watchdog driver");
 MODULE_VERSION(WATCHDOG_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_ALIAS_MISCDEV(TEMP_MINOR);

@@ -537,7 +537,7 @@ static int wm_master_vol_put(struct snd_kcontrol *kcontrol,
 static int wm_adc_mux_enum_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
-	static char* texts[32] = {
+	static const char * const texts[32] = {
 		"NULL", WM_AIN1, WM_AIN2, WM_AIN1 "+" WM_AIN2,
 		WM_AIN3, WM_AIN1 "+" WM_AIN3, WM_AIN2 "+" WM_AIN3,
 		WM_AIN1 "+" WM_AIN2 "+" WM_AIN3,
@@ -560,14 +560,7 @@ static int wm_adc_mux_enum_info(struct snd_kcontrol *kcontrol,
 		WM_AIN1 "+" WM_AIN2 "+" WM_AIN3 "+" WM_AIN4 "+" WM_AIN5
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 32;
-	if (uinfo->value.enumerated.item > 31)
-		uinfo->value.enumerated.item = 31;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 32, texts);
 }
 
 static int wm_adc_mux_enum_get(struct snd_kcontrol *kcontrol,

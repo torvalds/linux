@@ -81,9 +81,9 @@ struct fs_ops {
 	void (*adjust_link)(struct net_device *dev);
 	void (*restart)(struct net_device *dev);
 	void (*stop)(struct net_device *dev);
-	void (*napi_clear_rx_event)(struct net_device *dev);
-	void (*napi_enable_rx)(struct net_device *dev);
-	void (*napi_disable_rx)(struct net_device *dev);
+	void (*napi_clear_event)(struct net_device *dev);
+	void (*napi_enable)(struct net_device *dev);
+	void (*napi_disable)(struct net_device *dev);
 	void (*rx_bd_done)(struct net_device *dev);
 	void (*tx_kickstart)(struct net_device *dev);
 	u32 (*get_int_events)(struct net_device *dev);
@@ -130,13 +130,13 @@ struct fs_enet_private {
 	void __iomem *ring_base;
 	struct sk_buff **rx_skbuff;
 	struct sk_buff **tx_skbuff;
+	char *mapped_as_page;
 	cbd_t __iomem *rx_bd_base;	/* Address of Rx and Tx buffers.    */
 	cbd_t __iomem *tx_bd_base;
 	cbd_t __iomem *dirty_tx;	/* ring entries to be free()ed.     */
 	cbd_t __iomem *cur_rx;
 	cbd_t __iomem *cur_tx;
 	int tx_free;
-	struct net_device_stats stats;
 	struct timer_list phy_timer_list;
 	const struct phy_info *phy;
 	u32 msg_enable;
@@ -144,13 +144,11 @@ struct fs_enet_private {
 	unsigned int last_mii_status;
 	int interrupt;
 
-	struct phy_device *phydev;
 	int oldduplex, oldspeed, oldlink;	/* current settings */
 
 	/* event masks */
-	u32 ev_napi_rx;		/* mask of NAPI rx events */
-	u32 ev_rx;		/* rx event mask          */
-	u32 ev_tx;		/* tx event mask          */
+	u32 ev_napi;		/* mask of NAPI events */
+	u32 ev;			/* event mask          */
 	u32 ev_err;		/* error event mask       */
 
 	u16 bd_rx_empty;	/* mask of BD rx empty	  */
@@ -191,8 +189,8 @@ void fs_cleanup_bds(struct net_device *dev);
 
 #define DRV_MODULE_NAME		"fs_enet"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.0"
-#define DRV_MODULE_RELDATE	"Aug 8, 2005"
+#define DRV_MODULE_VERSION	"1.1"
+#define DRV_MODULE_RELDATE	"Sep 22, 2014"
 
 /***************************************************************************/
 

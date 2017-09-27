@@ -21,58 +21,53 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 
-#include <asm-generic/dma-coherent.h>
+#include <xen/xen.h>
+#include <asm/xen/hypervisor.h>
 
-#define ARCH_HAS_DMA_GET_REQUIRED_MASK
+extern const struct dma_map_ops dummy_dma_ops;
 
-extern struct dma_map_ops *dma_ops;
-
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	if (unlikely(!dev) || !dev->archdata.dma_ops)
-		return dma_ops;
-	else
-		return dev->archdata.dma_ops;
+	/*
+	 * We expect no ISA devices, and all other DMA masters are expected to
+	 * have someone call arch_setup_dma_ops at device creation time.
+	 */
+	return &dummy_dma_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
+void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
+			const struct iommu_ops *iommu, bool coherent);
+#define arch_setup_dma_ops	arch_setup_dma_ops
+
+#ifdef CONFIG_IOMMU_DMA
+void arch_teardown_dma_ops(struct device *dev);
+#define arch_teardown_dma_ops	arch_teardown_dma_ops
+#endif
+
+/* do not use this function in a driver */
+static inline bool is_device_dma_coherent(struct device *dev)
+{
+	return dev->archdata.dma_coherent;
+}
 
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	return (dma_addr_t)paddr;
+	dma_addr_t dev_addr = (dma_addr_t)paddr;
+
+	return dev_addr - ((dma_addr_t)dev->dma_pfn_offset << PAGE_SHIFT);
 }
 
 static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dev_addr)
 {
-	return (phys_addr_t)dev_addr;
-}
+	phys_addr_t paddr = (phys_addr_t)dev_addr;
 
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dev_addr)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	debug_dma_mapping_error(dev, dev_addr);
-	return ops->mapping_error(dev, dev_addr);
-}
-
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	return ops->dma_supported(dev, mask);
-}
-
-static inline int dma_set_mask(struct device *dev, u64 mask)
-{
-	if (!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-	*dev->dma_mask = mask;
-
-	return 0;
+	return paddr + ((phys_addr_t)dev->dma_pfn_offset << PAGE_SHIFT);
 }
 
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
 	if (!dev->dma_mask)
-		return 0;
+		return false;
 
 	return addr + size - 1 <= *dev->dma_mask;
 }
@@ -81,50 +76,14 @@ static inline void dma_mark_clean(void *addr, size_t size)
 {
 }
 
-#define dma_alloc_coherent(d, s, h, f)	dma_alloc_attrs(d, s, h, f, NULL)
-#define dma_free_coherent(d, s, h, f)	dma_free_attrs(d, s, h, f, NULL)
-
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				    dma_addr_t *dma_handle, gfp_t flags,
-				    struct dma_attrs *attrs)
+/* Override for dma_max_pfn() */
+static inline unsigned long dma_max_pfn(struct device *dev)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	void *vaddr;
+	dma_addr_t dma_max = (dma_addr_t)*dev->dma_mask;
 
-	if (dma_alloc_from_coherent(dev, size, dma_handle, &vaddr))
-		return vaddr;
-
-	vaddr = ops->alloc(dev, size, dma_handle, flags, attrs);
-	debug_dma_alloc_coherent(dev, size, *dma_handle, vaddr);
-	return vaddr;
+	return (ulong)dma_to_phys(dev, dma_max) >> PAGE_SHIFT;
 }
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *vaddr, dma_addr_t dev_addr,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	if (dma_release_from_coherent(dev, get_order(size), vaddr))
-		return;
-
-	debug_dma_free_coherent(dev, size, vaddr, dev_addr);
-	ops->free(dev, size, vaddr, dev_addr, attrs);
-}
-
-/*
- * There is no dma_cache_sync() implementation, so just return NULL here.
- */
-static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
-					  dma_addr_t *handle, gfp_t flags)
-{
-	return NULL;
-}
-
-static inline void dma_free_noncoherent(struct device *dev, size_t size,
-					void *cpu_addr, dma_addr_t handle)
-{
-}
+#define dma_max_pfn(dev) dma_max_pfn(dev)
 
 #endif	/* __KERNEL__ */
 #endif	/* __ASM_DMA_MAPPING_H */

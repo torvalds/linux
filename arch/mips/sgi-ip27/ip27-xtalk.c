@@ -7,7 +7,6 @@
  * Generic XTALK initialization code
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <asm/sn/types.h>
@@ -68,7 +67,7 @@ static int xbow_probe(nasid_t nasid)
 		return -ENODEV;
 
 	/*
-	 * Okay, here's a xbow. Lets arbitrate and find
+	 * Okay, here's a xbow. Let's arbitrate and find
 	 * out if we should initialize it. Set enabled
 	 * hub connected at highest or lowest widget as
 	 * master.

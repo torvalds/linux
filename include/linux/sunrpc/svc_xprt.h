@@ -24,14 +24,17 @@ struct svc_xprt_ops {
 	void		(*xpo_release_rqst)(struct svc_rqst *);
 	void		(*xpo_detach)(struct svc_xprt *);
 	void		(*xpo_free)(struct svc_xprt *);
+	int		(*xpo_secure_port)(struct svc_rqst *);
+	void		(*xpo_kill_temp_xprt)(struct svc_xprt *);
 };
 
 struct svc_xprt_class {
 	const char		*xcl_name;
 	struct module		*xcl_owner;
-	struct svc_xprt_ops	*xcl_ops;
+	const struct svc_xprt_ops *xcl_ops;
 	struct list_head	xcl_list;
 	u32			xcl_max_payload;
+	int			xcl_ident;
 };
 
 /*
@@ -46,7 +49,7 @@ struct svc_xpt_user {
 
 struct svc_xprt {
 	struct svc_xprt_class	*xpt_class;
-	struct svc_xprt_ops	*xpt_ops;
+	const struct svc_xprt_ops *xpt_ops;
 	struct kref		xpt_ref;
 	struct list_head	xpt_list;
 	struct list_head	xpt_ready;
@@ -60,12 +63,15 @@ struct svc_xprt {
 #define	XPT_CHNGBUF	7		/* need to change snd/rcv buf sizes */
 #define	XPT_DEFERRED	8		/* deferred request pending */
 #define	XPT_OLD		9		/* used for xprt aging mark+sweep */
-#define	XPT_DETACHED	10		/* detached from tempsocks list */
-#define XPT_LISTENER	11		/* listening endpoint */
-#define XPT_CACHE_AUTH	12		/* cache auth info */
+#define XPT_LISTENER	10		/* listening endpoint */
+#define XPT_CACHE_AUTH	11		/* cache auth info */
+#define XPT_LOCAL	12		/* connection from loopback interface */
+#define XPT_KILL_TEMP   13		/* call xpo_kill_temp_xprt before closing */
+#define XPT_CONG_CTRL	14		/* has congestion control */
 
 	struct svc_serv		*xpt_server;	/* service for transport */
 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
+	atomic_t		xpt_nr_rqsts;	/* Number of requests */
 	struct mutex		xpt_mutex;	/* to serialize sending data */
 	spinlock_t		xpt_lock;	/* protects sk_deferred
 						 * and xpt_auth_cache */
@@ -81,6 +87,7 @@ struct svc_xprt {
 
 	struct net		*xpt_net;
 	struct rpc_xprt		*xpt_bc_xprt;	/* NFSv4.1 backchannel */
+	struct rpc_xprt_switch	*xpt_bc_xps;	/* NFSv4.1 backchannel */
 };
 
 static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
@@ -113,6 +120,7 @@ void	svc_xprt_init(struct net *, struct svc_xprt_class *, struct svc_xprt *,
 		      struct svc_serv *);
 int	svc_create_xprt(struct svc_serv *, const char *, struct net *,
 			const int, const unsigned short, int);
+void	svc_xprt_do_enqueue(struct svc_xprt *xprt);
 void	svc_xprt_enqueue(struct svc_xprt *xprt);
 void	svc_xprt_put(struct svc_xprt *xprt);
 void	svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt);
@@ -124,6 +132,7 @@ struct	svc_xprt *svc_find_xprt(struct svc_serv *serv, const char *xcl_name,
 			const unsigned short port);
 int	svc_xprt_names(struct svc_serv *serv, char *buf, const int buflen);
 void	svc_add_new_perm_xprt(struct svc_serv *serv, struct svc_xprt *xprt);
+void	svc_age_temp_xprts_now(struct svc_serv *, struct sockaddr *);
 
 static inline void svc_xprt_get(struct svc_xprt *xprt)
 {

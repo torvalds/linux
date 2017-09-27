@@ -41,7 +41,7 @@
 		.enable_mask = PCF50633_REGULATOR_ON,		\
 	}
 
-static struct regulator_ops pcf50633_regulator_ops = {
+static const struct regulator_ops pcf50633_regulator_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
@@ -86,11 +86,12 @@ static int pcf50633_regulator_probe(struct platform_device *pdev)
 	pcf = dev_to_pcf50633(pdev->dev.parent);
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = pcf;
 	config.regmap = pcf->regmap;
 
-	rdev = regulator_register(&regulators[pdev->id], &config);
+	rdev = devm_regulator_register(&pdev->dev, &regulators[pdev->id],
+				       &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
@@ -102,21 +103,11 @@ static int pcf50633_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pcf50633_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
-
-	return 0;
-}
-
 static struct platform_driver pcf50633_regulator_driver = {
 	.driver = {
-		.name = "pcf50633-regltr",
+		.name = "pcf50633-regulator",
 	},
 	.probe = pcf50633_regulator_probe,
-	.remove = pcf50633_regulator_remove,
 };
 
 static int __init pcf50633_regulator_init(void)

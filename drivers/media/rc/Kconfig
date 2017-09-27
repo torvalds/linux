@@ -1,9 +1,20 @@
-config RC_CORE
-	tristate
-	depends on MEDIA_RC_SUPPORT
+
+menuconfig RC_CORE
+	tristate "Remote Controller support"
 	depends on INPUT
 	default y
+	---help---
+	  Enable support for Remote Controllers on Linux. This is
+	  needed in order to support several video capture adapters,
+	  standalone IR receivers/transmitters, and RF receivers.
 
+	  Enable this option if you have a video capture board even
+	  if you don't need IR, as otherwise, you may not be able to
+	  compile the driver for your adapter.
+
+	  Say Y when you have a TV or an IR device.
+
+if RC_CORE
 source "drivers/media/rc/keymaps/Kconfig"
 
 menuconfig RC_DECODERS
@@ -84,18 +95,6 @@ config IR_SONY_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the Sony protocol, and you need software decoding support.
 
-config IR_RC5_SZ_DECODER
-	tristate "Enable IR raw decoder for the RC-5 (streamzap) protocol"
-	depends on RC_CORE
-	select BITREVERSE
-	default y
-
-	---help---
-	   Enable this option if you have IR with RC-5 (streamzap) protocol,
-	   and if the IR is decoded in software. (The Streamzap PC Remote
-	   uses an IR protocol that is almost standard RC-5, but not quite,
-	   as it uses an additional bit).
-
 config IR_SANYO_DECODER
 	tristate "Enable IR raw decoder for the Sanyo protocol"
 	depends on RC_CORE
@@ -105,6 +104,16 @@ config IR_SANYO_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the Sanyo protocol (Sanyo, Aiwa, Chinon remotes),
 	   and you need software decoding support.
+
+config IR_SHARP_DECODER
+	tristate "Enable IR raw decoder for the Sharp protocol"
+	depends on RC_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sharp protocol (Sharp, Denon), and you need software
+	   decoding support.
 
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
@@ -116,6 +125,16 @@ config IR_MCE_KBD_DECODER
 	   Enable this option if you have a Microsoft Remote Keyboard for
 	   Windows Media Center Edition, which you would like to use with
 	   a raw IR receiver in your system.
+
+config IR_XMP_DECODER
+	tristate "Enable IR raw decoder for the XMP protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with XMP protocol, and
+	   if the IR is decoded in software
 endif #RC_DECODERS
 
 menuconfig RC_DEVICES
@@ -156,6 +175,16 @@ config IR_ENE
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called ene_ir.
+
+config IR_HIX5HD2
+	tristate "Hisilicon hix5hd2 IR remote control"
+	depends on RC_CORE
+	help
+	   Say Y here if you want to use hisilicon hix5hd2 remote control.
+	   To compile this driver as a module, choose M here: the module will be
+	   called ir-hix5hd2.
+
+	   If you're not sure, select N here
 
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
@@ -206,6 +235,28 @@ config IR_FINTEK
 	   To compile this driver as a module, choose M here: the
 	   module will be called fintek-cir.
 
+config IR_MESON
+	tristate "Amlogic Meson IR remote receiver"
+	depends on RC_CORE
+	depends on ARCH_MESON || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote receiver available
+	   on Amlogic Meson SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called meson-ir.
+
+config IR_MTK
+	tristate "Mediatek IR remote receiver"
+	depends on RC_CORE
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote receiver available
+	   on Mediatek SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mtk-cir.
+
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
@@ -223,12 +274,23 @@ config IR_REDRAT3
 	tristate "RedRat3 IR Transceiver"
 	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
+	select NEW_LEDS
+	select LEDS_CLASS
 	select USB
 	---help---
 	   Say Y here if you want to use a RedRat3 Infrared Transceiver.
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called redrat3.
+
+config IR_SPI
+	tristate "SPI connected IR LED"
+	depends on SPI && LIRC
+	---help---
+	  Say Y if you want to use an IR LED connected through SPI bus.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ir-spi.
 
 config IR_STREAMZAP
 	tristate "Streamzap PC Remote IR Receiver"
@@ -248,7 +310,6 @@ config IR_WINBOND_CIR
 	depends on RC_CORE
 	select NEW_LEDS
 	select LEDS_CLASS
-	select LEDS_TRIGGERS
 	select BITREVERSE
 	---help---
 	   Say Y here if you want to use the IR remote functionality found
@@ -258,6 +319,21 @@ config IR_WINBOND_CIR
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
+
+config IR_IGORPLUGUSB
+	tristate "IgorPlug-USB IR Receiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use the IgorPlug-USB IR Receiver by
+	   Igor Cesko. This device is included on the Fit-PC2.
+
+	   Note that this device can only record bursts of 36 IR pulses and
+	   spaces, which is not enough for the NEC, Sanyo and RC-6 protocol.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called igorplugusb.
 
 config IR_IGUANA
 	tristate "IguanaWorks USB IR Transceiver"
@@ -291,13 +367,15 @@ config IR_TTUSBIR
 
 config IR_RX51
 	tristate "Nokia N900 IR transmitter diode"
-	depends on OMAP_DM_TIMER && ARCH_OMAP2PLUS && LIRC && !ARCH_MULTIPLATFORM
+	depends on (OMAP_DM_TIMER && PWM_OMAP_DMTIMER && ARCH_OMAP2PLUS || COMPILE_TEST) && RC_CORE
 	---help---
 	   Say Y or M here if you want to enable support for the IR
 	   transmitter diode built in the Nokia N900 (RX51) device.
 
 	   The driver uses omap DM timers for generating the carrier
 	   wave and pulses.
+
+source "drivers/media/rc/img-ir/Kconfig"
 
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
@@ -321,4 +399,87 @@ config IR_GPIO_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
 
+config IR_GPIO_TX
+	tristate "GPIO IR Bit Banging Transmitter"
+	depends on RC_CORE
+	depends on LIRC
+	---help---
+	   Say Y if you want to a GPIO based IR transmitter. This is a
+	   bit banging driver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called gpio-ir-tx.
+
+config IR_PWM_TX
+	tristate "PWM IR transmitter"
+	depends on RC_CORE
+	depends on LIRC
+	depends on PWM
+	---help---
+	   Say Y if you want to use a PWM based IR transmitter. This is
+	   more power efficient than the bit banging gpio driver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called pwm-ir-tx.
+
+config RC_ST
+	tristate "ST remote control receiver"
+	depends on RC_CORE
+	depends on ARCH_STI || COMPILE_TEST
+	---help---
+	   Say Y here if you want support for ST remote control driver
+	   which allows both IR and UHF RX.
+	   The driver passes raw pulse and space information to the LIRC decoder.
+
+	   If you're not sure, select N here.
+
+config IR_SUNXI
+	tristate "SUNXI IR remote control"
+	depends on RC_CORE
+	depends on ARCH_SUNXI || COMPILE_TEST
+	---help---
+	   Say Y if you want to use sunXi internal IR Controller
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called sunxi-ir.
+
+config IR_SERIAL
+	tristate "Homebrew Serial Port Receiver"
+	depends on RC_CORE
+	---help---
+	   Say Y if you want to use Homebrew Serial Port Receivers and
+	   Transceivers.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called serial-ir.
+
+config IR_SERIAL_TRANSMITTER
+	bool "Serial Port Transmitter"
+	default y
+	depends on IR_SERIAL
+	---help---
+	   Serial Port Transmitter support
+
+config IR_SIR
+        tristate "Built-in SIR IrDA port"
+        depends on RC_CORE
+        ---help---
+	   Say Y if you want to use a IrDA SIR port Transceivers.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called sir-ir.
+
+config IR_ZX
+	tristate "ZTE ZX IR remote control"
+	depends on RC_CORE
+	depends on ARCH_ZX || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote control available
+	   on ZTE ZX family SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called zx-irdec.
+
 endif #RC_DEVICES
+
+endif #RC_CORE

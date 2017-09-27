@@ -12,10 +12,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #ifndef __PVRUSB2_IOREAD_H
 #define __PVRUSB2_IOREAD_H
@@ -36,13 +32,3 @@ int pvr2_ioread_read(struct pvr2_ioread *,void __user *buf,unsigned int cnt);
 int pvr2_ioread_avail(struct pvr2_ioread *);
 
 #endif /* __PVRUSB2_IOREAD_H */
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

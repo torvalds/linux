@@ -22,6 +22,7 @@
 #include <linux/crc32.h>
 #include <linux/jffs2.h>
 #include <linux/xattr.h>
+#include <linux/posix_acl_xattr.h>
 #include <linux/mtd/mtd.h>
 #include "nodelist.h"
 /* -------- xdatum related functions ----------------
@@ -194,7 +195,7 @@ static int do_verify_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_dat
 	/* unchecked xdatum is chained with c->xattr_unchecked */
 	list_del_init(&xd->xindex);
 
-	dbg_xattr("success on verfying xdatum (xid=%u, version=%u)\n",
+	dbg_xattr("success on verifying xdatum (xid=%u, version=%u)\n",
 		  xd->xid, xd->version);
 
 	return 0;
@@ -755,8 +756,7 @@ void jffs2_clear_xattr_subsystem(struct jffs2_sb_info *c)
 	for (i=0; i < XATTRINDEX_HASHSIZE; i++) {
 		list_for_each_entry_safe(xd, _xd, &c->xattrindex[i], xindex) {
 			list_del(&xd->xindex);
-			if (xd->xname)
-				kfree(xd->xname);
+			kfree(xd->xname);
 			jffs2_free_xattr_datum(xd);
 		}
 	}
@@ -921,8 +921,8 @@ const struct xattr_handler *jffs2_xattr_handlers[] = {
 	&jffs2_security_xattr_handler,
 #endif
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
-	&jffs2_acl_access_xattr_handler,
-	&jffs2_acl_default_xattr_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 #endif
 	&jffs2_trusted_xattr_handler,
 	NULL
@@ -942,10 +942,10 @@ static const struct xattr_handler *xprefix_to_handler(int xprefix) {
 #endif
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 	case JFFS2_XPREFIX_ACL_ACCESS:
-		ret = &jffs2_acl_access_xattr_handler;
+		ret = &posix_acl_access_xattr_handler;
 		break;
 	case JFFS2_XPREFIX_ACL_DEFAULT:
-		ret = &jffs2_acl_default_xattr_handler;
+		ret = &posix_acl_default_xattr_handler;
 		break;
 #endif
 	case JFFS2_XPREFIX_TRUSTED:
@@ -960,14 +960,15 @@ static const struct xattr_handler *xprefix_to_handler(int xprefix) {
 
 ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_cache *ic = f->inocache;
 	struct jffs2_xattr_ref *ref, **pref;
 	struct jffs2_xattr_datum *xd;
 	const struct xattr_handler *xhandle;
-	ssize_t len, rc;
+	const char *prefix;
+	ssize_t prefix_len, len, rc;
 	int retry = 0;
 
 	rc = check_xattr_ref_inode(c, ic);
@@ -998,17 +999,23 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			}
 		}
 		xhandle = xprefix_to_handler(xd->xprefix);
-		if (!xhandle)
+		if (!xhandle || (xhandle->list && !xhandle->list(dentry)))
 			continue;
+		prefix = xhandle->prefix ?: xhandle->name;
+		prefix_len = strlen(prefix);
+		rc = prefix_len + xd->name_len + 1;
+
 		if (buffer) {
-			rc = xhandle->list(dentry, buffer+len, size-len,
-					   xd->xname, xd->name_len, xd->flags);
-		} else {
-			rc = xhandle->list(dentry, NULL, 0, xd->xname,
-					   xd->name_len, xd->flags);
+			if (rc > size - len) {
+				rc = -ERANGE;
+				goto out;
+			}
+			memcpy(buffer, prefix, prefix_len);
+			buffer += prefix_len;
+			memcpy(buffer, xd->xname, xd->name_len);
+			buffer += xd->name_len;
+			*buffer++ = 0;
 		}
-		if (rc < 0)
-			goto out;
 		len += rc;
 	}
 	rc = len;
@@ -1266,7 +1273,6 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	if (rc) {
 		JFFS2_WARNING("%s: jffs2_reserve_space_gc() = %d, request = %u\n",
 			      __func__, rc, totlen);
-		rc = rc ? rc : -EBADFD;
 		goto out;
 	}
 	rc = save_xattr_ref(c, ref);

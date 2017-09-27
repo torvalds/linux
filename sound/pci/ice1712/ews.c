@@ -163,7 +163,8 @@ static int snd_ice1712_ews88mt_chip_select(struct snd_ice1712 *ice, int chip_mas
 
      __error:
 	snd_i2c_unlock(ice->i2c);
-	snd_printk(KERN_ERR "AK4524 chip select failed, check cable to the front module\n");
+	dev_err(ice->card->dev,
+		"AK4524 chip select failed, check cable to the front module\n");
 	return -EIO;
 }
 
@@ -174,7 +175,7 @@ static void ews88mt_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 	unsigned char tmp;
 	/* assert AK4524 CS */
 	if (snd_ice1712_ews88mt_chip_select(ice, ~(1 << chip) & 0x0f) < 0)
-		snd_printk(KERN_ERR "fatal error (ews88mt chip select)\n");
+		dev_err(ice->card->dev, "fatal error (ews88mt chip select)\n");
 	snd_ice1712_save_gpio_status(ice);
 	tmp = ICE1712_EWS88_SERIAL_DATA |
 		ICE1712_EWS88_SERIAL_CLOCK |
@@ -343,7 +344,7 @@ static void ews88_setup_spdif(struct snd_ice1712 *ice, int rate)
 
 /*
  */
-static struct snd_akm4xxx akm_ews88mt = {
+static const struct snd_akm4xxx akm_ews88mt = {
 	.num_adcs = 8,
 	.num_dacs = 8,
 	.type = SND_AK4524,
@@ -353,7 +354,7 @@ static struct snd_akm4xxx akm_ews88mt = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_ews88mt_priv = {
+static const struct snd_ak4xxx_private akm_ews88mt_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_EWS88_SERIAL_DATA,
@@ -365,7 +366,7 @@ static struct snd_ak4xxx_private akm_ews88mt_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_ewx2496 = {
+static const struct snd_akm4xxx akm_ewx2496 = {
 	.num_adcs = 2,
 	.num_dacs = 2,
 	.type = SND_AK4524,
@@ -374,7 +375,7 @@ static struct snd_akm4xxx akm_ewx2496 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_ewx2496_priv = {
+static const struct snd_ak4xxx_private akm_ewx2496_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_EWS88_SERIAL_DATA,
@@ -386,7 +387,7 @@ static struct snd_ak4xxx_private akm_ewx2496_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_6fire = {
+static const struct snd_akm4xxx akm_6fire = {
 	.num_adcs = 6,
 	.num_dacs = 6,
 	.type = SND_AK4524,
@@ -395,7 +396,7 @@ static struct snd_akm4xxx akm_6fire = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_6fire_priv = {
+static const struct snd_ak4xxx_private akm_6fire_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_6FIRE_SERIAL_DATA,
@@ -456,7 +457,7 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 
 	/* create i2c */
 	if ((err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c)) < 0) {
-		snd_printk(KERN_ERR "unable to create I2C bus\n");
+		dev_err(ice->card->dev, "unable to create I2C bus\n");
 		return err;
 	}
 	ice->i2c->private_data = ice;
@@ -469,7 +470,8 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 					    ICE1712_6FIRE_PCF9554_ADDR,
 					    &spec->i2cdevs[EWS_I2C_6FIRE]);
 		if (err < 0) {
-			snd_printk(KERN_ERR "PCF9554 initialization failed\n");
+			dev_err(ice->card->dev,
+				"PCF9554 initialization failed\n");
 			return err;
 		}
 		snd_ice1712_6fire_write_pca(ice, PCF9554_REG_CONFIG, 0x80);
@@ -578,13 +580,7 @@ static int snd_ice1712_ewx_io_sense_info(struct snd_kcontrol *kcontrol, struct s
 	static const char * const texts[2] = {
 		"+4dBu", "-10dBV",
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= 2)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_ice1712_ewx_io_sense_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -723,7 +719,7 @@ static int snd_ice1712_ews88mt_input_sense_put(struct snd_kcontrol *kcontrol, st
 	return ndata != data;
 }
 
-static struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
+static const struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Input Sensitivity Switch",
 	.info = snd_ice1712_ewx_io_sense_info,
@@ -732,7 +728,7 @@ static struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
 	.count = 8,
 };
 
-static struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense = {
+static const struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Output Sensitivity Switch",
 	.info = snd_ice1712_ewx_io_sense_info,
@@ -834,7 +830,7 @@ static int snd_ice1712_6fire_read_pca(struct snd_ice1712 *ice, unsigned char reg
 	byte = 0;
 	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
-		printk(KERN_ERR "cannot read pca\n");
+		dev_err(ice->card->dev, "cannot read pca\n");
 		return -EIO;
 	}
 	snd_i2c_unlock(ice->i2c);
@@ -901,13 +897,7 @@ static int snd_ice1712_6fire_select_input_info(struct snd_kcontrol *kcontrol, st
 	static const char * const texts[4] = {
 		"Internal", "Front Input", "Rear Input", "Wave Table"
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item >= 4)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 4, texts);
 }
      
 static int snd_ice1712_6fire_select_input_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)

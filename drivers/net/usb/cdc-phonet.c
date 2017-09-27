@@ -130,7 +130,7 @@ static int rx_submit(struct usbpn_dev *pnd, struct urb *req, gfp_t gfp_flags)
 	struct page *page;
 	int err;
 
-	page = __skb_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
+	page = __dev_alloc_page(gfp_flags | __GFP_NOMEMALLOC);
 	if (!page)
 		return -ENOMEM;
 
@@ -162,7 +162,7 @@ static void rx_complete(struct urb *req)
 			skb = pnd->rx_skb = netdev_alloc_skb(dev, 12);
 			if (likely(skb)) {
 				/* Can't use pskb_pull() on page in IRQ */
-				memcpy(skb_put(skb, 1), page_address(page), 1);
+				skb_put_data(skb, page_address(page), 1);
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 						page, 1, req->actual_length,
 						PAGE_SIZE);
@@ -212,7 +212,7 @@ resubmit:
 	if (page)
 		put_page(page);
 	if (req)
-		rx_submit(pnd, req, GFP_ATOMIC | __GFP_COLD);
+		rx_submit(pnd, req, GFP_ATOMIC);
 }
 
 static int usbpn_close(struct net_device *dev);
@@ -231,7 +231,7 @@ static int usbpn_open(struct net_device *dev)
 	for (i = 0; i < rxq_size; i++) {
 		struct urb *req = usb_alloc_urb(0, GFP_KERNEL);
 
-		if (!req || rx_submit(pnd, req, GFP_KERNEL | __GFP_COLD)) {
+		if (!req || rx_submit(pnd, req, GFP_KERNEL)) {
 			usb_free_urb(req);
 			usbpn_close(dev);
 			return -ENOMEM;
@@ -276,21 +276,11 @@ static int usbpn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -ENOIOCTLCMD;
 }
 
-static int usbpn_set_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < PHONET_MIN_MTU) || (new_mtu > PHONET_MAX_MTU))
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops usbpn_ops = {
 	.ndo_open	= usbpn_open,
 	.ndo_stop	= usbpn_close,
 	.ndo_start_xmit = usbpn_xmit,
 	.ndo_do_ioctl	= usbpn_ioctl,
-	.ndo_change_mtu = usbpn_set_mtu,
 };
 
 static void usbpn_setup(struct net_device *dev)
@@ -301,18 +291,20 @@ static void usbpn_setup(struct net_device *dev)
 	dev->type		= ARPHRD_PHONET;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu		= PHONET_MAX_MTU;
+	dev->min_mtu		= PHONET_MIN_MTU;
+	dev->max_mtu		= PHONET_MAX_MTU;
 	dev->hard_header_len	= 1;
 	dev->dev_addr[0]	= PN_MEDIA_USB;
 	dev->addr_len		= 1;
 	dev->tx_queue_len	= 3;
 
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 /*
  * USB driver callbacks
  */
-static struct usb_device_id usbpn_ids[] = {
+static const struct usb_device_id usbpn_ids[] = {
 	{
 		.match_flags = USB_DEVICE_ID_MATCH_VENDOR
 			| USB_DEVICE_ID_MATCH_INT_CLASS
@@ -328,7 +320,7 @@ MODULE_DEVICE_TABLE(usb, usbpn_ids);
 
 static struct usb_driver usbpn_driver;
 
-int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	static const char ifname[] = "usbpn%d";
 	const struct usb_cdc_union_desc *union_header = NULL;
@@ -340,32 +332,13 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	u8 *data;
 	int phonet = 0;
 	int len, err;
+	struct usb_cdc_parsed_header hdr;
 
 	data = intf->altsetting->extra;
 	len = intf->altsetting->extralen;
-	while (len >= 3) {
-		u8 dlen = data[0];
-		if (dlen < 3)
-			return -EINVAL;
-
-		/* bDescriptorType */
-		if (data[1] == USB_DT_CS_INTERFACE) {
-			/* bDescriptorSubType */
-			switch (data[2]) {
-			case USB_CDC_UNION_TYPE:
-				if (union_header || dlen < 5)
-					break;
-				union_header =
-					(struct usb_cdc_union_desc *)data;
-				break;
-			case 0xAB:
-				phonet = 1;
-				break;
-			}
-		}
-		data += dlen;
-		len -= dlen;
-	}
+	cdc_parse_cdc_header(&hdr, intf, data, len);
+	union_header = hdr.usb_cdc_union_desc;
+	phonet = hdr.phonet_magic_present;
 
 	if (!union_header || !phonet)
 		return -EINVAL;
@@ -387,7 +360,7 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return -EINVAL;
 
 	dev = alloc_netdev(sizeof(*pnd) + sizeof(pnd->urbs[0]) * rxq_size,
-				ifname, usbpn_setup);
+			   ifname, NET_NAME_UNKNOWN, usbpn_setup);
 	if (!dev)
 		return -ENOMEM;
 

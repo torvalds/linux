@@ -191,25 +191,32 @@ static int ml86v7667_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
-static int ml86v7667_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				   enum v4l2_mbus_pixelcode *code)
+static int ml86v7667_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index > 0)
+	if (code->pad || code->index > 0)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_YUYV8_2X8;
+	code->code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	return 0;
 }
 
-static int ml86v7667_mbus_fmt(struct v4l2_subdev *sd,
-			      struct v4l2_mbus_framefmt *fmt)
+static int ml86v7667_fill_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct ml86v7667_priv *priv = to_ml86v7667(sd);
+	struct v4l2_mbus_framefmt *fmt = &format->format;
 
-	fmt->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	if (format->pad)
+		return -EINVAL;
+
+	fmt->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	fmt->field = V4L2_FIELD_INTERLACED;
+	/* The top field is always transferred first by the chip */
+	fmt->field = V4L2_FIELD_INTERLACED_TB;
 	fmt->width = 720;
 	fmt->height = priv->std & V4L2_STD_525_60 ? 480 : 576;
 
@@ -222,6 +229,15 @@ static int ml86v7667_g_mbus_config(struct v4l2_subdev *sd,
 	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
 		     V4L2_MBUS_DATA_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_BT656;
+
+	return 0;
+}
+
+static int ml86v7667_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct ml86v7667_priv *priv = to_ml86v7667(sd);
+
+	*std = priv->std;
 
 	return 0;
 }
@@ -274,27 +290,31 @@ static const struct v4l2_ctrl_ops ml86v7667_ctrl_ops = {
 	.s_ctrl = ml86v7667_s_ctrl,
 };
 
-static struct v4l2_subdev_video_ops ml86v7667_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ml86v7667_subdev_video_ops = {
+	.g_std = ml86v7667_g_std,
+	.s_std = ml86v7667_s_std,
 	.querystd = ml86v7667_querystd,
 	.g_input_status = ml86v7667_g_input_status,
-	.enum_mbus_fmt = ml86v7667_enum_mbus_fmt,
-	.try_mbus_fmt = ml86v7667_mbus_fmt,
-	.g_mbus_fmt = ml86v7667_mbus_fmt,
-	.s_mbus_fmt = ml86v7667_mbus_fmt,
 	.g_mbus_config = ml86v7667_g_mbus_config,
 };
 
-static struct v4l2_subdev_core_ops ml86v7667_subdev_core_ops = {
-	.s_std = ml86v7667_s_std,
+static const struct v4l2_subdev_pad_ops ml86v7667_subdev_pad_ops = {
+	.enum_mbus_code = ml86v7667_enum_mbus_code,
+	.get_fmt = ml86v7667_fill_fmt,
+	.set_fmt = ml86v7667_fill_fmt,
+};
+
+static const struct v4l2_subdev_core_ops ml86v7667_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ml86v7667_g_register,
 	.s_register = ml86v7667_s_register,
 #endif
 };
 
-static struct v4l2_subdev_ops ml86v7667_subdev_ops = {
+static const struct v4l2_subdev_ops ml86v7667_subdev_ops = {
 	.core = &ml86v7667_subdev_core_ops,
 	.video = &ml86v7667_subdev_video_ops,
+	.pad = &ml86v7667_subdev_pad_ops,
 };
 
 static int ml86v7667_init(struct ml86v7667_priv *priv)
@@ -417,7 +437,6 @@ MODULE_DEVICE_TABLE(i2c, ml86v7667_id);
 static struct i2c_driver ml86v7667_i2c_driver = {
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ml86v7667_probe,
 	.remove		= ml86v7667_remove,

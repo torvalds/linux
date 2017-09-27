@@ -30,19 +30,19 @@
 #include <sound/compress_params.h>
 
 
-#define SNDRV_COMPRESS_VERSION SNDRV_PROTOCOL_VERSION(0, 1, 1)
+#define SNDRV_COMPRESS_VERSION SNDRV_PROTOCOL_VERSION(0, 1, 2)
 /**
- * struct snd_compressed_buffer: compressed buffer
+ * struct snd_compressed_buffer - compressed buffer
  * @fragment_size: size of buffer fragment in bytes
  * @fragments: number of such fragments
  */
 struct snd_compressed_buffer {
 	__u32 fragment_size;
 	__u32 fragments;
-};
+} __attribute__((packed, aligned(4)));
 
 /**
- * struct snd_compr_params: compressed stream params
+ * struct snd_compr_params - compressed stream params
  * @buffer: buffer description
  * @codec: codec parameters
  * @no_wake_mode: dont wake on fragment elapsed
@@ -51,10 +51,10 @@ struct snd_compr_params {
 	struct snd_compressed_buffer buffer;
 	struct snd_codec codec;
 	__u8 no_wake_mode;
-};
+} __attribute__((packed, aligned(4)));
 
 /**
- * struct snd_compr_tstamp: timestamp descriptor
+ * struct snd_compr_tstamp - timestamp descriptor
  * @byte_offset: Byte offset in ring buffer to DSP
  * @copied_total: Total number of bytes copied from/to ring buffer to/by DSP
  * @pcm_frames: Frames decoded or encoded by DSP. This field will evolve by
@@ -67,20 +67,20 @@ struct snd_compr_params {
 struct snd_compr_tstamp {
 	__u32 byte_offset;
 	__u32 copied_total;
-	snd_pcm_uframes_t pcm_frames;
-	snd_pcm_uframes_t pcm_io_frames;
+	__u32 pcm_frames;
+	__u32 pcm_io_frames;
 	__u32 sampling_rate;
-};
+} __attribute__((packed, aligned(4)));
 
 /**
- * struct snd_compr_avail: avail descriptor
+ * struct snd_compr_avail - avail descriptor
  * @avail: Number of bytes available in ring buffer for writing/reading
- * @tstamp: timestamp infomation
+ * @tstamp: timestamp information
  */
 struct snd_compr_avail {
 	__u64 avail;
 	struct snd_compr_tstamp tstamp;
-};
+} __attribute__((packed, aligned(4)));
 
 enum snd_compr_direction {
 	SND_COMPRESS_PLAYBACK = 0,
@@ -88,7 +88,7 @@ enum snd_compr_direction {
 };
 
 /**
- * struct snd_compr_caps: caps descriptor
+ * struct snd_compr_caps - caps descriptor
  * @codecs: pointer to array of codecs
  * @direction: direction supported. Of type snd_compr_direction
  * @min_fragment_size: minimum fragment supported by DSP
@@ -107,10 +107,10 @@ struct snd_compr_caps {
 	__u32 max_fragments;
 	__u32 codecs[MAX_NUM_CODECS];
 	__u32 reserved[11];
-};
+} __attribute__((packed, aligned(4)));
 
 /**
- * struct snd_compr_codec_caps: query capability of codec
+ * struct snd_compr_codec_caps - query capability of codec
  * @codec: codec for which capability is queried
  * @num_descriptors: number of codec descriptors
  * @descriptor: array of codec capability descriptor
@@ -119,28 +119,29 @@ struct snd_compr_codec_caps {
 	__u32 codec;
 	__u32 num_descriptors;
 	struct snd_codec_desc descriptor[MAX_NUM_CODEC_DESCRIPTORS];
-};
+} __attribute__((packed, aligned(4)));
 
 /**
+ * enum sndrv_compress_encoder
  * @SNDRV_COMPRESS_ENCODER_PADDING: no of samples appended by the encoder at the
  * end of the track
  * @SNDRV_COMPRESS_ENCODER_DELAY: no of samples inserted by the encoder at the
  * beginning of the track
  */
-enum {
+enum sndrv_compress_encoder {
 	SNDRV_COMPRESS_ENCODER_PADDING = 1,
 	SNDRV_COMPRESS_ENCODER_DELAY = 2,
 };
 
 /**
- * struct snd_compr_metadata: compressed stream metadata
+ * struct snd_compr_metadata - compressed stream metadata
  * @key: key id
  * @value: key value
  */
 struct snd_compr_metadata {
 	 __u32 key;
 	 __u32 value[8];
-};
+} __attribute__((packed, aligned(4)));
 
 /**
  * compress path ioctl definitions

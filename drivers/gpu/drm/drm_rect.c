@@ -100,7 +100,7 @@ static int drm_calc_scale(int src, int dst)
 {
 	int scale = 0;
 
-	if (src < 0 || dst < 0)
+	if (WARN_ON(src < 0 || dst < 0))
 		return -EINVAL;
 
 	if (dst == 0)
@@ -275,21 +275,155 @@ EXPORT_SYMBOL(drm_rect_calc_vscale_relaxed);
 
 /**
  * drm_rect_debug_print - print the rectangle information
+ * @prefix: prefix string
  * @r: rectangle to print
  * @fixed_point: rectangle is in 16.16 fixed point format
  */
-void drm_rect_debug_print(const struct drm_rect *r, bool fixed_point)
+void drm_rect_debug_print(const char *prefix, const struct drm_rect *r, bool fixed_point)
 {
-	int w = drm_rect_width(r);
-	int h = drm_rect_height(r);
-
 	if (fixed_point)
-		DRM_DEBUG_KMS("%d.%06ux%d.%06u%+d.%06u%+d.%06u\n",
-			      w >> 16, ((w & 0xffff) * 15625) >> 10,
-			      h >> 16, ((h & 0xffff) * 15625) >> 10,
-			      r->x1 >> 16, ((r->x1 & 0xffff) * 15625) >> 10,
-			      r->y1 >> 16, ((r->y1 & 0xffff) * 15625) >> 10);
+		DRM_DEBUG_KMS("%s" DRM_RECT_FP_FMT "\n", prefix, DRM_RECT_FP_ARG(r));
 	else
-		DRM_DEBUG_KMS("%dx%d%+d%+d\n", w, h, r->x1, r->y1);
+		DRM_DEBUG_KMS("%s" DRM_RECT_FMT "\n", prefix, DRM_RECT_ARG(r));
 }
 EXPORT_SYMBOL(drm_rect_debug_print);
+
+/**
+ * drm_rect_rotate - Rotate the rectangle
+ * @r: rectangle to be rotated
+ * @width: Width of the coordinate space
+ * @height: Height of the coordinate space
+ * @rotation: Transformation to be applied
+ *
+ * Apply @rotation to the coordinates of rectangle @r.
+ *
+ * @width and @height combined with @rotation define
+ * the location of the new origin.
+ *
+ * @width correcsponds to the horizontal and @height
+ * to the vertical axis of the untransformed coordinate
+ * space.
+ */
+void drm_rect_rotate(struct drm_rect *r,
+		     int width, int height,
+		     unsigned int rotation)
+{
+	struct drm_rect tmp;
+
+	if (rotation & (DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y)) {
+		tmp = *r;
+
+		if (rotation & DRM_MODE_REFLECT_X) {
+			r->x1 = width - tmp.x2;
+			r->x2 = width - tmp.x1;
+		}
+
+		if (rotation & DRM_MODE_REFLECT_Y) {
+			r->y1 = height - tmp.y2;
+			r->y2 = height - tmp.y1;
+		}
+	}
+
+	switch (rotation & DRM_MODE_ROTATE_MASK) {
+	case DRM_MODE_ROTATE_0:
+		break;
+	case DRM_MODE_ROTATE_90:
+		tmp = *r;
+		r->x1 = tmp.y1;
+		r->x2 = tmp.y2;
+		r->y1 = width - tmp.x2;
+		r->y2 = width - tmp.x1;
+		break;
+	case DRM_MODE_ROTATE_180:
+		tmp = *r;
+		r->x1 = width - tmp.x2;
+		r->x2 = width - tmp.x1;
+		r->y1 = height - tmp.y2;
+		r->y2 = height - tmp.y1;
+		break;
+	case DRM_MODE_ROTATE_270:
+		tmp = *r;
+		r->x1 = height - tmp.y2;
+		r->x2 = height - tmp.y1;
+		r->y1 = tmp.x1;
+		r->y2 = tmp.x2;
+		break;
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL(drm_rect_rotate);
+
+/**
+ * drm_rect_rotate_inv - Inverse rotate the rectangle
+ * @r: rectangle to be rotated
+ * @width: Width of the coordinate space
+ * @height: Height of the coordinate space
+ * @rotation: Transformation whose inverse is to be applied
+ *
+ * Apply the inverse of @rotation to the coordinates
+ * of rectangle @r.
+ *
+ * @width and @height combined with @rotation define
+ * the location of the new origin.
+ *
+ * @width correcsponds to the horizontal and @height
+ * to the vertical axis of the original untransformed
+ * coordinate space, so that you never have to flip
+ * them when doing a rotatation and its inverse.
+ * That is, if you do ::
+ *
+ *     DRM_MODE_PROP_ROTATE(&r, width, height, rotation);
+ *     DRM_MODE_ROTATE_inv(&r, width, height, rotation);
+ *
+ * you will always get back the original rectangle.
+ */
+void drm_rect_rotate_inv(struct drm_rect *r,
+			 int width, int height,
+			 unsigned int rotation)
+{
+	struct drm_rect tmp;
+
+	switch (rotation & DRM_MODE_ROTATE_MASK) {
+	case DRM_MODE_ROTATE_0:
+		break;
+	case DRM_MODE_ROTATE_90:
+		tmp = *r;
+		r->x1 = width - tmp.y2;
+		r->x2 = width - tmp.y1;
+		r->y1 = tmp.x1;
+		r->y2 = tmp.x2;
+		break;
+	case DRM_MODE_ROTATE_180:
+		tmp = *r;
+		r->x1 = width - tmp.x2;
+		r->x2 = width - tmp.x1;
+		r->y1 = height - tmp.y2;
+		r->y2 = height - tmp.y1;
+		break;
+	case DRM_MODE_ROTATE_270:
+		tmp = *r;
+		r->x1 = tmp.y1;
+		r->x2 = tmp.y2;
+		r->y1 = height - tmp.x2;
+		r->y2 = height - tmp.x1;
+		break;
+	default:
+		break;
+	}
+
+	if (rotation & (DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y)) {
+		tmp = *r;
+
+		if (rotation & DRM_MODE_REFLECT_X) {
+			r->x1 = width - tmp.x2;
+			r->x2 = width - tmp.x1;
+		}
+
+		if (rotation & DRM_MODE_REFLECT_Y) {
+			r->y1 = height - tmp.y2;
+			r->y2 = height - tmp.y1;
+		}
+	}
+}
+EXPORT_SYMBOL(drm_rect_rotate_inv);

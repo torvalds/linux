@@ -19,9 +19,6 @@
 #include <asm/ptrace.h>
 #include <asm/ustack.h>
 
-#define __ARCH_WANT_UNLOCKED_CTXSW
-#define ARCH_HAS_PREFETCH_SWITCH_STACK
-
 #define IA64_NUM_PHYS_STACK_REG	96
 #define IA64_NUM_DBG_REGS	8
 
@@ -71,6 +68,7 @@
 #include <linux/compiler.h>
 #include <linux/threads.h>
 #include <linux/types.h>
+#include <linux/bitops.h>
 
 #include <asm/fpu.h>
 #include <asm/page.h>
@@ -319,7 +317,7 @@ struct thread_struct {
 	regs->loadrs = 0;									\
 	regs->r8 = get_dumpable(current->mm);	/* set "don't zap registers" flag */		\
 	regs->r12 = new_sp - 16;	/* allocate 16 byte scratch area */			\
-	if (unlikely(!get_dumpable(current->mm))) {							\
+	if (unlikely(get_dumpable(current->mm) != SUID_DUMP_USER)) {	\
 		/*										\
 		 * Zap scratch regs to avoid leaking bits between processes with different	\
 		 * uid/privileges.								\
@@ -601,23 +599,6 @@ ia64_set_unat (__u64 *unat, void *spill_addr, unsigned long nat)
 	__u64 mask = 1UL << bit;
 
 	*unat = (*unat & ~mask) | (nat << bit);
-}
-
-/*
- * Return saved PC of a blocked thread.
- * Note that the only way T can block is through a call to schedule() -> switch_to().
- */
-static inline unsigned long
-thread_saved_pc (struct task_struct *t)
-{
-	struct unw_frame_info info;
-	unsigned long ip;
-
-	unw_init_from_blocked_task(&info, t);
-	if (unw_unwind(&info) < 0)
-		return 0;
-	unw_get_ip(&info, &ip);
-	return ip;
 }
 
 /*

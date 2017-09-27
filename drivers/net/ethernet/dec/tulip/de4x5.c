@@ -472,7 +472,7 @@
 #include <asm/dma.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC_PMAC */
@@ -995,7 +995,6 @@ static void    de4x5_dbg_mii(struct net_device *dev, int k);
 static void    de4x5_dbg_media(struct net_device *dev);
 static void    de4x5_dbg_srom(struct de4x5_srom *p);
 static void    de4x5_dbg_rx(struct sk_buff *skb, int len);
-static int     de4x5_strncmp(char *a, char *b, int n);
 static int     dc21041_infoleaf(struct net_device *dev);
 static int     dc21140_infoleaf(struct net_device *dev);
 static int     dc21142_infoleaf(struct net_device *dev);
@@ -1016,7 +1015,7 @@ static int     compact_infoblock(struct net_device *dev, u_char count, u_char *p
 
 static int io=0x0;/* EDIT THIS LINE FOR YOUR CONFIGURATION IF NEEDED        */
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 module_param(de4x5_debug, int, 0);
 module_param(dec_only, int, 0);
 module_param(args, charp, 0);
@@ -1086,7 +1085,6 @@ static const struct net_device_ops de4x5_netdev_ops = {
     .ndo_get_stats	= de4x5_get_stats,
     .ndo_set_rx_mode	= set_multicast_list,
     .ndo_do_ioctl	= de4x5_ioctl,
-    .ndo_change_mtu	= eth_change_mtu,
     .ndo_set_mac_address= eth_mac_addr,
     .ndo_validate_addr	= eth_validate_addr,
 };
@@ -1320,8 +1318,8 @@ de4x5_open(struct net_device *dev)
 
     if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 		                                     lp->adapter_name, dev)) {
-	printk("de4x5_open(): Requested IRQ%d is busy - attemping FAST/SHARE...", dev->irq);
-	if (request_irq(dev->irq, de4x5_interrupt, IRQF_DISABLED | IRQF_SHARED,
+	printk("de4x5_open(): Requested IRQ%d is busy - attempting FAST/SHARE...", dev->irq);
+	if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 			                             lp->adapter_name, dev)) {
 	    printk("\n              Cannot get IRQ- reconfigure your hardware.\n");
 	    disable_ast(dev);
@@ -1337,7 +1335,7 @@ de4x5_open(struct net_device *dev)
     }
 
     lp->interrupt = UNMASK_INTERRUPTS;
-    dev->trans_start = jiffies; /* prevent tx timeout */
+    netif_trans_update(dev); /* prevent tx timeout */
 
     START_DE4X5;
 
@@ -1466,7 +1464,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 
     netif_stop_queue(dev);
     if (!lp->tx_enable)                   /* Cannot send for now */
-	return NETDEV_TX_LOCKED;
+		goto tx_err;
 
     /*
     ** Clean out the TX ring asynchronously to interrupts - sometimes the
@@ -1479,7 +1477,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 
     /* Test if cache is already locked - requeue skb if so */
     if (test_and_set_bit(0, (void *)&lp->cache.lock) && !lp->interrupt)
-	return NETDEV_TX_LOCKED;
+		goto tx_err;
 
     /* Transmit descriptor ring full or stale skb */
     if (netif_queue_stopped(dev) || (u_long) lp->tx_skb[lp->tx_new] > 1) {
@@ -1520,6 +1518,9 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
     lp->cache.lock = 0;
 
     return NETDEV_TX_OK;
+tx_err:
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1933,7 +1934,7 @@ set_multicast_list(struct net_device *dev)
 
 	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	    outl(POLL_DEMAND, DE4X5_TPD);       /* Start the TX */
-	    dev->trans_start = jiffies; /* prevent tx timeout */
+	    netif_trans_update(dev); /* prevent tx timeout */
 	}
     }
 }
@@ -1964,7 +1965,7 @@ SetMulticastFilter(struct net_device *dev)
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
 	netdev_for_each_mc_addr(ha, dev) {
 		crc = ether_crc_le(ETH_ALEN, ha->addr);
-		hashcode = crc & HASH_BITS;  /* hashcode is 9 LSb of CRC */
+		hashcode = crc & DE4X5_HASH_BITS;  /* hashcode is 9 LSb of CRC */
 
 		byte = hashcode >> 3;        /* bit[3-8] -> byte in filter */
 		bit = 1 << (hashcode & 0x07);/* bit[0-2] -> bit in byte */
@@ -1991,7 +1992,7 @@ SetMulticastFilter(struct net_device *dev)
 
 static u_char de4x5_irq[] = EISA_ALLOWED_IRQ_LIST;
 
-static int __init de4x5_eisa_probe (struct device *gendev)
+static int de4x5_eisa_probe(struct device *gendev)
 {
 	struct eisa_device *edev;
 	u_long iobase;
@@ -2093,7 +2094,7 @@ static int de4x5_eisa_remove(struct device *device)
 	return 0;
 }
 
-static struct eisa_device_id de4x5_eisa_ids[] = {
+static const struct eisa_device_id de4x5_eisa_ids[] = {
         { "DEC4250", 0 },	/* 0 is the board name index... */
         { "" }
 };
@@ -2319,7 +2320,7 @@ static void de4x5_pci_remove(struct pci_dev *pdev)
 	struct net_device *dev;
 	u_long iobase;
 
-	dev = dev_get_drvdata(&pdev->dev);
+	dev = pci_get_drvdata(pdev);
 	iobase = dev->base_addr;
 
 	unregister_netdev (dev);
@@ -2328,7 +2329,7 @@ static void de4x5_pci_remove(struct pci_dev *pdev)
 	pci_disable_device (pdev);
 }
 
-static struct pci_device_id de4x5_pci_tbl[] = {
+static const struct pci_device_id de4x5_pci_tbl[] = {
         { PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP,
           PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
         { PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_PLUS,
@@ -3250,7 +3251,6 @@ srom_map_media(struct net_device *dev)
 	printk("%s: Bad media code [%d] detected in SROM!\n", dev->name,
 	                                                  lp->infoblock_media);
 	return -1;
-	break;
     }
 
     return 0;
@@ -3624,10 +3624,10 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
     skb_reserve(p, 2);	                               /* Align */
     if (index < lp->rx_old) {                          /* Wrapped buffer */
 	short tlen = (lp->rxRingSize - lp->rx_old) * RX_BUFF_SZ;
-	memcpy(skb_put(p,tlen),lp->rx_bufs + lp->rx_old * RX_BUFF_SZ,tlen);
-	memcpy(skb_put(p,len-tlen),lp->rx_bufs,len-tlen);
+	skb_put_data(p, lp->rx_bufs + lp->rx_old * RX_BUFF_SZ, tlen);
+	skb_put_data(p, lp->rx_bufs, len - tlen);
     } else {                                           /* Linear buffer */
-	memcpy(skb_put(p,len),lp->rx_bufs + lp->rx_old * RX_BUFF_SZ,len);
+	skb_put_data(p, lp->rx_bufs + lp->rx_old * RX_BUFF_SZ, len);
     }
 
     return p;
@@ -4103,8 +4103,7 @@ get_hw_addr(struct net_device *dev)
 }
 
 /*
-** Test for enet addresses in the first 32 bytes. The built-in strncmp
-** didn't seem to work here...?
+** Test for enet addresses in the first 32 bytes.
 */
 static int
 de4x5_bad_srom(struct de4x5_private *lp)
@@ -4112,8 +4111,8 @@ de4x5_bad_srom(struct de4x5_private *lp)
     int i, status = 0;
 
     for (i = 0; i < ARRAY_SIZE(enet_det); i++) {
-	if (!de4x5_strncmp((char *)&lp->srom, (char *)&enet_det[i], 3) &&
-	    !de4x5_strncmp((char *)&lp->srom+0x10, (char *)&enet_det[i], 3)) {
+	if (!memcmp(&lp->srom, &enet_det[i], 3) &&
+	    !memcmp((char *)&lp->srom+0x10, &enet_det[i], 3)) {
 	    if (i == 0) {
 		status = SMC;
 	    } else if (i == 1) {
@@ -4124,18 +4123,6 @@ de4x5_bad_srom(struct de4x5_private *lp)
     }
 
     return status;
-}
-
-static int
-de4x5_strncmp(char *a, char *b, int n)
-{
-    int ret=0;
-
-    for (;n && !ret; n--) {
-	ret = *a++ - *b++;
-    }
-
-    return ret;
 }
 
 static void
@@ -5055,7 +5042,7 @@ build_setup_frame(struct net_device *dev, int mode)
 	    *(pa + i) = dev->dev_addr[i];                 /* Host address */
 	    if (i & 0x01) pa += 2;
 	}
-	*(lp->setup_frame + (HASH_TABLE_LEN >> 3) - 3) = 0x80;
+	*(lp->setup_frame + (DE4X5_HASH_TABLE_LEN >> 3) - 3) = 0x80;
     } else {
 	for (i=0; i<ETH_ALEN; i++) { /* Host address */
 	    *(pa + (i&1)) = dev->dev_addr[i];
@@ -5204,16 +5191,16 @@ de4x5_parse_params(struct net_device *dev)
 	if (strstr(p, "fdx") || strstr(p, "FDX")) lp->params.fdx = true;
 
 	if (strstr(p, "autosense") || strstr(p, "AUTOSENSE")) {
-	    if (strstr(p, "TP")) {
-		lp->params.autosense = TP;
-	    } else if (strstr(p, "TP_NW")) {
+	    if (strstr(p, "TP_NW")) {
 		lp->params.autosense = TP_NW;
+	    } else if (strstr(p, "TP")) {
+		lp->params.autosense = TP;
+	    } else if (strstr(p, "BNC_AUI")) {
+		lp->params.autosense = BNC;
 	    } else if (strstr(p, "BNC")) {
 		lp->params.autosense = BNC;
 	    } else if (strstr(p, "AUI")) {
 		lp->params.autosense = AUI;
-	    } else if (strstr(p, "BNC_AUI")) {
-		lp->params.autosense = BNC;
 	    } else if (strstr(p, "10Mb")) {
 		lp->params.autosense = _10Mb;
 	    } else if (strstr(p, "100Mb")) {

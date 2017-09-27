@@ -4,6 +4,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
@@ -12,7 +13,7 @@
 #include <linux/signal.h>
 #include <linux/security.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -147,7 +148,7 @@ long arch_ptrace(struct task_struct *child, long request,
 				/* The trampoline page is globally mapped, no page table to traverse.*/
 				tmp = *(unsigned long*)addr;
 			} else {
-				copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
+				copied = ptrace_access_vm(child, addr, &tmp, sizeof(tmp), FOLL_FORCE);
 
 				if (copied != sizeof(tmp))
 					break;
@@ -279,7 +280,7 @@ static int insn_size(struct task_struct *child, unsigned long pc)
   int opsize = 0;
 
   /* Read the opcode at pc (do what PTRACE_PEEKTEXT would do). */
-  copied = access_process_vm(child, pc, &opcode, sizeof(opcode), 0);
+  copied = access_process_vm(child, pc, &opcode, sizeof(opcode), FOLL_FORCE);
   if (copied != sizeof(opcode))
     return 0;
 

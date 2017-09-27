@@ -257,7 +257,7 @@ struct qib_base_info {
 
 	/* shared memory page for send buffer disarm status */
 	__u64 spi_sendbuf_status;
-} __attribute__ ((aligned(8)));
+} __aligned(8);
 
 /*
  * This version number is given to the driver by the user code during
@@ -279,7 +279,7 @@ struct qib_base_info {
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define QIB_USER_SWMINOR 12
+#define QIB_USER_SWMINOR 13
 
 #define QIB_USER_SWVERSION ((QIB_USER_SWMAJOR << 16) | QIB_USER_SWMINOR)
 
@@ -361,7 +361,7 @@ struct qib_user_info {
 	 */
 	__u64 spu_base_info;
 
-} __attribute__ ((aligned(8)));
+} __aligned(8);
 
 /* User commands. */
 
@@ -701,7 +701,37 @@ struct qib_message_header {
 	__be32 bth[3];
 	/* fields below this point are in host byte order */
 	struct qib_header iph;
+	/* fields below are simplified, but should match PSM */
+	/* some are accessed by driver when packet spliting is needed */
 	__u8 sub_opcode;
+	__u8 flags;
+	__u16 commidx;
+	__u32 ack_seq_num;
+	__u8 flowid;
+	__u8 hdr_dlen;
+	__u16 mqhdr;
+	__u32 uwords[4];
+};
+
+/* sequence number bits for message */
+union qib_seqnum {
+	struct {
+		__u32 seq:11;
+		__u32 gen:8;
+		__u32 flow:5;
+	};
+	struct {
+		__u32 pkt:16;
+		__u32 msg:8;
+	};
+	__u32 val;
+};
+
+/* qib receiving-dma tid-session-member */
+struct qib_tid_session_member {
+	__u16 tid;
+	__u16 offset;
+	__u16 length;
 };
 
 /* IB - LRH header consts */
@@ -712,14 +742,7 @@ struct qib_message_header {
 #define SIZE_OF_CRC 1
 
 #define QIB_DEFAULT_P_KEY 0xFFFF
-#define QIB_PERMISSIVE_LID 0xFFFF
-#define QIB_AETH_CREDIT_SHIFT 24
-#define QIB_AETH_CREDIT_MASK 0x1F
-#define QIB_AETH_CREDIT_INVAL 0x1F
 #define QIB_PSN_MASK 0xFFFFFF
-#define QIB_MSN_MASK 0xFFFFFF
-#define QIB_QPN_MASK 0xFFFFFF
-#define QIB_MULTICAST_LID_BASE 0xC000
 #define QIB_EAGER_TID_ID QLOGIC_IB_I_TID_MASK
 #define QIB_MULTICAST_QPN 0xFFFFFF
 

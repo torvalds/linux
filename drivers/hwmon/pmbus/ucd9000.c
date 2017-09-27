@@ -21,14 +21,15 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pmbus.h>
+#include <linux/pmbus.h>
 #include "pmbus.h"
 
-enum chips { ucd9000, ucd90120, ucd90124, ucd9090, ucd90910 };
+enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd9090, ucd90910 };
 
 #define UCD9000_MONITOR_CONFIG		0xd5
 #define UCD9000_NUM_PAGES		0xd6
@@ -112,11 +113,41 @@ static const struct i2c_device_id ucd9000_id[] = {
 	{"ucd9000", ucd9000},
 	{"ucd90120", ucd90120},
 	{"ucd90124", ucd90124},
+	{"ucd90160", ucd90160},
 	{"ucd9090", ucd9090},
 	{"ucd90910", ucd90910},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ucd9000_id);
+
+static const struct of_device_id ucd9000_of_match[] = {
+	{
+		.compatible = "ti,ucd9000",
+		.data = (void *)ucd9000
+	},
+	{
+		.compatible = "ti,ucd90120",
+		.data = (void *)ucd90120
+	},
+	{
+		.compatible = "ti,ucd90124",
+		.data = (void *)ucd90124
+	},
+	{
+		.compatible = "ti,ucd90160",
+		.data = (void *)ucd90160
+	},
+	{
+		.compatible = "ti,ucd9090",
+		.data = (void *)ucd9090
+	},
+	{
+		.compatible = "ti,ucd90910",
+		.data = (void *)ucd90910
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ucd9000_of_match);
 
 static int ucd9000_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -125,6 +156,7 @@ static int ucd9000_probe(struct i2c_client *client,
 	struct ucd9000_data *data;
 	struct pmbus_driver_info *info;
 	const struct i2c_device_id *mid;
+	enum chips chip;
 	int i, ret;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -150,7 +182,12 @@ static int ucd9000_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	if (id->driver_data != ucd9000 && id->driver_data != mid->driver_data)
+	if (client->dev.of_node)
+		chip = (enum chips)of_device_get_match_data(&client->dev);
+	else
+		chip = id->driver_data;
+
+	if (chip != ucd9000 && chip != mid->driver_data)
 		dev_notice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
@@ -233,6 +270,7 @@ static int ucd9000_probe(struct i2c_client *client,
 static struct i2c_driver ucd9000_driver = {
 	.driver = {
 		.name = "ucd9000",
+		.of_match_table = of_match_ptr(ucd9000_of_match),
 	},
 	.probe = ucd9000_probe,
 	.remove = pmbus_do_remove,

@@ -4,6 +4,8 @@
  *  Copyright (C) 2006 Atsushi Nemoto <anemo@mba.ocn.ne.jp>
  */
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/export.h>
 #include <asm/stacktrace.h>
@@ -12,14 +14,15 @@
  * Save stack-backtrace addresses into a stack_trace buffer:
  */
 static void save_raw_context_stack(struct stack_trace *trace,
-	unsigned long reg29)
+	unsigned long reg29, int savesched)
 {
 	unsigned long *sp = (unsigned long *)reg29;
 	unsigned long addr;
 
 	while (!kstack_end(sp)) {
 		addr = *sp++;
-		if (__kernel_text_address(addr)) {
+		if (__kernel_text_address(addr) &&
+		    (savesched || !in_sched_functions(addr))) {
 			if (trace->skip > 0)
 				trace->skip--;
 			else
@@ -31,7 +34,7 @@ static void save_raw_context_stack(struct stack_trace *trace,
 }
 
 static void save_context_stack(struct stack_trace *trace,
-	struct task_struct *tsk, struct pt_regs *regs)
+	struct task_struct *tsk, struct pt_regs *regs, int savesched)
 {
 	unsigned long sp = regs->regs[29];
 #ifdef CONFIG_KALLSYMS
@@ -43,20 +46,22 @@ static void save_context_stack(struct stack_trace *trace,
 			(unsigned long)task_stack_page(tsk);
 		if (stack_page && sp >= stack_page &&
 		    sp <= stack_page + THREAD_SIZE - 32)
-			save_raw_context_stack(trace, sp);
+			save_raw_context_stack(trace, sp, savesched);
 		return;
 	}
 	do {
-		if (trace->skip > 0)
-			trace->skip--;
-		else
-			trace->entries[trace->nr_entries++] = pc;
-		if (trace->nr_entries >= trace->max_entries)
-			break;
+		if (savesched || !in_sched_functions(pc)) {
+			if (trace->skip > 0)
+				trace->skip--;
+			else
+				trace->entries[trace->nr_entries++] = pc;
+			if (trace->nr_entries >= trace->max_entries)
+				break;
+		}
 		pc = unwind_stack(tsk, &sp, pc, &ra);
 	} while (pc);
 #else
-	save_raw_context_stack(trace, sp);
+	save_raw_context_stack(trace, sp, savesched);
 #endif
 }
 
@@ -82,6 +87,6 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 		regs->cp0_epc = tsk->thread.reg31;
 	} else
 		prepare_frametrace(regs);
-	save_context_stack(trace, tsk, regs);
+	save_context_stack(trace, tsk, regs, tsk == current);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

@@ -22,68 +22,49 @@
 #include <linux/pagemap.h>
 
 #include <asm/cacheflush.h>
-#include <asm/cachetype.h>
+#include <asm/cache.h>
 #include <asm/tlbflush.h>
 
-#include "mm.h"
-
-void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-		       unsigned long end)
+void sync_icache_aliases(void *kaddr, unsigned long len)
 {
-	if (vma->vm_flags & VM_EXEC)
+	unsigned long addr = (unsigned long)kaddr;
+
+	if (icache_is_aliasing()) {
+		__clean_dcache_area_pou(kaddr, len);
 		__flush_icache_all();
+	} else {
+		flush_icache_range(addr, addr + len);
+	}
 }
 
 static void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 				unsigned long uaddr, void *kaddr,
 				unsigned long len)
 {
-	if (vma->vm_flags & VM_EXEC) {
-		unsigned long addr = (unsigned long)kaddr;
-		if (icache_is_aliasing()) {
-			__flush_dcache_area(kaddr, len);
-			__flush_icache_all();
-		} else {
-			flush_icache_range(addr, addr + len);
-		}
-	}
+	if (vma->vm_flags & VM_EXEC)
+		sync_icache_aliases(kaddr, len);
 }
 
 /*
  * Copy user data from/to a page which is mapped into a different processes
  * address space.  Really, we want to allow our "user space" model to handle
  * this.
- *
- * Note that this code needs to run on the current CPU.
  */
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long uaddr, void *dst, const void *src,
 		       unsigned long len)
 {
-#ifdef CONFIG_SMP
-	preempt_disable();
-#endif
 	memcpy(dst, src, len);
 	flush_ptrace_access(vma, page, uaddr, dst, len);
-#ifdef CONFIG_SMP
-	preempt_enable();
-#endif
 }
 
 void __sync_icache_dcache(pte_t pte, unsigned long addr)
 {
 	struct page *page = pte_page(pte);
 
-	/* no flushing needed for anonymous pages */
-	if (!page_mapping(page))
-		return;
-
-	if (!test_and_set_bit(PG_dcache_clean, &page->flags)) {
-		__flush_dcache_area(page_address(page), PAGE_SIZE);
-		__flush_icache_all();
-	} else if (icache_is_aivivt()) {
-		__flush_icache_all();
-	}
+	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+		sync_icache_aliases(page_address(page),
+				    PAGE_SIZE << compound_order(page));
 }
 
 /*
@@ -101,5 +82,20 @@ EXPORT_SYMBOL(flush_dcache_page);
 /*
  * Additional functions defined in assembly.
  */
-EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_icache_range);
+
+#ifdef CONFIG_ARCH_HAS_PMEM_API
+void arch_wb_cache_pmem(void *addr, size_t size)
+{
+	/* Ensure order against any prior non-cacheable writes */
+	dmb(osh);
+	__clean_dcache_area_pop(addr, size);
+}
+EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
+
+void arch_invalidate_pmem(void *addr, size_t size)
+{
+	__inval_dcache_area(addr, size);
+}
+EXPORT_SYMBOL_GPL(arch_invalidate_pmem);
+#endif

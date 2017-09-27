@@ -176,7 +176,7 @@
 #define YMFPCI_LEGACY2_IMOD	(1 << 15)	/* legacy IRQ mode */
 /* SIEN:IMOD 0:0 = legacy irq, 0:1 = INTA, 1:0 = serialized IRQ */
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK
 #endif
 
@@ -379,10 +379,10 @@ void snd_ymfpci_free_gameport(struct snd_ymfpci *chip);
 
 extern const struct dev_pm_ops snd_ymfpci_pm;
 
-int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
-int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
-int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
-int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
+int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device);
+int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device);
+int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device);
+int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device);
 int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch);
 int snd_ymfpci_timer(struct snd_ymfpci *chip, int device);
 

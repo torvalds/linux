@@ -35,34 +35,44 @@
  * it's (presumably) much slower than mf and (b) mf.a is supported for
  * sequential memory pages only.
  */
-#define mb()	ia64_mf()
-#define rmb()	mb()
-#define wmb()	mb()
-#define read_barrier_depends()	do { } while(0)
+#define mb()		ia64_mf()
+#define rmb()		mb()
+#define wmb()		mb()
 
-#ifdef CONFIG_SMP
-# define smp_mb()	mb()
-# define smp_rmb()	rmb()
-# define smp_wmb()	wmb()
-# define smp_read_barrier_depends()	read_barrier_depends()
-#else
-# define smp_mb()	barrier()
-# define smp_rmb()	barrier()
-# define smp_wmb()	barrier()
-# define smp_read_barrier_depends()	do { } while(0)
-#endif
+#define dma_rmb()	mb()
+#define dma_wmb()	mb()
+
+# define __smp_mb()	mb()
+
+#define __smp_mb__before_atomic()	barrier()
+#define __smp_mb__after_atomic()	barrier()
 
 /*
- * XXX check on this ---I suspect what Linus really wants here is
- * acquire vs release semantics but we can't discuss this stuff with
- * Linus just yet.  Grrr...
+ * IA64 GCC turns volatile stores into st.rel and volatile loads into ld.acq no
+ * need for asm trickery!
  */
-#define set_mb(var, value)	do { (var) = (value); mb(); } while (0)
+
+#define __smp_store_release(p, v)						\
+do {									\
+	compiletime_assert_atomic_type(*p);				\
+	barrier();							\
+	WRITE_ONCE(*p, v);						\
+} while (0)
+
+#define __smp_load_acquire(p)						\
+({									\
+	typeof(*p) ___p1 = READ_ONCE(*p);				\
+	compiletime_assert_atomic_type(*p);				\
+	barrier();							\
+	___p1;								\
+})
 
 /*
  * The group barrier in front of the rsm & ssm are necessary to ensure
  * that none of the previous instructions in the same group are
  * affected by the rsm/ssm.
  */
+
+#include <asm-generic/barrier.h>
 
 #endif /* _ASM_IA64_BARRIER_H */

@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/usb/input.h>
 
 /*
@@ -50,7 +49,6 @@ MODULE_LICENSE(DRIVER_LICENSE);
 struct usb_acecad {
 	char name[128];
 	char phys[64];
-	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct input_dev *input;
 	struct urb *irq;
@@ -65,6 +63,7 @@ static void usb_acecad_irq(struct urb *urb)
 	unsigned char *data = acecad->data;
 	struct input_dev *dev = acecad->input;
 	struct usb_interface *intf = acecad->intf;
+	struct usb_device *udev = interface_to_usbdev(intf);
 	int prox, status;
 
 	switch (urb->status) {
@@ -111,15 +110,15 @@ resubmit:
 	if (status)
 		dev_err(&intf->dev,
 			"can't resubmit intr, %s-%s/input0, status %d\n",
-			acecad->usbdev->bus->bus_name,
-			acecad->usbdev->devpath, status);
+			udev->bus->bus_name,
+			udev->devpath, status);
 }
 
 static int usb_acecad_open(struct input_dev *dev)
 {
 	struct usb_acecad *acecad = input_get_drvdata(dev);
 
-	acecad->irq->dev = acecad->usbdev;
+	acecad->irq->dev = interface_to_usbdev(acecad->intf);
 	if (usb_submit_urb(acecad->irq, GFP_KERNEL))
 		return -EIO;
 
@@ -173,7 +172,6 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 		goto fail2;
 	}
 
-	acecad->usbdev = dev;
 	acecad->intf = intf;
 	acecad->input = input_dev;
 
@@ -252,16 +250,17 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 static void usb_acecad_disconnect(struct usb_interface *intf)
 {
 	struct usb_acecad *acecad = usb_get_intfdata(intf);
+	struct usb_device *udev = interface_to_usbdev(intf);
 
 	usb_set_intfdata(intf, NULL);
 
 	input_unregister_device(acecad->input);
 	usb_free_urb(acecad->irq);
-	usb_free_coherent(acecad->usbdev, 8, acecad->data, acecad->data_dma);
+	usb_free_coherent(udev, 8, acecad->data, acecad->data_dma);
 	kfree(acecad);
 }
 
-static struct usb_device_id usb_acecad_id_table [] = {
+static const struct usb_device_id usb_acecad_id_table[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_FLAIR), .driver_info = 0 },
 	{ USB_DEVICE(USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_302),	 .driver_info = 1 },
 	{ }

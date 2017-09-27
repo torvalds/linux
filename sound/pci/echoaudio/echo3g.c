@@ -54,6 +54,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -63,7 +64,6 @@
 #include <sound/asoundef.h>
 #include <sound/initval.h>
 #include <sound/rawmidi.h>
-#include <asm/io.h>
 #include <linux/atomic.h>
 #include "echoaudio.h"
 
@@ -81,7 +81,7 @@ static const struct firmware card_fw[] = {
 	{0, "3g_asic.fw"}
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_echo_ids) = {
+static const struct pci_device_id snd_echo_ids[] = {
 	{0x1057, 0x3410, 0xECC0, 0x0100, 0, 0, 0},	/* Echo 3G */
 	{0,}
 };

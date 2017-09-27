@@ -19,7 +19,8 @@
 #include <linux/bug.h>
 #include <asm/page.h>
 
-#define IO_SPACE_LIMIT 0xfffffffful
+/* Maximum PCI I/O space address supported. */
+#define IO_SPACE_LIMIT 0xffffffff
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
@@ -53,7 +54,8 @@ extern void iounmap(volatile void __iomem *addr);
 
 #define ioremap_nocache(physaddr, size)		ioremap(physaddr, size)
 #define ioremap_wc(physaddr, size)		ioremap(physaddr, size)
-#define ioremap_writethrough(physaddr, size)	ioremap(physaddr, size)
+#define ioremap_wt(physaddr, size)		ioremap(physaddr, size)
+#define ioremap_uc(physaddr, size)		ioremap(physaddr, size)
 #define ioremap_fullcache(physaddr, size)	ioremap(physaddr, size)
 
 #define mmiowb()
@@ -159,14 +161,14 @@ extern void _tile_writew(u16 val, unsigned long addr);
 extern void _tile_writel(u32 val, unsigned long addr);
 extern void _tile_writeq(u64 val, unsigned long addr);
 
-#define __raw_readb(addr) _tile_readb((unsigned long)addr)
-#define __raw_readw(addr) _tile_readw((unsigned long)addr)
-#define __raw_readl(addr) _tile_readl((unsigned long)addr)
-#define __raw_readq(addr) _tile_readq((unsigned long)addr)
-#define __raw_writeb(val, addr) _tile_writeb(val, (unsigned long)addr)
-#define __raw_writew(val, addr) _tile_writew(val, (unsigned long)addr)
-#define __raw_writel(val, addr) _tile_writel(val, (unsigned long)addr)
-#define __raw_writeq(val, addr) _tile_writeq(val, (unsigned long)addr)
+#define __raw_readb(addr) _tile_readb((unsigned long)(addr))
+#define __raw_readw(addr) _tile_readw((unsigned long)(addr))
+#define __raw_readl(addr) _tile_readl((unsigned long)(addr))
+#define __raw_readq(addr) _tile_readq((unsigned long)(addr))
+#define __raw_writeb(val, addr) _tile_writeb(val, (unsigned long)(addr))
+#define __raw_writew(val, addr) _tile_writew(val, (unsigned long)(addr))
+#define __raw_writel(val, addr) _tile_writel(val, (unsigned long)(addr))
+#define __raw_writeq(val, addr) _tile_writeq(val, (unsigned long)(addr))
 
 #else /* CONFIG_PCI */
 
@@ -240,6 +242,10 @@ static inline void writeq(u64 val, unsigned long addr)
 #define readw_relaxed readw
 #define readl_relaxed readl
 #define readq_relaxed readq
+#define writeb_relaxed writeb
+#define writew_relaxed writew
+#define writel_relaxed writel
+#define writeq_relaxed writeq
 
 #define ioread8 readb
 #define ioread16 readw
@@ -254,7 +260,7 @@ static inline void writeq(u64 val, unsigned long addr)
 
 static inline void memset_io(volatile void *dst, int val, size_t len)
 {
-	int x;
+	size_t x;
 	BUG_ON((unsigned long)dst & 0x3);
 	val = (val & 0xff) * 0x01010101;
 	for (x = 0; x < len; x += 4)
@@ -264,7 +270,7 @@ static inline void memset_io(volatile void *dst, int val, size_t len)
 static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
 				 size_t len)
 {
-	int x;
+	size_t x;
 	BUG_ON((unsigned long)src & 0x3);
 	for (x = 0; x < len; x += 4)
 		*(u32 *)(dst + x) = readl(src + x);
@@ -273,7 +279,7 @@ static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
 static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 				size_t len)
 {
-	int x;
+	size_t x;
 	BUG_ON((unsigned long)dst & 0x3);
 	for (x = 0; x < len; x += 4)
 		writel(*(u32 *)(src + x), dst + x);
@@ -281,8 +287,108 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 
 #endif
 
+#if CHIP_HAS_MMIO() && defined(CONFIG_TILE_PCI_IO)
+
+static inline u8 inb(unsigned long addr)
+{
+	return readb((volatile void __iomem *) addr);
+}
+
+static inline u16 inw(unsigned long addr)
+{
+	return readw((volatile void __iomem *) addr);
+}
+
+static inline u32 inl(unsigned long addr)
+{
+	return readl((volatile void __iomem *) addr);
+}
+
+static inline void outb(u8 b, unsigned long addr)
+{
+	writeb(b, (volatile void __iomem *) addr);
+}
+
+static inline void outw(u16 b, unsigned long addr)
+{
+	writew(b, (volatile void __iomem *) addr);
+}
+
+static inline void outl(u32 b, unsigned long addr)
+{
+	writel(b, (volatile void __iomem *) addr);
+}
+
+static inline void insb(unsigned long addr, void *buffer, int count)
+{
+	if (count) {
+		u8 *buf = buffer;
+		do {
+			u8 x = inb(addr);
+			*buf++ = x;
+		} while (--count);
+	}
+}
+
+static inline void insw(unsigned long addr, void *buffer, int count)
+{
+	if (count) {
+		u16 *buf = buffer;
+		do {
+			u16 x = inw(addr);
+			*buf++ = x;
+		} while (--count);
+	}
+}
+
+static inline void insl(unsigned long addr, void *buffer, int count)
+{
+	if (count) {
+		u32 *buf = buffer;
+		do {
+			u32 x = inl(addr);
+			*buf++ = x;
+		} while (--count);
+	}
+}
+
+static inline void outsb(unsigned long addr, const void *buffer, int count)
+{
+	if (count) {
+		const u8 *buf = buffer;
+		do {
+			outb(*buf++, addr);
+		} while (--count);
+	}
+}
+
+static inline void outsw(unsigned long addr, const void *buffer, int count)
+{
+	if (count) {
+		const u16 *buf = buffer;
+		do {
+			outw(*buf++, addr);
+		} while (--count);
+	}
+}
+
+static inline void outsl(unsigned long addr, const void *buffer, int count)
+{
+	if (count) {
+		const u32 *buf = buffer;
+		do {
+			outl(*buf++, addr);
+		} while (--count);
+	}
+}
+
+extern void __iomem *ioport_map(unsigned long port, unsigned int len);
+extern void ioport_unmap(void __iomem *addr);
+
+#else
+
 /*
- * The Tile architecture does not support IOPORT, even with PCI.
+ * The TilePro architecture does not support IOPORT, even with PCI.
  * Unfortunately we can't yet simply not declare these methods,
  * since some generic code that compiles into the kernel, but
  * we never run, uses them unconditionally.
@@ -290,13 +396,17 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 
 static inline long ioport_panic(void)
 {
+#ifdef __tilegx__
+	panic("PCI IO space support is disabled. Configure the kernel with CONFIG_TILE_PCI_IO to enable it");
+#else
 	panic("inb/outb and friends do not exist on tile");
+#endif
 	return 0;
 }
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int len)
 {
-	pr_info("ioport_map: mapping IO resources is unsupported on tile.\n");
+	pr_info("ioport_map: mapping IO resources is unsupported on tile\n");
 	return NULL;
 }
 
@@ -335,13 +445,6 @@ static inline void outl(u32 b, unsigned long addr)
 	ioport_panic();
 }
 
-#define inb_p(addr)	inb(addr)
-#define inw_p(addr)	inw(addr)
-#define inl_p(addr)	inl(addr)
-#define outb_p(x, addr)	outb((x), (addr))
-#define outw_p(x, addr)	outw((x), (addr))
-#define outl_p(x, addr)	outl((x), (addr))
-
 static inline void insb(unsigned long addr, void *buffer, int count)
 {
 	ioport_panic();
@@ -371,6 +474,15 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 {
 	ioport_panic();
 }
+
+#endif /* CHIP_HAS_MMIO() && defined(CONFIG_TILE_PCI_IO) */
+
+#define inb_p(addr)	inb(addr)
+#define inw_p(addr)	inw(addr)
+#define inl_p(addr)	inl(addr)
+#define outb_p(x, addr)	outb((x), (addr))
+#define outw_p(x, addr)	outw((x), (addr))
+#define outl_p(x, addr)	outl((x), (addr))
 
 #define ioread16be(addr)	be16_to_cpu(ioread16(addr))
 #define ioread32be(addr)	be32_to_cpu(ioread32(addr))

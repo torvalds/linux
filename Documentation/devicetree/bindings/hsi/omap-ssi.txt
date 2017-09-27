@@ -1,0 +1,96 @@
+OMAP SSI controller bindings
+
+OMAP Synchronous Serial Interface (SSI) controller implements a legacy
+variant of MIPI's High Speed Synchronous Serial Interface (HSI).
+
+Required properties:
+- compatible:		Should include "ti,omap3-ssi".
+- reg-names:		Contains the values "sys" and "gdd" (in this order).
+- reg:			Contains a matching register specifier for each entry
+			in reg-names.
+- interrupt-names:	Contains the value "gdd_mpu".
+- interrupts: 		Contains matching interrupt information for each entry
+			in interrupt-names.
+- ranges:		Represents the bus address mapping between the main
+			controller node and the child nodes below.
+- clock-names:		Must include the following entries:
+  "ssi_ssr_fck": The OMAP clock of that name
+  "ssi_sst_fck": The OMAP clock of that name
+  "ssi_ick": The OMAP clock of that name
+- clocks:		Contains a matching clock specifier for each entry in
+			clock-names.
+- #address-cells:	Should be set to <1>
+- #size-cells:		Should be set to <1>
+
+Each port is represented as a sub-node of the ti,omap3-ssi device.
+
+Required Port sub-node properties:
+- compatible:		Should be set to the following value
+			ti,omap3-ssi-port (applicable to OMAP34xx devices)
+- reg-names:		Contains the values "tx" and "rx" (in this order).
+- reg:			Contains a matching register specifier for each entry
+			in reg-names.
+- interrupt-parent	Should be a phandle for the interrupt controller
+- interrupts:		Should contain interrupt specifiers for mpu interrupts
+			0 and 1 (in this order).
+- ti,ssi-cawake-gpio:	Defines which GPIO pin is used to signify CAWAKE
+			events for the port. This is an optional board-specific
+			property. If it's missing the port will not be
+			enabled.
+
+Example for Nokia N900:
+
+ssi-controller@48058000 {
+	compatible = "ti,omap3-ssi";
+
+	/* needed until hwmod is updated to use the compatible string */
+	ti,hwmods = "ssi";
+
+	reg = <0x48058000 0x1000>,
+	      <0x48059000 0x1000>;
+	reg-names = "sys",
+		    "gdd";
+
+	interrupts = <55>;
+	interrupt-names = "gdd_mpu";
+
+	clocks = <&ssi_ssr_fck>,
+		 <&ssi_sst_fck>,
+		 <&ssi_ick>;
+	clock-names = "ssi_ssr_fck",
+		      "ssi_sst_fck",
+		      "ssi_ick";
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	ssi-port@4805a000 {
+		compatible = "ti,omap3-ssi-port";
+
+		reg = <0x4805a000 0x800>,
+		      <0x4805a800 0x800>;
+		reg-names = "tx",
+			    "rx";
+
+		interrupt-parent = <&intc>;
+		interrupts = <67>,
+			     <68>;
+
+		ti,ssi-cawake-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>; /* 151 */
+	}
+
+	ssi-port@4805a000 {
+		compatible = "ti,omap3-ssi-port";
+
+		reg = <0x4805b000 0x800>,
+		      <0x4805b800 0x800>;
+		reg-names = "tx",
+			    "rx";
+
+		interrupt-parent = <&intc>;
+		interrupts = <69>,
+			     <70>;
+
+	}
+}

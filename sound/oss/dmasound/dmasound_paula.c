@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/setup.h>
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
@@ -729,23 +729,10 @@ static struct platform_driver amiga_audio_driver = {
 	.remove = __exit_p(amiga_audio_remove),
 	.driver   = {
 		.name	= "amiga-audio",
-		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init amiga_audio_init(void)
-{
-	return platform_driver_probe(&amiga_audio_driver, amiga_audio_probe);
-}
-
-module_init(amiga_audio_init);
-
-static void __exit amiga_audio_exit(void)
-{
-	platform_driver_unregister(&amiga_audio_driver);
-}
-
-module_exit(amiga_audio_exit);
+module_platform_driver_probe(amiga_audio_driver, amiga_audio_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:amiga-audio");

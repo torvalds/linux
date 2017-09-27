@@ -20,7 +20,7 @@
 #include <linux/gfp.h>
 
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/traps.h>
@@ -59,14 +59,14 @@ EXPORT_SYMBOL(pg_data_table);
 void __init m68k_setup_node(int node)
 {
 #ifndef CONFIG_SINGLE_MEMORY_CHUNK
-	struct mem_info *info = m68k_memory + node;
+	struct m68k_mem_info *info = m68k_memory + node;
 	int i, end;
 
 	i = (unsigned long)phys_to_virt(info->addr) >> __virt_to_node_shift();
 	end = (unsigned long)phys_to_virt(info->addr + info->size - 1) >> __virt_to_node_shift();
 	for (; i <= end; i++) {
 		if (pg_data_table[i])
-			printk("overlap at %u for chunk %u\n", i, node);
+			pr_warn("overlap at %u for chunk %u\n", i, node);
 		pg_data_table[i] = pg_data_map + node;
 	}
 #endif
@@ -94,7 +94,6 @@ void __init paging_init(void)
 	high_memory = (void *) end_mem;
 
 	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
-	memset(empty_zero_page, 0, PAGE_SIZE);
 
 	/*
 	 * Set up SFC/DFC registers (user data space).

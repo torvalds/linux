@@ -15,12 +15,15 @@
 
 #include <video/vga.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
+
+#include <drm/drm_gem.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -177,7 +180,9 @@ enum mga_type {
 	G200_WB,
 	G200_EV,
 	G200_EH,
+	G200_EH3,
 	G200_ER,
+	G200_EW3,
 };
 
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
@@ -189,8 +194,6 @@ struct mga_device {
 	resource_size_t			rmmio_base;
 	resource_size_t			rmmio_size;
 	void __iomem			*rmmio;
-
-	drm_local_map_t			*framebuffer;
 
 	struct mga_mc			mc;
 	struct mga_mode_info		mode_info;
@@ -224,7 +227,7 @@ struct mgag200_bo {
 	struct ttm_placement placement;
 	struct ttm_bo_kmap_obj kmap;
 	struct drm_gem_object gem;
-	u32 placements[3];
+	struct ttm_place placements[3];
 	int pin_count;
 };
 #define gem_to_mga_bo(gobj) container_of((gobj), struct mgag200_bo, gem)
@@ -234,11 +237,6 @@ mgag200_bo(struct ttm_buffer_object *bo)
 {
 	return container_of(bo, struct mgag200_bo, bo);
 }
-				/* mgag200_crtc.c */
-void mga_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			     u16 blue, int regno);
-void mga_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			     u16 *blue, int regno);
 
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
@@ -251,22 +249,18 @@ void mgag200_fbdev_fini(struct mga_device *mdev);
 				/* mgag200_main.c */
 int mgag200_framebuffer_init(struct drm_device *dev,
 			     struct mga_framebuffer *mfb,
-			     struct drm_mode_fb_cmd2 *mode_cmd,
+			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
 
 int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
-int mgag200_driver_unload(struct drm_device *dev);
+void mgag200_driver_unload(struct drm_device *dev);
 int mgag200_gem_create(struct drm_device *dev,
 		   u32 size, bool iskernel,
 		       struct drm_gem_object **obj);
-int mgag200_gem_init_object(struct drm_gem_object *obj);
 int mgag200_dumb_create(struct drm_file *file,
 			struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-int mgag200_dumb_destroy(struct drm_file *file,
-			 struct drm_device *dev,
-			 uint32_t handle);
 void mgag200_gem_free_object(struct drm_gem_object *obj);
 int
 mgag200_dumb_mmap_offset(struct drm_file *file,
@@ -284,7 +278,7 @@ static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, NULL);
 	if (ret) {
 		if (ret != -ERESTARTSYS && ret != -EBUSY)
 			DRM_ERROR("reserve failed %p\n", bo);

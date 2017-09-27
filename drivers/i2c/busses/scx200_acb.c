@@ -17,10 +17,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
     General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -46,7 +42,7 @@ MODULE_LICENSE("GPL");
 
 #define MAX_DEVICES 4
 static int base[MAX_DEVICES] = { 0x820, 0x840 };
-module_param_array(base, int, NULL, 0);
+module_param_hw_array(base, int, ioport, NULL, 0);
 MODULE_PARM_DESC(base, "Base addresses for the ACCESS.bus controllers");
 
 #define POLL_TIMEOUT	(HZ/5)
@@ -431,10 +427,8 @@ static struct scx200_acb_iface *scx200_create_iface(const char *text,
 	struct i2c_adapter *adapter;
 
 	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
-	if (!iface) {
-		pr_err("can't allocate memory\n");
+	if (!iface)
 		return NULL;
-	}
 
 	adapter = &iface->adapter;
 	i2c_set_adapdata(adapter, iface);
@@ -550,13 +544,12 @@ static int scx200_remove(struct platform_device *pdev)
 static struct platform_driver scx200_pci_driver = {
 	.driver = {
 		.name = "cs5535-smb",
-		.owner = THIS_MODULE,
 	},
 	.probe = scx200_probe,
 	.remove = scx200_remove,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(scx200_isa) = {
+static const struct pci_device_id scx200_isa[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_BRIDGE) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE) },
 	{ 0, }

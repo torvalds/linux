@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/sched_clock.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
 
@@ -26,7 +27,7 @@ struct txx9_clocksource {
 	struct txx9_tmr_reg __iomem *tmrptr;
 };
 
-static cycle_t txx9_cs_read(struct clocksource *cs)
+static u64 txx9_cs_read(struct clocksource *cs)
 {
 	struct txx9_clocksource *txx9_cs =
 		container_of(cs, struct txx9_clocksource, cs);
@@ -46,6 +47,11 @@ static struct txx9_clocksource txx9_clocksource = {
 	},
 };
 
+static u64 notrace txx9_read_sched_clock(void)
+{
+	return __raw_readl(&txx9_clocksource.tmrptr->trr);
+}
+
 void __init txx9_clocksource_init(unsigned long baseaddr,
 				  unsigned int imbusclk)
 {
@@ -61,6 +67,9 @@ void __init txx9_clocksource_init(unsigned long baseaddr,
 	__raw_writel(1 << TXX9_CLOCKSOURCE_BITS, &tmrptr->cpra);
 	__raw_writel(TCR_BASE | TXx9_TMTCR_TCE, &tmrptr->tcr);
 	txx9_clocksource.tmrptr = tmrptr;
+
+	sched_clock_register(txx9_read_sched_clock, TXX9_CLOCKSOURCE_BITS,
+			     TIMER_CLK(imbusclk));
 }
 
 struct txx9_clock_event_device {
@@ -76,36 +85,54 @@ static void txx9tmr_stop_and_clear(struct txx9_tmr_reg __iomem *tmrptr)
 	__raw_writel(0, &tmrptr->tisr);
 }
 
-static void txx9tmr_set_mode(enum clock_event_mode mode,
-			     struct clock_event_device *evt)
+static int txx9tmr_set_state_periodic(struct clock_event_device *evt)
 {
 	struct txx9_clock_event_device *txx9_cd =
 		container_of(evt, struct txx9_clock_event_device, cd);
 	struct txx9_tmr_reg __iomem *tmrptr = txx9_cd->tmrptr;
 
 	txx9tmr_stop_and_clear(tmrptr);
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		__raw_writel(TXx9_TMITMR_TIIE | TXx9_TMITMR_TZCE,
-			     &tmrptr->itmr);
-		/* start timer */
-		__raw_writel(((u64)(NSEC_PER_SEC / HZ) * evt->mult) >>
-			     evt->shift,
-			     &tmrptr->cpra);
-		__raw_writel(TCR_BASE | TXx9_TMTCR_TCE, &tmrptr->tcr);
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		__raw_writel(0, &tmrptr->itmr);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		__raw_writel(TXx9_TMITMR_TIIE, &tmrptr->itmr);
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		__raw_writel(TIMER_CCD, &tmrptr->ccdr);
-		__raw_writel(0, &tmrptr->itmr);
-		break;
-	}
+
+	__raw_writel(TXx9_TMITMR_TIIE | TXx9_TMITMR_TZCE, &tmrptr->itmr);
+	/* start timer */
+	__raw_writel(((u64)(NSEC_PER_SEC / HZ) * evt->mult) >> evt->shift,
+		     &tmrptr->cpra);
+	__raw_writel(TCR_BASE | TXx9_TMTCR_TCE, &tmrptr->tcr);
+	return 0;
+}
+
+static int txx9tmr_set_state_oneshot(struct clock_event_device *evt)
+{
+	struct txx9_clock_event_device *txx9_cd =
+		container_of(evt, struct txx9_clock_event_device, cd);
+	struct txx9_tmr_reg __iomem *tmrptr = txx9_cd->tmrptr;
+
+	txx9tmr_stop_and_clear(tmrptr);
+	__raw_writel(TXx9_TMITMR_TIIE, &tmrptr->itmr);
+	return 0;
+}
+
+static int txx9tmr_set_state_shutdown(struct clock_event_device *evt)
+{
+	struct txx9_clock_event_device *txx9_cd =
+		container_of(evt, struct txx9_clock_event_device, cd);
+	struct txx9_tmr_reg __iomem *tmrptr = txx9_cd->tmrptr;
+
+	txx9tmr_stop_and_clear(tmrptr);
+	__raw_writel(0, &tmrptr->itmr);
+	return 0;
+}
+
+static int txx9tmr_tick_resume(struct clock_event_device *evt)
+{
+	struct txx9_clock_event_device *txx9_cd =
+		container_of(evt, struct txx9_clock_event_device, cd);
+	struct txx9_tmr_reg __iomem *tmrptr = txx9_cd->tmrptr;
+
+	txx9tmr_stop_and_clear(tmrptr);
+	__raw_writel(TIMER_CCD, &tmrptr->ccdr);
+	__raw_writel(0, &tmrptr->itmr);
+	return 0;
 }
 
 static int txx9tmr_set_next_event(unsigned long delta,
@@ -124,12 +151,15 @@ static int txx9tmr_set_next_event(unsigned long delta,
 
 static struct txx9_clock_event_device txx9_clock_event_device = {
 	.cd = {
-		.name		= "TXx9",
-		.features	= CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_FEAT_ONESHOT,
-		.rating		= 200,
-		.set_mode	= txx9tmr_set_mode,
-		.set_next_event = txx9tmr_set_next_event,
+		.name			= "TXx9",
+		.features		= CLOCK_EVT_FEAT_PERIODIC |
+					  CLOCK_EVT_FEAT_ONESHOT,
+		.rating			= 200,
+		.set_state_shutdown	= txx9tmr_set_state_shutdown,
+		.set_state_periodic	= txx9tmr_set_state_periodic,
+		.set_state_oneshot	= txx9tmr_set_state_oneshot,
+		.tick_resume		= txx9tmr_tick_resume,
+		.set_next_event		= txx9tmr_set_next_event,
 	},
 };
 
@@ -166,7 +196,9 @@ void __init txx9_clockevent_init(unsigned long baseaddr, int irq,
 	clockevent_set_clock(cd, TIMER_CLK(imbusclk));
 	cd->max_delta_ns =
 		clockevent_delta2ns(0xffffffff >> (32 - TXX9_TIMER_BITS), cd);
+	cd->max_delta_ticks = 0xffffffff >> (32 - TXX9_TIMER_BITS);
 	cd->min_delta_ns = clockevent_delta2ns(0xf, cd);
+	cd->min_delta_ticks = 0xf;
 	cd->irq = irq;
 	cd->cpumask = cpumask_of(0),
 	clockevents_register_device(cd);

@@ -123,8 +123,7 @@ static void adfs_put_super(struct super_block *sb)
 	for (i = 0; i < asb->s_map_size; i++)
 		brelse(asb->s_map[i].dm_bh);
 	kfree(asb->s_map);
-	kfree(asb);
-	sb->s_fs_info = NULL;
+	kfree_rcu(asb, rcu);
 }
 
 static int adfs_show_options(struct seq_file *seq, struct dentry *root)
@@ -213,6 +212,7 @@ static int parse_options(struct super_block *sb, char *options)
 
 static int adfs_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_NODIRATIME;
 	return parse_options(sb, data);
 }
@@ -242,7 +242,7 @@ static struct kmem_cache *adfs_inode_cachep;
 static struct inode *adfs_alloc_inode(struct super_block *sb)
 {
 	struct adfs_inode_info *ei;
-	ei = (struct adfs_inode_info *)kmem_cache_alloc(adfs_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(adfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -266,12 +266,12 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	adfs_inode_cachep = kmem_cache_create("adfs_inode_cache",
 					     sizeof(struct adfs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
 	if (adfs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -316,7 +316,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
 	dm = kmalloc(nzones * sizeof(*dm), GFP_KERNEL);
 	if (dm == NULL) {
 		adfs_error(sb, "not enough memory");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	for (zone = 0; zone < nzones; zone++, map_addr++) {
@@ -349,7 +349,7 @@ error_free:
 		brelse(dm[zone].dm_bh);
 
 	kfree(dm);
-	return NULL;
+	return ERR_PTR(-EIO);
 }
 
 static inline unsigned long adfs_discsize(struct adfs_discrecord *dr, int block_bits)
@@ -370,6 +370,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned char *b_data;
 	struct adfs_sb_info *asb;
 	struct inode *root;
+	int ret = -EINVAL;
 
 	sb->s_flags |= MS_NODIRATIME;
 
@@ -391,6 +392,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb_set_blocksize(sb, BLOCK_SIZE);
 	if (!(bh = sb_bread(sb, ADFS_DISCRECORD / BLOCK_SIZE))) {
 		adfs_error(sb, "unable to read superblock");
+		ret = -EIO;
 		goto error;
 	}
 
@@ -400,6 +402,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!silent)
 			printk("VFS: Can't find an adfs filesystem on dev "
 				"%s.\n", sb->s_id);
+		ret = -EINVAL;
 		goto error_free_bh;
 	}
 
@@ -412,6 +415,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!silent)
 			printk("VPS: Can't find an adfs filesystem on dev "
 				"%s.\n", sb->s_id);
+		ret = -EINVAL;
 		goto error_free_bh;
 	}
 
@@ -421,11 +425,13 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!bh) {
 			adfs_error(sb, "couldn't read superblock on "
 				"2nd try.");
+			ret = -EIO;
 			goto error;
 		}
 		b_data = bh->b_data + (ADFS_DISCRECORD % sb->s_blocksize);
 		if (adfs_checkbblk(b_data)) {
 			adfs_error(sb, "disc record mismatch, very weird!");
+			ret = -EINVAL;
 			goto error_free_bh;
 		}
 		dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
@@ -433,6 +439,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!silent)
 			printk(KERN_ERR "VFS: Unsupported blocksize on dev "
 				"%s.\n", sb->s_id);
+		ret = -EINVAL;
 		goto error;
 	}
 
@@ -447,10 +454,12 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	asb->s_size    		= adfs_discsize(dr, sb->s_blocksize_bits);
 	asb->s_version 		= dr->format_version;
 	asb->s_log2sharesize	= dr->log2sharesize;
-	
+
 	asb->s_map = adfs_read_map(sb, dr);
-	if (!asb->s_map)
+	if (IS_ERR(asb->s_map)) {
+		ret =  PTR_ERR(asb->s_map);
 		goto error_free_bh;
+	}
 
 	brelse(bh);
 
@@ -499,6 +508,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 			brelse(asb->s_map[i].dm_bh);
 		kfree(asb->s_map);
 		adfs_error(sb, "get root inode failed\n");
+		ret = -EIO;
 		goto error;
 	}
 	return 0;
@@ -508,7 +518,7 @@ error_free_bh:
 error:
 	sb->s_fs_info = NULL;
 	kfree(asb);
-	return -EINVAL;
+	return ret;
 }
 
 static struct dentry *adfs_mount(struct file_system_type *fs_type,

@@ -68,12 +68,14 @@ struct fw_priv {   /*8-bytes alignment required*/
 	unsigned char signature_0;  /*0x12: CE product, 0x92: IT product*/
 	unsigned char signature_1;  /*0x87: CE product, 0x81: IT product*/
 	unsigned char hci_sel; /*0x81: PCI-AP, 01:PCIe, 02: 92S-U, 0x82: USB-AP,
-			    * 0x12: 72S-U, 03:SDIO*/
+				* 0x12: 72S-U, 03:SDIO
+				*/
 	unsigned char chip_version; /*the same value as register value*/
 	unsigned char customer_ID_0; /*customer  ID low byte*/
 	unsigned char customer_ID_1; /*customer  ID high byte*/
 	unsigned char rf_config;  /*0x11:  1T1R, 0x12: 1T2R, 0x92: 1T2R turbo,
-			     * 0x22: 2T2R*/
+				   * 0x22: 2T2R
+				   */
 	unsigned char usb_ep_num;  /* 4: 4EP, 6: 6EP, 11: 11EP*/
 	/*--- long word 1 ----*/
 	unsigned char regulatory_class_0; /*regulatory class bit map 0*/
@@ -97,7 +99,8 @@ struct fw_priv {   /*8-bytes alignment required*/
 	unsigned char qos_en;    /*1: QoS enable*/
 	unsigned char bw_40MHz_en;   /*1: 40MHz BW enable*/
 	unsigned char AMSDU2AMPDU_en;   /*1: 4181 convert AMSDU to AMPDU,
-				   * 0: disable*/
+					 * 0: disable
+					 */
 	unsigned char AMPDU_en;   /*1: 11n AMPDU enable*/
 	unsigned char rate_control_offload; /*1: FW offloads,0: driver handles*/
 	unsigned char aggregation_offload;  /*1: FW offloads,0: driver handles*/
@@ -125,8 +128,9 @@ struct fw_priv {   /*8-bytes alignment required*/
 
 struct fw_hdr {/*8-byte alignment required*/
 	unsigned short	signature;
-	unsigned short	version;	/*0x8000 ~ 0x8FFF for FPGA version,
-					 *0x0000 ~ 0x7FFF for ASIC version,*/
+	unsigned short	version;	/* 0x8000 ~ 0x8FFF for FPGA version,
+					 * 0x0000 ~ 0x7FFF for ASIC version,
+					 */
 	unsigned int		dmem_size;    /*define the size of boot loader*/
 	unsigned int		img_IMEM_size; /*define the size of FW in IMEM*/
 	unsigned int		img_SRAM_size; /*define the size of FW in SRAM*/

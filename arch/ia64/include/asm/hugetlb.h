@@ -20,10 +20,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 		REGION_NUMBER((addr)+(len)-1) == RGN_HPAGE);
 }
 
-static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
-{
-}
-
 static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 				   pte_t *ptep, pte_t pte)
 {
@@ -67,15 +63,6 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 static inline pte_t huge_ptep_get(pte_t *ptep)
 {
 	return *ptep;
-}
-
-static inline int arch_prepare_hugepage(struct page *page)
-{
-	return 0;
-}
-
-static inline void arch_release_hugepage(struct page *page)
-{
 }
 
 static inline void arch_clear_hugepage_flags(struct page *page)

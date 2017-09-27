@@ -7,10 +7,10 @@
 
 #define SYNTH_BUF_SIZE 8192	/* currently 8K bytes */
 
-static u_char synth_buffer[SYNTH_BUF_SIZE];	/* guess what this is for! */
-static u_char *buff_in = synth_buffer;
-static u_char *buff_out = synth_buffer;
-static u_char *buffer_end = synth_buffer + SYNTH_BUF_SIZE - 1;
+static u16 synth_buffer[SYNTH_BUF_SIZE];	/* guess what this is for! */
+static u16 *buff_in = synth_buffer;
+static u16 *buff_out = synth_buffer;
+static u16 *buffer_end = synth_buffer + SYNTH_BUF_SIZE - 1;
 
 /* These try to throttle applications by stopping the TTYs
  * Note: we need to make sure that we will restart them eventually, which is
@@ -27,7 +27,7 @@ void speakup_start_ttys(void)
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		if (speakup_console[i] && speakup_console[i]->tty_stopped)
 			continue;
-		if ((vc_cons[i].d != NULL) && (vc_cons[i].d->port.tty != NULL))
+		if ((vc_cons[i].d) && (vc_cons[i].d->port.tty))
 			start_tty(vc_cons[i].d->port.tty);
 	}
 }
@@ -38,19 +38,19 @@ static void speakup_stop_ttys(void)
 	int i;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
-		if ((vc_cons[i].d != NULL) && (vc_cons[i].d->port.tty != NULL))
+		if ((vc_cons[i].d && (vc_cons[i].d->port.tty)))
 			stop_tty(vc_cons[i].d->port.tty);
 }
 
 static int synth_buffer_free(void)
 {
-	int bytes_free;
+	int chars_free;
 
 	if (buff_in >= buff_out)
-		bytes_free = SYNTH_BUF_SIZE - (buff_in - buff_out);
+		chars_free = SYNTH_BUF_SIZE - (buff_in - buff_out);
 	else
-		bytes_free = buff_out - buff_in;
-	return bytes_free;
+		chars_free = buff_out - buff_in;
+	return chars_free;
 }
 
 int synth_buffer_empty(void)
@@ -59,11 +59,12 @@ int synth_buffer_empty(void)
 }
 EXPORT_SYMBOL_GPL(synth_buffer_empty);
 
-void synth_buffer_add(char ch)
+void synth_buffer_add(u16 ch)
 {
 	if (!synth->alive) {
 		/* This makes sure that we won't stop TTYs if there is no synth
-		 * to restart them */
+		 * to restart them
+		 */
 		return;
 	}
 	if (synth_buffer_free() <= 100) {
@@ -77,9 +78,9 @@ void synth_buffer_add(char ch)
 		buff_in = synth_buffer;
 }
 
-char synth_buffer_getc(void)
+u16 synth_buffer_getc(void)
 {
-	char ch;
+	u16 ch;
 
 	if (buff_out == buff_in)
 		return 0;
@@ -90,7 +91,7 @@ char synth_buffer_getc(void)
 }
 EXPORT_SYMBOL_GPL(synth_buffer_getc);
 
-char synth_buffer_peek(void)
+u16 synth_buffer_peek(void)
 {
 	if (buff_out == buff_in)
 		return 0;
@@ -98,9 +99,21 @@ char synth_buffer_peek(void)
 }
 EXPORT_SYMBOL_GPL(synth_buffer_peek);
 
+void synth_buffer_skip_nonlatin1(void)
+{
+	while (buff_out != buff_in) {
+		if (*buff_out < 0x100)
+			return;
+		buff_out++;
+		if (buff_out > buffer_end)
+			buff_out = synth_buffer;
+	}
+}
+EXPORT_SYMBOL_GPL(synth_buffer_skip_nonlatin1);
+
 void synth_buffer_clear(void)
 {
-	buff_in = buff_out = synth_buffer;
-	return;
+	buff_in = synth_buffer;
+	buff_out = synth_buffer;
 }
 EXPORT_SYMBOL_GPL(synth_buffer_clear);

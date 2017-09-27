@@ -37,14 +37,13 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 #include <sound/initval.h>
 
 #include <linux/serial_reg.h>
 #include <linux/jiffies.h>
-
-#include <asm/io.h>
 
 MODULE_DESCRIPTION("MIDI serial u16550");
 MODULE_LICENSE("GPL");
@@ -85,9 +84,9 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for Serial MIDI.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable UART16550A chip.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for UART16550A chip.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for UART16550A chip.");
 module_param_array(speed, int, NULL, 0444);
 MODULE_PARM_DESC(speed, "Speed in bauds.");
@@ -174,9 +173,8 @@ static inline void snd_uart16550_add_timer(struct snd_uart16550 *uart)
 {
 	if (!uart->timer_running) {
 		/* timer 38600bps * 10bit * 16byte */
-		uart->buffer_timer.expires = jiffies + (HZ+255)/256;
+		mod_timer(&uart->buffer_timer, jiffies + (HZ + 255) / 256);
 		uart->timer_running = 1;
-		add_timer(&uart->buffer_timer);
 	}
 }
 
@@ -754,14 +752,14 @@ static void snd_uart16550_output_trigger(struct snd_rawmidi_substream *substream
 		snd_uart16550_output_write(substream);
 }
 
-static struct snd_rawmidi_ops snd_uart16550_output =
+static const struct snd_rawmidi_ops snd_uart16550_output =
 {
 	.open =		snd_uart16550_output_open,
 	.close =	snd_uart16550_output_close,
 	.trigger =	snd_uart16550_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_uart16550_input =
+static const struct snd_rawmidi_ops snd_uart16550_input =
 {
 	.open =		snd_uart16550_input_open,
 	.close =	snd_uart16550_input_close,
@@ -830,9 +828,8 @@ static int snd_uart16550_create(struct snd_card *card,
 	uart->prev_in = 0;
 	uart->rstatus = 0;
 	memset(uart->prev_status, 0x80, sizeof(unsigned char) * SNDRV_SERIAL_MAX_OUTS);
-	init_timer(&uart->buffer_timer);
-	uart->buffer_timer.function = snd_uart16550_buffer_timer;
-	uart->buffer_timer.data = (unsigned long)uart;
+	setup_timer(&uart->buffer_timer, snd_uart16550_buffer_timer,
+		    (unsigned long)uart);
 	uart->timer_running = 0;
 
 	/* Register device */
@@ -942,7 +939,8 @@ static int snd_serial_probe(struct platform_device *devptr)
 		return -ENODEV;
 	}
 
-	err  = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err  = snd_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
+			    0, &card);
 	if (err < 0)
 		return err;
 
@@ -969,8 +967,6 @@ static int snd_serial_probe(struct platform_device *devptr)
 		uart->base,
 		uart->irq);
 
-	snd_card_set_dev(card, &devptr->dev);
-
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
@@ -995,7 +991,6 @@ static struct platform_driver snd_serial_driver = {
 	.remove		=  snd_serial_remove,
 	.driver		= {
 		.name	= SND_SERIAL_DRIVER,
-		.owner	= THIS_MODULE,
 	},
 };
 

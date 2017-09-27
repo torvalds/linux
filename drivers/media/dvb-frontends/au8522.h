@@ -22,7 +22,6 @@
 #ifndef __AU8522_H__
 #define __AU8522_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 enum au8522_if_freq {
@@ -61,7 +60,7 @@ struct au8522_config {
 	enum au8522_if_freq qam_if;
 };
 
-#if IS_ENABLED(CONFIG_DVB_AU8522_DTV)
+#if IS_REACHABLE(CONFIG_DVB_AU8522_DTV)
 extern struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 					  struct i2c_adapter *i2c);
 #else
@@ -89,10 +88,4 @@ enum au8522_audio_input {
 	AU8522_AUDIO_NONE,
 	AU8522_AUDIO_SIF,
 };
-
 #endif /* __AU8522_H__ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */

@@ -15,11 +15,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include "cx18-driver.h"
@@ -164,9 +159,8 @@ struct cx18_mdl *cx18_queue_get_mdl(struct cx18_stream *s, u32 id,
 			mdl->skipped++;
 			if (mdl->skipped >= atomic_read(&s->q_busy.depth)-1) {
 				/* mdl must have fallen out of rotation */
-				CX18_WARN("Skipped %s, MDL %d, %d "
-					  "times - it must have dropped out of "
-					  "rotation\n", s->name, mdl->id,
+				CX18_WARN("Skipped %s, MDL %d, %d times - it must have dropped out of rotation\n",
+					  s->name, mdl->id,
 					  mdl->skipped);
 				/* Sweep it up to put it back into rotation */
 				list_move_tail(&mdl->list, &sweep_up);
@@ -352,8 +346,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 	if (s->buffers == 0)
 		return 0;
 
-	CX18_DEBUG_INFO("Allocate %s stream: %d x %d buffers "
-			"(%d.%02d kB total)\n",
+	CX18_DEBUG_INFO("Allocate %s stream: %d x %d buffers (%d.%02d kB total)\n",
 		s->name, s->buffers, s->buf_size,
 		s->buffers * s->buf_size / 1024,
 		(s->buffers * s->buf_size * 100 / 1024) % 100);
@@ -364,7 +357,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 					((char __iomem *)cx->scb->cpu_mdl));
 
 		CX18_ERR("Too many buffers, cannot fit in SCB area\n");
-		CX18_ERR("Max buffers = %zd\n",
+		CX18_ERR("Max buffers = %zu\n",
 			bufsz / sizeof(struct cx18_mdl_ent));
 		return -ENOMEM;
 	}

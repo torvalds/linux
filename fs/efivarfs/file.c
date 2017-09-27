@@ -10,6 +10,7 @@
 #include <linux/efi.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/mount.h>
 
 #include "internal.h"
 
@@ -21,7 +22,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	u32 attributes;
 	struct inode *inode = file->f_mapping->host;
 	unsigned long datasize = count - sizeof(attributes);
-	ssize_t bytes = 0;
+	ssize_t bytes;
 	bool set = false;
 
 	if (count < sizeof(attributes))
@@ -33,14 +34,9 @@ static ssize_t efivarfs_file_write(struct file *file,
 	if (attributes & ~(EFI_VARIABLE_MASK))
 		return -EINVAL;
 
-	data = kmalloc(datasize, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	if (copy_from_user(data, userbuf + sizeof(attributes), datasize)) {
-		bytes = -EFAULT;
-		goto out;
-	}
+	data = memdup_user(userbuf + sizeof(attributes), datasize);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	bytes = efivar_entry_set_get_size(var, attributes, &datasize,
 					  data, &set);
@@ -52,12 +48,12 @@ static ssize_t efivarfs_file_write(struct file *file,
 
 	if (bytes == -ENOENT) {
 		drop_nlink(inode);
-		d_delete(file->f_dentry);
-		dput(file->f_dentry);
+		d_delete(file->f_path.dentry);
+		dput(file->f_path.dentry);
 	} else {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		i_size_write(inode, datasize + sizeof(attributes));
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 
 	bytes = count;
@@ -108,9 +104,78 @@ out_free:
 	return size;
 }
 
+static int
+efivarfs_ioc_getxflags(struct file *file, void __user *arg)
+{
+	struct inode *inode = file->f_mapping->host;
+	unsigned int i_flags;
+	unsigned int flags = 0;
+
+	i_flags = inode->i_flags;
+	if (i_flags & S_IMMUTABLE)
+		flags |= FS_IMMUTABLE_FL;
+
+	if (copy_to_user(arg, &flags, sizeof(flags)))
+		return -EFAULT;
+	return 0;
+}
+
+static int
+efivarfs_ioc_setxflags(struct file *file, void __user *arg)
+{
+	struct inode *inode = file->f_mapping->host;
+	unsigned int flags;
+	unsigned int i_flags = 0;
+	int error;
+
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
+	if (copy_from_user(&flags, arg, sizeof(flags)))
+		return -EFAULT;
+
+	if (flags & ~FS_IMMUTABLE_FL)
+		return -EOPNOTSUPP;
+
+	if (!capable(CAP_LINUX_IMMUTABLE))
+		return -EPERM;
+
+	if (flags & FS_IMMUTABLE_FL)
+		i_flags |= S_IMMUTABLE;
+
+
+	error = mnt_want_write_file(file);
+	if (error)
+		return error;
+
+	inode_lock(inode);
+	inode_set_flags(inode, i_flags, S_IMMUTABLE);
+	inode_unlock(inode);
+
+	mnt_drop_write_file(file);
+
+	return 0;
+}
+
+static long
+efivarfs_file_ioctl(struct file *file, unsigned int cmd, unsigned long p)
+{
+	void __user *arg = (void __user *)p;
+
+	switch (cmd) {
+	case FS_IOC_GETFLAGS:
+		return efivarfs_ioc_getxflags(file, arg);
+	case FS_IOC_SETFLAGS:
+		return efivarfs_ioc_setxflags(file, arg);
+	}
+
+	return -ENOTTY;
+}
+
 const struct file_operations efivarfs_file_operations = {
 	.open	= simple_open,
 	.read	= efivarfs_file_read,
 	.write	= efivarfs_file_write,
 	.llseek	= no_llseek,
+	.unlocked_ioctl = efivarfs_file_ioctl,
 };

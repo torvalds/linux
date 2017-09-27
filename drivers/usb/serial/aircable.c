@@ -10,9 +10,9 @@
  *
  * The device works as an standard CDC device, it has 2 interfaces, the first
  * one is for firmware access and the second is the serial one.
- * The protocol is very simply, there are two posibilities reading or writing.
+ * The protocol is very simply, there are two possibilities reading or writing.
  * When writing the first urb must have a Header that starts with 0x20 0x29 the
- * next two bytes must say how much data will be sended.
+ * next two bytes must say how much data will be sent.
  * When reading the process is almost equal except that the header starts with
  * 0x00 0x20.
  *
@@ -29,17 +29,11 @@
  * is any other control code, I will simply check for the first
  * one.
  *
- * The driver registers himself with the USB-serial core and the USB Core. I had
- * to implement a probe function against USB-serial, because other way, the
- * driver was attaching himself to both interfaces. I have tryed with different
- * configurations of usb_serial_driver with out exit, only the probe function
- * could handle this correctly.
- *
  * I have taken some info from a Greg Kroah-Hartman article:
  * http://www.linuxjournal.com/article/6573
  * And from Linux Device Driver Kit CD, which is a great work, the authors taken
- * the work to recompile lots of information an knowladge in drivers development
- * and made it all avaible inside a cd.
+ * the work to recompile lots of information an knowledge in drivers development
+ * and made it all available inside a cd.
  * URL: http://kernel.org/pub/linux/kernel/people/gregkh/ddk/
  *
  */
@@ -93,30 +87,17 @@ static int aircable_prepare_write_buffer(struct usb_serial_port *port,
 	return count + HCI_HEADER_LENGTH;
 }
 
-static int aircable_probe(struct usb_serial *serial,
-			  const struct usb_device_id *id)
+static int aircable_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
-	struct usb_host_interface *iface_desc = serial->interface->
-								cur_altsetting;
-	struct usb_endpoint_descriptor *endpoint;
-	int num_bulk_out = 0;
-	int i;
-
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
-		endpoint = &iface_desc->endpoint[i].desc;
-		if (usb_endpoint_is_bulk_out(endpoint)) {
-			dev_dbg(&serial->dev->dev,
-				"found bulk out on endpoint %d\n", i);
-			++num_bulk_out;
-		}
-	}
-
-	if (num_bulk_out == 0) {
-		dev_dbg(&serial->dev->dev, "Invalid interface, discarding\n");
+	/* Ignore the first interface, which has no bulk endpoints. */
+	if (epds->num_bulk_out == 0) {
+		dev_dbg(&serial->interface->dev,
+			"ignoring interface with no bulk-out endpoints\n");
 		return -ENODEV;
 	}
 
-	return 0;
+	return 1;
 }
 
 static int aircable_process_packet(struct usb_serial_port *port,
@@ -164,9 +145,8 @@ static struct usb_serial_driver aircable_device = {
 		.name =		"aircable",
 	},
 	.id_table = 		id_table,
-	.num_ports =		1,
 	.bulk_out_size =	HCI_COMPLETE_FRAME,
-	.probe =		aircable_probe,
+	.calc_num_ports =	aircable_calc_num_ports,
 	.process_read_urb =	aircable_process_read_urb,
 	.prepare_write_buffer =	aircable_prepare_write_buffer,
 	.throttle =		usb_serial_generic_throttle,

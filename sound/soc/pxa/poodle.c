@@ -74,14 +74,9 @@ static void poodle_ext_control(struct snd_soc_dapm_context *dapm)
 static int poodle_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
-
-	mutex_lock(&codec->mutex);
 
 	/* check the jack status at stream startup */
-	poodle_ext_control(&codec->dapm);
-
-	mutex_unlock(&codec->mutex);
+	poodle_ext_control(&rtd->card->dapm);
 
 	return 0;
 }
@@ -134,7 +129,7 @@ static int poodle_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops poodle_ops = {
+static const struct snd_soc_ops poodle_ops = {
 	.startup = poodle_startup,
 	.hw_params = poodle_hw_params,
 	.shutdown = poodle_shutdown,
@@ -143,7 +138,7 @@ static struct snd_soc_ops poodle_ops = {
 static int poodle_get_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = poodle_jack_func;
+	ucontrol->value.enumerated.item[0] = poodle_jack_func;
 	return 0;
 }
 
@@ -152,10 +147,10 @@ static int poodle_set_jack(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
-	if (poodle_jack_func == ucontrol->value.integer.value[0])
+	if (poodle_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	poodle_jack_func = ucontrol->value.integer.value[0];
+	poodle_jack_func = ucontrol->value.enumerated.item[0];
 	poodle_ext_control(&card->dapm);
 	return 1;
 }
@@ -163,7 +158,7 @@ static int poodle_set_jack(struct snd_kcontrol *kcontrol,
 static int poodle_get_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = poodle_spk_func;
+	ucontrol->value.enumerated.item[0] = poodle_spk_func;
 	return 0;
 }
 
@@ -172,10 +167,10 @@ static int poodle_set_spk(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
-	if (poodle_spk_func == ucontrol->value.integer.value[0])
+	if (poodle_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	poodle_spk_func = ucontrol->value.integer.value[0];
+	poodle_spk_func = ucontrol->value.enumerated.item[0];
 	poodle_ext_control(&card->dapm);
 	return 1;
 }
@@ -197,6 +192,7 @@ static int poodle_amp_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget wm8731_dapm_widgets[] = {
 SND_SOC_DAPM_HP("Headphone Jack", NULL),
 SND_SOC_DAPM_SPK("Ext Spk", poodle_amp_event),
+SND_SOC_DAPM_MIC("Microphone", NULL),
 };
 
 /* Corgi machine connections to the codec pins */
@@ -209,10 +205,12 @@ static const struct snd_soc_dapm_route poodle_audio_map[] = {
 	/* speaker connected to LOUT, ROUT */
 	{"Ext Spk", NULL, "ROUT"},
 	{"Ext Spk", NULL, "LOUT"},
+
+	{"MICIN", NULL, "Microphone"},
 };
 
-static const char *jack_function[] = {"Off", "Headphone"};
-static const char *spk_function[] = {"Off", "On"};
+static const char * const jack_function[] = {"Off", "Headphone"};
+static const char * const spk_function[] = {"Off", "On"};
 static const struct soc_enum poodle_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
@@ -225,21 +223,6 @@ static const struct snd_kcontrol_new wm8731_poodle_controls[] = {
 		poodle_set_spk),
 };
 
-/*
- * Logic for a wm8731 as connected on a Sharp SL-C7x0 Device
- */
-static int poodle_wm8731_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_nc_pin(dapm, "LLINEIN");
-	snd_soc_dapm_nc_pin(dapm, "RLINEIN");
-	snd_soc_dapm_enable_pin(dapm, "MICIN");
-
-	return 0;
-}
-
 /* poodle digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link poodle_dai = {
 	.name = "WM8731",
@@ -248,7 +231,6 @@ static struct snd_soc_dai_link poodle_dai = {
 	.codec_dai_name = "wm8731-hifi",
 	.platform_name = "pxa-pcm-audio",
 	.codec_name = "wm8731.0-001b",
-	.init = poodle_wm8731_init,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &poodle_ops,
@@ -267,6 +249,7 @@ static struct snd_soc_card poodle = {
 	.num_dapm_widgets = ARRAY_SIZE(wm8731_dapm_widgets),
 	.dapm_routes = poodle_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(poodle_audio_map),
+	.fully_routed = true,
 };
 
 static int poodle_probe(struct platform_device *pdev)
@@ -284,28 +267,19 @@ static int poodle_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
 	return ret;
 }
 
-static int poodle_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-	return 0;
-}
-
 static struct platform_driver poodle_driver = {
 	.driver		= {
 		.name	= "poodle-audio",
-		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= poodle_probe,
-	.remove		= poodle_remove,
 };
 
 module_platform_driver(poodle_driver);

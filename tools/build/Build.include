@@ -1,0 +1,100 @@
+###
+# build: Generic definitions
+#
+#  Lots of this code have been borrowed or heavily inspired from parts
+#  of kbuild code, which is not credited, but mostly developed by:
+#
+#  Copyright (C) Sam Ravnborg <sam@mars.ravnborg.org>, 2015
+#  Copyright (C) Linus Torvalds <torvalds@linux-foundation.org>, 2015
+#
+
+###
+# Convenient variables
+comma   := ,
+squote  := '
+
+###
+# Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
+dot-target = $(dir $@).$(notdir $@)
+
+###
+# filename of target with directory and extension stripped
+basetarget = $(basename $(notdir $@))
+
+###
+# The temporary file to save gcc -MD generated dependencies must not
+# contain a comma
+depfile = $(subst $(comma),_,$(dot-target).d)
+
+###
+# Check if both arguments has same arguments. Result is empty string if equal.
+arg-check = $(strip $(filter-out $(cmd_$(1)), $(cmd_$@)) \
+                    $(filter-out $(cmd_$@),   $(cmd_$(1))) )
+
+###
+# Escape single quote for use in echo statements
+escsq = $(subst $(squote),'\$(squote)',$1)
+
+# Echo command
+# Short version is used, if $(quiet) equals `quiet_', otherwise full one.
+echo-cmd = $(if $($(quiet)cmd_$(1)),\
+           echo '  $(call escsq,$($(quiet)cmd_$(1)))';)
+
+###
+# Replace >$< with >$$< to preserve $ when reloading the .cmd file
+# (needed for make)
+# Replace >#< with >\#< to avoid starting a comment in the .cmd file
+# (needed for make)
+# Replace >'< with >'\''< to be able to enclose the whole string in '...'
+# (needed for the shell)
+make-cmd = $(call escsq,$(subst \#,\\\#,$(subst $$,$$$$,$(cmd_$(1)))))
+
+###
+# Find any prerequisites that is newer than target or that does not exist.
+# PHONY targets skipped in both cases.
+any-prereq = $(filter-out $(PHONY),$?) $(filter-out $(PHONY) $(wildcard $^),$^)
+
+###
+# Copy dependency data into .cmd file
+#  - gcc -M dependency info
+#  - command line to create object 'cmd_object :='
+dep-cmd = $(if $(wildcard $(fixdep)),                                           \
+           $(fixdep) $(depfile) $@ '$(make-cmd)' > $(dot-target).tmp;           \
+           rm -f $(depfile);                                                    \
+           mv -f $(dot-target).tmp $(dot-target).cmd,                           \
+           printf '\# cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
+           printf '\# using basic dep data\n\n' >> $(dot-target).cmd;           \
+           cat $(depfile) >> $(dot-target).cmd;                                 \
+           printf '\n%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)
+
+###
+# if_changed_dep  - execute command if any prerequisite is newer than
+#                   target, or command line has changed and update
+#                   dependencies in the cmd file
+if_changed_dep = $(if $(strip $(any-prereq) $(arg-check)),         \
+                  @set -e;                                         \
+                  $(echo-cmd) $(cmd_$(1)) && $(dep-cmd))
+
+# if_changed      - execute command if any prerequisite is newer than
+#                   target, or command line has changed
+if_changed = $(if $(strip $(any-prereq) $(arg-check)),                   \
+              @set -e;                                                   \
+              $(echo-cmd) $(cmd_$(1));                                   \
+              printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd)
+
+###
+# C flags to be used in rule definitions, includes:
+# - depfile generation
+# - global $(CFLAGS)
+# - per target C flags
+# - per object C flags
+# - BUILD_STR macro to allow '-D"$(variable)"' constructs
+c_flags_1 = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CFLAGS) -D"BUILD_STR(s)=\#s" $(CFLAGS_$(basetarget).o) $(CFLAGS_$(obj))
+c_flags_2 = $(filter-out $(CFLAGS_REMOVE_$(basetarget).o), $(c_flags_1))
+c_flags   = $(filter-out $(CFLAGS_REMOVE_$(obj)), $(c_flags_2))
+cxx_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CXXFLAGS) -D"BUILD_STR(s)=\#s" $(CXXFLAGS_$(basetarget).o) $(CXXFLAGS_$(obj))
+
+###
+## HOSTCC C flags
+
+host_c_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CHOSTFLAGS) -D"BUILD_STR(s)=\#s" $(CHOSTFLAGS_$(basetarget).o) $(CHOSTFLAGS_$(obj))

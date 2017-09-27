@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -54,25 +50,6 @@ enum clt_nesting_level {
 };
 
 /**
- * Counters used to check correctness of cl_lock interface usage.
- */
-struct cl_thread_counters {
-	/**
-	 * Number of outstanding calls to cl_lock_mutex_get() made by the
-	 * current thread. For debugging.
-	 */
-	int	   ctc_nr_locks_locked;
-	/** List of locked locks. */
-	struct lu_ref ctc_locks_locked;
-	/** Number of outstanding holds on locks. */
-	int	   ctc_nr_held;
-	/** Number of outstanding uses on locks. */
-	int	   ctc_nr_used;
-	/** Number of held extent locks. */
-	int	   ctc_nr_locks_acquired;
-};
-
-/**
  * Thread local state internal for generic cl-code.
  */
 struct cl_thread_info {
@@ -87,10 +64,6 @@ struct cl_thread_info {
 	 */
 	struct cl_lock_descr clt_descr;
 	struct cl_page_list  clt_list;
-	/**
-	 * Counters for every level of lock nesting.
-	 */
-	struct cl_thread_counters clt_counters[CNL_NR];
 	/** @} debugging */
 
 	/*

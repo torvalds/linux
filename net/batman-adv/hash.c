@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2017  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -12,18 +12,20 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "hash.h"
+#include "main.h"
+
+#include <linux/fs.h>
+#include <linux/lockdep.h>
+#include <linux/slab.h>
 
 /* clears the hash */
 static void batadv_hash_init(struct batadv_hashtable *hash)
 {
-	uint32_t i;
+	u32 i;
 
 	for (i = 0; i < hash->size; i++) {
 		INIT_HLIST_HEAD(&hash->table[i]);
@@ -40,7 +42,7 @@ void batadv_hash_destroy(struct batadv_hashtable *hash)
 }
 
 /* allocates and clears the hash */
-struct batadv_hashtable *batadv_hash_new(uint32_t size)
+struct batadv_hashtable *batadv_hash_new(u32 size)
 {
 	struct batadv_hashtable *hash;
 
@@ -48,12 +50,12 @@ struct batadv_hashtable *batadv_hash_new(uint32_t size)
 	if (!hash)
 		return NULL;
 
-	hash->table = kmalloc(sizeof(*hash->table) * size, GFP_ATOMIC);
+	hash->table = kmalloc_array(size, sizeof(*hash->table), GFP_ATOMIC);
 	if (!hash->table)
 		goto free_hash;
 
-	hash->list_locks = kmalloc(sizeof(*hash->list_locks) * size,
-				   GFP_ATOMIC);
+	hash->list_locks = kmalloc_array(size, sizeof(*hash->list_locks),
+					 GFP_ATOMIC);
 	if (!hash->list_locks)
 		goto free_table;
 
@@ -71,7 +73,7 @@ free_hash:
 void batadv_hash_set_lock_class(struct batadv_hashtable *hash,
 				struct lock_class_key *key)
 {
-	uint32_t i;
+	u32 i;
 
 	for (i = 0; i < hash->size; i++)
 		lockdep_set_class(&hash->list_locks[i], key);

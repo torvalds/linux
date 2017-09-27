@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,14 +32,17 @@
  * SOFTWARE.
  */
 
-#ifndef __CXGB4_OFLD_H
-#define __CXGB4_OFLD_H
+#ifndef __CXGB4_ULD_H
+#define __CXGB4_ULD_H
 
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
 #include <linux/inetdevice.h>
 #include <linux/atomic.h>
+#include "cxgb4.h"
+
+#define MAX_ULD_QSETS 16
 
 /* CPL message priority levels */
 enum {
@@ -52,10 +55,10 @@ enum {
 };
 
 #define INIT_TP_WR(w, tid) do { \
-	(w)->wr.wr_hi = htonl(FW_WR_OP(FW_TP_WR) | \
-			      FW_WR_IMMDLEN(sizeof(*w) - sizeof(w->wr))); \
-	(w)->wr.wr_mid = htonl(FW_WR_LEN16(DIV_ROUND_UP(sizeof(*w), 16)) | \
-			       FW_WR_FLOWID(tid)); \
+	(w)->wr.wr_hi = htonl(FW_WR_OP_V(FW_TP_WR) | \
+			      FW_WR_IMMDLEN_V(sizeof(*w) - sizeof(w->wr))); \
+	(w)->wr.wr_mid = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*w), 16)) | \
+			       FW_WR_FLOWID_V(tid)); \
 	(w)->wr.wr_lo = cpu_to_be64(0); \
 } while (0)
 
@@ -65,14 +68,17 @@ enum {
 } while (0)
 
 #define INIT_ULPTX_WR(w, wrlen, atomic, tid) do { \
-	(w)->wr.wr_hi = htonl(FW_WR_OP(FW_ULPTX_WR) | FW_WR_ATOMIC(atomic)); \
-	(w)->wr.wr_mid = htonl(FW_WR_LEN16(DIV_ROUND_UP(wrlen, 16)) | \
-			       FW_WR_FLOWID(tid)); \
+	(w)->wr.wr_hi = htonl(FW_WR_OP_V(FW_ULPTX_WR) | \
+			      FW_WR_ATOMIC_V(atomic)); \
+	(w)->wr.wr_mid = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(wrlen, 16)) | \
+			       FW_WR_FLOWID_V(tid)); \
 	(w)->wr.wr_lo = cpu_to_be64(0); \
 } while (0)
 
 /* Special asynchronous notification message */
 #define CXGB4_MSG_AN ((void *)1)
+#define TX_ULD(uld)(((uld) != CXGB4_ULD_CRYPTO) ? CXGB4_TX_OFLD :\
+		      CXGB4_TX_CRYPTO)
 
 struct serv_entry {
 	void *data;
@@ -95,12 +101,14 @@ struct tid_info {
 	unsigned long *stid_bmap;
 	unsigned int nstids;
 	unsigned int stid_base;
+	unsigned int hash_base;
 
 	union aopen_entry *atid_tab;
 	unsigned int natids;
 	unsigned int atid_base;
 
 	struct filter_entry *ftid_tab;
+	unsigned long *ftid_bmap;
 	unsigned int nftids;
 	unsigned int ftid_base;
 	unsigned int aftid_base;
@@ -115,8 +123,16 @@ struct tid_info {
 
 	spinlock_t stid_lock;
 	unsigned int stids_in_use;
+	unsigned int v6_stids_in_use;
+	unsigned int sftids_in_use;
 
+	/* TIDs in the TCAM */
 	atomic_t tids_in_use;
+	/* TIDs in the HASH */
+	atomic_t hash_tids_in_use;
+	atomic_t conns_in_use;
+	/* lock for setting/clearing filter bitmap */
+	spinlock_t ftid_lock;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
@@ -131,15 +147,33 @@ static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
 
 static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 {
-	stid -= t->stid_base;
+	/* Is it a server filter TID? */
+	if (t->nsftids && (stid >= t->sftid_base)) {
+		stid -= t->sftid_base;
+		stid += t->nstids;
+	} else {
+		stid -= t->stid_base;
+	}
+
 	return stid < (t->nstids + t->nsftids) ? t->stid_tab[stid].data : NULL;
 }
 
 static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
-				    unsigned int tid)
+				    unsigned int tid, unsigned short family)
 {
 	t->tid_tab[tid] = data;
-	atomic_inc(&t->tids_in_use);
+	if (t->hash_base && (tid >= t->hash_base)) {
+		if (family == AF_INET6)
+			atomic_add(2, &t->hash_tids_in_use);
+		else
+			atomic_inc(&t->hash_tids_in_use);
+	} else {
+		if (family == AF_INET6)
+			atomic_add(2, &t->tids_in_use);
+		else
+			atomic_inc(&t->tids_in_use);
+	}
+	atomic_inc(&t->conns_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -147,28 +181,71 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data);
 int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data);
 void cxgb4_free_atid(struct tid_info *t, unsigned int atid);
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family);
-void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid);
-
+void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid,
+		      unsigned short family);
 struct in6_addr;
 
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 			__be32 sip, __be16 sport, __be16 vlan,
 			unsigned int queue);
+int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
+			 const struct in6_addr *sip, __be16 sport,
+			 unsigned int queue);
+int cxgb4_remove_server(const struct net_device *dev, unsigned int stid,
+			unsigned int queue, bool ipv6);
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			       __be32 sip, __be16 sport, __be16 vlan,
 			       unsigned int queue,
 			       unsigned char port, unsigned char mask);
 int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned int queue, bool ipv6);
+
+/* Filter operation context to allow callers of cxgb4_set_filter() and
+ * cxgb4_del_filter() to wait for an asynchronous completion.
+ */
+struct filter_ctx {
+	struct completion completion;	/* completion rendezvous */
+	void *closure;			/* caller's opaque information */
+	int result;			/* result of operation */
+	u32 tid;			/* to store tid */
+};
+
+struct ch_filter_specification;
+
+int __cxgb4_set_filter(struct net_device *dev, int filter_id,
+		       struct ch_filter_specification *fs,
+		       struct filter_ctx *ctx);
+int __cxgb4_del_filter(struct net_device *dev, int filter_id,
+		       struct filter_ctx *ctx);
+int cxgb4_set_filter(struct net_device *dev, int filter_id,
+		     struct ch_filter_specification *fs);
+int cxgb4_del_filter(struct net_device *dev, int filter_id);
+
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {
 	skb_set_queue_mapping(skb, (queue << 1) | prio);
 }
 
 enum cxgb4_uld {
+	CXGB4_ULD_INIT,
 	CXGB4_ULD_RDMA,
 	CXGB4_ULD_ISCSI,
+	CXGB4_ULD_ISCSIT,
+	CXGB4_ULD_CRYPTO,
 	CXGB4_ULD_MAX
+};
+
+enum cxgb4_tx_uld {
+	CXGB4_TX_OFLD,
+	CXGB4_TX_CRYPTO,
+	CXGB4_TX_MAX
+};
+
+enum cxgb4_txq_type {
+	CXGB4_TXQ_ETH,
+	CXGB4_TXQ_ULD,
+	CXGB4_TXQ_CTRL,
+	CXGB4_TXQ_MAX
 };
 
 enum cxgb4_state {
@@ -189,6 +266,7 @@ struct l2t_data;
 struct net_device;
 struct pkt_gl;
 struct tp_tcp_stats;
+struct t4_lro_mgr;
 
 struct cxgb4_range {
 	unsigned int start;
@@ -204,6 +282,16 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range qp;
 	struct cxgb4_range cq;
 	struct cxgb4_range ocq;
+	unsigned int ncrypto_fc;
+};
+
+struct chcr_stats_debug {
+	atomic_t cipher_rqst;
+	atomic_t digest_rqst;
+	atomic_t aead_rqst;
+	atomic_t complete;
+	atomic_t error;
+	atomic_t fallback;
 };
 
 #define OCQ_WIN_OFFSET(pdev, vres) \
@@ -220,8 +308,10 @@ struct cxgb4_lld_info {
 	const struct cxgb4_virt_res *vr;     /* assorted HW resources */
 	const unsigned short *mtus;          /* MTU table */
 	const unsigned short *rxq_ids;       /* the ULD's Rx queue ids */
+	const unsigned short *ciq_ids;       /* the ULD's concentrator IQ ids */
 	unsigned short nrxq;                 /* # of Rx queues */
 	unsigned short ntxq;                 /* # of Tx queues */
+	unsigned short nciq;		     /* # of concentrator IQ */
 	unsigned char nchan:4;               /* # of channels */
 	unsigned char nports:4;              /* # of ports */
 	unsigned char wr_cred;               /* WR 16-byte credits */
@@ -229,6 +319,7 @@ struct cxgb4_lld_info {
 	unsigned char fw_api_ver;            /* FW API version */
 	unsigned int fw_vers;                /* FW version */
 	unsigned int iscsi_iolen;            /* iSCSI max I/O length */
+	unsigned int cclk_ps;                /* Core clock period in psec */
 	unsigned short udb_density;          /* # of user DB/page */
 	unsigned short ucq_density;          /* # of user CQs/page */
 	unsigned short filt_mode;            /* filter optional components */
@@ -237,30 +328,61 @@ struct cxgb4_lld_info {
 	void __iomem *gts_reg;               /* address of GTS register */
 	void __iomem *db_reg;                /* address of kernel doorbell */
 	int dbfifo_int_thresh;		     /* doorbell fifo int threshold */
+	unsigned int sge_ingpadboundary;     /* SGE ingress padding boundary */
+	unsigned int sge_egrstatuspagesize;  /* SGE egress status page size */
 	unsigned int sge_pktshift;           /* Padding between CPL and */
 					     /*	packet data */
+	unsigned int pf;		     /* Physical Function we're using */
 	bool enable_fw_ofld_conn;            /* Enable connection through fw */
 					     /* WR */
+	unsigned int max_ordird_qp;          /* Max ORD/IRD depth per RDMA QP */
+	unsigned int max_ird_adapter;        /* Max IRD memory per adapter */
+	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
+	unsigned int iscsi_tagmask;	     /* iscsi ddp tag mask */
+	unsigned int iscsi_pgsz_order;	     /* iscsi ddp page size orders */
+	unsigned int iscsi_llimit;	     /* chip's iscsi region llimit */
+	unsigned int ulp_crypto;             /* crypto lookaside support */
+	void **iscsi_ppm;		     /* iscsi page pod manager */
+	int nodeid;			     /* device numa node id */
+	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
 };
 
 struct cxgb4_uld_info {
 	const char *name;
+	void *handle;
+	unsigned int nrxq;
+	unsigned int rxq_size;
+	unsigned int ntxq;
+	bool ciq;
+	bool lro;
 	void *(*add)(const struct cxgb4_lld_info *p);
 	int (*rx_handler)(void *handle, const __be64 *rsp,
 			  const struct pkt_gl *gl);
 	int (*state_change)(void *handle, enum cxgb4_state new_state);
 	int (*control)(void *handle, enum cxgb4_control control, ...);
+	int (*lro_rx_handler)(void *handle, const __be64 *rsp,
+			      const struct pkt_gl *gl,
+			      struct t4_lro_mgr *lro_mgr,
+			      struct napi_struct *napi);
+	void (*lro_flush)(struct t4_lro_mgr *);
 };
 
 int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
+int cxgb4_crypto_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
+unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid);
 unsigned int cxgb4_port_idx(const struct net_device *dev);
 unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 			    unsigned int *idx);
+unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
+				    unsigned short header_size,
+				    unsigned short data_size_max,
+				    unsigned short data_size_align,
+				    unsigned int *mtu_idxp);
 void cxgb4_get_tcp_stats(struct pci_dev *pdev, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
 void cxgb4_iscsi_init(struct net_device *dev, unsigned int tag_mask,
@@ -269,7 +391,15 @@ struct sk_buff *cxgb4_pktgl_to_skb(const struct pkt_gl *gl,
 				   unsigned int skb_len, unsigned int pull_len);
 int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx, u16 size);
 int cxgb4_flush_eq_cache(struct net_device *dev);
-void cxgb4_disable_db_coalescing(struct net_device *dev);
-void cxgb4_enable_db_coalescing(struct net_device *dev);
+int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte);
+u64 cxgb4_read_sge_timestamp(struct net_device *dev);
 
-#endif  /* !__CXGB4_OFLD_H */
+enum cxgb4_bar2_qtype { CXGB4_BAR2_QTYPE_EGRESS, CXGB4_BAR2_QTYPE_INGRESS };
+int cxgb4_bar2_sge_qregs(struct net_device *dev,
+			 unsigned int qid,
+			 enum cxgb4_bar2_qtype qtype,
+			 int user,
+			 u64 *pbar2_qoffset,
+			 unsigned int *pbar2_qid);
+
+#endif  /* !__CXGB4_ULD_H */

@@ -8,6 +8,10 @@
 #define	CPU_NAME		"COLDFIRE(m54xx)"
 #define	CPU_INSTR_PER_JIFFY	2
 #define	MCF_BUSCLK		(MCF_CLK / 2)
+#define	MACHINE			MACH_M54XX
+#define	FPUTYPE			FPU_COLDFIRE
+#define	IOMEMBASE		MCF_MBAR
+#define	IOMEMSIZE		0x01000000
 
 #include <asm/m54xxacr.h>
 
@@ -41,6 +45,7 @@
  */
 #define MCF_IRQ_TIMER		(MCFINT_VECBASE + 54)	/* Slice Timer 0 */
 #define MCF_IRQ_PROFILER	(MCFINT_VECBASE + 53)	/* Slice Timer 1 */
+#define MCF_IRQ_I2C0		(MCFINT_VECBASE + 40)
 #define MCF_IRQ_UART0		(MCFINT_VECBASE + 35)
 #define MCF_IRQ_UART1		(MCFINT_VECBASE + 34)
 #define MCF_IRQ_UART2		(MCFINT_VECBASE + 33)
@@ -55,9 +60,15 @@
 /*
  *	Generic GPIO support
  */
-#define MCFGPIO_PIN_MAX		0	/* I am too lazy to count */
-#define MCFGPIO_IRQ_MAX		-1
-#define MCFGPIO_IRQ_VECBASE	-1
+#define MCFGPIO_PODR		(MCF_MBAR + 0xA00)
+#define MCFGPIO_PDDR		(MCF_MBAR + 0xA10)
+#define MCFGPIO_PPDR		(MCF_MBAR + 0xA20)
+#define MCFGPIO_SETR		(MCF_MBAR + 0xA20)
+#define MCFGPIO_CLRR		(MCF_MBAR + 0xA30)
+
+#define MCFGPIO_PIN_MAX		136	/* 128 gpio + 8 eport */
+#define MCFGPIO_IRQ_MAX		8
+#define MCFGPIO_IRQ_VECBASE	MCFINT_VECBASE
 
 /*
  *	EDGE Port support.
@@ -96,5 +107,15 @@
 #define MCF_PAR_PSC_RTS_FSYNC	(0x20)
 #define MCF_PAR_PSC_RTS_RTS	(0x30)
 #define MCF_PAR_PSC_CANRX	(0x40)
+
+#define MCF_PAR_FECI2CIRQ	(MCF_MBAR + 0x00000a44)	/* FEC/I2C/IRQ */
+#define MCF_PAR_FECI2CIRQ_SDA	(1 << 3)
+#define MCF_PAR_FECI2CIRQ_SCL	(1 << 2)
+
+/*
+ * I2C module.
+ */
+#define MCFI2C_BASE0		(MCF_MBAR + 0x8f00)
+#define MCFI2C_SIZE0		0x40
 
 #endif	/* m54xxsim_h */

@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA. */
 
-#include <asm-generic/bitops/count_zeros.h>
+#include <linux/count_zeros.h>
 
 /* You have to define the following before including this file:
  *
@@ -176,8 +176,8 @@ extern UDItype __udiv_qrnnd(UDItype *, UDItype, UDItype, UDItype);
 #define add_ssaaaa(sh, sl, ah, al, bh, bl) \
 	__asm__ ("adds %1, %4, %5\n" \
 		"adc  %0, %2, %3" \
-	: "=r" ((USItype)(sh)), \
-		"=&r" ((USItype)(sl)) \
+	: "=r" (sh), \
+		"=&r" (sl) \
 	: "%r" ((USItype)(ah)), \
 		"rI" ((USItype)(bh)), \
 		"%r" ((USItype)(al)), \
@@ -185,15 +185,15 @@ extern UDItype __udiv_qrnnd(UDItype *, UDItype, UDItype, UDItype);
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) \
 	__asm__ ("subs %1, %4, %5\n" \
 		"sbc  %0, %2, %3" \
-	: "=r" ((USItype)(sh)), \
-		"=&r" ((USItype)(sl)) \
+	: "=r" (sh), \
+		"=&r" (sl) \
 	: "r" ((USItype)(ah)), \
 		"rI" ((USItype)(bh)), \
 		"r" ((USItype)(al)), \
 		"rI" ((USItype)(bl)))
 #if defined __ARM_ARCH_2__ || defined __ARM_ARCH_3__
 #define umul_ppmm(xh, xl, a, b) \
-	__asm__ ("%@ Inlined umul_ppmm\n" \
+	__asm__ ("@ Inlined umul_ppmm\n" \
 		"mov	%|r0, %2, lsr #16		@ AAAA\n" \
 		"mov	%|r2, %3, lsr #16		@ BBBB\n" \
 		"bic	%|r1, %2, %|r0, lsl #16		@ aaaa\n" \
@@ -206,19 +206,19 @@ extern UDItype __udiv_qrnnd(UDItype *, UDItype, UDItype, UDItype);
 		"addcs	%|r2, %|r2, #65536\n" \
 		"adds	%1, %|r1, %|r0, lsl #16\n" \
 		"adc	%0, %|r2, %|r0, lsr #16" \
-	: "=&r" ((USItype)(xh)), \
-		"=r" ((USItype)(xl)) \
+	: "=&r" (xh), \
+		"=r" (xl) \
 	: "r" ((USItype)(a)), \
 		"r" ((USItype)(b)) \
 	: "r0", "r1", "r2")
 #else
 #define umul_ppmm(xh, xl, a, b) \
-	__asm__ ("%@ Inlined umul_ppmm\n" \
-		"umull %r1, %r0, %r2, %r3" \
-	: "=&r" ((USItype)(xh)), \
-			"=r" ((USItype)(xl)) \
+	__asm__ ("@ Inlined umul_ppmm\n" \
+		"umull %1, %0, %2, %3" \
+	: "=&r" (xh), \
+		"=&r" (xl) \
 	: "r" ((USItype)(a)), \
-			"r" ((USItype)(b)) \
+		"r" ((USItype)(b)) \
 	: "r0", "r1")
 #endif
 #define UMUL_TIME 20
@@ -639,7 +639,7 @@ do { \
 	**************  MIPS  *****************
 	***************************************/
 #if defined(__mips__) && W_TYPE_SIZE == 32
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 4
+#if (__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 4)
 #define umul_ppmm(w1, w0, u, v)			\
 do {						\
 	UDItype __ll = (UDItype)(u) * (v);	\
@@ -671,7 +671,7 @@ do {						\
 	**************  MIPS/64  **************
 	***************************************/
 #if (defined(__mips) && __mips >= 3) && W_TYPE_SIZE == 64
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 4
+#if (__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 4)
 #define umul_ppmm(w1, w0, u, v) \
 do {									\
 	typedef unsigned int __ll_UTItype __attribute__((mode(TI)));	\

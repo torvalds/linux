@@ -22,7 +22,7 @@ obj-y	:= debugtraps.o dma-nommu.o dumpstack.o 		\
 
 ifndef CONFIG_GENERIC_IOMAP
 obj-y				+= iomap.o
-obj-$(CONFIG_HAS_IOPORT)	+= ioport.o
+obj-$(CONFIG_HAS_IOPORT_MAP)	+= ioport.o
 endif
 
 obj-$(CONFIG_SUPERH32)		+= sys_sh32.o
@@ -46,6 +46,5 @@ obj-$(CONFIG_DWARF_UNWINDER)	+= dwarf.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_callchain.o
 
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)		+= hw_breakpoint.o
-obj-$(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)	+= localtimer.o
 
 ccflags-y := -Werror

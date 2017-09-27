@@ -74,7 +74,7 @@ struct data data_copy_escape_string(const char *s, int len)
 	struct data d;
 	char *q;
 
-	d = data_grow_for(empty_data, strlen(s)+1);
+	d = data_grow_for(empty_data, len + 1);
 
 	q = d.val;
 	while (i < len) {
@@ -171,9 +171,9 @@ struct data data_merge(struct data d1, struct data d2)
 struct data data_append_integer(struct data d, uint64_t value, int bits)
 {
 	uint8_t value_8;
-	uint16_t value_16;
-	uint32_t value_32;
-	uint64_t value_64;
+	fdt16_t value_16;
+	fdt32_t value_32;
+	fdt64_t value_64;
 
 	switch (bits) {
 	case 8:
@@ -197,14 +197,14 @@ struct data data_append_integer(struct data d, uint64_t value, int bits)
 	}
 }
 
-struct data data_append_re(struct data d, const struct fdt_reserve_entry *re)
+struct data data_append_re(struct data d, uint64_t address, uint64_t size)
 {
-	struct fdt_reserve_entry bere;
+	struct fdt_reserve_entry re;
 
-	bere.address = cpu_to_fdt64(re->address);
-	bere.size = cpu_to_fdt64(re->size);
+	re.address = cpu_to_fdt64(address);
+	re.size = cpu_to_fdt64(size);
 
-	return data_append_data(d, &bere, sizeof(bere));
+	return data_append_data(d, &re, sizeof(re));
 }
 
 struct data data_append_cell(struct data d, cell_t word)
@@ -250,20 +250,20 @@ struct data data_add_marker(struct data d, enum markertype type, char *ref)
 	return data_append_markers(d, m);
 }
 
-int data_is_one_string(struct data d)
+bool data_is_one_string(struct data d)
 {
 	int i;
 	int len = d.len;
 
 	if (len == 0)
-		return 0;
+		return false;
 
 	for (i = 0; i < len-1; i++)
 		if (d.val[i] == '\0')
-			return 0;
+			return false;
 
 	if (d.val[len-1] != '\0')
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }

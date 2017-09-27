@@ -16,7 +16,7 @@
 
 struct soc_camera_device;
 
-struct v4l2_crop;
+struct v4l2_selection;
 struct v4l2_mbus_framefmt;
 struct v4l2_pix_format;
 struct v4l2_rect;
@@ -31,8 +31,8 @@ static inline unsigned int soc_camera_shift_scale(unsigned int size,
 #define soc_camera_calc_scale(in, shift, out) soc_camera_shift_scale(in, shift, out)
 
 int soc_camera_client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect);
-int soc_camera_client_s_crop(struct v4l2_subdev *sd,
-			struct v4l2_crop *crop, struct v4l2_crop *cam_crop,
+int soc_camera_client_s_selection(struct v4l2_subdev *sd,
+			struct v4l2_selection *sel, struct v4l2_selection *cam_sel,
 			struct v4l2_rect *target_rect, struct v4l2_rect *subrect);
 int soc_camera_client_scale(struct soc_camera_device *icd,
 			struct v4l2_rect *rect, struct v4l2_rect *subrect,

@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
  *                      Kenneth Albanowski <kjahds@kjahds.com>,
- *  Copyright (C) 2000  Lineo, Inc.  (www.lineo.com) 
+ *  Copyright (C) 2000  Lineo, Inc.  (www.lineo.com)
  *
  *  Based on:
  *
@@ -38,8 +38,6 @@
 #include <asm/pgtable.h>
 #include <asm/sections.h>
 
-#undef DEBUG
-
 /*
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a
@@ -54,15 +52,8 @@
  * data and COW.
  */
 static unsigned long empty_bad_page_table;
-
 static unsigned long empty_bad_page;
-
 unsigned long empty_zero_page;
-
-extern unsigned long rom_length;
-
-extern unsigned long memory_start;
-extern unsigned long memory_end;
 
 /*
  * paging_init() continues the virtual memory environment setup which
@@ -76,15 +67,11 @@ void __init paging_init(void)
 	 * Make sure start_mem is page aligned,  otherwise bootmem and
 	 * page_alloc get different views og the world.
 	 */
-#ifdef DEBUG
 	unsigned long start_mem = PAGE_ALIGN(memory_start);
-#endif
 	unsigned long end_mem   = memory_end & PAGE_MASK;
 
-#ifdef DEBUG
-	printk ("start_mem is %#lx\nvirtual_end is %#lx\n",
-		start_mem, end_mem);
-#endif
+	pr_debug("start_mem is %#lx\nvirtual_end is %#lx\n",
+		 start_mem, end_mem);
 
 	/*
 	 * Initialize the bad page table and bad page to point
@@ -98,31 +85,23 @@ void __init paging_init(void)
 	/*
 	 * Set up SFC/DFC registers (user data space).
 	 */
-	set_fs (USER_DS);
+	set_fs(USER_DS);
 
-#ifdef DEBUG
-	printk ("before free_area_init\n");
+	pr_debug("before free_area_init\n");
 
-	printk ("free_area_init -> start_mem is %#lx\nvirtual_end is %#lx\n",
-		start_mem, end_mem);
-#endif
+	pr_debug("free_area_init -> start_mem is %#lx\nvirtual_end is %#lx\n",
+		 start_mem, end_mem);
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
-		zones_size[ZONE_DMA]     = 0 >> PAGE_SHIFT;
-		zones_size[ZONE_NORMAL]  = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
-#ifdef CONFIG_HIGHMEM
-		zones_size[ZONE_HIGHMEM] = 0;
-#endif
+		zones_size[ZONE_NORMAL] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
 		free_area_init(zones_size);
 	}
 }
 
 void __init mem_init(void)
 {
-	unsigned long codesize = _etext - _stext;
-
 	pr_devel("Mem_init: start=%lx, end=%lx\n", memory_start, memory_end);
 
 	high_memory = (void *) (memory_end & PAGE_MASK);
@@ -132,9 +111,6 @@ void __init mem_init(void)
 	free_all_bootmem();
 
 	mem_init_print_info(NULL);
-	if (rom_length > 0 && rom_length > codesize)
-		pr_info("Memory available: %luK/%luK ROM\n",
-			(rom_length - codesize) >> 10, rom_length >> 10);
 }
 
 
@@ -148,8 +124,5 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 void
 free_initmem(void)
 {
-#ifdef CONFIG_RAMKERNEL
 	free_initmem_default(-1);
-#endif
 }
-

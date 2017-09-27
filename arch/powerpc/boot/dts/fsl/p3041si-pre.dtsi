@@ -1,7 +1,7 @@
 /*
  * P3041 Silicon/SoC Device Tree Source (pre include)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2011 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -73,6 +73,14 @@
 		rtic_c = &rtic_c;
 		rtic_d = &rtic_d;
 		sec_mon = &sec_mon;
+
+		fman0 = &fman0;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		ethernet4 = &enet4;
+		ethernet5 = &enet5;
 	};
 
 	cpus {
@@ -82,7 +90,9 @@
 		cpu0: PowerPC,e500mc@0 {
 			device_type = "cpu";
 			reg = <0>;
+			clocks = <&mux0>;
 			next-level-cache = <&L2_0>;
+			fsl,portid-mapping = <0x80000000>;
 			L2_0: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -90,7 +100,9 @@
 		cpu1: PowerPC,e500mc@1 {
 			device_type = "cpu";
 			reg = <1>;
+			clocks = <&mux1>;
 			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x40000000>;
 			L2_1: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -98,7 +110,9 @@
 		cpu2: PowerPC,e500mc@2 {
 			device_type = "cpu";
 			reg = <2>;
+			clocks = <&mux2>;
 			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x20000000>;
 			L2_2: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -106,7 +120,9 @@
 		cpu3: PowerPC,e500mc@3 {
 			device_type = "cpu";
 			reg = <3>;
+			clocks = <&mux3>;
 			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x10000000>;
 			L2_3: l2-cache {
 				next-level-cache = <&cpc>;
 			};

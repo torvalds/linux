@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
@@ -849,9 +850,8 @@ void ldom_reboot(const char *boot_command)
 	if (boot_command && strlen(boot_command)) {
 		unsigned long len;
 
-		strcpy(full_boot_str, "boot ");
-		strlcpy(full_boot_str + strlen("boot "), boot_command,
-			sizeof(full_boot_str + strlen("boot ")));
+		snprintf(full_boot_str, sizeof(full_boot_str), "boot %s",
+			 boot_command);
 		len = strlen(full_boot_str);
 
 		if (reboot_data_supported) {
@@ -909,7 +909,7 @@ static int register_services(struct ds_info *dp)
 		pbuf.req.handle = cp->handle;
 		pbuf.req.major = 1;
 		pbuf.req.minor = 0;
-		strcpy(pbuf.req.svc_id, cp->service_id);
+		strcpy(pbuf.id_buf, cp->service_id);
 
 		err = __ds_send(lp, &pbuf, msg_len);
 		if (err > 0)
@@ -1201,14 +1201,14 @@ static int ds_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	ds_cfg.tx_irq = vdev->tx_irq;
 	ds_cfg.rx_irq = vdev->rx_irq;
 
-	lp = ldc_alloc(vdev->channel_id, &ds_cfg, dp);
+	lp = ldc_alloc(vdev->channel_id, &ds_cfg, dp, "DS");
 	if (IS_ERR(lp)) {
 		err = PTR_ERR(lp);
 		goto out_free_ds_states;
 	}
 	dp->lp = lp;
 
-	err = ldc_bind(lp, "DS");
+	err = ldc_bind(lp);
 	if (err)
 		goto out_free_ldc;
 

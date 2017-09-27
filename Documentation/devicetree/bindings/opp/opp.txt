@@ -1,0 +1,529 @@
+Generic OPP (Operating Performance Points) Bindings
+----------------------------------------------------
+
+Devices work at voltage-current-frequency combinations and some implementations
+have the liberty of choosing these. These combinations are called Operating
+Performance Points aka OPPs. This document defines bindings for these OPPs
+applicable across wide range of devices. For illustration purpose, this document
+uses CPU as a device.
+
+This document contain multiple versions of OPP binding and only one of them
+should be used per device.
+
+Binding 1: operating-points
+============================
+
+This binding only supports voltage-frequency pairs.
+
+Properties:
+- operating-points: An array of 2-tuples items, and each item consists
+  of frequency and voltage like <freq-kHz vol-uV>.
+	freq: clock frequency in kHz
+	vol: voltage in microvolt
+
+Examples:
+
+cpu@0 {
+	compatible = "arm,cortex-a9";
+	reg = <0>;
+	next-level-cache = <&L2>;
+	operating-points = <
+		/* kHz    uV */
+		792000  1100000
+		396000  950000
+		198000  850000
+	>;
+};
+
+
+Binding 2: operating-points-v2
+============================
+
+* Property: operating-points-v2
+
+Devices supporting OPPs must set their "operating-points-v2" property with
+phandle to a OPP table in their DT node. The OPP core will use this phandle to
+find the operating points for the device.
+
+If required, this can be extended for SoC vendor specific bindings. Such bindings
+should be documented as Documentation/devicetree/bindings/power/<vendor>-opp.txt
+and should have a compatible description like: "operating-points-v2-<vendor>".
+
+* OPP Table Node
+
+This describes the OPPs belonging to a device. This node can have following
+properties:
+
+Required properties:
+- compatible: Allow OPPs to express their compatibility. It should be:
+  "operating-points-v2".
+
+- OPP nodes: One or more OPP nodes describing voltage-current-frequency
+  combinations. Their name isn't significant but their phandle can be used to
+  reference an OPP.
+
+Optional properties:
+- opp-shared: Indicates that device nodes using this OPP Table Node's phandle
+  switch their DVFS state together, i.e. they share clock/voltage/current lines.
+  Missing property means devices have independent clock/voltage/current lines,
+  but they share OPP tables.
+
+- status: Marks the OPP table enabled/disabled.
+
+
+* OPP Node
+
+This defines voltage-current-frequency combinations along with other related
+properties.
+
+Required properties:
+- opp-hz: Frequency in Hz, expressed as a 64-bit big-endian integer.
+
+Optional properties:
+- opp-microvolt: voltage in micro Volts.
+
+  A single regulator's voltage is specified with an array of size one or three.
+  Single entry is for target voltage and three entries are for <target min max>
+  voltages.
+
+  Entries for multiple regulators shall be provided in the same field separated
+  by angular brackets <>. The OPP binding doesn't provide any provisions to
+  relate the values to their power supplies or the order in which the supplies
+  need to be configured and that is left for the implementation specific
+  binding.
+
+  Entries for all regulators shall be of the same size, i.e. either all use a
+  single value or triplets.
+
+- opp-microvolt-<name>: Named opp-microvolt property. This is exactly similar to
+  the above opp-microvolt property, but allows multiple voltage ranges to be
+  provided for the same OPP. At runtime, the platform can pick a <name> and
+  matching opp-microvolt-<name> property will be enabled for all OPPs. If the
+  platform doesn't pick a specific <name> or the <name> doesn't match with any
+  opp-microvolt-<name> properties, then opp-microvolt property shall be used, if
+  present.
+
+- opp-microamp: The maximum current drawn by the device in microamperes
+  considering system specific parameters (such as transients, process, aging,
+  maximum operating temperature range etc.) as necessary. This may be used to
+  set the most efficient regulator operating mode.
+
+  Should only be set if opp-microvolt is set for the OPP.
+
+  Entries for multiple regulators shall be provided in the same field separated
+  by angular brackets <>. If current values aren't required for a regulator,
+  then it shall be filled with 0. If current values aren't required for any of
+  the regulators, then this field is not required. The OPP binding doesn't
+  provide any provisions to relate the values to their power supplies or the
+  order in which the supplies need to be configured and that is left for the
+  implementation specific binding.
+
+- opp-microamp-<name>: Named opp-microamp property. Similar to
+  opp-microvolt-<name> property, but for microamp instead.
+
+- clock-latency-ns: Specifies the maximum possible transition latency (in
+  nanoseconds) for switching to this OPP from any other OPP.
+
+- turbo-mode: Marks the OPP to be used only for turbo modes. Turbo mode is
+  available on some platforms, where the device can run over its operating
+  frequency for a short duration of time limited by the device's power, current
+  and thermal limits.
+
+- opp-suspend: Marks the OPP to be used during device suspend. Only one OPP in
+  the table should have this.
+
+- opp-supported-hw: This enables us to select only a subset of OPPs from the
+  larger OPP table, based on what version of the hardware we are running on. We
+  still can't have multiple nodes with the same opp-hz value in OPP table.
+
+  It's a user defined array containing a hierarchy of hardware version numbers,
+  supported by the OPP. For example: a platform with hierarchy of three levels
+  of versions (A, B and C), this field should be like <X Y Z>, where X
+  corresponds to Version hierarchy A, Y corresponds to version hierarchy B and Z
+  corresponds to version hierarchy C.
+
+  Each level of hierarchy is represented by a 32 bit value, and so there can be
+  only 32 different supported version per hierarchy. i.e. 1 bit per version. A
+  value of 0xFFFFFFFF will enable the OPP for all versions for that hierarchy
+  level. And a value of 0x00000000 will disable the OPP completely, and so we
+  never want that to happen.
+
+  If 32 values aren't sufficient for a version hierarchy, than that version
+  hierarchy can be contained in multiple 32 bit values. i.e. <X Y Z1 Z2> in the
+  above example, Z1 & Z2 refer to the version hierarchy Z.
+
+- status: Marks the node enabled/disabled.
+
+Example 1: Single cluster Dual-core ARM cortex A9, switch DVFS states together.
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 0>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply0>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 0>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply0>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <975000 970000 985000>;
+			opp-microamp = <70000>;
+			clock-latency-ns = <300000>;
+			opp-suspend;
+		};
+		opp-1100000000 {
+			opp-hz = /bits/ 64 <1100000000>;
+			opp-microvolt = <1000000 980000 1010000>;
+			opp-microamp = <80000>;
+			clock-latency-ns = <310000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1025000>;
+			clock-latency-ns = <290000>;
+			turbo-mode;
+		};
+	};
+};
+
+Example 2: Single cluster, Quad-core Qualcom-krait, switches DVFS states
+independently.
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "qcom,krait";
+			reg = <0>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 0>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply0>;
+			operating-points-v2 = <&cpu_opp_table>;
+		};
+
+		cpu@1 {
+			compatible = "qcom,krait";
+			reg = <1>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 1>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply1>;
+			operating-points-v2 = <&cpu_opp_table>;
+		};
+
+		cpu@2 {
+			compatible = "qcom,krait";
+			reg = <2>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 2>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply2>;
+			operating-points-v2 = <&cpu_opp_table>;
+		};
+
+		cpu@3 {
+			compatible = "qcom,krait";
+			reg = <3>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 3>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply3>;
+			operating-points-v2 = <&cpu_opp_table>;
+		};
+	};
+
+	cpu_opp_table: opp_table {
+		compatible = "operating-points-v2";
+
+		/*
+		 * Missing opp-shared property means CPUs switch DVFS states
+		 * independently.
+		 */
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <975000 970000 985000>;
+			opp-microamp = <70000>;
+			clock-latency-ns = <300000>;
+			opp-suspend;
+		};
+		opp-1100000000 {
+			opp-hz = /bits/ 64 <1100000000>;
+			opp-microvolt = <1000000 980000 1010000>;
+			opp-microamp = <80000>;
+			clock-latency-ns = <310000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1025000>;
+			opp-microamp = <90000;
+			lock-latency-ns = <290000>;
+			turbo-mode;
+		};
+	};
+};
+
+Example 3: Dual-cluster, Dual-core per cluster. CPUs within a cluster switch
+DVFS state together.
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a7";
+			reg = <0>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 0>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply0>;
+			operating-points-v2 = <&cluster0_opp>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a7";
+			reg = <1>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 0>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply0>;
+			operating-points-v2 = <&cluster0_opp>;
+		};
+
+		cpu@100 {
+			compatible = "arm,cortex-a15";
+			reg = <100>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 1>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply1>;
+			operating-points-v2 = <&cluster1_opp>;
+		};
+
+		cpu@101 {
+			compatible = "arm,cortex-a15";
+			reg = <101>;
+			next-level-cache = <&L2>;
+			clocks = <&clk_controller 1>;
+			clock-names = "cpu";
+			cpu-supply = <&cpu_supply1>;
+			operating-points-v2 = <&cluster1_opp>;
+		};
+	};
+
+	cluster0_opp: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <975000 970000 985000>;
+			opp-microamp = <70000>;
+			clock-latency-ns = <300000>;
+			opp-suspend;
+		};
+		opp-1100000000 {
+			opp-hz = /bits/ 64 <1100000000>;
+			opp-microvolt = <1000000 980000 1010000>;
+			opp-microamp = <80000>;
+			clock-latency-ns = <310000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1025000>;
+			opp-microamp = <90000>;
+			clock-latency-ns = <290000>;
+			turbo-mode;
+		};
+	};
+
+	cluster1_opp: opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1300000000 {
+			opp-hz = /bits/ 64 <1300000000>;
+			opp-microvolt = <1050000 1045000 1055000>;
+			opp-microamp = <95000>;
+			clock-latency-ns = <400000>;
+			opp-suspend;
+		};
+		opp-1400000000 {
+			opp-hz = /bits/ 64 <1400000000>;
+			opp-microvolt = <1075000>;
+			opp-microamp = <100000>;
+			clock-latency-ns = <400000>;
+		};
+		opp-1500000000 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <1100000 1010000 1110000>;
+			opp-microamp = <95000>;
+			clock-latency-ns = <400000>;
+			turbo-mode;
+		};
+	};
+};
+
+Example 4: Handling multiple regulators
+
+/ {
+	cpus {
+		cpu@0 {
+			compatible = "vendor,cpu-type";
+			...
+
+			vcc0-supply = <&cpu_supply0>;
+			vcc1-supply = <&cpu_supply1>;
+			vcc2-supply = <&cpu_supply2>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <970000>, /* Supply 0 */
+					<960000>, /* Supply 1 */
+					<960000>; /* Supply 2 */
+			opp-microamp =  <70000>,  /* Supply 0 */
+					<70000>,  /* Supply 1 */
+					<70000>;  /* Supply 2 */
+			clock-latency-ns = <300000>;
+		};
+
+		/* OR */
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <975000 970000 985000>, /* Supply 0 */
+					<965000 960000 975000>, /* Supply 1 */
+					<965000 960000 975000>; /* Supply 2 */
+			opp-microamp =  <70000>,		/* Supply 0 */
+					<70000>,		/* Supply 1 */
+					<70000>;		/* Supply 2 */
+			clock-latency-ns = <300000>;
+		};
+
+		/* OR */
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <975000 970000 985000>, /* Supply 0 */
+					<965000 960000 975000>, /* Supply 1 */
+					<965000 960000 975000>; /* Supply 2 */
+			opp-microamp =  <70000>,		/* Supply 0 */
+					<0>,			/* Supply 1 doesn't need this */
+					<70000>;		/* Supply 2 */
+			clock-latency-ns = <300000>;
+		};
+	};
+};
+
+Example 5: opp-supported-hw
+(example: three level hierarchy of versions: cuts, substrate and process)
+
+/ {
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a7";
+			...
+
+			cpu-supply = <&cpu_supply>
+			operating-points-v2 = <&cpu0_opp_table_slow>;
+		};
+	};
+
+	opp_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-600000000 {
+			/*
+			 * Supports all substrate and process versions for 0xF
+			 * cuts, i.e. only first four cuts.
+			 */
+			opp-supported-hw = <0xF 0xFFFFFFFF 0xFFFFFFFF>
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <915000 900000 925000>;
+			...
+		};
+
+		opp-800000000 {
+			/*
+			 * Supports:
+			 * - cuts: only one, 6th cut (represented by 6th bit).
+			 * - substrate: supports 16 different substrate versions
+			 * - process: supports 9 different process versions
+			 */
+			opp-supported-hw = <0x20 0xff0000ff 0x0000f4f0>
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <915000 900000 925000>;
+			...
+		};
+	};
+};
+
+Example 6: opp-microvolt-<name>, opp-microamp-<name>:
+(example: device with two possible microvolt ranges: slow and fast)
+
+/ {
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a7";
+			...
+
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt-slow = <915000 900000 925000>;
+			opp-microvolt-fast = <975000 970000 985000>;
+			opp-microamp-slow =  <70000>;
+			opp-microamp-fast =  <71000>;
+		};
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt-slow = <915000 900000 925000>, /* Supply vcc0 */
+					      <925000 910000 935000>; /* Supply vcc1 */
+			opp-microvolt-fast = <975000 970000 985000>, /* Supply vcc0 */
+					     <965000 960000 975000>; /* Supply vcc1 */
+			opp-microamp =  <70000>; /* Will be used for both slow/fast */
+		};
+	};
+};

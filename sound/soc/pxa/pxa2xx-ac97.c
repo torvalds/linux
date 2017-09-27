@@ -14,18 +14,18 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/dmaengine.h>
+#include <linux/dma/pxa-dma.h>
 
 #include <sound/core.h>
 #include <sound/ac97_codec.h>
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-ac97.h>
-#include <mach/dma.h>
 #include <mach/audio.h>
-
-#include "pxa2xx-ac97.h"
 
 static void pxa2xx_ac97_warm_reset(struct snd_ac97 *ac97)
 {
@@ -48,78 +48,67 @@ static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.reset	= pxa2xx_ac97_cold_reset,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_out = {
-	.name			= "AC97 PCM Stereo out",
-	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMR(12),
-	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static struct pxad_param pxa2xx_ac97_pcm_stereo_in_req = {
+	.prio = PXAD_PRIO_LOWEST,
+	.drcmr = 11,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_in = {
-	.name			= "AC97 PCM Stereo in",
-	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMR(11),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_in = {
+	.addr		= __PREG(PCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_ac97_pcm_stereo_in_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_out = {
-	.name			= "AC97 Aux PCM (Slot 5) Mono out",
-	.dev_addr		= __PREG(MODR),
-	.drcmr			= &DRCMR(10),
-	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
-				  DCMD_BURST16 | DCMD_WIDTH2,
+static struct pxad_param pxa2xx_ac97_pcm_stereo_out_req = {
+	.prio = PXAD_PRIO_LOWEST,
+	.drcmr = 12,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_in = {
-	.name			= "AC97 Aux PCM (Slot 5) Mono in",
-	.dev_addr		= __PREG(MODR),
-	.drcmr			= &DRCMR(9),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST16 | DCMD_WIDTH2,
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_out = {
+	.addr		= __PREG(PCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_ac97_pcm_stereo_out_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_mic_mono_in = {
-	.name			= "AC97 Mic PCM (Slot 6) Mono in",
-	.dev_addr		= __PREG(MCDR),
-	.drcmr			= &DRCMR(8),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST16 | DCMD_WIDTH2,
+static struct pxad_param pxa2xx_ac97_pcm_aux_mono_out_req = {
+	.prio = PXAD_PRIO_LOWEST,
+	.drcmr = 10,
+};
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_out = {
+	.addr		= __PREG(MODR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.maxburst	= 16,
+	.filter_data	= &pxa2xx_ac97_pcm_aux_mono_out_req,
 };
 
-#ifdef CONFIG_PM
-static int pxa2xx_ac97_suspend(struct snd_soc_dai *dai)
-{
-	return pxa2xx_ac97_hw_suspend();
-}
+static struct pxad_param pxa2xx_ac97_pcm_aux_mono_in_req = {
+	.prio = PXAD_PRIO_LOWEST,
+	.drcmr = 9,
+};
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_in = {
+	.addr		= __PREG(MODR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.maxburst	= 16,
+	.filter_data	= &pxa2xx_ac97_pcm_aux_mono_in_req,
+};
 
-static int pxa2xx_ac97_resume(struct snd_soc_dai *dai)
-{
-	return pxa2xx_ac97_hw_resume();
-}
+static struct pxad_param pxa2xx_ac97_pcm_aux_mic_mono_req = {
+	.prio = PXAD_PRIO_LOWEST,
+	.drcmr = 8,
+};
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_mic_mono_in = {
+	.addr		= __PREG(MCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.maxburst	= 16,
+	.filter_data	= &pxa2xx_ac97_pcm_aux_mic_mono_req,
+};
 
-#else
-#define pxa2xx_ac97_suspend	NULL
-#define pxa2xx_ac97_resume	NULL
-#endif
-
-static int pxa2xx_ac97_probe(struct snd_soc_dai *dai)
+static int pxa2xx_ac97_hifi_startup(struct snd_pcm_substream *substream,
+				    struct snd_soc_dai *cpu_dai)
 {
-	return pxa2xx_ac97_hw_probe(to_platform_device(dai->dev));
-}
-
-static int pxa2xx_ac97_remove(struct snd_soc_dai *dai)
-{
-	pxa2xx_ac97_hw_remove(to_platform_device(dai->dev));
-	return 0;
-}
-
-static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *params,
-				 struct snd_soc_dai *cpu_dai)
-{
-	struct pxa2xx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = &pxa2xx_ac97_pcm_stereo_out;
@@ -131,11 +120,10 @@ static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int pxa2xx_ac97_hw_aux_params(struct snd_pcm_substream *substream,
-				     struct snd_pcm_hw_params *params,
-				     struct snd_soc_dai *cpu_dai)
+static int pxa2xx_ac97_aux_startup(struct snd_pcm_substream *substream,
+				   struct snd_soc_dai *cpu_dai)
 {
-	struct pxa2xx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = &pxa2xx_ac97_pcm_aux_mono_out;
@@ -147,15 +135,13 @@ static int pxa2xx_ac97_hw_aux_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int pxa2xx_ac97_hw_mic_params(struct snd_pcm_substream *substream,
-				     struct snd_pcm_hw_params *params,
-				     struct snd_soc_dai *cpu_dai)
+static int pxa2xx_ac97_mic_startup(struct snd_pcm_substream *substream,
+				   struct snd_soc_dai *cpu_dai)
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
-	else
-		snd_soc_dai_set_dma_data(cpu_dai, substream,
-					 &pxa2xx_ac97_pcm_mic_mono_in);
+	snd_soc_dai_set_dma_data(cpu_dai, substream,
+				 &pxa2xx_ac97_pcm_mic_mono_in);
 
 	return 0;
 }
@@ -165,15 +151,15 @@ static int pxa2xx_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_48000)
 
 static const struct snd_soc_dai_ops pxa_ac97_hifi_dai_ops = {
-	.hw_params	= pxa2xx_ac97_hw_params,
+	.startup	= pxa2xx_ac97_hifi_startup,
 };
 
 static const struct snd_soc_dai_ops pxa_ac97_aux_dai_ops = {
-	.hw_params	= pxa2xx_ac97_hw_aux_params,
+	.startup	= pxa2xx_ac97_aux_startup,
 };
 
 static const struct snd_soc_dai_ops pxa_ac97_mic_dai_ops = {
-	.hw_params	= pxa2xx_ac97_hw_mic_params,
+	.startup	= pxa2xx_ac97_mic_startup,
 };
 
 /*
@@ -183,11 +169,7 @@ static const struct snd_soc_dai_ops pxa_ac97_mic_dai_ops = {
 static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 {
 	.name = "pxa2xx-ac97",
-	.ac97_control = 1,
-	.probe = pxa2xx_ac97_probe,
-	.remove = pxa2xx_ac97_remove,
-	.suspend = pxa2xx_ac97_suspend,
-	.resume = pxa2xx_ac97_resume,
+	.bus_control = true,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 2,
@@ -204,7 +186,7 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 },
 {
 	.name = "pxa2xx-ac97-aux",
-	.ac97_control = 1,
+	.bus_control = true,
 	.playback = {
 		.stream_name = "AC97 Aux Playback",
 		.channels_min = 1,
@@ -221,7 +203,7 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 },
 {
 	.name = "pxa2xx-ac97-mic",
-	.ac97_control = 1,
+	.bus_control = true,
 	.capture = {
 		.stream_name = "AC97 Mic Capture",
 		.channels_min = 1,
@@ -245,6 +227,12 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	ret = pxa2xx_ac97_hw_probe(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "PXA2xx AC97 hw probe error (%d)\n", ret);
+		return ret;
+	}
+
 	ret = snd_soc_set_ac97_ops(&pxa2xx_ac97_ops);
 	if (ret != 0)
 		return ret;
@@ -261,15 +249,33 @@ static int pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_set_ac97_ops(NULL);
+	pxa2xx_ac97_hw_remove(pdev);
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int pxa2xx_ac97_dev_suspend(struct device *dev)
+{
+	return pxa2xx_ac97_hw_suspend();
+}
+
+static int pxa2xx_ac97_dev_resume(struct device *dev)
+{
+	return pxa2xx_ac97_hw_resume();
+}
+
+static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops,
+		pxa2xx_ac97_dev_suspend, pxa2xx_ac97_dev_resume);
+#endif
 
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_dev_probe,
 	.remove		= pxa2xx_ac97_dev_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
-		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM_SLEEP
+		.pm	= &pxa2xx_ac97_pm_ops,
+#endif
 	},
 };
 
@@ -278,3 +284,4 @@ module_platform_driver(pxa2xx_ac97_driver);
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("AC97 driver for the Intel PXA2xx chip");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-ac97");

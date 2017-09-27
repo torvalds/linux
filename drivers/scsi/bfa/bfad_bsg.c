@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -26,7 +27,6 @@ int
 bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	int	rc = 0;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
@@ -34,7 +34,7 @@ bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 	if (!bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		iocmd->status = BFA_STATUS_OK;
-		return rc;
+		return 0;
 	}
 
 	init_completion(&bfad->enable_comp);
@@ -43,21 +43,20 @@ bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	wait_for_completion(&bfad->enable_comp);
 
-	return rc;
+	return 0;
 }
 
 int
 bfad_iocmd_ioc_disable(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	int	rc = 0;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	if (bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		iocmd->status = BFA_STATUS_OK;
-		return rc;
+		return 0;
 	}
 
 	if (bfad->disable_active) {
@@ -74,7 +73,7 @@ bfad_iocmd_ioc_disable(struct bfad_s *bfad, void *cmd)
 	bfad->disable_active = BFA_FALSE;
 	iocmd->status = BFA_STATUS_OK;
 
-	return rc;
+	return 0;
 }
 
 static int
@@ -225,6 +224,18 @@ bfad_iocmd_iocfc_get_attr(struct bfad_s *bfad, void *cmd)
 	iocmd->status = BFA_STATUS_OK;
 	bfa_iocfc_get_attr(&bfad->bfa, &iocmd->iocfc_attr);
 
+	return 0;
+}
+
+int
+bfad_iocmd_ioc_fw_sig_inv(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ioc_fwsig_invalidate(&bfad->bfa.ioc);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	return 0;
 }
 
@@ -2292,8 +2303,10 @@ bfad_iocmd_cfg_trunk(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 
-	if (bfa_fcport_is_dport(&bfad->bfa))
+	if (bfa_fcport_is_dport(&bfad->bfa)) {
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		return BFA_STATUS_DPORT_ERR;
+	}
 
 	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) ||
 		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
@@ -2893,6 +2906,9 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 	case IOCMD_IOC_PCIFN_CFG:
 		rc = bfad_iocmd_ioc_get_pcifn_cfg(bfad, iocmd);
 		break;
+	case IOCMD_IOC_FW_SIG_INV:
+		rc = bfad_iocmd_ioc_fw_sig_inv(bfad, iocmd);
+		break;
 	case IOCMD_PCIFN_CREATE:
 		rc = bfad_iocmd_pcifn_create(bfad, iocmd);
 		break;
@@ -3114,11 +3130,12 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 }
 
 static int
-bfad_im_bsg_vendor_request(struct fc_bsg_job *job)
+bfad_im_bsg_vendor_request(struct bsg_job *job)
 {
-	uint32_t vendor_cmd = job->request->rqst_data.h_vendor.vendor_cmd[0];
-	struct bfad_im_port_s *im_port =
-			(struct bfad_im_port_s *) job->shost->hostdata[0];
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	uint32_t vendor_cmd = bsg_request->rqst_data.h_vendor.vendor_cmd[0];
+	struct bfad_im_port_s *im_port = shost_priv(fc_bsg_to_shost(job));
 	struct bfad_s *bfad = im_port->bfad;
 	struct request_queue *request_q = job->req->q;
 	void *payload_kbuf;
@@ -3159,18 +3176,19 @@ bfad_im_bsg_vendor_request(struct fc_bsg_job *job)
 
 	/* Fill the BSG job reply data */
 	job->reply_len = job->reply_payload.payload_len;
-	job->reply->reply_payload_rcv_len = job->reply_payload.payload_len;
-	job->reply->result = rc;
+	bsg_reply->reply_payload_rcv_len = job->reply_payload.payload_len;
+	bsg_reply->result = rc;
 
-	job->job_done(job);
+	bsg_job_done(job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return rc;
 error:
 	/* free the command buffer */
 	kfree(payload_kbuf);
 out:
-	job->reply->result = rc;
+	bsg_reply->result = rc;
 	job->reply_len = sizeof(uint32_t);
-	job->reply->reply_payload_rcv_len = 0;
+	bsg_reply->reply_payload_rcv_len = 0;
 	return rc;
 }
 
@@ -3253,13 +3271,13 @@ bfad_fcxp_map_sg(struct bfad_s *bfad, void *payload_kbuf,
 	/* Allocate dma coherent memory */
 	buf_info = buf_base;
 	buf_info->size = payload_len;
-	buf_info->virt = dma_alloc_coherent(&bfad->pcidev->dev, buf_info->size,
-					&buf_info->phys, GFP_KERNEL);
+	buf_info->virt = dma_zalloc_coherent(&bfad->pcidev->dev,
+					     buf_info->size, &buf_info->phys,
+					     GFP_KERNEL);
 	if (!buf_info->virt)
 		goto out_free_mem;
 
 	/* copy the linear bsg buffer to buf_info */
-	memset(buf_info->virt, 0, buf_info->size);
 	memcpy(buf_info->virt, payload_kbuf, buf_info->size);
 
 	/*
@@ -3296,7 +3314,7 @@ bfad_fcxp_free_mem(struct bfad_s *bfad, struct bfad_buf_info *buf_base,
 }
 
 int
-bfad_fcxp_bsg_send(struct fc_bsg_job *job, struct bfad_fcxp *drv_fcxp,
+bfad_fcxp_bsg_send(struct bsg_job *job, struct bfad_fcxp *drv_fcxp,
 		   bfa_bsg_fcpt_t *bsg_fcpt)
 {
 	struct bfa_fcxp_s *hal_fcxp;
@@ -3336,28 +3354,29 @@ bfad_fcxp_bsg_send(struct fc_bsg_job *job, struct bfad_fcxp *drv_fcxp,
 }
 
 int
-bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
+bfad_im_bsg_els_ct_request(struct bsg_job *job)
 {
 	struct bfa_bsg_data *bsg_data;
-	struct bfad_im_port_s *im_port =
-			(struct bfad_im_port_s *) job->shost->hostdata[0];
+	struct bfad_im_port_s *im_port = shost_priv(fc_bsg_to_shost(job));
 	struct bfad_s *bfad = im_port->bfad;
 	bfa_bsg_fcpt_t *bsg_fcpt;
 	struct bfad_fcxp    *drv_fcxp;
 	struct bfa_fcs_lport_s *fcs_port;
 	struct bfa_fcs_rport_s *fcs_rport;
-	uint32_t command_type = job->request->msgcode;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	uint32_t command_type = bsg_request->msgcode;
 	unsigned long flags;
 	struct bfad_buf_info *rsp_buf_info;
 	void *req_kbuf = NULL, *rsp_kbuf = NULL;
 	int rc = -EINVAL;
 
 	job->reply_len  = sizeof(uint32_t);	/* Atleast uint32_t reply_len */
-	job->reply->reply_payload_rcv_len = 0;
+	bsg_reply->reply_payload_rcv_len = 0;
 
 	/* Get the payload passed in from userspace */
-	bsg_data = (struct bfa_bsg_data *) (((char *)job->request) +
-					sizeof(struct fc_bsg_request));
+	bsg_data = (struct bfa_bsg_data *) (((char *)bsg_request) +
+					    sizeof(struct fc_bsg_request));
 	if (bsg_data == NULL)
 		goto out;
 
@@ -3501,13 +3520,13 @@ bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
 	/* fill the job->reply data */
 	if (drv_fcxp->req_status == BFA_STATUS_OK) {
 		job->reply_len = drv_fcxp->rsp_len;
-		job->reply->reply_payload_rcv_len = drv_fcxp->rsp_len;
-		job->reply->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
+		bsg_reply->reply_payload_rcv_len = drv_fcxp->rsp_len;
+		bsg_reply->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
 	} else {
-		job->reply->reply_payload_rcv_len =
+		bsg_reply->reply_payload_rcv_len =
 					sizeof(struct fc_bsg_ctels_reply);
 		job->reply_len = sizeof(uint32_t);
-		job->reply->reply_data.ctels_reply.status =
+		bsg_reply->reply_data.ctels_reply.status =
 						FC_CTELS_STATUS_REJECT;
 	}
 
@@ -3533,20 +3552,23 @@ out_free_mem:
 	kfree(bsg_fcpt);
 	kfree(drv_fcxp);
 out:
-	job->reply->result = rc;
+	bsg_reply->result = rc;
 
 	if (rc == BFA_STATUS_OK)
-		job->job_done(job);
+		bsg_job_done(job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 
 	return rc;
 }
 
 int
-bfad_im_bsg_request(struct fc_bsg_job *job)
+bfad_im_bsg_request(struct bsg_job *job)
 {
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_bsg_reply *bsg_reply = job->reply;
 	uint32_t rc = BFA_STATUS_OK;
 
-	switch (job->request->msgcode) {
+	switch (bsg_request->msgcode) {
 	case FC_BSG_HST_VENDOR:
 		/* Process BSG HST Vendor requests */
 		rc = bfad_im_bsg_vendor_request(job);
@@ -3559,8 +3581,8 @@ bfad_im_bsg_request(struct fc_bsg_job *job)
 		rc = bfad_im_bsg_els_ct_request(job);
 		break;
 	default:
-		job->reply->result = rc = -EINVAL;
-		job->reply->reply_payload_rcv_len = 0;
+		bsg_reply->result = rc = -EINVAL;
+		bsg_reply->reply_payload_rcv_len = 0;
 		break;
 	}
 
@@ -3568,7 +3590,7 @@ bfad_im_bsg_request(struct fc_bsg_job *job)
 }
 
 int
-bfad_im_bsg_timeout(struct fc_bsg_job *job)
+bfad_im_bsg_timeout(struct bsg_job *job)
 {
 	/* Don't complete the BSG job request - return -EAGAIN
 	 * to reset bsg job timeout : for ELS/CT pass thru we

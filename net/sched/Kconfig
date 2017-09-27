@@ -22,8 +22,9 @@ menuconfig NET_SCHED
 	  This code is considered to be experimental.
 
 	  To administer these schedulers, you'll need the user-level utilities
-	  from the package iproute2+tc at <ftp://ftp.tux.org/pub/net/ip-routing/>.
-	  That package also contains some documentation; for more, check out
+	  from the package iproute2+tc at
+	  <https://www.kernel.org/pub/linux/utils/net/iproute2/>.  That package
+	  also contains some documentation; for more, check out
 	  <http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2>.
 
 	  This Quality of Service (QoS) support will enable you to use
@@ -272,15 +273,58 @@ config NET_SCH_FQ_CODEL
 
 	  If unsure, say N.
 
+config NET_SCH_FQ
+	tristate "Fair Queue"
+	help
+	  Say Y here if you want to use the FQ packet scheduling algorithm.
+
+	  FQ does flow separation, and is able to respect pacing requirements
+	  set by TCP stack into sk->sk_pacing_rate (for localy generated
+	  traffic)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_fq.
+
+	  If unsure, say N.
+
+config NET_SCH_HHF
+	tristate "Heavy-Hitter Filter (HHF)"
+	help
+	  Say Y here if you want to use the Heavy-Hitter Filter (HHF)
+	  packet scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_hhf.
+
+config NET_SCH_PIE
+	tristate "Proportional Integral controller Enhanced (PIE) scheduler"
+	help
+	  Say Y here if you want to use the Proportional Integral controller
+	  Enhanced scheduler packet scheduling algorithm.
+	  For more information, please see
+	  http://tools.ietf.org/html/draft-pan-tsvwg-pie-00
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_pie.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
-	tristate "Ingress Qdisc"
+	tristate "Ingress/classifier-action Qdisc"
 	depends on NET_CLS_ACT
+	select NET_INGRESS
+	select NET_EGRESS
 	---help---
-	  Say Y here if you want to use classifiers for incoming packets.
+	  Say Y here if you want to use classifiers for incoming and/or outgoing
+	  packets. This qdisc doesn't do anything else besides running classifiers,
+	  which can also have actions attached to them. In case of outgoing packets,
+	  classifiers that this qdisc holds are executed in the transmit path
+	  before real enqueuing to an egress qdisc happens.
+
 	  If unsure, say Y.
 
-	  To compile this code as a module, choose M here: the
-	  module will be called sch_ingress.
+	  To compile this code as a module, choose M here: the module will be
+	  called sch_ingress with alias of sch_clsact.
 
 config NET_SCH_PLUG
 	tristate "Plug network traffic until release (PLUG)"
@@ -300,7 +344,7 @@ config NET_SCH_PLUG
 	  of virtual machines by allowing the generated network output to be rolled
 	  back if needed.
 
-	  For more information, please refer to http://wiki.xensource.com/xenwiki/Remus
+	  For more information, please refer to <http://wiki.xenproject.org/wiki/Remus>
 
 	  Say Y here if you are using this kernel for Xen dom0 and
 	  want to protect Xen guests with Remus.
@@ -308,10 +352,55 @@ config NET_SCH_PLUG
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_plug.
 
+menuconfig NET_SCH_DEFAULT
+	bool "Allow override default queue discipline"
+	---help---
+	  Support for selection of default queuing discipline.
+
+	  Nearly all users can safely say no here, and the default
+	  of pfifo_fast will be used. Many distributions already set
+	  the default value via /proc/sys/net/core/default_qdisc.
+
+	  If unsure, say N.
+
+if NET_SCH_DEFAULT
+
+choice
+	prompt "Default queuing discipline"
+	default DEFAULT_PFIFO_FAST
+	help
+	  Select the queueing discipline that will be used by default
+	  for all network devices.
+
+	config DEFAULT_FQ
+		bool "Fair Queue" if NET_SCH_FQ
+
+	config DEFAULT_CODEL
+		bool "Controlled Delay" if NET_SCH_CODEL
+
+	config DEFAULT_FQ_CODEL
+		bool "Fair Queue Controlled Delay" if NET_SCH_FQ_CODEL
+
+	config DEFAULT_SFQ
+		bool "Stochastic Fair Queue" if NET_SCH_SFQ
+
+	config DEFAULT_PFIFO_FAST
+		bool "Priority FIFO Fast"
+endchoice
+
+config DEFAULT_NET_SCH
+	string
+	default "pfifo_fast" if DEFAULT_PFIFO_FAST
+	default "fq" if DEFAULT_FQ
+	default "fq_codel" if DEFAULT_FQ_CODEL
+	default "sfq" if DEFAULT_SFQ
+	default "pfifo_fast"
+endif
+
 comment "Classification"
 
 config NET_CLS
-	boolean
+	bool
 
 config NET_CLS_BASIC
 	tristate "Elementary classification (BASIC)"
@@ -421,6 +510,7 @@ config NET_CLS_FLOW
 config NET_CLS_CGROUP
 	tristate "Control Group Classifier"
 	select NET_CLS
+	select CGROUP_NET_CLASSID
 	depends on CGROUPS
 	---help---
 	  Say Y here if you want to classify packets based on the control
@@ -428,6 +518,36 @@ config NET_CLS_CGROUP
 
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_cgroup.
+
+config NET_CLS_BPF
+	tristate "BPF-based classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  programmable BPF (JIT'ed) filters as an alternative to ematches.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_bpf.
+
+config NET_CLS_FLOWER
+	tristate "Flower classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  a configurable combination of packet keys and masks.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_flower.
+
+config NET_CLS_MATCHALL
+	tristate "Match-all classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  nothing. Every packet will match.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_matchall.
 
 config NET_EMATCH
 	bool "Extended Matches"
@@ -529,6 +649,7 @@ config NET_EMATCH_IPSET
 
 config NET_CLS_ACT
 	bool "Actions"
+	select NET_CLS
 	---help---
 	  Say Y here if you want to use traffic control actions. Actions
 	  get attached to classifiers and are invoked after a successful
@@ -574,6 +695,18 @@ config NET_ACT_MIRRED
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_mirred.
+
+config NET_ACT_SAMPLE
+        tristate "Traffic Sampling"
+        depends on NET_CLS_ACT
+        select PSAMPLE
+        ---help---
+	  Say Y here to allow packet sampling tc action. The packet sample
+	  action consists of statistically choosing packets and sampling
+	  them using the psample module.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_sample.
 
 config NET_ACT_IPT
         tristate "IPtables targets"
@@ -632,12 +765,98 @@ config NET_ACT_SKBEDIT
 config NET_ACT_CSUM
         tristate "Checksum Updating"
         depends on NET_CLS_ACT && INET
+        select LIBCRC32C
         ---help---
 	  Say Y here to update some common checksum after some direct
 	  packet alterations.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_csum.
+
+config NET_ACT_VLAN
+        tristate "Vlan manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to push or pop vlan headers.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_vlan.
+
+config NET_ACT_BPF
+        tristate "BPF based action"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to execute BPF code on packets. The BPF code will decide
+	  if the packet should be dropped or not.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_bpf.
+
+config NET_ACT_CONNMARK
+        tristate "Netfilter Connection Mark Retriever"
+        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+        depends on NF_CONNTRACK && NF_CONNTRACK_MARK
+        ---help---
+	  Say Y here to allow retrieving of conn mark
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_connmark.
+
+config NET_ACT_SKBMOD
+        tristate "skb data modification action"
+        depends on NET_CLS_ACT
+        ---help---
+         Say Y here to allow modification of skb data
+
+         If unsure, say N.
+
+         To compile this code as a module, choose M here: the
+         module will be called act_skbmod.
+
+config NET_ACT_IFE
+        tristate "Inter-FE action based on IETF ForCES InterFE LFB"
+        depends on NET_CLS_ACT
+        select NET_IFE
+        ---help---
+	  Say Y here to allow for sourcing and terminating metadata
+	  For details refer to netdev01 paper:
+	  "Distributing Linux Traffic Control Classifier-Action Subsystem"
+	   Authors: Jamal Hadi Salim and Damascene M. Joachimpillai
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_ife.
+
+config NET_ACT_TUNNEL_KEY
+        tristate "IP tunnel metadata manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to set/release ip tunnel metadata.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_tunnel_key.
+
+config NET_IFE_SKBMARK
+        tristate "Support to encoding decoding skb mark on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
+config NET_IFE_SKBPRIO
+        tristate "Support to encoding decoding skb prio on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
+config NET_IFE_SKBTCINDEX
+        tristate "Support to encoding decoding skb tcindex on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
 
 config NET_CLS_IND
 	bool "Incoming device classification"

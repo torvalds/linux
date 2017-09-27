@@ -153,9 +153,6 @@
 #define _ECHOAUDIO_H_
 
 
-#define TRUE 1
-#define FALSE 0
-
 #include "echoaudio_dsp.h"
 
 
@@ -295,34 +292,6 @@
 #define PIPE_STATE_PENDING	3	/* Pipe has pending start */
 
 
-/* Debug initialization */
-#ifdef CONFIG_SND_DEBUG
-#define DE_INIT(x) snd_printk x
-#else
-#define DE_INIT(x)
-#endif
-
-/* Debug hw_params callbacks */
-#ifdef CONFIG_SND_DEBUG
-#define DE_HWP(x) snd_printk x
-#else
-#define DE_HWP(x)
-#endif
-
-/* Debug normal activity (open, start, stop...) */
-#ifdef CONFIG_SND_DEBUG
-#define DE_ACT(x) snd_printk x
-#else
-#define DE_ACT(x)
-#endif
-
-/* Debug midi activity */
-#ifdef CONFIG_SND_DEBUG
-#define DE_MID(x) snd_printk x
-#else
-#define DE_MID(x)
-#endif
-
 
 struct audiopipe {
 	volatile u32 *dma_counter;	/* Commpage register that contains
@@ -406,8 +375,8 @@ struct echoaudio {
 					 */
 	u8 output_clock;		/* Layla20 only */
 	char meters_enabled;		/* VU-meters status */
-	char asic_loaded;		/* Set TRUE when ASIC loaded */
-	char bad_board;			/* Set TRUE if DSP won't load */
+	char asic_loaded;		/* Set true when ASIC loaded */
+	char bad_board;			/* Set true if DSP won't load */
 	char professional_spdif;	/* 0 = consumer; 1 = professional */
 	char non_audio_spdif;		/* 3G - only */
 	char digital_in_automute;	/* Gina24, Layla24, Mona - only */
@@ -468,7 +437,8 @@ static int wait_handshake(struct echoaudio *chip);
 static int send_vector(struct echoaudio *chip, u32 command);
 static int get_firmware(const struct firmware **fw_entry,
 			struct echoaudio *chip, const short fw_index);
-static void free_firmware(const struct firmware *fw_entry);
+static void free_firmware(const struct firmware *fw_entry,
+			  struct echoaudio *chip);
 
 #ifdef ECHOCARD_HAS_MIDI
 static int enable_midi_input(struct echoaudio *chip, char enable);

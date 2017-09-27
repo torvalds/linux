@@ -1,0 +1,67 @@
+
+  Submitting devicetree (DT) binding patches
+
+I. For patch submitters
+
+  0) Normal patch submission rules from Documentation/process/submitting-patches.rst
+     applies.
+
+  1) The Documentation/ portion of the patch should be a separate patch.
+
+  2) Submit the entire series to the devicetree mailinglist at
+
+       devicetree@vger.kernel.org
+
+     and Cc: the DT maintainers. Use scripts/get_maintainer.pl to identify
+     all of the DT maintainers.
+
+  3) The Documentation/ portion of the patch should come in the series before
+     the code implementing the binding.
+
+  4) Any compatible strings used in a chip or board DTS file must be
+     previously documented in the corresponding DT binding text file
+     in Documentation/devicetree/bindings.  This rule applies even if
+     the Linux device driver does not yet match on the compatible
+     string.  [ checkpatch will emit warnings if this step is not
+     followed as of commit bff5da4335256513497cc8c79f9a9d1665e09864
+     ("checkpatch: add DT compatible string documentation checks"). ]
+
+  5) The wildcard "<chip>" may be used in compatible strings, as in
+     the following example:
+
+         - compatible: Must contain '"nvidia,<chip>-pcie",
+           "nvidia,tegra20-pcie"' where <chip> is tegra30, tegra132, ...
+
+     As in the above example, the known values of "<chip>" should be
+     documented if it is used.
+
+  6) If a documented compatible string is not yet matched by the
+     driver, the documentation should also include a compatible
+     string that is matched by the driver (as in the "nvidia,tegra20-pcie"
+     example above).
+
+
+II. For kernel maintainers
+
+  1) If you aren't comfortable reviewing a given binding, reply to it and ask
+     the devicetree maintainers for guidance.  This will help them prioritize
+     which ones to review and which ones are ok to let go.
+
+  2) For driver (not subsystem) bindings: If you are comfortable with the
+     binding, and it hasn't received an Acked-by from the devicetree
+     maintainers after a few weeks, go ahead and take it.
+
+     Subsystem bindings (anything affecting more than a single device)
+     then getting a devicetree maintainer to review it is required.
+
+  3) For a series going though multiple trees, the binding patch should be
+     kept with the driver using the binding.
+
+III. Notes
+
+  0) Please see ...bindings/ABI.txt for details regarding devicetree ABI.
+
+  1) This document is intended as a general familiarization with the process as
+     decided at the 2013 Kernel Summit.  When in doubt, the current word of the
+     devicetree maintainers overrules this document.  In that situation, a patch
+     updating this document would be appreciated.

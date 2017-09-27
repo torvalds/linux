@@ -70,11 +70,11 @@
  * Documentation/input/input-programming.txt for more details.
  */
 
-static int abs_x[3] = {350, 3900, 5};
+static int abs_x[3] = {150, 4000, 5};
 module_param_array(abs_x, int, NULL, 0);
 MODULE_PARM_DESC(abs_x, "Touchscreen absolute X min, max, fuzz");
 
-static int abs_y[3] = {320, 3750, 40};
+static int abs_y[3] = {200, 4000, 40};
 module_param_array(abs_y, int, NULL, 0);
 MODULE_PARM_DESC(abs_y, "Touchscreen absolute Y min, max, fuzz");
 
@@ -500,7 +500,7 @@ static int wm97xx_ts_input_open(struct input_dev *idev)
 {
 	struct wm97xx *wm = input_get_drvdata(idev);
 
-	wm->ts_workq = create_singlethread_workqueue("kwm97xx");
+	wm->ts_workq = alloc_ordered_workqueue("kwm97xx", 0);
 	if (wm->ts_workq == NULL) {
 		dev_err(wm->dev,
 			"Failed to create workqueue\n");
@@ -584,7 +584,7 @@ static void wm97xx_ts_input_close(struct input_dev *idev)
 static int wm97xx_probe(struct device *dev)
 {
 	struct wm97xx *wm;
-	struct wm97xx_pdata *pdata = dev->platform_data;
+	struct wm97xx_pdata *pdata = dev_get_platdata(dev);
 	int ret = 0, id = 0;
 
 	wm = kzalloc(sizeof(struct wm97xx), GFP_KERNEL);
@@ -682,7 +682,7 @@ static int wm97xx_probe(struct device *dev)
 	}
 	platform_set_drvdata(wm->battery_dev, wm);
 	wm->battery_dev->dev.parent = dev;
-	wm->battery_dev->dev.platform_data = pdata;
+	wm->battery_dev->dev.platform_data = pdata ? pdata->batt_pdata : NULL;
 	ret = platform_device_add(wm->battery_dev);
 	if (ret < 0)
 		goto batt_reg_err;
@@ -732,8 +732,7 @@ static int wm97xx_remove(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm97xx_suspend(struct device *dev, pm_message_t state)
+static int __maybe_unused wm97xx_suspend(struct device *dev)
 {
 	struct wm97xx *wm = dev_get_drvdata(dev);
 	u16 reg;
@@ -765,7 +764,7 @@ static int wm97xx_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int wm97xx_resume(struct device *dev)
+static int __maybe_unused wm97xx_resume(struct device *dev)
 {
 	struct wm97xx *wm = dev_get_drvdata(dev);
 
@@ -799,10 +798,7 @@ static int wm97xx_resume(struct device *dev)
 	return 0;
 }
 
-#else
-#define wm97xx_suspend		NULL
-#define wm97xx_resume		NULL
-#endif
+static SIMPLE_DEV_PM_OPS(wm97xx_pm_ops, wm97xx_suspend, wm97xx_resume);
 
 /*
  * Machine specific operations
@@ -836,8 +832,7 @@ static struct device_driver wm97xx_driver = {
 	.owner =	THIS_MODULE,
 	.probe =	wm97xx_probe,
 	.remove =	wm97xx_remove,
-	.suspend =	wm97xx_suspend,
-	.resume =	wm97xx_resume,
+	.pm =		&wm97xx_pm_ops,
 };
 
 static int __init wm97xx_init(void)

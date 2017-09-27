@@ -2,6 +2,9 @@
 #define _UAPI_IF_TUNNEL_H_
 
 #include <linux/types.h>
+#include <linux/if.h>
+#include <linux/ip.h>
+#include <linux/in6.h>
 #include <asm/byteorder.h>
 
 
@@ -24,8 +27,22 @@
 #define GRE_SEQ		__cpu_to_be16(0x1000)
 #define GRE_STRICT	__cpu_to_be16(0x0800)
 #define GRE_REC		__cpu_to_be16(0x0700)
-#define GRE_FLAGS	__cpu_to_be16(0x00F8)
+#define GRE_ACK		__cpu_to_be16(0x0080)
+#define GRE_FLAGS	__cpu_to_be16(0x0078)
 #define GRE_VERSION	__cpu_to_be16(0x0007)
+
+#define GRE_IS_CSUM(f)		((f) & GRE_CSUM)
+#define GRE_IS_ROUTING(f)	((f) & GRE_ROUTING)
+#define GRE_IS_KEY(f)		((f) & GRE_KEY)
+#define GRE_IS_SEQ(f)		((f) & GRE_SEQ)
+#define GRE_IS_STRICT(f)	((f) & GRE_STRICT)
+#define GRE_IS_REC(f)		((f) & GRE_REC)
+#define GRE_IS_ACK(f)		((f) & GRE_ACK)
+
+#define GRE_VERSION_0		__cpu_to_be16(0x0000)
+#define GRE_VERSION_1		__cpu_to_be16(0x0001)
+#define GRE_PROTO_PPP		__cpu_to_be16(0x880b)
+#define GRE_PPTP_KEY_MASK	__cpu_to_be32(0xffff)
 
 struct ip_tunnel_parm {
 	char			name[IFNAMSIZ];
@@ -53,9 +70,25 @@ enum {
 	IFLA_IPTUN_6RD_RELAY_PREFIX,
 	IFLA_IPTUN_6RD_PREFIXLEN,
 	IFLA_IPTUN_6RD_RELAY_PREFIXLEN,
+	IFLA_IPTUN_ENCAP_TYPE,
+	IFLA_IPTUN_ENCAP_FLAGS,
+	IFLA_IPTUN_ENCAP_SPORT,
+	IFLA_IPTUN_ENCAP_DPORT,
+	IFLA_IPTUN_COLLECT_METADATA,
+	IFLA_IPTUN_FWMARK,
 	__IFLA_IPTUN_MAX,
 };
 #define IFLA_IPTUN_MAX	(__IFLA_IPTUN_MAX - 1)
+
+enum tunnel_encap_types {
+	TUNNEL_ENCAP_NONE,
+	TUNNEL_ENCAP_FOU,
+	TUNNEL_ENCAP_GUE,
+};
+
+#define TUNNEL_ENCAP_FLAG_CSUM		(1<<0)
+#define TUNNEL_ENCAP_FLAG_CSUM6		(1<<1)
+#define TUNNEL_ENCAP_FLAG_REMCSUM	(1<<2)
 
 /* SIT-mode i_flags */
 #define	SIT_ISATAP	0x0001
@@ -94,13 +127,21 @@ enum {
 	IFLA_GRE_ENCAP_LIMIT,
 	IFLA_GRE_FLOWINFO,
 	IFLA_GRE_FLAGS,
+	IFLA_GRE_ENCAP_TYPE,
+	IFLA_GRE_ENCAP_FLAGS,
+	IFLA_GRE_ENCAP_SPORT,
+	IFLA_GRE_ENCAP_DPORT,
+	IFLA_GRE_COLLECT_METADATA,
+	IFLA_GRE_IGNORE_DF,
+	IFLA_GRE_FWMARK,
+	IFLA_GRE_ERSPAN_INDEX,
 	__IFLA_GRE_MAX,
 };
 
 #define IFLA_GRE_MAX	(__IFLA_GRE_MAX - 1)
 
 /* VTI-mode i_flags */
-#define VTI_ISVTI 0x0001
+#define VTI_ISVTI ((__force __be16)0x0001)
 
 enum {
 	IFLA_VTI_UNSPEC,
@@ -109,6 +150,7 @@ enum {
 	IFLA_VTI_OKEY,
 	IFLA_VTI_LOCAL,
 	IFLA_VTI_REMOTE,
+	IFLA_VTI_FWMARK,
 	__IFLA_VTI_MAX,
 };
 

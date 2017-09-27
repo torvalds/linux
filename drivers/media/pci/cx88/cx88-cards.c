@@ -1,5 +1,4 @@
 /*
- *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
  *
@@ -14,21 +13,17 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#include "cx88.h"
+#include "tea5767.h"
+#include "xc4000.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-
-#include "cx88.h"
-#include "tea5767.h"
-#include "xc4000.h"
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
@@ -38,32 +33,23 @@ module_param_array(tuner, int, NULL, 0444);
 module_param_array(radio, int, NULL, 0444);
 module_param_array(card,  int, NULL, 0444);
 
-MODULE_PARM_DESC(tuner,"tuner type");
-MODULE_PARM_DESC(radio,"radio tuner type");
-MODULE_PARM_DESC(card,"card type");
+MODULE_PARM_DESC(tuner, "tuner type");
+MODULE_PARM_DESC(radio, "radio tuner type");
+MODULE_PARM_DESC(card, "card type");
 
 static unsigned int latency = UNSET;
-module_param(latency,int,0444);
-MODULE_PARM_DESC(latency,"pci latency timer");
+module_param(latency, int, 0444);
+MODULE_PARM_DESC(latency, "pci latency timer");
 
 static int disable_ir;
 module_param(disable_ir, int, 0444);
 MODULE_PARM_DESC(disable_ir, "Disable IR support");
 
-#define info_printk(core, fmt, arg...) \
-	printk(KERN_INFO "%s: " fmt, core->name , ## arg)
-
-#define warn_printk(core, fmt, arg...) \
-	printk(KERN_WARNING "%s: " fmt, core->name , ## arg)
-
-#define err_printk(core, fmt, arg...) \
-	printk(KERN_ERR "%s: " fmt, core->name , ## arg)
-
-#define dprintk(level,fmt, arg...)	do {				\
+#define dprintk(level, fmt, arg...)	do {				\
 	if (cx88_core_debug >= level)					\
-		printk(KERN_DEBUG "%s: " fmt, core->name , ## arg);	\
-	} while(0)
-
+		printk(KERN_DEBUG pr_fmt("%s: core:" fmt),		\
+			__func__, ##arg);				\
+} while (0)
 
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
@@ -78,19 +64,19 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 0,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE2,
 			.vmux   = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE3,
 			.vmux   = 2,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE4,
 			.vmux   = 3,
-		}},
+		} },
 	},
 	[CX88_BOARD_HAUPPAUGE] = {
 		.name		= "Hauppauge WinTV 34xxx models",
@@ -99,23 +85,23 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xff00,  // internal decoder
-		},{
+		}, {
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 0,
 			.gpio0  = 0xff01,  // mono from tuner chip
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0xff02,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0xff02,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0xff01,
@@ -127,13 +113,13 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-		}},
+		} },
 	},
 	[CX88_BOARD_PIXELVIEW] = {
 		.name           = "PixelView",
@@ -141,17 +127,17 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xff00,  // internal decoder
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-		}},
+		} },
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0xff10,
@@ -164,19 +150,19 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT | TDA9887_INTERCARRIER,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x03ff,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x03fe,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x03fe,
-		}},
+		} },
 	},
 	[CX88_BOARD_WINFAST2000XP_EXPERT] = {
 		.name           = "Leadtek Winfast 2000XP Expert",
@@ -185,28 +171,28 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0x00F5e700,
 			.gpio1  = 0x00003004,
 			.gpio2  = 0x00F5e700,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0	= 0x00F5c700,
 			.gpio1  = 0x00003004,
 			.gpio2  = 0x00F5c700,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0	= 0x00F5c700,
 			.gpio1  = 0x00003004,
 			.gpio2  = 0x00F5c700,
 			.gpio3  = 0x02000000,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0	= 0x00F5d700,
@@ -222,19 +208,19 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio1  = 0xe09f,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio1  = 0xe05f,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio1  = 0xe05f,
-		}},
+		} },
 		.radio = {
 			.gpio1  = 0xe0df,
 			.type   = CX88_RADIO,
@@ -249,25 +235,25 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf	= TDA9887_PRESENT | TDA9887_INTERCARRIER_NTSC,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x000040bf,
 			.gpio1  = 0x000080c0,
 			.gpio2  = 0x0000ff40,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000040bf,
 			.gpio1  = 0x000080c0,
 			.gpio2  = 0x0000ff40,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000040bf,
 			.gpio1  = 0x000080c0,
 			.gpio2  = 0x0000ff40,
-		}},
+		} },
 		.radio = {
 			 .type   = CX88_RADIO,
 			 .vmux   = 3,
@@ -283,29 +269,28 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0035e700,
 			.gpio1  = 0x00003004,
 			.gpio2  = 0x0035e700,
 			.gpio3  = 0x02000000,
-		},{
-
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0035c700,
 			.gpio1  = 0x00003004,
 			.gpio2  = 0x0035c700,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0035c700,
 			.gpio1  = 0x0035c700,
 			.gpio2  = 0x02000000,
 			.gpio3  = 0x02000000,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x0035d700,
@@ -322,22 +307,22 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0000bde2,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0000bde6,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000bde6,
 			.audioroute = 1,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x0000bd62,
@@ -347,20 +332,20 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_IODATA_GVVCP3PCI] = {
 		.name		= "IODATA GV-VCP3/PCI",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 0,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE2,
 			.vmux   = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-		}},
+		} },
 	},
 	[CX88_BOARD_PROLINK_PLAYTVPVR] = {
 		.name           = "Prolink PlayTV PVR",
@@ -369,19 +354,19 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf	= TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xbff0,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0xbff3,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0xbff3,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0xbff0,
@@ -394,16 +379,16 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0000fde6,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000fde6, // 0x0000fda6 L,R RCA audio in?
 			.audioroute = 1,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x0000fde2,
@@ -417,57 +402,57 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00000fbf,
 			.gpio2  = 0x0000fc08,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00000fbf,
 			.gpio2  = 0x0000fc68,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00000fbf,
 			.gpio2  = 0x0000fc68,
-		}},
+		} },
 	},
 	[CX88_BOARD_KWORLD_DVB_T] = {
 		.name           = "KWorld/VStream XPert DVB-T",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1] = {
 		.name           = "DViCO FusionHDTV DVB-T1",
-		.tuner_type     = TUNER_ABSENT, /* No analog tuner */
+		.tuner_type     = UNSET, /* No analog tuner */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000027df,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_KWORLD_LTV883] = {
@@ -476,23 +461,23 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x07f8,
-		},{
+		}, {
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 0,
 			.gpio0  = 0x07f9,  // mono from tuner chip
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000007fa,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000007fa,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x000007f8,
@@ -505,63 +490,63 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		/*
-		   GPIO[0] resets DT3302 DTV receiver
-		    0 - reset asserted
-		    1 - normal operation
-		   GPIO[1] mutes analog audio output connector
-		    0 - enable selected source
-		    1 - mute
-		   GPIO[2] selects source for analog audio output connector
-		    0 - analog audio input connector on tab
-		    1 - analog DAC output from CX23881 chip
-		   GPIO[3] selects RF input connector on tuner module
-		    0 - RF connector labeled CABLE
-		    1 - RF connector labeled ANT
-		   GPIO[4] selects high RF for QAM256 mode
-		    0 - normal RF
-		    1 - high RF
-		*/
-		.input          = {{
+		 * GPIO[0] resets DT3302 DTV receiver
+		 *     0 - reset asserted
+		 *     1 - normal operation
+		 * GPIO[1] mutes analog audio output connector
+		 *     0 - enable selected source
+		 *     1 - mute
+		 * GPIO[2] selects source for analog audio output connector
+		 *     0 - analog audio input connector on tab
+		 *     1 - analog DAC output from CX23881 chip
+		 * GPIO[3] selects RF input connector on tuner module
+		 *     0 - RF connector labeled CABLE
+		 *     1 - RF connector labeled ANT
+		 * GPIO[4] selects high RF for QAM256 mode
+		 *     0 - normal RF
+		 *     1 - high RF
+		 */
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0x0f0d,
-		},{
+		}, {
 			.type   = CX88_VMUX_CABLE,
 			.vmux   = 0,
 			.gpio0	= 0x0f05,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0	= 0x0f00,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0	= 0x0f00,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_DVB_T1] = {
 		.name           = "Hauppauge Nova-T DVB-T",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_CONEXANT_DVB_T1] = {
 		.name           = "Conexant DVB-T reference design",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_PROVIDEO_PV259] = {
@@ -570,47 +555,47 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.audioroute = 1,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS] = {
 		.name           = "DViCO FusionHDTV DVB-T Plus",
-		.tuner_type     = TUNER_ABSENT, /* No analog tuner */
+		.tuner_type     = UNSET, /* No analog tuner */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000027df,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DNTV_LIVE_DVB_T] = {
 		.name		= "digitalnow DNTV Live! DVB-T",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input		= {{
+		.input		= { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00000700,
 			.gpio2  = 0x00000101,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00000700,
 			.gpio2  = 0x00000101,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_PCHDTV_HD3000] = {
@@ -632,19 +617,19 @@ static const struct cx88_board cx88_boards[] = {
 		 *
 		 * GPIO[16] = Remote control input
 		 */
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00008484,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00008400,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00008400,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x00008404,
@@ -659,25 +644,25 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xed1a,
 			.gpio2  = 0x00ff,
-		},{
+		}, {
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 0,
 			.gpio0  = 0xff01,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0xff02,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0xed92,
 			.gpio2  = 0x00ff,
-		}},
+		} },
 		.radio = {
 			 .type   = CX88_RADIO,
 			 .gpio0  = 0xed96,
@@ -692,22 +677,22 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00009d80,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00009d76,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00009d76,
 			.audioroute = 1,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x00009d00,
@@ -722,19 +707,19 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 1,
 			.gpio1  = 0x0000e03f,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 2,
 			.gpio1  = 0x0000e07f,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 3,
 			.gpio1  = 0x0000e07f,
-		}}
+		} }
 	},
 	[CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO] = {
 		.name           = "PixelView PlayTV Ultra Pro (Stereo)",
@@ -743,21 +728,24 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		/* Some variants use a tda9874 and so need the tvaudio module. */
+		/*
+		 * Some variants use a tda9874 and so need the
+		 * tvaudio module.
+		 */
 		.audio_chip     = CX88_AUDIO_TVAUDIO,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xbf61,  /* internal decoder */
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0	= 0xbf63,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0	= 0xbf63,
-		}},
+		} },
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0xbf60,
@@ -770,53 +758,53 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x97ed,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x97e9,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x97e9,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_ADSTECH_DVB_T_PCI] = {
 		.name           = "ADS Tech Instant TV DVB-T PCI",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1] = {
 		.name           = "TerraTec Cinergy 1400 DVB-T",
-		.tuner_type     = TUNER_ABSENT,
-		.input          = {{
+		.tuner_type     = UNSET,
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 2,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD] = {
@@ -826,19 +814,19 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x87fd,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x87f9,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x87f9,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_AVERMEDIA_ULTRATV_MC_550] = {
@@ -848,22 +836,22 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 0,
 			.gpio0  = 0x0000cd73,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 1,
 			.gpio0  = 0x0000cd73,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 3,
 			.gpio0  = 0x0000cdb3,
 			.audioroute = 1,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.vmux   = 2,
@@ -876,21 +864,21 @@ static const struct cx88_board cx88_boards[] = {
 		 /* Alexander Wold <awold@bigfoot.com> */
 		 .name           = "Kworld V-Stream Xpert DVD",
 		 .tuner_type     = UNSET,
-		 .input          = {{
+		 .input          = { {
 			 .type   = CX88_VMUX_COMPOSITE1,
 			 .vmux   = 1,
 			 .gpio0  = 0x03000000,
 			 .gpio1  = 0x01000000,
 			 .gpio2  = 0x02000000,
 			 .gpio3  = 0x00100000,
-		 },{
+		 }, {
 			 .type   = CX88_VMUX_SVIDEO,
 			 .vmux   = 2,
 			 .gpio0  = 0x03000000,
 			 .gpio1  = 0x01000000,
 			 .gpio2  = 0x02000000,
 			 .gpio3  = 0x00100000,
-		 }},
+		 } },
 	},
 	[CX88_BOARD_ATI_HDTVWONDER] = {
 		.name           = "ATI HDTV Wonder",
@@ -898,46 +886,46 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00000ff7,
 			.gpio1  = 0x000000ff,
 			.gpio2  = 0x00000001,
 			.gpio3  = 0x00000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00000ffe,
 			.gpio1  = 0x000000ff,
 			.gpio2  = 0x00000001,
 			.gpio3  = 0x00000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00000ffe,
 			.gpio1  = 0x000000ff,
 			.gpio2  = 0x00000001,
 			.gpio3  = 0x00000000,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_WINFAST_DTV1000] = {
 		.name           = "WinFast DTV1000-T",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_AVERTV_303] = {
@@ -947,90 +935,90 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00ff,
 			.gpio1  = 0xe09f,
 			.gpio2  = 0x0010,
 			.gpio3  = 0x0000,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00ff,
 			.gpio1  = 0xe05f,
 			.gpio2  = 0x0010,
 			.gpio3  = 0x0000,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00ff,
 			.gpio1  = 0xe05f,
 			.gpio2  = 0x0010,
 			.gpio3  = 0x0000,
-		}},
+		} },
 	},
 	[CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1] = {
 		.name		= "Hauppauge Nova-S-Plus DVB-S",
-		.tuner_type	= TUNER_ABSENT,
+		.tuner_type	= UNSET,
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.audio_chip	= CX88_AUDIO_WM8775,
 		.i2sinputcntl   = 2,
-		.input		= {{
+		.input		= { {
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
 			/* 2: Line-In */
 			.audioroute = 2,
-		},{
+		}, {
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
 			/* 2: Line-In */
 			.audioroute = 2,
-		},{
+		}, {
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 			/* 2: Line-In */
 			.audioroute = 2,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_NOVASE2_S1] = {
 		.name		= "Hauppauge Nova-SE2 DVB-S",
-		.tuner_type	= TUNER_ABSENT,
+		.tuner_type	= UNSET,
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input		= {{
+		.input		= { {
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_KWORLD_DVBS_100] = {
 		.name		= "KWorld DVB-S 100",
-		.tuner_type	= TUNER_ABSENT,
+		.tuner_type	= UNSET,
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.audio_chip = CX88_AUDIO_WM8775,
-		.input		= {{
+		.input		= { {
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
 			/* 2: Line-In */
 			.audioroute = 2,
-		},{
+		}, {
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
 			/* 2: Line-In */
 			.audioroute = 2,
-		},{
+		}, {
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 			/* 2: Line-In */
 			.audioroute = 2,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_HVR1100] = {
@@ -1040,16 +1028,16 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input		= {{
+		.input		= { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-		},{
+		}, {
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
-		},{
+		}, {
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
-		}},
+		} },
 		/* fixme: Add radio support */
 		.mpeg           = CX88_MPEG_DVB,
 	},
@@ -1060,13 +1048,13 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input		= {{
+		.input		= { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-		},{
+		}, {
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
-		}},
+		} },
 		/* fixme: Add radio support */
 		.mpeg           = CX88_MPEG_DVB,
 	},
@@ -1078,19 +1066,19 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE |
 				  TDA9887_PORT2_ACTIVE,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xf80808,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0	= 0xf80808,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0	= 0xf80808,
-		}},
+		} },
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0xf80808,
@@ -1102,38 +1090,38 @@ static const struct cx88_board cx88_boards[] = {
 		/* DTT 7579 Conexant CX22702-19 Conexant CX2388x  */
 		/* Manenti Marco <marco_manenti@colman.it> */
 		.name           = "KWorld/VStream XPert DVB-T with cx22702",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL] = {
 		.name           = "DViCO FusionHDTV DVB-T Dual Digital",
-		.tuner_type     = TUNER_ABSENT, /* No analog tuner */
+		.tuner_type     = UNSET, /* No analog tuner */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000067df,
-		 },{
+		 }, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000067df,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT] = {
@@ -1142,22 +1130,22 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x3de2,
 			.gpio2  = 0x00ff,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x3de6,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x3de6,
 			.audioroute = 1,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x3de6,
@@ -1171,19 +1159,19 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0000a75f,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0000a75b,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000a75b,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_PCHDTV_HD5500] = {
@@ -1193,35 +1181,37 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x87fd,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x87f9,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x87f9,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_KWORLD_MCE200_DELUXE] = {
-		/* FIXME: tested TV input only, disabled composite,
-		   svideo and radio until they can be tested also. */
+		/*
+		 * FIXME: tested TV input only, disabled composite,
+		 * svideo and radio until they can be tested also.
+		 */
 		.name           = "Kworld MCE 200 Deluxe",
 		.tuner_type     = TUNER_TENA_9533_DI,
 		.radio_type     = UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0000BDE6
-		}},
+		} },
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
 	[CX88_BOARD_PIXELVIEW_PLAYTV_P7000] = {
@@ -1233,11 +1223,11 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE |
 				  TDA9887_PORT2_ACTIVE,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x5da6,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
 	[CX88_BOARD_NPGTECH_REALTV_TOP10FM] = {
@@ -1246,19 +1236,19 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0x0788,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0	= 0x078b,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0	= 0x078b,
-		}},
+		} },
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0x074a,
@@ -1271,7 +1261,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00017304,
@@ -1299,7 +1289,7 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio1  = 0x0000b207,
 			.gpio2  = 0x0001d701,
 			.gpio3  = 0x02000000,
-		}},
+		} },
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0x00015702,
@@ -1316,35 +1306,35 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00017300,
 			.gpio1  = 0x00008207,
 			.gpio2	= 0x00000000,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00018300,
 			.gpio1  = 0x0000f207,
 			.gpio2	= 0x00017304,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00018301,
 			.gpio1  = 0x0000f207,
 			.gpio2	= 0x00017304,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00018301,
 			.gpio1  = 0x0000f207,
 			.gpio2	= 0x00017304,
 			.gpio3  = 0x02000000,
-		}},
+		} },
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0x00015702,
@@ -1356,17 +1346,17 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_GENIATECH_DVBS] = {
 		.name          = "Geniatech DVB-S",
-		.tuner_type    = TUNER_ABSENT,
+		.tuner_type    = UNSET,
 		.radio_type    = UNSET,
 		.tuner_addr    = ADDR_UNSET,
 		.radio_addr    = ADDR_UNSET,
-		.input  = {{
+		.input  = { {
 			.type  = CX88_VMUX_DVB,
 			.vmux  = 0,
-		},{
+		}, {
 			.type  = CX88_VMUX_COMPOSITE1,
 			.vmux  = 1,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_HVR3000] = {
@@ -1377,25 +1367,25 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.audio_chip     = CX88_AUDIO_WM8775,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x84bf,
 			/* 1: TV Audio / FM Mono */
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x84bf,
 			/* 2: Line-In */
 			.audioroute = 2,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x84bf,
 			/* 2: Line-In */
 			.audioroute = 2,
-		}},
+		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0	= 0x84bf,
@@ -1411,19 +1401,19 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0709,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x070b,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x070b,
-		}},
+		} },
 	},
 	[CX88_BOARD_TE_DTV_250_OEM_SWANN] = {
 		.name           = "Shenzhen Tungsten Ages Tech TE-DTV-250 / Swann OEM",
@@ -1431,28 +1421,28 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x003fffff,
 			.gpio1  = 0x00e00000,
 			.gpio2  = 0x003fffff,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x003fffff,
 			.gpio1  = 0x00e00000,
 			.gpio2  = 0x003fffff,
 			.gpio3  = 0x02000000,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x003fffff,
 			.gpio1  = 0x00e00000,
 			.gpio2  = 0x003fffff,
 			.gpio3  = 0x02000000,
-		}},
+		} },
 	},
 	[CX88_BOARD_HAUPPAUGE_HVR1300] = {
 		.name		= "Hauppauge WinTV-HVR1300 DVB-T/Hybrid MPEG Encoder",
@@ -1465,25 +1455,25 @@ static const struct cx88_board cx88_boards[] = {
 		/*
 		 * gpio0 as reported by Mike Crash <mike AT mikecrash.com>
 		 */
-		.input		= {{
+		.input		= { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0xef88,
 			/* 1: TV Audio / FM Mono */
 			.audioroute = 1,
-		},{
+		}, {
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
 			.gpio0	= 0xef88,
 			/* 2: Line-In */
 			.audioroute = 2,
-		},{
+		}, {
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 			.gpio0	= 0xef88,
 			/* 2: Line-In */
 			.audioroute = 2,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB | CX88_MPEG_BLACKBIRD,
 		.radio = {
 			.type   = CX88_RADIO,
@@ -1494,7 +1484,7 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_SAMSUNG_SMT_7020] = {
 		.name		= "Samsung SMT 7020 DVB-S",
-		.tuner_type	= TUNER_ABSENT,
+		.tuner_type	= UNSET,
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
@@ -1506,23 +1496,23 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_ADSTECH_PTV_390] = {
 		.name           = "ADS Tech Instant Video PCI",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 3,
 			.gpio0  = 0x04ff,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x07fa,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x07fa,
-		}},
+		} },
 	},
 	[CX88_BOARD_PINNACLE_PCTV_HD_800i] = {
 		.name           = "Pinnacle PCTV HD 800i",
@@ -1530,34 +1520,34 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x04fb,
 			.gpio1  = 0x10ff,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x04fb,
 			.gpio1  = 0x10ef,
 			.audioroute = 1,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x04fb,
 			.gpio1  = 0x10ef,
 			.audioroute = 1,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO] = {
 		.name           = "DViCO FusionHDTV 5 PCI nano",
 		/* xc3008 tuner, digital only for now */
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x000027df, /* Unconfirmed */
@@ -1721,16 +1711,24 @@ static const struct cx88_board cx88_boards[] = {
 		},
 	},
 	[CX88_BOARD_POWERCOLOR_REAL_ANGEL] = {
-		.name           = "PowerColor RA330",	/* Long names may confuse LIRC. */
+		/* Long names may confuse LIRC. */
+		.name           = "PowerColor RA330",
 		.tuner_type     = TUNER_XC2028,
 		.tuner_addr     = 0x61,
 		.input          = { {
+			/*
+			 * Due to the way the cx88 driver is written,
+			 * there is no way to deactivate audio pass-
+			 * through without this entry. Furthermore, if
+			 * the TV mux entry is first, you get audio
+			 * from the tuner on boot for a little while.
+			 */
 			.type   = CX88_VMUX_DEBUG,
-			.vmux   = 3,		/* Due to the way the cx88 driver is written,	*/
-			.gpio0 = 0x00ff,	/* there is no way to deactivate audio pass-	*/
-			.gpio1 = 0xf39d,	/* through without this entry. Furthermore, if	*/
-			.gpio3 = 0x0000,	/* the TV mux entry is first, you get audio	*/
-		}, {				/* from the tuner on boot for a little while.	*/
+			.vmux   = 3,
+			.gpio0 = 0x00ff,
+			.gpio1 = 0xf39d,
+			.gpio3 = 0x0000,
+		}, {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0 = 0x00ff,
@@ -1815,19 +1813,19 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x10df,
-		},{
+		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x16d9,
-		},{
+		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x16d9,
-		}},
+		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_PROLINK_PV_8000GT] = {
@@ -1883,11 +1881,12 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio2 = 0x0cf7,
 		},
 	},
-	/* Both radio, analog and ATSC work with this board.
-	   However, for analog to work, s5h1409 gate should be open,
-	   otherwise, tuner-xc3028 won't be detected.
-	   A proper fix require using the newer i2c methods to add
-	   tuner-xc3028 without doing an i2c probe.
+	/*
+	 * Both radio, analog and ATSC work with this board.
+	 * However, for analog to work, s5h1409 gate should be open,
+	 * otherwise, tuner-xc3028 won't be detected.
+	 * A proper fix require using the newer i2c methods to add
+	 * tuner-xc3028 without doing an i2c probe.
 	 */
 	[CX88_BOARD_KWORLD_ATSC_120] = {
 		.name           = "Kworld PlusTV HD PCI 120 (ATSC 120)",
@@ -1967,7 +1966,7 @@ static const struct cx88_board cx88_boards[] = {
 		 * 3: Line-In Expansion
 		 * 4: FM Stereo
 		 */
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xc4bf,
@@ -2001,7 +2000,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2013,7 +2012,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2025,7 +2024,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2037,7 +2036,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2049,7 +2048,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2061,7 +2060,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2069,11 +2068,11 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_TBS_8920] = {
 		.name           = "TBS 8920 DVB-S/S2",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 			.gpio0  = 0x8080,
@@ -2086,7 +2085,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2098,7 +2097,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2110,7 +2109,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		} },
@@ -2170,7 +2169,7 @@ static const struct cx88_board cx88_boards[] = {
 		 * 13: audio source (0=tuner audio,1=line in)
 		 * 14: FM (0=on,1=off ???)
 		 */
-		.input          = {{
+		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0400,       /* pin 2 = 0 */
@@ -2211,7 +2210,7 @@ static const struct cx88_board cx88_boards[] = {
 		 * 13: audio source (0=tuner audio,1=line in)
 		 * 14: FM (0=on,1=off ???)
 		 */
-		.input		= {{
+		.input		= { {
 			.type	= CX88_VMUX_TELEVISION,
 			.vmux	= 0,
 			.gpio0	= 0x0400,	/* pin 2 = 0 */
@@ -2229,7 +2228,7 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio0	= 0x0400,	/* pin 2 = 0 */
 			.gpio1	= 0x6060,	/* pin 13 = 1, pin 14 = 1 */
 			.gpio2	= 0x0000,
-		}},
+		} },
 		.radio = {
 			.type	= CX88_RADIO,
 			.gpio0	= 0x0400,	/* pin 2 = 0 */
@@ -2252,7 +2251,7 @@ static const struct cx88_board cx88_boards[] = {
 		 *  14: 0: FM radio
 		 *  16: 0: RF input is cable
 		 */
-		.input		= {{
+		.input		= { {
 			.type	= CX88_VMUX_TELEVISION,
 			.vmux	= 0,
 			.gpio0	= 0x0403,
@@ -2280,7 +2279,7 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio1	= 0xF0F7,
 			.gpio2	= 0x0101,
 			.gpio3	= 0x0000,
-		}},
+		} },
 		.radio = {
 			.type	= CX88_RADIO,
 			.gpio0	= 0x0403,
@@ -2304,11 +2303,11 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_TWINHAN_VP1027_DVBS] = {
 		.name		= "Twinhan VP-1027 DVB-S",
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.input          = {{
+		.input          = { {
 		       .type   = CX88_VMUX_DVB,
 		       .vmux   = 0,
 		} },
@@ -2324,19 +2323,19 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x3400,
 		.card      = CX88_BOARD_HAUPPAUGE,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x3401,
 		.card      = CX88_BOARD_HAUPPAUGE,
-	},{
+	}, {
 		.subvendor = 0x14c7,
 		.subdevice = 0x0106,
 		.card      = CX88_BOARD_GDI,
-	},{
+	}, {
 		.subvendor = 0x14c7,
 		.subdevice = 0x0107, /* with mpeg encoder */
 		.card      = CX88_BOARD_GDI,
-	},{
+	}, {
 		.subvendor = PCI_VENDOR_ID_ATI,
 		.subdevice = 0x00f8,
 		.card      = CX88_BOARD_ATI_WONDER_PRO,
@@ -2348,176 +2347,176 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x107d,
 		.subdevice = 0x6611,
 		.card      = CX88_BOARD_WINFAST2000XP_EXPERT,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x6613,	/* NTSC */
 		.card      = CX88_BOARD_WINFAST2000XP_EXPERT,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x6620,
 		.card      = CX88_BOARD_WINFAST_DV2000,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x663b,
 		.card      = CX88_BOARD_LEADTEK_PVR2000,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x663c,
 		.card      = CX88_BOARD_LEADTEK_PVR2000,
-	},{
+	}, {
 		.subvendor = 0x1461,
 		.subdevice = 0x000b,
 		.card      = CX88_BOARD_AVERTV_STUDIO_303,
-	},{
+	}, {
 		.subvendor = 0x1462,
 		.subdevice = 0x8606,
 		.card      = CX88_BOARD_MSI_TVANYWHERE_MASTER,
-	},{
+	}, {
 		.subvendor = 0x10fc,
 		.subdevice = 0xd003,
 		.card      = CX88_BOARD_IODATA_GVVCP3PCI,
-	},{
+	}, {
 		.subvendor = 0x1043,
 		.subdevice = 0x4823,  /* with mpeg encoder */
 		.card      = CX88_BOARD_ASUS_PVR_416,
-	},{
+	}, {
 		.subvendor = 0x17de,
 		.subdevice = 0x08a6,
 		.card      = CX88_BOARD_KWORLD_DVB_T,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd810,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd820,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb00,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9002,
 		.card      = CX88_BOARD_HAUPPAUGE_DVB_T1,
-	},{
+	}, {
 		.subvendor = 0x14f1,
 		.subdevice = 0x0187,
 		.card      = CX88_BOARD_CONEXANT_DVB_T1,
-	},{
+	}, {
 		.subvendor = 0x1540,
 		.subdevice = 0x2580,
 		.card      = CX88_BOARD_PROVIDEO_PV259,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb10,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS,
-	},{
+	}, {
 		.subvendor = 0x1554,
 		.subdevice = 0x4811,
 		.card      = CX88_BOARD_PIXELVIEW,
-	},{
+	}, {
 		.subvendor = 0x7063,
 		.subdevice = 0x3000, /* HD-3000 card */
 		.card      = CX88_BOARD_PCHDTV_HD3000,
-	},{
+	}, {
 		.subvendor = 0x17de,
 		.subdevice = 0xa8a6,
 		.card      = CX88_BOARD_DNTV_LIVE_DVB_T,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x2801,
 		.card      = CX88_BOARD_HAUPPAUGE_ROSLYN,
-	},{
+	}, {
 		.subvendor = 0x14f1,
 		.subdevice = 0x0342,
 		.card      = CX88_BOARD_DIGITALLOGIC_MEC,
-	},{
+	}, {
 		.subvendor = 0x10fc,
 		.subdevice = 0xd035,
 		.card      = CX88_BOARD_IODATA_GVBCTV7E,
-	},{
+	}, {
 		.subvendor = 0x1421,
 		.subdevice = 0x0334,
 		.card      = CX88_BOARD_ADSTECH_DVB_T_PCI,
-	},{
+	}, {
 		.subvendor = 0x153b,
 		.subdevice = 0x1166,
 		.card      = CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd500,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD,
-	},{
+	}, {
 		.subvendor = 0x1461,
 		.subdevice = 0x8011,
 		.card      = CX88_BOARD_AVERMEDIA_ULTRATV_MC_550,
-	},{
+	}, {
 		.subvendor = PCI_VENDOR_ID_ATI,
 		.subdevice = 0xa101,
 		.card      = CX88_BOARD_ATI_HDTVWONDER,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x665f,
 		.card      = CX88_BOARD_WINFAST_DTV1000,
-	},{
+	}, {
 		.subvendor = 0x1461,
 		.subdevice = 0x000a,
 		.card      = CX88_BOARD_AVERTV_303,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9200,
 		.card      = CX88_BOARD_HAUPPAUGE_NOVASE2_S1,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9201,
 		.card      = CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9202,
 		.card      = CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1,
-	},{
+	}, {
 		.subvendor = 0x17de,
 		.subdevice = 0x08b2,
 		.card      = CX88_BOARD_KWORLD_DVBS_100,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9400,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1100,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9402,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1100,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9800,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1100LP,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9802,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1100LP,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9001,
 		.card      = CX88_BOARD_HAUPPAUGE_DVB_T1,
-	},{
+	}, {
 		.subvendor = 0x1822,
 		.subdevice = 0x0025,
 		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
-	},{
+	}, {
 		.subvendor = 0x17de,
 		.subdevice = 0x08a1,
 		.card      = CX88_BOARD_KWORLD_DVB_T_CX22702,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb50,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb54,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL,
 		/* Re-branded DViCO: DigitalNow DVB-T Dual */
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb11,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS,
@@ -2530,55 +2529,55 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x17de,
 		.subdevice = 0x0840,
 		.card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
-	},{
+	}, {
 		.subvendor = 0x1421,
 		.subdevice = 0x0305,
 		.card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb40,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb44,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID,
-	},{
+	}, {
 		.subvendor = 0x7063,
 		.subdevice = 0x5500,
 		.card      = CX88_BOARD_PCHDTV_HD5500,
-	},{
+	}, {
 		.subvendor = 0x17de,
 		.subdevice = 0x0841,
 		.card      = CX88_BOARD_KWORLD_MCE200_DELUXE,
-	},{
+	}, {
 		.subvendor = 0x1822,
 		.subdevice = 0x0019,
 		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
-	},{
+	}, {
 		.subvendor = 0x1554,
 		.subdevice = 0x4813,
 		.card      = CX88_BOARD_PIXELVIEW_PLAYTV_P7000,
-	},{
+	}, {
 		.subvendor = 0x14f1,
 		.subdevice = 0x0842,
 		.card      = CX88_BOARD_NPGTECH_REALTV_TOP10FM,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x665e,
 		.card      = CX88_BOARD_WINFAST_DTV2000H,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x6f2b,
 		.card      = CX88_BOARD_WINFAST_DTV2000H_J,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd800, /* FusionHDTV 3 Gold (original revision) */
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q,
-	},{
+	}, {
 		.subvendor = 0x14f1,
 		.subdevice = 0x0084,
 		.card      = CX88_BOARD_GENIATECH_DVBS,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x1404,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
@@ -2590,60 +2589,60 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdccd,
 		.card      = CX88_BOARD_SAMSUNG_SMT_7020,
-	},{
+	}, {
 		.subvendor = 0x1461,
 		.subdevice = 0xc111, /* AverMedia M150-D */
 		/* This board is known to work with the ASUS PVR416 config */
 		.card      = CX88_BOARD_ASUS_PVR_416,
-	},{
+	}, {
 		.subvendor = 0xc180,
 		.subdevice = 0xc980,
 		.card      = CX88_BOARD_TE_DTV_250_OEM_SWANN,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9600,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1300,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9601,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1300,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9602,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1300,
-	},{
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x6632,
 		.card      = CX88_BOARD_LEADTEK_PVR2000,
-	},{
+	}, {
 		.subvendor = 0x12ab,
 		.subdevice = 0x2300, /* Club3D Zap TV2100 */
 		.card      = CX88_BOARD_KWORLD_DVB_T_CX22702,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x9000,
 		.card      = CX88_BOARD_HAUPPAUGE_DVB_T1,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x1400,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x1401,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
-	},{
+	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x1402,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
-	},{
+	}, {
 		.subvendor = 0x1421,
 		.subdevice = 0x0341, /* ADS Tech InstantTV DVB-S */
 		.card      = CX88_BOARD_KWORLD_DVBS_100,
-	},{
+	}, {
 		.subvendor = 0x1421,
 		.subdevice = 0x0390,
 		.card      = CX88_BOARD_ADSTECH_PTV_390,
-	},{
+	}, {
 		.subvendor = 0x11bd,
 		.subdevice = 0x0051,
 		.card      = CX88_BOARD_PINNACLE_PCTV_HD_800i,
@@ -2821,15 +2820,15 @@ static const struct cx88_subid cx88_subids[] = {
 	},
 };
 
-/* ----------------------------------------------------------------------- */
-/* some leadtek specific stuff                                             */
-
+/*
+ * some leadtek specific stuff
+ */
 static void leadtek_eeprom(struct cx88_core *core, u8 *eeprom_data)
 {
 	if (eeprom_data[4] != 0x7d ||
 	    eeprom_data[5] != 0x10 ||
 	    eeprom_data[7] != 0x66) {
-		warn_printk(core, "Leadtek eeprom invalid.\n");
+		pr_warn("Leadtek eeprom invalid.\n");
 		return;
 	}
 
@@ -2847,24 +2846,22 @@ static void leadtek_eeprom(struct cx88_core *core, u8 *eeprom_data)
 		break;
 	}
 
-	info_printk(core, "Leadtek Winfast 2000XP Expert config: "
-		    "tuner=%d, eeprom[0]=0x%02x\n",
-		    core->board.tuner_type, eeprom_data[0]);
+	pr_info("Leadtek Winfast 2000XP Expert config: tuner=%d, eeprom[0]=0x%02x\n",
+		core->board.tuner_type, eeprom_data[0]);
 }
 
 static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	tveeprom_hauppauge_analog(&core->i2c_client, &tv, eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 	core->board.tuner_type = tv.tuner_type;
 	core->tuner_formats = tv.tuner_formats;
 	core->board.radio.type = tv.has_radio ? CX88_RADIO : 0;
 	core->model = tv.model;
 
 	/* Make sure we support the board model */
-	switch (tv.model)
-	{
+	switch (tv.model) {
 	case 14009: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in) */
 	case 14019: /* WinTV-HVR3000 (Retail, IR Blaster, b/panel video, 3.5mm audio in) */
 	case 14029: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in - 880 bridge) */
@@ -2905,50 +2902,50 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 		cx_set(MO_GP0_IO, 0x008989FF);
 		break;
 	default:
-		warn_printk(core, "warning: unknown hauppauge model #%d\n",
-			    tv.model);
+		pr_warn("warning: unknown hauppauge model #%d\n", tv.model);
 		break;
 	}
 
-	info_printk(core, "hauppauge eeprom: model=%d\n", tv.model);
+	pr_info("hauppauge eeprom: model=%d\n", tv.model);
 }
 
-/* ----------------------------------------------------------------------- */
-/* some GDI (was: Modular Technology) specific stuff                       */
+/*
+ * some GDI (was: Modular Technology) specific stuff
+ */
 
 static const struct {
 	int  id;
 	int  fm;
 	const char *name;
 } gdi_tuner[] = {
-	[ 0x01 ] = { .id   = TUNER_ABSENT,
-		     .name = "NTSC_M" },
-	[ 0x02 ] = { .id   = TUNER_ABSENT,
-		     .name = "PAL_B" },
-	[ 0x03 ] = { .id   = TUNER_ABSENT,
-		     .name = "PAL_I" },
-	[ 0x04 ] = { .id   = TUNER_ABSENT,
-		     .name = "PAL_D" },
-	[ 0x05 ] = { .id   = TUNER_ABSENT,
-		     .name = "SECAM" },
+	[0x01] = { .id   = UNSET,
+		   .name = "NTSC_M" },
+	[0x02] = { .id   = UNSET,
+		   .name = "PAL_B" },
+	[0x03] = { .id   = UNSET,
+		   .name = "PAL_I" },
+	[0x04] = { .id   = UNSET,
+		   .name = "PAL_D" },
+	[0x05] = { .id   = UNSET,
+		   .name = "SECAM" },
 
-	[ 0x10 ] = { .id   = TUNER_ABSENT,
-		     .fm   = 1,
-		     .name = "TEMIC_4049" },
-	[ 0x11 ] = { .id   = TUNER_TEMIC_4136FY5,
-		     .name = "TEMIC_4136" },
-	[ 0x12 ] = { .id   = TUNER_ABSENT,
-		     .name = "TEMIC_4146" },
+	[0x10] = { .id   = UNSET,
+		   .fm   = 1,
+		   .name = "TEMIC_4049" },
+	[0x11] = { .id   = TUNER_TEMIC_4136FY5,
+		   .name = "TEMIC_4136" },
+	[0x12] = { .id   = UNSET,
+		   .name = "TEMIC_4146" },
 
-	[ 0x20 ] = { .id   = TUNER_PHILIPS_FQ1216ME,
-		     .fm   = 1,
-		     .name = "PHILIPS_FQ1216_MK3" },
-	[ 0x21 ] = { .id   = TUNER_ABSENT, .fm = 1,
-		     .name = "PHILIPS_FQ1236_MK3" },
-	[ 0x22 ] = { .id   = TUNER_ABSENT,
-		     .name = "PHILIPS_FI1236_MK3" },
-	[ 0x23 ] = { .id   = TUNER_ABSENT,
-		     .name = "PHILIPS_FI1216_MK3" },
+	[0x20] = { .id   = TUNER_PHILIPS_FQ1216ME,
+		   .fm   = 1,
+		   .name = "PHILIPS_FQ1216_MK3" },
+	[0x21] = { .id   = UNSET, .fm = 1,
+		   .name = "PHILIPS_FQ1236_MK3" },
+	[0x22] = { .id   = UNSET,
+		   .name = "PHILIPS_FI1236_MK3" },
+	[0x23] = { .id   = UNSET,
+		   .name = "PHILIPS_FI1216_MK3" },
 };
 
 static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
@@ -2956,16 +2953,17 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	const char *name = (eeprom_data[0x0d] < ARRAY_SIZE(gdi_tuner))
 		? gdi_tuner[eeprom_data[0x0d]].name : NULL;
 
-	info_printk(core, "GDI: tuner=%s\n", name ? name : "unknown");
-	if (NULL == name)
+	pr_info("GDI: tuner=%s\n", name ? name : "unknown");
+	if (!name)
 		return;
 	core->board.tuner_type = gdi_tuner[eeprom_data[0x0d]].id;
 	core->board.radio.type = gdi_tuner[eeprom_data[0x0d]].fm ?
 		CX88_RADIO : 0;
 }
 
-/* ------------------------------------------------------------------- */
-/* some Divco specific stuff                                           */
+/*
+ * some Divco specific stuff
+ */
 static int cx88_dvico_xc2028_callback(struct cx88_core *core,
 				      int command, int arg)
 {
@@ -2994,9 +2992,9 @@ static int cx88_dvico_xc2028_callback(struct cx88_core *core,
 	return 0;
 }
 
-
-/* ----------------------------------------------------------------------- */
-/* some Geniatech specific stuff                                           */
+/*
+ * some Geniatech specific stuff
+ */
 
 static int cx88_xc3028_geniatech_tuner_callback(struct cx88_core *core,
 						int command, int mode)
@@ -3059,8 +3057,9 @@ static int cx88_xc4000_winfast2000h_plus_callback(struct cx88_core *core,
 	return -EINVAL;
 }
 
-/* ------------------------------------------------------------------- */
-/* some Divco specific stuff                                           */
+/*
+ * some Divco specific stuff
+ */
 static int cx88_pv_8000gt_callback(struct cx88_core *core,
 				   int command, int arg)
 {
@@ -3079,8 +3078,9 @@ static int cx88_pv_8000gt_callback(struct cx88_core *core,
 	return 0;
 }
 
-/* ----------------------------------------------------------------------- */
-/* some DViCO specific stuff                                               */
+/*
+ * some DViCO specific stuff
+ */
 
 static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 {
@@ -3107,8 +3107,8 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 		msg.len = (i != 12 ? 5 : 2);
 		err = i2c_transfer(&core->i2c_adap, &msg, 1);
 		if (err != 1) {
-			warn_printk(core, "dvico_fusionhdtv_hybrid_init buf %d "
-					  "failed (err = %d)!\n", i, err);
+			pr_warn("dvico_fusionhdtv_hybrid_init buf %d failed (err = %d)!\n",
+				i, err);
 			return;
 		}
 	}
@@ -3176,11 +3176,11 @@ static int cx88_xc4000_tuner_callback(struct cx88_core *core,
 	return -EINVAL;
 }
 
-/* ----------------------------------------------------------------------- */
-/* Tuner callback function. Currently only needed for the Pinnacle 	   *
- * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
- * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)    */
-
+/*
+ * Tuner callback function. Currently only needed for the Pinnacle
+ * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both
+ * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)
+ */
 static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 				      int command, int arg)
 {
@@ -3188,38 +3188,38 @@ static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		if (command == 0) { /* This is the reset command from xc5000 */
 
-			/* djh - According to the engineer at PCTV Systems,
-			   the xc5000 reset pin is supposed to be on GPIO12.
-			   However, despite three nights of effort, pulling
-			   that GPIO low didn't reset the xc5000.  While
-			   pulling MO_SRST_IO low does reset the xc5000, this
-			   also resets in the s5h1409 being reset as well.
-			   This causes tuning to always fail since the internal
-			   state of the s5h1409 does not match the driver's
-			   state.  Given that the only two conditions in which
-			   the driver performs a reset is during firmware load
-			   and powering down the chip, I am taking out the
-			   reset.  We know that the chip is being reset
-			   when the cx88 comes online, and not being able to
-			   do power management for this board is worse than
-			   not having any tuning at all. */
+			/*
+			 * djh - According to the engineer at PCTV Systems,
+			 * the xc5000 reset pin is supposed to be on GPIO12.
+			 * However, despite three nights of effort, pulling
+			 * that GPIO low didn't reset the xc5000.  While
+			 * pulling MO_SRST_IO low does reset the xc5000, this
+			 * also resets in the s5h1409 being reset as well.
+			 * This causes tuning to always fail since the internal
+			 * state of the s5h1409 does not match the driver's
+			 * state.  Given that the only two conditions in which
+			 * the driver performs a reset is during firmware load
+			 * and powering down the chip, I am taking out the
+			 * reset.  We know that the chip is being reset
+			 * when the cx88 comes online, and not being able to
+			 * do power management for this board is worse than
+			 * not having any tuning at all.
+			 */
 			return 0;
-		} else {
-			dprintk(1, "xc5000: unknown tuner callback command.\n");
-			return -EINVAL;
 		}
-		break;
+
+		dprintk(1, "xc5000: unknown tuner callback command.\n");
+		return -EINVAL;
 	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
 		if (command == 0) { /* This is the reset command from xc5000 */
 			cx_clear(MO_GP0_IO, 0x00000010);
-			msleep(10);
+			usleep_range(10000, 20000);
 			cx_set(MO_GP0_IO, 0x00000010);
 			return 0;
-		} else {
-			dprintk(1, "xc5000: unknown tuner callback command.\n");
-			return -EINVAL;
 		}
-		break;
+
+		dprintk(1, "xc5000: unknown tuner callback command.\n");
+		return -EINVAL;
 	}
 	return 0; /* Should never be here */
 }
@@ -3230,14 +3230,14 @@ int cx88_tuner_callback(void *priv, int component, int command, int arg)
 	struct cx88_core *core;
 
 	if (!i2c_algo) {
-		printk(KERN_ERR "cx88: Error - i2c private data undefined.\n");
+		pr_err("Error - i2c private data undefined.\n");
 		return -EINVAL;
 	}
 
 	core = i2c_algo->data;
 
 	if (!core) {
-		printk(KERN_ERR "cx88: Error - device struct undefined.\n");
+		pr_err("Error - device struct undefined.\n");
 		return -EINVAL;
 	}
 
@@ -3245,18 +3245,18 @@ int cx88_tuner_callback(void *priv, int component, int command, int arg)
 		return -EINVAL;
 
 	switch (core->board.tuner_type) {
-		case TUNER_XC2028:
-			dprintk(1, "Calling XC2028/3028 callback\n");
-			return cx88_xc2028_tuner_callback(core, command, arg);
-		case TUNER_XC4000:
-			dprintk(1, "Calling XC4000 callback\n");
-			return cx88_xc4000_tuner_callback(core, command, arg);
-		case TUNER_XC5000:
-			dprintk(1, "Calling XC5000 callback\n");
-			return cx88_xc5000_tuner_callback(core, command, arg);
+	case TUNER_XC2028:
+		dprintk(1, "Calling XC2028/3028 callback\n");
+		return cx88_xc2028_tuner_callback(core, command, arg);
+	case TUNER_XC4000:
+		dprintk(1, "Calling XC4000 callback\n");
+		return cx88_xc4000_tuner_callback(core, command, arg);
+	case TUNER_XC5000:
+		dprintk(1, "Calling XC5000 callback\n");
+		return cx88_xc5000_tuner_callback(core, command, arg);
 	}
-	err_printk(core, "Error: Calling callback for tuner %d\n",
-		   core->board.tuner_type);
+	pr_err("Error: Calling callback for tuner %d\n",
+	       core->board.tuner_type);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(cx88_tuner_callback);
@@ -3267,28 +3267,20 @@ static void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 {
 	int i;
 
-	if (0 == pci->subsystem_vendor &&
-	    0 == pci->subsystem_device) {
-		printk(KERN_ERR
-		       "%s: Your board has no valid PCI Subsystem ID and thus can't\n"
-		       "%s: be autodetected.  Please pass card=<n> insmod option to\n"
-		       "%s: workaround that.  Redirect complaints to the vendor of\n"
-		       "%s: the TV card.  Best regards,\n"
-		       "%s:         -- tux\n",
-		       core->name,core->name,core->name,core->name,core->name);
+	if (!pci->subsystem_vendor && !pci->subsystem_device) {
+		pr_err("Your board has no valid PCI Subsystem ID and thus can't\n");
+		pr_err("be autodetected.  Please pass card=<n> insmod option to\n");
+		pr_err("workaround that.  Redirect complaints to the vendor of\n");
+		pr_err("the TV card\n");
 	} else {
-		printk(KERN_ERR
-		       "%s: Your board isn't known (yet) to the driver.  You can\n"
-		       "%s: try to pick one of the existing card configs via\n"
-		       "%s: card=<n> insmod option.  Updating to the latest\n"
-		       "%s: version might help as well.\n",
-		       core->name,core->name,core->name,core->name);
+		pr_err("Your board isn't known (yet) to the driver.  You can\n");
+		pr_err("try to pick one of the existing card configs via\n");
+		pr_err("card=<n> insmod option.  Updating to the latest\n");
+		pr_err("version might help as well.\n");
 	}
-	err_printk(core, "Here is a list of valid choices for the card=<n> "
-		   "insmod option:\n");
+	pr_err("Here is a list of valid choices for the card=<n> insmod option:\n");
 	for (i = 0; i < ARRAY_SIZE(cx88_boards); i++)
-		printk(KERN_ERR "%s:    card=%d -> %s\n",
-		       core->name, i, cx88_boards[i].name);
+		pr_err("    card=%d -> %s\n", i, cx88_boards[i].name);
 }
 
 static void cx88_card_setup_pre_i2c(struct cx88_core *core)
@@ -3296,7 +3288,9 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/*
-		 * Bring the 702 demod up before i2c scanning/attach or devices are hidden
+		 * Bring the 702 demod up before i2c scanning/attach or
+		 * devices are hidden.
+		 *
 		 * We leave here with the 702 on the bus
 		 *
 		 * "reset the IR receiver on GPIO[3]"
@@ -3317,7 +3311,7 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		cx_write(MO_GP2_IO, 0xef5);
 		mdelay(50);
 		cx_write(MO_GP2_IO, 0xcf7);
-		msleep(10);
+		usleep_range(10000, 20000);
 		break;
 
 	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
@@ -3353,7 +3347,7 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 	case CX88_BOARD_TWINHAN_VP1027_DVBS:
 		cx_write(MO_GP0_IO, 0x00003230);
 		cx_write(MO_GP0_IO, 0x00003210);
-		msleep(1);
+		usleep_range(10000, 20000);
 		cx_write(MO_GP0_IO, 0x00001230);
 		break;
 	}
@@ -3384,11 +3378,13 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_OREN538;
 		break;
 	case CX88_BOARD_GENIATECH_X8000_MT:
-		/* FIXME: For this board, the xc3028 never recovers after being
-		   powered down (the reset GPIO probably is not set properly).
-		   We don't have access to the hardware so we cannot determine
-		   which GPIO is used for xc3028, so just disable power xc3028
-		   power management for now */
+		/*
+		 * FIXME: For this board, the xc3028 never recovers after being
+		 * powered down (the reset GPIO probably is not set properly).
+		 * We don't have access to the hardware so we cannot determine
+		 * which GPIO is used for xc3028, so just disable power xc3028
+		 * power management for now
+		 */
 		ctl->disable_power_mgmt = 1;
 		break;
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
@@ -3418,7 +3414,7 @@ static void cx88_card_setup(struct cx88_core *core)
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 
-	if (0 == core->i2c_rc) {
+	if (!core->i2c_rc) {
 		core->i2c_client.addr = 0xa0 >> 1;
 		tveeprom_read(&core->i2c_client, eeprom, sizeof(eeprom));
 	}
@@ -3426,17 +3422,17 @@ static void cx88_card_setup(struct cx88_core *core)
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_ROSLYN:
-		if (0 == core->i2c_rc)
-			hauppauge_eeprom(core, eeprom+8);
+		if (!core->i2c_rc)
+			hauppauge_eeprom(core, eeprom + 8);
 		break;
 	case CX88_BOARD_GDI:
-		if (0 == core->i2c_rc)
+		if (!core->i2c_rc)
 			gdi_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_LEADTEK_PVR2000:
 	case CX88_BOARD_WINFAST_DV2000:
 	case CX88_BOARD_WINFAST2000XP_EXPERT:
-		if (0 == core->i2c_rc)
+		if (!core->i2c_rc)
 			leadtek_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
@@ -3449,7 +3445,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
 	case CX88_BOARD_HAUPPAUGE_IRONLY:
-		if (0 == core->i2c_rc)
+		if (!core->i2c_rc)
 			hauppauge_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_KWORLD_DVBS_100:
@@ -3460,7 +3456,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		/* GPIO0:0 is hooked to demod reset */
 		/* GPIO0:4 is hooked to xc3028 reset */
 		cx_write(MO_GP0_IO, 0x00111100);
-		msleep(1);
+		usleep_range(10000, 20000);
 		cx_write(MO_GP0_IO, 0x00111111);
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
@@ -3476,9 +3472,9 @@ static void cx88_card_setup(struct cx88_core *core)
 		/* GPIO0:0 is hooked to mt352 reset pin */
 		cx_set(MO_GP0_IO, 0x00000101);
 		cx_clear(MO_GP0_IO, 0x00000001);
-		msleep(1);
+		usleep_range(10000, 20000);
 		cx_set(MO_GP0_IO, 0x00000101);
-		if (0 == core->i2c_rc &&
+		if (!core->i2c_rc &&
 		    core->boardnr == CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID)
 			dvico_fusionhdtv_hybrid_init(core);
 		break;
@@ -3487,7 +3483,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx_set(MO_GP0_IO, 0x00000707);
 		cx_set(MO_GP2_IO, 0x00000101);
 		cx_clear(MO_GP2_IO, 0x00000001);
-		msleep(1);
+		usleep_range(10000, 20000);
 		cx_clear(MO_GP0_IO, 0x00000007);
 		cx_set(MO_GP2_IO, 0x00000101);
 		break;
@@ -3495,23 +3491,23 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx_write(MO_GP0_IO, 0x00080808);
 		break;
 	case CX88_BOARD_ATI_HDTVWONDER:
-		if (0 == core->i2c_rc) {
+		if (!core->i2c_rc) {
 			/* enable tuner */
 			int i;
-			static const u8 buffer [][2] = {
-				{0x10,0x12},
-				{0x13,0x04},
-				{0x16,0x00},
-				{0x14,0x04},
-				{0x17,0x00}
+			static const u8 buffer[][2] = {
+				{0x10, 0x12},
+				{0x13, 0x04},
+				{0x16, 0x00},
+				{0x14, 0x04},
+				{0x17, 0x00}
 			};
 			core->i2c_client.addr = 0x0a;
 
 			for (i = 0; i < ARRAY_SIZE(buffer); i++)
-				if (2 != i2c_master_send(&core->i2c_client,
-							buffer[i],2))
-					warn_printk(core, "Unable to enable "
-						    "tuner(%i).\n", i);
+				if (i2c_master_send(&core->i2c_client,
+						    buffer[i], 2) != 2)
+					pr_warn("Unable to enable tuner(%i).\n",
+						i);
 		}
 		break;
 	case CX88_BOARD_MSI_TVANYWHERE_MASTER:
@@ -3545,7 +3541,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx_write(MO_GP0_IO, 0x8000);
 		msleep(100);
 		cx_write(MO_SRST_IO, 0);
-		msleep(10);
+		usleep_range(10000, 20000);
 		cx_write(MO_GP0_IO, 0x8080);
 		msleep(100);
 		cx_write(MO_SRST_IO, 1);
@@ -3553,9 +3549,8 @@ static void cx88_card_setup(struct cx88_core *core)
 		break;
 	} /*end switch() */
 
-
 	/* Setup tuners */
-	if ((core->board.radio_type != UNSET)) {
+	if (core->board.radio_type != UNSET) {
 		tun_setup.mode_mask      = T_RADIO;
 		tun_setup.type           = core->board.radio_type;
 		tun_setup.addr           = core->board.radio_addr;
@@ -3564,7 +3559,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		mode_mask &= ~T_RADIO;
 	}
 
-	if (core->board.tuner_type != TUNER_ABSENT) {
+	if (core->board.tuner_type != UNSET) {
 		tun_setup.mode_mask      = mode_mask;
 		tun_setup.type           = core->board.tuner_type;
 		tun_setup.addr           = core->board.tuner_addr;
@@ -3610,35 +3605,30 @@ static int cx88_pci_quirks(const char *name, struct pci_dev *pci)
 
 	/* check pci quirks */
 	if (pci_pci_problems & PCIPCI_TRITON) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_TRITON -- set TBFX\n",
-		       name);
+		pr_info("quirk: PCIPCI_TRITON -- set TBFX\n");
 		ctrl |= CX88X_EN_TBFX;
 	}
 	if (pci_pci_problems & PCIPCI_NATOMA) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_NATOMA -- set TBFX\n",
-		       name);
+		pr_info("quirk: PCIPCI_NATOMA -- set TBFX\n");
 		ctrl |= CX88X_EN_TBFX;
 	}
 	if (pci_pci_problems & PCIPCI_VIAETBF) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_VIAETBF -- set TBFX\n",
-		       name);
+		pr_info("quirk: PCIPCI_VIAETBF -- set TBFX\n");
 		ctrl |= CX88X_EN_TBFX;
 	}
 	if (pci_pci_problems & PCIPCI_VSFX) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_VSFX -- set VSFX\n",
-		       name);
+		pr_info("quirk: PCIPCI_VSFX -- set VSFX\n");
 		ctrl |= CX88X_EN_VSFX;
 	}
 #ifdef PCIPCI_ALIMAGIK
 	if (pci_pci_problems & PCIPCI_ALIMAGIK) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_ALIMAGIK -- latency fixup\n",
-		       name);
+		pr_info("quirk: PCIPCI_ALIMAGIK -- latency fixup\n");
 		lat = 0x0A;
 	}
 #endif
 
 	/* check insmod options */
-	if (UNSET != latency)
+	if (latency != UNSET)
 		lat = latency;
 
 	/* apply stuff */
@@ -3647,9 +3637,8 @@ static int cx88_pci_quirks(const char *name, struct pci_dev *pci)
 		value |= ctrl;
 		pci_write_config_byte(pci, CX88X_DEVCTRL, value);
 	}
-	if (UNSET != lat) {
-		printk(KERN_INFO "%s: setting pci latency timer to %d\n",
-		       name, latency);
+	if (lat != UNSET) {
+		pr_info("setting pci latency timer to %d\n", latency);
 		pci_write_config_byte(pci, PCI_LATENCY_TIMER, latency);
 	}
 	return 0;
@@ -3657,30 +3646,31 @@ static int cx88_pci_quirks(const char *name, struct pci_dev *pci)
 
 int cx88_get_resources(const struct cx88_core *core, struct pci_dev *pci)
 {
-	if (request_mem_region(pci_resource_start(pci,0),
-			       pci_resource_len(pci,0),
+	if (request_mem_region(pci_resource_start(pci, 0),
+			       pci_resource_len(pci, 0),
 			       core->name))
 		return 0;
-	printk(KERN_ERR
-	       "%s/%d: Can't get MMIO memory @ 0x%llx, subsystem: %04x:%04x\n",
-	       core->name, PCI_FUNC(pci->devfn),
+	pr_err("func %d: Can't get MMIO memory @ 0x%llx, subsystem: %04x:%04x\n",
+	       PCI_FUNC(pci->devfn),
 	       (unsigned long long)pci_resource_start(pci, 0),
 	       pci->subsystem_vendor, pci->subsystem_device);
 	return -EBUSY;
 }
 
-/* Allocate and initialize the cx88 core struct.  One should hold the
- * devlist mutex before calling this.  */
+/*
+ * Allocate and initialize the cx88 core struct.  One should hold the
+ * devlist mutex before calling this.
+ */
 struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 {
 	struct cx88_core *core;
 	int i;
 
 	core = kzalloc(sizeof(*core), GFP_KERNEL);
-	if (core == NULL)
+	if (!core)
 		return NULL;
 
-	atomic_inc(&core->refcount);
+	refcount_set(&core->refcount, 1);
 	core->pci_bus  = pci->bus->number;
 	core->pci_slot = PCI_SLOT(pci->devfn);
 	core->pci_irqmask = PCI_INT_RISC_RD_BERRINT | PCI_INT_RISC_WR_BERRINT |
@@ -3690,6 +3680,18 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 
 	core->nr = nr;
 	sprintf(core->name, "cx88[%d]", core->nr);
+
+	/*
+	 * Note: Setting initial standard here would cause first call to
+	 * cx88_set_tvnorm() to return without programming any registers.  Leave
+	 * it blank for at this point and it will get set later in
+	 * cx8800_initdev()
+	 */
+	core->tvnorm  = 0;
+
+	core->width   = 320;
+	core->height  = 240;
+	core->field   = V4L2_FIELD_INTERLACED;
 
 	strcpy(core->v4l2_dev.name, core->name);
 	if (v4l2_device_register(NULL, &core->v4l2_dev)) {
@@ -3710,7 +3712,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		return NULL;
 	}
 
-	if (0 != cx88_get_resources(core, pci)) {
+	if (cx88_get_resources(core, pci) != 0) {
 		v4l2_ctrl_handler_free(&core->video_hdl);
 		v4l2_ctrl_handler_free(&core->audio_hdl);
 		v4l2_device_unregister(&core->v4l2_dev);
@@ -3724,9 +3726,9 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 			      pci_resource_len(pci, 0));
 	core->bmmio = (u8 __iomem *)core->lmmio;
 
-	if (core->lmmio == NULL) {
+	if (!core->lmmio) {
 		release_mem_region(pci_resource_start(pci, 0),
-			   pci_resource_len(pci, 0));
+				   pci_resource_len(pci, 0));
 		v4l2_ctrl_handler_free(&core->video_hdl);
 		v4l2_ctrl_handler_free(&core->audio_hdl);
 		v4l2_device_unregister(&core->v4l2_dev);
@@ -3738,11 +3740,11 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	core->boardnr = UNSET;
 	if (card[core->nr] < ARRAY_SIZE(cx88_boards))
 		core->boardnr = card[core->nr];
-	for (i = 0; UNSET == core->boardnr && i < ARRAY_SIZE(cx88_subids); i++)
+	for (i = 0; core->boardnr == UNSET && i < ARRAY_SIZE(cx88_subids); i++)
 		if (pci->subsystem_vendor == cx88_subids[i].subvendor &&
 		    pci->subsystem_device == cx88_subids[i].subdevice)
 			core->boardnr = cx88_subids[i].card;
-	if (UNSET == core->boardnr) {
+	if (core->boardnr == UNSET) {
 		core->boardnr = CX88_BOARD_UNKNOWN;
 		cx88_card_list(core, pci);
 	}
@@ -3752,7 +3754,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	if (!core->board.num_frontends && (core->board.mpeg & CX88_MPEG_DVB))
 		core->board.num_frontends = 1;
 
-	info_printk(core, "subsystem: %04x:%04x, board: %s [card=%d,%s], frontend(s): %d\n",
+	pr_info("subsystem: %04x:%04x, board: %s [card=%d,%s], frontend(s): %d\n",
 		pci->subsystem_vendor, pci->subsystem_device, core->board.name,
 		core->boardnr, card[core->nr] == core->boardnr ?
 		"insmod option" : "autodetected",
@@ -3772,10 +3774,12 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	cx88_i2c_init(core, pci);
 
 	/* load tuner module, if needed */
-	if (TUNER_ABSENT != core->board.tuner_type) {
-		/* Ignore 0x6b and 0x6f on cx88 boards.
+	if (core->board.tuner_type != UNSET) {
+		/*
+		 * Ignore 0x6b and 0x6f on cx88 boards.
 		 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
-		 * and an RTC at 0x6f which can get corrupted if probed. */
+		 * and an RTC at 0x6f which can get corrupted if probed.
+		 */
 		static const unsigned short tv_addrs[] = {
 			0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
 			0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
@@ -3784,24 +3788,27 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		};
 		int has_demod = (core->board.tda9887_conf & TDA9887_PRESENT);
 
-		/* I don't trust the radio_type as is stored in the card
-		   definitions, so we just probe for it.
-		   The radio_type is sometimes missing, or set to UNSET but
-		   later code configures a tea5767.
+		/*
+		 * I don't trust the radio_type as is stored in the card
+		 * definitions, so we just probe for it.
+		 * The radio_type is sometimes missing, or set to UNSET but
+		 * later code configures a tea5767.
 		 */
 		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_RADIO));
+				    "tuner", 0,
+				    v4l2_i2c_tuner_addrs(ADDRS_RADIO));
 		if (has_demod)
 			v4l2_i2c_new_subdev(&core->v4l2_dev,
-				&core->i2c_adap, "tuner",
+					    &core->i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (core->board.tuner_addr == ADDR_UNSET) {
 			v4l2_i2c_new_subdev(&core->v4l2_dev,
-				&core->i2c_adap, "tuner",
+					    &core->i2c_adap, "tuner",
 				0, has_demod ? tv_addrs + 4 : tv_addrs);
 		} else {
 			v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				"tuner", core->board.tuner_addr, NULL);
+					    "tuner", core->board.tuner_addr,
+					    NULL);
 		}
 	}
 

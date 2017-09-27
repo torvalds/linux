@@ -11,11 +11,14 @@
 #include <linux/uaccess.h>
 #include <linux/init.h>
 #include <linux/ftrace.h>
+#include <linux/syscalls.h>
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/cacheflush.h>
+#include <asm/syscall.h>
 #include <asm/uasm.h>
+#include <asm/unistd.h>
 
 #include <asm-generic/sections.h>
 
@@ -35,20 +38,6 @@ void arch_ftrace_update_code(int command)
 
 #endif
 
-/*
- * Check if the address is in kernel space
- *
- * Clone core_kernel_text() from kernel/extable.c, but doesn't call
- * init_kernel_text() for Ftrace doesn't trace functions in init sections.
- */
-static inline int in_kernel_space(unsigned long ip)
-{
-	if (ip >= (unsigned long)_stext &&
-	    ip <= (unsigned long)_etext)
-		return 1;
-	return 0;
-}
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 #define JAL 0x0c000000		/* jump & link: ip --> ra, jump to target */
@@ -60,7 +49,7 @@ static inline int in_kernel_space(unsigned long ip)
 	((unsigned int)(JAL | (((addr) >> 2) & ADDR_MASK)))
 
 static unsigned int insn_jal_ftrace_caller __read_mostly;
-static unsigned int insn_lui_v1_hi16_mcount __read_mostly;
+static unsigned int insn_la_mcount[2] __read_mostly;
 static unsigned int insn_j_ftrace_graph_caller __maybe_unused __read_mostly;
 
 static inline void ftrace_dyn_arch_init_insns(void)
@@ -68,10 +57,10 @@ static inline void ftrace_dyn_arch_init_insns(void)
 	u32 *buf;
 	unsigned int v1;
 
-	/* lui v1, hi16_mcount */
+	/* la v1, _mcount */
 	v1 = 3;
-	buf = (u32 *)&insn_lui_v1_hi16_mcount;
-	UASM_i_LA_mostly(&buf, v1, MCOUNT_ADDR);
+	buf = (u32 *)&insn_la_mcount[0];
+	UASM_i_LA(&buf, v1, MCOUNT_ADDR);
 
 	/* jal (ftrace_caller + 8), jump over the first two instruction */
 	buf = (u32 *)&insn_jal_ftrace_caller;
@@ -87,6 +76,7 @@ static inline void ftrace_dyn_arch_init_insns(void)
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
 	int faulted;
+	mm_segment_t old_fs;
 
 	/* *(unsigned int *)ip = new_code; */
 	safe_store_code(new_code, ip, faulted);
@@ -94,7 +84,10 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 	if (unlikely(faulted))
 		return -EFAULT;
 
+	old_fs = get_fs();
+	set_fs(get_ds());
 	flush_icache_range(ip, ip + 8);
+	set_fs(old_fs);
 
 	return 0;
 }
@@ -104,15 +97,47 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 				unsigned int new_code2)
 {
 	int faulted;
+	mm_segment_t old_fs;
 
 	safe_store_code(new_code1, ip, faulted);
 	if (unlikely(faulted))
 		return -EFAULT;
+
 	ip += 4;
 	safe_store_code(new_code2, ip, faulted);
 	if (unlikely(faulted))
 		return -EFAULT;
-	flush_icache_range(ip, ip + 8); /* original ip + 12 */
+
+	ip -= 4;
+	old_fs = get_fs();
+	set_fs(get_ds());
+	flush_icache_range(ip, ip + 8);
+	set_fs(old_fs);
+
+	return 0;
+}
+
+static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
+				 unsigned int new_code2)
+{
+	int faulted;
+	mm_segment_t old_fs;
+
+	ip += 4;
+	safe_store_code(new_code2, ip, faulted);
+	if (unlikely(faulted))
+		return -EFAULT;
+
+	ip -= 4;
+	safe_store_code(new_code1, ip, faulted);
+	if (unlikely(faulted))
+		return -EFAULT;
+
+	old_fs = get_fs();
+	set_fs(get_ds());
+	flush_icache_range(ip, ip + 8);
+	set_fs(old_fs);
+
 	return 0;
 }
 #endif
@@ -124,13 +149,14 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
  *
  * move at, ra
  * jal _mcount		--> nop
+ *  sub sp, sp, 8	--> nop  (CONFIG_32BIT)
  *
  * 2. For modules:
  *
  * 2.1 For KBUILD_MCOUNT_RA_ADDRESS and CONFIG_32BIT
  *
  * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000005)
- * addiu v1, v1, low_16bit_of_mcount
+ * addiu v1, v1, low_16bit_of_mcount --> nop  (CONFIG_32BIT)
  * move at, ra
  * move $12, ra_address
  * jalr v1
@@ -139,7 +165,7 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
  * 2.2 For the Other situations
  *
  * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000004)
- * addiu v1, v1, low_16bit_of_mcount
+ * addiu v1, v1, low_16bit_of_mcount --> nop  (CONFIG_32BIT)
  * move at, ra
  * jalr v1
  *  nop | move $12, ra_address | sub sp, sp, 8
@@ -158,7 +184,7 @@ int ftrace_make_nop(struct module *mod,
 	 * If ip is in kernel space, no long call, otherwise, long call is
 	 * needed.
 	 */
-	new = in_kernel_space(ip) ? INSN_NOP : INSN_B_1F;
+	new = core_kernel_text(ip) ? INSN_NOP : INSN_B_1F;
 #ifdef CONFIG_64BIT
 	return ftrace_modify_code(ip, new);
 #else
@@ -178,10 +204,14 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned int new;
 	unsigned long ip = rec->ip;
 
-	new = in_kernel_space(ip) ? insn_jal_ftrace_caller :
-		insn_lui_v1_hi16_mcount;
+	new = core_kernel_text(ip) ? insn_jal_ftrace_caller : insn_la_mcount[0];
 
+#ifdef CONFIG_64BIT
 	return ftrace_modify_code(ip, new);
+#else
+	return ftrace_modify_code_2r(ip, new, core_kernel_text(ip) ?
+						INSN_NOP : insn_la_mcount[1]);
+#endif
 }
 
 #define FTRACE_CALL_IP ((unsigned long)(&ftrace_call))
@@ -195,16 +225,13 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(FTRACE_CALL_IP, new);
 }
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
 	/* Encode the instructions when booting */
 	ftrace_dyn_arch_init_insns();
 
 	/* Remove "b ftrace_stub" to ensure ftrace_caller() is executed */
 	ftrace_modify_code(MCOUNT_ADDR, INSN_NOP);
-
-	/* The return code is retured via data */
-	*(unsigned long *)data = 0;
 
 	return 0;
 }
@@ -248,7 +275,7 @@ unsigned long ftrace_get_parent_ra_addr(unsigned long self_ra, unsigned long
 	 * instruction "lui v1, hi_16bit_of_mcount"(offset is 24), but for
 	 * kernel, move after the instruction "move ra, at"(offset is 16)
 	 */
-	ip = self_ra - (in_kernel_space(self_ra) ? 16 : 24);
+	ip = self_ra - (core_kernel_text(self_ra) ? 16 : 24);
 
 	/*
 	 * search the text until finding the non-store instruction or "s{d,w}
@@ -299,6 +326,9 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	    &return_to_handler;
 	int faulted, insns;
 
+	if (unlikely(ftrace_graph_is_dead()))
+		return;
+
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
@@ -338,8 +368,8 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	if (unlikely(faulted))
 		goto out;
 
-	if (ftrace_push_return_trace(old_parent_ra, self_ra, &trace.depth, fp)
-	    == -EBUSY) {
+	if (ftrace_push_return_trace(old_parent_ra, self_ra, &trace.depth, fp,
+				     NULL) == -EBUSY) {
 		*parent_ra_addr = old_parent_ra;
 		return;
 	}
@@ -350,7 +380,7 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	 * entries configured through the tracing/set_graph_function interface.
 	 */
 
-	insns = in_kernel_space(self_ra) ? 2 : MCOUNT_OFFSET_INSNS + 1;
+	insns = core_kernel_text(self_ra) ? 2 : MCOUNT_OFFSET_INSNS + 1;
 	trace.func = self_ra - (MCOUNT_INSN_SIZE * insns);
 
 	/* Only trace if the calling function expects to */
@@ -364,3 +394,33 @@ out:
 	WARN_ON(1);
 }
 #endif	/* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+
+#ifdef CONFIG_32BIT
+unsigned long __init arch_syscall_addr(int nr)
+{
+	return (unsigned long)sys_call_table[nr - __NR_O32_Linux];
+}
+#endif
+
+#ifdef CONFIG_64BIT
+
+unsigned long __init arch_syscall_addr(int nr)
+{
+#ifdef CONFIG_MIPS32_N32
+	if (nr >= __NR_N32_Linux && nr <= __NR_N32_Linux + __NR_N32_Linux_syscalls)
+		return (unsigned long)sysn32_call_table[nr - __NR_N32_Linux];
+#endif
+	if (nr >= __NR_64_Linux  && nr <= __NR_64_Linux + __NR_64_Linux_syscalls)
+		return (unsigned long)sys_call_table[nr - __NR_64_Linux];
+#ifdef CONFIG_MIPS32_O32
+	if (nr >= __NR_O32_Linux && nr <= __NR_O32_Linux + __NR_O32_Linux_syscalls)
+		return (unsigned long)sys32_call_table[nr - __NR_O32_Linux];
+#endif
+
+	return (unsigned long) &sys_ni_syscall;
+}
+#endif
+
+#endif /* CONFIG_FTRACE_SYSCALLS */

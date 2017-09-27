@@ -31,8 +31,8 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
@@ -62,13 +62,15 @@ static void check_hw_pbc(struct _adapter *padapter)
 	r8712_write8(padapter, GPIO_IO_SEL, tmp1byte);
 	tmp1byte = r8712_read8(padapter, GPIO_CTRL);
 	if (tmp1byte == 0xff)
-		return ;
-	if (tmp1byte&HAL_8192S_HW_GPIO_WPS_BIT) {
+		return;
+	if (tmp1byte & HAL_8192S_HW_GPIO_WPS_BIT) {
 		/* Here we only set bPbcPressed to true
-		 * After trigger PBC, the variable will be set to false */
+		 * After trigger PBC, the variable will be set to false
+		 */
 		DBG_8712("CheckPbcGPIO - PBC is pressed !!!!\n");
 		/* 0 is the default value and it means the application monitors
-		 * the HW PBC doesn't provide its pid to driver. */
+		 * the HW PBC doesn't provide its pid to driver.
+		 */
 		if (padapter->pid == 0)
 			return;
 		kill_pid(find_vpid(padapter->pid), SIGUSR1, 1);
@@ -77,13 +79,14 @@ static void check_hw_pbc(struct _adapter *padapter)
 
 /* query rx phy status from fw.
  * Adhoc mode: beacon.
- * Infrastructure mode: beacon , data. */
+ * Infrastructure mode: beacon , data.
+ */
 static void query_fw_rx_phy_status(struct _adapter *padapter)
 {
 	u32 val32 = 0;
 	int pollingcnts = 50;
 
-	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		r8712_write32(padapter, IOCMD_CTRL_REG, 0xf4000001);
 		msleep(100);
 		/* Wait FW complete IO Cmd */
@@ -96,7 +99,7 @@ static void query_fw_rx_phy_status(struct _adapter *padapter)
 			val32 = r8712_read32(padapter, IOCMD_DATA_REG);
 		else /* time out */
 			val32 = 0;
-		val32 = val32 >> 4;
+		val32 >>= 4;
 		padapter->recvpriv.fw_rssi =
 			 (u8)r8712_signal_scale_mapping(val32);
 	}
@@ -133,7 +136,7 @@ static u8 read_macreg_hdl(struct _adapter *padapter, u8 *pbuf)
 
 	/*  invoke cmd->callback function */
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
-	if (pcmd_callback == NULL)
+	if (!pcmd_callback)
 		r8712_free_cmd_obj(pcmd);
 	else
 		pcmd_callback(padapter, pcmd);
@@ -147,7 +150,7 @@ static u8 write_macreg_hdl(struct _adapter *padapter, u8 *pbuf)
 
 	/*  invoke cmd->callback function */
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
-	if (pcmd_callback == NULL)
+	if (!pcmd_callback)
 		r8712_free_cmd_obj(pcmd);
 	else
 		pcmd_callback(padapter, pcmd);
@@ -158,14 +161,12 @@ static u8 read_bbreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	u32 val;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj	*pcmd);
-	struct readBB_parm *prdbbparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	prdbbparm = (struct readBB_parm *)pcmd->parmbuf;
 	if (pcmd->rsp && pcmd->rspsz > 0)
 		memcpy(pcmd->rsp, (u8 *)&val, pcmd->rspsz);
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
-	if (pcmd_callback == NULL)
+	if (!pcmd_callback)
 		r8712_free_cmd_obj(pcmd);
 	else
 		pcmd_callback(padapter, pcmd);
@@ -175,12 +176,10 @@ static u8 read_bbreg_hdl(struct _adapter *padapter, u8 *pbuf)
 static u8 write_bbreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct writeBB_parm *pwritebbparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	pwritebbparm = (struct writeBB_parm *)pcmd->parmbuf;
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
-	if (pcmd_callback == NULL)
+	if (!pcmd_callback)
 		r8712_free_cmd_obj(pcmd);
 	else
 		pcmd_callback(padapter, pcmd);
@@ -191,14 +190,12 @@ static u8 read_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	u32 val;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct readRF_parm *prdrfparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	prdrfparm = (struct readRF_parm *)pcmd->parmbuf;
 	if (pcmd->rsp && pcmd->rspsz > 0)
 		memcpy(pcmd->rsp, (u8 *)&val, pcmd->rspsz);
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
-	if (pcmd_callback == NULL)
+	if (!pcmd_callback)
 		r8712_free_cmd_obj(pcmd);
 	else
 		pcmd_callback(padapter, pcmd);
@@ -208,12 +205,10 @@ static u8 read_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 static u8 write_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct writeRF_parm *pwriterfparm;
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
 
-	pwriterfparm = (struct writeRF_parm *)pcmd->parmbuf;
 	pcmd_callback = cmd_callback[pcmd->cmdcode].callback;
-	if (pcmd_callback == NULL)
+	if (!pcmd_callback)
 		r8712_free_cmd_obj(pcmd);
 	else
 		pcmd_callback(padapter, pcmd);
@@ -223,9 +218,7 @@ static u8 write_rfreg_hdl(struct _adapter *padapter, u8 *pbuf)
 static u8 sys_suspend_hdl(struct _adapter *padapter, u8 *pbuf)
 {
 	struct cmd_obj *pcmd  = (struct cmd_obj *)pbuf;
-	struct usb_suspend_parm *psetusbsuspend;
 
-	psetusbsuspend = (struct usb_suspend_parm *)pcmd->parmbuf;
 	r8712_free_cmd_obj(pcmd);
 	return H2C_SUCCESS;
 }
@@ -235,7 +228,7 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 {
 	struct cmd_obj *pcmd_r;
 
-	if (pcmd == NULL)
+	if (!pcmd)
 		return pcmd;
 	pcmd_r = NULL;
 
@@ -268,12 +261,13 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 		/* Before set JoinBss_CMD to FW, driver must ensure FW is in
 		 * PS_MODE_ACTIVE. Directly write rpwm to radio on and assign
 		 * new pwr_mode to Driver, instead of use workitem to change
-		 * state. */
+		 * state.
+		 */
 		if (padapter->pwrctrlpriv.pwr_mode > PS_MODE_ACTIVE) {
 			padapter->pwrctrlpriv.pwr_mode = PS_MODE_ACTIVE;
-			_enter_pwrlock(&(padapter->pwrctrlpriv.lock));
+			mutex_lock(&padapter->pwrctrlpriv.mutex_lock);
 			r8712_set_rpwm(padapter, PS_STATE_S4);
-			up(&(padapter->pwrctrlpriv.lock));
+			mutex_unlock(&padapter->pwrctrlpriv.mutex_lock);
 		}
 		pcmd_r = pcmd;
 		break;
@@ -291,8 +285,7 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 
 static u8 check_cmd_fifo(struct _adapter *padapter, uint sz)
 {
-	u8 res = _SUCCESS;
-	return res;
+	return _SUCCESS;
 }
 
 u8 r8712_fw_cmd(struct _adapter *pAdapter, u32 cmd)
@@ -301,7 +294,7 @@ u8 r8712_fw_cmd(struct _adapter *pAdapter, u32 cmd)
 
 	r8712_write32(pAdapter, IOCMD_CTRL_REG, cmd);
 	msleep(100);
-	while ((0 != r8712_read32(pAdapter, IOCMD_CTRL_REG)) &&
+	while ((r8712_read32(pAdapter, IOCMD_CTRL_REG != 0)) &&
 	       (pollingcnts > 0)) {
 		pollingcnts--;
 		msleep(20);
@@ -322,18 +315,18 @@ void r8712_fw_cmd_data(struct _adapter *pAdapter, u32 *value, u8 flag)
 int r8712_cmd_thread(void *context)
 {
 	struct cmd_obj *pcmd;
-	unsigned int cmdsz, wr_sz, *pcmdbuf, *prspbuf;
+	unsigned int cmdsz, wr_sz;
+	__le32 *pcmdbuf;
 	struct tx_desc *pdesc;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct _adapter *padapter = (struct _adapter *)context;
+	struct _adapter *padapter = context;
 	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
 
-	thread_enter(padapter);
+	allow_signal(SIGTERM);
 	while (1) {
-		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
+		if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp))
 			break;
-		if ((padapter->bDriverStopped == true) ||
-		    (padapter->bSurpriseRemoved == true))
+		if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 			break;
 		if (r8712_register_cmd_alive(padapter) != _SUCCESS)
 			continue;
@@ -343,19 +336,18 @@ _next:
 			r8712_unregister_cmd_alive(padapter);
 			continue;
 		}
-		pcmdbuf = (unsigned int *)pcmdpriv->cmd_buf;
-		prspbuf = (unsigned int *)pcmdpriv->rsp_buf;
+		pcmdbuf = (__le32 *)pcmdpriv->cmd_buf;
 		pdesc = (struct tx_desc *)pcmdbuf;
 		memset(pdesc, 0, TXDESC_SIZE);
 		pcmd = cmd_hdl_filter(padapter, pcmd);
 		if (pcmd) { /* if pcmd != NULL, cmd will be handled by f/w */
-			struct dvobj_priv *pdvobj = (struct dvobj_priv *)
-						    &padapter->dvobjpriv;
+			struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 			u8 blnPending = 0;
+
 			pcmdpriv->cmd_issued_cnt++;
-			cmdsz = _RND8((pcmd->cmdsz)); /* _RND8	*/
+			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
-			pdesc->txdw0 |= cpu_to_le32((wr_sz-TXDESC_SIZE) &
+			pdesc->txdw0 |= cpu_to_le32((wr_sz - TXDESC_SIZE) &
 						     0x0000ffff);
 			if (pdvobj->ishighspeed) {
 				if ((wr_sz % 512) == 0)
@@ -381,11 +373,11 @@ _next:
 			*pcmdbuf = cpu_to_le32((cmdsz & 0x0000ffff) |
 					       (pcmd->cmdcode << 16) |
 					       (pcmdpriv->cmd_seq << 24));
-			pcmdbuf += 2 ; /* 8 bytes alignment */
+			pcmdbuf += 2; /* 8 bytes alignment */
 			memcpy((u8 *)pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 			while (check_cmd_fifo(padapter, wr_sz) == _FAIL) {
-				if ((padapter->bDriverStopped == true) ||
-				    (padapter->bSurpriseRemoved == true))
+				if (padapter->bDriverStopped ||
+				    padapter->bSurpriseRemoved)
 					break;
 				msleep(100);
 				continue;
@@ -393,7 +385,7 @@ _next:
 			if (blnPending)
 				wr_sz += 8;   /* Append 8 bytes */
 			r8712_write_mem(padapter, RTL8712_DMA_H2CCMD, wr_sz,
-				       (u8 *)pdesc);
+					(u8 *)pdesc);
 			pcmdpriv->cmd_seq++;
 			if (pcmd->cmdcode == GEN_CMD_CODE(_CreateBss)) {
 				pcmd->res = H2C_SUCCESS;
@@ -405,41 +397,43 @@ _next:
 			}
 			if (pcmd->cmdcode == GEN_CMD_CODE(_SetPwrMode)) {
 				if (padapter->pwrctrlpriv.bSleep) {
-					_enter_pwrlock(&(padapter->
-						       pwrctrlpriv.lock));
+					mutex_lock(&padapter->
+						       pwrctrlpriv.mutex_lock);
 					r8712_set_rpwm(padapter, PS_STATE_S2);
-					up(&padapter->pwrctrlpriv.lock);
+					mutex_unlock(&padapter->pwrctrlpriv.mutex_lock);
 				}
 			}
 			r8712_free_cmd_obj(pcmd);
-			if (_queue_empty(&(pcmdpriv->cmd_queue))) {
+			if (list_empty(&pcmdpriv->cmd_queue.queue)) {
 				r8712_unregister_cmd_alive(padapter);
 				continue;
-			} else
+			} else {
 				goto _next;
-		} else
+			}
+		} else {
 			goto _next;
+		}
 		flush_signals_thread();
 	}
 	/* free all cmd_obj resources */
 	do {
 		pcmd = r8712_dequeue_cmd(&(pcmdpriv->cmd_queue));
-		if (pcmd == NULL)
+		if (!pcmd)
 			break;
 		r8712_free_cmd_obj(pcmd);
 	} while (1);
-	up(&pcmdpriv->terminate_cmdthread_sema);
+	complete(&pcmdpriv->terminate_cmdthread_comp);
 	thread_exit();
 }
 
-void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
+void r8712_event_handle(struct _adapter *padapter, __le32 *peventbuf)
 {
 	u8 evt_code, evt_seq;
 	u16 evt_sz;
 	void (*event_callback)(struct _adapter *dev, u8 *pbuf);
 	struct	evt_priv *pevt_priv = &(padapter->evtpriv);
 
-	if (peventbuf == NULL)
+	if (!peventbuf)
 		goto _abort_event_;
 	evt_sz = (u16)(le32_to_cpu(*peventbuf) & 0xffff);
 	evt_seq = (u8)((le32_to_cpu(*peventbuf) >> 24) & 0x7f);
@@ -451,31 +445,30 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	}
 	/* checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT) {
-		pevt_priv->event_seq = ((evt_seq+1) & 0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	} else if ((evt_code == GEN_EVT_CODE(_Survey)) &&
 		   (evt_sz > sizeof(struct wlan_bssid_ex))) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	}
 	/* checking if event size match the event parm size */
 	if ((wlanevents[evt_code].parmsize) &&
 	    (wlanevents[evt_code].parmsize != evt_sz)) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	} else if ((evt_sz == 0) && (evt_code != GEN_EVT_CODE(_WPS_PBC))) {
-		pevt_priv->event_seq = ((evt_seq+1)&0x7f);
+		pevt_priv->event_seq = ((evt_seq + 1) & 0x7f);
 		goto _abort_event_;
 	}
 	pevt_priv->event_seq++;	/* update evt_seq */
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
-	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
-	if (peventbuf) {
-		event_callback = wlanevents[evt_code].event_callback;
-		if (event_callback)
-			event_callback(padapter, (u8 *)peventbuf);
-	}
+	/* move to event content, 8 bytes alignment */
+	peventbuf = peventbuf + 2;
+	event_callback = wlanevents[evt_code].event_callback;
+	if (event_callback)
+		event_callback(padapter, (u8 *)peventbuf);
 	pevt_priv->evt_done_cnt++;
 _abort_event_:
 	return;

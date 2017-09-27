@@ -19,7 +19,7 @@
  *
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -51,16 +51,8 @@ static const size_t snd_minimum_buffer = 16384;
 static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t size)
 {
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
+	size_t orig_size = size;
 	int err;
-
-	/* already reserved? */
-	if (snd_dma_get_reserved_buf(dmab, substream->dma_buf_id) > 0) {
-		if (dmab->bytes >= size)
-			return 0; /* yes */
-		/* no, free the reserved block */
-		snd_dma_free_pages(dmab);
-		dmab->bytes = 0;
-	}
 
 	do {
 		if ((err = snd_dma_alloc_pages(dmab->dev.type, dmab->dev.dev,
@@ -72,6 +64,10 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 		size >>= 1;
 	} while (size >= snd_minimum_buffer);
 	dmab->bytes = 0; /* tell error */
+	pr_warn("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %zu\n",
+		substream->pcm->card->number, substream->pcm->device,
+		substream->stream ? 'c' : 'p', substream->number,
+		substream->pcm->name, orig_size);
 	return 0;
 }
 
@@ -82,10 +78,7 @@ static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream
 {
 	if (substream->dma_buffer.area == NULL)
 		return;
-	if (substream->dma_buf_id)
-		snd_dma_reserve_buf(&substream->dma_buffer, substream->dma_buf_id);
-	else
-		snd_dma_free_pages(&substream->dma_buffer);
+	snd_dma_free_pages(&substream->dma_buffer);
 	substream->dma_buffer.area = NULL;
 }
 
@@ -127,7 +120,6 @@ int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 			snd_pcm_lib_preallocate_free(substream);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_free_for_all);
 
 #ifdef CONFIG_SND_VERBOSE_PROCFS
@@ -260,11 +252,6 @@ static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
  *
  * Do pre-allocation for the given DMA buffer type.
  *
- * When substream->dma_buf_id is set, the function tries to look for
- * the reserved buffer, and the buffer is not freed but reserved at
- * destruction time.  The dma_buf_id must be unique for all systems
- * (in the same DMA buffer type) e.g. using snd_dma_pci_buf_id().
- *
  * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
@@ -275,7 +262,6 @@ int snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 	substream->dma_buffer.dev.dev = data;
 	return snd_pcm_lib_preallocate_pages1(substream, size, max);
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
 
 /**
@@ -304,7 +290,6 @@ int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 				return err;
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
 
 #ifdef CONFIG_SND_DMA_SGBUF
@@ -326,7 +311,6 @@ struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigne
 		return NULL;
 	return sgbuf->page_table[idx];
 }
-
 EXPORT_SYMBOL(snd_pcm_sgbuf_ops_page);
 #endif /* CONFIG_SND_DMA_SGBUF */
 
@@ -382,7 +366,6 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	runtime->dma_bytes = size;
 	return 1;			/* area was changed */
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_malloc_pages);
 
 /**
@@ -410,7 +393,6 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_free_pages);
 
 int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,

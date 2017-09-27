@@ -1,7 +1,7 @@
 /*
  *   Fujitu mb86a20s ISDB-T/ISDB-Tsb Module driver
  *
- *   Copyright (C) 2010-2013 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *   Copyright (C) 2010-2013 Mauro Carvalho Chehab
  *   Copyright (C) 2009-2010 Douglas Landgraf <dougsland@redhat.com>
  *
  *   This program is free software; you can redistribute it and/or
@@ -22,10 +22,6 @@
 
 #define NUM_LAYERS 3
 
-static int debug = 1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
-
 enum mb86a20s_bandwidth {
 	MB86A20S_13SEG = 0,
 	MB86A20S_13SEG_PARTIAL = 1,
@@ -33,7 +29,7 @@ enum mb86a20s_bandwidth {
 	MB86A20S_3SEG = 3,
 };
 
-u8 mb86a20s_subchannel[] = {
+static u8 mb86a20s_subchannel[] = {
 	0xb0, 0xc0, 0xd0, 0xe0,
 	0xf0, 0x00, 0x10, 0x20,
 };
@@ -75,25 +71,27 @@ static struct regdata mb86a20s_init1[] = {
 };
 
 static struct regdata mb86a20s_init2[] = {
-	{ 0x28, 0x22 }, { 0x29, 0x00 }, { 0x2a, 0x1f }, { 0x2b, 0xf0 },
+	{ 0x50, 0xd1 }, { 0x51, 0x22 },
+	{ 0x39, 0x01 },
+	{ 0x71, 0x00 },
 	{ 0x3b, 0x21 },
-	{ 0x3c, 0x38 },
+	{ 0x3c, 0x3a },
 	{ 0x01, 0x0d },
-	{ 0x04, 0x08 }, { 0x05, 0x03 },
+	{ 0x04, 0x08 }, { 0x05, 0x05 },
 	{ 0x04, 0x0e }, { 0x05, 0x00 },
-	{ 0x04, 0x0f }, { 0x05, 0x37 },
-	{ 0x04, 0x0b }, { 0x05, 0x78 },
+	{ 0x04, 0x0f }, { 0x05, 0x14 },
+	{ 0x04, 0x0b }, { 0x05, 0x8c },
 	{ 0x04, 0x00 }, { 0x05, 0x00 },
-	{ 0x04, 0x01 }, { 0x05, 0x1e },
-	{ 0x04, 0x02 }, { 0x05, 0x07 },
-	{ 0x04, 0x03 }, { 0x05, 0xd0 },
+	{ 0x04, 0x01 }, { 0x05, 0x07 },
+	{ 0x04, 0x02 }, { 0x05, 0x0f },
+	{ 0x04, 0x03 }, { 0x05, 0xa0 },
 	{ 0x04, 0x09 }, { 0x05, 0x00 },
 	{ 0x04, 0x0a }, { 0x05, 0xff },
-	{ 0x04, 0x27 }, { 0x05, 0x00 },
+	{ 0x04, 0x27 }, { 0x05, 0x64 },
 	{ 0x04, 0x28 }, { 0x05, 0x00 },
-	{ 0x04, 0x1e }, { 0x05, 0x00 },
-	{ 0x04, 0x29 }, { 0x05, 0x64 },
-	{ 0x04, 0x32 }, { 0x05, 0x02 },
+	{ 0x04, 0x1e }, { 0x05, 0xff },
+	{ 0x04, 0x29 }, { 0x05, 0x0a },
+	{ 0x04, 0x32 }, { 0x05, 0x0a },
 	{ 0x04, 0x14 }, { 0x05, 0x02 },
 	{ 0x04, 0x04 }, { 0x05, 0x00 },
 	{ 0x04, 0x05 }, { 0x05, 0x22 },
@@ -101,8 +99,6 @@ static struct regdata mb86a20s_init2[] = {
 	{ 0x04, 0x07 }, { 0x05, 0xd8 },
 	{ 0x04, 0x12 }, { 0x05, 0x00 },
 	{ 0x04, 0x13 }, { 0x05, 0xff },
-	{ 0x04, 0x15 }, { 0x05, 0x4e },
-	{ 0x04, 0x16 }, { 0x05, 0x20 },
 
 	/*
 	 * On this demod, when the bit count reaches the count below,
@@ -156,43 +152,36 @@ static struct regdata mb86a20s_init2[] = {
 	{ 0x50, 0x51 }, { 0x51, 0x04 },		/* MER symbol 4 */
 	{ 0x45, 0x04 },				/* CN symbol 4 */
 	{ 0x48, 0x04 },				/* CN manual mode */
-
-	{ 0x50, 0xd5 }, { 0x51, 0x01 },		/* Serial */
+	{ 0x50, 0xd5 }, { 0x51, 0x01 },
 	{ 0x50, 0xd6 }, { 0x51, 0x1f },
 	{ 0x50, 0xd2 }, { 0x51, 0x03 },
-	{ 0x50, 0xd7 }, { 0x51, 0xbf },
-	{ 0x28, 0x74 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0xff },
-	{ 0x28, 0x46 }, { 0x29, 0x00 }, { 0x2a, 0x1a }, { 0x2b, 0x0c },
-
-	{ 0x04, 0x40 }, { 0x05, 0x00 },
-	{ 0x28, 0x00 }, { 0x2b, 0x08 },
-	{ 0x28, 0x05 }, { 0x2b, 0x00 },
+	{ 0x50, 0xd7 }, { 0x51, 0x3f },
 	{ 0x1c, 0x01 },
-	{ 0x28, 0x06 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x1f },
-	{ 0x28, 0x07 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x18 },
-	{ 0x28, 0x08 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x12 },
-	{ 0x28, 0x09 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x30 },
-	{ 0x28, 0x0a }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x37 },
-	{ 0x28, 0x0b }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x02 },
-	{ 0x28, 0x0c }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x09 },
-	{ 0x28, 0x0d }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x06 },
-	{ 0x28, 0x0e }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x7b },
-	{ 0x28, 0x0f }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x76 },
-	{ 0x28, 0x10 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x7d },
-	{ 0x28, 0x11 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x08 },
-	{ 0x28, 0x12 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x0b },
-	{ 0x28, 0x13 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x00 },
-	{ 0x28, 0x14 }, { 0x29, 0x00 }, { 0x2a, 0x01 }, { 0x2b, 0xf2 },
-	{ 0x28, 0x15 }, { 0x29, 0x00 }, { 0x2a, 0x01 }, { 0x2b, 0xf3 },
-	{ 0x28, 0x16 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x05 },
-	{ 0x28, 0x17 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x16 },
-	{ 0x28, 0x18 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x0f },
-	{ 0x28, 0x19 }, { 0x29, 0x00 }, { 0x2a, 0x07 }, { 0x2b, 0xef },
-	{ 0x28, 0x1a }, { 0x29, 0x00 }, { 0x2a, 0x07 }, { 0x2b, 0xd8 },
-	{ 0x28, 0x1b }, { 0x29, 0x00 }, { 0x2a, 0x07 }, { 0x2b, 0xf1 },
-	{ 0x28, 0x1c }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x3d },
-	{ 0x28, 0x1d }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x94 },
-	{ 0x28, 0x1e }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0xba },
+	{ 0x28, 0x06 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x03 },
+	{ 0x28, 0x07 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x0d },
+	{ 0x28, 0x08 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x02 },
+	{ 0x28, 0x09 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x01 },
+	{ 0x28, 0x0a }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x21 },
+	{ 0x28, 0x0b }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x29 },
+	{ 0x28, 0x0c }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x16 },
+	{ 0x28, 0x0d }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x31 },
+	{ 0x28, 0x0e }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x0e },
+	{ 0x28, 0x0f }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x4e },
+	{ 0x28, 0x10 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x46 },
+	{ 0x28, 0x11 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x0f },
+	{ 0x28, 0x12 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x56 },
+	{ 0x28, 0x13 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x35 },
+	{ 0x28, 0x14 }, { 0x29, 0x00 }, { 0x2a, 0x01 }, { 0x2b, 0xbe },
+	{ 0x28, 0x15 }, { 0x29, 0x00 }, { 0x2a, 0x01 }, { 0x2b, 0x84 },
+	{ 0x28, 0x16 }, { 0x29, 0x00 }, { 0x2a, 0x03 }, { 0x2b, 0xee },
+	{ 0x28, 0x17 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x98 },
+	{ 0x28, 0x18 }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x9f },
+	{ 0x28, 0x19 }, { 0x29, 0x00 }, { 0x2a, 0x07 }, { 0x2b, 0xb2 },
+	{ 0x28, 0x1a }, { 0x29, 0x00 }, { 0x2a, 0x06 }, { 0x2b, 0xc2 },
+	{ 0x28, 0x1b }, { 0x29, 0x00 }, { 0x2a, 0x07 }, { 0x2b, 0x4a },
+	{ 0x28, 0x1c }, { 0x29, 0x00 }, { 0x2a, 0x01 }, { 0x2b, 0xbc },
+	{ 0x28, 0x1d }, { 0x29, 0x00 }, { 0x2a, 0x04 }, { 0x2b, 0xba },
+	{ 0x28, 0x1e }, { 0x29, 0x00 }, { 0x2a, 0x06 }, { 0x2b, 0x14 },
 	{ 0x50, 0x1e }, { 0x51, 0x5d },
 	{ 0x50, 0x22 }, { 0x51, 0x00 },
 	{ 0x50, 0x23 }, { 0x51, 0xc8 },
@@ -201,9 +190,7 @@ static struct regdata mb86a20s_init2[] = {
 	{ 0x50, 0x26 }, { 0x51, 0x00 },
 	{ 0x50, 0x27 }, { 0x51, 0xc3 },
 	{ 0x50, 0x39 }, { 0x51, 0x02 },
-	{ 0xec, 0x0f },
-	{ 0xeb, 0x1f },
-	{ 0x28, 0x6a }, { 0x29, 0x00 }, { 0x2a, 0x00 }, { 0x2b, 0x00 },
+	{ 0x50, 0xd5 }, { 0x51, 0x01 },
 	{ 0xd0, 0x00 },
 };
 
@@ -299,17 +286,18 @@ static int mb86a20s_i2c_readreg(struct mb86a20s_state *state,
  * The functions below assume that gateway lock has already obtained
  */
 
-static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int mb86a20s_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int val;
 
 	*status = 0;
 
-	val = mb86a20s_readreg(state, 0x0a) & 0xf;
+	val = mb86a20s_readreg(state, 0x0a);
 	if (val < 0)
 		return val;
 
+	val &= 0xf;
 	if (val >= 2)
 		*status |= FE_HAS_SIGNAL;
 
@@ -322,7 +310,11 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (val >= 7)
 		*status |= FE_HAS_SYNC;
 
-	if (val >= 8)				/* Maybe 9? */
+	/*
+	 * Actually, on state S8, it starts receiving TS, but the TS
+	 * output is only on normal state after the transition to S9.
+	 */
+	if (val >= 9)
 		*status |= FE_HAS_LOCK;
 
 	dev_dbg(&state->i2c->dev, "%s: Status = 0x%02x (state = %d)\n",
@@ -460,6 +452,9 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 				     unsigned layer)
 {
 	int rc;
+	int interleaving[] = {
+		0, 1, 2, 4, 8
+	};
 
 	static unsigned char reg[] = {
 		[0] = 0x88,	/* Layer A */
@@ -476,20 +471,7 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 	if (rc < 0)
 		return rc;
 
-	switch ((rc >> 4) & 0x07) {
-	case 1:
-		return GUARD_INTERVAL_1_4;
-	case 2:
-		return GUARD_INTERVAL_1_8;
-	case 3:
-		return GUARD_INTERVAL_1_16;
-	case 4:
-		return GUARD_INTERVAL_1_32;
-
-	default:
-	case 0:
-		return GUARD_INTERVAL_AUTO;
-	}
+	return interleaving[(rc >> 4) & 0x07];
 }
 
 static int mb86a20s_get_segment_count(struct mb86a20s_state *state,
@@ -567,7 +549,7 @@ static u32 isdbt_rate[3][5][4] = {
 
 static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 				   u32 modulation, u32 forward_error_correction,
-				   u32 interleaving,
+				   u32 guard_interval,
 				   u32 segment)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
@@ -575,7 +557,7 @@ static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 	int mod, fec, guard;
 
 	/*
-	 * If modulation/fec/interleaving is not detected, the default is
+	 * If modulation/fec/guard is not detected, the default is
 	 * to consider the lowest bit rate, to avoid taking too long time
 	 * to get BER.
 	 */
@@ -613,7 +595,7 @@ static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 		break;
 	}
 
-	switch (interleaving) {
+	switch (guard_interval) {
 	default:
 	case GUARD_INTERVAL_1_4:
 		guard = 0;
@@ -704,7 +686,7 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 		c->layer[layer].interleaving = rc;
 		mb86a20s_layer_bitrate(fe, layer, c->layer[layer].modulation,
 				       c->layer[layer].fec,
-				       c->layer[layer].interleaving,
+				       c->guard_interval,
 				       c->layer[layer].segment_count);
 	}
 
@@ -722,11 +704,10 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 	rc = mb86a20s_readreg(state, 0x07);
 	if (rc < 0)
 		return rc;
+	c->transmission_mode = TRANSMISSION_MODE_AUTO;
 	if ((rc & 0x60) == 0x20) {
-		switch (rc & 0x0c >> 2) {
-		case 0:
-			c->transmission_mode = TRANSMISSION_MODE_2K;
-			break;
+		/* Only modes 2 and 3 are supported */
+		switch ((rc >> 2) & 0x03) {
 		case 1:
 			c->transmission_mode = TRANSMISSION_MODE_4K;
 			break;
@@ -735,7 +716,9 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 			break;
 		}
 	}
+	c->guard_interval = GUARD_INTERVAL_AUTO;
 	if (!(rc & 0x10)) {
+		/* Guard interval 1/32 is not supported */
 		switch (rc & 0x3) {
 		case 0:
 			c->guard_interval = GUARD_INTERVAL_1_4;
@@ -1238,7 +1221,7 @@ struct linear_segments {
  * All tables below return a dB/1000 measurement
  */
 
-static struct linear_segments cnr_to_db_table[] = {
+static const struct linear_segments cnr_to_db_table[] = {
 	{ 19648,     0},
 	{ 18187,  1000},
 	{ 16534,  2000},
@@ -1272,7 +1255,7 @@ static struct linear_segments cnr_to_db_table[] = {
 	{   788, 30000},
 };
 
-static struct linear_segments cnr_64qam_table[] = {
+static const struct linear_segments cnr_64qam_table[] = {
 	{ 3922688,     0},
 	{ 3920384,  1000},
 	{ 3902720,  2000},
@@ -1306,7 +1289,7 @@ static struct linear_segments cnr_64qam_table[] = {
 	{  388864, 30000},
 };
 
-static struct linear_segments cnr_16qam_table[] = {
+static const struct linear_segments cnr_16qam_table[] = {
 	{ 5314816,     0},
 	{ 5219072,  1000},
 	{ 5118720,  2000},
@@ -1340,7 +1323,7 @@ static struct linear_segments cnr_16qam_table[] = {
 	{   95744, 30000},
 };
 
-struct linear_segments cnr_qpsk_table[] = {
+static const struct linear_segments cnr_qpsk_table[] = {
 	{ 2834176,     0},
 	{ 2683648,  1000},
 	{ 2536960,  2000},
@@ -1374,7 +1357,7 @@ struct linear_segments cnr_qpsk_table[] = {
 	{   11520, 30000},
 };
 
-static u32 interpolate_value(u32 value, struct linear_segments *segments,
+static u32 interpolate_value(u32 value, const struct linear_segments *segments,
 			     unsigned len)
 {
 	u64 tmp64;
@@ -1458,7 +1441,7 @@ static int mb86a20s_get_blk_error_layer_CNR(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 mer, cnr;
 	int rc, val, layer;
-	struct linear_segments *segs;
+	const struct linear_segments *segs;
 	unsigned segs_len;
 
 	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);
@@ -1860,16 +1843,15 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 	dev_dbg(&state->i2c->dev, "%s: IF=%d, IF reg=0x%06llx\n",
 		__func__, state->if_freq, (long long)pll);
 
-	if (!state->config->is_serial) {
+	if (!state->config->is_serial)
 		regD5 &= ~1;
 
-		rc = mb86a20s_writereg(state, 0x50, 0xd5);
-		if (rc < 0)
-			goto err;
-		rc = mb86a20s_writereg(state, 0x51, regD5);
-		if (rc < 0)
-			goto err;
-	}
+	rc = mb86a20s_writereg(state, 0x50, 0xd5);
+	if (rc < 0)
+		goto err;
+	rc = mb86a20s_writereg(state, 0x51, regD5);
+	if (rc < 0)
+		goto err;
 
 	rc = mb86a20s_writeregdata(state, mb86a20s_init2);
 	if (rc < 0)
@@ -1966,7 +1948,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 }
 
 static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
-					  fe_status_t *status)
+					  enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc, status_nr;
@@ -1985,6 +1967,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	if (status_nr < 0) {
 		dev_err(&state->i2c->dev,
 			"%s: Can't read frontend lock status\n", __func__);
+		rc = status_nr;
 		goto error;
 	}
 
@@ -2043,21 +2026,11 @@ static int mb86a20s_read_signal_strength_from_cache(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mb86a20s_get_frontend_dummy(struct dvb_frontend *fe)
-{
-	/*
-	 * get_frontend is now handled together with other stats
-	 * retrival, when read_status() is called, as some statistics
-	 * will depend on the layers detection.
-	 */
-	return 0;
-};
-
 static int mb86a20s_tune(struct dvb_frontend *fe,
 			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
-			fe_status_t *status)
+			enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc = 0;
@@ -2082,7 +2055,12 @@ static void mb86a20s_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops mb86a20s_ops;
+static int mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
+{
+        return DVBFE_ALGO_HW;
+}
+
+static const struct dvb_frontend_ops mb86a20s_ops;
 
 struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 				    struct i2c_adapter *i2c)
@@ -2130,7 +2108,7 @@ error:
 }
 EXPORT_SYMBOL(mb86a20s_attach);
 
-static struct dvb_frontend_ops mb86a20s_ops = {
+static const struct dvb_frontend_ops mb86a20s_ops = {
 	.delsys = { SYS_ISDBT },
 	/* Use dib8000 values per default */
 	.info = {
@@ -2151,12 +2129,12 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 
 	.init = mb86a20s_initfe,
 	.set_frontend = mb86a20s_set_frontend,
-	.get_frontend = mb86a20s_get_frontend_dummy,
 	.read_status = mb86a20s_read_status_and_stats,
 	.read_signal_strength = mb86a20s_read_signal_strength_from_cache,
 	.tune = mb86a20s_tune,
+	.get_frontend_algo = mb86a20s_get_frontend_algo,
 };
 
 MODULE_DESCRIPTION("DVB Frontend module for Fujitsu mb86A20s hardware");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");

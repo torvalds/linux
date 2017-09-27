@@ -26,7 +26,7 @@
 #define XO3(x, y)	"       pxor   8*("#x")(%4), %%mm"#y"   ;\n"
 #define XO4(x, y)	"       pxor   8*("#x")(%5), %%mm"#y"   ;\n"
 
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 static void
 xor_pII_mmx_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
@@ -550,10 +550,10 @@ static struct xor_block_template xor_block_pIII_sse = {
 #define XOR_TRY_TEMPLATES				\
 do {							\
 	AVX_XOR_SPEED;					\
-	if (cpu_has_xmm) {				\
+	if (boot_cpu_has(X86_FEATURE_XMM)) {				\
 		xor_speed(&xor_block_pIII_sse);		\
 		xor_speed(&xor_block_sse_pf64);		\
-	} else if (cpu_has_mmx) {			\
+	} else if (boot_cpu_has(X86_FEATURE_MMX)) {	\
 		xor_speed(&xor_block_pII_mmx);		\
 		xor_speed(&xor_block_p5_mmx);		\
 	} else {					\

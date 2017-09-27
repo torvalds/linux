@@ -1,29 +1,24 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #include <linux/if_ether.h>
 #include <linux/delay.h>
@@ -77,7 +72,7 @@ static void igb_shift_out_eec_bits(struct e1000_hw *hw, u16 data, u16 count)
 	u32 eecd = rd32(E1000_EECD);
 	u32 mask;
 
-	mask = 0x01 << (count - 1);
+	mask = 1u << (count - 1);
 	if (nvm->type == e1000_nvm_eeprom_spi)
 		eecd |= E1000_EECD_DO;
 
@@ -481,6 +476,7 @@ s32 igb_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		/* Loop to allow for up to whole page write of eeprom */
 		while (widx < words) {
 			u16 word_out = data[widx];
+
 			word_out = (word_out >> 8) | (word_out << 8);
 			igb_shift_out_eec_bits(hw, word_out, 16);
 			widx++;
@@ -709,11 +705,16 @@ out:
  **/
 void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 {
-	u16 eeprom_verh, eeprom_verl, comb_verh, comb_verl, comb_offset;
-	u16 fw_version;
+	u16 eeprom_verh, eeprom_verl, etrack_test, fw_version;
+	u8 q, hval, rem, result;
+	u16 comb_verh, comb_verl, comb_offset;
 
 	memset(fw_vers, 0, sizeof(struct e1000_fw_version));
 
+	/* basic eeprom version numbers and bits used vary by part and by tool
+	 * used to create the nvm images. Check which data format we have.
+	 */
+	hw->nvm.ops.read(hw, NVM_ETRACK_HIWORD, 1, &etrack_test);
 	switch (hw->mac.type) {
 	case e1000_i211:
 		igb_read_invm_version(hw, fw_vers);
@@ -721,30 +722,30 @@ void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 	case e1000_82575:
 	case e1000_82576:
 	case e1000_82580:
-	case e1000_i354:
-	case e1000_i350:
-	case e1000_i210:
+		/* Use this format, unless EETRACK ID exists,
+		 * then use alternate format
+		 */
+		if ((etrack_test &  NVM_MAJOR_MASK) != NVM_ETRACK_VALID) {
+			hw->nvm.ops.read(hw, NVM_VERSION, 1, &fw_version);
+			fw_vers->eep_major = (fw_version & NVM_MAJOR_MASK)
+					      >> NVM_MAJOR_SHIFT;
+			fw_vers->eep_minor = (fw_version & NVM_MINOR_MASK)
+					      >> NVM_MINOR_SHIFT;
+			fw_vers->eep_build = (fw_version & NVM_IMAGE_ID_MASK);
+			goto etrack_id;
+		}
 		break;
-	default:
-		return;
-	}
-	/* basic eeprom version numbers */
-	hw->nvm.ops.read(hw, NVM_VERSION, 1, &fw_version);
-	fw_vers->eep_major = (fw_version & NVM_MAJOR_MASK) >> NVM_MAJOR_SHIFT;
-	fw_vers->eep_minor = (fw_version & NVM_MINOR_MASK);
-
-	/* etrack id */
-	hw->nvm.ops.read(hw, NVM_ETRACK_WORD, 1, &eeprom_verl);
-	hw->nvm.ops.read(hw, (NVM_ETRACK_WORD + 1), 1, &eeprom_verh);
-	fw_vers->etrack_id = (eeprom_verh << NVM_ETRACK_SHIFT) | eeprom_verl;
-
-	switch (hw->mac.type) {
 	case e1000_i210:
-	case e1000_i354:
+		if (!(igb_get_flash_presence_i210(hw))) {
+			igb_read_invm_version(hw, fw_vers);
+			return;
+		}
+		/* fall through */
 	case e1000_i350:
 		/* find combo image version */
 		hw->nvm.ops.read(hw, NVM_COMB_VER_PTR, 1, &comb_offset);
-		if ((comb_offset != 0x0) && (comb_offset != NVM_VER_INVALID)) {
+		if ((comb_offset != 0x0) &&
+		    (comb_offset != NVM_VER_INVALID)) {
 
 			hw->nvm.ops.read(hw, (NVM_COMB_VER_OFF + comb_offset
 					 + 1), 1, &comb_verh);
@@ -760,15 +761,41 @@ void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 				fw_vers->or_major =
 					comb_verl >> NVM_COMB_VER_SHFT;
 				fw_vers->or_build =
-					((comb_verl << NVM_COMB_VER_SHFT)
-					| (comb_verh >> NVM_COMB_VER_SHFT));
+					(comb_verl << NVM_COMB_VER_SHFT)
+					| (comb_verh >> NVM_COMB_VER_SHFT);
 				fw_vers->or_patch =
 					comb_verh & NVM_COMB_VER_MASK;
 			}
 		}
 		break;
 	default:
-		break;
+		return;
 	}
-	return;
+	hw->nvm.ops.read(hw, NVM_VERSION, 1, &fw_version);
+	fw_vers->eep_major = (fw_version & NVM_MAJOR_MASK)
+			      >> NVM_MAJOR_SHIFT;
+
+	/* check for old style version format in newer images*/
+	if ((fw_version & NVM_NEW_DEC_MASK) == 0x0) {
+		eeprom_verl = (fw_version & NVM_COMB_VER_MASK);
+	} else {
+		eeprom_verl = (fw_version & NVM_MINOR_MASK)
+				>> NVM_MINOR_SHIFT;
+	}
+	/* Convert minor value to hex before assigning to output struct
+	 * Val to be converted will not be higher than 99, per tool output
+	 */
+	q = eeprom_verl / NVM_HEX_CONV;
+	hval = q * NVM_HEX_TENS;
+	rem = eeprom_verl % NVM_HEX_CONV;
+	result = hval + rem;
+	fw_vers->eep_minor = result;
+
+etrack_id:
+	if ((etrack_test &  NVM_MAJOR_MASK) == NVM_ETRACK_VALID) {
+		hw->nvm.ops.read(hw, NVM_ETRACK_WORD, 1, &eeprom_verl);
+		hw->nvm.ops.read(hw, (NVM_ETRACK_WORD + 1), 1, &eeprom_verh);
+		fw_vers->etrack_id = (eeprom_verh << NVM_ETRACK_SHIFT)
+			| eeprom_verl;
+	}
 }

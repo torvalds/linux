@@ -48,14 +48,13 @@ ifeq ($(BITS),64)
 	lib1funcs-dir 	:= $(addsuffix $(BITS), $(lib1funcs-dir))
 endif
 
-KBUILD_CFLAGS += -I$(lib1funcs-dir)
+KBUILD_CFLAGS += -I$(lib1funcs-dir) -DDISABLE_BRANCH_PROFILING
 
 $(addprefix $(obj)/,$(lib1funcs-y)): $(obj)/%: $(lib1funcs-dir)/% FORCE
 	$(call cmd,shipped)
 
 $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o $(lib1funcs-obj) FORCE
 	$(call if_changed,ld)
-	@:
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)

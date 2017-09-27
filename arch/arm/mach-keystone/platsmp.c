@@ -18,13 +18,15 @@
 
 #include <asm/smp_plat.h>
 #include <asm/prom.h>
+#include <asm/tlbflush.h>
+#include <asm/pgtable.h>
 
 #include "keystone.h"
 
 static int keystone_smp_boot_secondary(unsigned int cpu,
 						struct task_struct *idle)
 {
-	unsigned long start = virt_to_phys(&secondary_startup);
+	unsigned long start = virt_to_idmap(&secondary_startup);
 	int error;
 
 	pr_debug("keystone-smp: booting cpu %d, vector %08lx\n",
@@ -37,7 +39,6 @@ static int keystone_smp_boot_secondary(unsigned int cpu,
 	return error;
 }
 
-struct smp_operations keystone_smp_ops __initdata = {
-	.smp_init_cpus		= arm_dt_init_cpu_maps,
+const struct smp_operations keystone_smp_ops __initconst = {
 	.smp_boot_secondary	= keystone_smp_boot_secondary,
 };

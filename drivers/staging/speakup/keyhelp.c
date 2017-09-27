@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/keyboard.h>
@@ -64,6 +60,7 @@ static void build_key_data(void)
 	u_char *kp, counters[MAXFUNCS], ch, ch1;
 	u_short *p_key = key_data, key;
 	int i, offset = 1;
+
 	nstates = (int)(state_tbl[-1]);
 	memset(counters, 0, sizeof(counters));
 	memset(key_offsets, 0, sizeof(key_offsets));
@@ -73,7 +70,7 @@ static void build_key_data(void)
 		for (i = 0; i < nstates; i++, kp++) {
 			if (!*kp)
 				continue;
-			if ((state_tbl[i]&16) != 0 && *kp == SPK_KEY)
+			if ((state_tbl[i] & 16) != 0 && *kp == SPK_KEY)
 				continue;
 			counters[*kp]++;
 		}
@@ -82,7 +79,7 @@ static void build_key_data(void)
 		if (counters[i] == 0)
 			continue;
 		key_offsets[i] = offset;
-		offset += (counters[i]+1);
+		offset += (counters[i] + 1);
 		if (offset >= MAXKEYS)
 			break;
 	}
@@ -96,7 +93,7 @@ static void build_key_data(void)
 			ch1 = *kp++;
 			if (!ch1)
 				continue;
-			if ((state_tbl[i]&16) != 0 && ch1 == SPK_KEY)
+			if ((state_tbl[i] & 16) != 0 && ch1 == SPK_KEY)
 				continue;
 			key = (state_tbl[i] << 8) + ch;
 			counters[ch1]--;
@@ -112,6 +109,7 @@ static void build_key_data(void)
 static void say_key(int key)
 {
 	int i, state = key >> 8;
+
 	key &= 0xff;
 	for (i = 0; i < 6; i++) {
 		if (state & masks[i])
@@ -119,7 +117,7 @@ static void say_key(int key)
 	}
 	if ((key > 0) && (key <= num_key_names))
 		synth_printf(" %s\n",
-				spk_msg_get(MSG_KEYNAMES_START + (key - 1)));
+			     spk_msg_get(MSG_KEYNAMES_START + (key - 1)));
 }
 
 static int help_init(void)
@@ -127,13 +125,15 @@ static int help_init(void)
 	char start = SPACE;
 	int i;
 	int num_funcs = MSG_FUNCNAMES_END - MSG_FUNCNAMES_START + 1;
-state_tbl = spk_our_keys[0]+SHIFT_TBL_SIZE+2;
+
+	state_tbl = spk_our_keys[0] + SHIFT_TBL_SIZE + 2;
 	for (i = 0; i < num_funcs; i++) {
 		char *cur_funcname = spk_msg_get(MSG_FUNCNAMES_START + i);
+
 		if (start == *cur_funcname)
 			continue;
 		start = *cur_funcname;
-		letter_offsets[(start&31)-1] = i;
+		letter_offsets[(start & 31) - 1] = i;
 	}
 	return 0;
 }
@@ -144,6 +144,7 @@ int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 	char *name;
 	u_char func, *kp;
 	u_short *p_keys, val;
+
 	if (letter_offsets[0] == -1)
 		help_init();
 	if (type == KT_LATIN) {
@@ -155,24 +156,22 @@ int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		ch |= 32; /* lower case */
 		if (ch < 'a' || ch > 'z')
 			return -1;
-		if (letter_offsets[ch-'a'] == -1) {
+		if (letter_offsets[ch - 'a'] == -1) {
 			synth_printf(spk_msg_get(MSG_NO_COMMAND), ch);
 			synth_printf("\n");
 			return 1;
 		}
-	cur_item = letter_offsets[ch-'a'];
+		cur_item = letter_offsets[ch - 'a'];
 	} else if (type == KT_CUR) {
-		if (ch == 0
-		    && (MSG_FUNCNAMES_START + cur_item + 1) <=
-		    MSG_FUNCNAMES_END)
+		if (ch == 0 &&
+		    (MSG_FUNCNAMES_START + cur_item + 1) <= MSG_FUNCNAMES_END)
 			cur_item++;
 		else if (ch == 3 && cur_item > 0)
 			cur_item--;
 		else
 			return -1;
-	} else if (type == KT_SPKUP
-			&& ch == SPEAKUP_HELP
-			&& !spk_special_handler) {
+	} else if (type == KT_SPKUP && ch == SPEAKUP_HELP &&
+		   !spk_special_handler) {
 		spk_special_handler = spk_handle_help;
 		synth_printf("%s\n", spk_msg_get(MSG_HELP_INFO));
 		build_key_data(); /* rebuild each time in case new mapping */
@@ -181,7 +180,7 @@ int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		name = NULL;
 		if ((type != KT_SPKUP) && (key > 0) && (key <= num_key_names)) {
 			synth_printf("%s\n",
-				spk_msg_get(MSG_KEYNAMES_START + key-1));
+				     spk_msg_get(MSG_KEYNAMES_START + key - 1));
 			return 1;
 		}
 		for (i = 0; funcvals[i] != 0 && !name; i++) {
@@ -190,7 +189,7 @@ int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		}
 		if (!name)
 			return -1;
-		kp = spk_our_keys[key]+1;
+		kp = spk_our_keys[key] + 1;
 		for (i = 0; i < nstates; i++) {
 			if (ch == kp[i])
 				break;

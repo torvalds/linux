@@ -52,28 +52,20 @@ static inline int plat_dma_supported(struct device *dev, u64 mask)
 	return 0;
 }
 
-static inline void plat_extra_sync_for_device(struct device *dev)
-{
-	BUG();
-}
-
 static inline int plat_device_is_coherent(struct device *dev)
 {
 	return 1;
 }
 
-static inline int plat_dma_mapping_error(struct device *dev,
-					 dma_addr_t dma_addr)
+static inline void plat_post_dma_flush(struct device *dev)
 {
-	BUG();
-	return 0;
 }
 
 dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr);
 phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr);
 
 struct dma_map_ops;
-extern struct dma_map_ops *octeon_pci_dma_map_ops;
+extern const struct dma_map_ops *octeon_pci_dma_map_ops;
 extern char *octeon_swiotlb;
 
 #endif /* __ASM_MACH_CAVIUM_OCTEON_DMA_COHERENCE_H */

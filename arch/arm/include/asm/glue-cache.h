@@ -118,11 +118,7 @@
 #endif
 
 #if defined(CONFIG_CPU_V7M)
-# ifdef _CACHE
 #  define MULTI_CACHE 1
-# else
-#  define _CACHE nop
-# endif
 #endif
 
 #if !defined(_CACHE) && !defined(MULTI_CACHE)
@@ -130,22 +126,22 @@
 #endif
 
 #ifndef __ASSEMBLER__
-extern inline void nop_flush_icache_all(void) { }
-extern inline void nop_flush_kern_cache_all(void) { }
-extern inline void nop_flush_kern_cache_louis(void) { }
-extern inline void nop_flush_user_cache_all(void) { }
-extern inline void nop_flush_user_cache_range(unsigned long a,
+static inline void nop_flush_icache_all(void) { }
+static inline void nop_flush_kern_cache_all(void) { }
+static inline void nop_flush_kern_cache_louis(void) { }
+static inline void nop_flush_user_cache_all(void) { }
+static inline void nop_flush_user_cache_range(unsigned long a,
 		unsigned long b, unsigned int c) { }
 
-extern inline void nop_coherent_kern_range(unsigned long a, unsigned long b) { }
-extern inline int nop_coherent_user_range(unsigned long a,
+static inline void nop_coherent_kern_range(unsigned long a, unsigned long b) { }
+static inline int nop_coherent_user_range(unsigned long a,
 		unsigned long b) { return 0; }
-extern inline void nop_flush_kern_dcache_area(void *a, size_t s) { }
+static inline void nop_flush_kern_dcache_area(void *a, size_t s) { }
 
-extern inline void nop_dma_flush_range(const void *a, const void *b) { }
+static inline void nop_dma_flush_range(const void *a, const void *b) { }
 
-extern inline void nop_dma_map_area(const void *s, size_t l, int f) { }
-extern inline void nop_dma_unmap_area(const void *s, size_t l, int f) { }
+static inline void nop_dma_map_area(const void *s, size_t l, int f) { }
+static inline void nop_dma_unmap_area(const void *s, size_t l, int f) { }
 #endif
 
 #ifndef MULTI_CACHE
@@ -158,8 +154,6 @@ extern inline void nop_dma_unmap_area(const void *s, size_t l, int f) { }
 #define __cpuc_coherent_user_range	__glue(_CACHE,_coherent_user_range)
 #define __cpuc_flush_dcache_area	__glue(_CACHE,_flush_kern_dcache_area)
 
-#define dmac_map_area			__glue(_CACHE,_dma_map_area)
-#define dmac_unmap_area			__glue(_CACHE,_dma_unmap_area)
 #define dmac_flush_range		__glue(_CACHE,_dma_flush_range)
 #endif
 

@@ -23,6 +23,9 @@
 #include <arch/mpipe_constants.h>
 
 
+/** Number of mPIPE instances supported */
+#define HV_MPIPE_INSTANCE_MAX   (2)
+
 /** Number of buffer stacks (32). */
 #define HV_MPIPE_NUM_BUFFER_STACKS \
   (MPIPE_MMIO_INIT_DAT_GX36_1__BUFFER_STACK_MASK_WIDTH)
@@ -208,7 +211,7 @@ _gxio_mpipe_link_mac_t;
  *  request shared data permission on the same link.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_DATA, ::GXIO_MPIPE_LINK_NO_DATA,
- *  or ::GXIO_MPIPE_LINK_EXCL_DATA may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_DATA may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_DATA is assumed.
  */
 #define GXIO_MPIPE_LINK_DATA               0x00000001UL
@@ -216,7 +219,7 @@ _gxio_mpipe_link_mac_t;
 /** Do not request data permission on the specified link.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_DATA, ::GXIO_MPIPE_LINK_NO_DATA,
- *  or ::GXIO_MPIPE_LINK_EXCL_DATA may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_DATA may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_DATA is assumed.
  */
 #define GXIO_MPIPE_LINK_NO_DATA            0x00000002UL
@@ -227,7 +230,7 @@ _gxio_mpipe_link_mac_t;
  *  data permission on it, this open will fail.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_DATA, ::GXIO_MPIPE_LINK_NO_DATA,
- *  or ::GXIO_MPIPE_LINK_EXCL_DATA may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_DATA may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_DATA is assumed.
  */
 #define GXIO_MPIPE_LINK_EXCL_DATA          0x00000004UL
@@ -238,7 +241,7 @@ _gxio_mpipe_link_mac_t;
  *  permission on the same link.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_STATS, ::GXIO_MPIPE_LINK_NO_STATS,
- *  or ::GXIO_MPIPE_LINK_EXCL_STATS may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_STATS may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_STATS is assumed.
  */
 #define GXIO_MPIPE_LINK_STATS              0x00000008UL
@@ -246,7 +249,7 @@ _gxio_mpipe_link_mac_t;
 /** Do not request stats permission on the specified link.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_STATS, ::GXIO_MPIPE_LINK_NO_STATS,
- *  or ::GXIO_MPIPE_LINK_EXCL_STATS may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_STATS may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_STATS is assumed.
  */
 #define GXIO_MPIPE_LINK_NO_STATS           0x00000010UL
@@ -264,7 +267,7 @@ _gxio_mpipe_link_mac_t;
  *  reset by other statistics programs.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_STATS, ::GXIO_MPIPE_LINK_NO_STATS,
- *  or ::GXIO_MPIPE_LINK_EXCL_STATS may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_STATS may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_STATS is assumed.
  */
 #define GXIO_MPIPE_LINK_EXCL_STATS         0x00000020UL
@@ -275,7 +278,7 @@ _gxio_mpipe_link_mac_t;
  *  permission on the same link.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_CTL, ::GXIO_MPIPE_LINK_NO_CTL,
- *  or ::GXIO_MPIPE_LINK_EXCL_CTL may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_CTL may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_CTL is assumed.
  */
 #define GXIO_MPIPE_LINK_CTL                0x00000040UL
@@ -283,7 +286,7 @@ _gxio_mpipe_link_mac_t;
 /** Do not request control permission on the specified link.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_CTL, ::GXIO_MPIPE_LINK_NO_CTL,
- *  or ::GXIO_MPIPE_LINK_EXCL_CTL may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_CTL may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_CTL is assumed.
  */
 #define GXIO_MPIPE_LINK_NO_CTL             0x00000080UL
@@ -298,7 +301,7 @@ _gxio_mpipe_link_mac_t;
  *  it prevents programs like mpipe-link from configuring the link.
  *
  *  No more than one of ::GXIO_MPIPE_LINK_CTL, ::GXIO_MPIPE_LINK_NO_CTL,
- *  or ::GXIO_MPIPE_LINK_EXCL_CTL may be specifed in a gxio_mpipe_link_open()
+ *  or ::GXIO_MPIPE_LINK_EXCL_CTL may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_CTL is assumed.
  */
 #define GXIO_MPIPE_LINK_EXCL_CTL           0x00000100UL
@@ -308,7 +311,7 @@ _gxio_mpipe_link_mac_t;
  *  change the desired state of the link when it is closed or the process
  *  exits.  No more than one of ::GXIO_MPIPE_LINK_AUTO_UP,
  *  ::GXIO_MPIPE_LINK_AUTO_UPDOWN, ::GXIO_MPIPE_LINK_AUTO_DOWN, or
- *  ::GXIO_MPIPE_LINK_AUTO_NONE may be specifed in a gxio_mpipe_link_open()
+ *  ::GXIO_MPIPE_LINK_AUTO_NONE may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_AUTO_UPDOWN is assumed.
  */
 #define GXIO_MPIPE_LINK_AUTO_UP            0x00000200UL
@@ -319,7 +322,7 @@ _gxio_mpipe_link_mac_t;
  *  open, set the desired state of the link to down.  No more than one of
  *  ::GXIO_MPIPE_LINK_AUTO_UP, ::GXIO_MPIPE_LINK_AUTO_UPDOWN,
  *  ::GXIO_MPIPE_LINK_AUTO_DOWN, or ::GXIO_MPIPE_LINK_AUTO_NONE may be
- *  specifed in a gxio_mpipe_link_open() call.  If none are specified,
+ *  specified in a gxio_mpipe_link_open() call.  If none are specified,
  *  ::GXIO_MPIPE_LINK_AUTO_UPDOWN is assumed.
  */
 #define GXIO_MPIPE_LINK_AUTO_UPDOWN        0x00000400UL
@@ -329,7 +332,7 @@ _gxio_mpipe_link_mac_t;
  *  process has the link open, set the desired state of the link to down.
  *  No more than one of ::GXIO_MPIPE_LINK_AUTO_UP,
  *  ::GXIO_MPIPE_LINK_AUTO_UPDOWN, ::GXIO_MPIPE_LINK_AUTO_DOWN, or
- *  ::GXIO_MPIPE_LINK_AUTO_NONE may be specifed in a gxio_mpipe_link_open()
+ *  ::GXIO_MPIPE_LINK_AUTO_NONE may be specified in a gxio_mpipe_link_open()
  *  call.  If none are specified, ::GXIO_MPIPE_LINK_AUTO_UPDOWN is assumed.
  */
 #define GXIO_MPIPE_LINK_AUTO_DOWN          0x00000800UL
@@ -339,7 +342,7 @@ _gxio_mpipe_link_mac_t;
  *  closed or the process exits.  No more than one of
  *  ::GXIO_MPIPE_LINK_AUTO_UP, ::GXIO_MPIPE_LINK_AUTO_UPDOWN,
  *  ::GXIO_MPIPE_LINK_AUTO_DOWN, or ::GXIO_MPIPE_LINK_AUTO_NONE may be
- *  specifed in a gxio_mpipe_link_open() call.  If none are specified,
+ *  specified in a gxio_mpipe_link_open() call.  If none are specified,
  *  ::GXIO_MPIPE_LINK_AUTO_UPDOWN is assumed.
  */
 #define GXIO_MPIPE_LINK_AUTO_NONE          0x00001000UL

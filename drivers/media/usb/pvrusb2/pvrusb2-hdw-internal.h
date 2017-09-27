@@ -12,10 +12,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #ifndef __PVRUSB2_HDW_INTERNAL_H
 #define __PVRUSB2_HDW_INTERNAL_H
@@ -39,8 +35,8 @@
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
 #include <media/v4l2-device.h>
-#include <media/cx2341x.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/drv-intf/cx2341x.h>
+#include <media/i2c/ir-kbd-i2c.h>
 #include "pvrusb2-devattr.h"
 
 /* Legal values for PVR2_CID_HSM */
@@ -170,7 +166,6 @@ struct pvr2_hdw {
 	const struct pvr2_device_desc *hdw_desc;
 
 	/* Kernel worker thread handling */
-	struct workqueue_struct *workqueue;
 	struct work_struct workpoll;     /* Update driver state */
 
 	/* Video spigot */
@@ -394,13 +389,3 @@ unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *);
 void pvr2_hdw_status_poll(struct pvr2_hdw *);
 
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

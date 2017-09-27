@@ -36,7 +36,7 @@
 #include "mantis_vp1034.h"
 #include "mantis_reg.h"
 
-struct mb86a16_config vp1034_mb86a16_config = {
+static const struct mb86a16_config vp1034_mb86a16_config = {
 	.demod_address	= 0x08,
 	.set_voltage	= vp1034_set_voltage,
 };
@@ -44,7 +44,7 @@ struct mb86a16_config vp1034_mb86a16_config = {
 #define MANTIS_MODEL_NAME	"VP-1034"
 #define MANTIS_DEV_TYPE		"DVB-S/DSS"
 
-int vp1034_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+int vp1034_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 {
 	struct mantis_pci *mantis = fe->dvb->priv;
 

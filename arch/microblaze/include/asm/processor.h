@@ -69,13 +69,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-/* Free all resources held by a thread. */
-static inline void exit_thread(void)
-{
-}
-
-extern unsigned long thread_saved_pc(struct task_struct *t);
-
 extern unsigned long get_wchan(struct task_struct *p);
 
 # define KSTK_EIP(tsk)	(0)
@@ -122,18 +115,9 @@ struct thread_struct {
 }
 
 /* Free all resources held by a thread. */
-extern inline void release_thread(struct task_struct *dead_task)
+static inline void release_thread(struct task_struct *dead_task)
 {
 }
-
-/* Free current thread data structures etc.  */
-static inline void exit_thread(void)
-{
-}
-
-/* Return saved (kernel) PC of a blocked thread.  */
-#  define thread_saved_pc(tsk)	\
-	((tsk)->thread.regs ? (tsk)->thread.regs->r15 : 0)
 
 unsigned long get_wchan(struct task_struct *p);
 

@@ -135,14 +135,13 @@ struct usb_cardstate {
 	/* Output buffer */
 	unsigned char		*bulk_out_buffer;
 	int			bulk_out_size;
-	__u8			bulk_out_endpointAddr;
+	int			bulk_out_epnum;
 	struct urb		*bulk_out_urb;
 
 	/* Input buffer */
 	unsigned char		*rcvbuf;
 	int			rcvbuf_size;
 	struct urb		*read_urb;
-	__u8			int_in_endpointAddr;
 
 	char			bchars[6];		/* for request 0x19 */
 };
@@ -294,7 +293,7 @@ static int gigaset_close_bchannel(struct bc_state *bcs)
 }
 
 static int write_modem(struct cardstate *cs);
-static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb);
+static int send_cb(struct cardstate *cs);
 
 
 /* Write tasklet handler: Continue sending current skb, or send command, or
@@ -304,8 +303,6 @@ static void gigaset_modem_fill(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *) data;
 	struct bc_state *bcs = &cs->bcs[0]; /* only one channel */
-	struct cmdbuf_t *cb;
-	int again;
 
 	gig_dbg(DEBUG_OUTPUT, "modem_fill");
 
@@ -314,36 +311,32 @@ static void gigaset_modem_fill(unsigned long data)
 		return;
 	}
 
-	do {
-		again = 0;
-		if (!bcs->tx_skb) { /* no skb is being sent */
-			cb = cs->cmdbuf;
-			if (cb) { /* commands to send? */
-				gig_dbg(DEBUG_OUTPUT, "modem_fill: cb");
-				if (send_cb(cs, cb) < 0) {
-					gig_dbg(DEBUG_OUTPUT,
-						"modem_fill: send_cb failed");
-					again = 1; /* no callback will be
-						      called! */
-				}
-			} else { /* skbs to send? */
-				bcs->tx_skb = skb_dequeue(&bcs->squeue);
-				if (bcs->tx_skb)
-					gig_dbg(DEBUG_INTR,
-						"Dequeued skb (Adr: %lx)!",
-						(unsigned long) bcs->tx_skb);
+again:
+	if (!bcs->tx_skb) {	/* no skb is being sent */
+		if (cs->cmdbuf) {	/* commands to send? */
+			gig_dbg(DEBUG_OUTPUT, "modem_fill: cb");
+			if (send_cb(cs) < 0) {
+				gig_dbg(DEBUG_OUTPUT,
+					"modem_fill: send_cb failed");
+				goto again; /* no callback will be called! */
 			}
+			return;
 		}
 
-		if (bcs->tx_skb) {
-			gig_dbg(DEBUG_OUTPUT, "modem_fill: tx_skb");
-			if (write_modem(cs) < 0) {
-				gig_dbg(DEBUG_OUTPUT,
-					"modem_fill: write_modem failed");
-				again = 1; /* no callback will be called! */
-			}
-		}
-	} while (again);
+		/* skbs to send? */
+		bcs->tx_skb = skb_dequeue(&bcs->squeue);
+		if (!bcs->tx_skb)
+			return;
+
+		gig_dbg(DEBUG_INTR, "Dequeued skb (Adr: %lx)!",
+			(unsigned long) bcs->tx_skb);
+	}
+
+	gig_dbg(DEBUG_OUTPUT, "modem_fill: tx_skb");
+	if (write_modem(cs) < 0) {
+		gig_dbg(DEBUG_OUTPUT, "modem_fill: write_modem failed");
+		goto again;	/* no callback will be called! */
+	}
 }
 
 /*
@@ -430,9 +423,9 @@ static void gigaset_write_bulk_callback(struct urb *urb)
 	spin_unlock_irqrestore(&cs->lock, flags);
 }
 
-static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
+static int send_cb(struct cardstate *cs)
 {
-	struct cmdbuf_t *tcb;
+	struct cmdbuf_t *cb = cs->cmdbuf;
 	unsigned long flags;
 	int count;
 	int status = -ENOENT;
@@ -440,33 +433,34 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 
 	do {
 		if (!cb->len) {
-			tcb = cb;
-
 			spin_lock_irqsave(&cs->cmdlock, flags);
 			cs->cmdbytes -= cs->curlen;
 			gig_dbg(DEBUG_OUTPUT, "send_cb: sent %u bytes, %u left",
 				cs->curlen, cs->cmdbytes);
-			cs->cmdbuf = cb = cb->next;
-			if (cb) {
-				cb->prev = NULL;
-				cs->curlen = cb->len;
+			cs->cmdbuf = cb->next;
+			if (cs->cmdbuf) {
+				cs->cmdbuf->prev = NULL;
+				cs->curlen = cs->cmdbuf->len;
 			} else {
 				cs->lastcmdbuf = NULL;
 				cs->curlen = 0;
 			}
 			spin_unlock_irqrestore(&cs->cmdlock, flags);
 
-			if (tcb->wake_tasklet)
-				tasklet_schedule(tcb->wake_tasklet);
-			kfree(tcb);
+			if (cb->wake_tasklet)
+				tasklet_schedule(cb->wake_tasklet);
+			kfree(cb);
+
+			cb = cs->cmdbuf;
 		}
+
 		if (cb) {
 			count = min(cb->len, ucs->bulk_out_size);
 			gig_dbg(DEBUG_OUTPUT, "send_cb: send %d bytes", count);
 
 			usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
 					  usb_sndbulkpipe(ucs->udev,
-							  ucs->bulk_out_endpointAddr & 0x0f),
+							  ucs->bulk_out_epnum),
 					  cb->buf + cb->offset, count,
 					  gigaset_write_bulk_callback, cs);
 
@@ -498,6 +492,7 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 {
 	unsigned long flags;
+	int len;
 
 	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 			   DEBUG_TRANSCMD : DEBUG_LOCKCMD,
@@ -516,10 +511,11 @@ static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 	spin_unlock_irqrestore(&cs->cmdlock, flags);
 
 	spin_lock_irqsave(&cs->lock, flags);
+	len = cb->len;
 	if (cs->connected)
 		tasklet_schedule(&cs->write_tasklet);
 	spin_unlock_irqrestore(&cs->lock, flags);
-	return cb->len;
+	return len;
 }
 
 static int gigaset_write_room(struct cardstate *cs)
@@ -628,8 +624,7 @@ static int write_modem(struct cardstate *cs)
 	if (cs->connected) {
 		usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
 				  usb_sndbulkpipe(ucs->udev,
-						  ucs->bulk_out_endpointAddr &
-						  0x0f),
+						  ucs->bulk_out_epnum),
 				  ucs->bulk_out_buffer, count,
 				  gigaset_write_bulk_callback, cs);
 		ret = usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC);
@@ -714,7 +709,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 	ucs->bulk_out_size = buffer_size;
-	ucs->bulk_out_endpointAddr = endpoint->bEndpointAddress;
+	ucs->bulk_out_epnum = usb_endpoint_num(endpoint);
 	ucs->bulk_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
 	if (!ucs->bulk_out_buffer) {
 		dev_err(cs->dev, "Couldn't allocate bulk_out_buffer\n");
@@ -741,7 +736,6 @@ static int gigaset_probe(struct usb_interface *interface,
 	}
 	buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 	ucs->rcvbuf_size = buffer_size;
-	ucs->int_in_endpointAddr = endpoint->bEndpointAddress;
 	ucs->rcvbuf = kmalloc(buffer_size, GFP_KERNEL);
 	if (!ucs->rcvbuf) {
 		dev_err(cs->dev, "Couldn't allocate rcvbuf\n");
@@ -750,8 +744,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	}
 	/* Fill the interrupt urb and send it to the core */
 	usb_fill_int_urb(ucs->read_urb, udev,
-			 usb_rcvintpipe(udev,
-					endpoint->bEndpointAddress & 0x0f),
+			 usb_rcvintpipe(udev, usb_endpoint_num(endpoint)),
 			 ucs->rcvbuf, buffer_size,
 			 gigaset_read_int_callback,
 			 cs, endpoint->bInterval);
@@ -869,22 +862,22 @@ static int gigaset_pre_reset(struct usb_interface *intf)
 }
 
 static const struct gigaset_ops ops = {
-	gigaset_write_cmd,
-	gigaset_write_room,
-	gigaset_chars_in_buffer,
-	gigaset_brkchars,
-	gigaset_init_bchannel,
-	gigaset_close_bchannel,
-	gigaset_initbcshw,
-	gigaset_freebcshw,
-	gigaset_reinitbcshw,
-	gigaset_initcshw,
-	gigaset_freecshw,
-	gigaset_set_modem_ctrl,
-	gigaset_baud_rate,
-	gigaset_set_line_ctrl,
-	gigaset_m10x_send_skb,
-	gigaset_m10x_input,
+	.write_cmd = gigaset_write_cmd,
+	.write_room = gigaset_write_room,
+	.chars_in_buffer = gigaset_chars_in_buffer,
+	.brkchars = gigaset_brkchars,
+	.init_bchannel = gigaset_init_bchannel,
+	.close_bchannel = gigaset_close_bchannel,
+	.initbcshw = gigaset_initbcshw,
+	.freebcshw = gigaset_freebcshw,
+	.reinitbcshw = gigaset_reinitbcshw,
+	.initcshw = gigaset_initcshw,
+	.freecshw = gigaset_freecshw,
+	.set_modem_ctrl = gigaset_set_modem_ctrl,
+	.baud_rate = gigaset_baud_rate,
+	.set_line_ctrl = gigaset_set_line_ctrl,
+	.send_skb = gigaset_m10x_send_skb,
+	.handle_input = gigaset_m10x_input,
 };
 
 /*

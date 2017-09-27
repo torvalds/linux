@@ -1,44 +1,60 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
-#include <linux/percpu_counter.h>
-
 struct netns_frags {
-	int			nqueues;
-	struct list_head	lru_list;
-	spinlock_t		lru_lock;
-
-	/* The percpu_counter "mem" need to be cacheline aligned.
-	 *  mem.count must not share cacheline with other writers
-	 */
-	struct percpu_counter   mem ____cacheline_aligned_in_smp;
-
+	/* Keep atomic mem on separate cachelines in structs that include it */
+	atomic_t		mem ____cacheline_aligned_in_smp;
 	/* sysctls */
 	int			timeout;
 	int			high_thresh;
 	int			low_thresh;
+	int			max_dist;
 };
 
+/**
+ * fragment queue flags
+ *
+ * @INET_FRAG_FIRST_IN: first fragment has arrived
+ * @INET_FRAG_LAST_IN: final fragment has arrived
+ * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
+ */
+enum {
+	INET_FRAG_FIRST_IN	= BIT(0),
+	INET_FRAG_LAST_IN	= BIT(1),
+	INET_FRAG_COMPLETE	= BIT(2),
+};
+
+/**
+ * struct inet_frag_queue - fragment queue
+ *
+ * @lock: spinlock protecting the queue
+ * @timer: queue expiration timer
+ * @list: hash bucket list
+ * @refcnt: reference count of the queue
+ * @fragments: received fragments head
+ * @fragments_tail: received fragments tail
+ * @stamp: timestamp of the last received fragment
+ * @len: total length of the original datagram
+ * @meat: length of received fragments so far
+ * @flags: fragment queue flags
+ * @max_size: maximum received fragment size
+ * @net: namespace that this frag belongs to
+ * @list_evictor: list of queues to forcefully evict (e.g. due to low memory)
+ */
 struct inet_frag_queue {
 	spinlock_t		lock;
-	struct timer_list	timer;      /* when will this queue expire? */
-	struct list_head	lru_list;   /* lru list member */
+	struct timer_list	timer;
 	struct hlist_node	list;
-	atomic_t		refcnt;
-	struct sk_buff		*fragments; /* list of received fragments */
+	refcount_t		refcnt;
+	struct sk_buff		*fragments;
 	struct sk_buff		*fragments_tail;
 	ktime_t			stamp;
-	int			len;        /* total length of orig datagram */
+	int			len;
 	int			meat;
-	__u8			last_in;    /* first/last segment arrived? */
-
-#define INET_FRAG_COMPLETE	4
-#define INET_FRAG_FIRST_IN	2
-#define INET_FRAG_LAST_IN	1
-
+	__u8			flags;
 	u16			max_size;
-
 	struct netns_frags	*net;
+	struct hlist_node	list_evictor;
 };
 
 #define INETFRAGS_HASHSZ	1024
@@ -48,7 +64,7 @@ struct inet_frag_queue {
  *	       rounded up (SKB_TRUELEN(0) + sizeof(struct ipq or
  *	       struct frag_queue))
  */
-#define INETFRAGS_MAXDEPTH		128
+#define INETFRAGS_MAXDEPTH	128
 
 struct inet_frag_bucket {
 	struct hlist_head	chain;
@@ -57,110 +73,81 @@ struct inet_frag_bucket {
 
 struct inet_frags {
 	struct inet_frag_bucket	hash[INETFRAGS_HASHSZ];
-	/* This rwlock is a global lock (seperate per IPv4, IPv6 and
-	 * netfilter). Important to keep this on a seperate cacheline.
-	 * Its primarily a rebuild protection rwlock.
-	 */
-	rwlock_t		lock ____cacheline_aligned_in_smp;
-	int			secret_interval;
-	struct timer_list	secret_timer;
-	u32			rnd;
-	int			qsize;
 
-	unsigned int		(*hashfn)(struct inet_frag_queue *);
-	bool			(*match)(struct inet_frag_queue *q, void *arg);
+	struct work_struct	frags_work;
+	unsigned int next_bucket;
+	unsigned long last_rebuild_jiffies;
+	bool rebuild;
+
+	/* The first call to hashfn is responsible to initialize
+	 * rnd. This is best done with net_get_random_once.
+	 *
+	 * rnd_seqlock is used to let hash insertion detect
+	 * when it needs to re-lookup the hash chain to use.
+	 */
+	u32			rnd;
+	seqlock_t		rnd_seqlock;
+	unsigned int		qsize;
+
+	unsigned int		(*hashfn)(const struct inet_frag_queue *);
+	bool			(*match)(const struct inet_frag_queue *q,
+					 const void *arg);
 	void			(*constructor)(struct inet_frag_queue *q,
-						void *arg);
+					       const void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
-	void			(*skb_free)(struct sk_buff *);
 	void			(*frag_expire)(unsigned long data);
+	struct kmem_cache	*frags_cachep;
+	const char		*frags_cache_name;
 };
 
-void inet_frags_init(struct inet_frags *);
+int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-void inet_frags_init_net(struct netns_frags *nf);
+static inline void inet_frags_init_net(struct netns_frags *nf)
+{
+	atomic_set(&nf->mem, 0);
+}
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
-void inet_frag_destroy(struct inet_frag_queue *q,
-				struct inet_frags *f, int *work);
-int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force);
+void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
-		struct inet_frags *f, void *key, unsigned int hash)
-	__releases(&f->lock);
+		struct inet_frags *f, void *key, unsigned int hash);
+
 void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
 				   const char *prefix);
 
 static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f)
 {
-	if (atomic_dec_and_test(&q->refcnt))
-		inet_frag_destroy(q, f, NULL);
+	if (refcount_dec_and_test(&q->refcnt))
+		inet_frag_destroy(q, f);
+}
+
+static inline bool inet_frag_evicting(struct inet_frag_queue *q)
+{
+	return !hlist_unhashed(&q->list_evictor);
 }
 
 /* Memory Tracking Functions. */
 
-/* The default percpu_counter batch size is not big enough to scale to
- * fragmentation mem acct sizes.
- * The mem size of a 64K fragment is approx:
- *  (44 fragments * 2944 truesize) + frag_queue struct(200) = 129736 bytes
- */
-static unsigned int frag_percpu_counter_batch = 130000;
-
 static inline int frag_mem_limit(struct netns_frags *nf)
 {
-	return percpu_counter_read(&nf->mem);
+	return atomic_read(&nf->mem);
 }
 
-static inline void sub_frag_mem_limit(struct inet_frag_queue *q, int i)
+static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&q->net->mem, -i, frag_percpu_counter_batch);
+	atomic_sub(i, &nf->mem);
 }
 
-static inline void add_frag_mem_limit(struct inet_frag_queue *q, int i)
+static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&q->net->mem, i, frag_percpu_counter_batch);
-}
-
-static inline void init_frag_mem_limit(struct netns_frags *nf)
-{
-	percpu_counter_init(&nf->mem, 0);
+	atomic_add(i, &nf->mem);
 }
 
 static inline int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	int res;
-
-	local_bh_disable();
-	res = percpu_counter_sum_positive(&nf->mem);
-	local_bh_enable();
-
-	return res;
-}
-
-static inline void inet_frag_lru_move(struct inet_frag_queue *q)
-{
-	spin_lock(&q->net->lru_lock);
-	if (!list_empty(&q->lru_list))
-		list_move_tail(&q->lru_list, &q->net->lru_list);
-	spin_unlock(&q->net->lru_lock);
-}
-
-static inline void inet_frag_lru_del(struct inet_frag_queue *q)
-{
-	spin_lock(&q->net->lru_lock);
-	list_del_init(&q->lru_list);
-	q->net->nqueues--;
-	spin_unlock(&q->net->lru_lock);
-}
-
-static inline void inet_frag_lru_add(struct netns_frags *nf,
-				     struct inet_frag_queue *q)
-{
-	spin_lock(&nf->lru_lock);
-	list_add_tail(&q->lru_list, &nf->lru_list);
-	q->net->nqueues++;
-	spin_unlock(&nf->lru_lock);
+	return atomic_read(&nf->mem);
 }
 
 /* RFC 3168 support :

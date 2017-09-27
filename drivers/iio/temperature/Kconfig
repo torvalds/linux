@@ -1,0 +1,88 @@
+#
+# Temperature sensor drivers
+#
+menu "Temperature sensors"
+
+config MAXIM_THERMOCOUPLE
+	tristate "Maxim thermocouple sensors"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for the Maxim series of
+	  thermocouple sensors connected via SPI.
+
+	  Supported sensors:
+	   * MAX6675
+	   * MAX31855
+
+	  This driver can also be built as a module. If so, the module will
+	  be called maxim_thermocouple.
+
+config HID_SENSOR_TEMP
+	tristate "HID Environmental temperature sensor"
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	help
+	  Say yes here to build support for the HID SENSOR
+	  temperature driver
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hid-sensor-temperature.
+
+config MLX90614
+	tristate "MLX90614 contact-less infrared sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Melexis
+	  MLX90614 contact-less infrared sensor connected with I2C.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called mlx90614.
+
+config TMP006
+	tristate "TMP006 infrared thermopile sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TMP006 infrared thermopile sensor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tmp006.
+
+config TMP007
+        tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
+        depends on I2C
+        help
+          If you say yes here you get support for the Texas Instruments
+          TMP007 infrared thermopile sensor with Integrated Math Engine.
+
+          This driver can also be built as a module. If so, the module will
+          be called tmp007.
+
+config TSYS01
+	tristate "Measurement Specialties TSYS01 temperature sensor using I2C bus connection"
+	depends on I2C
+	select IIO_MS_SENSORS_I2C
+	help
+	  If you say yes here you get support for the Measurement Specialties
+	  TSYS01 I2C temperature sensor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tsys01.
+
+config TSYS02D
+	tristate "Measurement Specialties TSYS02D temperature sensor"
+	depends on I2C
+	select IIO_MS_SENSORS_I2C
+	help
+	  If you say yes here you get support for the Measurement Specialties
+	  TSYS02D temperature sensor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tsys02d.
+
+endmenu

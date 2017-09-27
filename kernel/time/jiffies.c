@@ -25,9 +25,36 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include "tick-internal.h"
+#include "timekeeping.h"
 
-/* The Jiffies based clocksource is the lowest common
+
+/* Since jiffies uses a simple TICK_NSEC multiplier
+ * conversion, the .shift value could be zero. However
+ * this would make NTP adjustments impossible as they are
+ * in units of 1/2^.shift. Thus we use JIFFIES_SHIFT to
+ * shift both the nominator and denominator the same
+ * amount, and give ntp adjustments in units of 1/2^8
+ *
+ * The value 8 is somewhat carefully chosen, as anything
+ * larger can result in overflows. TICK_NSEC grows as HZ
+ * shrinks, so values greater than 8 overflow 32bits when
+ * HZ=100.
+ */
+#if HZ < 34
+#define JIFFIES_SHIFT	6
+#elif HZ < 67
+#define JIFFIES_SHIFT	7
+#else
+#define JIFFIES_SHIFT	8
+#endif
+
+static u64 jiffies_read(struct clocksource *cs)
+{
+	return (u64) jiffies;
+}
+
+/*
+ * The Jiffies based clocksource is the lowest common
  * denominator clock source which should function on
  * all systems. It has the same coarse resolution as
  * the timer interrupt frequency HZ and it suffers
@@ -37,34 +64,14 @@
  * requested HZ value. It is also not recommended
  * for "tick-less" systems.
  */
-#define NSEC_PER_JIFFY	((NSEC_PER_SEC+HZ/2)/HZ)
-
-/* Since jiffies uses a simple NSEC_PER_JIFFY multiplier
- * conversion, the .shift value could be zero. However
- * this would make NTP adjustments impossible as they are
- * in units of 1/2^.shift. Thus we use JIFFIES_SHIFT to
- * shift both the nominator and denominator the same
- * amount, and give ntp adjustments in units of 1/2^8
- *
- * The value 8 is somewhat carefully chosen, as anything
- * larger can result in overflows. NSEC_PER_JIFFY grows as
- * HZ shrinks, so values greater than 8 overflow 32bits when
- * HZ=100.
- */
-#define JIFFIES_SHIFT	8
-
-static cycle_t jiffies_read(struct clocksource *cs)
-{
-	return (cycle_t) jiffies;
-}
-
 static struct clocksource clocksource_jiffies = {
 	.name		= "jiffies",
 	.rating		= 1, /* lowest valid rating*/
 	.read		= jiffies_read,
-	.mask		= 0xffffffff, /*32bits*/
-	.mult		= NSEC_PER_JIFFY << JIFFIES_SHIFT, /* details above */
+	.mask		= CLOCKSOURCE_MASK(32),
+	.mult		= TICK_NSEC << JIFFIES_SHIFT, /* details above */
 	.shift		= JIFFIES_SHIFT,
+	.max_cycles	= 10,
 };
 
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(jiffies_lock);
@@ -88,7 +95,7 @@ EXPORT_SYMBOL(jiffies);
 
 static int __init init_jiffies_clocksource(void)
 {
-	return clocksource_register(&clocksource_jiffies);
+	return __clocksource_register(&clocksource_jiffies);
 }
 
 core_initcall(init_jiffies_clocksource);
@@ -124,6 +131,6 @@ int register_refined_jiffies(long cycles_per_second)
 
 	refined_jiffies.mult = ((u32)nsec_per_tick) << JIFFIES_SHIFT;
 
-	clocksource_register(&refined_jiffies);
+	__clocksource_register(&refined_jiffies);
 	return 0;
 }

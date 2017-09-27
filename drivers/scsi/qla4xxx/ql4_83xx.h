@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -254,6 +254,50 @@ struct qla83xx_minidump_entry_pollrd {
 	uint32_t rsvd_1;
 };
 
+struct qla8044_minidump_entry_rddfe {
+	struct qla8xxx_minidump_entry_hdr h;
+	uint32_t addr_1;
+	uint32_t value;
+	uint8_t stride;
+	uint8_t stride2;
+	uint16_t count;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t modify_mask;
+	uint32_t data_size;
+	uint32_t rsvd;
+
+} __packed;
+
+struct qla8044_minidump_entry_rdmdio {
+	struct qla8xxx_minidump_entry_hdr h;
+
+	uint32_t addr_1;
+	uint32_t addr_2;
+	uint32_t value_1;
+	uint8_t stride_1;
+	uint8_t stride_2;
+	uint16_t count;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t value_2;
+	uint32_t data_size;
+
+} __packed;
+
+struct qla8044_minidump_entry_pollwr {
+	struct qla8xxx_minidump_entry_hdr h;
+	uint32_t addr_1;
+	uint32_t addr_2;
+	uint32_t value_1;
+	uint32_t value_2;
+	uint32_t poll;
+	uint32_t mask;
+	uint32_t data_size;
+	uint32_t rsvd;
+
+} __packed;
+
 /* RDMUX2 Entry */
 struct qla83xx_minidump_entry_rdmux2 {
 	struct qla8xxx_minidump_entry_hdr h;
@@ -289,5 +333,39 @@ struct qla4_83xx_idc_information {
 	uint32_t info2; /* IDC additional info */
 	uint32_t info3; /* IDC additional info */
 };
+
+#define QLA83XX_PEX_DMA_ENGINE_INDEX		8
+#define QLA83XX_PEX_DMA_BASE_ADDRESS		0x77320000
+#define QLA83XX_PEX_DMA_NUM_OFFSET		0x10000
+#define QLA83XX_PEX_DMA_CMD_ADDR_LOW		0x0
+#define QLA83XX_PEX_DMA_CMD_ADDR_HIGH		0x04
+#define QLA83XX_PEX_DMA_CMD_STS_AND_CNTRL	0x08
+
+#define QLA83XX_PEX_DMA_READ_SIZE	(16 * 1024)
+#define QLA83XX_PEX_DMA_MAX_WAIT	(100 * 100) /* Max wait of 100 msecs */
+
+/* Read Memory: For Pex-DMA */
+struct qla4_83xx_minidump_entry_rdmem_pex_dma {
+	struct qla8xxx_minidump_entry_hdr h;
+	uint32_t desc_card_addr;
+	uint16_t dma_desc_cmd;
+	uint8_t rsvd[2];
+	uint32_t start_dma_cmd;
+	uint8_t rsvd2[12];
+	uint32_t read_addr;
+	uint32_t read_data_size;
+};
+
+struct qla4_83xx_pex_dma_descriptor {
+	struct {
+		uint32_t read_data_size; /* 0-23: size, 24-31: rsvd */
+		uint8_t rsvd[2];
+		uint16_t dma_desc_cmd;
+	} cmd;
+	uint64_t src_addr;
+	uint64_t dma_bus_addr; /* 0-3: desc-cmd, 4-7: pci-func,
+				* 8-15: desc-cmd */
+	uint8_t rsvd[24];
+} __packed;
 
 #endif

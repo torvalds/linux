@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,7 +23,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -44,92 +40,50 @@
 #include <obd_class.h>
 
 #include "lov_cl_internal.h"
+#include "lov_internal.h"
 
 struct kmem_cache *lov_lock_kmem;
 struct kmem_cache *lov_object_kmem;
 struct kmem_cache *lov_thread_kmem;
 struct kmem_cache *lov_session_kmem;
-struct kmem_cache *lov_req_kmem;
 
 struct kmem_cache *lovsub_lock_kmem;
 struct kmem_cache *lovsub_object_kmem;
-struct kmem_cache *lovsub_req_kmem;
-
-struct kmem_cache *lov_lock_link_kmem;
-
-/** Lock class of lov_device::ld_mutex. */
-struct lock_class_key cl_lov_device_mutex_class;
 
 struct lu_kmem_descr lov_caches[] = {
 	{
 		.ckd_cache = &lov_lock_kmem,
 		.ckd_name  = "lov_lock_kmem",
-		.ckd_size  = sizeof (struct lov_lock)
+		.ckd_size  = sizeof(struct lov_lock)
 	},
 	{
 		.ckd_cache = &lov_object_kmem,
 		.ckd_name  = "lov_object_kmem",
-		.ckd_size  = sizeof (struct lov_object)
+		.ckd_size  = sizeof(struct lov_object)
 	},
 	{
 		.ckd_cache = &lov_thread_kmem,
 		.ckd_name  = "lov_thread_kmem",
-		.ckd_size  = sizeof (struct lov_thread_info)
+		.ckd_size  = sizeof(struct lov_thread_info)
 	},
 	{
 		.ckd_cache = &lov_session_kmem,
 		.ckd_name  = "lov_session_kmem",
-		.ckd_size  = sizeof (struct lov_session)
-	},
-	{
-		.ckd_cache = &lov_req_kmem,
-		.ckd_name  = "lov_req_kmem",
-		.ckd_size  = sizeof (struct lov_req)
+		.ckd_size  = sizeof(struct lov_session)
 	},
 	{
 		.ckd_cache = &lovsub_lock_kmem,
 		.ckd_name  = "lovsub_lock_kmem",
-		.ckd_size  = sizeof (struct lovsub_lock)
+		.ckd_size  = sizeof(struct lovsub_lock)
 	},
 	{
 		.ckd_cache = &lovsub_object_kmem,
 		.ckd_name  = "lovsub_object_kmem",
-		.ckd_size  = sizeof (struct lovsub_object)
-	},
-	{
-		.ckd_cache = &lovsub_req_kmem,
-		.ckd_name  = "lovsub_req_kmem",
-		.ckd_size  = sizeof (struct lovsub_req)
-	},
-	{
-		.ckd_cache = &lov_lock_link_kmem,
-		.ckd_name  = "lov_lock_link_kmem",
-		.ckd_size  = sizeof (struct lov_lock_link)
+		.ckd_size  = sizeof(struct lovsub_object)
 	},
 	{
 		.ckd_cache = NULL
 	}
-};
-
-/*****************************************************************************
- *
- * Lov transfer operations.
- *
- */
-
-static void lov_req_completion(const struct lu_env *env,
-			       const struct cl_req_slice *slice, int ioret)
-{
-	struct lov_req *lr;
-
-	ENTRY;
-	lr = cl2lov_req(slice);
-	OBD_SLAB_FREE_PTR(lr, lov_req_kmem);
-	EXIT;
-}
-
-static const struct cl_req_operations lov_req_ops = {
-	.cro_completion = lov_req_completion
 };
 
 /*****************************************************************************
@@ -143,10 +97,8 @@ static void *lov_key_init(const struct lu_context *ctx,
 {
 	struct lov_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_thread_kmem, __GFP_IO);
-	if (info != NULL)
-		INIT_LIST_HEAD(&info->lti_closure.clc_list);
-	else
+	info = kmem_cache_zalloc(lov_thread_kmem, GFP_NOFS);
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -155,8 +107,8 @@ static void lov_key_fini(const struct lu_context *ctx,
 			 struct lu_context_key *key, void *data)
 {
 	struct lov_thread_info *info = data;
-	LINVRNT(list_empty(&info->lti_closure.clc_list));
-	OBD_SLAB_FREE_PTR(info, lov_thread_kmem);
+
+	kmem_cache_free(lov_thread_kmem, info);
 }
 
 struct lu_context_key lov_key = {
@@ -170,8 +122,8 @@ static void *lov_session_key_init(const struct lu_context *ctx,
 {
 	struct lov_session *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_session_kmem, __GFP_IO);
-	if (info == NULL)
+	info = kmem_cache_zalloc(lov_session_kmem, GFP_NOFS);
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -180,7 +132,8 @@ static void lov_session_key_fini(const struct lu_context *ctx,
 				 struct lu_context_key *key, void *data)
 {
 	struct lov_session *info = data;
-	OBD_SLAB_FREE_PTR(info, lov_session_kmem);
+
+	kmem_cache_free(lov_session_kmem, info);
 }
 
 struct lu_context_key lov_session_key = {
@@ -198,20 +151,20 @@ static struct lu_device *lov_device_fini(const struct lu_env *env,
 	int i;
 	struct lov_device *ld = lu2lov_dev(d);
 
-	LASSERT(ld->ld_lov != NULL);
-	if (ld->ld_target == NULL)
-		RETURN(NULL);
+	LASSERT(ld->ld_lov);
+	if (!ld->ld_target)
+		return NULL;
 
 	lov_foreach_target(ld, i) {
 		struct lovsub_device *lsd;
 
 		lsd = ld->ld_target[i];
-		if (lsd != NULL) {
+		if (lsd) {
 			cl_stack_fini(env, lovsub2cl_dev(lsd));
 			ld->ld_target[i] = NULL;
 		}
 	}
-	RETURN(NULL);
+	return NULL;
 }
 
 static int lov_device_init(const struct lu_env *env, struct lu_device *d,
@@ -221,9 +174,9 @@ static int lov_device_init(const struct lu_env *env, struct lu_device *d,
 	int i;
 	int rc = 0;
 
-	LASSERT(d->ld_site != NULL);
-	if (ld->ld_target == NULL)
-		RETURN(rc);
+	LASSERT(d->ld_site);
+	if (!ld->ld_target)
+		return rc;
 
 	lov_foreach_target(ld, i) {
 		struct lovsub_device *lsd;
@@ -231,7 +184,7 @@ static int lov_device_init(const struct lu_env *env, struct lu_device *d,
 		struct lov_tgt_desc  *desc;
 
 		desc = ld->ld_lov->lov_tgts[i];
-		if (desc == NULL)
+		if (!desc)
 			continue;
 
 		cl = cl_type_setup(env, d->ld_site, &lovsub_device_type,
@@ -241,8 +194,6 @@ static int lov_device_init(const struct lu_env *env, struct lu_device *d,
 			break;
 		}
 		lsd = cl2lovsub_dev(cl);
-		lsd->acid_idx = i;
-		lsd->acid_super = ld;
 		ld->ld_target[i] = lsd;
 	}
 
@@ -251,59 +202,17 @@ static int lov_device_init(const struct lu_env *env, struct lu_device *d,
 	else
 		ld->ld_flags |= LOV_DEV_INITIALIZED;
 
-	RETURN(rc);
-}
-
-static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
-			struct cl_req *req)
-{
-	struct lov_req *lr;
-	int result;
-
-	ENTRY;
-	OBD_SLAB_ALLOC_PTR_GFP(lr, lov_req_kmem, __GFP_IO);
-	if (lr != NULL) {
-		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
-		result = 0;
-	} else
-		result = -ENOMEM;
-	RETURN(result);
-}
-
-static const struct cl_device_operations lov_cl_ops = {
-	.cdo_req_init = lov_req_init
-};
-
-static void lov_emerg_free(struct lov_device_emerg **emrg, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; ++i) {
-		struct lov_device_emerg *em;
-
-		em = emrg[i];
-		if (em != NULL) {
-			LASSERT(em->emrg_page_list.pl_nr == 0);
-			if (em->emrg_env != NULL)
-				cl_env_put(em->emrg_env, &em->emrg_refcheck);
-			OBD_FREE_PTR(em);
-		}
-	}
-	OBD_FREE(emrg, nr * sizeof emrg[0]);
+	return rc;
 }
 
 static struct lu_device *lov_device_free(const struct lu_env *env,
 					 struct lu_device *d)
 {
 	struct lov_device *ld = lu2lov_dev(d);
-	const int	  nr = ld->ld_target_nr;
 
 	cl_device_fini(lu2cl_dev(d));
-	if (ld->ld_target != NULL)
-		OBD_FREE(ld->ld_target, nr * sizeof ld->ld_target[0]);
-	if (ld->ld_emrg != NULL)
-		lov_emerg_free(ld->ld_emrg, nr);
-	OBD_FREE_PTR(ld);
+	kfree(ld->ld_target);
+	kfree(ld);
 	return NULL;
 }
 
@@ -311,47 +220,11 @@ static void lov_cl_del_target(const struct lu_env *env, struct lu_device *dev,
 			      __u32 index)
 {
 	struct lov_device *ld = lu2lov_dev(dev);
-	ENTRY;
 
-	if (ld->ld_target[index] != NULL) {
+	if (ld->ld_target[index]) {
 		cl_stack_fini(env, lovsub2cl_dev(ld->ld_target[index]));
 		ld->ld_target[index] = NULL;
 	}
-	EXIT;
-}
-
-static struct lov_device_emerg **lov_emerg_alloc(int nr)
-{
-	struct lov_device_emerg **emerg;
-	int i;
-	int result;
-
-	OBD_ALLOC(emerg, nr * sizeof emerg[0]);
-	if (emerg == NULL)
-		return ERR_PTR(-ENOMEM);
-	for (result = i = 0; i < nr && result == 0; i++) {
-		struct lov_device_emerg *em;
-
-		OBD_ALLOC_PTR(em);
-		if (em != NULL) {
-			emerg[i] = em;
-			cl_page_list_init(&em->emrg_page_list);
-			em->emrg_env = cl_env_alloc(&em->emrg_refcheck,
-						    LCT_REMEMBER|LCT_NOREF);
-			if (!IS_ERR(em->emrg_env))
-				em->emrg_env->le_ctx.lc_cookie = 0x2;
-			else {
-				result = PTR_ERR(em->emrg_env);
-				em->emrg_env = NULL;
-			}
-		} else
-			result = -ENOMEM;
-	}
-	if (result != 0) {
-		lov_emerg_free(emerg, nr);
-		emerg = ERR_PTR(result);
-	}
-	return emerg;
 }
 
 static int lov_expand_targets(const struct lu_env *env, struct lov_device *dev)
@@ -360,39 +233,26 @@ static int lov_expand_targets(const struct lu_env *env, struct lov_device *dev)
 	__u32 tgt_size;
 	__u32 sub_size;
 
-	ENTRY;
 	result = 0;
 	tgt_size = dev->ld_lov->lov_tgt_size;
 	sub_size = dev->ld_target_nr;
 	if (sub_size < tgt_size) {
 		struct lovsub_device    **newd;
-		struct lov_device_emerg **emerg;
-		const size_t	      sz   = sizeof newd[0];
+		const size_t	      sz   = sizeof(newd[0]);
 
-		emerg = lov_emerg_alloc(tgt_size);
-		if (IS_ERR(emerg))
-			RETURN(PTR_ERR(emerg));
-
-		OBD_ALLOC(newd, tgt_size * sz);
-		if (newd != NULL) {
-			mutex_lock(&dev->ld_mutex);
+		newd = kcalloc(tgt_size, sz, GFP_NOFS);
+		if (newd) {
 			if (sub_size > 0) {
 				memcpy(newd, dev->ld_target, sub_size * sz);
-				OBD_FREE(dev->ld_target, sub_size * sz);
+				kfree(dev->ld_target);
 			}
 			dev->ld_target    = newd;
 			dev->ld_target_nr = tgt_size;
-
-			if (dev->ld_emrg != NULL)
-				lov_emerg_free(dev->ld_emrg, sub_size);
-			dev->ld_emrg = emerg;
-			mutex_unlock(&dev->ld_mutex);
 		} else {
-			lov_emerg_free(emerg, tgt_size);
 			result = -ENOMEM;
 		}
 	}
-	RETURN(result);
+	return result;
 }
 
 static int lov_cl_add_target(const struct lu_env *env, struct lu_device *dev,
@@ -404,29 +264,24 @@ static int lov_cl_add_target(const struct lu_env *env, struct lu_device *dev,
 	struct lovsub_device *lsd;
 	struct cl_device     *cl;
 	int rc;
-	ENTRY;
 
 	obd_getref(obd);
 
 	tgt = obd->u.lov.lov_tgts[index];
-	LASSERT(tgt != NULL);
-	LASSERT(tgt->ltd_obd != NULL);
 
 	if (!tgt->ltd_obd->obd_set_up) {
 		CERROR("Target %s not set up\n", obd_uuid2str(&tgt->ltd_uuid));
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	rc = lov_expand_targets(env, ld);
 	if (rc == 0 && ld->ld_flags & LOV_DEV_INITIALIZED) {
-		LASSERT(dev->ld_site != NULL);
+		LASSERT(dev->ld_site);
 
 		cl = cl_type_setup(env, dev->ld_site, &lovsub_device_type,
 				   tgt->ltd_obd->obd_lu_dev);
 		if (!IS_ERR(cl)) {
 			lsd = cl2lovsub_dev(cl);
-			lsd->acid_idx = index;
-			lsd->acid_super = ld;
 			ld->ld_target[index] = lsd;
 		} else {
 			CERROR("add failed (%d), deleting %s\n", rc,
@@ -436,7 +291,7 @@ static int lov_cl_add_target(const struct lu_env *env, struct lu_device *dev,
 		}
 	}
 	obd_putref(obd);
-	RETURN(rc);
+	return rc;
 }
 
 static int lov_process_config(const struct lu_env *env,
@@ -453,12 +308,12 @@ static int lov_process_config(const struct lu_env *env,
 	cmd = cfg->lcfg_command;
 	rc = lov_process_config_base(d->ld_obd, cfg, &index, &gen);
 	if (rc == 0) {
-		switch(cmd) {
+		switch (cmd) {
 		case LCFG_LOV_ADD_OBD:
 		case LCFG_LOV_ADD_INA:
 			rc = lov_cl_add_target(env, d, index);
 			if (rc != 0)
-				lov_del_target(d->ld_obd, index, 0, 0);
+				lov_del_target(d->ld_obd, index, NULL, 0);
 			break;
 		case LCFG_LOV_DEL_OBD:
 			lov_cl_del_target(env, d, index);
@@ -466,7 +321,7 @@ static int lov_process_config(const struct lu_env *env,
 		}
 	}
 	obd_putref(obd);
-	RETURN(rc);
+	return rc;
 }
 
 static const struct lu_device_operations lov_lu_ops = {
@@ -483,29 +338,25 @@ static struct lu_device *lov_device_alloc(const struct lu_env *env,
 	struct obd_device *obd;
 	int rc;
 
-	OBD_ALLOC_PTR(ld);
-	if (ld == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+	ld = kzalloc(sizeof(*ld), GFP_NOFS);
+	if (!ld)
+		return ERR_PTR(-ENOMEM);
 
 	cl_device_init(&ld->ld_cl, t);
 	d = lov2lu_dev(ld);
 	d->ld_ops	= &lov_lu_ops;
-	ld->ld_cl.cd_ops = &lov_cl_ops;
-
-	mutex_init(&ld->ld_mutex);
-	lockdep_set_class(&ld->ld_mutex, &cl_lov_device_mutex_class);
 
 	/* setup the LOV OBD */
 	obd = class_name2obd(lustre_cfg_string(cfg, 0));
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lov_setup(obd, cfg);
 	if (rc) {
 		lov_device_free(env, d);
-		RETURN(ERR_PTR(rc));
+		return ERR_PTR(rc);
 	}
 
 	ld->ld_lov = &obd->u.lov;
-	RETURN(d);
+	return d;
 }
 
 static const struct lu_device_type_operations lov_device_type_ops = {
@@ -528,6 +379,5 @@ struct lu_device_type lov_device_type = {
 	.ldt_ops      = &lov_device_type_ops,
 	.ldt_ctx_tags = LCT_CL_THREAD
 };
-EXPORT_SYMBOL(lov_device_type);
 
 /** @} lov */

@@ -1,0 +1,31 @@
+menu "STMicroelectronics STM32 SOC audio support"
+
+config SND_SOC_STM32_SAI
+	tristate "STM32 SAI interface (Serial Audio Interface) support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to enable SAI for STM32
+
+config SND_SOC_STM32_I2S
+	tristate "STM32 I2S interface (SPI/I2S block) support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to enable I2S for STM32
+
+config SND_SOC_STM32_SPDIFRX
+	tristate "STM32 S/PDIF receiver (SPDIFRX) support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	select SND_SOC_SPDIF
+	help
+	  Say Y if you want to enable S/PDIF capture for STM32
+
+endmenu

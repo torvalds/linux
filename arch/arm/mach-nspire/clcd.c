@@ -90,8 +90,8 @@ int nspire_clcd_setup(struct clcd_fb *fb)
 	panel_size = ((panel->mode.xres * panel->mode.yres) * panel->bpp) / 8;
 	panel_size = ALIGN(panel_size, PAGE_SIZE);
 
-	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev,
-		panel_size, &dma, GFP_KERNEL);
+	fb->fb.screen_base = dma_alloc_wc(&fb->dev->dev, panel_size, &dma,
+					  GFP_KERNEL);
 
 	if (!fb->fb.screen_base) {
 		pr_err("CLCD: unable to map framebuffer\n");
@@ -107,13 +107,12 @@ int nspire_clcd_setup(struct clcd_fb *fb)
 
 int nspire_clcd_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
 {
-	return dma_mmap_writecombine(&fb->dev->dev, vma,
-		fb->fb.screen_base, fb->fb.fix.smem_start,
-		fb->fb.fix.smem_len);
+	return dma_mmap_wc(&fb->dev->dev, vma, fb->fb.screen_base,
+			   fb->fb.fix.smem_start, fb->fb.fix.smem_len);
 }
 
 void nspire_clcd_remove(struct clcd_fb *fb)
 {
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-		fb->fb.screen_base, fb->fb.fix.smem_start);
+	dma_free_wc(&fb->dev->dev, fb->fb.fix.smem_len, fb->fb.screen_base,
+		    fb->fb.fix.smem_start);
 }

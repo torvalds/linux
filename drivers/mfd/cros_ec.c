@@ -17,80 +17,79 @@
  * battery charging and regulator control, firmware update.
  */
 
+#include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
+#include <linux/suspend.h>
+#include <asm/unaligned.h>
 
-int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
-		       struct cros_ec_msg *msg)
-{
-	uint8_t *out;
-	int csum, i;
+#define CROS_EC_DEV_EC_INDEX 0
+#define CROS_EC_DEV_PD_INDEX 1
 
-	BUG_ON(msg->out_len > EC_HOST_PARAM_SIZE);
-	out = ec_dev->dout;
-	out[0] = EC_CMD_VERSION0 + msg->version;
-	out[1] = msg->cmd;
-	out[2] = msg->out_len;
-	csum = out[0] + out[1] + out[2];
-	for (i = 0; i < msg->out_len; i++)
-		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->out_buf[i];
-	out[EC_MSG_TX_HEADER_BYTES + msg->out_len] = (uint8_t)(csum & 0xff);
+static struct cros_ec_platform ec_p = {
+	.ec_name = CROS_EC_DEV_NAME,
+	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_EC_INDEX),
+};
 
-	return EC_MSG_TX_PROTO_BYTES + msg->out_len;
-}
-EXPORT_SYMBOL(cros_ec_prepare_tx);
+static struct cros_ec_platform pd_p = {
+	.ec_name = CROS_EC_DEV_PD_NAME,
+	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
+};
 
-static int cros_ec_command_sendrecv(struct cros_ec_device *ec_dev,
-		uint16_t cmd, void *out_buf, int out_len,
-		void *in_buf, int in_len)
-{
-	struct cros_ec_msg msg;
+static const struct mfd_cell ec_cell = {
+	.name = "cros-ec-ctl",
+	.platform_data = &ec_p,
+	.pdata_size = sizeof(ec_p),
+};
 
-	msg.version = cmd >> 8;
-	msg.cmd = cmd & 0xff;
-	msg.out_buf = out_buf;
-	msg.out_len = out_len;
-	msg.in_buf = in_buf;
-	msg.in_len = in_len;
-
-	return ec_dev->command_xfer(ec_dev, &msg);
-}
-
-static int cros_ec_command_recv(struct cros_ec_device *ec_dev,
-		uint16_t cmd, void *buf, int buf_len)
-{
-	return cros_ec_command_sendrecv(ec_dev, cmd, NULL, 0, buf, buf_len);
-}
-
-static int cros_ec_command_send(struct cros_ec_device *ec_dev,
-		uint16_t cmd, void *buf, int buf_len)
-{
-	return cros_ec_command_sendrecv(ec_dev, cmd, buf, buf_len, NULL, 0);
-}
+static const struct mfd_cell ec_pd_cell = {
+	.name = "cros-ec-ctl",
+	.platform_data = &pd_p,
+	.pdata_size = sizeof(pd_p),
+};
 
 static irqreturn_t ec_irq_thread(int irq, void *data)
 {
 	struct cros_ec_device *ec_dev = data;
+	bool wake_event = true;
+	int ret;
 
-	if (device_may_wakeup(ec_dev->dev))
+	ret = cros_ec_get_next_event(ec_dev, &wake_event);
+
+	/*
+	 * Signal only if wake host events or any interrupt if
+	 * cros_ec_get_next_event() returned an error (default value for
+	 * wake_event is true)
+	 */
+	if (wake_event && device_may_wakeup(ec_dev->dev))
 		pm_wakeup_event(ec_dev->dev, 0);
 
-	blocking_notifier_call_chain(&ec_dev->event_notifier, 1, ec_dev);
-
+	if (ret > 0)
+		blocking_notifier_call_chain(&ec_dev->event_notifier,
+					     0, ec_dev);
 	return IRQ_HANDLED;
 }
 
-static struct mfd_cell cros_devs[] = {
-	{
-		.name = "cros-ec-keyb",
-		.id = 1,
-		.of_compatible = "google,cros-ec-keyb",
-	},
-};
+static int cros_ec_sleep_event(struct cros_ec_device *ec_dev, u8 sleep_event)
+{
+	struct {
+		struct cros_ec_command msg;
+		struct ec_params_host_sleep_event req;
+	} __packed buf;
+
+	memset(&buf, 0, sizeof(buf));
+
+	buf.req.sleep_event = sleep_event;
+
+	buf.msg.command = EC_CMD_HOST_SLEEP_EVENT;
+	buf.msg.version = 0;
+	buf.msg.outsize = sizeof(buf.req);
+
+	return cros_ec_cmd_xfer(ec_dev, &buf.msg);
+}
 
 int cros_ec_register(struct cros_ec_device *ec_dev)
 {
@@ -99,49 +98,88 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->event_notifier);
 
-	ec_dev->command_send = cros_ec_command_send;
-	ec_dev->command_recv = cros_ec_command_recv;
-	ec_dev->command_sendrecv = cros_ec_command_sendrecv;
+	ec_dev->max_request = sizeof(struct ec_params_hello);
+	ec_dev->max_response = sizeof(struct ec_response_get_protocol_info);
+	ec_dev->max_passthru = 0;
 
-	if (ec_dev->din_size) {
-		ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
-		if (!ec_dev->din)
-			return -ENOMEM;
-	}
-	if (ec_dev->dout_size) {
-		ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
-		if (!ec_dev->dout)
-			return -ENOMEM;
+	ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
+	if (!ec_dev->din)
+		return -ENOMEM;
+
+	ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
+	if (!ec_dev->dout)
+		return -ENOMEM;
+
+	mutex_init(&ec_dev->lock);
+
+	cros_ec_query_all(ec_dev);
+
+	if (ec_dev->irq) {
+		err = request_threaded_irq(ec_dev->irq, NULL, ec_irq_thread,
+					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					   "chromeos-ec", ec_dev);
+		if (err) {
+			dev_err(dev, "Failed to request IRQ %d: %d",
+				ec_dev->irq, err);
+			return err;
+		}
 	}
 
-	if (!ec_dev->irq) {
-		dev_dbg(dev, "no valid IRQ: %d\n", ec_dev->irq);
-		return err;
-	}
-
-	err = request_threaded_irq(ec_dev->irq, NULL, ec_irq_thread,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				   "chromeos-ec", ec_dev);
-	if (err) {
-		dev_err(dev, "request irq %d: error %d\n", ec_dev->irq, err);
-		return err;
-	}
-
-	err = mfd_add_devices(dev, 0, cros_devs,
-			      ARRAY_SIZE(cros_devs),
+	err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO, &ec_cell, 1,
 			      NULL, ec_dev->irq, NULL);
 	if (err) {
-		dev_err(dev, "failed to add mfd devices\n");
+		dev_err(dev,
+			"Failed to register Embedded Controller subdevice %d\n",
+			err);
 		goto fail_mfd;
 	}
 
-	dev_info(dev, "Chrome EC (%s)\n", ec_dev->name);
+	if (ec_dev->max_passthru) {
+		/*
+		 * Register a PD device as well on top of this device.
+		 * We make the following assumptions:
+		 * - behind an EC, we have a pd
+		 * - only one device added.
+		 * - the EC is responsive at init time (it is not true for a
+		 *   sensor hub.
+		 */
+		err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO,
+				      &ec_pd_cell, 1, NULL, ec_dev->irq, NULL);
+		if (err) {
+			dev_err(dev,
+				"Failed to register Power Delivery subdevice %d\n",
+				err);
+			goto fail_mfd;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		err = devm_of_platform_populate(dev);
+		if (err) {
+			mfd_remove_devices(dev);
+			dev_err(dev, "Failed to register sub-devices\n");
+			goto fail_mfd;
+		}
+	}
+
+	/*
+	 * Clear sleep event - this will fail harmlessly on platforms that
+	 * don't implement the sleep event host command.
+	 */
+	err = cros_ec_sleep_event(ec_dev, 0);
+	if (err < 0)
+		dev_dbg(ec_dev->dev, "Error %d clearing sleep event to ec",
+			err);
+
+	dev_info(dev, "Chrome EC device registered\n");
+
+	cros_ec_acpi_install_gpe_handler(dev);
 
 	return 0;
 
 fail_mfd:
-	free_irq(ec_dev->irq, ec_dev);
-
+	if (ec_dev->irq)
+		free_irq(ec_dev->irq, ec_dev);
 	return err;
 }
 EXPORT_SYMBOL(cros_ec_register);
@@ -149,7 +187,11 @@ EXPORT_SYMBOL(cros_ec_register);
 int cros_ec_remove(struct cros_ec_device *ec_dev)
 {
 	mfd_remove_devices(ec_dev->dev);
-	free_irq(ec_dev->irq, ec_dev);
+
+	cros_ec_acpi_remove_gpe_handler();
+
+	if (ec_dev->irq)
+		free_irq(ec_dev->irq, ec_dev);
 
 	return 0;
 }
@@ -159,24 +201,72 @@ EXPORT_SYMBOL(cros_ec_remove);
 int cros_ec_suspend(struct cros_ec_device *ec_dev)
 {
 	struct device *dev = ec_dev->dev;
+	int ret;
+	u8 sleep_event;
+
+	if (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) {
+		sleep_event = HOST_SLEEP_EVENT_S3_SUSPEND;
+	} else {
+		sleep_event = HOST_SLEEP_EVENT_S0IX_SUSPEND;
+
+		/* Clearing the GPE status for any pending event */
+		cros_ec_acpi_clear_gpe();
+	}
+
+	ret = cros_ec_sleep_event(ec_dev, sleep_event);
+	if (ret < 0)
+		dev_dbg(ec_dev->dev, "Error %d sending suspend event to ec",
+			ret);
 
 	if (device_may_wakeup(dev))
 		ec_dev->wake_enabled = !enable_irq_wake(ec_dev->irq);
 
 	disable_irq(ec_dev->irq);
 	ec_dev->was_wake_device = ec_dev->wake_enabled;
+	ec_dev->suspended = true;
 
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_suspend);
 
+static void cros_ec_drain_events(struct cros_ec_device *ec_dev)
+{
+	while (cros_ec_get_next_event(ec_dev, NULL) > 0)
+		blocking_notifier_call_chain(&ec_dev->event_notifier,
+					     1, ec_dev);
+}
+
 int cros_ec_resume(struct cros_ec_device *ec_dev)
 {
+	int ret;
+	u8 sleep_event;
+
+	ec_dev->suspended = false;
 	enable_irq(ec_dev->irq);
 
+	sleep_event = (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) ?
+		      HOST_SLEEP_EVENT_S3_RESUME :
+		      HOST_SLEEP_EVENT_S0IX_RESUME;
+
+	ret = cros_ec_sleep_event(ec_dev, sleep_event);
+	if (ret < 0)
+		dev_dbg(ec_dev->dev, "Error %d sending resume event to ec",
+			ret);
+
+	/*
+	 * In some cases, we need to distinguish between events that occur
+	 * during suspend if the EC is not a wake source. For example,
+	 * keypresses during suspend should be discarded if it does not wake
+	 * the system.
+	 *
+	 * If the EC is not a wake source, drain the event queue and mark them
+	 * as "queued during suspend".
+	 */
 	if (ec_dev->wake_enabled) {
 		disable_irq_wake(ec_dev->irq);
 		ec_dev->wake_enabled = 0;
+	} else {
+		cros_ec_drain_events(ec_dev);
 	}
 
 	return 0;
@@ -184,3 +274,6 @@ int cros_ec_resume(struct cros_ec_device *ec_dev)
 EXPORT_SYMBOL(cros_ec_resume);
 
 #endif
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ChromeOS EC core driver");

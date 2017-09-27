@@ -25,9 +25,7 @@
 #include <sound/seq_device.h>
 #include <sound/soundfont.h>
 #include <sound/seq_midi_emul.h>
-#ifdef CONFIG_SND_SEQUENCER_OSS
 #include <sound/seq_oss.h>
-#endif
 #include <sound/emux_legacy.h>
 #include <sound/seq_virmidi.h>
 
@@ -66,7 +64,7 @@ struct snd_emux_operators {
 		       const void __user *data, long count);
 	void (*sysex)(struct snd_emux *emu, char *buf, int len, int parsed,
 		      struct snd_midi_channel_set *chset);
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	int (*oss_ioctl)(struct snd_emux *emu, int cmd, int p1, int p2);
 #endif
 };
@@ -125,11 +123,11 @@ struct snd_emux {
 
 	struct snd_util_memhdr *memhdr;	/* memory chunk information */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 	struct snd_info_entry *proc;
 #endif
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	struct snd_seq_device *oss_synth;
 #endif
 };
@@ -150,7 +148,7 @@ struct snd_emux_port {
 #ifdef SNDRV_EMUX_USE_RAW_EFFECT
 	struct snd_emux_effect_table *effect;
 #endif
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	struct snd_seq_oss_arg *oss_arg;
 #endif
 };

@@ -33,7 +33,8 @@
 static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 						    const char *name);
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
-				const unsigned int *tlv, const char **slaves);
+				const unsigned int *tlv,
+				const char * const *slaves);
 
 /*
  *  Chip specific initialization
@@ -81,22 +82,11 @@ static int ac97_update_bits_page(struct snd_ac97 *ac97, unsigned short reg, unsi
 /*
  * shared line-in/mic controls
  */
-static int ac97_enum_text_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo,
-			       const char **texts, unsigned int nums)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = nums;
-	if (uinfo->value.enumerated.item > nums - 1)
-		uinfo->value.enumerated.item = nums - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
-}
-
 static int ac97_surround_jack_mode_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static const char *texts[] = { "Shared", "Independent" };
-	return ac97_enum_text_info(kcontrol, uinfo, texts, 2);
+	static const char * const texts[] = { "Shared", "Independent" };
+
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int ac97_surround_jack_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -123,9 +113,9 @@ static int ac97_surround_jack_mode_put(struct snd_kcontrol *kcontrol, struct snd
 
 static int ac97_channel_mode_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static const char *texts[] = { "2ch", "4ch", "6ch", "8ch" };
-	return ac97_enum_text_info(kcontrol, uinfo, texts,
-		kcontrol->private_value);
+	static const char * const texts[] = { "2ch", "4ch", "6ch", "8ch" };
+
+	return snd_ctl_enum_info(uinfo, 1, kcontrol->private_value, texts);
 }
 
 static int ac97_channel_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -240,17 +230,11 @@ static inline int alc850_is_aux_back_surround(struct snd_ac97 *ac97)
 static int snd_ac97_ymf7x3_info_speaker(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[3] = {
+	static const char * const texts[3] = {
 		"Standard", "Small", "Smaller"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item > 2)
-		uinfo->value.enumerated.item = 2;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_ac97_ymf7x3_get_speaker(struct snd_kcontrol *kcontrol,
@@ -293,15 +277,9 @@ static const struct snd_kcontrol_new snd_ac97_ymf7x3_controls_speaker =
 static int snd_ac97_ymf7x3_spdif_source_info(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "AC-Link", "A/D Converter" };
+	static const char * const texts[2] = { "AC-Link", "A/D Converter" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_ac97_ymf7x3_spdif_source_get(struct snd_kcontrol *kcontrol,
@@ -401,15 +379,9 @@ static int patch_yamaha_ymf743(struct snd_ac97 *ac97)
    There is also a bit to mute S/PDIF output in a vendor-specific register. */
 static int snd_ac97_ymf753_spdif_output_pin_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[3] = { "Disabled", "Pin 43", "Pin 48" };
+	static const char * const texts[3] = { "Disabled", "Pin 43", "Pin 48" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item > 2)
-		uinfo->value.enumerated.item = 2;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_ac97_ymf753_spdif_output_pin_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1103,16 +1075,11 @@ static int patch_sigmatel_stac9756(struct snd_ac97 * ac97)
 
 static int snd_ac97_stac9758_output_jack_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[5] = { "Input/Disabled", "Front Output",
+	static const char * const texts[5] = {
+		"Input/Disabled", "Front Output",
 		"Rear Output", "Center/LFE Output", "Mixer Output" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 5;
-	if (uinfo->value.enumerated.item > 4)
-		uinfo->value.enumerated.item = 4;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 5, texts);
 }
 
 static int snd_ac97_stac9758_output_jack_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1147,16 +1114,11 @@ static int snd_ac97_stac9758_output_jack_put(struct snd_kcontrol *kcontrol, stru
 
 static int snd_ac97_stac9758_input_jack_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[7] = { "Mic2 Jack", "Mic1 Jack", "Line In Jack",
+	static const char * const texts[7] = {
+		"Mic2 Jack", "Mic1 Jack", "Line In Jack",
 		"Front Jack", "Rear Jack", "Center/LFE Jack", "Mute" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 7;
-	if (uinfo->value.enumerated.item > 6)
-		uinfo->value.enumerated.item = 6;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 7, texts);
 }
 
 static int snd_ac97_stac9758_input_jack_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1181,15 +1143,11 @@ static int snd_ac97_stac9758_input_jack_put(struct snd_kcontrol *kcontrol, struc
 
 static int snd_ac97_stac9758_phonesel_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[3] = { "None", "Front Jack", "Rear Jack" };
+	static const char * const texts[3] = {
+		"None", "Front Jack", "Rear Jack"
+	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item > 2)
-		uinfo->value.enumerated.item = 2;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_ac97_stac9758_phonesel_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1804,15 +1762,9 @@ static int patch_ad1886(struct snd_ac97 * ac97)
 
 static int snd_ac97_ad198x_spdif_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "AC-Link", "A/D Converter" };
+	static const char * const texts[2] = { "AC-Link", "A/D Converter" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_ac97_ad198x_spdif_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1994,15 +1946,9 @@ static int snd_ac97_ad1888_lohpsel_put(struct snd_kcontrol *kcontrol, struct snd
 
 static int snd_ac97_ad1888_downmix_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[3] = {"Off", "6 -> 4", "6 -> 2"};
+	static const char * const texts[3] = {"Off", "6 -> 4", "6 -> 2"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item > 2)
-		uinfo->value.enumerated.item = 2;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_ac97_ad1888_downmix_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2153,16 +2099,11 @@ static int patch_ad1980(struct snd_ac97 * ac97)
 static int snd_ac97_ad1985_vrefout_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[4] = {"High-Z", "3.7 V", "2.25 V", "0 V"};
+	static const char * const texts[4] = {
+		"High-Z", "3.7 V", "2.25 V", "0 V"
+	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item > 3)
-		uinfo->value.enumerated.item = 3;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 4, texts);
 }
 
 static int snd_ac97_ad1985_vrefout_get(struct snd_kcontrol *kcontrol,
@@ -2756,20 +2697,18 @@ static const struct snd_kcontrol_new snd_ac97_controls_alc655[] = {
 
 static int alc655_iec958_route_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts_655[3] = { "PCM", "Analog In", "IEC958 In" };
-	static char *texts_658[4] = { "PCM", "Analog1 In", "Analog2 In", "IEC958 In" };
+	static const char * const texts_655[3] = {
+		"PCM", "Analog In", "IEC958 In"
+	};
+	static const char * const texts_658[4] = {
+		"PCM", "Analog1 In", "Analog2 In", "IEC958 In"
+	};
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = ac97->spec.dev_flags ? 4 : 3;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       ac97->spec.dev_flags ?
-	       texts_658[uinfo->value.enumerated.item] :
-	       texts_655[uinfo->value.enumerated.item]);
-	return 0;
+	if (ac97->spec.dev_flags)
+		return snd_ctl_enum_info(uinfo, 1, 4, texts_658);
+	else
+		return snd_ctl_enum_info(uinfo, 1, 3, texts_655);
 }
 
 static int alc655_iec958_route_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -3055,15 +2994,9 @@ static int patch_cm9738(struct snd_ac97 * ac97)
 
 static int snd_ac97_cmedia_spdif_playback_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "Analog", "Digital" };
+	static const char * const texts[] = { "Analog", "Digital" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_ac97_cmedia_spdif_playback_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -3160,7 +3093,7 @@ static int patch_cm9739(struct snd_ac97 * ac97)
 	/* set-up multi channel */
 	/* bit 14: 0 = SPDIF, 1 = EAPD */
 	/* bit 13: enable internal vref output for mic */
-	/* bit 12: disable center/lfe (swithable) */
+	/* bit 12: disable center/lfe (switchable) */
 	/* bit 10: disable surround/line (switchable) */
 	/* bit 9: mix 2 surround off */
 	/* bit 4: undocumented; 0 mutes the CM9739A, which defaults to 1 */
@@ -3235,15 +3168,9 @@ static const struct snd_kcontrol_new snd_ac97_cm9761_controls[] = {
 
 static int cm9761_spdif_out_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = { "AC-Link", "ADC", "SPDIF-In" };
+	static const char * const texts[] = { "AC-Link", "ADC", "SPDIF-In" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item > 2)
-		uinfo->value.enumerated.item = 2;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int cm9761_spdif_out_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -3270,7 +3197,9 @@ static int cm9761_spdif_out_source_put(struct snd_kcontrol *kcontrol, struct snd
 				    ucontrol->value.enumerated.item[0] == 1 ? 0x2 : 0);
 }
 
-static const char *cm9761_dac_clock[] = { "AC-Link", "SPDIF-In", "Both" };
+static const char * const cm9761_dac_clock[] = {
+	"AC-Link", "SPDIF-In", "Both"
+};
 static const struct ac97_enum cm9761_dac_clock_enum =
 	AC97_ENUM_SINGLE(AC97_CM9761_SPDIF_CTRL, 9, 3, cm9761_dac_clock);
 
@@ -3384,7 +3313,9 @@ static int patch_cm9761(struct snd_ac97 *ac97)
 #define AC97_CM9780_MULTI_CHAN	0x66
 #define AC97_CM9780_SPDIF	0x6c
 
-static const char *cm9780_ch_select[] = { "Front", "Side", "Center/LFE", "Rear" };
+static const char * const cm9780_ch_select[] = {
+	"Front", "Side", "Center/LFE", "Rear"
+};
 static const struct ac97_enum cm9780_ch_select_enum =
 	AC97_ENUM_SINGLE(AC97_CM9780_MULTI_CHAN, 6, 4, cm9780_ch_select);
 static const struct snd_kcontrol_new cm9780_controls[] = {
@@ -3421,6 +3352,33 @@ static int patch_cm9780(struct snd_ac97 *ac97)
 }
 
 /*
+ * VIA VT1613 codec
+ */
+static const struct snd_kcontrol_new snd_ac97_controls_vt1613[] = {
+AC97_SINGLE("DC Offset removal", 0x5a, 10, 1, 0),
+};
+
+static int patch_vt1613_specific(struct snd_ac97 *ac97)
+{
+	return patch_build_controls(ac97, &snd_ac97_controls_vt1613[0],
+				    ARRAY_SIZE(snd_ac97_controls_vt1613));
+};
+
+static const struct snd_ac97_build_ops patch_vt1613_ops = {
+	.build_specific	= patch_vt1613_specific
+};
+
+static int patch_vt1613(struct snd_ac97 *ac97)
+{
+	ac97->build_ops = &patch_vt1613_ops;
+
+	ac97->flags |= AC97_HAS_NO_VIDEO;
+	ac97->caps |= AC97_BC_HEADPHONE;
+
+	return 0;
+}
+
+/*
  * VIA VT1616 codec
  */
 static const struct snd_kcontrol_new snd_ac97_controls_vt1616[] = {
@@ -3430,7 +3388,7 @@ AC97_SINGLE("Downmix LFE and Center to Front", 0x5a, 12, 1, 0),
 AC97_SINGLE("Downmix Surround to Front", 0x5a, 11, 1, 0),
 };
 
-static const char *slave_vols_vt1616[] = {
+static const char * const slave_vols_vt1616[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -3438,7 +3396,7 @@ static const char *slave_vols_vt1616[] = {
 	NULL
 };
 
-static const char *slave_sws_vt1616[] = {
+static const char * const slave_sws_vt1616[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -3459,10 +3417,11 @@ static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 
 /* create a virtual master control and add slaves */
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
-				const unsigned int *tlv, const char **slaves)
+				const unsigned int *tlv,
+				const char * const *slaves)
 {
 	struct snd_kcontrol *kctl;
-	const char **s;
+	const char * const *s;
 	int err;
 
 	kctl = snd_ctl_make_virtual_master(name, tlv);
@@ -3477,7 +3436,8 @@ static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 
 		sctl = snd_ac97_find_mixer_ctl(ac97, *s);
 		if (!sctl) {
-			snd_printdd("Cannot find slave %s, skipped\n", *s);
+			dev_dbg(ac97->bus->card->dev,
+				"Cannot find slave %s, skipped\n", *s);
 			continue;
 		}
 		err = snd_ctl_add_slave(kctl, sctl);
@@ -3551,11 +3511,12 @@ static int snd_ac97_vt1617a_smart51_info(struct snd_kcontrol *kcontrol,
 	 * is SM51EN *AND* it's Bit14, not Bit15 so the table is very
 	 * counter-intuitive */ 
 
-	static const char* texts[] = { "LineIn Mic1", "LineIn Mic1 Mic3",
+	static const char * const texts[] = {"LineIn Mic1", "LineIn Mic1 Mic3",
 				       "Surr LFE/C Mic3", "LineIn LFE/C Mic3",
 				       "LineIn Mic2", "LineIn Mic2 Mic1",
 				       "Surr LFE Mic1", "Surr LFE Mic1 Mic2"};
-	return ac97_enum_text_info(kcontrol, uinfo, texts, 8);
+
+	return snd_ctl_enum_info(uinfo, 1, 8, texts);
 }
 
 static int snd_ac97_vt1617a_smart51_get(struct snd_kcontrol *kcontrol,
@@ -3684,7 +3645,7 @@ static int patch_vt1617a(struct snd_ac97 * ac97)
 struct vt1618_uaj_item {
 	unsigned short mask;
 	unsigned short shift;
-	const char *items[4];
+	const char * const items[4];
 };
 
 /* This list reflects the vt1618 docs for Vendor Defined Register 0x60. */
@@ -3719,9 +3680,8 @@ static struct vt1618_uaj_item vt1618_uaj[3] = {
 static int snd_ac97_vt1618_UAJ_info(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_info *uinfo)
 {
-	return ac97_enum_text_info(kcontrol, uinfo,
-				   vt1618_uaj[kcontrol->private_value].items,
-				   4);
+	return snd_ctl_enum_info(uinfo, 1, 4,
+				 vt1618_uaj[kcontrol->private_value].items);
 }
 
 /* All of the vt1618 Universal Audio Jack twiddlers are on
@@ -3766,9 +3726,9 @@ static int snd_ac97_vt1618_UAJ_put(struct snd_kcontrol *kcontrol,
 static int snd_ac97_vt1618_aux_info(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
 {
-	static const char *txt_aux[] = {"Aux In", "Back Surr Out"};
+	static const char * const txt_aux[] = {"Aux In", "Back Surr Out"};
 
-	return ac97_enum_text_info(kcontrol, uinfo, txt_aux, 2);
+	return snd_ctl_enum_info(uinfo, 1, 2, txt_aux);
 }
 
 static int snd_ac97_vt1618_aux_get(struct snd_kcontrol *kcontrol,

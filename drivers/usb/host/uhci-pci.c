@@ -129,6 +129,10 @@ static int uhci_pci_init(struct usb_hcd *hcd)
 	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_HP)
 		uhci->wait_for_hp = 1;
 
+	/* Intel controllers use non-PME wakeup signalling */
+	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_INTEL)
+		device_set_wakeup_capable(uhci_dev(uhci), true);
+
 	/* Set up pointers to PCI-specific functions */
 	uhci->reset_hc = uhci_pci_reset_hc;
 	uhci->check_and_reset_hc = uhci_pci_check_and_reset_hc;
@@ -162,6 +166,8 @@ static void uhci_shutdown(struct pci_dev *pdev)
 
 #ifdef CONFIG_PM
 
+static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated);
+
 static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
@@ -173,12 +179,6 @@ static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	spin_lock_irq(&uhci->lock);
 	if (!HCD_HW_ACCESSIBLE(hcd) || uhci->dead)
 		goto done_okay;		/* Already suspended or dead */
-
-	if (uhci->rh_state > UHCI_RH_SUSPENDED) {
-		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
-		rc = -EBUSY;
-		goto done;
-	};
 
 	/* All PCI host controllers are required to disable IRQ generation
 	 * at the source, so we must turn off PIRQ.
@@ -195,8 +195,15 @@ static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 
 done_okay:
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-done:
 	spin_unlock_irq(&uhci->lock);
+
+	synchronize_irq(hcd->irq);
+
+	/* Check for race with a wakeup request */
+	if (do_wakeup && HCD_WAKEUP_PENDING(hcd)) {
+		uhci_pci_resume(hcd, false);
+		rc = -EBUSY;
+	}
 	return rc;
 }
 
@@ -276,7 +283,7 @@ static const struct hc_driver uhci_driver = {
 	.hub_control =		uhci_hub_control,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(uhci_pci_ids) = { {
+static const struct pci_device_id uhci_pci_ids[] = { {
 	/* handle any USB UHCI controller */
 	PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_UHCI, ~0),
 	.driver_data =	(unsigned long) &uhci_driver,
@@ -293,9 +300,11 @@ static struct pci_driver uhci_pci_driver = {
 	.remove =	usb_hcd_pci_remove,
 	.shutdown =	uhci_shutdown,
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.driver =	{
 		.pm =	&usb_hcd_pci_pm_ops
 	},
 #endif
 };
+
+MODULE_SOFTDEP("pre: ehci_pci");

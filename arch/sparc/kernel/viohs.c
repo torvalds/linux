@@ -8,6 +8,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/slab.h>
 
 #include <asm/ldc.h>
@@ -222,6 +223,9 @@ static int send_rdx(struct vio_driver_state *vio)
 
 static int send_attr(struct vio_driver_state *vio)
 {
+	if (!vio->ops)
+		return -EINVAL;
+
 	return vio->ops->send_attr(vio);
 }
 
@@ -282,6 +286,7 @@ static int process_ver_info(struct vio_driver_state *vio,
 			ver.minor = vap->minor;
 		pkt->minor = ver.minor;
 		pkt->tag.stype = VIO_SUBTYPE_ACK;
+		pkt->dev_class = vio->dev_class;
 		viodbg(HS, "SEND VERSION ACK maj[%u] min[%u]\n",
 		       pkt->major, pkt->minor);
 		err = send_ctrl(vio, &pkt->tag, sizeof(*pkt));
@@ -373,6 +378,9 @@ static int process_attr(struct vio_driver_state *vio, void *pkt)
 	if (!(vio->hs_state & VIO_HS_GOTVERS))
 		return handshake_failure(vio);
 
+	if (!vio->ops)
+		return 0;
+
 	err = vio->ops->handle_attr(vio, pkt);
 	if (err < 0) {
 		return handshake_failure(vio);
@@ -387,6 +395,7 @@ static int process_attr(struct vio_driver_state *vio, void *pkt)
 			vio->hs_state |= VIO_HS_SENT_DREG;
 		}
 	}
+
 	return 0;
 }
 
@@ -426,6 +435,13 @@ static int process_dreg_info(struct vio_driver_state *vio,
 	if (vio->dr_state & VIO_DR_STATE_RXREG)
 		goto send_nack;
 
+	/* v1.6 and higher, ACK with desired, supported mode, or NACK */
+	if (vio_version_after_eq(vio, 1, 6)) {
+		if (!(pkt->options & VIO_TX_DRING))
+			goto send_nack;
+		pkt->options = VIO_TX_DRING;
+	}
+
 	BUG_ON(vio->desc_buf);
 
 	vio->desc_buf = kzalloc(pkt->descr_size, GFP_ATOMIC);
@@ -453,8 +469,11 @@ static int process_dreg_info(struct vio_driver_state *vio,
 	pkt->tag.stype = VIO_SUBTYPE_ACK;
 	pkt->dring_ident = ++dr->ident;
 
-	viodbg(HS, "SEND DRING_REG ACK ident[%llx]\n",
-	       (unsigned long long) pkt->dring_ident);
+	viodbg(HS, "SEND DRING_REG ACK ident[%llx] "
+	       "ndesc[%u] dsz[%u] opt[0x%x] ncookies[%u]\n",
+	       (unsigned long long) pkt->dring_ident,
+	       pkt->num_descr, pkt->descr_size, pkt->options,
+	       pkt->num_cookies);
 
 	len = (sizeof(*pkt) +
 	       (dr->ncookies * sizeof(struct ldc_trans_cookie)));
@@ -636,10 +655,13 @@ int vio_control_pkt_engine(struct vio_driver_state *vio, void *pkt)
 		err = process_unknown(vio, pkt);
 		break;
 	}
+
 	if (!err &&
 	    vio->hs_state != prev_state &&
-	    (vio->hs_state & VIO_HS_COMPLETE))
-		vio->ops->handshake_complete(vio);
+	    (vio->hs_state & VIO_HS_COMPLETE)) {
+		if (vio->ops)
+			vio->ops->handshake_complete(vio);
+	}
 
 	return err;
 }
@@ -714,7 +736,7 @@ int vio_ldc_alloc(struct vio_driver_state *vio,
 	cfg.tx_irq = vio->vdev->tx_irq;
 	cfg.rx_irq = vio->vdev->rx_irq;
 
-	lp = ldc_alloc(vio->vdev->channel_id, &cfg, event_arg);
+	lp = ldc_alloc(vio->vdev->channel_id, &cfg, event_arg, vio->name);
 	if (IS_ERR(lp))
 		return PTR_ERR(lp);
 
@@ -746,7 +768,7 @@ void vio_port_up(struct vio_driver_state *vio)
 
 	err = 0;
 	if (state == LDC_STATE_INIT) {
-		err = ldc_bind(vio->lp, vio->name);
+		err = ldc_bind(vio->lp);
 		if (err)
 			printk(KERN_WARNING "%s: Port %lu bind failed, "
 			       "err=%d\n",
@@ -754,7 +776,11 @@ void vio_port_up(struct vio_driver_state *vio)
 	}
 
 	if (!err) {
-		err = ldc_connect(vio->lp);
+		if (ldc_mode(vio->lp) == LDC_MODE_RAW)
+			ldc_set_state(vio->lp, LDC_STATE_CONNECTED);
+		else
+			err = ldc_connect(vio->lp);
+
 		if (err)
 			printk(KERN_WARNING "%s: Port %lu connect failed, "
 			       "err=%d\n",
@@ -788,16 +814,21 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 	case VDEV_NETWORK_SWITCH:
 	case VDEV_DISK:
 	case VDEV_DISK_SERVER:
+	case VDEV_CONSOLE_CON:
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	if (!ops->send_attr ||
-	    !ops->handle_attr ||
-	    !ops->handshake_complete)
-		return -EINVAL;
+	if (dev_class == VDEV_NETWORK ||
+	    dev_class == VDEV_NETWORK_SWITCH ||
+	    dev_class == VDEV_DISK ||
+	    dev_class == VDEV_DISK_SERVER) {
+		if (!ops || !ops->send_attr || !ops->handle_attr ||
+		    !ops->handshake_complete)
+			return -EINVAL;
+	}
 
 	if (!ver_table || ver_table_size < 0)
 		return -EINVAL;

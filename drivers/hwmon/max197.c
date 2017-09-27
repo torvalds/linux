@@ -207,8 +207,8 @@ unlock:
 	return ret;
 }
 
-static ssize_t max197_show_name(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", pdev->name);
@@ -231,7 +231,7 @@ static ssize_t max197_show_name(struct device *dev,
 	&sensor_dev_attr_in##chan##_max.dev_attr.attr,			\
 	&sensor_dev_attr_in##chan##_min.dev_attr.attr
 
-static DEVICE_ATTR(name, S_IRUGO, max197_show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 MAX197_SENSOR_DEVICE_ATTR_CH(0);
 MAX197_SENSOR_DEVICE_ATTR_CH(1);
@@ -261,7 +261,7 @@ static int max197_probe(struct platform_device *pdev)
 {
 	int ch, ret;
 	struct max197_data *data;
-	struct max197_platform_data *pdata = pdev->dev.platform_data;
+	struct max197_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	enum max197_chips chip = platform_get_device_id(pdev)->driver_data;
 
 	if (pdata == NULL) {
@@ -275,10 +275,8 @@ static int max197_probe(struct platform_device *pdev)
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct max197_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "devm_kzalloc failed\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->pdata = pdata;
 	mutex_init(&data->lock);
@@ -326,7 +324,7 @@ static int max197_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id max197_device_ids[] = {
+static const struct platform_device_id max197_device_ids[] = {
 	{ "max197", max197 },
 	{ "max199", max199 },
 	{ }
@@ -336,7 +334,6 @@ MODULE_DEVICE_TABLE(platform, max197_device_ids);
 static struct platform_driver max197_driver = {
 	.driver = {
 		.name = "max197",
-		.owner = THIS_MODULE,
 	},
 	.probe = max197_probe,
 	.remove = max197_remove,

@@ -25,7 +25,7 @@
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <linux/module.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>
 #include "pcxhr.h"
@@ -72,7 +72,8 @@ static int pcxhr_init_board(struct pcxhr_mgr *mgr)
 	/* test max nb substream per pipe */
 	if (((rmh.stat[1] >> 7) & 0x5F) < PCXHR_PLAYBACK_STREAMS)
 		return -EINVAL;
-	snd_printdd("supported formats : playback=%x capture=%x\n",
+	dev_dbg(&mgr->pci->dev,
+		"supported formats : playback=%x capture=%x\n",
 		    rmh.stat[2], rmh.stat[3]);
 
 	pcxhr_init_rmh(&rmh, CMD_VERSION);
@@ -84,7 +85,8 @@ static int pcxhr_init_board(struct pcxhr_mgr *mgr)
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err)
 		return err;
-	snd_printdd("PCXHR DSP version is %d.%d.%d\n", (rmh.stat[0]>>16)&0xff,
+	dev_dbg(&mgr->pci->dev,
+		"PCXHR DSP version is %d.%d.%d\n", (rmh.stat[0]>>16)&0xff,
 		    (rmh.stat[0]>>8)&0xff, rmh.stat[0]&0xff);
 	mgr->dsp_version = rmh.stat[0];
 
@@ -179,7 +181,7 @@ static int pcxhr_dsp_allocate_pipe(struct pcxhr_mgr *mgr,
 		stream_count = PCXHR_PLAYBACK_STREAMS;
 		audio_count = 2;	/* always stereo */
 	}
-	snd_printdd("snd_add_ref_pipe pin(%d) pcm%c0\n",
+	dev_dbg(&mgr->pci->dev, "snd_add_ref_pipe pin(%d) pcm%c0\n",
 		    pin, is_capture ? 'c' : 'p');
 	pipe->is_capture = is_capture;
 	pipe->first_audio = pin;
@@ -194,7 +196,7 @@ static int pcxhr_dsp_allocate_pipe(struct pcxhr_mgr *mgr,
 	}
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err < 0) {
-		snd_printk(KERN_ERR "error pipe allocation "
+		dev_err(&mgr->pci->dev, "error pipe allocation "
 			   "(CMD_RES_PIPE) err=%x!\n", err);
 		return err;
 	}
@@ -222,14 +224,14 @@ static int pcxhr_dsp_free_pipe( struct pcxhr_mgr *mgr, struct pcxhr_pipe *pipe)
 	/* stop one pipe */
 	err = pcxhr_set_pipe_state(mgr, playback_mask, capture_mask, 0);
 	if (err < 0)
-		snd_printk(KERN_ERR "error stopping pipe!\n");
+		dev_err(&mgr->pci->dev, "error stopping pipe!\n");
 	/* release the pipe */
 	pcxhr_init_rmh(&rmh, CMD_FREE_PIPE);
 	pcxhr_set_pipe_cmd_params(&rmh, pipe->is_capture, pipe->first_audio,
 				  0, 0);
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err < 0)
-		snd_printk(KERN_ERR "error pipe release "
+		dev_err(&mgr->pci->dev, "error pipe release "
 			   "(CMD_FREE_PIPE) err(%x)\n", err);
 	pipe->status = PCXHR_PIPE_UNDEFINED;
 	return err;
@@ -289,7 +291,8 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 {
 	int err, card_index;
 
-	snd_printdd("loading dsp [%d] size = %Zd\n", index, dsp->size);
+	dev_dbg(&mgr->pci->dev,
+		"loading dsp [%d] size = %zd\n", index, dsp->size);
 
 	switch (index) {
 	case PCXHR_FIRMWARE_XLX_INT_INDEX:
@@ -313,19 +316,19 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 			return err;
 		break;	/* continue with first init */
 	default:
-		snd_printk(KERN_ERR "wrong file index\n");
+		dev_err(&mgr->pci->dev, "wrong file index\n");
 		return -EFAULT;
 	} /* end of switch file index*/
 
 	/* first communication with embedded */
 	err = pcxhr_init_board(mgr);
         if (err < 0) {
-		snd_printk(KERN_ERR "pcxhr could not be set up\n");
+		dev_err(&mgr->pci->dev, "pcxhr could not be set up\n");
 		return err;
 	}
 	err = pcxhr_config_pipes(mgr);
         if (err < 0) {
-		snd_printk(KERN_ERR "pcxhr pipes could not be set up\n");
+		dev_err(&mgr->pci->dev, "pcxhr pipes could not be set up\n");
 		return err;
 	}
        	/* create devices and mixer in accordance with HW options*/
@@ -344,10 +347,11 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 	}
 	err = pcxhr_start_pipes(mgr);
         if (err < 0) {
-		snd_printk(KERN_ERR "pcxhr pipes could not be started\n");
+		dev_err(&mgr->pci->dev, "pcxhr pipes could not be started\n");
 		return err;
 	}
-	snd_printdd("pcxhr firmware downloaded and successfully set up\n");
+	dev_dbg(&mgr->pci->dev,
+		"pcxhr firmware downloaded and successfully set up\n");
 
 	return 0;
 }
@@ -382,7 +386,8 @@ int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 			continue;
 		sprintf(path, "pcxhr/%s", fw_files[fw_set][i]);
 		if (request_firmware(&fw_entry, path, &mgr->pci->dev)) {
-			snd_printk(KERN_ERR "pcxhr: can't load firmware %s\n",
+			dev_err(&mgr->pci->dev,
+				"pcxhr: can't load firmware %s\n",
 				   path);
 			return -ENOENT;
 		}

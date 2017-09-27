@@ -23,7 +23,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/miscdevice.h>
 #include <linux/blkdev.h>
 #include <linux/pci.h>
@@ -46,6 +46,8 @@
 #include <linux/suspend.h>
 #include <linux/cpu.h>
 #include <linux/compat.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
@@ -55,7 +57,7 @@
 #include <asm/pmac_feature.h>
 #include <asm/pmac_pfunc.h>
 #include <asm/pmac_low_i2c.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/cputable.h>
 #include <asm/time.h>
@@ -143,7 +145,7 @@ static int pmu_fully_inited;
 static int pmu_has_adb;
 static struct device_node *gpio_node;
 static unsigned char __iomem *gpio_reg;
-static int gpio_irq = NO_IRQ;
+static int gpio_irq = 0;
 static int gpio_irq_enabled = -1;
 static volatile int pmu_suspended;
 static spinlock_t pmu_lock;
@@ -327,10 +329,11 @@ int __init find_via_pmu(void)
 				gaddr = of_translate_address(gpiop, reg);
 			if (gaddr != OF_BAD_ADDR)
 				gpio_reg = ioremap(gaddr, 0x10);
+			of_node_put(gpiop);
 		}
 		if (gpio_reg == NULL) {
 			printk(KERN_ERR "via-pmu: Can't find GPIO reg !\n");
-			goto fail_gpio;
+			goto fail;
 		}
 	} else
 		pmu_kind = PMU_UNKNOWN;
@@ -338,7 +341,7 @@ int __init find_via_pmu(void)
 	via = ioremap(taddr, 0x2000);
 	if (via == NULL) {
 		printk(KERN_ERR "via-pmu: Can't map address !\n");
-		goto fail;
+		goto fail_via_remap;
 	}
 	
 	out_8(&via[IER], IER_CLR | 0x7f);	/* disable all intrs */
@@ -346,10 +349,8 @@ int __init find_via_pmu(void)
 
 	pmu_state = idle;
 
-	if (!init_pmu()) {
-		via = NULL;
-		return 0;
-	}
+	if (!init_pmu())
+		goto fail_init;
 
 	printk(KERN_INFO "PMU driver v%d initialized for %s, firmware: %02x\n",
 	       PMU_DRIVER_VERSION, pbook_type[pmu_kind], pmu_version);
@@ -357,11 +358,15 @@ int __init find_via_pmu(void)
 	sys_ctrler = SYS_CTRLER_PMU;
 	
 	return 1;
- fail:
-	of_node_put(vias);
+
+ fail_init:
+	iounmap(via);
+	via = NULL;
+ fail_via_remap:
 	iounmap(gpio_reg);
 	gpio_reg = NULL;
- fail_gpio:
+ fail:
+	of_node_put(vias);
 	vias = NULL;
 	return 0;
 }
@@ -397,7 +402,7 @@ static int __init via_pmu_start(void)
 	batt_req.complete = 1;
 
 	irq = irq_of_parse_and_map(vias, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		printk(KERN_ERR "via-pmu: can't map interrupt\n");
 		return -ENODEV;
 	}
@@ -419,9 +424,10 @@ static int __init via_pmu_start(void)
 		if (gpio_node)
 			gpio_irq = irq_of_parse_and_map(gpio_node, 0);
 
-		if (gpio_irq != NO_IRQ) {
-			if (request_irq(gpio_irq, gpio1_interrupt, IRQF_TIMER,
-					"GPIO1 ADB", (void *)0))
+		if (gpio_irq) {
+			if (request_irq(gpio_irq, gpio1_interrupt,
+					IRQF_NO_SUSPEND, "GPIO1 ADB",
+					(void *)0))
 				printk(KERN_ERR "pmu: can't get irq %d"
 				       " (GPIO1)\n", gpio_irq);
 			else
@@ -1845,7 +1851,7 @@ static int powerbook_sleep_grackle(void)
  		_set_L2CR(save_l2cr);
 	
 	/* Restore userland MMU context */
-	switch_mmu_context(NULL, current->active_mm);
+	switch_mmu_context(NULL, current->active_mm, NULL);
 
 	/* Power things up */
 	pmu_unlock();
@@ -1934,7 +1940,7 @@ powerbook_sleep_Core99(void)
  		_set_L3CR(save_l3cr);
 	
 	/* Restore userland MMU context */
-	switch_mmu_context(NULL, current->active_mm);
+	switch_mmu_context(NULL, current->active_mm, NULL);
 
 	/* Tell PMU we are ready */
 	pmu_unlock();
@@ -2107,7 +2113,7 @@ pmu_read(struct file *file, char __user *buf,
 
 	spin_lock_irqsave(&pp->lock, flags);
 	add_wait_queue(&pp->wait, &wait);
-	current->state = TASK_INTERRUPTIBLE;
+	set_current_state(TASK_INTERRUPTIBLE);
 
 	for (;;) {
 		ret = -EAGAIN;
@@ -2136,7 +2142,7 @@ pmu_read(struct file *file, char __user *buf,
 		schedule();
 		spin_lock_irqsave(&pp->lock, flags);
 	}
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&pp->wait, &wait);
 	spin_unlock_irqrestore(&pp->lock, flags);
 	

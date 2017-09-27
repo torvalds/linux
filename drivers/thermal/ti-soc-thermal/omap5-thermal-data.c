@@ -319,7 +319,8 @@ const struct ti_bandgap_data omap5430_data = {
 			TI_BANDGAP_FEATURE_FREEZE_BIT |
 			TI_BANDGAP_FEATURE_TALERT |
 			TI_BANDGAP_FEATURE_COUNTER_DELAY |
-			TI_BANDGAP_FEATURE_HISTORY_BUFFER,
+			TI_BANDGAP_FEATURE_HISTORY_BUFFER |
+			TI_BANDGAP_FEATURE_ERRATA_813,
 	.fclock_name = "l3instr_ts_gclk_div",
 	.div_ck_name = "l3instr_ts_gclk_div",
 	.conv_table = omap5430_adc_to_temp,
@@ -335,8 +336,6 @@ const struct ti_bandgap_data omap5430_data = {
 		.domain = "cpu",
 		.register_cooling = ti_thermal_register_cpu_cooling,
 		.unregister_cooling = ti_thermal_unregister_cpu_cooling,
-		.slope = OMAP_GRADIENT_SLOPE_5430_CPU,
-		.constant = OMAP_GRADIENT_CONST_5430_CPU,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_5430_CPU,
 		.constant_pcb = OMAP_GRADIENT_CONST_W_PCB_5430_CPU,
 		},
@@ -344,8 +343,6 @@ const struct ti_bandgap_data omap5430_data = {
 		.registers = &omap5430_gpu_temp_sensor_registers,
 		.ts_data = &omap5430_gpu_temp_sensor_data,
 		.domain = "gpu",
-		.slope = OMAP_GRADIENT_SLOPE_5430_GPU,
-		.constant = OMAP_GRADIENT_CONST_5430_GPU,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_5430_GPU,
 		.constant_pcb = OMAP_GRADIENT_CONST_W_PCB_5430_GPU,
 		},

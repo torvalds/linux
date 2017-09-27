@@ -47,13 +47,13 @@ BSS_STACK(4096);
  * The buffer is put in it's own section so that tools may locate it easier.
  */
 
-static char cmdline[COMMAND_LINE_SIZE]
+static char cmdline[BOOT_COMMAND_LINE_SIZE]
 	__attribute__((__section__("__builtin_cmdline")));
 
 static void prep_cmdline(void *chosen)
 {
 	if (cmdline[0] == '\0')
-		getprop(chosen, "bootargs", cmdline, COMMAND_LINE_SIZE-1);
+		getprop(chosen, "bootargs", cmdline, BOOT_COMMAND_LINE_SIZE-1);
 	else
 		setprop_str(chosen, "bootargs", cmdline);
 
@@ -119,13 +119,12 @@ void ps3_copy_vectors(void)
 	flush_cache((void *)0x100, 512);
 }
 
-void platform_init(unsigned long null_check)
+void platform_init(void)
 {
 	const u32 heapsize = 0x1000000 - (u32)_end; /* 16MiB */
 	void *chosen;
 	unsigned long ft_addr;
 	u64 rm_size;
-	unsigned long val;
 
 	console_ops.write = ps3_console_write;
 	platform_ops.exit = ps3_exit;
@@ -152,11 +151,6 @@ void platform_init(unsigned long null_check)
 	ps3_copy_vectors();
 
 	printf(" flat tree at 0x%lx\n\r", ft_addr);
-
-	val = *(unsigned long *)0;
-
-	if (val != null_check)
-		printf("null check failed: %lx != %lx\n\r", val, null_check);
 
 	((kernel_entry_t)0)(ft_addr, 0, NULL);
 

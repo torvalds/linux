@@ -88,7 +88,6 @@ static int amanda_help(struct sk_buff *skb,
 		       struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo)
 {
-	struct ts_state ts;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple *tuple;
 	unsigned int dataoff, start, stop, off, i;
@@ -113,23 +112,20 @@ static int amanda_help(struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	memset(&ts, 0, sizeof(ts));
 	start = skb_find_text(skb, dataoff, skb->len,
-			      search[SEARCH_CONNECT].ts, &ts);
+			      search[SEARCH_CONNECT].ts);
 	if (start == UINT_MAX)
 		goto out;
 	start += dataoff + search[SEARCH_CONNECT].len;
 
-	memset(&ts, 0, sizeof(ts));
 	stop = skb_find_text(skb, start, skb->len,
-			     search[SEARCH_NEWLINE].ts, &ts);
+			     search[SEARCH_NEWLINE].ts);
 	if (stop == UINT_MAX)
 		goto out;
 	stop += start;
 
 	for (i = SEARCH_DATA; i <= SEARCH_INDEX; i++) {
-		memset(&ts, 0, sizeof(ts));
-		off = skb_find_text(skb, start, stop, search[i].ts, &ts);
+		off = skb_find_text(skb, start, stop, search[i].ts);
 		if (off == UINT_MAX)
 			continue;
 		off += start + search[i].len;
@@ -201,8 +197,8 @@ static void __exit nf_conntrack_amanda_fini(void)
 {
 	int i;
 
-	nf_conntrack_helper_unregister(&amanda_helper[0]);
-	nf_conntrack_helper_unregister(&amanda_helper[1]);
+	nf_conntrack_helpers_unregister(amanda_helper,
+					ARRAY_SIZE(amanda_helper));
 	for (i = 0; i < ARRAY_SIZE(search); i++)
 		textsearch_destroy(search[i].ts);
 }
@@ -210,6 +206,8 @@ static void __exit nf_conntrack_amanda_fini(void)
 static int __init nf_conntrack_amanda_init(void)
 {
 	int ret, i;
+
+	NF_CT_HELPER_BUILD_BUG_ON(0);
 
 	for (i = 0; i < ARRAY_SIZE(search); i++) {
 		search[i].ts = textsearch_prepare(ts_algo, search[i].string,
@@ -220,16 +218,12 @@ static int __init nf_conntrack_amanda_init(void)
 			goto err1;
 		}
 	}
-	ret = nf_conntrack_helper_register(&amanda_helper[0]);
+	ret = nf_conntrack_helpers_register(amanda_helper,
+					    ARRAY_SIZE(amanda_helper));
 	if (ret < 0)
 		goto err1;
-	ret = nf_conntrack_helper_register(&amanda_helper[1]);
-	if (ret < 0)
-		goto err2;
 	return 0;
 
-err2:
-	nf_conntrack_helper_unregister(&amanda_helper[0]);
 err1:
 	while (--i >= 0)
 		textsearch_destroy(search[i].ts);

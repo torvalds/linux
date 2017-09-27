@@ -28,20 +28,9 @@ struct page;
 
 void clear_page_asm(void *page);
 void copy_page_asm(void *to, void *from);
-void clear_user_page(void *vto, unsigned long vaddr, struct page *pg);
+#define clear_user_page(vto, vaddr, page) clear_page_asm(vto)
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
-			   struct page *pg);
-
-/* #define CONFIG_PARISC_TMPALIAS */
-
-#ifdef CONFIG_PARISC_TMPALIAS
-void clear_user_highpage(struct page *page, unsigned long vaddr);
-#define clear_user_highpage clear_user_highpage
-struct vm_area_struct;
-void copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma);
-#define __HAVE_ARCH_COPY_USER_HIGHPAGE
-#endif
+			struct page *pg);
 
 /*
  * These are used to make use of C type-checking..
@@ -127,11 +116,15 @@ extern int npmem_ranges;
 /* This governs the relationship between virtual and physical addresses.
  * If you alter it, make sure to take care of our various fixed mapping
  * segments in fixmap.h */
+#if defined(BOOTLOADER)
+#define __PAGE_OFFSET	(0)		/* bootloader uses physical addresses */
+#else
 #ifdef CONFIG_64BIT
 #define __PAGE_OFFSET	(0x40000000)	/* 1GB */
 #else
 #define __PAGE_OFFSET	(0x10000000)	/* 256MB */
 #endif
+#endif /* BOOTLOADER */
 
 #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
 
@@ -156,11 +149,22 @@ extern int npmem_ranges;
 #endif /* CONFIG_DISCONTIGMEM */
 
 #ifdef CONFIG_HUGETLB_PAGE
-#define HPAGE_SHIFT		22	/* 4MB (is this fixed?) */
+#define HPAGE_SHIFT		PMD_SHIFT /* fixed for transparent huge pages */
 #define HPAGE_SIZE      	((1UL) << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+
+#if defined(CONFIG_64BIT) && defined(CONFIG_PARISC_PAGE_SIZE_4KB)
+# define REAL_HPAGE_SHIFT	20 /* 20 = 1MB */
+# define _HUGE_PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_1M
+#elif !defined(CONFIG_64BIT) && defined(CONFIG_PARISC_PAGE_SIZE_4KB)
+# define REAL_HPAGE_SHIFT	22 /* 22 = 4MB */
+# define _HUGE_PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_4M
+#else
+# define REAL_HPAGE_SHIFT	24 /* 24 = 16MB */
+# define _HUGE_PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_16M
 #endif
+#endif /* CONFIG_HUGETLB_PAGE */
 
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 

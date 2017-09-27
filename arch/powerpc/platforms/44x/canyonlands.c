@@ -33,7 +33,7 @@
 
 #define BCSR_USB_EN	0x11
 
-static __initdata struct of_device_id ppc460ex_of_bus[] = {
+static const struct of_device_id ppc460ex_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },
@@ -53,11 +53,10 @@ machine_device_initcall(canyonlands, ppc460ex_device_probe);
 
 static int __init ppc460ex_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	if (of_flat_dt_is_compatible(root, "amcc,canyonlands")) {
+	if (of_machine_is_compatible("amcc,canyonlands")) {
 		pci_set_flags(PCI_REASSIGN_ALL_RSRC);
 		return 1;
-		}
+	}
 	return 0;
 }
 

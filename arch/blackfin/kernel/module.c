@@ -4,8 +4,6 @@
  * Licensed under the GPL-2 or later
  */
 
-#define pr_fmt(fmt) "module %s: " fmt, mod->name
-
 #include <linux/moduleloader.h>
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
@@ -14,7 +12,12 @@
 #include <linux/kernel.h>
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+
+#define mod_err(mod, fmt, ...)						\
+	pr_err("module %s: " fmt, (mod)->name, ##__VA_ARGS__)
+#define mod_debug(mod, fmt, ...)					\
+	pr_debug("module %s: " fmt, (mod)->name, ##__VA_ARGS__)
 
 /* Transfer the section to the L1 memory */
 int
@@ -44,7 +47,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l1_inst_sram_alloc(s->sh_size);
 			mod->arch.text_l1 = dest;
 			if (dest == NULL) {
-				pr_err("L1 inst memory allocation failed\n");
+				mod_err(mod, "L1 inst memory allocation failed\n");
 				return -1;
 			}
 			dma_memcpy(dest, (void *)s->sh_addr, s->sh_size);
@@ -56,7 +59,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l1_data_sram_alloc(s->sh_size);
 			mod->arch.data_a_l1 = dest;
 			if (dest == NULL) {
-				pr_err("L1 data memory allocation failed\n");
+				mod_err(mod, "L1 data memory allocation failed\n");
 				return -1;
 			}
 			memcpy(dest, (void *)s->sh_addr, s->sh_size);
@@ -68,7 +71,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l1_data_sram_zalloc(s->sh_size);
 			mod->arch.bss_a_l1 = dest;
 			if (dest == NULL) {
-				pr_err("L1 data memory allocation failed\n");
+				mod_err(mod, "L1 data memory allocation failed\n");
 				return -1;
 			}
 
@@ -77,7 +80,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l1_data_B_sram_alloc(s->sh_size);
 			mod->arch.data_b_l1 = dest;
 			if (dest == NULL) {
-				pr_err("L1 data memory allocation failed\n");
+				mod_err(mod, "L1 data memory allocation failed\n");
 				return -1;
 			}
 			memcpy(dest, (void *)s->sh_addr, s->sh_size);
@@ -87,7 +90,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l1_data_B_sram_alloc(s->sh_size);
 			mod->arch.bss_b_l1 = dest;
 			if (dest == NULL) {
-				pr_err("L1 data memory allocation failed\n");
+				mod_err(mod, "L1 data memory allocation failed\n");
 				return -1;
 			}
 			memset(dest, 0, s->sh_size);
@@ -99,7 +102,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l2_sram_alloc(s->sh_size);
 			mod->arch.text_l2 = dest;
 			if (dest == NULL) {
-				pr_err("L2 SRAM allocation failed\n");
+				mod_err(mod, "L2 SRAM allocation failed\n");
 				return -1;
 			}
 			memcpy(dest, (void *)s->sh_addr, s->sh_size);
@@ -111,7 +114,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l2_sram_alloc(s->sh_size);
 			mod->arch.data_l2 = dest;
 			if (dest == NULL) {
-				pr_err("L2 SRAM allocation failed\n");
+				mod_err(mod, "L2 SRAM allocation failed\n");
 				return -1;
 			}
 			memcpy(dest, (void *)s->sh_addr, s->sh_size);
@@ -123,7 +126,7 @@ module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			dest = l2_sram_zalloc(s->sh_size);
 			mod->arch.bss_l2 = dest;
 			if (dest == NULL) {
-				pr_err("L2 SRAM allocation failed\n");
+				mod_err(mod, "L2 SRAM allocation failed\n");
 				return -1;
 			}
 
@@ -157,8 +160,8 @@ apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	Elf32_Sym *sym;
 	unsigned long location, value, size;
 
-	pr_debug("applying relocate section %u to %u\n",
-		relsec, sechdrs[relsec].sh_info);
+	mod_debug(mod, "applying relocate section %u to %u\n",
+		  relsec, sechdrs[relsec].sh_info);
 
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -174,14 +177,14 @@ apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 
 #ifdef CONFIG_SMP
 		if (location >= COREB_L1_DATA_A_START) {
-			pr_err("cannot relocate in L1: %u (SMP kernel)\n",
+			mod_err(mod, "cannot relocate in L1: %u (SMP kernel)\n",
 				ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
 #endif
 
-		pr_debug("location is %lx, value is %lx type is %d\n",
-			location, value, ELF32_R_TYPE(rel[i].r_info));
+		mod_debug(mod, "location is %lx, value is %lx type is %d\n",
+			  location, value, ELF32_R_TYPE(rel[i].r_info));
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 
@@ -200,12 +203,12 @@ apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		case R_BFIN_PCREL12_JUMP:
 		case R_BFIN_PCREL12_JUMP_S:
 		case R_BFIN_PCREL10:
-			pr_err("unsupported relocation: %u (no -mlong-calls?)\n",
+			mod_err(mod, "unsupported relocation: %u (no -mlong-calls?)\n",
 				ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 
 		default:
-			pr_err("unknown relocation: %u\n",
+			mod_err(mod, "unknown relocation: %u\n",
 				ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
@@ -222,7 +225,7 @@ apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			isram_memcpy((void *)location, &value, size);
 			break;
 		default:
-			pr_err("invalid relocation for %#lx\n", location);
+			mod_err(mod, "invalid relocation for %#lx\n", location);
 			return -ENOEXEC;
 		}
 	}

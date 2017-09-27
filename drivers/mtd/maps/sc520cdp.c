@@ -183,7 +183,7 @@ static const struct sc520_par_table par_table[NUM_FLASH_BANKS] =
 
 static void sc520cdp_setup_par(void)
 {
-	volatile unsigned long __iomem *mmcr;
+	unsigned long __iomem *mmcr;
 	unsigned long mmcr_val;
 	int i, j;
 
@@ -203,11 +203,11 @@ static void sc520cdp_setup_par(void)
 	*/
 	for(i = 0; i < NUM_FLASH_BANKS; i++) {		/* for each par_table entry  */
 		for(j = 0; j < NUM_SC520_PAR; j++) {	/* for each PAR register     */
-			mmcr_val = mmcr[SC520_PAR(j)];
+			mmcr_val = readl(&mmcr[SC520_PAR(j)]);
 			/* if target device field matches, reprogram the PAR */
 			if((mmcr_val & SC520_PAR_TRGDEV) == par_table[i].trgdev)
 			{
-				mmcr[SC520_PAR(j)] = par_table[i].new_par;
+				writel(par_table[i].new_par, &mmcr[SC520_PAR(j)]);
 				break;
 			}
 		}
@@ -227,7 +227,7 @@ static void sc520cdp_setup_par(void)
 
 static int __init init_sc520cdp(void)
 {
-	int i, devices_found = 0;
+	int i, j, devices_found = 0;
 
 #ifdef REPROGRAM_PAR
 	/* reprogram PAR registers so flash appears at the desired addresses */
@@ -243,6 +243,12 @@ static int __init init_sc520cdp(void)
 
 		if (!sc520cdp_map[i].virt) {
 			printk("Failed to ioremap_nocache\n");
+			for (j = 0; j < i; j++) {
+				if (mymtd[j]) {
+					map_destroy(mymtd[j]);
+					iounmap(sc520cdp_map[j].virt);
+				}
+			}
 			return -EIO;
 		}
 

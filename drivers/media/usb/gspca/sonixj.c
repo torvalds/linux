@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -54,7 +50,6 @@ struct sd {
 	u32 exposure;
 
 	struct work_struct work;
-	struct workqueue_struct *work_thread;
 
 	u32 pktsz;			/* (used by pkt_scan) */
 	u16 npkt;
@@ -1789,7 +1784,7 @@ static u32 expo_adjust(struct gspca_dev *gspca_dev,
 
 		if (expo > 0x03ff)
 			expo = 0x03ff;
-		 if (expo < 0x0001)
+		if (expo < 0x0001)
 			expo = 0x0001;
 		gainOm[3] = expo >> 2;
 		i2c_w8(gspca_dev, gainOm);
@@ -2204,7 +2199,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				{ 0x14, 0xe7, 0x1e, 0xdd };
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x21);		/* JPEG 422 */
 
 	/* initialize the bridge */
@@ -2484,7 +2480,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	sd->pktsz = sd->npkt = 0;
 	sd->nchg = sd->short_mark = 0;
-	sd->work_thread = create_singlethread_workqueue(MODULE_NAME);
 
 	return gspca_dev->usb_err;
 }
@@ -2568,12 +2563,9 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->work_thread != NULL) {
-		mutex_unlock(&gspca_dev->usb_lock);
-		destroy_workqueue(sd->work_thread);
-		mutex_lock(&gspca_dev->usb_lock);
-		sd->work_thread = NULL;
-	}
+	mutex_unlock(&gspca_dev->usb_lock);
+	flush_work(&sd->work);
+	mutex_lock(&gspca_dev->usb_lock);
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -2784,7 +2776,7 @@ marker_found:
 				new_qual = QUALITY_MAX;
 			if (new_qual != sd->quality) {
 				sd->quality = new_qual;
-				queue_work(sd->work_thread, &sd->work);
+				schedule_work(&sd->work);
 			}
 		}
 	} else {

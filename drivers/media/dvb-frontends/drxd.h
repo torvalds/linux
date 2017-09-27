@@ -13,18 +13,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #ifndef _DRXD_H_
 #define _DRXD_H_
 
-#include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
 
@@ -52,7 +47,7 @@ struct drxd_config {
 	 s16(*osc_deviation) (void *priv, s16 dev, int flag);
 };
 
-#if IS_ENABLED(CONFIG_DVB_DRXD)
+#if IS_REACHABLE(CONFIG_DVB_DRXD)
 extern
 struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 				 void *priv, struct i2c_adapter *i2c,
@@ -69,5 +64,4 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 }
 #endif
 
-extern int drxd_config_i2c(struct dvb_frontend *, int);
 #endif

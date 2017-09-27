@@ -1,0 +1,19 @@
+Xilinx Zynq FPGA Manager
+
+Required properties:
+- compatible:		should contain "xlnx,zynq-devcfg-1.0"
+- reg:			base address and size for memory mapped io
+- interrupts:		interrupt for the FPGA manager device
+- clocks:		phandle for clocks required operation
+- clock-names:		name for the clock, should be "ref_clk"
+- syscon:		phandle for access to SLCR registers
+
+Example:
+	devcfg: devcfg@f8007000 {
+		compatible = "xlnx,zynq-devcfg-1.0";
+		reg = <0xf8007000 0x100>;
+		interrupts = <0 8 4>;
+		clocks = <&clkc 12>;
+		clock-names = "ref_clk";
+		syscon = <&slcr>;
+	};

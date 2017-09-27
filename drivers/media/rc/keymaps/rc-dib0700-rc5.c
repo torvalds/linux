@@ -1,11 +1,11 @@
 /* rc-dvb0700-big.c - Keytable for devices in dvb0700
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * TODO: This table is a real mess, as it merges RC codes from several
  * devices into a big table. It also has both RC-5 and NEC codes inside.
  * It should be broken into small tables, and the protocols should properly
- * be indentificated.
+ * be identificated.
  *
  * The table were imported from dib0700_devices.c.
  *
@@ -212,10 +212,10 @@ static struct rc_map_table dib0700_rc5_table[] = {
 
 static struct rc_map_list dib0700_rc5_map = {
 	.map = {
-		.scan    = dib0700_rc5_table,
-		.size    = ARRAY_SIZE(dib0700_rc5_table),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_DIB0700_RC5_TABLE,
+		.scan     = dib0700_rc5_table,
+		.size     = ARRAY_SIZE(dib0700_rc5_table),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_DIB0700_RC5_TABLE,
 	}
 };
 
@@ -233,4 +233,4 @@ module_init(init_rc_map)
 module_exit(exit_rc_map)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

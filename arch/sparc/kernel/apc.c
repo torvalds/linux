@@ -17,7 +17,7 @@
 
 #include <asm/io.h>
 #include <asm/oplib.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/auxio.h>
 #include <asm/apc.h>
 #include <asm/processor.h>
@@ -167,7 +167,7 @@ static int apc_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id apc_match[] = {
+static const struct of_device_id apc_match[] = {
 	{
 		.name = APC_OBPNAME,
 	},
@@ -178,7 +178,6 @@ MODULE_DEVICE_TABLE(of, apc_match);
 static struct platform_driver apc_driver = {
 	.driver = {
 		.name = "apc",
-		.owner = THIS_MODULE,
 		.of_match_table = apc_match,
 	},
 	.probe		= apc_probe,

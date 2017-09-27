@@ -7,7 +7,7 @@
 #define _ASM_X86_SUSPEND_32_H
 
 #include <asm/desc.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 /* image of the saved processor state */
 struct saved_context {
@@ -15,6 +15,7 @@ struct saved_context {
 	unsigned long cr0, cr2, cr3, cr4;
 	u64 misc_enable;
 	bool misc_enable_saved;
+	struct saved_msrs saved_msrs;
 	struct desc_ptr gdt_desc;
 	struct desc_ptr idt;
 	u16 ldt;

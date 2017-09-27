@@ -1,0 +1,59 @@
+* Renesas Electronics SH EtherMAC
+
+This file provides information on what the device node for the SH EtherMAC
+interface contains.
+
+Required properties:
+- compatible: "renesas,gether-r8a7740" if the device is a part of R8A7740 SoC.
+	      "renesas,ether-r8a7743"  if the device is a part of R8A7743 SoC.
+	      "renesas,ether-r8a7745"  if the device is a part of R8A7745 SoC.
+	      "renesas,ether-r8a7778"  if the device is a part of R8A7778 SoC.
+	      "renesas,ether-r8a7779"  if the device is a part of R8A7779 SoC.
+	      "renesas,ether-r8a7790"  if the device is a part of R8A7790 SoC.
+	      "renesas,ether-r8a7791"  if the device is a part of R8A7791 SoC.
+	      "renesas,ether-r8a7793"  if the device is a part of R8A7793 SoC.
+	      "renesas,ether-r8a7794"  if the device is a part of R8A7794 SoC.
+	      "renesas,ether-r7s72100" if the device is a part of R7S72100 SoC.
+- reg: offset and length of (1) the E-DMAC/feLic register block (required),
+       (2) the TSU register block (optional).
+- interrupts: interrupt specifier for the sole interrupt.
+- phy-mode: see ethernet.txt file in the same directory.
+- phy-handle: see ethernet.txt file in the same directory.
+- #address-cells: number of address cells for the MDIO bus, must be equal to 1.
+- #size-cells: number of size cells on the MDIO bus, must be equal to 0.
+- clocks: clock phandle and specifier pair.
+- pinctrl-0: phandle, referring to a default pin configuration node.
+
+Optional properties:
+- interrupt-parent: the phandle for the interrupt controller that services
+		    interrupts for this device.
+- pinctrl-names: pin configuration state name ("default").
+- renesas,no-ether-link: boolean, specify when a board does not provide a proper
+			 Ether LINK signal.
+- renesas,ether-link-active-low: boolean, specify when the Ether LINK signal is
+				 active-low instead of normal active-high.
+
+Example (Lager board):
+
+	ethernet@ee700000 {
+		compatible = "renesas,ether-r8a7790";
+		reg = <0 0xee700000 0 0x400>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 162 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp8_clks R8A7790_CLK_ETHER>;
+		phy-mode = "rmii";
+		phy-handle = <&phy1>;
+		pinctrl-0 = <&ether_pins>;
+		pinctrl-names = "default";
+		renesas,ether-link-active-low;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy1: ethernet-phy@1 {
+			reg = <1>;
+			interrupt-parent = <&irqc0>;
+			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+			pinctrl-0 = <&phy1_pins>;
+			pinctrl-names = "default";
+		};
+	};

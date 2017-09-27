@@ -22,7 +22,7 @@
 #include <net/dst.h>
 #include <net/flow.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/dn.h>
 #include <net/dn_dev.h>

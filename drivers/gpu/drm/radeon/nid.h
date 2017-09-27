@@ -46,6 +46,13 @@
 
 #define DMIF_ADDR_CONFIG  				0xBD4
 
+/* fusion vce clocks */
+#define CG_ECLK_CNTL                                    0x620
+#       define ECLK_DIVIDER_MASK                        0x7f
+#       define ECLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_ECLK_STATUS                                  0x624
+#       define ECLK_STATUS                              (1 << 0)
+
 /* DCE6 only */
 #define DMIF_ADDR_CALC  				0xC00
 
@@ -81,6 +88,10 @@
 #define		SOFT_RESET_TST				(1 << 21)
 #define		SOFT_RESET_REGBB			(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
+
+#define SRBM_READ_ERROR					0xE98
+#define SRBM_INT_CNTL					0xEA0
+#define SRBM_INT_ACK					0xEA8
 
 #define	SRBM_STATUS2				        0x0EC4
 #define		DMA_BUSY 				(1 << 5)
@@ -128,6 +139,7 @@
 #define		READ_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 16)
 #define		WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 18)
 #define		WRITE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 19)
+#define		PAGE_TABLE_BLOCK_SIZE(x)			(((x) & 0xF) << 24)
 #define VM_CONTEXT1_CNTL				0x1414
 #define VM_CONTEXT0_CNTL2				0x1430
 #define VM_CONTEXT1_CNTL2				0x1434
@@ -811,6 +823,52 @@
 #define MC_PMG_CMD_MRS2                                 0x2b5c
 #define MC_SEQ_PMG_CMD_MRS2_LP                          0x2b60
 
+#define AUX_CONTROL					0x6200
+#define 	AUX_EN					(1 << 0)
+#define 	AUX_LS_READ_EN				(1 << 8)
+#define 	AUX_LS_UPDATE_DISABLE(x)		(((x) & 0x1) << 12)
+#define 	AUX_HPD_DISCON(x)			(((x) & 0x1) << 16)
+#define 	AUX_DET_EN				(1 << 18)
+#define 	AUX_HPD_SEL(x)				(((x) & 0x7) << 20)
+#define 	AUX_IMPCAL_REQ_EN			(1 << 24)
+#define 	AUX_TEST_MODE				(1 << 28)
+#define 	AUX_DEGLITCH_EN				(1 << 29)
+#define AUX_SW_CONTROL					0x6204
+#define 	AUX_SW_GO				(1 << 0)
+#define 	AUX_LS_READ_TRIG			(1 << 2)
+#define 	AUX_SW_START_DELAY(x)			(((x) & 0xf) << 4)
+#define 	AUX_SW_WR_BYTES(x)			(((x) & 0x1f) << 16)
+
+#define AUX_SW_INTERRUPT_CONTROL			0x620c
+#define 	AUX_SW_DONE_INT				(1 << 0)
+#define 	AUX_SW_DONE_ACK				(1 << 1)
+#define 	AUX_SW_DONE_MASK			(1 << 2)
+#define 	AUX_SW_LS_DONE_INT			(1 << 4)
+#define 	AUX_SW_LS_DONE_MASK			(1 << 6)
+#define AUX_SW_STATUS					0x6210
+#define 	AUX_SW_DONE				(1 << 0)
+#define 	AUX_SW_REQ				(1 << 1)
+#define 	AUX_SW_RX_TIMEOUT_STATE(x)		(((x) & 0x7) << 4)
+#define 	AUX_SW_RX_TIMEOUT			(1 << 7)
+#define 	AUX_SW_RX_OVERFLOW			(1 << 8)
+#define 	AUX_SW_RX_HPD_DISCON			(1 << 9)
+#define 	AUX_SW_RX_PARTIAL_BYTE			(1 << 10)
+#define 	AUX_SW_NON_AUX_MODE			(1 << 11)
+#define 	AUX_SW_RX_MIN_COUNT_VIOL		(1 << 12)
+#define 	AUX_SW_RX_INVALID_STOP			(1 << 14)
+#define 	AUX_SW_RX_SYNC_INVALID_L		(1 << 17)
+#define 	AUX_SW_RX_SYNC_INVALID_H		(1 << 18)
+#define 	AUX_SW_RX_INVALID_START			(1 << 19)
+#define 	AUX_SW_RX_RECV_NO_DET			(1 << 20)
+#define 	AUX_SW_RX_RECV_INVALID_H		(1 << 22)
+#define 	AUX_SW_RX_RECV_INVALID_V		(1 << 23)
+
+#define AUX_SW_DATA					0x6218
+#define AUX_SW_DATA_RW					(1 << 0)
+#define AUX_SW_DATA_MASK(x)				(((x) & 0xff) << 8)
+#define AUX_SW_DATA_INDEX(x)				(((x) & 0x1f) << 16)
+#define AUX_SW_AUTOINCREMENT_DISABLE			(1 << 31)
+
 #define	LB_SYNC_RESET_SEL				0x6b28
 #define		LB_SYNC_RESET_SEL_MASK			(3 << 0)
 #define		LB_SYNC_RESET_SEL_SHIFT			0
@@ -1079,8 +1137,10 @@
 #define UVD_UDEC_ADDR_CONFIG				0xEF4C
 #define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
+#define UVD_NO_OP					0xEFFC
 #define UVD_RBC_RB_RPTR					0xF690
 #define UVD_RBC_RB_WPTR					0xF694
+#define UVD_STATUS					0xf6bc
 
 /*
  * PM4
@@ -1132,6 +1192,23 @@
 #define	PACKET3_MEM_SEMAPHORE				0x39
 #define	PACKET3_MPEG_INDEX				0x3A
 #define	PACKET3_WAIT_REG_MEM				0x3C
+#define		WAIT_REG_MEM_FUNCTION(x)                ((x) << 0)
+                /* 0 - always
+		 * 1 - <
+		 * 2 - <=
+		 * 3 - ==
+		 * 4 - !=
+		 * 5 - >=
+		 * 6 - >
+		 */
+#define		WAIT_REG_MEM_MEM_SPACE(x)               ((x) << 4)
+                /* 0 - reg
+		 * 1 - mem
+		 */
+#define		WAIT_REG_MEM_ENGINE(x)                  ((x) << 8)
+                /* 0 - me
+		 * 1 - pfp
+		 */
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
@@ -1154,6 +1231,7 @@
 #              define PACKET3_DB_ACTION_ENA        (1 << 26)
 #              define PACKET3_SH_ACTION_ENA        (1 << 27)
 #              define PACKET3_SX_ACTION_ENA        (1 << 28)
+#              define PACKET3_ENGINE_ME            (1 << 31)
 #define	PACKET3_ME_INITIALIZE				0x44
 #define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
 #define	PACKET3_COND_WRITE				0x45
@@ -1269,6 +1347,13 @@
 					 (1 << 26) |			\
 					 (1 << 21) |			\
 					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_SRBM_POLL_PACKET		((9 << 28) |			\
+					 (1 << 27) |			\
+					 (1 << 26))
+
+#define DMA_SRBM_READ_PACKET		((9 << 28) |			\
+					 (1 << 27))
 
 /* async DMA Packet types */
 #define	DMA_PACKET_WRITE				  0x2

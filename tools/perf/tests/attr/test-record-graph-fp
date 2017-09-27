@@ -1,6 +1,7 @@
 [config]
 command = record
-args    = -g fp kill >/dev/null 2>&1
+args    = --call-graph fp kill >/dev/null 2>&1
+ret     = 1
 
 [event:base-record]
 sample_type=295

@@ -27,7 +27,6 @@
 #ifndef STV0288_H
 #define STV0288_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
@@ -43,7 +42,7 @@ struct stv0288_config {
 	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
 };
 
-#if IS_ENABLED(CONFIG_DVB_STV0288)
+#if IS_REACHABLE(CONFIG_DVB_STV0288)
 extern struct dvb_frontend *stv0288_attach(const struct stv0288_config *config,
 					   struct i2c_adapter *i2c);
 #else

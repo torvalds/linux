@@ -44,4 +44,20 @@ static inline int arp_hdr_len(struct net_device *dev)
 		return sizeof(struct arphdr) + (dev->addr_len + sizeof(u32)) * 2;
 	}
 }
+
+static inline bool dev_is_mac_header_xmit(const struct net_device *dev)
+{
+	switch (dev->type) {
+	case ARPHRD_TUNNEL:
+	case ARPHRD_TUNNEL6:
+	case ARPHRD_SIT:
+	case ARPHRD_IPGRE:
+	case ARPHRD_VOID:
+	case ARPHRD_NONE:
+		return false;
+	default:
+		return true;
+	}
+}
+
 #endif	/* _LINUX_IF_ARP_H */

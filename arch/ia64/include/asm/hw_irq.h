@@ -15,11 +15,7 @@
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 
-#ifndef CONFIG_PARAVIRT
 typedef u8 ia64_vector;
-#else
-typedef u16 ia64_vector;
-#endif
 
 /*
  * 0 special
@@ -114,15 +110,11 @@ DECLARE_PER_CPU(int[IA64_NUM_VECTORS], vector_irq);
 
 extern struct irq_chip irq_type_ia64_lsapic;	/* CPU-internal interrupt controller */
 
-#ifdef CONFIG_PARAVIRT_GUEST
-#include <asm/paravirt.h>
-#else
 #define ia64_register_ipi	ia64_native_register_ipi
 #define assign_irq_vector	ia64_native_assign_irq_vector
 #define free_irq_vector		ia64_native_free_irq_vector
 #define register_percpu_irq	ia64_native_register_percpu_irq
 #define ia64_resend_irq		ia64_native_resend_irq
-#endif
 
 extern void ia64_native_register_ipi(void);
 extern int bind_irq_vector(int irq, int vector, cpumask_t domain);
@@ -132,7 +124,6 @@ extern int reserve_irq_vector (int vector);
 extern void __setup_vector_irq(int cpu);
 extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect);
 extern void ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action);
-extern int check_irq_used (int irq);
 extern void destroy_and_reserve_irq (unsigned int irq);
 
 #if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
@@ -160,7 +151,7 @@ static inline ia64_vector __ia64_irq_to_vector(int irq)
 static inline unsigned int
 __ia64_local_vector_to_irq (ia64_vector vec)
 {
-	return __get_cpu_var(vector_irq)[vec];
+	return __this_cpu_read(vector_irq[vec]);
 }
 #endif
 

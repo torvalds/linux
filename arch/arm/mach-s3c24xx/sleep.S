@@ -25,18 +25,19 @@
 */
 
 #include <linux/linkage.h>
+#include <linux/serial_s3c.h>
 #include <asm/assembler.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <plat/regs-serial.h>
 
-/* CONFIG_DEBUG_RESUME is dangerous if your bootloader does not
+/*
+ * S3C24XX_DEBUG_RESUME is dangerous if your bootloader does not
  * reset the UART configuration, only enable if you really need this!
-*/
-//#define CONFIG_DEBUG_RESUME
+ */
+//#define S3C24XX_DEBUG_RESUME
 
 	.text
 
@@ -71,13 +72,13 @@ ENTRY(s3c_cpu_resume)
 	str	r12, [ r14, #0x54 ]
 #endif
 
-#ifdef CONFIG_DEBUG_RESUME
+#ifdef S3C24XX_DEBUG_RESUME
 	mov	r3, #'L'
 	strb	r3, [ r2, #S3C2410_UTXH ]
 1001:
 	ldrb	r14, [ r3, #S3C2410_UTRSTAT ]
 	tst	r14, #S3C2410_UTRSTAT_TXE
 	beq	1001b
-#endif /* CONFIG_DEBUG_RESUME */
+#endif /* S3C24XX_DEBUG_RESUME */
 
 	b	cpu_resume

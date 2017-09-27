@@ -1,0 +1,85 @@
+menu "Certificates for signature checking"
+
+config MODULE_SIG_KEY
+	string "File name or PKCS#11 URI of module signing key"
+	default "certs/signing_key.pem"
+	depends on MODULE_SIG
+	help
+         Provide the file name of a private key/certificate in PEM format,
+         or a PKCS#11 URI according to RFC7512. The file should contain, or
+         the URI should identify, both the certificate and its corresponding
+         private key.
+
+         If this option is unchanged from its default "certs/signing_key.pem",
+         then the kernel will automatically generate the private key and
+         certificate as described in Documentation/module-signing.txt
+
+config SYSTEM_TRUSTED_KEYRING
+	bool "Provide system-wide ring of trusted keys"
+	depends on KEYS
+	depends on ASYMMETRIC_KEY_TYPE
+	help
+	  Provide a system keyring to which trusted keys can be added.  Keys in
+	  the keyring are considered to be trusted.  Keys may be added at will
+	  by the kernel from compiled-in data and from hardware key stores, but
+	  userspace may only add extra keys if those keys can be verified by
+	  keys already in the keyring.
+
+	  Keys in this keyring are used by module signature checking.
+
+config SYSTEM_TRUSTED_KEYS
+	string "Additional X.509 keys for default system keyring"
+	depends on SYSTEM_TRUSTED_KEYRING
+	help
+	  If set, this option should be the filename of a PEM-formatted file
+	  containing trusted X.509 certificates to be included in the default
+	  system keyring. Any certificate used for module signing is implicitly
+	  also trusted.
+
+	  NOTE: If you previously provided keys for the system keyring in the
+	  form of DER-encoded *.x509 files in the top-level build directory,
+	  those are no longer used. You will need to set this option instead.
+
+config SYSTEM_EXTRA_CERTIFICATE
+	bool "Reserve area for inserting a certificate without recompiling"
+	depends on SYSTEM_TRUSTED_KEYRING
+	help
+	  If set, space for an extra certificate will be reserved in the kernel
+	  image. This allows introducing a trusted certificate to the default
+	  system keyring without recompiling the kernel.
+
+config SYSTEM_EXTRA_CERTIFICATE_SIZE
+	int "Number of bytes to reserve for the extra certificate"
+	depends on SYSTEM_EXTRA_CERTIFICATE
+	default 4096
+	help
+	  This is the number of bytes reserved in the kernel image for a
+	  certificate to be inserted.
+
+config SECONDARY_TRUSTED_KEYRING
+	bool "Provide a keyring to which extra trustable keys may be added"
+	depends on SYSTEM_TRUSTED_KEYRING
+	help
+	  If set, provide a keyring to which extra keys may be added, provided
+	  those keys are not blacklisted and are vouched for by a key built
+	  into the kernel or already in the secondary trusted keyring.
+
+config SYSTEM_BLACKLIST_KEYRING
+	bool "Provide system-wide ring of blacklisted keys"
+	depends on KEYS
+	help
+	  Provide a system keyring to which blacklisted keys can be added.
+	  Keys in the keyring are considered entirely untrusted.  Keys in this
+	  keyring are used by the module signature checking to reject loading
+	  of modules signed with a blacklisted key.
+
+config SYSTEM_BLACKLIST_HASH_LIST
+	string "Hashes to be preloaded into the system blacklist keyring"
+	depends on SYSTEM_BLACKLIST_KEYRING
+	help
+	  If set, this option should be the filename of a list of hashes in the
+	  form "<hash>", "<hash>", ... .  This will be included into a C
+	  wrapper to incorporate the list into the kernel.  Each <hash> should
+	  be a string of hex digits.
+
+endmenu

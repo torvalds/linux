@@ -10,4 +10,3 @@ obj-$(CONFIG_PCI) += msp_pci.o
 obj-$(CONFIG_MSP_HAS_MAC) += msp_eth.o
 obj-$(CONFIG_MSP_HAS_USB) += msp_usb.o
 obj-$(CONFIG_MIPS_MT_SMP) += msp_smp.o
-obj-$(CONFIG_MIPS_MT_SMTC) += msp_smtc.o

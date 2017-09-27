@@ -24,10 +24,10 @@
 #include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/orion5x.h>
 #include <plat/orion-gpio.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * LaCie 2Big Network Info
@@ -397,8 +397,10 @@ static void __init net2big_init(void)
 	net2big_sata_power_init();
 	orion5x_sata_init(&net2big_sata_data);
 
-	mvebu_mbus_add_window("devbus-boot", NET2BIG_NOR_BOOT_BASE,
-			      NET2BIG_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    NET2BIG_NOR_BOOT_BASE,
+				    NET2BIG_NOR_BOOT_SIZE);
 	platform_device_register(&net2big_nor_flash);
 
 	platform_device_register(&net2big_gpio_buttons);
@@ -421,6 +423,7 @@ static void __init net2big_init(void)
 /* Warning: LaCie use a wrong mach-type (0x20e=526) in their bootloader. */
 MACHINE_START(NET2BIG, "LaCie 2Big Network")
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= net2big_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

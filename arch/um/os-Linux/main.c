@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
@@ -73,8 +74,8 @@ static void install_fatal_handler(int sig)
 	action.sa_restorer = NULL;
 	action.sa_handler = last_ditch_exit;
 	if (sigaction(sig, &action, NULL) < 0) {
-		printf("failed to install handler for signal %d - errno = %d\n",
-		       sig, errno);
+		os_warn("failed to install handler for signal %d "
+			"- errno = %d\n", sig, errno);
 		exit(1);
 	}
 }
@@ -123,6 +124,8 @@ int __init main(int argc, char **argv, char **envp)
 
 	setup_env_path();
 
+	setsid();
+
 	new_argv = malloc((argc + 1) * sizeof(char *));
 	if (new_argv == NULL) {
 		perror("Mallocing argv");
@@ -149,6 +152,7 @@ int __init main(int argc, char **argv, char **envp)
 #endif
 
 	do_uml_initcalls();
+	change_sig(SIGPIPE, 0);
 	ret = linux_main(argc, argv);
 
 	/*
@@ -160,18 +164,18 @@ int __init main(int argc, char **argv, char **envp)
 
 	/*
 	 * This signal stuff used to be in the reboot case.  However,
-	 * sometimes a SIGVTALRM can come in when we're halting (reproducably
+	 * sometimes a timer signal can come in when we're halting (reproducably
 	 * when writing out gcov information, presumably because that takes
 	 * some time) and cause a segfault.
 	 */
 
-	/* stop timers and set SIGVTALRM to be ignored */
-	disable_timer();
+	/* stop timers and set timer signal to be ignored */
+	os_timer_disable();
 
 	/* disable SIGIO for the fds and set SIGIO to be ignored */
 	err = deactivate_all_fds();
 	if (err)
-		printf("deactivate_all_fds failed, errno = %d\n", -err);
+		os_warn("deactivate_all_fds failed, errno = %d\n", -err);
 
 	/*
 	 * Let any pending signals fire now.  This ensures
@@ -180,14 +184,13 @@ int __init main(int argc, char **argv, char **envp)
 	 */
 	unblock_signals();
 
+	os_info("\n");
 	/* Reboot */
 	if (ret) {
-		printf("\n");
 		execvp(new_argv[0], new_argv);
 		perror("Failed to exec kernel");
 		ret = 1;
 	}
-	printf("\n");
 	return uml_exitcode;
 }
 

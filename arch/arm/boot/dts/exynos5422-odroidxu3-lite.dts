@@ -1,0 +1,38 @@
+/*
+ * Hardkernel Odroid XU3-Lite board device tree source
+ *
+ * Copyright (c) 2015 Krzysztof Kozlowski
+ * Copyright (c) 2014 Collabora Ltd.
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+#include "exynos5422-odroidxu3-common.dtsi"
+#include "exynos5422-odroidxu3-audio.dtsi"
+#include "exynos54xx-odroidxu-leds.dtsi"
+
+/ {
+	model = "Hardkernel Odroid XU3 Lite";
+	compatible = "hardkernel,odroid-xu3-lite", "samsung,exynos5800", "samsung,exynos5";
+};
+
+&pwm {
+	/*
+	 * PWM 0 -- fan
+	 * PWM 1 -- Green LED
+	 * PWM 2 -- Blue LED
+	 * PWM 3 -- on MIPI connector for backlight
+	 */
+	pinctrl-0 = <&pwm0_out &pwm1_out &pwm2_out &pwm3_out>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "peripheral";
+};

@@ -21,16 +21,14 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/ktime.h>
+#include <linux/sched/signal.h>
 
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -172,29 +170,16 @@ dump_guests (struct zoran *zr)
 			guest[i] = post_office_read(zr, i, 0);
 		}
 
-		printk(KERN_INFO "%s: Guests:", ZR_DEVNAME(zr));
-
-		for (i = 1; i < 8; i++) {
-			printk(" 0x%02x", guest[i]);
-		}
-		printk("\n");
+		printk(KERN_INFO "%s: Guests: %*ph\n",
+		       ZR_DEVNAME(zr), 8, guest);
 	}
-}
-
-static inline unsigned long
-get_time (void)
-{
-	struct timeval tv;
-
-	do_gettimeofday(&tv);
-	return (1000000 * tv.tv_sec + tv.tv_usec);
 }
 
 void
 detect_guest_activity (struct zoran *zr)
 {
 	int timeout, i, j, res, guest[8], guest0[8], change[8][3];
-	unsigned long t0, t1;
+	ktime_t t0, t1;
 
 	dump_guests(zr);
 	printk(KERN_INFO "%s: Detecting guests activity, please wait...\n",
@@ -205,15 +190,15 @@ detect_guest_activity (struct zoran *zr)
 
 	timeout = 0;
 	j = 0;
-	t0 = get_time();
+	t0 = ktime_get();
 	while (timeout < 10000) {
 		udelay(10);
 		timeout++;
 		for (i = 1; (i < 8) && (j < 8); i++) {
 			res = post_office_read(zr, i, 0);
 			if (res != guest[i]) {
-				t1 = get_time();
-				change[j][0] = (t1 - t0);
+				t1 = ktime_get();
+				change[j][0] = ktime_to_us(ktime_sub(t1, t0));
 				t0 = t1;
 				change[j][1] = i;
 				change[j][2] = res;
@@ -224,12 +209,9 @@ detect_guest_activity (struct zoran *zr)
 		if (j >= 8)
 			break;
 	}
-	printk(KERN_INFO "%s: Guests:", ZR_DEVNAME(zr));
 
-	for (i = 1; i < 8; i++) {
-		printk(" 0x%02x", guest0[i]);
-	}
-	printk("\n");
+	printk(KERN_INFO "%s: Guests: %*ph\n", ZR_DEVNAME(zr), 8, guest0);
+
 	if (j == 0) {
 		printk(KERN_INFO "%s: No activity detected.\n", ZR_DEVNAME(zr));
 		return;
@@ -682,7 +664,7 @@ set_videobus_dir (struct zoran *zr,
 	switch (zr->card.type) {
 	case LML33:
 	case LML33R10:
-		if (lml33dpath == 0)
+		if (!lml33dpath)
 			GPIO(zr, 5, val);
 		else
 			GPIO(zr, 5, 1);
@@ -830,39 +812,39 @@ print_interrupts (struct zoran *zr)
 
 	printk(KERN_INFO "%s: interrupts received:", ZR_DEVNAME(zr));
 	if ((res = zr->field_counter) < -1 || res > 1) {
-		printk(" FD:%d", res);
+		printk(KERN_CONT " FD:%d", res);
 	}
 	if ((res = zr->intr_counter_GIRQ1) != 0) {
-		printk(" GIRQ1:%d", res);
+		printk(KERN_CONT " GIRQ1:%d", res);
 		noerr++;
 	}
 	if ((res = zr->intr_counter_GIRQ0) != 0) {
-		printk(" GIRQ0:%d", res);
+		printk(KERN_CONT " GIRQ0:%d", res);
 		noerr++;
 	}
 	if ((res = zr->intr_counter_CodRepIRQ) != 0) {
-		printk(" CodRepIRQ:%d", res);
+		printk(KERN_CONT " CodRepIRQ:%d", res);
 		noerr++;
 	}
 	if ((res = zr->intr_counter_JPEGRepIRQ) != 0) {
-		printk(" JPEGRepIRQ:%d", res);
+		printk(KERN_CONT " JPEGRepIRQ:%d", res);
 		noerr++;
 	}
 	if (zr->JPEG_max_missed) {
-		printk(" JPEG delays: max=%d min=%d", zr->JPEG_max_missed,
+		printk(KERN_CONT " JPEG delays: max=%d min=%d", zr->JPEG_max_missed,
 		       zr->JPEG_min_missed);
 	}
 	if (zr->END_event_missed) {
-		printk(" ENDs missed: %d", zr->END_event_missed);
+		printk(KERN_CONT " ENDs missed: %d", zr->END_event_missed);
 	}
 	//if (zr->jpg_queued_num) {
-	printk(" queue_state=%ld/%ld/%ld/%ld", zr->jpg_que_tail,
+	printk(KERN_CONT " queue_state=%ld/%ld/%ld/%ld", zr->jpg_que_tail,
 	       zr->jpg_dma_tail, zr->jpg_dma_head, zr->jpg_que_head);
 	//}
 	if (!noerr) {
-		printk(": no interrupts detected.");
+		printk(KERN_CONT ": no interrupts detected.");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 void
@@ -1572,7 +1554,7 @@ zoran_init_hardware (struct zoran *zr)
 	}
 
 	decoder_call(zr, core, init, 0);
-	decoder_call(zr, core, s_std, zr->norm);
+	decoder_call(zr, video, s_std, zr->norm);
 	decoder_call(zr, video, s_routing,
 		zr->card.input[zr->input].muxsel, 0, 0);
 
@@ -1584,14 +1566,11 @@ zoran_init_hardware (struct zoran *zr)
 	jpeg_codec_sleep(zr, 1);
 	jpeg_codec_sleep(zr, 0);
 
-	/* set individual interrupt enables (without GIRQ1)
-	 * but don't global enable until zoran_open() */
-
-	//btwrite(IRQ_MASK & ~ZR36057_ISR_GIRQ1, ZR36057_ICR);  // SW
-	// It looks like using only JPEGRepIRQEn is not always reliable,
-	// may be when JPEG codec crashes it won't generate IRQ? So,
-	 /*CP*/			//        btwrite(IRQ_MASK, ZR36057_ICR); // Enable Vsync interrupts too. SM    WHY ? LP
-	    zr36057_init_vfe(zr);
+	/*
+	 * set individual interrupt enables (without GIRQ1)
+	 * but don't global enable until zoran_open()
+	 */
+	zr36057_init_vfe(zr);
 
 	zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
 

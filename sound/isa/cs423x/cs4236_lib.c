@@ -79,7 +79,7 @@
  *
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/time.h>
@@ -138,7 +138,7 @@ static unsigned char snd_cs4236_ctrl_in(struct snd_wss *chip, unsigned char reg)
 
 #define CLOCKS 8
 
-static struct snd_ratnum clocks[CLOCKS] = {
+static const struct snd_ratnum clocks[CLOCKS] = {
 	{ .num = 16934400, .den_min = 353, .den_max = 353, .den_step = 1 },
 	{ .num = 16934400, .den_min = 529, .den_max = 529, .den_step = 1 },
 	{ .num = 16934400, .den_min = 617, .den_max = 617, .den_step = 1 },
@@ -149,7 +149,7 @@ static struct snd_ratnum clocks[CLOCKS] = {
 	{ .num = 16934400/16, .den_min = 21, .den_max = 192, .den_step = 1 }
 };
 
-static struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
+static const struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
 	.nrats = CLOCKS,
 	.rats = clocks,
 };
@@ -376,17 +376,14 @@ int snd_cs4236_create(struct snd_card *card,
 	return 0;
 }
 
-int snd_cs4236_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
+int snd_cs4236_pcm(struct snd_wss *chip, int device)
 {
-	struct snd_pcm *pcm;
 	int err;
 	
-	err = snd_wss_pcm(chip, device, &pcm);
+	err = snd_wss_pcm(chip, device);
 	if (err < 0)
 		return err;
-	pcm->info_flags &= ~SNDRV_PCM_INFO_JOINT_DUPLEX;
-	if (rpcm)
-		*rpcm = pcm;
+	chip->pcm->info_flags &= ~SNDRV_PCM_INFO_JOINT_DUPLEX;
 	return 0;
 }
 

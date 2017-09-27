@@ -18,9 +18,8 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
-#define I82875P_REVISION	" Ver: 2.0.2"
 #define EDAC_MOD_STR		"i82875p_edac"
 
 #define i82875p_printk(level, fmt, arg...) \
@@ -275,7 +274,6 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 {
 	struct pci_dev *dev;
 	void __iomem *window;
-	int err;
 
 	*ovrfl_pdev = NULL;
 	*ovrfl_window = NULL;
@@ -293,13 +291,8 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 		if (dev == NULL)
 			return 1;
 
-		err = pci_bus_add_device(dev);
-		if (err) {
-			i82875p_printk(KERN_ERR,
-				"%s(): pci_bus_add_device() Failed\n",
-				__func__);
-		}
 		pci_bus_assign_resources(dev->bus);
+		pci_bus_add_device(dev);
 	}
 
 	*ovrfl_pdev = dev;
@@ -406,8 +399,6 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 
 	edac_dbg(0, "\n");
 
-	ovrfl_pdev = pci_get_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
-
 	if (i82875p_setup_overfl_dev(pdev, &ovrfl_pdev, &ovrfl_window))
 		return -ENODEV;
 	drc = readl(ovrfl_window + I82875P_DRC);
@@ -431,7 +422,6 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_UNKNOWN;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = I82875P_REVISION;
 	mci->ctl_name = i82875p_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = i82875p_check;
@@ -527,7 +517,7 @@ static void i82875p_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(i82875p_pci_tbl) = {
+static const struct pci_device_id i82875p_pci_tbl[] = {
 	{
 	 PCI_VEND_DEV(INTEL, 82875_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 I82875P},
@@ -584,9 +574,7 @@ fail1:
 	pci_unregister_driver(&i82875p_driver);
 
 fail0:
-	if (mci_pdev != NULL)
-		pci_dev_put(mci_pdev);
-
+	pci_dev_put(mci_pdev);
 	return pci_rc;
 }
 

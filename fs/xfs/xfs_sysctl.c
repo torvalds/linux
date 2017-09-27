@@ -19,6 +19,7 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include "xfs_error.h"
+#include "xfs_stats.h"
 
 static struct ctl_table_header *xfs_table_header;
 
@@ -31,22 +32,12 @@ xfs_stats_clear_proc_handler(
 	size_t			*lenp,
 	loff_t			*ppos)
 {
-	int		c, ret, *valp = ctl->data;
-	__uint32_t	vn_active;
+	int		ret, *valp = ctl->data;
 
 	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
 
 	if (!ret && write && *valp) {
-		xfs_notice(NULL, "Clearing xfsstats");
-		for_each_possible_cpu(c) {
-			preempt_disable();
-			/* save vn_active, it's a universal truth! */
-			vn_active = per_cpu(xfsstats, c).vn_active;
-			memset(&per_cpu(xfsstats, c), 0,
-			       sizeof(struct xfsstats));
-			per_cpu(xfsstats, c).vn_active = vn_active;
-			preempt_enable();
-		}
+		xfs_stats_clearall(xfsstats.xs_stats);
 		xfs_stats_clear = 0;
 	}
 
@@ -149,24 +140,6 @@ static struct ctl_table xfs_table[] = {
 		.extra2		= &xfs_params.inherit_noatim.max
 	},
 	{
-		.procname	= "xfsbufd_centisecs",
-		.data		= &xfs_params.xfs_buf_timer.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.xfs_buf_timer.min,
-		.extra2		= &xfs_params.xfs_buf_timer.max
-	},
-	{
-		.procname	= "age_buffer_centisecs",
-		.data		= &xfs_params.xfs_buf_age.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.xfs_buf_age.min,
-		.extra2		= &xfs_params.xfs_buf_age.max
-	},
-	{
 		.procname	= "inherit_nosymlinks",
 		.data		= &xfs_params.inherit_nosym.val,
 		.maxlen		= sizeof(int),
@@ -210,6 +183,15 @@ static struct ctl_table xfs_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.eofb_timer.min,
 		.extra2		= &xfs_params.eofb_timer.max,
+	},
+	{
+		.procname	= "speculative_cow_prealloc_lifetime",
+		.data		= &xfs_params.cowb_timer.val,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &xfs_params.cowb_timer.min,
+		.extra2		= &xfs_params.cowb_timer.max,
 	},
 	/* please keep this the last entry */
 #ifdef CONFIG_PROC_FS

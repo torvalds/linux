@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/i2c.h>
@@ -401,7 +397,7 @@ static int pluto_hw_init(struct pluto *pluto)
 	/* set automatic LED control by FPGA */
 	pluto_rw(pluto, REG_MISC, MISC_ALED, MISC_ALED);
 
-	/* set data endianess */
+	/* set data endianness */
 #ifdef __LITTLE_ENDIAN
 	pluto_rw(pluto, REG_PIDn(0), PID0_END, PID0_END);
 #else
@@ -577,12 +573,12 @@ static int pluto_read_serial(struct pluto *pluto)
 		for (j = 0; j < 32; j += 8) {
 			if ((val & 0xff) == 0xff)
 				goto out;
-			printk("%c", val & 0xff);
+			printk(KERN_CONT "%c", val & 0xff);
 			val >>= 8;
 		}
 	}
 out:
-	printk("\n");
+	printk(KERN_CONT "\n");
 	pci_iounmap(pdev, cis);
 
 	return 0;
@@ -736,7 +732,6 @@ err_pci_release_regions:
 err_pci_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 	goto out;
 }
@@ -765,7 +760,6 @@ static void pluto2_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, pluto->io_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 }
 
@@ -776,7 +770,7 @@ static void pluto2_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_PLUTO2	0x0001
 #endif
 
-static struct pci_device_id pluto2_id_table[] = {
+static const struct pci_device_id pluto2_id_table[] = {
 	{
 		.vendor = PCI_VENDOR_ID_SCM,
 		.device = PCI_DEVICE_ID_PLUTO2,

@@ -26,7 +26,7 @@ struct s3cmci_host {
 	void __iomem		*base;
 	int			irq;
 	int			irq_cd;
-	int			dma;
+	struct dma_chan		*dma;
 
 	unsigned long		clk_rate;
 	unsigned long		clk_div;
@@ -36,8 +36,6 @@ struct s3cmci_host {
 	int			is2440;
 	unsigned		sdiimsk;
 	unsigned		sdidata;
-	int			dodma;
-	int			dmatogo;
 
 	bool			irq_disabled;
 	bool			irq_enabled;
@@ -76,7 +74,7 @@ struct s3cmci_host {
 	struct dentry		*debug_regs;
 #endif
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 	struct notifier_block	freq_transition;
 #endif
 };

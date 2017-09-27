@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -50,7 +46,7 @@
  * \param portal The portal table index where the ME should be attached.
  * \param match_id Specifies the match criteria for the process ID of
  * the requester. The constants LNET_PID_ANY and LNET_NID_ANY can be
- * used to wildcard either of the identifiers in the lnet_process_id_t
+ * used to wildcard either of the identifiers in the lnet_process_id
  * structure.
  * \param match_bits,ignore_bits Specify the match criteria to apply
  * to the match bits in the incoming request. The ignore bits are used
@@ -74,16 +70,15 @@
  */
 int
 LNetMEAttach(unsigned int portal,
-	     lnet_process_id_t match_id,
+	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
-	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
-	     lnet_handle_me_t *handle)
+	     enum lnet_unlink unlink, enum lnet_ins_pos pos,
+	     struct lnet_handle_me *handle)
 {
 	struct lnet_match_table *mtable;
-	struct lnet_me		*me;
-	struct list_head		*head;
+	struct lnet_me *me;
+	struct list_head *head;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if ((int)portal >= the_lnet.ln_nportals)
@@ -91,11 +86,11 @@ LNetMEAttach(unsigned int portal,
 
 	mtable = lnet_mt_of_attach(portal, match_id,
 				   match_bits, ignore_bits, pos);
-	if (mtable == NULL) /* can't match portal type */
+	if (!mtable) /* can't match portal type */
 		return -EPERM;
 
 	me = lnet_me_alloc();
-	if (me == NULL)
+	if (!me)
 		return -ENOMEM;
 
 	lnet_res_lock(mtable->mt_cpt);
@@ -109,7 +104,7 @@ LNetMEAttach(unsigned int portal,
 
 	lnet_res_lh_initialize(the_lnet.ln_me_containers[mtable->mt_cpt],
 			       &me->me_lh);
-	if (ignore_bits != 0)
+	if (ignore_bits)
 		head = &mtable->mt_mhash[LNET_MT_HASH_IGNORE];
 	else
 		head = lnet_mt_match_head(mtable, match_id, match_bits);
@@ -145,25 +140,24 @@ EXPORT_SYMBOL(LNetMEAttach);
  * \retval -ENOENT If \a current_meh does not point to a valid match entry.
  */
 int
-LNetMEInsert(lnet_handle_me_t current_meh,
-	     lnet_process_id_t match_id,
+LNetMEInsert(struct lnet_handle_me current_meh,
+	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
-	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
-	     lnet_handle_me_t *handle)
+	     enum lnet_unlink unlink, enum lnet_ins_pos pos,
+	     struct lnet_handle_me *handle)
 {
-	struct lnet_me		*current_me;
-	struct lnet_me		*new_me;
-	struct lnet_portal	*ptl;
-	int			cpt;
+	struct lnet_me *current_me;
+	struct lnet_me *new_me;
+	struct lnet_portal *ptl;
+	int cpt;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (pos == LNET_INS_LOCAL)
 		return -EPERM;
 
 	new_me = lnet_me_alloc();
-	if (new_me == NULL)
+	if (!new_me)
 		return -ENOMEM;
 
 	cpt = lnet_cpt_of_cookie(current_meh.cookie);
@@ -171,8 +165,8 @@ LNetMEInsert(lnet_handle_me_t current_meh,
 	lnet_res_lock(cpt);
 
 	current_me = lnet_handle2me(&current_meh);
-	if (current_me == NULL) {
-		lnet_me_free_locked(new_me);
+	if (!current_me) {
+		lnet_me_free(new_me);
 
 		lnet_res_unlock(cpt);
 		return -ENOENT;
@@ -183,7 +177,7 @@ LNetMEInsert(lnet_handle_me_t current_meh,
 	ptl = the_lnet.ln_portals[current_me->me_portal];
 	if (lnet_ptl_is_unique(ptl)) {
 		/* nosense to insertion on unique portal */
-		lnet_me_free_locked(new_me);
+		lnet_me_free(new_me);
 		lnet_res_unlock(cpt);
 		return -EPERM;
 	}
@@ -226,31 +220,31 @@ EXPORT_SYMBOL(LNetMEInsert);
  * \see LNetMDUnlink() for the discussion on delivering unlink event.
  */
 int
-LNetMEUnlink(lnet_handle_me_t meh)
+LNetMEUnlink(struct lnet_handle_me meh)
 {
-	lnet_me_t	*me;
-	lnet_libmd_t	*md;
-	lnet_event_t	ev;
-	int		cpt;
+	struct lnet_me *me;
+	struct lnet_libmd *md;
+	struct lnet_event ev;
+	int cpt;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	cpt = lnet_cpt_of_cookie(meh.cookie);
 	lnet_res_lock(cpt);
 
 	me = lnet_handle2me(&meh);
-	if (me == NULL) {
+	if (!me) {
 		lnet_res_unlock(cpt);
 		return -ENOENT;
 	}
 
 	md = me->me_md;
-	if (md != NULL &&
-	    md->md_eq != NULL &&
-	    md->md_refcount == 0) {
-		lnet_build_unlink_event(md, &ev);
-		lnet_eq_enqueue_event(md->md_eq, &ev);
+	if (md) {
+		md->md_flags |= LNET_MD_FLAG_ABORTED;
+		if (md->md_eq && !md->md_refcount) {
+			lnet_build_unlink_event(md, &ev);
+			lnet_eq_enqueue_event(md->md_eq, &ev);
+		}
 	}
 
 	lnet_me_unlink(me);
@@ -262,12 +256,12 @@ EXPORT_SYMBOL(LNetMEUnlink);
 
 /* call with lnet_res_lock please */
 void
-lnet_me_unlink(lnet_me_t *me)
+lnet_me_unlink(struct lnet_me *me)
 {
 	list_del(&me->me_list);
 
-	if (me->me_md != NULL) {
-		lnet_libmd_t *md = me->me_md;
+	if (me->me_md) {
+		struct lnet_libmd *md = me->me_md;
 
 		/* detach MD from portal of this ME */
 		lnet_ptl_detach_md(me, md);
@@ -275,23 +269,5 @@ lnet_me_unlink(lnet_me_t *me)
 	}
 
 	lnet_res_lh_invalidate(&me->me_lh);
-	lnet_me_free_locked(me);
+	lnet_me_free(me);
 }
-
-#if 0
-static void
-lib_me_dump(lnet_me_t *me)
-{
-	CWARN("Match Entry %p ("LPX64")\n", me,
-	      me->me_lh.lh_cookie);
-
-	CWARN("\tMatch/Ignore\t= %016lx / %016lx\n",
-	      me->me_match_bits, me->me_ignore_bits);
-
-	CWARN("\tMD\t= %p\n", me->md);
-	CWARN("\tprev\t= %p\n",
-	      list_entry(me->me_list.prev, lnet_me_t, me_list));
-	CWARN("\tnext\t= %p\n",
-	      list_entry(me->me_list.next, lnet_me_t, me_list));
-}
-#endif

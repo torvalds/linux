@@ -20,8 +20,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.3"
-
 #define RTC_REG_SIZE		0x2000
 #define RTC_OFFSET		0x1ff0
 
@@ -206,8 +204,7 @@ static irqreturn_t ds1553_rtc_interrupt(int irq, void *dev_id)
 			events |= RTC_UF;
 		else
 			events |= RTC_AF;
-		if (likely(pdata->rtc))
-			rtc_update_irq(pdata->rtc, 1, events);
+		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
 	return events ? IRQ_HANDLED : IRQ_NONE;
@@ -246,7 +243,7 @@ static ssize_t ds1553_nvram_read(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; count < size; count++)
 		*buf++ = readb(ioaddr + pos++);
 	return count;
 }
@@ -261,7 +258,7 @@ static ssize_t ds1553_nvram_write(struct file *filp, struct kobject *kobj,
 	void __iomem *ioaddr = pdata->ioaddr;
 	ssize_t count;
 
-	for (count = 0; size > 0 && pos < RTC_OFFSET; count++, size--)
+	for (count = 0; count < size; count++)
 		writeb(*buf++, ioaddr + pos++);
 	return count;
 }
@@ -278,26 +275,20 @@ static struct bin_attribute ds1553_nvram_attr = {
 
 static int ds1553_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
 	struct resource *res;
 	unsigned int cen, sec;
 	struct rtc_plat_data *pdata;
 	void __iomem *ioaddr;
 	int ret = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	if (!devm_request_mem_region(&pdev->dev, res->start, RTC_REG_SIZE,
-			pdev->name))
-		return -EBUSY;
 
-	ioaddr = devm_ioremap(&pdev->dev, res->start, RTC_REG_SIZE);
-	if (!ioaddr)
-		return -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ioaddr))
+		return PTR_ERR(ioaddr);
 	pdata->ioaddr = ioaddr;
 	pdata->irq = platform_get_irq(pdev, 0);
 
@@ -316,6 +307,12 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&pdata->lock);
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
+
+	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+				  &ds1553_rtc_ops, THIS_MODULE);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
 	if (pdata->irq > 0) {
 		writeb(0, ioaddr + RTC_INTERRUPTS);
 		if (devm_request_irq(&pdev->dev, pdata->irq,
@@ -326,15 +323,12 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &ds1553_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-	pdata->rtc = rtc;
-
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1553_nvram_attr);
+	if (ret)
+		dev_err(&pdev->dev, "unable to create sysfs file: %s\n",
+			ds1553_nvram_attr.attr.name);
 
-	return ret;
+	return 0;
 }
 
 static int ds1553_rtc_remove(struct platform_device *pdev)
@@ -355,7 +349,6 @@ static struct platform_driver ds1553_rtc_driver = {
 	.remove		= ds1553_rtc_remove,
 	.driver		= {
 		.name	= "rtc-ds1553",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -364,4 +357,3 @@ module_platform_driver(ds1553_rtc_driver);
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("Dallas DS1553 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

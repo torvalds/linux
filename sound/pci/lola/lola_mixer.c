@@ -37,7 +37,7 @@ static int lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	pin->nid = nid;
 	err = lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read wcaps for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read wcaps for 0x%x\n", nid);
 		return err;
 	}
 	val &= 0x00f00fff; /* test TYPE and bits 0..11 */
@@ -48,7 +48,7 @@ static int lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	else if (val == 0x0040000c && dir == PLAY) /* Dig=0, OutAmp/ovrd */
 		pin->is_analog = true;
 	else {
-		printk(KERN_ERR SFX "Invalid wcaps 0x%x for 0x%x\n", val, nid);
+		dev_err(chip->card->dev, "Invalid wcaps 0x%x for 0x%x\n", val, nid);
 		return -EINVAL;
 	}
 
@@ -62,7 +62,7 @@ static int lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	else
 		err = lola_read_param(chip, nid, LOLA_PAR_AMP_IN_CAP, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read AMP-caps for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read AMP-caps for 0x%x\n", nid);
 		return err;
 	}
 
@@ -79,7 +79,7 @@ static int lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	err = lola_codec_read(chip, nid, LOLA_VERB_GET_MAX_LEVEL, 0, 0, &val,
 			      NULL);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't get MAX_LEVEL 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't get MAX_LEVEL 0x%x\n", nid);
 		return err;
 	}
 	pin->max_level = val & 0x3ff;   /* 10 bits */
@@ -108,8 +108,7 @@ int lola_init_pins(struct lola *chip, int dir, int *nidp)
 
 void lola_free_mixer(struct lola *chip)
 {
-	if (chip->mixer.array_saved)
-		vfree(chip->mixer.array_saved);
+	vfree(chip->mixer.array_saved);
 }
 
 int lola_init_mixer_widget(struct lola *chip, int nid)
@@ -119,12 +118,12 @@ int lola_init_mixer_widget(struct lola *chip, int nid)
 
 	err = lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read wcaps for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read wcaps for 0x%x\n", nid);
 		return err;
 	}
 
 	if ((val & 0xfff00000) != 0x02f00000) { /* test SubType and Type */
-		snd_printdd("No valid mixer widget\n");
+		dev_dbg(chip->card->dev, "No valid mixer widget\n");
 		return 0;
 	}
 
@@ -202,7 +201,7 @@ int lola_init_mixer_widget(struct lola *chip, int nid)
 	 */
 	if (chip->mixer.src_stream_out_ofs > MAX_AUDIO_INOUT_COUNT ||
 	    chip->mixer.dest_phys_out_ofs > MAX_STREAM_IN_COUNT) {
-		printk(KERN_ERR SFX "Invalid mixer widget size\n");
+		dev_err(chip->card->dev, "Invalid mixer widget size\n");
 		return -EINVAL;
 	}
 
@@ -213,7 +212,7 @@ int lola_init_mixer_widget(struct lola *chip, int nid)
 		(((1U << chip->mixer.dest_phys_outs) - 1)
 		 << chip->mixer.dest_phys_out_ofs);
 
-	snd_printdd("Mixer src_mask=%x, dest_mask=%x\n",
+	dev_dbg(chip->card->dev, "Mixer src_mask=%x, dest_mask=%x\n",
 		    chip->mixer.src_mask, chip->mixer.dest_mask);
 
 	return 0;
@@ -236,7 +235,8 @@ static int lola_mixer_set_src_gain(struct lola *chip, unsigned int id,
 	    (gain == readw(&chip->mixer.array->src_gain[id])))
 		return 0;
 
-	snd_printdd("lola_mixer_set_src_gain (id=%d, gain=%d) enable=%x\n",
+	dev_dbg(chip->card->dev,
+		"lola_mixer_set_src_gain (id=%d, gain=%d) enable=%x\n",
 			id, gain, val);
 	writew(gain, &chip->mixer.array->src_gain[id]);
 	writel(val, &chip->mixer.array->src_gain_enable);
@@ -409,7 +409,8 @@ static int set_analog_volume(struct lola *chip, int dir,
 		return 0;
 	if (external_call)
 		lola_codec_flush(chip);
-	snd_printdd("set_analog_volume (dir=%d idx=%d, volume=%d)\n",
+	dev_dbg(chip->card->dev,
+		"set_analog_volume (dir=%d idx=%d, volume=%d)\n",
 			dir, idx, val);
 	err = lola_codec_write(chip, pin->nid,
 			       LOLA_VERB_SET_AMP_GAIN_MUTE, val, 0);
@@ -644,7 +645,7 @@ static int lola_input_src_put(struct snd_kcontrol *kcontrol,
 	return lola_set_src_config(chip, mask, true);
 }
 
-static struct snd_kcontrol_new lola_input_src_mixer = {
+static const struct snd_kcontrol_new lola_input_src_mixer = {
 	.name = "Digital SRC Capture Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = lola_input_src_info,

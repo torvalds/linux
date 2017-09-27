@@ -267,7 +267,7 @@ static irqreturn_t lm3533_als_isr(int irq, void *dev_id)
 					    0,
 					    IIO_EV_TYPE_THRESH,
 					    IIO_EV_DIR_EITHER),
-		       iio_get_time_ns());
+		       iio_get_time_ns(indio_dev));
 out:
 	return IRQ_HANDLED;
 }
@@ -657,7 +657,7 @@ static ALS_HYSTERESIS_ATTR_RO(3);
 #define ILLUMINANCE_ATTR_RO(_name) \
 	DEVICE_ATTR(in_illuminance0_##_name, S_IRUGO, show_##_name, NULL)
 #define ILLUMINANCE_ATTR_RW(_name) \
-	DEVICE_ATTR(in_illuminance0_##_name, S_IRUGO | S_IWUSR , \
+	DEVICE_ATTR(in_illuminance0_##_name, S_IRUGO | S_IWUSR, \
 						show_##_name, store_##_name)
 /*
  * ALS Zone threshold-event enable
@@ -690,7 +690,7 @@ static struct attribute *lm3533_als_event_attributes[] = {
 	NULL
 };
 
-static struct attribute_group lm3533_als_event_attribute_group = {
+static const struct attribute_group lm3533_als_event_attribute_group = {
 	.attrs = lm3533_als_event_attributes
 };
 
@@ -714,7 +714,7 @@ static struct attribute *lm3533_als_attributes[] = {
 	NULL
 };
 
-static struct attribute_group lm3533_als_attribute_group = {
+static const struct attribute_group lm3533_als_attribute_group = {
 	.attrs = lm3533_als_attributes
 };
 
@@ -743,8 +743,10 @@ static int lm3533_als_set_resistor(struct lm3533_als *als, u8 val)
 {
 	int ret;
 
-	if (val < LM3533_ALS_RESISTOR_MIN || val > LM3533_ALS_RESISTOR_MAX)
+	if (val < LM3533_ALS_RESISTOR_MIN || val > LM3533_ALS_RESISTOR_MAX) {
+		dev_err(&als->pdev->dev, "invalid resistor value\n");
 		return -EINVAL;
+	};
 
 	ret = lm3533_write(als->lm3533, LM3533_REG_ALS_RESISTOR_SELECT, val);
 	if (ret) {
@@ -847,7 +849,7 @@ static int lm3533_als_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	indio_dev = iio_device_alloc(sizeof(*als));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*als));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -870,7 +872,7 @@ static int lm3533_als_probe(struct platform_device *pdev)
 	if (als->irq) {
 		ret = lm3533_als_setup_irq(als, indio_dev);
 		if (ret)
-			goto err_free_dev;
+			return ret;
 	}
 
 	ret = lm3533_als_setup(als, pdata);
@@ -894,8 +896,6 @@ err_disable:
 err_free_irq:
 	if (als->irq)
 		free_irq(als->irq, indio_dev);
-err_free_dev:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -910,7 +910,6 @@ static int lm3533_als_remove(struct platform_device *pdev)
 	lm3533_als_disable(als);
 	if (als->irq)
 		free_irq(als->irq, indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -918,7 +917,6 @@ static int lm3533_als_remove(struct platform_device *pdev)
 static struct platform_driver lm3533_als_driver = {
 	.driver	= {
 		.name	= "lm3533-als",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= lm3533_als_probe,
 	.remove		= lm3533_als_remove,

@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ****************************************************************/
 
+#include "smscoreapi.h"
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -29,7 +31,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
 
-#include "smscoreapi.h"
 #include "sms-cards.h"
 
 #include "smsdvb.h"
@@ -39,19 +40,14 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static struct list_head g_smsdvb_clients;
 static struct mutex g_smsdvb_clientslock;
 
-static int sms_dbg;
-module_param_named(debug, sms_dbg, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
-
-
-u32 sms_to_guard_interval_table[] = {
+static u32 sms_to_guard_interval_table[] = {
 	[0] = GUARD_INTERVAL_1_32,
 	[1] = GUARD_INTERVAL_1_16,
 	[2] = GUARD_INTERVAL_1_8,
 	[3] = GUARD_INTERVAL_1_4,
 };
 
-u32 sms_to_code_rate_table[] = {
+static u32 sms_to_code_rate_table[] = {
 	[0] = FEC_1_2,
 	[1] = FEC_2_3,
 	[2] = FEC_3_4,
@@ -60,14 +56,14 @@ u32 sms_to_code_rate_table[] = {
 };
 
 
-u32 sms_to_hierarchy_table[] = {
+static u32 sms_to_hierarchy_table[] = {
 	[0] = HIERARCHY_NONE,
 	[1] = HIERARCHY_1,
 	[2] = HIERARCHY_2,
 	[3] = HIERARCHY_4,
 };
 
-u32 sms_to_modulation_table[] = {
+static u32 sms_to_modulation_table[] = {
 	[0] = QPSK,
 	[1] = QAM_16,
 	[2] = QAM_64,
@@ -82,48 +78,48 @@ static void sms_board_dvb3_event(struct smsdvb_client_t *client,
 	struct smscore_device_t *coredev = client->coredev;
 	switch (event) {
 	case DVB3_EVENT_INIT:
-		sms_debug("DVB3_EVENT_INIT");
+		pr_debug("DVB3_EVENT_INIT\n");
 		sms_board_event(coredev, BOARD_EVENT_BIND);
 		break;
 	case DVB3_EVENT_SLEEP:
-		sms_debug("DVB3_EVENT_SLEEP");
+		pr_debug("DVB3_EVENT_SLEEP\n");
 		sms_board_event(coredev, BOARD_EVENT_POWER_SUSPEND);
 		break;
 	case DVB3_EVENT_HOTPLUG:
-		sms_debug("DVB3_EVENT_HOTPLUG");
+		pr_debug("DVB3_EVENT_HOTPLUG\n");
 		sms_board_event(coredev, BOARD_EVENT_POWER_INIT);
 		break;
 	case DVB3_EVENT_FE_LOCK:
 		if (client->event_fe_state != DVB3_EVENT_FE_LOCK) {
 			client->event_fe_state = DVB3_EVENT_FE_LOCK;
-			sms_debug("DVB3_EVENT_FE_LOCK");
+			pr_debug("DVB3_EVENT_FE_LOCK\n");
 			sms_board_event(coredev, BOARD_EVENT_FE_LOCK);
 		}
 		break;
 	case DVB3_EVENT_FE_UNLOCK:
 		if (client->event_fe_state != DVB3_EVENT_FE_UNLOCK) {
 			client->event_fe_state = DVB3_EVENT_FE_UNLOCK;
-			sms_debug("DVB3_EVENT_FE_UNLOCK");
+			pr_debug("DVB3_EVENT_FE_UNLOCK\n");
 			sms_board_event(coredev, BOARD_EVENT_FE_UNLOCK);
 		}
 		break;
 	case DVB3_EVENT_UNC_OK:
 		if (client->event_unc_state != DVB3_EVENT_UNC_OK) {
 			client->event_unc_state = DVB3_EVENT_UNC_OK;
-			sms_debug("DVB3_EVENT_UNC_OK");
+			pr_debug("DVB3_EVENT_UNC_OK\n");
 			sms_board_event(coredev, BOARD_EVENT_MULTIPLEX_OK);
 		}
 		break;
 	case DVB3_EVENT_UNC_ERR:
 		if (client->event_unc_state != DVB3_EVENT_UNC_ERR) {
 			client->event_unc_state = DVB3_EVENT_UNC_ERR;
-			sms_debug("DVB3_EVENT_UNC_ERR");
+			pr_debug("DVB3_EVENT_UNC_ERR\n");
 			sms_board_event(coredev, BOARD_EVENT_MULTIPLEX_ERRORS);
 		}
 		break;
 
 	default:
-		sms_err("Unknown dvb3 api event");
+		pr_err("Unknown dvb3 api event\n");
 		break;
 	}
 }
@@ -276,7 +272,8 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 
 	/* Legacy PER/BER */
 	tmp = p->ets_packets * 65535;
-	do_div(tmp, p->ts_packets + p->ets_packets);
+	if (p->ts_packets + p->ets_packets)
+		do_div(tmp, p->ts_packets + p->ets_packets);
 	client->legacy_per = tmp;
 }
 
@@ -589,7 +586,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		is_status_update = true;
 		break;
 	default:
-		sms_info("message not handled");
+		pr_debug("message not handled\n");
 	}
 	smscore_putbuffer(client->coredev, cb);
 
@@ -612,6 +609,20 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 	return 0;
 }
 
+static void smsdvb_media_device_unregister(struct smsdvb_client_t *client)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct smscore_device_t *coredev = client->coredev;
+
+	if (!coredev->media_dev)
+		return;
+	media_device_unregister(coredev->media_dev);
+	media_device_cleanup(coredev->media_dev);
+	kfree(coredev->media_dev);
+	coredev->media_dev = NULL;
+#endif
+}
+
 static void smsdvb_unregister_client(struct smsdvb_client_t *client)
 {
 	/* must be called under clientslock */
@@ -623,6 +634,7 @@ static void smsdvb_unregister_client(struct smsdvb_client_t *client)
 	dvb_unregister_frontend(&client->frontend);
 	dvb_dmxdev_release(&client->dmxdev);
 	dvb_dmx_release(&client->demux);
+	smsdvb_media_device_unregister(client);
 	dvb_unregister_adapter(&client->adapter);
 	kfree(client);
 }
@@ -642,7 +654,7 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, struct smsdvb_client_t, demux);
 	struct sms_msg_data pid_msg;
 
-	sms_debug("add pid %d(%x)",
+	pr_debug("add pid %d(%x)\n",
 		  feed->pid, feed->pid);
 
 	client->feed_users++;
@@ -664,7 +676,7 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, struct smsdvb_client_t, demux);
 	struct sms_msg_data pid_msg;
 
-	sms_debug("remove pid %d(%x)",
+	pr_debug("remove pid %d(%x)\n",
 		  feed->pid, feed->pid);
 
 	client->feed_users--;
@@ -742,7 +754,7 @@ static inline int led_feedback(struct smsdvb_client_t *client)
 				     SMS_LED_HI : SMS_LED_LO);
 }
 
-static int smsdvb_read_status(struct dvb_frontend *fe, fe_status_t *stat)
+static int smsdvb_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	int rc;
 	struct smsdvb_client_t *client;
@@ -834,7 +846,7 @@ static int smsdvb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 				    struct dvb_frontend_tune_settings *tune)
 {
-	sms_debug("");
+	pr_debug("\n");
 
 	tune->min_delay_ms = 400;
 	tune->step_size = 250000;
@@ -868,7 +880,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 	msg.Data[0] = c->frequency;
 	msg.Data[2] = 12000000;
 
-	sms_info("%s: freq %d band %d", __func__, c->frequency,
+	pr_debug("%s: freq %d band %d\n", __func__, c->frequency,
 		 c->bandwidth_hz);
 
 	switch (c->bandwidth_hz / 1000000) {
@@ -889,7 +901,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 	/* Disable LNA, if any. An error is returned if no LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
-		fe_status_t status;
+		enum fe_status status;
 
 		/* tune with LNA off at first */
 		ret = smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
@@ -953,14 +965,14 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 
 	c->bandwidth_hz = 6000000;
 
-	sms_info("%s: freq %d segwidth %d segindex %d", __func__,
+	pr_debug("freq %d segwidth %d segindex %d\n",
 		 c->frequency, c->isdbt_sb_segment_count,
 		 c->isdbt_sb_segment_idx);
 
 	/* Disable LNA, if any. An error is returned if no LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
-		fe_status_t status;
+		enum fe_status status;
 
 		/* tune with LNA off at first */
 		ret = smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
@@ -1003,12 +1015,6 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe)
 	}
 }
 
-/* Nothing to do here, as stats are automatically updated */
-static int smsdvb_get_frontend(struct dvb_frontend *fe)
-{
-	return 0;
-}
-
 static int smsdvb_init(struct dvb_frontend *fe)
 {
 	struct smsdvb_client_t *client =
@@ -1038,7 +1044,7 @@ static void smsdvb_release(struct dvb_frontend *fe)
 	/* do nothing */
 }
 
-static struct dvb_frontend_ops smsdvb_fe_ops = {
+static const struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
 		.name			= "Siano Mobile Digital MDTV Receiver",
 		.frequency_min		= 44250000,
@@ -1057,7 +1063,6 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.release = smsdvb_release,
 
 	.set_frontend = smsdvb_set_frontend,
-	.get_frontend = smsdvb_get_frontend,
 	.get_tune_settings = smsdvb_get_tune_settings,
 
 	.read_status = smsdvb_read_status,
@@ -1081,10 +1086,8 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	if (!arrival)
 		return 0;
 	client = kzalloc(sizeof(struct smsdvb_client_t), GFP_KERNEL);
-	if (!client) {
-		sms_err("kmalloc() failed");
+	if (!client)
 		return -ENOMEM;
-	}
 
 	/* register dvb adapter */
 	rc = dvb_register_adapter(&client->adapter,
@@ -1092,9 +1095,10 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 					smscore_get_board_id(coredev))->name,
 				  THIS_MODULE, device, adapter_nr);
 	if (rc < 0) {
-		sms_err("dvb_register_adapter() failed %d", rc);
+		pr_err("dvb_register_adapter() failed %d\n", rc);
 		goto adapter_error;
 	}
+	dvb_register_media_controller(&client->adapter, coredev->media_dev);
 
 	/* init dvb demux */
 	client->demux.dmx.capabilities = DMX_TS_FILTERING;
@@ -1105,7 +1109,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_dmx_init(&client->demux);
 	if (rc < 0) {
-		sms_err("dvb_dmx_init failed %d", rc);
+		pr_err("dvb_dmx_init failed %d\n", rc);
 		goto dvbdmx_error;
 	}
 
@@ -1116,7 +1120,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_dmxdev_init(&client->dmxdev, &client->adapter);
 	if (rc < 0) {
-		sms_err("dvb_dmxdev_init failed %d", rc);
+		pr_err("dvb_dmxdev_init failed %d\n", rc);
 		goto dmxdev_error;
 	}
 
@@ -1137,7 +1141,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_register_frontend(&client->adapter, &client->frontend);
 	if (rc < 0) {
-		sms_err("frontend registration failed %d", rc);
+		pr_err("frontend registration failed %d\n", rc);
 		goto frontend_error;
 	}
 
@@ -1149,7 +1153,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = smscore_register_client(coredev, &params, &client->smsclient);
 	if (rc < 0) {
-		sms_err("smscore_register_client() failed %d", rc);
+		pr_err("smscore_register_client() failed %d\n", rc);
 		goto client_error;
 	}
 
@@ -1168,12 +1172,18 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	client->event_unc_state = -1;
 	sms_board_dvb3_event(client, DVB3_EVENT_HOTPLUG);
 
-	sms_info("success");
 	sms_board_setup(coredev);
 
 	if (smsdvb_debugfs_create(client) < 0)
-		sms_info("failed to create debugfs node");
+		pr_info("failed to create debugfs node\n");
 
+	rc = dvb_create_media_graph(&client->adapter, true);
+	if (rc < 0) {
+		pr_err("dvb_create_media_graph failed %d\n", rc);
+		goto client_error;
+	}
+
+	pr_info("DVB interface registered.\n");
 	return 0;
 
 client_error:
@@ -1186,6 +1196,7 @@ dmxdev_error:
 	dvb_dmx_release(&client->demux);
 
 dvbdmx_error:
+	smsdvb_media_device_unregister(client);
 	dvb_unregister_adapter(&client->adapter);
 
 adapter_error:
@@ -1204,7 +1215,7 @@ static int __init smsdvb_module_init(void)
 
 	rc = smscore_register_hotplug(smsdvb_hotplug);
 
-	sms_debug("");
+	pr_debug("\n");
 
 	return rc;
 }

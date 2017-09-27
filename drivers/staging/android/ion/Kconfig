@@ -1,0 +1,44 @@
+menuconfig ION
+	bool "Ion Memory Manager"
+	depends on HAVE_MEMBLOCK && HAS_DMA && MMU
+	select GENERIC_ALLOCATOR
+	select DMA_SHARED_BUFFER
+	---help---
+	  Chose this option to enable the ION Memory Manager,
+	  used by Android to efficiently allocate buffers
+	  from userspace that can be shared between drivers.
+	  If you're not using Android its probably safe to
+	  say N here.
+
+config ION_SYSTEM_HEAP
+	bool "Ion system heap"
+	depends on ION
+	help
+	  Choose this option to enable the Ion system heap. The system heap
+	  is backed by pages from the buddy allocator. If in doubt, say Y.
+
+config ION_CARVEOUT_HEAP
+	bool "Ion carveout heap support"
+	depends on ION
+	help
+	  Choose this option to enable carveout heaps with Ion. Carveout heaps
+	  are backed by memory reserved from the system. Allocation times are
+	  typically faster at the cost of memory not being used. Unless you
+	  know your system has these regions, you should say N here.
+
+config ION_CHUNK_HEAP
+	bool "Ion chunk heap support"
+	depends on ION
+	help
+          Choose this option to enable chunk heaps with Ion. This heap is
+	  similar in function the carveout heap but memory is broken down
+	  into smaller chunk sizes, typically corresponding to a TLB size.
+	  Unless you know your system has these regions, you should say N here.
+
+config ION_CMA_HEAP
+	bool "Ion CMA heap support"
+	depends on ION && CMA
+	help
+	  Choose this option to enable CMA heaps with Ion. This heap is backed
+	  by the Contiguous Memory Allocator (CMA). If your system has these
+	  regions, you should say Y here.

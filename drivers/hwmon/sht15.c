@@ -33,6 +33,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
+#include <linux/bitrev.h>
+#include <linux/of_gpio.h>
 
 /* Commands */
 #define SHT15_MEASURE_TEMP		0x03
@@ -173,19 +175,6 @@ struct sht15_data {
 };
 
 /**
- * sht15_reverse() - reverse a byte
- * @byte:    byte to reverse.
- */
-static u8 sht15_reverse(u8 byte)
-{
-	u8 i, c;
-
-	for (c = 0, i = 0; i < 8; i++)
-		c |= (!!(byte & (1 << i))) << (7 - i);
-	return c;
-}
-
-/**
  * sht15_crc8() - compute crc8
  * @data:	sht15 specific data.
  * @value:	sht15 retrieved data.
@@ -196,7 +185,7 @@ static u8 sht15_crc8(struct sht15_data *data,
 		const u8 *value,
 		int len)
 {
-	u8 crc = sht15_reverse(data->val_status & 0x0F);
+	u8 crc = bitrev8(data->val_status & 0x0F);
 
 	while (len--) {
 		crc = sht15_crc8_table[*value ^ crc];
@@ -477,7 +466,7 @@ static int sht15_update_status(struct sht15_data *data)
 
 		if (data->checksumming) {
 			sht15_ack(data);
-			dev_checksum = sht15_reverse(sht15_read_byte(data));
+			dev_checksum = bitrev8(sht15_read_byte(data));
 			checksum_vals[0] = SHT15_READ_STATUS;
 			checksum_vals[1] = status;
 			data->checksum_ok = (sht15_crc8(data, checksum_vals, 2)
@@ -781,7 +770,7 @@ static ssize_t sht15_show_humidity(struct device *dev,
 	return ret ? ret : sprintf(buf, "%d\n", sht15_calc_humid(data));
 }
 
-static ssize_t show_name(struct device *dev,
+static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)
 {
@@ -799,7 +788,7 @@ static SENSOR_DEVICE_ATTR(humidity1_fault, S_IRUGO, sht15_show_status, NULL,
 			  SHT15_STATUS_LOW_BATTERY);
 static SENSOR_DEVICE_ATTR(heater_enable, S_IRUGO | S_IWUSR, sht15_show_status,
 			  sht15_store_heater, SHT15_STATUS_HEATER);
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 static struct attribute *sht15_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_humidity1_input.dev_attr.attr,
@@ -864,7 +853,7 @@ static void sht15_bh_read_data(struct work_struct *work_s)
 		 */
 		if (sht15_ack(data))
 			goto wakeup;
-		dev_checksum = sht15_reverse(sht15_read_byte(data));
+		dev_checksum = bitrev8(sht15_read_byte(data));
 		checksum_vals[0] = (data->state == SHT15_READING_TEMP) ?
 			SHT15_MEASURE_TEMP : SHT15_MEASURE_RH;
 		checksum_vals[1] = (u8) (val >> 8);
@@ -923,6 +912,54 @@ static int sht15_invalidate_voltage(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id sht15_dt_match[] = {
+	{ .compatible = "sensirion,sht15" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sht15_dt_match);
+
+/*
+ * This function returns NULL if pdev isn't a device instatiated by dt,
+ * a pointer to pdata if it could successfully get all information
+ * from dt or a negative ERR_PTR() on error.
+ */
+static struct sht15_platform_data *sht15_probe_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct sht15_platform_data *pdata;
+
+	/* no device tree device */
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->gpio_data = of_get_named_gpio(np, "data-gpios", 0);
+	if (pdata->gpio_data < 0) {
+		if (pdata->gpio_data != -EPROBE_DEFER)
+			dev_err(dev, "data-gpios not found\n");
+		return ERR_PTR(pdata->gpio_data);
+	}
+
+	pdata->gpio_sck = of_get_named_gpio(np, "clk-gpios", 0);
+	if (pdata->gpio_sck < 0) {
+		if (pdata->gpio_sck != -EPROBE_DEFER)
+			dev_err(dev, "clk-gpios not found\n");
+		return ERR_PTR(pdata->gpio_sck);
+	}
+
+	return pdata;
+}
+#else
+static inline struct sht15_platform_data *sht15_probe_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int sht15_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -940,11 +977,17 @@ static int sht15_probe(struct platform_device *pdev)
 	data->dev = &pdev->dev;
 	init_waitqueue_head(&data->wait_queue);
 
-	if (pdev->dev.platform_data == NULL) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
-		return -EINVAL;
+	data->pdata = sht15_probe_dt(&pdev->dev);
+	if (IS_ERR(data->pdata))
+		return PTR_ERR(data->pdata);
+	if (data->pdata == NULL) {
+		data->pdata = dev_get_platdata(&pdev->dev);
+		if (data->pdata == NULL) {
+			dev_err(&pdev->dev, "no platform data supplied\n");
+			return -EINVAL;
+		}
 	}
-	data->pdata = pdev->dev.platform_data;
+
 	data->supply_uv = data->pdata->supply_mv * 1000;
 	if (data->pdata->checksum)
 		data->checksumming = true;
@@ -957,7 +1000,7 @@ static int sht15_probe(struct platform_device *pdev)
 	 * If a regulator is available,
 	 * query what the supply voltage actually is!
 	 */
-	data->reg = devm_regulator_get(data->dev, "vcc");
+	data->reg = devm_regulator_get_optional(data->dev, "vcc");
 	if (!IS_ERR(data->reg)) {
 		int voltage;
 
@@ -1074,7 +1117,7 @@ static int sht15_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id sht15_device_ids[] = {
+static const struct platform_device_id sht15_device_ids[] = {
 	{ "sht10", sht10 },
 	{ "sht11", sht11 },
 	{ "sht15", sht15 },
@@ -1087,7 +1130,7 @@ MODULE_DEVICE_TABLE(platform, sht15_device_ids);
 static struct platform_driver sht15_driver = {
 	.driver = {
 		.name = "sht15",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(sht15_dt_match),
 	},
 	.probe = sht15_probe,
 	.remove = sht15_remove,

@@ -1,0 +1,25 @@
+IPMI device
+
+Required properties:
+- compatible: should be one of ipmi-kcs, ipmi-smic, or ipmi-bt
+- device_type: should be ipmi
+- reg: Address and length of the register set for the device
+
+Optional properties:
+- interrupts: The interrupt for the device.  Without this the interface
+	is polled.
+- reg-size - The size of the register.  Defaults to 1
+- reg-spacing - The number of bytes between register starts.  Defaults to 1
+- reg-shift - The amount to shift the registers to the right to get the data
+	into bit zero.
+
+Example:
+
+smic@fff3a000 {
+	compatible = "ipmi-smic";
+	device_type = "ipmi";
+	reg = <0xfff3a000 0x1000>;
+	interrupts = <0 24 4>;
+	reg-size = <4>;
+	reg-spacing = <4>;
+};

@@ -5,7 +5,6 @@
  * FIXME: LOCKING !!!
  */
 
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -709,7 +708,7 @@ int pmf_register_driver(struct device_node *np,
 	if (handlers == NULL)
 		return -EINVAL;
 
-	DBG("pmf: registering driver for node %s\n", np->full_name);
+	DBG("pmf: registering driver for node %pOF\n", np);
 
 	spin_lock_irqsave(&pmf_lock, flags);
 	dev = pmf_find_device(np);
@@ -782,7 +781,7 @@ void pmf_unregister_driver(struct device_node *np)
 	struct pmf_device *dev;
 	unsigned long flags;
 
-	DBG("pmf: unregistering driver for node %s\n", np->full_name);
+	DBG("pmf: unregistering driver for node %pOF\n", np);
 
 	spin_lock_irqsave(&pmf_lock, flags);
 	dev = pmf_find_device(np);
@@ -805,7 +804,7 @@ void pmf_unregister_driver(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(pmf_unregister_driver);
 
-struct pmf_function *__pmf_find_function(struct device_node *target,
+static struct pmf_function *__pmf_find_function(struct device_node *target,
 					 const char *name, u32 flags)
 {
 	struct device_node *actor = of_node_get(target);
@@ -941,7 +940,7 @@ int pmf_call_one(struct pmf_function *func, struct pmf_args *args)
 	void *instdata = NULL;
 	int rc = 0;
 
-	DBG(" ** pmf_call_one(%s/%s) **\n", dev->node->full_name, func->name);
+	DBG(" ** pmf_call_one(%pOF/%s) **\n", dev->node, func->name);
 
 	if (dev->handlers->begin)
 		instdata = dev->handlers->begin(func, args);

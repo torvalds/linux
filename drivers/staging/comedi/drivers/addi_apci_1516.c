@@ -22,11 +22,10 @@
  * more details.
  */
 
-#include <linux/pci.h>
+#include <linux/module.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 #include "addi_watchdog.h"
-#include "comedi_fc.h"
 
 /*
  * PCI bar 1 I/O Register map - Digital input/output
@@ -89,16 +88,10 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
 	s->state = inw(dev->iobase + APCI1516_DO_REG);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + APCI1516_DO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -107,10 +100,10 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 
 static int apci1516_reset(struct comedi_device *dev)
 {
-	const struct apci1516_boardinfo *this_board = comedi_board(dev);
+	const struct apci1516_boardinfo *board = dev->board_ptr;
 	struct apci1516_private *devpriv = dev->private;
 
-	if (!this_board->has_wdog)
+	if (!board->has_wdog)
 		return 0;
 
 	outw(0x0, dev->iobase + APCI1516_DO_REG);
@@ -124,22 +117,21 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct apci1516_boardinfo *this_board = NULL;
+	const struct apci1516_boardinfo *board = NULL;
 	struct apci1516_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	if (context < ARRAY_SIZE(apci1516_boardtypes))
-		this_board = &apci1516_boardtypes[context];
-	if (!this_board)
+		board = &apci1516_boardtypes[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -154,10 +146,10 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the digital input subdevice */
 	s = &dev->subdevices[0];
-	if (this_board->di_nchan) {
+	if (board->di_nchan) {
 		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE;
-		s->n_chan	= this_board->di_nchan;
+		s->n_chan	= board->di_nchan;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= apci1516_di_insn_bits;
@@ -167,10 +159,10 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[1];
-	if (this_board->do_nchan) {
+	if (board->do_nchan) {
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
-		s->n_chan	= this_board->do_nchan;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= board->do_nchan;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= apci1516_do_insn_bits;
@@ -180,7 +172,7 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[2];
-	if (this_board->has_wdog) {
+	if (board->has_wdog) {
 		ret = addi_watchdog_init(s, devpriv->wdog_iobase);
 		if (ret)
 			return ret;
@@ -196,7 +188,7 @@ static void apci1516_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci1516_reset(dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci1516_driver = {
@@ -212,7 +204,7 @@ static int apci1516_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1516_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci1516_pci_table) = {
+static const struct pci_device_id apci1516_pci_table[] = {
 	{ PCI_VDEVICE(ADDIDATA, 0x1000), BOARD_APCI1016 },
 	{ PCI_VDEVICE(ADDIDATA, 0x1001), BOARD_APCI1516 },
 	{ PCI_VDEVICE(ADDIDATA, 0x1002), BOARD_APCI2016 },
