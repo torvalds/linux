@@ -14,8 +14,8 @@
  * details.
  */
 
-#ifndef __CHANNEL_H__
-#define __CHANNEL_H__
+#ifndef __VISORCHANNEL_H__
+#define __VISORCHANNEL_H__
 
 #include <linux/types.h>
 #include <linux/uuid.h>
@@ -181,7 +181,7 @@ struct signal_queue_header {
 	u8 filler[12];
 } __packed;
 
-/* CHANNEL Guids */
+/* VISORCHANNEL Guids */
 /* {414815ed-c58c-11da-95a9-00e08161165f} */
 #define VISOR_VHBA_CHANNEL_GUID \
 	GUID_INIT(0x414815ed, 0xc58c, 0x11da, \

@@ -29,7 +29,7 @@
 
 #include <linux/device.h>
 
-#include "channel.h"
+#include "visorchannel.h"
 
 struct visorchipset_state {
 	u32 created:1;

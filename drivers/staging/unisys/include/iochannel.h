@@ -44,7 +44,7 @@
 #include <linux/uuid.h>
 #include <linux/skbuff.h>
 
-#include "channel.h"
+#include "visorchannel.h"
 
 /*
  * Must increment these whenever you insert or delete fields within this channel
