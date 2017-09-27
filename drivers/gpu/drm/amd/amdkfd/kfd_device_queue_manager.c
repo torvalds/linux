@@ -45,8 +45,8 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 
 static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock);
-static int destroy_queues_cpsch(struct device_queue_manager *dqm,
-				bool preempt_static_queues, bool lock);
+static int unmap_queues_cpsch(struct device_queue_manager *dqm,
+				bool static_queues_included, bool lock);
 
 static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 					struct queue *q,
@@ -707,7 +707,7 @@ fail_packet_manager_init:
 
 static int stop_cpsch(struct device_queue_manager *dqm)
 {
-	destroy_queues_cpsch(dqm, true, true);
+	unmap_queues_cpsch(dqm, true, true);
 
 	kfd_gtt_sa_free(dqm->dev, dqm->fence_mem);
 	pm_uninit(&dqm->packets);
@@ -750,7 +750,7 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 {
 	mutex_lock(&dqm->lock);
 	/* here we actually preempt the DIQ */
-	destroy_queues_cpsch(dqm, true, false);
+	unmap_queues_cpsch(dqm, true, false);
 	list_del(&kq->list);
 	dqm->queue_count--;
 	qpd->is_debug = false;
@@ -849,19 +849,19 @@ int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 	return 0;
 }
 
-static int destroy_sdma_queues(struct device_queue_manager *dqm,
+static int unmap_sdma_queues(struct device_queue_manager *dqm,
 				unsigned int sdma_engine)
 {
 	return pm_send_unmap_queue(&dqm->packets, KFD_QUEUE_TYPE_SDMA,
-			KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES, 0, false,
+			KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0, false,
 			sdma_engine);
 }
 
-static int destroy_queues_cpsch(struct device_queue_manager *dqm,
-				bool preempt_static_queues, bool lock)
+static int unmap_queues_cpsch(struct device_queue_manager *dqm,
+				bool static_queues_included, bool lock)
 {
 	int retval;
-	enum kfd_preempt_type_filter preempt_type;
+	enum kfd_unmap_queues_filter filter;
 	struct kfd_process_device *pdd;
 
 	retval = 0;
@@ -875,16 +875,16 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm,
 		dqm->sdma_queue_count);
 
 	if (dqm->sdma_queue_count > 0) {
-		destroy_sdma_queues(dqm, 0);
-		destroy_sdma_queues(dqm, 1);
+		unmap_sdma_queues(dqm, 0);
+		unmap_sdma_queues(dqm, 1);
 	}
 
-	preempt_type = preempt_static_queues ?
-			KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES :
-			KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES;
+	filter = static_queues_included ?
+			KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES :
+			KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES;
 
 	retval = pm_send_unmap_queue(&dqm->packets, KFD_QUEUE_TYPE_COMPUTE,
-			preempt_type, 0, false, 0);
+			filter, 0, false, 0);
 	if (retval)
 		goto out;
 
@@ -916,7 +916,7 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 	if (lock)
 		mutex_lock(&dqm->lock);
 
-	retval = destroy_queues_cpsch(dqm, false, false);
+	retval = unmap_queues_cpsch(dqm, false, false);
 	if (retval) {
 		pr_err("The cp might be in an unrecoverable state due to an unsuccessful queues preemption");
 		goto out;

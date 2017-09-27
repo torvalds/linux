@@ -476,7 +476,7 @@ fail_acquire_packet_buffer:
 }
 
 int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
-			enum kfd_preempt_type_filter mode,
+			enum kfd_unmap_queues_filter filter,
 			uint32_t filter_param, bool reset,
 			unsigned int sdma_engine)
 {
@@ -494,8 +494,8 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 
 	packet = (struct pm4_mes_unmap_queues *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_mes_unmap_queues));
-	pr_debug("static_queue: unmapping queues: mode is %d , reset is %d , type is %d\n",
-		mode, reset, type);
+	pr_debug("static_queue: unmapping queues: filter is %d , reset is %d , type is %d\n",
+		filter, reset, type);
 	packet->header.u32All = build_pm4_header(IT_UNMAP_QUEUES,
 					sizeof(struct pm4_mes_unmap_queues));
 	switch (type) {
@@ -521,29 +521,29 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 		packet->bitfields2.action =
 				action__mes_unmap_queues__preempt_queues;
 
-	switch (mode) {
-	case KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE:
+	switch (filter) {
+	case KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE:
 		packet->bitfields2.queue_sel =
 				queue_sel__mes_unmap_queues__perform_request_on_specified_queues;
 		packet->bitfields2.num_queues = 1;
 		packet->bitfields3b.doorbell_offset0 = filter_param;
 		break;
-	case KFD_PREEMPT_TYPE_FILTER_BY_PASID:
+	case KFD_UNMAP_QUEUES_FILTER_BY_PASID:
 		packet->bitfields2.queue_sel =
 				queue_sel__mes_unmap_queues__perform_request_on_pasid_queues;
 		packet->bitfields3a.pasid = filter_param;
 		break;
-	case KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES:
+	case KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES:
 		packet->bitfields2.queue_sel =
 				queue_sel__mes_unmap_queues__unmap_all_queues;
 		break;
-	case KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES:
+	case KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES:
 		/* in this case, we do not preempt static queues */
 		packet->bitfields2.queue_sel =
 				queue_sel__mes_unmap_queues__unmap_all_non_static_queues;
 		break;
 	default:
-		WARN(1, "filter %d", mode);
+		WARN(1, "filter %d", filter);
 		retval = -EINVAL;
 		goto err_invalid;
 	}

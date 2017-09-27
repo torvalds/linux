@@ -222,22 +222,22 @@ void kfd_chardev_exit(void);
 struct device *kfd_chardev(void);
 
 /**
- * enum kfd_preempt_type_filter
+ * enum kfd_unmap_queues_filter
  *
- * @KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE: Preempts single queue.
+ * @KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE: Preempts single queue.
  *
- * @KFD_PRERMPT_TYPE_FILTER_ALL_QUEUES: Preempts all queues in the
+ * @KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES: Preempts all queues in the
  *						running queues list.
  *
- * @KFD_PRERMPT_TYPE_FILTER_BY_PASID: Preempts queues that belongs to
+ * @KFD_UNMAP_QUEUES_FILTER_BY_PASID: Preempts queues that belongs to
  *						specific process.
  *
  */
-enum kfd_preempt_type_filter {
-	KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE,
-	KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES,
-	KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES,
-	KFD_PREEMPT_TYPE_FILTER_BY_PASID
+enum kfd_unmap_queues_filter {
+	KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE,
+	KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES,
+	KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES,
+	KFD_UNMAP_QUEUES_FILTER_BY_PASID
 };
 
 /**
@@ -700,7 +700,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 				uint32_t fence_value);
 
 int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
-			enum kfd_preempt_type_filter mode,
+			enum kfd_unmap_queues_filter mode,
 			uint32_t filter_param, bool reset,
 			unsigned int sdma_engine);
 
