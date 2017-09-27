@@ -355,11 +355,13 @@ static int proc_tfo_blackhole_detect_timeout(struct ctl_table *table,
 					     void __user *buffer,
 					     size_t *lenp, loff_t *ppos)
 {
+	struct net *net = container_of(table->data, struct net,
+	    ipv4.sysctl_tcp_fastopen_blackhole_timeout);
 	int ret;
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		tcp_fastopen_active_timeout_reset();
+		atomic_set(&net->ipv4.tfo_active_disable_times, 0);
 
 	return ret;
 }
@@ -396,14 +398,6 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
-	},
-	{
-		.procname	= "tcp_fastopen_blackhole_timeout_sec",
-		.data		= &sysctl_tcp_fastopen_blackhole_timeout,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_tfo_blackhole_detect_timeout,
-		.extra1		= &zero,
 	},
 	{
 		.procname	= "tcp_abort_on_overflow",
@@ -1082,6 +1076,14 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_fastopen,
 		.maxlen		= ((TCP_FASTOPEN_KEY_LENGTH * 2) + 10),
 		.proc_handler	= proc_tcp_fastopen_key,
+	},
+	{
+		.procname	= "tcp_fastopen_blackhole_timeout_sec",
+		.data		= &init_net.ipv4.sysctl_tcp_fastopen_blackhole_timeout,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_tfo_blackhole_detect_timeout,
+		.extra1		= &zero,
 	},
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	{
