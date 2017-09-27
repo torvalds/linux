@@ -995,16 +995,51 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 		sdhci_msm_hs400(host, &mmc->ios);
 }
 
-static void sdhci_msm_voltage_switch(struct sdhci_host *host)
+static void sdhci_msm_dump_pwr_ctrl_regs(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+
+	pr_err("%s: PWRCTL_STATUS: 0x%08x | PWRCTL_MASK: 0x%08x | PWRCTL_CTL: 0x%08x\n",
+			mmc_hostname(host->mmc),
+			readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS),
+			readl_relaxed(msm_host->core_mem + CORE_PWRCTL_MASK),
+			readl_relaxed(msm_host->core_mem + CORE_PWRCTL_CTL));
+}
+
+static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
 	u32 irq_status, irq_ack = 0;
+	int retry = 10;
 
 	irq_status = readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
 	irq_status &= INT_MASK;
 
 	writel_relaxed(irq_status, msm_host->core_mem + CORE_PWRCTL_CLEAR);
+
+	/*
+	 * There is a rare HW scenario where the first clear pulse could be
+	 * lost when actual reset and clear/read of status register is
+	 * happening at a time. Hence, retry for at least 10 times to make
+	 * sure status register is cleared. Otherwise, this will result in
+	 * a spurious power IRQ resulting in system instability.
+	 */
+	while (irq_status & readl_relaxed(msm_host->core_mem +
+				CORE_PWRCTL_STATUS)) {
+		if (retry == 0) {
+			pr_err("%s: Timedout clearing (0x%x) pwrctl status register\n",
+					mmc_hostname(host->mmc), irq_status);
+			sdhci_msm_dump_pwr_ctrl_regs(host);
+			WARN_ON(1);
+			break;
+		}
+		writel_relaxed(irq_status,
+				msm_host->core_mem + CORE_PWRCTL_CLEAR);
+		retry--;
+		udelay(10);
+	}
 
 	if (irq_status & (CORE_PWRCTL_BUS_ON | CORE_PWRCTL_BUS_OFF))
 		irq_ack |= CORE_PWRCTL_BUS_SUCCESS;
@@ -1017,13 +1052,17 @@ static void sdhci_msm_voltage_switch(struct sdhci_host *host)
 	 * switches are handled by the sdhci core, so just report success.
 	 */
 	writel_relaxed(irq_ack, msm_host->core_mem + CORE_PWRCTL_CTL);
+
+	pr_debug("%s: %s: Handled IRQ(%d), irq_status=0x%x, ack=0x%x\n",
+		mmc_hostname(msm_host->mmc), __func__, irq, irq_status,
+		irq_ack);
 }
 
 static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 {
 	struct sdhci_host *host = (struct sdhci_host *)data;
 
-	sdhci_msm_voltage_switch(host);
+	sdhci_msm_handle_pwr_irq(host, irq);
 
 	return IRQ_HANDLED;
 }
@@ -1107,7 +1146,6 @@ static const struct sdhci_ops sdhci_msm_ops = {
 	.get_max_clock = sdhci_msm_get_max_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.set_uhs_signaling = sdhci_msm_set_uhs_signaling,
-	.voltage_switch = sdhci_msm_voltage_switch,
 };
 
 static const struct sdhci_pltfm_data sdhci_msm_pdata = {
@@ -1269,7 +1307,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	 * acknowledged. Otherwise power irq interrupt handler would be
 	 * fired prematurely.
 	 */
-	sdhci_msm_voltage_switch(host);
+	sdhci_msm_handle_pwr_irq(host, 0);
 
 	/*
 	 * Ensure that above writes are propogated before interrupt enablement
