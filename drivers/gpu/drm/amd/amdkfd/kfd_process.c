@@ -171,9 +171,6 @@ static void kfd_process_wq_release(struct work_struct *work)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d) in workqueue\n",
 				pdd->dev->id, p->pasid);
 
-		if (pdd->reset_wavefronts)
-			dbgdev_wave_reset_wavefronts(pdd->dev, p);
-
 		if (pdd->bound == PDD_BOUND)
 			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
 
@@ -237,23 +234,16 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 	mutex_lock(&p->mutex);
 
-	/* In case our notifier is called before IOMMU notifier */
+	kfd_process_dequeue_from_all_devices(p);
 	pqm_uninit(&p->pqm);
 
 	/* Iterate over all process device data structure and check
-	 * if we should delete debug managers and reset all wavefronts
+	 * if we should delete debug managers
 	 */
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
 		if ((pdd->dev->dbgmgr) &&
 				(pdd->dev->dbgmgr->pasid == p->pasid))
 			kfd_dbgmgr_destroy(pdd->dev->dbgmgr);
-
-		if (pdd->reset_wavefronts) {
-			pr_warn("Resetting all wave fronts\n");
-			dbgdev_wave_reset_wavefronts(pdd->dev, p);
-			pdd->reset_wavefronts = false;
-		}
-	}
 
 	mutex_unlock(&p->mutex);
 
@@ -368,8 +358,9 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 		INIT_LIST_HEAD(&pdd->qpd.queues_list);
 		INIT_LIST_HEAD(&pdd->qpd.priv_queue_list);
 		pdd->qpd.dqm = dev->dqm;
-		pdd->reset_wavefronts = false;
+		pdd->process = p;
 		pdd->bound = PDD_UNBOUND;
+		pdd->already_dequeued = false;
 		list_add(&pdd->per_device_list, &p->per_device_data);
 	}
 
@@ -498,19 +489,12 @@ void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid)
 	if ((dev->dbgmgr) && (dev->dbgmgr->pasid == p->pasid))
 		kfd_dbgmgr_destroy(dev->dbgmgr);
 
-	pqm_uninit(&p->pqm);
-
 	pdd = kfd_get_process_device_data(dev, p);
-
-	if (!pdd) {
-		mutex_unlock(&p->mutex);
-		return;
-	}
-
-	if (pdd->reset_wavefronts) {
-		dbgdev_wave_reset_wavefronts(pdd->dev, p);
-		pdd->reset_wavefronts = false;
-	}
+	if (pdd)
+		/* For GPU relying on IOMMU, we need to dequeue here
+		 * when PASID is still bound.
+		 */
+		kfd_process_dequeue_from_device(pdd);
 
 	mutex_unlock(&p->mutex);
 }

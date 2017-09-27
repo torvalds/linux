@@ -63,6 +63,25 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 	return 0;
 }
 
+void kfd_process_dequeue_from_device(struct kfd_process_device *pdd)
+{
+	struct kfd_dev *dev = pdd->dev;
+
+	if (pdd->already_dequeued)
+		return;
+
+	dev->dqm->ops.process_termination(dev->dqm, &pdd->qpd);
+	pdd->already_dequeued = true;
+}
+
+void kfd_process_dequeue_from_all_devices(struct kfd_process *p)
+{
+	struct kfd_process_device *pdd;
+
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
+		kfd_process_dequeue_from_device(pdd);
+}
+
 int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 {
 	INIT_LIST_HEAD(&pqm->queues);
@@ -78,21 +97,14 @@ int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 
 void pqm_uninit(struct process_queue_manager *pqm)
 {
-	int retval;
 	struct process_queue_node *pqn, *next;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
-		retval = pqm_destroy_queue(
-				pqm,
-				(pqn->q != NULL) ?
-					pqn->q->properties.queue_id :
-					pqn->kq->queue->properties.queue_id);
-
-		if (retval != 0) {
-			pr_err("failed to destroy queue\n");
-			return;
-		}
+		uninit_queue(pqn->q);
+		list_del(&pqn->process_queue_list);
+		kfree(pqn);
 	}
+
 	kfree(pqm->queue_slot_bitmap);
 	pqm->queue_slot_bitmap = NULL;
 }
@@ -290,9 +302,6 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	if (pqn->q) {
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
-		if (retval != 0)
-			return retval;
-
 		uninit_queue(pqn->q);
 	}
 

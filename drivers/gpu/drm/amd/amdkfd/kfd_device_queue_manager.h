@@ -77,6 +77,8 @@ struct device_process_node {
  * @set_cache_memory_policy: Sets memory policy (cached/ non cached) for the
  * memory apertures.
  *
+ * @process_termination: Clears all process queues belongs to that device.
+ *
  */
 
 struct device_queue_manager_ops {
@@ -120,6 +122,9 @@ struct device_queue_manager_ops {
 					   enum cache_policy alternate_policy,
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
+
+	int (*process_termination)(struct device_queue_manager *dqm,
+			struct qcm_process_device *qpd);
 };
 
 struct device_queue_manager_asic_ops {
