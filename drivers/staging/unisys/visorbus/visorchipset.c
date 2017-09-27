@@ -481,9 +481,6 @@ static int controlvm_responder(enum controlvm_id cmd_id,
 			       struct controlvm_message_header *pending_msg_hdr,
 			       int response)
 {
-	if (!pending_msg_hdr)
-		return -EIO;
-
 	if (pending_msg_hdr->id != (u32)cmd_id)
 		return -EINVAL;
 
@@ -497,8 +494,6 @@ static int device_changestate_responder(
 {
 	struct controlvm_message outmsg;
 
-	if (!p->pending_msg_hdr)
-		return -EIO;
 	if (p->pending_msg_hdr->id != cmd_id)
 		return -EINVAL;
 
@@ -1391,8 +1386,10 @@ static void setup_crash_devices_work_queue(struct work_struct *work)
 void visorbus_response(struct visor_device *bus_info, int response,
 		       int controlvm_id)
 {
-	controlvm_responder(controlvm_id, bus_info->pending_msg_hdr, response);
+	if (!bus_info->pending_msg_hdr)
+		return;
 
+	controlvm_responder(controlvm_id, bus_info->pending_msg_hdr, response);
 	kfree(bus_info->pending_msg_hdr);
 	bus_info->pending_msg_hdr = NULL;
 }
@@ -1401,9 +1398,11 @@ void visorbus_device_changestate_response(struct visor_device *dev_info,
 					  int response,
 					  struct visor_segment_state state)
 {
+	if (!dev_info->pending_msg_hdr)
+		return;
+
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE, dev_info,
 				     response, state);
-
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
 }

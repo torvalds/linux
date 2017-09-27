@@ -690,8 +690,9 @@ void remove_visor_device(struct visor_device *dev)
 {
 	list_del(&dev->list_all);
 	put_device(&dev->device);
+	if (dev->pending_msg_hdr)
+		visorbus_response(dev, 0, CONTROLVM_DEVICE_DESTROY);
 	device_unregister(&dev->device);
-	visorbus_response(dev, 0, CONTROLVM_DEVICE_DESTROY);
 }
 
 static int get_vbus_header_info(struct visorchannel *chan,
