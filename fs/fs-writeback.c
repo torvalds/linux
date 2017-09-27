@@ -1971,7 +1971,7 @@ void wakeup_flusher_threads(enum wb_reason reason)
 
 		list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
 			wb_start_writeback(wb, wb_split_bdi_pages(wb, nr_pages),
-					   false, reason);
+						true, reason);
 	}
 	rcu_read_unlock();
 }
