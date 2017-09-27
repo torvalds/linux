@@ -198,7 +198,7 @@ static void visorbus_release_device(struct device *xdev)
 }
 
 /*
- * begin implementation of specific channel attributes to appear under
+ * BUS specific channel attributes to appear under
  * /sys/bus/visorbus<x>/dev<y>/channel
  */
 
@@ -283,8 +283,6 @@ static struct attribute *channel_attrs[] = {
 };
 
 ATTRIBUTE_GROUPS(channel);
-
-/* end implementation of specific channel attributes */
 
 /*
  *  BUS instance attributes
@@ -546,8 +544,7 @@ EXPORT_SYMBOL_GPL(visorbus_unregister_visor_driver);
  * @dest:   the destination buffer that is written into from the channel
  * @nbytes: the number of bytes to read from the channel
  *
- * If receiving a message, use the visorchannel_signalremove()
- * function instead.
+ * If receiving a message, use the visorchannel_signalremove() function instead.
  *
  * Return: integer indicating success (zero) or failure (non-zero)
  */
@@ -566,8 +563,7 @@ EXPORT_SYMBOL_GPL(visorbus_read_channel);
  * @src:    the source buffer that is written into the channel
  * @nbytes: the number of bytes to write into the channel
  *
- * If sending a message, use the visorchannel_signalinsert()
- * function instead.
+ * If sending a message, use the visorchannel_signalinsert() function instead.
  *
  * Return: integer indicating success (zero) or failure (non-zero)
  */
@@ -618,17 +614,16 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
  *
  * This is how everything starts from the device end.
  * This function is called when a channel first appears via a ControlVM
- * message.  In response, this function allocates a visor_device to
- * correspond to the new channel, and attempts to connect it the appropriate
- * driver.  If the appropriate driver is found, the visor_driver.probe()
- * function for that driver will be called, and will be passed the new
- * visor_device that we just created.
+ * message.  In response, this function allocates a visor_device to correspond
+ * to the new channel, and attempts to connect it the appropriate * driver. If
+ * the appropriate driver is found, the visor_driver.probe() function for that
+ * driver will be called, and will be passed the new * visor_device that we
+ * just created.
  *
  * It's ok if the appropriate driver is not yet loaded, because in that case
  * the new device struct will just stick around in the bus' list of devices.
  * When the appropriate driver calls visorbus_register_visor_driver(), the
- * visor_driver.probe() for the new driver will be called with the new
- * device.
+ * visor_driver.probe() for the new driver will be called with the new device.
  *
  * Return: 0 if successful, otherwise the negative value returned by
  *         device_add() indicating the reason for failure
@@ -649,9 +644,9 @@ int create_visor_device(struct visor_device *dev)
 	setup_timer(&dev->timer, dev_periodic_work, (unsigned long)dev);
 
 	/*
-	 * bus_id must be a unique name with respect to this bus TYPE
-	 * (NOT bus instance).  That's why we need to include the bus
-	 * number within the name.
+	 * bus_id must be a unique name with respect to this bus TYPE (NOT bus
+	 * instance).  That's why we need to include the bus number within the
+	 * name.
 	 */
 	err = dev_set_name(&dev->device, "vbus%u:dev%u",
 			   chipset_bus_no, chipset_dev_no);
@@ -671,9 +666,9 @@ int create_visor_device(struct visor_device *dev)
 	 *              if (!drv.probe(dev))  [visordriver_probe_device]
 	 *                dev.drv = NULL
 	 *
-	 *  Note that device_add does NOT fail if no driver failed to
-	 *  claim the device.  The device will be linked onto
-	 *  bus_type.klist_devices regardless (use bus_for_each_dev).
+	 * Note that device_add does NOT fail if no driver failed to claim the
+	 * device.  The device will be linked onto bus_type.klist_devices
+	 * regardless (use bus_for_each_dev).
 	 */
 	err = device_add(&dev->device);
 	if (err < 0)
@@ -914,14 +909,13 @@ static int visordriver_probe_device(struct device *xdev)
 }
 
 /*
- * visorbus_register_visor_driver() - registers the provided visor driver
- *                                    for handling one or more visor device
+ * visorbus_register_visor_driver() - registers the provided visor driver for
+ *				      handling one or more visor device
  *                                    types (channel_types)
  * @drv: the driver to register
  *
- * A visor function driver calls this function to register
- * the driver.  The caller MUST fill in the following fields within the
- * #drv structure:
+ * A visor function driver calls this function to register the driver. The
+ * caller MUST fill in the following fields within the #drv structure:
  *     name, version, owner, channel_types, probe, remove
  *
  * Here's how the whole Linux bus / driver / device model works.
