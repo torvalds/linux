@@ -4549,6 +4549,27 @@ MLXSW_ITEM32(reg, ratr, ipip_ipv4_udip, 0x18, 0, 32);
  */
 MLXSW_ITEM32(reg, ratr, ipip_ipv6_ptr, 0x1C, 0, 24);
 
+enum mlxsw_reg_flow_counter_set_type {
+	/* No count */
+	MLXSW_REG_FLOW_COUNTER_SET_TYPE_NO_COUNT = 0x00,
+	/* Count packets and bytes */
+	MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
+	/* Count only packets */
+	MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS = 0x05,
+};
+
+/* reg_ratr_counter_set_type
+ * Counter set type for flow counters
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ratr, counter_set_type, 0x28, 24, 8);
+
+/* reg_ratr_counter_index
+ * Counter index for flow counters
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ratr, counter_index, 0x28, 0, 24);
+
 static inline void
 mlxsw_reg_ratr_pack(char *payload,
 		    enum mlxsw_reg_ratr_op op, bool valid,
@@ -4574,6 +4595,20 @@ static inline void mlxsw_reg_ratr_ipip4_entry_pack(char *payload, u32 ipv4_udip)
 {
 	mlxsw_reg_ratr_ipip_type_set(payload, MLXSW_REG_RATR_IPIP_TYPE_IPV4);
 	mlxsw_reg_ratr_ipip_ipv4_udip_set(payload, ipv4_udip);
+}
+
+static inline void mlxsw_reg_ratr_counter_pack(char *payload, u64 counter_index,
+					       bool counter_enable)
+{
+	enum mlxsw_reg_flow_counter_set_type set_type;
+
+	if (counter_enable)
+		set_type = MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS_BYTES;
+	else
+		set_type = MLXSW_REG_FLOW_COUNTER_SET_TYPE_NO_COUNT;
+
+	mlxsw_reg_ratr_counter_index_set(payload, counter_index);
+	mlxsw_reg_ratr_counter_set_type_set(payload, set_type);
 }
 
 /* RICNT - Router Interface Counter Register
@@ -5296,15 +5331,6 @@ enum mlxsw_reg_rauht_trap_id {
  * Access: RW
  */
 MLXSW_ITEM32(reg, rauht, trap_id, 0x60, 0, 9);
-
-enum mlxsw_reg_flow_counter_set_type {
-	/* No count */
-	MLXSW_REG_FLOW_COUNTER_SET_TYPE_NO_COUNT = 0x00,
-	/* Count packets and bytes */
-	MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
-	/* Count only packets */
-	MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS = 0x05,
-};
 
 /* reg_rauht_counter_set_type
  * Counter set type for flow counters
