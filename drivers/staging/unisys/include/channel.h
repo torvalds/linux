@@ -21,9 +21,8 @@
 #include <linux/uuid.h>
 
 #define SIGNATURE_16(A, B) ((A) | ((B) << 8))
-#define SIGNATURE_32(A, B, C, D) \
-	(SIGNATURE_16(A, B) | (SIGNATURE_16(C, D) << 16))
-#define VISOR_CHANNEL_SIGNATURE SIGNATURE_32('E', 'C', 'N', 'L')
+#define VISOR_CHANNEL_SIGNATURE \
+	(SIGNATURE_16('E', 'C') | (SIGNATURE_16('N', 'L') << 16))
 
 /*
  * enum channel_serverstate
