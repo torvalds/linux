@@ -1083,9 +1083,9 @@ static void remove_all_visor_devices(void)
 	struct list_head *listentry, *listtmp;
 
 	list_for_each_safe(listentry, listtmp, &list_all_device_instances) {
-		struct visor_device *dev = list_entry(listentry,
-						      struct visor_device,
-						      list_all);
+		struct visor_device *dev;
+
+		dev = list_entry(listentry, struct visor_device, list_all);
 		remove_visor_device(dev);
 	}
 }
@@ -1170,7 +1170,6 @@ static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 		dev->resuming = true;
 		err = drv->resume(dev, resume_state_change_complete);
 	}
-
 	return err;
 }
 
@@ -1191,7 +1190,6 @@ int visorchipset_device_pause(struct visor_device *dev_info)
 		dev_info->pausing = false;
 		return err;
 	}
-
 	return 0;
 }
 
@@ -1243,9 +1241,9 @@ void visorbus_exit(void)
 	remove_all_visor_devices();
 
 	list_for_each_safe(listentry, listtmp, &list_all_bus_instances) {
-		struct visor_device *dev = list_entry(listentry,
-						      struct visor_device,
-						      list_all);
+		struct visor_device *dev;
+
+		dev = list_entry(listentry, struct visor_device, list_all);
 		visorbus_remove_instance(dev);
 	}
 
