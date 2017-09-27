@@ -5,6 +5,7 @@
 #include <linux/pim.h>
 #include <linux/rhashtable.h>
 #include <net/sock.h>
+#include <net/fib_rules.h>
 #include <net/fib_notifier.h>
 #include <uapi/linux/mroute.h>
 
@@ -19,6 +20,7 @@ int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
 int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
 int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
 int ip_mr_init(void);
+bool ipmr_rule_default(const struct fib_rule *rule);
 #else
 static inline int ip_mroute_setsockopt(struct sock *sock, int optname,
 				       char __user *optval, unsigned int optlen)
@@ -45,6 +47,11 @@ static inline int ip_mr_init(void)
 static inline int ip_mroute_opt(int opt)
 {
 	return 0;
+}
+
+static inline bool ipmr_rule_default(const struct fib_rule *rule)
+{
+	return true;
 }
 #endif
 

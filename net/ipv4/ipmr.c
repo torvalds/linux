@@ -274,6 +274,12 @@ static unsigned int ipmr_rules_seq_read(struct net *net)
 {
 	return fib_rules_seq_read(net, RTNL_FAMILY_IPMR);
 }
+
+bool ipmr_rule_default(const struct fib_rule *rule)
+{
+	return fib_rule_matchall(rule) && rule->table == RT_TABLE_DEFAULT;
+}
+EXPORT_SYMBOL(ipmr_rule_default);
 #else
 #define ipmr_for_each_table(mrt, net) \
 	for (mrt = net->ipv4.mrt; mrt; mrt = NULL)
@@ -318,6 +324,12 @@ static unsigned int ipmr_rules_seq_read(struct net *net)
 {
 	return 0;
 }
+
+bool ipmr_rule_default(const struct fib_rule *rule)
+{
+	return true;
+}
+EXPORT_SYMBOL(ipmr_rule_default);
 #endif
 
 static inline int ipmr_hash_cmp(struct rhashtable_compare_arg *arg,
