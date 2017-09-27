@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/kthread.h>
 #include <linux/idr.h>
+#include <linux/module.h>
 #include <linux/seq_file.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>

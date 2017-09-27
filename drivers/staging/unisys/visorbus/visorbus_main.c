@@ -14,6 +14,8 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/uuid.h>
 
 #include "visorbus.h"

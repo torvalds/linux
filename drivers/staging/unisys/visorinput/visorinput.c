@@ -23,6 +23,7 @@
 #include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/uuid.h>
 
 #include "visorbus.h"

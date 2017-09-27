@@ -28,8 +28,6 @@
 #define __VISORBUS_H__
 
 #include <linux/device.h>
-#include <linux/module.h>
-#include <linux/slab.h>
 
 #include "channel.h"
 

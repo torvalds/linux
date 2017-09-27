@@ -20,6 +20,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/kthread.h>
 #include <linux/skbuff.h>
