@@ -342,9 +342,9 @@ static int signalinsert_inner(struct visorchannel *channel, u32 queue,
 }
 
 /*
- * visorchannel_create_guts() - creates the struct visorchannel abstraction for
- *				a data area in memory, but does NOT modify this
- *				data area
+ * visorchannel_create() - creates the struct visorchannel abstraction for a
+ *                         data area in memory, but does NOT modify this data
+ *                         area
  * @physaddr:      physical address of start of channel
  * @gfp:           gfp_t to use when allocating memory for the data struct
  * @guid:          GUID that identifies channel type;
@@ -355,9 +355,8 @@ static int signalinsert_inner(struct visorchannel *channel, u32 queue,
  * Return: pointer to visorchannel that was created if successful,
  *         otherwise NULL
  */
-static struct visorchannel *visorchannel_create_guts(u64 physaddr, gfp_t gfp,
-						     const guid_t *guid,
-						     bool needs_lock)
+struct visorchannel *visorchannel_create(u64 physaddr, gfp_t gfp,
+					 const guid_t *guid, bool needs_lock)
 {
 	struct visorchannel *channel;
 	int err;
@@ -414,18 +413,6 @@ static struct visorchannel *visorchannel_create_guts(u64 physaddr, gfp_t gfp,
 err_destroy_channel:
 	visorchannel_destroy(channel);
 	return NULL;
-}
-
-struct visorchannel *visorchannel_create(u64 physaddr, gfp_t gfp,
-					 const guid_t *guid)
-{
-	return visorchannel_create_guts(physaddr, gfp, guid, false);
-}
-
-struct visorchannel *visorchannel_create_with_lock(u64 physaddr, gfp_t gfp,
-						   const guid_t *guid)
-{
-	return visorchannel_create_guts(physaddr, gfp, guid, true);
 }
 
 /**
