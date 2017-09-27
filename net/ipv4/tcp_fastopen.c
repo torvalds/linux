@@ -9,13 +9,18 @@
 #include <net/inetpeer.h>
 #include <net/tcp.h>
 
-struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
-
-static DEFINE_SPINLOCK(tcp_fastopen_ctx_lock);
-
-void tcp_fastopen_init_key_once(void)
+void tcp_fastopen_init_key_once(struct net *net)
 {
-	static u8 key[TCP_FASTOPEN_KEY_LENGTH];
+	u8 key[TCP_FASTOPEN_KEY_LENGTH];
+	struct tcp_fastopen_context *ctxt;
+
+	rcu_read_lock();
+	ctxt = rcu_dereference(net->ipv4.tcp_fastopen_ctx);
+	if (ctxt) {
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
 
 	/* tcp_fastopen_reset_cipher publishes the new context
 	 * atomically, so we allow this race happening here.
@@ -23,8 +28,8 @@ void tcp_fastopen_init_key_once(void)
 	 * All call sites of tcp_fastopen_cookie_gen also check
 	 * for a valid cookie, so this is an acceptable risk.
 	 */
-	if (net_get_random_once(key, sizeof(key)))
-		tcp_fastopen_reset_cipher(key, sizeof(key));
+	get_random_bytes(key, sizeof(key));
+	tcp_fastopen_reset_cipher(net, key, sizeof(key));
 }
 
 static void tcp_fastopen_ctx_free(struct rcu_head *head)
@@ -35,7 +40,22 @@ static void tcp_fastopen_ctx_free(struct rcu_head *head)
 	kfree(ctx);
 }
 
-int tcp_fastopen_reset_cipher(void *key, unsigned int len)
+void tcp_fastopen_ctx_destroy(struct net *net)
+{
+	struct tcp_fastopen_context *ctxt;
+
+	spin_lock(&net->ipv4.tcp_fastopen_ctx_lock);
+
+	ctxt = rcu_dereference_protected(net->ipv4.tcp_fastopen_ctx,
+				lockdep_is_held(&net->ipv4.tcp_fastopen_ctx_lock));
+	rcu_assign_pointer(net->ipv4.tcp_fastopen_ctx, NULL);
+	spin_unlock(&net->ipv4.tcp_fastopen_ctx_lock);
+
+	if (ctxt)
+		call_rcu(&ctxt->rcu, tcp_fastopen_ctx_free);
+}
+
+int tcp_fastopen_reset_cipher(struct net *net, void *key, unsigned int len)
 {
 	int err;
 	struct tcp_fastopen_context *ctx, *octx;
@@ -59,26 +79,27 @@ error:		kfree(ctx);
 	}
 	memcpy(ctx->key, key, len);
 
-	spin_lock(&tcp_fastopen_ctx_lock);
+	spin_lock(&net->ipv4.tcp_fastopen_ctx_lock);
 
-	octx = rcu_dereference_protected(tcp_fastopen_ctx,
-				lockdep_is_held(&tcp_fastopen_ctx_lock));
-	rcu_assign_pointer(tcp_fastopen_ctx, ctx);
-	spin_unlock(&tcp_fastopen_ctx_lock);
+	octx = rcu_dereference_protected(net->ipv4.tcp_fastopen_ctx,
+				lockdep_is_held(&net->ipv4.tcp_fastopen_ctx_lock));
+	rcu_assign_pointer(net->ipv4.tcp_fastopen_ctx, ctx);
+	spin_unlock(&net->ipv4.tcp_fastopen_ctx_lock);
 
 	if (octx)
 		call_rcu(&octx->rcu, tcp_fastopen_ctx_free);
 	return err;
 }
 
-static bool __tcp_fastopen_cookie_gen(const void *path,
+static bool __tcp_fastopen_cookie_gen(struct net *net,
+				      const void *path,
 				      struct tcp_fastopen_cookie *foc)
 {
 	struct tcp_fastopen_context *ctx;
 	bool ok = false;
 
 	rcu_read_lock();
-	ctx = rcu_dereference(tcp_fastopen_ctx);
+	ctx = rcu_dereference(net->ipv4.tcp_fastopen_ctx);
 	if (ctx) {
 		crypto_cipher_encrypt_one(ctx->tfm, foc->val, path);
 		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
@@ -94,7 +115,8 @@ static bool __tcp_fastopen_cookie_gen(const void *path,
  *
  * XXX (TFO) - refactor when TCP_FASTOPEN_COOKIE_SIZE != AES_BLOCK_SIZE.
  */
-static bool tcp_fastopen_cookie_gen(struct request_sock *req,
+static bool tcp_fastopen_cookie_gen(struct net *net,
+				    struct request_sock *req,
 				    struct sk_buff *syn,
 				    struct tcp_fastopen_cookie *foc)
 {
@@ -102,7 +124,7 @@ static bool tcp_fastopen_cookie_gen(struct request_sock *req,
 		const struct iphdr *iph = ip_hdr(syn);
 
 		__be32 path[4] = { iph->saddr, iph->daddr, 0, 0 };
-		return __tcp_fastopen_cookie_gen(path, foc);
+		return __tcp_fastopen_cookie_gen(net, path, foc);
 	}
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -110,13 +132,13 @@ static bool tcp_fastopen_cookie_gen(struct request_sock *req,
 		const struct ipv6hdr *ip6h = ipv6_hdr(syn);
 		struct tcp_fastopen_cookie tmp;
 
-		if (__tcp_fastopen_cookie_gen(&ip6h->saddr, &tmp)) {
+		if (__tcp_fastopen_cookie_gen(net, &ip6h->saddr, &tmp)) {
 			struct in6_addr *buf = &tmp.addr;
 			int i;
 
 			for (i = 0; i < 4; i++)
 				buf->s6_addr32[i] ^= ip6h->daddr.s6_addr32[i];
-			return __tcp_fastopen_cookie_gen(buf, foc);
+			return __tcp_fastopen_cookie_gen(net, buf, foc);
 		}
 	}
 #endif
@@ -296,7 +318,7 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 		goto fastopen;
 
 	if (foc->len >= 0 &&  /* Client presents or requests a cookie */
-	    tcp_fastopen_cookie_gen(req, skb, &valid_foc) &&
+	    tcp_fastopen_cookie_gen(sock_net(sk), req, skb, &valid_foc) &&
 	    foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
 	    foc->len == valid_foc.len &&
 	    !memcmp(foc->val, valid_foc.val, foc->len)) {
