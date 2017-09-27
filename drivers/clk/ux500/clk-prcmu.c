@@ -259,10 +259,8 @@ static struct clk *clk_reg_prcmu(const char *name,
 	}
 
 	clk = kzalloc(sizeof(struct clk_prcmu), GFP_KERNEL);
-	if (!clk) {
-		pr_err("clk_prcmu: %s could not allocate clk\n", __func__);
+	if (!clk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	clk->cg_sel = cg_sel;
 	clk->is_prepared = 1;
