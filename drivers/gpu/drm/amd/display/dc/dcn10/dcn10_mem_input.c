@@ -38,7 +38,7 @@
 #define FN(reg_name, field_name) \
 	mi->mi_shift->field_name, mi->mi_mask->field_name
 
-static void min10_set_blank(struct mem_input *mem_input, bool blank)
+void min10_set_blank(struct mem_input *mem_input, bool blank)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	uint32_t blank_en = blank ? 1 : 0;
@@ -87,7 +87,7 @@ static void min10_vready_workaround(struct mem_input *mem_input,
 	REG_WRITE(HUBPREQ_DEBUG_DB, value);
 }
 
-static void min10_program_tiling(
+void min10_program_tiling(
 	struct dcn10_mem_input *mi,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
@@ -107,7 +107,7 @@ static void min10_program_tiling(
 			PIPE_ALIGNED, info->gfx9.pipe_aligned);
 }
 
-static void min10_program_size_and_rotation(
+void min10_program_size_and_rotation(
 	struct dcn10_mem_input *mi,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
@@ -169,7 +169,7 @@ static void min10_program_size_and_rotation(
 				H_MIRROR_EN, mirror);
 }
 
-static void min10_program_pixel_format(
+void min10_program_pixel_format(
 	struct dcn10_mem_input *mi,
 	enum surface_pixel_format format)
 {
@@ -245,7 +245,7 @@ static void min10_program_pixel_format(
 	/* don't see the need of program the xbar in DCN 1.0 */
 }
 
-static bool min10_program_surface_flip_and_addr(
+bool min10_program_surface_flip_and_addr(
 	struct mem_input *mem_input,
 	const struct dc_plane_address *address,
 	bool flip_immediate)
@@ -395,7 +395,7 @@ static bool min10_program_surface_flip_and_addr(
 	return true;
 }
 
-static void min10_dcc_control(struct mem_input *mem_input, bool enable,
+void min10_dcc_control(struct mem_input *mem_input, bool enable,
 		bool independent_64b_blks)
 {
 	uint32_t dcc_en = enable ? 1 : 0;
@@ -425,7 +425,7 @@ static void min10_program_surface_config(
 	min10_program_pixel_format(mi, format);
 }
 
-static void min10_program_requestor(
+void min10_program_requestor(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs)
 {
@@ -459,7 +459,7 @@ static void min10_program_requestor(
 }
 
 
-static void min10_program_deadline(
+void min10_program_deadline(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)
@@ -595,7 +595,7 @@ static void min10_setup(
 	min10_vready_workaround(mem_input, pipe_dest);
 }
 
-static void min10_program_display_marks(
+void min10_program_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
@@ -607,7 +607,7 @@ static void min10_program_display_marks(
 	 */
 }
 
-static bool min10_is_flip_pending(struct mem_input *mem_input)
+bool min10_is_flip_pending(struct mem_input *mem_input)
 {
 	uint32_t flip_pending = 0;
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
@@ -696,7 +696,7 @@ static void min10_set_vm_context0_settings(struct mem_input *mem_input,
 			SYSTEM_ACCESS_MODE, 3);
 }
 
-static void min_set_viewport(
+void min_set_viewport(
 	struct mem_input *mem_input,
 	const struct rect *viewport,
 	const struct rect *viewport_c)
@@ -845,7 +845,7 @@ static enum cursor_lines_per_chunk ippn10_get_lines_per_chunk(
 	return line_per_chunk;
 }
 
-static void ippn10_cursor_set_attributes(
+void ippn10_cursor_set_attributes(
 		struct mem_input *mem_input,
 		const struct dc_cursor_attributes *attr)
 {
@@ -873,7 +873,7 @@ static void ippn10_cursor_set_attributes(
 			attr->color_format);
 }
 
-static void ippn10_cursor_set_position(
+void ippn10_cursor_set_position(
 		struct mem_input *mem_input,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param)
