@@ -332,16 +332,6 @@ static const struct {
 
 #define CFG_VAR_NAME_MAX 64
 
-static int gmin_platform_init(struct i2c_client *client)
-{
-	return 0;
-}
-
-static int gmin_platform_deinit(void)
-{
-	return 0;
-}
-
 #define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
 static char gmin_pmc_clk_name[GMIN_PMC_CLK_NAME];
 
@@ -628,8 +618,6 @@ static struct camera_sensor_platform_data gmin_plat = {
 	.v2p8_ctrl = gmin_v2p8_ctrl,
 	.v1p2_ctrl = gmin_v1p2_ctrl,
 	.flisclk_ctrl = gmin_flisclk_ctrl,
-	.platform_init = gmin_platform_init,
-	.platform_deinit = gmin_platform_deinit,
 	.csi_cfg = gmin_csi_cfg,
 	.get_vcm_ctrl = gmin_get_vcm_ctrl,
 };

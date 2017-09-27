@@ -750,7 +750,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			&subdevs->v4l2_subdev.board_info;
 		struct i2c_adapter *adapter =
 			i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
-		struct camera_sensor_platform_data *sensor_pdata;
 		int sensor_num, i;
 
 		if (adapter == NULL) {
@@ -802,13 +801,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			 * pixel_format.
 			 */
 			isp->inputs[isp->input_cnt].frame_size.pixel_format = 0;
-			sensor_pdata = (struct camera_sensor_platform_data *)
-					board_info->platform_data;
-			if (sensor_pdata->get_camera_caps)
-				isp->inputs[isp->input_cnt].camera_caps =
-					sensor_pdata->get_camera_caps();
-			else
-				isp->inputs[isp->input_cnt].camera_caps =
+			isp->inputs[isp->input_cnt].camera_caps =
 					atomisp_get_default_camera_caps();
 			sensor_num = isp->inputs[isp->input_cnt]
 				.camera_caps->sensor_num;

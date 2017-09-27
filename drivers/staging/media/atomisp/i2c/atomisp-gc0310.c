@@ -1156,13 +1156,6 @@ static int gc0310_s_config(struct v4l2_subdev *sd,
 		(struct camera_sensor_platform_data *)platform_data;
 
 	mutex_lock(&dev->input_lock);
-	if (dev->platform_data->platform_init) {
-		ret = dev->platform_data->platform_init(client);
-		if (ret) {
-			dev_err(&client->dev, "platform init err\n");
-			goto platform_init_failed;
-		}
-	}
 	/* power off the module, then power on it in future
 	 * as first power on by board may not fulfill the
 	 * power on sequqence needed by the module
@@ -1207,9 +1200,6 @@ fail_power_on:
 	power_down(sd);
 	dev_err(&client->dev, "sensor power-gating failed\n");
 fail_power_off:
-	if (dev->platform_data->platform_deinit)
-		dev->platform_data->platform_deinit();
-platform_init_failed:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
@@ -1352,9 +1342,6 @@ static int gc0310_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	dev_dbg(&client->dev, "gc0310_remove...\n");
-
-	if (dev->platform_data->platform_deinit)
-		dev->platform_data->platform_deinit();
 
 	dev->platform_data->csi_cfg(sd, 0);
 

@@ -1565,15 +1565,6 @@ static int ov8858_s_config(struct v4l2_subdev *sd,
 
 	mutex_lock(&dev->input_lock);
 
-	if (dev->platform_data->platform_init) {
-		ret = dev->platform_data->platform_init(client);
-		if (ret) {
-			mutex_unlock(&dev->input_lock);
-			dev_err(&client->dev, "platform init error %d!\n", ret);
-			return ret;
-		}
-	}
-
 	ret = __ov8858_s_power(sd, 1);
 	if (ret) {
 		dev_err(&client->dev, "power-up error %d!\n", ret);
@@ -1618,8 +1609,6 @@ fail_detect:
 fail_csi_cfg:
 	__ov8858_s_power(sd, 0);
 fail_update:
-	if (dev->platform_data->platform_deinit)
-		dev->platform_data->platform_deinit();
 	mutex_unlock(&dev->input_lock);
 	dev_err(&client->dev, "sensor power-gating failed\n");
 	return ret;
@@ -1920,8 +1909,6 @@ static int ov8858_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov8858_device *dev = to_ov8858_sensor(sd);
-	if (dev->platform_data->platform_deinit)
-		dev->platform_data->platform_deinit();
 
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
