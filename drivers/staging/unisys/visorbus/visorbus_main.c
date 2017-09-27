@@ -69,12 +69,9 @@ static LIST_HEAD(list_all_device_instances);
  * Note that <logCtx> is only needed for callers in the EFI environment, and
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
-int visor_check_channel(struct channel_header *ch,
-			struct device *dev,
-			const guid_t *expected_guid,
-			char *chname,
-			u64 expected_min_bytes,
-			u32 expected_version,
+int visor_check_channel(struct channel_header *ch, struct device *dev,
+			const guid_t *expected_guid, char *chname,
+			u64 expected_min_bytes, u32 expected_version,
 			u64 expected_signature)
 {
 	if (!guid_is_null(expected_guid)) {
@@ -293,8 +290,7 @@ ATTRIBUTE_GROUPS(channel);
  */
 
 static ssize_t partition_handle_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 handle = visorchannel_get_clientpartition(vdev->visorchannel);
@@ -304,8 +300,7 @@ static ssize_t partition_handle_show(struct device *dev,
 static DEVICE_ATTR_RO(partition_handle);
 
 static ssize_t partition_guid_show(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
@@ -314,8 +309,7 @@ static ssize_t partition_guid_show(struct device *dev,
 static DEVICE_ATTR_RO(partition_guid);
 
 static ssize_t partition_name_show(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
@@ -324,8 +318,7 @@ static ssize_t partition_name_show(struct device *dev,
 static DEVICE_ATTR_RO(partition_name);
 
 static ssize_t channel_addr_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+				 struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 addr = visorchannel_get_physaddr(vdev->visorchannel);
@@ -335,8 +328,7 @@ static ssize_t channel_addr_show(struct device *dev,
 static DEVICE_ATTR_RO(channel_addr);
 
 static ssize_t channel_bytes_show(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 nbytes = visorchannel_get_nbytes(vdev->visorchannel);
@@ -346,8 +338,7 @@ static ssize_t channel_bytes_show(struct device *dev,
 static DEVICE_ATTR_RO(channel_bytes);
 
 static ssize_t channel_id_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	int len = 0;
