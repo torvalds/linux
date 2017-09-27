@@ -57,6 +57,7 @@ void visorchannel_destroy(struct visorchannel *channel)
 {
 	if (!channel)
 		return;
+
 	if (channel->mapped) {
 		memunmap(channel->mapped);
 		if (channel->requested)
@@ -122,7 +123,6 @@ int visorchannel_read(struct visorchannel *channel, ulong offset, void *dest,
 		return -EIO;
 
 	memcpy(dest, channel->mapped + offset, nbytes);
-
 	return 0;
 }
 
@@ -140,9 +140,7 @@ int visorchannel_write(struct visorchannel *channel, ulong offset, void *dest,
 		memcpy(((char *)(&channel->chan_hdr)) + offset,
 		       dest, copy_size);
 	}
-
 	memcpy(channel->mapped + offset, dest, nbytes);
-
 	return 0;
 }
 
@@ -226,32 +224,25 @@ static int signalremove_inner(struct visorchannel *channel, u32 queue,
 	error = sig_read_header(channel, queue, &sig_hdr);
 	if (error)
 		return error;
-
 	/* No signals to remove; have caller try again. */
 	if (sig_hdr.head == sig_hdr.tail)
 		return -EAGAIN;
-
 	sig_hdr.tail = (sig_hdr.tail + 1) % sig_hdr.max_slots;
-
 	error = sig_read_data(channel, queue, &sig_hdr, sig_hdr.tail, msg);
 	if (error)
 		return error;
-
 	sig_hdr.num_received++;
-
 	/*
 	 * For each data field in SIGNAL_QUEUE_HEADER that was modified, update
 	 * host memory. Required for channel sync.
 	 */
 	mb();
-
 	error = SIG_WRITE_FIELD(channel, queue, &sig_hdr, tail);
 	if (error)
 		return error;
 	error = SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_received);
 	if (error)
 		return error;
-
 	return 0;
 }
 
@@ -288,7 +279,6 @@ static bool queue_empty(struct visorchannel *channel, u32 queue)
 
 	if (sig_read_header(channel, queue, &sig_hdr))
 		return true;
-
 	return (sig_hdr.head == sig_hdr.tail);
 }
 
@@ -308,11 +298,9 @@ bool visorchannel_signalempty(struct visorchannel *channel, u32 queue)
 
 	if (!channel->needs_lock)
 		return queue_empty(channel, queue);
-
 	spin_lock_irqsave(&channel->remove_lock, flags);
 	rc = queue_empty(channel, queue);
 	spin_unlock_irqrestore(&channel->remove_lock, flags);
-
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalempty);
@@ -326,7 +314,6 @@ static int signalinsert_inner(struct visorchannel *channel, u32 queue,
 	err = sig_read_header(channel, queue, &sig_hdr);
 	if (err)
 		return err;
-
 	sig_hdr.head = (sig_hdr.head + 1) % sig_hdr.max_slots;
 	if (sig_hdr.head == sig_hdr.tail) {
 		sig_hdr.num_overflows++;
@@ -335,26 +322,21 @@ static int signalinsert_inner(struct visorchannel *channel, u32 queue,
 			return err;
 		return -EIO;
 	}
-
 	err = sig_write_data(channel, queue, &sig_hdr, sig_hdr.head, msg);
 	if (err)
 		return err;
-
 	sig_hdr.num_sent++;
-
 	/*
 	 * For each data field in SIGNAL_QUEUE_HEADER that was modified, update
 	 * host memory. Required for channel sync.
 	 */
 	mb();
-
 	err = SIG_WRITE_FIELD(channel, queue, &sig_hdr, head);
 	if (err)
 		return err;
 	err = SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_sent);
 	if (err)
 		return err;
-
 	return 0;
 }
 
@@ -386,11 +368,9 @@ static struct visorchannel *visorchannel_create_guts(u64 physaddr, gfp_t gfp,
 	channel = kzalloc(sizeof(*channel), gfp);
 	if (!channel)
 		return NULL;
-
 	channel->needs_lock = needs_lock;
 	spin_lock_init(&channel->insert_lock);
 	spin_lock_init(&channel->remove_lock);
-
 	/*
 	 * Video driver constains the efi framebuffer so it will get a conflict
 	 * resource when requesting its full mem region. Since we are only
@@ -401,21 +381,17 @@ static struct visorchannel *visorchannel_create_guts(u64 physaddr, gfp_t gfp,
 	if (!channel->requested && !guid_equal(guid, &visor_video_guid))
 		/* we only care about errors if this is not the video channel */
 		goto err_destroy_channel;
-
 	channel->mapped = memremap(physaddr, size, MEMREMAP_WB);
 	if (!channel->mapped) {
 		release_mem_region(physaddr, size);
 		goto err_destroy_channel;
 	}
-
 	channel->physaddr = physaddr;
 	channel->nbytes = size;
-
 	err = visorchannel_read(channel, 0, &channel->chan_hdr, size);
 	if (err)
 		goto err_destroy_channel;
 	size = (ulong)channel->chan_hdr.size;
-
 	memunmap(channel->mapped);
 	if (channel->requested)
 		release_mem_region(channel->physaddr, channel->nbytes);
@@ -425,13 +401,11 @@ static struct visorchannel *visorchannel_create_guts(u64 physaddr, gfp_t gfp,
 	if (!channel->requested && !guid_equal(guid, &visor_video_guid))
 		/* we only care about errors if this is not the video channel */
 		goto err_destroy_channel;
-
 	channel->mapped = memremap(channel->physaddr, size, MEMREMAP_WB);
 	if (!channel->mapped) {
 		release_mem_region(channel->physaddr, size);
 		goto err_destroy_channel;
 	}
-
 	channel->nbytes = size;
 	guid_copy(&channel->guid, guid);
 	return channel;
