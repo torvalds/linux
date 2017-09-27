@@ -897,7 +897,7 @@ void dce_aud_destroy(struct audio **audio)
 {
 	struct dce_audio *aud = DCE_AUD(*audio);
 
-	dm_free(aud);
+	kfree(aud);
 	*audio = NULL;
 }
 
@@ -909,7 +909,7 @@ struct audio *dce_audio_create(
 		const struct dce_aduio_mask *masks
 		)
 {
-	struct dce_audio *audio = dm_alloc(sizeof(*audio));
+	struct dce_audio *audio = kzalloc(sizeof(*audio), GFP_KERNEL);
 
 	if (audio == NULL) {
 		ASSERT_CRITICAL(audio);

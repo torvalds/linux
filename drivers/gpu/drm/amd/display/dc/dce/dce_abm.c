@@ -462,7 +462,7 @@ struct abm *dce_abm_create(
 	const struct dce_abm_shift *abm_shift,
 	const struct dce_abm_mask *abm_mask)
 {
-	struct dce_abm *abm_dce = dm_alloc(sizeof(*abm_dce));
+	struct dce_abm *abm_dce = kzalloc(sizeof(*abm_dce), GFP_KERNEL);
 
 	if (abm_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -480,6 +480,6 @@ void dce_abm_destroy(struct abm **abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(*abm);
 
-	dm_free(abm_dce);
+	kfree(abm_dce);
 	*abm = NULL;
 }

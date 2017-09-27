@@ -225,7 +225,7 @@ static void ippn10_cursor_set_position(
 
 static void dcn10_ipp_destroy(struct input_pixel_processor **ipp)
 {
-	dm_free(TO_DCN10_IPP(*ipp));
+	kfree(TO_DCN10_IPP(*ipp));
 	*ipp = NULL;
 }
 

@@ -122,7 +122,7 @@ struct i2caux *dal_i2caux_dce112_create(
 	struct dc_context *ctx)
 {
 	struct i2caux_dce110 *i2caux_dce110 =
-		dm_alloc(sizeof(struct i2caux_dce110));
+		kzalloc(sizeof(struct i2caux_dce110), GFP_KERNEL);
 
 	if (!i2caux_dce110) {
 		ASSERT_CRITICAL(false);
@@ -134,7 +134,7 @@ struct i2caux *dal_i2caux_dce112_create(
 
 	ASSERT_CRITICAL(false);
 
-	dm_free(i2caux_dce110);
+	kfree(i2caux_dce110);
 
 	return NULL;
 }

@@ -130,7 +130,7 @@ struct i2c_payloads *dal_ddc_i2c_payloads_create(struct dc_context *ctx, uint32_
 {
 	struct i2c_payloads *payloads;
 
-	payloads = dm_alloc(sizeof(struct i2c_payloads));
+	payloads = kzalloc(sizeof(struct i2c_payloads), GFP_KERNEL);
 
 	if (!payloads)
 		return NULL;
@@ -139,7 +139,7 @@ struct i2c_payloads *dal_ddc_i2c_payloads_create(struct dc_context *ctx, uint32_
 		&payloads->payloads, ctx, count, sizeof(struct i2c_payload)))
 		return payloads;
 
-	dm_free(payloads);
+	kfree(payloads);
 	return NULL;
 
 }
@@ -159,7 +159,7 @@ void dal_ddc_i2c_payloads_destroy(struct i2c_payloads **p)
 	if (!p || !*p)
 		return;
 	dal_vector_destruct(&(*p)->payloads);
-	dm_free(*p);
+	kfree(*p);
 	*p = NULL;
 
 }
@@ -168,7 +168,7 @@ struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_
 {
 	struct aux_payloads *payloads;
 
-	payloads = dm_alloc(sizeof(struct aux_payloads));
+	payloads = kzalloc(sizeof(struct aux_payloads), GFP_KERNEL);
 
 	if (!payloads)
 		return NULL;
@@ -177,7 +177,7 @@ struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_
 		&payloads->payloads, ctx, count, sizeof(struct aux_payload)))
 		return payloads;
 
-	dm_free(payloads);
+	kfree(payloads);
 	return NULL;
 }
 
@@ -197,7 +197,7 @@ void dal_ddc_aux_payloads_destroy(struct aux_payloads **p)
 		return;
 
 	dal_vector_destruct(&(*p)->payloads);
-	dm_free(*p);
+	kfree(*p);
 	*p = NULL;
 }
 
@@ -290,7 +290,7 @@ struct ddc_service *dal_ddc_service_create(
 {
 	struct ddc_service *ddc_service;
 
-	ddc_service = dm_alloc(sizeof(struct ddc_service));
+	ddc_service = kzalloc(sizeof(struct ddc_service), GFP_KERNEL);
 
 	if (!ddc_service)
 		return NULL;
@@ -298,7 +298,7 @@ struct ddc_service *dal_ddc_service_create(
 	if (construct(ddc_service, init_data))
 		return ddc_service;
 
-	dm_free(ddc_service);
+	kfree(ddc_service);
 	return NULL;
 }
 
@@ -315,7 +315,7 @@ void dal_ddc_service_destroy(struct ddc_service **ddc)
 		return;
 	}
 	destruct(*ddc);
-	dm_free(*ddc);
+	kfree(*ddc);
 	*ddc = NULL;
 }
 

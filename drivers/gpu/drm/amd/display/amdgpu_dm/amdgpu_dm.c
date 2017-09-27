@@ -2429,7 +2429,7 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
-	state = dm_alloc(sizeof(*state));
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
 

@@ -143,7 +143,7 @@ static bool check_dc_support(const struct dc *dc)
 struct mod_freesync *mod_freesync_create(struct dc *dc)
 {
 	struct core_freesync *core_freesync =
-			dm_alloc(sizeof(struct core_freesync));
+			kzalloc(sizeof(struct core_freesync), GFP_KERNEL);
 
 
 	struct persistent_data_flag flag;
@@ -153,8 +153,8 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 	if (core_freesync == NULL)
 		goto fail_alloc_context;
 
-	core_freesync->map = dm_alloc(sizeof(struct freesync_entity) *
-			MOD_FREESYNC_MAX_CONCURRENT_STREAMS);
+	core_freesync->map = kzalloc(sizeof(struct freesync_entity) * MOD_FREESYNC_MAX_CONCURRENT_STREAMS,
+				     GFP_KERNEL);
 
 	if (core_freesync->map == NULL)
 		goto fail_alloc_map;
@@ -197,10 +197,10 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 	return &core_freesync->public;
 
 fail_construct:
-	dm_free(core_freesync->map);
+	kfree(core_freesync->map);
 
 fail_alloc_map:
-	dm_free(core_freesync);
+	kfree(core_freesync);
 
 fail_alloc_context:
 	return NULL;
@@ -217,9 +217,9 @@ void mod_freesync_destroy(struct mod_freesync *mod_freesync)
 			if (core_freesync->map[i].stream)
 				dc_stream_release(core_freesync->map[i].stream);
 
-		dm_free(core_freesync->map);
+		kfree(core_freesync->map);
 
-		dm_free(core_freesync);
+		kfree(core_freesync);
 	}
 }
 

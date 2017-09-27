@@ -34,7 +34,7 @@
 static void destruct(struct dc_sink *sink)
 {
 	if (sink->dc_container_id) {
-		dm_free(sink->dc_container_id);
+		kfree(sink->dc_container_id);
 		sink->dc_container_id = NULL;
 	}
 }
@@ -74,13 +74,13 @@ void dc_sink_release(struct dc_sink *sink)
 
 	if (atomic_read(&sink->ref_count) == 0) {
 		destruct(sink);
-		dm_free(sink);
+		kfree(sink);
 	}
 }
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 {
-	struct dc_sink *sink = dm_alloc(sizeof(*sink));
+	struct dc_sink *sink = kzalloc(sizeof(*sink), GFP_KERNEL);
 
 	if (NULL == sink)
 		goto alloc_fail;
@@ -93,7 +93,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 	return sink;
 
 construct_fail:
-	dm_free(sink);
+	kfree(sink);
 
 alloc_fail:
 	return NULL;
@@ -117,7 +117,8 @@ bool dc_sink_set_container_id(struct dc_sink *dc_sink, const struct dc_container
 {
 	if (dc_sink && container_id) {
 		if (!dc_sink->dc_container_id)
-			dc_sink->dc_container_id = dm_alloc(sizeof(*dc_sink->dc_container_id));
+			dc_sink->dc_container_id = kzalloc(sizeof(*dc_sink->dc_container_id),
+							   GFP_KERNEL);
 
 		if (dc_sink->dc_container_id) {
 			memmove(&dc_sink->dc_container_id->guid, &container_id->guid,

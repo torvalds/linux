@@ -116,14 +116,14 @@ struct dc_bios *bios_parser_create(
 {
 	struct bios_parser *bp = NULL;
 
-	bp = dm_alloc(sizeof(struct bios_parser));
+	bp = kzalloc(sizeof(struct bios_parser), GFP_KERNEL);
 	if (!bp)
 		return NULL;
 
 	if (bios_parser_construct(bp, init, dce_version))
 		return &bp->base;
 
-	dm_free(bp);
+	kfree(bp);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
@@ -131,10 +131,10 @@ struct dc_bios *bios_parser_create(
 static void destruct(struct bios_parser *bp)
 {
 	if (bp->base.bios_local_image)
-		dm_free(bp->base.bios_local_image);
+		kfree(bp->base.bios_local_image);
 
 	if (bp->base.integrated_info)
-		dm_free(bp->base.integrated_info);
+		kfree(bp->base.integrated_info);
 }
 
 static void bios_parser_destroy(struct dc_bios **dcb)
@@ -148,7 +148,7 @@ static void bios_parser_destroy(struct dc_bios **dcb)
 
 	destruct(bp);
 
-	dm_free(bp);
+	kfree(bp);
 	*dcb = NULL;
 }
 
@@ -3531,7 +3531,8 @@ static void process_ext_display_connection_info(struct bios_parser *bp)
 		uint8_t *original_bios;
 		/* Step 1: Replace bios image with the new copy which will be
 		 * patched */
-		bp->base.bios_local_image = dm_alloc(bp->base.bios_size);
+		bp->base.bios_local_image = kzalloc(bp->base.bios_size,
+						    GFP_KERNEL);
 		if (bp->base.bios_local_image == NULL) {
 			BREAK_TO_DEBUGGER();
 			/* Failed to alloc bp->base.bios_local_image */
@@ -3965,7 +3966,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct integrated_info *info = NULL;
 
-	info = dm_alloc(sizeof(struct integrated_info));
+	info = kzalloc(sizeof(struct integrated_info), GFP_KERNEL);
 
 	if (info == NULL) {
 		ASSERT_CRITICAL(0);
@@ -3975,7 +3976,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	if (construct_integrated_info(bp, info) == BP_RESULT_OK)
 		return info;
 
-	dm_free(info);
+	kfree(info);
 
 	return NULL;
 }

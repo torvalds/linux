@@ -72,7 +72,7 @@ static void destroy(
 
 	destruct(hpd);
 
-	dm_free(hpd);
+	kfree(hpd);
 
 	*ptr = NULL;
 }
@@ -157,7 +157,7 @@ struct hw_gpio_pin *dal_hw_hpd_create(
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct hw_hpd *hpd = dm_alloc(sizeof(struct hw_hpd));
+	struct hw_hpd *hpd = kzalloc(sizeof(struct hw_hpd), GFP_KERNEL);
 
 	if (!hpd) {
 		ASSERT_CRITICAL(false);
@@ -169,7 +169,7 @@ struct hw_gpio_pin *dal_hw_hpd_create(
 
 	ASSERT_CRITICAL(false);
 
-	dm_free(hpd);
+	kfree(hpd);
 
 	return NULL;
 }

@@ -468,7 +468,7 @@ static const struct dc_debug debug_defaults_diags = {
 
 static void dcn10_dpp_destroy(struct transform **xfm)
 {
-	dm_free(TO_DCN10_DPP(*xfm));
+	kfree(TO_DCN10_DPP(*xfm));
 	*xfm = NULL;
 }
 
@@ -477,7 +477,7 @@ static struct transform *dcn10_dpp_create(
 	uint32_t inst)
 {
 	struct dcn10_dpp *dpp =
-		dm_alloc(sizeof(struct dcn10_dpp));
+		kzalloc(sizeof(struct dcn10_dpp), GFP_KERNEL);
 
 	if (!dpp)
 		return NULL;
@@ -487,7 +487,7 @@ static struct transform *dcn10_dpp_create(
 		return &dpp->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(dpp);
+	kfree(dpp);
 	return NULL;
 }
 
@@ -495,7 +495,7 @@ static struct input_pixel_processor *dcn10_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn10_ipp *ipp =
-		dm_alloc(sizeof(struct dcn10_ipp));
+		kzalloc(sizeof(struct dcn10_ipp), GFP_KERNEL);
 
 	if (!ipp) {
 		BREAK_TO_DEBUGGER();
@@ -512,7 +512,7 @@ static struct output_pixel_processor *dcn10_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn10_opp *opp =
-		dm_alloc(sizeof(struct dcn10_opp));
+		kzalloc(sizeof(struct dcn10_opp), GFP_KERNEL);
 
 	if (!opp) {
 		BREAK_TO_DEBUGGER();
@@ -526,7 +526,8 @@ static struct output_pixel_processor *dcn10_opp_create(
 
 static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 {
-	struct dcn10_mpc *mpc10 = dm_alloc(sizeof(struct dcn10_mpc));
+	struct dcn10_mpc *mpc10 = kzalloc(sizeof(struct dcn10_mpc),
+					  GFP_KERNEL);
 
 	if (!mpc10)
 		return NULL;
@@ -545,7 +546,7 @@ static struct timing_generator *dcn10_timing_generator_create(
 		uint32_t instance)
 {
 	struct dcn10_timing_generator *tgn10 =
-		dm_alloc(sizeof(struct dcn10_timing_generator));
+		kzalloc(sizeof(struct dcn10_timing_generator), GFP_KERNEL);
 
 	if (!tgn10)
 		return NULL;
@@ -577,7 +578,7 @@ struct link_encoder *dcn10_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
-		dm_alloc(sizeof(struct dce110_link_encoder));
+		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
 
 	if (!enc110)
 		return NULL;
@@ -594,7 +595,7 @@ struct link_encoder *dcn10_link_encoder_create(
 	}
 
 	BREAK_TO_DEBUGGER();
-	dm_free(enc110);
+	kfree(enc110);
 	return NULL;
 }
 
@@ -606,7 +607,7 @@ struct clock_source *dcn10_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		dm_alloc(sizeof(struct dce110_clk_src));
+		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
 
 	if (!clk_src)
 		return NULL;
@@ -641,7 +642,7 @@ static struct stream_encoder *dcn10_stream_encoder_create(
 	struct dc_context *ctx)
 {
 	struct dce110_stream_encoder *enc110 =
-		dm_alloc(sizeof(struct dce110_stream_encoder));
+		kzalloc(sizeof(struct dce110_stream_encoder), GFP_KERNEL);
 
 	if (!enc110)
 		return NULL;
@@ -652,7 +653,7 @@ static struct stream_encoder *dcn10_stream_encoder_create(
 		return &enc110->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(enc110);
+	kfree(enc110);
 	return NULL;
 }
 
@@ -671,7 +672,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 static struct dce_hwseq *dcn10_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = dm_alloc(sizeof(struct dce_hwseq));
+	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -698,13 +699,13 @@ static const struct resource_create_funcs res_create_maximus_funcs = {
 
 void dcn10_clock_source_destroy(struct clock_source **clk_src)
 {
-	dm_free(TO_DCE110_CLK_SRC(*clk_src));
+	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
 }
 
 static struct pp_smu_funcs_rv *dcn10_pp_smu_create(struct dc_context *ctx)
 {
-	struct pp_smu_funcs_rv *pp_smu = dm_alloc(sizeof(*pp_smu));
+	struct pp_smu_funcs_rv *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
 
 	if (!pp_smu)
 		return pp_smu;
@@ -722,13 +723,13 @@ static void destruct(struct dcn10_resource_pool *pool)
 			/* TODO: free dcn version of stream encoder once implemented
 			 * rather than using virtual stream encoder
 			 */
-			dm_free(pool->base.stream_enc[i]);
+			kfree(pool->base.stream_enc[i]);
 			pool->base.stream_enc[i] = NULL;
 		}
 	}
 
 	if (pool->base.mpc != NULL) {
-		dm_free(TO_DCN10_MPC(pool->base.mpc));
+		kfree(TO_DCN10_MPC(pool->base.mpc));
 		pool->base.mpc = NULL;
 	}
 	for (i = 0; i < pool->base.pipe_count; i++) {
@@ -742,7 +743,7 @@ static void destruct(struct dcn10_resource_pool *pool)
 			pool->base.ipps[i]->funcs->ipp_destroy(&pool->base.ipps[i]);
 
 		if (pool->base.mis[i] != NULL) {
-			dm_free(TO_DCN10_MEM_INPUT(pool->base.mis[i]));
+			kfree(TO_DCN10_MEM_INPUT(pool->base.mis[i]));
 			pool->base.mis[i] = NULL;
 		}
 
@@ -751,14 +752,14 @@ static void destruct(struct dcn10_resource_pool *pool)
 		}
 
 		if (pool->base.timing_generators[i] != NULL)	{
-			dm_free(DCN10TG_FROM_TG(pool->base.timing_generators[i]));
+			kfree(DCN10TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
 		if (pool->base.stream_enc[i] != NULL)
-		dm_free(DCE110STRENC_FROM_STRENC(pool->base.stream_enc[i]));
+		kfree(DCE110STRENC_FROM_STRENC(pool->base.stream_enc[i]));
 	}
 
 	for (i = 0; i < pool->base.audio_count; i++) {
@@ -767,7 +768,7 @@ static void destruct(struct dcn10_resource_pool *pool)
 	}
 
 	for (i = 0; i < pool->base.res_cap->num_dwb; i++) {
-		dm_free(pool->base.dwbc[i]);
+		kfree(pool->base.dwbc[i]);
 		pool->base.dwbc[i] = NULL;
 	}
 
@@ -792,7 +793,7 @@ static void destruct(struct dcn10_resource_pool *pool)
 	if (pool->base.display_clock != NULL)
 		dce_disp_clk_destroy(&pool->base.display_clock);
 
-	dm_free(pool->base.pp_smu);
+	kfree(pool->base.pp_smu);
 }
 
 static struct mem_input *dcn10_mem_input_create(
@@ -800,7 +801,7 @@ static struct mem_input *dcn10_mem_input_create(
 	uint32_t inst)
 {
 	struct dcn10_mem_input *mem_inputn10 =
-		dm_alloc(sizeof(struct dcn10_mem_input));
+		kzalloc(sizeof(struct dcn10_mem_input), GFP_KERNEL);
 
 	if (!mem_inputn10)
 		return NULL;
@@ -810,7 +811,7 @@ static struct mem_input *dcn10_mem_input_create(
 		return &mem_inputn10->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(mem_inputn10);
+	kfree(mem_inputn10);
 	return NULL;
 }
 
@@ -1207,7 +1208,7 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	struct dcn10_resource_pool *dcn10_pool = TO_DCN10_RES_POOL(*pool);
 
 	destruct(dcn10_pool);
-	dm_free(dcn10_pool);
+	kfree(dcn10_pool);
 	*pool = NULL;
 }
 
@@ -1239,7 +1240,8 @@ static bool dcn10_dwbc_create(struct dc_context *ctx, struct resource_pool *pool
 	uint32_t dwb_count = pool->res_cap->num_dwb;
 
 	for (i = 0; i < dwb_count; i++) {
-		struct dcn10_dwbc *dwbc10 = dm_alloc(sizeof(struct dcn10_dwbc));
+		struct dcn10_dwbc *dwbc10 = kzalloc(sizeof(struct dcn10_dwbc),
+						    GFP_KERNEL);
 
 		if (!dwbc10) {
 			dm_error("DC: failed to create dwbc10!\n");
@@ -1517,7 +1519,7 @@ struct resource_pool *dcn10_create_resource_pool(
 		struct dc *dc)
 {
 	struct dcn10_resource_pool *pool =
-		dm_alloc(sizeof(struct dcn10_resource_pool));
+		kzalloc(sizeof(struct dcn10_resource_pool), GFP_KERNEL);
 
 	if (!pool)
 		return NULL;

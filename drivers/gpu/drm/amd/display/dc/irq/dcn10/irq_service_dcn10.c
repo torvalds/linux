@@ -348,7 +348,8 @@ static bool construct(
 struct irq_service *dal_irq_service_dcn10_create(
 	struct irq_service_init_data *init_data)
 {
-	struct irq_service *irq_service = dm_alloc(sizeof(*irq_service));
+	struct irq_service *irq_service = kzalloc(sizeof(*irq_service),
+						  GFP_KERNEL);
 
 	if (!irq_service)
 		return NULL;
@@ -356,6 +357,6 @@ struct irq_service *dal_irq_service_dcn10_create(
 	if (construct(irq_service, init_data))
 		return irq_service;
 
-	dm_free(irq_service);
+	kfree(irq_service);
 	return NULL;
 }

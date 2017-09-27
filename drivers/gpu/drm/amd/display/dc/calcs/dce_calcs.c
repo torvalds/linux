@@ -2792,7 +2792,8 @@ bool bw_calcs(struct dc_context *ctx,
 	int pipe_count,
 	struct dce_bw_output *calcs_output)
 {
-	struct bw_calcs_data *data = dm_alloc(sizeof(struct bw_calcs_data));
+	struct bw_calcs_data *data = kzalloc(sizeof(struct bw_calcs_data),
+					     GFP_KERNEL);
 
 	populate_initial_data(pipe, pipe_count, data);
 
@@ -3248,7 +3249,7 @@ bool bw_calcs(struct dc_context *ctx,
 		calcs_output->sclk_khz = 0;
 	}
 
-	dm_free(data);
+	kfree(data);
 
 	return is_display_configuration_supported(vbios, calcs_output);
 }

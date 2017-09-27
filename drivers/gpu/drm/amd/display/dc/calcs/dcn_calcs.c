@@ -481,8 +481,8 @@ static void dcn_dml_wm_override(
 {
 	int i, in_idx, active_count;
 
-	struct _vcs_dpi_display_e2e_pipe_params_st *input = dm_alloc(pool->pipe_count *
-					sizeof(struct _vcs_dpi_display_e2e_pipe_params_st));
+	struct _vcs_dpi_display_e2e_pipe_params_st *input = kzalloc(pool->pipe_count * sizeof(struct _vcs_dpi_display_e2e_pipe_params_st),
+								    GFP_KERNEL);
 	struct wm {
 		double urgent;
 		struct _vcs_dpi_cstate_pstate_watermarks_st cpstate;
@@ -560,7 +560,7 @@ static void dcn_dml_wm_override(
 			pipe->plane_state->flip_immediate);
 		in_idx++;
 	}
-	dm_free(input);
+	kfree(input);
 }
 
 static void split_stream_across_pipes(

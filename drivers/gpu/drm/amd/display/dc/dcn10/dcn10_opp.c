@@ -314,7 +314,7 @@ static void oppn10_set_stereo_polarity(
 
 static void dcn10_opp_destroy(struct output_pixel_processor **opp)
 {
-	dm_free(TO_DCN10_OPP(*opp));
+	kfree(TO_DCN10_OPP(*opp));
 	*opp = NULL;
 }
 

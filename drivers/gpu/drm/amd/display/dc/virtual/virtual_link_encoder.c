@@ -87,7 +87,7 @@ static void virtual_link_encoder_connect_dig_be_to_fe(
 
 static void virtual_link_encoder_destroy(struct link_encoder **enc)
 {
-	dm_free(*enc);
+	kfree(*enc);
 	*enc = NULL;
 }
 

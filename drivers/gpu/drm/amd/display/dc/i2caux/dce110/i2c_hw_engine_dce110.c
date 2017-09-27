@@ -469,7 +469,7 @@ static void destroy(
 
 	dal_i2c_hw_engine_destruct(&engine_dce110->base);
 
-	dm_free(engine_dce110);
+	kfree(engine_dce110);
 
 	*i2c_engine = NULL;
 }
@@ -559,7 +559,8 @@ struct i2c_engine *dal_i2c_hw_engine_dce110_create(
 		return NULL;
 	}
 
-	engine_dce10 = dm_alloc(sizeof(struct i2c_hw_engine_dce110));
+	engine_dce10 = kzalloc(sizeof(struct i2c_hw_engine_dce110),
+			       GFP_KERNEL);
 
 	if (!engine_dce10) {
 		ASSERT_CRITICAL(false);
@@ -571,7 +572,7 @@ struct i2c_engine *dal_i2c_hw_engine_dce110_create(
 
 	ASSERT_CRITICAL(false);
 
-	dm_free(engine_dce10);
+	kfree(engine_dce10);
 
 	return NULL;
 }

@@ -719,7 +719,7 @@ struct display_clock *dce_disp_clk_create(
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = dm_alloc(sizeof(*clk_dce));
+	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -742,7 +742,7 @@ struct display_clock *dce110_disp_clk_create(
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = dm_alloc(sizeof(*clk_dce));
+	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -767,7 +767,7 @@ struct display_clock *dce112_disp_clk_create(
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = dm_alloc(sizeof(*clk_dce));
+	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -788,7 +788,7 @@ struct display_clock *dce112_disp_clk_create(
 
 struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
 {
-	struct dce_disp_clk *clk_dce = dm_alloc(sizeof(*clk_dce));
+	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 	struct dm_pp_clock_levels_with_voltage clk_level_info = {0};
 
 	if (clk_dce == NULL) {
@@ -822,6 +822,6 @@ void dce_disp_clk_destroy(struct display_clock **disp_clk)
 {
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(*disp_clk);
 
-	dm_free(clk_dce);
+	kfree(clk_dce);
 	*disp_clk = NULL;
 }

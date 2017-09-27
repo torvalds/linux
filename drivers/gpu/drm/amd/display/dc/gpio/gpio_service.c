@@ -59,7 +59,7 @@ struct gpio_service *dal_gpio_service_create(
 
 	uint32_t index_of_id;
 
-	service = dm_alloc(sizeof(struct gpio_service));
+	service = kzalloc(sizeof(struct gpio_service), GFP_KERNEL);
 
 	if (!service) {
 		BREAK_TO_DEBUGGER();
@@ -98,7 +98,8 @@ struct gpio_service *dal_gpio_service_create(
 			if (number_of_bits) {
 				uint32_t index_of_uint = 0;
 
-				slot = dm_alloc(number_of_uints * sizeof(uint32_t));
+				slot = kzalloc(number_of_uints * sizeof(uint32_t),
+					       GFP_KERNEL);
 
 				if (!slot) {
 					BREAK_TO_DEBUGGER();
@@ -130,11 +131,11 @@ failure_2:
 		slot = service->busyness[index_of_id];
 
 		if (slot)
-			dm_free(slot);
+			kfree(slot);
 	};
 
 failure_1:
-	dm_free(service);
+	kfree(service);
 
 	return NULL;
 }
@@ -171,13 +172,13 @@ void dal_gpio_service_destroy(
 			uint32_t *slot = (*ptr)->busyness[index_of_id];
 
 			if (slot)
-				dm_free(slot);
+				kfree(slot);
 
 			++index_of_id;
 		} while (index_of_id < GPIO_ID_COUNT);
 	}
 
-	dm_free(*ptr);
+	kfree(*ptr);
 
 	*ptr = NULL;
 }
@@ -399,7 +400,7 @@ void dal_gpio_destroy_irq(
 
 	dal_gpio_close(*irq);
 	dal_gpio_destroy(irq);
-	dm_free(*irq);
+	kfree(*irq);
 
 	*irq = NULL;
 }
@@ -417,7 +418,7 @@ struct ddc *dal_gpio_create_ddc(
 	if (!service->translate.funcs->offset_to_id(offset, mask, &id, &en))
 		return NULL;
 
-	ddc = dm_alloc(sizeof(struct ddc));
+	ddc = kzalloc(sizeof(struct ddc), GFP_KERNEL);
 
 	if (!ddc) {
 		BREAK_TO_DEBUGGER();
@@ -450,7 +451,7 @@ failure_2:
 	dal_gpio_destroy(&ddc->pin_data);
 
 failure_1:
-	dm_free(ddc);
+	kfree(ddc);
 
 	return NULL;
 }
@@ -466,7 +467,7 @@ void dal_gpio_destroy_ddc(
 	dal_ddc_close(*ddc);
 	dal_gpio_destroy(&(*ddc)->pin_data);
 	dal_gpio_destroy(&(*ddc)->pin_clock);
-	dm_free(*ddc);
+	kfree(*ddc);
 
 	*ddc = NULL;
 }

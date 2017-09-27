@@ -239,7 +239,7 @@ struct gpio *dal_gpio_create(
 	uint32_t en,
 	enum gpio_pin_output_state output_state)
 {
-	struct gpio *gpio = dm_alloc(sizeof(struct gpio));
+	struct gpio *gpio = kzalloc(sizeof(struct gpio), GFP_KERNEL);
 
 	if (!gpio) {
 		ASSERT_CRITICAL(false);
@@ -266,7 +266,7 @@ void dal_gpio_destroy(
 
 	dal_gpio_close(*gpio);
 
-	dm_free(*gpio);
+	kfree(*gpio);
 
 	*gpio = NULL;
 }

@@ -131,7 +131,7 @@ void dc_stream_release(struct dc_stream_state *stream)
 
 		if (atomic_read(&stream->ref_count) == 0) {
 			destruct(stream);
-			dm_free(stream);
+			kfree(stream);
 		}
 	}
 }
@@ -144,7 +144,7 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	if (sink == NULL)
 		goto alloc_fail;
 
-	stream = dm_alloc(sizeof(struct dc_stream_state));
+	stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
 
 	if (NULL == stream)
 		goto alloc_fail;
@@ -157,7 +157,7 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	return stream;
 
 construct_fail:
-	dm_free(stream);
+	kfree(stream);
 
 alloc_fail:
 	return NULL;

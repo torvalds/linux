@@ -87,7 +87,7 @@ static void destroy(
 
 	destruct(engine);
 
-	dm_free(engine);
+	kfree(engine);
 
 	*aux_engine = NULL;
 }
@@ -464,7 +464,7 @@ struct aux_engine *dal_aux_engine_dce110_create(
 		return NULL;
 	}
 
-	engine = dm_alloc(sizeof(*engine));
+	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
 
 	if (!engine) {
 		ASSERT_CRITICAL(false);
@@ -476,7 +476,7 @@ struct aux_engine *dal_aux_engine_dce110_create(
 
 	ASSERT_CRITICAL(false);
 
-	dm_free(engine);
+	kfree(engine);
 
 	return NULL;
 }

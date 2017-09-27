@@ -121,7 +121,7 @@ bool virtual_stream_encoder_construct(
 struct stream_encoder *virtual_stream_encoder_create(
 	struct dc_context *ctx, struct dc_bios *bp)
 {
-	struct stream_encoder *enc = dm_alloc(sizeof(*enc));
+	struct stream_encoder *enc = kzalloc(sizeof(*enc), GFP_KERNEL);
 
 	if (!enc)
 		return NULL;
@@ -130,7 +130,7 @@ struct stream_encoder *virtual_stream_encoder_create(
 		return enc;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(enc);
+	kfree(enc);
 	return NULL;
 }
 

@@ -70,8 +70,8 @@ static bool construct(struct dc_context *ctx, struct dal_logger *logger,
 {
 	/* malloc buffer and init offsets */
 	logger->log_buffer_size = DAL_LOGGER_BUFFER_MAX_SIZE;
-	logger->log_buffer = (char *)dm_alloc(logger->log_buffer_size *
-		sizeof(char));
+	logger->log_buffer = (char *)kzalloc(logger->log_buffer_size * sizeof(char),
+					     GFP_KERNEL);
 
 	if (!logger->log_buffer)
 		return false;
@@ -97,7 +97,7 @@ static bool construct(struct dc_context *ctx, struct dal_logger *logger,
 static void destruct(struct dal_logger *logger)
 {
 	if (logger->log_buffer) {
-		dm_free(logger->log_buffer);
+		kfree(logger->log_buffer);
 		logger->log_buffer = NULL;
 	}
 }
@@ -105,12 +105,13 @@ static void destruct(struct dal_logger *logger)
 struct dal_logger *dal_logger_create(struct dc_context *ctx, uint32_t log_mask)
 {
 	/* malloc struct */
-	struct dal_logger *logger = dm_alloc(sizeof(struct dal_logger));
+	struct dal_logger *logger = kzalloc(sizeof(struct dal_logger),
+					    GFP_KERNEL);
 
 	if (!logger)
 		return NULL;
 	if (!construct(ctx, logger, log_mask)) {
-		dm_free(logger);
+		kfree(logger);
 		return NULL;
 	}
 
@@ -122,7 +123,7 @@ uint32_t dal_logger_destroy(struct dal_logger **logger)
 	if (logger == NULL || *logger == NULL)
 		return 1;
 	destruct(*logger);
-	dm_free(*logger);
+	kfree(*logger);
 	*logger = NULL;
 
 	return 0;
@@ -390,7 +391,8 @@ void dm_logger_open(
 	entry->type = log_type;
 	entry->logger = logger;
 
-	entry->buf = dm_alloc(DAL_LOGGER_BUFFER_MAX_SIZE * sizeof(char));
+	entry->buf = kzalloc(DAL_LOGGER_BUFFER_MAX_SIZE * sizeof(char),
+			     GFP_KERNEL);
 
 	entry->buf_offset = 0;
 	entry->max_buf_bytes = DAL_LOGGER_BUFFER_MAX_SIZE * sizeof(char);
@@ -421,7 +423,7 @@ void dm_logger_close(struct log_entry *entry)
 
 cleanup:
 	if (entry->buf) {
-		dm_free(entry->buf);
+		kfree(entry->buf);
 		entry->buf = NULL;
 		entry->buf_offset = 0;
 		entry->max_buf_bytes = 0;

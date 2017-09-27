@@ -59,7 +59,7 @@ static void destroy(
 {
 	destruct(*i2c_engine);
 
-	dm_free(*i2c_engine);
+	kfree(*i2c_engine);
 
 	*i2c_engine = NULL;
 }
@@ -90,7 +90,8 @@ static bool construct(
 struct i2caux *dal_i2caux_diag_fpga_create(
 	struct dc_context *ctx)
 {
-	struct i2caux *i2caux =	dm_alloc(sizeof(struct i2caux));
+	struct i2caux *i2caux =	kzalloc(sizeof(struct i2caux),
+					       GFP_KERNEL);
 
 	if (!i2caux) {
 		ASSERT_CRITICAL(false);
@@ -102,7 +103,7 @@ struct i2caux *dal_i2caux_diag_fpga_create(
 
 	ASSERT_CRITICAL(false);
 
-	dm_free(i2caux);
+	kfree(i2caux);
 
 	return NULL;
 }

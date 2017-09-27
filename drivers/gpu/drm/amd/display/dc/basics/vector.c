@@ -40,7 +40,7 @@ bool dal_vector_construct(
 		return false;
 	}
 
-	vector->container = dm_alloc(struct_size * capacity);
+	vector->container = kzalloc(struct_size * capacity, GFP_KERNEL);
 	if (vector->container == NULL)
 		return false;
 	vector->capacity = capacity;
@@ -67,7 +67,7 @@ bool dal_vector_presized_costruct(
 		return false;
 	}
 
-	vector->container = dm_alloc(struct_size * count);
+	vector->container = kzalloc(struct_size * count, GFP_KERNEL);
 
 	if (vector->container == NULL)
 		return false;
@@ -95,7 +95,7 @@ struct vector *dal_vector_presized_create(
 	void *initial_value,
 	uint32_t struct_size)
 {
-	struct vector *vector = dm_alloc(sizeof(struct vector));
+	struct vector *vector = kzalloc(sizeof(struct vector), GFP_KERNEL);
 
 	if (vector == NULL)
 		return NULL;
@@ -105,7 +105,7 @@ struct vector *dal_vector_presized_create(
 		return vector;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(vector);
+	kfree(vector);
 	return NULL;
 }
 
@@ -114,7 +114,7 @@ struct vector *dal_vector_create(
 	uint32_t capacity,
 	uint32_t struct_size)
 {
-	struct vector *vector = dm_alloc(sizeof(struct vector));
+	struct vector *vector = kzalloc(sizeof(struct vector), GFP_KERNEL);
 
 	if (vector == NULL)
 		return NULL;
@@ -123,7 +123,7 @@ struct vector *dal_vector_create(
 		return vector;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(vector);
+	kfree(vector);
 	return NULL;
 }
 
@@ -131,7 +131,7 @@ void dal_vector_destruct(
 	struct vector *vector)
 {
 	if (vector->container != NULL)
-		dm_free(vector->container);
+		kfree(vector->container);
 	vector->count = 0;
 	vector->capacity = 0;
 }
@@ -142,7 +142,7 @@ void dal_vector_destroy(
 	if (vector == NULL || *vector == NULL)
 		return;
 	dal_vector_destruct(*vector);
-	dm_free(*vector);
+	kfree(*vector);
 	*vector = NULL;
 }
 
@@ -290,7 +290,8 @@ bool dal_vector_reserve(struct vector *vector, uint32_t capacity)
 	if (capacity <= vector->capacity)
 		return true;
 
-	new_container = dm_realloc(vector->container, capacity * vector->struct_size);
+	new_container = krealloc(vector->container,
+				 capacity * vector->struct_size, GFP_KERNEL);
 
 	if (new_container) {
 		vector->container = new_container;

@@ -1108,7 +1108,7 @@ void dce110_link_encoder_hw_init(
 
 void dce110_link_encoder_destroy(struct link_encoder **enc)
 {
-	dm_free(TO_DCE110_LINK_ENC(*enc));
+	kfree(TO_DCE110_LINK_ENC(*enc));
 	*enc = NULL;
 }
 

@@ -1084,12 +1084,14 @@ static void get_ss_info_from_atombios(
 	if (*ss_entries_num == 0)
 		return;
 
-	ss_info = dm_alloc(sizeof(struct spread_spectrum_info) * (*ss_entries_num));
+	ss_info = kzalloc(sizeof(struct spread_spectrum_info) * (*ss_entries_num),
+			  GFP_KERNEL);
 	ss_info_cur = ss_info;
 	if (ss_info == NULL)
 		return;
 
-	ss_data = dm_alloc(sizeof(struct spread_spectrum_data) * (*ss_entries_num));
+	ss_data = kzalloc(sizeof(struct spread_spectrum_data) * (*ss_entries_num),
+			  GFP_KERNEL);
 	if (ss_data == NULL)
 		goto out_free_info;
 
@@ -1157,14 +1159,14 @@ static void get_ss_info_from_atombios(
 	}
 
 	*spread_spectrum_data = ss_data;
-	dm_free(ss_info);
+	kfree(ss_info);
 	return;
 
 out_free_data:
-	dm_free(ss_data);
+	kfree(ss_data);
 	*ss_entries_num = 0;
 out_free_info:
-	dm_free(ss_info);
+	kfree(ss_info);
 }
 
 static void ss_info_from_atombios_create(

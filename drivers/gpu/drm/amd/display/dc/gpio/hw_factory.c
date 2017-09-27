@@ -101,7 +101,7 @@ void dal_hw_factory_destroy(
 		return;
 	}
 
-	dm_free(*factory);
+	kfree(*factory);
 
 	*factory = NULL;
 }

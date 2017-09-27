@@ -388,7 +388,7 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 struct compressor *dce110_compressor_create(struct dc_context *ctx)
 {
 	struct dce110_compressor *cp110 =
-		dm_alloc(sizeof(struct dce110_compressor));
+		kzalloc(sizeof(struct dce110_compressor), GFP_KERNEL);
 
 	if (!cp110)
 		return NULL;
@@ -397,13 +397,13 @@ struct compressor *dce110_compressor_create(struct dc_context *ctx)
 		return &cp110->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(cp110);
+	kfree(cp110);
 	return NULL;
 }
 
 void dce110_compressor_destroy(struct compressor **compressor)
 {
-	dm_free(TO_DCE110_COMPRESSOR(*compressor));
+	kfree(TO_DCE110_COMPRESSOR(*compressor));
 	*compressor = NULL;
 }
 

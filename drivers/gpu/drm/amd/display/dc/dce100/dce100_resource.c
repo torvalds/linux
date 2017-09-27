@@ -370,7 +370,7 @@ static struct timing_generator *dce100_timing_generator_create(
 		const struct dce110_timing_generator_offsets *offsets)
 {
 	struct dce110_timing_generator *tg110 =
-		dm_alloc(sizeof(struct dce110_timing_generator));
+		kzalloc(sizeof(struct dce110_timing_generator), GFP_KERNEL);
 
 	if (!tg110)
 		return NULL;
@@ -380,7 +380,7 @@ static struct timing_generator *dce100_timing_generator_create(
 		return &tg110->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(tg110);
+	kfree(tg110);
 	return NULL;
 }
 
@@ -389,7 +389,7 @@ static struct stream_encoder *dce100_stream_encoder_create(
 	struct dc_context *ctx)
 {
 	struct dce110_stream_encoder *enc110 =
-		dm_alloc(sizeof(struct dce110_stream_encoder));
+		kzalloc(sizeof(struct dce110_stream_encoder), GFP_KERNEL);
 
 	if (!enc110)
 		return NULL;
@@ -400,7 +400,7 @@ static struct stream_encoder *dce100_stream_encoder_create(
 		return &enc110->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(enc110);
+	kfree(enc110);
 	return NULL;
 }
 
@@ -422,7 +422,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 static struct dce_hwseq *dce100_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = dm_alloc(sizeof(struct dce_hwseq));
+	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -467,7 +467,8 @@ static struct mem_input *dce100_mem_input_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dce_mem_input *dce_mi = dm_alloc(sizeof(struct dce_mem_input));
+	struct dce_mem_input *dce_mi = kzalloc(sizeof(struct dce_mem_input),
+					       GFP_KERNEL);
 
 	if (!dce_mi) {
 		BREAK_TO_DEBUGGER();
@@ -481,7 +482,7 @@ static struct mem_input *dce100_mem_input_create(
 
 static void dce100_transform_destroy(struct transform **xfm)
 {
-	dm_free(TO_DCE_TRANSFORM(*xfm));
+	kfree(TO_DCE_TRANSFORM(*xfm));
 	*xfm = NULL;
 }
 
@@ -490,7 +491,7 @@ static struct transform *dce100_transform_create(
 	uint32_t inst)
 {
 	struct dce_transform *transform =
-		dm_alloc(sizeof(struct dce_transform));
+		kzalloc(sizeof(struct dce_transform), GFP_KERNEL);
 
 	if (!transform)
 		return NULL;
@@ -501,14 +502,14 @@ static struct transform *dce100_transform_create(
 	}
 
 	BREAK_TO_DEBUGGER();
-	dm_free(transform);
+	kfree(transform);
 	return NULL;
 }
 
 static struct input_pixel_processor *dce100_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
-	struct dce_ipp *ipp = dm_alloc(sizeof(struct dce_ipp));
+	struct dce_ipp *ipp = kzalloc(sizeof(struct dce_ipp), GFP_KERNEL);
 
 	if (!ipp) {
 		BREAK_TO_DEBUGGER();
@@ -532,7 +533,7 @@ struct link_encoder *dce100_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
-		dm_alloc(sizeof(struct dce110_link_encoder));
+		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
 
 	if (!enc110)
 		return NULL;
@@ -549,7 +550,7 @@ struct link_encoder *dce100_link_encoder_create(
 	}
 
 	BREAK_TO_DEBUGGER();
-	dm_free(enc110);
+	kfree(enc110);
 	return NULL;
 }
 
@@ -558,7 +559,7 @@ struct output_pixel_processor *dce100_opp_create(
 	uint32_t inst)
 {
 	struct dce110_opp *opp =
-		dm_alloc(sizeof(struct dce110_opp));
+		kzalloc(sizeof(struct dce110_opp), GFP_KERNEL);
 
 	if (!opp)
 		return NULL;
@@ -568,7 +569,7 @@ struct output_pixel_processor *dce100_opp_create(
 		return &opp->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(opp);
+	kfree(opp);
 	return NULL;
 }
 
@@ -580,7 +581,7 @@ struct clock_source *dce100_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		dm_alloc(sizeof(struct dce110_clk_src));
+		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
 
 	if (!clk_src)
 		return NULL;
@@ -597,7 +598,7 @@ struct clock_source *dce100_clock_source_create(
 
 void dce100_clock_source_destroy(struct clock_source **clk_src)
 {
-	dm_free(TO_DCE110_CLK_SRC(*clk_src));
+	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
 }
 
@@ -616,19 +617,19 @@ static void destruct(struct dce110_resource_pool *pool)
 			dce_ipp_destroy(&pool->base.ipps[i]);
 
 		if (pool->base.mis[i] != NULL) {
-			dm_free(TO_DCE_MEM_INPUT(pool->base.mis[i]));
+			kfree(TO_DCE_MEM_INPUT(pool->base.mis[i]));
 			pool->base.mis[i] = NULL;
 		}
 
 		if (pool->base.timing_generators[i] != NULL)	{
-			dm_free(DCE110TG_FROM_TG(pool->base.timing_generators[i]));
+			kfree(DCE110TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
 		if (pool->base.stream_enc[i] != NULL)
-			dm_free(DCE110STRENC_FROM_STRENC(pool->base.stream_enc[i]));
+			kfree(DCE110STRENC_FROM_STRENC(pool->base.stream_enc[i]));
 	}
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
@@ -768,7 +769,7 @@ static void dce100_destroy_resource_pool(struct resource_pool **pool)
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
 
 	destruct(dce110_pool);
-	dm_free(dce110_pool);
+	kfree(dce110_pool);
 	*pool = NULL;
 }
 
@@ -950,7 +951,7 @@ struct resource_pool *dce100_create_resource_pool(
 	struct dc  *dc)
 {
 	struct dce110_resource_pool *pool =
-		dm_alloc(sizeof(struct dce110_resource_pool));
+		kzalloc(sizeof(struct dce110_resource_pool), GFP_KERNEL);
 
 	if (!pool)
 		return NULL;

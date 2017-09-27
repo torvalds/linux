@@ -839,7 +839,7 @@ bool dce112_compressor_construct(struct dce112_compressor *compressor,
 struct compressor *dce112_compressor_create(struct dc_context *ctx)
 {
 	struct dce112_compressor *cp110 =
-		dm_alloc(sizeof(struct dce112_compressor));
+		kzalloc(sizeof(struct dce112_compressor), GFP_KERNEL);
 
 	if (!cp110)
 		return NULL;
@@ -848,12 +848,12 @@ struct compressor *dce112_compressor_create(struct dc_context *ctx)
 		return &cp110->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(cp110);
+	kfree(cp110);
 	return NULL;
 }
 
 void dce112_compressor_destroy(struct compressor **compressor)
 {
-	dm_free(TO_DCE112_COMPRESSOR(*compressor));
+	kfree(TO_DCE112_COMPRESSOR(*compressor));
 	*compressor = NULL;
 }

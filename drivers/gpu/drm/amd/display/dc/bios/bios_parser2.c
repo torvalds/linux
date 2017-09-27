@@ -107,10 +107,10 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 static void destruct(struct bios_parser *bp)
 {
 	if (bp->base.bios_local_image)
-		dm_free(bp->base.bios_local_image);
+		kfree(bp->base.bios_local_image);
 
 	if (bp->base.integrated_info)
-		dm_free(bp->base.integrated_info);
+		kfree(bp->base.integrated_info);
 }
 
 static void firmware_parser_destroy(struct dc_bios **dcb)
@@ -124,7 +124,7 @@ static void firmware_parser_destroy(struct dc_bios **dcb)
 
 	destruct(bp);
 
-	dm_free(bp);
+	kfree(bp);
 	*dcb = NULL;
 }
 
@@ -2030,7 +2030,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct integrated_info *info = NULL;
 
-	info = dm_alloc(sizeof(struct integrated_info));
+	info = kzalloc(sizeof(struct integrated_info), GFP_KERNEL);
 
 	if (info == NULL) {
 		ASSERT_CRITICAL(0);
@@ -2040,7 +2040,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	if (construct_integrated_info(bp, info) == BP_RESULT_OK)
 	return info;
 
-	dm_free(info);
+	kfree(info);
 
 	return NULL;
 }
@@ -2205,14 +2205,14 @@ struct dc_bios *firmware_parser_create(
 {
 	struct bios_parser *bp = NULL;
 
-	bp = dm_alloc(sizeof(struct bios_parser));
+	bp = kzalloc(sizeof(struct bios_parser), GFP_KERNEL);
 	if (!bp)
 		return NULL;
 
 	if (bios_parser_construct(bp, init, dce_version))
 		return &bp->base;
 
-	dm_free(bp);
+	kfree(bp);
 	return NULL;
 }
 

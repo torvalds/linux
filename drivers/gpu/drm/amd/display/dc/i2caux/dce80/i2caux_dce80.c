@@ -101,7 +101,7 @@ static void destroy(
 
 	destruct(i2caux_dce80);
 
-	dm_free(i2caux_dce80);
+	kfree(i2caux_dce80);
 
 	*i2c_engine = NULL;
 }
@@ -277,7 +277,7 @@ struct i2caux *dal_i2caux_dce80_create(
 	struct dc_context *ctx)
 {
 	struct i2caux_dce80 *i2caux_dce80 =
-		dm_alloc(sizeof(struct i2caux_dce80));
+		kzalloc(sizeof(struct i2caux_dce80), GFP_KERNEL);
 
 	if (!i2caux_dce80) {
 		BREAK_TO_DEBUGGER();
@@ -289,7 +289,7 @@ struct i2caux *dal_i2caux_dce80_create(
 
 	BREAK_TO_DEBUGGER();
 
-	dm_free(i2caux_dce80);
+	kfree(i2caux_dce80);
 
 	return NULL;
 }

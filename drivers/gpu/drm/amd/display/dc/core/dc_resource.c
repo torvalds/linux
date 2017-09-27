@@ -160,7 +160,7 @@ void dc_destroy_resource_pool(struct dc  *dc)
 			dc->res_pool->funcs->destroy(&dc->res_pool);
 
 		if (dc->hwseq)
-			dm_free(dc->hwseq);
+			kfree(dc->hwseq);
 	}
 }
 

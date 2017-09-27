@@ -113,7 +113,7 @@ static bool create_links(
 	}
 
 	for (i = 0; i < num_virtual_links; i++) {
-		struct dc_link *link = dm_alloc(sizeof(*link));
+		struct dc_link *link = kzalloc(sizeof(*link), GFP_KERNEL);
 		struct encoder_init_data enc_init = {0};
 
 		if (link == NULL) {
@@ -127,7 +127,7 @@ static bool create_links(
 		link->link_id.type = OBJECT_TYPE_CONNECTOR;
 		link->link_id.id = CONNECTOR_ID_VIRTUAL;
 		link->link_id.enum_id = ENUM_ID_1;
-		link->link_enc = dm_alloc(sizeof(*link->link_enc));
+		link->link_enc = kzalloc(sizeof(*link->link_enc), GFP_KERNEL);
 
 		enc_init.ctx = dc->ctx;
 		enc_init.channel = CHANNEL_ID_UNKNOWN;
@@ -413,20 +413,20 @@ static void destruct(struct dc *dc)
 	if (dc->ctx->logger)
 		dal_logger_destroy(&dc->ctx->logger);
 
-	dm_free(dc->ctx);
+	kfree(dc->ctx);
 	dc->ctx = NULL;
 
-	dm_free(dc->bw_vbios);
+	kfree(dc->bw_vbios);
 	dc->bw_vbios = NULL;
 
-	dm_free(dc->bw_dceip);
+	kfree(dc->bw_dceip);
 	dc->bw_dceip = NULL;
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	dm_free(dc->dcn_soc);
+	kfree(dc->dcn_soc);
 	dc->dcn_soc = NULL;
 
-	dm_free(dc->dcn_ip);
+	kfree(dc->dcn_ip);
 	dc->dcn_ip = NULL;
 
 #endif
@@ -436,12 +436,15 @@ static bool construct(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
 	struct dal_logger *logger;
-	struct dc_context *dc_ctx = dm_alloc(sizeof(*dc_ctx));
-	struct bw_calcs_dceip *dc_dceip = dm_alloc(sizeof(*dc_dceip));
-	struct bw_calcs_vbios *dc_vbios = dm_alloc(sizeof(*dc_vbios));
+	struct dc_context *dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
+	struct bw_calcs_dceip *dc_dceip = kzalloc(sizeof(*dc_dceip),
+						  GFP_KERNEL);
+	struct bw_calcs_vbios *dc_vbios = kzalloc(sizeof(*dc_vbios),
+						  GFP_KERNEL);
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	struct dcn_soc_bounding_box *dcn_soc = dm_alloc(sizeof(*dcn_soc));
-	struct dcn_ip_params *dcn_ip = dm_alloc(sizeof(*dcn_ip));
+	struct dcn_soc_bounding_box *dcn_soc = kzalloc(sizeof(*dcn_soc),
+						       GFP_KERNEL);
+	struct dcn_ip_params *dcn_ip = kzalloc(sizeof(*dcn_ip), GFP_KERNEL);
 #endif
 
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
@@ -604,7 +607,7 @@ void ProgramPixelDurationV(unsigned int pixelClockInKHz )
 
 struct dc *dc_create(const struct dc_init_data *init_params)
  {
-	struct dc *dc = dm_alloc(sizeof(*dc));
+	struct dc *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 	unsigned int full_pipe_count;
 
 	if (NULL == dc)
@@ -638,7 +641,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	return dc;
 
 construct_fail:
-	dm_free(dc);
+	kfree(dc);
 
 alloc_fail:
 	return NULL;
@@ -647,7 +650,7 @@ alloc_fail:
 void dc_destroy(struct dc **dc)
 {
 	destruct(*dc);
-	dm_free(*dc);
+	kfree(*dc);
 	*dc = NULL;
 }
 
@@ -900,7 +903,7 @@ bool dc_commit_planes_to_stream(
 	struct dc_scaling_info scaling_info[MAX_SURFACES];
 	int i;
 	struct dc_stream_update *stream_update =
-			dm_alloc(sizeof(struct dc_stream_update));
+			kzalloc(sizeof(struct dc_stream_update), GFP_KERNEL);
 
 	if (!stream_update) {
 		BREAK_TO_DEBUGGER();
@@ -951,13 +954,14 @@ bool dc_commit_planes_to_stream(
 
 	dc_post_update_surfaces_to_stream(dc);
 
-	dm_free(stream_update);
+	kfree(stream_update);
 	return true;
 }
 
 struct dc_state *dc_create_state(void)
 {
-	struct dc_state *context = dm_alloc(sizeof(struct dc_state));
+	struct dc_state *context = kzalloc(sizeof(struct dc_state),
+					   GFP_KERNEL);
 
 	if (!context)
 		return NULL;
@@ -979,7 +983,7 @@ void dc_release_state(struct dc_state *context)
 
 	if (atomic_read(&context->ref_count) == 0) {
 		dc_resource_state_destruct(context);
-		dm_free(context);
+		kfree(context);
 	}
 }
 

@@ -261,6 +261,6 @@ void dce_ipp_construct(
 
 void dce_ipp_destroy(struct input_pixel_processor **ipp)
 {
-	dm_free(TO_DCE_IPP(*ipp));
+	kfree(TO_DCE_IPP(*ipp));
 	*ipp = NULL;
 }

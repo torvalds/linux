@@ -68,7 +68,8 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 {
 	struct dc *core_dc = dc;
 
-	struct dc_plane_state *plane_state = dm_alloc(sizeof(*plane_state));
+	struct dc_plane_state *plane_state = kzalloc(sizeof(*plane_state),
+						     GFP_KERNEL);
 
 	if (NULL == plane_state)
 		goto alloc_fail;
@@ -81,7 +82,7 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 	return plane_state;
 
 construct_fail:
-	dm_free(plane_state);
+	kfree(plane_state);
 
 alloc_fail:
 	return NULL;
@@ -133,7 +134,7 @@ void dc_plane_state_release(struct dc_plane_state *plane_state)
 
 	if (atomic_read(&plane_state->ref_count) == 0) {
 		destruct(plane_state);
-		dm_free(plane_state);
+		kfree(plane_state);
 	}
 }
 
@@ -149,14 +150,14 @@ void dc_gamma_release(struct dc_gamma **gamma)
 	atomic_dec(&(*gamma)->ref_count);
 
 	if (atomic_read(&(*gamma)->ref_count) == 0)
-		dm_free((*gamma));
+		kfree((*gamma));
 
 	*gamma = NULL;
 }
 
 struct dc_gamma *dc_create_gamma()
 {
-	struct dc_gamma *gamma = dm_alloc(sizeof(*gamma));
+	struct dc_gamma *gamma = kzalloc(sizeof(*gamma), GFP_KERNEL);
 
 	if (gamma == NULL)
 		goto alloc_fail;
@@ -181,12 +182,12 @@ void dc_transfer_func_release(struct dc_transfer_func *tf)
 	atomic_dec(&tf->ref_count);
 
 	if (atomic_read(&tf->ref_count) == 0)
-		dm_free(tf);
+		kfree(tf);
 }
 
 struct dc_transfer_func *dc_create_transfer_func()
 {
-	struct dc_transfer_func *tf = dm_alloc(sizeof(*tf));
+	struct dc_transfer_func *tf = kzalloc(sizeof(*tf), GFP_KERNEL);
 
 	if (tf == NULL)
 		goto alloc_fail;
