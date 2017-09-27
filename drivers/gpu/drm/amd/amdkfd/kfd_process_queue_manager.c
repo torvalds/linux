@@ -142,20 +142,17 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct kfd_dev *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
-			    unsigned int flags,
-			    enum kfd_queue_type type,
 			    unsigned int *qid)
 {
 	int retval;
 	struct kfd_process_device *pdd;
-	struct queue_properties q_properties;
 	struct queue *q;
 	struct process_queue_node *pqn;
 	struct kernel_queue *kq;
 	int num_queues = 0;
 	struct queue *cur;
+	enum kfd_queue_type type = properties->type;
 
-	memcpy(&q_properties, properties, sizeof(struct queue_properties));
 	q = NULL;
 	kq = NULL;
 
@@ -206,7 +203,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		}
 
-		retval = create_cp_queue(pqm, dev, &q, &q_properties, f, *qid);
+		retval = create_cp_queue(pqm, dev, &q, properties, f, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -243,9 +240,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	list_add(&pqn->process_queue_list, &pqm->queues);
 
 	if (q) {
-		*properties = q->properties;
 		pr_debug("PQM done creating queue\n");
-		print_queue_properties(properties);
+		print_queue_properties(&q->properties);
 	}
 
 	return retval;

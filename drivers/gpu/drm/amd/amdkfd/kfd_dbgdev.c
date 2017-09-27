@@ -184,9 +184,10 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	struct kernel_queue *kq = NULL;
 	int status;
 
+	properties.type = KFD_QUEUE_TYPE_DIQ;
+
 	status = pqm_create_queue(dbgdev->pqm, dbgdev->dev, NULL,
-				&properties, 0, KFD_QUEUE_TYPE_DIQ,
-				&qid);
+				&properties, &qid);
 
 	if (status) {
 		pr_err("Failed to create DIQ\n");
