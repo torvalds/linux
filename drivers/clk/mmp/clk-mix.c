@@ -229,7 +229,7 @@ static int mmp_clk_mix_determine_rate(struct clk_hw *hw,
 			parent_rate = clk_hw_get_rate(parent);
 			mix_rate = parent_rate / item->divisor;
 			gap = abs(mix_rate - req->rate);
-			if (parent_best == NULL || gap < gap_best) {
+			if (!parent_best || gap < gap_best) {
 				parent_best = parent;
 				parent_rate_best = parent_rate;
 				mix_rate_best = mix_rate;
@@ -247,7 +247,7 @@ static int mmp_clk_mix_determine_rate(struct clk_hw *hw,
 				div = _get_div(mix, j);
 				mix_rate = parent_rate / div;
 				gap = abs(mix_rate - req->rate);
-				if (parent_best == NULL || gap < gap_best) {
+				if (!parent_best || gap < gap_best) {
 					parent_best = parent;
 					parent_rate_best = parent_rate;
 					mix_rate_best = mix_rate;
