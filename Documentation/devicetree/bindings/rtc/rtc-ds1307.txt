@@ -26,6 +26,13 @@ Optional properties:
 - clock-output-names: From common clock binding to override the default output
                       clock name
 - wakeup-source: Enables wake up of host system on alarm
+- trickle-resistor-ohms : ds1339, ds1340 and ds 1388 only
+	Selected resistor for trickle charger
+	Possible values are 250, 2000, 4000
+	Should be given if trickle charger should be enabled
+- trickle-diode-disable : ds1339, ds1340 and ds 1388 only
+	Do not use internal trickle charger diode
+	Should be given if internal trickle charger diode should be disabled
 
 Example:
 	rtc1: ds1339@68 {
@@ -33,4 +40,5 @@ Example:
 		reg = <0x68>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <20 0>;
+		trickle-resistor-ohms = <250>;
 	};
