@@ -3982,6 +3982,8 @@ static int amdgpu_dm_atomic_commit(struct drm_device *dev,
 		if (drm_atomic_crtc_needs_modeset(new_crtc_state) && dm_old_crtc_state->stream)
 			manage_dm_interrupts(adev, acrtc, false);
 	}
+	/* Add check here for SoC's that support hardware cursor plane, to
+	 * unset legacy_cursor_update */
 
 	return drm_atomic_helper_commit(dev, state, nonblock);
 
@@ -4647,7 +4649,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct drm_connector *connector;
 	struct drm_connector_state *old_con_state, *new_con_state;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 
 	/*
 	 * This bool will be set for true for any modeset/reset
@@ -4656,18 +4658,34 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	bool lock_and_validation_needed = false;
 
 	ret = drm_atomic_helper_check_modeset(dev, state);
-
 	if (ret) {
 		DRM_ERROR("Atomic state validation failed with error :%d !\n", ret);
 		return ret;
 	}
 
 	/*
-	 * Hack: Commit needs planes right now, specifically for gamma
-	 * TODO rework commit to check CRTC for gamma change
+	 * legacy_cursor_update should be made false for SoC's having
+	 * a dedicated hardware plane for cursor in amdgpu_dm_atomic_commit(),
+	 * otherwise for software cursor plane,
+	 * we should not add it to list of affected planes.
 	 */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		if (new_crtc_state->color_mgmt_changed) {
+	if (state->legacy_cursor_update) {
+		for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+			if (new_crtc_state->color_mgmt_changed) {
+				ret = drm_atomic_add_affected_planes(state, crtc);
+				if (ret)
+					goto fail;
+			}
+		}
+	} else {
+		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+			if (!new_crtc_state->enable)
+				continue;
+
+			ret = drm_atomic_add_affected_connectors(state, crtc);
+			if (ret)
+				return ret;
+
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				goto fail;
