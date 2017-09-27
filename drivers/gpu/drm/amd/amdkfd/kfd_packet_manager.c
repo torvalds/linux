@@ -140,8 +140,6 @@ static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 				struct qcm_process_device *qpd)
 {
 	struct pm4_mes_map_process *packet;
-	struct queue *cur;
-	uint32_t num_queues;
 
 	packet = (struct pm4_mes_map_process *)buffer;
 
@@ -156,10 +154,7 @@ static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 	packet->bitfields10.gds_size = qpd->gds_size;
 	packet->bitfields10.num_gws = qpd->num_gws;
 	packet->bitfields10.num_oac = qpd->num_oac;
-	num_queues = 0;
-	list_for_each_entry(cur, &qpd->queues_list, list)
-		num_queues++;
-	packet->bitfields10.num_queues = (qpd->is_debug) ? 0 : num_queues;
+	packet->bitfields10.num_queues = (qpd->is_debug) ? 0 : qpd->queue_count;
 
 	packet->sh_mem_config = qpd->sh_mem_config;
 	packet->sh_mem_bases = qpd->sh_mem_bases;

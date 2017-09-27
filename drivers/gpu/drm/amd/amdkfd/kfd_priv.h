@@ -405,7 +405,6 @@ struct scheduling_resources {
 struct process_queue_manager {
 	/* data */
 	struct kfd_process	*process;
-	unsigned int		num_concurrent_processes;
 	struct list_head	queues;
 	unsigned long		*queue_slot_bitmap;
 };
