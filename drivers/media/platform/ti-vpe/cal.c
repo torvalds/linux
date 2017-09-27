@@ -1702,7 +1702,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 		goto cleanup_exit;
 	}
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-	asd->match.fwnode.fwnode = of_fwnode_handle(sensor_node);
+	asd->match.fwnode = of_fwnode_handle(sensor_node);
 
 	remote_ep = of_graph_get_remote_endpoint(ep_node);
 	if (!remote_ep) {

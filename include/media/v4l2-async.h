@@ -58,12 +58,8 @@ enum v4l2_async_match_type {
 struct v4l2_async_subdev {
 	enum v4l2_async_match_type match_type;
 	union {
-		struct {
-			struct fwnode_handle *fwnode;
-		} fwnode;
-		struct {
-			const char *name;
-		} device_name;
+		struct fwnode_handle *fwnode;
+		const char *device_name;
 		struct {
 			int adapter_id;
 			unsigned short address;

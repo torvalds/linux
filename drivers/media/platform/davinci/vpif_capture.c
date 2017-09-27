@@ -1390,7 +1390,7 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 
 	for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
 		struct v4l2_async_subdev *_asd = vpif_obj.config->asd[i];
-		const struct fwnode_handle *fwnode = _asd->match.fwnode.fwnode;
+		const struct fwnode_handle *fwnode = _asd->match.fwnode;
 
 		if (fwnode == subdev->fwnode) {
 			vpif_obj.sd[i] = subdev;
@@ -1595,7 +1595,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		}
 
 		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		pdata->asd[i]->match.fwnode.fwnode = of_fwnode_handle(rem);
+		pdata->asd[i]->match.fwnode = of_fwnode_handle(rem);
 		of_node_put(rem);
 	}
 

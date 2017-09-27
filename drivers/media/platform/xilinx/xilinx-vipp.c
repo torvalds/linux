@@ -387,7 +387,7 @@ static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 
 		entity->node = remote;
 		entity->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		entity->asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+		entity->asd.match.fwnode = of_fwnode_handle(remote);
 		list_add_tail(&entity->list, &xdev->entities);
 		xdev->num_subdevs++;
 	}
