@@ -1160,6 +1160,7 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 
 	rep_if->load   = __rep_if->load;
 	rep_if->unload = __rep_if->unload;
+	rep_if->get_proto_dev = __rep_if->get_proto_dev;
 	rep_if->priv = __rep_if->priv;
 
 	rep_if->valid = true;
@@ -1187,4 +1188,27 @@ void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type)
 
 	rep = &offloads->vport_reps[UPLINK_REP_INDEX];
 	return rep->rep_if[rep_type].priv;
+}
+
+void *mlx5_eswitch_get_proto_dev(struct mlx5_eswitch *esw,
+				 int vport,
+				 u8 rep_type)
+{
+	struct mlx5_esw_offload *offloads = &esw->offloads;
+	struct mlx5_eswitch_rep *rep;
+
+	if (vport == FDB_UPLINK_VPORT)
+		vport = UPLINK_REP_INDEX;
+
+	rep = &offloads->vport_reps[vport];
+
+	if (rep->rep_if[rep_type].valid &&
+	    rep->rep_if[rep_type].get_proto_dev)
+		return rep->rep_if[rep_type].get_proto_dev(rep);
+	return NULL;
+}
+
+void *mlx5_eswitch_uplink_get_proto_dev(struct mlx5_eswitch *esw, u8 rep_type)
+{
+	return mlx5_eswitch_get_proto_dev(esw, UPLINK_REP_INDEX, rep_type);
 }

@@ -150,6 +150,7 @@ struct mlx5_eswitch_rep_if {
 	int		       (*load)(struct mlx5_core_dev *dev,
 				       struct mlx5_eswitch_rep *rep);
 	void		       (*unload)(struct mlx5_eswitch_rep *rep);
+	void		       *(*get_proto_dev)(struct mlx5_eswitch_rep *rep);
 	void			*priv;
 	bool		       valid;
 };
@@ -286,6 +287,10 @@ void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 				       int vport_index,
 				       u8 rep_type);
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
+void *mlx5_eswitch_get_proto_dev(struct mlx5_eswitch *esw,
+				 int vport,
+				 u8 rep_type);
+void *mlx5_eswitch_uplink_get_proto_dev(struct mlx5_eswitch *esw, u8 rep_type);
 
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
