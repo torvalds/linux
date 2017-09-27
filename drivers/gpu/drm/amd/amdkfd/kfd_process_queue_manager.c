@@ -150,6 +150,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	struct process_queue_node *pqn;
 	struct kernel_queue *kq;
 	enum kfd_queue_type type = properties->type;
+	unsigned int max_queues = 127; /* HWS limit */
 
 	q = NULL;
 	kq = NULL;
@@ -166,10 +167,11 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	 * If we are just about to create DIQ, the is_debug flag is not set yet
 	 * Hence we also check the type as well
 	 */
-	if ((pdd->qpd.is_debug) || (type == KFD_QUEUE_TYPE_DIQ)) {
-		if (pdd->qpd.queue_count >= dev->device_info->max_no_of_hqd/2)
-			return -ENOSPC;
-	}
+	if ((pdd->qpd.is_debug) || (type == KFD_QUEUE_TYPE_DIQ))
+		max_queues = dev->device_info->max_no_of_hqd/2;
+
+	if (pdd->qpd.queue_count >= max_queues)
+		return -ENOSPC;
 
 	retval = find_available_queue_slot(pqm, qid);
 	if (retval != 0)
