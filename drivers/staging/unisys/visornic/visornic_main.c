@@ -49,7 +49,8 @@ static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
 	 * bus driver is the VISOR_VNIC channel.
 	 */
-	{ VISOR_VNIC_CHANNEL_GUID, "ultravnic" },
+	{ VISOR_VNIC_CHANNEL_GUID, "ultravnic", sizeof(struct channel_header),
+	  VISOR_VNIC_CHANNEL_VERSIONID },
 	{}
 };
 MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);

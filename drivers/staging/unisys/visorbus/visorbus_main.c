@@ -143,14 +143,23 @@ static int visorbus_match(struct device *xdev, struct device_driver *xdrv)
 	int i;
 	struct visor_device *dev;
 	struct visor_driver *drv;
+	struct visorchannel *chan;
 
 	dev = to_visor_device(xdev);
 	channel_type = visorchannel_get_guid(dev->visorchannel);
 	drv = to_visor_driver(xdrv);
+	chan = dev->visorchannel;
 	if (!drv->channel_types)
 		return 0;
 	for (i = 0; !guid_is_null(&drv->channel_types[i].guid); i++)
-		if (guid_equal(&drv->channel_types[i].guid, channel_type))
+		if (guid_equal(&drv->channel_types[i].guid, channel_type) &&
+		    visor_check_channel(visorchannel_get_header(chan),
+					xdev,
+					&drv->channel_types[i].guid,
+					(char *)drv->channel_types[i].name,
+					drv->channel_types[i].min_bytes,
+					drv->channel_types[i].version,
+					VISOR_CHANNEL_SIGNATURE))
 			return i + 1;
 	return 0;
 }

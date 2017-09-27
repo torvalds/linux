@@ -40,7 +40,8 @@ static struct visor_channeltype_descriptor visorhba_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
 	 * bus driver is the VISOR_VHBA channel.
 	 */
-	{ VISOR_VHBA_CHANNEL_GUID, "sparvhba" },
+	{ VISOR_VHBA_CHANNEL_GUID, "sparvhba", sizeof(struct channel_header),
+	  VISOR_VHBA_CHANNEL_VERSIONID },
 	{}
 };
 
