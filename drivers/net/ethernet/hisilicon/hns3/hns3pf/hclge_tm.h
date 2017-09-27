@@ -99,6 +99,10 @@ struct hclge_pfc_en_cmd {
 	u8 pri_en_bitmap;
 };
 
+struct hclge_port_shapping_cmd {
+	__le32 port_shapping_para;
+};
+
 #define hclge_tm_set_field(dest, string, val) \
 			hnae_set_field((dest), (HCLGE_TM_SHAP_##string##_MSK), \
 				       (HCLGE_TM_SHAP_##string##_LSH), val)
