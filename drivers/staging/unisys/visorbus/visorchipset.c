@@ -641,36 +641,20 @@ static const guid_t *parser_id_get(struct parser_context *ctx)
 	return &ctx->data.id;
 }
 
-static void *parser_string_get(struct parser_context *ctx)
+static void *parser_string_get(u8 *pscan, int nscan)
 {
-	u8 *pscan;
-	unsigned long nscan;
 	int value_length;
 	void *value;
-	int i;
 
-	pscan = ctx->curr;
-	if (!pscan)
-		return NULL;
-	nscan = ctx->bytes_remaining;
 	if (nscan == 0)
 		return NULL;
 
-	for (i = 0, value_length = -1; i < nscan; i++)
-		if (pscan[i] == '\0') {
-			value_length = i;
-			break;
-		}
-	/* '\0' was not included in the length */
-	if (value_length < 0)
-		value_length = nscan;
-
-	value = kmalloc(value_length + 1, GFP_KERNEL);
+	value_length = strnlen(pscan, nscan);
+	value = kzalloc(value_length + 1, GFP_KERNEL);
 	if (!value)
 		return NULL;
 	if (value_length > 0)
 		memcpy(value, pscan, value_length);
-	((u8 *)(value))[value_length] = '\0';
 	return value;
 }
 
@@ -685,7 +669,7 @@ static void *parser_name_get(struct parser_context *ctx)
 
 	ctx->curr = (char *)&phdr + phdr->name_offset;
 	ctx->bytes_remaining = phdr->name_length;
-	return parser_string_get(ctx);
+	return parser_string_get(ctx->curr, phdr->name_length);
 }
 
 static int visorbus_configure(struct controlvm_message *inmsg,
