@@ -316,6 +316,36 @@ static void test_bpf_obj_id(void)
 			error_cnt++;
 		assert(!err);
 
+		/* Insert a magic value to the map */
+		map_fds[i] = bpf_find_map(__func__, objs[i], "test_map_id");
+		assert(map_fds[i] >= 0);
+		err = bpf_map_update_elem(map_fds[i], &array_key,
+					  &array_magic_value, 0);
+		assert(!err);
+
+		/* Check getting map info */
+		info_len = sizeof(struct bpf_map_info) * 2;
+		bzero(&map_infos[i], info_len);
+		err = bpf_obj_get_info_by_fd(map_fds[i], &map_infos[i],
+					     &info_len);
+		if (CHECK(err ||
+			  map_infos[i].type != BPF_MAP_TYPE_ARRAY ||
+			  map_infos[i].key_size != sizeof(__u32) ||
+			  map_infos[i].value_size != sizeof(__u64) ||
+			  map_infos[i].max_entries != 1 ||
+			  map_infos[i].map_flags != 0 ||
+			  info_len != sizeof(struct bpf_map_info),
+			  "get-map-info(fd)",
+			  "err %d errno %d type %d(%d) info_len %u(%lu) key_size %u value_size %u max_entries %u map_flags %X\n",
+			  err, errno,
+			  map_infos[i].type, BPF_MAP_TYPE_ARRAY,
+			  info_len, sizeof(struct bpf_map_info),
+			  map_infos[i].key_size,
+			  map_infos[i].value_size,
+			  map_infos[i].max_entries,
+			  map_infos[i].map_flags))
+			goto done;
+
 		/* Check getting prog info */
 		info_len = sizeof(struct bpf_prog_info) * 2;
 		bzero(&prog_infos[i], info_len);
@@ -347,34 +377,6 @@ static void test_bpf_obj_id(void)
 			  !!memcmp(xlated_insns, zeros, sizeof(zeros))))
 			goto done;
 
-		map_fds[i] = bpf_find_map(__func__, objs[i], "test_map_id");
-		assert(map_fds[i] >= 0);
-		err = bpf_map_update_elem(map_fds[i], &array_key,
-					  &array_magic_value, 0);
-		assert(!err);
-
-		/* Check getting map info */
-		info_len = sizeof(struct bpf_map_info) * 2;
-		bzero(&map_infos[i], info_len);
-		err = bpf_obj_get_info_by_fd(map_fds[i], &map_infos[i],
-					     &info_len);
-		if (CHECK(err ||
-			  map_infos[i].type != BPF_MAP_TYPE_ARRAY ||
-			  map_infos[i].key_size != sizeof(__u32) ||
-			  map_infos[i].value_size != sizeof(__u64) ||
-			  map_infos[i].max_entries != 1 ||
-			  map_infos[i].map_flags != 0 ||
-			  info_len != sizeof(struct bpf_map_info),
-			  "get-map-info(fd)",
-			  "err %d errno %d type %d(%d) info_len %u(%lu) key_size %u value_size %u max_entries %u map_flags %X\n",
-			  err, errno,
-			  map_infos[i].type, BPF_MAP_TYPE_ARRAY,
-			  info_len, sizeof(struct bpf_map_info),
-			  map_infos[i].key_size,
-			  map_infos[i].value_size,
-			  map_infos[i].max_entries,
-			  map_infos[i].map_flags))
-			goto done;
 	}
 
 	/* Check bpf_prog_get_next_id() */
