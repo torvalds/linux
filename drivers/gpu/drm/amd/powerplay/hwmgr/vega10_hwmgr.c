@@ -56,7 +56,7 @@
 
 #define HBM_MEMORY_CHANNEL_WIDTH    128
 
-uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
+static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 
 #define MEM_FREQ_LOW_LATENCY        25000
 #define MEM_FREQ_HIGH_LATENCY       80000
