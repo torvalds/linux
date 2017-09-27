@@ -299,6 +299,17 @@ static void tgn10_program_timing(
 static void tgn10_unblank_crtc(struct timing_generator *tg)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+	uint32_t vertical_interrupt_enable = 0;
+
+	REG_GET(OTG_VERTICAL_INTERRUPT2_CONTROL,
+			OTG_VERTICAL_INTERRUPT2_INT_ENABLE, &vertical_interrupt_enable);
+
+	/* temporary work around for vertical interrupt, once vertical interrupt enabled,
+	 * this check will be removed.
+	 */
+	if (vertical_interrupt_enable)
+		REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
+				OTG_BLANK_DATA_DOUBLE_BUFFER_EN, 1);
 
 	REG_UPDATE_2(OTG_BLANK_CONTROL,
 			OTG_BLANK_DATA_EN, 0,
