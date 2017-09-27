@@ -888,7 +888,7 @@ static void publish_vbus_dev_info(struct visor_device *visordev)
  */
 static int visordriver_probe_device(struct device *xdev)
 {
-	int res;
+	int err;
 	struct visor_driver *drv;
 	struct visor_device *dev;
 
@@ -898,15 +898,17 @@ static int visordriver_probe_device(struct device *xdev)
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = false;
 
-	res = drv->probe(dev);
-	if (res >= 0) {
-		/* success: reference kept via unmatched get_device() */
-		get_device(&dev->device);
-		publish_vbus_dev_info(dev);
+	err = drv->probe(dev);
+	if (err) {
+		mutex_unlock(&dev->visordriver_callback_lock);
+		return err;
 	}
 
+	/* success: reference kept via unmatched get_device() */
+	get_device(&dev->device);
+	publish_vbus_dev_info(dev);
 	mutex_unlock(&dev->visordriver_callback_lock);
-	return res;
+	return 0;
 }
 
 /*
