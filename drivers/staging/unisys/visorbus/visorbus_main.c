@@ -185,8 +185,8 @@ static int match_visorbus_dev_by_id(struct device *dev, void *data)
 	struct visor_device *vdev = to_visor_device(dev);
 	struct visor_busdev *id = data;
 
-	if ((vdev->chipset_bus_no == id->bus_no) &&
-	    (vdev->chipset_dev_no == id->dev_no))
+	if (vdev->chipset_bus_no == id->bus_no &&
+	    vdev->chipset_dev_no == id->dev_no)
 		return 1;
 	return 0;
 }

@@ -463,7 +463,7 @@ static int visorbus_create(struct controlvm_message *inmsg)
 	int err;
 
 	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
-	if (bus_info && (bus_info->state.created == 1)) {
+	if (bus_info && bus_info->state.created == 1) {
 		dev_err(&chipset_dev->acpi_device->dev,
 			"failed %s: already exists\n", __func__);
 		err = -EEXIST;
@@ -666,7 +666,7 @@ static int visorbus_device_create(struct controlvm_message *inmsg)
 		goto err_respond;
 	}
 	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
-	if (dev_info && (dev_info->state.created == 1)) {
+	if (dev_info && dev_info->state.created == 1) {
 		dev_err(&chipset_dev->acpi_device->dev,
 			"failed to get bus by id: %d/%d\n", bus_no, dev_no);
 		err = -EEXIST;
