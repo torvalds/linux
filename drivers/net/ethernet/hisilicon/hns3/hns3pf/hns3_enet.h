@@ -590,4 +590,11 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 void hns3_ethtool_set_ops(struct net_device *netdev);
 
 int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
+
+#ifdef CONFIG_HNS3_DCB
+void hns3_dcbnl_setup(struct hnae3_handle *handle);
+#else
+static inline void hns3_dcbnl_setup(struct hnae3_handle *handle) {}
+#endif
+
 #endif

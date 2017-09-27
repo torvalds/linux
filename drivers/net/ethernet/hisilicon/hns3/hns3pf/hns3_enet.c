@@ -2790,6 +2790,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_reg_netdev_fail;
 	}
 
+	hns3_dcbnl_setup(handle);
+
 	/* MTU range: (ETH_MIN_MTU(kernel default) - 9706) */
 	netdev->max_mtu = HNS3_MAX_MTU - (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
