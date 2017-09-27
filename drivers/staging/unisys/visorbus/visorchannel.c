@@ -41,8 +41,8 @@ struct visorchannel {
 	struct channel_header chan_hdr;
 	guid_t guid;
 	/*
-	 * channel creator knows if more than one
-	 * thread will be inserting or removing
+	 * channel creator knows if more than one thread will be inserting or
+	 * removing
 	 */
 	bool needs_lock;
 	/* protect head writes in chan_hdr */
@@ -173,8 +173,8 @@ static int sig_data_offset(struct channel_header *chan_hdr, int q,
 }
 
 /*
- * Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
- * into host memory
+ * Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back into
+ * host memory
  */
 #define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD) \
 	visorchannel_write(channel, \
@@ -240,8 +240,8 @@ static int signalremove_inner(struct visorchannel *channel, u32 queue,
 	sig_hdr.num_received++;
 
 	/*
-	 * For each data field in SIGNAL_QUEUE_HEADER that was modified,
-	 * update host memory. Required for channel sync.
+	 * For each data field in SIGNAL_QUEUE_HEADER that was modified, update
+	 * host memory. Required for channel sync.
 	 */
 	mb();
 
@@ -293,8 +293,8 @@ static bool queue_empty(struct visorchannel *channel, u32 queue)
 }
 
 /**
- * visorchannel_signalempty() - checks if the designated channel/queue
- *                              contains any messages
+ * visorchannel_signalempty() - checks if the designated channel/queue contains
+ *				any messages
  * @channel: the channel to query
  * @queue:   the queue in the channel to query
  *
@@ -343,8 +343,8 @@ static int signalinsert_inner(struct visorchannel *channel, u32 queue,
 	sig_hdr.num_sent++;
 
 	/*
-	 * For each data field in SIGNAL_QUEUE_HEADER that was modified,
-	 * update host memory. Required for channel sync.
+	 * For each data field in SIGNAL_QUEUE_HEADER that was modified, update
+	 * host memory. Required for channel sync.
 	 */
 	mb();
 
@@ -359,9 +359,9 @@ static int signalinsert_inner(struct visorchannel *channel, u32 queue,
 }
 
 /*
- * visorchannel_create_guts() - creates the struct visorchannel abstraction
- *                              for a data area in memory, but does NOT modify
- *                              this data area
+ * visorchannel_create_guts() - creates the struct visorchannel abstraction for
+ *				a data area in memory, but does NOT modify this
+ *				data area
  * @physaddr:      physical address of start of channel
  * @gfp:           gfp_t to use when allocating memory for the data struct
  * @guid:          GUID that identifies channel type;
@@ -392,11 +392,10 @@ static struct visorchannel *visorchannel_create_guts(u64 physaddr, gfp_t gfp,
 	spin_lock_init(&channel->remove_lock);
 
 	/*
-	 * Video driver constains the efi framebuffer so it will get a
-	 * conflict resource when requesting its full mem region. Since
-	 * we are only using the efi framebuffer for video we can ignore
-	 * this. Remember that we haven't requested it so we don't try to
-	 * release later on.
+	 * Video driver constains the efi framebuffer so it will get a conflict
+	 * resource when requesting its full mem region. Since we are only
+	 * using the efi framebuffer for video we can ignore this. Remember that
+	 * we haven't requested it so we don't try to release later on.
 	 */
 	channel->requested = request_mem_region(physaddr, size, VISOR_DRV_NAME);
 	if (!channel->requested && !guid_equal(guid, &visor_video_guid))
