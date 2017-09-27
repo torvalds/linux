@@ -490,11 +490,8 @@ static void dev_stop_periodic_work(struct visor_device *dev)
  */
 static int visordriver_remove_device(struct device *xdev)
 {
-	struct visor_device *dev;
-	struct visor_driver *drv;
-
-	dev = to_visor_device(xdev);
-	drv = to_visor_driver(xdev->driver);
+	struct visor_device *dev = to_visor_device(xdev);
+	struct visor_driver *drv = to_visor_driver(xdev->driver);
 
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = true;
@@ -863,11 +860,8 @@ static void publish_vbus_dev_info(struct visor_device *visordev)
 static int visordriver_probe_device(struct device *xdev)
 {
 	int err;
-	struct visor_driver *drv;
-	struct visor_device *dev;
-
-	dev = to_visor_device(xdev);
-	drv = to_visor_driver(xdev->driver);
+	struct visor_driver *drv = to_visor_driver(xdev->driver);
+	struct visor_device *dev = to_visor_device(xdev);
 
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = false;
