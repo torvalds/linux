@@ -737,10 +737,6 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->power_ctrl)
-		return dev->platform_data->power_ctrl(sd, flag);
-
 	if (flag) {
 		/* The upstream module driver (written to Crystal
 		 * Cove) had this logic to pulse the rails low first.

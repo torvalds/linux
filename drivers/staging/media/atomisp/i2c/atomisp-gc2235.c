@@ -547,10 +547,6 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->power_ctrl)
-		return dev->platform_data->power_ctrl(sd, flag);
-
 	if (flag) {
 		ret = dev->platform_data->v1p8_ctrl(sd, 1);
 		usleep_range(60, 90);

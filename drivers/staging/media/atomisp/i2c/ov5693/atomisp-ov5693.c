@@ -1297,10 +1297,6 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->power_ctrl)
-		return dev->platform_data->power_ctrl(sd, flag);
-
 	/* This driver assumes "internal DVDD, PWDNB tied to DOVDD".
 	 * In this set up only gpio0 (XSHUTDN) should be available
 	 * but in some products (for example ECS) gpio1 (PWDNB) is
