@@ -48,6 +48,31 @@ enum v4l2_async_match_type {
  *
  * @match_type:	type of match that will be used
  * @match:	union of per-bus type matching data sets
+ * @match.fwnode:
+ *		pointer to &struct fwnode_handle to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_FWNODE.
+ * @match.device_name:
+ *		string containing the device name to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_DEVNAME.
+ * @match.i2c:	embedded struct with I2C parameters to be matched.
+ * 		Both @match.i2c.adapter_id and @match.i2c.address
+ *		should be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.i2c.adapter_id:
+ *		I2C adapter ID to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.i2c.address:
+ *		I2C address to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.custom:
+ *		Driver-specific match criteria.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_CUSTOM.
+ * @match.custom.match:
+ *		Driver-specific match function to be used if
+ *		%V4L2_ASYNC_MATCH_CUSTOM.
+ * @match.custom.priv:
+ *		Driver-specific private struct with match parameters
+ *		to be used if %V4L2_ASYNC_MATCH_CUSTOM.
  * @list:	used to link struct v4l2_async_subdev objects, waiting to be
  *		probed, to a notifier->waiting list
  *
