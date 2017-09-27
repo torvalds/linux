@@ -86,6 +86,19 @@ struct btrfs_ioctl_received_subvol_args_32 {
 				struct btrfs_ioctl_received_subvol_args_32)
 #endif
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+struct btrfs_ioctl_send_args_32 {
+	__s64 send_fd;			/* in */
+	__u64 clone_sources_count;	/* in */
+	compat_uptr_t clone_sources;	/* in */
+	__u64 parent_root;		/* in */
+	__u64 flags;			/* in */
+	__u64 reserved[4];		/* in */
+} __attribute__ ((__packed__));
+
+#define BTRFS_IOC_SEND_32 _IOW(BTRFS_IOCTL_MAGIC, 38, \
+			       struct btrfs_ioctl_send_args_32)
+#endif
 
 static int btrfs_clone(struct inode *src, struct inode *inode,
 		       u64 off, u64 olen, u64 olen_aligned, u64 destoff,
@@ -5463,6 +5476,41 @@ out_drop_write:
 	return ret;
 }
 
+static int _btrfs_ioctl_send(struct file *file, void __user *argp, bool compat)
+{
+	struct btrfs_ioctl_send_args *arg;
+	int ret;
+
+	if (compat) {
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+		struct btrfs_ioctl_send_args_32 args32;
+
+		ret = copy_from_user(&args32, argp, sizeof(args32));
+		if (ret)
+			return -EFAULT;
+		arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+		if (!arg)
+			return -ENOMEM;
+		arg->send_fd = args32.send_fd;
+		arg->clone_sources_count = args32.clone_sources_count;
+		arg->clone_sources = compat_ptr(args32.clone_sources);
+		arg->parent_root = args32.parent_root;
+		arg->flags = args32.flags;
+		memcpy(arg->reserved, args32.reserved,
+		       sizeof(args32.reserved));
+#else
+		return -ENOTTY;
+#endif
+	} else {
+		arg = memdup_user(argp, sizeof(*arg));
+		if (IS_ERR(arg))
+			return PTR_ERR(arg);
+	}
+	ret = btrfs_ioctl_send(file, arg);
+	kfree(arg);
+	return ret;
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -5568,7 +5616,11 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_set_received_subvol_32(file, argp);
 #endif
 	case BTRFS_IOC_SEND:
-		return btrfs_ioctl_send(file, argp);
+		return _btrfs_ioctl_send(file, argp, false);
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+	case BTRFS_IOC_SEND_32:
+		return _btrfs_ioctl_send(file, argp, true);
+#endif
 	case BTRFS_IOC_GET_DEV_STATS:
 		return btrfs_ioctl_get_dev_stats(fs_info, argp);
 	case BTRFS_IOC_QUOTA_CTL:
