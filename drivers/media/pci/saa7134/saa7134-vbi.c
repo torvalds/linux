@@ -165,7 +165,7 @@ static int buffer_init(struct vb2_buffer *vb2)
 	return 0;
 }
 
-struct vb2_ops saa7134_vbi_qops = {
+const struct vb2_ops saa7134_vbi_qops = {
 	.queue_setup	= queue_setup,
 	.buf_init	= buffer_init,
 	.buf_prepare	= buffer_prepare,

@@ -870,7 +870,7 @@ int saa7134_ts_stop(struct saa7134_dev *dev);
 /* ----------------------------------------------------------- */
 /* saa7134-vbi.c                                               */
 
-extern struct vb2_ops saa7134_vbi_qops;
+extern const struct vb2_ops saa7134_vbi_qops;
 extern struct video_device saa7134_vbi_template;
 
 int saa7134_vbi_init1(struct saa7134_dev *dev);
