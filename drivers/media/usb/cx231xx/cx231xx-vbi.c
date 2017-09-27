@@ -285,7 +285,7 @@ static void vbi_buffer_release(struct videobuf_queue *vq,
 	free_buffer(vq, buf);
 }
 
-struct videobuf_queue_ops cx231xx_vbi_qops = {
+const struct videobuf_queue_ops cx231xx_vbi_qops = {
 	.buf_setup   = vbi_buffer_setup,
 	.buf_prepare = vbi_buffer_prepare,
 	.buf_queue   = vbi_buffer_queue,
