@@ -4366,6 +4366,12 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/bochs/
 
+DRM DRIVER FOR FARADAY TVE200 TV ENCODER
+M:	Linus Walleij <linus.walleij@linaro.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/tve200/
+
 DRM DRIVER FOR INTEL I810 VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/i810/
@@ -4509,7 +4515,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/sun4i/
 F:	Documentation/devicetree/bindings/display/sunxi/sun4i-drm.txt
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux.git
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR AMLOGIC SOCS
 M:	Neil Armstrong <narmstrong@baylibre.com>
@@ -4693,7 +4699,7 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 DRM PANEL DRIVERS
 M:	Thierry Reding <thierry.reding@gmail.com>
 L:	dri-devel@lists.freedesktop.org
-T:	git git://anongit.freedesktop.org/tegra/linux.git
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/drm_panel.c
 F:	drivers/gpu/drm/panel/

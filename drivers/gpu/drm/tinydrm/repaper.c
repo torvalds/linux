@@ -1078,19 +1078,11 @@ static int repaper_probe(struct spi_device *spi)
 		return ret;
 
 	drm_mode_config_reset(tdev->drm);
-
-	ret = devm_tinydrm_register(tdev);
-	if (ret)
-		return ret;
-
 	spi_set_drvdata(spi, tdev);
 
-	DRM_DEBUG_DRIVER("Initialized %s:%s @%uMHz on minor %d\n",
-			 tdev->drm->driver->name, dev_name(dev),
-			 spi->max_speed_hz / 1000000,
-			 tdev->drm->primary->index);
+	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
 
-	return 0;
+	return devm_tinydrm_register(tdev);
 }
 
 static void repaper_shutdown(struct spi_device *spi)

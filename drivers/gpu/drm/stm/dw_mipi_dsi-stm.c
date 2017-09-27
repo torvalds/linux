@@ -113,11 +113,13 @@ static enum dsi_color dsi_color_from_mipi(enum mipi_dsi_pixel_format fmt)
 
 static int dsi_pll_get_clkout_khz(int clkin_khz, int idf, int ndiv, int odf)
 {
-	/* prevent from division by 0 */
-	if (idf * odf)
-		return DIV_ROUND_CLOSEST(clkin_khz * ndiv, idf * odf);
+	int divisor = idf * odf;
 
-	return 0;
+	/* prevent from division by 0 */
+	if (!divisor)
+		return 0;
+
+	return DIV_ROUND_CLOSEST(clkin_khz * ndiv, divisor);
 }
 
 static int dsi_pll_get_params(int clkin_khz, int clkout_khz,

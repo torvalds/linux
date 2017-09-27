@@ -615,7 +615,6 @@ static const struct drm_prop_enum_list drm_link_status_enum_list[] = {
 	{ DRM_MODE_LINK_STATUS_GOOD, "Good" },
 	{ DRM_MODE_LINK_STATUS_BAD, "Bad" },
 };
-DRM_ENUM_NAME_FN(drm_get_link_status_name, drm_link_status_enum_list)
 
 /**
  * drm_display_info_set_bus_formats - set the supported bus formats

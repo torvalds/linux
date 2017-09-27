@@ -248,6 +248,7 @@ ontat	On Tat Industrial Company
 opencores	OpenCores.org
 option	Option NV
 ORCL	Oracle Corporation
+orisetech	Orise Technology
 ortustech	Ortus Technology Co., Ltd.
 ovti	OmniVision Technologies
 oxsemi	Oxford Semiconductor, Ltd.

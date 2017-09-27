@@ -842,6 +842,8 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 			return -ENOMEM;
 	}
 
+	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
+
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dbi_spi_init);

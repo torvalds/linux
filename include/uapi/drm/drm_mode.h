@@ -749,9 +749,9 @@ struct drm_format_modifier {
 	 * If the number formats grew to 128, and formats 98-102 are
 	 * supported with the modifier:
 	 *
-	 * 0x0000003c00000000 0000000000000000
+	 * 0x0000007c00000000 0000000000000000
 	 *		  ^
-	 *		  |__offset = 64, formats = 0x3c00000000
+	 *		  |__offset = 64, formats = 0x7c00000000
 	 *
 	 */
 	__u64 formats;

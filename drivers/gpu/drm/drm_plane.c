@@ -667,7 +667,7 @@ static int setplane_internal(struct drm_plane *plane,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, 0);
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 retry:
 	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
 	if (ret)
@@ -678,8 +678,9 @@ retry:
 
 fail:
 	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
+		ret = drm_modeset_backoff(&ctx);
+		if (!ret)
+			goto retry;
 	}
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
@@ -834,7 +835,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 		return -ENOENT;
 	}
 
-	drm_modeset_acquire_init(&ctx, 0);
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 retry:
 	ret = drm_modeset_lock(&crtc->mutex, &ctx);
 	if (ret)
@@ -876,8 +877,9 @@ retry:
 	}
 out:
 	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
+		ret = drm_modeset_backoff(&ctx);
+		if (!ret)
+			goto retry;
 	}
 
 	drm_modeset_drop_locks(&ctx);
@@ -985,7 +987,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	drm_modeset_acquire_init(&ctx, 0);
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 retry:
 	ret = drm_modeset_lock(&crtc->mutex, &ctx);
 	if (ret)
@@ -1074,8 +1076,9 @@ out:
 	crtc->primary->old_fb = NULL;
 
 	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
+		ret = drm_modeset_backoff(&ctx);
+		if (!ret)
+			goto retry;
 	}
 
 	drm_modeset_drop_locks(&ctx);
