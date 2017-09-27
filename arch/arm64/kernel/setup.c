@@ -102,7 +102,8 @@ void __init smp_setup_processor_id(void)
 	 * access percpu variable inside lock_release
 	 */
 	set_my_cpu_offset(0);
-	pr_info("Booting Linux on physical CPU 0x%lx\n", (unsigned long)mpidr);
+	pr_info("Booting Linux on physical CPU 0x%010lx [0x%08x]\n",
+		(unsigned long)mpidr, read_cpuid_id());
 }
 
 bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
@@ -243,8 +244,6 @@ u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
 
 void __init setup_arch(char **cmdline_p)
 {
-	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
-
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code   = (unsigned long) _etext;
 	init_mm.end_data   = (unsigned long) _edata;
