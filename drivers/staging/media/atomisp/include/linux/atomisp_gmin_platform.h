@@ -17,9 +17,6 @@
 
 #include "atomisp_platform.h"
 
-const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void);
-const struct atomisp_platform_data *atomisp_get_platform_data(void);
-const struct camera_af_platform_data *camera_get_af_platform_data(void);
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
                                 struct camera_sensor_platform_data *plat_data,
                                 enum intel_v4l2_subdev_type type);
