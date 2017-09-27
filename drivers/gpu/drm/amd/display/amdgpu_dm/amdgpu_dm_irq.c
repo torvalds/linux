@@ -462,7 +462,7 @@ int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
 	DRM_DEBUG_KMS("DM_IRQ: early resume\n");
 
 	/* re-enable short pulse interrupts HW interrupt */
-	for (src = DC_IRQ_SOURCE_HPD1RX; src < DC_IRQ_SOURCE_HPD6RX + 1; src++) {
+	for (src = DC_IRQ_SOURCE_HPD1RX; src <= DC_IRQ_SOURCE_HPD6RX + 1; src++) {
 		hnd_list_l = &adev->dm.irq_handler_list_low_tab[src].head;
 		hnd_list_h = &adev->dm.irq_handler_list_high_tab[src];
 		if (!list_empty(hnd_list_l) || !list_empty(hnd_list_h))
@@ -488,7 +488,7 @@ int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
 	 * Renable HW interrupt  for HPD and only since FLIP and VBLANK
 	 * will be enabled from manage_dm_interrupts on enable CRTC.
 	 */
-	for (src = DC_IRQ_SOURCE_HPD1; src < DC_IRQ_SOURCE_HPD6; src++) {
+	for (src = DC_IRQ_SOURCE_HPD1; src <= DC_IRQ_SOURCE_HPD6; src++) {
 		hnd_list_l = &adev->dm.irq_handler_list_low_tab[src].head;
 		hnd_list_h = &adev->dm.irq_handler_list_high_tab[src];
 		if (!list_empty(hnd_list_l) || !list_empty(hnd_list_h))
