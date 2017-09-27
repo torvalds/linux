@@ -677,10 +677,6 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
-
 	/* Note: the GPIO order is asymmetric: always RESET#
 	 * before PWDN# when turning it on or off.
 	 */

@@ -771,10 +771,6 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
-
 	/* GPIO0 == "reset" (active low), GPIO1 == "power down" */
 	if (flag) {
 		/* Pulse reset, then release power down */

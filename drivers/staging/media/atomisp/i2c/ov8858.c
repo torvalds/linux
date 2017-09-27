@@ -767,10 +767,6 @@ static int __gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!client || !dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
-
 	if (dev->platform_data->gpio0_ctrl)
 		return dev->platform_data->gpio0_ctrl(sd, flag);
 

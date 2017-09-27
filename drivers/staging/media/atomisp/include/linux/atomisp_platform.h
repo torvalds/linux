@@ -205,7 +205,6 @@ struct camera_vcm_control {
 };
 
 struct camera_sensor_platform_data {
-	int (*gpio_ctrl)(struct v4l2_subdev *subdev, int flag);
 	int (*flisclk_ctrl)(struct v4l2_subdev *subdev, int flag);
 	int (*power_ctrl)(struct v4l2_subdev *subdev, int flag);
 	int (*csi_cfg)(struct v4l2_subdev *subdev, int flag);
@@ -214,7 +213,6 @@ struct camera_sensor_platform_data {
 	int (*platform_deinit)(void);
 	char *(*msr_file_name)(void);
 	struct atomisp_camera_caps *(*get_camera_caps)(void);
-	int (*gpio_intr_ctrl)(struct v4l2_subdev *subdev);
 
 	/* New G-Min power and GPIO interface, replaces
 	 * power/gpio_ctrl with methods to control individual

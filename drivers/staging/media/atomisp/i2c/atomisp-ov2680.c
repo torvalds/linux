@@ -871,10 +871,6 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
-
 	/* The OV2680 documents only one GPIO input (#XSHUTDN), but
 	 * existing integrations often wire two (reset/power_down)
 	 * because that is the way other sensors work.  There is no

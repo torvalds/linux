@@ -571,10 +571,6 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
-
 	ret |= dev->platform_data->gpio1_ctrl(sd, !flag);
 	usleep_range(60, 90);
 	return dev->platform_data->gpio0_ctrl(sd, flag);

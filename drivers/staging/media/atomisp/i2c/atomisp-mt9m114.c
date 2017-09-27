@@ -480,10 +480,6 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
-
 	/* Note: current modules wire only one GPIO signal (RESET#),
 	 * but the schematic wires up two to the connector.  BIOS
 	 * versions have been unfortunately inconsistent with which
