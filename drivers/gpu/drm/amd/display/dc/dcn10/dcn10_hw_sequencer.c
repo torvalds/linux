@@ -2451,6 +2451,9 @@ static void optimize_shared_resources(struct dc *dc)
 		/* S0i2 message */
 		dcn10_pplib_apply_display_requirements(dc, dc->current_state);
 	}
+
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+		dcn_bw_notify_pplib_of_wm_ranges(dc);
 }
 
 static void ready_shared_resources(struct dc *dc, struct dc_state *context)

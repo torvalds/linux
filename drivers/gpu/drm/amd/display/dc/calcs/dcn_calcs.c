@@ -1441,6 +1441,53 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	ranges.writer_wm_sets[3].min_drain_clk_khz = max_fclk_khz;
 	ranges.writer_wm_sets[3].max_drain_clk_khz = max_fclk_khz;
 
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
+		ranges.reader_wm_sets[0].wm_inst = WM_A;
+		ranges.reader_wm_sets[0].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[0].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[0].min_fill_clk_khz = 800000;
+		ranges.reader_wm_sets[0].max_fill_clk_khz = 800000;
+		ranges.writer_wm_sets[0].wm_inst = WM_A;
+		ranges.writer_wm_sets[0].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[0].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[0].min_drain_clk_khz = 800000;
+		ranges.writer_wm_sets[0].max_drain_clk_khz = 800000;
+
+		ranges.reader_wm_sets[1].wm_inst = WM_B;
+		ranges.reader_wm_sets[1].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[1].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[1].min_fill_clk_khz = 933000;
+		ranges.reader_wm_sets[1].max_fill_clk_khz = 933000;
+		ranges.writer_wm_sets[1].wm_inst = WM_B;
+		ranges.writer_wm_sets[1].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[1].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[1].min_drain_clk_khz = 933000;
+		ranges.writer_wm_sets[1].max_drain_clk_khz = 933000;
+
+
+		ranges.reader_wm_sets[2].wm_inst = WM_C;
+		ranges.reader_wm_sets[2].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[2].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[2].min_fill_clk_khz = 1067000;
+		ranges.reader_wm_sets[2].max_fill_clk_khz = 1067000;
+		ranges.writer_wm_sets[2].wm_inst = WM_C;
+		ranges.writer_wm_sets[2].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[2].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[2].min_drain_clk_khz = 1067000;
+		ranges.writer_wm_sets[2].max_drain_clk_khz = 1067000;
+
+		ranges.reader_wm_sets[3].wm_inst = WM_D;
+		ranges.reader_wm_sets[3].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[3].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[3].min_fill_clk_khz = 1200000;
+		ranges.reader_wm_sets[3].max_fill_clk_khz = 1200000;
+		ranges.writer_wm_sets[3].wm_inst = WM_D;
+		ranges.writer_wm_sets[3].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[3].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[3].min_drain_clk_khz = 1200000;
+		ranges.writer_wm_sets[3].max_drain_clk_khz = 1200000;
+	}
+
 	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
 	pp->set_wm_ranges(&pp->pp_smu, &ranges);
 }

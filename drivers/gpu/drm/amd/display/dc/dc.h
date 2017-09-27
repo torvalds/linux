@@ -173,6 +173,11 @@ enum pipe_split_policy {
 	MPC_SPLIT_AVOID_MULT_DISP = 2,
 };
 
+enum wm_report_mode {
+	WM_REPORT_DEFAULT = 0,
+	WM_REPORT_OVERRIDE = 1,
+};
+
 struct dc_debug {
 	bool surface_visual_confirm;
 	bool sanity_checks;
@@ -194,6 +199,7 @@ struct dc_debug {
 	bool disable_dpp_power_gate;
 	bool disable_hubp_power_gate;
 	bool disable_pplib_wm_range;
+	enum wm_report_mode pplib_wm_report_mode;
 	bool use_dml_wm;
 	unsigned int min_disp_clk_khz;
 	int sr_exit_time_dpm0_ns;

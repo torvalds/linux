@@ -424,6 +424,7 @@ static const struct dc_debug debug_defaults_drv = {
 
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
+		.pplib_wm_report_mode = WM_REPORT_DEFAULT,
 		.use_dml_wm = false,
 
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
