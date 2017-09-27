@@ -125,10 +125,8 @@ struct clk *clk_register_gpt(const char *name, const char *parent_name, unsigned
 	}
 
 	gpt = kzalloc(sizeof(*gpt), GFP_KERNEL);
-	if (!gpt) {
-		pr_err("could not allocate gpt clk\n");
+	if (!gpt)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* struct clk_gpt assignments */
 	gpt->reg = reg;

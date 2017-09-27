@@ -136,10 +136,8 @@ struct clk *clk_register_frac(const char *name, const char *parent_name,
 	}
 
 	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
-	if (!frac) {
-		pr_err("could not allocate frac clk\n");
+	if (!frac)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* struct clk_frac assignments */
 	frac->reg = reg;
