@@ -128,7 +128,7 @@ void __flush_tlb_power9(unsigned int action)
 {
 	unsigned int num_sets;
 
-	if (radix_enabled())
+	if (early_radix_enabled())
 		num_sets = POWER9_TLB_SETS_RADIX;
 	else
 		num_sets = POWER9_TLB_SETS_HASH;
