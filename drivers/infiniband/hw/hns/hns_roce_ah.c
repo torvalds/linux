@@ -44,7 +44,7 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 				 struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibpd->device);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct ib_gid_attr gid_attr;
 	struct hns_roce_ah *ah;
 	u16 vlan_tag = 0xffff;

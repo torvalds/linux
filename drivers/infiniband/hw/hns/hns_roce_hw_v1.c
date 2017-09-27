@@ -34,6 +34,7 @@
 #include <linux/acpi.h>
 #include <linux/etherdevice.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
@@ -472,7 +473,7 @@ static void hns_roce_set_sdb_ext(struct hns_roce_dev *hr_dev, u32 ext_sdb_alept,
 	dma_addr_t sdb_dma_addr;
 	u32 val;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	db = &priv->db_table;
 
 	/* Configure extend SDB threshold */
@@ -511,7 +512,7 @@ static void hns_roce_set_odb_ext(struct hns_roce_dev *hr_dev, u32 ext_odb_alept,
 	dma_addr_t odb_dma_addr;
 	u32 val;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	db = &priv->db_table;
 
 	/* Configure extend ODB threshold */
@@ -547,7 +548,7 @@ static int hns_roce_db_ext_init(struct hns_roce_dev *hr_dev, u32 sdb_ext_mod,
 	dma_addr_t odb_dma_addr;
 	int ret = 0;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	db = &priv->db_table;
 
 	db->ext_db = kmalloc(sizeof(*db->ext_db), GFP_KERNEL);
@@ -668,7 +669,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	u8 port = 0;
 	u8 sl;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 
 	/* Reserved cq for loop qp */
@@ -816,7 +817,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 	int ret;
 	int i;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 
 	for (i = 0; i < HNS_ROCE_V1_RESV_QP; i++) {
@@ -850,7 +851,7 @@ static int hns_roce_db_init(struct hns_roce_dev *hr_dev)
 	u32 odb_evt_mod;
 	int ret = 0;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	db = &priv->db_table;
 
 	memset(db, 0, sizeof(*db));
@@ -906,7 +907,7 @@ static int hns_roce_v1_recreate_lp_qp(struct hns_roce_dev *hr_dev)
 	unsigned long end =
 	  msecs_to_jiffies(HNS_ROCE_V1_RECREATE_LP_QP_TIMEOUT_MSECS) + jiffies;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 
 	lp_qp_work = kzalloc(sizeof(struct hns_roce_recreate_lp_qp_work),
@@ -982,7 +983,7 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 	hr_dev = to_hr_dev(mr_work->ib_dev);
 	dev = &hr_dev->pdev->dev;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 	mr_free_cq = free_mr->mr_free_cq;
 
@@ -1038,7 +1039,7 @@ int hns_roce_v1_dereg_mr(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 	int npages;
 	int ret = 0;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 
 	if (mr->enabled) {
@@ -1103,7 +1104,7 @@ static void hns_roce_db_free(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_db_table *db;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	db = &priv->db_table;
 
 	if (db->sdb_ext_mod) {
@@ -1133,7 +1134,7 @@ static int hns_roce_raq_init(struct hns_roce_dev *hr_dev)
 	struct hns_roce_raq_table *raq;
 	struct device *dev = &hr_dev->pdev->dev;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	raq = &priv->raq_table;
 
 	raq->e_raq_buf = kzalloc(sizeof(*(raq->e_raq_buf)), GFP_KERNEL);
@@ -1210,7 +1211,7 @@ static void hns_roce_raq_free(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_raq_table *raq;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	raq = &priv->raq_table;
 
 	dma_free_coherent(dev, HNS_ROCE_V1_RAQ_SIZE, raq->e_raq_buf->buf,
@@ -1244,7 +1245,7 @@ static int hns_roce_bt_init(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v1_priv *priv;
 	int ret;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 
 	priv->bt_table.qpc_buf.buf = dma_alloc_coherent(dev,
 		HNS_ROCE_BT_RSV_BUF_SIZE, &priv->bt_table.qpc_buf.map,
@@ -1286,7 +1287,7 @@ static void hns_roce_bt_free(struct hns_roce_dev *hr_dev)
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 
 	dma_free_coherent(dev, HNS_ROCE_BT_RSV_BUF_SIZE,
 		priv->bt_table.cqc_buf.buf, priv->bt_table.cqc_buf.map);
@@ -1304,7 +1305,7 @@ static int hns_roce_tptr_init(struct hns_roce_dev *hr_dev)
 	struct hns_roce_buf_list *tptr_buf;
 	struct hns_roce_v1_priv *priv;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	tptr_buf = &priv->tptr_table.tptr_buf;
 
 	/*
@@ -1330,7 +1331,7 @@ static void hns_roce_tptr_free(struct hns_roce_dev *hr_dev)
 	struct hns_roce_buf_list *tptr_buf;
 	struct hns_roce_v1_priv *priv;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	tptr_buf = &priv->tptr_table.tptr_buf;
 
 	dma_free_coherent(dev, HNS_ROCE_V1_TPTR_BUF_SIZE,
@@ -1344,7 +1345,7 @@ static int hns_roce_free_mr_init(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v1_priv *priv;
 	int ret = 0;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 
 	free_mr->free_mr_wq = create_singlethread_workqueue("hns_roce_free_mr");
@@ -1368,7 +1369,7 @@ static void hns_roce_free_mr_free(struct hns_roce_dev *hr_dev)
 	struct hns_roce_free_mr *free_mr;
 	struct hns_roce_v1_priv *priv;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 
 	flush_workqueue(free_mr->free_mr_wq);
@@ -1432,7 +1433,7 @@ static int hns_roce_des_qp_init(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_des_qp *des_qp;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	des_qp = &priv->des_qp;
 
 	des_qp->requeue_flag = 1;
@@ -1450,7 +1451,7 @@ static void hns_roce_des_qp_free(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_des_qp *des_qp;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	des_qp = &priv->des_qp;
 
 	des_qp->requeue_flag = 0;
@@ -1458,7 +1459,7 @@ static void hns_roce_des_qp_free(struct hns_roce_dev *hr_dev)
 	destroy_workqueue(des_qp->qp_wq);
 }
 
-void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
+int hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 {
 	int i = 0;
 	struct hns_roce_caps *caps = &hr_dev->caps;
@@ -1474,7 +1475,9 @@ void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 
 	caps->num_qps		= HNS_ROCE_V1_MAX_QP_NUM;
 	caps->max_wqes		= HNS_ROCE_V1_MAX_WQE_NUM;
+	caps->min_wqes		= HNS_ROCE_MIN_WQE_NUM;
 	caps->num_cqs		= HNS_ROCE_V1_MAX_CQ_NUM;
+	caps->min_cqes		= HNS_ROCE_MIN_CQE_NUM;
 	caps->max_cqes		= HNS_ROCE_V1_MAX_CQE_NUM;
 	caps->max_sq_sg		= HNS_ROCE_V1_SG_NUM;
 	caps->max_rq_sg		= HNS_ROCE_V1_SG_NUM;
@@ -1524,6 +1527,8 @@ void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	caps->local_ca_ack_delay = le32_to_cpu(roce_read(hr_dev,
 							 ROCEE_ACK_DELAY_REG));
 	caps->max_mtu = IB_MTU_2048;
+
+	return 0;
 }
 
 int hns_roce_v1_init(struct hns_roce_dev *hr_dev)
@@ -1614,6 +1619,79 @@ void hns_roce_v1_exit(struct hns_roce_dev *hr_dev)
 	hns_roce_bt_free(hr_dev);
 	hns_roce_raq_free(hr_dev);
 	hns_roce_db_free(hr_dev);
+}
+
+static int hns_roce_v1_cmd_pending(struct hns_roce_dev *hr_dev)
+{
+	u32 status = readl(hr_dev->reg_base + ROCEE_MB6_REG);
+
+	return (!!(status & (1 << HCR_GO_BIT)));
+}
+
+int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
+			  u64 out_param, u32 in_modifier, u8 op_modifier,
+			  u16 op, u16 token, int event)
+{
+	u32 *hcr = (u32 *)(hr_dev->reg_base + ROCEE_MB1_REG);
+	unsigned long end;
+	u32 val = 0;
+
+	end = msecs_to_jiffies(GO_BIT_TIMEOUT_MSECS) + jiffies;
+	while (hns_roce_v1_cmd_pending(hr_dev)) {
+		if (time_after(jiffies, end)) {
+			dev_err(hr_dev->dev, "jiffies=%d end=%d\n",
+				(int)jiffies, (int)end);
+			return -EAGAIN;
+		}
+		cond_resched();
+	}
+
+	roce_set_field(val, ROCEE_MB6_ROCEE_MB_CMD_M, ROCEE_MB6_ROCEE_MB_CMD_S,
+		       op);
+	roce_set_field(val, ROCEE_MB6_ROCEE_MB_CMD_MDF_M,
+		       ROCEE_MB6_ROCEE_MB_CMD_MDF_S, op_modifier);
+	roce_set_bit(val, ROCEE_MB6_ROCEE_MB_EVENT_S, event);
+	roce_set_bit(val, ROCEE_MB6_ROCEE_MB_HW_RUN_S, 1);
+	roce_set_field(val, ROCEE_MB6_ROCEE_MB_TOKEN_M,
+		       ROCEE_MB6_ROCEE_MB_TOKEN_S, token);
+
+	__raw_writeq(cpu_to_le64(in_param), hcr + 0);
+	__raw_writeq(cpu_to_le64(out_param), hcr + 2);
+	__raw_writel(cpu_to_le32(in_modifier), hcr + 4);
+	/* Memory barrier */
+	wmb();
+
+	__raw_writel(cpu_to_le32(val), hcr + 5);
+
+	mmiowb();
+
+	return 0;
+}
+
+static int hns_roce_v1_chk_mbox(struct hns_roce_dev *hr_dev,
+				unsigned long timeout)
+{
+	u8 __iomem *hcr = hr_dev->reg_base + ROCEE_MB1_REG;
+	unsigned long end = 0;
+	u32 status = 0;
+
+	end = msecs_to_jiffies(timeout) + jiffies;
+	while (hns_roce_v1_cmd_pending(hr_dev) && time_before(jiffies, end))
+		cond_resched();
+
+	if (hns_roce_v1_cmd_pending(hr_dev)) {
+		dev_err(hr_dev->dev, "[cmd_poll]hw run cmd TIMEDOUT!\n");
+		return -ETIMEDOUT;
+	}
+
+	status = le32_to_cpu((__force __be32)
+			      __raw_readl(hcr + HCR_STATUS_OFFSET));
+	if ((status & STATUS_MASK) != 0x1) {
+		dev_err(hr_dev->dev, "mailbox status 0x%x!\n", status);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 void hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
@@ -1941,7 +2019,7 @@ void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 	dma_addr_t tptr_dma_addr;
 	int offset;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	tptr_buf = &priv->tptr_table.tptr_buf;
 
 	cq_context = mb_buf;
@@ -2280,7 +2358,7 @@ int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 }
 
 int hns_roce_v1_clear_hem(struct hns_roce_dev *hr_dev,
-		struct hns_roce_hem_table *table, int obj)
+		struct hns_roce_hem_table *table, int obj, int step_idx)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
@@ -2289,7 +2367,7 @@ int hns_roce_v1_clear_hem(struct hns_roce_dev *hr_dev,
 	void __iomem *bt_cmd;
 	u64 bt_ba = 0;
 
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 
 	switch (table->type) {
 	case HEM_TYPE_QPC:
@@ -2448,7 +2526,7 @@ static int hns_roce_v1_m_sqp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		return -ENOMEM;
 
 	/* Search QP buf's MTTs */
-	mtts = hns_roce_table_find(&hr_dev->mr_table.mtt_table,
+	mtts = hns_roce_table_find(hr_dev, &hr_dev->mr_table.mtt_table,
 				   hr_qp->mtt.first_seg, &dma_handle);
 	if (!mtts) {
 		dev_err(dev, "qp buf pa find failed\n");
@@ -2595,7 +2673,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		return -ENOMEM;
 
 	/* Search qp buf's mtts */
-	mtts = hns_roce_table_find(&hr_dev->mr_table.mtt_table,
+	mtts = hns_roce_table_find(hr_dev, &hr_dev->mr_table.mtt_table,
 				   hr_qp->mtt.first_seg, &dma_handle);
 	if (mtts == NULL) {
 		dev_err(dev, "qp buf pa find failed\n");
@@ -2603,8 +2681,8 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	}
 
 	/* Search IRRL's mtts */
-	mtts_2 = hns_roce_table_find(&hr_dev->qp_table.irrl_table, hr_qp->qpn,
-				     &dma_handle_2);
+	mtts_2 = hns_roce_table_find(hr_dev, &hr_dev->qp_table.irrl_table,
+				     hr_qp->qpn, &dma_handle_2);
 	if (mtts_2 == NULL) {
 		dev_err(dev, "qp irrl_table find failed\n");
 		goto out;
@@ -3143,7 +3221,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 
 		if (ibqp->uobject) {
 			hr_qp->rq.db_reg_l = hr_dev->reg_base +
-				     ROCEE_DB_OTHERS_L_0_REG +
+				     hr_dev->odb_offset +
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
 		}
 
@@ -3664,7 +3742,7 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 	qp_work_entry = container_of(work, struct hns_roce_qp_work, work);
 	hr_dev = to_hr_dev(qp_work_entry->ib_dev);
 	dev = &hr_dev->pdev->dev;
-	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	hr_qp = qp_work_entry->qp;
 	qpn = hr_qp->qpn;
 
@@ -3781,7 +3859,7 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
 		qp_work->sdb_inv_cnt	= qp_work_entry.sdb_inv_cnt;
 		qp_work->sche_cnt	= qp_work_entry.sche_cnt;
 
-		priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+		priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 		queue_work(priv->des_qp.qp_wq, &qp_work->work);
 		dev_dbg(dev, "Begin destroy QP(0x%lx) work.\n", hr_qp->qpn);
 	}
@@ -3841,13 +3919,13 @@ int hns_roce_v1_destroy_cq(struct ib_cq *ibcq)
 	return ret;
 }
 
-struct hns_roce_v1_priv hr_v1_priv;
-
-struct hns_roce_hw hns_roce_hw_v1 = {
+static const struct hns_roce_hw hns_roce_hw_v1 = {
 	.reset = hns_roce_v1_reset,
 	.hw_profile = hns_roce_v1_profile,
 	.hw_init = hns_roce_v1_init,
 	.hw_exit = hns_roce_v1_exit,
+	.post_mbox = hns_roce_v1_post_mbox,
+	.chk_mbox = hns_roce_v1_chk_mbox,
 	.set_gid = hns_roce_v1_set_gid,
 	.set_mac = hns_roce_v1_set_mac,
 	.set_mtu = hns_roce_v1_set_mtu,
@@ -3863,5 +3941,258 @@ struct hns_roce_hw hns_roce_hw_v1 = {
 	.poll_cq = hns_roce_v1_poll_cq,
 	.dereg_mr = hns_roce_v1_dereg_mr,
 	.destroy_cq = hns_roce_v1_destroy_cq,
-	.priv = &hr_v1_priv,
 };
+
+static const struct of_device_id hns_roce_of_match[] = {
+	{ .compatible = "hisilicon,hns-roce-v1", .data = &hns_roce_hw_v1, },
+	{},
+};
+MODULE_DEVICE_TABLE(of, hns_roce_of_match);
+
+static const struct acpi_device_id hns_roce_acpi_match[] = {
+	{ "HISI00D1", (kernel_ulong_t)&hns_roce_hw_v1 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, hns_roce_acpi_match);
+
+static int hns_roce_node_match(struct device *dev, void *fwnode)
+{
+	return dev->fwnode == fwnode;
+}
+
+static struct
+platform_device *hns_roce_find_pdev(struct fwnode_handle *fwnode)
+{
+	struct device *dev;
+
+	/* get the 'device' corresponding to the matching 'fwnode' */
+	dev = bus_find_device(&platform_bus_type, NULL,
+			      fwnode, hns_roce_node_match);
+	/* get the platform device */
+	return dev ? to_platform_device(dev) : NULL;
+}
+
+static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	struct platform_device *pdev = NULL;
+	struct net_device *netdev = NULL;
+	struct device_node *net_node;
+	struct resource *res;
+	int port_cnt = 0;
+	u8 phy_port;
+	int ret;
+	int i;
+
+	/* check if we are compatible with the underlying SoC */
+	if (dev_of_node(dev)) {
+		const struct of_device_id *of_id;
+
+		of_id = of_match_node(hns_roce_of_match, dev->of_node);
+		if (!of_id) {
+			dev_err(dev, "device is not compatible!\n");
+			return -ENXIO;
+		}
+		hr_dev->hw = (const struct hns_roce_hw *)of_id->data;
+		if (!hr_dev->hw) {
+			dev_err(dev, "couldn't get H/W specific DT data!\n");
+			return -ENXIO;
+		}
+	} else if (is_acpi_device_node(dev->fwnode)) {
+		const struct acpi_device_id *acpi_id;
+
+		acpi_id = acpi_match_device(hns_roce_acpi_match, dev);
+		if (!acpi_id) {
+			dev_err(dev, "device is not compatible!\n");
+			return -ENXIO;
+		}
+		hr_dev->hw = (const struct hns_roce_hw *) acpi_id->driver_data;
+		if (!hr_dev->hw) {
+			dev_err(dev, "couldn't get H/W specific ACPI data!\n");
+			return -ENXIO;
+		}
+	} else {
+		dev_err(dev, "can't read compatibility data from DT or ACPI\n");
+		return -ENXIO;
+	}
+
+	/* get the mapped register base address */
+	res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "memory resource not found!\n");
+		return -EINVAL;
+	}
+	hr_dev->reg_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hr_dev->reg_base))
+		return PTR_ERR(hr_dev->reg_base);
+
+	/* read the node_guid of IB device from the DT or ACPI */
+	ret = device_property_read_u8_array(dev, "node-guid",
+					    (u8 *)&hr_dev->ib_dev.node_guid,
+					    GUID_LEN);
+	if (ret) {
+		dev_err(dev, "couldn't get node_guid from DT or ACPI!\n");
+		return ret;
+	}
+
+	/* get the RoCE associated ethernet ports or netdevices */
+	for (i = 0; i < HNS_ROCE_MAX_PORTS; i++) {
+		if (dev_of_node(dev)) {
+			net_node = of_parse_phandle(dev->of_node, "eth-handle",
+						    i);
+			if (!net_node)
+				continue;
+			pdev = of_find_device_by_node(net_node);
+		} else if (is_acpi_device_node(dev->fwnode)) {
+			struct acpi_reference_args args;
+			struct fwnode_handle *fwnode;
+
+			ret = acpi_node_get_property_reference(dev->fwnode,
+							       "eth-handle",
+							       i, &args);
+			if (ret)
+				continue;
+			fwnode = acpi_fwnode_handle(args.adev);
+			pdev = hns_roce_find_pdev(fwnode);
+		} else {
+			dev_err(dev, "cannot read data from DT or ACPI\n");
+			return -ENXIO;
+		}
+
+		if (pdev) {
+			netdev = platform_get_drvdata(pdev);
+			phy_port = (u8)i;
+			if (netdev) {
+				hr_dev->iboe.netdevs[port_cnt] = netdev;
+				hr_dev->iboe.phy_port[port_cnt] = phy_port;
+			} else {
+				dev_err(dev, "no netdev found with pdev %s\n",
+					pdev->name);
+				return -ENODEV;
+			}
+			port_cnt++;
+		}
+	}
+
+	if (port_cnt == 0) {
+		dev_err(dev, "unable to get eth-handle for available ports!\n");
+		return -EINVAL;
+	}
+
+	hr_dev->caps.num_ports = port_cnt;
+
+	/* cmd issue mode: 0 is poll, 1 is event */
+	hr_dev->cmd_mod = 1;
+	hr_dev->loop_idc = 0;
+	hr_dev->sdb_offset = ROCEE_DB_SQ_L_0_REG;
+	hr_dev->odb_offset = ROCEE_DB_OTHERS_L_0_REG;
+
+	/* read the interrupt names from the DT or ACPI */
+	ret = device_property_read_string_array(dev, "interrupt-names",
+						hr_dev->irq_names,
+						HNS_ROCE_MAX_IRQ_NUM);
+	if (ret < 0) {
+		dev_err(dev, "couldn't get interrupt names from DT or ACPI!\n");
+		return ret;
+	}
+
+	/* fetch the interrupt numbers */
+	for (i = 0; i < HNS_ROCE_MAX_IRQ_NUM; i++) {
+		hr_dev->irq[i] = platform_get_irq(hr_dev->pdev, i);
+		if (hr_dev->irq[i] <= 0) {
+			dev_err(dev, "platform get of irq[=%d] failed!\n", i);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * hns_roce_probe - RoCE driver entrance
+ * @pdev: pointer to platform device
+ * Return : int
+ *
+ */
+static int hns_roce_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct hns_roce_dev *hr_dev;
+	struct device *dev = &pdev->dev;
+
+	hr_dev = (struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
+	if (!hr_dev)
+		return -ENOMEM;
+
+	hr_dev->priv = kzalloc(sizeof(struct hns_roce_v1_priv), GFP_KERNEL);
+	if (!hr_dev->priv) {
+		ret = -ENOMEM;
+		goto error_failed_kzalloc;
+	}
+
+	hr_dev->pdev = pdev;
+	hr_dev->dev = dev;
+	platform_set_drvdata(pdev, hr_dev);
+
+	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64ULL)) &&
+	    dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32ULL))) {
+		dev_err(dev, "Not usable DMA addressing mode\n");
+		ret = -EIO;
+		goto error_failed_get_cfg;
+	}
+
+	ret = hns_roce_get_cfg(hr_dev);
+	if (ret) {
+		dev_err(dev, "Get Configuration failed!\n");
+		goto error_failed_get_cfg;
+	}
+
+	ret = hns_roce_init(hr_dev);
+	if (ret) {
+		dev_err(dev, "RoCE engine init failed!\n");
+		goto error_failed_get_cfg;
+	}
+
+	return 0;
+
+error_failed_get_cfg:
+	kfree(hr_dev->priv);
+
+error_failed_kzalloc:
+	ib_dealloc_device(&hr_dev->ib_dev);
+
+	return ret;
+}
+
+/**
+ * hns_roce_remove - remove RoCE device
+ * @pdev: pointer to platform device
+ */
+static int hns_roce_remove(struct platform_device *pdev)
+{
+	struct hns_roce_dev *hr_dev = platform_get_drvdata(pdev);
+
+	hns_roce_exit(hr_dev);
+	kfree(hr_dev->priv);
+	ib_dealloc_device(&hr_dev->ib_dev);
+
+	return 0;
+}
+
+static struct platform_driver hns_roce_driver = {
+	.probe = hns_roce_probe,
+	.remove = hns_roce_remove,
+	.driver = {
+		.name = DRV_NAME,
+		.of_match_table = hns_roce_of_match,
+		.acpi_match_table = ACPI_PTR(hns_roce_acpi_match),
+	},
+};
+
+module_platform_driver(hns_roce_driver);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_AUTHOR("Wei Hu <xavier.huwei@huawei.com>");
+MODULE_AUTHOR("Nenglong Zhao <zhaonenglong@hisilicon.com>");
+MODULE_AUTHOR("Lijun Ou <oulijun@huawei.com>");
+MODULE_DESCRIPTION("Hisilicon Hip06 Family RoCE Driver");

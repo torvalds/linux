@@ -230,8 +230,8 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
 	if (!ret) {
-		pr_debug("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
-			 func, pci_name(rdev->lldi.pdev), hwtid, qpid);
+		pr_err("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+		       func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
 	}
@@ -537,8 +537,7 @@ static inline struct c4iw_mm_entry *remove_mmap(struct c4iw_ucontext *ucontext,
 		if (mm->key == key && mm->len == len) {
 			list_del_init(&mm->entry);
 			spin_unlock(&ucontext->mmap_lock);
-			pr_debug("%s key 0x%x addr 0x%llx len %d\n",
-				 __func__, key,
+			pr_debug("key 0x%x addr 0x%llx len %d\n", key,
 				 (unsigned long long)mm->addr, mm->len);
 			return mm;
 		}
@@ -551,8 +550,8 @@ static inline void insert_mmap(struct c4iw_ucontext *ucontext,
 			       struct c4iw_mm_entry *mm)
 {
 	spin_lock(&ucontext->mmap_lock);
-	pr_debug("%s key 0x%x addr 0x%llx len %d\n",
-		 __func__, mm->key, (unsigned long long)mm->addr, mm->len);
+	pr_debug("key 0x%x addr 0x%llx len %d\n",
+		 mm->key, (unsigned long long)mm->addr, mm->len);
 	list_add_tail(&mm->entry, &ucontext->mmaps);
 	spin_unlock(&ucontext->mmap_lock);
 }
@@ -671,16 +670,14 @@ enum c4iw_mmid_state {
 #define MPA_V2_IRD_ORD_MASK             0x3FFF
 
 #define c4iw_put_ep(ep) {						\
-	pr_debug("put_ep (via %s:%u) ep %p refcnt %d\n",		\
-		 __func__, __LINE__,					\
+	pr_debug("put_ep ep %p refcnt %d\n",		\
 		 ep, kref_read(&((ep)->kref)));				\
 	WARN_ON(kref_read(&((ep)->kref)) < 1);				\
 	kref_put(&((ep)->kref), _c4iw_free_ep);				\
 }
 
 #define c4iw_get_ep(ep) {						\
-	pr_debug("get_ep (via %s:%u) ep %p, refcnt %d\n",		\
-		 __func__, __LINE__,					\
+	pr_debug("get_ep ep %p, refcnt %d\n",		\
 		 ep, kref_read(&((ep)->kref)));				\
 	kref_get(&((ep)->kref));					\
 }
