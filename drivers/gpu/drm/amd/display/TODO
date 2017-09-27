@@ -79,3 +79,34 @@ TODOs
 
 12. drm_modeset_lock in MST should no longer be needed in recent kernels
     * Adopt appropriate locking scheme
+
+13. get_modes and best_encoder callbacks look a bit funny. Can probably rip out
+a few indirections, and consider removing entirely and using the
+drm_atomic_helper_best_encoder default behaviour.
+
+14. core/dc_debug.c, consider switching to the atomic state debug helpers and
+moving all your driver state printing into the various atomic_print_state
+callbacks. There's also plans to expose this stuff in a standard way across all
+drivers, to make debugging userspace compositors easier across different hw.
+
+15. Move DP/HDMI dual mode adaptors to drm_dp_dual_mode_helper.c.
+
+16. Move to core SCDC helpers (I think those are new since initial DC review).
+
+17. There's still a pretty massive layer cake around dp aux and DPCD handling,
+with like 3 levels of abstraction and using your own structures instead of the
+stuff in drm_dp_helper.h. drm_dp_helper.h isn't really great and already has 2
+incompatible styles, just means more reasons not to add a third (or well third
+one gets to do the cleanup refactor).
+
+18. There's a pile of sink handling code, both for DP and HDMI where I didn't
+immediately recognize the standard. I think long term it'd be best for the drm
+subsystem if we try to move as much of that into helpers/core as possible, and
+share it with drivers. But that's a very long term goal, and by far not just an
+issue with DC - other drivers, especially around DP sink handling, are equally
+guilty.
+
+19. The DC logger is still a rather sore thing, but I know that the DRM_DEBUG
+stuff just isn't up to the challenges either. We need to figure out something
+that integrates better with DRM and linux debug printing, while not being
+useless with filtering output. dynamic debug printing might be an option.
