@@ -547,14 +547,24 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		tiling = SCALER_CTL0_TILING_LINEAR;
 		pitch0 = VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH);
 		break;
-	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED:
+
+	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED: {
+		/* For T-tiled, the FB pitch is "how many bytes from
+		 * one row to the next, such that pitch * tile_h ==
+		 * tile_size * tiles_per_row."
+		 */
+		u32 tile_size_shift = 12; /* T tiles are 4kb */
+		u32 tile_h_shift = 5; /* 16 and 32bpp are 32 pixels high */
+		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
+
 		tiling = SCALER_CTL0_TILING_256B_OR_T;
 
-		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET),
-			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L),
-			  VC4_SET_FIELD((vc4_state->src_w[0] + 31) >> 5,
-					SCALER_PITCH0_TILE_WIDTH_R));
+		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET) |
+			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L) |
+			  VC4_SET_FIELD(tiles_w, SCALER_PITCH0_TILE_WIDTH_R));
 		break;
+	}
+
 	default:
 		DRM_DEBUG_KMS("Unsupported FB tiling flag 0x%16llx",
 			      (long long)fb->modifier);
