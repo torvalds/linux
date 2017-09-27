@@ -399,23 +399,25 @@ u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_first_set_kvdl_index);
 
-void mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
+int mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
 {
-	if (WARN_ON(block->finished))
-		return;
+	if (block->finished)
+		return -EINVAL;
 	mlxsw_afa_set_goto_set(block->cur_set,
 			       MLXSW_AFA_SET_GOTO_BINDING_CMD_NONE, 0);
 	block->finished = true;
+	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_continue);
 
-void mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id)
+int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id)
 {
-	if (WARN_ON(block->finished))
-		return;
+	if (block->finished)
+		return -EINVAL;
 	mlxsw_afa_set_goto_set(block->cur_set,
 			       MLXSW_AFA_SET_GOTO_BINDING_CMD_JUMP, group_id);
 	block->finished = true;
+	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_jump);
 
