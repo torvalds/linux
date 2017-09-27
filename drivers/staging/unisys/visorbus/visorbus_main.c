@@ -417,7 +417,7 @@ static int bus_info_debugfs_show(struct seq_file *seq, void *v)
 		return 0;
 
 	seq_printf(seq,
-		   "Client device / client driver info for %s partition (vbus #%u):\n",
+		   "Client device/driver info for %s partition (vbus #%u):\n",
 		   ((vdev->name) ? (char *)(vdev->name) : ""),
 		   vdev->chipset_bus_no);
 
