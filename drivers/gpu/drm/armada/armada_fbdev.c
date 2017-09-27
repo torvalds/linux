@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
