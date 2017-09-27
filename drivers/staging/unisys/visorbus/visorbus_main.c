@@ -743,11 +743,12 @@ static void write_vbus_chp_info(struct visorchannel *chan,
 				struct visor_vbus_headerinfo *hdr_info,
 				struct visor_vbus_deviceinfo *info)
 {
-	int off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
+	int off;
 
 	if (hdr_info->chp_info_offset == 0)
 		return;
 
+	off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
 	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
@@ -768,11 +769,11 @@ static void write_vbus_bus_info(struct visorchannel *chan,
 				struct visor_vbus_headerinfo *hdr_info,
 				struct visor_vbus_deviceinfo *info)
 {
-	int off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
+	int off;
 
 	if (hdr_info->bus_info_offset == 0)
 		return;
-
+	off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
 	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
@@ -795,13 +796,12 @@ static void write_vbus_dev_info(struct visorchannel *chan,
 				struct visor_vbus_deviceinfo *info,
 				unsigned int devix)
 {
-	int off =
-	    (sizeof(struct channel_header) + hdr_info->dev_info_offset) +
-	    (hdr_info->device_info_struct_bytes * devix);
+	int off;
 
 	if (hdr_info->dev_info_offset == 0)
 		return;
-
+	off = (sizeof(struct channel_header) + hdr_info->dev_info_offset) +
+	      (hdr_info->device_info_struct_bytes * devix);
 	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
