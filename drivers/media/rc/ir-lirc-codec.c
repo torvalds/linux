@@ -126,6 +126,16 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		if (scan.flags || scan.keycode || scan.timestamp)
 			return -EINVAL;
 
+		/*
+		 * The scancode field in lirc_scancode is 64-bit simply
+		 * to future-proof it, since there are IR protocols encode
+		 * use more than 32 bits. For now only 32-bit protocols
+		 * are supported.
+		 */
+		if (scan.scancode > U32_MAX ||
+		    !rc_validate_scancode(scan.rc_proto, scan.scancode))
+			return -EINVAL;
+
 		raw = kmalloc_array(LIRCBUF_SIZE, sizeof(*raw), GFP_KERNEL);
 		if (!raw)
 			return -ENOMEM;
