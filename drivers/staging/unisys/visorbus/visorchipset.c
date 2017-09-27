@@ -595,9 +595,8 @@ err_respond:
 
 static int visorbus_destroy(struct controlvm_message *inmsg)
 {
-	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr = NULL;
-	u32 bus_no = cmd->destroy_bus.bus_no;
+	u32 bus_no = inmsg->cmd.destroy_bus.bus_no;
 	struct visor_device *bus_info;
 	int err;
 
