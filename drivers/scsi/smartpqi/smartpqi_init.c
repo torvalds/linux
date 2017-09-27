@@ -1078,9 +1078,9 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 
 bad_raid_map:
 	dev_warn(&ctrl_info->pci_dev->dev,
-		"scsi %d:%d:%d:%d %s\n",
-		ctrl_info->scsi_host->host_no,
-		device->bus, device->target, device->lun, err_msg);
+		"logical device %08x%08x %s\n",
+		*((u32 *)&device->scsi3addr),
+		*((u32 *)&device->scsi3addr[4]), err_msg);
 
 	return -EINVAL;
 }
