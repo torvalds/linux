@@ -251,7 +251,7 @@ static ssize_t nbytes_show(struct device *dev, struct device_attribute *attr,
 	struct visor_device *vdev = to_visor_device(dev);
 
 	return sprintf(buf, "0x%lx\n",
-			visorchannel_get_nbytes(vdev->visorchannel));
+		       visorchannel_get_nbytes(vdev->visorchannel));
 }
 static DEVICE_ATTR_RO(nbytes);
 

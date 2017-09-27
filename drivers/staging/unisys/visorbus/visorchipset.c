@@ -436,10 +436,9 @@ static int controlvm_responder(enum controlvm_id cmd_id,
 	return controlvm_respond(pending_msg_hdr, response, NULL);
 }
 
-static int device_changestate_responder(
-				enum controlvm_id cmd_id,
-				struct visor_device *p, int response,
-				struct visor_segment_state response_state)
+static int device_changestate_responder(enum controlvm_id cmd_id,
+					struct visor_device *p, int response,
+					struct visor_segment_state state)
 {
 	struct controlvm_message outmsg;
 
@@ -449,7 +448,7 @@ static int device_changestate_responder(
 	controlvm_init_response(&outmsg, p->pending_msg_hdr, response);
 	outmsg.cmd.device_change_state.bus_no = p->chipset_bus_no;
 	outmsg.cmd.device_change_state.dev_no = p->chipset_dev_no;
-	outmsg.cmd.device_change_state.state = response_state;
+	outmsg.cmd.device_change_state.state = state;
 	return visorchannel_signalinsert(chipset_dev->controlvm_channel,
 					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
@@ -1044,9 +1043,9 @@ static int parahotplug_request_kickoff(struct parahotplug_request *req)
 {
 	struct controlvm_message_packet *cmd = &req->msg.cmd;
 	char env_cmd[40], env_id[40], env_state[40], env_bus[40], env_dev[40],
-	    env_func[40];
-	char *envp[] = {
-		env_cmd, env_id, env_state, env_bus, env_dev, env_func, NULL
+	     env_func[40];
+	char *envp[] = { env_cmd, env_id, env_state, env_bus, env_dev,
+			 env_func, NULL
 	};
 
 	sprintf(env_cmd, "VISOR_PARAHOTPLUG=1");
@@ -1462,7 +1461,7 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 static int read_controlvm_event(struct controlvm_message *msg)
 {
 	int err = visorchannel_signalremove(chipset_dev->controlvm_channel,
-					CONTROLVM_QUEUE_EVENT, msg);
+					    CONTROLVM_QUEUE_EVENT, msg);
 
 	if (err)
 		return err;
