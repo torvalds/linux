@@ -8,7 +8,7 @@ WARNFLAGS=-Wall -Wshadow -W -Wformat -Wimplicit-function-declaration -Wimplicit-
 CFLAGS+= -O1 ${WARNFLAGS}
 # Add "-fstack-protector" only if toolchain supports it.
 CFLAGS+= $(call cc-option,-fstack-protector)
-CC=$(CROSS_COMPILE)gcc
+CC?= $(CROSS_COMPILE)gcc
 
 CFLAGS+=-D VERSION=\"$(VERSION)\"
 LDFLAGS+=
