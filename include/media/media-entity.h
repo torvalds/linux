@@ -88,6 +88,8 @@ struct media_entity_enum {
  * @stack:		Graph traversal stack; the stack contains information
  *			on the path the media entities to be walked and the
  *			links through which they were reached.
+ * @stack.entity:	pointer to &struct media_entity at the graph.
+ * @stack.link:		pointer to &struct list_head.
  * @ent_enum:		Visited entities
  * @top:		The top of the stack
  */
@@ -247,6 +249,9 @@ enum media_entity_type {
  * @pipe:	Pipeline this entity belongs to.
  * @info:	Union with devnode information.  Kept just for backward
  *		compatibility.
+ * @info.dev:	Contains device major and minor info.
+ * @info.dev.major: device node major, if the device is a devnode.
+ * @info.dev.minor: device node minor, if the device is a devnode.
  * @major:	Devnode major number (zero if not applicable). Kept just
  *		for backward compatibility.
  * @minor:	Devnode minor number (zero if not applicable). Kept just
