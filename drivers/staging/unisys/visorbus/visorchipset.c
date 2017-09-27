@@ -691,9 +691,8 @@ static int visorbus_configure(struct controlvm_message *inmsg,
 		goto err_respond;
 	}
 
-	err = visorchannel_set_clientpartition
-		(bus_info->visorchannel,
-		 cmd->configure_bus.guest_handle);
+	err = visorchannel_set_clientpartition(bus_info->visorchannel,
+					       cmd->configure_bus.guest_handle);
 	if (err)
 		goto err_respond;
 
@@ -1252,7 +1251,7 @@ static int chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 static int chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 {
 	int res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
-			     KOBJ_OFFLINE);
+				 KOBJ_OFFLINE);
 
 	if (msg_hdr->flags.response_expected)
 		controlvm_respond(msg_hdr, res, NULL);
@@ -1275,7 +1274,7 @@ static int unisys_vmcall(unsigned long tuple, unsigned long param)
 		return -EPERM;
 
 	__asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
-		"a"(tuple), "b"(reg_ebx), "c"(reg_ecx));
+			     "a"(tuple), "b"(reg_ebx), "c"(reg_ecx));
 	if (result)
 		goto error;
 
