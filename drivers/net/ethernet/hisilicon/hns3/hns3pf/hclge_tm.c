@@ -486,7 +486,11 @@ static void hclge_tm_tc_info_init(struct hclge_dev *hdev)
 		hdev->tm_info.prio_tc[i] =
 			(i >= hdev->tm_info.num_tc) ? 0 : i;
 
-	hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
+	/* DCB is enabled if we have more than 1 TC */
+	if (hdev->tm_info.num_tc > 1)
+		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;
+	else
+		hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
 }
 
 static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
@@ -512,6 +516,24 @@ static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 	}
 }
 
+static void hclge_pfc_info_init(struct hclge_dev *hdev)
+{
+	if (!(hdev->flag & HCLGE_FLAG_DCB_ENABLE)) {
+		if (hdev->fc_mode_last_time == HCLGE_FC_PFC)
+			dev_warn(&hdev->pdev->dev,
+				 "DCB is disable, but last mode is FC_PFC\n");
+
+		hdev->tm_info.fc_mode = hdev->fc_mode_last_time;
+	} else if (hdev->tm_info.fc_mode != HCLGE_FC_PFC) {
+		/* fc_mode_last_time record the last fc_mode when
+		 * DCB is enabled, so that fc_mode can be set to
+		 * the correct value when DCB is disabled.
+		 */
+		hdev->fc_mode_last_time = hdev->tm_info.fc_mode;
+		hdev->tm_info.fc_mode = HCLGE_FC_PFC;
+	}
+}
+
 static int hclge_tm_schd_info_init(struct hclge_dev *hdev)
 {
 	if ((hdev->tx_sch_mode != HCLGE_FLAG_TC_BASE_SCH_MODE) &&
@@ -524,8 +546,7 @@ static int hclge_tm_schd_info_init(struct hclge_dev *hdev)
 
 	hclge_tm_vport_info_update(hdev);
 
-	hdev->tm_info.fc_mode = HCLGE_FC_NONE;
-	hdev->fc_mode_last_time = hdev->tm_info.fc_mode;
+	hclge_pfc_info_init(hdev);
 
 	return 0;
 }
@@ -1158,8 +1179,13 @@ int hclge_tm_init_hw(struct hclge_dev *hdev)
 
 int hclge_tm_schd_init(struct hclge_dev *hdev)
 {
-	int ret = hclge_tm_schd_info_init(hdev);
+	int ret;
 
+	/* fc_mode is HCLGE_FC_FULL on reset */
+	hdev->tm_info.fc_mode = HCLGE_FC_FULL;
+	hdev->fc_mode_last_time = hdev->tm_info.fc_mode;
+
+	ret = hclge_tm_schd_info_init(hdev);
 	if (ret)
 		return ret;
 
