@@ -855,9 +855,8 @@ static void publish_vbus_dev_info(struct visor_device *visordev)
 	 * type name
 	 */
 	for (i = 0; visordrv->channel_types[i].name; i++) {
-		if (memcmp(&visordrv->channel_types[i].guid,
-			   &visordev->channel_type_guid,
-			   sizeof(visordrv->channel_types[i].guid)) == 0) {
+		if (guid_equal(&visordrv->channel_types[i].guid,
+			       &visordev->channel_type_guid)) {
 			chan_type_name = visordrv->channel_types[i].name;
 			break;
 		}
