@@ -1296,11 +1296,11 @@ void __init apic_intr_mode_init(void)
 		default_setup_apic_routing();
 		break;
 	case APIC_SYMMETRIC_IO:
-		pr_info("APIC: Switch to symmectic I/O mode setup\n");
+		pr_info("APIC: Switch to symmetric I/O mode setup\n");
 		default_setup_apic_routing();
 		break;
 	case APIC_SYMMETRIC_IO_NO_ROUTING:
-		pr_info("APIC: Switch to symmectic I/O mode setup in no SMP routine\n");
+		pr_info("APIC: Switch to symmetric I/O mode setup in no SMP routine\n");
 		break;
 	}
 
