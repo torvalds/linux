@@ -597,8 +597,8 @@ static inline void t4_swcq_produce(struct t4_cq *cq)
 {
 	cq->sw_in_use++;
 	if (cq->sw_in_use == cq->size) {
-		pr_debug("%s cxgb4 sw cq overflow cqid %u\n",
-			 __func__, cq->cqid);
+		pr_warn("%s cxgb4 sw cq overflow cqid %u\n",
+			__func__, cq->cqid);
 		cq->error = 1;
 		BUG_ON(1);
 	}
@@ -669,8 +669,8 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 static inline struct t4_cqe *t4_next_sw_cqe(struct t4_cq *cq)
 {
 	if (cq->sw_in_use == cq->size) {
-		pr_debug("%s cxgb4 sw cq overflow cqid %u\n",
-			 __func__, cq->cqid);
+		pr_warn("%s cxgb4 sw cq overflow cqid %u\n",
+			__func__, cq->cqid);
 		cq->error = 1;
 		BUG_ON(1);
 		return NULL;

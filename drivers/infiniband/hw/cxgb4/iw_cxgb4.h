@@ -230,8 +230,8 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
 	if (!ret) {
-		pr_debug("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
-			 func, pci_name(rdev->lldi.pdev), hwtid, qpid);
+		pr_err("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+		       func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
 	}

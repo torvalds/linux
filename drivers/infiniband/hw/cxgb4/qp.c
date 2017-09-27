@@ -958,8 +958,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			c4iw_invalidate_mr(qhp->rhp, wr->ex.invalidate_rkey);
 			break;
 		default:
-			pr_debug("%s post of type=%d TBD!\n", __func__,
-				 wr->opcode);
+			pr_warn("%s post of type=%d TBD!\n", __func__,
+				wr->opcode);
 			err = -EINVAL;
 		}
 		if (err) {

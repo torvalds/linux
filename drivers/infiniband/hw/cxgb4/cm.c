@@ -212,7 +212,7 @@ static int c4iw_l2t_send(struct c4iw_rdev *rdev, struct sk_buff *skb,
 
 	if (c4iw_fatal_error(rdev)) {
 		kfree_skb(skb);
-		pr_debug("%s - device in error state - dropping\n", __func__);
+		pr_err("%s - device in error state - dropping\n", __func__);
 		return -EIO;
 	}
 	error = cxgb4_l2t_send(rdev->lldi.ports[0], skb, l2e);
@@ -229,7 +229,7 @@ int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb)
 
 	if (c4iw_fatal_error(rdev)) {
 		kfree_skb(skb);
-		pr_debug("%s - device in error state - dropping\n", __func__);
+		pr_err("%s - device in error state - dropping\n", __func__);
 		return -EIO;
 	}
 	error = cxgb4_ofld_send(rdev->lldi.ports[0], skb);
@@ -263,8 +263,8 @@ static void set_emss(struct c4iw_ep *ep, u16 opt)
 	if (ep->emss < 128)
 		ep->emss = 128;
 	if (ep->emss & 7)
-		pr_debug("Warning: misaligned mtu idx %u mss %u emss=%u\n",
-			 TCPOPT_MSS_G(opt), ep->mss, ep->emss);
+		pr_warn("Warning: misaligned mtu idx %u mss %u emss=%u\n",
+			TCPOPT_MSS_G(opt), ep->mss, ep->emss);
 	pr_debug("mss_idx %u mss %u emss=%u\n", TCPOPT_MSS_G(opt), ep->mss,
 		 ep->emss);
 }
@@ -2314,7 +2314,7 @@ static int pass_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct c4iw_listen_ep *ep = get_ep_from_stid(dev, stid);
 
 	if (!ep) {
-		pr_debug("%s stid %d lookup failure!\n", __func__, stid);
+		pr_warn("%s stid %d lookup failure!\n", __func__, stid);
 		goto out;
 	}
 	pr_debug("ep %p status %d error %d\n", ep,
@@ -2332,7 +2332,7 @@ static int close_listsrv_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct c4iw_listen_ep *ep = get_ep_from_stid(dev, stid);
 
 	if (!ep) {
-		pr_debug("%s stid %d lookup failure!\n", __func__, stid);
+		pr_warn("%s stid %d lookup failure!\n", __func__, stid);
 		goto out;
 	}
 	pr_debug("ep %p\n", ep);
@@ -2464,13 +2464,13 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	parent_ep = (struct c4iw_ep *)get_ep_from_stid(dev, stid);
 	if (!parent_ep) {
-		pr_debug("%s connect request on invalid stid %d\n",
-			 __func__, stid);
+		pr_err("%s connect request on invalid stid %d\n",
+		       __func__, stid);
 		goto reject;
 	}
 
 	if (state_read(&parent_ep->com) != LISTEN) {
-		pr_debug("%s - listening ep not in LISTEN\n", __func__);
+		pr_err("%s - listening ep not in LISTEN\n", __func__);
 		goto reject;
 	}
 
@@ -2739,9 +2739,9 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 
 	if (cxgb_is_neg_adv(req->status)) {
-		pr_debug("%s Negative advice on abort- tid %u status %d (%s)\n",
-			 __func__, ep->hwtid, req->status,
-			 neg_adv_str(req->status));
+		pr_warn("%s Negative advice on abort- tid %u status %d (%s)\n",
+			__func__, ep->hwtid, req->status,
+			neg_adv_str(req->status));
 		ep->stats.abort_neg_adv++;
 		mutex_lock(&dev->rdev.stats.lock);
 		dev->rdev.stats.neg_adv++;
@@ -2781,8 +2781,8 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 			 * do some housekeeping so as to re-initiate the
 			 * connection
 			 */
-			pr_debug("%s: mpa_rev=%d. Retrying with mpav1\n",
-				 __func__, mpa_rev);
+			pr_info("%s: mpa_rev=%d. Retrying with mpav1\n",
+				__func__, mpa_rev);
 			ep->retry_with_mpa_v1 = 1;
 		}
 		break;
@@ -2808,7 +2808,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	case ABORTING:
 		break;
 	case DEAD:
-		pr_debug("%s PEER_ABORT IN DEAD STATE!!!!\n", __func__);
+		pr_warn("%s PEER_ABORT IN DEAD STATE!!!!\n", __func__);
 		mutex_unlock(&ep->com.mutex);
 		goto deref_ep;
 	default:
@@ -3218,7 +3218,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->com.dev = dev;
 	ep->com.qp = get_qhp(dev, conn_param->qpn);
 	if (!ep->com.qp) {
-		pr_debug("%s qpn 0x%x not found!\n", __func__, conn_param->qpn);
+		pr_warn("%s qpn 0x%x not found!\n", __func__, conn_param->qpn);
 		err = -EINVAL;
 		goto fail2;
 	}
@@ -3571,8 +3571,8 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 	case MORIBUND:
 	case ABORTING:
 	case DEAD:
-		pr_debug("%s ignoring disconnect ep %p state %u\n",
-			 __func__, ep, ep->com.state);
+		pr_info("%s ignoring disconnect ep %p state %u\n",
+			__func__, ep, ep->com.state);
 		break;
 	default:
 		BUG();
@@ -3676,7 +3676,7 @@ static void passive_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 	rpl_skb = (struct sk_buff *)(unsigned long)req->cookie;
 	BUG_ON(!rpl_skb);
 	if (req->retval) {
-		pr_debug("%s passive open failure %d\n", __func__, req->retval);
+		pr_err("%s passive open failure %d\n", __func__, req->retval);
 		mutex_lock(&dev->rdev.stats.lock);
 		dev->rdev.stats.pas_ofld_conn_fails++;
 		mutex_unlock(&dev->rdev.stats.lock);
@@ -3893,8 +3893,8 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	lep = (struct c4iw_ep *)get_ep_from_stid(dev, stid);
 	if (!lep) {
-		pr_debug("%s connect request on invalid stid %d\n",
-			 __func__, stid);
+		pr_warn("%s connect request on invalid stid %d\n",
+			__func__, stid);
 		goto reject;
 	}
 
@@ -4209,8 +4209,8 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 	}
 	if (cxgb_is_neg_adv(req->status)) {
-		pr_debug("%s Negative advice on abort- tid %u status %d (%s)\n",
-			 __func__, ep->hwtid, req->status,
+		pr_warn("%s Negative advice on abort- tid %u status %d (%s)\n",
+			__func__, ep->hwtid, req->status,
 			 neg_adv_str(req->status));
 		goto out;
 	}
