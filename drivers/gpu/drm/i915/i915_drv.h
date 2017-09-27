@@ -861,6 +861,7 @@ struct intel_device_info {
 	u8 ring_mask; /* Rings supported by the HW */
 
 	enum intel_platform platform;
+	u32 platform_mask;
 
 	u32 display_mmio_offset;
 
@@ -2913,7 +2914,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_REVID(p, since, until) \
 	(INTEL_REVID(p) >= (since) && INTEL_REVID(p) <= (until))
 
-#define IS_PLATFORM(dev_priv, p) ((dev_priv)->info.platform == (p))
+#define IS_PLATFORM(dev_priv, p) ((dev_priv)->info.platform_mask & BIT(p))
 
 #define IS_I830(dev_priv)	IS_PLATFORM(dev_priv, INTEL_I830)
 #define IS_I845G(dev_priv)	IS_PLATFORM(dev_priv, INTEL_I845G)
