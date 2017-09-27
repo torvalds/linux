@@ -36,13 +36,12 @@ struct visorchipset_state {
 	u32 attached:1;
 	u32 configured:1;
 	u32 running:1;
-	/* Add new fields above. */
-	/* Remaining bits in this 32-bit word are unused. */
+	/* Remaining bits in this 32-bit word are reserved. */
 };
 
 /**
  * struct visor_device - A device type for things "plugged" into the visorbus
- * bus
+ *                       bus
  * @visorchannel:		Points to the channel that the device is
  *				associated with.
  * @channel_type_guid:		Identifies the channel type to the bus driver.
@@ -73,7 +72,6 @@ struct visorchipset_state {
  *				same across all visor_devices in the current
  *				guest. Private use by bus driver only.
  */
-
 struct visor_device {
 	struct visorchannel *visorchannel;
 	guid_t channel_type_guid;
@@ -104,8 +102,8 @@ typedef void (*visorbus_state_complete_func) (struct visor_device *dev,
 					      int status);
 
 /*
- * This struct describes a specific Supervisor channel, by providing its
- * GUID, name, and sizes.
+ * This struct describes a specific visor channel, by providing its GUID, name,
+ * and sizes.
  */
 struct visor_channeltype_descriptor {
 	const guid_t guid;
@@ -116,7 +114,7 @@ struct visor_channeltype_descriptor {
 
 /**
  * struct visor_driver - Information provided by each visor driver when it
- * registers with the visorbus driver.
+ *                       registers with the visorbus driver
  * @name:		Name of the visor driver.
  * @owner:		The module owner.
  * @channel_types:	Types of channels handled by this driver, ending with
