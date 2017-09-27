@@ -436,6 +436,16 @@ static void nfp_flower_clean(struct nfp_app *app)
 	app->priv = NULL;
 }
 
+static int nfp_flower_start(struct nfp_app *app)
+{
+	return nfp_tunnel_config_start(app);
+}
+
+static void nfp_flower_stop(struct nfp_app *app)
+{
+	nfp_tunnel_config_stop(app);
+}
+
 const struct nfp_app_type app_flower = {
 	.id		= NFP_APP_FLOWER_NIC,
 	.name		= "flower",
@@ -452,6 +462,9 @@ const struct nfp_app_type app_flower = {
 
 	.repr_open	= nfp_flower_repr_netdev_open,
 	.repr_stop	= nfp_flower_repr_netdev_stop,
+
+	.start		= nfp_flower_start,
+	.stop		= nfp_flower_stop,
 
 	.ctrl_msg_rx	= nfp_flower_cmsg_rx,
 

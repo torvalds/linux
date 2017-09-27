@@ -58,6 +58,8 @@ struct nfp_app;
 #define NFP_FL_MASK_REUSE_TIME_NS	40000
 #define NFP_FL_MASK_ID_LOCATION		1
 
+#define NFP_FL_VXLAN_PORT		4789
+
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
 	struct timespec64 *last_used;
@@ -82,6 +84,18 @@ struct nfp_fl_stats_id {
  * @flow_table:		Hash table used to store flower rules
  * @cmsg_work:		Workqueue for control messages processing
  * @cmsg_skbs:		List of skbs for control message processing
+ * @nfp_mac_off_list:	List of MAC addresses to offload
+ * @nfp_mac_index_list:	List of unique 8-bit indexes for non NFP netdevs
+ * @nfp_ipv4_off_list:	List of IPv4 addresses to offload
+ * @nfp_neigh_off_list:	List of neighbour offloads
+ * @nfp_mac_off_lock:	Lock for the MAC address list
+ * @nfp_mac_index_lock:	Lock for the MAC index list
+ * @nfp_ipv4_off_lock:	Lock for the IPv4 address list
+ * @nfp_neigh_off_lock:	Lock for the neighbour address list
+ * @nfp_mac_off_ids:	IDA to manage id assignment for offloaded macs
+ * @nfp_mac_off_count:	Number of MACs in address list
+ * @nfp_tun_mac_nb:	Notifier to monitor link state
+ * @nfp_tun_neigh_nb:	Notifier to monitor neighbour state
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -94,6 +108,18 @@ struct nfp_flower_priv {
 	DECLARE_HASHTABLE(flow_table, NFP_FLOWER_HASH_BITS);
 	struct work_struct cmsg_work;
 	struct sk_buff_head cmsg_skbs;
+	struct list_head nfp_mac_off_list;
+	struct list_head nfp_mac_index_list;
+	struct list_head nfp_ipv4_off_list;
+	struct list_head nfp_neigh_off_list;
+	struct mutex nfp_mac_off_lock;
+	struct mutex nfp_mac_index_lock;
+	struct mutex nfp_ipv4_off_lock;
+	struct mutex nfp_neigh_off_lock;
+	struct ida nfp_mac_off_ids;
+	int nfp_mac_off_count;
+	struct notifier_block nfp_tun_mac_nb;
+	struct notifier_block nfp_tun_neigh_nb;
 };
 
 struct nfp_fl_key_ls {
@@ -126,6 +152,7 @@ struct nfp_fl_payload {
 	struct rcu_head rcu;
 	spinlock_t lock; /* lock stats */
 	struct nfp_fl_stats stats;
+	__be32 nfp_tun_ipv4_addr;
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
@@ -162,5 +189,13 @@ struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
 void nfp_flower_rx_flow_stats(struct nfp_app *app, struct sk_buff *skb);
+
+int nfp_tunnel_config_start(struct nfp_app *app);
+void nfp_tunnel_config_stop(struct nfp_app *app);
+void nfp_tunnel_write_macs(struct nfp_app *app);
+void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
+void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
+void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
+void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
 
 #endif

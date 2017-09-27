@@ -39,6 +39,7 @@
 #include <linux/types.h>
 
 #include "../nfp_app.h"
+#include "../nfpcore/nfp_cpp.h"
 
 #define NFP_FLOWER_LAYER_META		BIT(0)
 #define NFP_FLOWER_LAYER_PORT		BIT(1)
@@ -67,10 +68,12 @@
 #define NFP_FL_LW_SIZ			2
 
 /* Action opcodes */
-#define NFP_FL_ACTION_OPCODE_OUTPUT	0
-#define NFP_FL_ACTION_OPCODE_PUSH_VLAN	1
-#define NFP_FL_ACTION_OPCODE_POP_VLAN	2
-#define NFP_FL_ACTION_OPCODE_NUM	32
+#define NFP_FL_ACTION_OPCODE_OUTPUT		0
+#define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
+#define NFP_FL_ACTION_OPCODE_POP_VLAN		2
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
+#define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
+#define NFP_FL_ACTION_OPCODE_NUM		32
 
 #define NFP_FL_ACT_JMP_ID		GENMASK(15, 8)
 #define NFP_FL_ACT_LEN_LW		GENMASK(7, 0)
@@ -82,6 +85,22 @@
 #define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
 #define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
+
+/* Tunnel ports */
+#define NFP_FL_PORT_TYPE_TUN		0x50000000
+#define NFP_FL_IPV4_TUNNEL_TYPE		GENMASK(7, 4)
+#define NFP_FL_IPV4_PRE_TUN_INDEX	GENMASK(2, 0)
+
+#define nfp_flower_cmsg_warn(app, fmt, args...)                         \
+	do {                                                            \
+		if (net_ratelimit())                                    \
+			nfp_warn((app)->cpp, fmt, ## args);             \
+	} while (0)
+
+enum nfp_flower_tun_type {
+	NFP_FL_TUNNEL_NONE =	0,
+	NFP_FL_TUNNEL_VXLAN =	2,
+};
 
 struct nfp_fl_output {
 	__be16 a_op;
@@ -114,6 +133,25 @@ struct nfp_flower_meta_one {
 	u8 mask_id;
 	u16 reserved;
 };
+
+struct nfp_fl_pre_tunnel {
+	__be16 a_op;
+	__be16 reserved;
+	__be32 ipv4_dst;
+	/* reserved for use with IPv6 addresses */
+	__be32 extra[3];
+};
+
+struct nfp_fl_set_vxlan {
+	__be16 a_op;
+	__be16 reserved;
+	__be64 tun_id;
+	__be32 tun_type_index;
+	__be16 tun_flags;
+	u8 ipv4_ttl;
+	u8 ipv4_tos;
+	__be32 extra[2];
+} __packed;
 
 /* Metadata with L2 (1W/4B)
  * ----------------------------------------------------------------
@@ -230,6 +268,36 @@ struct nfp_flower_ipv6 {
 	struct in6_addr ipv6_dst;
 };
 
+/* Flow Frame VXLAN --> Tunnel details (4W/16B)
+ * -----------------------------------------------------------------
+ *    3                   2                   1
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                         ipv4_addr_src                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                         ipv4_addr_dst                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |           tun_flags           |       tos     |       ttl     |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |   gpe_flags   |            Reserved           | Next Protocol |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                     VNI                       |   Reserved    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct nfp_flower_vxlan {
+	__be32 ip_src;
+	__be32 ip_dst;
+	__be16 tun_flags;
+	u8 tos;
+	u8 ttl;
+	u8 gpe_flags;
+	u8 reserved[2];
+	u8 nxt_proto;
+	__be32 tun_id;
+};
+
+#define NFP_FL_TUN_VNI_OFFSET 8
+
 /* The base header for a control message packet.
  * Defines an 8-bit version, and an 8-bit type, padded
  * to a 32-bit word. Rest of the packet is type-specific.
@@ -249,6 +317,11 @@ enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
+	NFP_FLOWER_CMSG_TYPE_NO_NEIGH =		10,
+	NFP_FLOWER_CMSG_TYPE_TUN_MAC =		11,
+	NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS =	12,
+	NFP_FLOWER_CMSG_TYPE_TUN_NEIGH =	13,
+	NFP_FLOWER_CMSG_TYPE_TUN_IPS =		14,
 	NFP_FLOWER_CMSG_TYPE_FLOW_STATS =	15,
 	NFP_FLOWER_CMSG_TYPE_PORT_ECHO =	16,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
@@ -282,6 +355,7 @@ enum nfp_flower_cmsg_port_type {
 	NFP_FLOWER_CMSG_PORT_TYPE_UNSPEC =	0x0,
 	NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT =	0x1,
 	NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT =	0x2,
+	NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT =  0x3,
 };
 
 enum nfp_flower_cmsg_port_vnic_type {
@@ -321,6 +395,11 @@ nfp_flower_cmsg_pcie_port(u8 nfp_pcie, enum nfp_flower_cmsg_port_vnic_type type,
 static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
 {
 	return (unsigned char *)skb->data + NFP_FLOWER_CMSG_HLEN;
+}
+
+static inline int nfp_flower_cmsg_get_data_len(struct sk_buff *skb)
+{
+	return skb->len - NFP_FLOWER_CMSG_HLEN;
 }
 
 struct sk_buff *
