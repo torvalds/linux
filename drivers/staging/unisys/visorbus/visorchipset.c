@@ -27,8 +27,8 @@ static const guid_t visor_vhba_channel_guid = VISOR_VHBA_CHANNEL_GUID;
 static const guid_t visor_siovm_guid = VISOR_SIOVM_GUID;
 static const guid_t visor_controlvm_channel_guid = VISOR_CONTROLVM_CHANNEL_GUID;
 
-#define POLLJIFFIES_CONTROLVMCHANNEL_FAST 1
-#define POLLJIFFIES_CONTROLVMCHANNEL_SLOW 100
+#define POLLJIFFIES_CONTROLVM_FAST 1
+#define POLLJIFFIES_CONTROLVM_SLOW 100
 
 #define MAX_CONTROLVM_PAYLOAD_BYTES (1024 * 128)
 
@@ -1552,15 +1552,11 @@ schedule_out:
 		 * it's been longer than MIN_IDLE_SECONDS since we processed
 		 * our last controlvm message; slow down the polling
 		 */
-		if (chipset_dev->poll_jiffies !=
-					      POLLJIFFIES_CONTROLVMCHANNEL_SLOW)
-			chipset_dev->poll_jiffies =
-					      POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
+		if (chipset_dev->poll_jiffies != POLLJIFFIES_CONTROLVM_SLOW)
+			chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVM_SLOW;
 	} else {
-		if (chipset_dev->poll_jiffies !=
-					      POLLJIFFIES_CONTROLVMCHANNEL_FAST)
-			chipset_dev->poll_jiffies =
-					      POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+		if (chipset_dev->poll_jiffies != POLLJIFFIES_CONTROLVM_FAST)
+			chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVM_FAST;
 	}
 	schedule_delayed_work(&chipset_dev->periodic_controlvm_work,
 			      chipset_dev->poll_jiffies);
@@ -1579,7 +1575,7 @@ static int visorchipset_init(struct acpi_device *acpi_device)
 		goto error_free_chipset_dev;
 	acpi_device->driver_data = chipset_dev;
 	chipset_dev->acpi_device = acpi_device;
-	chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+	chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVM_FAST;
 	err = sysfs_create_groups(&chipset_dev->acpi_device->dev.kobj,
 				  visorchipset_dev_groups);
 	if (err < 0)
@@ -1601,7 +1597,7 @@ static int visorchipset_init(struct acpi_device *acpi_device)
 		INIT_DELAYED_WORK(&chipset_dev->periodic_controlvm_work,
 				  controlvm_periodic_work);
 	chipset_dev->most_recent_message_jiffies = jiffies;
-	chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+	chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVM_FAST;
 	schedule_delayed_work(&chipset_dev->periodic_controlvm_work,
 			      chipset_dev->poll_jiffies);
 	err = visorbus_init();
