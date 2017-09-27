@@ -166,6 +166,7 @@ struct ufs_pm_lvl_states {
  * @lun: LUN of the command
  * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
  * @issue_time_stamp: time stamp for debug purposes
+ * @compl_time_stamp: time stamp for statistics
  * @req_abort_skip: skip request abort task flag
  */
 struct ufshcd_lrb {
@@ -189,6 +190,7 @@ struct ufshcd_lrb {
 	u8 lun; /* UPIU LUN id field is only 8-bit wide */
 	bool intr_cmd;
 	ktime_t issue_time_stamp;
+	ktime_t compl_time_stamp;
 
 	bool req_abort_skip;
 };
