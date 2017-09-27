@@ -989,19 +989,8 @@ static struct i2c_driver lm3554_driver = {
 	.remove = lm3554_remove,
 	.id_table = lm3554_id,
 };
+module_i2c_driver(lm3554_driver);
 
-static __init int init_lm3554(void)
-{
-	return i2c_add_driver(&lm3554_driver);
-}
-
-static __exit void exit_lm3554(void)
-{
-	i2c_del_driver(&lm3554_driver);
-}
-
-module_init(init_lm3554);
-module_exit(exit_lm3554);
 MODULE_AUTHOR("Jing Tao <jing.tao@intel.com>");
 MODULE_DESCRIPTION("LED flash driver for LM3554");
 MODULE_LICENSE("GPL");

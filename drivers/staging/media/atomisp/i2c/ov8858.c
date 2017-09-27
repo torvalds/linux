@@ -2199,19 +2199,7 @@ static struct i2c_driver ov8858_driver = {
 	.remove = ov8858_remove,
 	.id_table = ov8858_id,
 };
-
-static __init int ov8858_init_mod(void)
-{
-	return i2c_add_driver(&ov8858_driver);
-}
-
-static __exit void ov8858_exit_mod(void)
-{
-	i2c_del_driver(&ov8858_driver);
-}
-
-module_init(ov8858_init_mod);
-module_exit(ov8858_exit_mod);
+module_i2c_driver(ov8858_driver);
 
 MODULE_DESCRIPTION("A low-level driver for Omnivision OV8858 sensors");
 MODULE_LICENSE("GPL");

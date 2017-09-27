@@ -1943,19 +1943,7 @@ static struct i2c_driver mt9m114_driver = {
 	.remove = mt9m114_remove,
 	.id_table = mt9m114_id,
 };
-
-static __init int init_mt9m114(void)
-{
-	return i2c_add_driver(&mt9m114_driver);
-}
-
-static __exit void exit_mt9m114(void)
-{
-	i2c_del_driver(&mt9m114_driver);
-}
-
-module_init(init_mt9m114);
-module_exit(exit_mt9m114);
+module_i2c_driver(mt9m114_driver);
 
 MODULE_AUTHOR("Shuguang Gong <Shuguang.gong@intel.com>");
 MODULE_LICENSE("GPL");

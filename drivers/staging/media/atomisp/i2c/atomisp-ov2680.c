@@ -1525,7 +1525,6 @@ MODULE_DEVICE_TABLE(acpi, ov2680_acpi_match);
 MODULE_DEVICE_TABLE(i2c, ov2680_id);
 static struct i2c_driver ov2680_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = OV2680_NAME,
 		.acpi_match_table = ACPI_PTR(ov2680_acpi_match),
 
@@ -1534,20 +1533,7 @@ static struct i2c_driver ov2680_driver = {
 	.remove = ov2680_remove,
 	.id_table = ov2680_id,
 };
-
-static int init_ov2680(void)
-{
-	return i2c_add_driver(&ov2680_driver);
-}
-
-static void exit_ov2680(void)
-{
-
-	i2c_del_driver(&ov2680_driver);
-}
-
-module_init(init_ov2680);
-module_exit(exit_ov2680);
+module_i2c_driver(ov2680_driver);
 
 MODULE_AUTHOR("Jacky Wang <Jacky_wang@ovt.com>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision 2680 sensors");

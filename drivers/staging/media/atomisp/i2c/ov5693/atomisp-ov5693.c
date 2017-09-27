@@ -2038,20 +2038,7 @@ static struct i2c_driver ov5693_driver = {
 	.remove = ov5693_remove,
 	.id_table = ov5693_id,
 };
-
-static int init_ov5693(void)
-{
-	return i2c_add_driver(&ov5693_driver);
-}
-
-static void exit_ov5693(void)
-{
-
-	i2c_del_driver(&ov5693_driver);
-}
-
-module_init(init_ov5693);
-module_exit(exit_ov5693);
+module_i2c_driver(ov5693_driver);
 
 MODULE_DESCRIPTION("A low-level driver for OmniVision 5693 sensors");
 MODULE_LICENSE("GPL");

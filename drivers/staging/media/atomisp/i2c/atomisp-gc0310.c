@@ -1468,20 +1468,7 @@ static struct i2c_driver gc0310_driver = {
 	.remove = gc0310_remove,
 	.id_table = gc0310_id,
 };
-
-static int init_gc0310(void)
-{
-	return i2c_add_driver(&gc0310_driver);
-}
-
-static void exit_gc0310(void)
-{
-
-	i2c_del_driver(&gc0310_driver);
-}
-
-module_init(init_gc0310);
-module_exit(exit_gc0310);
+module_i2c_driver(gc0310_driver);
 
 MODULE_AUTHOR("Lai, Angie <angie.lai@intel.com>");
 MODULE_DESCRIPTION("A low-level driver for GalaxyCore GC0310 sensors");

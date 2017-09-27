@@ -1197,20 +1197,7 @@ static struct i2c_driver gc2235_driver = {
 	.remove = gc2235_remove,
 	.id_table = gc2235_id,
 };
-
-static int init_gc2235(void)
-{
-	return i2c_add_driver(&gc2235_driver);
-}
-
-static void exit_gc2235(void)
-{
-
-	i2c_del_driver(&gc2235_driver);
-}
-
-module_init(init_gc2235);
-module_exit(exit_gc2235);
+module_i2c_driver(gc2235_driver);
 
 MODULE_AUTHOR("Shuguang Gong <Shuguang.Gong@intel.com>");
 MODULE_DESCRIPTION("A low-level driver for GC2235 sensors");

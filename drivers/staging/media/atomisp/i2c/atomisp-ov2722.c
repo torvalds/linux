@@ -1351,20 +1351,7 @@ static struct i2c_driver ov2722_driver = {
 	.remove = ov2722_remove,
 	.id_table = ov2722_id,
 };
-
-static int init_ov2722(void)
-{
-	return i2c_add_driver(&ov2722_driver);
-}
-
-static void exit_ov2722(void)
-{
-
-	i2c_del_driver(&ov2722_driver);
-}
-
-module_init(init_ov2722);
-module_exit(exit_ov2722);
+module_i2c_driver(ov2722_driver);
 
 MODULE_AUTHOR("Wei Liu <wei.liu@intel.com>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision 2722 sensors");
