@@ -392,8 +392,7 @@ out_respond:
 }
 
 static int controlvm_respond(struct controlvm_message_header *msg_hdr,
-			     int response,
-			     struct visor_segment_state *state)
+			     int response, struct visor_segment_state *state)
 {
 	struct controlvm_message outmsg;
 
@@ -452,8 +451,7 @@ static int save_crash_message(struct controlvm_message *msg,
 	case CRASH_DEV:
 		local_crash_msg_offset += sizeof(struct controlvm_message);
 		err = visorchannel_write(chipset_dev->controlvm_channel,
-					 local_crash_msg_offset,
-					 msg,
+					 local_crash_msg_offset, msg,
 					 sizeof(struct controlvm_message));
 		if (err) {
 			dev_err(&chipset_dev->acpi_device->dev,
@@ -463,8 +461,7 @@ static int save_crash_message(struct controlvm_message *msg,
 		break;
 	case CRASH_BUS:
 		err = visorchannel_write(chipset_dev->controlvm_channel,
-					 local_crash_msg_offset,
-					 msg,
+					 local_crash_msg_offset, msg,
 					 sizeof(struct controlvm_message));
 		if (err) {
 			dev_err(&chipset_dev->acpi_device->dev,
@@ -549,8 +546,7 @@ static int visorbus_create(struct controlvm_message *inmsg)
 	}
 
 	if (inmsg->hdr.flags.response_expected == 1) {
-		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr),
-				   GFP_KERNEL);
+		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
 		if (!pmsg_hdr) {
 			err = -ENOMEM;
 			goto err_free_bus_info;
@@ -1010,13 +1006,13 @@ static int parahotplug_request_complete(int id, u16 active)
 {
 	struct list_head *pos;
 	struct list_head *tmp;
+	struct parahotplug_request *req;
 
 	spin_lock(&parahotplug_request_list_lock);
 
 	/* Look for a request matching "id". */
 	list_for_each_safe(pos, tmp, &parahotplug_request_list) {
-		struct parahotplug_request *req =
-		    list_entry(pos, struct parahotplug_request, list);
+		req = list_entry(pos, struct parahotplug_request, list);
 		if (req->id == id) {
 			/*
 			 * Found a match. Remove it from the list and
@@ -1216,9 +1212,7 @@ static int chipset_ready_uevent(struct controlvm_message_header *msg_hdr)
 {
 	int res;
 
-	res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
-			     KOBJ_ONLINE);
-
+	res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj, KOBJ_ONLINE);
 	if (msg_hdr->flags.response_expected)
 		controlvm_respond(msg_hdr, res, NULL);
 
@@ -1343,8 +1337,7 @@ static void setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	if (local_crash_msg_count != CONTROLVM_CRASHMSG_MAX) {
-		dev_err(&chipset_dev->acpi_device->dev,
-			"invalid count\n");
+		dev_err(&chipset_dev->acpi_device->dev, "invalid count\n");
 		return;
 	}
 
@@ -1409,8 +1402,8 @@ void visorbus_device_changestate_response(struct visor_device *dev_info,
 					  int response,
 					  struct visor_segment_state state)
 {
-	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
-				     dev_info, response, state);
+	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE, dev_info,
+				     response, state);
 
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
@@ -1434,8 +1427,8 @@ static struct parser_context *parser_init_stream(u64 addr, u32 bytes,
 	/* alloc an extra byte to ensure payload is \0 terminated */
 	allocbytes = bytes + 1 + (sizeof(struct parser_context) -
 		     sizeof(struct visor_controlvm_parameters_header));
-	if ((chipset_dev->controlvm_payload_bytes_buffered + bytes)
-	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
+	if ((chipset_dev->controlvm_payload_bytes_buffered + bytes) >
+	     MAX_CONTROLVM_PAYLOAD_BYTES) {
 		*retry = true;
 		return NULL;
 	}
