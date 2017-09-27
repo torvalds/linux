@@ -62,20 +62,10 @@ TODOs
     ~ Daniel Vetter
 
 
-11. Remove existing i2c implementation from DC
-
-    "Similar story for i2c, it uses the kernel's i2c code now, but there's
-    still a full i2c implementation hidden beneath that in
-    display/dc/i2caux. Kinda not cool, but imo ok if you fix that
-    post-merging (perhaps by not including any of this in the linux DC
-    code in the upstream kernel, but as an aux module in your internal
-    codebase since there you probably need that, same applies to the edid
-    parsing DC still does. For both cases I assume that the minimal shim
-    you need on linux (bit banging and edid parsing isn't rocket since) is
-    a lot less than the glue code to interface with the dc-provided
-    abstraction."
-    ~ Daniel Vetter
-
+11. Remove dc/i2caux. This folder can be somewhat misleading. It's basically an
+overy complicated HW programming function for sendind and receiving i2c/aux
+commands. We can greatly simplify that and move it into dc/dceXYZ like other
+HW blocks.
 
 12. drm_modeset_lock in MST should no longer be needed in recent kernels
     * Adopt appropriate locking scheme
@@ -89,7 +79,8 @@ moving all your driver state printing into the various atomic_print_state
 callbacks. There's also plans to expose this stuff in a standard way across all
 drivers, to make debugging userspace compositors easier across different hw.
 
-15. Move DP/HDMI dual mode adaptors to drm_dp_dual_mode_helper.c.
+15. Move DP/HDMI dual mode adaptors to drm_dp_dual_mode_helper.c. See
+dal_ddc_service_i2c_query_dp_dual_mode_adaptor.
 
 16. Move to core SCDC helpers (I think those are new since initial DC review).
 
@@ -110,3 +101,7 @@ guilty.
 stuff just isn't up to the challenges either. We need to figure out something
 that integrates better with DRM and linux debug printing, while not being
 useless with filtering output. dynamic debug printing might be an option.
+
+20. Use kernel i2c device to program HDMI retimer. Some boards have an HDMI
+retimer that we need to program to pass PHY compliance. Currently that's
+bypassing the i2c device and goes directly to HW. This should be changed.
