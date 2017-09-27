@@ -1023,9 +1023,8 @@ int visorbus_create_instance(struct visor_device *dev)
 	dev->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
 					      visorbus_debugfs_dir);
 	dev->debugfs_client_bus_info =
-		debugfs_create_file("client_bus_info", 0440,
-				    dev->debugfs_dir, dev,
-				    &client_bus_info_debugfs_fops);
+		debugfs_create_file("client_bus_info", 0440, dev->debugfs_dir,
+				    dev, &client_bus_info_debugfs_fops);
 
 	dev_set_drvdata(&dev->device, dev);
 	err = get_vbus_header_info(dev->visorchannel, &dev->device, hdr_info);
@@ -1040,10 +1039,8 @@ int visorbus_create_instance(struct visor_device *dev)
 
 	dev->state.created = 1;
 	dev->vbus_hdr_info = (void *)hdr_info;
-	write_vbus_chp_info(dev->visorchannel, hdr_info,
-			    &chipset_driverinfo);
-	write_vbus_bus_info(dev->visorchannel, hdr_info,
-			    &clientbus_driverinfo);
+	write_vbus_chp_info(dev->visorchannel, hdr_info, &chipset_driverinfo);
+	write_vbus_bus_info(dev->visorchannel, hdr_info, &clientbus_driverinfo);
 
 	visorbus_response(dev, err, CONTROLVM_BUS_CREATE);
 
@@ -1126,7 +1123,6 @@ static void resume_state_change_complete(struct visor_device *dev, int status)
 		return;
 
 	dev->resuming = false;
-
 	/*
 	 * Notify the chipset driver that the resume is complete,
 	 * which will presumably want to send some sort of response to
