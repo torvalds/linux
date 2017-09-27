@@ -309,7 +309,6 @@ struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 {
 	struct device *dev;
 	struct device *dev_start = NULL;
-	struct visor_device *vdev = NULL;
 	struct visor_busdev id = {
 		.bus_no = bus_no,
 		.dev_no = dev_no
@@ -319,9 +318,9 @@ struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 		dev_start = &from->device;
 	dev = bus_find_device(&visorbus_type, dev_start, (void *)&id,
 			      match_visorbus_dev_by_id);
-	if (dev)
-		vdev = to_visor_device(dev);
-	return vdev;
+	if (!dev)
+		return NULL;
+	return to_visor_device(dev);
 }
 
 static void controlvm_init_response(struct controlvm_message *msg,
