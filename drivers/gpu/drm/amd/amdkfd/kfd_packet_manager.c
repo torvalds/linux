@@ -203,7 +203,7 @@ static int pm_create_map_queue(struct packet_manager *pm, uint32_t *buffer,
 			queue_type__mes_map_queues__debug_interface_queue_vi;
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
-		packet->bitfields2.engine_sel =
+		packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
 				engine_sel__mes_map_queues__sdma0_vi;
 		use_static = false; /* no static queues under SDMA */
 		break;
