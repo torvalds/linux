@@ -217,7 +217,8 @@ static int ti_cpufreq_init(void)
 	opp_data->cpu_dev = get_cpu_device(0);
 	if (!opp_data->cpu_dev) {
 		pr_err("%s: Failed to get device for CPU0\n", __func__);
-		return -ENODEV;
+		ret = ENODEV;
+		goto free_opp_data;
 	}
 
 	opp_data->opp_node = dev_pm_opp_of_get_opp_desc_node(opp_data->cpu_dev);
@@ -262,6 +263,8 @@ register_cpufreq_dt:
 
 fail_put_node:
 	of_node_put(opp_data->opp_node);
+free_opp_data:
+	kfree(opp_data);
 
 	return ret;
 }
