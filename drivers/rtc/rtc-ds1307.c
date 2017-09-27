@@ -1042,7 +1042,7 @@ static u8 ds1307_trickle_init(struct ds1307 *ds1307,
 
 /*----------------------------------------------------------------------*/
 
-#ifdef CONFIG_RTC_DRV_DS1307_HWMON
+#if IS_REACHABLE(CONFIG_HWMON)
 
 /*
  * Temperature sensor support for ds3231 devices.
