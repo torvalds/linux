@@ -3,7 +3,6 @@
 #
 
 source "drivers/staging/media/atomisp/i2c/ov5693/Kconfig"
-source "drivers/staging/media/atomisp/i2c/imx/Kconfig"
 
 config VIDEO_ATOMISP_OV2722
        tristate "OVT ov2722 sensor support"
