@@ -2393,7 +2393,7 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 
 	serial_number = ((uint64_t)bottom32 << 32) | top32;
 
-	if (pp_override_get_default_fuse_value(serial_number, vega10_fuses_default, &fuse) == 0) {
+	if (pp_override_get_default_fuse_value(serial_number, &fuse) == 0) {
 		avfs_fuse_table->VFT0_b  = fuse.VFT0_b;
 		avfs_fuse_table->VFT0_m1 = fuse.VFT0_m1;
 		avfs_fuse_table->VFT0_m2 = fuse.VFT0_m2;

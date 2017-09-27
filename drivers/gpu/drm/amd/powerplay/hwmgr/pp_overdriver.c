@@ -1,7 +1,7 @@
 #include "pp_overdriver.h"
 #include <linux/errno.h>
 
-const struct phm_fuses_default vega10_fuses_default[] = {
+static const struct phm_fuses_default vega10_fuses_default[] = {
 	{"0000001000010011111010101001010011011110000011100100100101100100",0x00003C96,0xFFFFE226,0x00000656,0x00002203,0xFFFFF201,0x000003FF,0x00002203,0xFFFFF201,0x000003FF},
 	{"0000001000010011111010101001010011011110000010100001100010000100",0x00003CC5,0xFFFFE23A,0x0000064E,0x00002258,0xFFFFF1F7,0x000003FC,0x00002258,0xFFFFF1F7,0x000003FC},
 	{"0000001000010011111010101001010011011110000011100011000110100100",0x00003CAF,0xFFFFE36E,0x00000602,0x00001E98,0xFFFFF569,0x00000357,0x00001E98,0xFFFFF569,0x00000357},
@@ -1240,9 +1240,9 @@ const struct phm_fuses_default vega10_fuses_default[] = {
 };
 
 int pp_override_get_default_fuse_value(uint64_t key,
-			const struct phm_fuses_default list[],
 			struct phm_fuses_default *result)
 {
+	const struct phm_fuses_default *list = vega10_fuses_default;
 	uint32_t i;
 	uint64_t temp_serial_numer;
 	uint32_t bit;

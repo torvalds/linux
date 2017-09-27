@@ -40,9 +40,7 @@ struct phm_fuses_default {
 	uint32_t VFT0_b;
 };
 
-extern const struct phm_fuses_default vega10_fuses_default[];
 extern int pp_override_get_default_fuse_value(uint64_t key,
-			const struct phm_fuses_default list[],
 			struct phm_fuses_default *result);
 
 #endif
