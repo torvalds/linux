@@ -161,7 +161,7 @@ struct visor_device {
 	void *vbus_hdr_info;
 	guid_t partition_guid;
 	struct dentry *debugfs_dir;
-	struct dentry *debugfs_client_bus_info;
+	struct dentry *debugfs_bus_info;
 };
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)

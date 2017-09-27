@@ -179,7 +179,7 @@ static void visorbus_release_busdevice(struct device *xdev)
 {
 	struct visor_device *dev = dev_get_drvdata(xdev);
 
-	debugfs_remove(dev->debugfs_client_bus_info);
+	debugfs_remove(dev->debugfs_bus_info);
 	debugfs_remove_recursive(dev->debugfs_dir);
 	visorchannel_destroy(dev->visorchannel);
 	kfree(dev);
@@ -414,7 +414,7 @@ static void vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
 		   devinfo->infostrs);
 }
 
-static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
+static int bus_info_debugfs_show(struct seq_file *seq, void *v)
 {
 	int i = 0;
 	unsigned long off;
@@ -451,15 +451,14 @@ static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int client_bus_info_debugfs_open(struct inode *inode, struct file *file)
+static int bus_info_debugfs_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, client_bus_info_debugfs_show,
-			   inode->i_private);
+	return single_open(file, bus_info_debugfs_show, inode->i_private);
 }
 
-static const struct file_operations client_bus_info_debugfs_fops = {
+static const struct file_operations bus_info_debugfs_fops = {
 	.owner = THIS_MODULE,
-	.open = client_bus_info_debugfs_open,
+	.open = bus_info_debugfs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -1024,10 +1023,9 @@ int visorbus_create_instance(struct visor_device *dev)
 
 	dev->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
 					      visorbus_debugfs_dir);
-	dev->debugfs_client_bus_info =
-		debugfs_create_file("client_bus_info", 0440, dev->debugfs_dir,
-				    dev, &client_bus_info_debugfs_fops);
-
+	dev->debugfs_bus_info = debugfs_create_file("client_bus_info", 0440,
+						    dev->debugfs_dir, dev,
+						    &bus_info_debugfs_fops);
 	dev_set_drvdata(&dev->device, dev);
 	err = get_vbus_header_info(dev->visorchannel, &dev->device, hdr_info);
 	if (err < 0)
