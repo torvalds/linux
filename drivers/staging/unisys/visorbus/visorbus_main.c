@@ -181,6 +181,7 @@ static void visorbus_release_busdevice(struct device *xdev)
 
 	debugfs_remove(dev->debugfs_client_bus_info);
 	debugfs_remove_recursive(dev->debugfs_dir);
+	visorchannel_destroy(dev->visorchannel);
 	kfree(dev);
 }
 
@@ -1069,11 +1070,11 @@ void visorbus_remove_instance(struct visor_device *dev)
 	 * successfully been able to trace thru the code to see where/how
 	 * release() gets called.  But I know it does.
 	 */
-	visorchannel_destroy(dev->visorchannel);
 	kfree(dev->vbus_hdr_info);
 	list_del(&dev->list_all);
+	if (dev->pending_msg_hdr)
+		visorbus_response(dev, 0, CONTROLVM_BUS_DESTROY);
 	device_unregister(&dev->device);
-	visorbus_response(dev, 0, CONTROLVM_BUS_DESTROY);
 }
 
 /*
