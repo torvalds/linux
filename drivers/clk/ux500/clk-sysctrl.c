@@ -139,7 +139,7 @@ static struct clk *clk_reg_sysctrl(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	clk = devm_kzalloc(dev, sizeof(struct clk_sysctrl), GFP_KERNEL);
+	clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 

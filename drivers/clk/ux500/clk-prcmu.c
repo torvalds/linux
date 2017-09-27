@@ -258,7 +258,7 @@ static struct clk *clk_reg_prcmu(const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	clk = kzalloc(sizeof(struct clk_prcmu), GFP_KERNEL);
+	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 
