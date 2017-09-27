@@ -63,19 +63,11 @@ _SWITCH_TO_KERNEL_CR3 %rax
 movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 .endm
 
-.macro SWITCH_USER_CR3_NO_STACK
-movq %rax, PER_CPU_VAR(unsafe_stack_register_backup)
-_SWITCH_TO_USER_CR3 %rax %al
-movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
-.endm
-
 #else /* CONFIG_KAISER */
 
 .macro SWITCH_KERNEL_CR3 reg
 .endm
 .macro SWITCH_USER_CR3 reg regb
-.endm
-.macro SWITCH_USER_CR3_NO_STACK
 .endm
 .macro SWITCH_KERNEL_CR3_NO_STACK
 .endm
