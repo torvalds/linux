@@ -187,6 +187,8 @@ struct bpf_prog_aux {
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
 	struct user_struct *user;
+	u64 load_time; /* ns since boottime */
+	u8 name[BPF_OBJ_NAME_LEN];
 	union {
 		struct work_struct work;
 		struct rcu_head	rcu;
