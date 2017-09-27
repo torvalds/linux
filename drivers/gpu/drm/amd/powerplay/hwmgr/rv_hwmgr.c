@@ -312,37 +312,37 @@ static int rv_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 }
 
 /* temporary hardcoded clock voltage breakdown tables */
-DpmClock_t VddDcfClk[]= {
+static const DpmClock_t VddDcfClk[]= {
 	{ 300, 2600},
 	{ 600, 3200},
 	{ 600, 3600},
 };
 
-DpmClock_t VddSocClk[]= {
+static const DpmClock_t VddSocClk[]= {
 	{ 478, 2600},
 	{ 722, 3200},
 	{ 722, 3600},
 };
 
-DpmClock_t VddFClk[]= {
+static const DpmClock_t VddFClk[]= {
 	{ 400, 2600},
 	{1200, 3200},
 	{1200, 3600},
 };
 
-DpmClock_t VddDispClk[]= {
+static const DpmClock_t VddDispClk[]= {
 	{ 435, 2600},
 	{ 661, 3200},
 	{1086, 3600},
 };
 
-DpmClock_t VddDppClk[]= {
+static const DpmClock_t VddDppClk[]= {
 	{ 435, 2600},
 	{ 661, 3200},
 	{ 661, 3600},
 };
 
-DpmClock_t VddPhyClk[]= {
+static const DpmClock_t VddPhyClk[]= {
 	{ 540, 2600},
 	{ 810, 3200},
 	{ 810, 3600},
@@ -350,7 +350,7 @@ DpmClock_t VddPhyClk[]= {
 
 static int rv_get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 			struct rv_voltage_dependency_table **pptable,
-			uint32_t num_entry, DpmClock_t *pclk_dependency_table)
+			uint32_t num_entry, const DpmClock_t *pclk_dependency_table)
 {
 	uint32_t table_size, i;
 	struct rv_voltage_dependency_table *ptable;
