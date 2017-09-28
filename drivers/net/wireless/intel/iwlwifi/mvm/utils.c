@@ -459,7 +459,8 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 
 	base = mvm->umac_error_event_table;
 
-	if (base < 0x800000) {
+	if (base < (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000 ?
+		    0x400000 : 0x800000)) {
 		IWL_ERR(mvm,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
