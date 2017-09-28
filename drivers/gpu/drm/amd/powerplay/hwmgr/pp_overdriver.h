@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 
 struct phm_fuses_default {
-	const char *key;
+	uint64_t key;
 	uint32_t VFT2_m1;
 	uint32_t VFT2_m2;
 	uint32_t VFT2_b;
