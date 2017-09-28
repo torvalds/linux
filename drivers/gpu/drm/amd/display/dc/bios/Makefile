@@ -2,7 +2,7 @@
 # Makefile for the 'bios' sub-component of DAL.
 # It provides the parsing and executing controls for atom bios image.
 
-BIOS = bios_parser.o bios_parser_interface.o  bios_parser_helper.o command_table.o command_table_helper.o
+BIOS = bios_parser.o bios_parser_interface.o  bios_parser_helper.o command_table.o command_table_helper.o bios_parser_common.o
 
 BIOS += command_table2.o command_table_helper2.o bios_parser2.o
 
