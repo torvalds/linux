@@ -28,7 +28,6 @@
 #include "dml_common_defs.h"
 #include "soc_bounding_box.h"
 #include "display_watermark.h"
-#include "display_pipe_clocks.h"
 #include "display_rq_dlg_calc.h"
 #include "display_mode_support.h"
 
