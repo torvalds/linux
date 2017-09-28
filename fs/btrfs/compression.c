@@ -33,6 +33,7 @@
 #include <linux/bit_spinlock.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
+#include <linux/sort.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -1222,6 +1223,59 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 	return 1;
 }
 
+/* Compare buckets by size, ascending */
+static int bucket_comp_rev(const void *lv, const void *rv)
+{
+	const struct bucket_item *l = (const struct bucket_item *)lv;
+	const struct bucket_item *r = (const struct bucket_item *)rv;
+
+	return r->count - l->count;
+}
+
+/*
+ * Size of the core byte set - how many bytes cover 90% of the sample
+ *
+ * There are several types of structured binary data that use nearly all byte
+ * values. The distribution can be uniform and counts in all buckets will be
+ * nearly the same (eg. encrypted data). Unlikely to be compressible.
+ *
+ * Other possibility is normal (Gaussian) distribution, where the data could
+ * be potentially compressible, but we have to take a few more steps to decide
+ * how much.
+ *
+ * @BYTE_CORE_SET_LOW  - main part of byte values repeated frequently,
+ *                       compression algo can easy fix that
+ * @BYTE_CORE_SET_HIGH - data have uniform distribution and with high
+ *                       probability is not compressible
+ */
+#define BYTE_CORE_SET_LOW		(64)
+#define BYTE_CORE_SET_HIGH		(200)
+
+static int byte_core_set_size(struct heuristic_ws *ws)
+{
+	u32 i;
+	u32 coreset_sum = 0;
+	const u32 core_set_threshold = ws->sample_size * 90 / 100;
+	struct bucket_item *bucket = ws->bucket;
+
+	/* Sort in reverse order */
+	sort(bucket, BUCKET_SIZE, sizeof(*bucket), &bucket_comp_rev, NULL);
+
+	for (i = 0; i < BYTE_CORE_SET_LOW; i++)
+		coreset_sum += bucket[i].count;
+
+	if (coreset_sum > core_set_threshold)
+		return i;
+
+	for (; i < BYTE_CORE_SET_HIGH && bucket[i].count > 0; i++) {
+		coreset_sum += bucket[i].count;
+		if (coreset_sum > core_set_threshold)
+			break;
+	}
+
+	return i;
+}
+
 /*
  * Count byte values in buckets.
  * This heuristic can detect textual data (configs, xml, json, html, etc).
@@ -1363,6 +1417,17 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 	i = byte_set_size(ws);
 	if (i < BYTE_SET_THRESHOLD) {
 		ret = 2;
+		goto out;
+	}
+
+	i = byte_core_set_size(ws);
+	if (i <= BYTE_CORE_SET_LOW) {
+		ret = 3;
+		goto out;
+	}
+
+	if (i >= BYTE_CORE_SET_HIGH) {
+		ret = 0;
 		goto out;
 	}
 
