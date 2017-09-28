@@ -1525,15 +1525,6 @@ struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index)
 	return dc->links[link_index];
 }
 
-struct dwbc *dc_get_dwb_at_pipe(struct dc *dc, uint32_t pipe)
-{
-	if ((pipe >= dwb_pipe0) && (pipe < dwb_pipe_max_num)) {
-		return dc->res_pool->dwbc[(int)pipe];
-	} else {
-		return NULL;
-	}
-}
-
 const struct graphics_object_id dc_get_link_id_at_index(
 	struct dc *dc, uint32_t link_index)
 {

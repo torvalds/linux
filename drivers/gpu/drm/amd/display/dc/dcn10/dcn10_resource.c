@@ -32,7 +32,6 @@
 
 #include "dcn10/dcn10_ipp.h"
 #include "dcn10/dcn10_mpc.h"
-#include "dcn10/dcn10_dwb.h"
 #include "irq/dcn10/irq_service_dcn10.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_timing_generator.h"
@@ -326,24 +325,6 @@ static const struct dcn_dpp_mask tf_mask = {
 	TF_REG_LIST_SH_MASK_DCN10(_MASK),
 };
 
-#define dwbc_regs(id)\
-[id] = {\
-	DWBC_COMMON_REG_LIST_DCN1_0(id),\
-}
-
-static const struct dcn10_dwbc_registers dwbc10_regs[] = {
-	dwbc_regs(0),
-	dwbc_regs(1),
-};
-
-static const struct dcn10_dwbc_shift dwbc10_shift = {
-	DWBC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
-};
-
-static const struct dcn10_dwbc_mask dwbc10_mask = {
-	DWBC_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
-};
-
 static const struct dcn_mpc_registers mpc_regs = {
 		MPC_COMMON_REG_LIST_DCN1_0(0),
 		MPC_COMMON_REG_LIST_DCN1_0(1),
@@ -430,7 +411,6 @@ static const struct resource_caps res_cap = {
 		.num_audio = 4,
 		.num_stream_encoder = 4,
 		.num_pll = 4,
-		.num_dwb = 2,
 };
 
 static const struct dc_debug debug_defaults_drv = {
@@ -765,11 +745,6 @@ static void destruct(struct dcn10_resource_pool *pool)
 	for (i = 0; i < pool->base.audio_count; i++) {
 		if (pool->base.audios[i])
 			dce_aud_destroy(&pool->base.audios[i]);
-	}
-
-	for (i = 0; i < pool->base.res_cap->num_dwb; i++) {
-		kfree(pool->base.dwbc[i]);
-		pool->base.dwbc[i] = NULL;
 	}
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
@@ -1234,31 +1209,6 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	return value;
 }
 
-static bool dcn10_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
-{
-	int i;
-	uint32_t dwb_count = pool->res_cap->num_dwb;
-
-	for (i = 0; i < dwb_count; i++) {
-		struct dcn10_dwbc *dwbc10 = kzalloc(sizeof(struct dcn10_dwbc),
-						    GFP_KERNEL);
-
-		if (!dwbc10) {
-			dm_error("DC: failed to create dwbc10!\n");
-			return false;
-		}
-
-		dcn10_dwbc_construct(dwbc10, ctx,
-				&dwbc10_regs[i],
-				&dwbc10_shift,
-				&dwbc10_mask,
-				i);
-
-		pool->dwbc[i] = &dwbc10->base;
-	}
-	return true;
-}
-
 static bool construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
@@ -1479,12 +1429,6 @@ static bool construct(
 		goto mpc_create_fail;
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (!dcn10_dwbc_create(ctx, &pool->base)) {
-		goto dwbc_create_fail;
-	}
-#endif
-
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
 			&res_create_funcs : &res_create_maximus_funcs)))
@@ -1507,7 +1451,6 @@ mi_create_fail:
 irqs_create_fail:
 res_create_fail:
 clock_source_create_fail:
-dwbc_create_fail:
 
 	destruct(pool);
 

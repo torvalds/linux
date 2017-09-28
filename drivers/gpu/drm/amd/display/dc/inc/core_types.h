@@ -35,7 +35,6 @@
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mpc.h"
 #endif
-#include "dwb.h"
 
 #define MAX_CLOCK_SOURCES 7
 
@@ -135,8 +134,6 @@ struct resource_pool {
 	struct mpc *mpc;
 	struct pp_smu_funcs_rv *pp_smu;
 	struct pp_smu_display_requirement_rv pp_smu_req;
-
-	struct dwbc *dwbc[MAX_DWB_PIPES];
 
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
