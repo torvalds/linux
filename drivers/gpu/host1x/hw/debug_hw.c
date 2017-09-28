@@ -30,6 +30,13 @@ enum {
 	HOST1X_OPCODE_IMM	= 0x04,
 	HOST1X_OPCODE_RESTART	= 0x05,
 	HOST1X_OPCODE_GATHER	= 0x06,
+	HOST1X_OPCODE_SETSTRMID = 0x07,
+	HOST1X_OPCODE_SETAPPID  = 0x08,
+	HOST1X_OPCODE_SETPYLD   = 0x09,
+	HOST1X_OPCODE_INCR_W    = 0x0a,
+	HOST1X_OPCODE_NONINCR_W = 0x0b,
+	HOST1X_OPCODE_GATHER_W  = 0x0c,
+	HOST1X_OPCODE_RESTART_W = 0x0d,
 	HOST1X_OPCODE_EXTEND	= 0x0e,
 };
 
@@ -38,11 +45,16 @@ enum {
 	HOST1X_OPCODE_EXTEND_RELEASE_MLOCK	= 0x01,
 };
 
-static unsigned int show_channel_command(struct output *o, u32 val)
-{
-	unsigned int mask, subop, num;
+#define INVALID_PAYLOAD				0xffffffff
 
-	switch (val >> 28) {
+static unsigned int show_channel_command(struct output *o, u32 val,
+					 u32 *payload)
+{
+	unsigned int mask, subop, num, opcode;
+
+	opcode = val >> 28;
+
+	switch (opcode) {
 	case HOST1X_OPCODE_SETCLASS:
 		mask = val & 0x3f;
 		if (mask) {
@@ -97,6 +109,44 @@ static unsigned int show_channel_command(struct output *o, u32 val)
 				    val >> 14 & 0x1, val & 0x3fff);
 		return 1;
 
+#if HOST1X_HW >= 6
+	case HOST1X_OPCODE_SETSTRMID:
+		host1x_debug_cont(o, "SETSTRMID(offset=%06x)\n",
+				  val & 0x3fffff);
+		return 0;
+
+	case HOST1X_OPCODE_SETAPPID:
+		host1x_debug_cont(o, "SETAPPID(appid=%02x)\n", val & 0xff);
+		return 0;
+
+	case HOST1X_OPCODE_SETPYLD:
+		*payload = val & 0xffff;
+		host1x_debug_cont(o, "SETPYLD(data=%04x)\n", *payload);
+		return 0;
+
+	case HOST1X_OPCODE_INCR_W:
+	case HOST1X_OPCODE_NONINCR_W:
+		host1x_debug_cont(o, "%s(offset=%06x, ",
+				  opcode == HOST1X_OPCODE_INCR_W ?
+					"INCR_W" : "NONINCR_W",
+				  val & 0x3fffff);
+		if (*payload == 0) {
+			host1x_debug_cont(o, "[])\n");
+			return 0;
+		} else if (*payload == INVALID_PAYLOAD) {
+			host1x_debug_cont(o, "unknown)\n");
+			return 0;
+		} else {
+			host1x_debug_cont(o, "[");
+			return *payload;
+		}
+
+	case HOST1X_OPCODE_GATHER_W:
+		host1x_debug_cont(o, "GATHER_W(count=%04x, addr=[",
+				  val & 0x3fff);
+		return 2;
+#endif
+
 	case HOST1X_OPCODE_EXTEND:
 		subop = val >> 24 & 0xf;
 		if (subop == HOST1X_OPCODE_EXTEND_ACQUIRE_MLOCK)
@@ -122,6 +172,7 @@ static void show_gather(struct output *o, phys_addr_t phys_addr,
 	/* Map dmaget cursor to corresponding mem handle */
 	u32 offset = phys_addr - pin_addr;
 	unsigned int data_count = 0, i;
+	u32 payload = INVALID_PAYLOAD;
 
 	/*
 	 * Sometimes we're given different hardware address to the same
@@ -139,7 +190,7 @@ static void show_gather(struct output *o, phys_addr_t phys_addr,
 
 		if (!data_count) {
 			host1x_debug_output(o, "%08x: %08x: ", addr, val);
-			data_count = show_channel_command(o, val);
+			data_count = show_channel_command(o, val, &payload);
 		} else {
 			host1x_debug_cont(o, "%08x%s", val,
 					    data_count > 1 ? ", " : "])\n");
