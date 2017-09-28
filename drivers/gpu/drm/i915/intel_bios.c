@@ -1265,7 +1265,6 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 {
 	const struct bdb_general_definitions *defs;
 	const struct child_device_config *child;
-	struct child_device_config *child_dev_ptr;
 	int i, child_device_num, count;
 	u8 expected_size;
 	u16 block_size;
@@ -1337,16 +1336,14 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 			continue;
 		}
 
-		child_dev_ptr = dev_priv->vbt.child_dev + count;
-		count++;
-
 		/*
 		 * Copy as much as we know (sizeof) and is available
 		 * (child_dev_size) of the child device. Accessing the data must
 		 * depend on VBT version.
 		 */
-		memcpy(child_dev_ptr, child,
+		memcpy(dev_priv->vbt.child_dev + count, child,
 		       min_t(size_t, defs->child_dev_size, sizeof(*child)));
+		count++;
 	}
 	return;
 }
