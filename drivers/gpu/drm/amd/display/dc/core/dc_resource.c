@@ -1417,19 +1417,15 @@ static struct audio *find_first_free_audio(
 		const struct resource_pool *pool)
 {
 	int i;
-	if (pool->audio_count >=  pool->stream_enc_count) {
-		for (i = 0; i < pool->audio_count; i++) {
-			if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
-				/*we have enough audio endpoint, no need to do dynamic distribution*/
-				return pool->audios[i];
-			}
+	for (i = 0; i < pool->audio_count; i++) {
+		if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
+			return pool->audios[i];
 		}
-	} else { /*first come first serve*/
-		for (i = 0; i < pool->audio_count; i++) {
-			if (res_ctx->is_audio_acquired[i] == false) {
-
-				return pool->audios[i];
-			}
+	}
+	/*not found the matching one, first come first serve*/
+	for (i = 0; i < pool->audio_count; i++) {
+		if (res_ctx->is_audio_acquired[i] == false) {
+			return pool->audios[i];
 		}
 	}
 	return 0;
