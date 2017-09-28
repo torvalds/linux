@@ -13,7 +13,7 @@ CFLAGS_soc_bounding_box.o := -mhard-float -msse -mpreferred-stack-boundary=4
 CFLAGS_dml_common_defs.o := -mhard-float -msse -mpreferred-stack-boundary=4
 
 
-DML = display_mode_lib.o display_pipe_clocks.o display_rq_dlg_calc.o \
+DML = display_mode_lib.o display_rq_dlg_calc.o \
 	  display_rq_dlg_helpers.o dml1_display_rq_dlg_calc.o \
 	  soc_bounding_box.o dml_common_defs.o display_mode_vba.o
 

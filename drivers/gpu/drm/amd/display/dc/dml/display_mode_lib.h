@@ -29,7 +29,6 @@
 #include "dml_common_defs.h"
 #include "soc_bounding_box.h"
 #include "display_mode_vba.h"
-#include "display_pipe_clocks.h"
 #include "display_rq_dlg_calc.h"
 #include "dml1_display_rq_dlg_calc.h"
 
