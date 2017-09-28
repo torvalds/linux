@@ -2331,7 +2331,7 @@ static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 
 	if (0 != byte_count) {
-		pr_err("SMC size must be dividable by 4\n");
+		pr_err("SMC size must be divisible by 4\n");
 		return -EINVAL;
 	}
 
