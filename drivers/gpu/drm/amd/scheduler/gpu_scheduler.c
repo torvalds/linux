@@ -308,7 +308,7 @@ static bool amd_sched_entity_add_dependency_cb(struct amd_sched_entity *entity)
 }
 
 static struct amd_sched_job *
-amd_sched_entity_pop_job(struct amd_sched_entity *entity)
+amd_sched_entity_peek_job(struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = entity->sched;
 	struct amd_sched_job *sched_job;
@@ -600,7 +600,7 @@ static int amd_sched_main(void *param)
 		if (!entity)
 			continue;
 
-		sched_job = amd_sched_entity_pop_job(entity);
+		sched_job = amd_sched_entity_peek_job(entity);
 		if (!sched_job)
 			continue;
 
