@@ -240,7 +240,7 @@ static const uint16_t *get_filter_coeffs_64p(int taps, struct fixed31_32 ratio)
 	else if (taps == 3)
 		return get_filter_3tap_64p(ratio);
 	else if (taps == 2)
-		return filter_2tap_64p;
+		return get_filter_2tap_64p();
 	else if (taps == 1)
 		return NULL;
 	else {

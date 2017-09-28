@@ -306,7 +306,7 @@ static const uint16_t *get_filter_coeffs_16p(int taps, struct fixed31_32 ratio)
 	else if (taps == 3)
 		return get_filter_3tap_16p(ratio);
 	else if (taps == 2)
-		return filter_2tap_16p;
+		return get_filter_2tap_16p();
 	else if (taps == 1)
 		return NULL;
 	else {

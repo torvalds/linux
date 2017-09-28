@@ -240,8 +240,8 @@ struct transform_funcs {
 
 };
 
-extern const uint16_t filter_2tap_16p[18];
-extern const uint16_t filter_2tap_64p[66];
+const uint16_t *get_filter_2tap_16p(void);
+const uint16_t *get_filter_2tap_64p(void);
 const uint16_t *get_filter_3tap_16p(struct fixed31_32 ratio);
 const uint16_t *get_filter_3tap_64p(struct fixed31_32 ratio);
 const uint16_t *get_filter_4tap_16p(struct fixed31_32 ratio);
