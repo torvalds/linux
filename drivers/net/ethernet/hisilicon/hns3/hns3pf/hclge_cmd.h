@@ -311,6 +311,7 @@ struct hclge_tc_thrd {
 struct hclge_priv_buf {
 	struct hclge_waterline wl;	/* Waterline for low and high*/
 	u32 buf_size;	/* TC private buffer size */
+	u32 tx_buf_size;
 	u32 enable;	/* Enable TC private buffer or not */
 };
 
@@ -319,6 +320,11 @@ struct hclge_shared_buf {
 	struct hclge_waterline self;
 	struct hclge_tc_thrd tc_thrd[HCLGE_MAX_TC_NUM];
 	u32 buf_size;
+};
+
+struct hclge_pkt_buf_alloc {
+	struct hclge_priv_buf priv_buf[HCLGE_MAX_TC_NUM];
+	struct hclge_shared_buf s_buf;
 };
 
 #define HCLGE_RX_COM_WL_EN_B	15

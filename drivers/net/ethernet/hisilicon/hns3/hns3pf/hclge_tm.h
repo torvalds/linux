@@ -94,6 +94,15 @@ struct hclge_bp_to_qs_map_cmd {
 	u32 rsvd1;
 };
 
+struct hclge_pfc_en_cmd {
+	u8 tx_rx_en_bitmap;
+	u8 pri_en_bitmap;
+};
+
+struct hclge_port_shapping_cmd {
+	__le32 port_shapping_para;
+};
+
 #define hclge_tm_set_field(dest, string, val) \
 			hnae_set_field((dest), (HCLGE_TM_SHAP_##string##_MSK), \
 				       (HCLGE_TM_SHAP_##string##_LSH), val)
@@ -103,4 +112,10 @@ struct hclge_bp_to_qs_map_cmd {
 
 int hclge_tm_schd_init(struct hclge_dev *hdev);
 int hclge_pause_setup_hw(struct hclge_dev *hdev);
+int hclge_tm_schd_mode_hw(struct hclge_dev *hdev);
+int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc);
+void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc);
+int hclge_tm_dwrr_cfg(struct hclge_dev *hdev);
+int hclge_tm_map_cfg(struct hclge_dev *hdev);
+int hclge_tm_init_hw(struct hclge_dev *hdev);
 #endif
