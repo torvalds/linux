@@ -93,6 +93,13 @@ struct v4l2_mbus_config {
 	unsigned int flags;
 };
 
+/**
+ * v4l2_fill_pix_format - Ancillary routine that fills a &struct
+ *	v4l2_pix_format fields from a &struct v4l2_mbus_framefmt.
+ *
+ * @pix_fmt:	pointer to &struct v4l2_pix_format to be filled
+ * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be used as model
+ */
 static inline void v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,
 				const struct v4l2_mbus_framefmt *mbus_fmt)
 {
@@ -105,6 +112,15 @@ static inline void v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,
 	pix_fmt->xfer_func = mbus_fmt->xfer_func;
 }
 
+/**
+ * v4l2_fill_pix_format - Ancillary routine that fills a &struct
+ *	v4l2_mbus_framefmt from a &struct v4l2_pix_format and a
+ *	data format code.
+ *
+ * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be filled
+ * @pix_fmt:	pointer to &struct v4l2_pix_format to be used as model
+ * @code:	data format code (from &enum v4l2_mbus_pixelcode)
+ */
 static inline void v4l2_fill_mbus_format(struct v4l2_mbus_framefmt *mbus_fmt,
 			   const struct v4l2_pix_format *pix_fmt,
 			   u32 code)
@@ -119,6 +135,13 @@ static inline void v4l2_fill_mbus_format(struct v4l2_mbus_framefmt *mbus_fmt,
 	mbus_fmt->code = code;
 }
 
+/**
+ * v4l2_fill_pix_format - Ancillary routine that fills a &struct
+ *	v4l2_pix_format_mplane fields from a media bus structure.
+ *
+ * @pix_mp_fmt:	pointer to &struct v4l2_pix_format_mplane to be filled
+ * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be used as model
+ */
 static inline void v4l2_fill_pix_format_mplane(
 				struct v4l2_pix_format_mplane *pix_mp_fmt,
 				const struct v4l2_mbus_framefmt *mbus_fmt)
@@ -132,6 +155,13 @@ static inline void v4l2_fill_pix_format_mplane(
 	pix_mp_fmt->xfer_func = mbus_fmt->xfer_func;
 }
 
+/**
+ * v4l2_fill_pix_format - Ancillary routine that fills a &struct
+ *	v4l2_mbus_framefmt from a &struct v4l2_pix_format_mplane.
+ *
+ * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be filled
+ * @pix_mp_fmt:	pointer to &struct v4l2_pix_format_mplane to be used as model
+ */
 static inline void v4l2_fill_mbus_format_mplane(
 				struct v4l2_mbus_framefmt *mbus_fmt,
 				const struct v4l2_pix_format_mplane *pix_mp_fmt)

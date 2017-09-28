@@ -21,13 +21,25 @@
 
 #define VIDEO_MAJOR	81
 
-#define VFL_TYPE_GRABBER	0
-#define VFL_TYPE_VBI		1
-#define VFL_TYPE_RADIO		2
-#define VFL_TYPE_SUBDEV		3
-#define VFL_TYPE_SDR		4
-#define VFL_TYPE_TOUCH		5
-#define VFL_TYPE_MAX		6
+/**
+ * enum vfl_devnode_type - type of V4L2 device node
+ *
+ * @VFL_TYPE_GRABBER:	for video input/output devices
+ * @VFL_TYPE_VBI:	for vertical blank data (i.e. closed captions, teletext)
+ * @VFL_TYPE_RADIO:	for radio tuners
+ * @VFL_TYPE_SUBDEV:	for V4L2 subdevices
+ * @VFL_TYPE_SDR:	for Software Defined Radio tuners
+ * @VFL_TYPE_TOUCH:	for touch sensors
+ */
+enum vfl_devnode_type {
+	VFL_TYPE_GRABBER	= 0,
+	VFL_TYPE_VBI		= 1,
+	VFL_TYPE_RADIO		= 2,
+	VFL_TYPE_SUBDEV		= 3,
+	VFL_TYPE_SDR		= 4,
+	VFL_TYPE_TOUCH		= 5,
+};
+#define VFL_TYPE_MAX VFL_TYPE_TOUCH
 
 /* Is this a receiver, transmitter or mem-to-mem? */
 /* Ignored for VFL_TYPE_SUBDEV. */
@@ -189,7 +201,7 @@ struct v4l2_file_operations {
  * @prio: pointer to &struct v4l2_prio_state with device's Priority state.
  *	 If NULL, then v4l2_dev->prio will be used.
  * @name: video device name
- * @vfl_type: V4L device type
+ * @vfl_type: V4L device type, as defined by &enum vfl_devnode_type
  * @vfl_dir: V4L receiver, transmitter or m2m
  * @minor: device node 'minor'. It is set to -1 if the registration failed
  * @num: number of the video device node
@@ -237,7 +249,7 @@ struct video_device
 
 	/* device info */
 	char name[32];
-	int vfl_type;
+	enum vfl_devnode_type vfl_type;
 	int vfl_dir;
 	int minor;
 	u16 num;
@@ -282,7 +294,7 @@ struct video_device
  * __video_register_device - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register
+ * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
  * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  * @warn_if_nr_in_use: warn if the desired device node number
@@ -301,29 +313,22 @@ struct video_device
  *
  * Returns 0 on success.
  *
- * Valid values for @type are:
- *
- *	- %VFL_TYPE_GRABBER - A frame grabber
- *	- %VFL_TYPE_VBI - Vertical blank data (undecoded)
- *	- %VFL_TYPE_RADIO - A radio card
- *	- %VFL_TYPE_SUBDEV - A subdevice
- *	- %VFL_TYPE_SDR - Software Defined Radio
- *	- %VFL_TYPE_TOUCH - A touch sensor
- *
  * .. note::
  *
  *	This function is meant to be used only inside the V4L2 core.
  *	Drivers should use video_register_device() or
  *	video_register_device_no_warn().
  */
-int __must_check __video_register_device(struct video_device *vdev, int type,
-		int nr, int warn_if_nr_in_use, struct module *owner);
+int __must_check __video_register_device(struct video_device *vdev,
+					 enum vfl_devnode_type type,
+					 int nr, int warn_if_nr_in_use,
+					 struct module *owner);
 
 /**
  *  video_register_device - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register
+ * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
  * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
@@ -337,7 +342,8 @@ int __must_check __video_register_device(struct video_device *vdev, int type,
  *	you video_device_release() should be called on failure.
  */
 static inline int __must_check video_register_device(struct video_device *vdev,
-		int type, int nr)
+						     enum vfl_devnode_type type,
+						     int nr)
 {
 	return __video_register_device(vdev, type, nr, 1, vdev->fops->owner);
 }
@@ -346,7 +352,7 @@ static inline int __must_check video_register_device(struct video_device *vdev,
  *  video_register_device_no_warn - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register
+ * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
  * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
@@ -362,8 +368,9 @@ static inline int __must_check video_register_device(struct video_device *vdev,
  *	is responsible for freeing any data. Usually that means that
  *	you video_device_release() should be called on failure.
  */
-static inline int __must_check video_register_device_no_warn(
-		struct video_device *vdev, int type, int nr)
+static inline int __must_check
+video_register_device_no_warn(struct video_device *vdev,
+			      enum vfl_devnode_type type, int nr)
 {
 	return __video_register_device(vdev, type, nr, 0, vdev->fops->owner);
 }

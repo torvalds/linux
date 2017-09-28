@@ -153,6 +153,8 @@ static int pvr2_querycap(struct file *file, void *priv, struct v4l2_capability *
 	case VFL_TYPE_RADIO:
 		cap->device_caps = V4L2_CAP_RADIO;
 		break;
+	default:
+		return -EINVAL;
 	}
 	cap->device_caps |= V4L2_CAP_TUNER | V4L2_CAP_READWRITE;
 	return 0;
