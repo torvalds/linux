@@ -631,7 +631,7 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 				  uint32_t *h_position,
 				  uint32_t *v_position);
 
-bool dc_add_stream_to_ctx(
+enum dc_status dc_add_stream_to_ctx(
 			struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *stream);

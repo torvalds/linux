@@ -1446,7 +1446,7 @@ bool resource_is_stream_unchanged(
 	return false;
 }
 
-bool dc_add_stream_to_ctx(
+enum dc_status dc_add_stream_to_ctx(
 		struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *stream)
@@ -1467,7 +1467,7 @@ bool dc_add_stream_to_ctx(
 	if (res != DC_OK)
 		DC_ERROR("Adding stream %p to context failed with err %d!\n", stream, res);
 
-	return res == DC_OK;
+	return res;
 }
 
 bool dc_remove_stream_from_ctx(
@@ -1640,10 +1640,9 @@ enum dc_status resource_map_pool_resources(
 	/* acquire new resources */
 	pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	if (pipe_idx < 0)
-		acquire_first_split_pipe(&context->res_ctx, pool, stream);
-#endif
+		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
+
 	if (pipe_idx < 0)
 		return DC_NO_CONTROLLER_RESOURCE;
 

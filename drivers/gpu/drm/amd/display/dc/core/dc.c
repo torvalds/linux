@@ -766,34 +766,27 @@ static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_sink *sink = context->streams[i]->sink;
 
-		for (j = 0; j < context->stream_status[i].plane_count; j++) {
-			dc->hwss.apply_ctx_for_surface(
-					dc, context->streams[i],
-					context->stream_status[i].plane_count,
-					context);
+		dc->hwss.apply_ctx_for_surface(
+				dc, context->streams[i],
+				context->stream_status[i].plane_count,
+				context);
 
-			/*
-			 * enable stereo
-			 * TODO rework dc_enable_stereo call to work with validation sets?
-			 */
-			for (k = 0; k < MAX_PIPES; k++) {
-				pipe = &context->res_ctx.pipe_ctx[k];
+		/*
+		 * enable stereo
+		 * TODO rework dc_enable_stereo call to work with validation sets?
+		 */
+		for (k = 0; k < MAX_PIPES; k++) {
+			pipe = &context->res_ctx.pipe_ctx[k];
 
-				for (l = 0 ; pipe && l < context->stream_count; l++)  {
-					if (context->streams[l] &&
-					    context->streams[l] == pipe->stream &&
-					    dc->hwss.setup_stereo)
-						dc->hwss.setup_stereo(pipe, dc);
-				}
+			for (l = 0 ; pipe && l < context->stream_count; l++)  {
+				if (context->streams[l] &&
+					context->streams[l] == pipe->stream &&
+					dc->hwss.setup_stereo)
+					dc->hwss.setup_stereo(pipe, dc);
 			}
 		}
 
-		for (j = 0; j < MAX_PIPES; j++) {
-			pipe = &context->res_ctx.pipe_ctx[j];
 
-			if (!pipe->top_pipe && pipe->stream == context->streams[i])
-				dc->hwss.pipe_control_lock(dc, pipe, false);
-		}
 
 		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
 				context->streams[i]->timing.h_addressable,
@@ -814,6 +807,15 @@ static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 	program_timing_sync(dc, context);
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
+
+	for (i = 0; i < context->stream_count; i++) {
+		for (j = 0; j < MAX_PIPES; j++) {
+			pipe = &context->res_ctx.pipe_ctx[j];
+
+			if (!pipe->top_pipe && pipe->stream == context->streams[i])
+				dc->hwss.pipe_control_lock(dc, pipe, false);
+		}
+	}
 
 	dc_release_state(dc->current_state);
 
