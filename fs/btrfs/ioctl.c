@@ -5152,15 +5152,11 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 					  root->root_key.objectid);
 		if (ret < 0 && ret != -EEXIST) {
 			btrfs_abort_transaction(trans, ret);
+			btrfs_end_transaction(trans);
 			goto out;
 		}
 	}
 	ret = btrfs_commit_transaction(trans);
-	if (ret < 0) {
-		btrfs_abort_transaction(trans, ret);
-		goto out;
-	}
-
 out:
 	up_write(&fs_info->subvol_sem);
 	mnt_drop_write_file(file);
