@@ -34,8 +34,8 @@ config ARCH_BINFMT_ELF_STATE
 
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
-	default y
-	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
+	default y if !BINFMT_ELF
+	depends on (ARM || FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
