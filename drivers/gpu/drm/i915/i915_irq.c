@@ -1647,11 +1647,11 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 		 * bonkers. So let's just wait for the next vblank and read
 		 * out the buggy result.
 		 *
-		 * On CHV sometimes the second CRC is bonkers as well, so
+		 * On GEN8+ sometimes the second CRC is bonkers as well, so
 		 * don't trust that one either.
 		 */
 		if (pipe_crc->skipped == 0 ||
-		    (IS_CHERRYVIEW(dev_priv) && pipe_crc->skipped == 1)) {
+		    (INTEL_GEN(dev_priv) >= 8 && pipe_crc->skipped == 1)) {
 			pipe_crc->skipped++;
 			spin_unlock(&pipe_crc->lock);
 			return;
