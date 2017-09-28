@@ -746,6 +746,7 @@ struct bucket_item {
 struct heuristic_ws {
 	/* Partial copy of input data */
 	u8 *sample;
+	u32 sample_size;
 	/* Buckets store counters for each byte value */
 	struct bucket_item *bucket;
 	struct list_head list;
@@ -1221,6 +1222,58 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 	return 1;
 }
 
+static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
+				     struct heuristic_ws *ws)
+{
+	struct page *page;
+	u64 index, index_end;
+	u32 i, curr_sample_pos;
+	u8 *in_data;
+
+	/*
+	 * Compression handles the input data by chunks of 128KiB
+	 * (defined by BTRFS_MAX_UNCOMPRESSED)
+	 *
+	 * We do the same for the heuristic and loop over the whole range.
+	 *
+	 * MAX_SAMPLE_SIZE - calculated under assumption that heuristic will
+	 * process no more than BTRFS_MAX_UNCOMPRESSED at a time.
+	 */
+	if (end - start > BTRFS_MAX_UNCOMPRESSED)
+		end = start + BTRFS_MAX_UNCOMPRESSED;
+
+	index = start >> PAGE_SHIFT;
+	index_end = end >> PAGE_SHIFT;
+
+	/* Don't miss unaligned end */
+	if (!IS_ALIGNED(end, PAGE_SIZE))
+		index_end++;
+
+	curr_sample_pos = 0;
+	while (index < index_end) {
+		page = find_get_page(inode->i_mapping, index);
+		in_data = kmap(page);
+		/* Handle case where the start is not aligned to PAGE_SIZE */
+		i = start % PAGE_SIZE;
+		while (i < PAGE_SIZE - SAMPLING_READ_SIZE) {
+			/* Don't sample any garbage from the last page */
+			if (start > end - SAMPLING_READ_SIZE)
+				break;
+			memcpy(&ws->sample[curr_sample_pos], &in_data[i],
+					SAMPLING_READ_SIZE);
+			i += SAMPLING_INTERVAL;
+			start += SAMPLING_INTERVAL;
+			curr_sample_pos += SAMPLING_READ_SIZE;
+		}
+		kunmap(page);
+		put_page(page);
+
+		index++;
+	}
+
+	ws->sample_size = curr_sample_pos;
+}
+
 /*
  * Compression heuristic.
  *
@@ -1240,19 +1293,19 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 {
 	struct list_head *ws_list = __find_workspace(0, true);
 	struct heuristic_ws *ws;
-	u64 index = start >> PAGE_SHIFT;
-	u64 end_index = end >> PAGE_SHIFT;
-	struct page *page;
+	u32 i;
+	u8 byte;
 	int ret = 1;
 
 	ws = list_entry(ws_list, struct heuristic_ws, list);
 
-	while (index <= end_index) {
-		page = find_get_page(inode->i_mapping, index);
-		kmap(page);
-		kunmap(page);
-		put_page(page);
-		index++;
+	heuristic_collect_sample(inode, start, end, ws);
+
+	memset(ws->bucket, 0, sizeof(*ws->bucket)*BUCKET_SIZE);
+
+	for (i = 0; i < ws->sample_size; i++) {
+		byte = ws->sample[i];
+		ws->bucket[byte].count++;
 	}
 
 	__free_workspace(0, ws_list, true);
