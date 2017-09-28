@@ -763,16 +763,6 @@ static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc);
 
-	dc->hwss.ready_shared_resources(dc, context);
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		pipe = &context->res_ctx.pipe_ctx[i];
-		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe);
-	}
-	result = dc->hwss.apply_ctx_to_hw(dc, context);
-
-	program_timing_sync(dc, context);
-
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_sink *sink = context->streams[i]->sink;
 
@@ -798,6 +788,13 @@ static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 			}
 		}
 
+		for (j = 0; j < MAX_PIPES; j++) {
+			pipe = &context->res_ctx.pipe_ctx[j];
+
+			if (!pipe->top_pipe && pipe->stream == context->streams[i])
+				dc->hwss.pipe_control_lock(dc, pipe, false);
+		}
+
 		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
 				context->streams[i]->timing.h_addressable,
 				context->streams[i]->timing.v_addressable,
@@ -805,6 +802,16 @@ static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 				context->streams[i]->timing.v_total,
 				context->streams[i]->timing.pix_clk_khz);
 	}
+
+	dc->hwss.ready_shared_resources(dc, context);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe);
+	}
+	result = dc->hwss.apply_ctx_to_hw(dc, context);
+
+	program_timing_sync(dc, context);
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 

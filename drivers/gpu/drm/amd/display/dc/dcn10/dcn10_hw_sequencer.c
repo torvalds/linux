@@ -2283,8 +2283,6 @@ static void update_dchubp_dpp(
 	 */
 	REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->stream_res.tg->inst);
 
-	dc->hwss.update_plane_addr(dc, pipe_ctx);
-
 	mi->funcs->mem_input_setup(
 		mi,
 		&pipe_ctx->dlg_regs,
@@ -2352,6 +2350,8 @@ static void update_dchubp_dpp(
 		plane_state->rotation,
 		&plane_state->dcc,
 		plane_state->horizontal_mirror);
+
+	dc->hwss.update_plane_addr(dc, pipe_ctx);
 
 	if (is_pipe_tree_visible(pipe_ctx))
 		mi->funcs->set_blank(mi, false);
@@ -2556,6 +2556,7 @@ static void dcn10_apply_ctx_for_surface(
 			old_pipe_ctx->top_pipe = NULL;
 			old_pipe_ctx->bottom_pipe = NULL;
 			old_pipe_ctx->plane_state = NULL;
+			old_pipe_ctx->stream = NULL;
 
 			dm_logger_write(dc->ctx->logger, LOG_DC,
 					"Reset mpcc for pipe %d\n",
