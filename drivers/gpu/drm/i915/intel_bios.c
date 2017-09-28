@@ -1347,19 +1347,6 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		 */
 		memcpy(child_dev_ptr, child,
 		       min_t(size_t, defs->child_dev_size, sizeof(*child)));
-
-		/*
-		 * copied full block, now init values when they are not
-		 * available in current version
-		 */
-		if (bdb->version < 196) {
-			/* Set default values for bits added from v196 */
-			child_dev_ptr->iboost = 0;
-			child_dev_ptr->hpd_invert = 0;
-		}
-
-		if (bdb->version < 192)
-			child_dev_ptr->lspcon = 0;
 	}
 	return;
 }
