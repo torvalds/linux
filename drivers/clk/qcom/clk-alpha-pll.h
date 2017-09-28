@@ -60,6 +60,7 @@ struct clk_alpha_pll {
 	size_t num_vco;
 #define SUPPORTS_OFFLINE_REQ	BIT(0)
 #define SUPPORTS_FSM_MODE	BIT(2)
+#define SUPPORTS_DYNAMIC_UPDATE	BIT(3)
 	u8 flags;
 
 	struct clk_regmap clkr;
