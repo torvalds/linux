@@ -179,6 +179,12 @@ const struct iwl_cfg iwl22000_2ax_cfg_hr = {
 	.nvm_ver = IWL_22000_NVM_VERSION,
 	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_f0 = {
@@ -190,6 +196,12 @@ const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_f0 = {
 	.nvm_ver = IWL_22000_NVM_VERSION,
 	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 const struct iwl_cfg iwl22000_2ax_cfg_qnj_jf_b0 = {
@@ -201,6 +213,12 @@ const struct iwl_cfg iwl22000_2ax_cfg_qnj_jf_b0 = {
 	.nvm_ver = IWL_22000_NVM_VERSION,
 	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0 = {
@@ -212,6 +230,12 @@ const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0 = {
 	.nvm_ver = IWL_22000_NVM_VERSION,
 	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 MODULE_FIRMWARE(IWL_22000_HR_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
