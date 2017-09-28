@@ -933,8 +933,8 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
-void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
-			enum wb_reason reason)
+static void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+				enum wb_reason reason)
 {
 	struct wb_writeback_work *work;
 
