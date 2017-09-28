@@ -2122,7 +2122,7 @@ static int tc358743_probe(struct i2c_client *client,
 		state, dev_name(&client->dev),
 		CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL, CEC_MAX_LOG_ADDRS);
 	if (IS_ERR(state->cec_adap)) {
-		err = state->cec_adap ? PTR_ERR(state->cec_adap) : -ENOMEM;
+		err = PTR_ERR(state->cec_adap);
 		goto err_hdl;
 	}
 	irq_mask |= MASK_CEC_RMSK | MASK_CEC_TMSK;
