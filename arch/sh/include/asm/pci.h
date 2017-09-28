@@ -68,8 +68,6 @@ struct pci_dev;
 #define HAVE_PCI_MMAP
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE
 
-extern void pcibios_set_master(struct pci_dev *dev);
-
 /* Dynamic DMA mapping stuff.
  * SuperH has everything mapped statically like x86.
  */

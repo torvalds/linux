@@ -91,7 +91,6 @@ extern int pcibios_enabled;
 void pcibios_config_init(void);
 void pcibios_scan_root(int bus);
 
-void pcibios_set_master(struct pci_dev *dev);
 struct irq_routing_table *pcibios_get_irq_routing_table(void);
 int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 

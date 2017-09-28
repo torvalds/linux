@@ -106,8 +106,6 @@ extern unsigned long PCIBIOS_MIN_MEM;
 
 #define PCIBIOS_MIN_CARDBUS_IO	0x4000
 
-extern void pcibios_set_master(struct pci_dev *dev);
-
 #define HAVE_PCI_MMAP
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE
 #define HAVE_ARCH_PCI_RESOURCE_TO_USER
