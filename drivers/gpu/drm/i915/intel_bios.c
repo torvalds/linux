@@ -431,33 +431,6 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		      dev_priv->vbt.fdi_rx_polarity_inverted);
 }
 
-static void
-parse_general_definitions(struct drm_i915_private *dev_priv,
-			  const struct bdb_header *bdb)
-{
-	const struct bdb_general_definitions *defs;
-	u16 block_size;
-	int bus_pin;
-
-	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
-	if (!defs) {
-		DRM_DEBUG_KMS("General definitions block not found\n");
-		return;
-	}
-
-	block_size = get_blocksize(defs);
-	if (block_size < sizeof(*defs)) {
-		DRM_DEBUG_KMS("General definitions block too small (%u)\n",
-			      block_size);
-		return;
-	}
-
-	bus_pin = defs->crt_ddc_gmbus_pin;
-	DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
-	if (intel_gmbus_is_valid_pin(dev_priv, bus_pin))
-		dev_priv->vbt.crt_ddc_pin = bus_pin;
-}
-
 static const struct child_device_config *
 child_device_ptr(const struct bdb_general_definitions *defs, int i)
 {
@@ -1260,20 +1233,34 @@ static void parse_ddi_ports(struct drm_i915_private *dev_priv,
 }
 
 static void
-parse_device_mapping(struct drm_i915_private *dev_priv,
-		     const struct bdb_header *bdb)
+parse_general_definitions(struct drm_i915_private *dev_priv,
+			  const struct bdb_header *bdb)
 {
 	const struct bdb_general_definitions *defs;
 	const struct child_device_config *child;
 	int i, child_device_num, count;
 	u8 expected_size;
 	u16 block_size;
+	int bus_pin;
 
 	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!defs) {
 		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
+
+	block_size = get_blocksize(defs);
+	if (block_size < sizeof(*defs)) {
+		DRM_DEBUG_KMS("General definitions block too small (%u)\n",
+			      block_size);
+		return;
+	}
+
+	bus_pin = defs->crt_ddc_gmbus_pin;
+	DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
+	if (intel_gmbus_is_valid_pin(dev_priv, bus_pin))
+		dev_priv->vbt.crt_ddc_pin = bus_pin;
+
 	if (bdb->version < 106) {
 		expected_size = 22;
 	} else if (bdb->version < 111) {
@@ -1303,8 +1290,6 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	/* get the block size of general definitions */
-	block_size = get_blocksize(defs);
 	/* get the number of child device */
 	child_device_num = (block_size - sizeof(*defs)) / defs->child_dev_size;
 	count = 0;
@@ -1522,7 +1507,6 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_lfp_backlight(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
 	parse_sdvo_device_mapping(dev_priv, bdb);
-	parse_device_mapping(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 	parse_psr(dev_priv, bdb);
