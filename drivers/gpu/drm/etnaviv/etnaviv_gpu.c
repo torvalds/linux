@@ -435,13 +435,6 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	unsigned long timeout;
 	bool failed = true;
 
-	/* TODO
-	 *
-	 * - clock gating
-	 * - puls eater
-	 * - what about VG?
-	 */
-
 	/* We hope that the GPU resets in under one second */
 	timeout = jiffies + msecs_to_jiffies(1000);
 
