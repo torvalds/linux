@@ -442,37 +442,21 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			  const struct bdb_header *bdb)
 {
 	struct sdvo_device_mapping *mapping;
-	const struct bdb_general_definitions *defs;
 	const struct child_device_config *child;
-	int i, child_device_num, count;
-	u16	block_size;
-
-	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
-	if (!defs) {
-		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
-		return;
-	}
+	int i, count = 0;
 
 	/*
-	 * Only parse SDVO mappings when the general definitions block child
-	 * device size matches that of the *legacy* child device config
-	 * struct. Thus, SDVO mapping will be skipped for newer VBT.
+	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
+	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (defs->child_dev_size != LEGACY_CHILD_DEVICE_CONFIG_SIZE) {
-		DRM_DEBUG_KMS("Unsupported child device size for SDVO mapping.\n");
+	if (!IS_GEN(dev_priv, 3, 7)) {
+		DRM_DEBUG_KMS("Skipping SDVO device mapping\n");
 		return;
 	}
-	/* get the block size of general definitions */
-	block_size = get_blocksize(defs);
-	/* get the number of child device */
-	child_device_num = (block_size - sizeof(*defs)) / defs->child_dev_size;
-	count = 0;
-	for (i = 0; i < child_device_num; i++) {
-		child = child_device_ptr(defs, i);
-		if (!child->device_type) {
-			/* skip the device block if device type is invalid */
-			continue;
-		}
+
+	for (i = 0, count = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		child = dev_priv->vbt.child_dev + i;
+
 		if (child->slave_addr != SLAVE_ADDR1 &&
 		    child->slave_addr != SLAVE_ADDR2) {
 			/*
@@ -523,7 +507,6 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		/* No SDVO device info is found */
 		DRM_DEBUG_KMS("No SDVO device info is found in VBT\n");
 	}
-	return;
 }
 
 static void
@@ -1506,12 +1489,14 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_lfp_panel_data(dev_priv, bdb);
 	parse_lfp_backlight(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
-	parse_sdvo_device_mapping(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 	parse_psr(dev_priv, bdb);
 	parse_mipi_config(dev_priv, bdb);
 	parse_mipi_sequence(dev_priv, bdb);
+
+	/* Further processing on pre-parsed data */
+	parse_sdvo_device_mapping(dev_priv, bdb);
 	parse_ddi_ports(dev_priv, bdb);
 
 out:
