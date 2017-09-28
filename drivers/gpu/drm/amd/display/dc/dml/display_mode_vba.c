@@ -1,6 +1,8 @@
 #include "display_mode_lib.h"
 #include "display_mode_vba.h"
 
+#include "dml_inline_defs.h"
+
 static const unsigned int NumberOfStates = DC__VOLTAGE_STATES;
 
 static void fetch_socbb_params(struct display_mode_lib *mode_lib);

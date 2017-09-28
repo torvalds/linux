@@ -26,37 +26,7 @@
 #include "dml_common_defs.h"
 #include "../calcs/dcn_calc_math.h"
 
-double dml_min(double a, double b)
-{
-	return (double) dcn_bw_min2(a, b);
-}
-
-double dml_max(double a, double b)
-{
-	return (double) dcn_bw_max2(a, b);
-}
-double dml_max3(double a, double b, double c)
-{
-	return dml_max(dml_max(a, b), c);
-}
-double dml_max4(double a, double b, double c, double d)
-{
-	return dml_max(dml_max(a, b), dml_max(c, d));
-}
-double dml_max5(double a, double b, double c, double d, double e)
-{
-	return dml_max(dml_max4(a, b, c, d), e);
-}
-
-double dml_ceil(double a, double granularity)
-{
-	return (double) dcn_bw_ceil2(a, granularity);
-}
-
-double dml_floor(double a, double granularity)
-{
-	return (double) dcn_bw_floor2(a, granularity);
-}
+#include "dml_inline_defs.h"
 
 double dml_round(double a)
 {
@@ -68,16 +38,6 @@ double dml_round(double a)
 		return ceil;
 	else
 		return floor;
-}
-
-int dml_log2(double x)
-{
-	return dml_round((double)dcn_bw_log(x, 2));
-}
-
-double dml_pow(double a, int exp)
-{
-	return (double) dcn_bw_pow(a, exp);
 }
 
 unsigned int dml_round_to_multiple(
@@ -99,16 +59,6 @@ unsigned int dml_round_to_multiple(
 		return (num + multiple - remainder);
 	else
 		return (num - remainder);
-}
-
-double dml_fmod(double f, int val)
-{
-	return (double) dcn_bw_mod(f, val);
-}
-
-double dml_ceil_2(double f)
-{
-	return (double) dcn_bw_ceil2(f, 2);
 }
 
 bool dml_util_is_420(enum source_format_class sorce_format)
@@ -142,19 +92,4 @@ bool dml_util_is_420(enum source_format_class sorce_format)
 	}
 
 	return val;
-}
-
-double dml_ceil_ex(double x, double granularity)
-{
-	return (double) dcn_bw_ceil2(x, granularity);
-}
-
-double dml_floor_ex(double x, double granularity)
-{
-	return (double) dcn_bw_floor2(x, granularity);
-}
-
-double dml_log(double x, double base)
-{
-	return (double) dcn_bw_log(x, base);
 }

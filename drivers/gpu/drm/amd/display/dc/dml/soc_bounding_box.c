@@ -26,6 +26,7 @@
 #include "display_mode_lib.h"
 #include "dc_features.h"
 
+#include "dml_inline_defs.h"
 void dml_socbb_set_latencies(soc_bounding_box_st *to_box, soc_bounding_box_st *from_box)
 {
 	to_box->dram_clock_change_latency_us = from_box->dram_clock_change_latency_us;

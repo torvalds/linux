@@ -39,6 +39,8 @@ static void calculate_ttu_cursor(struct display_mode_lib *mode_lib,
 		unsigned int cur_width,
 		enum cursor_bpp cur_bpp);
 
+#include "dml_inline_defs.h"
+
 static unsigned int get_bytes_per_element(enum source_format_class source_format, bool is_chroma)
 {
 	unsigned int ret_val = 0;
