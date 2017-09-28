@@ -707,8 +707,47 @@ out:
 	return ret;
 }
 
+/*
+ * Heuristic uses systematic sampling to collect data from the input data
+ * range, the logic can be tuned by the following constants:
+ *
+ * @SAMPLING_READ_SIZE - how many bytes will be copied from for each sample
+ * @SAMPLING_INTERVAL  - range from which the sampled data can be collected
+ */
+#define SAMPLING_READ_SIZE	(16)
+#define SAMPLING_INTERVAL	(256)
+
+/*
+ * For statistical analysis of the input data we consider bytes that form a
+ * Galois Field of 256 objects. Each object has an attribute count, ie. how
+ * many times the object appeared in the sample.
+ */
+#define BUCKET_SIZE		(256)
+
+/*
+ * The size of the sample is based on a statistical sampling rule of thumb.
+ * The common way is to perform sampling tests as long as the number of
+ * elements in each cell is at least 5.
+ *
+ * Instead of 5, we choose 32 to obtain more accurate results.
+ * If the data contain the maximum number of symbols, which is 256, we obtain a
+ * sample size bound by 8192.
+ *
+ * For a sample of at most 8KB of data per data range: 16 consecutive bytes
+ * from up to 512 locations.
+ */
+#define MAX_SAMPLE_SIZE		(BTRFS_MAX_UNCOMPRESSED *		\
+				 SAMPLING_READ_SIZE / SAMPLING_INTERVAL)
+
+struct bucket_item {
+	u32 count;
+};
 
 struct heuristic_ws {
+	/* Partial copy of input data */
+	u8 *sample;
+	/* Buckets store counters for each byte value */
+	struct bucket_item *bucket;
 	struct list_head list;
 };
 
@@ -718,6 +757,8 @@ static void free_heuristic_ws(struct list_head *ws)
 
 	workspace = list_entry(ws, struct heuristic_ws, list);
 
+	kvfree(workspace->sample);
+	kfree(workspace->bucket);
 	kfree(workspace);
 }
 
@@ -729,9 +770,19 @@ static struct list_head *alloc_heuristic_ws(void)
 	if (!ws)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&ws->list);
+	ws->sample = kvmalloc(MAX_SAMPLE_SIZE, GFP_KERNEL);
+	if (!ws->sample)
+		goto fail;
 
+	ws->bucket = kcalloc(BUCKET_SIZE, sizeof(*ws->bucket), GFP_KERNEL);
+	if (!ws->bucket)
+		goto fail;
+
+	INIT_LIST_HEAD(&ws->list);
 	return &ws->list;
+fail:
+	free_heuristic_ws(&ws->list);
+	return ERR_PTR(-ENOMEM);
 }
 
 struct workspaces_list {
