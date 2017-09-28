@@ -2941,7 +2941,7 @@ static int __ipmi_bmc_register(ipmi_smi_t intf,
 			       bool guid_set, guid_t *guid, int intf_num)
 {
 	int               rv;
-	struct bmc_device *bmc = intf->bmc;
+	struct bmc_device *bmc;
 	struct bmc_device *old_bmc;
 
 	/*
