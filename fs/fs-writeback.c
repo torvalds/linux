@@ -1947,6 +1947,33 @@ void wb_workfn(struct work_struct *work)
 }
 
 /*
+ * Start writeback of `nr_pages' pages on this bdi. If `nr_pages' is zero,
+ * write back the whole world.
+ */
+static void __wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
+					 long nr_pages, enum wb_reason reason)
+{
+	struct bdi_writeback *wb;
+
+	if (!bdi_has_dirty_io(bdi))
+		return;
+
+	list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
+		wb_start_writeback(wb, wb_split_bdi_pages(wb, nr_pages),
+					reason);
+}
+
+void wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
+				enum wb_reason reason)
+{
+	long nr_pages = get_nr_dirty_pages();
+
+	rcu_read_lock();
+	__wakeup_flusher_threads_bdi(bdi, nr_pages, reason);
+	rcu_read_unlock();
+}
+
+/*
  * Wakeup the flusher threads to start writeback of all currently dirty pages
  */
 void wakeup_flusher_threads(enum wb_reason reason)
@@ -1963,16 +1990,8 @@ void wakeup_flusher_threads(enum wb_reason reason)
 	nr_pages = get_nr_dirty_pages();
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
-		struct bdi_writeback *wb;
-
-		if (!bdi_has_dirty_io(bdi))
-			continue;
-
-		list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
-			wb_start_writeback(wb, wb_split_bdi_pages(wb, nr_pages),
-						reason);
-	}
+	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
+		__wakeup_flusher_threads_bdi(bdi, nr_pages, reason);
 	rcu_read_unlock();
 }
 
