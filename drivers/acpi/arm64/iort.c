@@ -88,8 +88,8 @@ static inline int iort_set_fwnode(struct acpi_iort_node *iort_node,
  *
  * Returns: fwnode_handle pointer on success, NULL on failure
  */
-static inline
-struct fwnode_handle *iort_get_fwnode(struct acpi_iort_node *node)
+static inline struct fwnode_handle *iort_get_fwnode(
+			struct acpi_iort_node *node)
 {
 	struct iort_fwnode *curr;
 	struct fwnode_handle *fwnode = NULL;
@@ -306,9 +306,8 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 	return 0;
 }
 
-static
-struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
-					u32 *id_out, int index)
+static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
+					       u32 *id_out, int index)
 {
 	struct acpi_iort_node *parent;
 	struct acpi_iort_id_mapping *map;
@@ -392,10 +391,9 @@ fail_map:
 	return NULL;
 }
 
-static
-struct acpi_iort_node *iort_node_map_platform_id(struct acpi_iort_node *node,
-						 u32 *id_out, u8 type_mask,
-						 int index)
+static struct acpi_iort_node *iort_node_map_platform_id(
+		struct acpi_iort_node *node, u32 *id_out, u8 type_mask,
+		int index)
 {
 	struct acpi_iort_node *parent;
 	u32 id;
@@ -623,14 +621,14 @@ static inline bool iort_iommu_driver_enabled(u8 type)
 }
 
 #ifdef CONFIG_IOMMU_API
-static inline
-const struct iommu_ops *iort_fwspec_iommu_ops(struct iommu_fwspec *fwspec)
+static inline const struct iommu_ops *iort_fwspec_iommu_ops(
+				struct iommu_fwspec *fwspec)
 {
 	return (fwspec && fwspec->ops) ? fwspec->ops : NULL;
 }
 
-static inline
-int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
+static inline int iort_add_device_replay(const struct iommu_ops *ops,
+					 struct device *dev)
 {
 	int err = 0;
 
@@ -640,11 +638,11 @@ int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
 	return err;
 }
 #else
-static inline
-const struct iommu_ops *iort_fwspec_iommu_ops(struct iommu_fwspec *fwspec)
+static inline const struct iommu_ops *iort_fwspec_iommu_ops(
+				struct iommu_fwspec *fwspec)
 { return NULL; }
-static inline
-int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
+static inline int iort_add_device_replay(const struct iommu_ops *ops,
+					 struct device *dev)
 { return 0; }
 #endif
 
@@ -1077,8 +1075,8 @@ static const struct iort_iommu_config iort_arm_smmu_cfg __initconst = {
 	.iommu_init_resources = arm_smmu_init_resources
 };
 
-static __init
-const struct iort_iommu_config *iort_get_iommu_cfg(struct acpi_iort_node *node)
+static __init const struct iort_iommu_config *iort_get_iommu_cfg(
+			struct acpi_iort_node *node)
 {
 	switch (node->type) {
 	case ACPI_IORT_NODE_SMMU_V3:
