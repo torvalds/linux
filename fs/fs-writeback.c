@@ -53,6 +53,7 @@ struct wb_writeback_work {
 	unsigned int for_background:1;
 	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
 	unsigned int auto_free:1;	/* free on completion */
+	unsigned int start_all:1;	/* nr_pages == 0 (all) writeback */
 	enum wb_reason reason;		/* why was writeback initiated? */
 
 	struct list_head list;		/* pending work list */
@@ -952,12 +953,27 @@ static void wb_start_writeback(struct bdi_writeback *wb, enum wb_reason reason)
 		return;
 
 	/*
+	 * All callers of this function want to start writeback of all
+	 * dirty pages. Places like vmscan can call this at a very
+	 * high frequency, causing pointless allocations of tons of
+	 * work items and keeping the flusher threads busy retrieving
+	 * that work. Ensure that we only allow one of them pending and
+	 * inflight at the time. It doesn't matter if we race a little
+	 * bit on this, so use the faster separate test/set bit variants.
+	 */
+	if (test_bit(WB_start_all, &wb->state))
+		return;
+
+	set_bit(WB_start_all, &wb->state);
+
+	/*
 	 * This is WB_SYNC_NONE writeback, so if allocation fails just
 	 * wakeup the thread for old dirty data writeback
 	 */
 	work = kzalloc(sizeof(*work),
 		       GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
 	if (!work) {
+		clear_bit(WB_start_all, &wb->state);
 		trace_writeback_nowork(wb);
 		wb_wakeup(wb);
 		return;
@@ -968,6 +984,7 @@ static void wb_start_writeback(struct bdi_writeback *wb, enum wb_reason reason)
 	work->range_cyclic = 1;
 	work->reason	= reason;
 	work->auto_free	= 1;
+	work->start_all = 1;
 
 	wb_queue_work(wb, work);
 }
@@ -1821,6 +1838,14 @@ static struct wb_writeback_work *get_next_work_item(struct bdi_writeback *wb)
 		list_del_init(&work->list);
 	}
 	spin_unlock_bh(&wb->work_lock);
+
+	/*
+	 * Once we start processing a work item that had !nr_pages,
+	 * clear the wb state bit for that so we can allow more.
+	 */
+	if (work && work->start_all)
+		clear_bit(WB_start_all, &wb->state);
+
 	return work;
 }
 
