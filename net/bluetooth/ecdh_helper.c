@@ -49,8 +49,8 @@ static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
 		out[i] = __swab64(in[ndigits - 1 - i]);
 }
 
-bool compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
-			 const u8 private_key[32], u8 secret[32])
+int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
+			const u8 private_key[32], u8 secret[32])
 {
 	struct kpp_request *req;
 	struct ecdh p;
@@ -58,15 +58,17 @@ bool compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 	struct scatterlist src, dst;
 	u8 *tmp, *buf;
 	unsigned int buf_len;
-	int err = -ENOMEM;
+	int err;
 
 	tmp = kmalloc(64, GFP_KERNEL);
 	if (!tmp)
-		return false;
+		return -ENOMEM;
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
+	if (!req) {
+		err = -ENOMEM;
 		goto free_tmp;
+	}
 
 	init_completion(&result.completion);
 
@@ -80,8 +82,10 @@ bool compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 	p.curve_id = ECC_CURVE_NIST_P256;
 	buf_len = crypto_ecdh_key_len(&p);
 	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf)
+	if (!buf) {
+		err = -ENOMEM;
 		goto free_req;
+	}
 
 	crypto_ecdh_encode_key(buf, buf_len, &p);
 
@@ -119,11 +123,11 @@ free_req:
 	kpp_request_free(req);
 free_tmp:
 	kfree(tmp);
-	return (err == 0);
+	return err;
 }
 
-bool generate_ecdh_keys(struct crypto_kpp *tfm, u8 public_key[64],
-			u8 private_key[32])
+int generate_ecdh_keys(struct crypto_kpp *tfm, u8 public_key[64],
+		       u8 private_key[32])
 {
 	struct kpp_request *req;
 	struct ecdh p;
@@ -131,17 +135,19 @@ bool generate_ecdh_keys(struct crypto_kpp *tfm, u8 public_key[64],
 	struct scatterlist dst;
 	u8 *tmp, *buf;
 	unsigned int buf_len;
-	int err = -ENOMEM;
+	int err;
 	const unsigned short max_tries = 16;
 	unsigned short tries = 0;
 
 	tmp = kmalloc(64, GFP_KERNEL);
 	if (!tmp)
-		return false;
+		return -ENOMEM;
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
+	if (!req) {
+		err = -ENOMEM;
 		goto free_tmp;
+	}
 
 	init_completion(&result.completion);
 
@@ -202,5 +208,5 @@ free_req:
 	kpp_request_free(req);
 free_tmp:
 	kfree(tmp);
-	return (err == 0);
+	return err;
 }

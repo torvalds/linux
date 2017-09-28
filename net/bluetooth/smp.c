@@ -577,9 +577,10 @@ int smp_generate_oob(struct hci_dev *hdev, u8 hash[16], u8 rand[16])
 			get_random_bytes(smp->local_sk, 32);
 
 			/* Generate local key pair for Secure Connections */
-			if (!generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk,
-						smp->local_sk))
-				return -EIO;
+			err = generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk,
+						 smp->local_sk);
+			if (err)
+				return err;
 
 			/* This is unlikely, but we need to check that
 			 * we didn't accidentially generate a debug key.
@@ -1919,8 +1920,8 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 			get_random_bytes(smp->local_sk, 32);
 
 			/* Generate local key pair for Secure Connections */
-			if (!generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk,
-						smp->local_sk))
+			if (generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk,
+					       smp->local_sk))
 				return SMP_UNSPECIFIED;
 
 			/* This is unlikely, but we need to check that
@@ -3532,11 +3533,13 @@ static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
 static int __init test_debug_key(struct crypto_kpp *tfm_ecdh)
 {
 	u8 pk[64], sk[32];
+	int err;
 
 	swap_digits((u64 *)debug_sk, (u64 *)sk, 4);
 
-	if (!generate_ecdh_keys(tfm_ecdh, pk, sk))
-		return -EINVAL;
+	err = generate_ecdh_keys(tfm_ecdh, pk, sk);
+	if (err)
+		return err;
 
 	if (crypto_memneq(sk, debug_sk, 32))
 		return -EINVAL;
