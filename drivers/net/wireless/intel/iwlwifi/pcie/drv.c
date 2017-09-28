@@ -78,7 +78,6 @@
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "internal.h"
-#include "fw/acpi.h"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
@@ -650,8 +649,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = PTR_ERR(iwl_trans->drv);
 		goto out_free_trans;
 	}
-
-	iwl_trans->dflt_pwr_limit = iwl_acpi_get_pwr_limit(iwl_trans->dev);
 
 	/* register transport layer debugfs here */
 	ret = iwl_trans_pcie_dbgfs_register(iwl_trans);
