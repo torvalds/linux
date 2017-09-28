@@ -1412,7 +1412,7 @@ static void imx_flush_buffer(struct uart_port *port)
 		temp = readl(sport->port.membase + UCR1);
 		temp &= ~UCR1_TDMAEN;
 		writel(temp, sport->port.membase + UCR1);
-		sport->dma_is_txing = false;
+		sport->dma_is_txing = 0;
 	}
 
 	/*
