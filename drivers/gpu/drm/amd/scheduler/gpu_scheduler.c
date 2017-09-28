@@ -395,6 +395,9 @@ static void amd_sched_job_begin(struct amd_sched_job *s_job)
 {
 	struct amd_gpu_scheduler *sched = s_job->sched;
 
+	dma_fence_add_callback(&s_job->s_fence->finished, &s_job->finish_cb,
+			       amd_sched_job_finish_cb);
+
 	spin_lock(&sched->job_list_lock);
 	list_add_tail(&s_job->node, &sched->ring_mirror_list);
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
@@ -487,8 +490,6 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	struct amd_sched_entity *entity = sched_job->s_entity;
 
 	trace_amd_sched_job(sched_job);
-	dma_fence_add_callback(&sched_job->s_fence->finished, &sched_job->finish_cb,
-			       amd_sched_job_finish_cb);
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
 }
