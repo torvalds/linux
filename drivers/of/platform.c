@@ -518,6 +518,10 @@ static int __init of_platform_default_populate_init(void)
 	for_each_matching_node(node, reserved_mem_matches)
 		of_platform_device_create(node, NULL, NULL);
 
+	node = of_find_node_by_path("/firmware");
+	if (node)
+		of_platform_populate(node, NULL, NULL, NULL);
+
 	/* Populate everything else. */
 	of_platform_default_populate(NULL, NULL, NULL);
 
