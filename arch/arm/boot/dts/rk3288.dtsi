@@ -1442,8 +1442,9 @@
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru  PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_HDCP>;
 		clock-names = "iahb", "isfr";
-		pinctrl-names = "default";
+		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&hdmi_ddc>;
+		pinctrl-1 = <&hdmi_gpio>;
 		power-domains = <&power RK3288_PD_VIO>;
 		status = "disabled";
 
@@ -1769,6 +1770,13 @@
 		};
 
 		hdmi {
+			hdmi_gpio: hdmi-gpio {
+				rockchip,pins = <7 19 RK_FUNC_GPIO
+						 &pcfg_pull_none>,
+						<7 20 RK_FUNC_GPIO
+						 &pcfg_pull_none>;
+			};
+
 			hdmi_ddc: hdmi-ddc {
 				rockchip,pins = <7 19 RK_FUNC_2 &pcfg_pull_none>,
 						<7 20 RK_FUNC_2 &pcfg_pull_none>;
