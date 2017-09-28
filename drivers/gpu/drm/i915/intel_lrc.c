@@ -210,6 +210,7 @@
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
 
 #define WA_TAIL_DWORDS 2
+#define WA_TAIL_BYTES (sizeof(u32) * WA_TAIL_DWORDS)
 
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine);
@@ -346,6 +347,37 @@ find_priolist:
 		execlists->first = &p->node;
 
 	return ptr_pack_bits(p, first, 1);
+}
+
+static void unwind_wa_tail(struct drm_i915_gem_request *rq)
+{
+	rq->tail = intel_ring_wrap(rq->ring, rq->wa_tail - WA_TAIL_BYTES);
+	assert_ring_tail_valid(rq->ring, rq->tail);
+}
+
+static void unwind_incomplete_requests(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_request *rq, *rn;
+
+	lockdep_assert_held(&engine->timeline->lock);
+
+	list_for_each_entry_safe_reverse(rq, rn,
+					 &engine->timeline->requests,
+					 link) {
+		struct i915_priolist *p;
+
+		if (i915_gem_request_completed(rq))
+			return;
+
+		__i915_gem_request_unsubmit(rq);
+		unwind_wa_tail(rq);
+
+		p = lookup_priolist(engine,
+				    &rq->priotree,
+				    rq->priotree.priority);
+		list_add(&rq->priotree.link,
+			 &ptr_mask_bits(p, 1)->requests);
+	}
 }
 
 static inline void
@@ -1382,7 +1414,6 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 			      struct drm_i915_gem_request *request)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct drm_i915_gem_request *rq, *rn;
 	struct intel_context *ce;
 	unsigned long flags;
 
@@ -1400,21 +1431,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	execlist_cancel_port_requests(execlists);
 
 	/* Push back any incomplete requests for replay after the reset. */
-	list_for_each_entry_safe_reverse(rq, rn,
-					 &engine->timeline->requests, link) {
-		struct i915_priolist *p;
-
-		if (i915_gem_request_completed(rq))
-			break;
-
-		__i915_gem_request_unsubmit(rq);
-
-		p = lookup_priolist(engine,
-				    &rq->priotree,
-				    rq->priotree.priority);
-		list_add(&rq->priotree.link,
-			 &ptr_mask_bits(p, 1)->requests);
-	}
+	unwind_incomplete_requests(engine);
 
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
@@ -1451,10 +1468,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	intel_ring_update_space(request->ring);
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
-	request->tail =
-		intel_ring_wrap(request->ring,
-				request->wa_tail - WA_TAIL_DWORDS*sizeof(u32));
-	assert_ring_tail_valid(request->ring, request->tail);
+	unwind_wa_tail(request);
 }
 
 static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
