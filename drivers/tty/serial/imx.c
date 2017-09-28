@@ -716,8 +716,6 @@ static void imx_disable_rx_int(struct imx_port *sport)
 {
 	unsigned long temp;
 
-	sport->dma_is_rxing = 1;
-
 	/* disable the receiver ready and aging timer interrupts */
 	temp = readl(sport->port.membase + UCR1);
 	temp &= ~(UCR1_RRDYEN);
@@ -1076,6 +1074,7 @@ static int start_rx_dma(struct imx_port *sport)
 	desc->callback_param = sport;
 
 	dev_dbg(dev, "RX: prepare for the DMA.\n");
+	sport->dma_is_rxing = 1;
 	sport->rx_cookie = dmaengine_submit(desc);
 	dma_async_issue_pending(chan);
 	return 0;
