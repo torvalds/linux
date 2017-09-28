@@ -624,7 +624,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 
 	/* no sta yet */
-	if (WARN_ON(IS_ERR_OR_NULL(sta)))
+	if (WARN_ONCE(IS_ERR_OR_NULL(sta),
+		      "Got valid BAID without a valid station assigned\n"))
 		return false;
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
