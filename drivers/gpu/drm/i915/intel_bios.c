@@ -1311,10 +1311,8 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	/* get the number of child device that is present */
 	for (i = 0; i < child_device_num; i++) {
 		child = child_device_ptr(defs, i);
-		if (!child->device_type) {
-			/* skip the device block if device type is invalid */
+		if (!child->device_type)
 			continue;
-		}
 		count++;
 	}
 	if (!count) {
@@ -1331,10 +1329,8 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	count = 0;
 	for (i = 0; i < child_device_num; i++) {
 		child = child_device_ptr(defs, i);
-		if (!child->device_type) {
-			/* skip the device block if device type is invalid */
+		if (!child->device_type)
 			continue;
-		}
 
 		/*
 		 * Copy as much as we know (sizeof) and is available
@@ -1345,7 +1341,6 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		       min_t(size_t, defs->child_dev_size, sizeof(*child)));
 		count++;
 	}
-	return;
 }
 
 /* Common defaults which may be overridden by VBT. */
