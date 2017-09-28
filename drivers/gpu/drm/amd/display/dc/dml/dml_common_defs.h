@@ -34,7 +34,6 @@
 #define dml_print(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
 #define DTRACE(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
 
-bool dml_util_is_420(enum source_format_class sorce_format);
 double dml_round(double a);
 unsigned int dml_round_to_multiple(
 			unsigned int num, unsigned int multiple, bool up);
