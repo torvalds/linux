@@ -166,24 +166,14 @@ static int fiji_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 	uint32_t reg, data;
 
 	const PWR_Command_Table *pvirus = PwrVirusTable;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
-		switch (pvirus->command) {
-		case PwrCmdWrite:
-			reg  = pvirus->reg;
-			data = pvirus->data;
+		reg  = pvirus->reg;
+		data = pvirus->data;
+		if (reg != 0xffffffff)
 			cgs_write_register(hwmgr->device, reg, data);
-			break;
-
-		case PwrCmdEnd:
+		else {
 			result = 0;
-			break;
-
-		default:
-			pr_info("Table Exit with Invalid Command!");
-			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-			result = -EINVAL;
 			break;
 		}
 		pvirus++;
