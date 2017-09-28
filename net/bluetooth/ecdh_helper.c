@@ -23,7 +23,6 @@
 #include "ecdh_helper.h"
 
 #include <linux/scatterlist.h>
-#include <crypto/kpp.h>
 #include <crypto/ecdh.h>
 
 struct ecdh_completion {
@@ -50,10 +49,9 @@ static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
 		out[i] = __swab64(in[ndigits - 1 - i]);
 }
 
-bool compute_ecdh_secret(const u8 public_key[64], const u8 private_key[32],
-			 u8 secret[32])
+bool compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
+			 const u8 private_key[32], u8 secret[32])
 {
-	struct crypto_kpp *tfm;
 	struct kpp_request *req;
 	struct ecdh p;
 	struct ecdh_completion result;
@@ -66,16 +64,9 @@ bool compute_ecdh_secret(const u8 public_key[64], const u8 private_key[32],
 	if (!tmp)
 		return false;
 
-	tfm = crypto_alloc_kpp("ecdh", CRYPTO_ALG_INTERNAL, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("alg: kpp: Failed to load tfm for kpp: %ld\n",
-		       PTR_ERR(tfm));
-		goto free_tmp;
-	}
-
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
-		goto free_kpp;
+		goto free_tmp;
 
 	init_completion(&result.completion);
 
@@ -126,16 +117,14 @@ free_all:
 	kzfree(buf);
 free_req:
 	kpp_request_free(req);
-free_kpp:
-	crypto_free_kpp(tfm);
 free_tmp:
 	kfree(tmp);
 	return (err == 0);
 }
 
-bool generate_ecdh_keys(u8 public_key[64], u8 private_key[32])
+bool generate_ecdh_keys(struct crypto_kpp *tfm, u8 public_key[64],
+			u8 private_key[32])
 {
-	struct crypto_kpp *tfm;
 	struct kpp_request *req;
 	struct ecdh p;
 	struct ecdh_completion result;
@@ -150,16 +139,9 @@ bool generate_ecdh_keys(u8 public_key[64], u8 private_key[32])
 	if (!tmp)
 		return false;
 
-	tfm = crypto_alloc_kpp("ecdh", CRYPTO_ALG_INTERNAL, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("alg: kpp: Failed to load tfm for kpp: %ld\n",
-		       PTR_ERR(tfm));
-		goto free_tmp;
-	}
-
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
-		goto free_kpp;
+		goto free_tmp;
 
 	init_completion(&result.completion);
 
@@ -218,8 +200,6 @@ free_all:
 	kzfree(buf);
 free_req:
 	kpp_request_free(req);
-free_kpp:
-	crypto_free_kpp(tfm);
 free_tmp:
 	kfree(tmp);
 	return (err == 0);
