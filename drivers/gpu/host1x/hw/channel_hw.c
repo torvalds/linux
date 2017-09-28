@@ -147,6 +147,8 @@ static int channel_submit(struct host1x_job *job)
 
 	syncval = host1x_syncpt_incr_max(sp, user_syncpt_incrs);
 
+	host1x_hw_syncpt_assign_to_channel(host, sp, ch);
+
 	job->syncpt_end = syncval;
 
 	/* add a setclass for modules that require it */

@@ -79,6 +79,9 @@ struct host1x_syncpt_ops {
 	u32 (*load)(struct host1x_syncpt *syncpt);
 	int (*cpu_incr)(struct host1x_syncpt *syncpt);
 	int (*patch_wait)(struct host1x_syncpt *syncpt, void *patch_addr);
+	void (*assign_to_channel)(struct host1x_syncpt *syncpt,
+	                          struct host1x_channel *channel);
+	void (*enable_protection)(struct host1x *host);
 };
 
 struct host1x_intr_ops {
@@ -184,6 +187,18 @@ static inline int host1x_hw_syncpt_patch_wait(struct host1x *host,
 					      void *patch_addr)
 {
 	return host->syncpt_op->patch_wait(sp, patch_addr);
+}
+
+static inline void host1x_hw_syncpt_assign_to_channel(
+	struct host1x *host, struct host1x_syncpt *sp,
+	struct host1x_channel *ch)
+{
+	return host->syncpt_op->assign_to_channel(sp, ch);
+}
+
+static inline void host1x_hw_syncpt_enable_protection(struct host1x *host)
+{
+	return host->syncpt_op->enable_protection(host);
 }
 
 static inline int host1x_hw_intr_init_host_sync(struct host1x *host, u32 cpm,
