@@ -845,8 +845,8 @@ static int wa_ring_whitelist_reg(struct intel_engine_cs *engine,
 	if (WARN_ON(index >= RING_MAX_NONPRIV_SLOTS))
 		return -EINVAL;
 
-	WA_WRITE(RING_FORCE_TO_NONPRIV(engine->mmio_base, index),
-		 i915_mmio_reg_offset(reg));
+	I915_WRITE(RING_FORCE_TO_NONPRIV(engine->mmio_base, index),
+		   i915_mmio_reg_offset(reg));
 	wa->hw_whitelist_count[engine->id]++;
 
 	return 0;
