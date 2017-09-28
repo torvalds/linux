@@ -121,6 +121,8 @@ dtb-$(CONFIG_ARCH_BCM_CYGNUS) += \
 	bcm911360k.dtb \
 	bcm958300k.dtb \
 	bcm958305k.dtb
+dtb-$(CONFIG_ARCH_BCM_HR2) += \
+	bcm53340-ubnt-unifi-switch8.dtb
 dtb-$(CONFIG_ARCH_BCM_MOBILE) += \
 	bcm28155-ap.dtb \
 	bcm21664-garnet.dtb \
