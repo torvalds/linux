@@ -242,7 +242,10 @@ bool resource_construct(
 			pool->stream_enc_count++;
 		}
 	}
-
+	dc->caps.dynamic_audio = false;
+	if (pool->audio_count < pool->stream_enc_count) {
+		dc->caps.dynamic_audio = true;
+	}
 	for (i = 0; i < num_virtual_links; i++) {
 		pool->stream_enc[pool->stream_enc_count] =
 			virtual_stream_encoder_create(
@@ -1330,7 +1333,7 @@ static void update_stream_engine_usage(
 }
 
 /* TODO: release audio object */
-static void update_audio_usage(
+void update_audio_usage(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct audio *audio,
@@ -1414,12 +1417,21 @@ static struct audio *find_first_free_audio(
 		const struct resource_pool *pool)
 {
 	int i;
-	for (i = 0; i < pool->audio_count; i++) {
-		if (res_ctx->is_audio_acquired[i] == false) {
-			return pool->audios[i];
+	if (pool->audio_count >=  pool->stream_enc_count) {
+		for (i = 0; i < pool->audio_count; i++) {
+			if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
+				/*we have enough audio endpoint, no need to do dynamic distribution*/
+				return pool->audios[i];
+			}
+		}
+	} else { /*first come first serve*/
+		for (i = 0; i < pool->audio_count; i++) {
+			if (res_ctx->is_audio_acquired[i] == false) {
+
+				return pool->audios[i];
+			}
 		}
 	}
-
 	return 0;
 }
 

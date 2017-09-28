@@ -164,4 +164,9 @@ bool pipe_need_reprogram(
 void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 		struct bit_depth_reduction_params *fmt_bit_depth);
 
+void update_audio_usage(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct audio *audio,
+		bool acquired);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

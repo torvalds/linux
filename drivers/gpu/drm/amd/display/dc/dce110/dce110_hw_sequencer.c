@@ -985,10 +985,11 @@ void hwss_edp_backlight_control(
 	link_transmitter_control(link->dc->ctx->dc_bios, &cntl);
 }
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
 	if (pipe_ctx->stream_res.audio) {
 		pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
@@ -999,6 +1000,13 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		else
 			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
+		/*don't free audio if it is from retrain or internal disable stream*/
+		if (option == FREE_ACQUIRED_RESOURCE && dc->caps.dynamic_audio == true) {
+			/*we have to dynamic arbitrate the audio endpoints*/
+			pipe_ctx->stream_res.audio = NULL;
+			/*we free the resource, need reset is_audio_acquired*/
+			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
+		}
 
 		/* TODO: notify audio driver for if audio modes list changed
 		 * add audio mode list change flag */
@@ -1871,7 +1879,7 @@ static void dce110_reset_hw_ctx_wrap(
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
-			core_link_disable_stream(pipe_ctx_old);
+			core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
 			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {
 				dm_error("DC: failed to blank crtc!\n");

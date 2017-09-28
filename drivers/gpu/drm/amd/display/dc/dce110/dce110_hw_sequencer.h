@@ -47,7 +47,7 @@ void dce110_set_displaymarks(
 
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx);
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx);
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option);
 
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);

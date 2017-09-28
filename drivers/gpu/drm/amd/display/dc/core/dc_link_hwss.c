@@ -282,7 +282,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 
 			dp_receiver_power_ctrl(link, false);
 
-			link->dc->hwss.disable_stream(&pipes[i]);
+			link->dc->hwss.disable_stream(&pipes[i], KEEP_ACQUIRED_RESOURCE);
 
 			link->link_enc->funcs->disable_output(
 					link->link_enc,

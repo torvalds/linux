@@ -58,6 +58,7 @@ struct dc_caps {
 	uint32_t i2c_speed_in_khz;
 	unsigned int max_cursor_size;
 	bool dcc_const_color;
+	bool dynamic_audio;
 };
 
 struct dc_dcc_surface_param {

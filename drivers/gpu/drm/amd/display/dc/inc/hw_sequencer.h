@@ -134,7 +134,8 @@ struct hw_sequencer_funcs {
 
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
 
-	void (*disable_stream)(struct pipe_ctx *pipe_ctx);
+	void (*disable_stream)(struct pipe_ctx *pipe_ctx,
+			int option);
 
 	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
 			struct dc_link_settings *link_settings);
