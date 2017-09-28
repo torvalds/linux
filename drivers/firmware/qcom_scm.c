@@ -622,30 +622,6 @@ static struct platform_driver qcom_scm_driver = {
 
 static int __init qcom_scm_init(void)
 {
-	struct device_node *np, *fw_np;
-	int ret;
-
-	fw_np = of_find_node_by_name(NULL, "firmware");
-
-	if (!fw_np)
-		return -ENODEV;
-
-	np = of_find_matching_node(fw_np, qcom_scm_dt_match);
-
-	if (!np) {
-		of_node_put(fw_np);
-		return -ENODEV;
-	}
-
-	of_node_put(np);
-
-	ret = of_platform_populate(fw_np, qcom_scm_dt_match, NULL, NULL);
-
-	of_node_put(fw_np);
-
-	if (ret)
-		return ret;
-
 	return platform_driver_register(&qcom_scm_driver);
 }
 subsys_initcall(qcom_scm_init);
