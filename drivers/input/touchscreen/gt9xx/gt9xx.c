@@ -49,11 +49,20 @@
 
 #include <linux/irq.h>
 #include "gt9xx.h"
+#include "gt9xx_cfg.h"
 #include <linux/regulator/consumer.h>
 
 #if GTP_ICS_SLOT_REPORT
     #include <linux/input/mt.h>
 #endif
+
+static u8 m89or101 = TRUE;
+static u8 bgt911 = FALSE;
+static u8 bgt970 = FALSE;
+static u8 bgt910 = FALSE;
+static u8 gtp_change_x2y = TRUE;
+static u8 gtp_x_reverse = FALSE;
+static u8 gtp_y_reverse = TRUE;
 
 static const char *goodix_ts_name = "goodix-ts";
 static struct workqueue_struct *goodix_wq;
@@ -411,18 +420,15 @@ Output:
 *********************************************************/
 static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
 {
-    if(mGtpChange_X2Y){
-        GTP_SWAP(x, y);
-    }
+	if (gtp_change_x2y)
+		GTP_SWAP(x, y);
 
 	if (!bgt911 && !bgt970) {
-	    if(mGtp_X_Reverse){
-	        x = ts->abs_x_max - x;
-	    }
-	
-	    if(mGtp_Y_Reverse){
-	        y = ts->abs_y_max - y;
-	    }
+		if (gtp_x_reverse)
+			x = ts->abs_x_max - x;
+
+		if (gtp_y_reverse)
+			y = ts->abs_y_max - y;
 	}
 
 #if GTP_ICS_SLOT_REPORT
@@ -517,9 +523,9 @@ static void gtp_pen_down(s32 x, s32 y, s32 w, s32 id)
 {
     struct goodix_ts_data *ts = i2c_get_clientdata(i2c_connect_client);
 
-    if(mGtpChange_X2Y){
-        GTP_SWAP(x, y);
-    }
+	if (gtp_change_x2y)
+		GTP_SWAP(x, y);
+
     
     input_report_key(ts->pen_dev, BTN_TOOL_PEN, 1);
 #if GTP_ICS_SLOT_REPORT
@@ -720,6 +726,7 @@ static void goodix_ts_work_func(struct work_struct *work)
             break;
             
         case GTP_RQST_BAK_REF:
+			/*
             GTP_INFO("Request for backup reference.");
             ts->rqst_processing = 1;
             ret = gtp_bak_ref_proc(ts, GTP_BAK_REF_SEND);
@@ -734,6 +741,7 @@ static void goodix_ts_work_func(struct work_struct *work)
             {
                 GTP_ERROR("Requeset for backup reference unresponed!");
             }
+			*/
             break;
             
         case GTP_RQST_RESET:
@@ -1440,6 +1448,11 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
 		cfg_info_len[0] = CFG_GROUP_LEN(gtp_dat_9_7);
 	}
 
+	if (bgt910) {
+		send_cfg_buf[0] = gtp_dat_7;
+		cfg_info_len[0] = CFG_GROUP_LEN(gtp_dat_7);
+	}
+
     GTP_DEBUG_FUNC();
     GTP_DEBUG("Config Groups\' Lengths: %d, %d, %d, %d, %d, %d", 
         cfg_info_len[0], cfg_info_len[1], cfg_info_len[2], cfg_info_len[3],
@@ -1654,7 +1667,7 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
 static ssize_t gt91xx_config_read_proc(struct file *file, char __user *page, size_t size, loff_t *ppos)
 {
     char *ptr = page;
-    char temp_data[GTP_CONFIG_MAX_LENGTH + 2] = {0x80, 0x47};
+	u8 temp_data[GTP_CONFIG_MAX_LENGTH + 2] = {0x80, 0x47};
     int i;
     
     if (*ppos)
@@ -1810,6 +1823,7 @@ static s8 gtp_request_io_port(struct goodix_ts_data *ts)
     if (ret < 0) 
     {
         GTP_ERROR("2Failed to request GPIO:%d, ERRNO:%d",(s32)ts->rst_pin, ret);
+		GTP_GPIO_FREE(ts->rst_pin);
         return -ENODEV;
     }
     
@@ -1817,6 +1831,7 @@ static s8 gtp_request_io_port(struct goodix_ts_data *ts)
     if (ret < 0) 
     {
         GTP_ERROR("3Failed to request GPIO:%d, ERRNO:%d", (s32)ts->irq_pin, ret);
+		GTP_GPIO_FREE(ts->irq_pin);
         return -ENODEV;
     }
     else
@@ -1834,12 +1849,6 @@ static s8 gtp_request_io_port(struct goodix_ts_data *ts)
     //s3c_gpio_setpull(pin, S3C_GPIO_PULL_NONE);
 
     gtp_reset_guitar(ts->client, 20);
-    
-    if(ret < 0)
-    {
-        GTP_GPIO_FREE(ts->rst_pin);
-        GTP_GPIO_FREE(ts->irq_pin);
-    }
 
     return ret;
 }
@@ -2067,9 +2076,8 @@ static s8 gtp_request_input_dev(struct i2c_client *client,
     input_set_capability(ts->input_dev, EV_KEY, KEY_POWER);
 #endif 
 
-    if(mGtpChange_X2Y){
-        GTP_SWAP(ts->abs_x_max, ts->abs_y_max);
-    }
+	if (gtp_change_x2y)
+		GTP_SWAP(ts->abs_x_max, ts->abs_y_max);
 
 #if defined(CONFIG_CHROME_PLATFORMS)
     input_set_abs_params(ts->input_dev, ABS_X, 0, ts->abs_x_max, 0, 0);
@@ -2237,7 +2245,7 @@ static s32 gtp_bak_ref_proc(struct goodix_ts_data *ts, u8 mode)
         GTP_INFO("/data mounted!!!(%d/%d)", ts->ref_chk_fs_times, GTP_CHK_FS_MNT_MAX);
     }
     
-    p_bak_ref = (u8 *)kzalloc(ts->bak_ref_len, GFP_KERNEL);
+	p_bak_ref = kzalloc(ts->bak_ref_len, GFP_KERNEL);
     
     if (NULL == p_bak_ref)
     {
@@ -2399,12 +2407,30 @@ static s32 gtp_verify_main_clk(u8 *p_main_clk)
 
 static s32 gtp_main_clk_proc(struct goodix_ts_data *ts)
 {
-    s32 ret = 0;
-    s32 i = 0;
-    s32 clk_chksum = 0;
-    struct file *clk_filp = NULL;
-    u8 p_main_clk[6] = {0};
+	s32 ret = 0;
+	s32 i = 0;
+	s32 clk_chksum = 0;
+	struct file *clk_filp = NULL;
 
+	#if GTP_USE_FIXED_CLK
+	u8 p_main_clk[6] = {69, 69, 69, 69, 69, 167};
+	#else
+	u8 p_main_clk[6] = {0};
+	#endif
+
+	#if GTP_USE_FIXED_CLK
+	/*
+	 * here check kernel /data is not same as android /data,
+	 * so modify it to reduce fw download
+	 */
+	ret = gtp_verify_main_clk(p_main_clk);
+	if (ret == FAIL) {
+		GTP_ERROR("main clock data verify error");
+	} else {
+		GTP_INFO("main clock data used fix freq: %d", p_main_clk[0]);
+		goto update_main_clk;
+	}
+	#else
     ret = gup_check_fs_mounted("/data");
     if (FAIL == ret)
     {
@@ -2446,6 +2472,7 @@ static s32 gtp_main_clk_proc(struct goodix_ts_data *ts)
             goto update_main_clk;
         }
     }
+	#endif
     
 #if GTP_ESD_PROTECT
     gtp_esd_switch(ts->client, SWITCH_OFF);
@@ -2599,29 +2626,37 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     	return -EINVAL;
     }
 
-    if(val == 89){
-        m89or101 = TRUE;
-        mGtpChange_X2Y = TRUE;
-        mGtp_X_Reverse = FALSE;
-        mGtp_Y_Reverse = TRUE;
-    }else if(val == 101){
-        m89or101 = FALSE;
-        mGtpChange_X2Y = TRUE;
-        mGtp_X_Reverse = TRUE;
-        mGtp_Y_Reverse = FALSE;
-    } else if (val == 911) {
-    	m89or101 = FALSE;
-    	bgt911 = TRUE;
-    	mGtpChange_X2Y = TRUE;
-        mGtp_X_Reverse = FALSE;
-        mGtp_Y_Reverse = TRUE;
+	if (val == 89) {
+		m89or101 = TRUE;
+		gtp_change_x2y = TRUE;
+		gtp_x_reverse = FALSE;
+		gtp_y_reverse = TRUE;
+	} else if (val == 101) {
+		m89or101 = FALSE;
+		gtp_change_x2y = TRUE;
+		gtp_x_reverse = TRUE;
+		gtp_y_reverse = FALSE;
+	} else if (val == 911) {
+		m89or101 = FALSE;
+		bgt911 = TRUE;
+		gtp_change_x2y = TRUE;
+		gtp_x_reverse = FALSE;
+		gtp_y_reverse = TRUE;
 	} else if (val == 970) {
 		m89or101 = FALSE;
 		bgt911 = FALSE;
 		bgt970 = TRUE;
-		mGtpChange_X2Y = FALSE;
-		mGtp_X_Reverse = FALSE;
-		mGtp_Y_Reverse = TRUE;
+		gtp_change_x2y = FALSE;
+		gtp_x_reverse = FALSE;
+		gtp_y_reverse = TRUE;
+	} else if (val == 910) {
+		m89or101 = FALSE;
+		bgt911 = FALSE;
+		bgt970 = FALSE;
+		bgt910 = TRUE;
+		gtp_change_x2y = TRUE;
+		gtp_x_reverse = FALSE;
+		gtp_y_reverse = TRUE;
 	}
 
 	ts->tp_regulator = devm_regulator_get(&client->dev, "tp");
@@ -2685,14 +2720,14 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     if(gpio_get_value(ts->tp_select_pin))//WGJ
     {
     	printk("tp 11111111111111111111111111111 WGJ\n\n");
-    	mGtp_X_Reverse = FALSE;
-    	mGtp_Y_Reverse = TRUE;
+		gtp_x_reverse = FALSE;
+		gtp_y_reverse = TRUE;
     }
     else//DPT
     {
     	printk("tp 00000000000000000000000000000 DPT\n\n");
-    	mGtp_X_Reverse = TRUE;//FALSE;
-    	mGtp_Y_Reverse = TRUE;
+		gtp_x_reverse = TRUE;//FALSE;
+		gtp_y_reverse = TRUE;
     }
  */
 #if GTP_COMPATIBLE_MODE
@@ -2731,7 +2766,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     }
     
     // Create proc file system
-    gt91xx_config_proc = proc_create(GT91XX_CONFIG_PROC_FILE, 0666, NULL, &config_proc_ops);
+	gt91xx_config_proc = proc_create(GT91XX_CONFIG_PROC_FILE, 0664, NULL, &config_proc_ops);
     if (gt91xx_config_proc == NULL)
     {
         GTP_ERROR("create_proc_entry %s failed\n", GT91XX_CONFIG_PROC_FILE);
@@ -2830,12 +2865,11 @@ static int goodix_ts_remove(struct i2c_client *client)
         {
             hrtimer_cancel(&ts->timer);
         }
-    }   
-    
-    GTP_INFO("GTP driver removing...");
-    i2c_set_clientdata(client, NULL);
-    input_unregister_device(ts->input_dev);
-    kfree(ts);
+		GTP_INFO("GTP driver removing...");
+		i2c_set_clientdata(client, NULL);
+		input_unregister_device(ts->input_dev);
+		kfree(ts);
+	}
 
     return 0;
 }
@@ -3099,7 +3133,6 @@ static struct i2c_driver goodix_ts_driver = {
     .id_table   = goodix_ts_id,
     .driver = {
         .name     = GTP_I2C_NAME,
-        .owner    = THIS_MODULE,
 	 .of_match_table = of_match_ptr(goodix_ts_dt_ids),
     },
 };

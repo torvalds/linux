@@ -68,7 +68,7 @@
 #define GTP_HEADER_FW_UPDATE  0    // auto update fw by gtp_default_FW in gt9xx_firmware.h, function together with GTP_AUTO_UPDATE
 #define GTP_AUTO_UPDATE_CFG   0    // auto update config by .cfg file, function together with GTP_AUTO_UPDATE
 
-#define GTP_COMPATIBLE_MODE   0    // compatible with GT9XXF
+#define GTP_COMPATIBLE_MODE   1    /* compatible with GT9XXF */
 
 #define GTP_CREATE_WR_NODE    0
 #define GTP_ESD_PROTECT       0    // esd protection with a cycle of 2 seconds
@@ -81,6 +81,10 @@
 #define GTP_DEBUG_ON          1
 #define GTP_DEBUG_ARRAY_ON    0
 #define GTP_DEBUG_FUNC_ON     0
+
+/* init use fixed clk num */
+/* if open, u8 p_main_clk[6] = {69,69,69,69,69,167}; */
+#define GTP_USE_FIXED_CLK     1
 
 #define PEN_DOWN 1
 #define PEN_RELEASE 0
@@ -126,7 +130,7 @@ struct goodix_ts_data {
     int rst_pin;
     int tp_select_pin;
     int rst_val;
-    bool pendown;
+	u8 pendown;
     unsigned long irq_flags;
     
 #if GTP_WITH_PEN
@@ -214,12 +218,6 @@ extern u16 total_len;
     0x00,0x00,0x00,0x00,0x3D,0x01 \
     }
 */
-
-/*CFG for GT911*/
-u8 gtp_dat_gt11[] = {
-/* <1200, 1920>*/
-#include "WGJ89006B_GT911_Config_20140625_085816_0X43.cfg" 
-};
 
 //WGJ10187_GT9271_Config_20140623_104014_0X41.cfg
 #define CTP_CFG_GROUP1 {\
@@ -396,45 +394,5 @@ u8 gtp_dat_gt11[] = {
 //*****************************End of Part III********************************
 #define TRUE    1
 #define FALSE   0
-
-bool m89or101 = TRUE;
-bool bgt911 = FALSE;
-bool bgt970 = FALSE;
-bool mGtpChange_X2Y = TRUE;  //GTP_CHANGE_X2Y        1
-bool mGtp_X_Reverse = FALSE;  //GTP_X_REVERSE_ENABLE
-bool mGtp_Y_Reverse = TRUE;  //GTP_Y_REVERSE_ENABLE
-/*
-u8 gtp_dat[] = 
-{
-            //TODO:Puts your update firmware data here!
-#if CONFIG_8_9
-#include "WGJ89006B_GT9271_Config_20140625_085816_0X41.cfg"     //<1920, 1200> 8.9
-#else
-#include "WGJ10187_GT9271_Config_20140623_104014_0X41.cfg"    //<1200, 1920> 10.1    
-#endif
-};
-*/
-u8 gtp_dat_8_9[] = 
-{
-            //TODO:Puts your update firmware data here!
-//#include "WGJ89006B_GT9271_Config_20140625_085816_0X41.cfg"     //<1920, 1200> 8.9
-//#include "WGJ10162_GT9271_Config_20140820_182456.cfg"     //<1920, 1200> 8.9
-#include "WGJ10162B_GT9271_1060_Config_20140821_1341110X42.cfg"
-};
-
-u8 gtp_dat_8_9_1[] = {
-#include "GT9271_Config_20170526.cfg"
-};
-
-u8 gtp_dat_9_7[] = {
-	/* <1536, 2048> 9.7 */
-	#include "GT9110P_Config_20160217_1526_2048_97.cfg"
-};
-
-u8 gtp_dat_10_1[] = 
-{
-            //TODO:Puts your update firmware data here!
-#include "WGJ10187_GT9271_Config_20140623_104014_0X41.cfg"    //<1200, 1920> 10.1    
-};
 
 #endif /* _GOODIX_GT9XX_H_ */
