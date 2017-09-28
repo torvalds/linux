@@ -287,9 +287,10 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_dm_connector *aconnector;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		aconnector = to_amdgpu_dm_connector(connector);
 		if (aconnector->mst_port == master
 				&& !aconnector->port) {
@@ -299,11 +300,11 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 			aconnector->port = port;
 			drm_mode_connector_set_path_property(connector, pathprop);
 
-			drm_modeset_unlock(&dev->mode_config.connection_mutex);
+			drm_connector_list_iter_end(&conn_iter);
 			return &aconnector->base;
 		}
 	}
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_connector_list_iter_end(&conn_iter);
 
 	aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
 	if (!aconnector)
@@ -398,13 +399,10 @@ static void dm_dp_mst_register_connector(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
-	drm_modeset_lock_all(dev);
 	if (adev->mode_info.rfbdev)
 		drm_fb_helper_add_one_connector(&adev->mode_info.rfbdev->helper, connector);
 	else
 		DRM_ERROR("adev->mode_info.rfbdev is NULL\n");
-
-	drm_modeset_unlock_all(dev);
 
 	drm_connector_register(connector);
 
