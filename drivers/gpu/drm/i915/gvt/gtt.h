@@ -193,18 +193,16 @@ struct intel_vgpu_scratch_pt {
 	unsigned long page_mfn;
 };
 
-
 struct intel_vgpu_gtt {
 	struct intel_vgpu_mm *ggtt_mm;
 	unsigned long active_ppgtt_mm_bitmap;
 	struct list_head mm_list_head;
 	DECLARE_HASHTABLE(shadow_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
-	DECLARE_HASHTABLE(guest_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
-	atomic_t n_write_protected_guest_page;
+	DECLARE_HASHTABLE(tracked_guest_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
+	atomic_t n_tracked_guest_page;
 	struct list_head oos_page_list_head;
 	struct list_head post_shadow_list_head;
 	struct intel_vgpu_scratch_pt scratch_pt[GTT_TYPE_MAX];
-
 };
 
 extern int intel_vgpu_init_gtt(struct intel_vgpu *vgpu);
@@ -228,12 +226,16 @@ struct intel_vgpu_shadow_page {
 	unsigned long mfn;
 };
 
-struct intel_vgpu_guest_page {
+struct intel_vgpu_page_track {
 	struct hlist_node node;
-	bool writeprotection;
+	bool tracked;
 	unsigned long gfn;
 	int (*handler)(void *, u64, void *, int);
 	void *data;
+};
+
+struct intel_vgpu_guest_page {
+	struct intel_vgpu_page_track track;
 	unsigned long write_cnt;
 	struct intel_vgpu_oos_page *oos_page;
 };
@@ -258,22 +260,16 @@ struct intel_vgpu_ppgtt_spt {
 	struct list_head post_shadow_list;
 };
 
-int intel_vgpu_init_guest_page(struct intel_vgpu *vgpu,
-		struct intel_vgpu_guest_page *guest_page,
+int intel_vgpu_init_page_track(struct intel_vgpu *vgpu,
+		struct intel_vgpu_page_track *t,
 		unsigned long gfn,
 		int (*handler)(void *gp, u64, void *, int),
 		void *data);
 
-void intel_vgpu_clean_guest_page(struct intel_vgpu *vgpu,
-		struct intel_vgpu_guest_page *guest_page);
+void intel_vgpu_clean_page_track(struct intel_vgpu *vgpu,
+		struct intel_vgpu_page_track *t);
 
-int intel_vgpu_set_guest_page_writeprotection(struct intel_vgpu *vgpu,
-		struct intel_vgpu_guest_page *guest_page);
-
-void intel_vgpu_clear_guest_page_writeprotection(struct intel_vgpu *vgpu,
-		struct intel_vgpu_guest_page *guest_page);
-
-struct intel_vgpu_guest_page *intel_vgpu_find_guest_page(
+struct intel_vgpu_page_track *intel_vgpu_find_tracked_page(
 		struct intel_vgpu *vgpu, unsigned long gfn);
 
 int intel_vgpu_sync_oos_pages(struct intel_vgpu *vgpu);
