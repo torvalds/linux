@@ -611,6 +611,10 @@ static int amd_sched_main(void *param)
 
 		fence = sched->ops->run_job(sched_job);
 		amd_sched_fence_scheduled(s_fence);
+
+		/* amd_sched_process_job drops the job's reference of the fence. */
+		sched_job->s_fence = NULL;
+
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);
 			r = dma_fence_add_callback(fence, &s_fence->cb,
