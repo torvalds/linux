@@ -2525,7 +2525,7 @@ static umode_t nvme_ns_id_attrs_are_visible(struct kobject *kobj,
 	struct nvme_ns_ids *ids = &dev_to_ns_head(dev)->ids;
 
 	if (a == &dev_attr_uuid.attr) {
-		if (uuid_is_null(&ids->uuid) ||
+		if (uuid_is_null(&ids->uuid) &&
 		    !memchr_inv(ids->nguid, 0, sizeof(ids->nguid)))
 			return 0;
 	}
