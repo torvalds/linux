@@ -2529,6 +2529,9 @@ static __maybe_unused int atmel_nand_controller_resume(struct device *dev)
 	struct atmel_nand_controller *nc = dev_get_drvdata(dev);
 	struct atmel_nand *nand;
 
+	if (nc->pmecc)
+		atmel_pmecc_reset(nc->pmecc);
+
 	list_for_each_entry(nand, &nc->chips, node) {
 		int i;
 
