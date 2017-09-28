@@ -3163,10 +3163,17 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	spin_lock_irq(&dev_priv->irq_lock);
+
+	if (!intel_irqs_enabled(dev_priv)) {
+		spin_unlock_irq(&dev_priv->irq_lock);
+		return;
+	}
+
 	for_each_pipe_masked(dev_priv, pipe, pipe_mask)
 		GEN8_IRQ_INIT_NDX(DE_PIPE, pipe,
 				  dev_priv->de_irq_mask[pipe],
 				  ~dev_priv->de_irq_mask[pipe] | extra_ier);
+
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -3176,8 +3183,15 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	spin_lock_irq(&dev_priv->irq_lock);
+
+	if (!intel_irqs_enabled(dev_priv)) {
+		spin_unlock_irq(&dev_priv->irq_lock);
+		return;
+	}
+
 	for_each_pipe_masked(dev_priv, pipe, pipe_mask)
 		GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
+
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* make sure we're done processing display irqs */
