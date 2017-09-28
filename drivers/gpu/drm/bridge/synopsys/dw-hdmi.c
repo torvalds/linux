@@ -18,6 +18,7 @@
 #include <linux/regmap.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <media/cec-notifier.h>
 
@@ -3534,11 +3535,13 @@ void dw_hdmi_suspend(struct dw_hdmi *hdmi)
 	if (hdmi->irq)
 		disable_irq(hdmi->irq);
 	mutex_unlock(&hdmi->mutex);
+	pinctrl_pm_select_sleep_state(hdmi->dev);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_suspend);
 
 void dw_hdmi_resume(struct dw_hdmi *hdmi)
 {
+	pinctrl_pm_select_default_state(hdmi->dev);
 	mutex_lock(&hdmi->mutex);
 	dw_hdmi_reg_initial(hdmi);
 	if (hdmi->irq)
