@@ -6,5 +6,4 @@
 # it under the terms of the GNU General Public License (version 2 only)
 # as published by the Free Software Foundation.
 
-s390-virtio-objs := virtio_ccw.o
-obj-$(CONFIG_S390_GUEST) += $(s390-virtio-objs)
+obj-$(CONFIG_S390_GUEST) += virtio_ccw.o
