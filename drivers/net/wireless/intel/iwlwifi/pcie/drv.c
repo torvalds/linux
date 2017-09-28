@@ -78,6 +78,7 @@
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "internal.h"
+#include "fw/acpi.h"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
@@ -587,28 +588,6 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
-static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
-{
-	union acpi_object *data, *wifi_pkg;
-
-	data = iwl_acpi_get_object(trans->dev, ACPI_SPLC_METHOD);
-	if (IS_ERR(data))
-		return;
-
-	wifi_pkg = iwl_acpi_get_wifi_pkg(trans->dev, data,
-					 ACPI_SPLC_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg) ||
-	    wifi_pkg->package.elements[1].integer.value != ACPI_TYPE_INTEGER)
-		goto out;
-
-	trans->dflt_pwr_limit = wifi_pkg->package.elements[1].integer.value;
-
-	IWL_DEBUG_INFO(trans, "Default power limit set to %lld\n",
-		       trans->dflt_pwr_limit);
-out:
-	kfree(data);
-}
-
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
@@ -672,7 +651,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_trans;
 	}
 
-	set_dflt_pwr_limit(iwl_trans, pdev);
+	iwl_trans->dflt_pwr_limit = iwl_acpi_get_pwr_limit(iwl_trans->dev);
 
 	/* register transport layer debugfs here */
 	ret = iwl_trans_pcie_dbgfs_register(iwl_trans);

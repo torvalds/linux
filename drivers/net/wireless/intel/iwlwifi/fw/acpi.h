@@ -108,6 +108,8 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
  */
 int iwl_acpi_get_mcc(struct device *dev, char *mcc);
 
+u64 iwl_acpi_get_pwr_limit(struct device *dev);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
@@ -125,6 +127,11 @@ static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
 {
 	return -ENOENT;
+}
+
+static inline u64 iwl_acpi_get_pwr_limit(struct device *dev)
+{
+	return 0;
 }
 
 #endif /* CONFIG_ACPI */

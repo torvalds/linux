@@ -181,3 +181,30 @@ out_free:
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_mcc);
+
+u64 iwl_acpi_get_pwr_limit(struct device *dev)
+{
+	union acpi_object *data, *wifi_pkg;
+	u64 dflt_pwr_limit;
+
+	data = iwl_acpi_get_object(dev, ACPI_SPLC_METHOD);
+	if (IS_ERR(data)) {
+		dflt_pwr_limit = 0;
+		goto out;
+	}
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data,
+					 ACPI_SPLC_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg) ||
+	    wifi_pkg->package.elements[1].integer.value != ACPI_TYPE_INTEGER) {
+		dflt_pwr_limit = 0;
+		goto out_free;
+	}
+
+	dflt_pwr_limit = wifi_pkg->package.elements[1].integer.value;
+out_free:
+	kfree(data);
+out:
+	return dflt_pwr_limit;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_pwr_limit);
