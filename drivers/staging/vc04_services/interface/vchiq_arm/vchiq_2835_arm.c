@@ -84,8 +84,6 @@ static char *g_free_fragments;
 static struct semaphore g_free_fragments_sema;
 static struct device *g_dev;
 
-extern int vchiq_arm_log_level;
-
 static DEFINE_SEMAPHORE(g_free_fragments_mutex);
 
 static irqreturn_t
