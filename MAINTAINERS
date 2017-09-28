@@ -12873,12 +12873,6 @@ S:	Odd Fixes
 F:	Documentation/devicetree/bindings/staging/iio/
 F:	drivers/staging/iio/
 
-STAGING - LIRC (LINUX INFRARED REMOTE CONTROL) DRIVERS
-M:	Jarod Wilson <jarod@wilsonet.com>
-W:	http://www.lirc.org/
-S:	Odd Fixes
-F:	drivers/staging/media/lirc/
-
 STAGING - LUSTRE PARALLEL FILESYSTEM
 M:	Oleg Drokin <oleg.drokin@intel.com>
 M:	Andreas Dilger <andreas.dilger@intel.com>
