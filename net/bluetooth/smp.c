@@ -84,7 +84,6 @@ enum {
 struct smp_dev {
 	/* Secure Connections OOB data */
 	u8			local_pk[64];
-	u8			local_sk[32];
 	u8			local_rand[16];
 	bool			debug_key;
 
@@ -126,7 +125,6 @@ struct smp_chan {
 
 	/* Secure Connections variables */
 	u8			local_pk[64];
-	u8			local_sk[32];
 	u8			remote_pk[64];
 	u8			dhkey[32];
 	u8			mackey[16];
@@ -568,24 +566,22 @@ int smp_generate_oob(struct hci_dev *hdev, u8 hash[16], u8 rand[16])
 
 	if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
 		BT_DBG("Using debug keys");
+		err = set_ecdh_privkey(smp->tfm_ecdh, debug_sk);
+		if (err)
+			return err;
 		memcpy(smp->local_pk, debug_pk, 64);
-		memcpy(smp->local_sk, debug_sk, 32);
 		smp->debug_key = true;
 	} else {
 		while (true) {
-			/* Seed private key with random number */
-			get_random_bytes(smp->local_sk, 32);
-
-			/* Generate local key pair for Secure Connections */
-			err = generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk,
-						 smp->local_sk);
+			/* Generate key pair for Secure Connections */
+			err = generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk);
 			if (err)
 				return err;
 
 			/* This is unlikely, but we need to check that
 			 * we didn't accidentially generate a debug key.
 			 */
-			if (crypto_memneq(smp->local_sk, debug_sk, 32))
+			if (crypto_memneq(smp->local_pk, debug_pk, 64))
 				break;
 		}
 		smp->debug_key = false;
@@ -593,7 +589,6 @@ int smp_generate_oob(struct hci_dev *hdev, u8 hash[16], u8 rand[16])
 
 	SMP_DBG("OOB Public Key X: %32phN", smp->local_pk);
 	SMP_DBG("OOB Public Key Y: %32phN", smp->local_pk + 32);
-	SMP_DBG("OOB Private Key:  %32phN", smp->local_sk);
 
 	get_random_bytes(smp->local_rand, 16);
 
@@ -1900,7 +1895,6 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 		smp_dev = chan->data;
 
 		memcpy(smp->local_pk, smp_dev->local_pk, 64);
-		memcpy(smp->local_sk, smp_dev->local_sk, 32);
 		memcpy(smp->lr, smp_dev->local_rand, 16);
 
 		if (smp_dev->debug_key)
@@ -1911,23 +1905,20 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 
 	if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
 		BT_DBG("Using debug keys");
+		if (set_ecdh_privkey(smp->tfm_ecdh, debug_sk))
+			return SMP_UNSPECIFIED;
 		memcpy(smp->local_pk, debug_pk, 64);
-		memcpy(smp->local_sk, debug_sk, 32);
 		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
 	} else {
 		while (true) {
-			/* Seed private key with random number */
-			get_random_bytes(smp->local_sk, 32);
-
-			/* Generate local key pair for Secure Connections */
-			if (generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk,
-					       smp->local_sk))
+			/* Generate key pair for Secure Connections */
+			if (generate_ecdh_keys(smp->tfm_ecdh, smp->local_pk))
 				return SMP_UNSPECIFIED;
 
 			/* This is unlikely, but we need to check that
 			 * we didn't accidentially generate a debug key.
 			 */
-			if (crypto_memneq(smp->local_sk, debug_sk, 32))
+			if (crypto_memneq(smp->local_pk, debug_pk, 64))
 				break;
 		}
 	}
@@ -1935,7 +1926,6 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 done:
 	SMP_DBG("Local Public Key X: %32phN", smp->local_pk);
 	SMP_DBG("Local Public Key Y: %32phN", smp->local_pk + 32);
-	SMP_DBG("Local Private Key:  %32phN", smp->local_sk);
 
 	smp_send_cmd(smp->conn, SMP_CMD_PUBLIC_KEY, 64, smp->local_pk);
 
@@ -2663,6 +2653,7 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
 	struct hci_dev *hdev = hcon->hdev;
+	struct crypto_kpp *tfm_ecdh;
 	struct smp_cmd_pairing_confirm cfm;
 	int err;
 
@@ -2695,8 +2686,18 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 	SMP_DBG("Remote Public Key X: %32phN", smp->remote_pk);
 	SMP_DBG("Remote Public Key Y: %32phN", smp->remote_pk + 32);
 
-	if (!compute_ecdh_secret(smp->tfm_ecdh, smp->remote_pk, smp->local_sk,
-				 smp->dhkey))
+	/* Compute the shared secret on the same crypto tfm on which the private
+	 * key was set/generated.
+	 */
+	if (test_bit(SMP_FLAG_LOCAL_OOB, &smp->flags)) {
+		struct smp_dev *smp_dev = chan->data;
+
+		tfm_ecdh = smp_dev->tfm_ecdh;
+	} else {
+		tfm_ecdh = smp->tfm_ecdh;
+	}
+
+	if (compute_ecdh_secret(tfm_ecdh, smp->remote_pk, smp->dhkey))
 		return SMP_UNSPECIFIED;
 
 	SMP_DBG("DHKey %32phN", smp->dhkey);
@@ -3522,27 +3523,18 @@ void smp_unregister(struct hci_dev *hdev)
 
 #if IS_ENABLED(CONFIG_BT_SELFTEST_SMP)
 
-static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
-{
-	int i;
-
-	for (i = 0; i < ndigits; i++)
-		out[i] = __swab64(in[ndigits - 1 - i]);
-}
-
 static int __init test_debug_key(struct crypto_kpp *tfm_ecdh)
 {
-	u8 pk[64], sk[32];
+	u8 pk[64];
 	int err;
 
-	swap_digits((u64 *)debug_sk, (u64 *)sk, 4);
-
-	err = generate_ecdh_keys(tfm_ecdh, pk, sk);
+	err = set_ecdh_privkey(tfm_ecdh, debug_sk);
 	if (err)
 		return err;
 
-	if (crypto_memneq(sk, debug_sk, 32))
-		return -EINVAL;
+	err = generate_ecdh_public_key(tfm_ecdh, pk);
+	if (err)
+		return err;
 
 	if (crypto_memneq(pk, debug_pk, 64))
 		return -EINVAL;

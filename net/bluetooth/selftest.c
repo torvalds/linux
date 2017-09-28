@@ -152,11 +152,11 @@ static int __init test_ecdh_sample(struct crypto_kpp *tfm, const u8 priv_a[32],
 	dhkey_a = &tmp[0];
 	dhkey_b = &tmp[32];
 
-	ret = compute_ecdh_secret(tfm, pub_b, priv_a, dhkey_a);
+	ret = set_ecdh_privkey(tfm, priv_a);
 	if (ret)
 		goto out;
 
-	ret = compute_ecdh_secret(tfm, pub_a, priv_b, dhkey_b);
+	ret = compute_ecdh_secret(tfm, pub_b, dhkey_a);
 	if (ret)
 		goto out;
 
@@ -165,9 +165,17 @@ static int __init test_ecdh_sample(struct crypto_kpp *tfm, const u8 priv_a[32],
 		goto out;
 	}
 
+	ret = set_ecdh_privkey(tfm, priv_b);
+	if (ret)
+		goto out;
+
+	ret = compute_ecdh_secret(tfm, pub_a, dhkey_b);
+	if (ret)
+		goto out;
+
 	if (memcmp(dhkey_b, dhkey, 32))
 		ret = -EINVAL;
-
+	/* fall through*/
 out:
 	kfree(tmp);
 	return ret;
