@@ -1318,9 +1318,7 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 	int cur_reg_start;
 	int mc;
 	int channel;
-	int way;
 	int participants[KNL_MAX_CHANNELS];
-	int participant_count = 0;
 
 	for (i = 0; i < KNL_MAX_CHANNELS; i++)
 		mc_sizes[i] = 0;
@@ -1495,31 +1493,20 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 		 * this channel mapped to the given target?
 		 */
 		for (channel = 0; channel < KNL_MAX_CHANNELS; channel++) {
-			for (way = 0; way < intrlv_ways; way++) {
-				int target;
-				int cha;
+			int target;
+			int cha;
 
-				if (KNL_MOD3(dram_rule))
-					target = way;
-				else
-					target = 0x7 & sad_pkg(
-				pvt->info.interleave_pkg, interleave_reg, way);
-
+			for (target = 0; target < KNL_MAX_CHANNELS; target++) {
 				for (cha = 0; cha < KNL_MAX_CHAS; cha++) {
 					if (knl_get_mc_route(target,
 						mc_route_reg[cha]) == channel
 						&& !participants[channel]) {
-						participant_count++;
 						participants[channel] = 1;
 						break;
 					}
 				}
 			}
 		}
-
-		if (participant_count != intrlv_ways)
-			edac_dbg(0, "participant_count (%d) != interleave_ways (%d): DIMM size may be incorrect\n",
-				participant_count, intrlv_ways);
 
 		for (channel = 0; channel < KNL_MAX_CHANNELS; channel++) {
 			mc = knl_channel_mc(channel);
