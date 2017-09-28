@@ -180,10 +180,32 @@ error:
 	return err;
 }
 
+static void enable_gather_filter(struct host1x *host,
+				 struct host1x_channel *ch)
+{
+#if HOST1X_HW >= 6
+	u32 val;
+
+	if (!host->hv_regs)
+		return;
+
+	val = host1x_hypervisor_readl(
+		host, HOST1X_HV_CH_KERNEL_FILTER_GBUFFER(ch->id / 32));
+	val |= BIT(ch->id % 32);
+	host1x_hypervisor_writel(
+		host, val, HOST1X_HV_CH_KERNEL_FILTER_GBUFFER(ch->id / 32));
+#elif HOST1X_HW >= 4
+	host1x_ch_writel(ch,
+			 HOST1X_CHANNEL_CHANNELCTRL_KERNEL_FILTER_GBUFFER(1),
+			 HOST1X_CHANNEL_CHANNELCTRL);
+#endif
+}
+
 static int host1x_channel_init(struct host1x_channel *ch, struct host1x *dev,
 			       unsigned int index)
 {
 	ch->regs = dev->regs + index * HOST1X_CHANNEL_SIZE;
+	enable_gather_filter(dev, ch);
 	return 0;
 }
 
