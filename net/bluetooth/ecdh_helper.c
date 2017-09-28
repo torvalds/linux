@@ -122,7 +122,7 @@ free_all:
 free_req:
 	kpp_request_free(req);
 free_tmp:
-	kfree(tmp);
+	kzfree(tmp);
 	return err;
 }
 
