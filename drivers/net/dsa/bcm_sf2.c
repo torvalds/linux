@@ -754,11 +754,14 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int port;
 
-	/* Disable unused ports and configure IMP port */
+	/* Enable all valid ports and disable those unused */
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
-		if (dsa_is_cpu_port(ds, port))
+		/* IMP port receives special treatment */
+		if ((1 << port) & ds->enabled_port_mask)
+			bcm_sf2_port_setup(ds, port, NULL);
+		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
-		else if (!((1 << port) & ds->enabled_port_mask))
+		else
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
 
