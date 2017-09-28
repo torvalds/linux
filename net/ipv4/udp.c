@@ -2224,6 +2224,7 @@ static struct sock *__udp4_lib_demux_lookup(struct net *net,
 int udp_v4_early_demux(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
+	struct in_device *in_dev = NULL;
 	const struct iphdr *iph;
 	const struct udphdr *uh;
 	struct sock *sk = NULL;
@@ -2241,7 +2242,7 @@ int udp_v4_early_demux(struct sk_buff *skb)
 
 	if (skb->pkt_type == PACKET_BROADCAST ||
 	    skb->pkt_type == PACKET_MULTICAST) {
-		struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
+		in_dev = __in_dev_get_rcu(skb->dev);
 
 		if (!in_dev)
 			return 0;
@@ -2272,11 +2273,21 @@ int udp_v4_early_demux(struct sk_buff *skb)
 	if (dst)
 		dst = dst_check(dst, 0);
 	if (dst) {
+		u32 itag = 0;
+
 		/* set noref for now.
 		 * any place which wants to hold dst has to call
 		 * dst_hold_safe()
 		 */
 		skb_dst_set_noref(skb, dst);
+
+		/* for unconnected multicast sockets we need to validate
+		 * the source on each packet
+		 */
+		if (!inet_sk(sk)->inet_daddr && in_dev)
+			return ip_mc_validate_source(skb, iph->daddr,
+						     iph->saddr, iph->tos,
+						     skb->dev, in_dev, &itag);
 	}
 	return 0;
 }
