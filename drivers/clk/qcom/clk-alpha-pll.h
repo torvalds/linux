@@ -17,6 +17,28 @@
 #include <linux/clk-provider.h>
 #include "clk-regmap.h"
 
+/* Alpha PLL types */
+enum {
+	CLK_ALPHA_PLL_TYPE_DEFAULT,
+	CLK_ALPHA_PLL_TYPE_MAX,
+};
+
+enum {
+	PLL_OFF_L_VAL,
+	PLL_OFF_ALPHA_VAL,
+	PLL_OFF_ALPHA_VAL_U,
+	PLL_OFF_USER_CTL,
+	PLL_OFF_USER_CTL_U,
+	PLL_OFF_CONFIG_CTL,
+	PLL_OFF_CONFIG_CTL_U,
+	PLL_OFF_TEST_CTL,
+	PLL_OFF_TEST_CTL_U,
+	PLL_OFF_STATUS,
+	PLL_OFF_MAX_REGS
+};
+
+extern const u8 clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_MAX][PLL_OFF_MAX_REGS];
+
 struct pll_vco {
 	unsigned long min_freq;
 	unsigned long max_freq;
@@ -27,10 +49,12 @@ struct pll_vco {
  * struct clk_alpha_pll - phase locked loop (PLL)
  * @offset: base address of registers
  * @vco_table: array of VCO settings
+ * @regs: alpha pll register map (see @clk_alpha_pll_regs)
  * @clkr: regmap clock handle
  */
 struct clk_alpha_pll {
 	u32 offset;
+	const u8 *regs;
 
 	const struct pll_vco *vco_table;
 	size_t num_vco;
@@ -45,12 +69,14 @@ struct clk_alpha_pll {
 /**
  * struct clk_alpha_pll_postdiv - phase locked loop (PLL) post-divider
  * @offset: base address of registers
+ * @regs: alpha pll register map (see @clk_alpha_pll_regs)
  * @width: width of post-divider
  * @clkr: regmap clock handle
  */
 struct clk_alpha_pll_postdiv {
 	u32 offset;
 	u8 width;
+	const u8 *regs;
 
 	struct clk_regmap clkr;
 };
