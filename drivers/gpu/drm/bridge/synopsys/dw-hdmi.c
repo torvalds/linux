@@ -21,6 +21,7 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
@@ -3903,6 +3904,7 @@ void dw_hdmi_suspend(struct device *dev)
 	if (hdmi->irq)
 		disable_irq(hdmi->irq);
 	mutex_unlock(&hdmi->mutex);
+	pinctrl_pm_select_sleep_state(dev);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_suspend);
 
@@ -3910,6 +3912,7 @@ void dw_hdmi_resume(struct device *dev)
 {
 	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
 
+	pinctrl_pm_select_default_state(dev);
 	mutex_lock(&hdmi->mutex);
 	dw_hdmi_reg_initial(hdmi);
 	if (hdmi->irq)
