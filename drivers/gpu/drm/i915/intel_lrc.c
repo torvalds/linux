@@ -358,25 +358,31 @@ static void unwind_wa_tail(struct drm_i915_gem_request *rq)
 static void unwind_incomplete_requests(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *rq, *rn;
+	struct i915_priolist *uninitialized_var(p);
+	int last_prio = I915_PRIORITY_INVALID;
 
 	lockdep_assert_held(&engine->timeline->lock);
 
 	list_for_each_entry_safe_reverse(rq, rn,
 					 &engine->timeline->requests,
 					 link) {
-		struct i915_priolist *p;
-
 		if (i915_gem_request_completed(rq))
 			return;
 
 		__i915_gem_request_unsubmit(rq);
 		unwind_wa_tail(rq);
 
-		p = lookup_priolist(engine,
-				    &rq->priotree,
-				    rq->priotree.priority);
-		list_add(&rq->priotree.link,
-			 &ptr_mask_bits(p, 1)->requests);
+		GEM_BUG_ON(rq->priotree.priority == I915_PRIORITY_INVALID);
+		if (rq->priotree.priority != last_prio) {
+			p = lookup_priolist(engine,
+					    &rq->priotree,
+					    rq->priotree.priority);
+			p = ptr_mask_bits(p, 1);
+
+			last_prio = rq->priotree.priority;
+		}
+
+		list_add(&rq->priotree.link, &p->requests);
 	}
 }
 
