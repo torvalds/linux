@@ -143,6 +143,10 @@
 	pinctrl-names = "default";
 };
 
+/* CON6 on CP0 expansion */
+&cpm_pcie0 {
+	status = "okay";
+};
 
 /* CON5 on CP0 expansion */
 &cpm_pcie2 {
@@ -211,6 +215,16 @@
 	status = "okay";
 	phy = <&phy1>;
 	phy-mode = "rgmii-id";
+};
+
+/* CON6 on CP1 expansion */
+&cps_pcie0 {
+	status = "okay";
+};
+
+/* CON7 on CP1 expansion */
+&cps_pcie1 {
+	status = "okay";
 };
 
 /* CON5 on CP1 expansion */
