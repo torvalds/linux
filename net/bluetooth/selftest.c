@@ -143,7 +143,7 @@ static int __init test_ecdh_sample(struct crypto_kpp *tfm, const u8 priv_a[32],
 				   const u8 pub_b[64], const u8 dhkey[32])
 {
 	u8 *tmp, *dhkey_a, *dhkey_b;
-	int ret = 0;
+	int ret;
 
 	tmp = kmalloc(64, GFP_KERNEL);
 	if (!tmp)
@@ -152,8 +152,13 @@ static int __init test_ecdh_sample(struct crypto_kpp *tfm, const u8 priv_a[32],
 	dhkey_a = &tmp[0];
 	dhkey_b = &tmp[32];
 
-	compute_ecdh_secret(tfm, pub_b, priv_a, dhkey_a);
-	compute_ecdh_secret(tfm, pub_a, priv_b, dhkey_b);
+	ret = compute_ecdh_secret(tfm, pub_b, priv_a, dhkey_a);
+	if (ret)
+		goto out;
+
+	ret = compute_ecdh_secret(tfm, pub_a, priv_b, dhkey_b);
+	if (ret)
+		goto out;
 
 	if (memcmp(dhkey_a, dhkey, 32)) {
 		ret = -EINVAL;
