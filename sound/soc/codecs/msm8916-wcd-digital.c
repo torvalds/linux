@@ -218,6 +218,8 @@ static const char *const rx_mix1_text[] = {
 static const char *const dec_mux_text[] = {
 	"ZERO", "ADC1", "ADC2", "ADC3", "DMIC1", "DMIC2"
 };
+
+static const char *const cic_mux_text[] = { "AMIC", "DMIC" };
 static const char *const rx_mix2_text[] = { "ZERO", "IIR1", "IIR2" };
 static const char *const adc2_mux_text[] = { "ZERO", "INP2", "INP3" };
 
@@ -256,11 +258,21 @@ static const struct soc_enum dec1_mux_enum = SOC_ENUM_SINGLE(
 static const struct soc_enum dec2_mux_enum = SOC_ENUM_SINGLE(
 				LPASS_CDC_CONN_TX_B1_CTL, 3, 6, dec_mux_text);
 
+/* CIC */
+static const struct soc_enum cic1_mux_enum = SOC_ENUM_SINGLE(
+				LPASS_CDC_TX1_MUX_CTL, 0, 2, cic_mux_text);
+static const struct soc_enum cic2_mux_enum = SOC_ENUM_SINGLE(
+				LPASS_CDC_TX2_MUX_CTL, 0, 2, cic_mux_text);
+
 /* RDAC2 MUX */
 static const struct snd_kcontrol_new dec1_mux = SOC_DAPM_ENUM(
 				"DEC1 MUX Mux", dec1_mux_enum);
 static const struct snd_kcontrol_new dec2_mux = SOC_DAPM_ENUM(
 				"DEC2 MUX Mux",	dec2_mux_enum);
+static const struct snd_kcontrol_new cic1_mux = SOC_DAPM_ENUM(
+				"CIC1 MUX Mux", cic1_mux_enum);
+static const struct snd_kcontrol_new cic2_mux = SOC_DAPM_ENUM(
+				"CIC2 MUX Mux",	cic2_mux_enum);
 static const struct snd_kcontrol_new rx_mix1_inp1_mux = SOC_DAPM_ENUM(
 				"RX1 MIX1 INP1 Mux", rx_mix1_inp_enum[0]);
 static const struct snd_kcontrol_new rx_mix1_inp2_mux = SOC_DAPM_ENUM(
@@ -500,6 +512,8 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("RX3 MIX1 INP3", SND_SOC_NOPM, 0, 0,
 			 &rx3_mix1_inp3_mux),
 
+	SND_SOC_DAPM_MUX("CIC1 MUX", SND_SOC_NOPM, 0, 0, &cic1_mux),
+	SND_SOC_DAPM_MUX("CIC2 MUX", SND_SOC_NOPM, 0, 0, &cic2_mux),
 	/* TX */
 	SND_SOC_DAPM_MIXER("ADC1", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("ADC2", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -536,6 +550,8 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	/* Connectivity Clock */
 	SND_SOC_DAPM_SUPPLY_S("CDC_CONN", -2, LPASS_CDC_CLK_OTHR_CTL, 2, 0,
 			      NULL, 0),
+	SND_SOC_DAPM_MIC("Digital Mic1", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic2", NULL),
 
 };
 
@@ -566,6 +582,15 @@ static int msm8916_wcd_digital_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_codec_set_drvdata(codec, priv);
 
 	return 0;
+}
+
+static int msm8916_wcd_digital_codec_set_sysclk(struct snd_soc_codec *codec,
+						int clk_id, int source,
+						unsigned int freq, int dir)
+{
+	struct msm8916_wcd_digital_priv *p = dev_get_drvdata(codec->dev);
+
+	return clk_set_rate(p->mclk, freq);
 }
 
 static int msm8916_wcd_digital_hw_params(struct snd_pcm_substream *substream,
@@ -646,6 +671,11 @@ static const struct snd_soc_dapm_route msm8916_wcd_digital_audio_map[] = {
 	{"AIF1 Capture", NULL, "I2S TX2"},
 	{"AIF1 Capture", NULL, "I2S TX3"},
 
+	{"CIC1 MUX", "DMIC", "DEC1 MUX"},
+	{"CIC1 MUX", "AMIC", "DEC1 MUX"},
+	{"CIC2 MUX", "DMIC", "DEC2 MUX"},
+	{"CIC2 MUX", "AMIC", "DEC2 MUX"},
+
 	/* Decimator Inputs */
 	{"DEC1 MUX", "DMIC1", "DMIC1"},
 	{"DEC1 MUX", "DMIC2", "DMIC2"},
@@ -664,8 +694,8 @@ static const struct snd_soc_dapm_route msm8916_wcd_digital_audio_map[] = {
 	{"DMIC1", NULL, "DMIC_CLK"},
 	{"DMIC2", NULL, "DMIC_CLK"},
 
-	{"I2S TX1", NULL, "DEC1 MUX"},
-	{"I2S TX2", NULL, "DEC2 MUX"},
+	{"I2S TX1", NULL, "CIC1 MUX"},
+	{"I2S TX2", NULL, "CIC2 MUX"},
 
 	{"I2S TX1", NULL, "TX_I2S_CLK"},
 	{"I2S TX2", NULL, "TX_I2S_CLK"},
@@ -788,7 +818,7 @@ static void msm8916_wcd_digital_shutdown(struct snd_pcm_substream *substream,
 			    LPASS_CDC_CLK_PDM_CTL_PDM_CLK_SEL_MASK, 0);
 }
 
-static struct snd_soc_dai_ops msm8916_wcd_digital_dai_ops = {
+static const struct snd_soc_dai_ops msm8916_wcd_digital_dai_ops = {
 	.startup = msm8916_wcd_digital_startup,
 	.shutdown = msm8916_wcd_digital_shutdown,
 	.hw_params = msm8916_wcd_digital_hw_params,
@@ -821,8 +851,9 @@ static struct snd_soc_dai_driver msm8916_wcd_digital_dai[] = {
 	       },
 };
 
-static struct snd_soc_codec_driver msm8916_wcd_digital = {
+static const struct snd_soc_codec_driver msm8916_wcd_digital = {
 	.probe = msm8916_wcd_digital_codec_probe,
+	.set_sysclk = msm8916_wcd_digital_codec_set_sysclk,
 	.component_driver = {
 		.controls = msm8916_wcd_digital_snd_controls,
 		.num_controls = ARRAY_SIZE(msm8916_wcd_digital_snd_controls),

@@ -3266,7 +3266,7 @@ static void ia_remove_one(struct pci_dev *pdev)
       	kfree(iadev);
 }
 
-static struct pci_device_id ia_pci_tbl[] = {
+static const struct pci_device_id ia_pci_tbl[] = {
 	{ PCI_VENDOR_ID_IPHASE, 0x0008, PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_IPHASE, 0x0009, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}

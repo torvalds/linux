@@ -128,7 +128,7 @@ static struct regmap *cq93vc_get_regmap(struct device *dev)
 	return davinci_vc->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cq93vc = {
+static const struct snd_soc_codec_driver soc_codec_dev_cq93vc = {
 	.set_bias_level = cq93vc_set_bias_level,
 	.get_regmap = cq93vc_get_regmap,
 	.component_driver = {

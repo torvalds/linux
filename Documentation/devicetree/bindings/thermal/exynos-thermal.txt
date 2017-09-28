@@ -77,7 +77,6 @@ Example 1):
 		interrupts = <2 4>;
 		clocks = <&clock 383>;
 		clock-names = "tmu_apbif";
-		status = "disabled";
 		vtmu-supply = <&tmu_regulator_node>;
 		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};

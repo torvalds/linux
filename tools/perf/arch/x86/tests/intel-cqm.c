@@ -36,7 +36,7 @@ static pid_t spawn(void)
  * the last read counter value to avoid triggering a WARN_ON_ONCE() in
  * smp_call_function_many() caused by sending IPIs from NMI context.
  */
-int test__intel_cqm_count_nmi_context(int subtest __maybe_unused)
+int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_evlist *evlist = NULL;
 	struct perf_evsel *evsel = NULL;

@@ -107,7 +107,36 @@ static inline void vm_events_fold_cpu(int cpu)
  * Zone and node-based page accounting with per cpu differentials.
  */
 extern atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS];
+extern atomic_long_t vm_numa_stat[NR_VM_NUMA_STAT_ITEMS];
 extern atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS];
+
+#ifdef CONFIG_NUMA
+static inline void zone_numa_state_add(long x, struct zone *zone,
+				 enum numa_stat_item item)
+{
+	atomic_long_add(x, &zone->vm_numa_stat[item]);
+	atomic_long_add(x, &vm_numa_stat[item]);
+}
+
+static inline unsigned long global_numa_state(enum numa_stat_item item)
+{
+	long x = atomic_long_read(&vm_numa_stat[item]);
+
+	return x;
+}
+
+static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
+					enum numa_stat_item item)
+{
+	long x = atomic_long_read(&zone->vm_numa_stat[item]);
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		x += per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item];
+
+	return x;
+}
+#endif /* CONFIG_NUMA */
 
 static inline void zone_page_state_add(long x, struct zone *zone,
 				 enum zone_stat_item item)
@@ -123,7 +152,7 @@ static inline void node_page_state_add(long x, struct pglist_data *pgdat,
 	atomic_long_add(x, &vm_node_stat[item]);
 }
 
-static inline unsigned long global_page_state(enum zone_stat_item item)
+static inline unsigned long global_zone_page_state(enum zone_stat_item item)
 {
 	long x = atomic_long_read(&vm_zone_stat[item]);
 #ifdef CONFIG_SMP
@@ -194,12 +223,14 @@ static inline unsigned long node_page_state_snapshot(pg_data_t *pgdat,
 
 
 #ifdef CONFIG_NUMA
+extern void __inc_numa_state(struct zone *zone, enum numa_stat_item item);
 extern unsigned long sum_zone_node_page_state(int node,
-						enum zone_stat_item item);
+					      enum zone_stat_item item);
+extern unsigned long sum_zone_numa_state(int node, enum numa_stat_item item);
 extern unsigned long node_page_state(struct pglist_data *pgdat,
 						enum node_stat_item item);
 #else
-#define sum_zone_node_page_state(node, item) global_page_state(item)
+#define sum_zone_node_page_state(node, item) global_zone_page_state(item)
 #define node_page_state(node, item) global_node_page_state(item)
 #endif /* CONFIG_NUMA */
 

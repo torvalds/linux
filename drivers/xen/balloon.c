@@ -664,9 +664,11 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 			 */
 			BUILD_BUG_ON(XEN_PAGE_SIZE != PAGE_SIZE);
 
-			ret = xen_alloc_p2m_entry(page_to_pfn(page));
-			if (ret < 0)
-				goto out_undo;
+			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+				ret = xen_alloc_p2m_entry(page_to_pfn(page));
+				if (ret < 0)
+					goto out_undo;
+			}
 #endif
 		} else {
 			ret = add_ballooned_pages(nr_pages - pgno);

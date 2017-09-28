@@ -230,12 +230,18 @@ lr	.req	x30		// link register
 	.endm
 
 	/*
-	 * @dst: Result of per_cpu(sym, smp_processor_id())
+	 * @dst: Result of per_cpu(sym, smp_processor_id()), can be SP for
+	 *       non-module code
 	 * @sym: The name of the per-cpu variable
 	 * @tmp: scratch register
 	 */
 	.macro adr_this_cpu, dst, sym, tmp
+#ifndef MODULE
+	adrp	\tmp, \sym
+	add	\dst, \tmp, #:lo12:\sym
+#else
 	adr_l	\dst, \sym
+#endif
 	mrs	\tmp, tpidr_el1
 	add	\dst, \dst, \tmp
 	.endm
@@ -353,6 +359,12 @@ alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
 alternative_else
 	dc	civac, \kaddr
 alternative_endif
+	.elseif	(\op == cvap)
+alternative_if ARM64_HAS_DCPOP
+	sys 3, c7, c12, 1, \kaddr	// dc cvap
+alternative_else
+	dc	cvac, \kaddr
+alternative_endif
 	.else
 	dc	\op, \kaddr
 	.endif
@@ -403,6 +415,17 @@ alternative_endif
 	.size	__pi_##x, . - x;	\
 	ENDPROC(x)
 
+/*
+ * Annotate a function as being unsuitable for kprobes.
+ */
+#ifdef CONFIG_KPROBES
+#define NOKPROBE(x)				\
+	.pushsection "_kprobe_blacklist", "aw";	\
+	.quad	x;				\
+	.popsection;
+#else
+#define NOKPROBE(x)
+#endif
 	/*
 	 * Emit a 64-bit absolute little endian symbol reference in a way that
 	 * ensures that it will be resolved at build time, even when building a

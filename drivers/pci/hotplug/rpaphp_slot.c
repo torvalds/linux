@@ -122,8 +122,8 @@ int rpaphp_register_slot(struct slot *slot)
 	int retval;
 	int slotno = -1;
 
-	dbg("%s registering slot:path[%s] index[%x], name[%s] pdomain[%x] type[%d]\n",
-		__func__, slot->dn->full_name, slot->index, slot->name,
+	dbg("%s registering slot:path[%pOF] index[%x], name[%s] pdomain[%x] type[%d]\n",
+		__func__, slot->dn, slot->index, slot->name,
 		slot->power_domain, slot->type);
 
 	/* should not try to register the same slot twice */

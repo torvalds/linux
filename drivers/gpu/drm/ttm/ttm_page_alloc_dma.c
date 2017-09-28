@@ -60,22 +60,15 @@
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		4
 #define FREE_ALL_PAGES			(~0U)
-/* times are in msecs */
-#define IS_UNDEFINED			(0)
-#define IS_WC				(1<<1)
-#define IS_UC				(1<<2)
-#define IS_CACHED			(1<<3)
-#define IS_DMA32			(1<<4)
 
 enum pool_type {
-	POOL_IS_UNDEFINED,
-	POOL_IS_WC = IS_WC,
-	POOL_IS_UC = IS_UC,
-	POOL_IS_CACHED = IS_CACHED,
-	POOL_IS_WC_DMA32 = IS_WC | IS_DMA32,
-	POOL_IS_UC_DMA32 = IS_UC | IS_DMA32,
-	POOL_IS_CACHED_DMA32 = IS_CACHED | IS_DMA32,
+	IS_UNDEFINED	= 0,
+	IS_WC		= 1 << 1,
+	IS_UC		= 1 << 2,
+	IS_CACHED	= 1 << 3,
+	IS_DMA32	= 1 << 4
 };
+
 /*
  * The pool structure. There are usually six pools:
  *  - generic (not restricted to DMA32):
@@ -86,11 +79,9 @@ enum pool_type {
  * The other ones can be shrunk by the shrinker API if neccessary.
  * @pools: The 'struct device->dma_pools' link.
  * @type: Type of the pool
- * @lock: Protects the inuse_list and free_list from concurrnet access. Must be
+ * @lock: Protects the free_list from concurrnet access. Must be
  * used with irqsave/irqrestore variants because pool allocator maybe called
  * from delayed work.
- * @inuse_list: Pool of pages that are in use. The order is very important and
- *   it is in the order that the TTM pages that are put back are in.
  * @free_list: Pool of pages that are free to be used. No order requirements.
  * @dev: The device that is associated with these pools.
  * @size: Size used during DMA allocation.
@@ -107,7 +98,6 @@ struct dma_pool {
 	struct list_head pools; /* The 'struct device->dma_pools link */
 	enum pool_type type;
 	spinlock_t lock;
-	struct list_head inuse_list;
 	struct list_head free_list;
 	struct device *dev;
 	unsigned size;
@@ -609,7 +599,6 @@ static struct dma_pool *ttm_dma_pool_init(struct device *dev, gfp_t flags,
 	sec_pool->pool =  pool;
 
 	INIT_LIST_HEAD(&pool->free_list);
-	INIT_LIST_HEAD(&pool->inuse_list);
 	INIT_LIST_HEAD(&pool->pools);
 	spin_lock_init(&pool->lock);
 	pool->dev = dev;
@@ -882,22 +871,23 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	struct dma_pool *pool;
 	enum pool_type type;
 	unsigned i;
-	gfp_t gfp_flags;
 	int ret;
 
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
 	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
-	if (ttm->page_flags & TTM_PAGE_FLAG_DMA32)
-		gfp_flags = GFP_USER | GFP_DMA32;
-	else
-		gfp_flags = GFP_HIGHUSER;
-	if (ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
-		gfp_flags |= __GFP_ZERO;
-
 	pool = ttm_dma_find_pool(dev, type);
 	if (!pool) {
+		gfp_t gfp_flags;
+
+		if (ttm->page_flags & TTM_PAGE_FLAG_DMA32)
+			gfp_flags = GFP_USER | GFP_DMA32;
+		else
+			gfp_flags = GFP_HIGHUSER;
+		if (ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
+			gfp_flags |= __GFP_ZERO;
+
 		pool = ttm_dma_pool_init(dev, gfp_flags, type);
 		if (IS_ERR_OR_NULL(pool)) {
 			return -ENOMEM;

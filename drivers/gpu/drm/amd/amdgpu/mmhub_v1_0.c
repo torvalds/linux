@@ -138,7 +138,7 @@ static void mmhub_v1_0_init_tlb_regs(struct amdgpu_device *adev)
 
 static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 {
-	uint32_t tmp, field;
+	uint32_t tmp;
 
 	/* Setup L2 cache */
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL);
@@ -157,9 +157,8 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL2, tmp);
 
-	field = adev->vm_manager.fragment_size;
 	tmp = mmVM_L2_CNTL3_DEFAULT;
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, field);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, 9);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL3, tmp);
 
@@ -274,7 +273,7 @@ static const struct pctl_data pctl0_data[] = {
 	{0x135, 0x12a810},
 	{0x149, 0x7a82c}
 };
-#define PCTL0_DATA_LEN (sizeof(pctl0_data)/sizeof(pctl0_data[0]))
+#define PCTL0_DATA_LEN (ARRAY_SIZE(pctl0_data))
 
 #define PCTL0_RENG_EXEC_END_PTR 0x151
 #define PCTL0_STCTRL_REG_SAVE_RANGE0_BASE  0xa640
@@ -310,7 +309,7 @@ static const struct pctl_data pctl1_data[] = {
 	{0x1f0, 0x5000a7f6},
 	{0x1f1, 0x5000a7e4}
 };
-#define PCTL1_DATA_LEN (sizeof(pctl1_data)/sizeof(pctl1_data[0]))
+#define PCTL1_DATA_LEN (ARRAY_SIZE(pctl1_data))
 
 #define PCTL1_RENG_EXEC_END_PTR 0x1f1
 #define PCTL1_STCTRL_REG_SAVE_RANGE0_BASE  0xa000
@@ -562,6 +561,13 @@ void mmhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 			WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
 	tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
 			EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	if (!value) {
+		tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
+				CRASH_ON_NO_RETRY_FAULT, 1);
+		tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
+				CRASH_ON_RETRY_FAULT, 1);
+    }
+
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL, tmp);
 }
 

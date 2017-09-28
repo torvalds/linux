@@ -24,5 +24,4 @@ Example:
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&dma 4>;
 		dma-names = "tx";
-		status = "okay";
 	};

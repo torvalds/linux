@@ -26,10 +26,6 @@
 #include <asm/unaligned.h>
 #include <linux/usb/cdc-wdm.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.03"
 #define DRIVER_AUTHOR "Oliver Neukum"
 #define DRIVER_DESC "USB Abstract Control Model driver for USB WCM Device Management"
 

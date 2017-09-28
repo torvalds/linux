@@ -43,17 +43,34 @@ static void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 
 static void tmc_etb_dump_hw(struct tmc_drvdata *drvdata)
 {
+	bool lost = false;
 	char *bufp;
-	u32 read_data;
+	const u32 *barrier;
+	u32 read_data, status;
 	int i;
+
+	/*
+	 * Get a hold of the status register and see if a wrap around
+	 * has occurred.
+	 */
+	status = readl_relaxed(drvdata->base + TMC_STS);
+	if (status & TMC_STS_FULL)
+		lost = true;
 
 	bufp = drvdata->buf;
 	drvdata->len = 0;
+	barrier = barrier_pkt;
 	while (1) {
 		for (i = 0; i < drvdata->memwidth; i++) {
 			read_data = readl_relaxed(drvdata->base + TMC_RRD);
 			if (read_data == 0xFFFFFFFF)
 				return;
+
+			if (lost && *barrier) {
+				read_data = *barrier;
+				barrier++;
+			}
+
 			memcpy(bufp, &read_data, 4);
 			bufp += 4;
 			drvdata->len += 4;
@@ -369,9 +386,11 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 				  struct perf_output_handle *handle,
 				  void *sink_config)
 {
+	bool lost = false;
 	int i, cur;
+	const u32 *barrier;
 	u32 *buf_ptr;
-	u32 read_ptr, write_ptr;
+	u64 read_ptr, write_ptr;
 	u32 status, to_read;
 	unsigned long offset;
 	struct cs_buffers *buf = sink_config;
@@ -388,8 +407,8 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 
 	tmc_flush_and_stop(drvdata);
 
-	read_ptr = readl_relaxed(drvdata->base + TMC_RRP);
-	write_ptr = readl_relaxed(drvdata->base + TMC_RWP);
+	read_ptr = tmc_read_rrp(drvdata);
+	write_ptr = tmc_read_rwp(drvdata);
 
 	/*
 	 * Get a hold of the status register and see if a wrap around
@@ -397,7 +416,7 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 	 */
 	status = readl_relaxed(drvdata->base + TMC_STS);
 	if (status & TMC_STS_FULL) {
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		lost = true;
 		to_read = drvdata->size;
 	} else {
 		to_read = CIRC_CNT(write_ptr, read_ptr, drvdata->size);
@@ -441,17 +460,26 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 		if (read_ptr > (drvdata->size - 1))
 			read_ptr -= drvdata->size;
 		/* Tell the HW */
-		writel_relaxed(read_ptr, drvdata->base + TMC_RRP);
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		tmc_write_rrp(drvdata, read_ptr);
+		lost = true;
 	}
+
+	if (lost)
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 
 	cur = buf->cur;
 	offset = buf->offset;
+	barrier = barrier_pkt;
 
 	/* for every byte to read */
 	for (i = 0; i < to_read; i += 4) {
 		buf_ptr = buf->data_pages[cur] + offset;
 		*buf_ptr = readl_relaxed(drvdata->base + TMC_RRD);
+
+		if (lost && *barrier) {
+			*buf_ptr = *barrier;
+			barrier++;
+		}
 
 		offset += 4;
 		if (offset >= PAGE_SIZE) {

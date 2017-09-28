@@ -92,6 +92,5 @@ ssi-controller@48058000 {
 		interrupts = <69>,
 			     <70>;
 
-		status = "disabled"; /* second port is not used on N900 */
 	}
 }

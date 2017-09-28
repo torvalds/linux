@@ -216,6 +216,9 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		return;
 
 	nmi_enter();
+
+	__this_cpu_inc(irq_stat.soft_nmi_irqs);
+
 	tb = get_tb();
 	if (tb - per_cpu(wd_timer_tb, cpu) >= wd_panic_timeout_tb) {
 		per_cpu(wd_timer_tb, cpu) = tb;

@@ -357,7 +357,7 @@ struct sensor_value {
 } __packed;
 
 struct dev_pstate_set {
-	u16 dev_id;
+	__le16 dev_id;
 	u8 pstate;
 } __packed;
 
@@ -965,7 +965,7 @@ static int scpi_probe(struct platform_device *pdev)
 
 	count = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
 	if (count < 0) {
-		dev_err(dev, "no mboxes property in '%s'\n", np->full_name);
+		dev_err(dev, "no mboxes property in '%pOF'\n", np);
 		return -ENODEV;
 	}
 

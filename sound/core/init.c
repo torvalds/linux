@@ -248,13 +248,11 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	INIT_LIST_HEAD(&card->devices);
 	init_rwsem(&card->controls_rwsem);
 	rwlock_init(&card->ctl_files_rwlock);
-	mutex_init(&card->user_ctl_lock);
 	INIT_LIST_HEAD(&card->controls);
 	INIT_LIST_HEAD(&card->ctl_files);
 	spin_lock_init(&card->files_lock);
 	INIT_LIST_HEAD(&card->files_list);
 #ifdef CONFIG_PM
-	mutex_init(&card->power_lock);
 	init_waitqueue_head(&card->power_sleep);
 #endif
 
@@ -979,8 +977,6 @@ EXPORT_SYMBOL(snd_card_file_remove);
  *  Waits until the power-state is changed.
  *
  *  Return: Zero if successful, or a negative error code.
- *
- *  Note: the power lock must be active before call.
  */
 int snd_power_wait(struct snd_card *card, unsigned int power_state)
 {
@@ -1000,9 +996,7 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state)
 		if (snd_power_get_state(card) == power_state)
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		snd_power_unlock(card);
 		schedule_timeout(30 * HZ);
-		snd_power_lock(card);
 	}
 	remove_wait_queue(&card->power_sleep, &wait);
 	return result;

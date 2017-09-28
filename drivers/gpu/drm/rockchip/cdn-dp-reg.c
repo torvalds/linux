@@ -323,7 +323,7 @@ int cdn_dp_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
 	reg = readl(dp->regs + VER_LIB_H_ADDR) & 0xff;
 	dp->fw_version |= reg << 24;
 
-	dev_dbg(dp->dev, "firmware version: %x\n", dp->fw_version);
+	DRM_DEV_DEBUG(dp->dev, "firmware version: %x\n", dp->fw_version);
 
 	return 0;
 }

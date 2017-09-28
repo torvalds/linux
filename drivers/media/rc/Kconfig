@@ -1,9 +1,20 @@
-config RC_CORE
-	tristate
-	depends on MEDIA_RC_SUPPORT
+
+menuconfig RC_CORE
+	tristate "Remote Controller support"
 	depends on INPUT
 	default y
+	---help---
+	  Enable support for Remote Controllers on Linux. This is
+	  needed in order to support several video capture adapters,
+	  standalone IR receivers/transmitters, and RF receivers.
 
+	  Enable this option if you have a video capture board even
+	  if you don't need IR, as otherwise, you may not be able to
+	  compile the driver for your adapter.
+
+	  Say Y when you have a TV or an IR device.
+
+if RC_CORE
 source "drivers/media/rc/keymaps/Kconfig"
 
 menuconfig RC_DECODERS
@@ -388,6 +399,29 @@ config IR_GPIO_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
 
+config IR_GPIO_TX
+	tristate "GPIO IR Bit Banging Transmitter"
+	depends on RC_CORE
+	depends on LIRC
+	---help---
+	   Say Y if you want to a GPIO based IR transmitter. This is a
+	   bit banging driver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called gpio-ir-tx.
+
+config IR_PWM_TX
+	tristate "PWM IR transmitter"
+	depends on RC_CORE
+	depends on LIRC
+	depends on PWM
+	---help---
+	   Say Y if you want to use a PWM based IR transmitter. This is
+	   more power efficient than the bit banging gpio driver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called pwm-ir-tx.
+
 config RC_ST
 	tristate "ST remote control receiver"
 	depends on RC_CORE
@@ -435,4 +469,17 @@ config IR_SIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called sir-ir.
 
+config IR_ZX
+	tristate "ZTE ZX IR remote control"
+	depends on RC_CORE
+	depends on ARCH_ZX || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote control available
+	   on ZTE ZX family SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called zx-irdec.
+
 endif #RC_DEVICES
+
+endif #RC_CORE

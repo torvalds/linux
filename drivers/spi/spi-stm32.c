@@ -1132,7 +1132,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		goto err_master_put;
 	}
 
-	spi->rst = devm_reset_control_get(&pdev->dev, NULL);
+	spi->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (!IS_ERR(spi->rst)) {
 		reset_control_assert(spi->rst);
 		udelay(2);

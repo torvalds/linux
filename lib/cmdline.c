@@ -244,5 +244,4 @@ char *next_arg(char *args, char **param, char **val)
 
 	/* Chew up trailing spaces. */
 	return skip_spaces(next);
-	//return next;
 }

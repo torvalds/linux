@@ -28,6 +28,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/sort.h>
+#include <linux/sched/mm.h>
 #include "intel_drv.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
@@ -4360,16 +4361,16 @@ i915_drop_caches_set(void *data, u64 val)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	lockdep_set_current_reclaim_state(GFP_KERNEL);
+	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)
-		i915_gem_shrink(dev_priv, LONG_MAX, I915_SHRINK_BOUND);
+		i915_gem_shrink(dev_priv, LONG_MAX, NULL, I915_SHRINK_BOUND);
 
 	if (val & DROP_UNBOUND)
-		i915_gem_shrink(dev_priv, LONG_MAX, I915_SHRINK_UNBOUND);
+		i915_gem_shrink(dev_priv, LONG_MAX, NULL, I915_SHRINK_UNBOUND);
 
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(dev_priv);
-	lockdep_clear_current_reclaim_state();
+	fs_reclaim_release(GFP_KERNEL);
 
 	if (val & DROP_FREED) {
 		synchronize_rcu();

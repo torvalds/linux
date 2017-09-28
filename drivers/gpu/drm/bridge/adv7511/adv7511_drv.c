@@ -199,17 +199,14 @@ static const uint16_t adv7511_csc_ycbcr_to_rgb[] = {
 
 static void adv7511_set_config_csc(struct adv7511 *adv7511,
 				   struct drm_connector *connector,
-				   bool rgb)
+				   bool rgb, bool hdmi_mode)
 {
 	struct adv7511_video_config config;
 	bool output_format_422, output_format_ycbcr;
 	unsigned int mode;
 	uint8_t infoframe[17];
 
-	if (adv7511->edid)
-		config.hdmi_mode = drm_detect_hdmi_monitor(adv7511->edid);
-	else
-		config.hdmi_mode = false;
+	config.hdmi_mode = hdmi_mode;
 
 	hdmi_avi_infoframe_init(&config.avi_infoframe);
 
@@ -589,15 +586,14 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 	if (!adv7511->powered)
 		__adv7511_power_off(adv7511);
 
-	kfree(adv7511->edid);
-	adv7511->edid = edid;
-	if (!edid)
-		return 0;
 
 	drm_mode_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
 
-	adv7511_set_config_csc(adv7511, connector, adv7511->rgb);
+	adv7511_set_config_csc(adv7511, connector, adv7511->rgb,
+			       drm_detect_hdmi_monitor(edid));
+
+	kfree(edid);
 
 	return count;
 }
@@ -833,7 +829,11 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 		return -ENODEV;
 	}
 
-	adv->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	if (adv->i2c_main->irq)
+		adv->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	else
+		adv->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
+				DRM_CONNECTOR_POLL_DISCONNECT;
 
 	ret = drm_connector_init(bridge->dev, &adv->connector,
 				 &adv7511_connector_funcs,
@@ -1157,8 +1157,6 @@ static int adv7511_remove(struct i2c_client *i2c)
 	adv7511_audio_exit(adv7511);
 
 	i2c_unregister_device(adv7511->i2c_edid);
-
-	kfree(adv7511->edid);
 
 	return 0;
 }

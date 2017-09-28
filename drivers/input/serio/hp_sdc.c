@@ -805,7 +805,7 @@ static void hp_sdc_kicker(unsigned long data)
 
 #if defined(__hppa__)
 
-static const struct parisc_device_id hp_sdc_tbl[] = {
+static const struct parisc_device_id hp_sdc_tbl[] __initconst = {
 	{
 		.hw_type =	HPHW_FIO,
 		.hversion_rev =	HVERSION_REV_ANY_ID,
@@ -820,7 +820,7 @@ MODULE_DEVICE_TABLE(parisc, hp_sdc_tbl);
 static int __init hp_sdc_init_hppa(struct parisc_device *d);
 static struct delayed_work moduleloader_work;
 
-static struct parisc_driver hp_sdc_driver = {
+static struct parisc_driver hp_sdc_driver __refdata = {
 	.name =		"hp_sdc",
 	.id_table =	hp_sdc_tbl,
 	.probe =	hp_sdc_init_hppa,

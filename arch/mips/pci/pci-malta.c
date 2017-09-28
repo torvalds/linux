@@ -27,7 +27,7 @@
 #include <linux/init.h>
 
 #include <asm/gt64120.h>
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/bonito64.h>
 #include <asm/mips-boards/msc01_pci.h>
@@ -201,7 +201,7 @@ void __init mips_pcibios_init(void)
 		msc_mem_resource.start = start & mask;
 		msc_mem_resource.end = (start & mask) | ~mask;
 		msc_controller.mem_offset = (start & mask) - (map & mask);
-		if (mips_cm_numiocu()) {
+		if (mips_cps_numiocu(0)) {
 			write_gcr_reg0_base(start);
 			write_gcr_reg0_mask(mask |
 					    CM_GCR_REGn_MASK_CMTGT_IOCU0);
@@ -213,7 +213,7 @@ void __init mips_pcibios_init(void)
 		msc_io_resource.end = (map & mask) | ~mask;
 		msc_controller.io_offset = 0;
 		ioport_resource.end = ~mask;
-		if (mips_cm_numiocu()) {
+		if (mips_cps_numiocu(0)) {
 			write_gcr_reg1_base(start);
 			write_gcr_reg1_mask(mask |
 					    CM_GCR_REGn_MASK_CMTGT_IOCU0);

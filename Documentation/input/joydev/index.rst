@@ -12,7 +12,6 @@ Linux Joystick support
 
 .. toctree::
 	:maxdepth: 3
-	:numbered:
 
 	joystick
 	joystick-api

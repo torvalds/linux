@@ -128,6 +128,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_vmem_size = get_vmem_size,
 	.get_gpu_clock_counter = get_gpu_clock_counter,
 	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
+	.alloc_pasid = amdgpu_vm_alloc_pasid,
+	.free_pasid = amdgpu_vm_free_pasid,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_pipeline = kgd_init_pipeline,
@@ -154,7 +156,6 @@ static const struct kfd2kgd_calls kfd2kgd = {
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
 {
-	return (struct kfd2kgd_calls *)&kfd2kgd;
 	return (struct kfd2kgd_calls *)&kfd2kgd;
 }
 

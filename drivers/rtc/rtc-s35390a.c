@@ -106,32 +106,11 @@ static int s35390a_get_reg(struct s35390a *s35390a, int reg, char *buf, int len)
 	return 0;
 }
 
-/*
- * Returns <0 on error, 0 if rtc is setup fine and 1 if the chip was reset.
- * To keep the information if an irq is pending, pass the value read from
- * STATUS1 to the caller.
- */
-static int s35390a_reset(struct s35390a *s35390a, char *status1)
+static int s35390a_init(struct s35390a *s35390a)
 {
 	char buf;
 	int ret;
 	unsigned initcount = 0;
-
-	ret = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, status1, 1);
-	if (ret < 0)
-		return ret;
-
-	if (*status1 & S35390A_FLAG_POC)
-		/*
-		 * Do not communicate for 0.5 seconds since the power-on
-		 * detection circuit is in operation.
-		 */
-		msleep(500);
-	else if (!(*status1 & S35390A_FLAG_BLD))
-		/*
-		 * If both POC and BLD are unset everything is fine.
-		 */
-		return 0;
 
 	/*
 	 * At least one of POC and BLD are set, so reinitialise chip. Keeping
@@ -142,7 +121,6 @@ static int s35390a_reset(struct s35390a *s35390a, char *status1)
 	 * The 24H bit is kept over reset, so set it already here.
 	 */
 initialize:
-	*status1 = S35390A_FLAG_24H;
 	buf = S35390A_FLAG_RESET | S35390A_FLAG_24H;
 	ret = s35390a_set_reg(s35390a, S35390A_CMD_STATUS1, &buf, 1);
 
@@ -163,6 +141,34 @@ initialize:
 	}
 
 	return 1;
+}
+
+/*
+ * Returns <0 on error, 0 if rtc is setup fine and 1 if the chip was reset.
+ * To keep the information if an irq is pending, pass the value read from
+ * STATUS1 to the caller.
+ */
+static int s35390a_read_status(struct s35390a *s35390a, char *status1)
+{
+	int ret;
+
+	ret = s35390a_get_reg(s35390a, S35390A_CMD_STATUS1, status1, 1);
+	if (ret < 0)
+		return ret;
+
+	if (*status1 & S35390A_FLAG_POC) {
+		/*
+		 * Do not communicate for 0.5 seconds since the power-on
+		 * detection circuit is in operation.
+		 */
+		msleep(500);
+		return 1;
+	} else if (*status1 & S35390A_FLAG_BLD)
+		return 1;
+	/*
+	 * If both POC and BLD are unset everything is fine.
+	 */
+	return 0;
 }
 
 static int s35390a_disable_test_mode(struct s35390a *s35390a)
@@ -208,12 +214,15 @@ static int s35390a_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct s35390a	*s35390a = i2c_get_clientdata(client);
 	int i, err;
-	char buf[7];
+	char buf[7], status;
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d mday=%d, "
 		"mon=%d, year=%d, wday=%d\n", __func__, tm->tm_sec,
 		tm->tm_min, tm->tm_hour, tm->tm_mday, tm->tm_mon, tm->tm_year,
 		tm->tm_wday);
+
+	if (s35390a_read_status(s35390a, &status) == 1)
+		s35390a_init(s35390a);
 
 	buf[S35390A_BYTE_YEAR] = bin2bcd(tm->tm_year - 100);
 	buf[S35390A_BYTE_MONTH] = bin2bcd(tm->tm_mon + 1);
@@ -235,8 +244,11 @@ static int s35390a_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 static int s35390a_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct s35390a *s35390a = i2c_get_clientdata(client);
-	char buf[7];
+	char buf[7], status;
 	int i, err;
+
+	if (s35390a_read_status(s35390a, &status) == 1)
+		return -EINVAL;
 
 	err = s35390a_get_reg(s35390a, S35390A_CMD_TIME1, buf, sizeof(buf));
 	if (err < 0)
@@ -392,12 +404,42 @@ static int s35390a_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return s35390a_set_datetime(to_i2c_client(dev), tm);
 }
 
+static int s35390a_rtc_ioctl(struct device *dev, unsigned int cmd,
+			     unsigned long arg)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct s35390a *s35390a = i2c_get_clientdata(client);
+	char sts;
+	int err;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		/* s35390a_reset set lowvoltage flag and init RTC if needed */
+		err = s35390a_read_status(s35390a, &sts);
+		if (err < 0)
+			return err;
+		if (copy_to_user((void __user *)arg, &err, sizeof(int)))
+			return -EFAULT;
+		break;
+	case RTC_VL_CLR:
+		/* update flag and clear register */
+		err = s35390a_init(s35390a);
+		if (err < 0)
+			return err;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
+}
+
 static const struct rtc_class_ops s35390a_rtc_ops = {
 	.read_time	= s35390a_rtc_read_time,
 	.set_time	= s35390a_rtc_set_time,
 	.set_alarm	= s35390a_rtc_set_alarm,
 	.read_alarm	= s35390a_rtc_read_alarm,
-
+	.ioctl          = s35390a_rtc_ioctl,
 };
 
 static struct i2c_driver s35390a_driver;
@@ -405,7 +447,7 @@ static struct i2c_driver s35390a_driver;
 static int s35390a_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	int err, err_reset;
+	int err, err_read;
 	unsigned int i;
 	struct s35390a *s35390a;
 	struct rtc_time tm;
@@ -438,9 +480,9 @@ static int s35390a_probe(struct i2c_client *client,
 		}
 	}
 
-	err_reset = s35390a_reset(s35390a, &status1);
-	if (err_reset < 0) {
-		err = err_reset;
+	err_read = s35390a_read_status(s35390a, &status1);
+	if (err_read < 0) {
+		err = err_read;
 		dev_err(&client->dev, "error resetting chip\n");
 		goto exit_dummy;
 	}
@@ -466,7 +508,7 @@ static int s35390a_probe(struct i2c_client *client,
 		}
 	}
 
-	if (err_reset > 0 || s35390a_get_datetime(client, &tm) < 0)
+	if (err_read > 0 || s35390a_get_datetime(client, &tm) < 0)
 		dev_warn(&client->dev, "clock needs to be set\n");
 
 	device_set_wakeup_capable(&client->dev, 1);

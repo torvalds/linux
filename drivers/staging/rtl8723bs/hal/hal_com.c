@@ -1311,7 +1311,7 @@ void SetHalODMVar(
 	switch (eVariable) {
 	case HAL_ODM_STA_INFO:
 		{
-			struct sta_info *psta = (struct sta_info *)pValue1;
+			struct sta_info *psta = pValue1;
 			if (bSet) {
 				DBG_8192C("### Set STA_(%d) info ###\n", psta->mac_id);
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
@@ -1333,7 +1333,7 @@ void SetHalODMVar(
 	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
 	case HAL_ODM_NOISE_MONITOR:
 		{
-			struct noise_info *pinfo = (struct noise_info *)pValue1;
+			struct noise_info *pinfo = pValue1;
 
 			#ifdef DBG_NOISE_MONITOR
 			DBG_8192C("### Noise monitor chan(%d)-bPauseDIG:%d, IGIValue:0x%02x, max_time:%d (ms) ###\n",

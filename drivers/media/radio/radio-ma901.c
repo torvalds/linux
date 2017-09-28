@@ -444,7 +444,7 @@ err:
 }
 
 /* USB Device ID List */
-static struct usb_device_id usb_ma901radio_device_table[] = {
+static const struct usb_device_id usb_ma901radio_device_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(USB_MA901_VENDOR, USB_MA901_PRODUCT,
 							USB_CLASS_HID, 0, 0) },
 	{ }						/* Terminating entry */

@@ -247,8 +247,9 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 }
 EXPORT_SYMBOL(drm_object_property_set_value);
 
-int __drm_object_property_get_value(struct drm_mode_object *obj,
-				  struct drm_property *property, uint64_t *val)
+static int __drm_object_property_get_value(struct drm_mode_object *obj,
+					   struct drm_property *property,
+					   uint64_t *val)
 {
 	int i;
 

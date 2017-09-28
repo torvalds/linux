@@ -228,7 +228,7 @@ anything from oops to silent memory corruption.
 ---
 [mandatory]
 
-	FS_NOMOUNT is gone.  If you use it - just set MS_NOUSER in flags
+	FS_NOMOUNT is gone.  If you use it - just set SB_NOUSER in flags
 (see rootfs for one kind of solution and bdev/socket/pipe for another).
 
 ---

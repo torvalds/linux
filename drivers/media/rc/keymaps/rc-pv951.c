@@ -55,10 +55,10 @@ static struct rc_map_table pv951[] = {
 
 static struct rc_map_list pv951_map = {
 	.map = {
-		.scan    = pv951,
-		.size    = ARRAY_SIZE(pv951),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_PV951,
+		.scan     = pv951,
+		.size     = ARRAY_SIZE(pv951),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_PV951,
 	}
 };
 

@@ -34,6 +34,7 @@
 #include <asm/fixmap.h>
 #include <asm/io.h>
 #include <asm/setup.h>
+#include <asm/sections.h>
 
 #include "mmu_decl.h"
 
@@ -242,7 +243,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, int flags)
 /*
  * Map in a chunk of physical memory starting at start.
  */
-void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
+static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 {
 	unsigned long v, s, f;
 	phys_addr_t p;
@@ -294,7 +295,7 @@ void __init mapin_ram(void)
  * Returns true (1) if PTE was found, zero otherwise.  The pointer to
  * the PTE pointer is unmodified if PTE is not found.
  */
-int
+static int
 get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
 {
         pgd_t	*pgd;
@@ -323,9 +324,7 @@ get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
         return(retval);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-
-static int __change_page_attr(struct page *page, pgprot_t prot)
+static int __change_page_attr_noflush(struct page *page, pgprot_t prot)
 {
 	pte_t *kpte;
 	pmd_t *kpmd;
@@ -339,8 +338,6 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 	if (!get_pteptr(&init_mm, address, &kpte, &kpmd))
 		return -EINVAL;
 	__set_pte_at(&init_mm, address, kpte, mk_pte(page, prot), 0);
-	wmb();
-	flush_tlb_page(NULL, address);
 	pte_unmap(kpte);
 
 	return 0;
@@ -349,24 +346,60 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 /*
  * Change the page attributes of an page in the linear mapping.
  *
- * THIS CONFLICTS WITH BAT MAPPINGS, DEBUG USE ONLY
+ * THIS DOES NOTHING WITH BAT MAPPINGS, DEBUG USE ONLY
  */
 static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 {
 	int i, err = 0;
 	unsigned long flags;
+	struct page *start = page;
 
 	local_irq_save(flags);
 	for (i = 0; i < numpages; i++, page++) {
-		err = __change_page_attr(page, prot);
+		err = __change_page_attr_noflush(page, prot);
 		if (err)
 			break;
 	}
+	wmb();
+	flush_tlb_kernel_range((unsigned long)page_address(start),
+			       (unsigned long)page_address(page));
 	local_irq_restore(flags);
 	return err;
 }
 
+void mark_initmem_nx(void)
+{
+	struct page *page = virt_to_page(_sinittext);
+	unsigned long numpages = PFN_UP((unsigned long)_einittext) -
+				 PFN_DOWN((unsigned long)_sinittext);
 
+	change_page_attr(page, numpages, PAGE_KERNEL);
+}
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void mark_rodata_ro(void)
+{
+	struct page *page;
+	unsigned long numpages;
+
+	page = virt_to_page(_stext);
+	numpages = PFN_UP((unsigned long)_etext) -
+		   PFN_DOWN((unsigned long)_stext);
+
+	change_page_attr(page, numpages, PAGE_KERNEL_ROX);
+	/*
+	 * mark .rodata as read only. Use __init_begin rather than __end_rodata
+	 * to cover NOTES and EXCEPTION_TABLE.
+	 */
+	page = virt_to_page(__start_rodata);
+	numpages = PFN_UP((unsigned long)__init_begin) -
+		   PFN_DOWN((unsigned long)__start_rodata);
+
+	change_page_attr(page, numpages, PAGE_KERNEL_RO);
+}
+#endif
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
@@ -375,18 +408,3 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
 }
 #endif /* CONFIG_DEBUG_PAGEALLOC */
-
-static int fixmaps;
-
-void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
-{
-	unsigned long address = __fix_to_virt(idx);
-
-	if (idx >= __end_of_fixed_addresses) {
-		BUG();
-		return;
-	}
-
-	map_kernel_page(address, phys, pgprot_val(flags));
-	fixmaps++;
-}

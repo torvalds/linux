@@ -30,8 +30,54 @@
 #define IR_TAB_MAX_SIZE	8192
 #define RC_DEV_MAX	256
 
-/* FIXME: IR_KEYPRESS_TIMEOUT should be protocol specific */
-#define IR_KEYPRESS_TIMEOUT 250
+static const struct {
+	const char *name;
+	unsigned int repeat_period;
+	unsigned int scancode_bits;
+} protocols[] = {
+	[RC_PROTO_UNKNOWN] = { .name = "unknown", .repeat_period = 250 },
+	[RC_PROTO_OTHER] = { .name = "other", .repeat_period = 250 },
+	[RC_PROTO_RC5] = { .name = "rc-5",
+		.scancode_bits = 0x1f7f, .repeat_period = 164 },
+	[RC_PROTO_RC5X_20] = { .name = "rc-5x-20",
+		.scancode_bits = 0x1f7f3f, .repeat_period = 164 },
+	[RC_PROTO_RC5_SZ] = { .name = "rc-5-sz",
+		.scancode_bits = 0x2fff, .repeat_period = 164 },
+	[RC_PROTO_JVC] = { .name = "jvc",
+		.scancode_bits = 0xffff, .repeat_period = 250 },
+	[RC_PROTO_SONY12] = { .name = "sony-12",
+		.scancode_bits = 0x1f007f, .repeat_period = 100 },
+	[RC_PROTO_SONY15] = { .name = "sony-15",
+		.scancode_bits = 0xff007f, .repeat_period = 100 },
+	[RC_PROTO_SONY20] = { .name = "sony-20",
+		.scancode_bits = 0x1fff7f, .repeat_period = 100 },
+	[RC_PROTO_NEC] = { .name = "nec",
+		.scancode_bits = 0xffff, .repeat_period = 160 },
+	[RC_PROTO_NECX] = { .name = "nec-x",
+		.scancode_bits = 0xffffff, .repeat_period = 160 },
+	[RC_PROTO_NEC32] = { .name = "nec-32",
+		.scancode_bits = 0xffffffff, .repeat_period = 160 },
+	[RC_PROTO_SANYO] = { .name = "sanyo",
+		.scancode_bits = 0x1fffff, .repeat_period = 250 },
+	[RC_PROTO_MCIR2_KBD] = { .name = "mcir2-kbd",
+		.scancode_bits = 0xffff, .repeat_period = 150 },
+	[RC_PROTO_MCIR2_MSE] = { .name = "mcir2-mse",
+		.scancode_bits = 0x1fffff, .repeat_period = 150 },
+	[RC_PROTO_RC6_0] = { .name = "rc-6-0",
+		.scancode_bits = 0xffff, .repeat_period = 164 },
+	[RC_PROTO_RC6_6A_20] = { .name = "rc-6-6a-20",
+		.scancode_bits = 0xfffff, .repeat_period = 164 },
+	[RC_PROTO_RC6_6A_24] = { .name = "rc-6-6a-24",
+		.scancode_bits = 0xffffff, .repeat_period = 164 },
+	[RC_PROTO_RC6_6A_32] = { .name = "rc-6-6a-32",
+		.scancode_bits = 0xffffffff, .repeat_period = 164 },
+	[RC_PROTO_RC6_MCE] = { .name = "rc-6-mce",
+		.scancode_bits = 0xffff7fff, .repeat_period = 164 },
+	[RC_PROTO_SHARP] = { .name = "sharp",
+		.scancode_bits = 0x1fff, .repeat_period = 250 },
+	[RC_PROTO_XMP] = { .name = "xmp", .repeat_period = 250 },
+	[RC_PROTO_CEC] = { .name = "cec", .repeat_period = 550 },
+};
 
 /* Used to keep track of known keymaps */
 static LIST_HEAD(rc_map_list);
@@ -110,10 +156,10 @@ static struct rc_map_table empty[] = {
 
 static struct rc_map_list empty_map = {
 	.map = {
-		.scan    = empty,
-		.size    = ARRAY_SIZE(empty),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_EMPTY,
+		.scan     = empty,
+		.size     = ARRAY_SIZE(empty),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_EMPTY,
 	}
 };
 
@@ -121,7 +167,7 @@ static struct rc_map_list empty_map = {
  * ir_create_table() - initializes a scancode table
  * @rc_map:	the rc_map to initialize
  * @name:	name to assign to the table
- * @rc_type:	ir type to assign to the new table
+ * @rc_proto:	ir type to assign to the new table
  * @size:	initial size of the table
  * @return:	zero on success or a negative error code
  *
@@ -129,12 +175,12 @@ static struct rc_map_list empty_map = {
  * memory to hold at least the specified number of elements.
  */
 static int ir_create_table(struct rc_map *rc_map,
-			   const char *name, u64 rc_type, size_t size)
+			   const char *name, u64 rc_proto, size_t size)
 {
 	rc_map->name = kstrdup(name, GFP_KERNEL);
 	if (!rc_map->name)
 		return -ENOMEM;
-	rc_map->rc_type = rc_type;
+	rc_map->rc_proto = rc_proto;
 	rc_map->alloc = roundup_pow_of_two(size * sizeof(struct rc_map_table));
 	rc_map->size = rc_map->alloc / sizeof(struct rc_map_table);
 	rc_map->scan = kmalloc(rc_map->alloc, GFP_KERNEL);
@@ -389,7 +435,7 @@ static int ir_setkeytable(struct rc_dev *dev,
 	int rc;
 
 	rc = ir_create_table(rc_map, from->name,
-			     from->rc_type, from->size);
+			     from->rc_proto, from->size);
 	if (rc)
 		return rc;
 
@@ -530,7 +576,7 @@ u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode)
 
 	if (keycode != KEY_RESERVED)
 		IR_dprintk(1, "%s: scancode 0x%04x keycode 0x%02x\n",
-			   dev->input_name, scancode, keycode);
+			   dev->device_name, scancode, keycode);
 
 	return keycode;
 }
@@ -613,16 +659,17 @@ static void ir_timer_keyup(unsigned long cookie)
 void rc_repeat(struct rc_dev *dev)
 {
 	unsigned long flags;
+	unsigned int timeout = protocols[dev->last_protocol].repeat_period;
 
 	spin_lock_irqsave(&dev->keylock, flags);
-
-	input_event(dev->input_dev, EV_MSC, MSC_SCAN, dev->last_scancode);
-	input_sync(dev->input_dev);
 
 	if (!dev->keypressed)
 		goto out;
 
-	dev->keyup_jiffies = jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT);
+	input_event(dev->input_dev, EV_MSC, MSC_SCAN, dev->last_scancode);
+	input_sync(dev->input_dev);
+
+	dev->keyup_jiffies = jiffies + msecs_to_jiffies(timeout);
 	mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
 
 out:
@@ -641,7 +688,7 @@ EXPORT_SYMBOL_GPL(rc_repeat);
  * This function is used internally to register a keypress, it must be
  * called with keylock held.
  */
-static void ir_do_keydown(struct rc_dev *dev, enum rc_type protocol,
+static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 			  u32 scancode, u32 keycode, u8 toggle)
 {
 	bool new_event = (!dev->keypressed		 ||
@@ -663,7 +710,7 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_type protocol,
 		dev->last_keycode = keycode;
 
 		IR_dprintk(1, "%s: key down event, key 0x%04x, protocol 0x%04x, scancode 0x%08x\n",
-			   dev->input_name, keycode, protocol, scancode);
+			   dev->device_name, keycode, protocol, scancode);
 		input_report_key(dev->input_dev, keycode, 1);
 
 		led_trigger_event(led_feedback, LED_FULL);
@@ -683,7 +730,8 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_type protocol,
  * This routine is used to signal that a key has been pressed on the
  * remote control.
  */
-void rc_keydown(struct rc_dev *dev, enum rc_type protocol, u32 scancode, u8 toggle)
+void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
+		u8 toggle)
 {
 	unsigned long flags;
 	u32 keycode = rc_g_keycode_from_table(dev, scancode);
@@ -692,7 +740,8 @@ void rc_keydown(struct rc_dev *dev, enum rc_type protocol, u32 scancode, u8 togg
 	ir_do_keydown(dev, protocol, scancode, keycode, toggle);
 
 	if (dev->keypressed) {
-		dev->keyup_jiffies = jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT);
+		dev->keyup_jiffies = jiffies +
+			msecs_to_jiffies(protocols[protocol].repeat_period);
 		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
 	}
 	spin_unlock_irqrestore(&dev->keylock, flags);
@@ -711,7 +760,7 @@ EXPORT_SYMBOL_GPL(rc_keydown);
  * This routine is used to signal that a key has been pressed on the
  * remote control. The driver must manually call rc_keyup() at a later stage.
  */
-void rc_keydown_notimeout(struct rc_dev *dev, enum rc_type protocol,
+void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
 			  u32 scancode, u8 toggle)
 {
 	unsigned long flags;
@@ -733,44 +782,28 @@ EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
 static int rc_validate_filter(struct rc_dev *dev,
 			      struct rc_scancode_filter *filter)
 {
-	static u32 masks[] = {
-		[RC_TYPE_RC5] = 0x1f7f,
-		[RC_TYPE_RC5X_20] = 0x1f7f3f,
-		[RC_TYPE_RC5_SZ] = 0x2fff,
-		[RC_TYPE_SONY12] = 0x1f007f,
-		[RC_TYPE_SONY15] = 0xff007f,
-		[RC_TYPE_SONY20] = 0x1fff7f,
-		[RC_TYPE_JVC] = 0xffff,
-		[RC_TYPE_NEC] = 0xffff,
-		[RC_TYPE_NECX] = 0xffffff,
-		[RC_TYPE_NEC32] = 0xffffffff,
-		[RC_TYPE_SANYO] = 0x1fffff,
-		[RC_TYPE_MCIR2_KBD] = 0xffff,
-		[RC_TYPE_MCIR2_MSE] = 0x1fffff,
-		[RC_TYPE_RC6_0] = 0xffff,
-		[RC_TYPE_RC6_6A_20] = 0xfffff,
-		[RC_TYPE_RC6_6A_24] = 0xffffff,
-		[RC_TYPE_RC6_6A_32] = 0xffffffff,
-		[RC_TYPE_RC6_MCE] = 0xffff7fff,
-		[RC_TYPE_SHARP] = 0x1fff,
-	};
-	u32 s = filter->data;
-	enum rc_type protocol = dev->wakeup_protocol;
+	u32 mask, s = filter->data;
+	enum rc_proto protocol = dev->wakeup_protocol;
+
+	if (protocol >= ARRAY_SIZE(protocols))
+		return -EINVAL;
+
+	mask = protocols[protocol].scancode_bits;
 
 	switch (protocol) {
-	case RC_TYPE_NECX:
+	case RC_PROTO_NECX:
 		if ((((s >> 16) ^ ~(s >> 8)) & 0xff) == 0)
 			return -EINVAL;
 		break;
-	case RC_TYPE_NEC32:
+	case RC_PROTO_NEC32:
 		if ((((s >> 24) ^ ~(s >> 16)) & 0xff) == 0)
 			return -EINVAL;
 		break;
-	case RC_TYPE_RC6_MCE:
+	case RC_PROTO_RC6_MCE:
 		if ((s & 0xffff0000) != 0x800f0000)
 			return -EINVAL;
 		break;
-	case RC_TYPE_RC6_6A_32:
+	case RC_PROTO_RC6_6A_32:
 		if ((s & 0xffff0000) == 0x800f0000)
 			return -EINVAL;
 		break;
@@ -778,14 +811,13 @@ static int rc_validate_filter(struct rc_dev *dev,
 		break;
 	}
 
-	filter->data &= masks[protocol];
-	filter->mask &= masks[protocol];
+	filter->data &= mask;
+	filter->mask &= mask;
 
 	/*
 	 * If we have to raw encode the IR for wakeup, we cannot have a mask
 	 */
-	if (dev->encode_wakeup &&
-	    filter->mask != 0 && filter->mask != masks[protocol])
+	if (dev->encode_wakeup && filter->mask != 0 && filter->mask != mask)
 		return -EINVAL;
 
 	return 0;
@@ -859,30 +891,30 @@ static const struct {
 	const char	*name;
 	const char	*module_name;
 } proto_names[] = {
-	{ RC_BIT_NONE,		"none",		NULL			},
-	{ RC_BIT_OTHER,		"other",	NULL			},
-	{ RC_BIT_UNKNOWN,	"unknown",	NULL			},
-	{ RC_BIT_RC5 |
-	  RC_BIT_RC5X_20,	"rc-5",		"ir-rc5-decoder"	},
-	{ RC_BIT_NEC |
-	  RC_BIT_NECX |
-	  RC_BIT_NEC32,		"nec",		"ir-nec-decoder"	},
-	{ RC_BIT_RC6_0 |
-	  RC_BIT_RC6_6A_20 |
-	  RC_BIT_RC6_6A_24 |
-	  RC_BIT_RC6_6A_32 |
-	  RC_BIT_RC6_MCE,	"rc-6",		"ir-rc6-decoder"	},
-	{ RC_BIT_JVC,		"jvc",		"ir-jvc-decoder"	},
-	{ RC_BIT_SONY12 |
-	  RC_BIT_SONY15 |
-	  RC_BIT_SONY20,	"sony",		"ir-sony-decoder"	},
-	{ RC_BIT_RC5_SZ,	"rc-5-sz",	"ir-rc5-decoder"	},
-	{ RC_BIT_SANYO,		"sanyo",	"ir-sanyo-decoder"	},
-	{ RC_BIT_SHARP,		"sharp",	"ir-sharp-decoder"	},
-	{ RC_BIT_MCIR2_KBD |
-	  RC_BIT_MCIR2_MSE,	"mce_kbd",	"ir-mce_kbd-decoder"	},
-	{ RC_BIT_XMP,		"xmp",		"ir-xmp-decoder"	},
-	{ RC_BIT_CEC,		"cec",		NULL			},
+	{ RC_PROTO_BIT_NONE,	"none",		NULL			},
+	{ RC_PROTO_BIT_OTHER,	"other",	NULL			},
+	{ RC_PROTO_BIT_UNKNOWN,	"unknown",	NULL			},
+	{ RC_PROTO_BIT_RC5 |
+	  RC_PROTO_BIT_RC5X_20,	"rc-5",		"ir-rc5-decoder"	},
+	{ RC_PROTO_BIT_NEC |
+	  RC_PROTO_BIT_NECX |
+	  RC_PROTO_BIT_NEC32,	"nec",		"ir-nec-decoder"	},
+	{ RC_PROTO_BIT_RC6_0 |
+	  RC_PROTO_BIT_RC6_6A_20 |
+	  RC_PROTO_BIT_RC6_6A_24 |
+	  RC_PROTO_BIT_RC6_6A_32 |
+	  RC_PROTO_BIT_RC6_MCE,	"rc-6",		"ir-rc6-decoder"	},
+	{ RC_PROTO_BIT_JVC,	"jvc",		"ir-jvc-decoder"	},
+	{ RC_PROTO_BIT_SONY12 |
+	  RC_PROTO_BIT_SONY15 |
+	  RC_PROTO_BIT_SONY20,	"sony",		"ir-sony-decoder"	},
+	{ RC_PROTO_BIT_RC5_SZ,	"rc-5-sz",	"ir-rc5-decoder"	},
+	{ RC_PROTO_BIT_SANYO,	"sanyo",	"ir-sanyo-decoder"	},
+	{ RC_PROTO_BIT_SHARP,	"sharp",	"ir-sharp-decoder"	},
+	{ RC_PROTO_BIT_MCIR2_KBD |
+	  RC_PROTO_BIT_MCIR2_MSE, "mce_kbd",	"ir-mce_kbd-decoder"	},
+	{ RC_PROTO_BIT_XMP,	"xmp",		"ir-xmp-decoder"	},
+	{ RC_PROTO_BIT_CEC,	"cec",		NULL			},
 };
 
 /**
@@ -1052,8 +1084,9 @@ static void ir_raw_load_modules(u64 *protocols)
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
-		if (proto_names[i].type == RC_BIT_NONE ||
-		    proto_names[i].type & (RC_BIT_OTHER | RC_BIT_UNKNOWN))
+		if (proto_names[i].type == RC_PROTO_BIT_NONE ||
+		    proto_names[i].type & (RC_PROTO_BIT_OTHER |
+					   RC_PROTO_BIT_UNKNOWN))
 			continue;
 
 		available = ir_raw_get_allowed_protocols();
@@ -1271,7 +1304,7 @@ static ssize_t store_filter(struct device *device,
 		 * Refuse to set a filter unless a protocol is enabled
 		 * and the filter is valid for that protocol
 		 */
-		if (dev->wakeup_protocol != RC_TYPE_UNKNOWN)
+		if (dev->wakeup_protocol != RC_PROTO_UNKNOWN)
 			ret = rc_validate_filter(dev, &new_filter);
 		else
 			ret = -EINVAL;
@@ -1298,40 +1331,6 @@ unlock:
 	return (ret < 0) ? ret : len;
 }
 
-/*
- * This is the list of all variants of all protocols, which is used by
- * the wakeup_protocols sysfs entry. In the protocols sysfs entry some
- * some protocols are grouped together (e.g. nec = nec + necx + nec32).
- *
- * For wakeup we need to know the exact protocol variant so the hardware
- * can be programmed exactly what to expect.
- */
-static const char * const proto_variant_names[] = {
-	[RC_TYPE_UNKNOWN] = "unknown",
-	[RC_TYPE_OTHER] = "other",
-	[RC_TYPE_RC5] = "rc-5",
-	[RC_TYPE_RC5X_20] = "rc-5x-20",
-	[RC_TYPE_RC5_SZ] = "rc-5-sz",
-	[RC_TYPE_JVC] = "jvc",
-	[RC_TYPE_SONY12] = "sony-12",
-	[RC_TYPE_SONY15] = "sony-15",
-	[RC_TYPE_SONY20] = "sony-20",
-	[RC_TYPE_NEC] = "nec",
-	[RC_TYPE_NECX] = "nec-x",
-	[RC_TYPE_NEC32] = "nec-32",
-	[RC_TYPE_SANYO] = "sanyo",
-	[RC_TYPE_MCIR2_KBD] = "mcir2-kbd",
-	[RC_TYPE_MCIR2_MSE] = "mcir2-mse",
-	[RC_TYPE_RC6_0] = "rc-6-0",
-	[RC_TYPE_RC6_6A_20] = "rc-6-6a-20",
-	[RC_TYPE_RC6_6A_24] = "rc-6-6a-24",
-	[RC_TYPE_RC6_6A_32] = "rc-6-6a-32",
-	[RC_TYPE_RC6_MCE] = "rc-6-mce",
-	[RC_TYPE_SHARP] = "sharp",
-	[RC_TYPE_XMP] = "xmp",
-	[RC_TYPE_CEC] = "cec",
-};
-
 /**
  * show_wakeup_protocols() - shows the wakeup IR protocol
  * @device:	the device descriptor
@@ -1352,7 +1351,7 @@ static ssize_t show_wakeup_protocols(struct device *device,
 {
 	struct rc_dev *dev = to_rc_dev(device);
 	u64 allowed;
-	enum rc_type enabled;
+	enum rc_proto enabled;
 	char *tmp = buf;
 	int i;
 
@@ -1366,14 +1365,12 @@ static ssize_t show_wakeup_protocols(struct device *device,
 	IR_dprintk(1, "%s: allowed - 0x%llx, enabled - %d\n",
 		   __func__, (long long)allowed, enabled);
 
-	for (i = 0; i < ARRAY_SIZE(proto_variant_names); i++) {
+	for (i = 0; i < ARRAY_SIZE(protocols); i++) {
 		if (allowed & (1ULL << i)) {
 			if (i == enabled)
-				tmp += sprintf(tmp, "[%s] ",
-						proto_variant_names[i]);
+				tmp += sprintf(tmp, "[%s] ", protocols[i].name);
 			else
-				tmp += sprintf(tmp, "%s ",
-						proto_variant_names[i]);
+				tmp += sprintf(tmp, "%s ", protocols[i].name);
 		}
 	}
 
@@ -1403,7 +1400,7 @@ static ssize_t store_wakeup_protocols(struct device *device,
 				      const char *buf, size_t len)
 {
 	struct rc_dev *dev = to_rc_dev(device);
-	enum rc_type protocol;
+	enum rc_proto protocol;
 	ssize_t rc;
 	u64 allowed;
 	int i;
@@ -1413,17 +1410,17 @@ static ssize_t store_wakeup_protocols(struct device *device,
 	allowed = dev->allowed_wakeup_protocols;
 
 	if (sysfs_streq(buf, "none")) {
-		protocol = RC_TYPE_UNKNOWN;
+		protocol = RC_PROTO_UNKNOWN;
 	} else {
-		for (i = 0; i < ARRAY_SIZE(proto_variant_names); i++) {
+		for (i = 0; i < ARRAY_SIZE(protocols); i++) {
 			if ((allowed & (1ULL << i)) &&
-			    sysfs_streq(buf, proto_variant_names[i])) {
+			    sysfs_streq(buf, protocols[i].name)) {
 				protocol = i;
 				break;
 			}
 		}
 
-		if (i == ARRAY_SIZE(proto_variant_names)) {
+		if (i == ARRAY_SIZE(protocols)) {
 			rc = -EINVAL;
 			goto out;
 		}
@@ -1443,7 +1440,7 @@ static ssize_t store_wakeup_protocols(struct device *device,
 		dev->wakeup_protocol = protocol;
 		IR_dprintk(1, "Wakeup protocol changed to %d\n", protocol);
 
-		if (protocol == RC_TYPE_RC6_MCE)
+		if (protocol == RC_PROTO_RC6_MCE)
 			dev->scancode_wakeup_filter.data = 0x800f0000;
 		else
 			dev->scancode_wakeup_filter.data = 0;
@@ -1507,7 +1504,7 @@ static struct attribute *rc_dev_protocol_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rc_dev_protocol_attr_grp = {
+static const struct attribute_group rc_dev_protocol_attr_grp = {
 	.attrs	= rc_dev_protocol_attrs,
 };
 
@@ -1517,7 +1514,7 @@ static struct attribute *rc_dev_filter_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rc_dev_filter_attr_grp = {
+static const struct attribute_group rc_dev_filter_attr_grp = {
 	.attrs	= rc_dev_filter_attrs,
 };
 
@@ -1528,7 +1525,7 @@ static struct attribute *rc_dev_wakeup_filter_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rc_dev_wakeup_filter_attr_grp = {
+static const struct attribute_group rc_dev_wakeup_filter_attr_grp = {
 	.attrs	= rc_dev_wakeup_filter_attrs,
 };
 
@@ -1624,7 +1621,7 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 {
 	int rc;
 	struct rc_map *rc_map;
-	u64 rc_type;
+	u64 rc_proto;
 
 	if (!dev->map_name)
 		return -EINVAL;
@@ -1639,17 +1636,17 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 	if (rc)
 		return rc;
 
-	rc_type = BIT_ULL(rc_map->rc_type);
+	rc_proto = BIT_ULL(rc_map->rc_proto);
 
 	if (dev->change_protocol) {
-		rc = dev->change_protocol(dev, &rc_type);
+		rc = dev->change_protocol(dev, &rc_proto);
 		if (rc < 0)
 			goto out_table;
-		dev->enabled_protocols = rc_type;
+		dev->enabled_protocols = rc_proto;
 	}
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW)
-		ir_raw_load_modules(&rc_type);
+		ir_raw_load_modules(&rc_proto);
 
 	set_bit(EV_KEY, dev->input_dev->evbit);
 	set_bit(EV_REP, dev->input_dev->evbit);
@@ -1663,7 +1660,7 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 	dev->input_dev->dev.parent = &dev->dev;
 	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
 	dev->input_dev->phys = dev->input_phys;
-	dev->input_dev->name = dev->input_name;
+	dev->input_dev->name = dev->device_name;
 
 	return 0;
 
@@ -1759,7 +1756,7 @@ int rc_register_device(struct rc_dev *dev)
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
-		dev->input_name ?: "Unspecified device", path ?: "N/A");
+		 dev->device_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {

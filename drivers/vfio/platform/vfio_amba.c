@@ -93,7 +93,7 @@ static int vfio_amba_remove(struct amba_device *adev)
 	return -EINVAL;
 }
 
-static struct amba_id pl330_ids[] = {
+static const struct amba_id pl330_ids[] = {
 	{ 0, 0 },
 };
 

@@ -416,7 +416,7 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 	return NF_ACCEPT;
 }
 
-static struct nf_hook_ops ipv4_synproxy_ops[] __read_mostly = {
+static const struct nf_hook_ops ipv4_synproxy_ops[] = {
 	{
 		.hook		= ipv4_synproxy_hook,
 		.pf		= NFPROTO_IPV4,

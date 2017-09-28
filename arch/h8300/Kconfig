@@ -23,6 +23,9 @@ config H8300
 	select HAVE_ARCH_HASH
 	select CPU_NO_EFFICIENT_FFS
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 

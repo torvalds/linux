@@ -491,10 +491,8 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 		if (!q->flows)
 			return -ENOMEM;
 		q->backlogs = kvzalloc(q->flows_cnt * sizeof(u32), GFP_KERNEL);
-		if (!q->backlogs) {
-			kvfree(q->flows);
+		if (!q->backlogs)
 			return -ENOMEM;
-		}
 		for (i = 0; i < q->flows_cnt; i++) {
 			struct fq_codel_flow *flow = q->flows + i;
 
@@ -579,7 +577,7 @@ static struct Qdisc *fq_codel_leaf(struct Qdisc *sch, unsigned long arg)
 	return NULL;
 }
 
-static unsigned long fq_codel_get(struct Qdisc *sch, u32 classid)
+static unsigned long fq_codel_find(struct Qdisc *sch, u32 classid)
 {
 	return 0;
 }
@@ -592,7 +590,7 @@ static unsigned long fq_codel_bind(struct Qdisc *sch, unsigned long parent,
 	return 0;
 }
 
-static void fq_codel_put(struct Qdisc *q, unsigned long cl)
+static void fq_codel_unbind(struct Qdisc *q, unsigned long cl)
 {
 }
 
@@ -683,11 +681,10 @@ static void fq_codel_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 
 static const struct Qdisc_class_ops fq_codel_class_ops = {
 	.leaf		=	fq_codel_leaf,
-	.get		=	fq_codel_get,
-	.put		=	fq_codel_put,
+	.find		=	fq_codel_find,
 	.tcf_block	=	fq_codel_tcf_block,
 	.bind_tcf	=	fq_codel_bind,
-	.unbind_tcf	=	fq_codel_put,
+	.unbind_tcf	=	fq_codel_unbind,
 	.dump		=	fq_codel_dump_class,
 	.dump_stats	=	fq_codel_dump_class_stats,
 	.walk		=	fq_codel_walk,

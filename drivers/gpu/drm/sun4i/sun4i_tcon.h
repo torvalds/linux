@@ -37,6 +37,7 @@
 #define SUN4I_TCON0_CTL_TCON_ENABLE			BIT(31)
 #define SUN4I_TCON0_CTL_CLK_DELAY_MASK			GENMASK(8, 4)
 #define SUN4I_TCON0_CTL_CLK_DELAY(delay)		((delay << 4) & SUN4I_TCON0_CTL_CLK_DELAY_MASK)
+#define SUN4I_TCON0_CTL_SRC_SEL_MASK			GENMASK(2, 0)
 
 #define SUN4I_TCON0_DCLK_REG			0x44
 #define SUN4I_TCON0_DCLK_GATE_BIT			(31)
@@ -85,6 +86,7 @@
 #define SUN4I_TCON1_CTL_INTERLACE_ENABLE		BIT(20)
 #define SUN4I_TCON1_CTL_CLK_DELAY_MASK			GENMASK(8, 4)
 #define SUN4I_TCON1_CTL_CLK_DELAY(delay)		((delay << 4) & SUN4I_TCON1_CTL_CLK_DELAY_MASK)
+#define SUN4I_TCON1_CTL_SRC_SEL_MASK			GENMASK(1, 0)
 
 #define SUN4I_TCON1_BASIC0_REG			0x94
 #define SUN4I_TCON1_BASIC0_X(width)			((((width) - 1) & 0xfff) << 16)
@@ -146,6 +148,7 @@
 struct sun4i_tcon_quirks {
 	bool	has_unknown_mux; /* sun5i has undocumented mux */
 	bool	has_channel_1;	/* a33 does not have channel 1 */
+	bool	needs_de_be_mux; /* sun6i needs mux to select backend */
 };
 
 struct sun4i_tcon {

@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/dma-buf.h>
+#include <linux/mem_encrypt.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -168,6 +169,9 @@ static int udl_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	pr_notice("mmap() framebuffer addr:%lu size:%lu\n",
 		  pos, size);
+
+	/* We don't want the framebuffer to be mapped encrypted */
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);

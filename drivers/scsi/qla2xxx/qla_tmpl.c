@@ -401,9 +401,6 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 		for (i = 0; i < vha->hw->max_req_queues; i++) {
 			struct req_que *req = vha->hw->req_q_map[i];
 
-			if (!test_bit(i, vha->hw->req_qid_map))
-				continue;
-
 			if (req || !buf) {
 				length = req ?
 				    req->length : REQUEST_ENTRY_CNT_24XX;
@@ -417,9 +414,6 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 	} else if (ent->t263.queue_type == T263_QUEUE_TYPE_RSP) {
 		for (i = 0; i < vha->hw->max_rsp_queues; i++) {
 			struct rsp_que *rsp = vha->hw->rsp_q_map[i];
-
-			if (!test_bit(i, vha->hw->rsp_qid_map))
-				continue;
 
 			if (rsp || !buf) {
 				length = rsp ?
@@ -449,8 +443,12 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 		qla27xx_skip_entry(ent, buf);
 	}
 
-	if (buf)
-		ent->t263.num_queues = count;
+	if (buf) {
+		if (count)
+			ent->t263.num_queues = count;
+		else
+			qla27xx_skip_entry(ent, buf);
+	}
 
 	return false;
 }
@@ -660,9 +658,6 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 		for (i = 0; i < vha->hw->max_req_queues; i++) {
 			struct req_que *req = vha->hw->req_q_map[i];
 
-			if (!test_bit(i, vha->hw->req_qid_map))
-				continue;
-
 			if (req || !buf) {
 				qla27xx_insert16(i, buf, len);
 				qla27xx_insert16(1, buf, len);
@@ -674,9 +669,6 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 	} else if (ent->t274.queue_type == T274_QUEUE_TYPE_RSP_SHAD) {
 		for (i = 0; i < vha->hw->max_rsp_queues; i++) {
 			struct rsp_que *rsp = vha->hw->rsp_q_map[i];
-
-			if (!test_bit(i, vha->hw->rsp_qid_map))
-				continue;
 
 			if (rsp || !buf) {
 				qla27xx_insert16(i, buf, len);
@@ -704,11 +696,12 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 		qla27xx_skip_entry(ent, buf);
 	}
 
-	if (buf)
-		ent->t274.num_queues = count;
-
-	if (!count)
-		qla27xx_skip_entry(ent, buf);
+	if (buf) {
+		if (count)
+			ent->t274.num_queues = count;
+		else
+			qla27xx_skip_entry(ent, buf);
+	}
 
 	return false;
 }

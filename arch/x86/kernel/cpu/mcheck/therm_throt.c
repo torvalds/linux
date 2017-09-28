@@ -122,7 +122,7 @@ static struct attribute *thermal_throttle_attrs[] = {
 	NULL
 };
 
-static struct attribute_group thermal_attr_group = {
+static const struct attribute_group thermal_attr_group = {
 	.attrs	= thermal_throttle_attrs,
 	.name	= "thermal_throttle"
 };
@@ -390,26 +390,12 @@ static void unexpected_thermal_interrupt(void)
 
 static void (*smp_thermal_vector)(void) = unexpected_thermal_interrupt;
 
-static inline void __smp_thermal_interrupt(void)
-{
-	inc_irq_stat(irq_thermal_count);
-	smp_thermal_vector();
-}
-
-asmlinkage __visible void __irq_entry
-smp_thermal_interrupt(struct pt_regs *regs)
-{
-	entering_irq();
-	__smp_thermal_interrupt();
-	exiting_ack_irq();
-}
-
-asmlinkage __visible void __irq_entry
-smp_trace_thermal_interrupt(struct pt_regs *regs)
+asmlinkage __visible void __irq_entry smp_thermal_interrupt(struct pt_regs *r)
 {
 	entering_irq();
 	trace_thermal_apic_entry(THERMAL_APIC_VECTOR);
-	__smp_thermal_interrupt();
+	inc_irq_stat(irq_thermal_count);
+	smp_thermal_vector();
 	trace_thermal_apic_exit(THERMAL_APIC_VECTOR);
 	exiting_ack_irq();
 }

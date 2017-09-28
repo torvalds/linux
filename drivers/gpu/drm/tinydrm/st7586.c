@@ -343,7 +343,6 @@ MODULE_DEVICE_TABLE(spi, st7586_id);
 static int st7586_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct tinydrm_device *tdev;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *a0;
 	u32 rotation = 0;
@@ -388,20 +387,9 @@ static int st7586_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	tdev = &mipi->tinydrm;
-
-	ret = devm_tinydrm_register(tdev);
-	if (ret)
-		return ret;
-
 	spi_set_drvdata(spi, mipi);
 
-	DRM_DEBUG_DRIVER("Initialized %s:%s @%uMHz on minor %d\n",
-			 tdev->drm->driver->name, dev_name(dev),
-			 spi->max_speed_hz / 1000000,
-			 tdev->drm->primary->index);
-
-	return 0;
+	return devm_tinydrm_register(&mipi->tinydrm);
 }
 
 static void st7586_shutdown(struct spi_device *spi)

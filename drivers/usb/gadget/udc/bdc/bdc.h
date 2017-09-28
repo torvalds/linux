@@ -27,8 +27,8 @@
 #include <linux/usb/gadget.h>
 #include <asm/unaligned.h>
 
-#define BRCM_BDC_NAME "bdc_usb3"
-#define BRCM_BDC_DESC "BDC device controller driver"
+#define BRCM_BDC_NAME "bdc"
+#define BRCM_BDC_DESC "Broadcom USB Device Controller driver"
 
 #define DMA_ADDR_INVALID        (~(dma_addr_t)0)
 
@@ -83,14 +83,14 @@
 
 #define BDC_DVCSA	0x50
 #define BDC_DVCSB	0x54
-#define BDC_EPSTS0(n)	(0x60 + (n * 0x10))
-#define BDC_EPSTS1(n)	(0x64 + (n * 0x10))
-#define BDC_EPSTS2(n)	(0x68 + (n * 0x10))
-#define BDC_EPSTS3(n)	(0x6c + (n * 0x10))
-#define BDC_EPSTS4(n)	(0x70 + (n * 0x10))
-#define BDC_EPSTS5(n)	(0x74 + (n * 0x10))
-#define BDC_EPSTS6(n)	(0x78 + (n * 0x10))
-#define BDC_EPSTS7(n)	(0x7c + (n * 0x10))
+#define BDC_EPSTS0	0x60
+#define BDC_EPSTS1	0x64
+#define BDC_EPSTS2	0x68
+#define BDC_EPSTS3	0x6c
+#define BDC_EPSTS4	0x70
+#define BDC_EPSTS5	0x74
+#define BDC_EPSTS6	0x78
+#define BDC_EPSTS7	0x7c
 #define BDC_SRRBAL(n)	(0x200 + (n * 0x10))
 #define BDC_SRRBAH(n)	(0x204 + (n * 0x10))
 #define BDC_SRRINT(n)	(0x208 + (n * 0x10))
@@ -413,6 +413,9 @@ struct bdc {
 	/* device lock */
 	spinlock_t	lock;
 
+	/* generic phy */
+	struct phy      **phys;
+	int num_phys;
 	/* num of endpoints for a particular instantiation of IP */
 	unsigned int num_eps;
 	/*
@@ -454,6 +457,7 @@ struct bdc {
 	 * Func Wake packet every 2.5 secs. Refer to USB3 spec section 8.5.6.4
 	 */
 	struct delayed_work	func_wake_notify;
+	struct clk		*clk;
 };
 
 static inline u32 bdc_readl(void __iomem *base, u32 offset)

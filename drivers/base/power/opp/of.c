@@ -248,15 +248,22 @@ void dev_pm_opp_of_remove_table(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
-/* Returns opp descriptor node for a device, caller must do of_node_put() */
-struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
+/* Returns opp descriptor node for a device node, caller must
+ * do of_node_put() */
+static struct device_node *_opp_of_get_opp_desc_node(struct device_node *np)
 {
 	/*
 	 * There should be only ONE phandle present in "operating-points-v2"
 	 * property.
 	 */
 
-	return of_parse_phandle(dev->of_node, "operating-points-v2", 0);
+	return of_parse_phandle(np, "operating-points-v2", 0);
+}
+
+/* Returns opp descriptor node for a device, caller must do of_node_put() */
+struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
+{
+	return _opp_of_get_opp_desc_node(dev->of_node);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
 
@@ -539,8 +546,12 @@ int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 
 		ret = dev_pm_opp_of_add_table(cpu_dev);
 		if (ret) {
-			pr_err("%s: couldn't find opp table for cpu:%d, %d\n",
-			       __func__, cpu, ret);
+			/*
+			 * OPP may get registered dynamically, don't print error
+			 * message here.
+			 */
+			pr_debug("%s: couldn't find opp table for cpu:%d, %d\n",
+				 __func__, cpu, ret);
 
 			/* Free all other OPPs */
 			dev_pm_opp_of_cpumask_remove_table(cpumask);
@@ -572,8 +583,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_add_table);
 int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 				   struct cpumask *cpumask)
 {
-	struct device_node *np, *tmp_np;
-	struct device *tcpu_dev;
+	struct device_node *np, *tmp_np, *cpu_np;
 	int cpu, ret = 0;
 
 	/* Get OPP descriptor node */
@@ -593,19 +603,18 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 		if (cpu == cpu_dev->id)
 			continue;
 
-		tcpu_dev = get_cpu_device(cpu);
-		if (!tcpu_dev) {
-			dev_err(cpu_dev, "%s: failed to get cpu%d device\n",
+		cpu_np = of_get_cpu_node(cpu, NULL);
+		if (!cpu_np) {
+			dev_err(cpu_dev, "%s: failed to get cpu%d node\n",
 				__func__, cpu);
-			ret = -ENODEV;
+			ret = -ENOENT;
 			goto put_cpu_node;
 		}
 
 		/* Get OPP descriptor node */
-		tmp_np = dev_pm_opp_of_get_opp_desc_node(tcpu_dev);
+		tmp_np = _opp_of_get_opp_desc_node(cpu_np);
 		if (!tmp_np) {
-			dev_err(tcpu_dev, "%s: Couldn't find opp node.\n",
-				__func__);
+			pr_err("%pOF: Couldn't find opp node\n", cpu_np);
 			ret = -ENOENT;
 			goto put_cpu_node;
 		}

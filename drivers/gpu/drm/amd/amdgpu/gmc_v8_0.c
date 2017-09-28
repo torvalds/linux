@@ -562,7 +562,26 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	if (adev->mc.visible_vram_size > adev->mc.real_vram_size)
 		adev->mc.visible_vram_size = adev->mc.real_vram_size;
 
-	amdgpu_gart_set_defaults(adev);
+	/* set the gart size */
+	if (amdgpu_gart_size == -1) {
+		switch (adev->asic_type) {
+		case CHIP_POLARIS11: /* all engines support GPUVM */
+		case CHIP_POLARIS10: /* all engines support GPUVM */
+		case CHIP_POLARIS12: /* all engines support GPUVM */
+		default:
+			adev->mc.gart_size = 256ULL << 20;
+			break;
+		case CHIP_TONGA:   /* UVD, VCE do not support GPUVM */
+		case CHIP_FIJI:    /* UVD, VCE do not support GPUVM */
+		case CHIP_CARRIZO: /* UVD, VCE do not support GPUVM, DCE SG support */
+		case CHIP_STONEY:  /* UVD does not support GPUVM, DCE SG support */
+			adev->mc.gart_size = 1024ULL << 20;
+			break;
+		}
+	} else {
+		adev->mc.gart_size = (u64)amdgpu_gart_size << 20;
+	}
+
 	gmc_v8_0_vram_gtt_location(adev, &adev->mc);
 
 	return 0;
@@ -1048,7 +1067,7 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * Currently set to 4GB ((1 << 20) 4k pages).
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
-	amdgpu_vm_adjust_size(adev, 64, 4);
+	amdgpu_vm_adjust_size(adev, 64, 9);
 	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	/* Set the internal MC address mask
@@ -1128,6 +1147,8 @@ static int gmc_v8_0_sw_fini(void *handle)
 	gmc_v8_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
+	release_firmware(adev->mc.fw);
+	adev->mc.fw = NULL;
 
 	return 0;
 }

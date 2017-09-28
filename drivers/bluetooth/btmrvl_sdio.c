@@ -1455,7 +1455,8 @@ done:
 	fw_dump_ptr = fw_dump_data;
 
 	/* Dump all the memory data into single file, a userspace script will
-	   be used to split all the memory data to multiple files*/
+	 * be used to split all the memory data to multiple files
+	 */
 	BT_INFO("== btmrvl firmware dump to /sys/class/devcoredump start");
 	for (idx = 0; idx < dump_num; idx++) {
 		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
@@ -1482,7 +1483,8 @@ done:
 	}
 
 	/* fw_dump_data will be free in device coredump release function
-	   after 5 min*/
+	 * after 5 min
+	 */
 	dev_coredumpv(&card->func->dev, fw_dump_data, fw_dump_len, GFP_KERNEL);
 	BT_INFO("== btmrvl firmware dump to /sys/class/devcoredump end");
 }

@@ -278,7 +278,7 @@ void ufs_error (struct super_block * sb, const char * function,
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 	
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		usb1->fs_clean = UFS_FSBAD;
 		ubh_mark_buffer_dirty(USPI_UBH(uspi));
 		ufs_mark_sb_dirty(sb);
@@ -312,7 +312,7 @@ void ufs_panic (struct super_block * sb, const char * function,
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 	
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		usb1->fs_clean = UFS_FSBAD;
 		ubh_mark_buffer_dirty(USPI_UBH(uspi));
 		ufs_mark_sb_dirty(sb);
@@ -742,7 +742,7 @@ static void ufs_put_super(struct super_block *sb)
 
 	UFSD("ENTER\n");
 
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		ufs_put_super_internal(sb);
 	cancel_delayed_work_sync(&sbi->sync_work);
 
@@ -793,7 +793,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	UFSD("ENTER\n");
 
 #ifndef CONFIG_UFS_FS_WRITE
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		pr_err("ufs was compiled with read-only support, can't be mounted as read-write\n");
 		return -EROFS;
 	}
@@ -805,7 +805,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 
-	UFSD("flag %u\n", (int)(sb->s_flags & MS_RDONLY));
+	UFSD("flag %u\n", (int)(sb_rdonly(sb)));
 	
 	mutex_init(&sbi->s_lock);
 	spin_lock_init(&sbi->work_lock);
@@ -902,7 +902,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=old is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
@@ -918,7 +918,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		uspi->s_dirblksize = 1024;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=nextstep is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
@@ -934,7 +934,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		uspi->s_dirblksize = 1024;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=nextstep-cd is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
@@ -950,7 +950,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbbase = 0;
 		uspi->s_dirblksize = 1024;
 		flags |= UFS_DE_44BSD | UFS_UID_44BSD | UFS_ST_44BSD | UFS_CG_44BSD;
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=openstep is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
@@ -965,7 +965,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=hp is supported read-only\n");
 			sb->s_flags |= MS_RDONLY;
@@ -1273,7 +1273,7 @@ magic_found:
 	/*
 	 * Read cylinder group structures
 	 */
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		if (!ufs_read_cylinder_structures(sb))
 			goto failed;
 
@@ -1328,7 +1328,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		return -EINVAL;
 	}
 
-	if ((*mount_flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+	if ((bool)(*mount_flags & MS_RDONLY) == sb_rdonly(sb)) {
 		UFS_SB(sb)->s_mount_opt = new_mount_opt;
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return 0;

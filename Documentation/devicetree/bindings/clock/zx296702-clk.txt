@@ -31,5 +31,4 @@ uart0: serial@0x09405000 {
         reg = <0x09405000 0x1000>;
         interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&lsp1clk ZX296702_UART0_PCLK>;
-        status = "disabled";
 };

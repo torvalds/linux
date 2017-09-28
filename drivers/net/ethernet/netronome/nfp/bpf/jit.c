@@ -1238,6 +1238,16 @@ static int jge_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, true);
 }
 
+static int jlt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, false);
+}
+
+static int jle_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, true);
+}
+
 static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
@@ -1325,6 +1335,16 @@ static int jge_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, true);
 }
 
+static int jlt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, false);
+}
+
+static int jle_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, true);
+}
+
 static int jset_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return wrp_test_reg(nfp_prog, meta, ALU_OP_AND, BR_BNE);
@@ -1383,11 +1403,15 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_JMP | BPF_JEQ | BPF_K] =	jeq_imm,
 	[BPF_JMP | BPF_JGT | BPF_K] =	jgt_imm,
 	[BPF_JMP | BPF_JGE | BPF_K] =	jge_imm,
+	[BPF_JMP | BPF_JLT | BPF_K] =	jlt_imm,
+	[BPF_JMP | BPF_JLE | BPF_K] =	jle_imm,
 	[BPF_JMP | BPF_JSET | BPF_K] =	jset_imm,
 	[BPF_JMP | BPF_JNE | BPF_K] =	jne_imm,
 	[BPF_JMP | BPF_JEQ | BPF_X] =	jeq_reg,
 	[BPF_JMP | BPF_JGT | BPF_X] =	jgt_reg,
 	[BPF_JMP | BPF_JGE | BPF_X] =	jge_reg,
+	[BPF_JMP | BPF_JLT | BPF_X] =	jlt_reg,
+	[BPF_JMP | BPF_JLE | BPF_X] =	jle_reg,
 	[BPF_JMP | BPF_JSET | BPF_X] =	jset_reg,
 	[BPF_JMP | BPF_JNE | BPF_X] =	jne_reg,
 	[BPF_JMP | BPF_EXIT] =		goto_out,

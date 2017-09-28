@@ -109,8 +109,8 @@ static ssize_t ttm_bo_global_show(struct kobject *kobj,
 	struct ttm_bo_global *glob =
 		container_of(kobj, struct ttm_bo_global, kobj);
 
-	return snprintf(buffer, PAGE_SIZE, "%lu\n",
-			(unsigned long) atomic_read(&glob->bo_count));
+	return snprintf(buffer, PAGE_SIZE, "%d\n",
+				atomic_read(&glob->bo_count));
 }
 
 static struct attribute *ttm_bo_global_attrs[] = {
@@ -440,28 +440,29 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	struct ttm_bo_global *glob = bo->glob;
 	int ret;
 
+	ret = ttm_bo_individualize_resv(bo);
+	if (ret) {
+		/* Last resort, if we fail to allocate memory for the
+		 * fences block for the BO to become idle
+		 */
+		reservation_object_wait_timeout_rcu(bo->resv, true, false,
+						    30 * HZ);
+		spin_lock(&glob->lru_lock);
+		goto error;
+	}
+
 	spin_lock(&glob->lru_lock);
 	ret = __ttm_bo_reserve(bo, false, true, NULL);
-
 	if (!ret) {
-		if (!ttm_bo_wait(bo, false, true)) {
+		if (reservation_object_test_signaled_rcu(&bo->ttm_resv, true)) {
 			ttm_bo_del_from_lru(bo);
 			spin_unlock(&glob->lru_lock);
-			ttm_bo_cleanup_memtype_use(bo);
-
-			return;
-		}
-
-		ret = ttm_bo_individualize_resv(bo);
-		if (ret) {
-			/* Last resort, if we fail to allocate memory for the
-			 * fences block for the BO to become idle and free it.
-			 */
-			spin_unlock(&glob->lru_lock);
-			ttm_bo_wait(bo, true, true);
+			if (bo->resv != &bo->ttm_resv)
+				reservation_object_unlock(&bo->ttm_resv);
 			ttm_bo_cleanup_memtype_use(bo);
 			return;
 		}
+
 		ttm_bo_flush_all_fences(bo);
 
 		/*
@@ -474,11 +475,12 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_add_to_lru(bo);
 		}
 
-		if (bo->resv != &bo->ttm_resv)
-			reservation_object_unlock(&bo->ttm_resv);
 		__ttm_bo_unreserve(bo);
 	}
+	if (bo->resv != &bo->ttm_resv)
+		reservation_object_unlock(&bo->ttm_resv);
 
+error:
 	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
 	spin_unlock(&glob->lru_lock);
@@ -555,6 +557,8 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	}
 
 	ttm_bo_del_from_lru(bo);
+	if (!list_empty(&bo->ddestroy) && (bo->resv != &bo->ttm_resv))
+		reservation_object_fini(&bo->ttm_resv);
 	list_del_init(&bo->ddestroy);
 	kref_put(&bo->list_kref, ttm_bo_ref_bug);
 

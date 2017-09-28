@@ -24,6 +24,7 @@
 #ifndef __AMDGPU_TTM_H__
 #define __AMDGPU_TTM_H__
 
+#include "amdgpu.h"
 #include "gpu_scheduler.h"
 
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
@@ -45,8 +46,7 @@ struct amdgpu_mman {
 	bool				initialized;
 
 #if defined(CONFIG_DEBUG_FS)
-	struct dentry			*vram;
-	struct dentry			*gtt;
+	struct dentry			*debugfs_entries[8];
 #endif
 
 	/* buffer handling */
@@ -62,10 +62,6 @@ extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
 extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
 
 bool amdgpu_gtt_mgr_is_allocated(struct ttm_mem_reg *mem);
-int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
-			 struct ttm_buffer_object *tbo,
-			 const struct ttm_place *place,
-			 struct ttm_mem_reg *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
 
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
@@ -85,5 +81,21 @@ int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);
 int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem);
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
+
+int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
+void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
+void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm);
+int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
+				     uint32_t flags);
+bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
+struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm);
+bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
+				  unsigned long end);
+bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
+				       int *last_invalidated);
+bool amdgpu_ttm_tt_userptr_needs_pages(struct ttm_tt *ttm);
+bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
+uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
+				 struct ttm_mem_reg *mem);
 
 #endif

@@ -65,9 +65,11 @@ static int v2_read_header(struct super_block *sb, int type,
 	if (size != sizeof(struct v2_disk_dqheader)) {
 		quota_error(sb, "Failed header read: expected=%zd got=%zd",
 			    sizeof(struct v2_disk_dqheader), size);
-		return 0;
+		if (size < 0)
+			return size;
+		return -EIO;
 	}
-	return 1;
+	return 0;
 }
 
 /* Check whether given file is really vfsv0 quotafile */
@@ -77,7 +79,7 @@ static int v2_check_quota_file(struct super_block *sb, int type)
 	static const uint quota_magics[] = V2_INITQMAGICS;
 	static const uint quota_versions[] = V2_INITQVERSIONS;
  
-	if (!v2_read_header(sb, type, &dqhead))
+	if (v2_read_header(sb, type, &dqhead))
 		return 0;
 	if (le32_to_cpu(dqhead.dqh_magic) != quota_magics[type] ||
 	    le32_to_cpu(dqhead.dqh_version) > quota_versions[type])
@@ -90,29 +92,38 @@ static int v2_read_file_info(struct super_block *sb, int type)
 {
 	struct v2_disk_dqinfo dinfo;
 	struct v2_disk_dqheader dqhead;
-	struct mem_dqinfo *info = sb_dqinfo(sb, type);
+	struct quota_info *dqopt = sb_dqopt(sb);
+	struct mem_dqinfo *info = &dqopt->info[type];
 	struct qtree_mem_dqinfo *qinfo;
 	ssize_t size;
 	unsigned int version;
+	int ret;
 
-	if (!v2_read_header(sb, type, &dqhead))
-		return -1;
+	down_read(&dqopt->dqio_sem);
+	ret = v2_read_header(sb, type, &dqhead);
+	if (ret < 0)
+		goto out;
 	version = le32_to_cpu(dqhead.dqh_version);
 	if ((info->dqi_fmt_id == QFMT_VFS_V0 && version != 0) ||
-	    (info->dqi_fmt_id == QFMT_VFS_V1 && version != 1))
-		return -1;
+	    (info->dqi_fmt_id == QFMT_VFS_V1 && version != 1)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	size = sb->s_op->quota_read(sb, type, (char *)&dinfo,
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
 		quota_error(sb, "Can't read info structure");
-		return -1;
+		if (size < 0)
+			ret = size;
+		else
+			ret = -EIO;
+		goto out;
 	}
 	info->dqi_priv = kmalloc(sizeof(struct qtree_mem_dqinfo), GFP_NOFS);
 	if (!info->dqi_priv) {
-		printk(KERN_WARNING
-		       "Not enough memory for quota information structure.\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 	qinfo = info->dqi_priv;
 	if (version == 0) {
@@ -147,17 +158,22 @@ static int v2_read_file_info(struct super_block *sb, int type)
 		qinfo->dqi_entry_size = sizeof(struct v2r1_disk_dqblk);
 		qinfo->dqi_ops = &v2r1_qtree_ops;
 	}
-	return 0;
+	ret = 0;
+out:
+	up_read(&dqopt->dqio_sem);
+	return ret;
 }
 
 /* Write information header to quota file */
 static int v2_write_file_info(struct super_block *sb, int type)
 {
 	struct v2_disk_dqinfo dinfo;
-	struct mem_dqinfo *info = sb_dqinfo(sb, type);
+	struct quota_info *dqopt = sb_dqopt(sb);
+	struct mem_dqinfo *info = &dqopt->info[type];
 	struct qtree_mem_dqinfo *qinfo = info->dqi_priv;
 	ssize_t size;
 
+	down_write(&dqopt->dqio_sem);
 	spin_lock(&dq_data_lock);
 	info->dqi_flags &= ~DQF_INFO_DIRTY;
 	dinfo.dqi_bgrace = cpu_to_le32(info->dqi_bgrace);
@@ -170,6 +186,7 @@ static int v2_write_file_info(struct super_block *sb, int type)
 	dinfo.dqi_free_entry = cpu_to_le32(qinfo->dqi_free_entry);
 	size = sb->s_op->quota_write(sb, type, (char *)&dinfo,
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
+	up_write(&dqopt->dqio_sem);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
 		quota_error(sb, "Can't write info structure");
 		return -1;
@@ -285,17 +302,51 @@ static int v2r1_is_id(void *dp, struct dquot *dquot)
 
 static int v2_read_dquot(struct dquot *dquot)
 {
-	return qtree_read_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv, dquot);
+	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
+	int ret;
+
+	down_read(&dqopt->dqio_sem);
+	ret = qtree_read_dquot(
+			sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv,
+			dquot);
+	up_read(&dqopt->dqio_sem);
+	return ret;
 }
 
 static int v2_write_dquot(struct dquot *dquot)
 {
-	return qtree_write_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv, dquot);
+	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
+	int ret;
+	bool alloc = false;
+
+	/*
+	 * If space for dquot is already allocated, we don't need any
+	 * protection as we'll only overwrite the place of dquot. We are
+	 * still protected by concurrent writes of the same dquot by
+	 * dquot->dq_lock.
+	 */
+	if (!dquot->dq_off) {
+		alloc = true;
+		down_write(&dqopt->dqio_sem);
+	}
+	ret = qtree_write_dquot(
+			sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv,
+			dquot);
+	if (alloc)
+		up_write(&dqopt->dqio_sem);
+	return ret;
 }
 
 static int v2_release_dquot(struct dquot *dquot)
 {
-	return qtree_release_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv, dquot);
+	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
+	int ret;
+
+	down_write(&dqopt->dqio_sem);
+	ret = qtree_release_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv, dquot);
+	up_write(&dqopt->dqio_sem);
+
+	return ret;
 }
 
 static int v2_free_file_info(struct super_block *sb, int type)
@@ -306,7 +357,13 @@ static int v2_free_file_info(struct super_block *sb, int type)
 
 static int v2_get_next_id(struct super_block *sb, struct kqid *qid)
 {
-	return qtree_get_next_id(sb_dqinfo(sb, qid->type)->dqi_priv, qid);
+	struct quota_info *dqopt = sb_dqopt(sb);
+	int ret;
+
+	down_read(&dqopt->dqio_sem);
+	ret = qtree_get_next_id(sb_dqinfo(sb, qid->type)->dqi_priv, qid);
+	up_read(&dqopt->dqio_sem);
+	return ret;
 }
 
 static const struct quota_format_ops v2_format_ops = {

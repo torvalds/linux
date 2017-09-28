@@ -37,7 +37,9 @@
 #include <linux/uts.h>
 #include <linux/utsname.h>
 #include <linux/ctype.h>
+#include <linux/efi.h>
 #include <generated/utsrelease.h>
+#include <asm/efi.h>
 
 /* Macros used by the included decompressor code below. */
 #define STATIC
@@ -479,35 +481,31 @@ static unsigned long slots_fetch_random(void)
 	return 0;
 }
 
-static void process_e820_entry(struct boot_e820_entry *entry,
+static void process_mem_region(struct mem_vector *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {
 	struct mem_vector region, overlap;
 	struct slot_area slot_area;
 	unsigned long start_orig, end;
-	struct boot_e820_entry cur_entry;
-
-	/* Skip non-RAM entries. */
-	if (entry->type != E820_TYPE_RAM)
-		return;
+	struct mem_vector cur_entry;
 
 	/* On 32-bit, ignore entries entirely above our maximum. */
-	if (IS_ENABLED(CONFIG_X86_32) && entry->addr >= KERNEL_IMAGE_SIZE)
+	if (IS_ENABLED(CONFIG_X86_32) && entry->start >= KERNEL_IMAGE_SIZE)
 		return;
 
 	/* Ignore entries entirely below our minimum. */
-	if (entry->addr + entry->size < minimum)
+	if (entry->start + entry->size < minimum)
 		return;
 
 	/* Ignore entries above memory limit */
-	end = min(entry->size + entry->addr, mem_limit);
-	if (entry->addr >= end)
+	end = min(entry->size + entry->start, mem_limit);
+	if (entry->start >= end)
 		return;
-	cur_entry.addr = entry->addr;
-	cur_entry.size = end - entry->addr;
+	cur_entry.start = entry->start;
+	cur_entry.size = end - entry->start;
 
-	region.start = cur_entry.addr;
+	region.start = cur_entry.start;
 	region.size = cur_entry.size;
 
 	/* Give up if slot area array is full. */
@@ -521,8 +519,8 @@ static void process_e820_entry(struct boot_e820_entry *entry,
 		/* Potentially raise address to meet alignment needs. */
 		region.start = ALIGN(region.start, CONFIG_PHYSICAL_ALIGN);
 
-		/* Did we raise the address above this e820 region? */
-		if (region.start > cur_entry.addr + cur_entry.size)
+		/* Did we raise the address above the passed in memory entry? */
+		if (region.start > cur_entry.start + cur_entry.size)
 			return;
 
 		/* Reduce size by any delta from the original address. */
@@ -562,31 +560,126 @@ static void process_e820_entry(struct boot_e820_entry *entry,
 	}
 }
 
+#ifdef CONFIG_EFI
+/*
+ * Returns true if mirror region found (and must have been processed
+ * for slots adding)
+ */
+static bool
+process_efi_entries(unsigned long minimum, unsigned long image_size)
+{
+	struct efi_info *e = &boot_params->efi_info;
+	bool efi_mirror_found = false;
+	struct mem_vector region;
+	efi_memory_desc_t *md;
+	unsigned long pmap;
+	char *signature;
+	u32 nr_desc;
+	int i;
+
+	signature = (char *)&e->efi_loader_signature;
+	if (strncmp(signature, EFI32_LOADER_SIGNATURE, 4) &&
+	    strncmp(signature, EFI64_LOADER_SIGNATURE, 4))
+		return false;
+
+#ifdef CONFIG_X86_32
+	/* Can't handle data above 4GB at this time */
+	if (e->efi_memmap_hi) {
+		warn("EFI memmap is above 4GB, can't be handled now on x86_32. EFI should be disabled.\n");
+		return false;
+	}
+	pmap =  e->efi_memmap;
+#else
+	pmap = (e->efi_memmap | ((__u64)e->efi_memmap_hi << 32));
+#endif
+
+	nr_desc = e->efi_memmap_size / e->efi_memdesc_size;
+	for (i = 0; i < nr_desc; i++) {
+		md = efi_early_memdesc_ptr(pmap, e->efi_memdesc_size, i);
+		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
+			efi_mirror_found = true;
+			break;
+		}
+	}
+
+	for (i = 0; i < nr_desc; i++) {
+		md = efi_early_memdesc_ptr(pmap, e->efi_memdesc_size, i);
+
+		/*
+		 * Here we are more conservative in picking free memory than
+		 * the EFI spec allows:
+		 *
+		 * According to the spec, EFI_BOOT_SERVICES_{CODE|DATA} are also
+		 * free memory and thus available to place the kernel image into,
+		 * but in practice there's firmware where using that memory leads
+		 * to crashes.
+		 *
+		 * Only EFI_CONVENTIONAL_MEMORY is guaranteed to be free.
+		 */
+		if (md->type != EFI_CONVENTIONAL_MEMORY)
+			continue;
+
+		if (efi_mirror_found &&
+		    !(md->attribute & EFI_MEMORY_MORE_RELIABLE))
+			continue;
+
+		region.start = md->phys_addr;
+		region.size = md->num_pages << EFI_PAGE_SHIFT;
+		process_mem_region(&region, minimum, image_size);
+		if (slot_area_index == MAX_SLOT_AREA) {
+			debug_putstr("Aborted EFI scan (slot_areas full)!\n");
+			break;
+		}
+	}
+	return true;
+}
+#else
+static inline bool
+process_efi_entries(unsigned long minimum, unsigned long image_size)
+{
+	return false;
+}
+#endif
+
+static void process_e820_entries(unsigned long minimum,
+				 unsigned long image_size)
+{
+	int i;
+	struct mem_vector region;
+	struct boot_e820_entry *entry;
+
+	/* Verify potential e820 positions, appending to slots list. */
+	for (i = 0; i < boot_params->e820_entries; i++) {
+		entry = &boot_params->e820_table[i];
+		/* Skip non-RAM entries. */
+		if (entry->type != E820_TYPE_RAM)
+			continue;
+		region.start = entry->addr;
+		region.size = entry->size;
+		process_mem_region(&region, minimum, image_size);
+		if (slot_area_index == MAX_SLOT_AREA) {
+			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
+			break;
+		}
+	}
+}
+
 static unsigned long find_random_phys_addr(unsigned long minimum,
 					   unsigned long image_size)
 {
-	int i;
-	unsigned long addr;
-
 	/* Check if we had too many memmaps. */
 	if (memmap_too_large) {
-		debug_putstr("Aborted e820 scan (more than 4 memmap= args)!\n");
+		debug_putstr("Aborted memory entries scan (more than 4 memmap= args)!\n");
 		return 0;
 	}
 
 	/* Make sure minimum is aligned. */
 	minimum = ALIGN(minimum, CONFIG_PHYSICAL_ALIGN);
 
-	/* Verify potential e820 positions, appending to slots list. */
-	for (i = 0; i < boot_params->e820_entries; i++) {
-		process_e820_entry(&boot_params->e820_table[i], minimum,
-				   image_size);
-		if (slot_area_index == MAX_SLOT_AREA) {
-			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
-			break;
-		}
-	}
+	if (process_efi_entries(minimum, image_size))
+		return slots_fetch_random();
 
+	process_e820_entries(minimum, image_size);
 	return slots_fetch_random();
 }
 
@@ -645,7 +738,7 @@ void choose_random_location(unsigned long input,
 	 */
 	min_addr = min(*output, 512UL << 20);
 
-	/* Walk e820 and find a random address. */
+	/* Walk available memory entries to find a random address. */
 	random_addr = find_random_phys_addr(min_addr, output_size);
 	if (!random_addr) {
 		warn("Physical KASLR disabled: no suitable memory region!");

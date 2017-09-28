@@ -946,7 +946,6 @@ out:
 int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *quota_root;
 	int ret = 0;
 
@@ -968,7 +967,7 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	ret = btrfs_del_root(trans, tree_root, &quota_root->root_key);
+	ret = btrfs_del_root(trans, fs_info, &quota_root->root_key);
 	if (ret)
 		goto out;
 
@@ -1603,7 +1602,7 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 	struct extent_buffer *eb = root_eb;
 	struct btrfs_path *path = NULL;
 
-	BUG_ON(root_level < 0 || root_level > BTRFS_MAX_LEVEL);
+	BUG_ON(root_level < 0 || root_level >= BTRFS_MAX_LEVEL);
 	BUG_ON(root_eb == NULL);
 
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
@@ -2646,7 +2645,7 @@ out:
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		btrfs_err(fs_info,
-			  "fail to start transaction for status update: %d\n",
+			  "fail to start transaction for status update: %d",
 			  err);
 		goto done;
 	}

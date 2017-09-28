@@ -183,7 +183,6 @@ cpm_syscon0: system-controller@440000 {
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-ranges = <&cpm_pinctrl 0 0 32>;
-		status = "disabled";
 	};
 
 };
