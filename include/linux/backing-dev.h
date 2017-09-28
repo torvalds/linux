@@ -39,7 +39,7 @@ static inline struct backing_dev_info *bdi_alloc(gfp_t gfp_mask)
 }
 
 void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
-			bool range_cyclic, enum wb_reason reason);
+			enum wb_reason reason);
 void wb_start_background_writeback(struct bdi_writeback *wb);
 void wb_workfn(struct work_struct *work);
 void wb_wakeup_delayed(struct bdi_writeback *wb);

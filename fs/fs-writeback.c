@@ -934,7 +934,7 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
 void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
-			bool range_cyclic, enum wb_reason reason)
+			enum wb_reason reason)
 {
 	struct wb_writeback_work *work;
 
@@ -955,7 +955,7 @@ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
 
 	work->sync_mode	= WB_SYNC_NONE;
 	work->nr_pages	= nr_pages;
-	work->range_cyclic = range_cyclic;
+	work->range_cyclic = 1;
 	work->reason	= reason;
 	work->auto_free	= 1;
 
@@ -1971,7 +1971,7 @@ void wakeup_flusher_threads(enum wb_reason reason)
 
 		list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
 			wb_start_writeback(wb, wb_split_bdi_pages(wb, nr_pages),
-						true, reason);
+						reason);
 	}
 	rcu_read_unlock();
 }

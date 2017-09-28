@@ -1994,8 +1994,8 @@ void laptop_mode_timer_fn(unsigned long data)
 	rcu_read_lock();
 	list_for_each_entry_rcu(wb, &q->backing_dev_info->wb_list, bdi_node)
 		if (wb_has_dirty_io(wb))
-			wb_start_writeback(wb, nr_pages, true,
-					   WB_REASON_LAPTOP_TIMER);
+			wb_start_writeback(wb, nr_pages,
+						WB_REASON_LAPTOP_TIMER);
 	rcu_read_unlock();
 }
 
