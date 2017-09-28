@@ -106,10 +106,6 @@ EXPORT_SYMBOL(mach_heartbeat);
 #ifdef CONFIG_M68K_L2_CACHE
 void (*mach_l2_flush) (int);
 #endif
-#if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
-void (*mach_beep)(unsigned int, unsigned int);
-EXPORT_SYMBOL(mach_beep);
-#endif
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
 int isa_type;
 int isa_sex;
