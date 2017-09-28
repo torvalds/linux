@@ -96,6 +96,9 @@ irq_handler_idx dm_register_interrupt(
  *
  */
 
+/* enable for debugging new code, this adds 50k to the driver size. */
+/* #define DM_CHECK_ADDR_0 */
+
 #define dm_read_reg(ctx, address)	\
 		dm_read_reg_func(ctx, address, __func__)
 
@@ -105,12 +108,12 @@ static inline uint32_t dm_read_reg_func(
 	const char *func_name)
 {
 	uint32_t value;
-
+#ifdef DM_CHECK_ADDR_0
 	if (address == 0) {
 		DC_ERR("invalid register read; address = 0\n");
 		return 0;
 	}
-
+#endif
 	value = cgs_read_register(ctx->cgs_device, address);
 
 	return value;
@@ -125,10 +128,12 @@ static inline void dm_write_reg_func(
 	uint32_t value,
 	const char *func_name)
 {
+#ifdef DM_CHECK_ADDR_0
 	if (address == 0) {
 		DC_ERR("invalid register write. address = 0");
 		return;
 	}
+#endif
 	cgs_write_register(ctx->cgs_device, address, value);
 }
 
