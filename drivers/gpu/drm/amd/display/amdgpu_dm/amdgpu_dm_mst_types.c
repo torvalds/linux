@@ -397,21 +397,10 @@ static void dm_dp_mst_register_connector(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	int i;
 
 	drm_modeset_lock_all(dev);
-	if (adev->mode_info.rfbdev) {
-		/*Do not add if already registered in past*/
-		for (i = 0; i < adev->mode_info.rfbdev->helper.connector_count; i++) {
-			if (adev->mode_info.rfbdev->helper.connector_info[i]->connector
-					== connector) {
-				drm_modeset_unlock_all(dev);
-				return;
-			}
-		}
-
+	if (adev->mode_info.rfbdev)
 		drm_fb_helper_add_one_connector(&adev->mode_info.rfbdev->helper, connector);
-	}
 	else
 		DRM_ERROR("adev->mode_info.rfbdev is NULL\n");
 
