@@ -354,8 +354,7 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 	return added;
 }
 
-/* job_finish is called after hw fence signaled, and
- * the job had already been deleted from ring_mirror_list
+/* job_finish is called after hw fence signaled
  */
 static void amd_sched_job_finish(struct work_struct *work)
 {
