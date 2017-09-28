@@ -1137,6 +1137,13 @@ static const struct snd_soc_dai_ops cygnus_ssp_dai_ops = {
 	.set_tdm_slot	= cygnus_set_dai_tdm_slot,
 };
 
+static const struct snd_soc_dai_ops cygnus_spdif_dai_ops = {
+	.startup	= cygnus_ssp_startup,
+	.shutdown	= cygnus_ssp_shutdown,
+	.trigger	= cygnus_ssp_trigger,
+	.hw_params	= cygnus_ssp_hw_params,
+	.set_sysclk	= cygnus_ssp_set_sysclk,
+};
 
 #define INIT_CPU_DAI(num) { \
 	.name = "cygnus-ssp" #num, \
@@ -1175,7 +1182,7 @@ static const struct snd_soc_dai_driver cygnus_spdif_dai_info = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
 			SNDRV_PCM_FMTBIT_S32_LE,
 	},
-	.ops = &cygnus_ssp_dai_ops,
+	.ops = &cygnus_spdif_dai_ops,
 	.suspend = cygnus_ssp_suspend,
 	.resume = cygnus_ssp_resume,
 };
