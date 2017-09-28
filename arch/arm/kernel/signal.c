@@ -614,10 +614,6 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 	 * Update the trace code with the current status.
 	 */
 	trace_hardirqs_off();
-
-	/* Check valid user FS if needed */
-	addr_limit_user_check();
-
 	do {
 		if (likely(thread_flags & _TIF_NEED_RESCHED)) {
 			schedule();
@@ -677,4 +673,10 @@ struct page *get_signal_page(void)
 	flush_icache_range(ptr, ptr + sizeof(sigreturn_codes));
 
 	return page;
+}
+
+/* Defer to generic check */
+asmlinkage void addr_limit_check_failed(void)
+{
+	addr_limit_user_check();
 }

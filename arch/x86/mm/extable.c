@@ -2,6 +2,7 @@
 #include <linux/uaccess.h>
 #include <linux/sched/debug.h>
 
+#include <asm/fpu/internal.h>
 #include <asm/traps.h>
 #include <asm/kdebug.h>
 
@@ -77,6 +78,29 @@ bool ex_handler_refcount(const struct exception_table_entry *fixup,
 	return true;
 }
 EXPORT_SYMBOL_GPL(ex_handler_refcount);
+
+/*
+ * Handler for when we fail to restore a task's FPU state.  We should never get
+ * here because the FPU state of a task using the FPU (task->thread.fpu.state)
+ * should always be valid.  However, past bugs have allowed userspace to set
+ * reserved bits in the XSAVE area using PTRACE_SETREGSET or sys_rt_sigreturn().
+ * These caused XRSTOR to fail when switching to the task, leaking the FPU
+ * registers of the task previously executing on the CPU.  Mitigate this class
+ * of vulnerability by restoring from the initial state (essentially, zeroing
+ * out all the FPU registers) if we can't restore from the task's FPU state.
+ */
+bool ex_handler_fprestore(const struct exception_table_entry *fixup,
+			  struct pt_regs *regs, int trapnr)
+{
+	regs->ip = ex_fixup_addr(fixup);
+
+	WARN_ONCE(1, "Bad FPU state detected at %pB, reinitializing FPU registers.",
+		  (void *)instruction_pointer(regs));
+
+	__copy_kernel_to_fpregs(&init_fpstate, -1);
+	return true;
+}
+EXPORT_SYMBOL_GPL(ex_handler_fprestore);
 
 bool ex_handler_ext(const struct exception_table_entry *fixup,
 		   struct pt_regs *regs, int trapnr)

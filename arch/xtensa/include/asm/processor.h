@@ -208,11 +208,6 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
 
-/* Copy and release all segment info associated with a VM */
-#define copy_segments(p, mm)	do { } while(0)
-#define release_segments(mm)	do { } while(0)
-#define forget_segments()	do { } while (0)
-
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)

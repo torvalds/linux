@@ -848,7 +848,9 @@ static int netvsc_set_channels(struct net_device *net,
 	device_info.num_chn = count;
 	device_info.ring_size = ring_size;
 	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = nvdev->recv_section_cnt;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	rndis_filter_device_remove(dev, nvdev);
 
@@ -963,7 +965,9 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	device_info.ring_size = ring_size;
 	device_info.num_chn = nvdev->num_chn;
 	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = nvdev->recv_section_cnt;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	rndis_filter_device_remove(hdev, nvdev);
 
@@ -1485,7 +1489,9 @@ static int netvsc_set_ringparam(struct net_device *ndev,
 	device_info.num_chn = nvdev->num_chn;
 	device_info.ring_size = ring_size;
 	device_info.send_sections = new_tx;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = new_rx;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	netif_device_detach(ndev);
 	was_opened = rndis_filter_opened(nvdev);
@@ -1934,7 +1940,9 @@ static int netvsc_probe(struct hv_device *dev,
 	device_info.ring_size = ring_size;
 	device_info.num_chn = VRSS_CHANNEL_DEFAULT;
 	device_info.send_sections = NETVSC_DEFAULT_TX;
+	device_info.send_section_size = NETVSC_SEND_SECTION_SIZE;
 	device_info.recv_sections = NETVSC_DEFAULT_RX;
+	device_info.recv_section_size = NETVSC_RECV_SECTION_SIZE;
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
 	if (IS_ERR(nvdev)) {
