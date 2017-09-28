@@ -72,6 +72,7 @@ struct i915_priotree {
 #define I915_PRIORITY_MAX 1024
 #define I915_PRIORITY_NORMAL 0
 #define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
+#define I915_PRIORITY_INVALID INT_MIN
 };
 
 struct i915_gem_capture_list {

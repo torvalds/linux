@@ -863,6 +863,8 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	struct i915_dependency stack;
 	LIST_HEAD(dfs);
 
+	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
+
 	if (prio <= READ_ONCE(request->priotree.priority))
 		return;
 
@@ -911,7 +913,7 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	 * execlists_submit_request()), we can set our own priority and skip
 	 * acquiring the engine locks.
 	 */
-	if (request->priotree.priority == INT_MIN) {
+	if (request->priotree.priority == I915_PRIORITY_INVALID) {
 		GEM_BUG_ON(!list_empty(&request->priotree.link));
 		request->priotree.priority = prio;
 		if (stack.dfs_link.next == stack.dfs_link.prev)
