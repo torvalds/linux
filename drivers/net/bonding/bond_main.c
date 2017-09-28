@@ -3073,7 +3073,16 @@ static int bond_slave_netdev_event(unsigned long event,
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		bond_update_speed_duplex(slave);
+		/* For 802.3ad mode only:
+		 * Getting invalid Speed/Duplex values here will put slave
+		 * in weird state. So mark it as link-down for the time
+		 * being and let link-monitoring (miimon) set it right when
+		 * correct speeds/duplex are available.
+		 */
+		if (bond_update_speed_duplex(slave) &&
+		    BOND_MODE(bond) == BOND_MODE_8023AD)
+			slave->link = BOND_LINK_DOWN;
+
 		if (BOND_MODE(bond) == BOND_MODE_8023AD)
 			bond_3ad_adapter_speed_duplex_changed(slave);
 		/* Fallthrough */
