@@ -334,6 +334,7 @@
 
 &dsi0 {
 	status = "okay";
+	rockchip,lane-rate = <1000>;
 
 	panel: panel {
 		compatible = "simple-panel-dsi";
