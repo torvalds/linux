@@ -2394,7 +2394,10 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (seeding_dev) {
 		sb->s_flags &= ~MS_RDONLY;
 		ret = btrfs_prepare_sprout(fs_info);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto error_trans;
+		}
 	}
 
 	device->fs_devices = fs_info->fs_devices;
@@ -2440,14 +2443,14 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		mutex_unlock(&fs_info->chunk_mutex);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
-			goto error_trans;
+			goto error_sysfs;
 		}
 	}
 
 	ret = btrfs_add_device(trans, fs_info, device);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
-		goto error_trans;
+		goto error_sysfs;
 	}
 
 	if (seeding_dev) {
@@ -2456,7 +2459,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		ret = btrfs_finish_sprout(trans, fs_info);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
-			goto error_trans;
+			goto error_sysfs;
 		}
 
 		/* Sprouting would change fsid of the mounted root,
@@ -2495,12 +2498,13 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	update_dev_time(device_path);
 	return ret;
 
+error_sysfs:
+	btrfs_sysfs_rm_device_link(fs_info->fs_devices, device);
 error_trans:
 	if (seeding_dev)
 		sb->s_flags |= MS_RDONLY;
 	btrfs_end_transaction(trans);
 	rcu_string_free(device->name);
-	btrfs_sysfs_rm_device_link(fs_info->fs_devices, device);
 	kfree(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
