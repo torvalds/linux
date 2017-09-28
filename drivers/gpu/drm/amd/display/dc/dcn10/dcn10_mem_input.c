@@ -407,7 +407,7 @@ void hubp1_dcc_control(struct mem_input *mem_input, bool enable,
 			PRIMARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
 }
 
-static void hubp1_program_surface_config(
+void hubp1_program_surface_config(
 	struct mem_input *mem_input,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
@@ -969,4 +969,5 @@ void dcn10_mem_input_construct(
 	mi->base.opp_id = 0xf;
 	mi->base.mpcc_id = 0xf;
 }
+
 

@@ -591,6 +591,15 @@ struct dcn10_mem_input {
 	const struct dcn_mi_mask *mi_mask;
 };
 
+void hubp1_program_surface_config(
+	struct mem_input *mem_input,
+	enum surface_pixel_format format,
+	union dc_tiling_info *tiling_info,
+	union plane_size *plane_size,
+	enum dc_rotation_angle rotation,
+	struct dc_plane_dcc_param *dcc,
+	bool horizontal_mirror);
+
 void hubp1_program_deadline(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
