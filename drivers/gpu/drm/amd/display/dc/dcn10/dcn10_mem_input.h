@@ -591,20 +591,20 @@ struct dcn10_mem_input {
 	const struct dcn_mi_mask *mi_mask;
 };
 
-void min10_program_deadline(
+void hubp1_program_deadline(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr);
 
-void min10_program_requestor(
+void hubp1_program_requestor(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs);
 
-void min10_program_pixel_format(
+void hubp1_program_pixel_format(
 	struct dcn10_mem_input *mi,
 	enum surface_pixel_format format);
 
-void min10_program_size_and_rotation(
+void hubp1_program_size_and_rotation(
 	struct dcn10_mem_input *mi,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
@@ -612,39 +612,39 @@ void min10_program_size_and_rotation(
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror);
 
-void min10_program_tiling(
+void hubp1_program_tiling(
 	struct dcn10_mem_input *mi,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format);
 
-void min10_dcc_control(struct mem_input *mem_input,
+void hubp1_dcc_control(struct mem_input *mem_input,
 		bool enable,
 		bool independent_64b_blks);
 
-void min10_program_display_marks(
+void hubp1_program_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
 	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns);
 
-bool min10_program_surface_flip_and_addr(
+bool hubp1_program_surface_flip_and_addr(
 	struct mem_input *mem_input,
 	const struct dc_plane_address *address,
 	bool flip_immediate);
 
-bool min10_is_flip_pending(struct mem_input *mem_input);
+bool hubp1_is_flip_pending(struct mem_input *mem_input);
 
-void ippn10_cursor_set_attributes(
+void hubp1_cursor_set_attributes(
 		struct mem_input *mem_input,
 		const struct dc_cursor_attributes *attr);
 
-void ippn10_cursor_set_position(
+void hubp1_cursor_set_position(
 		struct mem_input *mem_input,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param);
 
-void min10_set_blank(struct mem_input *mem_input, bool blank);
+void hubp1_set_blank(struct mem_input *mem_input, bool blank);
 
 void min_set_viewport(struct mem_input *mem_input,
 		const struct rect *viewport,

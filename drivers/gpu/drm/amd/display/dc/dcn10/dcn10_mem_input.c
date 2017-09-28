@@ -38,7 +38,7 @@
 #define FN(reg_name, field_name) \
 	mi->mi_shift->field_name, mi->mi_mask->field_name
 
-void min10_set_blank(struct mem_input *mem_input, bool blank)
+void hubp1_set_blank(struct mem_input *mem_input, bool blank)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	uint32_t blank_en = blank ? 1 : 0;
@@ -56,7 +56,7 @@ void min10_set_blank(struct mem_input *mem_input, bool blank)
 	}
 }
 
-static void min10_set_hubp_blank_en(struct mem_input *mem_input, bool blank)
+static void hubp1_set_hubp_blank_en(struct mem_input *mem_input, bool blank)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	uint32_t blank_en = blank ? 1 : 0;
@@ -64,7 +64,7 @@ static void min10_set_hubp_blank_en(struct mem_input *mem_input, bool blank)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, blank_en);
 }
 
-static void min10_vready_workaround(struct mem_input *mem_input,
+static void hubp1_vready_workaround(struct mem_input *mem_input,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	uint32_t value = 0;
@@ -87,7 +87,7 @@ static void min10_vready_workaround(struct mem_input *mem_input,
 	REG_WRITE(HUBPREQ_DEBUG_DB, value);
 }
 
-void min10_program_tiling(
+void hubp1_program_tiling(
 	struct dcn10_mem_input *mi,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
@@ -107,7 +107,7 @@ void min10_program_tiling(
 			PIPE_ALIGNED, info->gfx9.pipe_aligned);
 }
 
-void min10_program_size_and_rotation(
+void hubp1_program_size_and_rotation(
 	struct dcn10_mem_input *mi,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
@@ -169,7 +169,7 @@ void min10_program_size_and_rotation(
 				H_MIRROR_EN, mirror);
 }
 
-void min10_program_pixel_format(
+void hubp1_program_pixel_format(
 	struct dcn10_mem_input *mi,
 	enum surface_pixel_format format)
 {
@@ -245,7 +245,7 @@ void min10_program_pixel_format(
 	/* don't see the need of program the xbar in DCN 1.0 */
 }
 
-bool min10_program_surface_flip_and_addr(
+bool hubp1_program_surface_flip_and_addr(
 	struct mem_input *mem_input,
 	const struct dc_plane_address *address,
 	bool flip_immediate)
@@ -395,7 +395,7 @@ bool min10_program_surface_flip_and_addr(
 	return true;
 }
 
-void min10_dcc_control(struct mem_input *mem_input, bool enable,
+void hubp1_dcc_control(struct mem_input *mem_input, bool enable,
 		bool independent_64b_blks)
 {
 	uint32_t dcc_en = enable ? 1 : 0;
@@ -407,7 +407,7 @@ void min10_dcc_control(struct mem_input *mem_input, bool enable,
 			PRIMARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
 }
 
-static void min10_program_surface_config(
+static void hubp1_program_surface_config(
 	struct mem_input *mem_input,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
@@ -418,14 +418,14 @@ static void min10_program_surface_config(
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
-	min10_dcc_control(mem_input, dcc->enable, dcc->grph.independent_64b_blks);
-	min10_program_tiling(mi, tiling_info, format);
-	min10_program_size_and_rotation(
+	hubp1_dcc_control(mem_input, dcc->enable, dcc->grph.independent_64b_blks);
+	hubp1_program_tiling(mi, tiling_info, format);
+	hubp1_program_size_and_rotation(
 		mi, rotation, format, plane_size, dcc, horizontal_mirror);
-	min10_program_pixel_format(mi, format);
+	hubp1_program_pixel_format(mi, format);
 }
 
-void min10_program_requestor(
+void hubp1_program_requestor(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs)
 {
@@ -459,7 +459,7 @@ void min10_program_requestor(
 }
 
 
-void min10_program_deadline(
+void hubp1_program_deadline(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)
@@ -580,7 +580,7 @@ void min10_program_deadline(
 		ttu_attr->refcyc_per_req_delivery_pre_c);
 }
 
-static void min10_setup(
+static void hubp1_setup(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr,
@@ -590,12 +590,12 @@ static void min10_setup(
 	/* otg is locked when this func is called. Register are double buffered.
 	 * disable the requestors is not needed
 	 */
-	min10_program_requestor(mem_input, rq_regs);
-	min10_program_deadline(mem_input, dlg_attr, ttu_attr);
-	min10_vready_workaround(mem_input, pipe_dest);
+	hubp1_program_requestor(mem_input, rq_regs);
+	hubp1_program_deadline(mem_input, dlg_attr, ttu_attr);
+	hubp1_vready_workaround(mem_input, pipe_dest);
 }
 
-void min10_program_display_marks(
+void hubp1_program_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
@@ -607,7 +607,7 @@ void min10_program_display_marks(
 	 */
 }
 
-bool min10_is_flip_pending(struct mem_input *mem_input)
+bool hubp1_is_flip_pending(struct mem_input *mem_input)
 {
 	uint32_t flip_pending = 0;
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
@@ -635,7 +635,7 @@ bool min10_is_flip_pending(struct mem_input *mem_input)
 uint32_t aperture_default_system = 1;
 uint32_t context0_default_system; /* = 0;*/
 
-static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
+static void hubp1_set_vm_system_aperture_settings(struct mem_input *mem_input,
 		struct vm_system_aperture_param *apt)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
@@ -664,7 +664,7 @@ static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
 			MC_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, mc_vm_apt_high.low_part);
 }
 
-static void min10_set_vm_context0_settings(struct mem_input *mem_input,
+static void hubp1_set_vm_context0_settings(struct mem_input *mem_input,
 		const struct vm_context0_param *vm0)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
@@ -848,7 +848,7 @@ static enum cursor_lines_per_chunk ippn10_get_lines_per_chunk(
 	return line_per_chunk;
 }
 
-void ippn10_cursor_set_attributes(
+void hubp1_cursor_set_attributes(
 		struct mem_input *mem_input,
 		const struct dc_cursor_attributes *attr)
 {
@@ -876,7 +876,7 @@ void ippn10_cursor_set_attributes(
 			attr->color_format);
 }
 
-void ippn10_cursor_set_position(
+void hubp1_cursor_set_position(
 		struct mem_input *mem_input,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param)
@@ -913,7 +913,7 @@ void ippn10_cursor_set_position(
 		cur_en = 0;  /* not visible beyond left edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
-		ippn10_cursor_set_attributes(mem_input, &mem_input->curs_attr);
+		hubp1_cursor_set_attributes(mem_input, &mem_input->curs_attr);
 	REG_UPDATE(CURSOR_CONTROL,
 			CURSOR_ENABLE, cur_en);
 
@@ -931,21 +931,21 @@ void ippn10_cursor_set_position(
 }
 
 static struct mem_input_funcs dcn10_mem_input_funcs = {
-	.mem_input_program_display_marks = min10_program_display_marks,
+	.mem_input_program_display_marks = hubp1_program_display_marks,
 	.mem_input_program_surface_flip_and_addr =
-			min10_program_surface_flip_and_addr,
+			hubp1_program_surface_flip_and_addr,
 	.mem_input_program_surface_config =
-			min10_program_surface_config,
-	.mem_input_is_flip_pending = min10_is_flip_pending,
-	.mem_input_setup = min10_setup,
-	.mem_input_set_vm_system_aperture_settings = min10_set_vm_system_aperture_settings,
-	.mem_input_set_vm_context0_settings = min10_set_vm_context0_settings,
-	.set_blank = min10_set_blank,
-	.dcc_control = min10_dcc_control,
+			hubp1_program_surface_config,
+	.mem_input_is_flip_pending = hubp1_is_flip_pending,
+	.mem_input_setup = hubp1_setup,
+	.mem_input_set_vm_system_aperture_settings = hubp1_set_vm_system_aperture_settings,
+	.mem_input_set_vm_context0_settings = hubp1_set_vm_context0_settings,
+	.set_blank = hubp1_set_blank,
+	.dcc_control = hubp1_dcc_control,
 	.mem_program_viewport = min_set_viewport,
-	.set_hubp_blank_en = min10_set_hubp_blank_en,
-	.set_cursor_attributes	= ippn10_cursor_set_attributes,
-	.set_cursor_position	= ippn10_cursor_set_position,
+	.set_hubp_blank_en = hubp1_set_hubp_blank_en,
+	.set_cursor_attributes	= hubp1_cursor_set_attributes,
+	.set_cursor_position	= hubp1_cursor_set_position,
 };
 
 /*****************************************/
