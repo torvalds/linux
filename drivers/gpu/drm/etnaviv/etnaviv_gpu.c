@@ -420,9 +420,10 @@ static void etnaviv_gpu_update_clock(struct etnaviv_gpu *gpu)
 			     gpu->base_rate_shader >> gpu->freq_scale);
 	} else {
 		unsigned int fscale = 1 << (6 - gpu->freq_scale);
-		u32 clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-			    VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
+		u32 clock = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
 
+		clock &= ~VIVS_HI_CLOCK_CONTROL_FSCALE_VAL__MASK;
+		clock |= VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
 		etnaviv_gpu_load_clock(gpu, clock);
 	}
 }
@@ -445,9 +446,9 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 
 	while (time_is_after_jiffies(timeout)) {
 		/* enable clock */
-		etnaviv_gpu_update_clock(gpu);
-
-		control = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
+		unsigned int fscale = 1 << (6 - gpu->freq_scale);
+		control = VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
+		etnaviv_gpu_load_clock(gpu, control);
 
 		/* Wait for stable clock.  Vivante's code waited for 1ms */
 		usleep_range(1000, 10000);
@@ -489,6 +490,10 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 			dev_dbg(gpu->dev, "GPU is not idle\n");
 			continue;
 		}
+
+		/* disable debug registers, as they are not normally needed */
+		control |= VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS;
+		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, control);
 
 		failed = false;
 		break;
