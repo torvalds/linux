@@ -37,7 +37,7 @@ static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_task task_id,
 
 static inline int pp_check(struct pp_instance *handle)
 {
-	if (handle == NULL || handle->pp_valid != PP_VALID)
+	if (handle == NULL)
 		return -EINVAL;
 
 	if (handle->hwmgr == NULL || handle->hwmgr->smumgr_funcs == NULL)
@@ -64,7 +64,6 @@ static int amd_powerplay_create(struct amd_pp_init *pp_init,
 	if (instance == NULL)
 		return -ENOMEM;
 
-	instance->pp_valid = PP_VALID;
 	instance->chip_family = pp_init->chip_family;
 	instance->chip_id = pp_init->chip_id;
 	instance->pm_en = pp_init->pm_en;
