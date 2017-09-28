@@ -438,8 +438,7 @@ child_device_ptr(const struct bdb_general_definitions *defs, int i)
 }
 
 static void
-parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
-			  const struct bdb_header *bdb)
+parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 {
 	struct sdvo_device_mapping *mapping;
 	const struct child_device_config *child;
@@ -1073,7 +1072,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
-			   const struct bdb_header *bdb)
+			   u8 bdb_version)
 {
 	struct child_device_config *it, *child = NULL;
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
@@ -1177,7 +1176,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		sanitize_aux_ch(dev_priv, port);
 	}
 
-	if (bdb->version >= 158) {
+	if (bdb_version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
 		hdmi_level_shift = child->hdmi_level_shifter_value;
 		DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
@@ -1187,7 +1186,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 
 	/* Parse the I_boost config for SKL and above */
-	if (bdb->version >= 196 && child->iboost) {
+	if (bdb_version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
 		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
 			      port_name(port), info->dp_boost_level);
@@ -1197,8 +1196,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 }
 
-static void parse_ddi_ports(struct drm_i915_private *dev_priv,
-			    const struct bdb_header *bdb)
+static void parse_ddi_ports(struct drm_i915_private *dev_priv, u8 bdb_version)
 {
 	enum port port;
 
@@ -1208,11 +1206,11 @@ static void parse_ddi_ports(struct drm_i915_private *dev_priv,
 	if (!dev_priv->vbt.child_dev_num)
 		return;
 
-	if (bdb->version < 155)
+	if (bdb_version < 155)
 		return;
 
 	for (port = PORT_A; port < I915_MAX_PORTS; port++)
-		parse_ddi_port(dev_priv, port, bdb);
+		parse_ddi_port(dev_priv, port, bdb_version);
 }
 
 static void
@@ -1496,8 +1494,8 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_mipi_sequence(dev_priv, bdb);
 
 	/* Further processing on pre-parsed data */
-	parse_sdvo_device_mapping(dev_priv, bdb);
-	parse_ddi_ports(dev_priv, bdb);
+	parse_sdvo_device_mapping(dev_priv, bdb->version);
+	parse_ddi_ports(dev_priv, bdb->version);
 
 out:
 	if (!vbt) {
