@@ -677,6 +677,27 @@ int mlx5_set_port_tc_group(struct mlx5_core_dev *mdev, u8 *tc_group)
 }
 EXPORT_SYMBOL_GPL(mlx5_set_port_tc_group);
 
+int mlx5_query_port_tc_group(struct mlx5_core_dev *mdev,
+			     u8 tc, u8 *tc_group)
+{
+	u32 out[MLX5_ST_SZ_DW(qetc_reg)];
+	void *ets_tcn_conf;
+	int err;
+
+	err = mlx5_query_port_qetcr_reg(mdev, out, sizeof(out));
+	if (err)
+		return err;
+
+	ets_tcn_conf = MLX5_ADDR_OF(qetc_reg, out,
+				    tc_configuration[tc]);
+
+	*tc_group = MLX5_GET(ets_tcn_config_reg, ets_tcn_conf,
+			     group);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_tc_group);
+
 int mlx5_set_port_tc_bw_alloc(struct mlx5_core_dev *mdev, u8 *tc_bw)
 {
 	u32 in[MLX5_ST_SZ_DW(qetc_reg)] = {0};
