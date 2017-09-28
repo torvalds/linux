@@ -766,8 +766,8 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
  *					|
  *					|-> {local prefix} (terminal node)
  */
-static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
-			struct fib_nh *nh, struct netlink_ext_ack *extack)
+static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
+			struct netlink_ext_ack *extack)
 {
 	int err = 0;
 	struct net *net;
@@ -1250,7 +1250,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		int linkdown = 0;
 
 		change_nexthops(fi) {
-			err = fib_check_nh(cfg, fi, nexthop_nh, extack);
+			err = fib_check_nh(cfg, nexthop_nh, extack);
 			if (err != 0)
 				goto failure;
 			if (nexthop_nh->nh_flags & RTNH_F_LINKDOWN)
