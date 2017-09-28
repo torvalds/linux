@@ -227,8 +227,14 @@ void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 		 */
 		kthread_park(sched->thread);
 		kthread_unpark(sched->thread);
-		while (kfifo_out(&entity->job_queue, &job, sizeof(job)))
+		while (kfifo_out(&entity->job_queue, &job, sizeof(job))) {
+			struct amd_sched_fence *s_fence = job->s_fence;
+			amd_sched_fence_scheduled(s_fence);
+			dma_fence_set_error(&s_fence->finished, -ESRCH);
+			amd_sched_fence_finished(s_fence);
+			dma_fence_put(&s_fence->finished);
 			sched->ops->free_job(job);
+		}
 
 	}
 	kfifo_free(&entity->job_queue);
