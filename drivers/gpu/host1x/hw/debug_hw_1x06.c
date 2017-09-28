@@ -105,11 +105,12 @@ static void host1x_debug_show_channel_fifo(struct host1x *host,
 					      HOST1X_HV_CMDFIFO_PEEK_READ);
 
 		if (!data_count) {
-			host1x_debug_output(o, "%08x:", val);
+			host1x_debug_output(o, "%03x 0x%08x: ",
+					    rd_ptr - start, val);
 			data_count = show_channel_command(o, val);
 		} else {
-			host1x_debug_output(o, "%08x%s", val,
-					    data_count > 0 ? ", " : "])\n");
+			host1x_debug_cont(o, "%08x%s", val,
+					  data_count > 1 ? ", " : "])\n");
 			data_count--;
 		}
 
@@ -120,7 +121,7 @@ static void host1x_debug_show_channel_fifo(struct host1x *host,
 	} while (rd_ptr != wr_ptr);
 
 	if (data_count)
-		host1x_debug_output(o, ", ...])\n");
+		host1x_debug_cont(o, ", ...])\n");
 	host1x_debug_output(o, "\n");
 
 	host1x_hypervisor_writel(host, 0x0, HOST1X_HV_CMDFIFO_PEEK_CTRL);

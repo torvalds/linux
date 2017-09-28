@@ -40,48 +40,59 @@ enum {
 
 static unsigned int show_channel_command(struct output *o, u32 val)
 {
-	unsigned int mask, subop;
+	unsigned int mask, subop, num;
 
 	switch (val >> 28) {
 	case HOST1X_OPCODE_SETCLASS:
 		mask = val & 0x3f;
 		if (mask) {
-			host1x_debug_output(o, "SETCL(class=%03x, offset=%03x, mask=%02x, [",
+			host1x_debug_cont(o, "SETCL(class=%03x, offset=%03x, mask=%02x, [",
 					    val >> 6 & 0x3ff,
 					    val >> 16 & 0xfff, mask);
 			return hweight8(mask);
 		}
 
-		host1x_debug_output(o, "SETCL(class=%03x)\n", val >> 6 & 0x3ff);
+		host1x_debug_cont(o, "SETCL(class=%03x)\n", val >> 6 & 0x3ff);
 		return 0;
 
 	case HOST1X_OPCODE_INCR:
-		host1x_debug_output(o, "INCR(offset=%03x, [",
+		num = val & 0xffff;
+		host1x_debug_cont(o, "INCR(offset=%03x, [",
 				    val >> 16 & 0xfff);
-		return val & 0xffff;
+		if (!num)
+			host1x_debug_cont(o, "])\n");
+
+		return num;
 
 	case HOST1X_OPCODE_NONINCR:
-		host1x_debug_output(o, "NONINCR(offset=%03x, [",
+		num = val & 0xffff;
+		host1x_debug_cont(o, "NONINCR(offset=%03x, [",
 				    val >> 16 & 0xfff);
-		return val & 0xffff;
+		if (!num)
+			host1x_debug_cont(o, "])\n");
+
+		return num;
 
 	case HOST1X_OPCODE_MASK:
 		mask = val & 0xffff;
-		host1x_debug_output(o, "MASK(offset=%03x, mask=%03x, [",
+		host1x_debug_cont(o, "MASK(offset=%03x, mask=%03x, [",
 				    val >> 16 & 0xfff, mask);
+		if (!mask)
+			host1x_debug_cont(o, "])\n");
+
 		return hweight16(mask);
 
 	case HOST1X_OPCODE_IMM:
-		host1x_debug_output(o, "IMM(offset=%03x, data=%03x)\n",
+		host1x_debug_cont(o, "IMM(offset=%03x, data=%03x)\n",
 				    val >> 16 & 0xfff, val & 0xffff);
 		return 0;
 
 	case HOST1X_OPCODE_RESTART:
-		host1x_debug_output(o, "RESTART(offset=%08x)\n", val << 4);
+		host1x_debug_cont(o, "RESTART(offset=%08x)\n", val << 4);
 		return 0;
 
 	case HOST1X_OPCODE_GATHER:
-		host1x_debug_output(o, "GATHER(offset=%03x, insert=%d, type=%d, count=%04x, addr=[",
+		host1x_debug_cont(o, "GATHER(offset=%03x, insert=%d, type=%d, count=%04x, addr=[",
 				    val >> 16 & 0xfff, val >> 15 & 0x1,
 				    val >> 14 & 0x1, val & 0x3fff);
 		return 1;
@@ -89,16 +100,17 @@ static unsigned int show_channel_command(struct output *o, u32 val)
 	case HOST1X_OPCODE_EXTEND:
 		subop = val >> 24 & 0xf;
 		if (subop == HOST1X_OPCODE_EXTEND_ACQUIRE_MLOCK)
-			host1x_debug_output(o, "ACQUIRE_MLOCK(index=%d)\n",
+			host1x_debug_cont(o, "ACQUIRE_MLOCK(index=%d)\n",
 					    val & 0xff);
 		else if (subop == HOST1X_OPCODE_EXTEND_RELEASE_MLOCK)
-			host1x_debug_output(o, "RELEASE_MLOCK(index=%d)\n",
+			host1x_debug_cont(o, "RELEASE_MLOCK(index=%d)\n",
 					    val & 0xff);
 		else
-			host1x_debug_output(o, "EXTEND_UNKNOWN(%08x)\n", val);
+			host1x_debug_cont(o, "EXTEND_UNKNOWN(%08x)\n", val);
 		return 0;
 
 	default:
+		host1x_debug_cont(o, "UNKNOWN\n");
 		return 0;
 	}
 }
@@ -126,11 +138,11 @@ static void show_gather(struct output *o, phys_addr_t phys_addr,
 		u32 val = *(map_addr + offset / 4 + i);
 
 		if (!data_count) {
-			host1x_debug_output(o, "%08x: %08x:", addr, val);
+			host1x_debug_output(o, "%08x: %08x: ", addr, val);
 			data_count = show_channel_command(o, val);
 		} else {
-			host1x_debug_output(o, "%08x%s", val,
-					    data_count > 0 ? ", " : "])\n");
+			host1x_debug_cont(o, "%08x%s", val,
+					    data_count > 1 ? ", " : "])\n");
 			data_count--;
 		}
 	}
