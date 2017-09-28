@@ -236,52 +236,6 @@ unsigned int generic_reg_wait(const struct dc_context *ctx,
 		block ## reg_num ## _ ## reg_name ## __ ## reg_field ## _MASK,\
 		block ## reg_num ## _ ## reg_name ## __ ## reg_field ## __SHIFT)
 
-/* TODO get rid of this pos*/
-static inline bool wait_reg_func(
-	const struct dc_context *ctx,
-	uint32_t addr,
-	uint32_t mask,
-	uint8_t shift,
-	uint32_t condition_value,
-	unsigned int interval_us,
-	unsigned int timeout_us)
-{
-	uint32_t field_value;
-	uint32_t reg_val;
-	unsigned int count = 0;
-
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
-		timeout_us *= 655;  /* 6553 give about 30 second before time out */
-
-	do {
-		/* try once without sleeping */
-		if (count > 0) {
-			if (interval_us >= 1000)
-				msleep(interval_us/1000);
-			else
-				udelay(interval_us);
-		}
-		reg_val = dm_read_reg(ctx, addr);
-		field_value = get_reg_field_value_ex(reg_val, mask, shift);
-		count += interval_us;
-
-	} while (field_value != condition_value && count <= timeout_us);
-
-	ASSERT(count <= timeout_us);
-
-	return count <= timeout_us;
-}
-
-#define wait_reg(ctx, inst_offset, reg_name, reg_field, condition_value)\
-	wait_reg_func(\
-		ctx,\
-		mm##reg_name + inst_offset + DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX],\
-		reg_name ## __ ## reg_field ## _MASK,\
-		reg_name ## __ ## reg_field ## __SHIFT,\
-		condition_value,\
-		20000,\
-		200000)
-
 /**************************************
  * Power Play (PP) interfaces
  **************************************/
