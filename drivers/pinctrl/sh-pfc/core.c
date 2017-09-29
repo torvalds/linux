@@ -389,21 +389,6 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
-const struct sh_pfc_bias_info *
-sh_pfc_pin_to_bias_info(const struct sh_pfc_bias_info *info,
-			unsigned int num, unsigned int pin)
-{
-	unsigned int i;
-
-	for (i = 0; i < num; i++)
-		if (info[i].pin == pin)
-			return &info[i];
-
-	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
-
-	return NULL;
-}
-
 const struct pinmux_bias_reg *
 sh_pfc_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
 		       unsigned int *bit)
