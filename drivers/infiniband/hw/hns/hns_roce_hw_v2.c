@@ -589,7 +589,7 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 		do {
 			if (hns_roce_cmq_csq_done(hr_dev))
 				break;
-			usleep_range(1000, 2000);
+			udelay(1);
 			timeout++;
 		} while (timeout < priv->cmq.tx_timeout);
 	}
