@@ -183,6 +183,18 @@ static int uvd_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	if (uvd_v6_0_enc_support(adev)) {
+		struct amd_sched_rq *rq;
+		ring = &adev->uvd.ring_enc[0];
+		rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
+		r = amd_sched_entity_init(&ring->sched, &adev->uvd.entity_enc,
+					  rq, amdgpu_sched_jobs);
+		if (r) {
+			DRM_ERROR("Failed setting up UVD ENC run queue.\n");
+			return r;
+		}
+	}
+
 	r = amdgpu_uvd_resume(adev);
 	if (r)
 		return r;
@@ -216,6 +228,8 @@ static int uvd_v6_0_sw_fini(void *handle)
 		return r;
 
 	if (uvd_v6_0_enc_support(adev)) {
+		amd_sched_entity_fini(&adev->uvd.ring_enc[0].sched, &adev->uvd.entity_enc);
+
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.ring_enc[i]);
 	}
