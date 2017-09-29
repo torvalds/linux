@@ -213,7 +213,7 @@ struct transform_funcs {
 			struct transform *xfm,
 			const struct pwl_params *params);
 
-	bool (*opp_program_regamma_pwl)(
+	void (*opp_program_regamma_pwl)(
 		struct transform *xfm, const struct pwl_params *params);
 
 	void (*opp_set_regamma_mode)(

@@ -490,7 +490,7 @@ static void program_pwl(struct dce_transform *xfm_dce,
 	}
 }
 
-bool dce110_opp_program_regamma_pwl_v(
+void dce110_opp_program_regamma_pwl_v(
 	struct transform *xfm,
 	const struct pwl_params *params)
 {
@@ -512,8 +512,6 @@ bool dce110_opp_program_regamma_pwl_v(
 
 	/* Power return to auto back */
 	power_on_lut(xfm, false, false, true);
-
-	return true;
 }
 
 void dce110_opp_power_on_regamma_lut_v(

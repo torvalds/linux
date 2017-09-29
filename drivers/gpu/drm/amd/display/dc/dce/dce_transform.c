@@ -1375,7 +1375,7 @@ static void regamma_config_regions_and_segments(
 
 
 
-bool dce110_opp_program_regamma_pwl(
+void dce110_opp_program_regamma_pwl(
 	struct transform *xfm,
 	const struct pwl_params *params)
 {
@@ -1386,8 +1386,6 @@ bool dce110_opp_program_regamma_pwl(
 
 	/* Program PWL */
 	program_pwl(xfm_dce, params);
-
-	return true;
 }
 
 void dce110_opp_power_on_regamma_lut(

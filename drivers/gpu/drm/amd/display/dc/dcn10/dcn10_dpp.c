@@ -183,7 +183,7 @@ void dpp_reset(struct transform *xfm_base)
 
 
 
-static bool dcn10_dpp_cm_set_regamma_pwl(
+static void dcn10_dpp_cm_set_regamma_pwl(
 	struct transform *xfm_base, const struct pwl_params *params)
 {
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
@@ -198,8 +198,6 @@ static bool dcn10_dpp_cm_set_regamma_pwl(
 
 	dcn10_dpp_cm_program_regamma_lut(
 			xfm_base, params->rgb_resulted, params->hw_points_num);
-
-	return true;
 }
 
 static void dcn10_dpp_cm_set_regamma_mode(
