@@ -3694,7 +3694,7 @@ process_slot:
 				if (disko) {
 					inode_add_bytes(inode, datal);
 					ret = btrfs_inc_extent_ref(trans,
-							fs_info,
+							root,
 							disko, diskl, 0,
 							root->root_key.objectid,
 							btrfs_ino(BTRFS_I(inode)),

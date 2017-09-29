@@ -856,7 +856,7 @@ next_slot:
 			btrfs_mark_buffer_dirty(leaf);
 
 			if (update_refs && disk_bytenr > 0) {
-				ret = btrfs_inc_extent_ref(trans, fs_info,
+				ret = btrfs_inc_extent_ref(trans, root,
 						disk_bytenr, num_bytes, 0,
 						root->root_key.objectid,
 						new_key.objectid,
@@ -940,7 +940,7 @@ delete_extent_item:
 				extent_end = ALIGN(extent_end,
 						   fs_info->sectorsize);
 			} else if (update_refs && disk_bytenr > 0) {
-				ret = btrfs_free_extent(trans, fs_info,
+				ret = btrfs_free_extent(trans, root,
 						disk_bytenr, num_bytes, 0,
 						root->root_key.objectid,
 						key.objectid, key.offset -
@@ -1234,7 +1234,7 @@ again:
 						extent_end - split);
 		btrfs_mark_buffer_dirty(leaf);
 
-		ret = btrfs_inc_extent_ref(trans, fs_info, bytenr, num_bytes,
+		ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes,
 					   0, root->root_key.objectid,
 					   ino, orig_offset);
 		if (ret) {
@@ -1268,7 +1268,7 @@ again:
 		extent_end = other_end;
 		del_slot = path->slots[0] + 1;
 		del_nr++;
-		ret = btrfs_free_extent(trans, fs_info, bytenr, num_bytes,
+		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
 		if (ret) {
@@ -1288,7 +1288,7 @@ again:
 		key.offset = other_start;
 		del_slot = path->slots[0];
 		del_nr++;
-		ret = btrfs_free_extent(trans, fs_info, bytenr, num_bytes,
+		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
 		if (ret) {
