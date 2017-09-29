@@ -320,7 +320,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	int ret;
 	struct pl031_local *ldata;
 	struct pl031_vendor_data *vendor = id->data;
-	struct rtc_class_ops *ops = &vendor->ops;
+	struct rtc_class_ops *ops;
 	unsigned long time, data;
 
 	ret = amba_request_regions(adev, NULL);
@@ -329,12 +329,14 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 
 	ldata = devm_kzalloc(&adev->dev, sizeof(struct pl031_local),
 			     GFP_KERNEL);
-	if (!ldata) {
+	ops = devm_kmemdup(&adev->dev, &vendor->ops, sizeof(vendor->ops),
+			   GFP_KERNEL);
+	if (!ldata || !ops) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	ldata->vendor = vendor;
 
+	ldata->vendor = vendor;
 	ldata->base = devm_ioremap(&adev->dev, adev->res.start,
 				   resource_size(&adev->res));
 	if (!ldata->base) {
@@ -370,6 +372,13 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 				writel(time, ldata->base + RTC_LR);
 			}
 		}
+	}
+
+	if (!adev->irq[0]) {
+		/* When there's no interrupt, no point in exposing the alarm */
+		ops->read_alarm = NULL;
+		ops->set_alarm = NULL;
+		ops->alarm_irq_enable = NULL;
 	}
 
 	device_init_wakeup(&adev->dev, true);
