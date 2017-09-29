@@ -4595,6 +4595,7 @@ void i915_gem_resume(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_restore_gtt_mappings(dev_priv);
+	i915_gem_restore_fences(dev_priv);
 
 	/* As we didn't flush the kernel context before suspend, we cannot
 	 * guarantee that the context image is complete. So let's just reset
