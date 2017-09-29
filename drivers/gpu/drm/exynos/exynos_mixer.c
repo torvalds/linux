@@ -367,7 +367,7 @@ static void mixer_vsync_set_update(struct mixer_context *ctx, bool enable)
 			VP_SHADOW_UPDATE_ENABLE : 0);
 }
 
-static void mixer_cfg_scan(struct mixer_context *ctx, unsigned int height)
+static void mixer_cfg_scan(struct mixer_context *ctx, int width, int height)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val;
@@ -376,7 +376,11 @@ static void mixer_cfg_scan(struct mixer_context *ctx, unsigned int height)
 	val = test_bit(MXR_BIT_INTERLACE, &ctx->flags) ?
 		MXR_CFG_SCAN_INTERLACE : MXR_CFG_SCAN_PROGRESSIVE;
 
-	if (ctx->mxr_ver != MXR_VER_128_0_0_184) {
+	/* setup display size */
+	if (ctx->mxr_ver == MXR_VER_128_0_0_184) {
+		mixer_reg_write(&ctx->mixer_res, MXR_RESOLUTION,
+			MXR_MXR_RES_HEIGHT(height) | MXR_MXR_RES_WIDTH(width));
+	} else {
 		/* choosing between proper HD and SD mode */
 		if (height <= 480)
 			val |= MXR_CFG_SCAN_NTSC | MXR_CFG_SCAN_SD;
@@ -482,14 +486,7 @@ static void mixer_commit(struct mixer_context *ctx)
 	else
 		__clear_bit(MXR_BIT_INTERLACE, &ctx->flags);
 
-	/* setup display size */
-	if (ctx->mxr_ver == MXR_VER_128_0_0_184) {
-		u32 val  = MXR_MXR_RES_HEIGHT(mode->vdisplay)
-			 | MXR_MXR_RES_WIDTH(mode->hdisplay);
-		mixer_reg_write(&ctx->mixer_res, MXR_RESOLUTION, val);
-	}
-
-	mixer_cfg_scan(ctx, mode->vdisplay);
+	mixer_cfg_scan(ctx, mode->hdisplay, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_run(ctx);
 }
