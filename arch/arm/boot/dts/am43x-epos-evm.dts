@@ -274,7 +274,7 @@
 			>;
 		};
 
-		qspi1_default: qspi1_default {
+		qspi1_pins_default: qspi1_pins_default {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x87c, PIN_INPUT_PULLUP | MUX_MODE3)
 				AM4372_IOPAD(0x888, PIN_INPUT_PULLUP | MUX_MODE2)
@@ -282,6 +282,17 @@
 				AM4372_IOPAD(0x894, PIN_INPUT_PULLUP | MUX_MODE3)
 				AM4372_IOPAD(0x898, PIN_INPUT_PULLUP | MUX_MODE3)
 				AM4372_IOPAD(0x89c, PIN_INPUT_PULLUP | MUX_MODE3)
+			>;
+		};
+
+		qspi1_pins_sleep: qspi1_pins_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x87c, DS0_PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x888, DS0_PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x890, DS0_PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x894, DS0_PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x898, DS0_PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x89c, DS0_PIN_OUTPUT_PULLUP | MUX_MODE7)
 			>;
 		};
 
@@ -707,8 +718,9 @@
 
 &qspi {
 	status = "disabled";	/* Disable GPMC (NAND) when enabling QSPI */
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi1_default>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qspi1_pins_default>;
+	pinctrl-1 = <&qspi1_pins_sleep>;
 
 	spi-max-frequency = <48000000>;
 	m25p80@0 {
