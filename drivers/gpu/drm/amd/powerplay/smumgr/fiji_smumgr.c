@@ -159,27 +159,44 @@ static int fiji_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int fiji_setup_pwr_virus(struct pp_hwmgr *hwmgr)
+static void execute_pwr_table(struct pp_hwmgr *hwmgr, const PWR_Command_Table *pvirus, int size)
 {
 	int i;
-	int result = -EINVAL;
 	uint32_t reg, data;
 
-	const PWR_Command_Table *pvirus = PwrVirusTable;
-
-	for (i = 0; i < ARRAY_SIZE(PwrVirusTable); i++) {
+	for (i = 0; i < size; i++) {
 		reg  = pvirus->reg;
 		data = pvirus->data;
 		if (reg != 0xffffffff)
 			cgs_write_register(hwmgr->device, reg, data);
-		else {
-			result = 0;
+		else
 			break;
-		}
 		pvirus++;
 	}
+}
 
-	return result;
+static void execute_pwr_dfy_table(struct pp_hwmgr *hwmgr, const PWR_DFY_Section *section)
+{
+	int i;
+	cgs_write_register(hwmgr->device, mmCP_DFY_CNTL, section->dfy_cntl);
+	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_HI, section->dfy_addr_hi);
+	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_LO, section->dfy_addr_lo);
+	for (i = 0; i < section->dfy_size; i++)
+		cgs_write_register(hwmgr->device, mmCP_DFY_DATA_0, section->dfy_data[i]);
+}
+
+static int fiji_setup_pwr_virus(struct pp_hwmgr *hwmgr)
+{
+	execute_pwr_table(hwmgr, PwrVirusTable_pre, ARRAY_SIZE(PwrVirusTable_pre));
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section1);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section2);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section3);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section4);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section5);
+	execute_pwr_dfy_table(hwmgr, &pwr_virus_section6);
+	execute_pwr_table(hwmgr, PwrVirusTable_post, ARRAY_SIZE(PwrVirusTable_post));
+
+	return 0;
 }
 
 static int fiji_start_avfs_btc(struct pp_hwmgr *hwmgr)
