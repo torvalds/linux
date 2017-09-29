@@ -477,6 +477,11 @@ static void mixer_commit(struct mixer_context *ctx)
 {
 	struct drm_display_mode *mode = &ctx->crtc->base.state->adjusted_mode;
 
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
+	else
+		__clear_bit(MXR_BIT_INTERLACE, &ctx->flags);
+
 	/* setup display size */
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184) {
 		u32 val  = MXR_MXR_RES_HEIGHT(mode->vdisplay)
@@ -494,7 +499,6 @@ static void vp_video_buffer(struct mixer_context *ctx,
 {
 	struct exynos_drm_plane_state *state =
 				to_exynos_plane_state(plane->base.state);
-	struct drm_display_mode *mode = &state->base.crtc->state->adjusted_mode;
 	struct mixer_resources *res = &ctx->mixer_res;
 	struct drm_framebuffer *fb = state->base.fb;
 	unsigned int priority = state->base.normalized_zpos + 1;
@@ -509,8 +513,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
+	if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)) {
 		if (is_tiled) {
 			luma_addr[1] = luma_addr[0] + 0x40;
 			chroma_addr[1] = chroma_addr[0] + 0x40;
@@ -519,7 +522,6 @@ static void vp_video_buffer(struct mixer_context *ctx,
 			chroma_addr[1] = chroma_addr[0] + fb->pitches[0];
 		}
 	} else {
-		__clear_bit(MXR_BIT_INTERLACE, &ctx->flags);
 		luma_addr[1] = 0;
 		chroma_addr[1] = 0;
 	}
@@ -571,7 +573,6 @@ static void vp_video_buffer(struct mixer_context *ctx,
 
 	mixer_cfg_layer(ctx, plane->index, priority, true);
 	mixer_cfg_vp_blend(ctx);
-	mixer_commit(ctx);
 
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 
@@ -591,7 +592,6 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 {
 	struct exynos_drm_plane_state *state =
 				to_exynos_plane_state(plane->base.state);
-	struct drm_display_mode *mode = &state->base.crtc->state->adjusted_mode;
 	struct mixer_resources *res = &ctx->mixer_res;
 	struct drm_framebuffer *fb = state->base.fb;
 	unsigned int priority = state->base.normalized_zpos + 1;
@@ -637,11 +637,6 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 		+ (state->src.x * fb->format->cpp[0])
 		+ (state->src.y * fb->pitches[0]);
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
-	else
-		__clear_bit(MXR_BIT_INTERLACE, &ctx->flags);
-
 	spin_lock_irqsave(&res->reg_slock, flags);
 
 	/* setup format */
@@ -668,7 +663,6 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	mixer_cfg_layer(ctx, win, priority, true);
 	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->format->format));
-	mixer_commit(ctx);
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
@@ -1020,6 +1014,8 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 		mixer_reg_writemask(res, MXR_INT_EN, ~0, MXR_INT_EN_VSYNC);
 	}
 	mixer_win_reset(ctx);
+
+	mixer_commit(ctx);
 
 	mixer_vsync_set_update(ctx, true);
 
