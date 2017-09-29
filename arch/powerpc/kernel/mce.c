@@ -82,7 +82,7 @@ static void mce_set_error_info(struct machine_check_event *mce,
  */
 void save_mce_event(struct pt_regs *regs, long handled,
 		    struct mce_error_info *mce_err,
-		    uint64_t nip, uint64_t addr)
+		    uint64_t nip, uint64_t addr, uint64_t phys_addr)
 {
 	int index = __this_cpu_inc_return(mce_nest_count) - 1;
 	struct machine_check_event *mce = this_cpu_ptr(&mce_event[index]);
@@ -140,6 +140,10 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	} else if (mce->error_type == MCE_ERROR_TYPE_UE) {
 		mce->u.ue_error.effective_address_provided = true;
 		mce->u.ue_error.effective_address = addr;
+		if (phys_addr != ULONG_MAX) {
+			mce->u.ue_error.physical_address_provided = true;
+			mce->u.ue_error.physical_address = phys_addr;
+		}
 	}
 	return;
 }

@@ -232,7 +232,7 @@ BEGIN_FTR_SECTION
 	addi	r10,r10,1		/* increment paca->in_mce */
 	sth	r10,PACA_IN_MCE(r13)
 	/* Limit nested MCE to level 4 to avoid stack overflow */
-	cmpwi	r10,4
+	cmpwi	r10,MAX_MCE_DEPTH
 	bgt	2f			/* Check if we hit limit of 4 */
 	std	r11,GPR1(r1)		/* Save r1 on the stack. */
 	std	r11,0(r1)		/* make stack chain pointer */
