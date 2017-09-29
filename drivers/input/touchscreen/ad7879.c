@@ -524,13 +524,6 @@ static int ad7879_parse_dt(struct device *dev, struct ad7879 *ts)
 	return 0;
 }
 
-static void ad7879_cleanup_sysfs(void *_ts)
-{
-	struct ad7879 *ts = _ts;
-
-	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
-}
-
 int ad7879_probe(struct device *dev, struct regmap *regmap,
 		 int irq, u16 bustype, u8 devid)
 {
@@ -658,11 +651,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 
 	__ad7879_disable(ts);
 
-	err = sysfs_create_group(&dev->kobj, &ad7879_attr_group);
-	if (err)
-		return err;
-
-	err = devm_add_action_or_reset(dev, ad7879_cleanup_sysfs, ts);
+	err = devm_device_add_group(dev, &ad7879_attr_group);
 	if (err)
 		return err;
 
