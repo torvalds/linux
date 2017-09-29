@@ -310,8 +310,6 @@ static int pl031_remove(struct amba_device *adev)
 	device_init_wakeup(&adev->dev, false);
 	free_irq(adev->irq[0], ldata);
 	rtc_device_unregister(ldata->rtc);
-	iounmap(ldata->base);
-	kfree(ldata);
 	amba_release_regions(adev);
 
 	return 0;
@@ -329,18 +327,19 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		goto err_req;
 
-	ldata = kzalloc(sizeof(struct pl031_local), GFP_KERNEL);
+	ldata = devm_kzalloc(&adev->dev, sizeof(struct pl031_local),
+			     GFP_KERNEL);
 	if (!ldata) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	ldata->vendor = vendor;
 
-	ldata->base = ioremap(adev->res.start, resource_size(&adev->res));
-
+	ldata->base = devm_ioremap(&adev->dev, adev->res.start,
+				   resource_size(&adev->res));
 	if (!ldata->base) {
 		ret = -ENOMEM;
-		goto out_no_remap;
+		goto out;
 	}
 
 	amba_set_drvdata(adev, ldata);
@@ -378,7 +377,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 					THIS_MODULE);
 	if (IS_ERR(ldata->rtc)) {
 		ret = PTR_ERR(ldata->rtc);
-		goto out_no_rtc;
+		goto out;
 	}
 
 	if (request_irq(adev->irq[0], pl031_interrupt,
@@ -391,10 +390,6 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 
 out_no_irq:
 	rtc_device_unregister(ldata->rtc);
-out_no_rtc:
-	iounmap(ldata->base);
-out_no_remap:
-	kfree(ldata);
 out:
 	amba_release_regions(adev);
 err_req:
