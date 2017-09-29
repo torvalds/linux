@@ -2888,10 +2888,11 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       QP_CONTEXT_QPC_BYTES_32_RESPONDER_RESOURCES_S,
 			       ilog2((unsigned int)attr->max_dest_rd_atomic));
 
-		roce_set_field(context->qpc_bytes_36,
-			       QP_CONTEXT_QPC_BYTES_36_DEST_QP_M,
-			       QP_CONTEXT_QPC_BYTES_36_DEST_QP_S,
-			       attr->dest_qp_num);
+		if (attr_mask & IB_QP_DEST_QPN)
+			roce_set_field(context->qpc_bytes_36,
+				       QP_CONTEXT_QPC_BYTES_36_DEST_QP_M,
+				       QP_CONTEXT_QPC_BYTES_36_DEST_QP_S,
+				       attr->dest_qp_num);
 
 		/* Configure GID index */
 		port_num = rdma_ah_get_port_num(&attr->ah_attr);
