@@ -249,8 +249,6 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 
 		vht_cap->vht_supported = true;
 		vht_cap->cap =
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895 |
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991 |
 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
 			IEEE80211_VHT_CAP_SHORT_GI_80 |
 			IEEE80211_VHT_CAP_TXSTBC |
@@ -283,8 +281,6 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 
 		vht_cap->vht_supported = true;
 		vht_cap->cap =
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895 |
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991 |
 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
 			IEEE80211_VHT_CAP_SHORT_GI_80 |
 			IEEE80211_VHT_CAP_TXSTBC |
