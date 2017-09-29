@@ -141,8 +141,8 @@
  * gets set up by the containing function.  If you forget to do this, objtool
  * may print a "call without frame pointer save/setup" warning.
  */
-register unsigned long __asm_call_sp asm(_ASM_SP);
-#define ASM_CALL_CONSTRAINT "+r" (__asm_call_sp)
+register unsigned long current_stack_pointer asm(_ASM_SP);
+#define ASM_CALL_CONSTRAINT "+r" (current_stack_pointer)
 #endif
 
 #endif /* _ASM_X86_ASM_H */
