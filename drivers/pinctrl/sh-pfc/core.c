@@ -569,7 +569,6 @@ static const struct of_device_id sh_pfc_of_table[] = {
 
 static int sh_pfc_probe(struct platform_device *pdev)
 {
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
 #ifdef CONFIG_OF
 	struct device_node *np = pdev->dev.of_node;
 #endif
@@ -582,10 +581,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		info = of_device_get_match_data(&pdev->dev);
 	else
 #endif
-		info = platid ? (const void *)platid->driver_data : NULL;
-
-	if (info == NULL)
-		return -ENODEV;
+		info = (const void *)platform_get_device_id(pdev)->driver_data;
 
 	pfc = devm_kzalloc(&pdev->dev, sizeof(*pfc), GFP_KERNEL);
 	if (pfc == NULL)
@@ -683,7 +679,6 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SHX3
 	{ "pfc-shx3", (kernel_ulong_t)&shx3_pinmux_info },
 #endif
-	{ "sh-pfc", 0 },
 	{ },
 };
 
