@@ -36,13 +36,12 @@
 
 #include "engine.h"
 
-bool dal_i2caux_construct_engine(
+void dal_i2caux_construct_engine(
 	struct engine *engine,
 	struct dc_context *ctx)
 {
 	engine->ddc = NULL;
 	engine->ctx = ctx;
-	return true;
 }
 
 void dal_i2caux_destruct_engine(

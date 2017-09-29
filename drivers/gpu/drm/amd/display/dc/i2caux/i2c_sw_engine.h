@@ -48,7 +48,7 @@ struct i2c_sw_engine_create_arg {
 	struct dc_context *ctx;
 };
 
-bool dal_i2c_sw_engine_construct(
+void dal_i2c_sw_engine_construct(
 	struct i2c_sw_engine *engine,
 	const struct i2c_sw_engine_create_arg *arg);
 

@@ -100,7 +100,7 @@ struct aux_engine {
 	bool acquire_reset;
 };
 
-bool dal_aux_engine_construct(
+void dal_aux_engine_construct(
 	struct aux_engine *engine,
 	struct dc_context *ctx);
 

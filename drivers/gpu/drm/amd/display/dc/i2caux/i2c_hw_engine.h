@@ -53,7 +53,7 @@ struct i2c_hw_engine {
 	uint32_t default_speed;
 };
 
-bool dal_i2c_hw_engine_construct(
+void dal_i2c_hw_engine_construct(
 	struct i2c_hw_engine *engine,
 	struct dc_context *ctx);
 

@@ -108,18 +108,11 @@ struct i2caux *dal_i2caux_dce120_create(
 		return NULL;
 	}
 
-	if (dal_i2caux_dce110_construct(
-			i2caux_dce110,
-			ctx,
-			dce120_aux_regs,
-			dce120_hw_engine_regs,
-			&i2c_shift,
-			&i2c_mask))
-		return &i2caux_dce110->base;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(i2caux_dce110);
-
-	return NULL;
+	dal_i2caux_dce110_construct(i2caux_dce110,
+				    ctx,
+				    dce120_aux_regs,
+				    dce120_hw_engine_regs,
+				    &i2c_shift,
+				    &i2c_mask);
+	return &i2caux_dce110->base;
 }

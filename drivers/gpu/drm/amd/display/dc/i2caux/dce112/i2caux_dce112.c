@@ -87,22 +87,16 @@ static const struct dce110_i2c_hw_engine_mask i2c_mask = {
 		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
 };
 
-static bool construct(
+static void construct(
 	struct i2caux_dce110 *i2caux_dce110,
 	struct dc_context *ctx)
 {
-	if (!dal_i2caux_dce110_construct(
-			i2caux_dce110,
-			ctx,
-			dce112_aux_regs,
-			dce112_hw_engine_regs,
-			&i2c_shift,
-			&i2c_mask)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
-
-	return true;
+	dal_i2caux_dce110_construct(i2caux_dce110,
+				    ctx,
+				    dce112_aux_regs,
+				    dce112_hw_engine_regs,
+				    &i2c_shift,
+				    &i2c_mask);
 }
 
 /*
@@ -129,12 +123,6 @@ struct i2caux *dal_i2caux_dce112_create(
 		return NULL;
 	}
 
-	if (construct(i2caux_dce110, ctx))
-		return &i2caux_dce110->base;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(i2caux_dce110);
-
-	return NULL;
+	construct(i2caux_dce110, ctx);
+	return &i2caux_dce110->base;
 }

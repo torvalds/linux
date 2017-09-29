@@ -207,8 +207,4 @@ struct i2c_hw_engine_dce110_create_arg {
 struct i2c_engine *dal_i2c_hw_engine_dce110_create(
 	const struct i2c_hw_engine_dce110_create_arg *arg);
 
-bool i2c_hw_engine_dce110_construct(
-	struct i2c_hw_engine_dce110 *engine_dce110,
-	const struct i2c_hw_engine_dce110_create_arg *arg);
-
 #endif

@@ -824,20 +824,11 @@ static const struct i2c_hw_engine_funcs i2c_hw_engine_funcs = {
 		dal_i2c_hw_engine_wait_on_operation_result,
 };
 
-static bool construct(
+static void construct(
 	struct i2c_hw_engine_dce80 *engine,
 	const struct i2c_hw_engine_dce80_create_arg *arg)
 {
-	if (arg->engine_id >= sizeof(ddc_setup_offset) / sizeof(int32_t))
-		return false;
-	if (arg->engine_id >= sizeof(ddc_speed_offset) / sizeof(int32_t))
-		return false;
-
-	if (!arg->reference_frequency)
-		return false;
-
-	if (!dal_i2c_hw_engine_construct(&engine->base, arg->ctx))
-		return false;
+	dal_i2c_hw_engine_construct(&engine->base, arg->ctx);
 
 	engine->base.base.base.funcs = &engine_funcs;
 	engine->base.base.funcs = &i2c_engine_funcs;
@@ -853,8 +844,6 @@ static bool construct(
 	engine->buffer_used_bytes = 0;
 	engine->transaction_count = 0;
 	engine->engine_keep_power_up_count = 1;
-
-	return true;
 }
 
 struct i2c_engine *dal_i2c_hw_engine_dce80_create(
@@ -867,6 +856,13 @@ struct i2c_engine *dal_i2c_hw_engine_dce80_create(
 		return NULL;
 	}
 
+	if ((arg->engine_id >= sizeof(ddc_setup_offset) / sizeof(int32_t)) ||
+	    (arg->engine_id >= sizeof(ddc_speed_offset) / sizeof(int32_t)) ||
+	    !arg->reference_frequency) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
 	engine = kzalloc(sizeof(struct i2c_hw_engine_dce80), GFP_KERNEL);
 
 	if (!engine) {
@@ -874,12 +870,6 @@ struct i2c_engine *dal_i2c_hw_engine_dce80_create(
 		return NULL;
 	}
 
-	if (construct(engine, arg))
-		return &engine->base.base;
-
-	BREAK_TO_DEBUGGER();
-
-	kfree(engine);
-
-	return NULL;
+	construct(engine, arg);
+	return &engine->base.base;
 }

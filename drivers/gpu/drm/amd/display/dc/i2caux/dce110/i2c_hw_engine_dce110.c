@@ -498,17 +498,13 @@ static const struct i2c_hw_engine_funcs i2c_hw_engine_funcs = {
 	.wait_on_operation_result = dal_i2c_hw_engine_wait_on_operation_result,
 };
 
-bool i2c_hw_engine_dce110_construct(
+static void construct(
 	struct i2c_hw_engine_dce110 *hw_engine,
 	const struct i2c_hw_engine_dce110_create_arg *arg)
 {
 	uint32_t xtal_ref_div = 0;
 
-	if (!arg->reference_frequency)
-		return false;
-
-	if (!dal_i2c_hw_engine_construct(&hw_engine->base, arg->ctx))
-		return false;
+	dal_i2c_hw_engine_construct(&hw_engine->base, arg->ctx);
 
 	hw_engine->base.base.base.funcs = &engine_funcs;
 	hw_engine->base.base.funcs = &i2c_engine_funcs;
@@ -545,8 +541,6 @@ bool i2c_hw_engine_dce110_construct(
 	 */
 	hw_engine->reference_frequency =
 		(arg->reference_frequency * 2) / xtal_ref_div;
-
-	return true;
 }
 
 struct i2c_engine *dal_i2c_hw_engine_dce110_create(
@@ -555,6 +549,10 @@ struct i2c_engine *dal_i2c_hw_engine_dce110_create(
 	struct i2c_hw_engine_dce110 *engine_dce10;
 
 	if (!arg) {
+		ASSERT_CRITICAL(false);
+		return NULL;
+	}
+	if (!arg->reference_frequency) {
 		ASSERT_CRITICAL(false);
 		return NULL;
 	}
@@ -567,12 +565,6 @@ struct i2c_engine *dal_i2c_hw_engine_dce110_create(
 		return NULL;
 	}
 
-	if (i2c_hw_engine_dce110_construct(engine_dce10, arg))
-		return &engine_dce10->base.base;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(engine_dce10);
-
-	return NULL;
+	construct(engine_dce10, arg);
+	return &engine_dce10->base.base;
 }

@@ -103,15 +103,12 @@ void dal_i2c_engine_process_channel_reply(
 
 }
 
-bool dal_i2c_engine_construct(
+void dal_i2c_engine_construct(
 	struct i2c_engine *engine,
 	struct dc_context *ctx)
 {
-	if (!dal_i2caux_construct_engine(&engine->base, ctx))
-		return false;
-
+	dal_i2caux_construct_engine(&engine->base, ctx);
 	engine->timeout_delay = 0;
-	return true;
 }
 
 void dal_i2c_engine_destruct(

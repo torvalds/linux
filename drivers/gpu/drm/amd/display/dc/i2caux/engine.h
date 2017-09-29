@@ -110,7 +110,7 @@ struct engine {
 	struct dc_context *ctx;
 };
 
-bool dal_i2caux_construct_engine(
+void dal_i2caux_construct_engine(
 	struct engine *engine,
 	struct dc_context *ctx);
 

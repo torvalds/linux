@@ -187,7 +187,7 @@ static const struct i2caux_funcs i2caux_funcs = {
 	.acquire_aux_engine = dal_i2caux_acquire_aux_engine,
 };
 
-static bool construct(
+static void construct(
 	struct i2caux_dce80 *i2caux_dce80,
 	struct dc_context *ctx)
 {
@@ -207,10 +207,7 @@ static bool construct(
 
 	uint32_t i;
 
-	if (!dal_i2caux_construct(base, ctx)) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
+	dal_i2caux_construct(base, ctx);
 
 	i2caux_dce80->base.funcs = &i2caux_funcs;
 	i2caux_dce80->i2c_hw_buffer_in_use = false;
@@ -269,8 +266,6 @@ static bool construct(
 	} while (i < ARRAY_SIZE(hw_aux_lines));
 
 	/* TODO Generic I2C SW and HW */
-
-	return true;
 }
 
 struct i2caux *dal_i2caux_dce80_create(
@@ -284,12 +279,6 @@ struct i2caux *dal_i2caux_dce80_create(
 		return NULL;
 	}
 
-	if (construct(i2caux_dce80, ctx))
-		return &i2caux_dce80->base;
-
-	BREAK_TO_DEBUGGER();
-
-	kfree(i2caux_dce80);
-
-	return NULL;
+	construct(i2caux_dce80, ctx);
+	return &i2caux_dce80->base;
 }

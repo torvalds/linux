@@ -118,7 +118,7 @@ static const struct engine_funcs engine_funcs = {
 	.submit_request = dal_i2c_sw_engine_submit_request,
 };
 
-static bool construct(
+static void construct(
 	struct i2c_sw_engine_dce110 *engine_dce110,
 	const struct i2c_sw_engine_dce110_create_arg *arg_dce110)
 {
@@ -127,11 +127,7 @@ static bool construct(
 	arg_base.ctx = arg_dce110->ctx;
 	arg_base.default_speed = arg_dce110->default_speed;
 
-	if (!dal_i2c_sw_engine_construct(
-			&engine_dce110->base, &arg_base)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
+	dal_i2c_sw_engine_construct(&engine_dce110->base, &arg_base);
 
 	/*struct engine   struct engine_funcs*/
 	engine_dce110->base.base.base.funcs = &engine_funcs;
@@ -139,8 +135,6 @@ static bool construct(
 	engine_dce110->base.base.funcs = &i2c_engine_funcs;
 	engine_dce110->base.default_speed = arg_dce110->default_speed;
 	engine_dce110->engine_id = arg_dce110->engine_id;
-
-	return true;
 }
 
 struct i2c_engine *dal_i2c_sw_engine_dce110_create(
@@ -161,12 +155,6 @@ struct i2c_engine *dal_i2c_sw_engine_dce110_create(
 		return NULL;
 	}
 
-	if (construct(engine_dce110, arg))
-		return &engine_dce110->base.base;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(engine_dce110);
-
-	return NULL;
+	construct(engine_dce110, arg);
+	return &engine_dce110->base.base;
 }

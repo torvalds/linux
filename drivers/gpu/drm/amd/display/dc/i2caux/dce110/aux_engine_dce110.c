@@ -426,22 +426,16 @@ static const struct engine_funcs engine_funcs = {
 	.acquire = dal_aux_engine_acquire,
 };
 
-static bool construct(
+static void construct(
 	struct aux_engine_dce110 *engine,
 	const struct aux_engine_dce110_init_data *aux_init_data)
 {
-	if (!dal_aux_engine_construct(
-		&engine->base, aux_init_data->ctx)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
+	dal_aux_engine_construct(&engine->base, aux_init_data->ctx);
 	engine->base.base.funcs = &engine_funcs;
 	engine->base.funcs = &aux_engine_funcs;
 
 	engine->timeout_period = aux_init_data->timeout_period;
 	engine->regs = aux_init_data->regs;
-
-	return true;
 }
 
 static void destruct(
@@ -471,12 +465,6 @@ struct aux_engine *dal_aux_engine_dce110_create(
 		return NULL;
 	}
 
-	if (construct(engine, aux_init_data))
-		return &engine->base;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(engine);
-
-	return NULL;
+	construct(engine, aux_init_data);
+	return &engine->base;
 }

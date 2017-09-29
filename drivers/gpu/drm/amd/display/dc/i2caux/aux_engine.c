@@ -555,15 +555,13 @@ bool dal_aux_engine_submit_request(
 	return result;
 }
 
-bool dal_aux_engine_construct(
+void dal_aux_engine_construct(
 	struct aux_engine *engine,
 	struct dc_context *ctx)
 {
-	if (!dal_i2caux_construct_engine(&engine->base, ctx))
-		return false;
+	dal_i2caux_construct_engine(&engine->base, ctx);
 	engine->delay = 0;
 	engine->max_defer_write_retry = 0;
-	return true;
 }
 
 void dal_aux_engine_destruct(

@@ -569,17 +569,14 @@ static const struct engine_funcs engine_funcs = {
 	.submit_request = dal_i2c_sw_engine_submit_request,
 };
 
-bool dal_i2c_sw_engine_construct(
+void dal_i2c_sw_engine_construct(
 	struct i2c_sw_engine *engine,
 	const struct i2c_sw_engine_create_arg *arg)
 {
-	if (!dal_i2c_engine_construct(&engine->base, arg->ctx))
-		return false;
-
+	dal_i2c_engine_construct(&engine->base, arg->ctx);
 	dal_i2c_sw_engine_set_speed(&engine->base, arg->default_speed);
 	engine->base.funcs = &i2c_engine_funcs;
 	engine->base.base.funcs = &engine_funcs;
-	return true;
 }
 
 struct i2c_engine *dal_i2c_sw_engine_create(
@@ -599,12 +596,6 @@ struct i2c_engine *dal_i2c_sw_engine_create(
 		return NULL;
 	}
 
-	if (dal_i2c_sw_engine_construct(engine, arg))
-		return &engine->base;
-
-	BREAK_TO_DEBUGGER();
-
-	kfree(engine);
-
-	return NULL;
+	dal_i2c_sw_engine_construct(engine, arg);
+	return &engine->base;
 }

@@ -73,18 +73,12 @@ static const struct i2caux_funcs i2caux_funcs = {
 	.acquire_aux_engine = NULL,
 };
 
-static bool construct(
+static void construct(
 	struct i2caux *i2caux,
 	struct dc_context *ctx)
 {
-	if (!dal_i2caux_construct(i2caux, ctx)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
-
+	dal_i2caux_construct(i2caux, ctx);
 	i2caux->funcs = &i2caux_funcs;
-
-	return true;
 }
 
 struct i2caux *dal_i2caux_diag_fpga_create(
@@ -98,12 +92,6 @@ struct i2caux *dal_i2caux_diag_fpga_create(
 		return NULL;
 	}
 
-	if (construct(i2caux, ctx))
-		return i2caux;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(i2caux);
-
-	return NULL;
+	construct(i2caux, ctx);
+	return i2caux;
 }

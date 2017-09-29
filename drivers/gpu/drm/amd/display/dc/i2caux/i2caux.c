@@ -423,7 +423,7 @@ void dal_i2caux_release_engine(
 	engine->ddc = NULL;
 }
 
-bool dal_i2caux_construct(
+void dal_i2caux_construct(
 	struct i2caux *i2caux,
 	struct dc_context *ctx)
 {
@@ -451,8 +451,6 @@ bool dal_i2caux_construct(
 		i2caux->default_i2c_hw_speed = DEFAULT_I2C_HW_SPEED;
 		i2caux->default_i2c_sw_speed = DEFAULT_I2C_SW_SPEED;
 	}
-
-	return true;
 }
 
 void dal_i2caux_destruct(

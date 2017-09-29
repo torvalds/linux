@@ -97,7 +97,7 @@ struct i2caux {
 	uint32_t default_i2c_hw_speed;
 };
 
-bool dal_i2caux_construct(
+void dal_i2caux_construct(
 	struct i2caux *i2caux,
 	struct dc_context *ctx);
 

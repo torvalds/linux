@@ -59,7 +59,7 @@ struct i2c_generic_hw_engine {
 	const struct i2c_generic_hw_engine_funcs *funcs;
 };
 
-bool dal_i2c_generic_hw_engine_construct(
+void dal_i2c_generic_hw_engine_construct(
 	struct i2c_generic_hw_engine *engine,
 	struct dc_context *ctx);
 

@@ -88,7 +88,7 @@ struct i2c_engine {
 	uint32_t timeout_delay;
 };
 
-bool dal_i2c_engine_construct(
+void dal_i2c_engine_construct(
 	struct i2c_engine *engine,
 	struct dc_context *ctx);
 

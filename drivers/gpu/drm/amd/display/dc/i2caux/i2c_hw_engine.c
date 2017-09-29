@@ -228,15 +228,13 @@ enum i2c_channel_operation_result dal_i2c_hw_engine_wait_on_operation_result(
 	return result;
 }
 
-bool dal_i2c_hw_engine_construct(
+void dal_i2c_hw_engine_construct(
 	struct i2c_hw_engine *engine,
 	struct dc_context *ctx)
 {
-	if (!dal_i2c_engine_construct(&engine->base, ctx))
-		return false;
+	dal_i2c_engine_construct(&engine->base, ctx);
 	engine->original_speed = I2CAUX_DEFAULT_I2C_HW_SPEED;
 	engine->default_speed = I2CAUX_DEFAULT_I2C_HW_SPEED;
-	return true;
 }
 
 void dal_i2c_hw_engine_destruct(

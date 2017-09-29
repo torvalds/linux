@@ -270,13 +270,11 @@ uint32_t dal_i2c_generic_hw_engine_get_transaction_timeout(
 		(1 + (length << 3) + 1);
 }
 
-bool dal_i2c_generic_hw_engine_construct(
+void dal_i2c_generic_hw_engine_construct(
 	struct i2c_generic_hw_engine *engine,
 	struct dc_context *ctx)
 {
-	if (!dal_i2c_hw_engine_construct(&engine->base, ctx))
-		return false;
-	return true;
+	dal_i2c_hw_engine_construct(&engine->base, ctx);
 }
 
 void dal_i2c_generic_hw_engine_destruct(
