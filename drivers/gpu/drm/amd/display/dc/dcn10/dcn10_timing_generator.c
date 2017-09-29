@@ -1146,7 +1146,7 @@ void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
 }
 
 
-static struct timing_generator_funcs dcn10_tg_funcs = {
+static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = tgn10_validate_timing,
 		.program_timing = tgn10_program_timing,
 		.program_global_sync = tgn10_program_global_sync,

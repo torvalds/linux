@@ -1109,7 +1109,7 @@ static bool dce120_arm_vert_intr(
 	return true;
 }
 
-static struct timing_generator_funcs dce120_tg_funcs = {
+static const struct timing_generator_funcs dce120_tg_funcs = {
 		.validate_timing = dce120_tg_validate_timing,
 		.program_timing = dce120_tg_program_timing,
 		.enable_crtc = dce120_timing_generator_enable_crtc,

@@ -373,7 +373,7 @@ void ippn10_cnv_setup (
 	}
 }
 
-static struct transform_funcs dcn10_dpp_funcs = {
+static const struct transform_funcs dcn10_dpp_funcs = {
 		.transform_reset = dpp_reset,
 		.transform_set_scaler = dcn10_dpp_dscl_set_scaler_manual_scale,
 		.transform_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,

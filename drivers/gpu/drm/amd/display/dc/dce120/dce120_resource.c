@@ -302,7 +302,7 @@ static const struct dce_opp_mask opp_mask = {
 	AUD_COMMON_REG_LIST(id)\
 }
 
-static struct dce_audio_registers audio_regs[] = {
+static const struct dce_audio_registers audio_regs[] = {
 	audio_regs(0),
 	audio_regs(1),
 	audio_regs(2),

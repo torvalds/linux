@@ -51,7 +51,7 @@
 	clk_dce->base.ctx
 
 /* Max clock values for each state indexed by "enum clocks_state": */
-static struct state_dependent_clocks dce80_max_clks_by_state[] = {
+static const struct state_dependent_clocks dce80_max_clks_by_state[] = {
 /* ClocksStateInvalid - should not be used */
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /* ClocksStateUltraLow - not expected to be used for DCE 8.0 */
@@ -63,7 +63,7 @@ static struct state_dependent_clocks dce80_max_clks_by_state[] = {
 /* ClocksStatePerformance */
 { .display_clk_khz = 600000, .pixel_clk_khz = 400000 } };
 
-static struct state_dependent_clocks dce110_max_clks_by_state[] = {
+static const struct state_dependent_clocks dce110_max_clks_by_state[] = {
 /*ClocksStateInvalid - should not be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
@@ -75,7 +75,7 @@ static struct state_dependent_clocks dce110_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 643000, .pixel_clk_khz = 400000 } };
 
-static struct state_dependent_clocks dce112_max_clks_by_state[] = {
+static const struct state_dependent_clocks dce112_max_clks_by_state[] = {
 /*ClocksStateInvalid - should not be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
@@ -87,7 +87,7 @@ static struct state_dependent_clocks dce112_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1132000, .pixel_clk_khz = 600000 } };
 
-static struct state_dependent_clocks dce120_max_clks_by_state[] = {
+static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStateInvalid - should not be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
