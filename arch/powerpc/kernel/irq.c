@@ -394,11 +394,19 @@ bool prep_irq_for_idle_irqsoff(void)
 /*
  * Take the SRR1 wakeup reason, index into this table to find the
  * appropriate irq_happened bit.
+ *
+ * Sytem reset exceptions taken in idle state also come through here,
+ * but they are NMI interrupts so do not need to wait for IRQs to be
+ * restored, and should be taken as early as practical. These are marked
+ * with 0xff in the table. The Power ISA specifies 0100b as the system
+ * reset interrupt reason.
  */
+#define IRQ_SYSTEM_RESET	0xff
+
 static const u8 srr1_to_lazyirq[0x10] = {
 	0, 0, 0,
 	PACA_IRQ_DBELL,
-	0,
+	IRQ_SYSTEM_RESET,
 	PACA_IRQ_DBELL,
 	PACA_IRQ_DEC,
 	0,
@@ -407,15 +415,42 @@ static const u8 srr1_to_lazyirq[0x10] = {
 	PACA_IRQ_HMI,
 	0, 0, 0, 0, 0 };
 
+static noinline void replay_system_reset(void)
+{
+	struct pt_regs regs;
+
+	ppc_save_regs(&regs);
+	regs.trap = 0x100;
+	get_paca()->in_nmi = 1;
+	system_reset_exception(&regs);
+	get_paca()->in_nmi = 0;
+}
+
 void irq_set_pending_from_srr1(unsigned long srr1)
 {
 	unsigned int idx = (srr1 & SRR1_WAKEMASK_P8) >> 18;
+	u8 reason = srr1_to_lazyirq[idx];
+
+	/*
+	 * Take the system reset now, which is immediately after registers
+	 * are restored from idle. It's an NMI, so interrupts need not be
+	 * re-enabled before it is taken.
+	 */
+	if (unlikely(reason == IRQ_SYSTEM_RESET)) {
+		replay_system_reset();
+		return;
+	}
 
 	/*
 	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
-	 * so this can be called unconditionally with srr1 wake reason.
+	 * so this can be called unconditionally with the SRR1 wake
+	 * reason as returned by the idle code, which uses 0 to mean no
+	 * interrupt.
+	 *
+	 * If a future CPU was to designate this as an interrupt reason,
+	 * then a new index for no interrupt must be assigned.
 	 */
-	local_paca->irq_happened |= srr1_to_lazyirq[idx];
+	local_paca->irq_happened |= reason;
 }
 #endif /* CONFIG_PPC_BOOK3S */
 
