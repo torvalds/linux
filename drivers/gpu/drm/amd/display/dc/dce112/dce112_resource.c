@@ -521,15 +521,10 @@ static struct transform *dce112_transform_create(
 	if (!transform)
 		return NULL;
 
-	if (dce_transform_construct(transform, ctx, inst,
-			&xfm_regs[inst], &xfm_shift, &xfm_mask)) {
-		transform->lb_memory_size = 0x1404; /*5124*/
-		return &transform->base;
-	}
-
-	BREAK_TO_DEBUGGER();
-	kfree(transform);
-	return NULL;
+	dce_transform_construct(transform, ctx, inst,
+				&xfm_regs[inst], &xfm_shift, &xfm_mask);
+	transform->lb_memory_size = 0x1404; /*5124*/
+	return &transform->base;
 }
 
 static const struct encoder_feature_support link_enc_feature = {

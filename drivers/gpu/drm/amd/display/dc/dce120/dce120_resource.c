@@ -662,15 +662,10 @@ static struct transform *dce120_transform_create(
 	if (!transform)
 		return NULL;
 
-	if (dce_transform_construct(transform, ctx, inst,
-			&xfm_regs[inst], &xfm_shift, &xfm_mask)) {
-		transform->lb_memory_size = 0x1404; /*5124*/
-		return &transform->base;
-	}
-
-	BREAK_TO_DEBUGGER();
-	kfree(transform);
-	return NULL;
+	dce_transform_construct(transform, ctx, inst,
+				&xfm_regs[inst], &xfm_shift, &xfm_mask);
+	transform->lb_memory_size = 0x1404; /*5124*/
+	return &transform->base;
 }
 
 static void dce120_destroy_resource_pool(struct resource_pool **pool)

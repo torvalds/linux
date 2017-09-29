@@ -486,14 +486,9 @@ static struct transform *dce100_transform_create(
 	if (!transform)
 		return NULL;
 
-	if (dce_transform_construct(transform, ctx, inst,
-			&xfm_regs[inst], &xfm_shift, &xfm_mask)) {
-		return &transform->base;
-	}
-
-	BREAK_TO_DEBUGGER();
-	kfree(transform);
-	return NULL;
+	dce_transform_construct(transform, ctx, inst,
+				&xfm_regs[inst], &xfm_shift, &xfm_mask);
+	return &transform->base;
 }
 
 static struct input_pixel_processor *dce100_ipp_create(
