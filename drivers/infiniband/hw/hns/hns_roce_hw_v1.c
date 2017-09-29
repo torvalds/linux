@@ -3532,6 +3532,53 @@ int hns_roce_v1_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		hns_roce_v1_q_qp(ibqp, qp_attr, qp_attr_mask, qp_init_attr);
 }
 
+static void hns_roce_check_sdb_status(struct hns_roce_dev *hr_dev,
+				      u32 *old_send, u32 *old_retry,
+				      u32 *tsp_st, u32 *success_flags)
+{
+	u32 sdb_retry_cnt;
+	u32 sdb_send_ptr;
+	u32 cur_cnt, old_cnt;
+	u32 send_ptr;
+
+	sdb_send_ptr = roce_read(hr_dev, ROCEE_SDB_SEND_PTR_REG);
+	sdb_retry_cnt =	roce_read(hr_dev, ROCEE_SDB_RETRY_CNT_REG);
+	cur_cnt = roce_get_field(sdb_send_ptr,
+				 ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
+				 ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S) +
+		  roce_get_field(sdb_retry_cnt,
+				 ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_M,
+				 ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S);
+	if (!roce_get_bit(*tsp_st, ROCEE_CNT_CLR_CE_CNT_CLR_CE_S)) {
+		old_cnt = roce_get_field(*old_send,
+					 ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
+					 ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S) +
+			  roce_get_field(*old_retry,
+					 ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_M,
+					 ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S);
+		if (cur_cnt - old_cnt > SDB_ST_CMP_VAL)
+			*success_flags = 1;
+	} else {
+		old_cnt = roce_get_field(*old_send,
+					 ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
+					 ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S);
+		if (cur_cnt - old_cnt > SDB_ST_CMP_VAL) {
+			*success_flags = 1;
+		} else {
+			send_ptr = roce_get_field(*old_send,
+					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
+					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S) +
+				   roce_get_field(sdb_retry_cnt,
+					    ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_M,
+					    ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S);
+			roce_set_field(*old_send,
+				       ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
+				       ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S,
+				       send_ptr);
+		}
+	}
+}
+
 static int check_qp_db_process_status(struct hns_roce_dev *hr_dev,
 				      struct hns_roce_qp *hr_qp,
 				      u32 sdb_issue_ptr,
@@ -3539,12 +3586,10 @@ static int check_qp_db_process_status(struct hns_roce_dev *hr_dev,
 				      u32 *wait_stage)
 {
 	struct device *dev = &hr_dev->pdev->dev;
-	u32 sdb_retry_cnt, old_retry;
 	u32 sdb_send_ptr, old_send;
 	u32 success_flags = 0;
-	u32 cur_cnt, old_cnt;
 	unsigned long end;
-	u32 send_ptr;
+	u32 old_retry;
 	u32 inv_cnt;
 	u32 tsp_st;
 
@@ -3602,47 +3647,9 @@ static int check_qp_db_process_status(struct hns_roce_dev *hr_dev,
 
 				msleep(HNS_ROCE_V1_CHECK_DB_SLEEP_MSECS);
 
-				sdb_send_ptr = roce_read(hr_dev,
-							ROCEE_SDB_SEND_PTR_REG);
-				sdb_retry_cnt =	roce_read(hr_dev,
-						       ROCEE_SDB_RETRY_CNT_REG);
-				cur_cnt = roce_get_field(sdb_send_ptr,
-					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
-					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S) +
-					roce_get_field(sdb_retry_cnt,
-					ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_M,
-					ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S);
-				if (!roce_get_bit(tsp_st,
-					ROCEE_CNT_CLR_CE_CNT_CLR_CE_S)) {
-					old_cnt = roce_get_field(old_send,
-					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
-					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S) +
-					roce_get_field(old_retry,
-					ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_M,
-					ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S);
-					if (cur_cnt - old_cnt > SDB_ST_CMP_VAL)
-						success_flags = 1;
-				} else {
-					old_cnt = roce_get_field(old_send,
-					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
-					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S);
-					if (cur_cnt - old_cnt >
-					    SDB_ST_CMP_VAL) {
-						success_flags = 1;
-					} else {
-						send_ptr =
-							roce_get_field(old_send,
-					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
-					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S) +
-					    roce_get_field(sdb_retry_cnt,
-					    ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_M,
-					    ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S);
-					    roce_set_field(old_send,
-					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
-					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S,
-						send_ptr);
-					}
-				}
+				hns_roce_check_sdb_status(hr_dev, &old_send,
+							  &old_retry, &tsp_st,
+							  &success_flags);
 			} while (!success_flags);
 		}
 
