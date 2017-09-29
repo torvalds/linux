@@ -914,7 +914,7 @@ bool dce110_link_encoder_validate_dp_output(
 	return false;
 }
 
-bool dce110_link_encoder_construct(
+void dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
 	const struct encoder_init_data *init_data,
 	const struct encoder_feature_support *enc_features,
@@ -1013,8 +1013,6 @@ bool dce110_link_encoder_construct(
 				bp_cap_info.DP_HBR3_EN;
 		enc110->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
 	}
-
-	return true;
 }
 
 bool dce110_link_encoder_validate_output_with_stream(

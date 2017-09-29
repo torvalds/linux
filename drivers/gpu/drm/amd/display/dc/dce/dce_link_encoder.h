@@ -168,7 +168,7 @@ struct dce110_link_encoder {
 };
 
 
-bool dce110_link_encoder_construct(
+void dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
 	const struct encoder_init_data *init_data,
 	const struct encoder_feature_support *enc_features,

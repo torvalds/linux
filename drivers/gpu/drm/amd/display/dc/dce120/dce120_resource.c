@@ -544,20 +544,14 @@ static struct link_encoder *dce120_link_encoder_create(
 	if (!enc110)
 		return NULL;
 
-	if (dce110_link_encoder_construct(
-			enc110,
-			enc_init_data,
-			&link_enc_feature,
-			&link_enc_regs[enc_init_data->transmitter],
-			&link_enc_aux_regs[enc_init_data->channel - 1],
-			&link_enc_hpd_regs[enc_init_data->hpd_source])) {
+	dce110_link_encoder_construct(enc110,
+				      enc_init_data,
+				      &link_enc_feature,
+				      &link_enc_regs[enc_init_data->transmitter],
+				      &link_enc_aux_regs[enc_init_data->channel - 1],
+				      &link_enc_hpd_regs[enc_init_data->hpd_source]);
 
-		return &enc110->base;
-	}
-
-	BREAK_TO_DEBUGGER();
-	kfree(enc110);
-	return NULL;
+	return &enc110->base;
 }
 
 static struct input_pixel_processor *dce120_ipp_create(
