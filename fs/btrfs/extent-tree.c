@@ -2585,6 +2585,26 @@ static void unselect_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_ref
 	btrfs_delayed_ref_unlock(head);
 }
 
+static int cleanup_extent_op(struct btrfs_trans_handle *trans,
+			     struct btrfs_fs_info *fs_info,
+			     struct btrfs_delayed_ref_head *head)
+{
+	struct btrfs_delayed_extent_op *extent_op = head->extent_op;
+	int ret;
+
+	if (!extent_op)
+		return 0;
+	head->extent_op = NULL;
+	if (head->must_insert_reserved) {
+		btrfs_free_delayed_extent_op(extent_op);
+		return 0;
+	}
+	spin_unlock(&head->lock);
+	ret = run_delayed_extent_op(trans, fs_info, &head->node, extent_op);
+	btrfs_free_delayed_extent_op(extent_op);
+	return ret ? ret : 1;
+}
+
 /*
  * Returns 0 on success or if called with an already aborted transaction.
  * Returns -ENOMEM or -EIO on failure and will abort the transaction.
@@ -2665,16 +2685,6 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			continue;
 		}
 
-		/*
-		 * record the must insert reserved flag before we
-		 * drop the spin lock.
-		 */
-		must_insert_reserved = locked_ref->must_insert_reserved;
-		locked_ref->must_insert_reserved = 0;
-
-		extent_op = locked_ref->extent_op;
-		locked_ref->extent_op = NULL;
-
 		if (!ref) {
 
 
@@ -2684,33 +2694,17 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			 */
 			ref = &locked_ref->node;
 
-			if (extent_op && must_insert_reserved) {
-				btrfs_free_delayed_extent_op(extent_op);
-				extent_op = NULL;
-			}
-
-			if (extent_op) {
-				spin_unlock(&locked_ref->lock);
-				ret = run_delayed_extent_op(trans, fs_info,
-							    ref, extent_op);
-				btrfs_free_delayed_extent_op(extent_op);
-
-				if (ret) {
-					/*
-					 * Need to reset must_insert_reserved if
-					 * there was an error so the abort stuff
-					 * can cleanup the reserved space
-					 * properly.
-					 */
-					if (must_insert_reserved)
-						locked_ref->must_insert_reserved = 1;
-					unselect_delayed_ref_head(delayed_refs,
-								  locked_ref);
-					btrfs_debug(fs_info,
-						    "run_delayed_extent_op returned %d",
-						    ret);
-					return ret;
-				}
+			ret = cleanup_extent_op(trans, fs_info, locked_ref);
+			if (ret < 0) {
+				unselect_delayed_ref_head(delayed_refs,
+							  locked_ref);
+				btrfs_debug(fs_info,
+					    "run_delayed_extent_op returned %d",
+					    ret);
+				return ret;
+			} else if (ret > 0) {
+				/* We dropped our lock, we need to loop. */
+				ret = 0;
 				continue;
 			}
 
@@ -2759,6 +2753,15 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 				WARN_ON(1);
 			}
 		}
+		/*
+		 * Record the must-insert_reserved flag before we drop the spin
+		 * lock.
+		 */
+		must_insert_reserved = locked_ref->must_insert_reserved;
+		locked_ref->must_insert_reserved = 0;
+
+		extent_op = locked_ref->extent_op;
+		locked_ref->extent_op = NULL;
 		spin_unlock(&locked_ref->lock);
 
 		ret = run_one_delayed_ref(trans, fs_info, ref, extent_op,
