@@ -1460,7 +1460,7 @@ static int r128_cce_blit(struct drm_device *dev, void *data, struct drm_file *fi
 	return ret;
 }
 
-static int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_depth_t *depth = data;
@@ -1492,7 +1492,7 @@ static int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *f
 	return ret;
 }
 
-static int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_stipple_t *stipple = data;
@@ -1582,7 +1582,7 @@ static int r128_cce_indirect(struct drm_device *dev, void *data, struct drm_file
 	return 0;
 }
 
-static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_getparam_t *param = data;
