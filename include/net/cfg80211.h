@@ -5428,9 +5428,6 @@ cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
- * @authorized: true if the 802.1X authentication was done by the driver or is
- *	not needed (e.g., when Fast Transition protocol was used), false
- *	otherwise. Ignored for networks that don't use 802.1X authentication.
  */
 struct cfg80211_roam_info {
 	struct ieee80211_channel *channel;
@@ -5440,7 +5437,6 @@ struct cfg80211_roam_info {
 	size_t req_ie_len;
 	const u8 *resp_ie;
 	size_t resp_ie_len;
-	bool authorized;
 };
 
 /**
@@ -5463,6 +5459,23 @@ struct cfg80211_roam_info {
  */
 void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 		     gfp_t gfp);
+
+/**
+ * cfg80211_port_authorized - notify cfg80211 of successful security association
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the AP
+ * @gfp: allocation flags
+ *
+ * This function should be called by a driver that supports 4 way handshake
+ * offload after a security association was successfully established (i.e.,
+ * the 4 way handshake was completed successfully). The call to this function
+ * should be preceded with a call to cfg80211_connect_result(),
+ * cfg80211_connect_done(), cfg80211_connect_bss() or cfg80211_roamed() to
+ * indicate the 802.11 association.
+ */
+void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
+			      gfp_t gfp);
 
 /**
  * cfg80211_disconnected - notify cfg80211 that connection was dropped
