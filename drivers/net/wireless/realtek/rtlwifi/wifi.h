@@ -169,7 +169,7 @@ enum rtl8192c_h2c_cmd {
 #define MAX_BASE_NUM_IN_PHY_REG_PG_24G  6
 #define MAX_BASE_NUM_IN_PHY_REG_PG_5G	5
 
-#define RTL8192EE_SEG_NUM		1 /* 0:2 seg, 1: 4 seg, 2: 8 seg */
+#define BUFDESC_SEG_NUM		1 /* 0:2 seg, 1: 4 seg, 2: 8 seg */
 
 #define DEL_SW_IDX_SZ		30
 #define BAND_NUM			3
@@ -177,8 +177,7 @@ enum rtl8192c_h2c_cmd {
 /* For now, it's just for 8192ee
  * but not OK yet, keep it 0
  */
-#define DMA_IS_64BIT 0
-#define RTL8192EE_SEG_NUM		1 /* 0:2 seg, 1: 4 seg, 2: 8 seg */
+#define RTL8192EE_SEG_NUM		BUFDESC_SEG_NUM
 
 enum rf_tx_num {
 	RF_1TX = 0,
@@ -2162,7 +2161,8 @@ struct rtl_hal_ops {
 			     enum led_ctl_mode ledaction);
 	void (*set_desc)(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 			 u8 desc_name, u8 *val);
-	u32 (*get_desc) (u8 *pdesc, bool istx, u8 desc_name);
+	u64 (*get_desc)(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+			u8 desc_name);
 	bool (*is_tx_desc_closed) (struct ieee80211_hw *hw,
 				   u8 hw_queue, u16 index);
 	void (*tx_polling) (struct ieee80211_hw *hw, u8 hw_queue);
@@ -2260,6 +2260,9 @@ struct rtl_mod_params {
 	 * submodules should set their own default value
 	 */
 	bool msi_support;
+
+	/* default: 0 = dma 32 */
+	bool dma64;
 
 	/* default 0: 1 means disable */
 	bool disable_watchdog;

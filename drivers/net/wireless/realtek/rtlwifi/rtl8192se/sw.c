@@ -240,7 +240,7 @@ static bool rtl92se_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
-	u8 own = (u8)rtl92se_get_desc(entry, true, HW_DESC_OWN);
+	u8 own = (u8)rtl92se_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	if (own)
 		return false;

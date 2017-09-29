@@ -259,6 +259,7 @@ static struct rtl_mod_params rtl92ee_mod_params = {
 	.swctrl_lps = false,
 	.fwctrl_lps = true,
 	.msi_support = true,
+	.dma64 = false,
 	.debug_level = 0,
 	.debug_mask = 0,
 };
@@ -376,6 +377,7 @@ module_param_named(ips, rtl92ee_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl92ee_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl92ee_mod_params.fwctrl_lps, bool, 0444);
 module_param_named(msi, rtl92ee_mod_params.msi_support, bool, 0444);
+module_param_named(dma64, rtl92ee_mod_params.dma64, bool, 0444);
 module_param_named(disable_watchdog, rtl92ee_mod_params.disable_watchdog,
 		   bool, 0444);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
@@ -383,6 +385,7 @@ MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");
+MODULE_PARM_DESC(dma64, "Set to 1 to use DMA 64 (default 0)\n");
 MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
 MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog, "Set to 1 to disable the watchdog (default 0)\n");

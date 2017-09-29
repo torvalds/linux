@@ -586,7 +586,7 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		skb = __skb_dequeue(&ring->queue);
 		pci_unmap_single(rtlpci->pdev,
 				 rtlpriv->cfg->ops->
-					     get_desc((u8 *)entry, true,
+					     get_desc(hw, (u8 *)entry, true,
 						      HW_DESC_TXBUFF_ADDR),
 				 skb->len, PCI_DMA_TODEVICE);
 
@@ -691,9 +691,10 @@ remap:
 		return 0;
 	rtlpci->rx_ring[rxring_idx].rx_buf[desc_idx] = skb;
 	if (rtlpriv->use_new_trx_flow) {
+		/* skb->cb may be 64 bit address */
 		rtlpriv->cfg->ops->set_desc(hw, (u8 *)entry, false,
 					    HW_DESC_RX_PREPARE,
-					    (u8 *)&bufferaddress);
+					    (u8 *)(dma_addr_t *)skb->cb);
 	} else {
 		rtlpriv->cfg->ops->set_desc(hw, (u8 *)entry, false,
 					    HW_DESC_RXBUFF_ADDR,
@@ -798,7 +799,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			pdesc = &rtlpci->rx_ring[rxring_idx].desc[
 				rtlpci->rx_ring[rxring_idx].idx];
 
-			own = (u8)rtlpriv->cfg->ops->get_desc((u8 *)pdesc,
+			own = (u8)rtlpriv->cfg->ops->get_desc(hw, (u8 *)pdesc,
 							      false,
 							      HW_DESC_OWN);
 			if (own) /* wait data to be filled by hardware */
@@ -825,7 +826,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 							   (u8 *)buffer_desc,
 							   hw_queue);
 
-		len = rtlpriv->cfg->ops->get_desc((u8 *)pdesc, false,
+		len = rtlpriv->cfg->ops->get_desc(hw, (u8 *)pdesc, false,
 						  HW_DESC_RXPKT_LEN);
 
 		if (skb->end - skb->tail > len) {
@@ -1122,7 +1123,7 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 	if (pskb) {
 		pci_unmap_single(rtlpci->pdev,
 				 rtlpriv->cfg->ops->get_desc(
-				 (u8 *)entry, true, HW_DESC_TXBUFF_ADDR),
+				 hw, (u8 *)entry, true, HW_DESC_TXBUFF_ADDR),
 				 pskb->len, PCI_DMA_TODEVICE);
 		kfree_skb(pskb);
 	}
@@ -1378,7 +1379,8 @@ static void _rtl_pci_free_tx_ring(struct ieee80211_hw *hw,
 
 		pci_unmap_single(rtlpci->pdev,
 				 rtlpriv->cfg->
-					     ops->get_desc((u8 *)entry, true,
+					     ops->get_desc(hw, (u8 *)entry,
+						   true,
 						   HW_DESC_TXBUFF_ADDR),
 				 skb->len, PCI_DMA_TODEVICE);
 		kfree_skb(skb);
@@ -1507,7 +1509,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 			for (i = 0; i < rtlpci->rxringcount; i++) {
 				entry = &rtlpci->rx_ring[rxring_idx].desc[i];
 				bufferaddress =
-				  rtlpriv->cfg->ops->get_desc((u8 *)entry,
+				  rtlpriv->cfg->ops->get_desc(hw, (u8 *)entry,
 				  false , HW_DESC_RXBUFF_ADDR);
 				memset((u8 *)entry , 0 ,
 				       sizeof(*rtlpci->rx_ring
@@ -1560,7 +1562,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 
 				pci_unmap_single(rtlpci->pdev,
 						 rtlpriv->cfg->ops->
-							 get_desc((u8 *)
+							 get_desc(hw, (u8 *)
 							 entry,
 							 true,
 							 HW_DESC_TXBUFF_ADDR),
@@ -1673,7 +1675,7 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 	if (rtlpriv->use_new_trx_flow) {
 		ptx_bd_desc = &ring->buffer_desc[idx];
 	} else {
-		own = (u8) rtlpriv->cfg->ops->get_desc((u8 *)pdesc,
+		own = (u8)rtlpriv->cfg->ops->get_desc(hw, (u8 *)pdesc,
 				true, HW_DESC_OWN);
 
 		if ((own == 1) && (hw_queue != BEACON_QUEUE)) {
@@ -2163,6 +2165,21 @@ static int rtl_pci_intr_mode_decide(struct ieee80211_hw *hw)
 	return ret;
 }
 
+static void platform_enable_dma64(struct pci_dev *pdev, bool dma64)
+{
+	u8	value;
+
+	pci_read_config_byte(pdev, 0x719, &value);
+
+	/* 0x719 Bit5 is DMA64 bit fetch. */
+	if (dma64)
+		value |= BIT(5);
+	else
+		value &= ~BIT(5);
+
+	pci_write_config_byte(pdev, 0x719, value);
+}
+
 int rtl_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
@@ -2181,13 +2198,25 @@ int rtl_pci_probe(struct pci_dev *pdev,
 		return err;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (((struct rtl_hal_cfg *)id->driver_data)->mod_params->dma64 &&
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
+			WARN_ONCE(true,
+				  "Unable to obtain 64bit DMA for consistent allocations\n");
+			err = -ENOMEM;
+			goto fail1;
+		}
+
+		platform_enable_dma64(pdev, true);
+	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			WARN_ONCE(true,
 				  "rtlwifi: Unable to obtain 32bit DMA for consistent allocations\n");
 			err = -ENOMEM;
 			goto fail1;
 		}
+
+		platform_enable_dma64(pdev, false);
 	}
 
 	pci_set_master(pdev);
