@@ -41,15 +41,13 @@
 #define REG(reg)\
 	(hpd->regs->reg)
 
-static bool dal_hw_hpd_construct(
+static void dal_hw_hpd_construct(
 	struct hw_hpd *pin,
 	enum gpio_id id,
 	uint32_t en,
 	struct dc_context *ctx)
 {
-	if (!dal_hw_gpio_construct(&pin->base, id, en, ctx))
-		return false;
-	return true;
+	dal_hw_gpio_construct(&pin->base, id, en, ctx);
 }
 
 static void dal_hw_hpd_destruct(
@@ -126,30 +124,14 @@ static const struct hw_gpio_pin_funcs funcs = {
 	.close = dal_hw_gpio_close,
 };
 
-static bool construct(
+static void construct(
 	struct hw_hpd *hpd,
 	enum gpio_id id,
 	uint32_t en,
 	struct dc_context *ctx)
 {
-	if (id != GPIO_ID_HPD) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
-
-	if ((en < GPIO_HPD_MIN) || (en > GPIO_HPD_MAX)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
-
-	if (!dal_hw_hpd_construct(hpd, id, en, ctx)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
-
+	dal_hw_hpd_construct(hpd, id, en, ctx);
 	hpd->base.base.funcs = &funcs;
-
-	return true;
 }
 
 struct hw_gpio_pin *dal_hw_hpd_create(
@@ -157,19 +139,24 @@ struct hw_gpio_pin *dal_hw_hpd_create(
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct hw_hpd *hpd = kzalloc(sizeof(struct hw_hpd), GFP_KERNEL);
+	struct hw_hpd *hpd;
 
+	if (id != GPIO_ID_HPD) {
+		ASSERT_CRITICAL(false);
+		return NULL;
+	}
+
+	if ((en < GPIO_HPD_MIN) || (en > GPIO_HPD_MAX)) {
+		ASSERT_CRITICAL(false);
+		return NULL;
+	}
+
+	hpd = kzalloc(sizeof(struct hw_hpd), GFP_KERNEL);
 	if (!hpd) {
 		ASSERT_CRITICAL(false);
 		return NULL;
 	}
 
-	if (construct(hpd, id, en, ctx))
-		return &hpd->base.base;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(hpd);
-
-	return NULL;
+	construct(hpd, id, en, ctx);
+	return &hpd->base.base;
 }

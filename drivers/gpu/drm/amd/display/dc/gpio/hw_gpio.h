@@ -109,7 +109,7 @@ struct hw_gpio {
 #define HW_GPIO_FROM_BASE(hw_gpio_pin) \
 	container_of((hw_gpio_pin), struct hw_gpio, base)
 
-bool dal_hw_gpio_construct(
+void dal_hw_gpio_construct(
 	struct hw_gpio *pin,
 	enum gpio_id id,
 	uint32_t en,

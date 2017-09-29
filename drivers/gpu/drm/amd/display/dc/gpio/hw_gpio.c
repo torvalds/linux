@@ -176,7 +176,7 @@ enum gpio_result dal_hw_gpio_config_mode(
 	}
 }
 
-bool dal_hw_gpio_construct(
+void dal_hw_gpio_construct(
 	struct hw_gpio *pin,
 	enum gpio_id id,
 	uint32_t en,
@@ -194,8 +194,6 @@ bool dal_hw_gpio_construct(
 	pin->store.mux = 0;
 
 	pin->mux_supported = false;
-
-	return true;
 }
 
 void dal_hw_gpio_destruct(

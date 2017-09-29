@@ -199,25 +199,14 @@ static const struct hw_gpio_pin_funcs funcs = {
 	.close = dal_hw_gpio_close,
 };
 
-static bool construct(
+static void construct(
 	struct hw_ddc *ddc,
 	enum gpio_id id,
 	uint32_t en,
 	struct dc_context *ctx)
 {
-	if ((en < GPIO_DDC_LINE_MIN) || (en > GPIO_DDC_LINE_MAX)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
-
-	if (!dal_hw_gpio_construct(&ddc->base, id, en, ctx)) {
-		ASSERT_CRITICAL(false);
-		return false;
-	}
-
+	dal_hw_gpio_construct(&ddc->base, id, en, ctx);
 	ddc->base.base.funcs = &funcs;
-
-	return true;
 }
 
 struct hw_gpio_pin *dal_hw_ddc_create(
@@ -225,19 +214,19 @@ struct hw_gpio_pin *dal_hw_ddc_create(
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct hw_ddc *pin = kzalloc(sizeof(struct hw_ddc), GFP_KERNEL);
+	struct hw_ddc *pin;
 
+	if ((en < GPIO_DDC_LINE_MIN) || (en > GPIO_DDC_LINE_MAX)) {
+		ASSERT_CRITICAL(false);
+		return NULL;
+	}
+
+	pin = kzalloc(sizeof(struct hw_ddc), GFP_KERNEL);
 	if (!pin) {
 		ASSERT_CRITICAL(false);
 		return NULL;
 	}
 
-	if (construct(pin, id, en, ctx))
-		return &pin->base.base;
-
-	ASSERT_CRITICAL(false);
-
-	kfree(pin);
-
-	return NULL;
+	construct(pin, id, en, ctx);
+	return &pin->base.base;
 }
