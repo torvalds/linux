@@ -404,12 +404,8 @@ static struct timing_generator *dce80_timing_generator_create(
 	if (!tg110)
 		return NULL;
 
-	if (dce80_timing_generator_construct(tg110, ctx, instance, offsets))
-		return &tg110->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(tg110);
-	return NULL;
+	dce80_timing_generator_construct(tg110, ctx, instance, offsets);
+	return &tg110->base;
 }
 
 static struct output_pixel_processor *dce80_opp_create(

@@ -152,15 +152,12 @@ static const struct timing_generator_funcs dce80_tg_funcs = {
 				dce80_timing_generator_enable_advanced_request,
 };
 
-bool dce80_timing_generator_construct(
+void dce80_timing_generator_construct(
 	struct dce110_timing_generator *tg110,
 	struct dc_context *ctx,
 	uint32_t instance,
 	const struct dce110_timing_generator_offsets *offsets)
 {
-	if (!tg110)
-		return false;
-
 	tg110->controller_id = CONTROLLER_ID_D0 + instance;
 	tg110->base.inst = instance;
 	tg110->offsets = *offsets;
@@ -177,8 +174,6 @@ bool dce80_timing_generator_construct(
 	tg110->min_h_blank = 56;
 	tg110->min_h_front_porch = 4;
 	tg110->min_h_back_porch = 4;
-
-	return true;
 }
 
 void dce80_timing_generator_enable_advanced_request(

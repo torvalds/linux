@@ -30,7 +30,7 @@
 #include "../include/grph_object_id.h"
 
 /* DCE8.0 implementation inherits from DCE11.0 */
-bool dce80_timing_generator_construct(
+void dce80_timing_generator_construct(
 	struct dce110_timing_generator *tg,
 	struct dc_context *ctx,
 	uint32_t instance,
