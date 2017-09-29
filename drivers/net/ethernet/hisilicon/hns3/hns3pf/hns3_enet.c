@@ -2865,7 +2865,7 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
-	bool if_running = netif_running(ndev);
+	bool if_running;
 	int ret;
 	u8 i;
 
@@ -2874,6 +2874,8 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 
 	if (!ndev)
 		return -ENODEV;
+
+	if_running = netif_running(ndev);
 
 	ret = netdev_set_num_tc(ndev, tc);
 	if (ret)
