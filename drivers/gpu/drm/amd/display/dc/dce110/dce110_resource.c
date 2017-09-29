@@ -586,13 +586,9 @@ static struct output_pixel_processor *dce110_opp_create(
 	if (!opp)
 		return NULL;
 
-	if (dce110_opp_construct(opp,
-				ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask))
-		return &opp->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(opp);
-	return NULL;
+	dce110_opp_construct(opp,
+			     ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask);
+	return &opp->base;
 }
 
 struct clock_source *dce110_clock_source_create(

@@ -540,7 +540,7 @@ static const struct opp_funcs funcs = {
 	.opp_program_bit_depth_reduction = dce110_opp_program_bit_depth_reduction
 };
 
-bool dce110_opp_construct(struct dce110_opp *opp110,
+void dce110_opp_construct(struct dce110_opp *opp110,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dce_opp_registers *regs,
@@ -556,8 +556,6 @@ bool dce110_opp_construct(struct dce110_opp *opp110,
 	opp110->regs = regs;
 	opp110->opp_shift = opp_shift;
 	opp110->opp_mask = opp_mask;
-
-	return true;
 }
 
 void dce110_opp_destroy(struct output_pixel_processor **opp)

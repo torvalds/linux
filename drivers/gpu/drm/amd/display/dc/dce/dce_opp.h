@@ -272,7 +272,7 @@ struct dce110_opp {
 	const struct dce_opp_mask *opp_mask;
 };
 
-bool dce110_opp_construct(struct dce110_opp *opp110,
+void dce110_opp_construct(struct dce110_opp *opp110,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dce_opp_registers *regs,
