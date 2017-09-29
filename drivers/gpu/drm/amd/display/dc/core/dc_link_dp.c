@@ -32,6 +32,14 @@ enum {
 	LINK_TRAINING_MAX_CR_RETRY = 100
 };
 
+static bool decide_fallback_link_setting(
+		struct dc_link_settings initial_link_settings,
+		struct dc_link_settings *current_link_setting,
+		enum link_training_result training_result);
+static struct dc_link_settings get_common_supported_link_settings (
+		struct dc_link_settings link_setting_a,
+		struct dc_link_settings link_setting_b);
+
 static void wait_for_training_aux_rd_interval(
 	struct dc_link *link,
 	uint32_t default_wait_in_micro_secs)
@@ -1150,7 +1158,7 @@ bool dp_hbr_verify_link_cap(
 	return success;
 }
 
-struct dc_link_settings get_common_supported_link_settings (
+static struct dc_link_settings get_common_supported_link_settings (
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b)
 {
@@ -1215,7 +1223,7 @@ enum dc_lane_count reduce_lane_count(enum dc_lane_count lane_count)
 	}
 }
 
-enum dc_link_rate reduce_link_rate(enum dc_link_rate link_rate)
+static enum dc_link_rate reduce_link_rate(enum dc_link_rate link_rate)
 {
 	switch (link_rate) {
 	case LINK_RATE_HIGH3:
@@ -1231,7 +1239,7 @@ enum dc_link_rate reduce_link_rate(enum dc_link_rate link_rate)
 	}
 }
 
-enum dc_lane_count increase_lane_count(enum dc_lane_count lane_count)
+static enum dc_lane_count increase_lane_count(enum dc_lane_count lane_count)
 {
 	switch (lane_count) {
 	case LANE_COUNT_ONE:
@@ -1243,7 +1251,7 @@ enum dc_lane_count increase_lane_count(enum dc_lane_count lane_count)
 	}
 }
 
-enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
+static enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
 {
 	switch (link_rate) {
 	case LINK_RATE_LOW:
@@ -1265,7 +1273,7 @@ enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
  *			false - has reached minimum setting
  *					and no further fallback could be done
  */
-bool decide_fallback_link_setting(
+static bool decide_fallback_link_setting(
 		struct dc_link_settings initial_link_settings,
 		struct dc_link_settings *current_link_setting,
 		enum link_training_result training_result)
