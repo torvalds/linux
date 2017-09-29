@@ -10861,6 +10861,9 @@ skip_bad_vf_detection:
 	if (!test_bit(__IXGBE_SERVICE_INITED, &adapter->state))
 		return PCI_ERS_RESULT_DISCONNECT;
 
+	if (!netif_device_present(netdev))
+		return PCI_ERS_RESULT_DISCONNECT;
+
 	rtnl_lock();
 	netif_device_detach(netdev);
 
