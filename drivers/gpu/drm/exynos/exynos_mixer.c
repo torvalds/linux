@@ -115,6 +115,7 @@ struct mixer_context {
 	struct clk		*sclk_hdmi;
 	struct clk		*mout_mixer;
 	enum mixer_version_id	mxr_ver;
+	int			scan_value;
 };
 
 struct mixer_drv_data {
@@ -367,23 +368,11 @@ static void mixer_cfg_scan(struct mixer_context *ctx, int width, int height)
 	val = test_bit(MXR_BIT_INTERLACE, &ctx->flags) ?
 		MXR_CFG_SCAN_INTERLACE : MXR_CFG_SCAN_PROGRESSIVE;
 
-	/* setup display size */
-	if (ctx->mxr_ver == MXR_VER_128_0_0_184) {
+	if (ctx->mxr_ver == MXR_VER_128_0_0_184)
 		mixer_reg_write(ctx, MXR_RESOLUTION,
 			MXR_MXR_RES_HEIGHT(height) | MXR_MXR_RES_WIDTH(width));
-	} else {
-		/* choosing between proper HD and SD mode */
-		if (height <= 480)
-			val |= MXR_CFG_SCAN_NTSC | MXR_CFG_SCAN_SD;
-		else if (height <= 576)
-			val |= MXR_CFG_SCAN_PAL | MXR_CFG_SCAN_SD;
-		else if (height <= 720)
-			val |= MXR_CFG_SCAN_HD_720 | MXR_CFG_SCAN_HD;
-		else if (height <= 1080)
-			val |= MXR_CFG_SCAN_HD_1080 | MXR_CFG_SCAN_HD;
-		else
-			val |= MXR_CFG_SCAN_HD_720 | MXR_CFG_SCAN_HD;
-	}
+	else
+		val |= ctx->scan_value;
 
 	mixer_reg_writemask(ctx, MXR_CFG, val, MXR_CFG_SCAN_MASK);
 }
@@ -466,11 +455,6 @@ static void mixer_stop(struct mixer_context *ctx)
 static void mixer_commit(struct mixer_context *ctx)
 {
 	struct drm_display_mode *mode = &ctx->crtc->base.state->adjusted_mode;
-
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
-	else
-		__clear_bit(MXR_BIT_INTERLACE, &ctx->flags);
 
 	mixer_cfg_scan(ctx, mode->hdisplay, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
@@ -1034,6 +1018,52 @@ static int mixer_mode_valid(struct exynos_drm_crtc *crtc,
 	return MODE_BAD;
 }
 
+static bool mixer_mode_fixup(struct exynos_drm_crtc *crtc,
+		   const struct drm_display_mode *mode,
+		   struct drm_display_mode *adjusted_mode)
+{
+	struct mixer_context *ctx = crtc->ctx;
+	int width = mode->hdisplay, height = mode->vdisplay, i;
+
+	struct {
+		int hdisplay, vdisplay, htotal, vtotal, scan_val;
+	} static const modes[] = {
+		{ 720, 480, 858, 525, MXR_CFG_SCAN_NTSC | MXR_CFG_SCAN_SD },
+		{ 720, 576, 864, 625, MXR_CFG_SCAN_PAL | MXR_CFG_SCAN_SD },
+		{ 1280, 720, 1650, 750, MXR_CFG_SCAN_HD_720 | MXR_CFG_SCAN_HD },
+		{ 1920, 1080, 2200, 1125, MXR_CFG_SCAN_HD_1080 |
+						MXR_CFG_SCAN_HD }
+	};
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
+	else
+		__clear_bit(MXR_BIT_INTERLACE, &ctx->flags);
+
+	if (ctx->mxr_ver == MXR_VER_128_0_0_184)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(modes); ++i)
+		if (width <= modes[i].hdisplay && height <= modes[i].vdisplay) {
+			ctx->scan_value = modes[i].scan_val;
+			if (width < modes[i].hdisplay ||
+			    height < modes[i].vdisplay) {
+				adjusted_mode->hdisplay = modes[i].hdisplay;
+				adjusted_mode->hsync_start = modes[i].hdisplay;
+				adjusted_mode->hsync_end = modes[i].htotal;
+				adjusted_mode->htotal = modes[i].htotal;
+				adjusted_mode->vdisplay = modes[i].vdisplay;
+				adjusted_mode->vsync_start = modes[i].vdisplay;
+				adjusted_mode->vsync_end = modes[i].vtotal;
+				adjusted_mode->vtotal = modes[i].vtotal;
+			}
+
+			return true;
+		}
+
+	return false;
+}
+
 static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.enable			= mixer_enable,
 	.disable		= mixer_disable,
@@ -1044,6 +1074,7 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.disable_plane		= mixer_disable_plane,
 	.atomic_flush		= mixer_atomic_flush,
 	.mode_valid		= mixer_mode_valid,
+	.mode_fixup		= mixer_mode_fixup,
 };
 
 static const struct mixer_drv_data exynos5420_mxr_drv_data = {
