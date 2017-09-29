@@ -36,10 +36,7 @@ struct PWR_Command_Table {
 
 typedef struct PWR_Command_Table PWR_Command_Table;
 
-
-#define PWR_VIRUS_TABLE_SIZE  10031
-
-static const PWR_Command_Table pwr_virus_table[PWR_VIRUS_TABLE_SIZE] = {
+static const PWR_Command_Table pwr_virus_table[] = {
 	{ 0x00000000, mmRLC_CNTL                                 },
 	{ 0x00000002, mmRLC_SRM_CNTL                             },
 	{ 0x15000000, mmCP_ME_CNTL                               },

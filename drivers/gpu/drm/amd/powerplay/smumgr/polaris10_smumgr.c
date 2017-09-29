@@ -68,7 +68,7 @@ static int polaris10_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 
 	const PWR_Command_Table *pvirus = pwr_virus_table;
 
-	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
+	for (i = 0; i < ARRAY_SIZE(pwr_virus_table); i++) {
 		reg  = pvirus->reg;
 		data = pvirus->data;
 		if (reg != 0xffffffff) {

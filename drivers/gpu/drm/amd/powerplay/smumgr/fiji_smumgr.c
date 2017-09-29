@@ -167,7 +167,7 @@ static int fiji_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 
 	const PWR_Command_Table *pvirus = PwrVirusTable;
 
-	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
+	for (i = 0; i < ARRAY_SIZE(PwrVirusTable); i++) {
 		reg  = pvirus->reg;
 		data = pvirus->data;
 		if (reg != 0xffffffff)
