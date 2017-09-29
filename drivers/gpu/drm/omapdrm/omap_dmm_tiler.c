@@ -166,6 +166,11 @@ static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 	dmm_write(dmm, status, DMM_PAT_IRQSTATUS);
 
 	for (i = 0; i < dmm->num_engines; i++) {
+		if (status & DMM_IRQSTAT_ERR_MASK)
+			dev_err(dmm->dev,
+				"irq error(engine%d): IRQSTAT 0x%02x\n",
+				i, status & 0xff);
+
 		if (status & DMM_IRQSTAT_LST) {
 			if (dmm->engines[i].async)
 				release_engine(&dmm->engines[i]);
