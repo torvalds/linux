@@ -126,7 +126,7 @@ struct aux_payloads {
 	struct vector payloads;
 };
 
-struct i2c_payloads *dal_ddc_i2c_payloads_create(struct dc_context *ctx, uint32_t count)
+static struct i2c_payloads *dal_ddc_i2c_payloads_create(struct dc_context *ctx, uint32_t count)
 {
 	struct i2c_payloads *payloads;
 
@@ -144,17 +144,17 @@ struct i2c_payloads *dal_ddc_i2c_payloads_create(struct dc_context *ctx, uint32_
 
 }
 
-struct i2c_payload *dal_ddc_i2c_payloads_get(struct i2c_payloads *p)
+static struct i2c_payload *dal_ddc_i2c_payloads_get(struct i2c_payloads *p)
 {
 	return (struct i2c_payload *)p->payloads.container;
 }
 
-uint32_t  dal_ddc_i2c_payloads_get_count(struct i2c_payloads *p)
+static uint32_t dal_ddc_i2c_payloads_get_count(struct i2c_payloads *p)
 {
 	return p->payloads.count;
 }
 
-void dal_ddc_i2c_payloads_destroy(struct i2c_payloads **p)
+static void dal_ddc_i2c_payloads_destroy(struct i2c_payloads **p)
 {
 	if (!p || !*p)
 		return;
@@ -164,7 +164,7 @@ void dal_ddc_i2c_payloads_destroy(struct i2c_payloads **p)
 
 }
 
-struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_t count)
+static struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_t count)
 {
 	struct aux_payloads *payloads;
 
@@ -181,17 +181,17 @@ struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_
 	return NULL;
 }
 
-struct aux_payload *dal_ddc_aux_payloads_get(struct aux_payloads *p)
+static struct aux_payload *dal_ddc_aux_payloads_get(struct aux_payloads *p)
 {
 	return (struct aux_payload *)p->payloads.container;
 }
 
-uint32_t  dal_ddc_aux_payloads_get_count(struct aux_payloads *p)
+static uint32_t  dal_ddc_aux_payloads_get_count(struct aux_payloads *p)
 {
 	return p->payloads.count;
 }
 
-void dal_ddc_aux_payloads_destroy(struct aux_payloads **p)
+static void dal_ddc_aux_payloads_destroy(struct aux_payloads **p)
 {
 	if (!p || !*p)
 		return;

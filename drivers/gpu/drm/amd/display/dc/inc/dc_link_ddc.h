@@ -57,16 +57,6 @@ struct dp_receiver_id_info;
 struct i2c_payloads;
 struct aux_payloads;
 
-struct i2c_payloads *dal_ddc_i2c_payloads_create(struct dc_context *ctx, uint32_t count);
-struct i2c_payload *dal_ddc_i2c_payloads_get(struct i2c_payloads *p);
-uint32_t  dal_ddc_i2c_payloads_get_count(struct i2c_payloads *p);
-void dal_ddc_i2c_payloads_destroy(struct i2c_payloads **p);
-
-struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_t count);
-struct aux_payload *dal_ddc_aux_payloads_get(struct aux_payloads *p);
-uint32_t dal_ddc_aux_payloads_get_count(struct aux_payloads *p);
-void dal_ddc_aux_payloads_destroy(struct aux_payloads **p);
-
 void dal_ddc_i2c_payloads_add(
 		struct i2c_payloads *payloads,
 		uint32_t address,
