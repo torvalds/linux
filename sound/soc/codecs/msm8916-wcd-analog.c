@@ -104,7 +104,7 @@
 #define CDC_A_MICB_1_VAL		(0xf141)
 #define MICB_MIN_VAL 1600
 #define MICB_STEP_SIZE 50
-#define MICB_VOLTAGE_REGVAL(v)		((v - MICB_MIN_VAL)/MICB_STEP_SIZE)
+#define MICB_VOLTAGE_REGVAL(v)		(((v - MICB_MIN_VAL)/MICB_STEP_SIZE) << 3)
 #define MICB_1_VAL_MICB_OUT_VAL_MASK	GENMASK(7, 3)
 #define MICB_1_VAL_MICB_OUT_VAL_V2P70V	((0x16)  << 3)
 #define MICB_1_VAL_MICB_OUT_VAL_V1P80V	((0x4)  << 3)
@@ -349,8 +349,9 @@ static void pm8916_wcd_analog_micbias_enable(struct snd_soc_codec *codec)
 			    | MICB_1_CTL_EXT_PRECHARG_EN_ENABLE);
 
 	if (wcd->micbias_mv) {
-		snd_soc_write(codec, CDC_A_MICB_1_VAL,
-			      MICB_VOLTAGE_REGVAL(wcd->micbias_mv));
+		snd_soc_update_bits(codec, CDC_A_MICB_1_VAL,
+				    MICB_1_VAL_MICB_OUT_VAL_MASK,
+				    MICB_VOLTAGE_REGVAL(wcd->micbias_mv));
 		/*
 		 * Special headset needs MICBIAS as 2.7V so wait for
 		 * 50 msec for the MICBIAS to reach 2.7 volts.
