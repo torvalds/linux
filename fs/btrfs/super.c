@@ -326,6 +326,9 @@ enum {
 #ifdef CONFIG_BTRFS_DEBUG
 	Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
 #endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	Opt_ref_verify,
+#endif
 	Opt_err,
 };
 
@@ -386,6 +389,9 @@ static const match_table_t tokens = {
 	{Opt_fragment_data, "fragment=data"},
 	{Opt_fragment_metadata, "fragment=metadata"},
 	{Opt_fragment_all, "fragment=all"},
+#endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	{Opt_ref_verify, "ref_verify"},
 #endif
 	{Opt_err, NULL},
 };
@@ -823,6 +829,12 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_fragment_data:
 			btrfs_info(info, "fragmenting data");
 			btrfs_set_opt(info->mount_opt, FRAGMENT_DATA);
+			break;
+#endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+		case Opt_ref_verify:
+			btrfs_info(info, "doing ref verification");
+			btrfs_set_opt(info->mount_opt, REF_VERIFY);
 			break;
 #endif
 		case Opt_err:
@@ -1305,6 +1317,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	if (btrfs_test_opt(info, FRAGMENT_METADATA))
 		seq_puts(seq, ",fragment=metadata");
 #endif
+	if (btrfs_test_opt(info, REF_VERIFY))
+		seq_puts(seq, ",ref_verify");
 	seq_printf(seq, ",subvolid=%llu",
 		  BTRFS_I(d_inode(dentry))->root->root_key.objectid);
 	seq_puts(seq, ",subvol=");
@@ -2318,6 +2332,9 @@ static void btrfs_print_mod_info(void)
 #endif
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 			", integrity-checker=on"
+#endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+			", ref-verify=on"
 #endif
 			"\n",
 			btrfs_crc32c_impl());
