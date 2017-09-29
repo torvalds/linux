@@ -1099,6 +1099,42 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw, bool isht, bool isvht,
 }
 EXPORT_SYMBOL(rtlwifi_rate_mapping);
 
+static u8 _rtl_get_tx_hw_rate(struct ieee80211_hw *hw,
+			      struct ieee80211_tx_info *info)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_tx_rate *r = &info->status.rates[0];
+	struct ieee80211_rate *txrate;
+	u8 hw_value = 0x0;
+
+	if (r->flags & IEEE80211_TX_RC_MCS) {
+		/* HT MCS0-15 */
+		hw_value = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15] - 15 +
+			   r->idx;
+	} else if (r->flags & IEEE80211_TX_RC_VHT_MCS) {
+		/* VHT MCS0-9, NSS */
+		if (ieee80211_rate_get_vht_nss(r) == 2)
+			hw_value = rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS9];
+		else
+			hw_value = rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS9];
+
+		hw_value = hw_value - 9 + ieee80211_rate_get_vht_mcs(r);
+	} else {
+		/* legacy */
+		txrate = ieee80211_get_tx_rate(hw, info);
+
+		if (txrate)
+			hw_value = txrate->hw_value;
+	}
+
+	/* check 5G band */
+	if (rtlpriv->rtlhal.current_bandtype == BAND_ON_5G &&
+	    hw_value < rtlpriv->cfg->maps[RTL_RC_OFDM_RATE6M])
+		hw_value = rtlpriv->cfg->maps[RTL_RC_OFDM_RATE6M];
+
+	return hw_value;
+}
+
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
 		      struct ieee80211_sta *sta,
@@ -1107,12 +1143,10 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
-	struct ieee80211_rate *txrate;
+
 	__le16 fc = rtl_get_fc(skb);
 
-	txrate = ieee80211_get_tx_rate(hw, info);
-	if (txrate)
-		tcb_desc->hw_rate = txrate->hw_value;
+	tcb_desc->hw_rate = _rtl_get_tx_hw_rate(hw, info);
 
 	if (rtl_is_tx_report_skb(hw, skb))
 		tcb_desc->use_spe_rpt = 1;
