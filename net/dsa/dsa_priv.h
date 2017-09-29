@@ -113,6 +113,25 @@ int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 int dsa_master_ethtool_setup(struct net_device *dev);
 void dsa_master_ethtool_restore(struct net_device *dev);
 
+static inline struct net_device *dsa_master_get_slave(struct net_device *dev,
+						      int device, int port)
+{
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_switch *ds;
+
+	if (device < 0 || device >= DSA_MAX_SWITCHES)
+		return NULL;
+
+	ds = dst->ds[device];
+	if (!ds)
+		return NULL;
+
+	if (port < 0 || port >= ds->num_ports)
+		return NULL;
+
+	return ds->ports[port].netdev;
+}
+
 /* port.c */
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
 		       struct switchdev_trans *trans);
@@ -180,11 +199,6 @@ extern const struct dsa_device_ops trailer_netdev_ops;
 static inline struct net_device *dsa_master_netdev(struct dsa_slave_priv *p)
 {
 	return p->dp->cpu_dp->netdev;
-}
-
-static inline struct dsa_port *dsa_get_cpu_port(struct dsa_switch_tree *dst)
-{
-	return dst->cpu_dp;
 }
 
 #endif
