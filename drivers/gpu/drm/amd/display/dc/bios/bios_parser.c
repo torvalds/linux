@@ -412,7 +412,7 @@ static enum bp_result bios_parser_get_voltage_ddc_info(struct dc_bios *dcb,
 	if (!DATA_TABLES(VoltageObjectInfo))
 		return result;
 
-	voltage_info_address = get_image(&bp->base, DATA_TABLES(VoltageObjectInfo), sizeof(ATOM_COMMON_TABLE_HEADER));
+	voltage_info_address = bios_get_image(&bp->base, DATA_TABLES(VoltageObjectInfo), sizeof(ATOM_COMMON_TABLE_HEADER));
 
 	header = (ATOM_COMMON_TABLE_HEADER *) voltage_info_address;
 
@@ -2328,7 +2328,7 @@ static uint32_t get_dest_obj_list(struct bios_parser *bp,
 		return 0;
 
 	offset += sizeof(uint8_t);
-	*id_list = (uint16_t *)get_image(&bp->base, offset, *number * sizeof(uint16_t));
+	*id_list = (uint16_t *)bios_get_image(&bp->base, offset, *number * sizeof(uint16_t));
 
 	if (!*id_list)
 		return 0;
@@ -2355,7 +2355,7 @@ static uint32_t get_src_obj_list(struct bios_parser *bp, ATOM_OBJECT *object,
 		return 0;
 
 	offset += sizeof(uint8_t);
-	*id_list = (uint16_t *)get_image(&bp->base, offset, *number * sizeof(uint16_t));
+	*id_list = (uint16_t *)bios_get_image(&bp->base, offset, *number * sizeof(uint16_t));
 
 	if (!*id_list)
 		return 0;

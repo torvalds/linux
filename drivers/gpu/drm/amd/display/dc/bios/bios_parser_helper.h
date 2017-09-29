@@ -28,13 +28,13 @@
 
 struct bios_parser;
 
-uint8_t *get_image(struct dc_bios *bp, uint32_t offset,
+uint8_t *bios_get_image(struct dc_bios *bp, uint32_t offset,
 	uint32_t size);
 
 bool bios_is_accelerated_mode(struct dc_bios *bios);
 void bios_set_scratch_acc_mode_change(struct dc_bios *bios);
 void bios_set_scratch_critical_state(struct dc_bios *bios, bool state);
 
-#define GET_IMAGE(type, offset) ((type *) get_image(&bp->base, offset, sizeof(type)))
+#define GET_IMAGE(type, offset) ((type *) bios_get_image(&bp->base, offset, sizeof(type)))
 
 #endif

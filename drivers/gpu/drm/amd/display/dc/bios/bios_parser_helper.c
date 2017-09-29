@@ -33,7 +33,7 @@
 #include "command_table.h"
 #include "bios_parser_types_internal.h"
 
-uint8_t *get_image(struct dc_bios *bp,
+uint8_t *bios_get_image(struct dc_bios *bp,
 	uint32_t offset,
 	uint32_t size)
 {

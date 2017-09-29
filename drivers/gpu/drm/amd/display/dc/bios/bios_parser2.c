@@ -535,7 +535,7 @@ static enum bp_result bios_parser_get_voltage_ddc_info(struct dc_bios *dcb,
 	if (!DATA_TABLES(voltageobject_info))
 		return result;
 
-	voltage_info_address = get_image(&bp->base,
+	voltage_info_address = bios_get_image(&bp->base,
 			DATA_TABLES(voltageobject_info),
 			sizeof(struct atom_common_table_header));
 
