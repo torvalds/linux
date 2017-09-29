@@ -312,12 +312,45 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	unsigned int baud = tty_termios_baud_rate(termios);
 	struct dw8250_data *d = p->private_data;
 	long rate;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	unsigned int div, rate_temp, diff;
+#endif
 	int ret;
 
 	if (IS_ERR(d->clk))
 		goto out;
 
 	clk_disable_unprepare(d->clk);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if ((baud * 16) <= 4000000) {
+		/*
+		 * Make sure uart sclk is high enough
+		 */
+		div = 4000000 / baud / 16;
+		rate = baud * 16 * div;
+	} else {
+		rate = baud * 16;
+	}
+
+	ret = clk_set_rate(d->clk, rate);
+	rate_temp = clk_get_rate(d->clk);
+	diff = rate * 20 / 1000;
+	/*
+	 * If rate_temp is not equal to rate, is means fractional frequency
+	 * division is failed. Then use Integer frequency division, and
+	 * the buad rate error must be under -+2%
+	 */
+	if ((rate_temp < rate) && ((rate - rate_temp) > diff)) {
+		ret = clk_set_rate(d->clk, rate + diff);
+		rate_temp = clk_get_rate(d->clk);
+		if ((rate_temp < rate) && ((rate - rate_temp) > diff))
+			dev_info(p->dev, "set rate:%ld, but get rate:%d\n",
+				 rate, rate_temp);
+		else if ((rate < rate_temp) && ((rate_temp - rate) > diff))
+			dev_info(p->dev, "set rate:%ld, but get rate:%d\n",
+				 rate, rate_temp);
+	}
+#else
 	rate = clk_round_rate(d->clk, baud * 16);
 	if (rate < 0)
 		ret = rate;
@@ -325,6 +358,7 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 		ret = -ENOENT;
 	else
 		ret = clk_set_rate(d->clk, rate);
+#endif
 	clk_prepare_enable(d->clk);
 
 	if (!ret)
