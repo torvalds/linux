@@ -75,6 +75,9 @@
 		compatible = "gpio-matrix-keypad";
 		debounce-delay-ms = <5>;
 		col-scan-delay-us = <2>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&matrix_keypad_default>;
+		pinctrl-1 = <&matrix_keypad_sleep>;
 
 		row-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH		/* Bank0, pin12 */
 			     &gpio0 13 GPIO_ACTIVE_HIGH		/* Bank0, pin13 */
@@ -304,6 +307,32 @@
 		mmc1_pins_sleep: pinmux_mmc1_pins_sleep {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x960, DS0_PIN_OUTPUT_PULLUP | PIN_INPUT | MUX_MODE7)
+			>;
+		};
+
+		matrix_keypad_default: matrix_keypad_default {
+			pinctrl-single,pins = <
+				 AM4372_IOPAD(0x92c, PIN_OUTPUT | MUX_MODE7)          /* mii1_tx_clk.gpio3_9 */
+				 AM4372_IOPAD(0x930, PIN_OUTPUT | MUX_MODE7)          /* mii1_rx_clk.gpio3_10 */
+				 AM4372_IOPAD(0x934, PIN_OUTPUT | MUX_MODE7)          /* mii1_rxd3.gpio2_18 */
+				 AM4372_IOPAD(0x938, PIN_OUTPUT | MUX_MODE7)          /* mii1_rxd2.gpio2_19 */
+				 AM4372_IOPAD(0x978, PIN_INPUT_PULLDOWN | MUX_MODE7)  /* uart1_ctsn.gpio0_12 */
+				 AM4372_IOPAD(0x97C, PIN_INPUT_PULLDOWN | MUX_MODE7)  /* uart1_rtsn.gpio0_13 */
+				 AM4372_IOPAD(0x980, PIN_INPUT_PULLDOWN | MUX_MODE7)  /* uart1_rxd.gpio0_14 */
+				 AM4372_IOPAD(0x984, PIN_INPUT_PULLDOWN | MUX_MODE7)  /* uart1_txd.gpio0_15 */
+			>;
+		};
+
+		matrix_keypad_sleep: matrix_keypad_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x92c, PIN_INPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x930, PIN_INPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x934, PIN_INPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x938, PIN_INPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x978, PIN_INPUT_PULLDOWN | MUX_MODE7)
+				AM4372_IOPAD(0x97C, PIN_INPUT_PULLDOWN | MUX_MODE7)
+				AM4372_IOPAD(0x980, PIN_INPUT_PULLDOWN | MUX_MODE7)
+				AM4372_IOPAD(0x984, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			>;
 		};
 
