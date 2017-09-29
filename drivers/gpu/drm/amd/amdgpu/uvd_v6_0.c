@@ -62,6 +62,22 @@ static uint64_t uvd_v6_0_ring_get_rptr(struct amdgpu_ring *ring)
 }
 
 /**
+ * uvd_v6_0_enc_ring_get_rptr - get enc read pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware enc read pointer
+ */
+static uint64_t uvd_v6_0_enc_ring_get_rptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	if (ring == &adev->uvd.ring_enc[0])
+		return RREG32(mmUVD_RB_RPTR);
+	else
+		return RREG32(mmUVD_RB_RPTR2);
+}
+/**
  * uvd_v6_0_ring_get_wptr - get write pointer
  *
  * @ring: amdgpu_ring pointer
@@ -76,6 +92,23 @@ static uint64_t uvd_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 }
 
 /**
+ * uvd_v6_0_enc_ring_get_wptr - get enc write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware enc write pointer
+ */
+static uint64_t uvd_v6_0_enc_ring_get_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	if (ring == &adev->uvd.ring_enc[0])
+		return RREG32(mmUVD_RB_WPTR);
+	else
+		return RREG32(mmUVD_RB_WPTR2);
+}
+
+/**
  * uvd_v6_0_ring_set_wptr - set write pointer
  *
  * @ring: amdgpu_ring pointer
@@ -87,6 +120,25 @@ static void uvd_v6_0_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	WREG32(mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
+}
+
+/**
+ * uvd_v6_0_enc_ring_set_wptr - set enc write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Commits the enc write pointer to the hardware
+ */
+static void uvd_v6_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	if (ring == &adev->uvd.ring_enc[0])
+		WREG32(mmUVD_RB_WPTR,
+			lower_32_bits(ring->wptr));
+	else
+		WREG32(mmUVD_RB_WPTR2,
+			lower_32_bits(ring->wptr));
 }
 
 static int uvd_v6_0_early_init(void *handle)
@@ -577,6 +629,26 @@ static void uvd_v6_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 }
 
 /**
+ * uvd_v6_0_enc_ring_emit_fence - emit an enc fence & trap command
+ *
+ * @ring: amdgpu_ring pointer
+ * @fence: fence to emit
+ *
+ * Write enc a fence and a trap command to the ring.
+ */
+static void uvd_v6_0_enc_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
+			u64 seq, unsigned flags)
+{
+	WARN_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
+
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_FENCE);
+	amdgpu_ring_write(ring, addr);
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+	amdgpu_ring_write(ring, seq);
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_TRAP);
+}
+
+/**
  * uvd_v6_0_ring_emit_hdp_flush - emit an hdp flush
  *
  * @ring: amdgpu_ring pointer
@@ -667,6 +739,24 @@ static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
+/**
+ * uvd_v6_0_enc_ring_emit_ib - enc execute indirect buffer
+ *
+ * @ring: amdgpu_ring pointer
+ * @ib: indirect buffer to execute
+ *
+ * Write enc ring commands to execute the indirect buffer
+ */
+static void uvd_v6_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
+		struct amdgpu_ib *ib, unsigned int vm_id, bool ctx_switch)
+{
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_IB_VM);
+	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, ib->length_dw);
+}
+
 static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 unsigned vm_id, uint64_t pd_addr)
 {
@@ -716,6 +806,33 @@ static void uvd_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, seq);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
 	amdgpu_ring_write(ring, 0xE);
+}
+
+static void uvd_v6_0_enc_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
+{
+	uint32_t seq = ring->fence_drv.sync_seq;
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_WAIT_GE);
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+	amdgpu_ring_write(ring, seq);
+}
+
+static void uvd_v6_0_enc_ring_insert_end(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_END);
+}
+
+static void uvd_v6_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
+        unsigned int vm_id, uint64_t pd_addr)
+{
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_UPDATE_PTB);
+	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, pd_addr >> 12);
+
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_FLUSH_TLB);
+	amdgpu_ring_write(ring, vm_id);
 }
 
 static bool uvd_v6_0_is_idle(void *handle)
