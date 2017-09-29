@@ -790,7 +790,10 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (n < 0)
 		return err;
 
-	thread_nr = nr_threads_synthesize;
+	if (nr_threads_synthesize == UINT_MAX)
+		thread_nr = sysconf(_SC_NPROCESSORS_ONLN);
+	else
+		thread_nr = nr_threads_synthesize;
 
 	if (thread_nr <= 1) {
 		err = __perf_event__synthesize_threads(tool, process,
