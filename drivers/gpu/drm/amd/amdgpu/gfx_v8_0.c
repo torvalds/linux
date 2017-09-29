@@ -7042,7 +7042,7 @@ static void gfx_v8_0_ring_emit_ce_meta(struct amdgpu_ring *ring)
 {
 	uint64_t ce_payload_addr;
 	int cnt_ce;
-	static union {
+	union {
 		struct vi_ce_ib_state regular;
 		struct vi_ce_ib_state_chained_ib chained;
 	} ce_payload = {};
@@ -7071,7 +7071,7 @@ static void gfx_v8_0_ring_emit_de_meta(struct amdgpu_ring *ring)
 {
 	uint64_t de_payload_addr, gds_addr, csa_addr;
 	int cnt_de;
-	static union {
+	union {
 		struct vi_de_ib_state regular;
 		struct vi_de_ib_state_chained_ib chained;
 	} de_payload = {};
