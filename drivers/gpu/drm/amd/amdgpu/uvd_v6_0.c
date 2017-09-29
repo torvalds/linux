@@ -195,6 +195,177 @@ static int uvd_v6_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 	return r;
 }
 
+/**
+ * uvd_v6_0_enc_get_create_msg - generate a UVD ENC create msg
+ *
+ * @adev: amdgpu_device pointer
+ * @ring: ring we should submit the msg to
+ * @handle: session handle to use
+ * @fence: optional fence to return
+ *
+ * Open up a stream for HW test
+ */
+static int uvd_v6_0_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+				       struct dma_fence **fence)
+{
+	const unsigned ib_size_dw = 16;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	struct dma_fence *f = NULL;
+	uint64_t dummy;
+	int i, r;
+
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
+		return r;
+
+	ib = &job->ibs[0];
+	dummy = ib->gpu_addr + 1024;
+
+	ib->length_dw = 0;
+	ib->ptr[ib->length_dw++] = 0x00000018;
+	ib->ptr[ib->length_dw++] = 0x00000001; /* session info */
+	ib->ptr[ib->length_dw++] = handle;
+	ib->ptr[ib->length_dw++] = 0x00010000;
+	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
+	ib->ptr[ib->length_dw++] = dummy;
+
+	ib->ptr[ib->length_dw++] = 0x00000014;
+	ib->ptr[ib->length_dw++] = 0x00000002; /* task info */
+	ib->ptr[ib->length_dw++] = 0x0000001c;
+	ib->ptr[ib->length_dw++] = 0x00000001;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+
+	ib->ptr[ib->length_dw++] = 0x00000008;
+	ib->ptr[ib->length_dw++] = 0x08000001; /* op initialize */
+
+	for (i = ib->length_dw; i < ib_size_dw; ++i)
+		ib->ptr[i] = 0x0;
+
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+	job->fence = dma_fence_get(f);
+	if (r)
+		goto err;
+
+	amdgpu_job_free(job);
+	if (fence)
+		*fence = dma_fence_get(f);
+	dma_fence_put(f);
+	return 0;
+
+err:
+	amdgpu_job_free(job);
+	return r;
+}
+
+/**
+ * uvd_v6_0_enc_get_destroy_msg - generate a UVD ENC destroy msg
+ *
+ * @adev: amdgpu_device pointer
+ * @ring: ring we should submit the msg to
+ * @handle: session handle to use
+ * @fence: optional fence to return
+ *
+ * Close up a stream for HW test or if userspace failed to do so
+ */
+int uvd_v6_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
+				 bool direct, struct dma_fence **fence)
+{
+	const unsigned ib_size_dw = 16;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	struct dma_fence *f = NULL;
+	uint64_t dummy;
+	int i, r;
+
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
+		return r;
+
+	ib = &job->ibs[0];
+	dummy = ib->gpu_addr + 1024;
+
+	ib->length_dw = 0;
+	ib->ptr[ib->length_dw++] = 0x00000018;
+	ib->ptr[ib->length_dw++] = 0x00000001; /* session info */
+	ib->ptr[ib->length_dw++] = handle;
+	ib->ptr[ib->length_dw++] = 0x00010000;
+	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
+	ib->ptr[ib->length_dw++] = dummy;
+
+	ib->ptr[ib->length_dw++] = 0x00000014;
+	ib->ptr[ib->length_dw++] = 0x00000002; /* task info */
+	ib->ptr[ib->length_dw++] = 0x0000001c;
+	ib->ptr[ib->length_dw++] = 0x00000001;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+
+	ib->ptr[ib->length_dw++] = 0x00000008;
+	ib->ptr[ib->length_dw++] = 0x08000002; /* op close session */
+
+	for (i = ib->length_dw; i < ib_size_dw; ++i)
+		ib->ptr[i] = 0x0;
+
+	if (direct) {
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		job->fence = dma_fence_get(f);
+		if (r)
+			goto err;
+
+		amdgpu_job_free(job);
+	} else {
+		r = amdgpu_job_submit(job, ring, &ring->adev->vce.entity,
+				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+		if (r)
+			goto err;
+	}
+
+	if (fence)
+		*fence = dma_fence_get(f);
+	dma_fence_put(f);
+	return 0;
+
+err:
+	amdgpu_job_free(job);
+	return r;
+}
+
+/**
+ * uvd_v6_0_enc_ring_test_ib - test if UVD ENC IBs are working
+ *
+ * @ring: the engine to test on
+ *
+ */
+static int uvd_v6_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
+{
+	struct dma_fence *fence = NULL;
+	long r;
+
+	r = uvd_v6_0_enc_get_create_msg(ring, 1, NULL);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+		goto error;
+	}
+
+	r = uvd_v6_0_enc_get_destroy_msg(ring, 1, true, &fence);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+		goto error;
+	}
+
+	r = dma_fence_wait_timeout(fence, false, timeout);
+	if (r == 0) {
+		DRM_ERROR("amdgpu: IB test timed out.\n");
+		r = -ETIMEDOUT;
+	} else if (r < 0) {
+		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
+	} else {
+		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		r = 0;
+	}
+error:
+	dma_fence_put(fence);
+	return r;
+}
 static int uvd_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1412,6 +1583,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_enc_ring_vm_funcs = {
 	.emit_vm_flush = uvd_v6_0_enc_ring_emit_vm_flush,
 	.emit_pipeline_sync = uvd_v6_0_enc_ring_emit_pipeline_sync,
 	.test_ring = uvd_v6_0_enc_ring_test_ring,
+	.test_ib = uvd_v6_0_enc_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.insert_end = uvd_v6_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
