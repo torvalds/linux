@@ -231,6 +231,9 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	     len != SMIAPP_REG_32BIT) || flags)
 		return -EINVAL;
 
+	if (!sensor->active)
+		return 0;
+
 	msg.addr = client->addr;
 	msg.flags = 0; /* Write */
 	msg.len = 2 + len;
