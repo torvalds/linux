@@ -9956,7 +9956,7 @@ int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which)
 		val = ppd->phy_error_threshold;
 		break;
 	case HFI1_IB_CFG_LINKDEFAULT: /* IB link default (sleep/poll) */
-		val = dd->link_default;
+		val = HLS_DEFAULT;
 		break;
 
 	case HFI1_IB_CFG_HRTBT: /* Heartbeat off/enable/auto */
@@ -10159,6 +10159,10 @@ static const char * const state_complete_reasons[] = {
 	[0x33] =
 	  "Link partner completed the VerifyCap state, but the passing lanes do not meet the local link width policy",
 	[0x34] = tx_out_of_policy,
+	[0x35] = "Negotiated link width is mutually exclusive",
+	[0x36] =
+	  "Timed out before receiving verifycap frames in VerifyCap.Exchange",
+	[0x37] = "Unable to resolve secure data exchange",
 };
 
 static const char *state_complete_reason_code_string(struct hfi1_pportdata *ppd,
@@ -10547,7 +10551,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 	orig_new_state = state;
 	if (state == HLS_DN_DOWNDEF)
-		state = dd->link_default;
+		state = HLS_DEFAULT;
 
 	/* interpret poll -> poll as a link bounce */
 	poll_bounce = ppd->host_link_state == HLS_DN_POLL &&
@@ -12925,7 +12929,7 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 			if (!me->arg) /* => no irq, no affinity */
 				continue;
 			hfi1_put_irq_affinity(dd, me);
-			free_irq(me->irq, me->arg);
+			pci_free_irq(dd->pcidev, i, me->arg);
 		}
 
 		/* clean structures */
@@ -12935,7 +12939,7 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 	} else {
 		/* INTx */
 		if (dd->requested_intx_irq) {
-			free_irq(dd->pcidev->irq, dd);
+			pci_free_irq(dd->pcidev, 0, dd);
 			dd->requested_intx_irq = 0;
 		}
 		disable_intx(dd->pcidev);
@@ -12994,10 +12998,8 @@ static int request_intx_irq(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME "_%d",
-		 dd->unit);
-	ret = request_irq(dd->pcidev->irq, general_interrupt,
-			  IRQF_SHARED, dd->intx_name, dd);
+	ret = pci_request_irq(dd->pcidev, 0, general_interrupt, NULL, dd,
+			      DRIVER_NAME "_%d", dd->unit);
 	if (ret)
 		dd_dev_err(dd, "unable to request INTx interrupt, err %d\n",
 			   ret);
@@ -13040,13 +13042,14 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		int idx;
 		struct hfi1_ctxtdata *rcd = NULL;
 		struct sdma_engine *sde = NULL;
+		char name[MAX_NAME_SIZE];
 
-		/* obtain the arguments to request_irq */
+		/* obtain the arguments to pci_request_irq */
 		if (first_general <= i && i < last_general) {
 			idx = i - first_general;
 			handler = general_interrupt;
 			arg = dd;
-			snprintf(me->name, sizeof(me->name),
+			snprintf(name, sizeof(name),
 				 DRIVER_NAME "_%d", dd->unit);
 			err_info = "general";
 			me->type = IRQ_GENERAL;
@@ -13055,14 +13058,14 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			sde = &dd->per_sdma[idx];
 			handler = sdma_interrupt;
 			arg = sde;
-			snprintf(me->name, sizeof(me->name),
+			snprintf(name, sizeof(name),
 				 DRIVER_NAME "_%d sdma%d", dd->unit, idx);
 			err_info = "sdma";
 			remap_sdma_interrupts(dd, idx, i);
 			me->type = IRQ_SDMA;
 		} else if (first_rx <= i && i < last_rx) {
 			idx = i - first_rx;
-			rcd = hfi1_rcd_get_by_index(dd, idx);
+			rcd = hfi1_rcd_get_by_index_safe(dd, idx);
 			if (rcd) {
 				/*
 				 * Set the interrupt register and mask for this
@@ -13074,7 +13077,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 				handler = receive_context_interrupt;
 				thread = receive_context_thread;
 				arg = rcd;
-				snprintf(me->name, sizeof(me->name),
+				snprintf(name, sizeof(name),
 					 DRIVER_NAME "_%d kctxt%d",
 					 dd->unit, idx);
 				err_info = "receive context";
@@ -13095,18 +13098,10 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		if (!arg)
 			continue;
 		/* make sure the name is terminated */
-		me->name[sizeof(me->name) - 1] = 0;
+		name[sizeof(name) - 1] = 0;
 		me->irq = pci_irq_vector(dd->pcidev, i);
-		/*
-		 * On err return me->irq.  Don't need to clear this
-		 * because 'arg' has not been set, and cleanup will
-		 * do the right thing.
-		 */
-		if (me->irq < 0)
-			return me->irq;
-
-		ret = request_threaded_irq(me->irq, handler, thread, 0,
-					   me->name, arg);
+		ret = pci_request_irq(dd->pcidev, i, handler, thread, arg,
+				      name);
 		if (ret) {
 			dd_dev_err(dd,
 				   "unable to allocate %s interrupt, irq %d, index %d, err %d\n",
@@ -13114,7 +13109,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			return ret;
 		}
 		/*
-		 * assign arg after request_irq call, so it will be
+		 * assign arg after pci_request_irq call, so it will be
 		 * cleaned up
 		 */
 		me->arg = arg;
@@ -13132,7 +13127,7 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 	int i;
 
 	if (!dd->num_msix_entries) {
-		synchronize_irq(dd->pcidev->irq);
+		synchronize_irq(pci_irq_vector(dd->pcidev, 0));
 		return;
 	}
 
@@ -13153,7 +13148,7 @@ void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 		return;
 
 	hfi1_put_irq_affinity(dd, me);
-	free_irq(me->irq, me->arg);
+	pci_free_irq(dd->pcidev, rcd->msix_intr, me->arg);
 
 	me->arg = NULL;
 }
@@ -13176,28 +13171,21 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	rcd->ireg = (IS_RCVAVAIL_START + idx) / 64;
 	rcd->imask = ((u64)1) <<
 		  ((IS_RCVAVAIL_START + idx) % 64);
-
-	snprintf(me->name, sizeof(me->name),
-		 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
-	me->name[sizeof(me->name) - 1] = 0;
 	me->type = IRQ_RCVCTXT;
 	me->irq = pci_irq_vector(dd->pcidev, rcd->msix_intr);
-	if (me->irq < 0) {
-		dd_dev_err(dd, "vnic irq vector request (idx %d) fail %d\n",
-			   idx, me->irq);
-		return;
-	}
 	remap_intr(dd, IS_RCVAVAIL_START + idx, rcd->msix_intr);
 
-	ret = request_threaded_irq(me->irq, receive_context_interrupt,
-				   receive_context_thread, 0, me->name, arg);
+	ret = pci_request_irq(dd->pcidev, rcd->msix_intr,
+			      receive_context_interrupt,
+			      receive_context_thread, arg,
+			      DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 	if (ret) {
 		dd_dev_err(dd, "vnic irq request (irq %d, idx %d) fail %d\n",
 			   me->irq, idx, ret);
 		return;
 	}
 	/*
-	 * assign arg after request_irq call, so it will be
+	 * assign arg after pci_request_irq call, so it will be
 	 * cleaned up
 	 */
 	me->arg = arg;
@@ -13206,7 +13194,7 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	if (ret) {
 		dd_dev_err(dd,
 			   "unable to pin IRQ %d\n", ret);
-		free_irq(me->irq, me->arg);
+		pci_free_irq(dd->pcidev, rcd->msix_intr, me->arg);
 	}
 }
 
@@ -14906,8 +14894,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		init_vl_arb_caches(ppd);
 	}
-
-	dd->link_default = HLS_DN_POLL;
 
 	/*
 	 * Do remaining PCIe setup and save PCIe values in dd.
