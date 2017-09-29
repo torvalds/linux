@@ -964,6 +964,16 @@ static nokprobe_inline void set_cr0(const struct pt_regs *regs,
 		op->ccval |= 0x20000000;
 }
 
+static nokprobe_inline void set_ca32(struct instruction_op *op, bool val)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (val)
+			op->xerval |= XER_CA32;
+		else
+			op->xerval &= ~XER_CA32;
+	}
+}
+
 static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 				     struct instruction_op *op, int rd,
 				     unsigned long val1, unsigned long val2,
@@ -987,6 +997,9 @@ static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 		op->xerval |= XER_CA;
 	else
 		op->xerval &= ~XER_CA;
+
+	set_ca32(op, (unsigned int)val < (unsigned int)val1 ||
+			(carry_in && (unsigned int)val == (unsigned int)val1));
 }
 
 static nokprobe_inline void do_cmp_signed(const struct pt_regs *regs,
