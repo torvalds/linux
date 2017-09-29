@@ -47,6 +47,8 @@
 #include <drm/amdgpu_drm.h>
 
 #include <kgd_kfd_interface.h>
+#include "dm_pp_interface.h"
+#include "kgd_pp_interface.h"
 
 #include "amd_shared.h"
 #include "amdgpu_mode.h"
@@ -59,7 +61,6 @@
 #include "amdgpu_sync.h"
 #include "amdgpu_ring.h"
 #include "amdgpu_vm.h"
-#include "amd_powerplay.h"
 #include "amdgpu_dpm.h"
 #include "amdgpu_acp.h"
 #include "amdgpu_uvd.h"
@@ -67,10 +68,10 @@
 #include "amdgpu_vcn.h"
 #include "amdgpu_mn.h"
 #include "amdgpu_dm.h"
-
 #include "gpu_scheduler.h"
 #include "amdgpu_virt.h"
 #include "amdgpu_gart.h"
+
 
 /*
  * Modules parameters.
