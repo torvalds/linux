@@ -910,8 +910,6 @@ static int scpi_remove(struct platform_device *pdev)
 		kfree(scpi_info->dvfs[i]->opps);
 		kfree(scpi_info->dvfs[i]);
 	}
-	devm_kfree(dev, scpi_info->channels);
-	devm_kfree(dev, scpi_info);
 
 	return 0;
 }
