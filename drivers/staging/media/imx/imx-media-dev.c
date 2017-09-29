@@ -345,8 +345,11 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 
 	sd = media_entity_to_v4l2_subdev(entity);
 	imxsd = imx_media_find_subdev_by_sd(imxmd, sd);
-	if (IS_ERR(imxsd))
-		return PTR_ERR(imxsd);
+	if (IS_ERR(imxsd)) {
+		v4l2_err(&imxmd->v4l2_dev, "failed to find subdev for entity %s, sd %p err %ld\n",
+			 entity->name, sd, PTR_ERR(imxsd));
+		return 0;
+	}
 
 	imxpad = &imxsd->pad[srcpad->index];
 	vdev_idx = imxpad->num_vdevs;
