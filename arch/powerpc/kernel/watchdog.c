@@ -97,8 +97,7 @@ static void wd_lockup_ipi(struct pt_regs *regs)
 	else
 		dump_stack();
 
-	if (hardlockup_panic)
-		nmi_panic(regs, "Hard LOCKUP");
+	/* Do not panic from here because that can recurse into NMI IPI layer */
 }
 
 static void set_cpumask_stuck(const struct cpumask *cpumask, u64 tb)
