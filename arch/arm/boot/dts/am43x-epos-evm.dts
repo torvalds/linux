@@ -470,6 +470,30 @@
 			>;
 		};
 
+		usb2_phy1_default: usb2_phy1_default {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0xac0, PIN_INPUT_PULLDOWN | MUX_MODE0)
+			>;
+		};
+
+		usb2_phy1_sleep: usb2_phy1_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0xac0, DS0_PULL_UP_DOWN_EN | PIN_INPUT_PULLDOWN | MUX_MODE7)
+			>;
+		};
+
+		usb2_phy2_default: usb2_phy2_default {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0xac4, PIN_INPUT_PULLDOWN | MUX_MODE0)
+			>;
+		};
+
+		usb2_phy2_sleep: usb2_phy2_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0xac4, DS0_PULL_UP_DOWN_EN | PIN_INPUT_PULLDOWN | MUX_MODE7)
+			>;
+		};
+
 		mcasp1_pins: mcasp1_pins {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x9a0, PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_ACLKR/MCASP1_ACLKX */
@@ -791,6 +815,9 @@
 
 &usb2_phy1 {
 	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&usb2_phy1_default>;
+	pinctrl-1 = <&usb2_phy1_sleep>;
 };
 
 &usb1 {
@@ -800,6 +827,9 @@
 
 &usb2_phy2 {
 	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&usb2_phy2_default>;
+	pinctrl-1 = <&usb2_phy2_sleep>;
 };
 
 &usb2 {
