@@ -37,6 +37,16 @@ static inline void __down_read(struct rw_semaphore *sem)
 		rwsem_down_read_failed(sem);
 }
 
+static inline int __down_read_killable(struct rw_semaphore *sem)
+{
+	if (unlikely(atomic_long_inc_return_acquire(&sem->count) <= 0)) {
+		if (IS_ERR(rwsem_down_read_failed_killable(sem)))
+			return -EINTR;
+	}
+
+	return 0;
+}
+
 static inline int __down_read_trylock(struct rw_semaphore *sem)
 {
 	long tmp;
