@@ -277,9 +277,12 @@ void arch_touch_nmi_watchdog(void)
 {
 	unsigned long ticks = tb_ticks_per_usec * wd_timer_period_ms * 1000;
 	int cpu = smp_processor_id();
+	u64 tb = get_tb();
 
-	if (get_tb() - per_cpu(wd_timer_tb, cpu) >= ticks)
-		watchdog_timer_interrupt(cpu);
+	if (tb - per_cpu(wd_timer_tb, cpu) >= ticks) {
+		per_cpu(wd_timer_tb, cpu) = tb;
+		wd_smp_clear_cpu_pending(cpu, tb);
+	}
 }
 EXPORT_SYMBOL(arch_touch_nmi_watchdog);
 
