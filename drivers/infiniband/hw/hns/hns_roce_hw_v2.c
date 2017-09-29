@@ -2807,6 +2807,7 @@ static int hns_roce_v2_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 
 	if (hr_qp->state == IB_QPS_RESET) {
 		qp_attr->qp_state = IB_QPS_RESET;
+		ret = 0;
 		goto done;
 	}
 
