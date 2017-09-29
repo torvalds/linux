@@ -155,6 +155,46 @@ static void uvd_v6_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 			lower_32_bits(ring->wptr));
 }
 
+/**
+ * uvd_v6_0_enc_ring_test_ring - test if UVD ENC ring is working
+ *
+ * @ring: the engine to test on
+ *
+ */
+static int uvd_v6_0_enc_ring_test_ring(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t rptr = amdgpu_ring_get_rptr(ring);
+	unsigned i;
+	int r;
+
+	r = amdgpu_ring_alloc(ring, 16);
+	if (r) {
+		DRM_ERROR("amdgpu: uvd enc failed to lock ring %d (%d).\n",
+			  ring->idx, r);
+		return r;
+	}
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_END);
+	amdgpu_ring_commit(ring);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (amdgpu_ring_get_rptr(ring) != rptr)
+			break;
+		DRM_UDELAY(1);
+	}
+
+	if (i < adev->usec_timeout) {
+		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+			 ring->idx, i);
+	} else {
+		DRM_ERROR("amdgpu: ring %d test failed\n",
+			  ring->idx);
+		r = -ETIMEDOUT;
+	}
+
+	return r;
+}
+
 static int uvd_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -252,7 +292,7 @@ static int uvd_v6_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 	uint32_t tmp;
-	int r;
+	int i, r;
 
 	amdgpu_asic_set_uvd_clocks(adev, 10000, 10000);
 	uvd_v6_0_set_clockgating_state(adev, AMD_CG_STATE_UNGATE);
@@ -291,6 +331,18 @@ static int uvd_v6_0_hw_init(void *handle)
 	amdgpu_ring_write(ring, 3);
 
 	amdgpu_ring_commit(ring);
+
+	if (uvd_v6_0_enc_support(adev)) {
+		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
+			ring = &adev->uvd.ring_enc[i];
+			ring->ready = true;
+			r = amdgpu_ring_test_ring(ring);
+			if (r) {
+				ring->ready = false;
+				goto done;
+			}
+		}
+	}
 
 done:
 	if (!r) {
@@ -1359,6 +1411,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_enc_ring_vm_funcs = {
 	.emit_fence = uvd_v6_0_enc_ring_emit_fence,
 	.emit_vm_flush = uvd_v6_0_enc_ring_emit_vm_flush,
 	.emit_pipeline_sync = uvd_v6_0_enc_ring_emit_pipeline_sync,
+	.test_ring = uvd_v6_0_enc_ring_test_ring,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.insert_end = uvd_v6_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
