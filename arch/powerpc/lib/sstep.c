@@ -31,6 +31,8 @@ extern char system_call_common[];
 #define XER_SO		0x80000000U
 #define XER_OV		0x40000000U
 #define XER_CA		0x20000000U
+#define XER_OV32	0x00080000U
+#define XER_CA32	0x00040000U
 
 #ifdef CONFIG_PPC_FPU
 /*
