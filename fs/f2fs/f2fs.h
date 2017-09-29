@@ -1122,6 +1122,8 @@ struct f2fs_sb_info {
 	struct list_head s_list;
 	int s_ndevs;				/* number of devices */
 	struct f2fs_dev_info *devs;		/* for device list */
+	unsigned int dirty_device;		/* for checkpoint data flush */
+	spinlock_t dev_lock;			/* protect dirty_device */
 	struct mutex umount_mutex;
 	unsigned int shrinker_run_no;
 
@@ -2527,6 +2529,7 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need);
 void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi);
 int f2fs_issue_flush(struct f2fs_sb_info *sbi, nid_t ino);
 int create_flush_cmd_control(struct f2fs_sb_info *sbi);
+int f2fs_flush_device_cache(struct f2fs_sb_info *sbi);
 void destroy_flush_cmd_control(struct f2fs_sb_info *sbi, bool free);
 void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr);
 bool is_checkpointed_data(struct f2fs_sb_info *sbi, block_t blkaddr);

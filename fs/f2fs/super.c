@@ -1965,6 +1965,9 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 		for (j = HOT; j < NR_TEMP_TYPE; j++)
 			mutex_init(&sbi->wio_mutex[i][j]);
 	spin_lock_init(&sbi->cp_lock);
+
+	sbi->dirty_device = 0;
+	spin_lock_init(&sbi->dev_lock);
 }
 
 static int init_percpu_info(struct f2fs_sb_info *sbi)
