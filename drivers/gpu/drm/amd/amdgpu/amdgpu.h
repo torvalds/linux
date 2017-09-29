@@ -1423,6 +1423,13 @@ typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
 
+struct amd_powerplay {
+	struct cgs_device *cgs_device;
+	void *pp_handle;
+	const struct amd_ip_funcs *ip_funcs;
+	const struct amd_pm_funcs *pp_funcs;
+};
+
 #define AMDGPU_RESET_MAGIC_NUM 64
 struct amdgpu_device {
 	struct device			*dev;

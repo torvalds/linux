@@ -122,12 +122,5 @@ struct pp_gpu_power {
 								support << PP_STATE_SUPPORT_SHIFT |\
 								state << PP_STATE_SHIFT)
 
-struct amd_powerplay {
-	struct cgs_device *cgs_device;
-	void *pp_handle;
-	const struct amd_ip_funcs *ip_funcs;
-	const struct amd_pm_funcs *pp_funcs;
-};
-
 
 #endif /* _AMD_POWERPLAY_H_ */
