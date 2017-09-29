@@ -659,6 +659,28 @@ void destroy_flush_cmd_control(struct f2fs_sb_info *sbi, bool free)
 	}
 }
 
+int f2fs_flush_device_cache(struct f2fs_sb_info *sbi)
+{
+	int ret = 0, i;
+
+	if (!sbi->s_ndevs)
+		return 0;
+
+	for (i = 1; i < sbi->s_ndevs; i++) {
+		if (!f2fs_test_bit(i, (char *)&sbi->dirty_device))
+			continue;
+		ret = __submit_flush_wait(sbi, FDEV(i).bdev);
+		if (ret)
+			break;
+
+		spin_lock(&sbi->dev_lock);
+		f2fs_clear_bit(i, (char *)&sbi->dirty_device);
+		spin_unlock(&sbi->dev_lock);
+	}
+
+	return ret;
+}
+
 static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 		enum dirty_type dirty_type)
 {
@@ -2482,6 +2504,13 @@ static void update_device_state(struct f2fs_io_info *fio)
 
 	/* update device state for fsync */
 	set_dirty_device(sbi, fio->ino, devidx, FLUSH_INO);
+
+	/* update device state for checkpoint */
+	if (!f2fs_test_bit(devidx, (char *)&sbi->dirty_device)) {
+		spin_lock(&sbi->dev_lock);
+		f2fs_set_bit(devidx, (char *)&sbi->dirty_device);
+		spin_unlock(&sbi->dev_lock);
+	}
 }
 
 static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
