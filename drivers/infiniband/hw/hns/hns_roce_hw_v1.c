@@ -1628,9 +1628,9 @@ static int hns_roce_v1_cmd_pending(struct hns_roce_dev *hr_dev)
 	return (!!(status & (1 << HCR_GO_BIT)));
 }
 
-int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
-			  u64 out_param, u32 in_modifier, u8 op_modifier,
-			  u16 op, u16 token, int event)
+static int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
+				 u64 out_param, u32 in_modifier, u8 op_modifier,
+				 u16 op, u16 token, int event)
 {
 	u32 *hcr = (u32 *)(hr_dev->reg_base + ROCEE_MB1_REG);
 	unsigned long end;

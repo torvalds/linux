@@ -363,9 +363,9 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
-int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
-			    struct hns_roce_hem_table *table,
-			    unsigned long obj)
+static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
+				   struct hns_roce_hem_table *table,
+				   unsigned long obj)
 {
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_hem_mhop mhop;
@@ -576,10 +576,10 @@ out:
 	return ret;
 }
 
-void hns_roce_table_mhop_put(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_hem_table *table,
-			     unsigned long obj,
-			     int check_refcount)
+static void hns_roce_table_mhop_put(struct hns_roce_dev *hr_dev,
+				    struct hns_roce_hem_table *table,
+				    unsigned long obj,
+				    int check_refcount)
 {
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_hem_mhop mhop;
@@ -983,8 +983,8 @@ err_kcalloc_hem_buf:
 	return -ENOMEM;
 }
 
-void hns_roce_cleanup_mhop_hem_table(struct hns_roce_dev *hr_dev,
-				     struct hns_roce_hem_table *table)
+static void hns_roce_cleanup_mhop_hem_table(struct hns_roce_dev *hr_dev,
+					    struct hns_roce_hem_table *table)
 {
 	struct hns_roce_hem_mhop mhop;
 	u32 buf_chunk_size;

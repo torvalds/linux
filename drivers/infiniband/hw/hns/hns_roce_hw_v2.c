@@ -496,9 +496,9 @@ static void hns_roce_v2_cmq_exit(struct hns_roce_dev *hr_dev)
 	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.crq);
 }
 
-void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,
-				   enum hns_roce_opcode_type opcode,
-				   bool is_read)
+static void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,
+					  enum hns_roce_opcode_type opcode,
+					  bool is_read)
 {
 	memset((void *)desc, 0, sizeof(struct hns_roce_cmq_desc));
 	desc->opcode = cpu_to_le16(opcode);
@@ -542,8 +542,8 @@ static int hns_roce_cmq_csq_clean(struct hns_roce_dev *hr_dev)
 	return clean;
 }
 
-int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
-		      struct hns_roce_cmq_desc *desc, int num)
+static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_cmq_desc *desc, int num)
 {
 	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
@@ -629,7 +629,7 @@ int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
-int hns_roce_cmq_query_hw_info(struct hns_roce_dev *hr_dev)
+static int hns_roce_cmq_query_hw_info(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_query_version *resp;
 	struct hns_roce_cmq_desc desc;
