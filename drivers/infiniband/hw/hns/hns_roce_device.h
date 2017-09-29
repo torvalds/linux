@@ -474,7 +474,6 @@ struct hns_roce_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
 	struct notifier_block	nb;
-	struct notifier_block	nb_inet;
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
 };
 
