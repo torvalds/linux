@@ -2325,7 +2325,7 @@ static u8 _rtl8723be_mrate_idx_to_arfr_id(struct ieee80211_hw *hw,
 
 static void rtl8723be_update_hal_rate_mask(struct ieee80211_hw *hw,
 					   struct ieee80211_sta *sta,
-					   u8 rssi_level)
+					   u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -2441,7 +2441,7 @@ static void rtl8723be_update_hal_rate_mask(struct ieee80211_hw *hw,
 	rate_mask[0] = macid;
 	rate_mask[1] = _rtl8723be_mrate_idx_to_arfr_id(hw, ratr_index) |
 						      (shortgi ? 0x80 : 0x00);
-	rate_mask[2] = curtxbw_40mhz;
+	rate_mask[2] = curtxbw_40mhz | ((!update_bw) << 3);
 
 	rate_mask[3] = (u8)(ratr_bitmap & 0x000000ff);
 	rate_mask[4] = (u8)((ratr_bitmap & 0x0000ff00) >> 8);
@@ -2461,11 +2461,11 @@ static void rtl8723be_update_hal_rate_mask(struct ieee80211_hw *hw,
 
 void rtl8723be_update_hal_rate_tbl(struct ieee80211_hw *hw,
 				   struct ieee80211_sta *sta,
-				   u8 rssi_level)
+				   u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	if (rtlpriv->dm.useramask)
-		rtl8723be_update_hal_rate_mask(hw, sta, rssi_level);
+		rtl8723be_update_hal_rate_mask(hw, sta, rssi_level, update_bw);
 }
 
 void rtl8723be_update_channel_access_setting(struct ieee80211_hw *hw)

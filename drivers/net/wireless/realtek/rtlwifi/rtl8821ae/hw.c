@@ -3599,7 +3599,7 @@ static bool _rtl8821ae_get_ra_shortgi(struct ieee80211_hw *hw, struct ieee80211_
 }
 
 static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u8 rssi_level)
+		struct ieee80211_sta *sta, u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
@@ -3778,7 +3778,7 @@ static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 
 	rate_mask[0] = macid;
 	rate_mask[1] = ratr_index | (b_shortgi ? 0x80 : 0x00);
-	rate_mask[2] = rtlphy->current_chan_bw
+	rate_mask[2] = rtlphy->current_chan_bw | ((!update_bw) << 3)
 			   | _rtl8821ae_get_vht_eni(wirelessmode, ratr_bitmap)
 			   | _rtl8821ae_get_ra_ldpc(hw, macid, sta_entry, wirelessmode);
 
@@ -3799,11 +3799,11 @@ static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 }
 
 void rtl8821ae_update_hal_rate_tbl(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u8 rssi_level)
+		struct ieee80211_sta *sta, u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	if (rtlpriv->dm.useramask)
-		rtl8821ae_update_hal_rate_mask(hw, sta, rssi_level);
+		rtl8821ae_update_hal_rate_mask(hw, sta, rssi_level, update_bw);
 	else
 		/*RT_TRACE(rtlpriv, COMP_RATR,DBG_LOUD,
 			   "rtl8821ae_update_hal_rate_tbl() Error! 8821ae FW RA Only\n");*/

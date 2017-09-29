@@ -46,7 +46,7 @@ void rtl8821ae_update_interrupt_mask(struct ieee80211_hw *hw,
 void rtl8821ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val);
 void rtl8821ae_update_hal_rate_tbl(struct ieee80211_hw *hw,
 				   struct ieee80211_sta *sta,
-				   u8 rssi_level);
+				   u8 rssi_level, bool update_bw);
 void rtl8821ae_update_channel_access_setting(struct ieee80211_hw *hw);
 bool rtl8821ae_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid);
 void rtl8821ae_enable_hw_security_config(struct ieee80211_hw *hw);
