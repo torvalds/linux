@@ -154,7 +154,11 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 
 		dst->cpu_dp->tag_ops = tag_ops;
 		dst->tag_ops = tag_ops;
+
+		/* Few copies for faster access in master receive hot path */
+		dst->cpu_dp->rcv = dst->cpu_dp->tag_ops->rcv;
 		dst->rcv = dst->tag_ops->rcv;
+		dst->cpu_dp->dst = dst;
 	}
 
 	memcpy(ds->rtable, cd->rtable, sizeof(ds->rtable));

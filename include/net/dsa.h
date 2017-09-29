@@ -178,6 +178,11 @@ struct dsa_port {
 	/* CPU port tagging operations used by master or slave devices */
 	const struct dsa_device_ops *tag_ops;
 
+	/* Copies for faster access in master receive hot path */
+	struct dsa_switch_tree *dst;
+	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
+			       struct packet_type *pt);
+
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;
