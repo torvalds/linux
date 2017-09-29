@@ -2744,10 +2744,6 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			list_del(&ref->list);
 			if (!list_empty(&ref->add_list))
 				list_del(&ref->add_list);
-		}
-		atomic_dec(&delayed_refs->num_entries);
-
-		if (!btrfs_delayed_ref_is_head(ref)) {
 			/*
 			 * when we play the delayed ref, also correct the
 			 * ref_mod on head
@@ -2764,6 +2760,8 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 				WARN_ON(1);
 			}
 		}
+		atomic_dec(&delayed_refs->num_entries);
+
 		/*
 		 * Record the must-insert_reserved flag before we drop the spin
 		 * lock.
