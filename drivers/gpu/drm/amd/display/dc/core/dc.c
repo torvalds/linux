@@ -1172,7 +1172,7 @@ static struct dc_stream_status *stream_get_status(
 	return NULL;
 }
 
-enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
+static const enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
 void dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
