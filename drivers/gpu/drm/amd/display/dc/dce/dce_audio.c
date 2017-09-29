@@ -703,14 +703,11 @@ void dce_aud_az_configure(
 */
 
 /* search pixel clock value for Azalia HDMI Audio */
-static bool get_azalia_clock_info_hdmi(
+static void get_azalia_clock_info_hdmi(
 	uint32_t crtc_pixel_clock_in_khz,
 	uint32_t actual_pixel_clock_in_khz,
 	struct azalia_clock_info *azalia_clock_info)
 {
-	if (azalia_clock_info == NULL)
-		return false;
-
 	/* audio_dto_phase= 24 * 10,000;
 	 *   24MHz in [100Hz] units */
 	azalia_clock_info->audio_dto_phase =
@@ -720,18 +717,13 @@ static bool get_azalia_clock_info_hdmi(
 	 *  [khz] -> [100Hz] */
 	azalia_clock_info->audio_dto_module =
 			actual_pixel_clock_in_khz * 10;
-
-	return true;
 }
 
-static bool get_azalia_clock_info_dp(
+static void get_azalia_clock_info_dp(
 	uint32_t requested_pixel_clock_in_khz,
 	const struct audio_pll_info *pll_info,
 	struct azalia_clock_info *azalia_clock_info)
 {
-	if (pll_info == NULL || azalia_clock_info == NULL)
-		return false;
-
 	/* Reported dpDtoSourceClockInkhz value for
 	 * DCE8 already adjusted for SS, do not need any
 	 * adjustment here anymore
@@ -745,8 +737,6 @@ static bool get_azalia_clock_info_dp(
 	 *  [khz] ->[100Hz] */
 	azalia_clock_info->audio_dto_module =
 		pll_info->dp_dto_source_clock_in_khz * 10;
-
-	return true;
 }
 
 void dce_aud_wall_dto_setup(
