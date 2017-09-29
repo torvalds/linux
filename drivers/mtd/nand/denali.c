@@ -1004,8 +1004,14 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 	tmp |= FIELD_PREP(RE_2_RE__VALUE, re_2_re);
 	iowrite32(tmp, denali->reg + RE_2_RE);
 
-	/* tWHR -> WE_2_RE */
-	we_2_re = DIV_ROUND_UP(timings->tWHR_min, t_clk);
+	/*
+	 * tCCS, tWHR -> WE_2_RE
+	 *
+	 * With WE_2_RE properly set, the Denali controller automatically takes
+	 * care of the delay; the driver need not set NAND_WAIT_TCCS.
+	 */
+	we_2_re = DIV_ROUND_UP(max(timings->tCCS_min, timings->tWHR_min),
+			       t_clk);
 	we_2_re = min_t(int, we_2_re, TWHR2_AND_WE_2_RE__WE_2_RE);
 
 	tmp = ioread32(denali->reg + TWHR2_AND_WE_2_RE);
