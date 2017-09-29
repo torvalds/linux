@@ -1238,7 +1238,7 @@ uint32_t calc_max_audio_packets_per_line(
 	return max_packets_per_line;
 }
 
-bool get_audio_clock_info(
+void get_audio_clock_info(
 	enum dc_color_depth color_depth,
 	uint32_t crtc_pixel_clock_in_khz,
 	uint32_t actual_pixel_clock_in_khz,
@@ -1248,9 +1248,6 @@ bool get_audio_clock_info(
 	uint32_t index;
 	uint32_t crtc_pixel_clock_in_10khz = crtc_pixel_clock_in_khz / 10;
 	uint32_t audio_array_size;
-
-	if (audio_clock_info == NULL)
-		return false; /* should not happen */
 
 	switch (color_depth) {
 	case COLOR_DEPTH_161616:
@@ -1280,7 +1277,7 @@ bool get_audio_clock_info(
 					crtc_pixel_clock_in_10khz) {
 				/* match found */
 				*audio_clock_info = clock_info[index];
-				return true;
+				return;
 			}
 		}
 	}
@@ -1300,8 +1297,6 @@ bool get_audio_clock_info(
 	audio_clock_info->n_32khz = 4096;
 	audio_clock_info->n_44khz = 6272;
 	audio_clock_info->n_48khz = 6144;
-
-	return true;
 }
 
 static void dce110_se_audio_setup(
@@ -1362,40 +1357,38 @@ static void dce110_se_setup_hdmi_audio(
 			HDMI_ACR_AUDIO_PRIORITY, 0);
 
 	/* Program audio clock sample/regeneration parameters */
-	if (get_audio_clock_info(
-		crtc_info->color_depth,
-		crtc_info->requested_pixel_clock,
-		crtc_info->calculated_pixel_clock,
-		&audio_clock_info)) {
-		dm_logger_write(enc->ctx->logger, LOG_HW_AUDIO,
-				"\n%s:Input::requested_pixel_clock = %d"\
-				"calculated_pixel_clock = %d \n", __func__,\
-				crtc_info->requested_pixel_clock,\
-				crtc_info->calculated_pixel_clock);
+	get_audio_clock_info(crtc_info->color_depth,
+			     crtc_info->requested_pixel_clock,
+			     crtc_info->calculated_pixel_clock,
+			     &audio_clock_info);
+	dm_logger_write(enc->ctx->logger, LOG_HW_AUDIO,
+			"\n%s:Input::requested_pixel_clock = %d"	\
+			"calculated_pixel_clock = %d \n", __func__,	\
+			crtc_info->requested_pixel_clock,		\
+			crtc_info->calculated_pixel_clock);
 
-		/* HDMI_ACR_32_0__HDMI_ACR_CTS_32_MASK */
-		REG_UPDATE(HDMI_ACR_32_0, HDMI_ACR_CTS_32, audio_clock_info.cts_32khz);
+	/* HDMI_ACR_32_0__HDMI_ACR_CTS_32_MASK */
+	REG_UPDATE(HDMI_ACR_32_0, HDMI_ACR_CTS_32, audio_clock_info.cts_32khz);
 
-		/* HDMI_ACR_32_1__HDMI_ACR_N_32_MASK */
-		REG_UPDATE(HDMI_ACR_32_1, HDMI_ACR_N_32, audio_clock_info.n_32khz);
+	/* HDMI_ACR_32_1__HDMI_ACR_N_32_MASK */
+	REG_UPDATE(HDMI_ACR_32_1, HDMI_ACR_N_32, audio_clock_info.n_32khz);
 
-		/* HDMI_ACR_44_0__HDMI_ACR_CTS_44_MASK */
-		REG_UPDATE(HDMI_ACR_44_0, HDMI_ACR_CTS_44, audio_clock_info.cts_44khz);
+	/* HDMI_ACR_44_0__HDMI_ACR_CTS_44_MASK */
+	REG_UPDATE(HDMI_ACR_44_0, HDMI_ACR_CTS_44, audio_clock_info.cts_44khz);
 
-		/* HDMI_ACR_44_1__HDMI_ACR_N_44_MASK */
-		REG_UPDATE(HDMI_ACR_44_1, HDMI_ACR_N_44, audio_clock_info.n_44khz);
+	/* HDMI_ACR_44_1__HDMI_ACR_N_44_MASK */
+	REG_UPDATE(HDMI_ACR_44_1, HDMI_ACR_N_44, audio_clock_info.n_44khz);
 
-		/* HDMI_ACR_48_0__HDMI_ACR_CTS_48_MASK */
-		REG_UPDATE(HDMI_ACR_48_0, HDMI_ACR_CTS_48, audio_clock_info.cts_48khz);
+	/* HDMI_ACR_48_0__HDMI_ACR_CTS_48_MASK */
+	REG_UPDATE(HDMI_ACR_48_0, HDMI_ACR_CTS_48, audio_clock_info.cts_48khz);
 
-		/* HDMI_ACR_48_1__HDMI_ACR_N_48_MASK */
-		REG_UPDATE(HDMI_ACR_48_1, HDMI_ACR_N_48, audio_clock_info.n_48khz);
+	/* HDMI_ACR_48_1__HDMI_ACR_N_48_MASK */
+	REG_UPDATE(HDMI_ACR_48_1, HDMI_ACR_N_48, audio_clock_info.n_48khz);
 
-		/* Video driver cannot know in advance which sample rate will
-		be used by HD Audio driver
-		HDMI_ACR_PACKET_CONTROL__HDMI_ACR_N_MULTIPLE field is
-		programmed below in interruppt callback */
-	} /* if */
+	/* Video driver cannot know in advance which sample rate will
+	   be used by HD Audio driver
+	   HDMI_ACR_PACKET_CONTROL__HDMI_ACR_N_MULTIPLE field is
+	   programmed below in interruppt callback */
 
 	/* AFMT_60958_0__AFMT_60958_CS_CHANNEL_NUMBER_L_MASK &
 	AFMT_60958_0__AFMT_60958_CS_CLOCK_ACCURACY_MASK */
