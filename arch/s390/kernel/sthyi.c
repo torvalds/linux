@@ -11,7 +11,6 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
-#include <linux/ratelimit.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/sclp.h>
@@ -138,6 +137,21 @@ struct lpar_cpu_inf {
 	struct cpu_inf cp;
 	struct cpu_inf ifl;
 };
+
+/*
+ * STHYI requires extensive locking in the higher hypervisors
+ * and is very computational/memory expensive. Therefore we
+ * cache the retrieved data whose valid period is 1s.
+ */
+#define CACHE_VALID_JIFFIES	HZ
+
+struct sthyi_info {
+	void *info;
+	unsigned long end;
+};
+
+static DEFINE_MUTEX(sthyi_mutex);
+static struct sthyi_info sthyi_cache;
 
 static inline u64 cpu_id(u8 ctidx, void *diag224_buf)
 {
@@ -395,6 +409,47 @@ static int sthyi(u64 vaddr, u64 *rc)
 	return cc;
 }
 
+static int fill_dst(void *dst, u64 *rc)
+{
+	struct sthyi_sctns *sctns = (struct sthyi_sctns *)dst;
+
+	/*
+	 * If the facility is on, we don't want to emulate the instruction.
+	 * We ask the hypervisor to provide the data.
+	 */
+	if (test_facility(74))
+		return sthyi((u64)dst, rc);
+
+	fill_hdr(sctns);
+	fill_stsi(sctns);
+	fill_diag(sctns);
+	*rc = 0;
+	return 0;
+}
+
+static int sthyi_init_cache(void)
+{
+	if (sthyi_cache.info)
+		return 0;
+	sthyi_cache.info = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!sthyi_cache.info)
+		return -ENOMEM;
+	sthyi_cache.end = jiffies - 1; /* expired */
+	return 0;
+}
+
+static int sthyi_update_cache(u64 *rc)
+{
+	int r;
+
+	memset(sthyi_cache.info, 0, PAGE_SIZE);
+	r = fill_dst(sthyi_cache.info, rc);
+	if (r)
+		return r;
+	sthyi_cache.end = jiffies + CACHE_VALID_JIFFIES;
+	return r;
+}
+
 /*
  * sthyi_fill - Fill page with data returned by the STHYI instruction
  *
@@ -409,20 +464,23 @@ static int sthyi(u64 vaddr, u64 *rc)
  */
 int sthyi_fill(void *dst, u64 *rc)
 {
-	struct sthyi_sctns *sctns = (struct sthyi_sctns *)dst;
+	int r;
 
-	/*
-	 * If the facility is on, we don't want to emulate the instruction.
-	 * We ask the hypervisor to provide the data.
-	 */
-	if (test_facility(74))
-		return sthyi((u64)dst, rc);
+	mutex_lock(&sthyi_mutex);
+	r = sthyi_init_cache();
+	if (r)
+		goto out;
 
-	fill_hdr(sctns);
-	fill_stsi(sctns);
-	fill_diag(sctns);
-
+	if (time_is_before_jiffies(sthyi_cache.end)) {
+		/* cache expired */
+		r = sthyi_update_cache(rc);
+		if (r)
+			goto out;
+	}
 	*rc = 0;
-	return 0;
+	memcpy(dst, sthyi_cache.info, PAGE_SIZE);
+out:
+	mutex_unlock(&sthyi_mutex);
+	return r;
 }
 EXPORT_SYMBOL_GPL(sthyi_fill);

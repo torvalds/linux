@@ -375,16 +375,6 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 	if (!test_kvm_facility(vcpu->kvm, 74))
 		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
 
-	/*
-	 * STHYI requires extensive locking in the higher hypervisors
-	 * and is very computational/memory expensive. Therefore we
-	 * ratelimit the executions per VM.
-	 */
-	if (!__ratelimit(&vcpu->kvm->arch.sthyi_limit)) {
-		kvm_s390_retry_instr(vcpu);
-		return 0;
-	}
-
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 	code = vcpu->run->s.regs.gprs[reg1];
 	addr = vcpu->run->s.regs.gprs[reg2];

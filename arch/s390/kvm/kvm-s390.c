@@ -1884,8 +1884,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	rc = -ENOMEM;
 
-	ratelimit_state_init(&kvm->arch.sthyi_limit, 5 * HZ, 500);
-
 	kvm->arch.use_esca = 0; /* start with basic SCA */
 	if (!sclp.has_64bscao)
 		alloc_flags |= GFP_DMA;
