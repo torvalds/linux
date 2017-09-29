@@ -39,10 +39,20 @@ static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event);
 static DEFINE_PER_CPU(int, mce_queue_count);
 static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event_queue);
 
+/* Queue for delayed MCE UE events. */
+static DEFINE_PER_CPU(int, mce_ue_count);
+static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT],
+					mce_ue_event_queue);
+
 static void machine_check_process_queued_event(struct irq_work *work);
+void machine_check_ue_event(struct machine_check_event *evt);
+static void machine_process_ue_event(struct work_struct *work);
+
 static struct irq_work mce_event_process_work = {
         .func = machine_check_process_queued_event,
 };
+
+DECLARE_WORK(mce_ue_event_work, machine_process_ue_event);
 
 static void mce_set_error_info(struct machine_check_event *mce,
 			       struct mce_error_info *mce_err)
@@ -143,6 +153,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 		if (phys_addr != ULONG_MAX) {
 			mce->u.ue_error.physical_address_provided = true;
 			mce->u.ue_error.physical_address = phys_addr;
+			machine_check_ue_event(mce);
 		}
 	}
 	return;
@@ -197,6 +208,26 @@ void release_mce_event(void)
 	get_mce_event(NULL, true);
 }
 
+
+/*
+ * Queue up the MCE event which then can be handled later.
+ */
+void machine_check_ue_event(struct machine_check_event *evt)
+{
+	int index;
+
+	index = __this_cpu_inc_return(mce_ue_count) - 1;
+	/* If queue is full, just return for now. */
+	if (index >= MAX_MC_EVT) {
+		__this_cpu_dec(mce_ue_count);
+		return;
+	}
+	memcpy(this_cpu_ptr(&mce_ue_event_queue[index]), evt, sizeof(*evt));
+
+	/* Queue work to process this event later. */
+	schedule_work(&mce_ue_event_work);
+}
+
 /*
  * Queue up the MCE event which then can be handled later.
  */
@@ -219,7 +250,39 @@ void machine_check_queue_event(void)
 	/* Queue irq work to process this event later. */
 	irq_work_queue(&mce_event_process_work);
 }
+/*
+ * process pending MCE event from the mce event queue. This function will be
+ * called during syscall exit.
+ */
+static void machine_process_ue_event(struct work_struct *work)
+{
+	int index;
+	struct machine_check_event *evt;
 
+	while (__this_cpu_read(mce_ue_count) > 0) {
+		index = __this_cpu_read(mce_ue_count) - 1;
+		evt = this_cpu_ptr(&mce_ue_event_queue[index]);
+#ifdef CONFIG_MEMORY_FAILURE
+		/*
+		 * This should probably queued elsewhere, but
+		 * oh! well
+		 */
+		if (evt->error_type == MCE_ERROR_TYPE_UE) {
+			if (evt->u.ue_error.physical_address_provided) {
+				unsigned long pfn;
+
+				pfn = evt->u.ue_error.physical_address >>
+					PAGE_SHIFT;
+				memory_failure(pfn, SIGBUS, 0);
+			} else
+				pr_warn("Failed to identify bad address from "
+					"where the uncorrectable error (UE) "
+					"was generated\n");
+		}
+#endif
+		__this_cpu_dec(mce_ue_count);
+	}
+}
 /*
  * process pending MCE event from the mce event queue. This function will be
  * called during syscall exit.
@@ -227,6 +290,7 @@ void machine_check_queue_event(void)
 static void machine_check_process_queued_event(struct irq_work *work)
 {
 	int index;
+	struct machine_check_event *evt;
 
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
@@ -236,8 +300,8 @@ static void machine_check_process_queued_event(struct irq_work *work)
 	 */
 	while (__this_cpu_read(mce_queue_count) > 0) {
 		index = __this_cpu_read(mce_queue_count) - 1;
-		machine_check_print_event_info(
-				this_cpu_ptr(&mce_event_queue[index]), false);
+		evt = this_cpu_ptr(&mce_event_queue[index]);
+		machine_check_print_event_info(evt, false);
 		__this_cpu_dec(mce_queue_count);
 	}
 }
