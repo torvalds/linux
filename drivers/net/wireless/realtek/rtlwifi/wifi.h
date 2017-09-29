@@ -1013,10 +1013,17 @@ struct init_gain {
 };
 
 struct wireless_stats {
-	unsigned long txbytesunicast;
-	unsigned long txbytesmulticast;
-	unsigned long txbytesbroadcast;
-	unsigned long rxbytesunicast;
+	u64 txbytesunicast;
+	u64 txbytesmulticast;
+	u64 txbytesbroadcast;
+	u64 rxbytesunicast;
+
+	u64 txbytesunicast_inperiod;
+	u64 rxbytesunicast_inperiod;
+	u32 txbytesunicast_inperiod_tp;
+	u32 rxbytesunicast_inperiod_tp;
+	u64 txbytesunicast_last;
+	u64 rxbytesunicast_last;
 
 	long rx_snr_db[4];
 	/*Correct smoothed ss in Dbm, only used

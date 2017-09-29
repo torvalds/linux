@@ -1998,6 +1998,22 @@ label_lps_done:
 	rtlpriv->link_info.tx_busy_traffic = tx_busy_traffic;
 	rtlpriv->link_info.higher_busyrxtraffic = higher_busyrxtraffic;
 
+	rtlpriv->stats.txbytesunicast_inperiod =
+		rtlpriv->stats.txbytesunicast -
+		rtlpriv->stats.txbytesunicast_last;
+	rtlpriv->stats.rxbytesunicast_inperiod =
+		rtlpriv->stats.rxbytesunicast -
+		rtlpriv->stats.rxbytesunicast_last;
+	rtlpriv->stats.txbytesunicast_last = rtlpriv->stats.txbytesunicast;
+	rtlpriv->stats.rxbytesunicast_last = rtlpriv->stats.rxbytesunicast;
+
+	rtlpriv->stats.txbytesunicast_inperiod_tp =
+		(u32)(rtlpriv->stats.txbytesunicast_inperiod * 8 / 2 /
+		1024 / 1024);
+	rtlpriv->stats.rxbytesunicast_inperiod_tp =
+		(u32)(rtlpriv->stats.rxbytesunicast_inperiod * 8 / 2 /
+		1024 / 1024);
+
 	/* <3> DM */
 	if (!rtlpriv->cfg->mod_params->disable_watchdog)
 		rtlpriv->cfg->ops->dm_watchdog(hw);
