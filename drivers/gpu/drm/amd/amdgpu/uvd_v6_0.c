@@ -393,6 +393,15 @@ static int uvd_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	/* UVD ENC TRAP */
+	if (uvd_v6_0_enc_support(adev)) {
+		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
+			r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i + 119, &adev->uvd.irq);
+			if (r)
+				return r;
+		}
+	}
+
 	r = amdgpu_uvd_sw_init(adev);
 	if (r)
 		return r;
@@ -1236,8 +1245,31 @@ static int uvd_v6_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
+	bool int_handled = true;
 	DRM_DEBUG("IH: UVD TRAP\n");
-	amdgpu_fence_process(&adev->uvd.ring);
+
+	switch (entry->src_id) {
+	case 124:
+		amdgpu_fence_process(&adev->uvd.ring);
+		break;
+	case 119:
+		if (likely(uvd_v6_0_enc_support(adev)))
+			amdgpu_fence_process(&adev->uvd.ring_enc[0]);
+		else
+			int_handled = false;
+		break;
+	case 120:
+		if (likely(uvd_v6_0_enc_support(adev)))
+			amdgpu_fence_process(&adev->uvd.ring_enc[1]);
+		else
+			int_handled = false;
+		break;
+	}
+
+	if (false == int_handled)
+			DRM_ERROR("Unhandled interrupt: %d %d\n",
+			  entry->src_id, entry->src_data[0]);
+
 	return 0;
 }
 
@@ -1619,7 +1651,11 @@ static const struct amdgpu_irq_src_funcs uvd_v6_0_irq_funcs = {
 
 static void uvd_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->uvd.irq.num_types = 1;
+	if (uvd_v6_0_enc_support(adev))
+		adev->uvd.irq.num_types = adev->uvd.num_enc_rings + 1;
+	else
+		adev->uvd.irq.num_types = 1;
+
 	adev->uvd.irq.funcs = &uvd_v6_0_irq_funcs;
 }
 
