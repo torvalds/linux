@@ -604,21 +604,6 @@ static int soc15_common_early_init(void *handle)
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_PSP)))
 		psp_enabled = true;
 
-	/*
-	 * nbio need be used for both sdma and gfx9, but only
-	 * initializes once
-	 */
-	switch(adev->asic_type) {
-	case CHIP_VEGA10:
-		nbio_v6_1_init(adev);
-		break;
-	case CHIP_RAVEN:
-		nbio_v7_0_init(adev);
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	adev->rev_id = soc15_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
