@@ -272,7 +272,6 @@ static void hns_roce_loop_free(struct hns_roce_dev *hr_dev,
 	mhop_num = hr_dev->caps.pbl_hop_num;
 
 	i = loop_i;
-	j = loop_j;
 	if (mhop_num == 3 && err_loop_index == 2) {
 		for (; i >= 0; i--) {
 			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
