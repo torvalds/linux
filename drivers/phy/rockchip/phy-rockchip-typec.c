@@ -708,8 +708,11 @@ static int rockchip_usb3_phy_power_on(struct phy *phy)
 	if (tcphy->mode == new_mode)
 		goto unlock_ret;
 
-	if (tcphy->mode == MODE_DISCONNECT)
-		tcphy_phy_init(tcphy, new_mode);
+	if (tcphy->mode == MODE_DISCONNECT) {
+		ret = tcphy_phy_init(tcphy, new_mode);
+		if (ret)
+			goto unlock_ret;
+	}
 
 	/* wait TCPHY for pipe ready */
 	for (timeout = 0; timeout < 100; timeout++) {
@@ -783,10 +786,12 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 	 */
 	if (new_mode == MODE_DFP_DP && tcphy->mode != MODE_DISCONNECT) {
 		tcphy_phy_deinit(tcphy);
-		tcphy_phy_init(tcphy, new_mode);
+		ret = tcphy_phy_init(tcphy, new_mode);
 	} else if (tcphy->mode == MODE_DISCONNECT) {
-		tcphy_phy_init(tcphy, new_mode);
+		ret = tcphy_phy_init(tcphy, new_mode);
 	}
+	if (ret)
+		goto unlock_ret;
 
 	ret = readx_poll_timeout(readl, tcphy->base + DP_MODE_CTL,
 				 val, val & DP_MODE_A2, 1000,
