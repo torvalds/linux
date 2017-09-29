@@ -133,6 +133,10 @@ struct dc_stream_state_funcs {
 
 	void (*set_dither_option)(struct dc_stream_state *stream,
 			enum dc_dither_option option);
+
+	void (*set_dpms)(struct dc *dc,
+			struct dc_stream_state *stream,
+			bool dpms_off);
 };
 
 struct link_training_settings;
@@ -566,6 +570,7 @@ struct dc_stream_state {
 
 	int phy_pix_clk;
 	enum signal_type signal;
+	bool dpms_off;
 
 	struct dc_stream_status status;
 

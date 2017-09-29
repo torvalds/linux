@@ -332,7 +332,16 @@ static void set_dither_option(struct dc_stream_state *stream,
 {
 	struct bit_depth_reduction_params params;
 	struct dc_link *link = stream->status.link;
-	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
+	struct pipe_ctx *pipes;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (link->dc->current_state->res_ctx.pipe_ctx[i].stream ==
+				stream) {
+			pipes = &link->dc->current_state->res_ctx.pipe_ctx[i];
+			break;
+		}
+	}
 
 	memset(&params, 0, sizeof(params));
 	if (!stream)
@@ -347,6 +356,31 @@ static void set_dither_option(struct dc_stream_state *stream,
 	stream->bit_depth_params = params;
 	pipes->stream_res.opp->funcs->
 		opp_program_bit_depth_reduction(pipes->stream_res.opp, &params);
+}
+
+void set_dpms(
+	struct dc *dc,
+	struct dc_stream_state *stream,
+	bool dpms_off)
+{
+	struct pipe_ctx *pipe_ctx;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream) {
+			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+			break;
+		}
+	}
+
+	if (stream->dpms_off != dpms_off) {
+		stream->dpms_off = dpms_off;
+		if (dpms_off)
+			core_link_disable_stream(pipe_ctx,
+					KEEP_ACQUIRED_RESOURCE);
+		else
+			core_link_enable_stream(dc->current_state, pipe_ctx);
+	}
 }
 
 static void allocate_dc_stream_funcs(struct dc  *dc)
@@ -370,6 +404,9 @@ static void allocate_dc_stream_funcs(struct dc  *dc)
 
 	dc->stream_funcs.set_dither_option =
 			set_dither_option;
+
+	dc->stream_funcs.set_dpms =
+			set_dpms;
 
 	dc->link_funcs.set_drive_settings =
 			set_drive_settings;

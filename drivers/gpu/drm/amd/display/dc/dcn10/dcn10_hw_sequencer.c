@@ -1037,12 +1037,11 @@ static void reset_back_end_for_pipe(
 		return;
 	}
 
-	/* TODOFPGA break core_link_disable_stream into 2 functions:
-	 * disable_stream and disable_link. disable_link will disable PHYPLL
-	 * which is used by otg. Move disable_link after disable_crtc
-	 */
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		/* DPMS may already disable */
+		if (!pipe_ctx->stream->dpms_off)
+			core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
+	}
 
 	/* by upper caller loop, parent pipe: pipe0, will be reset last.
 	 * back end share by all pipes and will be disable only when disable

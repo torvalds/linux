@@ -1364,12 +1364,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	resource_build_info_frame(pipe_ctx);
 	dce110_update_info_frame(pipe_ctx);
 	if (!pipe_ctx_old->stream) {
-		core_link_enable_stream(context, pipe_ctx);
-
-
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			dce110_unblank_stream(pipe_ctx,
-				&stream->sink->link->cur_link_settings);
+		if (!pipe_ctx->stream->dpms_off)
+			core_link_enable_stream(context, pipe_ctx);
 	}
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
@@ -1879,7 +1875,10 @@ static void dce110_reset_hw_ctx_wrap(
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
-			core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
+			/* disable already, no need to disable again */
+			if (!pipe_ctx->stream->dpms_off)
+				core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
+
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
 			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {
 				dm_error("DC: failed to blank crtc!\n");
