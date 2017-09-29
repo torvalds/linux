@@ -1255,6 +1255,15 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Change the size here instead of the init above so only lpfn is affected */
 	amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
 
+	/*
+	 *The reserved vram for firmware must be pinned to the specified
+	 *place on the VRAM, so reserve it early.
+	 */
+	r = amdgpu_fw_reserve_vram_init(adev);
+	if (r) {
+		return r;
+	}
+
 	r = amdgpu_bo_create_kernel(adev, adev->mc.stolen_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_VRAM,
 				    &adev->stolen_vga_memory,

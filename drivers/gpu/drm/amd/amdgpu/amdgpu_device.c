@@ -658,6 +658,81 @@ void amdgpu_gart_location(struct amdgpu_device *adev, struct amdgpu_mc *mc)
 }
 
 /*
+ * Firmware Reservation functions
+ */
+/**
+ * amdgpu_fw_reserve_vram_fini - free fw reserved vram
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * free fw reserved vram if it has been reserved.
+ */
+void amdgpu_fw_reserve_vram_fini(struct amdgpu_device *adev)
+{
+	amdgpu_bo_free_kernel(&adev->fw_vram_usage.reserved_bo,
+		NULL, &adev->fw_vram_usage.va);
+}
+
+/**
+ * amdgpu_fw_reserve_vram_init - create bo vram reservation from fw
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * create bo vram reservation from fw.
+ */
+int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+	u64 gpu_addr;
+	u64 vram_size = adev->mc.visible_vram_size;
+
+	adev->fw_vram_usage.va = NULL;
+	adev->fw_vram_usage.reserved_bo = NULL;
+
+	if (adev->fw_vram_usage.size > 0 &&
+		adev->fw_vram_usage.size <= vram_size) {
+
+		r = amdgpu_bo_create(adev, adev->fw_vram_usage.size,
+			PAGE_SIZE, true, 0,
+			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL, 0,
+			&adev->fw_vram_usage.reserved_bo);
+		if (r)
+			goto error_create;
+
+		r = amdgpu_bo_reserve(adev->fw_vram_usage.reserved_bo, false);
+		if (r)
+			goto error_reserve;
+		r = amdgpu_bo_pin_restricted(adev->fw_vram_usage.reserved_bo,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			adev->fw_vram_usage.start_offset,
+			(adev->fw_vram_usage.start_offset +
+			adev->fw_vram_usage.size), &gpu_addr);
+		if (r)
+			goto error_pin;
+		r = amdgpu_bo_kmap(adev->fw_vram_usage.reserved_bo,
+			&adev->fw_vram_usage.va);
+		if (r)
+			goto error_kmap;
+
+		amdgpu_bo_unreserve(adev->fw_vram_usage.reserved_bo);
+	}
+	return r;
+
+error_kmap:
+	amdgpu_bo_unpin(adev->fw_vram_usage.reserved_bo);
+error_pin:
+	amdgpu_bo_unreserve(adev->fw_vram_usage.reserved_bo);
+error_reserve:
+	amdgpu_bo_unref(&adev->fw_vram_usage.reserved_bo);
+error_create:
+	adev->fw_vram_usage.va = NULL;
+	adev->fw_vram_usage.reserved_bo = NULL;
+	return r;
+}
+
+
+/*
  * GPU helpers function.
  */
 /**
@@ -2300,6 +2375,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 	amdgpu_ib_pool_fini(adev);
+	amdgpu_fw_reserve_vram_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
