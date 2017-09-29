@@ -862,8 +862,6 @@ static int scpi_init_versions(struct scpi_drvinfo *info)
 static ssize_t protocol_version_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct scpi_drvinfo *scpi_info = dev_get_drvdata(dev);
-
 	return sprintf(buf, "%d.%d\n",
 		       PROTOCOL_REV_MAJOR(scpi_info->protocol_version),
 		       PROTOCOL_REV_MINOR(scpi_info->protocol_version));
@@ -873,8 +871,6 @@ static DEVICE_ATTR_RO(protocol_version);
 static ssize_t firmware_version_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct scpi_drvinfo *scpi_info = dev_get_drvdata(dev);
-
 	return sprintf(buf, "%d.%d.%d\n",
 		       FW_REV_MAJOR(scpi_info->firmware_version),
 		       FW_REV_MINOR(scpi_info->firmware_version),
@@ -905,21 +901,17 @@ static int scpi_remove(struct platform_device *pdev)
 {
 	int i;
 	struct device *dev = &pdev->dev;
-	struct scpi_drvinfo *info = platform_get_drvdata(pdev);
-
-	scpi_info = NULL; /* stop exporting SCPI ops through get_scpi_ops */
 
 	of_platform_depopulate(dev);
 	sysfs_remove_groups(&dev->kobj, versions_groups);
-	scpi_free_channels(dev, info->channels, info->num_chans);
-	platform_set_drvdata(pdev, NULL);
+	scpi_free_channels(dev, scpi_info->channels, scpi_info->num_chans);
 
-	for (i = 0; i < MAX_DVFS_DOMAINS && info->dvfs[i]; i++) {
-		kfree(info->dvfs[i]->opps);
-		kfree(info->dvfs[i]);
+	for (i = 0; i < MAX_DVFS_DOMAINS && scpi_info->dvfs[i]; i++) {
+		kfree(scpi_info->dvfs[i]->opps);
+		kfree(scpi_info->dvfs[i]);
 	}
-	devm_kfree(dev, info->channels);
-	devm_kfree(dev, info);
+	devm_kfree(dev, scpi_info->channels);
+	devm_kfree(dev, scpi_info);
 
 	return 0;
 }
@@ -1026,8 +1018,6 @@ err:
 	scpi_info->channels = scpi_chan;
 	scpi_info->num_chans = count;
 	scpi_info->commands = scpi_std_commands;
-
-	platform_set_drvdata(pdev, scpi_info);
 
 	if (scpi_info->is_legacy) {
 		/* Replace with legacy variants */
