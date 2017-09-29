@@ -1015,6 +1015,9 @@ static int mixer_mode_valid(struct exynos_drm_crtc *crtc,
 	    (w >= 1664 && w <= 1920 && h >= 936 && h <= 1080))
 		return MODE_OK;
 
+	if ((w == 1024 && h == 768) || (w == 1280 && h == 1024))
+		return MODE_OK;
+
 	return MODE_BAD;
 }
 
