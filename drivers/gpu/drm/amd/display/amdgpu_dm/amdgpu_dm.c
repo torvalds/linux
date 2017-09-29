@@ -3073,7 +3073,7 @@ static uint32_t rgb_formats[] = {
 	DRM_FORMAT_ABGR2101010,
 };
 
-static uint32_t yuv_formats[] = {
+static const uint32_t yuv_formats[] = {
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_NV21,
 };
