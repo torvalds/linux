@@ -38,6 +38,8 @@
 #include "vi.h"
 
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev);
+static void uvd_v6_0_set_enc_ring_funcs(struct amdgpu_device *adev);
+
 static void uvd_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static int uvd_v6_0_start(struct amdgpu_device *adev);
 static void uvd_v6_0_stop(struct amdgpu_device *adev);
@@ -161,6 +163,7 @@ static int uvd_v6_0_early_init(void *handle)
 
 	if (uvd_v6_0_enc_support(adev)) {
 		adev->uvd.num_enc_rings = 2;
+		uvd_v6_0_set_enc_ring_funcs(adev);
 	}
 
 	uvd_v6_0_set_irq_funcs(adev);
@@ -290,8 +293,12 @@ static int uvd_v6_0_hw_init(void *handle)
 	amdgpu_ring_commit(ring);
 
 done:
-	if (!r)
-		DRM_INFO("UVD initialized successfully.\n");
+	if (!r) {
+		if (uvd_v6_0_enc_support(adev))
+			DRM_INFO("UVD and UVD ENC initialized successfully.\n");
+		else
+			DRM_INFO("UVD initialized successfully.\n");
+	}
 
 	return r;
 }
@@ -1334,6 +1341,31 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.end_use = amdgpu_uvd_ring_end_use,
 };
 
+static const struct amdgpu_ring_funcs uvd_v6_0_enc_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_UVD_ENC,
+	.align_mask = 0x3f,
+	.nop = HEVC_ENC_CMD_NO_OP,
+	.support_64bit_ptrs = false,
+	.get_rptr = uvd_v6_0_enc_ring_get_rptr,
+	.get_wptr = uvd_v6_0_enc_ring_get_wptr,
+	.set_wptr = uvd_v6_0_enc_ring_set_wptr,
+	.emit_frame_size =
+		4 + /* uvd_v6_0_enc_ring_emit_pipeline_sync */
+		6 + /* uvd_v6_0_enc_ring_emit_vm_flush */
+		5 + 5 + /* uvd_v6_0_enc_ring_emit_fence x2 vm fence */
+		1, /* uvd_v6_0_enc_ring_insert_end */
+	.emit_ib_size = 5, /* uvd_v6_0_enc_ring_emit_ib */
+	.emit_ib = uvd_v6_0_enc_ring_emit_ib,
+	.emit_fence = uvd_v6_0_enc_ring_emit_fence,
+	.emit_vm_flush = uvd_v6_0_enc_ring_emit_vm_flush,
+	.emit_pipeline_sync = uvd_v6_0_enc_ring_emit_pipeline_sync,
+	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_end = uvd_v6_0_enc_ring_insert_end,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_uvd_ring_begin_use,
+	.end_use = amdgpu_uvd_ring_end_use,
+};
+
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	if (adev->asic_type >= CHIP_POLARIS10) {
@@ -1343,6 +1375,16 @@ static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev)
 		adev->uvd.ring.funcs = &uvd_v6_0_ring_phys_funcs;
 		DRM_INFO("UVD is enabled in physical mode\n");
 	}
+}
+
+static void uvd_v6_0_set_enc_ring_funcs(struct amdgpu_device *adev)
+{
+	int i;
+
+	for (i = 0; i < adev->uvd.num_enc_rings; ++i)
+		adev->uvd.ring_enc[i].funcs = &uvd_v6_0_enc_ring_vm_funcs;
+
+	DRM_INFO("UVD ENC is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs uvd_v6_0_irq_funcs = {
