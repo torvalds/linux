@@ -428,15 +428,11 @@ static struct stream_encoder *dce112_stream_encoder_create(
 
 	if (!enc110)
 		return NULL;
-
-	if (dce110_stream_encoder_construct(
-			enc110, ctx, ctx->dc_bios, eng_id,
-			&stream_enc_regs[eng_id], &se_shift, &se_mask))
-		return &enc110->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(enc110);
-	return NULL;
+	
+	dce110_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id,
+					&stream_enc_regs[eng_id],
+					&se_shift, &se_mask);
+	return &enc110->base;
 }
 
 #define SRII(reg_name, block, id)\

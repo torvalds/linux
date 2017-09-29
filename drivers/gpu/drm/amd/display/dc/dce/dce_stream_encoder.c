@@ -1605,7 +1605,7 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 
 };
 
-bool dce110_stream_encoder_construct(
+void dce110_stream_encoder_construct(
 	struct dce110_stream_encoder *enc110,
 	struct dc_context *ctx,
 	struct dc_bios *bp,
@@ -1614,11 +1614,6 @@ bool dce110_stream_encoder_construct(
 	const struct dce_stream_encoder_shift *se_shift,
 	const struct dce_stream_encoder_mask *se_mask)
 {
-	if (!enc110)
-		return false;
-	if (!bp)
-		return false;
-
 	enc110->base.funcs = &dce110_str_enc_funcs;
 	enc110->base.ctx = ctx;
 	enc110->base.id = eng_id;
@@ -1626,6 +1621,4 @@ bool dce110_stream_encoder_construct(
 	enc110->regs = regs;
 	enc110->se_shift = se_shift;
 	enc110->se_mask = se_mask;
-
-	return true;
 }

@@ -697,7 +697,7 @@ struct dce110_stream_encoder {
 	const struct dce_stream_encoder_mask *se_mask;
 };
 
-bool dce110_stream_encoder_construct(
+void dce110_stream_encoder_construct(
 	struct dce110_stream_encoder *enc110,
 	struct dc_context *ctx,
 	struct dc_bios *bp,
