@@ -2575,7 +2575,20 @@ EXPORT_SYMBOL(transport_generic_new_cmd);
 
 static void transport_write_pending_qf(struct se_cmd *cmd)
 {
+	unsigned long flags;
 	int ret;
+	bool stop;
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	stop = (cmd->transport_state & (CMD_T_STOP | CMD_T_ABORTED));
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+	if (stop) {
+		pr_debug("%s:%d CMD_T_STOP|CMD_T_ABORTED for ITT: 0x%08llx\n",
+			__func__, __LINE__, cmd->tag);
+		complete_all(&cmd->t_transport_stop_comp);
+		return;
+	}
 
 	ret = cmd->se_tfo->write_pending(cmd);
 	if (ret) {
