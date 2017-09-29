@@ -3484,10 +3484,10 @@ static int hns_roce_v1_q_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 			      QP_CONTEXT_QPC_BYTES_12_P_KEY_INDEX_S);
 	qp_attr->port_num = hr_qp->port + 1;
 	qp_attr->sq_draining = 0;
-	qp_attr->max_rd_atomic = roce_get_field(context->qpc_bytes_156,
+	qp_attr->max_rd_atomic = 1 << roce_get_field(context->qpc_bytes_156,
 				 QP_CONTEXT_QPC_BYTES_156_INITIATOR_DEPTH_M,
 				 QP_CONTEXT_QPC_BYTES_156_INITIATOR_DEPTH_S);
-	qp_attr->max_dest_rd_atomic = roce_get_field(context->qpc_bytes_32,
+	qp_attr->max_dest_rd_atomic = 1 << roce_get_field(context->qpc_bytes_32,
 				 QP_CONTEXT_QPC_BYTES_32_RESPONDER_RESOURCES_M,
 				 QP_CONTEXT_QPC_BYTES_32_RESPONDER_RESOURCES_S);
 	qp_attr->min_rnr_timer = (u8)(roce_get_field(context->qpc_bytes_24,
