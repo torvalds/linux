@@ -155,9 +155,9 @@ static bool __ip6addrlbl_match(struct net *net,
 {
 	if (!net_eq(ip6addrlbl_net(p), net))
 		return false;
-	if (p->ifindex && p->ifindex != ifindex)
+	if (p->ifindex != ifindex)
 		return false;
-	if (p->addrtype && p->addrtype != addrtype)
+	if (p->addrtype != addrtype)
 		return false;
 	if (!ipv6_prefix_equal(addr, &p->prefix, p->prefixlen))
 		return false;
