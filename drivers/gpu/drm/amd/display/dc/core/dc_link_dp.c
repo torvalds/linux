@@ -1191,12 +1191,12 @@ struct dc_link_settings get_common_supported_link_settings (
 	return link_settings;
 }
 
-bool reached_minimum_lane_count(enum dc_lane_count lane_count)
+static inline bool reached_minimum_lane_count(enum dc_lane_count lane_count)
 {
 	return lane_count <= LANE_COUNT_ONE;
 }
 
-bool reached_minimum_link_rate(enum dc_link_rate link_rate)
+static inline bool reached_minimum_link_rate(enum dc_link_rate link_rate)
 {
 	return link_rate <= LINK_RATE_LOW;
 }
