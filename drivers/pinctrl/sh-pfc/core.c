@@ -175,19 +175,19 @@ void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,
 	BUG();
 }
 
-u32 sh_pfc_read_reg(struct sh_pfc *pfc, u32 reg, unsigned int width)
+u32 sh_pfc_read(struct sh_pfc *pfc, u32 reg)
 {
-	return sh_pfc_read_raw_reg(sh_pfc_phys_to_virt(pfc, reg), width);
+	return sh_pfc_read_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32);
 }
 
-void sh_pfc_write_reg(struct sh_pfc *pfc, u32 reg, unsigned int width, u32 data)
+void sh_pfc_write(struct sh_pfc *pfc, u32 reg, u32 data)
 {
 	if (pfc->info->unlock_reg)
 		sh_pfc_write_raw_reg(
 			sh_pfc_phys_to_virt(pfc, pfc->info->unlock_reg), 32,
 			~data);
 
-	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, reg), width, data);
+	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32, data);
 }
 
 static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,

@@ -5660,9 +5660,9 @@ static unsigned int r8a7795_pinmux_get_bias(struct sh_pfc *pfc,
 	reg = info->reg;
 	bit = BIT(info->bit);
 
-	if (!(sh_pfc_read_reg(pfc, PUEN + reg, 32) & bit))
+	if (!(sh_pfc_read(pfc, PUEN + reg) & bit))
 		return PIN_CONFIG_BIAS_DISABLE;
-	else if (sh_pfc_read_reg(pfc, PUD + reg, 32) & bit)
+	else if (sh_pfc_read(pfc, PUD + reg) & bit)
 		return PIN_CONFIG_BIAS_PULL_UP;
 	else
 		return PIN_CONFIG_BIAS_PULL_DOWN;
@@ -5683,16 +5683,16 @@ static void r8a7795_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	reg = info->reg;
 	bit = BIT(info->bit);
 
-	enable = sh_pfc_read_reg(pfc, PUEN + reg, 32) & ~bit;
+	enable = sh_pfc_read(pfc, PUEN + reg) & ~bit;
 	if (bias != PIN_CONFIG_BIAS_DISABLE)
 		enable |= bit;
 
-	updown = sh_pfc_read_reg(pfc, PUD + reg, 32) & ~bit;
+	updown = sh_pfc_read(pfc, PUD + reg) & ~bit;
 	if (bias == PIN_CONFIG_BIAS_PULL_UP)
 		updown |= bit;
 
-	sh_pfc_write_reg(pfc, PUD + reg, 32, updown);
-	sh_pfc_write_reg(pfc, PUEN + reg, 32, enable);
+	sh_pfc_write(pfc, PUD + reg, updown);
+	sh_pfc_write(pfc, PUEN + reg, enable);
 }
 
 static const struct soc_device_attribute r8a7795es1[] = {
