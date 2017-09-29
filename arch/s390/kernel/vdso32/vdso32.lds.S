@@ -2,6 +2,8 @@
  * This is the infamous ld script for the 32 bits vdso
  * library
  */
+
+#include <asm/page.h>
 #include <asm/vdso.h>
 
 OUTPUT_FORMAT("elf32-s390", "elf32-s390", "elf32-s390")
@@ -91,7 +93,7 @@ SECTIONS
 	.debug_ranges	0 : { *(.debug_ranges) }
 	.gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
 
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	PROVIDE(_vdso_data = .);
 
 	/DISCARD/	: {

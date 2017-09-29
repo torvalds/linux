@@ -20,7 +20,6 @@
 
 struct drr_class {
 	struct Qdisc_class_common	common;
-	unsigned int			refcnt;
 	unsigned int			filter_cnt;
 
 	struct gnet_stats_basic_packed		bstats;
@@ -111,7 +110,6 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl == NULL)
 		return -ENOBUFS;
 
-	cl->refcnt	   = 1;
 	cl->common.classid = classid;
 	cl->quantum	   = quantum;
 	cl->qdisc	   = qdisc_create_dflt(sch->dev_queue,
@@ -163,32 +161,15 @@ static int drr_delete_class(struct Qdisc *sch, unsigned long arg)
 	drr_purge_queue(cl);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
 	sch_tree_unlock(sch);
+
+	drr_destroy_class(sch, cl);
 	return 0;
 }
 
-static unsigned long drr_get_class(struct Qdisc *sch, u32 classid)
+static unsigned long drr_search_class(struct Qdisc *sch, u32 classid)
 {
-	struct drr_class *cl = drr_find_class(sch, classid);
-
-	if (cl != NULL)
-		cl->refcnt++;
-
-	return (unsigned long)cl;
-}
-
-static void drr_put_class(struct Qdisc *sch, unsigned long arg)
-{
-	struct drr_class *cl = (struct drr_class *)arg;
-
-	if (--cl->refcnt == 0)
-		drr_destroy_class(sch, cl);
+	return (unsigned long)drr_find_class(sch, classid);
 }
 
 static struct tcf_block *drr_tcf_block(struct Qdisc *sch, unsigned long cl)
@@ -246,8 +227,7 @@ static void drr_qlen_notify(struct Qdisc *csh, unsigned long arg)
 {
 	struct drr_class *cl = (struct drr_class *)arg;
 
-	if (cl->qdisc->q.qlen == 0)
-		list_del(&cl->alist);
+	list_del(&cl->alist);
 }
 
 static int drr_dump_class(struct Qdisc *sch, unsigned long arg,
@@ -479,8 +459,7 @@ static void drr_destroy_qdisc(struct Qdisc *sch)
 static const struct Qdisc_class_ops drr_class_ops = {
 	.change		= drr_change_class,
 	.delete		= drr_delete_class,
-	.get		= drr_get_class,
-	.put		= drr_put_class,
+	.find		= drr_search_class,
 	.tcf_block	= drr_tcf_block,
 	.bind_tcf	= drr_bind_tcf,
 	.unbind_tcf	= drr_unbind_tcf,

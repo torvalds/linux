@@ -155,13 +155,10 @@ static void __init pcpup_populate_pte(unsigned long addr)
 static inline void setup_percpu_segment(int cpu)
 {
 #ifdef CONFIG_X86_32
-	struct desc_struct gdt;
+	struct desc_struct d = GDT_ENTRY_INIT(0x8092, per_cpu_offset(cpu),
+					      0xFFFFF);
 
-	pack_descriptor(&gdt, per_cpu_offset(cpu), 0xFFFFF,
-			0x2 | DESCTYPE_S, 0x8);
-	gdt.s = 1;
-	write_gdt_entry(get_cpu_gdt_rw(cpu),
-			GDT_ENTRY_PERCPU, &gdt, DESCTYPE_S);
+	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_PERCPU, &d, DESCTYPE_S);
 #endif
 }
 
@@ -171,7 +168,7 @@ void __init setup_per_cpu_areas(void)
 	unsigned long delta;
 	int rc;
 
-	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%d nr_node_ids:%d\n",
+	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%u nr_node_ids:%d\n",
 		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
 
 	/*

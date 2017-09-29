@@ -112,7 +112,7 @@ static int ac97_soc_resume(struct snd_soc_codec *codec)
 #define ac97_soc_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_ac97 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ac97 = {
 	.probe = 	ac97_soc_probe,
 	.suspend =	ac97_soc_suspend,
 	.resume =	ac97_soc_resume,

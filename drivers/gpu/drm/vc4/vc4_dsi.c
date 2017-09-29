@@ -736,18 +736,18 @@ static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
 /* Enters or exits Ultra Low Power State. */
 static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 {
-	bool continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
-	u32 phyc_ulps = ((continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
+	bool non_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	u32 phyc_ulps = ((non_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
 			 DSI_PHYC_DLANE0_ULPS |
 			 (dsi->lanes > 1 ? DSI_PHYC_DLANE1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI_PHYC_DLANE2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI_PHYC_DLANE3_ULPS : 0));
-	u32 stat_ulps = ((continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
+	u32 stat_ulps = ((non_continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
 			 DSI1_STAT_PHY_D0_ULPS |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_ULPS : 0));
-	u32 stat_stop = ((continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
+	u32 stat_stop = ((non_continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
 			 DSI1_STAT_PHY_D0_STOP |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_STOP : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
@@ -1035,7 +1035,17 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 				     DSI_HS_DLT4_TRAIL) |
 		       VC4_SET_FIELD(0, DSI_HS_DLT4_ANLAT));
 
-	DSI_PORT_WRITE(HS_DLT5, VC4_SET_FIELD(dsi_hs_timing(ui_ns, 1000, 5000),
+	/* T_INIT is how long STOP is driven after power-up to
+	 * indicate to the slave (also coming out of power-up) that
+	 * master init is complete, and should be greater than the
+	 * maximum of two value: T_INIT,MASTER and T_INIT,SLAVE.  The
+	 * D-PHY spec gives a minimum 100us for T_INIT,MASTER and
+	 * T_INIT,SLAVE, while allowing protocols on top of it to give
+	 * greater minimums.  The vc4 firmware uses an extremely
+	 * conservative 5ms, and we maintain that here.
+	 */
+	DSI_PORT_WRITE(HS_DLT5, VC4_SET_FIELD(dsi_hs_timing(ui_ns,
+							    5 * 1000 * 1000, 0),
 					      DSI_HS_DLT5_INIT));
 
 	DSI_PORT_WRITE(HS_DLT6,
@@ -1626,13 +1636,9 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 
 	pm_runtime_disable(dev);
 
-	drm_bridge_remove(dsi->bridge);
 	vc4_dsi_encoder_destroy(dsi->encoder);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
-
-	clk_disable_unprepare(dsi->pll_phy_clock);
-	clk_disable_unprepare(dsi->escape_clock);
 
 	if (dsi->port == 1)
 		vc4->dsi1 = NULL;

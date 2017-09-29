@@ -520,8 +520,14 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 # the description in lib/decompressor_xxx.c for specific information.
 #
 # extra_bytes = (uncompressed_size >> 12) + 65536 + 128
+#
+# LZ4 is even worse: data that cannot be further compressed grows by 0.4%,
+# or one byte per 256 bytes. OTOH, we can safely get rid of the +128 as
+# the size-dependent part now grows so fast.
+#
+# extra_bytes = (uncompressed_size >> 8) + 65536
 
-#define ZO_z_extra_bytes	((ZO_z_output_len >> 12) + 65536 + 128)
+#define ZO_z_extra_bytes	((ZO_z_output_len >> 8) + 65536)
 #if ZO_z_output_len > ZO_z_input_len
 # define ZO_z_extract_offset	(ZO_z_output_len + ZO_z_extra_bytes - \
 				 ZO_z_input_len)

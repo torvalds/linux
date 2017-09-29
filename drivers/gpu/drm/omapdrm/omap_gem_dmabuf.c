@@ -144,7 +144,7 @@ static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 	return omap_gem_mmap_obj(obj, vma);
 }
 
-static struct dma_buf_ops omap_dmabuf_ops = {
+static const struct dma_buf_ops omap_dmabuf_ops = {
 	.map_dma_buf = omap_gem_map_dma_buf,
 	.unmap_dma_buf = omap_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,

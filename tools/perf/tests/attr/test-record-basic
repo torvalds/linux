@@ -1,5 +1,6 @@
 [config]
 command = record
 args    = kill >/dev/null 2>&1
+ret     = 1
 
 [event:base-record]

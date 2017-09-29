@@ -109,7 +109,7 @@ evdev nodes are created with minors starting with 256.
 keyboard
 ~~~~~~~~
 
-``keyboard`` is in-kernel input handler ad is a part of VT code. It
+``keyboard`` is in-kernel input handler and is a part of VT code. It
 consumes keyboard keystrokes and handles user input for VT consoles.
 
 mousedev

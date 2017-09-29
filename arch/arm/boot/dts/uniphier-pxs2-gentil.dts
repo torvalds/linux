@@ -8,7 +8,7 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-pxs2.dtsi"
+#include "uniphier-pxs2.dtsi"
 
 / {
 	model = "UniPhier PXs2 Gentil Board";

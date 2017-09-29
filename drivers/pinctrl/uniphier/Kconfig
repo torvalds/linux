@@ -40,4 +40,8 @@ config PINCTRL_UNIPHIER_LD20
 	bool "UniPhier LD20 SoC pinctrl driver"
 	default ARM64
 
+config PINCTRL_UNIPHIER_PXS3
+	bool "UniPhier PXs3 SoC pinctrl driver"
+	default ARM64
+
 endif

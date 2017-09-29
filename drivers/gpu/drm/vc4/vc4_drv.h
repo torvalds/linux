@@ -11,6 +11,24 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
 
+/* Don't forget to update vc4_bo.c: bo_type_names[] when adding to
+ * this.
+ */
+enum vc4_kernel_bo_type {
+	/* Any kernel allocation (gem_create_object hook) before it
+	 * gets another type set.
+	 */
+	VC4_BO_TYPE_KERNEL,
+	VC4_BO_TYPE_V3D,
+	VC4_BO_TYPE_V3D_SHADER,
+	VC4_BO_TYPE_DUMB,
+	VC4_BO_TYPE_BIN,
+	VC4_BO_TYPE_RCL,
+	VC4_BO_TYPE_BCL,
+	VC4_BO_TYPE_KERNEL_CACHE,
+	VC4_BO_TYPE_COUNT
+};
+
 struct vc4_dev {
 	struct drm_device *dev;
 
@@ -46,14 +64,14 @@ struct vc4_dev {
 		struct timer_list time_timer;
 	} bo_cache;
 
-	struct vc4_bo_stats {
+	u32 num_labels;
+	struct vc4_label {
+		const char *name;
 		u32 num_allocated;
 		u32 size_allocated;
-		u32 num_cached;
-		u32 size_cached;
-	} bo_stats;
+	} *bo_labels;
 
-	/* Protects bo_cache and the BO stats. */
+	/* Protects bo_cache and bo_labels. */
 	struct mutex bo_lock;
 
 	uint64_t dma_fence_context;
@@ -169,6 +187,11 @@ struct vc4_bo {
 	/* normally (resv == &_resv) except for imported bo's */
 	struct reservation_object *resv;
 	struct reservation_object _resv;
+
+	/* One of enum vc4_kernel_bo_type, or VC4_BO_TYPE_COUNT + i
+	 * for user-allocated labels.
+	 */
+	int label;
 };
 
 static inline struct vc4_bo *
@@ -460,7 +483,7 @@ struct vc4_validated_shader_info {
 struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size);
 void vc4_free_object(struct drm_gem_object *gem_obj);
 struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t size,
-			     bool from_cache);
+			     bool from_cache, enum vc4_kernel_bo_type type);
 int vc4_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args);
@@ -478,6 +501,8 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
+int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
@@ -485,13 +510,12 @@ struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
 						 struct sg_table *sgt);
 void *vc4_prime_vmap(struct drm_gem_object *obj);
-void vc4_bo_cache_init(struct drm_device *dev);
+int vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
 int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;
-bool vc4_event_pending(struct drm_crtc *crtc);
 int vc4_crtc_debugfs_regs(struct seq_file *m, void *arg);
 bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,

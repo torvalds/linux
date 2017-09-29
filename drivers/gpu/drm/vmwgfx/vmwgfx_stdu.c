@@ -412,7 +412,8 @@ static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
 }
 
 
-static void vmw_stdu_crtc_helper_commit(struct drm_crtc *crtc)
+static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -432,7 +433,8 @@ static void vmw_stdu_crtc_helper_commit(struct drm_crtc *crtc)
 		vmw_kms_del_active(dev_priv, &stdu->base);
 }
 
-static void vmw_stdu_crtc_helper_disable(struct drm_crtc *crtc)
+static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -1415,12 +1417,12 @@ drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
 
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 	.prepare = vmw_stdu_crtc_helper_prepare,
-	.commit = vmw_stdu_crtc_helper_commit,
-	.disable = vmw_stdu_crtc_helper_disable,
 	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
+	.atomic_enable = vmw_stdu_crtc_atomic_enable,
+	.atomic_disable = vmw_stdu_crtc_atomic_disable,
 };
 
 
@@ -1473,7 +1475,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 				       0, &vmw_stdu_plane_funcs,
 				       vmw_primary_plane_formats,
 				       ARRAY_SIZE(vmw_primary_plane_formats),
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize primary plane");
 		goto err_free;
@@ -1488,7 +1490,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 			0, &vmw_stdu_cursor_funcs,
 			vmw_cursor_plane_formats,
 			ARRAY_SIZE(vmw_cursor_plane_formats),
-			DRM_PLANE_TYPE_CURSOR, NULL);
+			NULL, DRM_PLANE_TYPE_CURSOR, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize cursor plane");
 		drm_plane_cleanup(&stdu->base.primary);
@@ -1651,36 +1653,11 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Failed to initialize STDU %d", i);
-			goto err_vblank_cleanup;
+			return ret;
 		}
 	}
 
 	DRM_INFO("Screen Target Display device initialized\n");
-
-	return 0;
-
-err_vblank_cleanup:
-	drm_vblank_cleanup(dev);
-	return ret;
-}
-
-
-
-/**
- * vmw_kms_stdu_close_display - Cleans up after vmw_kms_stdu_init_display
- *
- * @dev_priv: VMW DRM device
- *
- * Frees up any resources allocated by vmw_kms_stdu_init_display
- *
- * RETURNS:
- * 0 on success
- */
-int vmw_kms_stdu_close_display(struct vmw_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	drm_vblank_cleanup(dev);
 
 	return 0;
 }

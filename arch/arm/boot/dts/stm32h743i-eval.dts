@@ -60,6 +60,24 @@
 	aliases {
 		serial0 = &usart1;
 	};
+
+	vdda: regulator-vdda {
+		compatible = "regulator-fixed";
+		regulator-name = "vdda";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+};
+
+&adc_12 {
+	vref-supply = <&vdda>;
+	status = "okay";
+	adc1: adc@0 {
+		/* potentiometer */
+		st,adc-channels = <0>;
+		status = "okay";
+	};
 };
 
 &clk_hse {

@@ -117,7 +117,7 @@ tsb_miss_page_table_walk_sun4v_fastpath:
 	/* Valid PTE is now in %g5.  */
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	sethi		%uhi(_PAGE_PMD_HUGE), %g7
+	sethi		%uhi(_PAGE_PMD_HUGE | _PAGE_PUD_HUGE), %g7
 	sllx		%g7, 32, %g7
 
 	andcc		%g5, %g7, %g0

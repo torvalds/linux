@@ -64,8 +64,10 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 	} else {
 		u8 *dmac = rdma_ah_retrieve_dmac(ah_attr);
 
-		if (!dmac)
+		if (!dmac) {
+			kfree(ah);
 			return ERR_PTR(-EINVAL);
+		}
 		memcpy(ah->av.mac, dmac, ETH_ALEN);
 	}
 

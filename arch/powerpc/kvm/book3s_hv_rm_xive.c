@@ -38,7 +38,6 @@ static inline void __iomem *get_tima_phys(void)
 #define __x_tima		get_tima_phys()
 #define __x_eoi_page(xd)	((void __iomem *)((xd)->eoi_page))
 #define __x_trig_page(xd)	((void __iomem *)((xd)->trig_page))
-#define __x_readb	__raw_rm_readb
 #define __x_writeb	__raw_rm_writeb
 #define __x_readw	__raw_rm_readw
 #define __x_readq	__raw_rm_readq

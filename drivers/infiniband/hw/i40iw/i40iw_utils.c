@@ -160,7 +160,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
-	if (iwdev->init_state < INET_NOTIFIER)
+	if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 		return NOTIFY_DONE;
 
 	netdev = iwdev->ldev->netdev;
@@ -217,7 +217,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
-	if (iwdev->init_state < INET_NOTIFIER)
+	if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 		return NOTIFY_DONE;
 
 	netdev = iwdev->ldev->netdev;
@@ -266,7 +266,7 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 		if (!iwhdl)
 			return NOTIFY_DONE;
 		iwdev = &iwhdl->device;
-		if (iwdev->init_state < INET_NOTIFIER)
+		if (iwdev->init_state < IP_ADDR_REGISTERED || iwdev->closing)
 			return NOTIFY_DONE;
 		p = (__be32 *)neigh->primary_key;
 		i40iw_copy_ip_ntohl(local_ipaddr, p);
@@ -445,23 +445,29 @@ static int i40iw_wait_event(struct i40iw_device *iwdev,
 {
 	struct cqp_commands_info *info = &cqp_request->info;
 	struct i40iw_cqp *iwcqp = &iwdev->cqp;
+	struct i40iw_cqp_timeout cqp_timeout;
 	bool cqp_error = false;
 	int err_code = 0;
-	int timeout_ret = 0;
+	memset(&cqp_timeout, 0, sizeof(cqp_timeout));
+	cqp_timeout.compl_cqp_cmds = iwdev->sc_dev.cqp_cmd_stats[OP_COMPLETED_COMMANDS];
+	do {
+		if (wait_event_timeout(cqp_request->waitq,
+				       cqp_request->request_done, CQP_COMPL_WAIT_TIME))
+			break;
 
-	timeout_ret = wait_event_timeout(cqp_request->waitq,
-					 cqp_request->request_done,
-					 I40IW_EVENT_TIMEOUT);
-	if (!timeout_ret) {
-		i40iw_pr_err("error cqp command 0x%x timed out ret = %d\n",
-			     info->cqp_cmd, timeout_ret);
+		i40iw_check_cqp_progress(&cqp_timeout, &iwdev->sc_dev);
+
+		if (cqp_timeout.count < CQP_TIMEOUT_THRESHOLD)
+			continue;
+
+		i40iw_pr_err("error cqp command 0x%x timed out", info->cqp_cmd);
 		err_code = -ETIME;
 		if (!iwdev->reset) {
 			iwdev->reset = true;
 			i40iw_request_reset(iwdev);
 		}
 		goto done;
-	}
+	} while (1);
 	cqp_error = cqp_request->compl_info.error;
 	if (cqp_error) {
 		i40iw_pr_err("error cqp command 0x%x completion maj = 0x%x min=0x%x\n",

@@ -326,7 +326,7 @@ static struct attribute *tahvo_attributes[] = {
 	NULL
 };
 
-static struct attribute_group tahvo_attr_group = {
+static const struct attribute_group tahvo_attr_group = {
 	.attrs = tahvo_attributes,
 };
 

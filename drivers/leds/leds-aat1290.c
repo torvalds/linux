@@ -314,8 +314,10 @@ static void aat1290_led_validate_mm_current(struct aat1290_led *led,
 static int init_mm_current_scale(struct aat1290_led *led,
 			struct aat1290_led_config_data *cfg)
 {
-	int max_mm_current_percent[] = { 20, 22, 25, 28, 32, 36, 40, 45, 50, 56,
-						63, 71, 79, 89, 100 };
+	static const int max_mm_current_percent[] = {
+		20, 22, 25, 28, 32, 36, 40, 45, 50, 56,
+		63, 71, 79, 89, 100
+	};
 	int i, max_mm_current =
 			AAT1290_MAX_MM_CURRENT(cfg->max_flash_current);
 

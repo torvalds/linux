@@ -50,8 +50,8 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		 * when using another parser), so don't be louder than
 		 * KERN_DEBUG
 		 */
-		pr_debug("%s: 'partitions' subnode not found on %s. Trying to parse direct subnodes as partitions.\n",
-			 master->name, mtd_node->full_name);
+		pr_debug("%s: 'partitions' subnode not found on %pOF. Trying to parse direct subnodes as partitions.\n",
+			 master->name, mtd_node);
 		ofpart_node = mtd_node;
 		dedicated = false;
 	} else if (!of_device_is_compatible(ofpart_node, "fixed-partitions")) {
@@ -87,9 +87,9 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		reg = of_get_property(pp, "reg", &len);
 		if (!reg) {
 			if (dedicated) {
-				pr_debug("%s: ofpart partition %s (%s) missing reg property.\n",
-					 master->name, pp->full_name,
-					 mtd_node->full_name);
+				pr_debug("%s: ofpart partition %pOF (%pOF) missing reg property.\n",
+					 master->name, pp,
+					 mtd_node);
 				goto ofpart_fail;
 			} else {
 				nr_parts--;
@@ -100,9 +100,9 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		a_cells = of_n_addr_cells(pp);
 		s_cells = of_n_size_cells(pp);
 		if (len / 4 != a_cells + s_cells) {
-			pr_debug("%s: ofpart partition %s (%s) error parsing reg property.\n",
-				 master->name, pp->full_name,
-				 mtd_node->full_name);
+			pr_debug("%s: ofpart partition %pOF (%pOF) error parsing reg property.\n",
+				 master->name, pp,
+				 mtd_node);
 			goto ofpart_fail;
 		}
 
@@ -131,8 +131,8 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 	return nr_parts;
 
 ofpart_fail:
-	pr_err("%s: error parsing ofpart partition %s (%s)\n",
-	       master->name, pp->full_name, mtd_node->full_name);
+	pr_err("%s: error parsing ofpart partition %pOF (%pOF)\n",
+	       master->name, pp, mtd_node);
 	ret = -EINVAL;
 ofpart_none:
 	of_node_put(pp);
@@ -166,8 +166,7 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 	if (!part)
 		return 0; /* No partitions found */
 
-	pr_warn("Device tree uses obsolete partition map binding: %s\n",
-		dp->full_name);
+	pr_warn("Device tree uses obsolete partition map binding: %pOF\n", dp);
 
 	nr_parts = plen / sizeof(part[0]);
 

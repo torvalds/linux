@@ -554,7 +554,7 @@ static struct attribute *dsicm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dsicm_attr_group = {
+static const struct attribute_group dsicm_attr_group = {
 	.attrs = dsicm_attrs,
 };
 

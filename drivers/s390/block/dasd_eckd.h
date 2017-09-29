@@ -165,7 +165,7 @@ struct DE_eckd_data {
 	__u8 ga_extended;	/* Global Attributes Extended	*/
 	struct ch_t beg_ext;
 	struct ch_t end_ext;
-	unsigned long long ep_sys_time; /* Ext Parameter - System Time Stamp */
+	unsigned long ep_sys_time; /* Ext Parameter - System Time Stamp */
 	__u8 ep_format;        /* Extended Parameter format byte       */
 	__u8 ep_prio;          /* Extended Parameter priority I/O byte */
 	__u8 ep_reserved1;     /* Extended Parameter Reserved	       */

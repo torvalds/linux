@@ -311,13 +311,9 @@ static struct Qdisc *red_leaf(struct Qdisc *sch, unsigned long arg)
 	return q->qdisc;
 }
 
-static unsigned long red_get(struct Qdisc *sch, u32 classid)
+static unsigned long red_find(struct Qdisc *sch, u32 classid)
 {
 	return 1;
-}
-
-static void red_put(struct Qdisc *sch, unsigned long arg)
-{
 }
 
 static void red_walk(struct Qdisc *sch, struct qdisc_walker *walker)
@@ -335,8 +331,7 @@ static void red_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 static const struct Qdisc_class_ops red_class_ops = {
 	.graft		=	red_graft,
 	.leaf		=	red_leaf,
-	.get		=	red_get,
-	.put		=	red_put,
+	.find		=	red_find,
 	.walk		=	red_walk,
 	.dump		=	red_dump_class,
 };

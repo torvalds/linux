@@ -318,7 +318,7 @@ static const struct snd_kcontrol_new tm2_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
 
-const struct snd_soc_dapm_widget tm2_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget tm2_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("HP", NULL),
 	SND_SOC_DAPM_SPK("SPK", NULL),
 	SND_SOC_DAPM_SPK("RCV", NULL),
@@ -521,7 +521,7 @@ static void tm2_pm_complete(struct device *dev)
 	tm2_start_sysclk(card);
 }
 
-const struct dev_pm_ops tm2_pm_ops = {
+static const struct dev_pm_ops tm2_pm_ops = {
 	.prepare	= tm2_pm_prepare,
 	.suspend	= snd_soc_suspend,
 	.resume		= snd_soc_resume,

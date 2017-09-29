@@ -1712,6 +1712,9 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req,
 	unsigned int total_bytes;
 	u32 *cs;
 
+	/* Packets must be qword aligned. */
+	GEM_BUG_ON(num_dwords & 1);
+
 	total_bytes = bytes + req->reserved_space;
 	GEM_BUG_ON(total_bytes > ring->effective_size);
 
@@ -2140,7 +2143,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 		engine->emit_breadcrumb = gen6_sema_emit_breadcrumb;
 
-		num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1;
+		num_rings = INTEL_INFO(dev_priv)->num_rings - 1;
 		if (INTEL_GEN(dev_priv) >= 8) {
 			engine->emit_breadcrumb_sz += num_rings * 6;
 		} else {
@@ -2184,8 +2187,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 
 			engine->semaphore.signal = gen8_rcs_signal;
 
-			num_rings =
-				hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1;
+			num_rings = INTEL_INFO(dev_priv)->num_rings - 1;
 			engine->emit_breadcrumb_sz += num_rings * 8;
 		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {

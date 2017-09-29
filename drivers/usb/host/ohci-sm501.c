@@ -123,13 +123,12 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 	 * regular memory. The HCD_LOCAL_MEM flag does just that.
 	 */
 
-	if (!dma_declare_coherent_memory(dev, mem->start,
+	retval = dma_declare_coherent_memory(dev, mem->start,
 					 mem->start - mem->parent->start,
 					 resource_size(mem),
-					 DMA_MEMORY_MAP |
-					 DMA_MEMORY_EXCLUSIVE)) {
+					 DMA_MEMORY_EXCLUSIVE);
+	if (retval) {
 		dev_err(dev, "cannot declare coherent memory\n");
-		retval = -ENXIO;
 		goto err1;
 	}
 

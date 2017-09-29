@@ -387,7 +387,7 @@ int u300_gpio_config_set(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-static struct gpio_chip u300_gpio_chip = {
+static const struct gpio_chip u300_gpio_chip = {
 	.label			= "u300-gpio-chip",
 	.owner			= THIS_MODULE,
 	.request		= gpiochip_generic_request,

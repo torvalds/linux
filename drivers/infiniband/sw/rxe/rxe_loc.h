@@ -64,6 +64,8 @@ int rxe_cq_resize_queue(struct rxe_cq *cq, int new_cqe, struct ib_udata *udata);
 
 int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited);
 
+void rxe_cq_disable(struct rxe_cq *cq);
+
 void rxe_cq_cleanup(struct rxe_pool_entry *arg);
 
 /* rxe_mcast.c */
@@ -219,8 +221,6 @@ static inline void rxe_advance_resp_resource(struct rxe_qp *qp)
 void retransmit_timer(unsigned long data);
 void rnr_nak_timer(unsigned long data);
 
-void dump_qp(struct rxe_qp *qp);
-
 /* rxe_srq.c */
 #define IB_SRQ_INIT_MASK (~IB_SRQ_LIMIT)
 
@@ -250,7 +250,7 @@ void rxe_resp_queue_pkt(struct rxe_dev *rxe,
 void rxe_comp_queue_pkt(struct rxe_dev *rxe,
 			struct rxe_qp *qp, struct sk_buff *skb);
 
-static inline unsigned wr_opcode_mask(int opcode, struct rxe_qp *qp)
+static inline unsigned int wr_opcode_mask(int opcode, struct rxe_qp *qp)
 {
 	return rxe_wr_opcode_info[opcode].mask[qp->ibqp.qp_type];
 }

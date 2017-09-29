@@ -9,6 +9,46 @@
 #include "desc.h"
 #include "error.h"
 
+#ifdef DEBUG
+#include <linux/highmem.h>
+
+void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
+		  int rowsize, int groupsize, struct scatterlist *sg,
+		  size_t tlen, bool ascii)
+{
+	struct scatterlist *it;
+	void *it_page;
+	size_t len;
+	void *buf;
+
+	for (it = sg; it && tlen > 0 ; it = sg_next(sg)) {
+		/*
+		 * make sure the scatterlist's page
+		 * has a valid virtual memory mapping
+		 */
+		it_page = kmap_atomic(sg_page(it));
+		if (unlikely(!it_page)) {
+			pr_err("caam_dump_sg: kmap failed\n");
+			return;
+		}
+
+		buf = it_page + it->offset;
+		len = min_t(size_t, tlen, it->length);
+		print_hex_dump(level, prefix_str, prefix_type, rowsize,
+			       groupsize, buf, len, ascii);
+		tlen -= len;
+
+		kunmap_atomic(it_page);
+	}
+}
+#else
+void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
+		  int rowsize, int groupsize, struct scatterlist *sg,
+		  size_t tlen, bool ascii)
+{}
+#endif /* DEBUG */
+EXPORT_SYMBOL(caam_dump_sg);
+
 static const struct {
 	u8 value;
 	const char *error_text;

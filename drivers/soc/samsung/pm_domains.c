@@ -147,7 +147,7 @@ static __init const char *exynos_get_domain_name(struct device_node *node)
 	const char *name;
 
 	if (of_property_read_string(node, "label", &name) < 0)
-		name = strrchr(node->full_name, '/') + 1;
+		name = kbasename(node->full_name);
 	return kstrdup_const(name, GFP_KERNEL);
 }
 
@@ -237,11 +237,11 @@ no_clk:
 			continue;
 
 		if (of_genpd_add_subdomain(&parent, &child))
-			pr_warn("%s failed to add subdomain: %s\n",
-				parent.np->full_name, child.np->full_name);
+			pr_warn("%pOF failed to add subdomain: %pOF\n",
+				parent.np, child.np);
 		else
-			pr_info("%s has as child subdomain: %s.\n",
-				parent.np->full_name, child.np->full_name);
+			pr_info("%pOF has as child subdomain: %pOF.\n",
+				parent.np, child.np);
 	}
 
 	return 0;

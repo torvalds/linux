@@ -132,7 +132,6 @@ struct qfq_aggregate;
 struct qfq_class {
 	struct Qdisc_class_common common;
 
-	unsigned int refcnt;
 	unsigned int filter_cnt;
 
 	struct gnet_stats_basic_packed bstats;
@@ -477,7 +476,6 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl == NULL)
 		return -ENOBUFS;
 
-	cl->refcnt = 1;
 	cl->common.classid = classid;
 	cl->deficit = lmax;
 
@@ -555,32 +553,15 @@ static int qfq_delete_class(struct Qdisc *sch, unsigned long arg)
 	qfq_purge_queue(cl);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
 	sch_tree_unlock(sch);
+
+	qfq_destroy_class(sch, cl);
 	return 0;
 }
 
-static unsigned long qfq_get_class(struct Qdisc *sch, u32 classid)
+static unsigned long qfq_search_class(struct Qdisc *sch, u32 classid)
 {
-	struct qfq_class *cl = qfq_find_class(sch, classid);
-
-	if (cl != NULL)
-		cl->refcnt++;
-
-	return (unsigned long)cl;
-}
-
-static void qfq_put_class(struct Qdisc *sch, unsigned long arg)
-{
-	struct qfq_class *cl = (struct qfq_class *)arg;
-
-	if (--cl->refcnt == 0)
-		qfq_destroy_class(sch, cl);
+	return (unsigned long)qfq_find_class(sch, classid);
 }
 
 static struct tcf_block *qfq_tcf_block(struct Qdisc *sch, unsigned long cl)
@@ -1234,7 +1215,7 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (cl == NULL) {
 		if (err & __NET_XMIT_BYPASS)
 			qdisc_qstats_drop(sch);
-		kfree_skb(skb);
+		__qdisc_drop(skb, to_free);
 		return err;
 	}
 	pr_debug("qfq_enqueue: cl = %x\n", cl->common.classid);
@@ -1428,8 +1409,7 @@ static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl = (struct qfq_class *)arg;
 
-	if (cl->qdisc->q.qlen == 0)
-		qfq_deactivate_class(q, cl);
+	qfq_deactivate_class(q, cl);
 }
 
 static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
@@ -1511,8 +1491,7 @@ static void qfq_destroy_qdisc(struct Qdisc *sch)
 static const struct Qdisc_class_ops qfq_class_ops = {
 	.change		= qfq_change_class,
 	.delete		= qfq_delete_class,
-	.get		= qfq_get_class,
-	.put		= qfq_put_class,
+	.find		= qfq_search_class,
 	.tcf_block	= qfq_tcf_block,
 	.bind_tcf	= qfq_bind_tcf,
 	.unbind_tcf	= qfq_unbind_tcf,

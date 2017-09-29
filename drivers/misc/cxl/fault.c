@@ -138,6 +138,22 @@ int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar)
 	int result;
 	unsigned long access, flags, inv_flags = 0;
 
+	/*
+	 * Add the fault handling cpu to task mm cpumask so that we
+	 * can do a safe lockless page table walk when inserting the
+	 * hash page table entry. This function get called with a
+	 * valid mm for user space addresses. Hence using the if (mm)
+	 * check is sufficient here.
+	 */
+	if (mm && !cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm))) {
+		cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
+		/*
+		 * We need to make sure we walk the table only after
+		 * we update the cpumask. The other side of the barrier
+		 * is explained in serialize_against_pte_lookup()
+		 */
+		smp_mb();
+	}
 	if ((result = copro_handle_mm_fault(mm, dar, dsisr, &flt))) {
 		pr_devel("copro_handle_mm_fault failed: %#x\n", result);
 		return result;

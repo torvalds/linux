@@ -1432,10 +1432,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 	ssi_private = devm_kzalloc(&pdev->dev, sizeof(*ssi_private),
 			GFP_KERNEL);
-	if (!ssi_private) {
-		dev_err(&pdev->dev, "could not allocate DAI object\n");
+	if (!ssi_private)
 		return -ENOMEM;
-	}
 
 	ssi_private->soc = of_id->data;
 	ssi_private->dev = &pdev->dev;

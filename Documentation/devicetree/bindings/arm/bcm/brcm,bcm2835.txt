@@ -42,6 +42,10 @@ Raspberry Pi Zero
 Required root node properties:
 compatible = "raspberrypi,model-zero", "brcm,bcm2835";
 
+Raspberry Pi Zero W
+Required root node properties:
+compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
+
 Generic BCM2835 board
 Required root node properties:
 compatible = "brcm,bcm2835";

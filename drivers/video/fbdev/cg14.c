@@ -553,8 +553,8 @@ static int cg14_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk(KERN_INFO "%s: cgfourteen at %lx:%lx, %dMB\n",
-	       dp->full_name,
+	printk(KERN_INFO "%pOF: cgfourteen at %lx:%lx, %dMB\n",
+	       dp,
 	       par->iospace, info->fix.smem_start,
 	       par->ramsize >> 20);
 

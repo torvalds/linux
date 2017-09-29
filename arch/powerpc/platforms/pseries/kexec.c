@@ -15,6 +15,7 @@
 #include <asm/firmware.h>
 #include <asm/kexec.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/smp.h>
 #include <asm/plpar_wrappers.h>
 
@@ -51,5 +52,8 @@ void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 		}
 	}
 
-	xics_kexec_teardown_cpu(secondary);
+	if (xive_enabled())
+		xive_kexec_teardown_cpu(secondary);
+	else
+		xics_kexec_teardown_cpu(secondary);
 }

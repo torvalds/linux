@@ -244,7 +244,8 @@ static struct lpm_trie_node *lpm_trie_node_alloc(const struct lpm_trie *trie,
 	if (value)
 		size += trie->map.value_size;
 
-	node = kmalloc(size, GFP_ATOMIC | __GFP_NOWARN);
+	node = kmalloc_node(size, GFP_ATOMIC | __GFP_NOWARN,
+			    trie->map.numa_node);
 	if (!node)
 		return NULL;
 
@@ -405,6 +406,8 @@ static int trie_delete_elem(struct bpf_map *map, void *key)
 #define LPM_KEY_SIZE_MAX	LPM_KEY_SIZE(LPM_DATA_SIZE_MAX)
 #define LPM_KEY_SIZE_MIN	LPM_KEY_SIZE(LPM_DATA_SIZE_MIN)
 
+#define LPM_CREATE_FLAG_MASK	(BPF_F_NO_PREALLOC | BPF_F_NUMA_NODE)
+
 static struct bpf_map *trie_alloc(union bpf_attr *attr)
 {
 	struct lpm_trie *trie;
@@ -416,7 +419,8 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 ||
-	    attr->map_flags != BPF_F_NO_PREALLOC ||
+	    !(attr->map_flags & BPF_F_NO_PREALLOC) ||
+	    attr->map_flags & ~LPM_CREATE_FLAG_MASK ||
 	    attr->key_size < LPM_KEY_SIZE_MIN ||
 	    attr->key_size > LPM_KEY_SIZE_MAX ||
 	    attr->value_size < LPM_VAL_SIZE_MIN ||
@@ -433,6 +437,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	trie->map.value_size = attr->value_size;
 	trie->map.max_entries = attr->max_entries;
 	trie->map.map_flags = attr->map_flags;
+	trie->map.numa_node = bpf_map_attr_numa_node(attr);
 	trie->data_size = attr->key_size -
 			  offsetof(struct bpf_lpm_trie_key, data);
 	trie->max_prefixlen = trie->data_size * 8;

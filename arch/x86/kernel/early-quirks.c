@@ -12,10 +12,10 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
-#include <linux/dmi.h>
 #include <linux/pci_ids.h>
 #include <linux/bcma/bcma.h>
 #include <linux/bcma/bcma_regs.h>
+#include <linux/platform_data/x86/apple.h>
 #include <drm/i915_drm.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
@@ -527,6 +527,7 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_BXT_IDS(&gen9_early_ops),
 	INTEL_KBL_IDS(&gen9_early_ops),
 	INTEL_GLK_IDS(&gen9_early_ops),
+	INTEL_CNL_IDS(&gen9_early_ops),
 };
 
 static void __init
@@ -593,7 +594,7 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 	u64 addr;
 	int i;
 
-	if (!dmi_match(DMI_SYS_VENDOR, "Apple Inc."))
+	if (!x86_apple_machine)
 		return;
 
 	/* Card may have been put into PCI_D3hot by grub quirk */

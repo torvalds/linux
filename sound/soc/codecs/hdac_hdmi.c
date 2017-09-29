@@ -121,6 +121,10 @@ struct hdac_hdmi_dai_port_map {
 	struct hdac_hdmi_cvt *cvt;
 };
 
+struct hdac_hdmi_drv_data {
+	unsigned int vendor_nid;
+};
+
 struct hdac_hdmi_priv {
 	struct hdac_hdmi_dai_port_map dai_map[HDA_MAX_CVTS];
 	struct list_head pin_list;
@@ -131,6 +135,7 @@ struct hdac_hdmi_priv {
 	int num_ports;
 	struct mutex pin_mutex;
 	struct hdac_chmap chmap;
+	struct hdac_hdmi_drv_data *drv_data;
 };
 
 static struct hdac_hdmi_pcm *
@@ -1321,6 +1326,7 @@ static int hdac_hdmi_add_pin(struct hdac_ext_device *edev, hda_nid_t nid)
 }
 
 #define INTEL_VENDOR_NID 0x08
+#define INTEL_GLK_VENDOR_NID 0x0b
 #define INTEL_GET_VENDOR_VERB 0xf81
 #define INTEL_SET_VENDOR_VERB 0x781
 #define INTEL_EN_DP12			0x02 /* enable DP 1.2 features */
@@ -1329,14 +1335,17 @@ static int hdac_hdmi_add_pin(struct hdac_ext_device *edev, hda_nid_t nid)
 static void hdac_hdmi_skl_enable_all_pins(struct hdac_device *hdac)
 {
 	unsigned int vendor_param;
+	struct hdac_ext_device *edev = to_ehdac_device(hdac);
+	struct hdac_hdmi_priv *hdmi = edev->private_data;
+	unsigned int vendor_nid = hdmi->drv_data->vendor_nid;
 
-	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+	vendor_param = snd_hdac_codec_read(hdac, vendor_nid, 0,
 				INTEL_GET_VENDOR_VERB, 0);
 	if (vendor_param == -1 || vendor_param & INTEL_EN_ALL_PIN_CVTS)
 		return;
 
 	vendor_param |= INTEL_EN_ALL_PIN_CVTS;
-	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+	vendor_param = snd_hdac_codec_read(hdac, vendor_nid, 0,
 				INTEL_SET_VENDOR_VERB, vendor_param);
 	if (vendor_param == -1)
 		return;
@@ -1345,22 +1354,25 @@ static void hdac_hdmi_skl_enable_all_pins(struct hdac_device *hdac)
 static void hdac_hdmi_skl_enable_dp12(struct hdac_device *hdac)
 {
 	unsigned int vendor_param;
+	struct hdac_ext_device *edev = to_ehdac_device(hdac);
+	struct hdac_hdmi_priv *hdmi = edev->private_data;
+	unsigned int vendor_nid = hdmi->drv_data->vendor_nid;
 
-	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+	vendor_param = snd_hdac_codec_read(hdac, vendor_nid, 0,
 				INTEL_GET_VENDOR_VERB, 0);
 	if (vendor_param == -1 || vendor_param & INTEL_EN_DP12)
 		return;
 
 	/* enable DP1.2 mode */
 	vendor_param |= INTEL_EN_DP12;
-	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+	vendor_param = snd_hdac_codec_read(hdac, vendor_nid, 0,
 				INTEL_SET_VENDOR_VERB, vendor_param);
 	if (vendor_param == -1)
 		return;
 
 }
 
-static struct snd_soc_dai_ops hdmi_dai_ops = {
+static const struct snd_soc_dai_ops hdmi_dai_ops = {
 	.startup = hdac_hdmi_pcm_open,
 	.shutdown = hdac_hdmi_pcm_close,
 	.hw_params = hdac_hdmi_set_hw_params,
@@ -1858,7 +1870,7 @@ static void hdmi_codec_complete(struct device *dev)
 #define hdmi_codec_complete NULL
 #endif
 
-static struct snd_soc_codec_driver hdmi_hda_codec = {
+static const struct snd_soc_codec_driver hdmi_hda_codec = {
 	.probe		= hdmi_codec_probe,
 	.remove		= hdmi_codec_remove,
 	.idle_bias_off	= true,
@@ -1927,6 +1939,14 @@ static int hdac_hdmi_get_spk_alloc(struct hdac_device *hdac, int pcm_idx)
 	return port->eld.info.spk_alloc;
 }
 
+static struct hdac_hdmi_drv_data intel_glk_drv_data  = {
+	.vendor_nid = INTEL_GLK_VENDOR_NID,
+};
+
+static struct hdac_hdmi_drv_data intel_drv_data  = {
+	.vendor_nid = INTEL_VENDOR_NID,
+};
+
 static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 {
 	struct hdac_device *codec = &edev->hdac;
@@ -1935,6 +1955,8 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	struct hdac_ext_link *hlink = NULL;
 	int num_dais = 0;
 	int ret = 0;
+	struct hdac_driver *hdrv = drv_to_hdac_driver(codec->dev.driver);
+	const struct hda_device_id *hdac_id = hdac_get_device_id(codec, hdrv);
 
 	/* hold the ref while we probe */
 	hlink = snd_hdac_ext_bus_get_link(edev->ebus, dev_name(&edev->hdac.dev));
@@ -1955,6 +1977,12 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	hdmi_priv->chmap.ops.set_chmap = hdac_hdmi_set_chmap;
 	hdmi_priv->chmap.ops.is_pcm_attached = is_hdac_hdmi_pcm_attached;
 	hdmi_priv->chmap.ops.get_spk_alloc = hdac_hdmi_get_spk_alloc;
+
+	if (hdac_id->driver_data)
+		hdmi_priv->drv_data =
+			(struct hdac_hdmi_drv_data *)hdac_id->driver_data;
+	else
+		hdmi_priv->drv_data = &intel_drv_data;
 
 	dev_set_drvdata(&codec->dev, edev);
 
@@ -2127,7 +2155,8 @@ static const struct hda_device_id hdmi_list[] = {
 	HDA_CODEC_EXT_ENTRY(0x80862809, 0x100000, "Skylake HDMI", 0),
 	HDA_CODEC_EXT_ENTRY(0x8086280a, 0x100000, "Broxton HDMI", 0),
 	HDA_CODEC_EXT_ENTRY(0x8086280b, 0x100000, "Kabylake HDMI", 0),
-	HDA_CODEC_EXT_ENTRY(0x8086280d, 0x100000, "Geminilake HDMI", 0),
+	HDA_CODEC_EXT_ENTRY(0x8086280d, 0x100000, "Geminilake HDMI",
+						   &intel_glk_drv_data),
 	{}
 };
 

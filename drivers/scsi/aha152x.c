@@ -1140,6 +1140,9 @@ static void free_hard_reset_SCs(struct Scsi_Host *shpnt, Scsi_Cmnd **SCs)
 /*
  * Reset the bus
  *
+ * AIC-6260 has a hard reset (MRST signal), but apparently
+ * one cannot trigger it via software. So live with
+ * a soft reset; no-one seemed to have cared.
  */
 static int aha152x_bus_reset_host(struct Scsi_Host *shpnt)
 {
@@ -1220,15 +1223,6 @@ int aha152x_host_reset_host(struct Scsi_Host *shpnt)
 	reset_ports(shpnt);
 
 	return SUCCESS;
-}
-
-/*
- * Reset the host (bus and controller)
- *
- */
-static int aha152x_host_reset(Scsi_Cmnd *SCpnt)
-{
-	return aha152x_host_reset_host(SCpnt->device->host);
 }
 
 /*
@@ -2917,7 +2911,6 @@ static struct scsi_host_template aha152x_driver_template = {
 	.eh_abort_handler		= aha152x_abort,
 	.eh_device_reset_handler	= aha152x_device_reset,
 	.eh_bus_reset_handler		= aha152x_bus_reset,
-	.eh_host_reset_handler		= aha152x_host_reset,
 	.bios_param			= aha152x_biosparam,
 	.can_queue			= 1,
 	.this_id			= 7,

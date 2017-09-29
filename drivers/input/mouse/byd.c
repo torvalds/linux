@@ -344,7 +344,7 @@ static int byd_reset_touchpad(struct psmouse *psmouse)
 	u8 param[4];
 	size_t i;
 
-	const struct {
+	static const struct {
 		u16 command;
 		u8 arg;
 	} seq[] = {

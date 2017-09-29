@@ -1962,7 +1962,8 @@ static unsigned int ni_timer_to_ns(const struct comedi_device *dev, int timer)
 static void ni_cmd_set_mite_transfer(struct mite_ring *ring,
 				     struct comedi_subdevice *sdev,
 				     const struct comedi_cmd *cmd,
-				     unsigned int max_count) {
+				     unsigned int max_count)
+{
 #ifdef PCIDMA
 	unsigned int nbytes = max_count;
 

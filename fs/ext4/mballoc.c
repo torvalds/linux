@@ -2300,7 +2300,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 					     EXT4_MAX_BLOCK_LOG_SIZE);
 	struct sg {
 		struct ext4_group_info info;
-		ext4_grpblk_t counters[blocksize_bits + 2];
+		ext4_grpblk_t counters[EXT4_MAX_BLOCK_LOG_SIZE + 2];
 	} sg;
 
 	group--;
@@ -2308,6 +2308,9 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 		seq_puts(seq, "#group: free  frags first ["
 			      " 2^0   2^1   2^2   2^3   2^4   2^5   2^6  "
 			      " 2^7   2^8   2^9   2^10  2^11  2^12  2^13  ]\n");
+
+	i = (blocksize_bits + 2) * sizeof(sg.info.bb_counters[0]) +
+		sizeof(struct ext4_group_info);
 
 	grinfo = ext4_get_group_info(sb, group);
 	/* Load the group info in memory only if not already loaded. */
@@ -2320,7 +2323,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 		buddy_loaded = 1;
 	}
 
-	memcpy(&sg, ext4_get_group_info(sb, group), sizeof(sg));
+	memcpy(&sg, ext4_get_group_info(sb, group), i);
 
 	if (buddy_loaded)
 		ext4_mb_unload_buddy(&e4b);

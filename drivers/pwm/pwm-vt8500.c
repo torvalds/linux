@@ -241,6 +241,7 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 	ret = pwmchip_add(&chip->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add PWM chip\n");
+		clk_unprepare(chip->clk);
 		return ret;
 	}
 

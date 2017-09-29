@@ -216,8 +216,9 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	const char *fw_pre_name;
 
 	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
-	    CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP)
-		fw_pre_name = cfg->fw_name_pre_next_step;
+	    (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP ||
+	     CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_C_STEP))
+		fw_pre_name = cfg->fw_name_pre_b_or_c_step;
 	else if (drv->trans->cfg->integrated &&
 		 CSR_HW_RFID_STEP(drv->trans->hw_rf_id) == SILICON_B_STEP &&
 		 cfg->fw_name_pre_rf_next_step)
@@ -478,8 +479,8 @@ static int iwl_set_default_calib(struct iwl_drv *drv, const u8 *data)
 	return 0;
 }
 
-static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
-				   struct iwl_ucode_capabilities *capa)
+static void iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
+				    struct iwl_ucode_capabilities *capa)
 {
 	const struct iwl_ucode_api *ucode_api = (void *)data;
 	u32 api_index = le32_to_cpu(ucode_api->api_index);
@@ -487,23 +488,20 @@ static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_API, 32)) {
-		IWL_ERR(drv,
-			"api flags index %d larger than supported by driver\n",
-			api_index);
-		/* don't return an error so we can load FW that has more bits */
-		return 0;
+		IWL_WARN(drv,
+			 "api flags index %d larger than supported by driver\n",
+			 api_index);
+		return;
 	}
 
 	for (i = 0; i < 32; i++) {
 		if (api_flags & BIT(i))
 			__set_bit(i + 32 * api_index, capa->_api);
 	}
-
-	return 0;
 }
 
-static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
-				      struct iwl_ucode_capabilities *capa)
+static void iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
+				       struct iwl_ucode_capabilities *capa)
 {
 	const struct iwl_ucode_capa *ucode_capa = (void *)data;
 	u32 api_index = le32_to_cpu(ucode_capa->api_index);
@@ -511,19 +509,16 @@ static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_CAPA, 32)) {
-		IWL_ERR(drv,
-			"capa flags index %d larger than supported by driver\n",
-			api_index);
-		/* don't return an error so we can load FW that has more bits */
-		return 0;
+		IWL_WARN(drv,
+			 "capa flags index %d larger than supported by driver\n",
+			 api_index);
+		return;
 	}
 
 	for (i = 0; i < 32; i++) {
 		if (api_flags & BIT(i))
 			__set_bit(i + 32 * api_index, capa->_capa);
 	}
-
-	return 0;
 }
 
 static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
@@ -765,14 +760,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_API_CHANGES_SET:
 			if (tlv_len != sizeof(struct iwl_ucode_api))
 				goto invalid_tlv_len;
-			if (iwl_set_ucode_api_flags(drv, tlv_data, capa))
-				goto tlv_error;
+			iwl_set_ucode_api_flags(drv, tlv_data, capa);
 			break;
 		case IWL_UCODE_TLV_ENABLED_CAPABILITIES:
 			if (tlv_len != sizeof(struct iwl_ucode_capa))
 				goto invalid_tlv_len;
-			if (iwl_set_ucode_capabilities(drv, tlv_data, capa))
-				goto tlv_error;
+			iwl_set_ucode_capabilities(drv, tlv_data, capa);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
 			if (tlv_len != sizeof(u32))

@@ -145,6 +145,16 @@ static inline struct crypto_kpp *crypto_kpp_reqtfm(struct kpp_request *req)
 	return __crypto_kpp_tfm(req->base.tfm);
 }
 
+static inline u32 crypto_kpp_get_flags(struct crypto_kpp *tfm)
+{
+	return crypto_tfm_get_flags(crypto_kpp_tfm(tfm));
+}
+
+static inline void crypto_kpp_set_flags(struct crypto_kpp *tfm, u32 flags)
+{
+	crypto_tfm_set_flags(crypto_kpp_tfm(tfm), flags);
+}
+
 /**
  * crypto_free_kpp() - free KPP tfm handle
  *

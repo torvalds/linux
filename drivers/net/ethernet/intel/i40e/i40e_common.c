@@ -328,9 +328,9 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 			len = buf_len;
 		/* write the full 16-byte chunks */
 		if (hw->debug_mask & mask) {
-			char prefix[20];
+			char prefix[27];
 
-			snprintf(prefix, 20,
+			snprintf(prefix, sizeof(prefix),
 				 "i40e %02x:%02x.%x: \t0x",
 				 hw->bus.bus_id,
 				 hw->bus.device,
@@ -2528,6 +2528,10 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
 						      &abilities, NULL);
 		if (status)
 			return status;
+
+		hw->phy.link_info.req_fec_info =
+			abilities.fec_cfg_curr_mod_ext_info &
+			(I40E_AQ_REQUEST_FEC_KR | I40E_AQ_REQUEST_FEC_RS);
 
 		memcpy(hw->phy.link_info.module_type, &abilities.module_type,
 		       sizeof(hw->phy.link_info.module_type));

@@ -32,6 +32,7 @@
 #include "include/audit.h"
 #include "include/context.h"
 #include "include/crypto.h"
+#include "include/ipc.h"
 #include "include/policy_ns.h"
 #include "include/label.h"
 #include "include/policy.h"
@@ -248,8 +249,10 @@ static struct dentry *aafs_create(const char *name, umode_t mode,
 
 	inode_lock(dir);
 	dentry = lookup_one_len(name, parent, strlen(name));
-	if (IS_ERR(dentry))
+	if (IS_ERR(dentry)) {
+		error = PTR_ERR(dentry);
 		goto fail_lock;
+	}
 
 	if (d_really_is_positive(dentry)) {
 		error = -EEXIST;
@@ -1443,6 +1446,10 @@ void __aafs_profile_migrate_dents(struct aa_profile *old,
 {
 	int i;
 
+	AA_BUG(!old);
+	AA_BUG(!new);
+	AA_BUG(!mutex_is_locked(&profiles_ns(old)->lock));
+
 	for (i = 0; i < AAFS_PROF_SIZEOF; i++) {
 		new->dents[i] = old->dents[i];
 		if (new->dents[i])
@@ -1505,6 +1512,9 @@ int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	struct aa_profile *child;
 	struct dentry *dent = NULL, *dir;
 	int error;
+
+	AA_BUG(!profile);
+	AA_BUG(!mutex_is_locked(&profiles_ns(profile)->lock));
 
 	if (!parent) {
 		struct aa_profile *p;
@@ -1731,6 +1741,7 @@ void __aafs_ns_rmdir(struct aa_ns *ns)
 
 	if (!ns)
 		return;
+	AA_BUG(!mutex_is_locked(&ns->lock));
 
 	list_for_each_entry(child, &ns->base.profiles, base.list)
 		__aafs_profile_rmdir(child);
@@ -1903,6 +1914,10 @@ static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
 {
 	struct aa_ns *parent, *next;
 
+	AA_BUG(!root);
+	AA_BUG(!ns);
+	AA_BUG(ns != root && !mutex_is_locked(&ns->parent->lock));
+
 	/* is next namespace a child */
 	if (!list_empty(&ns->sub_ns)) {
 		next = list_first_entry(&ns->sub_ns, typeof(*ns), base.list);
@@ -1937,6 +1952,9 @@ static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
 static struct aa_profile *__first_profile(struct aa_ns *root,
 					  struct aa_ns *ns)
 {
+	AA_BUG(!root);
+	AA_BUG(ns && !mutex_is_locked(&ns->lock));
+
 	for (; ns; ns = __next_ns(root, ns)) {
 		if (!list_empty(&ns->base.profiles))
 			return list_first_entry(&ns->base.profiles,
@@ -1958,6 +1976,8 @@ static struct aa_profile *__next_profile(struct aa_profile *p)
 {
 	struct aa_profile *parent;
 	struct aa_ns *ns = p->ns;
+
+	AA_BUG(!mutex_is_locked(&profiles_ns(p)->lock));
 
 	/* is next profile a child */
 	if (!list_empty(&p->base.profiles))
@@ -2127,6 +2147,11 @@ static struct aa_sfs_entry aa_sfs_entry_ptrace[] = {
 	{ }
 };
 
+static struct aa_sfs_entry aa_sfs_entry_signal[] = {
+	AA_SFS_FILE_STRING("mask", AA_SFS_SIG_MASK),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_domain[] = {
 	AA_SFS_FILE_BOOLEAN("change_hat",	1),
 	AA_SFS_FILE_BOOLEAN("change_hatv",	1),
@@ -2151,9 +2176,14 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	{ }
 };
 
+static struct aa_sfs_entry aa_sfs_entry_mount[] = {
+	AA_SFS_FILE_STRING("mask", "mount umount pivot_root"),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_ns[] = {
 	AA_SFS_FILE_BOOLEAN("profile",		1),
-	AA_SFS_FILE_BOOLEAN("pivot_root",	1),
+	AA_SFS_FILE_BOOLEAN("pivot_root",	0),
 	{ }
 };
 
@@ -2172,22 +2202,25 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_DIR("policy",			aa_sfs_entry_policy),
 	AA_SFS_DIR("domain",			aa_sfs_entry_domain),
 	AA_SFS_DIR("file",			aa_sfs_entry_file),
+	AA_SFS_DIR("network",			aa_sfs_entry_network),
+	AA_SFS_DIR("mount",			aa_sfs_entry_mount),
 	AA_SFS_DIR("namespaces",		aa_sfs_entry_ns),
 	AA_SFS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
 	AA_SFS_DIR("rlimit",			aa_sfs_entry_rlimit),
 	AA_SFS_DIR("caps",			aa_sfs_entry_caps),
 	AA_SFS_DIR("ptrace",			aa_sfs_entry_ptrace),
+	AA_SFS_DIR("signal",			aa_sfs_entry_signal),
 	AA_SFS_DIR("query",			aa_sfs_entry_query),
 	{ }
 };
 
 static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
-	AA_SFS_FILE_FOPS(".access", 0640, &aa_sfs_access),
+	AA_SFS_FILE_FOPS(".access", 0666, &aa_sfs_access),
 	AA_SFS_FILE_FOPS(".stacked", 0444, &seq_ns_stacked_fops),
 	AA_SFS_FILE_FOPS(".ns_stacked", 0444, &seq_ns_nsstacked_fops),
-	AA_SFS_FILE_FOPS(".ns_level", 0666, &seq_ns_level_fops),
-	AA_SFS_FILE_FOPS(".ns_name", 0640, &seq_ns_name_fops),
-	AA_SFS_FILE_FOPS("profiles", 0440, &aa_sfs_profiles_fops),
+	AA_SFS_FILE_FOPS(".ns_level", 0444, &seq_ns_level_fops),
+	AA_SFS_FILE_FOPS(".ns_name", 0444, &seq_ns_name_fops),
+	AA_SFS_FILE_FOPS("profiles", 0444, &aa_sfs_profiles_fops),
 	AA_SFS_DIR("features", aa_sfs_entry_features),
 	{ }
 };

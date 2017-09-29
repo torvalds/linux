@@ -182,7 +182,7 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 	int num_cells = 0;
 	uint32_t dtype;
 	int bar_count;
-	int ret = 0;
+	int ret;
 	u32 hsize;
 
 	hsize = sizeof(struct chameleon_fpga_header);
@@ -210,8 +210,10 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 		 header->filename);
 
 	bar_count = chameleon_get_bar(&p, mapbase, &cb);
-	if (bar_count < 0)
+	if (bar_count < 0) {
+		ret = bar_count;
 		goto free_header;
+	}
 
 	for_each_chameleon_cell(dtype, p) {
 		switch (dtype) {

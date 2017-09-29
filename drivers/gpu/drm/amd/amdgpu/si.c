@@ -1150,6 +1150,33 @@ static bool si_read_disabled_bios(struct amdgpu_device *adev)
 	return r;
 }
 
+#define mmROM_INDEX 0x2A
+#define mmROM_DATA  0x2B
+
+static bool si_read_bios_from_rom(struct amdgpu_device *adev,
+				  u8 *bios, u32 length_bytes)
+{
+	u32 *dw_ptr;
+	u32 i, length_dw;
+
+	if (bios == NULL)
+		return false;
+	if (length_bytes == 0)
+		return false;
+	/* APU vbios image is part of sbios image */
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	dw_ptr = (u32 *)bios;
+	length_dw = ALIGN(length_bytes, 4) / 4;
+	/* set rom index to 0 */
+	WREG32(mmROM_INDEX, 0);
+	for (i = 0; i < length_dw; i++)
+		dw_ptr[i] = RREG32(mmROM_DATA);
+
+	return true;
+}
+
 //xxx: not implemented
 static int si_asic_reset(struct amdgpu_device *adev)
 {
@@ -1206,6 +1233,7 @@ static void si_detect_hw_virtualization(struct amdgpu_device *adev)
 static const struct amdgpu_asic_funcs si_asic_funcs =
 {
 	.read_disabled_bios = &si_read_disabled_bios,
+	.read_bios_from_rom = &si_read_bios_from_rom,
 	.read_register = &si_read_register,
 	.reset = &si_asic_reset,
 	.set_vga_state = &si_vga_set_state,

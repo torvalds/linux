@@ -25,6 +25,7 @@ struct vsp1_partition;
 struct vsp1_partition_window;
 
 enum vsp1_entity_type {
+	VSP1_ENTITY_BRS,
 	VSP1_ENTITY_BRU,
 	VSP1_ENTITY_CLU,
 	VSP1_ENTITY_HGO,
@@ -111,8 +112,8 @@ struct vsp1_entity {
 	struct media_pad *pads;
 	unsigned int source_pad;
 
-	struct media_entity **sources;
-	struct media_entity *sink;
+	struct vsp1_entity **sources;
+	struct vsp1_entity *sink;
 	unsigned int sink_pad;
 
 	struct v4l2_subdev subdev;

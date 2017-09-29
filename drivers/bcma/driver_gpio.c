@@ -191,6 +191,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	case BCMA_CHIP_ID_BCM4707:
 	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM53572:
+	case BCMA_CHIP_ID_BCM53573:
 	case BCMA_CHIP_ID_BCM47094:
 		chip->ngpio	= 32;
 		break;

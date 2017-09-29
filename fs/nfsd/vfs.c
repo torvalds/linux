@@ -969,7 +969,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int			use_wgather;
 	loff_t			pos = offset;
 	unsigned int		pflags = current->flags;
-	int			flags = 0;
+	rwf_t			flags = 0;
 
 	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
 		/*

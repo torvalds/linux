@@ -23,7 +23,7 @@
  * ddr to sram for system resumeing.
  * so it is ".data section".
  */
-.align
+	.align	2
 
 ENTRY(rockchip_slp_cpu_resume)
 	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set svc, irqs off
