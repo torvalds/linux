@@ -3359,6 +3359,7 @@ static int hns_roce_v1_q_sqp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	qp_attr->path_mtu	= IB_MTU_256;
 	qp_attr->path_mig_state	= IB_MIG_ARMED;
 	qp_attr->qkey		= QKEY_VAL;
+	qp_attr->ah_attr.type   = RDMA_AH_ATTR_TYPE_ROCE;
 	qp_attr->rq_psn		= 0;
 	qp_attr->sq_psn		= 0;
 	qp_attr->dest_qp_num	= 1;
@@ -3440,6 +3441,7 @@ static int hns_roce_v1_q_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 					       QP_CONTEXT_QPC_BYTES_48_MTU_M,
 					       QP_CONTEXT_QPC_BYTES_48_MTU_S);
 	qp_attr->path_mig_state = IB_MIG_ARMED;
+	qp_attr->ah_attr.type   = RDMA_AH_ATTR_TYPE_ROCE;
 	if (hr_qp->ibqp.qp_type == IB_QPT_UD)
 		qp_attr->qkey = QKEY_VAL;
 
