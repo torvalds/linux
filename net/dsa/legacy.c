@@ -607,7 +607,7 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dev->dsa_ptr = dst;
+	dev->dsa_ptr = dst->cpu_dp;
 
 	return dsa_master_ethtool_setup(dst->cpu_dp->netdev);
 }

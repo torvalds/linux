@@ -116,7 +116,8 @@ void dsa_master_ethtool_restore(struct net_device *dev);
 static inline struct net_device *dsa_master_get_slave(struct net_device *dev,
 						      int device, int port)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	struct dsa_switch_tree *dst = cpu_dp->dst;
 	struct dsa_switch *ds;
 
 	if (device < 0 || device >= DSA_MAX_SWITCHES)

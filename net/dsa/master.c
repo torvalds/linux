@@ -16,8 +16,7 @@ static void dsa_master_get_ethtool_stats(struct net_device *dev,
 					 struct ethtool_stats *stats,
 					 uint64_t *data)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dst->cpu_dp;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
 	struct dsa_switch *ds = cpu_dp->ds;
 	int port = cpu_dp->index;
@@ -34,8 +33,7 @@ static void dsa_master_get_ethtool_stats(struct net_device *dev,
 
 static int dsa_master_get_sset_count(struct net_device *dev, int sset)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dst->cpu_dp;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
 	struct dsa_switch *ds = cpu_dp->ds;
 	int count = 0;
@@ -52,8 +50,7 @@ static int dsa_master_get_sset_count(struct net_device *dev, int sset)
 static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 				   uint8_t *data)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dst->cpu_dp;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
 	struct dsa_switch *ds = cpu_dp->ds;
 	int port = cpu_dp->index;
@@ -90,8 +87,7 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 
 int dsa_master_ethtool_setup(struct net_device *dev)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dst->cpu_dp;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch *ds = cpu_dp->ds;
 	struct ethtool_ops *ops;
 
@@ -114,8 +110,7 @@ int dsa_master_ethtool_setup(struct net_device *dev)
 
 void dsa_master_ethtool_restore(struct net_device *dev)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dst->cpu_dp;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
 
 	dev->ethtool_ops = cpu_dp->orig_ethtool_ops;
 	cpu_dp->orig_ethtool_ops = NULL;

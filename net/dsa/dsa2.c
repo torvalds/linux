@@ -438,7 +438,7 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dst->cpu_dp->netdev->dsa_ptr = dst;
+	dst->cpu_dp->netdev->dsa_ptr = dst->cpu_dp;
 
 	err = dsa_master_ethtool_setup(dst->cpu_dp->netdev);
 	if (err)
