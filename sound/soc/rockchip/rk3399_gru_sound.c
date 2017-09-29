@@ -494,13 +494,17 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_dapm_route *routes;
 	int i, index;
+	int num_routes;
 
 	card->dai_link = devm_kzalloc(dev, sizeof(rockchip_dais),
 				      GFP_KERNEL);
 	if (!card->dai_link)
 		return -ENOMEM;
 
-	routes = devm_kzalloc(dev, sizeof(rockchip_routes),
+	num_routes = 0;
+	for (i = 0; i < ARRAY_SIZE(rockchip_routes); i++)
+		num_routes += rockchip_routes[i].num_routes;
+	routes = devm_kzalloc(dev, num_routes * sizeof(*routes),
 			      GFP_KERNEL);
 	if (!routes)
 		return -ENOMEM;
@@ -537,6 +541,12 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 		dai->codec_of_node = np_codec;
 		dai->platform_of_node = np_cpu;
 		dai->cpu_of_node = np_cpu;
+
+		if (card->num_dapm_routes + rockchip_routes[index].num_routes >
+		    num_routes) {
+			dev_err(dev, "Too many routes\n");
+			return -EINVAL;
+		}
 
 		memcpy(routes + card->num_dapm_routes,
 		       rockchip_routes[index].routes,
