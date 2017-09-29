@@ -121,14 +121,22 @@ static int wait_status(struct refill_engine *engine, uint32_t wait_mask)
 	while (true) {
 		r = dmm_read(dmm, reg[PAT_STATUS][engine->id]);
 		err = r & DMM_PATSTATUS_ERR;
-		if (err)
+		if (err) {
+			dev_err(dmm->dev,
+				"%s: error (engine%d). PAT_STATUS: 0x%08x\n",
+				__func__, engine->id, r);
 			return -EFAULT;
+		}
 
 		if ((r & wait_mask) == wait_mask)
 			break;
 
-		if (--i == 0)
+		if (--i == 0) {
+			dev_err(dmm->dev,
+				"%s: timeout (engine%d). PAT_STATUS: 0x%08x\n",
+				__func__, engine->id, r);
 			return -ETIMEDOUT;
+		}
 
 		udelay(1);
 	}
