@@ -50,7 +50,7 @@ config SPI_ATMEL_QUADSPI
 
 config SPI_CADENCE_QUADSPI
 	tristate "Cadence Quad SPI controller"
-	depends on OF && (ARM || COMPILE_TEST)
+	depends on OF && (ARM || ARM64 || COMPILE_TEST)
 	help
 	  Enable support for the Cadence Quad SPI Flash controller.
 
