@@ -98,10 +98,6 @@ static int amdgpu_pp_early_init(void *handle)
 					amd_pp->cgs_device ? amd_pp->cgs_device :
 					amd_pp->pp_handle);
 
-	if (ret == PP_DPM_DISABLED) {
-		adev->pm.dpm_enabled = false;
-		return 0;
-	}
 	return ret;
 }
 
@@ -153,14 +149,6 @@ static int amdgpu_pp_hw_init(void *handle)
 	if (adev->powerplay.ip_funcs->hw_init)
 		ret = adev->powerplay.ip_funcs->hw_init(
 					adev->powerplay.pp_handle);
-
-	if (ret == PP_DPM_DISABLED) {
-		adev->pm.dpm_enabled = false;
-		return 0;
-	}
-
-	if ((amdgpu_dpm != 0) && !amdgpu_sriov_vf(adev))
-		adev->pm.dpm_enabled = true;
 
 	return ret;
 }

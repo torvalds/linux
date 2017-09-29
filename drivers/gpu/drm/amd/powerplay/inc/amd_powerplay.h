@@ -33,8 +33,6 @@
 extern const struct amd_ip_funcs pp_ip_funcs;
 extern const struct amd_pm_funcs pp_dpm_funcs;
 
-#define PP_DPM_DISABLED 0xCCCC
-
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
 	AMDGPU_PP_SENSOR_VDDNB,
