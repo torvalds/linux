@@ -98,9 +98,9 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->dirty_nats = NM_I(sbi)->dirty_nat_cnt;
 	si->sits = MAIN_SEGS(sbi);
 	si->dirty_sits = SIT_I(sbi)->dirty_sentries;
-	si->free_nids = NM_I(sbi)->nid_cnt[FREE_NID_LIST];
+	si->free_nids = NM_I(sbi)->nid_cnt[FREE_NID];
 	si->avail_nids = NM_I(sbi)->available_nids;
-	si->alloc_nids = NM_I(sbi)->nid_cnt[ALLOC_NID_LIST];
+	si->alloc_nids = NM_I(sbi)->nid_cnt[PREALLOC_NID];
 	si->bg_gc = sbi->bg_gc;
 	si->util_free = (int)(free_user_blocks(sbi) >> sbi->log_blocks_per_seg)
 		* 100 / (int)(sbi->user_block_count >> sbi->log_blocks_per_seg)
@@ -233,8 +233,8 @@ get_cache:
 	}
 
 	/* free nids */
-	si->cache_mem += (NM_I(sbi)->nid_cnt[FREE_NID_LIST] +
-				NM_I(sbi)->nid_cnt[ALLOC_NID_LIST]) *
+	si->cache_mem += (NM_I(sbi)->nid_cnt[FREE_NID] +
+				NM_I(sbi)->nid_cnt[PREALLOC_NID]) *
 				sizeof(struct free_nid);
 	si->cache_mem += NM_I(sbi)->nat_cnt * sizeof(struct nat_entry);
 	si->cache_mem += NM_I(sbi)->dirty_nat_cnt *

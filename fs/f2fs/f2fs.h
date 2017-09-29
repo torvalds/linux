@@ -666,10 +666,13 @@ static inline void __try_update_largest_extent(struct inode *inode,
 	}
 }
 
-enum nid_list {
-	FREE_NID_LIST,
-	ALLOC_NID_LIST,
-	MAX_NID_LIST,
+/*
+ * For free nid management
+ */
+enum nid_state {
+	FREE_NID,		/* newly added to free nid list */
+	PREALLOC_NID,		/* it is preallocated */
+	MAX_NID_STATE,
 };
 
 struct f2fs_nm_info {
@@ -692,8 +695,8 @@ struct f2fs_nm_info {
 
 	/* free node ids management */
 	struct radix_tree_root free_nid_root;/* root of the free_nid cache */
-	struct list_head nid_list[MAX_NID_LIST];/* lists for free nids */
-	unsigned int nid_cnt[MAX_NID_LIST];	/* the number of free node id */
+	struct list_head free_nid_list;		/* list for free nids excluding preallocated nids */
+	unsigned int nid_cnt[MAX_NID_STATE];	/* the number of free node id */
 	spinlock_t nid_list_lock;	/* protect nid lists ops */
 	struct mutex build_lock;	/* lock for build free nids */
 	unsigned char (*free_nid_bitmap)[NAT_ENTRY_BITMAP_SIZE];
