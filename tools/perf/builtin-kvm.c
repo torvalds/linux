@@ -1441,7 +1441,8 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	perf_session__set_id_hdr_size(kvm->session);
 	ordered_events__set_copy_on_queue(&kvm->session->ordered_events, true);
 	machine__synthesize_threads(&kvm->session->machines.host, &kvm->opts.target,
-				    kvm->evlist->threads, false, kvm->opts.proc_map_timeout);
+				    kvm->evlist->threads, false,
+				    kvm->opts.proc_map_timeout, 1);
 	err = kvm_live_open_events(kvm);
 	if (err)
 		goto out;

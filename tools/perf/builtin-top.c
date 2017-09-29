@@ -958,8 +958,14 @@ static int __cmd_top(struct perf_top *top)
 	if (perf_session__register_idle_thread(top->session) < 0)
 		goto out_delete;
 
+	perf_set_multithreaded();
+
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->threads, false, opts->proc_map_timeout);
+				    top->evlist->threads, false,
+				    opts->proc_map_timeout,
+				    (unsigned int)sysconf(_SC_NPROCESSORS_ONLN));
+
+	perf_set_singlethreaded();
 
 	if (perf_hpp_list.socket) {
 		ret = perf_env__read_cpu_topology_map(&perf_env);
