@@ -1247,6 +1247,18 @@ static void hdmi_v13_mode_apply(struct hdmi_context *hdata)
 static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 {
 	struct drm_display_mode *m = &hdata->encoder.crtc->state->mode;
+	struct drm_display_mode *am =
+				&hdata->encoder.crtc->state->adjusted_mode;
+	int hquirk = 0;
+
+	/*
+	 * In case video mode coming from CRTC differs from requested one HDMI
+	 * sometimes is able to almost properly perform conversion - only
+	 * first line is distorted.
+	 */
+	if ((m->vdisplay != am->vdisplay) &&
+	    (m->hdisplay == 1280 || m->hdisplay == 1024))
+		hquirk = 258;
 
 	hdmi_reg_writev(hdata, HDMI_H_BLANK_0, 2, m->htotal - m->hdisplay);
 	hdmi_reg_writev(hdata, HDMI_V_LINE_0, 2, m->vtotal);
@@ -1340,8 +1352,9 @@ static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 	hdmi_reg_writev(hdata, HDMI_V_SYNC_LINE_AFT_PXL_6_0, 2, 0xffff);
 
 	hdmi_reg_writev(hdata, HDMI_TG_H_FSZ_L, 2, m->htotal);
-	hdmi_reg_writev(hdata, HDMI_TG_HACT_ST_L, 2, m->htotal - m->hdisplay);
-	hdmi_reg_writev(hdata, HDMI_TG_HACT_SZ_L, 2, m->hdisplay);
+	hdmi_reg_writev(hdata, HDMI_TG_HACT_ST_L, 2,
+					m->htotal - m->hdisplay - hquirk);
+	hdmi_reg_writev(hdata, HDMI_TG_HACT_SZ_L, 2, m->hdisplay + hquirk);
 	hdmi_reg_writev(hdata, HDMI_TG_V_FSZ_L, 2, m->vtotal);
 	if (hdata->drv_data == &exynos5433_hdmi_driver_data)
 		hdmi_reg_writeb(hdata, HDMI_TG_DECON_EN, 1);
