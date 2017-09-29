@@ -2655,11 +2655,45 @@ err_alloc_prd:
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int renesas_usb3_suspend(struct device *dev)
+{
+	struct renesas_usb3 *usb3 = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!usb3->driver)
+		return 0;
+
+	renesas_usb3_stop_controller(usb3);
+	pm_runtime_put(dev);
+
+	return 0;
+}
+
+static int renesas_usb3_resume(struct device *dev)
+{
+	struct renesas_usb3 *usb3 = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!usb3->driver)
+		return 0;
+
+	pm_runtime_get_sync(dev);
+	renesas_usb3_init_controller(usb3);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(renesas_usb3_pm_ops, renesas_usb3_suspend,
+			renesas_usb3_resume);
+
 static struct platform_driver renesas_usb3_driver = {
 	.probe		= renesas_usb3_probe,
 	.remove		= renesas_usb3_remove,
 	.driver		= {
 		.name =	(char *)udc_name,
+		.pm		= &renesas_usb3_pm_ops,
 		.of_match_table = of_match_ptr(usb3_of_match),
 	},
 };
