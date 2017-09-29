@@ -3383,12 +3383,6 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 			goto out;
 		}
 
-		if (unlikely(!access_ok(is_write ? VERIFY_READ : VERIFY_WRITE,
-					ubuf, ulen))) {
-			rc = -EFAULT;
-			goto out;
-		}
-
 		buf = kmalloc(ulen + cache_line_size() - 1, GFP_KERNEL);
 		if (unlikely(!buf)) {
 			rc = -ENOMEM;
