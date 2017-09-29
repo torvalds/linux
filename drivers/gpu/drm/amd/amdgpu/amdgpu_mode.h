@@ -361,7 +361,7 @@ struct amdgpu_mode_info {
 	int			num_dig; /* number of dig blocks */
 	int			disp_priority;
 	const struct amdgpu_display_funcs *funcs;
-	enum drm_plane_type *plane_type;
+	const enum drm_plane_type *plane_type;
 };
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF

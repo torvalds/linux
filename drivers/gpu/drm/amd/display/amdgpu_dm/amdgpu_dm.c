@@ -71,7 +71,7 @@
 #include "i2caux_interface.h"
 
 
-static enum drm_plane_type dm_plane_type_default[AMDGPU_MAX_PLANES] = {
+static const enum drm_plane_type dm_plane_type_default[AMDGPU_MAX_PLANES] = {
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_PRIMARY,
@@ -80,14 +80,14 @@ static enum drm_plane_type dm_plane_type_default[AMDGPU_MAX_PLANES] = {
 	DRM_PLANE_TYPE_PRIMARY,
 };
 
-static enum drm_plane_type dm_plane_type_carizzo[AMDGPU_MAX_PLANES] = {
+static const enum drm_plane_type dm_plane_type_carizzo[AMDGPU_MAX_PLANES] = {
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_OVERLAY,/* YUV Capable Underlay */
 };
 
-static enum drm_plane_type dm_plane_type_stoney[AMDGPU_MAX_PLANES] = {
+static const enum drm_plane_type dm_plane_type_stoney[AMDGPU_MAX_PLANES] = {
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_OVERLAY, /* YUV Capable Underlay */
