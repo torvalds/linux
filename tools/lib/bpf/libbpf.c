@@ -171,6 +171,7 @@ int libbpf_strerror(int err, char *buf, size_t size)
 struct bpf_program {
 	/* Index in elf obj file, for relocation use. */
 	int idx;
+	char *name;
 	char *section_name;
 	struct bpf_insn *insns;
 	size_t insns_cnt;
@@ -283,6 +284,7 @@ static void bpf_program__exit(struct bpf_program *prog)
 	prog->clear_priv = NULL;
 
 	bpf_program__unload(prog);
+	zfree(&prog->name);
 	zfree(&prog->section_name);
 	zfree(&prog->insns);
 	zfree(&prog->reloc_desc);
@@ -293,26 +295,27 @@ static void bpf_program__exit(struct bpf_program *prog)
 }
 
 static int
-bpf_program__init(void *data, size_t size, char *name, int idx,
-		    struct bpf_program *prog)
+bpf_program__init(void *data, size_t size, char *section_name, int idx,
+		  struct bpf_program *prog)
 {
 	if (size < sizeof(struct bpf_insn)) {
-		pr_warning("corrupted section '%s'\n", name);
+		pr_warning("corrupted section '%s'\n", section_name);
 		return -EINVAL;
 	}
 
 	bzero(prog, sizeof(*prog));
 
-	prog->section_name = strdup(name);
+	prog->section_name = strdup(section_name);
 	if (!prog->section_name) {
-		pr_warning("failed to alloc name for prog %s\n",
-			   name);
+		pr_warning("failed to alloc name for prog under section %s\n",
+			   section_name);
 		goto errout;
 	}
 
 	prog->insns = malloc(size);
 	if (!prog->insns) {
-		pr_warning("failed to alloc insns for %s\n", name);
+		pr_warning("failed to alloc insns for prog under section %s\n",
+			   section_name);
 		goto errout;
 	}
 	prog->insns_cnt = size / sizeof(struct bpf_insn);
@@ -331,12 +334,12 @@ errout:
 
 static int
 bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
-			char *name, int idx)
+			char *section_name, int idx)
 {
 	struct bpf_program prog, *progs;
 	int nr_progs, err;
 
-	err = bpf_program__init(data, size, name, idx, &prog);
+	err = bpf_program__init(data, size, section_name, idx, &prog);
 	if (err)
 		return err;
 
@@ -350,8 +353,8 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 		 * is still valid, so don't need special treat for
 		 * bpf_close_object().
 		 */
-		pr_warning("failed to alloc a new program '%s'\n",
-			   name);
+		pr_warning("failed to alloc a new program under section '%s'\n",
+			   section_name);
 		bpf_program__exit(&prog);
 		return -ENOMEM;
 	}
@@ -361,6 +364,54 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 	obj->nr_programs = nr_progs + 1;
 	prog.obj = obj;
 	progs[nr_progs] = prog;
+	return 0;
+}
+
+static int
+bpf_object__init_prog_names(struct bpf_object *obj)
+{
+	Elf_Data *symbols = obj->efile.symbols;
+	struct bpf_program *prog;
+	size_t pi, si;
+
+	for (pi = 0; pi < obj->nr_programs; pi++) {
+		char *name = NULL;
+
+		prog = &obj->programs[pi];
+
+		for (si = 0; si < symbols->d_size / sizeof(GElf_Sym) && !name;
+		     si++) {
+			GElf_Sym sym;
+
+			if (!gelf_getsym(symbols, si, &sym))
+				continue;
+			if (sym.st_shndx != prog->idx)
+				continue;
+
+			name = elf_strptr(obj->efile.elf,
+					  obj->efile.strtabidx,
+					  sym.st_name);
+			if (!name) {
+				pr_warning("failed to get sym name string for prog %s\n",
+					   prog->section_name);
+				return -LIBBPF_ERRNO__LIBELF;
+			}
+		}
+
+		if (!name) {
+			pr_warning("failed to find sym for prog %s\n",
+				   prog->section_name);
+			return -EINVAL;
+		}
+
+		prog->name = strdup(name);
+		if (!prog->name) {
+			pr_warning("failed to allocate memory for prog sym %s\n",
+				   name);
+			return -ENOMEM;
+		}
+	}
+
 	return 0;
 }
 
@@ -766,8 +817,12 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		pr_warning("Corrupted ELF file: index of strtab invalid\n");
 		return LIBBPF_ERRNO__FORMAT;
 	}
-	if (obj->efile.maps_shndx >= 0)
+	if (obj->efile.maps_shndx >= 0) {
 		err = bpf_object__init_maps(obj);
+		if (err)
+			goto out;
+	}
+	err = bpf_object__init_prog_names(obj);
 out:
 	return err;
 }
@@ -870,11 +925,12 @@ bpf_object__create_maps(struct bpf_object *obj)
 		struct bpf_map_def *def = &obj->maps[i].def;
 		int *pfd = &obj->maps[i].fd;
 
-		*pfd = bpf_create_map(def->type,
-				      def->key_size,
-				      def->value_size,
-				      def->max_entries,
-				      0);
+		*pfd = bpf_create_map_name(def->type,
+					   obj->maps[i].name,
+					   def->key_size,
+					   def->value_size,
+					   def->max_entries,
+					   0);
 		if (*pfd < 0) {
 			size_t j;
 			int err = *pfd;
@@ -982,7 +1038,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 }
 
 static int
-load_program(enum bpf_prog_type type, struct bpf_insn *insns,
+load_program(enum bpf_prog_type type, const char *name, struct bpf_insn *insns,
 	     int insns_cnt, char *license, u32 kern_version, int *pfd)
 {
 	int ret;
@@ -995,8 +1051,8 @@ load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 	if (!log_buf)
 		pr_warning("Alloc log buffer for bpf loader error, continue without log\n");
 
-	ret = bpf_load_program(type, insns, insns_cnt, license,
-			       kern_version, log_buf, BPF_LOG_BUF_SIZE);
+	ret = bpf_load_program_name(type, name, insns, insns_cnt, license,
+				    kern_version, log_buf, BPF_LOG_BUF_SIZE);
 
 	if (ret >= 0) {
 		*pfd = ret;
@@ -1021,9 +1077,9 @@ load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 		if (type != BPF_PROG_TYPE_KPROBE) {
 			int fd;
 
-			fd = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
-					      insns_cnt, license, kern_version,
-					      NULL, 0);
+			fd = bpf_load_program_name(BPF_PROG_TYPE_KPROBE, name,
+						   insns, insns_cnt, license,
+						   kern_version, NULL, 0);
 			if (fd >= 0) {
 				close(fd);
 				ret = -LIBBPF_ERRNO__PROGTYPE;
@@ -1067,8 +1123,8 @@ bpf_program__load(struct bpf_program *prog,
 			pr_warning("Program '%s' is inconsistent: nr(%d) != 1\n",
 				   prog->section_name, prog->instances.nr);
 		}
-		err = load_program(prog->type, prog->insns, prog->insns_cnt,
-				   license, kern_version, &fd);
+		err = load_program(prog->type, prog->name, prog->insns,
+				   prog->insns_cnt, license, kern_version, &fd);
 		if (!err)
 			prog->instances.fds[0] = fd;
 		goto out;
@@ -1096,7 +1152,8 @@ bpf_program__load(struct bpf_program *prog,
 			continue;
 		}
 
-		err = load_program(prog->type, result.new_insn_ptr,
+		err = load_program(prog->type, prog->name,
+				   result.new_insn_ptr,
 				   result.new_insn_cnt,
 				   license, kern_version, &fd);
 

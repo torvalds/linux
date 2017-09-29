@@ -137,6 +137,7 @@ static void do_test_lru(enum test_type test, int cpu)
 
 			inner_lru_map_fds[cpu] =
 				bpf_create_map_node(BPF_MAP_TYPE_LRU_HASH,
+						    test_map_names[INNER_LRU_HASH_PREALLOC],
 						    sizeof(uint32_t),
 						    sizeof(long),
 						    inner_lru_hash_size, 0,
