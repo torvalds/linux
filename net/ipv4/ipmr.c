@@ -3224,7 +3224,7 @@ static const struct fib_notifier_ops ipmr_notifier_ops_template = {
 	.owner		= THIS_MODULE,
 };
 
-int __net_init ipmr_notifier_init(struct net *net)
+static int __net_init ipmr_notifier_init(struct net *net)
 {
 	struct fib_notifier_ops *ops;
 
