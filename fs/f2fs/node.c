@@ -63,7 +63,7 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 	} else if (type == INO_ENTRIES) {
 		int i;
 
-		for (i = 0; i <= UPDATE_INO; i++)
+		for (i = 0; i < MAX_INO_ENTRY; i++)
 			mem_size += sbi->im[i].ino_num *
 						sizeof(struct ino_entry);
 		mem_size >>= PAGE_SHIFT;
@@ -1340,6 +1340,7 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	struct node_info ni;
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
+		.ino = ino_of_node(page),
 		.type = NODE,
 		.op = REQ_OP_WRITE,
 		.op_flags = wbc_to_write_flags(wbc),

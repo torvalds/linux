@@ -598,6 +598,7 @@ static void move_data_block(struct inode *inode, block_t bidx,
 {
 	struct f2fs_io_info fio = {
 		.sbi = F2FS_I_SB(inode),
+		.ino = inode->i_ino,
 		.type = DATA,
 		.temp = COLD,
 		.op = REQ_OP_READ,
@@ -728,6 +729,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
 	} else {
 		struct f2fs_io_info fio = {
 			.sbi = F2FS_I_SB(inode),
+			.ino = inode->i_ino,
 			.type = DATA,
 			.temp = COLD,
 			.op = REQ_OP_WRITE,

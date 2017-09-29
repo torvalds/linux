@@ -177,12 +177,14 @@ enum {
 	ORPHAN_INO,		/* for orphan ino list */
 	APPEND_INO,		/* for append ino list */
 	UPDATE_INO,		/* for update ino list */
+	FLUSH_INO,		/* for multiple device flushing */
 	MAX_INO_ENTRY,		/* max. list */
 };
 
 struct ino_entry {
-	struct list_head list;	/* list head */
-	nid_t ino;		/* inode number */
+	struct list_head list;		/* list head */
+	nid_t ino;			/* inode number */
+	unsigned int dirty_device;	/* dirty device bitmap */
 };
 
 /* for the list of inodes to be GCed */
@@ -774,6 +776,7 @@ enum {
 struct flush_cmd {
 	struct completion wait;
 	struct llist_node llnode;
+	nid_t ino;
 	int ret;
 };
 
@@ -901,6 +904,7 @@ enum iostat_type {
 
 struct f2fs_io_info {
 	struct f2fs_sb_info *sbi;	/* f2fs_sb_info pointer */
+	nid_t ino;		/* inode number */
 	enum page_type type;	/* contains DATA/NODE/META/META_FLUSH */
 	enum temp_type temp;	/* contains HOT/WARM/COLD */
 	int op;			/* contains REQ_OP_ */
@@ -2521,7 +2525,7 @@ void drop_inmem_page(struct inode *inode, struct page *page);
 int commit_inmem_pages(struct inode *inode);
 void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need);
 void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi);
-int f2fs_issue_flush(struct f2fs_sb_info *sbi);
+int f2fs_issue_flush(struct f2fs_sb_info *sbi, nid_t ino);
 int create_flush_cmd_control(struct f2fs_sb_info *sbi);
 void destroy_flush_cmd_control(struct f2fs_sb_info *sbi, bool free);
 void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr);
@@ -2583,6 +2587,10 @@ void add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type);
 void remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type);
 void release_ino_entry(struct f2fs_sb_info *sbi, bool all);
 bool exist_written_data(struct f2fs_sb_info *sbi, nid_t ino, int mode);
+void set_dirty_device(struct f2fs_sb_info *sbi, nid_t ino,
+					unsigned int devidx, int type);
+bool is_dirty_device(struct f2fs_sb_info *sbi, nid_t ino,
+					unsigned int devidx, int type);
 int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi);
 int acquire_orphan_inode(struct f2fs_sb_info *sbi);
 void release_orphan_inode(struct f2fs_sb_info *sbi);
