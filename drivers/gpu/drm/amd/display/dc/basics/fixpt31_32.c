@@ -54,14 +54,12 @@ static inline uint64_t complete_integer_division_u64(
 	return result;
 }
 
-#define BITS_PER_FRACTIONAL_PART \
-	32
 
 #define FRACTIONAL_PART_MASK \
-	((1ULL << BITS_PER_FRACTIONAL_PART) - 1)
+	((1ULL << FIXED31_32_BITS_PER_FRACTIONAL_PART) - 1)
 
 #define GET_INTEGER_PART(x) \
-	((x) >> BITS_PER_FRACTIONAL_PART)
+	((x) >> FIXED31_32_BITS_PER_FRACTIONAL_PART)
 
 #define GET_FRACTIONAL_PART(x) \
 	(FRACTIONAL_PART_MASK & (x))
@@ -89,7 +87,7 @@ struct fixed31_32 dal_fixed31_32_from_fraction(
 
 	/* determine fractional part */
 	{
-		uint32_t i = BITS_PER_FRACTIONAL_PART;
+		uint32_t i = FIXED31_32_BITS_PER_FRACTIONAL_PART;
 
 		do {
 			remainder <<= 1;
@@ -120,14 +118,14 @@ struct fixed31_32 dal_fixed31_32_from_fraction(
 	return res;
 }
 
-struct fixed31_32 dal_fixed31_32_from_int(
+struct fixed31_32 dal_fixed31_32_from_int_nonconst(
 	int64_t arg)
 {
 	struct fixed31_32 res;
 
 	ASSERT((LONG_MIN <= arg) && (arg <= LONG_MAX));
 
-	res.value = arg << BITS_PER_FRACTIONAL_PART;
+	res.value = arg << FIXED31_32_BITS_PER_FRACTIONAL_PART;
 
 	return res;
 }
@@ -198,7 +196,7 @@ struct fixed31_32 dal_fixed31_32_mul(
 
 	ASSERT(res.value <= LONG_MAX);
 
-	res.value <<= BITS_PER_FRACTIONAL_PART;
+	res.value <<= FIXED31_32_BITS_PER_FRACTIONAL_PART;
 
 	tmp = arg1_int * arg2_fra;
 
@@ -214,7 +212,7 @@ struct fixed31_32 dal_fixed31_32_mul(
 
 	tmp = arg1_fra * arg2_fra;
 
-	tmp = (tmp >> BITS_PER_FRACTIONAL_PART) +
+	tmp = (tmp >> FIXED31_32_BITS_PER_FRACTIONAL_PART) +
 		(tmp >= (uint64_t)dal_fixed31_32_half.value);
 
 	ASSERT(tmp <= (uint64_t)(LLONG_MAX - res.value));
@@ -244,7 +242,7 @@ struct fixed31_32 dal_fixed31_32_sqr(
 
 	ASSERT(res.value <= LONG_MAX);
 
-	res.value <<= BITS_PER_FRACTIONAL_PART;
+	res.value <<= FIXED31_32_BITS_PER_FRACTIONAL_PART;
 
 	tmp = arg_int * arg_fra;
 
@@ -258,7 +256,7 @@ struct fixed31_32 dal_fixed31_32_sqr(
 
 	tmp = arg_fra * arg_fra;
 
-	tmp = (tmp >> BITS_PER_FRACTIONAL_PART) +
+	tmp = (tmp >> FIXED31_32_BITS_PER_FRACTIONAL_PART) +
 		(tmp >= (uint64_t)dal_fixed31_32_half.value);
 
 	ASSERT(tmp <= (uint64_t)(LLONG_MAX - res.value));
@@ -560,7 +558,7 @@ static inline uint32_t ux_dy(
 	/* 4. make space for fractional part to be filled in after integer */
 	result <<= fractional_bits;
 	/* 5. shrink fixed point fractional part to of fractional_bits width*/
-	fractional_part >>= BITS_PER_FRACTIONAL_PART - fractional_bits;
+	fractional_part >>= FIXED31_32_BITS_PER_FRACTIONAL_PART - fractional_bits;
 	/* 6. merge the result */
 	return result | fractional_part;
 }

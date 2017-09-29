@@ -28,6 +28,8 @@
 
 #include "os_types.h"
 
+#define FIXED31_32_BITS_PER_FRACTIONAL_PART 32
+
 /*
  * @brief
  * Arithmetic operations on real numbers
@@ -78,8 +80,17 @@ struct fixed31_32 dal_fixed31_32_from_fraction(
  * @brief
  * result = arg
  */
-struct fixed31_32 dal_fixed31_32_from_int(
-	int64_t arg);
+struct fixed31_32 dal_fixed31_32_from_int_nonconst(int64_t arg);
+static inline struct fixed31_32 dal_fixed31_32_from_int(int64_t arg)
+{
+	if (__builtin_constant_p(arg)) {
+		struct fixed31_32 res;
+		BUILD_BUG_ON((LONG_MIN > arg) || (arg > LONG_MAX));
+		res.value = arg << FIXED31_32_BITS_PER_FRACTIONAL_PART;
+		return res;
+	} else
+		return dal_fixed31_32_from_int_nonconst(arg);
+}
 
 /*
  * @brief
