@@ -49,7 +49,7 @@
 /*
  * lock for reading
  */
-static inline void __down_read(struct rw_semaphore *sem)
+static inline int ___down_read(struct rw_semaphore *sem)
 {
 	signed long old, new;
 
@@ -62,8 +62,23 @@ static inline void __down_read(struct rw_semaphore *sem)
 		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
 		: "Q" (sem->count), "i" (RWSEM_ACTIVE_READ_BIAS)
 		: "cc", "memory");
-	if (old < 0)
+	return (old < 0);
+}
+
+static inline void __down_read(struct rw_semaphore *sem)
+{
+	if (___down_read(sem))
 		rwsem_down_read_failed(sem);
+}
+
+static inline int __down_read_killable(struct rw_semaphore *sem)
+{
+	if (___down_read(sem)) {
+		if (IS_ERR(rwsem_down_read_failed_killable(sem)))
+			return -EINTR;
+	}
+
+	return 0;
 }
 
 /*
