@@ -57,14 +57,6 @@ struct fixed32_32 dal_fixed32_32_from_fraction(uint32_t n, uint32_t d)
 	return fx;
 }
 
-struct fixed32_32 dal_fixed32_32_from_int(uint32_t value)
-{
-	struct fixed32_32 fx;
-
-	fx.value = (uint64_t)value<<32;
-	return fx;
-}
-
 struct fixed32_32 dal_fixed32_32_add(
 	struct fixed32_32 lhs,
 	struct fixed32_32 rhs)
@@ -155,58 +147,10 @@ struct fixed32_32 dal_fixed32_32_div_int(struct fixed32_32 lhs, uint32_t rhs)
 	return fx;
 }
 
-struct fixed32_32 dal_fixed32_32_min(
-	struct fixed32_32 lhs,
-	struct fixed32_32 rhs)
-{
-	return (lhs.value < rhs.value) ? lhs : rhs;
-}
-
-struct fixed32_32 dal_fixed32_32_max(
-	struct fixed32_32 lhs,
-	struct fixed32_32 rhs)
-{
-	return (lhs.value > rhs.value) ? lhs : rhs;
-}
-
-bool dal_fixed32_32_gt(struct fixed32_32 lhs, struct fixed32_32 rhs)
-{
-	return lhs.value > rhs.value;
-}
-bool dal_fixed32_32_gt_int(struct fixed32_32 lhs, uint32_t rhs)
-{
-	return lhs.value > ((uint64_t)rhs<<32);
-}
-
-bool dal_fixed32_32_lt(struct fixed32_32 lhs, struct fixed32_32 rhs)
-{
-	return lhs.value < rhs.value;
-}
-
-bool dal_fixed32_32_le(struct fixed32_32 lhs, struct fixed32_32 rhs)
-{
-	return lhs.value <= rhs.value;
-}
-
-bool dal_fixed32_32_lt_int(struct fixed32_32 lhs, uint32_t rhs)
-{
-	return lhs.value < ((uint64_t)rhs<<32);
-}
-
-bool dal_fixed32_32_le_int(struct fixed32_32 lhs, uint32_t rhs)
-{
-	return lhs.value <= ((uint64_t)rhs<<32);
-}
-
 uint32_t dal_fixed32_32_ceil(struct fixed32_32 v)
 {
 	ASSERT((uint32_t)v.value ? (v.value >> 32) + 1 >= 1 : true);
 	return (v.value>>32) + ((uint32_t)v.value ? 1 : 0);
-}
-
-uint32_t dal_fixed32_32_floor(struct fixed32_32 v)
-{
-	return v.value>>32;
 }
 
 uint32_t dal_fixed32_32_round(struct fixed32_32 v)
@@ -215,7 +159,3 @@ uint32_t dal_fixed32_32_round(struct fixed32_32 v)
 	return (v.value + (1ULL<<31))>>32;
 }
 
-bool dal_fixed32_32_eq(struct fixed32_32 lhs, struct fixed32_32 rhs)
-{
-	return lhs.value == rhs.value;
-}
