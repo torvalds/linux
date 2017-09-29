@@ -101,7 +101,7 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags, address, data;
 	u32 r;
-	struct nbio_pcie_index_data *nbio_pcie_id;
+	const struct nbio_pcie_index_data *nbio_pcie_id;
 
 	if (adev->flags & AMD_IS_APU)
 		nbio_pcie_id = &nbio_v7_0_pcie_index_data;
@@ -122,7 +122,7 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags, address, data;
-	struct nbio_pcie_index_data *nbio_pcie_id;
+	const struct nbio_pcie_index_data *nbio_pcie_id;
 
 	if (adev->flags & AMD_IS_APU)
 		nbio_pcie_id = &nbio_v7_0_pcie_index_data;

@@ -186,7 +186,10 @@ void nbio_v7_0_ih_control(struct amdgpu_device *adev)
 }
 
 struct nbio_hdp_flush_reg nbio_v7_0_hdp_flush_reg;
-struct nbio_pcie_index_data nbio_v7_0_pcie_index_data;
+const struct nbio_pcie_index_data nbio_v7_0_pcie_index_data = {
+	.index_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2),
+	.data_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2)
+};
 
 int nbio_v7_0_init(struct amdgpu_device *adev)
 {
@@ -204,9 +207,6 @@ int nbio_v7_0_init(struct amdgpu_device *adev)
 	nbio_v7_0_hdp_flush_reg.ref_and_mask_cp9 = GPU_HDP_FLUSH_DONE__CP9_MASK;
 	nbio_v7_0_hdp_flush_reg.ref_and_mask_sdma0 = GPU_HDP_FLUSH_DONE__SDMA0_MASK;
 	nbio_v7_0_hdp_flush_reg.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__SDMA1_MASK;
-
-	nbio_v7_0_pcie_index_data.index_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2);
-	nbio_v7_0_pcie_index_data.data_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 
 	return 0;
 }
