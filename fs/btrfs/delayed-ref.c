@@ -41,9 +41,9 @@ struct kmem_cache *btrfs_delayed_extent_op_cachep;
  * compare two delayed tree backrefs with same bytenr and type
  */
 static int comp_tree_refs(struct btrfs_delayed_tree_ref *ref2,
-			  struct btrfs_delayed_tree_ref *ref1, int type)
+			  struct btrfs_delayed_tree_ref *ref1)
 {
-	if (type == BTRFS_TREE_BLOCK_REF_KEY) {
+	if (ref1->node.type == BTRFS_TREE_BLOCK_REF_KEY) {
 		if (ref1->root < ref2->root)
 			return -1;
 		if (ref1->root > ref2->root)
@@ -223,8 +223,7 @@ static bool merge_ref(struct btrfs_trans_handle *trans,
 		if ((ref->type == BTRFS_TREE_BLOCK_REF_KEY ||
 		     ref->type == BTRFS_SHARED_BLOCK_REF_KEY) &&
 		    comp_tree_refs(btrfs_delayed_node_to_tree_ref(ref),
-				   btrfs_delayed_node_to_tree_ref(next),
-				   ref->type))
+				   btrfs_delayed_node_to_tree_ref(next)))
 			goto next;
 		if ((ref->type == BTRFS_EXTENT_DATA_REF_KEY ||
 		     ref->type == BTRFS_SHARED_DATA_REF_KEY) &&
@@ -409,8 +408,7 @@ add_delayed_ref_tail_merge(struct btrfs_trans_handle *trans,
 	if ((exist->type == BTRFS_TREE_BLOCK_REF_KEY ||
 	     exist->type == BTRFS_SHARED_BLOCK_REF_KEY) &&
 	    comp_tree_refs(btrfs_delayed_node_to_tree_ref(exist),
-			   btrfs_delayed_node_to_tree_ref(ref),
-			   ref->type))
+			   btrfs_delayed_node_to_tree_ref(ref)))
 		goto add_tail;
 	if ((exist->type == BTRFS_EXTENT_DATA_REF_KEY ||
 	     exist->type == BTRFS_SHARED_DATA_REF_KEY) &&
