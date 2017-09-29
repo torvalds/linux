@@ -485,6 +485,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 			 struct dsa_switch_tree *dst,
 			 struct dsa_switch *ds)
 {
+	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
 	struct net_device *ethernet_dev;
 	struct device_node *ethernet;
@@ -514,13 +515,14 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	ds->cpu_port_mask |= BIT(index);
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
-	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
-	if (IS_ERR(dst->tag_ops)) {
+	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+	if (IS_ERR(tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
 		ds->cpu_port_mask &= ~BIT(index);
-		return PTR_ERR(dst->tag_ops);
+		return PTR_ERR(tag_ops);
 	}
 
+	dst->tag_ops = tag_ops;
 	dst->rcv = dst->tag_ops->rcv;
 
 	return 0;
