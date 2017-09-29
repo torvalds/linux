@@ -1178,7 +1178,7 @@ again:
 		head = btrfs_find_delayed_ref_head(delayed_refs, bytenr);
 		if (head) {
 			if (!mutex_trylock(&head->mutex)) {
-				refcount_inc(&head->node.refs);
+				refcount_inc(&head->refs);
 				spin_unlock(&delayed_refs->lock);
 
 				btrfs_release_path(path);
@@ -1189,7 +1189,7 @@ again:
 				 */
 				mutex_lock(&head->mutex);
 				mutex_unlock(&head->mutex);
-				btrfs_put_delayed_ref(&head->node);
+				btrfs_put_delayed_ref_head(head);
 				goto again;
 			}
 			spin_unlock(&delayed_refs->lock);

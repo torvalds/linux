@@ -798,11 +798,10 @@ DEFINE_EVENT(btrfs_delayed_data_ref,  run_delayed_data_ref,
 DECLARE_EVENT_CLASS(btrfs_delayed_ref_head,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
 		 const struct btrfs_delayed_ref_head *head_ref,
 		 int action),
 
-	TP_ARGS(fs_info, ref, head_ref, action),
+	TP_ARGS(fs_info, head_ref, action),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  bytenr		)
@@ -812,8 +811,8 @@ DECLARE_EVENT_CLASS(btrfs_delayed_ref_head,
 	),
 
 	TP_fast_assign_btrfs(fs_info,
-		__entry->bytenr		= ref->bytenr;
-		__entry->num_bytes	= ref->num_bytes;
+		__entry->bytenr		= head_ref->bytenr;
+		__entry->num_bytes	= head_ref->num_bytes;
 		__entry->action		= action;
 		__entry->is_data	= head_ref->is_data;
 	),
@@ -828,21 +827,19 @@ DECLARE_EVENT_CLASS(btrfs_delayed_ref_head,
 DEFINE_EVENT(btrfs_delayed_ref_head,  add_delayed_ref_head,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
 		 const struct btrfs_delayed_ref_head *head_ref,
 		 int action),
 
-	TP_ARGS(fs_info, ref, head_ref, action)
+	TP_ARGS(fs_info, head_ref, action)
 );
 
 DEFINE_EVENT(btrfs_delayed_ref_head,  run_delayed_ref_head,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
 		 const struct btrfs_delayed_ref_head *head_ref,
 		 int action),
 
-	TP_ARGS(fs_info, ref, head_ref, action)
+	TP_ARGS(fs_info, head_ref, action)
 );
 
 #define show_chunk_type(type)					\
