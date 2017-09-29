@@ -308,9 +308,12 @@ struct fixed31_32 dal_fixed31_32_sqr(
  * @brief
  * result = arg1 / arg2
  */
-struct fixed31_32 dal_fixed31_32_div_int(
-	struct fixed31_32 arg1,
-	int64_t arg2);
+static inline struct fixed31_32 dal_fixed31_32_div_int(struct fixed31_32 arg1,
+						       int64_t arg2)
+{
+	return dal_fixed31_32_from_fraction(arg1.value,
+					    dal_fixed31_32_from_int(arg2).value);
+}
 
 /*
  * @brief
