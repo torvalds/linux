@@ -375,13 +375,8 @@ static struct timing_generator *dce100_timing_generator_create(
 	if (!tg110)
 		return NULL;
 
-	if (dce110_timing_generator_construct(tg110, ctx, instance,
-			offsets))
-		return &tg110->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(tg110);
-	return NULL;
+	dce110_timing_generator_construct(tg110, ctx, instance, offsets);
+	return &tg110->base;
 }
 
 static struct stream_encoder *dce100_stream_encoder_create(

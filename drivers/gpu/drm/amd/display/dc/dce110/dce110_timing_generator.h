@@ -118,7 +118,7 @@ struct dce110_timing_generator {
 #define DCE110TG_FROM_TG(tg)\
 	container_of(tg, struct dce110_timing_generator, base)
 
-bool dce110_timing_generator_construct(
+void dce110_timing_generator_construct(
 	struct dce110_timing_generator *tg,
 	struct dc_context *ctx,
 	uint32_t instance,
