@@ -219,9 +219,15 @@
 			>;
 		};
 
-		ecap0_pins: backlight_pins {
+		ecap0_pins_default: backlight_pins_default {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x964, MUX_MODE0)         /* eCAP0_in_PWM0_out.eCAP0_in_PWM0_out MODE0 */
+			>;
+		};
+
+		ecap0_pins_sleep: backlight_pins_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x964, DS0_PIN_OUTPUT_PULLUP | MUX_MODE7)
 			>;
 		};
 
@@ -680,8 +686,9 @@
 
 &ecap0 {
 		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <&ecap0_pins>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&ecap0_pins_default>;
+		pinctrl-1 = <&ecap0_pins_sleep>;
 };
 
 &spi0 {
