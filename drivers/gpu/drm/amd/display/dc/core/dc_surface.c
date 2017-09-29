@@ -34,12 +34,11 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static bool construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
+static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
 {
 	plane_state->ctx = ctx;
 	memset(&plane_state->hdr_static_ctx,
 			0, sizeof(struct dc_hdr_static_metadata));
-	return true;
 }
 
 static void destruct(struct dc_plane_state *plane_state)
@@ -72,20 +71,12 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 						     GFP_KERNEL);
 
 	if (NULL == plane_state)
-		goto alloc_fail;
+		return NULL;
 
-	if (false == construct(core_dc->ctx, plane_state))
-		goto construct_fail;
-
+	construct(core_dc->ctx, plane_state);
 	atomic_inc(&plane_state->ref_count);
 
 	return plane_state;
-
-construct_fail:
-	kfree(plane_state);
-
-alloc_fail:
-	return NULL;
 }
 
 const struct dc_plane_status *dc_plane_get_status(

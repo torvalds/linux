@@ -245,7 +245,7 @@ void dal_ddc_aux_payloads_add(
 	}
 }
 
-static bool construct(
+static void construct(
 	struct ddc_service *ddc_service,
 	struct ddc_service_init_data *init_data)
 {
@@ -282,7 +282,6 @@ static bool construct(
 		connector_id == CONNECTOR_ID_LVDS;
 
 	ddc_service->wa.raw = 0;
-	return true;
 }
 
 struct ddc_service *dal_ddc_service_create(
@@ -295,11 +294,8 @@ struct ddc_service *dal_ddc_service_create(
 	if (!ddc_service)
 		return NULL;
 
-	if (construct(ddc_service, init_data))
-		return ddc_service;
-
-	kfree(ddc_service);
-	return NULL;
+	construct(ddc_service, init_data);
+	return ddc_service;
 }
 
 static void destruct(struct ddc_service *ddc)

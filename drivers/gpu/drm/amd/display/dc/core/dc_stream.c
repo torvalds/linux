@@ -56,7 +56,7 @@ static void update_stream_signal(struct dc_stream_state *stream)
 	}
 }
 
-static bool construct(struct dc_stream_state *stream,
+static void construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -104,7 +104,6 @@ static bool construct(struct dc_stream_state *stream,
 	stream->status.link = stream->sink->link;
 
 	update_stream_signal(stream);
-	return true;
 }
 
 static void destruct(struct dc_stream_state *stream)
@@ -142,25 +141,18 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	struct dc_stream_state *stream;
 
 	if (sink == NULL)
-		goto alloc_fail;
+		return NULL;
 
 	stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
+	if (stream == NULL)
+		return NULL;
 
-	if (NULL == stream)
-		goto alloc_fail;
-
-	if (false == construct(stream, sink))
-			goto construct_fail;
+	construct(stream, sink);
 
 	atomic_inc(&stream->ref_count);
 
 	return stream;
 
-construct_fail:
-	kfree(stream);
-
-alloc_fail:
-	return NULL;
 }
 
 struct dc_stream_status *dc_stream_get_status(
