@@ -1004,6 +1004,10 @@ int rtc_read_offset(struct rtc_device *rtc, long *offset)
  * to compensate for differences in the actual clock rate due to temperature,
  * the crystal, capacitor, etc.
  *
+ * The adjustment applied is as follows:
+ *   t = t0 * (1 + offset * 1e-9)
+ * where t0 is the measured length of 1 RTC second with offset = 0
+ *
  * Kernel interface to adjust an rtc clock offset.
  * Return 0 on success, or a negative number on error.
  * If the rtc offset is not setable (or not implemented), return -EINVAL
