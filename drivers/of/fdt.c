@@ -132,6 +132,19 @@ bool of_fdt_is_big_endian(const void *blob, unsigned long node)
 	return false;
 }
 
+static bool of_fdt_device_is_available(const void *blob, unsigned long node)
+{
+	const char *status = fdt_getprop(blob, node, "status", NULL);
+
+	if (!status)
+		return true;
+
+	if (!strcmp(status, "ok") || !strcmp(status, "okay"))
+		return true;
+
+	return false;
+}
+
 /**
  * of_fdt_match - Return true if node matches a list of compatible values
  */
@@ -605,7 +618,6 @@ static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
 					  int depth, void *data)
 {
 	static int found;
-	const char *status;
 	int err;
 
 	if (!found && depth == 1 && strcmp(uname, "reserved-memory") == 0) {
@@ -625,8 +637,7 @@ static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
 		return 1;
 	}
 
-	status = of_get_flat_dt_prop(node, "status", NULL);
-	if (status && strcmp(status, "okay") != 0 && strcmp(status, "ok") != 0)
+	if (!of_fdt_device_is_available(initial_boot_params, node))
 		return 0;
 
 	err = __reserved_mem_reserve_reg(node, uname);
