@@ -1730,9 +1730,6 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 {
 	int ret = 0, post_ret = 0;
 
-	if (transport_check_aborted_status(cmd, 1))
-		return;
-
 	pr_debug("-----[ Storage Engine Exception; sense_reason %d\n",
 		 sense_reason);
 	target_show_cmd("-----[ ", cmd);
@@ -1741,6 +1738,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	 * For SAM Task Attribute emulation for failed struct se_cmd
 	 */
 	transport_complete_task_attr(cmd);
+
 	/*
 	 * Handle special case for COMPARE_AND_WRITE failure, where the
 	 * callback is expected to drop the per device ->caw_sem.
@@ -1748,6 +1746,9 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
 	     cmd->transport_complete_callback)
 		cmd->transport_complete_callback(cmd, false, &post_ret);
+
+	if (transport_check_aborted_status(cmd, 1))
+		return;
 
 	switch (sense_reason) {
 	case TCM_NON_EXISTENT_LUN:
