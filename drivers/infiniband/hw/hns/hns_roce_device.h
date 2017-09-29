@@ -581,7 +581,7 @@ struct hns_roce_hw {
 	int (*chk_mbox)(struct hns_roce_dev *hr_dev, unsigned long timeout);
 	void (*set_gid)(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 			union ib_gid *gid);
-	void (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
+	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
 	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
 			enum ib_mtu mtu);
 	int (*write_mtpt)(void *mb_buf, struct hns_roce_mr *mr,

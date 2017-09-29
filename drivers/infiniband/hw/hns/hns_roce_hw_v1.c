@@ -912,6 +912,8 @@ static int hns_roce_v1_recreate_lp_qp(struct hns_roce_dev *hr_dev)
 
 	lp_qp_work = kzalloc(sizeof(struct hns_roce_recreate_lp_qp_work),
 			     GFP_KERNEL);
+	if (!lp_qp_work)
+		return -ENOMEM;
 
 	INIT_WORK(&(lp_qp_work->work), hns_roce_v1_recreate_lp_qp_work_fn);
 
@@ -1719,7 +1721,8 @@ void hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 		       (HNS_ROCE_V1_GID_NUM * gid_idx));
 }
 
-void hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr)
+static int hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
+			       u8 *addr)
 {
 	u32 reg_smac_l;
 	u16 reg_smac_h;
@@ -1732,8 +1735,13 @@ void hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr)
 	 * because of smac not equal to dmac.
 	 * We Need to release and create reserved qp again.
 	 */
-	if (hr_dev->hw->dereg_mr && hns_roce_v1_recreate_lp_qp(hr_dev))
-		dev_warn(&hr_dev->pdev->dev, "recreate lp qp timeout!\n");
+	if (hr_dev->hw->dereg_mr) {
+		int ret;
+
+		ret = hns_roce_v1_recreate_lp_qp(hr_dev);
+		if (ret && ret != -ETIMEDOUT)
+			return ret;
+	}
 
 	p = (u32 *)(&addr[0]);
 	reg_smac_l = *p;
@@ -1748,6 +1756,8 @@ void hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr)
 		       ROCEE_SMAC_H_ROCEE_SMAC_H_S, reg_smac_h);
 	roce_write(hr_dev, ROCEE_SMAC_H_0_REG + phy_port * PHY_PORT_OFFSET,
 		   val);
+
+	return 0;
 }
 
 void hns_roce_v1_set_mtu(struct hns_roce_dev *hr_dev, u8 phy_port,

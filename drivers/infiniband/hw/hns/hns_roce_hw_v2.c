@@ -1068,8 +1068,8 @@ static void hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
 	roce_write(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index, val);
 }
 
-static void hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
-				u8 *addr)
+static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
+			       u8 *addr)
 {
 	u16 reg_smac_h;
 	u32 reg_smac_l;
@@ -1084,6 +1084,8 @@ static void hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
 	roce_set_field(val, ROCEE_VF_SMAC_CFG1_VF_SMAC_H_M,
 		       ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S, reg_smac_h);
 	roce_write(hr_dev, ROCEE_VF_SMAC_CFG1_REG + 0x08 * phy_port, val);
+
+	return 0;
 }
 
 static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,

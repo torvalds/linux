@@ -59,19 +59,19 @@ int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
 }
 EXPORT_SYMBOL_GPL(hns_get_gid_index);
 
-static void hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
+static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 {
 	u8 phy_port;
 	u32 i = 0;
 
 	if (!memcmp(hr_dev->dev_addr[port], addr, MAC_ADDR_OCTET_NUM))
-		return;
+		return 0;
 
 	for (i = 0; i < MAC_ADDR_OCTET_NUM; i++)
 		hr_dev->dev_addr[port][i] = addr[i];
 
 	phy_port = hr_dev->iboe.phy_port[port];
-	hr_dev->hw->set_mac(hr_dev, phy_port, addr);
+	return hr_dev->hw->set_mac(hr_dev, phy_port, addr);
 }
 
 static int hns_roce_add_gid(struct ib_device *device, u8 port_num,
@@ -119,6 +119,7 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 {
 	struct device *dev = hr_dev->dev;
 	struct net_device *netdev;
+	int ret = 0;
 
 	netdev = hr_dev->iboe.netdevs[port];
 	if (!netdev) {
@@ -131,7 +132,7 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 	case NETDEV_CHANGE:
 	case NETDEV_REGISTER:
 	case NETDEV_CHANGEADDR:
-		hns_roce_set_mac(hr_dev, port, netdev->dev_addr);
+		ret = hns_roce_set_mac(hr_dev, port, netdev->dev_addr);
 		break;
 	case NETDEV_DOWN:
 		/*
@@ -143,7 +144,7 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int hns_roce_netdev_event(struct notifier_block *self,
@@ -172,13 +173,17 @@ static int hns_roce_netdev_event(struct notifier_block *self,
 
 static int hns_roce_setup_mtu_mac(struct hns_roce_dev *hr_dev)
 {
+	int ret;
 	u8 i;
 
 	for (i = 0; i < hr_dev->caps.num_ports; i++) {
 		if (hr_dev->hw->set_mtu)
 			hr_dev->hw->set_mtu(hr_dev, hr_dev->iboe.phy_port[i],
 					    hr_dev->caps.max_mtu);
-		hns_roce_set_mac(hr_dev, i, hr_dev->iboe.netdevs[i]->dev_addr);
+		ret = hns_roce_set_mac(hr_dev, i,
+				       hr_dev->iboe.netdevs[i]->dev_addr);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
