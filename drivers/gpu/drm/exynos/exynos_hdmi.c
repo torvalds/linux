@@ -297,6 +297,15 @@ static const struct hdmiphy_config hdmiphy_v14_configs[] = {
 		},
 	},
 	{
+		.pixel_clock = 85500000,
+		.conf = {
+			0x01, 0xd1, 0x24, 0x11, 0x40, 0x40, 0xd0, 0x08,
+			0x84, 0xa0, 0xd6, 0xd8, 0x45, 0xa0, 0xac, 0x80,
+			0x08, 0x80, 0x11, 0x04, 0x02, 0x22, 0x44, 0x86,
+			0x54, 0x90, 0x24, 0x01, 0x00, 0x00, 0x01, 0x80,
+		},
+	},
+	{
 		.pixel_clock = 106500000,
 		.conf = {
 			0x01, 0xd1, 0x2c, 0x12, 0x40, 0x0c, 0x09, 0x08,
@@ -1257,7 +1266,7 @@ static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 	 * first line is distorted.
 	 */
 	if ((m->vdisplay != am->vdisplay) &&
-	    (m->hdisplay == 1280 || m->hdisplay == 1024))
+	    (m->hdisplay == 1280 || m->hdisplay == 1024 || m->hdisplay == 1366))
 		hquirk = 258;
 
 	hdmi_reg_writev(hdata, HDMI_H_BLANK_0, 2, m->htotal - m->hdisplay);
