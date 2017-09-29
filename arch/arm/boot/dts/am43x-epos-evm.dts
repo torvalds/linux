@@ -232,7 +232,7 @@
 			>;
 		};
 
-		spi0_pins: pinmux_spi0_pins {
+		spi0_pins_default: pinmux_spi0_pins_default {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x950, PIN_INPUT | MUX_MODE0)           /* spi0_clk.spi0_clk */
 				AM4372_IOPAD(0x954, PIN_OUTPUT | MUX_MODE0)           /* spi0_d0.spi0_d0 */
@@ -241,12 +241,30 @@
 			>;
 		};
 
-		spi1_pins: pinmux_spi1_pins {
+		spi0_pins_sleep: pinmux_spi0_pins_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x950, DS0_PIN_OUTPUT_PULLUP | PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x954, DS0_PIN_OUTPUT_PULLUP | PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x958, DS0_PIN_OUTPUT_PULLUP | PIN_OUTPUT_PULLUP | MUX_MODE7)
+				AM4372_IOPAD(0x95c, DS0_PIN_OUTPUT_PULLUP | PIN_OUTPUT_PULLUP | MUX_MODE7)
+			>;
+		};
+
+		spi1_pins_default: pinmux_spi1_pins_default {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x990, PIN_INPUT | MUX_MODE3)           /* mcasp0_aclkx.spi1_clk */
 				AM4372_IOPAD(0x994, PIN_OUTPUT | MUX_MODE3)           /* mcasp0_fsx.spi1_d0 */
 				AM4372_IOPAD(0x998, PIN_INPUT | MUX_MODE3)           /* mcasp0_axr0.spi1_d1 */
 				AM4372_IOPAD(0x99c, PIN_OUTPUT | MUX_MODE3)          /* mcasp0_ahclkr.spi1_cs0 */
+			>;
+		};
+
+		spi1_pins_sleep: pinmux_spi1_pins_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x990, DS0_PIN_OUTPUT_PULLDOWN | PIN_OUTPUT_PULLDOWN | MUX_MODE7)
+				AM4372_IOPAD(0x994, DS0_PIN_OUTPUT_PULLDOWN | PIN_OUTPUT_PULLDOWN | MUX_MODE7)
+				AM4372_IOPAD(0x998, DS0_PIN_OUTPUT_PULLDOWN | PIN_OUTPUT_PULLDOWN | MUX_MODE7)
+				AM4372_IOPAD(0x99c, DS0_PIN_OUTPUT_PULLDOWN | PIN_OUTPUT_PULLDOWN | MUX_MODE7)
 			>;
 		};
 
@@ -656,15 +674,17 @@
 };
 
 &spi0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins>;
 	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spi0_pins_default>;
+	pinctrl-1 = <&spi0_pins_sleep>;
 };
 
 &spi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi1_pins>;
 	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spi1_pins_default>;
+	pinctrl-1 = <&spi1_pins_sleep>;
 };
 
 &usb2_phy1 {
