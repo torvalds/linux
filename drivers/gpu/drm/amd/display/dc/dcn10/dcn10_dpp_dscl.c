@@ -57,22 +57,6 @@ enum dcn10_coef_filter_type_sel {
 	SCL_COEF_ALPHA_HORZ_FILTER = 5
 };
 
-enum lb_memory_config {
-	/* Enable all 3 pieces of memory */
-	LB_MEMORY_CONFIG_0 = 0,
-
-	/* Enable only the first piece of memory */
-	LB_MEMORY_CONFIG_1 = 1,
-
-	/* Enable only the second piece of memory */
-	LB_MEMORY_CONFIG_2 = 2,
-
-	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
-	 * last piece of chroma memory used for the luma storage
-	 */
-	LB_MEMORY_CONFIG_3 = 3
-};
-
 enum dscl_autocal_mode {
 	AUTOCAL_MODE_OFF = 0,
 
@@ -161,23 +145,37 @@ static int get_pixel_depth_val(enum lb_pixel_depth depth)
 	}
 }
 
-static enum dscl_mode_sel get_dscl_mode(
-		const struct scaler_data *data, bool dbg_always_scale)
+static bool is_video_format(enum pixel_format format)
 {
+	if (format >= PIXEL_FORMAT_VIDEO_BEGIN
+			&& format <= PIXEL_FORMAT_VIDEO_END)
+		return true;
+	else
+		return false;
+}
+
+static bool is_420_format(enum pixel_format format)
+{
+	if (format == PIXEL_FORMAT_420BPP8 ||
+			format == PIXEL_FORMAT_420BPP10)
+		return true;
+	else
+		return false;
+}
+
+static enum dscl_mode_sel get_dscl_mode(
+		struct transform *xfm_base,
+		const struct scaler_data *data,
+		bool dbg_always_scale)
+{
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 	const long long one = dal_fixed31_32_one.value;
-	bool ycbcr = false;
-	bool format420 = false;
 
-	if (data->format == PIXEL_FORMAT_FP16)
-		return DSCL_MODE_DSCL_BYPASS;
-
-	if (data->format >= PIXEL_FORMAT_VIDEO_BEGIN
-			&& data->format <= PIXEL_FORMAT_VIDEO_END)
-		ycbcr = true;
-
-	if (data->format == PIXEL_FORMAT_420BPP8 ||
-			data->format == PIXEL_FORMAT_420BPP10)
-		format420 = true;
+	if (xfm->tf_mask->PIXEL_DEPTH) {
+		/* DSCL caps: LB data is fixed format */
+		if (data->format == PIXEL_FORMAT_FP16)
+			return DSCL_MODE_DSCL_BYPASS;
+	}
 
 	if (data->ratios.horz.value == one
 			&& data->ratios.vert.value == one
@@ -186,8 +184,8 @@ static enum dscl_mode_sel get_dscl_mode(
 			&& !dbg_always_scale)
 		return DSCL_MODE_SCALING_444_BYPASS;
 
-	if (!format420) {
-		if (ycbcr)
+	if (!is_420_format(data->format)) {
+		if (is_video_format(data->format))
 			return DSCL_MODE_SCALING_444_YCBCR_ENABLE;
 		else
 			return DSCL_MODE_SCALING_444_RGB_ENABLE;
@@ -205,11 +203,12 @@ static void dpp_set_lb(
 	const struct line_buffer_params *lb_params,
 	enum lb_memory_config mem_size_config)
 {
-	uint32_t pixel_depth = get_pixel_depth_val(lb_params->depth);
-	uint32_t dyn_pix_depth = lb_params->dynamic_pixel_depth;
-
 	/* LB */
 	if (xfm->tf_mask->PIXEL_DEPTH) {
+		/* DSCL caps: LB data is fixed format */
+		uint32_t pixel_depth = get_pixel_depth_val(lb_params->depth);
+		uint32_t dyn_pix_depth = lb_params->dynamic_pixel_depth;
+
 		REG_SET_7(LB_DATA_FORMAT, 0,
 			PIXEL_DEPTH, pixel_depth, /* Pixel depth stored in LB */
 			PIXEL_EXPAN_MODE, lb_params->pixel_expan_mode, /* Pixel expansion mode */
@@ -401,7 +400,7 @@ static int get_lb_depth_bpc(enum lb_pixel_depth depth)
 	}
 }
 
-static void calc_lb_num_partitions(
+static void dscl1_calc_lb_num_partitions(
 		const struct scaler_data *scl_data,
 		enum lb_memory_config lb_config,
 		int *num_part_y,
@@ -426,6 +425,7 @@ static void calc_lb_num_partitions(
 		lb_memory_size_c = 1088;
 		lb_memory_size_a = 1312;
 	} else if (lb_config == LB_MEMORY_CONFIG_3) {
+		/* 420 mode: using 3rd mem from Y, Cr and Cb */
 		lb_memory_size = 816 + 1088 + 848 + 848 + 848;
 		lb_memory_size_c = 816 + 1088;
 		lb_memory_size_a = 984 + 1312 + 456;
@@ -449,7 +449,7 @@ static void calc_lb_num_partitions(
 
 }
 
-static bool is_lb_conf_valid(int ceil_vratio, int num_partitions, int vtaps)
+bool is_lb_conf_valid(int ceil_vratio, int num_partitions, int vtaps)
 {
 	if (ceil_vratio > 2)
 		return vtaps <= (num_partitions - ceil_vratio + 2);
@@ -467,14 +467,14 @@ static enum lb_memory_config dpp10_find_lb_memory_config(
 	int ceil_vratio = dal_fixed31_32_ceil(scl_data->ratios.vert);
 	int ceil_vratio_c = dal_fixed31_32_ceil(scl_data->ratios.vert_c);
 
-	calc_lb_num_partitions(
+	dscl1_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_1, &num_part_y, &num_part_c);
 
 	if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
 			&& is_lb_conf_valid(ceil_vratio_c, num_part_c, vtaps_c))
 		return LB_MEMORY_CONFIG_1;
 
-	calc_lb_num_partitions(
+	dscl1_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_2, &num_part_y, &num_part_c);
 
 	if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
@@ -483,7 +483,7 @@ static enum lb_memory_config dpp10_find_lb_memory_config(
 
 	if (scl_data->format == PIXEL_FORMAT_420BPP8
 			|| scl_data->format == PIXEL_FORMAT_420BPP10) {
-		calc_lb_num_partitions(
+		dscl1_calc_lb_num_partitions(
 				scl_data, LB_MEMORY_CONFIG_3, &num_part_y, &num_part_c);
 
 		if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
@@ -491,7 +491,7 @@ static enum lb_memory_config dpp10_find_lb_memory_config(
 			return LB_MEMORY_CONFIG_3;
 	}
 
-	calc_lb_num_partitions(
+	dscl1_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_0, &num_part_y, &num_part_c);
 
 	/*Ensure we can support the requested number of vtaps*/
@@ -511,6 +511,7 @@ static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
 		return mem_cfg;
 
 	if (xfm->tf_mask->PIXEL_DEPTH) {
+		/* DSCL caps: LB data is fixed format */
 		mem_cfg = dpp10_find_lb_memory_config(scl_data);
 	}
 	return mem_cfg;
@@ -523,7 +524,7 @@ void dpp_set_scaler_auto_scale(
 	enum lb_memory_config lb_config;
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 	enum dscl_mode_sel dscl_mode = get_dscl_mode(
-			scl_data, xfm_base->ctx->dc->debug.always_scale);
+			xfm_base, scl_data, xfm_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 
@@ -655,7 +656,7 @@ void dcn10_dpp_dscl_set_scaler_manual_scale(
 	enum lb_memory_config lb_config;
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 	enum dscl_mode_sel dscl_mode = get_dscl_mode(
-			scl_data, xfm_base->ctx->dc->debug.always_scale);
+			xfm_base, scl_data, xfm_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 

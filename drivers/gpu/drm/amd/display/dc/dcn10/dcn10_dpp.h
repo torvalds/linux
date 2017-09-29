@@ -1265,12 +1265,32 @@ struct dcn10_dpp {
 };
 
 
+enum lb_memory_config {
+	/* Enable all 3 pieces of memory */
+	LB_MEMORY_CONFIG_0 = 0,
+
+	/* Enable only the first piece of memory */
+	LB_MEMORY_CONFIG_1 = 1,
+
+	/* Enable only the second piece of memory */
+	LB_MEMORY_CONFIG_2 = 2,
+
+	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
+	 * last piece of chroma memory used for the luma storage
+	 */
+	LB_MEMORY_CONFIG_3 = 3
+};
 
 enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_BYPASS = 0,
 	INPUT_CSC_SELECT_ICSC,
 	INPUT_CSC_SELECT_COMA
 };
+
+bool is_lb_conf_valid(
+		int ceil_vratio,
+		int num_partitions,
+		int vtaps);
 
 void ippn10_degamma_ram_select(
 		struct transform *xfm_base,
