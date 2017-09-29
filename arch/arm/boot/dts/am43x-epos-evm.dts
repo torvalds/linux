@@ -452,6 +452,24 @@
 			>;
 		};
 
+		uart0_pins_default: uart0_pins_default {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x968, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0) /* uart0_ctsn.uart0_ctsn */
+				AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0) /* uart0_rtsn.uart0_rtsn */
+				AM4372_IOPAD(0x970, PIN_INPUT_PULLUP | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
+				AM4372_IOPAD(0x974, PIN_INPUT | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0)	/* uart0_txd.uart0_txd */
+			>;
+		};
+
+		uart0_pins_sleep: uart0_pins_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x968, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				AM4372_IOPAD(0x970, PIN_INPUT_PULLUP | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0)
+				AM4372_IOPAD(0x974, PIN_INPUT | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0)
+			>;
+		};
+
 		mcasp1_pins: mcasp1_pins {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x9a0, PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_ACLKR/MCASP1_ACLKX */
@@ -877,6 +895,13 @@
 			vsync-active = <0>;
 		};
 	};
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&uart0_pins_default>;
+	pinctrl-1 = <&uart0_pins_sleep>;
 };
 
 &mcasp1 {
