@@ -11,13 +11,16 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
-
+#include <linux/syscalls.h>
+#include <linux/mutex.h>
 #include <asm/asm-offsets.h>
 #include <asm/sclp.h>
 #include <asm/diag.h>
 #include <asm/sysinfo.h>
 #include <asm/ebcdic.h>
 #include <asm/facility.h>
+#include <asm/sthyi.h>
+#include "entry.h"
 
 #define DED_WEIGHT 0xffff
 /*
@@ -484,3 +487,31 @@ out:
 	return r;
 }
 EXPORT_SYMBOL_GPL(sthyi_fill);
+
+SYSCALL_DEFINE4(s390_sthyi, unsigned long, function_code, void __user *, buffer,
+		u64 __user *, return_code, unsigned long, flags)
+{
+	u64 sthyi_rc;
+	void *info;
+	int r;
+
+	if (flags)
+		return -EINVAL;
+	if (function_code != STHYI_FC_CP_IFL_CAP)
+		return -EOPNOTSUPP;
+	info = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	r = sthyi_fill(info, &sthyi_rc);
+	if (r < 0)
+		goto out;
+	if (return_code && put_user(sthyi_rc, return_code)) {
+		r = -EFAULT;
+		goto out;
+	}
+	if (copy_to_user(buffer, info, PAGE_SIZE))
+		r = -EFAULT;
+out:
+	free_page((unsigned long)info);
+	return r;
+}
