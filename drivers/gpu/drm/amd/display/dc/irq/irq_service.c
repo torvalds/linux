@@ -48,15 +48,16 @@
 #define CTX \
 		irq_service->ctx
 
-bool dal_irq_service_construct(
+void dal_irq_service_construct(
 	struct irq_service *irq_service,
 	struct irq_service_init_data *init_data)
 {
-	if (!init_data || !init_data->ctx)
-		return false;
+	if (!init_data || !init_data->ctx) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
 
 	irq_service->ctx = init_data->ctx;
-	return true;
 }
 
 void dal_irq_service_destroy(struct irq_service **irq_service)

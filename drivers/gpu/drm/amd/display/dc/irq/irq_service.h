@@ -69,7 +69,7 @@ struct irq_service {
 	const struct irq_service_funcs *funcs;
 };
 
-bool dal_irq_service_construct(
+void dal_irq_service_construct(
 	struct irq_service *irq_service,
 	struct irq_service_init_data *init_data);
 
