@@ -48,6 +48,18 @@ static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
 				 bool enable);
 
 /**
+* uvd_v6_0_enc_support - get encode support status
+*
+* @adev: amdgpu_device pointer
+*
+* Returns the current hardware encode support status
+*/
+static inline bool uvd_v6_0_enc_support(struct amdgpu_device *adev)
+{
+	return ((adev->asic_type >= CHIP_POLARIS10) && (adev->asic_type <= CHIP_POLARIS12));
+}
+
+/**
  * uvd_v6_0_ring_get_rptr - get read pointer
  *
  * @ring: amdgpu_ring pointer
@@ -146,6 +158,11 @@ static int uvd_v6_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	uvd_v6_0_set_ring_funcs(adev);
+
+	if (uvd_v6_0_enc_support(adev)) {
+		adev->uvd.num_enc_rings = 2;
+	}
+
 	uvd_v6_0_set_irq_funcs(adev);
 
 	return 0;
@@ -154,7 +171,7 @@ static int uvd_v6_0_early_init(void *handle)
 static int uvd_v6_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
-	int r;
+	int i, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* UVD TRAP */
@@ -173,18 +190,35 @@ static int uvd_v6_0_sw_init(void *handle)
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.irq, 0);
+	if (r)
+		return r;
+
+	if (uvd_v6_0_enc_support(adev)) {
+		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
+			ring = &adev->uvd.ring_enc[i];
+			sprintf(ring->name, "uvd_enc%d", i);
+			r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.irq, 0);
+			if (r)
+				return r;
+		}
+	}
 
 	return r;
 }
 
 static int uvd_v6_0_sw_fini(void *handle)
 {
-	int r;
+	int i, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = amdgpu_uvd_suspend(adev);
 	if (r)
 		return r;
+
+	if (uvd_v6_0_enc_support(adev)) {
+		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
+			amdgpu_ring_fini(&adev->uvd.ring_enc[i]);
+	}
 
 	return amdgpu_uvd_sw_fini(adev);
 }
@@ -565,6 +599,22 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	WREG32(mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 
 	WREG32_FIELD(UVD_RBC_RB_CNTL, RB_NO_FETCH, 0);
+
+	if (uvd_v6_0_enc_support(adev)) {
+		ring = &adev->uvd.ring_enc[0];
+		WREG32(mmUVD_RB_RPTR, lower_32_bits(ring->wptr));
+		WREG32(mmUVD_RB_WPTR, lower_32_bits(ring->wptr));
+		WREG32(mmUVD_RB_BASE_LO, ring->gpu_addr);
+		WREG32(mmUVD_RB_BASE_HI, upper_32_bits(ring->gpu_addr));
+		WREG32(mmUVD_RB_SIZE, ring->ring_size / 4);
+
+		ring = &adev->uvd.ring_enc[1];
+		WREG32(mmUVD_RB_RPTR2, lower_32_bits(ring->wptr));
+		WREG32(mmUVD_RB_WPTR2, lower_32_bits(ring->wptr));
+		WREG32(mmUVD_RB_BASE_LO2, ring->gpu_addr);
+		WREG32(mmUVD_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
+		WREG32(mmUVD_RB_SIZE2, ring->ring_size / 4);
+	}
 
 	return 0;
 }
