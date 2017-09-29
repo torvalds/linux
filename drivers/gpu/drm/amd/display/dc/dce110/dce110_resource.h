@@ -38,7 +38,7 @@ struct dce110_resource_pool {
 	struct resource_pool base;
 };
 
-enum dc_status dce110_resource_build_pipe_hw_param(struct pipe_ctx *pipe_ctx);
+void dce110_resource_build_pipe_hw_param(struct pipe_ctx *pipe_ctx);
 
 struct resource_pool *dce110_create_resource_pool(
 	uint8_t num_virtual_links,

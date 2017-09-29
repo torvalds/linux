@@ -805,7 +805,7 @@ static void build_clamping_params(struct dc_stream_state *stream)
 	stream->clamping.pixel_encoding = stream->timing.pixel_encoding;
 }
 
-static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
+static void build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 {
 
 	get_pixel_clock_parameters(pipe_ctx, &pipe_ctx->stream_res.pix_clk_params);
@@ -820,8 +820,6 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 	resource_build_bit_depth_reduction_params(pipe_ctx->stream,
 					&pipe_ctx->stream->bit_depth_params);
 	build_clamping_params(pipe_ctx->stream);
-
-	return DC_OK;
 }
 
 static enum dc_status build_mapped_resource(
@@ -829,7 +827,6 @@ static enum dc_status build_mapped_resource(
 		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
-	enum dc_status status = DC_OK;
 	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
 
 	/*TODO Seems unneeded anymore */
@@ -853,11 +850,7 @@ static enum dc_status build_mapped_resource(
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
 
-	status = build_pipe_hw_param(pipe_ctx);
-
-	if (status != DC_OK)
-		return status;
-
+	build_pipe_hw_param(pipe_ctx);
 	return DC_OK;
 }
 
