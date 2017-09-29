@@ -998,13 +998,13 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&client->dev.kobj, &edt_ft5x06_attr_group);
+	error = devm_device_add_group(&client->dev, &edt_ft5x06_attr_group);
 	if (error)
 		return error;
 
 	error = input_register_device(input);
 	if (error)
-		goto err_remove_attrs;
+		return error;
 
 	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
 	device_init_wakeup(&client->dev, 1);
@@ -1016,10 +1016,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		tsdata->reset_gpio ? desc_to_gpio(tsdata->reset_gpio) : -1);
 
 	return 0;
-
-err_remove_attrs:
-	sysfs_remove_group(&client->dev.kobj, &edt_ft5x06_attr_group);
-	return error;
 }
 
 static int edt_ft5x06_ts_remove(struct i2c_client *client)
@@ -1027,7 +1023,6 @@ static int edt_ft5x06_ts_remove(struct i2c_client *client)
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
 
 	edt_ft5x06_ts_teardown_debugfs(tsdata);
-	sysfs_remove_group(&client->dev.kobj, &edt_ft5x06_attr_group);
 
 	return 0;
 }
