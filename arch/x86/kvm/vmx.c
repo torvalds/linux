@@ -6779,8 +6779,13 @@ static __init int hardware_setup(void)
 	if (enable_ept && !cpu_has_vmx_ept_2m_page())
 		kvm_disable_largepages();
 
-	if (!cpu_has_vmx_ple())
+	if (!cpu_has_vmx_ple()) {
 		ple_gap = 0;
+		ple_window = 0;
+		ple_window_grow = 0;
+		ple_window_max = 0;
+		ple_window_shrink = 0;
+	}
 
 	if (!cpu_has_vmx_apicv()) {
 		enable_apicv = 0;
