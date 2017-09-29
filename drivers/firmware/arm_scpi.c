@@ -645,34 +645,34 @@ static int opp_cmp_func(const void *opp1, const void *opp2)
 
 static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 {
+	if (domain >= MAX_DVFS_DOMAINS)
+		return ERR_PTR(-EINVAL);
+
+	return scpi_info->dvfs[domain] ?: ERR_PTR(-EINVAL);
+}
+
+static int scpi_dvfs_populate_info(struct device *dev, u8 domain)
+{
 	struct scpi_dvfs_info *info;
 	struct scpi_opp *opp;
 	struct dvfs_info buf;
 	int ret, i;
 
-	if (domain >= MAX_DVFS_DOMAINS)
-		return ERR_PTR(-EINVAL);
-
-	if (scpi_info->dvfs[domain])	/* data already populated */
-		return scpi_info->dvfs[domain];
-
 	ret = scpi_send_message(CMD_GET_DVFS_INFO, &domain, sizeof(domain),
 				&buf, sizeof(buf));
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kmalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	info->count = DVFS_OPP_COUNT(buf.header);
 	info->latency = DVFS_LATENCY(buf.header) * 1000; /* uS to nS */
 
-	info->opps = kcalloc(info->count, sizeof(*opp), GFP_KERNEL);
-	if (!info->opps) {
-		kfree(info);
-		return ERR_PTR(-ENOMEM);
-	}
+	info->opps = devm_kcalloc(dev, info->count, sizeof(*opp), GFP_KERNEL);
+	if (!info->opps)
+		return -ENOMEM;
 
 	for (i = 0, opp = info->opps; i < info->count; i++, opp++) {
 		opp->freq = le32_to_cpu(buf.opps[i].freq);
@@ -682,7 +682,15 @@ static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 	sort(info->opps, info->count, sizeof(*opp), opp_cmp_func, NULL);
 
 	scpi_info->dvfs[domain] = info;
-	return info;
+	return 0;
+}
+
+static void scpi_dvfs_populate(struct device *dev)
+{
+	int domain;
+
+	for (domain = 0; domain < MAX_DVFS_DOMAINS; domain++)
+		scpi_dvfs_populate_info(dev, domain);
 }
 
 static int scpi_dev_domain_id(struct device *dev)
@@ -899,17 +907,11 @@ scpi_free_channels(struct device *dev, struct scpi_chan *pchan, int count)
 
 static int scpi_remove(struct platform_device *pdev)
 {
-	int i;
 	struct device *dev = &pdev->dev;
 
 	of_platform_depopulate(dev);
 	sysfs_remove_groups(&dev->kobj, versions_groups);
 	scpi_free_channels(dev, scpi_info->channels, scpi_info->num_chans);
-
-	for (i = 0; i < MAX_DVFS_DOMAINS && scpi_info->dvfs[i]; i++) {
-		kfree(scpi_info->dvfs[i]->opps);
-		kfree(scpi_info->dvfs[i]);
-	}
 
 	return 0;
 }
@@ -1016,6 +1018,7 @@ err:
 	scpi_info->channels = scpi_chan;
 	scpi_info->num_chans = count;
 	scpi_info->commands = scpi_std_commands;
+	scpi_info->scpi_ops = &scpi_ops;
 
 	if (scpi_info->is_legacy) {
 		/* Replace with legacy variants */
@@ -1035,13 +1038,14 @@ err:
 		return ret;
 	}
 
+	scpi_dvfs_populate(dev);
+
 	_dev_info(dev, "SCP Protocol %d.%d Firmware %d.%d.%d version\n",
 		  PROTOCOL_REV_MAJOR(scpi_info->protocol_version),
 		  PROTOCOL_REV_MINOR(scpi_info->protocol_version),
 		  FW_REV_MAJOR(scpi_info->firmware_version),
 		  FW_REV_MINOR(scpi_info->firmware_version),
 		  FW_REV_PATCH(scpi_info->firmware_version));
-	scpi_info->scpi_ops = &scpi_ops;
 
 	ret = sysfs_create_groups(&dev->kobj, versions_groups);
 	if (ret)
