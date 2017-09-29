@@ -24,6 +24,7 @@
  */
 struct samsung_clk_provider {
 	void __iomem *reg_base;
+	struct device *dev;
 	spinlock_t lock;
 	/* clk_data must be the last entry due to variable lenght 'hws' array */
 	struct clk_hw_onecell_data clk_data;
@@ -352,6 +353,12 @@ struct samsung_cmu_info {
 	/* list and number of clocks registers */
 	const unsigned long *clk_regs;
 	unsigned int nr_clk_regs;
+
+	/* list and number of clocks registers to set before suspend */
+	const struct samsung_clk_reg_dump *suspend_regs;
+	unsigned int nr_suspend_regs;
+	/* name of the parent clock needed for CMU register access */
+	const char *clk_name;
 };
 
 extern struct samsung_clk_provider *__init samsung_clk_init(
