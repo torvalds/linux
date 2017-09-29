@@ -473,6 +473,22 @@ static void mixer_stop(struct mixer_context *ctx)
 		usleep_range(10000, 12000);
 }
 
+static void mixer_commit(struct mixer_context *ctx)
+{
+	struct drm_display_mode *mode = &ctx->crtc->base.state->adjusted_mode;
+
+	/* setup display size */
+	if (ctx->mxr_ver == MXR_VER_128_0_0_184) {
+		u32 val  = MXR_MXR_RES_HEIGHT(mode->vdisplay)
+			 | MXR_MXR_RES_WIDTH(mode->hdisplay);
+		mixer_reg_write(&ctx->mixer_res, MXR_RESOLUTION, val);
+	}
+
+	mixer_cfg_scan(ctx, mode->vdisplay);
+	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
+	mixer_run(ctx);
+}
+
 static void vp_video_buffer(struct mixer_context *ctx,
 			    struct exynos_drm_plane *plane)
 {
@@ -553,11 +569,9 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_write(res, VP_TOP_C_PTR, chroma_addr[0]);
 	vp_reg_write(res, VP_BOT_C_PTR, chroma_addr[1]);
 
-	mixer_cfg_scan(ctx, mode->vdisplay);
-	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_cfg_layer(ctx, plane->index, priority, true);
 	mixer_cfg_vp_blend(ctx);
-	mixer_run(ctx);
+	mixer_commit(ctx);
 
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 
@@ -638,14 +652,6 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_reg_write(res, MXR_GRAPHIC_SPAN(win),
 			fb->pitches[0] / fb->format->cpp[0]);
 
-	/* setup display size */
-	if (ctx->mxr_ver == MXR_VER_128_0_0_184 &&
-		win == DEFAULT_WIN) {
-		val  = MXR_MXR_RES_HEIGHT(mode->vdisplay);
-		val |= MXR_MXR_RES_WIDTH(mode->hdisplay);
-		mixer_reg_write(res, MXR_RESOLUTION, val);
-	}
-
 	val  = MXR_GRP_WH_WIDTH(state->src.w);
 	val |= MXR_GRP_WH_HEIGHT(state->src.h);
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
@@ -660,17 +666,14 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	/* set buffer address to mixer */
 	mixer_reg_write(res, MXR_GRAPHIC_BASE(win), dma_addr);
 
-	mixer_cfg_scan(ctx, mode->vdisplay);
-	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_cfg_layer(ctx, win, priority, true);
 	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->format->format));
+	mixer_commit(ctx);
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
 		ctx->mxr_ver == MXR_VER_128_0_0_184)
 		mixer_layer_update(ctx);
-
-	mixer_run(ctx);
 
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 
