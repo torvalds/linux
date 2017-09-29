@@ -1524,8 +1524,8 @@ static bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port, bool acti
 				break;
 			}
 		}
-			if (!ret)
-				clear_bit(port, cm_core->active_side_ports);
+		if (!ret)
+			clear_bit(port, cm_core->active_side_ports);
 		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 	} else {
 		spin_lock_irqsave(&cm_core->listen_list_lock, flags);
