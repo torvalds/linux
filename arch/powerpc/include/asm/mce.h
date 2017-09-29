@@ -210,6 +210,4 @@ extern void release_mce_event(void);
 extern void machine_check_queue_event(void);
 extern void machine_check_print_event_info(struct machine_check_event *evt,
 					   bool user_mode);
-extern uint64_t get_mce_fault_addr(struct machine_check_event *evt);
-
 #endif /* __ASM_PPC64_MCE_H__ */
