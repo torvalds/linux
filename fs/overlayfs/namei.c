@@ -982,9 +982,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	dput(index);
 	kfree(stack);
 	kfree(d.redirect);
-	d_add(dentry, inode);
-
-	return NULL;
+	return d_splice_alias(inode, dentry);
 
 out_free_oe:
 	dentry->d_fsdata = NULL;
