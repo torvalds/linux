@@ -1325,24 +1325,28 @@ static int smiapp_power_on(struct device *dev)
 	if (!sensor->pixel_array)
 		return 0;
 
-	rval = v4l2_ctrl_handler_setup(&sensor->pixel_array->ctrl_handler);
-	if (rval)
-		goto out_cci_addr_fail;
-
-	rval = v4l2_ctrl_handler_setup(&sensor->src->ctrl_handler);
-	if (rval)
-		goto out_cci_addr_fail;
-
 	mutex_lock(&sensor->mutex);
+
+	rval = __v4l2_ctrl_handler_setup(&sensor->pixel_array->ctrl_handler);
+	if (rval)
+		goto out_unlock;
+
+	rval = __v4l2_ctrl_handler_setup(&sensor->src->ctrl_handler);
+	if (rval)
+		goto out_unlock;
+
 	rval = smiapp_update_mode(sensor);
-	mutex_unlock(&sensor->mutex);
 	if (rval < 0)
-		goto out_cci_addr_fail;
+		goto out_unlock;
+
+	mutex_unlock(&sensor->mutex);
 
 	return 0;
 
-out_cci_addr_fail:
+out_unlock:
+	mutex_unlock(&sensor->mutex);
 
+out_cci_addr_fail:
 	gpiod_set_value(sensor->xshutdown, 0);
 	clk_disable_unprepare(sensor->ext_clk);
 
