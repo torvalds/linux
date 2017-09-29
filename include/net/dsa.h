@@ -175,6 +175,9 @@ struct dsa_mall_tc_entry {
 
 
 struct dsa_port {
+	/* CPU port tagging operations used by master or slave devices */
+	const struct dsa_device_ops *tag_ops;
+
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;

@@ -522,6 +522,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 		return PTR_ERR(tag_ops);
 	}
 
+	dst->cpu_dp->tag_ops = tag_ops;
 	dst->tag_ops = tag_ops;
 	dst->rcv = dst->tag_ops->rcv;
 

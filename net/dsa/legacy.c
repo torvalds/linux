@@ -152,6 +152,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		if (IS_ERR(tag_ops))
 			return PTR_ERR(tag_ops);
 
+		dst->cpu_dp->tag_ops = tag_ops;
 		dst->tag_ops = tag_ops;
 		dst->rcv = dst->tag_ops->rcv;
 	}

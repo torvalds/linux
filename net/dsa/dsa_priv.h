@@ -66,7 +66,7 @@ struct dsa_notifier_vlan_info {
 };
 
 struct dsa_slave_priv {
-	/* Copy of dp->ds->dst->tag_ops->xmit for faster access in hot path */
+	/* Copy of CPU port xmit for faster access in slave transmit hot path */
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
