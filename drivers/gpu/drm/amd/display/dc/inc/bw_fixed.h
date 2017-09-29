@@ -30,9 +30,31 @@ struct bw_fixed {
 	int64_t value;
 };
 
-struct bw_fixed bw_min3(struct bw_fixed v1, struct bw_fixed v2, struct bw_fixed v3);
+static inline struct bw_fixed bw_min2(const struct bw_fixed arg1,
+				      const struct bw_fixed arg2)
+{
+	return (arg1.value <= arg2.value) ? arg1 : arg2;
+}
 
-struct bw_fixed bw_max3(struct bw_fixed v1, struct bw_fixed v2, struct bw_fixed v3);
+static inline struct bw_fixed bw_max2(const struct bw_fixed arg1,
+				      const struct bw_fixed arg2)
+{
+	return (arg2.value <= arg1.value) ? arg1 : arg2;
+}
+
+static inline struct bw_fixed bw_min3(struct bw_fixed v1,
+				      struct bw_fixed v2,
+				      struct bw_fixed v3)
+{
+	return bw_min2(bw_min2(v1, v2), v3);
+}
+
+static inline struct bw_fixed bw_max3(struct bw_fixed v1,
+				      struct bw_fixed v2,
+				      struct bw_fixed v3)
+{
+	return bw_max2(bw_max2(v1, v2), v3);
+}
 
 struct bw_fixed bw_int_to_fixed(int64_t value);
 
@@ -40,24 +62,83 @@ int32_t bw_fixed_to_int(struct bw_fixed value);
 
 struct bw_fixed bw_frc_to_fixed(int64_t num, int64_t denum);
 
-struct bw_fixed fixed31_32_to_bw_fixed(int64_t raw);
+static inline struct bw_fixed fixed31_32_to_bw_fixed(int64_t raw)
+{
+	struct bw_fixed result = { 0 };
 
-struct bw_fixed bw_add(const struct bw_fixed arg1, const struct bw_fixed arg2);
-struct bw_fixed bw_sub(const struct bw_fixed arg1, const struct bw_fixed arg2);
+	if (raw < 0) {
+		raw = -raw;
+		result.value = -(raw >> (32 - BW_FIXED_BITS_PER_FRACTIONAL_PART));
+	} else {
+		result.value = raw >> (32 - BW_FIXED_BITS_PER_FRACTIONAL_PART);
+	}
+
+	return result;
+}
+
+static inline struct bw_fixed bw_add(const struct bw_fixed arg1,
+				     const struct bw_fixed arg2)
+{
+	struct bw_fixed res;
+
+	res.value = arg1.value + arg2.value;
+
+	return res;
+}
+
+static inline struct bw_fixed bw_sub(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	struct bw_fixed res;
+
+	res.value = arg1.value - arg2.value;
+
+	return res;
+}
+
 struct bw_fixed bw_mul(const struct bw_fixed arg1, const struct bw_fixed arg2);
-struct bw_fixed bw_div(const struct bw_fixed arg1, const struct bw_fixed arg2);
-struct bw_fixed bw_mod(const struct bw_fixed arg1, const struct bw_fixed arg2);
+static inline struct bw_fixed bw_div(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	return bw_frc_to_fixed(arg1.value, arg2.value);
+}
 
-struct bw_fixed bw_min2(const struct bw_fixed arg1, const struct bw_fixed arg2);
-struct bw_fixed bw_max2(const struct bw_fixed arg1, const struct bw_fixed arg2);
+static inline struct bw_fixed bw_mod(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	struct bw_fixed res;
+	div64_u64_rem(arg1.value, arg2.value, &res.value);
+	return res;
+}
+
 struct bw_fixed bw_floor2(const struct bw_fixed arg, const struct bw_fixed significance);
 struct bw_fixed bw_ceil2(const struct bw_fixed arg, const struct bw_fixed significance);
 
-bool bw_equ(const struct bw_fixed arg1, const struct bw_fixed arg2);
-bool bw_neq(const struct bw_fixed arg1, const struct bw_fixed arg2);
-bool bw_leq(const struct bw_fixed arg1, const struct bw_fixed arg2);
-bool bw_meq(const struct bw_fixed arg1, const struct bw_fixed arg2);
-bool bw_ltn(const struct bw_fixed arg1, const struct bw_fixed arg2);
-bool bw_mtn(const struct bw_fixed arg1, const struct bw_fixed arg2);
+static inline bool bw_equ(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	return arg1.value == arg2.value;
+}
+
+static inline bool bw_neq(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	return arg1.value != arg2.value;
+}
+
+static inline bool bw_leq(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	return arg1.value <= arg2.value;
+}
+
+static inline bool bw_meq(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	return arg1.value >= arg2.value;
+}
+
+static inline bool bw_ltn(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	return arg1.value < arg2.value;
+}
+
+static inline bool bw_mtn(const struct bw_fixed arg1, const struct bw_fixed arg2)
+{
+	return arg1.value > arg2.value;
+}
 
 #endif //BW_FIXED_H_
