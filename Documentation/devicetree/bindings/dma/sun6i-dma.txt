@@ -18,7 +18,7 @@ Required properties:
 - #dma-cells :	Should be 1, a single cell holding a line request number
 
 Example:
-	dma: dma-controller@01c02000 {
+	dma: dma-controller@1c02000 {
 		compatible = "allwinner,sun6i-a31-dma";
 		reg = <0x01c02000 0x1000>;
 		interrupts = <0 50 4>;
