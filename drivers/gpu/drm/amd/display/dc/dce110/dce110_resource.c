@@ -1041,8 +1041,7 @@ static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 		(dce110_oppv == NULL))
 			return false;
 
-	if (!dce110_opp_v_construct(dce110_oppv, ctx))
-		return false;
+	dce110_opp_v_construct(dce110_oppv, ctx);
 
 	dce110_timing_generator_v_construct(dce110_tgv, ctx);
 	dce110_mem_input_v_construct(dce110_miv, ctx);
@@ -1292,8 +1291,7 @@ static bool construct(
 		goto res_create_fail;
 
 	/* Create hardware sequencer */
-	if (!dce110_hw_sequencer_construct(dc))
-		goto res_create_fail;
+	dce110_hw_sequencer_construct(dc);
 
 	dc->caps.max_planes =  pool->base.pipe_count;
 

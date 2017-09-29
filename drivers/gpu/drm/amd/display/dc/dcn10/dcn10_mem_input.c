@@ -786,7 +786,7 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 /* Constructor, Destructor               */
 /*****************************************/
 
-bool dcn10_mem_input_construct(
+void dcn10_mem_input_construct(
 	struct dcn10_mem_input *mi,
 	struct dc_context *ctx,
 	uint32_t inst,
@@ -802,7 +802,5 @@ bool dcn10_mem_input_construct(
 	mi->base.inst = inst;
 	mi->base.opp_id = 0xf;
 	mi->base.mpcc_id = 0xf;
-
-	return true;
 }
 

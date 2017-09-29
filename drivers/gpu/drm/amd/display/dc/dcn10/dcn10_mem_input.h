@@ -538,7 +538,7 @@ struct dcn10_mem_input {
 	const struct dcn_mi_mask *mi_mask;
 };
 
-bool dcn10_mem_input_construct(
+void dcn10_mem_input_construct(
 	struct dcn10_mem_input *mi,
 	struct dc_context *ctx,
 	uint32_t inst,

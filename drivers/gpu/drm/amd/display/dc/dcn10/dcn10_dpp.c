@@ -397,7 +397,7 @@ static const struct transform_funcs dcn10_dpp_funcs = {
 /* Constructor, Destructor               */
 /*****************************************/
 
-bool dcn10_dpp_construct(
+void dcn10_dpp_construct(
 	struct dcn10_dpp *xfm,
 	struct dc_context *ctx,
 	uint32_t inst,
@@ -421,6 +421,4 @@ bool dcn10_dpp_construct(
 
 	xfm->lb_bits_per_entry = LB_BITS_PER_ENTRY;
 	xfm->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x1404*/
-
-	return true;
 }

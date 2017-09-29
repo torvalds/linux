@@ -771,7 +771,7 @@ void dce80_compressor_set_fbc_invalidation_triggers(
 	dm_write_reg(compressor->ctx, addr, value);
 }
 
-bool dce80_compressor_construct(struct dce80_compressor *compressor,
+void dce80_compressor_construct(struct dce80_compressor *compressor,
 	struct dc_context *ctx)
 {
 	struct dc_bios *bp = ctx->dc_bios;
@@ -813,7 +813,6 @@ bool dce80_compressor_construct(struct dce80_compressor *compressor,
 		compressor->base.embedded_panel_v_size =
 			panel_info.lcd_timing.vertical_addressable;
 	}
-	return true;
 }
 
 struct compressor *dce80_compressor_create(struct dc_context *ctx)
@@ -824,12 +823,8 @@ struct compressor *dce80_compressor_create(struct dc_context *ctx)
 	if (!cp80)
 		return NULL;
 
-	if (dce80_compressor_construct(cp80, ctx))
-		return &cp80->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(cp80);
-	return NULL;
+	dce80_compressor_construct(cp80, ctx);
+	return &cp80->base;
 }
 
 void dce80_compressor_destroy(struct compressor **compressor)

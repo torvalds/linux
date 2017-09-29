@@ -29,7 +29,7 @@
 #include "opp.h"
 #include "core_types.h"
 
-bool dce110_opp_v_construct(struct dce110_opp *opp110,
+void dce110_opp_v_construct(struct dce110_opp *opp110,
 	struct dc_context *ctx);
 
 /* underlay callbacks */

@@ -393,12 +393,8 @@ struct compressor *dce110_compressor_create(struct dc_context *ctx)
 	if (!cp110)
 		return NULL;
 
-	if (dce110_compressor_construct(cp110, ctx))
-		return &cp110->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(cp110);
-	return NULL;
+	dce110_compressor_construct(cp110, ctx);
+	return &cp110->base;
 }
 
 void dce110_compressor_destroy(struct compressor **compressor)
@@ -485,7 +481,7 @@ static const struct compressor_funcs dce110_compressor_funcs = {
 };
 
 
-bool dce110_compressor_construct(struct dce110_compressor *compressor,
+void dce110_compressor_construct(struct dce110_compressor *compressor,
 	struct dc_context *ctx)
 {
 
@@ -522,6 +518,5 @@ bool dce110_compressor_construct(struct dce110_compressor *compressor,
 	compressor->base.funcs = &dce110_compressor_funcs;
 
 #endif
-	return true;
 }
 

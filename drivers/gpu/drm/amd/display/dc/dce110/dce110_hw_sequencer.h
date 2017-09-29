@@ -33,7 +33,7 @@ struct dc;
 struct dc_state;
 struct dm_pp_display_configuration;
 
-bool dce110_hw_sequencer_construct(struct dc *dc);
+void dce110_hw_sequencer_construct(struct dc *dc);
 
 enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,

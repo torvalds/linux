@@ -44,13 +44,11 @@ static const struct opp_funcs funcs = {
 				dce110_opp_program_bit_depth_reduction
 };
 
-bool dce110_opp_v_construct(struct dce110_opp *opp110,
+void dce110_opp_v_construct(struct dce110_opp *opp110,
 	struct dc_context *ctx)
 {
 	opp110->base.funcs = &funcs;
 
 	opp110->base.ctx = ctx;
-
-	return true;
 }
 

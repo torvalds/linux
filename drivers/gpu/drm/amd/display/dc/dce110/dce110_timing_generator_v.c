@@ -668,13 +668,10 @@ static const struct timing_generator_funcs dce110_tg_v_funcs = {
 				dce110_timing_generator_v_enable_advanced_request
 };
 
-bool dce110_timing_generator_v_construct(
+void dce110_timing_generator_v_construct(
 	struct dce110_timing_generator *tg110,
 	struct dc_context *ctx)
 {
-	if (!tg110)
-		return false;
-
 	tg110->controller_id = CONTROLLER_ID_UNDERLAY0;
 
 	tg110->base.funcs = &dce110_tg_v_funcs;
@@ -688,6 +685,4 @@ bool dce110_timing_generator_v_construct(
 	tg110->min_h_blank = 56;
 	tg110->min_h_front_porch = 4;
 	tg110->min_h_back_porch = 4;
-
-	return true;
 }

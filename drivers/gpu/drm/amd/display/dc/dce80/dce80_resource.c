@@ -910,8 +910,7 @@ static bool dce80_construct(
 		goto res_create_fail;
 
 	/* Create hardware sequencer */
-	if (!dce80_hw_sequencer_construct(dc))
-		goto res_create_fail;
+	dce80_hw_sequencer_construct(dc);
 
 	return true;
 
@@ -1075,8 +1074,7 @@ static bool dce81_construct(
 		goto res_create_fail;
 
 	/* Create hardware sequencer */
-	if (!dce80_hw_sequencer_construct(dc))
-		goto res_create_fail;
+	dce80_hw_sequencer_construct(dc);
 
 	return true;
 
@@ -1236,8 +1234,7 @@ static bool dce83_construct(
 		goto res_create_fail;
 
 	/* Create hardware sequencer */
-	if (!dce80_hw_sequencer_construct(dc))
-		goto res_create_fail;
+	dce80_hw_sequencer_construct(dc);
 
 	return true;
 

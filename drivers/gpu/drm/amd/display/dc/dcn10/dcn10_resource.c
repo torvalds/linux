@@ -462,13 +462,9 @@ static struct transform *dcn10_dpp_create(
 	if (!dpp)
 		return NULL;
 
-	if (dcn10_dpp_construct(dpp, ctx, inst,
-			&tf_regs[inst], &tf_shift, &tf_mask))
-		return &dpp->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(dpp);
-	return NULL;
+	dcn10_dpp_construct(dpp, ctx, inst,
+			    &tf_regs[inst], &tf_shift, &tf_mask);
+	return &dpp->base;
 }
 
 static struct input_pixel_processor *dcn10_ipp_create(
@@ -771,13 +767,9 @@ static struct mem_input *dcn10_mem_input_create(
 	if (!mem_inputn10)
 		return NULL;
 
-	if (dcn10_mem_input_construct(mem_inputn10, ctx, inst,
-			&mi_regs[inst], &mi_shift, &mi_mask))
-		return &mem_inputn10->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(mem_inputn10);
-	return NULL;
+	dcn10_mem_input_construct(mem_inputn10, ctx, inst,
+				  &mi_regs[inst], &mi_shift, &mi_mask);
+	return &mem_inputn10->base;
 }
 
 static void get_pixel_clock_parameters(

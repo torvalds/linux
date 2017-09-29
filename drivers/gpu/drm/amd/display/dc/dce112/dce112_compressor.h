@@ -42,7 +42,7 @@ struct dce112_compressor {
 
 struct compressor *dce112_compressor_create(struct dc_context *ctx);
 
-bool dce112_compressor_construct(struct dce112_compressor *cp110,
+void dce112_compressor_construct(struct dce112_compressor *cp110,
 	struct dc_context *ctx);
 
 void dce112_compressor_destroy(struct compressor **cp);

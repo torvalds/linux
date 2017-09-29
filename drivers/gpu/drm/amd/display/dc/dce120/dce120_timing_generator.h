@@ -32,7 +32,7 @@
 #include "dce110/dce110_timing_generator.h"
 
 
-bool dce120_timing_generator_construct(
+void dce120_timing_generator_construct(
 	struct dce110_timing_generator *tg110,
 	struct dc_context *ctx,
 	uint32_t instance,

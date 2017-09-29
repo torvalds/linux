@@ -30,7 +30,7 @@
 
 struct dc;
 
-bool dce120_hw_sequencer_construct(struct dc *dc);
+void dce120_hw_sequencer_construct(struct dc *dc);
 
 #endif /* __DC_HWSS_DCE112_H__ */
 

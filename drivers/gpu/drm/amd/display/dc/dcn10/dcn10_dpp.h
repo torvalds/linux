@@ -1356,7 +1356,7 @@ void ippn10_cnv_setup (
 
 void ippn10_full_bypass(struct transform *xfm_base);
 
-bool dcn10_dpp_construct(struct dcn10_dpp *xfm110,
+void dcn10_dpp_construct(struct dcn10_dpp *xfm110,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn_dpp_registers *tf_regs,

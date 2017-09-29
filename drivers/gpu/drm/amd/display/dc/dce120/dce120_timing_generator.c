@@ -1143,15 +1143,12 @@ static const struct timing_generator_funcs dce120_tg_funcs = {
 };
 
 
-bool dce120_timing_generator_construct(
+void dce120_timing_generator_construct(
 	struct dce110_timing_generator *tg110,
 	struct dc_context *ctx,
 	uint32_t instance,
 	const struct dce110_timing_generator_offsets *offsets)
 {
-	if (!tg110)
-			return false;
-
 	tg110->controller_id = CONTROLLER_ID_D0 + instance;
 	tg110->base.inst = instance;
 
@@ -1175,6 +1172,4 @@ bool dce120_timing_generator_construct(
 	tg110->min_h_sync_width = 8;
 	tg110->min_v_sync_width = 1;
 	tg110->min_v_blank = 3;
-
-	return true;
 }

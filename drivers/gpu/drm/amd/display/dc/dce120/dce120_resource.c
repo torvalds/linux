@@ -429,12 +429,8 @@ static struct timing_generator *dce120_timing_generator_create(
 	if (!tg110)
 		return NULL;
 
-	if (dce120_timing_generator_construct(tg110, ctx, instance, offsets))
-		return &tg110->base;
-
-	BREAK_TO_DEBUGGER();
-	kfree(tg110);
-	return NULL;
+	dce120_timing_generator_construct(tg110, ctx, instance, offsets);
+	return &tg110->base;
 }
 
 static void dce120_transform_destroy(struct transform **xfm)

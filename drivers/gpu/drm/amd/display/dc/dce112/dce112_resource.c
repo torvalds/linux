@@ -1256,8 +1256,7 @@ static bool construct(
 	dc->caps.max_planes =  pool->base.pipe_count;
 
 	/* Create hardware sequencer */
-	if (!dce112_hw_sequencer_construct(dc))
-		goto res_create_fail;
+	dce112_hw_sequencer_construct(dc);
 
 	bw_calcs_init(dc->bw_dceip, dc->bw_vbios, dc->ctx->asic_id);
 

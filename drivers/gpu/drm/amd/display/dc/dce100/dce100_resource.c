@@ -909,9 +909,7 @@ static bool construct(
 		goto res_create_fail;
 
 	/* Create hardware sequencer */
-	if (!dce100_hw_sequencer_construct(dc))
-		goto res_create_fail;
-
+	dce100_hw_sequencer_construct(dc);
 	return true;
 
 res_create_fail:
