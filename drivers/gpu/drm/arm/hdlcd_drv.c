@@ -355,7 +355,7 @@ err_unload:
 err_free:
 	drm_mode_config_cleanup(drm);
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -380,7 +380,7 @@ static void hdlcd_drm_unbind(struct device *dev)
 	pm_runtime_disable(drm->dev);
 	of_reserved_mem_device_release(drm->dev);
 	drm_mode_config_cleanup(drm);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
 }
