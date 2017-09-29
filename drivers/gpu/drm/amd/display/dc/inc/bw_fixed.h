@@ -26,9 +26,18 @@
 #ifndef BW_FIXED_H_
 #define BW_FIXED_H_
 
+#define BW_FIXED_BITS_PER_FRACTIONAL_PART 24
+
+#define BW_FIXED_GET_INTEGER_PART(x) ((x) >> BW_FIXED_BITS_PER_FRACTIONAL_PART)
 struct bw_fixed {
 	int64_t value;
 };
+
+#define BW_FIXED_MIN_I32 \
+	(int64_t)(-(1LL << (63 - BW_FIXED_BITS_PER_FRACTIONAL_PART)))
+
+#define BW_FIXED_MAX_I32 \
+	(int64_t)((1ULL << (63 - BW_FIXED_BITS_PER_FRACTIONAL_PART)) - 1)
 
 static inline struct bw_fixed bw_min2(const struct bw_fixed arg1,
 				      const struct bw_fixed arg2)
@@ -56,9 +65,22 @@ static inline struct bw_fixed bw_max3(struct bw_fixed v1,
 	return bw_max2(bw_max2(v1, v2), v3);
 }
 
-struct bw_fixed bw_int_to_fixed(int64_t value);
+struct bw_fixed bw_int_to_fixed_nonconst(int64_t value);
+static inline struct bw_fixed bw_int_to_fixed(int64_t value)
+{
+	if (__builtin_constant_p(value)) {
+		struct bw_fixed res;
+		BUILD_BUG_ON(value > BW_FIXED_MAX_I32 || value < BW_FIXED_MIN_I32);
+		res.value = value << BW_FIXED_BITS_PER_FRACTIONAL_PART;
+		return res;
+	} else
+		return bw_int_to_fixed_nonconst(value);
+}
 
-int32_t bw_fixed_to_int(struct bw_fixed value);
+static inline int32_t bw_fixed_to_int(struct bw_fixed value)
+{
+	return BW_FIXED_GET_INTEGER_PART(value.value);
+}
 
 struct bw_fixed bw_frc_to_fixed(int64_t num, int64_t denum);
 

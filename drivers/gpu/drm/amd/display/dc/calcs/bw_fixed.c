@@ -25,13 +25,6 @@
 #include "dm_services.h"
 #include "bw_fixed.h"
 
-#define BITS_PER_FRACTIONAL_PART 24
-
-#define MIN_I32 \
-	(int64_t)(-(1LL << (63 - BITS_PER_FRACTIONAL_PART)))
-
-#define MAX_I32 \
-	(int64_t)((1ULL << (63 - BITS_PER_FRACTIONAL_PART)) - 1)
 
 #define MIN_I64 \
 	(int64_t)(-(1LL << 63))
@@ -40,10 +33,7 @@
 	(int64_t)((1ULL << 63) - 1)
 
 #define FRACTIONAL_PART_MASK \
-	((1ULL << BITS_PER_FRACTIONAL_PART) - 1)
-
-#define GET_INTEGER_PART(x) \
-	((x) >> BITS_PER_FRACTIONAL_PART)
+	((1ULL << BW_FIXED_BITS_PER_FRACTIONAL_PART) - 1)
 
 #define GET_FRACTIONAL_PART(x) \
 	(FRACTIONAL_PART_MASK & (x))
@@ -56,17 +46,12 @@ static uint64_t abs_i64(int64_t arg)
 		return (uint64_t)(-arg);
 }
 
-struct bw_fixed bw_int_to_fixed(int64_t value)
+struct bw_fixed bw_int_to_fixed_nonconst(int64_t value)
 {
 	struct bw_fixed res;
-	ASSERT(value < MAX_I32 && value > MIN_I32);
-	res.value = value << BITS_PER_FRACTIONAL_PART;
+	ASSERT(value < BW_FIXED_MAX_I32 && value > BW_FIXED_MIN_I32);
+	res.value = value << BW_FIXED_BITS_PER_FRACTIONAL_PART;
 	return res;
-}
-
-int32_t bw_fixed_to_int(struct bw_fixed value)
-{
-	return GET_INTEGER_PART(value.value);
 }
 
 struct bw_fixed bw_frc_to_fixed(int64_t numerator, int64_t denominator)
@@ -87,11 +72,11 @@ struct bw_fixed bw_frc_to_fixed(int64_t numerator, int64_t denominator)
 	arg2_value = abs_i64(denominator);
 	res_value = div64_u64_rem(arg1_value, arg2_value, &remainder);
 
-	ASSERT(res_value <= MAX_I32);
+	ASSERT(res_value <= BW_FIXED_MAX_I32);
 
 	/* determine fractional part */
 	{
-		uint32_t i = BITS_PER_FRACTIONAL_PART;
+		uint32_t i = BW_FIXED_BITS_PER_FRACTIONAL_PART;
 
 		do
 		{
@@ -164,8 +149,8 @@ struct bw_fixed bw_mul(const struct bw_fixed arg1, const struct bw_fixed arg2)
 	uint64_t arg1_value = abs_i64(arg1.value);
 	uint64_t arg2_value = abs_i64(arg2.value);
 
-	uint64_t arg1_int = GET_INTEGER_PART(arg1_value);
-	uint64_t arg2_int = GET_INTEGER_PART(arg2_value);
+	uint64_t arg1_int = BW_FIXED_GET_INTEGER_PART(arg1_value);
+	uint64_t arg2_int = BW_FIXED_GET_INTEGER_PART(arg2_value);
 
 	uint64_t arg1_fra = GET_FRACTIONAL_PART(arg1_value);
 	uint64_t arg2_fra = GET_FRACTIONAL_PART(arg2_value);
@@ -174,9 +159,9 @@ struct bw_fixed bw_mul(const struct bw_fixed arg1, const struct bw_fixed arg2)
 
 	res.value = arg1_int * arg2_int;
 
-	ASSERT(res.value <= MAX_I32);
+	ASSERT(res.value <= BW_FIXED_MAX_I32);
 
-	res.value <<= BITS_PER_FRACTIONAL_PART;
+	res.value <<= BW_FIXED_BITS_PER_FRACTIONAL_PART;
 
 	tmp = arg1_int * arg2_fra;
 
@@ -192,7 +177,7 @@ struct bw_fixed bw_mul(const struct bw_fixed arg1, const struct bw_fixed arg2)
 
 	tmp = arg1_fra * arg2_fra;
 
-	tmp = (tmp >> BITS_PER_FRACTIONAL_PART) +
+	tmp = (tmp >> BW_FIXED_BITS_PER_FRACTIONAL_PART) +
 		(tmp >= (uint64_t)(bw_frc_to_fixed(1, 2).value));
 
 	ASSERT(tmp <= (uint64_t)(MAX_I64 - res.value));
