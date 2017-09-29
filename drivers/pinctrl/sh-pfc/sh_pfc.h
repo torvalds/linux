@@ -222,6 +222,7 @@ struct sh_pfc {
 	unsigned int nr_gpio_pins;
 
 	struct sh_pfc_chip *gpio;
+	u32 *saved_regs;
 };
 
 struct sh_pfc_soc_operations {
