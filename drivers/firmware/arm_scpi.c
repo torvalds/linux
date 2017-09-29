@@ -902,16 +902,6 @@ static void scpi_free_channels(void *data)
 		mbox_free_channel(info->channels[i].chan);
 }
 
-static int scpi_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-
-	of_platform_depopulate(dev);
-	sysfs_remove_groups(&dev->kobj, versions_groups);
-
-	return 0;
-}
-
 #define MAX_SCPI_XFERS		10
 static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 {
@@ -1029,7 +1019,6 @@ static int scpi_probe(struct platform_device *pdev)
 	ret = scpi_init_versions(scpi_info);
 	if (ret) {
 		dev_err(dev, "incorrect or no SCP firmware found\n");
-		scpi_remove(pdev);
 		return ret;
 	}
 
@@ -1042,11 +1031,11 @@ static int scpi_probe(struct platform_device *pdev)
 		  FW_REV_MINOR(scpi_info->firmware_version),
 		  FW_REV_PATCH(scpi_info->firmware_version));
 
-	ret = sysfs_create_groups(&dev->kobj, versions_groups);
+	ret = devm_device_add_groups(dev, versions_groups);
 	if (ret)
 		dev_err(dev, "unable to create sysfs version group\n");
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return devm_of_platform_populate(dev);
 }
 
 static const struct of_device_id scpi_of_match[] = {
@@ -1063,7 +1052,6 @@ static struct platform_driver scpi_driver = {
 		.of_match_table = scpi_of_match,
 	},
 	.probe = scpi_probe,
-	.remove = scpi_remove,
 };
 module_platform_driver(scpi_driver);
 
