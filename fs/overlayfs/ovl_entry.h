@@ -37,6 +37,9 @@ struct ovl_fs {
 	bool noxattr;
 	/* sb common to all layers */
 	struct super_block *same_sb;
+	/* Did we take the inuse lock? */
+	bool upperdir_locked;
+	bool workdir_locked;
 };
 
 /* private information held for every overlayfs dentry */
