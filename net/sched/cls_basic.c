@@ -182,7 +182,6 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto errout;
 
-	err = -EINVAL;
 	if (handle) {
 		fnew->handle = handle;
 		if (!fold) {
