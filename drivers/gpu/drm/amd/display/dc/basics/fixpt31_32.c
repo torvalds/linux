@@ -132,79 +132,6 @@ struct fixed31_32 dal_fixed31_32_from_int(
 	return res;
 }
 
-struct fixed31_32 dal_fixed31_32_neg(
-	struct fixed31_32 arg)
-{
-	struct fixed31_32 res;
-
-	res.value = -arg.value;
-
-	return res;
-}
-
-struct fixed31_32 dal_fixed31_32_abs(
-	struct fixed31_32 arg)
-{
-	if (arg.value < 0)
-		return dal_fixed31_32_neg(arg);
-	else
-		return arg;
-}
-
-bool dal_fixed31_32_lt(
-	struct fixed31_32 arg1,
-	struct fixed31_32 arg2)
-{
-	return arg1.value < arg2.value;
-}
-
-bool dal_fixed31_32_le(
-	struct fixed31_32 arg1,
-	struct fixed31_32 arg2)
-{
-	return arg1.value <= arg2.value;
-}
-
-bool dal_fixed31_32_eq(
-	struct fixed31_32 arg1,
-	struct fixed31_32 arg2)
-{
-	return arg1.value == arg2.value;
-}
-
-struct fixed31_32 dal_fixed31_32_min(
-	struct fixed31_32 arg1,
-	struct fixed31_32 arg2)
-{
-	if (arg1.value <= arg2.value)
-		return arg1;
-	else
-		return arg2;
-}
-
-struct fixed31_32 dal_fixed31_32_max(
-	struct fixed31_32 arg1,
-	struct fixed31_32 arg2)
-{
-	if (arg1.value <= arg2.value)
-		return arg2;
-	else
-		return arg1;
-}
-
-struct fixed31_32 dal_fixed31_32_clamp(
-	struct fixed31_32 arg,
-	struct fixed31_32 min_value,
-	struct fixed31_32 max_value)
-{
-	if (dal_fixed31_32_le(arg, min_value))
-		return min_value;
-	else if (dal_fixed31_32_le(max_value, arg))
-		return max_value;
-	else
-		return arg;
-}
-
 struct fixed31_32 dal_fixed31_32_shl(
 	struct fixed31_32 arg,
 	uint8_t shift)
@@ -215,19 +142,6 @@ struct fixed31_32 dal_fixed31_32_shl(
 		((arg.value < 0) && (arg.value >= LLONG_MIN >> shift)));
 
 	res.value = arg.value << shift;
-
-	return res;
-}
-
-struct fixed31_32 dal_fixed31_32_shr(
-	struct fixed31_32 arg,
-	uint8_t shift)
-{
-	struct fixed31_32 res;
-
-	ASSERT(shift < 64);
-
-	res.value = arg.value >> shift;
 
 	return res;
 }
@@ -246,24 +160,6 @@ struct fixed31_32 dal_fixed31_32_add(
 	return res;
 }
 
-struct fixed31_32 dal_fixed31_32_add_int(
-	struct fixed31_32 arg1,
-	int32_t arg2)
-{
-	return dal_fixed31_32_add(
-		arg1,
-		dal_fixed31_32_from_int(arg2));
-}
-
-struct fixed31_32 dal_fixed31_32_sub_int(
-	struct fixed31_32 arg1,
-	int32_t arg2)
-{
-	return dal_fixed31_32_sub(
-		arg1,
-		dal_fixed31_32_from_int(arg2));
-}
-
 struct fixed31_32 dal_fixed31_32_sub(
 	struct fixed31_32 arg1,
 	struct fixed31_32 arg2)
@@ -276,15 +172,6 @@ struct fixed31_32 dal_fixed31_32_sub(
 	res.value = arg1.value - arg2.value;
 
 	return res;
-}
-
-struct fixed31_32 dal_fixed31_32_mul_int(
-	struct fixed31_32 arg1,
-	int32_t arg2)
-{
-	return dal_fixed31_32_mul(
-		arg1,
-		dal_fixed31_32_from_int(arg2));
 }
 
 struct fixed31_32 dal_fixed31_32_mul(
@@ -388,15 +275,6 @@ struct fixed31_32 dal_fixed31_32_div_int(
 	return dal_fixed31_32_from_fraction(
 		arg1.value,
 		dal_fixed31_32_from_int(arg2).value);
-}
-
-struct fixed31_32 dal_fixed31_32_div(
-	struct fixed31_32 arg1,
-	struct fixed31_32 arg2)
-{
-	return dal_fixed31_32_from_fraction(
-		arg1.value,
-		arg2.value);
 }
 
 struct fixed31_32 dal_fixed31_32_recip(
