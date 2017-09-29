@@ -323,9 +323,15 @@
 			>;
 		};
 
-		pixcir_ts_pins: pixcir_ts_pins {
+		pixcir_ts_pins_default: pixcir_ts_pins_default {
 			pinctrl-single,pins = <
 				AM4372_IOPAD(0x844, PIN_INPUT_PULLUP | MUX_MODE7)	/* gpmc_a1.gpio1_17 */
+			>;
+		};
+
+		pixcir_ts_pins_sleep: pixcir_ts_pins_sleep {
+			pinctrl-single,pins = <
+				AM4372_IOPAD(0x844, DS0_PIN_OUTPUT_PULLUP | PIN_OUTPUT_PULLUP | MUX_MODE7)	/* gpmc_a1.gpio1_17 */
 			>;
 		};
 
@@ -538,8 +544,10 @@
 
 	pixcir_ts@5c {
 		compatible = "pixcir,pixcir_tangoc";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pixcir_ts_pins>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&pixcir_ts_pins_default>;
+		pinctrl-1 = <&pixcir_ts_pins_sleep>;
+
 		reg = <0x5c>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
