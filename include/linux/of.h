@@ -38,7 +38,9 @@ struct property {
 	void	*value;
 	struct property *next;
 	unsigned long _flags;
+#if defined(CONFIG_OF_PROMTREE)
 	unsigned int unique_id;
+#endif
 	struct bin_attribute attr;
 };
 
