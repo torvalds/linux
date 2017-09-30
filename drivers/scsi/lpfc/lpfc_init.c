@@ -3216,6 +3216,9 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	lpfc_sli_mbox_sys_shutdown(phba, mbx_action);
+
+	if (phba->wq)
+		flush_workqueue(phba->wq);
 }
 
 /**
@@ -4176,6 +4179,9 @@ void
 lpfc_stop_port(struct lpfc_hba *phba)
 {
 	phba->lpfc_stop_port(phba);
+
+	if (phba->wq)
+		flush_workqueue(phba->wq);
 }
 
 /**
@@ -6369,6 +6375,9 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 		return error;
 	}
 
+	/* workqueue for deferred irq use */
+	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+
 	return 0;
 }
 
@@ -6383,6 +6392,12 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 static void
 lpfc_unset_driver_resource_phase2(struct lpfc_hba *phba)
 {
+	if (phba->wq) {
+		flush_workqueue(phba->wq);
+		destroy_workqueue(phba->wq);
+		phba->wq = NULL;
+	}
+
 	/* Stop kernel worker thread */
 	kthread_stop(phba->worker_thread);
 }
