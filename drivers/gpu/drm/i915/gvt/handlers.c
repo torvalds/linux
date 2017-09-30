@@ -137,17 +137,26 @@ static int new_mmio_info(struct intel_gvt *gvt,
 	return 0;
 }
 
-static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
+/**
+ * intel_gvt_render_mmio_to_ring_id - convert a mmio offset into ring id
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * Ring ID on success, negative error code if failed.
+ */
+int intel_gvt_render_mmio_to_ring_id(struct intel_gvt *gvt,
+		unsigned int offset)
 {
 	enum intel_engine_id id;
 	struct intel_engine_cs *engine;
 
-	reg &= ~GENMASK(11, 0);
+	offset &= ~GENMASK(11, 0);
 	for_each_engine(engine, gvt->dev_priv, id) {
-		if (engine->mmio_base == reg)
+		if (engine->mmio_base == offset)
 			return id;
 	}
-	return -1;
+	return -ENODEV;
 }
 
 #define offset_to_fence_num(offset) \
@@ -1409,7 +1418,7 @@ static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	struct intel_vgpu_execlist *execlist;
 	u32 data = *(u32 *)p_data;
 	int ret = 0;
@@ -1436,7 +1445,7 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 data = *(u32 *)p_data;
-	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	bool enable_execlist;
 
 	write_vreg(vgpu, offset, p_data, bytes);
