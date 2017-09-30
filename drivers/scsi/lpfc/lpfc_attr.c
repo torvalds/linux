@@ -3377,7 +3377,7 @@ LPFC_ATTR_R(nvmet_mrq,
  */
 LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
 	    LPFC_ENABLE_FCP, LPFC_ENABLE_BOTH,
-	    "Define fc4 type to register with fabric.");
+	    "Enable FC4 Protocol support - FCP / NVME");
 
 /*
  * lpfc_xri_split: Defines the division of XRI resources between SCSI and NVME
@@ -3393,7 +3393,7 @@ LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
  * percentage will go to NVME.
  */
 LPFC_ATTR_R(xri_split, 50, 10, 90,
-	    "Division of XRI resources between SCSI and NVME");
+	    "Percentage of FCP XRI resources versus NVME");
 
 /*
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being
