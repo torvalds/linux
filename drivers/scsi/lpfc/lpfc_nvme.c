@@ -1235,6 +1235,16 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	vport = lport->vport;
 	phba = vport->phba;
 
+	/* Validate pointers. */
+	if (!pnvme_lport || !pnvme_rport || !freqpriv) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR | LOG_NODE,
+				 "6117 No Send:IO submit ptrs NULL, lport %p, "
+				 "rport %p fcreq_priv %p\n",
+				 pnvme_lport, pnvme_rport, freqpriv);
+		ret = -ENODEV;
+		goto out_fail;
+	}
+
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (phba->ktime_on)
 		start = ktime_get_ns();
