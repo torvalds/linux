@@ -886,7 +886,7 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			break;
 		default:
 out_err:
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 					 "6072 NVME Completion Error: xri %x "
 					 "status x%x result x%x placed x%x\n",
 					 lpfc_ncmd->cur_iocbq.sli4_xritag,
@@ -1339,7 +1339,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	ret = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, &lpfc_ncmd->cur_iocbq);
 	if (ret) {
 		atomic_dec(&ndlp->cmd_pending);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6113 FCP could not issue WQE err %x "
 				 "sid: x%x did: x%x oxid: x%x\n",
 				 ret, vport->fc_myDID, ndlp->nlp_DID,
@@ -1399,7 +1399,7 @@ void
 lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			   struct lpfc_wcqe_complete *abts_cmpl)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
 			"6145 ABORT_XRI_CN completing on rpi x%x "
 			"original iotag x%x, abort cmd iotag x%x "
 			"req_tag x%x, status x%x, hwstatus x%x\n",

@@ -76,7 +76,7 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
 {
 	unsigned long iflag;
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6313 NVMET Defer ctx release xri x%x flg x%x\n",
 			ctxp->oxid, ctxp->flag);
 
@@ -494,7 +494,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_tgt_fcp_req *rsp;
 	struct lpfc_nvmet_rcv_ctx *ctxp;
-	uint32_t status, result, op, start_clean;
+	uint32_t status, result, op, start_clean, logerr;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t id;
 #endif
@@ -522,16 +522,20 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		if (tgtp)
 			atomic_inc(&tgtp->xmt_fcp_rsp_error);
 
+		logerr = LOG_NVME_IOERR;
+
 		/* pick up SLI4 exhange busy condition */
 		if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
 			ctxp->flag |= LPFC_NVMET_XBUSY;
+			logerr |= LOG_NVME_ABTS;
 
-			lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-					"6315 IO Cmpl XBUSY: xri x%x: %x/%x\n",
-					ctxp->oxid, status, result);
 		} else {
 			ctxp->flag &= ~LPFC_NVMET_XBUSY;
 		}
+
+		lpfc_printf_log(phba, KERN_INFO, logerr,
+				"6315 IO Error Cmpl xri x%x: %x/%x XBUSY:x%x\n",
+				ctxp->oxid, status, result, ctxp->flag);
 
 	} else {
 		rsp->fcp_error = NVME_SC_SUCCESS;
@@ -2353,7 +2357,7 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 	atomic_inc(&tgtp->xmt_abort_rsp);
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6165 ABORT cmpl: xri x%x flg x%x (%d) "
 			"WCQE: %08x %08x %08x %08x\n",
 			ctxp->oxid, ctxp->flag, released,
