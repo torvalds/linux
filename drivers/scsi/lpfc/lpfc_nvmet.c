@@ -822,6 +822,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	atomic_inc(&lpfc_nvmep->xmt_fcp_abort);
 
 	spin_lock_irqsave(&ctxp->ctxlock, flags);
+	ctxp->state = LPFC_NVMET_STE_ABORT;
 
 	/* Since iaab/iaar are NOT set, we need to check
 	 * if the firmware is in process of aborting IO
