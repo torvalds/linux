@@ -597,6 +597,8 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 
 	if (sscanf(misc_device->name, DRV_MODULE_NAME ".%d", &id) != 1)
 		return;
+	if (id < 0)
+		return;
 
 	misc_deregister(&test->miscdev);
 	ida_simple_remove(&pci_endpoint_test_ida, id);
