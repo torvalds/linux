@@ -2364,7 +2364,7 @@ static int vega10_avfs_enable(struct pp_hwmgr *hwmgr, bool enable)
 		} else {
 			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					false,
-					data->smu_features[GNLD_AVFS].smu_feature_id),
+					data->smu_features[GNLD_AVFS].smu_feature_bitmap),
 					"[avfs_control] Attempt to Disable AVFS feature Failed!",
 					return -1);
 			data->smu_features[GNLD_AVFS].enabled = false;
