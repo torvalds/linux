@@ -583,6 +583,44 @@ static int ext4_ioc_getfsmap(struct super_block *sb,
 	return 0;
 }
 
+static long ext4_ioctl_group_add(struct file *file,
+				 struct ext4_new_group_data *input)
+{
+	struct super_block *sb = file_inode(file)->i_sb;
+	int err, err2=0;
+
+	err = ext4_resize_begin(sb);
+	if (err)
+		return err;
+
+	if (ext4_has_feature_bigalloc(sb)) {
+		ext4_msg(sb, KERN_ERR,
+			 "Online resizing not supported with bigalloc");
+		err = -EOPNOTSUPP;
+		goto group_add_out;
+	}
+
+	err = mnt_want_write_file(file);
+	if (err)
+		goto group_add_out;
+
+	err = ext4_group_add(sb, input);
+	if (EXT4_SB(sb)->s_journal) {
+		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
+		err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+	}
+	if (err == 0)
+		err = err2;
+	mnt_drop_write_file(file);
+	if (!err && ext4_has_group_desc_csum(sb) &&
+	    test_opt(sb, INIT_INODE_TABLE))
+		err = ext4_register_li_request(sb, input->group);
+group_add_out:
+	ext4_resize_end(sb);
+	return err;
+}
+
 long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -767,44 +805,12 @@ mext_out:
 
 	case EXT4_IOC_GROUP_ADD: {
 		struct ext4_new_group_data input;
-		int err, err2=0;
-
-		err = ext4_resize_begin(sb);
-		if (err)
-			return err;
 
 		if (copy_from_user(&input, (struct ext4_new_group_input __user *)arg,
-				sizeof(input))) {
-			err = -EFAULT;
-			goto group_add_out;
-		}
+				sizeof(input)))
+			return -EFAULT;
 
-		if (ext4_has_feature_bigalloc(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online resizing not supported with bigalloc");
-			err = -EOPNOTSUPP;
-			goto group_add_out;
-		}
-
-		err = mnt_want_write_file(filp);
-		if (err)
-			goto group_add_out;
-
-		err = ext4_group_add(sb, &input);
-		if (EXT4_SB(sb)->s_journal) {
-			jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
-			jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
-		}
-		if (err == 0)
-			err = err2;
-		mnt_drop_write_file(filp);
-		if (!err && ext4_has_group_desc_csum(sb) &&
-		    test_opt(sb, INIT_INODE_TABLE))
-			err = ext4_register_li_request(sb, input.group);
-group_add_out:
-		ext4_resize_end(sb);
-		return err;
+		return ext4_ioctl_group_add(filp, &input);
 	}
 
 	case EXT4_IOC_MIGRATE:
@@ -1075,8 +1081,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case EXT4_IOC32_GROUP_ADD: {
 		struct compat_ext4_new_group_input __user *uinput;
-		struct ext4_new_group_input input;
-		mm_segment_t old_fs;
+		struct ext4_new_group_data input;
 		int err;
 
 		uinput = compat_ptr(arg);
@@ -1089,12 +1094,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				&uinput->reserved_blocks);
 		if (err)
 			return -EFAULT;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		err = ext4_ioctl(file, EXT4_IOC_GROUP_ADD,
-				 (unsigned long) &input);
-		set_fs(old_fs);
-		return err;
+		return ext4_ioctl_group_add(file, &input);
 	}
 	case EXT4_IOC_MOVE_EXT:
 	case EXT4_IOC_RESIZE_FS:
