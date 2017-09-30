@@ -42,28 +42,6 @@ enum writeback_sync_modes {
 };
 
 /*
- * why some writeback work was initiated
- */
-enum wb_reason {
-	WB_REASON_BACKGROUND,
-	WB_REASON_VMSCAN,
-	WB_REASON_SYNC,
-	WB_REASON_PERIODIC,
-	WB_REASON_LAPTOP_TIMER,
-	WB_REASON_FREE_MORE_MEM,
-	WB_REASON_FS_FREE_SPACE,
-	/*
-	 * There is no bdi forker thread any more and works are done
-	 * by emergency worker, however, this is TPs userland visible
-	 * and we'll be exposing exactly the same information,
-	 * so it has a mismatch name.
-	 */
-	WB_REASON_FORKER_THREAD,
-
-	WB_REASON_MAX,
-};
-
-/*
  * A control structure which tells the writeback code what to do.  These are
  * always on the stack, and hence need no locking.  They are always initialised
  * in a manner such that unspecified fields are set to zero.

@@ -53,7 +53,6 @@ struct wb_writeback_work {
 	unsigned int for_background:1;
 	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
 	unsigned int auto_free:1;	/* free on completion */
-	unsigned int start_all:1;	/* nr_pages == 0 (all) writeback */
 	enum wb_reason reason;		/* why was writeback initiated? */
 
 	struct list_head list;		/* pending work list */
@@ -947,8 +946,6 @@ static unsigned long get_nr_dirty_pages(void)
 
 static void wb_start_writeback(struct bdi_writeback *wb, enum wb_reason reason)
 {
-	struct wb_writeback_work *work;
-
 	if (!wb_has_dirty_io(wb))
 		return;
 
@@ -958,35 +955,14 @@ static void wb_start_writeback(struct bdi_writeback *wb, enum wb_reason reason)
 	 * high frequency, causing pointless allocations of tons of
 	 * work items and keeping the flusher threads busy retrieving
 	 * that work. Ensure that we only allow one of them pending and
-	 * inflight at the time. It doesn't matter if we race a little
-	 * bit on this, so use the faster separate test/set bit variants.
+	 * inflight at the time.
 	 */
-	if (test_bit(WB_start_all, &wb->state))
+	if (test_bit(WB_start_all, &wb->state) ||
+	    test_and_set_bit(WB_start_all, &wb->state))
 		return;
 
-	set_bit(WB_start_all, &wb->state);
-
-	/*
-	 * This is WB_SYNC_NONE writeback, so if allocation fails just
-	 * wakeup the thread for old dirty data writeback
-	 */
-	work = kzalloc(sizeof(*work),
-		       GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
-	if (!work) {
-		clear_bit(WB_start_all, &wb->state);
-		trace_writeback_nowork(wb);
-		wb_wakeup(wb);
-		return;
-	}
-
-	work->sync_mode	= WB_SYNC_NONE;
-	work->nr_pages	= wb_split_bdi_pages(wb, get_nr_dirty_pages());
-	work->range_cyclic = 1;
-	work->reason	= reason;
-	work->auto_free	= 1;
-	work->start_all = 1;
-
-	wb_queue_work(wb, work);
+	wb->start_all_reason = reason;
+	wb_wakeup(wb);
 }
 
 /**
@@ -1838,14 +1814,6 @@ static struct wb_writeback_work *get_next_work_item(struct bdi_writeback *wb)
 		list_del_init(&work->list);
 	}
 	spin_unlock_bh(&wb->work_lock);
-
-	/*
-	 * Once we start processing a work item that had !nr_pages,
-	 * clear the wb state bit for that so we can allow more.
-	 */
-	if (work && work->start_all)
-		clear_bit(WB_start_all, &wb->state);
-
 	return work;
 }
 
@@ -1901,6 +1869,30 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 	return 0;
 }
 
+static long wb_check_start_all(struct bdi_writeback *wb)
+{
+	long nr_pages;
+
+	if (!test_bit(WB_start_all, &wb->state))
+		return 0;
+
+	nr_pages = get_nr_dirty_pages();
+	if (nr_pages) {
+		struct wb_writeback_work work = {
+			.nr_pages	= wb_split_bdi_pages(wb, nr_pages),
+			.sync_mode	= WB_SYNC_NONE,
+			.range_cyclic	= 1,
+			.reason		= wb->start_all_reason,
+		};
+
+		nr_pages = wb_writeback(wb, &work);
+	}
+
+	clear_bit(WB_start_all, &wb->state);
+	return nr_pages;
+}
+
+
 /*
  * Retrieve work items and do the writeback they describe
  */
@@ -1915,6 +1907,11 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 		wrote += wb_writeback(wb, work);
 		finish_writeback_work(wb, work);
 	}
+
+	/*
+	 * Check for a flush-everything request
+	 */
+	wrote += wb_check_start_all(wb);
 
 	/*
 	 * Check for periodic writeback, kupdated() style
