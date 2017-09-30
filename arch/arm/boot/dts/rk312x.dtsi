@@ -679,6 +679,26 @@
 		status = "disabled";
 	};
 
+	gmac: eth@2008c000 {
+		compatible = "rockchip,rk3128-gmac";
+		reg = <0x2008c000 0x4000>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		rockchip,grf = <&grf>;
+		clocks = <&cru SCLK_MAC>,
+			 <&cru SCLK_MAC_RX>, <&cru SCLK_MAC_TX>,
+			 <&cru SCLK_MAC_REF>, <&cru SCLK_MAC_REFOUT>,
+			 <&cru ACLK_GMAC>, <&cru PCLK_GMAC>;
+		clock-names = "stmmaceth",
+			      "mac_clk_rx", "mac_clk_tx",
+			      "clk_mac_ref", "clk_mac_refout",
+			      "aclk_mac", "pclk_mac";
+		resets = <&cru SRST_GMAC>;
+		reset-names = "stmmaceth";
+		status = "disabled";
+	};
+
 	efuse: efuse@20090000 {
 		compatible = "rockchip,rk3128-efuse";
 		reg = <0x20090000 0x20>;
@@ -969,6 +989,39 @@
 		pwm3 {
 			pwm3_pin: pwm3-pin {
 				rockchip,pins = <3 RK_PD2 1 &pcfg_pull_none>;
+			};
+		};
+
+		gmac {
+			rgmii_pins: rgmii-pins {
+				rockchip,pins = <2 RK_PB0 3 &pcfg_pull_default>,
+						<2 RK_PB1 3 &pcfg_pull_default>,
+						<2 RK_PB3 3 &pcfg_pull_default>,
+						<2 RK_PB4 3 &pcfg_pull_default>,
+						<2 RK_PB5 3 &pcfg_pull_default>,
+						<2 RK_PB6 3 &pcfg_pull_default>,
+						<2 RK_PC0 3 &pcfg_pull_default>,
+						<2 RK_PC1 3 &pcfg_pull_default>,
+						<2 RK_PC2 3 &pcfg_pull_default>,
+						<2 RK_PC3 3 &pcfg_pull_default>,
+						<2 RK_PD1 3 &pcfg_pull_default>,
+						<2 RK_PC4 4 &pcfg_pull_default>,
+						<2 RK_PC5 4 &pcfg_pull_default>,
+						<2 RK_PC6 4 &pcfg_pull_default>,
+						<2 RK_PC7 4 &pcfg_pull_default>;
+			};
+
+			rmii_pins: rmii-pins {
+				rockchip,pins = <2 RK_PB0 3 &pcfg_pull_default>,
+						<2 RK_PB4 3 &pcfg_pull_default>,
+						<2 RK_PB5 3 &pcfg_pull_default>,
+						<2 RK_PB6 3 &pcfg_pull_default>,
+						<2 RK_PB7 3 &pcfg_pull_default>,
+						<2 RK_PC0 3 &pcfg_pull_default>,
+						<2 RK_PC1 3 &pcfg_pull_default>,
+						<2 RK_PC3 3 &pcfg_pull_default>,
+						<2 RK_PC4 3 &pcfg_pull_default>,
+						<2 RK_PD1 3 &pcfg_pull_default>;
 			};
 		};
 
