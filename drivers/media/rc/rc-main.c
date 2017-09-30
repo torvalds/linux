@@ -662,19 +662,25 @@ void rc_repeat(struct rc_dev *dev)
 {
 	unsigned long flags;
 	unsigned int timeout = protocols[dev->last_protocol].repeat_period;
+	struct lirc_scancode sc = {
+		.scancode = dev->last_scancode, .rc_proto = dev->last_protocol,
+		.keycode = dev->keypressed ? dev->last_keycode : KEY_RESERVED,
+		.flags = LIRC_SCANCODE_FLAG_REPEAT |
+			 (dev->last_toggle ? LIRC_SCANCODE_FLAG_TOGGLE : 0)
+	};
+
+	ir_lirc_scancode_event(dev, &sc);
 
 	spin_lock_irqsave(&dev->keylock, flags);
-
-	if (!dev->keypressed)
-		goto out;
 
 	input_event(dev->input_dev, EV_MSC, MSC_SCAN, dev->last_scancode);
 	input_sync(dev->input_dev);
 
-	dev->keyup_jiffies = jiffies + msecs_to_jiffies(timeout);
-	mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
+	if (dev->keypressed) {
+		dev->keyup_jiffies = jiffies + msecs_to_jiffies(timeout);
+		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
+	}
 
-out:
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
 EXPORT_SYMBOL_GPL(rc_repeat);
@@ -710,13 +716,14 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 
 	input_event(dev->input_dev, EV_MSC, MSC_SCAN, scancode);
 
+	dev->last_protocol = protocol;
+	dev->last_scancode = scancode;
+	dev->last_toggle = toggle;
+	dev->last_keycode = keycode;
+
 	if (new_event && keycode != KEY_RESERVED) {
 		/* Register a keypress */
 		dev->keypressed = true;
-		dev->last_protocol = protocol;
-		dev->last_scancode = scancode;
-		dev->last_toggle = toggle;
-		dev->last_keycode = keycode;
 
 		IR_dprintk(1, "%s: key down event, key 0x%04x, protocol 0x%04x, scancode 0x%08x\n",
 			   dev->device_name, keycode, protocol, scancode);
