@@ -10632,6 +10632,14 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	    (cmdiocb->iocb_flag & LPFC_DRIVER_ABORTED) != 0)
 		return 0;
 
+	if (!pring) {
+		if (cmdiocb->iocb_flag & LPFC_IO_FABRIC)
+			cmdiocb->fabric_iocb_cmpl = lpfc_ignore_els_cmpl;
+		else
+			cmdiocb->iocb_cmpl = lpfc_ignore_els_cmpl;
+		goto abort_iotag_exit;
+	}
+
 	/*
 	 * If we're unloading, don't abort iocb on the ELS ring, but change
 	 * the callback so that nothing happens when it finishes.
@@ -12500,6 +12508,8 @@ lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *phba,
 	unsigned long iflags;
 
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return NULL;
 
 	wcqe = &irspiocbq->cq_event.cqe.wcqe_cmpl;
 	spin_lock_irqsave(&pring->ring_lock, iflags);
@@ -18691,6 +18701,8 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	uint32_t txq_cnt = 0;
 
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return 0;
 
 	spin_lock_irqsave(&pring->ring_lock, iflags);
 	list_for_each_entry(piocbq, &pring->txq, list) {
