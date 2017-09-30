@@ -54,6 +54,11 @@ Module.symvers
 /Module.markers
 
 #
+# RPM spec file (make rpm-pkg)
+#
+/*.spec
+
+#
 # Debian directory (make deb-pkg)
 #
 /debian/
