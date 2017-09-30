@@ -193,7 +193,7 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfre
 	plist = phead->next;
 
 	while (phead != plist) {
-		hdr = container_of(plist, struct recv_frame, list);
+		hdr = list_entry(plist, struct recv_frame, list);
 
 		plist = plist->next;
 
@@ -950,7 +950,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 			xmitframe_plist = xmitframe_phead->next;
 
 			if (xmitframe_phead != xmitframe_plist) {
-				pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
+				pxmitframe = list_entry(xmitframe_plist, struct xmit_frame, list);
 
 				xmitframe_plist = xmitframe_plist->next;
 
@@ -1355,7 +1355,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 
 	phead = get_list_head(defrag_q);
 	plist = phead->next;
-	pfhdr = container_of(plist, struct recv_frame, list);
+	pfhdr = list_entry(plist, struct recv_frame, list);
 	prframe = pfhdr;
 	list_del_init(&(prframe->list));
 
@@ -1375,7 +1375,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 	plist = plist->next;
 
 	while (phead != plist) {
-		pnfhdr = container_of(plist, struct recv_frame, list);
+		pnfhdr = list_entry(plist, struct recv_frame, list);
 		pnextrframe = pnfhdr;
 
 		/* check the fragment sequence  (2nd ~n fragment frame) */
@@ -1663,7 +1663,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 	plist = phead->next;
 
 	while (phead != plist) {
-		hdr = container_of(plist, struct recv_frame, list);
+		hdr = list_entry(plist, struct recv_frame, list);
 		pnextattrib = &hdr->attrib;
 
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
@@ -1698,7 +1698,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 		if (list_empty(phead))
 			return true;
 
-		prhdr = container_of(plist, struct recv_frame, list);
+		prhdr = list_entry(plist, struct recv_frame, list);
 		pattrib = &prhdr->attrib;
 		preorder_ctrl->indicate_seq = pattrib->seq_num;
 	}
@@ -1706,7 +1706,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 	/*  Prepare indication list and indication. */
 	/*  Check if there is any packet need indicate. */
 	while (!list_empty(phead)) {
-		prhdr = container_of(plist, struct recv_frame, list);
+		prhdr = list_entry(plist, struct recv_frame, list);
 		prframe = prhdr;
 		pattrib = &prframe->attrib;
 
