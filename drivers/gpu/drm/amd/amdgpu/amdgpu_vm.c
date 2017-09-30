@@ -1201,7 +1201,7 @@ static void amdgpu_vm_invalidate_level(struct amdgpu_vm_pt *parent)
 int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm)
 {
-	int r;
+	int r = 0;
 
 	r = amdgpu_vm_update_level(adev, vm, &vm->root, 0);
 	if (r)
