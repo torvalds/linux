@@ -405,24 +405,12 @@
 	status = "okay";
 };
 
-&dsi0 {
-	ports {
-		dsi0_in: port {
-			dsi0_in_vopl: endpoint@1 {
-				status = "disabled";
-			};
-		};
-	};
+&dsi0_in_vopl {
+	status = "disabled";
 };
 
-&edp {
-	ports {
-		edp_in: port@0 {
-			edp_in_vopl: endpoint@1 {
-				status = "disabled";
-			};
-		};
-	};
+&edp_in_vopl {
+	status = "disabled";
 };
 
 &rga {
