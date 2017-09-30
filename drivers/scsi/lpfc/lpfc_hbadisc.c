@@ -3324,7 +3324,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	/* Unblock ELS traffic */
 	pring = lpfc_phba_elsring(phba);
-	pring->flag &= ~LPFC_STOP_IOCB_EVENT;
+	if (pring)
+		pring->flag &= ~LPFC_STOP_IOCB_EVENT;
 
 	/* Check for error */
 	if (mb->mbxStatus) {
@@ -5430,6 +5431,8 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 
 	psli = &phba->sli;
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return;
 
 	/* Error matching iocb on txq or txcmplq
 	 * First check the txq.
