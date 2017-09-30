@@ -55,6 +55,17 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		trust_reserved: trust@0x68400000 {
+			reg = <0x68400000 0xe00000>;
+			no-map;
+		};
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
