@@ -208,29 +208,27 @@ int vme_check_window(u32 aspace, unsigned long long vme_base,
 {
 	int retval = 0;
 
+	if (vme_base + size < size)
+		return -EINVAL;
+
 	switch (aspace) {
 	case VME_A16:
-		if (((vme_base + size) > VME_A16_MAX) ||
-				(vme_base > VME_A16_MAX))
+		if (vme_base + size > VME_A16_MAX)
 			retval = -EFAULT;
 		break;
 	case VME_A24:
-		if (((vme_base + size) > VME_A24_MAX) ||
-				(vme_base > VME_A24_MAX))
+		if (vme_base + size > VME_A24_MAX)
 			retval = -EFAULT;
 		break;
 	case VME_A32:
-		if (((vme_base + size) > VME_A32_MAX) ||
-				(vme_base > VME_A32_MAX))
+		if (vme_base + size > VME_A32_MAX)
 			retval = -EFAULT;
 		break;
 	case VME_A64:
-		if ((size != 0) && (vme_base > U64_MAX + 1 - size))
-			retval = -EFAULT;
+		/* The VME_A64_MAX limit is actually U64_MAX + 1 */
 		break;
 	case VME_CRCSR:
-		if (((vme_base + size) > VME_CRCSR_MAX) ||
-				(vme_base > VME_CRCSR_MAX))
+		if (vme_base + size > VME_CRCSR_MAX)
 			retval = -EFAULT;
 		break;
 	case VME_USER1:
