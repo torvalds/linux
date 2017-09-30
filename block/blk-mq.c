@@ -1504,12 +1504,6 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 	blk_account_io_start(rq, true);
 }
 
-static inline bool hctx_allow_merges(struct blk_mq_hw_ctx *hctx)
-{
-	return (hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
-		!blk_queue_nomerges(hctx->queue);
-}
-
 static inline void blk_mq_queue_io(struct blk_mq_hw_ctx *hctx,
 				   struct blk_mq_ctx *ctx,
 				   struct request *rq)
