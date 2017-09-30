@@ -667,14 +667,16 @@ lpfc_nvme_ktime(struct lpfc_hba *phba,
 		struct lpfc_nvme_buf *lpfc_ncmd)
 {
 	uint64_t seg1, seg2, seg3, seg4;
+	uint64_t segsum;
 
-	if (!phba->ktime_on)
-		return;
 	if (!lpfc_ncmd->ts_last_cmd ||
 	    !lpfc_ncmd->ts_cmd_start ||
 	    !lpfc_ncmd->ts_cmd_wqput ||
 	    !lpfc_ncmd->ts_isr_cmpl ||
 	    !lpfc_ncmd->ts_data_nvme)
+		return;
+
+	if (lpfc_ncmd->ts_data_nvme < lpfc_ncmd->ts_cmd_start)
 		return;
 	if (lpfc_ncmd->ts_cmd_start < lpfc_ncmd->ts_last_cmd)
 		return;
@@ -695,15 +697,23 @@ lpfc_nvme_ktime(struct lpfc_hba *phba,
 	 * cmpl is handled off to the NVME Layer.
 	 */
 	seg1 = lpfc_ncmd->ts_cmd_start - lpfc_ncmd->ts_last_cmd;
-	if (seg1 > 5000000)  /* 5 ms - for sequential IOs */
-		return;
+	if (seg1 > 5000000)  /* 5 ms - for sequential IOs only */
+		seg1 = 0;
 
 	/* Calculate times relative to start of IO */
 	seg2 = (lpfc_ncmd->ts_cmd_wqput - lpfc_ncmd->ts_cmd_start);
-	seg3 = (lpfc_ncmd->ts_isr_cmpl -
-		lpfc_ncmd->ts_cmd_start) - seg2;
-	seg4 = (lpfc_ncmd->ts_data_nvme -
-		lpfc_ncmd->ts_cmd_start) - seg2 - seg3;
+	segsum = seg2;
+	seg3 = lpfc_ncmd->ts_isr_cmpl - lpfc_ncmd->ts_cmd_start;
+	if (segsum > seg3)
+		return;
+	seg3 -= segsum;
+	segsum += seg3;
+
+	seg4 = lpfc_ncmd->ts_data_nvme - lpfc_ncmd->ts_cmd_start;
+	if (segsum > seg4)
+		return;
+	seg4 -= segsum;
+
 	phba->ktime_data_samples++;
 	phba->ktime_seg1_total += seg1;
 	if (seg1 < phba->ktime_seg1_min)
@@ -902,7 +912,7 @@ out_err:
 	 * owns the dma address.
 	 */
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on) {
+	if (lpfc_ncmd->ts_cmd_start) {
 		lpfc_ncmd->ts_isr_cmpl = pwqeIn->isr_timestamp;
 		lpfc_ncmd->ts_data_nvme = ktime_get_ns();
 		phba->ktime_last_cmd = lpfc_ncmd->ts_data_nvme;
@@ -1283,9 +1293,11 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		goto out_fail;
 	}
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on) {
+	if (start) {
 		lpfc_ncmd->ts_cmd_start = start;
 		lpfc_ncmd->ts_last_cmd = phba->ktime_last_cmd;
+	} else {
+		lpfc_ncmd->ts_cmd_start = 0;
 	}
 #endif
 
@@ -1336,7 +1348,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	}
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on)
+	if (lpfc_ncmd->ts_cmd_start)
 		lpfc_ncmd->ts_cmd_wqput = ktime_get_ns();
 
 	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {

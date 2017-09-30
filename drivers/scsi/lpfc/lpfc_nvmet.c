@@ -221,9 +221,8 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on) {
+		if (ctxp->ts_cmd_nvme) {
 			ctxp->ts_cmd_nvme = ktime_get_ns();
-			ctxp->ts_isr_cmd = ctxp->ts_cmd_nvme;
 			ctxp->ts_nvme_data = 0;
 			ctxp->ts_data_wqput = 0;
 			ctxp->ts_isr_data = 0;
@@ -289,9 +288,7 @@ lpfc_nvmet_ktime(struct lpfc_hba *phba,
 {
 	uint64_t seg1, seg2, seg3, seg4, seg5;
 	uint64_t seg6, seg7, seg8, seg9, seg10;
-
-	if (!phba->ktime_on)
-		return;
+	uint64_t segsum;
 
 	if (!ctxp->ts_isr_cmd || !ctxp->ts_cmd_nvme ||
 	    !ctxp->ts_nvme_data || !ctxp->ts_data_wqput ||
@@ -300,6 +297,8 @@ lpfc_nvmet_ktime(struct lpfc_hba *phba,
 	    !ctxp->ts_isr_status || !ctxp->ts_status_nvme)
 		return;
 
+	if (ctxp->ts_status_nvme < ctxp->ts_isr_cmd)
+		return;
 	if (ctxp->ts_isr_cmd  > ctxp->ts_cmd_nvme)
 		return;
 	if (ctxp->ts_cmd_nvme > ctxp->ts_nvme_data)
@@ -344,34 +343,66 @@ lpfc_nvmet_ktime(struct lpfc_hba *phba,
 	 * (Segments 1 thru 4) for READDATA_RSP
 	 */
 	seg1 = ctxp->ts_cmd_nvme - ctxp->ts_isr_cmd;
-	seg2 = (ctxp->ts_nvme_data - ctxp->ts_isr_cmd) - seg1;
-	seg3 = (ctxp->ts_data_wqput - ctxp->ts_isr_cmd) -
-		seg1 - seg2;
-	seg4 = (ctxp->ts_isr_data - ctxp->ts_isr_cmd) -
-		seg1 - seg2 - seg3;
-	seg5 = (ctxp->ts_data_nvme - ctxp->ts_isr_cmd) -
-		seg1 - seg2 - seg3 - seg4;
+	segsum = seg1;
+
+	seg2 = ctxp->ts_nvme_data - ctxp->ts_isr_cmd;
+	if (segsum > seg2)
+		return;
+	seg2 -= segsum;
+	segsum += seg2;
+
+	seg3 = ctxp->ts_data_wqput - ctxp->ts_isr_cmd;
+	if (segsum > seg3)
+		return;
+	seg3 -= segsum;
+	segsum += seg3;
+
+	seg4 = ctxp->ts_isr_data - ctxp->ts_isr_cmd;
+	if (segsum > seg4)
+		return;
+	seg4 -= segsum;
+	segsum += seg4;
+
+	seg5 = ctxp->ts_data_nvme - ctxp->ts_isr_cmd;
+	if (segsum > seg5)
+		return;
+	seg5 -= segsum;
+	segsum += seg5;
+
 
 	/* For auto rsp commands seg6 thru seg10 will be 0 */
 	if (ctxp->ts_nvme_status > ctxp->ts_data_nvme) {
-		seg6 = (ctxp->ts_nvme_status -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 - seg4 - seg5;
-		seg7 = (ctxp->ts_status_wqput -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 -
-			seg4 - seg5 - seg6;
-		seg8 = (ctxp->ts_isr_status -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 - seg4 -
-			seg5 - seg6 - seg7;
-		seg9 = (ctxp->ts_status_nvme -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 - seg4 -
-			seg5 - seg6 - seg7 - seg8;
+		seg6 = ctxp->ts_nvme_status - ctxp->ts_isr_cmd;
+		if (segsum > seg6)
+			return;
+		seg6 -= segsum;
+		segsum += seg6;
+
+		seg7 = ctxp->ts_status_wqput - ctxp->ts_isr_cmd;
+		if (segsum > seg7)
+			return;
+		seg7 -= segsum;
+		segsum += seg7;
+
+		seg8 = ctxp->ts_isr_status - ctxp->ts_isr_cmd;
+		if (segsum > seg8)
+			return;
+		seg8 -= segsum;
+		segsum += seg8;
+
+		seg9 = ctxp->ts_status_nvme - ctxp->ts_isr_cmd;
+		if (segsum > seg9)
+			return;
+		seg9 -= segsum;
+		segsum += seg9;
+
+		if (ctxp->ts_isr_status < ctxp->ts_isr_cmd)
+			return;
 		seg10 = (ctxp->ts_isr_status -
 			ctxp->ts_isr_cmd);
 	} else {
+		if (ctxp->ts_isr_data < ctxp->ts_isr_cmd)
+			return;
 		seg6 =  0;
 		seg7 =  0;
 		seg8 =  0;
@@ -519,7 +550,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		ctxp->entry_cnt++;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on) {
+		if (ctxp->ts_cmd_nvme) {
 			if (rsp->op == NVMET_FCOP_READDATA_RSP) {
 				ctxp->ts_isr_data =
 					cmdwqe->isr_timestamp;
@@ -553,7 +584,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 #endif
 		rsp->done(rsp);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on)
+		if (ctxp->ts_cmd_nvme)
 			lpfc_nvmet_ktime(phba, ctxp);
 #endif
 		/* lpfc_nvmet_xmt_fcp_release() will recycle the context */
@@ -563,7 +594,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		memset(((char *)cmdwqe) + start_clean, 0,
 		       (sizeof(struct lpfc_iocbq) - start_clean));
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on) {
+		if (ctxp->ts_cmd_nvme) {
 			ctxp->ts_isr_data = cmdwqe->isr_timestamp;
 			ctxp->ts_data_nvme = ktime_get_ns();
 		}
@@ -679,7 +710,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	int rc;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on) {
+	if (ctxp->ts_cmd_nvme) {
 		if (rsp->op == NVMET_FCOP_RSP)
 			ctxp->ts_nvme_status = ktime_get_ns();
 		else
@@ -734,7 +765,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	rc = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, nvmewqeq);
 	if (rc == WQE_SUCCESS) {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (!phba->ktime_on)
+		if (!ctxp->ts_cmd_nvme)
 			return 0;
 		if (rsp->op == NVMET_FCOP_RSP)
 			ctxp->ts_status_wqput = ktime_get_ns();
@@ -1633,7 +1664,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on) {
+	if (isr_timestamp) {
 		ctxp->ts_isr_cmd = isr_timestamp;
 		ctxp->ts_cmd_nvme = ktime_get_ns();
 		ctxp->ts_nvme_data = 0;
@@ -1644,6 +1675,8 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 		ctxp->ts_status_wqput = 0;
 		ctxp->ts_isr_status = 0;
 		ctxp->ts_status_nvme = 0;
+	} else {
+		ctxp->ts_cmd_nvme = 0;
 	}
 #endif
 

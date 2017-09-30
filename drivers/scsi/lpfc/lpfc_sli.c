@@ -13064,13 +13064,20 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 		break;
 	case LPFC_WCQ:
 		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			if ((cq->subtype == LPFC_FCP) ||
-			    (cq->subtype == LPFC_NVME))
+			if (cq->subtype == LPFC_FCP ||
+			    cq->subtype == LPFC_NVME) {
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+				if (phba->ktime_on)
+					cq->isr_timestamp = ktime_get_ns();
+				else
+					cq->isr_timestamp = 0;
+#endif
 				workposted |= lpfc_sli4_fp_handle_cqe(phba, cq,
 								       cqe);
-			else
+			} else {
 				workposted |= lpfc_sli4_sp_handle_cqe(phba, cq,
 								      cqe);
+			}
 			if (!(++ecount % cq->entry_repost))
 				break;
 		}
@@ -13155,11 +13162,9 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 				bf_get(lpfc_wcqe_c_request_tag, wcqe));
 		return;
 	}
-
-	if (cq->assoc_qp)
-		cmdiocbq->isr_timestamp =
-			cq->assoc_qp->isr_timestamp;
-
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	cmdiocbq->isr_timestamp = cq->isr_timestamp;
+#endif
 	if (cmdiocbq->iocb_cmpl == NULL) {
 		if (cmdiocbq->wqe_cmpl) {
 			if (cmdiocbq->iocb_flag & LPFC_DRIVER_ABORTED) {
@@ -13304,7 +13309,7 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length,  rcqe);
 			lpfc_nvmet_unsol_fcp_event(
 				phba, idx, dma_buf,
-				cq->assoc_qp->isr_timestamp);
+				cq->isr_timestamp);
 			return false;
 		}
 drop:
@@ -13479,6 +13484,12 @@ process_cq:
 
 	/* Process all the entries to the CQ */
 	while ((cqe = lpfc_sli4_cq_get(cq))) {
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		if (phba->ktime_on)
+			cq->isr_timestamp = ktime_get_ns();
+		else
+			cq->isr_timestamp = 0;
+#endif
 		workposted |= lpfc_sli4_fp_handle_cqe(phba, cq, cqe);
 		if (!(++ecount % cq->entry_repost))
 			break;
@@ -13740,11 +13751,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	fpeq = phba->sli4_hba.hba_eq[hba_eqidx];
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
-
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on)
-		fpeq->isr_timestamp = ktime_get_ns();
-#endif
 
 	if (lpfc_fcp_look_ahead) {
 		if (atomic_dec_and_test(&hba_eq_hdl->hba_eq_in_use))
