@@ -9396,10 +9396,13 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 			 * for abort iocb hba_wqidx should already
 			 * be setup based on what work queue we used.
 			 */
-			if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX))
+			if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
 				piocb->hba_wqidx =
 					lpfc_sli4_scmd_to_wqidx_distr(phba,
 							      piocb->context1);
+				piocb->hba_wqidx = piocb->hba_wqidx %
+					phba->cfg_fcp_io_channel;
+			}
 			return phba->sli4_hba.fcp_wq[piocb->hba_wqidx]->pring;
 		} else {
 			if (unlikely(!phba->sli4_hba.oas_wq))
