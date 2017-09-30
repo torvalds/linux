@@ -1589,6 +1589,8 @@ static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
 	MMIO_F(prefix(BLT_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(GEN6_BSD_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(VEBOX_RING_BASE), s, f, am, rm, d, r, w); \
+	if (HAS_BSD2(dev_priv)) \
+		MMIO_F(prefix(GEN8_BSD2_RING_BASE), s, f, am, rm, d, r, w); \
 } while (0)
 
 #define MMIO_RING_D(prefix, d) \
@@ -1636,7 +1638,6 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 #define RING_REG(base) (base + 0x6c)
 	MMIO_RING_DFH(RING_REG, D_ALL, 0, instdone_mmio_read, NULL);
-	MMIO_DH(RING_REG(GEN8_BSD2_RING_BASE), D_ALL, instdone_mmio_read, NULL);
 #undef RING_REG
 	MMIO_DH(GEN7_SC_INSTDONE, D_BDW_PLUS, instdone_mmio_read, NULL);
 
@@ -2411,9 +2412,6 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	int ret;
 
-	MMIO_DFH(RING_IMR(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS, NULL,
-			intel_vgpu_reg_imr_handler);
-
 	MMIO_DH(GEN8_GT_IMR(0), D_BDW_PLUS, NULL, intel_vgpu_reg_imr_handler);
 	MMIO_DH(GEN8_GT_IER(0), D_BDW_PLUS, NULL, intel_vgpu_reg_ier_handler);
 	MMIO_DH(GEN8_GT_IIR(0), D_BDW_PLUS, NULL, intel_vgpu_reg_iir_handler);
@@ -2476,68 +2474,33 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(GEN8_MASTER_IRQ, D_BDW_PLUS, NULL,
 		intel_vgpu_reg_master_irq_handler);
 
-	MMIO_DFH(RING_HWSTAM(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(0x1c134, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
-
-	MMIO_DFH(RING_TAIL(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-		NULL, NULL);
-	MMIO_DFH(RING_HEAD(GEN8_BSD2_RING_BASE),  D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_GM_RDR(RING_START(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, NULL);
-	MMIO_DFH(RING_CTL(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-		NULL, NULL);
-	MMIO_DFH(RING_ACTHD(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_ACTHD_UDW(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(0x1c29c, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL,
-		ring_mode_mmio_write);
-	MMIO_DFH(RING_MI_MODE(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_INSTPM(GEN8_BSD2_RING_BASE), D_BDW_PLUS,
-		F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_TIMESTAMP(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-			ring_timestamp_mmio_read, NULL);
-
 	MMIO_RING_DFH(RING_ACTHD_UDW, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 
 #define RING_REG(base) (base + 0xd0)
 	MMIO_RING_F(RING_REG, 4, F_RO, 0,
 		~_MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
 		ring_reset_ctl_write);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 4, F_RO, 0,
-		~_MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
-		ring_reset_ctl_write);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x230)
 	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, 0, NULL, elsp_mmio_write);
-	MMIO_DH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, elsp_mmio_write);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x234)
 	MMIO_RING_F(RING_REG, 8, F_RO | F_CMD_ACCESS, 0, ~0, D_BDW_PLUS,
 		NULL, NULL);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 4, F_RO | F_CMD_ACCESS, 0,
-		~0LL, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x244)
 	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_CMD_ACCESS,
-		NULL, NULL);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x370)
 	MMIO_RING_F(RING_REG, 48, F_RO, 0, ~0, D_BDW_PLUS, NULL, NULL);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 48, F_RO, 0, ~0, D_BDW_PLUS,
-			NULL, NULL);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x3a0)
 	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, F_MODE_MASK, NULL, NULL);
-	MMIO_DFH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_MODE_MASK, NULL, NULL);
 #undef RING_REG
 
 	MMIO_D(PIPEMISC(PIPE_A), D_BDW_PLUS);
@@ -2557,11 +2520,9 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 
 #define RING_REG(base) (base + 0x270)
 	MMIO_RING_F(RING_REG, 32, 0, 0, 0, D_BDW_PLUS, NULL, NULL);
-	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 32, 0, 0, 0, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
 	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, NULL);
-	MMIO_GM_RDR(RING_HWS_PGA(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, NULL);
 
 	MMIO_DFH(HDC_CHICKEN0, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
@@ -2849,7 +2810,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x65f08, D_SKL | D_KBL);
 	MMIO_D(0x320f0, D_SKL | D_KBL);
 
-	MMIO_DFH(_REG_VCS2_EXCC, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_D(0x70034, D_SKL_PLUS);
 	MMIO_D(0x71034, D_SKL_PLUS);
 	MMIO_D(0x72034, D_SKL_PLUS);
