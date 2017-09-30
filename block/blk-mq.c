@@ -476,6 +476,9 @@ void blk_mq_free_request(struct request *rq)
 	if (rq->rq_flags & RQF_MQ_INFLIGHT)
 		atomic_dec(&hctx->nr_active);
 
+	if (unlikely(laptop_mode && !blk_rq_is_passthrough(rq)))
+		laptop_io_completion(q->backing_dev_info);
+
 	wbt_done(q->rq_wb, &rq->issue_stat);
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
