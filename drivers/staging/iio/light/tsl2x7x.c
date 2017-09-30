@@ -898,45 +898,6 @@ static ssize_t in_proximity0_calibscale_available_show(struct device *dev,
 		return snprintf(buf, PAGE_SIZE, "%s\n", "1 2 4 8");
 }
 
-static ssize_t in_illuminance0_integration_time_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
-{
-	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
-	int y, z;
-
-	y = (TSL2X7X_MAX_TIMER_CNT - (u8)chip->settings.als_time) + 1;
-	z = y * TSL2X7X_MIN_ITIME;
-	y /= 1000;
-	z %= 1000;
-
-	return snprintf(buf, PAGE_SIZE, "%d.%03d\n", y, z);
-}
-
-static ssize_t in_illuminance0_integration_time_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	struct tsl2x7x_parse_result result;
-	int ret;
-
-	ret = iio_str_to_fixpoint(buf, 100, &result.integer, &result.fract);
-	if (ret)
-		return ret;
-
-	result.fract /= 3;
-	chip->settings.als_time = TSL2X7X_MAX_TIMER_CNT - (u8)result.fract;
-
-	dev_info(&chip->client->dev, "%s: als time = %d",
-		 __func__, chip->settings.als_time);
-
-	tsl2x7x_invoke_change(indio_dev);
-
-	return IIO_VAL_INT_PLUS_MICRO;
-}
-
 static IIO_CONST_ATTR(in_illuminance0_integration_time_available,
 		".00272 - .696");
 
@@ -1377,7 +1338,11 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 		*val = chip->settings.als_gain_trim;
 		ret = IIO_VAL_INT;
 		break;
-
+	case IIO_CHAN_INFO_INT_TIME:
+		*val = (TSL2X7X_MAX_TIMER_CNT - chip->settings.als_time) + 1;
+		*val2 = ((*val * TSL2X7X_MIN_ITIME) % 1000) / 1000;
+		ret = IIO_VAL_INT_PLUS_MICRO;
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -1453,7 +1418,13 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		chip->settings.als_gain_trim = val;
 		break;
+	case IIO_CHAN_INFO_INT_TIME:
+		chip->settings.als_time =
+			TSL2X7X_MAX_TIMER_CNT - (val2 / TSL2X7X_MIN_ITIME);
 
+		dev_info(&chip->client->dev, "%s: als time = %d",
+			 __func__, chip->settings.als_time);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1464,8 +1435,6 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 static DEVICE_ATTR_RO(in_proximity0_calibscale_available);
 
 static DEVICE_ATTR_RO(in_illuminance0_calibscale_available);
-
-static DEVICE_ATTR_RW(in_illuminance0_integration_time);
 
 static DEVICE_ATTR_RW(in_illuminance0_target_input);
 
@@ -1546,7 +1515,6 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 
 static struct attribute *tsl2x7x_ALS_device_attrs[] = {
 	&dev_attr_in_illuminance0_calibscale_available.attr,
-	&dev_attr_in_illuminance0_integration_time.attr,
 	&iio_const_attr_in_illuminance0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
@@ -1561,7 +1529,6 @@ static struct attribute *tsl2x7x_PRX_device_attrs[] = {
 
 static struct attribute *tsl2x7x_ALSPRX_device_attrs[] = {
 	&dev_attr_in_illuminance0_calibscale_available.attr,
-	&dev_attr_in_illuminance0_integration_time.attr,
 	&iio_const_attr_in_illuminance0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
@@ -1578,7 +1545,6 @@ static struct attribute *tsl2x7x_PRX2_device_attrs[] = {
 
 static struct attribute *tsl2x7x_ALSPRX2_device_attrs[] = {
 	&dev_attr_in_illuminance0_calibscale_available.attr,
-	&dev_attr_in_illuminance0_integration_time.attr,
 	&iio_const_attr_in_illuminance0_integration_time_available.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
@@ -1711,7 +1677,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_LIGHT,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
+					      BIT(IIO_CHAN_INFO_INT_TIME),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
@@ -1750,7 +1717,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_LIGHT,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED)
+			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
+					      BIT(IIO_CHAN_INFO_INT_TIME),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
@@ -1798,7 +1766,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_LIGHT,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
+					      BIT(IIO_CHAN_INFO_INT_TIME),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
