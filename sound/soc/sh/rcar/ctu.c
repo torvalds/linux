@@ -81,7 +81,10 @@ struct rsnd_ctu {
 	struct rsnd_kctrl_cfg_m sv3;
 	struct rsnd_kctrl_cfg_s reset;
 	int channels;
+	u32 flags;
 };
+
+#define KCTRL_INITIALIZED	(1 << 0)
 
 #define rsnd_ctu_nr(priv) ((priv)->ctu_nr)
 #define for_each_rsnd_ctu(pos, priv, i)					\
@@ -277,6 +280,9 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 	struct rsnd_ctu *ctu = rsnd_mod_to_ctu(mod);
 	int ret;
 
+	if (rsnd_flags_has(ctu, KCTRL_INITIALIZED))
+		return 0;
+
 	/* CTU Pass */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU Pass",
 			       rsnd_kctrl_accept_anytime,
@@ -325,6 +331,8 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 			       rsnd_kctrl_accept_anytime,
 			       rsnd_ctu_value_reset,
 			       &ctu->reset, 1);
+
+	rsnd_flags_set(ctu, KCTRL_INITIALIZED);
 
 	return ret;
 }
