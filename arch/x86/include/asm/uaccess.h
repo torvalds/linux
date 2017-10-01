@@ -337,7 +337,7 @@ do {									\
 		     _ASM_EXTABLE(1b, 4b)				\
 		     _ASM_EXTABLE(2b, 4b)				\
 		     : "=r" (retval), "=&A"(x)				\
-		     : "m" (__m(__ptr)), "m" __m(((u32 *)(__ptr)) + 1),	\
+		     : "m" (__m(__ptr)), "m" __m(((u32 __user *)(__ptr)) + 1),	\
 		       "i" (errret), "0" (retval));			\
 })
 
