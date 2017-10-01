@@ -370,8 +370,6 @@ err_add_rule:
 err_mod_hdr:
 	mlx5_eswitch_del_vlan_action(esw, attr);
 err_add_vlan:
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
-		mlx5e_detach_encap(priv, flow);
 	return rule;
 }
 
@@ -2061,6 +2059,9 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 		if (err < 0)
 			goto err_handle_encap_flow;
 		flow->rule = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow);
+		if (IS_ERR(flow->rule))
+			if (flow->esw_attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
+				mlx5e_detach_encap(priv, flow);
 	} else {
 		err = parse_tc_nic_actions(priv, f->exts, parse_attr, flow);
 		if (err < 0)
