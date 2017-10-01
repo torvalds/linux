@@ -1117,7 +1117,6 @@ int dsa_slave_resume(struct net_device *slave_dev)
 int dsa_slave_create(struct dsa_port *port, const char *name)
 {
 	struct dsa_switch *ds = port->ds;
-	struct dsa_switch_tree *dst = ds->dst;
 	struct net_device *master;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
@@ -1162,7 +1161,7 @@ int dsa_slave_create(struct dsa_port *port, const char *name)
 	}
 	p->dp = port;
 	INIT_LIST_HEAD(&p->mall_tc_list);
-	p->xmit = dst->tag_ops->xmit;
+	p->xmit = cpu_dp->tag_ops->xmit;
 
 	p->old_pause = -1;
 	p->old_link = -1;

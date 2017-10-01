@@ -80,21 +80,18 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 static struct sk_buff *ksz_rcv(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
-	struct dsa_switch *ds = cpu_dp->ds;
 	u8 *tag;
 	int source_port;
 
 	tag = skb_tail_pointer(skb) - KSZ_EGRESS_TAG_LEN;
 
 	source_port = tag[0] & 7;
-	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
+
+	skb->dev = dsa_master_get_slave(dev, 0, source_port);
+	if (!skb->dev)
 		return NULL;
 
 	pskb_trim_rcsum(skb, skb->len - KSZ_EGRESS_TAG_LEN);
-
-	skb->dev = ds->ports[source_port].netdev;
 
 	return skb;
 }

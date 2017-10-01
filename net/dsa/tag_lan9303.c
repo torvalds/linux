@@ -71,16 +71,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 			struct packet_type *pt)
 {
 	u16 *lan9303_tag;
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
 	unsigned int source_port;
-
-	ds = dst->ds[0];
-
-	if (unlikely(!ds)) {
-		dev_warn_ratelimited(&dev->dev, "Dropping packet, due to missing DSA switch device\n");
-		return NULL;
-	}
 
 	if (unlikely(!pskb_may_pull(skb, LAN9303_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
@@ -103,13 +94,9 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	source_port = ntohs(lan9303_tag[1]) & 0x3;
 
-	if (source_port >= ds->num_ports) {
+	skb->dev = dsa_master_get_slave(dev, 0, source_port);
+	if (!skb->dev) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid source port\n");
-		return NULL;
-	}
-
-	if (!ds->ports[source_port].netdev) {
-		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid netdev or device\n");
 		return NULL;
 	}
 
@@ -119,9 +106,6 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_pull_rcsum(skb, 2 + 2);
 	memmove(skb->data - ETH_HLEN, skb->data - (ETH_HLEN + LAN9303_TAG_LEN),
 		2 * ETH_ALEN);
-
-	/* forward the packet to the dedicated interface */
-	skb->dev = ds->ports[source_port].netdev;
 
 	return skb;
 }

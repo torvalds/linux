@@ -438,7 +438,7 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dst->cpu_dp->netdev->dsa_ptr = dst;
+	dst->cpu_dp->netdev->dsa_ptr = dst->cpu_dp;
 
 	err = dsa_master_ethtool_setup(dst->cpu_dp->netdev);
 	if (err)
@@ -485,6 +485,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 			 struct dsa_switch_tree *dst,
 			 struct dsa_switch *ds)
 {
+	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
 	struct net_device *ethernet_dev;
 	struct device_node *ethernet;
@@ -514,14 +515,18 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	ds->cpu_port_mask |= BIT(index);
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
-	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
-	if (IS_ERR(dst->tag_ops)) {
+	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+	if (IS_ERR(tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
 		ds->cpu_port_mask &= ~BIT(index);
-		return PTR_ERR(dst->tag_ops);
+		return PTR_ERR(tag_ops);
 	}
 
-	dst->rcv = dst->tag_ops->rcv;
+	dst->cpu_dp->tag_ops = tag_ops;
+
+	/* Make a few copies for faster access in master receive hot path */
+	dst->cpu_dp->rcv = dst->cpu_dp->tag_ops->rcv;
+	dst->cpu_dp->dst = dst;
 
 	return 0;
 }
