@@ -349,7 +349,7 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 {
 	struct mlxsw_sp_mr_route_vif_entry *rve, *tmp;
 	struct mlxsw_sp_mr_route *mr_route;
-	int err;
+	int err = 0;
 	int i;
 
 	/* Allocate and init a new route and fill it with parameters */
@@ -376,8 +376,6 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 		}
 	}
 	mlxsw_sp_mr_route_ivif_link(mr_route, &mr_table->vifs[mfc->mfc_parent]);
-	if (err)
-		goto err;
 
 	mr_route->route_action = mlxsw_sp_mr_route_action(mr_route);
 	return mr_route;
