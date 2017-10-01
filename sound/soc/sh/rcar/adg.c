@@ -44,7 +44,6 @@ struct rsnd_adg {
 
 #define LRCLK_ASYNC	(1 << 0)
 #define AUDIO_OUT_48	(1 << 1)
-#define adg_mode_flags(adg)	(adg->flags)
 
 #define for_each_rsnd_clk(pos, adg, i)		\
 	for (i = 0;				\
@@ -366,8 +365,8 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 
 	rsnd_adg_set_ssi_clk(ssi_mod, data);
 
-	if (adg_mode_flags(adg) & LRCLK_ASYNC) {
-		if (adg_mode_flags(adg) & AUDIO_OUT_48)
+	if (rsnd_flags_has(adg, LRCLK_ASYNC)) {
+		if (rsnd_flags_has(adg, AUDIO_OUT_48))
 			ckr = 0x80000000;
 	} else {
 		if (0 == (rate % 8000))
@@ -479,10 +478,10 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	}
 
 	if (req_rate[0] % 48000 == 0)
-		adg->flags |= AUDIO_OUT_48;
+		rsnd_flags_set(adg, AUDIO_OUT_48);
 
 	if (of_get_property(np, "clkout-lr-asynchronous", NULL))
-		adg->flags |= LRCLK_ASYNC;
+		rsnd_flags_set(adg, LRCLK_ASYNC);
 
 	/*
 	 * This driver is assuming that AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC
@@ -512,7 +511,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 				adg->rbga_rate_for_441khz = rate / div;
 				ckr |= brg_table[i] << 20;
 				if (req_441kHz_rate &&
-				    !(adg_mode_flags(adg) & AUDIO_OUT_48))
+				    !rsnd_flags_has(adg, AUDIO_OUT_48))
 					parent_clk_name = __clk_get_name(clk);
 			}
 		}
@@ -528,7 +527,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 				adg->rbgb_rate_for_48khz = rate / div;
 				ckr |= brg_table[i] << 16;
 				if (req_48kHz_rate &&
-				    (adg_mode_flags(adg) & AUDIO_OUT_48))
+				    rsnd_flags_has(adg, AUDIO_OUT_48))
 					parent_clk_name = __clk_get_name(clk);
 			}
 		}
