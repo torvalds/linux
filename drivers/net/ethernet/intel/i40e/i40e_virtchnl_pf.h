@@ -97,6 +97,7 @@ struct i40e_vf {
 	u16 lan_vsi_id;		/* ID as used by firmware */
 
 	u8 num_queue_pairs;	/* num of qps assigned to VF vsis */
+	u8 num_req_queues;	/* num of requested qps */
 	u64 num_mdd_events;	/* num of mdd events detected */
 	/* num of continuous malformed or invalid msgs detected */
 	u64 num_invalid_msgs;
