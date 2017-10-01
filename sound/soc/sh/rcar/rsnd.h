@@ -662,6 +662,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 
 extern const char * const volume_ramp_rate[];
 #define VOLUME_RAMP_MAX_DVC	(0x17 + 1)
+#define VOLUME_RAMP_MAX_MIX	(0x0a + 1)
 
 /*
  *	R-Car SSI

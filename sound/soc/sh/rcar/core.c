@@ -1253,7 +1253,7 @@ const char * const volume_ramp_rate[] = {
 	"1 dB/1 step",		 /* 00111 */
 	"0.5 dB/1 step",	 /* 01000 */
 	"0.25 dB/1 step",	 /* 01001 */
-	"0.125 dB/1 step",	 /* 01010 */
+	"0.125 dB/1 step",	 /* 01010 = VOLUME_RAMP_MAX_MIX */
 	"0.125 dB/2 steps",	 /* 01011 */
 	"0.125 dB/4 steps",	 /* 01100 */
 	"0.125 dB/8 steps",	 /* 01101 */
