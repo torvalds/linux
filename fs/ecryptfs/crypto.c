@@ -36,6 +36,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
+#include <linux/kernel.h>
 #include "ecryptfs_kernel.h"
 
 #define DECRYPT		0
@@ -884,8 +885,7 @@ static int ecryptfs_process_flags(struct ecryptfs_crypt_stat *crypt_stat,
 	u32 flags;
 
 	flags = get_unaligned_be32(page_virt);
-	for (i = 0; i < ((sizeof(ecryptfs_flag_map)
-			  / sizeof(struct ecryptfs_flag_map_elem))); i++)
+	for (i = 0; i < ARRAY_SIZE(ecryptfs_flag_map); i++)
 		if (flags & ecryptfs_flag_map[i].file_flag) {
 			crypt_stat->flags |= ecryptfs_flag_map[i].local_flag;
 		} else
@@ -922,8 +922,7 @@ void ecryptfs_write_crypt_stat_flags(char *page_virt,
 	u32 flags = 0;
 	int i;
 
-	for (i = 0; i < ((sizeof(ecryptfs_flag_map)
-			  / sizeof(struct ecryptfs_flag_map_elem))); i++)
+	for (i = 0; i < ARRAY_SIZE(ecryptfs_flag_map); i++)
 		if (crypt_stat->flags & ecryptfs_flag_map[i].local_flag)
 			flags |= ecryptfs_flag_map[i].file_flag;
 	/* Version is in top 8 bits of the 32-bit flag vector */
