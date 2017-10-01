@@ -65,8 +65,6 @@ static int parse_callchain_mode(const char *value)
 		callchain_param.mode = CHAIN_FOLDED;
 		return 0;
 	}
-
-	pr_err("Invalid callchain mode: %s\n", value);
 	return -1;
 }
 
@@ -82,8 +80,6 @@ static int parse_callchain_order(const char *value)
 		callchain_param.order_set = true;
 		return 0;
 	}
-
-	pr_err("Invalid callchain order: %s\n", value);
 	return -1;
 }
 
@@ -105,8 +101,6 @@ static int parse_callchain_sort_key(const char *value)
 		callchain_param.branch_callstack = 1;
 		return 0;
 	}
-
-	pr_err("Invalid callchain sort key: %s\n", value);
 	return -1;
 }
 
@@ -124,8 +118,6 @@ static int parse_callchain_value(const char *value)
 		callchain_param.value = CCVAL_COUNT;
 		return 0;
 	}
-
-	pr_err("Invalid callchain config key: %s\n", value);
 	return -1;
 }
 
@@ -319,12 +311,27 @@ int perf_callchain_config(const char *var, const char *value)
 
 		return ret;
 	}
-	if (!strcmp(var, "print-type"))
-		return parse_callchain_mode(value);
-	if (!strcmp(var, "order"))
-		return parse_callchain_order(value);
-	if (!strcmp(var, "sort-key"))
-		return parse_callchain_sort_key(value);
+	if (!strcmp(var, "print-type")){
+		int ret;
+		ret = parse_callchain_mode(value);
+		if (ret == -1)
+			pr_err("Invalid callchain mode: %s\n", value);
+		return ret;
+	}
+	if (!strcmp(var, "order")){
+		int ret;
+		ret = parse_callchain_order(value);
+		if (ret == -1)
+			pr_err("Invalid callchain order: %s\n", value);
+		return ret;
+	}
+	if (!strcmp(var, "sort-key")){
+		int ret;
+		ret = parse_callchain_sort_key(value);
+		if (ret == -1)
+			pr_err("Invalid callchain sort key: %s\n", value);
+		return ret;
+	}
 	if (!strcmp(var, "threshold")) {
 		callchain_param.min_percent = strtod(value, &endptr);
 		if (value == endptr) {
