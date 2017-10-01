@@ -259,7 +259,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	struct ip_tunnel *tunnel;
 	struct erspanhdr *ershdr;
 	const struct iphdr *iph;
-	__be32 session_id;
 	__be32 index;
 	int len;
 
@@ -275,8 +274,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	/* The original GRE header does not have key field,
 	 * Use ERSPAN 10-bit session ID as key.
 	 */
-	session_id = cpu_to_be32(ntohs(ershdr->session_id));
-	tpi->key = session_id;
+	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
 	index = ershdr->md.index;
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
 				  tpi->flags | TUNNEL_KEY,
