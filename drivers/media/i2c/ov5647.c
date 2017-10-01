@@ -253,6 +253,10 @@ static int ov5647_stream_on(struct v4l2_subdev *sd)
 {
 	int ret;
 
+	ret = ov5647_write(sd, 0x4800, 0x04);
+	if (ret < 0)
+		return ret;
+
 	ret = ov5647_write(sd, 0x4202, 0x00);
 	if (ret < 0)
 		return ret;
@@ -263,6 +267,10 @@ static int ov5647_stream_on(struct v4l2_subdev *sd)
 static int ov5647_stream_off(struct v4l2_subdev *sd)
 {
 	int ret;
+
+	ret = ov5647_write(sd, 0x4800, 0x25);
+	if (ret < 0)
+		return ret;
 
 	ret = ov5647_write(sd, 0x4202, 0x0f);
 	if (ret < 0)
@@ -320,7 +328,10 @@ static int __sensor_init(struct v4l2_subdev *sd)
 			return ret;
 	}
 
-	return ov5647_write(sd, 0x4800, 0x04);
+	/*
+	 * stream off to make the clock lane into LP-11 state.
+	 */
+	return ov5647_stream_off(sd);
 }
 
 static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
