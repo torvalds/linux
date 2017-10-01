@@ -731,7 +731,7 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 	if (skb_cow_head(skb, dev->needed_headroom))
 		goto free_skb;
 
-	if (skb->len > dev->mtu) {
+	if (skb->len - dev->hard_header_len > dev->mtu) {
 		pskb_trim(skb, dev->mtu);
 		truncate = true;
 	}
