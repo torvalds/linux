@@ -29,6 +29,7 @@
 #include <linux/math64.h>
 #include <linux/log2.h>
 #include <linux/dynamic_debug.h>
+#include <linux/kernel.h>
 
 #include "dvb_math.h"
 #include "dvb_frontend.h"
@@ -1696,12 +1697,10 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 		min_index = 0;
 		if (delsys == SYS_DVBS) {
 			cn_data = s_cn_data;
-			max_index = sizeof(s_cn_data) /
-				sizeof(s_cn_data[0]) - 1;
+			max_index = ARRAY_SIZE(s_cn_data) - 1;
 		} else {
 			cn_data = s2_cn_data;
-			max_index = sizeof(s2_cn_data) /
-				sizeof(s2_cn_data[0]) - 1;
+			max_index = ARRAY_SIZE(s2_cn_data) - 1;
 		}
 		if (value >= cn_data[min_index].value) {
 			res = cn_data[min_index].cnr_x1000;

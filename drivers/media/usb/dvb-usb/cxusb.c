@@ -26,6 +26,7 @@
 #include <media/tuner.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/kernel.h>
 
 #include "cxusb.h"
 
@@ -304,7 +305,7 @@ static int cxusb_aver_power_ctrl(struct dvb_usb_device *d, int onoff)
 			0x0e, 0x2, 0x47, 0x88,
 		};
 		msleep(20);
-		for (i = 0; i < sizeof(bufs)/sizeof(u8); i += 4/sizeof(u8)) {
+		for (i = 0; i < ARRAY_SIZE(bufs); i += 4 / sizeof(u8)) {
 			ret = cxusb_ctrl_msg(d, CMD_I2C_WRITE,
 					     bufs+i, 4, &buf, 1);
 			if (ret)

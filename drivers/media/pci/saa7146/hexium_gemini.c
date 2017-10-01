@@ -27,6 +27,7 @@
 
 #include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 
 static int debug;
 module_param(debug, int, 0);
@@ -388,7 +389,7 @@ static struct saa7146_ext_vv vv_data = {
 	.inputs = HEXIUM_INPUTS,
 	.capabilities = 0,
 	.stds = &hexium_standards[0],
-	.num_stds = sizeof(hexium_standards) / sizeof(struct saa7146_standard),
+	.num_stds = ARRAY_SIZE(hexium_standards),
 	.std_callback = &std_callback,
 };
 
