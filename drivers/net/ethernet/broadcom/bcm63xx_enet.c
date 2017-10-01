@@ -1903,8 +1903,7 @@ out_free_mdio:
 out_uninit_hw:
 	/* turn off mdc clock */
 	enet_writel(priv, 0, ENET_MIISC_REG);
-	if (priv->phy_clk)
-		clk_disable_unprepare(priv->phy_clk);
+	clk_disable_unprepare(priv->phy_clk);
 
 out_disable_clk_mac:
 	clk_disable_unprepare(priv->mac_clk);
@@ -1943,9 +1942,7 @@ static int bcm_enet_remove(struct platform_device *pdev)
 	}
 
 	/* disable hw block clocks */
-	if (priv->phy_clk)
-		clk_disable_unprepare(priv->phy_clk);
-
+	clk_disable_unprepare(priv->phy_clk);
 	clk_disable_unprepare(priv->mac_clk);
 
 	free_netdev(dev);
