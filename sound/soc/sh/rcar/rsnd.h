@@ -656,9 +656,12 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 	rsnd_kctrl_new(mod, io, rtd, name, accept, update, rsnd_kctrl_init_s(cfg), \
 		       NULL, 1, max)
 
-#define rsnd_kctrl_new_e(mod, io, rtd, name, accept, update, cfg, texts)	\
+#define rsnd_kctrl_new_e(mod, io, rtd, name, accept, update, cfg, texts, size) \
 	rsnd_kctrl_new(mod, io, rtd, name, accept, update, rsnd_kctrl_init_s(cfg), \
-		       texts, 1, ARRAY_SIZE(texts))
+		       texts, 1, size)
+
+extern const char * const volume_ramp_rate[];
+#define VOLUME_RAMP_MAX_DVC	(0x17 + 1)
 
 /*
  *	R-Car SSI
