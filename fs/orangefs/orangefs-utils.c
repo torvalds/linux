@@ -4,6 +4,7 @@
  *
  * See COPYING in top-level directory.
  */
+#include <linux/kernel.h>
 #include "protocol.h"
 #include "orangefs-kernel.h"
 #include "orangefs-dev-proto.h"
@@ -606,7 +607,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	/* Convert ORANGEFS encoded errno values into regular errno values. */
 	} else if ((-error_code) & ORANGEFS_ERROR_BIT) {
 		i = (-error_code) & ~(ORANGEFS_ERROR_BIT|ORANGEFS_ERROR_CLASS_BITS);
-		if (i < sizeof(PINT_errno_mapping)/sizeof(*PINT_errno_mapping))
+		if (i < ARRAY_SIZE(PINT_errno_mapping))
 			error_code = -PINT_errno_mapping[i];
 		else
 			error_code = -EINVAL;
