@@ -1290,11 +1290,11 @@ void stop_discard_thread(struct f2fs_sb_info *sbi)
 }
 
 /* This comes from f2fs_put_super and f2fs_trim_fs */
-void f2fs_wait_discard_bios(struct f2fs_sb_info *sbi)
+void f2fs_wait_discard_bios(struct f2fs_sb_info *sbi, bool umount)
 {
 	__issue_discard_cmd(sbi, false);
 	__drop_discard_cmd(sbi);
-	__wait_discard_cmd(sbi, false);
+	__wait_discard_cmd(sbi, !umount);
 }
 
 static void mark_discard_range_all(struct f2fs_sb_info *sbi)
@@ -2324,7 +2324,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	}
 	/* It's time to issue all the filed discards */
 	mark_discard_range_all(sbi);
-	f2fs_wait_discard_bios(sbi);
+	f2fs_wait_discard_bios(sbi, false);
 out:
 	range->len = F2FS_BLK_TO_BYTES(cpc.trimmed);
 	return err;
