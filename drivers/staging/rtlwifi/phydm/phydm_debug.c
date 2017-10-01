@@ -29,6 +29,7 @@
 
 #include "mp_precomp.h"
 #include "phydm_precomp.h"
+#include <linux/kernel.h>
 
 bool phydm_api_set_txagc(struct phy_dm_struct *, u32, enum odm_rf_radio_path,
 			 u8, bool);
@@ -2107,8 +2108,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 
 	/* Parsing Cmd ID */
 	if (input_num) {
-		phydm_ary_size =
-			sizeof(phy_dm_ary) / sizeof(struct phydm_command);
+		phydm_ary_size = ARRAY_SIZE(phy_dm_ary);
 		for (i = 0; i < phydm_ary_size; i++) {
 			if (strcmp(phy_dm_ary[i].name, input[0]) == 0) {
 				id = phy_dm_ary[i].id;

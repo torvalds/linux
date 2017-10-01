@@ -26,6 +26,7 @@
 /*Image2HeaderVersion: 3.2*/
 #include "../mp_precomp.h"
 #include "../phydm_precomp.h"
+#include <linux/kernel.h>
 
 static bool check_positive(struct phy_dm_struct *dm, const u32 condition1,
 			   const u32 condition2, const u32 condition3,
@@ -173,7 +174,6 @@ void odm_read_and_config_mp_8822b_mac_reg(struct phy_dm_struct *dm)
 	u32 i = 0;
 	u8 c_cond;
 	bool is_matched = true, is_skipped = false;
-	u32 array_len = sizeof(array_mp_8822b_mac_reg) / sizeof(u32);
 	u32 *array = array_mp_8822b_mac_reg;
 
 	u32 v1 = 0, v2 = 0, pre_v1 = 0, pre_v2 = 0;
@@ -181,7 +181,7 @@ void odm_read_and_config_mp_8822b_mac_reg(struct phy_dm_struct *dm)
 	ODM_RT_TRACE(dm, ODM_COMP_INIT,
 		     "===> %s\n", __func__);
 
-	for (; (i + 1) < array_len; i = i + 2) {
+	for (; (i + 1) < ARRAY_SIZE(array_mp_8822b_mac_reg); i = i + 2) {
 		v1 = array[i];
 		v2 = array[i + 1];
 
