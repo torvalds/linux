@@ -14,6 +14,7 @@
  ******************************************************************************/
 #define _HAL_COM_C_
 
+#include <linux/kernel.h>
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include "hal_com_h2c.h"
@@ -1716,7 +1717,6 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 {
 	u8 value = padapter->eeprompriv.EEPROMRFGainOffset;
 	u32 res, i = 0;
-	u32 ArrayLen = sizeof(Array_kfreemap)/sizeof(u32);
 	u32 *Array = Array_kfreemap;
 	u32 v1 = 0, v2 = 0, target = 0;
 	/* DBG_871X("+%s value: 0x%02x+\n", __func__, value); */
@@ -1729,7 +1729,7 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 			res &= 0xfff87fff;
 			DBG_871X("Offset RF Gain. before reg 0x7f = 0x%08x\n", res);
 			/* res &= 0xfff87fff; */
-			for (i = 0; i < ArrayLen; i += 2) {
+			for (i = 0; i < ARRAY_SIZE(Array_kfreemap); i += 2) {
 				v1 = Array[i];
 				v2 = Array[i+1];
 				if (v1 == padapter->eeprompriv.EEPROMRFGainVal) {

@@ -17,6 +17,7 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <rtw_wifi_regd.h>
+#include <linux/kernel.h>
 
 
 static struct mlme_handler mlme_sta_tbl[] = {
@@ -559,7 +560,7 @@ void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame)
 
 	index = GetFrameSubType(pframe) >> 4;
 
-	if (index >= (sizeof(mlme_sta_tbl) / sizeof(struct mlme_handler))) {
+	if (index >= ARRAY_SIZE(mlme_sta_tbl)) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("Currently we do not support reserved sub-fr-type =%d\n", index));
 		return;
 	}
@@ -2224,7 +2225,7 @@ unsigned int OnAction(struct adapter *padapter, union recv_frame *precv_frame)
 
 	category = frame_body[0];
 
-	for (i = 0; i < sizeof(OnAction_tbl)/sizeof(struct action_handler); i++) {
+	for (i = 0; i < ARRAY_SIZE(OnAction_tbl); i++) {
 		ptable = &OnAction_tbl[i];
 
 		if (category == ptable->num)

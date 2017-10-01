@@ -18,6 +18,7 @@
 #include <rtw_debug.h>
 #include <rtw_mp.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV+30)
 
@@ -5017,12 +5018,12 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def rtw_handlers_def = {
 	.standard = rtw_handlers,
-	.num_standard = sizeof(rtw_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(rtw_handlers),
 #if defined(CONFIG_WEXT_PRIV)
 	.private = rtw_private_handler,
 	.private_args = (struct iw_priv_args *)rtw_private_args,
-	.num_private = sizeof(rtw_private_handler) / sizeof(iw_handler),
-	.num_private_args = sizeof(rtw_private_args) / sizeof(struct iw_priv_args),
+	.num_private = ARRAY_SIZE(rtw_private_handler),
+	.num_private_args = ARRAY_SIZE(rtw_private_args),
 #endif
 	.get_wireless_stats = rtw_get_wireless_stats,
 };
@@ -5109,8 +5110,8 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 
 	priv = rtw_private_handler;
 	priv_args = rtw_private_args;
-	num_priv = sizeof(rtw_private_handler) / sizeof(iw_handler);
-	num_priv_args = sizeof(rtw_private_args) / sizeof(struct iw_priv_args);
+	num_priv = ARRAY_SIZE(rtw_private_handler);
+	num_priv_args = ARRAY_SIZE(rtw_private_args);
 
 	if (num_priv_args == 0) {
 		err = -EOPNOTSUPP;
