@@ -1245,7 +1245,9 @@ static int erspan_tunnel_init(struct net_device *dev)
 
 	tunnel->tun_hlen = 8;
 	tunnel->parms.iph.protocol = IPPROTO_GRE;
-	t_hlen = tunnel->hlen + sizeof(struct iphdr) + sizeof(struct erspanhdr);
+	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
+		       sizeof(struct erspanhdr);
+	t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
 	dev->needed_headroom = LL_MAX_HEADER + t_hlen + 4;
 	dev->mtu = ETH_DATA_LEN - t_hlen - 4;
