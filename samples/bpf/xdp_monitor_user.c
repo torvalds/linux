@@ -61,7 +61,7 @@ static void usage(char *argv[])
 }
 
 #define NANOSEC_PER_SEC 1000000000 /* 10^9 */
-__u64 gettime(void)
+static __u64 gettime(void)
 {
 	struct timespec t;
 	int res;
@@ -206,7 +206,7 @@ static void stats_poll(int interval, bool err_only)
 	}
 }
 
-void print_bpf_prog_info(void)
+static void print_bpf_prog_info(void)
 {
 	int i;
 
