@@ -26,8 +26,9 @@ struct vm_fault;
 /*
  * Flags that only need to be reported for IOMAP_REPORT requests:
  */
-#define IOMAP_F_MERGED	0x10	/* contains multiple blocks/extents */
-#define IOMAP_F_SHARED	0x20	/* block shared with another file */
+#define IOMAP_F_MERGED		0x10	/* contains multiple blocks/extents */
+#define IOMAP_F_SHARED		0x20	/* block shared with another file */
+#define IOMAP_F_DATA_INLINE	0x40	/* data inline in the inode */
 
 /*
  * Magic value for addr:
