@@ -601,6 +601,10 @@ struct rsnd_priv {
 #define rsnd_is_gen1(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN1)
 #define rsnd_is_gen2(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN2)
 
+#define rsnd_flags_has(p, f) ((p)->flags & (f))
+#define rsnd_flags_set(p, f) ((p)->flags |= (f))
+#define rsnd_flags_del(p, f) ((p)->flags &= ~(f))
+
 /*
  *	rsnd_kctrl
  */
