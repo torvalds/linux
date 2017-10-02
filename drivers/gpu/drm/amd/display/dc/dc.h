@@ -218,6 +218,7 @@ struct dc_debug {
 	bool disable_hbup_pg;
 	bool disable_dpp_pg;
 	bool stereo_support;
+	bool vsr_support;
 };
 struct dc_state;
 struct resource_pool;

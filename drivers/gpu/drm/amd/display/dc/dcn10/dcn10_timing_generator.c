@@ -25,6 +25,7 @@
 
 #include "reg_helper.h"
 #include "dcn10_timing_generator.h"
+#include "dc.h"
 
 #define REG(reg)\
 	tgn10->tg_regs->reg

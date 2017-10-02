@@ -428,6 +428,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 		.disable_dcc = DCC_ENABLE,
 		.voltage_align_fclk = true,
+		.vsr_support = true,
 };
 
 static const struct dc_debug debug_defaults_diags = {
