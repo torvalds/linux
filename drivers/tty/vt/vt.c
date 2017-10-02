@@ -2204,7 +2204,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	console_lock();
 	vc = tty->driver_data;
 	if (vc == NULL) {
-		printk(KERN_ERR "vt: argh, driver_data is NULL !\n");
+		pr_err("vt: argh, driver_data is NULL !\n");
 		console_unlock();
 		return 0;
 	}
@@ -3189,20 +3189,21 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 
 	pr_info("Console: switching ");
 	if (!deflt)
-		printk(KERN_CONT "consoles %d-%d ", first+1, last+1);
+		pr_cont("consoles %d-%d ", first + 1, last + 1);
 	if (j >= 0) {
 		struct vc_data *vc = vc_cons[j].d;
 
-		printk(KERN_CONT "to %s %s %dx%d\n",
-		       vc->vc_can_do_color ? "colour" : "mono",
-		       desc, vc->vc_cols, vc->vc_rows);
+		pr_cont("to %s %s %dx%d\n",
+			vc->vc_can_do_color ? "colour" : "mono",
+			desc, vc->vc_cols, vc->vc_rows);
 
 		if (k >= 0) {
 			vc = vc_cons[k].d;
 			update_screen(vc);
 		}
-	} else
-		printk(KERN_CONT "to %s\n", desc);
+	} else {
+		pr_cont("to %s\n", desc);
+	}
 
 	retval = 0;
 err:
@@ -3621,9 +3622,8 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 					  con_driver, con_dev_groups,
 					  "vtcon%i", con_driver->node);
 	if (IS_ERR(con_driver->dev)) {
-		printk(KERN_WARNING "Unable to create device for %s; "
-		       "errno = %ld\n", con_driver->desc,
-		       PTR_ERR(con_driver->dev));
+		pr_warn("Unable to create device for %s; errno = %ld\n",
+			con_driver->desc, PTR_ERR(con_driver->dev));
 		con_driver->dev = NULL;
 	} else {
 		vtconsole_init_device(con_driver);
@@ -3760,8 +3760,8 @@ static int __init vtconsole_class_init(void)
 
 	vtconsole_class = class_create(THIS_MODULE, "vtconsole");
 	if (IS_ERR(vtconsole_class)) {
-		printk(KERN_WARNING "Unable to create vt console class; "
-		       "errno = %ld\n", PTR_ERR(vtconsole_class));
+		pr_warn("Unable to create vt console class; errno = %ld\n",
+			PTR_ERR(vtconsole_class));
 		vtconsole_class = NULL;
 	}
 
@@ -3777,9 +3777,8 @@ static int __init vtconsole_class_init(void)
 							  "vtcon%i", con->node);
 
 			if (IS_ERR(con->dev)) {
-				printk(KERN_WARNING "Unable to create "
-				       "device for %s; errno = %ld\n",
-				       con->desc, PTR_ERR(con->dev));
+				pr_warn("Unable to create device for %s; errno = %ld\n",
+					con->desc, PTR_ERR(con->dev));
 				con->dev = NULL;
 			} else {
 				vtconsole_init_device(con);
