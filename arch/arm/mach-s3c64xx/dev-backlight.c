@@ -141,5 +141,4 @@ err_plat_reg2:
 	kfree(samsung_bl_data);
 err_data:
 	kfree(samsung_bl_device);
-	return;
 }
