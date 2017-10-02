@@ -52,6 +52,8 @@
  */
 #define MIN_TMBASE_STEPS			16
 
+#define IMG_PWM_NPWM				4
+
 struct img_pwm_soc_data {
 	u32 max_timebase;
 };
@@ -66,6 +68,8 @@ struct img_pwm_chip {
 	int		max_period_ns;
 	int		min_period_ns;
 	const struct img_pwm_soc_data   *data;
+	u32		suspend_ctrl_cfg;
+	u32		suspend_ch_cfg[IMG_PWM_NPWM];
 };
 
 static inline struct img_pwm_chip *to_img_pwm_chip(struct pwm_chip *chip)
@@ -255,7 +259,7 @@ static int img_pwm_probe(struct platform_device *pdev)
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &img_pwm_ops;
 	pwm->chip.base = -1;
-	pwm->chip.npwm = 4;
+	pwm->chip.npwm = IMG_PWM_NPWM;
 
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {
@@ -291,9 +295,69 @@ static int img_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pwm_chip->chip);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int img_pwm_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct img_pwm_chip *pwm_chip = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < pwm_chip->chip.npwm; i++)
+		pwm_chip->suspend_ch_cfg[i] = img_pwm_readl(pwm_chip,
+							    PWM_CH_CFG(i));
+
+	pwm_chip->suspend_ctrl_cfg = img_pwm_readl(pwm_chip, PWM_CTRL_CFG);
+
+	clk_disable_unprepare(pwm_chip->pwm_clk);
+	clk_disable_unprepare(pwm_chip->sys_clk);
+
+	return 0;
+}
+
+static int img_pwm_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct img_pwm_chip *pwm_chip = platform_get_drvdata(pdev);
+	int ret;
+	int i;
+
+	ret = clk_prepare_enable(pwm_chip->sys_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "could not prepare or enable sys clock\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(pwm_chip->pwm_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "could not prepare or enable pwm clock\n");
+		clk_disable_unprepare(pwm_chip->sys_clk);
+		return ret;
+	}
+
+	for (i = 0; i < pwm_chip->chip.npwm; i++)
+		img_pwm_writel(pwm_chip, PWM_CH_CFG(i),
+			       pwm_chip->suspend_ch_cfg[i]);
+
+	img_pwm_writel(pwm_chip, PWM_CTRL_CFG, pwm_chip->suspend_ctrl_cfg);
+
+	for (i = 0; i < pwm_chip->chip.npwm; i++)
+		if (pwm_chip->suspend_ctrl_cfg & BIT(i))
+			regmap_update_bits(pwm_chip->periph_regs,
+					   PERIP_PWM_PDM_CONTROL,
+					   PERIP_PWM_PDM_CONTROL_CH_MASK <<
+					   PERIP_PWM_PDM_CONTROL_CH_SHIFT(i),
+					   0);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+SIMPLE_DEV_PM_OPS(img_pwm_pm_ops, img_pwm_suspend, img_pwm_resume);
+
 static struct platform_driver img_pwm_driver = {
 	.driver = {
 		.name = "img-pwm",
+		.pm = &img_pwm_pm_ops,
 		.of_match_table = img_pwm_of_match,
 	},
 	.probe = img_pwm_probe,
