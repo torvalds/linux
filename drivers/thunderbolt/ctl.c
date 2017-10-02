@@ -618,7 +618,8 @@ struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data)
 	if (!ctl->tx)
 		goto err;
 
-	ctl->rx = ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND);
+	ctl->rx = ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND, 0xffff,
+				0xffff);
 	if (!ctl->rx)
 		goto err;
 

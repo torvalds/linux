@@ -22,6 +22,12 @@
 #define RING_TYPE(ring) ((ring)->is_tx ? "TX ring" : "RX ring")
 
 /*
+ * Used to enable end-to-end workaround for missing RX packets. Do not
+ * use this ring for anything else.
+ */
+#define RING_E2E_UNUSED_HOPID	2
+
+/*
  * Minimal number of vectors when we use MSI-X. Two for control channel
  * Rx/Tx and the rest four are for cross domain DMA paths.
  */
@@ -229,23 +235,6 @@ static void ring_work(struct work_struct *work)
 			frame->eof = ring->descriptors[ring->tail].eof;
 			frame->sof = ring->descriptors[ring->tail].sof;
 			frame->flags = ring->descriptors[ring->tail].flags;
-			if (frame->sof != 0)
-				dev_WARN(&ring->nhi->pdev->dev,
-					 "%s %d got unexpected SOF: %#x\n",
-					 RING_TYPE(ring), ring->hop,
-					 frame->sof);
-			/*
-			 * known flags:
-			 * raw not enabled, interupt not set: 0x2=0010
-			 * raw enabled: 0xa=1010
-			 * raw not enabled: 0xb=1011
-			 * partial frame (>MAX_FRAME_SIZE): 0xe=1110
-			 */
-			if (frame->flags != 0xa)
-				dev_WARN(&ring->nhi->pdev->dev,
-					 "%s %d got unexpected flags: %#x\n",
-					 RING_TYPE(ring), ring->hop,
-					 frame->flags);
 		}
 		ring->tail = (ring->tail + 1) % ring->size;
 	}
@@ -321,11 +310,16 @@ static void ring_release_msix(struct tb_ring *ring)
 }
 
 static struct tb_ring *ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
-				  bool transmit, unsigned int flags)
+				  bool transmit, unsigned int flags,
+				  u16 sof_mask, u16 eof_mask)
 {
 	struct tb_ring *ring = NULL;
 	dev_info(&nhi->pdev->dev, "allocating %s ring %d of size %d\n",
 		 transmit ? "TX" : "RX", hop, size);
+
+	/* Tx Ring 2 is reserved for E2E workaround */
+	if (transmit && hop == RING_E2E_UNUSED_HOPID)
+		return NULL;
 
 	mutex_lock(&nhi->lock);
 	if (hop >= nhi->hop_count) {
@@ -353,6 +347,8 @@ static struct tb_ring *ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	ring->is_tx = transmit;
 	ring->size = size;
 	ring->flags = flags;
+	ring->sof_mask = sof_mask;
+	ring->eof_mask = eof_mask;
 	ring->head = 0;
 	ring->tail = 0;
 	ring->running = false;
@@ -384,13 +380,13 @@ err:
 struct tb_ring *ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
 			      unsigned int flags)
 {
-	return ring_alloc(nhi, hop, size, true, flags);
+	return ring_alloc(nhi, hop, size, true, flags, 0, 0);
 }
 
 struct tb_ring *ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
-			      unsigned int flags)
+			      unsigned int flags, u16 sof_mask, u16 eof_mask)
 {
-	return ring_alloc(nhi, hop, size, false, flags);
+	return ring_alloc(nhi, hop, size, false, flags, sof_mask, eof_mask);
 }
 
 /**
@@ -400,6 +396,9 @@ struct tb_ring *ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
  */
 void ring_start(struct tb_ring *ring)
 {
+	u16 frame_size;
+	u32 flags;
+
 	mutex_lock(&ring->nhi->lock);
 	mutex_lock(&ring->lock);
 	if (ring->nhi->going_away)
@@ -411,18 +410,39 @@ void ring_start(struct tb_ring *ring)
 	dev_info(&ring->nhi->pdev->dev, "starting %s %d\n",
 		 RING_TYPE(ring), ring->hop);
 
+	if (ring->flags & RING_FLAG_FRAME) {
+		/* Means 4096 */
+		frame_size = 0;
+		flags = RING_FLAG_ENABLE;
+	} else {
+		frame_size = TB_FRAME_SIZE;
+		flags = RING_FLAG_ENABLE | RING_FLAG_RAW;
+	}
+
+	if (ring->flags & RING_FLAG_E2E && !ring->is_tx) {
+		u32 hop;
+
+		/*
+		 * In order not to lose Rx packets we enable end-to-end
+		 * workaround which transfers Rx credits to an unused Tx
+		 * HopID.
+		 */
+		hop = RING_E2E_UNUSED_HOPID << REG_RX_OPTIONS_E2E_HOP_SHIFT;
+		hop &= REG_RX_OPTIONS_E2E_HOP_MASK;
+		flags |= hop | RING_FLAG_E2E_FLOW_CONTROL;
+	}
+
 	ring_iowrite64desc(ring, ring->descriptors_dma, 0);
 	if (ring->is_tx) {
 		ring_iowrite32desc(ring, ring->size, 12);
 		ring_iowrite32options(ring, 0, 4); /* time releated ? */
-		ring_iowrite32options(ring,
-				      RING_FLAG_ENABLE | RING_FLAG_RAW, 0);
+		ring_iowrite32options(ring, flags, 0);
 	} else {
-		ring_iowrite32desc(ring,
-				   (TB_FRAME_SIZE << 16) | ring->size, 12);
-		ring_iowrite32options(ring, 0xffffffff, 4); /* SOF EOF mask */
-		ring_iowrite32options(ring,
-				      RING_FLAG_ENABLE | RING_FLAG_RAW, 0);
+		u32 sof_eof_mask = ring->sof_mask << 16 | ring->eof_mask;
+
+		ring_iowrite32desc(ring, (frame_size << 16) | ring->size, 12);
+		ring_iowrite32options(ring, sof_eof_mask, 4);
+		ring_iowrite32options(ring, flags, 0);
 	}
 	ring_interrupt_active(ring, true);
 	ring->running = true;

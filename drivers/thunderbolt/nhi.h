@@ -56,6 +56,8 @@ struct tb_nhi {
  * @irq: MSI-X irq number if the ring uses MSI-X. %0 otherwise.
  * @vector: MSI-X vector number the ring uses (only set if @irq is > 0)
  * @flags: Ring specific flags
+ * @sof_mask: Bit mask used to detect start of frame PDF
+ * @eof_mask: Bit mask used to detect end of frame PDF
  */
 struct tb_ring {
 	struct mutex lock;
@@ -74,10 +76,16 @@ struct tb_ring {
 	int irq;
 	u8 vector;
 	unsigned int flags;
+	u16 sof_mask;
+	u16 eof_mask;
 };
 
 /* Leave ring interrupt enabled on suspend */
 #define RING_FLAG_NO_SUSPEND	BIT(0)
+/* Configure the ring to be in frame mode */
+#define RING_FLAG_FRAME		BIT(1)
+/* Enable end-to-end flow control */
+#define RING_FLAG_E2E		BIT(2)
 
 struct ring_frame;
 typedef void (*ring_cb)(struct tb_ring*, struct ring_frame*, bool canceled);
@@ -100,7 +108,7 @@ struct ring_frame {
 struct tb_ring *ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
 			      unsigned int flags);
 struct tb_ring *ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
-			      unsigned int flags);
+			      unsigned int flags, u16 sof_mask, u16 eof_mask);
 void ring_start(struct tb_ring *ring);
 void ring_stop(struct tb_ring *ring);
 void ring_free(struct tb_ring *ring);

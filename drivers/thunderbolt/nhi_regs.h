@@ -77,6 +77,8 @@ struct ring_desc {
  * ..: unknown
  */
 #define REG_RX_OPTIONS_BASE	0x29800
+#define REG_RX_OPTIONS_E2E_HOP_MASK	GENMASK(22, 12)
+#define REG_RX_OPTIONS_E2E_HOP_SHIFT	12
 
 /*
  * three bitfields: tx, rx, rx overflow
