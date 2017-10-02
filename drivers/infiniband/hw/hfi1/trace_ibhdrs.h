@@ -334,7 +334,7 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 							 &__entry->dlid,
 							 &__entry->slid);
 
-				if (entry->l4 == OPA_16B_L4_IB_LOCAL)
+				if (__entry->l4 == OPA_16B_L4_IB_LOCAL)
 					ohdr = &opah->opah.u.oth;
 				else
 					ohdr = &opah->opah.u.l.oth;
@@ -348,6 +348,7 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 							 &__entry->psn,
 							 &__entry->qpn);
 			} else {
+				__entry->l4 = OPA_16B_L4_9B;
 				hfi1_trace_parse_9b_hdr(&opah->ibh, sc5,
 							&__entry->lnh,
 							&__entry->lver,
@@ -356,7 +357,7 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 							&__entry->len,
 							&__entry->dlid,
 							&__entry->slid);
-				if (entry->lnh == HFI1_LRH_BTH)
+				if (__entry->lnh == HFI1_LRH_BTH)
 					ohdr = &opah->ibh.u.oth;
 				else
 					ohdr = &opah->ibh.u.l.oth;

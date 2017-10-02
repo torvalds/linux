@@ -390,6 +390,7 @@ struct hfi1_packet {
 /*
  * OPA 16B L2/L4 Encodings
  */
+#define OPA_16B_L4_9B		0x00
 #define OPA_16B_L2_TYPE		0x02
 #define OPA_16B_L4_IB_LOCAL	0x09
 #define OPA_16B_L4_IB_GLOBAL	0x0A
