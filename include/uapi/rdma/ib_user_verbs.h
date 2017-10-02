@@ -261,7 +261,7 @@ struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_rss_caps rss_caps;
 	__u32  max_wq_type_rq;
 	__u32 raw_packet_caps;
-	struct ib_uverbs_tm_caps xrq_caps;
+	struct ib_uverbs_tm_caps tm_caps;
 };
 
 struct ib_uverbs_query_port {
