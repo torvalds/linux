@@ -355,19 +355,24 @@ static void watchdog_calc_timeouts(void)
 	wd_timer_period_ms = watchdog_thresh * 1000 * 2 / 5;
 }
 
-void watchdog_nmi_reconfigure(bool run)
+void watchdog_nmi_stop(void)
 {
 	int cpu;
 
 	cpus_read_lock();
-	if (!run) {
-		for_each_cpu(cpu, &wd_cpus_enabled)
-			stop_wd_on_cpu(cpu);
-	} else {
-		watchdog_calc_timeouts();
-		for_each_cpu_and(cpu, cpu_online_mask, &watchdog_cpumask)
-			start_wd_on_cpu(cpu);
-	}
+	for_each_cpu(cpu, &wd_cpus_enabled)
+		stop_wd_on_cpu(cpu);
+	cpus_read_unlock();
+}
+
+void watchdog_nmi_start(void)
+{
+	int cpu;
+
+	cpus_read_lock();
+	watchdog_calc_timeouts();
+	for_each_cpu_and(cpu, cpu_online_mask, &watchdog_cpumask)
+		start_wd_on_cpu(cpu);
 	cpus_read_unlock();
 }
 

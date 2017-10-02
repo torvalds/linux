@@ -123,24 +123,27 @@ int __weak __init watchdog_nmi_probe(void)
 }
 
 /**
- * watchdog_nmi_reconfigure - Optional function to reconfigure NMI watchdogs
- * @run:	If false stop the watchdogs on all enabled CPUs
- *		If true start the watchdogs on all enabled CPUs
+ * watchdog_nmi_stop - Stop the watchdog for reconfiguration
  *
- * The core call order is:
- * watchdog_nmi_reconfigure(false);
+ * The reconfiguration steps are:
+ * watchdog_nmi_stop();
  * update_variables();
- * watchdog_nmi_reconfigure(true);
+ * watchdog_nmi_start();
+ */
+void __weak watchdog_nmi_stop(void) { }
+
+/**
+ * watchdog_nmi_start - Start the watchdog after reconfiguration
  *
- * The second call which starts the watchdogs again guarantees that the
- * following variables are stable across the call.
+ * Counterpart to watchdog_nmi_stop().
+ *
+ * The following variables have been updated in update_variables() and
+ * contain the currently valid configuration:
  * - watchdog_enabled
  * - watchdog_thresh
  * - watchdog_cpumask
- *
- * After the call the variables can be changed again.
  */
-void __weak watchdog_nmi_reconfigure(bool run) { }
+void __weak watchdog_nmi_start(void) { }
 
 /**
  * lockup_detector_update_enable - Update the sysctl enable bit
@@ -551,13 +554,13 @@ static void softlockup_unpark_threads(void)
 
 static void softlockup_reconfigure_threads(void)
 {
-	watchdog_nmi_reconfigure(false);
+	watchdog_nmi_stop();
 	softlockup_park_all_threads();
 	set_sample_period();
 	lockup_detector_update_enable();
 	if (watchdog_enabled && watchdog_thresh)
 		softlockup_unpark_threads();
-	watchdog_nmi_reconfigure(true);
+	watchdog_nmi_start();
 }
 
 /*
@@ -602,9 +605,9 @@ static inline void watchdog_disable_all_cpus(void) { }
 static inline void softlockup_init_threads(void) { }
 static void softlockup_reconfigure_threads(void)
 {
-	watchdog_nmi_reconfigure(false);
+	watchdog_nmi_stop();
 	lockup_detector_update_enable();
-	watchdog_nmi_reconfigure(true);
+	watchdog_nmi_start();
 }
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 

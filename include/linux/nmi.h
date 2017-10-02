@@ -109,7 +109,8 @@ static inline int hardlockup_detector_perf_init(void) { return 0; }
 # endif
 #endif
 
-void watchdog_nmi_reconfigure(bool run);
+void watchdog_nmi_stop(void);
+void watchdog_nmi_start(void);
 
 /**
  * touch_nmi_watchdog - restart NMI watchdog timeout.
