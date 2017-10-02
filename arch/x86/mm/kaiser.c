@@ -297,11 +297,13 @@ void kaiser_remove_mapping(unsigned long start, unsigned long size)
 	extern void unmap_pud_range_nofree(pgd_t *pgd,
 				unsigned long start, unsigned long end);
 	unsigned long end = start + size;
-	unsigned long addr;
+	unsigned long addr, next;
+	pgd_t *pgd;
 
-	for (addr = start; addr < end; addr += PGDIR_SIZE) {
-		pgd_t *pgd = native_get_shadow_pgd(pgd_offset_k(addr));
-		unmap_pud_range_nofree(pgd, addr, end);
+	pgd = native_get_shadow_pgd(pgd_offset_k(start));
+	for (addr = start; addr < end; pgd++, addr = next) {
+		next = pgd_addr_end(addr, end);
+		unmap_pud_range_nofree(pgd, addr, next);
 	}
 }
 
