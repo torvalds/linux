@@ -332,6 +332,101 @@ kci_test_vrf()
 	echo "PASS: vrf"
 }
 
+kci_test_encap_vxlan()
+{
+	ret=0
+	vxlan="test-vxlan0"
+	vlan="test-vlan0"
+	testns="$1"
+
+	ip netns exec "$testns" ip link add "$vxlan" type vxlan id 42 group 239.1.1.1 \
+		dev "$devdummy" dstport 4789 2>/dev/null
+	if [ $? -ne 0 ]; then
+		echo "FAIL: can't add vxlan interface, skipping test"
+		return 0
+	fi
+	check_err $?
+
+	ip netns exec "$testns" ip addr add 10.2.11.49/24 dev "$vxlan"
+	check_err $?
+
+	ip netns exec "$testns" ip link set up dev "$vxlan"
+	check_err $?
+
+	ip netns exec "$testns" ip link add link "$vxlan" name "$vlan" type vlan id 1
+	check_err $?
+
+	ip netns exec "$testns" ip link del "$vxlan"
+	check_err $?
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: vxlan"
+		return 1
+	fi
+	echo "PASS: vxlan"
+}
+
+kci_test_encap_fou()
+{
+	ret=0
+	name="test-fou"
+	testns="$1"
+
+	ip fou help 2>&1 |grep -q 'Usage: ip fou'
+	if [ $? -ne 0 ];then
+		echo "SKIP: fou: iproute2 too old"
+		return 1
+	fi
+
+	ip netns exec "$testns" ip fou add port 7777 ipproto 47 2>/dev/null
+	if [ $? -ne 0 ];then
+		echo "FAIL: can't add fou port 7777, skipping test"
+		return 1
+	fi
+
+	ip netns exec "$testns" ip fou add port 8888 ipproto 4
+	check_err $?
+
+	ip netns exec "$testns" ip fou del port 9999 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip fou del port 7777
+	check_err $?
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: fou"
+		return 1
+	fi
+
+	echo "PASS: fou"
+}
+
+# test various encap methods, use netns to avoid unwanted interference
+kci_test_encap()
+{
+	testns="testns"
+	ret=0
+
+	ip netns add "$testns"
+	if [ $? -ne 0 ]; then
+		echo "SKIP encap tests: cannot add net namespace $testns"
+		return 1
+	fi
+
+	ip netns exec "$testns" ip link set lo up
+	check_err $?
+
+	ip netns exec "$testns" ip link add name "$devdummy" type dummy
+	check_err $?
+	ip netns exec "$testns" ip link set "$devdummy" up
+	check_err $?
+
+	kci_test_encap_vxlan "$testns"
+	kci_test_encap_fou "$testns"
+
+	ip netns del "$testns"
+}
+
 kci_test_rtnl()
 {
 	kci_add_dummy
@@ -348,6 +443,7 @@ kci_test_rtnl()
 	kci_test_addrlabel
 	kci_test_ifalias
 	kci_test_vrf
+	kci_test_encap
 
 	kci_del_dummy
 }
