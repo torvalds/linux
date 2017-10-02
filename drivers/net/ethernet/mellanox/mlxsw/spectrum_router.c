@@ -3251,7 +3251,7 @@ mlxsw_sp_fib_entry_offload_refresh(struct mlxsw_sp_fib_entry *fib_entry,
 			return;
 		if (mlxsw_sp_fib_entry_should_offload(fib_entry))
 			mlxsw_sp_fib_entry_offload_set(fib_entry);
-		else if (!mlxsw_sp_fib_entry_should_offload(fib_entry))
+		else
 			mlxsw_sp_fib_entry_offload_unset(fib_entry);
 		return;
 	default:
