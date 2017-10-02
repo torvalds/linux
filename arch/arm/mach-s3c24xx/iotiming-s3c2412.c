@@ -35,7 +35,7 @@
 #define print_ns(x) ((x) / 10), ((x) % 10)
 
 /**
- * s3c2412_print_timing - print timing infromation via printk.
+ * s3c2412_print_timing - print timing information via printk.
  * @pfx: The prefix to print each line with.
  * @iot: The IO timing information
  */

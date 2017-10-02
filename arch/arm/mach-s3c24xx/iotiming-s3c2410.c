@@ -206,7 +206,7 @@ static int calc_tacc(unsigned int cyc, int nwait_en,
 }
 
 /**
- * s3c2410_calc_bank - calculate bank timing infromation
+ * s3c2410_calc_bank - calculate bank timing information
  * @cfg: The configuration we need to calculate for.
  * @bt: The bank timing information.
  *
