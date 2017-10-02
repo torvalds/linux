@@ -13278,6 +13278,7 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Yehezkel Bernat <yehezkel.bernat@intel.com>
 S:	Maintained
 F:	drivers/thunderbolt/
+F:	include/linux/thunderbolt.h
 
 THUNDERX GPIO DRIVER
 M:	David Daney <david.daney@cavium.com>
