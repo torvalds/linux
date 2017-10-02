@@ -1,5 +1,5 @@
 /* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -66,25 +66,21 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 		goto read_unlock;
 
 	/* read VFLRE to determine if any VFs have been reset */
-	do {
-		vflre = fm10k_read_reg(hw, FM10K_PFVFLRE(0));
-		vflre <<= 32;
-		vflre |= fm10k_read_reg(hw, FM10K_PFVFLRE(1));
-		vflre = (vflre << 32) | (vflre >> 32);
-		vflre |= fm10k_read_reg(hw, FM10K_PFVFLRE(0));
+	vflre = fm10k_read_reg(hw, FM10K_PFVFLRE(1));
+	vflre <<= 32;
+	vflre |= fm10k_read_reg(hw, FM10K_PFVFLRE(0));
 
-		i = iov_data->num_vfs;
+	i = iov_data->num_vfs;
 
-		for (vflre <<= 64 - i; vflre && i--; vflre += vflre) {
-			struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
+	for (vflre <<= 64 - i; vflre && i--; vflre += vflre) {
+		struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
 
-			if (vflre >= 0)
-				continue;
+		if (vflre >= 0)
+			continue;
 
-			hw->iov.ops.reset_resources(hw, vf_info);
-			vf_info->mbx.ops.connect(hw, &vf_info->mbx);
-		}
-	} while (i != iov_data->num_vfs);
+		hw->iov.ops.reset_resources(hw, vf_info);
+		vf_info->mbx.ops.connect(hw, &vf_info->mbx);
+	}
 
 read_unlock:
 	rcu_read_unlock();
@@ -126,6 +122,9 @@ process_mbx:
 		struct fm10k_mbx_info *mbx = &vf_info->mbx;
 		u16 glort = vf_info->glort;
 
+		/* process the SM mailbox first to drain outgoing messages */
+		hw->mbx.ops.process(hw, &hw->mbx);
+
 		/* verify port mapping is valid, if not reset port */
 		if (vf_info->vf_flags && !fm10k_glort_valid_pf(hw, glort))
 			hw->iov.ops.reset_lport(hw, vf_info);
@@ -140,6 +139,10 @@ process_mbx:
 		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
 			/* keep track of how many times this occurs */
 			interface->hw_sm_mbx_full++;
+
+			/* make sure we try again momentarily */
+			fm10k_service_event_schedule(interface);
+
 			break;
 		}
 

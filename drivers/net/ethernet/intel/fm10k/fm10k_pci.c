@@ -118,6 +118,27 @@ static void fm10k_service_event_complete(struct fm10k_intfc *interface)
 		fm10k_service_event_schedule(interface);
 }
 
+static void fm10k_stop_service_event(struct fm10k_intfc *interface)
+{
+	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
+	cancel_work_sync(&interface->service_task);
+
+	/* It's possible that cancel_work_sync stopped the service task from
+	 * running before it could actually start. In this case the
+	 * __FM10K_SERVICE_SCHED bit will never be cleared. Since we know that
+	 * the service task cannot be running at this point, we need to clear
+	 * the scheduled bit, as otherwise the service task may never be
+	 * restarted.
+	 */
+	clear_bit(__FM10K_SERVICE_SCHED, interface->state);
+}
+
+static void fm10k_start_service_event(struct fm10k_intfc *interface)
+{
+	clear_bit(__FM10K_SERVICE_DISABLE, interface->state);
+	fm10k_service_event_schedule(interface);
+}
+
 /**
  * fm10k_service_timer - Timer Call-back
  * @data: pointer to interface cast into an unsigned long
@@ -130,35 +151,6 @@ static void fm10k_service_timer(unsigned long data)
 	mod_timer(&interface->service_timer, (HZ * 2) + jiffies);
 
 	fm10k_service_event_schedule(interface);
-}
-
-static void fm10k_detach_subtask(struct fm10k_intfc *interface)
-{
-	struct net_device *netdev = interface->netdev;
-	u32 __iomem *hw_addr;
-	u32 value;
-
-	/* do nothing if device is still present or hw_addr is set */
-	if (netif_device_present(netdev) || interface->hw.hw_addr)
-		return;
-
-	/* check the real address space to see if we've recovered */
-	hw_addr = READ_ONCE(interface->uc_addr);
-	value = readl(hw_addr);
-	if (~value) {
-		interface->hw.hw_addr = interface->uc_addr;
-		netif_device_attach(netdev);
-		set_bit(FM10K_FLAG_RESET_REQUESTED, interface->flags);
-		netdev_warn(netdev, "PCIe link restored, device now attached\n");
-		return;
-	}
-
-	rtnl_lock();
-
-	if (netif_running(netdev))
-		dev_close(netdev);
-
-	rtnl_unlock();
 }
 
 static void fm10k_prepare_for_reset(struct fm10k_intfc *interface)
@@ -268,6 +260,35 @@ reinit_err:
 	clear_bit(__FM10K_RESETTING, interface->state);
 
 	return err;
+}
+
+static void fm10k_detach_subtask(struct fm10k_intfc *interface)
+{
+	struct net_device *netdev = interface->netdev;
+	u32 __iomem *hw_addr;
+	u32 value;
+
+	/* do nothing if device is still present or hw_addr is set */
+	if (netif_device_present(netdev) || interface->hw.hw_addr)
+		return;
+
+	/* check the real address space to see if we've recovered */
+	hw_addr = READ_ONCE(interface->uc_addr);
+	value = readl(hw_addr);
+	if (~value) {
+		interface->hw.hw_addr = interface->uc_addr;
+		netif_device_attach(netdev);
+		set_bit(FM10K_FLAG_RESET_REQUESTED, interface->flags);
+		netdev_warn(netdev, "PCIe link restored, device now attached\n");
+		return;
+	}
+
+	rtnl_lock();
+
+	if (netif_running(netdev))
+		dev_close(netdev);
+
+	rtnl_unlock();
 }
 
 static void fm10k_reinit(struct fm10k_intfc *interface)
@@ -1544,7 +1565,7 @@ int fm10k_qv_request_irq(struct fm10k_intfc *interface)
 	struct net_device *dev = interface->netdev;
 	struct fm10k_hw *hw = &interface->hw;
 	struct msix_entry *entry;
-	int ri = 0, ti = 0;
+	unsigned int ri = 0, ti = 0;
 	int vector, err;
 
 	entry = &interface->msix_entries[NON_Q_VECTORS(hw)];
@@ -1554,15 +1575,15 @@ int fm10k_qv_request_irq(struct fm10k_intfc *interface)
 
 		/* name the vector */
 		if (q_vector->tx.count && q_vector->rx.count) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "%s-TxRx-%d", dev->name, ri++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "%s-TxRx-%u", dev->name, ri++);
 			ti++;
 		} else if (q_vector->rx.count) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "%s-rx-%d", dev->name, ri++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "%s-rx-%u", dev->name, ri++);
 		} else if (q_vector->tx.count) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "%s-tx-%d", dev->name, ti++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "%s-tx-%u", dev->name, ti++);
 		} else {
 			/* skip this unused q_vector */
 			continue;
@@ -1799,9 +1820,6 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 		netdev->features |= NETIF_F_HIGHDMA;
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
-
-	/* delay any future reset requests */
-	interface->last_reset = jiffies + (10 * HZ);
 
 	/* reset and initialize the hardware so it is in a known state */
 	err = hw->mac.ops.reset_hw(hw);
@@ -2079,8 +2097,9 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* enable SR-IOV after registering netdev to enforce PF/VF ordering */
 	fm10k_iov_configure(pdev, 0);
 
-	/* clear the service task disable bit to allow service task to start */
+	/* clear the service task disable bit and kick off service task */
 	clear_bit(__FM10K_SERVICE_DISABLE, interface->state);
+	fm10k_service_event_schedule(interface);
 
 	return 0;
 
@@ -2118,8 +2137,7 @@ static void fm10k_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&interface->service_timer);
 
-	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
-	cancel_work_sync(&interface->service_task);
+	fm10k_stop_service_event(interface);
 
 	/* free netdev, this may bounce the interrupts due to setup_tc */
 	if (netdev->reg_state == NETREG_REGISTERED)
@@ -2157,8 +2175,7 @@ static void fm10k_prepare_suspend(struct fm10k_intfc *interface)
 	 * stopped. We stop the watchdog task until after we resume software
 	 * activity.
 	 */
-	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
-	cancel_work_sync(&interface->service_task);
+	fm10k_stop_service_event(interface);
 
 	fm10k_prepare_for_reset(interface);
 }
@@ -2185,9 +2202,8 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
 	interface->link_down_event = jiffies + (HZ);
 	set_bit(__FM10K_LINK_DOWN, interface->state);
 
-	/* clear the service task disable bit to allow service task to start */
-	clear_bit(__FM10K_SERVICE_DISABLE, interface->state);
-	fm10k_service_event_schedule(interface);
+	/* restart the service task */
+	fm10k_start_service_event(interface);
 
 	return err;
 }
