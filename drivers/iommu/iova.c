@@ -704,6 +704,9 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 		struct iova *iova = rb_entry(node, struct iova, node);
 		struct iova *new_iova;
 
+		if (iova->pfn_lo == IOVA_ANCHOR)
+			continue;
+
 		new_iova = reserve_iova(to, iova->pfn_lo, iova->pfn_hi);
 		if (!new_iova)
 			printk(KERN_ERR "Reserve iova range %lx@%lx failed\n",
