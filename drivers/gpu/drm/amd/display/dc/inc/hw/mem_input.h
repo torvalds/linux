@@ -69,10 +69,7 @@ struct mem_input {
 	struct dc_plane_address request_address;
 	struct dc_plane_address current_address;
 	int inst;
-	int opp_id;
-	int mpcc_id;
 	struct stutter_modes stutter_mode;
-	struct dc_cursor_attributes curs_attr;
 };
 
 struct vm_system_aperture_param {

@@ -1378,15 +1378,14 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	}
 
 	/* mst support - use total stream count */
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (pipe_ctx->plane_res.mi->funcs->allocate_mem_input != NULL)
-#endif
+	if (pipe_ctx->plane_res.mi != NULL) {
 		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
-					pipe_ctx->plane_res.mi,
-					stream->timing.h_total,
-					stream->timing.v_total,
-					stream->timing.pix_clk_khz,
-					context->stream_count);
+				pipe_ctx->plane_res.mi,
+				stream->timing.h_total,
+				stream->timing.v_total,
+				stream->timing.pix_clk_khz,
+				context->stream_count);
+	}
 
 	pipe_ctx->stream->sink->link->psr_enabled = false;
 
@@ -1556,7 +1555,7 @@ static void set_safe_displaymarks(
 		SAFE_NBP_MARK, SAFE_NBP_MARK, SAFE_NBP_MARK, SAFE_NBP_MARK };
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (res_ctx->pipe_ctx[i].stream == NULL)
+		if (res_ctx->pipe_ctx[i].stream == NULL || res_ctx->pipe_ctx[i].plane_res.mi == NULL)
 			continue;
 
 		res_ctx->pipe_ctx[i].plane_res.mi->funcs->mem_input_program_display_marks(
@@ -1565,6 +1564,7 @@ static void set_safe_displaymarks(
 				max_marks,
 				max_marks,
 				MAX_WATERMARK);
+
 		if (i == underlay_idx)
 			res_ctx->pipe_ctx[i].plane_res.mi->funcs->mem_input_program_chroma_display_marks(
 				res_ctx->pipe_ctx[i].plane_res.mi,
@@ -1572,6 +1572,7 @@ static void set_safe_displaymarks(
 				max_marks,
 				max_marks,
 				MAX_WATERMARK);
+
 	}
 }
 

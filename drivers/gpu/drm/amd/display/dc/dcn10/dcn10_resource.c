@@ -704,9 +704,9 @@ static void destruct(struct dcn10_resource_pool *pool)
 		if (pool->base.ipps[i] != NULL)
 			pool->base.ipps[i]->funcs->ipp_destroy(&pool->base.ipps[i]);
 
-		if (pool->base.mis[i] != NULL) {
-			kfree(TO_DCN10_MEM_INPUT(pool->base.mis[i]));
-			pool->base.mis[i] = NULL;
+		if (pool->base.hubps[i] != NULL) {
+			kfree(TO_DCN10_HUBP(pool->base.hubps[i]));
+			pool->base.hubps[i] = NULL;
 		}
 
 		if (pool->base.irqs != NULL) {
@@ -753,19 +753,19 @@ static void destruct(struct dcn10_resource_pool *pool)
 	kfree(pool->base.pp_smu);
 }
 
-static struct mem_input *dcn10_mem_input_create(
+static struct hubp *dcn10_hubp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn10_mem_input *mem_inputn10 =
-		kzalloc(sizeof(struct dcn10_mem_input), GFP_KERNEL);
+	struct dcn10_hubp *hubp1 =
+		kzalloc(sizeof(struct dcn10_hubp), GFP_KERNEL);
 
-	if (!mem_inputn10)
+	if (!hubp1)
 		return NULL;
 
-	dcn10_mem_input_construct(mem_inputn10, ctx, inst,
-				  &mi_regs[inst], &mi_shift, &mi_mask);
-	return &mem_inputn10->base;
+	dcn10_hubp_construct(hubp1, ctx, inst,
+			     &mi_regs[inst], &mi_shift, &mi_mask);
+	return &hubp1->base;
 }
 
 static void get_pixel_clock_parameters(
@@ -918,7 +918,7 @@ static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
 	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
 
-	idle_pipe->plane_res.mi = pool->mis[idle_pipe->pipe_idx];
+	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];
 	idle_pipe->plane_res.ipp = pool->ipps[idle_pipe->pipe_idx];
 	idle_pipe->plane_res.xfm = pool->transforms[idle_pipe->pipe_idx];
 
@@ -1357,8 +1357,8 @@ static bool construct(
 		if ((pipe_fuses & (1 << i)) != 0)
 			continue;
 
-		pool->base.mis[j] = dcn10_mem_input_create(ctx, i);
-		if (pool->base.mis[j] == NULL) {
+		pool->base.hubps[j] = dcn10_hubp_create(ctx, i);
+		if (pool->base.hubps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");

@@ -1024,7 +1024,7 @@ static int acquire_first_split_pipe(
 
 			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
 			pipe_ctx->stream_res.tg = pool->timing_generators[i];
-			pipe_ctx->plane_res.mi = pool->mis[i];
+			pipe_ctx->plane_res.hubp = pool->hubps[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
@@ -1359,6 +1359,7 @@ static int acquire_first_free_pipe(
 
 			pipe_ctx->stream_res.tg = pool->timing_generators[i];
 			pipe_ctx->plane_res.mi = pool->mis[i];
+			pipe_ctx->plane_res.hubp = pool->hubps[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];

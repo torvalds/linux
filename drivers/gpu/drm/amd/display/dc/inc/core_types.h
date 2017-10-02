@@ -32,6 +32,7 @@
 #include "ddc_service_types.h"
 #include "dc_bios_types.h"
 #include "mem_input.h"
+#include "hubp.h"
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mpc.h"
 #endif
@@ -129,6 +130,7 @@ struct audio_support{
 
 struct resource_pool {
 	struct mem_input *mis[MAX_PIPES];
+	struct hubp *hubps[MAX_PIPES];
 	struct input_pixel_processor *ipps[MAX_PIPES];
 	struct transform *transforms[MAX_PIPES];
 	struct output_pixel_processor *opps[MAX_PIPES];
@@ -178,7 +180,7 @@ struct stream_resource {
 
 struct plane_resource {
 	struct scaler_data scl_data;
-
+	struct hubp *hubp;
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
 	struct transform *xfm;

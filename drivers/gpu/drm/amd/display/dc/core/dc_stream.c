@@ -200,7 +200,7 @@ bool dc_stream_set_cursor_attributes(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream != stream || !pipe_ctx->plane_res.mi || !pipe_ctx->plane_res.xfm)
+		if (pipe_ctx->stream != stream || !pipe_ctx->plane_res.xfm)
 			continue;
 		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 			continue;
@@ -210,9 +210,14 @@ bool dc_stream_set_cursor_attributes(
 			pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
 						pipe_ctx->plane_res.ipp, attributes);
 
-		if (pipe_ctx->plane_res.mi->funcs->set_cursor_attributes != NULL)
+		if (pipe_ctx->plane_res.hubp != NULL)
+			pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes(
+					pipe_ctx->plane_res.hubp, attributes);
+
+		if (pipe_ctx->plane_res.mi != NULL)
 			pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
 					pipe_ctx->plane_res.mi, attributes);
+
 
 		if (pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes != NULL)
 			pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
@@ -248,7 +253,7 @@ bool dc_stream_set_cursor_position(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 		struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
-		struct mem_input *mi = pipe_ctx->plane_res.mi;
+		struct hubp *hubp = pipe_ctx->plane_res.hubp;
 		struct transform *xfm = pipe_ctx->plane_res.xfm;
 		struct dc_cursor_position pos_cpy = *position;
 		struct dc_cursor_mi_param param = {
@@ -260,7 +265,7 @@ bool dc_stream_set_cursor_position(
 		};
 
 		if (pipe_ctx->stream != stream ||
-				!pipe_ctx->plane_res.mi ||
+				(!pipe_ctx->plane_res.mi  && !pipe_ctx->plane_res.hubp) ||
 				!pipe_ctx->plane_state ||
 				!pipe_ctx->plane_res.xfm)
 			continue;
@@ -276,11 +281,12 @@ bool dc_stream_set_cursor_position(
 		if (ipp->funcs->ipp_cursor_set_position != NULL)
 			ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
 
-		if (mi->funcs->set_cursor_attributes != NULL)
-			mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
+		if (hubp != NULL)
+			hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 
-		if (xfm->funcs->set_cursor_attributes != NULL)
-			xfm->funcs->set_cursor_position(xfm, &pos_cpy, &param, mi->curs_attr.width);
+		if (xfm != NULL)
+			xfm->funcs->set_cursor_position(xfm, &pos_cpy, &param, hubp->curs_attr.width);
+
 	}
 
 	return true;

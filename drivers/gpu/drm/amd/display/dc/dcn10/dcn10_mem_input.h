@@ -25,10 +25,10 @@
 #ifndef __DC_MEM_INPUT_DCN10_H__
 #define __DC_MEM_INPUT_DCN10_H__
 
-#include "mem_input.h"
+#include "hubp.h"
 
-#define TO_DCN10_MEM_INPUT(mi)\
-	container_of(mi, struct dcn10_mem_input, base)
+#define TO_DCN10_HUBP(hubp)\
+	container_of(hubp, struct dcn10_hubp, base)
 
 #define MI_REG_LIST_DCN(id)\
 	SRI(DCHUBP_CNTL, HUBP, id),\
@@ -584,15 +584,15 @@ struct dcn_mi_mask {
 	DCN_MI_REG_FIELD_LIST(uint32_t);
 };
 
-struct dcn10_mem_input {
-	struct mem_input base;
+struct dcn10_hubp {
+	struct hubp base;
 	const struct dcn_mi_registers *mi_regs;
 	const struct dcn_mi_shift *mi_shift;
 	const struct dcn_mi_mask *mi_mask;
 };
 
 void hubp1_program_surface_config(
-	struct mem_input *mem_input,
+	struct hubp *hubp,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
 	union plane_size *plane_size,
@@ -601,20 +601,20 @@ void hubp1_program_surface_config(
 	bool horizontal_mirror);
 
 void hubp1_program_deadline(
-		struct mem_input *mem_input,
+		struct hubp *hubp,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr);
 
 void hubp1_program_requestor(
-		struct mem_input *mem_input,
+		struct hubp *hubp,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs);
 
 void hubp1_program_pixel_format(
-	struct dcn10_mem_input *mi,
+	struct dcn10_hubp *hubp,
 	enum surface_pixel_format format);
 
 void hubp1_program_size_and_rotation(
-	struct dcn10_mem_input *mi,
+	struct dcn10_hubp *hubp,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
 	const union plane_size *plane_size,
@@ -622,45 +622,38 @@ void hubp1_program_size_and_rotation(
 	bool horizontal_mirror);
 
 void hubp1_program_tiling(
-	struct dcn10_mem_input *mi,
+	struct dcn10_hubp *hubp,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format);
 
-void hubp1_dcc_control(struct mem_input *mem_input,
+void hubp1_dcc_control(struct hubp *hubp,
 		bool enable,
 		bool independent_64b_blks);
 
-void hubp1_program_display_marks(
-	struct mem_input *mem_input,
-	struct dce_watermarks nbp,
-	struct dce_watermarks stutter,
-	struct dce_watermarks urgent,
-	uint32_t total_dest_line_time_ns);
-
 bool hubp1_program_surface_flip_and_addr(
-	struct mem_input *mem_input,
+	struct hubp *hubp,
 	const struct dc_plane_address *address,
 	bool flip_immediate);
 
-bool hubp1_is_flip_pending(struct mem_input *mem_input);
+bool hubp1_is_flip_pending(struct hubp *hubp);
 
 void hubp1_cursor_set_attributes(
-		struct mem_input *mem_input,
+		struct hubp *hubp,
 		const struct dc_cursor_attributes *attr);
 
 void hubp1_cursor_set_position(
-		struct mem_input *mem_input,
+		struct hubp *hubp,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param);
 
-void hubp1_set_blank(struct mem_input *mem_input, bool blank);
+void hubp1_set_blank(struct hubp *hubp, bool blank);
 
-void min_set_viewport(struct mem_input *mem_input,
+void min_set_viewport(struct hubp *hubp,
 		const struct rect *viewport,
 		const struct rect *viewport_c);
 
-void dcn10_mem_input_construct(
-	struct dcn10_mem_input *mi,
+void dcn10_hubp_construct(
+	struct dcn10_hubp *hubp1,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn_mi_registers *mi_regs,
@@ -684,7 +677,7 @@ struct dcn_hubp_state {
 	uint32_t qos_level_low_wm;
 	uint32_t qos_level_high_wm;
 };
-void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
+void hubp1_read_state(struct dcn10_hubp *hubp1,
 		struct dcn_hubp_state *s);
 
 #endif

@@ -47,6 +47,7 @@
 #include "dc_link_ddc.h"
 #include "dm_helpers.h"
 #include "mem_input.h"
+#include "hubp.h"
 
 
 /*******************************************************************************
