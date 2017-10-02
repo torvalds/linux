@@ -154,15 +154,30 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
 
 /**
  * i40e_vc_disable_vf
- * @pf: pointer to the PF info
  * @vf: pointer to the VF info
  *
- * Disable the VF through a SW reset
+ * Disable the VF through a SW reset.
  **/
-static inline void i40e_vc_disable_vf(struct i40e_pf *pf, struct i40e_vf *vf)
+static inline void i40e_vc_disable_vf(struct i40e_vf *vf)
 {
+	int i;
+
 	i40e_vc_notify_vf_reset(vf);
-	i40e_reset_vf(vf, false);
+
+	/* We want to ensure that an actual reset occurs initiated after this
+	 * function was called. However, we do not want to wait forever, so
+	 * we'll give a reasonable time and print a message if we failed to
+	 * ensure a reset.
+	 */
+	for (i = 0; i < 20; i++) {
+		if (i40e_reset_vf(vf, false))
+			return;
+		usleep_range(10000, 20000);
+	}
+
+	dev_warn(&vf->pf->pdev->dev,
+		 "Failed to initiate reset for VF %d after 200 milliseconds\n",
+		 vf->vf_id);
 }
 
 /**
@@ -423,6 +438,9 @@ static int i40e_config_iwarp_qvlist(struct i40e_vf *vf,
 	       (sizeof(struct virtchnl_iwarp_qv_info) *
 						(qvlist_info->num_vectors - 1));
 	vf->qvlist_info = kzalloc(size, GFP_KERNEL);
+	if (!vf->qvlist_info)
+		return -ENOMEM;
+
 	vf->qvlist_info->num_vectors = qvlist_info->num_vectors;
 
 	msix_vf = pf->hw.func_caps.num_msix_vectors_vf;
@@ -861,7 +879,8 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 	}
 	/* reset some of the state variables keeping track of the resources */
 	vf->num_queue_pairs = 0;
-	vf->vf_states = 0;
+	clear_bit(I40E_VF_STATE_MC_PROMISC, &vf->vf_states);
+	clear_bit(I40E_VF_STATE_UC_PROMISC, &vf->vf_states);
 }
 
 /**
@@ -1031,8 +1050,8 @@ static void i40e_cleanup_reset_vf(struct i40e_vf *vf)
 		set_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states);
 		clear_bit(I40E_VF_STATE_DISABLED, &vf->vf_states);
 		/* Do not notify the client during VF init */
-		if (test_and_clear_bit(I40E_VF_STATE_PRE_ENABLE,
-				       &vf->vf_states))
+		if (!test_and_clear_bit(I40E_VF_STATE_PRE_ENABLE,
+					&vf->vf_states))
 			i40e_notify_client_of_vf_reset(pf, abs_vf_id);
 		vf->num_vlan = 0;
 	}
@@ -1049,9 +1068,9 @@ static void i40e_cleanup_reset_vf(struct i40e_vf *vf)
  * @vf: pointer to the VF structure
  * @flr: VFLR was issued or not
  *
- * reset the VF
+ * Returns true if the VF is reset, false otherwise.
  **/
-void i40e_reset_vf(struct i40e_vf *vf, bool flr)
+bool i40e_reset_vf(struct i40e_vf *vf, bool flr)
 {
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
@@ -1059,9 +1078,11 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	u32 reg;
 	int i;
 
-	/* If VFs have been disabled, there is no need to reset */
+	/* If the VFs have been disabled, this means something else is
+	 * resetting the VF, so we shouldn't continue.
+	 */
 	if (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
-		return;
+		return false;
 
 	i40e_trigger_vf_reset(vf, flr);
 
@@ -1098,6 +1119,8 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 
 	i40e_flush(hw);
 	clear_bit(__I40E_VF_DISABLE, pf->state);
+
+	return true;
 }
 
 /**
@@ -1109,8 +1132,10 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
  * VF, then do all the waiting in one chunk, and finally finish restoring each
  * VF after the wait. This is useful during PF routines which need to reset
  * all VFs, as otherwise it must perform these resets in a serialized fashion.
+ *
+ * Returns true if any VFs were reset, and false otherwise.
  **/
-void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
+bool i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 {
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vf *vf;
@@ -1119,11 +1144,11 @@ void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 
 	/* If we don't have any VFs, then there is nothing to reset */
 	if (!pf->num_alloc_vfs)
-		return;
+		return false;
 
 	/* If VFs have been disabled, there is no need to reset */
 	if (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
-		return;
+		return false;
 
 	/* Begin reset on all VFs at once */
 	for (v = 0; v < pf->num_alloc_vfs; v++)
@@ -1198,6 +1223,8 @@ void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 
 	i40e_flush(hw);
 	clear_bit(__I40E_VF_DISABLE, pf->state);
+
+	return true;
 }
 
 /**
@@ -1560,6 +1587,8 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	    (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_IWARP)) {
 		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_IWARP;
 		set_bit(I40E_VF_STATE_IWARPENA, &vf->vf_states);
+	} else {
+		clear_bit(I40E_VF_STATE_IWARPENA, &vf->vf_states);
 	}
 
 	if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_RSS_PF) {
@@ -2915,11 +2944,39 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	}
 
 	/* Force the VF driver stop so it has to reload with new MAC address */
-	i40e_vc_disable_vf(pf, vf);
+	i40e_vc_disable_vf(vf);
 	dev_info(&pf->pdev->dev, "Reload the VF driver to make this change effective.\n");
 
 error_param:
 	return ret;
+}
+
+/**
+ * i40e_vsi_has_vlans - True if VSI has configured VLANs
+ * @vsi: pointer to the vsi
+ *
+ * Check if a VSI has configured any VLANs. False if we have a port VLAN or if
+ * we have no configured VLANs. Do not call while holding the
+ * mac_filter_hash_lock.
+ */
+static bool i40e_vsi_has_vlans(struct i40e_vsi *vsi)
+{
+	bool have_vlans;
+
+	/* If we have a port VLAN, then the VSI cannot have any VLANs
+	 * configured, as all MAC/VLAN filters will be assigned to the PVID.
+	 */
+	if (vsi->info.pvid)
+		return false;
+
+	/* Since we don't have a PVID, we know that if the device is in VLAN
+	 * mode it must be because of a VLAN filter configured on this VSI.
+	 */
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+	have_vlans = i40e_is_vsi_in_vlan(vsi);
+	spin_unlock_bh(&vsi->mac_filter_hash_lock);
+
+	return have_vlans;
 }
 
 /**
@@ -2974,10 +3031,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		/* duplicate request, so just return success */
 		goto error_pvid;
 
-	/* Locked once because multiple functions below iterate list */
-	spin_lock_bh(&vsi->mac_filter_hash_lock);
-
-	if (le16_to_cpu(vsi->info.pvid) == 0 && i40e_is_vsi_in_vlan(vsi)) {
+	if (i40e_vsi_has_vlans(vsi)) {
 		dev_err(&pf->pdev->dev,
 			"VF %d has already configured VLAN filters and the administrator is requesting a port VLAN override.\nPlease unload and reload the VF driver for this change to take effect.\n",
 			vf_id);
@@ -2985,10 +3039,13 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		 * the right thing by reconfiguring his network correctly
 		 * and then reloading the VF driver.
 		 */
-		i40e_vc_disable_vf(pf, vf);
+		i40e_vc_disable_vf(vf);
 		/* During reset the VF got a new VSI, so refresh the pointer. */
 		vsi = pf->vsi[vf->lan_vsi_idx];
 	}
+
+	/* Locked once because multiple functions below iterate list */
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
 
 	/* Check for condition where there was already a port VLAN ID
 	 * filter set and now it is being deleted by setting it to zero.
@@ -3354,14 +3411,11 @@ int i40e_ndo_set_vf_trust(struct net_device *netdev, int vf_id, bool setting)
 
 	vf = &pf->vf[vf_id];
 
-	if (!vf)
-		return -EINVAL;
 	if (setting == vf->trusted)
 		goto out;
 
 	vf->trusted = setting;
-	i40e_vc_notify_vf_reset(vf);
-	i40e_reset_vf(vf, false);
+	i40e_vc_disable_vf(vf);
 	dev_info(&pf->pdev->dev, "VF %u is now %strusted\n",
 		 vf_id, setting ? "" : "un");
 out:
