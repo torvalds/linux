@@ -206,10 +206,10 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 	list_del(&notifier->list);
 
 	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
-		v4l2_async_cleanup(sd);
-
 		if (notifier->unbind)
 			notifier->unbind(notifier, sd, sd->asd);
+
+		v4l2_async_cleanup(sd);
 
 		list_move(&sd->async_list, &subdev_list);
 	}
@@ -268,10 +268,10 @@ void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 
 	list_add(&sd->asd->list, &notifier->waiting);
 
-	v4l2_async_cleanup(sd);
-
 	if (notifier->unbind)
 		notifier->unbind(notifier, sd, sd->asd);
+
+	v4l2_async_cleanup(sd);
 
 	mutex_unlock(&list_lock);
 }
