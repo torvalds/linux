@@ -448,7 +448,7 @@ struct tb_nhi {
  * @eof_mask: Bit mask used to detect end of frame PDF
  */
 struct tb_ring {
-	struct mutex lock;
+	spinlock_t lock;
 	struct tb_nhi *nhi;
 	int size;
 	int hop;

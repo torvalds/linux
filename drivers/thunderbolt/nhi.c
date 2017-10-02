@@ -212,8 +212,10 @@ static void ring_work(struct work_struct *work)
 	struct tb_ring *ring = container_of(work, typeof(*ring), work);
 	struct ring_frame *frame;
 	bool canceled = false;
+	unsigned long flags;
 	LIST_HEAD(done);
-	mutex_lock(&ring->lock);
+
+	spin_lock_irqsave(&ring->lock, flags);
 
 	if (!ring->running) {
 		/*  Move all frames to done and mark them as canceled. */
@@ -241,7 +243,8 @@ static void ring_work(struct work_struct *work)
 	ring_write_descriptors(ring);
 
 invoke_callback:
-	mutex_unlock(&ring->lock); /* allow callbacks to schedule new work */
+	/* allow callbacks to schedule new work */
+	spin_unlock_irqrestore(&ring->lock, flags);
 	while (!list_empty(&done)) {
 		frame = list_first_entry(&done, typeof(*frame), list);
 		/*
@@ -255,15 +258,17 @@ invoke_callback:
 
 int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
 {
+	unsigned long flags;
 	int ret = 0;
-	mutex_lock(&ring->lock);
+
+	spin_lock_irqsave(&ring->lock, flags);
 	if (ring->running) {
 		list_add_tail(&frame->list, &ring->queue);
 		ring_write_descriptors(ring);
 	} else {
 		ret = -ESHUTDOWN;
 	}
-	mutex_unlock(&ring->lock);
+	spin_unlock_irqrestore(&ring->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__tb_ring_enqueue);
@@ -338,7 +343,7 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	if (!ring)
 		goto err;
 
-	mutex_init(&ring->lock);
+	spin_lock_init(&ring->lock);
 	INIT_LIST_HEAD(&ring->queue);
 	INIT_LIST_HEAD(&ring->in_flight);
 	INIT_WORK(&ring->work, ring_work);
@@ -371,8 +376,6 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	return ring;
 
 err:
-	if (ring)
-		mutex_destroy(&ring->lock);
 	kfree(ring);
 	mutex_unlock(&nhi->lock);
 	return NULL;
@@ -419,7 +422,7 @@ void tb_ring_start(struct tb_ring *ring)
 	u32 flags;
 
 	mutex_lock(&ring->nhi->lock);
-	mutex_lock(&ring->lock);
+	spin_lock_irq(&ring->lock);
 	if (ring->nhi->going_away)
 		goto err;
 	if (ring->running) {
@@ -466,7 +469,7 @@ void tb_ring_start(struct tb_ring *ring)
 	ring_interrupt_active(ring, true);
 	ring->running = true;
 err:
-	mutex_unlock(&ring->lock);
+	spin_unlock_irq(&ring->lock);
 	mutex_unlock(&ring->nhi->lock);
 }
 EXPORT_SYMBOL_GPL(tb_ring_start);
@@ -487,7 +490,7 @@ EXPORT_SYMBOL_GPL(tb_ring_start);
 void tb_ring_stop(struct tb_ring *ring)
 {
 	mutex_lock(&ring->nhi->lock);
-	mutex_lock(&ring->lock);
+	spin_lock_irq(&ring->lock);
 	dev_info(&ring->nhi->pdev->dev, "stopping %s %d\n",
 		 RING_TYPE(ring), ring->hop);
 	if (ring->nhi->going_away)
@@ -508,7 +511,7 @@ void tb_ring_stop(struct tb_ring *ring)
 	ring->running = false;
 
 err:
-	mutex_unlock(&ring->lock);
+	spin_unlock_irq(&ring->lock);
 	mutex_unlock(&ring->nhi->lock);
 
 	/*
@@ -568,7 +571,6 @@ void tb_ring_free(struct tb_ring *ring)
 	 * to finish before freeing the ring.
 	 */
 	flush_work(&ring->work);
-	mutex_destroy(&ring->lock);
 	kfree(ring);
 }
 EXPORT_SYMBOL_GPL(tb_ring_free);
