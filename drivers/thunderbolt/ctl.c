@@ -289,20 +289,6 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 	}
 }
 
-static void cpu_to_be32_array(__be32 *dst, const u32 *src, size_t len)
-{
-	int i;
-	for (i = 0; i < len; i++)
-		dst[i] = cpu_to_be32(src[i]);
-}
-
-static void be32_to_cpu_array(u32 *dst, __be32 *src, size_t len)
-{
-	int i;
-	for (i = 0; i < len; i++)
-		dst[i] = be32_to_cpu(src[i]);
-}
-
 static __be32 tb_crc(const void *data, size_t len)
 {
 	return cpu_to_be32(~__crc32c_le(~0, data, len));
