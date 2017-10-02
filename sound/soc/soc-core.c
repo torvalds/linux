@@ -3481,6 +3481,32 @@ void snd_soc_unregister_component(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
+struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
+						   const char *driver_name)
+{
+	struct snd_soc_component *component;
+	struct snd_soc_component *ret;
+
+	ret = NULL;
+	mutex_lock(&client_mutex);
+	list_for_each_entry(component, &component_list, list) {
+		if (dev != component->dev)
+			continue;
+
+		if (driver_name &&
+		    (driver_name != component->driver->name) &&
+		    (strcmp(component->driver->name, driver_name) != 0))
+			continue;
+
+		ret = component;
+		break;
+	}
+	mutex_unlock(&client_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
+
 static int snd_soc_platform_drv_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
