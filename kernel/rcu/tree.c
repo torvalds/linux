@@ -1103,7 +1103,8 @@ void rcu_nmi_enter(void)
 		rcu_dynticks_eqs_exit();
 		incby = 1;
 	}
-	rdtp->dynticks_nmi_nesting += incby;
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, /* Prevent store tearing. */
+		   rdtp->dynticks_nmi_nesting + incby);
 	barrier();
 }
 
@@ -1135,12 +1136,13 @@ void rcu_nmi_exit(void)
 	 * leave it in non-RCU-idle state.
 	 */
 	if (rdtp->dynticks_nmi_nesting != 1) {
-		rdtp->dynticks_nmi_nesting -= 2;
+		WRITE_ONCE(rdtp->dynticks_nmi_nesting, /* No store tearing. */
+			   rdtp->dynticks_nmi_nesting - 2);
 		return;
 	}
 
 	/* This NMI interrupted an RCU-idle CPU, restore RCU-idleness. */
-	rdtp->dynticks_nmi_nesting = 0;
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0); /* Avoid store tearing. */
 	rcu_dynticks_eqs_enter();
 }
 
