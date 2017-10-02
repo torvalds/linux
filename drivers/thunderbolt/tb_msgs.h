@@ -101,11 +101,14 @@ enum icm_pkg_code {
 	ICM_CHALLENGE_DEVICE = 0x5,
 	ICM_ADD_DEVICE_KEY = 0x6,
 	ICM_GET_ROUTE = 0xa,
+	ICM_APPROVE_XDOMAIN = 0x10,
 };
 
 enum icm_event_code {
 	ICM_EVENT_DEVICE_CONNECTED = 3,
 	ICM_EVENT_DEVICE_DISCONNECTED = 4,
+	ICM_EVENT_XDOMAIN_CONNECTED = 6,
+	ICM_EVENT_XDOMAIN_DISCONNECTED = 7,
 };
 
 struct icm_pkg_header {
@@ -188,6 +191,25 @@ struct icm_fr_event_device_disconnected {
 	u16 link_info;
 };
 
+struct icm_fr_event_xdomain_connected {
+	struct icm_pkg_header hdr;
+	u16 reserved;
+	u16 link_info;
+	uuid_t remote_uuid;
+	uuid_t local_uuid;
+	u32 local_route_hi;
+	u32 local_route_lo;
+	u32 remote_route_hi;
+	u32 remote_route_lo;
+};
+
+struct icm_fr_event_xdomain_disconnected {
+	struct icm_pkg_header hdr;
+	u16 reserved;
+	u16 link_info;
+	uuid_t remote_uuid;
+};
+
 struct icm_fr_pkg_add_device_key {
 	struct icm_pkg_header hdr;
 	uuid_t ep_uuid;
@@ -224,6 +246,28 @@ struct icm_fr_pkg_challenge_device_response {
 	u32 response[8];
 };
 
+struct icm_fr_pkg_approve_xdomain {
+	struct icm_pkg_header hdr;
+	u16 reserved;
+	u16 link_info;
+	uuid_t remote_uuid;
+	u16 transmit_path;
+	u16 transmit_ring;
+	u16 receive_path;
+	u16 receive_ring;
+};
+
+struct icm_fr_pkg_approve_xdomain_response {
+	struct icm_pkg_header hdr;
+	u16 reserved;
+	u16 link_info;
+	uuid_t remote_uuid;
+	u16 transmit_path;
+	u16 transmit_ring;
+	u16 receive_path;
+	u16 receive_ring;
+};
+
 /* Alpine Ridge only messages */
 
 struct icm_ar_pkg_get_route {
@@ -238,6 +282,85 @@ struct icm_ar_pkg_get_route_response {
 	u16 link_info;
 	u32 route_hi;
 	u32 route_lo;
+};
+
+/* XDomain messages */
+
+struct tb_xdomain_header {
+	u32 route_hi;
+	u32 route_lo;
+	u32 length_sn;
+};
+
+#define TB_XDOMAIN_LENGTH_MASK	GENMASK(5, 0)
+#define TB_XDOMAIN_SN_MASK	GENMASK(28, 27)
+#define TB_XDOMAIN_SN_SHIFT	27
+
+enum tb_xdp_type {
+	UUID_REQUEST_OLD = 1,
+	UUID_RESPONSE = 2,
+	PROPERTIES_REQUEST,
+	PROPERTIES_RESPONSE,
+	PROPERTIES_CHANGED_REQUEST,
+	PROPERTIES_CHANGED_RESPONSE,
+	ERROR_RESPONSE,
+	UUID_REQUEST = 12,
+};
+
+struct tb_xdp_header {
+	struct tb_xdomain_header xd_hdr;
+	uuid_t uuid;
+	u32 type;
+};
+
+struct tb_xdp_properties {
+	struct tb_xdp_header hdr;
+	uuid_t src_uuid;
+	uuid_t dst_uuid;
+	u16 offset;
+	u16 reserved;
+};
+
+struct tb_xdp_properties_response {
+	struct tb_xdp_header hdr;
+	uuid_t src_uuid;
+	uuid_t dst_uuid;
+	u16 offset;
+	u16 data_length;
+	u32 generation;
+	u32 data[0];
+};
+
+/*
+ * Max length of data array single XDomain property response is allowed
+ * to carry.
+ */
+#define TB_XDP_PROPERTIES_MAX_DATA_LENGTH	\
+	(((256 - 4 - sizeof(struct tb_xdp_properties_response))) / 4)
+
+/* Maximum size of the total property block in dwords we allow */
+#define TB_XDP_PROPERTIES_MAX_LENGTH		500
+
+struct tb_xdp_properties_changed {
+	struct tb_xdp_header hdr;
+	uuid_t src_uuid;
+};
+
+struct tb_xdp_properties_changed_response {
+	struct tb_xdp_header hdr;
+};
+
+enum tb_xdp_error {
+	ERROR_SUCCESS,
+	ERROR_UNKNOWN_PACKET,
+	ERROR_UNKNOWN_DOMAIN,
+	ERROR_NOT_SUPPORTED,
+	ERROR_NOT_READY,
+};
+
+struct tb_xdp_error_response {
+	struct tb_xdp_header hdr;
+	u32 error;
 };
 
 #endif

@@ -16,7 +16,7 @@
 /* control channel */
 struct tb_ctl;
 
-typedef void (*event_cb)(void *data, enum tb_cfg_pkg_type type,
+typedef bool (*event_cb)(void *data, enum tb_cfg_pkg_type type,
 			 const void *buf, size_t size);
 
 struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data);

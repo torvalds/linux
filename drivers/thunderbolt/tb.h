@@ -9,6 +9,7 @@
 
 #include <linux/nvmem-provider.h>
 #include <linux/pci.h>
+#include <linux/thunderbolt.h>
 #include <linux/uuid.h>
 
 #include "tb_regs.h"
@@ -109,14 +110,25 @@ struct tb_switch {
 
 /**
  * struct tb_port - a thunderbolt port, part of a tb_switch
+ * @config: Cached port configuration read from registers
+ * @sw: Switch the port belongs to
+ * @remote: Remote port (%NULL if not connected)
+ * @xdomain: Remote host (%NULL if not connected)
+ * @cap_phy: Offset, zero if not found
+ * @port: Port number on switch
+ * @disabled: Disabled by eeprom
+ * @dual_link_port: If the switch is connected using two ports, points
+ *		    to the other port.
+ * @link_nr: Is this primary or secondary port on the dual_link.
  */
 struct tb_port {
 	struct tb_regs_port_header config;
 	struct tb_switch *sw;
-	struct tb_port *remote; /* remote port, NULL if not connected */
-	int cap_phy; /* offset, zero if not found */
-	u8 port; /* port number on switch */
-	bool disabled; /* disabled by eeprom */
+	struct tb_port *remote;
+	struct tb_xdomain *xdomain;
+	int cap_phy;
+	u8 port;
+	bool disabled;
 	struct tb_port *dual_link_port;
 	u8 link_nr:1;
 };
@@ -189,6 +201,8 @@ struct tb_path {
  * @add_switch_key: Add key to switch
  * @challenge_switch_key: Challenge switch using key
  * @disconnect_pcie_paths: Disconnects PCIe paths before NVM update
+ * @approve_xdomain_paths: Approve (establish) XDomain DMA paths
+ * @disconnect_xdomain_paths: Disconnect XDomain DMA paths
  */
 struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
@@ -205,6 +219,8 @@ struct tb_cm_ops {
 	int (*challenge_switch_key)(struct tb *tb, struct tb_switch *sw,
 				    const u8 *challenge, u8 *response);
 	int (*disconnect_pcie_paths)(struct tb *tb);
+	int (*approve_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
+	int (*disconnect_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
 };
 
 static inline void *tb_priv(struct tb *tb)
@@ -331,6 +347,8 @@ extern struct device_type tb_switch_type;
 int tb_domain_init(void);
 void tb_domain_exit(void);
 void tb_switch_exit(void);
+int tb_xdomain_init(void);
+void tb_xdomain_exit(void);
 
 struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize);
 int tb_domain_add(struct tb *tb);
@@ -343,6 +361,9 @@ int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw);
 int tb_domain_approve_switch_key(struct tb *tb, struct tb_switch *sw);
 int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw);
 int tb_domain_disconnect_pcie_paths(struct tb *tb);
+int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd);
+int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd);
+int tb_domain_disconnect_all_paths(struct tb *tb);
 
 static inline void tb_domain_put(struct tb *tb)
 {
@@ -421,5 +442,15 @@ static inline u64 tb_downstream_route(struct tb_port *port)
 	return tb_route(port->sw)
 	       | ((u64) port->port << (port->sw->config.depth * 8));
 }
+
+bool tb_xdomain_handle_request(struct tb *tb, enum tb_cfg_pkg_type type,
+			       const void *buf, size_t size);
+struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
+				    u64 route, const uuid_t *local_uuid,
+				    const uuid_t *remote_uuid);
+void tb_xdomain_add(struct tb_xdomain *xd);
+void tb_xdomain_remove(struct tb_xdomain *xd);
+struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
+						 u8 depth);
 
 #endif

@@ -368,10 +368,10 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 /**
  * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
  */
-static void tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
+static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
 				struct ctl_pkg *pkg, size_t size)
 {
-	ctl->callback(ctl->callback_data, type, pkg->buffer, size);
+	return ctl->callback(ctl->callback_data, type, pkg->buffer, size);
 }
 
 static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
@@ -444,6 +444,8 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 		break;
 
 	case TB_CFG_PKG_EVENT:
+	case TB_CFG_PKG_XDOMAIN_RESP:
+	case TB_CFG_PKG_XDOMAIN_REQ:
 		if (*(__be32 *)(pkg->buffer + frame->size) != crc32) {
 			tb_ctl_err(pkg->ctl,
 				   "RX: checksum mismatch, dropping packet\n");
@@ -451,8 +453,9 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 		}
 		/* Fall through */
 	case TB_CFG_PKG_ICM_EVENT:
-		tb_ctl_handle_event(pkg->ctl, frame->eof, pkg, frame->size);
-		goto rx;
+		if (tb_ctl_handle_event(pkg->ctl, frame->eof, pkg, frame->size))
+			goto rx;
+		break;
 
 	default:
 		break;
