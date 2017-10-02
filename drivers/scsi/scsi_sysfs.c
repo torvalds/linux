@@ -20,6 +20,7 @@
 #include <scsi/scsi_dh.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_driver.h>
+#include <scsi/scsi_devinfo.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -966,6 +967,41 @@ sdev_show_wwid(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(wwid, S_IRUGO, sdev_show_wwid, NULL);
 
+#define BLIST_FLAG_NAME(name) [ilog2(BLIST_##name)] = #name
+static const char *const sdev_bflags_name[] = {
+#include "scsi_devinfo_tbl.c"
+};
+#undef BLIST_FLAG_NAME
+
+static ssize_t
+sdev_show_blacklist(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	int i;
+	ssize_t len = 0;
+
+	for (i = 0; i < sizeof(sdev->sdev_bflags) * BITS_PER_BYTE; i++) {
+		const char *name = NULL;
+
+		if (!(sdev->sdev_bflags & BIT(i)))
+			continue;
+		if (i < ARRAY_SIZE(sdev_bflags_name) && sdev_bflags_name[i])
+			name = sdev_bflags_name[i];
+
+		if (name)
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"%s%s", len ? " " : "", name);
+		else
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"%sINVALID_BIT(%d)", len ? " " : "", i);
+	}
+	if (len)
+		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+	return len;
+}
+static DEVICE_ATTR(blacklist, S_IRUGO, sdev_show_blacklist, NULL);
+
 #ifdef CONFIG_SCSI_DH
 static ssize_t
 sdev_show_dh_state(struct device *dev, struct device_attribute *attr,
@@ -1151,6 +1187,7 @@ static struct attribute *scsi_sdev_attrs[] = {
 	&dev_attr_queue_depth.attr,
 	&dev_attr_queue_type.attr,
 	&dev_attr_wwid.attr,
+	&dev_attr_blacklist.attr,
 #ifdef CONFIG_SCSI_DH
 	&dev_attr_dh_state.attr,
 	&dev_attr_access_state.attr,
