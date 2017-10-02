@@ -8,6 +8,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/input-polldev.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -64,9 +65,22 @@ static void peaq_wmi_poll(struct input_polled_dev *dev)
 	}
 }
 
+static const struct dmi_system_id peaq_blacklist[] __initconst = {
+	{
+		/* Lenovo ideapad 700-15ISK does not have Dolby button */
+		.ident = "Lenovo ideapad 700-15ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "80RU"),
+		},
+	},
+	{}
+};
+
 static int __init peaq_wmi_init(void)
 {
-	if (!wmi_has_guid(PEAQ_DOLBY_BUTTON_GUID))
+	if (!wmi_has_guid(PEAQ_DOLBY_BUTTON_GUID) ||
+	    dmi_check_system(peaq_blacklist))
 		return -ENODEV;
 
 	peaq_poll_dev = input_allocate_polled_device();
