@@ -89,7 +89,7 @@ static inline struct tb *icm_to_tb(struct icm *icm)
 
 static inline u8 phy_port_from_route(u64 route, u8 depth)
 {
-	return tb_switch_phy_port_from_link(route >> ((depth - 1) * 8));
+	return tb_phy_port_from_link(route >> ((depth - 1) * 8));
 }
 
 static inline u8 dual_link_from_link(u8 link)

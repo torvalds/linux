@@ -78,6 +78,13 @@ struct tb {
 
 extern struct bus_type tb_bus_type;
 
+#define TB_LINKS_PER_PHY_PORT	2
+
+static inline unsigned int tb_phy_port_from_link(unsigned int link)
+{
+	return (link - 1) / TB_LINKS_PER_PHY_PORT;
+}
+
 /**
  * struct tb_property_dir - XDomain property directory
  * @uuid: Directory UUID or %NULL if root directory
