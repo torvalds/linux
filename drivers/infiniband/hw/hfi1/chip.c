@@ -8739,8 +8739,8 @@ static int set_physical_link_state(struct hfi1_devdata *dd, u64 state)
 	return do_8051_command(dd, HCMD_CHANGE_PHY_STATE, state, NULL);
 }
 
-int _load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-		      u8 lane_id, u32 config_data)
+static int _load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+			     u8 lane_id, u32 config_data)
 {
 	u64 data;
 	int ret;
