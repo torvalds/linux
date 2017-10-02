@@ -4709,7 +4709,7 @@ int iscsit_release_sessions_for_tpg(struct iscsi_portal_group *tpg, int force)
 }
 
 MODULE_DESCRIPTION("iSCSI-Target Driver for mainline target infrastructure");
-MODULE_VERSION("4.3.x");
+MODULE_VERSION("4.4.x");
 MODULE_AUTHOR("nab@Linux-iSCSI.org");
 MODULE_LICENSE("GPL");
 
