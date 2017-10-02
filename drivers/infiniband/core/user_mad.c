@@ -229,7 +229,16 @@ static void recv_handler(struct ib_mad_agent *agent,
 	packet->mad.hdr.status	   = 0;
 	packet->mad.hdr.length	   = hdr_size(file) + mad_recv_wc->mad_len;
 	packet->mad.hdr.qpn	   = cpu_to_be32(mad_recv_wc->wc->src_qp);
-	packet->mad.hdr.lid	   = ib_lid_be16(mad_recv_wc->wc->slid);
+	/*
+	 * On OPA devices it is okay to lose the upper 16 bits of LID as this
+	 * information is obtained elsewhere. Mask off the upper 16 bits.
+	 */
+	if (agent->device->port_immutable[agent->port_num].core_cap_flags &
+	    RDMA_CORE_PORT_INTEL_OPA)
+		packet->mad.hdr.lid = ib_lid_be16(0xFFFF &
+						  mad_recv_wc->wc->slid);
+	else
+		packet->mad.hdr.lid = ib_lid_be16(mad_recv_wc->wc->slid);
 	packet->mad.hdr.sl	   = mad_recv_wc->wc->sl;
 	packet->mad.hdr.path_bits  = mad_recv_wc->wc->dlid_path_bits;
 	packet->mad.hdr.pkey_index = mad_recv_wc->wc->pkey_index;
