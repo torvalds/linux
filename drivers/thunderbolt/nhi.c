@@ -253,7 +253,7 @@ invoke_callback:
 	}
 }
 
-int __ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
+int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
 {
 	int ret = 0;
 	mutex_lock(&ring->lock);
@@ -266,6 +266,7 @@ int __ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
 	mutex_unlock(&ring->lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__tb_ring_enqueue);
 
 static irqreturn_t ring_msix(int irq, void *data)
 {
@@ -309,9 +310,9 @@ static void ring_release_msix(struct tb_ring *ring)
 	ring->irq = 0;
 }
 
-static struct tb_ring *ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
-				  bool transmit, unsigned int flags,
-				  u16 sof_mask, u16 eof_mask)
+static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
+				     bool transmit, unsigned int flags,
+				     u16 sof_mask, u16 eof_mask)
 {
 	struct tb_ring *ring = NULL;
 	dev_info(&nhi->pdev->dev, "allocating %s ring %d of size %d\n",
@@ -377,24 +378,42 @@ err:
 	return NULL;
 }
 
-struct tb_ring *ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
-			      unsigned int flags)
+/**
+ * tb_ring_alloc_tx() - Allocate DMA ring for transmit
+ * @nhi: Pointer to the NHI the ring is to be allocated
+ * @hop: HopID (ring) to allocate
+ * @size: Number of entries in the ring
+ * @flags: Flags for the ring
+ */
+struct tb_ring *tb_ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
+				 unsigned int flags)
 {
-	return ring_alloc(nhi, hop, size, true, flags, 0, 0);
+	return tb_ring_alloc(nhi, hop, size, true, flags, 0, 0);
 }
-
-struct tb_ring *ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
-			      unsigned int flags, u16 sof_mask, u16 eof_mask)
-{
-	return ring_alloc(nhi, hop, size, false, flags, sof_mask, eof_mask);
-}
+EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
 
 /**
- * ring_start() - enable a ring
- *
- * Must not be invoked in parallel with ring_stop().
+ * tb_ring_alloc_rx() - Allocate DMA ring for receive
+ * @nhi: Pointer to the NHI the ring is to be allocated
+ * @hop: HopID (ring) to allocate
+ * @size: Number of entries in the ring
+ * @flags: Flags for the ring
+ * @sof_mask: Mask of PDF values that start a frame
+ * @eof_mask: Mask of PDF values that end a frame
  */
-void ring_start(struct tb_ring *ring)
+struct tb_ring *tb_ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
+				 unsigned int flags, u16 sof_mask, u16 eof_mask)
+{
+	return tb_ring_alloc(nhi, hop, size, false, flags, sof_mask, eof_mask);
+}
+EXPORT_SYMBOL_GPL(tb_ring_alloc_rx);
+
+/**
+ * tb_ring_start() - enable a ring
+ *
+ * Must not be invoked in parallel with tb_ring_stop().
+ */
+void tb_ring_start(struct tb_ring *ring)
 {
 	u16 frame_size;
 	u32 flags;
@@ -450,21 +469,22 @@ err:
 	mutex_unlock(&ring->lock);
 	mutex_unlock(&ring->nhi->lock);
 }
-
+EXPORT_SYMBOL_GPL(tb_ring_start);
 
 /**
- * ring_stop() - shutdown a ring
+ * tb_ring_stop() - shutdown a ring
  *
  * Must not be invoked from a callback.
  *
- * This method will disable the ring. Further calls to ring_tx/ring_rx will
- * return -ESHUTDOWN until ring_stop has been called.
+ * This method will disable the ring. Further calls to
+ * tb_ring_tx/tb_ring_rx will return -ESHUTDOWN until ring_stop has been
+ * called.
  *
  * All enqueued frames will be canceled and their callbacks will be executed
  * with frame->canceled set to true (on the callback thread). This method
  * returns only after all callback invocations have finished.
  */
-void ring_stop(struct tb_ring *ring)
+void tb_ring_stop(struct tb_ring *ring)
 {
 	mutex_lock(&ring->nhi->lock);
 	mutex_lock(&ring->lock);
@@ -497,9 +517,10 @@ err:
 	schedule_work(&ring->work);
 	flush_work(&ring->work);
 }
+EXPORT_SYMBOL_GPL(tb_ring_stop);
 
 /*
- * ring_free() - free ring
+ * tb_ring_free() - free ring
  *
  * When this method returns all invocations of ring->callback will have
  * finished.
@@ -508,7 +529,7 @@ err:
  *
  * Must NOT be called from ring_frame->callback!
  */
-void ring_free(struct tb_ring *ring)
+void tb_ring_free(struct tb_ring *ring)
 {
 	mutex_lock(&ring->nhi->lock);
 	/*
@@ -550,6 +571,7 @@ void ring_free(struct tb_ring *ring)
 	mutex_destroy(&ring->lock);
 	kfree(ring);
 }
+EXPORT_SYMBOL_GPL(tb_ring_free);
 
 /**
  * nhi_mailbox_cmd() - Send a command through NHI mailbox
