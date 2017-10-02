@@ -2723,6 +2723,7 @@ static void mlxsw_sp_nexthop_type_fini(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_nexthop_rif_fini(nh);
 		break;
 	case MLXSW_SP_NEXTHOP_TYPE_IPIP:
+		mlxsw_sp_nexthop_rif_fini(nh);
 		mlxsw_sp_nexthop_ipip_fini(mlxsw_sp, nh);
 		break;
 	}
@@ -2742,7 +2743,11 @@ static int mlxsw_sp_nexthop4_type_init(struct mlxsw_sp *mlxsw_sp,
 	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, dev,
 						     MLXSW_SP_L3_PROTO_IPV4)) {
 		nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
-		return mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		if (err)
+			return err;
+		mlxsw_sp_nexthop_rif_init(nh, &nh->ipip_entry->ol_lb->common);
+		return 0;
 	}
 
 	nh->type = MLXSW_SP_NEXTHOP_TYPE_ETH;
@@ -4009,7 +4014,11 @@ static int mlxsw_sp_nexthop6_type_init(struct mlxsw_sp *mlxsw_sp,
 	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, dev,
 						     MLXSW_SP_L3_PROTO_IPV6)) {
 		nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
-		return mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		if (err)
+			return err;
+		mlxsw_sp_nexthop_rif_init(nh, &nh->ipip_entry->ol_lb->common);
+		return 0;
 	}
 
 	nh->type = MLXSW_SP_NEXTHOP_TYPE_ETH;
