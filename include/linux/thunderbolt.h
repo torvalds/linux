@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/mod_devicetable.h>
+#include <linux/pci.h>
 #include <linux/uuid.h>
 #include <linux/workqueue.h>
 
@@ -581,5 +582,17 @@ static inline int tb_ring_tx(struct tb_ring *ring, struct ring_frame *frame)
 /* Used only when the ring is in polling mode */
 struct ring_frame *tb_ring_poll(struct tb_ring *ring);
 void tb_ring_poll_complete(struct tb_ring *ring);
+
+/**
+ * tb_ring_dma_device() - Return device used for DMA mapping
+ * @ring: Ring whose DMA device is retrieved
+ *
+ * Use this function when you are mapping DMA for buffers that are
+ * passed to the ring for sending/receiving.
+ */
+static inline struct device *tb_ring_dma_device(struct tb_ring *ring)
+{
+	return &ring->nhi->pdev->dev;
+}
 
 #endif /* THUNDERBOLT_H_ */
