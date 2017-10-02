@@ -156,21 +156,21 @@ static const struct st_lsm6dsx_fs_table_entry st_lsm6dsx_fs_table[] = {
 static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	{
 		.wai = 0x69,
-		.max_fifo_size = 8192,
+		.max_fifo_size = 1365,
 		.id = {
 			[0] = ST_LSM6DS3_ID,
 		},
 	},
 	{
 		.wai = 0x69,
-		.max_fifo_size = 4096,
+		.max_fifo_size = 682,
 		.id = {
 			[0] = ST_LSM6DS3H_ID,
 		},
 	},
 	{
 		.wai = 0x6a,
-		.max_fifo_size = 4096,
+		.max_fifo_size = 682,
 		.id = {
 			[0] = ST_LSM6DSL_ID,
 			[1] = ST_LSM6DSM_ID,
@@ -462,10 +462,9 @@ static int st_lsm6dsx_set_watermark(struct iio_dev *iio_dev, unsigned int val)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
-	int err, max_fifo_len;
+	int err;
 
-	max_fifo_len = hw->settings->max_fifo_size / ST_LSM6DSX_SAMPLE_SIZE;
-	if (val < 1 || val > max_fifo_len)
+	if (val < 1 || val > hw->settings->max_fifo_size)
 		return -EINVAL;
 
 	err = st_lsm6dsx_update_watermark(sensor, val);
