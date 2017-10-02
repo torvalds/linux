@@ -446,6 +446,9 @@ struct tb_nhi {
  * @flags: Ring specific flags
  * @sof_mask: Bit mask used to detect start of frame PDF
  * @eof_mask: Bit mask used to detect end of frame PDF
+ * @start_poll: Called when ring interrupt is triggered to start
+ *		polling. Passing %NULL keeps the ring in interrupt mode.
+ * @poll_data: Data passed to @start_poll
  */
 struct tb_ring {
 	spinlock_t lock;
@@ -466,6 +469,8 @@ struct tb_ring {
 	unsigned int flags;
 	u16 sof_mask;
 	u16 eof_mask;
+	void (*start_poll)(void *data);
+	void *poll_data;
 };
 
 /* Leave ring interrupt enabled on suspend */
@@ -499,7 +504,7 @@ enum ring_desc_flags {
 /**
  * struct ring_frame - For use with ring_rx/ring_tx
  * @buffer_phy: DMA mapped address of the frame
- * @callback: Callback called when the frame is finished
+ * @callback: Callback called when the frame is finished (optional)
  * @list: Frame is linked to a queue using this
  * @size: Size of the frame in bytes (%0 means %4096)
  * @flags: Flags for the frame (see &enum ring_desc_flags)
@@ -522,8 +527,8 @@ struct ring_frame {
 struct tb_ring *tb_ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
 				 unsigned int flags);
 struct tb_ring *tb_ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
-				 unsigned int flags, u16 sof_mask,
-				 u16 eof_mask);
+				 unsigned int flags, u16 sof_mask, u16 eof_mask,
+				 void (*start_poll)(void *), void *poll_data);
 void tb_ring_start(struct tb_ring *ring);
 void tb_ring_stop(struct tb_ring *ring);
 void tb_ring_free(struct tb_ring *ring);
@@ -535,8 +540,8 @@ int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame);
  * @ring: Ring to enqueue the frame
  * @frame: Frame to enqueue
  *
- * @frame->buffer, @frame->buffer_phy and @frame->callback have to be set. The
- * buffer must contain at least %TB_FRAME_SIZE bytes.
+ * @frame->buffer, @frame->buffer_phy have to be set. The buffer must
+ * contain at least %TB_FRAME_SIZE bytes.
  *
  * @frame->callback will be invoked with @frame->size, @frame->flags,
  * @frame->eof, @frame->sof set once the frame has been received.
@@ -557,8 +562,8 @@ static inline int tb_ring_rx(struct tb_ring *ring, struct ring_frame *frame)
  * @ring: Ring the enqueue the frame
  * @frame: Frame to enqueue
  *
- * @frame->buffer, @frame->buffer_phy, @frame->callback, @frame->size,
- * @frame->eof and @frame->sof have to be set.
+ * @frame->buffer, @frame->buffer_phy, @frame->size, @frame->eof and
+ * @frame->sof have to be set.
  *
  * @frame->callback will be invoked with once the frame has been transmitted.
  *
@@ -572,5 +577,9 @@ static inline int tb_ring_tx(struct tb_ring *ring, struct ring_frame *frame)
 	WARN_ON(!ring->is_tx);
 	return __tb_ring_enqueue(ring, frame);
 }
+
+/* Used only when the ring is in polling mode */
+struct ring_frame *tb_ring_poll(struct tb_ring *ring);
+void tb_ring_poll_complete(struct tb_ring *ring);
 
 #endif /* THUNDERBOLT_H_ */
