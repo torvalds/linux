@@ -47,7 +47,6 @@ int __read_mostly watchdog_thresh = 10;
 int __read_mostly nmi_watchdog_available;
 
 struct cpumask watchdog_allowed_mask __read_mostly;
-static bool softlockup_threads_initialized __read_mostly;
 
 struct cpumask watchdog_cpumask __read_mostly;
 unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
@@ -168,6 +167,7 @@ static void lockup_detector_update_enable(void)
 unsigned int __read_mostly softlockup_panic =
 			CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE;
 
+static bool softlockup_threads_initialized __read_mostly;
 static u64 __read_mostly sample_period;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
