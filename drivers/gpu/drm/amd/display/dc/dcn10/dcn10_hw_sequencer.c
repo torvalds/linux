@@ -245,8 +245,13 @@ static void verify_allow_pstate_change_high(
 {
 	/* pstate latency is ~20us so if we wait over 40us and pstate allow
 	 * still not asserted, we are probably stuck and going to hang
+	 *
+	 * TODO: Figure out why it takes ~100us on linux
+	 * pstate takes around ~100us on linux. Unknown currently as to
+	 * why it takes that long on linux
 	 */
-	static unsigned int pstate_wait_timeout_us = 40;
+	static unsigned int pstate_wait_timeout_us = 200;
+	static unsigned int pstate_wait_expected_timeout_us = 40;
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
 	static bool should_log_hw_state; /* prevent hw state log by default */
@@ -293,9 +298,15 @@ static void verify_allow_pstate_change_high(
 	for (i = 0; i < pstate_wait_timeout_us; i++) {
 		debug_data = REG_READ(DCHUBBUB_TEST_DEBUG_DATA);
 
-		if (debug_data & (1 << 30))
-			return;
+		if (debug_data & (1 << 30)) {
 
+			if (i > pstate_wait_expected_timeout_us)
+				dm_logger_write(hws->ctx->logger, LOG_WARNING,
+						"pstate took longer than expected ~%dus",
+						i);
+
+			return;
+		}
 		if (max_sampled_pstate_wait_us < i)
 			max_sampled_pstate_wait_us = i;
 
@@ -314,6 +325,9 @@ static void verify_allow_pstate_change_high(
 		dcn10_log_hw_state(hws->ctx->dc);
 	}
 
+	dm_logger_write(hws->ctx->logger, LOG_WARNING,
+			"pstate TEST_DEBUG_DATA: 0x%X",
+			debug_data);
 	BREAK_TO_DEBUGGER();
 }
 
