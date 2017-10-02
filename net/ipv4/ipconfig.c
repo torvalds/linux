@@ -329,17 +329,6 @@ set_sockaddr(struct sockaddr_in *sin, __be32 addr, __be16 port)
 	sin->sin_port = port;
 }
 
-static int __init ic_dev_ioctl(unsigned int cmd, struct ifreq *arg)
-{
-	int res;
-
-	mm_segment_t oldfs = get_fs();
-	set_fs(get_ds());
-	res = dev_ioctl(&init_net, cmd, (struct ifreq __user *) arg);
-	set_fs(oldfs);
-	return res;
-}
-
 /*
  *	Set up interface addresses and routes.
  */
@@ -375,11 +364,11 @@ static int __init ic_setup_if(void)
 	 * out, we'll try to muddle along.
 	 */
 	if (ic_dev_mtu != 0) {
-		strcpy(ir.ifr_name, ic_dev->dev->name);
-		ir.ifr_mtu = ic_dev_mtu;
-		if ((err = ic_dev_ioctl(SIOCSIFMTU, &ir)) < 0)
+		rtnl_lock();
+		if ((err = dev_set_mtu(ic_dev->dev, ic_dev_mtu)) < 0)
 			pr_err("IP-Config: Unable to set interface mtu to %d (%d)\n",
 			       ic_dev_mtu, err);
+		rtnl_unlock();
 	}
 	return 0;
 }
