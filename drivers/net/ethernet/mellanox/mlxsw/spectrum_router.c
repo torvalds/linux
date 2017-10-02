@@ -1680,7 +1680,7 @@ __mlxsw_sp_router_neighs_update_rauhtd(struct mlxsw_sp *mlxsw_sp,
 		err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(rauhtd),
 				      rauhtd_pl);
 		if (err) {
-			dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to dump neighbour talbe\n");
+			dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to dump neighbour table\n");
 			break;
 		}
 		num_rec = mlxsw_reg_rauhtd_num_rec_get(rauhtd_pl);
@@ -3251,7 +3251,7 @@ mlxsw_sp_fib_entry_offload_refresh(struct mlxsw_sp_fib_entry *fib_entry,
 			return;
 		if (mlxsw_sp_fib_entry_should_offload(fib_entry))
 			mlxsw_sp_fib_entry_offload_set(fib_entry);
-		else if (!mlxsw_sp_fib_entry_should_offload(fib_entry))
+		else
 			mlxsw_sp_fib_entry_offload_unset(fib_entry);
 		return;
 	default:
