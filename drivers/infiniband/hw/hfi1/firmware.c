@@ -113,6 +113,12 @@ struct css_header {
 #define MU_SIZE		8
 #define EXPONENT_SIZE	4
 
+/* size of platform configuration partition */
+#define MAX_PLATFORM_CONFIG_FILE_SIZE 4096
+
+/* size of file of plaform configuration encoded in format version 4 */
+#define PLATFORM_CONFIG_FORMAT_4_FILE_SIZE 528
+
 /* the file itself */
 struct firmware_file {
 	struct css_header css_header;
@@ -1774,7 +1780,20 @@ int parse_platform_config(struct hfi1_devdata *dd)
 
 	/* Field is file size in DWORDs */
 	file_length = (*ptr) * 4;
-	ptr++;
+
+	/*
+	 * Length can't be larger than partition size. Assume platform
+	 * config format version 4 is being used. Interpret the file size
+	 * field as header instead by not moving the pointer.
+	 */
+	if (file_length > MAX_PLATFORM_CONFIG_FILE_SIZE) {
+		dd_dev_info(dd,
+			    "%s:File length out of bounds, using alternative format\n",
+			    __func__);
+		file_length = PLATFORM_CONFIG_FORMAT_4_FILE_SIZE;
+	} else {
+		ptr++;
+	}
 
 	if (file_length > dd->platform_config.size) {
 		dd_dev_info(dd, "%s:File claims to be larger than read size\n",
@@ -1789,7 +1808,8 @@ int parse_platform_config(struct hfi1_devdata *dd)
 
 	/*
 	 * In both cases where we proceed, using the self-reported file length
-	 * is the safer option
+	 * is the safer option. In case of old format a predefined value is
+	 * being used.
 	 */
 	while (ptr < (u32 *)(dd->platform_config.data + file_length)) {
 		header1 = *ptr;
