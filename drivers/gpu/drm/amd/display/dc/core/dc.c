@@ -1282,7 +1282,9 @@ static void commit_planes_for_stream(struct dc *dc,
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
 
-			if (srf_updates[i].in_transfer_func)
+			/* work around to program degamma regs for split pipe after set mode. */
+			if (srf_updates[i].in_transfer_func || (pipe_ctx->top_pipe &&
+					pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state))
 				dc->hwss.set_input_transfer_func(
 						pipe_ctx, pipe_ctx->plane_state);
 
