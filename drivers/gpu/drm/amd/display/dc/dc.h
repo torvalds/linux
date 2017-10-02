@@ -217,7 +217,7 @@ struct dc_debug {
 	bool force_abm_enable;
 	bool disable_hbup_pg;
 	bool disable_dpp_pg;
-	bool stereo_support;
+	bool disable_stereo_support;
 	bool vsr_support;
 };
 struct dc_state;
