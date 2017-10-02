@@ -531,8 +531,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	div->shift = __ffs(CLK_DIV_MASK);
 	div->width = __builtin_popcountl(CLK_DIV_MASK);
 	div->hw.init = &init;
-	div->flags = (CLK_DIVIDER_ONE_BASED |
-		      CLK_DIVIDER_ROUND_CLOSEST);
+	div->flags = CLK_DIVIDER_ONE_BASED;
 
 	clk = devm_clk_register(host->dev, &div->hw);
 	if (WARN_ON(IS_ERR(clk)))
