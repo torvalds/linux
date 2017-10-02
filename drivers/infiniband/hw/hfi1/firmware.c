@@ -971,6 +971,46 @@ int wait_fm_ready(struct hfi1_devdata *dd, u32 mstimeout)
 }
 
 /*
+ * Clear all reset bits, releasing the 8051.
+ * Wait for firmware to be ready to accept host requests.
+ * Then, set host version bit.
+ *
+ * This function executes even if the 8051 is in reset mode when
+ * dd->dc_shutdown == 1.
+ *
+ * Expects dd->dc8051_lock to be held.
+ */
+int release_and_wait_ready_8051_firmware(struct hfi1_devdata *dd)
+{
+	int ret;
+
+	lockdep_assert_held(&dd->dc8051_lock);
+	/* clear all reset bits, releasing the 8051 */
+	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
+
+	/*
+	 * Wait for firmware to be ready to accept host
+	 * requests.
+	 */
+	ret = wait_fm_ready(dd, TIMEOUT_8051_START);
+	if (ret) {
+		dd_dev_err(dd, "8051 start timeout, current FW state 0x%x\n",
+			   get_firmware_state(dd));
+		return ret;
+	}
+
+	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to set host interface version, return 0x%x\n",
+			   ret);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
  * Load the 8051 firmware.
  */
 static int load_8051_firmware(struct hfi1_devdata *dd,
@@ -1035,31 +1075,22 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	if (ret)
 		return ret;
 
-	/* clear all reset bits, releasing the 8051 */
-	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
-
 	/*
+	 * Clear all reset bits, releasing the 8051.
 	 * DC reset step 5. Wait for firmware to be ready to accept host
 	 * requests.
+	 * Then, set host version bit.
 	 */
-	ret = wait_fm_ready(dd, TIMEOUT_8051_START);
-	if (ret) { /* timed out */
-		dd_dev_err(dd, "8051 start timeout, current state 0x%x\n",
-			   get_firmware_state(dd));
-		return -ETIMEDOUT;
-	}
+	mutex_lock(&dd->dc8051_lock);
+	ret = release_and_wait_ready_8051_firmware(dd);
+	mutex_unlock(&dd->dc8051_lock);
+	if (ret)
+		return ret;
 
 	read_misc_status(dd, &ver_major, &ver_minor, &ver_patch);
 	dd_dev_info(dd, "8051 firmware version %d.%d.%d\n",
 		    (int)ver_major, (int)ver_minor, (int)ver_patch);
 	dd->dc8051_ver = dc8051_ver(ver_major, ver_minor, ver_patch);
-	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
-	if (ret != HCMD_SUCCESS) {
-		dd_dev_err(dd,
-			   "Failed to set host interface version, return 0x%x\n",
-			   ret);
-		return -EIO;
-	}
 
 	return 0;
 }
