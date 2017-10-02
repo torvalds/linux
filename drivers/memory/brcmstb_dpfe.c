@@ -431,12 +431,24 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	const void *fw_blob;
 	int ret;
 
+	priv = platform_get_drvdata(pdev);
+
+	/*
+	 * Skip downloading the firmware if the DCPU is already running and
+	 * responding to commands.
+	 */
+	if (is_dcpu_enabled(priv->regs)) {
+		u32 response[MSG_FIELD_MAX];
+
+		ret = __send_command(priv, DPFE_CMD_GET_INFO, response);
+		if (!ret)
+			return 0;
+	}
+
 	ret = request_firmware(&fw, FIRMWARE_NAME, dev);
 	/* request_firmware() prints its own error messages. */
 	if (ret)
 		return ret;
-
-	priv = platform_get_drvdata(pdev);
 
 	ret = __verify_firmware(init, fw);
 	if (ret)
