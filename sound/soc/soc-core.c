@@ -3445,10 +3445,8 @@ int snd_soc_register_component(struct device *dev,
 	struct snd_soc_component *component;
 
 	component = kzalloc(sizeof(*component), GFP_KERNEL);
-	if (!component) {
-		dev_err(dev, "ASoC: Failed to allocate memory\n");
+	if (!component)
 		return -ENOMEM;
-	}
 
 	return snd_soc_add_component(dev, component, component_driver,
 				     dai_drv, num_dai);
