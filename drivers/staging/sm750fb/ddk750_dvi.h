@@ -25,7 +25,7 @@ typedef unsigned char (*PFN_DVICTRL_CHECKINTERRUPT)(void);
 typedef void (*PFN_DVICTRL_CLEARINTERRUPT)(void);
 
 /* Structure to hold all the function pointer to the DVI Controller. */
-typedef struct _dvi_ctrl_device_t {
+struct dvi_ctrl_device {
 	PFN_DVICTRL_INIT		pfnInit;
 	PFN_DVICTRL_RESETCHIP		pfnResetChip;
 	PFN_DVICTRL_GETCHIPSTRING	pfnGetChipString;
@@ -36,7 +36,7 @@ typedef struct _dvi_ctrl_device_t {
 	PFN_DVICTRL_ISCONNECTED		pfnIsConnected;
 	PFN_DVICTRL_CHECKINTERRUPT	pfnCheckInterrupt;
 	PFN_DVICTRL_CLEARINTERRUPT	pfnClearInterrupt;
-} dvi_ctrl_device_t;
+};
 
 #define DVI_CTRL_SII164
 

@@ -10,7 +10,7 @@
  * function API. Please set the function pointer to NULL whenever the function
  * is not supported.
  */
-static dvi_ctrl_device_t g_dcftSupportedDviController[] = {
+static struct dvi_ctrl_device g_dcftSupportedDviController[] = {
 #ifdef DVI_CTRL_SII164
 	{
 		.pfnInit = sii164InitChip,
@@ -40,7 +40,7 @@ int dviInit(unsigned char edgeSelect,
 	    unsigned char pllFilterEnable,
 	    unsigned char pllFilterValue)
 {
-	dvi_ctrl_device_t *pCurrentDviCtrl;
+	struct dvi_ctrl_device *pCurrentDviCtrl;
 
 	pCurrentDviCtrl = g_dcftSupportedDviController;
 	if (pCurrentDviCtrl->pfnInit) {
