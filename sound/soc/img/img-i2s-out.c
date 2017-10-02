@@ -65,7 +65,7 @@ struct img_i2s_out {
 	struct snd_soc_dai_driver dai_driver;
 };
 
-static int img_i2s_out_suspend(struct device *dev)
+static int img_i2s_out_runtime_suspend(struct device *dev)
 {
 	struct img_i2s_out *i2s = dev_get_drvdata(dev);
 
@@ -75,7 +75,7 @@ static int img_i2s_out_suspend(struct device *dev)
 	return 0;
 }
 
-static int img_i2s_out_resume(struct device *dev)
+static int img_i2s_out_runtime_resume(struct device *dev)
 {
 	struct img_i2s_out *i2s = dev_get_drvdata(dev);
 	int ret;
@@ -486,7 +486,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
-		ret = img_i2s_out_resume(&pdev->dev);
+		ret = img_i2s_out_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_pm_disable;
 	}
@@ -517,7 +517,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		img_i2s_out_suspend(&pdev->dev);
+		img_i2s_out_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(i2s->clk_sys);
@@ -531,7 +531,7 @@ static int img_i2s_out_dev_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		img_i2s_out_suspend(&pdev->dev);
+		img_i2s_out_runtime_suspend(&pdev->dev);
 
 	clk_disable_unprepare(i2s->clk_sys);
 
@@ -545,8 +545,8 @@ static const struct of_device_id img_i2s_out_of_match[] = {
 MODULE_DEVICE_TABLE(of, img_i2s_out_of_match);
 
 static const struct dev_pm_ops img_i2s_out_pm_ops = {
-	SET_RUNTIME_PM_OPS(img_i2s_out_suspend,
-			   img_i2s_out_resume, NULL)
+	SET_RUNTIME_PM_OPS(img_i2s_out_runtime_suspend,
+			   img_i2s_out_runtime_resume, NULL)
 };
 
 static struct platform_driver img_i2s_out_driver = {
