@@ -97,8 +97,6 @@ struct vc4_dpi {
 
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct drm_bridge *bridge;
-	bool is_panel_bridge;
 
 	void __iomem *regs;
 
@@ -251,10 +249,11 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 {
 	struct device *dev = &dpi->pdev->dev;
 	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
-					  &panel, &dpi->bridge);
+					  &panel, &bridge);
 	if (ret) {
 		/* If nothing was connected in the DT, that's not an
 		 * error.
@@ -265,13 +264,10 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 			return ret;
 	}
 
-	if (panel) {
-		dpi->bridge = drm_panel_bridge_add(panel,
-						   DRM_MODE_CONNECTOR_DPI);
-		dpi->is_panel_bridge = true;
-	}
+	if (panel)
+		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DPI);
 
-	return drm_bridge_attach(dpi->encoder, dpi->bridge, NULL);
+	return drm_bridge_attach(dpi->encoder, bridge, NULL);
 }
 
 static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
@@ -352,8 +348,7 @@ static void vc4_dpi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dpi *dpi = dev_get_drvdata(dev);
 
-	if (dpi->is_panel_bridge)
-		drm_panel_bridge_remove(dpi->bridge);
+	drm_of_panel_bridge_remove(dev->of_node, 0, 0);
 
 	drm_encoder_cleanup(dpi->encoder);
 
