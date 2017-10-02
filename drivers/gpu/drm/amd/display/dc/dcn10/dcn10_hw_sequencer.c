@@ -253,7 +253,6 @@ static void verify_allow_pstate_change_high(
 
 	unsigned int debug_index = 0x7;
 	unsigned int debug_data;
-	unsigned int force_allow_pstate = 0x30;
 	unsigned int i;
 
 	if (forced_pstate_allow) {
@@ -261,7 +260,9 @@ static void verify_allow_pstate_change_high(
 		 * we verify_allow_pstate_change_high.  so disable force
 		 * here so we can check status
 		 */
-		REG_WRITE(DCHUBBUB_ARB_DRAM_STATE_CNTL, 0);
+		REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, 0,
+			     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 0);
 		forced_pstate_allow = false;
 	}
 
@@ -304,7 +305,9 @@ static void verify_allow_pstate_change_high(
 	/* force pstate allow to prevent system hang
 	 * and break to debugger to investigate
 	 */
-	REG_WRITE(DCHUBBUB_ARB_DRAM_STATE_CNTL, force_allow_pstate);
+	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+		     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, 1,
+		     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 1);
 	forced_pstate_allow = true;
 
 	if (should_log_hw_state) {
