@@ -651,6 +651,22 @@ static int nhi_suspend_noirq(struct device *dev)
 	return tb_domain_suspend_noirq(tb);
 }
 
+static void nhi_enable_int_throttling(struct tb_nhi *nhi)
+{
+	/* Throttling is specified in 256ns increments */
+	u32 throttle = DIV_ROUND_UP(128 * NSEC_PER_USEC, 256);
+	unsigned int i;
+
+	/*
+	 * Configure interrupt throttling for all vectors even if we
+	 * only use few.
+	 */
+	for (i = 0; i < MSIX_MAX_VECS; i++) {
+		u32 reg = REG_INT_THROTTLING_RATE + i * 4;
+		iowrite32(throttle, nhi->iobase + reg);
+	}
+}
+
 static int nhi_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -663,6 +679,8 @@ static int nhi_resume_noirq(struct device *dev)
 	 */
 	if (!pci_device_is_present(pdev))
 		tb->nhi->going_away = true;
+	else
+		nhi_enable_int_throttling(tb->nhi);
 
 	return tb_domain_resume_noirq(tb);
 }
@@ -716,6 +734,8 @@ static int nhi_init_msi(struct tb_nhi *nhi)
 
 	/* In case someone left them on. */
 	nhi_disable_interrupts(nhi);
+
+	nhi_enable_int_throttling(nhi);
 
 	ida_init(&nhi->msix_ida);
 
@@ -795,9 +815,6 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&nhi->lock);
 
 	pci_set_master(pdev);
-
-	/* magic value - clock related? */
-	iowrite32(3906250 / 10000, nhi->iobase + 0x38c00);
 
 	tb = icm_probe(nhi);
 	if (!tb)
