@@ -31,6 +31,7 @@
 #include <linux/acpi.h>
 #include <linux/ucs2_string.h>
 #include <linux/memblock.h>
+#include <linux/bsearch.h>
 
 #include <asm/early_ioremap.h>
 
@@ -924,40 +925,101 @@ int efi_mem_type(unsigned long phys_addr)
 }
 #endif
 
+struct efi_error_code {
+	efi_status_t status;
+	int errno;
+	const char *description;
+};
+
+static const struct efi_error_code efi_error_codes[] = {
+	{ EFI_SUCCESS, 0, "Success"},
+#if 0
+	{ EFI_LOAD_ERROR, -EPICK_AN_ERRNO, "Load Error"},
+#endif
+	{ EFI_INVALID_PARAMETER, -EINVAL, "Invalid Parameter"},
+	{ EFI_UNSUPPORTED, -ENOSYS, "Unsupported"},
+	{ EFI_BAD_BUFFER_SIZE, -ENOSPC, "Bad Buffer Size"},
+	{ EFI_BUFFER_TOO_SMALL, -ENOSPC, "Buffer Too Small"},
+	{ EFI_NOT_READY, -EAGAIN, "Not Ready"},
+	{ EFI_DEVICE_ERROR, -EIO, "Device Error"},
+	{ EFI_WRITE_PROTECTED, -EROFS, "Write Protected"},
+	{ EFI_OUT_OF_RESOURCES, -ENOMEM, "Out of Resources"},
+#if 0
+	{ EFI_VOLUME_CORRUPTED, -EPICK_AN_ERRNO, "Volume Corrupt"},
+	{ EFI_VOLUME_FULL, -EPICK_AN_ERRNO, "Volume Full"},
+	{ EFI_NO_MEDIA, -EPICK_AN_ERRNO, "No Media"},
+	{ EFI_MEDIA_CHANGED, -EPICK_AN_ERRNO, "Media changed"},
+#endif
+	{ EFI_NOT_FOUND, -ENOENT, "Not Found"},
+#if 0
+	{ EFI_ACCESS_DENIED, -EPICK_AN_ERRNO, "Access Denied"},
+	{ EFI_NO_RESPONSE, -EPICK_AN_ERRNO, "No Response"},
+	{ EFI_NO_MAPPING, -EPICK_AN_ERRNO, "No mapping"},
+	{ EFI_TIMEOUT, -EPICK_AN_ERRNO, "Time out"},
+	{ EFI_NOT_STARTED, -EPICK_AN_ERRNO, "Not started"},
+	{ EFI_ALREADY_STARTED, -EPICK_AN_ERRNO, "Already started"},
+#endif
+	{ EFI_ABORTED, -EINTR, "Aborted"},
+#if 0
+	{ EFI_ICMP_ERROR, -EPICK_AN_ERRNO, "ICMP Error"},
+	{ EFI_TFTP_ERROR, -EPICK_AN_ERRNO, "TFTP Error"},
+	{ EFI_PROTOCOL_ERROR, -EPICK_AN_ERRNO, "Protocol Error"},
+	{ EFI_INCOMPATIBLE_VERSION, -EPICK_AN_ERRNO, "Incompatible Version"},
+#endif
+	{ EFI_SECURITY_VIOLATION, -EACCES, "Security Policy Violation"},
+#if 0
+	{ EFI_CRC_ERROR, -EPICK_AN_ERRNO, "CRC Error"},
+	{ EFI_END_OF_MEDIA, -EPICK_AN_ERRNO, "End of Media"},
+	{ EFI_END_OF_FILE, -EPICK_AN_ERRNO, "End of File"},
+	{ EFI_INVALID_LANGUAGE, -EPICK_AN_ERRNO, "Invalid Languages"},
+	{ EFI_COMPROMISED_DATA, -EPICK_AN_ERRNO, "Compromised Data"},
+
+	// warnings
+	{ EFI_WARN_UNKOWN_GLYPH, -EPICK_AN_ERRNO, "Warning Unknown Glyph"},
+	{ EFI_WARN_DELETE_FAILURE, -EPICK_AN_ERRNO, "Warning Delete Failure"},
+	{ EFI_WARN_WRITE_FAILURE, -EPICK_AN_ERRNO, "Warning Write Failure"},
+	{ EFI_WARN_BUFFER_TOO_SMALL, -EPICK_AN_ERRNO, "Warning Buffer Too Small"},
+#endif
+};
+
+static int
+efi_status_cmp_bsearch(const void *key, const void *item)
+{
+	u64 status = (u64)(uintptr_t)key;
+	struct efi_error_code *code = (struct efi_error_code *)item;
+
+	if (status < code->status)
+		return -1;
+	if (status > code->status)
+		return 1;
+	return 0;
+}
+
 int efi_status_to_err(efi_status_t status)
 {
-	int err;
+	struct efi_error_code *found;
+	size_t num = sizeof(efi_error_codes) / sizeof(struct efi_error_code);
 
-	switch (status) {
-	case EFI_SUCCESS:
-		err = 0;
-		break;
-	case EFI_INVALID_PARAMETER:
-		err = -EINVAL;
-		break;
-	case EFI_OUT_OF_RESOURCES:
-		err = -ENOSPC;
-		break;
-	case EFI_DEVICE_ERROR:
-		err = -EIO;
-		break;
-	case EFI_WRITE_PROTECTED:
-		err = -EROFS;
-		break;
-	case EFI_SECURITY_VIOLATION:
-		err = -EACCES;
-		break;
-	case EFI_NOT_FOUND:
-		err = -ENOENT;
-		break;
-	case EFI_ABORTED:
-		err = -EINTR;
-		break;
-	default:
-		err = -EINVAL;
-	}
+	found = bsearch((void *)(uintptr_t)status, efi_error_codes,
+			sizeof(struct efi_error_code), num,
+			efi_status_cmp_bsearch);
+	if (!found)
+		return -EINVAL;
+	return found->errno;
+}
 
-	return err;
+const char *
+efi_status_to_str(efi_status_t status)
+{
+	struct efi_error_code *found;
+	size_t num = sizeof(efi_error_codes) / sizeof(struct efi_error_code);
+
+	found = bsearch((void *)(uintptr_t)status, efi_error_codes,
+			sizeof(struct efi_error_code), num,
+			efi_status_cmp_bsearch);
+	if (!found)
+		return "Unknown error code";
+	return found->description;
 }
 
 bool efi_is_table_address(unsigned long phys_addr)
