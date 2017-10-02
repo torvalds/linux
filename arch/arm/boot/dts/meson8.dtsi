@@ -275,6 +275,12 @@
 	};
 };
 
+&efuse {
+	compatible = "amlogic,meson8-efuse";
+	clocks = <&clkc CLKID_EFUSE>;
+	clock-names = "core";
+};
+
 &ethmac {
 	clocks = <&clkc CLKID_ETH>;
 	clock-names = "stmmaceth";
