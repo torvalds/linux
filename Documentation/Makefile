@@ -116,3 +116,5 @@ dochelp:
 	@echo
 	@echo  '  make SPHINX_CONF={conf-file} [target] use *additional* sphinx-build'
 	@echo  '  configuration. This is e.g. useful to build with nit-picking config.'
+	@echo
+	@echo  '  Default location for the generated documents is Documentation/output'
