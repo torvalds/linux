@@ -38,7 +38,6 @@
 #define ST_LSM6DSX_REG_FIFO_THL_ADDR		0x06
 #define ST_LSM6DSX_REG_FIFO_THH_ADDR		0x07
 #define ST_LSM6DSX_FIFO_TH_MASK			GENMASK(11, 0)
-#define ST_LSM6DSX_REG_FIFO_DEC_GXL_ADDR	0x08
 #define ST_LSM6DSX_REG_HLACTIVE_ADDR		0x12
 #define ST_LSM6DSX_REG_HLACTIVE_MASK		BIT(5)
 #define ST_LSM6DSX_REG_PP_OD_ADDR		0x12
@@ -110,8 +109,9 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 	st_lsm6dsx_get_max_min_odr(hw, &max_odr, &min_odr);
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
-		sensor = iio_priv(hw->iio_devs[i]);
+		const struct st_lsm6dsx_reg *dec_reg;
 
+		sensor = iio_priv(hw->iio_devs[i]);
 		/* update fifo decimators and sample in pattern */
 		if (hw->enable_mask & BIT(sensor->id)) {
 			sensor->sip = sensor->odr / min_odr;
@@ -123,12 +123,13 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 			data = 0;
 		}
 
-		err = st_lsm6dsx_write_with_mask(hw,
-					ST_LSM6DSX_REG_FIFO_DEC_GXL_ADDR,
-					sensor->decimator_mask, data);
-		if (err < 0)
-			return err;
-
+		dec_reg = &hw->settings->decimator[sensor->id];
+		if (dec_reg->addr) {
+			err = st_lsm6dsx_write_with_mask(hw, dec_reg->addr,
+							 dec_reg->mask, data);
+			if (err < 0)
+				return err;
+		}
 		sip += sensor->sip;
 	}
 	hw->sip = sip;

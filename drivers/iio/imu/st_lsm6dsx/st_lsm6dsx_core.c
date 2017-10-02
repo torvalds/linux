@@ -42,8 +42,6 @@
 
 #include "st_lsm6dsx.h"
 
-#define ST_LSM6DSX_REG_ACC_DEC_MASK		GENMASK(2, 0)
-#define ST_LSM6DSX_REG_GYRO_DEC_MASK		GENMASK(5, 3)
 #define ST_LSM6DSX_REG_INT1_ADDR		0x0d
 #define ST_LSM6DSX_REG_INT2_ADDR		0x0e
 #define ST_LSM6DSX_REG_FIFO_FTH_IRQ_MASK	BIT(3)
@@ -160,12 +158,32 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.id = {
 			[0] = ST_LSM6DS3_ID,
 		},
+		.decimator = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x08,
+				.mask = GENMASK(2, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x08,
+				.mask = GENMASK(5, 3),
+			},
+		},
 	},
 	{
 		.wai = 0x69,
 		.max_fifo_size = 682,
 		.id = {
 			[0] = ST_LSM6DS3H_ID,
+		},
+		.decimator = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x08,
+				.mask = GENMASK(2, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x08,
+				.mask = GENMASK(5, 3),
+			},
 		},
 	},
 	{
@@ -174,6 +192,16 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.id = {
 			[0] = ST_LSM6DSL_ID,
 			[1] = ST_LSM6DSM_ID,
+		},
+		.decimator = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x08,
+				.mask = GENMASK(2, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x08,
+				.mask = GENMASK(5, 3),
+			},
 		},
 	},
 };
@@ -645,7 +673,6 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_acc_channels);
 		iio_dev->info = &st_lsm6dsx_acc_info;
 
-		sensor->decimator_mask = ST_LSM6DSX_REG_ACC_DEC_MASK;
 		scnprintf(sensor->name, sizeof(sensor->name), "%s_accel",
 			  name);
 		break;
@@ -654,7 +681,6 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_gyro_channels);
 		iio_dev->info = &st_lsm6dsx_gyro_info;
 
-		sensor->decimator_mask = ST_LSM6DSX_REG_GYRO_DEC_MASK;
 		scnprintf(sensor->name, sizeof(sensor->name), "%s_gyro",
 			  name);
 		break;
