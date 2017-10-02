@@ -17,13 +17,6 @@ enum ring_flags {
 	RING_FLAG_ENABLE = 1 << 31,
 };
 
-enum ring_desc_flags {
-	RING_DESC_ISOCH = 0x1, /* TX only? */
-	RING_DESC_COMPLETED = 0x2, /* set by NHI */
-	RING_DESC_POSTED = 0x4, /* always set this */
-	RING_DESC_INTERRUPT = 0x8, /* request an interrupt on completion */
-};
-
 /**
  * struct ring_desc - TX/RX ring entry
  *

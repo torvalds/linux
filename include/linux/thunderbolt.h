@@ -479,6 +479,24 @@ struct ring_frame;
 typedef void (*ring_cb)(struct tb_ring *, struct ring_frame *, bool canceled);
 
 /**
+ * enum ring_desc_flags - Flags for DMA ring descriptor
+ * %RING_DESC_ISOCH: Enable isonchronous DMA (Tx only)
+ * %RING_DESC_CRC_ERROR: In frame mode CRC check failed for the frame (Rx only)
+ * %RING_DESC_COMPLETED: Descriptor completed (set by NHI)
+ * %RING_DESC_POSTED: Always set this
+ * %RING_DESC_BUFFER_OVERRUN: RX buffer overrun
+ * %RING_DESC_INTERRUPT: Request an interrupt on completion
+ */
+enum ring_desc_flags {
+	RING_DESC_ISOCH = 0x1,
+	RING_DESC_CRC_ERROR = 0x1,
+	RING_DESC_COMPLETED = 0x2,
+	RING_DESC_POSTED = 0x4,
+	RING_DESC_BUFFER_OVERRUN = 0x04,
+	RING_DESC_INTERRUPT = 0x8,
+};
+
+/**
  * struct ring_frame - For use with ring_rx/ring_tx
  * @buffer_phy: DMA mapped address of the frame
  * @callback: Callback called when the frame is finished
