@@ -188,7 +188,15 @@ EXPORT_SYMBOL(drm_panel_bridge_add);
  */
 void drm_panel_bridge_remove(struct drm_bridge *bridge)
 {
-	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
+	struct panel_bridge *panel_bridge;
+
+	if (!bridge)
+		return;
+
+	if (bridge->funcs != &panel_bridge_bridge_funcs)
+		return;
+
+	panel_bridge = drm_bridge_to_panel_bridge(bridge);
 
 	drm_bridge_remove(bridge);
 	devm_kfree(panel_bridge->panel->dev, bridge);
