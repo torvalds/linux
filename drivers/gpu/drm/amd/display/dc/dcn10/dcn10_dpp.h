@@ -1264,23 +1264,6 @@ struct dcn10_dpp {
 	bool is_write_to_ram_a_safe;
 };
 
-
-enum lb_memory_config {
-	/* Enable all 3 pieces of memory */
-	LB_MEMORY_CONFIG_0 = 0,
-
-	/* Enable only the first piece of memory */
-	LB_MEMORY_CONFIG_1 = 1,
-
-	/* Enable only the second piece of memory */
-	LB_MEMORY_CONFIG_2 = 2,
-
-	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
-	 * last piece of chroma memory used for the luma storage
-	 */
-	LB_MEMORY_CONFIG_3 = 3
-};
-
 enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_BYPASS = 0,
 	INPUT_CSC_SELECT_ICSC,
@@ -1291,6 +1274,12 @@ bool is_lb_conf_valid(
 		int ceil_vratio,
 		int num_partitions,
 		int vtaps);
+
+void dscl1_calc_lb_num_partitions(
+		const struct scaler_data *scl_data,
+		enum lb_memory_config lb_config,
+		int *num_part_y,
+		int *num_part_c);
 
 void ippn10_degamma_ram_select(
 		struct transform *xfm_base,

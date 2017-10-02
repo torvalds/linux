@@ -31,6 +31,7 @@
 #include "dcn10_dpp.h"
 #include "basics/conversion.h"
 
+
 #define NUM_PHASES    64
 #define HORZ_MAX_TAPS 8
 #define VERT_MAX_TAPS 8
@@ -168,11 +169,10 @@ static enum dscl_mode_sel get_dscl_mode(
 		const struct scaler_data *data,
 		bool dbg_always_scale)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 	const long long one = dal_fixed31_32_one.value;
 
-	if (xfm->tf_mask->PIXEL_DEPTH) {
-		/* DSCL caps: LB data is fixed format */
+	if (xfm_base->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
+		/* DSCL is processing data in fixed format */
 		if (data->format == PIXEL_FORMAT_FP16)
 			return DSCL_MODE_DSCL_BYPASS;
 	}
@@ -204,8 +204,8 @@ static void dpp_set_lb(
 	enum lb_memory_config mem_size_config)
 {
 	/* LB */
-	if (xfm->tf_mask->PIXEL_DEPTH) {
-		/* DSCL caps: LB data is fixed format */
+	if (xfm->base.caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
+		/* DSCL caps: pixel data processed in fixed format */
 		uint32_t pixel_depth = get_pixel_depth_val(lb_params->depth);
 		uint32_t dyn_pix_depth = lb_params->dynamic_pixel_depth;
 
@@ -400,7 +400,7 @@ static int get_lb_depth_bpc(enum lb_pixel_depth depth)
 	}
 }
 
-static void dscl1_calc_lb_num_partitions(
+void dscl1_calc_lb_num_partitions(
 		const struct scaler_data *scl_data,
 		enum lb_memory_config lb_config,
 		int *num_part_y,
@@ -458,7 +458,7 @@ bool is_lb_conf_valid(int ceil_vratio, int num_partitions, int vtaps)
 }
 
 /*find first match configuration which meets the min required lb size*/
-static enum lb_memory_config dpp10_find_lb_memory_config(
+static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
 		const struct scaler_data *scl_data)
 {
 	int num_part_y, num_part_c;
@@ -466,15 +466,19 @@ static enum lb_memory_config dpp10_find_lb_memory_config(
 	int vtaps_c = scl_data->taps.v_taps_c;
 	int ceil_vratio = dal_fixed31_32_ceil(scl_data->ratios.vert);
 	int ceil_vratio_c = dal_fixed31_32_ceil(scl_data->ratios.vert_c);
+	enum lb_memory_config mem_cfg = LB_MEMORY_CONFIG_0;
 
-	dscl1_calc_lb_num_partitions(
+	if (xfm->base.ctx->dc->debug.use_max_lb)
+		return mem_cfg;
+
+	xfm->base.caps->dscl_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_1, &num_part_y, &num_part_c);
 
 	if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
 			&& is_lb_conf_valid(ceil_vratio_c, num_part_c, vtaps_c))
 		return LB_MEMORY_CONFIG_1;
 
-	dscl1_calc_lb_num_partitions(
+	xfm->base.caps->dscl_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_2, &num_part_y, &num_part_c);
 
 	if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
@@ -483,7 +487,7 @@ static enum lb_memory_config dpp10_find_lb_memory_config(
 
 	if (scl_data->format == PIXEL_FORMAT_420BPP8
 			|| scl_data->format == PIXEL_FORMAT_420BPP10) {
-		dscl1_calc_lb_num_partitions(
+		xfm->base.caps->dscl_calc_lb_num_partitions(
 				scl_data, LB_MEMORY_CONFIG_3, &num_part_y, &num_part_c);
 
 		if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
@@ -491,7 +495,7 @@ static enum lb_memory_config dpp10_find_lb_memory_config(
 			return LB_MEMORY_CONFIG_3;
 	}
 
-	dscl1_calc_lb_num_partitions(
+	xfm->base.caps->dscl_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_0, &num_part_y, &num_part_c);
 
 	/*Ensure we can support the requested number of vtaps*/
@@ -499,22 +503,6 @@ static enum lb_memory_config dpp10_find_lb_memory_config(
 			&& is_lb_conf_valid(ceil_vratio_c, num_part_c, vtaps_c));
 
 	return LB_MEMORY_CONFIG_0;
-}
-
-/*find first match configuration which meets the min required lb size*/
-static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
-		const struct scaler_data *scl_data)
-{
-	enum lb_memory_config mem_cfg = LB_MEMORY_CONFIG_0;
-
-	if (xfm->base.ctx->dc->debug.use_max_lb)
-		return mem_cfg;
-
-	if (xfm->tf_mask->PIXEL_DEPTH) {
-		/* DSCL caps: LB data is fixed format */
-		mem_cfg = dpp10_find_lb_memory_config(scl_data);
-	}
-	return mem_cfg;
 }
 
 void dpp_set_scaler_auto_scale(

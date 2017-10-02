@@ -38,6 +38,7 @@ struct transform {
 	const struct transform_funcs *funcs;
 	struct dc_context *ctx;
 	int inst;
+	struct dpp_caps *caps;
 	struct pwl_params regamma_params;
 };
 
@@ -107,6 +108,22 @@ enum graphics_gamut_adjust_type {
 	GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS = 0,
 	GRAPHICS_GAMUT_ADJUST_TYPE_HW, /* without adjustments */
 	GRAPHICS_GAMUT_ADJUST_TYPE_SW /* use adjustments */
+};
+
+enum lb_memory_config {
+	/* Enable all 3 pieces of memory */
+	LB_MEMORY_CONFIG_0 = 0,
+
+	/* Enable only the first piece of memory */
+	LB_MEMORY_CONFIG_1 = 1,
+
+	/* Enable only the second piece of memory */
+	LB_MEMORY_CONFIG_2 = 2,
+
+	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
+	 * last piece of chroma memory used for the luma storage
+	 */
+	LB_MEMORY_CONFIG_3 = 3
 };
 
 struct xfm_grph_csc_adjustment {
@@ -261,5 +278,34 @@ const uint16_t *get_filter_5tap_64p(struct fixed31_32 ratio);
 const uint16_t *get_filter_6tap_64p(struct fixed31_32 ratio);
 const uint16_t *get_filter_7tap_64p(struct fixed31_32 ratio);
 const uint16_t *get_filter_8tap_64p(struct fixed31_32 ratio);
+
+
+/* Defines the pixel processing capability of the DSCL */
+enum dscl_data_processing_format {
+	DSCL_DATA_PRCESSING_FIXED_FORMAT,	/* The DSCL processes pixel data in fixed format */
+	DSCL_DATA_PRCESSING_FLOAT_FORMAT,	/* The DSCL processes pixel data in float format */
+};
+
+/*
+ * The DPP capabilities structure contains enumerations to specify the
+ * HW processing features and an associated function pointers to
+ * provide the function interface that can be overloaded for implementations
+ * based on different capabilities
+ */
+struct dpp_caps {
+	/* DSCL processing pixel data in fixed or float format */
+	enum dscl_data_processing_format dscl_data_proc_format;
+
+	/* Calculates the number of partitions in the line buffer.
+	 * The implementation of this function is overloaded for
+	 * different versions of DSCL LB.
+	 */
+	void (*dscl_calc_lb_num_partitions)(
+			const struct scaler_data *scl_data,
+			enum lb_memory_config lb_config,
+			int *num_part_y,
+			int *num_part_c);
+};
+
 
 #endif

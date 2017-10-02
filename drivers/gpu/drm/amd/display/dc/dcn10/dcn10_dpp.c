@@ -444,6 +444,10 @@ static const struct transform_funcs dcn10_dpp_funcs = {
 		.set_cursor_position = dcn10_set_cursor_position,
 };
 
+static struct dpp_caps dcn10_dpp_cap = {
+	.dscl_data_proc_format = DSCL_DATA_PRCESSING_FIXED_FORMAT,
+	.dscl_calc_lb_num_partitions = dscl1_calc_lb_num_partitions,
+};
 
 /*****************************************/
 /* Constructor, Destructor               */
@@ -461,6 +465,7 @@ void dcn10_dpp_construct(
 
 	xfm->base.inst = inst;
 	xfm->base.funcs = &dcn10_dpp_funcs;
+	xfm->base.caps = &dcn10_dpp_cap;
 
 	xfm->tf_regs = tf_regs;
 	xfm->tf_shift = tf_shift;
