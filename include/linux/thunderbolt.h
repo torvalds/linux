@@ -1,6 +1,7 @@
 /*
  * Thunderbolt service API
  *
+ * Copyright (C) 2014 Andreas Noever <andreas.noever@gmail.com>
  * Copyright (C) 2017, Intel Corporation
  * Authors: Michael Jamet <michael.jamet@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
@@ -15,6 +16,22 @@
 
 #include <linux/list.h>
 #include <linux/uuid.h>
+
+enum tb_cfg_pkg_type {
+	TB_CFG_PKG_READ = 1,
+	TB_CFG_PKG_WRITE = 2,
+	TB_CFG_PKG_ERROR = 3,
+	TB_CFG_PKG_NOTIFY_ACK = 4,
+	TB_CFG_PKG_EVENT = 5,
+	TB_CFG_PKG_XDOMAIN_REQ = 6,
+	TB_CFG_PKG_XDOMAIN_RESP = 7,
+	TB_CFG_PKG_OVERRIDE = 8,
+	TB_CFG_PKG_RESET = 9,
+	TB_CFG_PKG_ICM_EVENT = 10,
+	TB_CFG_PKG_ICM_CMD = 11,
+	TB_CFG_PKG_ICM_RESP = 12,
+	TB_CFG_PKG_PREPARE_TO_SLEEP = 13,
+};
 
 /**
  * struct tb_property_dir - XDomain property directory

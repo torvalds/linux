@@ -15,23 +15,6 @@
 #include <linux/types.h>
 #include <linux/uuid.h>
 
-enum tb_cfg_pkg_type {
-	TB_CFG_PKG_READ = 1,
-	TB_CFG_PKG_WRITE = 2,
-	TB_CFG_PKG_ERROR = 3,
-	TB_CFG_PKG_NOTIFY_ACK = 4,
-	TB_CFG_PKG_EVENT = 5,
-	TB_CFG_PKG_XDOMAIN_REQ = 6,
-	TB_CFG_PKG_XDOMAIN_RESP = 7,
-	TB_CFG_PKG_OVERRIDE = 8,
-	TB_CFG_PKG_RESET = 9,
-	TB_CFG_PKG_ICM_EVENT = 10,
-	TB_CFG_PKG_ICM_CMD = 11,
-	TB_CFG_PKG_ICM_RESP = 12,
-	TB_CFG_PKG_PREPARE_TO_SLEEP = 0xd,
-
-};
-
 enum tb_cfg_space {
 	TB_CFG_HOPS = 0,
 	TB_CFG_PORT = 1,
