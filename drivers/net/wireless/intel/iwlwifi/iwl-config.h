@@ -396,6 +396,7 @@ struct iwl_cfg {
 	u8 max_vht_ampdu_exponent;
 	u8 ucode_api_max;
 	u8 ucode_api_min;
+	u32 min_umac_error_event_table;
 };
 
 /*
