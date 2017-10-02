@@ -83,6 +83,18 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* 2 MiB reserved for Hardware ROM Firmware? */
+		hwrom@0 {
+			reg = <0x0 0x200000>;
+			no-map;
+		};
+	};
+
 	scu@c4300000 {
 		compatible = "arm,cortex-a5-scu";
 		reg = <0xc4300000 0x100>;
