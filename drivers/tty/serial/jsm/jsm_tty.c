@@ -474,7 +474,7 @@ int jsm_uart_port_init(struct jsm_board *brd)
 			set_bit(line, linemap);
 		brd->channels[i]->uart_port.line = line;
 		rc = uart_add_one_port (&jsm_uart_driver, &brd->channels[i]->uart_port);
-		if (rc){
+		if (rc) {
 			printk(KERN_INFO "jsm: Port %d failed. Aborting...\n", i);
 			return rc;
 		}
