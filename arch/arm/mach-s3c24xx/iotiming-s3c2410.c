@@ -454,10 +454,8 @@ int s3c2410_iotiming_get(struct s3c_cpufreq_config *cfg,
 			       __func__, bank, bankcon);
 
 		bt = kzalloc(sizeof(struct s3c2410_iobank_timing), GFP_KERNEL);
-		if (!bt) {
-			printk(KERN_ERR "%s: no memory for bank\n", __func__);
+		if (!bt)
 			return -ENOMEM;
-		}
 
 		/* find out in nWait is enabled for bank. */
 

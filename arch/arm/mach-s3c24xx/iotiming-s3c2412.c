@@ -243,10 +243,8 @@ int s3c2412_iotiming_get(struct s3c_cpufreq_config *cfg,
 			continue;
 
 		bt = kzalloc(sizeof(struct s3c2412_iobank_timing), GFP_KERNEL);
-		if (!bt) {
-			printk(KERN_ERR "%s: no memory for bank\n", __func__);
+		if (!bt)
 			return -ENOMEM;
-		}
 
 		timings->bank[bank].io_2412 = bt;
 		s3c2412_iotiming_getbank(cfg, bt, bank);
