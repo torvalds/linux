@@ -192,7 +192,7 @@ static int ipvlan_init(struct net_device *dev)
 
 	netdev_lockdep_set_classes(dev);
 
-	ipvlan->pcpu_stats = alloc_percpu(struct ipvl_pcpu_stats);
+	ipvlan->pcpu_stats = netdev_alloc_pcpu_stats(struct ipvl_pcpu_stats);
 	if (!ipvlan->pcpu_stats)
 		return -ENOMEM;
 

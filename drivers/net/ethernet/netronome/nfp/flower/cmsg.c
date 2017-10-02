@@ -115,14 +115,10 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 		return;
 	}
 
-	if (link) {
+	if (link)
 		netif_carrier_on(netdev);
-		rtnl_lock();
-		dev_set_mtu(netdev, be16_to_cpu(msg->mtu));
-		rtnl_unlock();
-	} else {
+	else
 		netif_carrier_off(netdev);
-	}
 	rcu_read_unlock();
 }
 

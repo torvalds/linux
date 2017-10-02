@@ -1835,7 +1835,7 @@ static int __init its_of_probe(struct device_node *node)
 
 #define ACPI_GICV3_ITS_MEM_SIZE (SZ_128K)
 
-#if defined(CONFIG_ACPI_NUMA) && (ACPI_CA_VERSION >= 0x20170531)
+#ifdef CONFIG_ACPI_NUMA
 struct its_srat_map {
 	/* numa node id */
 	u32	numa_node;
@@ -1843,7 +1843,7 @@ struct its_srat_map {
 	u32	its_id;
 };
 
-static struct its_srat_map its_srat_maps[MAX_NUMNODES] __initdata;
+static struct its_srat_map *its_srat_maps __initdata;
 static int its_in_srat __initdata;
 
 static int __init acpi_get_its_numa_node(u32 its_id)
@@ -1855,6 +1855,12 @@ static int __init acpi_get_its_numa_node(u32 its_id)
 			return its_srat_maps[i].numa_node;
 	}
 	return NUMA_NO_NODE;
+}
+
+static int __init gic_acpi_match_srat_its(struct acpi_subtable_header *header,
+					  const unsigned long end)
+{
+	return 0;
 }
 
 static int __init gic_acpi_parse_srat_its(struct acpi_subtable_header *header,
@@ -1870,12 +1876,6 @@ static int __init gic_acpi_parse_srat_its(struct acpi_subtable_header *header,
 	if (its_affinity->header.length < sizeof(*its_affinity)) {
 		pr_err("SRAT: Invalid header length %d in ITS affinity\n",
 			its_affinity->header.length);
-		return -EINVAL;
-	}
-
-	if (its_in_srat >= MAX_NUMNODES) {
-		pr_err("SRAT: ITS affinity exceeding max count[%d]\n",
-				MAX_NUMNODES);
 		return -EINVAL;
 	}
 
@@ -1897,14 +1897,37 @@ static int __init gic_acpi_parse_srat_its(struct acpi_subtable_header *header,
 
 static void __init acpi_table_parse_srat_its(void)
 {
+	int count;
+
+	count = acpi_table_parse_entries(ACPI_SIG_SRAT,
+			sizeof(struct acpi_table_srat),
+			ACPI_SRAT_TYPE_GIC_ITS_AFFINITY,
+			gic_acpi_match_srat_its, 0);
+	if (count <= 0)
+		return;
+
+	its_srat_maps = kmalloc(count * sizeof(struct its_srat_map),
+				GFP_KERNEL);
+	if (!its_srat_maps) {
+		pr_warn("SRAT: Failed to allocate memory for its_srat_maps!\n");
+		return;
+	}
+
 	acpi_table_parse_entries(ACPI_SIG_SRAT,
 			sizeof(struct acpi_table_srat),
 			ACPI_SRAT_TYPE_GIC_ITS_AFFINITY,
 			gic_acpi_parse_srat_its, 0);
 }
+
+/* free the its_srat_maps after ITS probing */
+static void __init acpi_its_srat_maps_free(void)
+{
+	kfree(its_srat_maps);
+}
 #else
 static void __init acpi_table_parse_srat_its(void)	{ }
 static int __init acpi_get_its_numa_node(u32 its_id) { return NUMA_NO_NODE; }
+static void __init acpi_its_srat_maps_free(void) { }
 #endif
 
 static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
@@ -1951,6 +1974,7 @@ static void __init its_acpi_probe(void)
 	acpi_table_parse_srat_its();
 	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_TRANSLATOR,
 			      gic_acpi_parse_madt_its, 0);
+	acpi_its_srat_maps_free();
 }
 #else
 static void __init its_acpi_probe(void) { }

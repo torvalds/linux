@@ -105,9 +105,9 @@ gm200_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	}
 
 	ctrl  = nvkm_rd32(device, 0x00d954 + base);
-	ctrl &= ~0x0001f0ff;
+	ctrl &= ~0x0001f1ff;
 	ctrl |= type << 12;
-	ctrl |= *size - 1;
+	ctrl |= (*size ? (*size - 1) : 0x00000100);
 	nvkm_wr32(device, 0x00d950 + base, addr);
 
 	/* (maybe) retry transaction a number of times on failure... */
@@ -162,6 +162,7 @@ out:
 
 static const struct nvkm_i2c_aux_func
 gm200_i2c_aux_func = {
+	.address_only = true,
 	.xfer = gm200_i2c_aux_xfer,
 };
 

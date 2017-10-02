@@ -216,8 +216,9 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	const char *fw_pre_name;
 
 	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
-	    CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP)
-		fw_pre_name = cfg->fw_name_pre_next_step;
+	    (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP ||
+	     CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_C_STEP))
+		fw_pre_name = cfg->fw_name_pre_b_or_c_step;
 	else if (drv->trans->cfg->integrated &&
 		 CSR_HW_RFID_STEP(drv->trans->hw_rf_id) == SILICON_B_STEP &&
 		 cfg->fw_name_pre_rf_next_step)

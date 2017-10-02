@@ -18,11 +18,11 @@
      id="metadata260">
     <rdf:RDF>
       <cc:Work
-         rdf:about="">
-        <dc:format>image/svg+xml</dc:format>
-        <dc:type
-           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+	 rdf:about="">
+	<dc:format>image/svg+xml</dc:format>
+	<dc:type
+	   rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+	<dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>

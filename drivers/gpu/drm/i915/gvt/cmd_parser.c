@@ -2714,7 +2714,7 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 unmap_src:
 	i915_gem_object_unpin_map(obj);
 put_obj:
-	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
+	i915_gem_object_put(obj);
 	return ret;
 }
 

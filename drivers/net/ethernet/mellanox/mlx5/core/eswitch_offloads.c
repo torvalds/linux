@@ -815,7 +815,7 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports)
 	struct mlx5_eswitch_rep *rep;
 	int vport;
 
-	for (vport = 0; vport < nvports; vport++) {
+	for (vport = nvports - 1; vport >= 0; vport--) {
 		rep = &esw->offloads.vport_reps[vport];
 		if (!rep->valid)
 			continue;

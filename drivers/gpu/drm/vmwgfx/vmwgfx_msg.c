@@ -244,7 +244,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 		reply_len = ebx;
 		reply     = kzalloc(reply_len + 1, GFP_KERNEL);
-		if (reply == NULL) {
+		if (!reply) {
 			DRM_ERROR("Cannot allocate memory for reply\n");
 			return -ENOMEM;
 		}
@@ -340,7 +340,7 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 
 	msg_len = strlen(guest_info_param) + strlen("info-get ") + 1;
 	msg = kzalloc(msg_len, GFP_KERNEL);
-	if (msg == NULL) {
+	if (!msg) {
 		DRM_ERROR("Cannot allocate memory to get %s", guest_info_param);
 		return -ENOMEM;
 	}
@@ -400,7 +400,7 @@ int vmw_host_log(const char *log)
 
 	msg_len = strlen(log) + strlen("log ") + 1;
 	msg = kzalloc(msg_len, GFP_KERNEL);
-	if (msg == NULL) {
+	if (!msg) {
 		DRM_ERROR("Cannot allocate memory for log message\n");
 		return -ENOMEM;
 	}

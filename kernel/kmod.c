@@ -71,6 +71,18 @@ static atomic_t kmod_concurrent_max = ATOMIC_INIT(MAX_KMOD_CONCURRENT);
 static DECLARE_WAIT_QUEUE_HEAD(kmod_wq);
 
 /*
+ * This is a restriction on having *all* MAX_KMOD_CONCURRENT threads
+ * running at the same time without returning. When this happens we
+ * believe you've somehow ended up with a recursive module dependency
+ * creating a loop.
+ *
+ * We have no option but to fail.
+ *
+ * Userspace should proactively try to detect and prevent these.
+ */
+#define MAX_KMOD_ALL_BUSY_TIMEOUT 5
+
+/*
 	modprobe_path is set via /proc/sys.
 */
 char modprobe_path[KMOD_PATH_LEN] = "/sbin/modprobe";
@@ -167,8 +179,17 @@ int __request_module(bool wait, const char *fmt, ...)
 		pr_warn_ratelimited("request_module: kmod_concurrent_max (%u) close to 0 (max_modprobes: %u), for module %s, throttling...",
 				    atomic_read(&kmod_concurrent_max),
 				    MAX_KMOD_CONCURRENT, module_name);
-		wait_event_interruptible(kmod_wq,
-					 atomic_dec_if_positive(&kmod_concurrent_max) >= 0);
+		ret = wait_event_killable_timeout(kmod_wq,
+						  atomic_dec_if_positive(&kmod_concurrent_max) >= 0,
+						  MAX_KMOD_ALL_BUSY_TIMEOUT * HZ);
+		if (!ret) {
+			pr_warn_ratelimited("request_module: modprobe %s cannot be processed, kmod busy with %d threads for more than %d seconds now",
+					    module_name, MAX_KMOD_CONCURRENT, MAX_KMOD_ALL_BUSY_TIMEOUT);
+			return -ETIME;
+		} else if (ret == -ERESTARTSYS) {
+			pr_warn_ratelimited("request_module: sigkill sent for modprobe %s, giving up", module_name);
+			return ret;
+		}
 	}
 
 	trace_module_request(module_name, wait, _RET_IP_);

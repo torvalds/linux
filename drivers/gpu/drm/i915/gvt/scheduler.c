@@ -432,7 +432,8 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 
 		i915_gem_request_put(fetch_and_zero(&workload->req));
 
-		if (!workload->status && !vgpu->resetting) {
+		if (!workload->status && !(vgpu->resetting_eng &
+					   ENGINE_MASK(ring_id))) {
 			update_guest_context(workload);
 
 			for_each_set_bit(event, workload->pending_events,

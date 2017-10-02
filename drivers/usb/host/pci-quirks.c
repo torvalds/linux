@@ -98,6 +98,7 @@ enum amd_chipset_gen {
 	AMD_CHIPSET_HUDSON2,
 	AMD_CHIPSET_BOLTON,
 	AMD_CHIPSET_YANGTZE,
+	AMD_CHIPSET_TAISHAN,
 	AMD_CHIPSET_UNKNOWN,
 };
 
@@ -141,6 +142,11 @@ static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 			pinfo->sb_type.gen = AMD_CHIPSET_SB700;
 		else if (rev >= 0x40 && rev <= 0x4f)
 			pinfo->sb_type.gen = AMD_CHIPSET_SB800;
+	}
+	pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+					  0x145c, NULL);
+	if (pinfo->smbus_dev) {
+		pinfo->sb_type.gen = AMD_CHIPSET_TAISHAN;
 	} else {
 		pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
 				PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, NULL);
@@ -260,11 +266,12 @@ int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *pdev)
 {
 	/* Make sure amd chipset type has already been initialized */
 	usb_amd_find_chipset_info();
-	if (amd_chipset.sb_type.gen != AMD_CHIPSET_YANGTZE)
-		return 0;
-
-	dev_dbg(&pdev->dev, "QUIRK: Enable AMD remote wakeup fix\n");
-	return 1;
+	if (amd_chipset.sb_type.gen == AMD_CHIPSET_YANGTZE ||
+	    amd_chipset.sb_type.gen == AMD_CHIPSET_TAISHAN) {
+		dev_dbg(&pdev->dev, "QUIRK: Enable AMD remote wakeup fix\n");
+		return 1;
+	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_hcd_amd_remote_wakeup_quirk);
 
@@ -1150,3 +1157,23 @@ static void quirk_usb_early_handoff(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
 			PCI_CLASS_SERIAL_USB, 8, quirk_usb_early_handoff);
+
+bool usb_xhci_needs_pci_reset(struct pci_dev *pdev)
+{
+	/*
+	 * Our dear uPD72020{1,2} friend only partially resets when
+	 * asked to via the XHCI interface, and may end up doing DMA
+	 * at the wrong addresses, as it keeps the top 32bit of some
+	 * addresses from its previous programming under obscure
+	 * circumstances.
+	 * Give it a good wack at probe time. Unfortunately, this
+	 * needs to happen before we've had a chance to discover any
+	 * quirk, or the system will be in a rather bad state.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_RENESAS &&
+	    (pdev->device == 0x0014 || pdev->device == 0x0015))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(usb_xhci_needs_pci_reset);

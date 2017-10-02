@@ -1258,8 +1258,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_write_dirty_buffers_async);
  */
 int dm_bufio_write_dirty_buffers(struct dm_bufio_client *c)
 {
-	blk_status_t a;
-	int f;
+	int a, f;
 	unsigned long buffers_processed = 0;
 	struct dm_buffer *b, *tmp;
 

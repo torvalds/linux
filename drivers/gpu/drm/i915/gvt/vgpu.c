@@ -480,11 +480,13 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
+	unsigned int resetting_eng = dmlr ? ALL_ENGINES : engine_mask;
 
 	gvt_dbg_core("------------------------------------------\n");
 	gvt_dbg_core("resseting vgpu%d, dmlr %d, engine_mask %08x\n",
 		     vgpu->id, dmlr, engine_mask);
-	vgpu->resetting = true;
+
+	vgpu->resetting_eng = resetting_eng;
 
 	intel_vgpu_stop_schedule(vgpu);
 	/*
@@ -497,7 +499,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		mutex_lock(&gvt->lock);
 	}
 
-	intel_vgpu_reset_execlist(vgpu, dmlr ? ALL_ENGINES : engine_mask);
+	intel_vgpu_reset_execlist(vgpu, resetting_eng);
 
 	/* full GPU reset or device model level reset */
 	if (engine_mask == ALL_ENGINES || dmlr) {
@@ -520,7 +522,7 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		}
 	}
 
-	vgpu->resetting = false;
+	vgpu->resetting_eng = 0;
 	gvt_dbg_core("reset vgpu%d done\n", vgpu->id);
 	gvt_dbg_core("------------------------------------------\n");
 }

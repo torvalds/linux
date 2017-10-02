@@ -266,7 +266,7 @@ struct ov8858_device {
 	const struct ov8858_reg *regs;
 	struct ov8858_vcm *vcm_driver;
 	const struct ov8858_resolution *curr_res_table;
-	int entries_curr_table;
+	unsigned long entries_curr_table;
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *run_mode;

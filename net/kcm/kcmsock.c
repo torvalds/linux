@@ -1383,6 +1383,10 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	if (!csk)
 		return -EINVAL;
 
+	/* We must prevent loops or risk deadlock ! */
+	if (csk->sk_family == PF_KCM)
+		return -EOPNOTSUPP;
+
 	psock = kmem_cache_zalloc(kcm_psockp, GFP_KERNEL);
 	if (!psock)
 		return -ENOMEM;

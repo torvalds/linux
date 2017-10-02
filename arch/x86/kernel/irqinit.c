@@ -150,6 +150,8 @@ static void __init apic_intr_init(void)
 	alloc_intr_gate(POSTED_INTR_VECTOR, kvm_posted_intr_ipi);
 	/* IPI for KVM to deliver interrupt to wake up tasks */
 	alloc_intr_gate(POSTED_INTR_WAKEUP_VECTOR, kvm_posted_intr_wakeup_ipi);
+	/* IPI for KVM to deliver nested posted interrupt */
+	alloc_intr_gate(POSTED_INTR_NESTED_VECTOR, kvm_posted_intr_nested_ipi);
 #endif
 
 	/* IPI vectors for APIC spurious and error interrupts */

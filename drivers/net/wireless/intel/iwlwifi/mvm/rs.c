@@ -1291,7 +1291,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 * first index into rate scale table.
 	 */
 	if (info->flags & IEEE80211_TX_STAT_AMPDU) {
-		rs_collect_tpc_data(mvm, lq_sta, curr_tbl, lq_rate.index,
+		rs_collect_tpc_data(mvm, lq_sta, curr_tbl, tx_resp_rate.index,
 				    info->status.ampdu_len,
 				    info->status.ampdu_ack_len,
 				    reduced_txp);
@@ -1312,7 +1312,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		if (info->status.ampdu_ack_len == 0)
 			info->status.ampdu_len = 1;
 
-		rs_collect_tlc_data(mvm, lq_sta, curr_tbl, lq_rate.index,
+		rs_collect_tlc_data(mvm, lq_sta, curr_tbl, tx_resp_rate.index,
 				    info->status.ampdu_len,
 				    info->status.ampdu_ack_len);
 
@@ -1348,11 +1348,11 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 				continue;
 
 			rs_collect_tpc_data(mvm, lq_sta, tmp_tbl,
-					    lq_rate.index, 1,
+					    tx_resp_rate.index, 1,
 					    i < retries ? 0 : legacy_success,
 					    reduced_txp);
 			rs_collect_tlc_data(mvm, lq_sta, tmp_tbl,
-					    lq_rate.index, 1,
+					    tx_resp_rate.index, 1,
 					    i < retries ? 0 : legacy_success);
 		}
 

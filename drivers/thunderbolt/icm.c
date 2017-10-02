@@ -904,7 +904,14 @@ static int icm_driver_ready(struct tb *tb)
 
 static int icm_suspend(struct tb *tb)
 {
-	return nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
+	int ret;
+
+	ret = nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
+	if (ret)
+		tb_info(tb, "Ignoring mailbox command error (%d) in %s\n",
+			ret, __func__);
+
+	return 0;
 }
 
 /*

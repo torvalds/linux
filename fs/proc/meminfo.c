@@ -106,13 +106,13 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		    global_node_page_state(NR_FILE_MAPPED));
 	show_val_kb(m, "Shmem:          ", i.sharedram);
 	show_val_kb(m, "Slab:           ",
-		    global_page_state(NR_SLAB_RECLAIMABLE) +
-		    global_page_state(NR_SLAB_UNRECLAIMABLE));
+		    global_node_page_state(NR_SLAB_RECLAIMABLE) +
+		    global_node_page_state(NR_SLAB_UNRECLAIMABLE));
 
 	show_val_kb(m, "SReclaimable:   ",
-		    global_page_state(NR_SLAB_RECLAIMABLE));
+		    global_node_page_state(NR_SLAB_RECLAIMABLE));
 	show_val_kb(m, "SUnreclaim:     ",
-		    global_page_state(NR_SLAB_UNRECLAIMABLE));
+		    global_node_page_state(NR_SLAB_UNRECLAIMABLE));
 	seq_printf(m, "KernelStack:    %8lu kB\n",
 		   global_page_state(NR_KERNEL_STACK_KB));
 	show_val_kb(m, "PageTables:     ",

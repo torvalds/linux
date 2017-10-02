@@ -75,6 +75,8 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(STATS),
 	QUEUE_FLAG_NAME(POLL_STATS),
 	QUEUE_FLAG_NAME(REGISTERED),
+	QUEUE_FLAG_NAME(SCSI_PASSTHROUGH),
+	QUEUE_FLAG_NAME(QUIESCED),
 };
 #undef QUEUE_FLAG_NAME
 
@@ -265,6 +267,7 @@ static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(RAHEAD),
 	CMD_FLAG_NAME(BACKGROUND),
 	CMD_FLAG_NAME(NOUNMAP),
+	CMD_FLAG_NAME(NOWAIT),
 };
 #undef CMD_FLAG_NAME
 

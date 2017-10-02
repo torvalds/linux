@@ -3211,6 +3211,8 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			run->fail_entry.hardware_entry_failure_reason = 0;
 			return -EINVAL;
 		}
+		/* Enable TM so we can read the TM SPRs */
+		mtmsr(mfmsr() | MSR_TM);
 		current->thread.tm_tfhar = mfspr(SPRN_TFHAR);
 		current->thread.tm_tfiar = mfspr(SPRN_TFIAR);
 		current->thread.tm_texasr = mfspr(SPRN_TEXASR);

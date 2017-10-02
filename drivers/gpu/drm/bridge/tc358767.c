@@ -1255,7 +1255,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* port@2 is the output port */
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0, &tc->panel, NULL);
-	if (ret)
+	if (ret && ret != -ENODEV)
 		return ret;
 
 	/* Shut down GPIO is optional */

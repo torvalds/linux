@@ -644,7 +644,7 @@ static int ina2xx_capture_thread(void *data)
 {
 	struct iio_dev *indio_dev = data;
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
-	unsigned int sampling_us = SAMPLING_PERIOD(chip);
+	int sampling_us = SAMPLING_PERIOD(chip);
 	int buffer_us;
 
 	/*

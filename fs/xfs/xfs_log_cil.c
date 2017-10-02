@@ -539,6 +539,7 @@ xlog_discard_endio(
 
 	INIT_WORK(&ctx->discard_endio_work, xlog_discard_endio_work);
 	queue_work(xfs_discard_wq, &ctx->discard_endio_work);
+	bio_put(bio);
 }
 
 static void

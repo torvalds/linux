@@ -132,7 +132,7 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 
 	/* Parse the card name from DT */
 	ret = snd_soc_of_parse_card_name(card, "label");
-	if (ret < 0) {
+	if (ret < 0 || !card->name) {
 		char prop[128];
 
 		snprintf(prop, sizeof(prop), "%sname", prefix);
@@ -263,6 +263,9 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 			id = i;
 		i++;
 	}
+
+	of_node_put(node);
+
 	if (id < 0)
 		return -ENODEV;
 
@@ -282,11 +285,6 @@ int asoc_simple_card_parse_graph_dai(struct device_node *ep,
 	if (!dai_name)
 		return 0;
 
-	/*
-	 * of_graph_get_port_parent() will call
-	 * of_node_put(). So, call of_node_get() here
-	 */
-	of_node_get(ep);
 	node = of_graph_get_port_parent(ep);
 
 	/* Get dai->name */

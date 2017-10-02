@@ -261,7 +261,7 @@ __xr17v35x_register_gpio(struct pci_dev *pcidev,
 }
 
 static const struct property_entry exar_gpio_properties[] = {
-	PROPERTY_ENTRY_U32("linux,first-pin", 0),
+	PROPERTY_ENTRY_U32("exar,first-pin", 0),
 	PROPERTY_ENTRY_U32("ngpios", 16),
 	{ }
 };
@@ -326,7 +326,7 @@ static int iot2040_rs485_config(struct uart_port *port,
 }
 
 static const struct property_entry iot2040_gpio_properties[] = {
-	PROPERTY_ENTRY_U32("linux,first-pin", 10),
+	PROPERTY_ENTRY_U32("exar,first-pin", 10),
 	PROPERTY_ENTRY_U32("ngpios", 1),
 	{ }
 };

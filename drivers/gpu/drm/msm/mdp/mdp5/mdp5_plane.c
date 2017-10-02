@@ -890,8 +890,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	struct mdp5_hw_pipe *right_hwpipe;
 	const struct mdp_format *format;
 	uint32_t nplanes, config = 0;
-	struct phase_step step = { 0 };
-	struct pixel_ext pe = { 0 };
+	struct phase_step step = { { 0 } };
+	struct pixel_ext pe = { { 0 } };
 	uint32_t hdecm = 0, vdecm = 0;
 	uint32_t pix_format;
 	unsigned int rotation;

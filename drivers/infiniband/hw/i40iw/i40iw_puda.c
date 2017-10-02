@@ -685,7 +685,7 @@ static enum i40iw_status_code i40iw_puda_cq_create(struct i40iw_puda_rsrc *rsrc)
 	cqsize = rsrc->cq_size * (sizeof(struct i40iw_cqe));
 	tsize = cqsize + sizeof(struct i40iw_cq_shadow_area);
 	ret = i40iw_allocate_dma_mem(dev->hw, &rsrc->cqmem, tsize,
-				     I40IW_CQ0_ALIGNMENT_MASK);
+				     I40IW_CQ0_ALIGNMENT);
 	if (ret)
 		return ret;
 

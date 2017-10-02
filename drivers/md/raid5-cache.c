@@ -236,9 +236,10 @@ struct r5l_io_unit {
 	bool need_split_bio;
 	struct bio *split_bio;
 
-	unsigned int has_flush:1;      /* include flush request */
-	unsigned int has_fua:1;        /* include fua request */
-	unsigned int has_null_flush:1; /* include empty flush request */
+	unsigned int has_flush:1;		/* include flush request */
+	unsigned int has_fua:1;			/* include fua request */
+	unsigned int has_null_flush:1;		/* include null flush request */
+	unsigned int has_flush_payload:1;	/* include flush payload  */
 	/*
 	 * io isn't sent yet, flush/fua request can only be submitted till it's
 	 * the first IO in running_ios list
@@ -571,6 +572,8 @@ static void r5l_log_endio(struct bio *bio)
 	struct r5l_io_unit *io_deferred;
 	struct r5l_log *log = io->log;
 	unsigned long flags;
+	bool has_null_flush;
+	bool has_flush_payload;
 
 	if (bio->bi_status)
 		md_error(log->rdev->mddev, log->rdev);
@@ -580,6 +583,16 @@ static void r5l_log_endio(struct bio *bio)
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_END);
+
+	/*
+	 * if the io doesn't not have null_flush or flush payload,
+	 * it is not safe to access it after releasing io_list_lock.
+	 * Therefore, it is necessary to check the condition with
+	 * the lock held.
+	 */
+	has_null_flush = io->has_null_flush;
+	has_flush_payload = io->has_flush_payload;
+
 	if (log->need_cache_flush && !list_empty(&io->stripe_list))
 		r5l_move_to_end_ios(log);
 	else
@@ -600,19 +613,23 @@ static void r5l_log_endio(struct bio *bio)
 	if (log->need_cache_flush)
 		md_wakeup_thread(log->rdev->mddev->thread);
 
-	if (io->has_null_flush) {
+	/* finish flush only io_unit and PAYLOAD_FLUSH only io_unit */
+	if (has_null_flush) {
 		struct bio *bi;
 
 		WARN_ON(bio_list_empty(&io->flush_barriers));
 		while ((bi = bio_list_pop(&io->flush_barriers)) != NULL) {
 			bio_endio(bi);
-			atomic_dec(&io->pending_stripe);
+			if (atomic_dec_and_test(&io->pending_stripe)) {
+				__r5l_stripe_write_finished(io);
+				return;
+			}
 		}
 	}
-
-	/* finish flush only io_unit and PAYLOAD_FLUSH only io_unit */
-	if (atomic_read(&io->pending_stripe) == 0)
-		__r5l_stripe_write_finished(io);
+	/* decrease pending_stripe for flush payload */
+	if (has_flush_payload)
+		if (atomic_dec_and_test(&io->pending_stripe))
+			__r5l_stripe_write_finished(io);
 }
 
 static void r5l_do_submit_io(struct r5l_log *log, struct r5l_io_unit *io)
@@ -881,6 +898,11 @@ static void r5l_append_flush_payload(struct r5l_log *log, sector_t sect)
 	payload->size = cpu_to_le32(sizeof(__le64));
 	payload->flush_stripes[0] = cpu_to_le64(sect);
 	io->meta_offset += meta_size;
+	/* multiple flush payloads count as one pending_stripe */
+	if (!io->has_flush_payload) {
+		io->has_flush_payload = 1;
+		atomic_inc(&io->pending_stripe);
+	}
 	mutex_unlock(&log->io_mutex);
 }
 
@@ -2540,23 +2562,32 @@ static ssize_t r5c_journal_mode_show(struct mddev *mddev, char *page)
  */
 int r5c_journal_mode_set(struct mddev *mddev, int mode)
 {
-	struct r5conf *conf = mddev->private;
-	struct r5l_log *log = conf->log;
-
-	if (!log)
-		return -ENODEV;
+	struct r5conf *conf;
+	int err;
 
 	if (mode < R5C_JOURNAL_MODE_WRITE_THROUGH ||
 	    mode > R5C_JOURNAL_MODE_WRITE_BACK)
 		return -EINVAL;
 
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+	conf = mddev->private;
+	if (!conf || !conf->log) {
+		mddev_unlock(mddev);
+		return -ENODEV;
+	}
+
 	if (raid5_calc_degraded(conf) > 0 &&
-	    mode == R5C_JOURNAL_MODE_WRITE_BACK)
+	    mode == R5C_JOURNAL_MODE_WRITE_BACK) {
+		mddev_unlock(mddev);
 		return -EINVAL;
+	}
 
 	mddev_suspend(mddev);
 	conf->log->r5c_journal_mode = mode;
 	mddev_resume(mddev);
+	mddev_unlock(mddev);
 
 	pr_debug("md/raid:%s: setting r5c cache mode to %d: %s\n",
 		 mdname(mddev), mode, r5c_journal_mode_str[mode]);

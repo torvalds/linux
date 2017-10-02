@@ -7749,8 +7749,10 @@ struct mlx5_ifc_pcam_reg_bits {
 };
 
 struct mlx5_ifc_mcam_enhanced_features_bits {
-	u8         reserved_at_0[0x7f];
+	u8         reserved_at_0[0x7d];
 
+	u8         mtpps_enh_out_per_adj[0x1];
+	u8         mtpps_fs[0x1];
 	u8         pcie_performance_group[0x1];
 };
 
@@ -8159,7 +8161,8 @@ struct mlx5_ifc_mtpps_reg_bits {
 	u8         reserved_at_78[0x4];
 	u8         cap_pin_4_mode[0x4];
 
-	u8         reserved_at_80[0x80];
+	u8         field_select[0x20];
+	u8         reserved_at_a0[0x60];
 
 	u8         enable[0x1];
 	u8         reserved_at_101[0xb];
@@ -8174,8 +8177,9 @@ struct mlx5_ifc_mtpps_reg_bits {
 
 	u8         out_pulse_duration[0x10];
 	u8         out_periodic_adjustment[0x10];
+	u8         enhanced_out_periodic_adjustment[0x20];
 
-	u8         reserved_at_1a0[0x60];
+	u8         reserved_at_1c0[0x20];
 };
 
 struct mlx5_ifc_mtppse_reg_bits {

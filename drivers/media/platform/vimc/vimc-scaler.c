@@ -431,19 +431,20 @@ static int vimc_sca_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vimc_sca_pdrv = {
-	.probe		= vimc_sca_probe,
-	.remove		= vimc_sca_remove,
-	.driver		= {
-		.name	= VIMC_SCA_DRV_NAME,
-	},
-};
-
 static const struct platform_device_id vimc_sca_driver_ids[] = {
 	{
 		.name           = VIMC_SCA_DRV_NAME,
 	},
 	{ }
+};
+
+static struct platform_driver vimc_sca_pdrv = {
+	.probe		= vimc_sca_probe,
+	.remove		= vimc_sca_remove,
+	.id_table	= vimc_sca_driver_ids,
+	.driver		= {
+		.name	= VIMC_SCA_DRV_NAME,
+	},
 };
 
 module_platform_driver(vimc_sca_pdrv);

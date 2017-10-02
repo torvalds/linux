@@ -2274,7 +2274,7 @@ struct aac_get_name_resp {
 	__le32		parm3;
 	__le32		parm4;
 	__le32		parm5;
-	u8		data[16];
+	u8		data[17];
 };
 
 #define CT_CID_TO_32BITS_UID 165

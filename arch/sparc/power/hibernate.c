@@ -35,6 +35,5 @@ void restore_processor_state(void)
 {
 	struct mm_struct *mm = current->active_mm;
 
-	load_secondary_context(mm);
-	tsb_context_switch(mm);
+	tsb_context_switch_ctx(mm, CTX_HWBITS(mm->context));
 }

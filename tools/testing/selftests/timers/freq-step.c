@@ -229,10 +229,9 @@ static void init_test(void)
 	printf("CLOCK_MONOTONIC_RAW+CLOCK_MONOTONIC precision: %.0f ns\t\t",
 	       1e9 * precision);
 
-	if (precision > MAX_PRECISION) {
-		printf("[SKIP]\n");
-		ksft_exit_skip();
-	}
+	if (precision > MAX_PRECISION)
+		ksft_exit_skip("precision: %.0f ns > MAX_PRECISION: %.0f ns\n",
+				1e9 * precision, 1e9 * MAX_PRECISION);
 
 	printf("[OK]\n");
 	srand(ts.tv_sec ^ ts.tv_nsec);

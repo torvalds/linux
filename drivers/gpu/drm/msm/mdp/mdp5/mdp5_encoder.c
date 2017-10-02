@@ -299,7 +299,7 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 	struct mdp5_interface *intf = mdp5_encoder->intf;
 
 	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
-		mdp5_cmd_encoder_disable(encoder);
+		mdp5_cmd_encoder_enable(encoder);
 	else
 		mdp5_vid_encoder_enable(encoder);
 }

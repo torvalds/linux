@@ -708,6 +708,15 @@ struct device_node *of_graph_get_port_parent(struct device_node *node)
 {
 	unsigned int depth;
 
+	if (!node)
+		return NULL;
+
+	/*
+	 * Preserve usecount for passed in node as of_get_next_parent()
+	 * will do of_node_put() on it.
+	 */
+	of_node_get(node);
+
 	/* Walk 3 levels up only if there is 'ports' node. */
 	for (depth = 3; depth && node; depth--) {
 		node = of_get_next_parent(node);
@@ -728,12 +737,16 @@ EXPORT_SYMBOL(of_graph_get_port_parent);
 struct device_node *of_graph_get_remote_port_parent(
 			       const struct device_node *node)
 {
-	struct device_node *np;
+	struct device_node *np, *pp;
 
 	/* Get remote endpoint node. */
 	np = of_graph_get_remote_endpoint(node);
 
-	return of_graph_get_port_parent(np);
+	pp = of_graph_get_port_parent(np);
+
+	of_node_put(np);
+
+	return pp;
 }
 EXPORT_SYMBOL(of_graph_get_remote_port_parent);
 

@@ -235,7 +235,7 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
 	if (off < count && user_count <= (count - off)) {

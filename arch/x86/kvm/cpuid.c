@@ -469,7 +469,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 			entry->ecx &= kvm_cpuid_7_0_ecx_x86_features;
 			cpuid_mask(&entry->ecx, CPUID_7_ECX);
 			/* PKU is not yet implemented for shadow paging. */
-			if (!tdp_enabled)
+			if (!tdp_enabled || !boot_cpu_has(X86_FEATURE_OSPKE))
 				entry->ecx &= ~F(PKU);
 			entry->edx &= kvm_cpuid_7_0_edx_x86_features;
 			entry->edx &= get_scattered_cpuid_leaf(7, 0, CPUID_EDX);

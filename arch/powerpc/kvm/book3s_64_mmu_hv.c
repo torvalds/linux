@@ -164,8 +164,10 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 		goto out;
 	}
 
-	if (kvm->arch.hpt.virt)
+	if (kvm->arch.hpt.virt) {
 		kvmppc_free_hpt(&kvm->arch.hpt);
+		kvmppc_rmap_reset(kvm);
+	}
 
 	err = kvmppc_allocate_hpt(&info, order);
 	if (err < 0)

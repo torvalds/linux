@@ -349,7 +349,8 @@ static int dvb_ca_en50221_link_init(struct dvb_ca_private *ca, int slot)
 	/* read the buffer size from the CAM */
 	if ((ret = ca->pub->write_cam_control(ca->pub, slot, CTRLIF_COMMAND, IRQEN | CMDREG_SR)) != 0)
 		return ret;
-	if ((ret = dvb_ca_en50221_wait_if_status(ca, slot, STATUSREG_DA, HZ / 10)) != 0)
+	ret = dvb_ca_en50221_wait_if_status(ca, slot, STATUSREG_DA, HZ);
+	if (ret != 0)
 		return ret;
 	if ((ret = dvb_ca_en50221_read_data(ca, slot, buf, 2)) != 2)
 		return -EIO;
@@ -644,72 +645,101 @@ static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot,
 		}
 		buf_free = dvb_ringbuffer_free(&ca->slot_info[slot].rx_buffer);
 
-		if (buf_free < (ca->slot_info[slot].link_buf_size + DVB_RINGBUFFER_PKTHDRSIZE)) {
+		if (buf_free < (ca->slot_info[slot].link_buf_size +
+				DVB_RINGBUFFER_PKTHDRSIZE)) {
 			status = -EAGAIN;
 			goto exit;
 		}
 	}
 
-	/* check if there is data available */
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_STATUS)) < 0)
-		goto exit;
-	if (!(status & STATUSREG_DA)) {
-		/* no data */
-		status = 0;
-		goto exit;
-	}
-
-	/* read the amount of data */
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_SIZE_HIGH)) < 0)
-		goto exit;
-	bytes_read = status << 8;
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_SIZE_LOW)) < 0)
-		goto exit;
-	bytes_read |= status;
-
-	/* check it will fit */
-	if (ebuf == NULL) {
-		if (bytes_read > ca->slot_info[slot].link_buf_size) {
-			pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the link buffer size (%i > %i)!\n",
-			       ca->dvbdev->adapter->num, bytes_read,
-			       ca->slot_info[slot].link_buf_size);
-			ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_LINKINIT;
-			status = -EIO;
+	if (ca->pub->read_data &&
+	    (ca->slot_info[slot].slot_state != DVB_CA_SLOTSTATE_LINKINIT)) {
+		if (ebuf == NULL)
+			status = ca->pub->read_data(ca->pub, slot, buf,
+						    sizeof(buf));
+		else
+			status = ca->pub->read_data(ca->pub, slot, buf, ecount);
+		if (status < 0)
+			return status;
+		bytes_read =  status;
+		if (status == 0)
 			goto exit;
-		}
-		if (bytes_read < 2) {
-			pr_err("dvb_ca adapter %d: CAM sent a buffer that was less than 2 bytes!\n",
-			       ca->dvbdev->adapter->num);
-			ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_LINKINIT;
-			status = -EIO;
-			goto exit;
-		}
 	} else {
-		if (bytes_read > ecount) {
-			pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the ecount size!\n",
-			       ca->dvbdev->adapter->num);
+
+		/* check if there is data available */
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_STATUS);
+		if (status < 0)
+			goto exit;
+		if (!(status & STATUSREG_DA)) {
+			/* no data */
+			status = 0;
+			goto exit;
+		}
+
+		/* read the amount of data */
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_SIZE_HIGH);
+		if (status < 0)
+			goto exit;
+		bytes_read = status << 8;
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_SIZE_LOW);
+		if (status < 0)
+			goto exit;
+		bytes_read |= status;
+
+		/* check it will fit */
+		if (ebuf == NULL) {
+			if (bytes_read > ca->slot_info[slot].link_buf_size) {
+				pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the link buffer size (%i > %i)!\n",
+				       ca->dvbdev->adapter->num, bytes_read,
+				       ca->slot_info[slot].link_buf_size);
+				ca->slot_info[slot].slot_state =
+						     DVB_CA_SLOTSTATE_LINKINIT;
+				status = -EIO;
+				goto exit;
+			}
+			if (bytes_read < 2) {
+				pr_err("dvb_ca adapter %d: CAM sent a buffer that was less than 2 bytes!\n",
+				       ca->dvbdev->adapter->num);
+				ca->slot_info[slot].slot_state =
+						     DVB_CA_SLOTSTATE_LINKINIT;
+				status = -EIO;
+				goto exit;
+			}
+		} else {
+			if (bytes_read > ecount) {
+				pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the ecount size!\n",
+				       ca->dvbdev->adapter->num);
+				status = -EIO;
+				goto exit;
+			}
+		}
+
+		/* fill the buffer */
+		for (i = 0; i < bytes_read; i++) {
+			/* read byte and check */
+			status = ca->pub->read_cam_control(ca->pub, slot,
+							   CTRLIF_DATA);
+			if (status < 0)
+				goto exit;
+
+			/* OK, store it in the buffer */
+			buf[i] = status;
+		}
+
+		/* check for read error (RE should now be 0) */
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_STATUS);
+		if (status < 0)
+			goto exit;
+		if (status & STATUSREG_RE) {
+			ca->slot_info[slot].slot_state =
+						     DVB_CA_SLOTSTATE_LINKINIT;
 			status = -EIO;
 			goto exit;
 		}
-	}
-
-	/* fill the buffer */
-	for (i = 0; i < bytes_read; i++) {
-		/* read byte and check */
-		if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_DATA)) < 0)
-			goto exit;
-
-		/* OK, store it in the buffer */
-		buf[i] = status;
-	}
-
-	/* check for read error (RE should now be 0) */
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_STATUS)) < 0)
-		goto exit;
-	if (status & STATUSREG_RE) {
-		ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_LINKINIT;
-		status = -EIO;
-		goto exit;
 	}
 
 	/* OK, add it to the receive buffer, or copy into external buffer if supplied */
@@ -761,6 +791,10 @@ static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot,
 	/* sanity check */
 	if (bytes_write > ca->slot_info[slot].link_buf_size)
 		return -EINVAL;
+
+	if (ca->pub->write_data &&
+	    (ca->slot_info[slot].slot_state != DVB_CA_SLOTSTATE_LINKINIT))
+		return ca->pub->write_data(ca->pub, slot, buf, bytes_write);
 
 	/* it is possible we are dealing with a single buffer implementation,
 	   thus if there is data available for read or if there is even a read
@@ -1176,7 +1210,8 @@ static int dvb_ca_en50221_thread(void *data)
 
 					pr_err("dvb_ca adapter %d: DVB CAM link initialisation failed :(\n",
 					       ca->dvbdev->adapter->num);
-					ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_INVALID;
+					ca->slot_info[slot].slot_state =
+						DVB_CA_SLOTSTATE_UNINITIALISED;
 					dvb_ca_en50221_thread_update_delay(ca);
 					break;
 				}
