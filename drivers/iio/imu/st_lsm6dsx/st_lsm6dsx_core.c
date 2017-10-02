@@ -168,6 +168,17 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = GENMASK(5, 3),
 			},
 		},
+		.fifo_ops = {
+			.fifo_th = {
+				.addr = 0x06,
+				.mask = GENMASK(11, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(11, 0),
+			},
+			.th_wl = 3, /* 1LSB = 2B */
+		},
 	},
 	{
 		.wai = 0x69,
@@ -184,6 +195,17 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x08,
 				.mask = GENMASK(5, 3),
 			},
+		},
+		.fifo_ops = {
+			.fifo_th = {
+				.addr = 0x06,
+				.mask = GENMASK(11, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(11, 0),
+			},
+			.th_wl = 3, /* 1LSB = 2B */
 		},
 	},
 	{
@@ -202,6 +224,17 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x08,
 				.mask = GENMASK(5, 3),
 			},
+		},
+		.fifo_ops = {
+			.fifo_th = {
+				.addr = 0x06,
+				.mask = GENMASK(11, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(11, 0),
+			},
+			.th_wl = 3, /* 1LSB = 2B */
 		},
 	},
 };
