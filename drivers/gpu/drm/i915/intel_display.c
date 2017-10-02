@@ -5459,6 +5459,20 @@ static bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 	return HAS_IPS(to_i915(crtc->base.dev)) && crtc->pipe == PIPE_A;
 }
 
+static void glk_pipe_scaler_clock_gating_wa(struct drm_i915_private *dev_priv,
+					    enum pipe pipe, bool apply)
+{
+	u32 val = I915_READ(CLKGATE_DIS_PSL(pipe));
+	u32 mask = DPF_GATING_DIS | DPF_RAM_GATING_DIS | DPFR_GATING_DIS;
+
+	if (apply)
+		val |= mask;
+	else
+		val &= ~mask;
+
+	I915_WRITE(CLKGATE_DIS_PSL(pipe), val);
+}
+
 static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 				struct drm_atomic_state *old_state)
 {
@@ -5469,6 +5483,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
 	struct intel_atomic_state *old_intel_state =
 		to_intel_atomic_state(old_state);
+	bool psl_clkgate_wa;
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -5522,6 +5537,12 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_enable_pipe_clock(pipe_config);
 
+	/* Display WA #1180: WaDisableScalarClockGating: glk, cnl */
+	psl_clkgate_wa = (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
+			 intel_crtc->config->pch_pfit.enabled;
+	if (psl_clkgate_wa)
+		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, true);
+
 	if (INTEL_GEN(dev_priv) >= 9)
 		skylake_pfit_enable(intel_crtc);
 	else
@@ -5554,6 +5575,11 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	drm_crtc_vblank_on(crtc);
 
 	intel_encoders_enable(crtc, pipe_config, old_state);
+
+	if (psl_clkgate_wa) {
+		intel_wait_for_vblank(dev_priv, pipe);
+		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, false);
+	}
 
 	if (intel_crtc->config->has_pch_encoder) {
 		intel_wait_for_vblank(dev_priv, pipe);
