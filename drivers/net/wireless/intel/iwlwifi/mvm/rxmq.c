@@ -505,17 +505,18 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	if (expired) {
 		struct ieee80211_sta *sta;
 		struct iwl_mvm_sta *mvmsta;
+		u8 sta_id = baid_data->sta_id;
 
 		rcu_read_lock();
-		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[buf->sta_id]);
+		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[sta_id]);
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		/* SN is set to the last expired frame + 1 */
 		IWL_DEBUG_HT(buf->mvm,
 			     "Releasing expired frames for sta %u, sn %d\n",
-			     buf->sta_id, sn);
+			     sta_id, sn);
 		iwl_mvm_event_frame_timeout_callback(buf->mvm, mvmsta->vif,
-						     sta, buf->tid);
+						     sta, baid_data->tid);
 		iwl_mvm_release_frames(buf->mvm, sta, NULL, buf, sn);
 		rcu_read_unlock();
 	} else {

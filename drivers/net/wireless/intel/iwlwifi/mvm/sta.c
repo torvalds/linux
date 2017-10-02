@@ -2137,7 +2137,6 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
-					u32 sta_id,
 					struct iwl_mvm_baid_data *data,
 					u16 ssn, u8 buf_size)
 {
@@ -2161,8 +2160,6 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 		spin_lock_init(&reorder_buf->lock);
 		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
-		reorder_buf->sta_id = sta_id;
-		reorder_buf->tid = data->tid;
 		reorder_buf->valid = false;
 		for (j = 0; j < reorder_buf->buf_size; j++)
 			__skb_queue_head_init(&entries[j].e.frames);
@@ -2294,8 +2291,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			mod_timer(&baid_data->session_timer,
 				  TU_TO_EXP_TIME(timeout * 2));
 
-		iwl_mvm_init_reorder_buffer(mvm, mvm_sta->sta_id,
-					    baid_data, ssn, buf_size);
+		iwl_mvm_init_reorder_buffer(mvm, baid_data, ssn, buf_size);
 		/*
 		 * protect the BA data with RCU to cover a case where our
 		 * internal RX sync mechanism will timeout (not that it's

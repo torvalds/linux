@@ -585,11 +585,9 @@ enum iwl_mvm_tdls_cs_state {
  * @head_sn: reorder window head sn
  * @num_stored: number of mpdus stored in the buffer
  * @buf_size: the reorder buffer size as set by the last addba request
- * @sta_id: sta id of this reorder buffer
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
  * @last_sub_index: track ASMDU sub frame index for duplication detection
- * @tid: the tid
  * @reorder_timer: timer for frames are in the reorder buffer. For AMSDU
  *	it is the time of last received sub-frame
  * @removed: prevent timer re-arming
@@ -601,11 +599,9 @@ struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
 	u16 num_stored;
 	u8 buf_size;
-	u8 sta_id;
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;
-	u8 tid;
 	struct timer_list reorder_timer;
 	bool removed;
 	bool valid;
