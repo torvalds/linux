@@ -664,7 +664,7 @@ config MMC_CAVIUM_OCTEON
 config MMC_CAVIUM_THUNDERX
 	tristate "Cavium ThunderX SD/MMC Card Interface support"
 	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
-	depends on GPIOLIB
+	depends on GPIO_THUNDERX
 	depends on OF_ADDRESS
 	help
 	  This selects Cavium ThunderX SD/MMC Card Interface.
