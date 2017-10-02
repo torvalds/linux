@@ -39,20 +39,6 @@ struct tb_switch_nvm {
 	bool authenticating;
 };
 
-/**
- * enum tb_security_level - Thunderbolt security level
- * @TB_SECURITY_NONE: No security, legacy mode
- * @TB_SECURITY_USER: User approval required at minimum
- * @TB_SECURITY_SECURE: One time saved key required at minimum
- * @TB_SECURITY_DPONLY: Only tunnel Display port (and USB)
- */
-enum tb_security_level {
-	TB_SECURITY_NONE,
-	TB_SECURITY_USER,
-	TB_SECURITY_SECURE,
-	TB_SECURITY_DPONLY,
-};
-
 #define TB_SWITCH_KEY_SIZE		32
 /* Each physical port contains 2 links on modern controllers */
 #define TB_SWITCH_LINKS_PER_PHY_PORT	2
@@ -223,33 +209,6 @@ struct tb_cm_ops {
 	int (*disconnect_pcie_paths)(struct tb *tb);
 };
 
-/**
- * struct tb - main thunderbolt bus structure
- * @dev: Domain device
- * @lock: Big lock. Must be held when accessing any struct
- *	  tb_switch / struct tb_port.
- * @nhi: Pointer to the NHI structure
- * @ctl: Control channel for this domain
- * @wq: Ordered workqueue for all domain specific work
- * @root_switch: Root switch of this domain
- * @cm_ops: Connection manager specific operations vector
- * @index: Linux assigned domain number
- * @security_level: Current security level
- * @privdata: Private connection manager specific data
- */
-struct tb {
-	struct device dev;
-	struct mutex lock;
-	struct tb_nhi *nhi;
-	struct tb_ctl *ctl;
-	struct workqueue_struct *wq;
-	struct tb_switch *root_switch;
-	const struct tb_cm_ops *cm_ops;
-	int index;
-	enum tb_security_level security_level;
-	unsigned long privdata[0];
-};
-
 static inline void *tb_priv(struct tb *tb)
 {
 	return (void *)tb->privdata;
@@ -368,7 +327,6 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 struct tb *icm_probe(struct tb_nhi *nhi);
 struct tb *tb_probe(struct tb_nhi *nhi);
 
-extern struct bus_type tb_bus_type;
 extern struct device_type tb_domain_type;
 extern struct device_type tb_switch_type;
 

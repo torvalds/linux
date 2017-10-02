@@ -14,7 +14,9 @@
 #ifndef THUNDERBOLT_H_
 #define THUNDERBOLT_H_
 
+#include <linux/device.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/uuid.h>
 
 enum tb_cfg_pkg_type {
@@ -32,6 +34,49 @@ enum tb_cfg_pkg_type {
 	TB_CFG_PKG_ICM_RESP = 12,
 	TB_CFG_PKG_PREPARE_TO_SLEEP = 13,
 };
+
+/**
+ * enum tb_security_level - Thunderbolt security level
+ * @TB_SECURITY_NONE: No security, legacy mode
+ * @TB_SECURITY_USER: User approval required at minimum
+ * @TB_SECURITY_SECURE: One time saved key required at minimum
+ * @TB_SECURITY_DPONLY: Only tunnel Display port (and USB)
+ */
+enum tb_security_level {
+	TB_SECURITY_NONE,
+	TB_SECURITY_USER,
+	TB_SECURITY_SECURE,
+	TB_SECURITY_DPONLY,
+};
+
+/**
+ * struct tb - main thunderbolt bus structure
+ * @dev: Domain device
+ * @lock: Big lock. Must be held when accessing any struct
+ *	  tb_switch / struct tb_port.
+ * @nhi: Pointer to the NHI structure
+ * @ctl: Control channel for this domain
+ * @wq: Ordered workqueue for all domain specific work
+ * @root_switch: Root switch of this domain
+ * @cm_ops: Connection manager specific operations vector
+ * @index: Linux assigned domain number
+ * @security_level: Current security level
+ * @privdata: Private connection manager specific data
+ */
+struct tb {
+	struct device dev;
+	struct mutex lock;
+	struct tb_nhi *nhi;
+	struct tb_ctl *ctl;
+	struct workqueue_struct *wq;
+	struct tb_switch *root_switch;
+	const struct tb_cm_ops *cm_ops;
+	int index;
+	enum tb_security_level security_level;
+	unsigned long privdata[0];
+};
+
+extern struct bus_type tb_bus_type;
 
 /**
  * struct tb_property_dir - XDomain property directory
