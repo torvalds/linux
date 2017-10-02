@@ -129,7 +129,7 @@ Optional properties:
 
 example:
 
-display@di0 {
+disp0 {
 	compatible = "fsl,imx-parallel-display";
 	edid = [edid-data];
 	interface-pix-fmt = "rgb24";
