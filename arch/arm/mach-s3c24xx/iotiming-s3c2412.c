@@ -242,7 +242,7 @@ int s3c2412_iotiming_get(struct s3c_cpufreq_config *cfg,
 		if (!bank_is_io(bank, bankcfg))
 			continue;
 
-		bt = kzalloc(sizeof(struct s3c2412_iobank_timing), GFP_KERNEL);
+		bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 		if (!bt)
 			return -ENOMEM;
 
