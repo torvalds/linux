@@ -17,13 +17,6 @@ enum ring_flags {
 	RING_FLAG_ENABLE = 1 << 31,
 };
 
-enum ring_desc_flags {
-	RING_DESC_ISOCH = 0x1, /* TX only? */
-	RING_DESC_COMPLETED = 0x2, /* set by NHI */
-	RING_DESC_POSTED = 0x4, /* always set this */
-	RING_DESC_INTERRUPT = 0x8, /* request an interrupt on completion */
-};
-
 /**
  * struct ring_desc - TX/RX ring entry
  *
@@ -77,6 +70,8 @@ struct ring_desc {
  * ..: unknown
  */
 #define REG_RX_OPTIONS_BASE	0x29800
+#define REG_RX_OPTIONS_E2E_HOP_MASK	GENMASK(22, 12)
+#define REG_RX_OPTIONS_E2E_HOP_SHIFT	12
 
 /*
  * three bitfields: tx, rx, rx overflow
@@ -94,6 +89,8 @@ struct ring_desc {
  */
 #define REG_RING_INTERRUPT_BASE	0x38200
 #define RING_INTERRUPT_REG_COUNT(nhi) ((31 + 2 * nhi->hop_count) / 32)
+
+#define REG_INT_THROTTLING_RATE	0x38c00
 
 /* Interrupt Vector Allocation */
 #define REG_INT_VEC_ALLOC_BASE	0x38c40
