@@ -122,9 +122,6 @@ static int v4l2_async_test_notify(struct v4l2_async_notifier *notifier,
 	/* Move from the global subdevice list to notifier's done */
 	list_move(&sd->async_list, &notifier->done);
 
-	if (list_empty(&notifier->waiting) && notifier->complete)
-		return notifier->complete(notifier);
-
 	return 0;
 }
 
@@ -136,11 +133,27 @@ static void v4l2_async_cleanup(struct v4l2_subdev *sd)
 	sd->asd = NULL;
 }
 
+static void v4l2_async_notifier_unbind_all_subdevs(
+	struct v4l2_async_notifier *notifier)
+{
+	struct v4l2_subdev *sd, *tmp;
+
+	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
+		if (notifier->unbind)
+			notifier->unbind(notifier, sd, sd->asd);
+
+		v4l2_async_cleanup(sd);
+
+		list_move(&sd->async_list, &subdev_list);
+	}
+}
+
 int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 				 struct v4l2_async_notifier *notifier)
 {
 	struct v4l2_subdev *sd, *tmp;
 	struct v4l2_async_subdev *asd;
+	int ret;
 	int i;
 
 	if (!v4l2_dev || !notifier->num_subdevs ||
@@ -185,19 +198,30 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 		}
 	}
 
+	if (list_empty(&notifier->waiting) && notifier->complete) {
+		ret = notifier->complete(notifier);
+		if (ret)
+			goto err_complete;
+	}
+
 	/* Keep also completed notifiers on the list */
 	list_add(&notifier->list, &notifier_list);
 
 	mutex_unlock(&list_lock);
 
 	return 0;
+
+err_complete:
+	v4l2_async_notifier_unbind_all_subdevs(notifier);
+
+	mutex_unlock(&list_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(v4l2_async_notifier_register);
 
 void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 {
-	struct v4l2_subdev *sd, *tmp;
-
 	if (!notifier->v4l2_dev)
 		return;
 
@@ -205,14 +229,7 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 
 	list_del(&notifier->list);
 
-	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
-		if (notifier->unbind)
-			notifier->unbind(notifier, sd, sd->asd);
-
-		v4l2_async_cleanup(sd);
-
-		list_move(&sd->async_list, &subdev_list);
-	}
+	v4l2_async_notifier_unbind_all_subdevs(notifier);
 
 	mutex_unlock(&list_lock);
 
@@ -223,6 +240,7 @@ EXPORT_SYMBOL(v4l2_async_notifier_unregister);
 int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 {
 	struct v4l2_async_notifier *notifier;
+	int ret;
 
 	/*
 	 * No reference taken. The reference is held by the device
@@ -238,19 +256,43 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 
 	list_for_each_entry(notifier, &notifier_list, list) {
 		struct v4l2_async_subdev *asd = v4l2_async_belongs(notifier, sd);
-		if (asd) {
-			int ret = v4l2_async_test_notify(notifier, sd, asd);
-			mutex_unlock(&list_lock);
-			return ret;
-		}
+		int ret;
+
+		if (!asd)
+			continue;
+
+		ret = v4l2_async_test_notify(notifier, sd, asd);
+		if (ret)
+			goto err_unlock;
+
+		if (!list_empty(&notifier->waiting) || !notifier->complete)
+			goto out_unlock;
+
+		ret = notifier->complete(notifier);
+		if (ret)
+			goto err_cleanup;
+
+		goto out_unlock;
 	}
 
 	/* None matched, wait for hot-plugging */
 	list_add(&sd->async_list, &subdev_list);
 
+out_unlock:
 	mutex_unlock(&list_lock);
 
 	return 0;
+
+err_cleanup:
+	if (notifier->unbind)
+		notifier->unbind(notifier, sd, sd->asd);
+
+	v4l2_async_cleanup(sd);
+
+err_unlock:
+	mutex_unlock(&list_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(v4l2_async_register_subdev);
 
