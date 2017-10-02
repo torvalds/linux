@@ -745,6 +745,10 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_UP:
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
+
+		/* Reset rx phase */
+		clk_set_phase(host->rx_clk, 0);
+
 		break;
 
 	case MMC_POWER_ON:
@@ -758,8 +762,6 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				host->vqmmc_enabled = true;
 		}
 
-		/* Reset rx phase */
-		clk_set_phase(host->rx_clk, 0);
 		break;
 	}
 
