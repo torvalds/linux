@@ -411,24 +411,6 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	if (cmd == SIOCGIFNAME)
 		return dev_ifname(net, (struct ifreq __user *)arg);
 
-	/*
-	 * Take care of Wireless Extensions. Unfortunately struct iwreq
-	 * isn't a proper subset of struct ifreq (it's 8 byte shorter)
-	 * so we need to treat it specially, otherwise applications may
-	 * fault if the struct they're passing happens to land at the
-	 * end of a mapped page.
-	 */
-	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
-		struct iwreq iwr;
-
-		if (copy_from_user(&iwr, arg, sizeof(iwr)))
-			return -EFAULT;
-
-		iwr.ifr_name[sizeof(iwr.ifr_name) - 1] = 0;
-
-		return wext_handle_ioctl(net, &iwr, cmd, arg);
-	}
-
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
 		return -EFAULT;
 

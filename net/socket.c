@@ -1005,7 +1005,7 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	} else
 #ifdef CONFIG_WEXT_CORE
 	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
-		err = dev_ioctl(net, cmd, argp);
+		err = wext_handle_ioctl(net, cmd, argp);
 	} else
 #endif
 		switch (cmd) {
