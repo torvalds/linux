@@ -1331,6 +1331,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 
+	if (ofs->config.nfs_export)
+		sb->s_export_op = &ovl_export_operations;
+
 	/* Never override disk quota limits or use reserved space */
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
 
