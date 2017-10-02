@@ -164,9 +164,11 @@ static int img_prl_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
+	pm_runtime_get_sync(prl->dev);
 	reg = img_prl_out_readl(prl, IMG_PRL_OUT_CTL);
 	reg = (reg & ~IMG_PRL_OUT_CTL_EDGE_MASK) | control_set;
 	img_prl_out_writel(prl, reg, IMG_PRL_OUT_CTL);
+	pm_runtime_put(prl->dev);
 
 	return 0;
 }
