@@ -327,21 +327,9 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	if (transmit && hop == RING_E2E_UNUSED_HOPID)
 		return NULL;
 
-	mutex_lock(&nhi->lock);
-	if (hop >= nhi->hop_count) {
-		dev_WARN(&nhi->pdev->dev, "invalid hop: %d\n", hop);
-		goto err;
-	}
-	if (transmit && nhi->tx_rings[hop]) {
-		dev_WARN(&nhi->pdev->dev, "TX hop %d already allocated\n", hop);
-		goto err;
-	} else if (!transmit && nhi->rx_rings[hop]) {
-		dev_WARN(&nhi->pdev->dev, "RX hop %d already allocated\n", hop);
-		goto err;
-	}
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
-		goto err;
+		return NULL;
 
 	spin_lock_init(&ring->lock);
 	INIT_LIST_HEAD(&ring->queue);
@@ -359,25 +347,45 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	ring->tail = 0;
 	ring->running = false;
 
-	if (ring_request_msix(ring, flags & RING_FLAG_NO_SUSPEND))
-		goto err;
-
 	ring->descriptors = dma_alloc_coherent(&ring->nhi->pdev->dev,
 			size * sizeof(*ring->descriptors),
 			&ring->descriptors_dma, GFP_KERNEL | __GFP_ZERO);
 	if (!ring->descriptors)
-		goto err;
+		goto err_free_ring;
 
+	if (ring_request_msix(ring, flags & RING_FLAG_NO_SUSPEND))
+		goto err_free_descs;
+
+	spin_lock_irq(&nhi->lock);
+	if (hop >= nhi->hop_count) {
+		dev_WARN(&nhi->pdev->dev, "invalid hop: %d\n", hop);
+		goto err_release_msix;
+	}
+	if (transmit && nhi->tx_rings[hop]) {
+		dev_WARN(&nhi->pdev->dev, "TX hop %d already allocated\n", hop);
+		goto err_release_msix;
+	} else if (!transmit && nhi->rx_rings[hop]) {
+		dev_WARN(&nhi->pdev->dev, "RX hop %d already allocated\n", hop);
+		goto err_release_msix;
+	}
 	if (transmit)
 		nhi->tx_rings[hop] = ring;
 	else
 		nhi->rx_rings[hop] = ring;
-	mutex_unlock(&nhi->lock);
+	spin_unlock_irq(&nhi->lock);
+
 	return ring;
 
-err:
+err_release_msix:
+	spin_unlock_irq(&nhi->lock);
+	ring_release_msix(ring);
+err_free_descs:
+	dma_free_coherent(&ring->nhi->pdev->dev,
+			  ring->size * sizeof(*ring->descriptors),
+			  ring->descriptors, ring->descriptors_dma);
+err_free_ring:
 	kfree(ring);
-	mutex_unlock(&nhi->lock);
+
 	return NULL;
 }
 
@@ -421,8 +429,8 @@ void tb_ring_start(struct tb_ring *ring)
 	u16 frame_size;
 	u32 flags;
 
-	mutex_lock(&ring->nhi->lock);
-	spin_lock_irq(&ring->lock);
+	spin_lock_irq(&ring->nhi->lock);
+	spin_lock(&ring->lock);
 	if (ring->nhi->going_away)
 		goto err;
 	if (ring->running) {
@@ -469,8 +477,8 @@ void tb_ring_start(struct tb_ring *ring)
 	ring_interrupt_active(ring, true);
 	ring->running = true;
 err:
-	spin_unlock_irq(&ring->lock);
-	mutex_unlock(&ring->nhi->lock);
+	spin_unlock(&ring->lock);
+	spin_unlock_irq(&ring->nhi->lock);
 }
 EXPORT_SYMBOL_GPL(tb_ring_start);
 
@@ -489,8 +497,8 @@ EXPORT_SYMBOL_GPL(tb_ring_start);
  */
 void tb_ring_stop(struct tb_ring *ring)
 {
-	mutex_lock(&ring->nhi->lock);
-	spin_lock_irq(&ring->lock);
+	spin_lock_irq(&ring->nhi->lock);
+	spin_lock(&ring->lock);
 	dev_info(&ring->nhi->pdev->dev, "stopping %s %d\n",
 		 RING_TYPE(ring), ring->hop);
 	if (ring->nhi->going_away)
@@ -511,8 +519,8 @@ void tb_ring_stop(struct tb_ring *ring)
 	ring->running = false;
 
 err:
-	spin_unlock_irq(&ring->lock);
-	mutex_unlock(&ring->nhi->lock);
+	spin_unlock(&ring->lock);
+	spin_unlock_irq(&ring->nhi->lock);
 
 	/*
 	 * schedule ring->work to invoke callbacks on all remaining frames.
@@ -534,7 +542,7 @@ EXPORT_SYMBOL_GPL(tb_ring_stop);
  */
 void tb_ring_free(struct tb_ring *ring)
 {
-	mutex_lock(&ring->nhi->lock);
+	spin_lock_irq(&ring->nhi->lock);
 	/*
 	 * Dissociate the ring from the NHI. This also ensures that
 	 * nhi_interrupt_work cannot reschedule ring->work.
@@ -564,7 +572,7 @@ void tb_ring_free(struct tb_ring *ring)
 		 RING_TYPE(ring),
 		 ring->hop);
 
-	mutex_unlock(&ring->nhi->lock);
+	spin_unlock_irq(&ring->nhi->lock);
 	/**
 	 * ring->work can no longer be scheduled (it is scheduled only
 	 * by nhi_interrupt_work, ring_stop and ring_msix). Wait for it
@@ -639,7 +647,7 @@ static void nhi_interrupt_work(struct work_struct *work)
 	int type = 0; /* current interrupt type 0: TX, 1: RX, 2: RX overflow */
 	struct tb_ring *ring;
 
-	mutex_lock(&nhi->lock);
+	spin_lock_irq(&nhi->lock);
 
 	/*
 	 * Starting at REG_RING_NOTIFY_BASE there are three status bitfields
@@ -677,7 +685,7 @@ static void nhi_interrupt_work(struct work_struct *work)
 		/* we do not check ring->running, this is done in ring->work */
 		schedule_work(&ring->work);
 	}
-	mutex_unlock(&nhi->lock);
+	spin_unlock_irq(&nhi->lock);
 }
 
 static irqreturn_t nhi_msi(int irq, void *data)
@@ -767,7 +775,6 @@ static void nhi_shutdown(struct tb_nhi *nhi)
 		devm_free_irq(&nhi->pdev->dev, nhi->pdev->irq, nhi);
 		flush_work(&nhi->interrupt_work);
 	}
-	mutex_destroy(&nhi->lock);
 	ida_destroy(&nhi->msix_ida);
 }
 
@@ -856,7 +863,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return res;
 	}
 
-	mutex_init(&nhi->lock);
+	spin_lock_init(&nhi->lock);
 
 	pci_set_master(pdev);
 

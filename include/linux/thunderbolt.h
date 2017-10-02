@@ -415,7 +415,7 @@ static inline struct tb_xdomain *tb_service_parent(struct tb_service *svc)
  * @hop_count: Number of rings (end point hops) supported by NHI.
  */
 struct tb_nhi {
-	struct mutex lock;
+	spinlock_t lock;
 	struct pci_dev *pdev;
 	void __iomem *iobase;
 	struct tb_ring **tx_rings;
