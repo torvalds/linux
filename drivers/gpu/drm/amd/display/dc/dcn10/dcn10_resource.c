@@ -1163,6 +1163,14 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
+enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state)
+{
+	if (plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
+			&& plane_state->src_rect.width > 3840)
+		return DC_FAIL_SURFACE_VALIDATE;
+
+	return DC_OK;
+}
 
 static struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = get_dcc_compression_cap
@@ -1174,6 +1182,7 @@ static struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_guaranteed = dcn10_validate_guaranteed,
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
+	.validate_plane = dcn10_validate_plane,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx
 };
 
