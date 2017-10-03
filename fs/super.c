@@ -36,6 +36,7 @@
 #include <linux/user_namespace.h>
 #include "internal.h"
 
+static int thaw_super_locked(struct super_block *sb);
 
 static LIST_HEAD(super_blocks);
 static DEFINE_SPINLOCK(sb_lock);
@@ -934,6 +935,40 @@ void emergency_remount(void)
 	}
 }
 
+static void do_thaw_all_callback(struct super_block *sb)
+{
+	down_write(&sb->s_umount);
+	if (sb->s_root && sb->s_flags & MS_BORN) {
+		emergency_thaw_bdev(sb);
+		thaw_super_locked(sb);
+	} else {
+		up_write(&sb->s_umount);
+	}
+}
+
+static void do_thaw_all(struct work_struct *work)
+{
+	__iterate_supers(do_thaw_all_callback);
+	kfree(work);
+	printk(KERN_WARNING "Emergency Thaw complete\n");
+}
+
+/**
+ * emergency_thaw_all -- forcibly thaw every frozen filesystem
+ *
+ * Used for emergency unfreeze of all filesystems via SysRq
+ */
+void emergency_thaw_all(void)
+{
+	struct work_struct *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (work) {
+		INIT_WORK(work, do_thaw_all);
+		schedule_work(work);
+	}
+}
+
 /*
  * Unnamed block devices are dummy devices used by virtual
  * filesystems which don't use real block-devices.  -- jrs
@@ -1503,11 +1538,10 @@ EXPORT_SYMBOL(freeze_super);
  *
  * Unlocks the filesystem and marks it writeable again after freeze_super().
  */
-int thaw_super(struct super_block *sb)
+static int thaw_super_locked(struct super_block *sb)
 {
 	int error;
 
-	down_write(&sb->s_umount);
 	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE) {
 		up_write(&sb->s_umount);
 		return -EINVAL;
@@ -1537,5 +1571,11 @@ out:
 	wake_up(&sb->s_writers.wait_unfrozen);
 	deactivate_locked_super(sb);
 	return 0;
+}
+
+int thaw_super(struct super_block *sb)
+{
+	down_write(&sb->s_umount);
+	return thaw_super_locked(sb);
 }
 EXPORT_SYMBOL(thaw_super);
