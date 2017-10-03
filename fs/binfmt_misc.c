@@ -138,20 +138,23 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	retval = -ENOEXEC;
 	if (!enabled)
-		goto ret;
+		return retval;
 
 	/* to keep locking time low, we copy the interpreter string */
 	read_lock(&entries_lock);
 	fmt = check_file(bprm);
-	if (fmt)
+	if (fmt) {
+		dget(fmt->dentry);
 		strlcpy(iname, fmt->interpreter, BINPRM_BUF_SIZE);
+	}
 	read_unlock(&entries_lock);
 	if (!fmt)
-		goto ret;
+		return retval;
 
 	/* Need to be able to load the file after exec */
+	retval = -ENOENT;
 	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
-		return -ENOENT;
+		goto ret;
 
 	if (!(fmt->flags & MISC_FMT_PRESERVE_ARGV0)) {
 		retval = remove_arg_zero(bprm);
@@ -238,6 +241,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		goto error;
 
 ret:
+	dput(fmt->dentry);
 	return retval;
 error:
 	if (fd_binary > 0)
