@@ -182,10 +182,6 @@ static inline int __arch_read_trylock(arch_rwlock_t *rw)
 	res; \
 })
 
-#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-#define arch_read_lock_flags(rw, flags)   arch_read_lock(rw)
-#define arch_write_lock_flags(rw, flags)  arch_write_lock(rw)
-
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* __SPARC_SPINLOCK_H */

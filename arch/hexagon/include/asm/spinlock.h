@@ -167,11 +167,6 @@ static inline unsigned int arch_spin_trylock(arch_spinlock_t *lock)
 /*
  * SMP spinlocks are intended to allow only a single CPU at the lock
  */
-#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-
 #define arch_spin_is_locked(x) ((x)->lock != 0)
-
-#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #endif

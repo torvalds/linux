@@ -27,8 +27,6 @@
  * instructions.
  */
 
-#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
@@ -302,9 +300,6 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 
 /* read_can_lock - would read_trylock() succeed? */
 #define arch_read_can_lock(x)		((x)->lock < 0x80000000)
-
-#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 /* See include/linux/spinlock.h */
 #define smp_mb__after_spinlock()	smp_mb()

@@ -36,8 +36,6 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	__raw_spin_lock_asm(&lock->lock);
 }
 
-#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-
 static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	return __raw_spin_trylock_asm(&lock->lock);
@@ -53,8 +51,6 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 	__raw_read_lock_asm(&rw->lock);
 }
 
-#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
-
 static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
 	return __raw_read_trylock_asm(&rw->lock);
@@ -69,8 +65,6 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	__raw_write_lock_asm(&rw->lock);
 }
-
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 static inline int arch_write_trylock(arch_rwlock_t *rw)
 {

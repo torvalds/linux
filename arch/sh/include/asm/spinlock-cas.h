@@ -27,7 +27,6 @@ static inline unsigned __sl_cas(volatile unsigned *p, unsigned old, unsigned new
  */
 
 #define arch_spin_is_locked(x)		((x)->lock <= 0)
-#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
@@ -89,8 +88,5 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
 	return __sl_cas(&rw->lock, RW_LOCK_BIAS, 0) == RW_LOCK_BIAS;
 }
-
-#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #endif /* __ASM_SH_SPINLOCK_CAS_H */

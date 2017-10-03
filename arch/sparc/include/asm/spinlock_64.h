@@ -13,9 +13,6 @@
 #include <asm/qrwlock.h>
 #include <asm/qspinlock.h>
 
-#define arch_read_lock_flags(p, f) arch_read_lock(p)
-#define arch_write_lock_flags(p, f) arch_write_lock(p)
-
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__SPARC64_SPINLOCK_H) */
