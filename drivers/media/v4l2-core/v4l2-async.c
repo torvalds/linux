@@ -134,7 +134,6 @@ static void v4l2_async_cleanup(struct v4l2_subdev *sd)
 	/* Subdevice driver will reprobe and put the subdev back onto the list */
 	list_del_init(&sd->async_list);
 	sd->asd = NULL;
-	sd->dev = NULL;
 }
 
 int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
