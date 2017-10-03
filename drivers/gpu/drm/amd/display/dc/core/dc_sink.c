@@ -63,19 +63,19 @@ static bool construct(struct dc_sink *sink, const struct dc_sink_init_data *init
 
 void dc_sink_retain(struct dc_sink *sink)
 {
-	ASSERT(atomic_read(&sink->ref_count) > 0);
-	atomic_inc(&sink->ref_count);
+	kref_get(&sink->refcount);
+}
+
+static void dc_sink_free(struct kref *kref)
+{
+	struct dc_sink *sink = container_of(kref, struct dc_sink, refcount);
+	destruct(sink);
+	kfree(sink);
 }
 
 void dc_sink_release(struct dc_sink *sink)
 {
-	ASSERT(atomic_read(&sink->ref_count) > 0);
-	atomic_dec(&sink->ref_count);
-
-	if (atomic_read(&sink->ref_count) == 0) {
-		destruct(sink);
-		kfree(sink);
-	}
+	kref_put(&sink->refcount, dc_sink_free);
 }
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
@@ -88,7 +88,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 	if (false == construct(sink, init_params))
 		goto construct_fail;
 
-	atomic_inc(&sink->ref_count);
+	kref_init(&sink->refcount);
 
 	return sink;
 

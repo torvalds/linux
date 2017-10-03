@@ -971,7 +971,7 @@ struct dc_sink {
 	struct dc_context *ctx;
 
 	/* private to dc_sink.c */
-	atomic_t ref_count;
+	struct kref refcount;
 };
 
 void dc_sink_retain(struct dc_sink *sink);
