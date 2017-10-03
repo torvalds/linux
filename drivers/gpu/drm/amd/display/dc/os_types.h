@@ -32,6 +32,8 @@
 #include <linux/types.h>
 #include <drm/drmP.h>
 
+#include <linux/kref.h>
+
 #include "cgs_linux.h"
 
 #if defined(__BIG_ENDIAN) && !defined(BIGENDIAN_CPU)

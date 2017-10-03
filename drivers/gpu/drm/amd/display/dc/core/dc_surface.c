@@ -161,17 +161,18 @@ alloc_fail:
 
 void dc_transfer_func_retain(struct dc_transfer_func *tf)
 {
-	ASSERT(atomic_read(&tf->ref_count) > 0);
-	atomic_inc(&tf->ref_count);
+	kref_get(&tf->refcount);
+}
+
+static void dc_transfer_func_free(struct kref *kref)
+{
+	struct dc_transfer_func *tf = container_of(kref, struct dc_transfer_func, refcount);
+	kfree(tf);
 }
 
 void dc_transfer_func_release(struct dc_transfer_func *tf)
 {
-	ASSERT(atomic_read(&tf->ref_count) > 0);
-	atomic_dec(&tf->ref_count);
-
-	if (atomic_read(&tf->ref_count) == 0)
-		kfree(tf);
+	kref_put(&tf->refcount, dc_transfer_func_free);
 }
 
 struct dc_transfer_func *dc_create_transfer_func()
@@ -181,7 +182,7 @@ struct dc_transfer_func *dc_create_transfer_func()
 	if (tf == NULL)
 		goto alloc_fail;
 
-	atomic_inc(&tf->ref_count);
+	kref_init(&tf->refcount);
 
 	return tf;
 

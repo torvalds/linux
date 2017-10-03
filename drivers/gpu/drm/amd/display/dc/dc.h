@@ -330,11 +330,11 @@ enum dc_transfer_func_predefined {
 };
 
 struct dc_transfer_func {
+	struct kref refcount;
 	struct dc_transfer_func_distributed_points tf_pts;
 	enum dc_transfer_func_type type;
 	enum dc_transfer_func_predefined tf;
 	struct dc_context *ctx;
-	atomic_t ref_count;
 };
 
 /*
