@@ -381,7 +381,7 @@ struct dc_plane_state {
 
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
-	atomic_t ref_count;
+	struct kref refcount;
 };
 
 struct dc_plane_info {

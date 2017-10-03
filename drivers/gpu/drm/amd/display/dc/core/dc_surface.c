@@ -71,8 +71,8 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 	if (NULL == plane_state)
 		return NULL;
 
+	kref_init(&plane_state->refcount);
 	construct(core_dc->ctx, plane_state);
-	atomic_inc(&plane_state->ref_count);
 
 	return plane_state;
 }
@@ -112,19 +112,19 @@ const struct dc_plane_status *dc_plane_get_status(
 
 void dc_plane_state_retain(struct dc_plane_state *plane_state)
 {
-	ASSERT(atomic_read(&plane_state->ref_count) > 0);
-	atomic_inc(&plane_state->ref_count);
+	kref_get(&plane_state->refcount);
+}
+
+static void dc_plane_state_free(struct kref *kref)
+{
+	struct dc_plane_state *plane_state = container_of(kref, struct dc_plane_state, refcount);
+	destruct(plane_state);
+	kfree(plane_state);
 }
 
 void dc_plane_state_release(struct dc_plane_state *plane_state)
 {
-	ASSERT(atomic_read(&plane_state->ref_count) > 0);
-	atomic_dec(&plane_state->ref_count);
-
-	if (atomic_read(&plane_state->ref_count) == 0) {
-		destruct(plane_state);
-		kfree(plane_state);
-	}
+	kref_put(&plane_state->refcount, dc_plane_state_free);
 }
 
 void dc_gamma_retain(struct dc_gamma *gamma)
