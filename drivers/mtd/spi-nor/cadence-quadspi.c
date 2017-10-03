@@ -1255,9 +1255,9 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	return ret;
-probe_irq_failed:
-	cqspi_controller_enable(cqspi, 0);
 probe_setup_failed:
+	cqspi_controller_enable(cqspi, 0);
+probe_irq_failed:
 	clk_disable_unprepare(cqspi->clk);
 	return ret;
 }
