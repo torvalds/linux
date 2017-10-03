@@ -28,7 +28,6 @@
 
 #include "timing_generator.h"
 #include "../include/grph_object_id.h"
-#include "../include/hw_sequencer_types.h"
 
 /* GSL Sync related values */
 

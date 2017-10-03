@@ -28,7 +28,6 @@
 
 #include "timing_generator.h"
 #include "../include/grph_object_id.h"
-#include "../include/hw_sequencer_types.h"
 #include "dce110/dce110_timing_generator.h"
 
 
