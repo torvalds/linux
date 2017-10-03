@@ -579,10 +579,6 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 
 		{
 			spin_lock_irqsave(lock, flags);
-			if (list_empty(head)) {
-				spin_unlock_irqrestore(lock, flags);
-				continue;
-			}
 			list_for_each_entry_safe(bssprio_node, tmp_node, head,
 						 list) {
 				if (bssprio_node->priv == priv) {

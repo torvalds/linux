@@ -1413,13 +1413,6 @@ void mwifiex_check_auto_tdls(unsigned long context)
 
 	priv->check_tdls_tx = false;
 
-	if (list_empty(&priv->auto_tdls_list)) {
-		mod_timer(&priv->auto_tdls_timer,
-			  jiffies +
-			  msecs_to_jiffies(MWIFIEX_TIMER_10S));
-		return;
-	}
-
 	spin_lock_irqsave(&priv->auto_tdls_lock, flags);
 	list_for_each_entry(tdls_peer, &priv->auto_tdls_list, list) {
 		if ((jiffies - tdls_peer->rssi_jiffies) >
