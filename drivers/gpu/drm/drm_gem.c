@@ -534,7 +534,7 @@ EXPORT_SYMBOL(drm_gem_create_mmap_offset);
  * Note that you are not allowed to change gfp-zones during runtime. That is,
  * shmem_read_mapping_page_gfp() must be called with the same gfp_zone(gfp) as
  * set during initialization. If you have special zone constraints, set them
- * after drm_gem_init_object() via mapping_set_gfp_mask(). shmem-core takes care
+ * after drm_gem_object_init() via mapping_set_gfp_mask(). shmem-core takes care
  * to keep pages in the required zone during swap-in.
  */
 struct page **drm_gem_get_pages(struct drm_gem_object *obj)
