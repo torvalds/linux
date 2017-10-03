@@ -338,7 +338,7 @@ EXPORT_SYMBOL_GPL(__add_pages);
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 /* find the smallest valid pfn in the range [start_pfn, end_pfn) */
-static int find_smallest_section_pfn(int nid, struct zone *zone,
+static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
 				     unsigned long start_pfn,
 				     unsigned long end_pfn)
 {
@@ -363,7 +363,7 @@ static int find_smallest_section_pfn(int nid, struct zone *zone,
 }
 
 /* find the biggest valid pfn in the range [start_pfn, end_pfn). */
-static int find_biggest_section_pfn(int nid, struct zone *zone,
+static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
 				    unsigned long start_pfn,
 				    unsigned long end_pfn)
 {
