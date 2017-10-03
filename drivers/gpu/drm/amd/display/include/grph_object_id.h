@@ -233,24 +233,62 @@ static inline struct graphics_object_id dal_graphics_object_id_init(
 	return result;
 }
 
-bool dal_graphics_object_id_is_valid(
-	struct graphics_object_id id);
 bool dal_graphics_object_id_is_equal(
 	struct graphics_object_id id1,
 	struct graphics_object_id id2);
-uint32_t dal_graphics_object_id_to_uint(
-	struct graphics_object_id id);
 
-enum controller_id dal_graphics_object_id_get_controller_id(
-	struct graphics_object_id id);
-enum clock_source_id dal_graphics_object_id_get_clock_source_id(
-	struct graphics_object_id id);
-enum encoder_id dal_graphics_object_id_get_encoder_id(
-	struct graphics_object_id id);
-enum connector_id dal_graphics_object_id_get_connector_id(
-	struct graphics_object_id id);
-enum audio_id dal_graphics_object_id_get_audio_id(
-	struct graphics_object_id id);
-enum engine_id dal_graphics_object_id_get_engine_id(
-	struct graphics_object_id id);
+/* Based on internal data members memory layout */
+static inline uint32_t dal_graphics_object_id_to_uint(
+	struct graphics_object_id id)
+{
+	return id.id + (id.enum_id << 0x8) + (id.type << 0xc);
+}
+
+static inline enum controller_id dal_graphics_object_id_get_controller_id(
+	struct graphics_object_id id)
+{
+	if (id.type == OBJECT_TYPE_CONTROLLER)
+		return id.id;
+	return CONTROLLER_ID_UNDEFINED;
+}
+
+static inline enum clock_source_id dal_graphics_object_id_get_clock_source_id(
+	struct graphics_object_id id)
+{
+	if (id.type == OBJECT_TYPE_CLOCK_SOURCE)
+		return id.id;
+	return CLOCK_SOURCE_ID_UNDEFINED;
+}
+
+static inline enum encoder_id dal_graphics_object_id_get_encoder_id(
+	struct graphics_object_id id)
+{
+	if (id.type == OBJECT_TYPE_ENCODER)
+		return id.id;
+	return ENCODER_ID_UNKNOWN;
+}
+
+static inline enum connector_id dal_graphics_object_id_get_connector_id(
+	struct graphics_object_id id)
+{
+	if (id.type == OBJECT_TYPE_CONNECTOR)
+		return id.id;
+	return CONNECTOR_ID_UNKNOWN;
+}
+
+static inline enum audio_id dal_graphics_object_id_get_audio_id(
+	struct graphics_object_id id)
+{
+	if (id.type == OBJECT_TYPE_AUDIO)
+		return id.id;
+	return AUDIO_ID_UNKNOWN;
+}
+
+static inline enum engine_id dal_graphics_object_id_get_engine_id(
+	struct graphics_object_id id)
+{
+	if (id.type == OBJECT_TYPE_ENGINE)
+		return id.id;
+	return ENGINE_ID_UNKNOWN;
+}
 #endif

@@ -26,7 +26,7 @@
 #include "dm_services.h"
 #include "include/grph_object_id.h"
 
-bool dal_graphics_object_id_is_valid(struct graphics_object_id id)
+static bool dal_graphics_object_id_is_valid(struct graphics_object_id id)
 {
 	bool rc = true;
 
@@ -72,63 +72,4 @@ bool dal_graphics_object_id_is_equal(
 	return false;
 }
 
-/* Based on internal data members memory layout */
-uint32_t dal_graphics_object_id_to_uint(struct graphics_object_id id)
-{
-	uint32_t object_id = 0;
-
-	object_id = id.id + (id.enum_id << 0x8) + (id.type << 0xc);
-	return object_id;
-}
-
-/*
- * ******* get specific ID - internal safe cast into specific type *******
- */
-
-enum controller_id dal_graphics_object_id_get_controller_id(
-	struct graphics_object_id id)
-{
-	if (id.type == OBJECT_TYPE_CONTROLLER)
-		return id.id;
-	return CONTROLLER_ID_UNDEFINED;
-}
-
-enum clock_source_id dal_graphics_object_id_get_clock_source_id(
-	struct graphics_object_id id)
-{
-	if (id.type == OBJECT_TYPE_CLOCK_SOURCE)
-		return id.id;
-	return CLOCK_SOURCE_ID_UNDEFINED;
-}
-
-enum encoder_id dal_graphics_object_id_get_encoder_id(
-	struct graphics_object_id id)
-{
-	if (id.type == OBJECT_TYPE_ENCODER)
-		return id.id;
-	return ENCODER_ID_UNKNOWN;
-}
-
-enum connector_id dal_graphics_object_id_get_connector_id(
-	struct graphics_object_id id)
-{
-	if (id.type == OBJECT_TYPE_CONNECTOR)
-		return id.id;
-	return CONNECTOR_ID_UNKNOWN;
-}
-
-enum audio_id dal_graphics_object_id_get_audio_id(struct graphics_object_id id)
-{
-	if (id.type == OBJECT_TYPE_AUDIO)
-		return id.id;
-	return AUDIO_ID_UNKNOWN;
-}
-
-enum engine_id dal_graphics_object_id_get_engine_id(
-	struct graphics_object_id id)
-{
-	if (id.type == OBJECT_TYPE_ENGINE)
-		return id.id;
-	return ENGINE_ID_UNKNOWN;
-}
 
