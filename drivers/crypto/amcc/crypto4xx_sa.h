@@ -266,9 +266,9 @@ get_dynamic_sa_offset_state_ptr_field(struct dynamic_sa_ctl *cts)
 	return sizeof(struct dynamic_sa_ctl) + offset * 4;
 }
 
-static inline u8 *get_dynamic_sa_key_field(struct dynamic_sa_ctl *cts)
+static inline u32 *get_dynamic_sa_key_field(struct dynamic_sa_ctl *cts)
 {
-	return (u8 *) ((unsigned long)cts + sizeof(struct dynamic_sa_ctl));
+	return (u32 *) ((unsigned long)cts + sizeof(struct dynamic_sa_ctl));
 }
 
 #endif
