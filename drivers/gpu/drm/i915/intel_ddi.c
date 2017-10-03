@@ -2102,8 +2102,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 		 * register writes.
 		 */
 		val = I915_READ(DPCLKA_CFGCR0);
-		val &= ~(DPCLKA_CFGCR0_DDI_CLK_OFF(port) |
-			 DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port));
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
 		I915_WRITE(DPCLKA_CFGCR0, val);
 	} else if (IS_GEN9_BC(dev_priv)) {
 		/* DDI -> PLL mapping  */
