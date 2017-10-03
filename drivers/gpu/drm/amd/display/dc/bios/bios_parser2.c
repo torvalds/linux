@@ -1472,7 +1472,7 @@ static enum bp_result get_integrated_info_v11(
 					DATA_TABLES(integratedsysteminfo));
 
 	if (info_v11 == NULL)
-	return BP_RESULT_BADBIOSTABLE;
+		return BP_RESULT_BADBIOSTABLE;
 
 	info->gpu_cap_info =
 	le32_to_cpu(info_v11->gpucapinfo);
@@ -1753,7 +1753,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	}
 
 	if (construct_integrated_info(bp, info) == BP_RESULT_OK)
-	return info;
+		return info;
 
 	kfree(info);
 
