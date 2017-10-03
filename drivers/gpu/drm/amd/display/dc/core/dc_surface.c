@@ -129,18 +129,18 @@ void dc_plane_state_release(struct dc_plane_state *plane_state)
 
 void dc_gamma_retain(struct dc_gamma *gamma)
 {
-	ASSERT(atomic_read(&gamma->ref_count) > 0);
-	atomic_inc(&gamma->ref_count);
+	kref_get(&gamma->refcount);
+}
+
+static void dc_gamma_free(struct kref *kref)
+{
+	struct dc_gamma *gamma = container_of(kref, struct dc_gamma, refcount);
+	kfree(gamma);
 }
 
 void dc_gamma_release(struct dc_gamma **gamma)
 {
-	ASSERT(atomic_read(&(*gamma)->ref_count) > 0);
-	atomic_dec(&(*gamma)->ref_count);
-
-	if (atomic_read(&(*gamma)->ref_count) == 0)
-		kfree((*gamma));
-
+	kref_put(&(*gamma)->refcount, dc_gamma_free);
 	*gamma = NULL;
 }
 
@@ -151,8 +151,7 @@ struct dc_gamma *dc_create_gamma()
 	if (gamma == NULL)
 		goto alloc_fail;
 
-	atomic_inc(&gamma->ref_count);
-
+	kref_init(&gamma->refcount);
 	return gamma;
 
 alloc_fail:
