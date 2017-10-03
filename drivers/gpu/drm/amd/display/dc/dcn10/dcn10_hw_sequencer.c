@@ -2408,6 +2408,10 @@ static void program_all_pipe_in_tree(
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
+		struct dc_cursor_position position = { 0 };
+		struct pipe_ctx *cur_pipe_ctx =
+				&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
+
 		dcn10_power_on_fe(dc, pipe_ctx, context);
 
 		/* temporary dcn1 wa:
@@ -2422,6 +2426,19 @@ static void program_all_pipe_in_tree(
 		toggle_watermark_change_req(dc->hwseq);
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
+
+		/* TODO: this is a hack w/a for switching from mpo to pipe split */
+		dc_stream_set_cursor_position(pipe_ctx->stream, &position);
+
+		dc_stream_set_cursor_attributes(pipe_ctx->stream,
+				&pipe_ctx->stream->cursor_attributes);
+
+		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
+			dc->hwss.set_input_transfer_func(
+					pipe_ctx, pipe_ctx->plane_state);
+			dc->hwss.set_output_transfer_func(
+					pipe_ctx, pipe_ctx->stream);
+		}
 	}
 
 	if (dc->debug.sanity_checks) {

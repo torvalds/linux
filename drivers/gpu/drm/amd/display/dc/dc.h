@@ -574,6 +574,8 @@ struct dc_stream_state {
 
 	struct dc_stream_status status;
 
+	struct dc_cursor_attributes cursor_attributes;
+
 	/* from stream struct */
 	struct kref refcount;
 };
@@ -1013,7 +1015,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
  ******************************************************************************/
 /* TODO: Deprecated once we switch to dc_set_cursor_position */
 bool dc_stream_set_cursor_attributes(
-	const struct dc_stream_state *stream,
+	struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes);
 
 bool dc_stream_set_cursor_position(

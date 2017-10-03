@@ -1269,10 +1269,6 @@ static void commit_planes_for_stream(struct dc *dc,
 	/* Full fe update*/
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-		struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[j];
-		bool is_new_pipe_surface = cur_pipe_ctx->plane_state != pipe_ctx->plane_state;
-		struct dc_cursor_position position = { 0 };
-
 
 		if (update_type != UPDATE_TYPE_FULL || !pipe_ctx->plane_state)
 			continue;
@@ -1282,17 +1278,6 @@ static void commit_planes_for_stream(struct dc *dc,
 
 			dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
-		}
-
-		/* TODO: this is a hack w/a for switching from mpo to pipe split */
-		dc_stream_set_cursor_position(pipe_ctx->stream, &position);
-
-		if (is_new_pipe_surface) {
-			dc->hwss.update_plane_addr(dc, pipe_ctx);
-			dc->hwss.set_input_transfer_func(
-					pipe_ctx, pipe_ctx->plane_state);
-			dc->hwss.set_output_transfer_func(
-					pipe_ctx, pipe_ctx->stream);
 		}
 	}
 

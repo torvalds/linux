@@ -173,7 +173,7 @@ struct dc_stream_status *dc_stream_get_status(
  * Update the cursor attributes and set cursor surface address
  */
 bool dc_stream_set_cursor_attributes(
-	const struct dc_stream_state *stream,
+	struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes)
 {
 	int i;
@@ -187,6 +187,11 @@ bool dc_stream_set_cursor_attributes(
 	if (NULL == attributes) {
 		dm_error("DC: attributes is NULL!\n");
 			return false;
+	}
+
+	if (attributes->address.quad_part == 0) {
+		dm_error("DC: Cursor address is 0!\n");
+		return false;
 	}
 
 	core_dc = stream->ctx->dc;
@@ -213,6 +218,8 @@ bool dc_stream_set_cursor_attributes(
 			pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
 				pipe_ctx->plane_res.xfm, attributes);
 	}
+
+	stream->cursor_attributes = *attributes;
 
 	return true;
 }
