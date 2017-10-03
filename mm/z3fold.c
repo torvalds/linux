@@ -875,16 +875,18 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 				goto next;
 		}
 next:
+		spin_lock(&pool->lock);
 		if (test_bit(PAGE_HEADLESS, &page->private)) {
 			if (ret == 0) {
+				spin_unlock(&pool->lock);
 				free_z3fold_page(page);
 				return 0;
 			}
 		} else if (kref_put(&zhdr->refcount, release_z3fold_page)) {
 			atomic64_dec(&pool->pages_nr);
+			spin_unlock(&pool->lock);
 			return 0;
 		}
-		spin_lock(&pool->lock);
 
 		/*
 		 * Add to the beginning of LRU.
