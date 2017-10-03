@@ -523,6 +523,7 @@ static struct tegra_devclk devclks[] __initdata = {
 
 static struct tegra_clk tegra20_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_ahbdma] = { .dt_id = TEGRA20_CLK_AHBDMA, .present = true },
+	[tegra_clk_apbdma] = { .dt_id = TEGRA20_CLK_APBDMA, .present = true },
 	[tegra_clk_spdif_out] = { .dt_id = TEGRA20_CLK_SPDIF_OUT, .present = true },
 	[tegra_clk_spdif_in] = { .dt_id = TEGRA20_CLK_SPDIF_IN, .present = true },
 	[tegra_clk_sdmmc1] = { .dt_id = TEGRA20_CLK_SDMMC1, .present = true },
@@ -806,11 +807,6 @@ static void __init tegra20_periph_clk_init(void)
 				    TEGRA_PERIPH_ON_APB,
 				    clk_base, 0, 3, periph_clk_enb_refcnt);
 	clks[TEGRA20_CLK_AC97] = clk;
-
-	/* apbdma */
-	clk = tegra_clk_register_periph_gate("apbdma", "pclk", 0, clk_base,
-				    0, 34, periph_clk_enb_refcnt);
-	clks[TEGRA20_CLK_APBDMA] = clk;
 
 	/* emc */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
