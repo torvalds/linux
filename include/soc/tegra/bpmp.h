@@ -94,6 +94,10 @@ struct tegra_bpmp {
 	struct reset_controller_dev rstc;
 
 	struct genpd_onecell_data genpd;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_mirror;
+#endif
 };
 
 struct tegra_bpmp_message {
@@ -188,5 +192,15 @@ static inline int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
 	return 0;
 }
 #endif
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp);
+#else
+static inline int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
+{
+	return 0;
+}
+#endif
+
 
 #endif /* __SOC_TEGRA_BPMP_H */

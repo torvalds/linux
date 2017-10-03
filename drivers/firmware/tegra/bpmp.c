@@ -835,6 +835,10 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto free_mrq;
 
+	err = tegra_bpmp_init_debugfs(bpmp);
+	if (err < 0)
+		dev_err(&pdev->dev, "debugfs initialization failed: %d\n", err);
+
 	return 0;
 
 free_mrq:
