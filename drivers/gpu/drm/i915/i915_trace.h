@@ -539,38 +539,6 @@ TRACE_EVENT(i915_gem_evict,
 		      __entry->flags & PIN_MAPPABLE ? ", mappable" : "")
 );
 
-TRACE_EVENT(i915_gem_evict_everything,
-	    TP_PROTO(struct drm_device *dev),
-	    TP_ARGS(dev),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			    ),
-
-	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
-			  ),
-
-	    TP_printk("dev=%d", __entry->dev)
-);
-
-TRACE_EVENT(i915_gem_evict_vm,
-	    TP_PROTO(struct i915_address_space *vm),
-	    TP_ARGS(vm),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(struct i915_address_space *, vm)
-			    ),
-
-	    TP_fast_assign(
-			   __entry->dev = vm->i915->drm.primary->index;
-			   __entry->vm = vm;
-			  ),
-
-	    TP_printk("dev=%d, vm=%p", __entry->dev, __entry->vm)
-);
-
 TRACE_EVENT(i915_gem_evict_node,
 	    TP_PROTO(struct i915_address_space *vm, struct drm_mm_node *node, unsigned int flags),
 	    TP_ARGS(vm, node, flags),
@@ -597,6 +565,23 @@ TRACE_EVENT(i915_gem_evict_node,
 		      __entry->dev, __entry->vm,
 		      __entry->start, __entry->size,
 		      __entry->color, __entry->flags)
+);
+
+TRACE_EVENT(i915_gem_evict_vm,
+	    TP_PROTO(struct i915_address_space *vm),
+	    TP_ARGS(vm),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(struct i915_address_space *, vm)
+			    ),
+
+	    TP_fast_assign(
+			   __entry->dev = vm->i915->drm.primary->index;
+			   __entry->vm = vm;
+			  ),
+
+	    TP_printk("dev=%d, vm=%p", __entry->dev, __entry->vm)
 );
 
 TRACE_EVENT(i915_gem_ring_sync_to,
@@ -647,29 +632,6 @@ TRACE_EVENT(i915_gem_request_queue,
 	    TP_printk("dev=%u, ring=%u, ctx=%u, seqno=%u, flags=0x%x",
 		      __entry->dev, __entry->ring, __entry->ctx, __entry->seqno,
 		      __entry->flags)
-);
-
-TRACE_EVENT(i915_gem_ring_flush,
-	    TP_PROTO(struct drm_i915_gem_request *req, u32 invalidate, u32 flush),
-	    TP_ARGS(req, invalidate, flush),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, ring)
-			     __field(u32, invalidate)
-			     __field(u32, flush)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = req->i915->drm.primary->index;
-			   __entry->ring = req->engine->id;
-			   __entry->invalidate = invalidate;
-			   __entry->flush = flush;
-			   ),
-
-	    TP_printk("dev=%u, ring=%x, invalidate=%04x, flush=%04x",
-		      __entry->dev, __entry->ring,
-		      __entry->invalidate, __entry->flush)
 );
 
 DECLARE_EVENT_CLASS(i915_gem_request,
