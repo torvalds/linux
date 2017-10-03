@@ -2396,14 +2396,14 @@ static void program_all_pipe_in_tree(
 		dcn10_power_on_fe(dc, pipe_ctx, context);
 
 		/* temporary dcn1 wa:
-                 *   watermark update requires toggle after a/b/c/d sets are programmed
-                 *   if hubp is pg then wm value doesn't get properaged to hubp
-                 *   need to toggle after ungate to ensure wm gets to hubp.
-                 *
-                 * final solution:  we need to get SMU to do the toggle as
-                 * DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST is owned by SMU we should have 
-                 * both driver and fw accessing same register
-                 */
+		 *   watermark update requires toggle after a/b/c/d sets are programmed
+		 *   if hubp is pg then wm value doesn't get properaged to hubp
+		 *   need to toggle after ungate to ensure wm gets to hubp.
+		 *
+		 * final solution:  we need to get SMU to do the toggle as
+		 * DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST is owned by SMU we should have
+		 * both driver and fw accessing same register
+		 */
 		toggle_watermark_change_req(dc->hwseq);
 
 		update_dchubp_dpp(dc, pipe_ctx, context);

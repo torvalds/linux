@@ -697,37 +697,37 @@ static void min10_set_vm_context0_settings(struct mem_input *mem_input,
 }
 
 static void min_set_viewport(
-               struct mem_input *mem_input,
-               const struct rect *viewport,
-               const struct rect *viewport_c)
+	struct mem_input *mem_input,
+	const struct rect *viewport,
+	const struct rect *viewport_c)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
-       REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION, 0,
-                       PRI_VIEWPORT_WIDTH, viewport->width,
-                       PRI_VIEWPORT_HEIGHT, viewport->height);
+	REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION, 0,
+		  PRI_VIEWPORT_WIDTH, viewport->width,
+		  PRI_VIEWPORT_HEIGHT, viewport->height);
 
-       REG_SET_2(DCSURF_PRI_VIEWPORT_START, 0,
-                       PRI_VIEWPORT_X_START, viewport->x,
-                       PRI_VIEWPORT_Y_START, viewport->y);
+	REG_SET_2(DCSURF_PRI_VIEWPORT_START, 0,
+		  PRI_VIEWPORT_X_START, viewport->x,
+		  PRI_VIEWPORT_Y_START, viewport->y);
 
-       /*for stereo*/
-       REG_SET_2(DCSURF_SEC_VIEWPORT_DIMENSION, 0,
-                               SEC_VIEWPORT_WIDTH, viewport->width,
-                               SEC_VIEWPORT_HEIGHT, viewport->height);
+	/*for stereo*/
+	REG_SET_2(DCSURF_SEC_VIEWPORT_DIMENSION, 0,
+		  SEC_VIEWPORT_WIDTH, viewport->width,
+		  SEC_VIEWPORT_HEIGHT, viewport->height);
 
-       REG_SET_2(DCSURF_SEC_VIEWPORT_START, 0,
-                               SEC_VIEWPORT_X_START, viewport->x,
-                               SEC_VIEWPORT_Y_START, viewport->y);
+	REG_SET_2(DCSURF_SEC_VIEWPORT_START, 0,
+		  SEC_VIEWPORT_X_START, viewport->x,
+		  SEC_VIEWPORT_Y_START, viewport->y);
 
-       /* DC supports NV12 only at the moment */
-       REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION_C, 0,
-                       PRI_VIEWPORT_WIDTH_C, viewport_c->width,
-                       PRI_VIEWPORT_HEIGHT_C, viewport_c->height);
+	/* DC supports NV12 only at the moment */
+	REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION_C, 0,
+		  PRI_VIEWPORT_WIDTH_C, viewport_c->width,
+		  PRI_VIEWPORT_HEIGHT_C, viewport_c->height);
 
-       REG_SET_2(DCSURF_PRI_VIEWPORT_START_C, 0,
-                       PRI_VIEWPORT_X_START_C, viewport_c->x,
-                       PRI_VIEWPORT_Y_START_C, viewport_c->y);
+	REG_SET_2(DCSURF_PRI_VIEWPORT_START_C, 0,
+		  PRI_VIEWPORT_X_START_C, viewport_c->x,
+		  PRI_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
 void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,

@@ -1473,10 +1473,10 @@ void decide_link_settings(struct dc_stream_state *stream,
 		return;
 	}
 
-    /* search for the minimum link setting that:
-     * 1. is supported according to the link training result
-     * 2. could support the b/w requested by the timing
-     */
+	/* search for the minimum link setting that:
+	 * 1. is supported according to the link training result
+	 * 2. could support the b/w requested by the timing
+	 */
 	while (current_link_setting.link_rate <=
 			link->verified_link_cap.link_rate) {
 		link_bw = bandwidth_in_kbps_from_link_settings(

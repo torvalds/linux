@@ -1238,8 +1238,8 @@ void dce110_timing_generator_setup_global_swap_lock(
 			DCP_GSL_CONTROL,
 			DCP_GSL_HSYNC_FLIP_FORCE_DELAY);
 
-        /* Keep signal low (pending high) during 6 lines.
-         * Also defines minimum interval before re-checking signal. */
+	/* Keep signal low (pending high) during 6 lines.
+	 * Also defines minimum interval before re-checking signal. */
 	set_reg_field_value(value,
 			HFLIP_CHECK_DELAY,
 			DCP_GSL_CONTROL,

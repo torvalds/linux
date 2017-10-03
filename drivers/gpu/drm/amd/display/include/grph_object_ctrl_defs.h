@@ -183,9 +183,9 @@ struct dc_firmware_info {
 };
 
 struct step_and_delay_info {
-    uint32_t step;
-    uint32_t delay;
-    uint32_t recommended_ref_div;
+	uint32_t step;
+	uint32_t delay;
+	uint32_t recommended_ref_div;
 };
 
 struct spread_spectrum_info {
@@ -266,16 +266,16 @@ struct transmitter_configuration {
 #define NUMBER_OF_AVAILABLE_SCLK 5
 
 struct i2c_reg_info {
-    unsigned char       i2c_reg_index;
-    unsigned char       i2c_reg_val;
+	unsigned char       i2c_reg_index;
+	unsigned char       i2c_reg_val;
 };
 
 struct ext_hdmi_settings {
-    unsigned char   slv_addr;
-    unsigned char   reg_num;
-    struct i2c_reg_info      reg_settings[9];
-    unsigned char   reg_num_6g;
-    struct i2c_reg_info      reg_settings_6g[3];
+	unsigned char   slv_addr;
+	unsigned char   reg_num;
+	struct i2c_reg_info      reg_settings[9];
+	unsigned char   reg_num_6g;
+	struct i2c_reg_info      reg_settings_6g[3];
 };
 
 
