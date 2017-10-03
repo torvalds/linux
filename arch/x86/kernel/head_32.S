@@ -155,7 +155,6 @@ ENTRY(startup_32)
 	jmp *%eax
 
 .Lbad_subarch:
-WEAK(lguest_entry)
 WEAK(xen_entry)
 	/* Unknown implementation; there's really
 	   nothing we can do at this point. */
@@ -165,7 +164,6 @@ WEAK(xen_entry)
 
 subarch_entries:
 	.long .Ldefault_entry		/* normal x86/PC */
-	.long lguest_entry		/* lguest hypervisor */
 	.long xen_entry			/* Xen hypervisor */
 	.long .Ldefault_entry		/* Moorestown MID */
 num_subarch_entries = (. - subarch_entries) / 4
@@ -347,7 +345,6 @@ ENTRY(startup_32_smp)
 	movl %eax,%cr0
 
 	lgdt early_gdt_descr
-	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
 1:	movl $(__KERNEL_DS),%eax	# reload all the segment registers
 	movl %eax,%ss			# after changing gdt.
@@ -380,37 +377,6 @@ ENDPROC(startup_32_smp)
  */
 __INIT
 setup_once:
-	/*
-	 * Set up a idt with 256 interrupt gates that push zero if there
-	 * is no error code and then jump to early_idt_handler_common.
-	 * It doesn't actually load the idt - that needs to be done on
-	 * each CPU. Interrupts are enabled elsewhere, when we can be
-	 * relatively sure everything is ok.
-	 */
-
-	movl $idt_table,%edi
-	movl $early_idt_handler_array,%eax
-	movl $NUM_EXCEPTION_VECTORS,%ecx
-1:
-	movl %eax,(%edi)
-	movl %eax,4(%edi)
-	/* interrupt gate, dpl=0, present */
-	movl $(0x8E000000 + __KERNEL_CS),2(%edi)
-	addl $EARLY_IDT_HANDLER_SIZE,%eax
-	addl $8,%edi
-	loop 1b
-
-	movl $256 - NUM_EXCEPTION_VECTORS,%ecx
-	movl $ignore_int,%edx
-	movl $(__KERNEL_CS << 16),%eax
-	movw %dx,%ax		/* selector = 0x0010 = cs */
-	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
-2:
-	movl %eax,(%edi)
-	movl %edx,4(%edi)
-	addl $8,%edi
-	loop 2b
-
 #ifdef CONFIG_CC_STACKPROTECTOR
 	/*
 	 * Configure the stack canary. The linker can't handle this by
@@ -457,12 +423,9 @@ early_idt_handler_common:
 	/* The vector number is in pt_regs->gs */
 
 	cld
-	pushl	%fs		/* pt_regs->fs */
-	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
-	pushl	%es		/* pt_regs->es */
-	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
-	pushl	%ds		/* pt_regs->ds */
-	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%fs		/* pt_regs->fs (__fsh varies by model) */
+	pushl	%es		/* pt_regs->es (__esh varies by model) */
+	pushl	%ds		/* pt_regs->ds (__dsh varies by model) */
 	pushl	%eax		/* pt_regs->ax */
 	pushl	%ebp		/* pt_regs->bp */
 	pushl	%edi		/* pt_regs->di */
@@ -479,9 +442,8 @@ early_idt_handler_common:
 	/* Load the vector number into EDX */
 	movl	PT_GS(%esp), %edx
 
-	/* Load GS into pt_regs->gs and clear high bits */
+	/* Load GS into pt_regs->gs (and maybe clobber __gsh) */
 	movw	%gs, PT_GS(%esp)
-	movw	$0, PT_GS+2(%esp)
 
 	movl	%esp, %eax	/* args are pt_regs (EAX), trapnr (EDX) */
 	call	early_fixup_exception
@@ -493,18 +455,17 @@ early_idt_handler_common:
 	popl	%edi		/* pt_regs->di */
 	popl	%ebp		/* pt_regs->bp */
 	popl	%eax		/* pt_regs->ax */
-	popl	%ds		/* pt_regs->ds */
-	popl	%es		/* pt_regs->es */
-	popl	%fs		/* pt_regs->fs */
-	popl	%gs		/* pt_regs->gs */
+	popl	%ds		/* pt_regs->ds (always ignores __dsh) */
+	popl	%es		/* pt_regs->es (always ignores __esh) */
+	popl	%fs		/* pt_regs->fs (always ignores __fsh) */
+	popl	%gs		/* pt_regs->gs (always ignores __gsh) */
 	decl	%ss:early_recursion_flag
 	addl	$4, %esp	/* pop pt_regs->orig_ax */
 	iret
 ENDPROC(early_idt_handler_common)
 
 /* This is the default interrupt "handler" :-) */
-	ALIGN
-ignore_int:
+ENTRY(early_ignore_irq)
 	cld
 #ifdef CONFIG_PRINTK
 	pushl %eax
@@ -539,7 +500,8 @@ ignore_int:
 hlt_loop:
 	hlt
 	jmp hlt_loop
-ENDPROC(ignore_int)
+ENDPROC(early_ignore_irq)
+
 __INITDATA
 	.align 4
 GLOBAL(early_recursion_flag)
@@ -628,7 +590,6 @@ int_msg:
 
 	.data
 .globl boot_gdt_descr
-.globl idt_descr
 
 	ALIGN
 # early boot GDT descriptor (must use 1:1 address mapping)
@@ -636,11 +597,6 @@ int_msg:
 boot_gdt_descr:
 	.word __BOOT_DS+7
 	.long boot_gdt - __PAGE_OFFSET
-
-	.word 0				# 32-bit align idt_desc.address
-idt_descr:
-	.word IDT_ENTRIES*8-1		# idt contains 256 entries
-	.long idt_table
 
 # boot GDT descriptor (later on used by CPU#0):
 	.word 0				# 32 bit align gdt_desc.address

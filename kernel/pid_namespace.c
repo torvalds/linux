@@ -101,6 +101,10 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	int i;
 	int err;
 
+	err = -EINVAL;
+	if (!in_userns(parent_pid_ns->user_ns, user_ns))
+		goto out;
+
 	err = -ENOSPC;
 	if (level > MAX_PID_NS_LEVEL)
 		goto out;

@@ -68,14 +68,16 @@
  * - 3.16.0 - Add reserved vmid support
  * - 3.17.0 - Add AMDGPU_NUM_VRAM_CPU_PAGE_FAULTS.
  * - 3.18.0 - Export gpu always on cu bitmap
+ * - 3.19.0 - Add support for UVD MJPEG decode
+ * - 3.20.0 - Add support for local BOs
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	18
+#define KMS_DRIVER_MINOR	20
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
 int amdgpu_vis_vram_limit = 0;
-unsigned amdgpu_gart_size = 256;
+int amdgpu_gart_size = -1; /* auto */
 int amdgpu_gtt_size = -1; /* auto */
 int amdgpu_moverate = -1; /* auto */
 int amdgpu_benchmarking = 0;
@@ -90,10 +92,11 @@ int amdgpu_dpm = -1;
 int amdgpu_fw_load_type = -1;
 int amdgpu_aspm = -1;
 int amdgpu_runtime_pm = -1;
-unsigned amdgpu_ip_block_mask = 0xffffffff;
+uint amdgpu_ip_block_mask = 0xffffffff;
 int amdgpu_bapm = -1;
 int amdgpu_deep_color = 0;
 int amdgpu_vm_size = -1;
+int amdgpu_vm_fragment_size = -1;
 int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
@@ -104,14 +107,14 @@ int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_no_evict = 0;
 int amdgpu_direct_gma_size = 0;
-unsigned amdgpu_pcie_gen_cap = 0;
-unsigned amdgpu_pcie_lane_cap = 0;
-unsigned amdgpu_cg_mask = 0xffffffff;
-unsigned amdgpu_pg_mask = 0xffffffff;
-unsigned amdgpu_sdma_phase_quantum = 32;
+uint amdgpu_pcie_gen_cap = 0;
+uint amdgpu_pcie_lane_cap = 0;
+uint amdgpu_cg_mask = 0xffffffff;
+uint amdgpu_pg_mask = 0xffffffff;
+uint amdgpu_sdma_phase_quantum = 32;
 char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
-unsigned amdgpu_pp_feature_mask = 0xffffffff;
+uint amdgpu_pp_feature_mask = 0xffffffff;
 int amdgpu_ngg = 0;
 int amdgpu_prim_buf_per_se = 0;
 int amdgpu_pos_buf_per_se = 0;
@@ -126,7 +129,7 @@ module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
 MODULE_PARM_DESC(vis_vramlimit, "Restrict visible VRAM for testing, in megabytes");
 module_param_named(vis_vramlimit, amdgpu_vis_vram_limit, int, 0444);
 
-MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc.)");
+MODULE_PARM_DESC(gartsize, "Size of GART to setup in megabytes (32, 64, etc., -1=auto)");
 module_param_named(gartsize, amdgpu_gart_size, uint, 0600);
 
 MODULE_PARM_DESC(gttsize, "Size of the GTT domain in megabytes (-1 = auto)");
@@ -182,6 +185,9 @@ module_param_named(deep_color, amdgpu_deep_color, int, 0444);
 
 MODULE_PARM_DESC(vm_size, "VM address space size in gigabytes (default 64GB)");
 module_param_named(vm_size, amdgpu_vm_size, int, 0444);
+
+MODULE_PARM_DESC(vm_fragment_size, "VM fragment size in bits (4, 5, etc. 4 = 64K (default), Max 9 = 2M)");
+module_param_named(vm_fragment_size, amdgpu_vm_fragment_size, int, 0444);
 
 MODULE_PARM_DESC(vm_block_size, "VM page table size in bits (default depending on vm_size)");
 module_param_named(vm_block_size, amdgpu_vm_block_size, int, 0444);
@@ -603,6 +609,8 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unregister(dev);
 	drm_dev_unref(dev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
 }
 
 static void
@@ -847,6 +855,7 @@ static struct drm_driver kms_driver = {
 	.gem_prime_import_sg_table = amdgpu_gem_prime_import_sg_table,
 	.gem_prime_vmap = amdgpu_gem_prime_vmap,
 	.gem_prime_vunmap = amdgpu_gem_prime_vunmap,
+	.gem_prime_mmap = amdgpu_gem_prime_mmap,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

@@ -171,6 +171,7 @@ mpidr_hash_ptr:
 	.long	mpidr_hash - .			@ mpidr_hash struct offset
 
 	.data
+	.align	2
 	.type	sleep_save_sp, #object
 ENTRY(sleep_save_sp)
 	.space	SLEEP_SAVE_SP_SZ		@ struct sleep_save_sp

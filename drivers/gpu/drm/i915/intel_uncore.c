@@ -1251,7 +1251,7 @@ static const struct register_whitelist {
 } whitelist[] = {
 	{ .offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
 	  .offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
-	  .size = 8, .gen_bitmask = GEN_RANGE(4, 9) },
+	  .size = 8, .gen_bitmask = GEN_RANGE(4, 10) },
 };
 
 int i915_reg_read_ioctl(struct drm_device *dev,
@@ -1497,7 +1497,6 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 		[VECS] = GEN6_GRDOM_VECS,
 	};
 	u32 hw_mask;
-	int ret;
 
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN6_GRDOM_FULL;
@@ -1509,11 +1508,7 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 			hw_mask |= hw_engine_mask[engine->id];
 	}
 
-	ret = gen6_hw_domain_reset(dev_priv, hw_mask);
-
-	intel_uncore_forcewake_reset(dev_priv, true);
-
-	return ret;
+	return gen6_hw_domain_reset(dev_priv, hw_mask);
 }
 
 /**

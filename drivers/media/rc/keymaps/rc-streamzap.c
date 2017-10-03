@@ -57,10 +57,10 @@ static struct rc_map_table streamzap[] = {
 
 static struct rc_map_list streamzap_map = {
 	.map = {
-		.scan    = streamzap,
-		.size    = ARRAY_SIZE(streamzap),
-		.rc_type = RC_TYPE_RC5_SZ,
-		.name    = RC_MAP_STREAMZAP,
+		.scan     = streamzap,
+		.size     = ARRAY_SIZE(streamzap),
+		.rc_proto = RC_PROTO_RC5_SZ,
+		.name     = RC_MAP_STREAMZAP,
 	}
 };
 

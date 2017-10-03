@@ -29,7 +29,7 @@
 
 static const struct raid6_avx512_constants {
 	u64 x1d[8];
-} raid6_avx512_constants __aligned(512) = {
+} raid6_avx512_constants __aligned(512/8) = {
 	{ 0x1d1d1d1d1d1d1d1dULL, 0x1d1d1d1d1d1d1d1dULL,
 	  0x1d1d1d1d1d1d1d1dULL, 0x1d1d1d1d1d1d1d1dULL,
 	  0x1d1d1d1d1d1d1d1dULL, 0x1d1d1d1d1d1d1d1dULL,

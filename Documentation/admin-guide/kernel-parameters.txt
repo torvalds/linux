@@ -2233,6 +2233,17 @@
 			memory contents and reserves bad memory
 			regions that are detected.
 
+	mem_encrypt=	[X86-64] AMD Secure Memory Encryption (SME) control
+			Valid arguments: on, off
+			Default (depends on kernel configuration option):
+			  on  (CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT=y)
+			  off (CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT=n)
+			mem_encrypt=on:		Activate SME
+			mem_encrypt=off:	Do not activate SME
+
+			Refer to Documentation/x86/amd-memory-encryption.txt
+			for details on when memory encryption can be activated.
+
 	mem_sleep_default=	[SUSPEND] Default system suspend mode:
 			s2idle  - Suspend-To-Idle
 			shallow - Power-On Suspend or equivalent (if supported)
@@ -2633,9 +2644,10 @@
 			In kernels built with CONFIG_NO_HZ_FULL=y, set
 			the specified list of CPUs whose tick will be stopped
 			whenever possible. The boot CPU will be forced outside
-			the range to maintain the timekeeping.
-			The CPUs in this range must also be included in the
-			rcu_nocbs= set.
+			the range to maintain the timekeeping.  Any CPUs
+			in this list will have their RCU callbacks offloaded,
+			just as if they had also been called out in the
+			rcu_nocbs= boot parameter.
 
 	noiotrap	[SH] Disables trapped I/O port accesses.
 
@@ -2696,6 +2708,8 @@
 	nopat		[X86] Disable PAT (page attribute table extension of
 			pagetables) support.
 
+	nopcid		[X86-64] Disable the PCID cpu feature.
+
 	norandmaps	Don't use address space randomization.  Equivalent to
 			echo 0 > /proc/sys/kernel/randomize_va_space
 
@@ -2750,6 +2764,15 @@
 			If the dependencies are under your control, you can
 			turn on cpu0_hotplug.
 
+	nps_mtm_hs_ctr= [KNL,ARC]
+			This parameter sets the maximum duration, in
+			cycles, each HW thread of the CTOP can run
+			without interruptions, before HW switches it.
+			The actual maximum duration is 16 times this
+			parameter's value.
+			Format: integer between 1 and 255
+			Default: 255
+
 	nptcg=		[IA-64] Override max number of concurrent global TLB
 			purges which is reported from either PAL_VM_SUMMARY or
 			SAL PALO.
@@ -2769,7 +2792,7 @@
 			Allowed values are enable and disable
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
-			one of ['zone', 'node', 'default'] can be specified
+			'node', 'default' can be specified
 			This can be set from sysctl after boot.
 			See Documentation/sysctl/vm.txt for details.
 
@@ -3598,6 +3621,12 @@
 			Run specified binary instead of /init from the ramdisk,
 			used for early userspace startup. See initrd.
 
+	rdt=		[HW,X86,RDT]
+			Turn on/off individual RDT features. List is:
+			cmt, mbmtotal, mbmlocal, l3cat, l3cdp, l2cat, mba.
+			E.g. to turn on cmt and turn off mba use:
+				rdt=cmt,!mba
+
 	reboot=		[KNL]
 			Format (x86 or x86_64):
 				[w[arm] | c[old] | h[ard] | s[oft] | g[pio]] \
@@ -4374,6 +4403,10 @@
 			minimum size (128MB on x86). It can also be used to
 			decrease the size and leave more room for directly
 			mapped kernel RAM.
+
+	vmcp_cma=nn[MG]	[KNL,S390]
+			Sets the memory size reserved for contiguous memory
+			allocations for the vmcp device driver.
 
 	vmhalt=		[KNL,S390] Perform z/VM CP command after system halt.
 			Format: <command>

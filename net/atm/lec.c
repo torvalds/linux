@@ -486,7 +486,7 @@ static void lec_atm_close(struct atm_vcc *vcc)
 	module_put(THIS_MODULE);
 }
 
-static struct atmdev_ops lecdev_ops = {
+static const struct atmdev_ops lecdev_ops = {
 	.close = lec_atm_close,
 	.send = lec_atm_send
 };

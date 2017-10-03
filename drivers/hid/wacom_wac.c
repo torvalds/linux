@@ -1846,7 +1846,13 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHRINGSTATUS:
-		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+		/*
+		 * Only set up type/code association. Completely mapping
+		 * this usage may overwrite the axis resolution and range.
+		 */
+		usage->type = EV_ABS;
+		usage->code = ABS_WHEEL;
+		set_bit(EV_ABS, input->evbit);
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_BUTTONCONFIG:

@@ -976,8 +976,7 @@ static void __init sun5i_ccu_init(struct device_node *node,
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("%s: Could not map the clock registers\n",
-		       of_node_full_name(node));
+		pr_err("%pOF: Could not map the clock registers\n", node);
 		return;
 	}
 

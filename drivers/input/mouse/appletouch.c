@@ -125,7 +125,7 @@ static const struct atp_info geyser4_info = {
  *  According to Info.plist Geyser IV is the same as Geyser III.)
  */
 
-static struct usb_device_id atp_table[] = {
+static const struct usb_device_id atp_table[] = {
 	/* PowerBooks Feb 2005, iBooks G4 */
 	ATP_DEVICE(0x020e, fountain_info),	/* FOUNTAIN ANSI */
 	ATP_DEVICE(0x020f, fountain_info),	/* FOUNTAIN ISO */

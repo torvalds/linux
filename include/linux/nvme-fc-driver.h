@@ -346,11 +346,6 @@ struct nvme_fc_remote_port {
  *       indicating an FC transport Aborted status.
  *       Entrypoint is Mandatory.
  *
- * @defer_rcv:  Called by the transport to signal the LLLD that it has
- *       begun processing of a previously received NVME CMD IU. The LLDD
- *       is now free to re-use the rcv buffer associated with the
- *       nvmefc_tgt_fcp_req.
- *
  * @max_hw_queues:  indicates the maximum number of hw queues the LLDD
  *       supports for cpu affinitization.
  *       Value is Mandatory. Must be at least 1.
@@ -624,7 +619,7 @@ struct nvmefc_tgt_fcp_req {
 	u32			timeout;
 	u32			transfer_length;
 	struct fc_ba_rjt	ba_rjt;
-	struct scatterlist	sg[NVME_FC_MAX_SEGMENTS];
+	struct scatterlist	*sg;
 	int			sg_cnt;
 	void			*rspaddr;
 	dma_addr_t		rspdma;
@@ -806,11 +801,19 @@ struct nvmet_fc_target_port {
  *       outstanding operation (if there was one) to complete, then will
  *       call the fcp_req_release() callback to return the command's
  *       exchange context back to the LLDD.
+ *       Entrypoint is Mandatory.
  *
  * @fcp_req_release:  Called by the transport to return a nvmefc_tgt_fcp_req
  *       to the LLDD after all operations on the fcp operation are complete.
  *       This may be due to the command completing or upon completion of
  *       abort cleanup.
+ *       Entrypoint is Mandatory.
+ *
+ * @defer_rcv:  Called by the transport to signal the LLLD that it has
+ *       begun processing of a previously received NVME CMD IU. The LLDD
+ *       is now free to re-use the rcv buffer associated with the
+ *       nvmefc_tgt_fcp_req.
+ *       Entrypoint is Optional.
  *
  * @max_hw_queues:  indicates the maximum number of hw queues the LLDD
  *       supports for cpu affinitization.

@@ -87,6 +87,12 @@ static inline void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 		host->dma_ops->abort(host);
 }
 
+static inline void tmio_mmc_dataend_dma(struct tmio_mmc_host *host)
+{
+	if (host->dma_ops)
+		host->dma_ops->dataend(host);
+}
+
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
 	host->sdcard_irq_mask &= ~(i & TMIO_MASK_IRQ);
@@ -123,50 +129,6 @@ static int tmio_mmc_next_sg(struct tmio_mmc_host *host)
 
 #define CMDREQ_TIMEOUT	5000
 
-#ifdef CONFIG_MMC_DEBUG
-
-#define STATUS_TO_TEXT(a, status, i) \
-	do { \
-		if ((status) & TMIO_STAT_##a) { \
-			if ((i)++) \
-				printk(KERN_DEBUG " | "); \
-			printk(KERN_DEBUG #a); \
-		} \
-	} while (0)
-
-static void pr_debug_status(u32 status)
-{
-	int i = 0;
-
-	pr_debug("status: %08x = ", status);
-	STATUS_TO_TEXT(CARD_REMOVE, status, i);
-	STATUS_TO_TEXT(CARD_INSERT, status, i);
-	STATUS_TO_TEXT(SIGSTATE, status, i);
-	STATUS_TO_TEXT(WRPROTECT, status, i);
-	STATUS_TO_TEXT(CARD_REMOVE_A, status, i);
-	STATUS_TO_TEXT(CARD_INSERT_A, status, i);
-	STATUS_TO_TEXT(SIGSTATE_A, status, i);
-	STATUS_TO_TEXT(CMD_IDX_ERR, status, i);
-	STATUS_TO_TEXT(STOPBIT_ERR, status, i);
-	STATUS_TO_TEXT(ILL_FUNC, status, i);
-	STATUS_TO_TEXT(CMD_BUSY, status, i);
-	STATUS_TO_TEXT(CMDRESPEND, status, i);
-	STATUS_TO_TEXT(DATAEND, status, i);
-	STATUS_TO_TEXT(CRCFAIL, status, i);
-	STATUS_TO_TEXT(DATATIMEOUT, status, i);
-	STATUS_TO_TEXT(CMDTIMEOUT, status, i);
-	STATUS_TO_TEXT(RXOVERFLOW, status, i);
-	STATUS_TO_TEXT(TXUNDERRUN, status, i);
-	STATUS_TO_TEXT(RXRDY, status, i);
-	STATUS_TO_TEXT(TXRQ, status, i);
-	STATUS_TO_TEXT(ILL_ACCESS, status, i);
-	printk("\n");
-}
-
-#else
-#define pr_debug_status(s)  do { } while (0)
-#endif
-
 static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
@@ -201,7 +163,10 @@ static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-	msleep(host->pdata->flags & TMIO_MMC_MIN_RCAR2 ? 1 : 10);
+
+	/* HW engineers overrode docs: no sleep needed on R-Car2+ */
+	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
+		msleep(10);
 
 	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
 		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0100);
@@ -218,7 +183,10 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-	msleep(host->pdata->flags & TMIO_MMC_MIN_RCAR2 ? 5 : 10);
+
+	/* HW engineers overrode docs: no sleep needed on R-Car2+ */
+	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
+		msleep(10);
 }
 
 static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
@@ -342,12 +310,6 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 	struct mmc_data *data = host->data;
 	int c = cmd->opcode;
 	u32 irq_mask = TMIO_MASK_CMD;
-
-	/* CMD12 is handled by hardware */
-	if (cmd->opcode == MMC_STOP_TRANSMISSION && !cmd->arg) {
-		sd_ctrl_write16(host, CTL_STOP_INTERNAL_ACTION, TMIO_STOP_STP);
-		return 0;
-	}
 
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE: c |= RESP_NONE; break;
@@ -605,11 +567,11 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 
 		if (done) {
 			tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_DATAEND);
-			complete(&host->dma_dataend);
+			tmio_mmc_dataend_dma(host);
 		}
 	} else if (host->chan_rx && (data->flags & MMC_DATA_READ) && !host->force_pio) {
 		tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_DATAEND);
-		complete(&host->dma_dataend);
+		tmio_mmc_dataend_dma(host);
 	} else {
 		tmio_mmc_do_data_irq(host);
 		tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_READOP | TMIO_MASK_WRITEOP);
@@ -755,9 +717,6 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 
 	status = sd_ctrl_read16_and_16_as_32(host, CTL_STATUS);
 	ireg = status & TMIO_MASK_IRQ & ~host->sdcard_irq_mask;
-
-	pr_debug_status(status);
-	pr_debug_status(ireg);
 
 	/* Clear the status except the interrupt status */
 	sd_ctrl_write32_as_16_and_16(host, CTL_STATUS, TMIO_MASK_IRQ);
@@ -1251,10 +1210,10 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 
 	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;
-	mmc->max_segs = 32;
+	mmc->max_segs = pdata->max_segs ? : 32;
 	mmc->max_blk_size = 512;
-	mmc->max_blk_count = (PAGE_SIZE / mmc->max_blk_size) *
-		mmc->max_segs;
+	mmc->max_blk_count = pdata->max_blk_count ? :
+		(PAGE_SIZE / mmc->max_blk_size) * mmc->max_segs;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 

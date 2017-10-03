@@ -144,9 +144,9 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	has_full_48bit_ppgtt = dev_priv->info.has_full_48bit_ppgtt;
 
 	if (intel_vgpu_active(dev_priv)) {
-		/* emulation is too hard */
+		/* GVT-g has no support for 32bit ppgtt */
 		has_full_ppgtt = false;
-		has_full_48bit_ppgtt = false;
+		has_full_48bit_ppgtt = intel_vgpu_has_full_48bit_ppgtt(dev_priv);
 	}
 
 	if (!has_aliasing_ppgtt)
@@ -180,10 +180,15 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists && has_full_ppgtt)
-		return has_full_48bit_ppgtt ? 3 : 2;
-	else
-		return has_aliasing_ppgtt ? 1 : 0;
+	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists) {
+		if (has_full_48bit_ppgtt)
+			return 3;
+
+		if (has_full_ppgtt)
+			return 2;
+	}
+
+	return has_aliasing_ppgtt ? 1 : 0;
 }
 
 static int ppgtt_bind_vma(struct i915_vma *vma,
@@ -351,39 +356,86 @@ static gen6_pte_t iris_pte_encode(dma_addr_t addr,
 
 static struct page *vm_alloc_page(struct i915_address_space *vm, gfp_t gfp)
 {
-	struct page *page;
+	struct pagevec *pvec = &vm->free_pages;
 
 	if (I915_SELFTEST_ONLY(should_fail(&vm->fault_attr, 1)))
 		i915_gem_shrink_all(vm->i915);
 
-	if (vm->free_pages.nr)
-		return vm->free_pages.pages[--vm->free_pages.nr];
+	if (likely(pvec->nr))
+		return pvec->pages[--pvec->nr];
 
-	page = alloc_page(gfp);
-	if (!page)
+	if (!vm->pt_kmap_wc)
+		return alloc_page(gfp);
+
+	/* A placeholder for a specific mutex to guard the WC stash */
+	lockdep_assert_held(&vm->i915->drm.struct_mutex);
+
+	/* Look in our global stash of WC pages... */
+	pvec = &vm->i915->mm.wc_stash;
+	if (likely(pvec->nr))
+		return pvec->pages[--pvec->nr];
+
+	/* Otherwise batch allocate pages to amoritize cost of set_pages_wc. */
+	do {
+		struct page *page;
+
+		page = alloc_page(gfp);
+		if (unlikely(!page))
+			break;
+
+		pvec->pages[pvec->nr++] = page;
+	} while (pagevec_space(pvec));
+
+	if (unlikely(!pvec->nr))
 		return NULL;
 
-	if (vm->pt_kmap_wc)
-		set_pages_array_wc(&page, 1);
+	set_pages_array_wc(pvec->pages, pvec->nr);
 
-	return page;
+	return pvec->pages[--pvec->nr];
 }
 
-static void vm_free_pages_release(struct i915_address_space *vm)
+static void vm_free_pages_release(struct i915_address_space *vm,
+				  bool immediate)
 {
-	GEM_BUG_ON(!pagevec_count(&vm->free_pages));
+	struct pagevec *pvec = &vm->free_pages;
 
-	if (vm->pt_kmap_wc)
-		set_pages_array_wb(vm->free_pages.pages,
-				   pagevec_count(&vm->free_pages));
+	GEM_BUG_ON(!pagevec_count(pvec));
 
-	__pagevec_release(&vm->free_pages);
+	if (vm->pt_kmap_wc) {
+		struct pagevec *stash = &vm->i915->mm.wc_stash;
+
+		/* When we use WC, first fill up the global stash and then
+		 * only if full immediately free the overflow.
+		 */
+
+		lockdep_assert_held(&vm->i915->drm.struct_mutex);
+		if (pagevec_space(stash)) {
+			do {
+				stash->pages[stash->nr++] =
+					pvec->pages[--pvec->nr];
+				if (!pvec->nr)
+					return;
+			} while (pagevec_space(stash));
+
+			/* As we have made some room in the VM's free_pages,
+			 * we can wait for it to fill again. Unless we are
+			 * inside i915_address_space_fini() and must
+			 * immediately release the pages!
+			 */
+			if (!immediate)
+				return;
+		}
+
+		set_pages_array_wb(pvec->pages, pvec->nr);
+	}
+
+	__pagevec_release(pvec);
 }
 
 static void vm_free_page(struct i915_address_space *vm, struct page *page)
 {
 	if (!pagevec_add(&vm->free_pages, page))
-		vm_free_pages_release(vm);
+		vm_free_pages_release(vm, false);
 }
 
 static int __setup_page_dma(struct i915_address_space *vm,
@@ -447,12 +499,31 @@ static void fill_page_dma_32(struct i915_address_space *vm,
 static int
 setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 {
-	return __setup_page_dma(vm, &vm->scratch_page, gfp | __GFP_ZERO);
+	struct page *page;
+	dma_addr_t addr;
+
+	page = alloc_page(gfp | __GFP_ZERO);
+	if (unlikely(!page))
+		return -ENOMEM;
+
+	addr = dma_map_page(vm->dma, page, 0, PAGE_SIZE,
+			    PCI_DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(vm->dma, addr))) {
+		__free_page(page);
+		return -ENOMEM;
+	}
+
+	vm->scratch_page.page = page;
+	vm->scratch_page.daddr = addr;
+	return 0;
 }
 
 static void cleanup_scratch_page(struct i915_address_space *vm)
 {
-	cleanup_page_dma(vm, &vm->scratch_page);
+	struct i915_page_dma *p = &vm->scratch_page;
+
+	dma_unmap_page(vm->dma, p->daddr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	__free_page(p->page);
 }
 
 static struct i915_page_table *alloc_pt(struct i915_address_space *vm)
@@ -1332,17 +1403,17 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		1ULL << 48 :
 		1ULL << 32;
 
-	ret = gen8_init_scratch(&ppgtt->base);
-	if (ret) {
-		ppgtt->base.total = 0;
-		return ret;
-	}
-
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
 	 */
 	if (IS_CHERRYVIEW(dev_priv) || IS_BROXTON(dev_priv))
 		ppgtt->base.pt_kmap_wc = true;
+
+	ret = gen8_init_scratch(&ppgtt->base);
+	if (ret) {
+		ppgtt->base.total = 0;
+		return ret;
+	}
 
 	if (use_4lvl(vm)) {
 		ret = setup_px(&ppgtt->base, &ppgtt->pml4);
@@ -1867,7 +1938,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 static void i915_address_space_fini(struct i915_address_space *vm)
 {
 	if (pagevec_count(&vm->free_pages))
-		vm_free_pages_release(vm);
+		vm_free_pages_release(vm, true);
 
 	i915_gem_timeline_fini(&vm->timeline);
 	drm_mm_takedown(&vm->mm);
@@ -1880,12 +1951,12 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 	 * called on driver load and after a GPU reset, so you can place
 	 * workarounds here even if they get overwritten by GPU reset.
 	 */
-	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl */
+	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl,cnl */
 	if (IS_BROADWELL(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
 	else if (IS_CHERRYVIEW(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV);
-	else if (IS_GEN9_BC(dev_priv))
+	else if (IS_GEN9_BC(dev_priv) || IS_GEN10(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 	else if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
@@ -2057,7 +2128,7 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 		 */
 		GEM_BUG_ON(obj->mm.pages == pages);
 	} while (i915_gem_shrink(to_i915(obj->base.dev),
-				 obj->base.size >> PAGE_SHIFT,
+				 obj->base.size >> PAGE_SHIFT, NULL,
 				 I915_SHRINK_BOUND |
 				 I915_SHRINK_UNBOUND |
 				 I915_SHRINK_ACTIVE));
@@ -2593,6 +2664,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma, *vn;
+	struct pagevec *pvec;
 
 	ggtt->base.closed = true;
 
@@ -2616,6 +2688,13 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	}
 
 	ggtt->base.cleanup(&ggtt->base);
+
+	pvec = &dev_priv->mm.wc_stash;
+	if (pvec->nr) {
+		set_pages_array_wb(pvec->pages, pvec->nr);
+		__pagevec_release(pvec);
+	}
+
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	arch_phys_wc_del(ggtt->mtrr);
@@ -2711,13 +2790,13 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	phys_addr = pci_resource_start(pdev, 0) + pci_resource_len(pdev, 0) / 2;
 
 	/*
-	 * On BXT writes larger than 64 bit to the GTT pagetable range will be
-	 * dropped. For WC mappings in general we have 64 byte burst writes
-	 * when the WC buffer is flushed, so we can't use it, but have to
+	 * On BXT+/CNL+ writes larger than 64 bit to the GTT pagetable range
+	 * will be dropped. For WC mappings in general we have 64 byte burst
+	 * writes when the WC buffer is flushed, so we can't use it, but have to
 	 * resort to an uncached mapping. The WC issue is easily caught by the
 	 * readback check when writing GTT PTE entries.
 	 */
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEN9_LP(dev_priv) || INTEL_GEN(dev_priv) >= 10)
 		ggtt->gsm = ioremap_nocache(phys_addr, size);
 	else
 		ggtt->gsm = ioremap_wc(phys_addr, size);
@@ -2735,6 +2814,24 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	}
 
 	return 0;
+}
+
+static void cnl_setup_private_ppat(struct drm_i915_private *dev_priv)
+{
+	/* XXX: spec is unclear if this is still needed for CNL+ */
+	if (!USES_PPGTT(dev_priv)) {
+		I915_WRITE(GEN10_PAT_INDEX(0), GEN8_PPAT_UC);
+		return;
+	}
+
+	I915_WRITE(GEN10_PAT_INDEX(0), GEN8_PPAT_WB | GEN8_PPAT_LLC);
+	I915_WRITE(GEN10_PAT_INDEX(1), GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
+	I915_WRITE(GEN10_PAT_INDEX(2), GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
+	I915_WRITE(GEN10_PAT_INDEX(3), GEN8_PPAT_UC);
+	I915_WRITE(GEN10_PAT_INDEX(4), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0));
+	I915_WRITE(GEN10_PAT_INDEX(5), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1));
+	I915_WRITE(GEN10_PAT_INDEX(6), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2));
+	I915_WRITE(GEN10_PAT_INDEX(7), GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 }
 
 /* The GGTT and PPGTT need a private PPAT setup in order to handle cacheability
@@ -2851,7 +2948,9 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->base.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 
-	if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 10)
+		cnl_setup_private_ppat(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
 		chv_setup_private_ppat(dev_priv);
 	else
 		bdw_setup_private_ppat(dev_priv);
@@ -3133,7 +3232,9 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 	ggtt->base.closed = false;
 
 	if (INTEL_GEN(dev_priv) >= 8) {
-		if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 10)
+			cnl_setup_private_ppat(dev_priv);
+		else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
 			chv_setup_private_ppat(dev_priv);
 		else
 			bdw_setup_private_ppat(dev_priv);
@@ -3204,7 +3305,7 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	/* Allocate a temporary list of source pages for random access. */
 	page_addr_list = kvmalloc_array(n_pages,
 					sizeof(dma_addr_t),
-					GFP_TEMPORARY);
+					GFP_KERNEL);
 	if (!page_addr_list)
 		return ERR_PTR(ret);
 

@@ -432,7 +432,8 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
 
 	gfp &= gfp_allowed_mask;
 
-	lockdep_trace_alloc(gfp);
+	fs_reclaim_acquire(gfp);
+	fs_reclaim_release(gfp);
 
 	if (size < PAGE_SIZE - align) {
 		if (!size)
@@ -538,7 +539,8 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 
 	flags &= gfp_allowed_mask;
 
-	lockdep_trace_alloc(flags);
+	fs_reclaim_acquire(flags);
+	fs_reclaim_release(flags);
 
 	if (c->size < PAGE_SIZE) {
 		b = slob_alloc(c->size, flags, c->align, node);

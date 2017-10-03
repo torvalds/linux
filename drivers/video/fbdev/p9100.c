@@ -304,8 +304,8 @@ static int p9100_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk(KERN_INFO "%s: p9100 at %lx:%lx\n",
-	       dp->full_name,
+	printk(KERN_INFO "%pOF: p9100 at %lx:%lx\n",
+	       dp,
 	       par->which_io, info->fix.smem_start);
 
 	return 0;

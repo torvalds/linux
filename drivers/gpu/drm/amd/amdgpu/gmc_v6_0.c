@@ -332,7 +332,24 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	adev->mc.real_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 	adev->mc.visible_vram_size = adev->mc.aper_size;
 
-	amdgpu_gart_set_defaults(adev);
+	/* set the gart size */
+	if (amdgpu_gart_size == -1) {
+		switch (adev->asic_type) {
+		case CHIP_HAINAN:    /* no MM engines */
+		default:
+			adev->mc.gart_size = 256ULL << 20;
+			break;
+		case CHIP_VERDE:    /* UVD, VCE do not support GPUVM */
+		case CHIP_TAHITI:   /* UVD, VCE do not support GPUVM */
+		case CHIP_PITCAIRN: /* UVD, VCE do not support GPUVM */
+		case CHIP_OLAND:    /* UVD, VCE do not support GPUVM */
+			adev->mc.gart_size = 1024ULL << 20;
+			break;
+		}
+	} else {
+		adev->mc.gart_size = (u64)amdgpu_gart_size << 20;
+	}
+
 	gmc_v6_0_vram_gtt_location(adev, &adev->mc);
 
 	return 0;
@@ -461,6 +478,7 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 {
 	int r, i;
+	u32 field;
 
 	if (adev->gart.robj == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
@@ -488,10 +506,12 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL2,
 	       VM_L2_CNTL2__INVALIDATE_ALL_L1_TLBS_MASK |
 	       VM_L2_CNTL2__INVALIDATE_L2_CACHE_MASK);
+
+	field = adev->vm_manager.fragment_size;
 	WREG32(mmVM_L2_CNTL3,
 	       VM_L2_CNTL3__L2_CACHE_BIGK_ASSOCIATIVITY_MASK |
-	       (4UL << VM_L2_CNTL3__BANK_SELECT__SHIFT) |
-	       (4UL << VM_L2_CNTL3__L2_CACHE_BIGK_FRAGMENT_SIZE__SHIFT));
+	       (field << VM_L2_CNTL3__BANK_SELECT__SHIFT) |
+	       (field << VM_L2_CNTL3__L2_CACHE_BIGK_FRAGMENT_SIZE__SHIFT));
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->mc.gart_start >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->mc.gart_end >> 12);
@@ -811,7 +831,7 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_vm_adjust_size(adev, 64);
+	amdgpu_vm_adjust_size(adev, 64, 9);
 	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	adev->mc.mc_mask = 0xffffffffffULL;
@@ -881,6 +901,8 @@ static int gmc_v6_0_sw_fini(void *handle)
 	gmc_v6_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
+	release_firmware(adev->mc.fw);
+	adev->mc.fw = NULL;
 
 	return 0;
 }

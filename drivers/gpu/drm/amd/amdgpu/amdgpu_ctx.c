@@ -246,8 +246,8 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
 	return 0;
 }
 
-uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
-			      struct dma_fence *fence)
+int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
+			      struct dma_fence *fence, uint64_t* handler)
 {
 	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
 	uint64_t seq = cring->sequence;
@@ -258,9 +258,9 @@ uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 	other = cring->fences[idx];
 	if (other) {
 		signed long r;
-		r = dma_fence_wait_timeout(other, false, MAX_SCHEDULE_TIMEOUT);
+		r = dma_fence_wait_timeout(other, true, MAX_SCHEDULE_TIMEOUT);
 		if (r < 0)
-			DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+			return r;
 	}
 
 	dma_fence_get(fence);
@@ -271,8 +271,10 @@ uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 	spin_unlock(&ctx->ring_lock);
 
 	dma_fence_put(other);
+	if (handler)
+		*handler = seq;
 
-	return seq;
+	return 0;
 }
 
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,

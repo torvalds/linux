@@ -2260,7 +2260,6 @@ static int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, str
 		spin_lock(&inode->i_lock);
 		retry = false;
 	}
-	res->jiffies = cache->jiffies;
 	res->cred = cache->cred;
 	res->mask = cache->mask;
 	list_move_tail(&cache->lru, &nfsi->access_cache_entry_lru);
@@ -2296,7 +2295,6 @@ static int nfs_access_get_cached_rcu(struct inode *inode, struct rpc_cred *cred,
 		goto out;
 	if (nfs_check_cache_invalid(inode, NFS_INO_INVALID_ACCESS))
 		goto out;
-	res->jiffies = cache->jiffies;
 	res->cred = cache->cred;
 	res->mask = cache->mask;
 	err = 0;
@@ -2344,7 +2342,6 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 	if (cache == NULL)
 		return;
 	RB_CLEAR_NODE(&cache->rb_node);
-	cache->jiffies = set->jiffies;
 	cache->cred = get_rpccred(set->cred);
 	cache->mask = set->mask;
 
@@ -2432,7 +2429,6 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 	cache.mask = NFS_MAY_LOOKUP | NFS_MAY_EXECUTE
 		     | NFS_MAY_WRITE | NFS_MAY_READ;
 	cache.cred = cred;
-	cache.jiffies = jiffies;
 	status = NFS_PROTO(inode)->access(inode, &cache);
 	if (status != 0) {
 		if (status == -ESTALE) {

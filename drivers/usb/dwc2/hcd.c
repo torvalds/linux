@@ -4388,6 +4388,9 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
+	if (dwc2_is_device_mode(hsotg))
+		goto unlock;
+
 	if (hsotg->lx_state != DWC2_L0)
 		goto unlock;
 
@@ -4445,6 +4448,9 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	int ret = 0;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
+
+	if (dwc2_is_device_mode(hsotg))
+		goto unlock;
 
 	if (hsotg->lx_state != DWC2_L2)
 		goto unlock;

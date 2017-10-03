@@ -3081,3 +3081,8 @@
 		  1 = /dev/osd1		Second OSD Device
 		  ...
 		  255 = /dev/osd255	256th OSD Device
+
+ 384-511 char	RESERVED FOR DYNAMIC ASSIGNMENT
+		Character devices that request a dynamic allocation of major
+		number will take numbers starting from 511 and downward,
+		once the 234-254 range is full.

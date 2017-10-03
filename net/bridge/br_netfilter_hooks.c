@@ -887,7 +887,7 @@ EXPORT_SYMBOL_GPL(br_netfilter_enable);
 
 /* For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * br_dev_queue_push_xmit is called afterwards */
-static struct nf_hook_ops br_nf_ops[] __read_mostly = {
+static const struct nf_hook_ops br_nf_ops[] = {
 	{
 		.hook = br_nf_pre_routing,
 		.pf = NFPROTO_BRIDGE,
@@ -985,22 +985,25 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 		      int (*okfn)(struct net *, struct sock *,
 				  struct sk_buff *))
 {
-	struct nf_hook_entry *elem;
+	const struct nf_hook_entries *e;
 	struct nf_hook_state state;
+	struct nf_hook_ops **ops;
+	unsigned int i;
 	int ret;
 
-	for (elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
-	     elem && nf_hook_entry_priority(elem) <= NF_BR_PRI_BRNF;
-	     elem = rcu_dereference(elem->next))
-		;
-
-	if (!elem)
+	e = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
+	if (!e)
 		return okfn(net, sk, skb);
+
+	ops = nf_hook_entries_get_hook_ops(e);
+	for (i = 0; i < e->num_hook_entries &&
+	      ops[i]->priority <= NF_BR_PRI_BRNF; i++)
+		;
 
 	nf_hook_state_init(&state, hook, NFPROTO_BRIDGE, indev, outdev,
 			   sk, net, okfn);
 
-	ret = nf_hook_slow(skb, &state, elem);
+	ret = nf_hook_slow(skb, &state, e, i);
 	if (ret == 1)
 		ret = okfn(net, sk, skb);
 

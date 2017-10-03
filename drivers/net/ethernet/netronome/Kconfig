@@ -29,6 +29,7 @@ config NFP_APP_FLOWER
 	bool "NFP4000/NFP6000 TC Flower offload support"
 	depends on NFP
 	depends on NET_SWITCHDEV
+	default y
 	---help---
 	  Enable driver support for TC Flower offload on NFP4000 and NFP6000.
 	  Say Y, if you are planning to make use of TC Flower offload

@@ -285,6 +285,10 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 		case DCB_OUTPUT_DP:
 			ret = nvkm_dp_new(disp, i, &dcbE, &outp);
 			break;
+		case DCB_OUTPUT_WFD:
+			/* No support for WFD yet. */
+			ret = -ENODEV;
+			continue;
 		default:
 			nvkm_warn(subdev, "dcb %d type %d unknown\n",
 				  i, dcbE.type);

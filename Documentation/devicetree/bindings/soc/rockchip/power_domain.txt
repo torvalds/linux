@@ -7,6 +7,7 @@ Required properties for power domain controller:
 - compatible: Should be one of the following.
 	"rockchip,rk3288-power-controller" - for RK3288 SoCs.
 	"rockchip,rk3328-power-controller" - for RK3328 SoCs.
+	"rockchip,rk3366-power-controller" - for RK3366 SoCs.
 	"rockchip,rk3368-power-controller" - for RK3368 SoCs.
 	"rockchip,rk3399-power-controller" - for RK3399 SoCs.
 - #power-domain-cells: Number of cells in a power-domain specifier.
@@ -18,6 +19,7 @@ Required properties for power domain sub nodes:
 - reg: index of the power domain, should use macros in:
 	"include/dt-bindings/power/rk3288-power.h" - for RK3288 type power domain.
 	"include/dt-bindings/power/rk3328-power.h" - for RK3328 type power domain.
+	"include/dt-bindings/power/rk3366-power.h" - for RK3366 type power domain.
 	"include/dt-bindings/power/rk3368-power.h" - for RK3368 type power domain.
 	"include/dt-bindings/power/rk3399-power.h" - for RK3399 type power domain.
 - clocks (optional): phandles to clocks which need to be enabled while power domain
@@ -93,6 +95,7 @@ power domain to use.
 The index should use macros in:
 	"include/dt-bindings/power/rk3288-power.h" - for rk3288 type power domain.
 	"include/dt-bindings/power/rk3328-power.h" - for rk3328 type power domain.
+	"include/dt-bindings/power/rk3366-power.h" - for rk3366 type power domain.
 	"include/dt-bindings/power/rk3368-power.h" - for rk3368 type power domain.
 	"include/dt-bindings/power/rk3399-power.h" - for rk3399 type power domain.
 

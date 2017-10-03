@@ -212,6 +212,11 @@ enum drbd_req_state_bits {
 	/* Should call drbd_al_complete_io() for this request... */
 	__RQ_IN_ACT_LOG,
 
+	/* This was the most recent request during some blk_finish_plug()
+	 * or its implicit from-schedule equivalent.
+	 * We may use it as hint to send a P_UNPLUG_REMOTE */
+	__RQ_UNPLUG,
+
 	/* The peer has sent a retry ACK */
 	__RQ_POSTPONED,
 
@@ -249,6 +254,7 @@ enum drbd_req_state_bits {
 #define RQ_WSAME           (1UL << __RQ_WSAME)
 #define RQ_UNMAP           (1UL << __RQ_UNMAP)
 #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+#define RQ_UNPLUG          (1UL << __RQ_UNPLUG)
 #define RQ_POSTPONED	   (1UL << __RQ_POSTPONED)
 #define RQ_COMPLETION_SUSP (1UL << __RQ_COMPLETION_SUSP)
 #define RQ_EXP_RECEIVE_ACK (1UL << __RQ_EXP_RECEIVE_ACK)

@@ -12,7 +12,6 @@ Required properties:
 Example:
 
 &hsi2c_4 {
-	status = "okay";
 	s3fwrn5@27 {
 		compatible = "samsung,s3fwrn5-i2c";
 

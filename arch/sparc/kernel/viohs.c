@@ -814,15 +814,21 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 	case VDEV_NETWORK_SWITCH:
 	case VDEV_DISK:
 	case VDEV_DISK_SERVER:
+	case VDEV_CONSOLE_CON:
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	if (!ops || !ops->send_attr || !ops->handle_attr ||
-	    !ops->handshake_complete)
-		return -EINVAL;
+	if (dev_class == VDEV_NETWORK ||
+	    dev_class == VDEV_NETWORK_SWITCH ||
+	    dev_class == VDEV_DISK ||
+	    dev_class == VDEV_DISK_SERVER) {
+		if (!ops || !ops->send_attr || !ops->handle_attr ||
+		    !ops->handshake_complete)
+			return -EINVAL;
+	}
 
 	if (!ver_table || ver_table_size < 0)
 		return -EINVAL;

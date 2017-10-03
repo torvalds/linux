@@ -289,85 +289,6 @@ fail:
 	return NULL;
 }
 
-/**
- * aa_new_null_profile - create or find a null-X learning profile
- * @parent: profile that caused this profile to be created (NOT NULL)
- * @hat: true if the null- learning profile is a hat
- * @base: name to base the null profile off of
- * @gfp: type of allocation
- *
- * Find/Create a null- complain mode profile used in learning mode.  The
- * name of the profile is unique and follows the format of parent//null-XXX.
- * where XXX is based on the @name or if that fails or is not supplied
- * a unique number
- *
- * null profiles are added to the profile list but the list does not
- * hold a count on them so that they are automatically released when
- * not in use.
- *
- * Returns: new refcounted profile else NULL on failure
- */
-struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
-				       const char *base, gfp_t gfp)
-{
-	struct aa_profile *profile;
-	char *name;
-
-	AA_BUG(!parent);
-
-	if (base) {
-		name = kmalloc(strlen(parent->base.hname) + 8 + strlen(base),
-			       gfp);
-		if (name) {
-			sprintf(name, "%s//null-%s", parent->base.hname, base);
-			goto name;
-		}
-		/* fall through to try shorter uniq */
-	}
-
-	name = kmalloc(strlen(parent->base.hname) + 2 + 7 + 8, gfp);
-	if (!name)
-		return NULL;
-	sprintf(name, "%s//null-%x", parent->base.hname,
-		atomic_inc_return(&parent->ns->uniq_null));
-
-name:
-	/* lookup to see if this is a dup creation */
-	profile = aa_find_child(parent, basename(name));
-	if (profile)
-		goto out;
-
-	profile = aa_alloc_profile(name, NULL, gfp);
-	if (!profile)
-		goto fail;
-
-	profile->mode = APPARMOR_COMPLAIN;
-	profile->label.flags |= FLAG_NULL;
-	if (hat)
-		profile->label.flags |= FLAG_HAT;
-	profile->path_flags = parent->path_flags;
-
-	/* released on free_profile */
-	rcu_assign_pointer(profile->parent, aa_get_profile(parent));
-	profile->ns = aa_get_ns(parent->ns);
-	profile->file.dfa = aa_get_dfa(nulldfa);
-	profile->policy.dfa = aa_get_dfa(nulldfa);
-
-	mutex_lock(&profile->ns->lock);
-	__add_profile(&parent->base.profiles, profile);
-	mutex_unlock(&profile->ns->lock);
-
-	/* refcount released by caller */
-out:
-	kfree(name);
-
-	return profile;
-
-fail:
-	aa_free_profile(profile);
-	return NULL;
-}
-
 /* TODO: profile accounting - setup in remove */
 
 /**
@@ -556,6 +477,93 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 	aa_put_ns(ns);
 
 	return profile;
+}
+
+/**
+ * aa_new_null_profile - create or find a null-X learning profile
+ * @parent: profile that caused this profile to be created (NOT NULL)
+ * @hat: true if the null- learning profile is a hat
+ * @base: name to base the null profile off of
+ * @gfp: type of allocation
+ *
+ * Find/Create a null- complain mode profile used in learning mode.  The
+ * name of the profile is unique and follows the format of parent//null-XXX.
+ * where XXX is based on the @name or if that fails or is not supplied
+ * a unique number
+ *
+ * null profiles are added to the profile list but the list does not
+ * hold a count on them so that they are automatically released when
+ * not in use.
+ *
+ * Returns: new refcounted profile else NULL on failure
+ */
+struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
+				       const char *base, gfp_t gfp)
+{
+	struct aa_profile *p, *profile;
+	const char *bname;
+	char *name;
+
+	AA_BUG(!parent);
+
+	if (base) {
+		name = kmalloc(strlen(parent->base.hname) + 8 + strlen(base),
+			       gfp);
+		if (name) {
+			sprintf(name, "%s//null-%s", parent->base.hname, base);
+			goto name;
+		}
+		/* fall through to try shorter uniq */
+	}
+
+	name = kmalloc(strlen(parent->base.hname) + 2 + 7 + 8, gfp);
+	if (!name)
+		return NULL;
+	sprintf(name, "%s//null-%x", parent->base.hname,
+		atomic_inc_return(&parent->ns->uniq_null));
+
+name:
+	/* lookup to see if this is a dup creation */
+	bname = basename(name);
+	profile = aa_find_child(parent, bname);
+	if (profile)
+		goto out;
+
+	profile = aa_alloc_profile(name, NULL, gfp);
+	if (!profile)
+		goto fail;
+
+	profile->mode = APPARMOR_COMPLAIN;
+	profile->label.flags |= FLAG_NULL;
+	if (hat)
+		profile->label.flags |= FLAG_HAT;
+	profile->path_flags = parent->path_flags;
+
+	/* released on free_profile */
+	rcu_assign_pointer(profile->parent, aa_get_profile(parent));
+	profile->ns = aa_get_ns(parent->ns);
+	profile->file.dfa = aa_get_dfa(nulldfa);
+	profile->policy.dfa = aa_get_dfa(nulldfa);
+
+	mutex_lock(&profile->ns->lock);
+	p = __find_child(&parent->base.profiles, bname);
+	if (p) {
+		aa_free_profile(profile);
+		profile = aa_get_profile(p);
+	} else {
+		__add_profile(&parent->base.profiles, profile);
+	}
+	mutex_unlock(&profile->ns->lock);
+
+	/* refcount released by caller */
+out:
+	kfree(name);
+
+	return profile;
+
+fail:
+	aa_free_profile(profile);
+	return NULL;
 }
 
 /**

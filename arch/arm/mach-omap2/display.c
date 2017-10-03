@@ -172,6 +172,7 @@ static int __init omapdss_init_fbdev(void)
 		.set_min_bus_tput = omap_dss_set_min_bus_tput,
 	};
 	struct device_node *node;
+	int r;
 
 	board_data.version = omap_display_get_version();
 	if (board_data.version == OMAPDSS_VER_UNKNOWN) {

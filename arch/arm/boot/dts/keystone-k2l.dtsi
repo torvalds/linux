@@ -33,6 +33,13 @@
 		};
 	};
 
+	aliases {
+		rproc0 = &dsp0;
+		rproc1 = &dsp1;
+		rproc2 = &dsp2;
+		rproc3 = &dsp3;
+	};
+
 	soc {
 		/include/ "keystone-k2l-clocks.dtsi"
 
@@ -266,6 +273,70 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x24c>;
+		};
+
+		dsp0: dsp@10800000 {
+			compatible = "ti,k2l-dsp";
+			reg = <0x10800000 0x00100000>,
+			      <0x10e00000 0x00008000>,
+			      <0x10f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem0>;
+			ti,syscon-dev = <&devctrl 0x844>;
+			resets = <&pscrst 0>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <0 8>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio0 27 0>;
+			status = "disabled";
+		};
+
+		dsp1: dsp@11800000 {
+			compatible = "ti,k2l-dsp";
+			reg = <0x11800000 0x00100000>,
+			      <0x11e00000 0x00008000>,
+			      <0x11f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem1>;
+			ti,syscon-dev = <&devctrl 0x848>;
+			resets = <&pscrst 1>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <1 9>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio1 27 0>;
+			status = "disabled";
+		};
+
+		dsp2: dsp@12800000 {
+			compatible = "ti,k2l-dsp";
+			reg = <0x12800000 0x00100000>,
+			      <0x12e00000 0x00008000>,
+			      <0x12f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem2>;
+			ti,syscon-dev = <&devctrl 0x84c>;
+			resets = <&pscrst 2>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <2 10>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio2 27 0>;
+			status = "disabled";
+		};
+
+		dsp3: dsp@13800000 {
+			compatible = "ti,k2l-dsp";
+			reg = <0x13800000 0x00100000>,
+			      <0x13e00000 0x00008000>,
+			      <0x13f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem3>;
+			ti,syscon-dev = <&devctrl 0x850>;
+			resets = <&pscrst 3>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <3 11>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio3 27 0>;
+			status = "disabled";
 		};
 
 		mdio: mdio@26200f00 {

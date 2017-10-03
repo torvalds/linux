@@ -533,17 +533,23 @@ static int from_fw_port_mod_type(enum fw_port_type port_type,
 static unsigned int speed_to_fw_caps(int speed)
 {
 	if (speed == 100)
-		return FW_PORT_CAP_SPEED_100M;
+		return FW_PORT_CAP32_SPEED_100M;
 	if (speed == 1000)
-		return FW_PORT_CAP_SPEED_1G;
+		return FW_PORT_CAP32_SPEED_1G;
 	if (speed == 10000)
-		return FW_PORT_CAP_SPEED_10G;
+		return FW_PORT_CAP32_SPEED_10G;
 	if (speed == 25000)
-		return FW_PORT_CAP_SPEED_25G;
+		return FW_PORT_CAP32_SPEED_25G;
 	if (speed == 40000)
-		return FW_PORT_CAP_SPEED_40G;
+		return FW_PORT_CAP32_SPEED_40G;
+	if (speed == 50000)
+		return FW_PORT_CAP32_SPEED_50G;
 	if (speed == 100000)
-		return FW_PORT_CAP_SPEED_100G;
+		return FW_PORT_CAP32_SPEED_100G;
+	if (speed == 200000)
+		return FW_PORT_CAP32_SPEED_200G;
+	if (speed == 400000)
+		return FW_PORT_CAP32_SPEED_400G;
 	return 0;
 }
 
@@ -560,12 +566,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 			   unsigned int fw_caps,
 			   unsigned long *link_mode_mask)
 {
-	#define SET_LMM(__lmm_name) __set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name \
-					## _BIT, link_mode_mask)
+	#define SET_LMM(__lmm_name) \
+		__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
+			  link_mode_mask)
 
 	#define FW_CAPS_TO_LMM(__fw_name, __lmm_name) \
 		do { \
-			if (fw_caps & FW_PORT_CAP_ ## __fw_name) \
+			if (fw_caps & FW_PORT_CAP32_ ## __fw_name) \
 				SET_LMM(__lmm_name); \
 		} while (0)
 
@@ -645,7 +652,10 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_KR4_100G:
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(100000baseCR4_Full);
+		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
+		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
+		FW_CAPS_TO_LMM(SPEED_100G, 100000baseCR4_Full);
 		break;
 
 	default:
@@ -663,8 +673,7 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 /**
  *	lmm_to_fw_caps - translate ethtool Link Mode Mask to Firmware
  *	capabilities
- *
- *	@link_mode_mask: ethtool Link Mode Mask
+ *	@et_lmm: ethtool Link Mode Mask
  *
  *	Translate ethtool Link Mode Mask into a Firmware Port capabilities
  *	value.
@@ -677,7 +686,7 @@ static unsigned int lmm_to_fw_caps(const unsigned long *link_mode_mask)
 		do { \
 			if (test_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
 				     link_mode_mask)) \
-				fw_caps |= FW_PORT_CAP_ ## __fw_name; \
+				fw_caps |= FW_PORT_CAP32_ ## __fw_name; \
 		} while (0)
 
 	LMM_TO_FW_CAPS(100baseT_Full, SPEED_100M);
@@ -685,6 +694,7 @@ static unsigned int lmm_to_fw_caps(const unsigned long *link_mode_mask)
 	LMM_TO_FW_CAPS(10000baseT_Full, SPEED_10G);
 	LMM_TO_FW_CAPS(40000baseSR4_Full, SPEED_40G);
 	LMM_TO_FW_CAPS(25000baseCR_Full, SPEED_25G);
+	LMM_TO_FW_CAPS(50000baseCR2_Full, SPEED_50G);
 	LMM_TO_FW_CAPS(100000baseCR4_Full, SPEED_100G);
 
 	#undef LMM_TO_FW_CAPS
@@ -698,16 +708,16 @@ static int get_link_ksettings(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 	struct ethtool_link_settings *base = &link_ksettings->base;
 
-	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
-	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
-	ethtool_link_ksettings_zero_link_mode(link_ksettings, lp_advertising);
-
 	/* For the nonce, the Firmware doesn't send up Port State changes
 	 * when the Virtual Interface attached to the Port is down.  So
 	 * if it's down, let's grab any changes.
 	 */
 	if (!netif_running(dev))
 		(void)t4_update_port_info(pi);
+
+	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
+	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
+	ethtool_link_ksettings_zero_link_mode(link_ksettings, lp_advertising);
 
 	base->port = from_fw_port_mod_type(pi->port_type, pi->mod_type);
 
@@ -721,11 +731,11 @@ static int get_link_ksettings(struct net_device *dev,
 		base->mdio_support = 0;
 	}
 
-	fw_caps_to_lmm(pi->port_type, pi->link_cfg.supported,
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.pcaps,
 		       link_ksettings->link_modes.supported);
-	fw_caps_to_lmm(pi->port_type, pi->link_cfg.advertising,
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.acaps,
 		       link_ksettings->link_modes.advertising);
-	fw_caps_to_lmm(pi->port_type, pi->link_cfg.lp_advertising,
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.lpacaps,
 		       link_ksettings->link_modes.lp_advertising);
 
 	if (netif_carrier_ok(dev)) {
@@ -736,8 +746,24 @@ static int get_link_ksettings(struct net_device *dev,
 		base->duplex = DUPLEX_UNKNOWN;
 	}
 
+	if (pi->link_cfg.fc & PAUSE_RX) {
+		if (pi->link_cfg.fc & PAUSE_TX) {
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     advertising,
+							     Pause);
+		} else {
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     advertising,
+							     Asym_Pause);
+		}
+	} else if (pi->link_cfg.fc & PAUSE_TX) {
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising,
+						     Asym_Pause);
+	}
+
 	base->autoneg = pi->link_cfg.autoneg;
-	if (pi->link_cfg.supported & FW_PORT_CAP_ANEG)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_ANEG)
 		ethtool_link_ksettings_add_link_mode(link_ksettings,
 						     supported, Autoneg);
 	if (pi->link_cfg.autoneg)
@@ -748,8 +774,7 @@ static int get_link_ksettings(struct net_device *dev,
 }
 
 static int set_link_ksettings(struct net_device *dev,
-			      const struct ethtool_link_ksettings
-						*link_ksettings)
+			    const struct ethtool_link_ksettings *link_ksettings)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct link_config *lc = &pi->link_cfg;
@@ -762,12 +787,12 @@ static int set_link_ksettings(struct net_device *dev,
 	if (base->duplex != DUPLEX_FULL)
 		return -EINVAL;
 
-	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
 		/* PHY offers a single speed.  See if that's what's
 		 * being requested.
 		 */
 		if (base->autoneg == AUTONEG_DISABLE &&
-		    (lc->supported & speed_to_fw_caps(base->speed)))
+		    (lc->pcaps & speed_to_fw_caps(base->speed)))
 			return 0;
 		return -EINVAL;
 	}
@@ -776,18 +801,17 @@ static int set_link_ksettings(struct net_device *dev,
 	if (base->autoneg == AUTONEG_DISABLE) {
 		fw_caps = speed_to_fw_caps(base->speed);
 
-		if (!(lc->supported & fw_caps))
+		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
-		lc->requested_speed = fw_caps;
-		lc->advertising = 0;
+		lc->speed_caps = fw_caps;
+		lc->acaps = 0;
 	} else {
 		fw_caps =
-			lmm_to_fw_caps(link_ksettings->link_modes.advertising);
-
-		if (!(lc->supported & fw_caps))
+			 lmm_to_fw_caps(link_ksettings->link_modes.advertising);
+		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
-		lc->requested_speed = 0;
-		lc->advertising = fw_caps | FW_PORT_CAP_ANEG;
+		lc->speed_caps = 0;
+		lc->acaps = fw_caps | FW_PORT_CAP32_ANEG;
 	}
 	lc->autoneg = base->autoneg;
 
@@ -798,6 +822,104 @@ static int set_link_ksettings(struct net_device *dev,
 	if (ret)
 		*lc = old_lc;
 
+	return ret;
+}
+
+/* Translate the Firmware FEC value into the ethtool value. */
+static inline unsigned int fwcap_to_eth_fec(unsigned int fw_fec)
+{
+	unsigned int eth_fec = 0;
+
+	if (fw_fec & FW_PORT_CAP32_FEC_RS)
+		eth_fec |= ETHTOOL_FEC_RS;
+	if (fw_fec & FW_PORT_CAP32_FEC_BASER_RS)
+		eth_fec |= ETHTOOL_FEC_BASER;
+
+	/* if nothing is set, then FEC is off */
+	if (!eth_fec)
+		eth_fec = ETHTOOL_FEC_OFF;
+
+	return eth_fec;
+}
+
+/* Translate Common Code FEC value into ethtool value. */
+static inline unsigned int cc_to_eth_fec(unsigned int cc_fec)
+{
+	unsigned int eth_fec = 0;
+
+	if (cc_fec & FEC_AUTO)
+		eth_fec |= ETHTOOL_FEC_AUTO;
+	if (cc_fec & FEC_RS)
+		eth_fec |= ETHTOOL_FEC_RS;
+	if (cc_fec & FEC_BASER_RS)
+		eth_fec |= ETHTOOL_FEC_BASER;
+
+	/* if nothing is set, then FEC is off */
+	if (!eth_fec)
+		eth_fec = ETHTOOL_FEC_OFF;
+
+	return eth_fec;
+}
+
+/* Translate ethtool FEC value into Common Code value. */
+static inline unsigned int eth_to_cc_fec(unsigned int eth_fec)
+{
+	unsigned int cc_fec = 0;
+
+	if (eth_fec & ETHTOOL_FEC_OFF)
+		return cc_fec;
+
+	if (eth_fec & ETHTOOL_FEC_AUTO)
+		cc_fec |= FEC_AUTO;
+	if (eth_fec & ETHTOOL_FEC_RS)
+		cc_fec |= FEC_RS;
+	if (eth_fec & ETHTOOL_FEC_BASER)
+		cc_fec |= FEC_BASER_RS;
+
+	return cc_fec;
+}
+
+static int get_fecparam(struct net_device *dev, struct ethtool_fecparam *fec)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	const struct link_config *lc = &pi->link_cfg;
+
+	/* Translate the Firmware FEC Support into the ethtool value.  We
+	 * always support IEEE 802.3 "automatic" selection of Link FEC type if
+	 * any FEC is supported.
+	 */
+	fec->fec = fwcap_to_eth_fec(lc->pcaps);
+	if (fec->fec != ETHTOOL_FEC_OFF)
+		fec->fec |= ETHTOOL_FEC_AUTO;
+
+	/* Translate the current internal FEC parameters into the
+	 * ethtool values.
+	 */
+	fec->active_fec = cc_to_eth_fec(lc->fec);
+
+	return 0;
+}
+
+static int set_fecparam(struct net_device *dev, struct ethtool_fecparam *fec)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct link_config *lc = &pi->link_cfg;
+	struct link_config old_lc;
+	int ret;
+
+	/* Save old Link Configuration in case the L1 Configure below
+	 * fails.
+	 */
+	old_lc = *lc;
+
+	/* Try to perform the L1 Configure and return the result of that
+	 * effort.  If it fails, revert the attempted change.
+	 */
+	lc->requested_fec = eth_to_cc_fec(fec->fec);
+	ret = t4_link_l1cfg(pi->adapter, pi->adapter->mbox,
+			    pi->tx_chan, lc);
+	if (ret)
+		*lc = old_lc;
 	return ret;
 }
 
@@ -819,7 +941,7 @@ static int set_pauseparam(struct net_device *dev,
 
 	if (epause->autoneg == AUTONEG_DISABLE)
 		lc->requested_fc = 0;
-	else if (lc->supported & FW_PORT_CAP_ANEG)
+	else if (lc->pcaps & FW_PORT_CAP32_ANEG)
 		lc->requested_fc = PAUSE_AUTONEG;
 	else
 		return -EINVAL;
@@ -1255,6 +1377,8 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
+	.get_fecparam      = get_fecparam,
+	.set_fecparam      = set_fecparam,
 	.get_drvinfo       = get_drvinfo,
 	.get_msglevel      = get_msglevel,
 	.set_msglevel      = set_msglevel,

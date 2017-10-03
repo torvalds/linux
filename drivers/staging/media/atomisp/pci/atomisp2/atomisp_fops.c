@@ -643,14 +643,14 @@ static void atomisp_buf_release_output(struct videobuf_queue *vq,
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
 
-static struct videobuf_queue_ops videobuf_qops = {
+static const struct videobuf_queue_ops videobuf_qops = {
 	.buf_setup	= atomisp_buf_setup,
 	.buf_prepare	= atomisp_buf_prepare,
 	.buf_queue	= atomisp_buf_queue,
 	.buf_release	= atomisp_buf_release,
 };
 
-static struct videobuf_queue_ops videobuf_qops_output = {
+static const struct videobuf_queue_ops videobuf_qops_output = {
 	.buf_setup	= atomisp_buf_setup_output,
 	.buf_prepare	= atomisp_buf_prepare_output,
 	.buf_queue	= atomisp_buf_queue_output,

@@ -33,7 +33,9 @@
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
 
+/* bo virtual addresses in a vm */
 struct amdgpu_bo_va_mapping {
+	struct amdgpu_bo_va		*bo_va;
 	struct list_head		list;
 	struct rb_node			rb;
 	uint64_t			start;
@@ -43,25 +45,23 @@ struct amdgpu_bo_va_mapping {
 	uint64_t			flags;
 };
 
-/* bo virtual addresses in a specific vm */
+/* User space allocated BO in a VM */
 struct amdgpu_bo_va {
+	struct amdgpu_vm_bo_base	base;
+
 	/* protected by bo being reserved */
-	struct list_head		bo_list;
-	struct dma_fence	        *last_pt_update;
 	unsigned			ref_count;
 
-	/* protected by vm mutex and spinlock */
-	struct list_head		vm_status;
+	/* all other members protected by the VM PD being reserved */
+	struct dma_fence	        *last_pt_update;
 
 	/* mappings for this bo_va */
 	struct list_head		invalids;
 	struct list_head		valids;
 
-	/* constant after initialization */
-	struct amdgpu_vm		*vm;
-	struct amdgpu_bo		*bo;
+	/* If the mappings are cleared or filled */
+	bool				cleared;
 };
-
 
 struct amdgpu_bo {
 	/* Protected by tbo.reserved */
@@ -195,14 +195,6 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 			    struct reservation_object *resv,
 			    uint64_t init_value,
 			    struct amdgpu_bo **bo_ptr);
-int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
-				unsigned long size, int byte_align,
-				bool kernel, u32 domain, u64 flags,
-				struct sg_table *sg,
-				struct ttm_placement *placement,
-			        struct reservation_object *resv,
-				uint64_t init_value,
-				struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 			      unsigned long size, int align,
 			      u32 domain, struct amdgpu_bo **bo_ptr,

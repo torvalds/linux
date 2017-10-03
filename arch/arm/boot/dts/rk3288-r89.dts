@@ -50,7 +50,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	ext_gmac: external-gmac-clock {
@@ -354,7 +354,6 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	vmmc-supply = <&vcc_sdmmc>;

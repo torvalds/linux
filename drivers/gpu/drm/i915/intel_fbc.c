@@ -291,6 +291,19 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
 
+	/* Display WA #0529: skl, kbl, bxt. */
+	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv)) {
+		u32 val = I915_READ(CHICKEN_MISC_4);
+
+		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
+
+		if (i915_gem_object_get_tiling(params->vma->obj) !=
+		    I915_TILING_X)
+			val |= FBC_STRIDE_OVERRIDE | params->gen9_wa_cfb_stride;
+
+		I915_WRITE(CHICKEN_MISC_4, val);
+	}
+
 	dpfc_ctl = 0;
 	if (IS_IVYBRIDGE(dev_priv))
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.plane);
@@ -406,9 +419,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[crtc->pipe];
 
 	if (drm_crtc_vblank_get(&crtc->base)) {
-		DRM_ERROR("vblank not available for FBC on pipe %c\n",
-			  pipe_name(crtc->pipe));
-
+		/* CRTC is now off, leave FBC deactivated */
 		mutex_lock(&fbc->lock);
 		work->scheduled = false;
 		mutex_unlock(&fbc->lock);
@@ -461,6 +472,8 @@ static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 	struct intel_fbc_work *work = &fbc->work;
 
 	WARN_ON(!mutex_is_locked(&fbc->lock));
+	if (WARN_ON(!fbc->enabled))
+		return;
 
 	if (drm_crtc_vblank_get(&crtc->base)) {
 		DRM_ERROR("vblank not available for FBC on pipe %c\n",
@@ -881,6 +894,10 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	params->fb.stride = cache->fb.stride;
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
+
+	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
+		params->gen9_wa_cfb_stride = DIV_ROUND_UP(cache->plane.src_w,
+						32 * fbc->threshold) * 8;
 }
 
 static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
@@ -1216,7 +1233,7 @@ static void intel_fbc_underrun_work_fn(struct work_struct *work)
 	mutex_lock(&fbc->lock);
 
 	/* Maybe we were scheduled twice. */
-	if (fbc->underrun_detected)
+	if (fbc->underrun_detected || !fbc->enabled)
 		goto out;
 
 	DRM_DEBUG_KMS("Disabling FBC due to FIFO underrun.\n");

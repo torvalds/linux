@@ -65,6 +65,11 @@ void drbd_md_endio(struct bio *bio)
 	device = bio->bi_private;
 	device->md_io.error = blk_status_to_errno(bio->bi_status);
 
+	/* special case: drbd_md_read() during drbd_adm_attach() */
+	if (device->ldev)
+		put_ldev(device);
+	bio_put(bio);
+
 	/* We grabbed an extra reference in _drbd_md_sync_page_io() to be able
 	 * to timeout on the lower level device, and eventually detach from it.
 	 * If this io completion runs after that timeout expired, this
@@ -79,9 +84,6 @@ void drbd_md_endio(struct bio *bio)
 	drbd_md_put_buffer(device);
 	device->md_io.done = 1;
 	wake_up(&device->misc_wait);
-	bio_put(bio);
-	if (device->ldev) /* special case: drbd_md_read() during drbd_adm_attach() */
-		put_ldev(device);
 }
 
 /* reads on behalf of the partner,
@@ -127,6 +129,14 @@ void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(l
 	do_al_complete_io = peer_req->flags & EE_CALL_AL_COMPLETE_IO;
 	block_id = peer_req->block_id;
 	peer_req->flags &= ~EE_CALL_AL_COMPLETE_IO;
+
+	if (peer_req->flags & EE_WAS_ERROR) {
+		/* In protocol != C, we usually do not send write acks.
+		 * In case of a write error, send the neg ack anyways. */
+		if (!__test_and_set_bit(__EE_SEND_WRITE_ACK, &peer_req->flags))
+			inc_unacked(device);
+		drbd_set_out_of_sync(device, peer_req->i.sector, peer_req->i.size);
+	}
 
 	spin_lock_irqsave(&device->resource->req_lock, flags);
 	device->writ_cnt += peer_req->i.size >> 9;
@@ -195,7 +205,8 @@ void drbd_peer_request_endio(struct bio *bio)
 	}
 }
 
-void drbd_panic_after_delayed_completion_of_aborted_request(struct drbd_device *device)
+static void
+drbd_panic_after_delayed_completion_of_aborted_request(struct drbd_device *device)
 {
 	panic("drbd%u %s/%u potential random memory corruption caused by delayed completion of aborted local request\n",
 		device->minor, device->resource->name, device->vnr);
@@ -1382,18 +1393,22 @@ static int drbd_send_barrier(struct drbd_connection *connection)
 	return conn_send_command(connection, sock, P_BARRIER, sizeof(*p), NULL, 0);
 }
 
+static int pd_send_unplug_remote(struct drbd_peer_device *pd)
+{
+	struct drbd_socket *sock = &pd->connection->data;
+	if (!drbd_prepare_command(pd, sock))
+		return -EIO;
+	return drbd_send_command(pd, sock, P_UNPLUG_REMOTE, 0, NULL, 0);
+}
+
 int w_send_write_hint(struct drbd_work *w, int cancel)
 {
 	struct drbd_device *device =
 		container_of(w, struct drbd_device, unplug_work);
-	struct drbd_socket *sock;
 
 	if (cancel)
 		return 0;
-	sock = &first_peer_device(device)->connection->data;
-	if (!drbd_prepare_command(first_peer_device(device), sock))
-		return -EIO;
-	return drbd_send_command(first_peer_device(device), sock, P_UNPLUG_REMOTE, 0, NULL, 0);
+	return pd_send_unplug_remote(first_peer_device(device));
 }
 
 static void re_init_if_first_write(struct drbd_connection *connection, unsigned int epoch)
@@ -1455,6 +1470,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 	struct drbd_device *device = req->device;
 	struct drbd_peer_device *const peer_device = first_peer_device(device);
 	struct drbd_connection *connection = peer_device->connection;
+	bool do_send_unplug = req->rq_state & RQ_UNPLUG;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1470,6 +1486,9 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 	err = drbd_send_dblock(peer_device, req);
 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
 
+	if (do_send_unplug && !err)
+		pd_send_unplug_remote(peer_device);
+
 	return err;
 }
 
@@ -1484,6 +1503,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 	struct drbd_device *device = req->device;
 	struct drbd_peer_device *const peer_device = first_peer_device(device);
 	struct drbd_connection *connection = peer_device->connection;
+	bool do_send_unplug = req->rq_state & RQ_UNPLUG;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1501,6 +1521,9 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 
 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
 
+	if (do_send_unplug && !err)
+		pd_send_unplug_remote(peer_device);
+
 	return err;
 }
 
@@ -1513,7 +1536,7 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 		drbd_al_begin_io(device, &req->i);
 
 	drbd_req_make_private_bio(req, req->master_bio);
-	req->private_bio->bi_bdev = device->ldev->backing_bdev;
+	bio_set_dev(req->private_bio, device->ldev->backing_bdev);
 	generic_make_request(req->private_bio);
 
 	return 0;
@@ -1730,6 +1753,11 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 
 	if (device->state.conn >= C_SYNC_SOURCE && device->state.conn < C_AHEAD) {
 		drbd_err(device, "Resync already running!\n");
+		return;
+	}
+
+	if (!connection) {
+		drbd_err(device, "No connection to peer, aborting!\n");
 		return;
 	}
 

@@ -776,7 +776,7 @@ static snd_pcm_uframes_t snd_sonicvibes_capture_pointer(struct snd_pcm_substream
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static struct snd_pcm_hardware snd_sonicvibes_playback =
+static const struct snd_pcm_hardware snd_sonicvibes_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -795,7 +795,7 @@ static struct snd_pcm_hardware snd_sonicvibes_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_sonicvibes_capture =
+static const struct snd_pcm_hardware snd_sonicvibes_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

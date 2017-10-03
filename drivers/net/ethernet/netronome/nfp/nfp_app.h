@@ -42,7 +42,6 @@ struct bpf_prog;
 struct net_device;
 struct pci_dev;
 struct sk_buff;
-struct tc_to_netdev;
 struct sk_buff;
 struct nfp_app;
 struct nfp_cpp;
@@ -70,8 +69,10 @@ extern const struct nfp_app_type app_flower;
  * @init:	perform basic app checks and init
  * @clean:	clean app state
  * @extra_cap:	extra capabilities string
- * @vnic_init:	init vNICs (assign port types, etc.)
- * @vnic_clean:	clean up app's vNIC state
+ * @vnic_alloc:	allocate vNICs (assign port types, etc.)
+ * @vnic_free:	free up app's vNIC state
+ * @vnic_init:	vNIC netdev was registered
+ * @vnic_clean:	vNIC netdev about to be unregistered
  * @repr_open:	representor netdev open callback
  * @repr_stop:	representor netdev stop callback
  * @start:	start application logic
@@ -96,8 +97,10 @@ struct nfp_app_type {
 
 	const char *(*extra_cap)(struct nfp_app *app, struct nfp_net *nn);
 
-	int (*vnic_init)(struct nfp_app *app, struct nfp_net *nn,
-			 unsigned int id);
+	int (*vnic_alloc)(struct nfp_app *app, struct nfp_net *nn,
+			  unsigned int id);
+	void (*vnic_free)(struct nfp_app *app, struct nfp_net *nn);
+	int (*vnic_init)(struct nfp_app *app, struct nfp_net *nn);
 	void (*vnic_clean)(struct nfp_app *app, struct nfp_net *nn);
 
 	int (*repr_open)(struct nfp_app *app, struct nfp_repr *repr);
@@ -109,7 +112,7 @@ struct nfp_app_type {
 	void (*ctrl_msg_rx)(struct nfp_app *app, struct sk_buff *skb);
 
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
-			u32 handle, __be16 proto, struct tc_to_netdev *tc);
+			enum tc_setup_type type, void *type_data);
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
 			   struct bpf_prog *prog);
@@ -158,10 +161,23 @@ static inline void nfp_app_clean(struct nfp_app *app)
 		app->type->clean(app);
 }
 
-static inline int nfp_app_vnic_init(struct nfp_app *app, struct nfp_net *nn,
-				    unsigned int id)
+static inline int nfp_app_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
+				     unsigned int id)
 {
-	return app->type->vnic_init(app, nn, id);
+	return app->type->vnic_alloc(app, nn, id);
+}
+
+static inline void nfp_app_vnic_free(struct nfp_app *app, struct nfp_net *nn)
+{
+	if (app->type->vnic_free)
+		app->type->vnic_free(app, nn);
+}
+
+static inline int nfp_app_vnic_init(struct nfp_app *app, struct nfp_net *nn)
+{
+	if (!app->type->vnic_init)
+		return 0;
+	return app->type->vnic_init(app, nn);
 }
 
 static inline void nfp_app_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
@@ -238,12 +254,11 @@ static inline bool nfp_app_tc_busy(struct nfp_app *app, struct nfp_net *nn)
 
 static inline int nfp_app_setup_tc(struct nfp_app *app,
 				   struct net_device *netdev,
-				   u32 handle, __be16 proto,
-				   struct tc_to_netdev *tc)
+				   enum tc_setup_type type, void *type_data)
 {
 	if (!app || !app->type->setup_tc)
 		return -EOPNOTSUPP;
-	return app->type->setup_tc(app, netdev, handle, proto, tc);
+	return app->type->setup_tc(app, netdev, type, type_data);
 }
 
 static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
@@ -295,6 +310,8 @@ static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)
 	return app->type->repr_get(app, id);
 }
 
+struct nfp_app *nfp_app_from_netdev(struct net_device *netdev);
+
 struct nfp_reprs *
 nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 		  struct nfp_reprs *reprs);
@@ -308,7 +325,7 @@ void nfp_app_free(struct nfp_app *app);
 
 /* Callbacks shared between apps */
 
-int nfp_app_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn,
-			  unsigned int id);
+int nfp_app_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
+			   unsigned int id);
 
 #endif

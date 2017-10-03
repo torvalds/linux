@@ -35,11 +35,13 @@
 #ifndef __LNET_LIB_LNET_H__
 #define __LNET_LIB_LNET_H__
 
-#include "../libcfs/libcfs.h"
-#include "api.h"
-#include "lnet.h"
-#include "lib-types.h"
-#include "lib-dlc.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/api.h>
+#include <linux/lnet/lib-types.h>
+#include <uapi/linux/lnet/lnet-dlc.h>
+#include <uapi/linux/lnet/lnet-types.h>
+#include <uapi/linux/lnet/lnetctl.h>
+#include <uapi/linux/lnet/nidstr.h>
 
 extern struct lnet the_lnet;	/* THE network */
 
@@ -453,7 +455,8 @@ extern int portal_rotor;
 int lnet_lib_init(void);
 void lnet_lib_exit(void);
 
-int lnet_notify(struct lnet_ni *ni, lnet_nid_t peer, int alive, unsigned long when);
+int lnet_notify(struct lnet_ni *ni, lnet_nid_t peer, int alive,
+		unsigned long when);
 void lnet_notify_locked(struct lnet_peer *lp, int notifylnd, int alive,
 			unsigned long when);
 int lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway_nid,

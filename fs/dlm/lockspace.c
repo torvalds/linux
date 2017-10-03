@@ -235,7 +235,7 @@ static int dlm_uevent(struct kset *kset, struct kobject *kobj,
 	return 0;
 }
 
-static struct kset_uevent_ops dlm_uevent_ops = {
+static const struct kset_uevent_ops dlm_uevent_ops = {
 	.uevent = dlm_uevent,
 };
 
@@ -453,9 +453,14 @@ static int new_lockspace(const char *name, const char *cluster,
 			*ops_result = 0;
 	}
 
+	if (!cluster)
+		log_print("dlm cluster name '%s' is being used without an application provided cluster name",
+			  dlm_config.ci_cluster_name);
+
 	if (dlm_config.ci_recover_callbacks && cluster &&
 	    strncmp(cluster, dlm_config.ci_cluster_name, DLM_LOCKSPACE_LEN)) {
-		log_print("dlm cluster name %s mismatch %s",
+		log_print("dlm cluster name '%s' does not match "
+			  "the application cluster name '%s'",
 			  dlm_config.ci_cluster_name, cluster);
 		error = -EBADR;
 		goto out;

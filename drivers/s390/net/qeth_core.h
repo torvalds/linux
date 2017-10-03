@@ -857,11 +857,6 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	}
 }
 
-static inline int qeth_get_ip_protocol(struct sk_buff *skb)
-{
-	return ip_hdr(skb)->protocol;
-}
-
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
 		struct qeth_buffer_pool_entry *entry)
 {
@@ -951,10 +946,13 @@ int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *card, struct sk_buff *skb,
 			 int extra_elems, int data_offset);
 int qeth_get_elements_for_frags(struct sk_buff *);
-int qeth_do_send_packet_fast(struct qeth_card *, struct qeth_qdio_out_q *,
-			struct sk_buff *, struct qeth_hdr *, int, int);
-int qeth_do_send_packet(struct qeth_card *, struct qeth_qdio_out_q *,
-		    struct sk_buff *, struct qeth_hdr *, int);
+int qeth_do_send_packet_fast(struct qeth_card *card,
+			     struct qeth_qdio_out_q *queue, struct sk_buff *skb,
+			     struct qeth_hdr *hdr, unsigned int offset,
+			     unsigned int hd_len);
+int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
+			struct sk_buff *skb, struct qeth_hdr *hdr,
+			unsigned int hd_len, unsigned int offset, int elements);
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int qeth_core_get_sset_count(struct net_device *, int);
 void qeth_core_get_ethtool_stats(struct net_device *,
@@ -987,6 +985,7 @@ int qeth_set_features(struct net_device *, netdev_features_t);
 int qeth_recover_features(struct net_device *);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
 int qeth_vm_request_mac(struct qeth_card *card);
+int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

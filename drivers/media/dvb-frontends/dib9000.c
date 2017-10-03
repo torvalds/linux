@@ -1714,12 +1714,12 @@ static u32 dib9000_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dib9000_tuner_algo = {
+static const struct i2c_algorithm dib9000_tuner_algo = {
 	.master_xfer = dib9000_tuner_xfer,
 	.functionality = dib9000_i2c_func,
 };
 
-static struct i2c_algorithm dib9000_component_bus_algo = {
+static const struct i2c_algorithm dib9000_component_bus_algo = {
 	.master_xfer = dib9000_fw_component_bus_xfer,
 	.functionality = dib9000_i2c_func,
 };
@@ -2461,24 +2461,6 @@ int dib9000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(dib9000_set_slave_frontend);
-
-int dib9000_remove_slave_frontend(struct dvb_frontend *fe)
-{
-	struct dib9000_state *state = fe->demodulator_priv;
-	u8 index_frontend = 1;
-
-	while ((index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL))
-		index_frontend++;
-	if (index_frontend != 1) {
-		dprintk("remove slave fe %p (index %i)\n", state->fe[index_frontend - 1], index_frontend - 1);
-		state->fe[index_frontend] = NULL;
-		return 0;
-	}
-
-	dprintk("no frontend to be removed\n");
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dib9000_remove_slave_frontend);
 
 struct dvb_frontend *dib9000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
 {

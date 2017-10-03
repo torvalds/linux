@@ -19,7 +19,7 @@
 #include "usb.h"
 #include "trace.h"
 
-static struct usb_device_id mt7601u_device_table[] = {
+static const struct usb_device_id mt7601u_device_table[] = {
 	{ USB_DEVICE(0x0b05, 0x17d3) },
 	{ USB_DEVICE(0x0e8d, 0x760a) },
 	{ USB_DEVICE(0x0e8d, 0x760b) },

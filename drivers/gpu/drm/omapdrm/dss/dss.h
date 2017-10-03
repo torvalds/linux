@@ -185,6 +185,9 @@ struct dss_pll_hw {
 	bool has_freqsel;
 	bool has_selfreqdco;
 	bool has_refsel;
+
+	/* DRA7 errata i886: use high N & M to avoid jitter */
+	bool errata_i886;
 };
 
 struct dss_pll {

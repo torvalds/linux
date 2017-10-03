@@ -74,10 +74,10 @@ static struct rc_map_table avermedia_cardbus[] = {
 
 static struct rc_map_list avermedia_cardbus_map = {
 	.map = {
-		.scan    = avermedia_cardbus,
-		.size    = ARRAY_SIZE(avermedia_cardbus),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERMEDIA_CARDBUS,
+		.scan     = avermedia_cardbus,
+		.size     = ARRAY_SIZE(avermedia_cardbus),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERMEDIA_CARDBUS,
 	}
 };
 

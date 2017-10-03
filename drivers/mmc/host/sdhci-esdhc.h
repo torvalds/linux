@@ -54,6 +54,9 @@
 #define ESDHC_CLOCK_HCKEN		0x00000002
 #define ESDHC_CLOCK_IPGEN		0x00000001
 
+/* Host Controller Capabilities Register 2 */
+#define ESDHC_CAPABILITIES_1		0x114
+
 /* Tuning Block Control Register */
 #define ESDHC_TBCTL			0x120
 #define ESDHC_TB_EN			0x00000004

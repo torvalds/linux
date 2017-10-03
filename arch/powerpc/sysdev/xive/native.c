@@ -82,6 +82,8 @@ int xive_native_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 		return -ENOMEM;
 	}
 
+	data->hw_irq = hw_irq;
+
 	if (!data->trig_page)
 		return 0;
 	if (data->trig_page == data->eoi_page) {
@@ -202,17 +204,12 @@ EXPORT_SYMBOL_GPL(xive_native_disable_queue);
 static int xive_native_setup_queue(unsigned int cpu, struct xive_cpu *xc, u8 prio)
 {
 	struct xive_q *q = &xc->queue[prio];
-	unsigned int alloc_order;
-	struct page *pages;
 	__be32 *qpage;
 
-	alloc_order = (xive_queue_shift > PAGE_SHIFT) ?
-		(xive_queue_shift - PAGE_SHIFT) : 0;
-	pages = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, alloc_order);
-	if (!pages)
-		return -ENOMEM;
-	qpage = (__be32 *)page_address(pages);
-	memset(qpage, 0, 1 << xive_queue_shift);
+	qpage = xive_queue_page_alloc(cpu, xive_queue_shift);
+	if (IS_ERR(qpage))
+		return PTR_ERR(qpage);
+
 	return xive_native_configure_queue(get_hard_smp_processor_id(cpu),
 					   q, prio, qpage, xive_queue_shift, false);
 }
@@ -227,8 +224,7 @@ static void xive_native_cleanup_queue(unsigned int cpu, struct xive_cpu *xc, u8 
 	 * from an IPI and iounmap isn't safe
 	 */
 	__xive_native_disable_queue(get_hard_smp_processor_id(cpu), q, prio);
-	alloc_order = (xive_queue_shift > PAGE_SHIFT) ?
-		(xive_queue_shift - PAGE_SHIFT) : 0;
+	alloc_order = xive_alloc_order(xive_queue_shift);
 	free_pages((unsigned long)q->qpage, alloc_order);
 	q->qpage = NULL;
 }
@@ -515,13 +511,13 @@ static bool xive_parse_provisioning(struct device_node *np)
 static void xive_native_setup_pools(void)
 {
 	/* Allocate a pool big enough */
-	pr_debug("XIVE: Allocating VP block for pool size %d\n", nr_cpu_ids);
+	pr_debug("XIVE: Allocating VP block for pool size %u\n", nr_cpu_ids);
 
 	xive_pool_vps = xive_native_alloc_vp_block(nr_cpu_ids);
 	if (WARN_ON(xive_pool_vps == XIVE_INVALID_VP))
 		pr_err("XIVE: Failed to allocate pool VP, KVM might not function\n");
 
-	pr_debug("XIVE: Pool VPs allocated at 0x%x for %d max CPUs\n",
+	pr_debug("XIVE: Pool VPs allocated at 0x%x for %u max CPUs\n",
 		 xive_pool_vps, nr_cpu_ids);
 }
 
@@ -531,7 +527,7 @@ u32 xive_native_default_eq_shift(void)
 }
 EXPORT_SYMBOL_GPL(xive_native_default_eq_shift);
 
-bool xive_native_init(void)
+bool __init xive_native_init(void)
 {
 	struct device_node *np;
 	struct resource r;
@@ -551,7 +547,7 @@ bool xive_native_init(void)
 		pr_devel("not found !\n");
 		return false;
 	}
-	pr_devel("Found %s\n", np->full_name);
+	pr_devel("Found %pOF\n", np);
 
 	/* Resource 1 is HV window */
 	if (of_address_to_resource(np, 1, &r)) {

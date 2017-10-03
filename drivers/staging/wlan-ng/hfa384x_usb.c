@@ -1344,16 +1344,14 @@ hfa384x_docmd(struct hfa384x *hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		struct usbctlx_cmd_completor completor;
+		struct usbctlx_cmd_completor cmd_completor;
+		struct usbctlx_completor *completor;
 
-		result =
-		    hfa384x_usbctlx_complete_sync(hw, ctlx,
-						  init_cmd_completor(&completor,
-								     &ctlx->
-								     inbuf.
-								     cmdresp,
-								     &cmd->
-								     result));
+		completor = init_cmd_completor(&cmd_completor,
+					       &ctlx->inbuf.cmdresp,
+					       &cmd->result);
+
+		result = hfa384x_usbctlx_complete_sync(hw, ctlx, completor);
 	}
 
 done:

@@ -303,3 +303,10 @@ void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
 	dst->port_num = rdma_ah_get_port_num(src);
 	memcpy(&dst->dmac, src->roce.dmac, sizeof(dst->dmac));
 }
+
+u8 ib_gid_type_to_pvrdma(enum ib_gid_type gid_type)
+{
+	return (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) ?
+		PVRDMA_GID_TYPE_FLAG_ROCE_V2 :
+		PVRDMA_GID_TYPE_FLAG_ROCE_V1;
+}

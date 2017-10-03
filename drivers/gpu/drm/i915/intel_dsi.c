@@ -731,7 +731,7 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 }
 
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
-			      struct intel_crtc_state *pipe_config);
+			      const struct intel_crtc_state *pipe_config);
 static void intel_dsi_unprepare(struct intel_encoder *encoder);
 
 static void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
@@ -783,8 +783,8 @@ static void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
  */
 
 static void intel_dsi_pre_enable(struct intel_encoder *encoder,
-				 struct intel_crtc_state *pipe_config,
-				 struct drm_connector_state *conn_state)
+				 const struct intel_crtc_state *pipe_config,
+				 const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -878,8 +878,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
  * the pre_enable hook.
  */
 static void intel_dsi_enable_nop(struct intel_encoder *encoder,
-				 struct intel_crtc_state *pipe_config,
-				 struct drm_connector_state *conn_state)
+				 const struct intel_crtc_state *pipe_config,
+				 const struct drm_connector_state *conn_state)
 {
 	DRM_DEBUG_KMS("\n");
 }
@@ -889,11 +889,9 @@ static void intel_dsi_enable_nop(struct intel_encoder *encoder,
  * the post_disable hook.
  */
 static void intel_dsi_disable(struct intel_encoder *encoder,
-			      struct intel_crtc_state *old_crtc_state,
-			      struct drm_connector_state *old_conn_state)
+			      const struct intel_crtc_state *old_crtc_state,
+			      const struct drm_connector_state *old_conn_state)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
@@ -901,15 +899,6 @@ static void intel_dsi_disable(struct intel_encoder *encoder,
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_panel_disable_backlight(old_conn_state);
-
-	/*
-	 * Disable Device ready before the port shutdown in order
-	 * to avoid split screen
-	 */
-	if (IS_BROXTON(dev_priv)) {
-		for_each_dsi_port(port, intel_dsi->ports)
-			I915_WRITE(MIPI_DEVICE_READY(port), 0);
-	}
 
 	/*
 	 * According to the spec we should send SHUTDOWN before
@@ -936,8 +925,8 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 }
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder,
-				   struct intel_crtc_state *pipe_config,
-				   struct drm_connector_state *conn_state)
+				   const struct intel_crtc_state *pipe_config,
+				   const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -1077,7 +1066,7 @@ out_put_power:
 }
 
 static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
-				 struct intel_crtc_state *pipe_config)
+				    struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1381,7 +1370,7 @@ static u32 pixel_format_to_reg(enum mipi_dsi_pixel_format fmt)
 }
 
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
-			      struct intel_crtc_state *pipe_config)
+			      const struct intel_crtc_state *pipe_config)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
@@ -1849,7 +1838,7 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	connector->display_info.width_mm = fixed_mode->width_mm;
 	connector->display_info.height_mm = fixed_mode->height_mm;
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL, NULL);
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	intel_dsi_add_properties(intel_connector);

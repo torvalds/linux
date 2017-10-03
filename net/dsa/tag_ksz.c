@@ -42,6 +42,10 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 	padlen = (skb->len >= ETH_ZLEN) ? 0 : ETH_ZLEN - skb->len;
 
 	if (skb_tailroom(skb) >= padlen + KSZ_INGRESS_TAG_LEN) {
+		/* Let dsa_slave_xmit() free skb */
+		if (__skb_put_padto(skb, skb->len + padlen, false))
+			return NULL;
+
 		nskb = skb;
 	} else {
 		nskb = alloc_skb(NET_IP_ALIGN + skb->len +
@@ -56,12 +60,15 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_set_transport_header(nskb,
 					 skb_transport_header(skb) - skb->head);
 		skb_copy_and_csum_dev(skb, skb_put(nskb, skb->len));
-		kfree_skb(skb);
-	}
 
-	/* skb is freed when it fails */
-	if (skb_put_padto(nskb, nskb->len + padlen))
-		return NULL;
+		/* Let skb_put_padto() free nskb, and let dsa_slave_xmit() free
+		 * skb
+		 */
+		if (skb_put_padto(nskb, nskb->len + padlen))
+			return NULL;
+
+		consume_skb(skb);
+	}
 
 	tag = skb_put(nskb, KSZ_INGRESS_TAG_LEN);
 	tag[0] = 0;
@@ -71,8 +78,7 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static struct sk_buff *ksz_rcv(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt,
-			       struct net_device *orig_dev)
+			       struct packet_type *pt)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);

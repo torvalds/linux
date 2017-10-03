@@ -715,24 +715,24 @@ struct drm_mode_atomic {
 struct drm_format_modifier_blob {
 #define FORMAT_BLOB_CURRENT 1
 	/* Version of this blob format */
-	u32 version;
+	__u32 version;
 
 	/* Flags */
-	u32 flags;
+	__u32 flags;
 
 	/* Number of fourcc formats supported */
-	u32 count_formats;
+	__u32 count_formats;
 
 	/* Where in this blob the formats exist (in bytes) */
-	u32 formats_offset;
+	__u32 formats_offset;
 
 	/* Number of drm_format_modifiers */
-	u32 count_modifiers;
+	__u32 count_modifiers;
 
 	/* Where in this blob the modifiers exist (in bytes) */
-	u32 modifiers_offset;
+	__u32 modifiers_offset;
 
-	/* u32 formats[] */
+	/* __u32 formats[] */
 	/* struct drm_format_modifier modifiers[] */
 };
 

@@ -57,10 +57,10 @@ static struct rc_map_table apac_viewcomp[] = {
 
 static struct rc_map_list apac_viewcomp_map = {
 	.map = {
-		.scan    = apac_viewcomp,
-		.size    = ARRAY_SIZE(apac_viewcomp),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_APAC_VIEWCOMP,
+		.scan     = apac_viewcomp,
+		.size     = ARRAY_SIZE(apac_viewcomp),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_APAC_VIEWCOMP,
 	}
 };
 

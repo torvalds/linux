@@ -253,7 +253,7 @@ mwifiex_cmd_append_wps_ie(struct mwifiex_private *priv, u8 **buffer)
 			    priv->wps_ie_len, *buffer);
 
 		/* Wrap the generic IE buffer with a pass through TLV type */
-		ie_header.type = cpu_to_le16(TLV_TYPE_MGMT_IE);
+		ie_header.type = cpu_to_le16(TLV_TYPE_PASSTHROUGH);
 		ie_header.len = cpu_to_le16(priv->wps_ie_len);
 		memcpy(*buffer, &ie_header, sizeof(ie_header));
 		*buffer += sizeof(ie_header);

@@ -506,8 +506,8 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 	return 0;
 }
 
-static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
-					bool enable)
+static void hsw_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
+			      bool enable)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
@@ -533,10 +533,24 @@ retry:
 		goto put_state;
 	}
 
-	pipe_config->pch_pfit.force_thru = enable;
-	if (pipe_config->cpu_transcoder == TRANSCODER_EDP &&
-	    pipe_config->pch_pfit.enabled != enable)
-		pipe_config->base.connectors_changed = true;
+	if (HAS_IPS(dev_priv)) {
+		/*
+		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
+		 * enabled and disabled dynamically based on package C states,
+		 * user space can't make reliable use of the CRCs, so let's just
+		 * completely disable it.
+		 */
+		pipe_config->ips_force_disable = enable;
+		if (pipe_config->ips_enabled == enable)
+			pipe_config->base.connectors_changed = true;
+	}
+
+	if (IS_HASWELL(dev_priv)) {
+		pipe_config->pch_pfit.force_thru = enable;
+		if (pipe_config->cpu_transcoder == TRANSCODER_EDP &&
+		    pipe_config->pch_pfit.enabled != enable)
+			pipe_config->base.connectors_changed = true;
+	}
 
 	ret = drm_atomic_commit(state);
 
@@ -570,8 +584,9 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_PF:
-		if (IS_HASWELL(dev_priv) && pipe == PIPE_A)
-			hsw_trans_edp_pipe_A_crc_wa(dev_priv, true);
+		if ((IS_HASWELL(dev_priv) ||
+		     IS_BROADWELL(dev_priv)) && pipe == PIPE_A)
+			hsw_pipe_A_crc_wa(dev_priv, true);
 
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
 		break;
@@ -606,7 +621,6 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 			       enum intel_pipe_crc_source source)
 {
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	enum intel_display_power_domain power_domain;
 	u32 val = 0; /* shut up gcc */
 	int ret;
@@ -642,14 +656,6 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 			ret = -ENOMEM;
 			goto out;
 		}
-
-		/*
-		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
-		 * enabled and disabled dynamically based on package C states,
-		 * user space can't make reliable use of the CRCs, so let's just
-		 * completely disable it.
-		 */
-		hsw_disable_ips(crtc);
 
 		spin_lock_irq(&pipe_crc->lock);
 		kfree(pipe_crc->entries);
@@ -691,10 +697,9 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 			g4x_undo_pipe_scramble_reset(dev_priv, pipe);
 		else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			vlv_undo_pipe_scramble_reset(dev_priv, pipe);
-		else if (IS_HASWELL(dev_priv) && pipe == PIPE_A)
-			hsw_trans_edp_pipe_A_crc_wa(dev_priv, false);
-
-		hsw_enable_ips(crtc);
+		else if ((IS_HASWELL(dev_priv) ||
+			  IS_BROADWELL(dev_priv)) && pipe == PIPE_A)
+			hsw_pipe_A_crc_wa(dev_priv, false);
 	}
 
 	ret = 0;
@@ -914,7 +919,6 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
 	u32 val = 0; /* shut up gcc */
@@ -935,16 +939,6 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 	if (ret != 0)
 		goto out;
 
-	if (source) {
-		/*
-		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
-		 * enabled and disabled dynamically based on package C states,
-		 * user space can't make reliable use of the CRCs, so let's just
-		 * completely disable it.
-		 */
-		hsw_disable_ips(intel_crtc);
-	}
-
 	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
 	POSTING_READ(PIPE_CRC_CTL(crtc->index));
 
@@ -953,10 +947,9 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 			g4x_undo_pipe_scramble_reset(dev_priv, crtc->index);
 		else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			vlv_undo_pipe_scramble_reset(dev_priv, crtc->index);
-		else if (IS_HASWELL(dev_priv) && crtc->index == PIPE_A)
-			hsw_trans_edp_pipe_A_crc_wa(dev_priv, false);
-
-		hsw_enable_ips(intel_crtc);
+		else if ((IS_HASWELL(dev_priv) ||
+			  IS_BROADWELL(dev_priv)) && crtc->index == PIPE_A)
+			hsw_pipe_A_crc_wa(dev_priv, false);
 	}
 
 	pipe_crc->skipped = 0;

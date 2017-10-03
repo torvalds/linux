@@ -59,7 +59,7 @@ struct sur40_blob {
 	__le16 blob_id;
 
 	u8 action;         /* 0x02 = enter/exit, 0x03 = update (?) */
-	u8 unknown;        /* always 0x01 or 0x02 (no idea what this is?) */
+	u8 type;           /* bitmask (0x01 blob,  0x02 touch, 0x04 tag) */
 
 	__le16 bb_pos_x;   /* upper left corner of bounding box */
 	__le16 bb_pos_y;
@@ -133,11 +133,18 @@ struct sur40_image_header {
 
 /* control commands */
 #define SUR40_GET_VERSION 0xb0 /* 12 bytes string    */
-#define SUR40_UNKNOWN1    0xb3 /*  5 bytes           */
-#define SUR40_UNKNOWN2    0xc1 /* 24 bytes           */
+#define SUR40_ACCEL_CAPS  0xb3 /*  5 bytes           */
+#define SUR40_SENSOR_CAPS 0xc1 /* 24 bytes           */
+
+#define SUR40_POKE        0xc5 /* poke register byte */
+#define SUR40_PEEK        0xc4 /* 48 bytes registers */
 
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
+
+#define SUR40_BLOB	0x01
+#define SUR40_TOUCH	0x02
+#define SUR40_TAG	0x04
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -238,11 +245,11 @@ static int sur40_init(struct sur40_state *dev)
 	if (result < 0)
 		goto error;
 
-	result = sur40_command(dev, SUR40_UNKNOWN2,    0x00, buffer, 24);
+	result = sur40_command(dev, SUR40_SENSOR_CAPS, 0x00, buffer, 24);
 	if (result < 0)
 		goto error;
 
-	result = sur40_command(dev, SUR40_UNKNOWN1,    0x00, buffer,  5);
+	result = sur40_command(dev, SUR40_ACCEL_CAPS, 0x00, buffer, 5);
 	if (result < 0)
 		goto error;
 
@@ -289,19 +296,23 @@ static void sur40_close(struct input_polled_dev *polldev)
 static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
 	int wide, major, minor;
+	int bb_size_x, bb_size_y, pos_x, pos_y, ctr_x, ctr_y, slotnum;
 
-	int bb_size_x = le16_to_cpu(blob->bb_size_x);
-	int bb_size_y = le16_to_cpu(blob->bb_size_y);
+	if (blob->type != SUR40_TOUCH)
+		return;
 
-	int pos_x = le16_to_cpu(blob->pos_x);
-	int pos_y = le16_to_cpu(blob->pos_y);
-
-	int ctr_x = le16_to_cpu(blob->ctr_x);
-	int ctr_y = le16_to_cpu(blob->ctr_y);
-
-	int slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
+	slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
 	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
 		return;
+
+	bb_size_x = le16_to_cpu(blob->bb_size_x);
+	bb_size_y = le16_to_cpu(blob->bb_size_y);
+
+	pos_x = le16_to_cpu(blob->pos_x);
+	pos_y = le16_to_cpu(blob->pos_y);
+
+	ctr_x = le16_to_cpu(blob->ctr_x);
+	ctr_y = le16_to_cpu(blob->ctr_y);
 
 	input_mt_slot(input, slotnum);
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
@@ -367,10 +378,13 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		/*
 		 * Sanity check. when video data is also being retrieved, the
 		 * packet ID will usually increase in the middle of a series
-		 * instead of at the end.
-		 */
+		 * instead of at the end. However, the data is still consistent,
+		 * so the packet ID is probably just valid for the first packet
+		 * in a series.
+
 		if (packet_id != le32_to_cpu(header->packet_id))
 			dev_dbg(sur40->dev, "packet ID mismatch\n");
+		 */
 
 		packet_blobs = result / sizeof(struct sur40_blob);
 		dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);

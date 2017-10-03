@@ -3,7 +3,7 @@ config SOC_RENESAS
 	default y if ARCH_RENESAS
 	select SOC_BUS
 	select RST_RCAR if ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2 || \
-			   ARCH_R8A7795 || ARCH_R8A7796
+			   ARCH_R8A7795 || ARCH_R8A7796 || ARCH_R8A77995
 	select SYSC_R8A7743 if ARCH_R8A7743
 	select SYSC_R8A7745 if ARCH_R8A7745
 	select SYSC_R8A7779 if ARCH_R8A7779
@@ -13,6 +13,7 @@ config SOC_RENESAS
 	select SYSC_R8A7794 if ARCH_R8A7794
 	select SYSC_R8A7795 if ARCH_R8A7795
 	select SYSC_R8A7796 if ARCH_R8A7796
+	select SYSC_R8A77995 if ARCH_R8A77995
 
 if SOC_RENESAS
 
@@ -51,6 +52,10 @@ config SYSC_R8A7795
 
 config SYSC_R8A7796
 	bool "R-Car M3-W System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77995
+	bool "R-Car D3 System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
 # Family

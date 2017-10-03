@@ -25,12 +25,6 @@ Required properties:
 	 size-cells must 1 and 0, respectively.
 - port: contains an endpoint node which is connected to the endpoint in the mic
 	node. The reg value muset be 0.
-- i80-if-timings: specify whether the panel which is connected to decon uses
-		  i80 lcd interface or mipi video interface. This node contains
-		  no timing information as that of fimd does. Because there is
-		  no register in decon to specify i80 interface timing value,
-		  it is not needed, but make it remain to use same kind of node
-		  in fimd and exynos7 decon.
 
 Example:
 SoC specific DT entry:
@@ -57,11 +51,5 @@ decon: decon@13800000 {
 				remote-endpoint = <&mic_to_decon>;
 			};
 		};
-	};
-};
-
-Board specific DT entry:
-&decon {
-	i80-if-timings {
 	};
 };

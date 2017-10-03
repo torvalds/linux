@@ -12,6 +12,9 @@ Required properties:
       1 = active low
 - registers-number: Number of daisy-chained shift registers
 
+Optional properties:
+- enable-gpios: GPIO connected to the OE (Output Enable) pin.
+
 Example:
 
 gpio5: gpio5@0 {

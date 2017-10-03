@@ -242,6 +242,10 @@ int i915_gem_render_state_emit(struct drm_i915_gem_request *req)
 			goto err_unpin;
 	}
 
+	ret = req->engine->emit_flush(req, EMIT_INVALIDATE);
+	if (ret)
+		goto err_unpin;
+
 	ret = req->engine->emit_bb_start(req,
 					 so->batch_offset, so->batch_size,
 					 I915_DISPATCH_SECURE);

@@ -211,7 +211,7 @@ static void aica_chn_halt(void)
 }
 
 /* ALSA code below */
-static struct snd_pcm_hardware snd_pcm_aica_playback_hw = {
+static const struct snd_pcm_hardware snd_pcm_aica_playback_hw = {
 	.info = (SNDRV_PCM_INFO_NONINTERLEAVED),
 	.formats =
 	    (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE |
@@ -436,7 +436,7 @@ static unsigned long snd_aicapcm_pcm_pointer(struct snd_pcm_substream
 	return readl(AICA_CONTROL_CHANNEL_SAMPLE_NUMBER);
 }
 
-static struct snd_pcm_ops snd_aicapcm_playback_ops = {
+static const struct snd_pcm_ops snd_aicapcm_playback_ops = {
 	.open = snd_aicapcm_pcm_open,
 	.close = snd_aicapcm_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,

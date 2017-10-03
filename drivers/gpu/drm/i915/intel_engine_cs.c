@@ -337,9 +337,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	GEM_BUG_ON(!intel_engine_is_idle(engine));
-	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
-
 	/* Our semaphore implementation is strictly monotonic (i.e. we proceed
 	 * so long as the semaphore value in the register/page is greater
 	 * than the sync value), so whenever we reset the seqno,
@@ -1068,6 +1065,51 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	return 0;
 }
 
+static int cnl_init_workarounds(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	int ret;
+
+	/* WaDisableI2mCycleOnWRPort: cnl (pre-prod) */
+	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
+		WA_SET_BIT(GAMT_CHKN_BIT_REG,
+			   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT);
+
+	/* WaForceContextSaveRestoreNonCoherent:cnl */
+	WA_SET_BIT_MASKED(CNL_HDC_CHICKEN0,
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
+
+	/* WaThrottleEUPerfToAvoidTDBackPressure:cnl(pre-prod) */
+	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
+		WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, THROTTLE_12_5);
+
+	/* WaDisableReplayBufferBankArbitrationOptimization:cnl */
+	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
+	/* WaDisableEnhancedSBEVertexCaching:cnl (pre-prod) */
+	if (IS_CNL_REVID(dev_priv, 0, CNL_REVID_B0))
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE);
+
+	/* WaInPlaceDecompressionHang:cnl */
+	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
+		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+
+	/* WaPushConstantDereferenceHoldDisable:cnl */
+	WA_SET_BIT(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
+
+	/* FtrEnableFastAnisoL1BankingFix: cnl */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
+
+	/* WaEnablePreemptionGranularityControlByUMD:cnl */
+	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int kbl_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -1188,6 +1230,8 @@ int init_workarounds_ring(struct intel_engine_cs *engine)
 		err =  glk_init_workarounds(engine);
 	else if (IS_COFFEELAKE(dev_priv))
 		err = cfl_init_workarounds(engine);
+	else if (IS_CANNONLAKE(dev_priv))
+		err = cnl_init_workarounds(engine);
 	else
 		err = 0;
 	if (err)
@@ -1283,6 +1327,10 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (port_request(&engine->execlist_port[0]))
 		return false;
 
+	/* ELSP is empty, but there are ready requests? */
+	if (READ_ONCE(engine->execlist_first))
+		return false;
+
 	/* Ring stopped? */
 	if (!ring_is_idle(engine))
 		return false;
@@ -1331,6 +1379,21 @@ void intel_engines_mark_idle(struct drm_i915_private *i915)
 		i915_gem_batch_pool_fini(&engine->batch_pool);
 		tasklet_kill(&engine->irq_tasklet);
 		engine->no_priolist = false;
+	}
+}
+
+bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
+{
+	switch (INTEL_GEN(engine->i915)) {
+	case 2:
+		return false; /* uses physical not virtual addresses */
+	case 3:
+		/* maybe only uses physical not virtual addresses */
+		return !(IS_I915G(engine->i915) || IS_I915GM(engine->i915));
+	case 6:
+		return engine->class != VIDEO_DECODE_CLASS; /* b0rked */
+	default:
+		return true;
 	}
 }
 

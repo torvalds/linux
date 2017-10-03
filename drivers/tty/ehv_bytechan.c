@@ -122,7 +122,7 @@ static int find_console_handle(void)
 
 	stdout_irq = irq_of_parse_and_map(np, 0);
 	if (stdout_irq == NO_IRQ) {
-		pr_err("ehv-bc: no 'interrupts' property in %s node\n", np->full_name);
+		pr_err("ehv-bc: no 'interrupts' property in %pOF node\n", np);
 		return 0;
 	}
 

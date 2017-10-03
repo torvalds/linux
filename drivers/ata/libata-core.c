@@ -2411,6 +2411,9 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 	u64 trusted_cap;
 	unsigned int err;
 
+	if (!ata_id_has_trusted(dev->id))
+		return;
+
 	if (!ata_identify_page_supported(dev, ATA_LOG_SECURITY)) {
 		ata_dev_warn(dev,
 			     "Security Log not supported\n");

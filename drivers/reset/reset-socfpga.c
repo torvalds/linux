@@ -109,8 +109,8 @@ static int socfpga_reset_probe(struct platform_device *pdev)
 	 * Do not continue, when we encounter an old DT.
 	 */
 	if (!of_find_property(pdev->dev.of_node, "#reset-cells", NULL)) {
-		dev_err(&pdev->dev, "%s missing #reset-cells property\n",
-			pdev->dev.of_node->full_name);
+		dev_err(&pdev->dev, "%pOF missing #reset-cells property\n",
+			pdev->dev.of_node);
 		return -EINVAL;
 	}
 

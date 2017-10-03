@@ -193,6 +193,39 @@ Example::
   for (node = rb_first(&mytree); node; node = rb_next(node))
 	printk("key=%s\n", rb_entry(node, struct mytype, node)->keystring);
 
+Cached rbtrees
+--------------
+
+Computing the leftmost (smallest) node is quite a common task for binary
+search trees, such as for traversals or users relying on a the particular
+order for their own logic. To this end, users can use 'struct rb_root_cached'
+to optimize O(logN) rb_first() calls to a simple pointer fetch avoiding
+potentially expensive tree iterations. This is done at negligible runtime
+overhead for maintanence; albeit larger memory footprint.
+
+Similar to the rb_root structure, cached rbtrees are initialized to be
+empty via:
+
+  struct rb_root_cached mytree = RB_ROOT_CACHED;
+
+Cached rbtree is simply a regular rb_root with an extra pointer to cache the
+leftmost node. This allows rb_root_cached to exist wherever rb_root does,
+which permits augmented trees to be supported as well as only a few extra
+interfaces:
+
+  struct rb_node *rb_first_cached(struct rb_root_cached *tree);
+  void rb_insert_color_cached(struct rb_node *, struct rb_root_cached *, bool);
+  void rb_erase_cached(struct rb_node *node, struct rb_root_cached *);
+
+Both insert and erase calls have their respective counterpart of augmented
+trees:
+
+  void rb_insert_augmented_cached(struct rb_node *node, struct rb_root_cached *,
+				  bool, struct rb_augment_callbacks *);
+  void rb_erase_augmented_cached(struct rb_node *, struct rb_root_cached *,
+				 struct rb_augment_callbacks *);
+
+
 Support for Augmented rbtrees
 -----------------------------
 

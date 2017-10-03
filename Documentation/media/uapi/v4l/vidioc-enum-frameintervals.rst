@@ -26,9 +26,8 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to a struct :c:type:`v4l2_frmivalenum`
-    structure that contains a pixel format and size and receives a frame
-    interval.
+    Pointer to struct :c:type:`v4l2_frmivalenum`
+    that contains a pixel format and size and receives a frame interval.
 
 
 Description
@@ -123,6 +122,8 @@ application should zero out all members except for the *IN* fields.
 
 
 .. c:type:: v4l2_frmivalenum
+
+.. tabularcolumns:: |p{1.8cm}|p{4.4cm}|p{2.4cm}|p{8.9cm}|
 
 .. flat-table:: struct v4l2_frmivalenum
     :header-rows:  0

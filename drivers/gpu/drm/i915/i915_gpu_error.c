@@ -787,16 +787,16 @@ int i915_error_state_buf_init(struct drm_i915_error_state_buf *ebuf,
 	 */
 	ebuf->size = count + 1 > PAGE_SIZE ? count + 1 : PAGE_SIZE;
 	ebuf->buf = kmalloc(ebuf->size,
-				GFP_TEMPORARY | __GFP_NORETRY | __GFP_NOWARN);
+				GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
 
 	if (ebuf->buf == NULL) {
 		ebuf->size = PAGE_SIZE;
-		ebuf->buf = kmalloc(ebuf->size, GFP_TEMPORARY);
+		ebuf->buf = kmalloc(ebuf->size, GFP_KERNEL);
 	}
 
 	if (ebuf->buf == NULL) {
 		ebuf->size = 128;
-		ebuf->buf = kmalloc(ebuf->size, GFP_TEMPORARY);
+		ebuf->buf = kmalloc(ebuf->size, GFP_KERNEL);
 	}
 
 	if (ebuf->buf == NULL)
@@ -1266,7 +1266,7 @@ static void record_request(struct drm_i915_gem_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
-	erq->ban_score = request->ctx->ban_score;
+	erq->ban_score = atomic_read(&request->ctx->ban_score);
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->head = request->head;
@@ -1357,9 +1357,9 @@ static void record_context(struct drm_i915_error_context *e,
 
 	e->handle = ctx->user_handle;
 	e->hw_id = ctx->hw_id;
-	e->ban_score = ctx->ban_score;
-	e->guilty = ctx->guilty_count;
-	e->active = ctx->active_count;
+	e->ban_score = atomic_read(&ctx->ban_score);
+	e->guilty = atomic_read(&ctx->guilty_count);
+	e->active = atomic_read(&ctx->active_count);
 }
 
 static void request_record_user_bo(struct drm_i915_gem_request *request,

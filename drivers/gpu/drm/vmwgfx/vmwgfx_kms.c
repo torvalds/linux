@@ -1566,10 +1566,34 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 }
 
 
+/**
+ * vmw_kms_atomic_commit - Perform an atomic state commit
+ *
+ * @dev: DRM device
+ * @state: the driver state object
+ * @nonblock: Whether nonblocking behaviour is requested
+ *
+ * This is a simple wrapper around drm_atomic_helper_commit() for
+ * us to clear the nonblocking value.
+ *
+ * Nonblocking commits currently cause synchronization issues
+ * for vmwgfx.
+ *
+ * RETURNS
+ * Zero for success or negative error code on failure.
+ */
+int vmw_kms_atomic_commit(struct drm_device *dev,
+			  struct drm_atomic_state *state,
+			  bool nonblock)
+{
+	return drm_atomic_helper_commit(dev, state, false);
+}
+
+
 static const struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
 	.atomic_check = vmw_kms_atomic_check_modeset,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = vmw_kms_atomic_commit,
 };
 
 static int vmw_kms_generic_present(struct vmw_private *dev_priv,
@@ -2494,7 +2518,7 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 	if (file_priv)
 		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
 					    ret, user_fence_rep, fence,
-					    handle);
+					    handle, -1, NULL);
 	if (out_fence)
 		*out_fence = fence;
 	else

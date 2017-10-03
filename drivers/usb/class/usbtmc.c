@@ -1085,7 +1085,7 @@ static struct attribute *capability_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group capability_attr_grp = {
+static const struct attribute_group capability_attr_grp = {
 	.attrs = capability_attrs,
 };
 
@@ -1151,7 +1151,7 @@ static struct attribute *data_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group data_attr_grp = {
+static const struct attribute_group data_attr_grp = {
 	.attrs = data_attrs,
 };
 

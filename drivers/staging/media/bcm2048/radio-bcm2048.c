@@ -48,7 +48,6 @@
 /* driver definitions */
 #define BCM2048_DRIVER_AUTHOR	"Eero Nurkkala <ext-eero.nurkkala@nokia.com>"
 #define BCM2048_DRIVER_NAME	BCM2048_NAME
-#define BCM2048_DRIVER_VERSION	KERNEL_VERSION(0, 0, 1)
 #define BCM2048_DRIVER_CARD	"Broadcom bcm2048 FM Radio Receiver"
 #define BCM2048_DRIVER_DESC	"I2C driver for BCM2048 FM Radio Receiver"
 
@@ -2565,7 +2564,7 @@ static const struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
 /*
  * bcm2048_viddev_template - video device interface
  */
-static struct video_device bcm2048_viddev_template = {
+static const struct video_device bcm2048_viddev_template = {
 	.fops			= &bcm2048_fops,
 	.name			= BCM2048_DRIVER_NAME,
 	.release		= video_device_release_empty,

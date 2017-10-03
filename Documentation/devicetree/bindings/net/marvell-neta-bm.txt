@@ -31,7 +31,6 @@ bm: bm@c8000 {
 	reg = <0xc8000 0xac>;
 	clocks = <&gateclk 13>;
 	internal-mem = <&bm_bppi>;
-	status = "okay";
 	pool2,capacity = <4096>;
 	pool1,pkt-size = <512>;
 };
@@ -45,5 +44,4 @@ bm_bppi: bm-bppi {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	clocks = <&gateclk 13>;
-	status = "okay";
 };

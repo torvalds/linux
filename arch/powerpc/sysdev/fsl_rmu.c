@@ -1074,8 +1074,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	priv = mport->priv;
 
 	if (!node) {
-		dev_warn(priv->dev, "Can't get %s property 'fsl,rmu'\n",
-			priv->dev->of_node->full_name);
+		dev_warn(priv->dev, "Can't get %pOF property 'fsl,rmu'\n",
+			priv->dev->of_node);
 		return -EINVAL;
 	}
 
@@ -1086,8 +1086,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	aw = of_n_addr_cells(node);
 	msg_addr = of_get_property(node, "reg", &mlen);
 	if (!msg_addr) {
-		pr_err("%s: unable to find 'reg' property of message-unit\n",
-			node->full_name);
+		pr_err("%pOF: unable to find 'reg' property of message-unit\n",
+			node);
 		kfree(rmu);
 		return -ENOMEM;
 	}
@@ -1098,8 +1098,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 
 	rmu->txirq = irq_of_parse_and_map(node, 0);
 	rmu->rxirq = irq_of_parse_and_map(node, 1);
-	printk(KERN_INFO "%s: txirq: %d, rxirq %d\n",
-		node->full_name, rmu->txirq, rmu->rxirq);
+	printk(KERN_INFO "%pOF: txirq: %d, rxirq %d\n",
+		node, rmu->txirq, rmu->rxirq);
 
 	priv->rmm_handle = rmu;
 

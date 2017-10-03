@@ -341,7 +341,7 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_STATUS_VMON	BIT(19)
 
 enum pmbus_data_format { linear = 0, direct, vid };
-enum vrm_version { vr11 = 0, vr12 };
+enum vrm_version { vr11 = 0, vr12, vr13 };
 
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */

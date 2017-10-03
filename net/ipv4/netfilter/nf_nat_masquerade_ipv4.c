@@ -34,12 +34,12 @@ nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
 	const struct rtable *rt;
 	__be32 newsrc, nh;
 
-	NF_CT_ASSERT(hooknum == NF_INET_POST_ROUTING);
+	WARN_ON(hooknum != NF_INET_POST_ROUTING);
 
 	ct = nf_ct_get(skb, &ctinfo);
 
-	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||
-			    ctinfo == IP_CT_RELATED_REPLY));
+	WARN_ON(!(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||
+			 ctinfo == IP_CT_RELATED_REPLY)));
 
 	/* Source address is 0.0.0.0 - locally generated packet that is
 	 * probably not supposed to be masqueraded.
@@ -96,7 +96,7 @@ static int masq_device_event(struct notifier_block *this,
 		 * conntracks which were associated with that device,
 		 * and forget them.
 		 */
-		NF_CT_ASSERT(dev->ifindex != 0);
+		WARN_ON(dev->ifindex == 0);
 
 		nf_ct_iterate_cleanup_net(net, device_cmp,
 					  (void *)(long)dev->ifindex, 0, 0);

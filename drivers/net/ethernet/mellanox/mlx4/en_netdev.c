@@ -130,19 +130,20 @@ out:
 	return err;
 }
 
-static int __mlx4_en_setup_tc(struct net_device *dev, u32 handle,
-			      u32 chain_index, __be16 proto,
-			      struct tc_to_netdev *tc)
+static int __mlx4_en_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			      void *type_data)
 {
-	if (tc->type != TC_SETUP_MQPRIO)
+	struct tc_mqprio_qopt *mqprio = type_data;
+
+	if (type != TC_SETUP_MQPRIO)
+		return -EOPNOTSUPP;
+
+	if (mqprio->num_tc && mqprio->num_tc != MLX4_EN_NUM_UP_HIGH)
 		return -EINVAL;
 
-	if (tc->mqprio->num_tc && tc->mqprio->num_tc != MLX4_EN_NUM_UP_HIGH)
-		return -EINVAL;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
-	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-
-	return mlx4_en_alloc_tx_queue_per_tc(dev, tc->mqprio->num_tc);
+	return mlx4_en_alloc_tx_queue_per_tc(dev, mqprio->num_tc);
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -651,7 +652,8 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 		return 0;
 	}
 
-	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, MLX4_RESERVE_A0_QP);
+	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, MLX4_RESERVE_A0_QP,
+				    MLX4_RES_USAGE_DRIVER);
 	en_dbg(DRV, priv, "Reserved qp %d\n", *qpn);
 	if (err) {
 		en_err(priv, "Failed to reserve qp for mac registration\n");
@@ -731,6 +733,21 @@ static int mlx4_en_replace_mac(struct mlx4_en_priv *priv, int qpn,
 	return __mlx4_replace_mac(dev, priv->port, qpn, new_mac_u64);
 }
 
+static void mlx4_en_update_user_mac(struct mlx4_en_priv *priv,
+				    unsigned char new_mac[ETH_ALEN + 2])
+{
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int err;
+
+	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_USER_MAC_EN))
+		return;
+
+	err = mlx4_SET_PORT_user_mac(mdev->dev, priv->port, new_mac);
+	if (err)
+		en_err(priv, "Failed to pass user MAC(%pM) to Firmware for port %d, with error %d\n",
+		       new_mac, priv->port, err);
+}
+
 static int mlx4_en_do_set_mac(struct mlx4_en_priv *priv,
 			      unsigned char new_mac[ETH_ALEN + 2])
 {
@@ -765,8 +782,12 @@ static int mlx4_en_set_mac(struct net_device *dev, void *addr)
 	mutex_lock(&mdev->state_lock);
 	memcpy(new_mac, saddr->sa_data, ETH_ALEN);
 	err = mlx4_en_do_set_mac(priv, new_mac);
-	if (!err)
-		memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
+	if (err)
+		goto out;
+
+	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
+	mlx4_en_update_user_mac(priv, new_mac);
+out:
 	mutex_unlock(&mdev->state_lock);
 
 	return err;
