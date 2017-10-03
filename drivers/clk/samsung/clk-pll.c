@@ -1397,15 +1397,6 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 	}
 
 	samsung_clk_add_lookup(ctx, &pll->hw, pll_clk->id);
-
-	if (!pll_clk->alias)
-		return;
-
-	ret = clk_hw_register_clkdev(&pll->hw, pll_clk->alias,
-				     pll_clk->dev_name);
-	if (ret)
-		pr_err("%s: failed to register lookup for %s : %d",
-			__func__, pll_clk->name, ret);
 }
 
 void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
