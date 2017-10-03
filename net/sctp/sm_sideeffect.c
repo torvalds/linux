@@ -50,6 +50,7 @@
 #include <net/sock.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
+#include <net/sctp/stream_sched.h>
 
 static int sctp_cmd_interpreter(enum sctp_event event_type,
 				union sctp_subtype subtype,
@@ -1089,6 +1090,8 @@ static void sctp_cmd_send_msg(struct sctp_association *asoc,
 
 	list_for_each_entry(chunk, &msg->chunks, frag_list)
 		sctp_outq_tail(&asoc->outqueue, chunk, gfp);
+
+	asoc->outqueue.sched->enqueue(&asoc->outqueue, msg);
 }
 
 
