@@ -1158,24 +1158,6 @@ static u32 *gen8_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 	return batch;
 }
 
-/*
- *  This batch is started immediately after indirect_ctx batch. Since we ensure
- *  that indirect_ctx ends on a cacheline this batch is aligned automatically.
- *
- *  The number of DWORDS written are returned using this field.
- *
- *  This batch is terminated with MI_BATCH_BUFFER_END and so we need not add padding
- *  to align it with cacheline as padding after MI_BATCH_BUFFER_END is redundant.
- */
-static u32 *gen8_init_perctx_bb(struct intel_engine_cs *engine, u32 *batch)
-{
-	/* WaDisableCtxRestoreArbitration:bdw,chv */
-	*batch++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	*batch++ = MI_BATCH_BUFFER_END;
-
-	return batch;
-}
-
 static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 {
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt,glk */
@@ -1290,7 +1272,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 		break;
 	case 8:
 		wa_bb_fn[0] = gen8_init_indirectctx_bb;
-		wa_bb_fn[1] = gen8_init_perctx_bb;
+		wa_bb_fn[1] = NULL;
 		break;
 	default:
 		MISSING_CASE(INTEL_GEN(engine->i915));
@@ -1534,13 +1516,15 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
+	/* WaDisableCtxRestoreArbitration:bdw,chv */
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+
 	/* FIXME(BDW): Address space and security selectors. */
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
 		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8)) |
 		(flags & I915_DISPATCH_RS ? MI_BATCH_RESOURCE_STREAMER : 0);
 	*cs++ = lower_32_bits(offset);
 	*cs++ = upper_32_bits(offset);
-	*cs++ = MI_NOOP;
 	intel_ring_advance(req, cs);
 
 	return 0;
