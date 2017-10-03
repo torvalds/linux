@@ -34,12 +34,12 @@
 #define PPC405EX_CE_RESET                       0x00000008
 
 #define CRYPTO4XX_CRYPTO_PRIORITY		300
-#define PPC4XX_LAST_PD				63
-#define PPC4XX_NUM_PD				64
-#define PPC4XX_LAST_GD				1023
+#define PPC4XX_NUM_PD				256
+#define PPC4XX_LAST_PD				(PPC4XX_NUM_PD - 1)
 #define PPC4XX_NUM_GD				1024
-#define PPC4XX_LAST_SD				63
-#define PPC4XX_NUM_SD				64
+#define PPC4XX_LAST_GD				(PPC4XX_NUM_GD - 1)
+#define PPC4XX_NUM_SD				256
+#define PPC4XX_LAST_SD				(PPC4XX_NUM_SD - 1)
 #define PPC4XX_SD_BUFFER_SIZE			2048
 
 #define PD_ENTRY_INUSE				1
