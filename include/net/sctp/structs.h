@@ -1348,6 +1348,10 @@ struct sctp_stream_out_ext {
 			struct list_head prio_list;
 			struct sctp_stream_priorities *prio_head;
 		};
+		/* Fields used by RR scheduler */
+		struct {
+			struct list_head rr_list;
+		};
 	};
 };
 
@@ -1373,6 +1377,13 @@ struct sctp_stream {
 		struct {
 			/* List of priorities scheduled */
 			struct list_head prio_list;
+		};
+		/* Fields used by RR scheduler */
+		struct {
+			/* List of streams scheduled */
+			struct list_head rr_list;
+			/* The next stream stream in line */
+			struct sctp_stream_out_ext *rr_next;
 		};
 	};
 };
