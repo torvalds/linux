@@ -74,6 +74,7 @@ Board compatible values (alphabetically, grouped by SoC):
   - "khadas,vim2" (Meson gxm s912)
   - "kingnovel,r-box-pro" (Meson gxm S912)
   - "nexbox,a1" (Meson gxm s912)
+  - "tronsmart,vega-s96" (Meson gxm s912)
 
 Amlogic Meson Firmware registers Interface
 ------------------------------------------
