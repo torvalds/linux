@@ -291,6 +291,77 @@ static bool __hyp_text __skip_instr(struct kvm_vcpu *vcpu)
 	}
 }
 
+/*
+ * Return true when we were able to fixup the guest exit and should return to
+ * the guest, false when we should restore the host state and return to the
+ * main run loop.
+ */
+static bool __hyp_text fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	if (ARM_EXCEPTION_CODE(*exit_code) != ARM_EXCEPTION_IRQ)
+		vcpu->arch.fault.esr_el2 = read_sysreg_el2(esr);
+
+	/*
+	 * We're using the raw exception code in order to only process
+	 * the trap if no SError is pending. We will come back to the
+	 * same PC once the SError has been injected, and replay the
+	 * trapping instruction.
+	 */
+	if (*exit_code == ARM_EXCEPTION_TRAP && !__populate_fault_info(vcpu))
+		return true;
+
+	if (static_branch_unlikely(&vgic_v2_cpuif_trap) &&
+	    *exit_code == ARM_EXCEPTION_TRAP) {
+		bool valid;
+
+		valid = kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_DABT_LOW &&
+			kvm_vcpu_trap_get_fault_type(vcpu) == FSC_FAULT &&
+			kvm_vcpu_dabt_isvalid(vcpu) &&
+			!kvm_vcpu_dabt_isextabt(vcpu) &&
+			!kvm_vcpu_dabt_iss1tw(vcpu);
+
+		if (valid) {
+			int ret = __vgic_v2_perform_cpuif_access(vcpu);
+
+			if (ret == 1) {
+				if (__skip_instr(vcpu))
+					return true;
+				else
+					*exit_code = ARM_EXCEPTION_TRAP;
+			}
+
+			if (ret == -1) {
+				/* Promote an illegal access to an
+				 * SError. If we would be returning
+				 * due to single-step clear the SS
+				 * bit so handle_exit knows what to
+				 * do after dealing with the error.
+				 */
+				if (!__skip_instr(vcpu))
+					*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
+				*exit_code = ARM_EXCEPTION_EL1_SERROR;
+			}
+		}
+	}
+
+	if (static_branch_unlikely(&vgic_v3_cpuif_trap) &&
+	    *exit_code == ARM_EXCEPTION_TRAP &&
+	    (kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_SYS64 ||
+	     kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_CP15_32)) {
+		int ret = __vgic_v3_perform_cpuif_access(vcpu);
+
+		if (ret == 1) {
+			if (__skip_instr(vcpu))
+				return true;
+			else
+				*exit_code = ARM_EXCEPTION_TRAP;
+		}
+	}
+
+	/* Return to the host kernel and handle the exit */
+	return false;
+}
+
 int __hyp_text __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
@@ -320,73 +391,12 @@ int __hyp_text __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	__sysreg_restore_guest_state(guest_ctxt);
 	__debug_switch_to_guest(vcpu);
 
-	/* Jump in the fire! */
-again:
-	exit_code = __guest_enter(vcpu, host_ctxt);
-	/* And we're baaack! */
+	do {
+		/* Jump in the fire! */
+		exit_code = __guest_enter(vcpu, host_ctxt);
 
-	if (ARM_EXCEPTION_CODE(exit_code) != ARM_EXCEPTION_IRQ)
-		vcpu->arch.fault.esr_el2 = read_sysreg_el2(esr);
-	/*
-	 * We're using the raw exception code in order to only process
-	 * the trap if no SError is pending. We will come back to the
-	 * same PC once the SError has been injected, and replay the
-	 * trapping instruction.
-	 */
-	if (exit_code == ARM_EXCEPTION_TRAP && !__populate_fault_info(vcpu))
-		goto again;
-
-	if (static_branch_unlikely(&vgic_v2_cpuif_trap) &&
-	    exit_code == ARM_EXCEPTION_TRAP) {
-		bool valid;
-
-		valid = kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_DABT_LOW &&
-			kvm_vcpu_trap_get_fault_type(vcpu) == FSC_FAULT &&
-			kvm_vcpu_dabt_isvalid(vcpu) &&
-			!kvm_vcpu_dabt_isextabt(vcpu) &&
-			!kvm_vcpu_dabt_iss1tw(vcpu);
-
-		if (valid) {
-			int ret = __vgic_v2_perform_cpuif_access(vcpu);
-
-			if (ret == 1) {
-				if (__skip_instr(vcpu))
-					goto again;
-				else
-					exit_code = ARM_EXCEPTION_TRAP;
-			}
-
-			if (ret == -1) {
-				/* Promote an illegal access to an
-				 * SError. If we would be returning
-				 * due to single-step clear the SS
-				 * bit so handle_exit knows what to
-				 * do after dealing with the error.
-				 */
-				if (!__skip_instr(vcpu))
-					*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
-				exit_code = ARM_EXCEPTION_EL1_SERROR;
-			}
-
-			/* 0 falls through to be handler out of EL2 */
-		}
-	}
-
-	if (static_branch_unlikely(&vgic_v3_cpuif_trap) &&
-	    exit_code == ARM_EXCEPTION_TRAP &&
-	    (kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_SYS64 ||
-	     kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_CP15_32)) {
-		int ret = __vgic_v3_perform_cpuif_access(vcpu);
-
-		if (ret == 1) {
-			if (__skip_instr(vcpu))
-				goto again;
-			else
-				exit_code = ARM_EXCEPTION_TRAP;
-		}
-
-		/* 0 falls through to be handled out of EL2 */
-	}
+		/* And we're baaack! */
+	} while (fixup_guest_exit(vcpu, &exit_code));
 
 	if (cpus_have_const_cap(ARM64_HARDEN_BP_POST_GUEST_EXIT)) {
 		u32 midr = read_cpuid_id();
