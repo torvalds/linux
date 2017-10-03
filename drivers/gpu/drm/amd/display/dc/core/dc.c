@@ -332,7 +332,7 @@ static void set_dither_option(struct dc_stream_state *stream,
 {
 	struct bit_depth_reduction_params params;
 	struct dc_link *link = stream->status.link;
-	struct pipe_ctx *pipes;
+	struct pipe_ctx *pipes = NULL;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -344,7 +344,7 @@ static void set_dither_option(struct dc_stream_state *stream,
 	}
 
 	memset(&params, 0, sizeof(params));
-	if (!stream)
+	if (!pipes)
 		return;
 	if (option > DITHER_OPTION_MAX)
 		return;
