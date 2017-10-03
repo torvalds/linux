@@ -1075,8 +1075,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl */
-	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
+	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,[cnl] */
+	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
+	ret = wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)
 		return ret;
 
@@ -1137,14 +1139,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 	ret = gen9_init_workarounds(engine);
 	if (ret)
 		return ret;
-
-	/*
-	 * Actual WA is to disable percontext preemption granularity control
-	 * until D0 which is the default case so this is equivalent to
-	 * !WaDisablePerCtxtPreemptionGranularityControl:skl
-	 */
-	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
-		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 
 	/* WaEnableGapsTsvCreditFix:skl */
 	I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
@@ -1278,6 +1272,8 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
 
 	/* WaEnablePreemptionGranularityControlByUMD:cnl */
+	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)
 		return ret;
