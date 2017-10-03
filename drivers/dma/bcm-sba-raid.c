@@ -442,7 +442,9 @@ static void sba_process_received_request(struct sba_device *sba,
 
 		WARN_ON(tx->cookie < 0);
 		if (tx->cookie > 0) {
+			spin_lock_irqsave(&sba->reqs_lock, flags);
 			dma_cookie_complete(tx);
+			spin_unlock_irqrestore(&sba->reqs_lock, flags);
 			dmaengine_desc_get_callback_invoke(tx, NULL);
 			dma_descriptor_unmap(tx);
 			tx->callback = NULL;
