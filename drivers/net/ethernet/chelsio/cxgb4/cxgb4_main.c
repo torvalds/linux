@@ -5024,7 +5024,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		/* MTU range: 81 - 9600 */
-		netdev->min_mtu = 81;
+		netdev->min_mtu = 81;              /* accommodate SACK */
 		netdev->max_mtu = MAX_MTU;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;
