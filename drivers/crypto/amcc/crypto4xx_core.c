@@ -280,17 +280,20 @@ static u32 crypto4xx_get_pd_from_pdr_nolock(struct crypto4xx_device *dev)
 static u32 crypto4xx_put_pd_to_pdr(struct crypto4xx_device *dev, u32 idx)
 {
 	struct pd_uinfo *pd_uinfo = &dev->pdr_uinfo[idx];
+	u32 tail;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->core_dev->lock, flags);
+	pd_uinfo->state = PD_ENTRY_FREE;
+
 	if (dev->pdr_tail != PPC4XX_LAST_PD)
 		dev->pdr_tail++;
 	else
 		dev->pdr_tail = 0;
-	pd_uinfo->state = PD_ENTRY_FREE;
+	tail = dev->pdr_tail;
 	spin_unlock_irqrestore(&dev->core_dev->lock, flags);
 
-	return 0;
+	return tail;
 }
 
 /**
@@ -854,16 +857,16 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		}
 	}
 
-	sa->sa_command_1.bf.hash_crypto_offset = 0;
-	pd->pd_ctl.w = 0;
-	pd->pd_ctl.bf.hash_final =
-		(crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AHASH);
-	pd->pd_ctl.bf.host_ready = 1;
+	pd->pd_ctl.w = PD_CTL_HOST_READY |
+		((crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AHASH) |
+		 (crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AEAD) ?
+			PD_CTL_HASH_FINAL : 0);
 	pd->pd_ctl_len.w = 0x00400000 | datalen;
 	pd_uinfo->state = PD_ENTRY_INUSE | (is_busy ? PD_ENTRY_BUSY : 0);
 
 	wmb();
 	/* write any value to push engine to read a pd */
+	writel(0, dev->ce_base + CRYPTO4XX_INT_DESCR_RD);
 	writel(1, dev->ce_base + CRYPTO4XX_INT_DESCR_RD);
 	return is_busy ? -EBUSY : -EINPROGRESS;
 }
@@ -964,23 +967,23 @@ static void crypto4xx_bh_tasklet_cb(unsigned long data)
 	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);
 	struct pd_uinfo *pd_uinfo;
 	struct ce_pd *pd;
-	u32 tail;
+	u32 tail = core_dev->dev->pdr_tail;
+	u32 head = core_dev->dev->pdr_head;
 
-	while (core_dev->dev->pdr_head != core_dev->dev->pdr_tail) {
-		tail = core_dev->dev->pdr_tail;
+	do {
 		pd_uinfo = &core_dev->dev->pdr_uinfo[tail];
 		pd = &core_dev->dev->pdr[tail];
 		if ((pd_uinfo->state & PD_ENTRY_INUSE) &&
-				   pd->pd_ctl.bf.pe_done &&
-				   !pd->pd_ctl.bf.host_ready) {
-			pd->pd_ctl.bf.pe_done = 0;
+		     ((READ_ONCE(pd->pd_ctl.w) &
+		       (PD_CTL_PE_DONE | PD_CTL_HOST_READY)) ==
+		       PD_CTL_PE_DONE)) {
 			crypto4xx_pd_done(core_dev->dev, tail);
-			crypto4xx_put_pd_to_pdr(core_dev->dev, tail);
+			tail = crypto4xx_put_pd_to_pdr(core_dev->dev, tail);
 		} else {
 			/* if tail not done, break */
 			break;
 		}
-	}
+	} while (head != tail);
 }
 
 /**

@@ -261,6 +261,9 @@ union ce_pd_ctl {
 	} bf;
 	u32 w;
 } __attribute__((packed));
+#define PD_CTL_HASH_FINAL	BIT(4)
+#define PD_CTL_PE_DONE		BIT(1)
+#define PD_CTL_HOST_READY	BIT(0)
 
 union ce_pd_ctl_len {
 	struct {
