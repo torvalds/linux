@@ -1365,8 +1365,8 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 	/* Disable/inactivate ring */
 	writel_relaxed(0x0, ring->regs + RING_CONTROL);
 
-	/* Flush ring with timeout of 1s */
-	timeout = 1000;
+	/* Set ring flush state */
+	timeout = 1000; /* timeout of 1s */
 	writel_relaxed(BIT(CONTROL_FLUSH_SHIFT),
 			ring->regs + RING_CONTROL);
 	do {
@@ -1374,7 +1374,23 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 		    FLUSH_DONE_MASK)
 			break;
 		mdelay(1);
-	} while (timeout--);
+	} while (--timeout);
+	if (!timeout)
+		dev_err(ring->mbox->dev,
+			"setting ring%d flush state timedout\n", ring->num);
+
+	/* Clear ring flush state */
+	timeout = 1000; /* timeout of 1s */
+	writel_relaxed(0x0, ring + RING_CONTROL);
+	do {
+		if (!(readl_relaxed(ring + RING_FLUSH_DONE) &
+		      FLUSH_DONE_MASK))
+			break;
+		mdelay(1);
+	} while (--timeout);
+	if (!timeout)
+		dev_err(ring->mbox->dev,
+			"clearing ring%d flush state timedout\n", ring->num);
 
 	/* Abort all in-flight requests */
 	for (reqid = 0; reqid < RING_MAX_REQ_COUNT; reqid++) {
