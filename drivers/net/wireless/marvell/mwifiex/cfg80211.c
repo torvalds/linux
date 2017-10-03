@@ -3794,9 +3794,8 @@ mwifiex_cfg80211_tdls_chan_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 	sta_ptr = mwifiex_get_sta_entry(priv, addr);
-	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
-
 	if (!sta_ptr) {
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		wiphy_err(wiphy, "%s: Invalid TDLS peer %pM\n",
 			  __func__, addr);
 		return -ENOENT;
@@ -3804,15 +3803,18 @@ mwifiex_cfg80211_tdls_chan_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	if (!(sta_ptr->tdls_cap.extcap.ext_capab[3] &
 	      WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH)) {
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		wiphy_err(wiphy, "%pM do not support tdls cs\n", addr);
 		return -ENOENT;
 	}
 
 	if (sta_ptr->tdls_status == TDLS_CHAN_SWITCHING ||
 	    sta_ptr->tdls_status == TDLS_IN_OFF_CHAN) {
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		wiphy_err(wiphy, "channel switch is running, abort request\n");
 		return -EALREADY;
 	}
+	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 
 	chan = chandef->chan->hw_value;
 	second_chan_offset = mwifiex_get_sec_chan_offset(chan);
@@ -3833,18 +3835,20 @@ mwifiex_cfg80211_tdls_cancel_chan_switch(struct wiphy *wiphy,
 
 	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 	sta_ptr = mwifiex_get_sta_entry(priv, addr);
-	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
-
 	if (!sta_ptr) {
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		wiphy_err(wiphy, "%s: Invalid TDLS peer %pM\n",
 			  __func__, addr);
 	} else if (!(sta_ptr->tdls_status == TDLS_CHAN_SWITCHING ||
 		     sta_ptr->tdls_status == TDLS_IN_BASE_CHAN ||
 		     sta_ptr->tdls_status == TDLS_IN_OFF_CHAN)) {
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		wiphy_err(wiphy, "tdls chan switch not initialize by %pM\n",
 			  addr);
-	} else
+	} else {
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		mwifiex_stop_tdls_cs(priv, addr);
+	}
 }
 
 static int
