@@ -153,8 +153,9 @@ static void sys_free_dir(struct sys_dir *sys_dir)
 int ssi_sysfs_init(struct kobject *sys_dev_obj, struct ssi_drvdata *drvdata)
 {
 	int retval;
+	struct device *dev = drvdata_to_dev(drvdata);
 
-	SSI_LOG_ERR("setup sysfs under %s\n", sys_dev_obj->name);
+	dev_info(dev, "setup sysfs under %s\n", sys_dev_obj->name);
 
 	/* Initialize top directory */
 	retval = sys_init_dir(&sys_top_dir, drvdata, sys_dev_obj, "cc_info",

@@ -76,18 +76,19 @@ void fips_handler(struct ssi_drvdata *drvdata)
 	tasklet_schedule(&fips_handle_ptr->tasklet);
 }
 
-static inline void tee_fips_error(void)
+static inline void tee_fips_error(struct device *dev)
 {
 	if (fips_enabled)
 		panic("ccree: TEE reported cryptographic error in fips mode!\n");
 	else
-		SSI_LOG_ERR("TEE reported error!\n");
+		dev_err(dev, "TEE reported error!\n");
 }
 
 /* Deferred service handler, run as interrupt-fired tasklet */
 static void fips_dsr(unsigned long devarg)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
+	struct device *dev = drvdata_to_dev(drvdata);
 	void __iomem *cc_base = drvdata->cc_base;
 	u32 irq, state, val;
 
@@ -97,7 +98,7 @@ static void fips_dsr(unsigned long devarg)
 		state = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
 
 		if (state != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
-			tee_fips_error();
+			tee_fips_error(dev);
 	}
 
 	/* after verifing that there is nothing to do,
@@ -111,6 +112,7 @@ static void fips_dsr(unsigned long devarg)
 int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 {
 	struct ssi_fips_handle *fips_h;
+	struct device *dev = drvdata_to_dev(p_drvdata);
 
 	fips_h = kzalloc(sizeof(*fips_h), GFP_KERNEL);
 	if (!fips_h)
@@ -118,11 +120,11 @@ int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 
 	p_drvdata->fips_handle = fips_h;
 
-	SSI_LOG_DEBUG("Initializing fips tasklet\n");
+	dev_dbg(dev, "Initializing fips tasklet\n");
 	tasklet_init(&fips_h->tasklet, fips_dsr, (unsigned long)p_drvdata);
 
 	if (!cc_get_tee_fips_status(p_drvdata))
-		tee_fips_error();
+		tee_fips_error(dev);
 
 	return 0;
 }

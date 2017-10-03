@@ -91,19 +91,6 @@
  * field in the HW descriptor. The DMA engine +8 that value.
  */
 
-/* Logging macros */
-#define SSI_LOG(level, format, ...) \
-	printk(level "cc715ree::%s: " format, __func__, ##__VA_ARGS__)
-#define SSI_LOG_ERR(format, ...) SSI_LOG(KERN_ERR, format, ##__VA_ARGS__)
-#define SSI_LOG_WARNING(format, ...) SSI_LOG(KERN_WARNING, format, ##__VA_ARGS__)
-#define SSI_LOG_NOTICE(format, ...) SSI_LOG(KERN_NOTICE, format, ##__VA_ARGS__)
-#define SSI_LOG_INFO(format, ...) SSI_LOG(KERN_INFO, format, ##__VA_ARGS__)
-#ifdef CC_DEBUG
-#define SSI_LOG_DEBUG(format, ...) SSI_LOG(KERN_DEBUG, format, ##__VA_ARGS__)
-#else /* Debug log messages are removed at compile time for non-DEBUG config. */
-#define SSI_LOG_DEBUG(format, ...) do {} while (0)
-#endif
-
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 

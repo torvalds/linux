@@ -185,8 +185,8 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 	int rc = 0;
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 
-	SSI_LOG_DEBUG("Initializing context @%p for %s\n",
-		      ctx_p, crypto_tfm_alg_name(tfm));
+	dev_dbg(dev, "Initializing context @%p for %s\n", ctx_p,
+		crypto_tfm_alg_name(tfm));
 
 	ctx_p->cipher_mode = ssi_alg->cipher_mode;
 	ctx_p->flow_mode = ssi_alg->flow_mode;
@@ -195,30 +195,29 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 	/* Allocate key buffer, cache line aligned */
 	ctx_p->user.key = kmalloc(max_key_buf_size, GFP_KERNEL | GFP_DMA);
 	if (!ctx_p->user.key) {
-		SSI_LOG_ERR("Allocating key buffer in context failed\n");
+		dev_dbg(dev, "Allocating key buffer in context failed\n");
 		rc = -ENOMEM;
 	}
-	SSI_LOG_DEBUG("Allocated key buffer in context. key=@%p\n",
-		      ctx_p->user.key);
+	dev_dbg(dev, "Allocated key buffer in context. key=@%p\n",
+		ctx_p->user.key);
 
 	/* Map key buffer */
 	ctx_p->user.key_dma_addr = dma_map_single(dev, (void *)ctx_p->user.key,
 						  max_key_buf_size,
 						  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, ctx_p->user.key_dma_addr)) {
-		SSI_LOG_ERR("Mapping Key %u B at va=%pK for DMA failed\n",
-			    max_key_buf_size, ctx_p->user.key);
+		dev_err(dev, "Mapping Key %u B at va=%pK for DMA failed\n",
+			max_key_buf_size, ctx_p->user.key);
 		return -ENOMEM;
 	}
-	SSI_LOG_DEBUG("Mapped key %u B at va=%pK to dma=%pad\n",
-		      max_key_buf_size, ctx_p->user.key,
-		      ctx_p->user.key_dma_addr);
+	dev_dbg(dev, "Mapped key %u B at va=%pK to dma=%pad\n",
+		max_key_buf_size, ctx_p->user.key, &ctx_p->user.key_dma_addr);
 
 	if (ctx_p->cipher_mode == DRV_CIPHER_ESSIV) {
 		/* Alloc hash tfm for essiv */
 		ctx_p->shash_tfm = crypto_alloc_shash("sha256-generic", 0, 0);
 		if (IS_ERR(ctx_p->shash_tfm)) {
-			SSI_LOG_ERR("Error allocating hash tfm for ESSIV.\n");
+			dev_err(dev, "Error allocating hash tfm for ESSIV.\n");
 			return PTR_ERR(ctx_p->shash_tfm);
 		}
 	}
@@ -232,8 +231,8 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 
-	SSI_LOG_DEBUG("Clearing context @%p for %s\n",
-		      crypto_tfm_ctx(tfm), crypto_tfm_alg_name(tfm));
+	dev_dbg(dev, "Clearing context @%p for %s\n",
+		crypto_tfm_ctx(tfm), crypto_tfm_alg_name(tfm));
 
 	if (ctx_p->cipher_mode == DRV_CIPHER_ESSIV) {
 		/* Free hash tfm for essiv */
@@ -244,12 +243,12 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 	/* Unmap key buffer */
 	dma_unmap_single(dev, ctx_p->user.key_dma_addr, max_key_buf_size,
 			 DMA_TO_DEVICE);
-	SSI_LOG_DEBUG("Unmapped key buffer key_dma_addr=%pad\n",
-		      ctx_p->user.key_dma_addr);
+	dev_dbg(dev, "Unmapped key buffer key_dma_addr=%pad\n",
+		&ctx_p->user.key_dma_addr);
 
 	/* Free key buffer in context */
 	kfree(ctx_p->user.key);
-	SSI_LOG_DEBUG("Free key buffer in context. key=@%p\n", ctx_p->user.key);
+	dev_dbg(dev, "Free key buffer in context. key=@%p\n", ctx_p->user.key);
 }
 
 struct tdes_keys {
@@ -301,11 +300,9 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	u32 tmp[DES_EXPKEY_WORDS];
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 
-	SSI_LOG_DEBUG("Setting key in context @%p for %s. keylen=%u\n",
-		      ctx_p, crypto_tfm_alg_name(tfm), keylen);
+	dev_dbg(dev, "Setting key in context @%p for %s. keylen=%u\n",
+		ctx_p, crypto_tfm_alg_name(tfm), keylen);
 	dump_byte_array("key", (u8 *)key, keylen);
-
-	SSI_LOG_DEBUG("after FIPS check");
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
@@ -316,7 +313,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 #endif /*SSI_CC_HAS_MULTI2*/
 
 	if (unlikely(validate_keys_sizes(ctx_p, keylen) != 0)) {
-		SSI_LOG_ERR("Unsupported key size %d.\n", keylen);
+		dev_err(dev, "Unsupported key size %d.\n", keylen);
 		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
@@ -326,13 +323,14 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		struct arm_hw_key_info *hki = (struct arm_hw_key_info *)key;
 
 		if (unlikely(ctx_p->flow_mode != S_DIN_to_AES)) {
-			SSI_LOG_ERR("HW key not supported for non-AES flows\n");
+			dev_err(dev, "HW key not supported for non-AES flows\n");
 			return -EINVAL;
 		}
 
 		ctx_p->hw.key1_slot = hw_key_to_cc_hw_key(hki->hw_key1);
 		if (unlikely(ctx_p->hw.key1_slot == END_OF_KEYS)) {
-			SSI_LOG_ERR("Unsupported hw key1 number (%d)\n", hki->hw_key1);
+			dev_err(dev, "Unsupported hw key1 number (%d)\n",
+				hki->hw_key1);
 			return -EINVAL;
 		}
 
@@ -340,18 +338,20 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		    (ctx_p->cipher_mode == DRV_CIPHER_ESSIV) ||
 		    (ctx_p->cipher_mode == DRV_CIPHER_BITLOCKER)) {
 			if (unlikely(hki->hw_key1 == hki->hw_key2)) {
-				SSI_LOG_ERR("Illegal hw key numbers (%d,%d)\n", hki->hw_key1, hki->hw_key2);
+				dev_err(dev, "Illegal hw key numbers (%d,%d)\n",
+					hki->hw_key1, hki->hw_key2);
 				return -EINVAL;
 			}
 			ctx_p->hw.key2_slot = hw_key_to_cc_hw_key(hki->hw_key2);
 			if (unlikely(ctx_p->hw.key2_slot == END_OF_KEYS)) {
-				SSI_LOG_ERR("Unsupported hw key2 number (%d)\n", hki->hw_key2);
+				dev_err(dev, "Unsupported hw key2 number (%d)\n",
+					hki->hw_key2);
 				return -EINVAL;
 			}
 		}
 
 		ctx_p->keylen = keylen;
-		SSI_LOG_DEBUG("ssi_is_hw_key ret 0");
+		dev_dbg(dev, "ssi_is_hw_key ret 0");
 
 		return 0;
 	}
@@ -361,19 +361,19 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		if (unlikely(!des_ekey(tmp, key)) &&
 		    (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_WEAK_KEY)) {
 			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-			SSI_LOG_DEBUG("weak DES key");
+			dev_dbg(dev, "weak DES key");
 			return -EINVAL;
 		}
 	}
 	if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) &&
 	    xts_check_key(tfm, key, keylen) != 0) {
-		SSI_LOG_DEBUG("weak XTS key");
+		dev_dbg(dev, "weak XTS key");
 		return -EINVAL;
 	}
 	if ((ctx_p->flow_mode == S_DIN_to_DES) &&
 	    (keylen == DES3_EDE_KEY_SIZE) &&
 	    ssi_verify_3des_keys(key, keylen) != 0) {
-		SSI_LOG_DEBUG("weak 3DES key");
+		dev_dbg(dev, "weak 3DES key");
 		return -EINVAL;
 	}
 
@@ -388,7 +388,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		if (ctx_p->key_round_number < CC_MULTI2_MIN_NUM_ROUNDS ||
 		    ctx_p->key_round_number > CC_MULTI2_MAX_NUM_ROUNDS) {
 			crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-			SSI_LOG_DEBUG("SSI_CC_HAS_MULTI2 einval");
+			dev_dbg(dev, "SSI_CC_HAS_MULTI2 einval");
 			return -EINVAL;
 #endif /*SSI_CC_HAS_MULTI2*/
 	} else {
@@ -406,7 +406,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 
 			err = crypto_shash_digest(desc, ctx_p->user.key, key_len, ctx_p->user.key + key_len);
 			if (err) {
-				SSI_LOG_ERR("Failed to hash ESSIV key.\n");
+				dev_err(dev, "Failed to hash ESSIV key.\n");
 				return err;
 			}
 		}
@@ -415,7 +415,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 				   max_key_buf_size, DMA_TO_DEVICE);
 	ctx_p->keylen = keylen;
 
-	 SSI_LOG_DEBUG("return safely");
+	 dev_dbg(dev, "return safely");
 	return 0;
 }
 
@@ -429,6 +429,7 @@ ssi_blkcipher_create_setup_desc(
 	unsigned int *seq_size)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	int cipher_mode = ctx_p->cipher_mode;
 	int flow_mode = ctx_p->flow_mode;
 	int direction = req_ctx->gen_ctx.op_type;
@@ -539,7 +540,7 @@ ssi_blkcipher_create_setup_desc(
 		(*seq_size)++;
 		break;
 	default:
-		SSI_LOG_ERR("Unsupported cipher mode (%d)\n", cipher_mode);
+		dev_err(dev, "Unsupported cipher mode (%d)\n", cipher_mode);
 	}
 }
 
@@ -599,6 +600,7 @@ ssi_blkcipher_create_data_desc(
 	unsigned int *seq_size)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	unsigned int flow_mode = ctx_p->flow_mode;
 
 	switch (ctx_p->flow_mode) {
@@ -614,15 +616,15 @@ ssi_blkcipher_create_data_desc(
 		break;
 #endif /*SSI_CC_HAS_MULTI2*/
 	default:
-		SSI_LOG_ERR("invalid flow mode, flow_mode = %d\n", flow_mode);
+		dev_err(dev, "invalid flow mode, flow_mode = %d\n", flow_mode);
 		return;
 	}
 	/* Process */
 	if (likely(req_ctx->dma_buf_type == SSI_DMA_BUF_DLLI)) {
-		SSI_LOG_DEBUG(" data params addr %pad length 0x%X\n",
-			      sg_dma_address(src), nbytes);
-		SSI_LOG_DEBUG(" data params addr %pad length 0x%X\n",
-			      sg_dma_address(dst), nbytes);
+		dev_dbg(dev, " data params addr %pad length 0x%X\n",
+			&sg_dma_address(src), nbytes);
+		dev_dbg(dev, " data params addr %pad length 0x%X\n",
+			&sg_dma_address(dst), nbytes);
 		hw_desc_init(&desc[*seq_size]);
 		set_din_type(&desc[*seq_size], DMA_DLLI, sg_dma_address(src),
 			     nbytes, NS_BIT);
@@ -635,9 +637,8 @@ ssi_blkcipher_create_data_desc(
 		(*seq_size)++;
 	} else {
 		/* bypass */
-		SSI_LOG_DEBUG(" bypass params addr %pad "
-			     "length 0x%X addr 0x%08X\n",
-			req_ctx->mlli_params.mlli_dma_addr,
+		dev_dbg(dev, " bypass params addr %pad length 0x%X addr 0x%08X\n",
+			&req_ctx->mlli_params.mlli_dma_addr,
 			req_ctx->mlli_params.mlli_len,
 			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
 		hw_desc_init(&desc[*seq_size]);
@@ -655,21 +656,18 @@ ssi_blkcipher_create_data_desc(
 			     ctx_p->drvdata->mlli_sram_addr,
 			     req_ctx->in_mlli_nents, NS_BIT);
 		if (req_ctx->out_nents == 0) {
-			SSI_LOG_DEBUG(" din/dout params addr 0x%08X "
-				     "addr 0x%08X\n",
-			(unsigned int)ctx_p->drvdata->mlli_sram_addr,
-			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
+			dev_dbg(dev, " din/dout params addr 0x%08X addr 0x%08X\n",
+				(unsigned int)ctx_p->drvdata->mlli_sram_addr,
+				(unsigned int)ctx_p->drvdata->mlli_sram_addr);
 			set_dout_mlli(&desc[*seq_size],
 				      ctx_p->drvdata->mlli_sram_addr,
 				      req_ctx->in_mlli_nents, NS_BIT,
 				      (!areq ? 0 : 1));
 		} else {
-			SSI_LOG_DEBUG(" din/dout params "
-				     "addr 0x%08X addr 0x%08X\n",
+			dev_dbg(dev, " din/dout params addr 0x%08X addr 0x%08X\n",
 				(unsigned int)ctx_p->drvdata->mlli_sram_addr,
 				(unsigned int)ctx_p->drvdata->mlli_sram_addr +
-				(u32)LLI_ENTRY_BYTE_SIZE *
-							req_ctx->in_nents);
+				(u32)LLI_ENTRY_BYTE_SIZE * req_ctx->in_nents);
 			set_dout_mlli(&desc[*seq_size],
 				      (ctx_p->drvdata->mlli_sram_addr +
 				       (LLI_ENTRY_BYTE_SIZE *
@@ -742,15 +740,15 @@ static int ssi_blkcipher_process(
 	struct ssi_crypto_req ssi_req = {};
 	int rc, seq_len = 0, cts_restore_flag = 0;
 
-	SSI_LOG_DEBUG("%s areq=%p info=%p nbytes=%d\n",
-		      ((direction == DRV_CRYPTO_DIRECTION_ENCRYPT) ? "Encrypt" : "Decrypt"),
-		      areq, info, nbytes);
+	dev_dbg(dev, "%s areq=%p info=%p nbytes=%d\n",
+		((direction == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
+		"Encrypt" : "Decrypt"), areq, info, nbytes);
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
 	/* TODO: check data length according to mode */
 	if (unlikely(validate_data_size(ctx_p, nbytes))) {
-		SSI_LOG_ERR("Unsupported data size %d.\n", nbytes);
+		dev_err(dev, "Unsupported data size %d.\n", nbytes);
 		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_BLOCK_LEN);
 		rc = -EINVAL;
 		goto exit_process;
@@ -783,7 +781,7 @@ static int ssi_blkcipher_process(
 
 	rc = ssi_buffer_mgr_map_blkcipher_request(ctx_p->drvdata, req_ctx, ivsize, nbytes, info, src, dst);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("map_request() failed\n");
+		dev_err(dev, "map_request() failed\n");
 		goto exit_process;
 	}
 
@@ -1240,14 +1238,15 @@ static struct ssi_alg_template blkcipher_algs[] = {
 };
 
 static
-struct ssi_crypto_alg *ssi_ablkcipher_create_alg(struct ssi_alg_template *template)
+struct ssi_crypto_alg *ssi_ablkcipher_create_alg(struct ssi_alg_template
+						 *template, struct device *dev)
 {
 	struct ssi_crypto_alg *t_alg;
 	struct crypto_alg *alg;
 
 	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg) {
-		SSI_LOG_ERR("failed to allocate t_alg\n");
+		dev_dbg(dev, "failed to allocate t_alg\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1299,6 +1298,7 @@ int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 {
 	struct ssi_blkcipher_handle *ablkcipher_handle;
 	struct ssi_crypto_alg *t_alg;
+	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = -ENOMEM;
 	int alg;
 
@@ -1310,32 +1310,34 @@ int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 	drvdata->blkcipher_handle = ablkcipher_handle;
 
 	/* Linux crypto */
-	SSI_LOG_DEBUG("Number of algorithms = %zu\n", ARRAY_SIZE(blkcipher_algs));
+	dev_dbg(dev, "Number of algorithms = %zu\n",
+		ARRAY_SIZE(blkcipher_algs));
 	for (alg = 0; alg < ARRAY_SIZE(blkcipher_algs); alg++) {
-		SSI_LOG_DEBUG("creating %s\n", blkcipher_algs[alg].driver_name);
-		t_alg = ssi_ablkcipher_create_alg(&blkcipher_algs[alg]);
+		dev_dbg(dev, "creating %s\n", blkcipher_algs[alg].driver_name);
+		t_alg = ssi_ablkcipher_create_alg(&blkcipher_algs[alg], dev);
 		if (IS_ERR(t_alg)) {
 			rc = PTR_ERR(t_alg);
-			SSI_LOG_ERR("%s alg allocation failed\n",
-				    blkcipher_algs[alg].driver_name);
+			dev_err(dev, "%s alg allocation failed\n",
+				blkcipher_algs[alg].driver_name);
 			goto fail0;
 		}
 		t_alg->drvdata = drvdata;
 
-		SSI_LOG_DEBUG("registering %s\n", blkcipher_algs[alg].driver_name);
+		dev_dbg(dev, "registering %s\n",
+			blkcipher_algs[alg].driver_name);
 		rc = crypto_register_alg(&t_alg->crypto_alg);
-		SSI_LOG_DEBUG("%s alg registration rc = %x\n",
-			      t_alg->crypto_alg.cra_driver_name, rc);
+		dev_dbg(dev, "%s alg registration rc = %x\n",
+			t_alg->crypto_alg.cra_driver_name, rc);
 		if (unlikely(rc != 0)) {
-			SSI_LOG_ERR("%s alg registration failed\n",
-				    t_alg->crypto_alg.cra_driver_name);
+			dev_err(dev, "%s alg registration failed\n",
+				t_alg->crypto_alg.cra_driver_name);
 			kfree(t_alg);
 			goto fail0;
 		} else {
 			list_add_tail(&t_alg->entry,
 				      &ablkcipher_handle->blkcipher_alg_list);
-			SSI_LOG_DEBUG("Registered %s\n",
-				      t_alg->crypto_alg.cra_driver_name);
+			dev_dbg(dev, "Registered %s\n",
+				t_alg->crypto_alg.cra_driver_name);
 		}
 	}
 	return 0;
