@@ -99,40 +99,6 @@ alloc_fail:
 	return NULL;
 }
 
-bool dc_sink_get_container_id(struct dc_sink *dc_sink, struct dc_container_id *container_id)
-{
-	if (dc_sink && container_id && dc_sink->dc_container_id) {
-		memmove(&container_id->guid, &dc_sink->dc_container_id->guid,
-			sizeof(container_id->guid));
-		memmove(&container_id->portId, &dc_sink->dc_container_id->portId,
-			sizeof(container_id->portId));
-		container_id->manufacturerName = dc_sink->dc_container_id->manufacturerName;
-		container_id->productCode = dc_sink->dc_container_id->productCode;
-		return true;
-	}
-	return false;
-}
-
-bool dc_sink_set_container_id(struct dc_sink *dc_sink, const struct dc_container_id *container_id)
-{
-	if (dc_sink && container_id) {
-		if (!dc_sink->dc_container_id)
-			dc_sink->dc_container_id = kzalloc(sizeof(*dc_sink->dc_container_id),
-							   GFP_KERNEL);
-
-		if (dc_sink->dc_container_id) {
-			memmove(&dc_sink->dc_container_id->guid, &container_id->guid,
-				sizeof(container_id->guid));
-			memmove(&dc_sink->dc_container_id->portId, &container_id->portId,
-				sizeof(container_id->portId));
-			dc_sink->dc_container_id->manufacturerName = container_id->manufacturerName;
-			dc_sink->dc_container_id->productCode = container_id->productCode;
-			return true;
-		}
-	}
-	return false;
-}
-
 /*******************************************************************************
  * Protected functions - visible only inside of DC (not visible in DM)
  ******************************************************************************/
