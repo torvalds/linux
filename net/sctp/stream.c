@@ -32,8 +32,61 @@
  *    Xin Long <lucien.xin@gmail.com>
  */
 
+#include <linux/list.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
+#include <net/sctp/stream_sched.h>
+
+/* Migrates chunks from stream queues to new stream queues if needed,
+ * but not across associations. Also, removes those chunks to streams
+ * higher than the new max.
+ */
+static void sctp_stream_outq_migrate(struct sctp_stream *stream,
+				     struct sctp_stream *new, __u16 outcnt)
+{
+	struct sctp_association *asoc;
+	struct sctp_chunk *ch, *temp;
+	struct sctp_outq *outq;
+	int i;
+
+	asoc = container_of(stream, struct sctp_association, stream);
+	outq = &asoc->outqueue;
+
+	list_for_each_entry_safe(ch, temp, &outq->out_chunk_list, list) {
+		__u16 sid = sctp_chunk_stream_no(ch);
+
+		if (sid < outcnt)
+			continue;
+
+		sctp_sched_dequeue_common(outq, ch);
+		/* No need to call dequeue_done here because
+		 * the chunks are not scheduled by now.
+		 */
+
+		/* Mark as failed send. */
+		sctp_chunk_fail(ch, SCTP_ERROR_INV_STRM);
+		if (asoc->peer.prsctp_capable &&
+		    SCTP_PR_PRIO_ENABLED(ch->sinfo.sinfo_flags))
+			asoc->sent_cnt_removable--;
+
+		sctp_chunk_free(ch);
+	}
+
+	if (new) {
+		/* Here we actually move the old ext stuff into the new
+		 * buffer, because we want to keep it. Then
+		 * sctp_stream_update will swap ->out pointers.
+		 */
+		for (i = 0; i < outcnt; i++) {
+			kfree(new->out[i].ext);
+			new->out[i].ext = stream->out[i].ext;
+			stream->out[i].ext = NULL;
+		}
+	}
+
+	for (i = outcnt; i < stream->outcnt; i++)
+		kfree(stream->out[i].ext);
+}
 
 static int sctp_stream_alloc_out(struct sctp_stream *stream, __u16 outcnt,
 				 gfp_t gfp)
@@ -87,7 +140,8 @@ static int sctp_stream_alloc_in(struct sctp_stream *stream, __u16 incnt,
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp)
 {
-	int i;
+	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+	int i, ret = 0;
 
 	gfp |= __GFP_NOWARN;
 
@@ -97,6 +151,11 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 	if (outcnt == stream->outcnt)
 		goto in;
 
+	/* Filter out chunks queued on streams that won't exist anymore */
+	sched->unsched_all(stream);
+	sctp_stream_outq_migrate(stream, NULL, outcnt);
+	sched->sched_all(stream);
+
 	i = sctp_stream_alloc_out(stream, outcnt, gfp);
 	if (i)
 		return i;
@@ -105,20 +164,27 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 	for (i = 0; i < stream->outcnt; i++)
 		stream->out[i].state = SCTP_STREAM_OPEN;
 
+	sched->init(stream);
+
 in:
 	if (!incnt)
-		return 0;
+		goto out;
 
 	i = sctp_stream_alloc_in(stream, incnt, gfp);
 	if (i) {
-		kfree(stream->out);
-		stream->out = NULL;
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free;
 	}
 
 	stream->incnt = incnt;
+	goto out;
 
-	return 0;
+free:
+	sched->free(stream);
+	kfree(stream->out);
+	stream->out = NULL;
+out:
+	return ret;
 }
 
 int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
@@ -130,13 +196,15 @@ int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
 		return -ENOMEM;
 	stream->out[sid].ext = soute;
 
-	return 0;
+	return sctp_sched_init_sid(stream, sid, GFP_KERNEL);
 }
 
 void sctp_stream_free(struct sctp_stream *stream)
 {
+	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
 	int i;
 
+	sched->free(stream);
 	for (i = 0; i < stream->outcnt; i++)
 		kfree(stream->out[i].ext);
 	kfree(stream->out);
@@ -156,12 +224,18 @@ void sctp_stream_clear(struct sctp_stream *stream)
 
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new)
 {
+	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+
+	sched->unsched_all(stream);
+	sctp_stream_outq_migrate(stream, new, new->outcnt);
 	sctp_stream_free(stream);
 
 	stream->out = new->out;
 	stream->in  = new->in;
 	stream->outcnt = new->outcnt;
 	stream->incnt  = new->incnt;
+
+	sched->sched_all(stream);
 
 	new->out = NULL;
 	new->in  = NULL;

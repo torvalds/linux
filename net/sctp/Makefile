@@ -12,7 +12,7 @@ sctp-y := sm_statetable.o sm_statefuns.o sm_sideeffect.o \
 	  inqueue.o outqueue.o ulpqueue.o \
 	  tsnmap.o bind_addr.o socket.o primitive.o \
 	  output.o input.o debug.o stream.o auth.o \
-	  offload.o
+	  offload.o stream_sched.o
 
 sctp_probe-y := probe.o
 

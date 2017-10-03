@@ -84,7 +84,6 @@ struct sctp_ulpq;
 struct sctp_ep_common;
 struct crypto_shash;
 struct sctp_stream;
-struct sctp_stream_out;
 
 
 #include <net/sctp/tsnmap.h>
@@ -531,8 +530,12 @@ struct sctp_chunk {
 	/* How many times this chunk have been sent, for prsctp RTX policy */
 	int sent_count;
 
-	/* This is our link to the per-transport transmitted list.  */
-	struct list_head transmitted_list;
+	union {
+		/* This is our link to the per-transport transmitted list.  */
+		struct list_head transmitted_list;
+		/* List in specific stream outq */
+		struct list_head stream_list;
+	};
 
 	/* This field is used by chunks that hold fragmented data.
 	 * For the first fragment this is the list that holds the rest of
@@ -1019,6 +1022,9 @@ struct sctp_outq {
 	/* Data pending that has never been transmitted.  */
 	struct list_head out_chunk_list;
 
+	/* Stream scheduler being used */
+	struct sctp_sched_ops *sched;
+
 	unsigned int out_qlen;	/* Total length of queued data chunks. */
 
 	/* Error of send failed, may used in SCTP_SEND_FAILED event. */
@@ -1325,6 +1331,7 @@ struct sctp_inithdr_host {
 struct sctp_stream_out_ext {
 	__u64 abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
 	__u64 abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
+	struct list_head outq; /* chunks enqueued by this stream */
 };
 
 struct sctp_stream_out {
@@ -1342,6 +1349,8 @@ struct sctp_stream {
 	struct sctp_stream_in *in;
 	__u16 outcnt;
 	__u16 incnt;
+	/* Current stream being sent, if any */
+	struct sctp_stream_out *out_curr;
 };
 
 #define SCTP_STREAM_CLOSED		0x00
