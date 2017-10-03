@@ -428,6 +428,13 @@ static inline void kvm_arm_vhe_guest_enter(void)
 static inline void kvm_arm_vhe_guest_exit(void)
 {
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
+
+	/*
+	 * When we exit from the guest we change a number of CPU configuration
+	 * parameters, such as traps.  Make sure these changes take effect
+	 * before running the host or additional guests.
+	 */
+	isb();
 }
 
 static inline bool kvm_arm_harden_branch_predictor(void)
