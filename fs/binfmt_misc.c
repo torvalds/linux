@@ -54,7 +54,7 @@ typedef struct {
 	int size;			/* size of magic/mask */
 	char *magic;			/* magic or filename extension */
 	char *mask;			/* mask, NULL for exact match */
-	char *interpreter;		/* filename of interpreter */
+	const char *interpreter;	/* filename of interpreter */
 	char *name;
 	struct dentry *dentry;
 	struct file *interp_file;
@@ -131,8 +131,6 @@ static int load_misc_binary(struct linux_binprm *bprm)
 {
 	Node *fmt;
 	struct file *interp_file = NULL;
-	char iname[BINPRM_BUF_SIZE];
-	const char *iname_addr = iname;
 	int retval;
 	int fd_binary = -1;
 
@@ -143,10 +141,8 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	/* to keep locking time low, we copy the interpreter string */
 	read_lock(&entries_lock);
 	fmt = check_file(bprm);
-	if (fmt) {
+	if (fmt)
 		dget(fmt->dentry);
-		strlcpy(iname, fmt->interpreter, BINPRM_BUF_SIZE);
-	}
 	read_unlock(&entries_lock);
 	if (!fmt)
 		return retval;
@@ -198,13 +194,13 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	bprm->argc++;
 
 	/* add the interp as argv[0] */
-	retval = copy_strings_kernel(1, &iname_addr, bprm);
+	retval = copy_strings_kernel(1, &fmt->interpreter, bprm);
 	if (retval < 0)
 		goto error;
 	bprm->argc++;
 
 	/* Update interp in case binfmt_script needs it. */
-	retval = bprm_change_interp(iname, bprm);
+	retval = bprm_change_interp(fmt->interpreter, bprm);
 	if (retval < 0)
 		goto error;
 
@@ -213,7 +209,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		if (!IS_ERR(interp_file))
 			deny_write_access(interp_file);
 	} else {
-		interp_file = open_exec(iname);
+		interp_file = open_exec(fmt->interpreter);
 	}
 	retval = PTR_ERR(interp_file);
 	if (IS_ERR(interp_file))
