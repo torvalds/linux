@@ -1070,6 +1070,9 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_CONTEXT_PARAM_BANNABLE:
 		args->value = i915_gem_context_is_bannable(ctx);
 		break;
+	case I915_CONTEXT_PARAM_PRIORITY:
+		args->value = ctx->priority;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -1125,6 +1128,26 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		else
 			i915_gem_context_clear_bannable(ctx);
 		break;
+
+	case I915_CONTEXT_PARAM_PRIORITY:
+		{
+			int priority = args->value;
+
+			if (args->size)
+				ret = -EINVAL;
+			else if (!to_i915(dev)->engine[RCS]->schedule)
+				ret = -ENODEV;
+			else if (priority > I915_CONTEXT_MAX_USER_PRIORITY ||
+				 priority < I915_CONTEXT_MIN_USER_PRIORITY)
+				ret = -EINVAL;
+			else if (priority > I915_CONTEXT_DEFAULT_PRIORITY &&
+				 !capable(CAP_SYS_NICE))
+				ret = -EPERM;
+			else
+				ctx->priority = priority;
+		}
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;

@@ -370,6 +370,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 0;
 		if (dev_priv->engine[RCS] && dev_priv->engine[RCS]->schedule) {
 			value |= I915_SCHEDULER_CAP_ENABLED;
+			value |= I915_SCHEDULER_CAP_PRIORITY;
 
 			if (INTEL_INFO(dev_priv)->has_logical_ring_preemption &&
 			    i915_modparams.enable_execlists &&
