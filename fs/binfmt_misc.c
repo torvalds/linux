@@ -205,7 +205,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (retval < 0)
 		goto error;
 
-	if (fmt->flags & MISC_FMT_OPEN_FILE && fmt->interp_file) {
+	if (fmt->flags & MISC_FMT_OPEN_FILE) {
 		interp_file = filp_clone_open(fmt->interp_file);
 		if (!IS_ERR(interp_file))
 			deny_write_access(interp_file);
@@ -596,7 +596,7 @@ static void bm_evict_inode(struct inode *inode)
 {
 	Node *e = inode->i_private;
 
-	if ((e->flags & MISC_FMT_OPEN_FILE) && e->interp_file)
+	if (e->flags & MISC_FMT_OPEN_FILE)
 		filp_close(e->interp_file, NULL);
 
 	clear_inode(inode);
