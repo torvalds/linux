@@ -363,7 +363,7 @@ void set_dpms(
 	struct dc_stream_state *stream,
 	bool dpms_off)
 {
-	struct pipe_ctx *pipe_ctx;
+	struct pipe_ctx *pipe_ctx = NULL;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -371,6 +371,11 @@ void set_dpms(
 			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 			break;
 		}
+	}
+
+	if (!pipe_ctx) {
+		ASSERT(0);
+		return;
 	}
 
 	if (stream->dpms_off != dpms_off) {
