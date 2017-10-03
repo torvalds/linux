@@ -130,21 +130,17 @@ static void crypto4xx_hw_init(struct crypto4xx_device *dev)
 
 int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size)
 {
-	ctx->sa_in = dma_alloc_coherent(ctx->dev->core_dev->device, size * 4,
-					&ctx->sa_in_dma_addr, GFP_ATOMIC);
+	ctx->sa_in = kzalloc(size * 4, GFP_ATOMIC);
 	if (ctx->sa_in == NULL)
 		return -ENOMEM;
 
-	ctx->sa_out = dma_alloc_coherent(ctx->dev->core_dev->device, size * 4,
-					 &ctx->sa_out_dma_addr, GFP_ATOMIC);
+	ctx->sa_out = kzalloc(size * 4, GFP_ATOMIC);
 	if (ctx->sa_out == NULL) {
-		dma_free_coherent(ctx->dev->core_dev->device, size * 4,
-				  ctx->sa_in, ctx->sa_in_dma_addr);
+		kfree(ctx->sa_in);
+		ctx->sa_in = NULL;
 		return -ENOMEM;
 	}
 
-	memset(ctx->sa_in, 0, size * 4);
-	memset(ctx->sa_out, 0, size * 4);
 	ctx->sa_len = size;
 
 	return 0;
@@ -152,38 +148,11 @@ int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size)
 
 void crypto4xx_free_sa(struct crypto4xx_ctx *ctx)
 {
-	if (ctx->sa_in != NULL)
-		dma_free_coherent(ctx->dev->core_dev->device, ctx->sa_len * 4,
-				  ctx->sa_in, ctx->sa_in_dma_addr);
-	if (ctx->sa_out != NULL)
-		dma_free_coherent(ctx->dev->core_dev->device, ctx->sa_len * 4,
-				  ctx->sa_out, ctx->sa_out_dma_addr);
-
-	ctx->sa_in_dma_addr = 0;
-	ctx->sa_out_dma_addr = 0;
+	kfree(ctx->sa_in);
+	ctx->sa_in = NULL;
+	kfree(ctx->sa_out);
+	ctx->sa_out = NULL;
 	ctx->sa_len = 0;
-}
-
-u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx)
-{
-	ctx->state_record = dma_alloc_coherent(ctx->dev->core_dev->device,
-				sizeof(struct sa_state_record),
-				&ctx->state_record_dma_addr, GFP_ATOMIC);
-	if (!ctx->state_record_dma_addr)
-		return -ENOMEM;
-	memset(ctx->state_record, 0, sizeof(struct sa_state_record));
-
-	return 0;
-}
-
-static void crypto4xx_free_state_record(struct crypto4xx_ctx *ctx)
-{
-	if (ctx->state_record != NULL)
-		dma_free_coherent(ctx->dev->core_dev->device,
-				  sizeof(struct sa_state_record),
-				  ctx->state_record,
-				  ctx->state_record_dma_addr);
-	ctx->state_record_dma_addr = 0;
 }
 
 /**
@@ -883,8 +852,6 @@ static int crypto4xx_alg_init(struct crypto_tfm *tfm)
 	ctx->dev = amcc_alg->dev;
 	ctx->sa_in = NULL;
 	ctx->sa_out = NULL;
-	ctx->sa_in_dma_addr = 0;
-	ctx->sa_out_dma_addr = 0;
 	ctx->sa_len = 0;
 
 	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
@@ -905,7 +872,6 @@ static void crypto4xx_alg_exit(struct crypto_tfm *tfm)
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	crypto4xx_free_sa(ctx);
-	crypto4xx_free_state_record(ctx);
 }
 
 int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,

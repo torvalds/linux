@@ -122,20 +122,13 @@ static int crypto4xx_setkey_aes(struct crypto_ablkcipher *cipher,
 	}
 
 	/* Create SA */
-	if (ctx->sa_in_dma_addr || ctx->sa_out_dma_addr)
+	if (ctx->sa_in || ctx->sa_out)
 		crypto4xx_free_sa(ctx);
 
 	rc = crypto4xx_alloc_sa(ctx, SA_AES128_LEN + (keylen-16) / 4);
 	if (rc)
 		return rc;
 
-	if (ctx->state_record_dma_addr == 0) {
-		rc = crypto4xx_alloc_state_record(ctx);
-		if (rc) {
-			crypto4xx_free_sa(ctx);
-			return rc;
-		}
-	}
 	/* Setup SA */
 	sa = ctx->sa_in;
 
@@ -203,8 +196,8 @@ int crypto4xx_setkey_rfc3686(struct crypto_ablkcipher *cipher,
 	if (rc)
 		return rc;
 
-	crypto4xx_memcpy_to_le32(ctx->state_record->save_iv,
-		key + keylen - CTR_RFC3686_NONCE_SIZE, CTR_RFC3686_NONCE_SIZE);
+	ctx->iv_nonce = cpu_to_le32p((u32 *)&key[keylen -
+						 CTR_RFC3686_NONCE_SIZE]);
 
 	return 0;
 }
@@ -213,7 +206,7 @@ int crypto4xx_rfc3686_encrypt(struct ablkcipher_request *req)
 {
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	__le32 iv[AES_IV_SIZE / 4] = {
-		ctx->state_record->save_iv[0],
+		ctx->iv_nonce,
 		cpu_to_le32p((u32 *) req->info),
 		cpu_to_le32p((u32 *) (req->info + 4)),
 		cpu_to_le32(1) };
@@ -227,7 +220,7 @@ int crypto4xx_rfc3686_decrypt(struct ablkcipher_request *req)
 {
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	__le32 iv[AES_IV_SIZE / 4] = {
-		ctx->state_record->save_iv[0],
+		ctx->iv_nonce,
 		cpu_to_le32p((u32 *) req->info),
 		cpu_to_le32p((u32 *) (req->info + 4)),
 		cpu_to_le32(1) };
@@ -254,20 +247,12 @@ static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
 	ctx->dev   = my_alg->dev;
 
 	/* Create SA */
-	if (ctx->sa_in_dma_addr || ctx->sa_out_dma_addr)
+	if (ctx->sa_in || ctx->sa_out)
 		crypto4xx_free_sa(ctx);
 
 	rc = crypto4xx_alloc_sa(ctx, sa_len);
 	if (rc)
 		return rc;
-
-	if (ctx->state_record_dma_addr == 0) {
-		crypto4xx_alloc_state_record(ctx);
-		if (!ctx->state_record_dma_addr) {
-			crypto4xx_free_sa(ctx);
-			return -ENOMEM;
-		}
-	}
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct crypto4xx_ctx));

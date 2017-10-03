@@ -122,11 +122,8 @@ struct crypto4xx_core_device {
 struct crypto4xx_ctx {
 	struct crypto4xx_device *dev;
 	struct dynamic_sa_ctl *sa_in;
-	dma_addr_t sa_in_dma_addr;
 	struct dynamic_sa_ctl *sa_out;
-	dma_addr_t sa_out_dma_addr;
-	struct sa_state_record *state_record;
-	dma_addr_t state_record_dma_addr;
+	__le32 iv_nonce;
 	u32 sa_len;
 };
 
@@ -159,7 +156,6 @@ static inline struct crypto4xx_alg *crypto_alg_to_crypto4xx_alg(
 int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
 void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
 void crypto4xx_free_ctx(struct crypto4xx_ctx *ctx);
-u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx);
 int crypto4xx_build_pd(struct crypto_async_request *req,
 		       struct crypto4xx_ctx *ctx,
 		       struct scatterlist *src,
