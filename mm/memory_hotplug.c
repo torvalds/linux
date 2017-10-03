@@ -328,6 +328,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
 		if (err && (err != -EEXIST))
 			break;
 		err = 0;
+		cond_resched();
 	}
 	vmemmap_populate_print_last();
 out:
