@@ -1317,11 +1317,8 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 
 	dma_chan = devm_kcalloc(&pdev->dev, dma_lch_count,
 				sizeof(struct omap_dma_lch), GFP_KERNEL);
-	if (!dma_chan) {
-		dev_err(&pdev->dev, "%s: kzalloc fail\n", __func__);
+	if (!dma_chan)
 		return -ENOMEM;
-	}
-
 
 	if (dma_omap2plus()) {
 		dma_linked_lch = kzalloc(sizeof(struct dma_link_info) *

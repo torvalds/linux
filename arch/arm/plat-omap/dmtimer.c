@@ -858,10 +858,8 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	}
 
 	timer = devm_kzalloc(dev, sizeof(struct omap_dm_timer), GFP_KERNEL);
-	if (!timer) {
-		dev_err(dev, "%s: memory alloc failed!\n", __func__);
+	if (!timer)
 		return  -ENOMEM;
-	}
 
 	timer->fclk = ERR_PTR(-ENODEV);
 	timer->io_base = devm_ioremap_resource(dev, mem);
