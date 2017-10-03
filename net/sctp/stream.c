@@ -121,8 +121,24 @@ in:
 	return 0;
 }
 
+int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
+{
+	struct sctp_stream_out_ext *soute;
+
+	soute = kzalloc(sizeof(*soute), GFP_KERNEL);
+	if (!soute)
+		return -ENOMEM;
+	stream->out[sid].ext = soute;
+
+	return 0;
+}
+
 void sctp_stream_free(struct sctp_stream *stream)
 {
+	int i;
+
+	for (i = 0; i < stream->outcnt; i++)
+		kfree(stream->out[i].ext);
 	kfree(stream->out);
 	kfree(stream->in);
 }

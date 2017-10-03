@@ -1927,6 +1927,13 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		goto out_free;
 	}
 
+	/* Allocate sctp_stream_out_ext if not already done */
+	if (unlikely(!asoc->stream.out[sinfo->sinfo_stream].ext)) {
+		err = sctp_stream_init_ext(&asoc->stream, sinfo->sinfo_stream);
+		if (err)
+			goto out_free;
+	}
+
 	if (sctp_wspace(asoc) < msg_len)
 		sctp_prsctp_prune(asoc, sinfo, msg_len - sctp_wspace(asoc));
 
@@ -6645,7 +6652,7 @@ static int sctp_getsockopt_pr_streamstatus(struct sock *sk, int len,
 					   char __user *optval,
 					   int __user *optlen)
 {
-	struct sctp_stream_out *streamout;
+	struct sctp_stream_out_ext *streamoute;
 	struct sctp_association *asoc;
 	struct sctp_prstatus params;
 	int retval = -EINVAL;
@@ -6668,21 +6675,29 @@ static int sctp_getsockopt_pr_streamstatus(struct sock *sk, int len,
 	if (!asoc || params.sprstat_sid >= asoc->stream.outcnt)
 		goto out;
 
-	streamout = &asoc->stream.out[params.sprstat_sid];
+	streamoute = asoc->stream.out[params.sprstat_sid].ext;
+	if (!streamoute) {
+		/* Not allocated yet, means all stats are 0 */
+		params.sprstat_abandoned_unsent = 0;
+		params.sprstat_abandoned_sent = 0;
+		retval = 0;
+		goto out;
+	}
+
 	if (policy == SCTP_PR_SCTP_NONE) {
 		params.sprstat_abandoned_unsent = 0;
 		params.sprstat_abandoned_sent = 0;
 		for (policy = 0; policy <= SCTP_PR_INDEX(MAX); policy++) {
 			params.sprstat_abandoned_unsent +=
-				streamout->abandoned_unsent[policy];
+				streamoute->abandoned_unsent[policy];
 			params.sprstat_abandoned_sent +=
-				streamout->abandoned_sent[policy];
+				streamoute->abandoned_sent[policy];
 		}
 	} else {
 		params.sprstat_abandoned_unsent =
-			streamout->abandoned_unsent[__SCTP_PR_INDEX(policy)];
+			streamoute->abandoned_unsent[__SCTP_PR_INDEX(policy)];
 		params.sprstat_abandoned_sent =
-			streamout->abandoned_sent[__SCTP_PR_INDEX(policy)];
+			streamoute->abandoned_sent[__SCTP_PR_INDEX(policy)];
 	}
 
 	if (put_user(len, optlen) || copy_to_user(optval, &params, len)) {

@@ -84,6 +84,7 @@ struct sctp_ulpq;
 struct sctp_ep_common;
 struct crypto_shash;
 struct sctp_stream;
+struct sctp_stream_out;
 
 
 #include <net/sctp/tsnmap.h>
@@ -380,6 +381,7 @@ struct sctp_sender_hb_info {
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp);
+int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid);
 void sctp_stream_free(struct sctp_stream *stream);
 void sctp_stream_clear(struct sctp_stream *stream);
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
@@ -1315,11 +1317,15 @@ struct sctp_inithdr_host {
 	__u32 initial_tsn;
 };
 
+struct sctp_stream_out_ext {
+	__u64 abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
+	__u64 abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
+};
+
 struct sctp_stream_out {
 	__u16	ssn;
 	__u8	state;
-	__u64	abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
-	__u64	abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
+	struct sctp_stream_out_ext *ext;
 };
 
 struct sctp_stream_in {

@@ -366,7 +366,7 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 		streamout = &asoc->stream.out[chk->sinfo.sinfo_stream];
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
-		streamout->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
+		streamout->ext->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 
 		if (!chk->tsn_gap_acked) {
 			if (chk->transport)
@@ -404,7 +404,7 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 			struct sctp_stream_out *streamout =
 				&asoc->stream.out[chk->sinfo.sinfo_stream];
 
-			streamout->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
+			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		}
 
 		msg_len -= SCTP_DATA_SNDSIZE(chk) +
