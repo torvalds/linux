@@ -603,11 +603,7 @@ static void kill_node(Node *e)
 	struct dentry *dentry;
 
 	write_lock(&entries_lock);
-	dentry = e->dentry;
-	if (dentry) {
-		list_del_init(&e->list);
-		e->dentry = NULL;
-	}
+	list_del_init(&e->list);
 	write_unlock(&entries_lock);
 
 	if ((e->flags & MISC_FMT_OPEN_FILE) && e->interp_file) {
@@ -615,12 +611,11 @@ static void kill_node(Node *e)
 		e->interp_file = NULL;
 	}
 
-	if (dentry) {
-		drop_nlink(d_inode(dentry));
-		d_drop(dentry);
-		dput(dentry);
-		simple_release_fs(&bm_mnt, &entry_count);
-	}
+	dentry = e->dentry;
+	drop_nlink(d_inode(dentry));
+	d_drop(dentry);
+	dput(dentry);
+	simple_release_fs(&bm_mnt, &entry_count);
 }
 
 /* /<entry> */
@@ -665,7 +660,8 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		root = file_inode(file)->i_sb->s_root;
 		inode_lock(d_inode(root));
 
-		kill_node(e);
+		if (!list_empty(&e->list))
+			kill_node(e);
 
 		inode_unlock(d_inode(root));
 		break;
@@ -794,7 +790,7 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		inode_lock(d_inode(root));
 
 		while (!list_empty(&entries))
-			kill_node(list_entry(entries.next, Node, list));
+			kill_node(list_first_entry(&entries, Node, list));
 
 		inode_unlock(d_inode(root));
 		break;
