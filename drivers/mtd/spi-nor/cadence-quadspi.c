@@ -78,6 +78,7 @@ struct cqspi_st {
 	bool			is_decoded_cs;
 	u32			fifo_depth;
 	u32			fifo_width;
+	bool			rclk_en;
 	u32			trigger_address;
 	u32			wr_delay;
 	struct cqspi_flash_pdata f_pdata[CQSPI_MAX_CHIPSELECT];
@@ -788,7 +789,7 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 }
 
 static void cqspi_readdata_capture(struct cqspi_st *cqspi,
-				   const unsigned int bypass,
+				   const bool bypass,
 				   const unsigned int delay)
 {
 	void __iomem *reg_base = cqspi->iobase;
@@ -852,7 +853,8 @@ static void cqspi_configure(struct spi_nor *nor)
 		cqspi->sclk = sclk;
 		cqspi_config_baudrate_div(cqspi);
 		cqspi_delay(nor);
-		cqspi_readdata_capture(cqspi, 1, f_pdata->read_delay);
+		cqspi_readdata_capture(cqspi, !cqspi->rclk_en,
+				       f_pdata->read_delay);
 	}
 
 	if (switch_cs || switch_ck)
@@ -1048,6 +1050,8 @@ static int cqspi_of_get_pdata(struct platform_device *pdev)
 		dev_err(&pdev->dev, "couldn't determine trigger-address\n");
 		return -ENXIO;
 	}
+
+	cqspi->rclk_en = of_property_read_bool(np, "cdns,rclk-en");
 
 	return 0;
 }
