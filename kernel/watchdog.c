@@ -608,7 +608,6 @@ static inline int watchdog_park_threads(void) { return 0; }
 static inline void watchdog_unpark_threads(void) { }
 static inline int watchdog_enable_all_cpus(void) { return 0; }
 static inline void watchdog_disable_all_cpus(void) { }
-static inline void softlockup_init_threads(void) { }
 static void softlockup_reconfigure_threads(void)
 {
 	cpus_read_lock();
@@ -616,6 +615,10 @@ static void softlockup_reconfigure_threads(void)
 	lockup_detector_update_enable();
 	watchdog_nmi_start();
 	cpus_read_unlock();
+}
+static inline void softlockup_init_threads(void)
+{
+	softlockup_reconfigure_threads();
 }
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 
