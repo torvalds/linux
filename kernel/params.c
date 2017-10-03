@@ -507,7 +507,7 @@ EXPORT_SYMBOL(param_set_copystring);
 int param_get_string(char *buffer, const struct kernel_param *kp)
 {
 	const struct kparam_string *kps = kp->str;
-	return strlcpy(buffer, kps->string, kps->maxlen);
+	return strlcpy(buffer, kps->string, PAGE_SIZE);
 }
 EXPORT_SYMBOL(param_get_string);
 
