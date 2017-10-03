@@ -2162,7 +2162,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		intel_prepare_dp_ddi_buffers(encoder);
 
 	intel_ddi_init_dp_buf_reg(encoder);
-	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	if (!link_mst)
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
 		intel_dp_stop_link_train(intel_dp);
@@ -2236,12 +2237,21 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	uint32_t val;
 	bool wait = false;
 
-	/* old_crtc_state and old_conn_state are NULL when called from DP_MST */
-
 	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
+		/*
+		 * old_crtc_state and old_conn_state are NULL when called from
+		 * DP_MST. The main connector associated with this port is never
+		 * bound to a crtc for MST.
+		 */
+		bool is_mst = !old_crtc_state;
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+		/*
+		 * Power down sink before disabling the port, otherwise we end
+		 * up getting interrupts from the sink on detecting link loss.
+		 */
+		if (!is_mst)
+			intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	}
 
 	val = I915_READ(DDI_BUF_CTL(port));
