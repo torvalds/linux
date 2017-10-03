@@ -59,6 +59,31 @@ static int sctp_stream_alloc_out(struct sctp_stream *stream, __u16 outcnt,
 	return 0;
 }
 
+static int sctp_stream_alloc_in(struct sctp_stream *stream, __u16 incnt,
+				gfp_t gfp)
+{
+	struct sctp_stream_in *in;
+
+	in = kmalloc_array(incnt, sizeof(*stream->in), gfp);
+
+	if (!in)
+		return -ENOMEM;
+
+	if (stream->in) {
+		memcpy(in, stream->in, min(incnt, stream->incnt) *
+				       sizeof(*in));
+		kfree(stream->in);
+	}
+
+	if (incnt > stream->incnt)
+		memset(in + stream->incnt, 0,
+		       (incnt - stream->incnt) * sizeof(*in));
+
+	stream->in = in;
+
+	return 0;
+}
+
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp)
 {
@@ -84,8 +109,8 @@ in:
 	if (!incnt)
 		return 0;
 
-	stream->in = kcalloc(incnt, sizeof(*stream->in), gfp);
-	if (!stream->in) {
+	i = sctp_stream_alloc_in(stream, incnt, gfp);
+	if (i) {
 		kfree(stream->out);
 		stream->out = NULL;
 		return -ENOMEM;
@@ -623,7 +648,6 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 	struct sctp_strreset_addstrm *addstrm = param.v;
 	struct sctp_stream *stream = &asoc->stream;
 	__u32 result = SCTP_STRRESET_DENIED;
-	struct sctp_stream_in *streamin;
 	__u32 request_seq, incnt;
 	__u16 in, i;
 
@@ -670,13 +694,9 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 	if (!in || incnt > SCTP_MAX_STREAM)
 		goto out;
 
-	streamin = krealloc(stream->in, incnt * sizeof(*streamin),
-			    GFP_ATOMIC);
-	if (!streamin)
+	if (sctp_stream_alloc_in(stream, incnt, GFP_ATOMIC))
 		goto out;
 
-	memset(streamin + stream->incnt, 0, in * sizeof(*streamin));
-	stream->in = streamin;
 	stream->incnt = incnt;
 
 	result = SCTP_STRRESET_PERFORMED;
