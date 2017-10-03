@@ -1866,12 +1866,7 @@ static int intel_pixel_rate_to_cdclk(struct drm_i915_private *dev_priv,
 				     int pixel_rate)
 {
 	if (INTEL_GEN(dev_priv) >= 10)
-		/*
-		 * FIXME: Switch to DIV_ROUND_UP(pixel_rate, 2)
-		 * once DDI clock voltage requirements are
-		 * handled correctly.
-		 */
-		return pixel_rate;
+		return DIV_ROUND_UP(pixel_rate, 2);
 	else if (IS_GEMINILAKE(dev_priv))
 		/*
 		 * FIXME: Avoid using a pixel clock that is more than 99% of the cdclk
@@ -2188,12 +2183,7 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 	int max_cdclk_freq = dev_priv->max_cdclk_freq;
 
 	if (INTEL_GEN(dev_priv) >= 10)
-		/*
-		 * FIXME: Allow '2 * max_cdclk_freq'
-		 * once DDI clock voltage requirements are
-		 * handled correctly.
-		 */
-		return max_cdclk_freq;
+		return 2 * max_cdclk_freq;
 	else if (IS_GEMINILAKE(dev_priv))
 		/*
 		 * FIXME: Limiting to 99% as a temporary workaround. See

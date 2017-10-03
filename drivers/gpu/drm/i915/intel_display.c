@@ -12765,7 +12765,7 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 	crtc_clock = crtc_state->base.adjusted_mode.crtc_clock;
 	max_dotclk = to_intel_atomic_state(crtc_state->base.state)->cdclk.logical.cdclk;
 
-	if (IS_GEMINILAKE(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10)
 		max_dotclk *= 2;
 
 	if (WARN_ON_ONCE(!crtc_clock || max_dotclk < crtc_clock))

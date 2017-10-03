@@ -3932,6 +3932,7 @@ skl_pipe_downscale_amount(const struct intel_crtc_state *crtc_state)
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct drm_crtc_state *crtc_state = &cstate->base;
 	struct drm_atomic_state *state = crtc_state->state;
 	struct drm_plane *plane;
@@ -3974,7 +3975,7 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 	crtc_clock = crtc_state->adjusted_mode.crtc_clock;
 	dotclk = to_intel_atomic_state(state)->cdclk.logical.cdclk;
 
-	if (IS_GEMINILAKE(to_i915(intel_crtc->base.dev)))
+	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10)
 		dotclk *= 2;
 
 	pipe_max_pixel_rate = div_round_up_u32_fixed16(dotclk, pipe_downscale);
