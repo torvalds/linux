@@ -71,7 +71,6 @@ struct pd_uinfo {
 	u32 num_sd;		/* number of scatter discriptors
 				used by this packet */
 	struct dynamic_sa_ctl *sa_va;	/* shadow sa */
-	u32 sa_pa;
 	struct sa_state_record *sr_va;	/* state record for shadow sa */
 	u32 sr_pa;
 	struct scatterlist *dest_va;
@@ -129,11 +128,6 @@ struct crypto4xx_ctx {
 	struct sa_state_record *state_record;
 	dma_addr_t state_record_dma_addr;
 	u32 sa_len;
-	u32 offset_to_sr_ptr;           /* offset to state ptr, in dynamic sa */
-	u32 direction;
-	u32 save_iv;
-	u32 pd_ctl;
-	u32 is_hash;
 };
 
 struct crypto4xx_alg_common {
@@ -170,8 +164,10 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       struct crypto4xx_ctx *ctx,
 		       struct scatterlist *src,
 		       struct scatterlist *dst,
-		       unsigned int datalen,
-		       void *iv, u32 iv_len);
+		       const unsigned int datalen,
+		       const __le32 *iv, const u32 iv_len,
+		       const struct dynamic_sa_ctl *sa,
+		       const unsigned int sa_len);
 int crypto4xx_setkey_aes_cbc(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_cfb(struct crypto_ablkcipher *cipher,

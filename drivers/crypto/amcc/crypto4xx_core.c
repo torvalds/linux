@@ -194,7 +194,6 @@ void crypto4xx_free_state_record(struct crypto4xx_ctx *ctx)
 static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
 {
 	int i;
-	struct pd_uinfo *pd_uinfo;
 	dev->pdr = dma_alloc_coherent(dev->core_dev->device,
 				      sizeof(struct ce_pd) * PPC4XX_NUM_PD,
 				      &dev->pdr_pa, GFP_ATOMIC);
@@ -224,11 +223,14 @@ static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
 	if (!dev->shadow_sr_pool)
 		return -ENOMEM;
 	for (i = 0; i < PPC4XX_NUM_PD; i++) {
-		pd_uinfo = &dev->pdr_uinfo[i];
+		struct ce_pd *pd = &dev->pdr[i];
+		struct pd_uinfo *pd_uinfo = &dev->pdr_uinfo[i];
+
+		pd->sa = dev->shadow_sa_pool_pa +
+			sizeof(union shadow_sa_buf) * i;
 
 		/* alloc 256 bytes which is enough for any kind of dynamic sa */
 		pd_uinfo->sa_va = &dev->shadow_sa_pool[i].sa;
-		pd_uinfo->sa_pa = dev->shadow_sa_pool_pa + 256 * i;
 
 		/* alloc state record */
 		pd_uinfo->sr_va = &dev->shadow_sr_pool[i];
@@ -289,14 +291,6 @@ static u32 crypto4xx_put_pd_to_pdr(struct crypto4xx_device *dev, u32 idx)
 	spin_unlock_irqrestore(&dev->core_dev->lock, flags);
 
 	return 0;
-}
-
-static struct ce_pd *crypto4xx_get_pdp(struct crypto4xx_device *dev,
-				       dma_addr_t *pd_dma, u32 idx)
-{
-	*pd_dma = dev->pdr_pa + sizeof(struct ce_pd) * idx;
-
-	return &dev->pdr[idx];
 }
 
 /**
@@ -520,18 +514,16 @@ static void crypto4xx_copy_pkt_to_dst(struct crypto4xx_device *dev,
 	}
 }
 
-static u32 crypto4xx_copy_digest_to_dst(struct pd_uinfo *pd_uinfo,
+static void crypto4xx_copy_digest_to_dst(void *dst,
+					struct pd_uinfo *pd_uinfo,
 					struct crypto4xx_ctx *ctx)
 {
 	struct dynamic_sa_ctl *sa = (struct dynamic_sa_ctl *) ctx->sa_in;
 
 	if (sa->sa_command_0.bf.hash_alg == SA_HASH_ALG_SHA1) {
-		memcpy((void *) pd_uinfo->dest_va,
-		       pd_uinfo->sr_va->save_digest,
+		memcpy(dst, pd_uinfo->sr_va->save_digest,
 		       SA_HASH_ALG_SHA1_DIGEST_SIZE);
 	}
-
-	return 0;
 }
 
 static void crypto4xx_ret_sg_desc(struct crypto4xx_device *dev,
@@ -591,7 +583,7 @@ static u32 crypto4xx_ahash_done(struct crypto4xx_device *dev,
 	ahash_req = ahash_request_cast(pd_uinfo->async_req);
 	ctx  = crypto_tfm_ctx(ahash_req->base.tfm);
 
-	crypto4xx_copy_digest_to_dst(pd_uinfo,
+	crypto4xx_copy_digest_to_dst(ahash_req->result, pd_uinfo,
 				     crypto_tfm_ctx(ahash_req->base.tfm));
 	crypto4xx_ret_sg_desc(dev, pd_uinfo);
 
@@ -651,17 +643,17 @@ static u32 get_next_sd(u32 current)
 		return 0;
 }
 
-u32 crypto4xx_build_pd(struct crypto_async_request *req,
+int crypto4xx_build_pd(struct crypto_async_request *req,
 		       struct crypto4xx_ctx *ctx,
 		       struct scatterlist *src,
 		       struct scatterlist *dst,
-		       unsigned int datalen,
-		       void *iv, u32 iv_len)
+		       const unsigned int datalen,
+		       const __le32 *iv, const u32 iv_len,
+		       const struct dynamic_sa_ctl *req_sa,
+		       const unsigned int sa_len)
 {
 	struct crypto4xx_device *dev = ctx->dev;
-	dma_addr_t addr, pd_dma, sd_dma, gd_dma;
 	struct dynamic_sa_ctl *sa;
-	struct scatterlist *sg;
 	struct ce_gd *gd;
 	struct ce_pd *pd;
 	u32 num_gd, num_sd;
@@ -669,8 +661,9 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 	u32 fst_sd = 0xffffffff;
 	u32 pd_entry;
 	unsigned long flags;
-	struct pd_uinfo *pd_uinfo = NULL;
-	unsigned int nbytes = datalen, idx;
+	struct pd_uinfo *pd_uinfo;
+	unsigned int nbytes = datalen;
+	size_t offset_to_sr_ptr;
 	u32 gd_idx = 0;
 	bool is_busy;
 
@@ -684,7 +677,7 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 		num_gd = 0;
 
 	/* figure how many sd is needed */
-	if (sg_is_last(dst) || ctx->is_hash) {
+	if (sg_is_last(dst)) {
 		num_sd = 0;
 	} else {
 		if (datalen > PPC4XX_SD_BUFFER_SIZE) {
@@ -755,37 +748,27 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 	}
 	spin_unlock_irqrestore(&dev->core_dev->lock, flags);
 
+	pd = &dev->pdr[pd_entry];
+	pd->sa_len = sa_len;
+
 	pd_uinfo = &dev->pdr_uinfo[pd_entry];
-	pd = crypto4xx_get_pdp(dev, &pd_dma, pd_entry);
 	pd_uinfo->async_req = req;
 	pd_uinfo->num_gd = num_gd;
 	pd_uinfo->num_sd = num_sd;
 
-	if (iv_len || ctx->is_hash) {
-		pd->sa = pd_uinfo->sa_pa;
-		sa = pd_uinfo->sa_va;
-		if (ctx->direction == DIR_INBOUND)
-			memcpy(sa, ctx->sa_in, ctx->sa_len * 4);
-		else
-			memcpy(sa, ctx->sa_out, ctx->sa_len * 4);
+	if (iv_len)
+		memcpy(pd_uinfo->sr_va->save_iv, iv, iv_len);
 
-		memcpy((void *) sa + ctx->offset_to_sr_ptr,
-			&pd_uinfo->sr_pa, 4);
+	sa = pd_uinfo->sa_va;
+	memcpy(sa, req_sa, sa_len * 4);
 
-		if (iv_len)
-			crypto4xx_memcpy_to_le32(pd_uinfo->sr_va->save_iv,
-						 iv, iv_len);
-	} else {
-		if (ctx->direction == DIR_INBOUND) {
-			pd->sa = ctx->sa_in_dma_addr;
-			sa = ctx->sa_in;
-		} else {
-			pd->sa = ctx->sa_out_dma_addr;
-			sa = ctx->sa_out;
-		}
-	}
-	pd->sa_len = ctx->sa_len;
+	offset_to_sr_ptr = get_dynamic_sa_offset_state_ptr_field(sa);
+	*(u32 *)((unsigned long)sa + offset_to_sr_ptr) = pd_uinfo->sr_pa;
+
 	if (num_gd) {
+		dma_addr_t gd_dma;
+		struct scatterlist *sg;
+
 		/* get first gd we are going to use */
 		gd_idx = fst_gd;
 		pd_uinfo->first_gd = fst_gd;
@@ -794,27 +777,30 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 		pd->src = gd_dma;
 		/* enable gather */
 		sa->sa_command_0.bf.gather = 1;
-		idx = 0;
-		src = &src[0];
 		/* walk the sg, and setup gather array */
+
+		sg = src;
 		while (nbytes) {
-			sg = &src[idx];
-			addr = dma_map_page(dev->core_dev->device, sg_page(sg),
-				    sg->offset, sg->length, DMA_TO_DEVICE);
-			gd->ptr = addr;
-			gd->ctl_len.len = sg->length;
+			size_t len;
+
+			len = min(sg->length, nbytes);
+			gd->ptr = dma_map_page(dev->core_dev->device,
+				sg_page(sg), sg->offset, len, DMA_TO_DEVICE);
+			gd->ctl_len.len = len;
 			gd->ctl_len.done = 0;
 			gd->ctl_len.ready = 1;
-			if (sg->length >= nbytes)
+			if (len >= nbytes)
 				break;
+
 			nbytes -= sg->length;
 			gd_idx = get_next_gd(gd_idx);
 			gd = crypto4xx_get_gdp(dev, &gd_dma, gd_idx);
-			idx++;
+			sg = sg_next(sg);
 		}
 	} else {
 		pd->src = (u32)dma_map_page(dev->core_dev->device, sg_page(src),
-				src->offset, src->length, DMA_TO_DEVICE);
+				src->offset, min(nbytes, src->length),
+				DMA_TO_DEVICE);
 		/*
 		 * Disable gather in sa command
 		 */
@@ -825,25 +811,24 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 		pd_uinfo->first_gd = 0xffffffff;
 		pd_uinfo->num_gd = 0;
 	}
-	if (ctx->is_hash || sg_is_last(dst)) {
+	if (sg_is_last(dst)) {
 		/*
 		 * we know application give us dst a whole piece of memory
 		 * no need to use scatter ring.
-		 * In case of is_hash, the icv is always at end of src data.
 		 */
 		pd_uinfo->using_sd = 0;
 		pd_uinfo->first_sd = 0xffffffff;
 		pd_uinfo->num_sd = 0;
 		pd_uinfo->dest_va = dst;
 		sa->sa_command_0.bf.scatter = 0;
-		if (ctx->is_hash)
-			pd->dest = virt_to_phys((void *)dst);
-		else
-			pd->dest = (u32)dma_map_page(dev->core_dev->device,
-					sg_page(dst), dst->offset,
-					dst->length, DMA_TO_DEVICE);
+		pd->dest = (u32)dma_map_page(dev->core_dev->device,
+					     sg_page(dst), dst->offset,
+					     min(datalen, dst->length),
+					     DMA_TO_DEVICE);
 	} else {
+		dma_addr_t sd_dma;
 		struct ce_sd *sd = NULL;
+
 		u32 sd_idx = fst_sd;
 		nbytes = datalen;
 		sa->sa_command_0.bf.scatter = 1;
@@ -857,7 +842,6 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 		sd->ctl.done = 0;
 		sd->ctl.rdy = 1;
 		/* sd->ptr should be setup by sd_init routine*/
-		idx = 0;
 		if (nbytes >= PPC4XX_SD_BUFFER_SIZE)
 			nbytes -= PPC4XX_SD_BUFFER_SIZE;
 		else
@@ -868,19 +852,23 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 			/* setup scatter descriptor */
 			sd->ctl.done = 0;
 			sd->ctl.rdy = 1;
-			if (nbytes >= PPC4XX_SD_BUFFER_SIZE)
+			if (nbytes >= PPC4XX_SD_BUFFER_SIZE) {
 				nbytes -= PPC4XX_SD_BUFFER_SIZE;
-			else
+			} else {
 				/*
 				 * SD entry can hold PPC4XX_SD_BUFFER_SIZE,
 				 * which is more than nbytes, so done.
 				 */
 				nbytes = 0;
+			}
 		}
 	}
 
 	sa->sa_command_1.bf.hash_crypto_offset = 0;
-	pd->pd_ctl.w = ctx->pd_ctl;
+	pd->pd_ctl.w = 0;
+	pd->pd_ctl.bf.hash_final =
+		(crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AHASH);
+	pd->pd_ctl.bf.host_ready = 1;
 	pd->pd_ctl_len.w = 0x00400000 | datalen;
 	pd_uinfo->state = PD_ENTRY_INUSE | (is_busy ? PD_ENTRY_BUSY : 0);
 
