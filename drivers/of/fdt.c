@@ -396,6 +396,10 @@ static int unflatten_dt_nodes(const void *blob,
 		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH))
 			continue;
 
+		if (!IS_ENABLED(CONFIG_OF_KOBJ) &&
+		    !of_fdt_device_is_available(blob, offset))
+			continue;
+
 		if (!populate_node(blob, offset, &mem, nps[depth],
 				   &nps[depth+1], dryrun))
 			return mem - base;
