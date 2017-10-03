@@ -37,8 +37,6 @@
 static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
 {
 	plane_state->ctx = ctx;
-	memset(&plane_state->hdr_static_ctx,
-			0, sizeof(struct dc_hdr_static_metadata));
 }
 
 static void destruct(struct dc_plane_state *plane_state)
