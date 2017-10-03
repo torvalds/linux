@@ -5367,6 +5367,7 @@ not_early:
 
 			__init_single_page(page, pfn, zone, nid);
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+			cond_resched();
 		} else {
 			__init_single_pfn(pfn, zone, nid);
 		}
