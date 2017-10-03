@@ -584,8 +584,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			}
 
 			INIT_LIST_HEAD(&rq->priotree.link);
-			rq->priotree.priority = INT_MAX;
-
 			__i915_gem_request_submit(rq);
 			trace_i915_gem_request_in(rq, port_index(port, execlists));
 			last = rq;
@@ -793,6 +791,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 				execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 
 				trace_i915_gem_request_out(rq);
+				rq->priotree.priority = INT_MAX;
 				i915_gem_request_put(rq);
 
 				execlists_port_complete(execlists, port);
@@ -845,11 +844,15 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
+static struct drm_i915_gem_request *pt_to_request(struct i915_priotree *pt)
+{
+	return container_of(pt, struct drm_i915_gem_request, priotree);
+}
+
 static struct intel_engine_cs *
 pt_lock_engine(struct i915_priotree *pt, struct intel_engine_cs *locked)
 {
-	struct intel_engine_cs *engine =
-		container_of(pt, struct drm_i915_gem_request, priotree)->engine;
+	struct intel_engine_cs *engine = pt_to_request(pt)->engine;
 
 	GEM_BUG_ON(!locked);
 
@@ -905,6 +908,9 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 		 * engines.
 		 */
 		list_for_each_entry(p, &pt->signalers_list, signal_link) {
+			if (i915_gem_request_completed(pt_to_request(p->signaler)))
+				continue;
+
 			GEM_BUG_ON(p->signaler->priority < pt->priority);
 			if (prio > READ_ONCE(p->signaler->priority))
 				list_move_tail(&p->dfs_link, &dfs);
