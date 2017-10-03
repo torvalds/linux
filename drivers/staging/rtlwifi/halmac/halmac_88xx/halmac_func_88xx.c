@@ -1021,7 +1021,7 @@ halmac_dlfw_to_mem_88xx(struct halmac_adapter *halmac_adapter, u8 *ram_code,
 		if (halmac_send_fwpkt_88xx(
 			    halmac_adapter, code_ptr + mem_offset,
 			    send_pkt_size) != HALMAC_RET_SUCCESS) {
-			pr_err("halmac_send_fwpkt_88xx fail!!");
+			pr_err("halmac_send_fwpkt_88xx fail!!\n");
 			return HALMAC_RET_DLFW_FAIL;
 		}
 
@@ -1031,7 +1031,7 @@ halmac_dlfw_to_mem_88xx(struct halmac_adapter *halmac_adapter, u8 *ram_code,
 				    halmac_adapter->hw_config_info.txdesc_size,
 			    dest + mem_offset, send_pkt_size,
 			    first_part) != HALMAC_RET_SUCCESS) {
-			pr_err("halmac_iddma_dlfw_88xx fail!!");
+			pr_err("halmac_iddma_dlfw_88xx fail!!\n");
 			return HALMAC_RET_DLFW_FAIL;
 		}
 
@@ -1042,7 +1042,7 @@ halmac_dlfw_to_mem_88xx(struct halmac_adapter *halmac_adapter, u8 *ram_code,
 
 	if (halmac_check_fw_chksum_88xx(halmac_adapter, dest) !=
 	    HALMAC_RET_SUCCESS) {
-		pr_err("halmac_check_fw_chksum_88xx fail!!");
+		pr_err("halmac_check_fw_chksum_88xx fail!!\n");
 		return HALMAC_RET_DLFW_FAIL;
 	}
 

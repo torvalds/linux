@@ -890,7 +890,7 @@ bool rtl8822be_load_txpower_by_rate(struct ieee80211_hw *hw)
 	rtstatus = rtlpriv->phydm.ops->phydm_load_txpower_by_rate(rtlpriv);
 
 	if (!rtstatus) {
-		pr_err("BB_PG Reg Fail!!");
+		pr_err("BB_PG Reg Fail!!\n");
 		return false;
 	}
 
@@ -915,7 +915,7 @@ bool rtl8822be_load_txpower_limit(struct ieee80211_hw *hw)
 	rtstatus = rtlpriv->phydm.ops->phydm_load_txpower_limit(rtlpriv);
 
 	if (!rtstatus) {
-		pr_err("RF TxPwr Limit Fail!!");
+		pr_err("RF TxPwr Limit Fail!!\n");
 		return false;
 	}
 
