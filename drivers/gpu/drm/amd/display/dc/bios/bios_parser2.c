@@ -85,11 +85,8 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 
 static void destruct(struct bios_parser *bp)
 {
-	if (bp->base.bios_local_image)
-		kfree(bp->base.bios_local_image);
-
-	if (bp->base.integrated_info)
-		kfree(bp->base.integrated_info);
+	kfree(bp->base.bios_local_image);
+	kfree(bp->base.integrated_info);
 }
 
 static void firmware_parser_destroy(struct dc_bios **dcb)

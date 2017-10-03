@@ -119,11 +119,8 @@ struct dc_bios *bios_parser_create(
 
 static void destruct(struct bios_parser *bp)
 {
-	if (bp->base.bios_local_image)
-		kfree(bp->base.bios_local_image);
-
-	if (bp->base.integrated_info)
-		kfree(bp->base.integrated_info);
+	kfree(bp->base.bios_local_image);
+	kfree(bp->base.integrated_info);
 }
 
 static void bios_parser_destroy(struct dc_bios **dcb)

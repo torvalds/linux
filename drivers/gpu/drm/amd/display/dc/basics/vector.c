@@ -130,8 +130,7 @@ struct vector *dal_vector_create(
 void dal_vector_destruct(
 	struct vector *vector)
 {
-	if (vector->container != NULL)
-		kfree(vector->container);
+	kfree(vector->container);
 	vector->count = 0;
 	vector->capacity = 0;
 }
