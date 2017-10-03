@@ -613,9 +613,22 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (IS_ERR(ring))
 		return PTR_ERR(ring);
 
+	/*
+	 * Similarly the preempt context must always be available so that
+	 * we can interrupt the engine at any time.
+	 */
+	if (INTEL_INFO(engine->i915)->has_logical_ring_preemption) {
+		ring = engine->context_pin(engine,
+					   engine->i915->preempt_context);
+		if (IS_ERR(ring)) {
+			ret = PTR_ERR(ring);
+			goto err_unpin_kernel;
+		}
+	}
+
 	ret = intel_engine_init_breadcrumbs(engine);
 	if (ret)
-		goto err_unpin;
+		goto err_unpin_preempt;
 
 	ret = i915_gem_render_state_init(engine);
 	if (ret)
@@ -634,7 +647,10 @@ err_rs_fini:
 	i915_gem_render_state_fini(engine);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
-err_unpin:
+err_unpin_preempt:
+	if (INTEL_INFO(engine->i915)->has_logical_ring_preemption)
+		engine->context_unpin(engine, engine->i915->preempt_context);
+err_unpin_kernel:
 	engine->context_unpin(engine, engine->i915->kernel_context);
 	return ret;
 }
@@ -660,6 +676,8 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 
+	if (INTEL_INFO(engine->i915)->has_logical_ring_preemption)
+		engine->context_unpin(engine, engine->i915->preempt_context);
 	engine->context_unpin(engine, engine->i915->kernel_context);
 }
 

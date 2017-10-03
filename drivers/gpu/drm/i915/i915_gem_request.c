@@ -587,6 +587,13 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
+	/*
+	 * Preempt contexts are reserved for exclusive use to inject a
+	 * preemption context switch. They are never to be used for any trivial
+	 * request!
+	 */
+	GEM_BUG_ON(ctx == dev_priv->preempt_context);
+
 	/* ABI: Before userspace accesses the GPU (e.g. execbuffer), report
 	 * EIO if the GPU is already wedged.
 	 */

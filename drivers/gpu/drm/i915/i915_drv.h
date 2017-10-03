@@ -783,6 +783,7 @@ struct intel_csr {
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
+	func(has_logical_ring_preemption); \
 	func(has_overlay); \
 	func(has_pipe_cxsr); \
 	func(has_pooled_eu); \
@@ -2251,8 +2252,11 @@ struct drm_i915_private {
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
-	struct i915_gem_context *kernel_context;
 	struct intel_engine_cs *engine[I915_NUM_ENGINES];
+	/* Context used internally to idle the GPU and setup initial state */
+	struct i915_gem_context *kernel_context;
+	/* Context only to be used for injecting preemption commands */
+	struct i915_gem_context *preempt_context;
 	struct i915_vma *semaphore;
 
 	struct drm_dma_handle *status_page_dmah;
