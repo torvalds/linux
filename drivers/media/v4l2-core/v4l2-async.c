@@ -298,20 +298,16 @@ EXPORT_SYMBOL(v4l2_async_register_subdev);
 
 void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 {
-	struct v4l2_async_notifier *notifier = sd->notifier;
-
-	if (!sd->asd) {
-		if (!list_empty(&sd->async_list))
-			v4l2_async_cleanup(sd);
-		return;
-	}
-
 	mutex_lock(&list_lock);
 
-	list_add(&sd->asd->list, &notifier->waiting);
+	if (sd->asd) {
+		struct v4l2_async_notifier *notifier = sd->notifier;
 
-	if (notifier->unbind)
-		notifier->unbind(notifier, sd, sd->asd);
+		list_add(&sd->asd->list, &notifier->waiting);
+
+		if (notifier->unbind)
+			notifier->unbind(notifier, sd, sd->asd);
+	}
 
 	v4l2_async_cleanup(sd);
 
