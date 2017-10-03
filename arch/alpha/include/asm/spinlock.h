@@ -54,16 +54,6 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 
 /***********************************************************/
 
-static inline int arch_read_can_lock(arch_rwlock_t *lock)
-{
-	return (lock->lock & 1) == 0;
-}
-
-static inline int arch_write_can_lock(arch_rwlock_t *lock)
-{
-	return lock->lock == 0;
-}
-
 static inline void arch_read_lock(arch_rwlock_t *lock)
 {
 	long regx;

@@ -127,9 +127,6 @@ static __always_inline void arch_spin_lock_flags(arch_spinlock_t *lock,
 	arch_spin_lock(lock);
 }
 
-#define arch_read_can_lock(rw)		(*(volatile int *)(rw) >= 0)
-#define arch_write_can_lock(rw)	(*(volatile int *)(rw) == 0)
-
 #ifdef ASM_SUPPORTED
 
 static __always_inline void

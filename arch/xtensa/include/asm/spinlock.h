@@ -97,8 +97,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  *  0x80000000  one writer owns the rwlock, no other writers, no readers
  */
 
-#define arch_write_can_lock(x)  ((x)->lock == 0)
-
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;

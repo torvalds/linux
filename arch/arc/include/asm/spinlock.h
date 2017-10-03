@@ -410,9 +410,6 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 
 #endif
 
-#define arch_read_can_lock(x)	((x)->counter > 0)
-#define arch_write_can_lock(x)	((x)->counter == __ARCH_RW_LOCK_UNLOCKED__)
-
 #define arch_read_lock_flags(lock, flags)	arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags)	arch_write_lock(lock)
 

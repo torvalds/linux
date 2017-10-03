@@ -137,18 +137,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  * semaphore.h for details.  -ben
  */
 
-/**
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_read_can_lock(x) ((int)(x)->lock > 0)
-
-/**
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_write_can_lock(x) ((x)->lock == RW_LOCK_BIAS)
-
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1;

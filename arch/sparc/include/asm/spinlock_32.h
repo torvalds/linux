@@ -190,9 +190,6 @@ static inline int __arch_read_trylock(arch_rwlock_t *rw)
 #define arch_read_relax(lock)	cpu_relax()
 #define arch_write_relax(lock)	cpu_relax()
 
-#define arch_read_can_lock(rw) (!((rw)->lock & 0xff))
-#define arch_write_can_lock(rw) (!(rw)->lock)
-
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* __SPARC_SPINLOCK_H */

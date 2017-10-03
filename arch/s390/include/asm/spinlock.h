@@ -110,18 +110,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
  * read-locks.
  */
 
-/**
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_read_can_lock(x) ((int)(x)->lock >= 0)
-
-/**
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_write_can_lock(x) ((x)->lock == 0)
-
 extern int _raw_read_trylock_retry(arch_rwlock_t *lp);
 extern int _raw_write_trylock_retry(arch_rwlock_t *lp);
 

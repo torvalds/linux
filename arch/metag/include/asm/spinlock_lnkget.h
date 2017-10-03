@@ -136,21 +136,6 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 		      : "memory");
 }
 
-/* write_can_lock - would write_trylock() succeed? */
-static inline int arch_write_can_lock(arch_rwlock_t *rw)
-{
-	int ret;
-
-	asm volatile ("LNKGETD	%0, [%1]\n"
-		      "CMP	%0, #0\n"
-		      "MOV	%0, #1\n"
-		      "XORNZ     %0, %0, %0\n"
-		      : "=&d" (ret)
-		      : "da" (&rw->lock)
-		      : "cc");
-	return ret;
-}
-
 /*
  * Read locks are a bit more hairy:
  *  - Exclusively load the lock value.
@@ -221,21 +206,6 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 
 	smp_mb();
 
-	return tmp;
-}
-
-/* read_can_lock - would read_trylock() succeed? */
-static inline int arch_read_can_lock(arch_rwlock_t *rw)
-{
-	int tmp;
-
-	asm volatile ("LNKGETD	%0, [%1]\n"
-		      "CMP	%0, %2\n"
-		      "MOV	%0, #1\n"
-		      "XORZ	%0, %0, %0\n"
-		      : "=&d" (tmp)
-		      : "da" (&rw->lock), "bd" (0x80000000)
-		      : "cc");
 	return tmp;
 }
 

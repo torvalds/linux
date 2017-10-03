@@ -93,24 +93,6 @@ static inline int arch_write_val_locked(int val)
 	return val < 0;  /* Optimize "val & __WRITE_LOCK_BIT". */
 }
 
-/**
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static inline int arch_read_can_lock(arch_rwlock_t *rw)
-{
-	return !arch_write_val_locked(rw->lock);
-}
-
-/**
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static inline int arch_write_can_lock(arch_rwlock_t *rw)
-{
-	return rw->lock == 0;
-}
-
 extern void __read_lock_failed(arch_rwlock_t *rw);
 
 static inline void arch_read_lock(arch_rwlock_t *rw)

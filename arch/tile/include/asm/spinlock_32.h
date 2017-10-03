@@ -80,22 +80,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 #define _RD_COUNT_WIDTH 8
 
 /**
- * arch_read_can_lock() - would read_trylock() succeed?
- */
-static inline int arch_read_can_lock(arch_rwlock_t *rwlock)
-{
-	return (rwlock->lock << _RD_COUNT_WIDTH) == 0;
-}
-
-/**
- * arch_write_can_lock() - would write_trylock() succeed?
- */
-static inline int arch_write_can_lock(arch_rwlock_t *rwlock)
-{
-	return rwlock->lock == 0;
-}
-
-/**
  * arch_read_lock() - acquire a read lock.
  */
 void arch_read_lock(arch_rwlock_t *rwlock);

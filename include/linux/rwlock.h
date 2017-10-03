@@ -50,9 +50,6 @@ do {								\
 # define do_raw_write_unlock(rwlock)	do {arch_write_unlock(&(rwlock)->raw_lock); __release(lock); } while (0)
 #endif
 
-#define read_can_lock(rwlock)		arch_read_can_lock(&(rwlock)->raw_lock)
-#define write_can_lock(rwlock)		arch_write_can_lock(&(rwlock)->raw_lock)
-
 /*
  * Define the various rw_lock methods.  Note we define these
  * regardless of whether CONFIG_SMP or CONFIG_PREEMPT are set. The various
