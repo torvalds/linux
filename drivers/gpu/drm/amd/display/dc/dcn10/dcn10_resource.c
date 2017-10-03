@@ -1163,10 +1163,11 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
-enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state)
+static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)
 {
 	if (plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
-			&& plane_state->src_rect.width > 3840)
+			&& caps->max_video_width != 0
+			&& plane_state->src_rect.width > caps->max_video_width)
 		return DC_FAIL_SURFACE_VALIDATE;
 
 	return DC_OK;
@@ -1222,6 +1223,7 @@ static bool construct(
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 
+	dc->caps.max_video_width = 3840;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 256;

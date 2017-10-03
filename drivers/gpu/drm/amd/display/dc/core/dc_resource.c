@@ -2750,11 +2750,9 @@ bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 
 bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
 {
-	struct dc *core_dc = dc;
-
 	/* TODO For now validates pixel format only */
-	if (core_dc->res_pool->funcs->validate_plane)
-		return core_dc->res_pool->funcs->validate_plane(plane_state) == DC_OK;
+	if (dc->res_pool->funcs->validate_plane)
+		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps) == DC_OK;
 
 	return true;
 }

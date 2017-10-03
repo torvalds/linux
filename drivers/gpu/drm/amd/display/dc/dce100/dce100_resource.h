@@ -16,7 +16,7 @@ struct resource_pool *dce100_create_resource_pool(
 	uint8_t num_virtual_links,
 	struct dc *dc);
 
-enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state);
+enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps);
 
 enum dc_status dce100_add_stream_to_ctx(
 		struct dc *dc,

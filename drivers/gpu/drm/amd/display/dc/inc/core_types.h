@@ -111,7 +111,7 @@ struct resource_funcs {
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
 
-	enum dc_status (*validate_plane)(const struct dc_plane_state *plane_state);
+	enum dc_status (*validate_plane)(const struct dc_plane_state *plane_state, struct dc_caps *caps);
 
 	enum dc_status (*add_stream_to_ctx)(
 			struct dc *dc,

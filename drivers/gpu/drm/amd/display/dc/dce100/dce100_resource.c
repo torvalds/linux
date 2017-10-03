@@ -743,7 +743,7 @@ static void dce100_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
-enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state)
+enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)
 {
 
 	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
