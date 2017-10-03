@@ -224,7 +224,7 @@ char *parse_args(const char *doing,
 	}								\
 	int param_get_##name(char *buffer, const struct kernel_param *kp) \
 	{								\
-		return scnprintf(buffer, PAGE_SIZE, format,		\
+		return scnprintf(buffer, PAGE_SIZE, format "\n",	\
 				*((type *)kp->arg));			\
 	}								\
 	const struct kernel_param_ops param_ops_##name = {			\
@@ -270,7 +270,7 @@ EXPORT_SYMBOL(param_set_charp);
 
 int param_get_charp(char *buffer, const struct kernel_param *kp)
 {
-	return scnprintf(buffer, PAGE_SIZE, "%s", *((char **)kp->arg));
+	return scnprintf(buffer, PAGE_SIZE, "%s\n", *((char **)kp->arg));
 }
 EXPORT_SYMBOL(param_get_charp);
 
@@ -301,7 +301,7 @@ EXPORT_SYMBOL(param_set_bool);
 int param_get_bool(char *buffer, const struct kernel_param *kp)
 {
 	/* Y and N chosen as being relatively non-coder friendly */
-	return sprintf(buffer, "%c", *(bool *)kp->arg ? 'Y' : 'N');
+	return sprintf(buffer, "%c\n", *(bool *)kp->arg ? 'Y' : 'N');
 }
 EXPORT_SYMBOL(param_get_bool);
 
@@ -360,7 +360,7 @@ EXPORT_SYMBOL(param_set_invbool);
 
 int param_get_invbool(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%c", (*(bool *)kp->arg) ? 'N' : 'Y');
+	return sprintf(buffer, "%c\n", (*(bool *)kp->arg) ? 'N' : 'Y');
 }
 EXPORT_SYMBOL(param_get_invbool);
 
@@ -460,8 +460,9 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 	struct kernel_param p = *kp;
 
 	for (i = off = 0; i < (arr->num ? *arr->num : arr->max); i++) {
+		/* Replace \n with comma */
 		if (i)
-			buffer[off++] = ',';
+			buffer[off - 1] = ',';
 		p.arg = arr->elem + arr->elemsize * i;
 		check_kparam_locked(p.mod);
 		ret = arr->ops->get(buffer + off, &p);
@@ -507,7 +508,7 @@ EXPORT_SYMBOL(param_set_copystring);
 int param_get_string(char *buffer, const struct kernel_param *kp)
 {
 	const struct kparam_string *kps = kp->str;
-	return strlcpy(buffer, kps->string, PAGE_SIZE);
+	return scnprintf(buffer, PAGE_SIZE, "%s\n", kps->string);
 }
 EXPORT_SYMBOL(param_get_string);
 
@@ -549,10 +550,6 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 	kernel_param_lock(mk->mod);
 	count = attribute->param->ops->get(buf, attribute->param);
 	kernel_param_unlock(mk->mod);
-	if (count > 0) {
-		strcat(buf, "\n");
-		++count;
-	}
 	return count;
 }
 
