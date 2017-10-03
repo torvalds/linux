@@ -600,8 +600,7 @@ static const struct samsung_mux_clock exynos5420_mux_clks[] __initconst = {
 				TOP_SPARE2, 4, 1),
 
 	MUX(0, "mout_aclk400_isp", mout_group1_p, SRC_TOP0, 0, 2),
-	MUX_A(0, "mout_aclk400_mscl", mout_group1_p,
-				SRC_TOP0, 4, 2, "aclk400_mscl"),
+	MUX(0, "mout_aclk400_mscl", mout_group1_p, SRC_TOP0, 4, 2),
 	MUX(0, "mout_aclk400_wcore", mout_group1_p, SRC_TOP0, 16, 2),
 	MUX(0, "mout_aclk100_noc", mout_group1_p, SRC_TOP0, 20, 2),
 
