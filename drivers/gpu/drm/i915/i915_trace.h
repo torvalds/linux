@@ -345,7 +345,7 @@ TRACE_EVENT(i915_gem_object_create,
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
-			     __field(u32, size)
+			     __field(u64, size)
 			     ),
 
 	    TP_fast_assign(
@@ -353,7 +353,7 @@ TRACE_EVENT(i915_gem_object_create,
 			   __entry->size = obj->base.size;
 			   ),
 
-	    TP_printk("obj=%p, size=%u", __entry->obj, __entry->size)
+	    TP_printk("obj=%p, size=0x%llx", __entry->obj, __entry->size)
 );
 
 TRACE_EVENT(i915_gem_shrink,
@@ -384,7 +384,7 @@ TRACE_EVENT(i915_vma_bind,
 			     __field(struct drm_i915_gem_object *, obj)
 			     __field(struct i915_address_space *, vm)
 			     __field(u64, offset)
-			     __field(u32, size)
+			     __field(u64, size)
 			     __field(unsigned, flags)
 			     ),
 
@@ -396,7 +396,7 @@ TRACE_EVENT(i915_vma_bind,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("obj=%p, offset=%016llx size=%x%s vm=%p",
+	    TP_printk("obj=%p, offset=0x%016llx size=0x%llx%s vm=%p",
 		      __entry->obj, __entry->offset, __entry->size,
 		      __entry->flags & PIN_MAPPABLE ? ", mappable" : "",
 		      __entry->vm)
@@ -410,7 +410,7 @@ TRACE_EVENT(i915_vma_unbind,
 			     __field(struct drm_i915_gem_object *, obj)
 			     __field(struct i915_address_space *, vm)
 			     __field(u64, offset)
-			     __field(u32, size)
+			     __field(u64, size)
 			     ),
 
 	    TP_fast_assign(
@@ -420,18 +420,18 @@ TRACE_EVENT(i915_vma_unbind,
 			   __entry->size = vma->node.size;
 			   ),
 
-	    TP_printk("obj=%p, offset=%016llx size=%x vm=%p",
+	    TP_printk("obj=%p, offset=0x%016llx size=0x%llx vm=%p",
 		      __entry->obj, __entry->offset, __entry->size, __entry->vm)
 );
 
 TRACE_EVENT(i915_gem_object_pwrite,
-	    TP_PROTO(struct drm_i915_gem_object *obj, u32 offset, u32 len),
+	    TP_PROTO(struct drm_i915_gem_object *obj, u64 offset, u64 len),
 	    TP_ARGS(obj, offset, len),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
-			     __field(u32, offset)
-			     __field(u32, len)
+			     __field(u64, offset)
+			     __field(u64, len)
 			     ),
 
 	    TP_fast_assign(
@@ -440,18 +440,18 @@ TRACE_EVENT(i915_gem_object_pwrite,
 			   __entry->len = len;
 			   ),
 
-	    TP_printk("obj=%p, offset=%u, len=%u",
+	    TP_printk("obj=%p, offset=0x%llx, len=0x%llx",
 		      __entry->obj, __entry->offset, __entry->len)
 );
 
 TRACE_EVENT(i915_gem_object_pread,
-	    TP_PROTO(struct drm_i915_gem_object *obj, u32 offset, u32 len),
+	    TP_PROTO(struct drm_i915_gem_object *obj, u64 offset, u64 len),
 	    TP_ARGS(obj, offset, len),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
-			     __field(u32, offset)
-			     __field(u32, len)
+			     __field(u64, offset)
+			     __field(u64, len)
 			     ),
 
 	    TP_fast_assign(
@@ -460,17 +460,17 @@ TRACE_EVENT(i915_gem_object_pread,
 			   __entry->len = len;
 			   ),
 
-	    TP_printk("obj=%p, offset=%u, len=%u",
+	    TP_printk("obj=%p, offset=0x%llx, len=0x%llx",
 		      __entry->obj, __entry->offset, __entry->len)
 );
 
 TRACE_EVENT(i915_gem_object_fault,
-	    TP_PROTO(struct drm_i915_gem_object *obj, u32 index, bool gtt, bool write),
+	    TP_PROTO(struct drm_i915_gem_object *obj, u64 index, bool gtt, bool write),
 	    TP_ARGS(obj, index, gtt, write),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
-			     __field(u32, index)
+			     __field(u64, index)
 			     __field(bool, gtt)
 			     __field(bool, write)
 			     ),
@@ -482,7 +482,7 @@ TRACE_EVENT(i915_gem_object_fault,
 			   __entry->write = write;
 			   ),
 
-	    TP_printk("obj=%p, %s index=%u %s",
+	    TP_printk("obj=%p, %s index=%llu %s",
 		      __entry->obj,
 		      __entry->gtt ? "GTT" : "CPU",
 		      __entry->index,
@@ -515,14 +515,14 @@ DEFINE_EVENT(i915_gem_object, i915_gem_object_destroy,
 );
 
 TRACE_EVENT(i915_gem_evict,
-	    TP_PROTO(struct i915_address_space *vm, u32 size, u32 align, unsigned int flags),
+	    TP_PROTO(struct i915_address_space *vm, u64 size, u64 align, unsigned int flags),
 	    TP_ARGS(vm, size, align, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(struct i915_address_space *, vm)
-			     __field(u32, size)
-			     __field(u32, align)
+			     __field(u64, size)
+			     __field(u64, align)
 			     __field(unsigned int, flags)
 			    ),
 
@@ -534,7 +534,7 @@ TRACE_EVENT(i915_gem_evict,
 			   __entry->flags = flags;
 			  ),
 
-	    TP_printk("dev=%d, vm=%p, size=%d, align=%d %s",
+	    TP_printk("dev=%d, vm=%p, size=0x%llx, align=0x%llx %s",
 		      __entry->dev, __entry->vm, __entry->size, __entry->align,
 		      __entry->flags & PIN_MAPPABLE ? ", mappable" : "")
 );
@@ -593,7 +593,7 @@ TRACE_EVENT(i915_gem_evict_node,
 			   __entry->flags = flags;
 			  ),
 
-	    TP_printk("dev=%d, vm=%p, start=%llx size=%llx, color=%lx, flags=%x",
+	    TP_printk("dev=%d, vm=%p, start=0x%llx size=0x%llx, color=0x%lx, flags=%x",
 		      __entry->dev, __entry->vm,
 		      __entry->start, __entry->size,
 		      __entry->color, __entry->flags)
