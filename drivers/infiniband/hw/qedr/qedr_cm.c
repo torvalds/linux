@@ -719,6 +719,8 @@ int qedr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 		if (vlan_id) {
 			wc[i].wc_flags |= IB_WC_WITH_VLAN;
 			wc[i].vlan_id = vlan_id;
+			wc[i].sl = (qp->rqe_wr_id[qp->rq.cons].vlan &
+				    VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 		}
 
 		qedr_inc_sw_cons(&qp->rq);
