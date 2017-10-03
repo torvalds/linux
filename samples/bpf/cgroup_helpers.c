@@ -56,7 +56,7 @@ int setup_cgroup_environment(void)
 		return 1;
 	}
 
-	if (mount("none", CGROUP_MOUNT_PATH, "cgroup2", 0, NULL)) {
+	if (mount("none", CGROUP_MOUNT_PATH, "cgroup2", 0, NULL) && errno != EBUSY) {
 		log_err("mount cgroup2");
 		return 1;
 	}
@@ -163,7 +163,7 @@ int create_and_get_cgroup(char *path)
 
 	format_cgroup_path(cgroup_path, path);
 	if (mkdir(cgroup_path, 0777) && errno != EEXIST) {
-		log_err("mkdiring cgroup");
+		log_err("mkdiring cgroup %s .. %s", path, cgroup_path);
 		return 0;
 	}
 
