@@ -329,7 +329,7 @@ static const struct intel_device_info intel_valleyview_info __initconst = {
 	CURSOR_OFFSETS
 };
 
-#define HSW_FEATURES  \
+#define G75_FEATURES  \
 	GEN7_FEATURES, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
 	.has_ddi = 1, \
@@ -341,7 +341,7 @@ static const struct intel_device_info intel_valleyview_info __initconst = {
 	.has_runtime_pm = 1
 
 #define HSW_PLATFORM \
-	HSW_FEATURES, \
+	G75_FEATURES, \
 	.platform = INTEL_HASWELL, \
 	.has_l3_dpf = 1
 
@@ -360,8 +360,8 @@ static const struct intel_device_info intel_haswell_gt3_info __initconst = {
 	.gt = 3,
 };
 
-#define BDW_FEATURES \
-	HSW_FEATURES, \
+#define GEN8_FEATURES \
+	G75_FEATURES, \
 	BDW_COLORS, \
 	.has_logical_ring_contexts = 1, \
 	.has_full_48bit_ppgtt = 1, \
@@ -369,7 +369,7 @@ static const struct intel_device_info intel_haswell_gt3_info __initconst = {
 	.has_reset_engine = 1
 
 #define BDW_PLATFORM \
-	BDW_FEATURES, \
+	GEN8_FEATURES, \
 	.gen = 8, \
 	.platform = INTEL_BROADWELL
 
@@ -420,14 +420,17 @@ static const struct intel_device_info intel_cherryview_info __initconst = {
 	CHV_COLORS,
 };
 
-#define SKL_PLATFORM \
-	BDW_FEATURES, \
-	.gen = 9, \
-	.platform = INTEL_SKYLAKE, \
+#define GEN9_FEATURES \
+	GEN8_FEATURES, \
 	.has_csr = 1, \
 	.has_guc = 1, \
 	.has_ipc = 1, \
 	.ddb_size = 896
+
+#define SKL_PLATFORM \
+	GEN9_FEATURES, \
+	.gen = 9, \
+	.platform = INTEL_SKYLAKE
 
 static const struct intel_device_info intel_skylake_gt1_info __initconst = {
 	SKL_PLATFORM,
@@ -497,13 +500,9 @@ static const struct intel_device_info intel_geminilake_info __initconst = {
 };
 
 #define KBL_PLATFORM \
-	BDW_FEATURES, \
+	GEN9_FEATURES, \
 	.gen = 9, \
-	.platform = INTEL_KABYLAKE, \
-	.has_csr = 1, \
-	.has_guc = 1, \
-	.has_ipc = 1, \
-	.ddb_size = 896
+	.platform = INTEL_KABYLAKE
 
 static const struct intel_device_info intel_kabylake_gt1_info __initconst = {
 	KBL_PLATFORM,
@@ -522,13 +521,9 @@ static const struct intel_device_info intel_kabylake_gt3_info __initconst = {
 };
 
 #define CFL_PLATFORM \
-	BDW_FEATURES, \
+	GEN9_FEATURES, \
 	.gen = 9, \
-	.platform = INTEL_COFFEELAKE, \
-	.has_csr = 1, \
-	.has_guc = 1, \
-	.has_ipc = 1, \
-	.ddb_size = 896
+	.platform = INTEL_COFFEELAKE
 
 static const struct intel_device_info intel_coffeelake_gt1_info __initconst = {
 	CFL_PLATFORM,
@@ -546,16 +541,17 @@ static const struct intel_device_info intel_coffeelake_gt3_info __initconst = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
+#define GEN10_FEATURES \
+	GEN9_FEATURES, \
+	.ddb_size = 1024, \
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
+
 static const struct intel_device_info intel_cannonlake_gt2_info __initconst = {
-	BDW_FEATURES,
+	GEN10_FEATURES,
 	.is_alpha_support = 1,
 	.platform = INTEL_CANNONLAKE,
 	.gen = 10,
 	.gt = 2,
-	.ddb_size = 1024,
-	.has_csr = 1,
-	.has_ipc = 1,
-	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
 };
 
 /*
