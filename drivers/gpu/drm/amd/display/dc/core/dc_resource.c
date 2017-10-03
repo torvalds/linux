@@ -2432,7 +2432,7 @@ void dc_resource_state_copy_construct(
 		struct dc_state *dst_ctx)
 {
 	int i, j;
-	atomic_t ref_count = dst_ctx->ref_count;
+	struct kref refcount = dst_ctx->refcount;
 
 	*dst_ctx = *src_ctx;
 
@@ -2455,7 +2455,7 @@ void dc_resource_state_copy_construct(
 	}
 
 	/* context refcount should not be overridden */
-	dst_ctx->ref_count = ref_count;
+	dst_ctx->refcount = refcount;
 
 }
 

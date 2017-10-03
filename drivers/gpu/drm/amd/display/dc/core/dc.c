@@ -940,25 +940,25 @@ struct dc_state *dc_create_state(void)
 	if (!context)
 		return NULL;
 
-	atomic_inc(&context->ref_count);
+	kref_init(&context->refcount);
 	return context;
 }
 
 void dc_retain_state(struct dc_state *context)
 {
-	ASSERT(atomic_read(&context->ref_count) > 0);
-	atomic_inc(&context->ref_count);
+	kref_get(&context->refcount);
+}
+
+static void dc_state_free(struct kref *kref)
+{
+	struct dc_state *context = container_of(kref, struct dc_state, refcount);
+	dc_resource_state_destruct(context);
+	kfree(context);
 }
 
 void dc_release_state(struct dc_state *context)
 {
-	ASSERT(atomic_read(&context->ref_count) > 0);
-	atomic_dec(&context->ref_count);
-
-	if (atomic_read(&context->ref_count) == 0) {
-		dc_resource_state_destruct(context);
-		kfree(context);
-	}
+	kref_put(&context->refcount, dc_state_free);
 }
 
 static bool is_surface_in_context(
@@ -1520,7 +1520,7 @@ void dc_set_power_state(
 	struct dc *dc,
 	enum dc_acpi_cm_power_state power_state)
 {
-	atomic_t ref_count;
+	struct kref refcount;
 
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
@@ -1538,12 +1538,12 @@ void dc_set_power_state(
 		 */
 
 		/* Preserve refcount */
-		ref_count = dc->current_state->ref_count;
+		refcount = dc->current_state->refcount;
 		dc_resource_state_destruct(dc->current_state);
 		memset(dc->current_state, 0,
 				sizeof(*dc->current_state));
 
-		dc->current_state->ref_count = ref_count;
+		dc->current_state->refcount = refcount;
 
 		break;
 	}

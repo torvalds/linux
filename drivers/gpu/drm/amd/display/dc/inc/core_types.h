@@ -267,7 +267,7 @@ struct dc_state {
 
 	struct display_clock *dis_clk;
 
-	atomic_t ref_count;
+	struct kref refcount;
 };
 
 #endif /* _CORE_TYPES_H_ */
