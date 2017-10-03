@@ -26,6 +26,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/dma-mapping.h>
 #include <crypto/algapi.h>
+#include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/ctr.h>
@@ -83,7 +84,7 @@ int crypto4xx_encrypt(struct ablkcipher_request *req)
 		crypto4xx_memcpy_to_le32(iv, req->info, ivlen);
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
-		req->nbytes, iv, ivlen, ctx->sa_out, ctx->sa_len);
+		req->nbytes, iv, ivlen, ctx->sa_out, ctx->sa_len, 0);
 }
 
 int crypto4xx_decrypt(struct ablkcipher_request *req)
@@ -97,7 +98,7 @@ int crypto4xx_decrypt(struct ablkcipher_request *req)
 		crypto4xx_memcpy_to_le32(iv, req->info, ivlen);
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
-		req->nbytes, iv, ivlen, ctx->sa_in, ctx->sa_len);
+		req->nbytes, iv, ivlen, ctx->sa_in, ctx->sa_len, 0);
 }
 
 /**
@@ -213,7 +214,7 @@ int crypto4xx_rfc3686_encrypt(struct ablkcipher_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 				  req->nbytes, iv, AES_IV_SIZE,
-				  ctx->sa_out, ctx->sa_len);
+				  ctx->sa_out, ctx->sa_len, 0);
 }
 
 int crypto4xx_rfc3686_decrypt(struct ablkcipher_request *req)
@@ -227,7 +228,7 @@ int crypto4xx_rfc3686_decrypt(struct ablkcipher_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
 				  req->nbytes, iv, AES_IV_SIZE,
-				  ctx->sa_out, ctx->sa_len);
+				  ctx->sa_out, ctx->sa_len, 0);
 }
 
 /**
@@ -239,11 +240,13 @@ static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
 				   unsigned char hm)
 {
 	struct crypto_alg *alg = tfm->__crt_alg;
-	struct crypto4xx_alg *my_alg = crypto_alg_to_crypto4xx_alg(alg);
+	struct crypto4xx_alg *my_alg;
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct dynamic_sa_hash160 *sa;
 	int rc;
 
+	my_alg = container_of(__crypto_ahash_alg(alg), struct crypto4xx_alg,
+			      alg.u.hash);
 	ctx->dev   = my_alg->dev;
 
 	/* Create SA */
@@ -300,7 +303,7 @@ int crypto4xx_hash_update(struct ahash_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, &dst,
 				  req->nbytes, NULL, 0, ctx->sa_in,
-				  ctx->sa_len);
+				  ctx->sa_len, 0);
 }
 
 int crypto4xx_hash_final(struct ahash_request *req)
@@ -319,7 +322,7 @@ int crypto4xx_hash_digest(struct ahash_request *req)
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, &dst,
 				  req->nbytes, NULL, 0, ctx->sa_in,
-				  ctx->sa_len);
+				  ctx->sa_len, 0);
 }
 
 /**
@@ -330,5 +333,3 @@ int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm)
 	return crypto4xx_hash_alg_init(tfm, SA_HASH160_LEN, SA_HASH_ALG_SHA1,
 				       SA_HASH_MODE_HASH);
 }
-
-

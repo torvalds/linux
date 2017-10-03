@@ -22,7 +22,9 @@
 #ifndef __CRYPTO4XX_CORE_H__
 #define __CRYPTO4XX_CORE_H__
 
+#include <linux/ratelimit.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/aead.h>
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_sa.h"
 
@@ -106,6 +108,7 @@ struct crypto4xx_device {
 	struct pd_uinfo *pdr_uinfo;
 	struct list_head alg_list;	/* List of algorithm supported
 					by this device */
+	struct ratelimit_state aead_ratelimit;
 };
 
 struct crypto4xx_core_device {
@@ -125,6 +128,9 @@ struct crypto4xx_ctx {
 	struct dynamic_sa_ctl *sa_out;
 	__le32 iv_nonce;
 	u32 sa_len;
+	union {
+		struct crypto_aead *aead;
+	} sw_cipher;
 };
 
 struct crypto4xx_alg_common {
@@ -132,6 +138,7 @@ struct crypto4xx_alg_common {
 	union {
 		struct crypto_alg cipher;
 		struct ahash_alg hash;
+		struct aead_alg aead;
 	} u;
 };
 
@@ -140,18 +147,6 @@ struct crypto4xx_alg {
 	struct crypto4xx_alg_common alg;
 	struct crypto4xx_device *dev;
 };
-
-static inline struct crypto4xx_alg *crypto_alg_to_crypto4xx_alg(
-	struct crypto_alg *x)
-{
-	switch (x->cra_flags & CRYPTO_ALG_TYPE_MASK) {
-	case CRYPTO_ALG_TYPE_AHASH:
-		return container_of(__crypto_ahash_alg(x),
-				    struct crypto4xx_alg, alg.u.hash);
-	}
-
-	return container_of(x, struct crypto4xx_alg, alg.u.cipher);
-}
 
 int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
 void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
@@ -163,7 +158,8 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       const unsigned int datalen,
 		       const __le32 *iv, const u32 iv_len,
 		       const struct dynamic_sa_ctl *sa,
-		       const unsigned int sa_len);
+		       const unsigned int sa_len,
+		       const unsigned int assoclen);
 int crypto4xx_setkey_aes_cbc(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_cfb(struct crypto_ablkcipher *cipher,

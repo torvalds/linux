@@ -55,6 +55,8 @@ union dynamic_sa_contents {
 #define SA_OP_GROUP_BASIC			0
 #define SA_OPCODE_ENCRYPT			0
 #define SA_OPCODE_DECRYPT			0
+#define SA_OPCODE_ENCRYPT_HASH			1
+#define SA_OPCODE_HASH_DECRYPT			1
 #define SA_OPCODE_HASH				3
 #define SA_CIPHER_ALG_DES			0
 #define SA_CIPHER_ALG_3DES			1
@@ -65,6 +67,8 @@ union dynamic_sa_contents {
 
 #define SA_HASH_ALG_MD5				0
 #define SA_HASH_ALG_SHA1			1
+#define SA_HASH_ALG_GHASH			12
+#define SA_HASH_ALG_CBC_MAC			14
 #define SA_HASH_ALG_NULL			15
 #define SA_HASH_ALG_SHA1_DIGEST_SIZE		20
 
@@ -234,6 +238,36 @@ struct dynamic_sa_aes256 {
 #define SA_AES_CONTENTS		0x3e000002
 
 /**
+ * Security Association (SA) for AES128 CCM
+ */
+struct dynamic_sa_aes128_ccm {
+	struct dynamic_sa_ctl ctrl;
+	__le32 key[4];
+	__le32 iv[4];
+	u32 state_ptr;
+	u32 reserved;
+} __packed;
+#define SA_AES128_CCM_LEN	(sizeof(struct dynamic_sa_aes128_ccm)/4)
+#define SA_AES128_CCM_CONTENTS	0x3e000042
+#define SA_AES_CCM_CONTENTS	0x3e000002
+
+/**
+ * Security Association (SA) for AES128_GCM
+ */
+struct dynamic_sa_aes128_gcm {
+	struct dynamic_sa_ctl ctrl;
+	__le32 key[4];
+	__le32 inner_digest[4];
+	__le32 iv[4];
+	u32 state_ptr;
+	u32 reserved;
+} __packed;
+
+#define SA_AES128_GCM_LEN	(sizeof(struct dynamic_sa_aes128_gcm)/4)
+#define SA_AES128_GCM_CONTENTS	0x3e000442
+#define SA_AES_GCM_CONTENTS	0x3e000402
+
+/**
  * Security Association (SA) for HASH160: HMAC-SHA1
  */
 struct dynamic_sa_hash160 {
@@ -272,6 +306,13 @@ get_dynamic_sa_offset_state_ptr_field(struct dynamic_sa_ctl *cts)
 static inline __le32 *get_dynamic_sa_key_field(struct dynamic_sa_ctl *cts)
 {
 	return (__le32 *) ((unsigned long)cts + sizeof(struct dynamic_sa_ctl));
+}
+
+static inline __le32 *get_dynamic_sa_inner_digest(struct dynamic_sa_ctl *cts)
+{
+	return (__le32 *) ((unsigned long)cts +
+		sizeof(struct dynamic_sa_ctl) +
+		cts->sa_contents.bf.key_size * 4);
 }
 
 #endif

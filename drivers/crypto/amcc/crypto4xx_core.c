@@ -35,10 +35,12 @@
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 #include <asm/cacheflush.h>
+#include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 #include <crypto/sha.h>
 #include <crypto/scatterwalk.h>
+#include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_core.h"
@@ -518,7 +520,7 @@ static void crypto4xx_ret_sg_desc(struct crypto4xx_device *dev,
 	}
 }
 
-static u32 crypto4xx_ablkcipher_done(struct crypto4xx_device *dev,
+static void crypto4xx_ablkcipher_done(struct crypto4xx_device *dev,
 				     struct pd_uinfo *pd_uinfo,
 				     struct ce_pd *pd)
 {
@@ -543,11 +545,9 @@ static u32 crypto4xx_ablkcipher_done(struct crypto4xx_device *dev,
 	if (pd_uinfo->state & PD_ENTRY_BUSY)
 		ablkcipher_request_complete(ablk_req, -EINPROGRESS);
 	ablkcipher_request_complete(ablk_req, 0);
-
-	return 0;
 }
 
-static u32 crypto4xx_ahash_done(struct crypto4xx_device *dev,
+static void crypto4xx_ahash_done(struct crypto4xx_device *dev,
 				struct pd_uinfo *pd_uinfo)
 {
 	struct crypto4xx_ctx *ctx;
@@ -563,20 +563,88 @@ static u32 crypto4xx_ahash_done(struct crypto4xx_device *dev,
 	if (pd_uinfo->state & PD_ENTRY_BUSY)
 		ahash_request_complete(ahash_req, -EINPROGRESS);
 	ahash_request_complete(ahash_req, 0);
-
-	return 0;
 }
 
-static u32 crypto4xx_pd_done(struct crypto4xx_device *dev, u32 idx)
+static void crypto4xx_aead_done(struct crypto4xx_device *dev,
+				struct pd_uinfo *pd_uinfo,
+				struct ce_pd *pd)
+{
+	struct aead_request *aead_req;
+	struct crypto4xx_ctx *ctx;
+	struct scatterlist *dst = pd_uinfo->dest_va;
+	int err = 0;
+
+	aead_req = container_of(pd_uinfo->async_req, struct aead_request,
+				base);
+	ctx  = crypto_tfm_ctx(aead_req->base.tfm);
+
+	if (pd_uinfo->using_sd) {
+		crypto4xx_copy_pkt_to_dst(dev, pd, pd_uinfo,
+					  pd->pd_ctl_len.bf.pkt_len,
+					  dst);
+	} else {
+		__dma_sync_page(sg_page(dst), dst->offset, dst->length,
+				DMA_FROM_DEVICE);
+	}
+
+	if (pd_uinfo->sa_va->sa_command_0.bf.dir == DIR_OUTBOUND) {
+		/* append icv at the end */
+		size_t cp_len = crypto_aead_authsize(
+			crypto_aead_reqtfm(aead_req));
+		u32 icv[cp_len];
+
+		crypto4xx_memcpy_from_le32(icv, pd_uinfo->sr_va->save_digest,
+					   cp_len);
+
+		scatterwalk_map_and_copy(icv, dst, aead_req->cryptlen,
+					 cp_len, 1);
+	}
+
+	crypto4xx_ret_sg_desc(dev, pd_uinfo);
+
+	if (pd->pd_ctl.bf.status & 0xff) {
+		if (pd->pd_ctl.bf.status & 0x1) {
+			/* authentication error */
+			err = -EBADMSG;
+		} else {
+			if (!__ratelimit(&dev->aead_ratelimit)) {
+				if (pd->pd_ctl.bf.status & 2)
+					pr_err("pad fail error\n");
+				if (pd->pd_ctl.bf.status & 4)
+					pr_err("seqnum fail\n");
+				if (pd->pd_ctl.bf.status & 8)
+					pr_err("error _notify\n");
+				pr_err("aead return err status = 0x%02x\n",
+					pd->pd_ctl.bf.status & 0xff);
+				pr_err("pd pad_ctl = 0x%08x\n",
+					pd->pd_ctl.bf.pd_pad_ctl);
+			}
+			err = -EINVAL;
+		}
+	}
+
+	if (pd_uinfo->state & PD_ENTRY_BUSY)
+		aead_request_complete(aead_req, -EINPROGRESS);
+
+	aead_request_complete(aead_req, err);
+}
+
+static void crypto4xx_pd_done(struct crypto4xx_device *dev, u32 idx)
 {
 	struct ce_pd *pd = &dev->pdr[idx];
 	struct pd_uinfo *pd_uinfo = &dev->pdr_uinfo[idx];
 
-	if (crypto_tfm_alg_type(pd_uinfo->async_req->tfm) ==
-			CRYPTO_ALG_TYPE_ABLKCIPHER)
-		return crypto4xx_ablkcipher_done(dev, pd_uinfo, pd);
-	else
-		return crypto4xx_ahash_done(dev, pd_uinfo);
+	switch (crypto_tfm_alg_type(pd_uinfo->async_req->tfm)) {
+	case CRYPTO_ALG_TYPE_ABLKCIPHER:
+		crypto4xx_ablkcipher_done(dev, pd_uinfo, pd);
+		break;
+	case CRYPTO_ALG_TYPE_AEAD:
+		crypto4xx_aead_done(dev, pd_uinfo, pd);
+		break;
+	case CRYPTO_ALG_TYPE_AHASH:
+		crypto4xx_ahash_done(dev, pd_uinfo);
+		break;
+	}
 }
 
 static void crypto4xx_stop_all(struct crypto4xx_core_device *core_dev)
@@ -612,8 +680,10 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       const unsigned int datalen,
 		       const __le32 *iv, const u32 iv_len,
 		       const struct dynamic_sa_ctl *req_sa,
-		       const unsigned int sa_len)
+		       const unsigned int sa_len,
+		       const unsigned int assoclen)
 {
+	struct scatterlist _dst[2];
 	struct crypto4xx_device *dev = ctx->dev;
 	struct dynamic_sa_ctl *sa;
 	struct ce_gd *gd;
@@ -627,18 +697,25 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	unsigned int nbytes = datalen;
 	size_t offset_to_sr_ptr;
 	u32 gd_idx = 0;
+	int tmp;
 	bool is_busy;
 
-	/* figure how many gd is needed */
-	num_gd = sg_nents_for_len(src, datalen);
-	if ((int)num_gd < 0) {
+	/* figure how many gd are needed */
+	tmp = sg_nents_for_len(src, assoclen + datalen);
+	if (tmp < 0) {
 		dev_err(dev->core_dev->device, "Invalid number of src SG.\n");
-		return -EINVAL;
+		return tmp;
 	}
-	if (num_gd == 1)
-		num_gd = 0;
+	if (tmp == 1)
+		tmp = 0;
+	num_gd = tmp;
 
-	/* figure how many sd is needed */
+	if (assoclen) {
+		nbytes += assoclen;
+		dst = scatterwalk_ffwd(_dst, dst, assoclen);
+	}
+
+	/* figure how many sd are needed */
 	if (sg_is_last(dst)) {
 		num_sd = 0;
 	} else {
@@ -724,6 +801,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	sa = pd_uinfo->sa_va;
 	memcpy(sa, req_sa, sa_len * 4);
 
+	sa->sa_command_1.bf.hash_crypto_offset = (assoclen >> 2);
 	offset_to_sr_ptr = get_dynamic_sa_offset_state_ptr_field(sa);
 	*(u32 *)((unsigned long)sa + offset_to_sr_ptr) = pd_uinfo->sr_pa;
 
@@ -830,7 +908,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		((crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AHASH) |
 		 (crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AEAD) ?
 			PD_CTL_HASH_FINAL : 0);
-	pd->pd_ctl_len.w = 0x00400000 | datalen;
+	pd->pd_ctl_len.w = 0x00400000 | (assoclen + datalen);
 	pd_uinfo->state = PD_ENTRY_INUSE | (is_busy ? PD_ENTRY_BUSY : 0);
 
 	wmb();
@@ -843,40 +921,68 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 /**
  * Algorithm Registration Functions
  */
-static int crypto4xx_alg_init(struct crypto_tfm *tfm)
+static void crypto4xx_ctx_init(struct crypto4xx_alg *amcc_alg,
+			       struct crypto4xx_ctx *ctx)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
-	struct crypto4xx_alg *amcc_alg = crypto_alg_to_crypto4xx_alg(alg);
-	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
-
 	ctx->dev = amcc_alg->dev;
 	ctx->sa_in = NULL;
 	ctx->sa_out = NULL;
 	ctx->sa_len = 0;
+}
 
-	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
-	default:
-		tfm->crt_ablkcipher.reqsize = sizeof(struct crypto4xx_ctx);
-		break;
-	case CRYPTO_ALG_TYPE_AHASH:
-		crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-					 sizeof(struct crypto4xx_ctx));
-		break;
-	}
+static int crypto4xx_ablk_init(struct crypto_tfm *tfm)
+{
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct crypto4xx_alg *amcc_alg;
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
 
+	amcc_alg = container_of(alg, struct crypto4xx_alg, alg.u.cipher);
+	crypto4xx_ctx_init(amcc_alg, ctx);
+	tfm->crt_ablkcipher.reqsize = sizeof(struct crypto4xx_ctx);
 	return 0;
 }
 
-static void crypto4xx_alg_exit(struct crypto_tfm *tfm)
+static void crypto4xx_common_exit(struct crypto4xx_ctx *ctx)
 {
-	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
-
 	crypto4xx_free_sa(ctx);
 }
 
-int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
-			   struct crypto4xx_alg_common *crypto_alg,
-			   int array_size)
+static void crypto4xx_ablk_exit(struct crypto_tfm *tfm)
+{
+	crypto4xx_common_exit(crypto_tfm_ctx(tfm));
+}
+
+static int crypto4xx_aead_init(struct crypto_aead *tfm)
+{
+	struct aead_alg *alg = crypto_aead_alg(tfm);
+	struct crypto4xx_ctx *ctx = crypto_aead_ctx(tfm);
+	struct crypto4xx_alg *amcc_alg;
+
+	ctx->sw_cipher.aead = crypto_alloc_aead(alg->base.cra_name, 0,
+						CRYPTO_ALG_NEED_FALLBACK |
+						CRYPTO_ALG_ASYNC);
+	if (IS_ERR(ctx->sw_cipher.aead))
+		return PTR_ERR(ctx->sw_cipher.aead);
+
+	amcc_alg = container_of(alg, struct crypto4xx_alg, alg.u.aead);
+	crypto4xx_ctx_init(amcc_alg, ctx);
+	crypto_aead_set_reqsize(tfm, sizeof(struct aead_request) +
+				max(sizeof(struct crypto4xx_ctx), 32 +
+				crypto_aead_reqsize(ctx->sw_cipher.aead)));
+	return 0;
+}
+
+static void crypto4xx_aead_exit(struct crypto_aead *tfm)
+{
+	struct crypto4xx_ctx *ctx = crypto_aead_ctx(tfm);
+
+	crypto4xx_common_exit(ctx);
+	crypto_free_aead(ctx->sw_cipher.aead);
+}
+
+static int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
+				  struct crypto4xx_alg_common *crypto_alg,
+				  int array_size)
 {
 	struct crypto4xx_alg *alg;
 	int i;
@@ -891,6 +997,10 @@ int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
 		alg->dev = sec_dev;
 
 		switch (alg->alg.type) {
+		case CRYPTO_ALG_TYPE_AEAD:
+			rc = crypto_register_aead(&alg->alg.u.aead);
+			break;
+
 		case CRYPTO_ALG_TYPE_AHASH:
 			rc = crypto_register_ahash(&alg->alg.u.hash);
 			break;
@@ -918,6 +1028,10 @@ static void crypto4xx_unregister_alg(struct crypto4xx_device *sec_dev)
 		switch (alg->alg.type) {
 		case CRYPTO_ALG_TYPE_AHASH:
 			crypto_unregister_ahash(&alg->alg.u.hash);
+			break;
+
+		case CRYPTO_ALG_TYPE_AEAD:
+			crypto_unregister_aead(&alg->alg.u.aead);
 			break;
 
 		default:
@@ -973,7 +1087,7 @@ static irqreturn_t crypto4xx_ce_interrupt_handler(int irq, void *data)
 /**
  * Supported Crypto Algorithms
  */
-struct crypto4xx_alg_common crypto4xx_alg[] = {
+static struct crypto4xx_alg_common crypto4xx_alg[] = {
 	/* Crypto AES modes */
 	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
 		.cra_name 	= "cbc(aes)",
@@ -985,8 +1099,8 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.cra_blocksize 	= AES_BLOCK_SIZE,
 		.cra_ctxsize 	= sizeof(struct crypto4xx_ctx),
 		.cra_type 	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_alg_init,
-		.cra_exit	= crypto4xx_alg_exit,
+		.cra_init	= crypto4xx_ablk_init,
+		.cra_exit	= crypto4xx_ablk_exit,
 		.cra_module 	= THIS_MODULE,
 		.cra_u 		= {
 			.ablkcipher = {
@@ -1009,8 +1123,8 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.cra_blocksize	= AES_BLOCK_SIZE,
 		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
 		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_alg_init,
-		.cra_exit	= crypto4xx_alg_exit,
+		.cra_init	= crypto4xx_ablk_init,
+		.cra_exit	= crypto4xx_ablk_exit,
 		.cra_module	= THIS_MODULE,
 		.cra_u		= {
 			.ablkcipher = {
@@ -1033,8 +1147,8 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.cra_blocksize	= AES_BLOCK_SIZE,
 		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
 		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_alg_init,
-		.cra_exit	= crypto4xx_alg_exit,
+		.cra_init	= crypto4xx_ablk_init,
+		.cra_exit	= crypto4xx_ablk_exit,
 		.cra_module	= THIS_MODULE,
 		.cra_u		= {
 			.ablkcipher = {
@@ -1059,8 +1173,8 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.cra_blocksize	= AES_BLOCK_SIZE,
 		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
 		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_alg_init,
-		.cra_exit	= crypto4xx_alg_exit,
+		.cra_init	= crypto4xx_ablk_init,
+		.cra_exit	= crypto4xx_ablk_exit,
 		.cra_module	= THIS_MODULE,
 		.cra_u		= {
 			.ablkcipher = {
@@ -1082,8 +1196,8 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.cra_blocksize	= AES_BLOCK_SIZE,
 		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
 		.cra_type	= &crypto_ablkcipher_type,
-		.cra_init	= crypto4xx_alg_init,
-		.cra_exit	= crypto4xx_alg_exit,
+		.cra_init	= crypto4xx_ablk_init,
+		.cra_exit	= crypto4xx_ablk_exit,
 		.cra_module	= THIS_MODULE,
 		.cra_u		= {
 			.ablkcipher = {
@@ -1149,6 +1263,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	core_dev->device = dev;
 	spin_lock_init(&core_dev->lock);
 	INIT_LIST_HEAD(&core_dev->dev->alg_list);
+	ratelimit_default_init(&core_dev->dev->aead_ratelimit);
 	rc = crypto4xx_build_pdr(core_dev->dev);
 	if (rc)
 		goto err_build_pdr;
