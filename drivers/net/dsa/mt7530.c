@@ -564,7 +564,8 @@ static int mt7530_phy_read(struct dsa_switch *ds, int port, int regnum)
 	return mdiobus_read_nested(priv->bus, port, regnum);
 }
 
-int mt7530_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
+static int mt7530_phy_write(struct dsa_switch *ds, int port, int regnum,
+			    u16 val)
 {
 	struct mt7530_priv *priv = ds->priv;
 
