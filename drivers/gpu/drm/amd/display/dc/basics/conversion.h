@@ -38,6 +38,9 @@ void convert_float_matrix(
 	struct fixed31_32 *flt,
 	uint32_t buffer_size);
 
-unsigned int log_2(unsigned int num);
+static inline unsigned int log_2(unsigned int num)
+{
+	return ilog2(num);
+}
 
 #endif

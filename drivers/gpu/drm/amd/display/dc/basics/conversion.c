@@ -102,13 +102,3 @@ void convert_float_matrix(
 		matrix[i] = (uint16_t)reg_value;
 	}
 }
-
-unsigned int log_2(unsigned int num)
-{
-	unsigned int result = 0;
-
-	while ((num >>= 1) != 0)
-		result++;
-
-	return result;
-}
