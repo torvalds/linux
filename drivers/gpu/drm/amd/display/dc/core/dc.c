@@ -327,7 +327,7 @@ static void set_test_pattern(
 			cust_pattern_size);
 }
 
-void set_dither_option(struct dc_stream_state *stream,
+static void set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
 	struct bit_depth_reduction_params params;

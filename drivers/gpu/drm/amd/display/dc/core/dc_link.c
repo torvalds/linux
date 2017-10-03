@@ -208,7 +208,7 @@ hpd_gpio_failure:
 	return false;
 }
 
-enum ddc_transaction_type get_ddc_transaction_type(
+static enum ddc_transaction_type get_ddc_transaction_type(
 		enum signal_type sink_signal)
 {
 	enum ddc_transaction_type transaction_type = DDC_TRANSACTION_TYPE_NONE;

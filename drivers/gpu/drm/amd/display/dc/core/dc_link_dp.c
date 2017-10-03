@@ -1209,7 +1209,7 @@ static inline bool reached_minimum_link_rate(enum dc_link_rate link_rate)
 	return link_rate <= LINK_RATE_LOW;
 }
 
-enum dc_lane_count reduce_lane_count(enum dc_lane_count lane_count)
+static enum dc_lane_count reduce_lane_count(enum dc_lane_count lane_count)
 {
 	switch (lane_count) {
 	case LANE_COUNT_FOUR:

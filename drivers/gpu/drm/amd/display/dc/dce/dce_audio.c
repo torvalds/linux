@@ -833,8 +833,7 @@ void dce_aud_wall_dto_setup(
 	}
 }
 
-bool dce_aud_endpoint_valid(
-		struct audio *audio)
+static bool dce_aud_endpoint_valid(struct audio *audio)
 {
 	uint32_t value;
 	uint32_t port_connectivity;

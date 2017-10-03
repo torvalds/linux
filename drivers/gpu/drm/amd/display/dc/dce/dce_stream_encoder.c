@@ -1183,7 +1183,7 @@ static const struct audio_clock_info audio_clock_info_table_48bpc[14] = {
 
 };
 
-union audio_cea_channels speakers_to_channels(
+static union audio_cea_channels speakers_to_channels(
 	struct audio_speaker_flags speaker_flags)
 {
 	union audio_cea_channels cea_channels = {0};
@@ -1217,7 +1217,7 @@ union audio_cea_channels speakers_to_channels(
 	return cea_channels;
 }
 
-uint32_t calc_max_audio_packets_per_line(
+static uint32_t calc_max_audio_packets_per_line(
 	const struct audio_crtc_info *crtc_info)
 {
 	uint32_t max_packets_per_line;
@@ -1238,7 +1238,7 @@ uint32_t calc_max_audio_packets_per_line(
 	return max_packets_per_line;
 }
 
-void get_audio_clock_info(
+static void get_audio_clock_info(
 	enum dc_color_depth color_depth,
 	uint32_t crtc_pixel_clock_in_khz,
 	uint32_t actual_pixel_clock_in_khz,

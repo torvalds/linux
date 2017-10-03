@@ -1135,7 +1135,7 @@ bool dcn_validate_bandwidth(
 		return false;
 }
 
-unsigned int dcn_find_normalized_clock_vdd_Level(
+static unsigned int dcn_find_normalized_clock_vdd_Level(
 	const struct dc *dc,
 	enum dm_pp_clock_type clocks_type,
 	int clocks_in_khz)

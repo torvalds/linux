@@ -531,7 +531,7 @@ static enum bp_result bios_parser_get_hpd_info(struct dc_bios *dcb,
 	return BP_RESULT_NORECORD;
 }
 
-enum bp_result bios_parser_get_device_tag_record(
+static enum bp_result bios_parser_get_device_tag_record(
 	struct bios_parser *bp,
 	ATOM_OBJECT *object,
 	ATOM_CONNECTOR_DEVICE_TAG_RECORD **record)

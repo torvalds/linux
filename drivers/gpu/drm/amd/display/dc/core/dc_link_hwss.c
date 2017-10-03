@@ -110,7 +110,7 @@ void dp_enable_link_phy(
 	dp_receiver_power_ctrl(link, true);
 }
 
-bool edp_receiver_ready_T9(struct dc_link *link)
+static bool edp_receiver_ready_T9(struct dc_link *link)
 {
 	unsigned int tries = 0;
 	unsigned char sinkstatus = 0;
