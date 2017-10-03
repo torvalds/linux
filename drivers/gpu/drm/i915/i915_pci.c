@@ -54,6 +54,8 @@
 	.color = { .degamma_lut_size = 512, .gamma_lut_size = 512 }
 #define CHV_COLORS \
 	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257 }
+#define GLK_COLORS \
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
 
 /* Keep in gen based order, and chronological order within a gen */
 #define GEN2_FEATURES \
@@ -496,7 +498,7 @@ static const struct intel_device_info intel_geminilake_info __initconst = {
 	GEN9_LP_FEATURES,
 	.platform = INTEL_GEMINILAKE,
 	.ddb_size = 1024,
-	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
+	GLK_COLORS,
 };
 
 #define KBL_PLATFORM \
@@ -544,7 +546,7 @@ static const struct intel_device_info intel_coffeelake_gt3_info __initconst = {
 #define GEN10_FEATURES \
 	GEN9_FEATURES, \
 	.ddb_size = 1024, \
-	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
+	GLK_COLORS
 
 static const struct intel_device_info intel_cannonlake_gt2_info __initconst = {
 	GEN10_FEATURES,
