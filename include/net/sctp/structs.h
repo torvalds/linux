@@ -1328,10 +1328,27 @@ struct sctp_inithdr_host {
 	__u32 initial_tsn;
 };
 
+struct sctp_stream_priorities {
+	/* List of priorities scheduled */
+	struct list_head prio_sched;
+	/* List of streams scheduled */
+	struct list_head active;
+	/* The next stream stream in line */
+	struct sctp_stream_out_ext *next;
+	__u16 prio;
+};
+
 struct sctp_stream_out_ext {
 	__u64 abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
 	__u64 abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
 	struct list_head outq; /* chunks enqueued by this stream */
+	union {
+		struct {
+			/* Scheduled streams list */
+			struct list_head prio_list;
+			struct sctp_stream_priorities *prio_head;
+		};
+	};
 };
 
 struct sctp_stream_out {
@@ -1351,6 +1368,13 @@ struct sctp_stream {
 	__u16 incnt;
 	/* Current stream being sent, if any */
 	struct sctp_stream_out *out_curr;
+	union {
+		/* Fields used by priority scheduler */
+		struct {
+			/* List of priorities scheduled */
+			struct list_head prio_list;
+		};
+	};
 };
 
 #define SCTP_STREAM_CLOSED		0x00

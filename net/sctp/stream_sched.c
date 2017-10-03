@@ -121,8 +121,11 @@ static struct sctp_sched_ops sctp_sched_fcfs = {
 
 /* API to other parts of the stack */
 
+extern struct sctp_sched_ops sctp_sched_prio;
+
 struct sctp_sched_ops *sctp_sched_ops[] = {
 	&sctp_sched_fcfs,
+	&sctp_sched_prio,
 };
 
 int sctp_sched_set_sched(struct sctp_association *asoc,
