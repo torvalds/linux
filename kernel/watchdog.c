@@ -535,7 +535,6 @@ static void softlockup_update_smpboot_threads(void)
 
 	smpboot_update_cpumask_percpu_thread(&watchdog_threads,
 					     &watchdog_allowed_mask);
-	__lockup_detector_cleanup();
 }
 
 /* Temporarily park all watchdog threads */
@@ -554,6 +553,7 @@ static void softlockup_unpark_threads(void)
 
 static void softlockup_reconfigure_threads(void)
 {
+	cpus_read_lock();
 	watchdog_nmi_stop();
 	softlockup_park_all_threads();
 	set_sample_period();
@@ -561,6 +561,12 @@ static void softlockup_reconfigure_threads(void)
 	if (watchdog_enabled && watchdog_thresh)
 		softlockup_unpark_threads();
 	watchdog_nmi_start();
+	cpus_read_unlock();
+	/*
+	 * Must be called outside the cpus locked section to prevent
+	 * recursive locking in the perf code.
+	 */
+	__lockup_detector_cleanup();
 }
 
 /*
@@ -605,9 +611,11 @@ static inline void watchdog_disable_all_cpus(void) { }
 static inline void softlockup_init_threads(void) { }
 static void softlockup_reconfigure_threads(void)
 {
+	cpus_read_lock();
 	watchdog_nmi_stop();
 	lockup_detector_update_enable();
 	watchdog_nmi_start();
+	cpus_read_unlock();
 }
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 
