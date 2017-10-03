@@ -63,6 +63,7 @@ static void set_dynamic_sa_command_1(struct dynamic_sa_ctl *sa, u32 cm,
 	sa->sa_command_1.bf.crypto_mode9_8 = cm & 3;
 	sa->sa_command_1.bf.feedback_mode = cfb,
 	sa->sa_command_1.bf.sa_rev = 1;
+	sa->sa_command_1.bf.hmac_muting = hmac_mc;
 	sa->sa_command_1.bf.extended_seq_num = esn;
 	sa->sa_command_1.bf.seq_num_mask = sn_mask;
 	sa->sa_command_1.bf.mutable_bit_proc = mute;
