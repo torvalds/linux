@@ -57,6 +57,7 @@ static inline bool ipmr_rule_default(const struct fib_rule *rule)
 
 struct vif_device {
 	struct net_device 	*dev;			/* Device we are using */
+	struct netdev_phys_item_id dev_parent_id;	/* Device parent ID    */
 	unsigned long	bytes_in,bytes_out;
 	unsigned long	pkt_in,pkt_out;		/* Statistics 			*/
 	unsigned long	rate_limit;		/* Traffic shaping (NI) 	*/

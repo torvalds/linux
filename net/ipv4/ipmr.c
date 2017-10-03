@@ -67,6 +67,7 @@
 #include <net/fib_rules.h>
 #include <linux/netconf.h>
 #include <net/nexthop.h>
+#include <net/switchdev.h>
 
 struct ipmr_rule {
 	struct fib_rule		common;
@@ -868,6 +869,9 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		   struct vifctl *vifc, int mrtsock)
 {
 	int vifi = vifc->vifc_vifi;
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
+	};
 	struct vif_device *v = &mrt->vif_table[vifi];
 	struct net_device *dev;
 	struct in_device *in_dev;
@@ -942,6 +946,13 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 
 	/* Fill in the VIF structures */
 
+	attr.orig_dev = dev;
+	if (!switchdev_port_attr_get(dev, &attr)) {
+		memcpy(v->dev_parent_id.id, attr.u.ppid.id, attr.u.ppid.id_len);
+		v->dev_parent_id.id_len = attr.u.ppid.id_len;
+	} else {
+		v->dev_parent_id.id_len = 0;
+	}
 	v->rate_limit = vifc->vifc_rate_limit;
 	v->local = vifc->vifc_lcl_addr.s_addr;
 	v->remote = vifc->vifc_rmt_addr.s_addr;
