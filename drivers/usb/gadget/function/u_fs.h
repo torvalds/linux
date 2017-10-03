@@ -279,6 +279,7 @@ struct ffs_data {
 	}				file_perms;
 
 	struct eventfd_ctx *ffs_eventfd;
+	struct workqueue_struct *io_completion_wq;
 	bool no_disconnect;
 	struct work_struct reset_work;
 
