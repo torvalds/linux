@@ -277,10 +277,6 @@ struct dc *dc_create(const struct dc_init_data *init_params);
 
 void dc_destroy(struct dc **dc);
 
-bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data);
-
-void dc_log_hw_state(struct dc *dc);
-
 /*******************************************************************************
  * Surface Interfaces
  ******************************************************************************/
@@ -866,7 +862,10 @@ const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
  * boot time.  They cannot be created or destroyed.
  * Use dc_get_caps() to get number of links.
  */
-struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index);
+static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index)
+{
+	return dc->links[link_index];
+}
 
 /* Set backlight level of an embedded panel (eDP, LVDS). */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
