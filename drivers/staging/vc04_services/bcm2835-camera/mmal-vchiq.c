@@ -1963,7 +1963,7 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 
 	status = vchi_service_close(instance->handle);
 	if (status != 0)
-		pr_err("mmal-vchiq: VCHIQ close failed");
+		pr_err("mmal-vchiq: VCHIQ close failed\n");
 
 	mutex_unlock(&instance->vchiq_mutex);
 
