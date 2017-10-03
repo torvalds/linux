@@ -3174,7 +3174,6 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 fail:
 	kfree(acrtc);
 	kfree(cursor_plane);
-	acrtc->crtc_id = -1;
 	return res;
 }
 
