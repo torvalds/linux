@@ -236,6 +236,7 @@ static int prog_load_cnt(int verdict, int val)
 
 static int test_multiprog(void)
 {
+	__u32 prog_ids[4], prog_cnt = 0, attach_flags, saved_prog_id;
 	int cg1 = 0, cg2 = 0, cg3 = 0, cg4 = 0, cg5 = 0, key = 0;
 	int drop_prog, allow_prog[6] = {}, rc = 0;
 	unsigned long long value;
@@ -304,6 +305,32 @@ static int test_multiprog(void)
 	assert(bpf_map_lookup_elem(map_fd, &key, &value) == 0);
 	assert(value == 1 + 2 + 8 + 32);
 
+	/* query the number of effective progs in cg5 */
+	assert(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS, BPF_F_QUERY_EFFECTIVE,
+			      NULL, NULL, &prog_cnt) == 0);
+	assert(prog_cnt == 4);
+	/* retrieve prog_ids of effective progs in cg5 */
+	assert(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS, BPF_F_QUERY_EFFECTIVE,
+			      &attach_flags, prog_ids, &prog_cnt) == 0);
+	assert(prog_cnt == 4);
+	assert(attach_flags == 0);
+	saved_prog_id = prog_ids[0];
+	/* check enospc handling */
+	prog_ids[0] = 0;
+	prog_cnt = 2;
+	assert(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS, BPF_F_QUERY_EFFECTIVE,
+			      &attach_flags, prog_ids, &prog_cnt) == -1 &&
+	       errno == ENOSPC);
+	assert(prog_cnt == 4);
+	/* check that prog_ids are returned even when buffer is too small */
+	assert(prog_ids[0] == saved_prog_id);
+	/* retrieve prog_id of single attached prog in cg5 */
+	prog_ids[0] = 0;
+	assert(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS, 0,
+			      NULL, prog_ids, &prog_cnt) == 0);
+	assert(prog_cnt == 1);
+	assert(prog_ids[0] == saved_prog_id);
+
 	/* detach bottom program and ping again */
 	if (bpf_prog_detach2(-1, cg5, BPF_CGROUP_INET_EGRESS)) {
 		log_err("Detaching prog from cg5");
@@ -341,6 +368,15 @@ static int test_multiprog(void)
 	assert(system(PING_CMD) == 0);
 	assert(bpf_map_lookup_elem(map_fd, &key, &value) == 0);
 	assert(value == 1 + 2 + 4);
+
+	prog_cnt = 4;
+	assert(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS, BPF_F_QUERY_EFFECTIVE,
+			      &attach_flags, prog_ids, &prog_cnt) == 0);
+	assert(prog_cnt == 3);
+	assert(attach_flags == 0);
+	assert(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS, 0,
+			      NULL, prog_ids, &prog_cnt) == 0);
+	assert(prog_cnt == 0);
 	goto out;
 err:
 	rc = 1;
