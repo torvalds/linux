@@ -118,20 +118,21 @@ static void destruct(struct dc_stream_state *stream)
 
 void dc_stream_retain(struct dc_stream_state *stream)
 {
-	ASSERT(atomic_read(&stream->ref_count) > 0);
-	atomic_inc(&stream->ref_count);
+	kref_get(&stream->refcount);
+}
+
+static void dc_stream_free(struct kref *kref)
+{
+	struct dc_stream_state *stream = container_of(kref, struct dc_stream_state, refcount);
+
+	destruct(stream);
+	kfree(stream);
 }
 
 void dc_stream_release(struct dc_stream_state *stream)
 {
 	if (stream != NULL) {
-		ASSERT(atomic_read(&stream->ref_count) > 0);
-		atomic_dec(&stream->ref_count);
-
-		if (atomic_read(&stream->ref_count) == 0) {
-			destruct(stream);
-			kfree(stream);
-		}
+		kref_put(&stream->refcount, dc_stream_free);
 	}
 }
 
@@ -149,10 +150,9 @@ struct dc_stream_state *dc_create_stream_for_sink(
 
 	construct(stream, sink);
 
-	atomic_inc(&stream->ref_count);
+	kref_init(&stream->refcount);
 
 	return stream;
-
 }
 
 struct dc_stream_status *dc_stream_get_status(
