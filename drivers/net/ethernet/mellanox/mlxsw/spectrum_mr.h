@@ -42,6 +42,7 @@
 enum mlxsw_sp_mr_route_action {
 	MLXSW_SP_MR_ROUTE_ACTION_FORWARD,
 	MLXSW_SP_MR_ROUTE_ACTION_TRAP,
+	MLXSW_SP_MR_ROUTE_ACTION_TRAP_AND_FORWARD,
 };
 
 enum mlxsw_sp_mr_route_prio {

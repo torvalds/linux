@@ -253,6 +253,7 @@ mlxsw_sp_mr_tcam_afa_block_create(struct mlxsw_sp *mlxsw_sp,
 		if (err)
 			goto err;
 		break;
+	case MLXSW_SP_MR_ROUTE_ACTION_TRAP_AND_FORWARD:
 	case MLXSW_SP_MR_ROUTE_ACTION_FORWARD:
 		/* If we are about to append a multicast router action, commit
 		 * the erif_list.
@@ -266,6 +267,13 @@ mlxsw_sp_mr_tcam_afa_block_create(struct mlxsw_sp *mlxsw_sp,
 						      erif_list->kvdl_index);
 		if (err)
 			goto err;
+
+		if (route_action == MLXSW_SP_MR_ROUTE_ACTION_TRAP_AND_FORWARD) {
+			err = mlxsw_afa_block_append_trap_and_forward(afa_block,
+								      MLXSW_TRAP_ID_ACL2);
+			if (err)
+				goto err;
+		}
 		break;
 	default:
 		err = -EINVAL;
