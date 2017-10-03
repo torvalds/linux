@@ -574,6 +574,28 @@ void drop_super_exclusive(struct super_block *sb)
 }
 EXPORT_SYMBOL(drop_super_exclusive);
 
+static void __iterate_supers(void (*f)(struct super_block *))
+{
+	struct super_block *sb, *p = NULL;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (hlist_unhashed(&sb->s_instances))
+			continue;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+
+		f(sb);
+
+		spin_lock(&sb_lock);
+		if (p)
+			__put_super(p);
+		p = sb;
+	}
+	if (p)
+		__put_super(p);
+	spin_unlock(&sb_lock);
+}
 /**
  *	iterate_supers - call function for all active superblocks
  *	@f: function to call
@@ -881,33 +903,22 @@ cancel_readonly:
 	return retval;
 }
 
+static void do_emergency_remount_callback(struct super_block *sb)
+{
+	down_write(&sb->s_umount);
+	if (sb->s_root && sb->s_bdev && (sb->s_flags & SB_BORN) &&
+	    !sb_rdonly(sb)) {
+		/*
+		 * What lock protects sb->s_flags??
+		 */
+		do_remount_sb(sb, SB_RDONLY, NULL, 1);
+	}
+	up_write(&sb->s_umount);
+}
+
 static void do_emergency_remount(struct work_struct *work)
 {
-	struct super_block *sb, *p = NULL;
-
-	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (hlist_unhashed(&sb->s_instances))
-			continue;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_write(&sb->s_umount);
-		if (sb->s_root && sb->s_bdev && (sb->s_flags & SB_BORN) &&
-		    !sb_rdonly(sb)) {
-			/*
-			 * What lock protects sb->s_flags??
-			 */
-			do_remount_sb(sb, SB_RDONLY, NULL, 1);
-		}
-		up_write(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (p)
-			__put_super(p);
-		p = sb;
-	}
-	if (p)
-		__put_super(p);
-	spin_unlock(&sb_lock);
+	__iterate_supers(do_emergency_remount_callback);
 	kfree(work);
 	printk("Emergency Remount complete\n");
 }
