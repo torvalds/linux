@@ -863,7 +863,7 @@ static int record__synthesize(struct record *rec, bool tail)
 
 	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
 					    process_synthesized_event, opts->sample_address,
-					    opts->proc_map_timeout);
+					    opts->proc_map_timeout, 1);
 out:
 	return err;
 }

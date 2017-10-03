@@ -131,7 +131,7 @@ static int synth_all(struct machine *machine)
 {
 	return perf_event__synthesize_threads(NULL,
 					      perf_event__process,
-					      machine, 0, 500);
+					      machine, 0, 500, 1);
 }
 
 static int synth_process(struct machine *machine)

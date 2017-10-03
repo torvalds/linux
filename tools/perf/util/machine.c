@@ -2218,12 +2218,16 @@ int machines__for_each_thread(struct machines *machines,
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
 				  struct target *target, struct thread_map *threads,
 				  perf_event__handler_t process, bool data_mmap,
-				  unsigned int proc_map_timeout)
+				  unsigned int proc_map_timeout,
+				  unsigned int nr_threads_synthesize)
 {
 	if (target__has_task(target))
 		return perf_event__synthesize_thread_map(tool, threads, process, machine, data_mmap, proc_map_timeout);
 	else if (target__has_cpu(target))
-		return perf_event__synthesize_threads(tool, process, machine, data_mmap, proc_map_timeout);
+		return perf_event__synthesize_threads(tool, process,
+						      machine, data_mmap,
+						      proc_map_timeout,
+						      nr_threads_synthesize);
 	/* command specified */
 	return 0;
 }
