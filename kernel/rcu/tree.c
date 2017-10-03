@@ -818,6 +818,7 @@ static void rcu_eqs_enter(bool user)
 	struct rcu_dynticks *rdtp;
 
 	rdtp = this_cpu_ptr(&rcu_dynticks);
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0);
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 		     (rdtp->dynticks_nesting & DYNTICK_TASK_NEST_MASK) == 0);
 	if ((rdtp->dynticks_nesting & DYNTICK_TASK_NEST_MASK) == DYNTICK_TASK_NEST_VALUE)
@@ -1008,6 +1009,7 @@ static void rcu_eqs_exit(bool user)
 		rcu_eqs_exit_common(DYNTICK_TASK_EXIT_IDLE, user);
 		rdtp->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
 		__this_cpu_dec(disable_rcu_irq_enter);
+		WRITE_ONCE(rdtp->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
 	}
 }
 

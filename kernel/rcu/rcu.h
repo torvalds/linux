@@ -56,6 +56,8 @@
 #define DYNTICK_TASK_EXIT_IDLE	   (DYNTICK_TASK_NEST_VALUE + \
 				    DYNTICK_TASK_FLAG)
 
+#define DYNTICK_IRQ_NONIDLE	((INT_MAX / 2) + 1)
+
 
 /*
  * Grace-period counter management.
