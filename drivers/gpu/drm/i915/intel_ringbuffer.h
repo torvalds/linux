@@ -239,6 +239,11 @@ struct intel_engine_execlists {
 	} port[EXECLIST_MAX_PORTS];
 
 	/**
+	 * @preempt: are we currently handling a preempting context switch?
+	 */
+	bool preempt;
+
+	/**
 	 * @port_mask: number of execlist ports - 1
 	 */
 	unsigned int port_mask;
