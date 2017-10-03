@@ -145,6 +145,7 @@
 #include <linux/crash_dump.h>
 #include <linux/sctp.h>
 #include <net/udp_tunnel.h>
+#include <linux/net_namespace.h>
 
 #include "net-sysfs.h"
 
@@ -7204,7 +7205,7 @@ static void rollback_registered_many(struct list_head *head)
 		if (!dev->rtnl_link_ops ||
 		    dev->rtnl_link_state == RTNL_LINK_INITIALIZED)
 			skb = rtmsg_ifinfo_build_skb(RTM_DELLINK, dev, ~0U, 0,
-						     GFP_KERNEL);
+						     GFP_KERNEL, NULL);
 
 		/*
 		 *	Flush the unicast and multicast chains
@@ -8291,7 +8292,7 @@ EXPORT_SYMBOL(unregister_netdev);
 
 int dev_change_net_namespace(struct net_device *dev, struct net *net, const char *pat)
 {
-	int err;
+	int err, new_nsid;
 
 	ASSERT_RTNL();
 
@@ -8347,7 +8348,11 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
 	rcu_barrier();
 	call_netdevice_notifiers(NETDEV_UNREGISTER_FINAL, dev);
-	rtmsg_ifinfo(RTM_DELLINK, dev, ~0U, GFP_KERNEL);
+	if (dev->rtnl_link_ops && dev->rtnl_link_ops->get_link_net)
+		new_nsid = peernet2id_alloc(dev_net(dev), net);
+	else
+		new_nsid = peernet2id(dev_net(dev), net);
+	rtmsg_ifinfo_newnet(RTM_DELLINK, dev, ~0U, GFP_KERNEL, &new_nsid);
 
 	/*
 	 *	Flush the unicast and multicast chains
