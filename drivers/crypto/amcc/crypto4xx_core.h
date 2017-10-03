@@ -229,5 +229,9 @@ int crypto4xx_setkey_aes_ccm(struct crypto_aead *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_encrypt_aes_ccm(struct aead_request *req);
 int crypto4xx_decrypt_aes_ccm(struct aead_request *req);
+int crypto4xx_setkey_aes_gcm(struct crypto_aead *cipher,
+			     const u8 *key, unsigned int keylen);
+int crypto4xx_encrypt_aes_gcm(struct aead_request *req);
+int crypto4xx_decrypt_aes_gcm(struct aead_request *req);
 
 #endif

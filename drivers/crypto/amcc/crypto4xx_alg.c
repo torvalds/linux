@@ -28,6 +28,7 @@
 #include <crypto/algapi.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
+#include <crypto/gcm.h>
 #include <crypto/sha.h>
 #include <crypto/ctr.h>
 #include "crypto4xx_reg_def.h"
@@ -414,6 +415,144 @@ int crypto4xx_setauthsize_aead(struct crypto_aead *cipher,
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	return crypto_aead_setauthsize(ctx->sw_cipher.aead, authsize);
+}
+
+/**
+ * AES-GCM Functions
+ */
+
+static int crypto4xx_aes_gcm_validate_keylen(unsigned int keylen)
+{
+	switch (keylen) {
+	case 16:
+	case 24:
+	case 32:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int crypto4xx_compute_gcm_hash_key_sw(__le32 *hash_start, const u8 *key,
+					     unsigned int keylen)
+{
+	struct crypto_cipher *aes_tfm = NULL;
+	uint8_t src[16] = { 0 };
+	int rc = 0;
+
+	aes_tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC |
+				      CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(aes_tfm)) {
+		rc = PTR_ERR(aes_tfm);
+		pr_warn("could not load aes cipher driver: %d\n", rc);
+		return rc;
+	}
+
+	rc = crypto_cipher_setkey(aes_tfm, key, keylen);
+	if (rc) {
+		pr_err("setkey() failed: %d\n", rc);
+		goto out;
+	}
+
+	crypto_cipher_encrypt_one(aes_tfm, src, src);
+	crypto4xx_memcpy_to_le32(hash_start, src, 16);
+out:
+	crypto_free_cipher(aes_tfm);
+	return rc;
+}
+
+int crypto4xx_setkey_aes_gcm(struct crypto_aead *cipher,
+			     const u8 *key, unsigned int keylen)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(cipher);
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct dynamic_sa_ctl *sa;
+	int    rc = 0;
+
+	if (crypto4xx_aes_gcm_validate_keylen(keylen) != 0) {
+		crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	rc = crypto4xx_setup_fallback(ctx, cipher, key, keylen);
+	if (rc)
+		return rc;
+
+	if (ctx->sa_in || ctx->sa_out)
+		crypto4xx_free_sa(ctx);
+
+	rc = crypto4xx_alloc_sa(ctx, SA_AES128_GCM_LEN + (keylen - 16) / 4);
+	if (rc)
+		return rc;
+
+	sa  = (struct dynamic_sa_ctl *) ctx->sa_in;
+
+	sa->sa_contents.w = SA_AES_GCM_CONTENTS | (keylen << 2);
+	set_dynamic_sa_command_0(sa, SA_SAVE_HASH, SA_NOT_SAVE_IV,
+				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
+				 SA_NO_HEADER_PROC, SA_HASH_ALG_GHASH,
+				 SA_CIPHER_ALG_AES, SA_PAD_TYPE_ZERO,
+				 SA_OP_GROUP_BASIC, SA_OPCODE_HASH_DECRYPT,
+				 DIR_INBOUND);
+	set_dynamic_sa_command_1(sa, CRYPTO_MODE_CTR, SA_HASH_MODE_HASH,
+				 CRYPTO_FEEDBACK_MODE_NO_FB, SA_EXTENDED_SN_OFF,
+				 SA_SEQ_MASK_ON, SA_MC_DISABLE,
+				 SA_NOT_COPY_PAD, SA_COPY_PAYLOAD,
+				 SA_NOT_COPY_HDR);
+
+	sa->sa_command_1.bf.key_len = keylen >> 3;
+
+	crypto4xx_memcpy_to_le32(get_dynamic_sa_key_field(sa),
+				 key, keylen);
+
+	rc = crypto4xx_compute_gcm_hash_key_sw(get_dynamic_sa_inner_digest(sa),
+		key, keylen);
+	if (rc) {
+		pr_err("GCM hash key setting failed = %d\n", rc);
+		goto err;
+	}
+
+	memcpy(ctx->sa_out, ctx->sa_in, ctx->sa_len * 4);
+	sa = (struct dynamic_sa_ctl *) ctx->sa_out;
+	sa->sa_command_0.bf.dir = DIR_OUTBOUND;
+	sa->sa_command_0.bf.opcode = SA_OPCODE_ENCRYPT_HASH;
+
+	return 0;
+err:
+	crypto4xx_free_sa(ctx);
+	return rc;
+}
+
+static inline int crypto4xx_crypt_aes_gcm(struct aead_request *req,
+					  bool decrypt)
+{
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
+	unsigned int len = req->cryptlen;
+	__le32 iv[4];
+
+	if (crypto4xx_aead_need_fallback(req, false, decrypt))
+		return crypto4xx_aead_fallback(req, ctx, decrypt);
+
+	crypto4xx_memcpy_to_le32(iv, req->iv, GCM_AES_IV_SIZE);
+	iv[3] = cpu_to_le32(1);
+
+	if (decrypt)
+		len -= crypto_aead_authsize(crypto_aead_reqtfm(req));
+
+	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
+				  len, iv, sizeof(iv),
+				  decrypt ? ctx->sa_in : ctx->sa_out,
+				  ctx->sa_len, req->assoclen);
+}
+
+int crypto4xx_encrypt_aes_gcm(struct aead_request *req)
+{
+	return crypto4xx_crypt_aes_gcm(req, false);
+}
+
+int crypto4xx_decrypt_aes_gcm(struct aead_request *req)
+{
+	return crypto4xx_crypt_aes_gcm(req, true);
 }
 
 /**
