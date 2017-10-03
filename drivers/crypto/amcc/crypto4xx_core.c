@@ -1148,7 +1148,7 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 				.min_keysize	= AES_MIN_KEY_SIZE,
 				.max_keysize	= AES_MAX_KEY_SIZE,
 				.ivsize		= AES_IV_SIZE,
-				.setkey		= crypto4xx_setkey_aes_cbc,
+				.setkey		= crypto4xx_setkey_aes_ofb,
 				.encrypt	= crypto4xx_encrypt,
 				.decrypt	= crypto4xx_decrypt,
 			}
