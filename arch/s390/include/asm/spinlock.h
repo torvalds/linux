@@ -45,6 +45,7 @@ static inline void arch_spin_relax(arch_spinlock_t *lock)
 {
 	arch_lock_relax(lock->lock);
 }
+#define arch_spin_relax		arch_spin_relax
 
 static inline u32 arch_spin_lockval(int cpu)
 {
@@ -256,10 +257,12 @@ static inline void arch_read_relax(arch_rwlock_t *rw)
 {
 	arch_lock_relax(rw->owner);
 }
+#define arch_read_relax		arch_read_relax
 
 static inline void arch_write_relax(arch_rwlock_t *rw)
 {
 	arch_lock_relax(rw->owner);
 }
+#define arch_write_relax	arch_write_relax
 
 #endif /* __ASM_SPINLOCK_H */

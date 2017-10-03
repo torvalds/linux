@@ -82,10 +82,6 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 	__raw_write_unlock_asm(&rw->lock);
 }
 
-#define arch_spin_relax(lock)  	cpu_relax()
-#define arch_read_relax(lock)	cpu_relax()
-#define arch_write_relax(lock)	cpu_relax()
-
 #endif
 
 #endif /*  !__BFIN_SPINLOCK_H */
