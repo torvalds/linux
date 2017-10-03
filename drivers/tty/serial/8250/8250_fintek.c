@@ -290,7 +290,7 @@ static void fintek_8250_goto_highspeed(struct uart_8250_port *uart,
 			F81866_UART_CLK_MASK,
 			F81866_UART_CLK_14_769MHZ);
 
-			uart->port.uartclk = 921600 * 16;
+		uart->port.uartclk = 921600 * 16;
 		break;
 	default: /* leave clock speed untouched */
 		break;
