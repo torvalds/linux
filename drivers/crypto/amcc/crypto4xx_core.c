@@ -176,7 +176,7 @@ u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx)
 	return 0;
 }
 
-void crypto4xx_free_state_record(struct crypto4xx_ctx *ctx)
+static void crypto4xx_free_state_record(struct crypto4xx_ctx *ctx)
 {
 	if (ctx->state_record != NULL)
 		dma_free_coherent(ctx->dev->core_dev->device,
@@ -322,10 +322,11 @@ static inline void crypto4xx_destroy_gdr(struct crypto4xx_device *dev)
  * when this function is called.
  * preemption or interrupt must be disabled
  */
-u32 crypto4xx_get_n_gd(struct crypto4xx_device *dev, int n)
+static u32 crypto4xx_get_n_gd(struct crypto4xx_device *dev, int n)
 {
 	u32 retval;
 	u32 tmp;
+
 	if (n >= PPC4XX_NUM_GD)
 		return ERING_WAS_FULL;
 
@@ -614,17 +615,6 @@ static void crypto4xx_stop_all(struct crypto4xx_core_device *core_dev)
 	iounmap(core_dev->dev->ce_base);
 	kfree(core_dev->dev);
 	kfree(core_dev);
-}
-
-void crypto4xx_return_pd(struct crypto4xx_device *dev,
-			 u32 pd_entry, struct ce_pd *pd,
-			 struct pd_uinfo *pd_uinfo)
-{
-	/* irq should be already disabled */
-	dev->pdr_head = pd_entry;
-	pd->pd_ctl.w = 0;
-	pd->pd_ctl_len.w = 0;
-	pd_uinfo->state = PD_ENTRY_FREE;
 }
 
 static u32 get_next_gd(u32 current)
