@@ -1210,6 +1210,29 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			}
 		}
 	} },
+
+	/* AEAD */
+	{ .type = CRYPTO_ALG_TYPE_AEAD, .u.aead = {
+		.setkey		= crypto4xx_setkey_aes_ccm,
+		.setauthsize	= crypto4xx_setauthsize_aead,
+		.encrypt	= crypto4xx_encrypt_aes_ccm,
+		.decrypt	= crypto4xx_decrypt_aes_ccm,
+		.init		= crypto4xx_aead_init,
+		.exit		= crypto4xx_aead_exit,
+		.ivsize		= AES_BLOCK_SIZE,
+		.maxauthsize    = 16,
+		.base = {
+			.cra_name	= "ccm(aes)",
+			.cra_driver_name = "ccm-aes-ppc4xx",
+			.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
+			.cra_flags	= CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_NEED_FALLBACK |
+					  CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize	= 1,
+			.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
+			.cra_module	= THIS_MODULE,
+		},
+	} },
 };
 
 /**

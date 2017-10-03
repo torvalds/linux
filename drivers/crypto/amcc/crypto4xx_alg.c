@@ -231,6 +231,191 @@ int crypto4xx_rfc3686_decrypt(struct ablkcipher_request *req)
 				  ctx->sa_out, ctx->sa_len, 0);
 }
 
+static inline bool crypto4xx_aead_need_fallback(struct aead_request *req,
+						bool is_ccm, bool decrypt)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+
+	/* authsize has to be a multiple of 4 */
+	if (aead->authsize & 3)
+		return true;
+
+	/*
+	 * hardware does not handle cases where cryptlen
+	 * is less than a block
+	 */
+	if (req->cryptlen < AES_BLOCK_SIZE)
+		return true;
+
+	/* assoc len needs to be a multiple of 4 */
+	if (req->assoclen & 0x3)
+		return true;
+
+	/* CCM supports only counter field length of 2 and 4 bytes */
+	if (is_ccm && !(req->iv[0] == 1 || req->iv[0] == 3))
+		return true;
+
+	/* CCM - fix CBC MAC mismatch in special case */
+	if (is_ccm && decrypt && !req->assoclen)
+		return true;
+
+	return false;
+}
+
+static int crypto4xx_aead_fallback(struct aead_request *req,
+	struct crypto4xx_ctx *ctx, bool do_decrypt)
+{
+	char aead_req_data[sizeof(struct aead_request) +
+			   crypto_aead_reqsize(ctx->sw_cipher.aead)]
+		__aligned(__alignof__(struct aead_request));
+
+	struct aead_request *subreq = (void *) aead_req_data;
+
+	memset(subreq, 0, sizeof(aead_req_data));
+
+	aead_request_set_tfm(subreq, ctx->sw_cipher.aead);
+	aead_request_set_callback(subreq, req->base.flags,
+				  req->base.complete, req->base.data);
+	aead_request_set_crypt(subreq, req->src, req->dst, req->cryptlen,
+			       req->iv);
+	aead_request_set_ad(subreq, req->assoclen);
+	return do_decrypt ? crypto_aead_decrypt(subreq) :
+			    crypto_aead_encrypt(subreq);
+}
+
+static int crypto4xx_setup_fallback(struct crypto4xx_ctx *ctx,
+				    struct crypto_aead *cipher,
+				    const u8 *key,
+				    unsigned int keylen)
+{
+	int rc;
+
+	crypto_aead_clear_flags(ctx->sw_cipher.aead, CRYPTO_TFM_REQ_MASK);
+	crypto_aead_set_flags(ctx->sw_cipher.aead,
+		crypto_aead_get_flags(cipher) & CRYPTO_TFM_REQ_MASK);
+	rc = crypto_aead_setkey(ctx->sw_cipher.aead, key, keylen);
+	crypto_aead_clear_flags(cipher, CRYPTO_TFM_RES_MASK);
+	crypto_aead_set_flags(cipher,
+		crypto_aead_get_flags(ctx->sw_cipher.aead) &
+			CRYPTO_TFM_RES_MASK);
+
+	return rc;
+}
+
+/**
+ * AES-CCM Functions
+ */
+
+int crypto4xx_setkey_aes_ccm(struct crypto_aead *cipher, const u8 *key,
+			     unsigned int keylen)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(cipher);
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct dynamic_sa_ctl *sa;
+	int rc = 0;
+
+	rc = crypto4xx_setup_fallback(ctx, cipher, key, keylen);
+	if (rc)
+		return rc;
+
+	if (ctx->sa_in || ctx->sa_out)
+		crypto4xx_free_sa(ctx);
+
+	rc = crypto4xx_alloc_sa(ctx, SA_AES128_CCM_LEN + (keylen - 16) / 4);
+	if (rc)
+		return rc;
+
+	/* Setup SA */
+	sa = (struct dynamic_sa_ctl *) ctx->sa_in;
+	sa->sa_contents.w = SA_AES_CCM_CONTENTS | (keylen << 2);
+
+	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, SA_NOT_SAVE_IV,
+				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
+				 SA_NO_HEADER_PROC, SA_HASH_ALG_CBC_MAC,
+				 SA_CIPHER_ALG_AES,
+				 SA_PAD_TYPE_ZERO, SA_OP_GROUP_BASIC,
+				 SA_OPCODE_HASH_DECRYPT, DIR_INBOUND);
+
+	set_dynamic_sa_command_1(sa, CRYPTO_MODE_CTR, SA_HASH_MODE_HASH,
+				 CRYPTO_FEEDBACK_MODE_NO_FB, SA_EXTENDED_SN_OFF,
+				 SA_SEQ_MASK_OFF, SA_MC_ENABLE,
+				 SA_NOT_COPY_PAD, SA_COPY_PAYLOAD,
+				 SA_NOT_COPY_HDR);
+
+	sa->sa_command_1.bf.key_len = keylen >> 3;
+
+	crypto4xx_memcpy_to_le32(get_dynamic_sa_key_field(sa), key, keylen);
+
+	memcpy(ctx->sa_out, ctx->sa_in, ctx->sa_len * 4);
+	sa = (struct dynamic_sa_ctl *) ctx->sa_out;
+
+	set_dynamic_sa_command_0(sa, SA_SAVE_HASH, SA_NOT_SAVE_IV,
+				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
+				 SA_NO_HEADER_PROC, SA_HASH_ALG_CBC_MAC,
+				 SA_CIPHER_ALG_AES,
+				 SA_PAD_TYPE_ZERO, SA_OP_GROUP_BASIC,
+				 SA_OPCODE_ENCRYPT_HASH, DIR_OUTBOUND);
+
+	set_dynamic_sa_command_1(sa, CRYPTO_MODE_CTR, SA_HASH_MODE_HASH,
+				 CRYPTO_FEEDBACK_MODE_NO_FB, SA_EXTENDED_SN_OFF,
+				 SA_SEQ_MASK_OFF, SA_MC_ENABLE,
+				 SA_COPY_PAD, SA_COPY_PAYLOAD,
+				 SA_NOT_COPY_HDR);
+
+	sa->sa_command_1.bf.key_len = keylen >> 3;
+	return 0;
+}
+
+static int crypto4xx_crypt_aes_ccm(struct aead_request *req, bool decrypt)
+{
+	struct crypto4xx_ctx *ctx  = crypto_tfm_ctx(req->base.tfm);
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	unsigned int len = req->cryptlen;
+	__le32 iv[16];
+	u32 tmp_sa[ctx->sa_len * 4];
+	struct dynamic_sa_ctl *sa = (struct dynamic_sa_ctl *)tmp_sa;
+
+	if (crypto4xx_aead_need_fallback(req, true, decrypt))
+		return crypto4xx_aead_fallback(req, ctx, decrypt);
+
+	if (decrypt)
+		len -= crypto_aead_authsize(aead);
+
+	memcpy(tmp_sa, decrypt ? ctx->sa_in : ctx->sa_out, sizeof(tmp_sa));
+	sa->sa_command_0.bf.digest_len = crypto_aead_authsize(aead) >> 2;
+
+	if (req->iv[0] == 1) {
+		/* CRYPTO_MODE_AES_ICM */
+		sa->sa_command_1.bf.crypto_mode9_8 = 1;
+	}
+
+	iv[3] = cpu_to_le32(0);
+	crypto4xx_memcpy_to_le32(iv, req->iv, 16 - (req->iv[0] + 1));
+
+	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
+				  len, iv, sizeof(iv),
+				  sa, ctx->sa_len, req->assoclen);
+}
+
+int crypto4xx_encrypt_aes_ccm(struct aead_request *req)
+{
+	return crypto4xx_crypt_aes_ccm(req, false);
+}
+
+int crypto4xx_decrypt_aes_ccm(struct aead_request *req)
+{
+	return crypto4xx_crypt_aes_ccm(req, true);
+}
+
+int crypto4xx_setauthsize_aead(struct crypto_aead *cipher,
+			       unsigned int authsize)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(cipher);
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	return crypto_aead_setauthsize(ctx->sw_cipher.aead, authsize);
+}
+
 /**
  * HASH SHA1 Functions
  */

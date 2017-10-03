@@ -222,4 +222,12 @@ static inline void crypto4xx_memcpy_to_le32(__le32 *dst, const void *buf,
 {
 	crypto4xx_memcpy_swab32((u32 *)dst, buf, len);
 }
+
+int crypto4xx_setauthsize_aead(struct crypto_aead *ciper,
+			       unsigned int authsize);
+int crypto4xx_setkey_aes_ccm(struct crypto_aead *cipher,
+			     const u8 *key, unsigned int keylen);
+int crypto4xx_encrypt_aes_ccm(struct aead_request *req);
+int crypto4xx_decrypt_aes_ccm(struct aead_request *req);
+
 #endif
