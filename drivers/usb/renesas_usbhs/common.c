@@ -486,6 +486,10 @@ static const struct of_device_id usbhs_of_match[] = {
 		.data = (void *)USBHS_TYPE_RCAR_GEN3,
 	},
 	{
+		.compatible = "renesas,usbhs-r8a77995",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3_WITH_PLL,
+	},
+	{
 		.compatible = "renesas,rcar-gen2-usbhs",
 		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
@@ -519,7 +523,8 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 		dparam->enable_gpio = gpio;
 
 	if (dparam->type == USBHS_TYPE_RCAR_GEN2 ||
-	    dparam->type == USBHS_TYPE_RCAR_GEN3) {
+	    dparam->type == USBHS_TYPE_RCAR_GEN3 ||
+	    dparam->type == USBHS_TYPE_RCAR_GEN3_WITH_PLL) {
 		dparam->has_usb_dmac = 1;
 		dparam->pipe_configs = usbhsc_new_pipe;
 		dparam->pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
@@ -583,6 +588,9 @@ static int usbhs_probe(struct platform_device *pdev)
 		break;
 	case USBHS_TYPE_RCAR_GEN3:
 		priv->pfunc = usbhs_rcar3_ops;
+		break;
+	case USBHS_TYPE_RCAR_GEN3_WITH_PLL:
+		priv->pfunc = usbhs_rcar3_with_pll_ops;
 		break;
 	default:
 		if (!info->platform_callback.get_id) {

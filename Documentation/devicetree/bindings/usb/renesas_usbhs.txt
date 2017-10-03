@@ -10,6 +10,7 @@ Required properties:
 	- "renesas,usbhs-r8a7794" for r8a7794 (R-Car E2) compatible device
 	- "renesas,usbhs-r8a7795" for r8a7795 (R-Car H3) compatible device
 	- "renesas,usbhs-r8a7796" for r8a7796 (R-Car M3-W) compatible device
+	- "renesas,usbhs-r8a77995" for r8a77995 (R-Car D3) compatible device
 	- "renesas,rcar-gen2-usbhs" for R-Car Gen2 compatible device
 	- "renesas,rcar-gen3-usbhs" for R-Car Gen3 compatible device
 
