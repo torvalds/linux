@@ -122,6 +122,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_RESET_ASSOC	120
 #define SCTP_ADD_STREAMS	121
 #define SCTP_SOCKOPT_PEELOFF_FLAGS 122
+#define SCTP_STREAM_SCHEDULER	123
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000

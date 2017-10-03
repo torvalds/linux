@@ -79,6 +79,7 @@
 #include <net/sock.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
+#include <net/sctp/stream_sched.h>
 
 /* Forward declarations for internal helper functions. */
 static int sctp_writeable(struct sock *sk);
@@ -3914,6 +3915,36 @@ out:
 	return retval;
 }
 
+static int sctp_setsockopt_scheduler(struct sock *sk,
+				     char __user *optval,
+				     unsigned int optlen)
+{
+	struct sctp_association *asoc;
+	struct sctp_assoc_value params;
+	int retval = -EINVAL;
+
+	if (optlen < sizeof(params))
+		goto out;
+
+	optlen = sizeof(params);
+	if (copy_from_user(&params, optval, optlen)) {
+		retval = -EFAULT;
+		goto out;
+	}
+
+	if (params.assoc_value > SCTP_SS_MAX)
+		goto out;
+
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc)
+		goto out;
+
+	retval = sctp_sched_set_sched(asoc, params.assoc_value);
+
+out:
+	return retval;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -4094,6 +4125,9 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_ADD_STREAMS:
 		retval = sctp_setsockopt_add_streams(sk, optval, optlen);
+		break;
+	case SCTP_STREAM_SCHEDULER:
+		retval = sctp_setsockopt_scheduler(sk, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
@@ -6793,6 +6827,43 @@ out:
 	return retval;
 }
 
+static int sctp_getsockopt_scheduler(struct sock *sk, int len,
+				     char __user *optval,
+				     int __user *optlen)
+{
+	struct sctp_assoc_value params;
+	struct sctp_association *asoc;
+	int retval = -EFAULT;
+
+	if (len < sizeof(params)) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	len = sizeof(params);
+	if (copy_from_user(&params, optval, len))
+		goto out;
+
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	params.assoc_value = sctp_sched_get_sched(asoc);
+
+	if (put_user(len, optlen))
+		goto out;
+
+	if (copy_to_user(optval, &params, len))
+		goto out;
+
+	retval = 0;
+
+out:
+	return retval;
+}
+
 static int sctp_getsockopt(struct sock *sk, int level, int optname,
 			   char __user *optval, int __user *optlen)
 {
@@ -6974,6 +7045,10 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_ENABLE_STREAM_RESET:
 		retval = sctp_getsockopt_enable_strreset(sk, len, optval,
 							 optlen);
+		break;
+	case SCTP_STREAM_SCHEDULER:
+		retval = sctp_getsockopt_scheduler(sk, len, optval,
+						   optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
