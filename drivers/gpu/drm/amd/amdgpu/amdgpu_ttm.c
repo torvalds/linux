@@ -290,97 +290,168 @@ static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 	return addr;
 }
 
-static int amdgpu_move_blit(struct ttm_buffer_object *bo,
-			    bool evict, bool no_wait_gpu,
-			    struct ttm_mem_reg *new_mem,
-			    struct ttm_mem_reg *old_mem)
+/**
+ * amdgpu_ttm_copy_mem_to_mem - Helper function for copy
+ *
+ * The function copies @size bytes from {src->mem + src->offset} to
+ * {dst->mem + dst->offset}. src->bo and dst->bo could be same BO for a
+ * move and different for a BO to BO copy.
+ *
+ * @f: Returns the last fence if multiple jobs are submitted.
+ */
+int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
+			       struct amdgpu_copy_mem *src,
+			       struct amdgpu_copy_mem *dst,
+			       uint64_t size,
+			       struct reservation_object *resv,
+			       struct dma_fence **f)
 {
-	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
-
-	struct drm_mm_node *old_mm, *new_mm;
-	uint64_t old_start, old_size, new_start, new_size;
-	unsigned long num_pages;
+	struct drm_mm_node *src_mm, *dst_mm;
+	uint64_t src_node_start, dst_node_start, src_node_size,
+		 dst_node_size, src_page_offset, dst_page_offset;
 	struct dma_fence *fence = NULL;
-	int r;
-
-	BUILD_BUG_ON((PAGE_SIZE % AMDGPU_GPU_PAGE_SIZE) != 0);
+	int r = 0;
+	const uint64_t GTT_MAX_BYTES = (AMDGPU_GTT_MAX_TRANSFER_SIZE *
+					AMDGPU_GPU_PAGE_SIZE);
 
 	if (!ring->ready) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
 		return -EINVAL;
 	}
 
-	old_mm = old_mem->mm_node;
-	old_size = old_mm->size;
-	old_start = amdgpu_mm_node_addr(bo, old_mm, old_mem);
+	src_mm = src->mem->mm_node;
+	while (src->offset >= (src_mm->size << PAGE_SHIFT)) {
+		src->offset -= (src_mm->size << PAGE_SHIFT);
+		++src_mm;
+	}
+	src_node_start = amdgpu_mm_node_addr(src->bo, src_mm, src->mem) +
+					     src->offset;
+	src_node_size = (src_mm->size << PAGE_SHIFT) - src->offset;
+	src_page_offset = src_node_start & (PAGE_SIZE - 1);
 
-	new_mm = new_mem->mm_node;
-	new_size = new_mm->size;
-	new_start = amdgpu_mm_node_addr(bo, new_mm, new_mem);
+	dst_mm = dst->mem->mm_node;
+	while (dst->offset >= (dst_mm->size << PAGE_SHIFT)) {
+		dst->offset -= (dst_mm->size << PAGE_SHIFT);
+		++dst_mm;
+	}
+	dst_node_start = amdgpu_mm_node_addr(dst->bo, dst_mm, dst->mem) +
+					     dst->offset;
+	dst_node_size = (dst_mm->size << PAGE_SHIFT) - dst->offset;
+	dst_page_offset = dst_node_start & (PAGE_SIZE - 1);
 
-	num_pages = new_mem->num_pages;
 	mutex_lock(&adev->mman.gtt_window_lock);
-	while (num_pages) {
-		unsigned long cur_pages = min(min(old_size, new_size),
-					      (u64)AMDGPU_GTT_MAX_TRANSFER_SIZE);
-		uint64_t from = old_start, to = new_start;
+
+	while (size) {
+		unsigned long cur_size;
+		uint64_t from = src_node_start, to = dst_node_start;
 		struct dma_fence *next;
 
-		if (old_mem->mem_type == TTM_PL_TT &&
-		    !amdgpu_gtt_mgr_is_allocated(old_mem)) {
-			r = amdgpu_map_buffer(bo, old_mem, cur_pages,
-					      old_start, 0, ring, &from);
+		/* Copy size cannot exceed GTT_MAX_BYTES. So if src or dst
+		 * begins at an offset, then adjust the size accordingly
+		 */
+		cur_size = min3(min(src_node_size, dst_node_size), size,
+				GTT_MAX_BYTES);
+		if (cur_size + src_page_offset > GTT_MAX_BYTES ||
+		    cur_size + dst_page_offset > GTT_MAX_BYTES)
+			cur_size -= max(src_page_offset, dst_page_offset);
+
+		/* Map only what needs to be accessed. Map src to window 0 and
+		 * dst to window 1
+		 */
+		if (src->mem->mem_type == TTM_PL_TT &&
+		    !amdgpu_gtt_mgr_is_allocated(src->mem)) {
+			r = amdgpu_map_buffer(src->bo, src->mem,
+					PFN_UP(cur_size + src_page_offset),
+					src_node_start, 0, ring,
+					&from);
 			if (r)
 				goto error;
+			/* Adjust the offset because amdgpu_map_buffer returns
+			 * start of mapped page
+			 */
+			from += src_page_offset;
 		}
 
-		if (new_mem->mem_type == TTM_PL_TT &&
-		    !amdgpu_gtt_mgr_is_allocated(new_mem)) {
-			r = amdgpu_map_buffer(bo, new_mem, cur_pages,
-					      new_start, 1, ring, &to);
+		if (dst->mem->mem_type == TTM_PL_TT &&
+		    !amdgpu_gtt_mgr_is_allocated(dst->mem)) {
+			r = amdgpu_map_buffer(dst->bo, dst->mem,
+					PFN_UP(cur_size + dst_page_offset),
+					dst_node_start, 1, ring,
+					&to);
 			if (r)
 				goto error;
+			to += dst_page_offset;
 		}
 
-		r = amdgpu_copy_buffer(ring, from, to,
-				       cur_pages * PAGE_SIZE,
-				       bo->resv, &next, false, true);
+		r = amdgpu_copy_buffer(ring, from, to, cur_size,
+				       resv, &next, false, true);
 		if (r)
 			goto error;
 
 		dma_fence_put(fence);
 		fence = next;
 
-		num_pages -= cur_pages;
-		if (!num_pages)
+		size -= cur_size;
+		if (!size)
 			break;
 
-		old_size -= cur_pages;
-		if (!old_size) {
-			old_start = amdgpu_mm_node_addr(bo, ++old_mm, old_mem);
-			old_size = old_mm->size;
+		src_node_size -= cur_size;
+		if (!src_node_size) {
+			src_node_start = amdgpu_mm_node_addr(src->bo, ++src_mm,
+							     src->mem);
+			src_node_size = (src_mm->size << PAGE_SHIFT);
 		} else {
-			old_start += cur_pages * PAGE_SIZE;
+			src_node_start += cur_size;
+			src_page_offset = src_node_start & (PAGE_SIZE - 1);
 		}
-
-		new_size -= cur_pages;
-		if (!new_size) {
-			new_start = amdgpu_mm_node_addr(bo, ++new_mm, new_mem);
-			new_size = new_mm->size;
+		dst_node_size -= cur_size;
+		if (!dst_node_size) {
+			dst_node_start = amdgpu_mm_node_addr(dst->bo, ++dst_mm,
+							     dst->mem);
+			dst_node_size = (dst_mm->size << PAGE_SHIFT);
 		} else {
-			new_start += cur_pages * PAGE_SIZE;
+			dst_node_start += cur_size;
+			dst_page_offset = dst_node_start & (PAGE_SIZE - 1);
 		}
 	}
+error:
 	mutex_unlock(&adev->mman.gtt_window_lock);
+	if (f)
+		*f = dma_fence_get(fence);
+	dma_fence_put(fence);
+	return r;
+}
+
+
+static int amdgpu_move_blit(struct ttm_buffer_object *bo,
+			    bool evict, bool no_wait_gpu,
+			    struct ttm_mem_reg *new_mem,
+			    struct ttm_mem_reg *old_mem)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
+	struct amdgpu_copy_mem src, dst;
+	struct dma_fence *fence = NULL;
+	int r;
+
+	src.bo = bo;
+	dst.bo = bo;
+	src.mem = old_mem;
+	dst.mem = new_mem;
+	src.offset = 0;
+	dst.offset = 0;
+
+	r = amdgpu_ttm_copy_mem_to_mem(adev, &src, &dst,
+				       new_mem->num_pages << PAGE_SHIFT,
+				       bo->resv, &fence);
+	if (r)
+		goto error;
 
 	r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
 	dma_fence_put(fence);
 	return r;
 
 error:
-	mutex_unlock(&adev->mman.gtt_window_lock);
-
 	if (fence)
 		dma_fence_wait(fence, false);
 	dma_fence_put(fence);
