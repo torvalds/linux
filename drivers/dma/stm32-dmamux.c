@@ -257,8 +257,8 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	iomem = devm_ioremap_resource(&pdev->dev, res);
-	if (!iomem)
-		return -ENOMEM;
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
 
 	spin_lock_init(&stm32_dmamux->lock);
 
