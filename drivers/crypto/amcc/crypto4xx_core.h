@@ -44,7 +44,8 @@
 #define PPC4XX_LAST_SD				(PPC4XX_NUM_SD - 1)
 #define PPC4XX_SD_BUFFER_SIZE			2048
 
-#define PD_ENTRY_INUSE				1
+#define PD_ENTRY_BUSY				BIT(1)
+#define PD_ENTRY_INUSE				BIT(0)
 #define PD_ENTRY_FREE				0
 #define ERING_WAS_FULL				0xffffffff
 
