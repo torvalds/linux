@@ -252,6 +252,16 @@ static void sym_check_prop(struct symbol *sym)
 					    "'%s': number is invalid",
 					    sym->name);
 			}
+			if (sym_is_choice(sym)) {
+				struct property *choice_prop =
+					sym_get_choice_prop(sym2);
+
+				if (!choice_prop ||
+				    prop_get_symbol(choice_prop) != sym)
+					prop_warn(prop,
+						  "choice default symbol '%s' is not contained in the choice",
+						  sym2->name);
+			}
 			break;
 		case P_SELECT:
 		case P_IMPLY:
