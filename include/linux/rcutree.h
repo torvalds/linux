@@ -85,7 +85,6 @@ void rcu_irq_enter(void);
 void rcu_irq_exit(void);
 void rcu_irq_enter_irqson(void);
 void rcu_irq_exit_irqson(void);
-bool rcu_irq_enter_disabled(void);
 
 void exit_rcu(void);
 

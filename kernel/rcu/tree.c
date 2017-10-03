@@ -271,20 +271,6 @@ static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 };
 
 /*
- * There's a few places, currently just in the tracing infrastructure,
- * that uses rcu_irq_enter() to make sure RCU is watching. But there's
- * a small location where that will not even work. In those cases
- * rcu_irq_enter_disabled() needs to be checked to make sure rcu_irq_enter()
- * can be called.
- */
-static DEFINE_PER_CPU(bool, disable_rcu_irq_enter);
-
-bool rcu_irq_enter_disabled(void)
-{
-	return this_cpu_read(disable_rcu_irq_enter);
-}
-
-/*
  * Record entry into an extended quiescent state.  This is only to be
  * called when not already in an extended quiescent state.
  */
@@ -792,10 +778,8 @@ static void rcu_eqs_enter_common(bool user)
 		do_nocb_deferred_wakeup(rdp);
 	}
 	rcu_prepare_for_idle();
-	__this_cpu_inc(disable_rcu_irq_enter);
-	rdtp->dynticks_nesting = 0; /* Breaks tracing momentarily. */
-	rcu_dynticks_eqs_enter(); /* After this, tracing works again. */
-	__this_cpu_dec(disable_rcu_irq_enter);
+	rdtp->dynticks_nesting = 0;
+	rcu_dynticks_eqs_enter();
 	rcu_dynticks_task_enter();
 
 	/*
@@ -1001,10 +985,8 @@ static void rcu_eqs_exit(bool user)
 	if (oldval) {
 		rdtp->dynticks_nesting++;
 	} else {
-		__this_cpu_inc(disable_rcu_irq_enter);
 		rcu_eqs_exit_common(1, user);
 		rdtp->dynticks_nesting = 1;
-		__this_cpu_dec(disable_rcu_irq_enter);
 		WRITE_ONCE(rdtp->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
 	}
 }
