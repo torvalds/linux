@@ -502,10 +502,6 @@ in your dentry operations instead.
 	store it as cookie.
 --
 [mandatory]
-	__fd_install() & fd_install() can now sleep. Callers should not
-	hold a spinlock	or other resources that do not allow a schedule.
---
-[mandatory]
 	any symlink that might use page_follow_link_light/page_put_link() must
 	have inode_nohighmem(inode) called before anything might start playing with
 	its pagecache.  No highmem pages should end up in the pagecache of such
