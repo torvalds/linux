@@ -121,16 +121,17 @@ int ssi_power_mgr_init(struct ssi_drvdata *drvdata)
 {
 	int rc = 0;
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-	struct platform_device *plat_dev = drvdata->plat_dev;
+	struct device *dev = drvdata_to_dev(drvdata);
+
 	/* must be before the enabling to avoid resdundent suspending */
-	pm_runtime_set_autosuspend_delay(&plat_dev->dev, SSI_SUSPEND_TIMEOUT);
-	pm_runtime_use_autosuspend(&plat_dev->dev);
+	pm_runtime_set_autosuspend_delay(dev, SSI_SUSPEND_TIMEOUT);
+	pm_runtime_use_autosuspend(dev);
 	/* activate the PM module */
-	rc = pm_runtime_set_active(&plat_dev->dev);
+	rc = pm_runtime_set_active(dev);
 	if (rc != 0)
 		return rc;
 	/* enable the PM module*/
-	pm_runtime_enable(&plat_dev->dev);
+	pm_runtime_enable(dev);
 #endif
 	return rc;
 }
@@ -138,8 +139,6 @@ int ssi_power_mgr_init(struct ssi_drvdata *drvdata)
 void ssi_power_mgr_fini(struct ssi_drvdata *drvdata)
 {
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-	struct platform_device *plat_dev = drvdata->plat_dev;
-
-	pm_runtime_disable(&plat_dev->dev);
+	pm_runtime_disable(drvdata_to_dev(drvdata));
 #endif
 }

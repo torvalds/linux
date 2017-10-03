@@ -229,14 +229,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	u32 signature_val;
 	int rc = 0;
 
-	new_drvdata = devm_kzalloc(&plat_dev->dev, sizeof(*new_drvdata),
-				   GFP_KERNEL);
+	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
 	if (!new_drvdata) {
 		SSI_LOG_ERR("Failed to allocate drvdata");
 		rc = -ENOMEM;
 		goto post_drvdata_err;
 	}
-	dev_set_drvdata(&plat_dev->dev, new_drvdata);
+	dev_set_drvdata(dev, new_drvdata);
 	new_drvdata->plat_dev = plat_dev;
 
 	new_drvdata->clk = of_clk_get(np, 0);
@@ -246,8 +245,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	/* First CC registers space */
 	req_mem_cc_regs = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
 	/* Map registers space */
-	new_drvdata->cc_base = devm_ioremap_resource(&plat_dev->dev,
-						     req_mem_cc_regs);
+	new_drvdata->cc_base = devm_ioremap_resource(dev, req_mem_cc_regs);
 	if (IS_ERR(new_drvdata->cc_base)) {
 		SSI_LOG_ERR("Failed to ioremap registers");
 		rc = PTR_ERR(new_drvdata->cc_base);
@@ -271,7 +269,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_drvdata_err;
 	}
 
-	rc = devm_request_irq(&plat_dev->dev, new_drvdata->irq, cc_isr,
+	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
 			      IRQF_SHARED, "arm_cc7x", new_drvdata);
 	if (rc) {
 		SSI_LOG_ERR("Could not register to interrupt %d\n",
@@ -284,11 +282,11 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (rc)
 		goto post_drvdata_err;
 
-	if (!new_drvdata->plat_dev->dev.dma_mask)
-		new_drvdata->plat_dev->dev.dma_mask = &new_drvdata->plat_dev->dev.coherent_dma_mask;
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
 
-	if (!new_drvdata->plat_dev->dev.coherent_dma_mask)
-		new_drvdata->plat_dev->dev.coherent_dma_mask = DMA_BIT_MASK(DMA_BIT_MASK_LEN);
+	if (!dev->coherent_dma_mask)
+		dev->coherent_dma_mask = DMA_BIT_MASK(DMA_BIT_MASK_LEN);
 
 	/* Verify correct mapping */
 	signature_val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_SIGNATURE));
@@ -311,7 +309,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 #ifdef ENABLE_CC_SYSFS
-	rc = ssi_sysfs_init(&plat_dev->dev.kobj, new_drvdata);
+	rc = ssi_sysfs_init(&dev->kobj, new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("init_stat_db failed\n");
 		goto post_regs_err;
@@ -415,7 +413,7 @@ post_clk_err:
 	cc_clk_off(new_drvdata);
 post_drvdata_err:
 	SSI_LOG_ERR("ccree init error occurred!\n");
-	dev_set_drvdata(&plat_dev->dev, NULL);
+	dev_set_drvdata(dev, NULL);
 	return rc;
 }
 

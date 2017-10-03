@@ -92,13 +92,12 @@ static inline bool valid_assoclen(struct aead_request *req)
 
 static void ssi_aead_exit(struct crypto_aead *tfm)
 {
-	struct device *dev = NULL;
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	SSI_LOG_DEBUG("Clearing context @%p for %s\n",
 		      crypto_aead_ctx(tfm), crypto_tfm_alg_name(&tfm->base));
 
-	dev = &ctx->drvdata->plat_dev->dev;
 	/* Unmap enckey buffer */
 	if (ctx->enckey) {
 		dma_free_coherent(dev, AES_MAX_KEY_SIZE, ctx->enckey, ctx->enckey_dma_addr);
@@ -146,11 +145,12 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 
 static int ssi_aead_init(struct crypto_aead *tfm)
 {
-	struct device *dev;
 	struct aead_alg *alg = crypto_aead_alg(tfm);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct ssi_crypto_alg *ssi_alg =
 			container_of(alg, struct ssi_crypto_alg, aead_alg);
+	struct device *dev = drvdata_to_dev(ssi_alg->drvdata);
+
 	SSI_LOG_DEBUG("Initializing context @%p for %s\n", ctx, crypto_tfm_alg_name(&tfm->base));
 
 	/* Initialize modes in instance */
@@ -158,7 +158,6 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 	ctx->flow_mode = ssi_alg->flow_mode;
 	ctx->auth_mode = ssi_alg->auth_mode;
 	ctx->drvdata = ssi_alg->drvdata;
-	dev = &ctx->drvdata->plat_dev->dev;
 	crypto_aead_set_reqsize(tfm, sizeof(struct aead_req_ctx));
 
 	/* Allocate key buffer, cache line aligned */
@@ -426,7 +425,7 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 {
 	dma_addr_t key_dma_addr = 0;
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	u32 larval_addr = ssi_ahash_get_larval_digest_sram_addr(
 					ctx->drvdata, ctx->auth_mode);
 	struct ssi_crypto_req ssi_req = {};
@@ -1952,7 +1951,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct ssi_crypto_req ssi_req = {};
 
 	SSI_LOG_DEBUG("%s context=%p req=%p iv=%p src=%p src_ofs=%d dst=%p dst_ofs=%d cryptolen=%d\n",

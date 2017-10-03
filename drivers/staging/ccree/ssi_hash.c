@@ -414,7 +414,7 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 			   unsigned int nbytes, u8 *result,
 			   void *async_req)
 {
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	bool is_hmac = ctx->is_hmac;
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
@@ -579,7 +579,7 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 			   unsigned int nbytes,
 			   void *async_req)
 {
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	u32 idx = 0;
@@ -676,7 +676,7 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 			  u8 *result,
 			  void *async_req)
 {
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	bool is_hmac = ctx->is_hmac;
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
@@ -810,7 +810,7 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 			  u8 *result,
 			  void *async_req)
 {
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	bool is_hmac = ctx->is_hmac;
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
@@ -948,7 +948,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 
 static int ssi_hash_init(struct ahash_req_ctx *state, struct ssi_hash_ctx *ctx)
 {
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	state->xcbc_count = 0;
 
@@ -970,10 +970,12 @@ static int ssi_hash_setkey(void *hash,
 	int i, idx = 0, rc = 0;
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	ssi_sram_addr_t larval_addr;
+	struct device *dev;
 
 	 SSI_LOG_DEBUG("start keylen: %d", keylen);
 
 	ctx = crypto_ahash_ctx(((struct crypto_ahash *)hash));
+	dev = drvdata_to_dev(ctx->drvdata);
 	blocksize = crypto_tfm_alg_blocksize(&((struct crypto_ahash *)hash)->base);
 	digestsize = crypto_ahash_digestsize(((struct crypto_ahash *)hash));
 
@@ -989,10 +991,9 @@ static int ssi_hash_setkey(void *hash,
 
 	if (keylen != 0) {
 		ctx->key_params.key_dma_addr = dma_map_single(
-						&ctx->drvdata->plat_dev->dev,
-						(void *)key,
+						dev, (void *)key,
 						keylen, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(&ctx->drvdata->plat_dev->dev,
+		if (unlikely(dma_mapping_error(dev,
 					       ctx->key_params.key_dma_addr))) {
 			SSI_LOG_ERR("Mapping key va=0x%p len=%u for"
 				   " DMA failed\n", key, keylen);
@@ -1139,8 +1140,7 @@ out:
 		crypto_ahash_set_flags((struct crypto_ahash *)hash, CRYPTO_TFM_RES_BAD_KEY_LEN);
 
 	if (ctx->key_params.key_dma_addr) {
-		dma_unmap_single(&ctx->drvdata->plat_dev->dev,
-				 ctx->key_params.key_dma_addr,
+		dma_unmap_single(dev, ctx->key_params.key_dma_addr,
 				 ctx->key_params.keylen, DMA_TO_DEVICE);
 		SSI_LOG_DEBUG("Unmapped key-buffer: key_dma_addr=%pad keylen=%u\n",
 			      ctx->key_params.key_dma_addr,
@@ -1154,6 +1154,7 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 {
 	struct ssi_crypto_req ssi_req = {};
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	int idx = 0, rc = 0;
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 
@@ -1171,11 +1172,9 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 	ctx->key_params.keylen = keylen;
 
 	ctx->key_params.key_dma_addr = dma_map_single(
-					&ctx->drvdata->plat_dev->dev,
-					(void *)key,
+					dev, (void *)key,
 					keylen, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(&ctx->drvdata->plat_dev->dev,
-				       ctx->key_params.key_dma_addr))) {
+	if (unlikely(dma_mapping_error(dev, ctx->key_params.key_dma_addr))) {
 		SSI_LOG_ERR("Mapping key va=0x%p len=%u for"
 			   " DMA failed\n", key, keylen);
 		return -ENOMEM;
@@ -1226,8 +1225,7 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 	if (rc != 0)
 		crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
 
-	dma_unmap_single(&ctx->drvdata->plat_dev->dev,
-			 ctx->key_params.key_dma_addr,
+	dma_unmap_single(dev, ctx->key_params.key_dma_addr,
 			 ctx->key_params.keylen, DMA_TO_DEVICE);
 	SSI_LOG_DEBUG("Unmapped key-buffer: key_dma_addr=%pad keylen=%u\n",
 		      ctx->key_params.key_dma_addr,
@@ -1241,6 +1239,7 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 			   const u8 *key, unsigned int keylen)
 {
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	SSI_LOG_DEBUG("===== setkey (%d) ====\n", keylen);
 
@@ -1259,16 +1258,14 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 
 	/* STAT_PHASE_1: Copy key to ctx */
 
-	dma_sync_single_for_cpu(&ctx->drvdata->plat_dev->dev,
-				ctx->opad_tmp_keys_dma_addr,
+	dma_sync_single_for_cpu(dev, ctx->opad_tmp_keys_dma_addr,
 				keylen, DMA_TO_DEVICE);
 
 	memcpy(ctx->opad_tmp_keys_buff, key, keylen);
 	if (keylen == 24)
 		memset(ctx->opad_tmp_keys_buff + 24, 0, CC_AES_KEY_SIZE_MAX - 24);
 
-	dma_sync_single_for_device(&ctx->drvdata->plat_dev->dev,
-				   ctx->opad_tmp_keys_dma_addr,
+	dma_sync_single_for_device(dev, ctx->opad_tmp_keys_dma_addr,
 				   keylen, DMA_TO_DEVICE);
 
 	ctx->key_params.keylen = keylen;
@@ -1279,7 +1276,7 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 
 static void ssi_hash_free_ctx(struct ssi_hash_ctx *ctx)
 {
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	if (ctx->digest_buff_dma_addr != 0) {
 		dma_unmap_single(dev, ctx->digest_buff_dma_addr,
@@ -1304,7 +1301,7 @@ static void ssi_hash_free_ctx(struct ssi_hash_ctx *ctx)
 
 static int ssi_hash_alloc_ctx(struct ssi_hash_ctx *ctx)
 {
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	ctx->key_params.keylen = 0;
 
@@ -1371,7 +1368,7 @@ static int ssi_mac_update(struct ahash_request *req)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	unsigned int block_size = crypto_tfm_alg_blocksize(&tfm->base);
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
@@ -1431,7 +1428,7 @@ static int ssi_mac_final(struct ahash_request *req)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
@@ -1542,7 +1539,7 @@ static int ssi_mac_finup(struct ahash_request *req)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
@@ -1613,7 +1610,7 @@ static int ssi_mac_digest(struct ahash_request *req)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
@@ -1737,7 +1734,7 @@ static int ssi_ahash_export(struct ahash_request *req, void *out)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	u8 *curr_buff = state->buff_index ? state->buff1 : state->buff0;
 	u32 curr_buff_cnt = state->buff_index ? state->buff1_cnt :
@@ -1778,7 +1775,7 @@ static int ssi_ahash_import(struct ahash_request *req, const void *in)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct device *dev = &ctx->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	u32 tmp;
 	int rc;

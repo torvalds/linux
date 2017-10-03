@@ -181,7 +181,7 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 	struct crypto_alg *alg = tfm->__crt_alg;
 	struct ssi_crypto_alg *ssi_alg =
 			container_of(alg, struct ssi_crypto_alg, crypto_alg);
-	struct device *dev;
+	struct device *dev = drvdata_to_dev(ssi_alg->drvdata);
 	int rc = 0;
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 
@@ -191,7 +191,6 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 	ctx_p->cipher_mode = ssi_alg->cipher_mode;
 	ctx_p->flow_mode = ssi_alg->flow_mode;
 	ctx_p->drvdata = ssi_alg->drvdata;
-	dev = &ctx_p->drvdata->plat_dev->dev;
 
 	/* Allocate key buffer, cache line aligned */
 	ctx_p->user.key = kmalloc(max_key_buf_size, GFP_KERNEL | GFP_DMA);
@@ -230,7 +229,7 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
-	struct device *dev = &ctx_p->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 
 	SSI_LOG_DEBUG("Clearing context @%p for %s\n",
@@ -298,7 +297,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 				unsigned int keylen)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
-	struct device *dev = &ctx_p->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	u32 tmp[DES_EXPKEY_WORDS];
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 
@@ -738,7 +737,7 @@ static int ssi_blkcipher_process(
 	enum drv_crypto_direction direction)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
-	struct device *dev = &ctx_p->drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
 	struct ssi_crypto_req ssi_req = {};
 	int rc, seq_len = 0, cts_restore_flag = 0;
@@ -1281,10 +1280,6 @@ int ssi_ablkcipher_free(struct ssi_drvdata *drvdata)
 	struct ssi_crypto_alg *t_alg, *n;
 	struct ssi_blkcipher_handle *blkcipher_handle =
 						drvdata->blkcipher_handle;
-	struct device *dev;
-
-	dev = &drvdata->plat_dev->dev;
-
 	if (blkcipher_handle) {
 		/* Remove registered algs */
 		list_for_each_entry_safe(t_alg, n,

@@ -37,6 +37,7 @@
 #include <crypto/hash.h>
 #include <linux/version.h>
 #include <linux/clk.h>
+#include <linux/platform_device.h>
 
 /* Registers definitions from shared/hw/ree_include */
 #include "dx_reg_base_host.h"
@@ -183,6 +184,11 @@ struct async_gen_req_ctx {
 	dma_addr_t iv_dma_addr;
 	enum drv_crypto_direction op_type;
 };
+
+static inline struct device *drvdata_to_dev(struct ssi_drvdata *drvdata)
+{
+	return &drvdata->plat_dev->dev;
+}
 
 #ifdef DX_DUMP_BYTES
 void dump_byte_array(const char *name, const u8 *the_array, unsigned long size);

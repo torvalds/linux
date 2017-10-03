@@ -514,7 +514,7 @@ int ssi_buffer_mgr_map_blkcipher_request(
 	struct blkcipher_req_ctx *req_ctx = (struct blkcipher_req_ctx *)ctx;
 	struct mlli_params *mlli_params = &req_ctx->mlli_params;
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
-	struct device *dev = &drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 	struct buffer_array sg_data;
 	u32 dummy = 0;
 	int rc = 0;
@@ -770,7 +770,7 @@ static inline int ssi_buffer_mgr_aead_chain_iv(
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	unsigned int hw_iv_size = areq_ctx->hw_iv_size;
-	struct device *dev = &drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
 
 	if (unlikely(!req->iv)) {
@@ -1110,7 +1110,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 	bool is_last_table, bool do_chain)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	struct device *dev = &drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 	enum drv_crypto_direction direct = areq_ctx->gen_ctx.op_type;
 	unsigned int authsize = areq_ctx->req_authsize;
 	int src_last_bytes = 0, dst_last_bytes = 0;
@@ -1279,7 +1279,7 @@ int ssi_buffer_mgr_map_aead_request(
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
-	struct device *dev = &drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 	struct buffer_array sg_data;
 	unsigned int authsize = areq_ctx->req_authsize;
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
@@ -1490,7 +1490,7 @@ int ssi_buffer_mgr_map_hash_request_final(
 	struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, bool do_update)
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
-	struct device *dev = &drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 	u8 *curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
 			areq_ctx->buff0;
 	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
@@ -1580,7 +1580,7 @@ int ssi_buffer_mgr_map_hash_request_update(
 	struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, unsigned int block_size)
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
-	struct device *dev = &drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 	u8 *curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
 			areq_ctx->buff0;
 	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
@@ -1755,7 +1755,7 @@ void ssi_buffer_mgr_unmap_hash_request(
 int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata)
 {
 	struct buff_mgr_handle *buff_mgr_handle;
-	struct device *dev = &drvdata->plat_dev->dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 
 	buff_mgr_handle = kmalloc(sizeof(*buff_mgr_handle), GFP_KERNEL);
 	if (!buff_mgr_handle)

@@ -68,13 +68,13 @@ static void comp_work_handler(struct work_struct *work);
 void request_mgr_fini(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
+	struct device *dev = drvdata_to_dev(drvdata);
 
 	if (!req_mgr_h)
 		return; /* Not allocated */
 
 	if (req_mgr_h->dummy_comp_buff_dma != 0) {
-		dma_free_coherent(&drvdata->plat_dev->dev,
-				  sizeof(u32), req_mgr_h->dummy_comp_buff,
+		dma_free_coherent(dev, sizeof(u32), req_mgr_h->dummy_comp_buff,
 				  req_mgr_h->dummy_comp_buff_dma);
 	}
 
@@ -97,6 +97,7 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 int request_mgr_init(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle *req_mgr_h;
+	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
 
 	req_mgr_h = kzalloc(sizeof(*req_mgr_h), GFP_KERNEL);
@@ -134,8 +135,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	req_mgr_h->max_used_sw_slots = 0;
 
 	/* Allocate DMA word for "dummy" completion descriptor use */
-	req_mgr_h->dummy_comp_buff = dma_alloc_coherent(&drvdata->plat_dev->dev,
-							sizeof(u32),
+	req_mgr_h->dummy_comp_buff = dma_alloc_coherent(dev, sizeof(u32),
 							&req_mgr_h->dummy_comp_buff_dma,
 							GFP_KERNEL);
 	if (!req_mgr_h->dummy_comp_buff) {
@@ -269,6 +269,9 @@ int send_request(
 	unsigned int iv_seq_len = 0;
 	unsigned int total_seq_len = len; /*initial sequence length*/
 	struct cc_hw_desc iv_seq[SSI_IVPOOL_SEQ_LEN];
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
+	struct device *dev = drvdata_to_dev(drvdata);
+#endif
 	int rc;
 	unsigned int max_required_seq_len = (total_seq_len +
 					((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
@@ -276,7 +279,7 @@ int send_request(
 					((is_dout == 0) ? 1 : 0));
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-	rc = ssi_power_mgr_runtime_get(&drvdata->plat_dev->dev);
+	rc = ssi_power_mgr_runtime_get(dev);
 	if (rc != 0) {
 		SSI_LOG_ERR("ssi_power_mgr_runtime_get returned %x\n", rc);
 		return rc;
@@ -303,7 +306,7 @@ int send_request(
 			 * (SW queue is full)
 			 */
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-			ssi_power_mgr_runtime_put_suspend(&drvdata->plat_dev->dev);
+			ssi_power_mgr_runtime_put_suspend(dev);
 #endif
 			return rc;
 		}
@@ -339,7 +342,7 @@ int send_request(
 			SSI_LOG_ERR("Failed to generate IV (rc=%d)\n", rc);
 			spin_unlock_bh(&req_mgr_h->hw_lock);
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-			ssi_power_mgr_runtime_put_suspend(&drvdata->plat_dev->dev);
+			ssi_power_mgr_runtime_put_suspend(dev);
 #endif
 			return rc;
 		}
@@ -452,7 +455,7 @@ static void comp_work_handler(struct work_struct *work)
 static void proc_completions(struct ssi_drvdata *drvdata)
 {
 	struct ssi_crypto_req *ssi_req;
-	struct platform_device *plat_dev = drvdata->plat_dev;
+	struct device *dev = drvdata_to_dev(drvdata);
 	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
@@ -492,12 +495,13 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 #endif /* COMPLETION_DELAY */
 
 		if (likely(ssi_req->user_cb))
-			ssi_req->user_cb(&plat_dev->dev, ssi_req->user_arg, drvdata->cc_base);
+			ssi_req->user_cb(dev, ssi_req->user_arg,
+					 drvdata->cc_base);
 		request_mgr_handle->req_queue_tail = (request_mgr_handle->req_queue_tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		SSI_LOG_DEBUG("Dequeue request tail=%u\n", request_mgr_handle->req_queue_tail);
 		SSI_LOG_DEBUG("Request completed. axi_completed=%d\n", request_mgr_handle->axi_completed);
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-		rc = ssi_power_mgr_runtime_put_suspend(&plat_dev->dev);
+		rc = ssi_power_mgr_runtime_put_suspend(dev);
 		if (rc != 0)
 			SSI_LOG_ERR("Failed to set runtime suspension %d\n", rc);
 #endif
