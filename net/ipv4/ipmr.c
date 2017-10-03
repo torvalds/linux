@@ -1859,10 +1859,33 @@ static inline int ipmr_forward_finish(struct net *net, struct sock *sk,
 	return dst_output(net, sk, skb);
 }
 
+#ifdef CONFIG_NET_SWITCHDEV
+static bool ipmr_forward_offloaded(struct sk_buff *skb, struct mr_table *mrt,
+				   int in_vifi, int out_vifi)
+{
+	struct vif_device *out_vif = &mrt->vif_table[out_vifi];
+	struct vif_device *in_vif = &mrt->vif_table[in_vifi];
+
+	if (!skb->offload_mr_fwd_mark)
+		return false;
+	if (!out_vif->dev_parent_id.id_len || !in_vif->dev_parent_id.id_len)
+		return false;
+	return netdev_phys_item_id_same(&out_vif->dev_parent_id,
+					&in_vif->dev_parent_id);
+}
+#else
+static bool ipmr_forward_offloaded(struct sk_buff *skb, struct mr_table *mrt,
+				   int in_vifi, int out_vifi)
+{
+	return false;
+}
+#endif
+
 /* Processing handlers for ipmr_forward */
 
 static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
-			    struct sk_buff *skb, struct mfc_cache *c, int vifi)
+			    int in_vifi, struct sk_buff *skb,
+			    struct mfc_cache *c, int vifi)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct vif_device *vif = &mrt->vif_table[vifi];
@@ -1882,6 +1905,9 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		ipmr_cache_report(mrt, skb, vifi, IGMPMSG_WHOLEPKT);
 		goto out_free;
 	}
+
+	if (ipmr_forward_offloaded(skb, mrt, in_vifi, vifi))
+		goto out_free;
 
 	if (vif->flags & VIFF_TUNNEL) {
 		rt = ip_route_output_ports(net, &fl4, NULL,
@@ -2060,8 +2086,8 @@ forward:
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 				if (skb2)
-					ipmr_queue_xmit(net, mrt, skb2, cache,
-							psend);
+					ipmr_queue_xmit(net, mrt, true_vifi,
+							skb2, cache, psend);
 			}
 			psend = ct;
 		}
@@ -2072,9 +2098,10 @@ last_forward:
 			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 			if (skb2)
-				ipmr_queue_xmit(net, mrt, skb2, cache, psend);
+				ipmr_queue_xmit(net, mrt, true_vifi, skb2,
+						cache, psend);
 		} else {
-			ipmr_queue_xmit(net, mrt, skb, cache, psend);
+			ipmr_queue_xmit(net, mrt, true_vifi, skb, cache, psend);
 			return;
 		}
 	}
