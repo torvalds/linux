@@ -181,9 +181,12 @@ struct dynamic_sa_ctl {
  * State Record for Security Association (SA)
  */
 struct  sa_state_record {
-	u32 save_iv[4];
-	u32 save_hash_byte_cnt[2];
-	u32 save_digest[16];
+	__le32 save_iv[4];
+	__le32 save_hash_byte_cnt[2];
+	union {
+		u32 save_digest[16]; /* for MD5/SHA */
+		__le32 save_digest_le32[16]; /* GHASH / CBC */
+	};
 } __attribute__((packed));
 
 /**
@@ -192,8 +195,8 @@ struct  sa_state_record {
  */
 struct dynamic_sa_aes128 {
 	struct dynamic_sa_ctl	ctrl;
-	u32 key[4];
-	u32 iv[4]; /* for CBC, OFC, and CFB mode */
+	__le32 key[4];
+	__le32 iv[4]; /* for CBC, OFC, and CFB mode */
 	u32 state_ptr;
 	u32 reserved;
 } __attribute__((packed));
@@ -206,8 +209,8 @@ struct dynamic_sa_aes128 {
  */
 struct dynamic_sa_aes192 {
 	struct dynamic_sa_ctl ctrl;
-	u32 key[6];
-	u32 iv[4]; /* for CBC, OFC, and CFB mode */
+	__le32 key[6];
+	__le32 iv[4]; /* for CBC, OFC, and CFB mode */
 	u32 state_ptr;
 	u32 reserved;
 } __attribute__((packed));
@@ -220,8 +223,8 @@ struct dynamic_sa_aes192 {
  */
 struct dynamic_sa_aes256 {
 	struct dynamic_sa_ctl ctrl;
-	u32 key[8];
-	u32 iv[4]; /* for CBC, OFC, and CFB mode */
+	__le32 key[8];
+	__le32 iv[4]; /* for CBC, OFC, and CFB mode */
 	u32 state_ptr;
 	u32 reserved;
 } __attribute__((packed));
@@ -235,8 +238,8 @@ struct dynamic_sa_aes256 {
  */
 struct dynamic_sa_hash160 {
 	struct dynamic_sa_ctl ctrl;
-	u32 inner_digest[5];
-	u32 outer_digest[5];
+	__le32 inner_digest[5];
+	__le32 outer_digest[5];
 	u32 state_ptr;
 	u32 reserved;
 } __attribute__((packed));
@@ -266,9 +269,9 @@ get_dynamic_sa_offset_state_ptr_field(struct dynamic_sa_ctl *cts)
 	return sizeof(struct dynamic_sa_ctl) + offset * 4;
 }
 
-static inline u32 *get_dynamic_sa_key_field(struct dynamic_sa_ctl *cts)
+static inline __le32 *get_dynamic_sa_key_field(struct dynamic_sa_ctl *cts)
 {
-	return (u32 *) ((unsigned long)cts + sizeof(struct dynamic_sa_ctl));
+	return (__le32 *) ((unsigned long)cts + sizeof(struct dynamic_sa_ctl));
 }
 
 #endif

@@ -149,8 +149,8 @@ static int crypto4xx_setkey_aes(struct crypto_ablkcipher *cipher,
 				 SA_SEQ_MASK_OFF, SA_MC_ENABLE,
 				 SA_NOT_COPY_PAD, SA_NOT_COPY_PAYLOAD,
 				 SA_NOT_COPY_HDR);
-	crypto4xx_memcpy_le(get_dynamic_sa_key_field(sa),
-			    key, keylen);
+	crypto4xx_memcpy_to_le32(get_dynamic_sa_key_field(sa),
+				 key, keylen);
 	sa->sa_contents.w = SA_AES_CONTENTS | (keylen << 2);
 	sa->sa_command_1.bf.key_len = keylen >> 3;
 	ctx->is_hash = 0;

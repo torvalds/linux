@@ -166,9 +166,7 @@ int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
 void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
 void crypto4xx_free_ctx(struct crypto4xx_ctx *ctx);
 u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx);
-void crypto4xx_memcpy_le(unsigned int *dst,
-			 const unsigned char *buf, int len);
-u32 crypto4xx_build_pd(struct crypto_async_request *req,
+int crypto4xx_build_pd(struct crypto_async_request *req,
 		       struct crypto4xx_ctx *ctx,
 		       struct scatterlist *src,
 		       struct scatterlist *dst,
@@ -193,4 +191,47 @@ int crypto4xx_hash_digest(struct ahash_request *req);
 int crypto4xx_hash_final(struct ahash_request *req);
 int crypto4xx_hash_update(struct ahash_request *req);
 int crypto4xx_hash_init(struct ahash_request *req);
+
+/**
+ * Note: Only use this function to copy items that is word aligned.
+ */
+static inline void crypto4xx_memcpy_swab32(u32 *dst, const void *buf,
+					   size_t len)
+{
+	for (; len >= 4; buf += 4, len -= 4)
+		*dst++ = __swab32p((u32 *) buf);
+
+	if (len) {
+		const u8 *tmp = (u8 *)buf;
+
+		switch (len) {
+		case 3:
+			*dst = (tmp[2] << 16) |
+			       (tmp[1] << 8) |
+			       tmp[0];
+			break;
+		case 2:
+			*dst = (tmp[1] << 8) |
+			       tmp[0];
+			break;
+		case 1:
+			*dst = tmp[0];
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static inline void crypto4xx_memcpy_from_le32(u32 *dst, const void *buf,
+					      size_t len)
+{
+	crypto4xx_memcpy_swab32(dst, buf, len);
+}
+
+static inline void crypto4xx_memcpy_to_le32(__le32 *dst, const void *buf,
+					    size_t len)
+{
+	crypto4xx_memcpy_swab32((u32 *)dst, buf, len);
+}
 #endif

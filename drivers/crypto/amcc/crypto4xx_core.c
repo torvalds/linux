@@ -614,42 +614,6 @@ static u32 crypto4xx_pd_done(struct crypto4xx_device *dev, u32 idx)
 		return crypto4xx_ahash_done(dev, pd_uinfo);
 }
 
-/**
- * Note: Only use this function to copy items that is word aligned.
- */
-void crypto4xx_memcpy_le(unsigned int *dst,
-			 const unsigned char *buf,
-			 int len)
-{
-	u8 *tmp;
-	for (; len >= 4; buf += 4, len -= 4)
-		*dst++ = cpu_to_le32(*(unsigned int *) buf);
-
-	tmp = (u8 *)dst;
-	switch (len) {
-	case 3:
-		*tmp++ = 0;
-		*tmp++ = *(buf+2);
-		*tmp++ = *(buf+1);
-		*tmp++ = *buf;
-		break;
-	case 2:
-		*tmp++ = 0;
-		*tmp++ = 0;
-		*tmp++ = *(buf+1);
-		*tmp++ = *buf;
-		break;
-	case 1:
-		*tmp++ = 0;
-		*tmp++ = 0;
-		*tmp++ = 0;
-		*tmp++ = *buf;
-		break;
-	default:
-		break;
-	}
-}
-
 static void crypto4xx_stop_all(struct crypto4xx_core_device *core_dev)
 {
 	crypto4xx_destroy_pdr(core_dev->dev);
@@ -809,8 +773,8 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 			&pd_uinfo->sr_pa, 4);
 
 		if (iv_len)
-			crypto4xx_memcpy_le(pd_uinfo->sr_va->save_iv,
-					    iv, iv_len);
+			crypto4xx_memcpy_to_le32(pd_uinfo->sr_va->save_iv,
+						 iv, iv_len);
 	} else {
 		if (ctx->direction == DIR_INBOUND) {
 			pd->sa = ctx->sa_in_dma_addr;
