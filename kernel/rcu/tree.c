@@ -266,6 +266,7 @@ void rcu_bh_qs(void)
 
 static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 	.dynticks_nesting = DYNTICK_TASK_EXIT_IDLE,
+	.dynticks_nmi_nesting = DYNTICK_IRQ_NONIDLE,
 	.dynticks = ATOMIC_INIT(RCU_DYNTICK_CTRL_CTR),
 };
 
@@ -914,8 +915,8 @@ void rcu_nmi_exit(void)
  *
  * This code assumes that the idle loop never does anything that might
  * result in unbalanced calls to irq_enter() and irq_exit().  If your
- * architecture violates this assumption, RCU will give you what you
- * deserve, good and hard.  But very infrequently and irreproducibly.
+ * architecture's idle loop violates this assumption, RCU will give you what
+ * you deserve, good and hard.  But very infrequently and irreproducibly.
  *
  * Use things like work queues to work around this limitation.
  *
@@ -926,23 +927,14 @@ void rcu_nmi_exit(void)
  */
 void rcu_irq_exit(void)
 {
-	struct rcu_dynticks *rdtp;
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	lockdep_assert_irqs_disabled();
-	rdtp = this_cpu_ptr(&rcu_dynticks);
-
-	/* Page faults can happen in NMI handlers, so check... */
-	if (rdtp->dynticks_nmi_nesting)
-		return;
-
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     rdtp->dynticks_nesting < 1);
-	if (rdtp->dynticks_nesting <= 1) {
-		rcu_eqs_enter_common(true);
-	} else {
-		trace_rcu_dyntick(TPS("--="), rdtp->dynticks_nesting, rdtp->dynticks_nesting - 1);
-		rdtp->dynticks_nesting--;
-	}
+	if (rdtp->dynticks_nmi_nesting == 1)
+		rcu_prepare_for_idle();
+	rcu_nmi_exit();
+	if (rdtp->dynticks_nmi_nesting == 0)
+		rcu_dynticks_task_enter();
 }
 
 /*
@@ -1097,12 +1089,12 @@ void rcu_nmi_enter(void)
  * sections can occur.  The caller must have disabled interrupts.
  *
  * Note that the Linux kernel is fully capable of entering an interrupt
- * handler that it never exits, for example when doing upcalls to
- * user mode!  This code assumes that the idle loop never does upcalls to
- * user mode.  If your architecture does do upcalls from the idle loop (or
- * does anything else that results in unbalanced calls to the irq_enter()
- * and irq_exit() functions), RCU will give you what you deserve, good
- * and hard.  But very infrequently and irreproducibly.
+ * handler that it never exits, for example when doing upcalls to user mode!
+ * This code assumes that the idle loop never does upcalls to user mode.
+ * If your architecture's idle loop does do upcalls to user mode (or does
+ * anything else that results in unbalanced calls to the irq_enter() and
+ * irq_exit() functions), RCU will give you what you deserve, good and hard.
+ * But very infrequently and irreproducibly.
  *
  * Use things like work queues to work around this limitation.
  *
@@ -1113,23 +1105,14 @@ void rcu_nmi_enter(void)
  */
 void rcu_irq_enter(void)
 {
-	struct rcu_dynticks *rdtp;
-	long long newval;
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	lockdep_assert_irqs_disabled();
-	rdtp = this_cpu_ptr(&rcu_dynticks);
-
-	/* Page faults can happen in NMI handlers, so check... */
-	if (rdtp->dynticks_nmi_nesting)
-		return;
-
-	newval = rdtp->dynticks_nesting + 1;
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && newval == 0);
-	if (rdtp->dynticks_nesting)
-		trace_rcu_dyntick(TPS("++="), rdtp->dynticks_nesting, newval);
-	else
-		rcu_eqs_exit_common(newval, true);
-	rdtp->dynticks_nesting++;
+	if (rdtp->dynticks_nmi_nesting == 0)
+		rcu_dynticks_task_exit();
+	rcu_nmi_enter();
+	if (rdtp->dynticks_nmi_nesting == 1)
+		rcu_cleanup_after_idle();
 }
 
 /*
