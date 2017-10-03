@@ -303,6 +303,26 @@ int bpf_prog_detach2(int prog_fd, int target_fd, enum bpf_attach_type type)
 	return sys_bpf(BPF_PROG_DETACH, &attr, sizeof(attr));
 }
 
+int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
+		   __u32 *attach_flags, __u32 *prog_ids, __u32 *prog_cnt)
+{
+	union bpf_attr attr;
+	int ret;
+
+	bzero(&attr, sizeof(attr));
+	attr.query.target_fd	= target_fd;
+	attr.query.attach_type	= type;
+	attr.query.query_flags	= query_flags;
+	attr.query.prog_cnt	= *prog_cnt;
+	attr.query.prog_ids	= ptr_to_u64(prog_ids);
+
+	ret = sys_bpf(BPF_PROG_QUERY, &attr, sizeof(attr));
+	if (attach_flags)
+		*attach_flags = attr.query.attach_flags;
+	*prog_cnt = attr.query.prog_cnt;
+	return ret;
+}
+
 int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
 		      void *data_out, __u32 *size_out, __u32 *retval,
 		      __u32 *duration)
