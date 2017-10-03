@@ -1070,6 +1070,24 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
 				    GEN8_LQSC_FLUSH_COHERENT_LINES));
 
+	/*
+	 * Supporting preemption with fine-granularity requires changes in the
+	 * batch buffer programming. Since we can't break old userspace, we
+	 * need to set our default preemption level to safe value. Userspace is
+	 * still able to use more fine-grained preemption levels, since in
+	 * WaEnablePreemptionGranularityControlByUMD we're whitelisting the
+	 * per-ctx register. As such, WaDisable{3D,GPGPU}MidCmdPreemption are
+	 * not real HW workarounds, but merely a way to start using preemption
+	 * while maintaining old contract with userspace.
+	 */
+
+	/* WaDisable3DMidCmdPreemption:skl,bxt,glk,cfl,[cnl] */
+	WA_CLR_BIT_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
+
+	/* WaDisableGPGPUMidCmdPreemption:skl,bxt,blk,cfl,[cnl] */
+	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
+
 	/* WaVFEStateAfterPipeControlwithMediaStateClear:skl,bxt,glk,cfl */
 	ret = wa_ring_whitelist_reg(engine, GEN9_CTX_PREEMPT_REG);
 	if (ret)
@@ -1270,6 +1288,13 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 
 	/* FtrEnableFastAnisoL1BankingFix: cnl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
+
+	/* WaDisable3DMidCmdPreemption:cnl */
+	WA_CLR_BIT_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
+
+	/* WaDisableGPGPUMidCmdPreemption:cnl */
+	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
 
 	/* WaEnablePreemptionGranularityControlByUMD:cnl */
 	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
