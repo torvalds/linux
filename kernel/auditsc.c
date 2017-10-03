@@ -2390,6 +2390,12 @@ void __audit_log_kern_module(char *name)
 	context->type = AUDIT_KERN_MODULE;
 }
 
+void __audit_fanotify(unsigned int response)
+{
+	audit_log(current->audit_context, GFP_KERNEL,
+		AUDIT_FANOTIFY,	"resp=%u", response);
+}
+
 static void audit_log_task(struct audit_buffer *ab)
 {
 	kuid_t auid, uid;

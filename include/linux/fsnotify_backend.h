@@ -190,6 +190,7 @@ struct fsnotify_group {
 			int f_flags;
 			unsigned int max_marks;
 			struct user_struct *user;
+			bool audit;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};
