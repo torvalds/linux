@@ -1186,7 +1186,7 @@ s32 fm10k_iov_msg_msix_pf(struct fm10k_hw *hw, u32 **results,
  * Will report an error if the VLAN ID is out of range. For VID = 0, it will
  * return either the pf_vid or sw_vid depending on which one is set.
  */
-static s32 fm10k_iov_select_vid(struct fm10k_vf_info *vf_info, u16 vid)
+s32 fm10k_iov_select_vid(struct fm10k_vf_info *vf_info, u16 vid)
 {
 	if (!vid)
 		return vf_info->pf_vid ? vf_info->pf_vid : vf_info->sw_vid;
