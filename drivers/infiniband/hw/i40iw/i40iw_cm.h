@@ -360,6 +360,7 @@ struct i40iw_cm_node {
 
 	u8 pdata_buf[IETF_MAX_PRIV_DATA_LEN];
 	struct i40iw_kmem_info mpa_hdr;
+	bool ack_rcvd;
 };
 
 /* structure for client or CM to fill when making CM api calls. */

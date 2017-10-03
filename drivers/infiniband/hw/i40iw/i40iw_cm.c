@@ -1267,13 +1267,16 @@ static void i40iw_cm_timer_tick(unsigned long pass)
 			spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
 			goto done;
 		}
-		cm_node->cm_core->stats_pkt_retrans++;
 		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 
 		vsi = &cm_node->iwdev->vsi;
 		dev = cm_node->dev;
-		atomic_inc(&send_entry->sqbuf->refcount);
-		i40iw_puda_send_buf(vsi->ilq, send_entry->sqbuf);
+
+		if (!cm_node->ack_rcvd) {
+			atomic_inc(&send_entry->sqbuf->refcount);
+			i40iw_puda_send_buf(vsi->ilq, send_entry->sqbuf);
+			cm_node->cm_core->stats_pkt_retrans++;
+		}
 		spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
 		if (send_entry->send_retrans) {
 			send_entry->retranscount--;
@@ -2181,6 +2184,7 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 	cm_node->cm_id = cm_info->cm_id;
 	ether_addr_copy(cm_node->loc_mac, netdev->dev_addr);
 	spin_lock_init(&cm_node->retrans_list_lock);
+	cm_node->ack_rcvd = false;
 
 	atomic_set(&cm_node->ref_count, 1);
 	/* associate our parent CM core */
@@ -2719,7 +2723,10 @@ static int i40iw_handle_ack_pkt(struct i40iw_cm_node *cm_node,
 		cm_node->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
 		if (datasize) {
 			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
+			cm_node->ack_rcvd = false;
 			i40iw_handle_rcv_mpa(cm_node, rbuf);
+		} else {
+			cm_node->ack_rcvd = true;
 		}
 		break;
 	case I40IW_CM_STATE_LISTENING:
