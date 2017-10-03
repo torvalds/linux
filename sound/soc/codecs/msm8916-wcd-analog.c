@@ -1239,6 +1239,8 @@ static const struct of_device_id pm8916_wcd_analog_spmi_match_table[] = {
 	{ }
 };
 
+MODULE_DEVICE_TABLE(of, pm8916_wcd_analog_spmi_match_table);
+
 static struct platform_driver pm8916_wcd_analog_spmi_driver = {
 	.driver = {
 		   .name = "qcom,pm8916-wcd-spmi-codec",
