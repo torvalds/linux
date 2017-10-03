@@ -50,29 +50,14 @@ void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
  */
 int ssi_sram_mgr_init(struct ssi_drvdata *drvdata)
 {
-	struct ssi_sram_mgr_ctx *smgr_ctx;
-	struct device *dev = drvdata_to_dev(drvdata);
-	int rc;
-
 	/* Allocate "this" context */
-	drvdata->sram_mgr_handle = kzalloc(
-			sizeof(struct ssi_sram_mgr_ctx), GFP_KERNEL);
-	if (!drvdata->sram_mgr_handle) {
-		dev_err(dev, "Not enough memory to allocate SRAM_MGR ctx (%zu)\n",
-			sizeof(struct ssi_sram_mgr_ctx));
-		rc = -ENOMEM;
-		goto out;
-	}
-	smgr_ctx = drvdata->sram_mgr_handle;
+	drvdata->sram_mgr_handle = kzalloc(sizeof(struct ssi_sram_mgr_ctx),
+					   GFP_KERNEL);
 
-	/* Pool starts at start of SRAM */
-	smgr_ctx->sram_free_offset = 0;
+	if (!drvdata->sram_mgr_handle)
+		return -ENOMEM;
 
 	return 0;
-
-out:
-	ssi_sram_mgr_fini(drvdata);
-	return rc;
 }
 
 /*!

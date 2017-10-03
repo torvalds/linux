@@ -212,7 +212,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
 	if (!new_drvdata) {
-		dev_dbg(dev, "Failed to allocate drvdata");
 		rc = -ENOMEM;
 		goto post_drvdata_err;
 	}

@@ -193,12 +193,9 @@ int ssi_ivgen_init(struct ssi_drvdata *drvdata)
 	/* Allocate "this" context */
 	drvdata->ivgen_handle = kzalloc(sizeof(*drvdata->ivgen_handle),
 					GFP_KERNEL);
-	if (!drvdata->ivgen_handle) {
-		dev_err(device, "Not enough memory to allocate IVGEN context (%zu B)\n",
-			sizeof(*drvdata->ivgen_handle));
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!drvdata->ivgen_handle)
+		return -ENOMEM;
+
 	ivgen_ctx = drvdata->ivgen_handle;
 
 	/* Allocate pool's header for intial enc. key/IV */

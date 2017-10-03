@@ -194,10 +194,9 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 
 	/* Allocate key buffer, cache line aligned */
 	ctx_p->user.key = kmalloc(max_key_buf_size, GFP_KERNEL | GFP_DMA);
-	if (!ctx_p->user.key) {
-		dev_dbg(dev, "Allocating key buffer in context failed\n");
-		rc = -ENOMEM;
-	}
+	if (!ctx_p->user.key)
+		return -ENOMEM;
+
 	dev_dbg(dev, "Allocated key buffer in context. key=@%p\n",
 		ctx_p->user.key);
 
@@ -1245,10 +1244,8 @@ struct ssi_crypto_alg *ssi_ablkcipher_create_alg(struct ssi_alg_template
 	struct crypto_alg *alg;
 
 	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
-	if (!t_alg) {
-		dev_dbg(dev, "failed to allocate t_alg\n");
+	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	alg = &t_alg->crypto_alg;
 

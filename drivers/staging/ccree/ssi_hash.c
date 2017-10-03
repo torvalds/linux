@@ -157,34 +157,28 @@ static int ssi_hash_map_request(struct device *dev,
 	int rc = -ENOMEM;
 
 	state->buff0 = kzalloc(SSI_MAX_HASH_BLCK_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!state->buff0) {
-		dev_err(dev, "Allocating buff0 in context failed\n");
+	if (!state->buff0)
 		goto fail0;
-	}
+
 	state->buff1 = kzalloc(SSI_MAX_HASH_BLCK_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!state->buff1) {
-		dev_err(dev, "Allocating buff1 in context failed\n");
+	if (!state->buff1)
 		goto fail_buff0;
-	}
+
 	state->digest_result_buff = kzalloc(SSI_MAX_HASH_DIGEST_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!state->digest_result_buff) {
-		dev_err(dev, "Allocating digest_result_buff in context failed\n");
+	if (!state->digest_result_buff)
 		goto fail_buff1;
-	}
+
 	state->digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL | GFP_DMA);
-	if (!state->digest_buff) {
-		dev_err(dev, "Allocating digest-buffer in context failed\n");
+	if (!state->digest_buff)
 		goto fail_digest_result_buff;
-	}
 
 	dev_dbg(dev, "Allocated digest-buffer in context ctx->digest_buff=@%p\n",
 		state->digest_buff);
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
 		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE, GFP_KERNEL | GFP_DMA);
-		if (!state->digest_bytes_len) {
-			dev_err(dev, "Allocating digest-bytes-len in context failed\n");
+		if (!state->digest_bytes_len)
 			goto fail1;
-		}
+
 		dev_dbg(dev, "Allocated digest-bytes-len in context state->>digest_bytes_len=@%p\n",
 			state->digest_bytes_len);
 	} else {
@@ -192,10 +186,9 @@ static int ssi_hash_map_request(struct device *dev,
 	}
 
 	state->opad_digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL | GFP_DMA);
-	if (!state->opad_digest_buff) {
-		dev_err(dev, "Allocating opad-digest-buffer in context failed\n");
+	if (!state->opad_digest_buff)
 		goto fail2;
-	}
+
 	dev_dbg(dev, "Allocated opad-digest-buffer in context state->digest_bytes_len=@%p\n",
 		state->opad_digest_buff);
 
@@ -2057,10 +2050,9 @@ ssi_hash_create_alg(struct ssi_hash_template *template, struct device *dev,
 	struct ahash_alg *halg;
 
 	t_crypto_alg = kzalloc(sizeof(*t_crypto_alg), GFP_KERNEL);
-	if (!t_crypto_alg) {
-		dev_dbg(dev, "failed to allocate t_crypto_alg\n");
+	if (!t_crypto_alg)
 		return ERR_PTR(-ENOMEM);
-	}
+
 
 	t_crypto_alg->ahash_alg = template->template_ahash;
 	halg = &t_crypto_alg->ahash_alg;
@@ -2225,12 +2217,8 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 	int alg;
 
 	hash_handle = kzalloc(sizeof(*hash_handle), GFP_KERNEL);
-	if (!hash_handle) {
-		dev_err(dev, "kzalloc failed to allocate %zu B\n",
-			sizeof(*hash_handle));
-		rc = -ENOMEM;
-		goto fail;
-	}
+	if (!hash_handle)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&hash_handle->hash_list);
 	drvdata->hash_handle = hash_handle;
