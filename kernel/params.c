@@ -600,7 +600,7 @@ EXPORT_SYMBOL(kernel_param_unlock);
 /*
  * add_sysfs_param - add a parameter to sysfs
  * @mk: struct module_kobject
- * @kparam: the actual parameter definition to add to sysfs
+ * @kp: the actual parameter definition to add to sysfs
  * @name: name of parameter
  *
  * Create a kobject if for a (per-module) parameter if mp NULL, and
