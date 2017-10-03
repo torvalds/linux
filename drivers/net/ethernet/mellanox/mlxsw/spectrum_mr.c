@@ -114,9 +114,9 @@ static bool mlxsw_sp_mr_vif_valid(const struct mlxsw_sp_mr_vif *vif)
 	return mlxsw_sp_mr_vif_regular(vif) && vif->dev && vif->rif;
 }
 
-static bool mlxsw_sp_mr_vif_rif_invalid(const struct mlxsw_sp_mr_vif *vif)
+static bool mlxsw_sp_mr_vif_exists(const struct mlxsw_sp_mr_vif *vif)
 {
-	return mlxsw_sp_mr_vif_regular(vif) && vif->dev && !vif->rif;
+	return vif->dev;
 }
 
 static bool
@@ -182,14 +182,13 @@ mlxsw_sp_mr_route_action(const struct mlxsw_sp_mr_route *mr_route)
 	if (!mlxsw_sp_mr_route_valid_evifs_num(mr_route))
 		return MLXSW_SP_MR_ROUTE_ACTION_TRAP;
 
-	/* If either one of the eVIFs is not regular (VIF of type pimreg or
-	 * tunnel) or one of the VIFs has no matching RIF, trap the packet.
+	/* If one of the eVIFs has no RIF, trap-and-forward the route as there
+	 * is some more routing to do in software too.
 	 */
-	list_for_each_entry(rve, &mr_route->evif_list, route_node) {
-		if (!mlxsw_sp_mr_vif_regular(rve->mr_vif) ||
-		    mlxsw_sp_mr_vif_rif_invalid(rve->mr_vif))
-			return MLXSW_SP_MR_ROUTE_ACTION_TRAP;
-	}
+	list_for_each_entry(rve, &mr_route->evif_list, route_node)
+		if (mlxsw_sp_mr_vif_exists(rve->mr_vif) && !rve->mr_vif->rif)
+			return MLXSW_SP_MR_ROUTE_ACTION_TRAP_AND_FORWARD;
+
 	return MLXSW_SP_MR_ROUTE_ACTION_FORWARD;
 }
 
