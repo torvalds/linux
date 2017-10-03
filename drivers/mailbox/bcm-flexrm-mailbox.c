@@ -1116,8 +1116,8 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 		err = flexrm_cmpl_desc_to_error(desc);
 		if (err < 0) {
 			dev_warn(ring->mbox->dev,
-				 "got completion desc=0x%lx with error %d",
-				 (unsigned long)desc, err);
+			"ring%d got completion desc=0x%lx with error %d\n",
+			ring->num, (unsigned long)desc, err);
 		}
 
 		/* Determine request id from completion descriptor */
@@ -1127,8 +1127,8 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 		msg = ring->requests[reqid];
 		if (!msg) {
 			dev_warn(ring->mbox->dev,
-				 "null msg pointer for completion desc=0x%lx",
-				 (unsigned long)desc);
+			"ring%d null msg pointer for completion desc=0x%lx\n",
+			ring->num, (unsigned long)desc);
 			continue;
 		}
 
@@ -1238,7 +1238,9 @@ static int flexrm_startup(struct mbox_chan *chan)
 	ring->bd_base = dma_pool_alloc(ring->mbox->bd_pool,
 				       GFP_KERNEL, &ring->bd_dma_base);
 	if (!ring->bd_base) {
-		dev_err(ring->mbox->dev, "can't allocate BD memory\n");
+		dev_err(ring->mbox->dev,
+			"can't allocate BD memory for ring%d\n",
+			ring->num);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1261,7 +1263,9 @@ static int flexrm_startup(struct mbox_chan *chan)
 	ring->cmpl_base = dma_pool_alloc(ring->mbox->cmpl_pool,
 					 GFP_KERNEL, &ring->cmpl_dma_base);
 	if (!ring->cmpl_base) {
-		dev_err(ring->mbox->dev, "can't allocate completion memory\n");
+		dev_err(ring->mbox->dev,
+			"can't allocate completion memory for ring%d\n",
+			ring->num);
 		ret = -ENOMEM;
 		goto fail_free_bd_memory;
 	}
@@ -1269,7 +1273,8 @@ static int flexrm_startup(struct mbox_chan *chan)
 
 	/* Request IRQ */
 	if (ring->irq == UINT_MAX) {
-		dev_err(ring->mbox->dev, "ring IRQ not available\n");
+		dev_err(ring->mbox->dev,
+			"ring%d IRQ not available\n", ring->num);
 		ret = -ENODEV;
 		goto fail_free_cmpl_memory;
 	}
@@ -1278,7 +1283,8 @@ static int flexrm_startup(struct mbox_chan *chan)
 				   flexrm_irq_thread,
 				   0, dev_name(ring->mbox->dev), ring);
 	if (ret) {
-		dev_err(ring->mbox->dev, "failed to request ring IRQ\n");
+		dev_err(ring->mbox->dev,
+			"failed to request ring%d IRQ\n", ring->num);
 		goto fail_free_cmpl_memory;
 	}
 	ring->irq_requested = true;
@@ -1291,7 +1297,9 @@ static int flexrm_startup(struct mbox_chan *chan)
 			&ring->irq_aff_hint);
 	ret = irq_set_affinity_hint(ring->irq, &ring->irq_aff_hint);
 	if (ret) {
-		dev_err(ring->mbox->dev, "failed to set IRQ affinity hint\n");
+		dev_err(ring->mbox->dev,
+			"failed to set IRQ affinity hint for ring%d\n",
+			ring->num);
 		goto fail_free_irq;
 	}
 
