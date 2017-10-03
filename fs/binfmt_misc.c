@@ -594,8 +594,13 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 
 static void bm_evict_inode(struct inode *inode)
 {
+	Node *e = inode->i_private;
+
+	if ((e->flags & MISC_FMT_OPEN_FILE) && e->interp_file)
+		filp_close(e->interp_file, NULL);
+
 	clear_inode(inode);
-	kfree(inode->i_private);
+	kfree(e);
 }
 
 static void kill_node(Node *e)
@@ -605,11 +610,6 @@ static void kill_node(Node *e)
 	write_lock(&entries_lock);
 	list_del_init(&e->list);
 	write_unlock(&entries_lock);
-
-	if ((e->flags & MISC_FMT_OPEN_FILE) && e->interp_file) {
-		filp_close(e->interp_file, NULL);
-		e->interp_file = NULL;
-	}
 
 	dentry = e->dentry;
 	drop_nlink(d_inode(dentry));
