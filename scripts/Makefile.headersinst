@@ -30,7 +30,7 @@ __headers: $(subdirs)
 $(subdirs):
 	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(dst)/$@
 
-# Skip header install/check for include/uapi and arch/$(hdr-arch)/include/uapi.
+# Skip header install/check for include/uapi and arch/$(SRCARCH)/include/uapi.
 # We have only sub-directories there.
 skip-inst := $(if $(filter %/uapi,$(obj)),1)
 
