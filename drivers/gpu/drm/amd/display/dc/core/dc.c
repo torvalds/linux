@@ -980,8 +980,6 @@ bool dc_commit_planes_to_stream(
 			new_plane_count,
 			dc_stream, stream_update, plane_states, state);
 
-	dc_post_update_surfaces_to_stream(dc);
-
 	kfree(stream_update);
 	return true;
 }
@@ -1418,7 +1416,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 				update_type,
 				context);
 
-	dc_post_update_surfaces_to_stream(dc);
+	if (update_type >= UPDATE_TYPE_FULL)
+		dc_post_update_surfaces_to_stream(dc);
 
 	if (dc->current_state != context) {
 
