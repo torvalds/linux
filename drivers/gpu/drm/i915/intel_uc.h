@@ -30,6 +30,7 @@
 #include "intel_ringbuffer.h"
 #include "intel_guc_ct.h"
 #include "i915_vma.h"
+#include "intel_huc.h"
 
 /*
  * This structure primarily describes the GEM object shared with the GuC.
@@ -127,13 +128,6 @@ struct intel_guc {
 	void (*notify)(struct intel_guc *guc);
 };
 
-struct intel_huc {
-	/* Generic uC firmware management */
-	struct intel_uc_fw fw;
-
-	/* HuC-specific additions */
-};
-
 /* intel_uc.c */
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
@@ -185,10 +179,5 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 	GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
 	return offset;
 }
-
-/* intel_huc.c */
-void intel_huc_select_fw(struct intel_huc *huc);
-void intel_huc_init_hw(struct intel_huc *huc);
-void intel_huc_auth(struct intel_huc *huc);
 
 #endif
