@@ -788,8 +788,6 @@ static const struct hid_device_id hid_ignore_list[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1006) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1007) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_IMATION, USB_DEVICE_ID_DISC_STAKKA) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_JABRA, USB_DEVICE_ID_JABRA_SPEAK_410) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_JABRA, USB_DEVICE_ID_JABRA_SPEAK_510) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_JABRA, USB_DEVICE_ID_JABRA_GN9350E) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KBGEAR, USB_DEVICE_ID_KBGEAR_JAMSTUDIO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KWORLD, USB_DEVICE_ID_KWORLD_RADIO_FM700) },
@@ -1234,6 +1232,20 @@ unsigned long hid_lookup_quirk(const struct hid_device *hdev)
 	    hdev->product >= USB_DEVICE_ID_NCR_FIRST &&
 	    hdev->product <= USB_DEVICE_ID_NCR_LAST)
 		return HID_QUIRK_NO_INIT_REPORTS;
+
+	/* These devices must be ignored if version (bcdDevice) is too old */
+	if (hdev->bus == BUS_USB && hdev->vendor == USB_VENDOR_ID_JABRA) {
+		switch (hdev->product) {
+		case USB_DEVICE_ID_JABRA_SPEAK_410:
+			if (hdev->version < 0x0111)
+				return HID_QUIRK_IGNORE;
+			break;
+		case USB_DEVICE_ID_JABRA_SPEAK_510:
+			if (hdev->version < 0x0214)
+				return HID_QUIRK_IGNORE;
+			break;
+		}
+	}
 
 	mutex_lock(&dquirks_lock);
 	quirk_entry = hid_exists_dquirk(hdev);
