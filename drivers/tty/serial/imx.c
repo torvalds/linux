@@ -1417,10 +1417,14 @@ static void imx_flush_buffer(struct uart_port *port)
 
 	/*
 	 * According to the Reference Manual description of the UART SRST bit:
+	 *
 	 * "Reset the transmit and receive state machines,
 	 * all FIFOs and register USR1, USR2, UBIR, UBMR, UBRC, URXD, UTXD
-	 * and UTS[6-3]". As we don't need to restore the old values from
-	 * USR1, USR2, URXD, UTXD, only save/restore the other four registers
+	 * and UTS[6-3]".
+	 *
+	 * We don't need to restore the old values from USR1, USR2, URXD and
+	 * UTXD. UBRC is read only, so only save/restore the other three
+	 * registers.
 	 */
 	ubir = readl(sport->port.membase + UBIR);
 	ubmr = readl(sport->port.membase + UBMR);
