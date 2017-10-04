@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
@@ -3073,17 +3074,15 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 					  unsigned int *dev_id)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct plat_sci_port *p;
 	struct sci_port *sp;
+	const void *data;
 	int id;
 
 	if (!IS_ENABLED(CONFIG_OF) || !np)
 		return NULL;
 
-	match = of_match_node(of_sci_match, np);
-	if (!match)
-		return NULL;
+	data = of_device_get_match_data(&pdev->dev);
 
 	p = devm_kzalloc(&pdev->dev, sizeof(struct plat_sci_port), GFP_KERNEL);
 	if (!p)
@@ -3099,8 +3098,8 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	sp = &sci_ports[id];
 	*dev_id = id;
 
-	p->type = SCI_OF_TYPE(match->data);
-	p->regtype = SCI_OF_REGTYPE(match->data);
+	p->type = SCI_OF_TYPE(data);
+	p->regtype = SCI_OF_REGTYPE(data);
 
 	sp->has_rtscts = of_property_read_bool(np, "uart-has-rtscts");
 
