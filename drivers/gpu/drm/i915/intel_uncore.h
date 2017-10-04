@@ -25,6 +25,12 @@
 #ifndef __INTEL_UNCORE_H__
 #define __INTEL_UNCORE_H__
 
+#include <linux/spinlock.h>
+#include <linux/notifier.h>
+#include <linux/hrtimer.h>
+
+#include "i915_reg.h"
+
 struct drm_i915_private;
 
 enum forcewake_domain_id {
