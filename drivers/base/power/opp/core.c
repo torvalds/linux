@@ -1205,6 +1205,7 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
+			of_node_put(np);
 			goto free_table;
 		}
 	}
