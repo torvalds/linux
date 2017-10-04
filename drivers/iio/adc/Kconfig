@@ -593,7 +593,7 @@ config QCOM_SPMI_VADC
 
 config RCAR_GYRO_ADC
 	tristate "Renesas R-Car GyroADC driver"
-	depends on ARCH_RCAR_GEN2 || (ARM && COMPILE_TEST)
+	depends on ARCH_RCAR_GEN2 || COMPILE_TEST
 	help
 	  Say yes here to build support for the GyroADC found in Renesas
 	  R-Car Gen2 SoCs. This block is a simple SPI offload engine for
