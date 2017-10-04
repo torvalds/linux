@@ -11,6 +11,10 @@ NAME = Petit Gorille
 # Comments in this file are targeted only to the developer, do not
 # expect to learn how to build the kernel reading this file.
 
+# That's our default target when none is given on the command line
+PHONY := _all
+_all:
+
 # o Do not use make's built-in rules and variables
 #   (this increases performance and avoids hard-to-debug behaviour);
 # o Look for make include files relative to root of kernel src
@@ -116,10 +120,6 @@ ifeq ($(KBUILD_SRC),)
 ifeq ("$(origin O)", "command line")
   KBUILD_OUTPUT := $(O)
 endif
-
-# That's our default target when none is given on the command line
-PHONY := _all
-_all:
 
 # Cancel implicit rules on top Makefile
 $(CURDIR)/Makefile Makefile: ;
