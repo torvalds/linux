@@ -1274,6 +1274,13 @@ DEFINE_EVENT(f2fs_discard, f2fs_issue_discard,
 	TP_ARGS(dev, blkstart, blklen)
 );
 
+DEFINE_EVENT(f2fs_discard, f2fs_remove_discard,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
+
+	TP_ARGS(dev, blkstart, blklen)
+);
+
 TRACE_EVENT(f2fs_issue_reset_zone,
 
 	TP_PROTO(struct block_device *dev, block_t blkstart),
