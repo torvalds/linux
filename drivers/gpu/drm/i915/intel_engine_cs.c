@@ -980,7 +980,11 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 				  GEN9_PBE_COMPRESSED_HASH_SELECTION);
 		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
 				  GEN9_SAMPLER_HASH_COMPRESSED_READ_ADDR);
-		WA_SET_BIT(MMCD_MISC_CTRL, MMCD_PCLA | MMCD_HOTSPOT_EN);
+
+		I915_WRITE(MMCD_MISC_CTRL,
+			   I915_READ(MMCD_MISC_CTRL) |
+			   MMCD_PCLA |
+			   MMCD_HOTSPOT_EN);
 	}
 
 	/* WaClearFlowControlGpgpuContextSave:skl,bxt,kbl,glk,cfl */
