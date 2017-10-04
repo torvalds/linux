@@ -347,9 +347,8 @@ struct _scpi_sensor_info {
 };
 
 struct sensor_value {
-	__le32 lo_val;
-	__le32 hi_val;
-} __packed;
+	__le64 val;
+};
 
 struct dev_pstate_set {
 	__le16 dev_id;
@@ -785,11 +784,10 @@ static int scpi_sensor_get_value(u16 sensor, u64 *val)
 		return ret;
 
 	if (scpi_info->is_legacy)
-		/* only 32-bits supported, hi_val can be junk */
-		*val = le32_to_cpu(buf.lo_val);
+		/* only 32-bits supported, upper 32 bits can be junk */
+		*val = le32_to_cpup((__le32 *)&buf.val);
 	else
-		*val = (u64)le32_to_cpu(buf.hi_val) << 32 |
-			le32_to_cpu(buf.lo_val);
+		*val = le64_to_cpu(buf.val);
 
 	return 0;
 }
