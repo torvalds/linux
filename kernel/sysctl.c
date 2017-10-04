@@ -2188,8 +2188,6 @@ static int do_proc_douintvec_conv(unsigned long *lvalp,
 	if (write) {
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
 		*valp = *lvalp;
 	} else {
 		unsigned int val = *valp;
