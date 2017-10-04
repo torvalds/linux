@@ -558,7 +558,7 @@ static struct sk_buff *bcm_dequeue(struct hci_uart *hu)
 #ifdef CONFIG_PM
 static int bcm_suspend_device(struct device *dev)
 {
-	struct bcm_device *bdev = platform_get_drvdata(to_platform_device(dev));
+	struct bcm_device *bdev = dev_get_drvdata(dev);
 
 	bt_dev_dbg(bdev, "");
 
@@ -581,7 +581,7 @@ static int bcm_suspend_device(struct device *dev)
 
 static int bcm_resume_device(struct device *dev)
 {
-	struct bcm_device *bdev = platform_get_drvdata(to_platform_device(dev));
+	struct bcm_device *bdev = dev_get_drvdata(dev);
 
 	bt_dev_dbg(bdev, "");
 
@@ -606,7 +606,7 @@ static int bcm_resume_device(struct device *dev)
 /* Platform suspend callback */
 static int bcm_suspend(struct device *dev)
 {
-	struct bcm_device *bdev = platform_get_drvdata(to_platform_device(dev));
+	struct bcm_device *bdev = dev_get_drvdata(dev);
 	int error;
 
 	bt_dev_dbg(bdev, "suspend: is_suspended %d", bdev->is_suspended);
@@ -638,7 +638,7 @@ unlock:
 /* Platform resume callback */
 static int bcm_resume(struct device *dev)
 {
-	struct bcm_device *bdev = platform_get_drvdata(to_platform_device(dev));
+	struct bcm_device *bdev = dev_get_drvdata(dev);
 
 	bt_dev_dbg(bdev, "resume: is_suspended %d", bdev->is_suspended);
 
