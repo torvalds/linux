@@ -102,6 +102,7 @@ enum icm_pkg_code {
 	ICM_ADD_DEVICE_KEY = 0x6,
 	ICM_GET_ROUTE = 0xa,
 	ICM_APPROVE_XDOMAIN = 0x10,
+	ICM_DISCONNECT_XDOMAIN = 0x11,
 	ICM_PREBOOT_ACL = 0x18,
 };
 
@@ -319,6 +320,146 @@ struct icm_ar_pkg_preboot_acl {
 struct icm_ar_pkg_preboot_acl_response {
 	struct icm_pkg_header hdr;
 	struct icm_ar_boot_acl_entry acl[ICM_AR_PREBOOT_ACL_ENTRIES];
+};
+
+/* Titan Ridge messages */
+
+struct icm_tr_pkg_driver_ready_response {
+	struct icm_pkg_header hdr;
+	u16 reserved1;
+	u16 info;
+	u32 nvm_version;
+	u16 device_id;
+	u16 reserved2;
+};
+
+#define ICM_TR_INFO_SLEVEL_MASK		GENMASK(2, 0)
+#define ICM_TR_INFO_BOOT_ACL_SHIFT	7
+#define ICM_TR_INFO_BOOT_ACL_MASK	GENMASK(12, 7)
+
+struct icm_tr_event_device_connected {
+	struct icm_pkg_header hdr;
+	uuid_t ep_uuid;
+	u32 route_hi;
+	u32 route_lo;
+	u8 connection_id;
+	u8 reserved;
+	u16 link_info;
+	u32 ep_name[55];
+};
+
+struct icm_tr_event_device_disconnected {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+};
+
+struct icm_tr_event_xdomain_connected {
+	struct icm_pkg_header hdr;
+	u16 reserved;
+	u16 link_info;
+	uuid_t remote_uuid;
+	uuid_t local_uuid;
+	u32 local_route_hi;
+	u32 local_route_lo;
+	u32 remote_route_hi;
+	u32 remote_route_lo;
+};
+
+struct icm_tr_event_xdomain_disconnected {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+	uuid_t remote_uuid;
+};
+
+struct icm_tr_pkg_approve_device {
+	struct icm_pkg_header hdr;
+	uuid_t ep_uuid;
+	u32 route_hi;
+	u32 route_lo;
+	u8 connection_id;
+	u8 reserved1[3];
+};
+
+struct icm_tr_pkg_add_device_key {
+	struct icm_pkg_header hdr;
+	uuid_t ep_uuid;
+	u32 route_hi;
+	u32 route_lo;
+	u8 connection_id;
+	u8 reserved[3];
+	u32 key[8];
+};
+
+struct icm_tr_pkg_challenge_device {
+	struct icm_pkg_header hdr;
+	uuid_t ep_uuid;
+	u32 route_hi;
+	u32 route_lo;
+	u8 connection_id;
+	u8 reserved[3];
+	u32 challenge[8];
+};
+
+struct icm_tr_pkg_approve_xdomain {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+	uuid_t remote_uuid;
+	u16 transmit_path;
+	u16 transmit_ring;
+	u16 receive_path;
+	u16 receive_ring;
+};
+
+struct icm_tr_pkg_disconnect_xdomain {
+	struct icm_pkg_header hdr;
+	u8 stage;
+	u8 reserved[3];
+	u32 route_hi;
+	u32 route_lo;
+	uuid_t remote_uuid;
+};
+
+struct icm_tr_pkg_challenge_device_response {
+	struct icm_pkg_header hdr;
+	uuid_t ep_uuid;
+	u32 route_hi;
+	u32 route_lo;
+	u8 connection_id;
+	u8 reserved[3];
+	u32 challenge[8];
+	u32 response[8];
+};
+
+struct icm_tr_pkg_add_device_key_response {
+	struct icm_pkg_header hdr;
+	uuid_t ep_uuid;
+	u32 route_hi;
+	u32 route_lo;
+	u8 connection_id;
+	u8 reserved[3];
+};
+
+struct icm_tr_pkg_approve_xdomain_response {
+	struct icm_pkg_header hdr;
+	u32 route_hi;
+	u32 route_lo;
+	uuid_t remote_uuid;
+	u16 transmit_path;
+	u16 transmit_ring;
+	u16 receive_path;
+	u16 receive_ring;
+};
+
+struct icm_tr_pkg_disconnect_xdomain_response {
+	struct icm_pkg_header hdr;
+	u8 stage;
+	u8 reserved[3];
+	u32 route_hi;
+	u32 route_lo;
+	uuid_t remote_uuid;
 };
 
 /* XDomain messages */
