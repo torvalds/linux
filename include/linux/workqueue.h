@@ -176,7 +176,7 @@ struct execute_work {
 #define __DELAYED_WORK_INITIALIZER(n, f, tflags) {			\
 	.work = __WORK_INITIALIZER((n).work, (f)),			\
 	.timer = __TIMER_INITIALIZER(delayed_work_timer_fn,		\
-				     0, (unsigned long)&(n),		\
+				     (unsigned long)&(n),		\
 				     (tflags) | TIMER_IRQSAFE),		\
 	}
 
