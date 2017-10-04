@@ -470,12 +470,12 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			can0_pins_a: can0@0 {
+			can0_ph_pins: can0-ph-pins {
 				pins = "PH20", "PH21";
 				function = "can";
 			};
 
-			emac_pins_a: emac0@0 {
+			emac_pins: emac0-pins {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
 				       "PA7", "PA8", "PA9", "PA10",
@@ -484,42 +484,42 @@
 				function = "emac";
 			};
 
-			i2c0_pins_a: i2c0@0 {
+			i2c0_pins: i2c0-pins {
 				pins = "PB0", "PB1";
 				function = "i2c0";
 			};
 
-			i2c1_pins_a: i2c1@0 {
+			i2c1_pins: i2c1-pins {
 				pins = "PB18", "PB19";
 				function = "i2c1";
 			};
 
-			i2c2_pins_a: i2c2@0 {
+			i2c2_pins: i2c2-pins {
 				pins = "PB20", "PB21";
 				function = "i2c2";
 			};
 
-			ir0_rx_pins_a: ir0@0 {
+			ir0_rx_pins: ir0-rx-pin {
 				pins = "PB4";
 				function = "ir0";
 			};
 
-			ir0_tx_pins_a: ir0@1 {
+			ir0_tx_pins: ir0-tx-pin {
 				pins = "PB3";
 				function = "ir0";
 			};
 
-			ir1_rx_pins_a: ir1@0 {
+			ir1_rx_pins: ir1-rx-pin {
 				pins = "PB23";
 				function = "ir1";
 			};
 
-			ir1_tx_pins_a: ir1@1 {
+			ir1_tx_pins: ir1-tx-pin {
 				pins = "PB22";
 				function = "ir1";
 			};
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
@@ -527,83 +527,83 @@
 				bias-pull-up;
 			};
 
-			ps20_pins_a: ps20@0 {
+			ps2_ch0_pins: ps2-ch0-pins {
 				pins = "PI20", "PI21";
 				function = "ps2";
 			};
 
-			ps21_pins_a: ps21@0 {
+			ps2_ch1_ph_pins: ps2-ch1-ph-pins {
 				pins = "PH12", "PH13";
 				function = "ps2";
 			};
 
-			pwm0_pins_a: pwm0@0 {
+			pwm0_pin: pwm0-pin {
 				pins = "PB2";
 				function = "pwm";
 			};
 
-			pwm1_pins_a: pwm1@0 {
+			pwm1_pin: pwm1-pin {
 				pins = "PI3";
 				function = "pwm";
 			};
 
-			spdif_tx_pins_a: spdif@0 {
+			spdif_tx_pin: spdif-tx-pin {
 				pins = "PB13";
 				function = "spdif";
 				bias-pull-up;
 			};
 
-			spi0_pins_a: spi0@0 {
+			spi0_pi_pins: spi0-pi-pins {
 				pins = "PI11", "PI12", "PI13";
 				function = "spi0";
 			};
 
-			spi0_cs0_pins_a: spi0_cs0@0 {
+			spi0_cs0_pi_pin: spi0-cs0-pi-pin {
 				pins = "PI10";
 				function = "spi0";
 			};
 
-			spi1_pins_a: spi1@0 {
+			spi1_pins: spi1-pins {
 				pins = "PI17", "PI18", "PI19";
 				function = "spi1";
 			};
 
-			spi1_cs0_pins_a: spi1_cs0@0 {
+			spi1_cs0_pin: spi1-cs0-pin {
 				pins = "PI16";
 				function = "spi1";
 			};
 
-			spi2_pins_a: spi2@0 {
-				pins = "PC20", "PC21", "PC22";
-				function = "spi2";
-			};
-
-			spi2_pins_b: spi2@1 {
+			spi2_pb_pins: spi2-pb-pins {
 				pins = "PB15", "PB16", "PB17";
 				function = "spi2";
 			};
 
-			spi2_cs0_pins_a: spi2_cs0@0 {
-				pins = "PC19";
+			spi2_pc_pins: spi2-pc-pins {
+				pins = "PC20", "PC21", "PC22";
 				function = "spi2";
 			};
 
-			spi2_cs0_pins_b: spi2_cs0@1 {
+			spi2_cs0_pb_pin: spi2-cs0-pb-pin {
 				pins = "PB14";
 				function = "spi2";
 			};
 
-			uart0_pins_a: uart0@0 {
+			spi2_cs0_pc_pins: spi2-cs0-pc-pin {
+				pins = "PC19";
+				function = "spi2";
+			};
+
+			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB22", "PB23";
 				function = "uart0";
 			};
 
-			uart0_pins_b: uart0@1 {
+			uart0_pf_pins: uart0-pf-pins {
 				pins = "PF2", "PF4";
 				function = "uart0";
 			};
 
-			uart1_pins_a: uart1@0 {
+			uart1_pins: uart1-pins {
 				pins = "PA10", "PA11";
 				function = "uart1";
 			};
