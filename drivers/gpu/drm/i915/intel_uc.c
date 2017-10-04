@@ -88,15 +88,18 @@ static void gen8_guc_raise_irq(struct intel_guc *guc)
 	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
 }
 
-void intel_uc_init_early(struct drm_i915_private *dev_priv)
+static void guc_init_early(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
-
 	intel_guc_ct_init_early(&guc->ct);
 
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
 	guc->notify = gen8_guc_raise_irq;
+}
+
+void intel_uc_init_early(struct drm_i915_private *dev_priv)
+{
+	guc_init_early(&dev_priv->guc);
 }
 
 void intel_uc_init_fw(struct drm_i915_private *dev_priv)
