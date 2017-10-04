@@ -202,10 +202,8 @@
 	stmpe1600: stmpe1600@42 {
 		compatible = "st,stmpe1600";
 		reg = <0x42>;
-		irq-gpio = <&gpioi 8 0>;
-		irq-trigger = <3>;
 		interrupts = <8 3>;
-		interrupt-parent = <&exti>;
+		interrupt-parent = <&gpioi>;
 		interrupt-controller;
 		wakeup-source;
 
