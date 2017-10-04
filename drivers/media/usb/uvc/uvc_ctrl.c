@@ -2001,6 +2001,13 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		goto done;
 	}
 
+	/* Validate the user-provided bit-size and offset */
+	if (mapping->size > 32 ||
+	    mapping->offset + mapping->size > ctrl->info.size * 8) {
+		ret = -EINVAL;
+		goto done;
+	}
+
 	list_for_each_entry(map, &ctrl->info.mappings, list) {
 		if (mapping->id == map->id) {
 			uvc_trace(UVC_TRACE_CONTROL, "Can't add mapping '%s', "
