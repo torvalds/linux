@@ -159,7 +159,6 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 
 	pci_device_add(virtfn, virtfn->bus);
 
-	pci_bus_add_device(virtfn);
 	sprintf(buf, "virtfn%u", id);
 	rc = sysfs_create_link(&dev->dev.kobj, &virtfn->dev.kobj, buf);
 	if (rc)
@@ -169,6 +168,8 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 		goto failed2;
 
 	kobject_uevent(&virtfn->dev.kobj, KOBJ_CHANGE);
+
+	pci_bus_add_device(virtfn);
 
 	return 0;
 
