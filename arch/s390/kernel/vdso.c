@@ -166,10 +166,8 @@ int vdso_alloc_per_cpu(struct lowcore *lowcore)
 	vd->node_id = cpu_to_node(vd->cpu_nr);
 
 	/* Set up access register mode page table */
-	clear_table((unsigned long *) segment_table, _SEGMENT_ENTRY_EMPTY,
-		    PAGE_SIZE << SEGMENT_ORDER);
-	clear_table((unsigned long *) page_table, _PAGE_INVALID,
-		    256*sizeof(unsigned long));
+	memset64((u64 *)segment_table, _SEGMENT_ENTRY_EMPTY, _CRST_ENTRIES);
+	memset64((u64 *)page_table, _PAGE_INVALID, PTRS_PER_PTE);
 
 	*(unsigned long *) segment_table = _SEGMENT_ENTRY + page_table;
 	*(unsigned long *) page_table = _PAGE_PROTECT + page_frame;

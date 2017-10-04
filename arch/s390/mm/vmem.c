@@ -59,7 +59,7 @@ pte_t __ref *vmem_pte_alloc(void)
 		pte = (pte_t *) memblock_alloc(size, size);
 	if (!pte)
 		return NULL;
-	clear_table((unsigned long *) pte, _PAGE_INVALID, size);
+	memset64((u64 *)pte, _PAGE_INVALID, PTRS_PER_PTE);
 	return pte;
 }
 
