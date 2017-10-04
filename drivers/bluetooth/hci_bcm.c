@@ -751,8 +751,7 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 		break;
 	}
 
-	/* Always tell the ACPI core to skip this resource */
-	return 1;
+	return 0;
 }
 #endif /* CONFIG_ACPI */
 
@@ -805,6 +804,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 	const struct dmi_system_id *dmi_id;
 	const struct acpi_gpio_mapping *gpio_mapping = acpi_bcm_int_last_gpios;
 	const struct acpi_device_id *id;
+	struct resource_entry *entry;
 	int ret;
 
 	/* Retrieve GPIO data */
@@ -821,6 +821,13 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 				     &resources, bcm_resource, dev);
 	if (ret < 0)
 		return ret;
+
+	resource_list_for_each_entry(entry, &resources) {
+		if (resource_type(entry->res) == IORESOURCE_IRQ) {
+			dev->irq = entry->res->start;
+			break;
+		}
+	}
 	acpi_dev_free_resource_list(&resources);
 
 	dmi_id = dmi_first_match(bcm_active_low_irq_dmi_table);
