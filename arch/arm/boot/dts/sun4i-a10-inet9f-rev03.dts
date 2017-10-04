@@ -59,7 +59,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys-polled";
 		pinctrl-names = "default";
 		pinctrl-0 = <&key_pins_inet9f>;
@@ -310,7 +310,7 @@
 };
 
 &pio {
-	key_pins_inet9f: key_pins@0 {
+	key_pins_inet9f: key-pins {
 		pins = "PA0", "PA1", "PA3", "PA4",
 		       "PA5", "PA6", "PA8", "PA9",
 		       "PA11", "PA12", "PA13",
@@ -320,13 +320,13 @@
 		bias-pull-up;
 	};
 
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
 		pins = "PH5";
 		function = "gpio_in";
 		bias-pull-down;

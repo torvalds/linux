@@ -158,19 +158,19 @@
 };
 
 &pio {
-	led_pins_olinuxinolime: led_pins@0 {
+	led_pins_olinuxinolime: led-pin {
 		pins = "PH2";
 		function = "gpio_out";
 		drive-strength = <20>;
 	};
 
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
 		pins = "PH5";
 		function = "gpio_in";
 		bias-pull-down;
