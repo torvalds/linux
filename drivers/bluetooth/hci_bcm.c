@@ -776,7 +776,6 @@ static int bcm_platform_probe(struct bcm_device *dev)
 		return PTR_ERR(dev->shutdown);
 
 	/* IRQ can be declared in ACPI table as Interrupt or GpioInt */
-	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq <= 0) {
 		struct gpio_desc *gpio;
 
@@ -853,6 +852,7 @@ static int bcm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dev->pdev = pdev;
+	dev->irq = platform_get_irq(pdev, 0);
 
 	if (has_acpi_companion(&pdev->dev)) {
 		ret = bcm_acpi_probe(dev);
