@@ -179,6 +179,14 @@ static inline void timer_setup(struct timer_list *timer,
 		      (TIMER_DATA_TYPE)timer, flags);
 }
 
+static inline void timer_setup_on_stack(struct timer_list *timer,
+			       void (*callback)(struct timer_list *),
+			       unsigned int flags)
+{
+	__setup_timer_on_stack(timer, (TIMER_FUNC_TYPE)callback,
+			       (TIMER_DATA_TYPE)timer, flags);
+}
+
 #define from_timer(var, callback_timer, timer_fieldname) \
 	container_of(callback_timer, typeof(*var), timer_fieldname)
 
