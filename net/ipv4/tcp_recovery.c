@@ -61,32 +61,28 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 	list_for_each_entry_safe(skb, n, &tp->tsorted_sent_queue,
 				 tcp_tsorted_anchor) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
+		s32 remaining;
 
-		if (tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
-					tp->rack.end_seq, scb->end_seq)) {
-			/* Step 3 in draft-cheng-tcpm-rack-00.txt:
-			 * A packet is lost if its elapsed time is beyond
-			 * the recent RTT plus the reordering window.
-			 */
-			u32 elapsed = tcp_stamp_us_delta(tp->tcp_mstamp,
-							 skb->skb_mstamp);
-			s32 remaining = tp->rack.rtt_us + reo_wnd - elapsed;
+		/* Skip ones marked lost but not yet retransmitted */
+		if ((scb->sacked & TCPCB_LOST) &&
+		    !(scb->sacked & TCPCB_SACKED_RETRANS))
+			continue;
 
-			if (remaining < 0) {
-				tcp_rack_mark_skb_lost(sk, skb);
-				list_del_init(&skb->tcp_tsorted_anchor);
-				continue;
-			}
+		if (!tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
+					 tp->rack.end_seq, scb->end_seq))
+			break;
 
-			/* Skip ones marked lost but not yet retransmitted */
-			if ((scb->sacked & TCPCB_LOST) &&
-			    !(scb->sacked & TCPCB_SACKED_RETRANS))
-				continue;
-
+		/* A packet is lost if it has not been s/acked beyond
+		 * the recent RTT plus the reordering window.
+		 */
+		remaining = tp->rack.rtt_us + reo_wnd -
+			    tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
+		if (remaining < 0) {
+			tcp_rack_mark_skb_lost(sk, skb);
+			list_del_init(&skb->tcp_tsorted_anchor);
+		} else {
 			/* Record maximum wait time (+1 to avoid 0) */
 			*reo_timeout = max_t(u32, *reo_timeout, 1 + remaining);
-		} else {
-			break;
 		}
 	}
 }
