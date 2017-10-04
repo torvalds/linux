@@ -348,7 +348,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 			continue;
 		}
 
-		childmode = (unsigned int)of_id->data;
+		childmode = (uintptr_t)of_id->data;
 		switch (childmode) {
 		case RCAR_GYROADC_MODE_SELECT_1_MB88101A:
 			sample_width = 12;
