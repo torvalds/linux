@@ -3970,8 +3970,8 @@ static int selinux_task_getioprio(struct task_struct *p)
 			    PROCESS__GETSCHED, NULL);
 }
 
-int selinux_task_prlimit(const struct cred *cred, const struct cred *tcred,
-			 unsigned int flags)
+static int selinux_task_prlimit(const struct cred *cred, const struct cred *tcred,
+				unsigned int flags)
 {
 	u32 av = 0;
 
