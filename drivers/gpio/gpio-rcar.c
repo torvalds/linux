@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -393,16 +394,11 @@ MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
 static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 {
 	struct device_node *np = p->pdev->dev.of_node;
-	const struct of_device_id *match;
 	const struct gpio_rcar_info *info;
 	struct of_phandle_args args;
 	int ret;
 
-	match = of_match_node(gpio_rcar_of_table, np);
-	if (!match)
-		return -EINVAL;
-
-	info = match->data;
+	info = of_device_get_match_data(&p->pdev->dev);
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &args);
 	*npins = ret == 0 ? args.args[2] : RCAR_MAX_GPIO_PER_BANK;
