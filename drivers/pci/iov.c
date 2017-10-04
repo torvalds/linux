@@ -498,6 +498,14 @@ static void sriov_restore_state(struct pci_dev *dev)
 	if (ctrl & PCI_SRIOV_CTRL_VFE)
 		return;
 
+	/*
+	 * Restore PCI_SRIOV_CTRL_ARI before pci_iov_set_numvfs() because
+	 * it reads offset & stride, which depend on PCI_SRIOV_CTRL_ARI.
+	 */
+	ctrl &= ~PCI_SRIOV_CTRL_ARI;
+	ctrl |= iov->ctrl & PCI_SRIOV_CTRL_ARI;
+	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, ctrl);
+
 	for (i = PCI_IOV_RESOURCES; i <= PCI_IOV_RESOURCE_END; i++)
 		pci_update_resource(dev, i);
 
