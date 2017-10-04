@@ -17,8 +17,6 @@
 #include <linux/scatterlist.h>
 #include <asm-generic/pci.h>
 
-struct pci_dev;
-
 #define pcibios_assign_all_busses()	0
 
 #ifdef CONFIG_MMU

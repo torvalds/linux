@@ -31,8 +31,6 @@ struct pci_vector_struct {
 
 void pcibios_config_init(void);
 
-struct pci_dev;
-
 /*
  * PCI_DMA_BUS_IS_PHYS should be set to 1 if there is _necessarily_ a direct
  * correspondence between device bus addresses and CPU physical addresses.

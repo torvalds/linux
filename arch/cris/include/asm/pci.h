@@ -32,8 +32,6 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 #include <linux/string.h>
 #include <asm/io.h>
 
-struct pci_dev;
-
 /* The PCI address space does equal the physical memory
  * address space.  The networking and block device layers use
  * this boolean for bounce buffer decisions.

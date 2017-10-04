@@ -12,9 +12,6 @@
  * The following structure is used to manage multiple PCI busses.
  */
 
-struct pci_dev;
-struct pci_bus;
-struct resource;
 struct pci_iommu_arena;
 struct page;
 

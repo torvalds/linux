@@ -20,8 +20,6 @@
  */
 #define PCI_DMA_BUS_IS_PHYS	(0)
 
-struct pci_dev;
-
 #endif /* __KERNEL__ */
 
 #ifndef CONFIG_LEON_PCI
