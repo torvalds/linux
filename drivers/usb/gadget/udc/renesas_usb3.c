@@ -2569,20 +2569,15 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3;
 	struct resource *res;
-	const struct of_device_id *match;
 	int irq, ret;
 	const struct renesas_usb3_priv *priv;
 	const struct soc_device_attribute *attr;
-
-	match = of_match_node(usb3_of_match, pdev->dev.of_node);
-	if (!match)
-		return -ENODEV;
 
 	attr = soc_device_match(renesas_usb3_quirks_match);
 	if (attr)
 		priv = attr->data;
 	else
-		priv = match->data;
+		priv = of_device_get_match_data(&pdev->dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
