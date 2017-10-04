@@ -21,8 +21,11 @@
  * IN THE SOFTWARE.
  *
  */
+
 #include <linux/debugfs.h>
 #include <linux/relay.h>
+
+#include "intel_guc_log.h"
 #include "i915_drv.h"
 
 static void guc_log_capture_logs(struct intel_guc *guc);

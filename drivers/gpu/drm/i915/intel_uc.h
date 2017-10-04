@@ -29,6 +29,7 @@
 #include "i915_guc_reg.h"
 #include "intel_ringbuffer.h"
 #include "intel_guc_ct.h"
+#include "intel_guc_log.h"
 #include "i915_vma.h"
 #include "intel_huc.h"
 
@@ -70,24 +71,6 @@ struct i915_guc_client {
 	spinlock_t wq_lock;
 	/* Per-engine counts of GuC submissions */
 	uint64_t submissions[I915_NUM_ENGINES];
-};
-
-struct intel_guc_log {
-	uint32_t flags;
-	struct i915_vma *vma;
-	/* The runtime stuff gets created only when GuC logging gets enabled */
-	struct {
-		void *buf_addr;
-		struct workqueue_struct *flush_wq;
-		struct work_struct flush_work;
-		struct rchan *relay_chan;
-	} runtime;
-	/* logging related stats */
-	u32 capture_miss_count;
-	u32 flush_interrupt_count;
-	u32 prev_overflow_count[GUC_MAX_LOG_BUFFER];
-	u32 total_overflow_count[GUC_MAX_LOG_BUFFER];
-	u32 flush_count[GUC_MAX_LOG_BUFFER];
 };
 
 struct intel_guc {
@@ -164,13 +147,6 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv);
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
-
-/* intel_guc_log.c */
-int intel_guc_log_create(struct intel_guc *guc);
-void intel_guc_log_destroy(struct intel_guc *guc);
-int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
-void i915_guc_log_register(struct drm_i915_private *dev_priv);
-void i915_guc_log_unregister(struct drm_i915_private *dev_priv);
 
 static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 {
