@@ -960,6 +960,7 @@ static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 	struct list_head *wait_list = fstrim ? &(dcc->fstrim_list) :
 							&(dcc->wait_list);
 	struct bio *bio = NULL;
+	int flag = dcc->dpolicy.sync ? REQ_SYNC : 0;
 
 	if (dc->state != D_PREP)
 		return;
@@ -978,7 +979,7 @@ static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 		if (bio) {
 			bio->bi_private = dc;
 			bio->bi_end_io = f2fs_submit_discard_endio;
-			submit_bio(REQ_SYNC, bio);
+			submit_bio(flag, bio);
 			list_move_tail(&dc->list, wait_list);
 			__check_sit_bitmap(sbi, dc->start, dc->start + dc->len);
 
@@ -1172,6 +1173,7 @@ static void __issue_discard_cmd_range(struct f2fs_sb_info *sbi,
 	struct discard_cmd *prev_dc = NULL, *next_dc = NULL;
 	struct rb_node **insert_p = NULL, *insert_parent = NULL;
 	struct discard_cmd *dc;
+	struct discard_policy *dpolicy = &dcc->dpolicy;
 	struct blk_plug plug;
 	int issued;
 
@@ -1204,7 +1206,7 @@ next:
 
 		__submit_discard_cmd(sbi, dc, true);
 
-		if (++issued >= DISCARD_ISSUE_RATE) {
+		if (++issued >= dpolicy->max_requests) {
 			start = dc->lstart + dc->len;
 
 			blk_finish_plug(&plug);
@@ -1232,6 +1234,7 @@ static int __issue_discard_cmd(struct f2fs_sb_info *sbi, bool issue_cond)
 	struct list_head *pend_list;
 	struct discard_cmd *dc, *tmp;
 	struct blk_plug plug;
+	struct discard_policy *dpolicy = &dcc->dpolicy;
 	int iter = 0, issued = 0;
 	int i;
 	bool io_interrupted = false;
@@ -1259,14 +1262,16 @@ static int __issue_discard_cmd(struct f2fs_sb_info *sbi, bool issue_cond)
 				continue;
 			}
 
-			if (is_idle(sbi)) {
-				__submit_discard_cmd(sbi, dc, false);
-				issued++;
-			} else {
+			if (dpolicy->io_aware && i < dpolicy->io_aware_gran &&
+								!is_idle(sbi)) {
 				io_interrupted = true;
+				goto skip;
 			}
 
-			if (++iter >= DISCARD_ISSUE_RATE)
+			__submit_discard_cmd(sbi, dc, false);
+			issued++;
+skip:
+			if (++iter >= dpolicy->max_requests)
 				goto out;
 		}
 		if (list_empty(pend_list) && dcc->pend_list_tag[i] & P_TRIM)
@@ -1415,6 +1420,7 @@ static int issue_discard_thread(void *data)
 	struct f2fs_sb_info *sbi = data;
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 	wait_queue_head_t *q = &dcc->discard_wait_queue;
+	struct discard_policy *dpolicy = &dcc->dpolicy;
 	unsigned int wait_ms = DEF_MIN_DISCARD_ISSUE_TIME;
 	int issued;
 
@@ -1441,9 +1447,9 @@ static int issue_discard_thread(void *data)
 		issued = __issue_discard_cmd(sbi, true);
 		if (issued) {
 			__wait_all_discard_cmd(sbi, true);
-			wait_ms = DEF_MIN_DISCARD_ISSUE_TIME;
+			wait_ms = dpolicy->min_interval;
 		} else {
-			wait_ms = DEF_MAX_DISCARD_ISSUE_TIME;
+			wait_ms = dpolicy->max_interval;
 		}
 
 		sb_end_intwrite(sbi->sb);
@@ -1728,6 +1734,18 @@ skip:
 	wake_up_discard_thread(sbi, false);
 }
 
+static void inline init_discard_policy(struct discard_cmd_control *dcc)
+{
+	struct discard_policy *dpolicy = &dcc->dpolicy;
+
+	dpolicy->min_interval = DEF_MIN_DISCARD_ISSUE_TIME;
+	dpolicy->max_interval = DEF_MAX_DISCARD_ISSUE_TIME;
+	dpolicy->max_requests = DEF_MAX_DISCARD_REQUEST;
+	dpolicy->io_aware_gran = MAX_PLIST_NUM;
+	dpolicy->io_aware = true;
+	dpolicy->sync = true;
+}
+
 static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 {
 	dev_t dev = sbi->sb->s_bdev->bd_dev;
@@ -1760,6 +1778,8 @@ static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 	dcc->max_discards = MAIN_SEGS(sbi) << sbi->log_blocks_per_seg;
 	dcc->undiscard_blks = 0;
 	dcc->root = RB_ROOT;
+
+	init_discard_policy(dcc);
 
 	init_waitqueue_head(&dcc->discard_wait_queue);
 	SM_I(sbi)->dcc_info = dcc;
