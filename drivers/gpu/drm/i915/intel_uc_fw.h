@@ -91,6 +91,15 @@ static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
 	return "uC";
 }
 
+static inline
+void intel_uc_fw_init(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
+{
+	uc_fw->path = NULL;
+	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+	uc_fw->load_status = INTEL_UC_FIRMWARE_NONE;
+	uc_fw->type = type;
+}
+
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		       struct intel_uc_fw *uc_fw);
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);

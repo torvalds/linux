@@ -386,10 +386,7 @@ int intel_guc_select_fw(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	guc->fw.path = NULL;
-	guc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
-	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
-	guc->fw.type = INTEL_UC_FW_TYPE_GUC;
+	intel_uc_fw_init(&guc->fw, INTEL_UC_FW_TYPE_GUC);
 
 	if (i915_modparams.guc_firmware_path) {
 		guc->fw.path = i915_modparams.guc_firmware_path;
