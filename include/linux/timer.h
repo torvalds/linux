@@ -132,8 +132,6 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 	__init_timer((timer), TIMER_PINNED)
 #define init_timer_deferrable(timer)					\
 	__init_timer((timer), TIMER_DEFERRABLE)
-#define init_timer_pinned_deferrable(timer)				\
-	__init_timer((timer), TIMER_DEFERRABLE | TIMER_PINNED)
 #define init_timer_on_stack(timer)					\
 	__init_timer_on_stack((timer), 0)
 
