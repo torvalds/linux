@@ -756,7 +756,7 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 }
 #endif /* CONFIG_ACPI */
 
-static int bcm_platform_probe(struct bcm_device *dev)
+static int bcm_get_resources(struct bcm_device *dev)
 {
 	dev->name = dev_name(dev->dev);
 
@@ -857,7 +857,7 @@ static int bcm_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = bcm_platform_probe(dev);
+	ret = bcm_get_resources(dev);
 	if (ret)
 		return ret;
 
