@@ -33,46 +33,6 @@
 #include "i915_vma.h"
 #include "intel_huc.h"
 
-/*
- * This structure primarily describes the GEM object shared with the GuC.
- * The specs sometimes refer to this object as a "GuC context", but we use
- * the term "client" to avoid confusion with hardware contexts. This
- * GEM object is held for the entire lifetime of our interaction with
- * the GuC, being allocated before the GuC is loaded with its firmware.
- * Because there's no way to update the address used by the GuC after
- * initialisation, the shared object must stay pinned into the GGTT as
- * long as the GuC is in use. We also keep the first page (only) mapped
- * into kernel address space, as it includes shared data that must be
- * updated on every request submission.
- *
- * The single GEM object described here is actually made up of several
- * separate areas, as far as the GuC is concerned. The first page (kept
- * kmap'd) includes the "process descriptor" which holds sequence data for
- * the doorbell, and one cacheline which actually *is* the doorbell; a
- * write to this will "ring the doorbell" (i.e. send an interrupt to the
- * GuC). The subsequent  pages of the client object constitute the work
- * queue (a circular array of work items), again described in the process
- * descriptor. Work queue pages are mapped momentarily as required.
- */
-struct i915_guc_client {
-	struct i915_vma *vma;
-	void *vaddr;
-	struct i915_gem_context *owner;
-	struct intel_guc *guc;
-
-	uint32_t engines;		/* bitmap of (host) engine ids	*/
-	uint32_t priority;
-	u32 stage_id;
-	uint32_t proc_desc_offset;
-
-	u16 doorbell_id;
-	unsigned long doorbell_offset;
-
-	spinlock_t wq_lock;
-	/* Per-engine counts of GuC submissions */
-	uint64_t submissions[I915_NUM_ENGINES];
-};
-
 struct intel_guc {
 	struct intel_uc_fw fw;
 	struct intel_guc_log log;
@@ -141,11 +101,6 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv);
 int intel_guc_resume(struct drm_i915_private *dev_priv);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
-/* i915_guc_submission.c */
-int i915_guc_submission_init(struct drm_i915_private *dev_priv);
-int i915_guc_submission_enable(struct drm_i915_private *dev_priv);
-void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
-void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 
 static inline u32 guc_ggtt_offset(struct i915_vma *vma)

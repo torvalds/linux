@@ -21,11 +21,12 @@
  * IN THE SOFTWARE.
  *
  */
-#include <linux/circ_buf.h>
-#include "i915_drv.h"
-#include "intel_uc.h"
 
+#include <linux/circ_buf.h>
 #include <trace/events/dma_fence.h>
+
+#include "i915_guc_submission.h"
+#include "i915_drv.h"
 
 /**
  * DOC: GuC-based command submission
