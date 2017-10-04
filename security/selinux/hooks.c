@@ -2918,13 +2918,12 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 {
 	const struct task_security_struct *tsec = current_security();
 	struct superblock_security_struct *sbsec;
-	u32 sid, newsid, clen;
+	u32 newsid, clen;
 	int rc;
 	char *context;
 
 	sbsec = dir->i_sb->s_security;
 
-	sid = tsec->sid;
 	newsid = tsec->create_sid;
 
 	rc = selinux_determine_inode_label(current_security(),
