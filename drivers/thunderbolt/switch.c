@@ -1479,6 +1479,7 @@ struct tb_sw_lookup {
 	u8 link;
 	u8 depth;
 	const uuid_t *uuid;
+	u64 route;
 };
 
 static int tb_switch_match(struct device *dev, void *data)
@@ -1493,6 +1494,11 @@ static int tb_switch_match(struct device *dev, void *data)
 
 	if (lookup->uuid)
 		return !memcmp(sw->uuid, lookup->uuid, sizeof(*lookup->uuid));
+
+	if (lookup->route) {
+		return sw->config.route_lo == lower_32_bits(lookup->route) &&
+		       sw->config.route_hi == upper_32_bits(lookup->route);
+	}
 
 	/* Root switch is matched only by depth */
 	if (!lookup->depth)
@@ -1543,6 +1549,33 @@ struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid)
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.tb = tb;
 	lookup.uuid = uuid;
+
+	dev = bus_find_device(&tb_bus_type, NULL, &lookup, tb_switch_match);
+	if (dev)
+		return tb_to_switch(dev);
+
+	return NULL;
+}
+
+/**
+ * tb_switch_find_by_route() - Find switch by route string
+ * @tb: Domain the switch belongs
+ * @route: Route string to look for
+ *
+ * Returned switch has reference count increased so the caller needs to
+ * call tb_switch_put() when done with the switch.
+ */
+struct tb_switch *tb_switch_find_by_route(struct tb *tb, u64 route)
+{
+	struct tb_sw_lookup lookup;
+	struct device *dev;
+
+	if (!route)
+		return tb_switch_get(tb->root_switch);
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.tb = tb;
+	lookup.route = route;
 
 	dev = bus_find_device(&tb_bus_type, NULL, &lookup, tb_switch_match);
 	if (dev)

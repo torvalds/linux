@@ -386,6 +386,7 @@ struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
 struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
 					       u8 depth);
 struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid);
+struct tb_switch *tb_switch_find_by_route(struct tb *tb, u64 route);
 
 static inline struct tb_switch *tb_switch_get(struct tb_switch *sw)
 {
