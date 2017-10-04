@@ -644,48 +644,6 @@ static void i915_guc_irq_handler(unsigned long data)
  * path of i915_guc_submit() above.
  */
 
-/**
- * intel_guc_allocate_vma() - Allocate a GGTT VMA for GuC usage
- * @guc:	the guc
- * @size:	size of area to allocate (both virtual space and memory)
- *
- * This is a wrapper to create an object for use with the GuC. In order to
- * use it inside the GuC, an object needs to be pinned lifetime, so we allocate
- * both some backing storage and a range inside the Global GTT. We must pin
- * it in the GGTT somewhere other than than [0, GUC_WOPCM_TOP) because that
- * range is reserved inside GuC.
- *
- * Return:	A i915_vma if successful, otherwise an ERR_PTR.
- */
-struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int ret;
-
-	obj = i915_gem_object_create(dev_priv, size);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
-	if (IS_ERR(vma))
-		goto err;
-
-	ret = i915_vma_pin(vma, 0, PAGE_SIZE,
-			   PIN_GLOBAL | PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
-	if (ret) {
-		vma = ERR_PTR(ret);
-		goto err;
-	}
-
-	return vma;
-
-err:
-	i915_gem_object_put(obj);
-	return vma;
-}
-
 /* Check that a doorbell register is in the expected state */
 static bool doorbell_ok(struct intel_guc *guc, u16 db_id)
 {
@@ -1212,56 +1170,4 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 
 	guc_client_free(guc->execbuf_client);
 	guc->execbuf_client = NULL;
-}
-
-/**
- * intel_guc_suspend() - notify GuC entering suspend state
- * @dev_priv:	i915 device private
- */
-int intel_guc_suspend(struct drm_i915_private *dev_priv)
-{
-	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
-	u32 data[3];
-
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return 0;
-
-	gen9_disable_guc_interrupts(dev_priv);
-
-	ctx = dev_priv->kernel_context;
-
-	data[0] = INTEL_GUC_ACTION_ENTER_S_STATE;
-	/* any value greater than GUC_POWER_D0 */
-	data[1] = GUC_POWER_D1;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) + LRC_GUCSHR_PN * PAGE_SIZE;
-
-	return intel_guc_send(guc, data, ARRAY_SIZE(data));
-}
-
-/**
- * intel_guc_resume() - notify GuC resuming from suspend state
- * @dev_priv:	i915 device private
- */
-int intel_guc_resume(struct drm_i915_private *dev_priv)
-{
-	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
-	u32 data[3];
-
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return 0;
-
-	if (i915_modparams.guc_log_level >= 0)
-		gen9_enable_guc_interrupts(dev_priv);
-
-	ctx = dev_priv->kernel_context;
-
-	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;
-	data[1] = GUC_POWER_D0;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) + LRC_GUCSHR_PN * PAGE_SIZE;
-
-	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }

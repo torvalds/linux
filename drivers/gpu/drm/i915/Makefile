@@ -60,6 +60,7 @@ i915-y += i915_cmd_parser.o \
 # general-purpose microcontroller (GuC) support
 i915-y += intel_uc.o \
 	  intel_uc_fw.o \
+	  intel_guc.o \
 	  intel_guc_ct.o \
 	  intel_guc_log.o \
 	  intel_guc_loader.o \

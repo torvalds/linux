@@ -24,54 +24,9 @@
 #ifndef _INTEL_UC_H_
 #define _INTEL_UC_H_
 
-#include "intel_uc_fw.h"
-#include "intel_guc_fwif.h"
-#include "i915_guc_reg.h"
-#include "intel_ringbuffer.h"
-#include "intel_guc_ct.h"
-#include "intel_guc_log.h"
-#include "i915_vma.h"
+#include "intel_guc.h"
 #include "intel_huc.h"
 
-struct intel_guc {
-	struct intel_uc_fw fw;
-	struct intel_guc_log log;
-	struct intel_guc_ct ct;
-
-	/* Log snapshot if GuC errors during load */
-	struct drm_i915_gem_object *load_err_log;
-
-	/* intel_guc_recv interrupt related state */
-	bool interrupts_enabled;
-
-	struct i915_vma *ads_vma;
-	struct i915_vma *stage_desc_pool;
-	void *stage_desc_pool_vaddr;
-	struct ida stage_ids;
-
-	struct i915_guc_client *execbuf_client;
-
-	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
-	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
-
-	/* GuC's FW specific registers used in MMIO send */
-	struct {
-		u32 base;
-		unsigned int count;
-		enum forcewake_domains fw_domains;
-	} send_regs;
-
-	/* To serialize the intel_guc_send actions */
-	struct mutex send_mutex;
-
-	/* GuC's FW specific send function */
-	int (*send)(struct intel_guc *guc, const u32 *data, u32 len);
-
-	/* GuC's FW specific notify function */
-	void (*notify)(struct intel_guc *guc);
-};
-
-/* intel_uc.c */
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 void intel_uc_init_mmio(struct drm_i915_private *dev_priv);
@@ -79,36 +34,5 @@ void intel_uc_init_fw(struct drm_i915_private *dev_priv);
 void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
 int intel_uc_init_hw(struct drm_i915_private *dev_priv);
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
-int intel_guc_sample_forcewake(struct intel_guc *guc);
-int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len);
-int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len);
-int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
-
-static inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
-{
-	return guc->send(guc, action, len);
-}
-
-static inline void intel_guc_notify(struct intel_guc *guc)
-{
-	guc->notify(guc);
-}
-
-/* intel_guc_loader.c */
-int intel_guc_select_fw(struct intel_guc *guc);
-int intel_guc_init_hw(struct intel_guc *guc);
-int intel_guc_suspend(struct drm_i915_private *dev_priv);
-int intel_guc_resume(struct drm_i915_private *dev_priv);
-u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
-
-struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
-
-static inline u32 guc_ggtt_offset(struct i915_vma *vma)
-{
-	u32 offset = i915_ggtt_offset(vma);
-	GEM_BUG_ON(offset < GUC_WOPCM_TOP);
-	GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
-	return offset;
-}
 
 #endif
