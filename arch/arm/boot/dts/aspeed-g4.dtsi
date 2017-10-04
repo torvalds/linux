@@ -183,6 +183,27 @@
 				clock-names = "PCLK";
 			};
 
+			uart1: serial@1e783000 {
+				compatible = "ns16550a";
+				reg = <0x1e783000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <9>;
+				clocks = <&clk_uart>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart5: serial@1e784000 {
+				compatible = "ns16550a";
+				reg = <0x1e784000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <10>;
+				clocks = <&clk_uart>;
+				current-speed = <38400>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
 			wdt1: wdt@1e785000 {
 				compatible = "aspeed,ast2400-wdt";
 				reg = <0x1e785000 0x1c>;
@@ -197,11 +218,11 @@
 				status = "disabled";
 			};
 
-			uart1: serial@1e783000 {
+			uart6: serial@1e787000 {
 				compatible = "ns16550a";
-				reg = <0x1e783000 0x1000>;
+				reg = <0x1e787000 0x1000>;
 				reg-shift = <2>;
-				interrupts = <9>;
+				interrupts = <10>;
 				clocks = <&clk_uart>;
 				no-loopback-test;
 				status = "disabled";
@@ -232,27 +253,6 @@
 				reg = <0x1e78f000 0x1000>;
 				reg-shift = <2>;
 				interrupts = <34>;
-				clocks = <&clk_uart>;
-				no-loopback-test;
-				status = "disabled";
-			};
-
-			uart5: serial@1e784000 {
-				compatible = "ns16550a";
-				reg = <0x1e784000 0x1000>;
-				reg-shift = <2>;
-				interrupts = <10>;
-				clocks = <&clk_uart>;
-				current-speed = <38400>;
-				no-loopback-test;
-				status = "disabled";
-			};
-
-			uart6: serial@1e787000 {
-				compatible = "ns16550a";
-				reg = <0x1e787000 0x1000>;
-				reg-shift = <2>;
-				interrupts = <10>;
 				clocks = <&clk_uart>;
 				no-loopback-test;
 				status = "disabled";
