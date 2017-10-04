@@ -529,12 +529,12 @@ static int pca963x_probe(struct i2c_client *client,
 	if (pdata) {
 		u8 mode2 = i2c_smbus_read_byte_data(pca963x->chip->client,
 						    PCA963X_MODE2);
+
+		/* Always enable LED output */
+		mode2 |= PCA963X_MODE2_OUTNE_OUTDRV;
 		/* Configure output: open-drain or totem pole (push-pull) */
-		if (pdata->outdrv == PCA963X_OPEN_DRAIN)
-			mode2 |= PCA963X_MODE2_OUTNE_OUTDRV;
-		else
-			mode2 |= PCA963X_MODE2_OUTNE_OUTDRV |
-				 PCA963X_MODE2_OUTDRV_TOTEM_POLE;
+		if (pdata->outdrv == PCA963X_TOTEM_POLE)
+			mode2 |= PCA963X_MODE2_OUTDRV_TOTEM_POLE;
 		/* Configure direction: normal or inverted */
 		if (pdata->dir == PCA963X_INVERTED)
 			mode2 |= PCA963X_MODE2_INVRT;
