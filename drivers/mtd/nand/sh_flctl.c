@@ -1094,14 +1094,11 @@ MODULE_DEVICE_TABLE(of, of_flctl_match);
 
 static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 {
-	const struct of_device_id *match;
-	struct flctl_soc_config *config;
+	const struct flctl_soc_config *config;
 	struct sh_flctl_platform_data *pdata;
 
-	match = of_match_device(of_flctl_match, dev);
-	if (match)
-		config = (struct flctl_soc_config *)match->data;
-	else {
+	config = of_device_get_match_data(dev);
+	if (!config) {
 		dev_err(dev, "%s: no OF configuration attached\n", __func__);
 		return NULL;
 	}
