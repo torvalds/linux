@@ -151,8 +151,6 @@ struct rtnl_af_ops {
 	size_t			(*get_stats_af_size)(const struct net_device *dev);
 };
 
-void __rtnl_af_unregister(struct rtnl_af_ops *ops);
-
 void rtnl_af_register(struct rtnl_af_ops *ops);
 void rtnl_af_unregister(struct rtnl_af_ops *ops);
 

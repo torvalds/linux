@@ -6618,9 +6618,9 @@ void addrconf_cleanup(void)
 	unregister_pernet_subsys(&addrconf_ops);
 	ipv6_addr_label_cleanup();
 
-	rtnl_lock();
+	rtnl_af_unregister(&inet6_ops);
 
-	__rtnl_af_unregister(&inet6_ops);
+	rtnl_lock();
 
 	/* clean dev list */
 	for_each_netdev(&init_net, dev) {

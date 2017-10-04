@@ -476,25 +476,13 @@ void rtnl_af_register(struct rtnl_af_ops *ops)
 EXPORT_SYMBOL_GPL(rtnl_af_register);
 
 /**
- * __rtnl_af_unregister - Unregister rtnl_af_ops from rtnetlink.
- * @ops: struct rtnl_af_ops * to unregister
- *
- * The caller must hold the rtnl_mutex.
- */
-void __rtnl_af_unregister(struct rtnl_af_ops *ops)
-{
-	list_del(&ops->list);
-}
-EXPORT_SYMBOL_GPL(__rtnl_af_unregister);
-
-/**
  * rtnl_af_unregister - Unregister rtnl_af_ops from rtnetlink.
  * @ops: struct rtnl_af_ops * to unregister
  */
 void rtnl_af_unregister(struct rtnl_af_ops *ops)
 {
 	rtnl_lock();
-	__rtnl_af_unregister(ops);
+	list_del(&ops->list);
 	rtnl_unlock();
 }
 EXPORT_SYMBOL_GPL(rtnl_af_unregister);
