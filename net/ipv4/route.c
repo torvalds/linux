@@ -3038,7 +3038,6 @@ struct ip_rt_acct __percpu *ip_rt_acct __read_mostly;
 
 int __init ip_rt_init(void)
 {
-	int rc = 0;
 	int cpu;
 
 	ip_idents = kmalloc(IP_IDENTS_SZ * sizeof(*ip_idents), GFP_KERNEL);
@@ -3095,7 +3094,7 @@ int __init ip_rt_init(void)
 #endif
 	register_pernet_subsys(&rt_genid_ops);
 	register_pernet_subsys(&ipv4_inetpeer_ops);
-	return rc;
+	return 0;
 }
 
 #ifdef CONFIG_SYSCTL
