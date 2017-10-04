@@ -238,7 +238,7 @@ struct s3c_adc_client *s3c_adc_register(struct platform_device *pdev,
 	if (!pdev)
 		return ERR_PTR(-EINVAL);
 
-	client = kzalloc(sizeof(struct s3c_adc_client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
@@ -342,7 +342,7 @@ static int s3c_adc_probe(struct platform_device *pdev)
 	int ret;
 	unsigned tmp;
 
-	adc = devm_kzalloc(dev, sizeof(struct adc_device), GFP_KERNEL);
+	adc = devm_kzalloc(dev, sizeof(*adc), GFP_KERNEL);
 	if (!adc)
 		return -ENOMEM;
 
