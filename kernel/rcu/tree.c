@@ -761,13 +761,13 @@ static void rcu_eqs_enter_common(bool user)
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	lockdep_assert_irqs_disabled();
-	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0);
+	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0, rdtp->dynticks);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 	    !user && !is_idle_task(current)) {
 		struct task_struct *idle __maybe_unused =
 			idle_task(smp_processor_id());
 
-		trace_rcu_dyntick(TPS("Error on entry: not idle task"), rdtp->dynticks_nesting, 0);
+		trace_rcu_dyntick(TPS("Error on entry: not idle task"), rdtp->dynticks_nesting, 0, rdtp->dynticks);
 		rcu_ftrace_dump(DUMP_ORIG);
 		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
 			  current->pid, current->comm,
@@ -880,15 +880,14 @@ void rcu_nmi_exit(void)
 	 * leave it in non-RCU-idle state.
 	 */
 	if (rdtp->dynticks_nmi_nesting != 1) {
-		trace_rcu_dyntick(TPS("--="), rdtp->dynticks_nmi_nesting,
-				  rdtp->dynticks_nmi_nesting - 2);
+		trace_rcu_dyntick(TPS("--="), rdtp->dynticks_nmi_nesting, rdtp->dynticks_nmi_nesting - 2, rdtp->dynticks);
 		WRITE_ONCE(rdtp->dynticks_nmi_nesting, /* No store tearing. */
 			   rdtp->dynticks_nmi_nesting - 2);
 		return;
 	}
 
 	/* This NMI interrupted an RCU-idle CPU, restore RCU-idleness. */
-	trace_rcu_dyntick(TPS("Startirq"), rdtp->dynticks_nmi_nesting, 0);
+	trace_rcu_dyntick(TPS("Startirq"), rdtp->dynticks_nmi_nesting, 0, rdtp->dynticks);
 	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0); /* Avoid store tearing. */
 	rcu_dynticks_eqs_enter();
 }
@@ -953,14 +952,13 @@ static void rcu_eqs_exit_common(long newval, int user)
 	rcu_dynticks_task_exit();
 	rcu_dynticks_eqs_exit();
 	rcu_cleanup_after_idle();
-	trace_rcu_dyntick(TPS("End"), rdtp->dynticks_nesting, newval);
+	trace_rcu_dyntick(TPS("End"), rdtp->dynticks_nesting, newval, rdtp->dynticks);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 	    !user && !is_idle_task(current)) {
 		struct task_struct *idle __maybe_unused =
 			idle_task(smp_processor_id());
 
-		trace_rcu_dyntick(TPS("Error on exit: not idle task"),
-				  rdtp->dynticks_nesting, newval);
+		trace_rcu_dyntick(TPS("Error on exit: not idle task"), rdtp->dynticks_nesting, newval, rdtp->dynticks);
 		rcu_ftrace_dump(DUMP_ORIG);
 		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
 			  current->pid, current->comm,
@@ -1062,7 +1060,7 @@ void rcu_nmi_enter(void)
 	}
 	trace_rcu_dyntick(incby == 1 ? TPS("Endirq") : TPS("++="),
 			  rdtp->dynticks_nmi_nesting,
-			  rdtp->dynticks_nmi_nesting + incby);
+			  rdtp->dynticks_nmi_nesting + incby, rdtp->dynticks);
 	WRITE_ONCE(rdtp->dynticks_nmi_nesting, /* Prevent store tearing. */
 		   rdtp->dynticks_nmi_nesting + incby);
 	barrier();
