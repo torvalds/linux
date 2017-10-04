@@ -830,11 +830,6 @@ static int wa_add(struct drm_i915_private *dev_priv,
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	WA_REG(addr, mask, _MASKED_FIELD(mask, value))
 
-#define WA_SET_BIT(addr, mask) WA_REG(addr, mask, I915_READ(addr) | (mask))
-#define WA_CLR_BIT(addr, mask) WA_REG(addr, mask, I915_READ(addr) & ~(mask))
-
-#define WA_WRITE(addr, val) WA_REG(addr, 0xffffffff, val)
-
 static int wa_ring_whitelist_reg(struct intel_engine_cs *engine,
 				 i915_reg_t reg)
 {
