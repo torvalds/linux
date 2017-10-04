@@ -78,21 +78,25 @@ ENTRY(memset)
 	ex	%r4,0(%r3)
 	br	%r14
 .Lmemset_fill:
-	stc	%r3,0(%r2)
 	cghi	%r4,1
 	lgr	%r1,%r2
-	ber	%r14
+	je	.Lmemset_fill_exit
 	aghi	%r4,-2
-	srlg	%r3,%r4,8
-	ltgr	%r3,%r3
+	srlg	%r5,%r4,8
+	ltgr	%r5,%r5
 	jz	.Lmemset_fill_remainder
 .Lmemset_fill_loop:
-	mvc	1(256,%r1),0(%r1)
+	stc	%r3,0(%r1)
+	mvc	1(255,%r1),0(%r1)
 	la	%r1,256(%r1)
-	brctg	%r3,.Lmemset_fill_loop
+	brctg	%r5,.Lmemset_fill_loop
 .Lmemset_fill_remainder:
-	larl	%r3,.Lmemset_mvc
-	ex	%r4,0(%r3)
+	stc	%r3,0(%r1)
+	larl	%r5,.Lmemset_mvc
+	ex	%r4,0(%r5)
+	br	%r14
+.Lmemset_fill_exit:
+	stc	%r3,0(%r1)
 	br	%r14
 .Lmemset_xc:
 	xc	0(1,%r1),0(%r1)
