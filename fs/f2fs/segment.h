@@ -796,8 +796,9 @@ static inline void wake_up_discard_thread(struct f2fs_sb_info *sbi, bool force)
 		goto wake_up;
 
 	mutex_lock(&dcc->cmd_lock);
-	for (i = MAX_PLIST_NUM - 1;
-			i >= 0 && plist_issue(dcc->pend_list_tag[i]); i--) {
+	for (i = MAX_PLIST_NUM - 1; i >= 0; i--) {
+		if (i + 1 < dcc->discard_granularity)
+			break;
 		if (!list_empty(&dcc->pend_list[i])) {
 			wakeup = true;
 			break;

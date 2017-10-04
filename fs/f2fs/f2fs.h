@@ -208,10 +208,6 @@ struct discard_entry {
 #define plist_idx(blk_num)	((blk_num) >= MAX_PLIST_NUM ?		\
 					(MAX_PLIST_NUM - 1) : (blk_num - 1))
 
-#define P_ACTIVE	0x01
-#define P_TRIM		0x02
-#define plist_issue(tag)	(((tag) & P_ACTIVE) || ((tag) & P_TRIM))
-
 enum {
 	D_PREP,
 	D_SUBMIT,
@@ -243,13 +239,23 @@ struct discard_cmd {
 	int error;			/* bio error */
 };
 
+enum {
+	DPOLICY_BG,
+	DPOLICY_FORCE,
+	DPOLICY_FSTRIM,
+	DPOLICY_UMOUNT,
+	MAX_DPOLICY,
+};
+
 struct discard_policy {
+	int type;			/* type of discard */
 	unsigned int min_interval;	/* used for candidates exist */
 	unsigned int max_interval;	/* used for candidates not exist */
 	unsigned int max_requests;	/* # of discards issued per round */
 	unsigned int io_aware_gran;	/* minimum granularity discard not be aware of I/O */
 	bool io_aware;			/* issue discard in idle time */
 	bool sync;			/* submit discard with REQ_SYNC flag */
+	unsigned int granularity;	/* discard granularity */
 };
 
 struct discard_cmd_control {
@@ -270,7 +276,6 @@ struct discard_cmd_control {
 	atomic_t issing_discard;		/* # of issing discard */
 	atomic_t discard_cmd_cnt;		/* # of cached cmd count */
 	struct rb_root root;			/* root of discard rb-tree */
-	struct discard_policy dpolicy;		/* current discard policy */
 };
 
 /* for the list of fsync inodes, used only during recovery */
@@ -2544,6 +2549,8 @@ int f2fs_flush_device_cache(struct f2fs_sb_info *sbi);
 void destroy_flush_cmd_control(struct f2fs_sb_info *sbi, bool free);
 void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr);
 bool is_checkpointed_data(struct f2fs_sb_info *sbi, block_t blkaddr);
+void init_discard_policy(struct discard_policy *dpolicy, int discard_type,
+						unsigned int granularity);
 void refresh_sit_entry(struct f2fs_sb_info *sbi, block_t old, block_t new);
 void stop_discard_thread(struct f2fs_sb_info *sbi);
 void f2fs_wait_discard_bios(struct f2fs_sb_info *sbi);
