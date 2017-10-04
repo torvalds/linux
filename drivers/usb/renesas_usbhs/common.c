@@ -505,7 +505,6 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 {
 	struct renesas_usbhs_platform_info *info;
 	struct renesas_usbhs_driver_param *dparam;
-	const struct of_device_id *of_id = of_match_device(usbhs_of_match, dev);
 	u32 tmp;
 	int gpio;
 
@@ -514,7 +513,7 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 		return NULL;
 
 	dparam = &info->driver_param;
-	dparam->type = of_id ? (uintptr_t)of_id->data : 0;
+	dparam->type = (uintptr_t)of_device_get_match_data(dev);
 	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
 		dparam->buswait_bwait = tmp;
 	gpio = of_get_named_gpio_flags(dev->of_node, "renesas,enable-gpio", 0,
