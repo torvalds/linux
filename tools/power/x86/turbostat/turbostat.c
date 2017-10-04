@@ -49,6 +49,7 @@ char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
 struct timeval interval_tv = {5, 0};
+struct timespec interval_ts = {5, 0};
 struct timespec one_msec = {0, 1000000};
 unsigned int debug;
 unsigned int quiet;
@@ -2635,7 +2636,7 @@ void setup_signal_handler(void)
 		err(1, "sigaction SIGUSR1");
 }
 
-int do_sleep(void)
+void do_sleep(void)
 {
 	struct timeval select_timeout;
 	fd_set readfds;
@@ -2644,12 +2645,15 @@ int do_sleep(void)
 	FD_ZERO(&readfds);
 	FD_SET(0, &readfds);
 
-	select_timeout = interval_tv;
+	if (!isatty(fileno(stdin))) {
+		nanosleep(&interval_ts, NULL);
+		return;
+	}
 
+	select_timeout = interval_tv;
 	retval = select(1, &readfds, NULL, NULL, &select_timeout);
 
 	if (retval == 1) {
-
 		switch (getc(stdin)) {
 		case 'q':
 			exit_requested = 1;
@@ -2658,9 +2662,8 @@ int do_sleep(void)
 		/* make sure this manually-invoked interval is at least 1ms long */
 		nanosleep(&one_msec, NULL);
 	}
-
-	return retval;
 }
+
 void turbostat_loop()
 {
 	int retval;
@@ -5134,8 +5137,9 @@ void cmdline(int argc, char **argv)
 					exit(2);
 				}
 
-				interval_tv.tv_sec = interval;
+				interval_tv.tv_sec = interval_ts.tv_sec = interval;
 				interval_tv.tv_usec = (interval - interval_tv.tv_sec) * 1000000;
+				interval_ts.tv_nsec = (interval - interval_ts.tv_sec) * 1000000000;
 			}
 			break;
 		case 'J':
