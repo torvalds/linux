@@ -1381,6 +1381,75 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
+/* to avoid allocating empty bpf_prog_array for cgroups that
+ * don't have bpf program attached use one global 'empty_prog_array'
+ * It will not be modified the caller of bpf_prog_array_alloc()
+ * (since caller requested prog_cnt == 0)
+ * that pointer should be 'freed' by bpf_prog_array_free()
+ */
+static struct {
+	struct bpf_prog_array hdr;
+	struct bpf_prog *null_prog;
+} empty_prog_array = {
+	.null_prog = NULL,
+};
+
+struct bpf_prog_array __rcu *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags)
+{
+	if (prog_cnt)
+		return kzalloc(sizeof(struct bpf_prog_array) +
+			       sizeof(struct bpf_prog *) * (prog_cnt + 1),
+			       flags);
+
+	return &empty_prog_array.hdr;
+}
+
+void bpf_prog_array_free(struct bpf_prog_array __rcu *progs)
+{
+	if (!progs ||
+	    progs == (struct bpf_prog_array __rcu *)&empty_prog_array.hdr)
+		return;
+	kfree_rcu(progs, rcu);
+}
+
+int bpf_prog_array_length(struct bpf_prog_array __rcu *progs)
+{
+	struct bpf_prog **prog;
+	u32 cnt = 0;
+
+	rcu_read_lock();
+	prog = rcu_dereference(progs)->progs;
+	for (; *prog; prog++)
+		cnt++;
+	rcu_read_unlock();
+	return cnt;
+}
+
+int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
+				__u32 __user *prog_ids, u32 cnt)
+{
+	struct bpf_prog **prog;
+	u32 i = 0, id;
+
+	rcu_read_lock();
+	prog = rcu_dereference(progs)->progs;
+	for (; *prog; prog++) {
+		id = (*prog)->aux->id;
+		if (copy_to_user(prog_ids + i, &id, sizeof(id))) {
+			rcu_read_unlock();
+			return -EFAULT;
+		}
+		if (++i == cnt) {
+			prog++;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	if (*prog)
+		return -ENOSPC;
+	return 0;
+}
+
 static void bpf_prog_free_deferred(struct work_struct *work)
 {
 	struct bpf_prog_aux *aux;

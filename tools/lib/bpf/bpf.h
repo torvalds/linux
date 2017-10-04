@@ -66,6 +66,7 @@ int bpf_obj_get(const char *pathname);
 int bpf_prog_attach(int prog_fd, int attachable_fd, enum bpf_attach_type type,
 		    unsigned int flags);
 int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
+int bpf_prog_detach2(int prog_fd, int attachable_fd, enum bpf_attach_type type);
 int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
 		      void *data_out, __u32 *size_out, __u32 *retval,
 		      __u32 *duration);
@@ -74,5 +75,6 @@ int bpf_map_get_next_id(__u32 start_id, __u32 *next_id);
 int bpf_prog_get_fd_by_id(__u32 id);
 int bpf_map_get_fd_by_id(__u32 id);
 int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len);
-
+int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
+		   __u32 *attach_flags, __u32 *prog_ids, __u32 *prog_cnt);
 #endif

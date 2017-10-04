@@ -14,27 +14,46 @@ struct bpf_sock_ops_kern;
 extern struct static_key_false cgroup_bpf_enabled_key;
 #define cgroup_bpf_enabled static_branch_unlikely(&cgroup_bpf_enabled_key)
 
+struct bpf_prog_list {
+	struct list_head node;
+	struct bpf_prog *prog;
+};
+
+struct bpf_prog_array;
+
 struct cgroup_bpf {
-	/*
-	 * Store two sets of bpf_prog pointers, one for programs that are
-	 * pinned directly to this cgroup, and one for those that are effective
-	 * when this cgroup is accessed.
+	/* array of effective progs in this cgroup */
+	struct bpf_prog_array __rcu *effective[MAX_BPF_ATTACH_TYPE];
+
+	/* attached progs to this cgroup and attach flags
+	 * when flags == 0 or BPF_F_ALLOW_OVERRIDE the progs list will
+	 * have either zero or one element
+	 * when BPF_F_ALLOW_MULTI the list can have up to BPF_CGROUP_MAX_PROGS
 	 */
-	struct bpf_prog *prog[MAX_BPF_ATTACH_TYPE];
-	struct bpf_prog __rcu *effective[MAX_BPF_ATTACH_TYPE];
-	bool disallow_override[MAX_BPF_ATTACH_TYPE];
+	struct list_head progs[MAX_BPF_ATTACH_TYPE];
+	u32 flags[MAX_BPF_ATTACH_TYPE];
+
+	/* temp storage for effective prog array used by prog_attach/detach */
+	struct bpf_prog_array __rcu *inactive;
 };
 
 void cgroup_bpf_put(struct cgroup *cgrp);
-void cgroup_bpf_inherit(struct cgroup *cgrp, struct cgroup *parent);
+int cgroup_bpf_inherit(struct cgroup *cgrp);
 
-int __cgroup_bpf_update(struct cgroup *cgrp, struct cgroup *parent,
-			struct bpf_prog *prog, enum bpf_attach_type type,
-			bool overridable);
+int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+			enum bpf_attach_type type, u32 flags);
+int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+			enum bpf_attach_type type, u32 flags);
+int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
+		       union bpf_attr __user *uattr);
 
-/* Wrapper for __cgroup_bpf_update() protected by cgroup_mutex */
-int cgroup_bpf_update(struct cgroup *cgrp, struct bpf_prog *prog,
-		      enum bpf_attach_type type, bool overridable);
+/* Wrapper for __cgroup_bpf_*() protected by cgroup_mutex */
+int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, u32 flags);
+int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, u32 flags);
+int cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
+		     union bpf_attr __user *uattr);
 
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
@@ -96,8 +115,7 @@ int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 
 struct cgroup_bpf {};
 static inline void cgroup_bpf_put(struct cgroup *cgrp) {}
-static inline void cgroup_bpf_inherit(struct cgroup *cgrp,
-				      struct cgroup *parent) {}
+static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk,skb) ({ 0; })

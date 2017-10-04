@@ -1168,6 +1168,9 @@ static int sockmap_get_from_fd(const union bpf_attr *attr, bool attach)
 	return 0;
 }
 
+#define BPF_F_ATTACH_MASK \
+	(BPF_F_ALLOW_OVERRIDE | BPF_F_ALLOW_MULTI)
+
 static int bpf_prog_attach(const union bpf_attr *attr)
 {
 	enum bpf_prog_type ptype;
@@ -1181,7 +1184,7 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	if (CHECK_ATTR(BPF_PROG_ATTACH))
 		return -EINVAL;
 
-	if (attr->attach_flags & ~BPF_F_ALLOW_OVERRIDE)
+	if (attr->attach_flags & ~BPF_F_ATTACH_MASK)
 		return -EINVAL;
 
 	switch (attr->attach_type) {
@@ -1212,8 +1215,8 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 		return PTR_ERR(cgrp);
 	}
 
-	ret = cgroup_bpf_update(cgrp, prog, attr->attach_type,
-				attr->attach_flags & BPF_F_ALLOW_OVERRIDE);
+	ret = cgroup_bpf_attach(cgrp, prog, attr->attach_type,
+				attr->attach_flags);
 	if (ret)
 		bpf_prog_put(prog);
 	cgroup_put(cgrp);
@@ -1225,6 +1228,8 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 
 static int bpf_prog_detach(const union bpf_attr *attr)
 {
+	enum bpf_prog_type ptype;
+	struct bpf_prog *prog;
 	struct cgroup *cgrp;
 	int ret;
 
@@ -1237,26 +1242,67 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 	switch (attr->attach_type) {
 	case BPF_CGROUP_INET_INGRESS:
 	case BPF_CGROUP_INET_EGRESS:
+		ptype = BPF_PROG_TYPE_CGROUP_SKB;
+		break;
 	case BPF_CGROUP_INET_SOCK_CREATE:
+		ptype = BPF_PROG_TYPE_CGROUP_SOCK;
+		break;
 	case BPF_CGROUP_SOCK_OPS:
-		cgrp = cgroup_get_from_fd(attr->target_fd);
-		if (IS_ERR(cgrp))
-			return PTR_ERR(cgrp);
-
-		ret = cgroup_bpf_update(cgrp, NULL, attr->attach_type, false);
-		cgroup_put(cgrp);
+		ptype = BPF_PROG_TYPE_SOCK_OPS;
 		break;
 	case BPF_SK_SKB_STREAM_PARSER:
 	case BPF_SK_SKB_STREAM_VERDICT:
-		ret = sockmap_get_from_fd(attr, false);
-		break;
+		return sockmap_get_from_fd(attr, false);
 	default:
 		return -EINVAL;
 	}
 
+	cgrp = cgroup_get_from_fd(attr->target_fd);
+	if (IS_ERR(cgrp))
+		return PTR_ERR(cgrp);
+
+	prog = bpf_prog_get_type(attr->attach_bpf_fd, ptype);
+	if (IS_ERR(prog))
+		prog = NULL;
+
+	ret = cgroup_bpf_detach(cgrp, prog, attr->attach_type, 0);
+	if (prog)
+		bpf_prog_put(prog);
+	cgroup_put(cgrp);
 	return ret;
 }
 
+#define BPF_PROG_QUERY_LAST_FIELD query.prog_cnt
+
+static int bpf_prog_query(const union bpf_attr *attr,
+			  union bpf_attr __user *uattr)
+{
+	struct cgroup *cgrp;
+	int ret;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+	if (CHECK_ATTR(BPF_PROG_QUERY))
+		return -EINVAL;
+	if (attr->query.query_flags & ~BPF_F_QUERY_EFFECTIVE)
+		return -EINVAL;
+
+	switch (attr->query.attach_type) {
+	case BPF_CGROUP_INET_INGRESS:
+	case BPF_CGROUP_INET_EGRESS:
+	case BPF_CGROUP_INET_SOCK_CREATE:
+	case BPF_CGROUP_SOCK_OPS:
+		break;
+	default:
+		return -EINVAL;
+	}
+	cgrp = cgroup_get_from_fd(attr->query.target_fd);
+	if (IS_ERR(cgrp))
+		return PTR_ERR(cgrp);
+	ret = cgroup_bpf_query(cgrp, attr, uattr);
+	cgroup_put(cgrp);
+	return ret;
+}
 #endif /* CONFIG_CGROUP_BPF */
 
 #define BPF_PROG_TEST_RUN_LAST_FIELD test.duration
@@ -1552,6 +1598,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_PROG_DETACH:
 		err = bpf_prog_detach(&attr);
+		break;
+	case BPF_PROG_QUERY:
+		err = bpf_prog_query(&attr, uattr);
 		break;
 #endif
 	case BPF_PROG_TEST_RUN:
