@@ -111,6 +111,8 @@ static inline void of_node_init(struct device_node *node)
 	node->fwnode.ops = &of_fwnode_ops;
 }
 
+#define of_node_kobj(n) (&(n)->kobj)
+
 /* true when node is initialized */
 static inline int of_node_is_initialized(struct device_node *node)
 {

@@ -1571,7 +1571,7 @@ static int device_add_class_symlinks(struct device *dev)
 	int error;
 
 	if (of_node) {
-		error = sysfs_create_link(&dev->kobj, &of_node->kobj,"of_node");
+		error = sysfs_create_link(&dev->kobj, of_node_kobj(of_node), "of_node");
 		if (error)
 			dev_warn(dev, "Error %d creating of_node link\n",error);
 		/* An error here doesn't warrant bringing down the device */
