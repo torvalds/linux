@@ -278,6 +278,12 @@ kci_test_ifalias()
 	        ip link show "$devdummy" | grep -q "alias $namewant"
 		check_fail $?
 
+		for i in $(seq 1 100); do
+			uuidgen > "$syspathname" &
+		done
+
+		wait
+
 		# re-add the alias -- kernel should free mem when dummy dev is removed
 		ip link set dev "$devdummy" alias "$namewant"
 		check_err $?
