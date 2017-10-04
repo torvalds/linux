@@ -248,20 +248,18 @@
 				status = "disabled";
 			};
 
-			wdt1: wdt@1e785000 {
+			wdt1: watchdog@1e785000 {
 				compatible = "aspeed,ast2500-wdt";
 				reg = <0x1e785000 0x20>;
-				interrupts = <27>;
 			};
 
-			wdt2: wdt@1e785020 {
+			wdt2: watchdog@1e785020 {
 				compatible = "aspeed,ast2500-wdt";
 				reg = <0x1e785020 0x20>;
-				interrupts = <27>;
 				status = "disabled";
 			};
 
-			wdt3: wdt@1e785040 {
+			wdt3: watchdog@1e785040 {
 				compatible = "aspeed,ast2500-wdt";
 				reg = <0x1e785040 0x20>;
 				status = "disabled";
