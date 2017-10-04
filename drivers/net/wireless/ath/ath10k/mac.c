@@ -8146,8 +8146,13 @@ int ath10k_mac_register(struct ath10k *ar)
 			BIT(NL80211_IFTYPE_P2P_GO);
 
 	ieee80211_hw_set(ar->hw, SIGNAL_DBM);
-	ieee80211_hw_set(ar->hw, SUPPORTS_PS);
-	ieee80211_hw_set(ar->hw, SUPPORTS_DYNAMIC_PS);
+
+	if (!test_bit(ATH10K_FW_FEATURE_NO_PS,
+		      ar->running_fw->fw_file.fw_features)) {
+		ieee80211_hw_set(ar->hw, SUPPORTS_PS);
+		ieee80211_hw_set(ar->hw, SUPPORTS_DYNAMIC_PS);
+	}
+
 	ieee80211_hw_set(ar->hw, MFP_CAPABLE);
 	ieee80211_hw_set(ar->hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(ar->hw, HAS_RATE_CONTROL);
