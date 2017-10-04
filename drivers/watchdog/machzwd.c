@@ -127,7 +127,7 @@ static int zf_action = GEN_RESET;
 static unsigned long zf_is_open;
 static char zf_expect_close;
 static DEFINE_SPINLOCK(zf_port_lock);
-static DEFINE_TIMER(zf_timer, zf_ping, 0, 0);
+static DEFINE_TIMER(zf_timer, zf_ping);
 static unsigned long next_heartbeat;
 
 

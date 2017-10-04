@@ -56,7 +56,7 @@ static DEFINE_SPINLOCK(cmm_lock);
 
 static struct task_struct *cmm_thread_ptr;
 static DECLARE_WAIT_QUEUE_HEAD(cmm_thread_wait);
-static DEFINE_TIMER(cmm_timer, NULL, 0, 0);
+static DEFINE_TIMER(cmm_timer, NULL);
 
 static void cmm_timer_fn(unsigned long);
 static void cmm_set_timer(void);

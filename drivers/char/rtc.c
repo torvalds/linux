@@ -137,7 +137,7 @@ static DECLARE_WAIT_QUEUE_HEAD(rtc_wait);
 #ifdef RTC_IRQ
 static void rtc_dropped_irq(unsigned long data);
 
-static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq, 0, 0);
+static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq);
 #endif
 
 static ssize_t rtc_read(struct file *file, char __user *buf,

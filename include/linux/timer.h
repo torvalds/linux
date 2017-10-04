@@ -73,9 +73,9 @@ struct timer_list {
 			__FILE__ ":" __stringify(__LINE__))	\
 	}
 
-#define DEFINE_TIMER(_name, _function, _expires, _data)		\
+#define DEFINE_TIMER(_name, _function)				\
 	struct timer_list _name =				\
-		__TIMER_INITIALIZER(_function, _expires, _data, 0)
+		__TIMER_INITIALIZER(_function, 0, 0, 0)
 
 void init_timer_key(struct timer_list *timer, unsigned int flags,
 		    const char *name, struct lock_class_key *key);

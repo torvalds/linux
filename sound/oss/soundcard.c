@@ -662,7 +662,7 @@ static void do_sequencer_timer(unsigned long dummy)
 }
 
 
-static DEFINE_TIMER(seq_timer, do_sequencer_timer, 0, 0);
+static DEFINE_TIMER(seq_timer, do_sequencer_timer);
 
 void request_sound_timer(int count)
 {

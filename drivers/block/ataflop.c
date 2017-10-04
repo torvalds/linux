@@ -373,10 +373,10 @@ static void floppy_release(struct gendisk *disk, fmode_t mode);
 
 /************************* End of Prototypes **************************/
 
-static DEFINE_TIMER(motor_off_timer, fd_motor_off_timer, 0, 0);
-static DEFINE_TIMER(readtrack_timer, fd_readtrack_check, 0, 0);
-static DEFINE_TIMER(timeout_timer, fd_times_out, 0, 0);
-static DEFINE_TIMER(fd_timer, check_change, 0, 0);
+static DEFINE_TIMER(motor_off_timer, fd_motor_off_timer);
+static DEFINE_TIMER(readtrack_timer, fd_readtrack_check);
+static DEFINE_TIMER(timeout_timer, fd_times_out);
+static DEFINE_TIMER(fd_timer, check_change);
 	
 static void fd_end_request_cur(blk_status_t err)
 {

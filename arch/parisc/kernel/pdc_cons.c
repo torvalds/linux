@@ -92,7 +92,7 @@ static int pdc_console_setup(struct console *co, char *options)
 #define PDC_CONS_POLL_DELAY (30 * HZ / 1000)
 
 static void pdc_console_poll(unsigned long unused);
-static DEFINE_TIMER(pdc_console_timer, pdc_console_poll, 0, 0);
+static DEFINE_TIMER(pdc_console_timer, pdc_console_poll);
 static struct tty_port tty_port;
 
 static int pdc_console_tty_open(struct tty_struct *tty, struct file *filp)

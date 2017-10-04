@@ -66,7 +66,7 @@ void __init amiga_init_sound(void)
 }
 
 static void nosound( unsigned long ignored );
-static DEFINE_TIMER(sound_timer, nosound, 0, 0);
+static DEFINE_TIMER(sound_timer, nosound);
 
 void amiga_mksound( unsigned int hz, unsigned int ticks )
 {
