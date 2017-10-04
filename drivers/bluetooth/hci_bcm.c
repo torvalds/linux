@@ -820,10 +820,6 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 	if (ret)
 		return ret;
 
-	ret = bcm_platform_probe(dev);
-	if (ret)
-		return ret;
-
 	/* Retrieve UART ACPI info */
 	ret = acpi_dev_get_resources(ACPI_COMPANION(&dev->pdev->dev),
 				     &resources, bcm_resource, dev);
@@ -858,10 +854,13 @@ static int bcm_probe(struct platform_device *pdev)
 
 	dev->pdev = pdev;
 
-	if (has_acpi_companion(&pdev->dev))
+	if (has_acpi_companion(&pdev->dev)) {
 		ret = bcm_acpi_probe(dev);
-	else
-		ret = bcm_platform_probe(dev);
+		if (ret)
+			return ret;
+	}
+
+	ret = bcm_platform_probe(dev);
 	if (ret)
 		return ret;
 
