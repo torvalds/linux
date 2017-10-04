@@ -4119,37 +4119,45 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 		return -EINVAL;
 	if (op->charcount > 512)
 		return -EINVAL;
-	if (!op->height) {		/* Need to guess font height [compat] */
-		int h, i;
-		u8 __user *charmap = op->data;
-		u8 tmp;
-		
-		/* If from KDFONTOP ioctl, don't allow things which can be done in userland,
-		   so that we can get rid of this soon */
-		if (!(op->flags & KD_FONT_FLAG_OLD))
-			return -EINVAL;
-		for (h = 32; h > 0; h--)
-			for (i = 0; i < op->charcount; i++) {
-				if (get_user(tmp, &charmap[32*i+h-1]))
-					return -EFAULT;
-				if (tmp)
-					goto nonzero;
-			}
-		return -EINVAL;
-	nonzero:
-		op->height = h;
-	}
 	if (op->width <= 0 || op->width > 32 || op->height > 32)
 		return -EINVAL;
 	size = (op->width+7)/8 * 32 * op->charcount;
 	if (size > max_font_size)
 		return -ENOSPC;
-	font.charcount = op->charcount;
-	font.height = op->height;
-	font.width = op->width;
+
 	font.data = memdup_user(op->data, size);
 	if (IS_ERR(font.data))
 		return PTR_ERR(font.data);
+
+	if (!op->height) {		/* Need to guess font height [compat] */
+		int h, i;
+		u8 *charmap = font.data;
+
+		/*
+		 * If from KDFONTOP ioctl, don't allow things which can be done
+		 * in userland,so that we can get rid of this soon
+		 */
+		if (!(op->flags & KD_FONT_FLAG_OLD)) {
+			kfree(font.data);
+			return -EINVAL;
+		}
+
+		for (h = 32; h > 0; h--)
+			for (i = 0; i < op->charcount; i++)
+				if (charmap[32*i+h-1])
+					goto nonzero;
+
+		kfree(font.data);
+		return -EINVAL;
+
+	nonzero:
+		op->height = h;
+	}
+
+	font.charcount = op->charcount;
+	font.width = op->width;
+	font.height = op->height;
+
 	console_lock();
 	if (vc->vc_mode != KD_TEXT)
 		rc = -EINVAL;
