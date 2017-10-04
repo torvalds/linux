@@ -1295,7 +1295,7 @@ int dev_set_alias(struct net_device *dev, const char *alias, size_t len)
 /**
  *	dev_get_alias - get ifalias of a device
  *	@dev: device
- *	@alias: buffer to store name of ifalias
+ *	@name: buffer to store name of ifalias
  *	@len: size of buffer
  *
  *	get ifalias for a device.  Caller must make sure dev cannot go
