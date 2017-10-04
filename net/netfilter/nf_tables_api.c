@@ -1048,7 +1048,7 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 		if (nla_put_string(skb, NFTA_CHAIN_TYPE, basechain->type->name))
 			goto nla_put_failure;
 
-		if (nft_dump_stats(skb, nft_base_chain(chain)->stats))
+		if (basechain->stats && nft_dump_stats(skb, basechain->stats))
 			goto nla_put_failure;
 	}
 
