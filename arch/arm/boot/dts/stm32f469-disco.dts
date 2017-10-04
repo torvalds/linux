@@ -47,6 +47,7 @@
 
 /dts-v1/;
 #include "stm32f429.dtsi"
+#include "stm32f469-pinctrl.dtsi"
 
 / {
 	model = "STMicroelectronics STM32F469i-DISCO board";
