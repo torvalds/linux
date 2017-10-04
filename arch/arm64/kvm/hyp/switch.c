@@ -192,13 +192,15 @@ static void __hyp_text __deactivate_vm(struct kvm_vcpu *vcpu)
 	write_sysreg(0, vttbr_el2);
 }
 
-static void __hyp_text __vgic_save_state(struct kvm_vcpu *vcpu)
+/* Save VGICv3 state on non-VHE systems */
+static void __hyp_text __hyp_vgic_save_state(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
 		__vgic_v3_save_state(vcpu);
 }
 
-static void __hyp_text __vgic_restore_state(struct kvm_vcpu *vcpu)
+/* Restore VGICv3 state on non_VEH systems */
+static void __hyp_text __hyp_vgic_restore_state(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
 		__vgic_v3_restore_state(vcpu);
@@ -400,8 +402,6 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	__activate_traps(vcpu);
 	__activate_vm(vcpu->kvm);
 
-	__vgic_restore_state(vcpu);
-
 	sysreg_restore_guest_state_vhe(guest_ctxt);
 	__debug_switch_to_guest(vcpu);
 
@@ -415,7 +415,6 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	fp_enabled = fpsimd_enabled_vhe();
 
 	sysreg_save_guest_state_vhe(guest_ctxt);
-	__vgic_save_state(vcpu);
 
 	__deactivate_traps(vcpu);
 
@@ -451,7 +450,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	__activate_traps(vcpu);
 	__activate_vm(kern_hyp_va(vcpu->kvm));
 
-	__vgic_restore_state(vcpu);
+	__hyp_vgic_restore_state(vcpu);
 	__timer_enable_traps(vcpu);
 
 	/*
@@ -484,7 +483,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	__sysreg_save_state_nvhe(guest_ctxt);
 	__sysreg32_save_state(vcpu);
 	__timer_disable_traps(vcpu);
-	__vgic_save_state(vcpu);
+	__hyp_vgic_save_state(vcpu);
 
 	__deactivate_traps(vcpu);
 	__deactivate_vm(vcpu);
