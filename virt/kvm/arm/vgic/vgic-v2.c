@@ -446,7 +446,6 @@ void vgic_v2_save_state(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
-	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	void __iomem *base = vgic->vctrl_base;
 	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
 
@@ -454,11 +453,8 @@ void vgic_v2_save_state(struct kvm_vcpu *vcpu)
 		return;
 
 	if (used_lrs) {
-		cpu_if->vgic_apr = readl_relaxed(base + GICH_APR);
 		save_lrs(vcpu, base);
 		writel_relaxed(0, base + GICH_HCR);
-	} else {
-		cpu_if->vgic_apr = 0;
 	}
 }
 
@@ -476,7 +472,6 @@ void vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 
 	if (used_lrs) {
 		writel_relaxed(cpu_if->vgic_hcr, base + GICH_HCR);
-		writel_relaxed(cpu_if->vgic_apr, base + GICH_APR);
 		for (i = 0; i < used_lrs; i++) {
 			writel_relaxed(cpu_if->vgic_lr[i],
 				       base + GICH_LR0 + (i * 4));
@@ -490,6 +485,7 @@ void vgic_v2_load(struct kvm_vcpu *vcpu)
 	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
 
 	writel_relaxed(cpu_if->vgic_vmcr, vgic->vctrl_base + GICH_VMCR);
+	writel_relaxed(cpu_if->vgic_apr, vgic->vctrl_base + GICH_APR);
 }
 
 void vgic_v2_put(struct kvm_vcpu *vcpu)
@@ -498,4 +494,5 @@ void vgic_v2_put(struct kvm_vcpu *vcpu)
 	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
 
 	cpu_if->vgic_vmcr = readl_relaxed(vgic->vctrl_base + GICH_VMCR);
+	cpu_if->vgic_apr = readl_relaxed(vgic->vctrl_base + GICH_APR);
 }

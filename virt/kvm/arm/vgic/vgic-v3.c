@@ -16,6 +16,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <kvm/arm_vgic.h>
+#include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_asm.h>
 
@@ -587,6 +588,8 @@ void vgic_v3_load(struct kvm_vcpu *vcpu)
 	 */
 	if (likely(cpu_if->vgic_sre))
 		kvm_call_hyp(__vgic_v3_write_vmcr, cpu_if->vgic_vmcr);
+
+	kvm_call_hyp(__vgic_v3_restore_aprs, vcpu);
 }
 
 void vgic_v3_put(struct kvm_vcpu *vcpu)
@@ -595,4 +598,6 @@ void vgic_v3_put(struct kvm_vcpu *vcpu)
 
 	if (likely(cpu_if->vgic_sre))
 		cpu_if->vgic_vmcr = kvm_call_hyp(__vgic_v3_read_vmcr);
+
+	kvm_call_hyp(__vgic_v3_save_aprs, vcpu);
 }

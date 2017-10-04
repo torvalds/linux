@@ -21,6 +21,7 @@
 
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
+#include <asm/kvm_mmu.h>
 
 #define vtr_to_max_lr_idx(v)		((v) & 0xf)
 #define vtr_to_nr_pre_bits(v)		((((u32)(v) >> 26) & 7) + 1)
@@ -221,14 +222,11 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 
 	if (used_lrs) {
 		int i;
-		u32 nr_pre_bits;
 		u32 elrsr;
 
 		elrsr = read_gicreg(ICH_ELSR_EL2);
 
 		write_gicreg(0, ICH_HCR_EL2);
-		val = read_gicreg(ICH_VTR_EL2);
-		nr_pre_bits = vtr_to_nr_pre_bits(val);
 
 		for (i = 0; i < used_lrs; i++) {
 			if (elrsr & (1 << i))
@@ -238,39 +236,10 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 
 			__gic_v3_set_lr(0, i);
 		}
-
-		switch (nr_pre_bits) {
-		case 7:
-			cpu_if->vgic_ap0r[3] = __vgic_v3_read_ap0rn(3);
-			cpu_if->vgic_ap0r[2] = __vgic_v3_read_ap0rn(2);
-		case 6:
-			cpu_if->vgic_ap0r[1] = __vgic_v3_read_ap0rn(1);
-		default:
-			cpu_if->vgic_ap0r[0] = __vgic_v3_read_ap0rn(0);
-		}
-
-		switch (nr_pre_bits) {
-		case 7:
-			cpu_if->vgic_ap1r[3] = __vgic_v3_read_ap1rn(3);
-			cpu_if->vgic_ap1r[2] = __vgic_v3_read_ap1rn(2);
-		case 6:
-			cpu_if->vgic_ap1r[1] = __vgic_v3_read_ap1rn(1);
-		default:
-			cpu_if->vgic_ap1r[0] = __vgic_v3_read_ap1rn(0);
-		}
 	} else {
 		if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
 		    cpu_if->its_vpe.its_vm)
 			write_gicreg(0, ICH_HCR_EL2);
-
-		cpu_if->vgic_ap0r[0] = 0;
-		cpu_if->vgic_ap0r[1] = 0;
-		cpu_if->vgic_ap0r[2] = 0;
-		cpu_if->vgic_ap0r[3] = 0;
-		cpu_if->vgic_ap1r[0] = 0;
-		cpu_if->vgic_ap1r[1] = 0;
-		cpu_if->vgic_ap1r[2] = 0;
-		cpu_if->vgic_ap1r[3] = 0;
 	}
 
 	val = read_gicreg(ICC_SRE_EL2);
@@ -287,8 +256,6 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
 	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
-	u64 val;
-	u32 nr_pre_bits;
 	int i;
 
 	/*
@@ -306,31 +273,8 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 		write_gicreg(cpu_if->vgic_vmcr, ICH_VMCR_EL2);
 	}
 
-	val = read_gicreg(ICH_VTR_EL2);
-	nr_pre_bits = vtr_to_nr_pre_bits(val);
-
 	if (used_lrs) {
 		write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
-
-		switch (nr_pre_bits) {
-		case 7:
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[3], 3);
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[2], 2);
-		case 6:
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[1], 1);
-		default:
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[0], 0);
-		}
-
-		switch (nr_pre_bits) {
-		case 7:
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[3], 3);
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[2], 2);
-		case 6:
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[1], 1);
-		default:
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[0], 0);
-		}
 
 		for (i = 0; i < used_lrs; i++)
 			__gic_v3_set_lr(cpu_if->vgic_lr[i], i);
@@ -362,6 +306,72 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 	 */
 	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
 		     ICC_SRE_EL2);
+}
+
+void __hyp_text __vgic_v3_save_aprs(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if;
+	u64 val;
+	u32 nr_pre_bits;
+
+	vcpu = kern_hyp_va(vcpu);
+	cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+
+	val = read_gicreg(ICH_VTR_EL2);
+	nr_pre_bits = vtr_to_nr_pre_bits(val);
+
+	switch (nr_pre_bits) {
+	case 7:
+		cpu_if->vgic_ap0r[3] = __vgic_v3_read_ap0rn(3);
+		cpu_if->vgic_ap0r[2] = __vgic_v3_read_ap0rn(2);
+	case 6:
+		cpu_if->vgic_ap0r[1] = __vgic_v3_read_ap0rn(1);
+	default:
+		cpu_if->vgic_ap0r[0] = __vgic_v3_read_ap0rn(0);
+	}
+
+	switch (nr_pre_bits) {
+	case 7:
+		cpu_if->vgic_ap1r[3] = __vgic_v3_read_ap1rn(3);
+		cpu_if->vgic_ap1r[2] = __vgic_v3_read_ap1rn(2);
+	case 6:
+		cpu_if->vgic_ap1r[1] = __vgic_v3_read_ap1rn(1);
+	default:
+		cpu_if->vgic_ap1r[0] = __vgic_v3_read_ap1rn(0);
+	}
+}
+
+void __hyp_text __vgic_v3_restore_aprs(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if;
+	u64 val;
+	u32 nr_pre_bits;
+
+	vcpu = kern_hyp_va(vcpu);
+	cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+
+	val = read_gicreg(ICH_VTR_EL2);
+	nr_pre_bits = vtr_to_nr_pre_bits(val);
+
+	switch (nr_pre_bits) {
+	case 7:
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[3], 3);
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[2], 2);
+	case 6:
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[1], 1);
+	default:
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[0], 0);
+	}
+
+	switch (nr_pre_bits) {
+	case 7:
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[3], 3);
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[2], 2);
+	case 6:
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[1], 1);
+	default:
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[0], 0);
+	}
 }
 
 void __hyp_text __vgic_v3_init_lrs(void)
