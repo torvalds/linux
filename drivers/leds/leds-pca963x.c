@@ -252,9 +252,17 @@ static int pca963x_power_state(struct pca963x_led *pca963x)
 	else
 		clear_bit(pca963x->led_num, leds_on);
 
-	if (!(*leds_on) != !cached_leds)
+	if (!(*leds_on) != !cached_leds) {
+		u8 mode1 = i2c_smbus_read_byte_data(pca963x->chip->client,
+						    PCA963X_MODE1);
+
+		if (*leds_on)
+			mode1 &= ~PCA963X_MODE1_SLEEP;
+		else
+			mode1 |= PCA963X_MODE1_SLEEP;
 		return i2c_smbus_write_byte_data(pca963x->chip->client,
-			PCA963X_MODE1, *leds_on ? 0 : PCA963X_MODE1_SLEEP);
+			PCA963X_MODE1, mode1);
+	}
 
 	return 0;
 }
