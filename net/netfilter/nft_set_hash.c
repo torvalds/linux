@@ -643,7 +643,6 @@ nft_hash_select_ops(const struct nft_ctx *ctx, const struct nft_set_desc *desc,
 {
 	if (desc->size) {
 		switch (desc->klen) {
-		case 2:
 		case 4:
 			return &nft_hash_fast_ops;
 		default:
