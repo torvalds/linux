@@ -551,7 +551,7 @@ static void softlockup_unpark_threads(void)
 	softlockup_update_smpboot_threads();
 }
 
-static void softlockup_reconfigure_threads(void)
+static void lockup_detector_reconfigure(void)
 {
 	cpus_read_lock();
 	watchdog_nmi_stop();
@@ -570,13 +570,13 @@ static void softlockup_reconfigure_threads(void)
 }
 
 /*
- * Create the watchdog thread infrastructure.
+ * Create the watchdog thread infrastructure and configure the detector(s).
  *
  * The threads are not unparked as watchdog_allowed_mask is empty.  When
  * the threads are sucessfully initialized, take the proper locks and
  * unpark the threads in the watchdog_cpumask if the watchdog is enabled.
  */
-static __init void softlockup_init_threads(void)
+static __init void lockup_detector_setup(void)
 {
 	int ret;
 
@@ -599,7 +599,7 @@ static __init void softlockup_init_threads(void)
 
 	mutex_lock(&watchdog_mutex);
 	softlockup_threads_initialized = true;
-	softlockup_reconfigure_threads();
+	lockup_detector_reconfigure();
 	mutex_unlock(&watchdog_mutex);
 }
 
@@ -608,7 +608,7 @@ static inline int watchdog_park_threads(void) { return 0; }
 static inline void watchdog_unpark_threads(void) { }
 static inline int watchdog_enable_all_cpus(void) { return 0; }
 static inline void watchdog_disable_all_cpus(void) { }
-static void softlockup_reconfigure_threads(void)
+static void lockup_detector_reconfigure(void)
 {
 	cpus_read_lock();
 	watchdog_nmi_stop();
@@ -616,9 +616,9 @@ static void softlockup_reconfigure_threads(void)
 	watchdog_nmi_start();
 	cpus_read_unlock();
 }
-static inline void softlockup_init_threads(void)
+static inline void lockup_detector_setup(void)
 {
-	softlockup_reconfigure_threads();
+	lockup_detector_reconfigure();
 }
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 
@@ -658,7 +658,7 @@ static void proc_watchdog_update(void)
 {
 	/* Remove impossible cpus to keep sysctl output clean. */
 	cpumask_and(&watchdog_cpumask, &watchdog_cpumask, cpu_possible_mask);
-	softlockup_reconfigure_threads();
+	lockup_detector_reconfigure();
 }
 
 /*
@@ -785,5 +785,5 @@ void __init lockup_detector_init(void)
 
 	if (!watchdog_nmi_probe())
 		nmi_watchdog_available = true;
-	softlockup_init_threads();
+	lockup_detector_setup();
 }
