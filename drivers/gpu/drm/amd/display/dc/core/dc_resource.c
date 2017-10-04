@@ -1073,9 +1073,6 @@ bool dc_add_plane_to_context(
 		return false;
 	}
 
-	/* retain new surfaces */
-	dc_plane_state_retain(plane_state);
-
 	free_pipe = acquire_free_pipe_for_stream(context, pool, stream);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -1085,11 +1082,11 @@ bool dc_add_plane_to_context(
 			free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
 	}
 #endif
-	if (!free_pipe) {
-		stream_status->plane_states[i] = NULL;
+	if (!free_pipe)
 		return false;
-	}
 
+	/* retain new surfaces */
+	dc_plane_state_retain(plane_state);
 	free_pipe->plane_state = plane_state;
 
 	if (head_pipe != free_pipe) {
@@ -1181,8 +1178,8 @@ bool dc_remove_plane_from_context(
 
 	stream_status->plane_count--;
 
-	/* Trim back arrays */
-	for (i = 0; i < stream_status->plane_count; i++)
+	/* Start at the plane we've just released, and move all the planes one index forward to "trim" the array */
+	for (; i < stream_status->plane_count; i++)
 		stream_status->plane_states[i] = stream_status->plane_states[i + 1];
 
 	stream_status->plane_states[stream_status->plane_count] = NULL;
