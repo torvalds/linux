@@ -87,7 +87,7 @@ struct timer_list {
 
 #define DEFINE_TIMER(_name, _function, _expires, _data)		\
 	struct timer_list _name =				\
-		TIMER_INITIALIZER(_function, _expires, _data)
+		__TIMER_INITIALIZER(_function, _expires, _data, 0)
 
 void init_timer_key(struct timer_list *timer, unsigned int flags,
 		    const char *name, struct lock_class_key *key);
