@@ -342,6 +342,13 @@ static int bcd2000_init_midi(struct bcd2000 *bcd2k)
 				bcd2k->midi_out_buf, BUFSIZE,
 				bcd2000_output_complete, bcd2k, 1);
 
+	/* sanity checks of EPs before actually submitting */
+	if (usb_urb_ep_type_check(bcd2k->midi_in_urb) ||
+	    usb_urb_ep_type_check(bcd2k->midi_out_urb)) {
+		dev_err(&bcd2k->dev->dev, "invalid MIDI EP\n");
+		return -EINVAL;
+	}
+
 	bcd2000_init_device(bcd2k);
 
 	return 0;
