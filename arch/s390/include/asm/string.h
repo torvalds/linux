@@ -33,17 +33,17 @@
 #define __HAVE_ARCH_STRSTR	/* arch function */
 
 /* Prototypes for non-inlined arch strings functions. */
-extern int memcmp(const void *, const void *, size_t);
-extern void *memcpy(void *, const void *, size_t);
-extern void *memset(void *, int, size_t);
-extern void *memmove(void *, const void *, size_t);
-extern int strcmp(const char *,const char *);
-extern size_t strlcat(char *, const char *, size_t);
-extern size_t strlcpy(char *, const char *, size_t);
-extern char *strncat(char *, const char *, size_t);
-extern char *strncpy(char *, const char *, size_t);
-extern char *strrchr(const char *, int);
-extern char *strstr(const char *, const char *);
+int memcmp(const void *s1, const void *s2, size_t n);
+void *memcpy(void *dest, const void *src, size_t n);
+void *memset(void *s, int c, size_t n);
+void *memmove(void *dest, const void *src, size_t n);
+int strcmp(const char *s1, const char *s2);
+size_t strlcat(char *dest, const char *src, size_t n);
+size_t strlcpy(char *dest, const char *src, size_t size);
+char *strncat(char *dest, const char *src, size_t n);
+char *strncpy(char *dest, const char *src, size_t n);
+char *strrchr(const char *s, int c);
+char *strstr(const char *s1, const char *s2);
 
 #undef __HAVE_ARCH_STRCHR
 #undef __HAVE_ARCH_STRNCHR
