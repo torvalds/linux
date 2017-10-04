@@ -215,7 +215,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		rc = -ENOMEM;
 		goto post_drvdata_err;
 	}
-	dev_set_drvdata(dev, new_drvdata);
+	platform_set_drvdata(plat_dev, new_drvdata);
 	new_drvdata->plat_dev = plat_dev;
 
 	new_drvdata->clk = of_clk_get(np, 0);
@@ -393,7 +393,6 @@ post_clk_err:
 	cc_clk_off(new_drvdata);
 post_drvdata_err:
 	dev_err(dev, "ccree init error occurred!\n");
-	dev_set_drvdata(dev, NULL);
 	return rc;
 }
 
@@ -407,7 +406,7 @@ void fini_cc_regs(struct ssi_drvdata *drvdata)
 static void cleanup_cc_resources(struct platform_device *plat_dev)
 {
 	struct ssi_drvdata *drvdata =
-		(struct ssi_drvdata *)dev_get_drvdata(&plat_dev->dev);
+		(struct ssi_drvdata *)platform_get_drvdata(plat_dev);
 
 	ssi_aead_free(drvdata);
 	ssi_hash_free(drvdata);
@@ -423,7 +422,6 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 #endif
 	fini_cc_regs(drvdata);
 	cc_clk_off(drvdata);
-	dev_set_drvdata(&plat_dev->dev, NULL);
 }
 
 int cc_clk_on(struct ssi_drvdata *drvdata)
