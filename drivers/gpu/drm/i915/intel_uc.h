@@ -24,6 +24,7 @@
 #ifndef _INTEL_UC_H_
 #define _INTEL_UC_H_
 
+#include "intel_uc_fw.h"
 #include "intel_guc_fwif.h"
 #include "i915_guc_reg.h"
 #include "intel_ringbuffer.h"
@@ -68,72 +69,6 @@ struct i915_guc_client {
 	spinlock_t wq_lock;
 	/* Per-engine counts of GuC submissions */
 	uint64_t submissions[I915_NUM_ENGINES];
-};
-
-enum intel_uc_fw_status {
-	INTEL_UC_FIRMWARE_FAIL = -1,
-	INTEL_UC_FIRMWARE_NONE = 0,
-	INTEL_UC_FIRMWARE_PENDING,
-	INTEL_UC_FIRMWARE_SUCCESS
-};
-
-/* User-friendly representation of an enum */
-static inline
-const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
-{
-	switch (status) {
-	case INTEL_UC_FIRMWARE_FAIL:
-		return "FAIL";
-	case INTEL_UC_FIRMWARE_NONE:
-		return "NONE";
-	case INTEL_UC_FIRMWARE_PENDING:
-		return "PENDING";
-	case INTEL_UC_FIRMWARE_SUCCESS:
-		return "SUCCESS";
-	}
-	return "<invalid>";
-}
-
-enum intel_uc_fw_type {
-	INTEL_UC_FW_TYPE_GUC,
-	INTEL_UC_FW_TYPE_HUC
-};
-
-/* User-friendly representation of an enum */
-static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
-{
-	switch (type) {
-	case INTEL_UC_FW_TYPE_GUC:
-		return "GuC";
-	case INTEL_UC_FW_TYPE_HUC:
-		return "HuC";
-	}
-	return "uC";
-}
-
-/*
- * This structure encapsulates all the data needed during the process
- * of fetching, caching, and loading the firmware image into the GuC.
- */
-struct intel_uc_fw {
-	const char *path;
-	size_t size;
-	struct drm_i915_gem_object *obj;
-	enum intel_uc_fw_status fetch_status;
-	enum intel_uc_fw_status load_status;
-
-	uint16_t major_ver_wanted;
-	uint16_t minor_ver_wanted;
-	uint16_t major_ver_found;
-	uint16_t minor_ver_found;
-
-	enum intel_uc_fw_type type;
-	uint32_t header_size;
-	uint32_t header_offset;
-	uint32_t rsa_size;
-	uint32_t rsa_offset;
-	uint32_t ucode_size;
-	uint32_t ucode_offset;
 };
 
 struct intel_guc_log {
