@@ -122,8 +122,15 @@ void blk_account_io_done(struct request *req);
  * Internal atomic flags for request handling
  */
 enum rq_atomic_flags {
+	/*
+	 * Keep these two bits first - not because we depend on the
+	 * value of them, but we do depend on them being in the same
+	 * byte of storage to ensure ordering on writes. Keeping them
+	 * first will achieve that nicely.
+	 */
 	REQ_ATOM_COMPLETE = 0,
 	REQ_ATOM_STARTED,
+
 	REQ_ATOM_POLL_SLEPT,
 };
 
