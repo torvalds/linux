@@ -256,7 +256,6 @@
 			wdt2: watchdog@1e785020 {
 				compatible = "aspeed,ast2500-wdt";
 				reg = <0x1e785020 0x20>;
-				status = "disabled";
 			};
 
 			wdt3: watchdog@1e785040 {

@@ -212,7 +212,6 @@
 			wdt2: watchdog@1e785020 {
 				compatible = "aspeed,ast2400-wdt";
 				reg = <0x1e785020 0x1c>;
-				status = "disabled";
 			};
 
 			vuart: serial@1e787000 {
