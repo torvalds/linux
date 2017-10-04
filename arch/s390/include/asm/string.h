@@ -17,6 +17,9 @@
 #define __HAVE_ARCH_MEMMOVE	/* gcc builtin & arch function */
 #define __HAVE_ARCH_MEMSCAN	/* inline & arch function */
 #define __HAVE_ARCH_MEMSET	/* gcc builtin & arch function */
+#define __HAVE_ARCH_MEMSET16	/* arch function */
+#define __HAVE_ARCH_MEMSET32	/* arch function */
+#define __HAVE_ARCH_MEMSET64	/* arch function */
 #define __HAVE_ARCH_STRCAT	/* inline & arch function */
 #define __HAVE_ARCH_STRCMP	/* arch function */
 #define __HAVE_ARCH_STRCPY	/* inline & arch function */
@@ -48,6 +51,25 @@ extern char *strstr(const char *, const char *);
 #undef __HAVE_ARCH_STRPBRK
 #undef __HAVE_ARCH_STRSEP
 #undef __HAVE_ARCH_STRSPN
+
+void *__memset16(uint16_t *s, uint16_t v, size_t count);
+void *__memset32(uint32_t *s, uint32_t v, size_t count);
+void *__memset64(uint64_t *s, uint64_t v, size_t count);
+
+static inline void *memset16(uint16_t *s, uint16_t v, size_t count)
+{
+	return __memset16(s, v, count * sizeof(v));
+}
+
+static inline void *memset32(uint32_t *s, uint32_t v, size_t count)
+{
+	return __memset32(s, v, count * sizeof(v));
+}
+
+static inline void *memset64(uint64_t *s, uint64_t v, size_t count)
+{
+	return __memset64(s, v, count * sizeof(v));
+}
 
 #if !defined(IN_ARCH_STRING_C) && (!defined(CONFIG_FORTIFY_SOURCE) || defined(__NO_FORTIFY))
 
