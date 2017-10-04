@@ -4205,7 +4205,10 @@ int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter)
 	if (adapter->config_bands & BAND_A)
 		n_channels_a = mwifiex_band_5ghz.n_channels;
 
-	adapter->num_in_chan_stats = n_channels_bg + n_channels_a;
+	/* allocate twice the number total channels, since the driver issues an
+	 * additional active scan request for hidden SSIDs on passive channels.
+	 */
+	adapter->num_in_chan_stats = 2 * (n_channels_bg + n_channels_a);
 	adapter->chan_stats = vmalloc(sizeof(*adapter->chan_stats) *
 				      adapter->num_in_chan_stats);
 
