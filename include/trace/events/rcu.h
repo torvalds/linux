@@ -436,14 +436,14 @@ TRACE_EVENT(rcu_fqs,
  */
 TRACE_EVENT(rcu_dyntick,
 
-	TP_PROTO(const char *polarity, long long oldnesting, long long newnesting),
+	TP_PROTO(const char *polarity, long oldnesting, long newnesting),
 
 	TP_ARGS(polarity, oldnesting, newnesting),
 
 	TP_STRUCT__entry(
 		__field(const char *, polarity)
-		__field(long long, oldnesting)
-		__field(long long, newnesting)
+		__field(long, oldnesting)
+		__field(long, newnesting)
 	),
 
 	TP_fast_assign(
@@ -452,7 +452,7 @@ TRACE_EVENT(rcu_dyntick,
 		__entry->newnesting = newnesting;
 	),
 
-	TP_printk("%s %llx %llx", __entry->polarity,
+	TP_printk("%s %lx %lx", __entry->polarity,
 		  __entry->oldnesting, __entry->newnesting)
 );
 
