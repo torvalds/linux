@@ -37,7 +37,9 @@ struct property {
 	int	length;
 	void	*value;
 	struct property *next;
+#if defined(CONFIG_OF_DYNAMIC) || defined(CONFIG_SPARC)
 	unsigned long _flags;
+#endif
 #if defined(CONFIG_OF_PROMTREE)
 	unsigned int unique_id;
 #endif
@@ -205,6 +207,7 @@ static inline void of_node_clear_flag(struct device_node *n, unsigned long flag)
 	clear_bit(flag, &n->_flags);
 }
 
+#if defined(CONFIG_OF_DYNAMIC) || defined(CONFIG_SPARC)
 static inline int of_property_check_flag(struct property *p, unsigned long flag)
 {
 	return test_bit(flag, &p->_flags);
@@ -219,6 +222,7 @@ static inline void of_property_clear_flag(struct property *p, unsigned long flag
 {
 	clear_bit(flag, &p->_flags);
 }
+#endif
 
 extern struct device_node *__of_find_all_nodes(struct device_node *prev);
 extern struct device_node *of_find_all_nodes(struct device_node *prev);
