@@ -32,7 +32,6 @@ DEFINE_PER_CPU_USER_MAPPED(unsigned long, unsafe_stack_register_backup);
  * This is also handy because systems that do not support PCIDs
  * just end up or'ing a 0 into their CR3, which does no harm.
  */
-unsigned long x86_cr3_pcid_noflush __read_mostly;
 DEFINE_PER_CPU(unsigned long, x86_cr3_pcid_user);
 
 /*
@@ -357,10 +356,6 @@ void __init kaiser_init(void)
 	kaiser_add_user_map_early(&debug_idt_table,
 				  sizeof(gate_desc) * NR_VECTORS,
 				  __PAGE_KERNEL);
-
-	kaiser_add_user_map_early(&x86_cr3_pcid_noflush,
-				  sizeof(x86_cr3_pcid_noflush),
-				  __PAGE_KERNEL);
 }
 
 /* Add a mapping to the shadow mapping, and synchronize the mappings */
@@ -434,18 +429,14 @@ pgd_t kaiser_set_shadow_pgd(pgd_t *pgdp, pgd_t pgd)
 
 void kaiser_setup_pcid(void)
 {
-	unsigned long kern_cr3 = 0;
 	unsigned long user_cr3 = KAISER_SHADOW_PGD_OFFSET;
 
-	if (this_cpu_has(X86_FEATURE_PCID)) {
-		kern_cr3 |= X86_CR3_PCID_KERN_NOFLUSH;
+	if (this_cpu_has(X86_FEATURE_PCID))
 		user_cr3 |= X86_CR3_PCID_USER_NOFLUSH;
-	}
 	/*
 	 * These variables are used by the entry/exit
 	 * code to change PCID and pgd and TLB flushing.
 	 */
-	x86_cr3_pcid_noflush = kern_cr3;
 	this_cpu_write(x86_cr3_pcid_user, user_cr3);
 }
 
