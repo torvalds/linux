@@ -689,7 +689,7 @@ EXPORT_SYMBOL_GPL(xen_swiotlb_set_dma_mask);
 int
 xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		     void *cpu_addr, dma_addr_t dma_addr, size_t size,
-		     unsigned long attrs)
+		     struct dma_attrs *attrs)
 {
 #if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 	if (__generic_dma_ops(dev)->mmap)
