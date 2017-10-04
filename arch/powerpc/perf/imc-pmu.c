@@ -399,6 +399,20 @@ static void nest_imc_counters_release(struct perf_event *event)
 
 	/* Take the mutex lock for this node and then decrement the reference count */
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given node.
+		 *
+		 * In the cpuhotplug offline path, ppc_nest_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given node and make
+		 * an OPAL call to disable the engine in that node.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
@@ -646,6 +660,20 @@ static void core_imc_counters_release(struct perf_event *event)
 		return;
 
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given core.
+		 *
+		 * In the cpuhotplug offline path, ppc_core_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given core and make
+		 * an OPAL call to disable the engine in that core.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_CORE,
