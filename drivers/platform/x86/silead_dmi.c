@@ -136,6 +136,19 @@ static const struct silead_ts_dmi_data itworks_tw891_data = {
 	.properties	= itworks_tw891_props,
 };
 
+static const struct property_entry chuwi_hi8_pro_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1148),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3680-chuwi-hi8-pro.fw"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data chuwi_hi8_pro_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= chuwi_hi8_pro_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -217,6 +230,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "To be filled by O.E.M."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TW891"),
+		},
+	},
+	{
+		/* Chuwi Hi8 Pro */
+		.driver_data = (void *)&chuwi_hi8_pro_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X1D3_C806N"),
 		},
 	},
 	{ },
