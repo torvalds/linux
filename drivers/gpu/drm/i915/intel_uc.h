@@ -30,8 +30,6 @@
 #include "intel_guc_ct.h"
 #include "i915_vma.h"
 
-struct drm_i915_gem_request;
-
 /*
  * This structure primarily describes the GEM object shared with the GuC.
  * The specs sometimes refer to this object as a "GuC context", but we use
