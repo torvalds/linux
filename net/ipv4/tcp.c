@@ -415,6 +415,7 @@ void tcp_init_sock(struct sock *sk)
 	tp->out_of_order_queue = RB_ROOT;
 	tcp_init_xmit_timers(sk);
 	INIT_LIST_HEAD(&tp->tsq_node);
+	INIT_LIST_HEAD(&tp->tsorted_sent_queue);
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
@@ -881,6 +882,7 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 			 * available to the caller, no more, no less.
 			 */
 			skb->reserved_tailroom = skb->end - skb->tail - size;
+			INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
 			return skb;
 		}
 		__kfree_skb(skb);
