@@ -302,7 +302,7 @@ static void verify_allow_pstate_change_high(
 
 			if (i > pstate_wait_expected_timeout_us)
 				dm_logger_write(hws->ctx->logger, LOG_WARNING,
-						"pstate took longer than expected ~%dus",
+						"pstate took longer than expected ~%dus\n",
 						i);
 
 			return;
@@ -326,7 +326,7 @@ static void verify_allow_pstate_change_high(
 	}
 
 	dm_logger_write(hws->ctx->logger, LOG_WARNING,
-			"pstate TEST_DEBUG_DATA: 0x%X",
+			"pstate TEST_DEBUG_DATA: 0x%X\n",
 			debug_data);
 	BREAK_TO_DEBUGGER();
 }
