@@ -407,7 +407,7 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 	else
 		seq_puts(m, "[anon]");
 
-	if (key_is_instantiated(keyring)) {
+	if (key_is_positive(keyring)) {
 		if (keyring->keys.nr_leaves_on_tree != 0)
 			seq_printf(m, ": %lu", keyring->keys.nr_leaves_on_tree);
 		else
@@ -522,7 +522,8 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 {
 	struct keyring_search_context *ctx = iterator_data;
 	const struct key *key = keyring_ptr_to_key(object);
-	unsigned long kflags = key->flags;
+	unsigned long kflags = READ_ONCE(key->flags);
+	short state = READ_ONCE(key->state);
 
 	kenter("{%d}", key->serial);
 
@@ -566,9 +567,8 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 
 	if (ctx->flags & KEYRING_SEARCH_DO_STATE_CHECK) {
 		/* we set a different error code if we pass a negative key */
-		if (kflags & (1 << KEY_FLAG_NEGATIVE)) {
-			smp_rmb();
-			ctx->result = ERR_PTR(key->reject_error);
+		if (state < 0) {
+			ctx->result = ERR_PTR(state);
 			kleave(" = %d [neg]", ctx->skipped_ret);
 			goto skipped;
 		}
