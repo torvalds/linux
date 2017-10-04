@@ -318,6 +318,38 @@ enum {
 	TRANSFER_FUNC_POINTS = 1025
 };
 
+// Moved here from color module for linux
+enum color_transfer_func {
+	transfer_func_unknown,
+	transfer_func_srgb,
+	transfer_func_bt709,
+	transfer_func_pq2084,
+	transfer_func_pq2084_interim,
+	transfer_func_linear_0_1,
+	transfer_func_linear_0_125,
+	transfer_func_dolbyvision,
+	transfer_func_gamma_22,
+	transfer_func_gamma_26
+};
+
+enum color_color_space {
+	color_space_unsupported,
+	color_space_srgb,
+	color_space_bt601,
+	color_space_bt709,
+	color_space_xv_ycc_bt601,
+	color_space_xv_ycc_bt709,
+	color_space_xr_rgb,
+	color_space_bt2020,
+	color_space_adobe,
+	color_space_dci_p3,
+	color_space_sc_rgb_ms_ref,
+	color_space_display_native,
+	color_space_app_ctrl,
+	color_space_dolby_vision,
+	color_space_custom_coordinates
+};
+
 struct dc_hdr_static_metadata {
 	/* display chromaticities and white point in units of 0.00001 */
 	unsigned int chromaticity_green_x;
@@ -397,6 +429,12 @@ struct dc_plane_state {
 
 	struct dc_gamma *gamma_correction;
 	struct dc_transfer_func *in_transfer_func;
+
+	// sourceContentAttribute cache
+	bool is_source_input_valid;
+	struct dc_hdr_static_metadata source_input_mastering_info;
+	enum color_color_space source_input_color_space;
+	enum color_transfer_func source_input_tf;
 
 	enum dc_color_space color_space;
 	enum surface_pixel_format format;
