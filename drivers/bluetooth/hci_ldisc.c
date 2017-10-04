@@ -41,6 +41,7 @@
 #include <linux/ioctl.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
+#include <linux/serdev.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -297,6 +298,12 @@ void hci_uart_set_flow_control(struct hci_uart *hu, bool enable)
 	int status;
 	unsigned int set = 0;
 	unsigned int clear = 0;
+
+	if (hu->serdev) {
+		serdev_device_set_flow_control(hu->serdev, !enable);
+		serdev_device_set_rts(hu->serdev, !enable);
+		return;
+	}
 
 	if (enable) {
 		/* Disable hardware flow control */
