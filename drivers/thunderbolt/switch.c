@@ -1528,7 +1528,7 @@ struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link, u8 depth)
 }
 
 /**
- * tb_switch_find_by_link_depth() - Find switch by UUID
+ * tb_switch_find_by_uuid() - Find switch by UUID
  * @tb: Domain the switch belongs
  * @uuid: UUID to look for
  *
