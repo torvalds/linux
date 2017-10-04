@@ -68,7 +68,7 @@ struct bcm_device {
 	u32			init_speed;
 	u32			oper_speed;
 	int			irq;
-	u8			irq_polarity;
+	bool			irq_active_low;
 
 #ifdef CONFIG_PM
 	struct hci_uart		*hu;
@@ -213,7 +213,9 @@ static int bcm_request_irq(struct bcm_data *bcm)
 	}
 
 	err = devm_request_irq(&bdev->pdev->dev, bdev->irq, bcm_host_wake,
-			       IRQF_TRIGGER_RISING, "host_wake", bdev);
+			       bdev->irq_active_low ? IRQF_TRIGGER_FALLING :
+						      IRQF_TRIGGER_RISING,
+			       "host_wake", bdev);
 	if (err)
 		goto unlock;
 
@@ -253,7 +255,7 @@ static int bcm_setup_sleep(struct hci_uart *hu)
 	struct sk_buff *skb;
 	struct bcm_set_sleep_mode sleep_params = default_sleep_params;
 
-	sleep_params.host_wake_active = !bcm->dev->irq_polarity;
+	sleep_params.host_wake_active = !bcm->dev->irq_active_low;
 
 	skb = __hci_cmd_sync(hu->hdev, 0xfc27, sizeof(sleep_params),
 			     &sleep_params, HCI_INIT_TIMEOUT);
@@ -690,10 +692,8 @@ static const struct acpi_gpio_mapping acpi_bcm_int_first_gpios[] = {
 };
 
 #ifdef CONFIG_ACPI
-static u8 acpi_active_low = ACPI_ACTIVE_LOW;
-
 /* IRQ polarity of some chipsets are not defined correctly in ACPI table. */
-static const struct dmi_system_id bcm_wrong_irq_dmi_table[] = {
+static const struct dmi_system_id bcm_active_low_irq_dmi_table[] = {
 	{
 		.ident = "Asus T100TA",
 		.matches = {
@@ -701,7 +701,6 @@ static const struct dmi_system_id bcm_wrong_irq_dmi_table[] = {
 					"ASUSTeK COMPUTER INC."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "T100TA"),
 		},
-		.driver_data = &acpi_active_low,
 	},
 	{
 		.ident = "Asus T100CHI",
@@ -710,7 +709,6 @@ static const struct dmi_system_id bcm_wrong_irq_dmi_table[] = {
 					"ASUSTeK COMPUTER INC."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "T100CHI"),
 		},
-		.driver_data = &acpi_active_low,
 	},
 	{	/* Handle ThinkPad 8 tablets with BCM2E55 chipset ACPI ID */
 		.ident = "Lenovo ThinkPad 8",
@@ -718,7 +716,6 @@ static const struct dmi_system_id bcm_wrong_irq_dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
 		},
-		.driver_data = &acpi_active_low,
 	},
 	{ }
 };
@@ -733,13 +730,13 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 	switch (ares->type) {
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		irq = &ares->data.extended_irq;
-		dev->irq_polarity = irq->polarity;
+		dev->irq_active_low = irq->polarity == ACPI_ACTIVE_LOW;
 		break;
 
 	case ACPI_RESOURCE_TYPE_GPIO:
 		gpio = &ares->data.gpio;
 		if (gpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT)
-			dev->irq_polarity = gpio->polarity;
+			dev->irq_active_low = gpio->polarity == ACPI_ACTIVE_LOW;
 		break;
 
 	case ACPI_RESOURCE_TYPE_SERIAL_BUS:
@@ -834,11 +831,11 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 		return ret;
 	acpi_dev_free_resource_list(&resources);
 
-	dmi_id = dmi_first_match(bcm_wrong_irq_dmi_table);
+	dmi_id = dmi_first_match(bcm_active_low_irq_dmi_table);
 	if (dmi_id) {
 		bt_dev_warn(dev, "%s: Overwriting IRQ polarity to active low",
 			    dmi_id->ident);
-		dev->irq_polarity = *(u8 *)dmi_id->driver_data;
+		dev->irq_active_low = true;
 	}
 
 	return 0;
