@@ -129,6 +129,14 @@
 				};
 			};
 
+			adc: adc@1e6e9000 {
+				compatible = "aspeed,ast2400-adc";
+				reg = <0x1e6e9000 0xb0>;
+				clocks = <&clk_apb>;
+				#io-channel-cells = <1>;
+				status = "disabled";
+			};
+
 			sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x8000>;	// 32K
@@ -225,14 +233,6 @@
 				interrupts = <10>;
 				clocks = <&clk_uart>;
 				no-loopback-test;
-				status = "disabled";
-			};
-
-			adc: adc@1e6e9000 {
-				compatible = "aspeed,ast2400-adc";
-				reg = <0x1e6e9000 0xb0>;
-				clocks = <&clk_apb>;
-				#io-channel-cells = <1>;
 				status = "disabled";
 			};
 		};
