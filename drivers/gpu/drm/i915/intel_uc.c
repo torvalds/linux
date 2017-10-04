@@ -288,6 +288,19 @@ static void guc_init_send_regs(struct intel_guc *guc)
 	guc->send_regs.fw_domains = fw_domains;
 }
 
+/**
+ * intel_uc_init_mmio - setup uC MMIO access
+ *
+ * @dev_priv: device private
+ *
+ * Setup minimal state necessary for MMIO accesses later in the
+ * initialization sequence.
+ */
+void intel_uc_init_mmio(struct drm_i915_private *dev_priv)
+{
+	guc_init_send_regs(&dev_priv->guc);
+}
+
 static void guc_capture_load_err_log(struct intel_guc *guc)
 {
 	if (!guc->log.vma || i915_modparams.guc_log_level < 0)
@@ -308,8 +321,6 @@ static void guc_free_load_err_log(struct intel_guc *guc)
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-
-	guc_init_send_regs(guc);
 
 	if (HAS_GUC_CT(dev_priv))
 		return intel_guc_enable_ct(guc);
