@@ -78,6 +78,13 @@ static int line6_start_listen(struct usb_line6 *line6)
 			line6->buffer_listen, LINE6_BUFSIZE_LISTEN,
 			line6_data_received, line6);
 	}
+
+	/* sanity checks of EP before actually submitting */
+	if (usb_urb_ep_type_check(line6->urb_listen)) {
+		dev_err(line6->ifcdev, "invalid control EP\n");
+		return -EINVAL;
+	}
+
 	line6->urb_listen->actual_length = 0;
 	err = usb_submit_urb(line6->urb_listen, GFP_ATOMIC);
 	return err;
