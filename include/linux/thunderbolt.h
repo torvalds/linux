@@ -237,6 +237,7 @@ int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
 			    u16 receive_ring);
 int tb_xdomain_disable_paths(struct tb_xdomain *xd);
 struct tb_xdomain *tb_xdomain_find_by_uuid(struct tb *tb, const uuid_t *uuid);
+struct tb_xdomain *tb_xdomain_find_by_route(struct tb *tb, u64 route);
 
 static inline struct tb_xdomain *
 tb_xdomain_find_by_uuid_locked(struct tb *tb, const uuid_t *uuid)
@@ -245,6 +246,18 @@ tb_xdomain_find_by_uuid_locked(struct tb *tb, const uuid_t *uuid)
 
 	mutex_lock(&tb->lock);
 	xd = tb_xdomain_find_by_uuid(tb, uuid);
+	mutex_unlock(&tb->lock);
+
+	return xd;
+}
+
+static inline struct tb_xdomain *
+tb_xdomain_find_by_route_locked(struct tb *tb, u64 route)
+{
+	struct tb_xdomain *xd;
+
+	mutex_lock(&tb->lock);
+	xd = tb_xdomain_find_by_route(tb, route);
 	mutex_unlock(&tb->lock);
 
 	return xd;
