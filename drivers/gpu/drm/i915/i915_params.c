@@ -146,9 +146,6 @@ i915_param_named(disable_display, bool, 0400,
 i915_param_named_unsafe(enable_cmd_parser, bool, 0400,
 	"Enable command parsing (true=enabled [default], false=disabled)");
 
-i915_param_named_unsafe(use_mmio_flip, int, 0600,
-	"use MMIO flips (-1=never, 0=driver discretion [default], 1=always)");
-
 i915_param_named(mmio_debug, int, 0600,
 	"Enable the MMIO debug code for the first N failures (default: off). "
 	"This may negatively affect performance.");
