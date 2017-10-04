@@ -154,23 +154,10 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 	}
 
 	if (!strcmp(a->attr.name, "discard_granularity")) {
-		struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
-		int i;
-
 		if (t == 0 || t > MAX_PLIST_NUM)
 			return -EINVAL;
 		if (t == *ui)
 			return count;
-
-		mutex_lock(&dcc->cmd_lock);
-		for (i = 0; i < MAX_PLIST_NUM; i++) {
-			if (i >= t - 1)
-				dcc->pend_list_tag[i] |= P_ACTIVE;
-			else
-				dcc->pend_list_tag[i] &= (~P_ACTIVE);
-		}
-		mutex_unlock(&dcc->cmd_lock);
-
 		*ui = t;
 		return count;
 	}
