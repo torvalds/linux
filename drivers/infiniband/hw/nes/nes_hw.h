@@ -1164,6 +1164,7 @@ struct nes_adapter {
 	u8  log_port;
 
 	/* PCI information */
+	struct nes_device *nesdev;
 	unsigned int  devfn;
 	unsigned char bus_number;
 	unsigned char OneG_Mode;

@@ -740,11 +740,11 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 /**
  * nes_mh_fix
  */
-void nes_mh_fix(unsigned long parm)
+void nes_mh_fix(struct timer_list *t)
 {
+	struct nes_adapter *nesadapter = from_timer(nesadapter, t, mh_timer);
+	struct nes_device *nesdev = nesadapter->nesdev;
 	unsigned long flags;
-	struct nes_device *nesdev = (struct nes_device *)parm;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_vnic *nesvnic;
 	u32 used_chunks_tx;
 	u32 temp_used_chunks_tx;
@@ -881,11 +881,10 @@ no_mh_work:
 /**
  * nes_clc
  */
-void nes_clc(unsigned long parm)
+void nes_clc(struct timer_list *t)
 {
+	struct nes_adapter *nesadapter = from_timer(nesadapter, t, lc_timer);
 	unsigned long flags;
-	struct nes_device *nesdev = (struct nes_device *)parm;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 
 	spin_lock_irqsave(&nesadapter->phy_lock, flags);
     nesadapter->link_interrupt_count[0] = 0;
