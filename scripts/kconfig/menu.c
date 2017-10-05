@@ -110,7 +110,7 @@ static struct expr *rewrite_m(struct expr *e)
 
 void menu_add_dep(struct expr *dep)
 {
-	current_entry->dep = expr_alloc_and(current_entry->dep, rewrite_m(dep));
+	current_entry->dep = expr_alloc_and(current_entry->dep, dep);
 }
 
 void menu_set_type(int type)
@@ -135,7 +135,7 @@ static struct property *menu_add_prop(enum prop_type type, char *prompt, struct 
 
 	prop->menu = current_entry;
 	prop->expr = expr;
-	prop->visible.expr = rewrite_m(dep);
+	prop->visible.expr = dep;
 
 	if (prompt) {
 		if (isspace(*prompt)) {
@@ -340,7 +340,8 @@ void menu_finalize(struct menu *parent)
 			 * Propagate parent dependencies to the child menu
 			 * node, also rewriting and simplifying expressions
 			 */
-			basedep = expr_transform(menu->dep);
+			basedep = rewrite_m(menu->dep);
+			basedep = expr_transform(basedep);
 			basedep = expr_alloc_and(expr_copy(parentdep), basedep);
 			basedep = expr_eliminate_dups(basedep);
 			menu->dep = basedep;
@@ -383,7 +384,8 @@ void menu_finalize(struct menu *parent)
 				 * property's condition, rewriting and
 				 * simplifying expressions at the same time
 				 */
-				dep = expr_transform(prop->visible.expr);
+				dep = rewrite_m(prop->visible.expr);
+				dep = expr_transform(dep);
 				dep = expr_alloc_and(expr_copy(basedep), dep);
 				dep = expr_eliminate_dups(dep);
 				if (menu->sym && menu->sym->type != S_TRISTATE)
