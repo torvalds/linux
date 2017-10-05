@@ -15,7 +15,7 @@ targets += misc.o piggy.o sizes.h head.o real2.o firmware.o
 KBUILD_CFLAGS := -D__KERNEL__ -O2 -DBOOTLOADER
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 KBUILD_CFLAGS += $(cflags-y) -fno-delete-null-pointer-checks
-KBUILD_CFLAGS += -fno-PIE -mno-space-regs -mdisable-fpregs
+KBUILD_CFLAGS += -fno-PIE -mno-space-regs -mdisable-fpregs -Os
 ifndef CONFIG_64BIT
 KBUILD_CFLAGS += -mfast-indirect-calls
 endif

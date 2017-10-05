@@ -337,7 +337,7 @@ Examples for low-level BPF:
   jeq #14, good           /* __NR_rt_sigprocmask */
   jeq #13, good           /* __NR_rt_sigaction */
   jeq #35, good           /* __NR_nanosleep */
-  bad: ret #0             /* SECCOMP_RET_KILL */
+  bad: ret #0             /* SECCOMP_RET_KILL_THREAD */
   good: ret #0x7fff0000   /* SECCOMP_RET_ALLOW */
 
 The above example code can be placed into a file (here called "foo"), and
