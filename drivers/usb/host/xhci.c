@@ -3571,11 +3571,7 @@ int xhci_disable_slot(struct xhci_hcd *xhci, struct xhci_command *command,
 	unsigned long flags;
 	u32 state;
 	int ret = 0;
-	struct xhci_virt_device *virt_dev;
 
-	virt_dev = xhci->devs[slot_id];
-	if (!virt_dev)
-		return -EINVAL;
 	if (!command)
 		command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
 	if (!command)
