@@ -2248,7 +2248,7 @@
 			s2idle  - Suspend-To-Idle
 			shallow - Power-On Suspend or equivalent (if supported)
 			deep    - Suspend-To-RAM or equivalent (if supported)
-			See Documentation/power/states.txt.
+			See Documentation/admin-guide/pm/sleep-states.rst.
 
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
