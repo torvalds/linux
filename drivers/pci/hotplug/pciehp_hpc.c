@@ -50,14 +50,13 @@ static irqreturn_t pcie_isr(int irq, void *dev_id);
 static void start_int_poll_timer(struct controller *ctrl, int sec);
 
 /* This is the interrupt polling timeout function. */
-static void int_poll_timeout(unsigned long data)
+static void int_poll_timeout(struct timer_list *t)
 {
-	struct controller *ctrl = (struct controller *)data;
+	struct controller *ctrl = from_timer(ctrl, t, poll_timer);
 
 	/* Poll for interrupt events.  regs == NULL => polling */
 	pcie_isr(0, ctrl);
 
-	init_timer(&ctrl->poll_timer);
 	if (!pciehp_poll_time)
 		pciehp_poll_time = 2; /* default polling interval is 2 sec */
 
@@ -71,8 +70,6 @@ static void start_int_poll_timer(struct controller *ctrl, int sec)
 	if ((sec <= 0) || (sec > 60))
 		sec = 2;
 
-	ctrl->poll_timer.function = &int_poll_timeout;
-	ctrl->poll_timer.data = (unsigned long)ctrl;
 	ctrl->poll_timer.expires = jiffies + sec * HZ;
 	add_timer(&ctrl->poll_timer);
 }
@@ -83,7 +80,7 @@ static inline int pciehp_request_irq(struct controller *ctrl)
 
 	/* Install interrupt polling timer. Start with 10 sec delay */
 	if (pciehp_poll_mode) {
-		init_timer(&ctrl->poll_timer);
+		timer_setup(&ctrl->poll_timer, int_poll_timeout, 0);
 		start_int_poll_timer(ctrl, 10);
 		return 0;
 	}
@@ -764,8 +761,7 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 	if (pciehp_poll_mode)
-		int_poll_timeout(ctrl->poll_timer.data);
-
+		int_poll_timeout(&ctrl->poll_timer);
 	return 0;
 }
 
