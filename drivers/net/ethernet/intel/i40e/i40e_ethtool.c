@@ -531,12 +531,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		ks->base.speed = SPEED_40000;
 		break;
 	case I40E_LINK_SPEED_25GB:
-#ifdef SPEED_25000
 		ks->base.speed = SPEED_25000;
-#else
-		netdev_info(netdev,
-			    "Speed is 25G, display not supported by this version of ethtool.\n");
-#endif
 		break;
 	case I40E_LINK_SPEED_20GB:
 		ks->base.speed = SPEED_20000;
