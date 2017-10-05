@@ -73,7 +73,7 @@
 		default-brightness-level = <50>;
 	};
 
-	display: display@di0 {
+	display: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb24";
 		pinctrl-names = "default";

@@ -76,7 +76,7 @@
 		default-brightness-level = <50>;
 	};
 
-	display: display@di0 {
+	display: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_disp0_2>;

@@ -22,7 +22,7 @@
 		      <0xb0000000 0x20000000>;
 	};
 
-	display0: display@di0 {
+	display0: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
