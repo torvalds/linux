@@ -250,6 +250,7 @@ struct i40iw_vsi_pestat {
 	struct i40iw_dev_hw_stats last_read_hw_stats;
 	struct i40iw_dev_hw_stats_offsets hw_stats_offsets;
 	struct timer_list stats_timer;
+	struct i40iw_sc_vsi *vsi;
 	spinlock_t lock; /* rdma stats lock */
 };
 
