@@ -18,26 +18,10 @@
  *	match.  --pb
  */
 
-static int dev_ifname(struct net *net, struct ifreq __user *arg)
+static int dev_ifname(struct net *net, struct ifreq *ifr)
 {
-	struct ifreq ifr;
-	int error;
-
-	/*
-	 *	Fetch the caller's info block.
-	 */
-
-	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
-		return -EFAULT;
-	ifr.ifr_name[IFNAMSIZ-1] = 0;
-
-	error = netdev_get_name(net, ifr.ifr_name, ifr.ifr_ifindex);
-	if (error)
-		return error;
-
-	if (copy_to_user(arg, &ifr, sizeof(struct ifreq)))
-		return -EFAULT;
-	return 0;
+	ifr->ifr_name[IFNAMSIZ-1] = 0;
+	return netdev_get_name(net, ifr->ifr_name, ifr->ifr_ifindex);
 }
 
 static gifconf_func_t *gifconf_list[NPROTO];
@@ -402,23 +386,23 @@ EXPORT_SYMBOL(dev_load);
  *	positive or a negative errno code on error.
  */
 
-int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
+int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_copyout)
 {
-	struct ifreq ifr;
 	int ret;
 	char *colon;
 
+	if (need_copyout)
+		*need_copyout = true;
 	if (cmd == SIOCGIFNAME)
-		return dev_ifname(net, (struct ifreq __user *)arg);
+		return dev_ifname(net, ifr);
 
-	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
-		return -EFAULT;
+	ifr->ifr_name[IFNAMSIZ-1] = 0;
 
-	ifr.ifr_name[IFNAMSIZ-1] = 0;
-
-	colon = strchr(ifr.ifr_name, ':');
+	colon = strchr(ifr->ifr_name, ':');
 	if (colon)
 		*colon = 0;
+
+	dev_load(net, ifr->ifr_name);
 
 	/*
 	 *	See which interface the caller is talking about.
@@ -439,31 +423,19 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	case SIOCGIFMAP:
 	case SIOCGIFINDEX:
 	case SIOCGIFTXQLEN:
-		dev_load(net, ifr.ifr_name);
 		rcu_read_lock();
-		ret = dev_ifsioc_locked(net, &ifr, cmd);
+		ret = dev_ifsioc_locked(net, ifr, cmd);
 		rcu_read_unlock();
-		if (!ret) {
-			if (colon)
-				*colon = ':';
-			if (copy_to_user(arg, &ifr,
-					 sizeof(struct ifreq)))
-				ret = -EFAULT;
-		}
+		if (colon)
+			*colon = ':';
 		return ret;
 
 	case SIOCETHTOOL:
-		dev_load(net, ifr.ifr_name);
 		rtnl_lock();
-		ret = dev_ethtool(net, &ifr);
+		ret = dev_ethtool(net, ifr);
 		rtnl_unlock();
-		if (!ret) {
-			if (colon)
-				*colon = ':';
-			if (copy_to_user(arg, &ifr,
-					 sizeof(struct ifreq)))
-				ret = -EFAULT;
-		}
+		if (colon)
+			*colon = ':';
 		return ret;
 
 	/*
@@ -477,17 +449,11 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	case SIOCSIFNAME:
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
-		dev_load(net, ifr.ifr_name);
 		rtnl_lock();
-		ret = dev_ifsioc(net, &ifr, cmd);
+		ret = dev_ifsioc(net, ifr, cmd);
 		rtnl_unlock();
-		if (!ret) {
-			if (colon)
-				*colon = ':';
-			if (copy_to_user(arg, &ifr,
-					 sizeof(struct ifreq)))
-				ret = -EFAULT;
-		}
+		if (colon)
+			*colon = ':';
 		return ret;
 
 	/*
@@ -528,10 +494,11 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		/* fall through */
 	case SIOCBONDSLAVEINFOQUERY:
 	case SIOCBONDINFOQUERY:
-		dev_load(net, ifr.ifr_name);
 		rtnl_lock();
-		ret = dev_ifsioc(net, &ifr, cmd);
+		ret = dev_ifsioc(net, ifr, cmd);
 		rtnl_unlock();
+		if (need_copyout)
+			*need_copyout = false;
 		return ret;
 
 	case SIOCGIFMEM:
@@ -551,13 +518,9 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		    cmd == SIOCGHWTSTAMP ||
 		    (cmd >= SIOCDEVPRIVATE &&
 		     cmd <= SIOCDEVPRIVATE + 15)) {
-			dev_load(net, ifr.ifr_name);
 			rtnl_lock();
-			ret = dev_ifsioc(net, &ifr, cmd);
+			ret = dev_ifsioc(net, ifr, cmd);
 			rtnl_unlock();
-			if (!ret && copy_to_user(arg, &ifr,
-						 sizeof(struct ifreq)))
-				ret = -EFAULT;
 			return ret;
 		}
 		return -ENOTTY;

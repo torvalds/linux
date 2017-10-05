@@ -973,10 +973,17 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
 		rtnl_unlock();
 		if (!err && copy_to_user(argp, &ifc, sizeof(struct ifconf)))
 			err = -EFAULT;
-		return err;
+	} else {
+		struct ifreq ifr;
+		bool need_copyout;
+		if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+			return -EFAULT;
+		err = dev_ioctl(net, cmd, &ifr, &need_copyout);
+		if (!err && need_copyout)
+			if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+				return -EFAULT;
 	}
-
-	return dev_ioctl(net, cmd, argp);
+	return err;
 }
 
 /*
@@ -1000,8 +1007,15 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	sock = file->private_data;
 	sk = sock->sk;
 	net = sock_net(sk);
-	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
-		err = dev_ioctl(net, cmd, argp);
+	if (unlikely(cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15))) {
+		struct ifreq ifr;
+		bool need_copyout;
+		if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+			return -EFAULT;
+		err = dev_ioctl(net, cmd, &ifr, &need_copyout);
+		if (!err && need_copyout)
+			if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+				return -EFAULT;
 	} else
 #ifdef CONFIG_WEXT_CORE
 	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
@@ -2695,9 +2709,9 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 {
 	struct compat_ethtool_rxnfc __user *compat_rxnfc;
 	bool convert_in = false, convert_out = false;
-	size_t buf_size = ALIGN(sizeof(struct ifreq), 8);
-	struct ethtool_rxnfc __user *rxnfc;
-	struct ifreq __user *ifr;
+	size_t buf_size = 0;
+	struct ethtool_rxnfc __user *rxnfc = NULL;
+	struct ifreq ifr;
 	u32 rule_cnt = 0, actual_rule_cnt;
 	u32 ethcmd;
 	u32 data;
@@ -2734,18 +2748,14 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 	case ETHTOOL_SRXCLSRLDEL:
 		buf_size += sizeof(struct ethtool_rxnfc);
 		convert_in = true;
+		rxnfc = compat_alloc_user_space(buf_size);
 		break;
 	}
 
-	ifr = compat_alloc_user_space(buf_size);
-	rxnfc = (void __user *)ifr + ALIGN(sizeof(struct ifreq), 8);
-
-	if (copy_in_user(&ifr->ifr_name, &ifr32->ifr_name, IFNAMSIZ))
+	if (copy_from_user(&ifr.ifr_name, &ifr32->ifr_name, IFNAMSIZ))
 		return -EFAULT;
 
-	if (put_user(convert_in ? rxnfc : compat_ptr(data),
-		     &ifr->ifr_ifru.ifru_data))
-		return -EFAULT;
+	ifr.ifr_data = convert_in ? rxnfc : (void __user *)compat_rxnfc;
 
 	if (convert_in) {
 		/* We expect there to be holes between fs.m_ext and
@@ -2773,7 +2783,7 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 			return -EFAULT;
 	}
 
-	ret = dev_ioctl(net, SIOCETHTOOL, ifr);
+	ret = dev_ioctl(net, SIOCETHTOOL, &ifr, NULL);
 	if (ret)
 		return ret;
 
@@ -2814,50 +2824,43 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 
 static int compat_siocwandev(struct net *net, struct compat_ifreq __user *uifr32)
 {
-	void __user *uptr;
 	compat_uptr_t uptr32;
-	struct ifreq __user *uifr;
+	struct ifreq ifr;
+	void __user *saved;
+	int err;
 
-	uifr = compat_alloc_user_space(sizeof(*uifr));
-	if (copy_in_user(uifr, uifr32, sizeof(struct compat_ifreq)))
+	if (copy_from_user(&ifr, uifr32, sizeof(struct compat_ifreq)))
 		return -EFAULT;
 
 	if (get_user(uptr32, &uifr32->ifr_settings.ifs_ifsu))
 		return -EFAULT;
 
-	uptr = compat_ptr(uptr32);
+	saved = ifr.ifr_settings.ifs_ifsu.raw_hdlc;
+	ifr.ifr_settings.ifs_ifsu.raw_hdlc = compat_ptr(uptr32);
 
-	if (put_user(uptr, &uifr->ifr_settings.ifs_ifsu.raw_hdlc))
-		return -EFAULT;
-
-	return dev_ioctl(net, SIOCWANDEV, uifr);
+	err = dev_ioctl(net, SIOCWANDEV, &ifr, NULL);
+	if (!err) {
+		ifr.ifr_settings.ifs_ifsu.raw_hdlc = saved;
+		if (copy_to_user(uifr32, &ifr, sizeof(struct compat_ifreq)))
+			err = -EFAULT;
+	}
+	return err;
 }
 
 /* Handle ioctls that use ifreq::ifr_data and just need struct ifreq converted */
 static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 				 struct compat_ifreq __user *u_ifreq32)
 {
-	struct ifreq __user *u_ifreq64;
-	char tmp_buf[IFNAMSIZ];
-	void __user *data64;
+	struct ifreq ifreq;
 	u32 data32;
 
-	if (copy_from_user(&tmp_buf[0], &(u_ifreq32->ifr_ifrn.ifrn_name[0]),
-			   IFNAMSIZ))
+	if (copy_from_user(ifreq.ifr_name, u_ifreq32->ifr_name, IFNAMSIZ))
 		return -EFAULT;
-	if (get_user(data32, &u_ifreq32->ifr_ifru.ifru_data))
+	if (get_user(data32, &u_ifreq32->ifr_data))
 		return -EFAULT;
-	data64 = compat_ptr(data32);
+	ifreq.ifr_data = compat_ptr(data32);
 
-	u_ifreq64 = compat_alloc_user_space(sizeof(*u_ifreq64));
-
-	if (copy_to_user(&u_ifreq64->ifr_ifrn.ifrn_name[0], &tmp_buf[0],
-			 IFNAMSIZ))
-		return -EFAULT;
-	if (put_user(data64, &u_ifreq64->ifr_ifru.ifru_data))
-		return -EFAULT;
-
-	return dev_ioctl(net, cmd, u_ifreq64);
+	return dev_ioctl(net, cmd, &ifreq, NULL);
 }
 
 static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
@@ -2865,7 +2868,6 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 {
 	struct ifreq ifr;
 	struct compat_ifmap __user *uifmap32;
-	mm_segment_t old_fs;
 	int err;
 
 	uifmap32 = &uifr32->ifr_ifru.ifru_map;
@@ -2879,10 +2881,7 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 	if (err)
 		return -EFAULT;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = dev_ioctl(net, cmd, (void  __user __force *)&ifr);
-	set_fs(old_fs);
+	err = dev_ioctl(net, cmd, &ifr, NULL);
 
 	if (cmd == SIOCGIFMAP && !err) {
 		err = copy_to_user(uifr32, &ifr, sizeof(ifr.ifr_name));
