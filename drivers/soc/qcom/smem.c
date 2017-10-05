@@ -245,14 +245,14 @@ struct qcom_smem {
 };
 
 static struct smem_private_entry *
-phdr_to_last_private_entry(struct smem_partition_header *phdr)
+phdr_to_last_uncached_entry(struct smem_partition_header *phdr)
 {
 	void *p = phdr;
 
 	return p + le32_to_cpu(phdr->offset_free_uncached);
 }
 
-static void *phdr_to_first_cached_entry(struct smem_partition_header *phdr)
+static void *phdr_to_last_cached_entry(struct smem_partition_header *phdr)
 {
 	void *p = phdr;
 
@@ -260,7 +260,7 @@ static void *phdr_to_first_cached_entry(struct smem_partition_header *phdr)
 }
 
 static struct smem_private_entry *
-phdr_to_first_private_entry(struct smem_partition_header *phdr)
+phdr_to_first_uncached_entry(struct smem_partition_header *phdr)
 {
 	void *p = phdr;
 
@@ -268,7 +268,7 @@ phdr_to_first_private_entry(struct smem_partition_header *phdr)
 }
 
 static struct smem_private_entry *
-private_entry_next(struct smem_private_entry *e)
+uncached_entry_next(struct smem_private_entry *e)
 {
 	void *p = e;
 
@@ -276,7 +276,7 @@ private_entry_next(struct smem_private_entry *e)
 	       le32_to_cpu(e->size);
 }
 
-static void *entry_to_item(struct smem_private_entry *e)
+static void *uncached_entry_to_item(struct smem_private_entry *e)
 {
 	void *p = e;
 
@@ -300,9 +300,9 @@ static int qcom_smem_alloc_private(struct qcom_smem *smem,
 	void *cached;
 
 	phdr = smem->partitions[host];
-	hdr = phdr_to_first_private_entry(phdr);
-	end = phdr_to_last_private_entry(phdr);
-	cached = phdr_to_first_cached_entry(phdr);
+	hdr = phdr_to_first_uncached_entry(phdr);
+	end = phdr_to_last_uncached_entry(phdr);
+	cached = phdr_to_last_cached_entry(phdr);
 
 	while (hdr < end) {
 		if (hdr->canary != SMEM_PRIVATE_CANARY) {
@@ -315,7 +315,7 @@ static int qcom_smem_alloc_private(struct qcom_smem *smem,
 		if (le16_to_cpu(hdr->item) == item)
 			return -EEXIST;
 
-		hdr = private_entry_next(hdr);
+		hdr = uncached_entry_next(hdr);
 	}
 
 	/* Check that we don't grow into the cached region */
@@ -460,8 +460,8 @@ static void *qcom_smem_get_private(struct qcom_smem *smem,
 	struct smem_private_entry *e, *end;
 
 	phdr = smem->partitions[host];
-	e = phdr_to_first_private_entry(phdr);
-	end = phdr_to_last_private_entry(phdr);
+	e = phdr_to_first_uncached_entry(phdr);
+	end = phdr_to_last_uncached_entry(phdr);
 
 	while (e < end) {
 		if (e->canary != SMEM_PRIVATE_CANARY) {
@@ -476,10 +476,10 @@ static void *qcom_smem_get_private(struct qcom_smem *smem,
 				*size = le32_to_cpu(e->size) -
 					le16_to_cpu(e->padding_data);
 
-			return entry_to_item(e);
+			return uncached_entry_to_item(e);
 		}
 
-		e = private_entry_next(e);
+		e = uncached_entry_next(e);
 	}
 
 	return ERR_PTR(-ENOENT);
