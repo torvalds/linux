@@ -417,8 +417,9 @@ enum qlink_sta_connect_flags {
  * struct qlink_cmd_connect - data for QLINK_CMD_CONNECT command
  *
  * @flags: for future use.
- * @freq: center frequence of a channel which should be used to connect.
+ * @channel: channel which should be used to connect.
  * @bg_scan_period: period of background scan.
+ * @aen: authentication information.
  * @bssid: BSSID of the BSS to connect to.
  * @payload: variable portion of connection request.
  */
@@ -427,6 +428,7 @@ struct qlink_cmd_connect {
 	__le32 flags;
 	__le16 channel;
 	__le16 bg_scan_period;
+	struct qlink_auth_encr aen;
 	u8 bssid[ETH_ALEN];
 	u8 payload[0];
 } __packed;
@@ -950,7 +952,6 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_STA_GENERIC_INFO	= 0x0301,
 	QTN_TLV_ID_KEY			= 0x0302,
 	QTN_TLV_ID_SEQ			= 0x0303,
-	QTN_TLV_ID_CRYPTO		= 0x0304,
 	QTN_TLV_ID_IE_SET		= 0x0305,
 };
 
