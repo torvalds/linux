@@ -841,7 +841,6 @@ lcs_lancmd_timeout(struct timer_list *t)
 	unsigned long flags;
 
 	LCS_DBF_TEXT(4, trace, "timeout");
-	reply = (struct lcs_reply *) data;
 	spin_lock_irqsave(&reply->card->lock, flags);
 	list_for_each_entry_safe(list_reply, r,
 				 &reply->card->lancmd_waiters,list) {
