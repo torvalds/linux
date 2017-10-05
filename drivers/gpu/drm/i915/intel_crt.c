@@ -269,6 +269,8 @@ static void hsw_pre_enable_crt(struct intel_encoder *encoder,
 	WARN_ON(!intel_crtc->config->has_pch_encoder);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+
+	dev_priv->display.fdi_link_train(intel_crtc, pipe_config);
 }
 
 static void hsw_enable_crt(struct intel_encoder *encoder,

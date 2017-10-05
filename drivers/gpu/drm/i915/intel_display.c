@@ -5523,9 +5523,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
-	if (intel_crtc->config->has_pch_encoder)
-		dev_priv->display.fdi_link_train(intel_crtc, pipe_config);
-
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_enable_pipe_clock(pipe_config);
 
