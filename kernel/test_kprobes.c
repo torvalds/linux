@@ -22,7 +22,7 @@
 
 #define div_factor 3
 
-static u32 rand1, preh_val, posth_val, jph_val;
+static u32 rand1, preh_val, posth_val;
 static int errors, handler_errors, num_tests;
 static u32 (*target)(u32 value);
 static u32 (*target2)(u32 value);
@@ -162,6 +162,9 @@ static int test_kprobes(void)
 
 }
 
+#if 0
+static u32 jph_val;
+
 static u32 j_kprobe_target(u32 value)
 {
 	if (preemptible()) {
@@ -239,6 +242,10 @@ static int test_jprobes(void)
 
 	return 0;
 }
+#else
+#define test_jprobe() (0)
+#define test_jprobes() (0)
+#endif
 #ifdef CONFIG_KRETPROBES
 static u32 krph_val;
 
