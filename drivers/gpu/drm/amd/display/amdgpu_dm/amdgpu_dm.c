@@ -3736,14 +3736,15 @@ static void handle_cursor_update(struct drm_plane *plane,
 
 	attributes.pitch = attributes.width;
 
-	if (!dc_stream_set_cursor_attributes(crtc_state->stream,
-					     &attributes))
-		DRM_ERROR("DC failed to set cursor attributes\n");
+	if (crtc_state->stream) {
+		if (!dc_stream_set_cursor_attributes(crtc_state->stream,
+							 &attributes))
+			DRM_ERROR("DC failed to set cursor attributes\n");
 
-	if (crtc_state->stream)
 		if (!dc_stream_set_cursor_position(crtc_state->stream,
 						   &position))
 			DRM_ERROR("DC failed to set cursor position\n");
+	}
 }
 
 static void prepare_flip_isr(struct amdgpu_crtc *acrtc)
