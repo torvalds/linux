@@ -1679,9 +1679,14 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			bus_state->resume_done[faked_port_index] = jiffies +
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			set_bit(faked_port_index, &bus_state->resuming_ports);
+			/* Do the rest in GetPortStatus after resume time delay.
+			 * Avoid polling roothub status before that so that a
+			 * usb device auto-resume latency around ~40ms.
+			 */
+			set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 			mod_timer(&hcd->rh_timer,
 				  bus_state->resume_done[faked_port_index]);
-			/* Do the rest in GetPortStatus */
+			bogus_port_status = true;
 		}
 	}
 
