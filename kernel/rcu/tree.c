@@ -749,16 +749,27 @@ cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 }
 
 /*
- * rcu_eqs_enter_common - current CPU is entering an extended quiescent state
+ * Enter an RCU extended quiescent state, which can be either the
+ * idle loop or adaptive-tickless usermode execution.
  *
- * Enter idle, doing appropriate accounting.  The caller must have
- * disabled interrupts.
+ * We crowbar the ->dynticks_nmi_nesting field to zero to allow for
+ * the possibility of usermode upcalls having messed up our count
+ * of interrupt nesting level during the prior busy period.
  */
-static void rcu_eqs_enter_common(bool user)
+static void rcu_eqs_enter(bool user)
 {
 	struct rcu_state *rsp;
 	struct rcu_data *rdp;
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	struct rcu_dynticks *rdtp;
+
+	rdtp = this_cpu_ptr(&rcu_dynticks);
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
+		     rdtp->dynticks_nesting == 0);
+	if (rdtp->dynticks_nesting != 1) {
+		rdtp->dynticks_nesting--;
+		return;
+	}
 
 	lockdep_assert_irqs_disabled();
 	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0, rdtp->dynticks);
@@ -781,28 +792,6 @@ static void rcu_eqs_enter_common(bool user)
 	WRITE_ONCE(rdtp->dynticks_nesting, 0); /* Avoid irq-access tearing. */
 	rcu_dynticks_eqs_enter();
 	rcu_dynticks_task_enter();
-}
-
-/*
- * Enter an RCU extended quiescent state, which can be either the
- * idle loop or adaptive-tickless usermode execution.
- *
- * We crowbar the ->dynticks_nmi_nesting field to zero to allow for
- * the possibility of usermode upcalls having messed up our count
- * of interrupt nesting level during the prior busy period.
- */
-static void rcu_eqs_enter(bool user)
-{
-	struct rcu_dynticks *rdtp;
-
-	rdtp = this_cpu_ptr(&rcu_dynticks);
-	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0);
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     rdtp->dynticks_nesting == 0);
-	if (rdtp->dynticks_nesting == 1)
-		rcu_eqs_enter_common(user);
-	else
-		rdtp->dynticks_nesting--;
 }
 
 /**
