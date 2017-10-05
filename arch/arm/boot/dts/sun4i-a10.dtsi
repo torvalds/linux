@@ -60,7 +60,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer@0 {
+		framebuffer-lcd0-hdmi {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
@@ -70,7 +70,7 @@
 			status = "disabled";
 		};
 
-		framebuffer@1 {
+		framebuffer-fe0-lcd0-hdmi {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-hdmi";
@@ -82,7 +82,7 @@
 			status = "disabled";
 		};
 
-		framebuffer@2 {
+		framebuffer-fe0-lcd0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0";
@@ -93,7 +93,7 @@
 			status = "disabled";
 		};
 
-		framebuffer@3 {
+		framebuffer-fe0-lcd0-tve0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-tve0";
