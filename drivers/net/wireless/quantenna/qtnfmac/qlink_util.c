@@ -128,6 +128,38 @@ void qlink_chandef_q2cfg(struct wiphy *wiphy,
 	}
 }
 
+static u8 qlink_chanwidth_nl_to_qlink(enum nl80211_chan_width nlwidth)
+{
+	switch (nlwidth) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		return QLINK_CHAN_WIDTH_20_NOHT;
+	case NL80211_CHAN_WIDTH_20:
+		return QLINK_CHAN_WIDTH_20;
+	case NL80211_CHAN_WIDTH_40:
+		return QLINK_CHAN_WIDTH_40;
+	case NL80211_CHAN_WIDTH_80:
+		return QLINK_CHAN_WIDTH_80;
+	case NL80211_CHAN_WIDTH_80P80:
+		return QLINK_CHAN_WIDTH_80P80;
+	case NL80211_CHAN_WIDTH_160:
+		return QLINK_CHAN_WIDTH_160;
+	case NL80211_CHAN_WIDTH_5:
+		return QLINK_CHAN_WIDTH_5;
+	case NL80211_CHAN_WIDTH_10:
+		return QLINK_CHAN_WIDTH_10;
+	default:
+		return -1;
+	}
+}
+
+void qlink_chandef_cfg2q(const struct cfg80211_chan_def *chdef,
+			 struct qlink_chandef *qch)
+{
+	qch->center_freq1 = cpu_to_le16(chdef->center_freq1);
+	qch->center_freq2 = cpu_to_le16(chdef->center_freq2);
+	qch->width = qlink_chanwidth_nl_to_qlink(chdef->width);
+}
+
 enum qlink_hidden_ssid qlink_hidden_ssid_nl2q(enum nl80211_hidden_ssid nl_val)
 {
 	switch (nl_val) {

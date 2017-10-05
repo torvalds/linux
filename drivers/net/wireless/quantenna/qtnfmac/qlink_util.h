@@ -66,6 +66,8 @@ u8 qlink_chan_width_mask_to_nl(u16 qlink_mask);
 void qlink_chandef_q2cfg(struct wiphy *wiphy,
 			 const struct qlink_chandef *qch,
 			 struct cfg80211_chan_def *chdef);
+void qlink_chandef_cfg2q(const struct cfg80211_chan_def *chdef,
+			 struct qlink_chandef *qch);
 enum qlink_hidden_ssid qlink_hidden_ssid_nl2q(enum nl80211_hidden_ssid nl_val);
 
 #endif /* _QTN_FMAC_QLINK_UTIL_H_ */

@@ -185,8 +185,6 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 			    const struct cfg80211_ap_settings *s)
 {
 	struct sk_buff *cmd_skb;
-	struct cfg80211_chan_def *chandef = &vif->mac->chandef;
-	struct qlink_tlv_channel *qchan;
 	struct qlink_cmd_config_ap *cmd;
 	struct qlink_auth_encr *aen;
 	u16 res_code = QLINK_CMD_RESULT_OK;
@@ -211,17 +209,6 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 	cmd->ht_required = s->ht_required;
 	cmd->vht_required = s->vht_required;
 
-	if (s->ssid && s->ssid_len > 0 && s->ssid_len <= IEEE80211_MAX_SSID_LEN)
-		qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID, s->ssid,
-					 s->ssid_len);
-
-	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
-	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
-	qchan->hdr.len = cpu_to_le16(sizeof(*qchan) -
-			sizeof(struct qlink_tlv_hdr));
-	qchan->hw_value = cpu_to_le16(
-		ieee80211_frequency_to_channel(chandef->chan->center_freq));
-
 	aen = &cmd->aen;
 	aen->auth_type = s->auth_type;
 	aen->privacy = !!s->privacy;
@@ -239,6 +226,21 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 	aen->control_port_no_encrypt = s->crypto.control_port_no_encrypt;
 	aen->control_port_ethertype =
 		cpu_to_le16(be16_to_cpu(s->crypto.control_port_ethertype));
+
+	if (s->ssid && s->ssid_len > 0 && s->ssid_len <= IEEE80211_MAX_SSID_LEN)
+		qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID, s->ssid,
+					 s->ssid_len);
+
+	if (cfg80211_chandef_valid(&s->chandef)) {
+		struct qlink_tlv_chandef *chtlv =
+			(struct qlink_tlv_chandef *)skb_put(cmd_skb,
+							    sizeof(*chtlv));
+
+		chtlv->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANDEF);
+		chtlv->hdr.len = cpu_to_le16(sizeof(*chtlv) -
+					     sizeof(chtlv->hdr));
+		qlink_chandef_cfg2q(&s->chandef, &chtlv->chan);
+	}
 
 	qtnf_bus_lock(vif->mac->bus);
 

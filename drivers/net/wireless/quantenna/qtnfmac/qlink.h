@@ -941,6 +941,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_LRETRY_LIMIT		= 0x0204,
 	QTN_TLV_ID_REG_RULE		= 0x0207,
 	QTN_TLV_ID_CHANNEL		= 0x020F,
+	QTN_TLV_ID_CHANDEF		= 0x0210,
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
 	QTN_TLV_ID_NUM_IFACE_COMB	= 0x0215,
@@ -1126,6 +1127,18 @@ struct qlink_tlv_channel {
 	u8 dfs_state;
 	u8 beacon_found;
 	u8 rsvd[2];
+} __packed;
+
+/**
+ * struct qlink_tlv_chandef - data for QTN_TLV_ID_CHANDEF TLV
+ *
+ * Channel definition.
+ *
+ * @chan: channel definition data.
+ */
+struct qlink_tlv_chandef {
+	struct qlink_tlv_hdr hdr;
+	struct qlink_chandef chan;
 } __packed;
 
 struct qlink_chan_stats {

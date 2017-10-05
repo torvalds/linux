@@ -266,16 +266,7 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			 struct cfg80211_ap_settings *settings)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	int ret;
-
-	if (!cfg80211_chandef_identical(&mac->chandef, &settings->chandef)) {
-		memcpy(&mac->chandef, &settings->chandef, sizeof(mac->chandef));
-		if (vif->vifid != 0)
-			pr_warn("%s: unexpected chan %u (%u MHz)\n", dev->name,
-				settings->chandef.chan->hw_value,
-				settings->chandef.chan->center_freq);
-	}
 
 	ret = qtnf_cmd_send_config_ap(vif, settings);
 	if (ret) {
