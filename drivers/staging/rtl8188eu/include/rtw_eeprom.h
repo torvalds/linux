@@ -55,7 +55,8 @@
 /*  This variable is initiailzed through EEPROM or registry, */
 /*  however, its definition may be different with that in EEPROM for */
 /*  EEPROM size consideration. So, we have to perform proper translation
- *  between them. */
+ *  between them.
+ */
 /*  Besides, CustomerID of registry has precedence of that of EEPROM. */
 /*  defined below. 060703, by rcnjko. */
 enum RT_CUSTOMER_ID {
@@ -79,7 +80,8 @@ enum RT_CUSTOMER_ID {
 	RT_CID_819x_Sitecom = 17,
 	RT_CID_CCX = 18, /*  It's set under CCX logo test and isn't demanded
 			  * for CCX functions, but for test behavior like retry
-			  * limit and tx report. By Bruce, 2009-02-17. */
+			  * limit and tx report. By Bruce, 2009-02-17.
+			  */
 	RT_CID_819x_Lenovo = 19,
 	RT_CID_819x_QMI = 20,
 	RT_CID_819x_Edimax_Belkin = 21,
@@ -89,7 +91,8 @@ enum RT_CUSTOMER_ID {
 	RT_CID_819x_Acer = 25,
 	RT_CID_819x_AzWave_ASUS = 26,
 	RT_CID_819x_AzWave = 27, /*  For AzWave in PCIe,i
-				  * The ID is AzWave use and not only Asus */
+				  * The ID is AzWave use and not only Asus
+				  */
 	RT_CID_819x_HP = 28,
 	RT_CID_819x_WNC_COREGA = 29,
 	RT_CID_819x_Arcadyan_Belkin = 30,

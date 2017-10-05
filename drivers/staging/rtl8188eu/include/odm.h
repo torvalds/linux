@@ -36,7 +36,8 @@
 /*  Mainly, it just retains last scan result and scan again. */
 /*  After that, it compares the scan result to see which one gets better
  *  RSSI. It selects antenna with better receiving power and returns better
- *  scan result. */
+ *  scan result.
+ */
 
 #define	TP_MODE			0
 #define	RSSI_MODE		1
@@ -173,10 +174,12 @@ struct rx_hpc {
 
 /*  This indicates two different steps. */
 /*  In SWAW_STEP_PEAK, driver needs to switch antenna and listen to
- *  the signal on the air. */
+ *  the signal on the air.
+ */
 /*  In SWAW_STEP_DETERMINE, driver just compares the signal captured in
  *  SWAW_STEP_PEAK with original RSSI to determine if it is necessary to
- *  switch antenna. */
+ *  switch antenna.
+ */
 
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
@@ -265,7 +268,8 @@ struct odm_phy_status_info {
 	s8	RxPower; /*  in dBm Translate from PWdB */
 	s8	RecvSignalPower;/*  Real power in dBm for this packet, no
 				 * beautification and aggregation. Keep this raw
-				 * info to be used for the other procedures. */
+				 * info to be used for the other procedures.
+				 */
 	u8	BTRxRSSIPercentage;
 	u8	SignalStrength; /*  in 0-100 index. */
 	u8	RxPwr[MAX_PATH_NUM_92CS];/* per-path's pwdb */
@@ -567,7 +571,8 @@ struct odm_ra_info {
 	u8 PTPreRssi;	/*  if RSSI change 5% do PT */
 	u8 PTModeSS;	/*  decide whitch rate should do PT */
 	u8 RAstage;	/*  StageRA, decide how many times RA will be done
-			 * between PT */
+			 * between PT
+			 */
 	u8 PTSmoothFactor;
 };
 
@@ -587,12 +592,14 @@ struct odm_rf_cal {
 	u8	TXPowercount;
 	bool	bTXPowerTracking;
 	u8	TxPowerTrackControl; /* for mp mode, turn off txpwrtracking
-				      * as default */
+				      * as default
+				      */
 	u8	TM_Trigger;
 	u8	InternalPA5G[2];	/* pathA / pathB */
 
 	u8	ThermalMeter[2];    /* ThermalMeter, index 0 for RFIC0,
-				     * and 1 for RFIC1 */
+				     * and 1 for RFIC1
+				     */
 	u8	ThermalValue;
 	u8	ThermalValue_LCK;
 	u8	ThermalValue_IQK;
@@ -714,7 +721,8 @@ struct odm_dm_struct {
 	/*  ODM PCIE/USB/SDIO/GSPI = 0/1/2/3 */
 	u8	SupportInterface;
 	/*  ODM composite or independent. Bit oriented/ 92C+92D+ .... or any
-	 *  other type = 1/2/3/... */
+	 *  other type = 1/2/3/...
+	 */
 	u32	SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
 	u8	CutVersion;
@@ -788,19 +796,21 @@ struct odm_dm_struct {
 	bool	bBtHsOperation;	/*  BT HS mode is under progress */
 	u8	btHsDigVal;	/*  use BT rssi to decide the DIG value */
 	bool	bBtDisableEdcaTurbo;/* Under some condition, don't enable the
-				     * EDCA Turbo */
+				     * EDCA Turbo
+				     */
 	bool	bBtBusy;			/*  BT is busy. */
 /* CALL BY VALUE------------- */
 
 	/* 2 Define STA info. */
 	/*  _ODM_STA_INFO */
-	/*  For MP, we need to reduce one array pointer for default port.?? */
+	/*  For MP, we need to reduce one array pointer for default port.??*/
 	struct sta_info *pODM_StaInfo[ODM_ASSOCIATE_ENTRY_NUM];
 
 	u16	CurrminRptTime;
 	struct odm_ra_info RAInfo[ODM_ASSOCIATE_ENTRY_NUM]; /* Use MacID as
-			* array index. STA MacID=0,
-			* VWiFi Client MacID={1, ODM_ASSOCIATE_ENTRY_NUM-1} */
+							     * array index. STA MacID=0,
+							     * VWiFi Client MacID={1, ODM_ASSOCIATE_ENTRY_NUM-1}
+							     */
 	/*  */
 	/*  2012/02/14 MH Add to share 88E ra with other SW team. */
 	/*  We need to colelct all support abilit to a proper area. */
@@ -1029,9 +1039,11 @@ extern	u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8];
 /*  20100514 Joseph: Add definition for antenna switching test after link. */
 /*  This indicates two different the steps. */
 /*  In SWAW_STEP_PEAK, driver needs to switch antenna and listen to the
- *  signal on the air. */
+ *  signal on the air.
+ */
 /*  In SWAW_STEP_DETERMINE, driver just compares the signal captured in
- *  SWAW_STEP_PEAK */
+ *  SWAW_STEP_PEAK
+ */
 /*  with original RSSI to determine if it is necessary to switch antenna. */
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1

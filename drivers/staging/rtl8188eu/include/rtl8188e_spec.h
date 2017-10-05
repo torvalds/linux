@@ -62,12 +62,15 @@
 #define REG_HSIMR			0x0058
 #define REG_HSISR			0x005c
 #define REG_GPIO_PIN_CTRL_2		0x0060 /*  RTL8723 WIFI/BT/GPS
-				 * Multi-Function GPIO Pin Control. */
+						* Multi-Function GPIO Pin Control.
+						*/
 #define REG_GPIO_IO_SEL_2		0x0062 /*  RTL8723 WIFI/BT/GPS
-				 * Multi-Function GPIO Select. */
+						* Multi-Function GPIO Select.
+						*/
 #define REG_BB_PAD_CTRL			0x0064
 #define REG_MULTI_FUNC_CTRL		0x0068 /*  RTL8723 WIFI/BT/GPS
-				 * Multi-Function control source. */
+						* Multi-Function control source.
+						*/
 #define REG_GPIO_OUTPUT			0x006c
 #define REG_AFE_XTAL_CTRL_EXT		0x0078 /* RTL8188E */
 #define REG_XCK_OUT_CTRL		0x007c /* RTL8188E */
@@ -87,7 +90,8 @@
 #define REG_HIMRE_88E			0x00B8
 #define REG_HISRE_88E			0x00BC
 #define REG_EFUSE_ACCESS		0x00CF	/*  Efuse access protection
-						 * for RTL8723 */
+						 * for RTL8723
+						 */
 #define REG_BIST_SCAN			0x00D0
 #define REG_BIST_RPT			0x00D4
 #define REG_BIST_ROM_RPT		0x00D8
@@ -252,21 +256,24 @@
 #define REG_TXPAUSE			0x0522
 #define REG_DIS_TXREQ_CLR		0x0523
 #define REG_RD_CTRL			0x0524
-/*  Format for offset 540h-542h: */
-/*	[3:0]:   TBTT prohibit setup in unit of 32us. The time for HW getting
- *		 beacon content before TBTT. */
-/*	[7:4]:   Reserved. */
-/*	[19:8]:  TBTT prohibit hold in unit of 32us. The time for HW holding
- *		 to send the beacon packet. */
-/*	[23:20]: Reserved */
-/*  Description: */
-/*	              | */
-/*      |<--Setup--|--Hold------------>| */
-/*	--------------|---------------------- */
-/*                 | */
-/*                TBTT */
-/*  Note: We cannot update beacon content to HW or send any AC packets during
- *	  the time between Setup and Hold. */
+/*  Format for offset 540h-542h:
+ *	[3:0]:   TBTT prohibit setup in unit of 32us. The time for HW getting
+ *		 beacon content before TBTT.
+ *
+ *	[7:4]:   Reserved.
+ *	[19:8]:  TBTT prohibit hold in unit of 32us. The time for HW holding
+ *		 to send the beacon packet.
+ *
+ *	[23:20]: Reserved
+ *  Description:
+ *	              |
+ *      |<--Setup--|--Hold------------>|
+ *	--------------|----------------------
+ *                 |
+ *                TBTT
+ *  Note: We cannot update beacon content to HW or send any AC packets during
+ *	  the time between Setup and Hold.
+ */
 #define REG_TBTT_PROHIBIT		0x0540
 #define REG_RD_NAV_NXT			0x0544
 #define REG_NAV_PROT_LEN		0x0546
@@ -340,13 +347,14 @@
 #define RXERR_RPT_RST			BIT(27)
 #define _RXERR_RPT_SEL(type)		((type) << 28)
 
-/*  Note: */
-/*	The NAV upper value is very important to WiFi 11n 5.2.3 NAV test.
+/*  Note:
+ *	The NAV upper value is very important to WiFi 11n 5.2.3 NAV test.
  *	The default value is always too small, but the WiFi TestPlan test
  *	by 25,000 microseconds of NAV through sending CTS in the air.
  *	We must update this value greater than 25,000 microseconds to pass
  *	the item. The offset of NAV_UPPER in 8192C Spec is incorrect, and
- *	the offset should be 0x0652. */
+ *	the offset should be 0x0652.
+ */
 #define REG_NAV_UPPER			0x0652	/*  unit of 128 */
 
 /* WMA, BA, CCX */
@@ -455,7 +463,8 @@
 /*  GPIO pins output value */
 #define	GPIO_OUT			(REG_GPIO_PIN_CTRL+1)
 /*  GPIO pins output enable when a bit is set to "1"; otherwise,
- *  input is configured. */
+ *  input is configured.
+ */
 #define	GPIO_IO_SEL			(REG_GPIO_PIN_CTRL+2)
 #define	GPIO_MOD			(REG_GPIO_PIN_CTRL+3)
 
@@ -475,13 +484,13 @@
 
 /*   8192C (MSR) Media Status Register	(Offset 0x4C, 8 bits) */
 /*
-Network Type
-00: No link
-01: Link in ad hoc network
-10: Link in infrastructure network
-11: AP mode
-Default: 00b.
-*/
+ * Network Type
+ * 00: No link
+ * 01: Link in ad hoc network
+ * 10: Link in infrastructure network
+ * 11: AP mode
+ * Default: 00b.
+ */
 #define	MSR_NOLINK			0x00
 #define	MSR_ADHOC			0x01
 #define	MSR_INFRA			0x02
@@ -635,26 +644,27 @@ So the following defines for 92C is not entire!!!!!!
 =====================================================================
 =====================================================================*/
 /*
-Based on Datasheet V33---090401
-Register Summary
-Current IOREG MAP
-0x0000h ~ 0x00FFh   System Configuration (256 Bytes)
-0x0100h ~ 0x01FFh   MACTOP General Configuration (256 Bytes)
-0x0200h ~ 0x027Fh   TXDMA Configuration (128 Bytes)
-0x0280h ~ 0x02FFh   RXDMA Configuration (128 Bytes)
-0x0300h ~ 0x03FFh   PCIE EMAC Reserved Region (256 Bytes)
-0x0400h ~ 0x04FFh   Protocol Configuration (256 Bytes)
-0x0500h ~ 0x05FFh   EDCA Configuration (256 Bytes)
-0x0600h ~ 0x07FFh   WMAC Configuration (512 Bytes)
-0x2000h ~ 0x3FFFh   8051 FW Download Region (8196 Bytes)
-*/
+ * Based on Datasheet V33---090401
+ * Register Summary
+ * Current IOREG MAP
+ * 0x0000h ~ 0x00FFh   System Configuration (256 Bytes)
+ * 0x0100h ~ 0x01FFh   MACTOP General Configuration (256 Bytes)
+ * 0x0200h ~ 0x027Fh   TXDMA Configuration (128 Bytes)
+ * 0x0280h ~ 0x02FFh   RXDMA Configuration (128 Bytes)
+ * 0x0300h ~ 0x03FFh   PCIE EMAC Reserved Region (256 Bytes)
+ * 0x0400h ~ 0x04FFh   Protocol Configuration (256 Bytes)
+ * 0x0500h ~ 0x05FFh   EDCA Configuration (256 Bytes)
+ * 0x0600h ~ 0x07FFh   WMAC Configuration (512 Bytes)
+ * 0x2000h ~ 0x3FFFh   8051 FW Download Region (8196 Bytes)
+ */
 /*		 8192C (TXPAUSE) transmission pause (Offset 0x522, 8 bits) */
-/*  Note: */
-/*	The bits of stopping AC(VO/VI/BE/BK) queue in datasheet
- *	RTL8192S/RTL8192C are wrong, */
-/*	the correct arragement is VO - Bit0, VI - Bit1, BE - Bit2,
- *	and BK - Bit3. */
-/*	8723 and 88E may be not correct either in the earlier version. */
+/*  Note:
+ *	The bits of stopping AC(VO/VI/BE/BK) queue in datasheet
+ *	RTL8192S/RTL8192C are wrong,
+ *	the correct arragement is VO - Bit0, VI - Bit1, BE - Bit2,
+ *	and BK - Bit3.
+ *	8723 and 88E may be not correct either in the earlier version.
+ */
 #define		StopBecon			BIT(6)
 #define		StopHigh			BIT(5)
 #define		StopMgt				BIT(4)
@@ -680,7 +690,8 @@ Current IOREG MAP
 #define	RCR_AICV		BIT(9)	/* Accept ICV error packet */
 #define	RCR_ACRC32		BIT(8)	/* Accept CRC32 error packet */
 #define	RCR_CBSSID_BCN		BIT(7)	/* Accept BSSID match packet
-					 * (Rx beacon, probe rsp) */
+					 * (Rx beacon, probe rsp)
+					 */
 #define	RCR_CBSSID_DATA		BIT(6)	/* Accept BSSID match (Data)*/
 #define	RCR_CBSSID		RCR_CBSSID_DATA	/* Accept BSSID match */
 #define	RCR_APWRMGT		BIT(5)	/* Accept power management pkt*/
@@ -1242,10 +1253,12 @@ Current IOREG MAP
 
 /* 2REG_C2HEVT_CLEAR */
 /*  Set by driver and notify FW that the driver has read
- *  the C2H command message */
+ *  the C2H command message
+ */
 #define	C2H_EVT_HOST_CLOSE	0x00
 /*  Set by FW indicating that FW had set the C2H command
- *  message and it's not yet read by driver. */
+ *  message and it's not yet read by driver.
+ */
 #define C2H_EVT_FW_CLOSE	0xFF
 
 /* 2REG_MULTI_FUNC_CTRL(For RTL8723 Only) */

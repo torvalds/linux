@@ -521,14 +521,16 @@
 #define	bCCKRxPhase			0x4
 #if (RTL92SE_FPGA_VERIFY == 1)
 #define	bLSSIReadAddress		0x3f000000   /* LSSI "Read" Address
-					Reg 0x824 rFPGA0_XA_HSSIParameter2 */
+						      * Reg 0x824 rFPGA0_XA_HSSIParameter2
+						      */
 #else
 #define	bLSSIReadAddress		0x7f800000   /*  T65 RF */
 #endif
 #define	bLSSIReadEdge			0x80000000   /* LSSI "Read" edge signal */
 #if (RTL92SE_FPGA_VERIFY == 1)
 #define	bLSSIReadBackData		0xfff	/*  Reg 0x8a0
-					 rFPGA0_XA_LSSIReadBack */
+						 * rFPGA0_XA_LSSIReadBack
+						 */
 #else
 #define	bLSSIReadBackData		0xfffff	/*  T65 RF */
 #endif
@@ -548,13 +550,16 @@
 #define	bDA6Swing			0x380000
 
 #define	bADClkPhase			0x4000000	/*  Reg 0x880
-	 rFPGA0_AnalogParameter1 20/40 CCK support switch 40/80 BB MHZ */
+							 * rFPGA0_AnalogParameter1 20/40 CCK
+							 * support switch 40/80 BB MHZ
+							 */
 
 #define	b80MClkDelay			0x18000000	/*  Useless */
 #define	bAFEWatchDogEnable		0x20000000
 
 #define	bXtalCap01			0xc0000000	/*  Reg 0x884
-	 rFPGA0_AnalogParameter2 Crystal cap */
+							 * rFPGA0_AnalogParameter2 Crystal cap
+							 */
 #define	bXtalCap23			0x3
 #define	bXtalCap92x			0x0f000000
 #define		bXtalCap		0x0f000000
@@ -598,7 +603,8 @@
 #define	bCCKTxOn			0x1
 #define	bOFDMTxOn			0x2
 #define	bDebugPage			0xfff  /* reset debug page and HWord,
-						* LWord */
+						* LWord
+						*/
 #define	bDebugItem			0xff   /* reset debug page and LWord */
 #define	bAntL				0x10
 #define	bAntNonHT			0x100
@@ -1071,7 +1077,8 @@
 #define RCR_EnCS1	BIT(29)		/*  enable carrier sense method 1 */
 #define RCR_EnCS2	BIT(30)		/*  enable carrier sense method 2 */
 #define RCR_OnlyErlPkt	BIT(31)		/*  Rx Early mode is performed for
-					 *  packet size greater than 1536 */
+					 *  packet size greater than 1536
+					 */
 
 /*--------------------------Define Parameters-------------------------------*/
 
