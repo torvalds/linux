@@ -53,12 +53,6 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: STA_ASSOC event when AP is not started\n",
-		       mac->macid, vif->vifid);
-		return -EPROTO;
-	}
-
 	sta_addr = sta_assoc->sta_addr;
 	frame_control = le16_to_cpu(sta_assoc->frame_control);
 
@@ -123,12 +117,6 @@ qtnf_event_handle_sta_deauth(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_AP) {
 		pr_err("VIF%u.%u: STA_DEAUTH event when not in AP mode\n",
-		       mac->macid, vif->vifid);
-		return -EPROTO;
-	}
-
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: STA_DEAUTH event when AP is not started\n",
 		       mac->macid, vif->vifid);
 		return -EPROTO;
 	}

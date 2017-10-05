@@ -173,7 +173,6 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif)
 		goto out;
 	}
 
-	vif->bss_status |= QTNF_STATE_AP_START;
 	netif_carrier_on(vif->netdev);
 
 out:
@@ -286,8 +285,6 @@ int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif)
 		ret = -EFAULT;
 		goto out;
 	}
-
-	vif->bss_status &= ~QTNF_STATE_AP_START;
 
 	netif_carrier_off(vif->netdev);
 

@@ -254,11 +254,6 @@ static int qtnf_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: not started\n", vif->mac->macid, vif->vifid);
-		return -EFAULT;
-	}
-
 	return qtnf_mgmt_set_appie(vif, info);
 }
 
@@ -283,17 +278,9 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	ret = qtnf_cmd_send_start_ap(vif);
-	if (ret) {
+	if (ret)
 		pr_err("VIF%u.%u: failed to start AP\n", vif->mac->macid,
 		       vif->vifid);
-		goto out;
-	}
-
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: FW failed to start AP operation\n",
-		       vif->mac->macid, vif->vifid);
-		ret = -EFAULT;
-	}
 
 out:
 	return ret;
@@ -308,7 +295,6 @@ static int qtnf_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	if (ret) {
 		pr_err("VIF%u.%u: failed to stop AP operation in FW\n",
 		       vif->mac->macid, vif->vifid);
-		vif->bss_status &= ~QTNF_STATE_AP_START;
 
 		netif_carrier_off(vif->netdev);
 	}
@@ -783,19 +769,6 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	pr_debug("%s: chan(%u) count(%u) radar(%u) block_tx(%u)\n", dev->name,
 		 params->chandef.chan->hw_value, params->count,
 		 params->radar_required, params->block_tx);
-
-	switch (vif->wdev.iftype) {
-	case NL80211_IFTYPE_AP:
-		if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-			pr_warn("AP not started on %s\n", dev->name);
-			return -ENOTCONN;
-		}
-		break;
-	default:
-		pr_err("unsupported vif type (%d) on %s\n",
-		       vif->wdev.iftype, dev->name);
-		return -EOPNOTSUPP;
-	}
 
 	if (!cfg80211_chandef_valid(&params->chandef)) {
 		pr_err("%s: invalid channel\n", dev->name);
