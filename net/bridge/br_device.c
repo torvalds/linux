@@ -326,7 +326,7 @@ static int br_add_slave(struct net_device *dev, struct net_device *slave_dev,
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	return br_add_if(br, slave_dev);
+	return br_add_if(br, slave_dev, extack);
 }
 
 static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
