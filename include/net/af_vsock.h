@@ -180,6 +180,18 @@ const struct vsock_transport *vsock_core_get_transport(void);
 
 /**** UTILS ****/
 
+/* vsock_table_lock must be held */
+static inline bool __vsock_in_bound_table(struct vsock_sock *vsk)
+{
+	return !list_empty(&vsk->bound_table);
+}
+
+/* vsock_table_lock must be held */
+static inline bool __vsock_in_connected_table(struct vsock_sock *vsk)
+{
+	return !list_empty(&vsk->connected_table);
+}
+
 void vsock_release_pending(struct sock *pending);
 void vsock_add_pending(struct sock *listener, struct sock *pending);
 void vsock_remove_pending(struct sock *listener, struct sock *pending);
