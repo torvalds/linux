@@ -2441,11 +2441,12 @@ static inline const char *xhci_decode_portsc(u32 portsc)
 	static char str[256];
 	int ret;
 
-	ret = sprintf(str, "%s %s %s Link:%s ",
+	ret = sprintf(str, "%s %s %s Link:%s PortSpeed:%d ",
 		      portsc & PORT_POWER	? "Powered" : "Powered-off",
 		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
 		      portsc & PORT_PE		? "Enabled" : "Disabled",
-		      xhci_portsc_link_state_string(portsc));
+		      xhci_portsc_link_state_string(portsc),
+		      DEV_PORT_SPEED(portsc));
 
 	if (portsc & PORT_OC)
 		ret += sprintf(str + ret, "OverCurrent ");
