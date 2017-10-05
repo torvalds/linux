@@ -108,22 +108,31 @@ struct v4l2_decode_vbi_line {
  * not yet implemented) since ops provide proper type-checking.
  */
 
-/* Subdevice external IO pin configuration */
-#define V4L2_SUBDEV_IO_PIN_DISABLE	(1 << 0) /* ENABLE assumed */
-#define V4L2_SUBDEV_IO_PIN_OUTPUT	(1 << 1)
-#define V4L2_SUBDEV_IO_PIN_INPUT	(1 << 2)
-#define V4L2_SUBDEV_IO_PIN_SET_VALUE	(1 << 3) /* Set output value */
-#define V4L2_SUBDEV_IO_PIN_ACTIVE_LOW	(1 << 4) /* ACTIVE HIGH assumed */
+/**
+ * enum v4l2_subdev_io_pin_bits - Subdevice external IO pin configuration
+ *	bits
+ *
+ * @V4L2_SUBDEV_IO_PIN_DISABLE: disables a pin config. ENABLE assumed.
+ * @V4L2_SUBDEV_IO_PIN_OUTPUT: set it if pin is an output.
+ * @V4L2_SUBDEV_IO_PIN_INPUT: set it if pin is an input.
+ * @V4L2_SUBDEV_IO_PIN_SET_VALUE: to set the output value via
+ * 				  &struct v4l2_subdev_io_pin_config->value.
+ * @V4L2_SUBDEV_IO_PIN_ACTIVE_LOW: pin active is bit 0.
+ *				   Otherwise, ACTIVE HIGH is assumed.
+ */
+enum v4l2_subdev_io_pin_bits {
+	V4L2_SUBDEV_IO_PIN_DISABLE	= 0,
+	V4L2_SUBDEV_IO_PIN_OUTPUT	= 1,
+	V4L2_SUBDEV_IO_PIN_INPUT	= 2,
+	V4L2_SUBDEV_IO_PIN_SET_VALUE	= 3,
+	V4L2_SUBDEV_IO_PIN_ACTIVE_LOW	= 4,
+};
 
 /**
  * struct v4l2_subdev_io_pin_config - Subdevice external IO pin configuration
  *
- * @flags: bitmask with flags for this pin's config:
- *	   %V4L2_SUBDEV_IO_PIN_DISABLE - disables a pin config,
- *	   %V4L2_SUBDEV_IO_PIN_OUTPUT - if pin is an output,
- *	   %V4L2_SUBDEV_IO_PIN_INPUT - if pin is an input,
- *	   %V4L2_SUBDEV_IO_PIN_SET_VALUE - to set the output value via @value
- *	   and %V4L2_SUBDEV_IO_PIN_ACTIVE_LOW - if active is 0.
+ * @flags: bitmask with flags for this pin's config, whose bits are defined by
+ *	   &enum v4l2_subdev_io_pin_bits.
  * @pin: Chip external IO pin to configure
  * @function: Internal signal pad/function to route to IO pin
  * @value: Initial value for pin - e.g. GPIO output value

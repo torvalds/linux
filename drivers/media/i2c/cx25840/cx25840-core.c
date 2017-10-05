@@ -201,14 +201,14 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* IRQ_N */
 				if (p[i].flags &
-					(V4L2_SUBDEV_IO_PIN_DISABLE |
-					 V4L2_SUBDEV_IO_PIN_INPUT)) {
+					(BIT(V4L2_SUBDEV_IO_PIN_DISABLE) |
+					 BIT(V4L2_SUBDEV_IO_PIN_INPUT))) {
 					pin_ctrl &= ~(0x1 << 25);
 				} else {
 					pin_ctrl |= (0x1 << 25);
 				}
 				if (p[i].flags &
-					V4L2_SUBDEV_IO_PIN_ACTIVE_LOW) {
+					BIT(V4L2_SUBDEV_IO_PIN_ACTIVE_LOW)) {
 					pin_ctrl &= ~(0x1 << 24);
 				} else {
 					pin_ctrl |= (0x1 << 24);
@@ -224,7 +224,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO19 */
 				gpio_oe &= ~(0x1 << 0);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 0);
 					gpio_data |= ((p[i].value & 0x1) << 0);
 				}
@@ -236,7 +236,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			if (p[i].function != CX23885_PAD_GPIO20) {
 				/* IR_TX */
 				gpio_oe |= (0x1 << 1);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_DISABLE)
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_DISABLE))
 					pin_ctrl &= ~(0x1 << 10);
 				else
 					pin_ctrl |= (0x1 << 10);
@@ -245,7 +245,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO20 */
 				gpio_oe &= ~(0x1 << 1);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 1);
 					gpio_data |= ((p[i].value & 0x1) << 1);
 				}
@@ -263,7 +263,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO21 */
 				gpio_oe &= ~(0x1 << 2);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 2);
 					gpio_data |= ((p[i].value & 0x1) << 2);
 				}
@@ -281,7 +281,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO22 */
 				gpio_oe &= ~(0x1 << 3);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 3);
 					gpio_data |= ((p[i].value & 0x1) << 3);
 				}
@@ -299,7 +299,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO23 */
 				gpio_oe &= ~(0x1 << 4);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 4);
 					gpio_data |= ((p[i].value & 0x1) << 4);
 				}
