@@ -306,10 +306,10 @@ static void dpp_set_scl_filter(
 
 	h_2tap_hardcode_coef_en = scl_data->taps.h_taps < 3
 					&& scl_data->taps.h_taps_c < 3
-		&& (scl_data->taps.h_taps > 1 || scl_data->taps.h_taps_c > 1);
+		&& (scl_data->taps.h_taps > 1 && scl_data->taps.h_taps_c > 1);
 	v_2tap_hardcode_coef_en = scl_data->taps.v_taps < 3
 					&& scl_data->taps.v_taps_c < 3
-		&& (scl_data->taps.v_taps > 1 || scl_data->taps.v_taps_c > 1);
+		&& (scl_data->taps.v_taps > 1 && scl_data->taps.v_taps_c > 1);
 
 	h_2tap_sharp_en = h_2tap_hardcode_coef_en && h_2tap_sharp_factor != 0;
 	v_2tap_sharp_en = v_2tap_hardcode_coef_en && v_2tap_sharp_factor != 0;
