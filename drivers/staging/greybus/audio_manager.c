@@ -10,7 +10,7 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/rwlock.h>
+#include <linux/spinlock.h>
 #include <linux/idr.h>
 
 #include "audio_manager.h"
