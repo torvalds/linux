@@ -138,14 +138,14 @@
 	vref-supply = <&reg_ldo2>;
 	status = "okay";
 
-	button@400 {
+	button-400 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <400000>;
 	};
 
-	button@800 {
+	button-800 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;

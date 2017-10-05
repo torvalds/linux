@@ -267,35 +267,35 @@
 	vref-supply = <&reg_ldo2>;
 	status = "okay";
 
-	button@200 {
+	button-200 {
 		label = "Menu";
 		linux,code = <KEY_MENU>;
 		channel = <0>;
 		voltage = <200000>;
 	};
 
-	button@600 {
+	button-600 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <600000>;
 	};
 
-	button@800 {
+	button-800 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <800000>;
 	};
 
-	button@1000 {
+	button-1000 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;
 		voltage = <1000000>;
 	};
 
-	button@1200 {
+	button-1200 {
 		label = "Esc";
 		linux,code = <KEY_ESC>;
 		channel = <0>;

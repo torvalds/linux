@@ -104,21 +104,21 @@
 	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
 
-	button@800 {
+	button-800 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <800000>;
 	};
 
-	button@1000 {
+	button-1000 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <1000000>;
 	};
 
-	button@1200 {
+	button-1200 {
 		label = "Back";
 		linux,code = <KEY_BACK>;
 		channel = <0>;
