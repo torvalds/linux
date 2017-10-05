@@ -42,7 +42,7 @@
 #define RTL8188E_PHY_REG_PG			"rtl8188E\\PHY_REG_PG.txt"
 #define RTL8188E_PHY_REG_MP			"rtl8188E\\PHY_REG_MP.txt"
 
-/* 		RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
+/* RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
 #define Rtl8188E_NIC_PWR_ON_FLOW		rtl8188E_power_on_flow
 #define Rtl8188E_NIC_RF_OFF_FLOW		rtl8188E_radio_off_flow
 #define Rtl8188E_NIC_DISABLE_FLOW		rtl8188E_card_disable_flow
@@ -113,7 +113,7 @@ enum usb_rx_agg_mode {
 #define WMM_NORMAL_TX_PAGE_BOUNDARY_88E			\
 	(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER + 1) /* 0xA9 */
 
-/* 	Chip specific */
+/* Chip specific */
 #define CHIP_BONDING_IDENTIFIER(_value)	(((_value)>>22)&0x3)
 #define CHIP_BONDING_92C_1T2R	0x1
 #define CHIP_BONDING_88C_USB_MCARD	0x2
@@ -121,7 +121,7 @@ enum usb_rx_agg_mode {
 #include "HalVerDef.h"
 #include "hal_com.h"
 
-/* 	Channel Plan */
+/* Channel Plan */
 enum ChannelPlan {
 	CHPL_FCC	= 0,
 	CHPL_IC		= 1,
@@ -180,7 +180,7 @@ struct txpowerinfo24g {
 #define		EFUSE_OOB_PROTECT_BYTES_88E	18
 #define		EFUSE_PROTECT_BYTES_BANK_88E	16
 
-/* 			EFUSE for BT definition */
+/* EFUSE for BT definition */
 #define EFUSE_BT_REAL_CONTENT_LEN	1536	/*  512*3 */
 #define EFUSE_BT_MAP_LEN		1024	/*  1k bytes */
 #define EFUSE_BT_MAX_SECTION		128	/*  1024/8 */
