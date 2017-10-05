@@ -132,6 +132,36 @@ config COMMON_CLK_MT6797_VENCSYS
        ---help---
          This driver supports Mediatek MT6797 vencsys clocks.
 
+config COMMON_CLK_MT7622
+	bool "Clock driver for MediaTek MT7622"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK
+	---help---
+	  This driver supports MediaTek MT7622 basic clocks and clocks
+	  required for various periperals found on MediaTek.
+
+config COMMON_CLK_MT7622_ETHSYS
+	bool "Clock driver for MediaTek MT7622 ETHSYS"
+	depends on COMMON_CLK_MT7622
+	---help---
+	  This driver add support for clocks for Ethernet and SGMII
+	  required on MediaTek MT7622 SoC.
+
+config COMMON_CLK_MT7622_HIFSYS
+	bool "Clock driver for MediaTek MT7622 HIFSYS"
+	depends on COMMON_CLK_MT7622
+	---help---
+	  This driver supports MediaTek MT7622 HIFSYS clocks providing
+	  to PCI-E and USB.
+
+config COMMON_CLK_MT7622_AUDSYS
+	bool "Clock driver for MediaTek MT7622 AUDSYS"
+	depends on COMMON_CLK_MT7622
+	---help---
+	  This driver supports MediaTek MT7622 AUDSYS clocks providing
+	  to audio consumers such as I2S and TDM.
+
 config COMMON_CLK_MT8135
 	bool "Clock driver for Mediatek MT8135"
 	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST
