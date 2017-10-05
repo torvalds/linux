@@ -1618,7 +1618,23 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	/* WaDisableCtxRestoreArbitration:bdw,chv */
+	/*
+	 * WaDisableCtxRestoreArbitration:bdw,chv
+	 *
+	 * We don't need to perform MI_ARB_ENABLE as often as we do (in
+	 * particular all the gen that do not need the w/a at all!), if we
+	 * took care to make sure that on every switch into this context
+	 * (both ordinary and for preemption) that arbitrartion was enabled
+	 * we would be fine. However, there doesn't seem to be a downside to
+	 * being paranoid and making sure it is set before each batch and
+	 * every context-switch.
+	 *
+	 * Note that if we fail to enable arbitration before the request
+	 * is complete, then we do not see the context-switch interrupt and
+	 * the engine hangs (with RING_HEAD == RING_TAIL).
+	 *
+	 * That satisfies both the GPGPU w/a and our heavy-handed paranoia.
+	 */
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 
 	/* FIXME(BDW): Address space and security selectors. */
