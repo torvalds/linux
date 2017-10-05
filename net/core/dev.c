@@ -163,7 +163,6 @@ static struct list_head offload_base __read_mostly;
 
 static int netif_rx_internal(struct sk_buff *skb);
 static int call_netdevice_notifiers_info(unsigned long val,
-					 struct net_device *dev,
 					 struct netdev_notifier_info *info);
 static struct napi_struct *napi_by_id(unsigned int napi_id);
 
@@ -1339,10 +1338,11 @@ EXPORT_SYMBOL(netdev_features_change);
 void netdev_state_change(struct net_device *dev)
 {
 	if (dev->flags & IFF_UP) {
-		struct netdev_notifier_change_info change_info;
+		struct netdev_notifier_change_info change_info = {
+			.info.dev = dev,
+		};
 
-		change_info.flags_changed = 0;
-		call_netdevice_notifiers_info(NETDEV_CHANGE, dev,
+		call_netdevice_notifiers_info(NETDEV_CHANGE,
 					      &change_info.info);
 		rtmsg_ifinfo(RTM_NEWLINK, dev, 0, GFP_KERNEL);
 	}
@@ -1563,9 +1563,10 @@ EXPORT_SYMBOL(dev_disable_lro);
 static int call_netdevice_notifier(struct notifier_block *nb, unsigned long val,
 				   struct net_device *dev)
 {
-	struct netdev_notifier_info info;
+	struct netdev_notifier_info info = {
+		.dev = dev,
+	};
 
-	netdev_notifier_info_init(&info, dev);
 	return nb->notifier_call(nb, val, &info);
 }
 
@@ -1690,11 +1691,9 @@ EXPORT_SYMBOL(unregister_netdevice_notifier);
  */
 
 static int call_netdevice_notifiers_info(unsigned long val,
-					 struct net_device *dev,
 					 struct netdev_notifier_info *info)
 {
 	ASSERT_RTNL();
-	netdev_notifier_info_init(info, dev);
 	return raw_notifier_call_chain(&netdev_chain, val, info);
 }
 
@@ -1709,9 +1708,11 @@ static int call_netdevice_notifiers_info(unsigned long val,
 
 int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 {
-	struct netdev_notifier_info info;
+	struct netdev_notifier_info info = {
+		.dev = dev,
+	};
 
-	return call_netdevice_notifiers_info(val, dev, &info);
+	return call_netdevice_notifiers_info(val, &info);
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
@@ -6278,7 +6279,15 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 				   struct net_device *upper_dev, bool master,
 				   void *upper_priv, void *upper_info)
 {
-	struct netdev_notifier_changeupper_info changeupper_info;
+	struct netdev_notifier_changeupper_info changeupper_info = {
+		.info = {
+			.dev = dev,
+		},
+		.upper_dev = upper_dev,
+		.master = master,
+		.linking = true,
+		.upper_info = upper_info,
+	};
 	int ret = 0;
 
 	ASSERT_RTNL();
@@ -6296,12 +6305,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (master && netdev_master_upper_dev_get(dev))
 		return -EBUSY;
 
-	changeupper_info.upper_dev = upper_dev;
-	changeupper_info.master = master;
-	changeupper_info.linking = true;
-	changeupper_info.upper_info = upper_info;
-
-	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
+	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER,
 					    &changeupper_info.info);
 	ret = notifier_to_errno(ret);
 	if (ret)
@@ -6312,7 +6316,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	ret = call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
+	ret = call_netdevice_notifiers_info(NETDEV_CHANGEUPPER,
 					    &changeupper_info.info);
 	ret = notifier_to_errno(ret);
 	if (ret)
@@ -6376,20 +6380,24 @@ EXPORT_SYMBOL(netdev_master_upper_dev_link);
 void netdev_upper_dev_unlink(struct net_device *dev,
 			     struct net_device *upper_dev)
 {
-	struct netdev_notifier_changeupper_info changeupper_info;
+	struct netdev_notifier_changeupper_info changeupper_info = {
+		.info = {
+			.dev = dev,
+		},
+		.upper_dev = upper_dev,
+		.linking = false,
+	};
 
 	ASSERT_RTNL();
 
-	changeupper_info.upper_dev = upper_dev;
 	changeupper_info.master = netdev_master_upper_dev_get(dev) == upper_dev;
-	changeupper_info.linking = false;
 
-	call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
+	call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER,
 				      &changeupper_info.info);
 
 	__netdev_adjacent_dev_unlink_neighbour(dev, upper_dev);
 
-	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
+	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER,
 				      &changeupper_info.info);
 }
 EXPORT_SYMBOL(netdev_upper_dev_unlink);
@@ -6405,11 +6413,13 @@ EXPORT_SYMBOL(netdev_upper_dev_unlink);
 void netdev_bonding_info_change(struct net_device *dev,
 				struct netdev_bonding_info *bonding_info)
 {
-	struct netdev_notifier_bonding_info	info;
+	struct netdev_notifier_bonding_info info = {
+		.info.dev = dev,
+	};
 
 	memcpy(&info.bonding_info, bonding_info,
 	       sizeof(struct netdev_bonding_info));
-	call_netdevice_notifiers_info(NETDEV_BONDING_INFO, dev,
+	call_netdevice_notifiers_info(NETDEV_BONDING_INFO,
 				      &info.info);
 }
 EXPORT_SYMBOL(netdev_bonding_info_change);
@@ -6535,11 +6545,13 @@ EXPORT_SYMBOL(dev_get_nest_level);
 void netdev_lower_state_changed(struct net_device *lower_dev,
 				void *lower_state_info)
 {
-	struct netdev_notifier_changelowerstate_info changelowerstate_info;
+	struct netdev_notifier_changelowerstate_info changelowerstate_info = {
+		.info.dev = lower_dev,
+	};
 
 	ASSERT_RTNL();
 	changelowerstate_info.lower_state_info = lower_state_info;
-	call_netdevice_notifiers_info(NETDEV_CHANGELOWERSTATE, lower_dev,
+	call_netdevice_notifiers_info(NETDEV_CHANGELOWERSTATE,
 				      &changelowerstate_info.info);
 }
 EXPORT_SYMBOL(netdev_lower_state_changed);
@@ -6830,11 +6842,14 @@ void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
 
 	if (dev->flags & IFF_UP &&
 	    (changes & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI | IFF_VOLATILE))) {
-		struct netdev_notifier_change_info change_info;
+		struct netdev_notifier_change_info change_info = {
+			.info = {
+				.dev = dev,
+			},
+			.flags_changed = changes,
+		};
 
-		change_info.flags_changed = changes;
-		call_netdevice_notifiers_info(NETDEV_CHANGE, dev,
-					      &change_info.info);
+		call_netdevice_notifiers_info(NETDEV_CHANGE, &change_info.info);
 	}
 }
 

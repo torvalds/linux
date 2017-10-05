@@ -2309,7 +2309,8 @@ int register_netdevice_notifier(struct notifier_block *nb);
 int unregister_netdevice_notifier(struct notifier_block *nb);
 
 struct netdev_notifier_info {
-	struct net_device *dev;
+	struct net_device	*dev;
+	struct netlink_ext_ack	*extack;
 };
 
 struct netdev_notifier_change_info {
@@ -2334,12 +2335,19 @@ static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
 					     struct net_device *dev)
 {
 	info->dev = dev;
+	info->extack = NULL;
 }
 
 static inline struct net_device *
 netdev_notifier_info_to_dev(const struct netdev_notifier_info *info)
 {
 	return info->dev;
+}
+
+static inline struct netlink_ext_ack *
+netdev_notifier_info_to_extack(const struct netdev_notifier_info *info)
+{
+	return info->extack;
 }
 
 int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
