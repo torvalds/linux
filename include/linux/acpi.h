@@ -1248,4 +1248,13 @@ int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
 }
 #endif
 
+#ifdef CONFIG_ACPI_LPIT
+int lpit_read_residency_count_address(u64 *address);
+#else
+static inline int lpit_read_residency_count_address(u64 *address)
+{
+	return -EINVAL;
+}
+#endif
+
 #endif	/*_LINUX_ACPI_H*/
