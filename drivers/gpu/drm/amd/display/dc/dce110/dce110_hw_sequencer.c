@@ -1877,7 +1877,7 @@ static void dce110_reset_hw_ctx_wrap(
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
 			/* disable already, no need to disable again */
-			if (!pipe_ctx->stream->dpms_off)
+			if (pipe_ctx->stream && !pipe_ctx->stream->dpms_off)
 				core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
 
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
