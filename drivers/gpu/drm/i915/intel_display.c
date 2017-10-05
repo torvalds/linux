@@ -5521,9 +5521,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_crtc->active = true;
 
-	if (!intel_crtc->config->has_pch_encoder)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
 	if (intel_crtc->config->has_pch_encoder)

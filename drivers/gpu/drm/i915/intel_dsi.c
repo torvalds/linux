@@ -790,13 +790,18 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct drm_crtc *crtc = pipe_config->base.crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
 	enum port port;
 	u32 val;
 	bool glk_cold_boot = false;
 
 	DRM_DEBUG_KMS("\n");
+
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	/*
 	 * The BIOS may leave the PLL in a wonky state where it doesn't
