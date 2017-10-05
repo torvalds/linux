@@ -40,14 +40,14 @@
 #define BLACK_OFFSET_CBCR  0x8000
 
 #define REG(reg)\
-	xfm->tf_regs->reg
+	dpp->tf_regs->reg
 
 #define CTX \
-	xfm->base.ctx
+	dpp->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
-	xfm->tf_shift->field_name, xfm->tf_mask->field_name
+	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
 enum dcn10_coef_filter_type_sel {
 	SCL_COEF_LUMA_VERT_FILTER = 0,
@@ -86,7 +86,7 @@ enum dscl_mode_sel {
 };
 
 static void dpp_set_overscan(
-	struct dcn10_dpp *xfm,
+	struct dcn10_dpp *dpp,
 	const struct scaler_data *data)
 {
 	uint32_t left = data->recout.x;
@@ -114,7 +114,7 @@ static void dpp_set_overscan(
 }
 
 static void dpp_set_otg_blank(
-		struct dcn10_dpp *xfm, const struct scaler_data *data)
+		struct dcn10_dpp *dpp, const struct scaler_data *data)
 {
 	uint32_t h_blank_start = data->h_active;
 	uint32_t h_blank_end = 0;
@@ -165,13 +165,13 @@ static bool is_420_format(enum pixel_format format)
 }
 
 static enum dscl_mode_sel get_dscl_mode(
-		struct transform *xfm_base,
+		struct dpp *dpp_base,
 		const struct scaler_data *data,
 		bool dbg_always_scale)
 {
 	const long long one = dal_fixed31_32_one.value;
 
-	if (xfm_base->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
+	if (dpp_base->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
 		/* DSCL is processing data in fixed format */
 		if (data->format == PIXEL_FORMAT_FP16)
 			return DSCL_MODE_DSCL_BYPASS;
@@ -199,12 +199,12 @@ static enum dscl_mode_sel get_dscl_mode(
 }
 
 static void dpp_set_lb(
-	struct dcn10_dpp *xfm,
+	struct dcn10_dpp *dpp,
 	const struct line_buffer_params *lb_params,
 	enum lb_memory_config mem_size_config)
 {
 	/* LB */
-	if (xfm->base.caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
+	if (dpp->base.caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
 		/* DSCL caps: pixel data processed in fixed format */
 		uint32_t pixel_depth = get_pixel_depth_val(lb_params->depth);
 		uint32_t dyn_pix_depth = lb_params->dynamic_pixel_depth;
@@ -250,7 +250,7 @@ static const uint16_t *get_filter_coeffs_64p(int taps, struct fixed31_32 ratio)
 }
 
 static void dpp_set_scaler_filter(
-		struct dcn10_dpp *xfm,
+		struct dcn10_dpp *dpp,
 		uint32_t taps,
 		enum dcn10_coef_filter_type_sel filter_type,
 		const uint16_t *filter)
@@ -288,7 +288,7 @@ static void dpp_set_scaler_filter(
 }
 
 static void dpp_set_scl_filter(
-		struct dcn10_dpp *xfm,
+		struct dcn10_dpp *dpp,
 		const struct scaler_data *scl_data,
 		bool chroma_coef_mode)
 {
@@ -330,16 +330,16 @@ static void dpp_set_scl_filter(
 		filter_v = get_filter_coeffs_64p(
 				scl_data->taps.v_taps, scl_data->ratios.vert);
 
-		filter_updated = (filter_h && (filter_h != xfm->filter_h))
-				|| (filter_v && (filter_v != xfm->filter_v));
+		filter_updated = (filter_h && (filter_h != dpp->filter_h))
+				|| (filter_v && (filter_v != dpp->filter_v));
 
 		if (chroma_coef_mode) {
 			filter_h_c = get_filter_coeffs_64p(
 					scl_data->taps.h_taps_c, scl_data->ratios.horz_c);
 			filter_v_c = get_filter_coeffs_64p(
 					scl_data->taps.v_taps_c, scl_data->ratios.vert_c);
-			filter_updated = filter_updated || (filter_h_c && (filter_h_c != xfm->filter_h_c))
-							|| (filter_v_c && (filter_v_c != xfm->filter_v_c));
+			filter_updated = filter_updated || (filter_h_c && (filter_h_c != dpp->filter_h_c))
+							|| (filter_v_c && (filter_v_c != dpp->filter_v_c));
 		}
 
 		if (filter_updated) {
@@ -347,34 +347,34 @@ static void dpp_set_scl_filter(
 
 			if (!h_2tap_hardcode_coef_en && filter_h) {
 				dpp_set_scaler_filter(
-					xfm, scl_data->taps.h_taps,
+					dpp, scl_data->taps.h_taps,
 					SCL_COEF_LUMA_HORZ_FILTER, filter_h);
 			}
-			xfm->filter_h = filter_h;
+			dpp->filter_h = filter_h;
 			if (!v_2tap_hardcode_coef_en && filter_v) {
 				dpp_set_scaler_filter(
-					xfm, scl_data->taps.v_taps,
+					dpp, scl_data->taps.v_taps,
 					SCL_COEF_LUMA_VERT_FILTER, filter_v);
 			}
-			xfm->filter_v = filter_v;
+			dpp->filter_v = filter_v;
 			if (chroma_coef_mode) {
 				if (!h_2tap_hardcode_coef_en && filter_h_c) {
 					dpp_set_scaler_filter(
-						xfm, scl_data->taps.h_taps_c,
+						dpp, scl_data->taps.h_taps_c,
 						SCL_COEF_CHROMA_HORZ_FILTER, filter_h_c);
 				}
 				if (!v_2tap_hardcode_coef_en && filter_v_c) {
 					dpp_set_scaler_filter(
-						xfm, scl_data->taps.v_taps_c,
+						dpp, scl_data->taps.v_taps_c,
 						SCL_COEF_CHROMA_VERT_FILTER, filter_v_c);
 				}
 			}
-			xfm->filter_h_c = filter_h_c;
-			xfm->filter_v_c = filter_v_c;
+			dpp->filter_h_c = filter_h_c;
+			dpp->filter_v_c = filter_v_c;
 
 			coef_ram_current = get_reg_field_value_ex(
-				scl_mode, xfm->tf_mask->SCL_COEF_RAM_SELECT_CURRENT,
-				xfm->tf_shift->SCL_COEF_RAM_SELECT_CURRENT);
+				scl_mode, dpp->tf_mask->SCL_COEF_RAM_SELECT_CURRENT,
+				dpp->tf_shift->SCL_COEF_RAM_SELECT_CURRENT);
 
 			/* Swap coefficient RAM and set chroma coefficient mode */
 			REG_SET_2(SCL_MODE, scl_mode,
@@ -458,7 +458,7 @@ bool is_lb_conf_valid(int ceil_vratio, int num_partitions, int vtaps)
 }
 
 /*find first match configuration which meets the min required lb size*/
-static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
+static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *dpp,
 		const struct scaler_data *scl_data)
 {
 	int num_part_y, num_part_c;
@@ -468,17 +468,17 @@ static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
 	int ceil_vratio_c = dal_fixed31_32_ceil(scl_data->ratios.vert_c);
 	enum lb_memory_config mem_cfg = LB_MEMORY_CONFIG_0;
 
-	if (xfm->base.ctx->dc->debug.use_max_lb)
+	if (dpp->base.ctx->dc->debug.use_max_lb)
 		return mem_cfg;
 
-	xfm->base.caps->dscl_calc_lb_num_partitions(
+	dpp->base.caps->dscl_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_1, &num_part_y, &num_part_c);
 
 	if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
 			&& is_lb_conf_valid(ceil_vratio_c, num_part_c, vtaps_c))
 		return LB_MEMORY_CONFIG_1;
 
-	xfm->base.caps->dscl_calc_lb_num_partitions(
+	dpp->base.caps->dscl_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_2, &num_part_y, &num_part_c);
 
 	if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
@@ -487,7 +487,7 @@ static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
 
 	if (scl_data->format == PIXEL_FORMAT_420BPP8
 			|| scl_data->format == PIXEL_FORMAT_420BPP10) {
-		xfm->base.caps->dscl_calc_lb_num_partitions(
+		dpp->base.caps->dscl_calc_lb_num_partitions(
 				scl_data, LB_MEMORY_CONFIG_3, &num_part_y, &num_part_c);
 
 		if (is_lb_conf_valid(ceil_vratio, num_part_y, vtaps)
@@ -495,7 +495,7 @@ static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
 			return LB_MEMORY_CONFIG_3;
 	}
 
-	xfm->base.caps->dscl_calc_lb_num_partitions(
+	dpp->base.caps->dscl_calc_lb_num_partitions(
 			scl_data, LB_MEMORY_CONFIG_0, &num_part_y, &num_part_c);
 
 	/*Ensure we can support the requested number of vtaps*/
@@ -506,27 +506,27 @@ static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
 }
 
 void dpp_set_scaler_auto_scale(
-	struct transform *xfm_base,
+	struct dpp *dpp_base,
 	const struct scaler_data *scl_data)
 {
 	enum lb_memory_config lb_config;
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	enum dscl_mode_sel dscl_mode = get_dscl_mode(
-			xfm_base, scl_data, xfm_base->ctx->dc->debug.always_scale);
+			dpp_base, scl_data, dpp_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 
-	dpp_set_overscan(xfm, scl_data);
+	dpp_set_overscan(dpp, scl_data);
 
-	dpp_set_otg_blank(xfm, scl_data);
+	dpp_set_otg_blank(dpp, scl_data);
 
 	REG_UPDATE(SCL_MODE, DSCL_MODE, dscl_mode);
 
 	if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
 		return;
 
-	lb_config =  find_lb_memory_config(xfm, scl_data);
-	dpp_set_lb(xfm, &scl_data->lb_params, lb_config);
+	lb_config =  find_lb_memory_config(dpp, scl_data);
+	dpp_set_lb(dpp, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
@@ -554,12 +554,12 @@ void dpp_set_scaler_auto_scale(
 		SCL_V_NUM_TAPS_C, scl_data->taps.v_taps_c - 1,
 		SCL_H_NUM_TAPS_C, scl_data->taps.h_taps_c - 1);
 
-	dpp_set_scl_filter(xfm, scl_data, ycbcr);
+	dpp_set_scl_filter(dpp, scl_data, ycbcr);
 }
 
 
 static void dpp_set_manual_ratio_init(
-		struct dcn10_dpp *xfm, const struct scaler_data *data)
+		struct dcn10_dpp *dpp, const struct scaler_data *data)
 {
 	uint32_t init_frac = 0;
 	uint32_t init_int = 0;
@@ -619,7 +619,7 @@ static void dpp_set_manual_ratio_init(
 
 
 static void dpp_set_recout(
-			struct dcn10_dpp *xfm, const struct rect *recout)
+			struct dcn10_dpp *dpp, const struct rect *recout)
 {
 	REG_SET_2(RECOUT_START, 0,
 		/* First pixel of RECOUT */
@@ -632,24 +632,24 @@ static void dpp_set_recout(
 			 RECOUT_WIDTH, recout->width,
 		/* Number of RECOUT vertical lines */
 			 RECOUT_HEIGHT, recout->height
-			 - xfm->base.ctx->dc->debug.surface_visual_confirm * 4 *
-			 (xfm->base.inst + 1));
+			 - dpp->base.ctx->dc->debug.surface_visual_confirm * 4 *
+			 (dpp->base.inst + 1));
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */
-void dcn10_dpp_dscl_set_scaler_manual_scale(
-	struct transform *xfm_base,
+void dpp1_dscl_set_scaler_manual_scale(
+	struct dpp *dpp_base,
 	const struct scaler_data *scl_data)
 {
 	enum lb_memory_config lb_config;
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	enum dscl_mode_sel dscl_mode = get_dscl_mode(
-			xfm_base, scl_data, xfm_base->ctx->dc->debug.always_scale);
+			dpp_base, scl_data, dpp_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 
 	/* Recout */
-	dpp_set_recout(xfm, &scl_data->recout);
+	dpp_set_recout(dpp, &scl_data->recout);
 
 	/* MPC Size */
 	REG_SET_2(MPC_SIZE, 0,
@@ -665,8 +665,8 @@ void dcn10_dpp_dscl_set_scaler_manual_scale(
 		return;
 
 	/* LB */
-	lb_config =  find_lb_memory_config(xfm, scl_data);
-	dpp_set_lb(xfm, &scl_data->lb_params, lb_config);
+	lb_config =  find_lb_memory_config(dpp, scl_data);
+	dpp_set_lb(dpp, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
@@ -689,7 +689,7 @@ void dcn10_dpp_dscl_set_scaler_manual_scale(
 				SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_RGB_Y);
 
 	/* Manually calculate scale ratio and init values */
-	dpp_set_manual_ratio_init(xfm, scl_data);
+	dpp_set_manual_ratio_init(dpp, scl_data);
 
 	/* HTaps/VTaps */
 	REG_SET_4(SCL_TAP_CONTROL, 0,
@@ -698,5 +698,5 @@ void dcn10_dpp_dscl_set_scaler_manual_scale(
 		SCL_V_NUM_TAPS_C, scl_data->taps.v_taps_c - 1,
 		SCL_H_NUM_TAPS_C, scl_data->taps.h_taps_c - 1);
 
-	dpp_set_scl_filter(xfm, scl_data, ycbcr);
+	dpp_set_scl_filter(dpp, scl_data, ycbcr);
 }

@@ -31,6 +31,7 @@
 #include "opp.h"
 #include "timing_generator.h"
 #include "transform.h"
+#include "dpp.h"
 #include "core_types.h"
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
@@ -853,8 +854,13 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable;
 
 	/* Taps calculations */
-	res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
-		pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+	if (pipe_ctx->plane_res.xfm != NULL)
+		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
+				pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+	if (pipe_ctx->plane_res.dpp != NULL)
+		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
+				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 
 	if (!res) {
 		/* Try 24 bpp linebuffer */
@@ -862,6 +868,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
 			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
+			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 	}
 
 	if (res)
@@ -1026,7 +1035,7 @@ static int acquire_first_split_pipe(
 			pipe_ctx->stream_res.tg = pool->timing_generators[i];
 			pipe_ctx->plane_res.hubp = pool->hubps[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
-			pipe_ctx->plane_res.xfm = pool->transforms[i];
+			pipe_ctx->plane_res.dpp = pool->dpps[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
 			pipe_ctx->pipe_idx = i;
 
@@ -1359,6 +1368,7 @@ static int acquire_first_free_pipe(
 			pipe_ctx->plane_res.hubp = pool->hubps[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
+			pipe_ctx->plane_res.dpp = pool->dpps[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
 			pipe_ctx->pipe_idx = i;
 

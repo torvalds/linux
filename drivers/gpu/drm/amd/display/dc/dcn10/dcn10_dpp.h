@@ -25,10 +25,10 @@
 #ifndef __DAL_DPP_DCN10_H__
 #define __DAL_DPP_DCN10_H__
 
-#include "transform.h"
+#include "dpp.h"
 
-#define TO_DCN10_DPP(transform)\
-	container_of(transform, struct dcn10_dpp, base)
+#define TO_DCN10_DPP(dpp)\
+	container_of(dpp, struct dcn10_dpp, base)
 
 /* TODO: Use correct number of taps. Using polaris values for now */
 #define LB_TOTAL_NUMBER_OF_ENTRIES 5124
@@ -1252,7 +1252,7 @@ struct dcn_dpp_registers {
 };
 
 struct dcn10_dpp {
-	struct transform base;
+	struct dpp base;
 
 	const struct dcn_dpp_registers *tf_regs;
 	const struct dcn_dpp_shift *tf_shift;
@@ -1285,99 +1285,99 @@ void dscl1_calc_lb_num_partitions(
 		int *num_part_y,
 		int *num_part_c);
 
-void ippn10_degamma_ram_select(
-		struct transform *xfm_base,
+void dpp1_degamma_ram_select(
+		struct dpp *dpp_base,
 							bool use_ram_a);
 
-void ippn10_program_degamma_luta_settings(
-		struct transform *xfm_base,
+void dpp1_program_degamma_luta_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
 
-void ippn10_program_degamma_lutb_settings(
-		struct transform *xfm_base,
+void dpp1_program_degamma_lutb_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
 
-void ippn10_program_degamma_lut(
-		struct transform *xfm_base,
+void dpp1_program_degamma_lut(
+		struct dpp *dpp_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num,
 		bool is_ram_a);
 
-void ippn10_power_on_degamma_lut(
-		struct transform *xfm_base,
+void dpp1_power_on_degamma_lut(
+		struct dpp *dpp_base,
 	bool power_on);
 
-void ippn10_program_input_csc(
-		struct transform *xfm_base,
+void dpp1_program_input_csc(
+		struct dpp *dpp_base,
 		enum dc_color_space color_space,
 		enum dcn10_input_csc_select select);
 
-void ippn10_program_input_lut(
-		struct transform *xfm_base,
+void dpp1_program_input_lut(
+		struct dpp *dpp_base,
 		const struct dc_gamma *gamma);
 
-void ippn10_full_bypass(struct transform *xfm_base);
+void dpp1_full_bypass(struct dpp *dpp_base);
 
-void ippn10_set_degamma(
-		struct transform *xfm_base,
+void dpp1_set_degamma(
+		struct dpp *dpp_base,
 		enum ipp_degamma_mode mode);
 
-void ippn10_set_degamma_pwl(struct transform *xfm_base,
+void dpp1_set_degamma_pwl(struct dpp *dpp_base,
 								 const struct pwl_params *params);
 
 bool dpp_get_optimal_number_of_taps(
-		struct transform *xfm,
+		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps);
 
-void dpp_reset(struct transform *xfm_base);
+void dpp_reset(struct dpp *dpp_base);
 
-void dcn10_dpp_cm_program_regamma_lut(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_lut(
+		struct dpp *dpp_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num);
 
-void dcn10_dpp_cm_power_on_regamma_lut(
-	struct transform *xfm_base,
+void dpp1_cm_power_on_regamma_lut(
+	struct dpp *dpp_base,
 	bool power_on);
 
-void dcn10_dpp_cm_configure_regamma_lut(
-		struct transform *xfm_base,
+void dpp1_cm_configure_regamma_lut(
+		struct dpp *dpp_base,
 		bool is_ram_a);
 
 /*program re gamma RAM A*/
-void dcn10_dpp_cm_program_regamma_luta_settings(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_luta_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
 
 /*program re gamma RAM B*/
-void dcn10_dpp_cm_program_regamma_lutb_settings(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_lutb_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
-void dcn10_dpp_cm_set_output_csc_adjustment(
-		struct transform *xfm_base,
+void dpp1_cm_set_output_csc_adjustment(
+		struct dpp *dpp_base,
 		const struct out_csc_color_matrix *tbl_entry);
 
-void dcn10_dpp_cm_set_output_csc_default(
-		struct transform *xfm_base,
+void dpp1_cm_set_output_csc_default(
+		struct dpp *dpp_base,
 		const struct default_adjustment *default_adjust);
 
-void dcn10_dpp_cm_set_gamut_remap(
-	struct transform *xfm,
-	const struct xfm_grph_csc_adjustment *adjust);
+void dpp1_cm_set_gamut_remap(
+	struct dpp *dpp,
+	const struct dpp_grph_csc_adjustment *adjust);
 
-void dcn10_dpp_dscl_set_scaler_manual_scale(
-	struct transform *xfm_base,
+void dpp1_dscl_set_scaler_manual_scale(
+	struct dpp *dpp_base,
 	const struct scaler_data *scl_data);
 
-void ippn10_cnv_setup (
-		struct transform *xfm_base,
+void dpp1_cnv_setup (
+		struct dpp *dpp_base,
 		enum surface_pixel_format input_format,
 		enum expansion_mode mode);
 
-void ippn10_full_bypass(struct transform *xfm_base);
+void dpp1_full_bypass(struct dpp *dpp_base);
 
-void dcn10_dpp_construct(struct dcn10_dpp *xfm110,
+void dpp1_construct(struct dcn10_dpp *dpp1,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn_dpp_registers *tf_regs,

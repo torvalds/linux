@@ -84,6 +84,7 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
 #include "display_clock.h"
 #include "transform.h"
+#include "dpp.h"
 
 struct resource_pool;
 struct dc_state;
@@ -133,6 +134,7 @@ struct resource_pool {
 	struct hubp *hubps[MAX_PIPES];
 	struct input_pixel_processor *ipps[MAX_PIPES];
 	struct transform *transforms[MAX_PIPES];
+	struct dpp *dpps[MAX_PIPES];
 	struct output_pixel_processor *opps[MAX_PIPES];
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
@@ -184,6 +186,7 @@ struct plane_resource {
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
 	struct transform *xfm;
+	struct dpp *dpp;
 };
 
 struct pipe_ctx {

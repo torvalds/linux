@@ -38,6 +38,7 @@
 #include "bios_parser_interface.h"
 #include "include/irq_service_interface.h"
 #include "transform.h"
+#include "dpp.h"
 #include "timing_generator.h"
 #include "virtual/virtual_link_encoder.h"
 

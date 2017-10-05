@@ -895,10 +895,10 @@ static void dcn10_init_hw(struct dc *dc)
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct transform *xfm = dc->res_pool->transforms[i];
+		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
-		xfm->funcs->transform_reset(xfm);
+		dpp->funcs->dpp_reset(dpp);
 		dc->res_pool->mpc->funcs->remove(
 				dc->res_pool->mpc, &(dc->res_pool->opps[i]->mpc_tree),
 				dc->res_pool->opps[i]->inst, i);
@@ -1146,14 +1146,14 @@ static void plane_atomic_disable(struct dc *dc,
 static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct transform *xfm = dc->res_pool->transforms[fe_idx];
+	struct dpp *dpp = dc->res_pool->dpps[fe_idx];
 
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
 		dpp_pg_control(hws, fe_idx, false);
 		hubp_pg_control(hws, fe_idx, false);
-		xfm->funcs->transform_reset(xfm);
+		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
@@ -1203,7 +1203,7 @@ static void reset_front_end(
 static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct transform *xfm = dc->res_pool->transforms[fe_idx];
+	struct dpp *dpp = dc->res_pool->dpps[fe_idx];
 
 	reset_front_end(dc, fe_idx);
 
@@ -1211,7 +1211,7 @@ static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 			IP_REQUEST_EN, 1);
 	dpp_pg_control(hws, fe_idx, false);
 	hubp_pg_control(hws, fe_idx, false);
-	xfm->funcs->transform_reset(xfm);
+	dpp->funcs->dpp_reset(dpp);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
@@ -1365,34 +1365,34 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 static bool dcn10_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
 {
-	struct transform *xfm_base = pipe_ctx->plane_res.xfm;
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	const struct dc_transfer_func *tf = NULL;
 	bool result = true;
 
-	if (xfm_base == NULL)
+	if (dpp_base == NULL)
 		return false;
 
 	if (plane_state->in_transfer_func)
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction && dce_use_lut(plane_state))
-		xfm_base->funcs->ipp_program_input_lut(xfm_base,
+		dpp_base->funcs->ipp_program_input_lut(dpp_base,
 				plane_state->gamma_correction);
 
 	if (tf == NULL)
-		xfm_base->funcs->ipp_set_degamma(xfm_base, IPP_DEGAMMA_MODE_BYPASS);
+		dpp_base->funcs->ipp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 	else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			xfm_base->funcs->ipp_set_degamma(xfm_base,
+			dpp_base->funcs->ipp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			xfm_base->funcs->ipp_set_degamma(xfm_base,
+			dpp_base->funcs->ipp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			xfm_base->funcs->ipp_set_degamma(xfm_base,
+			dpp_base->funcs->ipp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
@@ -1403,7 +1403,7 @@ static bool dcn10_set_input_transfer_func(
 			break;
 		}
 	} else if (tf->type == TF_TYPE_BYPASS) {
-		xfm_base->funcs->ipp_set_degamma(xfm_base, IPP_DEGAMMA_MODE_BYPASS);
+		dpp_base->funcs->ipp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS*/
 		result = false;
@@ -1730,25 +1730,25 @@ static bool dcn10_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_stream_state *stream)
 {
-	struct transform *xfm = pipe_ctx->plane_res.xfm;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
-	if (xfm == NULL)
+	if (dpp == NULL)
 		return false;
 
-	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
+	dpp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->out_transfer_func &&
 		stream->out_transfer_func->type ==
 			TF_TYPE_PREDEFINED &&
 		stream->out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
-		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
+		dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_SRGB);
 	} else if (dcn10_translate_regamma_to_hw_format(
-				stream->out_transfer_func, &xfm->regamma_params)) {
-			xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
-			xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
+				stream->out_transfer_func, &dpp->regamma_params)) {
+			dpp->funcs->opp_program_regamma_pwl(dpp, &dpp->regamma_params);
+			dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_USER);
 	} else {
-		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_BYPASS);
+		dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_BYPASS);
 	}
 
 	return true;
@@ -2033,7 +2033,7 @@ static void dcn10_power_on_fe(
 
 static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 {
-	struct xfm_grph_csc_adjustment adjust;
+	struct dpp_grph_csc_adjustment adjust;
 	memset(&adjust, 0, sizeof(adjust));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 
@@ -2069,7 +2069,7 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 				gamut_remap_matrix.matrix[10];
 	}
 
-	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
+	pipe_ctx->plane_res.dpp->funcs->dpp_set_gamut_remap(pipe_ctx->plane_res.dpp, &adjust);
 }
 
 
@@ -2091,7 +2091,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
-			pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.xfm, &tbl_entry);
+			pipe_ctx->plane_res.dpp->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
 	}
 }
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
@@ -2275,7 +2275,7 @@ static void update_dchubp_dpp(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	struct transform *xfm = pipe_ctx->plane_res.xfm;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	union plane_size size = plane_state->plane_size;
 	struct mpcc_cfg mpcc_cfg = {0};
@@ -2317,7 +2317,7 @@ static void update_dchubp_dpp(
 				hws
 				);
 
-	xfm->funcs->ipp_setup(xfm,
+	dpp->funcs->ipp_setup(dpp,
 			plane_state->format,
 			EXPANSION_MODE_ZERO);
 
@@ -2346,8 +2346,9 @@ static void update_dchubp_dpp(
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 	/* scaler configuration */
-	pipe_ctx->plane_res.xfm->funcs->transform_set_scaler(
-			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data);
+	pipe_ctx->plane_res.dpp->funcs->dpp_set_scaler(
+			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data);
+
 	hubp->funcs->mem_program_viewport(hubp,
 			&pipe_ctx->plane_res.scl_data.viewport, &pipe_ctx->plane_res.scl_data.viewport_c);
 

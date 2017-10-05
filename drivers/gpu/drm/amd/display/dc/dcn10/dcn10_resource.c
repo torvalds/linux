@@ -446,13 +446,13 @@ static const struct dc_debug debug_defaults_diags = {
 		.disable_pplib_wm_range = true
 };
 
-static void dcn10_dpp_destroy(struct transform **xfm)
+static void dcn10_dpp_destroy(struct dpp **dpp)
 {
-	kfree(TO_DCN10_DPP(*xfm));
-	*xfm = NULL;
+	kfree(TO_DCN10_DPP(*dpp));
+	*dpp = NULL;
 }
 
-static struct transform *dcn10_dpp_create(
+static struct dpp *dcn10_dpp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -462,8 +462,8 @@ static struct transform *dcn10_dpp_create(
 	if (!dpp)
 		return NULL;
 
-	dcn10_dpp_construct(dpp, ctx, inst,
-			    &tf_regs[inst], &tf_shift, &tf_mask);
+	dpp1_construct(dpp, ctx, inst,
+		       &tf_regs[inst], &tf_shift, &tf_mask);
 	return &dpp->base;
 }
 
@@ -702,8 +702,8 @@ static void destruct(struct dcn10_resource_pool *pool)
 		if (pool->base.opps[i] != NULL)
 			pool->base.opps[i]->funcs->opp_destroy(&pool->base.opps[i]);
 
-		if (pool->base.transforms[i] != NULL)
-			dcn10_dpp_destroy(&pool->base.transforms[i]);
+		if (pool->base.dpps[i] != NULL)
+			dcn10_dpp_destroy(&pool->base.dpps[i]);
 
 		if (pool->base.ipps[i] != NULL)
 			pool->base.ipps[i]->funcs->ipp_destroy(&pool->base.ipps[i]);
@@ -924,7 +924,7 @@ static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 
 	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];
 	idle_pipe->plane_res.ipp = pool->ipps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.xfm = pool->transforms[idle_pipe->pipe_idx];
+	idle_pipe->plane_res.dpp = pool->dpps[idle_pipe->pipe_idx];
 
 	return idle_pipe;
 }
@@ -1377,8 +1377,8 @@ static bool construct(
 			goto ipp_create_fail;
 		}
 
-		pool->base.transforms[j] = dcn10_dpp_create(ctx, i);
-		if (pool->base.transforms[j] == NULL) {
+		pool->base.dpps[j] = dcn10_dpp_create(ctx, i);
+		if (pool->base.dpps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create dpp!\n");

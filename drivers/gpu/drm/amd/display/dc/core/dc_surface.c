@@ -30,6 +30,7 @@
 /* DC core (private) */
 #include "core_types.h"
 #include "transform.h"
+#include "dpp.h"
 
 /*******************************************************************************
  * Private functions

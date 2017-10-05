@@ -40,14 +40,14 @@
 #define BLACK_OFFSET_CBCR  0x8000
 
 #define REG(reg)\
-	xfm->tf_regs->reg
+	dpp->tf_regs->reg
 
 #define CTX \
-	xfm->base.ctx
+	dpp->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
-	xfm->tf_shift->field_name, xfm->tf_mask->field_name
+	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
 struct dcn10_input_csc_matrix {
 	enum dc_color_space color_space;
@@ -120,7 +120,7 @@ static const struct dcn10_input_csc_matrix dcn10_input_csc_matrix[] = {
 
 
 static void program_gamut_remap(
-		struct dcn10_dpp *xfm,
+		struct dcn10_dpp *dpp,
 		const uint16_t *regval,
 		enum gamut_remap_select select)
 {
@@ -146,10 +146,10 @@ static void program_gamut_remap(
 		break;
 	}
 
-	gam_regs.shifts.csc_c11 = xfm->tf_shift->CM_GAMUT_REMAP_C11;
-	gam_regs.masks.csc_c11  = xfm->tf_mask->CM_GAMUT_REMAP_C11;
-	gam_regs.shifts.csc_c12 = xfm->tf_shift->CM_GAMUT_REMAP_C12;
-	gam_regs.masks.csc_c12 = xfm->tf_mask->CM_GAMUT_REMAP_C12;
+	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_GAMUT_REMAP_C11;
+	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_GAMUT_REMAP_C11;
+	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_GAMUT_REMAP_C12;
+	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_GAMUT_REMAP_C12;
 
 
 	if (select == GAMUT_REMAP_COEFF) {
@@ -157,7 +157,7 @@ static void program_gamut_remap(
 		gam_regs.csc_c33_c34 = REG(CM_GAMUT_REMAP_C33_C34);
 
 		cm_helper_program_color_matrices(
-				xfm->base.ctx,
+				dpp->base.ctx,
 				regval,
 				&gam_regs);
 
@@ -167,7 +167,7 @@ static void program_gamut_remap(
 		gam_regs.csc_c33_c34 = REG(CM_COMA_C33_C34);
 
 		cm_helper_program_color_matrices(
-				xfm->base.ctx,
+				dpp->base.ctx,
 				regval,
 				&gam_regs);
 
@@ -177,7 +177,7 @@ static void program_gamut_remap(
 		gam_regs.csc_c33_c34 = REG(CM_COMB_C33_C34);
 
 		cm_helper_program_color_matrices(
-				xfm->base.ctx,
+				dpp->base.ctx,
 				regval,
 				&gam_regs);
 	}
@@ -188,15 +188,15 @@ static void program_gamut_remap(
 
 }
 
-void dcn10_dpp_cm_set_gamut_remap(
-	struct transform *xfm,
-	const struct xfm_grph_csc_adjustment *adjust)
+void dpp1_cm_set_gamut_remap(
+	struct dpp *dpp_base,
+	const struct dpp_grph_csc_adjustment *adjust)
 {
-	struct dcn10_dpp *dcn_xfm = TO_DCN10_DPP(xfm);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW)
 		/* Bypass if type is bypass or hw */
-		program_gamut_remap(dcn_xfm, NULL, GAMUT_REMAP_BYPASS);
+		program_gamut_remap(dpp, NULL, GAMUT_REMAP_BYPASS);
 	else {
 		struct fixed31_32 arr_matrix[12];
 		uint16_t arr_reg_val[12];
@@ -219,16 +219,16 @@ void dcn10_dpp_cm_set_gamut_remap(
 		convert_float_matrix(
 			arr_reg_val, arr_matrix, 12);
 
-		program_gamut_remap(dcn_xfm, arr_reg_val, GAMUT_REMAP_COEFF);
+		program_gamut_remap(dpp, arr_reg_val, GAMUT_REMAP_COEFF);
 	}
 }
 
-void dcn10_dpp_cm_set_output_csc_default(
-		struct transform *xfm_base,
+void dpp1_cm_set_output_csc_default(
+		struct dpp *dpp_base,
 		const struct default_adjustment *default_adjust)
 {
 
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	uint32_t ocsc_mode = 0;
 
 	if (default_adjust != NULL) {
@@ -260,35 +260,35 @@ void dcn10_dpp_cm_set_output_csc_default(
 
 }
 
-static void dcn10_dpp_cm_get_reg_field(
-		struct dcn10_dpp *xfm,
+static void dpp1_cm_get_reg_field(
+		struct dcn10_dpp *dpp,
 		struct xfer_func_reg *reg)
 {
-	reg->shifts.exp_region0_lut_offset = xfm->tf_shift->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
-	reg->masks.exp_region0_lut_offset = xfm->tf_mask->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
-	reg->shifts.exp_region0_num_segments = xfm->tf_shift->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
-	reg->masks.exp_region0_num_segments = xfm->tf_mask->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
-	reg->shifts.exp_region1_lut_offset = xfm->tf_shift->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
-	reg->masks.exp_region1_lut_offset = xfm->tf_mask->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
-	reg->shifts.exp_region1_num_segments = xfm->tf_shift->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
-	reg->masks.exp_region1_num_segments = xfm->tf_mask->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+	reg->shifts.exp_region0_lut_offset = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->masks.exp_region0_lut_offset = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->shifts.exp_region0_num_segments = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->masks.exp_region0_num_segments = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->shifts.exp_region1_lut_offset = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->masks.exp_region1_lut_offset = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->shifts.exp_region1_num_segments = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+	reg->masks.exp_region1_num_segments = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
 
-	reg->shifts.field_region_end = xfm->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_B;
-	reg->masks.field_region_end = xfm->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_B;
-	reg->shifts.field_region_end_slope = xfm->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
-	reg->masks.field_region_end_slope = xfm->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
-	reg->shifts.field_region_end_base = xfm->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
-	reg->masks.field_region_end_base = xfm->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
-	reg->shifts.field_region_linear_slope = xfm->tf_shift->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
-	reg->masks.field_region_linear_slope = xfm->tf_mask->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
-	reg->shifts.exp_region_start = xfm->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_B;
-	reg->masks.exp_region_start = xfm->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_B;
-	reg->shifts.exp_resion_start_segment = xfm->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
-	reg->masks.exp_resion_start_segment = xfm->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+	reg->shifts.field_region_end = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_B;
+	reg->masks.field_region_end = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_B;
+	reg->shifts.field_region_end_slope = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->masks.field_region_end_slope = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->shifts.field_region_end_base = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->masks.field_region_end_base = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->shifts.field_region_linear_slope = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->masks.field_region_linear_slope = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->shifts.exp_region_start = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_B;
+	reg->masks.exp_region_start = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_B;
+	reg->shifts.exp_resion_start_segment = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
 }
 
-static void dcn10_dpp_cm_program_color_matrix(
-		struct dcn10_dpp *xfm,
+static void dpp1_cm_program_color_matrix(
+		struct dcn10_dpp *dpp,
 		const struct out_csc_color_matrix *tbl_entry)
 {
 	uint32_t mode;
@@ -301,10 +301,10 @@ static void dcn10_dpp_cm_program_color_matrix(
 		return;
 	}
 
-	gam_regs.shifts.csc_c11 = xfm->tf_shift->CM_OCSC_C11;
-	gam_regs.masks.csc_c11  = xfm->tf_mask->CM_OCSC_C11;
-	gam_regs.shifts.csc_c12 = xfm->tf_shift->CM_OCSC_C12;
-	gam_regs.masks.csc_c12 = xfm->tf_mask->CM_OCSC_C12;
+	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_OCSC_C11;
+	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_OCSC_C11;
+	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_OCSC_C12;
+	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_OCSC_C12;
 
 	if (mode == 4) {
 
@@ -312,7 +312,7 @@ static void dcn10_dpp_cm_program_color_matrix(
 		gam_regs.csc_c33_c34 = REG(CM_OCSC_C33_C34);
 
 		cm_helper_program_color_matrices(
-				xfm->base.ctx,
+				dpp->base.ctx,
 				tbl_entry->regval,
 				&gam_regs);
 
@@ -322,17 +322,17 @@ static void dcn10_dpp_cm_program_color_matrix(
 		gam_regs.csc_c33_c34 = REG(CM_COMB_C33_C34);
 
 		cm_helper_program_color_matrices(
-				xfm->base.ctx,
+				dpp->base.ctx,
 				tbl_entry->regval,
 				&gam_regs);
 	}
 }
 
-void dcn10_dpp_cm_set_output_csc_adjustment(
-		struct transform *xfm_base,
+void dpp1_cm_set_output_csc_adjustment(
+		struct dpp *dpp_base,
 		const struct out_csc_color_matrix *tbl_entry)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	//enum csc_color_mode config = CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
 	uint32_t ocsc_mode = 4;
 
@@ -364,26 +364,26 @@ void dcn10_dpp_cm_set_output_csc_adjustment(
 	*/
 
 	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
-	dcn10_dpp_cm_program_color_matrix(xfm, tbl_entry);
+	dpp1_cm_program_color_matrix(dpp, tbl_entry);
 }
 
-void dcn10_dpp_cm_power_on_regamma_lut(
-	struct transform *xfm_base,
+void dpp1_cm_power_on_regamma_lut(
+	struct dpp *dpp_base,
 	bool power_on)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	REG_SET(CM_MEM_PWR_CTRL, 0,
 			RGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
 
 }
 
-void dcn10_dpp_cm_program_regamma_lut(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_lut(
+		struct dpp *dpp_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num)
 {
 	uint32_t i;
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
@@ -400,11 +400,11 @@ void dcn10_dpp_cm_program_regamma_lut(
 
 }
 
-void dcn10_dpp_cm_configure_regamma_lut(
-		struct transform *xfm_base,
+void dpp1_cm_configure_regamma_lut(
+		struct dpp *dpp_base,
 		bool is_ram_a)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_UPDATE(CM_RGAM_LUT_WRITE_EN_MASK,
 			CM_RGAM_LUT_WRITE_EN_MASK, 7);
@@ -414,14 +414,14 @@ void dcn10_dpp_cm_configure_regamma_lut(
 }
 
 /*program re gamma RAM A*/
-void dcn10_dpp_cm_program_regamma_luta_settings(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_luta_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dcn10_dpp_cm_get_reg_field(xfm, &gam_regs);
+	dpp1_cm_get_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_RGAM_RAMA_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_RGAM_RAMA_START_CNTL_G);
@@ -438,19 +438,19 @@ void dcn10_dpp_cm_program_regamma_luta_settings(
 	gam_regs.region_start = REG(CM_RGAM_RAMA_REGION_0_1);
 	gam_regs.region_end = REG(CM_RGAM_RAMA_REGION_32_33);
 
-	cm_helper_program_xfer_func(xfm->base.ctx, params, &gam_regs);
+	cm_helper_program_xfer_func(dpp->base.ctx, params, &gam_regs);
 
 }
 
 /*program re gamma RAM B*/
-void dcn10_dpp_cm_program_regamma_lutb_settings(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_lutb_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dcn10_dpp_cm_get_reg_field(xfm, &gam_regs);
+	dpp1_cm_get_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_RGAM_RAMB_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_RGAM_RAMB_START_CNTL_G);
@@ -467,15 +467,15 @@ void dcn10_dpp_cm_program_regamma_lutb_settings(
 	gam_regs.region_start = REG(CM_RGAM_RAMB_REGION_0_1);
 	gam_regs.region_end = REG(CM_RGAM_RAMB_REGION_32_33);
 
-	cm_helper_program_xfer_func(xfm->base.ctx, params, &gam_regs);
+	cm_helper_program_xfer_func(dpp->base.ctx, params, &gam_regs);
 }
 
-void ippn10_program_input_csc(
-		struct transform *xfm_base,
+void dpp1_program_input_csc(
+		struct dpp *dpp_base,
 		enum dc_color_space color_space,
 		enum dcn10_input_csc_select select)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int i;
 	int arr_size = sizeof(dcn10_input_csc_matrix)/sizeof(struct dcn10_input_csc_matrix);
 	const uint16_t *regval = NULL;
@@ -503,10 +503,10 @@ void ippn10_program_input_csc(
 	REG_SET(CM_ICSC_CONTROL, 0,
 			CM_ICSC_MODE, selection);
 
-	gam_regs.shifts.csc_c11 = xfm->tf_shift->CM_ICSC_C11;
-	gam_regs.masks.csc_c11  = xfm->tf_mask->CM_ICSC_C11;
-	gam_regs.shifts.csc_c12 = xfm->tf_shift->CM_ICSC_C12;
-	gam_regs.masks.csc_c12 = xfm->tf_mask->CM_ICSC_C12;
+	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_ICSC_C11;
+	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_ICSC_C11;
+	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_ICSC_C12;
+	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_ICSC_C12;
 
 
 	if (select == INPUT_CSC_SELECT_ICSC) {
@@ -515,7 +515,7 @@ void ippn10_program_input_csc(
 		gam_regs.csc_c33_c34 = REG(CM_ICSC_C33_C34);
 
 		cm_helper_program_color_matrices(
-				xfm->base.ctx,
+				dpp->base.ctx,
 				regval,
 				&gam_regs);
 	} else {
@@ -524,21 +524,21 @@ void ippn10_program_input_csc(
 		gam_regs.csc_c33_c34 = REG(CM_COMA_C33_C34);
 
 		cm_helper_program_color_matrices(
-				xfm->base.ctx,
+				dpp->base.ctx,
 				regval,
 				&gam_regs);
 	}
 }
 
 /*program de gamma RAM B*/
-void ippn10_program_degamma_lutb_settings(
-		struct transform *xfm_base,
+void dpp1_program_degamma_lutb_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dcn10_dpp_cm_get_reg_field(xfm, &gam_regs);
+	dpp1_cm_get_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_DGAM_RAMB_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_DGAM_RAMB_START_CNTL_G);
@@ -556,18 +556,18 @@ void ippn10_program_degamma_lutb_settings(
 	gam_regs.region_end = REG(CM_DGAM_RAMB_REGION_14_15);
 
 
-	cm_helper_program_xfer_func(xfm->base.ctx, params, &gam_regs);
+	cm_helper_program_xfer_func(dpp->base.ctx, params, &gam_regs);
 }
 
 /*program de gamma RAM A*/
-void ippn10_program_degamma_luta_settings(
-		struct transform *xfm_base,
+void dpp1_program_degamma_luta_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dcn10_dpp_cm_get_reg_field(xfm, &gam_regs);
+	dpp1_cm_get_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_DGAM_RAMA_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_DGAM_RAMA_START_CNTL_G);
@@ -584,34 +584,35 @@ void ippn10_program_degamma_luta_settings(
 	gam_regs.region_start = REG(CM_DGAM_RAMA_REGION_0_1);
 	gam_regs.region_end = REG(CM_DGAM_RAMA_REGION_14_15);
 
-	cm_helper_program_xfer_func(xfm->base.ctx, params, &gam_regs);
+	cm_helper_program_xfer_func(dpp->base.ctx, params, &gam_regs);
 }
 
-void ippn10_power_on_degamma_lut(
-		struct transform *xfm_base,
+void dpp1_power_on_degamma_lut(
+		struct dpp *dpp_base,
 	bool power_on)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_SET(CM_MEM_PWR_CTRL, 0,
 			SHARED_MEM_PWR_DIS, power_on == true ? 0:1);
 
 }
 
-static void ippn10_enable_cm_block(
-		struct transform *xfm_base)
+static void dpp1_enable_cm_block(
+		struct dpp *dpp_base)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
 	REG_UPDATE(CM_CMOUT_CONTROL, CM_CMOUT_ROUND_TRUNC_MODE, 8);
 	REG_UPDATE(CM_CONTROL, CM_BYPASS_EN, 0);
 }
 
-void ippn10_set_degamma(
-		struct transform *xfm_base,
+void dpp1_set_degamma(
+		struct dpp *dpp_base,
 		enum ipp_degamma_mode mode)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
-	ippn10_enable_cm_block(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+	dpp1_enable_cm_block(dpp_base);
 
 	switch (mode) {
 	case IPP_DEGAMMA_MODE_BYPASS:
@@ -630,11 +631,11 @@ void ippn10_set_degamma(
 	}
 }
 
-void ippn10_degamma_ram_select(
-		struct transform *xfm_base,
+void dpp1_degamma_ram_select(
+		struct dpp *dpp_base,
 							bool use_ram_a)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	if (use_ram_a)
 		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 3);
@@ -643,13 +644,13 @@ void ippn10_degamma_ram_select(
 
 }
 
-static bool ippn10_degamma_ram_inuse(
-		struct transform *xfm_base,
+static bool dpp1_degamma_ram_inuse(
+		struct dpp *dpp_base,
 							bool *ram_a_inuse)
 {
 	bool ret = false;
 	uint32_t status_reg = 0;
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_GET(CM_IGAM_LUT_RW_CONTROL, CM_IGAM_DGAM_CONFIG_STATUS,
 			&status_reg);
@@ -664,15 +665,15 @@ static bool ippn10_degamma_ram_inuse(
 	return ret;
 }
 
-void ippn10_program_degamma_lut(
-		struct transform *xfm_base,
+void dpp1_program_degamma_lut(
+		struct dpp *dpp_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num,
 		bool is_ram_a)
 {
 	uint32_t i;
 
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	REG_UPDATE(CM_IGAM_LUT_RW_CONTROL, CM_IGAM_LUT_HOST_EN, 0);
 	REG_UPDATE(CM_DGAM_LUT_WRITE_EN_MASK,
 				   CM_DGAM_LUT_WRITE_EN_MASK, 7);
@@ -694,27 +695,27 @@ void ippn10_program_degamma_lut(
 	}
 }
 
-void ippn10_set_degamma_pwl(struct transform *xfm_base,
+void dpp1_set_degamma_pwl(struct dpp *dpp_base,
 								 const struct pwl_params *params)
 {
 	bool is_ram_a = true;
 
-	ippn10_power_on_degamma_lut(xfm_base, true);
-	ippn10_enable_cm_block(xfm_base);
-	ippn10_degamma_ram_inuse(xfm_base, &is_ram_a);
+	dpp1_power_on_degamma_lut(dpp_base, true);
+	dpp1_enable_cm_block(dpp_base);
+	dpp1_degamma_ram_inuse(dpp_base, &is_ram_a);
 	if (is_ram_a == true)
-		ippn10_program_degamma_lutb_settings(xfm_base, params);
+		dpp1_program_degamma_lutb_settings(dpp_base, params);
 	else
-		ippn10_program_degamma_luta_settings(xfm_base, params);
+		dpp1_program_degamma_luta_settings(dpp_base, params);
 
-	ippn10_program_degamma_lut(xfm_base, params->rgb_resulted,
+	dpp1_program_degamma_lut(dpp_base, params->rgb_resulted,
 							params->hw_points_num, !is_ram_a);
-	ippn10_degamma_ram_select(xfm_base, !is_ram_a);
+	dpp1_degamma_ram_select(dpp_base, !is_ram_a);
 }
 
-void ippn10_full_bypass(struct transform *xfm_base)
+void dpp1_full_bypass(struct dpp *dpp_base)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	/* Input pixel format: ARGB8888 */
 	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
@@ -727,19 +728,19 @@ void ippn10_full_bypass(struct transform *xfm_base)
 			FORMAT_EXPANSION_MODE, 0);
 
 	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
-	if (xfm->tf_mask->CM_BYPASS_EN)
+	if (dpp->tf_mask->CM_BYPASS_EN)
 		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
 
 	/* Setting degamma bypass for now */
 	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);
 }
 
-static bool ippn10_ingamma_ram_inuse(struct transform *xfm_base,
+static bool dpp1_ingamma_ram_inuse(struct dpp *dpp_base,
 							bool *ram_a_inuse)
 {
 	bool in_use = false;
 	uint32_t status_reg = 0;
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_GET(CM_IGAM_LUT_RW_CONTROL, CM_IGAM_DGAM_CONFIG_STATUS,
 				&status_reg);
@@ -765,19 +766,19 @@ static bool ippn10_ingamma_ram_inuse(struct transform *xfm_base,
  * In the future, this function should support additional input gamma methods,
  * such as piecewise linear mapping, and input gamma bypass.
  */
-void ippn10_program_input_lut(
-		struct transform *xfm_base,
+void dpp1_program_input_lut(
+		struct dpp *dpp_base,
 		const struct dc_gamma *gamma)
 {
 	int i;
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	bool rama_occupied = false;
 	uint32_t ram_num;
 	// Power on LUT memory.
 	REG_SET(CM_MEM_PWR_CTRL, 0, SHARED_MEM_PWR_DIS, 1);
-	ippn10_enable_cm_block(xfm_base);
+	dpp1_enable_cm_block(dpp_base);
 	// Determine whether to use RAM A or RAM B
-	ippn10_ingamma_ram_inuse(xfm_base, &rama_occupied);
+	dpp1_ingamma_ram_inuse(dpp_base, &rama_occupied);
 	if (!rama_occupied)
 		REG_UPDATE(CM_IGAM_LUT_RW_CONTROL, CM_IGAM_LUT_SEL, 0);
 	else
