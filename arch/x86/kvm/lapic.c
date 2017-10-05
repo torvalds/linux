@@ -1307,6 +1307,9 @@ static void apic_update_lvtt(struct kvm_lapic *apic)
 			apic->lapic_timer.timer_mode_mask;
 
 	if (apic->lapic_timer.timer_mode != timer_mode) {
+		if (apic_lvtt_tscdeadline(apic) != (timer_mode ==
+				APIC_LVT_TIMER_TSCDEADLINE))
+			kvm_lapic_set_reg(apic, APIC_TMICT, 0);
 		apic->lapic_timer.timer_mode = timer_mode;
 		hrtimer_cancel(&apic->lapic_timer.timer);
 	}
