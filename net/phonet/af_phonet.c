@@ -149,7 +149,7 @@ static int pn_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	return 1;
 }
 
-struct header_ops phonet_header_ops = {
+const struct header_ops phonet_header_ops = {
 	.create = pn_header_create,
 	.parse = pn_header_parse,
 };
