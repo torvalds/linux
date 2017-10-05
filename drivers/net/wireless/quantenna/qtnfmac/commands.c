@@ -256,8 +256,6 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 		goto out;
 	}
 
-	vif->bss_status |= QTNF_STATE_AP_CONFIG;
-
 out:
 	qtnf_bus_unlock(vif->mac->bus);
 	return ret;
@@ -290,7 +288,6 @@ int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif)
 	}
 
 	vif->bss_status &= ~QTNF_STATE_AP_START;
-	vif->bss_status &= ~QTNF_STATE_AP_CONFIG;
 
 	netif_carrier_off(vif->netdev);
 

@@ -275,13 +275,6 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
-	if (!(vif->bss_status & QTNF_STATE_AP_CONFIG)) {
-		pr_err("VIF%u.%u: AP config failed in FW\n", vif->mac->macid,
-		       vif->vifid);
-		ret = -EFAULT;
-		goto out;
-	}
-
 	ret = qtnf_mgmt_set_appie(vif, &settings->beacon);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to add IEs to beacon\n",
@@ -316,7 +309,6 @@ static int qtnf_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 		pr_err("VIF%u.%u: failed to stop AP operation in FW\n",
 		       vif->mac->macid, vif->vifid);
 		vif->bss_status &= ~QTNF_STATE_AP_START;
-		vif->bss_status &= ~QTNF_STATE_AP_CONFIG;
 
 		netif_carrier_off(vif->netdev);
 	}
