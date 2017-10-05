@@ -28,6 +28,7 @@
 
 #include "xhci.h"
 #include "xhci-trace.h"
+#include "xhci-debugfs.h"
 
 /*
  * Allocates a generic ring segment from the ring pool, sets the dma address,
@@ -501,8 +502,6 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 
 	return 0;
 }
-
-#define CTX_SIZE(_hcc) (HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
 
 static struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 						    int type, gfp_t flags)
@@ -1011,6 +1010,7 @@ void xhci_free_virt_devices_depth_first(struct xhci_hcd *xhci, int slot_id)
 	}
 out:
 	/* we are now at a leaf device */
+	xhci_debugfs_remove_slot(xhci, slot_id);
 	xhci_free_virt_device(xhci, slot_id);
 }
 
@@ -1572,7 +1572,6 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		ep_ctx->tx_info |=
 			 cpu_to_le32(AVG_TRB_LENGTH_FOR_EP(max_esit_payload));
 
-	/* FIXME Debug endpoint context */
 	return 0;
 }
 

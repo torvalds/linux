@@ -131,6 +131,8 @@ struct xhci_cap_regs {
 /* Extended Capabilities pointer from PCI base - section 5.3.6 */
 #define HCC_EXT_CAPS(p)		XHCI_HCC_EXT_CAPS(p)
 
+#define CTX_SIZE(_hcc)		(HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
+
 /* db_off bitmask - bits 0:1 reserved */
 #define	DBOFF_MASK	(~0x3)
 
@@ -1012,6 +1014,8 @@ struct xhci_virt_device {
 	struct xhci_tt_bw_info		*tt_info;
 	/* The current max exit latency for the enabled USB3 link states. */
 	u16				current_mel;
+	/* Used for the debugfs interfaces. */
+	void				*debugfs_private;
 };
 
 /*
@@ -1845,6 +1849,9 @@ struct xhci_hcd {
 	u32			port_status_u0;
 /* Compliance Mode Timer Triggered every 2 seconds */
 #define COMP_MODE_RCVRY_MSECS 2000
+	struct dentry		*debugfs_root;
+	struct dentry		*debugfs_slots;
+	struct list_head	regset_list;
 };
 
 /* Platform specific overrides to generic XHCI hc_driver ops */
@@ -2132,6 +2139,7 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container
 struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id);
+
 static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
 								struct urb *urb)
 {
