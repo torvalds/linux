@@ -430,6 +430,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.disable_pplib_wm_range = false,
 		.pplib_wm_report_mode = WM_REPORT_DEFAULT,
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.force_single_disp_pipe_split = true,
 		.disable_dcc = DCC_ENABLE,
 		.voltage_align_fclk = true,
 		.disable_stereo_support = true,
