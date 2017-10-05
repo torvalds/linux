@@ -22,9 +22,6 @@
 
 #include "vsock_addr.h"
 
-/* vsock-specific sock->sk_state constants */
-#define VSOCK_SS_LISTEN 255
-
 #define LAST_RESERVED_PORT 1023
 
 #define VSOCK_HASH_SIZE         251
