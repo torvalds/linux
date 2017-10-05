@@ -42,12 +42,12 @@
 #include "dce/dce_stream_encoder.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
-#include "dcn10/dcn10_mem_input.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "../virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
+#include "dcn10_hubp.h"
 
 #include "vega10/soc15ip.h"
 

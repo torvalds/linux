@@ -31,7 +31,6 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
-#include "dcn10/dcn10_mem_input.h"
 #include "dcn10/dcn10_timing_generator.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
@@ -41,6 +40,7 @@
 #include "mpc.h"
 #include "reg_helper.h"
 #include "custom_float.h"
+#include "dcn10_hubp.h"
 
 #define CTX \
 	hws->ctx

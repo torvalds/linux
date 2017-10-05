@@ -24,9 +24,9 @@
  */
 #include "dm_services.h"
 #include "dce_calcs.h"
-#include "dcn10_mem_input.h"
 #include "reg_helper.h"
 #include "basics/conversion.h"
+#include "dcn10_hubp.h"
 
 #define REG(reg)\
 	hubp1->mi_regs->reg
