@@ -259,8 +259,6 @@ static const int IPS_SAMPLE_WINDOW = 5000; /* 5s moving window of samples */
 
 /* Per-SKU limits */
 struct ips_mcp_limits {
-	int cpu_family;
-	int cpu_model; /* includes extended model... */
 	int mcp_power_limit; /* mW units */
 	int core_power_limit;
 	int mch_power_limit;
@@ -1374,7 +1372,7 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 
 	if (!(boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 37)) {
 		dev_info(ips->dev, "Non-IPS CPU detected.\n");
-		goto out;
+		return NULL;
 	}
 
 	rdmsrl(IA32_MISC_ENABLE, misc_en);
@@ -1396,7 +1394,7 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 		limits = &ips_ulv_limits;
 	else {
 		dev_info(ips->dev, "No CPUID match found.\n");
-		goto out;
+		return NULL;
 	}
 
 	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_power);
@@ -1410,7 +1408,6 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 		limits->core_power_limit = (tdp / 8) * 1000;
 	}
 
-out:
 	return limits;
 }
 
