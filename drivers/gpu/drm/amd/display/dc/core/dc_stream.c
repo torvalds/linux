@@ -210,11 +210,13 @@ bool dc_stream_set_cursor_attributes(
 			pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
 						pipe_ctx->plane_res.ipp, attributes);
 
-		if (pipe_ctx->plane_res.hubp != NULL)
+		if (pipe_ctx->plane_res.hubp != NULL &&
+				pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes != NULL)
 			pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes(
 					pipe_ctx->plane_res.hubp, attributes);
 
-		if (pipe_ctx->plane_res.mi != NULL)
+		if (pipe_ctx->plane_res.mi != NULL &&
+				pipe_ctx->plane_res.mi->funcs->set_cursor_attributes != NULL)
 			pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
 					pipe_ctx->plane_res.mi, attributes);
 
@@ -253,6 +255,7 @@ bool dc_stream_set_cursor_position(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 		struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
+		struct mem_input *mi = pipe_ctx->plane_res.mi;
 		struct hubp *hubp = pipe_ctx->plane_res.hubp;
 		struct transform *xfm = pipe_ctx->plane_res.xfm;
 		struct dc_cursor_position pos_cpy = *position;
@@ -281,10 +284,13 @@ bool dc_stream_set_cursor_position(
 		if (ipp->funcs->ipp_cursor_set_position != NULL)
 			ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
 
-		if (hubp != NULL)
+		if (mi != NULL && mi->funcs->set_cursor_position != NULL)
+			mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
+
+		if (hubp != NULL && hubp->funcs->set_cursor_position != NULL)
 			hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 
-		if (xfm != NULL)
+		if (xfm != NULL && xfm->funcs->set_cursor_position != NULL)
 			xfm->funcs->set_cursor_position(xfm, &pos_cpy, &param, hubp->curs_attr.width);
 
 	}
