@@ -227,6 +227,52 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 	intel_ddi_fdi_post_disable(encoder, old_crtc_state, old_conn_state);
 }
 
+static void hsw_pre_pll_enable_crt(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *pipe_config,
+				   const struct drm_connector_state *conn_state)
+{
+	struct drm_crtc *crtc = pipe_config->base.crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	WARN_ON(!intel_crtc->config->has_pch_encoder);
+
+	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+}
+
+static void hsw_pre_enable_crt(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *pipe_config,
+			       const struct drm_connector_state *conn_state)
+{
+	struct drm_crtc *crtc = pipe_config->base.crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+
+	WARN_ON(!intel_crtc->config->has_pch_encoder);
+
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+}
+
+static void hsw_enable_crt(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *pipe_config,
+			   const struct drm_connector_state *conn_state)
+{
+	struct drm_crtc *crtc = pipe_config->base.crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+
+	WARN_ON(!intel_crtc->config->has_pch_encoder);
+
+	intel_crt_set_dpms(encoder, pipe_config, DRM_MODE_DPMS_ON);
+
+	intel_wait_for_vblank(dev_priv, pipe);
+	intel_wait_for_vblank(dev_priv, pipe);
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+}
+
 static void intel_enable_crt(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *pipe_config,
 			     const struct drm_connector_state *conn_state)
@@ -897,7 +943,6 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	} else {
 		crt->base.disable = intel_disable_crt;
 	}
-	crt->base.enable = intel_enable_crt;
 	if (I915_HAS_HOTPLUG(dev_priv) &&
 	    !dmi_check_system(intel_spurious_crt_detect))
 		crt->base.hpd_pin = HPD_CRT;
@@ -905,11 +950,15 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		crt->base.port = PORT_E;
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
+		crt->base.pre_pll_enable = hsw_pre_pll_enable_crt;
+		crt->base.pre_enable = hsw_pre_enable_crt;
+		crt->base.enable = hsw_enable_crt;
 		crt->base.post_disable = hsw_post_disable_crt;
 	} else {
 		crt->base.port = PORT_NONE;
 		crt->base.get_config = intel_crt_get_config;
 		crt->base.get_hw_state = intel_crt_get_hw_state;
+		crt->base.enable = intel_enable_crt;
 	}
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 

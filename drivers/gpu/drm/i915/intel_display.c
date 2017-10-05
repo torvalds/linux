@@ -5488,9 +5488,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (WARN_ON(intel_crtc->active))
 		return;
 
-	if (intel_crtc->config->has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
-
 	intel_encoders_pre_pll_enable(crtc, pipe_config, old_state);
 
 	if (intel_crtc->config->shared_dpll)
@@ -5524,9 +5521,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_crtc->active = true;
 
-	if (intel_crtc->config->has_pch_encoder)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-	else
+	if (!intel_crtc->config->has_pch_encoder)
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
@@ -5579,13 +5574,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (psl_clkgate_wa) {
 		intel_wait_for_vblank(dev_priv, pipe);
 		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, false);
-	}
-
-	if (intel_crtc->config->has_pch_encoder) {
-		intel_wait_for_vblank(dev_priv, pipe);
-		intel_wait_for_vblank(dev_priv, pipe);
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}
 
 	/* If we change the relative order between pipe/planes enabling, we need
