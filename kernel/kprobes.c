@@ -1771,6 +1771,7 @@ unsigned long __weak arch_deref_entry_point(void *entry)
 	return (unsigned long)entry;
 }
 
+#if 0
 int register_jprobes(struct jprobe **jps, int num)
 {
 	int ret = 0, i;
@@ -1839,6 +1840,7 @@ void unregister_jprobes(struct jprobe **jps, int num)
 	}
 }
 EXPORT_SYMBOL_GPL(unregister_jprobes);
+#endif
 
 #ifdef CONFIG_KRETPROBES
 /*
