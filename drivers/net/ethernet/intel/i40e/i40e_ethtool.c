@@ -516,8 +516,8 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	}
 
 	/* Now that we've worked out everything that could be supported by the
-	 * current PHY type, get what is supported by the NVM and them to
-	 * get what is truly supported
+	 * current PHY type, get what is supported by the NVM and intersect
+	 * them to get what is truly supported
 	 */
 	i40e_phy_type_to_ethtool(pf, &e_supported,
 				 &e_advertising);
