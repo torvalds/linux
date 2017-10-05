@@ -47,7 +47,8 @@ config RPMSG_QCOM_SMD
 	  platforms.
 
 config RPMSG_VIRTIO
-	tristate
+	tristate "Virtio RPMSG bus driver"
+	depends on HAS_DMA
 	select RPMSG
 	select VIRTIO
 
