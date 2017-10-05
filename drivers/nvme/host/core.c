@@ -1052,16 +1052,6 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 }
 
-#ifdef CONFIG_COMPAT
-static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
-			unsigned int cmd, unsigned long arg)
-{
-	return nvme_ioctl(bdev, mode, cmd, arg);
-}
-#else
-#define nvme_compat_ioctl	NULL
-#endif
-
 static int nvme_open(struct block_device *bdev, fmode_t mode)
 {
 	return nvme_get_ns_from_disk(bdev->bd_disk) ? 0 : -ENXIO;
@@ -1380,7 +1370,7 @@ EXPORT_SYMBOL_GPL(nvme_sec_submit);
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
-	.compat_ioctl	= nvme_compat_ioctl,
+	.compat_ioctl	= nvme_ioctl,
 	.open		= nvme_open,
 	.release	= nvme_release,
 	.getgeo		= nvme_getgeo,
