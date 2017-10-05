@@ -62,12 +62,22 @@ struct video_device;
 struct v4l2_device;
 struct v4l2_ctrl_handler;
 
-/* Flag to mark the video_device struct as registered.
-   Drivers can clear this flag if they want to block all future
-   device access. It is cleared by video_unregister_device. */
-#define V4L2_FL_REGISTERED	(0)
-/* file->private_data points to struct v4l2_fh */
-#define V4L2_FL_USES_V4L2_FH	(1)
+/**
+ * enum v4l2_video_device_flags - Flags used by &struct video_device
+ *
+ * @V4L2_FL_REGISTERED:
+ * 	indicates that a &struct video_device is registered.
+ *	Drivers can clear this flag if they want to block all future
+ *	device access. It is cleared by video_unregister_device.
+ * @V4L2_FL_USES_V4L2_FH:
+ *	indicates that file->private_data points to &struct v4l2_fh.
+ *	This flag is set by the core when v4l2_fh_init() is called.
+ *	All new drivers should use it.
+ */
+enum v4l2_video_device_flags {
+	V4L2_FL_REGISTERED	= 0,
+	V4L2_FL_USES_V4L2_FH	= 1,
+};
 
 /* Priority helper functions */
 
@@ -215,7 +225,8 @@ struct v4l2_file_operations {
  * @vfl_dir: V4L receiver, transmitter or m2m
  * @minor: device node 'minor'. It is set to -1 if the registration failed
  * @num: number of the video device node
- * @flags: video device flags. Use bitops to set/clear/test flags
+ * @flags: video device flags. Use bitops to set/clear/test flags.
+ *	   Contains a set of &enum v4l2_video_device_flags.
  * @index: attribute to differentiate multiple indices on one physical device
  * @fh_lock: Lock for all v4l2_fhs
  * @fh_list: List of &struct v4l2_fh
