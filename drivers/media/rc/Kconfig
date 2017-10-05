@@ -416,6 +416,7 @@ config IR_PWM_TX
 	depends on RC_CORE
 	depends on LIRC
 	depends on PWM
+	depends on OF || COMPILE_TEST
 	---help---
 	   Say Y if you want to use a PWM based IR transmitter. This is
 	   more power efficient than the bit banging gpio driver.
