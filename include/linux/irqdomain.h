@@ -32,6 +32,7 @@
 #include <linux/types.h>
 #include <linux/irqhandler.h>
 #include <linux/of.h>
+#include <linux/mutex.h>
 #include <linux/radix-tree.h>
 
 struct device_node;
@@ -176,6 +177,7 @@ struct irq_domain {
 	unsigned int revmap_direct_max_irq;
 	unsigned int revmap_size;
 	struct radix_tree_root revmap_tree;
+	struct mutex revmap_tree_mutex;
 	unsigned int linear_revmap[];
 };
 
