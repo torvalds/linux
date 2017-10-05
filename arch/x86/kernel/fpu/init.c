@@ -240,7 +240,7 @@ static void __init fpu__init_system_ctx_switch(void)
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
 
-	WARN_ON_FPU(current->thread.fpu.fpstate_active);
+	WARN_ON_FPU(current->thread.fpu.initialized);
 }
 
 /*

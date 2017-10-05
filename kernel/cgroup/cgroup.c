@@ -2311,6 +2311,14 @@ out_release_tset:
 		list_del_init(&cset->mg_node);
 	}
 	spin_unlock_irq(&css_set_lock);
+
+	/*
+	 * Re-initialize the cgroup_taskset structure in case it is reused
+	 * again in another cgroup_migrate_add_task()/cgroup_migrate_execute()
+	 * iteration.
+	 */
+	tset->nr_tasks = 0;
+	tset->csets    = &tset->src_csets;
 	return ret;
 }
 
