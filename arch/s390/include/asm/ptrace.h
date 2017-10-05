@@ -13,10 +13,12 @@
 #define PIF_SYSCALL		0	/* inside a system call */
 #define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
 #define PIF_SYSCALL_RESTART	2	/* restart the current system call */
+#define PIF_GUEST_FAULT		3	/* indicates program check in sie64a */
 
 #define _PIF_SYSCALL		_BITUL(PIF_SYSCALL)
 #define _PIF_PER_TRAP		_BITUL(PIF_PER_TRAP)
 #define _PIF_SYSCALL_RESTART	_BITUL(PIF_SYSCALL_RESTART)
+#define _PIF_GUEST_FAULT	_BITUL(PIF_GUEST_FAULT)
 
 #ifndef __ASSEMBLY__
 

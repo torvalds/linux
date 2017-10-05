@@ -117,7 +117,7 @@ static inline int user_space_fault(struct pt_regs *regs)
 		return 1;
 	if (trans_exc_code == 2) /* secondary space -> set_fs */
 		return current->thread.mm_segment.ar4;
-	if (current->flags & PF_VCPU)
+	if (test_pt_regs_flag(regs, PIF_GUEST_FAULT))
 		return 1;
 	return 0;
 }
@@ -209,7 +209,7 @@ static void dump_fault_info(struct pt_regs *regs)
 		pr_cont("kernel ");
 	}
 #ifdef CONFIG_PGSTE
-	else if ((current->flags & PF_VCPU) && S390_lowcore.gmap) {
+	else if (test_pt_regs_flag(regs, PIF_GUEST_FAULT)) {
 		struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
 		asce = gmap->asce;
 		pr_cont("gmap ");
@@ -438,7 +438,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	down_read(&mm->mmap_sem);
 
 #ifdef CONFIG_PGSTE
-	gmap = (current->flags & PF_VCPU) ?
+	gmap = test_pt_regs_flag(regs, PIF_GUEST_FAULT) ?
 		(struct gmap *) S390_lowcore.gmap : NULL;
 	if (gmap) {
 		current->thread.gmap_addr = address;
