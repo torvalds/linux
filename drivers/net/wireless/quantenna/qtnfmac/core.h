@@ -126,7 +126,6 @@ struct qtnf_wmac {
 	struct qtnf_mac_info macinfo;
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
-	struct cfg80211_chan_def chandef;
 	struct mutex mac_lock;	/* lock during wmac speicific ops */
 	struct timer_list scan_timeout;
 };

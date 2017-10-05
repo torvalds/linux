@@ -630,15 +630,15 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 		 int idx, struct survey_info *survey)
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_supported_band *sband;
-	struct cfg80211_chan_def *chandef;
+	const struct cfg80211_chan_def *chandef = &wdev->chandef;
 	struct ieee80211_channel *chan;
 	struct qtnf_chan_stats stats;
 	struct qtnf_vif *vif;
 	int ret;
 
 	vif = qtnf_netdev_get_priv(dev);
-	chandef = &mac->chandef;
 
 	sband = wiphy->bands[NL80211_BAND_2GHZ];
 	if (sband && idx >= sband->n_channels) {
@@ -705,7 +705,6 @@ static int
 qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct cfg80211_chan_def *chandef)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct net_device *ndev = wdev->netdev;
 	struct qtnf_vif *vif;
 	int ret;
@@ -727,8 +726,6 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		       chandef->width);
 		ret = -ENODATA;
 	}
-
-	memcpy(&mac->chandef, chandef, sizeof(mac->chandef));
 
 out:
 	return ret;
