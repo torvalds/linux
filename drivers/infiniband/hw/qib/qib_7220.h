@@ -75,6 +75,7 @@ struct qib_chip_specific {
 	char bitsmsgbuf[64];
 	struct timer_list relock_timer;
 	unsigned int relock_interval; /* in jiffies */
+	struct qib_devdata *dd;
 };
 
 struct qib_chippport_specific {
