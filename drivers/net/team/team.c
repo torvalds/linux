@@ -1914,7 +1914,8 @@ static int team_netpoll_setup(struct net_device *dev,
 }
 #endif
 
-static int team_add_slave(struct net_device *dev, struct net_device *port_dev)
+static int team_add_slave(struct net_device *dev, struct net_device *port_dev,
+			  struct netlink_ext_ack *extack)
 {
 	struct team *team = netdev_priv(dev);
 	int err;

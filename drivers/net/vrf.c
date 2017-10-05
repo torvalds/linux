@@ -788,7 +788,8 @@ err:
 	return ret;
 }
 
-static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
+static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev,
+			 struct netlink_ext_ack *extack)
 {
 	if (netif_is_l3_master(port_dev) || netif_is_l3_slave(port_dev))
 		return -EINVAL;
