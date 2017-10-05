@@ -506,7 +506,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(csi_mclk_clk, "csi-mclk",
 				       csi_mclk_parents, csi_mclk_table,
 				       0x134,
 				       0, 5,	/* M */
-				       10, 3,	/* mux */
+				       8, 3,	/* mux */
 				       BIT(15),	/* gate */
 				       0);
 
