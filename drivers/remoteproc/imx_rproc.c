@@ -264,7 +264,7 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 		if (!(att->flags & ATT_OWN))
 			continue;
 
-		if (b > IMX7D_RPROC_MEM_MAX)
+		if (b >= IMX7D_RPROC_MEM_MAX)
 			break;
 
 		priv->mem[b].cpu_addr = devm_ioremap(&pdev->dev,
@@ -296,7 +296,7 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 			return err;
 		}
 
-		if (b > IMX7D_RPROC_MEM_MAX)
+		if (b >= IMX7D_RPROC_MEM_MAX)
 			break;
 
 		priv->mem[b].cpu_addr = devm_ioremap_resource(&pdev->dev, &res);
