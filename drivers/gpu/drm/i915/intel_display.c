@@ -5669,9 +5669,6 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
 
-	if (intel_crtc->config->has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
-
 	intel_encoders_disable(crtc, old_crtc_state, old_state);
 
 	drm_crtc_vblank_off(crtc);
@@ -5696,9 +5693,6 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		intel_ddi_disable_pipe_clock(intel_crtc->config);
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
-
-	if (old_crtc_state->has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 }
 
 static void i9xx_pfit_enable(struct intel_crtc *crtc)

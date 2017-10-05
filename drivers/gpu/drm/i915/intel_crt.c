@@ -213,6 +213,19 @@ static void pch_post_disable_crt(struct intel_encoder *encoder,
 	intel_disable_crt(encoder, old_crtc_state, old_conn_state);
 }
 
+static void hsw_disable_crt(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *old_crtc_state,
+			    const struct drm_connector_state *old_conn_state)
+{
+	struct drm_crtc *crtc = old_crtc_state->base.crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	WARN_ON(!intel_crtc->config->has_pch_encoder);
+
+	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+}
+
 static void hsw_post_disable_crt(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
 				 const struct drm_connector_state *old_conn_state)
@@ -225,6 +238,10 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 	lpt_disable_iclkip(dev_priv);
 
 	intel_ddi_fdi_post_disable(encoder, old_crtc_state, old_conn_state);
+
+	WARN_ON(!old_crtc_state->has_pch_encoder);
+
+	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 }
 
 static void hsw_pre_pll_enable_crt(struct intel_encoder *encoder,
@@ -953,6 +970,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		crt->base.pre_pll_enable = hsw_pre_pll_enable_crt;
 		crt->base.pre_enable = hsw_pre_enable_crt;
 		crt->base.enable = hsw_enable_crt;
+		crt->base.disable = hsw_disable_crt;
 		crt->base.post_disable = hsw_post_disable_crt;
 	} else {
 		crt->base.port = PORT_NONE;
