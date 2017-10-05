@@ -143,6 +143,16 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		reg = <0x21>;
+		/*
+		 * IO0_0: USB3_PWR_EN0	IO1_0: USB_3_1_Dev_Detect
+		 * IO0_1: USB3_PWR_EN1	IO1_1: USB2_1_current_limit
+		 * IO0_2: DDR3_4_Detect	IO1_2: Hcon_IO_RstN
+		 * IO0_3: USB2_DEVICE_DETECT
+		 * IO0_4: GPIO_0	IO1_4: SD_Status
+		 * IO0_5: GPIO_1	IO1_5: LDO_5V_Enable
+		 * IO0_6: IHB_5V_Enable	IO1_6: PWR_EN_eMMC
+		 * IO0_7:		IO1_7: SDIO_Vcntrl
+		 */
 	};
 };
 
