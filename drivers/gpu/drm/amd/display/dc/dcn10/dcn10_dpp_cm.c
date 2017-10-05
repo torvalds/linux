@@ -602,7 +602,7 @@ static void ippn10_enable_cm_block(
 		struct transform *xfm_base)
 {
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
-
+	REG_UPDATE(CM_CMOUT_CONTROL, CM_CMOUT_ROUND_TRUNC_MODE, 8);
 	REG_UPDATE(CM_CONTROL, CM_BYPASS_EN, 0);
 }
 
