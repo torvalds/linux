@@ -1244,6 +1244,7 @@ int nand_reset(struct nand_chip *chip, int chipnr)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nand_reset);
 
 /**
  * nand_check_erased_buf - check if a buffer contains (almost) only 0xff data
