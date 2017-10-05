@@ -822,14 +822,14 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct ethtool_link_ksettings safe_ks;
+	struct ethtool_link_ksettings copy_ks;
 	struct i40e_aq_set_phy_config config;
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_hw *hw = &pf->hw;
-	struct ethtool_link_ksettings safe_ks;
-	struct ethtool_link_ksettings copy_ks;
+	bool autoneg_changed = false;
 	i40e_status status = 0;
-	bool change = false;
 	int timeout = 50;
 	int err = 0;
 	u32 autoneg;
@@ -922,7 +922,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 			/* Autoneg is allowed to change */
 			config.abilities = abilities.abilities |
 					   I40E_AQ_PHY_ENABLE_AN;
-			change = true;
+			autoneg_changed = true;
 		}
 	} else {
 		/* If autoneg is currently enabled */
@@ -942,7 +942,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 			/* Autoneg is allowed to change */
 			config.abilities = abilities.abilities &
 					   ~I40E_AQ_PHY_ENABLE_AN;
-			change = true;
+			autoneg_changed = true;
 		}
 	}
 
@@ -976,7 +976,7 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	 */
 	if (!config.link_speed)
 		config.link_speed = abilities.link_speed;
-	if (change || (abilities.link_speed != config.link_speed)) {
+	if (autoneg_changed || abilities.link_speed != config.link_speed) {
 		/* copy over the rest of the abilities */
 		config.phy_type = abilities.phy_type;
 		config.phy_type_ext = abilities.phy_type_ext;
