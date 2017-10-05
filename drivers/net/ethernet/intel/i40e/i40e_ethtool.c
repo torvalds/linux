@@ -253,7 +253,7 @@ static void i40e_partition_setting_complaint(struct i40e_pf *pf)
 
 /**
  * i40e_phy_type_to_ethtool - convert the phy_types to ethtool link modes
- * @phy_types: PHY types to convert
+ * @pf: PF struct with phy_types
  * @supported: pointer to the ethtool supported variable to fill in
  * @advertising: pointer to the ethtool advertising variable to fill in
  *
