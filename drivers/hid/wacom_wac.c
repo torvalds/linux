@@ -2247,17 +2247,6 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 			wacom_wac->tool[0] = wacom_intuos_get_tool_type(wacom_wac->id[0]);
 		else
 			wacom_wac->tool[0] = BTN_TOOL_PEN;
-
-		if (wacom_wac->shared->stylus_in_proximity &&
-		    wacom_wac->tool[0] != BTN_TOOL_PEN) {
-			input_report_key(input, BTN_TOOL_PEN, 0);
-			input_sync(input);
-		}
-	}
-	else if (!wacom_wac->tool[0] && !range) { /* entering in sense */
-		input_report_key(input, BTN_TOOL_PEN, sense);
-		input_report_key(input, BTN_TOUCH, 0);
-		input_sync(input);
 	}
 
 	/* keep pen state for touch events */
