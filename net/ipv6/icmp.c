@@ -255,7 +255,6 @@ int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 {
 	struct sk_buff *skb;
 	struct icmp6hdr *icmp6h;
-	int err = 0;
 
 	skb = skb_peek(&sk->sk_write_queue);
 	if (!skb)
@@ -288,7 +287,7 @@ int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 	}
 	ip6_push_pending_frames(sk);
 out:
-	return err;
+	return 0;
 }
 
 struct icmpv6_msg {
