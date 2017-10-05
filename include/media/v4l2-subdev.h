@@ -313,25 +313,32 @@ struct v4l2_subdev_audio_ops {
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 };
 
-/* Indicates the @length field specifies maximum data length. */
-#define V4L2_MBUS_FRAME_DESC_FL_LEN_MAX		(1U << 0)
-/*
- * Indicates that the format does not have line offsets, i.e. the
- * receiver should use 1D DMA.
+/**
+ * enum v4l2_mbus_frame_desc_entry - media bus frame description flags
+ *
+ * @V4L2_MBUS_FRAME_DESC_FL_LEN_MAX:
+ *	Indicates that &struct v4l2_mbus_frame_desc_entry->length field
+ *	specifies maximum data length.
+ * @V4L2_MBUS_FRAME_DESC_FL_BLOB:
+ *	Indicates that the format does not have line offsets, i.e.
+ *	the receiver should use 1D DMA.
  */
-#define V4L2_MBUS_FRAME_DESC_FL_BLOB		(1U << 1)
+enum v4l2_mbus_frame_desc_flags {
+	V4L2_MBUS_FRAME_DESC_FL_LEN_MAX	= BIT(0),
+	V4L2_MBUS_FRAME_DESC_FL_BLOB	= BIT(1),
+};
 
 /**
  * struct v4l2_mbus_frame_desc_entry - media bus frame description structure
  *
- * @flags: bitmask flags: %V4L2_MBUS_FRAME_DESC_FL_LEN_MAX and
- *			  %V4L2_MBUS_FRAME_DESC_FL_BLOB.
- * @pixelcode: media bus pixel code, valid if FRAME_DESC_FL_BLOB is not set
- * @length: number of octets per frame, valid if V4L2_MBUS_FRAME_DESC_FL_BLOB
- *	    is set
+ * @flags:	bitmask flags, as defined by &enum v4l2_mbus_frame_desc_flags.
+ * @pixelcode:	media bus pixel code, valid if @flags
+ * 		%FRAME_DESC_FL_BLOB is not set.
+ * @length:	number of octets per frame, valid if @flags
+ *		%V4L2_MBUS_FRAME_DESC_FL_LEN_MAX is set.
  */
 struct v4l2_mbus_frame_desc_entry {
-	u16 flags;
+	enum v4l2_mbus_frame_desc_flags flags;
 	u32 pixelcode;
 	u32 length;
 };
