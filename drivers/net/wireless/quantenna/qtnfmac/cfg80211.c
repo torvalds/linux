@@ -267,7 +267,6 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
-	struct qtnf_bss_config *bss_cfg;
 	int ret;
 
 	if (!cfg80211_chandef_identical(&mac->chandef, &settings->chandef)) {
@@ -278,21 +277,7 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 				settings->chandef.chan->center_freq);
 	}
 
-	bss_cfg = &vif->bss_cfg;
-	memset(bss_cfg, 0, sizeof(*bss_cfg));
-
-	bss_cfg->bcn_period = settings->beacon_interval;
-	bss_cfg->dtim = settings->dtim_period;
-	bss_cfg->auth_type = settings->auth_type;
-	bss_cfg->privacy = settings->privacy;
-
-	bss_cfg->ssid_len = settings->ssid_len;
-	memcpy(&bss_cfg->ssid, settings->ssid, bss_cfg->ssid_len);
-
-	memcpy(&bss_cfg->crypto, &settings->crypto,
-	       sizeof(struct cfg80211_crypto_settings));
-
-	ret = qtnf_cmd_send_config_ap(vif);
+	ret = qtnf_cmd_send_config_ap(vif, settings);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to push config to FW\n",
 		       vif->mac->macid, vif->vifid);

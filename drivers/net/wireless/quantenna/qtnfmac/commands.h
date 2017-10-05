@@ -33,7 +33,8 @@ int qtnf_cmd_send_del_intf(struct qtnf_vif *vif);
 int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 			       struct ieee80211_supported_band *band);
 int qtnf_cmd_send_regulatory_config(struct qtnf_wmac *mac, const char *alpha2);
-int qtnf_cmd_send_config_ap(struct qtnf_vif *vif);
+int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
+			    const struct cfg80211_ap_settings *s);
 int qtnf_cmd_send_start_ap(struct qtnf_vif *vif);
 int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif);
 int qtnf_cmd_send_register_mgmt(struct qtnf_vif *vif, u16 frame_type, bool reg);
