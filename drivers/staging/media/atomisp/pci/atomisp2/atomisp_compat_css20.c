@@ -4515,7 +4515,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			for (i = 0; i < isp->num_of_streams; i++)
 				atomisp_wdt_stop(&isp->asd[i], 0);
 #ifndef ISP2401
-			atomisp_wdt((unsigned long)isp);
+			atomisp_wdt(&isp->asd[0].wdt);
 #else
 			queue_work(isp->wdt_work_queue, &isp->wdt_work);
 #endif

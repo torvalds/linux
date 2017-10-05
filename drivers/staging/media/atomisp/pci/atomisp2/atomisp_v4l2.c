@@ -1150,17 +1150,12 @@ static int init_atomisp_wdts(struct atomisp_device *isp)
 		struct atomisp_sub_device *asd = &isp->asd[i];
 		asd = &isp->asd[i];
 #ifndef ISP2401
-		setup_timer(&asd->wdt, atomisp_wdt, (unsigned long)isp);
+		timer_setup(&asd->wdt, atomisp_wdt, 0);
 #else
-		setup_timer(&asd->video_out_capture.wdt,
-			atomisp_wdt, (unsigned long)&asd->video_out_capture);
-		setup_timer(&asd->video_out_preview.wdt,
-			atomisp_wdt, (unsigned long)&asd->video_out_preview);
-		setup_timer(&asd->video_out_vf.wdt,
-			atomisp_wdt, (unsigned long)&asd->video_out_vf);
-		setup_timer(&asd->video_out_video_capture.wdt,
-			atomisp_wdt,
-			(unsigned long)&asd->video_out_video_capture);
+		timer_setup(&asd->video_out_capture.wdt, atomisp_wdt, 0);
+		timer_setup(&asd->video_out_preview.wdt, atomisp_wdt, 0);
+		timer_setup(&asd->video_out_vf.wdt, atomisp_wdt, 0);
+		timer_setup(&asd->video_out_video_capture.wdt, atomisp_wdt, 0);
 #endif
 	}
 	return 0;
