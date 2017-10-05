@@ -41,14 +41,14 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/dma/sun4i-a10.h>
 #include <dt-bindings/clock/sun4i-a10-ccu.h>
 #include <dt-bindings/reset/sun4i-a10-ccu.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&intc>;
 
 	aliases {
@@ -158,10 +158,6 @@
 				};
 			};
 		};
-	};
-
-	memory {
-		reg = <0x40000000 0x80000000>;
 	};
 
 	clocks {
