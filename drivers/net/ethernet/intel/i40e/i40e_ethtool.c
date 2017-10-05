@@ -502,6 +502,8 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	case I40E_PHY_TYPE_25GBASE_CR:
 	case I40E_PHY_TYPE_25GBASE_SR:
 	case I40E_PHY_TYPE_25GBASE_LR:
+	case I40E_PHY_TYPE_25GBASE_AOC:
+	case I40E_PHY_TYPE_25GBASE_ACC:
 		supported = SUPPORTED_Autoneg;
 		advertising = ADVERTISED_Autoneg;
 		/* TODO: add speeds when ethtool is ready to support*/
