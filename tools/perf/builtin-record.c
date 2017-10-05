@@ -176,9 +176,16 @@ rb_find_range(void *data, int mask, u64 head, u64 old,
 	return backward_rb_find_range(data, mask, head, start, end);
 }
 
-static int
-record__mmap_read(struct record *rec, struct perf_mmap *md,
-		  bool overwrite, bool backward)
+static int record__pushfn(void *to, void *bf, size_t size)
+{
+	struct record *rec = to;
+
+	rec->samples++;
+	return record__write(rec, bf, size);
+}
+
+static int perf_mmap__push(struct perf_mmap *md, bool overwrite, bool backward,
+			   void *to, int push(void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
@@ -195,8 +202,6 @@ record__mmap_read(struct record *rec, struct perf_mmap *md,
 	if (start == end)
 		return 0;
 
-	rec->samples++;
-
 	size = end - start;
 	if (size > (unsigned long)(md->mask) + 1) {
 		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
@@ -211,7 +216,7 @@ record__mmap_read(struct record *rec, struct perf_mmap *md,
 		size = md->mask + 1 - (start & md->mask);
 		start += size;
 
-		if (record__write(rec, buf, size) < 0) {
+		if (push(to, buf, size) < 0) {
 			rc = -1;
 			goto out;
 		}
@@ -221,7 +226,7 @@ record__mmap_read(struct record *rec, struct perf_mmap *md,
 	size = end - start;
 	start += size;
 
-	if (record__write(rec, buf, size) < 0) {
+	if (push(to, buf, size) < 0) {
 		rc = -1;
 		goto out;
 	}
@@ -576,8 +581,7 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 		struct auxtrace_mmap *mm = &maps[i].auxtrace_mmap;
 
 		if (maps[i].base) {
-			if (record__mmap_read(rec, &maps[i],
-					      evlist->overwrite, backward) != 0) {
+			if (perf_mmap__push(&maps[i], evlist->overwrite, backward, rec, record__pushfn) != 0) {
 				rc = -1;
 				goto out;
 			}
