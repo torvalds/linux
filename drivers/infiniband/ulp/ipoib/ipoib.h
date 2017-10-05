@@ -500,7 +500,7 @@ void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
 struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
 					const char *format);
-void ipoib_ib_tx_timer_func(unsigned long ctx);
+void ipoib_ib_tx_timer_func(struct timer_list *t);
 void ipoib_ib_dev_flush_light(struct work_struct *work);
 void ipoib_ib_dev_flush_normal(struct work_struct *work);
 void ipoib_ib_dev_flush_heavy(struct work_struct *work);

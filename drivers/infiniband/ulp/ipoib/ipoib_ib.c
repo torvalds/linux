@@ -821,9 +821,11 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 	return 0;
 }
 
-void ipoib_ib_tx_timer_func(unsigned long ctx)
+void ipoib_ib_tx_timer_func(struct timer_list *t)
 {
-	drain_tx_cq((struct net_device *)ctx);
+	struct ipoib_dev_priv *priv = from_timer(priv, t, poll_timer);
+
+	drain_tx_cq(priv->dev);
 }
 
 int ipoib_ib_dev_open_default(struct net_device *dev)
