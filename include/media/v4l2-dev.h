@@ -41,11 +41,21 @@ enum vfl_devnode_type {
 };
 #define VFL_TYPE_MAX VFL_TYPE_TOUCH
 
-/* Is this a receiver, transmitter or mem-to-mem? */
-/* Ignored for VFL_TYPE_SUBDEV. */
-#define VFL_DIR_RX		0
-#define VFL_DIR_TX		1
-#define VFL_DIR_M2M		2
+/**
+ * enum  vfl_direction - Identifies if a &struct video_device corresponds
+ *	to a receiver, a transmitter or a mem-to-mem device.
+ *
+ * @VFL_DIR_RX:		device is a receiver.
+ * @VFL_DIR_TX:		device is a transmitter.
+ * @VFL_DIR_M2M:	device is a memory to memory device.
+ *
+ * Note: Ignored if &enum vfl_devnode_type is %VFL_TYPE_SUBDEV.
+ */
+enum vfl_devnode_direction {
+	VFL_DIR_RX,
+	VFL_DIR_TX,
+	VFL_DIR_M2M,
+};
 
 struct v4l2_ioctl_callbacks;
 struct video_device;
@@ -250,7 +260,7 @@ struct video_device
 	/* device info */
 	char name[32];
 	enum vfl_devnode_type vfl_type;
-	int vfl_dir;
+	enum vfl_devnode_direction vfl_dir;
 	int minor;
 	u16 num;
 	unsigned long flags;
