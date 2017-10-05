@@ -120,21 +120,21 @@
 
 	status = "okay";
 
-	button@158 {
+	button-158 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <158730>;
 	};
 
-	button@349 {
+	button-349 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <349206>;
 	};
 
-	button@1142 {
+	button-1142 {
 		label = "Esc";
 		linux,code = <KEY_ESC>;
 		channel = <0>;
