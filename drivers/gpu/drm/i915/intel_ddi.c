@@ -1220,6 +1220,9 @@ static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	dco_freq += (((cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
 		      DPLL_CFGCR0_DCO_FRACTION_SHIFT) * ref_clock) / 0x8000;
 
+	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
+		return 0;
+
 	return dco_freq / (p0 * p1 * p2 * 5);
 }
 
