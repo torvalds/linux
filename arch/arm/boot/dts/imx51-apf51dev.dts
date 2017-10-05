@@ -51,7 +51,7 @@
 
 		port {
 			display_in: endpoint {
-				remote-endpoint = <&ipu_di0_disp0>;
+				remote-endpoint = <&ipu_di0_disp1>;
 			};
 		};
 	};
@@ -218,6 +218,6 @@
 	};
 };
 
-&ipu_di0_disp0 {
+&ipu_di0_disp1 {
 	remote-endpoint = <&display_in>;
 };
