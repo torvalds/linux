@@ -74,6 +74,12 @@ clean: $(LIBBPF)-clean
 install:
 	install $(OUTPUT)bpftool $(prefix)/sbin/bpftool
 
+doc:
+	$(Q)$(MAKE) -C Documentation/
+
+doc-install:
+	$(Q)$(MAKE) -C Documentation/ install
+
 FORCE:
 
 .PHONY: all clean FORCE
