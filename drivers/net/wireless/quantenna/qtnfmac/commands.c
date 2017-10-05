@@ -187,26 +187,33 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 	struct sk_buff *cmd_skb;
 	struct cfg80211_chan_def *chandef = &vif->mac->chandef;
 	struct qlink_tlv_channel *qchan;
-	struct qlink_auth_encr aen;
+	struct qlink_cmd_config_ap *cmd;
+	struct qlink_auth_encr *aen;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 	int i;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_CONFIG_AP,
-					    sizeof(struct qlink_cmd));
+					    sizeof(*cmd));
 	if (unlikely(!cmd_skb))
 		return -ENOMEM;
 
-	qtnf_bus_lock(vif->mac->bus);
+	cmd = (struct qlink_cmd_config_ap *)cmd_skb->data;
+	cmd->dtim_period = s->dtim_period;
+	cmd->beacon_interval = cpu_to_le16(s->beacon_interval);
+	cmd->hidden_ssid = qlink_hidden_ssid_nl2q(s->hidden_ssid);
+	cmd->inactivity_timeout = cpu_to_le16(s->inactivity_timeout);
+	cmd->smps_mode = s->smps_mode;
+	cmd->p2p_ctwindow = s->p2p_ctwindow;
+	cmd->p2p_opp_ps = s->p2p_opp_ps;
+	cmd->pbss = s->pbss;
+	cmd->ht_required = s->ht_required;
+	cmd->vht_required = s->vht_required;
 
 	if (s->ssid && s->ssid_len > 0 && s->ssid_len <= IEEE80211_MAX_SSID_LEN)
 		qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID, s->ssid,
 					 s->ssid_len);
-
-	qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_BCN_PERIOD,
-				 s->beacon_interval);
-	qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_DTIM, s->dtim_period);
 
 	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
 	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
@@ -215,26 +222,25 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 	qchan->hw_value = cpu_to_le16(
 		ieee80211_frequency_to_channel(chandef->chan->center_freq));
 
-	memset(&aen, 0, sizeof(aen));
-	aen.auth_type = s->auth_type;
-	aen.privacy = !!s->privacy;
-	aen.mfp = 0;
-	aen.wpa_versions = cpu_to_le32(s->crypto.wpa_versions);
-	aen.cipher_group = cpu_to_le32(s->crypto.cipher_group);
-	aen.n_ciphers_pairwise = cpu_to_le32(s->crypto.n_ciphers_pairwise);
+	aen = &cmd->aen;
+	aen->auth_type = s->auth_type;
+	aen->privacy = !!s->privacy;
+	aen->mfp = 0;
+	aen->wpa_versions = cpu_to_le32(s->crypto.wpa_versions);
+	aen->cipher_group = cpu_to_le32(s->crypto.cipher_group);
+	aen->n_ciphers_pairwise = cpu_to_le32(s->crypto.n_ciphers_pairwise);
 	for (i = 0; i < QLINK_MAX_NR_CIPHER_SUITES; i++)
-		aen.ciphers_pairwise[i] =
-			cpu_to_le32(s->crypto.ciphers_pairwise[i]);
-	aen.n_akm_suites = cpu_to_le32(s->crypto.n_akm_suites);
+		aen->ciphers_pairwise[i] =
+				cpu_to_le32(s->crypto.ciphers_pairwise[i]);
+	aen->n_akm_suites = cpu_to_le32(s->crypto.n_akm_suites);
 	for (i = 0; i < QLINK_MAX_NR_AKM_SUITES; i++)
-		aen.akm_suites[i] = cpu_to_le32(s->crypto.akm_suites[i]);
-	aen.control_port = s->crypto.control_port;
-	aen.control_port_no_encrypt =s->crypto.control_port_no_encrypt;
-	aen.control_port_ethertype =
+		aen->akm_suites[i] = cpu_to_le32(s->crypto.akm_suites[i]);
+	aen->control_port = s->crypto.control_port;
+	aen->control_port_no_encrypt = s->crypto.control_port_no_encrypt;
+	aen->control_port_ethertype =
 		cpu_to_le16(be16_to_cpu(s->crypto.control_port_ethertype));
 
-	qtnf_cmd_skb_put_tlv_arr(cmd_skb, QTN_TLV_ID_CRYPTO, (u8 *)&aen,
-				 sizeof(aen));
+	qtnf_bus_lock(vif->mac->bus);
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
 

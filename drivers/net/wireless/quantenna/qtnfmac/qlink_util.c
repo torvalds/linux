@@ -127,3 +127,16 @@ void qlink_chandef_q2cfg(struct wiphy *wiphy,
 		break;
 	}
 }
+
+enum qlink_hidden_ssid qlink_hidden_ssid_nl2q(enum nl80211_hidden_ssid nl_val)
+{
+	switch (nl_val) {
+	case NL80211_HIDDEN_SSID_ZERO_LEN:
+		return QLINK_HIDDEN_SSID_ZERO_LEN;
+	case NL80211_HIDDEN_SSID_ZERO_CONTENTS:
+		return QLINK_HIDDEN_SSID_ZERO_CONTENTS;
+	case NL80211_HIDDEN_SSID_NOT_IN_USE:
+	default:
+		return QLINK_HIDDEN_SSID_NOT_IN_USE;
+	}
+}
