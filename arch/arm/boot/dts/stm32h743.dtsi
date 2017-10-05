@@ -172,6 +172,15 @@
 			};
 		};
 
+		vrefbuf: regulator@58003C00 {
+			compatible = "st,stm32-vrefbuf";
+			reg = <0x58003C00 0x8>;
+			clocks = <&timer_clk>;
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <2500000>;
+			status = "disabled";
+		};
+
 		adc_3: adc@58026000 {
 			compatible = "st,stm32h7-adc-core";
 			reg = <0x58026000 0x400>;
