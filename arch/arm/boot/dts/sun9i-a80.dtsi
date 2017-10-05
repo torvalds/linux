@@ -42,8 +42,6 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton64.dtsi"
-
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 #include <dt-bindings/clock/sun9i-a80-ccu.h>
@@ -54,6 +52,8 @@
 #include <dt-bindings/reset/sun9i-a80-usb.h>
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
 	cpus {
@@ -107,11 +107,6 @@
 			device_type = "cpu";
 			reg = <0x103>;
 		};
-	};
-
-	memory {
-		/* 8GB max. with LPAE */
-		reg = <0 0x20000000 0x02 0>;
 	};
 
 	timer {
