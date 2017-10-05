@@ -955,16 +955,11 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 
 	crt->base.power_domain = POWER_DOMAIN_PORT_CRT;
 
-	crt->base.compute_config = intel_crt_compute_config;
-	if (HAS_PCH_SPLIT(dev_priv)) {
-		crt->base.disable = pch_disable_crt;
-		crt->base.post_disable = pch_post_disable_crt;
-	} else {
-		crt->base.disable = intel_disable_crt;
-	}
 	if (I915_HAS_HOTPLUG(dev_priv) &&
 	    !dmi_check_system(intel_spurious_crt_detect))
 		crt->base.hpd_pin = HPD_CRT;
+
+	crt->base.compute_config = intel_crt_compute_config;
 	if (HAS_DDI(dev_priv)) {
 		crt->base.port = PORT_E;
 		crt->base.get_config = hsw_crt_get_config;
@@ -975,6 +970,12 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		crt->base.disable = hsw_disable_crt;
 		crt->base.post_disable = hsw_post_disable_crt;
 	} else {
+		if (HAS_PCH_SPLIT(dev_priv)) {
+			crt->base.disable = pch_disable_crt;
+			crt->base.post_disable = pch_post_disable_crt;
+		} else {
+			crt->base.disable = intel_disable_crt;
+		}
 		crt->base.port = PORT_NONE;
 		crt->base.get_config = intel_crt_get_config;
 		crt->base.get_hw_state = intel_crt_get_hw_state;
