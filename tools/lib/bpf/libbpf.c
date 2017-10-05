@@ -579,31 +579,6 @@ bpf_object__init_kversion(struct bpf_object *obj,
 	return 0;
 }
 
-static int
-bpf_object__validate_maps(struct bpf_object *obj)
-{
-	int i;
-
-	/*
-	 * If there's only 1 map, the only error case should have been
-	 * catched in bpf_object__init_maps().
-	 */
-	if (!obj->maps || !obj->nr_maps || (obj->nr_maps == 1))
-		return 0;
-
-	for (i = 1; i < obj->nr_maps; i++) {
-		const struct bpf_map *a = &obj->maps[i - 1];
-		const struct bpf_map *b = &obj->maps[i];
-
-		if (b->offset - a->offset < sizeof(struct bpf_map_def)) {
-			pr_warning("corrupted map section in %s: map \"%s\" too small\n",
-				   obj->path, a->name);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-
 static int compare_bpf_map(const void *_a, const void *_b)
 {
 	const struct bpf_map *a = _a;
@@ -615,7 +590,7 @@ static int compare_bpf_map(const void *_a, const void *_b)
 static int
 bpf_object__init_maps(struct bpf_object *obj)
 {
-	int i, map_idx, nr_maps = 0;
+	int i, map_idx, map_def_sz, nr_maps = 0;
 	Elf_Scn *scn;
 	Elf_Data *data;
 	Elf_Data *symbols = obj->efile.symbols;
@@ -658,6 +633,15 @@ bpf_object__init_maps(struct bpf_object *obj)
 	if (!nr_maps)
 		return 0;
 
+	/* Assume equally sized map definitions */
+	map_def_sz = data->d_size / nr_maps;
+	if (!data->d_size || (data->d_size % nr_maps) != 0) {
+		pr_warning("unable to determine map definition size "
+			   "section %s, %d maps in %zd bytes\n",
+			   obj->path, nr_maps, data->d_size);
+		return -EINVAL;
+	}
+
 	obj->maps = calloc(nr_maps, sizeof(obj->maps[0]));
 	if (!obj->maps) {
 		pr_warning("alloc maps for object failed\n");
@@ -690,7 +674,7 @@ bpf_object__init_maps(struct bpf_object *obj)
 				      obj->efile.strtabidx,
 				      sym.st_name);
 		obj->maps[map_idx].offset = sym.st_value;
-		if (sym.st_value + sizeof(struct bpf_map_def) > data->d_size) {
+		if (sym.st_value + map_def_sz > data->d_size) {
 			pr_warning("corrupted maps section in %s: last map \"%s\" too small\n",
 				   obj->path, map_name);
 			return -EINVAL;
@@ -704,12 +688,40 @@ bpf_object__init_maps(struct bpf_object *obj)
 		pr_debug("map %d is \"%s\"\n", map_idx,
 			 obj->maps[map_idx].name);
 		def = (struct bpf_map_def *)(data->d_buf + sym.st_value);
-		obj->maps[map_idx].def = *def;
+		/*
+		 * If the definition of the map in the object file fits in
+		 * bpf_map_def, copy it.  Any extra fields in our version
+		 * of bpf_map_def will default to zero as a result of the
+		 * calloc above.
+		 */
+		if (map_def_sz <= sizeof(struct bpf_map_def)) {
+			memcpy(&obj->maps[map_idx].def, def, map_def_sz);
+		} else {
+			/*
+			 * Here the map structure being read is bigger than what
+			 * we expect, truncate if the excess bits are all zero.
+			 * If they are not zero, reject this map as
+			 * incompatible.
+			 */
+			char *b;
+			for (b = ((char *)def) + sizeof(struct bpf_map_def);
+			     b < ((char *)def) + map_def_sz; b++) {
+				if (*b != 0) {
+					pr_warning("maps section in %s: \"%s\" "
+						   "has unrecognized, non-zero "
+						   "options\n",
+						   obj->path, map_name);
+					return -EINVAL;
+				}
+			}
+			memcpy(&obj->maps[map_idx].def, def,
+			       sizeof(struct bpf_map_def));
+		}
 		map_idx++;
 	}
 
 	qsort(obj->maps, obj->nr_maps, sizeof(obj->maps[0]), compare_bpf_map);
-	return bpf_object__validate_maps(obj);
+	return 0;
 }
 
 static int bpf_object__elf_collect(struct bpf_object *obj)
