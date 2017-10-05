@@ -2725,7 +2725,7 @@ F:	net/core/filter.c
 F:	net/sched/act_bpf.c
 F:	net/sched/cls_bpf.c
 F:	samples/bpf/
-F:	tools/net/bpf*
+F:	tools/bpf/
 F:	tools/testing/selftests/bpf/
 
 BROADCOM B44 10/100 ETHERNET DRIVER
@@ -9416,7 +9416,6 @@ F:	include/uapi/linux/in.h
 F:	include/uapi/linux/net.h
 F:	include/uapi/linux/netdevice.h
 F:	include/uapi/linux/net_namespace.h
-F:	tools/net/
 F:	tools/testing/selftests/net/
 F:	lib/random32.c
 
