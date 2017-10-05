@@ -58,10 +58,10 @@ void omap_hsmmc_late_init(struct omap2_hsmmc_info *c)
 	struct platform_device *pdev;
 	int res;
 
-	if (omap_hsmmc_done != 1)
+	if (omap_hsmmc_done)
 		return;
 
-	omap_hsmmc_done++;
+	omap_hsmmc_done = 1;
 
 	for (; c->mmc; c++) {
 		pdev = c->pdev;
