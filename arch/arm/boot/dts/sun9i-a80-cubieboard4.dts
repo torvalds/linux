@@ -62,8 +62,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_cubieboard4>;
 
 		green {
 			label = "cubieboard4:green:usr";
@@ -97,7 +95,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins>, <&wifi_en_pin_cubieboard4>;
+	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	vqmmc-supply = <&reg_cldo3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
@@ -131,11 +129,6 @@
 };
 
 &pio {
-	led_pins_cubieboard4: led-pins@0 {
-		pins = "PH6", "PH17";
-		function = "gpio_out";
-	};
-
 	mmc0_cd_pin_cubieboard4: mmc0_cd_pin@0 {
 		pins = "PH18";
 		function = "gpio_in";
@@ -145,13 +138,6 @@
 
 &r_ir {
 	status = "okay";
-};
-
-&r_pio {
-	wifi_en_pin_cubieboard4: wifi_en_pin@0 {
-		pins = "PL2";
-		function = "gpio_out";
-	};
 };
 
 &r_rsb {
