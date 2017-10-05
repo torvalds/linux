@@ -13,7 +13,6 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/i2c/tvaudio.h>
-#include <media/i2c-addr.h>
 #include <media/rc-map.h>
 
 #include "tm6000.h"

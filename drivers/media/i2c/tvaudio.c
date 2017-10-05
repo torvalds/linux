@@ -40,8 +40,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
-#include <media/i2c-addr.h>
-
 /* ---------------------------------------------------------------------- */
 /* insmod args                                                            */
 

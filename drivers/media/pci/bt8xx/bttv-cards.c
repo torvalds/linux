@@ -141,6 +141,13 @@ MODULE_PARM_DESC(audiodev, "specify audio device:\n"
 MODULE_PARM_DESC(saa6588, "if 1, then load the saa6588 RDS module, default (0) is to use the card definition.");
 MODULE_PARM_DESC(no_overlay, "allow override overlay default (0 disables, 1 enables) [some VIA/SIS chipsets are known to have problem with overlay]");
 
+
+/* I2C addresses list */
+#define I2C_ADDR_TDA7432	0x8a
+#define I2C_ADDR_MSP3400	0x80
+#define I2C_ADDR_MSP3400_ALT	0x88
+
+
 /* ----------------------------------------------------------------------- */
 /* list of card IDs for bt878+ cards                                       */
 
