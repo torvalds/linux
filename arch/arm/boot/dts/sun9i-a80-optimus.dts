@@ -122,7 +122,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins>, <&mmc0_cd_pin_optimus>;
+	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 18 GPIO_ACTIVE_HIGH>; /* PH8 */
@@ -171,14 +171,6 @@
 &osc32k {
 	/* osc32k input is from AC100 */
 	clocks = <&ac100_rtc 0>;
-};
-
-&pio {
-	mmc0_cd_pin_optimus: mmc0_cd_pin@0 {
-		pins = "PH18";
-		function = "gpio_in";
-		bias-pull-up;
-	};
 };
 
 &r_ir {
