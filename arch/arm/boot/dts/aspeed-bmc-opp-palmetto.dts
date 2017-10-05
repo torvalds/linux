@@ -105,3 +105,7 @@
 &i2c7 {
 	status = "okay";
 };
+
+&vuart {
+	status = "okay";
+};
