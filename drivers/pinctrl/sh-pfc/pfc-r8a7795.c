@@ -3121,6 +3121,22 @@ static const unsigned int scif5_clk_b_mux[] = {
 	SCK5_B_MARK,
 };
 
+/* - SCIF Clock ------------------------------------------------------------- */
+static const unsigned int scif_clk_a_pins[] = {
+	/* SCIF_CLK */
+	RCAR_GP_PIN(6, 23),
+};
+static const unsigned int scif_clk_a_mux[] = {
+	SCIF_CLK_A_MARK,
+};
+static const unsigned int scif_clk_b_pins[] = {
+	/* SCIF_CLK */
+	RCAR_GP_PIN(5, 9),
+};
+static const unsigned int scif_clk_b_mux[] = {
+	SCIF_CLK_B_MARK,
+};
+
 /* - SDHI0 ------------------------------------------------------------------ */
 static const unsigned int sdhi0_data1_pins[] = {
 	/* D0 */
@@ -3503,22 +3519,6 @@ static const unsigned int ssi9_ctrl_b_pins[] = {
 };
 static const unsigned int ssi9_ctrl_b_mux[] = {
 	SSI_SCK9_B_MARK, SSI_WS9_B_MARK,
-};
-
-/* - SCIF Clock ------------------------------------------------------------- */
-static const unsigned int scif_clk_a_pins[] = {
-	/* SCIF_CLK */
-	RCAR_GP_PIN(6, 23),
-};
-static const unsigned int scif_clk_a_mux[] = {
-	SCIF_CLK_A_MARK,
-};
-static const unsigned int scif_clk_b_pins[] = {
-	/* SCIF_CLK */
-	RCAR_GP_PIN(5, 9),
-};
-static const unsigned int scif_clk_b_mux[] = {
-	SCIF_CLK_B_MARK,
 };
 
 /* - USB0 ------------------------------------------------------------------- */
