@@ -1085,7 +1085,11 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 		dst[1] = cpu_to_le64(STRTAB_STE_1_SHCFG_INCOMING
 			 << STRTAB_STE_1_SHCFG_SHIFT);
 		dst[2] = 0; /* Nuke the VMID */
-		if (ste_live)
+		/*
+		 * The SMMU can perform negative caching, so we must sync
+		 * the STE regardless of whether the old value was live.
+		 */
+		if (smmu)
 			arm_smmu_sync_ste_for_sid(smmu, sid);
 		return;
 	}
