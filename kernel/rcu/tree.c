@@ -917,34 +917,6 @@ void rcu_irq_exit_irqson(void)
 }
 
 /*
- * rcu_eqs_exit_common - current CPU moving away from extended quiescent state
- *
- * If the new value of the ->dynticks_nesting counter was previously zero,
- * we really have exited idle, and must do the appropriate accounting.
- * The caller must have disabled interrupts.
- */
-static void rcu_eqs_exit_common(long newval, int user)
-{
-	RCU_TRACE(struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);)
-
-	rcu_dynticks_task_exit();
-	rcu_dynticks_eqs_exit();
-	rcu_cleanup_after_idle();
-	trace_rcu_dyntick(TPS("End"), rdtp->dynticks_nesting, newval, rdtp->dynticks);
-	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-	    !user && !is_idle_task(current)) {
-		struct task_struct *idle __maybe_unused =
-			idle_task(smp_processor_id());
-
-		trace_rcu_dyntick(TPS("Error on exit: not idle task"), rdtp->dynticks_nesting, newval, rdtp->dynticks);
-		rcu_ftrace_dump(DUMP_ORIG);
-		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
-			  current->pid, current->comm,
-			  idle->pid, idle->comm); /* must be idle task! */
-	}
-}
-
-/*
  * Exit an RCU extended quiescent state, which can be either the
  * idle loop or adaptive-tickless usermode execution.
  *
@@ -963,11 +935,25 @@ static void rcu_eqs_exit(bool user)
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && oldval < 0);
 	if (oldval) {
 		rdtp->dynticks_nesting++;
-	} else {
-		rcu_eqs_exit_common(1, user);
-		WRITE_ONCE(rdtp->dynticks_nesting, 1);
-		WRITE_ONCE(rdtp->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
+		return;
 	}
+	rcu_dynticks_task_exit();
+	rcu_dynticks_eqs_exit();
+	rcu_cleanup_after_idle();
+	trace_rcu_dyntick(TPS("End"), rdtp->dynticks_nesting, 1, rdtp->dynticks);
+	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
+	    !user && !is_idle_task(current)) {
+		struct task_struct *idle __maybe_unused =
+			idle_task(smp_processor_id());
+
+		trace_rcu_dyntick(TPS("Error on exit: not idle task"), rdtp->dynticks_nesting, 1, rdtp->dynticks);
+		rcu_ftrace_dump(DUMP_ORIG);
+		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
+			  current->pid, current->comm,
+			  idle->pid, idle->comm); /* must be idle task! */
+	}
+	WRITE_ONCE(rdtp->dynticks_nesting, 1);
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
 }
 
 /**
