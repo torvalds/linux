@@ -320,12 +320,13 @@ void br_netpoll_disable(struct net_bridge_port *p)
 
 #endif
 
-static int br_add_slave(struct net_device *dev, struct net_device *slave_dev)
+static int br_add_slave(struct net_device *dev, struct net_device *slave_dev,
+			struct netlink_ext_ack *extack)
 
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	return br_add_if(br, slave_dev);
+	return br_add_if(br, slave_dev, extack);
 }
 
 static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
