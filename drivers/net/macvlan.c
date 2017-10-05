@@ -1344,7 +1344,8 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 }
 
 int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[])
+			   struct nlattr *tb[], struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvlan_port *port;
@@ -1433,7 +1434,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		goto destroy_macvlan_port;
 
 	dev->priv_flags |= IFF_MACVLAN;
-	err = netdev_upper_dev_link(lowerdev, dev);
+	err = netdev_upper_dev_link(lowerdev, dev, extack);
 	if (err)
 		goto unregister_netdev;
 
@@ -1456,7 +1457,7 @@ static int macvlan_newlink(struct net *src_net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[],
 			   struct netlink_ext_ack *extack)
 {
-	return macvlan_common_newlink(src_net, dev, tb, data);
+	return macvlan_common_newlink(src_net, dev, tb, data, extack);
 }
 
 void macvlan_dellink(struct net_device *dev, struct list_head *head)

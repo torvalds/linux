@@ -1748,7 +1748,7 @@ static int netvsc_vf_join(struct net_device *vf_netdev,
 		goto rx_handler_failed;
 	}
 
-	ret = netdev_upper_dev_link(vf_netdev, ndev);
+	ret = netdev_upper_dev_link(vf_netdev, ndev, NULL);
 	if (ret != 0) {
 		netdev_err(vf_netdev,
 			   "can not set master device %s (err = %d)\n",

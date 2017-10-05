@@ -1112,7 +1112,7 @@ static int team_upper_dev_link(struct team *team, struct team_port *port)
 
 	lag_upper_info.tx_type = team->mode->lag_tx_type;
 	err = netdev_master_upper_dev_link(port->dev, team->dev, NULL,
-					   &lag_upper_info);
+					   &lag_upper_info, NULL);
 	if (err)
 		return err;
 	port->dev->priv_flags |= IFF_TEAM_PORT;

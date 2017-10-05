@@ -178,7 +178,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		goto err1;
 
-	err = netdev_master_upper_dev_link(dev, real_dev, NULL, NULL);
+	err = netdev_master_upper_dev_link(dev, real_dev, NULL, NULL, extack);
 	if (err)
 		goto err2;
 

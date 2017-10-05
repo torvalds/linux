@@ -6277,11 +6277,13 @@ static void __netdev_adjacent_dev_unlink_neighbour(struct net_device *dev,
 
 static int __netdev_upper_dev_link(struct net_device *dev,
 				   struct net_device *upper_dev, bool master,
-				   void *upper_priv, void *upper_info)
+				   void *upper_priv, void *upper_info,
+				   struct netlink_ext_ack *extack)
 {
 	struct netdev_notifier_changeupper_info changeupper_info = {
 		.info = {
 			.dev = dev,
+			.extack = extack,
 		},
 		.upper_dev = upper_dev,
 		.master = master,
@@ -6341,9 +6343,11 @@ rollback:
  * returns zero.
  */
 int netdev_upper_dev_link(struct net_device *dev,
-			  struct net_device *upper_dev)
+			  struct net_device *upper_dev,
+			  struct netlink_ext_ack *extack)
 {
-	return __netdev_upper_dev_link(dev, upper_dev, false, NULL, NULL);
+	return __netdev_upper_dev_link(dev, upper_dev, false,
+				       NULL, NULL, extack);
 }
 EXPORT_SYMBOL(netdev_upper_dev_link);
 
@@ -6362,10 +6366,11 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  */
 int netdev_master_upper_dev_link(struct net_device *dev,
 				 struct net_device *upper_dev,
-				 void *upper_priv, void *upper_info)
+				 void *upper_priv, void *upper_info,
+				 struct netlink_ext_ack *extack)
 {
 	return __netdev_upper_dev_link(dev, upper_dev, true,
-				       upper_priv, upper_info);
+				       upper_priv, upper_info, extack);
 }
 EXPORT_SYMBOL(netdev_master_upper_dev_link);
 
