@@ -72,6 +72,9 @@ static int (*bpf_sk_redirect_map)(void *map, int key, int flags) =
 static int (*bpf_sock_map_update)(void *map, void *key, void *value,
 				  unsigned long long flags) =
 	(void *) BPF_FUNC_sock_map_update;
+static int (*bpf_perf_event_read_value)(void *map, unsigned long long flags,
+					void *buf, unsigned int buf_size) =
+	(void *) BPF_FUNC_perf_event_read_value;
 
 
 /* llvm builtin functions that eBPF C program may use to
