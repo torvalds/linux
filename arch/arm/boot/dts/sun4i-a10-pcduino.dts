@@ -62,8 +62,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_pcduino>;
 
 		tx {
 			label = "pcduino:green:tx";
@@ -78,8 +76,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&key_pins_pcduino>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -168,16 +164,6 @@
 };
 
 &pio {
-	led_pins_pcduino: led_pins@0 {
-		pins = "PH15", "PH16";
-		function = "gpio_out";
-	};
-
-	key_pins_pcduino: key_pins@0 {
-		pins = "PH17", "PH18", "PH19";
-		function = "gpio_in";
-	};
-
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
 		pins = "PH4";
 		function = "gpio_in";

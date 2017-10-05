@@ -58,8 +58,6 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en_pin_inet>;
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
@@ -124,8 +122,6 @@
 		reg = <0x38>;
 		interrupt-parent = <&pio>;
 		interrupts = <7 21 IRQ_TYPE_EDGE_FALLING>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&touchscreen_wake_pin>;
 		wake-gpios = <&pio 1 13 GPIO_ACTIVE_HIGH>; /* PB13 */
 		touchscreen-size-x = <600>;
 		touchscreen-size-y = <1024>;
@@ -178,16 +174,6 @@
 };
 
 &pio {
-	bl_en_pin_inet: bl_en_pin@0 {
-		pins = "PH7";
-		function = "gpio_out";
-	};
-
-	touchscreen_wake_pin: touchscreen_wake_pin@0 {
-		pins = "PB13";
-		function = "gpio_out";
-	};
-
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
 		pins = "PH4";
 		function = "gpio_in";

@@ -58,8 +58,6 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en_pin_dsrv9703c>;
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
@@ -79,8 +77,6 @@
 
 	reg_motor: reg_motor {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&motor_pins>;
 		regulator-name = "vcc-motor";
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
@@ -90,8 +86,6 @@
 };
 
 &codec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&codec_pa_pin>;
 	allwinner,pa-gpios = <&pio 7 15 GPIO_ACTIVE_HIGH>; /* PH15 */
 	status = "okay";
 };
@@ -134,8 +128,6 @@
 		reg = <0x38>;
 		interrupt-parent = <&pio>;
 		interrupts = <7 21 IRQ_TYPE_EDGE_FALLING>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&touchscreen_pins>;
 		reset-gpios = <&pio 1 13 GPIO_ACTIVE_LOW>;
 		touchscreen-size-x = <1024>;
 		touchscreen-size-y = <768>;
@@ -176,26 +168,6 @@
 };
 
 &pio {
-	bl_en_pin_dsrv9703c: bl_en_pin@0 {
-		pins = "PH7";
-		function = "gpio_out";
-	};
-
-	codec_pa_pin: codec_pa_pin@0 {
-		pins = "PH15";
-		function = "gpio_out";
-	};
-
-	motor_pins: motor_pins@0 {
-		pins = "PB3";
-		function = "gpio_out";
-	};
-
-	touchscreen_pins: touchscreen_pins@0 {
-		pins = "PB13";
-		function = "gpio_out";
-	};
-
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
 		pins = "PH4";
 		function = "gpio_in";

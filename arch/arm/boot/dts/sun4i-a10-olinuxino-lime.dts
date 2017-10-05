@@ -166,11 +166,6 @@
 };
 
 &pio {
-	ahci_pwr_pin_olinuxinolime: ahci_pwr_pin@1 {
-		pins = "PC3";
-		function = "gpio_out";
-	};
-
 	led_pins_olinuxinolime: led_pins@0 {
 		pins = "PH2";
 		function = "gpio_out";
@@ -191,7 +186,6 @@
 };
 
 &reg_ahci_5v {
-	pinctrl-0 = <&ahci_pwr_pin_olinuxinolime>;
 	gpio = <&pio 2 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

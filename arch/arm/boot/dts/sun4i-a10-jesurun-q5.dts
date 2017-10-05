@@ -62,8 +62,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_q5>;
 
 		green {
 			label = "q5:green:usr";
@@ -74,8 +72,6 @@
 
 	reg_emac_3v3: emac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&emac_power_pin_q5>;
 		regulator-name = "emac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -158,18 +154,6 @@
 
 &otg_sram {
 	status = "okay";
-};
-
-&pio {
-	emac_power_pin_q5: emac_power_pin@0 {
-		pins = "PH19";
-		function = "gpio_out";
-	};
-
-	led_pins_q5: led_pins@0 {
-		pins = "PH20";
-		function = "gpio_out";
-	};
 };
 
 &reg_usb0_vbus {
