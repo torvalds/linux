@@ -118,6 +118,20 @@ static const struct uniphier_reset_data uniphier_ld20_sys_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
+static const struct uniphier_reset_data uniphier_pxs3_sys_reset_data[] = {
+	UNIPHIER_RESETX(2, 0x200c, 0),		/* NAND */
+	UNIPHIER_RESETX(4, 0x200c, 2),		/* eMMC */
+	UNIPHIER_RESETX(8, 0x200c, 12),		/* STDMAC */
+	UNIPHIER_RESETX(12, 0x200c, 4),		/* USB30 link (GIO0) */
+	UNIPHIER_RESETX(13, 0x200c, 5),		/* USB31 link (GIO1) */
+	UNIPHIER_RESETX(16, 0x200c, 16),	/* USB30-PHY0 */
+	UNIPHIER_RESETX(17, 0x200c, 18),	/* USB30-PHY1 */
+	UNIPHIER_RESETX(18, 0x200c, 20),	/* USB30-PHY2 */
+	UNIPHIER_RESETX(20, 0x200c, 17),	/* USB31-PHY0 */
+	UNIPHIER_RESETX(21, 0x200c, 19),	/* USB31-PHY1 */
+	UNIPHIER_RESET_END,
+};
+
 /* Media I/O reset data */
 #define UNIPHIER_MIO_RESET_SD(id, ch)			\
 	UNIPHIER_RESETX((id), 0x110 + 0x200 * (ch), 0)
@@ -363,6 +377,10 @@ static const struct of_device_id uniphier_reset_match[] = {
 		.compatible = "socionext,uniphier-ld20-reset",
 		.data = uniphier_ld20_sys_reset_data,
 	},
+	{
+		.compatible = "socionext,uniphier-pxs3-reset",
+		.data = uniphier_pxs3_sys_reset_data,
+	},
 	/* Media I/O reset, SD reset */
 	{
 		.compatible = "socionext,uniphier-ld4-mio-reset",
@@ -396,6 +414,10 @@ static const struct of_device_id uniphier_reset_match[] = {
 		.compatible = "socionext,uniphier-ld20-sd-reset",
 		.data = uniphier_pro5_sd_reset_data,
 	},
+	{
+		.compatible = "socionext,uniphier-pxs3-sd-reset",
+		.data = uniphier_pro5_sd_reset_data,
+	},
 	/* Peripheral reset */
 	{
 		.compatible = "socionext,uniphier-ld4-peri-reset",
@@ -423,6 +445,10 @@ static const struct of_device_id uniphier_reset_match[] = {
 	},
 	{
 		.compatible = "socionext,uniphier-ld20-peri-reset",
+		.data = uniphier_pro4_peri_reset_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs3-peri-reset",
 		.data = uniphier_pro4_peri_reset_data,
 	},
 	/* Analog signal amplifiers reset */
