@@ -600,7 +600,9 @@ static int i40e_get_link_ksettings(struct net_device *netdev,
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
 	bool link_up = hw_link_info->link_info & I40E_AQ_LINK_UP;
-	u32 advertising;
+
+	ethtool_link_ksettings_zero_link_mode(ks, supported);
+	ethtool_link_ksettings_zero_link_mode(ks, advertising);
 
 	if (link_up)
 		i40e_get_settings_link_up(hw, ks, netdev, pf);
@@ -664,13 +666,9 @@ static int i40e_get_link_ksettings(struct net_device *netdev,
 						     Asym_Pause);
 		break;
 	default:
-		ethtool_convert_link_mode_to_legacy_u32(
-			&advertising, ks->link_modes.advertising);
-
-		advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-
-		ethtool_convert_legacy_u32_to_link_mode(
-			ks->link_modes.advertising, advertising);
+		ethtool_link_ksettings_del_link_mode(ks, advertising, Pause);
+		ethtool_link_ksettings_del_link_mode(ks, advertising,
+						     Asym_Pause);
 		break;
 	}
 
