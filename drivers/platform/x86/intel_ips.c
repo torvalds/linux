@@ -296,6 +296,7 @@ struct ips_driver {
 	struct task_struct *monitor;
 	struct task_struct *adjust;
 	struct dentry *debug_root;
+	struct timer_list timer;
 
 	/* Average CPU core temps (all averages in .01 degrees C for precision) */
 	u16 ctv1_avg_temp;
@@ -937,9 +938,10 @@ static u32 calc_avg_power(struct ips_driver *ips, u32 *array)
 	return avg;
 }
 
-static void monitor_timeout(unsigned long arg)
+static void monitor_timeout(struct timer_list *t)
 {
-	wake_up_process((struct task_struct *)arg);
+	struct ips_driver *ips = from_timer(ips, t, timer);
+	wake_up_process(ips->monitor);
 }
 
 /**
@@ -956,7 +958,6 @@ static void monitor_timeout(unsigned long arg)
 static int ips_monitor(void *data)
 {
 	struct ips_driver *ips = data;
-	struct timer_list timer;
 	unsigned long seqno_timestamp, expire, last_msecs, last_sample_period;
 	int i;
 	u32 *cpu_samples, *mchp_samples, old_cpu_power;
@@ -1044,8 +1045,7 @@ static int ips_monitor(void *data)
 	schedule_timeout_interruptible(msecs_to_jiffies(IPS_SAMPLE_PERIOD));
 	last_sample_period = IPS_SAMPLE_PERIOD;
 
-	setup_deferrable_timer_on_stack(&timer, monitor_timeout,
-					(unsigned long)current);
+	timer_setup(&ips->timer, monitor_timeout, TIMER_DEFERRABLE);
 	do {
 		u32 cpu_val, mch_val;
 		u16 val;
@@ -1103,7 +1103,7 @@ static int ips_monitor(void *data)
 		expire = jiffies + msecs_to_jiffies(IPS_SAMPLE_PERIOD);
 
 		__set_current_state(TASK_INTERRUPTIBLE);
-		mod_timer(&timer, expire);
+		mod_timer(&ips->timer, expire);
 		schedule();
 
 		/* Calculate actual sample period for power averaging */
@@ -1112,8 +1112,7 @@ static int ips_monitor(void *data)
 			last_sample_period = 1;
 	} while (!kthread_should_stop());
 
-	del_timer_sync(&timer);
-	destroy_timer_on_stack(&timer);
+	del_timer_sync(&ips->timer);
 
 	dev_dbg(ips->dev, "ips-monitor thread stopped\n");
 
