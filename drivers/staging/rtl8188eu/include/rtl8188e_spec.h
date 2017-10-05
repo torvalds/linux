@@ -123,9 +123,9 @@
 #define REG_FWISR			0x0134
 #define REG_PKTBUF_DBG_CTRL		0x0140
 #define REG_PKTBUF_DBG_ADDR		(REG_PKTBUF_DBG_CTRL)
-#define REG_RXPKTBUF_DBG		(REG_PKTBUF_DBG_CTRL+2)
-#define REG_TXPKTBUF_DBG		(REG_PKTBUF_DBG_CTRL+3)
-#define REG_RXPKTBUF_CTRL		(REG_PKTBUF_DBG_CTRL+2)
+#define REG_RXPKTBUF_DBG		(REG_PKTBUF_DBG_CTRL + 2)
+#define REG_TXPKTBUF_DBG		(REG_PKTBUF_DBG_CTRL + 3)
+#define REG_RXPKTBUF_CTRL		(REG_PKTBUF_DBG_CTRL + 2)
 #define REG_PKTBUF_DBG_DATA_L		0x0144
 #define REG_PKTBUF_DBG_DATA_H		0x0148
 
@@ -461,12 +461,12 @@
 /*  GPIO pins input value */
 #define	GPIO_IN				REG_GPIO_PIN_CTRL
 /*  GPIO pins output value */
-#define	GPIO_OUT			(REG_GPIO_PIN_CTRL+1)
+#define	GPIO_OUT			(REG_GPIO_PIN_CTRL + 1)
 /*  GPIO pins output enable when a bit is set to "1"; otherwise,
  *  input is configured.
  */
-#define	GPIO_IO_SEL			(REG_GPIO_PIN_CTRL+2)
-#define	GPIO_MOD			(REG_GPIO_PIN_CTRL+3)
+#define	GPIO_IO_SEL			(REG_GPIO_PIN_CTRL + 2)
+#define	GPIO_MOD			(REG_GPIO_PIN_CTRL + 3)
 
 /* 8723/8188E Host System Interrupt Mask Register (offset 0x58, 32 byte) */
 #define	HSIMR_GPIO12_0_INT_EN		BIT(0)
@@ -809,7 +809,7 @@ So the following defines for 92C is not entire!!!!!!
 /* 2 EFUSE_TEST (For RTL8723 partially) */
 #define EF_TRPT				BIT(7)
 /*  00: Wifi Efuse, 01: BT Efuse0, 10: BT Efuse1, 11: BT Efuse2 */
-#define EF_CELL_SEL			(BIT(8)|BIT(9))
+#define EF_CELL_SEL			(BIT(8) | BIT(9))
 #define LDOE25_EN			BIT(31)
 #define EFUSE_SEL(x)			(((x) & 0x3) << 8)
 #define EFUSE_SEL_MASK			0x300
@@ -846,7 +846,7 @@ So the following defines for 92C is not entire!!!!!!
 #define BD_MAC2				BIT(9)
 #define BD_MAC1				BIT(10)
 #define IC_MACPHY_MODE			BIT(11)
-#define CHIP_VER			(BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define CHIP_VER			(BIT(12) | BIT(13) | BIT(14) | BIT(15))
 #define BT_FUNC				BIT(16)
 #define VENDOR_ID			BIT(19)
 #define PAD_HWPD_IDN			BIT(22)
@@ -860,9 +860,9 @@ So the following defines for 92C is not entire!!!!!!
 #define CHIP_VER_RTL_SHIFT		12
 
 /* 2REG_GPIO_OUTSTS (For RTL8723 only) */
-#define	EFS_HCI_SEL			(BIT(0)|BIT(1))
-#define	PAD_HCI_SEL			(BIT(2)|BIT(3))
-#define	HCI_SEL				(BIT(4)|BIT(5))
+#define	EFS_HCI_SEL			(BIT(0) | BIT(1))
+#define	PAD_HCI_SEL			(BIT(2) | BIT(3))
+#define	HCI_SEL				(BIT(4) | BIT(5))
 #define	PKG_SEL_HCI			BIT(6)
 #define	FEN_GPS				BIT(7)
 #define	FEN_BT				BIT(8)
@@ -879,7 +879,7 @@ So the following defines for 92C is not entire!!!!!!
 #define	UPHY_SUSB			BIT(21)
 #define	PCI_SUSEN			BIT(22)
 #define	USB_SUSEN			BIT(23)
-#define	RF_RL_ID			(BIT(31)|BIT(30)|BIT(29)|BIT(28))
+#define	RF_RL_ID			(BIT(31) | BIT(30) | BIT(29) | BIT(28))
 
 /* 2SYS_CFG */
 #define RTL_ID				BIT(23)	/*  TestChip ID, 1:Test(RLE); 0:MP(RL) */
@@ -942,12 +942,12 @@ So the following defines for 92C is not entire!!!!!!
 #define HQSEL_HIQ			BIT(5)
 
 /*  For normal driver, 0x10C */
-#define _TXDMA_HIQ_MAP(x)		(((x)&0x3) << 14)
-#define _TXDMA_MGQ_MAP(x)		(((x)&0x3) << 12)
-#define _TXDMA_BKQ_MAP(x)		(((x)&0x3) << 10)
-#define _TXDMA_BEQ_MAP(x)		(((x)&0x3) << 8)
-#define _TXDMA_VIQ_MAP(x)		(((x)&0x3) << 6)
-#define _TXDMA_VOQ_MAP(x)		(((x)&0x3) << 4)
+#define _TXDMA_HIQ_MAP(x)		(((x) & 0x3) << 14)
+#define _TXDMA_MGQ_MAP(x)		(((x) & 0x3) << 12)
+#define _TXDMA_BKQ_MAP(x)		(((x) & 0x3) << 10)
+#define _TXDMA_BEQ_MAP(x)		(((x) & 0x3) << 8)
+#define _TXDMA_VIQ_MAP(x)		(((x) & 0x3) << 6)
+#define _TXDMA_VOQ_MAP(x)		(((x) & 0x3) << 4)
 
 #define QUEUE_LOW			1
 #define QUEUE_NORMAL			2
