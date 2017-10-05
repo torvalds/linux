@@ -602,8 +602,10 @@ cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_1_05V);
 		return cnl_ddi_translations_hdmi_1_05V;
-	} else
+	} else {
+		*n_entries = 1; /* shut up gcc */
 		MISSING_CASE(voltage);
+	}
 	return NULL;
 }
 
@@ -621,8 +623,10 @@ cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_1_05V);
 		return cnl_ddi_translations_dp_1_05V;
-	} else
+	} else {
+		*n_entries = 1; /* shut up gcc */
 		MISSING_CASE(voltage);
+	}
 	return NULL;
 }
 
@@ -641,8 +645,10 @@ cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 		} else if (voltage == VOLTAGE_INFO_1_05V) {
 			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_1_05V);
 			return cnl_ddi_translations_edp_1_05V;
-		} else
+		} else {
+			*n_entries = 1; /* shut up gcc */
 			MISSING_CASE(voltage);
+		}
 		return NULL;
 	} else {
 		return cnl_get_buf_trans_dp(dev_priv, n_entries);
