@@ -2645,6 +2645,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	unsigned long flags;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	struct xhci_virt_device *virt_dev;
+	struct xhci_slot_ctx *slot_ctx;
 
 	if (!command)
 		return -EINVAL;
@@ -2676,6 +2677,9 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		xhci_warn(xhci, "Not enough bandwidth\n");
 		return -ENOMEM;
 	}
+
+	slot_ctx = xhci_get_slot_ctx(xhci, command->in_ctx);
+	trace_xhci_configure_endpoint(slot_ctx);
 
 	if (!ctx_change)
 		ret = xhci_queue_configure_endpoint(xhci, command,
