@@ -131,6 +131,7 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	vif->netdev = NULL;
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 	eth_zero_addr(vif->mac_addr);
+	eth_zero_addr(vif->bssid);
 
 	return 0;
 }
@@ -199,6 +200,8 @@ err_mac:
 	qtnf_cmd_send_del_intf(vif);
 err_cmd:
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+	eth_zero_addr(vif->mac_addr);
+	eth_zero_addr(vif->bssid);
 
 	return ERR_PTR(-EFAULT);
 }
@@ -567,7 +570,6 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	     struct cfg80211_connect_params *sme)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
-	struct qtnf_bss_config *bss_cfg;
 	int ret;
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
@@ -576,38 +578,10 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->sta_state != QTNF_STA_DISCONNECTED)
 		return -EBUSY;
 
-	bss_cfg = &vif->bss_cfg;
-	memset(bss_cfg, 0, sizeof(*bss_cfg));
-
-	bss_cfg->ssid_len = sme->ssid_len;
-	memcpy(&bss_cfg->ssid, sme->ssid, bss_cfg->ssid_len);
-	bss_cfg->auth_type = sme->auth_type;
-	bss_cfg->privacy = sme->privacy;
-	bss_cfg->mfp = sme->mfp;
-
-	if ((sme->bg_scan_period > 0) &&
-	    (sme->bg_scan_period <= QTNF_MAX_BG_SCAN_PERIOD))
-		bss_cfg->bg_scan_period = sme->bg_scan_period;
-	else if (sme->bg_scan_period == -1)
-		bss_cfg->bg_scan_period = QTNF_DEFAULT_BG_SCAN_PERIOD;
-	else
-		bss_cfg->bg_scan_period = 0; /* disabled */
-
-	bss_cfg->connect_flags = 0;
-
-	if (sme->flags & ASSOC_REQ_DISABLE_HT)
-		bss_cfg->connect_flags |= QLINK_STA_CONNECT_DISABLE_HT;
-	if (sme->flags & ASSOC_REQ_DISABLE_VHT)
-		bss_cfg->connect_flags |= QLINK_STA_CONNECT_DISABLE_VHT;
-	if (sme->flags & ASSOC_REQ_USE_RRM)
-		bss_cfg->connect_flags |= QLINK_STA_CONNECT_USE_RRM;
-
-	memcpy(&bss_cfg->crypto, &sme->crypto, sizeof(bss_cfg->crypto));
-
 	if (sme->bssid)
-		ether_addr_copy(bss_cfg->bssid, sme->bssid);
+		ether_addr_copy(vif->bssid, sme->bssid);
 	else
-		eth_zero_addr(bss_cfg->bssid);
+		eth_zero_addr(vif->bssid);
 
 	ret = qtnf_cmd_send_connect(vif, sme);
 	if (ret) {
@@ -1021,7 +995,7 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev)
 			break;
 		case QTNF_STA_CONNECTING:
 			cfg80211_connect_result(vif->netdev,
-						vif->bss_cfg.bssid, NULL, 0,
+						vif->bssid, NULL, 0,
 						NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
@@ -1048,7 +1022,7 @@ void qtnf_cfg80211_vif_reset(struct qtnf_vif *vif)
 		switch (vif->sta_state) {
 		case QTNF_STA_CONNECTING:
 			cfg80211_connect_result(vif->netdev,
-						vif->bss_cfg.bssid, NULL, 0,
+						vif->bssid, NULL, 0,
 						NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);

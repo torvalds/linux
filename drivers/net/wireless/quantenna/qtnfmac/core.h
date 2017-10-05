@@ -57,20 +57,6 @@ extern const struct net_device_ops qtnf_netdev_ops;
 struct qtnf_bus;
 struct qtnf_vif;
 
-struct qtnf_bss_config {
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	u8 bssid[ETH_ALEN];
-	size_t ssid_len;
-	u8 dtim;
-	u16 bcn_period;
-	u16 auth_type;
-	bool privacy;
-	enum nl80211_mfp mfp;
-	struct cfg80211_crypto_settings crypto;
-	u16 bg_scan_period;
-	u32 connect_flags;
-};
-
 struct qtnf_sta_node {
 	struct list_head list;
 	u8 mac_addr[ETH_ALEN];
@@ -89,6 +75,8 @@ enum qtnf_sta_state {
 
 struct qtnf_vif {
 	struct wireless_dev wdev;
+	u8 bssid[ETH_ALEN];
+	u8 mac_addr[ETH_ALEN];
 	u8 vifid;
 	u8 bss_priority;
 	u8 bss_status;
@@ -96,9 +84,8 @@ struct qtnf_vif {
 	u16 mgmt_frames_bitmask;
 	struct net_device *netdev;
 	struct qtnf_wmac *mac;
-	u8 mac_addr[ETH_ALEN];
+
 	struct work_struct reset_work;
-	struct qtnf_bss_config bss_cfg;
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
 };
