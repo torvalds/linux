@@ -3101,23 +3101,6 @@ static const unsigned int pwm6_b_mux[] = {
 	PWM6_B_MARK,
 };
 
-/* - USB30 ------------------------------------------------------------------ */
-static const unsigned int usb30_pins[] = {
-	/* PWEN, OVC */
-	RCAR_GP_PIN(6, 28), RCAR_GP_PIN(6, 29),
-};
-static const unsigned int usb30_mux[] = {
-	USB30_PWEN_MARK, USB30_OVC_MARK,
-};
-/* - USB31 ------------------------------------------------------------------ */
-static const unsigned int usb31_pins[] = {
-	/* PWEN, OVC */
-	RCAR_GP_PIN(6, 30), RCAR_GP_PIN(6, 31),
-};
-static const unsigned int usb31_mux[] = {
-	USB31_PWEN_MARK, USB31_OVC_MARK,
-};
-
 /* - QSPI0 ------------------------------------------------------------------ */
 static const unsigned int qspi0_ctrl_pins[] = {
 	/* QSPI0_SPCLK, QSPI0_SSL */
@@ -3789,6 +3772,23 @@ static const unsigned int usb2_pins[] = {
 };
 static const unsigned int usb2_mux[] = {
 	USB2_PWEN_MARK, USB2_OVC_MARK,
+};
+
+/* - USB30 ------------------------------------------------------------------ */
+static const unsigned int usb30_pins[] = {
+	/* PWEN, OVC */
+	RCAR_GP_PIN(6, 28), RCAR_GP_PIN(6, 29),
+};
+static const unsigned int usb30_mux[] = {
+	USB30_PWEN_MARK, USB30_OVC_MARK,
+};
+/* - USB31 ------------------------------------------------------------------ */
+static const unsigned int usb31_pins[] = {
+	/* PWEN, OVC */
+	RCAR_GP_PIN(6, 30), RCAR_GP_PIN(6, 31),
+};
+static const unsigned int usb31_mux[] = {
+	USB31_PWEN_MARK, USB31_OVC_MARK,
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
