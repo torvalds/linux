@@ -15,9 +15,9 @@
 
 #include "syscalltbl.h"
 #include <stdlib.h>
+#include <linux/compiler.h>
 
 #ifdef HAVE_SYSCALL_TABLE
-#include <linux/compiler.h>
 #include <string.h>
 #include "string2.h"
 #include "util.h"

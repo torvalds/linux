@@ -749,9 +749,9 @@ static inline unsigned int modulo_min(unsigned int a, unsigned int b,
 
 /** Timer function, equivalent to interrupt service routine for cards
 */
-static void snd_card_asihpi_timer_function(unsigned long data)
+static void snd_card_asihpi_timer_function(struct timer_list *t)
 {
-	struct snd_card_asihpi_pcm *dpcm = (struct snd_card_asihpi_pcm *)data;
+	struct snd_card_asihpi_pcm *dpcm = from_timer(dpcm, t, timer);
 	struct snd_pcm_substream *substream = dpcm->substream;
 	struct snd_card_asihpi *card = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime;
@@ -948,7 +948,7 @@ static void snd_card_asihpi_int_task(unsigned long data)
 	asihpi = (struct snd_card_asihpi *)a->snd_card->private_data;
 	if (asihpi->llmode_streampriv)
 		snd_card_asihpi_timer_function(
-			(unsigned long)asihpi->llmode_streampriv);
+			&asihpi->llmode_streampriv->timer);
 }
 
 static void snd_card_asihpi_isr(struct hpi_adapter *a)
@@ -1059,8 +1059,7 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 	    If internal and other stream playing, can't switch
 	*/
 
-	setup_timer(&dpcm->timer, snd_card_asihpi_timer_function,
-		    (unsigned long) dpcm);
+	timer_setup(&dpcm->timer, snd_card_asihpi_timer_function, 0);
 	dpcm->substream = substream;
 	runtime->private_data = dpcm;
 	runtime->private_free = snd_card_asihpi_runtime_free;
@@ -1240,8 +1239,7 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 	if (err)
 		return -EIO;
 
-	setup_timer(&dpcm->timer, snd_card_asihpi_timer_function,
-		    (unsigned long) dpcm);
+	timer_setup(&dpcm->timer, snd_card_asihpi_timer_function, 0);
 	dpcm->substream = substream;
 	runtime->private_data = dpcm;
 	runtime->private_free = snd_card_asihpi_runtime_free;

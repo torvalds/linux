@@ -233,6 +233,26 @@ int pdc_add_valid(unsigned long address)
 EXPORT_SYMBOL(pdc_add_valid);
 
 /**
+ * pdc_instr - Get instruction that invokes PDCE_CHECK in HPMC handler.
+ * @instr: Pointer to variable which will get instruction opcode.
+ *
+ * The return value is PDC_OK (0) in case call succeeded.
+ */
+int __init pdc_instr(unsigned int *instr)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_INSTR, 0UL, __pa(pdc_result));
+	convert_to_wide(pdc_result);
+	*instr = pdc_result[0];
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
+
+/**
  * pdc_chassis_info - Return chassis information.
  * @result: The return buffer.
  * @chassis_info: The memory buffer address.
