@@ -344,6 +344,7 @@ DECLARE_EWMA(mesh_fail_avg, 20, 8)
  * @plink_state: peer link state
  * @plink_timeout: timeout of peer link
  * @plink_timer: peer link watch timer
+ * @plink_sta: peer link watch timer's sta_info
  * @t_offset: timing offset relative to this host
  * @t_offset_setpoint: reference timing offset of this sta to be used when
  * 	calculating clockdrift
@@ -356,6 +357,7 @@ DECLARE_EWMA(mesh_fail_avg, 20, 8)
  */
 struct mesh_sta {
 	struct timer_list plink_timer;
+	struct sta_info *plink_sta;
 
 	s64 t_offset;
 	s64 t_offset_setpoint;
