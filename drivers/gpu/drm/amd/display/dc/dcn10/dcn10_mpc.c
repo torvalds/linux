@@ -65,7 +65,7 @@ static void mpc10_set_bg_color(
 			MPCC_BG_B_CB, bg_b_cb);
 }
 
-static void mpc10_assert_idle_mpcc(struct mpc *mpc, int id)
+void mpc10_assert_idle_mpcc(struct mpc *mpc, int id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
 
@@ -116,7 +116,7 @@ static void mpc10_assert_mpcc_idle_before_connect(struct dcn10_mpc *mpc10, int i
 	}
 }
 
-static void mpc10_mpcc_remove(
+void mpc10_mpcc_remove(
 		struct mpc *mpc,
 		struct mpc_tree_cfg *tree_cfg,
 		int opp_id,
@@ -265,7 +265,7 @@ static void mpc10_add_to_tree_cfg(
 	tree_cfg->num_pipes++;
 }
 
-static int mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
+int mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
 	int mpcc_id, z_idx;
@@ -313,7 +313,7 @@ static int mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
 	return mpcc_id;
 }
 
-static void mpc10_update_blend_mode(
+void mpc10_update_blend_mode(
 		struct mpc *mpc,
 		struct mpcc_cfg *cfg)
 {
@@ -339,8 +339,7 @@ const struct mpc_funcs dcn10_mpc_funcs = {
 		.add = mpc10_mpcc_add,
 		.remove = mpc10_mpcc_remove,
 		.wait_for_idle = mpc10_assert_idle_mpcc,
-		.set_denorm = NULL,
-		.update_blend_mode = mpc10_update_blend_mode
+		.update_blend_mode = mpc10_update_blend_mode,
 };
 
 void dcn10_mpc_construct(struct dcn10_mpc *mpc10,

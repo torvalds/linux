@@ -329,7 +329,11 @@ static const struct dcn_mpc_registers mpc_regs = {
 		MPC_COMMON_REG_LIST_DCN1_0(0),
 		MPC_COMMON_REG_LIST_DCN1_0(1),
 		MPC_COMMON_REG_LIST_DCN1_0(2),
-		MPC_COMMON_REG_LIST_DCN1_0(3)
+		MPC_COMMON_REG_LIST_DCN1_0(3),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(0),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(1),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(2),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(3)
 };
 
 static const struct dcn_mpc_shift mpc_shift = {
