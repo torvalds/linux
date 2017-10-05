@@ -3639,13 +3639,10 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	if (!command)
 		return 0;
 
-	/* xhci->slot_id and xhci->addr_dev are not thread-safe */
-	mutex_lock(&xhci->mutex);
 	spin_lock_irqsave(&xhci->lock, flags);
 	ret = xhci_queue_slot_control(xhci, command, TRB_ENABLE_SLOT, 0);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		mutex_unlock(&xhci->mutex);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
 		xhci_free_command(xhci, command);
 		return 0;
@@ -3655,7 +3652,6 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 
 	wait_for_completion(command->completion);
 	slot_id = command->slot_id;
-	mutex_unlock(&xhci->mutex);
 
 	if (!slot_id || command->status != COMP_SUCCESS) {
 		xhci_err(xhci, "Error while assigning device slot ID\n");
