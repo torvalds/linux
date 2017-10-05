@@ -1476,13 +1476,13 @@ err:
 EXPORT_SYMBOL_GPL(dev_pm_opp_register_set_opp_helper);
 
 /**
- * dev_pm_opp_register_put_opp_helper() - Releases resources blocked for
+ * dev_pm_opp_unregister_set_opp_helper() - Releases resources blocked for
  *					   set_opp helper
  * @opp_table: OPP table returned from dev_pm_opp_register_set_opp_helper().
  *
  * Release resources blocked for platform specific set_opp helper.
  */
-void dev_pm_opp_register_put_opp_helper(struct opp_table *opp_table)
+void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 {
 	if (!opp_table->set_opp) {
 		pr_err("%s: Doesn't have custom set_opp helper set\n",
@@ -1497,7 +1497,7 @@ void dev_pm_opp_register_put_opp_helper(struct opp_table *opp_table)
 
 	dev_pm_opp_put_opp_table(opp_table);
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_register_put_opp_helper);
+EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_set_opp_helper);
 
 /**
  * dev_pm_opp_add()  - Add an OPP table from a table definitions
