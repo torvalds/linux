@@ -5917,7 +5917,7 @@ find_idlest_group_cpu(struct sched_group *group, struct task_struct *p, int this
 static inline int find_idlest_cpu(struct sched_domain *sd, struct task_struct *p,
 				  int cpu, int prev_cpu, int sd_flag)
 {
-	int new_cpu = prev_cpu;
+	int new_cpu = cpu;
 
 	if (!cpumask_intersects(sched_domain_span(sd), &p->cpus_allowed))
 		return prev_cpu;
