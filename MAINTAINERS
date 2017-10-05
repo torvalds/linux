@@ -3465,7 +3465,7 @@ COCCINELLE/Semantic Patches (SmPL)
 M:	Julia Lawall <Julia.Lawall@lip6.fr>
 M:	Gilles Muller <Gilles.Muller@lip6.fr>
 M:	Nicolas Palix <nicolas.palix@imag.fr>
-M:	Michal Marek <mmarek@suse.com>
+M:	Michal Marek <michal.lkml@markovi.net>
 L:	cocci@systeme.lip6.fr (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mmarek/kbuild.git misc
 W:	http://coccinelle.lip6.fr/
@@ -7465,7 +7465,7 @@ F:	fs/autofs4/
 
 KERNEL BUILD + files below scripts/ (unless maintained elsewhere)
 M:	Masahiro Yamada <yamada.masahiro@socionext.com>
-M:	Michal Marek <mmarek@suse.com>
+M:	Michal Marek <michal.lkml@markovi.net>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-kbuild.git
 L:	linux-kbuild@vger.kernel.org
 S:	Maintained
