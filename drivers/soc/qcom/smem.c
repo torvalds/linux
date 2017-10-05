@@ -52,7 +52,8 @@
  *
  * Items in the non-cached region are allocated from the start of the partition
  * while items in the cached region are allocated from the end. The free area
- * is hence the region between the cached and non-cached offsets.
+ * is hence the region between the cached and non-cached offsets. The header of
+ * cached items comes after the data.
  *
  *
  * To synchronize allocations in the shared memory heaps a remote spinlock must
@@ -140,6 +141,7 @@ struct smem_header {
  * @flags:	flags for the partition (currently unused)
  * @host0:	first processor/host with access to this partition
  * @host1:	second processor/host with access to this partition
+ * @cacheline:	alignment for "cached" entries
  * @reserved:	reserved entries for later use
  */
 struct smem_ptable_entry {
@@ -148,7 +150,8 @@ struct smem_ptable_entry {
 	__le32 flags;
 	__le16 host0;
 	__le16 host1;
-	__le32 reserved[8];
+	__le32 cacheline;
+	__le32 reserved[7];
 };
 
 /**
@@ -230,6 +233,7 @@ struct smem_region {
  * @hwlock:	reference to a hwspinlock
  * @partitions:	list of pointers to partitions affecting the current
  *		processor/host
+ * @cacheline:	list of cacheline sizes for each host
  * @num_regions: number of @regions
  * @regions:	list of the memory regions defining the shared memory
  */
@@ -239,6 +243,7 @@ struct qcom_smem {
 	struct hwspinlock *hwlock;
 
 	struct smem_partition_header *partitions[SMEM_HOST_COUNT];
+	size_t cacheline[SMEM_HOST_COUNT];
 
 	unsigned num_regions;
 	struct smem_region regions[0];
@@ -250,6 +255,14 @@ phdr_to_last_uncached_entry(struct smem_partition_header *phdr)
 	void *p = phdr;
 
 	return p + le32_to_cpu(phdr->offset_free_uncached);
+}
+
+static void *phdr_to_first_cached_entry(struct smem_partition_header *phdr,
+					size_t cacheline)
+{
+	void *p = phdr;
+
+	return p + le32_to_cpu(phdr->size) - ALIGN(sizeof(*phdr), cacheline);
 }
 
 static void *phdr_to_last_cached_entry(struct smem_partition_header *phdr)
@@ -276,11 +289,26 @@ uncached_entry_next(struct smem_private_entry *e)
 	       le32_to_cpu(e->size);
 }
 
+static struct smem_private_entry *
+cached_entry_next(struct smem_private_entry *e, size_t cacheline)
+{
+	void *p = e;
+
+	return p - le32_to_cpu(e->size) - ALIGN(sizeof(*e), cacheline);
+}
+
 static void *uncached_entry_to_item(struct smem_private_entry *e)
 {
 	void *p = e;
 
 	return p + sizeof(*e) + le16_to_cpu(e->padding_hdr);
+}
+
+static void *cached_entry_to_item(struct smem_private_entry *e)
+{
+	void *p = e;
+
+	return p - le32_to_cpu(e->size);
 }
 
 /* Pointer to the one and only smem handle */
@@ -458,18 +486,17 @@ static void *qcom_smem_get_private(struct qcom_smem *smem,
 {
 	struct smem_partition_header *phdr;
 	struct smem_private_entry *e, *end;
+	size_t cacheline;
 
 	phdr = smem->partitions[host];
+	cacheline = smem->cacheline[host];
+
 	e = phdr_to_first_uncached_entry(phdr);
 	end = phdr_to_last_uncached_entry(phdr);
 
 	while (e < end) {
-		if (e->canary != SMEM_PRIVATE_CANARY) {
-			dev_err(smem->dev,
-				"Found invalid canary in host %d partition\n",
-				host);
-			return ERR_PTR(-EINVAL);
-		}
+		if (e->canary != SMEM_PRIVATE_CANARY)
+			goto invalid_canary;
 
 		if (le16_to_cpu(e->item) == item) {
 			if (size != NULL)
@@ -482,7 +509,32 @@ static void *qcom_smem_get_private(struct qcom_smem *smem,
 		e = uncached_entry_next(e);
 	}
 
+	/* Item was not found in the uncached list, search the cached list */
+
+	e = phdr_to_first_cached_entry(phdr, cacheline);
+	end = phdr_to_last_cached_entry(phdr);
+
+	while (e > end) {
+		if (e->canary != SMEM_PRIVATE_CANARY)
+			goto invalid_canary;
+
+		if (le16_to_cpu(e->item) == item) {
+			if (size != NULL)
+				*size = le32_to_cpu(e->size) -
+					le16_to_cpu(e->padding_data);
+
+			return cached_entry_to_item(e);
+		}
+
+		e = cached_entry_next(e, cacheline);
+	}
+
 	return ERR_PTR(-ENOENT);
+
+invalid_canary:
+	dev_err(smem->dev, "Found invalid canary in host %d partition\n", host);
+
+	return ERR_PTR(-EINVAL);
 }
 
 /**
@@ -659,6 +711,7 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 		}
 
 		smem->partitions[remote_host] = header;
+		smem->cacheline[remote_host] = le32_to_cpu(entry->cacheline);
 	}
 
 	return 0;
