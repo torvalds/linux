@@ -205,9 +205,6 @@ static int i2c_generic_recovery(struct i2c_adapter *adap)
 	 */
 	while (i++ < RECOVERY_CLK_CNT * 2) {
 		if (val) {
-			/* Break if SDA is high */
-			if (bri->get_sda && bri->get_sda(adap))
-					break;
 			/* SCL shouldn't be low here */
 			if (!bri->get_scl(adap)) {
 				dev_err(&adap->dev,
@@ -215,12 +212,19 @@ static int i2c_generic_recovery(struct i2c_adapter *adap)
 				ret = -EBUSY;
 				break;
 			}
+			/* Break if SDA is high */
+			if (bri->get_sda && bri->get_sda(adap))
+				break;
 		}
 
 		val = !val;
 		bri->set_scl(adap, val);
 		ndelay(RECOVERY_NDELAY);
 	}
+
+	/* check if recovery actually succeeded */
+	if (bri->get_sda && !bri->get_sda(adap))
+		ret = -EBUSY;
 
 	if (bri->unprepare_recovery)
 		bri->unprepare_recovery(adap);
