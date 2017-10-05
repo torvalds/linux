@@ -239,7 +239,7 @@
 	status = "okay";
 	bus-width = <4>;
 	no-1-8-v;
-	non-removable;
+	cd-gpios = <&expander0 12 GPIO_ACTIVE_LOW>;
 };
 
 &cpm_mdio {
