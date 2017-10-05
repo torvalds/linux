@@ -133,3 +133,7 @@
 &i2c12 {
 	status = "okay";
 };
+
+&vuart {
+	status = "okay";
+};
