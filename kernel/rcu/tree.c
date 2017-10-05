@@ -781,17 +781,6 @@ static void rcu_eqs_enter_common(bool user)
 	rdtp->dynticks_nesting = 0;
 	rcu_dynticks_eqs_enter();
 	rcu_dynticks_task_enter();
-
-	/*
-	 * It is illegal to enter an extended quiescent state while
-	 * in an RCU read-side critical section.
-	 */
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_lock_map),
-			 "Illegal idle entry in RCU read-side critical section.");
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map),
-			 "Illegal idle entry in RCU-bh read-side critical section.");
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_sched_lock_map),
-			 "Illegal idle entry in RCU-sched read-side critical section.");
 }
 
 /*
