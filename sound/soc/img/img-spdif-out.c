@@ -47,6 +47,9 @@ struct img_spdif_out {
 	struct snd_dmaengine_dai_dma_data dma_data;
 	struct device *dev;
 	struct reset_control *rst;
+	u32 suspend_ctl;
+	u32 suspend_csl;
+	u32 suspend_csh;
 };
 
 static int img_spdif_out_runtime_suspend(struct device *dev)
@@ -414,6 +417,46 @@ static int img_spdif_out_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int img_spdif_out_suspend(struct device *dev)
+{
+	struct img_spdif_out *spdif = dev_get_drvdata(dev);
+	int ret;
+
+	if (pm_runtime_status_suspended(dev)) {
+		ret = img_spdif_out_runtime_resume(dev);
+		if (ret)
+			return ret;
+	}
+
+	spdif->suspend_ctl = img_spdif_out_readl(spdif, IMG_SPDIF_OUT_CTL);
+	spdif->suspend_csl = img_spdif_out_readl(spdif, IMG_SPDIF_OUT_CSL);
+	spdif->suspend_csh = img_spdif_out_readl(spdif, IMG_SPDIF_OUT_CSH_UV);
+
+	img_spdif_out_runtime_suspend(dev);
+
+	return 0;
+}
+
+static int img_spdif_out_resume(struct device *dev)
+{
+	struct img_spdif_out *spdif = dev_get_drvdata(dev);
+	int ret;
+
+	ret = img_spdif_out_runtime_resume(dev);
+	if (ret)
+		return ret;
+
+	img_spdif_out_writel(spdif, spdif->suspend_ctl, IMG_SPDIF_OUT_CTL);
+	img_spdif_out_writel(spdif, spdif->suspend_csl, IMG_SPDIF_OUT_CSL);
+	img_spdif_out_writel(spdif, spdif->suspend_csh, IMG_SPDIF_OUT_CSH_UV);
+
+	if (pm_runtime_status_suspended(dev))
+		img_spdif_out_runtime_suspend(dev);
+
+	return 0;
+}
+#endif
 static const struct of_device_id img_spdif_out_of_match[] = {
 	{ .compatible = "img,spdif-out" },
 	{}
@@ -423,6 +466,7 @@ MODULE_DEVICE_TABLE(of, img_spdif_out_of_match);
 static const struct dev_pm_ops img_spdif_out_pm_ops = {
 	SET_RUNTIME_PM_OPS(img_spdif_out_runtime_suspend,
 			   img_spdif_out_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(img_spdif_out_suspend, img_spdif_out_resume)
 };
 
 static struct platform_driver img_spdif_out_driver = {
