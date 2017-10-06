@@ -1489,8 +1489,10 @@ static bool set_target_expiration(struct kvm_lapic *apic)
 	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
 		* APIC_BUS_CYCLE_NS * apic->divide_count;
 
-	if (!apic->lapic_timer.period)
+	if (!apic->lapic_timer.period) {
+		apic->lapic_timer.tscdeadline = 0;
 		return false;
+	}
 
 	limit_periodic_timer_frequency(apic);
 
