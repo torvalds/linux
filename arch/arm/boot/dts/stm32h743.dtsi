@@ -42,6 +42,8 @@
 
 #include "skeleton.dtsi"
 #include "armv7-m.dtsi"
+#include <dt-bindings/clock/stm32h7-clks.h>
+#include <dt-bindings/mfd/stm32h7-rcc.h>
 
 / {
 	clocks {
@@ -51,10 +53,16 @@
 			clock-frequency = <0>;
 		};
 
-		timer_clk: timer-clk {
+		clk_lse: clk-lse {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
-			clock-frequency = <125000000>;
+			clock-frequency = <32768>;
+		};
+
+		clk_i2s: i2s_ckin {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
 		};
 	};
 
@@ -63,7 +71,7 @@
 			compatible = "st,stm32-timer";
 			reg = <0x40000c00 0x400>;
 			interrupts = <50>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc TIM5_CK>;
 		};
 
 		lptimer1: timer@40002400 {
@@ -71,7 +79,7 @@
 			#size-cells = <0>;
 			compatible = "st,stm32-lptimer";
 			reg = <0x40002400 0x400>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc LPTIM1_CK>;
 			clock-names = "mux";
 			status = "disabled";
 
@@ -97,13 +105,13 @@
 			reg = <0x40004400 0x400>;
 			interrupts = <38>;
 			status = "disabled";
-			clocks = <&timer_clk>;
+			clocks = <&rcc USART2_CK>;
 		};
 
 		dac: dac@40007400 {
 			compatible = "st,stm32h7-dac-core";
 			reg = <0x40007400 0x400>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc DAC12_CK>;
 			clock-names = "pclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -129,8 +137,7 @@
 			reg = <0x40011000 0x400>;
 			interrupts = <37>;
 			status = "disabled";
-			clocks = <&timer_clk>;
-
+			clocks = <&rcc USART1_CK>;
 		};
 
 		dma1: dma@40020000 {
@@ -144,7 +151,7 @@
 				     <16>,
 				     <17>,
 				     <47>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc DMA1_CK>;
 			#dma-cells = <4>;
 			st,mem2mem;
 			dma-requests = <8>;
@@ -162,7 +169,7 @@
 				     <68>,
 				     <69>,
 				     <70>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc DMA2_CK>;
 			#dma-cells = <4>;
 			st,mem2mem;
 			dma-requests = <8>;
@@ -176,14 +183,14 @@
 			dma-channels = <16>;
 			dma-requests = <128>;
 			dma-masters = <&dma1 &dma2>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc DMA1_CK>;
 		};
 
 		adc_12: adc@40022000 {
 			compatible = "st,stm32h7-adc-core";
 			reg = <0x40022000 0x400>;
 			interrupts = <18>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc ADC12_CK>;
 			clock-names = "bus";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -215,7 +222,7 @@
 			#size-cells = <0>;
 			compatible = "st,stm32-lptimer";
 			reg = <0x58002400 0x400>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc LPTIM2_CK>;
 			clock-names = "mux";
 			status = "disabled";
 
@@ -241,7 +248,7 @@
 			#size-cells = <0>;
 			compatible = "st,stm32-lptimer";
 			reg = <0x58002800 0x400>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc LPTIM3_CK>;
 			clock-names = "mux";
 			status = "disabled";
 
@@ -262,7 +269,7 @@
 			#size-cells = <0>;
 			compatible = "st,stm32-lptimer";
 			reg = <0x58002c00 0x400>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc LPTIM4_CK>;
 			clock-names = "mux";
 			status = "disabled";
 
@@ -277,7 +284,7 @@
 			#size-cells = <0>;
 			compatible = "st,stm32-lptimer";
 			reg = <0x58003000 0x400>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc LPTIM5_CK>;
 			clock-names = "mux";
 			status = "disabled";
 
@@ -290,17 +297,31 @@
 		vrefbuf: regulator@58003C00 {
 			compatible = "st,stm32-vrefbuf";
 			reg = <0x58003C00 0x8>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc VREF_CK>;
 			regulator-min-microvolt = <1500000>;
 			regulator-max-microvolt = <2500000>;
 			status = "disabled";
+		};
+
+		rcc: reset-clock-controller@58024400 {
+			compatible = "st,stm32h743-rcc", "st,stm32-rcc";
+			reg = <0x58024400 0x400>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			clocks = <&clk_hse>, <&clk_lse>, <&clk_i2s>;
+			st,syscfg = <&pwrcfg>;
+		};
+
+		pwrcfg: power-config@58024800 {
+			compatible = "syscon";
+			reg = <0x58024800 0x400>;
 		};
 
 		adc_3: adc@58026000 {
 			compatible = "st,stm32h7-adc-core";
 			reg = <0x58026000 0x400>;
 			interrupts = <127>;
-			clocks = <&timer_clk>;
+			clocks = <&rcc ADC3_CK>;
 			clock-names = "bus";
 			interrupt-controller;
 			#interrupt-cells = <1>;
