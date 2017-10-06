@@ -16,6 +16,7 @@
 
 #include "trace.h"
 
+#if defined(CONFIG_IRQSOFF_TRACER) || defined(CONFIG_PREEMPT_TRACER)
 static struct trace_array		*irqsoff_trace __read_mostly;
 static int				tracer_enabled __read_mostly;
 
@@ -463,63 +464,43 @@ void time_hardirqs_off(unsigned long a0, unsigned long a1)
 #else /* !CONFIG_PROVE_LOCKING */
 
 /*
- * Stubs:
- */
-
-void trace_softirqs_on(unsigned long ip)
-{
-}
-
-void trace_softirqs_off(unsigned long ip)
-{
-}
-
-inline void print_irqtrace_events(struct task_struct *curr)
-{
-}
-
-/*
  * We are only interested in hardirq on/off events:
  */
-void trace_hardirqs_on(void)
+static inline void tracer_hardirqs_on(void)
 {
 	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
-EXPORT_SYMBOL(trace_hardirqs_on);
 
-void trace_hardirqs_off(void)
+static inline void tracer_hardirqs_off(void)
 {
 	if (!preempt_trace() && irq_trace())
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
-EXPORT_SYMBOL(trace_hardirqs_off);
 
-__visible void trace_hardirqs_on_caller(unsigned long caller_addr)
+static inline void tracer_hardirqs_on_caller(unsigned long caller_addr)
 {
 	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(CALLER_ADDR0, caller_addr);
 }
-EXPORT_SYMBOL(trace_hardirqs_on_caller);
 
-__visible void trace_hardirqs_off_caller(unsigned long caller_addr)
+static inline void tracer_hardirqs_off_caller(unsigned long caller_addr)
 {
 	if (!preempt_trace() && irq_trace())
 		start_critical_timing(CALLER_ADDR0, caller_addr);
 }
-EXPORT_SYMBOL(trace_hardirqs_off_caller);
 
 #endif /* CONFIG_PROVE_LOCKING */
 #endif /*  CONFIG_IRQSOFF_TRACER */
 
 #ifdef CONFIG_PREEMPT_TRACER
-void trace_preempt_on(unsigned long a0, unsigned long a1)
+static inline void tracer_preempt_on(unsigned long a0, unsigned long a1)
 {
 	if (preempt_trace() && !irq_trace())
 		stop_critical_timing(a0, a1);
 }
 
-void trace_preempt_off(unsigned long a0, unsigned long a1)
+static inline void tracer_preempt_off(unsigned long a0, unsigned long a1)
 {
 	if (preempt_trace() && !irq_trace())
 		start_critical_timing(a0, a1);
@@ -781,3 +762,70 @@ __init static int init_irqsoff_tracer(void)
 	return 0;
 }
 core_initcall(init_irqsoff_tracer);
+#endif /* IRQSOFF_TRACER || PREEMPTOFF_TRACER */
+
+#ifndef CONFIG_IRQSOFF_TRACER
+static inline void tracer_hardirqs_on(void) { }
+static inline void tracer_hardirqs_off(void) { }
+static inline void tracer_hardirqs_on_caller(unsigned long caller_addr) { }
+static inline void tracer_hardirqs_off_caller(unsigned long caller_addr) { }
+#endif
+
+#ifndef CONFIG_PREEMPT_TRACER
+static inline void tracer_preempt_on(unsigned long a0, unsigned long a1) { }
+static inline void tracer_preempt_off(unsigned long a0, unsigned long a1) { }
+#endif
+
+#if defined(CONFIG_TRACE_IRQFLAGS) && !defined(CONFIG_PROVE_LOCKING)
+void trace_hardirqs_on(void)
+{
+	tracer_hardirqs_on();
+}
+EXPORT_SYMBOL(trace_hardirqs_on);
+
+void trace_hardirqs_off(void)
+{
+	tracer_hardirqs_off();
+}
+EXPORT_SYMBOL(trace_hardirqs_off);
+
+__visible void trace_hardirqs_on_caller(unsigned long caller_addr)
+{
+	tracer_hardirqs_on_caller(caller_addr);
+}
+EXPORT_SYMBOL(trace_hardirqs_on_caller);
+
+__visible void trace_hardirqs_off_caller(unsigned long caller_addr)
+{
+	tracer_hardirqs_off_caller(caller_addr);
+}
+EXPORT_SYMBOL(trace_hardirqs_off_caller);
+
+/*
+ * Stubs:
+ */
+
+void trace_softirqs_on(unsigned long ip)
+{
+}
+
+void trace_softirqs_off(unsigned long ip)
+{
+}
+
+inline void print_irqtrace_events(struct task_struct *curr)
+{
+}
+#endif
+
+#ifdef CONFIG_PREEMPT_TRACER
+void trace_preempt_on(unsigned long a0, unsigned long a1)
+{
+	tracer_preempt_on(a0, a1);
+}
+
+void trace_preempt_off(unsigned long a0, unsigned long a1)
+{
+	tracer_preempt_off(a0, a1);
+}
+#endif
