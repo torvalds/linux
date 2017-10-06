@@ -826,12 +826,14 @@ static int i40iw_query_qp(struct ib_qp *ibqp,
 	attr->cap.max_inline_data = I40IW_MAX_INLINE_DATA_SIZE;
 	attr->cap.max_send_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
 	attr->cap.max_recv_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+	attr->port_num = 1;
 	init_attr->event_handler = iwqp->ibqp.event_handler;
 	init_attr->qp_context = iwqp->ibqp.qp_context;
 	init_attr->send_cq = iwqp->ibqp.send_cq;
 	init_attr->recv_cq = iwqp->ibqp.recv_cq;
 	init_attr->srq = iwqp->ibqp.srq;
 	init_attr->cap = attr->cap;
+	init_attr->port_num = 1;
 	return 0;
 }
 
