@@ -35,6 +35,12 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 
+unsigned long long dm_get_timestamp(struct dc_context *ctx)
+{
+	/* TODO: return actual timestamp */
+	return 0;
+}
+
 bool dm_write_persistent_data(struct dc_context *ctx,
 		const struct dc_sink *sink,
 		const char *module_name,

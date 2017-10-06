@@ -757,11 +757,6 @@ void dce110_link_encoder_construct(
 		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 	}
 
-	dm_logger_write(init_data->ctx->logger, LOG_I2C_AUX,
-			"Using channel: %s [%d]\n",
-			DECODE_CHANNEL_ID(init_data->channel),
-			init_data->channel);
-
 	/* Override features with DCE-specific values */
 	if (BP_RESULT_OK == bp_funcs->get_encoder_cap_info(
 			enc110->base.ctx->dc_bios, enc110->base.id,

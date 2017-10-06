@@ -418,6 +418,8 @@ bool dm_dmcu_set_pipe(struct dc_context *ctx, unsigned int controller_id);
 #define dm_log_to_buffer(buffer, size, fmt, args)\
 	vsnprintf(buffer, size, fmt, args)
 
+unsigned long long dm_get_timestamp(struct dc_context *ctx);
+
 /*
  * Debug and verification hooks
  */

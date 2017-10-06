@@ -224,6 +224,7 @@ struct dc_debug {
 	bool disable_dpp_pg;
 	bool disable_stereo_support;
 	bool vsr_support;
+	bool performance_trace;
 };
 struct dc_state;
 struct resource_pool;

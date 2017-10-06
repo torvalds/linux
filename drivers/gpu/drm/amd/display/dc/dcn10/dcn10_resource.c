@@ -434,6 +434,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.voltage_align_fclk = true,
 		.disable_stereo_support = true,
 		.vsr_support = true,
+		.performance_trace = false,
 };
 
 static const struct dc_debug debug_defaults_diags = {

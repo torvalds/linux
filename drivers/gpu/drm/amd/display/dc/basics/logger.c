@@ -80,8 +80,6 @@ static bool construct(struct dc_context *ctx, struct dal_logger *logger,
 	logger->buffer_read_offset = 0;
 	logger->buffer_write_offset = 0;
 
-	logger->write_wrap_count = 0;
-	logger->read_wrap_count = 0;
 	logger->open_count = 0;
 
 	logger->flags.bits.ENABLE_CONSOLE = 1;
@@ -162,23 +160,24 @@ static void log_to_debug_console(struct log_entry *entry)
 }
 
 /* Print everything unread existing in log_buffer to debug console*/
-static void flush_to_debug_console(struct dal_logger *logger)
+void dm_logger_flush_buffer(struct dal_logger *logger, bool should_warn)
 {
-	int i = logger->buffer_read_offset;
-	char *string_start = &logger->log_buffer[i];
+	char *string_start = &logger->log_buffer[logger->buffer_read_offset];
 
-	dm_output_to_console(
-		"---------------- FLUSHING LOG BUFFER ----------------\n");
-	while (i < logger->buffer_write_offset)	{
+	if (should_warn)
+		dm_output_to_console(
+			"---------------- FLUSHING LOG BUFFER ----------------\n");
+	while (logger->buffer_read_offset < logger->buffer_write_offset) {
 
-		if (logger->log_buffer[i] == '\0') {
+		if (logger->log_buffer[logger->buffer_read_offset] == '\0') {
 			dm_output_to_console("%s", string_start);
-			string_start = (char *)logger->log_buffer + i + 1;
+			string_start = logger->log_buffer + logger->buffer_read_offset + 1;
 		}
-		i++;
+		logger->buffer_read_offset++;
 	}
-	dm_output_to_console(
-		"-------------- END FLUSHING LOG BUFFER --------------\n\n");
+	if (should_warn)
+		dm_output_to_console(
+			"-------------- END FLUSHING LOG BUFFER --------------\n\n");
 }
 
 static void log_to_internal_buffer(struct log_entry *entry)
@@ -195,35 +194,17 @@ static void log_to_internal_buffer(struct log_entry *entry)
 
 	if (size > 0 && size < logger->log_buffer_size) {
 
-		int total_free_space = 0;
-		int space_before_wrap = 0;
+		int buffer_space = logger->log_buffer_size -
+				logger->buffer_write_offset;
 
-		if (logger->buffer_write_offset > logger->buffer_read_offset) {
-			total_free_space = logger->log_buffer_size -
-					logger->buffer_write_offset +
-					logger->buffer_read_offset;
-			space_before_wrap = logger->log_buffer_size -
-					logger->buffer_write_offset;
-		} else if (logger->buffer_write_offset <
-				logger->buffer_read_offset) {
-			total_free_space = logger->log_buffer_size -
-					logger->buffer_read_offset +
-					logger->buffer_write_offset;
-			space_before_wrap = total_free_space;
-		} else if (logger->write_wrap_count !=
-				logger->read_wrap_count) {
-			/* Buffer is completely full already */
-			total_free_space = 0;
-			space_before_wrap = 0;
-		} else {
+		if (logger->buffer_write_offset == logger->buffer_read_offset) {
 			/* Buffer is empty, start writing at beginning */
-			total_free_space = logger->log_buffer_size;
-			space_before_wrap = logger->log_buffer_size;
+			buffer_space = logger->log_buffer_size;
 			logger->buffer_write_offset = 0;
 			logger->buffer_read_offset = 0;
 		}
 
-		if (space_before_wrap > size) {
+		if (buffer_space > size) {
 			/* No wrap around, copy 'size' bytes
 			 * from 'entry->buf' to 'log_buffer'
 			 */
@@ -232,28 +213,12 @@ static void log_to_internal_buffer(struct log_entry *entry)
 					entry->buf, size);
 			logger->buffer_write_offset += size;
 
-		} else if (total_free_space > size) {
-			/* We have enough room without flushing,
-			 * but need to wrap around */
-
-			int space_after_wrap = total_free_space -
-					space_before_wrap;
-
-			memmove(logger->log_buffer +
-					logger->buffer_write_offset,
-					entry->buf, space_before_wrap);
-			memmove(logger->log_buffer, entry->buf +
-					space_before_wrap, space_after_wrap);
-
-			logger->buffer_write_offset = space_after_wrap;
-			logger->write_wrap_count++;
-
 		} else {
 			/* Not enough room remaining, we should flush
 			 * existing logs */
 
 			/* Flush existing unread logs to console */
-			flush_to_debug_console(logger);
+			dm_logger_flush_buffer(logger, true);
 
 			/* Start writing to beginning of buffer */
 			memmove(logger->log_buffer, entry->buf, size);
@@ -325,9 +290,10 @@ void dm_logger_write(
 		log_heading(&entry);
 
 		size = dm_log_to_buffer(
-			buffer, LOG_MAX_LINE_SIZE, msg, args);
+			buffer, LOG_MAX_LINE_SIZE - 1, msg, args);
 
-		entry.buf_offset += size;
+		buffer[entry.buf_offset + size] = '\0';
+		entry.buf_offset += size + 1;
 
 		/* --Flush log_entry buffer-- */
 		/* print to kernel console */

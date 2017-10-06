@@ -682,6 +682,7 @@ bool dcn_validate_bandwidth(
 	bool bw_limit_pass;
 	float bw_limit;
 
+	PERFORMANCE_TRACE_START();
 	if (dcn_bw_apply_registry_override(dc))
 		dcn_bw_sync_calcs_and_dml(dc);
 
@@ -1089,6 +1090,8 @@ bool dcn_validate_bandwidth(
 
 	kernel_fpu_end();
 
+	PERFORMANCE_TRACE_END();
+
 	if (bw_limit_pass && v->voltage_level != 5)
 		return true;
 	else
@@ -1223,7 +1226,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	else
 		dcf_clk =  dc->dcn_soc->dcfclkv_min0p65*1000;
 
-	dm_logger_write(dc->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"\tdcf_clk for voltage = %d\n", dcf_clk);
 	return dcf_clk;
 }
