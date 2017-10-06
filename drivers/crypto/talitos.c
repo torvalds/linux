@@ -2635,7 +2635,7 @@ static struct talitos_alg_template driver_algs[] = {
 				.ivsize = AES_BLOCK_SIZE,
 			}
 		},
-		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+		.desc_hdr_template = DESC_HDR_TYPE_AESU_CTR_NONSNOOP |
 				     DESC_HDR_SEL0_AESU |
 				     DESC_HDR_MODE0_AESU_CTR,
 	},
