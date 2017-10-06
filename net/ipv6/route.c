@@ -1528,6 +1528,66 @@ static void rt6_exceptions_clean_tohost(struct rt6_info *rt,
 	spin_unlock_bh(&rt6_exception_lock);
 }
 
+static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
+				      struct rt6_exception *rt6_ex,
+				      struct fib6_gc_args *gc_args,
+				      unsigned long now)
+{
+	struct rt6_info *rt = rt6_ex->rt6i;
+
+	if (atomic_read(&rt->dst.__refcnt) == 1 &&
+	    time_after_eq(now, rt->dst.lastuse + gc_args->timeout)) {
+		RT6_TRACE("aging clone %p\n", rt);
+		rt6_remove_exception(bucket, rt6_ex);
+		return;
+	} else if (rt->rt6i_flags & RTF_GATEWAY) {
+		struct neighbour *neigh;
+		__u8 neigh_flags = 0;
+
+		neigh = dst_neigh_lookup(&rt->dst, &rt->rt6i_gateway);
+		if (neigh) {
+			neigh_flags = neigh->flags;
+			neigh_release(neigh);
+		}
+		if (!(neigh_flags & NTF_ROUTER)) {
+			RT6_TRACE("purging route %p via non-router but gateway\n",
+				  rt);
+			rt6_remove_exception(bucket, rt6_ex);
+			return;
+		}
+	}
+	gc_args->more++;
+}
+
+void rt6_age_exceptions(struct rt6_info *rt,
+			struct fib6_gc_args *gc_args,
+			unsigned long now)
+{
+	struct rt6_exception_bucket *bucket;
+	struct rt6_exception *rt6_ex;
+	struct hlist_node *tmp;
+	int i;
+
+	if (!rcu_access_pointer(rt->rt6i_exception_bucket))
+		return;
+
+	spin_lock_bh(&rt6_exception_lock);
+	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
+				    lockdep_is_held(&rt6_exception_lock));
+
+	if (bucket) {
+		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
+			hlist_for_each_entry_safe(rt6_ex, tmp,
+						  &bucket->chain, hlist) {
+				rt6_age_examine_exception(bucket, rt6_ex,
+							  gc_args, now);
+			}
+			bucket++;
+		}
+	}
+	spin_unlock_bh(&rt6_exception_lock);
+}
+
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 			       int oif, struct flowi6 *fl6, int flags)
 {

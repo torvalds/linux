@@ -29,6 +29,14 @@
 #define FIB6_TABLE_HASHSZ 1
 #endif
 
+#define RT6_DEBUG 2
+
+#if RT6_DEBUG >= 3
+#define RT6_TRACE(x...) pr_debug(x)
+#else
+#define RT6_TRACE(x...) do { ; } while (0)
+#endif
+
 struct rt6_info;
 
 struct fib6_config {
@@ -73,6 +81,11 @@ struct fib6_node {
 	int			fn_sernum;
 	struct rt6_info		*rr_ptr;
 	struct rcu_head		rcu;
+};
+
+struct fib6_gc_args {
+	int			timeout;
+	int			more;
 };
 
 #ifndef CONFIG_IPV6_SUBTREES

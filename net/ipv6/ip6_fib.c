@@ -38,14 +38,6 @@
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 
-#define RT6_DEBUG 2
-
-#if RT6_DEBUG >= 3
-#define RT6_TRACE(x...) pr_debug(x)
-#else
-#define RT6_TRACE(x...) do { ; } while (0)
-#endif
-
 static struct kmem_cache *fib6_node_kmem __read_mostly;
 
 struct fib6_cleaner {
@@ -1890,12 +1882,6 @@ static void fib6_flush_trees(struct net *net)
  *	Garbage collection
  */
 
-struct fib6_gc_args
-{
-	int			timeout;
-	int			more;
-};
-
 static int fib6_age(struct rt6_info *rt, void *arg)
 {
 	struct fib6_gc_args *gc_args = arg;
@@ -1904,9 +1890,6 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 	/*
 	 *	check addrconf expiration here.
 	 *	Routes are expired even if they are in use.
-	 *
-	 *	Also age clones. Note, that clones are aged out
-	 *	only if they are not in use now.
 	 */
 
 	if (rt->rt6i_flags & RTF_EXPIRES && rt->dst.expires) {
@@ -1915,6 +1898,9 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 			return -1;
 		}
 		gc_args->more++;
+	/* The following part will soon be removed when the exception
+	 * table is hooked up to store all cached routes.
+	 */
 	} else if (rt->rt6i_flags & RTF_CACHE) {
 		if (time_after_eq(now, rt->dst.lastuse + gc_args->timeout))
 			rt->dst.obsolete = DST_OBSOLETE_KILL;
@@ -1939,6 +1925,12 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 		}
 		gc_args->more++;
 	}
+
+	/*	Also age clones in the exception table.
+	 *	Note, that clones are aged out
+	 *	only if they are not in use now.
+	 */
+	rt6_age_exceptions(rt, gc_args, now);
 
 	return 0;
 }
