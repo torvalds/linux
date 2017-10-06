@@ -194,7 +194,6 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 	struct flow_dissector_key_ipv6_addrs *addr;
 	struct flow_dissector_key_basic *basic;
 
-	/* Wildcard LABEL/TOS/TTL for now. */
 	memset(frame, 0, sizeof(struct nfp_flower_ipv6));
 
 	if (dissector_uses_key(flow->dissector,
@@ -211,6 +210,16 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 						  FLOW_DISSECTOR_KEY_BASIC,
 						  target);
 		frame->proto = basic->ip_proto;
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *flow_ip;
+
+		flow_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    target);
+		frame->tos = flow_ip->tos;
+		frame->ttl = flow_ip->ttl;
 	}
 }
 
