@@ -1309,6 +1309,7 @@ static void xhci_complete_del_and_free_cmd(struct xhci_command *cmd, u32 status)
 void xhci_cleanup_command_queue(struct xhci_hcd *xhci)
 {
 	struct xhci_command *cur_cmd, *tmp_cmd;
+	xhci->current_cmd = NULL;
 	list_for_each_entry_safe(cur_cmd, tmp_cmd, &xhci->cmd_list, cmd_list)
 		xhci_complete_del_and_free_cmd(cur_cmd, COMP_COMMAND_ABORTED);
 }
