@@ -1013,6 +1013,69 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 				      cache_level);
 }
 
+static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
+					   struct i915_page_directory_pointer **pdps,
+					   struct sgt_dma *iter,
+					   enum i915_cache_level cache_level)
+{
+	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level);
+	u64 start = vma->node.start;
+	dma_addr_t rem = iter->sg->length;
+
+	do {
+		struct gen8_insert_pte idx = gen8_insert_pte(start);
+		struct i915_page_directory_pointer *pdp = pdps[idx.pml4e];
+		struct i915_page_directory *pd = pdp->page_directory[idx.pdpe];
+		unsigned int page_size;
+		gen8_pte_t encode = pte_encode;
+		gen8_pte_t *vaddr;
+		u16 index, max;
+
+		if (vma->page_sizes.sg & I915_GTT_PAGE_SIZE_2M &&
+		    IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_2M) &&
+		    rem >= I915_GTT_PAGE_SIZE_2M && !idx.pte) {
+			index = idx.pde;
+			max = I915_PDES;
+			page_size = I915_GTT_PAGE_SIZE_2M;
+
+			encode |= GEN8_PDE_PS_2M;
+
+			vaddr = kmap_atomic_px(pd);
+		} else {
+			struct i915_page_table *pt = pd->page_table[idx.pde];
+
+			index = idx.pte;
+			max = GEN8_PTES;
+			page_size = I915_GTT_PAGE_SIZE;
+
+			vaddr = kmap_atomic_px(pt);
+		}
+
+		do {
+			GEM_BUG_ON(iter->sg->length < page_size);
+			vaddr[index++] = encode | iter->dma;
+
+			start += page_size;
+			iter->dma += page_size;
+			rem -= page_size;
+			if (iter->dma >= iter->max) {
+				iter->sg = __sg_next(iter->sg);
+				if (!iter->sg)
+					break;
+
+				rem = iter->sg->length;
+				iter->dma = sg_dma_address(iter->sg);
+				iter->max = iter->dma + rem;
+
+				if (unlikely(!IS_ALIGNED(iter->dma, page_size)))
+					break;
+			}
+		} while (rem >= page_size && index < max);
+
+		kunmap_atomic(vaddr);
+	} while (iter->sg);
+}
+
 static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 				   struct i915_vma *vma,
 				   enum i915_cache_level cache_level,
@@ -1025,11 +1088,16 @@ static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 		.max = iter.dma + iter.sg->length,
 	};
 	struct i915_page_directory_pointer **pdps = ppgtt->pml4.pdps;
-	struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
-	while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++], &iter,
-					     &idx, cache_level))
-		GEM_BUG_ON(idx.pml4e >= GEN8_PML4ES_PER_PML4);
+	if (vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
+		gen8_ppgtt_insert_huge_entries(vma, pdps, &iter, cache_level);
+	} else {
+		struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
+
+		while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++],
+						     &iter, &idx, cache_level))
+			GEM_BUG_ON(idx.pml4e >= GEN8_PML4ES_PER_PML4);
+	}
 }
 
 static void gen8_free_page_tables(struct i915_address_space *vm,
