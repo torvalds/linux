@@ -266,6 +266,8 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	if (bind_flags == 0)
 		return 0;
 
+	GEM_BUG_ON(!vma->pages);
+
 	trace_i915_vma_bind(vma, bind_flags);
 	ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
 	if (ret)
@@ -471,25 +473,31 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	if (ret)
 		return ret;
 
+	GEM_BUG_ON(vma->pages);
+
+	ret = vma->vm->set_pages(vma);
+	if (ret)
+		goto err_unpin;
+
 	if (flags & PIN_OFFSET_FIXED) {
 		u64 offset = flags & PIN_OFFSET_MASK;
 		if (!IS_ALIGNED(offset, alignment) ||
 		    range_overflows(offset, size, end)) {
 			ret = -EINVAL;
-			goto err_unpin;
+			goto err_clear;
 		}
 
 		ret = i915_gem_gtt_reserve(vma->vm, &vma->node,
 					   size, offset, obj->cache_level,
 					   flags);
 		if (ret)
-			goto err_unpin;
+			goto err_clear;
 	} else {
 		ret = i915_gem_gtt_insert(vma->vm, &vma->node,
 					  size, alignment, obj->cache_level,
 					  start, end, flags);
 		if (ret)
-			goto err_unpin;
+			goto err_clear;
 
 		GEM_BUG_ON(vma->node.start < start);
 		GEM_BUG_ON(vma->node.start + vma->node.size > end);
@@ -504,6 +512,8 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 
 	return 0;
 
+err_clear:
+	vma->vm->clear_pages(vma);
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
 	return ret;
@@ -516,6 +526,8 @@ i915_vma_remove(struct i915_vma *vma)
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
+
+	vma->vm->clear_pages(vma);
 
 	drm_mm_remove_node(&vma->node);
 	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
@@ -569,8 +581,8 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 
 err_remove:
 	if ((bound & I915_VMA_BIND_MASK) == 0) {
-		GEM_BUG_ON(vma->pages);
 		i915_vma_remove(vma);
+		GEM_BUG_ON(vma->pages);
 	}
 err_unpin:
 	__i915_vma_unpin(vma);
@@ -694,13 +706,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 		vma->vm->unbind_vma(vma);
 	}
 	vma->flags &= ~(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND);
-
-	if (vma->pages != obj->mm.pages) {
-		GEM_BUG_ON(!vma->pages);
-		sg_free_table(vma->pages);
-		kfree(vma->pages);
-	}
-	vma->pages = NULL;
 
 	i915_vma_remove(vma);
 

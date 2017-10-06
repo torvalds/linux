@@ -335,6 +335,8 @@ struct i915_address_space {
 	int (*bind_vma)(struct i915_vma *vma,
 			enum i915_cache_level cache_level,
 			u32 flags);
+	int (*set_pages)(struct i915_vma *vma);
+	void (*clear_pages)(struct i915_vma *vma);
 
 	I915_SELFTEST_DECLARE(struct fault_attr fault_attr);
 };
