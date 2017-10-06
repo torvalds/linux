@@ -348,10 +348,39 @@ nfp_fl_set_ip6(const struct tc_action *action, int idx, u32 off,
 }
 
 static int
+nfp_fl_set_tport(const struct tc_action *action, int idx, u32 off,
+		 struct nfp_fl_set_tport *set_tport, int opcode)
+{
+	u32 exact, mask;
+	u16 tmp_set_op;
+
+	if (off)
+		return -EOPNOTSUPP;
+
+	mask = ~tcf_pedit_mask(action, idx);
+	exact = tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	nfp_fl_set_helper32(exact, mask, set_tport->tp_port_val,
+			    set_tport->tp_port_mask);
+
+	set_tport->reserved = cpu_to_be16(0);
+	tmp_set_op = FIELD_PREP(NFP_FL_ACT_LEN_LW,
+				sizeof(*set_tport) >> NFP_FL_LW_SIZ);
+	tmp_set_op |= FIELD_PREP(NFP_FL_ACT_JMP_ID, opcode);
+	set_tport->a_op = cpu_to_be16(tmp_set_op);
+
+	return 0;
+}
+
+static int
 nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 {
 	struct nfp_fl_set_ipv6_addr set_ip6_dst, set_ip6_src;
 	struct nfp_fl_set_ip4_addrs set_ip_addr;
+	struct nfp_fl_set_tport set_tport;
 	struct nfp_fl_set_eth set_eth;
 	enum pedit_header_type htype;
 	int idx, nkeys, err;
@@ -361,6 +390,7 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 	memset(&set_ip6_dst, 0, sizeof(set_ip6_dst));
 	memset(&set_ip6_src, 0, sizeof(set_ip6_src));
 	memset(&set_ip_addr, 0, sizeof(set_ip_addr));
+	memset(&set_tport, 0, sizeof(set_tport));
 	memset(&set_eth, 0, sizeof(set_eth));
 	nkeys = tcf_pedit_nkeys(action);
 
@@ -382,6 +412,14 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
 			err = nfp_fl_set_ip6(action, idx, offset, &set_ip6_dst,
 					     &set_ip6_src);
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+			err = nfp_fl_set_tport(action, idx, offset, &set_tport,
+					       NFP_FL_ACTION_OPCODE_SET_TCP);
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+			err = nfp_fl_set_tport(action, idx, offset, &set_tport,
+					       NFP_FL_ACTION_OPCODE_SET_UDP);
 			break;
 		default:
 			return -EOPNOTSUPP;
@@ -417,6 +455,10 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 	} else if (set_ip6_src.a_op) {
 		act_size = sizeof(set_ip6_src);
 		memcpy(nfp_action, &set_ip6_src, act_size);
+		*a_len += act_size;
+	} else if (set_tport.a_op) {
+		act_size = sizeof(set_tport);
+		memcpy(nfp_action, &set_tport, act_size);
 		*a_len += act_size;
 	}
 

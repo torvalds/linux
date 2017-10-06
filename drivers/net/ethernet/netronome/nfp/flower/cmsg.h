@@ -81,6 +81,8 @@
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
+#define NFP_FL_ACTION_OPCODE_SET_UDP		14
+#define NFP_FL_ACTION_OPCODE_SET_TCP		15
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
@@ -134,6 +136,13 @@ struct nfp_fl_set_ipv6_addr {
 		__be32 mask;
 		__be32 exact;
 	} ipv6[4];
+};
+
+struct nfp_fl_set_tport {
+	__be16 a_op;
+	__be16 reserved;
+	u8 tp_port_mask[4];
+	u8 tp_port_val[4];
 };
 
 struct nfp_fl_output {
