@@ -169,6 +169,7 @@ struct drm_i915_gem_object {
 		struct sg_table *pages;
 		void *mapping;
 
+		/* TODO: whack some of this into the error state */
 		struct i915_page_sizes {
 			/**
 			 * The sg mask of the pages sg_table. i.e the mask of
@@ -184,6 +185,15 @@ struct drm_i915_gem_object {
 			 * to use opportunistically.
 			 */
 			unsigned int sg;
+
+			/**
+			 * The actual gtt page size usage. Since we can have
+			 * multiple vma associated with this object we need to
+			 * prevent any trampling of state, hence a copy of this
+			 * struct also lives in each vma, therefore the gtt
+			 * value here should only be read/write through the vma.
+			 */
+			unsigned int gtt;
 		} page_sizes;
 
 		struct i915_gem_object_page_iter {

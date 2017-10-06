@@ -1053,6 +1053,8 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 
 	gen8_ppgtt_insert_pte_entries(ppgtt, &ppgtt->pdp, &iter, &idx,
 				      cache_level);
+
+	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 }
 
 static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
@@ -1145,7 +1147,10 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 			vaddr = kmap_atomic_px(pd);
 			vaddr[idx.pde] |= GEN8_PDE_IPS_64K;
 			kunmap_atomic(vaddr);
+			page_size = I915_GTT_PAGE_SIZE_64K;
 		}
+
+		vma->page_sizes.gtt |= page_size;
 	} while (iter->sg);
 }
 
@@ -1170,6 +1175,8 @@ static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 		while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++],
 						     &iter, &idx, cache_level))
 			GEM_BUG_ON(idx.pml4e >= GEN8_PML4ES_PER_PML4);
+
+		vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 	}
 }
 
@@ -1891,6 +1898,8 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		}
 	} while (1);
 	kunmap_atomic(vaddr);
+
+	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
@@ -2597,6 +2606,8 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	intel_runtime_pm_get(i915);
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 	intel_runtime_pm_put(i915);
+
+	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
 	/*
 	 * Without aliasing PPGTT there's no difference between
