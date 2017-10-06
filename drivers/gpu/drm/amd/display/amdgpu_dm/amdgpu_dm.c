@@ -702,6 +702,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	dc_release_state(cached_state->context);
 
 	cached_state->context = dc_create_state();
+	ASSERT(cached_state->context);
 	dc_resource_state_copy_construct_current(adev->dm.dc, cached_state->context);
 
 	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i) {
