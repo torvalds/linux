@@ -1987,6 +1987,23 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 	else if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
+
+	/*
+	 * To support 64K PTEs we need to first enable the use of the
+	 * Intermediate-Page-Size(IPS) bit of the PDE field via some magical
+	 * mmio, otherwise the page-walker will simply ignore the IPS bit. This
+	 * shouldn't be needed after GEN10.
+	 *
+	 * 64K pages were first introduced from BDW+, although technically they
+	 * only *work* from gen9+. For pre-BDW we instead have the option for
+	 * 32K pages, but we don't currently have any support for it in our
+	 * driver.
+	 */
+	if (HAS_PAGE_SIZES(dev_priv, I915_GTT_PAGE_SIZE_64K) &&
+	    INTEL_GEN(dev_priv) <= 10)
+		I915_WRITE(GEN8_GAMW_ECO_DEV_RW_IA,
+			   I915_READ(GEN8_GAMW_ECO_DEV_RW_IA) |
+			   GAMW_ECO_ENABLE_64K_IPS_FIELD);
 }
 
 int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
