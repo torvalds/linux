@@ -1491,6 +1491,43 @@ static void rt6_exceptions_update_pmtu(struct rt6_info *rt, int mtu)
 	}
 }
 
+#define RTF_CACHE_GATEWAY	(RTF_GATEWAY | RTF_CACHE)
+
+static void rt6_exceptions_clean_tohost(struct rt6_info *rt,
+					struct in6_addr *gateway)
+{
+	struct rt6_exception_bucket *bucket;
+	struct rt6_exception *rt6_ex;
+	struct hlist_node *tmp;
+	int i;
+
+	if (!rcu_access_pointer(rt->rt6i_exception_bucket))
+		return;
+
+	spin_lock_bh(&rt6_exception_lock);
+	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
+				     lockdep_is_held(&rt6_exception_lock));
+
+	if (bucket) {
+		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
+			hlist_for_each_entry_safe(rt6_ex, tmp,
+						  &bucket->chain, hlist) {
+				struct rt6_info *entry = rt6_ex->rt6i;
+
+				if ((entry->rt6i_flags & RTF_CACHE_GATEWAY) ==
+				    RTF_CACHE_GATEWAY &&
+				    ipv6_addr_equal(gateway,
+						    &entry->rt6i_gateway)) {
+					rt6_remove_exception(bucket, rt6_ex);
+				}
+			}
+			bucket++;
+		}
+	}
+
+	spin_unlock_bh(&rt6_exception_lock);
+}
+
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 			       int oif, struct flowi6 *fl6, int flags)
 {
@@ -3240,18 +3277,27 @@ void rt6_remove_prefsrc(struct inet6_ifaddr *ifp)
 }
 
 #define RTF_RA_ROUTER		(RTF_ADDRCONF | RTF_DEFAULT | RTF_GATEWAY)
-#define RTF_CACHE_GATEWAY	(RTF_GATEWAY | RTF_CACHE)
 
 /* Remove routers and update dst entries when gateway turn into host. */
 static int fib6_clean_tohost(struct rt6_info *rt, void *arg)
 {
 	struct in6_addr *gateway = (struct in6_addr *)arg;
 
+	/* RTF_CACHE_GATEWAY case will be removed once the exception
+	 * table is hooked up to store all cached routes.
+	 */
 	if ((((rt->rt6i_flags & RTF_RA_ROUTER) == RTF_RA_ROUTER) ||
 	     ((rt->rt6i_flags & RTF_CACHE_GATEWAY) == RTF_CACHE_GATEWAY)) &&
 	     ipv6_addr_equal(gateway, &rt->rt6i_gateway)) {
 		return -1;
 	}
+
+	/* Further clean up cached routes in exception table.
+	 * This is needed because cached route may have a different
+	 * gateway than its 'parent' in the case of an ip redirect.
+	 */
+	rt6_exceptions_clean_tohost(rt, gateway);
+
 	return 0;
 }
 
