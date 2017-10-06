@@ -367,7 +367,8 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_sched_time_avg,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one,
 	},
 #ifdef CONFIG_SCHEDSTATS
 	{
@@ -2185,8 +2186,6 @@ static int do_proc_douintvec_conv(unsigned long *lvalp,
 				  int write, void *data)
 {
 	if (write) {
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
 		*valp = *lvalp;

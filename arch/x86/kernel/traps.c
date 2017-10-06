@@ -142,7 +142,7 @@ void ist_begin_non_atomic(struct pt_regs *regs)
 	 * from double_fault.
 	 */
 	BUG_ON((unsigned long)(current_top_of_stack() -
-			       current_stack_pointer()) >= THREAD_SIZE);
+			       current_stack_pointer) >= THREAD_SIZE);
 
 	preempt_enable_no_resched();
 }
