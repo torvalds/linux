@@ -236,6 +236,7 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
+#define   TALITOS_CCCR_LO_NE		0x8    /* fetch next descriptor enab. */
 #define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
 #define   TALITOS1_CCCR_LO_RESET	0x1    /* channel reset on SEC1 */
