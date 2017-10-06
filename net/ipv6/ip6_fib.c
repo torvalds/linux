@@ -1343,14 +1343,21 @@ struct fib6_node *fib6_lookup(struct fib6_node *root, const struct in6_addr *dad
 /*
  *	Get node with specified destination prefix (and source prefix,
  *	if subtrees are used)
+ *	exact_match == true means we try to find fn with exact match of
+ *	the passed in prefix addr
+ *	exact_match == false means we try to find fn with longest prefix
+ *	match of the passed in prefix addr. This is useful for finding fn
+ *	for cached route as it will be stored in the exception table under
+ *	the node with longest prefix length.
  */
 
 
 static struct fib6_node *fib6_locate_1(struct fib6_node *root,
 				       const struct in6_addr *addr,
-				       int plen, int offset)
+				       int plen, int offset,
+				       bool exact_match)
 {
-	struct fib6_node *fn;
+	struct fib6_node *fn, *prev = NULL;
 
 	for (fn = root; fn ; ) {
 		struct rt6key *key = (struct rt6key *)((u8 *)fn->leaf + offset);
@@ -1360,10 +1367,12 @@ static struct fib6_node *fib6_locate_1(struct fib6_node *root,
 		 */
 		if (plen < fn->fn_bit ||
 		    !ipv6_prefix_equal(&key->addr, addr, fn->fn_bit))
-			return NULL;
+			goto out;
 
 		if (plen == fn->fn_bit)
 			return fn;
+
+		prev = fn;
 
 		/*
 		 *	We have more bits to go
@@ -1373,24 +1382,31 @@ static struct fib6_node *fib6_locate_1(struct fib6_node *root,
 		else
 			fn = fn->left;
 	}
-	return NULL;
+out:
+	if (exact_match)
+		return NULL;
+	else
+		return prev;
 }
 
 struct fib6_node *fib6_locate(struct fib6_node *root,
 			      const struct in6_addr *daddr, int dst_len,
-			      const struct in6_addr *saddr, int src_len)
+			      const struct in6_addr *saddr, int src_len,
+			      bool exact_match)
 {
 	struct fib6_node *fn;
 
 	fn = fib6_locate_1(root, daddr, dst_len,
-			   offsetof(struct rt6_info, rt6i_dst));
+			   offsetof(struct rt6_info, rt6i_dst),
+			   exact_match);
 
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src_len) {
 		WARN_ON(saddr == NULL);
 		if (fn && fn->subtree)
 			fn = fib6_locate_1(fn->subtree, saddr, src_len,
-					   offsetof(struct rt6_info, rt6i_src));
+					   offsetof(struct rt6_info, rt6i_src),
+					   exact_match);
 	}
 #endif
 

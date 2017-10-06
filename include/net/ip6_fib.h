@@ -357,7 +357,8 @@ struct fib6_node *fib6_lookup(struct fib6_node *root,
 
 struct fib6_node *fib6_locate(struct fib6_node *root,
 			      const struct in6_addr *daddr, int dst_len,
-			      const struct in6_addr *saddr, int src_len);
+			      const struct in6_addr *saddr, int src_len,
+			      bool exact_match);
 
 void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
 		    void *arg);

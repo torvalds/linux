@@ -2800,7 +2800,8 @@ static int ip6_route_del(struct fib6_config *cfg,
 
 	fn = fib6_locate(&table->tb6_root,
 			 &cfg->fc_dst, cfg->fc_dst_len,
-			 &cfg->fc_src, cfg->fc_src_len);
+			 &cfg->fc_src, cfg->fc_src_len,
+			 true);
 
 	if (fn) {
 		for (rt = fn->leaf; rt; rt = rt->dst.rt6_next) {
@@ -3009,7 +3010,7 @@ static struct rt6_info *rt6_get_route_info(struct net *net,
 		return NULL;
 
 	read_lock_bh(&table->tb6_lock);
-	fn = fib6_locate(&table->tb6_root, prefix, prefixlen, NULL, 0);
+	fn = fib6_locate(&table->tb6_root, prefix, prefixlen, NULL, 0, true);
 	if (!fn)
 		goto out;
 
