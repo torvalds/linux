@@ -277,7 +277,7 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 	phys_addr_t addr;
 
 	INIT_LIST_HEAD(&priv->catas_err.list);
-	init_timer(&priv->catas_err.timer);
+	setup_timer(&priv->catas_err.timer, poll_catas, (unsigned long)dev);
 	priv->catas_err.map = NULL;
 
 	if (!mlx4_is_slave(dev)) {
@@ -293,8 +293,6 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 		}
 	}
 
-	priv->catas_err.timer.data     = (unsigned long) dev;
-	priv->catas_err.timer.function = poll_catas;
 	priv->catas_err.timer.expires  =
 		round_jiffies(jiffies + MLX4_CATAS_POLL_INTERVAL);
 	add_timer(&priv->catas_err.timer);

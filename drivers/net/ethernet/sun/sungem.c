@@ -2910,9 +2910,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	gp->msg_enable = DEFAULT_MSG;
 
-	init_timer(&gp->link_timer);
-	gp->link_timer.function = gem_link_timer;
-	gp->link_timer.data = (unsigned long) gp;
+	setup_timer(&gp->link_timer, gem_link_timer, (unsigned long)gp);
 
 	INIT_WORK(&gp->reset_task, gem_reset_task);
 

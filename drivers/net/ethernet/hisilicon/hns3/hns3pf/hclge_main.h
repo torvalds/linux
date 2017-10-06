@@ -176,7 +176,6 @@ struct hclge_pg_info {
 struct hclge_tc_info {
 	u8 tc_id;
 	u8 tc_sch_mode;		/* 0: sp; 1: dwrr */
-	u8 up;
 	u8 pgid;
 	u32 bw_limit;
 };
@@ -197,6 +196,7 @@ struct hclge_tm_info {
 	u8 num_tc;
 	u8 num_pg;      /* It must be 1 if vNET-Base schd */
 	u8 pg_dwrr[HCLGE_PG_NUM];
+	u8 prio_tc[HNAE3_MAX_USER_PRIO];
 	struct hclge_pg_info pg_info[HCLGE_PG_NUM];
 	struct hclge_tc_info tc_info[HNAE3_MAX_TC];
 	enum hclge_fc_mode fc_mode;
@@ -421,8 +421,11 @@ struct hclge_dev {
 #define HCLGE_FLAG_TC_BASE_SCH_MODE		1
 #define HCLGE_FLAG_VNET_BASE_SCH_MODE		2
 	u8 tx_sch_mode;
+	u8 tc_max;
+	u8 pfc_max;
 
 	u8 default_up;
+	u8 dcbx_cap;
 	struct hclge_tm_info tm_info;
 
 	u16 num_msi;
@@ -463,8 +466,6 @@ struct hclge_dev {
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
 	u32 mps; /* Max packet size */
-	struct hclge_priv_buf *priv_buf;
-	struct hclge_shared_buf s_buf;
 
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
 	bool enable_mta; /* Mutilcast filter enable */
@@ -477,6 +478,7 @@ struct hclge_vport {
 	u8  rss_hash_key[HCLGE_RSS_KEY_SIZE]; /* User configured hash keys */
 	/* User configured lookup table entries */
 	u8  rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
+	u16 alloc_rss_size;
 
 	u16 qs_offset;
 	u16 bw_limit;		/* VSI BW Limit (0 = disabled) */
@@ -516,4 +518,7 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
 int hclge_set_vf_vlan_common(struct hclge_dev *vport, int vfid,
 			     bool is_kill, u16 vlan, u8 qos, __be16 proto);
+
+int hclge_buffer_alloc(struct hclge_dev *hdev);
+int hclge_rss_init_hw(struct hclge_dev *hdev);
 #endif

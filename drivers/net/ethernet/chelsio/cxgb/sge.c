@@ -2075,9 +2075,8 @@ struct sge *t1_sge_create(struct adapter *adapter, struct sge_params *p)
 			goto nomem_port;
 	}
 
-	init_timer(&sge->tx_reclaim_timer);
-	sge->tx_reclaim_timer.data = (unsigned long)sge;
-	sge->tx_reclaim_timer.function = sge_tx_reclaim_cb;
+	setup_timer(&sge->tx_reclaim_timer, sge_tx_reclaim_cb,
+		    (unsigned long)sge);
 
 	if (is_T2(sge->adapter)) {
 		init_timer(&sge->espibug_timer);

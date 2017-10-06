@@ -130,7 +130,7 @@ static int emac_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	return emac_mac_tx_buf_send(adpt, &adpt->tx_q, skb);
 }
 
-irqreturn_t emac_isr(int _irq, void *data)
+static irqreturn_t emac_isr(int _irq, void *data)
 {
 	struct emac_irq *irq = data;
 	struct emac_adapter *adpt =
@@ -443,6 +443,9 @@ static void emac_init_adapter(struct emac_adapter *adpt)
 
 	/* default to automatic flow control */
 	adpt->automatic = true;
+
+	/* Disable single-pause-frame mode by default */
+	adpt->single_pause_mode = false;
 }
 
 /* Get the clock */

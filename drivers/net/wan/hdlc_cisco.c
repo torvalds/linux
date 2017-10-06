@@ -293,10 +293,8 @@ static void cisco_start(struct net_device *dev)
 	st->up = st->txseq = st->rxseq = 0;
 	spin_unlock_irqrestore(&st->lock, flags);
 
-	init_timer(&st->timer);
+	setup_timer(&st->timer, cisco_timer, (unsigned long)dev);
 	st->timer.expires = jiffies + HZ; /* First poll after 1 s */
-	st->timer.function = cisco_timer;
-	st->timer.data = (unsigned long)dev;
 	add_timer(&st->timer);
 }
 

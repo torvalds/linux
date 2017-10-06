@@ -627,6 +627,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 
 	if (lro) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		rq->stats.csum_unnecessary++;
 		return;
 	}
 
@@ -644,7 +645,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 			skb->csum_level = 1;
 			skb->encapsulation = 1;
 			rq->stats.csum_unnecessary_inner++;
+			return;
 		}
+		rq->stats.csum_unnecessary++;
 		return;
 	}
 csum_none:
@@ -794,6 +797,7 @@ static inline int mlx5e_xdp_handle(struct mlx5e_rq *rq,
 		return false;
 
 	xdp.data = va + *rx_headroom;
+	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + *len;
 	xdp.data_hard_start = va;
 

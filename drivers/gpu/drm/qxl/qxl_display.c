@@ -509,23 +509,25 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 	    .y2 = qfb->base.height
 	};
 
-	if (!old_state->fb) {
-		qxl_io_log(qdev,
-			   "create primary fb: %dx%d,%d,%d\n",
-			   bo->surf.width, bo->surf.height,
-			   bo->surf.stride, bo->surf.format);
-
-		qxl_io_create_primary(qdev, 0, bo);
-		bo->is_primary = true;
-		return;
-
-	} else {
+	if (old_state->fb) {
 		qfb_old = to_qxl_framebuffer(old_state->fb);
 		bo_old = gem_to_qxl_bo(qfb_old->obj);
+	} else {
+		bo_old = NULL;
+	}
+
+	if (bo == bo_old)
+		return;
+
+	if (bo_old && bo_old->is_primary) {
+		qxl_io_destroy_primary(qdev);
 		bo_old->is_primary = false;
 	}
 
-	bo->is_primary = true;
+	if (!bo->is_primary) {
+		qxl_io_create_primary(qdev, 0, bo);
+		bo->is_primary = true;
+	}
 	qxl_draw_dirty_fb(qdev, qfb, bo, 0, 0, &norect, 1, 1);
 }
 
@@ -534,13 +536,15 @@ static void qxl_primary_atomic_disable(struct drm_plane *plane,
 {
 	struct qxl_device *qdev = plane->dev->dev_private;
 
-	if (old_state->fb)
-	{	struct qxl_framebuffer *qfb =
+	if (old_state->fb) {
+		struct qxl_framebuffer *qfb =
 			to_qxl_framebuffer(old_state->fb);
 		struct qxl_bo *bo = gem_to_qxl_bo(qfb->obj);
 
-		qxl_io_destroy_primary(qdev);
-		bo->is_primary = false;
+		if (bo->is_primary) {
+			qxl_io_destroy_primary(qdev);
+			bo->is_primary = false;
+		}
 	}
 }
 
@@ -698,14 +702,15 @@ static void qxl_plane_cleanup_fb(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct qxl_bo *user_bo;
 
-	if (!plane->state->fb) {
-		/* we never executed prepare_fb, so there's nothing to
+	if (!old_state->fb) {
+		/*
+		 * we never executed prepare_fb, so there's nothing to
 		 * unpin.
 		 */
 		return;
 	}
 
-	obj = to_qxl_framebuffer(plane->state->fb)->obj;
+	obj = to_qxl_framebuffer(old_state->fb)->obj;
 	user_bo = gem_to_qxl_bo(obj);
 	qxl_bo_unpin(user_bo);
 }

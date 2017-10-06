@@ -52,7 +52,24 @@
 	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_IP))
+
+#define NFP_FLOWER_WHITELIST_TUN_DISSECTOR \
+	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
+
+#define NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R \
+	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
 
 static int
 nfp_flower_xmit_flow(struct net_device *netdev,
@@ -125,15 +142,58 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 	if (flow->dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR)
 		return -EOPNOTSUPP;
 
+	/* If any tun dissector is used then the required set must be used. */
+	if (flow->dissector->used_keys & NFP_FLOWER_WHITELIST_TUN_DISSECTOR &&
+	    (flow->dissector->used_keys & NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R)
+	    != NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R)
+		return -EOPNOTSUPP;
+
+	key_layer_two = 0;
+	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
+	key_size = sizeof(struct nfp_flower_meta_one) +
+		   sizeof(struct nfp_flower_in_port) +
+		   sizeof(struct nfp_flower_mac_mpls);
+
 	if (dissector_uses_key(flow->dissector,
 			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_dissector_key_ipv4_addrs *mask_ipv4 = NULL;
+		struct flow_dissector_key_ports *mask_enc_ports = NULL;
+		struct flow_dissector_key_ports *enc_ports = NULL;
 		struct flow_dissector_key_control *mask_enc_ctl =
 			skb_flow_dissector_target(flow->dissector,
 						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
 						  flow->mask);
-		/* We are expecting a tunnel. For now we ignore offloading. */
-		if (mask_enc_ctl->addr_type)
+		struct flow_dissector_key_control *enc_ctl =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
+						  flow->key);
+		if (mask_enc_ctl->addr_type != 0xffff ||
+		    enc_ctl->addr_type != FLOW_DISSECTOR_KEY_IPV4_ADDRS)
 			return -EOPNOTSUPP;
+
+		/* These fields are already verified as used. */
+		mask_ipv4 =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
+						  flow->mask);
+		if (mask_ipv4->dst != cpu_to_be32(~0))
+			return -EOPNOTSUPP;
+
+		mask_enc_ports =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_PORTS,
+						  flow->mask);
+		enc_ports =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_PORTS,
+						  flow->key);
+
+		if (mask_enc_ports->dst != cpu_to_be16(~0) ||
+		    enc_ports->dst != htons(NFP_FL_VXLAN_PORT))
+			return -EOPNOTSUPP;
+
+		key_layer |= NFP_FLOWER_LAYER_VXLAN;
+		key_size += sizeof(struct nfp_flower_vxlan);
 	}
 
 	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -150,12 +210,6 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		mask_ip = skb_flow_dissector_target(flow->dissector,
 						    FLOW_DISSECTOR_KEY_IP,
 						    flow->mask);
-
-	key_layer_two = 0;
-	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
-	key_size = sizeof(struct nfp_flower_meta_one) +
-		   sizeof(struct nfp_flower_in_port) +
-		   sizeof(struct nfp_flower_mac_mpls);
 
 	if (mask_basic && mask_basic->n_proto) {
 		/* Ethernet type is present in the key. */
@@ -252,6 +306,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 	if (!flow_pay->action_data)
 		goto err_free_mask;
 
+	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
 	spin_lock_init(&flow_pay->lock);
 
@@ -360,6 +415,9 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 	err = nfp_modify_flow_metadata(app, nfp_flow);
 	if (err)
 		goto err_free_flow;
+
+	if (nfp_flow->nfp_tun_ipv4_addr)
+		nfp_tunnel_del_ipv4_off(app, nfp_flow->nfp_tun_ipv4_addr);
 
 	err = nfp_flower_xmit_flow(netdev, nfp_flow,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);

@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 
 #include "hclge_cmd.h"
+#include "hclge_dcb.h"
 #include "hclge_main.h"
 #include "hclge_mdio.h"
 #include "hclge_tm.h"
@@ -30,7 +31,6 @@
 #define HCLGE_64BIT_STATS_FIELD_OFF(f) (offsetof(struct hclge_64_bit_stats, f))
 #define HCLGE_32BIT_STATS_FIELD_OFF(f) (offsetof(struct hclge_32_bit_stats, f))
 
-static int hclge_rss_init_hw(struct hclge_dev *hdev);
 static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 				     enum hclge_mta_dmac_sel_type mta_mac_sel,
 				     bool enable);
@@ -46,17 +46,7 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA), 0},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC), 0},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC), 0},
-	/* Required last entry */
-	{0, }
-};
-
-static const struct pci_device_id roce_pci_tbl[] = {
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA_MACSEC), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC), 0},
-	/* Required last entry */
+	/* required last entry */
 	{0, }
 };
 
@@ -894,7 +884,7 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	hdev->num_tqps = __le16_to_cpu(req->tqp_num);
 	hdev->pkt_buf_size = __le16_to_cpu(req->buf_size) << HCLGE_BUF_UNIT_S;
 
-	if (hnae_get_bit(hdev->ae_dev->flag, HNAE_DEV_SUPPORT_ROCE_B)) {
+	if (hnae3_dev_roce_supported(hdev)) {
 		hdev->num_roce_msix =
 		hnae_get_field(__le16_to_cpu(req->pf_intr_vector_number),
 			       HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
@@ -1063,12 +1053,12 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->base_tqp_pid = 0;
 	hdev->rss_size_max = 1;
 	hdev->rx_buf_len = cfg.rx_buf_len;
-	for (i = 0; i < ETH_ALEN; i++)
-		hdev->hw.mac.mac_addr[i] = cfg.mac_addr[i];
+	ether_addr_copy(hdev->hw.mac.mac_addr, cfg.mac_addr);
 	hdev->hw.mac.media_type = cfg.media_type;
+	hdev->hw.mac.phy_addr = cfg.phy_addr;
 	hdev->num_desc = cfg.tqp_desc_num;
 	hdev->tm_info.num_pg = 1;
-	hdev->tm_info.num_tc = cfg.tc_num;
+	hdev->tc_max = cfg.tc_num;
 	hdev->tm_info.hw_pfc_map = 0;
 
 	ret = hclge_parse_speed(cfg.default_speed, &hdev->hw.mac.speed);
@@ -1077,15 +1067,25 @@ static int hclge_configure(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	if ((hdev->tm_info.num_tc > HNAE3_MAX_TC) ||
-	    (hdev->tm_info.num_tc < 1)) {
+	if ((hdev->tc_max > HNAE3_MAX_TC) ||
+	    (hdev->tc_max < 1)) {
 		dev_warn(&hdev->pdev->dev, "TC num = %d.\n",
-			 hdev->tm_info.num_tc);
-		hdev->tm_info.num_tc = 1;
+			 hdev->tc_max);
+		hdev->tc_max = 1;
 	}
 
+	/* Dev does not support DCB */
+	if (!hnae3_dev_dcb_supported(hdev)) {
+		hdev->tc_max = 1;
+		hdev->pfc_max = 0;
+	} else {
+		hdev->pfc_max = hdev->tc_max;
+	}
+
+	hdev->tm_info.num_tc = hdev->tc_max;
+
 	/* Currently not support uncontiuous tc */
-	for (i = 0; i < cfg.tc_num; i++)
+	for (i = 0; i < hdev->tm_info.num_tc; i++)
 		hnae_set_bit(hdev->hw_tc_map, i, 1);
 
 	if (!hdev->num_vmdq_vport && !hdev->num_req_vfs)
@@ -1334,7 +1334,8 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int  hclge_cmd_alloc_tx_buff(struct hclge_dev *hdev, u16 buf_size)
+static int  hclge_cmd_alloc_tx_buff(struct hclge_dev *hdev,
+				    struct hclge_pkt_buf_alloc *buf_alloc)
 {
 /* TX buffer size is unit by 128 byte */
 #define HCLGE_BUF_SIZE_UNIT_SHIFT	7
@@ -1347,10 +1348,13 @@ static int  hclge_cmd_alloc_tx_buff(struct hclge_dev *hdev, u16 buf_size)
 	req = (struct hclge_tx_buff_alloc *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TX_BUFF_ALLOC, 0);
-	for (i = 0; i < HCLGE_TC_NUM; i++)
+	for (i = 0; i < HCLGE_TC_NUM; i++) {
+		u32 buf_size = buf_alloc->priv_buf[i].tx_buf_size;
+
 		req->tx_pkt_buff[i] =
 			cpu_to_le16((buf_size >> HCLGE_BUF_SIZE_UNIT_SHIFT) |
 				     HCLGE_BUF_SIZE_UPDATE_EN_MSK);
+	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -1362,9 +1366,10 @@ static int  hclge_cmd_alloc_tx_buff(struct hclge_dev *hdev, u16 buf_size)
 	return 0;
 }
 
-static int hclge_tx_buffer_alloc(struct hclge_dev *hdev, u32 buf_size)
+static int hclge_tx_buffer_alloc(struct hclge_dev *hdev,
+				 struct hclge_pkt_buf_alloc *buf_alloc)
 {
-	int ret = hclge_cmd_alloc_tx_buff(hdev, buf_size);
+	int ret = hclge_cmd_alloc_tx_buff(hdev, buf_alloc);
 
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -1397,13 +1402,14 @@ static int hclge_get_pfc_enalbe_num(struct hclge_dev *hdev)
 }
 
 /* Get the number of pfc enabled TCs, which have private buffer */
-static int hclge_get_pfc_priv_num(struct hclge_dev *hdev)
+static int hclge_get_pfc_priv_num(struct hclge_dev *hdev,
+				  struct hclge_pkt_buf_alloc *buf_alloc)
 {
 	struct hclge_priv_buf *priv;
 	int i, cnt = 0;
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		priv = &hdev->priv_buf[i];
+		priv = &buf_alloc->priv_buf[i];
 		if ((hdev->tm_info.hw_pfc_map & BIT(i)) &&
 		    priv->enable)
 			cnt++;
@@ -1413,13 +1419,14 @@ static int hclge_get_pfc_priv_num(struct hclge_dev *hdev)
 }
 
 /* Get the number of pfc disabled TCs, which have private buffer */
-static int hclge_get_no_pfc_priv_num(struct hclge_dev *hdev)
+static int hclge_get_no_pfc_priv_num(struct hclge_dev *hdev,
+				     struct hclge_pkt_buf_alloc *buf_alloc)
 {
 	struct hclge_priv_buf *priv;
 	int i, cnt = 0;
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		priv = &hdev->priv_buf[i];
+		priv = &buf_alloc->priv_buf[i];
 		if (hdev->hw_tc_map & BIT(i) &&
 		    !(hdev->tm_info.hw_pfc_map & BIT(i)) &&
 		    priv->enable)
@@ -1429,21 +1436,33 @@ static int hclge_get_no_pfc_priv_num(struct hclge_dev *hdev)
 	return cnt;
 }
 
-static u32 hclge_get_rx_priv_buff_alloced(struct hclge_dev *hdev)
+static u32 hclge_get_rx_priv_buff_alloced(struct hclge_pkt_buf_alloc *buf_alloc)
 {
 	struct hclge_priv_buf *priv;
 	u32 rx_priv = 0;
 	int i;
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		priv = &hdev->priv_buf[i];
+		priv = &buf_alloc->priv_buf[i];
 		if (priv->enable)
 			rx_priv += priv->buf_size;
 	}
 	return rx_priv;
 }
 
-static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev, u32 rx_all)
+static u32 hclge_get_tx_buff_alloced(struct hclge_pkt_buf_alloc *buf_alloc)
+{
+	u32 i, total_tx_size = 0;
+
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++)
+		total_tx_size += buf_alloc->priv_buf[i].tx_buf_size;
+
+	return total_tx_size;
+}
+
+static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
+				struct hclge_pkt_buf_alloc *buf_alloc,
+				u32 rx_all)
 {
 	u32 shared_buf_min, shared_buf_tc, shared_std;
 	int tc_num, pfc_enable_num;
@@ -1454,50 +1473,92 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev, u32 rx_all)
 	tc_num = hclge_get_tc_num(hdev);
 	pfc_enable_num = hclge_get_pfc_enalbe_num(hdev);
 
-	shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_DV;
+	if (hnae3_dev_dcb_supported(hdev))
+		shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_DV;
+	else
+		shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_NON_DCB_DV;
+
 	shared_buf_tc = pfc_enable_num * hdev->mps +
 			(tc_num - pfc_enable_num) * hdev->mps / 2 +
 			hdev->mps;
 	shared_std = max_t(u32, shared_buf_min, shared_buf_tc);
 
-	rx_priv = hclge_get_rx_priv_buff_alloced(hdev);
+	rx_priv = hclge_get_rx_priv_buff_alloced(buf_alloc);
 	if (rx_all <= rx_priv + shared_std)
 		return false;
 
 	shared_buf = rx_all - rx_priv;
-	hdev->s_buf.buf_size = shared_buf;
-	hdev->s_buf.self.high = shared_buf;
-	hdev->s_buf.self.low =  2 * hdev->mps;
+	buf_alloc->s_buf.buf_size = shared_buf;
+	buf_alloc->s_buf.self.high = shared_buf;
+	buf_alloc->s_buf.self.low =  2 * hdev->mps;
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		if ((hdev->hw_tc_map & BIT(i)) &&
 		    (hdev->tm_info.hw_pfc_map & BIT(i))) {
-			hdev->s_buf.tc_thrd[i].low = hdev->mps;
-			hdev->s_buf.tc_thrd[i].high = 2 * hdev->mps;
+			buf_alloc->s_buf.tc_thrd[i].low = hdev->mps;
+			buf_alloc->s_buf.tc_thrd[i].high = 2 * hdev->mps;
 		} else {
-			hdev->s_buf.tc_thrd[i].low = 0;
-			hdev->s_buf.tc_thrd[i].high = hdev->mps;
+			buf_alloc->s_buf.tc_thrd[i].low = 0;
+			buf_alloc->s_buf.tc_thrd[i].high = hdev->mps;
 		}
 	}
 
 	return true;
 }
 
+static int hclge_tx_buffer_calc(struct hclge_dev *hdev,
+				struct hclge_pkt_buf_alloc *buf_alloc)
+{
+	u32 i, total_size;
+
+	total_size = hdev->pkt_buf_size;
+
+	/* alloc tx buffer for all enabled tc */
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		struct hclge_priv_buf *priv = &buf_alloc->priv_buf[i];
+
+		if (total_size < HCLGE_DEFAULT_TX_BUF)
+			return -ENOMEM;
+
+		if (hdev->hw_tc_map & BIT(i))
+			priv->tx_buf_size = HCLGE_DEFAULT_TX_BUF;
+		else
+			priv->tx_buf_size = 0;
+
+		total_size -= priv->tx_buf_size;
+	}
+
+	return 0;
+}
+
 /* hclge_rx_buffer_calc: calculate the rx private buffer size for all TCs
  * @hdev: pointer to struct hclge_dev
- * @tx_size: the allocated tx buffer for all TCs
+ * @buf_alloc: pointer to buffer calculation data
  * @return: 0: calculate sucessful, negative: fail
  */
-int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
+int hclge_rx_buffer_calc(struct hclge_dev *hdev,
+			 struct hclge_pkt_buf_alloc *buf_alloc)
 {
-	u32 rx_all = hdev->pkt_buf_size - tx_size;
+	u32 rx_all = hdev->pkt_buf_size;
 	int no_pfc_priv_num, pfc_priv_num;
 	struct hclge_priv_buf *priv;
 	int i;
 
+	rx_all -= hclge_get_tx_buff_alloced(buf_alloc);
+
+	/* When DCB is not supported, rx private
+	 * buffer is not allocated.
+	 */
+	if (!hnae3_dev_dcb_supported(hdev)) {
+		if (!hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all))
+			return -ENOMEM;
+
+		return 0;
+	}
+
 	/* step 1, try to alloc private buffer for all enabled tc */
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		priv = &hdev->priv_buf[i];
+		priv = &buf_alloc->priv_buf[i];
 		if (hdev->hw_tc_map & BIT(i)) {
 			priv->enable = 1;
 			if (hdev->tm_info.hw_pfc_map & BIT(i)) {
@@ -1510,20 +1571,32 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
 				priv->wl.high = 2 * hdev->mps;
 				priv->buf_size = priv->wl.high;
 			}
+		} else {
+			priv->enable = 0;
+			priv->wl.low = 0;
+			priv->wl.high = 0;
+			priv->buf_size = 0;
 		}
 	}
 
-	if (hclge_is_rx_buf_ok(hdev, rx_all))
+	if (hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all))
 		return 0;
 
 	/* step 2, try to decrease the buffer size of
 	 * no pfc TC's private buffer
 	 */
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		priv = &hdev->priv_buf[i];
+		priv = &buf_alloc->priv_buf[i];
 
-		if (hdev->hw_tc_map & BIT(i))
-			priv->enable = 1;
+		priv->enable = 0;
+		priv->wl.low = 0;
+		priv->wl.high = 0;
+		priv->buf_size = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		priv->enable = 1;
 
 		if (hdev->tm_info.hw_pfc_map & BIT(i)) {
 			priv->wl.low = 128;
@@ -1536,18 +1609,18 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
 		}
 	}
 
-	if (hclge_is_rx_buf_ok(hdev, rx_all))
+	if (hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all))
 		return 0;
 
 	/* step 3, try to reduce the number of pfc disabled TCs,
 	 * which have private buffer
 	 */
 	/* get the total no pfc enable TC number, which have private buffer */
-	no_pfc_priv_num = hclge_get_no_pfc_priv_num(hdev);
+	no_pfc_priv_num = hclge_get_no_pfc_priv_num(hdev, buf_alloc);
 
 	/* let the last to be cleared first */
 	for (i = HCLGE_MAX_TC_NUM - 1; i >= 0; i--) {
-		priv = &hdev->priv_buf[i];
+		priv = &buf_alloc->priv_buf[i];
 
 		if (hdev->hw_tc_map & BIT(i) &&
 		    !(hdev->tm_info.hw_pfc_map & BIT(i))) {
@@ -1559,22 +1632,22 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
 			no_pfc_priv_num--;
 		}
 
-		if (hclge_is_rx_buf_ok(hdev, rx_all) ||
+		if (hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all) ||
 		    no_pfc_priv_num == 0)
 			break;
 	}
 
-	if (hclge_is_rx_buf_ok(hdev, rx_all))
+	if (hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all))
 		return 0;
 
 	/* step 4, try to reduce the number of pfc enabled TCs
 	 * which have private buffer.
 	 */
-	pfc_priv_num = hclge_get_pfc_priv_num(hdev);
+	pfc_priv_num = hclge_get_pfc_priv_num(hdev, buf_alloc);
 
 	/* let the last to be cleared first */
 	for (i = HCLGE_MAX_TC_NUM - 1; i >= 0; i--) {
-		priv = &hdev->priv_buf[i];
+		priv = &buf_alloc->priv_buf[i];
 
 		if (hdev->hw_tc_map & BIT(i) &&
 		    hdev->tm_info.hw_pfc_map & BIT(i)) {
@@ -1586,17 +1659,18 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
 			pfc_priv_num--;
 		}
 
-		if (hclge_is_rx_buf_ok(hdev, rx_all) ||
+		if (hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all) ||
 		    pfc_priv_num == 0)
 			break;
 	}
-	if (hclge_is_rx_buf_ok(hdev, rx_all))
+	if (hclge_is_rx_buf_ok(hdev, buf_alloc, rx_all))
 		return 0;
 
 	return -ENOMEM;
 }
 
-static int hclge_rx_priv_buf_alloc(struct hclge_dev *hdev)
+static int hclge_rx_priv_buf_alloc(struct hclge_dev *hdev,
+				   struct hclge_pkt_buf_alloc *buf_alloc)
 {
 	struct hclge_rx_priv_buff *req;
 	struct hclge_desc desc;
@@ -1608,13 +1682,17 @@ static int hclge_rx_priv_buf_alloc(struct hclge_dev *hdev)
 
 	/* Alloc private buffer TCs */
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		struct hclge_priv_buf *priv = &hdev->priv_buf[i];
+		struct hclge_priv_buf *priv = &buf_alloc->priv_buf[i];
 
 		req->buf_num[i] =
 			cpu_to_le16(priv->buf_size >> HCLGE_BUF_UNIT_S);
 		req->buf_num[i] |=
 			cpu_to_le16(true << HCLGE_TC0_PRI_BUF_EN_B);
 	}
+
+	req->shared_buf =
+		cpu_to_le16((buf_alloc->s_buf.buf_size >> HCLGE_BUF_UNIT_S) |
+			    (1 << HCLGE_TC0_PRI_BUF_EN_B));
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -1628,7 +1706,8 @@ static int hclge_rx_priv_buf_alloc(struct hclge_dev *hdev)
 
 #define HCLGE_PRIV_ENABLE(a) ((a) > 0 ? 1 : 0)
 
-static int hclge_rx_priv_wl_config(struct hclge_dev *hdev)
+static int hclge_rx_priv_wl_config(struct hclge_dev *hdev,
+				   struct hclge_pkt_buf_alloc *buf_alloc)
 {
 	struct hclge_rx_priv_wl_buf *req;
 	struct hclge_priv_buf *priv;
@@ -1648,7 +1727,9 @@ static int hclge_rx_priv_wl_config(struct hclge_dev *hdev)
 			desc[i].flag &= ~cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 
 		for (j = 0; j < HCLGE_TC_NUM_ONE_DESC; j++) {
-			priv = &hdev->priv_buf[i * HCLGE_TC_NUM_ONE_DESC + j];
+			u32 idx = i * HCLGE_TC_NUM_ONE_DESC + j;
+
+			priv = &buf_alloc->priv_buf[idx];
 			req->tc_wl[j].high =
 				cpu_to_le16(priv->wl.high >> HCLGE_BUF_UNIT_S);
 			req->tc_wl[j].high |=
@@ -1673,9 +1754,10 @@ static int hclge_rx_priv_wl_config(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_common_thrd_config(struct hclge_dev *hdev)
+static int hclge_common_thrd_config(struct hclge_dev *hdev,
+				    struct hclge_pkt_buf_alloc *buf_alloc)
 {
-	struct hclge_shared_buf *s_buf = &hdev->s_buf;
+	struct hclge_shared_buf *s_buf = &buf_alloc->s_buf;
 	struct hclge_rx_com_thrd *req;
 	struct hclge_desc desc[2];
 	struct hclge_tc_thrd *tc;
@@ -1719,9 +1801,10 @@ static int hclge_common_thrd_config(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_common_wl_config(struct hclge_dev *hdev)
+static int hclge_common_wl_config(struct hclge_dev *hdev,
+				  struct hclge_pkt_buf_alloc *buf_alloc)
 {
-	struct hclge_shared_buf *buf = &hdev->s_buf;
+	struct hclge_shared_buf *buf = &buf_alloc->s_buf;
 	struct hclge_rx_com_wl *req;
 	struct hclge_desc desc;
 	int ret;
@@ -1751,59 +1834,68 @@ static int hclge_common_wl_config(struct hclge_dev *hdev)
 
 int hclge_buffer_alloc(struct hclge_dev *hdev)
 {
-	u32 tx_buf_size = HCLGE_DEFAULT_TX_BUF;
+	struct hclge_pkt_buf_alloc *pkt_buf;
 	int ret;
 
-	hdev->priv_buf = devm_kmalloc_array(&hdev->pdev->dev, HCLGE_MAX_TC_NUM,
-					    sizeof(struct hclge_priv_buf),
-					    GFP_KERNEL | __GFP_ZERO);
-	if (!hdev->priv_buf)
+	pkt_buf = kzalloc(sizeof(*pkt_buf), GFP_KERNEL);
+	if (!pkt_buf)
 		return -ENOMEM;
 
-	ret = hclge_tx_buffer_alloc(hdev, tx_buf_size);
+	ret = hclge_tx_buffer_calc(hdev, pkt_buf);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"could not calc tx buffer size for all TCs %d\n", ret);
+		goto out;
+	}
+
+	ret = hclge_tx_buffer_alloc(hdev, pkt_buf);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"could not alloc tx buffers %d\n", ret);
-		return ret;
+		goto out;
 	}
 
-	ret = hclge_rx_buffer_calc(hdev, tx_buf_size);
+	ret = hclge_rx_buffer_calc(hdev, pkt_buf);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"could not calc rx priv buffer size for all TCs %d\n",
 			ret);
-		return ret;
+		goto out;
 	}
 
-	ret = hclge_rx_priv_buf_alloc(hdev);
+	ret = hclge_rx_priv_buf_alloc(hdev, pkt_buf);
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "could not alloc rx priv buffer %d\n",
 			ret);
-		return ret;
+		goto out;
 	}
 
-	ret = hclge_rx_priv_wl_config(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"could not configure rx private waterline %d\n", ret);
-		return ret;
+	if (hnae3_dev_dcb_supported(hdev)) {
+		ret = hclge_rx_priv_wl_config(hdev, pkt_buf);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"could not configure rx private waterline %d\n",
+				ret);
+			goto out;
+		}
+
+		ret = hclge_common_thrd_config(hdev, pkt_buf);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"could not configure common threshold %d\n",
+				ret);
+			goto out;
+		}
 	}
 
-	ret = hclge_common_thrd_config(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"could not configure common threshold %d\n", ret);
-		return ret;
-	}
-
-	ret = hclge_common_wl_config(hdev);
-	if (ret) {
+	ret = hclge_common_wl_config(hdev, pkt_buf);
+	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"could not configure common waterline %d\n", ret);
-		return ret;
-	}
 
-	return 0;
+out:
+	kfree(pkt_buf);
+	return ret;
 }
 
 static int hclge_init_roce_base_info(struct hclge_vport *vport)
@@ -2573,7 +2665,7 @@ static int hclge_get_tc_size(struct hnae3_handle *handle)
 	return hdev->rss_size_max;
 }
 
-static int hclge_rss_init_hw(struct hclge_dev *hdev)
+int hclge_rss_init_hw(struct hclge_dev *hdev)
 {
 	const  u8 hfunc = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
 	struct hclge_vport *vport = hdev->vport;
@@ -2582,6 +2674,7 @@ static int hclge_rss_init_hw(struct hclge_dev *hdev)
 	u16 tc_valid[HCLGE_MAX_TC_NUM];
 	u16 tc_size[HCLGE_MAX_TC_NUM];
 	u32 *rss_indir = NULL;
+	u16 rss_size = 0, roundup_size;
 	const u8 *key;
 	int i, ret, j;
 
@@ -2596,7 +2689,13 @@ static int hclge_rss_init_hw(struct hclge_dev *hdev)
 	for (j = 0; j < hdev->num_vmdq_vport + 1; j++) {
 		for (i = 0; i < HCLGE_RSS_IND_TBL_SIZE; i++) {
 			vport[j].rss_indirection_tbl[i] =
-				i % hdev->rss_size_max;
+				i % vport[j].alloc_rss_size;
+
+			/* vport 0 is for PF */
+			if (j != 0)
+				continue;
+
+			rss_size = vport[j].alloc_rss_size;
 			rss_indir[i] = vport[j].rss_indirection_tbl[i];
 		}
 	}
@@ -2613,42 +2712,32 @@ static int hclge_rss_init_hw(struct hclge_dev *hdev)
 	if (ret)
 		goto err;
 
-	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		if (hdev->hw_tc_map & BIT(i))
-			tc_valid[i] = 1;
-		else
-			tc_valid[i] = 0;
-
-		switch (hdev->rss_size_max) {
-		case HCLGE_RSS_TC_SIZE_0:
-			tc_size[i] = 0;
-			break;
-		case HCLGE_RSS_TC_SIZE_1:
-			tc_size[i] = 1;
-			break;
-		case HCLGE_RSS_TC_SIZE_2:
-			tc_size[i] = 2;
-			break;
-		case HCLGE_RSS_TC_SIZE_3:
-			tc_size[i] = 3;
-			break;
-		case HCLGE_RSS_TC_SIZE_4:
-			tc_size[i] = 4;
-			break;
-		case HCLGE_RSS_TC_SIZE_5:
-			tc_size[i] = 5;
-			break;
-		case HCLGE_RSS_TC_SIZE_6:
-			tc_size[i] = 6;
-			break;
-		case HCLGE_RSS_TC_SIZE_7:
-			tc_size[i] = 7;
-			break;
-		default:
-			break;
-		}
-		tc_offset[i] = hdev->rss_size_max * i;
+	/* Each TC have the same queue size, and tc_size set to hardware is
+	 * the log2 of roundup power of two of rss_size, the acutal queue
+	 * size is limited by indirection table.
+	 */
+	if (rss_size > HCLGE_RSS_TC_SIZE_7 || rss_size == 0) {
+		dev_err(&hdev->pdev->dev,
+			"Configure rss tc size failed, invalid TC_SIZE = %d\n",
+			rss_size);
+		ret = -EINVAL;
+		goto err;
 	}
+
+	roundup_size = roundup_pow_of_two(rss_size);
+	roundup_size = ilog2(roundup_size);
+
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		tc_valid[i] = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		tc_valid[i] = 1;
+		tc_size[i] = roundup_size;
+		tc_offset[i] = rss_size * i;
+	}
+
 	ret = hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
 
 err:
@@ -2679,7 +2768,11 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
 			       HCLGE_TQP_ID_S,	node->tqp_index);
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
@@ -2763,8 +2856,12 @@ static int hclge_unmap_ring_from_vector(
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
 			       HCLGE_TQP_ID_S,	node->tqp_index);
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 
 		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
@@ -2778,7 +2875,7 @@ static int hclge_unmap_ring_from_vector(
 			}
 			i = 0;
 			hclge_cmd_setup_basic_desc(&desc,
-						   HCLGE_OPC_ADD_RING_TO_VECTOR,
+						   HCLGE_OPC_DEL_RING_TO_VECTOR,
 						   false);
 			req->int_vector_id = vector_id;
 		}
@@ -3665,6 +3762,7 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 {
 #define HCLGE_VLAN_TYPE_VF_TABLE   0
 #define HCLGE_VLAN_TYPE_PORT_TABLE 1
+	struct hnae3_handle *handle;
 	int ret;
 
 	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_VF_TABLE,
@@ -3674,8 +3772,11 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 
 	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_PORT_TABLE,
 					 true);
+	if (ret)
+		return ret;
 
-	return ret;
+	handle = &hdev->vport[0].nic;
+	return hclge_set_port_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
 }
 
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
@@ -3920,8 +4021,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				goto err;
 
 			if (hdev->roce_client &&
-			    hnae_get_bit(hdev->ae_dev->flag,
-					 HNAE_DEV_SUPPORT_ROCE_B)) {
+			    hnae3_dev_roce_supported(hdev)) {
 				struct hnae3_client *rc = hdev->roce_client;
 
 				ret = hclge_init_roce_base_info(vport);
@@ -3944,8 +4044,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 			break;
 		case HNAE3_CLIENT_ROCE:
-			if (hnae_get_bit(hdev->ae_dev->flag,
-					 HNAE_DEV_SUPPORT_ROCE_B)) {
+			if (hnae3_dev_roce_supported(hdev)) {
 				hdev->roce_client = client;
 				vport->roce.client = client;
 			}
@@ -4057,7 +4156,6 @@ static void hclge_pci_uninit(struct hclge_dev *hdev)
 static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct pci_dev *pdev = ae_dev->pdev;
-	const struct pci_device_id *id;
 	struct hclge_dev *hdev;
 	int ret;
 
@@ -4071,10 +4169,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->pdev = pdev;
 	hdev->ae_dev = ae_dev;
 	ae_dev->priv = hdev;
-
-	id = pci_match_id(roce_pci_tbl, ae_dev->pdev);
-	if (id)
-		hnae_set_bit(ae_dev->flag, HNAE_DEV_SUPPORT_ROCE_B, 1);
 
 	ret = hclge_pci_init(hdev);
 	if (ret) {
@@ -4138,12 +4232,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
-	ret = hclge_rss_init_hw(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
-		return  ret;
-	}
-
 	ret = hclge_init_vlan_config(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "VLAN init fail, ret =%d\n", ret);
@@ -4155,6 +4243,14 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev, "tm schd init fail, ret =%d\n", ret);
 		return ret;
 	}
+
+	ret = hclge_rss_init_hw(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	hclge_dcb_ops_set(hdev);
 
 	setup_timer(&hdev->service_timer, hclge_service_timer,
 		    (unsigned long)hdev);

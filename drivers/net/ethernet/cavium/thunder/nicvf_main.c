@@ -523,6 +523,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 
 	xdp.data_hard_start = page_address(page);
 	xdp.data = (void *)cpu_addr;
+	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + len;
 	orig_data = xdp.data;
 

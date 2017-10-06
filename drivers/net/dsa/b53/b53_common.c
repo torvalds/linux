@@ -484,7 +484,7 @@ static int b53_fast_age_vlan(struct b53_device *dev, u16 vid)
 	return b53_flush_arl(dev, FAST_AGE_VLAN);
 }
 
-static void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
+void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 {
 	struct b53_device *dev = ds->priv;
 	unsigned int i;
@@ -500,9 +500,9 @@ static void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 		b53_write16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(i), pvlan);
 	}
 }
+EXPORT_SYMBOL(b53_imp_vlan_setup);
 
-static int b53_enable_port(struct dsa_switch *ds, int port,
-			   struct phy_device *phy)
+int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
 	unsigned int cpu_port = dev->cpu_port;
@@ -523,11 +523,15 @@ static int b53_enable_port(struct dsa_switch *ds, int port,
 
 	b53_imp_vlan_setup(ds, cpu_port);
 
+	/* If EEE was enabled, restore it */
+	if (dev->ports[port].eee.eee_enabled)
+		b53_eee_enable_set(ds, port, true);
+
 	return 0;
 }
+EXPORT_SYMBOL(b53_enable_port);
 
-static void b53_disable_port(struct dsa_switch *ds, int port,
-			     struct phy_device *phy)
+void b53_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
 	u8 reg;
@@ -537,20 +541,67 @@ static void b53_disable_port(struct dsa_switch *ds, int port,
 	reg |= PORT_CTRL_RX_DISABLE | PORT_CTRL_TX_DISABLE;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
 }
+EXPORT_SYMBOL(b53_disable_port);
 
-static void b53_enable_cpu_port(struct b53_device *dev)
+void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 {
-	unsigned int cpu_port = dev->cpu_port;
+	struct b53_device *dev = ds->priv;
+	u8 hdr_ctl, val;
+	u16 reg;
+
+	/* Resolve which bit controls the Broadcom tag */
+	switch (port) {
+	case 8:
+		val = BRCM_HDR_P8_EN;
+		break;
+	case 7:
+		val = BRCM_HDR_P7_EN;
+		break;
+	case 5:
+		val = BRCM_HDR_P5_EN;
+		break;
+	default:
+		val = 0;
+		break;
+	}
+
+	/* Enable Broadcom tags for IMP port */
+	b53_read8(dev, B53_MGMT_PAGE, B53_BRCM_HDR, &hdr_ctl);
+	hdr_ctl |= val;
+	b53_write8(dev, B53_MGMT_PAGE, B53_BRCM_HDR, hdr_ctl);
+
+	/* Registers below are only accessible on newer devices */
+	if (!is58xx(dev))
+		return;
+
+	/* Enable reception Broadcom tag for CPU TX (switch RX) to
+	 * allow us to tag outgoing frames
+	 */
+	b53_read16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_RX_DIS, &reg);
+	reg &= ~BIT(port);
+	b53_write16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_RX_DIS, reg);
+
+	/* Enable transmission of Broadcom tags from the switch (CPU RX) to
+	 * allow delivering frames to the per-port net_devices
+	 */
+	b53_read16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_TX_DIS, &reg);
+	reg &= ~BIT(port);
+	b53_write16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_TX_DIS, reg);
+}
+EXPORT_SYMBOL(b53_brcm_hdr_setup);
+
+static void b53_enable_cpu_port(struct b53_device *dev, int port)
+{
 	u8 port_ctrl;
 
 	/* BCM5325 CPU port is at 8 */
-	if ((is5325(dev) || is5365(dev)) && cpu_port == B53_CPU_PORT_25)
-		cpu_port = B53_CPU_PORT;
+	if ((is5325(dev) || is5365(dev)) && port == B53_CPU_PORT_25)
+		port = B53_CPU_PORT;
 
 	port_ctrl = PORT_CTRL_RX_BCST_EN |
 		    PORT_CTRL_RX_MCST_EN |
 		    PORT_CTRL_RX_UCST_EN;
-	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(cpu_port), port_ctrl);
+	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), port_ctrl);
 }
 
 static void b53_enable_mib(struct b53_device *dev)
@@ -816,12 +867,13 @@ static int b53_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_err(ds->dev, "failed to apply configuration\n");
 
+	/* Configure IMP/CPU port, disable unused ports. Enabled
+	 * ports will be configured with .port_enable
+	 */
 	for (port = 0; port < dev->num_ports; port++) {
-		if (BIT(port) & ds->enabled_port_mask)
-			b53_enable_port(ds, port, NULL);
-		else if (dsa_is_cpu_port(ds, port))
-			b53_enable_cpu_port(dev);
-		else
+		if (dsa_is_cpu_port(ds, port))
+			b53_enable_cpu_port(dev, port);
+		else if (!(BIT(port) & ds->enabled_port_mask))
 			b53_disable_port(ds, port, NULL);
 	}
 
@@ -832,6 +884,7 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 			    struct phy_device *phydev)
 {
 	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
 	u8 rgmii_ctrl = 0, reg = 0, off;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
@@ -953,6 +1006,9 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 			b53_write8(dev, B53_CTRL_PAGE, po_reg, gmii_po);
 		}
 	}
+
+	/* Re-negotiate EEE if it was enabled already */
+	p->eee_enabled = b53_eee_init(ds, port, phydev);
 }
 
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
@@ -1280,7 +1336,7 @@ EXPORT_SYMBOL(b53_fdb_dump);
 int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
-	s8 cpu_port = ds->dst->cpu_dp->index;
+	s8 cpu_port = ds->ports[port].cpu_dp->index;
 	u16 pvlan, reg;
 	unsigned int i;
 
@@ -1326,7 +1382,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan *vl = &dev->vlans[0];
-	s8 cpu_port = ds->dst->cpu_dp->index;
+	s8 cpu_port = ds->ports[port].cpu_dp->index;
 	unsigned int i;
 	u16 pvlan, reg, pvid;
 
@@ -1484,6 +1540,69 @@ void b53_mirror_del(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_mirror_del);
 
+void b53_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
+{
+	struct b53_device *dev = ds->priv;
+	u16 reg;
+
+	b53_read16(dev, B53_EEE_PAGE, B53_EEE_EN_CTRL, &reg);
+	if (enable)
+		reg |= BIT(port);
+	else
+		reg &= ~BIT(port);
+	b53_write16(dev, B53_EEE_PAGE, B53_EEE_EN_CTRL, reg);
+}
+EXPORT_SYMBOL(b53_eee_enable_set);
+
+
+/* Returns 0 if EEE was not enabled, or 1 otherwise
+ */
+int b53_eee_init(struct dsa_switch *ds, int port, struct phy_device *phy)
+{
+	int ret;
+
+	ret = phy_init_eee(phy, 0);
+	if (ret)
+		return 0;
+
+	b53_eee_enable_set(ds, port, true);
+
+	return 1;
+}
+EXPORT_SYMBOL(b53_eee_init);
+
+int b53_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
+{
+	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
+	u16 reg;
+
+	if (is5325(dev) || is5365(dev))
+		return -EOPNOTSUPP;
+
+	b53_read16(dev, B53_EEE_PAGE, B53_EEE_LPI_INDICATE, &reg);
+	e->eee_enabled = p->eee_enabled;
+	e->eee_active = !!(reg & BIT(port));
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_get_mac_eee);
+
+int b53_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
+{
+	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
+
+	if (is5325(dev) || is5365(dev))
+		return -EOPNOTSUPP;
+
+	p->eee_enabled = e->eee_enabled;
+	b53_eee_enable_set(ds, port, e->eee_enabled);
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_set_mac_eee);
+
 static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
@@ -1495,6 +1614,8 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.adjust_link		= b53_adjust_link,
 	.port_enable		= b53_enable_port,
 	.port_disable		= b53_disable_port,
+	.get_mac_eee		= b53_get_mac_eee,
+	.set_mac_eee		= b53_set_mac_eee,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,

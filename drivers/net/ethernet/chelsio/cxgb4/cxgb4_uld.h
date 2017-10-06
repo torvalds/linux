@@ -212,6 +212,7 @@ struct filter_ctx {
 
 struct ch_filter_specification;
 
+int cxgb4_get_free_ftid(struct net_device *dev, int family);
 int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx);
@@ -220,6 +221,8 @@ int __cxgb4_del_filter(struct net_device *dev, int filter_id,
 int cxgb4_set_filter(struct net_device *dev, int filter_id,
 		     struct ch_filter_specification *fs);
 int cxgb4_del_filter(struct net_device *dev, int filter_id);
+int cxgb4_get_filter_counters(struct net_device *dev, unsigned int fidx,
+			      u64 *hitcnt, u64 *bytecnt);
 
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {

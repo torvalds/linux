@@ -450,9 +450,7 @@ struct net_device *alloc_arcdev(const char *name)
 
 		lp->dev = dev;
 		spin_lock_init(&lp->lock);
-		init_timer(&lp->timer);
-		lp->timer.data = (unsigned long) dev;
-		lp->timer.function = arcnet_timer;
+		setup_timer(&lp->timer, arcnet_timer, (unsigned long)dev);
 	}
 
 	return dev;

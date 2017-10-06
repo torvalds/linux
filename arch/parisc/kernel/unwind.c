@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/kallsyms.h>
 #include <linux/sort.h>
+#include <linux/sched.h>
 
 #include <linux/uaccess.h>
 #include <asm/assembly.h>
@@ -279,6 +280,17 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 
 			info->prev_sp = sp - 64;
 			info->prev_ip = 0;
+
+			/* The stack is at the end inside the thread_union
+			 * struct. If we reach data, we have reached the
+			 * beginning of the stack and should stop unwinding. */
+			if (info->prev_sp >= (unsigned long) task_thread_info(info->t) &&
+			    info->prev_sp < ((unsigned long) task_thread_info(info->t)
+						+ THREAD_SZ_ALGN)) {
+				info->prev_sp = 0;
+				break;
+			}
+
 			if (get_user(tmp, (unsigned long *)(info->prev_sp - RP_OFFSET))) 
 				break;
 			info->prev_ip = tmp;

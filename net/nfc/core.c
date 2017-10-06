@@ -1094,9 +1094,8 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	dev->targets_generation = 1;
 
 	if (ops->check_presence) {
-		init_timer(&dev->check_pres_timer);
-		dev->check_pres_timer.data = (unsigned long)dev;
-		dev->check_pres_timer.function = nfc_check_pres_timeout;
+		setup_timer(&dev->check_pres_timer, nfc_check_pres_timeout,
+			    (unsigned long)dev);
 
 		INIT_WORK(&dev->check_pres_work, nfc_check_pres_work);
 	}

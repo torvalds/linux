@@ -601,11 +601,11 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev,
 	if (pool_type == RDS_IB_MR_1M_POOL) {
 		/* +1 allows for unaligned MRs */
 		pool->fmr_attr.max_pages = RDS_MR_1M_MSG_SIZE + 1;
-		pool->max_items = RDS_MR_1M_POOL_SIZE;
+		pool->max_items = rds_ibdev->max_1m_mrs;
 	} else {
 		/* pool_type == RDS_IB_MR_8K_POOL */
 		pool->fmr_attr.max_pages = RDS_MR_8K_MSG_SIZE + 1;
-		pool->max_items = RDS_MR_8K_POOL_SIZE;
+		pool->max_items = rds_ibdev->max_8k_mrs;
 	}
 
 	pool->max_free_pinned = pool->max_items * pool->fmr_attr.max_pages / 4;

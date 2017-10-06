@@ -5039,10 +5039,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&cp->stat_lock[N_TX_RINGS]);
 	mutex_init(&cp->pm_mutex);
 
-	init_timer(&cp->link_timer);
-	cp->link_timer.function = cas_link_timer;
-	cp->link_timer.data = (unsigned long) cp;
-
+	setup_timer(&cp->link_timer, cas_link_timer, (unsigned long)cp);
 #if 1
 	/* Just in case the implementation of atomic operations
 	 * change so that an explicit initialization is necessary.

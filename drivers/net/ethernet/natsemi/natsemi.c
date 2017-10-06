@@ -1571,10 +1571,8 @@ static int netdev_open(struct net_device *dev)
 			dev->name, (int)readl(ioaddr + ChipCmd));
 
 	/* Set the timer to check for link beat. */
-	init_timer(&np->timer);
+	setup_timer(&np->timer, netdev_timer, (unsigned long)dev);
 	np->timer.expires = round_jiffies(jiffies + NATSEMI_TIMER_FREQ);
-	np->timer.data = (unsigned long)dev;
-	np->timer.function = netdev_timer; /* timer handler */
 	add_timer(&np->timer);
 
 	return 0;

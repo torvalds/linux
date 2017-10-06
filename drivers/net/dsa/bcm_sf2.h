@@ -48,8 +48,6 @@ struct bcm_sf2_hw_params {
 
 struct bcm_sf2_port_status {
 	unsigned int link;
-
-	struct ethtool_eee eee;
 };
 
 struct bcm_sf2_cfp_priv {

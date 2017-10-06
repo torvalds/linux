@@ -348,16 +348,15 @@ static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 	struct dma_coherent_mem *mem = rmem->priv;
 	int ret;
 
-	if (!mem)
-		return -ENODEV;
-
-	ret = dma_init_coherent_memory(rmem->base, rmem->base, rmem->size,
-				       DMA_MEMORY_EXCLUSIVE, &mem);
-
-	if (ret) {
-		pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %ld MiB\n",
-			&rmem->base, (unsigned long)rmem->size / SZ_1M);
-		return ret;
+	if (!mem) {
+		ret = dma_init_coherent_memory(rmem->base, rmem->base,
+					       rmem->size,
+					       DMA_MEMORY_EXCLUSIVE, &mem);
+		if (ret) {
+			pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %ld MiB\n",
+				&rmem->base, (unsigned long)rmem->size / SZ_1M);
+			return ret;
+		}
 	}
 	mem->use_dev_dma_pfn_offset = true;
 	rmem->priv = mem;

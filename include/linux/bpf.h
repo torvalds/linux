@@ -56,6 +56,7 @@ struct bpf_map {
 	struct work_struct work;
 	atomic_t usercnt;
 	struct bpf_map *inner_map_meta;
+	u8 name[BPF_OBJ_NAME_LEN];
 };
 
 /* function argument constraints */
@@ -137,6 +138,7 @@ enum bpf_reg_type {
 	PTR_TO_MAP_VALUE,	 /* reg points to map element value */
 	PTR_TO_MAP_VALUE_OR_NULL,/* points to map elem value or NULL */
 	PTR_TO_STACK,		 /* reg == frame_pointer + offset */
+	PTR_TO_PACKET_META,	 /* skb->data - meta_len */
 	PTR_TO_PACKET,		 /* reg points to skb->data */
 	PTR_TO_PACKET_END,	 /* skb->data + headlen */
 };
@@ -186,6 +188,8 @@ struct bpf_prog_aux {
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
 	struct user_struct *user;
+	u64 load_time; /* ns since boottime */
+	u8 name[BPF_OBJ_NAME_LEN];
 	union {
 		struct work_struct work;
 		struct rcu_head	rcu;
@@ -236,6 +240,41 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr);
 int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr);
+
+/* an array of programs to be executed under rcu_lock.
+ *
+ * Typical usage:
+ * ret = BPF_PROG_RUN_ARRAY(&bpf_prog_array, ctx, BPF_PROG_RUN);
+ *
+ * the structure returned by bpf_prog_array_alloc() should be populated
+ * with program pointers and the last pointer must be NULL.
+ * The user has to keep refcnt on the program and make sure the program
+ * is removed from the array before bpf_prog_put().
+ * The 'struct bpf_prog_array *' should only be replaced with xchg()
+ * since other cpus are walking the array of pointers in parallel.
+ */
+struct bpf_prog_array {
+	struct rcu_head rcu;
+	struct bpf_prog *progs[0];
+};
+
+struct bpf_prog_array __rcu *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags);
+void bpf_prog_array_free(struct bpf_prog_array __rcu *progs);
+int bpf_prog_array_length(struct bpf_prog_array __rcu *progs);
+int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
+				__u32 __user *prog_ids, u32 cnt);
+
+#define BPF_PROG_RUN_ARRAY(array, ctx, func)		\
+	({						\
+		struct bpf_prog **_prog;		\
+		u32 _ret = 1;				\
+		rcu_read_lock();			\
+		_prog = rcu_dereference(array)->progs;	\
+		for (; *_prog; _prog++)			\
+			_ret &= func(*_prog, ctx);	\
+		rcu_read_unlock();			\
+		_ret;					\
+	 })
 
 #ifdef CONFIG_BPF_SYSCALL
 DECLARE_PER_CPU(int, bpf_prog_active);

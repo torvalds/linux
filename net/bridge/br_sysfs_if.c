@@ -165,6 +165,23 @@ static int store_flush(struct net_bridge_port *p, unsigned long v)
 }
 static BRPORT_ATTR(flush, S_IWUSR, NULL, store_flush);
 
+static ssize_t show_group_fwd_mask(struct net_bridge_port *p, char *buf)
+{
+	return sprintf(buf, "%#x\n", p->group_fwd_mask);
+}
+
+static int store_group_fwd_mask(struct net_bridge_port *p,
+				unsigned long v)
+{
+	if (v & BR_GROUPFWD_MACPAUSE)
+		return -EINVAL;
+	p->group_fwd_mask = v;
+
+	return 0;
+}
+static BRPORT_ATTR(group_fwd_mask, S_IRUGO | S_IWUSR, show_group_fwd_mask,
+		   store_group_fwd_mask);
+
 BRPORT_ATTR_FLAG(hairpin_mode, BR_HAIRPIN_MODE);
 BRPORT_ATTR_FLAG(bpdu_guard, BR_BPDU_GUARD);
 BRPORT_ATTR_FLAG(root_block, BR_ROOT_BLOCK);
@@ -223,6 +240,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_proxyarp_wifi,
 	&brport_attr_multicast_flood,
 	&brport_attr_broadcast_flood,
+	&brport_attr_group_fwd_mask,
 	NULL
 };
 

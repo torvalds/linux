@@ -178,10 +178,8 @@ static void __init eql_setup(struct net_device *dev)
 {
 	equalizer_t *eql = netdev_priv(dev);
 
-	init_timer(&eql->timer);
-	eql->timer.data     	= (unsigned long) eql;
+	setup_timer(&eql->timer, eql_timer, (unsigned long)eql);
 	eql->timer.expires  	= jiffies + EQL_DEFAULT_RESCHED_IVAL;
-	eql->timer.function 	= eql_timer;
 
 	spin_lock_init(&eql->queue.lock);
 	INIT_LIST_HEAD(&eql->queue.all_slaves);

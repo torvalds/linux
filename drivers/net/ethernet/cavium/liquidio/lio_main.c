@@ -59,9 +59,9 @@ static int debug = -1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
 
-static char fw_type[LIO_MAX_FW_TYPE_LEN] = LIO_FW_NAME_TYPE_NIC;
+static char fw_type[LIO_MAX_FW_TYPE_LEN] = LIO_FW_NAME_TYPE_AUTO;
 module_param_string(fw_type, fw_type, sizeof(fw_type), 0444);
-MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded. Default \"nic\".  Use \"none\" to load firmware from flash.");
+MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded (default is \"auto\"), which uses firmware in flash, if present, else loads \"nic\".");
 
 static u32 console_bitmask;
 module_param(console_bitmask, int, 0644);
@@ -1115,10 +1115,10 @@ liquidio_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-static bool fw_type_is_none(void)
+static bool fw_type_is_auto(void)
 {
-	return strncmp(fw_type, LIO_FW_NAME_TYPE_NONE,
-		       sizeof(LIO_FW_NAME_TYPE_NONE)) == 0;
+	return strncmp(fw_type, LIO_FW_NAME_TYPE_AUTO,
+		       sizeof(LIO_FW_NAME_TYPE_AUTO)) == 0;
 }
 
 /**
@@ -1302,7 +1302,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		 * Implementation note: only soft-reset the device
 		 * if it is a CN6XXX OR the LAST CN23XX device.
 		 */
-		if (fw_type_is_none())
+		if (atomic_read(oct->adapter_fw_state) == FW_IS_PRELOADED)
 			octeon_pci_flr(oct);
 		else if (OCTEON_CN6XXX(oct) || !refcount)
 			oct->fn_list.soft_reset(oct);
@@ -1934,10 +1934,12 @@ static int load_firmware(struct octeon_device *oct)
 	char fw_name[LIO_MAX_FW_FILENAME_LEN];
 	char *tmp_fw_type;
 
-	if (fw_type[0] == '\0')
+	if (fw_type_is_auto()) {
 		tmp_fw_type = LIO_FW_NAME_TYPE_NIC;
-	else
+		strncpy(fw_type, tmp_fw_type, sizeof(fw_type));
+	} else {
 		tmp_fw_type = fw_type;
+	}
 
 	sprintf(fw_name, "%s%s%s_%s%s", LIO_FW_DIR, LIO_FW_BASE_NAME,
 		octeon_get_conf(oct)->card_name, tmp_fw_type,
@@ -3303,7 +3305,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 {
 	struct lio *lio = NULL;
 	struct net_device *netdev;
-	u8 mac[6], i, j;
+	u8 mac[6], i, j, *fw_ver;
 	struct octeon_soft_command *sc;
 	struct liquidio_if_cfg_context *ctx;
 	struct liquidio_if_cfg_resp *resp;
@@ -3412,6 +3414,22 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		if (retval) {
 			dev_err(&octeon_dev->pci_dev->dev, "iq/oq config failed\n");
 			goto setup_nic_dev_fail;
+		}
+
+		/* Verify f/w version (in case of 'auto' loading from flash) */
+		fw_ver = octeon_dev->fw_info.liquidio_firmware_version;
+		if (memcmp(LIQUIDIO_BASE_VERSION,
+			   fw_ver,
+			   strlen(LIQUIDIO_BASE_VERSION))) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"Unmatched firmware version. Expected %s.x, got %s.\n",
+				LIQUIDIO_BASE_VERSION, fw_ver);
+			goto setup_nic_dev_fail;
+		} else if (atomic_read(octeon_dev->adapter_fw_state) ==
+			   FW_IS_PRELOADED) {
+			dev_info(&octeon_dev->pci_dev->dev,
+				 "Using auto-loaded firmware version %s.\n",
+				 fw_ver);
 		}
 
 		octeon_swap_8B_data((u64 *)(&resp->cfg_info),
@@ -3882,9 +3900,9 @@ octeon_recv_vf_drv_notice(struct octeon_recv_info *recv_info, void *buf)
 static int octeon_device_init(struct octeon_device *octeon_dev)
 {
 	int j, ret;
-	int fw_loaded = 0;
 	char bootcmd[] = "\n";
 	char *dbg_enb = NULL;
+	enum lio_fw_state fw_state;
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)octeon_dev->priv;
 	atomic_set(&octeon_dev->status, OCT_DEV_BEGIN_STATE);
@@ -3916,23 +3934,39 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	octeon_dev->app_mode = CVM_DRV_INVALID_APP;
 
-	if (OCTEON_CN23XX_PF(octeon_dev)) {
-		if (!cn23xx_fw_loaded(octeon_dev) && !fw_type_is_none()) {
-			fw_loaded = 0;
-			/* Do a soft reset of the Octeon device. */
-			if (octeon_dev->fn_list.soft_reset(octeon_dev))
-				return 1;
-			/* things might have changed */
-			if (!cn23xx_fw_loaded(octeon_dev))
-				fw_loaded = 0;
-			else
-				fw_loaded = 1;
-		} else {
-			fw_loaded = 1;
-		}
-	} else if (octeon_dev->fn_list.soft_reset(octeon_dev)) {
-		return 1;
+	/* CN23XX supports preloaded firmware if the following is true:
+	 *
+	 * The adapter indicates that firmware is currently running AND
+	 * 'fw_type' is 'auto'.
+	 *
+	 * (default state is NEEDS_TO_BE_LOADED, override it if appropriate).
+	 */
+	if (OCTEON_CN23XX_PF(octeon_dev) &&
+	    cn23xx_fw_loaded(octeon_dev) && fw_type_is_auto()) {
+		atomic_cmpxchg(octeon_dev->adapter_fw_state,
+			       FW_NEEDS_TO_BE_LOADED, FW_IS_PRELOADED);
 	}
+
+	/* If loading firmware, only first device of adapter needs to do so. */
+	fw_state = atomic_cmpxchg(octeon_dev->adapter_fw_state,
+				  FW_NEEDS_TO_BE_LOADED,
+				  FW_IS_BEING_LOADED);
+
+	/* Here, [local variable] 'fw_state' is set to one of:
+	 *
+	 *   FW_IS_PRELOADED:       No firmware is to be loaded (see above)
+	 *   FW_NEEDS_TO_BE_LOADED: The driver's first instance will load
+	 *                          firmware to the adapter.
+	 *   FW_IS_BEING_LOADED:    The driver's second instance will not load
+	 *                          firmware to the adapter.
+	 */
+
+	/* Prior to f/w load, perform a soft reset of the Octeon device;
+	 * if error resetting, return w/error.
+	 */
+	if (fw_state == FW_NEEDS_TO_BE_LOADED)
+		if (octeon_dev->fn_list.soft_reset(octeon_dev))
+			return 1;
 
 	/* Initialize the dispatch mechanism used to push packets arriving on
 	 * Octeon Output queues.
@@ -4063,7 +4097,7 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_IO_QUEUES_DONE);
 
-	if ((!OCTEON_CN23XX_PF(octeon_dev)) || !fw_loaded) {
+	if (fw_state == FW_NEEDS_TO_BE_LOADED) {
 		dev_dbg(&octeon_dev->pci_dev->dev, "Waiting for DDR initialization...\n");
 		if (!ddr_timeout) {
 			dev_info(&octeon_dev->pci_dev->dev,
@@ -4125,6 +4159,8 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 			dev_err(&octeon_dev->pci_dev->dev, "Could not load firmware to board\n");
 			return 1;
 		}
+
+		atomic_set(octeon_dev->adapter_fw_state, FW_HAS_BEEN_LOADED);
 	}
 
 	handshake[octeon_dev->octeon_id].init_ok = 1;

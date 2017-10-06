@@ -130,11 +130,6 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_platform_data	*pd;
 
-	/* Copy of tag_ops->rcv for faster access in hot path */
-	struct sk_buff *	(*rcv)(struct sk_buff *skb,
-				       struct net_device *dev,
-				       struct packet_type *pt);
-
 	/*
 	 * The switch port to which the CPU is attached.
 	 */
@@ -144,12 +139,6 @@ struct dsa_switch_tree {
 	 * Data for the individual switch chips.
 	 */
 	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
-
-	/*
-	 * Tagging protocol operations for adding and removing an
-	 * encapsulation tag.
-	 */
-	const struct dsa_device_ops *tag_ops;
 };
 
 /* TC matchall action types, only mirroring for now */
@@ -175,6 +164,14 @@ struct dsa_mall_tc_entry {
 
 
 struct dsa_port {
+	/* CPU port tagging operations used by master or slave devices */
+	const struct dsa_device_ops *tag_ops;
+
+	/* Copies for faster access in master receive hot path */
+	struct dsa_switch_tree *dst;
+	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
+			       struct packet_type *pt);
+
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;
@@ -188,7 +185,6 @@ struct dsa_port {
 	/*
 	 * Original copy of the master netdev ethtool_ops
 	 */
-	struct ethtool_ops	ethtool_ops;
 	const struct ethtool_ops *orig_ethtool_ops;
 };
 

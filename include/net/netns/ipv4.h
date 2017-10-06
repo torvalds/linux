@@ -36,6 +36,8 @@ struct inet_timewait_death_row {
 	int			sysctl_max_tw_buckets;
 };
 
+struct tcp_fastopen_context;
+
 struct netns_ipv4 {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
@@ -52,6 +54,7 @@ struct netns_ipv4 {
 	struct fib_table __rcu	*fib_main;
 	struct fib_table __rcu	*fib_default;
 #endif
+	bool			fib_has_custom_local_routes;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	int			fib_num_tclassid_users;
 #endif
@@ -127,6 +130,12 @@ struct netns_ipv4 {
 	int sysctl_tcp_timestamps;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
+	int sysctl_tcp_fastopen;
+	struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
+	spinlock_t tcp_fastopen_ctx_lock;
+	unsigned int sysctl_tcp_fastopen_blackhole_timeout;
+	atomic_t tfo_active_disable_times;
+	unsigned long tfo_active_disable_stamp;
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	int sysctl_udp_l3mdev_accept;
@@ -161,6 +170,9 @@ struct netns_ipv4 {
 
 	struct fib_notifier_ops	*notifier_ops;
 	unsigned int	fib_seq;	/* protected by rtnl_mutex */
+
+	struct fib_notifier_ops	*ipmr_notifier_ops;
+	unsigned int	ipmr_seq;	/* protected by rtnl_mutex */
 
 	atomic_t	rt_genid;
 };

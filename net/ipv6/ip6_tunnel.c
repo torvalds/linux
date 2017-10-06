@@ -1043,6 +1043,7 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 	struct dst_entry *dst = NULL, *ndst = NULL;
 	struct net_device *tdev;
 	int mtu;
+	unsigned int eth_hlen = t->dev->type == ARPHRD_ETHER ? ETH_HLEN : 0;
 	unsigned int psh_hlen = sizeof(struct ipv6hdr) + t->encap_hlen;
 	unsigned int max_headroom = psh_hlen;
 	bool use_cache = false;
@@ -1124,7 +1125,7 @@ route_lookup:
 				     t->parms.name);
 		goto tx_err_dst_release;
 	}
-	mtu = dst_mtu(dst) - psh_hlen - t->tun_hlen;
+	mtu = dst_mtu(dst) - eth_hlen - psh_hlen - t->tun_hlen;
 	if (encap_limit >= 0) {
 		max_headroom += 8;
 		mtu -= 8;
@@ -1133,7 +1134,7 @@ route_lookup:
 		mtu = IPV6_MIN_MTU;
 	if (skb_dst(skb) && !t->parms.collect_md)
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
-	if (skb->len - t->tun_hlen > mtu && !skb_is_gso(skb)) {
+	if (skb->len - t->tun_hlen - eth_hlen > mtu && !skb_is_gso(skb)) {
 		*pmtu = mtu;
 		err = -EMSGSIZE;
 		goto tx_err_dst_release;
@@ -2167,17 +2168,16 @@ static struct xfrm6_tunnel ip6ip6_handler __read_mostly = {
 	.priority	=	1,
 };
 
-static void __net_exit ip6_tnl_destroy_tunnels(struct net *net)
+static void __net_exit ip6_tnl_destroy_tunnels(struct net *net, struct list_head *list)
 {
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
 	struct net_device *dev, *aux;
 	int h;
 	struct ip6_tnl *t;
-	LIST_HEAD(list);
 
 	for_each_netdev_safe(net, dev, aux)
 		if (dev->rtnl_link_ops == &ip6_link_ops)
-			unregister_netdevice_queue(dev, &list);
+			unregister_netdevice_queue(dev, list);
 
 	for (h = 0; h < IP6_TUNNEL_HASH_SIZE; h++) {
 		t = rtnl_dereference(ip6n->tnls_r_l[h]);
@@ -2186,12 +2186,10 @@ static void __net_exit ip6_tnl_destroy_tunnels(struct net *net)
 			 * been added to the list by the previous loop.
 			 */
 			if (!net_eq(dev_net(t->dev), net))
-				unregister_netdevice_queue(t->dev, &list);
+				unregister_netdevice_queue(t->dev, list);
 			t = rtnl_dereference(t->next);
 		}
 	}
-
-	unregister_netdevice_many(&list);
 }
 
 static int __net_init ip6_tnl_init_net(struct net *net)
@@ -2235,16 +2233,21 @@ err_alloc_dev:
 	return err;
 }
 
-static void __net_exit ip6_tnl_exit_net(struct net *net)
+static void __net_exit ip6_tnl_exit_batch_net(struct list_head *net_list)
 {
+	struct net *net;
+	LIST_HEAD(list);
+
 	rtnl_lock();
-	ip6_tnl_destroy_tunnels(net);
+	list_for_each_entry(net, net_list, exit_list)
+		ip6_tnl_destroy_tunnels(net, &list);
+	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }
 
 static struct pernet_operations ip6_tnl_net_ops = {
 	.init = ip6_tnl_init_net,
-	.exit = ip6_tnl_exit_net,
+	.exit_batch = ip6_tnl_exit_batch_net,
 	.id   = &ip6_tnl_net_id,
 	.size = sizeof(struct ip6_tnl_net),
 };
@@ -2258,6 +2261,9 @@ static struct pernet_operations ip6_tnl_net_ops = {
 static int __init ip6_tunnel_init(void)
 {
 	int  err;
+
+	if (!ipv6_mod_enabled())
+		return -EOPNOTSUPP;
 
 	err = register_pernet_device(&ip6_tnl_net_ops);
 	if (err < 0)

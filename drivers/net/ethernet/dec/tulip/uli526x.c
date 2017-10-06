@@ -491,10 +491,8 @@ static int uli526x_open(struct net_device *dev)
 	netif_wake_queue(dev);
 
 	/* set and active a timer process */
-	init_timer(&db->timer);
+	setup_timer(&db->timer, uli526x_timer, (unsigned long)dev);
 	db->timer.expires = ULI526X_TIMER_WUT + HZ * 2;
-	db->timer.data = (unsigned long)dev;
-	db->timer.function = uli526x_timer;
 	add_timer(&db->timer);
 
 	return 0;

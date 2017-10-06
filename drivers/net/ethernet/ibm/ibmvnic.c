@@ -927,6 +927,7 @@ static int ibmvnic_open(struct net_device *netdev)
 	}
 
 	rc = __ibmvnic_open(netdev);
+	netif_carrier_on(netdev);
 	mutex_unlock(&adapter->reset_lock);
 
 	return rc;
@@ -3899,6 +3900,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	if (rc)
 		goto ibmvnic_init_fail;
 
+	netif_carrier_off(netdev);
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&dev->dev, "failed to register netdev rc=%d\n", rc);

@@ -798,9 +798,8 @@ static int pcan_usb_init(struct peak_usb_device *dev)
 	int err;
 
 	/* initialize a timer needed to wait for hardware restart */
-	init_timer(&pdev->restart_timer);
-	pdev->restart_timer.function = pcan_usb_restart;
-	pdev->restart_timer.data = (unsigned long)dev;
+	setup_timer(&pdev->restart_timer, pcan_usb_restart,
+		    (unsigned long)dev);
 
 	/*
 	 * explicit use of dev_xxx() instead of netdev_xxx() here:

@@ -266,7 +266,6 @@ int dlpar_attach_node(struct device_node *dn, struct device_node *parent)
 		return rc;
 	}
 
-	of_node_put(dn->parent);
 	return 0;
 }
 

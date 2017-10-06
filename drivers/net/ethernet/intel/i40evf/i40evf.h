@@ -102,6 +102,7 @@ struct i40e_vsi {
 #define I40E_TX_CTXTDESC(R, i) \
 	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
 #define MAX_QUEUES 16
+#define I40EVF_MAX_REQ_QUEUES 4
 
 #define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
 #define I40EVF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4)
@@ -200,6 +201,7 @@ struct i40evf_adapter {
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
 	int num_active_queues;
+	int num_req_queues;
 
 	/* TX */
 	struct i40e_ring *tx_rings;
@@ -235,6 +237,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_PROMISC_ON			BIT(18)
 #define I40EVF_FLAG_ALLMULTI_ON			BIT(19)
 #define I40EVF_FLAG_LEGACY_RX			BIT(20)
+#define I40EVF_FLAG_REINIT_ITR_NEEDED		BIT(21)
 /* duplicates for common code */
 #define I40E_FLAG_DCB_ENABLED			0
 #define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
@@ -349,6 +352,7 @@ void i40evf_deconfigure_queues(struct i40evf_adapter *adapter);
 void i40evf_enable_queues(struct i40evf_adapter *adapter);
 void i40evf_disable_queues(struct i40evf_adapter *adapter);
 void i40evf_map_queues(struct i40evf_adapter *adapter);
+int i40evf_request_queues(struct i40evf_adapter *adapter, int num);
 void i40evf_add_ether_addrs(struct i40evf_adapter *adapter);
 void i40evf_del_ether_addrs(struct i40evf_adapter *adapter);
 void i40evf_add_vlans(struct i40evf_adapter *adapter);

@@ -643,8 +643,12 @@ int fm10k_close(struct net_device *netdev)
 static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
+	int num_tx_queues = READ_ONCE(interface->num_tx_queues);
 	unsigned int r_idx = skb->queue_mapping;
 	int err;
+
+	if (!num_tx_queues)
+		return NETDEV_TX_BUSY;
 
 	if ((skb->protocol == htons(ETH_P_8021Q)) &&
 	    !skb_vlan_tag_present(skb)) {
@@ -698,8 +702,8 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		__skb_put(skb, pad_len);
 	}
 
-	if (r_idx >= interface->num_tx_queues)
-		r_idx %= interface->num_tx_queues;
+	if (r_idx >= num_tx_queues)
+		r_idx %= num_tx_queues;
 
 	err = fm10k_xmit_frame_ring(skb, interface->tx_ring[r_idx]);
 
@@ -754,11 +758,132 @@ static bool fm10k_host_mbx_ready(struct fm10k_intfc *interface)
 	return (hw->mac.type == fm10k_mac_vf || interface->host_ready);
 }
 
+/**
+ * fm10k_queue_vlan_request - Queue a VLAN update request
+ * @interface: the fm10k interface structure
+ * @vid: the VLAN vid
+ * @vsi: VSI index number
+ * @set: whether to set or clear
+ *
+ * This function queues up a VLAN update. For VFs, this must be sent to the
+ * managing PF over the mailbox. For PFs, we'll use the same handling so that
+ * it's similar to the VF. This avoids storming the PF<->VF mailbox with too
+ * many VLAN updates during reset.
+ */
+int fm10k_queue_vlan_request(struct fm10k_intfc *interface,
+			     u32 vid, u8 vsi, bool set)
+{
+	struct fm10k_macvlan_request *request;
+	unsigned long flags;
+
+	/* This must be atomic since we may be called while the netdev
+	 * addr_list_lock is held
+	 */
+	request = kzalloc(sizeof(*request), GFP_ATOMIC);
+	if (!request)
+		return -ENOMEM;
+
+	request->type = FM10K_VLAN_REQUEST;
+	request->vlan.vid = vid;
+	request->vlan.vsi = vsi;
+	request->set = set;
+
+	spin_lock_irqsave(&interface->macvlan_lock, flags);
+	list_add_tail(&request->list, &interface->macvlan_requests);
+	spin_unlock_irqrestore(&interface->macvlan_lock, flags);
+
+	fm10k_macvlan_schedule(interface);
+
+	return 0;
+}
+
+/**
+ * fm10k_queue_mac_request - Queue a MAC update request
+ * @interface: the fm10k interface structure
+ * @glort: the target glort for this update
+ * @addr: the address to update
+ * @vid: the vid to update
+ * @sync: whether to add or remove
+ *
+ * This function queues up a MAC request for sending to the switch manager.
+ * A separate thread monitors the queue and sends updates to the switch
+ * manager. Return 0 on success, and negative error code on failure.
+ **/
+int fm10k_queue_mac_request(struct fm10k_intfc *interface, u16 glort,
+			    const unsigned char *addr, u16 vid, bool set)
+{
+	struct fm10k_macvlan_request *request;
+	unsigned long flags;
+
+	/* This must be atomic since we may be called while the netdev
+	 * addr_list_lock is held
+	 */
+	request = kzalloc(sizeof(*request), GFP_ATOMIC);
+	if (!request)
+		return -ENOMEM;
+
+	if (is_multicast_ether_addr(addr))
+		request->type = FM10K_MC_MAC_REQUEST;
+	else
+		request->type = FM10K_UC_MAC_REQUEST;
+
+	ether_addr_copy(request->mac.addr, addr);
+	request->mac.glort = glort;
+	request->mac.vid = vid;
+	request->set = set;
+
+	spin_lock_irqsave(&interface->macvlan_lock, flags);
+	list_add_tail(&request->list, &interface->macvlan_requests);
+	spin_unlock_irqrestore(&interface->macvlan_lock, flags);
+
+	fm10k_macvlan_schedule(interface);
+
+	return 0;
+}
+
+/**
+ * fm10k_clear_macvlan_queue - Cancel pending updates for a given glort
+ * @interface: the fm10k interface structure
+ * @glort: the target glort to clear
+ * @vlans: true to clear VLAN messages, false to ignore them
+ *
+ * Cancel any outstanding MAC/VLAN requests for a given glort. This is
+ * expected to be called when a logical port goes down.
+ **/
+void fm10k_clear_macvlan_queue(struct fm10k_intfc *interface,
+			       u16 glort, bool vlans)
+
+{
+	struct fm10k_macvlan_request *r, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&interface->macvlan_lock, flags);
+
+	/* Free any outstanding MAC/VLAN requests for this interface */
+	list_for_each_entry_safe(r, tmp, &interface->macvlan_requests, list) {
+		switch (r->type) {
+		case FM10K_MC_MAC_REQUEST:
+		case FM10K_UC_MAC_REQUEST:
+			/* Don't free requests for other interfaces */
+			if (r->mac.glort != glort)
+				break;
+			/* fall through */
+		case FM10K_VLAN_REQUEST:
+			if (vlans) {
+				list_del(&r->list);
+				kfree(r);
+			}
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&interface->macvlan_lock, flags);
+}
+
 static int fm10k_uc_vlan_unsync(struct net_device *netdev,
 				const unsigned char *uc_addr)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
-	struct fm10k_hw *hw = &interface->hw;
 	u16 glort = interface->glort;
 	u16 vid = interface->vid;
 	bool set = !!(vid / VLAN_N_VID);
@@ -767,10 +892,7 @@ static int fm10k_uc_vlan_unsync(struct net_device *netdev,
 	/* drop any leading bits on the VLAN ID */
 	vid &= VLAN_N_VID - 1;
 
-	if (fm10k_host_mbx_ready(interface))
-		err = hw->mac.ops.update_uc_addr(hw, glort, uc_addr,
-						 vid, set, 0);
-
+	err = fm10k_queue_mac_request(interface, glort, uc_addr, vid, set);
 	if (err)
 		return err;
 
@@ -782,7 +904,6 @@ static int fm10k_mc_vlan_unsync(struct net_device *netdev,
 				const unsigned char *mc_addr)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
-	struct fm10k_hw *hw = &interface->hw;
 	u16 glort = interface->glort;
 	u16 vid = interface->vid;
 	bool set = !!(vid / VLAN_N_VID);
@@ -791,9 +912,7 @@ static int fm10k_mc_vlan_unsync(struct net_device *netdev,
 	/* drop any leading bits on the VLAN ID */
 	vid &= VLAN_N_VID - 1;
 
-	if (fm10k_host_mbx_ready(interface))
-		err = hw->mac.ops.update_mc_addr(hw, glort, mc_addr, vid, set);
-
+	err = fm10k_queue_mac_request(interface, glort, mc_addr, vid, set);
 	if (err)
 		return err;
 
@@ -851,18 +970,14 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 
 	/* only need to update the VLAN if not in promiscuous mode */
 	if (!(netdev->flags & IFF_PROMISC)) {
-		err = hw->mac.ops.update_vlan(hw, vid, 0, set);
+		err = fm10k_queue_vlan_request(interface, vid, 0, set);
 		if (err)
 			goto err_out;
 	}
 
-	/* update our base MAC address if host's mailbox is ready */
-	if (fm10k_host_mbx_ready(interface))
-		err = hw->mac.ops.update_uc_addr(hw, interface->glort,
-						 hw->mac.addr, vid, set, 0);
-	else
-		err = -EHOSTDOWN;
-
+	/* Update our base MAC address */
+	err = fm10k_queue_mac_request(interface, interface->glort,
+				      hw->mac.addr, vid, set);
 	if (err)
 		goto err_out;
 
@@ -906,7 +1021,6 @@ static u16 fm10k_find_next_vlan(struct fm10k_intfc *interface, u16 vid)
 
 static void fm10k_clear_unused_vlans(struct fm10k_intfc *interface)
 {
-	struct fm10k_hw *hw = &interface->hw;
 	u32 vid, prev_vid;
 
 	/* loop through and find any gaps in the table */
@@ -918,7 +1032,7 @@ static void fm10k_clear_unused_vlans(struct fm10k_intfc *interface)
 
 		/* send request to clear multiple bits at a time */
 		prev_vid += (vid - prev_vid - 1) << FM10K_VLAN_LENGTH_SHIFT;
-		hw->mac.ops.update_vlan(hw, prev_vid, 0, false);
+		fm10k_queue_vlan_request(interface, prev_vid, 0, false);
 	}
 }
 
@@ -933,15 +1047,11 @@ static int __fm10k_uc_sync(struct net_device *dev,
 	if (!is_valid_ether_addr(addr))
 		return -EADDRNOTAVAIL;
 
-	/* update table with current entries if host's mailbox is ready */
-	if (!fm10k_host_mbx_ready(interface))
-		return -EHOSTDOWN;
-
 	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
-		err = hw->mac.ops.update_uc_addr(hw, glort, addr,
-						 vid, sync, 0);
+		err = fm10k_queue_mac_request(interface, glort,
+					      addr, vid, sync);
 		if (err)
 			return err;
 	}
@@ -998,15 +1108,18 @@ static int __fm10k_mc_sync(struct net_device *dev,
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	struct fm10k_hw *hw = &interface->hw;
 	u16 vid, glort = interface->glort;
+	s32 err;
 
-	/* update table with current entries if host's mailbox is ready */
-	if (!fm10k_host_mbx_ready(interface))
-		return 0;
+	if (!is_multicast_ether_addr(addr))
+		return -EADDRNOTAVAIL;
 
 	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
-		hw->mac.ops.update_mc_addr(hw, glort, addr, vid, sync);
+		err = fm10k_queue_mac_request(interface, glort,
+					      addr, vid, sync);
+		if (err)
+			return err;
 	}
 
 	return 0;
@@ -1046,7 +1159,8 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 	if (interface->xcast_mode != xcast_mode) {
 		/* update VLAN table */
 		if (xcast_mode == FM10K_XCAST_MODE_PROMISC)
-			hw->mac.ops.update_vlan(hw, FM10K_VLAN_ALL, 0, true);
+			fm10k_queue_vlan_request(interface, FM10K_VLAN_ALL,
+						 0, true);
 		if (interface->xcast_mode == FM10K_XCAST_MODE_PROMISC)
 			fm10k_clear_unused_vlans(interface);
 
@@ -1094,22 +1208,20 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					       interface->glort_count, true);
 
 	/* update VLAN table */
-	hw->mac.ops.update_vlan(hw, FM10K_VLAN_ALL, 0,
-				xcast_mode == FM10K_XCAST_MODE_PROMISC);
+	fm10k_queue_vlan_request(interface, FM10K_VLAN_ALL, 0,
+				 xcast_mode == FM10K_XCAST_MODE_PROMISC);
 
 	/* Add filter for VLAN 0 */
-	hw->mac.ops.update_vlan(hw, 0, 0, true);
+	fm10k_queue_vlan_request(interface, 0, 0, true);
 
 	/* update table with current entries */
 	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
-		hw->mac.ops.update_vlan(hw, vid, 0, true);
+		fm10k_queue_vlan_request(interface, vid, 0, true);
 
-		/* Update unicast entries if host's mailbox is ready */
-		if (fm10k_host_mbx_ready(interface))
-			hw->mac.ops.update_uc_addr(hw, glort, hw->mac.addr,
-						   vid, true, 0);
+		fm10k_queue_mac_request(interface, glort,
+					hw->mac.addr, vid, true);
 	}
 
 	/* update xcast mode before synchronizing addresses if host's mailbox
@@ -1135,6 +1247,13 @@ void fm10k_reset_rx_state(struct fm10k_intfc *interface)
 {
 	struct net_device *netdev = interface->netdev;
 	struct fm10k_hw *hw = &interface->hw;
+
+	/* Wait for MAC/VLAN work to finish */
+	while (test_bit(__FM10K_MACVLAN_SCHED, interface->state))
+		usleep_range(1000, 2000);
+
+	/* Cancel pending MAC/VLAN requests */
+	fm10k_clear_macvlan_queue(interface, interface->glort, true);
 
 	fm10k_mbx_lock(interface);
 
@@ -1370,8 +1489,8 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 	if (fm10k_host_mbx_ready(interface)) {
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_MULTI);
-		hw->mac.ops.update_uc_addr(hw, glort, sdev->dev_addr,
-					   0, true, 0);
+		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
+					0, true);
 	}
 
 	fm10k_mbx_unlock(interface);
@@ -1410,8 +1529,8 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 	if (fm10k_host_mbx_ready(interface)) {
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_NONE);
-		hw->mac.ops.update_uc_addr(hw, glort, sdev->dev_addr,
-					   0, false, 0);
+		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
+					0, false);
 	}
 
 	fm10k_mbx_unlock(interface);

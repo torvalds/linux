@@ -1593,8 +1593,10 @@ i40e_status i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 		status = I40E_ERR_UNKNOWN_PHY;
 
 	if (report_init) {
-		hw->phy.phy_types = le32_to_cpu(abilities->phy_type);
-		hw->phy.phy_types |= ((u64)abilities->phy_type_ext << 32);
+		if (hw->mac.type ==  I40E_MAC_XL710 &&
+		    hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
+		    hw->aq.api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_XL710)
+			status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 	}
 
 	return status;
@@ -1819,7 +1821,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw_link_info->fec_info = resp->config & (I40E_AQ_CONFIG_FEC_KR_ENA |
 						 I40E_AQ_CONFIG_FEC_RS_ENA);
 	hw_link_info->ext_info = resp->ext_info;
-	hw_link_info->loopback = resp->loopback;
+	hw_link_info->loopback = resp->loopback & I40E_AQ_LOOPBACK_MASK;
 	hw_link_info->max_frame_size = le16_to_cpu(resp->max_frame_size);
 	hw_link_info->pacing = resp->config & I40E_AQ_CONFIG_PACING_MASK;
 
@@ -1849,6 +1851,15 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	    (hw->aq.fw_maj_ver < 4 || (hw->aq.fw_maj_ver == 4 &&
 	     hw->aq.fw_min_ver < 40)) && hw_link_info->phy_type == 0xE)
 		hw_link_info->phy_type = I40E_PHY_TYPE_10GBASE_SFPP_CU;
+
+	if (hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
+	    hw->aq.api_min_ver >= 7) {
+		__le32 tmp;
+
+		memcpy(&tmp, resp->link_type, sizeof(tmp));
+		hw->phy.phy_types = le32_to_cpu(tmp);
+		hw->phy.phy_types |= ((u64)resp->link_type_ext << 32);
+	}
 
 	/* save link status information */
 	if (link)
@@ -2391,7 +2402,11 @@ enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
 					  i40e_aqc_opc_set_switch_config);
 	scfg->flags = cpu_to_le16(flags);
 	scfg->valid_flags = cpu_to_le16(valid_flags);
-
+	if (hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) {
+		scfg->switch_tag = cpu_to_le16(hw->switch_tag);
+		scfg->first_tag = cpu_to_le16(hw->first_tag);
+		scfg->second_tag = cpu_to_le16(hw->second_tag);
+	}
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
@@ -4826,6 +4841,74 @@ phy_blinking_end:
 }
 
 /**
+ * i40e_led_get_reg - read LED register
+ * @hw: pointer to the HW structure
+ * @led_addr: LED register address
+ * @reg_val: read register value
+ **/
+static enum i40e_status_code i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
+					      u32 *reg_val)
+{
+	enum i40e_status_code status;
+	u8 phy_addr = 0;
+	u8 port_num;
+	u32 i;
+
+	*reg_val = 0;
+	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+		status =
+		       i40e_aq_get_phy_register(hw,
+						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
+						I40E_PHY_COM_REG_PAGE,
+						I40E_PHY_LED_PROV_REG_1,
+						reg_val, NULL);
+	} else {
+		i = rd32(hw, I40E_PFGEN_PORTNUM);
+		port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
+		phy_addr = i40e_get_phy_address(hw, port_num);
+		status = i40e_read_phy_register_clause45(hw,
+							 I40E_PHY_COM_REG_PAGE,
+							 led_addr, phy_addr,
+							 (u16 *)reg_val);
+	}
+	return status;
+}
+
+/**
+ * i40e_led_set_reg - write LED register
+ * @hw: pointer to the HW structure
+ * @led_addr: LED register address
+ * @reg_val: register value to write
+ **/
+static enum i40e_status_code i40e_led_set_reg(struct i40e_hw *hw, u16 led_addr,
+					      u32 reg_val)
+{
+	enum i40e_status_code status;
+	u8 phy_addr = 0;
+	u8 port_num;
+	u32 i;
+
+	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+		status =
+		       i40e_aq_set_phy_register(hw,
+						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
+						I40E_PHY_COM_REG_PAGE,
+						I40E_PHY_LED_PROV_REG_1,
+						reg_val, NULL);
+	} else {
+		i = rd32(hw, I40E_PFGEN_PORTNUM);
+		port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
+		phy_addr = i40e_get_phy_address(hw, port_num);
+		status = i40e_write_phy_register_clause45(hw,
+							  I40E_PHY_COM_REG_PAGE,
+							  led_addr, phy_addr,
+							  (u16)reg_val);
+	}
+
+	return status;
+}
+
+/**
  * i40e_led_get_phy - return current on/off mode
  * @hw: pointer to the hw struct
  * @led_addr: address of led register to use
@@ -4842,7 +4925,19 @@ i40e_status i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
 	u16 temp_addr;
 	u8 port_num;
 	u32 i;
+	u32 reg_val_aq;
 
+	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+		status =
+		      i40e_aq_get_phy_register(hw,
+					       I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
+					       I40E_PHY_COM_REG_PAGE,
+					       I40E_PHY_LED_PROV_REG_1,
+					       &reg_val_aq, NULL);
+		if (status == I40E_SUCCESS)
+			*val = (u16)reg_val_aq;
+		return status;
+	}
 	temp_addr = I40E_PHY_LED_PROV_REG_1;
 	i = rd32(hw, I40E_PFGEN_PORTNUM);
 	port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
@@ -4877,51 +4972,38 @@ i40e_status i40e_led_set_phy(struct i40e_hw *hw, bool on,
 			     u16 led_addr, u32 mode)
 {
 	i40e_status status = 0;
-	u16 led_ctl = 0;
-	u16 led_reg = 0;
-	u8 phy_addr = 0;
-	u8 port_num;
-	u32 i;
+	u32 led_ctl = 0;
+	u32 led_reg = 0;
 
-	i = rd32(hw, I40E_PFGEN_PORTNUM);
-	port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
-	phy_addr = i40e_get_phy_address(hw, port_num);
-	status = i40e_read_phy_register_clause45(hw, I40E_PHY_COM_REG_PAGE,
-						 led_addr, phy_addr, &led_reg);
+	status = i40e_led_get_reg(hw, led_addr, &led_reg);
 	if (status)
 		return status;
 	led_ctl = led_reg;
 	if (led_reg & I40E_PHY_LED_LINK_MODE_MASK) {
 		led_reg = 0;
-		status = i40e_write_phy_register_clause45(hw,
-							  I40E_PHY_COM_REG_PAGE,
-							  led_addr, phy_addr,
-							  led_reg);
+		status = i40e_led_set_reg(hw, led_addr, led_reg);
 		if (status)
 			return status;
 	}
-	status = i40e_read_phy_register_clause45(hw, I40E_PHY_COM_REG_PAGE,
-						 led_addr, phy_addr, &led_reg);
+	status = i40e_led_get_reg(hw, led_addr, &led_reg);
 	if (status)
 		goto restore_config;
 	if (on)
 		led_reg = I40E_PHY_LED_MANUAL_ON;
 	else
 		led_reg = 0;
-	status = i40e_write_phy_register_clause45(hw, I40E_PHY_COM_REG_PAGE,
-						  led_addr, phy_addr, led_reg);
+
+	status = i40e_led_set_reg(hw, led_addr, led_reg);
 	if (status)
 		goto restore_config;
 	if (mode & I40E_PHY_LED_MODE_ORIG) {
 		led_ctl = (mode & I40E_PHY_LED_MODE_MASK);
-		status = i40e_write_phy_register_clause45(hw,
-						 I40E_PHY_COM_REG_PAGE,
-						 led_addr, phy_addr, led_ctl);
+		status = i40e_led_set_reg(hw, led_addr, led_ctl);
 	}
 	return status;
+
 restore_config:
-	status = i40e_write_phy_register_clause45(hw, I40E_PHY_COM_REG_PAGE,
-						  led_addr, phy_addr, led_ctl);
+	status = i40e_led_set_reg(hw, led_addr, led_ctl);
 	return status;
 }
 
@@ -5049,6 +5131,75 @@ do_retry:
 	/* if the AQ access failed, try the old-fashioned way */
 	if (status || use_register)
 		wr32(hw, reg_addr, reg_val);
+}
+
+/**
+ * i40e_aq_set_phy_register
+ * @hw: pointer to the hw struct
+ * @phy_select: select which phy should be accessed
+ * @dev_addr: PHY device address
+ * @reg_addr: PHY register address
+ * @reg_val: new register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Write the external PHY register.
+ **/
+i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 reg_val,
+				     struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_phy_register_access *cmd =
+		(struct i40e_aqc_phy_register_access *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_phy_register);
+
+	cmd->phy_interface = phy_select;
+	cmd->dev_address = dev_addr;
+	cmd->reg_address = cpu_to_le32(reg_addr);
+	cmd->reg_value = cpu_to_le32(reg_val);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40e_aq_get_phy_register
+ * @hw: pointer to the hw struct
+ * @phy_select: select which phy should be accessed
+ * @dev_addr: PHY device address
+ * @reg_addr: PHY register address
+ * @reg_val: read register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Read the external PHY register.
+ **/
+i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 *reg_val,
+				     struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_phy_register_access *cmd =
+		(struct i40e_aqc_phy_register_access *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_get_phy_register);
+
+	cmd->phy_interface = phy_select;
+	cmd->dev_address = dev_addr;
+	cmd->reg_address = cpu_to_le32(reg_addr);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+	if (!status)
+		*reg_val = le32_to_cpu(cmd->reg_value);
+
+	return status;
 }
 
 /**

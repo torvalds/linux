@@ -69,7 +69,7 @@ int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
 	int result;
 
 	/* TODO: We must check if we can release all references to non-payload
-	 * data using skb_header_release in our skbs to allow skb_cow_header to
+	 * data using __skb_header_release in our skbs to allow skb_cow_header to
 	 * work optimally. This means that those skbs are not allowed to read
 	 * or write any data which is before the current position of skb->data
 	 * after that call and thus allow other skbs with the same data buffer
@@ -867,7 +867,8 @@ free_bat_counters:
  * Return: 0 if successful or error otherwise.
  */
 static int batadv_softif_slave_add(struct net_device *dev,
-				   struct net_device *slave_dev)
+				   struct net_device *slave_dev,
+				   struct netlink_ext_ack *extack)
 {
 	struct batadv_hard_iface *hard_iface;
 	struct net *net = dev_net(dev);

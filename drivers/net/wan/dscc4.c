@@ -1127,10 +1127,8 @@ static int dscc4_open(struct net_device *dev)
 done:
 	netif_start_queue(dev);
 
-        init_timer(&dpriv->timer);
+	setup_timer(&dpriv->timer, dscc4_timer, (unsigned long)dev);
         dpriv->timer.expires = jiffies + 10*HZ;
-        dpriv->timer.data = (unsigned long)dev;
-	dpriv->timer.function = dscc4_timer;
         add_timer(&dpriv->timer);
 	netif_carrier_on(dev);
 

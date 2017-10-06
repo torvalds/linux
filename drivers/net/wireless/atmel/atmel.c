@@ -1579,11 +1579,10 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	priv->default_beacon_period = priv->beacon_period = 100;
 	priv->listen_interval = 1;
 
-	init_timer(&priv->management_timer);
+	setup_timer(&priv->management_timer, atmel_management_timer,
+		    (unsigned long)dev);
 	spin_lock_init(&priv->irqlock);
 	spin_lock_init(&priv->timerlock);
-	priv->management_timer.function = atmel_management_timer;
-	priv->management_timer.data = (unsigned long) dev;
 
 	dev->netdev_ops = &atmel_netdev_ops;
 	dev->wireless_handlers = &atmel_handler_def;

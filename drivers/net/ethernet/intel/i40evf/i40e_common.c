@@ -1042,6 +1042,75 @@ do_retry:
 }
 
 /**
+ * i40evf_aq_set_phy_register
+ * @hw: pointer to the hw struct
+ * @phy_select: select which phy should be accessed
+ * @dev_addr: PHY device address
+ * @reg_addr: PHY register address
+ * @reg_val: new register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Reset the external PHY.
+ **/
+i40e_status i40evf_aq_set_phy_register(struct i40e_hw *hw,
+				       u8 phy_select, u8 dev_addr,
+				       u32 reg_addr, u32 reg_val,
+				       struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_phy_register_access *cmd =
+		(struct i40e_aqc_phy_register_access *)&desc.params.raw;
+	i40e_status status;
+
+	i40evf_fill_default_direct_cmd_desc(&desc,
+					    i40e_aqc_opc_set_phy_register);
+
+	cmd->phy_interface = phy_select;
+	cmd->dev_address = dev_addr;
+	cmd->reg_address = cpu_to_le32(reg_addr);
+	cmd->reg_value = cpu_to_le32(reg_val);
+
+	status = i40evf_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40evf_aq_get_phy_register
+ * @hw: pointer to the hw struct
+ * @phy_select: select which phy should be accessed
+ * @dev_addr: PHY device address
+ * @reg_addr: PHY register address
+ * @reg_val: read register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Reset the external PHY.
+ **/
+i40e_status i40evf_aq_get_phy_register(struct i40e_hw *hw,
+				       u8 phy_select, u8 dev_addr,
+				       u32 reg_addr, u32 *reg_val,
+				       struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_phy_register_access *cmd =
+		(struct i40e_aqc_phy_register_access *)&desc.params.raw;
+	i40e_status status;
+
+	i40evf_fill_default_direct_cmd_desc(&desc,
+					    i40e_aqc_opc_get_phy_register);
+
+	cmd->phy_interface = phy_select;
+	cmd->dev_address = dev_addr;
+	cmd->reg_address = cpu_to_le32(reg_addr);
+
+	status = i40evf_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+	if (!status)
+		*reg_val = le32_to_cpu(cmd->reg_value);
+
+	return status;
+}
+
+/**
  * i40e_aq_send_msg_to_pf
  * @hw: pointer to the hardware structure
  * @v_opcode: opcodes for VF-PF communication

@@ -152,36 +152,11 @@ static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	struct cls_fl_filter *f;
 	struct fl_flow_key skb_key;
 	struct fl_flow_key skb_mkey;
-	struct ip_tunnel_info *info;
 
 	if (!atomic_read(&head->ht.nelems))
 		return -1;
 
 	fl_clear_masked_range(&skb_key, &head->mask);
-
-	info = skb_tunnel_info(skb);
-	if (info) {
-		struct ip_tunnel_key *key = &info->key;
-
-		switch (ip_tunnel_info_af(info)) {
-		case AF_INET:
-			skb_key.enc_control.addr_type =
-				FLOW_DISSECTOR_KEY_IPV4_ADDRS;
-			skb_key.enc_ipv4.src = key->u.ipv4.src;
-			skb_key.enc_ipv4.dst = key->u.ipv4.dst;
-			break;
-		case AF_INET6:
-			skb_key.enc_control.addr_type =
-				FLOW_DISSECTOR_KEY_IPV6_ADDRS;
-			skb_key.enc_ipv6.src = key->u.ipv6.src;
-			skb_key.enc_ipv6.dst = key->u.ipv6.dst;
-			break;
-		}
-
-		skb_key.enc_key_id.keyid = tunnel_id_to_key32(key->tun_id);
-		skb_key.enc_tp.src = key->tp_src;
-		skb_key.enc_tp.dst = key->tp_dst;
-	}
 
 	skb_key.indev_ifindex = skb->skb_iif;
 	/* skb_flow_dissect() does not set n_proto in case an unknown protocol,
@@ -922,28 +897,28 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 		if (!tc_flags_valid(fnew->flags)) {
 			err = -EINVAL;
-			goto errout;
+			goto errout_idr;
 		}
 	}
 
 	err = fl_set_parms(net, tp, fnew, &mask, base, tb, tca[TCA_RATE], ovr);
 	if (err)
-		goto errout;
+		goto errout_idr;
 
 	err = fl_check_assign_mask(head, &mask);
 	if (err)
-		goto errout;
+		goto errout_idr;
 
 	if (!tc_skip_sw(fnew->flags)) {
 		if (!fold && fl_lookup(head, &fnew->mkey)) {
 			err = -EEXIST;
-			goto errout;
+			goto errout_idr;
 		}
 
 		err = rhashtable_insert_fast(&head->ht, &fnew->ht_node,
 					     head->ht_params);
 		if (err)
-			goto errout;
+			goto errout_idr;
 	}
 
 	if (!tc_skip_hw(fnew->flags)) {
@@ -952,7 +927,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 					   &mask.key,
 					   fnew);
 		if (err)
-			goto errout;
+			goto errout_idr;
 	}
 
 	if (!tc_in_hw(fnew->flags))
@@ -981,6 +956,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	kfree(tb);
 	return 0;
 
+errout_idr:
+	if (fnew->handle)
+		idr_remove_ext(&head->handle_idr, fnew->handle);
 errout:
 	tcf_exts_destroy(&fnew->exts);
 	kfree(fnew);

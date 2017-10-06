@@ -150,6 +150,8 @@ struct netvsc_device_info {
 	u32  num_chn;
 	u32  send_sections;
 	u32  recv_sections;
+	u32  send_section_size;
+	u32  recv_section_size;
 };
 
 enum rndis_device_state {
@@ -684,6 +686,8 @@ struct netvsc_ethtool_stats {
 	unsigned long tx_busy;
 	unsigned long tx_send_full;
 	unsigned long rx_comp_busy;
+	unsigned long stop_queue;
+	unsigned long wake_queue;
 };
 
 struct netvsc_vf_pcpu_stats {

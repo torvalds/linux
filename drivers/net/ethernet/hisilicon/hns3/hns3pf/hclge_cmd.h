@@ -238,7 +238,7 @@ struct hclge_tqp_map {
 	u8 rsv[18];
 };
 
-#define HCLGE_VECTOR_ELEMENTS_PER_CMD	11
+#define HCLGE_VECTOR_ELEMENTS_PER_CMD	10
 
 enum hclge_int_type {
 	HCLGE_INT_TX,
@@ -252,8 +252,12 @@ struct hclge_ctrl_vector_chain {
 #define HCLGE_INT_TYPE_S	0
 #define HCLGE_INT_TYPE_M	0x3
 #define HCLGE_TQP_ID_S		2
-#define HCLGE_TQP_ID_M		(0x3fff << HCLGE_TQP_ID_S)
+#define HCLGE_TQP_ID_M		(0x7ff << HCLGE_TQP_ID_S)
+#define HCLGE_INT_GL_IDX_S	13
+#define HCLGE_INT_GL_IDX_M	(0x3 << HCLGE_INT_GL_IDX_S)
 	__le16 tqp_type_and_id[HCLGE_VECTOR_ELEMENTS_PER_CMD];
+	u8 vfid;
+	u8 rsv;
 };
 
 #define HCLGE_TC_NUM		8
@@ -266,7 +270,8 @@ struct hclge_tx_buff_alloc {
 
 struct hclge_rx_priv_buff {
 	__le16 buf_num[HCLGE_TC_NUM];
-	u8 rsv[8];
+	__le16 shared_buf;
+	u8 rsv[6];
 };
 
 struct hclge_query_version {
@@ -306,6 +311,7 @@ struct hclge_tc_thrd {
 struct hclge_priv_buf {
 	struct hclge_waterline wl;	/* Waterline for low and high*/
 	u32 buf_size;	/* TC private buffer size */
+	u32 tx_buf_size;
 	u32 enable;	/* Enable TC private buffer or not */
 };
 
@@ -314,6 +320,11 @@ struct hclge_shared_buf {
 	struct hclge_waterline self;
 	struct hclge_tc_thrd tc_thrd[HCLGE_MAX_TC_NUM];
 	u32 buf_size;
+};
+
+struct hclge_pkt_buf_alloc {
+	struct hclge_priv_buf priv_buf[HCLGE_MAX_TC_NUM];
+	struct hclge_shared_buf s_buf;
 };
 
 #define HCLGE_RX_COM_WL_EN_B	15
@@ -684,6 +695,7 @@ struct hclge_reset_tqp_queue {
 #define HCLGE_DEFAULT_TX_BUF		0x4000	 /* 16k  bytes */
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
+#define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
 
 #define HCLGE_TYPE_CRQ			0
 #define HCLGE_TYPE_CSQ			1

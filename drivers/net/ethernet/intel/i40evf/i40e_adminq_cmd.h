@@ -34,7 +34,15 @@
  */
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR	0x0005
+#define I40E_FW_API_VERSION_MINOR_X722	0x0005
+#define I40E_FW_API_VERSION_MINOR_X710	0x0007
+
+#define I40E_FW_MINOR_VERSION(_h) ((_h)->mac.type == I40E_MAC_XL710 ? \
+					I40E_FW_API_VERSION_MINOR_X710 : \
+					I40E_FW_API_VERSION_MINOR_X722)
+
+/* API version 1.7 implements additional link and PHY-specific APIs  */
+#define I40E_MINOR_VER_GET_LINK_INFO_XL710 0x0007
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -236,6 +244,8 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_set_phy_debug		= 0x0622,
 	i40e_aqc_opc_upload_ext_phy_fm		= 0x0625,
 	i40e_aqc_opc_run_phy_activity		= 0x0626,
+	i40e_aqc_opc_set_phy_register		= 0x0628,
+	i40e_aqc_opc_get_phy_register		= 0x0629,
 
 	/* NVM commands */
 	i40e_aqc_opc_nvm_read			= 0x0701,
@@ -761,7 +771,22 @@ struct i40e_aqc_set_switch_config {
 #define I40E_AQ_SET_SWITCH_CFG_PROMISC		0x0001
 #define I40E_AQ_SET_SWITCH_CFG_L2_FILTER	0x0002
 	__le16	valid_flags;
-	u8	reserved[12];
+	/* The ethertype in switch_tag is dropped on ingress and used
+	 * internally by the switch. Set this to zero for the default
+	 * of 0x88a8 (802.1ad). Should be zero for firmware API
+	 * versions lower than 1.7.
+	 */
+	__le16	switch_tag;
+	/* The ethertypes in first_tag and second_tag are used to
+	 * match the outer and inner VLAN tags (respectively) when HW
+	 * double VLAN tagging is enabled via the set port parameters
+	 * AQ command. Otherwise these are both ignored. Set them to
+	 * zero for their defaults of 0x8100 (802.1Q). Should be zero
+	 * for firmware API versions lower than 1.7.
+	 */
+	__le16	first_tag;
+	__le16	second_tag;
+	u8	reserved[6];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_set_switch_config);
@@ -1722,6 +1747,8 @@ enum i40e_aq_phy_type {
 	I40E_PHY_TYPE_10GBASE_CR1_CU		= 0xB,
 	I40E_PHY_TYPE_10GBASE_AOC		= 0xC,
 	I40E_PHY_TYPE_40GBASE_AOC		= 0xD,
+	I40E_PHY_TYPE_UNRECOGNIZED		= 0xE,
+	I40E_PHY_TYPE_UNSUPPORTED		= 0xF,
 	I40E_PHY_TYPE_100BASE_TX		= 0x11,
 	I40E_PHY_TYPE_1000BASE_T		= 0x12,
 	I40E_PHY_TYPE_10GBASE_T			= 0x13,
@@ -1740,6 +1767,8 @@ enum i40e_aq_phy_type {
 	I40E_PHY_TYPE_25GBASE_CR		= 0x20,
 	I40E_PHY_TYPE_25GBASE_SR		= 0x21,
 	I40E_PHY_TYPE_25GBASE_LR		= 0x22,
+	I40E_PHY_TYPE_EMPTY			= 0xFE,
+	I40E_PHY_TYPE_DEFAULT			= 0xFF,
 	I40E_PHY_TYPE_MAX
 };
 
@@ -1930,19 +1959,31 @@ struct i40e_aqc_get_link_status {
 #define I40E_AQ_25G_SERDES_UCODE_ERR	0X04
 #define I40E_AQ_25G_NIMB_UCODE_ERR	0X05
 	u8	loopback; /* use defines from i40e_aqc_set_lb_mode */
+/* Since firmware API 1.7 loopback field keeps power class info as well */
+#define I40E_AQ_LOOPBACK_MASK		0x07
+#define I40E_AQ_PWR_CLASS_SHIFT_LB	6
+#define I40E_AQ_PWR_CLASS_MASK_LB	(0x03 << I40E_AQ_PWR_CLASS_SHIFT_LB)
 	__le16	max_frame_size;
 	u8	config;
 #define I40E_AQ_CONFIG_FEC_KR_ENA	0x01
 #define I40E_AQ_CONFIG_FEC_RS_ENA	0x02
 #define I40E_AQ_CONFIG_CRC_ENA		0x04
 #define I40E_AQ_CONFIG_PACING_MASK	0x78
-	u8	power_desc;
+	union {
+		struct {
+			u8	power_desc;
 #define I40E_AQ_LINK_POWER_CLASS_1	0x00
 #define I40E_AQ_LINK_POWER_CLASS_2	0x01
 #define I40E_AQ_LINK_POWER_CLASS_3	0x02
 #define I40E_AQ_LINK_POWER_CLASS_4	0x03
 #define I40E_AQ_PWR_CLASS_MASK		0x03
-	u8	reserved[4];
+			u8	reserved[4];
+		};
+		struct {
+			u8	link_type[4];
+			u8	link_type_ext;
+		};
+	};
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_get_link_status);
@@ -2021,6 +2062,22 @@ struct i40e_aqc_run_phy_activity {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_run_phy_activity);
+
+/* Set PHY Register command (0x0628) */
+/* Get PHY Register command (0x0629) */
+struct i40e_aqc_phy_register_access {
+	u8	phy_interface;
+#define I40E_AQ_PHY_REG_ACCESS_INTERNAL	0
+#define I40E_AQ_PHY_REG_ACCESS_EXTERNAL	1
+#define I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE	2
+	u8	dev_address;
+	u8	reserved1[2];
+	__le32	reg_address;
+	__le32	reg_value;
+	u8	reserved2[4];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_phy_register_access);
 
 /* NVM Read command (indirect 0x0701)
  * NVM Erase commands (direct 0x0702)

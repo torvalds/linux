@@ -1817,8 +1817,8 @@ static int nv_alloc_rx(struct net_device *dev)
 							     skb->data,
 							     skb_tailroom(skb),
 							     DMA_FROM_DEVICE);
-			if (dma_mapping_error(&np->pci_dev->dev,
-					      np->put_rx_ctx->dma)) {
+			if (unlikely(dma_mapping_error(&np->pci_dev->dev,
+						       np->put_rx_ctx->dma))) {
 				kfree_skb(skb);
 				goto packet_dropped;
 			}
@@ -1858,8 +1858,8 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 							     skb->data,
 							     skb_tailroom(skb),
 							     DMA_FROM_DEVICE);
-			if (dma_mapping_error(&np->pci_dev->dev,
-					      np->put_rx_ctx->dma)) {
+			if (unlikely(dma_mapping_error(&np->pci_dev->dev,
+						       np->put_rx_ctx->dma))) {
 				kfree_skb(skb);
 				goto packet_dropped;
 			}
@@ -2227,8 +2227,8 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		np->put_tx_ctx->dma = dma_map_single(&np->pci_dev->dev,
 						     skb->data + offset, bcnt,
 						     DMA_TO_DEVICE);
-		if (dma_mapping_error(&np->pci_dev->dev,
-				      np->put_tx_ctx->dma)) {
+		if (unlikely(dma_mapping_error(&np->pci_dev->dev,
+					       np->put_tx_ctx->dma))) {
 			/* on DMA mapping error - drop the packet */
 			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
@@ -2268,7 +2268,8 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 							frag, offset,
 							bcnt,
 							DMA_TO_DEVICE);
-			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+			if (unlikely(dma_mapping_error(&np->pci_dev->dev,
+						       np->put_tx_ctx->dma))) {
 
 				/* Unwind the mapped fragments */
 				do {
@@ -2377,8 +2378,8 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 		np->put_tx_ctx->dma = dma_map_single(&np->pci_dev->dev,
 						     skb->data + offset, bcnt,
 						     DMA_TO_DEVICE);
-		if (dma_mapping_error(&np->pci_dev->dev,
-				      np->put_tx_ctx->dma)) {
+		if (unlikely(dma_mapping_error(&np->pci_dev->dev,
+					       np->put_tx_ctx->dma))) {
 			/* on DMA mapping error - drop the packet */
 			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
@@ -2419,7 +2420,8 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 							bcnt,
 							DMA_TO_DEVICE);
 
-			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+			if (unlikely(dma_mapping_error(&np->pci_dev->dev,
+						       np->put_tx_ctx->dma))) {
 
 				/* Unwind the mapped fragments */
 				do {
@@ -5075,8 +5077,8 @@ static int nv_loopback_test(struct net_device *dev)
 	test_dma_addr = dma_map_single(&np->pci_dev->dev, tx_skb->data,
 				       skb_tailroom(tx_skb),
 				       DMA_FROM_DEVICE);
-	if (dma_mapping_error(&np->pci_dev->dev,
-			      test_dma_addr)) {
+	if (unlikely(dma_mapping_error(&np->pci_dev->dev,
+				       test_dma_addr))) {
 		dev_kfree_skb_any(tx_skb);
 		goto out;
 	}

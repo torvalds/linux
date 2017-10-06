@@ -749,7 +749,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			 * specific si_codes.  In that case use SI_SIGIO instead
 			 * to remove the ambiguity.
 			 */
-			if (sig_specific_sicodes(signum))
+			if ((signum != SIGPOLL) && sig_specific_sicodes(signum))
 				si.si_code = SI_SIGIO;
 
 			/* Make sure we are called with one of the POLL_*

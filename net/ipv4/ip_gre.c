@@ -259,7 +259,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	struct ip_tunnel *tunnel;
 	struct erspanhdr *ershdr;
 	const struct iphdr *iph;
-	__be32 session_id;
 	__be32 index;
 	int len;
 
@@ -275,8 +274,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	/* The original GRE header does not have key field,
 	 * Use ERSPAN 10-bit session ID as key.
 	 */
-	session_id = cpu_to_be32(ntohs(ershdr->session_id));
-	tpi->key = session_id;
+	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
 	index = ershdr->md.index;
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
 				  tpi->flags | TUNNEL_KEY,
@@ -733,7 +731,7 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 	if (skb_cow_head(skb, dev->needed_headroom))
 		goto free_skb;
 
-	if (skb->len > dev->mtu) {
+	if (skb->len - dev->hard_header_len > dev->mtu) {
 		pskb_trim(skb, dev->mtu);
 		truncate = true;
 	}
@@ -1013,15 +1011,14 @@ static int __net_init ipgre_init_net(struct net *net)
 	return ip_tunnel_init_net(net, ipgre_net_id, &ipgre_link_ops, NULL);
 }
 
-static void __net_exit ipgre_exit_net(struct net *net)
+static void __net_exit ipgre_exit_batch_net(struct list_head *list_net)
 {
-	struct ip_tunnel_net *itn = net_generic(net, ipgre_net_id);
-	ip_tunnel_delete_net(itn, &ipgre_link_ops);
+	ip_tunnel_delete_nets(list_net, ipgre_net_id, &ipgre_link_ops);
 }
 
 static struct pernet_operations ipgre_net_ops = {
 	.init = ipgre_init_net,
-	.exit = ipgre_exit_net,
+	.exit_batch = ipgre_exit_batch_net,
 	.id   = &ipgre_net_id,
 	.size = sizeof(struct ip_tunnel_net),
 };
@@ -1223,6 +1220,7 @@ static int gre_tap_init(struct net_device *dev)
 {
 	__gre_tunnel_init(dev);
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	netif_keep_dst(dev);
 
 	return ip_tunnel_init(dev);
 }
@@ -1246,13 +1244,16 @@ static int erspan_tunnel_init(struct net_device *dev)
 
 	tunnel->tun_hlen = 8;
 	tunnel->parms.iph.protocol = IPPROTO_GRE;
-	t_hlen = tunnel->hlen + sizeof(struct iphdr) + sizeof(struct erspanhdr);
+	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
+		       sizeof(struct erspanhdr);
+	t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
 	dev->needed_headroom = LL_MAX_HEADER + t_hlen + 4;
 	dev->mtu = ETH_DATA_LEN - t_hlen - 4;
 	dev->features		|= GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
 	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE;
+	netif_keep_dst(dev);
 
 	return ip_tunnel_init(dev);
 }
@@ -1540,15 +1541,14 @@ static int __net_init ipgre_tap_init_net(struct net *net)
 	return ip_tunnel_init_net(net, gre_tap_net_id, &ipgre_tap_ops, "gretap0");
 }
 
-static void __net_exit ipgre_tap_exit_net(struct net *net)
+static void __net_exit ipgre_tap_exit_batch_net(struct list_head *list_net)
 {
-	struct ip_tunnel_net *itn = net_generic(net, gre_tap_net_id);
-	ip_tunnel_delete_net(itn, &ipgre_tap_ops);
+	ip_tunnel_delete_nets(list_net, gre_tap_net_id, &ipgre_tap_ops);
 }
 
 static struct pernet_operations ipgre_tap_net_ops = {
 	.init = ipgre_tap_init_net,
-	.exit = ipgre_tap_exit_net,
+	.exit_batch = ipgre_tap_exit_batch_net,
 	.id   = &gre_tap_net_id,
 	.size = sizeof(struct ip_tunnel_net),
 };
@@ -1559,16 +1559,14 @@ static int __net_init erspan_init_net(struct net *net)
 				  &erspan_link_ops, "erspan0");
 }
 
-static void __net_exit erspan_exit_net(struct net *net)
+static void __net_exit erspan_exit_batch_net(struct list_head *net_list)
 {
-	struct ip_tunnel_net *itn = net_generic(net, erspan_net_id);
-
-	ip_tunnel_delete_net(itn, &erspan_link_ops);
+	ip_tunnel_delete_nets(net_list, erspan_net_id, &erspan_link_ops);
 }
 
 static struct pernet_operations erspan_net_ops = {
 	.init = erspan_init_net,
-	.exit = erspan_exit_net,
+	.exit_batch = erspan_exit_batch_net,
 	.id   = &erspan_net_id,
 	.size = sizeof(struct ip_tunnel_net),
 };
