@@ -493,6 +493,22 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		if (ret)
 			goto err_clear;
 	} else {
+		/*
+		 * We only support huge gtt pages through the 48b PPGTT,
+		 * however we also don't want to force any alignment for
+		 * objects which need to be tightly packed into the low 32bits.
+		 *
+		 * Note that we assume that GGTT are limited to 4GiB for the
+		 * forseeable future. See also i915_ggtt_offset().
+		 */
+		if (upper_32_bits(end - 1) &&
+		    vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
+			u64 page_alignment =
+				rounddown_pow_of_two(vma->page_sizes.sg);
+
+			alignment = max(alignment, page_alignment);
+		}
+
 		ret = i915_gem_gtt_insert(vma->vm, &vma->node,
 					  size, alignment, obj->cache_level,
 					  start, end, flags);

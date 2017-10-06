@@ -55,6 +55,7 @@ struct i915_vma {
 	void __iomem *iomap;
 	u64 size;
 	u64 display_alignment;
+	struct i915_page_sizes page_sizes;
 
 	u32 fence_size;
 	u32 fence_alignment;
