@@ -1269,6 +1269,14 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 	 * in rt6_remove_prefsrc()
 	 */
 	nrt->rt6i_prefsrc = ort->rt6i_prefsrc;
+	/* rt6_mtu_change() might lower mtu on ort.
+	 * Only insert this exception route if its mtu
+	 * is less than ort's mtu value.
+	 */
+	if (nrt->rt6i_pmtu >= dst_mtu(&ort->dst)) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	rt6_ex = __rt6_find_exception_spinlock(&bucket, &nrt->rt6i_dst.addr,
 					       src_key);
@@ -1451,6 +1459,32 @@ static void rt6_exceptions_remove_prefsrc(struct rt6_info *rt)
 		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
 			hlist_for_each_entry(rt6_ex, &bucket->chain, hlist) {
 				rt6_ex->rt6i->rt6i_prefsrc.plen = 0;
+			}
+			bucket++;
+		}
+	}
+}
+
+static void rt6_exceptions_update_pmtu(struct rt6_info *rt, int mtu)
+{
+	struct rt6_exception_bucket *bucket;
+	struct rt6_exception *rt6_ex;
+	int i;
+
+	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
+					lockdep_is_held(&rt6_exception_lock));
+
+	if (bucket) {
+		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
+			hlist_for_each_entry(rt6_ex, &bucket->chain, hlist) {
+				struct rt6_info *entry = rt6_ex->rt6i;
+				/* For RTF_CACHE with rt6i_pmtu == 0
+				 * (i.e. a redirected route),
+				 * the metrics of its rt->dst.from has already
+				 * been updated.
+				 */
+				if (entry->rt6i_pmtu && entry->rt6i_pmtu > mtu)
+					entry->rt6i_pmtu = mtu;
 			}
 			bucket++;
 		}
@@ -3296,6 +3330,10 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 	if (rt->dst.dev == arg->dev &&
 	    dst_metric_raw(&rt->dst, RTAX_MTU) &&
 	    !dst_metric_locked(&rt->dst, RTAX_MTU)) {
+		spin_lock_bh(&rt6_exception_lock);
+		/* This case will be removed once the exception table
+		 * is hooked up.
+		 */
 		if (rt->rt6i_flags & RTF_CACHE) {
 			/* For RTF_CACHE with rt6i_pmtu == 0
 			 * (i.e. a redirected route),
@@ -3309,6 +3347,8 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 			    dst_mtu(&rt->dst) == idev->cnf.mtu6)) {
 			dst_metric_set(&rt->dst, RTAX_MTU, arg->mtu);
 		}
+		rt6_exceptions_update_pmtu(rt, arg->mtu);
+		spin_unlock_bh(&rt6_exception_lock);
 	}
 	return 0;
 }
