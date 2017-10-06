@@ -278,8 +278,7 @@ static int mcp_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 {
 	struct mcp23s08 *mcp = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u32 arg, mask;
-	u16 val;
+	u32 arg;
 	int ret = 0;
 	int i;
 
@@ -289,8 +288,6 @@ static int mcp_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_PULL_UP:
-			val = arg ? 0xFFFF : 0x0000;
-			mask = BIT(pin);
 			ret = mcp_set_bit(mcp, MCP_GPPU, pin, arg);
 			break;
 		default:
