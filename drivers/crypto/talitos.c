@@ -3158,7 +3158,6 @@ static int talitos_probe(struct platform_device *ofdev)
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
 	struct talitos_private *priv;
-	const unsigned int *prop;
 	int i, err;
 	int stride;
 
@@ -3182,21 +3181,11 @@ static int talitos_probe(struct platform_device *ofdev)
 	}
 
 	/* get SEC version capabilities from device tree */
-	prop = of_get_property(np, "fsl,num-channels", NULL);
-	if (prop)
-		priv->num_channels = *prop;
-
-	prop = of_get_property(np, "fsl,channel-fifo-len", NULL);
-	if (prop)
-		priv->chfifo_len = *prop;
-
-	prop = of_get_property(np, "fsl,exec-units-mask", NULL);
-	if (prop)
-		priv->exec_units = *prop;
-
-	prop = of_get_property(np, "fsl,descriptor-types-mask", NULL);
-	if (prop)
-		priv->desc_types = *prop;
+	of_property_read_u32(np, "fsl,num-channels", &priv->num_channels);
+	of_property_read_u32(np, "fsl,channel-fifo-len", &priv->chfifo_len);
+	of_property_read_u32(np, "fsl,exec-units-mask", &priv->exec_units);
+	of_property_read_u32(np, "fsl,descriptor-types-mask",
+			     &priv->desc_types);
 
 	if (!is_power_of_2(priv->num_channels) || !priv->chfifo_len ||
 	    !priv->exec_units || !priv->desc_types) {
