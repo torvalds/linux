@@ -616,6 +616,9 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	block_t start_blk, orphan_blocks, i, j;
 	unsigned int s_flags = sbi->sb->s_flags;
 	int err = 0;
+#ifdef CONFIG_QUOTA
+	int quota_enabled;
+#endif
 
 	if (!is_set_ckpt_flags(sbi, CP_ORPHAN_PRESENT_FLAG))
 		return 0;
@@ -628,8 +631,9 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 #ifdef CONFIG_QUOTA
 	/* Needed for iput() to work correctly and not trash data */
 	sbi->sb->s_flags |= MS_ACTIVE;
+
 	/* Turn on quotas so that they are updated correctly */
-	f2fs_enable_quota_files(sbi);
+	quota_enabled = f2fs_enable_quota_files(sbi, s_flags & MS_RDONLY);
 #endif
 
 	start_blk = __start_cp_addr(sbi) + 1 + __cp_payload(sbi);
@@ -657,7 +661,8 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 out:
 #ifdef CONFIG_QUOTA
 	/* Turn quotas off */
-	f2fs_quota_off_umount(sbi->sb);
+	if (quota_enabled)
+		f2fs_quota_off_umount(sbi->sb);
 #endif
 	sbi->sb->s_flags = s_flags; /* Restore MS_RDONLY status */
 
