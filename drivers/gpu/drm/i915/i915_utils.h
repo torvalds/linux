@@ -99,6 +99,11 @@
 	__T;								\
 })
 
+static inline u64 ptr_to_u64(const void *ptr)
+{
+	return (uintptr_t)ptr;
+}
+
 #define u64_to_ptr(T, x) ({						\
 	typecheck(u64, x);						\
 	(T *)(uintptr_t)(x);						\

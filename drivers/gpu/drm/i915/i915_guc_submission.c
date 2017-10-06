@@ -388,13 +388,13 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	gfx_addr = guc_ggtt_offset(client->vma);
 	desc->db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
-	desc->db_trigger_cpu = (u64)__get_doorbell(client);
+	desc->db_trigger_cpu = ptr_to_u64(__get_doorbell(client));
 	desc->db_trigger_uk = gfx_addr + client->doorbell_offset;
 	desc->process_desc = gfx_addr + client->proc_desc_offset;
 	desc->wq_addr = gfx_addr + GUC_DB_SIZE;
 	desc->wq_size = GUC_WQ_SIZE;
 
-	desc->desc_private = (u64)client;
+	desc->desc_private = ptr_to_u64(client);
 }
 
 static void guc_stage_desc_fini(struct intel_guc *guc,
