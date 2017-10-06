@@ -1232,8 +1232,8 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 			sg_link_tbl_len += authsize;
 	}
 
-	ret = talitos_sg_map(dev, areq->src, cryptlen, edesc, &desc->ptr[4],
-			     sg_count, areq->assoclen, tbl_off);
+	ret = talitos_sg_map(dev, areq->src, sg_link_tbl_len, edesc,
+			     &desc->ptr[4], sg_count, areq->assoclen, tbl_off);
 
 	if (ret > 1) {
 		tbl_off += ret;
