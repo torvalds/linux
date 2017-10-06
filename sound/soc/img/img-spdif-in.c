@@ -82,6 +82,8 @@ struct img_spdif_in {
 	unsigned int single_freq;
 	unsigned int multi_freqs[IMG_SPDIF_IN_NUM_ACLKGEN];
 	bool active;
+	u32 suspend_clkgen;
+	u32 suspend_ctl;
 
 	/* Write-only registers */
 	unsigned int aclkgen_regs[IMG_SPDIF_IN_NUM_ACLKGEN];
@@ -785,16 +787,51 @@ static int img_spdif_in_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int img_spdif_in_suspend(struct device *dev)
+{
+	struct img_spdif_in *spdif = dev_get_drvdata(dev);
+
+	spdif->suspend_clkgen = img_spdif_in_readl(spdif, IMG_SPDIF_IN_CLKGEN);
+	spdif->suspend_ctl = img_spdif_in_readl(spdif, IMG_SPDIF_IN_CTL);
+
+	clk_disable_unprepare(spdif->clk_sys);
+
+	return 0;
+}
+
+static int img_spdif_in_resume(struct device *dev)
+{
+	struct img_spdif_in *spdif = dev_get_drvdata(dev);
+	int i;
+
+	clk_prepare_enable(spdif->clk_sys);
+
+	for (i = 0; i < IMG_SPDIF_IN_NUM_ACLKGEN; i++)
+		img_spdif_in_aclkgen_writel(spdif, i);
+
+	img_spdif_in_writel(spdif, spdif->suspend_clkgen, IMG_SPDIF_IN_CLKGEN);
+	img_spdif_in_writel(spdif, spdif->suspend_ctl, IMG_SPDIF_IN_CTL);
+
+	return 0;
+}
+#endif
+
 static const struct of_device_id img_spdif_in_of_match[] = {
 	{ .compatible = "img,spdif-in" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, img_spdif_in_of_match);
 
+static const struct dev_pm_ops img_spdif_in_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(img_spdif_in_suspend, img_spdif_in_resume)
+};
+
 static struct platform_driver img_spdif_in_driver = {
 	.driver = {
 		.name = "img-spdif-in",
-		.of_match_table = img_spdif_in_of_match
+		.of_match_table = img_spdif_in_of_match,
+		.pm = &img_spdif_in_pm_ops
 	},
 	.probe = img_spdif_in_probe,
 	.remove = img_spdif_in_dev_remove
