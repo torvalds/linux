@@ -4102,7 +4102,9 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 		else
 			ret = -ENOMEM;
 	} else {
-		index = alloc_irq_index(devid, nr_irqs, false);
+		bool align = (info->type == X86_IRQ_ALLOC_TYPE_MSI);
+
+		index = alloc_irq_index(devid, nr_irqs, align);
 	}
 	if (index < 0) {
 		pr_warn("Failed to allocate IRTE\n");
