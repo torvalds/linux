@@ -390,8 +390,6 @@ static void talitos1_done_##name(unsigned long data)			\
 									\
 	if (ch_done_mask & 0x10000000)					\
 		flush_channel(dev, 0, 0, 0);			\
-	if (priv->num_channels == 1)					\
-		goto out;						\
 	if (ch_done_mask & 0x40000000)					\
 		flush_channel(dev, 1, 0, 0);			\
 	if (ch_done_mask & 0x00010000)					\
@@ -399,7 +397,6 @@ static void talitos1_done_##name(unsigned long data)			\
 	if (ch_done_mask & 0x00040000)					\
 		flush_channel(dev, 3, 0, 0);			\
 									\
-out:									\
 	/* At this point, all completed channels have been processed */	\
 	/* Unmask done interrupts for channels completed later on. */	\
 	spin_lock_irqsave(&priv->reg_lock, flags);			\
@@ -409,6 +406,7 @@ out:									\
 }
 
 DEF_TALITOS1_DONE(4ch, TALITOS1_ISR_4CHDONE)
+DEF_TALITOS1_DONE(ch0, TALITOS1_ISR_CH_0_DONE)
 
 #define DEF_TALITOS2_DONE(name, ch_done_mask)				\
 static void talitos2_done_##name(unsigned long data)			\
@@ -419,8 +417,6 @@ static void talitos2_done_##name(unsigned long data)			\
 									\
 	if (ch_done_mask & 1)						\
 		flush_channel(dev, 0, 0, 0);				\
-	if (priv->num_channels == 1)					\
-		goto out;						\
 	if (ch_done_mask & (1 << 2))					\
 		flush_channel(dev, 1, 0, 0);				\
 	if (ch_done_mask & (1 << 4))					\
@@ -428,7 +424,6 @@ static void talitos2_done_##name(unsigned long data)			\
 	if (ch_done_mask & (1 << 6))					\
 		flush_channel(dev, 3, 0, 0);				\
 									\
-out:									\
 	/* At this point, all completed channels have been processed */	\
 	/* Unmask done interrupts for channels completed later on. */	\
 	spin_lock_irqsave(&priv->reg_lock, flags);			\
@@ -438,6 +433,7 @@ out:									\
 }
 
 DEF_TALITOS2_DONE(4ch, TALITOS2_ISR_4CHDONE)
+DEF_TALITOS2_DONE(ch0, TALITOS2_ISR_CH_0_DONE)
 DEF_TALITOS2_DONE(ch0_2, TALITOS2_ISR_CH_0_2_DONE)
 DEF_TALITOS2_DONE(ch1_3, TALITOS2_ISR_CH_1_3_DONE)
 
@@ -3237,16 +3233,23 @@ static int talitos_probe(struct platform_device *ofdev)
 		goto err_out;
 
 	if (of_device_is_compatible(np, "fsl,sec1.0")) {
-		tasklet_init(&priv->done_task[0], talitos1_done_4ch,
-			     (unsigned long)dev);
-	} else {
-		if (!priv->irq[1]) {
-			tasklet_init(&priv->done_task[0], talitos2_done_4ch,
+		if (priv->num_channels == 1)
+			tasklet_init(&priv->done_task[0], talitos1_done_ch0,
 				     (unsigned long)dev);
-		} else {
+		else
+			tasklet_init(&priv->done_task[0], talitos1_done_4ch,
+				     (unsigned long)dev);
+	} else {
+		if (priv->irq[1]) {
 			tasklet_init(&priv->done_task[0], talitos2_done_ch0_2,
 				     (unsigned long)dev);
 			tasklet_init(&priv->done_task[1], talitos2_done_ch1_3,
+				     (unsigned long)dev);
+		} else if (priv->num_channels == 1) {
+			tasklet_init(&priv->done_task[0], talitos2_done_ch0,
+				     (unsigned long)dev);
+		} else {
+			tasklet_init(&priv->done_task[0], talitos2_done_4ch,
 				     (unsigned long)dev);
 		}
 	}

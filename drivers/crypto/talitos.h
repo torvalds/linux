@@ -208,9 +208,13 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define TALITOS_ISR			0x1010  /* interrupt status register */
 #define   TALITOS1_ISR_4CHERR		ISR1_FORMAT(0xa) /* 4 ch errors mask */
 #define   TALITOS1_ISR_4CHDONE		ISR1_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS1_ISR_CH_0_ERR		(2 << 28) /* ch 0 errors mask */
+#define   TALITOS1_ISR_CH_0_DONE	(1 << 28) /* ch 0 done mask */
 #define   TALITOS1_ISR_TEA_ERR		0x00000040
 #define   TALITOS2_ISR_4CHERR		ISR2_FORMAT(0xa) /* 4 ch errors mask */
 #define   TALITOS2_ISR_4CHDONE		ISR2_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS2_ISR_CH_0_ERR		2 /* ch 0 errors mask */
+#define   TALITOS2_ISR_CH_0_DONE	1 /* ch 0 done mask */
 #define   TALITOS2_ISR_CH_0_2_ERR	ISR2_FORMAT(0x2) /* ch 0, 2 err mask */
 #define   TALITOS2_ISR_CH_0_2_DONE	ISR2_FORMAT(0x1) /* ch 0, 2 done mask */
 #define   TALITOS2_ISR_CH_1_3_ERR	ISR2_FORMAT(0x8) /* ch 1, 3 err mask */
