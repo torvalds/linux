@@ -216,10 +216,6 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		/* Ethernet type is present in the key. */
 		switch (key_basic->n_proto) {
 		case cpu_to_be16(ETH_P_IP):
-			if (mask_ip && mask_ip->tos)
-				return -EOPNOTSUPP;
-			if (mask_ip && mask_ip->ttl)
-				return -EOPNOTSUPP;
 			key_layer |= NFP_FLOWER_LAYER_IPV4;
 			key_size += sizeof(struct nfp_flower_ipv4);
 			break;
