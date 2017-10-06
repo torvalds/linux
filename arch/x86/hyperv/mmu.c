@@ -76,6 +76,18 @@ static inline int cpumask_to_vp_set(struct hv_flush_pcpu_ex *flush,
 {
 	int cpu, vcpu, vcpu_bank, vcpu_offset, nr_bank = 1;
 
+	/* valid_bank_mask can represent up to 64 banks */
+	if (hv_max_vp_index / 64 >= 64)
+		return 0;
+
+	/*
+	 * Clear all banks up to the maximum possible bank as hv_flush_pcpu_ex
+	 * structs are not cleared between calls, we risk flushing unneeded
+	 * vCPUs otherwise.
+	 */
+	for (vcpu_bank = 0; vcpu_bank <= hv_max_vp_index / 64; vcpu_bank++)
+		flush->hv_vp_set.bank_contents[vcpu_bank] = 0;
+
 	/*
 	 * Some banks may end up being empty but this is acceptable.
 	 */
@@ -83,11 +95,6 @@ static inline int cpumask_to_vp_set(struct hv_flush_pcpu_ex *flush,
 		vcpu = hv_cpu_number_to_vp_number(cpu);
 		vcpu_bank = vcpu / 64;
 		vcpu_offset = vcpu % 64;
-
-		/* valid_bank_mask can represent up to 64 banks */
-		if (vcpu_bank >= 64)
-			return 0;
-
 		__set_bit(vcpu_offset, (unsigned long *)
 			  &flush->hv_vp_set.bank_contents[vcpu_bank]);
 		if (vcpu_bank >= nr_bank)
