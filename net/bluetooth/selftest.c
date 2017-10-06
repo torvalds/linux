@@ -200,7 +200,7 @@ static int __init test_ecdh(void)
 {
 	struct crypto_kpp *tfm;
 	ktime_t calltime, delta, rettime;
-	unsigned long long duration;
+	unsigned long long duration = 0;
 	int err;
 
 	calltime = ktime_get();
