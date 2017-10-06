@@ -3660,11 +3660,11 @@ out_unlock:
 	return table;
 }
 
-static int alloc_irq_index(u16 devid, int count)
+static int alloc_irq_index(u16 devid, int count, bool align)
 {
 	struct irq_remap_table *table;
+	int index, c, alignment = 1;
 	unsigned long flags;
-	int index, c;
 	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
 
 	if (!iommu)
@@ -3674,16 +3674,22 @@ static int alloc_irq_index(u16 devid, int count)
 	if (!table)
 		return -ENODEV;
 
+	if (align)
+		alignment = roundup_pow_of_two(count);
+
 	spin_lock_irqsave(&table->lock, flags);
 
 	/* Scan table for free entries */
-	for (c = 0, index = table->min_index;
+	for (index = ALIGN(table->min_index, alignment), c = 0;
 	     index < MAX_IRQS_PER_TABLE;
-	     ++index) {
-		if (!iommu->irte_ops->is_allocated(table, index))
+	     index++) {
+		if (!iommu->irte_ops->is_allocated(table, index)) {
 			c += 1;
-		else
-			c = 0;
+		} else {
+			c     = 0;
+			index = ALIGN(index, alignment);
+			continue;
+		}
 
 		if (c == count)	{
 			for (; c != 0; --c)
@@ -4096,7 +4102,7 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 		else
 			ret = -ENOMEM;
 	} else {
-		index = alloc_irq_index(devid, nr_irqs);
+		index = alloc_irq_index(devid, nr_irqs, false);
 	}
 	if (index < 0) {
 		pr_warn("Failed to allocate IRTE\n");
