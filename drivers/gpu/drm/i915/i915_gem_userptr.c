@@ -434,6 +434,8 @@ alloc_table:
 		return ERR_PTR(ret);
 	}
 
+	__i915_gem_object_set_pages(obj, st);
+
 	return st;
 }
 
@@ -521,7 +523,6 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 			pages = __i915_gem_userptr_alloc_pages(obj, pvec,
 							       npages);
 			if (!IS_ERR(pages)) {
-				__i915_gem_object_set_pages(obj, pages);
 				pinned = 0;
 				pages = NULL;
 			}
@@ -582,8 +583,7 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj)
 	return ERR_PTR(-EAGAIN);
 }
 
-static struct sg_table *
-i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
+static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 {
 	const int num_pages = obj->base.size >> PAGE_SHIFT;
 	struct mm_struct *mm = obj->userptr.mm->mm;
@@ -612,9 +612,9 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	if (obj->userptr.work) {
 		/* active flag should still be held for the pending work */
 		if (IS_ERR(obj->userptr.work))
-			return ERR_CAST(obj->userptr.work);
+			return PTR_ERR(obj->userptr.work);
 		else
-			return ERR_PTR(-EAGAIN);
+			return -EAGAIN;
 	}
 
 	pvec = NULL;
@@ -650,7 +650,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 		release_pages(pvec, pinned, 0);
 	kvfree(pvec);
 
-	return pages;
+	return PTR_ERR_OR_ZERO(pages);
 }
 
 static void

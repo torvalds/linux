@@ -69,7 +69,7 @@ struct drm_i915_gem_object_ops {
 	 * being released or under memory pressure (where we attempt to
 	 * reap pages for the shrinker).
 	 */
-	struct sg_table *(*get_pages)(struct drm_i915_gem_object *);
+	int (*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *, struct sg_table *);
 
 	int (*pwrite)(struct drm_i915_gem_object *,
