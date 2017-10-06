@@ -190,9 +190,6 @@ void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 			*ppcpu_rt = NULL;
 		}
 	}
-
-	free_percpu(non_pcpu_rt->rt6i_pcpu);
-	non_pcpu_rt->rt6i_pcpu = NULL;
 }
 EXPORT_SYMBOL_GPL(rt6_free_pcpu);
 
