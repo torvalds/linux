@@ -1593,6 +1593,8 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 						tcp_skb_pcount(skb),
 						skb->skb_mstamp);
 			tcp_rate_skb_delivered(sk, skb, state->rate);
+			if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)
+				list_del_init(&skb->tcp_tsorted_anchor);
 
 			if (!before(TCP_SKB_CB(skb)->seq,
 				    tcp_highest_sack_seq(tp)))
@@ -3054,8 +3056,11 @@ static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
 
 	shinfo = skb_shinfo(skb);
 	if (!before(shinfo->tskey, prior_snd_una) &&
-	    before(shinfo->tskey, tcp_sk(sk)->snd_una))
-		__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
+	    before(shinfo->tskey, tcp_sk(sk)->snd_una)) {
+		tcp_skb_tsorted_save(skb) {
+			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
+		} tcp_skb_tsorted_restore(skb);
+	}
 }
 
 /* Remove acknowledged frames from the retransmission queue. If our packet
