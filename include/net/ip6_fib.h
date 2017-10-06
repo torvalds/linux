@@ -280,7 +280,6 @@ struct fib6_walker {
 	struct fib6_node *root, *node;
 	struct rt6_info *leaf;
 	enum fib6_walk_state state;
-	bool prune;
 	unsigned int skip;
 	unsigned int count;
 	int (*func)(struct fib6_walker *);

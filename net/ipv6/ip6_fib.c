@@ -54,7 +54,6 @@ struct fib6_cleaner {
 #define FWS_INIT FWS_L
 #endif
 
-static void fib6_prune_clones(struct net *net, struct fib6_node *fn);
 static struct rt6_info *fib6_find_prefix(struct net *net, struct fib6_node *fn);
 static struct fib6_node *fib6_repair_tree(struct net *net, struct fib6_node *fn);
 static int fib6_walk(struct net *net, struct fib6_walker *w);
@@ -1101,6 +1100,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 
 	if (WARN_ON_ONCE(!atomic_read(&rt->dst.__refcnt)))
 		return -EINVAL;
+	if (WARN_ON_ONCE(rt->rt6i_flags & RTF_CACHE))
+		return -EINVAL;
 
 	if (info->nlh) {
 		if (!(info->nlh->nlmsg_flags & NLM_F_CREATE))
@@ -1192,11 +1193,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 #endif
 
 	err = fib6_add_rt2node(fn, rt, info, mxc);
-	if (!err) {
+	if (!err)
 		fib6_start_gc(info->nl_net, rt);
-		if (!(rt->rt6i_flags & RTF_CACHE))
-			fib6_prune_clones(info->nl_net, pn);
-	}
 
 out:
 	if (err) {
@@ -1511,19 +1509,12 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		read_lock(&net->ipv6.fib6_walker_lock);
 		FOR_WALKERS(net, w) {
 			if (!child) {
-				if (w->root == fn) {
-					w->root = w->node = NULL;
-					RT6_TRACE("W %p adjusted by delroot 1\n", w);
-				} else if (w->node == fn) {
+				if (w->node == fn) {
 					RT6_TRACE("W %p adjusted by delnode 1, s=%d/%d\n", w, w->state, nstate);
 					w->node = pn;
 					w->state = nstate;
 				}
 			} else {
-				if (w->root == fn) {
-					w->root = child;
-					RT6_TRACE("W %p adjusted by delroot 2\n", w);
-				}
 				if (w->node == fn) {
 					w->node = child;
 					if (children&2) {
@@ -1557,11 +1548,16 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 
 	RT6_TRACE("fib6_del_route\n");
 
+	WARN_ON_ONCE(rt->rt6i_flags & RTF_CACHE);
+
 	/* Unlink it */
 	*rtp = rt->dst.rt6_next;
 	rt->rt6i_node = NULL;
 	net->ipv6.rt6_stats->fib_rt_entries--;
 	net->ipv6.rt6_stats->fib_discarded_routes++;
+
+	/* Flush all cached dst in exception table */
+	rt6_flush_exceptions(rt);
 
 	/* Reset round-robin state, if necessary */
 	if (fn->rr_ptr == rt)
@@ -1625,18 +1621,9 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 
 	WARN_ON(!(fn->fn_flags & RTN_RTINFO));
 
-	if (!(rt->rt6i_flags & RTF_CACHE)) {
-		struct fib6_node *pn = fn;
-#ifdef CONFIG_IPV6_SUBTREES
-		/* clones of this route might be in another subtree */
-		if (rt->rt6i_src.plen) {
-			while (!(pn->fn_flags & RTN_ROOT))
-				pn = pn->parent;
-			pn = pn->parent;
-		}
-#endif
-		fib6_prune_clones(info->nl_net, pn);
-	}
+	/* remove cached dst from exception table */
+	if (rt->rt6i_flags & RTF_CACHE)
+		return rt6_remove_exception_rt(rt);
 
 	/*
 	 *	Walk the leaf entries looking for ourself
@@ -1679,16 +1666,14 @@ static int fib6_walk_continue(struct fib6_walker *w)
 {
 	struct fib6_node *fn, *pn;
 
+	/* w->root should always be table->tb6_root */
+	WARN_ON_ONCE(!(w->root->fn_flags & RTN_TL_ROOT));
+
 	for (;;) {
 		fn = w->node;
 		if (!fn)
 			return 0;
 
-		if (w->prune && fn != w->root &&
-		    fn->fn_flags & RTN_RTINFO && w->state < FWS_C) {
-			w->state = FWS_C;
-			w->leaf = fn->leaf;
-		}
 		switch (w->state) {
 #ifdef CONFIG_IPV6_SUBTREES
 		case FWS_S:
@@ -1820,20 +1805,16 @@ static int fib6_clean_node(struct fib6_walker *w)
  *	func is called on each route.
  *		It may return -1 -> delete this route.
  *		              0  -> continue walking
- *
- *	prune==1 -> only immediate children of node (certainly,
- *	ignoring pure split nodes) will be scanned.
  */
 
 static void fib6_clean_tree(struct net *net, struct fib6_node *root,
 			    int (*func)(struct rt6_info *, void *arg),
-			    bool prune, int sernum, void *arg)
+			    int sernum, void *arg)
 {
 	struct fib6_cleaner c;
 
 	c.w.root = root;
 	c.w.func = fib6_clean_node;
-	c.w.prune = prune;
 	c.w.count = 0;
 	c.w.skip = 0;
 	c.func = func;
@@ -1858,7 +1839,7 @@ static void __fib6_clean_all(struct net *net,
 		hlist_for_each_entry_rcu(table, head, tb6_hlist) {
 			write_lock_bh(&table->tb6_lock);
 			fib6_clean_tree(net, &table->tb6_root,
-					func, false, sernum, arg);
+					func, sernum, arg);
 			write_unlock_bh(&table->tb6_lock);
 		}
 	}
@@ -1869,22 +1850,6 @@ void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *),
 		    void *arg)
 {
 	__fib6_clean_all(net, func, FIB6_NO_SERNUM_CHANGE, arg);
-}
-
-static int fib6_prune_clone(struct rt6_info *rt, void *arg)
-{
-	if (rt->rt6i_flags & RTF_CACHE) {
-		RT6_TRACE("pruning clone %p\n", rt);
-		return -1;
-	}
-
-	return 0;
-}
-
-static void fib6_prune_clones(struct net *net, struct fib6_node *fn)
-{
-	fib6_clean_tree(net, fn, fib6_prune_clone, true,
-			FIB6_NO_SERNUM_CHANGE, NULL);
 }
 
 static void fib6_flush_trees(struct net *net)
@@ -1912,32 +1877,6 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 		if (time_after(now, rt->dst.expires)) {
 			RT6_TRACE("expiring %p\n", rt);
 			return -1;
-		}
-		gc_args->more++;
-	/* The following part will soon be removed when the exception
-	 * table is hooked up to store all cached routes.
-	 */
-	} else if (rt->rt6i_flags & RTF_CACHE) {
-		if (time_after_eq(now, rt->dst.lastuse + gc_args->timeout))
-			rt->dst.obsolete = DST_OBSOLETE_KILL;
-		if (atomic_read(&rt->dst.__refcnt) == 1 &&
-		    rt->dst.obsolete == DST_OBSOLETE_KILL) {
-			RT6_TRACE("aging clone %p\n", rt);
-			return -1;
-		} else if (rt->rt6i_flags & RTF_GATEWAY) {
-			struct neighbour *neigh;
-			__u8 neigh_flags = 0;
-
-			neigh = dst_neigh_lookup(&rt->dst, &rt->rt6i_gateway);
-			if (neigh) {
-				neigh_flags = neigh->flags;
-				neigh_release(neigh);
-			}
-			if (!(neigh_flags & NTF_ROUTER)) {
-				RT6_TRACE("purging route %p via non-router but gateway\n",
-					  rt);
-				return -1;
-			}
 		}
 		gc_args->more++;
 	}
