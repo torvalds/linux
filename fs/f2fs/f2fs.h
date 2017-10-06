@@ -122,6 +122,7 @@ struct f2fs_mount_info {
 #define F2FS_FEATURE_PRJQUOTA		0x0010
 #define F2FS_FEATURE_INODE_CHKSUM	0x0020
 #define F2FS_FEATURE_FLEXIBLE_INLINE_XATTR	0x0040
+#define F2FS_FEATURE_QUOTA_INO		0x0080
 
 #define F2FS_HAS_FEATURE(sb, mask)					\
 	((F2FS_SB(sb)->raw_super->feature & cpu_to_le32(mask)) != 0)
@@ -3068,6 +3069,11 @@ static inline int f2fs_sb_has_inode_chksum(struct super_block *sb)
 static inline int f2fs_sb_has_flexible_inline_xattr(struct super_block *sb)
 {
 	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_FLEXIBLE_INLINE_XATTR);
+}
+
+static inline int f2fs_sb_has_quota_ino(struct super_block *sb)
+{
+	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_QUOTA_INO);
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
