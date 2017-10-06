@@ -20,6 +20,7 @@ static const char *__doc_err_only__=
 #include <unistd.h>
 #include <locale.h>
 
+#include <sys/resource.h>
 #include <getopt.h>
 #include <net/if.h>
 #include <time.h>
@@ -295,6 +296,7 @@ static void print_bpf_prog_info(void)
 
 int main(int argc, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int longindex = 0, opt;
 	int ret = EXIT_SUCCESS;
 	char bpf_obj_file[256];
@@ -325,13 +327,18 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return EXIT_FAILURE;
+	}
+
 	if (load_bpf_file(bpf_obj_file)) {
 		printf("ERROR - bpf_log_buf: %s", bpf_log_buf);
-		return 1;
+		return EXIT_FAILURE;
 	}
 	if (!prog_fd[0]) {
 		printf("ERROR - load_bpf_file: %s\n", strerror(errno));
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	if (debug) {
