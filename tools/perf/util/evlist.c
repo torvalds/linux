@@ -33,9 +33,6 @@
 #include <linux/log2.h>
 #include <linux/err.h>
 
-static void perf_mmap__munmap(struct perf_mmap *map);
-static void perf_mmap__put(struct perf_mmap *map);
-
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
 
@@ -704,129 +701,6 @@ static int perf_evlist__resume(struct perf_evlist *evlist)
 	return perf_evlist__set_paused(evlist, false);
 }
 
-/* When check_messup is true, 'end' must points to a good entry */
-static union perf_event *
-perf_mmap__read(struct perf_mmap *md, bool check_messup, u64 start,
-		u64 end, u64 *prev)
-{
-	unsigned char *data = md->base + page_size;
-	union perf_event *event = NULL;
-	int diff = end - start;
-
-	if (check_messup) {
-		/*
-		 * If we're further behind than half the buffer, there's a chance
-		 * the writer will bite our tail and mess up the samples under us.
-		 *
-		 * If we somehow ended up ahead of the 'end', we got messed up.
-		 *
-		 * In either case, truncate and restart at 'end'.
-		 */
-		if (diff > md->mask / 2 || diff < 0) {
-			fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
-
-			/*
-			 * 'end' points to a known good entry, start there.
-			 */
-			start = end;
-			diff = 0;
-		}
-	}
-
-	if (diff >= (int)sizeof(event->header)) {
-		size_t size;
-
-		event = (union perf_event *)&data[start & md->mask];
-		size = event->header.size;
-
-		if (size < sizeof(event->header) || diff < (int)size) {
-			event = NULL;
-			goto broken_event;
-		}
-
-		/*
-		 * Event straddles the mmap boundary -- header should always
-		 * be inside due to u64 alignment of output.
-		 */
-		if ((start & md->mask) + size != ((start + size) & md->mask)) {
-			unsigned int offset = start;
-			unsigned int len = min(sizeof(*event), size), cpy;
-			void *dst = md->event_copy;
-
-			do {
-				cpy = min(md->mask + 1 - (offset & md->mask), len);
-				memcpy(dst, &data[offset & md->mask], cpy);
-				offset += cpy;
-				dst += cpy;
-				len -= cpy;
-			} while (len);
-
-			event = (union perf_event *) md->event_copy;
-		}
-
-		start += size;
-	}
-
-broken_event:
-	if (prev)
-		*prev = start;
-
-	return event;
-}
-
-union perf_event *perf_mmap__read_forward(struct perf_mmap *md, bool check_messup)
-{
-	u64 head;
-	u64 old = md->prev;
-
-	/*
-	 * Check if event was unmapped due to a POLLHUP/POLLERR.
-	 */
-	if (!refcount_read(&md->refcnt))
-		return NULL;
-
-	head = perf_mmap__read_head(md);
-
-	return perf_mmap__read(md, check_messup, old, head, &md->prev);
-}
-
-union perf_event *
-perf_mmap__read_backward(struct perf_mmap *md)
-{
-	u64 head, end;
-	u64 start = md->prev;
-
-	/*
-	 * Check if event was unmapped due to a POLLHUP/POLLERR.
-	 */
-	if (!refcount_read(&md->refcnt))
-		return NULL;
-
-	head = perf_mmap__read_head(md);
-	if (!head)
-		return NULL;
-
-	/*
-	 * 'head' pointer starts from 0. Kernel minus sizeof(record) form
-	 * it each time when kernel writes to it, so in fact 'head' is
-	 * negative. 'end' pointer is made manually by adding the size of
-	 * the ring buffer to 'head' pointer, means the validate data can
-	 * read is the whole ring buffer. If 'end' is positive, the ring
-	 * buffer has not fully filled, so we must adjust 'end' to 0.
-	 *
-	 * However, since both 'head' and 'end' is unsigned, we can't
-	 * simply compare 'end' against 0. Here we compare '-head' and
-	 * the size of the ring buffer, where -head is the number of bytes
-	 * kernel write to the ring buffer.
-	 */
-	if (-head < (u64)(md->mask + 1))
-		end = 0;
-	else
-		end = head + md->mask + 1;
-
-	return perf_mmap__read(md, false, start, end, &md->prev);
-}
-
 union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int idx)
 {
 	struct perf_mmap *md = &evlist->mmap[idx];
@@ -857,94 +731,14 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 	return perf_evlist__mmap_read_forward(evlist, idx);
 }
 
-void perf_mmap__read_catchup(struct perf_mmap *md)
-{
-	u64 head;
-
-	if (!refcount_read(&md->refcnt))
-		return;
-
-	head = perf_mmap__read_head(md);
-	md->prev = head;
-}
-
 void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
 {
 	perf_mmap__read_catchup(&evlist->mmap[idx]);
 }
 
-static bool perf_mmap__empty(struct perf_mmap *md)
-{
-	return perf_mmap__read_head(md) == md->prev && !md->auxtrace_mmap.base;
-}
-
-static void perf_mmap__get(struct perf_mmap *map)
-{
-	refcount_inc(&map->refcnt);
-}
-
-static void perf_mmap__put(struct perf_mmap *md)
-{
-	BUG_ON(md->base && refcount_read(&md->refcnt) == 0);
-
-	if (refcount_dec_and_test(&md->refcnt))
-		perf_mmap__munmap(md);
-}
-
-void perf_mmap__consume(struct perf_mmap *md, bool overwrite)
-{
-	if (!overwrite) {
-		u64 old = md->prev;
-
-		perf_mmap__write_tail(md, old);
-	}
-
-	if (refcount_read(&md->refcnt) == 1 && perf_mmap__empty(md))
-		perf_mmap__put(md);
-}
-
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)
 {
 	perf_mmap__consume(&evlist->mmap[idx], evlist->overwrite);
-}
-
-int __weak auxtrace_mmap__mmap(struct auxtrace_mmap *mm __maybe_unused,
-			       struct auxtrace_mmap_params *mp __maybe_unused,
-			       void *userpg __maybe_unused,
-			       int fd __maybe_unused)
-{
-	return 0;
-}
-
-void __weak auxtrace_mmap__munmap(struct auxtrace_mmap *mm __maybe_unused)
-{
-}
-
-void __weak auxtrace_mmap_params__init(
-			struct auxtrace_mmap_params *mp __maybe_unused,
-			off_t auxtrace_offset __maybe_unused,
-			unsigned int auxtrace_pages __maybe_unused,
-			bool auxtrace_overwrite __maybe_unused)
-{
-}
-
-void __weak auxtrace_mmap_params__set_idx(
-			struct auxtrace_mmap_params *mp __maybe_unused,
-			struct perf_evlist *evlist __maybe_unused,
-			int idx __maybe_unused,
-			bool per_cpu __maybe_unused)
-{
-}
-
-static void perf_mmap__munmap(struct perf_mmap *map)
-{
-	if (map->base != NULL) {
-		munmap(map->base, perf_mmap__mmap_len(map));
-		map->base = NULL;
-		map->fd = -1;
-		refcount_set(&map->refcnt, 0);
-	}
-	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
 
 static void perf_evlist__munmap_nofree(struct perf_evlist *evlist)
@@ -993,48 +787,6 @@ static struct perf_mmap *perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 		refcount_set(&map[i].refcnt, 0);
 	}
 	return map;
-}
-
-struct mmap_params {
-	int prot;
-	int mask;
-	struct auxtrace_mmap_params auxtrace_mp;
-};
-
-static int perf_mmap__mmap(struct perf_mmap *map,
-			   struct mmap_params *mp, int fd)
-{
-	/*
-	 * The last one will be done at perf_evlist__mmap_consume(), so that we
-	 * make sure we don't prevent tools from consuming every last event in
-	 * the ring buffer.
-	 *
-	 * I.e. we can get the POLLHUP meaning that the fd doesn't exist
-	 * anymore, but the last events for it are still in the ring buffer,
-	 * waiting to be consumed.
-	 *
-	 * Tools can chose to ignore this at their own discretion, but the
-	 * evlist layer can't just drop it when filtering events in
-	 * perf_evlist__filter_pollfd().
-	 */
-	refcount_set(&map->refcnt, 2);
-	map->prev = 0;
-	map->mask = mp->mask;
-	map->base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
-			 MAP_SHARED, fd, 0);
-	if (map->base == MAP_FAILED) {
-		pr_debug2("failed to mmap perf event ring buffer, error %d\n",
-			  errno);
-		map->base = NULL;
-		return -1;
-	}
-	map->fd = fd;
-
-	if (auxtrace_mmap__mmap(&map->auxtrace_mmap,
-				&mp->auxtrace_mp, map->base, fd))
-		return -1;
-
-	return 0;
 }
 
 static bool
