@@ -175,7 +175,8 @@ struct drm_i915_private *mock_gem_device(void)
 	mkwrite_device_info(i915)->gen = -1;
 
 	mkwrite_device_info(i915)->page_sizes =
-		I915_GTT_PAGE_SIZE_4K;
+		I915_GTT_PAGE_SIZE_4K |
+		I915_GTT_PAGE_SIZE_64K;
 
 	spin_lock_init(&i915->mm.object_stat_lock);
 	mock_uncore_init(i915);

@@ -436,7 +436,8 @@ static const struct intel_device_info intel_cherryview_info __initconst = {
 };
 
 #define GEN9_DEFAULT_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K
+	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		      I915_GTT_PAGE_SIZE_64K
 
 #define GEN9_FEATURES \
 	GEN8_FEATURES, \
