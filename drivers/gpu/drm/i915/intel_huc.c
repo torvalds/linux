@@ -21,9 +21,11 @@
  * IN THE SOFTWARE.
  *
  */
-#include <linux/firmware.h>
+
+#include <linux/types.h>
+
+#include "intel_huc.h"
 #include "i915_drv.h"
-#include "intel_uc.h"
 
 /**
  * DOC: HuC Firmware

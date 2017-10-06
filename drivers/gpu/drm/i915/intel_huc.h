@@ -25,6 +25,8 @@
 #ifndef _INTEL_HUC_H_
 #define _INTEL_HUC_H_
 
+#include "intel_uc_fw.h"
+
 struct intel_huc {
 	/* Generic uC firmware management */
 	struct intel_uc_fw fw;
