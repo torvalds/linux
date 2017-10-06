@@ -34,6 +34,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
@@ -78,7 +79,7 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.output_poll_changed = meson_fb_output_poll_changed,
 	.atomic_check        = drm_atomic_helper_check,
 	.atomic_commit       = drm_atomic_helper_commit,
-	.fb_create           = drm_fb_cma_create,
+	.fb_create           = drm_gem_fb_create,
 };
 
 static irqreturn_t meson_irq(int irq, void *arg)
