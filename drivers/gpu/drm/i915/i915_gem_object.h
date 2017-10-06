@@ -196,6 +196,8 @@ struct drm_i915_gem_object {
 			unsigned int gtt;
 		} page_sizes;
 
+		I915_SELFTEST_DECLARE(unsigned int page_mask);
+
 		struct i915_gem_object_page_iter {
 			struct scatterlist *sg_pos;
 			unsigned int sg_idx; /* in pages, but 32bit eek! */
