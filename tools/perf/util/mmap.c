@@ -8,6 +8,9 @@
  */
 
 #include <sys/mman.h>
+#include <inttypes.h>
+#include <asm/bug.h>
+#include "debug.h"
 #include "event.h"
 #include "mmap.h"
 #include "util.h" /* page_size */
@@ -249,4 +252,101 @@ int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd)
 		return -1;
 
 	return 0;
+}
+
+static int backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
+{
+	struct perf_event_header *pheader;
+	u64 evt_head = head;
+	int size = mask + 1;
+
+	pr_debug2("backward_rb_find_range: buf=%p, head=%"PRIx64"\n", buf, head);
+	pheader = (struct perf_event_header *)(buf + (head & mask));
+	*start = head;
+	while (true) {
+		if (evt_head - head >= (unsigned int)size) {
+			pr_debug("Finished reading backward ring buffer: rewind\n");
+			if (evt_head - head > (unsigned int)size)
+				evt_head -= pheader->size;
+			*end = evt_head;
+			return 0;
+		}
+
+		pheader = (struct perf_event_header *)(buf + (evt_head & mask));
+
+		if (pheader->size == 0) {
+			pr_debug("Finished reading backward ring buffer: get start\n");
+			*end = evt_head;
+			return 0;
+		}
+
+		evt_head += pheader->size;
+		pr_debug3("move evt_head: %"PRIx64"\n", evt_head);
+	}
+	WARN_ONCE(1, "Shouldn't get here\n");
+	return -1;
+}
+
+static int rb_find_range(void *data, int mask, u64 head, u64 old,
+			 u64 *start, u64 *end, bool backward)
+{
+	if (!backward) {
+		*start = old;
+		*end = head;
+		return 0;
+	}
+
+	return backward_rb_find_range(data, mask, head, start, end);
+}
+
+int perf_mmap__push(struct perf_mmap *md, bool overwrite, bool backward,
+		    void *to, int push(void *to, void *buf, size_t size))
+{
+	u64 head = perf_mmap__read_head(md);
+	u64 old = md->prev;
+	u64 end = head, start = old;
+	unsigned char *data = md->base + page_size;
+	unsigned long size;
+	void *buf;
+	int rc = 0;
+
+	if (rb_find_range(data, md->mask, head, old, &start, &end, backward))
+		return -1;
+
+	if (start == end)
+		return 0;
+
+	size = end - start;
+	if (size > (unsigned long)(md->mask) + 1) {
+		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
+
+		md->prev = head;
+		perf_mmap__consume(md, overwrite || backward);
+		return 0;
+	}
+
+	if ((start & md->mask) + size != (end & md->mask)) {
+		buf = &data[start & md->mask];
+		size = md->mask + 1 - (start & md->mask);
+		start += size;
+
+		if (push(to, buf, size) < 0) {
+			rc = -1;
+			goto out;
+		}
+	}
+
+	buf = &data[start & md->mask];
+	size = end - start;
+	start += size;
+
+	if (push(to, buf, size) < 0) {
+		rc = -1;
+		goto out;
+	}
+
+	md->prev = head;
+	perf_mmap__consume(md, overwrite || backward);
+out:
+	return rc;
 }
