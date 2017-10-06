@@ -178,49 +178,49 @@
  */
 
 struct uc_css_header {
-	uint32_t module_type;
+	u32 module_type;
 	/* header_size includes all non-uCode bits, including css_header, rsa
 	 * key, modulus key and exponent data. */
-	uint32_t header_size_dw;
-	uint32_t header_version;
-	uint32_t module_id;
-	uint32_t module_vendor;
+	u32 header_size_dw;
+	u32 header_version;
+	u32 module_id;
+	u32 module_vendor;
 	union {
 		struct {
-			uint8_t day;
-			uint8_t month;
-			uint16_t year;
+			u8 day;
+			u8 month;
+			u16 year;
 		};
-		uint32_t date;
+		u32 date;
 	};
-	uint32_t size_dw; /* uCode plus header_size_dw */
-	uint32_t key_size_dw;
-	uint32_t modulus_size_dw;
-	uint32_t exponent_size_dw;
+	u32 size_dw; /* uCode plus header_size_dw */
+	u32 key_size_dw;
+	u32 modulus_size_dw;
+	u32 exponent_size_dw;
 	union {
 		struct {
-			uint8_t hour;
-			uint8_t min;
-			uint16_t sec;
+			u8 hour;
+			u8 min;
+			u16 sec;
 		};
-		uint32_t time;
+		u32 time;
 	};
 
 	char username[8];
 	char buildnumber[12];
 	union {
 		struct {
-			uint32_t branch_client_version;
-			uint32_t sw_version;
+			u32 branch_client_version;
+			u32 sw_version;
 	} guc;
 		struct {
-			uint32_t sw_version;
-			uint32_t reserved;
+			u32 sw_version;
+			u32 reserved;
 	} huc;
 	};
-	uint32_t prod_preprod_fw;
-	uint32_t reserved[12];
-	uint32_t header_info;
+	u32 prod_preprod_fw;
+	u32 reserved[12];
+	u32 header_info;
 } __packed;
 
 struct guc_doorbell_info {

@@ -50,18 +50,18 @@ struct intel_uc_fw {
 	enum intel_uc_fw_status fetch_status;
 	enum intel_uc_fw_status load_status;
 
-	uint16_t major_ver_wanted;
-	uint16_t minor_ver_wanted;
-	uint16_t major_ver_found;
-	uint16_t minor_ver_found;
+	u16 major_ver_wanted;
+	u16 minor_ver_wanted;
+	u16 major_ver_found;
+	u16 minor_ver_found;
 
 	enum intel_uc_fw_type type;
-	uint32_t header_size;
-	uint32_t header_offset;
-	uint32_t rsa_size;
-	uint32_t rsa_offset;
-	uint32_t ucode_size;
-	uint32_t ucode_offset;
+	u32 header_size;
+	u32 header_offset;
+	u32 rsa_size;
+	u32 rsa_offset;
+	u32 ucode_size;
+	u32 ucode_offset;
 };
 
 static inline

@@ -528,7 +528,8 @@ int intel_guc_log_create(struct intel_guc *guc)
 {
 	struct i915_vma *vma;
 	unsigned long offset;
-	uint32_t size, flags;
+	u32 flags;
+	u32 size;
 	int ret;
 
 	GEM_BUG_ON(guc->log.vma);

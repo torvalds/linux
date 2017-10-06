@@ -33,7 +33,7 @@ struct drm_i915_private;
 struct intel_guc;
 
 struct intel_guc_log {
-	uint32_t flags;
+	u32 flags;
 	struct i915_vma *vma;
 	/* The runtime stuff gets created only when GuC logging gets enabled */
 	struct {

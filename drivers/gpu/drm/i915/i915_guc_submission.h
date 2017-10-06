@@ -59,17 +59,17 @@ struct i915_guc_client {
 	struct intel_guc *guc;
 
 	/* bitmap of (host) engine ids */
-	uint32_t engines;
-	uint32_t priority;
+	u32 engines;
+	u32 priority;
 	u32 stage_id;
-	uint32_t proc_desc_offset;
+	u32 proc_desc_offset;
 
 	u16 doorbell_id;
 	unsigned long doorbell_offset;
 
 	spinlock_t wq_lock;
 	/* Per-engine counts of GuC submissions */
-	uint64_t submissions[I915_NUM_ENGINES];
+	u64 submissions[I915_NUM_ENGINES];
 };
 
 int i915_guc_submission_init(struct drm_i915_private *dev_priv);

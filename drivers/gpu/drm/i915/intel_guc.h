@@ -52,7 +52,8 @@ struct intel_guc {
 	struct i915_guc_client *execbuf_client;
 
 	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
-	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
+	/* Cyclic counter mod pagesize	*/
+	u32 db_cacheline;
 
 	/* GuC's FW specific registers used in MMIO send */
 	struct {
