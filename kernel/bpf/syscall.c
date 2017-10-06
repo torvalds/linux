@@ -322,6 +322,8 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
 {
 	const char *end = src + BPF_OBJ_NAME_LEN;
 
+	memset(dst, 0, BPF_OBJ_NAME_LEN);
+
 	/* Copy all isalnum() and '_' char */
 	while (src < end && *src) {
 		if (!isalnum(*src) && *src != '_')
@@ -332,9 +334,6 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
 	/* No '\0' found in BPF_OBJ_NAME_LEN number of bytes */
 	if (src == end)
 		return -EINVAL;
-
-	/* '\0' terminates dst */
-	*dst = 0;
 
 	return 0;
 }
