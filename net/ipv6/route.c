@@ -755,6 +755,7 @@ static struct rt6_info *rt6_select(struct net *net, struct fib6_node *fn,
 	struct rt6_info *leaf = fn->leaf;
 	struct rt6_info *match, *rt0;
 	bool do_rr = false;
+	int key_plen;
 
 	if (!leaf)
 		return net->ipv6.ip6_null_entry;
@@ -762,6 +763,19 @@ static struct rt6_info *rt6_select(struct net *net, struct fib6_node *fn,
 	rt0 = fn->rr_ptr;
 	if (!rt0)
 		fn->rr_ptr = rt0 = leaf;
+
+	/* Double check to make sure fn is not an intermediate node
+	 * and fn->leaf does not points to its child's leaf
+	 * (This might happen if all routes under fn are deleted from
+	 * the tree and fib6_repair_tree() is called on the node.)
+	 */
+	key_plen = rt0->rt6i_dst.plen;
+#ifdef CONFIG_IPV6_SUBTREES
+	if (rt0->rt6i_src.plen)
+		key_plen = rt0->rt6i_src.plen;
+#endif
+	if (fn->fn_bit != key_plen)
+		return net->ipv6.ip6_null_entry;
 
 	match = find_rr_leaf(fn, leaf, rt0, rt0->rt6i_metric, oif, strict,
 			     &do_rr);
