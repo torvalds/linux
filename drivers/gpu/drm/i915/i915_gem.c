@@ -4547,8 +4547,7 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	/* As the idle_work is rearming if it detects a race, play safe and
 	 * repeat the flush until it is definitely idle.
 	 */
-	while (flush_delayed_work(&dev_priv->gt.idle_work))
-		;
+	drain_delayed_work(&dev_priv->gt.idle_work);
 
 	/* Assert that we sucessfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.

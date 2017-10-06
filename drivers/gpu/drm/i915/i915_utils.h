@@ -124,4 +124,17 @@ static inline void __list_del_many(struct list_head *head,
 	WRITE_ONCE(head->next, first);
 }
 
+/*
+ * Wait until the work is finally complete, even if it tries to postpone
+ * by requeueing itself. Note, that if the worker never cancels itself,
+ * we will spin forever.
+ */
+static inline void drain_delayed_work(struct delayed_work *dw)
+{
+	do {
+		while (flush_delayed_work(dw))
+			;
+	} while (delayed_work_pending(dw));
+}
+
 #endif /* !__I915_UTILS_H */

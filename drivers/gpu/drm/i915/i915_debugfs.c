@@ -4259,8 +4259,7 @@ fault_irq_set(struct drm_i915_private *i915,
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	/* Flush idle worker to disarm irq */
-	while (flush_delayed_work(&i915->gt.idle_work))
-		;
+	drain_delayed_work(&i915->gt.idle_work);
 
 	return 0;
 
