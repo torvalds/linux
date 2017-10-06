@@ -215,7 +215,10 @@ struct v4l2_subdev_core_ops {
  * struct v4l2_subdev_tuner_ops - Callbacks used when v4l device was opened
  *	in radio mode.
  *
- * @s_radio: callback for VIDIOC_S_RADIO() ioctl handler code.
+ * @s_radio: callback that switches the tuner to radio mode.
+ *	     drivers should explicitly call it when a tuner ops should
+ *	     operate on radio mode, before being able to handle it.
+ *	     Used on devices that have both AM/FM radio receiver and TV.
  *
  * @s_frequency: callback for VIDIOC_S_FREQUENCY() ioctl handler code.
  *
@@ -238,6 +241,22 @@ struct v4l2_subdev_core_ops {
  * @s_type_addr: sets tuner type and its I2C addr.
  *
  * @s_config: sets tda9887 specific stuff, like port1, port2 and qss
+ *
+ * .. note::
+ *
+ * 	On devices that have both AM/FM and TV, it is up to the driver
+ *	to explicitly call s_radio when the tuner should be switched to
+ *	radio mode, before handling other &struct v4l2_subdev_tuner_ops
+ *	that would require it. An example of such usage is::
+ *
+ *	  static void s_frequency(void *priv, const struct v4l2_frequency *f)
+ *	  {
+ * 		...
+ *		if (f.type == V4L2_TUNER_RADIO)
+ *			v4l2_device_call_all(v4l2_dev, 0, tuner, s_radio);
+ *		...
+ *		v4l2_device_call_all(v4l2_dev, 0, tuner, s_frequency);
+ *	  }
  */
 struct v4l2_subdev_tuner_ops {
 	int (*s_radio)(struct v4l2_subdev *sd);
