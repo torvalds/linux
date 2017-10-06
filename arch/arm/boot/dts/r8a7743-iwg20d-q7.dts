@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for the iWave-RZG1M Qseven carrier board
+ * Device Tree Source for the iWave-RZ/G1M Qseven board
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
  *
@@ -10,144 +10,9 @@
 
 /dts-v1/;
 #include "r8a7743-iwg20m.dtsi"
+#include "iwg20d-q7-common.dtsi"
 
 / {
 	model = "iWave Systems RainboW-G20D-Qseven board based on RZ/G1M";
 	compatible = "iwave,g20d", "iwave,g20m", "renesas,r8a7743";
-
-	aliases {
-		serial0 = &scif0;
-		ethernet0 = &avb;
-	};
-
-	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
-		stdout-path = "serial0:115200n8";
-	};
-
-	vcc_sdhi1: regulator-vcc-sdhi1 {
-		compatible = "regulator-fixed";
-
-		regulator-name = "SDHI1 Vcc";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpio = <&gpio1 16 GPIO_ACTIVE_LOW>;
-	};
-
-	vccq_sdhi1: regulator-vccq-sdhi1 {
-		compatible = "regulator-gpio";
-
-		regulator-name = "SDHI1 VccQ";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;
-		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
-	};
-};
-
-&pfc {
-	i2c2_pins: i2c2 {
-		groups = "i2c2";
-		function = "i2c2";
-	};
-
-	scif0_pins: scif0 {
-		groups = "scif0_data_d";
-		function = "scif0";
-	};
-
-	avb_pins: avb {
-		groups = "avb_mdio", "avb_gmii";
-		function = "avb";
-	};
-
-	sdhi1_pins: sd1 {
-		groups = "sdhi1_data4", "sdhi1_ctrl";
-		function = "sdhi1";
-		power-source = <3300>;
-	};
-
-	sdhi1_pins_uhs: sd1_uhs {
-		groups = "sdhi1_data4", "sdhi1_ctrl";
-		function = "sdhi1";
-		power-source = <1800>;
-	};
-
-	usb0_pins: usb0 {
-		groups = "usb0";
-		function = "usb0";
-	};
-
-	usb1_pins: usb1 {
-		groups = "usb1";
-		function = "usb1";
-	};
-};
-
-&scif0 {
-	pinctrl-0 = <&scif0_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
-&avb {
-	pinctrl-0 = <&avb_pins>;
-	pinctrl-names = "default";
-
-	phy-handle = <&phy3>;
-	phy-mode = "gmii";
-	renesas,no-ether-link;
-	status = "okay";
-
-	phy3: ethernet-phy@3 {
-		reg = <3>;
-		micrel,led-mode = <1>;
-	};
-};
-
-&sdhi1 {
-	pinctrl-0 = <&sdhi1_pins>;
-	pinctrl-1 = <&sdhi1_pins_uhs>;
-	pinctrl-names = "default", "state_uhs";
-
-	vmmc-supply = <&vcc_sdhi1>;
-	vqmmc-supply = <&vccq_sdhi1>;
-	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio6 15 GPIO_ACTIVE_HIGH>;
-	sd-uhs-sdr50;
-	status = "okay";
-};
-
-&i2c2 {
-	pinctrl-0 = <&i2c2_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-	clock-frequency = <400000>;
-
-	rtc@68 {
-		compatible = "ti,bq32000";
-		reg = <0x68>;
-	};
-};
-
-&pci0 {
-	status = "okay";
-	pinctrl-0 = <&usb0_pins>;
-	pinctrl-names = "default";
-};
-
-&pci1 {
-	status = "okay";
-	pinctrl-0 = <&usb1_pins>;
-	pinctrl-names = "default";
-};
-
-&usbphy {
-	status = "okay";
 };
