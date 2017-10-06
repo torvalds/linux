@@ -503,10 +503,20 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		 */
 		if (upper_32_bits(end - 1) &&
 		    vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
+			/*
+			 * We can't mix 64K and 4K PTEs in the same page-table
+			 * (2M block), and so to avoid the ugliness and
+			 * complexity of coloring we opt for just aligning 64K
+			 * objects to 2M.
+			 */
 			u64 page_alignment =
-				rounddown_pow_of_two(vma->page_sizes.sg);
+				rounddown_pow_of_two(vma->page_sizes.sg |
+						     I915_GTT_PAGE_SIZE_2M);
 
 			alignment = max(alignment, page_alignment);
+
+			if (vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K)
+				size = round_up(size, I915_GTT_PAGE_SIZE_2M);
 		}
 
 		ret = i915_gem_gtt_insert(vma->vm, &vma->node,
