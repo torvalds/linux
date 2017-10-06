@@ -1113,7 +1113,7 @@ next:
 	return count;
 }
 
-int talitos_sg_map(struct device *dev, struct scatterlist *src,
+static int talitos_sg_map(struct device *dev, struct scatterlist *src,
 		   unsigned int len, struct talitos_edesc *edesc,
 		   struct talitos_ptr *ptr,
 		   int sg_count, unsigned int offset, int tbl_off)
@@ -1721,7 +1721,7 @@ static void ahash_done(struct device *dev,
  * SEC1 doesn't like hashing of 0 sized message, so we do the padding
  * ourself and submit a padded block
  */
-void talitos_handle_buggy_hash(struct talitos_ctx *ctx,
+static void talitos_handle_buggy_hash(struct talitos_ctx *ctx,
 			       struct talitos_edesc *edesc,
 			       struct talitos_ptr *ptr)
 {
