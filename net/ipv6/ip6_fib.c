@@ -585,7 +585,7 @@ out:
 static struct fib6_node *fib6_add_1(struct fib6_node *root,
 				     struct in6_addr *addr, int plen,
 				     int offset, int allow_create,
-				     int replace_required, int sernum,
+				     int replace_required,
 				     struct netlink_ext_ack *extack)
 {
 	struct fib6_node *fn, *in, *ln;
@@ -631,8 +631,6 @@ static struct fib6_node *fib6_add_1(struct fib6_node *root,
 				fn->leaf = NULL;
 			}
 
-			fn->fn_sernum = sernum;
-
 			return fn;
 		}
 
@@ -641,7 +639,6 @@ static struct fib6_node *fib6_add_1(struct fib6_node *root,
 		 */
 
 		/* Try to walk down on tree. */
-		fn->fn_sernum = sernum;
 		dir = addr_bit_set(addr, fn->fn_bit);
 		pn = fn;
 		fn = dir ? fn->right : fn->left;
@@ -677,7 +674,6 @@ static struct fib6_node *fib6_add_1(struct fib6_node *root,
 	ln->fn_bit = plen;
 
 	ln->parent = pn;
-	ln->fn_sernum = sernum;
 
 	if (dir)
 		pn->right = ln;
@@ -737,8 +733,6 @@ insert_above:
 		in->leaf = fn->leaf;
 		atomic_inc(&in->leaf->rt6i_ref);
 
-		in->fn_sernum = sernum;
-
 		/* update parent pointer */
 		if (dir)
 			pn->right = in;
@@ -749,8 +743,6 @@ insert_above:
 
 		ln->parent = in;
 		fn->parent = in;
-
-		ln->fn_sernum = sernum;
 
 		if (addr_bit_set(addr, bit)) {
 			in->right = ln;
@@ -775,8 +767,6 @@ insert_above:
 		ln->fn_bit = plen;
 
 		ln->parent = pn;
-
-		ln->fn_sernum = sernum;
 
 		if (dir)
 			pn->right = ln;
@@ -1079,6 +1069,20 @@ void fib6_force_start_gc(struct net *net)
 			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
+static void fib6_update_sernum_upto_root(struct rt6_info *rt,
+					 int sernum)
+{
+	struct fib6_node *fn = rcu_dereference_protected(rt->rt6i_node,
+				lockdep_is_held(&rt->rt6i_table->tb6_lock));
+
+	/* paired with smp_rmb() in rt6_get_cookie_safe() */
+	smp_wmb();
+	while (fn) {
+		fn->fn_sernum = sernum;
+		fn = fn->parent;
+	}
+}
+
 /*
  *	Add routing information to the routing tree.
  *	<destination addr>/<source addr>
@@ -1111,7 +1115,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 
 	fn = fib6_add_1(root, &rt->rt6i_dst.addr, rt->rt6i_dst.plen,
 			offsetof(struct rt6_info, rt6i_dst), allow_create,
-			replace_required, sernum, extack);
+			replace_required, extack);
 	if (IS_ERR(fn)) {
 		err = PTR_ERR(fn);
 		fn = NULL;
@@ -1145,15 +1149,13 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 			sfn->leaf = info->nl_net->ipv6.ip6_null_entry;
 			atomic_inc(&info->nl_net->ipv6.ip6_null_entry->rt6i_ref);
 			sfn->fn_flags = RTN_ROOT;
-			sfn->fn_sernum = sernum;
 
 			/* Now add the first leaf node to new subtree */
 
 			sn = fib6_add_1(sfn, &rt->rt6i_src.addr,
 					rt->rt6i_src.plen,
 					offsetof(struct rt6_info, rt6i_src),
-					allow_create, replace_required, sernum,
-					extack);
+					allow_create, replace_required, extack);
 
 			if (IS_ERR(sn)) {
 				/* If it is failed, discard just allocated
@@ -1172,8 +1174,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 			sn = fib6_add_1(fn->subtree, &rt->rt6i_src.addr,
 					rt->rt6i_src.plen,
 					offsetof(struct rt6_info, rt6i_src),
-					allow_create, replace_required, sernum,
-					extack);
+					allow_create, replace_required, extack);
 
 			if (IS_ERR(sn)) {
 				err = PTR_ERR(sn);
@@ -1190,8 +1191,10 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 #endif
 
 	err = fib6_add_rt2node(fn, rt, info, mxc);
-	if (!err)
+	if (!err) {
+		fib6_update_sernum_upto_root(rt, sernum);
 		fib6_start_gc(info->nl_net, rt);
+	}
 
 out:
 	if (err) {
