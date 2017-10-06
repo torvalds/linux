@@ -745,6 +745,7 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	desc.dataoffset8 = descsize >> 3; /* in 8-bytes granularity */
 	desc.length8 = (u16)(packetlen_aligned >> 3);
 	desc.transactionid = requestid;
+	desc.reserved = 0;
 	desc.rangecount = pagecount;
 
 	for (i = 0; i < pagecount; i++) {
@@ -788,6 +789,7 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	desc->dataoffset8 = desc_size >> 3; /* in 8-bytes granularity */
 	desc->length8 = (u16)(packetlen_aligned >> 3);
 	desc->transactionid = requestid;
+	desc->reserved = 0;
 	desc->rangecount = 1;
 
 	bufferlist[0].iov_base = desc;
