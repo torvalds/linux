@@ -228,7 +228,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 
 	obj->phys_handle = phys;
 
-	__i915_gem_object_set_pages(obj, st);
+	__i915_gem_object_set_pages(obj, st, sg->length);
 
 	return 0;
 
@@ -2266,6 +2266,8 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	if (!IS_ERR(pages))
 		obj->ops->put_pages(obj, pages);
 
+	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
+
 unlock:
 	mutex_unlock(&obj->mm.lock);
 }
@@ -2308,6 +2310,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	unsigned int max_segment = i915_sg_segment_size();
+	unsigned int sg_mask;
 	gfp_t noreclaim;
 	int ret;
 
@@ -2339,6 +2342,7 @@ rebuild_st:
 
 	sg = st->sgl;
 	st->nents = 0;
+	sg_mask = 0;
 	for (i = 0; i < page_count; i++) {
 		const unsigned int shrink[] = {
 			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND | I915_SHRINK_PURGEABLE,
@@ -2391,8 +2395,10 @@ rebuild_st:
 		if (!i ||
 		    sg->length >= max_segment ||
 		    page_to_pfn(page) != last_pfn + 1) {
-			if (i)
+			if (i) {
+				sg_mask |= sg->length;
 				sg = sg_next(sg);
+			}
 			st->nents++;
 			sg_set_page(sg, page, PAGE_SIZE, 0);
 		} else {
@@ -2403,8 +2409,10 @@ rebuild_st:
 		/* Check that the i965g/gm workaround works. */
 		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
 	}
-	if (sg) /* loop terminated early; short sg table */
+	if (sg) { /* loop terminated early; short sg table */
+		sg_mask |= sg->length;
 		sg_mark_end(sg);
+	}
 
 	/* Trim unused sg entries to avoid wasting memory. */
 	i915_sg_trim(st);
@@ -2433,7 +2441,7 @@ rebuild_st:
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj, st);
 
-	__i915_gem_object_set_pages(obj, st);
+	__i915_gem_object_set_pages(obj, st, sg_mask);
 
 	return 0;
 
@@ -2460,8 +2468,13 @@ err_pages:
 }
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
-				 struct sg_table *pages)
+				 struct sg_table *pages,
+				 unsigned int sg_mask)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	unsigned long supported = INTEL_INFO(i915)->page_sizes;
+	int i;
+
 	lockdep_assert_held(&obj->mm.lock);
 
 	obj->mm.get_page.sg_pos = pages->sgl;
@@ -2475,6 +2488,25 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 		__i915_gem_object_pin_pages(obj);
 		obj->mm.quirked = true;
 	}
+
+	GEM_BUG_ON(!sg_mask);
+	obj->mm.page_sizes.phys = sg_mask;
+
+	/*
+	 * Calculate the supported page-sizes which fit into the given sg_mask.
+	 * This will give us the page-sizes which we may be able to use
+	 * opportunistically when later inserting into the GTT. For example if
+	 * phys=2G, then in theory we should be able to use 1G, 2M, 64K or 4K
+	 * pages, although in practice this will depend on a number of other
+	 * factors.
+	 */
+	obj->mm.page_sizes.sg = 0;
+	for_each_set_bit(i, &supported, ilog2(I915_GTT_MAX_PAGE_SIZE) + 1) {
+		if (obj->mm.page_sizes.phys & ~0u << i)
+			obj->mm.page_sizes.sg |= BIT(i);
+	}
+
+	GEM_BUG_ON(!HAS_PAGE_SIZES(i915, obj->mm.page_sizes.sg));
 }
 
 static int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)

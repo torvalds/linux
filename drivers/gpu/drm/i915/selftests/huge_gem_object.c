@@ -80,7 +80,7 @@ static int huge_get_pages(struct drm_i915_gem_object *obj)
 	if (i915_gem_gtt_prepare_pages(obj, pages))
 		goto err;
 
-	__i915_gem_object_set_pages(obj, pages);
+	__i915_gem_object_set_pages(obj, pages, PAGE_SIZE);
 
 	return 0;
 

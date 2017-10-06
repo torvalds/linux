@@ -548,7 +548,7 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
-	__i915_gem_object_set_pages(obj, pages);
+	__i915_gem_object_set_pages(obj, pages, obj->stolen->size);
 
 	return 0;
 }

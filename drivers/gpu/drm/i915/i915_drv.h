@@ -2872,6 +2872,21 @@ static inline struct scatterlist *__sg_next(struct scatterlist *sg)
 	     (((__iter).curr += PAGE_SIZE) >= (__iter).max) ?		\
 	     (__iter) = __sgt_iter(__sg_next((__iter).sgp), false), 0 : 0)
 
+static inline unsigned int i915_sg_page_sizes(struct scatterlist *sg)
+{
+	unsigned int page_sizes;
+
+	page_sizes = 0;
+	while (sg) {
+		GEM_BUG_ON(sg->offset);
+		GEM_BUG_ON(!IS_ALIGNED(sg->length, PAGE_SIZE));
+		page_sizes |= sg->length;
+		sg = __sg_next(sg);
+	}
+
+	return page_sizes;
+}
+
 static inline unsigned int i915_sg_segment_size(void)
 {
 	unsigned int size = swiotlb_max_segment();
@@ -3101,6 +3116,10 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define USES_PPGTT(dev_priv)		(i915_modparams.enable_ppgtt)
 #define USES_FULL_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt >= 2)
 #define USES_FULL_48BIT_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt == 3)
+#define HAS_PAGE_SIZES(dev_priv, sizes) ({ \
+	GEM_BUG_ON((sizes) == 0); \
+	((sizes) & ~(dev_priv)->info.page_sizes) == 0; \
+})
 
 #define HAS_OVERLAY(dev_priv)		 ((dev_priv)->info.has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev_priv) \
@@ -3517,7 +3536,8 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 				unsigned long n);
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
-				 struct sg_table *pages);
+				 struct sg_table *pages,
+				 unsigned int sg_mask);
 int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 
 static inline int __must_check
