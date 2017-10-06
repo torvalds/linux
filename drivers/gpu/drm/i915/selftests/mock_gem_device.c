@@ -83,6 +83,8 @@ static void mock_device_release(struct drm_device *dev)
 	kmem_cache_destroy(i915->vmas);
 	kmem_cache_destroy(i915->objects);
 
+	i915_gemfs_fini(i915);
+
 	drm_dev_fini(&i915->drm);
 	put_device(&i915->drm.pdev->dev);
 }
@@ -242,6 +244,8 @@ struct drm_i915_private *mock_gem_device(void)
 	i915->preempt_context = mock_context(i915, NULL);
 	if (!i915->preempt_context)
 		goto err_kernel_context;
+
+	WARN_ON(i915_gemfs_init(i915));
 
 	return i915;
 
