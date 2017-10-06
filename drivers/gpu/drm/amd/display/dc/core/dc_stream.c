@@ -190,7 +190,7 @@ bool dc_stream_set_cursor_attributes(
 	}
 
 	if (attributes->address.quad_part == 0) {
-		dm_error("DC: Cursor address is 0!\n");
+		dm_output_to_console("DC: Cursor address is 0!\n");
 		return false;
 	}
 
