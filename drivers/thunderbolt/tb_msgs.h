@@ -127,14 +127,16 @@ struct icm_pkg_driver_ready {
 	struct icm_pkg_header hdr;
 };
 
-struct icm_pkg_driver_ready_response {
+/* Falcon Ridge & Alpine Ridge common messages */
+
+struct icm_fr_pkg_driver_ready_response {
 	struct icm_pkg_header hdr;
 	u8 romver;
 	u8 ramver;
 	u16 security_level;
 };
 
-/* Falcon Ridge & Alpine Ridge common messages */
+#define ICM_FR_SLEVEL_MASK		0xf
 
 struct icm_fr_pkg_get_topology {
 	struct icm_pkg_header hdr;
