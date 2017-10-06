@@ -424,15 +424,13 @@ TRACE_EVENT(rcu_fqs,
  * as argument: "Start" for entering dyntick-idle mode, "Startirq" for
  * entering it from irq/NMI, "End" for leaving it, "Endirq" for leaving it
  * to irq/NMI, "--=" for events moving towards idle, and "++=" for events
- * moving away from idle.  "Error on entry: not idle task" and "Error
- * on exit: not idle task" indicate that a non-idle task is erroneously
- * toying with the idle loop.
+ * moving away from idle.
  *
  * These events also take a pair of numbers, which indicate the nesting
- * depth before and after the event of interest.  Note that task-related
- * and interrupt-related events use two separate counters, and that the
- * "++=" and "--=" events for irq/NMI will change the counter by two,
- * otherwise by one.
+ * depth before and after the event of interest, and a third number that is
+ * the ->dynticks counter.  Note that task-related and interrupt-related
+ * events use two separate counters, and that the "++=" and "--=" events
+ * for irq/NMI will change the counter by two, otherwise by one.
  */
 TRACE_EVENT(rcu_dyntick,
 

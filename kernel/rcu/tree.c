@@ -773,17 +773,7 @@ static void rcu_eqs_enter(bool user)
 
 	lockdep_assert_irqs_disabled();
 	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0, rdtp->dynticks);
-	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-	    !user && !is_idle_task(current)) {
-		struct task_struct *idle __maybe_unused =
-			idle_task(smp_processor_id());
-
-		trace_rcu_dyntick(TPS("Error on entry: not idle task"), rdtp->dynticks_nesting, 0, rdtp->dynticks);
-		rcu_ftrace_dump(DUMP_ORIG);
-		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
-			  current->pid, current->comm,
-			  idle->pid, idle->comm); /* must be idle task! */
-	}
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
 	for_each_rcu_flavor(rsp) {
 		rdp = this_cpu_ptr(rsp->rda);
 		do_nocb_deferred_wakeup(rdp);
@@ -941,17 +931,7 @@ static void rcu_eqs_exit(bool user)
 	rcu_dynticks_eqs_exit();
 	rcu_cleanup_after_idle();
 	trace_rcu_dyntick(TPS("End"), rdtp->dynticks_nesting, 1, rdtp->dynticks);
-	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-	    !user && !is_idle_task(current)) {
-		struct task_struct *idle __maybe_unused =
-			idle_task(smp_processor_id());
-
-		trace_rcu_dyntick(TPS("Error on exit: not idle task"), rdtp->dynticks_nesting, 1, rdtp->dynticks);
-		rcu_ftrace_dump(DUMP_ORIG);
-		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
-			  current->pid, current->comm,
-			  idle->pid, idle->comm); /* must be idle task! */
-	}
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
 	WRITE_ONCE(rdtp->dynticks_nesting, 1);
 	WRITE_ONCE(rdtp->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
 }
