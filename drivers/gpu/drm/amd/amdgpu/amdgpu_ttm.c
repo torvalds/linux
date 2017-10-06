@@ -291,7 +291,24 @@ static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 }
 
 /**
- * amdgpu_ttm_copy_mem_to_mem - Helper function for copy
+ * amdgpu_find_mm_node - Helper function finds the drm_mm_node
+ *  corresponding to @offset. It also modifies the offset to be
+ *  within the drm_mm_node returned
+ */
+static struct drm_mm_node *amdgpu_find_mm_node(struct ttm_mem_reg *mem,
+					       unsigned long *offset)
+{
+	struct drm_mm_node *mm_node = mem->mm_node;
+
+	while (*offset >= (mm_node->size << PAGE_SHIFT)) {
+		*offset -= (mm_node->size << PAGE_SHIFT);
+		++mm_node;
+	}
+	return mm_node;
+}
+
+/**
+ * amdgpu_copy_ttm_mem_to_mem - Helper function for copy
  *
  * The function copies @size bytes from {src->mem + src->offset} to
  * {dst->mem + dst->offset}. src->bo and dst->bo could be same BO for a
@@ -320,21 +337,13 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	src_mm = src->mem->mm_node;
-	while (src->offset >= (src_mm->size << PAGE_SHIFT)) {
-		src->offset -= (src_mm->size << PAGE_SHIFT);
-		++src_mm;
-	}
+	src_mm = amdgpu_find_mm_node(src->mem, &src->offset);
 	src_node_start = amdgpu_mm_node_addr(src->bo, src_mm, src->mem) +
 					     src->offset;
 	src_node_size = (src_mm->size << PAGE_SHIFT) - src->offset;
 	src_page_offset = src_node_start & (PAGE_SIZE - 1);
 
-	dst_mm = dst->mem->mm_node;
-	while (dst->offset >= (dst_mm->size << PAGE_SHIFT)) {
-		dst->offset -= (dst_mm->size << PAGE_SHIFT);
-		++dst_mm;
-	}
+	dst_mm = amdgpu_find_mm_node(dst->mem, &dst->offset);
 	dst_node_start = amdgpu_mm_node_addr(dst->bo, dst_mm, dst->mem) +
 					     dst->offset;
 	dst_node_size = (dst_mm->size << PAGE_SHIFT) - dst->offset;
@@ -654,13 +663,12 @@ static void amdgpu_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_re
 static unsigned long amdgpu_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
 					   unsigned long page_offset)
 {
-	struct drm_mm_node *mm = bo->mem.mm_node;
-	uint64_t size = mm->size;
-	uint64_t offset = page_offset;
+	struct drm_mm_node *mm;
+	unsigned long offset = (page_offset << PAGE_SHIFT);
 
-	page_offset = do_div(offset, size);
-	mm += offset;
-	return (bo->mem.bus.base >> PAGE_SHIFT) + mm->start + page_offset;
+	mm = amdgpu_find_mm_node(&bo->mem, &offset);
+	return (bo->mem.bus.base >> PAGE_SHIFT) + mm->start +
+		(offset >> PAGE_SHIFT);
 }
 
 /*
@@ -1216,7 +1224,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 {
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
-	struct drm_mm_node *nodes = abo->tbo.mem.mm_node;
+	struct drm_mm_node *nodes;
 	uint32_t value = 0;
 	int ret = 0;
 	uint64_t pos;
@@ -1225,10 +1233,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 	if (bo->mem.mem_type != TTM_PL_VRAM)
 		return -EIO;
 
-	while (offset >= (nodes->size << PAGE_SHIFT)) {
-		offset -= nodes->size << PAGE_SHIFT;
-		++nodes;
-	}
+	nodes = amdgpu_find_mm_node(&abo->tbo.mem, &offset);
 	pos = (nodes->start << PAGE_SHIFT) + offset;
 
 	while (len && pos < adev->mc.mc_vram_size) {
