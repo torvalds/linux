@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/dma-buf.h>
+#include <linux/bitops.h>
 
 #define VB2_MAX_FRAME	(32)
 #define VB2_MAX_PLANES	(8)
@@ -191,11 +192,11 @@ struct vb2_plane {
  * @VB2_DMABUF:		driver supports DMABUF with streaming API
  */
 enum vb2_io_modes {
-	VB2_MMAP	= (1 << 0),
-	VB2_USERPTR	= (1 << 1),
-	VB2_READ	= (1 << 2),
-	VB2_WRITE	= (1 << 3),
-	VB2_DMABUF	= (1 << 4),
+	VB2_MMAP	= BIT(0),
+	VB2_USERPTR	= BIT(1),
+	VB2_READ	= BIT(2),
+	VB2_WRITE	= BIT(3),
+	VB2_DMABUF	= BIT(4),
 };
 
 /**
