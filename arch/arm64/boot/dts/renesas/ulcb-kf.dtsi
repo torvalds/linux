@@ -12,6 +12,7 @@
 / {
 	aliases {
 		serial1 = &hscif0;
+		serial2 = &scif1;
 	};
 };
 
@@ -28,4 +29,17 @@
 		groups = "hscif0_data", "hscif0_ctrl";
 		function = "hscif0";
 	};
+
+	scif1_pins: scif1 {
+		groups = "scif1_data_b", "scif1_ctrl";
+		function = "scif1";
+	};
+};
+
+&scif1 {
+	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+
+	status = "okay";
 };
