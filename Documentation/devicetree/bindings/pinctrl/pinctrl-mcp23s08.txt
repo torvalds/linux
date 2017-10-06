@@ -13,6 +13,7 @@ Required properties:
     - "microchip,mcp23s18" for 16 GPIO SPI version
     - "microchip,mcp23008" for  8 GPIO I2C version or
     - "microchip,mcp23017" for 16 GPIO I2C version of the chip
+    - "microchip,mcp23018" for 16 GPIO I2C version
     NOTE: Do not use the old mcp prefix any more. It is deprecated and will be
     removed.
 - #gpio-cells : Should be two.
