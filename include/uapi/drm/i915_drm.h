@@ -1318,7 +1318,7 @@ struct drm_i915_reg_read {
 	 * be specified
 	 */
 	__u64 offset;
-#define I915_REG_READ_8B_WA BIT(0)
+#define I915_REG_READ_8B_WA (1ul << 0)
 
 	__u64 val; /* Return value */
 };
