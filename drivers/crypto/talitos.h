@@ -52,8 +52,6 @@ struct talitos_ptr {
 	__be32 ptr;     /* address */
 };
 
-static const struct talitos_ptr zero_entry;
-
 /* descriptor */
 struct talitos_desc {
 	__be32 hdr;                     /* header high bits */
