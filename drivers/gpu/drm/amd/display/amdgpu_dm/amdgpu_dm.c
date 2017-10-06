@@ -1790,7 +1790,9 @@ static int get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
 	int r = amdgpu_bo_reserve(rbo, false);
 
 	if (unlikely(r)) {
-		DRM_ERROR("Unable to reserve buffer\n");
+		// Don't show error msg. when return -ERESTARTSYS
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Unable to reserve buffer: %d\n", r);
 		return r;
 	}
 
