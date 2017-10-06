@@ -8453,6 +8453,9 @@ static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
+	/* The GTT cache must be disabled if the system is using 2M pages. */
+	bool can_use_gtt_cache = !HAS_PAGE_SIZES(dev_priv,
+						 I915_GTT_PAGE_SIZE_2M);
 	enum pipe pipe;
 
 	ilk_init_lp_watermarks(dev_priv);
@@ -8487,12 +8490,8 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* WaProgramL3SqcReg1Default:bdw */
 	gen8_set_l3sqc_credits(dev_priv, 30, 2);
 
-	/*
-	 * WaGttCachingOffByDefault:bdw
-	 * GTT cache may not work with big pages, so if those
-	 * are ever enabled GTT cache may need to be disabled.
-	 */
-	I915_WRITE(HSW_GTT_CACHE_EN, GTT_CACHE_EN_ALL);
+	/* WaGttCachingOffByDefault:bdw */
+	I915_WRITE(HSW_GTT_CACHE_EN, can_use_gtt_cache ? GTT_CACHE_EN_ALL : 0);
 
 	/* WaKVMNotificationOnConfigChange:bdw */
 	I915_WRITE(CHICKEN_PAR2_1, I915_READ(CHICKEN_PAR2_1)
