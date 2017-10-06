@@ -188,7 +188,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 	mipi_dbi_hw_reset(mipi);
 	ret = mipi_dbi_command(mipi, ST7586_AUTO_READ_CTRL, 0x9f);
 	if (ret) {
-		dev_err(dev, "Error sending command %d\n", ret);
+		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
 		return;
 	}
 
@@ -355,13 +355,13 @@ static int st7586_probe(struct spi_device *spi)
 
 	mipi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
-		dev_err(dev, "Failed to get gpio 'reset'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
 		return PTR_ERR(mipi->reset);
 	}
 
 	a0 = devm_gpiod_get(dev, "a0", GPIOD_OUT_LOW);
 	if (IS_ERR(a0)) {
-		dev_err(dev, "Failed to get gpio 'a0'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'a0'\n");
 		return PTR_ERR(a0);
 	}
 
