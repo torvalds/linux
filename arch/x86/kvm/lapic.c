@@ -1308,7 +1308,7 @@ static void limit_periodic_timer_frequency(struct kvm_lapic *apic)
 	 * interval, since the hrtimers are not throttled by the host
 	 * scheduler.
 	 */
-	if (apic_lvtt_period(apic)) {
+	if (apic_lvtt_period(apic) && apic->lapic_timer.period) {
 		s64 min_period = min_timer_period_us * 1000LL;
 
 		if (apic->lapic_timer.period < min_period) {
@@ -1329,10 +1329,12 @@ static void apic_update_lvtt(struct kvm_lapic *apic)
 
 	if (apic->lapic_timer.timer_mode != timer_mode) {
 		if (apic_lvtt_tscdeadline(apic) != (timer_mode ==
-				APIC_LVT_TIMER_TSCDEADLINE))
+				APIC_LVT_TIMER_TSCDEADLINE)) {
 			kvm_lapic_set_reg(apic, APIC_TMICT, 0);
+			hrtimer_cancel(&apic->lapic_timer.timer);
+		}
 		apic->lapic_timer.timer_mode = timer_mode;
-		hrtimer_cancel(&apic->lapic_timer.timer);
+		limit_periodic_timer_frequency(apic);
 	}
 }
 
