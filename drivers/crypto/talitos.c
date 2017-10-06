@@ -1232,12 +1232,11 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 			sg_link_tbl_len += authsize;
 	}
 
-	sg_count = talitos_sg_map(dev, areq->src, cryptlen, edesc,
-				  &desc->ptr[4], sg_count, areq->assoclen,
-				  tbl_off);
+	ret = talitos_sg_map(dev, areq->src, cryptlen, edesc, &desc->ptr[4],
+			     sg_count, areq->assoclen, tbl_off);
 
-	if (sg_count > 1) {
-		tbl_off += sg_count;
+	if (ret > 1) {
+		tbl_off += ret;
 		sync_needed = true;
 	}
 
