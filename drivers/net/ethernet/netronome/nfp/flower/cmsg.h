@@ -78,6 +78,7 @@
 #define NFP_FL_ACTION_OPCODE_POP_VLAN		2
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
 #define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
@@ -113,6 +114,15 @@ struct nfp_fl_set_eth {
 	__be16 reserved;
 	u8 eth_addr_mask[ETH_ALEN * 2];
 	u8 eth_addr_val[ETH_ALEN * 2];
+};
+
+struct nfp_fl_set_ip4_addrs {
+	__be16 a_op;
+	__be16 reserved;
+	__be32 ipv4_src_mask;
+	__be32 ipv4_src;
+	__be32 ipv4_dst_mask;
+	__be32 ipv4_dst;
 };
 
 struct nfp_fl_output {

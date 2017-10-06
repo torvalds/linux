@@ -266,14 +266,53 @@ nfp_fl_set_eth(const struct tc_action *action, int idx, u32 off,
 }
 
 static int
+nfp_fl_set_ip4(const struct tc_action *action, int idx, u32 off,
+	       struct nfp_fl_set_ip4_addrs *set_ip_addr)
+{
+	u16 tmp_set_ipv4_op;
+	__be32 exact, mask;
+
+	/* We are expecting tcf_pedit to return a big endian value */
+	mask = (__force __be32)~tcf_pedit_mask(action, idx);
+	exact = (__force __be32)tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	switch (off) {
+	case offsetof(struct iphdr, daddr):
+		set_ip_addr->ipv4_dst_mask = mask;
+		set_ip_addr->ipv4_dst = exact;
+		break;
+	case offsetof(struct iphdr, saddr):
+		set_ip_addr->ipv4_src_mask = mask;
+		set_ip_addr->ipv4_src = exact;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	set_ip_addr->reserved = cpu_to_be16(0);
+	tmp_set_ipv4_op = FIELD_PREP(NFP_FL_ACT_LEN_LW,
+				     sizeof(*set_ip_addr) >> NFP_FL_LW_SIZ) |
+			  FIELD_PREP(NFP_FL_ACT_JMP_ID,
+				     NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS);
+	set_ip_addr->a_op = cpu_to_be16(tmp_set_ipv4_op);
+
+	return 0;
+}
+
+static int
 nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 {
+	struct nfp_fl_set_ip4_addrs set_ip_addr;
 	struct nfp_fl_set_eth set_eth;
 	enum pedit_header_type htype;
 	int idx, nkeys, err;
 	size_t act_size;
 	u32 offset, cmd;
 
+	memset(&set_ip_addr, 0, sizeof(set_ip_addr));
 	memset(&set_eth, 0, sizeof(set_eth));
 	nkeys = tcf_pedit_nkeys(action);
 
@@ -289,6 +328,9 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 		case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
 			err = nfp_fl_set_eth(action, idx, offset, &set_eth);
 			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+			err = nfp_fl_set_ip4(action, idx, offset, &set_ip_addr);
+			break;
 		default:
 			return -EOPNOTSUPP;
 		}
@@ -299,6 +341,10 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 	if (set_eth.a_op) {
 		act_size = sizeof(set_eth);
 		memcpy(nfp_action, &set_eth, act_size);
+		*a_len += act_size;
+	} else if (set_ip_addr.a_op) {
+		act_size = sizeof(set_ip_addr);
+		memcpy(nfp_action, &set_ip_addr, act_size);
 		*a_len += act_size;
 	}
 
