@@ -302,9 +302,55 @@ nfp_fl_set_ip4(const struct tc_action *action, int idx, u32 off,
 	return 0;
 }
 
+static void
+nfp_fl_set_ip6_helper(int opcode_tag, int idx, __be32 exact, __be32 mask,
+		      struct nfp_fl_set_ipv6_addr *ip6)
+{
+	u16 tmp_set_op;
+
+	ip6->ipv6[idx % 4].mask = mask;
+	ip6->ipv6[idx % 4].exact = exact;
+
+	ip6->reserved = cpu_to_be16(0);
+	tmp_set_op = FIELD_PREP(NFP_FL_ACT_LEN_LW, sizeof(*ip6) >>
+				NFP_FL_LW_SIZ) |
+		     FIELD_PREP(NFP_FL_ACT_JMP_ID, opcode_tag);
+	ip6->a_op = cpu_to_be16(tmp_set_op);
+}
+
+static int
+nfp_fl_set_ip6(const struct tc_action *action, int idx, u32 off,
+	       struct nfp_fl_set_ipv6_addr *ip_dst,
+	       struct nfp_fl_set_ipv6_addr *ip_src)
+{
+	__be32 exact, mask;
+
+	/* We are expecting tcf_pedit to return a big endian value */
+	mask = (__force __be32)~tcf_pedit_mask(action, idx);
+	exact = (__force __be32)tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	if (off < offsetof(struct ipv6hdr, saddr))
+		return -EOPNOTSUPP;
+	else if (off < offsetof(struct ipv6hdr, daddr))
+		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_SRC, idx,
+				      exact, mask, ip_src);
+	else if (off < offsetof(struct ipv6hdr, daddr) +
+		       sizeof(struct in6_addr))
+		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_DST, idx,
+				      exact, mask, ip_dst);
+	else
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static int
 nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 {
+	struct nfp_fl_set_ipv6_addr set_ip6_dst, set_ip6_src;
 	struct nfp_fl_set_ip4_addrs set_ip_addr;
 	struct nfp_fl_set_eth set_eth;
 	enum pedit_header_type htype;
@@ -312,6 +358,8 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 	size_t act_size;
 	u32 offset, cmd;
 
+	memset(&set_ip6_dst, 0, sizeof(set_ip6_dst));
+	memset(&set_ip6_src, 0, sizeof(set_ip6_src));
 	memset(&set_ip_addr, 0, sizeof(set_ip_addr));
 	memset(&set_eth, 0, sizeof(set_eth));
 	nkeys = tcf_pedit_nkeys(action);
@@ -331,6 +379,10 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
 			err = nfp_fl_set_ip4(action, idx, offset, &set_ip_addr);
 			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+			err = nfp_fl_set_ip6(action, idx, offset, &set_ip6_dst,
+					     &set_ip6_src);
+			break;
 		default:
 			return -EOPNOTSUPP;
 		}
@@ -345,6 +397,26 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 	} else if (set_ip_addr.a_op) {
 		act_size = sizeof(set_ip_addr);
 		memcpy(nfp_action, &set_ip_addr, act_size);
+		*a_len += act_size;
+	} else if (set_ip6_dst.a_op && set_ip6_src.a_op) {
+		/* TC compiles set src and dst IPv6 address as a single action,
+		 * the hardware requires this to be 2 separate actions.
+		 */
+		act_size = sizeof(set_ip6_src);
+		memcpy(nfp_action, &set_ip6_src, act_size);
+		*a_len += act_size;
+
+		act_size = sizeof(set_ip6_dst);
+		memcpy(&nfp_action[sizeof(set_ip6_src)], &set_ip6_dst,
+		       act_size);
+		*a_len += act_size;
+	} else if (set_ip6_dst.a_op) {
+		act_size = sizeof(set_ip6_dst);
+		memcpy(nfp_action, &set_ip6_dst, act_size);
+		*a_len += act_size;
+	} else if (set_ip6_src.a_op) {
+		act_size = sizeof(set_ip6_src);
+		memcpy(nfp_action, &set_ip6_src, act_size);
 		*a_len += act_size;
 	}
 
