@@ -1264,6 +1264,12 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 	if (ort->rt6i_src.plen)
 		src_key = &nrt->rt6i_src.addr;
 #endif
+
+	/* Update rt6i_prefsrc as it could be changed
+	 * in rt6_remove_prefsrc()
+	 */
+	nrt->rt6i_prefsrc = ort->rt6i_prefsrc;
+
 	rt6_ex = __rt6_find_exception_spinlock(&bucket, &nrt->rt6i_dst.addr,
 					       src_key);
 	if (rt6_ex)
@@ -1430,6 +1436,25 @@ static void rt6_update_exception_stamp_rt(struct rt6_info *rt)
 		rt6_ex->stamp = jiffies;
 
 	rcu_read_unlock();
+}
+
+static void rt6_exceptions_remove_prefsrc(struct rt6_info *rt)
+{
+	struct rt6_exception_bucket *bucket;
+	struct rt6_exception *rt6_ex;
+	int i;
+
+	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
+					lockdep_is_held(&rt6_exception_lock));
+
+	if (bucket) {
+		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
+			hlist_for_each_entry(rt6_ex, &bucket->chain, hlist) {
+				rt6_ex->rt6i->rt6i_prefsrc.plen = 0;
+			}
+			bucket++;
+		}
+	}
 }
 
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
@@ -3159,8 +3184,12 @@ static int fib6_remove_prefsrc(struct rt6_info *rt, void *arg)
 	if (((void *)rt->dst.dev == dev || !dev) &&
 	    rt != net->ipv6.ip6_null_entry &&
 	    ipv6_addr_equal(addr, &rt->rt6i_prefsrc.addr)) {
+		spin_lock_bh(&rt6_exception_lock);
 		/* remove prefsrc entry */
 		rt->rt6i_prefsrc.plen = 0;
+		/* need to update cache as well */
+		rt6_exceptions_remove_prefsrc(rt);
+		spin_unlock_bh(&rt6_exception_lock);
 	}
 	return 0;
 }
