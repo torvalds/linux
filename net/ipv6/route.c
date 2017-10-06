@@ -143,9 +143,11 @@ static void rt6_uncached_list_del(struct rt6_info *rt)
 {
 	if (!list_empty(&rt->rt6i_uncached)) {
 		struct uncached_list *ul = rt->rt6i_uncached_list;
+		struct net *net = dev_net(rt->dst.dev);
 
 		spin_lock_bh(&ul->lock);
 		list_del(&rt->rt6i_uncached);
+		atomic_dec(&net->ipv6.rt6_stats->fib_rt_uncache);
 		spin_unlock_bh(&ul->lock);
 	}
 }
@@ -359,8 +361,10 @@ static struct rt6_info *__ip6_dst_alloc(struct net *net,
 	struct rt6_info *rt = dst_alloc(&net->ipv6.ip6_dst_ops, dev,
 					1, DST_OBSOLETE_FORCE_CHK, flags);
 
-	if (rt)
+	if (rt) {
 		rt6_info_init(rt);
+		atomic_inc(&net->ipv6.rt6_stats->fib_rt_alloc);
+	}
 
 	return rt;
 }
@@ -1156,6 +1160,8 @@ static DEFINE_SPINLOCK(rt6_exception_lock);
 static void rt6_remove_exception(struct rt6_exception_bucket *bucket,
 				 struct rt6_exception *rt6_ex)
 {
+	struct net *net = dev_net(rt6_ex->rt6i->dst.dev);
+
 	if (!bucket || !rt6_ex)
 		return;
 	rt6_ex->rt6i->rt6i_node = NULL;
@@ -1164,6 +1170,7 @@ static void rt6_remove_exception(struct rt6_exception_bucket *bucket,
 	kfree_rcu(rt6_ex, rcu);
 	WARN_ON_ONCE(!bucket->depth);
 	bucket->depth--;
+	net->ipv6.rt6_stats->fib_rt_cache--;
 }
 
 /* Remove oldest rt6_ex in bucket and free the memory
@@ -1270,6 +1277,7 @@ __rt6_find_exception_rcu(struct rt6_exception_bucket **bucket,
 static int rt6_insert_exception(struct rt6_info *nrt,
 				struct rt6_info *ort)
 {
+	struct net *net = dev_net(ort->dst.dev);
 	struct rt6_exception_bucket *bucket;
 	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
@@ -1339,6 +1347,7 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 	nrt->rt6i_node = ort->rt6i_node;
 	hlist_add_head_rcu(&rt6_ex->hlist, &bucket->chain);
 	bucket->depth++;
+	net->ipv6.rt6_stats->fib_rt_cache++;
 
 	if (bucket->depth > FIB6_MAX_DEPTH)
 		rt6_exception_remove_oldest(bucket);
@@ -1714,6 +1723,7 @@ redo_rt6_select:
 			 * No need for another dst_hold()
 			 */
 			rt6_uncached_list_add(uncached_rt);
+			atomic_inc(&net->ipv6.rt6_stats->fib_rt_uncache);
 		} else {
 			uncached_rt = net->ipv6.ip6_null_entry;
 			dst_hold(&uncached_rt->dst);
@@ -1894,6 +1904,7 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 		       DST_OBSOLETE_NONE, 0);
 	if (rt) {
 		rt6_info_init(rt);
+		atomic_inc(&net->ipv6.rt6_stats->fib_rt_alloc);
 
 		new = &rt->dst;
 		new->__use = 1;
@@ -2341,6 +2352,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	 * do proper release of the net_device
 	 */
 	rt6_uncached_list_add(rt);
+	atomic_inc(&net->ipv6.rt6_stats->fib_rt_uncache);
 
 	dst = xfrm_lookup(net, &rt->dst, flowi6_to_flowi(fl6), NULL, 0);
 
@@ -4422,7 +4434,7 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%04x %04x %04x %04x %04x %04x %04x\n",
 		   net->ipv6.rt6_stats->fib_nodes,
 		   net->ipv6.rt6_stats->fib_route_nodes,
-		   net->ipv6.rt6_stats->fib_rt_alloc,
+		   atomic_read(&net->ipv6.rt6_stats->fib_rt_alloc),
 		   net->ipv6.rt6_stats->fib_rt_entries,
 		   net->ipv6.rt6_stats->fib_rt_cache,
 		   dst_entries_get_slow(&net->ipv6.ip6_dst_ops),

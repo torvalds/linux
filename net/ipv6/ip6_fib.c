@@ -149,18 +149,21 @@ static __be32 addr_bit_set(const void *token, int fn_bit)
 	       addr[fn_bit >> 5];
 }
 
-static struct fib6_node *node_alloc(void)
+static struct fib6_node *node_alloc(struct net *net)
 {
 	struct fib6_node *fn;
 
 	fn = kmem_cache_zalloc(fib6_node_kmem, GFP_ATOMIC);
+	if (fn)
+		net->ipv6.rt6_stats->fib_nodes++;
 
 	return fn;
 }
 
-static void node_free_immediate(struct fib6_node *fn)
+static void node_free_immediate(struct net *net, struct fib6_node *fn)
 {
 	kmem_cache_free(fib6_node_kmem, fn);
+	net->ipv6.rt6_stats->fib_nodes--;
 }
 
 static void node_free_rcu(struct rcu_head *head)
@@ -170,9 +173,10 @@ static void node_free_rcu(struct rcu_head *head)
 	kmem_cache_free(fib6_node_kmem, fn);
 }
 
-static void node_free(struct fib6_node *fn)
+static void node_free(struct net *net, struct fib6_node *fn)
 {
 	call_rcu(&fn->rcu, node_free_rcu);
+	net->ipv6.rt6_stats->fib_nodes--;
 }
 
 void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
@@ -583,7 +587,8 @@ out:
  *	node.
  */
 
-static struct fib6_node *fib6_add_1(struct fib6_table *table,
+static struct fib6_node *fib6_add_1(struct net *net,
+				    struct fib6_table *table,
 				    struct fib6_node *root,
 				    struct in6_addr *addr, int plen,
 				    int offset, int allow_create,
@@ -675,7 +680,7 @@ static struct fib6_node *fib6_add_1(struct fib6_table *table,
 	 *	Create new leaf node without children.
 	 */
 
-	ln = node_alloc();
+	ln = node_alloc(net);
 
 	if (!ln)
 		return ERR_PTR(-ENOMEM);
@@ -716,14 +721,14 @@ insert_above:
 	 *	(new leaf node)[ln] (old node)[fn]
 	 */
 	if (plen > bit) {
-		in = node_alloc();
-		ln = node_alloc();
+		in = node_alloc(net);
+		ln = node_alloc(net);
 
 		if (!in || !ln) {
 			if (in)
-				node_free_immediate(in);
+				node_free_immediate(net, in);
 			if (ln)
-				node_free_immediate(ln);
+				node_free_immediate(net, ln);
 			return ERR_PTR(-ENOMEM);
 		}
 
@@ -768,7 +773,7 @@ insert_above:
 		 *	     (old node)[fn] NULL
 		 */
 
-		ln = node_alloc();
+		ln = node_alloc(net);
 
 		if (!ln)
 			return ERR_PTR(-ENOMEM);
@@ -1065,6 +1070,7 @@ add:
 						fn->rr_ptr = NULL;
 					rt6_release(iter);
 					nsiblings--;
+					info->nl_net->ipv6.rt6_stats->fib_rt_entries--;
 				} else {
 					ins = &iter->dst.rt6_next;
 				}
@@ -1140,7 +1146,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	if (!allow_create && !replace_required)
 		pr_warn("RTM_NEWROUTE with no NLM_F_CREATE or NLM_F_REPLACE\n");
 
-	fn = fib6_add_1(table, root,
+	fn = fib6_add_1(info->nl_net, table, root,
 			&rt->rt6i_dst.addr, rt->rt6i_dst.plen,
 			offsetof(struct rt6_info, rt6i_dst), allow_create,
 			replace_required, extack);
@@ -1170,7 +1176,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 			 */
 
 			/* Create subtree root node */
-			sfn = node_alloc();
+			sfn = node_alloc(info->nl_net);
 			if (!sfn)
 				goto failure;
 
@@ -1181,8 +1187,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 
 			/* Now add the first leaf node to new subtree */
 
-			sn = fib6_add_1(table, sfn, &rt->rt6i_src.addr,
-					rt->rt6i_src.plen,
+			sn = fib6_add_1(info->nl_net, table, sfn,
+					&rt->rt6i_src.addr, rt->rt6i_src.plen,
 					offsetof(struct rt6_info, rt6i_src),
 					allow_create, replace_required, extack);
 
@@ -1191,7 +1197,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 				   root, and then (in failure) stale node
 				   in main tree.
 				 */
-				node_free_immediate(sfn);
+				node_free_immediate(info->nl_net, sfn);
 				err = PTR_ERR(sn);
 				goto failure;
 			}
@@ -1200,8 +1206,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 			rcu_assign_pointer(sfn->parent, fn);
 			rcu_assign_pointer(fn->subtree, sfn);
 		} else {
-			sn = fib6_add_1(table, FIB6_SUBTREE(fn), &rt->rt6i_src.addr,
-					rt->rt6i_src.plen,
+			sn = fib6_add_1(info->nl_net, table, FIB6_SUBTREE(fn),
+					&rt->rt6i_src.addr, rt->rt6i_src.plen,
 					offsetof(struct rt6_info, rt6i_src),
 					allow_create, replace_required, extack);
 
@@ -1609,7 +1615,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		}
 		read_unlock(&net->ipv6.fib6_walker_lock);
 
-		node_free(fn);
+		node_free(net, fn);
 		if (pn->fn_flags & RTN_RTINFO || FIB6_SUBTREE(pn))
 			return pn;
 
