@@ -98,6 +98,22 @@ struct rt6key {
 
 struct fib6_table;
 
+struct rt6_exception_bucket {
+	struct hlist_head	chain;
+	int			depth;
+};
+
+struct rt6_exception {
+	struct hlist_node	hlist;
+	struct rt6_info		*rt6i;
+	unsigned long		stamp;
+	struct rcu_head		rcu;
+};
+
+#define FIB6_EXCEPTION_BUCKET_SIZE_SHIFT 10
+#define FIB6_EXCEPTION_BUCKET_SIZE (1 << FIB6_EXCEPTION_BUCKET_SIZE_SHIFT)
+#define FIB6_MAX_DEPTH 5
+
 struct rt6_info {
 	struct dst_entry		dst;
 
@@ -134,12 +150,15 @@ struct rt6_info {
 
 	struct inet6_dev		*rt6i_idev;
 	struct rt6_info * __percpu	*rt6i_pcpu;
+	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
 
 	u32				rt6i_metric;
 	u32				rt6i_pmtu;
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
+	u8				exception_bucket_flushed:1,
+					unused:7;
 };
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
