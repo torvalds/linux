@@ -57,6 +57,7 @@ static int img_spdif_out_runtime_suspend(struct device *dev)
 	struct img_spdif_out *spdif = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(spdif->clk_ref);
+	clk_disable_unprepare(spdif->clk_sys);
 
 	return 0;
 }
@@ -66,9 +67,16 @@ static int img_spdif_out_runtime_resume(struct device *dev)
 	struct img_spdif_out *spdif = dev_get_drvdata(dev);
 	int ret;
 
+	ret = clk_prepare_enable(spdif->clk_sys);
+	if (ret) {
+		dev_err(dev, "clk_enable failed: %d\n", ret);
+		return ret;
+	}
+
 	ret = clk_prepare_enable(spdif->clk_ref);
 	if (ret) {
 		dev_err(dev, "clk_enable failed: %d\n", ret);
+		clk_disable_unprepare(spdif->clk_sys);
 		return ret;
 	}
 
@@ -358,21 +366,21 @@ static int img_spdif_out_probe(struct platform_device *pdev)
 		return PTR_ERR(spdif->clk_ref);
 	}
 
-	ret = clk_prepare_enable(spdif->clk_sys);
-	if (ret)
-		return ret;
-
-	img_spdif_out_writel(spdif, IMG_SPDIF_OUT_CTL_FS_MASK,
-				IMG_SPDIF_OUT_CTL);
-
-	img_spdif_out_reset(spdif);
-
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = img_spdif_out_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_pm_disable;
 	}
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0)
+		goto err_suspend;
+
+	img_spdif_out_writel(spdif, IMG_SPDIF_OUT_CTL_FS_MASK,
+			     IMG_SPDIF_OUT_CTL);
+
+	img_spdif_out_reset(spdif);
+	pm_runtime_put(&pdev->dev);
 
 	spin_lock_init(&spdif->lock);
 
@@ -399,20 +407,15 @@ err_suspend:
 		img_spdif_out_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(spdif->clk_sys);
 
 	return ret;
 }
 
 static int img_spdif_out_dev_remove(struct platform_device *pdev)
 {
-	struct img_spdif_out *spdif = platform_get_drvdata(pdev);
-
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		img_spdif_out_runtime_suspend(&pdev->dev);
-
-	clk_disable_unprepare(spdif->clk_sys);
 
 	return 0;
 }
