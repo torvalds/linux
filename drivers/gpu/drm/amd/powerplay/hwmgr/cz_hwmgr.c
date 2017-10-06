@@ -1894,6 +1894,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.get_current_shallow_sleep_clocks = cz_get_current_shallow_sleep_clocks,
 	.get_clock_by_type = cz_get_clock_by_type,
 	.get_max_high_clocks = cz_get_max_high_clocks,
+	.get_temperature = cz_thermal_get_temperature,
 	.read_sensor = cz_read_sensor,
 	.power_off_asic = cz_power_off_asic,
 	.asic_setup = cz_setup_asic_task,
