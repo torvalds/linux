@@ -57,6 +57,7 @@
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
+	 BIT(FLOW_DISSECTOR_KEY_MPLS) | \
 	 BIT(FLOW_DISSECTOR_KEY_IP))
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR \
@@ -236,11 +237,6 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		 * because we rely on it to get to the host.
 		 */
 		case cpu_to_be16(ETH_P_ARP):
-			return -EOPNOTSUPP;
-
-		/* Currently we do not offload MPLS. */
-		case cpu_to_be16(ETH_P_MPLS_UC):
-		case cpu_to_be16(ETH_P_MPLS_MC):
 			return -EOPNOTSUPP;
 
 		/* Will be included in layer 2. */
