@@ -519,22 +519,63 @@ static void fill_page_dma_32(struct i915_address_space *vm,
 static int
 setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 {
-	struct page *page;
+	struct page *page = NULL;
 	dma_addr_t addr;
+	int order;
 
-	page = alloc_page(gfp | __GFP_ZERO);
-	if (unlikely(!page))
-		return -ENOMEM;
+	/*
+	 * In order to utilize 64K pages for an object with a size < 2M, we will
+	 * need to support a 64K scratch page, given that every 16th entry for a
+	 * page-table operating in 64K mode must point to a properly aligned 64K
+	 * region, including any PTEs which happen to point to scratch.
+	 *
+	 * This is only relevant for the 48b PPGTT where we support
+	 * huge-gtt-pages, see also i915_vma_insert().
+	 *
+	 * TODO: we should really consider write-protecting the scratch-page and
+	 * sharing between ppgtt
+	 */
+	if (i915_vm_is_48bit(vm) &&
+	    HAS_PAGE_SIZES(vm->i915, I915_GTT_PAGE_SIZE_64K)) {
+		order = get_order(I915_GTT_PAGE_SIZE_64K);
+		page = alloc_pages(gfp | __GFP_ZERO, order);
+		if (page) {
+			addr = dma_map_page(vm->dma, page, 0,
+					    I915_GTT_PAGE_SIZE_64K,
+					    PCI_DMA_BIDIRECTIONAL);
+			if (unlikely(dma_mapping_error(vm->dma, addr))) {
+				__free_pages(page, order);
+				page = NULL;
+			}
 
-	addr = dma_map_page(vm->dma, page, 0, PAGE_SIZE,
-			    PCI_DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(vm->dma, addr))) {
-		__free_page(page);
-		return -ENOMEM;
+			if (!IS_ALIGNED(addr, I915_GTT_PAGE_SIZE_64K)) {
+				dma_unmap_page(vm->dma, addr,
+					       I915_GTT_PAGE_SIZE_64K,
+					       PCI_DMA_BIDIRECTIONAL);
+				__free_pages(page, order);
+				page = NULL;
+			}
+		}
+	}
+
+	if (!page) {
+		order = 0;
+		page = alloc_page(gfp | __GFP_ZERO);
+		if (unlikely(!page))
+			return -ENOMEM;
+
+		addr = dma_map_page(vm->dma, page, 0, PAGE_SIZE,
+				    PCI_DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(vm->dma, addr))) {
+			__free_page(page);
+			return -ENOMEM;
+		}
 	}
 
 	vm->scratch_page.page = page;
 	vm->scratch_page.daddr = addr;
+	vm->scratch_page.order = order;
+
 	return 0;
 }
 
@@ -542,8 +583,9 @@ static void cleanup_scratch_page(struct i915_address_space *vm)
 {
 	struct i915_page_dma *p = &vm->scratch_page;
 
-	dma_unmap_page(vm->dma, p->daddr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	__free_page(p->page);
+	dma_unmap_page(vm->dma, p->daddr, BIT(p->order) << PAGE_SHIFT,
+		       PCI_DMA_BIDIRECTIONAL);
+	__free_pages(p->page, p->order);
 }
 
 static struct i915_page_table *alloc_pt(struct i915_address_space *vm)
