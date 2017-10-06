@@ -1549,6 +1549,9 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 	if (!apic_lvtt_period(apic) && atomic_read(&ktimer->pending))
 		return false;
 
+	if (!ktimer->tscdeadline)
+		return false;
+
 	r = kvm_x86_ops->set_hv_timer(apic->vcpu, ktimer->tscdeadline);
 	if (r < 0)
 		return false;
