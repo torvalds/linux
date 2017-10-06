@@ -480,7 +480,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 					       TCP_TIMEOUT_INIT;
 		icsk->icsk_rto = inet_csk_rto_backoff(icsk, TCP_RTO_MAX);
 
-		skb = tcp_write_queue_head(sk);
+		skb = tcp_rtx_queue_head(sk);
 		BUG_ON(!skb);
 
 		tcp_mstamp_refresh(tp);

@@ -156,8 +156,13 @@ static bool retransmits_timed_out(struct sock *sk,
 		return false;
 
 	start_ts = tcp_sk(sk)->retrans_stamp;
-	if (unlikely(!start_ts))
-		start_ts = tcp_skb_timestamp(tcp_write_queue_head(sk));
+	if (unlikely(!start_ts)) {
+		struct sk_buff *head = tcp_rtx_queue_head(sk);
+
+		if (!head)
+			return false;
+		start_ts = tcp_skb_timestamp(head);
+	}
 
 	if (likely(timeout == 0)) {
 		linear_backoff_thresh = ilog2(TCP_RTO_MAX/rto_base);
@@ -304,11 +309,12 @@ static void tcp_delack_timer(unsigned long data)
 static void tcp_probe_timer(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct sk_buff *skb = tcp_send_head(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int max_probes;
 	u32 start_ts;
 
-	if (tp->packets_out || !tcp_send_head(sk)) {
+	if (tp->packets_out || !skb) {
 		icsk->icsk_probes_out = 0;
 		return;
 	}
@@ -321,9 +327,9 @@ static void tcp_probe_timer(struct sock *sk)
 	 * corresponding system limit. We also implement similar policy when
 	 * we use RTO to probe window in tcp_retransmit_timer().
 	 */
-	start_ts = tcp_skb_timestamp(tcp_send_head(sk));
+	start_ts = tcp_skb_timestamp(skb);
 	if (!start_ts)
-		tcp_send_head(sk)->skb_mstamp = tp->tcp_mstamp;
+		skb->skb_mstamp = tp->tcp_mstamp;
 	else if (icsk->icsk_user_timeout &&
 		 (s32)(tcp_time_stamp(tp) - start_ts) >
 		 jiffies_to_msecs(icsk->icsk_user_timeout))
@@ -408,7 +414,7 @@ void tcp_retransmit_timer(struct sock *sk)
 	if (!tp->packets_out)
 		goto out;
 
-	WARN_ON(tcp_write_queue_empty(sk));
+	WARN_ON(tcp_rtx_queue_empty(sk));
 
 	tp->tlp_high_seq = 0;
 
@@ -441,7 +447,7 @@ void tcp_retransmit_timer(struct sock *sk)
 			goto out;
 		}
 		tcp_enter_loss(sk);
-		tcp_retransmit_skb(sk, tcp_write_queue_head(sk), 1);
+		tcp_retransmit_skb(sk, tcp_rtx_queue_head(sk), 1);
 		__sk_dst_reset(sk);
 		goto out_reset_timer;
 	}
@@ -473,7 +479,7 @@ void tcp_retransmit_timer(struct sock *sk)
 
 	tcp_enter_loss(sk);
 
-	if (tcp_retransmit_skb(sk, tcp_write_queue_head(sk), 1) > 0) {
+	if (tcp_retransmit_skb(sk, tcp_rtx_queue_head(sk), 1) > 0) {
 		/* Retransmission failed because of local congestion,
 		 * do not backoff.
 		 */
@@ -647,7 +653,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	elapsed = keepalive_time_when(tp);
 
 	/* It is alive without keepalive 8) */
-	if (tp->packets_out || tcp_send_head(sk))
+	if (tp->packets_out || !tcp_write_queue_empty(sk))
 		goto resched;
 
 	elapsed = keepalive_time_elapsed(tp);
