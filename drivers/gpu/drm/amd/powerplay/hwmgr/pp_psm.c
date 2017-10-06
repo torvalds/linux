@@ -224,6 +224,8 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 	if (skip)
 		return 0;
 
+	phm_display_configuration_changed(hwmgr);
+
 	if (new_ps != NULL)
 		requested = new_ps;
 	else
@@ -232,7 +234,6 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 	pcurrent = hwmgr->current_ps;
 
 	phm_apply_state_adjust_rules(hwmgr, requested, pcurrent);
-
 	if (pcurrent == NULL || (0 != phm_check_states_equal(hwmgr,
 			&pcurrent->hardware, &requested->hardware, &equal)))
 		equal = false;
@@ -241,6 +242,9 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 		phm_set_power_state(hwmgr, &pcurrent->hardware, &requested->hardware);
 		memcpy(hwmgr->current_ps, hwmgr->request_ps, hwmgr->ps_size);
 	}
+
+	phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+
 	return 0;
 }
 
