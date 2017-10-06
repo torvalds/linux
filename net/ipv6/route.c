@@ -712,6 +712,7 @@ out:
 }
 
 static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
+				     struct rt6_info *leaf,
 				     struct rt6_info *rr_head,
 				     u32 metric, int oif, int strict,
 				     bool *do_rr)
@@ -730,7 +731,7 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 		match = find_match(rt, oif, strict, &mpri, match, do_rr);
 	}
 
-	for (rt = fn->leaf; rt && rt != rr_head; rt = rt->dst.rt6_next) {
+	for (rt = leaf; rt && rt != rr_head; rt = rt->dst.rt6_next) {
 		if (rt->rt6i_metric != metric) {
 			cont = rt;
 			break;
@@ -748,17 +749,21 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 	return match;
 }
 
-static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
+static struct rt6_info *rt6_select(struct net *net, struct fib6_node *fn,
+				   int oif, int strict)
 {
+	struct rt6_info *leaf = fn->leaf;
 	struct rt6_info *match, *rt0;
-	struct net *net;
 	bool do_rr = false;
+
+	if (!leaf)
+		return net->ipv6.ip6_null_entry;
 
 	rt0 = fn->rr_ptr;
 	if (!rt0)
-		fn->rr_ptr = rt0 = fn->leaf;
+		fn->rr_ptr = rt0 = leaf;
 
-	match = find_rr_leaf(fn, rt0, rt0->rt6i_metric, oif, strict,
+	match = find_rr_leaf(fn, leaf, rt0, rt0->rt6i_metric, oif, strict,
 			     &do_rr);
 
 	if (do_rr) {
@@ -766,13 +771,12 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 
 		/* no entries matched; do round-robin */
 		if (!next || next->rt6i_metric != rt0->rt6i_metric)
-			next = fn->leaf;
+			next = leaf;
 
 		if (next != rt0)
 			fn->rr_ptr = next;
 	}
 
-	net = dev_net(rt0->dst.dev);
 	return match ? match : net->ipv6.ip6_null_entry;
 }
 
@@ -1623,7 +1627,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 		oif = 0;
 
 redo_rt6_select:
-	rt = rt6_select(fn, oif, strict);
+	rt = rt6_select(net, fn, oif, strict);
 	if (rt->rt6i_nsiblings)
 		rt = rt6_multipath_select(rt, fl6, oif, strict);
 	if (rt == net->ipv6.ip6_null_entry) {

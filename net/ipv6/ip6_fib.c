@@ -1279,10 +1279,13 @@ static struct fib6_node *fib6_lookup_1(struct fib6_node *root,
 
 	while (fn) {
 		if (FIB6_SUBTREE(fn) || fn->fn_flags & RTN_RTINFO) {
+			struct rt6_info *leaf = fn->leaf;
 			struct rt6key *key;
 
-			key = (struct rt6key *) ((u8 *) fn->leaf +
-						 args->offset);
+			if (!leaf)
+				goto backtrack;
+
+			key = (struct rt6key *) ((u8 *)leaf + args->offset);
 
 			if (ipv6_prefix_equal(&key->addr, args->addr, key->plen)) {
 #ifdef CONFIG_IPV6_SUBTREES
@@ -1299,9 +1302,7 @@ static struct fib6_node *fib6_lookup_1(struct fib6_node *root,
 					return fn;
 			}
 		}
-#ifdef CONFIG_IPV6_SUBTREES
 backtrack:
-#endif
 		if (fn->fn_flags & RTN_ROOT)
 			break;
 
@@ -1358,7 +1359,18 @@ static struct fib6_node *fib6_locate_1(struct fib6_node *root,
 	struct fib6_node *fn, *prev = NULL;
 
 	for (fn = root; fn ; ) {
-		struct rt6key *key = (struct rt6key *)((u8 *)fn->leaf + offset);
+		struct rt6_info *leaf = fn->leaf;
+		struct rt6key *key;
+
+		/* This node is being deleted */
+		if (!leaf) {
+			if (plen <= fn->fn_bit)
+				goto out;
+			else
+				goto next;
+		}
+
+		key = (struct rt6key *)((u8 *)leaf + offset);
 
 		/*
 		 *	Prefix match
@@ -1372,6 +1384,7 @@ static struct fib6_node *fib6_locate_1(struct fib6_node *root,
 
 		prev = fn;
 
+next:
 		/*
 		 *	We have more bits to go
 		 */
