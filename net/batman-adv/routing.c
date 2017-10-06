@@ -93,14 +93,14 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 	batadv_orig_ifinfo_put(orig_ifinfo);
 
 	/* route deleted */
-	if ((curr_router) && (!neigh_node)) {
+	if (curr_router && !neigh_node) {
 		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
 			   "Deleting route towards: %pM\n", orig_node->orig);
 		batadv_tt_global_del_orig(bat_priv, orig_node, -1,
 					  "Deleted route towards originator");
 
 	/* route added */
-	} else if ((!curr_router) && (neigh_node)) {
+	} else if (!curr_router && neigh_node) {
 		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
 			   "Adding route towards: %pM (via %pM)\n",
 			   orig_node->orig, neigh_node->addr);
@@ -381,7 +381,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	/* add record route information if not full */
 	if ((icmph->msg_type == BATADV_ECHO_REPLY ||
 	     icmph->msg_type == BATADV_ECHO_REQUEST) &&
-	    (skb->len >= sizeof(struct batadv_icmp_packet_rr))) {
+	    skb->len >= sizeof(struct batadv_icmp_packet_rr)) {
 		if (skb_linearize(skb) < 0)
 			goto free_skb;
 
