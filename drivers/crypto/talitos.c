@@ -3008,8 +3008,6 @@ static int talitos_remove(struct platform_device *ofdev)
 	if (priv->irq[1])
 		tasklet_kill(&priv->done_task[1]);
 
-	iounmap(priv->reg);
-
 	return 0;
 }
 
@@ -3160,6 +3158,7 @@ static int talitos_probe(struct platform_device *ofdev)
 	struct talitos_private *priv;
 	int i, err;
 	int stride;
+	struct resource *res;
 
 	priv = devm_kzalloc(dev, sizeof(struct talitos_private), GFP_KERNEL);
 	if (!priv)
@@ -3173,7 +3172,10 @@ static int talitos_probe(struct platform_device *ofdev)
 
 	spin_lock_init(&priv->reg_lock);
 
-	priv->reg = of_iomap(np, 0);
+	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENXIO;
+	priv->reg = devm_ioremap(dev, res->start, resource_size(res));
 	if (!priv->reg) {
 		dev_err(dev, "failed to of_iomap\n");
 		err = -ENOMEM;
