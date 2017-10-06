@@ -1606,20 +1606,7 @@ static inline void tcp_skb_tsorted_anchor_cleanup(struct sk_buff *skb)
 	skb->_skb_refdst = _save;		\
 }
 
-/* write queue abstraction */
-static inline void tcp_write_queue_purge(struct sock *sk)
-{
-	struct sk_buff *skb;
-
-	tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
-	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {
-		tcp_skb_tsorted_anchor_cleanup(skb);
-		sk_wmem_free_skb(sk, skb);
-	}
-	INIT_LIST_HEAD(&tcp_sk(sk)->tsorted_sent_queue);
-	sk_mem_reclaim(sk);
-	tcp_clear_all_retrans_hints(tcp_sk(sk));
-}
+void tcp_write_queue_purge(struct sock *sk);
 
 static inline struct sk_buff *tcp_write_queue_head(const struct sock *sk)
 {
