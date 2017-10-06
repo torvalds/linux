@@ -55,7 +55,9 @@ ENDPROC(printhex4)
 
 ENTRY(printhex2)
 		mov	r1, #2
-printhex:	adr	r2, hexbuf
+printhex:	adr	r2, hexbuf_rel
+		ldr	r3, [r2]
+		add	r2, r2, r3
 		add	r3, r2, r1
 		mov	r1, #0
 		strb	r1, [r3]
@@ -71,7 +73,11 @@ printhex:	adr	r2, hexbuf
 		b	printascii
 ENDPROC(printhex2)
 
-hexbuf:		.space 16
+		.pushsection .bss
+hexbuf_addr:	.space 16
+		.popsection
+		.align
+hexbuf_rel:	.long	hexbuf_addr - .
 
 		.ltorg
 
@@ -120,7 +126,9 @@ ENTRY(printascii)
 ENDPROC(printascii)
 
 ENTRY(printch)
-		adr	r1, hexbuf
+		adr	r1, hexbuf_rel
+		ldr	r2, [r1]
+		add	r1, r1, r2
 		strb	r0, [r1]
 		mov	r0, #0x03		@ SYS_WRITEC
 	ARM(	svc	#0x123456	)
