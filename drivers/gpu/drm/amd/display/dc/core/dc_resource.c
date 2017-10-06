@@ -1335,6 +1335,28 @@ bool dc_is_stream_unchanged(
 	return true;
 }
 
+bool dc_is_stream_scaling_unchanged(
+	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
+{
+	if (old_stream == stream)
+		return true;
+
+	if (old_stream == NULL || stream == NULL)
+		return false;
+
+	if (memcmp(&old_stream->src,
+			&stream->src,
+			sizeof(struct rect)) != 0)
+		return false;
+
+	if (memcmp(&old_stream->dst,
+			&stream->dst,
+			sizeof(struct rect)) != 0)
+		return false;
+
+	return true;
+}
+
 /* Maximum TMDS single link pixel clock 165MHz */
 #define TMDS_MAX_PIXEL_CLOCK_IN_KHZ 165000
 

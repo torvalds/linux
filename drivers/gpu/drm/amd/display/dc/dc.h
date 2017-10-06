@@ -627,6 +627,8 @@ struct dc_stream_update {
 
 bool dc_is_stream_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
+bool dc_is_stream_scaling_unchanged(
+	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
 
 /*
  * Set up surface attributes and associate to a stream

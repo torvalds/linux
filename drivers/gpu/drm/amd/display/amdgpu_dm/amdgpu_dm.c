@@ -4428,12 +4428,13 @@ static int dm_update_crtcs_state(struct dc *dc,
 			}
 		}
 
-		if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream)) {
+		if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
+				dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
 
 			new_crtc_state->mode_changed = false;
 
 			DRM_DEBUG_DRIVER("Mode change not required, setting mode_changed to %d",
-					new_crtc_state->mode_changed);
+				         new_crtc_state->mode_changed);
 		}
 
 
