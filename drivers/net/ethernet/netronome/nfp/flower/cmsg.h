@@ -77,6 +77,7 @@
 #define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
 #define NFP_FL_ACTION_OPCODE_POP_VLAN		2
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
+#define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
@@ -105,6 +106,13 @@
 enum nfp_flower_tun_type {
 	NFP_FL_TUNNEL_NONE =	0,
 	NFP_FL_TUNNEL_VXLAN =	2,
+};
+
+struct nfp_fl_set_eth {
+	__be16 a_op;
+	__be16 reserved;
+	u8 eth_addr_mask[ETH_ALEN * 2];
+	u8 eth_addr_val[ETH_ALEN * 2];
 };
 
 struct nfp_fl_output {

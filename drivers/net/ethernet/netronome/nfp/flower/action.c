@@ -36,6 +36,7 @@
 #include <net/switchdev.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
 
@@ -223,6 +224,87 @@ nfp_fl_set_vxlan(struct nfp_fl_set_vxlan *set_vxlan,
 	return 0;
 }
 
+static void nfp_fl_set_helper32(u32 value, u32 mask, u8 *p_exact, u8 *p_mask)
+{
+	u32 oldvalue = get_unaligned((u32 *)p_exact);
+	u32 oldmask = get_unaligned((u32 *)p_mask);
+
+	value &= mask;
+	value |= oldvalue & ~mask;
+
+	put_unaligned(oldmask | mask, (u32 *)p_mask);
+	put_unaligned(value, (u32 *)p_exact);
+}
+
+static int
+nfp_fl_set_eth(const struct tc_action *action, int idx, u32 off,
+	       struct nfp_fl_set_eth *set_eth)
+{
+	u16 tmp_set_eth_op;
+	u32 exact, mask;
+
+	if (off + 4 > ETH_ALEN * 2)
+		return -EOPNOTSUPP;
+
+	mask = ~tcf_pedit_mask(action, idx);
+	exact = tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	nfp_fl_set_helper32(exact, mask, &set_eth->eth_addr_val[off],
+			    &set_eth->eth_addr_mask[off]);
+
+	set_eth->reserved = cpu_to_be16(0);
+	tmp_set_eth_op = FIELD_PREP(NFP_FL_ACT_LEN_LW,
+				    sizeof(*set_eth) >> NFP_FL_LW_SIZ) |
+			 FIELD_PREP(NFP_FL_ACT_JMP_ID,
+				    NFP_FL_ACTION_OPCODE_SET_ETHERNET);
+	set_eth->a_op = cpu_to_be16(tmp_set_eth_op);
+
+	return 0;
+}
+
+static int
+nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
+{
+	struct nfp_fl_set_eth set_eth;
+	enum pedit_header_type htype;
+	int idx, nkeys, err;
+	size_t act_size;
+	u32 offset, cmd;
+
+	memset(&set_eth, 0, sizeof(set_eth));
+	nkeys = tcf_pedit_nkeys(action);
+
+	for (idx = 0; idx < nkeys; idx++) {
+		cmd = tcf_pedit_cmd(action, idx);
+		htype = tcf_pedit_htype(action, idx);
+		offset = tcf_pedit_offset(action, idx);
+
+		if (cmd != TCA_PEDIT_KEY_EX_CMD_SET)
+			return -EOPNOTSUPP;
+
+		switch (htype) {
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+			err = nfp_fl_set_eth(action, idx, offset, &set_eth);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		if (err)
+			return err;
+	}
+
+	if (set_eth.a_op) {
+		act_size = sizeof(set_eth);
+		memcpy(nfp_action, &set_eth, act_size);
+		*a_len += act_size;
+	}
+
+	return 0;
+}
+
 static int
 nfp_flower_loop_action(const struct tc_action *a,
 		       struct nfp_fl_payload *nfp_fl, int *a_len,
@@ -301,6 +383,9 @@ nfp_flower_loop_action(const struct tc_action *a,
 	} else if (is_tcf_tunnel_release(a)) {
 		/* Tunnel decap is handled by default so accept action. */
 		return 0;
+	} else if (is_tcf_pedit(a)) {
+		if (nfp_fl_pedit(a, &nfp_fl->action_data[*a_len], a_len))
+			return -EOPNOTSUPP;
 	} else {
 		/* Currently we do not handle any other actions. */
 		return -EOPNOTSUPP;
