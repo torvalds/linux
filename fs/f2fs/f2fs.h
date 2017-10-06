@@ -1384,6 +1384,13 @@ static inline unsigned long long cur_cp_version(struct f2fs_checkpoint *cp)
 	return le64_to_cpu(cp->checkpoint_ver);
 }
 
+static inline unsigned long f2fs_qf_ino(struct super_block *sb, int type)
+{
+	if (type < F2FS_MAX_QUOTAS)
+		return le32_to_cpu(F2FS_SB(sb)->raw_super->qf_ino[type]);
+	return 0;
+}
+
 static inline __u64 cur_cp_crc(struct f2fs_checkpoint *cp)
 {
 	size_t crc_offset = le32_to_cpu(cp->checksum_offset);
@@ -2526,7 +2533,7 @@ static inline int f2fs_add_link(struct dentry *dentry, struct inode *inode)
  */
 int f2fs_inode_dirtied(struct inode *inode, bool sync);
 void f2fs_inode_synced(struct inode *inode);
-void f2fs_enable_quota_files(struct f2fs_sb_info *sbi);
+int f2fs_enable_quota_files(struct f2fs_sb_info *sbi, bool rdonly);
 void f2fs_quota_off_umount(struct super_block *sb);
 int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover);
 int f2fs_sync_fs(struct super_block *sb, int sync);
