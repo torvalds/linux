@@ -17,19 +17,15 @@ struct bpf_map_def SEC("maps") redirect_err_cnt = {
  * Code in:                kernel/include/trace/events/xdp.h
  */
 struct xdp_redirect_ctx {
-	unsigned short common_type;	//	offset:0;  size:2; signed:0;
-	unsigned char common_flags;	//	offset:2;  size:1; signed:0;
-	unsigned char common_preempt_count;//	offset:3;  size:1; signed:0;
-	int common_pid;			//	offset:4;  size:4; signed:1;
-
-	int prog_id;			//	offset:8;  size:4; signed:1;
-	u32 act;			//	offset:12  size:4; signed:0;
-	int ifindex;			//	offset:16  size:4; signed:1;
-	int err;			//	offset:20  size:4; signed:1;
-	int to_ifindex;			//	offset:24  size:4; signed:1;
-	u32 map_id;			//	offset:28  size:4; signed:0;
-	int map_index;			//	offset:32  size:4; signed:1;
-};					//	offset:36
+	u64 __pad;		// First 8 bytes are not accessible by bpf code
+	int prog_id;		//	offset:8;  size:4; signed:1;
+	u32 act;		//	offset:12  size:4; signed:0;
+	int ifindex;		//	offset:16  size:4; signed:1;
+	int err;		//	offset:20  size:4; signed:1;
+	int to_ifindex;		//	offset:24  size:4; signed:1;
+	u32 map_id;		//	offset:28  size:4; signed:0;
+	int map_index;		//	offset:32  size:4; signed:1;
+};				//	offset:36
 
 enum {
 	XDP_REDIRECT_SUCCESS = 0,
