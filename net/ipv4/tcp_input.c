@@ -2207,12 +2207,12 @@ static void tcp_mark_head_lost(struct sock *sk, int packets, int mark_head)
 	const u32 loss_high = tcp_is_sack(tp) ?  tp->snd_nxt : tp->high_seq;
 
 	WARN_ON(packets > tp->packets_out);
-	if (tp->lost_skb_hint) {
-		skb = tp->lost_skb_hint;
-		cnt = tp->lost_cnt_hint;
+	skb = tp->lost_skb_hint;
+	if (skb) {
 		/* Head already handled? */
-		if (mark_head && skb != tcp_write_queue_head(sk))
+		if (mark_head && after(TCP_SKB_CB(skb)->seq, tp->snd_una))
 			return;
+		cnt = tp->lost_cnt_hint;
 	} else {
 		skb = tcp_write_queue_head(sk);
 		cnt = 0;
