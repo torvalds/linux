@@ -68,18 +68,18 @@ struct fib6_config {
 };
 
 struct fib6_node {
-	struct fib6_node	*parent;
-	struct fib6_node	*left;
-	struct fib6_node	*right;
+	struct fib6_node __rcu	*parent;
+	struct fib6_node __rcu	*left;
+	struct fib6_node __rcu	*right;
 #ifdef CONFIG_IPV6_SUBTREES
-	struct fib6_node	*subtree;
+	struct fib6_node __rcu	*subtree;
 #endif
-	struct rt6_info		*leaf;
+	struct rt6_info __rcu	*leaf;
 
 	__u16			fn_bit;		/* bit key */
 	__u16			fn_flags;
 	int			fn_sernum;
-	struct rt6_info		*rr_ptr;
+	struct rt6_info __rcu	*rr_ptr;
 	struct rcu_head		rcu;
 };
 
@@ -91,7 +91,7 @@ struct fib6_gc_args {
 #ifndef CONFIG_IPV6_SUBTREES
 #define FIB6_SUBTREE(fn)	NULL
 #else
-#define FIB6_SUBTREE(fn)	((fn)->subtree)
+#define FIB6_SUBTREE(fn)	(rcu_dereference_protected((fn)->subtree, 1))
 #endif
 
 struct mx6_config {
@@ -173,6 +173,14 @@ struct rt6_info {
 	u8				exception_bucket_flushed:1,
 					unused:7;
 };
+
+#define for_each_fib6_node_rt_rcu(fn)					\
+	for (rt = rcu_dereference((fn)->leaf); rt;			\
+	     rt = rcu_dereference(rt->dst.rt6_next))
+
+#define for_each_fib6_walker_rt(w)					\
+	for (rt = (w)->leaf; rt;					\
+	     rt = rcu_dereference_protected(rt->dst.rt6_next, 1))
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
@@ -310,7 +318,7 @@ struct rt6_statistics {
 struct fib6_table {
 	struct hlist_node	tb6_hlist;
 	u32			tb6_id;
-	rwlock_t		tb6_lock;
+	spinlock_t		tb6_lock;
 	struct fib6_node	tb6_root;
 	struct inet_peer_base	tb6_peers;
 	unsigned int		flags;
