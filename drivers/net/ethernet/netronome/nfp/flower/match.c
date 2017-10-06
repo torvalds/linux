@@ -111,8 +111,21 @@ nfp_flower_compile_mac(struct nfp_flower_mac_mpls *frame,
 		ether_addr_copy(frame->mac_src, &addr->src[0]);
 	}
 
-	if (mask_version)
-		frame->mpls_lse = cpu_to_be32(~0);
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_MPLS)) {
+		struct flow_dissector_key_mpls *mpls;
+		u32 t_mpls;
+
+		mpls = skb_flow_dissector_target(flow->dissector,
+						 FLOW_DISSECTOR_KEY_MPLS,
+						 target);
+
+		t_mpls = FIELD_PREP(NFP_FLOWER_MASK_MPLS_LB, mpls->mpls_label) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_TC, mpls->mpls_tc) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_BOS, mpls->mpls_bos) |
+			 NFP_FLOWER_MASK_MPLS_Q;
+
+		frame->mpls_lse = cpu_to_be32(t_mpls);
+	}
 }
 
 static void
@@ -143,7 +156,6 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *frame,
 	struct flow_dissector_key_ipv4_addrs *addr;
 	struct flow_dissector_key_basic *basic;
 
-	/* Wildcard TOS/TTL for now. */
 	memset(frame, 0, sizeof(struct nfp_flower_ipv4));
 
 	if (dissector_uses_key(flow->dissector,
@@ -161,6 +173,16 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *frame,
 						  target);
 		frame->proto = basic->ip_proto;
 	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *flow_ip;
+
+		flow_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    target);
+		frame->tos = flow_ip->tos;
+		frame->ttl = flow_ip->ttl;
+	}
 }
 
 static void
@@ -172,7 +194,6 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 	struct flow_dissector_key_ipv6_addrs *addr;
 	struct flow_dissector_key_basic *basic;
 
-	/* Wildcard LABEL/TOS/TTL for now. */
 	memset(frame, 0, sizeof(struct nfp_flower_ipv6));
 
 	if (dissector_uses_key(flow->dissector,
@@ -189,6 +210,16 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 						  FLOW_DISSECTOR_KEY_BASIC,
 						  target);
 		frame->proto = basic->ip_proto;
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *flow_ip;
+
+		flow_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    target);
+		frame->tos = flow_ip->tos;
+		frame->ttl = flow_ip->ttl;
 	}
 }
 

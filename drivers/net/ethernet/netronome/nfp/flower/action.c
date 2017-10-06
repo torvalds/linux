@@ -36,6 +36,7 @@
 #include <net/switchdev.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
 
@@ -223,6 +224,247 @@ nfp_fl_set_vxlan(struct nfp_fl_set_vxlan *set_vxlan,
 	return 0;
 }
 
+static void nfp_fl_set_helper32(u32 value, u32 mask, u8 *p_exact, u8 *p_mask)
+{
+	u32 oldvalue = get_unaligned((u32 *)p_exact);
+	u32 oldmask = get_unaligned((u32 *)p_mask);
+
+	value &= mask;
+	value |= oldvalue & ~mask;
+
+	put_unaligned(oldmask | mask, (u32 *)p_mask);
+	put_unaligned(value, (u32 *)p_exact);
+}
+
+static int
+nfp_fl_set_eth(const struct tc_action *action, int idx, u32 off,
+	       struct nfp_fl_set_eth *set_eth)
+{
+	u16 tmp_set_eth_op;
+	u32 exact, mask;
+
+	if (off + 4 > ETH_ALEN * 2)
+		return -EOPNOTSUPP;
+
+	mask = ~tcf_pedit_mask(action, idx);
+	exact = tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	nfp_fl_set_helper32(exact, mask, &set_eth->eth_addr_val[off],
+			    &set_eth->eth_addr_mask[off]);
+
+	set_eth->reserved = cpu_to_be16(0);
+	tmp_set_eth_op = FIELD_PREP(NFP_FL_ACT_LEN_LW,
+				    sizeof(*set_eth) >> NFP_FL_LW_SIZ) |
+			 FIELD_PREP(NFP_FL_ACT_JMP_ID,
+				    NFP_FL_ACTION_OPCODE_SET_ETHERNET);
+	set_eth->a_op = cpu_to_be16(tmp_set_eth_op);
+
+	return 0;
+}
+
+static int
+nfp_fl_set_ip4(const struct tc_action *action, int idx, u32 off,
+	       struct nfp_fl_set_ip4_addrs *set_ip_addr)
+{
+	u16 tmp_set_ipv4_op;
+	__be32 exact, mask;
+
+	/* We are expecting tcf_pedit to return a big endian value */
+	mask = (__force __be32)~tcf_pedit_mask(action, idx);
+	exact = (__force __be32)tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	switch (off) {
+	case offsetof(struct iphdr, daddr):
+		set_ip_addr->ipv4_dst_mask = mask;
+		set_ip_addr->ipv4_dst = exact;
+		break;
+	case offsetof(struct iphdr, saddr):
+		set_ip_addr->ipv4_src_mask = mask;
+		set_ip_addr->ipv4_src = exact;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	set_ip_addr->reserved = cpu_to_be16(0);
+	tmp_set_ipv4_op = FIELD_PREP(NFP_FL_ACT_LEN_LW,
+				     sizeof(*set_ip_addr) >> NFP_FL_LW_SIZ) |
+			  FIELD_PREP(NFP_FL_ACT_JMP_ID,
+				     NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS);
+	set_ip_addr->a_op = cpu_to_be16(tmp_set_ipv4_op);
+
+	return 0;
+}
+
+static void
+nfp_fl_set_ip6_helper(int opcode_tag, int idx, __be32 exact, __be32 mask,
+		      struct nfp_fl_set_ipv6_addr *ip6)
+{
+	u16 tmp_set_op;
+
+	ip6->ipv6[idx % 4].mask = mask;
+	ip6->ipv6[idx % 4].exact = exact;
+
+	ip6->reserved = cpu_to_be16(0);
+	tmp_set_op = FIELD_PREP(NFP_FL_ACT_LEN_LW, sizeof(*ip6) >>
+				NFP_FL_LW_SIZ) |
+		     FIELD_PREP(NFP_FL_ACT_JMP_ID, opcode_tag);
+	ip6->a_op = cpu_to_be16(tmp_set_op);
+}
+
+static int
+nfp_fl_set_ip6(const struct tc_action *action, int idx, u32 off,
+	       struct nfp_fl_set_ipv6_addr *ip_dst,
+	       struct nfp_fl_set_ipv6_addr *ip_src)
+{
+	__be32 exact, mask;
+
+	/* We are expecting tcf_pedit to return a big endian value */
+	mask = (__force __be32)~tcf_pedit_mask(action, idx);
+	exact = (__force __be32)tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	if (off < offsetof(struct ipv6hdr, saddr))
+		return -EOPNOTSUPP;
+	else if (off < offsetof(struct ipv6hdr, daddr))
+		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_SRC, idx,
+				      exact, mask, ip_src);
+	else if (off < offsetof(struct ipv6hdr, daddr) +
+		       sizeof(struct in6_addr))
+		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_DST, idx,
+				      exact, mask, ip_dst);
+	else
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int
+nfp_fl_set_tport(const struct tc_action *action, int idx, u32 off,
+		 struct nfp_fl_set_tport *set_tport, int opcode)
+{
+	u32 exact, mask;
+	u16 tmp_set_op;
+
+	if (off)
+		return -EOPNOTSUPP;
+
+	mask = ~tcf_pedit_mask(action, idx);
+	exact = tcf_pedit_val(action, idx);
+
+	if (exact & ~mask)
+		return -EOPNOTSUPP;
+
+	nfp_fl_set_helper32(exact, mask, set_tport->tp_port_val,
+			    set_tport->tp_port_mask);
+
+	set_tport->reserved = cpu_to_be16(0);
+	tmp_set_op = FIELD_PREP(NFP_FL_ACT_LEN_LW,
+				sizeof(*set_tport) >> NFP_FL_LW_SIZ);
+	tmp_set_op |= FIELD_PREP(NFP_FL_ACT_JMP_ID, opcode);
+	set_tport->a_op = cpu_to_be16(tmp_set_op);
+
+	return 0;
+}
+
+static int
+nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
+{
+	struct nfp_fl_set_ipv6_addr set_ip6_dst, set_ip6_src;
+	struct nfp_fl_set_ip4_addrs set_ip_addr;
+	struct nfp_fl_set_tport set_tport;
+	struct nfp_fl_set_eth set_eth;
+	enum pedit_header_type htype;
+	int idx, nkeys, err;
+	size_t act_size;
+	u32 offset, cmd;
+
+	memset(&set_ip6_dst, 0, sizeof(set_ip6_dst));
+	memset(&set_ip6_src, 0, sizeof(set_ip6_src));
+	memset(&set_ip_addr, 0, sizeof(set_ip_addr));
+	memset(&set_tport, 0, sizeof(set_tport));
+	memset(&set_eth, 0, sizeof(set_eth));
+	nkeys = tcf_pedit_nkeys(action);
+
+	for (idx = 0; idx < nkeys; idx++) {
+		cmd = tcf_pedit_cmd(action, idx);
+		htype = tcf_pedit_htype(action, idx);
+		offset = tcf_pedit_offset(action, idx);
+
+		if (cmd != TCA_PEDIT_KEY_EX_CMD_SET)
+			return -EOPNOTSUPP;
+
+		switch (htype) {
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+			err = nfp_fl_set_eth(action, idx, offset, &set_eth);
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+			err = nfp_fl_set_ip4(action, idx, offset, &set_ip_addr);
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+			err = nfp_fl_set_ip6(action, idx, offset, &set_ip6_dst,
+					     &set_ip6_src);
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+			err = nfp_fl_set_tport(action, idx, offset, &set_tport,
+					       NFP_FL_ACTION_OPCODE_SET_TCP);
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+			err = nfp_fl_set_tport(action, idx, offset, &set_tport,
+					       NFP_FL_ACTION_OPCODE_SET_UDP);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		if (err)
+			return err;
+	}
+
+	if (set_eth.a_op) {
+		act_size = sizeof(set_eth);
+		memcpy(nfp_action, &set_eth, act_size);
+		*a_len += act_size;
+	} else if (set_ip_addr.a_op) {
+		act_size = sizeof(set_ip_addr);
+		memcpy(nfp_action, &set_ip_addr, act_size);
+		*a_len += act_size;
+	} else if (set_ip6_dst.a_op && set_ip6_src.a_op) {
+		/* TC compiles set src and dst IPv6 address as a single action,
+		 * the hardware requires this to be 2 separate actions.
+		 */
+		act_size = sizeof(set_ip6_src);
+		memcpy(nfp_action, &set_ip6_src, act_size);
+		*a_len += act_size;
+
+		act_size = sizeof(set_ip6_dst);
+		memcpy(&nfp_action[sizeof(set_ip6_src)], &set_ip6_dst,
+		       act_size);
+		*a_len += act_size;
+	} else if (set_ip6_dst.a_op) {
+		act_size = sizeof(set_ip6_dst);
+		memcpy(nfp_action, &set_ip6_dst, act_size);
+		*a_len += act_size;
+	} else if (set_ip6_src.a_op) {
+		act_size = sizeof(set_ip6_src);
+		memcpy(nfp_action, &set_ip6_src, act_size);
+		*a_len += act_size;
+	} else if (set_tport.a_op) {
+		act_size = sizeof(set_tport);
+		memcpy(nfp_action, &set_tport, act_size);
+		*a_len += act_size;
+	}
+
+	return 0;
+}
+
 static int
 nfp_flower_loop_action(const struct tc_action *a,
 		       struct nfp_fl_payload *nfp_fl, int *a_len,
@@ -301,6 +543,9 @@ nfp_flower_loop_action(const struct tc_action *a,
 	} else if (is_tcf_tunnel_release(a)) {
 		/* Tunnel decap is handled by default so accept action. */
 		return 0;
+	} else if (is_tcf_pedit(a)) {
+		if (nfp_fl_pedit(a, &nfp_fl->action_data[*a_len], a_len))
+			return -EOPNOTSUPP;
 	} else {
 		/* Currently we do not handle any other actions. */
 		return -EOPNOTSUPP;

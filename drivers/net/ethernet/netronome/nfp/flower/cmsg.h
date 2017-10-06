@@ -57,6 +57,11 @@
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
 #define NFP_FLOWER_MASK_VLAN_VID	GENMASK(11, 0)
 
+#define NFP_FLOWER_MASK_MPLS_LB		GENMASK(31, 12)
+#define NFP_FLOWER_MASK_MPLS_TC		GENMASK(11, 9)
+#define NFP_FLOWER_MASK_MPLS_BOS	BIT(8)
+#define NFP_FLOWER_MASK_MPLS_Q		BIT(0)
+
 #define NFP_FL_SC_ACT_DROP		0x80000000
 #define NFP_FL_SC_ACT_USER		0x7D000000
 #define NFP_FL_SC_ACT_POPV		0x6A000000
@@ -72,6 +77,12 @@
 #define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
 #define NFP_FL_ACTION_OPCODE_POP_VLAN		2
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
+#define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
+#define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
+#define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
+#define NFP_FL_ACTION_OPCODE_SET_UDP		14
+#define NFP_FL_ACTION_OPCODE_SET_TCP		15
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
@@ -100,6 +111,38 @@
 enum nfp_flower_tun_type {
 	NFP_FL_TUNNEL_NONE =	0,
 	NFP_FL_TUNNEL_VXLAN =	2,
+};
+
+struct nfp_fl_set_eth {
+	__be16 a_op;
+	__be16 reserved;
+	u8 eth_addr_mask[ETH_ALEN * 2];
+	u8 eth_addr_val[ETH_ALEN * 2];
+};
+
+struct nfp_fl_set_ip4_addrs {
+	__be16 a_op;
+	__be16 reserved;
+	__be32 ipv4_src_mask;
+	__be32 ipv4_src;
+	__be32 ipv4_dst_mask;
+	__be32 ipv4_dst;
+};
+
+struct nfp_fl_set_ipv6_addr {
+	__be16 a_op;
+	__be16 reserved;
+	struct {
+		__be32 mask;
+		__be32 exact;
+	} ipv6[4];
+};
+
+struct nfp_fl_set_tport {
+	__be16 a_op;
+	__be16 reserved;
+	u8 tp_port_mask[4];
+	u8 tp_port_val[4];
 };
 
 struct nfp_fl_output {
