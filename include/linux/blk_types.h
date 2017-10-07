@@ -329,11 +329,10 @@ static inline bool blk_qc_t_is_internal(blk_qc_t cookie)
 }
 
 struct blk_rq_stat {
-	s64 mean;
+	u64 mean;
 	u64 min;
 	u64 max;
-	s32 nr_samples;
-	s32 nr_batch;
+	u32 nr_samples;
 	u64 batch;
 };
 
