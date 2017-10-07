@@ -165,6 +165,15 @@
 				status = "disabled";
 			};
 
+			sdio: mmc@8c20 {
+				compatible = "amlogic,meson-mx-sdio";
+				reg = <0x8c20 0x20>;
+				interrupts = <GIC_SPI 28 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			spifc: spi@8c80 {
 				compatible = "amlogic,meson6-spifc";
 				reg = <0x8c80 0x80>;

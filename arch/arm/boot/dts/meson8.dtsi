@@ -299,6 +299,12 @@
 	clock-names = "clkin", "core", "sana";
 };
 
+&sdio {
+	compatible = "amlogic,meson8-sdio", "amlogic,meson-mx-sdio";
+	clocks = <&clkc CLKID_SDIO>, <&clkc CLKID_CLK81>;
+	clock-names = "core", "clkin";
+};
+
 &spifc {
 	clocks = <&clkc CLKID_CLK81>;
 };
