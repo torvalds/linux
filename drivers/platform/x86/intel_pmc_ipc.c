@@ -33,6 +33,7 @@
 #include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/spinlock.h>
 
 #include <asm/intel_pmc_ipc.h>
 
@@ -131,6 +132,7 @@ static struct intel_pmc_ipc_dev {
 	/* gcr */
 	void __iomem *gcr_mem_base;
 	bool has_gcr_regs;
+	spinlock_t gcr_lock;
 
 	/* punit */
 	struct platform_device *punit_dev;
@@ -225,17 +227,17 @@ int intel_pmc_gcr_read(u32 offset, u32 *data)
 {
 	int ret;
 
-	mutex_lock(&ipclock);
+	spin_lock(&ipcdev.gcr_lock);
 
 	ret = is_gcr_valid(offset);
 	if (ret < 0) {
-		mutex_unlock(&ipclock);
+		spin_unlock(&ipcdev.gcr_lock);
 		return ret;
 	}
 
 	*data = readl(ipcdev.gcr_mem_base + offset);
 
-	mutex_unlock(&ipclock);
+	spin_unlock(&ipcdev.gcr_lock);
 
 	return 0;
 }
@@ -255,17 +257,17 @@ int intel_pmc_gcr_write(u32 offset, u32 data)
 {
 	int ret;
 
-	mutex_lock(&ipclock);
+	spin_lock(&ipcdev.gcr_lock);
 
 	ret = is_gcr_valid(offset);
 	if (ret < 0) {
-		mutex_unlock(&ipclock);
+		spin_unlock(&ipcdev.gcr_lock);
 		return ret;
 	}
 
 	writel(data, ipcdev.gcr_mem_base + offset);
 
-	mutex_unlock(&ipclock);
+	spin_unlock(&ipcdev.gcr_lock);
 
 	return 0;
 }
@@ -287,7 +289,7 @@ int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val)
 	u32 new_val;
 	int ret = 0;
 
-	mutex_lock(&ipclock);
+	spin_lock(&ipcdev.gcr_lock);
 
 	ret = is_gcr_valid(offset);
 	if (ret < 0)
@@ -309,7 +311,7 @@ int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val)
 	}
 
 gcr_ipc_unlock:
-	mutex_unlock(&ipclock);
+	spin_unlock(&ipcdev.gcr_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(intel_pmc_gcr_update);
@@ -488,6 +490,8 @@ static int ipc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -EBUSY;
 
 	pmc->irq_mode = IPC_TRIGGER_MODE_IRQ;
+
+	spin_lock_init(&ipcdev.gcr_lock);
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -903,6 +907,7 @@ static int ipc_plat_probe(struct platform_device *pdev)
 	ipcdev.dev = &pdev->dev;
 	ipcdev.irq_mode = IPC_TRIGGER_MODE_IRQ;
 	init_completion(&ipcdev.cmd_complete);
+	spin_lock_init(&ipcdev.gcr_lock);
 
 	ipcdev.irq = platform_get_irq(pdev, 0);
 	if (ipcdev.irq < 0) {
