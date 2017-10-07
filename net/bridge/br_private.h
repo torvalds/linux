@@ -1140,5 +1140,8 @@ static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
 }
 #endif /* CONFIG_NET_SWITCHDEV */
 
+/* br_arp_nd_proxy.c */
 void br_recalculate_neigh_suppress_enabled(struct net_bridge *br);
+void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
+			      u16 vid, struct net_bridge_port *p);
 #endif

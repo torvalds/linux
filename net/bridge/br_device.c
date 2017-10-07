@@ -39,6 +39,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	const struct nf_br_ops *nf_ops;
 	const unsigned char *dest;
+	struct ethhdr *eth;
 	u16 vid = 0;
 
 	rcu_read_lock();
@@ -57,10 +58,18 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	BR_INPUT_SKB_CB(skb)->brdev = dev;
 
 	skb_reset_mac_header(skb);
+	eth = eth_hdr(skb);
 	skb_pull(skb, ETH_HLEN);
 
 	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;
+
+	if (IS_ENABLED(CONFIG_INET) &&
+	    (eth->h_proto == htons(ETH_P_ARP) ||
+	     eth->h_proto == htons(ETH_P_RARP)) &&
+	    br->neigh_suppress_enabled) {
+		br_do_proxy_suppress_arp(skb, br, vid, NULL);
+	}
 
 	dest = eth_hdr(skb)->h_dest;
 	if (is_broadcast_ether_addr(dest)) {
