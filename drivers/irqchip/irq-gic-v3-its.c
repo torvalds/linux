@@ -107,6 +107,10 @@ struct its_node {
 
 #define ITS_ITT_ALIGN		SZ_256
 
+/* The maximum number of VPEID bits supported by VLPI commands */
+#define ITS_MAX_VPEID_BITS	(16)
+#define ITS_MAX_VPEID		(1 << (ITS_MAX_VPEID_BITS))
+
 /* Convert page order to size in bytes */
 #define PAGE_ORDER_TO_SIZE(o)	(PAGE_SIZE << (o))
 
@@ -1582,13 +1586,12 @@ retry_baser:
 
 static bool its_parse_indirect_baser(struct its_node *its,
 				     struct its_baser *baser,
-				     u32 psz, u32 *order)
+				     u32 psz, u32 *order, u32 ids)
 {
 	u64 tmp = its_read_baser(its, baser);
 	u64 type = GITS_BASER_TYPE(tmp);
 	u64 esz = GITS_BASER_ENTRY_SIZE(tmp);
 	u64 val = GITS_BASER_InnerShareable | GITS_BASER_RaWaWb;
-	u32 ids = its->device_ids;
 	u32 new_order = *order;
 	bool indirect = false;
 
@@ -1680,9 +1683,13 @@ static int its_alloc_tables(struct its_node *its)
 			continue;
 
 		case GITS_BASER_TYPE_DEVICE:
+			indirect = its_parse_indirect_baser(its, baser,
+							    psz, &order,
+							    its->device_ids);
 		case GITS_BASER_TYPE_VCPU:
 			indirect = its_parse_indirect_baser(its, baser,
-							    psz, &order);
+							    psz, &order,
+							    ITS_MAX_VPEID_BITS);
 			break;
 		}
 
@@ -2551,7 +2558,7 @@ static struct irq_chip its_vpe_irq_chip = {
 
 static int its_vpe_id_alloc(void)
 {
-	return ida_simple_get(&its_vpeid_ida, 0, 1 << 16, GFP_KERNEL);
+	return ida_simple_get(&its_vpeid_ida, 0, ITS_MAX_VPEID, GFP_KERNEL);
 }
 
 static void its_vpe_id_free(u16 id)
