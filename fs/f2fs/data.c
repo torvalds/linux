@@ -418,8 +418,8 @@ next:
 
 	bio_page = fio->encrypted_page ? fio->encrypted_page : fio->page;
 
-	/* set submitted = 1 as a return value */
-	fio->submitted = 1;
+	/* set submitted = true as a return value */
+	fio->submitted = true;
 
 	inc_page_count(sbi, WB_DATA_TYPE(bio_page));
 
