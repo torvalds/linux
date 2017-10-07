@@ -404,6 +404,7 @@ struct net_bridge {
 #ifdef CONFIG_NET_SWITCHDEV
 	int offload_fwd_mark;
 #endif
+	bool				neigh_suppress_enabled;
 };
 
 struct br_input_skb_cb {
@@ -1139,4 +1140,5 @@ static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
 }
 #endif /* CONFIG_NET_SWITCHDEV */
 
+void br_recalculate_neigh_suppress_enabled(struct net_bridge *br);
 #endif

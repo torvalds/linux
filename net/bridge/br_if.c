@@ -310,6 +310,8 @@ void br_dev_delete(struct net_device *dev, struct list_head *head)
 		del_nbp(p);
 	}
 
+	br_recalculate_neigh_suppress_enabled(br);
+
 	br_fdb_delete_by_port(br, NULL, 0, 1);
 
 	cancel_delayed_work_sync(&br->gc_work);
@@ -660,4 +662,7 @@ void br_port_flags_change(struct net_bridge_port *p, unsigned long mask)
 
 	if (mask & BR_AUTO_MASK)
 		nbp_update_port_count(br);
+
+	if (mask & BR_NEIGH_SUPPRESS)
+		br_recalculate_neigh_suppress_enabled(br);
 }
