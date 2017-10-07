@@ -41,7 +41,8 @@
 #define PHY_PORT_CS1_LINK_STATE_MASK	GENMASK(29, 26)
 #define PHY_PORT_CS1_LINK_STATE_SHIFT	26
 
-#define ICM_TIMEOUT			5000 /* ms */
+#define ICM_TIMEOUT			5000	/* ms */
+#define ICM_APPROVE_TIMEOUT		10000	/* ms */
 #define ICM_MAX_LINK			4
 #define ICM_MAX_DEPTH			6
 
@@ -260,7 +261,7 @@ static int icm_fr_approve_switch(struct tb *tb, struct tb_switch *sw)
 	memset(&reply, 0, sizeof(reply));
 	/* Use larger timeout as establishing tunnels can take some time */
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, 10000);
+			  1, ICM_APPROVE_TIMEOUT);
 	if (ret)
 		return ret;
 
