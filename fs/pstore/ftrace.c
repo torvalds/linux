@@ -148,7 +148,7 @@ void pstore_unregister_ftrace(void)
 	mutex_lock(&pstore_ftrace_lock);
 	if (pstore_ftrace_enabled) {
 		unregister_ftrace_function(&pstore_ftrace_ops);
-		pstore_ftrace_enabled = 0;
+		pstore_ftrace_enabled = false;
 	}
 	mutex_unlock(&pstore_ftrace_lock);
 
