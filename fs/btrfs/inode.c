@@ -4451,9 +4451,9 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	int err = 0;
 	u64 ino = btrfs_ino(BTRFS_I(inode));
 	u64 bytes_deleted = 0;
-	bool be_nice = 0;
-	bool should_throttle = 0;
-	bool should_end = 0;
+	bool be_nice = false;
+	bool should_throttle = false;
+	bool should_end = false;
 
 	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
 
@@ -4463,7 +4463,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	 */
 	if (!btrfs_is_free_space_inode(BTRFS_I(inode)) &&
 	    test_bit(BTRFS_ROOT_REF_COWS, &root->state))
-		be_nice = 1;
+		be_nice = true;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -4669,7 +4669,7 @@ delete:
 		} else {
 			break;
 		}
-		should_throttle = 0;
+		should_throttle = false;
 
 		if (found_extent &&
 		    (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
@@ -4688,11 +4688,11 @@ delete:
 			if (be_nice) {
 				if (truncate_space_check(trans, root,
 							 extent_num_bytes)) {
-					should_end = 1;
+					should_end = true;
 				}
 				if (btrfs_should_throttle_delayed_refs(trans,
 								       fs_info))
-					should_throttle = 1;
+					should_throttle = true;
 			}
 		}
 

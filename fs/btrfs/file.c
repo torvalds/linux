@@ -2046,7 +2046,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_log_ctx ctx;
 	int ret = 0, err;
-	bool full_sync = 0;
+	bool full_sync = false;
 	u64 len;
 
 	/*

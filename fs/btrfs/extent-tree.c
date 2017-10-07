@@ -6960,7 +6960,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	BUG_ON(!is_data && refs_to_drop != 1);
 
 	if (is_data)
-		skinny_metadata = 0;
+		skinny_metadata = false;
 
 	ret = lookup_extent_backref(trans, info, path, &iref,
 				    bytenr, num_bytes, parent,
@@ -9313,7 +9313,7 @@ out:
 	 * don't have it in the radix (like when we recover after a power fail
 	 * or unmount) so we don't leak memory.
 	 */
-	if (!for_reloc && root_dropped == false)
+	if (!for_reloc && !root_dropped)
 		btrfs_add_dead_root(root);
 	if (err && err != -EAGAIN)
 		btrfs_handle_fs_error(fs_info, err, NULL);
