@@ -32,7 +32,7 @@ bool ima_canonical_fmt;
 static int __init default_canonical_fmt_setup(char *str)
 {
 #ifdef __BIG_ENDIAN
-	ima_canonical_fmt = 1;
+	ima_canonical_fmt = true;
 #endif
 	return 1;
 }
