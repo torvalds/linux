@@ -832,7 +832,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 
 	dmi_id = dmi_first_match(bcm_active_low_irq_dmi_table);
 	if (dmi_id) {
-		bt_dev_warn(dev, "%s: Overwriting IRQ polarity to active low",
+		dev_warn(dev->dev, "%s: Overwriting IRQ polarity to active low",
 			    dmi_id->ident);
 		dev->irq_active_low = true;
 	}
