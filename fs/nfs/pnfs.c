@@ -1513,7 +1513,7 @@ pnfs_lseg_range_match(const struct pnfs_layout_range *ls_range,
 	if ((range->iomode == IOMODE_RW &&
 	     ls_range->iomode != IOMODE_RW) ||
 	    (range->iomode != ls_range->iomode &&
-	     strict_iomode == true) ||
+	     strict_iomode) ||
 	    !pnfs_lseg_range_intersecting(ls_range, range))
 		return 0;
 

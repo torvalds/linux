@@ -246,7 +246,7 @@ int nfs_readdir_search_for_pos(struct nfs_cache_array *array, nfs_readdir_descri
 	desc->cache_entry_index = index;
 	return 0;
 out_eof:
-	desc->eof = 1;
+	desc->eof = true;
 	return -EBADCOOKIE;
 }
 
@@ -300,7 +300,7 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 	if (array->eof_index >= 0) {
 		status = -EBADCOOKIE;
 		if (*desc->dir_cookie == array->last_cookie)
-			desc->eof = 1;
+			desc->eof = true;
 	}
 out:
 	return status;
@@ -754,7 +754,7 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc)
 		ent = &array->array[i];
 		if (!dir_emit(desc->ctx, ent->string.name, ent->string.len,
 		    nfs_compat_user_ino64(ent->ino), ent->d_type)) {
-			desc->eof = 1;
+			desc->eof = true;
 			break;
 		}
 		desc->ctx->pos++;
@@ -766,7 +766,7 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc)
 			ctx->duped = 1;
 	}
 	if (array->eof_index >= 0)
-		desc->eof = 1;
+		desc->eof = true;
 
 	kunmap(desc->page);
 	cache_page_release(desc);
@@ -866,7 +866,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 		if (res == -EBADCOOKIE) {
 			res = 0;
 			/* This means either end of directory */
-			if (*desc->dir_cookie && desc->eof == 0) {
+			if (*desc->dir_cookie && !desc->eof) {
 				/* Or that the server has 'lost' a cookie */
 				res = uncached_readdir(desc);
 				if (res == 0)
