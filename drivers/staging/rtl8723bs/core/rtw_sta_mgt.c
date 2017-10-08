@@ -604,10 +604,10 @@ struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
 
 u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 {
-	u8 res = true;
+	bool res = true;
 	struct list_head	*plist, *phead;
 	struct rtw_wlan_acl_node *paclnode;
-	u8 match = false;
+	bool match = false;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	struct __queue	*pacl_node_q = &pacl_list->acl_node_q;
@@ -630,10 +630,10 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 
 
 	if (pacl_list->mode == 1) /* accept unless in deny list */
-		res = (match == true) ?  false:true;
+		res = !match;
 
 	else if (pacl_list->mode == 2)/* deny unless in accept list */
-		res = (match == true) ?  true:false;
+		res = match;
 	else
 		 res = true;
 
