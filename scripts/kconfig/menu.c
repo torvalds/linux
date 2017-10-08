@@ -62,13 +62,8 @@ void menu_add_entry(struct symbol *sym)
 		menu_add_symbol(P_SYMBOL, sym, NULL);
 }
 
-void menu_end_entry(void)
-{
-}
-
 struct menu *menu_add_menu(void)
 {
-	menu_end_entry();
 	last_entry_ptr = &current_entry->list;
 	return current_menu = current_entry;
 }
