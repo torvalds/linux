@@ -653,7 +653,7 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 static void stm32_mdma_dump_hwdesc(struct stm32_mdma_chan *chan,
 				   struct stm32_mdma_hwdesc *hwdesc)
 {
-	dev_dbg(chan2dev(chan), "hwdesc:  0x%08x\n", (unsigned int)hwdesc);
+	dev_dbg(chan2dev(chan), "hwdesc:  0x%p\n", hwdesc);
 	dev_dbg(chan2dev(chan), "CTCR:    0x%08x\n", hwdesc->ctcr);
 	dev_dbg(chan2dev(chan), "CBNDTR:  0x%08x\n", hwdesc->cbndtr);
 	dev_dbg(chan2dev(chan), "CSAR:    0x%08x\n", hwdesc->csar);
