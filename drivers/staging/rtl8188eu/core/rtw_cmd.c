@@ -508,7 +508,7 @@ u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms, bool enqueu
 
 	if (enqueue) {
 		/* need enqueue, prepare cmd_obj and enqueue */
-		cmdobj = kzalloc(sizeof(*cmdobj), GFP_KERNEL);
+		cmdobj = kzalloc(sizeof(*cmdobj), GFP_ATOMIC);
 		if (!cmdobj) {
 			res = _FAIL;
 			kfree(param);
