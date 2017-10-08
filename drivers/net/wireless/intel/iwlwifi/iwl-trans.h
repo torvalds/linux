@@ -520,6 +520,9 @@ struct iwl_trans_txq_scd_cfg {
  * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
  *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
  *	Note that the transport must fill in the proper file headers.
+ * @dump_regs: dump using IWL_ERR configuration space and memory mapped
+ *	registers of the device to diagnose failure, e.g., when HW becomes
+ *	inaccessible.
  */
 struct iwl_trans_ops {
 
@@ -587,6 +590,8 @@ struct iwl_trans_ops {
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
 						 const struct iwl_fw_dbg_trigger_tlv
 						 *trigger);
+
+	void (*dump_regs)(struct iwl_trans *trans);
 };
 
 /**
@@ -863,6 +868,12 @@ iwl_trans_dump_data(struct iwl_trans *trans,
 	if (!trans->ops->dump_data)
 		return NULL;
 	return trans->ops->dump_data(trans, trigger);
+}
+
+static inline void iwl_trans_dump_regs(struct iwl_trans *trans)
+{
+	if (trans->ops->dump_regs)
+		trans->ops->dump_regs(trans);
 }
 
 static inline struct iwl_device_cmd *
