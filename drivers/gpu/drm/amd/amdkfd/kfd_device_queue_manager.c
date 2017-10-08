@@ -46,7 +46,8 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 
 static int execute_queues_cpsch(struct device_queue_manager *dqm);
 static int unmap_queues_cpsch(struct device_queue_manager *dqm,
-			      bool static_queues_included);
+				enum kfd_unmap_queues_filter filter,
+				uint32_t filter_param);
 
 static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 					struct queue *q,
@@ -710,7 +711,7 @@ fail_packet_manager_init:
 static int stop_cpsch(struct device_queue_manager *dqm)
 {
 	mutex_lock(&dqm->lock);
-	unmap_queues_cpsch(dqm, true);
+	unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES, 0);
 	mutex_unlock(&dqm->lock);
 
 	kfd_gtt_sa_free(dqm->dev, dqm->fence_mem);
@@ -754,7 +755,7 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 {
 	mutex_lock(&dqm->lock);
 	/* here we actually preempt the DIQ */
-	unmap_queues_cpsch(dqm, true);
+	unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES, 0);
 	list_del(&kq->list);
 	dqm->queue_count--;
 	qpd->is_debug = false;
@@ -863,10 +864,10 @@ static int unmap_sdma_queues(struct device_queue_manager *dqm,
 
 /* dqm->lock mutex has to be locked before calling this function */
 static int unmap_queues_cpsch(struct device_queue_manager *dqm,
-				bool static_queues_included)
+				enum kfd_unmap_queues_filter filter,
+				uint32_t filter_param)
 {
 	int retval;
-	enum kfd_unmap_queues_filter filter;
 	struct kfd_process_device *pdd;
 
 	retval = 0;
@@ -882,12 +883,8 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 		unmap_sdma_queues(dqm, 1);
 	}
 
-	filter = static_queues_included ?
-			KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES :
-			KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES;
-
 	retval = pm_send_unmap_queue(&dqm->packets, KFD_QUEUE_TYPE_COMPUTE,
-			filter, 0, false, 0);
+			filter, filter_param, false, 0);
 	if (retval)
 		return retval;
 
@@ -914,7 +911,8 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm)
 {
 	int retval;
 
-	retval = unmap_queues_cpsch(dqm, false);
+	retval = unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES,
+			0);
 	if (retval) {
 		pr_err("The cp might be in an unrecoverable state due to an unsuccessful queues preemption");
 		return retval;
