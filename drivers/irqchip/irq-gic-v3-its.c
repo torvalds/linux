@@ -983,18 +983,12 @@ static void its_send_vmovp(struct its_vpe *vpe)
 	raw_spin_unlock_irqrestore(&vmovp_lock, flags);
 }
 
-static void its_send_vinvall(struct its_vpe *vpe)
+static void its_send_vinvall(struct its_node *its, struct its_vpe *vpe)
 {
 	struct its_cmd_desc desc;
-	struct its_node *its;
 
 	desc.its_vinvall_cmd.vpe = vpe;
-
-	list_for_each_entry(its, &its_nodes, entry) {
-		if (!its->is_v4)
-			continue;
-		its_send_single_vcommand(its, its_build_vinvall_cmd, &desc);
-	}
+	its_send_single_vcommand(its, its_build_vinvall_cmd, &desc);
 }
 
 /*
@@ -2466,6 +2460,18 @@ static void its_vpe_deschedule(struct its_vpe *vpe)
 	}
 }
 
+static void its_vpe_invall(struct its_vpe *vpe)
+{
+	struct its_node *its;
+
+	list_for_each_entry(its, &its_nodes, entry) {
+		if (!its->is_v4)
+			continue;
+
+		its_send_vinvall(its, vpe);
+	}
+}
+
 static int its_vpe_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
@@ -2481,7 +2487,7 @@ static int its_vpe_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
 		return 0;
 
 	case INVALL_VPE:
-		its_send_vinvall(vpe);
+		its_vpe_invall(vpe);
 		return 0;
 
 	default:
@@ -2710,11 +2716,19 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 				       struct irq_data *d, bool early)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+	struct its_node *its;
 
 	/* Map the VPE to the first possible CPU */
 	vpe->col_idx = cpumask_first(cpu_online_mask);
 	its_send_vmapp(vpe, true);
-	its_send_vinvall(vpe);
+
+	list_for_each_entry(its, &its_nodes, entry) {
+		if (!its->is_v4)
+			continue;
+
+		its_send_vinvall(its, vpe);
+	}
+
 	return 0;
 }
 
