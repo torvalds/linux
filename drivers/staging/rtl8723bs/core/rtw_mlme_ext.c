@@ -480,7 +480,7 @@ int	init_mlme_ext_priv(struct adapter *padapter)
 	/* fill_fwpriv(padapter, &(pmlmeext->fwpriv)); */
 
 	init_mlme_ext_priv_value(padapter);
-	pmlmeinfo->bAcceptAddbaReq = pregistrypriv->bAcceptAddbaReq;
+	pmlmeinfo->accept_addba_req = pregistrypriv->accept_addba_req;
 
 	init_mlme_ext_timer(padapter);
 
@@ -1974,7 +1974,7 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 			/* process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), GetAddr3Ptr(pframe)); */
 			process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), addr);
 
-			if (pmlmeinfo->bAcceptAddbaReq) {
+			if (pmlmeinfo->accept_addba_req) {
 				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 0);
 			} else{
 				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */

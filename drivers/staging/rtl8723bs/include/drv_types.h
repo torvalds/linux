@@ -177,7 +177,7 @@ struct registry_priv
 	u8 bt_ampdu;
 	s8	ant_num;
 
-	bool	bAcceptAddbaReq;
+	bool	accept_addba_req;
 
 	u8 antdiv_cfg;
 	u8 antdiv_type;
