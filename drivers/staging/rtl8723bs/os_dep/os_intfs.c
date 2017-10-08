@@ -45,7 +45,7 @@ static int rtw_soft_ap;
 static int rtw_power_mgnt = 1;
 static int rtw_ips_mode = IPS_NORMAL;
 module_param(rtw_ips_mode, int, 0644);
-MODULE_PARM_DESC(rtw_ips_mode,"The default IPS mode");
+MODULE_PARM_DESC(rtw_ips_mode, "The default IPS mode");
 
 static int rtw_smart_ps = 2;
 
@@ -185,7 +185,7 @@ module_param(rtw_hw_wps_pbc, int, 0644);
 
 static uint rtw_max_roaming_times = 2;
 module_param(rtw_max_roaming_times, uint, 0644);
-MODULE_PARM_DESC(rtw_max_roaming_times,"The max roaming times to try");
+MODULE_PARM_DESC(rtw_max_roaming_times, "The max roaming times to try");
 
 module_param(rtw_mc2u_disable, int, 0644);
 
@@ -206,10 +206,10 @@ static int rtw_tx_pwr_lmt_enable;
 static int rtw_tx_pwr_by_rate;
 
 module_param(rtw_tx_pwr_lmt_enable, int, 0644);
-MODULE_PARM_DESC(rtw_tx_pwr_lmt_enable,"0:Disable, 1:Enable, 2: Depend on efuse");
+MODULE_PARM_DESC(rtw_tx_pwr_lmt_enable, "0:Disable, 1:Enable, 2: Depend on efuse");
 
 module_param(rtw_tx_pwr_by_rate, int, 0644);
-MODULE_PARM_DESC(rtw_tx_pwr_by_rate,"0:Disable, 1:Enable, 2: Depend on efuse");
+MODULE_PARM_DESC(rtw_tx_pwr_by_rate, "0:Disable, 1:Enable, 2: Depend on efuse");
 
 char *rtw_phy_file_path = "";
 module_param(rtw_phy_file_path, charp, 0644);
@@ -224,10 +224,10 @@ MODULE_PARM_DESC(rtw_phy_file_path, "The path of phy parameter");
 /*  BIT6 - RF_TXPWR_LMT,		0: non-support, 1: support */
 static int rtw_load_phy_file = (BIT2 | BIT6);
 module_param(rtw_load_phy_file, int, 0644);
-MODULE_PARM_DESC(rtw_load_phy_file,"PHY File Bit Map");
+MODULE_PARM_DESC(rtw_load_phy_file, "PHY File Bit Map");
 static int rtw_decrypt_phy_file;
 module_param(rtw_decrypt_phy_file, int, 0644);
-MODULE_PARM_DESC(rtw_decrypt_phy_file,"Enable Decrypt PHY File");
+MODULE_PARM_DESC(rtw_decrypt_phy_file, "Enable Decrypt PHY File");
 
 int _netdev_open(struct net_device *pnetdev);
 int netdev_open (struct net_device *pnetdev);
