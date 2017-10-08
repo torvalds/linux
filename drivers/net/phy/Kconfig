@@ -366,6 +366,11 @@ config REALTEK_PHY
 	---help---
 	  Supports the Realtek 821x PHY.
 
+config RENESAS_PHY
+	tristate "Driver for Renesas PHYs"
+	---help---
+	  Supports the Renesas PHYs uPD60620 and uPD60620A.
+
 config ROCKCHIP_PHY
         tristate "Driver for Rockchip Ethernet PHYs"
         ---help---
