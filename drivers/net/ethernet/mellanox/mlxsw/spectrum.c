@@ -53,6 +53,7 @@
 #include <linux/notifier.h>
 #include <linux/dcbnl.h>
 #include <linux/inetdevice.h>
+#include <linux/netlink.h>
 #include <net/switchdev.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
@@ -4298,7 +4299,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 			if (info->linking)
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
 								lower_dev,
-								upper_dev);
+								upper_dev,
+								extack);
 			else
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   lower_dev,
@@ -4389,18 +4391,25 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
 	int err = 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
 
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!netif_is_bridge_master(upper_dev))
+		if (!netif_is_bridge_master(upper_dev)) {
+			NL_SET_ERR_MSG(extack, "spectrum: VLAN devices only support bridge and VRF uppers");
 			return -EINVAL;
+		}
 		if (!info->linking)
 			break;
-		if (netdev_has_any_upper_dev(upper_dev))
+		if (netdev_has_any_upper_dev(upper_dev)) {
+			NL_SET_ERR_MSG(extack, "spectrum: Enslaving a port to a device that already has an upper device is not supported");
 			return -EINVAL;
+		}
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
@@ -4408,7 +4417,8 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 			if (info->linking)
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
 								vlan_dev,
-								upper_dev);
+								upper_dev,
+								extack);
 			else
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   vlan_dev,
