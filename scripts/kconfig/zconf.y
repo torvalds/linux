@@ -85,6 +85,7 @@ static struct menu *current_menu, *current_entry;
 %nonassoc T_NOT
 
 %type <string> prompt
+%type <symbol> nonconst_symbol
 %type <symbol> symbol
 %type <expr> expr
 %type <expr> if_expr
@@ -145,12 +146,11 @@ option_error:
 
 /* config/menuconfig entry */
 
-config_entry_start: T_CONFIG T_WORD T_EOL
+config_entry_start: T_CONFIG nonconst_symbol T_EOL
 {
-	struct symbol *sym = sym_lookup($2, 0);
-	sym->flags |= SYMBOL_OPTIONAL;
-	menu_add_entry(sym);
-	printd(DEBUG_PARSE, "%s:%d:config %s\n", zconf_curname(), zconf_lineno(), $2);
+	$2->flags |= SYMBOL_OPTIONAL;
+	menu_add_entry($2);
+	printd(DEBUG_PARSE, "%s:%d:config %s\n", zconf_curname(), zconf_lineno(), $2->name);
 };
 
 config_stmt: config_entry_start config_option_list
@@ -159,12 +159,11 @@ config_stmt: config_entry_start config_option_list
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", zconf_curname(), zconf_lineno());
 };
 
-menuconfig_entry_start: T_MENUCONFIG T_WORD T_EOL
+menuconfig_entry_start: T_MENUCONFIG nonconst_symbol T_EOL
 {
-	struct symbol *sym = sym_lookup($2, 0);
-	sym->flags |= SYMBOL_OPTIONAL;
-	menu_add_entry(sym);
-	printd(DEBUG_PARSE, "%s:%d:menuconfig %s\n", zconf_curname(), zconf_lineno(), $2);
+	$2->flags |= SYMBOL_OPTIONAL;
+	menu_add_entry($2);
+	printd(DEBUG_PARSE, "%s:%d:menuconfig %s\n", zconf_curname(), zconf_lineno(), $2->name);
 };
 
 menuconfig_stmt: menuconfig_entry_start config_option_list
@@ -211,15 +210,15 @@ config_option: T_DEFAULT expr if_expr T_EOL
 		$1->stype);
 };
 
-config_option: T_SELECT T_WORD if_expr T_EOL
+config_option: T_SELECT nonconst_symbol if_expr T_EOL
 {
-	menu_add_symbol(P_SELECT, sym_lookup($2, 0), $3);
+	menu_add_symbol(P_SELECT, $2, $3);
 	printd(DEBUG_PARSE, "%s:%d:select\n", zconf_curname(), zconf_lineno());
 };
 
-config_option: T_IMPLY T_WORD if_expr T_EOL
+config_option: T_IMPLY nonconst_symbol if_expr T_EOL
 {
-	menu_add_symbol(P_IMPLY, sym_lookup($2, 0), $3);
+	menu_add_symbol(P_IMPLY, $2, $3);
 	printd(DEBUG_PARSE, "%s:%d:imply\n", zconf_curname(), zconf_lineno());
 };
 
@@ -308,10 +307,10 @@ choice_option: T_OPTIONAL T_EOL
 	printd(DEBUG_PARSE, "%s:%d:optional\n", zconf_curname(), zconf_lineno());
 };
 
-choice_option: T_DEFAULT T_WORD if_expr T_EOL
+choice_option: T_DEFAULT nonconst_symbol if_expr T_EOL
 {
 	if ($1->stype == S_UNKNOWN) {
-		menu_add_symbol(P_DEFAULT, sym_lookup($2, 0), $3);
+		menu_add_symbol(P_DEFAULT, $2, $3);
 		printd(DEBUG_PARSE, "%s:%d:default\n",
 			zconf_curname(), zconf_lineno());
 	} else
@@ -491,7 +490,10 @@ expr:	  symbol				{ $$ = expr_alloc_symbol($1); }
 	| expr T_AND expr			{ $$ = expr_alloc_two(E_AND, $1, $3); }
 ;
 
-symbol:	  T_WORD	{ $$ = sym_lookup($1, 0); free($1); }
+/* For symbol definitions, selects, etc., where quotes are not accepted */
+nonconst_symbol: T_WORD { $$ = sym_lookup($1, 0); free($1); };
+
+symbol:	  nonconst_symbol
 	| T_WORD_QUOTE	{ $$ = sym_lookup($1, SYMBOL_CONST); free($1); }
 ;
 
