@@ -177,6 +177,7 @@ struct registry_priv
 	u8 bt_ampdu;
 	s8	ant_num;
 
+	/* false:Reject AP's Add BA req, true:accept AP's Add BA req */
 	bool	accept_addba_req;
 
 	u8 antdiv_cfg;
