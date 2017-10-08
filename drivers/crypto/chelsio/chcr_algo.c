@@ -889,9 +889,11 @@ static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv)
 	int ret, i;
 	u8 *key;
 	unsigned int keylen;
+	int round = reqctx->last_req_len / AES_BLOCK_SIZE;
+	int round8 = round / 8;
 
 	cipher = ablkctx->aes_generic;
-	memcpy(iv, req->info, AES_BLOCK_SIZE);
+	memcpy(iv, reqctx->iv, AES_BLOCK_SIZE);
 
 	keylen = ablkctx->enckey_len / 2;
 	key = ablkctx->key + keylen;
@@ -900,7 +902,10 @@ static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv)
 		goto out;
 
 	crypto_cipher_encrypt_one(cipher, iv, iv);
-	for (i = 0; i < (reqctx->processed / AES_BLOCK_SIZE); i++)
+	for (i = 0; i < round8; i++)
+		gf128mul_x8_ble((le128 *)iv, (le128 *)iv);
+
+	for (i = 0; i < (round % 8); i++)
 		gf128mul_x_ble((le128 *)iv, (le128 *)iv);
 
 	crypto_cipher_decrypt_one(cipher, iv, iv);
@@ -1041,6 +1046,7 @@ static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
 	    CRYPTO_ALG_SUB_TYPE_CTR)
 		bytes = adjust_ctr_overflow(reqctx->iv, bytes);
 	reqctx->processed += bytes;
+	reqctx->last_req_len = bytes;
 	wrparam.qid = u_ctx->lldi.rxq_ids[ctx->rx_qidx];
 	wrparam.req = req;
 	wrparam.bytes = bytes;
@@ -1133,6 +1139,7 @@ static int process_cipher(struct ablkcipher_request *req,
 		goto error;
 	}
 	reqctx->processed = bytes;
+	reqctx->last_req_len = bytes;
 	reqctx->dst = reqctx->dstsg;
 	reqctx->op = op_type;
 	wrparam.qid = qid;

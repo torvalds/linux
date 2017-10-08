@@ -247,6 +247,7 @@ struct chcr_blkcipher_req_ctx {
 	struct scatterlist *dst;
 	struct scatterlist *newdstsg;
 	unsigned int processed;
+	unsigned int last_req_len;
 	unsigned int op;
 	short int dst_nents;
 	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
