@@ -101,7 +101,7 @@ static int apparmor_task_alloc(struct task_struct *task,
 	if (!new)
 		return -ENOMEM;
 
-	aa_dup_task_ctx(new, current_task_ctx());
+	aa_dup_task_ctx(new, task_ctx(current));
 	task_ctx(task) = new;
 
 	return 0;
@@ -582,7 +582,7 @@ static int apparmor_getprocattr(struct task_struct *task, char *name,
 	int error = -ENOENT;
 	/* released below */
 	const struct cred *cred = get_task_cred(task);
-	struct aa_task_ctx *ctx = current_task_ctx();
+	struct aa_task_ctx *ctx = task_ctx(current);
 	struct aa_label *label = NULL;
 
 	if (strcmp(name, "current") == 0)
@@ -705,7 +705,7 @@ static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
 static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
 {
 	/* clear out temporary/transitional state from the context */
-	aa_clear_task_ctx_trans(current_task_ctx());
+	aa_clear_task_ctx_trans(task_ctx(current));
 
 	return;
 }

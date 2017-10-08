@@ -794,7 +794,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	if (bprm->called_set_creds)
 		return 0;
 
-	ctx = current_task_ctx();
+	ctx = task_ctx(current);
 	AA_BUG(!cred_label(bprm->cred));
 	AA_BUG(!ctx);
 
@@ -1067,7 +1067,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 
 	/* released below */
 	cred = get_current_cred();
-	ctx = current_task_ctx();
+	ctx = task_ctx(current);
 	label = aa_get_newest_cred_label(cred);
 	previous = aa_get_newest_label(ctx->previous);
 
