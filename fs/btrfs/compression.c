@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
 #include <linux/sort.h>
+#include <linux/log2.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -1223,6 +1224,59 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 	return 1;
 }
 
+/*
+ * Shannon Entropy calculation
+ *
+ * Pure byte distribution analysis fails to determine compressiability of data.
+ * Try calculating entropy to estimate the average minimum number of bits
+ * needed to encode the sampled data.
+ *
+ * For convenience, return the percentage of needed bits, instead of amount of
+ * bits directly.
+ *
+ * @ENTROPY_LVL_ACEPTABLE - below that threshold, sample has low byte entropy
+ *			    and can be compressible with high probability
+ *
+ * @ENTROPY_LVL_HIGH - data are not compressible with high probability
+ *
+ * Use of ilog2() decreases precision, we lower the LVL to 5 to compensate.
+ */
+#define ENTROPY_LVL_ACEPTABLE		(65)
+#define ENTROPY_LVL_HIGH		(80)
+
+/*
+ * For increasead precision in shannon_entropy calculation,
+ * let's do pow(n, M) to save more digits after comma:
+ *
+ * - maximum int bit length is 64
+ * - ilog2(MAX_SAMPLE_SIZE)	-> 13
+ * - 13 * 4 = 52 < 64		-> M = 4
+ *
+ * So use pow(n, 4).
+ */
+static inline u32 ilog2_w(u64 n)
+{
+	return ilog2(n * n * n * n);
+}
+
+static u32 shannon_entropy(struct heuristic_ws *ws)
+{
+	const u32 entropy_max = 8 * ilog2_w(2);
+	u32 entropy_sum = 0;
+	u32 p, p_base, sz_base;
+	u32 i;
+
+	sz_base = ilog2_w(ws->sample_size);
+	for (i = 0; i < BUCKET_SIZE && ws->bucket[i].count > 0; i++) {
+		p = ws->bucket[i].count;
+		p_base = ilog2_w(p);
+		entropy_sum += p * (sz_base - p_base);
+	}
+
+	entropy_sum /= ws->sample_size;
+	return entropy_sum * 100 / entropy_max;
+}
+
 /* Compare buckets by size, ascending */
 static int bucket_comp_rev(const void *lv, const void *rv)
 {
@@ -1396,7 +1450,7 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 	struct heuristic_ws *ws;
 	u32 i;
 	u8 byte;
-	int ret = 1;
+	int ret = 0;
 
 	ws = list_entry(ws_list, struct heuristic_ws, list);
 
@@ -1427,6 +1481,35 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 	}
 
 	if (i >= BYTE_CORE_SET_HIGH) {
+		ret = 0;
+		goto out;
+	}
+
+	i = shannon_entropy(ws);
+	if (i <= ENTROPY_LVL_ACEPTABLE) {
+		ret = 4;
+		goto out;
+	}
+
+	/*
+	 * For the levels below ENTROPY_LVL_HIGH, additional analysis would be
+	 * needed to give green light to compression.
+	 *
+	 * For now just assume that compression at that level is not worth the
+	 * resources because:
+	 *
+	 * 1. it is possible to defrag the data later
+	 *
+	 * 2. the data would turn out to be hardly compressible, eg. 150 byte
+	 * values, every bucket has counter at level ~54. The heuristic would
+	 * be confused. This can happen when data have some internal repeated
+	 * patterns like "abbacbbc...". This can be detected by analyzing
+	 * pairs of bytes, which is too costly.
+	 */
+	if (i < ENTROPY_LVL_HIGH) {
+		ret = 5;
+		goto out;
+	} else {
 		ret = 0;
 		goto out;
 	}
