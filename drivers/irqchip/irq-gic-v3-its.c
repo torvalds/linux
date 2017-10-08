@@ -103,6 +103,7 @@ struct its_node {
 	u64			(*get_msi_base)(struct its_device *its_dev);
 	struct list_head	its_device_list;
 	u64			flags;
+	unsigned long		list_nr;
 	u32			ite_size;
 	u32			device_ids;
 	int			numa_node;
@@ -3063,6 +3064,8 @@ static int __init its_probe_one(struct resource *res,
 			err = its_compute_its_list_map(res, its_base);
 			if (err < 0)
 				goto out_free_its;
+
+			its->list_nr = err;
 
 			pr_info("ITS@%pa: Using ITS number %d\n",
 				&res->start, err);
