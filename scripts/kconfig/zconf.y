@@ -236,8 +236,10 @@ symbol_option_list:
 	| symbol_option_list T_WORD symbol_option_arg
 {
 	const struct kconf_id *id = kconf_id_lookup($2, strlen($2));
-	if (id && id->flags & TF_OPTION)
+	if (id && id->flags & TF_OPTION) {
 		menu_add_option(id->token, $3);
+		free($3);
+	}
 	else
 		zconfprint("warning: ignoring unknown option %s", $2);
 	free($2);
