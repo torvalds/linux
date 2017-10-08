@@ -20,6 +20,12 @@
 
 struct its_vpe;
 
+/*
+ * Maximum number of ITTs when GITS_TYPER.VMOVP == 0, using the
+ * ITSList mechanism to perform inter-ITS synchronization.
+ */
+#define GICv4_ITS_LIST_MAX		16
+
 /* Embedded in kvm.arch */
 struct its_vm {
 	struct fwnode_handle	*fwnode;

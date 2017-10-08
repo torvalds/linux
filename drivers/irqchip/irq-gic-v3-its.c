@@ -156,12 +156,6 @@ static DEFINE_SPINLOCK(its_lock);
 static struct rdists *gic_rdists;
 static struct irq_domain *its_parent;
 
-/*
- * We have a maximum number of 16 ITSs in the whole system if we're
- * using the ITSList mechanism
- */
-#define ITS_LIST_MAX		16
-
 static unsigned long its_list_map;
 static u16 vmovp_seq_num;
 static DEFINE_RAW_SPINLOCK(vmovp_lock);
@@ -2988,8 +2982,8 @@ static int __init its_compute_its_list_map(struct resource *res,
 	 * locking. Should this change, we should address
 	 * this.
 	 */
-	its_number = find_first_zero_bit(&its_list_map, ITS_LIST_MAX);
-	if (its_number >= ITS_LIST_MAX) {
+	its_number = find_first_zero_bit(&its_list_map, GICv4_ITS_LIST_MAX);
+	if (its_number >= GICv4_ITS_LIST_MAX) {
 		pr_err("ITS@%pa: No ITSList entry available!\n",
 		       &res->start);
 		return -EINVAL;
