@@ -1608,11 +1608,6 @@ static int __ipv6_dev_get_saddr(struct net *net,
 				}
 				break;
 			} else if (minihiscore < miniscore) {
-				if (hiscore->ifa)
-					in6_ifa_put(hiscore->ifa);
-
-				in6_ifa_hold(score->ifa);
-
 				swap(hiscore, score);
 				hiscore_idx = 1 - hiscore_idx;
 
@@ -1660,6 +1655,7 @@ int ipv6_dev_get_saddr(struct net *net, const struct net_device *dst_dev,
 	int dst_type;
 	bool use_oif_addr = false;
 	int hiscore_idx = 0;
+	int ret = 0;
 
 	dst_type = __ipv6_addr_type(daddr);
 	dst.addr = daddr;
@@ -1735,15 +1731,14 @@ int ipv6_dev_get_saddr(struct net *net, const struct net_device *dst_dev,
 	}
 
 out:
-	rcu_read_unlock();
-
 	hiscore = &scores[hiscore_idx];
 	if (!hiscore->ifa)
-		return -EADDRNOTAVAIL;
+		ret = -EADDRNOTAVAIL;
+	else
+		*saddr = hiscore->ifa->addr;
 
-	*saddr = hiscore->ifa->addr;
-	in6_ifa_put(hiscore->ifa);
-	return 0;
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL(ipv6_dev_get_saddr);
 
