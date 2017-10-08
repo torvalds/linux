@@ -418,25 +418,63 @@ void menu_finalize(struct menu *parent)
 		for (menu = parent->list; menu; menu = menu->next)
 			menu_finalize(menu);
 	} else if (sym) {
+		/*
+		 * Automatic submenu creation. If sym is a symbol and A, B, C,
+		 * ... are consecutive items (symbols, menus, ifs, etc.) that
+		 * all depend on sym, then the following menu structure is
+		 * created:
+		 *
+		 *	sym
+		 *	 +-A
+		 *	 +-B
+		 *	 +-C
+		 *	 ...
+		 *
+		 * This also works recursively, giving the following structure
+		 * if A is a symbol and B depends on A:
+		 *
+		 *	sym
+		 *	 +-A
+		 *	 | +-B
+		 *	 +-C
+		 *	 ...
+		 */
+
 		basedep = parent->prompt ? parent->prompt->visible.expr : NULL;
 		basedep = expr_trans_compare(basedep, E_UNEQUAL, &symbol_no);
 		basedep = expr_eliminate_dups(expr_transform(basedep));
+
+		/* Examine consecutive elements after sym */
 		last_menu = NULL;
 		for (menu = parent->next; menu; menu = menu->next) {
 			dep = menu->prompt ? menu->prompt->visible.expr : menu->dep;
 			if (!expr_contains_symbol(dep, sym))
+				/* No dependency, quit */
 				break;
 			if (expr_depends_symbol(dep, sym))
+				/* Absolute dependency, put in submenu */
 				goto next;
+
+			/*
+			 * Also consider it a dependency on sym if our
+			 * dependencies contain sym and are a "superset" of
+			 * sym's dependencies, e.g. '(sym || Q) && R' when sym
+			 * depends on R.
+			 *
+			 * Note that 'R' might be from an enclosing menu or if,
+			 * making this a more common case than it might seem.
+			 */
 			dep = expr_trans_compare(dep, E_UNEQUAL, &symbol_no);
 			dep = expr_eliminate_dups(expr_transform(dep));
 			dep2 = expr_copy(basedep);
 			expr_eliminate_eq(&dep, &dep2);
 			expr_free(dep);
 			if (!expr_is_yes(dep2)) {
+				/* Not superset, quit */
 				expr_free(dep2);
 				break;
 			}
+			/* Superset, put in submenu */
 			expr_free(dep2);
 		next:
 			menu_finalize(menu);
