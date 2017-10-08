@@ -614,7 +614,8 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 			err = -ENAMETOOLONG;
 			goto err_drop_spawn;
 		}
-	}
+	} else
+		goto err_drop_spawn;
 
 	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
