@@ -250,7 +250,7 @@ struct pwrctrl_priv
 	u8 ips_mode;
 	u8 ips_org_mode;
 	u8 ips_mode_req; /*  used to accept the mode setting request, will update to ipsmode later */
-	uint bips_processing;
+	bool bips_processing;
 	unsigned long ips_deny_time; /* will deny IPS when system time is smaller than this */
 	u8 pre_ips_type;/*  0: default flow, 1: carddisbale flow */
 
