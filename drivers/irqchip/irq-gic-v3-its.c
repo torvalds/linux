@@ -924,21 +924,16 @@ static void its_send_vmovi(struct its_device *dev, u32 id)
 	its_send_single_vcommand(dev->its, its_build_vmovi_cmd, &desc);
 }
 
-static void its_send_vmapp(struct its_vpe *vpe, bool valid)
+static void its_send_vmapp(struct its_node *its,
+			   struct its_vpe *vpe, bool valid)
 {
 	struct its_cmd_desc desc;
-	struct its_node *its;
 
 	desc.its_vmapp_cmd.vpe = vpe;
 	desc.its_vmapp_cmd.valid = valid;
+	desc.its_vmapp_cmd.col = &its->collections[vpe->col_idx];
 
-	list_for_each_entry(its, &its_nodes, entry) {
-		if (!its->is_v4)
-			continue;
-
-		desc.its_vmapp_cmd.col = &its->collections[vpe->col_idx];
-		its_send_single_vcommand(its, its_build_vmapp_cmd, &desc);
-	}
+	its_send_single_vcommand(its, its_build_vmapp_cmd, &desc);
 }
 
 static void its_send_vmovp(struct its_vpe *vpe)
@@ -2720,12 +2715,12 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 
 	/* Map the VPE to the first possible CPU */
 	vpe->col_idx = cpumask_first(cpu_online_mask);
-	its_send_vmapp(vpe, true);
 
 	list_for_each_entry(its, &its_nodes, entry) {
 		if (!its->is_v4)
 			continue;
 
+		its_send_vmapp(its, vpe, true);
 		its_send_vinvall(its, vpe);
 	}
 
@@ -2736,8 +2731,14 @@ static void its_vpe_irq_domain_deactivate(struct irq_domain *domain,
 					  struct irq_data *d)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+	struct its_node *its;
 
-	its_send_vmapp(vpe, false);
+	list_for_each_entry(its, &its_nodes, entry) {
+		if (!its->is_v4)
+			continue;
+
+		its_send_vmapp(its, vpe, false);
+	}
 }
 
 static const struct irq_domain_ops its_vpe_domain_ops = {
