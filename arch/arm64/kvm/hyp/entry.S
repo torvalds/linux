@@ -62,9 +62,6 @@ ENTRY(__guest_enter)
 	// Store the host regs
 	save_callee_saved_regs x1
 
-	// Store host_ctxt and vcpu for use at exit time
-	stp	x1, x0, [sp, #-16]!
-
 	add	x18, x0, #VCPU_CONTEXT
 
 	// Restore guest regs x0-x17
@@ -118,8 +115,7 @@ ENTRY(__guest_exit)
 	// Store the guest regs x19-x29, lr
 	save_callee_saved_regs x1
 
-	// Restore the host_ctxt from the stack
-	ldr	x2, [sp], #16
+	get_host_ctxt	x2, x3
 
 	// Now restore the host regs
 	restore_callee_saved_regs x2
