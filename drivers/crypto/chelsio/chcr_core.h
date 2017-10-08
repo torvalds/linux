@@ -89,7 +89,7 @@ struct uld_ctx {
 	struct chcr_dev *dev;
 };
 
-struct uld_ctx * assign_chcr_device(void);
+struct uld_ctx *assign_chcr_device(void);
 int chcr_send_wr(struct sk_buff *skb);
 int start_crypto(void);
 int stop_crypto(void);

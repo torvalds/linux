@@ -221,7 +221,7 @@
 #define MAX_WR_SIZE			512
 #define ROUND_16(bytes)		((bytes) & 0xFFFFFFF0)
 #define MAX_DSGL_ENT			32
-#define MAX_DIGEST_SKB_SGE	(MAX_SKB_FRAGS - 2)
+#define MAX_DIGEST_SKB_SGE	(MAX_SKB_FRAGS - 1)
 #define MIN_CIPHER_SG			1 /* IV */
 #define MIN_AUTH_SG			2 /*IV + AAD*/
 #define MIN_GCM_SG			2 /* IV + AAD*/
@@ -261,7 +261,6 @@ struct cipher_wr_param {
 	struct scatterlist *srcsg;
 	char *iv;
 	int bytes;
-	short int snent;
 	unsigned short qid;
 };
 enum {

@@ -166,7 +166,6 @@ struct ablk_ctx {
 struct chcr_aead_reqctx {
 	struct	sk_buff	*skb;
 	struct scatterlist *dst;
-	struct scatterlist *newdstsg;
 	struct scatterlist srcffwd[2];
 	struct scatterlist dstffwd[2];
 	short int dst_nents;
@@ -245,7 +244,6 @@ struct chcr_blkcipher_req_ctx {
 	struct scatterlist dstffwd[2];
 	struct scatterlist *dstsg;
 	struct scatterlist *dst;
-	struct scatterlist *newdstsg;
 	unsigned int processed;
 	unsigned int last_req_len;
 	unsigned int op;
@@ -291,10 +289,6 @@ static int chcr_aead_op(struct aead_request *req_base,
 			  int size,
 			  create_wr_t create_wr_fn);
 static inline int get_aead_subtype(struct crypto_aead *aead);
-static int is_newsg(struct scatterlist *sgl, unsigned int *newents);
-static struct scatterlist *alloc_new_sg(struct scatterlist *sgl,
-					unsigned int nents);
-static inline void free_new_sg(struct scatterlist *sgl);
 static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
 				   unsigned char *input, int err);
 #endif /* __CHCR_CRYPTO_H__ */
