@@ -203,7 +203,7 @@ static inline u32 netvsc_get_hash(
 	const struct net_device_context *ndc)
 {
 	struct flow_keys flow;
-	u32 hash;
+	u32 hash, pkt_proto = 0;
 	static u32 hashrnd __read_mostly;
 
 	net_get_random_once(&hashrnd, sizeof(hashrnd));
@@ -211,11 +211,25 @@ static inline u32 netvsc_get_hash(
 	if (!skb_flow_dissect_flow_keys(skb, &flow, 0))
 		return 0;
 
-	if (flow.basic.ip_proto == IPPROTO_TCP ||
-	    (flow.basic.ip_proto == IPPROTO_UDP &&
-	     ((flow.basic.n_proto == htons(ETH_P_IP) && ndc->udp4_l4_hash) ||
-	      (flow.basic.n_proto == htons(ETH_P_IPV6) &&
-	       ndc->udp6_l4_hash)))) {
+	switch (flow.basic.ip_proto) {
+	case IPPROTO_TCP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_TCP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_TCP6_L4HASH;
+
+		break;
+
+	case IPPROTO_UDP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_UDP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_UDP6_L4HASH;
+
+		break;
+	}
+
+	if (pkt_proto & ndc->l4_hash) {
 		return skb_get_hash(skb);
 	} else {
 		if (flow.basic.n_proto == htons(ETH_P_IP))
@@ -898,8 +912,7 @@ static void netvsc_init_settings(struct net_device *dev)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
 
-	ndc->udp4_l4_hash = true;
-	ndc->udp6_l4_hash = true;
+	ndc->l4_hash = HV_DEFAULT_L4HASH;
 
 	ndc->speed = SPEED_UNKNOWN;
 	ndc->duplex = DUPLEX_FULL;
@@ -1245,23 +1258,32 @@ static int
 netvsc_get_rss_hash_opts(struct net_device_context *ndc,
 			 struct ethtool_rxnfc *info)
 {
+	const u32 l4_flag = RXH_L4_B_0_1 | RXH_L4_B_2_3;
+
 	info->data = RXH_IP_SRC | RXH_IP_DST;
 
 	switch (info->flow_type) {
 	case TCP_V4_FLOW:
+		if (ndc->l4_hash & HV_TCP4_L4HASH)
+			info->data |= l4_flag;
+
+		break;
+
 	case TCP_V6_FLOW:
-		info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		if (ndc->l4_hash & HV_TCP6_L4HASH)
+			info->data |= l4_flag;
+
 		break;
 
 	case UDP_V4_FLOW:
-		if (ndc->udp4_l4_hash)
-			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		if (ndc->l4_hash & HV_UDP4_L4HASH)
+			info->data |= l4_flag;
 
 		break;
 
 	case UDP_V6_FLOW:
-		if (ndc->udp6_l4_hash)
-			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		if (ndc->l4_hash & HV_UDP6_L4HASH)
+			info->data |= l4_flag;
 
 		break;
 
@@ -1302,23 +1324,51 @@ static int netvsc_set_rss_hash_opts(struct net_device_context *ndc,
 {
 	if (info->data == (RXH_IP_SRC | RXH_IP_DST |
 			   RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		if (info->flow_type == UDP_V4_FLOW)
-			ndc->udp4_l4_hash = true;
-		else if (info->flow_type == UDP_V6_FLOW)
-			ndc->udp6_l4_hash = true;
-		else
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			ndc->l4_hash |= HV_TCP4_L4HASH;
+			break;
+
+		case TCP_V6_FLOW:
+			ndc->l4_hash |= HV_TCP6_L4HASH;
+			break;
+
+		case UDP_V4_FLOW:
+			ndc->l4_hash |= HV_UDP4_L4HASH;
+			break;
+
+		case UDP_V6_FLOW:
+			ndc->l4_hash |= HV_UDP6_L4HASH;
+			break;
+
+		default:
 			return -EOPNOTSUPP;
+		}
 
 		return 0;
 	}
 
 	if (info->data == (RXH_IP_SRC | RXH_IP_DST)) {
-		if (info->flow_type == UDP_V4_FLOW)
-			ndc->udp4_l4_hash = false;
-		else if (info->flow_type == UDP_V6_FLOW)
-			ndc->udp6_l4_hash = false;
-		else
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			ndc->l4_hash &= ~HV_TCP4_L4HASH;
+			break;
+
+		case TCP_V6_FLOW:
+			ndc->l4_hash &= ~HV_TCP6_L4HASH;
+			break;
+
+		case UDP_V4_FLOW:
+			ndc->l4_hash &= ~HV_UDP4_L4HASH;
+			break;
+
+		case UDP_V6_FLOW:
+			ndc->l4_hash &= ~HV_UDP6_L4HASH;
+			break;
+
+		default:
 			return -EOPNOTSUPP;
+		}
 
 		return 0;
 	}
