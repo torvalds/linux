@@ -986,7 +986,7 @@ static int cygnus_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 
 	active_slots = hweight32(tx_mask);
 
-	if ((active_slots < 0) || (active_slots > 16))
+	if (active_slots > 16)
 		return -EINVAL;
 
 	/* Slot value must be even */
