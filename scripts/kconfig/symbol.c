@@ -907,6 +907,10 @@ const char *sym_expand_string_value(const char *in)
 	char *res;
 	size_t reslen;
 
+	/*
+	 * Note: 'in' might come from a token that's about to be
+	 * freed, so make sure to always allocate a new string
+	 */
 	reslen = strlen(in) + 1;
 	res = xmalloc(reslen);
 	res[0] = '\0';
