@@ -1537,7 +1537,13 @@ int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb)
  */
 static inline int is_ofld_imm(const struct sk_buff *skb)
 {
-	return skb->len <= MAX_IMM_TX_PKT_LEN;
+	struct work_request_hdr *req = (struct work_request_hdr *)skb->data;
+	unsigned long opcode = FW_WR_OP_G(ntohl(req->wr_hi));
+
+	if (opcode == FW_CRYPTO_LOOKASIDE_WR)
+		return skb->len <= SGE_MAX_WR_LEN;
+	else
+		return skb->len <= MAX_IMM_TX_PKT_LEN;
 }
 
 /**
