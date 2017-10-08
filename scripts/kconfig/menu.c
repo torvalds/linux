@@ -408,6 +408,9 @@ void menu_finalize(struct menu *parent)
 			}
 		}
 
+		if (sym && sym_is_choice(sym))
+			expr_free(parentdep);
+
 		/*
 		 * Recursively process children in the same fashion before
 		 * moving on
