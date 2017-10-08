@@ -3505,20 +3505,6 @@ static int mlxsw_sp_fib_lpm_tree_link(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_fib_lpm_tree_unlink(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib *fib)
 {
-	struct mlxsw_sp_prefix_usage req_prefix_usage = {{ 0 } };
-	struct mlxsw_sp_lpm_tree *lpm_tree;
-
-	/* Aggregate prefix lengths across all virtual routers to make
-	 * sure we only have used prefix lengths in the LPM tree.
-	 */
-	mlxsw_sp_vrs_prefixes(mlxsw_sp, fib->proto, &req_prefix_usage);
-	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
-					 fib->proto);
-	if (IS_ERR(lpm_tree))
-		goto err_tree_get;
-	mlxsw_sp_vrs_lpm_tree_replace(mlxsw_sp, fib, lpm_tree);
-
-err_tree_get:
 	if (!mlxsw_sp_prefix_usage_none(&fib->prefix_usage))
 		return;
 	mlxsw_sp_vr_lpm_tree_unbind(mlxsw_sp, fib);
