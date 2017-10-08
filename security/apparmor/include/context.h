@@ -90,17 +90,6 @@ static inline struct aa_label *__aa_task_raw_label(struct task_struct *task)
 }
 
 /**
- * __aa_task_is_confined - determine if @task has any confinement
- * @task: task to check confinement of  (NOT NULL)
- *
- * If @task != current needs to be called in RCU safe critical section
- */
-static inline bool __aa_task_is_confined(struct task_struct *task)
-{
-	return !unconfined(__aa_task_raw_label(task));
-}
-
-/**
  * aa_current_raw_label - find the current tasks confining label
  *
  * Returns: up to date confining label or the ns unconfined label (NOT NULL)
