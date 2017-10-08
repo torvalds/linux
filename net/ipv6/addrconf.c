@@ -945,7 +945,7 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 			break;
 	}
 
-	list_add_tail(&ifp->if_list, p);
+	list_add_tail_rcu(&ifp->if_list, p);
 }
 
 static u32 inet6_addr_hash(const struct in6_addr *addr)
@@ -1204,7 +1204,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	if (ifp->flags & IFA_F_PERMANENT && !(ifp->flags & IFA_F_NOPREFIXROUTE))
 		action = check_cleanup_prefix_route(ifp, &expires);
 
-	list_del_init(&ifp->if_list);
+	list_del_rcu(&ifp->if_list);
 	__in6_ifa_put(ifp);
 
 	write_unlock_bh(&ifp->idev->lock);
@@ -3562,7 +3562,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa, *tmp;
-	struct list_head del_list;
 	int _keep_addr;
 	bool keep_addr;
 	int state, i;
@@ -3654,7 +3653,6 @@ restart:
 	 */
 	keep_addr = (!how && _keep_addr > 0 && !idev->cnf.disable_ipv6);
 
-	INIT_LIST_HEAD(&del_list);
 	list_for_each_entry_safe(ifa, tmp, &idev->addr_list, if_list) {
 		struct rt6_info *rt = NULL;
 		bool keep;
@@ -3663,8 +3661,6 @@ restart:
 
 		keep = keep_addr && (ifa->flags & IFA_F_PERMANENT) &&
 			!addr_is_local(&ifa->addr);
-		if (!keep)
-			list_move(&ifa->if_list, &del_list);
 
 		write_unlock_bh(&idev->lock);
 		spin_lock_bh(&ifa->lock);
@@ -3698,18 +3694,13 @@ restart:
 		}
 
 		write_lock_bh(&idev->lock);
+		if (!keep) {
+			list_del_rcu(&ifa->if_list);
+			in6_ifa_put(ifa);
+		}
 	}
 
 	write_unlock_bh(&idev->lock);
-
-	/* now clean up addresses to be removed */
-	while (!list_empty(&del_list)) {
-		ifa = list_first_entry(&del_list,
-				       struct inet6_ifaddr, if_list);
-		list_del(&ifa->if_list);
-
-		in6_ifa_put(ifa);
-	}
 
 	/* Step 5: Discard anycast and multicast list */
 	if (how) {
