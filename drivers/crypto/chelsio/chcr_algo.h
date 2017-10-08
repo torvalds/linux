@@ -176,21 +176,21 @@
 		      KEY_CONTEXT_SALT_PRESENT_V(1) | \
 		      KEY_CONTEXT_CTX_LEN_V((ctx_len)))
 
-#define FILL_WR_OP_CCTX_SIZE(len, ctx_len) \
+#define FILL_WR_OP_CCTX_SIZE \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_OPCODE_V( \
 			FW_CRYPTO_LOOKASIDE_WR) | \
 			FW_CRYPTO_LOOKASIDE_WR_COMPL_V(0) | \
-			FW_CRYPTO_LOOKASIDE_WR_IMM_LEN_V((len)) | \
-			FW_CRYPTO_LOOKASIDE_WR_CCTX_LOC_V(1) | \
-			FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE_V((ctx_len)))
+			FW_CRYPTO_LOOKASIDE_WR_IMM_LEN_V((0)) | \
+			FW_CRYPTO_LOOKASIDE_WR_CCTX_LOC_V(0) | \
+			FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE_V(0))
 
-#define FILL_WR_RX_Q_ID(cid, qid, wr_iv, lcb, fid) \
+#define FILL_WR_RX_Q_ID(cid, qid, lcb, fid) \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_RX_CHID_V((cid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_RX_Q_ID_V((qid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_LCB_V((lcb)) | \
-			FW_CRYPTO_LOOKASIDE_WR_IV_V((wr_iv)) | \
+			FW_CRYPTO_LOOKASIDE_WR_IV_V((IV_NOP)) | \
 			FW_CRYPTO_LOOKASIDE_WR_FQIDX_V(fid))
 
 #define FILL_ULPTX_CMD_DEST(cid, qid) \

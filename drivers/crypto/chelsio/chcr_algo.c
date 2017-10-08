@@ -578,36 +578,27 @@ static int chcr_cipher_fallback(struct crypto_skcipher *cipher,
 static inline void create_wreq(struct chcr_context *ctx,
 			       struct chcr_wr *chcr_req,
 			       void *req, struct sk_buff *skb,
-			       int kctx_len, int hash_sz,
-			       int is_iv,
+			       int hash_sz,
 			       unsigned int sc_len,
 			       unsigned int lcb)
 {
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
-	int iv_loc = IV_DSGL;
 	int qid = u_ctx->lldi.rxq_ids[ctx->rx_qidx];
-	unsigned int immdatalen = 0, nr_frags = 0;
+	unsigned int immdatalen = 0;
 
-	if (is_ofld_imm(skb)) {
+	if (is_ofld_imm(skb))
 		immdatalen = skb->data_len;
-		iv_loc = IV_IMMEDIATE;
-	} else {
-		nr_frags = skb_shinfo(skb)->nr_frags;
-	}
 
-	chcr_req->wreq.op_to_cctx_size = FILL_WR_OP_CCTX_SIZE(immdatalen,
-				((sizeof(chcr_req->key_ctx) + kctx_len) >> 4));
+	chcr_req->wreq.op_to_cctx_size = FILL_WR_OP_CCTX_SIZE;
 	chcr_req->wreq.pld_size_hash_size =
-		htonl(FW_CRYPTO_LOOKASIDE_WR_PLD_SIZE_V(sgl_lengths[nr_frags]) |
-		      FW_CRYPTO_LOOKASIDE_WR_HASH_SIZE_V(hash_sz));
+		htonl(FW_CRYPTO_LOOKASIDE_WR_HASH_SIZE_V(hash_sz));
 	chcr_req->wreq.len16_pkd =
 		htonl(FW_CRYPTO_LOOKASIDE_WR_LEN16_V(DIV_ROUND_UP(
 				    (calc_tx_flits_ofld(skb) * 8), 16)));
 	chcr_req->wreq.cookie = cpu_to_be64((uintptr_t)req);
 	chcr_req->wreq.rx_chid_to_rx_q_id =
 		FILL_WR_RX_Q_ID(ctx->dev->rx_channel_id, qid,
-				is_iv ? iv_loc : IV_NOP, !!lcb,
-				ctx->tx_qidx);
+				!!lcb, ctx->tx_qidx);
 
 	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id,
 						       qid);
@@ -617,7 +608,7 @@ static inline void create_wreq(struct chcr_context *ctx,
 	chcr_req->sc_imm.cmd_more = FILL_CMD_MORE(immdatalen);
 	chcr_req->sc_imm.len = cpu_to_be32(sizeof(struct cpl_tx_sec_pdu) +
 				   sizeof(chcr_req->key_ctx) +
-				   kctx_len + sc_len + immdatalen);
+				   sc_len + immdatalen);
 }
 
 /**
@@ -707,8 +698,8 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 	write_buffer_to_skb(skb, &frags, reqctx->iv, ivsize);
 	write_sg_to_skb(skb, &frags, wrparam->srcsg, wrparam->bytes);
 	atomic_inc(&adap->chcr_stats.cipher_rqst);
-	create_wreq(ctx, chcr_req, &(wrparam->req->base), skb, kctx_len, 0, 1,
-			sizeof(struct cpl_rx_phys_dsgl) + phys_dsgl,
+	create_wreq(ctx, chcr_req, &(wrparam->req->base), skb, 0,
+			sizeof(struct cpl_rx_phys_dsgl) + phys_dsgl + kctx_len,
 			ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CBC);
 	reqctx->skb = skb;
 	skb_get(skb);
@@ -1418,8 +1409,8 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 	if (param->sg_len != 0)
 		write_sg_to_skb(skb, &frags, req->src, param->sg_len);
 	atomic_inc(&adap->chcr_stats.digest_rqst);
-	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len,
-		    hash_size_in_response, 0, DUMMY_BYTES, 0);
+	create_wreq(ctx, chcr_req, &req->base, skb, hash_size_in_response,
+		    DUMMY_BYTES + kctx_len, 0);
 	req_ctx->skb = skb;
 	skb_get(skb);
 	return skb;
@@ -2081,8 +2072,8 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	write_buffer_to_skb(skb, &frags, req->iv, ivsize);
 	write_sg_to_skb(skb, &frags, src, req->cryptlen);
 	atomic_inc(&adap->chcr_stats.cipher_rqst);
-	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len, size, 1,
-		   sizeof(struct cpl_rx_phys_dsgl) + dst_size, 0);
+	create_wreq(ctx, chcr_req, &req->base, skb, size,
+		   sizeof(struct cpl_rx_phys_dsgl) + dst_size + kctx_len, 0);
 	reqctx->skb = skb;
 	skb_get(skb);
 
@@ -2397,8 +2388,8 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 	skb_set_transport_header(skb, transhdr_len);
 	frags = fill_aead_req_fields(skb, req, src, ivsize, aeadctx);
 	atomic_inc(&adap->chcr_stats.aead_rqst);
-	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len, 0, 1,
-		    sizeof(struct cpl_rx_phys_dsgl) + dst_size, 0);
+	create_wreq(ctx, chcr_req, &req->base, skb, 0,
+		    sizeof(struct cpl_rx_phys_dsgl) + dst_size + kctx_len, 0);
 	reqctx->skb = skb;
 	skb_get(skb);
 	return skb;
@@ -2555,8 +2546,8 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	write_buffer_to_skb(skb, &frags, reqctx->iv, ivsize);
 	write_sg_to_skb(skb, &frags, src, req->cryptlen);
 	atomic_inc(&adap->chcr_stats.aead_rqst);
-	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len, size, 1,
-			sizeof(struct cpl_rx_phys_dsgl) + dst_size,
+	create_wreq(ctx, chcr_req, &req->base, skb, size,
+			sizeof(struct cpl_rx_phys_dsgl) + dst_size + kctx_len,
 			reqctx->verify);
 	reqctx->skb = skb;
 	skb_get(skb);
