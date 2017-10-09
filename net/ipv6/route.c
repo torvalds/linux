@@ -377,17 +377,7 @@ struct rt6_info *ip6_dst_alloc(struct net *net,
 
 	if (rt) {
 		rt->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, GFP_ATOMIC);
-		if (rt->rt6i_pcpu) {
-			int cpu;
-
-			for_each_possible_cpu(cpu) {
-				struct rt6_info **p;
-
-				p = per_cpu_ptr(rt->rt6i_pcpu, cpu);
-				/* no one shares rt */
-				*p =  NULL;
-			}
-		} else {
+		if (!rt->rt6i_pcpu) {
 			dst_release_immediate(&rt->dst);
 			return NULL;
 		}
