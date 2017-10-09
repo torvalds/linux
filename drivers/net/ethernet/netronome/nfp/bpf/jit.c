@@ -153,6 +153,11 @@ emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 		nfp_prog->error = -EFAULT;
 		return;
 	}
+	if (reg.dst_lmextn || reg.src_lmextn) {
+		pr_err("cmd can't use LMextn\n");
+		nfp_prog->error = -EFAULT;
+		return;
+	}
 
 	__emit_cmd(nfp_prog, op, mode, xfer, reg.areg, reg.breg, size, sync);
 }
@@ -198,7 +203,7 @@ emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer)
 
 static void
 __emit_br_byte(struct nfp_prog *nfp_prog, u8 areg, u8 breg, bool imm8,
-	       u8 byte, bool equal, u16 addr, u8 defer)
+	       u8 byte, bool equal, u16 addr, u8 defer, bool src_lmextn)
 {
 	u16 addr_lo, addr_hi;
 	u64 insn;
@@ -214,32 +219,34 @@ __emit_br_byte(struct nfp_prog *nfp_prog, u8 areg, u8 breg, bool imm8,
 		FIELD_PREP(OP_BB_EQ, equal) |
 		FIELD_PREP(OP_BB_DEFBR, defer) |
 		FIELD_PREP(OP_BB_ADDR_LO, addr_lo) |
-		FIELD_PREP(OP_BB_ADDR_HI, addr_hi);
+		FIELD_PREP(OP_BB_ADDR_HI, addr_hi) |
+		FIELD_PREP(OP_BB_SRC_LMEXTN, src_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
 
 static void
 emit_br_byte_neq(struct nfp_prog *nfp_prog,
-		 swreg dst, u8 imm, u8 byte, u16 addr, u8 defer)
+		 swreg src, u8 imm, u8 byte, u16 addr, u8 defer)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	err = swreg_to_restricted(reg_none(), dst, reg_imm(imm), &reg, true);
+	err = swreg_to_restricted(reg_none(), src, reg_imm(imm), &reg, true);
 	if (err) {
 		nfp_prog->error = err;
 		return;
 	}
 
 	__emit_br_byte(nfp_prog, reg.areg, reg.breg, reg.i8, byte, false, addr,
-		       defer);
+		       defer, reg.src_lmextn);
 }
 
 static void
 __emit_immed(struct nfp_prog *nfp_prog, u16 areg, u16 breg, u16 imm_hi,
 	     enum immed_width width, bool invert,
-	     enum immed_shift shift, bool wr_both)
+	     enum immed_shift shift, bool wr_both,
+	     bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -250,7 +257,9 @@ __emit_immed(struct nfp_prog *nfp_prog, u16 areg, u16 breg, u16 imm_hi,
 		FIELD_PREP(OP_IMMED_WIDTH, width) |
 		FIELD_PREP(OP_IMMED_INV, invert) |
 		FIELD_PREP(OP_IMMED_SHIFT, shift) |
-		FIELD_PREP(OP_IMMED_WR_AB, wr_both);
+		FIELD_PREP(OP_IMMED_WR_AB, wr_both) |
+		FIELD_PREP(OP_IMMED_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_IMMED_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
@@ -274,13 +283,15 @@ emit_immed(struct nfp_prog *nfp_prog, swreg dst, u16 imm,
 	}
 
 	__emit_immed(nfp_prog, reg.areg, reg.breg, imm >> 8, width,
-		     invert, shift, reg.wr_both);
+		     invert, shift, reg.wr_both,
+		     reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
 __emit_shf(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 	   enum shf_sc sc, u8 shift,
-	   u16 areg, enum shf_op op, u16 breg, bool i8, bool sw, bool wr_both)
+	   u16 areg, enum shf_op op, u16 breg, bool i8, bool sw, bool wr_both,
+	   bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -302,7 +313,9 @@ __emit_shf(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 		FIELD_PREP(OP_SHF_SHIFT, shift) |
 		FIELD_PREP(OP_SHF_OP, op) |
 		FIELD_PREP(OP_SHF_DST_AB, dst_ab) |
-		FIELD_PREP(OP_SHF_WR_AB, wr_both);
+		FIELD_PREP(OP_SHF_WR_AB, wr_both) |
+		FIELD_PREP(OP_SHF_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_SHF_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
@@ -321,12 +334,14 @@ emit_shf(struct nfp_prog *nfp_prog, swreg dst,
 	}
 
 	__emit_shf(nfp_prog, reg.dst, reg.dst_ab, sc, shift,
-		   reg.areg, op, reg.breg, reg.i8, reg.swap, reg.wr_both);
+		   reg.areg, op, reg.breg, reg.i8, reg.swap, reg.wr_both,
+		   reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
 __emit_alu(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
-	   u16 areg, enum alu_op op, u16 breg, bool swap, bool wr_both)
+	   u16 areg, enum alu_op op, u16 breg, bool swap, bool wr_both,
+	   bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -337,7 +352,9 @@ __emit_alu(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 		FIELD_PREP(OP_ALU_SW, swap) |
 		FIELD_PREP(OP_ALU_OP, op) |
 		FIELD_PREP(OP_ALU_DST_AB, dst_ab) |
-		FIELD_PREP(OP_ALU_WR_AB, wr_both);
+		FIELD_PREP(OP_ALU_WR_AB, wr_both) |
+		FIELD_PREP(OP_ALU_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_ALU_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
@@ -356,13 +373,15 @@ emit_alu(struct nfp_prog *nfp_prog, swreg dst,
 	}
 
 	__emit_alu(nfp_prog, reg.dst, reg.dst_ab,
-		   reg.areg, op, reg.breg, reg.swap, reg.wr_both);
+		   reg.areg, op, reg.breg, reg.swap, reg.wr_both,
+		   reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
 __emit_ld_field(struct nfp_prog *nfp_prog, enum shf_sc sc,
 		u8 areg, u8 bmask, u8 breg, u8 shift, bool imm8,
-		bool zero, bool swap, bool wr_both)
+		bool zero, bool swap, bool wr_both,
+		bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -375,7 +394,9 @@ __emit_ld_field(struct nfp_prog *nfp_prog, enum shf_sc sc,
 		FIELD_PREP(OP_LDF_ZF, zero) |
 		FIELD_PREP(OP_LDF_BMASK, bmask) |
 		FIELD_PREP(OP_LDF_SHF, shift) |
-		FIELD_PREP(OP_LDF_WR_AB, wr_both);
+		FIELD_PREP(OP_LDF_WR_AB, wr_both) |
+		FIELD_PREP(OP_LDF_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_LDF_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
@@ -394,7 +415,8 @@ emit_ld_field_any(struct nfp_prog *nfp_prog, enum shf_sc sc, u8 shift,
 	}
 
 	__emit_ld_field(nfp_prog, sc, reg.areg, bmask, reg.breg, shift,
-			reg.i8, zero, reg.swap, reg.wr_both);
+			reg.i8, zero, reg.swap, reg.wr_both,
+			reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void

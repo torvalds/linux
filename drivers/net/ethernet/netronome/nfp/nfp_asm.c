@@ -130,6 +130,9 @@ int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
 		reg->breg = nfp_swreg_to_unreg(rreg, false);
 	}
 
+	reg->dst_lmextn = swreg_lmextn(dst);
+	reg->src_lmextn = swreg_lmextn(lreg) | swreg_lmextn(rreg);
+
 	return 0;
 }
 
@@ -206,6 +209,9 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 		reg->areg = nfp_swreg_to_rereg(lreg, false, has_imm8, &reg->i8);
 		reg->breg = nfp_swreg_to_rereg(rreg, false, has_imm8, &reg->i8);
 	}
+
+	reg->dst_lmextn = swreg_lmextn(dst);
+	reg->src_lmextn = swreg_lmextn(lreg) | swreg_lmextn(rreg);
 
 	return 0;
 }
