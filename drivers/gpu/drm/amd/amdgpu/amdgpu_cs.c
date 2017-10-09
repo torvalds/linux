@@ -172,6 +172,8 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	if (ret)
 		goto free_all_kdata;
 
+	p->job->vram_lost_counter = fpriv->vram_lost_counter;
+
 	if (p->uf_entry.robj)
 		p->job->uf_addr = uf_offset;
 	kfree(chunk_array);

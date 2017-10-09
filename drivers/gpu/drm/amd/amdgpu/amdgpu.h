@@ -1125,6 +1125,7 @@ struct amdgpu_job {
 	uint32_t		gds_base, gds_size;
 	uint32_t		gws_base, gws_size;
 	uint32_t		oa_base, oa_size;
+	uint32_t		vram_lost_counter;
 
 	/* user fence handling */
 	uint64_t		uf_addr;

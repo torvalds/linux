@@ -61,6 +61,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
+	(*job)->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 
 	amdgpu_sync_create(&(*job)->sync);
 	amdgpu_sync_create(&(*job)->dep_sync);
@@ -180,8 +181,8 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 {
 	struct dma_fence *fence = NULL;
+	struct amdgpu_device *adev;
 	struct amdgpu_job *job;
-	struct amdgpu_fpriv *fpriv = NULL;
 	int r;
 
 	if (!sched_job) {
@@ -189,17 +190,17 @@ static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 		return NULL;
 	}
 	job = to_amdgpu_job(sched_job);
+	adev = job->adev;
 
 	BUG_ON(amdgpu_sync_peek_fence(&job->sync, NULL));
 
 	trace_amdgpu_sched_run_job(job);
-	if (job->vm)
-		fpriv = container_of(job->vm, struct amdgpu_fpriv, vm);
 	/* skip ib schedule when vram is lost */
-	if (fpriv && amdgpu_kms_vram_lost(job->adev, fpriv))
+	if (job->vram_lost_counter != atomic_read(&adev->vram_lost_counter)) {
 		DRM_ERROR("Skip scheduling IBs!\n");
-	else {
-		r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job, &fence);
+	} else {
+		r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job,
+				       &fence);
 		if (r)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);
 	}
