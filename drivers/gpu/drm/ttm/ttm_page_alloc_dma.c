@@ -913,6 +913,7 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 	if (huge) {
 		gfp_flags |= GFP_TRANSHUGE;
 		gfp_flags &= ~__GFP_MOVABLE;
+		gfp_flags &= ~__GFP_COMP;
 	}
 
 	return gfp_flags;
