@@ -675,7 +675,7 @@ sub-domain of the parent domain.
 
 Support for power domains is provided through the :c:member:`pm_domain` field of
 |struct device|.  This field is a pointer to an object of type
-|struct dev_pm_domain|, defined in :file:`include/linux/pm.h``, providing a set
+|struct dev_pm_domain|, defined in :file:`include/linux/pm.h`, providing a set
 of power management callbacks analogous to the subsystem-level and device driver
 callbacks that are executed for the given device during all power transitions,
 instead of the respective subsystem-level callbacks.  Specifically, if a

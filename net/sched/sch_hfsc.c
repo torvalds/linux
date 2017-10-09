@@ -958,6 +958,8 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	}
 
 	if (cl != NULL) {
+		int old_flags;
+
 		if (parentid) {
 			if (cl->cl_parent &&
 			    cl->cl_parent->cl_common.classid != parentid)
@@ -978,6 +980,8 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		}
 
 		sch_tree_lock(sch);
+		old_flags = cl->cl_flags;
+
 		if (rsc != NULL)
 			hfsc_change_rsc(cl, rsc, cur_time);
 		if (fsc != NULL)
@@ -986,10 +990,21 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			hfsc_change_usc(cl, usc, cur_time);
 
 		if (cl->qdisc->q.qlen != 0) {
-			if (cl->cl_flags & HFSC_RSC)
-				update_ed(cl, qdisc_peek_len(cl->qdisc));
-			if (cl->cl_flags & HFSC_FSC)
-				update_vf(cl, 0, cur_time);
+			int len = qdisc_peek_len(cl->qdisc);
+
+			if (cl->cl_flags & HFSC_RSC) {
+				if (old_flags & HFSC_RSC)
+					update_ed(cl, len);
+				else
+					init_ed(cl, len);
+			}
+
+			if (cl->cl_flags & HFSC_FSC) {
+				if (old_flags & HFSC_FSC)
+					update_vf(cl, 0, cur_time);
+				else
+					init_vf(cl, len);
+			}
 		}
 		sch_tree_unlock(sch);
 

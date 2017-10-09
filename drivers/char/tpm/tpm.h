@@ -50,7 +50,8 @@ enum tpm_const {
 
 enum tpm_timeout {
 	TPM_TIMEOUT = 5,	/* msecs */
-	TPM_TIMEOUT_RETRY = 100 /* msecs */
+	TPM_TIMEOUT_RETRY = 100, /* msecs */
+	TPM_TIMEOUT_RANGE_US = 300	/* usecs */
 };
 
 /* TPM addresses */
@@ -526,6 +527,12 @@ int tpm_pm_suspend(struct device *dev);
 int tpm_pm_resume(struct device *dev);
 int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 		      wait_queue_head_t *queue, bool check_cancel);
+
+static inline void tpm_msleep(unsigned int delay_msec)
+{
+	usleep_range(delay_msec * 1000,
+		     (delay_msec * 1000) + TPM_TIMEOUT_RANGE_US);
+};
 
 struct tpm_chip *tpm_chip_find_get(int chip_num);
 __must_check int tpm_try_get_ops(struct tpm_chip *chip);

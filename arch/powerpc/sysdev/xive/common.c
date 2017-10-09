@@ -1402,6 +1402,14 @@ void xive_teardown_cpu(void)
 
 	if (xive_ops->teardown_cpu)
 		xive_ops->teardown_cpu(cpu, xc);
+
+#ifdef CONFIG_SMP
+	/* Get rid of IPI */
+	xive_cleanup_cpu_ipi(cpu, xc);
+#endif
+
+	/* Disable and free the queues */
+	xive_cleanup_cpu_queues(cpu, xc);
 }
 
 void xive_kexec_teardown_cpu(int secondary)

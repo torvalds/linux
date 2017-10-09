@@ -282,6 +282,7 @@ int smc_netinfo_by_tcpsk(struct socket *clcsock,
 			 __be32 *subnet, u8 *prefix_len)
 {
 	struct dst_entry *dst = sk_dst_get(clcsock->sk);
+	struct in_device *in_dev;
 	struct sockaddr_in addr;
 	int rc = -ENOENT;
 	int len;
@@ -298,14 +299,17 @@ int smc_netinfo_by_tcpsk(struct socket *clcsock,
 	/* get address to which the internal TCP socket is bound */
 	kernel_getsockname(clcsock, (struct sockaddr *)&addr, &len);
 	/* analyze IPv4 specific data of net_device belonging to TCP socket */
-	for_ifa(dst->dev->ip_ptr) {
-		if (ifa->ifa_address != addr.sin_addr.s_addr)
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dst->dev);
+	for_ifa(in_dev) {
+		if (!inet_ifa_match(addr.sin_addr.s_addr, ifa))
 			continue;
 		*prefix_len = inet_mask_len(ifa->ifa_mask);
 		*subnet = ifa->ifa_address & ifa->ifa_mask;
 		rc = 0;
 		break;
-	} endfor_ifa(dst->dev->ip_ptr);
+	} endfor_ifa(in_dev);
+	rcu_read_unlock();
 
 out_rel:
 	dst_release(dst);
@@ -509,7 +513,7 @@ decline_rdma:
 	/* RDMA setup failed, switch back to TCP */
 	smc->use_fallback = true;
 	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
-		rc = smc_clc_send_decline(smc, reason_code, 0);
+		rc = smc_clc_send_decline(smc, reason_code);
 		if (rc < sizeof(struct smc_clc_msg_decline))
 			goto out_err;
 	}
@@ -804,8 +808,6 @@ static void smc_listen_work(struct work_struct *work)
 		rc = local_contact;
 		if (rc == -ENOMEM)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
-		else if (rc == -ENOLINK)
-			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
 		goto decline_rdma;
 	}
 	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
@@ -899,7 +901,7 @@ decline_rdma:
 	smc_conn_free(&new_smc->conn);
 	new_smc->use_fallback = true;
 	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
-		rc = smc_clc_send_decline(new_smc, reason_code, 0);
+		rc = smc_clc_send_decline(new_smc, reason_code);
 		if (rc < sizeof(struct smc_clc_msg_decline))
 			goto out_err;
 	}
