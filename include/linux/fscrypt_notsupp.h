@@ -100,7 +100,7 @@ static inline int fscrypt_setup_filename(struct inode *dir,
 					 const struct qstr *iname,
 					 int lookup, struct fscrypt_name *fname)
 {
-	if (dir->i_sb->s_cop->is_encrypted(dir))
+	if (IS_ENCRYPTED(dir))
 		return -EOPNOTSUPP;
 
 	memset(fname, 0, sizeof(struct fscrypt_name));

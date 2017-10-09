@@ -340,7 +340,7 @@ static int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 		return -ECHILD;
 
 	dir = dget_parent(dentry);
-	if (!d_inode(dir)->i_sb->s_cop->is_encrypted(d_inode(dir))) {
+	if (!IS_ENCRYPTED(d_inode(dir))) {
 		dput(dir);
 		return 0;
 	}
