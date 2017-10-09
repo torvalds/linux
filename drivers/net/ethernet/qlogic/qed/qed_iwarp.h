@@ -73,6 +73,7 @@ struct qed_iwarp_info {
 	u8 tcp_flags;
 	u8 ll2_syn_handle;
 	u8 ll2_ooo_handle;
+	u8 ll2_mpa_handle;
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
