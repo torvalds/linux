@@ -456,7 +456,7 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, control);
 
 		/* wait for reset. */
-		msleep(1);
+		usleep_range(10, 20);
 
 		/* reset soft reset bit. */
 		control &= ~VIVS_HI_CLOCK_CONTROL_SOFT_RESET;
