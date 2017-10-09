@@ -558,28 +558,9 @@ reset_mrs:
 	goto unmap;
 }
 
-/* Use a slow, safe mechanism to invalidate all memory regions
- * that were registered for "req".
- */
-static void
-frwr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
-		   bool sync)
-{
-	struct rpcrdma_mw *mw;
-
-	while (!list_empty(&req->rl_registered)) {
-		mw = rpcrdma_pop_mw(&req->rl_registered);
-		if (sync)
-			frwr_op_recover_mr(mw);
-		else
-			rpcrdma_defer_mr_recovery(mw);
-	}
-}
-
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
-	.ro_unmap_safe			= frwr_op_unmap_safe,
 	.ro_recover_mr			= frwr_op_recover_mr,
 	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,
