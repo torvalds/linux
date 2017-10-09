@@ -1033,13 +1033,13 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 
 	if (i2s->variant->has_reset) {
 		i2s->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-		if (IS_ERR(i2s->rst)) {
+		if (IS_ERR_OR_NULL(i2s->rst)) {
 			dev_err(&pdev->dev, "Failed to get reset control\n");
 			return PTR_ERR(i2s->rst);
 		}
 	}
 
-	if (!IS_ERR(i2s->rst)) {
+	if (!IS_ERR_OR_NULL(i2s->rst)) {
 		ret = reset_control_deassert(i2s->rst);
 		if (ret) {
 			dev_err(&pdev->dev,
@@ -1089,7 +1089,7 @@ err_suspend:
 		sun4i_i2s_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-	if (!IS_ERR(i2s->rst))
+	if (!IS_ERR_OR_NULL(i2s->rst))
 		reset_control_assert(i2s->rst);
 
 	return ret;
