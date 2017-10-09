@@ -145,5 +145,6 @@ extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
 
 /* hooks.c */
 extern int fscrypt_file_open(struct inode *inode, struct file *filp);
+extern int __fscrypt_prepare_link(struct inode *inode, struct inode *dir);
 
 #endif	/* _LINUX_FSCRYPT_SUPP_H */

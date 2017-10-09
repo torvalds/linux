@@ -47,3 +47,18 @@ int fscrypt_file_open(struct inode *inode, struct file *filp)
 	return err;
 }
 EXPORT_SYMBOL_GPL(fscrypt_file_open);
+
+int __fscrypt_prepare_link(struct inode *inode, struct inode *dir)
+{
+	int err;
+
+	err = fscrypt_require_key(dir);
+	if (err)
+		return err;
+
+	if (!fscrypt_has_permitted_context(dir, inode))
+		return -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__fscrypt_prepare_link);
