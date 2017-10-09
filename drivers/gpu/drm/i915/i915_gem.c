@@ -2832,7 +2832,17 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request = NULL;
 
-	/* Prevent the signaler thread from updating the request
+	/*
+	 * During the reset sequence, we must prevent the engine from
+	 * entering RC6. As the context state is undefined until we restart
+	 * the engine, if it does enter RC6 during the reset, the state
+	 * written to the powercontext is undefined and so we may lose
+	 * GPU state upon resume, i.e. fail to restart after a reset.
+	 */
+	intel_uncore_forcewake_get(engine->i915, FORCEWAKE_ALL);
+
+	/*
+	 * Prevent the signaler thread from updating the request
 	 * state (by calling dma_fence_signal) as we are processing
 	 * the reset. The write from the GPU of the seqno is
 	 * asynchronous and the signaler thread may see a different
@@ -2843,7 +2853,8 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 	 */
 	kthread_park(engine->breadcrumbs.signaler);
 
-	/* Prevent request submission to the hardware until we have
+	/*
+	 * Prevent request submission to the hardware until we have
 	 * completed the reset in i915_gem_reset_finish(). If a request
 	 * is completed by one engine, it may then queue a request
 	 * to a second via its engine->irq_tasklet *just* as we are
@@ -3033,6 +3044,8 @@ void i915_gem_reset_finish_engine(struct intel_engine_cs *engine)
 {
 	tasklet_enable(&engine->execlists.irq_tasklet);
 	kthread_unpark(engine->breadcrumbs.signaler);
+
+	intel_uncore_forcewake_put(engine->i915, FORCEWAKE_ALL);
 }
 
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
