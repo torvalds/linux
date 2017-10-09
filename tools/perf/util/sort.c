@@ -225,6 +225,9 @@ static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
 	if (sym_l == sym_r)
 		return 0;
 
+	if (sym_l->inlined || sym_r->inlined)
+		return strcmp(sym_l->name, sym_r->name);
+
 	if (sym_l->start != sym_r->start)
 		return (int64_t)(sym_r->start - sym_l->start);
 
