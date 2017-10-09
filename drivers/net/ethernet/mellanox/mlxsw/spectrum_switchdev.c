@@ -49,6 +49,7 @@
 #include <linux/netlink.h>
 #include <net/switchdev.h>
 
+#include "spectrum_router.h"
 #include "spectrum.h"
 #include "core.h"
 #include "reg.h"
@@ -1243,7 +1244,8 @@ static int mlxsw_sp_port_mdb_op(struct mlxsw_sp *mlxsw_sp, const char *addr,
 }
 
 static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
-					 long *ports_bitmap)
+					 long *ports_bitmap,
+					 bool set_router_port)
 {
 	char *smid_pl;
 	int err, i;
@@ -1258,8 +1260,14 @@ static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
 			mlxsw_reg_smid_port_mask_set(smid_pl, i, 1);
 	}
 
+	mlxsw_reg_smid_port_mask_set(smid_pl,
+				     mlxsw_sp_router_port(mlxsw_sp), 1);
+
 	for_each_set_bit(i, ports_bitmap, mlxsw_core_max_ports(mlxsw_sp->core))
 		mlxsw_reg_smid_port_set(smid_pl, i, 1);
+
+	mlxsw_reg_smid_port_set(smid_pl, mlxsw_sp_router_port(mlxsw_sp),
+				set_router_port);
 
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
 	kfree(smid_pl);
@@ -1364,7 +1372,8 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_mc_get_mrouters_bitmap(flood_bitmap, bridge_device, mlxsw_sp);
 
 	mid->mid = mid_idx;
-	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx, flood_bitmap);
+	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx, flood_bitmap,
+					    false);
 	kfree(flood_bitmap);
 	if (err)
 		return false;
