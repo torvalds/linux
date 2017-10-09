@@ -301,7 +301,8 @@ static void podhd_disconnect(struct usb_line6 *line6)
 
 		intf = usb_ifnum_to_if(line6->usbdev,
 					pod->line6.properties->ctrl_if);
-		usb_driver_release_interface(&podhd_driver, intf);
+		if (intf)
+			usb_driver_release_interface(&podhd_driver, intf);
 	}
 }
 
