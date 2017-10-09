@@ -2284,9 +2284,10 @@ static inline void clear_file(struct inode *inode, int type)
 
 static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 {
+	bool ret;
+
 	if (dsync) {
 		struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-		bool ret;
 
 		spin_lock(&sbi->inode_lock[DIRTY_META]);
 		ret = list_empty(&F2FS_I(inode)->gdirty_list);
@@ -2297,7 +2298,12 @@ static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 			file_keep_isize(inode) ||
 			i_size_read(inode) & PAGE_MASK)
 		return false;
-	return F2FS_I(inode)->last_disk_size == i_size_read(inode);
+
+	down_read(&F2FS_I(inode)->i_sem);
+	ret = F2FS_I(inode)->last_disk_size == i_size_read(inode);
+	up_read(&F2FS_I(inode)->i_sem);
+
+	return ret;
 }
 
 static inline int f2fs_readonly(struct super_block *sb)
