@@ -426,6 +426,11 @@ emit_ld_field(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	emit_ld_field_any(nfp_prog, sc, shift, dst, bmask, src, false);
 }
 
+static void emit_nop(struct nfp_prog *nfp_prog)
+{
+	__emit_immed(nfp_prog, UR_REG_IMM, UR_REG_IMM, 0, 0, 0, 0, 0, 0, 0);
+}
+
 /* --- Wrappers --- */
 static bool pack_immed(u32 imm, u16 *val, enum immed_shift *shift)
 {
@@ -1550,7 +1555,7 @@ static void nfp_outro(struct nfp_prog *nfp_prog)
 static int nfp_translate(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
-	int err;
+	int i, err;
 
 	nfp_intro(nfp_prog);
 	if (nfp_prog->error)
@@ -1579,6 +1584,11 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 	}
 
 	nfp_outro(nfp_prog);
+	if (nfp_prog->error)
+		return nfp_prog->error;
+
+	for (i = 0; i < NFP_USTORE_PREFETCH_WINDOW; i++)
+		emit_nop(nfp_prog);
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
