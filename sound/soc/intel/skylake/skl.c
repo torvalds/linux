@@ -1011,6 +1011,7 @@ static const struct sst_acpi_mach sst_cnl_devdata[] = {
 		.fw_filename = "intel/dsp_fw_cnl.bin",
 		.pdata = &cnl_pdata,
 	},
+	{}
 };
 
 /* PCI IDs */
