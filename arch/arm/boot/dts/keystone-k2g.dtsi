@@ -483,5 +483,25 @@
 				status = "disabled";
 			};
 		};
+
+		ecap0: pwm@21d1800 {
+			compatible = "ti,k2g-ecap", "ti,am3352-ecap";
+			#pwm-cells = <3>;
+			reg = <0x021d1800 0x60>;
+			power-domains = <&k2g_pds 0x38>;
+			clocks = <&k2g_clks 0x38 0>;
+			clock-names = "fck";
+			status = "disabled";
+		};
+
+		ecap1: pwm@21d1c00 {
+			compatible = "ti,k2g-ecap", "ti,am3352-ecap";
+			#pwm-cells = <3>;
+			reg = <0x021d1c00 0x60>;
+			power-domains = <&k2g_pds 0x39>;
+			clocks = <&k2g_clks 0x39 0x0>;
+			clock-names = "fck";
+			status = "disabled";
+		};
 	};
 };
