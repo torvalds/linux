@@ -6730,16 +6730,13 @@ static __init int hardware_setup(void)
 	if (!cpu_has_vmx_ept() ||
 	    !cpu_has_vmx_ept_4levels() ||
 	    !cpu_has_vmx_ept_mt_wb() ||
-	    !cpu_has_vmx_invept_global()) {
+	    !cpu_has_vmx_invept_global())
 		enable_ept = 0;
-		enable_unrestricted_guest = 0;
-		enable_ept_ad_bits = 0;
-	}
 
 	if (!cpu_has_vmx_ept_ad_bits() || !enable_ept)
 		enable_ept_ad_bits = 0;
 
-	if (!cpu_has_vmx_unrestricted_guest())
+	if (!cpu_has_vmx_unrestricted_guest() || !enable_ept)
 		enable_unrestricted_guest = 0;
 
 	if (!cpu_has_vmx_flexpriority())
