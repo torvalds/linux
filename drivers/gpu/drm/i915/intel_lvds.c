@@ -1111,11 +1111,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 * on.  If so, assume that whatever is currently programmed is the
 	 * correct mode.
 	 */
-
-	/* Ironlake: FIXME if still fail, not try pipe mode now */
-	if (HAS_PCH_SPLIT(dev_priv))
-		goto failed;
-
 	fixed_mode = intel_encoder_current_mode(intel_encoder);
 	if (fixed_mode) {
 		DRM_DEBUG_KMS("using current (BIOS) mode: ");
