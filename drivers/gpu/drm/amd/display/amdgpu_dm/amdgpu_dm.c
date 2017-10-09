@@ -570,23 +570,15 @@ static int dm_suspend(void *handle)
 
 struct amdgpu_dm_connector *amdgpu_dm_find_first_crct_matching_connector(
 	struct drm_atomic_state *state,
-	struct drm_crtc *crtc,
-	bool from_state_var)
+	struct drm_crtc *crtc)
 {
 	uint32_t i;
 	struct drm_connector_state *conn_state;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc_from_state;
 
-	for_each_connector_in_state(
-		state,
-		connector,
-		conn_state,
-		i) {
-		crtc_from_state =
-			from_state_var ?
-				conn_state->crtc :
-				connector->state->crtc;
+	for_each_new_connector_in_state(state, connector, conn_state, i) {
+		crtc_from_state = conn_state->crtc;
 
 		if (crtc_from_state == crtc)
 			return to_amdgpu_dm_connector(connector);
@@ -652,7 +644,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	}
 
 	/* Force mode set in atomic comit */
-	for_each_crtc_in_state(adev->dm.cached_state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, crtc_state, i)
 			crtc_state->active_changed = true;
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
@@ -3890,7 +3882,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	unsigned long flags;
 
 	/* update planes when needed */
-	for_each_plane_in_state(state, plane, old_plane_state, i) {
+	for_each_old_plane_in_state(state, plane, old_plane_state, i) {
 		struct drm_plane_state *plane_state = plane->state;
 		struct drm_crtc *crtc = plane_state->crtc;
 		struct drm_framebuffer *fb = plane_state->fb;
@@ -3987,7 +3979,7 @@ int amdgpu_dm_atomic_commit(
 	 * it will update crtc->dm_crtc_state->stream pointer which is used in
 	 * the ISRs.
 	 */
-	for_each_crtc_in_state(state, crtc, new_state, i) {
+	for_each_new_crtc_in_state(state, crtc, new_state, i) {
 		struct dm_crtc_state *old_acrtc_state = to_dm_crtc_state(crtc->state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
@@ -4024,7 +4016,7 @@ void amdgpu_dm_atomic_commit_tail(
 	dm_state = to_dm_atomic_state(state);
 
 	/* update changed items */
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 		struct drm_crtc_state *new_state = crtc->state;
 
@@ -4113,11 +4105,9 @@ void amdgpu_dm_atomic_commit_tail(
 			new_acrtc_state = to_dm_crtc_state(new_crtcs[i]->base.state);
 
 			new_stream = new_acrtc_state->stream;
-			aconnector =
-				amdgpu_dm_find_first_crct_matching_connector(
+			aconnector = amdgpu_dm_find_first_crct_matching_connector(
 					state,
-					&new_crtcs[i]->base,
-					false);
+					&new_crtcs[i]->base);
 			if (!aconnector) {
 				DRM_DEBUG_DRIVER("Atomic commit: Failed to find connector for acrtc id:%d "
 					 "skipping freesync init\n",
@@ -4151,7 +4141,7 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* Handle scaling and undersacn changes*/
-	for_each_connector_in_state(state, connector, old_conn_state, i) {
+	for_each_old_connector_in_state(state, connector, old_conn_state, i) {
 		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 		struct dm_connector_state *con_new_state =
 				to_dm_connector_state(aconnector->base.state);
@@ -4205,7 +4195,7 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* update planes when needed per crtc*/
-	for_each_crtc_in_state(state, pcrtc, old_crtc_state, j) {
+	for_each_old_crtc_in_state(state, pcrtc, old_crtc_state, j) {
 		new_acrtc_state = to_dm_crtc_state(pcrtc->state);
 
 		if (new_acrtc_state->stream)
@@ -4218,7 +4208,7 @@ void amdgpu_dm_atomic_commit_tail(
 	 * mark consumed event for drm_atomic_helper_commit_hw_done
 	 */
 	spin_lock_irqsave(&adev->ddev->event_lock, flags);
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 		if (acrtc->base.state->event)
@@ -4390,7 +4380,7 @@ static int dm_update_crtcs_state(
 
 	/*TODO Move this code into dm_crtc_atomic_check once we get rid of dc_validation_set */
 	/* update changed items */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		struct amdgpu_crtc *acrtc = NULL;
 		struct amdgpu_dm_connector *aconnector = NULL;
 		struct drm_connector_state *conn_state = NULL;
@@ -4402,7 +4392,7 @@ static int dm_update_crtcs_state(
 		new_acrtc_state = to_dm_crtc_state(crtc_state);
 		acrtc = to_amdgpu_crtc(crtc);
 
-		aconnector = amdgpu_dm_find_first_crct_matching_connector(state, crtc, true);
+		aconnector = amdgpu_dm_find_first_crct_matching_connector(state, crtc);
 
 		/* TODO This hack should go away */
 		if (aconnector) {
@@ -4674,7 +4664,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 * Hack: Commit needs planes right now, specifically for gamma
 	 * TODO rework commit to check CRTC for gamma change
 	 */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (crtc_state->color_mgmt_changed) {
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
@@ -4720,7 +4710,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 * new stream into context w\o causing full reset. Need to
 	 * decide how to handle.
 	 */
-	for_each_connector_in_state(state, connector, conn_state, i) {
+	for_each_new_connector_in_state(state, connector, conn_state, i) {
 		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 		struct dm_connector_state *con_old_state =
 				to_dm_connector_state(aconnector->base.state);
