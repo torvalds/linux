@@ -686,7 +686,7 @@ xprt_rdma_free(struct rpc_task *task)
 	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
 
 	if (!list_empty(&req->rl_registered))
-		ia->ri_ops->ro_unmap_safe(r_xprt, req, !RPC_IS_ASYNC(task));
+		ia->ri_ops->ro_unmap_sync(r_xprt, &req->rl_registered);
 	rpcrdma_unmap_sges(ia, req);
 	rpcrdma_buffer_put(req);
 }
