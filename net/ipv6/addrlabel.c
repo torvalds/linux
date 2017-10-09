@@ -18,7 +18,6 @@
 #include <linux/if_addrlabel.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#include <linux/refcount.h>
 
 #if 0
 #define ADDRLABEL(x...) printk(x)
@@ -36,7 +35,6 @@ struct ip6addrlbl_entry {
 	int addrtype;
 	u32 label;
 	struct hlist_node list;
-	refcount_t refcnt;
 	struct rcu_head rcu;
 };
 
@@ -110,28 +108,6 @@ static const __net_initconst struct ip6addrlbl_init_table
 		.label = 0,
 	}
 };
-
-/* Object management */
-static inline void ip6addrlbl_free(struct ip6addrlbl_entry *p)
-{
-	kfree(p);
-}
-
-static void ip6addrlbl_free_rcu(struct rcu_head *h)
-{
-	ip6addrlbl_free(container_of(h, struct ip6addrlbl_entry, rcu));
-}
-
-static bool ip6addrlbl_hold(struct ip6addrlbl_entry *p)
-{
-	return refcount_inc_not_zero(&p->refcnt);
-}
-
-static inline void ip6addrlbl_put(struct ip6addrlbl_entry *p)
-{
-	if (refcount_dec_and_test(&p->refcnt))
-		call_rcu(&p->rcu, ip6addrlbl_free_rcu);
-}
 
 /* Find label */
 static bool __ip6addrlbl_match(const struct ip6addrlbl_entry *p,
@@ -219,7 +195,6 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
 	newp->addrtype = addrtype;
 	newp->label = label;
 	INIT_HLIST_NODE(&newp->list);
-	refcount_set(&newp->refcnt, 1);
 	return newp;
 }
 
@@ -243,7 +218,7 @@ static int __ip6addrlbl_add(struct net *net, struct ip6addrlbl_entry *newp,
 				goto out;
 			}
 			hlist_replace_rcu(&p->list, &newp->list);
-			ip6addrlbl_put(p);
+			kfree_rcu(p, rcu);
 			goto out;
 		} else if ((p->prefixlen == newp->prefixlen && !p->ifindex) ||
 			   (p->prefixlen < newp->prefixlen)) {
@@ -281,7 +256,7 @@ static int ip6addrlbl_add(struct net *net,
 	ret = __ip6addrlbl_add(net, newp, replace);
 	spin_unlock(&net->ipv6.ip6addrlbl_table.lock);
 	if (ret)
-		ip6addrlbl_free(newp);
+		kfree(newp);
 	return ret;
 }
 
@@ -302,7 +277,7 @@ static int __ip6addrlbl_del(struct net *net,
 		    p->ifindex == ifindex &&
 		    ipv6_addr_equal(&p->prefix, prefix)) {
 			hlist_del_rcu(&p->list);
-			ip6addrlbl_put(p);
+			kfree_rcu(p, rcu);
 			ret = 0;
 			break;
 		}
@@ -360,7 +335,7 @@ static void __net_exit ip6addrlbl_net_exit(struct net *net)
 	spin_lock(&net->ipv6.ip6addrlbl_table.lock);
 	hlist_for_each_entry_safe(p, n, &net->ipv6.ip6addrlbl_table.head, list) {
 		hlist_del_rcu(&p->list);
-		ip6addrlbl_put(p);
+		kfree_rcu(p, rcu);
 	}
 	spin_unlock(&net->ipv6.ip6addrlbl_table.lock);
 }
@@ -546,38 +521,28 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 	addr = nla_data(tb[IFAL_ADDRESS]);
 
+	skb = nlmsg_new(ip6addrlbl_msgsize(), GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	err = -ESRCH;
+
 	rcu_read_lock();
 	p = __ipv6_addr_label(net, addr, ipv6_addr_type(addr), ifal->ifal_index);
-	if (p && !ip6addrlbl_hold(p))
-		p = NULL;
 	lseq = net->ipv6.ip6addrlbl_table.seq;
+	if (p)
+		err = ip6addrlbl_fill(skb, p, lseq,
+				      NETLINK_CB(in_skb).portid,
+				      nlh->nlmsg_seq,
+				      RTM_NEWADDRLABEL, 0);
 	rcu_read_unlock();
-
-	if (!p) {
-		err = -ESRCH;
-		goto out;
-	}
-
-	skb = nlmsg_new(ip6addrlbl_msgsize(), GFP_KERNEL);
-	if (!skb) {
-		ip6addrlbl_put(p);
-		return -ENOBUFS;
-	}
-
-	err = ip6addrlbl_fill(skb, p, lseq,
-			      NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
-			      RTM_NEWADDRLABEL, 0);
-
-	ip6addrlbl_put(p);
 
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
-		goto out;
+	} else {
+		err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 	}
-
-	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
-out:
 	return err;
 }
 
