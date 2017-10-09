@@ -1972,8 +1972,14 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec(table, write, buffer, length, ppos);
-	return 0;
+	unsigned int old_interval = dirty_writeback_interval;
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, length, ppos);
+	if (!ret && !old_interval && dirty_writeback_interval)
+		wakeup_flusher_threads(WB_REASON_PERIODIC);
+
+	return ret;
 }
 
 #ifdef CONFIG_BLOCK
