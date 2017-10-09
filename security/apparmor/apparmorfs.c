@@ -2156,6 +2156,7 @@ static struct aa_sfs_entry aa_sfs_entry_domain[] = {
 	AA_SFS_FILE_BOOLEAN("change_profile",	1),
 	AA_SFS_FILE_BOOLEAN("stack",		1),
 	AA_SFS_FILE_BOOLEAN("fix_binfmt_elf_mmap",	1),
+	AA_SFS_FILE_BOOLEAN("post_nnp_subset",	1),
 	AA_SFS_FILE_STRING("version", "1.2"),
 	{ }
 };

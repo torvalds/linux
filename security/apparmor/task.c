@@ -45,6 +45,7 @@ struct aa_label *aa_get_task_label(struct task_struct *task)
 int aa_replace_current_label(struct aa_label *label)
 {
 	struct aa_label *old = aa_current_raw_label();
+	struct aa_task_ctx *ctx = task_ctx(current);
 	struct cred *new;
 
 	AA_BUG(!label);
@@ -59,6 +60,12 @@ int aa_replace_current_label(struct aa_label *label)
 	if (!new)
 		return -ENOMEM;
 
+	if (ctx->nnp && label_is_stale(ctx->nnp)) {
+		struct aa_label *tmp = ctx->nnp;
+
+		ctx->nnp = aa_get_newest_label(tmp);
+		aa_put_label(tmp);
+	}
 	if (unconfined(label) || (labels_ns(old) != labels_ns(label)))
 		/*
 		 * if switching to unconfined or a different label namespace

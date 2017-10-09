@@ -18,11 +18,13 @@
 
 /*
  * struct aa_task_ctx - information for current task label change
+ * @nnp: snapshot of label at time of no_new_privs
  * @onexec: profile to transition to on next exec  (MAY BE NULL)
  * @previous: profile the task may return to     (MAY BE NULL)
  * @token: magic value the task must know for returning to @previous_profile
  */
 struct aa_task_ctx {
+	struct aa_label *nnp;
 	struct aa_label *onexec;
 	struct aa_label *previous;
 	u64 token;
@@ -52,6 +54,7 @@ static inline struct aa_task_ctx *aa_alloc_task_ctx(gfp_t flags)
 static inline void aa_free_task_ctx(struct aa_task_ctx *ctx)
 {
 	if (ctx) {
+		aa_put_label(ctx->nnp);
 		aa_put_label(ctx->previous);
 		aa_put_label(ctx->onexec);
 
@@ -68,6 +71,7 @@ static inline void aa_dup_task_ctx(struct aa_task_ctx *new,
 				   const struct aa_task_ctx *old)
 {
 	*new = *old;
+	aa_get_label(new->nnp);
 	aa_get_label(new->previous);
 	aa_get_label(new->onexec);
 }

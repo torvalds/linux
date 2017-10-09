@@ -592,22 +592,6 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 	if (!new)
 		goto audit;
 
-	/* Policy has specified a domain transitions. if no_new_privs and
-	 * confined and not transitioning to the current domain fail.
-	 *
-	 * NOTE: Domain transitions from unconfined and to stritly stacked
-	 * subsets are allowed even when no_new_privs is set because this
-	 * aways results in a further reduction of permissions.
-	 */
-	if ((bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) &&
-	    !profile_unconfined(profile) &&
-	    !aa_label_is_subset(new, &profile->label)) {
-		error = -EPERM;
-		info = "no new privs";
-		nonewprivs = true;
-		perms.allow &= ~MAY_EXEC;
-		goto audit;
-	}
 
 	if (!(perms.xindex & AA_X_UNSAFE)) {
 		if (DEBUG_ON) {
@@ -681,21 +665,6 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	error = change_profile_perms(profile, onexec, stack, AA_MAY_ONEXEC,
 				     state, &perms);
 	if (error) {
-		perms.allow &= ~AA_MAY_ONEXEC;
-		goto audit;
-	}
-	/* Policy has specified a domain transitions. if no_new_privs and
-	 * confined and not transitioning to the current domain fail.
-	 *
-	 * NOTE: Domain transitions from unconfined and to stritly stacked
-	 * subsets are allowed even when no_new_privs is set because this
-	 * aways results in a further reduction of permissions.
-	 */
-	if ((bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) &&
-	    !profile_unconfined(profile) &&
-	    !aa_label_is_subset(onexec, &profile->label)) {
-		error = -EPERM;
-		info = "no new privs";
 		perms.allow &= ~AA_MAY_ONEXEC;
 		goto audit;
 	}
@@ -800,6 +769,17 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 
 	label = aa_get_newest_label(cred_label(bprm->cred));
 
+	/*
+	 * Detect no new privs being set, and store the label it
+	 * occurred under. Ideally this would happen when nnp
+	 * is set but there isn't a good way to do that yet.
+	 *
+	 * Testing for unconfined must be done before the subset test
+	 */
+	if ((bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) && !unconfined(label) &&
+	    !ctx->nnp)
+		ctx->nnp = aa_get_label(label);
+
 	/* buffer freed below, name is pointer into buffer */
 	get_buffers(buffer);
 	/* Test for onexec first as onexec override other x transitions. */
@@ -820,7 +800,20 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		goto done;
 	}
 
-	/* TODO: Add ns level no_new_privs subset test */
+	/* Policy has specified a domain transitions. If no_new_privs and
+	 * confined ensure the transition is to confinement that is subset
+	 * of the confinement when the task entered no new privs.
+	 *
+	 * NOTE: Domain transitions from unconfined and to stacked
+	 * subsets are allowed even when no_new_privs is set because this
+	 * aways results in a further reduction of permissions.
+	 */
+	if ((bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) &&
+	    !unconfined(label) && !aa_label_is_subset(new, ctx->nnp)) {
+		error = -EPERM;
+		info = "no new privs";
+		goto audit;
+	}
 
 	if (bprm->unsafe & LSM_UNSAFE_SHARE) {
 		/* FIXME: currently don't mediate shared state */
@@ -1047,29 +1040,27 @@ build:
 int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 {
 	const struct cred *cred;
-	struct aa_task_ctx *ctx;
+	struct aa_task_ctx *ctx = task_ctx(current);
 	struct aa_label *label, *previous, *new = NULL, *target = NULL;
 	struct aa_profile *profile;
 	struct aa_perms perms = {};
 	const char *info = NULL;
 	int error = 0;
 
-	/*
-	 * Fail explicitly requested domain transitions if no_new_privs.
-	 * There is no exception for unconfined as change_hat is not
-	 * available.
-	 */
-	if (task_no_new_privs(current)) {
-		/* not an apparmor denial per se, so don't log it */
-		AA_DEBUG("no_new_privs - change_hat denied");
-		return -EPERM;
-	}
-
 	/* released below */
 	cred = get_current_cred();
-	ctx = task_ctx(current);
 	label = aa_get_newest_cred_label(cred);
 	previous = aa_get_newest_label(ctx->previous);
+
+	/*
+	 * Detect no new privs being set, and store the label it
+	 * occurred under. Ideally this would happen when nnp
+	 * is set but there isn't a good way to do that yet.
+	 *
+	 * Testing for unconfined must be done before the subset test
+	 */
+	if (task_no_new_privs(current) && !unconfined(label) && !ctx->nnp)
+		ctx->nnp = aa_get_label(label);
 
 	if (unconfined(label)) {
 		info = "unconfined can not change_hat";
@@ -1091,6 +1082,18 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		if (error)
 			goto fail;
 
+		/*
+		 * no new privs prevents domain transitions that would
+		 * reduce restrictions.
+		 */
+		if (task_no_new_privs(current) && !unconfined(label) &&
+		    !aa_label_is_subset(new, ctx->nnp)) {
+			/* not an apparmor denial per se, so don't log it */
+			AA_DEBUG("no_new_privs - change_hat denied");
+			error = -EPERM;
+			goto out;
+		}
+
 		if (flags & AA_CHANGE_TEST)
 			goto out;
 
@@ -1100,6 +1103,18 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 			/* kill task in case of brute force attacks */
 			goto kill;
 	} else if (previous && !(flags & AA_CHANGE_TEST)) {
+		/*
+		 * no new privs prevents domain transitions that would
+		 * reduce restrictions.
+		 */
+		if (task_no_new_privs(current) && !unconfined(label) &&
+		    !aa_label_is_subset(previous, ctx->nnp)) {
+			/* not an apparmor denial per se, so don't log it */
+			AA_DEBUG("no_new_privs - change_hat denied");
+			error = -EPERM;
+			goto out;
+		}
+
 		/* Return to saved label.  Kill task if restore fails
 		 * to avoid brute force attacks
 		 */
@@ -1142,21 +1157,6 @@ static int change_profile_perms_wrapper(const char *op, const char *name,
 	const char *info = NULL;
 	int error = 0;
 
-	/*
-	 * Fail explicitly requested domain transitions when no_new_privs
-	 * and not unconfined OR the transition results in a stack on
-	 * the current label.
-	 * Stacking domain transitions and transitions from unconfined are
-	 * allowed even when no_new_privs is set because this aways results
-	 * in a reduction of permissions.
-	 */
-	if (task_no_new_privs(current) && !stack &&
-	    !profile_unconfined(profile) &&
-	    !aa_label_is_subset(target, &profile->label)) {
-		info = "no new privs";
-		error = -EPERM;
-	}
-
 	if (!error)
 		error = change_profile_perms(profile, target, stack, request,
 					     profile->file.start, perms);
@@ -1190,9 +1190,22 @@ int aa_change_profile(const char *fqname, int flags)
 	const char *info = NULL;
 	const char *auditname = fqname;		/* retain leading & if stack */
 	bool stack = flags & AA_CHANGE_STACK;
+	struct aa_task_ctx *ctx = task_ctx(current);
 	int error = 0;
 	char *op;
 	u32 request;
+
+	label = aa_get_current_label();
+
+	/*
+	 * Detect no new privs being set, and store the label it
+	 * occurred under. Ideally this would happen when nnp
+	 * is set but there isn't a good way to do that yet.
+	 *
+	 * Testing for unconfined must be done before the subset test
+	 */
+	if (task_no_new_privs(current) && !unconfined(label) && !ctx->nnp)
+		ctx->nnp = aa_get_label(label);
 
 	if (!fqname || !*fqname) {
 		AA_DEBUG("no profile name");
@@ -1281,14 +1294,28 @@ check:
 	if (flags & AA_CHANGE_TEST)
 		goto out;
 
+	/* stacking is always a subset, so only check the nonstack case */
+	if (!stack) {
+		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+					   aa_get_label(target),
+					   aa_get_label(&profile->label));
+		/*
+		 * no new privs prevents domain transitions that would
+		 * reduce restrictions.
+		 */
+		if (task_no_new_privs(current) && !unconfined(label) &&
+		    !aa_label_is_subset(new, ctx->nnp)) {
+			/* not an apparmor denial per se, so don't log it */
+			AA_DEBUG("no_new_privs - change_hat denied");
+			error = -EPERM;
+			goto out;
+		}
+	}
+
 	if (!(flags & AA_CHANGE_ONEXEC)) {
 		/* only transition profiles in the current ns */
 		if (stack)
 			new = aa_label_merge(label, target, GFP_KERNEL);
-		else
-			new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
-					aa_get_label(target),
-					aa_get_label(&profile->label));
 		if (IS_ERR_OR_NULL(new)) {
 			info = "failed to build target label";
 			error = PTR_ERR(new);
@@ -1297,9 +1324,15 @@ check:
 			goto audit;
 		}
 		error = aa_replace_current_label(new);
-	} else
+	} else {
+		if (new) {
+			aa_put_label(new);
+			new = NULL;
+		}
+
 		/* full transition will be built in exec path */
 		error = aa_set_current_onexec(target, stack);
+	}
 
 audit:
 	error = fn_for_each_in_ns(label, profile,
