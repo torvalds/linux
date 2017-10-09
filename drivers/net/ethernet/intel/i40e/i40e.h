@@ -130,7 +130,8 @@
 
 /* BW rate limiting */
 #define I40E_BW_CREDIT_DIVISOR		50 /* 50Mbps per BW credit */
-#define I40E_MAX_BW_INACTIVE_ACCUM	4  /* accumulate 4 credits max */
+#define I40E_BW_MBPS_DIVISOR		125000 /* rate / (1000000 / 8) Mbps */
+#define I40E_MAX_BW_INACTIVE_ACCUM	4 /* accumulate 4 credits max */
 
 /* driver state flags */
 enum i40e_state_t {
