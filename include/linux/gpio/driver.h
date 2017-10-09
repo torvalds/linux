@@ -83,7 +83,6 @@ struct module;
  * @irqchip: GPIO IRQ chip impl, provided by GPIO driver
  * @irqdomain: Interrupt translation domain; responsible for mapping
  *	between GPIO hwirq number and linux irq number
- * @irq_base: first linux IRQ number assigned to GPIO IRQ chip (deprecated)
  * @irq_handler: the irq handler to use (often a predefined irq core function)
  *	for GPIO IRQs, provided by GPIO driver
  * @irq_default_type: default IRQ triggering type applied during GPIO driver
@@ -165,7 +164,6 @@ struct gpio_chip {
 	 */
 	struct irq_chip		*irqchip;
 	struct irq_domain	*irqdomain;
-	unsigned int		irq_base;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
 	unsigned int		irq_chained_parent;
