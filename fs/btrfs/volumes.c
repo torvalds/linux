@@ -6366,6 +6366,12 @@ static int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+static void btrfs_report_missing_device(struct btrfs_fs_info *fs_info,
+						u64 devid, u8 *uuid)
+{
+	btrfs_warn_rl(fs_info, "devid %llu uuid %pU is missing", devid, uuid);
+}
+
 static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 			  struct extent_buffer *leaf,
 			  struct btrfs_chunk *chunk)
@@ -6750,12 +6756,6 @@ out_short_read:
 	clear_extent_buffer_uptodate(sb);
 	free_extent_buffer_stale(sb);
 	return -EIO;
-}
-
-void btrfs_report_missing_device(struct btrfs_fs_info *fs_info, u64 devid,
-				 u8 *uuid)
-{
-	btrfs_warn_rl(fs_info, "devid %llu uuid %pU is missing", devid, uuid);
 }
 
 /*
