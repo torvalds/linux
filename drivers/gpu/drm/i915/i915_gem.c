@@ -4036,42 +4036,47 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
+	if (!view && flags & PIN_MAPPABLE) {
+		/* If the required space is larger than the available
+		 * aperture, we will not able to find a slot for the
+		 * object and unbinding the object now will be in
+		 * vain. Worse, doing so may cause us to ping-pong
+		 * the object in and out of the Global GTT and
+		 * waste a lot of cycles under the mutex.
+		 */
+		if (obj->base.size > dev_priv->ggtt.mappable_end)
+			return ERR_PTR(-E2BIG);
+
+		/* If NONBLOCK is set the caller is optimistically
+		 * trying to cache the full object within the mappable
+		 * aperture, and *must* have a fallback in place for
+		 * situations where we cannot bind the object. We
+		 * can be a little more lax here and use the fallback
+		 * more often to avoid costly migrations of ourselves
+		 * and other objects within the aperture.
+		 *
+		 * Half-the-aperture is used as a simple heuristic.
+		 * More interesting would to do search for a free
+		 * block prior to making the commitment to unbind.
+		 * That caters for the self-harm case, and with a
+		 * little more heuristics (e.g. NOFAULT, NOEVICT)
+		 * we could try to minimise harm to others.
+		 */
+		if (flags & PIN_NONBLOCK &&
+		    obj->base.size > dev_priv->ggtt.mappable_end / 2)
+			return ERR_PTR(-ENOSPC);
+	}
+
 	vma = i915_vma_instance(obj, vm, view);
 	if (unlikely(IS_ERR(vma)))
 		return vma;
 
 	if (i915_vma_misplaced(vma, size, alignment, flags)) {
-		if (flags & PIN_NONBLOCK &&
-		    (i915_vma_is_pinned(vma) || i915_vma_is_active(vma)))
-			return ERR_PTR(-ENOSPC);
+		if (flags & PIN_NONBLOCK) {
+			if (i915_vma_is_pinned(vma) || i915_vma_is_active(vma))
+				return ERR_PTR(-ENOSPC);
 
-		if (flags & PIN_MAPPABLE) {
-			/* If the required space is larger than the available
-			 * aperture, we will not able to find a slot for the
-			 * object and unbinding the object now will be in
-			 * vain. Worse, doing so may cause us to ping-pong
-			 * the object in and out of the Global GTT and
-			 * waste a lot of cycles under the mutex.
-			 */
-			if (vma->fence_size > dev_priv->ggtt.mappable_end)
-				return ERR_PTR(-E2BIG);
-
-			/* If NONBLOCK is set the caller is optimistically
-			 * trying to cache the full object within the mappable
-			 * aperture, and *must* have a fallback in place for
-			 * situations where we cannot bind the object. We
-			 * can be a little more lax here and use the fallback
-			 * more often to avoid costly migrations of ourselves
-			 * and other objects within the aperture.
-			 *
-			 * Half-the-aperture is used as a simple heuristic.
-			 * More interesting would to do search for a free
-			 * block prior to making the commitment to unbind.
-			 * That caters for the self-harm case, and with a
-			 * little more heuristics (e.g. NOFAULT, NOEVICT)
-			 * we could try to minimise harm to others.
-			 */
-			if (flags & PIN_NONBLOCK &&
+			if (flags & PIN_MAPPABLE &&
 			    vma->fence_size > dev_priv->ggtt.mappable_end / 2)
 				return ERR_PTR(-ENOSPC);
 		}
