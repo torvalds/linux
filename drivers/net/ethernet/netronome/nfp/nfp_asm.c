@@ -48,6 +48,7 @@ const struct cmd_tgt_act cmd_tgt_act[__CMD_TGT_MAP_SIZE] = {
 
 static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 {
+	bool lm_id, lm_dec = false;
 	u16 val = swreg_value(reg);
 
 	switch (swreg_type(reg)) {
@@ -59,6 +60,33 @@ static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 		return UR_REG_NN | val;
 	case NN_REG_XFER:
 		return UR_REG_XFR | val;
+	case NN_REG_LMEM:
+		lm_id = swreg_lm_idx(reg);
+
+		switch (swreg_lm_mode(reg)) {
+		case NN_LM_MOD_NONE:
+			if (val & ~UR_REG_LM_IDX_MAX) {
+				pr_err("LM offset too large\n");
+				return 0;
+			}
+			return UR_REG_LM | FIELD_PREP(UR_REG_LM_IDX, lm_id) |
+				val;
+		case NN_LM_MOD_DEC:
+			lm_dec = true;
+			/* fall through */
+		case NN_LM_MOD_INC:
+			if (val) {
+				pr_err("LM offset in inc/dev mode\n");
+				return 0;
+			}
+			return UR_REG_LM | UR_REG_LM_POST_MOD |
+				FIELD_PREP(UR_REG_LM_IDX, lm_id) |
+				FIELD_PREP(UR_REG_LM_POST_MOD_DEC, lm_dec);
+		default:
+			pr_err("bad LM mode for unrestricted operands %d\n",
+			       swreg_lm_mode(reg));
+			return 0;
+		}
 	case NN_REG_IMM:
 		if (val & ~0xff) {
 			pr_err("immediate too large\n");
@@ -108,6 +136,7 @@ int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
 static u16 nfp_swreg_to_rereg(swreg reg, bool is_dst, bool has_imm8, bool *i8)
 {
 	u16 val = swreg_value(reg);
+	bool lm_id;
 
 	switch (swreg_type(reg)) {
 	case NN_REG_GPR_A:
@@ -116,6 +145,21 @@ static u16 nfp_swreg_to_rereg(swreg reg, bool is_dst, bool has_imm8, bool *i8)
 		return val;
 	case NN_REG_XFER:
 		return RE_REG_XFR | val;
+	case NN_REG_LMEM:
+		lm_id = swreg_lm_idx(reg);
+
+		if (swreg_lm_mode(reg) != NN_LM_MOD_NONE) {
+			pr_err("bad LM mode for restricted operands %d\n",
+			       swreg_lm_mode(reg));
+			return 0;
+		}
+
+		if (val & ~RE_REG_LM_IDX_MAX) {
+			pr_err("LM offset too large\n");
+			return 0;
+		}
+
+		return RE_REG_LM | FIELD_PREP(RE_REG_LM_IDX, lm_id) | val;
 	case NN_REG_IMM:
 		if (val & ~(0x7f | has_imm8 << 7)) {
 			pr_err("immediate too large\n");

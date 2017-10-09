@@ -44,9 +44,17 @@
 #define RE_REG_IMM_encode(x)					\
 	(RE_REG_IMM | ((x) & 0x1f) | (((x) & 0x60) << 1))
 #define RE_REG_IMM_MAX	 0x07fULL
+#define RE_REG_LM	0x050
+#define RE_REG_LM_IDX	0x008
+#define RE_REG_LM_IDX_MAX	0x7
 #define RE_REG_XFR	0x080
 
 #define UR_REG_XFR	0x180
+#define UR_REG_LM	0x200
+#define UR_REG_LM_IDX	0x020
+#define UR_REG_LM_POST_MOD	0x010
+#define UR_REG_LM_POST_MOD_DEC	0x001
+#define UR_REG_LM_IDX_MAX	0xf
 #define UR_REG_NN	0x280
 #define UR_REG_NO_DST	0x300
 #define UR_REG_IMM	UR_REG_NO_DST
@@ -235,6 +243,8 @@ enum lcsr_wr_src {
 
 /* Software register representation, independent of operand type */
 #define NN_REG_TYPE	GENMASK(31, 24)
+#define NN_REG_LM_IDX	BIT(22)
+#define NN_REG_LM_MOD	GENMASK(21, 20)
 #define NN_REG_VAL	GENMASK(7, 0)
 
 enum nfp_bpf_reg_type {
@@ -245,6 +255,13 @@ enum nfp_bpf_reg_type {
 	NN_REG_XFER =	BIT(3),
 	NN_REG_IMM =	BIT(4),
 	NN_REG_NONE =	BIT(5),
+	NN_REG_LMEM =	BIT(6),
+};
+
+enum nfp_bpf_lm_mode {
+	NN_LM_MOD_NONE = 0,
+	NN_LM_MOD_INC,
+	NN_LM_MOD_DEC,
 };
 
 #define reg_both(x)	__enc_swreg((x), NN_REG_GPR_BOTH)
@@ -254,12 +271,26 @@ enum nfp_bpf_reg_type {
 #define reg_xfer(x)	__enc_swreg((x), NN_REG_XFER)
 #define reg_imm(x)	__enc_swreg((x), NN_REG_IMM)
 #define reg_none()	__enc_swreg(0, NN_REG_NONE)
+#define reg_lm(x, off)	__enc_swreg_lm((x), NN_LM_MOD_NONE, (off))
+#define reg_lm_inc(x)	__enc_swreg_lm((x), NN_LM_MOD_INC, 0)
+#define reg_lm_dec(x)	__enc_swreg_lm((x), NN_LM_MOD_DEC, 0)
+#define __reg_lm(x, mod, off)	__enc_swreg_lm((x), (mod), (off))
 
 typedef __u32 __bitwise swreg;
 
 static inline swreg __enc_swreg(u16 id, u8 type)
 {
 	return (__force swreg)(id | FIELD_PREP(NN_REG_TYPE, type));
+}
+
+static inline swreg __enc_swreg_lm(u8 id, enum nfp_bpf_lm_mode mode, u8 off)
+{
+	WARN_ON(id > 1 || (off && mode != NN_LM_MOD_NONE));
+
+	return (__force swreg)(FIELD_PREP(NN_REG_TYPE, NN_REG_LMEM) |
+			       FIELD_PREP(NN_REG_LM_IDX, id) |
+			       FIELD_PREP(NN_REG_LM_MOD, mode) |
+			       off);
 }
 
 static inline u32 swreg_raw(swreg reg)
@@ -275,6 +306,16 @@ static inline enum nfp_bpf_reg_type swreg_type(swreg reg)
 static inline u16 swreg_value(swreg reg)
 {
 	return FIELD_GET(NN_REG_VAL, swreg_raw(reg));
+}
+
+static inline bool swreg_lm_idx(swreg reg)
+{
+	return FIELD_GET(NN_REG_LM_IDX, swreg_raw(reg));
+}
+
+static inline enum nfp_bpf_lm_mode swreg_lm_mode(swreg reg)
+{
+	return FIELD_GET(NN_REG_LM_MOD, swreg_raw(reg));
 }
 
 struct nfp_insn_ur_regs {
