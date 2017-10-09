@@ -1387,7 +1387,14 @@ int acquire_hw_mutex(struct hfi1_devdata *dd)
 	unsigned long timeout;
 	int try = 0;
 	u8 mask = 1 << dd->hfi1_id;
-	u8 user;
+	u8 user = (u8)read_csr(dd, ASIC_CFG_MUTEX);
+
+	if (user == mask) {
+		dd_dev_info(dd,
+			    "Hardware mutex already acquired, mutex mask %u\n",
+			    (u32)mask);
+		return 0;
+	}
 
 retry:
 	timeout = msecs_to_jiffies(HM_TIMEOUT) + jiffies;
@@ -1418,7 +1425,15 @@ retry:
 
 void release_hw_mutex(struct hfi1_devdata *dd)
 {
-	write_csr(dd, ASIC_CFG_MUTEX, 0);
+	u8 mask = 1 << dd->hfi1_id;
+	u8 user = (u8)read_csr(dd, ASIC_CFG_MUTEX);
+
+	if (user != mask)
+		dd_dev_warn(dd,
+			    "Unable to release hardware mutex, mutex mask %u, my mask %u\n",
+			    (u32)user, (u32)mask);
+	else
+		write_csr(dd, ASIC_CFG_MUTEX, 0);
 }
 
 /* return the given resource bit(s) as a mask for the given HFI */
