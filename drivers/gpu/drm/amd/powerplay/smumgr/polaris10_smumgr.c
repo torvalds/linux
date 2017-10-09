@@ -35,7 +35,6 @@
 #include "gca/gfx_8_0_d.h"
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"
-#include "polaris10_pwrvirus.h"
 #include "ppatomctrl.h"
 #include "cgs_common.h"
 #include "polaris10_smc.h"
@@ -59,46 +58,6 @@ static const SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
 
 static const SMU74_Discrete_MemoryLevel avfs_memory_level_polaris10 = {
 	0x100ea446, 0, 0x30750000, 0x01, 0x01, 0x01, 0x00, 0x00, 0x64, 0x00, 0x00, 0x1f00, 0x00, 0x00};
-
-static void execute_pwr_table(struct pp_hwmgr *hwmgr, const PWR_Command_Table *pvirus, int size)
-{
-	int i;
-	uint32_t reg, data;
-
-	for (i = 0; i < size; i++) {
-		reg  = pvirus->reg;
-		data = pvirus->data;
-		if (reg != 0xffffffff)
-			cgs_write_register(hwmgr->device, reg, data);
-		else
-			break;
-		pvirus++;
-	}
-}
-
-static void execute_pwr_dfy_table(struct pp_hwmgr *hwmgr, const PWR_DFY_Section *section)
-{
-	int i;
-	cgs_write_register(hwmgr->device, mmCP_DFY_CNTL, section->dfy_cntl);
-	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_HI, section->dfy_addr_hi);
-	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_LO, section->dfy_addr_lo);
-	for (i = 0; i < section->dfy_size; i++)
-		cgs_write_register(hwmgr->device, mmCP_DFY_DATA_0, section->dfy_data[i]);
-}
-
-static int polaris10_setup_pwr_virus(struct pp_hwmgr *hwmgr)
-{
-	execute_pwr_table(hwmgr, pwr_virus_table_pre, ARRAY_SIZE(pwr_virus_table_pre));
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section1);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section2);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section3);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section4);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section5);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section6);
-	execute_pwr_table(hwmgr, pwr_virus_table_post, ARRAY_SIZE(pwr_virus_table_post));
-
-	return 0;
-}
 
 static int polaris10_perform_btc(struct pp_hwmgr *hwmgr)
 {
@@ -197,7 +156,7 @@ polaris10_avfs_event_mgr(struct pp_hwmgr *hwmgr, bool SMU_VFT_INTACT)
 		if (smu_data->avfs.avfs_btc_param > 1) {
 			pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-			PP_ASSERT_WITH_CODE(0 == polaris10_setup_pwr_virus(hwmgr),
+			PP_ASSERT_WITH_CODE(0 == smu7_setup_pwr_virus(hwmgr),
 			"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
 			return -EINVAL);
 		}

@@ -37,7 +37,6 @@
 #include "gca/gfx_8_0_d.h"
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"
-#include "fiji_pwrvirus.h"
 #include "fiji_smc.h"
 
 #define AVFS_EN_MSB                                        1568
@@ -159,46 +158,6 @@ static int fiji_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static void execute_pwr_table(struct pp_hwmgr *hwmgr, const PWR_Command_Table *pvirus, int size)
-{
-	int i;
-	uint32_t reg, data;
-
-	for (i = 0; i < size; i++) {
-		reg  = pvirus->reg;
-		data = pvirus->data;
-		if (reg != 0xffffffff)
-			cgs_write_register(hwmgr->device, reg, data);
-		else
-			break;
-		pvirus++;
-	}
-}
-
-static void execute_pwr_dfy_table(struct pp_hwmgr *hwmgr, const PWR_DFY_Section *section)
-{
-	int i;
-	cgs_write_register(hwmgr->device, mmCP_DFY_CNTL, section->dfy_cntl);
-	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_HI, section->dfy_addr_hi);
-	cgs_write_register(hwmgr->device, mmCP_DFY_ADDR_LO, section->dfy_addr_lo);
-	for (i = 0; i < section->dfy_size; i++)
-		cgs_write_register(hwmgr->device, mmCP_DFY_DATA_0, section->dfy_data[i]);
-}
-
-static int fiji_setup_pwr_virus(struct pp_hwmgr *hwmgr)
-{
-	execute_pwr_table(hwmgr, PwrVirusTable_pre, ARRAY_SIZE(PwrVirusTable_pre));
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section1);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section2);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section3);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section4);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section5);
-	execute_pwr_dfy_table(hwmgr, &pwr_virus_section6);
-	execute_pwr_table(hwmgr, PwrVirusTable_post, ARRAY_SIZE(PwrVirusTable_post));
-
-	return 0;
-}
-
 static int fiji_start_avfs_btc(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
@@ -277,7 +236,7 @@ static int fiji_avfs_event_mgr(struct pp_hwmgr *hwmgr, bool smu_started)
 				" table over to SMU",
 				return -EINVAL;);
 		smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-		PP_ASSERT_WITH_CODE(0 == fiji_setup_pwr_virus(hwmgr),
+		PP_ASSERT_WITH_CODE(0 == smu7_setup_pwr_virus(hwmgr),
 				"[AVFS][fiji_avfs_event_mgr] Could not setup "
 				"Pwr Virus for AVFS ",
 				return -EINVAL;);
