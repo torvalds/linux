@@ -151,5 +151,6 @@ extern int __fscrypt_prepare_rename(struct inode *old_dir,
 				    struct inode *new_dir,
 				    struct dentry *new_dentry,
 				    unsigned int flags);
+extern int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry);
 
 #endif	/* _LINUX_FSCRYPT_SUPP_H */
