@@ -1200,9 +1200,6 @@ static int pp_dpm_notify_smu_memory_info(void *handle,
 	return ret;
 }
 
-
-/* export this function to DAL */
-
 static int pp_display_configuration_change(void *handle,
 	const struct amd_pp_display_configuration *display_config)
 {
