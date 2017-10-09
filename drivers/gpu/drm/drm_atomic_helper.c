@@ -3052,6 +3052,7 @@ out:
 		drm_modeset_backoff(&ctx);
 	}
 
+	drm_atomic_state_put(state);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
