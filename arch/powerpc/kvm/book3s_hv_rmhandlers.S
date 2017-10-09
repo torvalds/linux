@@ -1121,6 +1121,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 BEGIN_FTR_SECTION
 	mtspr	SPRN_PPR, r0
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
+/* Move canary into DSISR to check for later */
+BEGIN_FTR_SECTION
+	li	r0, 0x7fff
+	mtspr	SPRN_HDSISR, r0
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
 	ld	r0, VCPU_GPR(R0)(r4)
 	ld	r4, VCPU_GPR(R4)(r4)
 
@@ -1956,9 +1963,14 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 kvmppc_hdsi:
 	ld	r3, VCPU_KVM(r9)
 	lbz	r0, KVM_RADIX(r3)
-	cmpwi	r0, 0
 	mfspr	r4, SPRN_HDAR
 	mfspr	r6, SPRN_HDSISR
+BEGIN_FTR_SECTION
+	/* Look for DSISR canary. If we find it, retry instruction */
+	cmpdi	r6, 0x7fff
+	beq	6f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	cmpwi	r0, 0
 	bne	.Lradix_hdsi		/* on radix, just save DAR/DSISR/ASDR */
 	/* HPTE not found fault or protection fault? */
 	andis.	r0, r6, (DSISR_NOHPTE | DSISR_PROTFAULT)@h

@@ -367,7 +367,8 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_sched_time_avg,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one,
 	},
 #ifdef CONFIG_SCHEDSTATS
 	{
@@ -871,9 +872,9 @@ static struct ctl_table kern_table[] = {
 #if defined(CONFIG_LOCKUP_DETECTOR)
 	{
 		.procname       = "watchdog",
-		.data           = &watchdog_user_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler   = proc_watchdog,
 		.extra1		= &zero,
 		.extra2		= &one,
@@ -889,16 +890,12 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname       = "nmi_watchdog",
-		.data           = &nmi_watchdog_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &nmi_watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= NMI_WATCHDOG_SYSCTL_PERM,
 		.proc_handler   = proc_nmi_watchdog,
 		.extra1		= &zero,
-#if defined(CONFIG_HAVE_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
 		.extra2		= &one,
-#else
-		.extra2		= &zero,
-#endif
 	},
 	{
 		.procname	= "watchdog_cpumask",
@@ -910,9 +907,9 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 	{
 		.procname       = "soft_watchdog",
-		.data           = &soft_watchdog_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &soft_watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler   = proc_soft_watchdog,
 		.extra1		= &zero,
 		.extra2		= &one,
@@ -2185,8 +2182,6 @@ static int do_proc_douintvec_conv(unsigned long *lvalp,
 				  int write, void *data)
 {
 	if (write) {
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
 		*valp = *lvalp;

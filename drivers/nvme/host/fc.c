@@ -1376,7 +1376,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	if (atomic_read(&op->state) == FCPOP_STATE_ABORTED)
 		status = cpu_to_le16((NVME_SC_ABORT_REQ | NVME_SC_DNR) << 1);
 	else if (freq->status)
-		status = cpu_to_le16(NVME_SC_FC_TRANSPORT_ERROR << 1);
+		status = cpu_to_le16(NVME_SC_INTERNAL << 1);
 
 	/*
 	 * For the linux implementation, if we have an unsuccesful
@@ -1404,7 +1404,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 		 */
 		if (freq->transferred_length !=
 			be32_to_cpu(op->cmd_iu.data_len)) {
-			status = cpu_to_le16(NVME_SC_FC_TRANSPORT_ERROR << 1);
+			status = cpu_to_le16(NVME_SC_INTERNAL << 1);
 			goto done;
 		}
 		result.u64 = 0;
@@ -1421,7 +1421,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 					freq->transferred_length ||
 			     op->rsp_iu.status_code ||
 			     sqe->common.command_id != cqe->command_id)) {
-			status = cpu_to_le16(NVME_SC_FC_TRANSPORT_ERROR << 1);
+			status = cpu_to_le16(NVME_SC_INTERNAL << 1);
 			goto done;
 		}
 		result = cqe->result;
@@ -1429,7 +1429,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 		break;
 
 	default:
-		status = cpu_to_le16(NVME_SC_FC_TRANSPORT_ERROR << 1);
+		status = cpu_to_le16(NVME_SC_INTERNAL << 1);
 		goto done;
 	}
 
@@ -1989,16 +1989,17 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	 * as well as those by FC-NVME spec.
 	 */
 	WARN_ON_ONCE(sqe->common.metadata);
-	WARN_ON_ONCE(sqe->common.dptr.prp1);
-	WARN_ON_ONCE(sqe->common.dptr.prp2);
 	sqe->common.flags |= NVME_CMD_SGL_METABUF;
 
 	/*
-	 * format SQE DPTR field per FC-NVME rules
-	 *    type=data block descr; subtype=offset;
-	 *    offset is currently 0.
+	 * format SQE DPTR field per FC-NVME rules:
+	 *    type=0x5     Transport SGL Data Block Descriptor
+	 *    subtype=0xA  Transport-specific value
+	 *    address=0
+	 *    length=length of the data series
 	 */
-	sqe->rw.dptr.sgl.type = NVME_SGL_FMT_OFFSET;
+	sqe->rw.dptr.sgl.type = (NVME_TRANSPORT_SGL_DATA_DESC << 4) |
+					NVME_SGL_FMT_TRANSPORT_A;
 	sqe->rw.dptr.sgl.length = cpu_to_le32(data_len);
 	sqe->rw.dptr.sgl.addr = 0;
 

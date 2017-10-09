@@ -73,7 +73,7 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 		     last_alloc + 1 : 0;
 
 	as_len = 0;
-	start = chunk->start_offset;
+	start = chunk->start_offset / PCPU_MIN_ALLOC_SIZE;
 
 	/*
 	 * If a bit is set in the allocation map, the bound_map identifies

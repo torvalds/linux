@@ -321,6 +321,8 @@ void kernel_neon_end(void)
 }
 EXPORT_SYMBOL(kernel_neon_end);
 
+#ifdef CONFIG_EFI
+
 static DEFINE_PER_CPU(struct fpsimd_state, efi_fpsimd_state);
 static DEFINE_PER_CPU(bool, efi_fpsimd_state_used);
 
@@ -369,6 +371,8 @@ void __efi_fpsimd_end(void)
 	else
 		kernel_neon_end();
 }
+
+#endif /* CONFIG_EFI */
 
 #endif /* CONFIG_KERNEL_MODE_NEON */
 
@@ -440,4 +444,4 @@ static int __init fpsimd_init(void)
 
 	return 0;
 }
-late_initcall(fpsimd_init);
+core_initcall(fpsimd_init);

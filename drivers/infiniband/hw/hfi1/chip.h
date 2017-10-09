@@ -204,6 +204,7 @@
 #define PLS_OFFLINE_READY_TO_QUIET_LT	   0x92
 #define PLS_OFFLINE_REPORT_FAILURE		   0x93
 #define PLS_OFFLINE_READY_TO_QUIET_BCC	   0x94
+#define PLS_OFFLINE_QUIET_DURATION	   0x95
 #define PLS_POLLING				   0x20
 #define PLS_POLLING_QUIET			   0x20
 #define PLS_POLLING_ACTIVE			   0x21
@@ -722,7 +723,7 @@ void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
 void handle_start_link(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
-void reset_qsfp(struct hfi1_pportdata *ppd);
+int reset_qsfp(struct hfi1_pportdata *ppd);
 void qsfp_event(struct work_struct *work);
 void start_freeze_handling(struct hfi1_pportdata *ppd, int flags);
 int send_idle_sma(struct hfi1_devdata *dd, u64 message);

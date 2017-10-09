@@ -51,7 +51,7 @@ static int wait_startup(struct tpm_chip *chip, int l)
 
 		if (access & TPM_ACCESS_VALID)
 			return 0;
-		msleep(TPM_TIMEOUT);
+		tpm_msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
 	return -1;
 }
@@ -117,7 +117,7 @@ again:
 		do {
 			if (check_locality(chip, l))
 				return l;
-			msleep(TPM_TIMEOUT);
+			tpm_msleep(TPM_TIMEOUT);
 		} while (time_before(jiffies, stop));
 	}
 	return -1;
@@ -164,7 +164,7 @@ static int get_burstcount(struct tpm_chip *chip)
 		burstcnt = (value >> 8) & 0xFFFF;
 		if (burstcnt)
 			return burstcnt;
-		msleep(TPM_TIMEOUT);
+		tpm_msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
 	return -EBUSY;
 }
@@ -396,7 +396,7 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	priv->irq = irq;
 	chip->flags |= TPM_CHIP_FLAG_IRQ;
 	if (!priv->irq_tested)
-		msleep(1);
+		tpm_msleep(1);
 	if (!priv->irq_tested)
 		disable_interrupts(chip);
 	priv->irq_tested = true;
