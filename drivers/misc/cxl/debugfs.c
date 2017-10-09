@@ -62,7 +62,8 @@ static struct dentry *debugfs_create_io_x64(const char *name, umode_t mode,
 void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir)
 {
 	debugfs_create_io_x64("fir1", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR1));
-	debugfs_create_io_x64("fir2", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR2));
+	debugfs_create_io_x64("fir_mask", 0400, dir,
+			      _cxl_p1_addr(adapter, CXL_PSL9_FIR_MASK));
 	debugfs_create_io_x64("fir_cntl", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR_CNTL));
 	debugfs_create_io_x64("trace", S_IRUSR | S_IWUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_TRACECFG));
 }

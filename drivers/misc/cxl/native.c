@@ -1085,13 +1085,11 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 
 void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx)
 {
-	u64 fir1, fir2, serr;
+	u64 fir1, serr;
 
 	fir1 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR1);
-	fir2 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR2);
 
 	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
-	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
 	if (ctx->afu->adapter->native->sl_ops->register_serr_irq) {
 		serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
 		cxl_afu_decode_psl_serr(ctx->afu, serr);
