@@ -32,7 +32,7 @@ struct tpg_rbg_color8 {
 };
 
 struct tpg_rbg_color16 {
-	int r, g, b;
+	__u16 r, g, b;
 };
 
 enum tpg_color {
