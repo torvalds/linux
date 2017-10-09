@@ -55,15 +55,43 @@ enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
 #define QED_IWARP_HANDLE_INVAL		(0xff)
 
 struct qed_iwarp_ll2_buff {
+	struct qed_iwarp_ll2_buff *piggy_buf;
 	void *data;
 	dma_addr_t data_phys_addr;
 	u32 buff_size;
+};
+
+struct qed_iwarp_ll2_mpa_buf {
+	struct list_head list_entry;
+	struct qed_iwarp_ll2_buff *ll2_buf;
+	struct unaligned_opaque_data data;
+	u16 tcp_payload_len;
+	u8 placement_offset;
+};
+
+/* In some cases a fpdu will arrive with only one byte of the header, in this
+ * case the fpdu_length will be partial (contain only higher byte and
+ * incomplete bytes will contain the invalid value
+ */
+#define QED_IWARP_INVALID_INCOMPLETE_BYTES 0xffff
+
+struct qed_iwarp_fpdu {
+	struct qed_iwarp_ll2_buff *mpa_buf;
+	void *mpa_frag_virt;
+	dma_addr_t mpa_frag;
+	dma_addr_t pkt_hdr;
+	u16 mpa_frag_len;
+	u16 fpdu_length;
+	u16 incomplete_bytes;
+	u8 pkt_hdr_size;
 };
 
 struct qed_iwarp_info {
 	struct list_head listen_list;	/* qed_iwarp_listener */
 	struct list_head ep_list;	/* qed_iwarp_ep */
 	struct list_head ep_free_list;	/* pre-allocated ep's */
+	struct list_head mpa_buf_list;	/* list of mpa_bufs */
+	struct list_head mpa_buf_pending_list;
 	spinlock_t iw_lock;	/* for iwarp resources */
 	spinlock_t qp_lock;	/* for teardown races */
 	u32 rcv_wnd_scale;
@@ -73,9 +101,14 @@ struct qed_iwarp_info {
 	u8 tcp_flags;
 	u8 ll2_syn_handle;
 	u8 ll2_ooo_handle;
+	u8 ll2_mpa_handle;
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
+	struct qed_iwarp_fpdu *partial_fpdus;
+	struct qed_iwarp_ll2_mpa_buf *mpa_bufs;
+	u8 *mpa_intermediate_buf;
+	u16 max_num_partial_fpdus;
 };
 
 enum qed_iwarp_ep_state {
