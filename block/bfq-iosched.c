@@ -3726,9 +3726,36 @@ void bfq_put_queue(struct bfq_queue *bfqq)
 	if (bfqq->ref)
 		return;
 
-	if (bfq_bfqq_sync(bfqq) && !hlist_unhashed(&bfqq->burst_list_node)) {
+	if (!hlist_unhashed(&bfqq->burst_list_node)) {
 		hlist_del_init(&bfqq->burst_list_node);
-		bfqq->bfqd->burst_size--;
+		/*
+		 * Decrement also burst size after the removal, if the
+		 * process associated with bfqq is exiting, and thus
+		 * does not contribute to the burst any longer. This
+		 * decrement helps filter out false positives of large
+		 * bursts, when some short-lived process (often due to
+		 * the execution of commands by some service) happens
+		 * to start and exit while a complex application is
+		 * starting, and thus spawning several processes that
+		 * do I/O (and that *must not* be treated as a large
+		 * burst, see comments on bfq_handle_burst).
+		 *
+		 * In particular, the decrement is performed only if:
+		 * 1) bfqq is not a merged queue, because, if it is,
+		 * then this free of bfqq is not triggered by the exit
+		 * of the process bfqq is associated with, but exactly
+		 * by the fact that bfqq has just been merged.
+		 * 2) burst_size is greater than 0, to handle
+		 * unbalanced decrements. Unbalanced decrements may
+		 * happen in te following case: bfqq is inserted into
+		 * the current burst list--without incrementing
+		 * bust_size--because of a split, but the current
+		 * burst list is not the burst list bfqq belonged to
+		 * (see comments on the case of a split in
+		 * bfq_set_request).
+		 */
+		if (bfqq->bic && bfqq->bfqd->burst_size > 0)
+			bfqq->bfqd->burst_size--;
 	}
 
 	kmem_cache_free(bfq_pool, bfqq);
@@ -4460,6 +4487,34 @@ static struct bfq_queue *bfq_get_bfqq_handle_split(struct bfq_data *bfqd,
 		else {
 			bfq_clear_bfqq_in_large_burst(bfqq);
 			if (bic->was_in_burst_list)
+				/*
+				 * If bfqq was in the current
+				 * burst list before being
+				 * merged, then we have to add
+				 * it back. And we do not need
+				 * to increase burst_size, as
+				 * we did not decrement
+				 * burst_size when we removed
+				 * bfqq from the burst list as
+				 * a consequence of a merge
+				 * (see comments in
+				 * bfq_put_queue). In this
+				 * respect, it would be rather
+				 * costly to know whether the
+				 * current burst list is still
+				 * the same burst list from
+				 * which bfqq was removed on
+				 * the merge. To avoid this
+				 * cost, if bfqq was in a
+				 * burst list, then we add
+				 * bfqq to the current burst
+				 * list without any further
+				 * check. This can cause
+				 * inappropriate insertions,
+				 * but rarely enough to not
+				 * harm the detection of large
+				 * bursts significantly.
+				 */
 				hlist_add_head(&bfqq->burst_list_node,
 					       &bfqd->burst_list);
 		}
