@@ -1245,6 +1245,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	struct pinctrl_desc *pctrl_desc;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
+	struct pinmux_ops *pmxops;
 	struct resource *res;
 	int i, ret, last_pin, pin_idx;
 	struct clk *clk;
@@ -1305,7 +1306,16 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	pctrl_desc->npins = pctl->ngroups;
 	pctrl_desc->confops = &sunxi_pconf_ops;
 	pctrl_desc->pctlops = &sunxi_pctrl_ops;
-	pctrl_desc->pmxops =  &sunxi_pmx_ops;
+
+	pmxops = devm_kmemdup(&pdev->dev, &sunxi_pmx_ops, sizeof(sunxi_pmx_ops),
+			      GFP_KERNEL);
+	if (!pmxops)
+		return -ENOMEM;
+
+	if (desc->disable_strict_mode)
+		pmxops->strict = false;
+
+	pctrl_desc->pmxops = pmxops;
 
 	pctl->pctl_dev = devm_pinctrl_register(&pdev->dev, pctrl_desc, pctl);
 	if (IS_ERR(pctl->pctl_dev)) {
