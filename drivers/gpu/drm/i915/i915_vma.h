@@ -322,12 +322,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
  * Callers must hold the struct_mutex. This function is only valid to be
  * called on a VMA previously iomapped by the caller with i915_vma_pin_iomap().
  */
-static inline void i915_vma_unpin_iomap(struct i915_vma *vma)
-{
-	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
-	GEM_BUG_ON(vma->iomap == NULL);
-	i915_vma_unpin(vma);
-}
+void i915_vma_unpin_iomap(struct i915_vma *vma);
 
 static inline struct page *i915_vma_first_page(struct i915_vma *vma)
 {

@@ -280,13 +280,16 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 {
 	void __iomem *ptr;
+	int err;
 
 	/* Access through the GTT requires the device to be awake. */
 	assert_rpm_wakelock_held(vma->vm->i915);
 
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
-	if (WARN_ON(!i915_vma_is_map_and_fenceable(vma)))
-		return IO_ERR_PTR(-ENODEV);
+	if (WARN_ON(!i915_vma_is_map_and_fenceable(vma))) {
+		err = -ENODEV;
+		goto err;
+	}
 
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
 	GEM_BUG_ON((vma->flags & I915_VMA_GLOBAL_BIND) == 0);
@@ -296,14 +299,38 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 		ptr = io_mapping_map_wc(&i915_vm_to_ggtt(vma->vm)->mappable,
 					vma->node.start,
 					vma->node.size);
-		if (ptr == NULL)
-			return IO_ERR_PTR(-ENOMEM);
+		if (ptr == NULL) {
+			err = -ENOMEM;
+			goto err;
+		}
 
 		vma->iomap = ptr;
 	}
 
 	__i915_vma_pin(vma);
+
+	err = i915_vma_get_fence(vma);
+	if (err)
+		goto err_unpin;
+
+	i915_vma_pin_fence(vma);
+
 	return ptr;
+
+err_unpin:
+	__i915_vma_unpin(vma);
+err:
+	return IO_ERR_PTR(err);
+}
+
+void i915_vma_unpin_iomap(struct i915_vma *vma)
+{
+	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
+
+	GEM_BUG_ON(vma->iomap == NULL);
+
+	i915_vma_unpin_fence(vma);
+	i915_vma_unpin(vma);
 }
 
 void i915_vma_unpin_and_release(struct i915_vma **p_vma)
