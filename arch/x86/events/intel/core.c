@@ -4409,10 +4409,9 @@ static __init int fixup_ht_bug(void)
 		return 0;
 	}
 
-	if (lockup_detector_suspend() != 0) {
-		pr_debug("failed to disable PMU erratum BJ122, BV98, HSD29 workaround\n");
-		return 0;
-	}
+	cpus_read_lock();
+
+	hardlockup_detector_perf_stop();
 
 	x86_pmu.flags &= ~(PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED);
 
@@ -4420,9 +4419,7 @@ static __init int fixup_ht_bug(void)
 	x86_pmu.commit_scheduling = NULL;
 	x86_pmu.stop_scheduling = NULL;
 
-	lockup_detector_resume();
-
-	cpus_read_lock();
+	hardlockup_detector_perf_restart();
 
 	for_each_online_cpu(c)
 		free_excl_cntrs(c);

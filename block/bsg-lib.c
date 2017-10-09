@@ -207,20 +207,34 @@ static int bsg_init_rq(struct request_queue *q, struct request *req, gfp_t gfp)
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 	struct scsi_request *sreq = &job->sreq;
 
-	memset(job, 0, sizeof(*job));
+	/* called right after the request is allocated for the request_queue */
 
-	scsi_req_init(sreq);
-	sreq->sense_len = SCSI_SENSE_BUFFERSIZE;
-	sreq->sense = kzalloc(sreq->sense_len, gfp);
+	sreq->sense = kzalloc(SCSI_SENSE_BUFFERSIZE, gfp);
 	if (!sreq->sense)
 		return -ENOMEM;
 
+	return 0;
+}
+
+static void bsg_initialize_rq(struct request *req)
+{
+	struct bsg_job *job = blk_mq_rq_to_pdu(req);
+	struct scsi_request *sreq = &job->sreq;
+	void *sense = sreq->sense;
+
+	/* called right before the request is given to the request_queue user */
+
+	memset(job, 0, sizeof(*job));
+
+	scsi_req_init(sreq);
+
+	sreq->sense = sense;
+	sreq->sense_len = SCSI_SENSE_BUFFERSIZE;
+
 	job->req = req;
-	job->reply = sreq->sense;
+	job->reply = sense;
 	job->reply_len = sreq->sense_len;
 	job->dd_data = job + 1;
-
-	return 0;
 }
 
 static void bsg_exit_rq(struct request_queue *q, struct request *req)
@@ -251,6 +265,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	q->cmd_size = sizeof(struct bsg_job) + dd_job_size;
 	q->init_rq_fn = bsg_init_rq;
 	q->exit_rq_fn = bsg_exit_rq;
+	q->initialize_rq_fn = bsg_initialize_rq;
 	q->request_fn = bsg_request_fn;
 
 	ret = blk_init_allocated_queue(q);
