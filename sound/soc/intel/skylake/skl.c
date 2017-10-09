@@ -462,8 +462,11 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 		return -EIO;
 	}
 
-	if (mach->pdata)
+	if (mach->pdata) {
+		skl->use_tplg_pcm =
+			((struct skl_machine_pdata *)mach->pdata)->use_tplg_pcm;
 		dev_set_drvdata(&pdev->dev, mach->pdata);
+	}
 
 	skl->i2s_dev = pdev;
 
@@ -900,6 +903,9 @@ static struct sst_codecs kbl_5663_5514_codecs = {
 	.codecs = {"10EC5663", "10EC5514"}
 };
 
+static struct skl_machine_pdata cnl_pdata = {
+	.use_tplg_pcm = true,
+};
 
 static struct sst_acpi_mach sst_skl_devdata[] = {
 	{
@@ -1003,6 +1009,7 @@ static const struct sst_acpi_mach sst_cnl_devdata[] = {
 		.id = "INT34C2",
 		.drv_name = "cnl_rt274",
 		.fw_filename = "intel/dsp_fw_cnl.bin",
+		.pdata = &cnl_pdata,
 	},
 };
 
