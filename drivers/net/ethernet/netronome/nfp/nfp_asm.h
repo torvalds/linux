@@ -34,6 +34,7 @@
 #ifndef __NFP_ASM_H__
 #define __NFP_ASM_H__ 1
 
+#include <linux/bitfield.h>
 #include <linux/types.h>
 
 #define REG_NONE	0
@@ -229,5 +230,49 @@ enum lcsr_wr_src {
 
 #define OP_CARB_BASE	0x0e000000000ULL
 #define OP_CARB_OR	0x00000010000ULL
+
+/* Software register representation, independent of operand type */
+#define NN_REG_TYPE	GENMASK(31, 24)
+#define NN_REG_VAL	GENMASK(7, 0)
+
+enum nfp_bpf_reg_type {
+	NN_REG_GPR_A =	BIT(0),
+	NN_REG_GPR_B =	BIT(1),
+	NN_REG_GPR_BOTH = NN_REG_GPR_A | NN_REG_GPR_B,
+	NN_REG_NNR =	BIT(2),
+	NN_REG_XFER =	BIT(3),
+	NN_REG_IMM =	BIT(4),
+	NN_REG_NONE =	BIT(5),
+};
+
+#define reg_both(x)	__enc_swreg((x), NN_REG_GPR_BOTH)
+#define reg_a(x)	__enc_swreg((x), NN_REG_GPR_A)
+#define reg_b(x)	__enc_swreg((x), NN_REG_GPR_B)
+#define reg_nnr(x)	__enc_swreg((x), NN_REG_NNR)
+#define reg_xfer(x)	__enc_swreg((x), NN_REG_XFER)
+#define reg_imm(x)	__enc_swreg((x), NN_REG_IMM)
+#define reg_none()	__enc_swreg(0, NN_REG_NONE)
+
+typedef __u32 __bitwise swreg;
+
+static inline swreg __enc_swreg(u16 id, u8 type)
+{
+	return (__force swreg)(id | FIELD_PREP(NN_REG_TYPE, type));
+}
+
+static inline u32 swreg_raw(swreg reg)
+{
+	return (__force u32)reg;
+}
+
+static inline enum nfp_bpf_reg_type swreg_type(swreg reg)
+{
+	return FIELD_GET(NN_REG_TYPE, swreg_raw(reg));
+}
+
+static inline u16 swreg_value(swreg reg)
+{
+	return FIELD_GET(NN_REG_VAL, swreg_raw(reg));
+}
 
 #endif

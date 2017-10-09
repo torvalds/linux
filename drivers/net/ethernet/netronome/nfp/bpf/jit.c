@@ -128,11 +128,11 @@ struct nfp_insn_re_regs {
 	bool i8;
 };
 
-static u16 nfp_swreg_to_unreg(u32 swreg, bool is_dst)
+static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 {
-	u16 val = FIELD_GET(NN_REG_VAL, swreg);
+	u16 val = swreg_value(reg);
 
-	switch (FIELD_GET(NN_REG_TYPE, swreg)) {
+	switch (swreg_type(reg)) {
 	case NN_REG_GPR_A:
 	case NN_REG_GPR_B:
 	case NN_REG_GPR_BOTH:
@@ -149,33 +149,34 @@ static u16 nfp_swreg_to_unreg(u32 swreg, bool is_dst)
 		return UR_REG_IMM_encode(val);
 	case NN_REG_NONE:
 		return is_dst ? UR_REG_NO_DST : REG_NONE;
-	default:
-		pr_err("unrecognized reg encoding %08x\n", swreg);
-		return 0;
 	}
+
+	pr_err("unrecognized reg encoding %08x\n", reg);
+	return 0;
 }
 
 static int
-swreg_to_unrestricted(u32 dst, u32 lreg, u32 rreg, struct nfp_insn_ur_regs *reg)
+swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
+		      struct nfp_insn_ur_regs *reg)
 {
 	memset(reg, 0, sizeof(*reg));
 
 	/* Decode destination */
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_IMM)
+	if (swreg_type(dst) == NN_REG_IMM)
 		return -EFAULT;
 
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_B)
+	if (swreg_type(dst) == NN_REG_GPR_B)
 		reg->dst_ab = ALU_DST_B;
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_BOTH)
+	if (swreg_type(dst) == NN_REG_GPR_BOTH)
 		reg->wr_both = true;
 	reg->dst = nfp_swreg_to_unreg(dst, true);
 
 	/* Decode source operands */
-	if (FIELD_GET(NN_REG_TYPE, lreg) == FIELD_GET(NN_REG_TYPE, rreg))
+	if (swreg_type(lreg) == swreg_type(rreg))
 		return -EFAULT;
 
-	if (FIELD_GET(NN_REG_TYPE, lreg) == NN_REG_GPR_B ||
-	    FIELD_GET(NN_REG_TYPE, rreg) == NN_REG_GPR_A) {
+	if (swreg_type(lreg) == NN_REG_GPR_B ||
+	    swreg_type(rreg) == NN_REG_GPR_A) {
 		reg->areg = nfp_swreg_to_unreg(rreg, false);
 		reg->breg = nfp_swreg_to_unreg(lreg, false);
 		reg->swap = true;
@@ -187,11 +188,11 @@ swreg_to_unrestricted(u32 dst, u32 lreg, u32 rreg, struct nfp_insn_ur_regs *reg)
 	return 0;
 }
 
-static u16 nfp_swreg_to_rereg(u32 swreg, bool is_dst, bool has_imm8, bool *i8)
+static u16 nfp_swreg_to_rereg(swreg reg, bool is_dst, bool has_imm8, bool *i8)
 {
-	u16 val = FIELD_GET(NN_REG_VAL, swreg);
+	u16 val = swreg_value(reg);
 
-	switch (FIELD_GET(NN_REG_TYPE, swreg)) {
+	switch (swreg_type(reg)) {
 	case NN_REG_GPR_A:
 	case NN_REG_GPR_B:
 	case NN_REG_GPR_BOTH:
@@ -207,34 +208,37 @@ static u16 nfp_swreg_to_rereg(u32 swreg, bool is_dst, bool has_imm8, bool *i8)
 		return RE_REG_IMM_encode(val & 0x7f);
 	case NN_REG_NONE:
 		return is_dst ? RE_REG_NO_DST : REG_NONE;
-	default:
-		pr_err("unrecognized reg encoding\n");
+	case NN_REG_NNR:
+		pr_err("NNRs used with restricted encoding\n");
 		return 0;
 	}
+
+	pr_err("unrecognized reg encoding\n");
+	return 0;
 }
 
 static int
-swreg_to_restricted(u32 dst, u32 lreg, u32 rreg, struct nfp_insn_re_regs *reg,
-		    bool has_imm8)
+swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
+		    struct nfp_insn_re_regs *reg, bool has_imm8)
 {
 	memset(reg, 0, sizeof(*reg));
 
 	/* Decode destination */
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_IMM)
+	if (swreg_type(dst) == NN_REG_IMM)
 		return -EFAULT;
 
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_B)
+	if (swreg_type(dst) == NN_REG_GPR_B)
 		reg->dst_ab = ALU_DST_B;
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_BOTH)
+	if (swreg_type(dst) == NN_REG_GPR_BOTH)
 		reg->wr_both = true;
 	reg->dst = nfp_swreg_to_rereg(dst, true, false, NULL);
 
 	/* Decode source operands */
-	if (FIELD_GET(NN_REG_TYPE, lreg) == FIELD_GET(NN_REG_TYPE, rreg))
+	if (swreg_type(lreg) == swreg_type(rreg))
 		return -EFAULT;
 
-	if (FIELD_GET(NN_REG_TYPE, lreg) == NN_REG_GPR_B ||
-	    FIELD_GET(NN_REG_TYPE, rreg) == NN_REG_GPR_A) {
+	if (swreg_type(lreg) == NN_REG_GPR_B ||
+	    swreg_type(rreg) == NN_REG_GPR_A) {
 		reg->areg = nfp_swreg_to_rereg(rreg, false, has_imm8, &reg->i8);
 		reg->breg = nfp_swreg_to_rereg(lreg, false, has_imm8, &reg->i8);
 		reg->swap = true;
@@ -281,7 +285,7 @@ __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 
 static void
 emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
-	 u8 mode, u8 xfer, u32 lreg, u32 rreg, u8 size, bool sync)
+	 u8 mode, u8 xfer, swreg lreg, swreg rreg, u8 size, bool sync)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -364,7 +368,7 @@ __emit_br_byte(struct nfp_prog *nfp_prog, u8 areg, u8 breg, bool imm8,
 
 static void
 emit_br_byte_neq(struct nfp_prog *nfp_prog,
-		 u32 dst, u8 imm, u8 byte, u16 addr, u8 defer)
+		 swreg dst, u8 imm, u8 byte, u16 addr, u8 defer)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -399,13 +403,13 @@ __emit_immed(struct nfp_prog *nfp_prog, u16 areg, u16 breg, u16 imm_hi,
 }
 
 static void
-emit_immed(struct nfp_prog *nfp_prog, u32 dst, u16 imm,
+emit_immed(struct nfp_prog *nfp_prog, swreg dst, u16 imm,
 	   enum immed_width width, bool invert, enum immed_shift shift)
 {
 	struct nfp_insn_ur_regs reg;
 	int err;
 
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_IMM) {
+	if (swreg_type(dst) == NN_REG_IMM) {
 		nfp_prog->error = -EFAULT;
 		return;
 	}
@@ -451,8 +455,8 @@ __emit_shf(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 }
 
 static void
-emit_shf(struct nfp_prog *nfp_prog, u32 dst, u32 lreg, enum shf_op op, u32 rreg,
-	 enum shf_sc sc, u8 shift)
+emit_shf(struct nfp_prog *nfp_prog, swreg dst,
+	 swreg lreg, enum shf_op op, swreg rreg, enum shf_sc sc, u8 shift)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -486,7 +490,8 @@ __emit_alu(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 }
 
 static void
-emit_alu(struct nfp_prog *nfp_prog, u32 dst, u32 lreg, enum alu_op op, u32 rreg)
+emit_alu(struct nfp_prog *nfp_prog, swreg dst,
+	 swreg lreg, enum alu_op op, swreg rreg)
 {
 	struct nfp_insn_ur_regs reg;
 	int err;
@@ -524,7 +529,7 @@ __emit_ld_field(struct nfp_prog *nfp_prog, enum shf_sc sc,
 
 static void
 emit_ld_field_any(struct nfp_prog *nfp_prog, enum shf_sc sc, u8 shift,
-		  u32 dst, u8 bmask, u32 src, bool zero)
+		  swreg dst, u8 bmask, swreg src, bool zero)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -540,7 +545,7 @@ emit_ld_field_any(struct nfp_prog *nfp_prog, enum shf_sc sc, u8 shift,
 }
 
 static void
-emit_ld_field(struct nfp_prog *nfp_prog, u32 dst, u8 bmask, u32 src,
+emit_ld_field(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	      enum shf_sc sc, u8 shift)
 {
 	emit_ld_field_any(nfp_prog, sc, shift, dst, bmask, src, false);
@@ -565,7 +570,7 @@ static bool pack_immed(u32 imm, u16 *val, enum immed_shift *shift)
 	return true;
 }
 
-static void wrp_immed(struct nfp_prog *nfp_prog, u32 dst, u32 imm)
+static void wrp_immed(struct nfp_prog *nfp_prog, swreg dst, u32 imm)
 {
 	enum immed_shift shift;
 	u16 val;
@@ -586,7 +591,7 @@ static void wrp_immed(struct nfp_prog *nfp_prog, u32 dst, u32 imm)
  * If the @imm is small enough encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
-static u32 ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, u32 tmp_reg)
+static swreg ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 {
 	if (FIELD_FIT(UR_REG_IMM_MAX, imm))
 		return reg_imm(imm);
@@ -599,7 +604,7 @@ static u32 ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, u32 tmp_reg)
  * If the @imm is small enough encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
-static u32 re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, u32 tmp_reg)
+static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 {
 	if (FIELD_FIT(RE_REG_IMM_MAX, imm))
 		return reg_imm(imm);
@@ -629,7 +634,7 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset,
 {
 	unsigned int i;
 	u16 shift, sz;
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	/* We load the value from the address indicated in @offset and then
 	 * shift out the data we don't need.  Note: this is big endian!
@@ -697,7 +702,7 @@ static int wrp_set_mark(struct nfp_prog *nfp_prog, u8 src)
 static void
 wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 {
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (alu_op == ALU_OP_AND) {
 		if (!imm)
@@ -815,7 +820,7 @@ wrp_cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
 	u8 reg = insn->dst_reg * 2;
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -1139,7 +1144,7 @@ static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int mem_ldx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	u32 dst = reg_both(meta->insn.dst_reg * 2);
+	swreg dst = reg_both(meta->insn.dst_reg * 2);
 
 	if (meta->insn.off != offsetof(struct xdp_md, data) &&
 	    meta->insn.off != offsetof(struct xdp_md, data_end))
@@ -1202,8 +1207,10 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
-	u32 or1 = reg_a(insn->dst_reg * 2), or2 = reg_b(insn->dst_reg * 2 + 1);
-	u32 tmp_reg;
+	swreg or1, or2, tmp_reg;
+
+	or1 = reg_a(insn->dst_reg * 2);
+	or2 = reg_b(insn->dst_reg * 2 + 1);
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -1252,7 +1259,7 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -1283,7 +1290,7 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;

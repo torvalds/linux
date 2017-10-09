@@ -39,6 +39,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 
+#include "../nfp_asm.h"
 #include "../nfp_net.h"
 
 /* For branch fixup logic use up-most byte of branch instruction as scratch
@@ -64,29 +65,6 @@ enum nfp_bpf_action_type {
 	NN_ACT_DIRECT,
 	NN_ACT_XDP,
 };
-
-/* Software register representation, hardware encoding in asm.h */
-#define NN_REG_TYPE	GENMASK(31, 24)
-#define NN_REG_VAL	GENMASK(7, 0)
-
-enum nfp_bpf_reg_type {
-	NN_REG_GPR_A =	BIT(0),
-	NN_REG_GPR_B =	BIT(1),
-	NN_REG_NNR =	BIT(2),
-	NN_REG_XFER =	BIT(3),
-	NN_REG_IMM =	BIT(4),
-	NN_REG_NONE =	BIT(5),
-};
-
-#define NN_REG_GPR_BOTH	(NN_REG_GPR_A | NN_REG_GPR_B)
-
-#define reg_both(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_GPR_BOTH))
-#define reg_a(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_GPR_A))
-#define reg_b(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_GPR_B))
-#define reg_nnr(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_NNR))
-#define reg_xfer(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_XFER))
-#define reg_imm(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_IMM))
-#define reg_none()	(FIELD_PREP(NN_REG_TYPE, NN_REG_NONE))
 
 #define pkt_reg(np)	reg_a((np)->regs_per_thread - STATIC_REG_PKT)
 #define imm_a(np)	reg_a((np)->regs_per_thread - STATIC_REG_IMM)
