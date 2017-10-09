@@ -408,7 +408,8 @@ emit_ld_field_any(struct nfp_prog *nfp_prog, enum shf_sc sc, u8 shift,
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	err = swreg_to_restricted(reg_none(), dst, src, &reg, true);
+	/* Note: ld_field is special as it uses one of the src regs as dst */
+	err = swreg_to_restricted(dst, dst, src, &reg, true);
 	if (err) {
 		nfp_prog->error = err;
 		return;
