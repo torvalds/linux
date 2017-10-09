@@ -624,8 +624,11 @@ static int igt_wait_reset(void *arg)
 	__i915_add_request(rq, true);
 
 	if (!wait_for_hang(&h, rq)) {
+		struct drm_printer p = drm_info_printer(i915->drm.dev);
+
 		pr_err("Failed to start request %x, at %x\n",
 		       rq->fence.seqno, hws_seqno(&h, rq));
+		intel_engine_dump(rq->engine, &p);
 
 		i915_reset(i915, 0);
 		i915_gem_set_wedged(i915);
@@ -716,8 +719,12 @@ static int igt_reset_queue(void *arg)
 			__i915_add_request(rq, true);
 
 			if (!wait_for_hang(&h, prev)) {
+				struct drm_printer p = drm_info_printer(i915->drm.dev);
+
 				pr_err("Failed to start request %x, at %x\n",
 				       prev->fence.seqno, hws_seqno(&h, prev));
+				intel_engine_dump(rq->engine, &p);
+
 				i915_gem_request_put(rq);
 				i915_gem_request_put(prev);
 
@@ -818,8 +825,11 @@ static int igt_handle_error(void *arg)
 	__i915_add_request(rq, true);
 
 	if (!wait_for_hang(&h, rq)) {
+		struct drm_printer p = drm_info_printer(i915->drm.dev);
+
 		pr_err("Failed to start request %x, at %x\n",
 		       rq->fence.seqno, hws_seqno(&h, rq));
+		intel_engine_dump(rq->engine, &p);
 
 		i915_reset(i915, 0);
 		i915_gem_set_wedged(i915);
