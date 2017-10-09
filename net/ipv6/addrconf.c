@@ -152,7 +152,7 @@ static void ipv6_regen_rndid(struct inet6_dev *idev);
 static void ipv6_try_regen_rndid(struct inet6_dev *idev, struct in6_addr *tmpaddr);
 
 static int ipv6_generate_eui64(u8 *eui, struct net_device *dev);
-static int ipv6_count_addresses(struct inet6_dev *idev);
+static int ipv6_count_addresses(const struct inet6_dev *idev);
 static int ipv6_generate_stable_address(struct in6_addr *addr,
 					u8 dad_count,
 					const struct inet6_dev *idev);
@@ -945,7 +945,7 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 			break;
 	}
 
-	list_add_tail(&ifp->if_list, p);
+	list_add_tail_rcu(&ifp->if_list, p);
 }
 
 static u32 inet6_addr_hash(const struct in6_addr *addr)
@@ -1204,7 +1204,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	if (ifp->flags & IFA_F_PERMANENT && !(ifp->flags & IFA_F_NOPREFIXROUTE))
 		action = check_cleanup_prefix_route(ifp, &expires);
 
-	list_del_init(&ifp->if_list);
+	list_del_rcu(&ifp->if_list);
 	__in6_ifa_put(ifp);
 
 	write_unlock_bh(&ifp->idev->lock);
@@ -1558,8 +1558,7 @@ static int __ipv6_dev_get_saddr(struct net *net,
 {
 	struct ipv6_saddr_score *score = &scores[1 - hiscore_idx], *hiscore = &scores[hiscore_idx];
 
-	read_lock_bh(&idev->lock);
-	list_for_each_entry(score->ifa, &idev->addr_list, if_list) {
+	list_for_each_entry_rcu(score->ifa, &idev->addr_list, if_list) {
 		int i;
 
 		/*
@@ -1609,11 +1608,6 @@ static int __ipv6_dev_get_saddr(struct net *net,
 				}
 				break;
 			} else if (minihiscore < miniscore) {
-				if (hiscore->ifa)
-					in6_ifa_put(hiscore->ifa);
-
-				in6_ifa_hold(score->ifa);
-
 				swap(hiscore, score);
 				hiscore_idx = 1 - hiscore_idx;
 
@@ -1625,7 +1619,6 @@ static int __ipv6_dev_get_saddr(struct net *net,
 		}
 	}
 out:
-	read_unlock_bh(&idev->lock);
 	return hiscore_idx;
 }
 
@@ -1662,6 +1655,7 @@ int ipv6_dev_get_saddr(struct net *net, const struct net_device *dst_dev,
 	int dst_type;
 	bool use_oif_addr = false;
 	int hiscore_idx = 0;
+	int ret = 0;
 
 	dst_type = __ipv6_addr_type(daddr);
 	dst.addr = daddr;
@@ -1737,15 +1731,14 @@ int ipv6_dev_get_saddr(struct net *net, const struct net_device *dst_dev,
 	}
 
 out:
-	rcu_read_unlock();
-
 	hiscore = &scores[hiscore_idx];
 	if (!hiscore->ifa)
-		return -EADDRNOTAVAIL;
+		ret = -EADDRNOTAVAIL;
+	else
+		*saddr = hiscore->ifa->addr;
 
-	*saddr = hiscore->ifa->addr;
-	in6_ifa_put(hiscore->ifa);
-	return 0;
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL(ipv6_dev_get_saddr);
 
@@ -1785,15 +1778,15 @@ int ipv6_get_lladdr(struct net_device *dev, struct in6_addr *addr,
 	return err;
 }
 
-static int ipv6_count_addresses(struct inet6_dev *idev)
+static int ipv6_count_addresses(const struct inet6_dev *idev)
 {
+	const struct inet6_ifaddr *ifp;
 	int cnt = 0;
-	struct inet6_ifaddr *ifp;
 
-	read_lock_bh(&idev->lock);
-	list_for_each_entry(ifp, &idev->addr_list, if_list)
+	rcu_read_lock();
+	list_for_each_entry_rcu(ifp, &idev->addr_list, if_list)
 		cnt++;
-	read_unlock_bh(&idev->lock);
+	rcu_read_unlock();
 	return cnt;
 }
 
@@ -1859,20 +1852,18 @@ static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 bool ipv6_chk_custom_prefix(const struct in6_addr *addr,
 	const unsigned int prefix_len, struct net_device *dev)
 {
-	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifa;
+	const struct inet6_ifaddr *ifa;
+	const struct inet6_dev *idev;
 	bool ret = false;
 
 	rcu_read_lock();
 	idev = __in6_dev_get(dev);
 	if (idev) {
-		read_lock_bh(&idev->lock);
-		list_for_each_entry(ifa, &idev->addr_list, if_list) {
+		list_for_each_entry_rcu(ifa, &idev->addr_list, if_list) {
 			ret = ipv6_prefix_equal(addr, &ifa->addr, prefix_len);
 			if (ret)
 				break;
 		}
-		read_unlock_bh(&idev->lock);
 	}
 	rcu_read_unlock();
 
@@ -1882,22 +1873,20 @@ EXPORT_SYMBOL(ipv6_chk_custom_prefix);
 
 int ipv6_chk_prefix(const struct in6_addr *addr, struct net_device *dev)
 {
-	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifa;
+	const struct inet6_ifaddr *ifa;
+	const struct inet6_dev *idev;
 	int	onlink;
 
 	onlink = 0;
 	rcu_read_lock();
 	idev = __in6_dev_get(dev);
 	if (idev) {
-		read_lock_bh(&idev->lock);
-		list_for_each_entry(ifa, &idev->addr_list, if_list) {
+		list_for_each_entry_rcu(ifa, &idev->addr_list, if_list) {
 			onlink = ipv6_prefix_equal(addr, &ifa->addr,
 						   ifa->prefix_len);
 			if (onlink)
 				break;
 		}
-		read_unlock_bh(&idev->lock);
 	}
 	rcu_read_unlock();
 	return onlink;
@@ -3562,7 +3551,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa, *tmp;
-	struct list_head del_list;
 	int _keep_addr;
 	bool keep_addr;
 	int state, i;
@@ -3654,7 +3642,6 @@ restart:
 	 */
 	keep_addr = (!how && _keep_addr > 0 && !idev->cnf.disable_ipv6);
 
-	INIT_LIST_HEAD(&del_list);
 	list_for_each_entry_safe(ifa, tmp, &idev->addr_list, if_list) {
 		struct rt6_info *rt = NULL;
 		bool keep;
@@ -3663,8 +3650,6 @@ restart:
 
 		keep = keep_addr && (ifa->flags & IFA_F_PERMANENT) &&
 			!addr_is_local(&ifa->addr);
-		if (!keep)
-			list_move(&ifa->if_list, &del_list);
 
 		write_unlock_bh(&idev->lock);
 		spin_lock_bh(&ifa->lock);
@@ -3698,18 +3683,13 @@ restart:
 		}
 
 		write_lock_bh(&idev->lock);
+		if (!keep) {
+			list_del_rcu(&ifa->if_list);
+			in6_ifa_put(ifa);
+		}
 	}
 
 	write_unlock_bh(&idev->lock);
-
-	/* now clean up addresses to be removed */
-	while (!list_empty(&del_list)) {
-		ifa = list_first_entry(&del_list,
-				       struct inet6_ifaddr, if_list);
-		list_del(&ifa->if_list);
-
-		in6_ifa_put(ifa);
-	}
 
 	/* Step 5: Discard anycast and multicast list */
 	if (how) {
