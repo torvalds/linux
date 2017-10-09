@@ -587,6 +587,9 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 #define hns3_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos; pos = pos->next)
 
+#define hns3_get_handle(ndev) \
+	(((struct hns3_nic_priv *)netdev_priv(ndev))->ae_handle)
+
 void hns3_ethtool_set_ops(struct net_device *netdev);
 
 int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);

@@ -78,7 +78,7 @@ config HNS_ENET
 
 config HNS3
 	tristate "Hisilicon Network Subsystem Support HNS3 (Framework)"
-    depends on PCI
+	depends on PCI
 	---help---
 	  This selects the framework support for Hisilicon Network Subsystem 3.
 	  This layer facilitates clients like ENET, RoCE and user-space ethernet
@@ -87,7 +87,7 @@ config HNS3
 
 config HNS3_HCLGE
 	tristate "Hisilicon HNS3 HCLGE Acceleration Engine & Compatibility Layer Support"
-    depends on PCI_MSI
+	depends on PCI_MSI
 	depends on HNS3
 	---help---
 	  This selects the HNS3_HCLGE network acceleration engine & its hardware
@@ -96,7 +96,7 @@ config HNS3_HCLGE
 
 config HNS3_ENET
 	tristate "Hisilicon HNS3 Ethernet Device Support"
-    depends on 64BIT && PCI
+	depends on 64BIT && PCI
 	depends on HNS3 && HNS3_HCLGE
 	---help---
 	  This selects the Ethernet Driver for Hisilicon Network Subsystem 3 for hip08

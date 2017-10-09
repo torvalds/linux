@@ -24,7 +24,7 @@
 #include "hnae3.h"
 #include "hns3_enet.h"
 
-const char hns3_driver_name[] = "hns3";
+static const char hns3_driver_name[] = "hns3";
 const char hns3_driver_version[] = VERMAGIC_STRING;
 static const char hns3_driver_string[] =
 			"Hisilicon Ethernet Network Driver for Hip08 Family";
@@ -198,8 +198,7 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector)
 
 static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
 	unsigned int queue_size = kinfo->rss_size * kinfo->num_tc;
 	int ret;
@@ -305,24 +304,10 @@ static int hns3_nic_net_stop(struct net_device *netdev)
 	return 0;
 }
 
-void hns3_set_multicast_list(struct net_device *netdev)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
-	struct netdev_hw_addr *ha = NULL;
-
-	if (h->ae_algo->ops->set_mc_addr) {
-		netdev_for_each_mc_addr(ha, netdev)
-			if (h->ae_algo->ops->set_mc_addr(h, ha->addr))
-				netdev_err(netdev, "set multicast fail\n");
-	}
-}
-
 static int hns3_nic_uc_sync(struct net_device *netdev,
 			    const unsigned char *addr)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (h->ae_algo->ops->add_uc_addr)
 		return h->ae_algo->ops->add_uc_addr(h, addr);
@@ -333,8 +318,7 @@ static int hns3_nic_uc_sync(struct net_device *netdev,
 static int hns3_nic_uc_unsync(struct net_device *netdev,
 			      const unsigned char *addr)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (h->ae_algo->ops->rm_uc_addr)
 		return h->ae_algo->ops->rm_uc_addr(h, addr);
@@ -345,8 +329,7 @@ static int hns3_nic_uc_unsync(struct net_device *netdev,
 static int hns3_nic_mc_sync(struct net_device *netdev,
 			    const unsigned char *addr)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (h->ae_algo->ops->add_mc_addr)
 		return h->ae_algo->ops->add_mc_addr(h, addr);
@@ -357,8 +340,7 @@ static int hns3_nic_mc_sync(struct net_device *netdev,
 static int hns3_nic_mc_unsync(struct net_device *netdev,
 			      const unsigned char *addr)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (h->ae_algo->ops->rm_mc_addr)
 		return h->ae_algo->ops->rm_mc_addr(h, addr);
@@ -366,10 +348,9 @@ static int hns3_nic_mc_unsync(struct net_device *netdev,
 	return 0;
 }
 
-void hns3_nic_set_rx_mode(struct net_device *netdev)
+static void hns3_nic_set_rx_mode(struct net_device *netdev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (h->ae_algo->ops->set_promisc_mode) {
 		if (netdev->flags & IFF_PROMISC)
@@ -768,7 +749,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 
 	if (type == DESC_TYPE_SKB) {
 		skb = (struct sk_buff *)priv;
-		paylen = cpu_to_le16(skb->len);
+		paylen = skb->len;
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			skb_reset_mac_len(skb);
@@ -802,7 +783,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			cpu_to_le32(ol_type_vlan_len_msec);
 		desc->tx.type_cs_vlan_tso_len =
 			cpu_to_le32(type_cs_vlan_tso);
-		desc->tx.paylen = cpu_to_le16(paylen);
+		desc->tx.paylen = cpu_to_le32(paylen);
 		desc->tx.mss = cpu_to_le16(mss);
 	}
 
@@ -1025,8 +1006,7 @@ out_net_tx_busy:
 
 static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct sockaddr *mac_addr = p;
 	int ret;
 
@@ -1208,8 +1188,7 @@ static void hns3_nic_udp_tunnel_del(struct net_device *netdev,
 
 static int hns3_setup_tc(struct net_device *netdev, u8 tc)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
 	unsigned int i;
 	int ret;
@@ -1259,8 +1238,7 @@ static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
 static int hns3_vlan_rx_add_vid(struct net_device *netdev,
 				__be16 proto, u16 vid)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
@@ -1272,8 +1250,7 @@ static int hns3_vlan_rx_add_vid(struct net_device *netdev,
 static int hns3_vlan_rx_kill_vid(struct net_device *netdev,
 				 __be16 proto, u16 vid)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
@@ -1285,8 +1262,7 @@ static int hns3_vlan_rx_kill_vid(struct net_device *netdev,
 static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 				u8 qos, __be16 vlan_proto)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vf_vlan_filter)
@@ -1298,8 +1274,7 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 
 static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	bool if_running = netif_running(netdev);
 	int ret;
 
@@ -2609,7 +2584,7 @@ static void hns3_fini_ring(struct hns3_enet_ring *ring)
 	ring->next_to_use = 0;
 }
 
-int hns3_buf_size2type(u32 buf_size)
+static int hns3_buf_size2type(u32 buf_size)
 {
 	int bd_size_type;
 
@@ -2921,7 +2896,7 @@ err_out:
 	return ret;
 }
 
-const struct hnae3_client_ops client_ops = {
+static const struct hnae3_client_ops client_ops = {
 	.init_instance = hns3_client_init,
 	.uninit_instance = hns3_client_uninit,
 	.link_status_change = hns3_link_status_change,

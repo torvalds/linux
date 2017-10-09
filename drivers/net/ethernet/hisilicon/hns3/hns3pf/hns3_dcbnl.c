@@ -13,8 +13,7 @@
 static
 int hns3_dcbnl_ieee_getets(struct net_device *ndev, struct ieee_ets *ets)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(ndev);
 
 	if (h->kinfo.dcb_ops->ieee_getets)
 		return h->kinfo.dcb_ops->ieee_getets(h, ets);
@@ -25,8 +24,7 @@ int hns3_dcbnl_ieee_getets(struct net_device *ndev, struct ieee_ets *ets)
 static
 int hns3_dcbnl_ieee_setets(struct net_device *ndev, struct ieee_ets *ets)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(ndev);
 
 	if (h->kinfo.dcb_ops->ieee_setets)
 		return h->kinfo.dcb_ops->ieee_setets(h, ets);
@@ -37,8 +35,7 @@ int hns3_dcbnl_ieee_setets(struct net_device *ndev, struct ieee_ets *ets)
 static
 int hns3_dcbnl_ieee_getpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(ndev);
 
 	if (h->kinfo.dcb_ops->ieee_getpfc)
 		return h->kinfo.dcb_ops->ieee_getpfc(h, pfc);
@@ -49,8 +46,7 @@ int hns3_dcbnl_ieee_getpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 static
 int hns3_dcbnl_ieee_setpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(ndev);
 
 	if (h->kinfo.dcb_ops->ieee_setpfc)
 		return h->kinfo.dcb_ops->ieee_setpfc(h, pfc);
@@ -61,8 +57,7 @@ int hns3_dcbnl_ieee_setpfc(struct net_device *ndev, struct ieee_pfc *pfc)
 /* DCBX configuration */
 static u8 hns3_dcbnl_getdcbx(struct net_device *ndev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(ndev);
 
 	if (h->kinfo.dcb_ops->getdcbx)
 		return h->kinfo.dcb_ops->getdcbx(h);
@@ -73,8 +68,7 @@ static u8 hns3_dcbnl_getdcbx(struct net_device *ndev)
 /* return 0 if successful, otherwise fail */
 static u8 hns3_dcbnl_setdcbx(struct net_device *ndev, u8 mode)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(ndev);
 
 	if (h->kinfo.dcb_ops->setdcbx)
 		return h->kinfo.dcb_ops->setdcbx(h, mode);
