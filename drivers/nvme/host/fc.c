@@ -2545,10 +2545,10 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	nvme_fc_abort_aen_ops(ctrl);
 
 	/* wait for all io that had to be aborted */
-	spin_lock_irqsave(&ctrl->lock, flags);
+	spin_lock_irq(&ctrl->lock);
 	wait_event_lock_irq(ctrl->ioabort_wait, ctrl->iocnt == 0, ctrl->lock);
 	ctrl->flags &= ~FCCTRL_TERMIO;
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	spin_unlock_irq(&ctrl->lock);
 
 	nvme_fc_term_aen_ops(ctrl);
 
@@ -2760,6 +2760,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->rport = rport;
 	ctrl->dev = lport->dev;
 	ctrl->cnum = idx;
+	init_waitqueue_head(&ctrl->ioabort_wait);
 
 	get_device(ctrl->dev);
 	kref_init(&ctrl->ref);
