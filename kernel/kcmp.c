@@ -131,7 +131,7 @@ static int kcmp_epoll_target(struct task_struct *task1,
 	if (filp_epoll) {
 		filp_tgt = get_epoll_tfile_raw_ptr(filp_epoll, slot.tfd, slot.toff);
 		fput(filp_epoll);
-	} else
+	}
 
 	if (IS_ERR(filp_tgt))
 		return PTR_ERR(filp_tgt);

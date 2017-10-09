@@ -344,9 +344,6 @@ int setup_intlist(struct intlist **list, const char *list_str,
 #ifdef HAVE_LIBELF_SUPPORT
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
 void arch__sym_update(struct symbol *s, GElf_Sym *sym);
-void arch__adjust_sym_map_offset(GElf_Sym *sym,
-				 GElf_Shdr *shdr __maybe_unused,
-				 struct map *map __maybe_unused);
 #endif
 
 #define SYMBOL_A 0

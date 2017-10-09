@@ -193,6 +193,7 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct 
 			sq->stats.csum_partial_inner++;
 		} else {
 			eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
+			sq->stats.csum_partial++;
 		}
 	} else
 		sq->stats.csum_none++;

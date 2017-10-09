@@ -155,7 +155,8 @@ static inline int copy_fpregs_to_sigframe(struct xregs_state __user *buf)
  */
 int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 {
-	struct xregs_state *xsave = &current->thread.fpu.state.xsave;
+	struct fpu *fpu = &current->thread.fpu;
+	struct xregs_state *xsave = &fpu->state.xsave;
 	struct task_struct *tsk = current;
 	int ia32_fxstate = (buf != buf_fx);
 
@@ -170,13 +171,13 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			sizeof(struct user_i387_ia32_struct), NULL,
 			(struct _fpstate_32 __user *) buf) ? -1 : 1;
 
-	if (fpregs_active() || using_compacted_format()) {
+	if (fpu->initialized || using_compacted_format()) {
 		/* Save the live register state to the user directly. */
 		if (copy_fpregs_to_sigframe(buf_fx))
 			return -1;
 		/* Update the thread's fxstate to save the fsave header. */
 		if (ia32_fxstate)
-			copy_fxregs_to_kernel(&tsk->thread.fpu);
+			copy_fxregs_to_kernel(fpu);
 	} else {
 		/*
 		 * It is a *bug* if kernel uses compacted-format for xsave
@@ -189,7 +190,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			return -1;
 		}
 
-		fpstate_sanitize_xstate(&tsk->thread.fpu);
+		fpstate_sanitize_xstate(fpu);
 		if (__copy_to_user(buf_fx, xsave, fpu_user_xstate_size))
 			return -1;
 	}
@@ -213,8 +214,11 @@ sanitize_restored_xstate(struct task_struct *tsk,
 	struct xstate_header *header = &xsave->header;
 
 	if (use_xsave()) {
-		/* These bits must be zero. */
-		memset(header->reserved, 0, 48);
+		/*
+		 * Note: we don't need to zero the reserved bits in the
+		 * xstate_header here because we either didn't copy them at all,
+		 * or we checked earlier that they aren't set.
+		 */
 
 		/*
 		 * Init the state that is not present in the memory
@@ -223,7 +227,7 @@ sanitize_restored_xstate(struct task_struct *tsk,
 		if (fx_only)
 			header->xfeatures = XFEATURE_MASK_FPSSE;
 		else
-			header->xfeatures &= (xfeatures_mask & xfeatures);
+			header->xfeatures &= xfeatures;
 	}
 
 	if (use_fxsr()) {
@@ -279,7 +283,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	if (!access_ok(VERIFY_READ, buf, size))
 		return -EACCES;
 
-	fpu__activate_curr(fpu);
+	fpu__initialize(fpu);
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(current, NULL,
@@ -307,28 +311,29 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		/*
 		 * For 32-bit frames with fxstate, copy the user state to the
 		 * thread's fpu state, reconstruct fxstate from the fsave
-		 * header. Sanitize the copied state etc.
+		 * header. Validate and sanitize the copied state.
 		 */
 		struct fpu *fpu = &tsk->thread.fpu;
 		struct user_i387_ia32_struct env;
 		int err = 0;
 
 		/*
-		 * Drop the current fpu which clears fpu->fpstate_active. This ensures
+		 * Drop the current fpu which clears fpu->initialized. This ensures
 		 * that any context-switch during the copy of the new state,
 		 * avoids the intermediate state from getting restored/saved.
 		 * Thus avoiding the new restored state from getting corrupted.
 		 * We will be ready to restore/save the state only after
-		 * fpu->fpstate_active is again set.
+		 * fpu->initialized is again set.
 		 */
 		fpu__drop(fpu);
 
 		if (using_compacted_format()) {
-			err = copyin_to_xsaves(NULL, buf_fx,
-					       &fpu->state.xsave);
+			err = copy_user_to_xstate(&fpu->state.xsave, buf_fx);
 		} else {
-			err = __copy_from_user(&fpu->state.xsave,
-					       buf_fx, state_size);
+			err = __copy_from_user(&fpu->state.xsave, buf_fx, state_size);
+
+			if (!err && state_size > offsetof(struct xregs_state, header))
+				err = validate_xstate_header(&fpu->state.xsave.header);
 		}
 
 		if (err || __copy_from_user(&env, buf, sizeof(env))) {
@@ -339,7 +344,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 			sanitize_restored_xstate(tsk, &env, xfeatures, fx_only);
 		}
 
-		fpu->fpstate_active = 1;
+		fpu->initialized = 1;
 		preempt_disable();
 		fpu__restore(fpu);
 		preempt_enable();

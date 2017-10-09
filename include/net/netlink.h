@@ -773,7 +773,10 @@ static inline int nla_parse_nested(struct nlattr *tb[], int maxtype,
  */
 static inline int nla_put_u8(struct sk_buff *skb, int attrtype, u8 value)
 {
-	return nla_put(skb, attrtype, sizeof(u8), &value);
+	/* temporary variables to work around GCC PR81715 with asan-stack=1 */
+	u8 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(u8), &tmp);
 }
 
 /**
@@ -784,7 +787,9 @@ static inline int nla_put_u8(struct sk_buff *skb, int attrtype, u8 value)
  */
 static inline int nla_put_u16(struct sk_buff *skb, int attrtype, u16 value)
 {
-	return nla_put(skb, attrtype, sizeof(u16), &value);
+	u16 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(u16), &tmp);
 }
 
 /**
@@ -795,7 +800,9 @@ static inline int nla_put_u16(struct sk_buff *skb, int attrtype, u16 value)
  */
 static inline int nla_put_be16(struct sk_buff *skb, int attrtype, __be16 value)
 {
-	return nla_put(skb, attrtype, sizeof(__be16), &value);
+	__be16 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(__be16), &tmp);
 }
 
 /**
@@ -806,7 +813,9 @@ static inline int nla_put_be16(struct sk_buff *skb, int attrtype, __be16 value)
  */
 static inline int nla_put_net16(struct sk_buff *skb, int attrtype, __be16 value)
 {
-	return nla_put_be16(skb, attrtype | NLA_F_NET_BYTEORDER, value);
+	__be16 tmp = value;
+
+	return nla_put_be16(skb, attrtype | NLA_F_NET_BYTEORDER, tmp);
 }
 
 /**
@@ -817,7 +826,9 @@ static inline int nla_put_net16(struct sk_buff *skb, int attrtype, __be16 value)
  */
 static inline int nla_put_le16(struct sk_buff *skb, int attrtype, __le16 value)
 {
-	return nla_put(skb, attrtype, sizeof(__le16), &value);
+	__le16 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(__le16), &tmp);
 }
 
 /**
@@ -828,7 +839,9 @@ static inline int nla_put_le16(struct sk_buff *skb, int attrtype, __le16 value)
  */
 static inline int nla_put_u32(struct sk_buff *skb, int attrtype, u32 value)
 {
-	return nla_put(skb, attrtype, sizeof(u32), &value);
+	u32 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(u32), &tmp);
 }
 
 /**
@@ -839,7 +852,9 @@ static inline int nla_put_u32(struct sk_buff *skb, int attrtype, u32 value)
  */
 static inline int nla_put_be32(struct sk_buff *skb, int attrtype, __be32 value)
 {
-	return nla_put(skb, attrtype, sizeof(__be32), &value);
+	__be32 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(__be32), &tmp);
 }
 
 /**
@@ -850,7 +865,9 @@ static inline int nla_put_be32(struct sk_buff *skb, int attrtype, __be32 value)
  */
 static inline int nla_put_net32(struct sk_buff *skb, int attrtype, __be32 value)
 {
-	return nla_put_be32(skb, attrtype | NLA_F_NET_BYTEORDER, value);
+	__be32 tmp = value;
+
+	return nla_put_be32(skb, attrtype | NLA_F_NET_BYTEORDER, tmp);
 }
 
 /**
@@ -861,7 +878,9 @@ static inline int nla_put_net32(struct sk_buff *skb, int attrtype, __be32 value)
  */
 static inline int nla_put_le32(struct sk_buff *skb, int attrtype, __le32 value)
 {
-	return nla_put(skb, attrtype, sizeof(__le32), &value);
+	__le32 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(__le32), &tmp);
 }
 
 /**
@@ -874,7 +893,9 @@ static inline int nla_put_le32(struct sk_buff *skb, int attrtype, __le32 value)
 static inline int nla_put_u64_64bit(struct sk_buff *skb, int attrtype,
 				    u64 value, int padattr)
 {
-	return nla_put_64bit(skb, attrtype, sizeof(u64), &value, padattr);
+	u64 tmp = value;
+
+	return nla_put_64bit(skb, attrtype, sizeof(u64), &tmp, padattr);
 }
 
 /**
@@ -887,7 +908,9 @@ static inline int nla_put_u64_64bit(struct sk_buff *skb, int attrtype,
 static inline int nla_put_be64(struct sk_buff *skb, int attrtype, __be64 value,
 			       int padattr)
 {
-	return nla_put_64bit(skb, attrtype, sizeof(__be64), &value, padattr);
+	__be64 tmp = value;
+
+	return nla_put_64bit(skb, attrtype, sizeof(__be64), &tmp, padattr);
 }
 
 /**
@@ -900,7 +923,9 @@ static inline int nla_put_be64(struct sk_buff *skb, int attrtype, __be64 value,
 static inline int nla_put_net64(struct sk_buff *skb, int attrtype, __be64 value,
 				int padattr)
 {
-	return nla_put_be64(skb, attrtype | NLA_F_NET_BYTEORDER, value,
+	__be64 tmp = value;
+
+	return nla_put_be64(skb, attrtype | NLA_F_NET_BYTEORDER, tmp,
 			    padattr);
 }
 
@@ -914,7 +939,9 @@ static inline int nla_put_net64(struct sk_buff *skb, int attrtype, __be64 value,
 static inline int nla_put_le64(struct sk_buff *skb, int attrtype, __le64 value,
 			       int padattr)
 {
-	return nla_put_64bit(skb, attrtype, sizeof(__le64), &value, padattr);
+	__le64 tmp = value;
+
+	return nla_put_64bit(skb, attrtype, sizeof(__le64), &tmp, padattr);
 }
 
 /**
@@ -925,7 +952,9 @@ static inline int nla_put_le64(struct sk_buff *skb, int attrtype, __le64 value,
  */
 static inline int nla_put_s8(struct sk_buff *skb, int attrtype, s8 value)
 {
-	return nla_put(skb, attrtype, sizeof(s8), &value);
+	s8 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(s8), &tmp);
 }
 
 /**
@@ -936,7 +965,9 @@ static inline int nla_put_s8(struct sk_buff *skb, int attrtype, s8 value)
  */
 static inline int nla_put_s16(struct sk_buff *skb, int attrtype, s16 value)
 {
-	return nla_put(skb, attrtype, sizeof(s16), &value);
+	s16 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(s16), &tmp);
 }
 
 /**
@@ -947,7 +978,9 @@ static inline int nla_put_s16(struct sk_buff *skb, int attrtype, s16 value)
  */
 static inline int nla_put_s32(struct sk_buff *skb, int attrtype, s32 value)
 {
-	return nla_put(skb, attrtype, sizeof(s32), &value);
+	s32 tmp = value;
+
+	return nla_put(skb, attrtype, sizeof(s32), &tmp);
 }
 
 /**
@@ -960,7 +993,9 @@ static inline int nla_put_s32(struct sk_buff *skb, int attrtype, s32 value)
 static inline int nla_put_s64(struct sk_buff *skb, int attrtype, s64 value,
 			      int padattr)
 {
-	return nla_put_64bit(skb, attrtype, sizeof(s64), &value, padattr);
+	s64 tmp = value;
+
+	return nla_put_64bit(skb, attrtype, sizeof(s64), &tmp, padattr);
 }
 
 /**
@@ -1010,7 +1045,9 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 static inline int nla_put_in_addr(struct sk_buff *skb, int attrtype,
 				  __be32 addr)
 {
-	return nla_put_be32(skb, attrtype, addr);
+	__be32 tmp = addr;
+
+	return nla_put_be32(skb, attrtype, tmp);
 }
 
 /**
