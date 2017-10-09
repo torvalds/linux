@@ -877,6 +877,7 @@ int DecodeQ931(unsigned char *buf, size_t sz, Q931 *q931)
 		if (sz < 1)
 			break;
 		len = *p++;
+		sz--;
 		if (sz < len)
 			break;
 		p += len;
