@@ -6437,7 +6437,7 @@ static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 		    !btrfs_test_opt(fs_info, DEGRADED)) {
 			free_extent_map(em);
 			btrfs_report_missing_device(fs_info, devid, uuid);
-			return -EIO;
+			return -ENOENT;
 		}
 		if (!map->stripes[i].dev) {
 			map->stripes[i].dev =
@@ -6570,7 +6570,7 @@ static int read_one_dev(struct btrfs_fs_info *fs_info,
 	if (!device) {
 		if (!btrfs_test_opt(fs_info, DEGRADED)) {
 			btrfs_report_missing_device(fs_info, devid, dev_uuid);
-			return -EIO;
+			return -ENOENT;
 		}
 
 		device = add_missing_dev(fs_devices, devid, dev_uuid);
@@ -6585,7 +6585,7 @@ static int read_one_dev(struct btrfs_fs_info *fs_info,
 		if (!device->bdev) {
 			btrfs_report_missing_device(fs_info, devid, dev_uuid);
 			if (!btrfs_test_opt(fs_info, DEGRADED))
-				return -EIO;
+				return -ENOENT;
 		}
 
 		if(!device->bdev && !device->missing) {
