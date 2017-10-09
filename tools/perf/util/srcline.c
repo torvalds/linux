@@ -583,3 +583,54 @@ void inline_node__delete(struct inline_node *node)
 
 	free(node);
 }
+
+void inlines__tree_insert(struct rb_root *tree, struct inline_node *inlines)
+{
+	struct rb_node **p = &tree->rb_node;
+	struct rb_node *parent = NULL;
+	const u64 addr = inlines->addr;
+	struct inline_node *i;
+
+	while (*p != NULL) {
+		parent = *p;
+		i = rb_entry(parent, struct inline_node, rb_node);
+		if (addr < i->addr)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&inlines->rb_node, parent, p);
+	rb_insert_color(&inlines->rb_node, tree);
+}
+
+struct inline_node *inlines__tree_find(struct rb_root *tree, u64 addr)
+{
+	struct rb_node *n = tree->rb_node;
+
+	while (n) {
+		struct inline_node *i = rb_entry(n, struct inline_node,
+						 rb_node);
+
+		if (addr < i->addr)
+			n = n->rb_left;
+		else if (addr > i->addr)
+			n = n->rb_right;
+		else
+			return i;
+	}
+
+	return NULL;
+}
+
+void inlines__tree_delete(struct rb_root *tree)
+{
+	struct inline_node *pos;
+	struct rb_node *next = rb_first(tree);
+
+	while (next) {
+		pos = rb_entry(next, struct inline_node, rb_node);
+		next = rb_next(&pos->rb_node);
+		rb_erase(&pos->rb_node, tree);
+		inline_node__delete(pos);
+	}
+}

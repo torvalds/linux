@@ -2109,12 +2109,49 @@ check_calls:
 	return 0;
 }
 
+static int append_inlines(struct callchain_cursor *cursor,
+			  struct map *map, struct symbol *sym, u64 ip)
+{
+	struct inline_node *inline_node;
+	struct inline_list *ilist;
+	u64 addr;
+
+	if (!symbol_conf.inline_name || !map || !sym)
+		return 1;
+
+	addr = map__rip_2objdump(map, ip);
+
+	inline_node = inlines__tree_find(&map->dso->inlined_nodes, addr);
+	if (!inline_node) {
+		inline_node = dso__parse_addr_inlines(map->dso, addr, sym);
+		if (!inline_node)
+			return 1;
+
+		inlines__tree_insert(&map->dso->inlined_nodes, inline_node);
+	}
+
+	list_for_each_entry(ilist, &inline_node->val, list) {
+		int ret = callchain_cursor_append(cursor, ip, map,
+						  ilist->symbol, false,
+						  NULL, 0, 0, 0,
+						  ilist->srcline);
+
+		if (ret != 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int unwind_entry(struct unwind_entry *entry, void *arg)
 {
 	struct callchain_cursor *cursor = arg;
 	const char *srcline = NULL;
 
 	if (symbol_conf.hide_unresolved && entry->sym == NULL)
+		return 0;
+
+	if (append_inlines(cursor, entry->map, entry->sym, entry->ip) == 0)
 		return 0;
 
 	srcline = callchain_srcline(entry->map, entry->sym, entry->ip);

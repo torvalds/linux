@@ -141,6 +141,7 @@ struct dso {
 	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	struct rb_root	 inlined_nodes;
 	struct {
 		u64		addr;
 		struct symbol	*symbol;
