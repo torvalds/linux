@@ -115,9 +115,11 @@ struct bpf_insn_aux_data {
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
 
+#define BPF_VERIFIER_TMP_LOG_SIZE	1024
+
 struct bpf_verifer_log {
 	u32 level;
-	char *kbuf;
+	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
 	char __user *ubuf;
 	u32 len_used;
 	u32 len_total;
