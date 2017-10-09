@@ -448,6 +448,8 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 	int err;
 	u32 val;
 
+	intel_host->d3_retune = true;
+
 	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
 	if (err) {
 		pr_debug("%s: DSM not supported, error %d\n",
