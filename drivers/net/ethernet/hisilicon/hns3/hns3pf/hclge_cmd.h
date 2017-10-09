@@ -221,12 +221,12 @@ enum hclge_opcode_type {
 #define HCLGE_RCB_INIT_QUERY_TIMEOUT	10
 #define HCLGE_RCB_INIT_FLAG_EN_B	0
 #define HCLGE_RCB_INIT_FLAG_FINI_B	8
-struct hclge_config_rcb_init {
+struct hclge_config_rcb_init_cmd {
 	__le16 rcb_init_flag;
 	u8 rsv[22];
 };
 
-struct hclge_tqp_map {
+struct hclge_tqp_map_cmd {
 	__le16 tqp_id;	/* Absolute tqp id for in this pf */
 	u8 tqp_vf;	/* VF id */
 #define HCLGE_TQP_MAP_TYPE_PF		0
@@ -246,7 +246,7 @@ enum hclge_int_type {
 	HCLGE_INT_EVENT,
 };
 
-struct hclge_ctrl_vector_chain {
+struct hclge_ctrl_vector_chain_cmd {
 	u8 int_vector_id;
 	u8 int_cause_num;
 #define HCLGE_INT_TYPE_S	0
@@ -263,18 +263,18 @@ struct hclge_ctrl_vector_chain {
 #define HCLGE_TC_NUM		8
 #define HCLGE_TC0_PRI_BUF_EN_B	15 /* Bit 15 indicate enable or not */
 #define HCLGE_BUF_UNIT_S	7  /* Buf size is united by 128 bytes */
-struct hclge_tx_buff_alloc {
+struct hclge_tx_buff_alloc_cmd {
 	__le16 tx_pkt_buff[HCLGE_TC_NUM];
 	u8 tx_buff_rsv[8];
 };
 
-struct hclge_rx_priv_buff {
+struct hclge_rx_priv_buff_cmd {
 	__le16 buf_num[HCLGE_TC_NUM];
 	__le16 shared_buf;
 	u8 rsv[6];
 };
 
-struct hclge_query_version {
+struct hclge_query_version_cmd {
 	__le32 firmware;
 	__le32 firmware_rsv[5];
 };
@@ -328,14 +328,14 @@ struct hclge_pkt_buf_alloc {
 };
 
 #define HCLGE_RX_COM_WL_EN_B	15
-struct hclge_rx_com_wl_buf {
+struct hclge_rx_com_wl_buf_cmd {
 	__le16 high_wl;
 	__le16 low_wl;
 	u8 rsv[20];
 };
 
 #define HCLGE_RX_PKT_EN_B	15
-struct hclge_rx_pkt_buf {
+struct hclge_rx_pkt_buf_cmd {
 	__le16 high_pkt;
 	__le16 low_pkt;
 	u8 rsv[20];
@@ -348,7 +348,7 @@ struct hclge_rx_pkt_buf {
 #define HCLGE_PF_MAC_NUM_MASK	0x3
 #define HCLGE_PF_STATE_MAIN	BIT(HCLGE_PF_STATE_MAIN_B)
 #define HCLGE_PF_STATE_DONE	BIT(HCLGE_PF_STATE_DONE_B)
-struct hclge_func_status {
+struct hclge_func_status_cmd {
 	__le32  vf_rst_state[4];
 	u8 pf_state;
 	u8 mac_id;
@@ -359,7 +359,7 @@ struct hclge_func_status {
 	u8 rsv[2];
 };
 
-struct hclge_pf_res {
+struct hclge_pf_res_cmd {
 	__le16 tqp_num;
 	__le16 buf_size;
 	__le16 msixcap_localid_ba_nic;
@@ -395,7 +395,7 @@ struct hclge_pf_res {
 #define HCLGE_CFG_DEFAULT_SPEED_S	16
 #define HCLGE_CFG_DEFAULT_SPEED_M	GENMASK(23, 16)
 
-struct hclge_cfg_param {
+struct hclge_cfg_param_cmd {
 	__le32 offset;
 	__le32 rsv;
 	__le32 param[4];
@@ -405,7 +405,7 @@ struct hclge_cfg_param {
 #define HCLGE_DESC_NUM		0x40
 
 #define HCLGE_ALLOC_VALID_B	0
-struct hclge_vf_num {
+struct hclge_vf_num_cmd {
 	u8 alloc_valid;
 	u8 rsv[23];
 };
@@ -413,13 +413,13 @@ struct hclge_vf_num {
 #define HCLGE_RSS_DEFAULT_OUTPORT_B	4
 #define HCLGE_RSS_HASH_KEY_OFFSET_B	4
 #define HCLGE_RSS_HASH_KEY_NUM		16
-struct hclge_rss_config {
+struct hclge_rss_config_cmd {
 	u8 hash_config;
 	u8 rsv[7];
 	u8 hash_key[HCLGE_RSS_HASH_KEY_NUM];
 };
 
-struct hclge_rss_input_tuple {
+struct hclge_rss_input_tuple_cmd {
 	u8 ipv4_tcp_en;
 	u8 ipv4_udp_en;
 	u8 ipv4_sctp_en;
@@ -433,7 +433,7 @@ struct hclge_rss_input_tuple {
 
 #define HCLGE_RSS_CFG_TBL_SIZE	16
 
-struct hclge_rss_indirection_table {
+struct hclge_rss_indirection_table_cmd {
 	u16 start_table_index;
 	u16 rss_set_bitmap;
 	u8 rsv[4];
@@ -445,14 +445,14 @@ struct hclge_rss_indirection_table {
 #define HCLGE_RSS_TC_SIZE_S		12
 #define HCLGE_RSS_TC_SIZE_M		GENMASK(14, 12)
 #define HCLGE_RSS_TC_VALID_B		15
-struct hclge_rss_tc_mode {
+struct hclge_rss_tc_mode_cmd {
 	u16 rss_tc_mode[HCLGE_MAX_TC_NUM];
 	u8 rsv[8];
 };
 
 #define HCLGE_LINK_STS_B	0
 #define HCLGE_LINK_STATUS	BIT(HCLGE_LINK_STS_B)
-struct hclge_link_status {
+struct hclge_link_status_cmd {
 	u8 status;
 	u8 rsv[23];
 };
@@ -467,7 +467,7 @@ struct hclge_promisc_param {
 #define HCLGE_PROMISC_EN_UC	0x1
 #define HCLGE_PROMISC_EN_MC	0x2
 #define HCLGE_PROMISC_EN_BC	0x4
-struct hclge_promisc_cfg {
+struct hclge_promisc_cfg_cmd {
 	u8 flag;
 	u8 vf_id;
 	__le16 rsv0;
@@ -495,7 +495,7 @@ enum hclge_promisc_type {
 #define HCLGE_MAC_TX_UNDER_MIN_ERR_B		21
 #define HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B	22
 
-struct hclge_config_mac_mode {
+struct hclge_config_mac_mode_cmd {
 	__le32 txrx_pad_fcs_loop_en;
 	u8 rsv[20];
 };
@@ -506,7 +506,7 @@ struct hclge_config_mac_mode {
 #define HCLGE_CFG_DUPLEX_B		7
 #define HCLGE_CFG_DUPLEX_M		BIT(HCLGE_CFG_DUPLEX_B)
 
-struct hclge_config_mac_speed_dup {
+struct hclge_config_mac_speed_dup_cmd {
 	u8 speed_dup;
 
 #define HCLGE_CFG_MAC_SPEED_CHANGE_EN_B	0
@@ -522,7 +522,7 @@ struct hclge_config_mac_speed_dup {
 #define HCLGE_QUERY_AN_M		BIT(HCLGE_QUERY_AN_B)
 #define HCLGE_QUERY_DUPLEX_M		BIT(HCLGE_QUERY_DUPLEX_B)
 
-struct hclge_query_an_speed_dup {
+struct hclge_query_an_speed_dup_cmd {
 	u8 an_syn_dup_speed;
 	u8 pause;
 	u8 rsv[23];
@@ -539,7 +539,7 @@ struct hclge_query_an_speed_dup {
 
 #define HCLGE_MAC_CFG_AN_EN	BIT(HCLGE_MAC_CFG_AN_EN_B)
 
-struct hclge_config_auto_neg {
+struct hclge_config_auto_neg_cmd {
 	__le32  cfg_an_cmd_flag;
 	u8      rsv[20];
 };
@@ -548,7 +548,7 @@ struct hclge_config_auto_neg {
 #define HCLGE_MAC_MAX_MTU		9728
 #define HCLGE_MAC_UPLINK_PORT		0x100
 
-struct hclge_config_max_frm_size {
+struct hclge_config_max_frm_size_cmd {
 	__le16  max_frm_size;
 	u8      rsv[22];
 };
@@ -568,7 +568,7 @@ enum hclge_mac_vlan_tbl_opcode {
 #define HCLGE_MAC_EPORT_VFID_M		GENMASK(10, 3)
 #define HCLGE_MAC_EPORT_PFID_S		0x0
 #define HCLGE_MAC_EPORT_PFID_M		GENMASK(2, 0)
-struct hclge_mac_vlan_tbl_entry {
+struct hclge_mac_vlan_tbl_entry_cmd {
 	u8	flags;
 	u8      resp_code;
 	__le16  vlan_tag;
@@ -585,13 +585,13 @@ struct hclge_mac_vlan_tbl_entry {
 #define HCLGE_CFG_MTA_MAC_SEL_S		0x0
 #define HCLGE_CFG_MTA_MAC_SEL_M		GENMASK(1, 0)
 #define HCLGE_CFG_MTA_MAC_EN_B		0x7
-struct hclge_mta_filter_mode {
+struct hclge_mta_filter_mode_cmd {
 	u8	dmac_sel_en; /* Use lowest 2 bit as sel_mode, bit 7 as enable */
 	u8      rsv[23];
 };
 
 #define HCLGE_CFG_FUNC_MTA_ACCEPT_B	0x0
-struct hclge_cfg_func_mta_filter {
+struct hclge_cfg_func_mta_filter_cmd {
 	u8	accept; /* Only used lowest 1 bit */
 	u8      function_id;
 	u8      rsv[22];
@@ -600,13 +600,13 @@ struct hclge_cfg_func_mta_filter {
 #define HCLGE_CFG_MTA_ITEM_ACCEPT_B	0x0
 #define HCLGE_CFG_MTA_ITEM_IDX_S	0x0
 #define HCLGE_CFG_MTA_ITEM_IDX_M	GENMASK(11, 0)
-struct hclge_cfg_func_mta_item {
+struct hclge_cfg_func_mta_item_cmd {
 	u16	item_idx; /* Only used lowest 12 bit */
 	u8      accept;   /* Only used lowest 1 bit */
 	u8      rsv[21];
 };
 
-struct hclge_mac_vlan_add {
+struct hclge_mac_vlan_add_cmd {
 	__le16  flags;
 	__le16  mac_addr_hi16;
 	__le32  mac_addr_lo32;
@@ -619,7 +619,7 @@ struct hclge_mac_vlan_add {
 };
 
 #define HNS3_MAC_VLAN_CFG_FLAG_BIT 0
-struct hclge_mac_vlan_remove {
+struct hclge_mac_vlan_remove_cmd {
 	__le16  flags;
 	__le16  mac_addr_hi16;
 	__le32  mac_addr_lo32;
@@ -631,20 +631,20 @@ struct hclge_mac_vlan_remove {
 	u8      rsv[4];
 };
 
-struct hclge_vlan_filter_ctrl {
+struct hclge_vlan_filter_ctrl_cmd {
 	u8 vlan_type;
 	u8 vlan_fe;
 	u8 rsv[22];
 };
 
-struct hclge_vlan_filter_pf_cfg {
+struct hclge_vlan_filter_pf_cfg_cmd {
 	u8 vlan_offset;
 	u8 vlan_cfg;
 	u8 rsv[2];
 	u8 vlan_offset_bitmap[20];
 };
 
-struct hclge_vlan_filter_vf_cfg {
+struct hclge_vlan_filter_vf_cfg_cmd {
 	u16 vlan_id;
 	u8  resp_code;
 	u8  rsv;
@@ -653,14 +653,14 @@ struct hclge_vlan_filter_vf_cfg {
 	u8  vf_bitmap[16];
 };
 
-struct hclge_cfg_com_tqp_queue {
+struct hclge_cfg_com_tqp_queue_cmd {
 	__le16 tqp_id;
 	__le16 stream_id;
 	u8 enable;
 	u8 rsv[19];
 };
 
-struct hclge_cfg_tx_queue_pointer {
+struct hclge_cfg_tx_queue_pointer_cmd {
 	__le16 tqp_id;
 	__le16 tx_tail;
 	__le16 tx_head;
@@ -675,7 +675,7 @@ struct hclge_cfg_tx_queue_pointer {
 #define HCLGE_TSO_MSS_MAX_S	16
 #define HCLGE_TSO_MSS_MAX_M	GENMASK(29, 16)
 
-struct hclge_cfg_tso_status {
+struct hclge_cfg_tso_status_cmd {
 	__le16 tso_mss_min;
 	__le16 tso_mss_max;
 	u8 rsv[20];
@@ -685,7 +685,7 @@ struct hclge_cfg_tso_status {
 #define HCLGE_TSO_MSS_MAX	9668
 
 #define HCLGE_TQP_RESET_B	0
-struct hclge_reset_tqp_queue {
+struct hclge_reset_tqp_queue_cmd {
 	__le16 tqp_id;
 	u8 reset_req;
 	u8 ready_to_reset;

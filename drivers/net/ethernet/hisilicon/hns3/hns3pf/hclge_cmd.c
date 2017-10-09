@@ -279,12 +279,12 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 enum hclge_cmd_status hclge_cmd_query_firmware_version(struct hclge_hw *hw,
 						       u32 *version)
 {
-	struct hclge_query_version *resp;
+	struct hclge_query_version_cmd *resp;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_FW_VER, 1);
-	resp = (struct hclge_query_version *)desc.data;
+	resp = (struct hclge_query_version_cmd *)desc.data;
 
 	ret = hclge_cmd_send(hw, &desc, 1);
 	if (!ret)

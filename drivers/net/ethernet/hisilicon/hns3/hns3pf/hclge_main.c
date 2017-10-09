@@ -820,7 +820,7 @@ static void hclge_get_stats(struct hnae3_handle *handle, u64 *data)
 }
 
 static int hclge_parse_func_status(struct hclge_dev *hdev,
-				   struct hclge_func_status *status)
+				   struct hclge_func_status_cmd *status)
 {
 	if (!(status->pf_state & HCLGE_PF_STATE_DONE))
 		return -EINVAL;
@@ -837,13 +837,13 @@ static int hclge_parse_func_status(struct hclge_dev *hdev,
 
 static int hclge_query_function_status(struct hclge_dev *hdev)
 {
-	struct hclge_func_status *req;
+	struct hclge_func_status_cmd *req;
 	struct hclge_desc desc;
 	int timeout = 0;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_FUNC_STATUS, true);
-	req = (struct hclge_func_status *)desc.data;
+	req = (struct hclge_func_status_cmd *)desc.data;
 
 	do {
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -868,7 +868,7 @@ static int hclge_query_function_status(struct hclge_dev *hdev)
 
 static int hclge_query_pf_resource(struct hclge_dev *hdev)
 {
-	struct hclge_pf_res *req;
+	struct hclge_pf_res_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
@@ -880,7 +880,7 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	req = (struct hclge_pf_res *)desc.data;
+	req = (struct hclge_pf_res_cmd *)desc.data;
 	hdev->num_tqps = __le16_to_cpu(req->tqp_num);
 	hdev->pkt_buf_size = __le16_to_cpu(req->buf_size) << HCLGE_BUF_UNIT_S;
 
@@ -938,12 +938,12 @@ static int hclge_parse_speed(int speed_cmd, int *speed)
 
 static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 {
-	struct hclge_cfg_param *req;
+	struct hclge_cfg_param_cmd *req;
 	u64 mac_addr_tmp_high;
 	u64 mac_addr_tmp;
 	int i;
 
-	req = (struct hclge_cfg_param *)desc[0].data;
+	req = (struct hclge_cfg_param_cmd *)desc[0].data;
 
 	/* get the configuration */
 	cfg->vmdq_vport_num = hnae_get_field(__le32_to_cpu(req->param[0]),
@@ -978,7 +978,7 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 	for (i = 0; i < ETH_ALEN; i++)
 		cfg->mac_addr[i] = (mac_addr_tmp >> (8 * i)) & 0xff;
 
-	req = (struct hclge_cfg_param *)desc[1].data;
+	req = (struct hclge_cfg_param_cmd *)desc[1].data;
 	cfg->numa_node_map = __le32_to_cpu(req->param[0]);
 }
 
@@ -989,11 +989,11 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 static int hclge_get_cfg(struct hclge_dev *hdev, struct hclge_cfg *hcfg)
 {
 	struct hclge_desc desc[HCLGE_PF_CFG_DESC_NUM];
-	struct hclge_cfg_param *req;
+	struct hclge_cfg_param_cmd *req;
 	int i, ret;
 
 	for (i = 0; i < HCLGE_PF_CFG_DESC_NUM; i++) {
-		req = (struct hclge_cfg_param *)desc[i].data;
+		req = (struct hclge_cfg_param_cmd *)desc[i].data;
 		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_GET_CFG_PARAM,
 					   true);
 		hnae_set_field(req->offset, HCLGE_CFG_OFFSET_M,
@@ -1099,12 +1099,12 @@ static int hclge_configure(struct hclge_dev *hdev)
 static int hclge_config_tso(struct hclge_dev *hdev, int tso_mss_min,
 			    int tso_mss_max)
 {
-	struct hclge_cfg_tso_status *req;
+	struct hclge_cfg_tso_status_cmd *req;
 	struct hclge_desc desc;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TSO_GENERIC_CONFIG, false);
 
-	req = (struct hclge_cfg_tso_status *)desc.data;
+	req = (struct hclge_cfg_tso_status_cmd *)desc.data;
 	hnae_set_field(req->tso_mss_min, HCLGE_TSO_MSS_MIN_M,
 		       HCLGE_TSO_MSS_MIN_S, tso_mss_min);
 	hnae_set_field(req->tso_mss_max, HCLGE_TSO_MSS_MIN_M,
@@ -1144,13 +1144,13 @@ static int hclge_alloc_tqps(struct hclge_dev *hdev)
 static int hclge_map_tqps_to_func(struct hclge_dev *hdev, u16 func_id,
 				  u16 tqp_pid, u16 tqp_vid, bool is_pf)
 {
-	struct hclge_tqp_map *req;
+	struct hclge_tqp_map_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SET_TQP_MAP, false);
 
-	req = (struct hclge_tqp_map *)desc.data;
+	req = (struct hclge_tqp_map_cmd *)desc.data;
 	req->tqp_id = cpu_to_le16(tqp_pid);
 	req->tqp_vf = cpu_to_le16(func_id);
 	req->tqp_flag = !is_pf << HCLGE_TQP_MAP_TYPE_B |
@@ -1340,12 +1340,12 @@ static int  hclge_cmd_alloc_tx_buff(struct hclge_dev *hdev,
 /* TX buffer size is unit by 128 byte */
 #define HCLGE_BUF_SIZE_UNIT_SHIFT	7
 #define HCLGE_BUF_SIZE_UPDATE_EN_MSK	BIT(15)
-	struct hclge_tx_buff_alloc *req;
+	struct hclge_tx_buff_alloc_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 	u8 i;
 
-	req = (struct hclge_tx_buff_alloc *)desc.data;
+	req = (struct hclge_tx_buff_alloc_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TX_BUFF_ALLOC, 0);
 	for (i = 0; i < HCLGE_TC_NUM; i++) {
@@ -1672,13 +1672,13 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 static int hclge_rx_priv_buf_alloc(struct hclge_dev *hdev,
 				   struct hclge_pkt_buf_alloc *buf_alloc)
 {
-	struct hclge_rx_priv_buff *req;
+	struct hclge_rx_priv_buff_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 	int i;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RX_PRIV_BUFF_ALLOC, false);
-	req = (struct hclge_rx_priv_buff *)desc.data;
+	req = (struct hclge_rx_priv_buff_cmd *)desc.data;
 
 	/* Alloc private buffer TCs */
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
@@ -2000,11 +2000,11 @@ static void hclge_check_speed_dup(struct hclge_dev *hdev, int duplex, int speed)
 
 int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
 {
-	struct hclge_config_mac_speed_dup *req;
+	struct hclge_config_mac_speed_dup_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
-	req = (struct hclge_config_mac_speed_dup *)desc.data;
+	req = (struct hclge_config_mac_speed_dup_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_SPEED_DUP, false);
 
@@ -2075,12 +2075,12 @@ static int hclge_cfg_mac_speed_dup_h(struct hnae3_handle *handle, int speed,
 static int hclge_query_mac_an_speed_dup(struct hclge_dev *hdev, int *speed,
 					u8 *duplex)
 {
-	struct hclge_query_an_speed_dup *req;
+	struct hclge_query_an_speed_dup_cmd *req;
 	struct hclge_desc desc;
 	int speed_tmp;
 	int ret;
 
-	req = (struct hclge_query_an_speed_dup *)desc.data;
+	req = (struct hclge_query_an_speed_dup_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_AN_RESULT, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2108,11 +2108,11 @@ static int hclge_query_mac_an_speed_dup(struct hclge_dev *hdev, int *speed,
 static int hclge_query_autoneg_result(struct hclge_dev *hdev)
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
-	struct hclge_query_an_speed_dup *req;
+	struct hclge_query_an_speed_dup_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
-	req = (struct hclge_query_an_speed_dup *)desc.data;
+	req = (struct hclge_query_an_speed_dup_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_AN_RESULT, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2129,13 +2129,13 @@ static int hclge_query_autoneg_result(struct hclge_dev *hdev)
 
 static int hclge_set_autoneg_en(struct hclge_dev *hdev, bool enable)
 {
-	struct hclge_config_auto_neg *req;
+	struct hclge_config_auto_neg_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_AN_MODE, false);
 
-	req = (struct hclge_config_auto_neg *)desc.data;
+	req = (struct hclge_config_auto_neg_cmd *)desc.data;
 	hnae_set_bit(req->cfg_an_cmd_flag, HCLGE_MAC_CFG_AN_EN_B, !!enable);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2214,7 +2214,7 @@ static void hclge_task_schedule(struct hclge_dev *hdev)
 
 static int hclge_get_mac_link_status(struct hclge_dev *hdev)
 {
-	struct hclge_link_status *req;
+	struct hclge_link_status_cmd *req;
 	struct hclge_desc desc;
 	int link_status;
 	int ret;
@@ -2227,7 +2227,7 @@ static int hclge_get_mac_link_status(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	req = (struct hclge_link_status *)desc.data;
+	req = (struct hclge_link_status_cmd *)desc.data;
 	link_status = req->status & HCLGE_LINK_STATUS;
 
 	return !!link_status;
@@ -2451,7 +2451,7 @@ static u32 hclge_get_rss_indir_size(struct hnae3_handle *handle)
 
 static int hclge_get_rss_algo(struct hclge_dev *hdev)
 {
-	struct hclge_rss_config *req;
+	struct hclge_rss_config_cmd *req;
 	struct hclge_desc desc;
 	int rss_hash_algo;
 	int ret;
@@ -2465,7 +2465,7 @@ static int hclge_get_rss_algo(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	req = (struct hclge_rss_config *)desc.data;
+	req = (struct hclge_rss_config_cmd *)desc.data;
 	rss_hash_algo = (req->hash_config & HCLGE_RSS_HASH_ALGO_MASK);
 
 	if (rss_hash_algo == HCLGE_RSS_HASH_ALGO_TOEPLITZ)
@@ -2477,13 +2477,13 @@ static int hclge_get_rss_algo(struct hclge_dev *hdev)
 static int hclge_set_rss_algo_key(struct hclge_dev *hdev,
 				  const u8 hfunc, const u8 *key)
 {
-	struct hclge_rss_config *req;
+	struct hclge_rss_config_cmd *req;
 	struct hclge_desc desc;
 	int key_offset;
 	int key_size;
 	int ret;
 
-	req = (struct hclge_rss_config *)desc.data;
+	req = (struct hclge_rss_config_cmd *)desc.data;
 
 	for (key_offset = 0; key_offset < 3; key_offset++) {
 		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_GENERIC_CONFIG,
@@ -2514,12 +2514,12 @@ static int hclge_set_rss_algo_key(struct hclge_dev *hdev,
 
 static int hclge_set_rss_indir_table(struct hclge_dev *hdev, const u32 *indir)
 {
-	struct hclge_rss_indirection_table *req;
+	struct hclge_rss_indirection_table_cmd *req;
 	struct hclge_desc desc;
 	int i, j;
 	int ret;
 
-	req = (struct hclge_rss_indirection_table *)desc.data;
+	req = (struct hclge_rss_indirection_table_cmd *)desc.data;
 
 	for (i = 0; i < HCLGE_RSS_CFG_TBL_NUM; i++) {
 		hclge_cmd_setup_basic_desc
@@ -2546,13 +2546,13 @@ static int hclge_set_rss_indir_table(struct hclge_dev *hdev, const u32 *indir)
 static int hclge_set_rss_tc_mode(struct hclge_dev *hdev, u16 *tc_valid,
 				 u16 *tc_size, u16 *tc_offset)
 {
-	struct hclge_rss_tc_mode *req;
+	struct hclge_rss_tc_mode_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 	int i;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_TC_MODE, false);
-	req = (struct hclge_rss_tc_mode *)desc.data;
+	req = (struct hclge_rss_tc_mode_cmd *)desc.data;
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		hnae_set_bit(req->rss_tc_mode[i], HCLGE_RSS_TC_VALID_B,
@@ -2577,13 +2577,13 @@ static int hclge_set_rss_input_tuple(struct hclge_dev *hdev)
 {
 #define HCLGE_RSS_INPUT_TUPLE_OTHER		0xf
 #define HCLGE_RSS_INPUT_TUPLE_SCTP		0x1f
-	struct hclge_rss_input_tuple *req;
+	struct hclge_rss_input_tuple_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE, false);
 
-	req = (struct hclge_rss_input_tuple *)desc.data;
+	req = (struct hclge_rss_input_tuple_cmd *)desc.data;
 	req->ipv4_tcp_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
 	req->ipv4_udp_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
 	req->ipv4_sctp_en = HCLGE_RSS_INPUT_TUPLE_SCTP;
@@ -2750,7 +2750,7 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 				   struct hnae3_ring_chain_node *ring_chain)
 {
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_ctrl_vector_chain *req;
+	struct hclge_ctrl_vector_chain_cmd *req;
 	struct hnae3_ring_chain_node *node;
 	struct hclge_desc desc;
 	int ret;
@@ -2758,7 +2758,7 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_ADD_RING_TO_VECTOR, false);
 
-	req = (struct hclge_ctrl_vector_chain *)desc.data;
+	req = (struct hclge_ctrl_vector_chain_cmd *)desc.data;
 	req->int_vector_id = vector_id;
 
 	i = 0;
@@ -2831,7 +2831,7 @@ static int hclge_unmap_ring_from_vector(
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_ctrl_vector_chain *req;
+	struct hclge_ctrl_vector_chain_cmd *req;
 	struct hnae3_ring_chain_node *node;
 	struct hclge_desc desc;
 	int i, vector_id;
@@ -2846,7 +2846,7 @@ static int hclge_unmap_ring_from_vector(
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_DEL_RING_TO_VECTOR, false);
 
-	req = (struct hclge_ctrl_vector_chain *)desc.data;
+	req = (struct hclge_ctrl_vector_chain_cmd *)desc.data;
 	req->int_vector_id = vector_id;
 
 	i = 0;
@@ -2898,13 +2898,13 @@ static int hclge_unmap_ring_from_vector(
 int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
 			       struct hclge_promisc_param *param)
 {
-	struct hclge_promisc_cfg *req;
+	struct hclge_promisc_cfg_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PROMISC_MODE, false);
 
-	req = (struct hclge_promisc_cfg *)desc.data;
+	req = (struct hclge_promisc_cfg_cmd *)desc.data;
 	req->vf_id = param->vf_id;
 	req->flag = (param->enable << HCLGE_PROMISC_EN_B);
 
@@ -2946,8 +2946,8 @@ static void hclge_set_promisc_mode(struct hnae3_handle *handle, u32 en)
 static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 {
 	struct hclge_desc desc;
-	struct hclge_config_mac_mode *req =
-		(struct hclge_config_mac_mode *)desc.data;
+	struct hclge_config_mac_mode_cmd *req =
+		(struct hclge_config_mac_mode_cmd *)desc.data;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, false);
@@ -2980,8 +2980,8 @@ static int hclge_tqp_enable(struct hclge_dev *hdev, int tqp_id,
 			    int stream_id, bool enable)
 {
 	struct hclge_desc desc;
-	struct hclge_cfg_com_tqp_queue *req =
-		(struct hclge_cfg_com_tqp_queue *)desc.data;
+	struct hclge_cfg_com_tqp_queue_cmd *req =
+		(struct hclge_cfg_com_tqp_queue_cmd *)desc.data;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_COM_TQP_QUEUE, false);
@@ -3174,7 +3174,7 @@ static bool hclge_is_all_function_id_zero(struct hclge_desc *desc)
 	return true;
 }
 
-static void hclge_prepare_mac_addr(struct hclge_mac_vlan_tbl_entry *new_req,
+static void hclge_prepare_mac_addr(struct hclge_mac_vlan_tbl_entry_cmd *new_req,
 				   const u8 *addr)
 {
 	const unsigned char *mac_addr = addr;
@@ -3201,11 +3201,11 @@ static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 				     enum hclge_mta_dmac_sel_type mta_mac_sel,
 				     bool enable)
 {
-	struct hclge_mta_filter_mode *req;
+	struct hclge_mta_filter_mode_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
-	req = (struct hclge_mta_filter_mode *)desc.data;
+	req = (struct hclge_mta_filter_mode_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MTA_MAC_MODE_CFG, false);
 
 	hnae_set_bit(req->dmac_sel_en, HCLGE_CFG_MTA_MAC_EN_B,
@@ -3228,11 +3228,11 @@ int hclge_cfg_func_mta_filter(struct hclge_dev *hdev,
 			      u8 func_id,
 			      bool enable)
 {
-	struct hclge_cfg_func_mta_filter *req;
+	struct hclge_cfg_func_mta_filter_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
-	req = (struct hclge_cfg_func_mta_filter *)desc.data;
+	req = (struct hclge_cfg_func_mta_filter_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MTA_MAC_FUNC_CFG, false);
 
 	hnae_set_bit(req->accept, HCLGE_CFG_FUNC_MTA_ACCEPT_B,
@@ -3255,11 +3255,11 @@ static int hclge_set_mta_table_item(struct hclge_vport *vport,
 				    bool enable)
 {
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_cfg_func_mta_item *req;
+	struct hclge_cfg_func_mta_item_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
-	req = (struct hclge_cfg_func_mta_item *)desc.data;
+	req = (struct hclge_cfg_func_mta_item_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MTA_TBL_ITEM_CFG, false);
 	hnae_set_bit(req->accept, HCLGE_CFG_MTA_ITEM_ACCEPT_B, enable);
 
@@ -3279,7 +3279,7 @@ static int hclge_set_mta_table_item(struct hclge_vport *vport,
 }
 
 static int hclge_remove_mac_vlan_tbl(struct hclge_vport *vport,
-				     struct hclge_mac_vlan_tbl_entry *req)
+				     struct hclge_mac_vlan_tbl_entry_cmd *req)
 {
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
@@ -3288,7 +3288,7 @@ static int hclge_remove_mac_vlan_tbl(struct hclge_vport *vport,
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_REMOVE, false);
 
-	memcpy(desc.data, req, sizeof(struct hclge_mac_vlan_tbl_entry));
+	memcpy(desc.data, req, sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -3304,7 +3304,7 @@ static int hclge_remove_mac_vlan_tbl(struct hclge_vport *vport,
 }
 
 static int hclge_lookup_mac_vlan_tbl(struct hclge_vport *vport,
-				     struct hclge_mac_vlan_tbl_entry *req,
+				     struct hclge_mac_vlan_tbl_entry_cmd *req,
 				     struct hclge_desc *desc,
 				     bool is_mc)
 {
@@ -3317,7 +3317,7 @@ static int hclge_lookup_mac_vlan_tbl(struct hclge_vport *vport,
 		desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 		memcpy(desc[0].data,
 		       req,
-		       sizeof(struct hclge_mac_vlan_tbl_entry));
+		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		hclge_cmd_setup_basic_desc(&desc[1],
 					   HCLGE_OPC_MAC_VLAN_ADD,
 					   true);
@@ -3329,7 +3329,7 @@ static int hclge_lookup_mac_vlan_tbl(struct hclge_vport *vport,
 	} else {
 		memcpy(desc[0].data,
 		       req,
-		       sizeof(struct hclge_mac_vlan_tbl_entry));
+		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		ret = hclge_cmd_send(&hdev->hw, desc, 1);
 	}
 	if (ret) {
@@ -3345,7 +3345,7 @@ static int hclge_lookup_mac_vlan_tbl(struct hclge_vport *vport,
 }
 
 static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
-				  struct hclge_mac_vlan_tbl_entry *req,
+				  struct hclge_mac_vlan_tbl_entry_cmd *req,
 				  struct hclge_desc *mc_desc)
 {
 	struct hclge_dev *hdev = vport->back;
@@ -3359,7 +3359,8 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 		hclge_cmd_setup_basic_desc(&desc,
 					   HCLGE_OPC_MAC_VLAN_ADD,
 					   false);
-		memcpy(desc.data, req, sizeof(struct hclge_mac_vlan_tbl_entry));
+		memcpy(desc.data, req,
+		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		resp_code = (desc.data[0] >> 8) & 0xff;
 		cfg_status = hclge_get_mac_vlan_cmd_status(vport, desc.retval,
@@ -3373,7 +3374,7 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 		mc_desc[2].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
 		mc_desc[2].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_NEXT);
 		memcpy(mc_desc[0].data, req,
-		       sizeof(struct hclge_mac_vlan_tbl_entry));
+		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		ret = hclge_cmd_send(&hdev->hw, mc_desc, 3);
 		resp_code = (mc_desc[0].data[0] >> 8) & 0xff;
 		cfg_status = hclge_get_mac_vlan_cmd_status(vport,
@@ -3404,7 +3405,7 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 			     const unsigned char *addr)
 {
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_mac_vlan_tbl_entry req;
+	struct hclge_mac_vlan_tbl_entry_cmd req;
 	enum hclge_cmd_status status;
 
 	/* mac addr check */
@@ -3454,7 +3455,7 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 			    const unsigned char *addr)
 {
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_mac_vlan_tbl_entry req;
+	struct hclge_mac_vlan_tbl_entry_cmd req;
 	enum hclge_cmd_status status;
 
 	/* mac addr check */
@@ -3488,7 +3489,7 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 			     const unsigned char *addr)
 {
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_mac_vlan_tbl_entry req;
+	struct hclge_mac_vlan_tbl_entry_cmd req;
 	struct hclge_desc desc[3];
 	u16 tbl_idx;
 	int status;
@@ -3539,7 +3540,7 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 			    const unsigned char *addr)
 {
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_mac_vlan_tbl_entry req;
+	struct hclge_mac_vlan_tbl_entry_cmd req;
 	enum hclge_cmd_status status;
 	struct hclge_desc desc[3];
 	u16 tbl_idx;
@@ -3622,13 +3623,13 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
 static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 				      bool filter_en)
 {
-	struct hclge_vlan_filter_ctrl *req;
+	struct hclge_vlan_filter_ctrl_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_VLAN_FILTER_CTRL, false);
 
-	req = (struct hclge_vlan_filter_ctrl *)desc.data;
+	req = (struct hclge_vlan_filter_ctrl_cmd *)desc.data;
 	req->vlan_type = vlan_type;
 	req->vlan_fe = filter_en;
 
@@ -3646,8 +3647,8 @@ int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 			     bool is_kill, u16 vlan, u8 qos, __be16 proto)
 {
 #define HCLGE_MAX_VF_BYTES  16
-	struct hclge_vlan_filter_vf_cfg *req0;
-	struct hclge_vlan_filter_vf_cfg *req1;
+	struct hclge_vlan_filter_vf_cfg_cmd *req0;
+	struct hclge_vlan_filter_vf_cfg_cmd *req1;
 	struct hclge_desc desc[2];
 	u8 vf_byte_val;
 	u8 vf_byte_off;
@@ -3663,8 +3664,8 @@ int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 	vf_byte_off = vfid / 8;
 	vf_byte_val = 1 << (vfid % 8);
 
-	req0 = (struct hclge_vlan_filter_vf_cfg *)desc[0].data;
-	req1 = (struct hclge_vlan_filter_vf_cfg *)desc[1].data;
+	req0 = (struct hclge_vlan_filter_vf_cfg_cmd *)desc[0].data;
+	req1 = (struct hclge_vlan_filter_vf_cfg_cmd *)desc[1].data;
 
 	req0->vlan_id  = vlan;
 	req0->vlan_cfg = is_kill;
@@ -3707,7 +3708,7 @@ static int hclge_set_port_vlan_filter(struct hnae3_handle *handle,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_vlan_filter_pf_cfg *req;
+	struct hclge_vlan_filter_pf_cfg_cmd *req;
 	struct hclge_desc desc;
 	u8 vlan_offset_byte_val;
 	u8 vlan_offset_byte;
@@ -3720,7 +3721,7 @@ static int hclge_set_port_vlan_filter(struct hnae3_handle *handle,
 	vlan_offset_byte = (vlan_id % 160) / 8;
 	vlan_offset_byte_val = 1 << (vlan_id % 8);
 
-	req = (struct hclge_vlan_filter_pf_cfg *)desc.data;
+	req = (struct hclge_vlan_filter_pf_cfg_cmd *)desc.data;
 	req->vlan_offset = vlan_offset_160;
 	req->vlan_cfg = is_kill;
 	req->vlan_offset_bitmap[vlan_offset_byte] = vlan_offset_byte_val;
@@ -3782,7 +3783,7 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_config_max_frm_size *req;
+	struct hclge_config_max_frm_size_cmd *req;
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
 	int ret;
@@ -3793,7 +3794,7 @@ static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 	hdev->mps = new_mtu;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, false);
 
-	req = (struct hclge_config_max_frm_size *)desc.data;
+	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
 	req->max_frm_size = cpu_to_le16(new_mtu);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -3808,13 +3809,13 @@ static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 static int hclge_send_reset_tqp_cmd(struct hclge_dev *hdev, u16 queue_id,
 				    bool enable)
 {
-	struct hclge_reset_tqp_queue *req;
+	struct hclge_reset_tqp_queue_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RESET_TQP_QUEUE, false);
 
-	req = (struct hclge_reset_tqp_queue *)desc.data;
+	req = (struct hclge_reset_tqp_queue_cmd *)desc.data;
 	req->tqp_id = cpu_to_le16(queue_id & HCLGE_RING_ID_MASK);
 	hnae_set_bit(req->reset_req, HCLGE_TQP_RESET_B, enable);
 
@@ -3830,13 +3831,13 @@ static int hclge_send_reset_tqp_cmd(struct hclge_dev *hdev, u16 queue_id,
 
 static int hclge_get_reset_status(struct hclge_dev *hdev, u16 queue_id)
 {
-	struct hclge_reset_tqp_queue *req;
+	struct hclge_reset_tqp_queue_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RESET_TQP_QUEUE, true);
 
-	req = (struct hclge_reset_tqp_queue *)desc.data;
+	req = (struct hclge_reset_tqp_queue_cmd *)desc.data;
 	req->tqp_id = cpu_to_le16(queue_id & HCLGE_RING_ID_MASK);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
