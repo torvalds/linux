@@ -151,11 +151,16 @@ void (*qed_ll2_release_tx_packet_cb)(void *cxt,
 				     dma_addr_t first_frag_addr,
 				     bool b_last_fragment, bool b_last_packet);
 
+typedef
+void (*qed_ll2_slowpath_cb)(void *cxt, u8 connection_handle,
+			    u32 opaque_data_0, u32 opaque_data_1);
+
 struct qed_ll2_cbs {
 	qed_ll2_complete_rx_packet_cb rx_comp_cb;
 	qed_ll2_release_rx_packet_cb rx_release_cb;
 	qed_ll2_complete_tx_packet_cb tx_comp_cb;
 	qed_ll2_release_tx_packet_cb tx_release_cb;
+	qed_ll2_slowpath_cb slowpath_cb;
 	void *cookie;
 };
 

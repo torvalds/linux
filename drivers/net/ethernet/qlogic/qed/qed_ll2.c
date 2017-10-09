@@ -423,6 +423,41 @@ static void qed_ll2_rxq_parse_reg(struct qed_hwfn *p_hwfn,
 }
 
 static int
+qed_ll2_handle_slowpath(struct qed_hwfn *p_hwfn,
+			struct qed_ll2_info *p_ll2_conn,
+			union core_rx_cqe_union *p_cqe,
+			unsigned long *p_lock_flags)
+{
+	struct qed_ll2_rx_queue *p_rx = &p_ll2_conn->rx_queue;
+	struct core_rx_slow_path_cqe *sp_cqe;
+
+	sp_cqe = &p_cqe->rx_cqe_sp;
+	if (sp_cqe->ramrod_cmd_id != CORE_RAMROD_RX_QUEUE_FLUSH) {
+		DP_NOTICE(p_hwfn,
+			  "LL2 - unexpected Rx CQE slowpath ramrod_cmd_id:%d\n",
+			  sp_cqe->ramrod_cmd_id);
+		return -EINVAL;
+	}
+
+	if (!p_ll2_conn->cbs.slowpath_cb) {
+		DP_NOTICE(p_hwfn,
+			  "LL2 - received RX_QUEUE_FLUSH but no callback was provided\n");
+		return -EINVAL;
+	}
+
+	spin_unlock_irqrestore(&p_rx->lock, *p_lock_flags);
+
+	p_ll2_conn->cbs.slowpath_cb(p_ll2_conn->cbs.cookie,
+				    p_ll2_conn->my_id,
+				    le32_to_cpu(sp_cqe->opaque_data.data[0]),
+				    le32_to_cpu(sp_cqe->opaque_data.data[1]));
+
+	spin_lock_irqsave(&p_rx->lock, *p_lock_flags);
+
+	return 0;
+}
+
+static int
 qed_ll2_rxq_handle_completion(struct qed_hwfn *p_hwfn,
 			      struct qed_ll2_info *p_ll2_conn,
 			      union core_rx_cqe_union *p_cqe,
@@ -495,8 +530,8 @@ static int qed_ll2_rxq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 
 		switch (cqe->rx_cqe_sp.type) {
 		case CORE_RX_CQE_TYPE_SLOW_PATH:
-			DP_NOTICE(p_hwfn, "LL2 - unexpected Rx CQE slowpath\n");
-			rc = -EINVAL;
+			rc = qed_ll2_handle_slowpath(p_hwfn, p_ll2_conn,
+						     cqe, &flags);
 			break;
 		case CORE_RX_CQE_TYPE_GSI_OFFLOAD:
 		case CORE_RX_CQE_TYPE_REGULAR:
@@ -1214,6 +1249,7 @@ qed_ll2_set_cbs(struct qed_ll2_info *p_ll2_info, const struct qed_ll2_cbs *cbs)
 	p_ll2_info->cbs.rx_release_cb = cbs->rx_release_cb;
 	p_ll2_info->cbs.tx_comp_cb = cbs->tx_comp_cb;
 	p_ll2_info->cbs.tx_release_cb = cbs->tx_release_cb;
+	p_ll2_info->cbs.slowpath_cb = cbs->slowpath_cb;
 	p_ll2_info->cbs.cookie = cbs->cookie;
 
 	return 0;
