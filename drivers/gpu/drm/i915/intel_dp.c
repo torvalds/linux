@@ -137,32 +137,20 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 				      enum pipe pipe);
 static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 
-static int intel_dp_num_rates(u8 link_bw_code)
-{
-	switch (link_bw_code) {
-	default:
-		WARN(1, "invalid max DP link bw val %x, using 1.62Gbps\n",
-		     link_bw_code);
-	case DP_LINK_BW_1_62:
-		return 1;
-	case DP_LINK_BW_2_7:
-		return 2;
-	case DP_LINK_BW_5_4:
-		return 3;
-	}
-}
-
 /* update sink rates from dpcd */
 static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 {
-	int i, num_rates;
+	int i, max_rate;
 
-	num_rates = intel_dp_num_rates(intel_dp->dpcd[DP_MAX_LINK_RATE]);
+	max_rate = drm_dp_bw_code_to_link_rate(intel_dp->dpcd[DP_MAX_LINK_RATE]);
 
-	for (i = 0; i < num_rates; i++)
+	for (i = 0; i < ARRAY_SIZE(default_rates); i++) {
+		if (default_rates[i] > max_rate)
+			break;
 		intel_dp->sink_rates[i] = default_rates[i];
+	}
 
-	intel_dp->num_sink_rates = num_rates;
+	intel_dp->num_sink_rates = i;
 }
 
 /* Theoretical max between source and sink */
