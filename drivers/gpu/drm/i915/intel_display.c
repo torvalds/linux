@@ -10238,48 +10238,44 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 					 &pipe_config->fdi_m_n);
 }
 
-/** Returns the currently programmed mode of the given pipe. */
-struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
-					     struct drm_crtc *crtc)
+/* Returns the currently programmed mode of the given encoder. */
+struct drm_display_mode *
+intel_encoder_current_mode(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc_state *crtc_state;
 	struct drm_display_mode *mode;
-	struct intel_crtc_state *pipe_config;
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc;
+	enum pipe pipe;
+
+	if (!encoder->get_hw_state(encoder, &pipe))
+		return NULL;
+
+	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
 		return NULL;
 
-	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
-	if (!pipe_config) {
+	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	if (!crtc_state) {
 		kfree(mode);
 		return NULL;
 	}
 
-	/*
-	 * Construct a pipe_config sufficient for getting the clock info
-	 * back out of crtc_clock_get.
-	 *
-	 * Note, if LVDS ever uses a non-1 pixel multiplier, we'll need
-	 * to use a real value here instead.
-	 */
-	pipe_config->cpu_transcoder = (enum transcoder) pipe;
-	pipe_config->pixel_multiplier = 1;
-	pipe_config->dpll_hw_state.dpll = I915_READ(DPLL(pipe));
-	pipe_config->dpll_hw_state.fp0 = I915_READ(FP0(pipe));
-	pipe_config->dpll_hw_state.fp1 = I915_READ(FP1(pipe));
-	i9xx_crtc_clock_get(intel_crtc, pipe_config);
+	crtc_state->base.crtc = &crtc->base;
 
-	pipe_config->base.adjusted_mode.crtc_clock =
-		pipe_config->port_clock / pipe_config->pixel_multiplier;
+	if (!dev_priv->display.get_pipe_config(crtc, crtc_state)) {
+		kfree(crtc_state);
+		kfree(mode);
+		return NULL;
+	}
 
-	intel_get_pipe_timings(intel_crtc, pipe_config);
+	encoder->get_config(encoder, crtc_state);
 
-	intel_mode_from_pipe_config(mode, pipe_config);
+	intel_mode_from_pipe_config(mode, crtc_state);
 
-	kfree(pipe_config);
+	kfree(crtc_state);
 
 	return mode;
 }
