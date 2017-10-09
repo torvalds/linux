@@ -92,3 +92,21 @@ int __fscrypt_prepare_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fscrypt_prepare_rename);
+
+int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry)
+{
+	int err = fscrypt_get_encryption_info(dir);
+
+	if (err)
+		return err;
+
+	if (fscrypt_has_encryption_key(dir)) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags |= DCACHE_ENCRYPTED_WITH_KEY;
+		spin_unlock(&dentry->d_lock);
+	}
+
+	d_set_d_op(dentry, &fscrypt_d_ops);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__fscrypt_prepare_lookup);
