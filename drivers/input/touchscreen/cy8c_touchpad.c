@@ -249,7 +249,7 @@ cy8ctouch_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	if (client->irq > 0) {
-		rc = devm_request_irq(dev, client->irq, cy8ctouch_irq, IRQF_TRIGGER_LOW,
+		rc = devm_request_irq(dev, client->irq, cy8ctouch_irq, IRQF_TRIGGER_FALLING,
 				      client->name, ts);
 		if (rc < 0) {
 			dev_err(&client->dev, "cy8ctouch_probe: request irq failed\n");
