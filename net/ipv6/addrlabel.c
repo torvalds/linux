@@ -546,38 +546,28 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 	addr = nla_data(tb[IFAL_ADDRESS]);
 
+	skb = nlmsg_new(ip6addrlbl_msgsize(), GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	err = -ESRCH;
+
 	rcu_read_lock();
 	p = __ipv6_addr_label(net, addr, ipv6_addr_type(addr), ifal->ifal_index);
-	if (p && !ip6addrlbl_hold(p))
-		p = NULL;
 	lseq = net->ipv6.ip6addrlbl_table.seq;
+	if (p)
+		err = ip6addrlbl_fill(skb, p, lseq,
+				      NETLINK_CB(in_skb).portid,
+				      nlh->nlmsg_seq,
+				      RTM_NEWADDRLABEL, 0);
 	rcu_read_unlock();
-
-	if (!p) {
-		err = -ESRCH;
-		goto out;
-	}
-
-	skb = nlmsg_new(ip6addrlbl_msgsize(), GFP_KERNEL);
-	if (!skb) {
-		ip6addrlbl_put(p);
-		return -ENOBUFS;
-	}
-
-	err = ip6addrlbl_fill(skb, p, lseq,
-			      NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
-			      RTM_NEWADDRLABEL, 0);
-
-	ip6addrlbl_put(p);
 
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
-		goto out;
+	} else {
+		err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 	}
-
-	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
-out:
 	return err;
 }
 
