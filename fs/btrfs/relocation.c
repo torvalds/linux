@@ -2350,11 +2350,11 @@ void free_reloc_roots(struct list_head *list)
 	while (!list_empty(list)) {
 		reloc_root = list_entry(list->next, struct btrfs_root,
 					root_list);
+		__del_reloc_root(reloc_root);
 		free_extent_buffer(reloc_root->node);
 		free_extent_buffer(reloc_root->commit_root);
 		reloc_root->node = NULL;
 		reloc_root->commit_root = NULL;
-		__del_reloc_root(reloc_root);
 	}
 }
 

@@ -127,7 +127,7 @@ int timer_migration_handler(struct ctl_table *table, int write,
 	int ret;
 
 	mutex_lock(&mutex);
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (!ret && write)
 		timers_update_migration(false);
 	mutex_unlock(&mutex);

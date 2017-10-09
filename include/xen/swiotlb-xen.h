@@ -58,4 +58,9 @@ xen_swiotlb_dma_supported(struct device *hwdev, u64 mask);
 
 extern int
 xen_swiotlb_set_dma_mask(struct device *dev, u64 dma_mask);
+
+extern int
+xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+		     void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		     struct dma_attrs *attrs);
 #endif /* __LINUX_SWIOTLB_XEN_H */
