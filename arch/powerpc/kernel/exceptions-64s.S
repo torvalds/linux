@@ -879,6 +879,7 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 	rfid ; 							\
 	b	. ;	/* prevent speculative execution */
 
+#ifdef CONFIG_PPC_FAST_ENDIAN_SWITCH
 #define SYSCALL_FASTENDIAN_TEST					\
 BEGIN_FTR_SECTION						\
 	cmpdi	r0,0x1ebe ; 					\
@@ -893,6 +894,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	mr	r13,r9 ;					\
 	rfid ;		/* return to userspace */		\
 	b	. ;	/* prevent speculative execution */
+#else
+#define SYSCALL_FASTENDIAN_TEST
+#define SYSCALL_FASTENDIAN
+#endif /* CONFIG_PPC_FAST_ENDIAN_SWITCH */
 
 #if defined(CONFIG_RELOCATABLE)
 	/*
