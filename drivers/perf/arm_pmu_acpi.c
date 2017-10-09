@@ -89,7 +89,13 @@ static int arm_pmu_acpi_parse_irqs(void)
 			pr_warn("No ACPI PMU IRQ for CPU%d\n", cpu);
 		}
 
+		/*
+		 * Log and request the IRQ so the core arm_pmu code can manage
+		 * it. We'll have to sanity-check IRQs later when we associate
+		 * them with their PMUs.
+		 */
 		per_cpu(pmu_irqs, cpu) = irq;
+		armpmu_request_irq(irq, cpu);
 	}
 
 	return 0;
@@ -205,14 +211,6 @@ static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 	cpumask_set_cpu(cpu, &pmu->supported_cpus);
 
 	/*
-	 * Log and request the IRQ so the core arm_pmu code can manage it.  In
-	 * some situations (e.g. mismatched PPIs), we may fail to request the
-	 * IRQ. However, it may be too late for us to do anything about it.
-	 * The common ARM PMU code will log a warning in this case.
-	 */
-	armpmu_request_irq(pmu, cpu);
-
-	/*
 	 * Ideally, we'd probe the PMU here when we find the first matching
 	 * CPU. We can't do that for several reasons; see the comment in
 	 * arm_pmu_acpi_init().
@@ -281,11 +279,6 @@ static int arm_pmu_acpi_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	/*
-	 * We can't request IRQs yet, since we don't know the cookie value
-	 * until we know which CPUs share the same logical PMU. We'll handle
-	 * that in arm_pmu_acpi_cpu_starting().
-	 */
 	ret = arm_pmu_acpi_parse_irqs();
 	if (ret)
 		return ret;

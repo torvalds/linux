@@ -159,10 +159,15 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 
 static int armpmu_request_irqs(struct arm_pmu *armpmu)
 {
+	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
 	int cpu, err;
 
 	for_each_cpu(cpu, &armpmu->supported_cpus) {
-		err = armpmu_request_irq(armpmu, cpu);
+		int irq = per_cpu(hw_events->irq, cpu);
+		if (!irq)
+			continue;
+
+		err = armpmu_request_irq(irq, cpu);
 		if (err)
 			break;
 	}
@@ -173,9 +178,13 @@ static int armpmu_request_irqs(struct arm_pmu *armpmu)
 static void armpmu_free_irqs(struct arm_pmu *armpmu)
 {
 	int cpu;
+	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
 
-	for_each_cpu(cpu, &armpmu->supported_cpus)
-		armpmu_free_irq(armpmu, cpu);
+	for_each_cpu(cpu, &armpmu->supported_cpus) {
+		int irq = per_cpu(hw_events->irq, cpu);
+
+		armpmu_free_irq(irq, cpu);
+	}
 }
 
 int arm_pmu_device_probe(struct platform_device *pdev,

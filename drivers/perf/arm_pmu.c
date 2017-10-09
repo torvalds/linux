@@ -534,7 +534,7 @@ static int armpmu_count_irq_users(const int irq)
 	return count;
 }
 
-void armpmu_free_cpu_irq(int irq, int cpu)
+void armpmu_free_irq(int irq, int cpu)
 {
 	if (per_cpu(cpu_irq, cpu) == 0)
 		return;
@@ -549,15 +549,7 @@ void armpmu_free_cpu_irq(int irq, int cpu)
 	per_cpu(cpu_irq, cpu) = 0;
 }
 
-void armpmu_free_irq(struct arm_pmu *armpmu, int cpu)
-{
-	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
-	int irq = per_cpu(hw_events->irq, cpu);
-
-	armpmu_free_cpu_irq(irq, cpu);
-}
-
-int armpmu_request_cpu_irq(int irq, int cpu)
+int armpmu_request_irq(int irq, int cpu)
 {
 	int err = 0;
 	const irq_handler_t handler = armpmu_dispatch_irq;
@@ -596,16 +588,6 @@ int armpmu_request_cpu_irq(int irq, int cpu)
 err_out:
 	pr_err("unable to request IRQ%d for ARM PMU counters\n", irq);
 	return err;
-}
-
-int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
-{
-	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
-	int irq = per_cpu(hw_events->irq, cpu);
-	if (!irq)
-		return 0;
-
-	return armpmu_request_cpu_irq(irq, cpu);
 }
 
 static int armpmu_get_cpu_irq(struct arm_pmu *pmu, int cpu)

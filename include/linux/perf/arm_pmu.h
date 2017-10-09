@@ -14,6 +14,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 #include <linux/sysfs.h>
 #include <asm/cputype.h>
 
@@ -159,8 +160,8 @@ struct arm_pmu *armpmu_alloc(void);
 struct arm_pmu *armpmu_alloc_atomic(void);
 void armpmu_free(struct arm_pmu *pmu);
 int armpmu_register(struct arm_pmu *pmu);
-int armpmu_request_irq(struct arm_pmu *armpmu, int cpu);
-void armpmu_free_irq(struct arm_pmu *armpmu, int cpu);
+int armpmu_request_irq(int irq, int cpu);
+void armpmu_free_irq(int irq, int cpu);
 
 #define ARMV8_PMU_PDEV_NAME "armv8-pmu"
 
