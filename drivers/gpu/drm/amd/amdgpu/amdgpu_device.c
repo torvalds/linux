@@ -2300,6 +2300,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_init_data_exchange(adev);
+
 	amdgpu_fbdev_init(adev);
 
 	r = amdgpu_pm_sysfs_init(adev);

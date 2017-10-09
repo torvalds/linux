@@ -274,3 +274,78 @@ void amdgpu_virt_free_mm_table(struct amdgpu_device *adev)
 			      (void *)&adev->virt.mm_table.cpu_addr);
 	adev->virt.mm_table.gpu_addr = 0;
 }
+
+
+int amdgpu_virt_fw_reserve_get_checksum(void *obj,
+					unsigned long obj_size,
+					unsigned int key,
+					unsigned int chksum)
+{
+	unsigned int ret = key;
+	unsigned long i = 0;
+	unsigned char *pos;
+
+	pos = (char *)obj;
+	/* calculate checksum */
+	for (i = 0; i < obj_size; ++i)
+		ret += *(pos + i);
+	/* minus the chksum itself */
+	pos = (char *)&chksum;
+	for (i = 0; i < sizeof(chksum); ++i)
+		ret -= *(pos + i);
+	return ret;
+}
+
+void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
+{
+	uint32_t pf2vf_ver = 0;
+	uint32_t pf2vf_size = 0;
+	uint32_t checksum = 0;
+	uint32_t checkval;
+	char *str;
+
+	adev->virt.fw_reserve.p_pf2vf = NULL;
+	adev->virt.fw_reserve.p_vf2pf = NULL;
+
+	if (adev->fw_vram_usage.va != NULL) {
+		adev->virt.fw_reserve.p_pf2vf =
+			(struct amdgim_pf2vf_info_header *)(
+			adev->fw_vram_usage.va + AMDGIM_DATAEXCHANGE_OFFSET);
+		pf2vf_ver = adev->virt.fw_reserve.p_pf2vf->version;
+		AMDGPU_FW_VRAM_PF2VF_READ(adev, header.size, &pf2vf_size);
+		AMDGPU_FW_VRAM_PF2VF_READ(adev, checksum, &checksum);
+
+		/* pf2vf message must be in 4K */
+		if (pf2vf_size > 0 && pf2vf_size < 4096) {
+			checkval = amdgpu_virt_fw_reserve_get_checksum(
+				adev->virt.fw_reserve.p_pf2vf, pf2vf_size,
+				adev->virt.fw_reserve.checksum_key, checksum);
+			if (checkval == checksum) {
+				adev->virt.fw_reserve.p_vf2pf =
+					((void *)adev->virt.fw_reserve.p_pf2vf +
+					pf2vf_size);
+				memset((void *)adev->virt.fw_reserve.p_vf2pf, 0,
+					sizeof(amdgim_vf2pf_info));
+				AMDGPU_FW_VRAM_VF2PF_WRITE(adev, header.version,
+					AMDGPU_FW_VRAM_VF2PF_VER);
+				AMDGPU_FW_VRAM_VF2PF_WRITE(adev, header.size,
+					sizeof(amdgim_vf2pf_info));
+				AMDGPU_FW_VRAM_VF2PF_READ(adev, driver_version,
+					&str);
+				if (THIS_MODULE->version != NULL)
+					strcpy(str, THIS_MODULE->version);
+				else
+					strcpy(str, "N/A");
+				AMDGPU_FW_VRAM_VF2PF_WRITE(adev, driver_cert,
+					0);
+				AMDGPU_FW_VRAM_VF2PF_WRITE(adev, checksum,
+					amdgpu_virt_fw_reserve_get_checksum(
+					adev->virt.fw_reserve.p_vf2pf,
+					pf2vf_size,
+					adev->virt.fw_reserve.checksum_key, 0));
+			}
+		}
+	}
+}
+
+
