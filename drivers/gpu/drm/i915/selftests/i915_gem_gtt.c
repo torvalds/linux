@@ -45,7 +45,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 #define PFN_BIAS 0x1000
 	struct sg_table *pages;
 	struct scatterlist *sg;
-	unsigned int sg_mask;
+	unsigned int sg_page_sizes;
 	typeof(obj->base.size) rem;
 
 	pages = kmalloc(sizeof(*pages), GFP);
@@ -58,7 +58,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 		return -ENOMEM;
 	}
 
-	sg_mask = 0;
+	sg_page_sizes = 0;
 	rem = obj->base.size;
 	for (sg = pages->sgl; sg; sg = sg_next(sg)) {
 		unsigned long len = min_t(typeof(rem), rem, BIT(31));
@@ -67,7 +67,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 		sg_set_page(sg, pfn_to_page(PFN_BIAS), len, 0);
 		sg_dma_address(sg) = page_to_phys(sg_page(sg));
 		sg_dma_len(sg) = len;
-		sg_mask |= len;
+		sg_page_sizes |= len;
 
 		rem -= len;
 	}
@@ -75,7 +75,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 
 	obj->mm.madv = I915_MADV_DONTNEED;
 
-	__i915_gem_object_set_pages(obj, pages, sg_mask);
+	__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
 
 	return 0;
 #undef GFP

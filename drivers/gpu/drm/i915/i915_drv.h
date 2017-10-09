@@ -3537,7 +3537,7 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,
-				 unsigned int sg_mask);
+				 unsigned int sg_page_sizes);
 int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 
 static inline int __must_check

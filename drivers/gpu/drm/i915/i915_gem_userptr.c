@@ -405,7 +405,7 @@ __i915_gem_userptr_alloc_pages(struct drm_i915_gem_object *obj,
 {
 	unsigned int max_segment = i915_sg_segment_size();
 	struct sg_table *st;
-	unsigned int sg_mask;
+	unsigned int sg_page_sizes;
 	int ret;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
@@ -435,9 +435,9 @@ alloc_table:
 		return ERR_PTR(ret);
 	}
 
-	sg_mask = i915_sg_page_sizes(st->sgl);
+	sg_page_sizes = i915_sg_page_sizes(st->sgl);
 
-	__i915_gem_object_set_pages(obj, st, sg_mask);
+	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return st;
 }

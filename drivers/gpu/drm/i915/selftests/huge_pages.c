@@ -68,7 +68,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 	unsigned int page_mask = obj->mm.page_mask;
 	struct sg_table *st;
 	struct scatterlist *sg;
-	unsigned int sg_mask;
+	unsigned int sg_page_sizes;
 	u64 rem;
 
 	st = kmalloc(sizeof(*st), GFP);
@@ -83,7 +83,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 	rem = obj->base.size;
 	sg = st->sgl;
 	st->nents = 0;
-	sg_mask = 0;
+	sg_page_sizes = 0;
 
 	/*
 	 * Our goal here is simple, we want to greedily fill the object from
@@ -104,7 +104,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 				goto err;
 
 			sg_set_page(sg, page, page_size, 0);
-			sg_mask |= page_size;
+			sg_page_sizes |= page_size;
 			st->nents++;
 
 			rem -= page_size;
@@ -124,8 +124,8 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 
 	obj->mm.madv = I915_MADV_DONTNEED;
 
-	GEM_BUG_ON(sg_mask != obj->mm.page_mask);
-	__i915_gem_object_set_pages(obj, st, sg_mask);
+	GEM_BUG_ON(sg_page_sizes != obj->mm.page_mask);
+	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
 
@@ -192,7 +192,7 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 	const u64 max_len = rounddown_pow_of_two(UINT_MAX);
 	struct sg_table *st;
 	struct scatterlist *sg;
-	unsigned int sg_mask;
+	unsigned int sg_page_sizes;
 	u64 rem;
 
 	st = kmalloc(sizeof(*st), GFP);
@@ -208,7 +208,7 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 	rem = obj->base.size;
 	sg = st->sgl;
 	st->nents = 0;
-	sg_mask = 0;
+	sg_page_sizes = 0;
 	do {
 		unsigned int page_size = get_largest_page_size(i915, rem);
 		unsigned int len = min(page_size * div_u64(rem, page_size),
@@ -221,7 +221,7 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 		sg_dma_len(sg) = len;
 		sg_dma_address(sg) = page_size;
 
-		sg_mask |= len;
+		sg_page_sizes |= len;
 
 		st->nents++;
 
@@ -236,7 +236,7 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 
 	obj->mm.madv = I915_MADV_DONTNEED;
 
-	__i915_gem_object_set_pages(obj, st, sg_mask);
+	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
 }

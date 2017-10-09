@@ -2333,7 +2333,7 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	unsigned int max_segment = i915_sg_segment_size();
-	unsigned int sg_mask;
+	unsigned int sg_page_sizes;
 	gfp_t noreclaim;
 	int ret;
 
@@ -2365,7 +2365,7 @@ rebuild_st:
 
 	sg = st->sgl;
 	st->nents = 0;
-	sg_mask = 0;
+	sg_page_sizes = 0;
 	for (i = 0; i < page_count; i++) {
 		const unsigned int shrink[] = {
 			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND | I915_SHRINK_PURGEABLE,
@@ -2419,7 +2419,7 @@ rebuild_st:
 		    sg->length >= max_segment ||
 		    page_to_pfn(page) != last_pfn + 1) {
 			if (i) {
-				sg_mask |= sg->length;
+				sg_page_sizes |= sg->length;
 				sg = sg_next(sg);
 			}
 			st->nents++;
@@ -2433,7 +2433,7 @@ rebuild_st:
 		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
 	}
 	if (sg) { /* loop terminated early; short sg table */
-		sg_mask |= sg->length;
+		sg_page_sizes |= sg->length;
 		sg_mark_end(sg);
 	}
 
@@ -2464,7 +2464,7 @@ rebuild_st:
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj, st);
 
-	__i915_gem_object_set_pages(obj, st, sg_mask);
+	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
 
@@ -2492,7 +2492,7 @@ err_pages:
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,
-				 unsigned int sg_mask)
+				 unsigned int sg_page_sizes)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	unsigned long supported = INTEL_INFO(i915)->page_sizes;
@@ -2512,16 +2512,16 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 		obj->mm.quirked = true;
 	}
 
-	GEM_BUG_ON(!sg_mask);
-	obj->mm.page_sizes.phys = sg_mask;
+	GEM_BUG_ON(!sg_page_sizes);
+	obj->mm.page_sizes.phys = sg_page_sizes;
 
 	/*
-	 * Calculate the supported page-sizes which fit into the given sg_mask.
-	 * This will give us the page-sizes which we may be able to use
-	 * opportunistically when later inserting into the GTT. For example if
-	 * phys=2G, then in theory we should be able to use 1G, 2M, 64K or 4K
-	 * pages, although in practice this will depend on a number of other
-	 * factors.
+	 * Calculate the supported page-sizes which fit into the given
+	 * sg_page_sizes. This will give us the page-sizes which we may be able
+	 * to use opportunistically when later inserting into the GTT. For
+	 * example if phys=2G, then in theory we should be able to use 1G, 2M,
+	 * 64K or 4K pages, although in practice this will depend on a number of
+	 * other factors.
 	 */
 	obj->mm.page_sizes.sg = 0;
 	for_each_set_bit(i, &supported, ilog2(I915_GTT_MAX_PAGE_SIZE) + 1) {
