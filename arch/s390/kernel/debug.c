@@ -900,12 +900,16 @@ debug_entry_t *debug_event_common(debug_info_t *id, int level, const void *buf,
 	} else {
 		spin_lock_irqsave(&id->lock, flags);
 	}
-	active = get_active_entry(id);
-	memset(DEBUG_DATA(active), 0, id->buf_size);
-	memcpy(DEBUG_DATA(active), buf, min(len, id->buf_size));
-	debug_finish_entry(id, active, level, 0);
-	spin_unlock_irqrestore(&id->lock, flags);
+	do {
+		active = get_active_entry(id);
+		memset(DEBUG_DATA(active), 0, id->buf_size);
+		memcpy(DEBUG_DATA(active), buf, min(len, id->buf_size));
+		debug_finish_entry(id, active, level, 0);
+		len -= id->buf_size;
+		buf += id->buf_size;
+	} while (len > 0);
 
+	spin_unlock_irqrestore(&id->lock, flags);
 	return active;
 }
 EXPORT_SYMBOL(debug_event_common);
@@ -928,12 +932,16 @@ debug_entry_t *debug_exception_common(debug_info_t *id, int level,
 	} else {
 		spin_lock_irqsave(&id->lock, flags);
 	}
-	active = get_active_entry(id);
-	memset(DEBUG_DATA(active), 0, id->buf_size);
-	memcpy(DEBUG_DATA(active), buf, min(len, id->buf_size));
-	debug_finish_entry(id, active, level, 1);
-	spin_unlock_irqrestore(&id->lock, flags);
+	do {
+		active = get_active_entry(id);
+		memset(DEBUG_DATA(active), 0, id->buf_size);
+		memcpy(DEBUG_DATA(active), buf, min(len, id->buf_size));
+		debug_finish_entry(id, active, level, len <= id->buf_size);
+		len -= id->buf_size;
+		buf += id->buf_size;
+	} while (len > 0);
 
+	spin_unlock_irqrestore(&id->lock, flags);
 	return active;
 }
 EXPORT_SYMBOL(debug_exception_common);
