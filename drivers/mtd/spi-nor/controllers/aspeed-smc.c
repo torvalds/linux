@@ -6,6 +6,7 @@
  */
 
 #include <linux/bug.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -108,6 +109,8 @@ struct aspeed_smc_controller {
 	void __iomem *regs;			/* controller registers */
 	void __iomem *ahb_base;			/* per-chip windows resource */
 	u32 ahb_window_size;			/* full mapping window size */
+
+	unsigned long	clk_frequency;
 
 	struct aspeed_smc_chip *chips[];	/* pointers to attached chips */
 };
@@ -914,6 +917,7 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 	struct aspeed_smc_controller *controller;
 	const struct of_device_id *match;
 	const struct aspeed_smc_info *info;
+	struct clk *clk;
 	struct resource *res;
 	int ret;
 
@@ -944,6 +948,12 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 		return PTR_ERR(controller->ahb_base);
 
 	controller->ahb_window_size = resource_size(res);
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+	controller->clk_frequency = clk_get_rate(clk);
+	devm_clk_put(&pdev->dev, clk);
 
 	ret = aspeed_smc_setup_flash(controller, np, res);
 	if (ret)
