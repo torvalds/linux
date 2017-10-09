@@ -1597,8 +1597,20 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 	roce_flavor = (pkt->qed_roce_flavor == QED_LL2_ROCE) ? CORE_ROCE
 							     : CORE_RROCE;
 
-	tx_dest = (pkt->tx_dest == QED_LL2_TX_DEST_NW) ? CORE_TX_DEST_NW
-						       : CORE_TX_DEST_LB;
+	switch (pkt->tx_dest) {
+	case QED_LL2_TX_DEST_NW:
+		tx_dest = CORE_TX_DEST_NW;
+		break;
+	case QED_LL2_TX_DEST_LB:
+		tx_dest = CORE_TX_DEST_LB;
+		break;
+	case QED_LL2_TX_DEST_DROP:
+		tx_dest = CORE_TX_DEST_DROP;
+		break;
+	default:
+		tx_dest = CORE_TX_DEST_LB;
+		break;
+	}
 
 	start_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
 	start_bd->nw_vlan_or_lb_echo = cpu_to_le16(pkt->vlan);

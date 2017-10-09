@@ -64,6 +64,7 @@ enum qed_ll2_roce_flavor_type {
 enum qed_ll2_tx_dest {
 	QED_LL2_TX_DEST_NW, /* Light L2 TX Destination to the Network */
 	QED_LL2_TX_DEST_LB, /* Light L2 TX Destination to the Loopback */
+	QED_LL2_TX_DEST_DROP, /* Light L2 Drop the TX packet */
 	QED_LL2_TX_DEST_MAX
 };
 
