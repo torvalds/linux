@@ -382,8 +382,7 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 	memset(fname, 0, sizeof(struct fscrypt_name));
 	fname->usr_fname = iname;
 
-	if (!dir->i_sb->s_cop->is_encrypted(dir) ||
-				fscrypt_is_dot_dotdot(iname)) {
+	if (!IS_ENCRYPTED(dir) || fscrypt_is_dot_dotdot(iname)) {
 		fname->disk_name.name = (unsigned char *)iname->name;
 		fname->disk_name.len = iname->len;
 		return 0;
