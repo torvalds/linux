@@ -1621,38 +1621,6 @@ static void nfp_bpf_opt_reg_init(struct nfp_prog *nfp_prog)
 	}
 }
 
-/* Try to rename registers so that program uses only low ones */
-static int nfp_bpf_opt_reg_rename(struct nfp_prog *nfp_prog)
-{
-	bool reg_used[MAX_BPF_REG] = {};
-	u8 tgt_reg[MAX_BPF_REG] = {};
-	struct nfp_insn_meta *meta;
-	unsigned int i, j;
-
-	list_for_each_entry(meta, &nfp_prog->insns, l) {
-		if (meta->skip)
-			continue;
-
-		reg_used[meta->insn.src_reg] = true;
-		reg_used[meta->insn.dst_reg] = true;
-	}
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(tgt_reg); i++) {
-		if (!reg_used[i])
-			continue;
-
-		tgt_reg[i] = j++;
-	}
-	nfp_prog->num_regs = j;
-
-	list_for_each_entry(meta, &nfp_prog->insns, l) {
-		meta->insn.src_reg = tgt_reg[meta->insn.src_reg];
-		meta->insn.dst_reg = tgt_reg[meta->insn.dst_reg];
-	}
-
-	return 0;
-}
-
 /* Remove masking after load since our load guarantees this is not needed */
 static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 {
@@ -1729,13 +1697,7 @@ static void nfp_bpf_opt_ld_shift(struct nfp_prog *nfp_prog)
 
 static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 {
-	int ret;
-
 	nfp_bpf_opt_reg_init(nfp_prog);
-
-	ret = nfp_bpf_opt_reg_rename(nfp_prog);
-	if (ret)
-		return ret;
 
 	nfp_bpf_opt_ld_mask(nfp_prog);
 	nfp_bpf_opt_ld_shift(nfp_prog);
@@ -1783,10 +1745,8 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 	if (ret)
 		goto out;
 
-	if (nfp_prog->num_regs <= 7)
-		nfp_prog->regs_per_thread = 16;
-	else
-		nfp_prog->regs_per_thread = 32;
+	nfp_prog->num_regs = MAX_BPF_REG;
+	nfp_prog->regs_per_thread = 32;
 
 	nfp_prog->prog = prog_mem;
 	nfp_prog->__prog_alloc_len = prog_sz;
@@ -1799,7 +1759,7 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 	}
 
 	res->n_instr = nfp_prog->prog_len;
-	res->dense_mode = nfp_prog->num_regs <= 7;
+	res->dense_mode = false;
 out:
 	nfp_prog_free(nfp_prog);
 
