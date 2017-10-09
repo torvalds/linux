@@ -444,9 +444,6 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 		control = VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
 		etnaviv_gpu_load_clock(gpu, control);
 
-		/* Wait for stable clock.  Vivante's code waited for 1ms */
-		usleep_range(1000, 10000);
-
 		/* isolate the GPU. */
 		control |= VIVS_HI_CLOCK_CONTROL_ISOLATE_GPU;
 		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, control);
