@@ -2376,37 +2376,19 @@ void writeback_inodes_sb(struct super_block *sb, enum wb_reason reason)
 EXPORT_SYMBOL(writeback_inodes_sb);
 
 /**
- * try_to_writeback_inodes_sb_nr - try to start writeback if none underway
- * @sb: the superblock
- * @nr: the number of pages to write
- * @reason: the reason of writeback
- *
- * Invoke writeback_inodes_sb_nr if no writeback is currently underway.
- * Returns 1 if writeback was started, 0 if not.
- */
-bool try_to_writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr,
-				   enum wb_reason reason)
-{
-	if (!down_read_trylock(&sb->s_umount))
-		return false;
-
-	__writeback_inodes_sb_nr(sb, nr, reason, true);
-	up_read(&sb->s_umount);
-	return true;
-}
-EXPORT_SYMBOL(try_to_writeback_inodes_sb_nr);
-
-/**
  * try_to_writeback_inodes_sb - try to start writeback if none underway
  * @sb: the superblock
  * @reason: reason why some writeback work was initiated
  *
- * Implement by try_to_writeback_inodes_sb_nr()
- * Returns 1 if writeback was started, 0 if not.
+ * Invoke __writeback_inodes_sb_nr if no writeback is currently underway.
  */
-bool try_to_writeback_inodes_sb(struct super_block *sb, enum wb_reason reason)
+void try_to_writeback_inodes_sb(struct super_block *sb, enum wb_reason reason)
 {
-	return try_to_writeback_inodes_sb_nr(sb, get_nr_dirty_pages(), reason);
+	if (!down_read_trylock(&sb->s_umount))
+		return;
+
+	__writeback_inodes_sb_nr(sb, get_nr_dirty_pages(), reason, true);
+	up_read(&sb->s_umount);
 }
 EXPORT_SYMBOL(try_to_writeback_inodes_sb);
 
