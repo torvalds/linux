@@ -68,6 +68,17 @@ struct qed_iwarp_ll2_mpa_buf {
 	u8 placement_offset;
 };
 
+struct qed_iwarp_fpdu {
+	struct qed_iwarp_ll2_buff *mpa_buf;
+	void *mpa_frag_virt;
+	dma_addr_t mpa_frag;
+	dma_addr_t pkt_hdr;
+	u16 mpa_frag_len;
+	u16 fpdu_length;
+	u16 incomplete_bytes;
+	u8 pkt_hdr_size;
+};
+
 struct qed_iwarp_info {
 	struct list_head listen_list;	/* qed_iwarp_listener */
 	struct list_head ep_list;	/* qed_iwarp_ep */
@@ -87,7 +98,9 @@ struct qed_iwarp_info {
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
+	struct qed_iwarp_fpdu *partial_fpdus;
 	struct qed_iwarp_ll2_mpa_buf *mpa_bufs;
+	u16 max_num_partial_fpdus;
 };
 
 enum qed_iwarp_ep_state {
