@@ -513,6 +513,13 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 				rounddown_pow_of_two(vma->page_sizes.sg |
 						     I915_GTT_PAGE_SIZE_2M);
 
+			/*
+			 * Check we don't expand for the limited Global GTT
+			 * (mappable aperture is even more precious!). This
+			 * also checks that we exclude the aliasing-ppgtt.
+			 */
+			GEM_BUG_ON(i915_vma_is_ggtt(vma));
+
 			alignment = max(alignment, page_alignment);
 
 			if (vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K)
