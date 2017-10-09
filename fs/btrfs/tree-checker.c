@@ -230,8 +230,9 @@ int btrfs_check_leaf(struct btrfs_root *root, struct extent_buffer *leaf)
 			eb = btrfs_root_node(check_root);
 			/* if leaf is the root, then it's fine */
 			if (leaf != eb) {
-				CORRUPT("non-root leaf's nritems is 0",
-					leaf, check_root, 0);
+				generic_err(check_root, leaf, 0,
+		"invalid nritems, have %u should not be 0 for non-root leaf",
+					nritems);
 				free_extent_buffer(eb);
 				return -EUCLEAN;
 			}
@@ -262,7 +263,11 @@ int btrfs_check_leaf(struct btrfs_root *root, struct extent_buffer *leaf)
 
 		/* Make sure the keys are in the right order */
 		if (btrfs_comp_cpu_keys(&prev_key, &key) >= 0) {
-			CORRUPT("bad key order", leaf, root, slot);
+			generic_err(root, leaf, slot,
+	"bad key order, prev (%llu %u %llu) current (%llu %u %llu)",
+				prev_key.objectid, prev_key.type,
+				prev_key.offset, key.objectid, key.type,
+				key.offset);
 			return -EUCLEAN;
 		}
 
@@ -277,7 +282,10 @@ int btrfs_check_leaf(struct btrfs_root *root, struct extent_buffer *leaf)
 			item_end_expected = btrfs_item_offset_nr(leaf,
 								 slot - 1);
 		if (btrfs_item_end_nr(leaf, slot) != item_end_expected) {
-			CORRUPT("slot offset bad", leaf, root, slot);
+			generic_err(root, leaf, slot,
+				"unexpected item end, have %u expect %u",
+				btrfs_item_end_nr(leaf, slot),
+				item_end_expected);
 			return -EUCLEAN;
 		}
 
@@ -288,14 +296,21 @@ int btrfs_check_leaf(struct btrfs_root *root, struct extent_buffer *leaf)
 		 */
 		if (btrfs_item_end_nr(leaf, slot) >
 		    BTRFS_LEAF_DATA_SIZE(fs_info)) {
-			CORRUPT("slot end outside of leaf", leaf, root, slot);
+			generic_err(root, leaf, slot,
+			"slot end outside of leaf, have %u expect range [0, %u]",
+				btrfs_item_end_nr(leaf, slot),
+				BTRFS_LEAF_DATA_SIZE(fs_info));
 			return -EUCLEAN;
 		}
 
 		/* Also check if the item pointer overlaps with btrfs item. */
 		if (btrfs_item_nr_offset(slot) + sizeof(struct btrfs_item) >
 		    btrfs_item_ptr_offset(leaf, slot)) {
-			CORRUPT("slot overlap with its data", leaf, root, slot);
+			generic_err(root, leaf, slot,
+		"slot overlaps with its data, item end %lu data start %lu",
+				btrfs_item_nr_offset(slot) +
+				sizeof(struct btrfs_item),
+				btrfs_item_ptr_offset(leaf, slot));
 			return -EUCLEAN;
 		}
 
