@@ -110,150 +110,7 @@ nfp_prog_offset_to_index(struct nfp_prog *nfp_prog, unsigned int offset)
 	return offset - nfp_prog->start_off;
 }
 
-/* --- SW reg --- */
-struct nfp_insn_ur_regs {
-	enum alu_dst_ab dst_ab;
-	u16 dst;
-	u16 areg, breg;
-	bool swap;
-	bool wr_both;
-};
-
-struct nfp_insn_re_regs {
-	enum alu_dst_ab dst_ab;
-	u8 dst;
-	u8 areg, breg;
-	bool swap;
-	bool wr_both;
-	bool i8;
-};
-
-static u16 nfp_swreg_to_unreg(u32 swreg, bool is_dst)
-{
-	u16 val = FIELD_GET(NN_REG_VAL, swreg);
-
-	switch (FIELD_GET(NN_REG_TYPE, swreg)) {
-	case NN_REG_GPR_A:
-	case NN_REG_GPR_B:
-	case NN_REG_GPR_BOTH:
-		return val;
-	case NN_REG_NNR:
-		return UR_REG_NN | val;
-	case NN_REG_XFER:
-		return UR_REG_XFR | val;
-	case NN_REG_IMM:
-		if (val & ~0xff) {
-			pr_err("immediate too large\n");
-			return 0;
-		}
-		return UR_REG_IMM_encode(val);
-	case NN_REG_NONE:
-		return is_dst ? UR_REG_NO_DST : REG_NONE;
-	default:
-		pr_err("unrecognized reg encoding %08x\n", swreg);
-		return 0;
-	}
-}
-
-static int
-swreg_to_unrestricted(u32 dst, u32 lreg, u32 rreg, struct nfp_insn_ur_regs *reg)
-{
-	memset(reg, 0, sizeof(*reg));
-
-	/* Decode destination */
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_IMM)
-		return -EFAULT;
-
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_B)
-		reg->dst_ab = ALU_DST_B;
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_BOTH)
-		reg->wr_both = true;
-	reg->dst = nfp_swreg_to_unreg(dst, true);
-
-	/* Decode source operands */
-	if (FIELD_GET(NN_REG_TYPE, lreg) == FIELD_GET(NN_REG_TYPE, rreg))
-		return -EFAULT;
-
-	if (FIELD_GET(NN_REG_TYPE, lreg) == NN_REG_GPR_B ||
-	    FIELD_GET(NN_REG_TYPE, rreg) == NN_REG_GPR_A) {
-		reg->areg = nfp_swreg_to_unreg(rreg, false);
-		reg->breg = nfp_swreg_to_unreg(lreg, false);
-		reg->swap = true;
-	} else {
-		reg->areg = nfp_swreg_to_unreg(lreg, false);
-		reg->breg = nfp_swreg_to_unreg(rreg, false);
-	}
-
-	return 0;
-}
-
-static u16 nfp_swreg_to_rereg(u32 swreg, bool is_dst, bool has_imm8, bool *i8)
-{
-	u16 val = FIELD_GET(NN_REG_VAL, swreg);
-
-	switch (FIELD_GET(NN_REG_TYPE, swreg)) {
-	case NN_REG_GPR_A:
-	case NN_REG_GPR_B:
-	case NN_REG_GPR_BOTH:
-		return val;
-	case NN_REG_XFER:
-		return RE_REG_XFR | val;
-	case NN_REG_IMM:
-		if (val & ~(0x7f | has_imm8 << 7)) {
-			pr_err("immediate too large\n");
-			return 0;
-		}
-		*i8 = val & 0x80;
-		return RE_REG_IMM_encode(val & 0x7f);
-	case NN_REG_NONE:
-		return is_dst ? RE_REG_NO_DST : REG_NONE;
-	default:
-		pr_err("unrecognized reg encoding\n");
-		return 0;
-	}
-}
-
-static int
-swreg_to_restricted(u32 dst, u32 lreg, u32 rreg, struct nfp_insn_re_regs *reg,
-		    bool has_imm8)
-{
-	memset(reg, 0, sizeof(*reg));
-
-	/* Decode destination */
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_IMM)
-		return -EFAULT;
-
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_B)
-		reg->dst_ab = ALU_DST_B;
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_GPR_BOTH)
-		reg->wr_both = true;
-	reg->dst = nfp_swreg_to_rereg(dst, true, false, NULL);
-
-	/* Decode source operands */
-	if (FIELD_GET(NN_REG_TYPE, lreg) == FIELD_GET(NN_REG_TYPE, rreg))
-		return -EFAULT;
-
-	if (FIELD_GET(NN_REG_TYPE, lreg) == NN_REG_GPR_B ||
-	    FIELD_GET(NN_REG_TYPE, rreg) == NN_REG_GPR_A) {
-		reg->areg = nfp_swreg_to_rereg(rreg, false, has_imm8, &reg->i8);
-		reg->breg = nfp_swreg_to_rereg(lreg, false, has_imm8, &reg->i8);
-		reg->swap = true;
-	} else {
-		reg->areg = nfp_swreg_to_rereg(lreg, false, has_imm8, &reg->i8);
-		reg->breg = nfp_swreg_to_rereg(rreg, false, has_imm8, &reg->i8);
-	}
-
-	return 0;
-}
-
 /* --- Emitters --- */
-static const struct cmd_tgt_act cmd_tgt_act[__CMD_TGT_MAP_SIZE] = {
-	[CMD_TGT_WRITE8] =		{ 0x00, 0x42 },
-	[CMD_TGT_READ8] =		{ 0x01, 0x43 },
-	[CMD_TGT_READ_LE] =		{ 0x01, 0x40 },
-	[CMD_TGT_READ_SWAP_LE] =	{ 0x03, 0x40 },
-};
-
 static void
 __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 	   u8 mode, u8 xfer, u8 areg, u8 breg, u8 size, bool sync)
@@ -281,7 +138,7 @@ __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 
 static void
 emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
-	 u8 mode, u8 xfer, u32 lreg, u32 rreg, u8 size, bool sync)
+	 u8 mode, u8 xfer, swreg lreg, swreg rreg, u8 size, bool sync)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -293,6 +150,11 @@ emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 	}
 	if (reg.swap) {
 		pr_err("cmd can't swap arguments\n");
+		nfp_prog->error = -EFAULT;
+		return;
+	}
+	if (reg.dst_lmextn || reg.src_lmextn) {
+		pr_err("cmd can't use LMextn\n");
 		nfp_prog->error = -EFAULT;
 		return;
 	}
@@ -341,7 +203,7 @@ emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer)
 
 static void
 __emit_br_byte(struct nfp_prog *nfp_prog, u8 areg, u8 breg, bool imm8,
-	       u8 byte, bool equal, u16 addr, u8 defer)
+	       u8 byte, bool equal, u16 addr, u8 defer, bool src_lmextn)
 {
 	u16 addr_lo, addr_hi;
 	u64 insn;
@@ -357,32 +219,34 @@ __emit_br_byte(struct nfp_prog *nfp_prog, u8 areg, u8 breg, bool imm8,
 		FIELD_PREP(OP_BB_EQ, equal) |
 		FIELD_PREP(OP_BB_DEFBR, defer) |
 		FIELD_PREP(OP_BB_ADDR_LO, addr_lo) |
-		FIELD_PREP(OP_BB_ADDR_HI, addr_hi);
+		FIELD_PREP(OP_BB_ADDR_HI, addr_hi) |
+		FIELD_PREP(OP_BB_SRC_LMEXTN, src_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
 
 static void
 emit_br_byte_neq(struct nfp_prog *nfp_prog,
-		 u32 dst, u8 imm, u8 byte, u16 addr, u8 defer)
+		 swreg src, u8 imm, u8 byte, u16 addr, u8 defer)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	err = swreg_to_restricted(reg_none(), dst, reg_imm(imm), &reg, true);
+	err = swreg_to_restricted(reg_none(), src, reg_imm(imm), &reg, true);
 	if (err) {
 		nfp_prog->error = err;
 		return;
 	}
 
 	__emit_br_byte(nfp_prog, reg.areg, reg.breg, reg.i8, byte, false, addr,
-		       defer);
+		       defer, reg.src_lmextn);
 }
 
 static void
 __emit_immed(struct nfp_prog *nfp_prog, u16 areg, u16 breg, u16 imm_hi,
 	     enum immed_width width, bool invert,
-	     enum immed_shift shift, bool wr_both)
+	     enum immed_shift shift, bool wr_both,
+	     bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -393,19 +257,21 @@ __emit_immed(struct nfp_prog *nfp_prog, u16 areg, u16 breg, u16 imm_hi,
 		FIELD_PREP(OP_IMMED_WIDTH, width) |
 		FIELD_PREP(OP_IMMED_INV, invert) |
 		FIELD_PREP(OP_IMMED_SHIFT, shift) |
-		FIELD_PREP(OP_IMMED_WR_AB, wr_both);
+		FIELD_PREP(OP_IMMED_WR_AB, wr_both) |
+		FIELD_PREP(OP_IMMED_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_IMMED_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
 
 static void
-emit_immed(struct nfp_prog *nfp_prog, u32 dst, u16 imm,
+emit_immed(struct nfp_prog *nfp_prog, swreg dst, u16 imm,
 	   enum immed_width width, bool invert, enum immed_shift shift)
 {
 	struct nfp_insn_ur_regs reg;
 	int err;
 
-	if (FIELD_GET(NN_REG_TYPE, dst) == NN_REG_IMM) {
+	if (swreg_type(dst) == NN_REG_IMM) {
 		nfp_prog->error = -EFAULT;
 		return;
 	}
@@ -417,13 +283,15 @@ emit_immed(struct nfp_prog *nfp_prog, u32 dst, u16 imm,
 	}
 
 	__emit_immed(nfp_prog, reg.areg, reg.breg, imm >> 8, width,
-		     invert, shift, reg.wr_both);
+		     invert, shift, reg.wr_both,
+		     reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
 __emit_shf(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 	   enum shf_sc sc, u8 shift,
-	   u16 areg, enum shf_op op, u16 breg, bool i8, bool sw, bool wr_both)
+	   u16 areg, enum shf_op op, u16 breg, bool i8, bool sw, bool wr_both,
+	   bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -445,14 +313,16 @@ __emit_shf(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 		FIELD_PREP(OP_SHF_SHIFT, shift) |
 		FIELD_PREP(OP_SHF_OP, op) |
 		FIELD_PREP(OP_SHF_DST_AB, dst_ab) |
-		FIELD_PREP(OP_SHF_WR_AB, wr_both);
+		FIELD_PREP(OP_SHF_WR_AB, wr_both) |
+		FIELD_PREP(OP_SHF_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_SHF_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
 
 static void
-emit_shf(struct nfp_prog *nfp_prog, u32 dst, u32 lreg, enum shf_op op, u32 rreg,
-	 enum shf_sc sc, u8 shift)
+emit_shf(struct nfp_prog *nfp_prog, swreg dst,
+	 swreg lreg, enum shf_op op, swreg rreg, enum shf_sc sc, u8 shift)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -464,12 +334,14 @@ emit_shf(struct nfp_prog *nfp_prog, u32 dst, u32 lreg, enum shf_op op, u32 rreg,
 	}
 
 	__emit_shf(nfp_prog, reg.dst, reg.dst_ab, sc, shift,
-		   reg.areg, op, reg.breg, reg.i8, reg.swap, reg.wr_both);
+		   reg.areg, op, reg.breg, reg.i8, reg.swap, reg.wr_both,
+		   reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
 __emit_alu(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
-	   u16 areg, enum alu_op op, u16 breg, bool swap, bool wr_both)
+	   u16 areg, enum alu_op op, u16 breg, bool swap, bool wr_both,
+	   bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -480,13 +352,16 @@ __emit_alu(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 		FIELD_PREP(OP_ALU_SW, swap) |
 		FIELD_PREP(OP_ALU_OP, op) |
 		FIELD_PREP(OP_ALU_DST_AB, dst_ab) |
-		FIELD_PREP(OP_ALU_WR_AB, wr_both);
+		FIELD_PREP(OP_ALU_WR_AB, wr_both) |
+		FIELD_PREP(OP_ALU_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_ALU_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
 
 static void
-emit_alu(struct nfp_prog *nfp_prog, u32 dst, u32 lreg, enum alu_op op, u32 rreg)
+emit_alu(struct nfp_prog *nfp_prog, swreg dst,
+	 swreg lreg, enum alu_op op, swreg rreg)
 {
 	struct nfp_insn_ur_regs reg;
 	int err;
@@ -498,13 +373,15 @@ emit_alu(struct nfp_prog *nfp_prog, u32 dst, u32 lreg, enum alu_op op, u32 rreg)
 	}
 
 	__emit_alu(nfp_prog, reg.dst, reg.dst_ab,
-		   reg.areg, op, reg.breg, reg.swap, reg.wr_both);
+		   reg.areg, op, reg.breg, reg.swap, reg.wr_both,
+		   reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
 __emit_ld_field(struct nfp_prog *nfp_prog, enum shf_sc sc,
 		u8 areg, u8 bmask, u8 breg, u8 shift, bool imm8,
-		bool zero, bool swap, bool wr_both)
+		bool zero, bool swap, bool wr_both,
+		bool dst_lmextn, bool src_lmextn)
 {
 	u64 insn;
 
@@ -517,33 +394,42 @@ __emit_ld_field(struct nfp_prog *nfp_prog, enum shf_sc sc,
 		FIELD_PREP(OP_LDF_ZF, zero) |
 		FIELD_PREP(OP_LDF_BMASK, bmask) |
 		FIELD_PREP(OP_LDF_SHF, shift) |
-		FIELD_PREP(OP_LDF_WR_AB, wr_both);
+		FIELD_PREP(OP_LDF_WR_AB, wr_both) |
+		FIELD_PREP(OP_LDF_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_LDF_DST_LMEXTN, dst_lmextn);
 
 	nfp_prog_push(nfp_prog, insn);
 }
 
 static void
 emit_ld_field_any(struct nfp_prog *nfp_prog, enum shf_sc sc, u8 shift,
-		  u32 dst, u8 bmask, u32 src, bool zero)
+		  swreg dst, u8 bmask, swreg src, bool zero)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	err = swreg_to_restricted(reg_none(), dst, src, &reg, true);
+	/* Note: ld_field is special as it uses one of the src regs as dst */
+	err = swreg_to_restricted(dst, dst, src, &reg, true);
 	if (err) {
 		nfp_prog->error = err;
 		return;
 	}
 
 	__emit_ld_field(nfp_prog, sc, reg.areg, bmask, reg.breg, shift,
-			reg.i8, zero, reg.swap, reg.wr_both);
+			reg.i8, zero, reg.swap, reg.wr_both,
+			reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
-emit_ld_field(struct nfp_prog *nfp_prog, u32 dst, u8 bmask, u32 src,
+emit_ld_field(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	      enum shf_sc sc, u8 shift)
 {
 	emit_ld_field_any(nfp_prog, sc, shift, dst, bmask, src, false);
+}
+
+static void emit_nop(struct nfp_prog *nfp_prog)
+{
+	__emit_immed(nfp_prog, UR_REG_IMM, UR_REG_IMM, 0, 0, 0, 0, 0, 0, 0);
 }
 
 /* --- Wrappers --- */
@@ -565,7 +451,7 @@ static bool pack_immed(u32 imm, u16 *val, enum immed_shift *shift)
 	return true;
 }
 
-static void wrp_immed(struct nfp_prog *nfp_prog, u32 dst, u32 imm)
+static void wrp_immed(struct nfp_prog *nfp_prog, swreg dst, u32 imm)
 {
 	enum immed_shift shift;
 	u16 val;
@@ -586,7 +472,7 @@ static void wrp_immed(struct nfp_prog *nfp_prog, u32 dst, u32 imm)
  * If the @imm is small enough encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
-static u32 ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, u32 tmp_reg)
+static swreg ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 {
 	if (FIELD_FIT(UR_REG_IMM_MAX, imm))
 		return reg_imm(imm);
@@ -599,7 +485,7 @@ static u32 ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, u32 tmp_reg)
  * If the @imm is small enough encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
-static u32 re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, u32 tmp_reg)
+static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 {
 	if (FIELD_FIT(RE_REG_IMM_MAX, imm))
 		return reg_imm(imm);
@@ -629,7 +515,7 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset,
 {
 	unsigned int i;
 	u16 shift, sz;
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	/* We load the value from the address indicated in @offset and then
 	 * shift out the data we don't need.  Note: this is big endian!
@@ -646,22 +532,22 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset,
 		emit_alu(nfp_prog, imm_a(nfp_prog),
 			 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
 		emit_alu(nfp_prog, reg_none(),
-			 NFP_BPF_ABI_LEN, ALU_OP_SUB, imm_a(nfp_prog));
+			 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
 		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
 		/* Load data */
 		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pkt_reg(nfp_prog), imm_b(nfp_prog), sz - 1, true);
+			 pptr_reg(nfp_prog), imm_b(nfp_prog), sz - 1, true);
 	} else {
 		/* Check packet length */
 		tmp_reg = ur_load_imm_any(nfp_prog, offset + size,
 					  imm_a(nfp_prog));
 		emit_alu(nfp_prog, reg_none(),
-			 NFP_BPF_ABI_LEN, ALU_OP_SUB, tmp_reg);
+			 plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
 		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
 		/* Load data */
 		tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
 		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pkt_reg(nfp_prog), tmp_reg, sz - 1, true);
+			 pptr_reg(nfp_prog), tmp_reg, sz - 1, true);
 	}
 
 	i = 0;
@@ -684,20 +570,10 @@ static int construct_data_ld(struct nfp_prog *nfp_prog, u16 offset, u8 size)
 	return construct_data_ind_ld(nfp_prog, offset, 0, false, size);
 }
 
-static int wrp_set_mark(struct nfp_prog *nfp_prog, u8 src)
-{
-	emit_alu(nfp_prog, NFP_BPF_ABI_MARK,
-		 reg_none(), ALU_OP_NONE, reg_b(src));
-	emit_alu(nfp_prog, NFP_BPF_ABI_FLAGS,
-		 NFP_BPF_ABI_FLAGS, ALU_OP_OR, reg_imm(NFP_BPF_ABI_FLAG_MARK));
-
-	return 0;
-}
-
 static void
 wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 {
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (alu_op == ALU_OP_AND) {
 		if (!imm)
@@ -815,7 +691,7 @@ wrp_cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
 	u8 reg = insn->dst_reg * 2;
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -967,12 +843,24 @@ static int sub_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int shl_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
 
-	if (insn->imm != 32)
-		return 1; /* TODO */
-
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2 + 1, insn->dst_reg * 2);
-	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2), 0);
+	if (insn->imm < 32) {
+		emit_shf(nfp_prog, reg_both(dst + 1),
+			 reg_a(dst + 1), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_R_DSHF, 32 - insn->imm);
+		emit_shf(nfp_prog, reg_both(dst),
+			 reg_none(), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_L_SHF, insn->imm);
+	} else if (insn->imm == 32) {
+		wrp_reg_mov(nfp_prog, dst + 1, dst);
+		wrp_immed(nfp_prog, reg_both(dst), 0);
+	} else if (insn->imm > 32) {
+		emit_shf(nfp_prog, reg_both(dst + 1),
+			 reg_none(), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_L_SHF, insn->imm - 32);
+		wrp_immed(nfp_prog, reg_both(dst), 0);
+	}
 
 	return 0;
 }
@@ -980,12 +868,24 @@ static int shl_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int shr_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
 
-	if (insn->imm != 32)
-		return 1; /* TODO */
-
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2, insn->dst_reg * 2 + 1);
-	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2 + 1), 0);
+	if (insn->imm < 32) {
+		emit_shf(nfp_prog, reg_both(dst),
+			 reg_a(dst + 1), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_R_DSHF, insn->imm);
+		emit_shf(nfp_prog, reg_both(dst + 1),
+			 reg_none(), SHF_OP_NONE, reg_b(dst + 1),
+			 SHF_SC_R_SHF, insn->imm);
+	} else if (insn->imm == 32) {
+		wrp_reg_mov(nfp_prog, dst, dst + 1);
+		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	} else if (insn->imm > 32) {
+		emit_shf(nfp_prog, reg_both(dst),
+			 reg_none(), SHF_OP_NONE, reg_b(dst + 1),
+			 SHF_SC_R_SHF, insn->imm - 32);
+		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	}
 
 	return 0;
 }
@@ -1130,7 +1030,7 @@ static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	if (meta->insn.off == offsetof(struct sk_buff, len))
 		emit_alu(nfp_prog, reg_both(meta->insn.dst_reg * 2),
-			 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_LEN);
+			 reg_none(), ALU_OP_NONE, plen_reg(nfp_prog));
 	else
 		return -EOPNOTSUPP;
 
@@ -1139,18 +1039,18 @@ static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int mem_ldx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	u32 dst = reg_both(meta->insn.dst_reg * 2);
+	swreg dst = reg_both(meta->insn.dst_reg * 2);
 
 	if (meta->insn.off != offsetof(struct xdp_md, data) &&
 	    meta->insn.off != offsetof(struct xdp_md, data_end))
 		return -EOPNOTSUPP;
 
-	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, NFP_BPF_ABI_PKT);
+	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, pptr_reg(nfp_prog));
 
 	if (meta->insn.off == offsetof(struct xdp_md, data))
 		return 0;
 
-	emit_alu(nfp_prog, dst,	dst, ALU_OP_ADD, NFP_BPF_ABI_LEN);
+	emit_alu(nfp_prog, dst,	dst, ALU_OP_ADD, plen_reg(nfp_prog));
 
 	return 0;
 }
@@ -1171,9 +1071,6 @@ static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int mem_stx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	if (meta->insn.off == offsetof(struct sk_buff, mark))
-		return wrp_set_mark(nfp_prog, meta->insn.src_reg * 2);
-
 	return -EOPNOTSUPP;
 }
 
@@ -1202,8 +1099,10 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
-	u32 or1 = reg_a(insn->dst_reg * 2), or2 = reg_b(insn->dst_reg * 2 + 1);
-	u32 tmp_reg;
+	swreg or1, or2, tmp_reg;
+
+	or1 = reg_a(insn->dst_reg * 2);
+	or2 = reg_b(insn->dst_reg * 2 + 1);
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -1252,7 +1151,7 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -1283,7 +1182,7 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
-	u32 tmp_reg;
+	swreg tmp_reg;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -1510,8 +1409,9 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 
 static void nfp_intro(struct nfp_prog *nfp_prog)
 {
-	emit_alu(nfp_prog, pkt_reg(nfp_prog),
-		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_PKT);
+	wrp_immed(nfp_prog, plen_reg(nfp_prog), GENMASK(13, 0));
+	emit_alu(nfp_prog, plen_reg(nfp_prog),
+		 plen_reg(nfp_prog), ALU_OP_AND, pv_len(nfp_prog));
 }
 
 static void nfp_outro_tc_legacy(struct nfp_prog *nfp_prog)
@@ -1656,7 +1556,7 @@ static void nfp_outro(struct nfp_prog *nfp_prog)
 static int nfp_translate(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
-	int err;
+	int i, err;
 
 	nfp_intro(nfp_prog);
 	if (nfp_prog->error)
@@ -1685,6 +1585,11 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 	}
 
 	nfp_outro(nfp_prog);
+	if (nfp_prog->error)
+		return nfp_prog->error;
+
+	for (i = 0; i < NFP_USTORE_PREFETCH_WINDOW; i++)
+		emit_nop(nfp_prog);
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
@@ -1735,38 +1640,6 @@ static void nfp_bpf_opt_reg_init(struct nfp_prog *nfp_prog)
 		if (!meta->skip)
 			return;
 	}
-}
-
-/* Try to rename registers so that program uses only low ones */
-static int nfp_bpf_opt_reg_rename(struct nfp_prog *nfp_prog)
-{
-	bool reg_used[MAX_BPF_REG] = {};
-	u8 tgt_reg[MAX_BPF_REG] = {};
-	struct nfp_insn_meta *meta;
-	unsigned int i, j;
-
-	list_for_each_entry(meta, &nfp_prog->insns, l) {
-		if (meta->skip)
-			continue;
-
-		reg_used[meta->insn.src_reg] = true;
-		reg_used[meta->insn.dst_reg] = true;
-	}
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(tgt_reg); i++) {
-		if (!reg_used[i])
-			continue;
-
-		tgt_reg[i] = j++;
-	}
-	nfp_prog->num_regs = j;
-
-	list_for_each_entry(meta, &nfp_prog->insns, l) {
-		meta->insn.src_reg = tgt_reg[meta->insn.src_reg];
-		meta->insn.dst_reg = tgt_reg[meta->insn.dst_reg];
-	}
-
-	return 0;
 }
 
 /* Remove masking after load since our load guarantees this is not needed */
@@ -1845,16 +1718,29 @@ static void nfp_bpf_opt_ld_shift(struct nfp_prog *nfp_prog)
 
 static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 {
-	int ret;
-
 	nfp_bpf_opt_reg_init(nfp_prog);
-
-	ret = nfp_bpf_opt_reg_rename(nfp_prog);
-	if (ret)
-		return ret;
 
 	nfp_bpf_opt_ld_mask(nfp_prog);
 	nfp_bpf_opt_ld_shift(nfp_prog);
+
+	return 0;
+}
+
+static int nfp_bpf_ustore_calc(struct nfp_prog *nfp_prog, __le64 *ustore)
+{
+	int i;
+
+	for (i = 0; i < nfp_prog->prog_len; i++) {
+		int err;
+
+		err = nfp_ustore_check_valid_no_ecc(nfp_prog->prog[i]);
+		if (err)
+			return err;
+
+		nfp_prog->prog[i] = nfp_ustore_calc_ecc_insn(nfp_prog->prog[i]);
+
+		ustore[i] = cpu_to_le64(nfp_prog->prog[i]);
+	}
 
 	return 0;
 }
@@ -1899,10 +1785,8 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 	if (ret)
 		goto out;
 
-	if (nfp_prog->num_regs <= 7)
-		nfp_prog->regs_per_thread = 16;
-	else
-		nfp_prog->regs_per_thread = 32;
+	nfp_prog->num_regs = MAX_BPF_REG;
+	nfp_prog->regs_per_thread = 32;
 
 	nfp_prog->prog = prog_mem;
 	nfp_prog->__prog_alloc_len = prog_sz;
@@ -1912,10 +1796,13 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 		pr_err("Translation failed with error %d (translated: %u)\n",
 		       ret, nfp_prog->n_translated);
 		ret = -EINVAL;
+		goto out;
 	}
 
+	ret = nfp_bpf_ustore_calc(nfp_prog, (__force __le64 *)prog_mem);
+
 	res->n_instr = nfp_prog->prog_len;
-	res->dense_mode = nfp_prog->num_regs <= 7;
+	res->dense_mode = false;
 out:
 	nfp_prog_free(nfp_prog);
 

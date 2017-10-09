@@ -36,6 +36,8 @@
 
 #include <net/devlink.h>
 
+#include <trace/events/devlink.h>
+
 #include "nfp_net_repr.h"
 
 struct bpf_prog;
@@ -271,11 +273,17 @@ static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 
 static inline bool nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
 {
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), false, 0,
+			    skb->data, skb->len);
+
 	return nfp_ctrl_tx(app->ctrl, skb);
 }
 
 static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 {
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), true, 0,
+			    skb->data, skb->len);
+
 	app->type->ctrl_msg_rx(app, skb);
 }
 
