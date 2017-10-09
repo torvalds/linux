@@ -696,6 +696,7 @@ static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_function_groups	= sunxi_pmx_get_func_groups,
 	.set_mux		= sunxi_pmx_set_mux,
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
+	.strict			= true,
 };
 
 static int sunxi_pinctrl_gpio_direction_input(struct gpio_chip *chip,
