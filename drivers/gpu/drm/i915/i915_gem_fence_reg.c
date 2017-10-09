@@ -280,8 +280,7 @@ static int fence_update(struct drm_i915_fence_reg *fence,
  *
  * 0 on success, negative error code on failure.
  */
-int
-i915_vma_put_fence(struct i915_vma *vma)
+int i915_vma_put_fence(struct i915_vma *vma)
 {
 	struct drm_i915_fence_reg *fence = vma->fence;
 
@@ -299,6 +298,8 @@ static struct drm_i915_fence_reg *fence_find(struct drm_i915_private *dev_priv)
 	struct drm_i915_fence_reg *fence;
 
 	list_for_each_entry(fence, &dev_priv->mm.fence_list, link) {
+		GEM_BUG_ON(fence->vma && fence->vma->fence != fence);
+
 		if (fence->pin_count)
 			continue;
 
@@ -313,7 +314,7 @@ static struct drm_i915_fence_reg *fence_find(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_vma_get_fence - set up fencing for a vma
+ * i915_vma_pin_fence - set up fencing for a vma
  * @vma: vma to map through a fence reg
  *
  * When mapping objects through the GTT, userspace wants to be able to write
@@ -331,10 +332,11 @@ static struct drm_i915_fence_reg *fence_find(struct drm_i915_private *dev_priv)
  * 0 on success, negative error code on failure.
  */
 int
-i915_vma_get_fence(struct i915_vma *vma)
+i915_vma_pin_fence(struct i915_vma *vma)
 {
 	struct drm_i915_fence_reg *fence;
 	struct i915_vma *set = i915_gem_object_is_tiled(vma->obj) ? vma : NULL;
+	int err;
 
 	/* Note that we revoke fences on runtime suspend. Therefore the user
 	 * must keep the device awake whilst using the fence.
@@ -344,6 +346,8 @@ i915_vma_get_fence(struct i915_vma *vma)
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (vma->fence) {
 		fence = vma->fence;
+		GEM_BUG_ON(fence->vma != vma);
+		fence->pin_count++;
 		if (!fence->dirty) {
 			list_move_tail(&fence->link,
 				       &fence->i915->mm.fence_list);
@@ -353,10 +357,25 @@ i915_vma_get_fence(struct i915_vma *vma)
 		fence = fence_find(vma->vm->i915);
 		if (IS_ERR(fence))
 			return PTR_ERR(fence);
+
+		GEM_BUG_ON(fence->pin_count);
+		fence->pin_count++;
 	} else
 		return 0;
 
-	return fence_update(fence, set);
+	err = fence_update(fence, set);
+	if (err)
+		goto out_unpin;
+
+	GEM_BUG_ON(fence->vma != set);
+	GEM_BUG_ON(vma->fence != (set ? fence : NULL));
+
+	if (set)
+		return 0;
+
+out_unpin:
+	fence->pin_count--;
+	return err;
 }
 
 /**
@@ -429,6 +448,8 @@ void i915_gem_revoke_fences(struct drm_i915_private *dev_priv)
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *fence = &dev_priv->fence_regs[i];
 
+		GEM_BUG_ON(fence->vma && fence->vma->fence != fence);
+
 		if (fence->vma)
 			i915_gem_release_mmap(fence->vma->obj);
 	}
@@ -449,6 +470,8 @@ void i915_gem_restore_fences(struct drm_i915_private *dev_priv)
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
 		struct i915_vma *vma = reg->vma;
+
+		GEM_BUG_ON(vma && vma->fence != reg);
 
 		/*
 		 * Commit delayed tiling changes if we have an object still

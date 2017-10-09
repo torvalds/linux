@@ -1910,7 +1910,7 @@ int i915_gem_fault(struct vm_fault *vmf)
 	if (ret)
 		goto err_unpin;
 
-	ret = i915_vma_get_fence(vma);
+	ret = i915_vma_pin_fence(vma);
 	if (ret)
 		goto err_unpin;
 
@@ -1926,6 +1926,7 @@ int i915_gem_fault(struct vm_fault *vmf)
 			       min_t(u64, vma->size, area->vm_end - area->vm_start),
 			       &ggtt->mappable);
 
+	i915_vma_unpin_fence(vma);
 err_unpin:
 	__i915_vma_unpin(vma);
 err_unlock:

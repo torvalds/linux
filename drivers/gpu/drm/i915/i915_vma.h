@@ -345,15 +345,13 @@ static inline struct page *i915_vma_first_page(struct i915_vma *vma)
  *
  * True if the vma has a fence, false otherwise.
  */
-static inline bool
-i915_vma_pin_fence(struct i915_vma *vma)
+int i915_vma_pin_fence(struct i915_vma *vma);
+int __must_check i915_vma_put_fence(struct i915_vma *vma);
+
+static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
-	if (vma->fence) {
-		vma->fence->pin_count++;
-		return true;
-	} else
-		return false;
+	GEM_BUG_ON(vma->fence->pin_count <= 0);
+	vma->fence->pin_count--;
 }
 
 /**
@@ -368,10 +366,8 @@ static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
 	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
-	if (vma->fence) {
-		GEM_BUG_ON(vma->fence->pin_count <= 0);
-		vma->fence->pin_count--;
-	}
+	if (vma->fence)
+		__i915_vma_unpin_fence(vma);
 }
 
 #endif

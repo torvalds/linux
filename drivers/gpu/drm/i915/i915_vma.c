@@ -309,11 +309,9 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 
 	__i915_vma_pin(vma);
 
-	err = i915_vma_get_fence(vma);
+	err = i915_vma_pin_fence(vma);
 	if (err)
 		goto err_unpin;
-
-	i915_vma_pin_fence(vma);
 
 	return ptr;
 

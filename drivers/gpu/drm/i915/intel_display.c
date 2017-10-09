@@ -2219,8 +2219,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 		 * something and try to run the system in a "less than optimal"
 		 * mode that matches the user configuration.
 		 */
-		if (i915_vma_get_fence(vma) == 0)
-			i915_vma_pin_fence(vma);
+		i915_vma_pin_fence(vma);
 	}
 
 	i915_vma_get(vma);
