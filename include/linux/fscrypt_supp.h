@@ -143,4 +143,7 @@ extern void fscrypt_pullback_bio_page(struct page **, bool);
 extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
 				 unsigned int);
 
+/* hooks.c */
+extern int fscrypt_file_open(struct inode *inode, struct file *filp);
+
 #endif	/* _LINUX_FSCRYPT_SUPP_H */
