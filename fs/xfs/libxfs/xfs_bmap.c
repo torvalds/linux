@@ -1477,14 +1477,14 @@ xfs_bmap_isaeof(
 	int			is_empty;
 	int			error;
 
-	bma->aeof = 0;
+	bma->aeof = false;
 	error = xfs_bmap_last_extent(NULL, bma->ip, whichfork, &rec,
 				     &is_empty);
 	if (error)
 		return error;
 
 	if (is_empty) {
-		bma->aeof = 1;
+		bma->aeof = true;
 		return 0;
 	}
 
