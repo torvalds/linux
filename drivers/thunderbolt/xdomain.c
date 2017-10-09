@@ -1487,6 +1487,9 @@ int tb_register_property_dir(const char *key, struct tb_property_dir *dir)
 {
 	int ret;
 
+	if (WARN_ON(!xdomain_property_dir))
+		return -EAGAIN;
+
 	if (!key || strlen(key) > 8)
 		return -EINVAL;
 

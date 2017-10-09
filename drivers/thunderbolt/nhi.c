@@ -1144,5 +1144,5 @@ static void __exit nhi_unload(void)
 	tb_domain_exit();
 }
 
-module_init(nhi_init);
+fs_initcall(nhi_init);
 module_exit(nhi_unload);
