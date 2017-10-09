@@ -3825,14 +3825,11 @@ static int smu7_notify_link_speed_change_after_state_change(
 static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	int ret = 0;
 
-	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK) {
+	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK)
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 			(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2);
-		ret = (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
-	}
-	return ret;
+	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
 }
 
 static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)

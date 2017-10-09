@@ -883,7 +883,7 @@ int ttm_pool_populate(struct ttm_tt *ttm)
 		}
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						false, false);
+						PAGE_SIZE);
 		if (unlikely(ret != 0)) {
 			ttm_pool_unpopulate(ttm);
 			return -ENOMEM;
@@ -910,7 +910,7 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 	for (i = 0; i < ttm->num_pages; ++i) {
 		if (ttm->pages[i]) {
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
-						 ttm->pages[i]);
+						 ttm->pages[i], PAGE_SIZE);
 			ttm_put_pages(&ttm->pages[i], 1,
 				      ttm->page_flags,
 				      ttm->caching_state);

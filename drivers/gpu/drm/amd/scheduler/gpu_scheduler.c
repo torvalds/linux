@@ -227,8 +227,14 @@ void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 		 */
 		kthread_park(sched->thread);
 		kthread_unpark(sched->thread);
-		while (kfifo_out(&entity->job_queue, &job, sizeof(job)))
+		while (kfifo_out(&entity->job_queue, &job, sizeof(job))) {
+			struct amd_sched_fence *s_fence = job->s_fence;
+			amd_sched_fence_scheduled(s_fence);
+			dma_fence_set_error(&s_fence->finished, -ESRCH);
+			amd_sched_fence_finished(s_fence);
+			dma_fence_put(&s_fence->finished);
 			sched->ops->free_job(job);
+		}
 
 	}
 	kfifo_free(&entity->job_queue);
@@ -308,7 +314,7 @@ static bool amd_sched_entity_add_dependency_cb(struct amd_sched_entity *entity)
 }
 
 static struct amd_sched_job *
-amd_sched_entity_pop_job(struct amd_sched_entity *entity)
+amd_sched_entity_peek_job(struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = entity->sched;
 	struct amd_sched_job *sched_job;
@@ -354,8 +360,7 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 	return added;
 }
 
-/* job_finish is called after hw fence signaled, and
- * the job had already been deleted from ring_mirror_list
+/* job_finish is called after hw fence signaled
  */
 static void amd_sched_job_finish(struct work_struct *work)
 {
@@ -395,6 +400,9 @@ static void amd_sched_job_finish_cb(struct dma_fence *f,
 static void amd_sched_job_begin(struct amd_sched_job *s_job)
 {
 	struct amd_gpu_scheduler *sched = s_job->sched;
+
+	dma_fence_add_callback(&s_job->s_fence->finished, &s_job->finish_cb,
+			       amd_sched_job_finish_cb);
 
 	spin_lock(&sched->job_list_lock);
 	list_add_tail(&s_job->node, &sched->ring_mirror_list);
@@ -488,8 +496,6 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	struct amd_sched_entity *entity = sched_job->s_entity;
 
 	trace_amd_sched_job(sched_job);
-	dma_fence_add_callback(&sched_job->s_fence->finished, &sched_job->finish_cb,
-			       amd_sched_job_finish_cb);
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
 }
@@ -600,7 +606,7 @@ static int amd_sched_main(void *param)
 		if (!entity)
 			continue;
 
-		sched_job = amd_sched_entity_pop_job(entity);
+		sched_job = amd_sched_entity_peek_job(entity);
 		if (!sched_job)
 			continue;
 
@@ -611,6 +617,10 @@ static int amd_sched_main(void *param)
 
 		fence = sched->ops->run_job(sched_job);
 		amd_sched_fence_scheduled(s_fence);
+
+		/* amd_sched_process_job drops the job's reference of the fence. */
+		sched_job->s_fence = NULL;
+
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);
 			r = dma_fence_add_callback(fence, &s_fence->cb,

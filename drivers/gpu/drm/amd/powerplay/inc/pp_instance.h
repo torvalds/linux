@@ -25,10 +25,7 @@
 
 #include "hwmgr.h"
 
-#define PP_VALID  0x1F1F1F1F
-
 struct pp_instance {
-	uint32_t pp_valid;
 	uint32_t chip_family;
 	uint32_t chip_id;
 	bool pm_en;

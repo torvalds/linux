@@ -223,8 +223,8 @@ static int chash_table_check(struct __chash_table *table)
 static void chash_iter_relocate(struct chash_iter dst, struct chash_iter src)
 {
 	BUG_ON(src.table == dst.table && src.slot == dst.slot);
-	BUG_ON(src.table->key_size != src.table->key_size);
-	BUG_ON(src.table->value_size != src.table->value_size);
+	BUG_ON(src.table->key_size != dst.table->key_size);
+	BUG_ON(src.table->value_size != dst.table->value_size);
 
 	if (dst.table->key_size == 4)
 		dst.table->keys32[dst.slot] = src.table->keys32[src.slot];
