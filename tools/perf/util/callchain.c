@@ -690,6 +690,14 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 	}
 
 	if (cnode->ms.sym && sym && callchain_param.key == CCKEY_FUNCTION) {
+		/*
+		 * Compare inlined frames based on their symbol name because
+		 * different inlined frames will have the same symbol start
+		 */
+		if (cnode->ms.sym->inlined || node->sym->inlined)
+			return match_chain_strings(cnode->ms.sym->name,
+						   node->sym->name);
+
 		left = cnode->ms.sym->start;
 		right = sym->start;
 		left_dso = cnode->ms.map->dso;
