@@ -144,6 +144,16 @@ config MESON_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_meson_efuse.
 
+config MESON_MX_EFUSE
+	tristate "Amlogic Meson6/Meson8/Meson8b eFuse Support"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson6, Meson8 and Meson8b SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_mx_efuse.
+
 config NVMEM_SNVS_LPGPR
 	tristate "Support for Low Power General Purpose Register"
 	depends on SOC_IMX6 || COMPILE_TEST
