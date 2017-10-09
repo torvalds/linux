@@ -35,6 +35,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,6 +47,7 @@
 #include <bpf.h>
 
 #include "main.h"
+#include "disasm.h"
 
 static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_UNSPEC]		= "unspec",
@@ -297,11 +299,39 @@ static int do_show(int argc, char **argv)
 	return 0;
 }
 
+static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+}
+
+static void dump_xlated(void *buf, unsigned int len, bool opcodes)
+{
+	struct bpf_insn *insn = buf;
+	unsigned int i;
+
+	for (i = 0; i < len / sizeof(*insn); i++) {
+		printf("% 4d: ", i);
+		print_bpf_insn(print_insn, NULL, insn + i, true);
+
+		if (opcodes) {
+			printf("       ");
+			print_hex(insn + i, 8, " ");
+			printf("\n");
+		}
+
+		if (insn[i].code == (BPF_LD | BPF_IMM | BPF_DW))
+			i++;
+	}
+}
+
 static int do_dump(int argc, char **argv)
 {
 	struct bpf_prog_info info = {};
 	__u32 len = sizeof(info);
-	bool can_disasm = false;
 	unsigned int buf_size;
 	char *filepath = NULL;
 	bool opcodes = false;
@@ -315,7 +345,6 @@ static int do_dump(int argc, char **argv)
 	if (is_prefix(*argv, "jited")) {
 		member_len = &info.jited_prog_len;
 		member_ptr = &info.jited_prog_insns;
-		can_disasm = true;
 	} else if (is_prefix(*argv, "xlated")) {
 		member_len = &info.xlated_prog_len;
 		member_ptr = &info.xlated_prog_insns;
@@ -346,10 +375,6 @@ static int do_dump(int argc, char **argv)
 		NEXT_ARG();
 	}
 
-	if (!filepath && !can_disasm) {
-		err("expected 'file' got %s\n", *argv);
-		return -1;
-	}
 	if (argc) {
 		usage();
 		return -1;
@@ -409,7 +434,10 @@ static int do_dump(int argc, char **argv)
 			goto err_free;
 		}
 	} else {
-		disasm_print_insn(buf, *member_len, opcodes);
+		if (member_len == &info.jited_prog_len)
+			disasm_print_insn(buf, *member_len, opcodes);
+		else
+			dump_xlated(buf, *member_len, opcodes);
 	}
 
 	free(buf);
@@ -430,7 +458,7 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show [PROG]\n"
-		"       %s %s dump xlated PROG  file FILE\n"
+		"       %s %s dump xlated PROG [file FILE] [opcodes]\n"
 		"       %s %s dump jited  PROG [file FILE] [opcodes]\n"
 		"       %s %s pin   PROG FILE\n"
 		"       %s %s help\n"
