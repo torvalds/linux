@@ -215,3 +215,40 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 
 	return 0;
 }
+
+#define NFP_USTORE_ECC_POLY_WORDS		7
+#define NFP_USTORE_OP_BITS			45
+
+static const u64 nfp_ustore_ecc_polynomials[NFP_USTORE_ECC_POLY_WORDS] = {
+	0x0ff800007fffULL,
+	0x11f801ff801fULL,
+	0x1e387e0781e1ULL,
+	0x17cb8e388e22ULL,
+	0x1af5b2c93244ULL,
+	0x1f56d5525488ULL,
+	0x0daf69a46910ULL,
+};
+
+static bool parity(u64 value)
+{
+	return hweight64(value) & 1;
+}
+
+int nfp_ustore_check_valid_no_ecc(u64 insn)
+{
+	if (insn & ~GENMASK_ULL(NFP_USTORE_OP_BITS, 0))
+		return -EINVAL;
+
+	return 0;
+}
+
+u64 nfp_ustore_calc_ecc_insn(u64 insn)
+{
+	u8 ecc = 0;
+	int i;
+
+	for (i = 0; i < NFP_USTORE_ECC_POLY_WORDS; i++)
+		ecc |= parity(nfp_ustore_ecc_polynomials[i] & insn) << i;
+
+	return insn | (u64)ecc << NFP_USTORE_OP_BITS;
+}

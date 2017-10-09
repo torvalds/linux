@@ -1715,6 +1715,23 @@ static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 	return 0;
 }
 
+static int nfp_bpf_ustore_calc(struct nfp_prog *nfp_prog)
+{
+	int i;
+
+	for (i = 0; i < nfp_prog->prog_len; i++) {
+		int err;
+
+		err = nfp_ustore_check_valid_no_ecc(nfp_prog->prog[i]);
+		if (err)
+			return err;
+
+		nfp_prog->prog[i] = nfp_ustore_calc_ecc_insn(nfp_prog->prog[i]);
+	}
+
+	return 0;
+}
+
 /**
  * nfp_bpf_jit() - translate BPF code into NFP assembly
  * @filter:	kernel BPF filter struct
@@ -1766,7 +1783,10 @@ nfp_bpf_jit(struct bpf_prog *filter, void *prog_mem,
 		pr_err("Translation failed with error %d (translated: %u)\n",
 		       ret, nfp_prog->n_translated);
 		ret = -EINVAL;
+		goto out;
 	}
+
+	ret = nfp_bpf_ustore_calc(nfp_prog);
 
 	res->n_instr = nfp_prog->prog_len;
 	res->dense_mode = false;

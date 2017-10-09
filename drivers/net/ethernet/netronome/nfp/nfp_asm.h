@@ -362,4 +362,7 @@ int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
 int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 			struct nfp_insn_re_regs *reg, bool has_imm8);
 
+int nfp_ustore_check_valid_no_ecc(u64 insn);
+u64 nfp_ustore_calc_ecc_insn(u64 insn);
+
 #endif
