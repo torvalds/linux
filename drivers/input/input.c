@@ -960,7 +960,8 @@ bool input_match_device_id(const struct input_dev *dev,
 	    !bitmap_subset(id->ledbit, dev->ledbit, LED_MAX) ||
 	    !bitmap_subset(id->sndbit, dev->sndbit, SND_MAX) ||
 	    !bitmap_subset(id->ffbit, dev->ffbit, FF_MAX) ||
-	    !bitmap_subset(id->swbit, dev->swbit, SW_MAX)) {
+	    !bitmap_subset(id->swbit, dev->swbit, SW_MAX) ||
+	    !bitmap_subset(id->propbit, dev->propbit, INPUT_PROP_MAX)) {
 		return false;
 	}
 

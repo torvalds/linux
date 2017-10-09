@@ -105,6 +105,7 @@ int main(void)
 	DEVID_FIELD(input_device_id, sndbit);
 	DEVID_FIELD(input_device_id, ffbit);
 	DEVID_FIELD(input_device_id, swbit);
+	DEVID_FIELD(input_device_id, propbit);
 
 	DEVID(eisa_device_id);
 	DEVID_FIELD(eisa_device_id, sig);
