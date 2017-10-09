@@ -27,11 +27,11 @@
 #include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 
-struct color {
+struct tpg_rbg_color8 {
 	unsigned char r, g, b;
 };
 
-struct color16 {
+struct tpg_rbg_color16 {
 	int r, g, b;
 };
 
@@ -65,10 +65,10 @@ enum tpg_color {
 	TPG_COLOR_MAX = TPG_COLOR_RAMP + 256
 };
 
-extern const struct color tpg_colors[TPG_COLOR_MAX];
+extern const struct tpg_rbg_color8 tpg_colors[TPG_COLOR_MAX];
 extern const unsigned short tpg_rec709_to_linear[255 * 16 + 1];
 extern const unsigned short tpg_linear_to_rec709[255 * 16 + 1];
-extern const struct color16 tpg_csc_colors[V4L2_COLORSPACE_DCI_P3 + 1]
+extern const struct tpg_rbg_color16 tpg_csc_colors[V4L2_COLORSPACE_DCI_P3 + 1]
 					  [V4L2_XFER_FUNC_SMPTE2084 + 1]
 					  [TPG_COLOR_CSC_BLACK + 1];
 enum tpg_pattern {
