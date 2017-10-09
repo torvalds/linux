@@ -60,10 +60,20 @@ struct qed_iwarp_ll2_buff {
 	u32 buff_size;
 };
 
+struct qed_iwarp_ll2_mpa_buf {
+	struct list_head list_entry;
+	struct qed_iwarp_ll2_buff *ll2_buf;
+	struct unaligned_opaque_data data;
+	u16 tcp_payload_len;
+	u8 placement_offset;
+};
+
 struct qed_iwarp_info {
 	struct list_head listen_list;	/* qed_iwarp_listener */
 	struct list_head ep_list;	/* qed_iwarp_ep */
 	struct list_head ep_free_list;	/* pre-allocated ep's */
+	struct list_head mpa_buf_list;	/* list of mpa_bufs */
+	struct list_head mpa_buf_pending_list;
 	spinlock_t iw_lock;	/* for iwarp resources */
 	spinlock_t qp_lock;	/* for teardown races */
 	u32 rcv_wnd_scale;
@@ -77,6 +87,7 @@ struct qed_iwarp_info {
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
+	struct qed_iwarp_ll2_mpa_buf *mpa_bufs;
 };
 
 enum qed_iwarp_ep_state {
