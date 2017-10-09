@@ -17,8 +17,8 @@ void free_srcline(char *srcline);
 #define SRCLINE_UNKNOWN  ((char *) "??:0")
 
 struct inline_list {
+	struct symbol		*symbol;
 	char			*filename;
-	char			*funcname;
 	unsigned int		line_nr;
 	struct list_head	list;
 };
@@ -28,7 +28,10 @@ struct inline_node {
 	struct list_head	val;
 };
 
-struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr);
+/* parse inlined frames for the given address */
+struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
+					    struct symbol *sym);
+/* free resources associated to the inline node list */
 void inline_node__delete(struct inline_node *node);
 
 #endif /* PERF_SRCLINE_H */
