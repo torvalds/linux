@@ -171,6 +171,7 @@ struct qed_ll2_acquire_data_inputs {
 	enum qed_ll2_tx_dest tx_dest;
 	enum qed_ll2_error_handle ai_err_packet_too_big;
 	enum qed_ll2_error_handle ai_err_no_buf;
+	bool secondary_queue;
 	u8 gsi_enable;
 };
 

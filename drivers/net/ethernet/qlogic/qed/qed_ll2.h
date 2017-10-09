@@ -121,6 +121,7 @@ struct qed_ll2_info {
 	bool b_active;
 	enum core_tx_dest tx_dest;
 	u8 tx_stats_en;
+	bool main_func_queue;
 	struct qed_ll2_rx_queue rx_queue;
 	struct qed_ll2_tx_queue tx_queue;
 	struct qed_ll2_cbs cbs;

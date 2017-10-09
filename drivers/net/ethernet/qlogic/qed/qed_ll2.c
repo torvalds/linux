@@ -894,7 +894,7 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->drop_ttl0_flg = p_ll2_conn->input.rx_drop_ttl0_flg;
 	p_ramrod->inner_vlan_removal_en = p_ll2_conn->input.rx_vlan_removal_en;
 	p_ramrod->queue_id = p_ll2_conn->queue_id;
-	p_ramrod->main_func_queue = (conn_type == QED_LL2_TYPE_OOO) ? 0 : 1;
+	p_ramrod->main_func_queue = p_ll2_conn->main_func_queue ? 1 : 0;
 
 	if ((IS_MF_DEFAULT(p_hwfn) || IS_MF_SI(p_hwfn)) &&
 	    p_ramrod->main_func_queue && (conn_type != QED_LL2_TYPE_ROCE) &&
@@ -1265,6 +1265,11 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 
 	p_ll2_info->tx_dest = (data->input.tx_dest == QED_LL2_TX_DEST_NW) ?
 			      CORE_TX_DEST_NW : CORE_TX_DEST_LB;
+	if (data->input.conn_type == QED_LL2_TYPE_OOO ||
+	    data->input.secondary_queue)
+		p_ll2_info->main_func_queue = false;
+	else
+		p_ll2_info->main_func_queue = true;
 
 	/* Correct maximum number of Tx BDs */
 	p_tx_max = &p_ll2_info->input.tx_max_bds_per_packet;
