@@ -315,6 +315,11 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 			break;
 		}
 
+		if (flags & PIN_NONFAULT && i915_vma_has_userfault(vma)) {
+			ret = -ENOSPC;
+			break;
+		}
+
 		/* Overlap of objects in the same batch? */
 		if (i915_vma_is_pinned(vma)) {
 			ret = -ENOSPC;
