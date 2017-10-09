@@ -62,3 +62,33 @@ int __fscrypt_prepare_link(struct inode *inode, struct inode *dir)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fscrypt_prepare_link);
+
+int __fscrypt_prepare_rename(struct inode *old_dir, struct dentry *old_dentry,
+			     struct inode *new_dir, struct dentry *new_dentry,
+			     unsigned int flags)
+{
+	int err;
+
+	err = fscrypt_require_key(old_dir);
+	if (err)
+		return err;
+
+	err = fscrypt_require_key(new_dir);
+	if (err)
+		return err;
+
+	if (old_dir != new_dir) {
+		if (IS_ENCRYPTED(new_dir) &&
+		    !fscrypt_has_permitted_context(new_dir,
+						   d_inode(old_dentry)))
+			return -EPERM;
+
+		if ((flags & RENAME_EXCHANGE) &&
+		    IS_ENCRYPTED(old_dir) &&
+		    !fscrypt_has_permitted_context(old_dir,
+						   d_inode(new_dentry)))
+			return -EPERM;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__fscrypt_prepare_rename);

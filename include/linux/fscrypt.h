@@ -201,4 +201,37 @@ static inline int fscrypt_prepare_link(struct dentry *old_dentry,
 	return 0;
 }
 
+/**
+ * fscrypt_prepare_rename - prepare for a rename between possibly-encrypted directories
+ * @old_dir: source directory
+ * @old_dentry: dentry for source file
+ * @new_dir: target directory
+ * @new_dentry: dentry for target location (may be negative unless exchanging)
+ * @flags: rename flags (we care at least about %RENAME_EXCHANGE)
+ *
+ * Prepare for ->rename() where the source and/or target directories may be
+ * encrypted.  A new link can only be added to an encrypted directory if the
+ * directory's encryption key is available --- since otherwise we'd have no way
+ * to encrypt the filename.  A rename to an existing name, on the other hand,
+ * *is* cryptographically possible without the key.  However, we take the more
+ * conservative approach and just forbid all no-key renames.
+ *
+ * We also verify that the rename will not violate the constraint that all files
+ * in an encrypted directory tree use the same encryption policy.
+ *
+ * Return: 0 on success, -ENOKEY if an encryption key is missing, -EPERM if the
+ * rename would cause inconsistent encryption policies, or another -errno code.
+ */
+static inline int fscrypt_prepare_rename(struct inode *old_dir,
+					 struct dentry *old_dentry,
+					 struct inode *new_dir,
+					 struct dentry *new_dentry,
+					 unsigned int flags)
+{
+	if (IS_ENCRYPTED(old_dir) || IS_ENCRYPTED(new_dir))
+		return __fscrypt_prepare_rename(old_dir, old_dentry,
+						new_dir, new_dentry, flags);
+	return 0;
+}
+
 #endif	/* _LINUX_FSCRYPT_H */
