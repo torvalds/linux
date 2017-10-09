@@ -1003,7 +1003,6 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, char *name, int len,
 		if (r->res_master_nodeid == our_nodeid) {
 			log_error(ls, "from_master %d our_master", from_nodeid);
 			dlm_dump_rsb(r);
-			dlm_send_rcom_lookup_dump(r, from_nodeid);
 			goto out_found;
 		}
 
