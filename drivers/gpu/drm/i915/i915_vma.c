@@ -690,6 +690,30 @@ static void __i915_vma_iounmap(struct i915_vma *vma)
 	vma->iomap = NULL;
 }
 
+void i915_vma_revoke_mmap(struct i915_vma *vma)
+{
+	struct drm_vma_offset_node *node = &vma->obj->base.vma_node;
+	u64 vma_offset;
+
+	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
+
+	if (!i915_vma_has_userfault(vma))
+		return;
+
+	GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+	GEM_BUG_ON(!vma->obj->userfault_count);
+
+	vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
+	unmap_mapping_range(vma->vm->i915->drm.anon_inode->i_mapping,
+			    drm_vma_node_offset_addr(node) + vma_offset,
+			    vma->size,
+			    1);
+
+	i915_vma_unset_userfault(vma);
+	if (!--vma->obj->userfault_count)
+		list_del(&vma->obj->userfault_link);
+}
+
 int i915_vma_unbind(struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
@@ -753,11 +777,13 @@ int i915_vma_unbind(struct i915_vma *vma)
 			return ret;
 
 		/* Force a pagefault for domain tracking on next user access */
-		i915_gem_release_mmap(obj);
+		i915_vma_revoke_mmap(vma);
 
 		__i915_vma_iounmap(vma);
 		vma->flags &= ~I915_VMA_CAN_FENCE;
 	}
+	GEM_BUG_ON(vma->fence);
+	GEM_BUG_ON(i915_vma_has_userfault(vma));
 
 	if (likely(!vma->vm->closed)) {
 		trace_i915_vma_unbind(vma);

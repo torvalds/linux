@@ -66,7 +66,7 @@ struct i915_vma {
 	 * that exist in the ctx->handle_vmas LUT for this vma.
 	 */
 	unsigned int open_count;
-	unsigned int flags;
+	unsigned long flags;
 	/**
 	 * How many users have pinned this object in GTT space. The following
 	 * users can each hold at most one reference: pwrite/pread, execbuffer
@@ -88,6 +88,8 @@ struct i915_vma {
 #define I915_VMA_GGTT		BIT(8)
 #define I915_VMA_CAN_FENCE	BIT(9)
 #define I915_VMA_CLOSED		BIT(10)
+#define I915_VMA_USERFAULT_BIT	11
+#define I915_VMA_USERFAULT	BIT(I915_VMA_USERFAULT_BIT)
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
@@ -144,6 +146,22 @@ static inline bool i915_vma_is_map_and_fenceable(const struct i915_vma *vma)
 static inline bool i915_vma_is_closed(const struct i915_vma *vma)
 {
 	return vma->flags & I915_VMA_CLOSED;
+}
+
+static inline bool i915_vma_set_userfault(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+	return __test_and_set_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
+}
+
+static inline void i915_vma_unset_userfault(struct i915_vma *vma)
+{
+	return __clear_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
+}
+
+static inline bool i915_vma_has_userfault(const struct i915_vma *vma)
+{
+	return test_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
 }
 
 static inline unsigned int i915_vma_get_active(const struct i915_vma *vma)
@@ -244,6 +262,7 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level);
 bool i915_vma_misplaced(const struct i915_vma *vma,
 			u64 size, u64 alignment, u64 flags);
 void __i915_vma_set_map_and_fenceable(struct i915_vma *vma);
+void i915_vma_revoke_mmap(struct i915_vma *vma);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 void i915_vma_unlink_ctx(struct i915_vma *vma);
 void i915_vma_close(struct i915_vma *vma);

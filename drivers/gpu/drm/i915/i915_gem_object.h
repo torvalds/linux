@@ -123,6 +123,7 @@ struct drm_i915_gem_object {
 	/**
 	 * Whether the object is currently in the GGTT mmap.
 	 */
+	unsigned int userfault_count;
 	struct list_head userfault_link;
 
 	struct list_head batch_pool_link;

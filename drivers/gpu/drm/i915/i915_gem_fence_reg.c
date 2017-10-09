@@ -240,7 +240,8 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 		/* Ensure that all userspace CPU access is completed before
 		 * stealing the fence.
 		 */
-		i915_gem_release_mmap(fence->vma->obj);
+		GEM_BUG_ON(fence->vma->fence != fence);
+		i915_vma_revoke_mmap(fence->vma);
 
 		fence->vma->fence = NULL;
 		fence->vma = NULL;
@@ -451,7 +452,7 @@ void i915_gem_revoke_fences(struct drm_i915_private *dev_priv)
 		GEM_BUG_ON(fence->vma && fence->vma->fence != fence);
 
 		if (fence->vma)
-			i915_gem_release_mmap(fence->vma->obj);
+			i915_vma_revoke_mmap(fence->vma);
 	}
 }
 
@@ -479,7 +480,7 @@ void i915_gem_restore_fences(struct drm_i915_private *dev_priv)
 		 */
 		if (vma && !i915_gem_object_is_tiled(vma->obj)) {
 			GEM_BUG_ON(!reg->dirty);
-			GEM_BUG_ON(!list_empty(&vma->obj->userfault_link));
+			GEM_BUG_ON(i915_vma_has_userfault(vma));
 
 			list_move(&reg->link, &dev_priv->mm.fence_list);
 			vma->fence = NULL;
