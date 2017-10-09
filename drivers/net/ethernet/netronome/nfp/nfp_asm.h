@@ -205,6 +205,8 @@ enum cmd_tgt_map {
 	__CMD_TGT_MAP_SIZE,
 };
 
+extern const struct cmd_tgt_act cmd_tgt_act[__CMD_TGT_MAP_SIZE];
+
 enum cmd_mode {
 	CMD_MODE_40b_AB	= 0,
 	CMD_MODE_40b_BA	= 1,
@@ -274,5 +276,27 @@ static inline u16 swreg_value(swreg reg)
 {
 	return FIELD_GET(NN_REG_VAL, swreg_raw(reg));
 }
+
+struct nfp_insn_ur_regs {
+	enum alu_dst_ab dst_ab;
+	u16 dst;
+	u16 areg, breg;
+	bool swap;
+	bool wr_both;
+};
+
+struct nfp_insn_re_regs {
+	enum alu_dst_ab dst_ab;
+	u8 dst;
+	u8 areg, breg;
+	bool swap;
+	bool wr_both;
+	bool i8;
+};
+
+int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
+			  struct nfp_insn_ur_regs *reg);
+int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
+			struct nfp_insn_re_regs *reg, bool has_imm8);
 
 #endif
