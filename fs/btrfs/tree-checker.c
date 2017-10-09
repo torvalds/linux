@@ -161,15 +161,21 @@ static int check_csum_item(struct btrfs_root *root, struct extent_buffer *leaf,
 	u32 csumsize = btrfs_super_csum_size(root->fs_info->super_copy);
 
 	if (key->objectid != BTRFS_EXTENT_CSUM_OBJECTID) {
-		CORRUPT("invalid objectid for csum item", leaf, root, slot);
+		generic_err(root, leaf, slot,
+		"invalid key objectid for csum item, have %llu expect %llu",
+			key->objectid, BTRFS_EXTENT_CSUM_OBJECTID);
 		return -EUCLEAN;
 	}
 	if (!IS_ALIGNED(key->offset, sectorsize)) {
-		CORRUPT("unaligned key offset for csum item", leaf, root, slot);
+		generic_err(root, leaf, slot,
+	"unaligned key offset for csum item, have %llu should be aligned to %u",
+			key->offset, sectorsize);
 		return -EUCLEAN;
 	}
 	if (!IS_ALIGNED(btrfs_item_size_nr(leaf, slot), csumsize)) {
-		CORRUPT("unaligned csum item size", leaf, root, slot);
+		generic_err(root, leaf, slot,
+	"unaligned item size for csum item, have %u should be aligned to %u",
+			btrfs_item_size_nr(leaf, slot), csumsize);
 		return -EUCLEAN;
 	}
 	return 0;
