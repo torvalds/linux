@@ -1111,11 +1111,15 @@ char *callchain_list__sym_name(struct callchain_list *cl,
 	int printed;
 
 	if (cl->ms.sym) {
+		const char *inlined = cl->ms.sym->inlined ? " (inlined)" : "";
+
 		if (show_srcline && cl->srcline)
-			printed = scnprintf(bf, bfsize, "%s %s",
-					cl->ms.sym->name, cl->srcline);
+			printed = scnprintf(bf, bfsize, "%s %s%s",
+					    cl->ms.sym->name, cl->srcline,
+					    inlined);
 		else
-			printed = scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
+			printed = scnprintf(bf, bfsize, "%s%s",
+					    cl->ms.sym->name, inlined);
 	} else
 		printed = scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
 

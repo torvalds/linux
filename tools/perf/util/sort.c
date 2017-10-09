@@ -283,6 +283,9 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 			ret += repsep_snprintf(bf + ret, size - ret, "%.*s",
 					       width - ret,
 					       sym->name);
+			if (sym->inlined)
+				ret += repsep_snprintf(bf + ret, size - ret,
+						       " (inlined)");
 		}
 	} else {
 		size_t len = BITS_PER_LONG / 4;
