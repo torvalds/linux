@@ -651,12 +651,14 @@ int vb2_wait_for_all_buffers(struct vb2_queue *q);
  * @index:	id number of the buffer.
  * @pb:		buffer struct passed from userspace.
  *
- * Should be called from &v4l2_ioctl_ops->vidioc_querybuf ioctl handler
- * in driver.
+ * Videobuf2 core helper to implement VIDIOC_QUERYBUF() operation. It is called
+ * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
  *
  * The passed buffer should have been verified.
  *
  * This function fills the relevant information for the userspace.
+ *
+ * Return: returns zero on success; an error code otherwise.
  */
 void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
 
@@ -666,27 +668,26 @@ void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
  * @memory:	memory type, as defined by &enum vb2_memory.
  * @count:	requested buffer count.
  *
- * Should be called from &v4l2_ioctl_ops->vidioc_reqbufs ioctl
- * handler of a driver.
+ * Videobuf2 core helper to implement VIDIOC_REQBUF() operation. It is called
+ * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
  *
  * This function:
  *
- * #) verifies streaming parameters passed from the userspace,
- * #) sets up the queue,
+ * #) verifies streaming parameters passed from the userspace;
+ * #) sets up the queue;
  * #) negotiates number of buffers and planes per buffer with the driver
- *    to be used during streaming,
+ *    to be used during streaming;
  * #) allocates internal buffer structures (&struct vb2_buffer), according to
- *    the agreed parameters,
+ *    the agreed parameters;
  * #) for MMAP memory type, allocates actual video memory, using the
- *    memory handling/allocation routines provided during queue initialization
+ *    memory handling/allocation routines provided during queue initialization.
  *
  * If req->count is 0, all the memory will be freed instead.
  *
  * If the queue has been allocated previously by a previous vb2_core_reqbufs()
  * call and the queue is not busy, memory will be reallocated.
  *
- * The return values from this function are intended to be directly returned
- * from &v4l2_ioctl_ops->vidioc_reqbufs handler in driver.
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		unsigned int *count);
@@ -699,17 +700,17 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  * @requested_planes: number of planes requested.
  * @requested_sizes: array with the size of the planes.
  *
- * Should be called from &v4l2_ioctl_ops->vidioc_create_bufs ioctl handler
- * of a driver.
+ * Videobuf2 core helper to implement VIDIOC_CREATE_BUFS() operation. It is
+ * called internally by VB2 by an API-specific handler, like
+ * ``videobuf2-v4l2.h``.
  *
  * This function:
  *
- * #) verifies parameter sanity
- * #) calls the &vb2_ops->queue_setup queue operation
- * #) performs any necessary memory allocations
+ * #) verifies parameter sanity;
+ * #) calls the &vb2_ops->queue_setup queue operation;
+ * #) performs any necessary memory allocations.
  *
- * Return: the return values from this function are intended to be directly
- * returned from &v4l2_ioctl_ops->vidioc_create_bufs handler in driver.
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 			 unsigned int *count, unsigned int requested_planes,
@@ -723,16 +724,17 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
  * @pb:		buffer structure passed from userspace to
  *		&v4l2_ioctl_ops->vidioc_prepare_buf handler in driver.
  *
- * Should be called from &v4l2_ioctl_ops->vidioc_prepare_buf ioctl handler
- * of a driver.
+ * Videobuf2 core helper to implement VIDIOC_PREPARE_BUF() operation. It is
+ * called internally by VB2 by an API-specific handler, like
+ * ``videobuf2-v4l2.h``.
  *
  * The passed buffer should have been verified.
  *
- * This function calls buf_prepare callback in the driver (if provided),
- * in which driver-specific buffer initialization can be performed,
+ * This function calls vb2_ops->buf_prepare callback in the driver
+ * (if provided), in which driver-specific buffer initialization can
+ * be performed.
  *
- * The return values from this function are intended to be directly returned
- * from v4l2_ioctl_ops->vidioc_prepare_buf handler in driver.
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb);
 
@@ -744,18 +746,18 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb);
  * @pb:		buffer structure passed from userspace to
  *		v4l2_ioctl_ops->vidioc_qbuf handler in driver
  *
- * Should be called from v4l2_ioctl_ops->vidioc_qbuf ioctl handler of a driver.
- * The passed buffer should have been verified.
+ * Videobuf2 core helper to implement VIDIOC_QBUF() operation. It is called
+ * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
  *
  * This function:
  *
- * #) if necessary, calls buf_prepare callback in the driver (if provided), in
- *    which driver-specific buffer initialization can be performed,
+ * #) if necessary, calls &vb2_ops->buf_prepare callback in the driver
+ *    (if provided), in which driver-specific buffer initialization can
+ *    be performed;
  * #) if streaming is on, queues the buffer in driver by the means of
  *    &vb2_ops->buf_queue callback for processing.
  *
- * The return values from this function are intended to be directly returned
- * from v4l2_ioctl_ops->vidioc_qbuf handler in driver.
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb);
 
@@ -769,8 +771,8 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb);
  *		 buffers ready for dequeuing are present. Normally the driver
  *		 would be passing (file->f_flags & O_NONBLOCK) here.
  *
- * Should be called from v4l2_ioctl_ops->vidioc_dqbuf ioctl handler of a driver.
- * The passed buffer should have been verified.
+ * Videobuf2 core helper to implement VIDIOC_DQBUF() operation. It is called
+ * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
  *
  * This function:
  *
@@ -780,8 +782,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb);
  * #) the buffer struct members are filled with relevant information for
  *    the userspace.
  *
- * The return values from this function are intended to be directly returned
- * from v4l2_ioctl_ops->vidioc_dqbuf handler in driver.
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 		   bool nonblocking);
@@ -793,8 +794,10 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
  * @type:	type of the queue to be started.
  *		For V4L2, this is defined by &enum v4l2_buf_type type.
  *
- * Should be called from &v4l2_ioctl_ops->vidioc_streamon ioctl handler of
- * a driver.
+ * Videobuf2 core helper to implement VIDIOC_STREAMON() operation. It is called
+ * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
+ *
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_streamon(struct vb2_queue *q, unsigned int type);
 
@@ -805,8 +808,11 @@ int vb2_core_streamon(struct vb2_queue *q, unsigned int type);
  * @type:	type of the queue to be started.
  *		For V4L2, this is defined by &enum v4l2_buf_type type.
  *
- * Should be called from &v4l2_ioctl_ops->vidioc_streamon ioctl handler of
- * a driver.
+ * Videobuf2 core helper to implement VIDIOC_STREAMOFF() operation. It is
+ * called internally by VB2 by an API-specific handler, like
+ * ``videobuf2-v4l2.h``.
+ *
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_streamoff(struct vb2_queue *q, unsigned int type);
 
@@ -823,8 +829,11 @@ int vb2_core_streamoff(struct vb2_queue *q, unsigned int type);
  *		Currently, the only used flag is %O_CLOEXEC.
  *		is supported, refer to manual of open syscall for more details.
  *
- * The return values from this function are intended to be directly returned
- * from v4l2_ioctl_ops->vidioc_expbuf handler in driver.
+ *
+ * Videobuf2 core helper to implement VIDIOC_EXPBUF() operation. It is called
+ * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
+ *
+ * Return: returns zero on success; an error code otherwise.
  */
 int vb2_core_expbuf(struct vb2_queue *q, int *fd, unsigned int type,
 		unsigned int index, unsigned int plane, unsigned int flags);
