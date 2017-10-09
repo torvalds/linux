@@ -36,7 +36,7 @@
  */
 
 #include <linux/videodev2.h>
-#include <media/v4l2-tpg-colors.h>
+#include <media/tpg/v4l2-tpg.h>
 
 /* sRGB colors with range [0-255] */
 const struct color tpg_colors[TPG_COLOR_MAX] = {

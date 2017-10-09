@@ -27,7 +27,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-tpg.h>
+#include <media/tpg/v4l2-tpg.h>
 #include "vivid-rds-gen.h"
 #include "vivid-vbi-gen.h"
 

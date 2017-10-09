@@ -24,7 +24,7 @@
 #include <linux/vmalloc.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-tpg.h>
+#include <media/tpg/v4l2-tpg.h>
 
 #include "vimc-common.h"
 
