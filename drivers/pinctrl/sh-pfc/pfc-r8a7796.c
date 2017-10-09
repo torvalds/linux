@@ -495,7 +495,7 @@ FM(IP16_31_28)	IP16_31_28	FM(IP17_31_28)	IP17_31_28
 #define MOD_SEL1_1		FM(SEL_PWM2_0)		FM(SEL_PWM2_1)
 #define MOD_SEL1_0		FM(SEL_PWM1_0)		FM(SEL_PWM1_1)
 
-/* MOD_SEL1 */			/* 0 */			/* 1 */			/* 2 */			/* 3 */			/* 4 */			/* 5 */			/* 6 */			/* 7 */
+/* MOD_SEL2 */			/* 0 */			/* 1 */			/* 2 */			/* 3 */			/* 4 */			/* 5 */			/* 6 */			/* 7 */
 #define MOD_SEL2_31		FM(I2C_SEL_5_0)		FM(I2C_SEL_5_1)
 #define MOD_SEL2_30		FM(I2C_SEL_3_0)		FM(I2C_SEL_3_1)
 #define MOD_SEL2_29		FM(I2C_SEL_0_0)		FM(I2C_SEL_0_1)
