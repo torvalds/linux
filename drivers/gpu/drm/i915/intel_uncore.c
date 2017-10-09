@@ -626,7 +626,23 @@ void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
 
-	WARN_ON(dev_priv->uncore.fw_domains_active);
+	WARN(dev_priv->uncore.fw_domains_active,
+	     "Expected all fw_domains to be inactive, but %08x are still on\n",
+	     dev_priv->uncore.fw_domains_active);
+}
+
+void assert_forcewakes_active(struct drm_i915_private *dev_priv,
+			      enum forcewake_domains fw_domains)
+{
+	if (!dev_priv->uncore.funcs.force_wake_get)
+		return;
+
+	assert_rpm_wakelock_held(dev_priv);
+
+	fw_domains &= dev_priv->uncore.fw_domains;
+	WARN(fw_domains & ~dev_priv->uncore.fw_domains_active,
+	     "Expected %08x fw_domains to be active, but %08x are off\n",
+	     fw_domains, fw_domains & ~dev_priv->uncore.fw_domains_active);
 }
 
 /* We give fast paths for the really cool registers */

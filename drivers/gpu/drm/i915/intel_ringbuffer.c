@@ -579,7 +579,16 @@ out:
 static void reset_ring_common(struct intel_engine_cs *engine,
 			      struct drm_i915_gem_request *request)
 {
-	/* Try to restore the logical GPU state to match the continuation
+	/*
+	 * RC6 must be prevented until the reset is complete and the engine
+	 * reinitialised. If it occurs in the middle of this sequence, the
+	 * state written to/loaded from the power context is ill-defined (e.g.
+	 * the PP_BASE_DIR may be lost).
+	 */
+	assert_forcewakes_active(engine->i915, FORCEWAKE_ALL);
+
+	/*
+	 * Try to restore the logical GPU state to match the continuation
 	 * of the request queue. If we skip the context/PD restore, then
 	 * the next request may try to execute assuming that its context
 	 * is valid and loaded on the GPU and so may try to access invalid
