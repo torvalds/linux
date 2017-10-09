@@ -1733,7 +1733,7 @@ static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
 	ver_start /= 8;
 	meta_ver = *((u8 *)system_table + ver_start) & ((1 << ver_len) - 1);
 
-	if (meta_ver < 5) {
+	if (meta_ver < 4) {
 		dd_dev_info(
 			dd, "%s:Please update platform config\n", __func__);
 		return -EINVAL;
