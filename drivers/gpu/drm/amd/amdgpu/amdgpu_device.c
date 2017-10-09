@@ -1711,8 +1711,8 @@ static int amdgpu_init(struct amdgpu_device *adev)
 	}
 
 	mutex_lock(&adev->firmware.mutex);
-	if (amdgpu_ucode_init_bo(adev))
-		adev->firmware.load_type = AMDGPU_FW_LOAD_DIRECT;
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_DIRECT)
+		amdgpu_ucode_init_bo(adev);
 	mutex_unlock(&adev->firmware.mutex);
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
