@@ -4194,6 +4194,9 @@
 			Used to run time disable IRQ_TIME_ACCOUNTING on any
 			platforms where RDTSC is slow and this accounting
 			can add overhead.
+			[x86] unstable: mark the TSC clocksource as unstable, this
+			marks the TSC unconditionally unstable at bootup and
+			avoids any further wobbles once the TSC watchdog notices.
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
