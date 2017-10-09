@@ -2384,6 +2384,7 @@ static void dump_one_paca(int cpu)
 #endif
 	DUMP(p, __current, "p");
 	DUMP(p, kstack, "lx");
+	printf(" kstack_base          = 0x%016lx\n", p->kstack & ~(THREAD_SIZE - 1));
 	DUMP(p, stab_rr, "lx");
 	DUMP(p, saved_r1, "lx");
 	DUMP(p, trap_save, "x");
