@@ -925,7 +925,7 @@ int mlx4_qp_to_ready(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		context->flags &= cpu_to_be32(~(0xf << 28));
 		context->flags |= cpu_to_be32(states[i + 1] << 28);
 		if (states[i + 1] != MLX4_QP_STATE_RTR)
-			context->params2 &= ~MLX4_QP_BIT_FPP;
+			context->params2 &= ~cpu_to_be32(MLX4_QP_BIT_FPP);
 		err = mlx4_qp_modify(dev, mtt, states[i], states[i + 1],
 				     context, 0, 0, qp);
 		if (err) {
