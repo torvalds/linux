@@ -8043,6 +8043,13 @@ static int should_we_balance(struct lb_env *env)
 	int cpu, balance_cpu = -1;
 
 	/*
+	 * Ensure the balancing environment is consistent; can happen
+	 * when the softirq triggers 'during' hotplug.
+	 */
+	if (!cpumask_test_cpu(env->dst_cpu, env->cpus))
+		return 0;
+
+	/*
 	 * In the newly idle case, we will allow all the cpu's
 	 * to do the newly idle load balance.
 	 */
