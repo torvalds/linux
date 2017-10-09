@@ -1321,20 +1321,20 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	int err;
 
 	sync_filesystem(sb);
-	spin_lock(&sbi->s_lock);
 
+	spin_lock(&sbi->s_lock);
 	new_opts.s_mount_opt = sbi->s_mount_opt;
 	new_opts.s_resuid = sbi->s_resuid;
 	new_opts.s_resgid = sbi->s_resgid;
+	spin_unlock(&sbi->s_lock);
 
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options(data, sb, &new_opts)) {
-		spin_unlock(&sbi->s_lock);
+	if (!parse_options(data, sb, &new_opts))
 		return -EINVAL;
-	}
 
+	spin_lock(&sbi->s_lock);
 	es = sbi->s_es;
 	if ((sbi->s_mount_opt ^ new_opts.s_mount_opt) & EXT2_MOUNT_DAX) {
 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
