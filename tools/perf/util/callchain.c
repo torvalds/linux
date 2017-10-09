@@ -645,11 +645,9 @@ enum match_result {
 	MATCH_GT,
 };
 
-static enum match_result match_chain_srcline(struct callchain_cursor_node *node,
-					     struct callchain_list *cnode)
+static enum match_result match_chain_strings(const char *left,
+					     const char *right)
 {
-	const char *left = cnode->srcline;
-	const char *right = node->srcline;
 	enum match_result ret = MATCH_EQ;
 	int cmp;
 
@@ -659,10 +657,8 @@ static enum match_result match_chain_srcline(struct callchain_cursor_node *node,
 		cmp = 1;
 	else if (left && !right)
 		cmp = -1;
-	else if (cnode->ip == node->ip)
-		cmp = 0;
 	else
-		cmp = (cnode->ip < node->ip) ? -1 : 1;
+		return MATCH_ERROR;
 
 	if (cmp != 0)
 		ret = cmp < 0 ? MATCH_LT : MATCH_GT;
@@ -679,10 +675,18 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 	struct dso *right_dso = NULL;
 
 	if (callchain_param.key == CCKEY_SRCLINE) {
-		enum match_result match = match_chain_srcline(node, cnode);
+		enum match_result match = match_chain_strings(cnode->srcline,
+							      node->srcline);
+
+		/* if no srcline is available, fallback to symbol name */
+		if (match == MATCH_ERROR && cnode->ms.sym && node->sym)
+			match = match_chain_strings(cnode->ms.sym->name,
+						    node->sym->name);
 
 		if (match != MATCH_ERROR)
 			return match;
+
+		/* otherwise fall-back to IP-based comparison below */
 	}
 
 	if (cnode->ms.sym && sym && callchain_param.key == CCKEY_FUNCTION) {
