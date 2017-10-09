@@ -1742,6 +1742,7 @@ enum qed_iwarp_mpa_pkt_type {
 	QED_IWARP_MPA_PKT_UNALIGNED
 };
 
+#define QED_IWARP_INVALID_FPDU_LENGTH 0xffff
 #define QED_IWARP_MPA_FPDU_LENGTH_SIZE (2)
 #define QED_IWARP_MPA_CRC32_DIGEST_SIZE (4)
 
@@ -1774,6 +1775,15 @@ qed_iwarp_mpa_classify(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
+	/* special case of one byte remaining...
+	 * lower byte will be read next packet
+	 */
+	if (tcp_payload_len == 1) {
+		fpdu->fpdu_length = *mpa_data << BITS_PER_BYTE;
+		pkt_type = QED_IWARP_MPA_PKT_PARTIAL;
+		goto out;
+	}
+
 	mpa_len = ntohs(*((u16 *)(mpa_data)));
 	fpdu->fpdu_length = QED_IWARP_FPDU_LEN_WITH_PAD(mpa_len);
 
@@ -1802,12 +1812,35 @@ qed_iwarp_init_fpdu(struct qed_iwarp_ll2_buff *buf,
 	fpdu->mpa_frag = buf->data_phys_addr + pkt_data->first_mpa_offset;
 	fpdu->mpa_frag_virt = (u8 *)(buf->data) + pkt_data->first_mpa_offset;
 
-	if (tcp_payload_size < fpdu->fpdu_length)
+	if (tcp_payload_size == 1)
+		fpdu->incomplete_bytes = QED_IWARP_INVALID_FPDU_LENGTH;
+	else if (tcp_payload_size < fpdu->fpdu_length)
 		fpdu->incomplete_bytes = fpdu->fpdu_length - tcp_payload_size;
 	else
 		fpdu->incomplete_bytes = 0;	/* complete fpdu */
 
 	fpdu->mpa_frag_len = fpdu->fpdu_length - fpdu->incomplete_bytes;
+}
+
+static void
+qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
+			     struct qed_iwarp_fpdu *fpdu, u8 *mpa_data)
+{
+	u16 mpa_len;
+
+	/* Update incomplete packets if needed */
+	if (fpdu->incomplete_bytes == QED_IWARP_INVALID_FPDU_LENGTH) {
+		/* Missing lower byte is now available */
+		mpa_len = fpdu->fpdu_length | *mpa_data;
+		fpdu->fpdu_length = QED_IWARP_FPDU_LEN_WITH_PAD(mpa_len);
+		fpdu->mpa_frag_len = fpdu->fpdu_length;
+		/* one byte of hdr */
+		fpdu->incomplete_bytes = fpdu->fpdu_length - 1;
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_RDMA,
+			   "MPA_ALIGN: Partial header mpa_len=%x fpdu_length=%x incomplete_bytes=%x\n",
+			   mpa_len, fpdu->fpdu_length, fpdu->incomplete_bytes);
+	}
 }
 
 static int
@@ -1960,6 +1993,7 @@ qed_iwarp_process_mpa_pkt(struct qed_hwfn *p_hwfn,
 			curr_pkt->first_mpa_offset += fpdu->fpdu_length;
 			break;
 		case QED_IWARP_MPA_PKT_UNALIGNED:
+			qed_iwarp_update_fpdu_length(p_hwfn, fpdu, mpa_data);
 			rc = qed_iwarp_send_fpdu(p_hwfn, fpdu, curr_pkt, buf,
 						 mpa_buf->tcp_payload_len,
 						 pkt_type);

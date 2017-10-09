@@ -69,6 +69,12 @@ struct qed_iwarp_ll2_mpa_buf {
 	u8 placement_offset;
 };
 
+/* In some cases a fpdu will arrive with only one byte of the header, in this
+ * case the fpdu_length will be partial (contain only higher byte and
+ * incomplete bytes will contain the invalid value
+ */
+#define QED_IWARP_INVALID_INCOMPLETE_BYTES 0xffff
+
 struct qed_iwarp_fpdu {
 	struct qed_iwarp_ll2_buff *mpa_buf;
 	void *mpa_frag_virt;
