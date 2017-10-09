@@ -75,6 +75,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	}
 
 	ctx->reset_counter = atomic_read(&adev->gpu_reset_counter);
+	ctx->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 	ctx->init_priority = priority;
 	ctx->override_priority = AMD_SCHED_PRIORITY_UNSET;
 

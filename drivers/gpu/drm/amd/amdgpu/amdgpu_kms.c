@@ -790,21 +790,6 @@ void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 }
 
 /**
- * amdgpu_kms_vram_lost - check if VRAM was lost for this client
- *
- * @adev: amdgpu device
- * @fpriv: client private
- *
- * Check if all CS is blocked for the client because of lost VRAM
- */
-bool amdgpu_kms_vram_lost(struct amdgpu_device *adev,
-			  struct amdgpu_fpriv *fpriv)
-{
-	return fpriv->vram_lost_counter !=
-		atomic_read(&adev->vram_lost_counter);
-}
-
-/**
  * amdgpu_driver_open_kms - drm callback for open
  *
  * @dev: drm dev pointer
@@ -860,7 +845,6 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	amdgpu_ctx_mgr_init(&fpriv->ctx_mgr);
 
-	fpriv->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 	file_priv->driver_priv = fpriv;
 
 out_suspend:

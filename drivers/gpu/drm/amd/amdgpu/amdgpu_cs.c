@@ -172,7 +172,11 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	if (ret)
 		goto free_all_kdata;
 
-	p->job->vram_lost_counter = fpriv->vram_lost_counter;
+	p->job->vram_lost_counter = atomic_read(&p->adev->vram_lost_counter);
+	if (p->ctx->vram_lost_counter != p->job->vram_lost_counter) {
+		ret = -ECANCELED;
+		goto free_all_kdata;
+	}
 
 	if (p->uf_entry.robj)
 		p->job->uf_addr = uf_offset;
@@ -1205,7 +1209,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_cs *cs = data;
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
@@ -1213,8 +1216,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	if (!adev->accel_working)
 		return -EBUSY;
-	if (amdgpu_kms_vram_lost(adev, fpriv))
-		return -ENODEV;
 
 	parser.adev = adev;
 	parser.filp = filp;
