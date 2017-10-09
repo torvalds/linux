@@ -542,16 +542,6 @@ static int construct_data_ld(struct nfp_prog *nfp_prog, u16 offset, u8 size)
 	return construct_data_ind_ld(nfp_prog, offset, 0, false, size);
 }
 
-static int wrp_set_mark(struct nfp_prog *nfp_prog, u8 src)
-{
-	emit_alu(nfp_prog, NFP_BPF_ABI_MARK,
-		 reg_none(), ALU_OP_NONE, reg_b(src));
-	emit_alu(nfp_prog, NFP_BPF_ABI_FLAGS,
-		 NFP_BPF_ABI_FLAGS, ALU_OP_OR, reg_imm(NFP_BPF_ABI_FLAG_MARK));
-
-	return 0;
-}
-
 static void
 wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 {
@@ -1053,9 +1043,6 @@ static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int mem_stx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	if (meta->insn.off == offsetof(struct sk_buff, mark))
-		return wrp_set_mark(nfp_prog, meta->insn.src_reg * 2);
-
 	return -EOPNOTSUPP;
 }
 
