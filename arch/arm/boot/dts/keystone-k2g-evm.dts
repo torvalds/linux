@@ -45,6 +45,12 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
+
+	ecap0_pins: ecap0_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x1374) (BUFFER_CLASS_B | MUX_MODE4)	/* pr1_mdio_data.ecap0_in_apwm0_out */
+		>;
+	};
 };
 
 &k2g_pinctrl {
@@ -156,4 +162,10 @@
 &usb1 {
 	dr_mode = "peripheral";
 	status = "okay";
+};
+
+&ecap0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ecap0_pins>;
 };
