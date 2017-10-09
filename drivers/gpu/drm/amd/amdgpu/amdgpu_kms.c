@@ -763,6 +763,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	}
+	case AMDGPU_INFO_VRAM_LOST_COUNTER:
+		ui32 = atomic_read(&adev->vram_lost_counter);
+		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;
