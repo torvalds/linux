@@ -1420,6 +1420,7 @@ void qed_iwarp_resc_free(struct qed_hwfn *p_hwfn)
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->tcp_cid_map, 1);
 	kfree(iwarp_info->mpa_bufs);
 	kfree(iwarp_info->partial_fpdus);
+	kfree(iwarp_info->mpa_intermediate_buf);
 }
 
 int qed_iwarp_accept(void *rdma_cxt, struct qed_iwarp_accept_in *iparams)
@@ -1762,6 +1763,11 @@ char *pkt_type_str[] = {
 	"QED_IWARP_MPA_PKT_UNALIGNED"
 };
 
+static int
+qed_iwarp_recycle_pkt(struct qed_hwfn *p_hwfn,
+		      struct qed_iwarp_fpdu *fpdu,
+		      struct qed_iwarp_ll2_buff *buf);
+
 static enum qed_iwarp_mpa_pkt_type
 qed_iwarp_mpa_classify(struct qed_hwfn *p_hwfn,
 		       struct qed_iwarp_fpdu *fpdu,
@@ -1822,6 +1828,68 @@ qed_iwarp_init_fpdu(struct qed_iwarp_ll2_buff *buf,
 	fpdu->mpa_frag_len = fpdu->fpdu_length - fpdu->incomplete_bytes;
 }
 
+static int
+qed_iwarp_cp_pkt(struct qed_hwfn *p_hwfn,
+		 struct qed_iwarp_fpdu *fpdu,
+		 struct unaligned_opaque_data *pkt_data,
+		 struct qed_iwarp_ll2_buff *buf, u16 tcp_payload_size)
+{
+	u8 *tmp_buf = p_hwfn->p_rdma_info->iwarp.mpa_intermediate_buf;
+	int rc;
+
+	/* need to copy the data from the partial packet stored in fpdu
+	 * to the new buf, for this we also need to move the data currently
+	 * placed on the buf. The assumption is that the buffer is big enough
+	 * since fpdu_length <= mss, we use an intermediate buffer since
+	 * we may need to copy the new data to an overlapping location
+	 */
+	if ((fpdu->mpa_frag_len + tcp_payload_size) > (u16)buf->buff_size) {
+		DP_ERR(p_hwfn,
+		       "MPA ALIGN: Unexpected: buffer is not large enough for split fpdu buff_size = %d mpa_frag_len = %d, tcp_payload_size = %d, incomplete_bytes = %d\n",
+		       buf->buff_size, fpdu->mpa_frag_len,
+		       tcp_payload_size, fpdu->incomplete_bytes);
+		return -EINVAL;
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+		   "MPA ALIGN Copying fpdu: [%p, %d] [%p, %d]\n",
+		   fpdu->mpa_frag_virt, fpdu->mpa_frag_len,
+		   (u8 *)(buf->data) + pkt_data->first_mpa_offset,
+		   tcp_payload_size);
+
+	memcpy(tmp_buf, fpdu->mpa_frag_virt, fpdu->mpa_frag_len);
+	memcpy(tmp_buf + fpdu->mpa_frag_len,
+	       (u8 *)(buf->data) + pkt_data->first_mpa_offset,
+	       tcp_payload_size);
+
+	rc = qed_iwarp_recycle_pkt(p_hwfn, fpdu, fpdu->mpa_buf);
+	if (rc)
+		return rc;
+
+	/* If we managed to post the buffer copy the data to the new buffer
+	 * o/w this will occur in the next round...
+	 */
+	memcpy((u8 *)(buf->data), tmp_buf,
+	       fpdu->mpa_frag_len + tcp_payload_size);
+
+	fpdu->mpa_buf = buf;
+	/* fpdu->pkt_hdr remains as is */
+	/* fpdu->mpa_frag is overridden with new buf */
+	fpdu->mpa_frag = buf->data_phys_addr;
+	fpdu->mpa_frag_virt = buf->data;
+	fpdu->mpa_frag_len += tcp_payload_size;
+
+	fpdu->incomplete_bytes -= tcp_payload_size;
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_RDMA,
+		   "MPA ALIGN: split fpdu buff_size = %d mpa_frag_len = %d, tcp_payload_size = %d, incomplete_bytes = %d\n",
+		   buf->buff_size, fpdu->mpa_frag_len, tcp_payload_size,
+		   fpdu->incomplete_bytes);
+
+	return 0;
+}
+
 static void
 qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
 			     struct qed_iwarp_fpdu *fpdu, u8 *mpa_data)
@@ -1841,6 +1909,90 @@ qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
 			   "MPA_ALIGN: Partial header mpa_len=%x fpdu_length=%x incomplete_bytes=%x\n",
 			   mpa_len, fpdu->fpdu_length, fpdu->incomplete_bytes);
 	}
+}
+
+#define QED_IWARP_IS_RIGHT_EDGE(_curr_pkt) \
+	(GET_FIELD((_curr_pkt)->flags,	   \
+		   UNALIGNED_OPAQUE_DATA_PKT_REACHED_WIN_RIGHT_EDGE))
+
+/* This function is used to recycle a buffer using the ll2 drop option. It
+ * uses the mechanism to ensure that all buffers posted to tx before this one
+ * were completed. The buffer sent here will be sent as a cookie in the tx
+ * completion function and can then be reposted to rx chain when done. The flow
+ * that requires this is the flow where a FPDU splits over more than 3 tcp
+ * segments. In this case the driver needs to re-post a rx buffer instead of
+ * the one received, but driver can't simply repost a buffer it copied from
+ * as there is a case where the buffer was originally a packed FPDU, and is
+ * partially posted to FW. Driver needs to ensure FW is done with it.
+ */
+static int
+qed_iwarp_recycle_pkt(struct qed_hwfn *p_hwfn,
+		      struct qed_iwarp_fpdu *fpdu,
+		      struct qed_iwarp_ll2_buff *buf)
+{
+	struct qed_ll2_tx_pkt_info tx_pkt;
+	u8 ll2_handle;
+	int rc;
+
+	memset(&tx_pkt, 0, sizeof(tx_pkt));
+	tx_pkt.num_of_bds = 1;
+	tx_pkt.tx_dest = QED_LL2_TX_DEST_DROP;
+	tx_pkt.l4_hdr_offset_w = fpdu->pkt_hdr_size >> 2;
+	tx_pkt.first_frag = fpdu->pkt_hdr;
+	tx_pkt.first_frag_len = fpdu->pkt_hdr_size;
+	buf->piggy_buf = NULL;
+	tx_pkt.cookie = buf;
+
+	ll2_handle = p_hwfn->p_rdma_info->iwarp.ll2_mpa_handle;
+
+	rc = qed_ll2_prepare_tx_packet(p_hwfn, ll2_handle, &tx_pkt, true);
+	if (rc)
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "Can't drop packet rc=%d\n", rc);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_RDMA,
+		   "MPA_ALIGN: send drop tx packet [%lx, 0x%x], buf=%p, rc=%d\n",
+		   (unsigned long int)tx_pkt.first_frag,
+		   tx_pkt.first_frag_len, buf, rc);
+
+	return rc;
+}
+
+static int
+qed_iwarp_win_right_edge(struct qed_hwfn *p_hwfn, struct qed_iwarp_fpdu *fpdu)
+{
+	struct qed_ll2_tx_pkt_info tx_pkt;
+	u8 ll2_handle;
+	int rc;
+
+	memset(&tx_pkt, 0, sizeof(tx_pkt));
+	tx_pkt.num_of_bds = 1;
+	tx_pkt.tx_dest = QED_LL2_TX_DEST_LB;
+	tx_pkt.l4_hdr_offset_w = fpdu->pkt_hdr_size >> 2;
+
+	tx_pkt.first_frag = fpdu->pkt_hdr;
+	tx_pkt.first_frag_len = fpdu->pkt_hdr_size;
+	tx_pkt.enable_ip_cksum = true;
+	tx_pkt.enable_l4_cksum = true;
+	tx_pkt.calc_ip_len = true;
+	/* vlan overload with enum iwarp_ll2_tx_queues */
+	tx_pkt.vlan = IWARP_LL2_ALIGNED_RIGHT_TRIMMED_TX_QUEUE;
+
+	ll2_handle = p_hwfn->p_rdma_info->iwarp.ll2_mpa_handle;
+
+	rc = qed_ll2_prepare_tx_packet(p_hwfn, ll2_handle, &tx_pkt, true);
+	if (rc)
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "Can't send right edge rc=%d\n", rc);
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_RDMA,
+		   "MPA_ALIGN: Sent right edge FPDU num_bds=%d [%lx, 0x%x], rc=%d\n",
+		   tx_pkt.num_of_bds,
+		   (unsigned long int)tx_pkt.first_frag,
+		   tx_pkt.first_frag_len, rc);
+
+	return rc;
 }
 
 static int
@@ -1971,6 +2123,20 @@ qed_iwarp_process_mpa_pkt(struct qed_hwfn *p_hwfn,
 					    mpa_buf->tcp_payload_len,
 					    mpa_buf->placement_offset);
 
+			if (!QED_IWARP_IS_RIGHT_EDGE(curr_pkt)) {
+				mpa_buf->tcp_payload_len = 0;
+				break;
+			}
+
+			rc = qed_iwarp_win_right_edge(p_hwfn, fpdu);
+
+			if (rc) {
+				DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+					   "Can't send FPDU:reset rc=%d\n", rc);
+				memset(fpdu, 0, sizeof(*fpdu));
+				break;
+			}
+
 			mpa_buf->tcp_payload_len = 0;
 			break;
 		case QED_IWARP_MPA_PKT_PACKED:
@@ -1994,6 +2160,28 @@ qed_iwarp_process_mpa_pkt(struct qed_hwfn *p_hwfn,
 			break;
 		case QED_IWARP_MPA_PKT_UNALIGNED:
 			qed_iwarp_update_fpdu_length(p_hwfn, fpdu, mpa_data);
+			if (mpa_buf->tcp_payload_len < fpdu->incomplete_bytes) {
+				/* special handling of fpdu split over more
+				 * than 2 segments
+				 */
+				if (QED_IWARP_IS_RIGHT_EDGE(curr_pkt)) {
+					rc = qed_iwarp_win_right_edge(p_hwfn,
+								      fpdu);
+					/* packet will be re-processed later */
+					if (rc)
+						return rc;
+				}
+
+				rc = qed_iwarp_cp_pkt(p_hwfn, fpdu, curr_pkt,
+						      buf,
+						      mpa_buf->tcp_payload_len);
+				if (rc) /* packet will be re-processed later */
+					return rc;
+
+				mpa_buf->tcp_payload_len = 0;
+				break;
+			}
+
 			rc = qed_iwarp_send_fpdu(p_hwfn, fpdu, curr_pkt, buf,
 						 mpa_buf->tcp_payload_len,
 						 pkt_type);
@@ -2510,6 +2698,11 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 		goto err;
 
 	iwarp_info->max_num_partial_fpdus = (u16)p_hwfn->p_rdma_info->num_qps;
+
+	iwarp_info->mpa_intermediate_buf = kzalloc(mpa_buff_size, GFP_KERNEL);
+	if (!iwarp_info->mpa_intermediate_buf)
+		goto err;
+
 	/* The mpa_bufs array serves for pending RX packets received on the
 	 * mpa ll2 that don't have place on the tx ring and require later
 	 * processing. We can't fail on allocation of such a struct therefore

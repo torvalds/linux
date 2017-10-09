@@ -107,6 +107,7 @@ struct qed_iwarp_info {
 	enum mpa_rtr_type rtr_type;
 	struct qed_iwarp_fpdu *partial_fpdus;
 	struct qed_iwarp_ll2_mpa_buf *mpa_bufs;
+	u8 *mpa_intermediate_buf;
 	u16 max_num_partial_fpdus;
 };
 
