@@ -430,6 +430,7 @@ static void exynos_drm_unbind(struct device *dev)
 
 	kfree(drm->dev_private);
 	drm->dev_private = NULL;
+	dev_set_drvdata(dev, NULL);
 
 	drm_dev_unref(drm);
 }
