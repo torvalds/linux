@@ -2527,7 +2527,12 @@ static void its_vpe_invall(struct its_vpe *vpe)
 		if (its_list_map && !vpe->its_vm->vlpi_count[its->list_nr])
 			continue;
 
+		/*
+		 * Sending a VINVALL to a single ITS is enough, as all
+		 * we need is to reach the redistributors.
+		 */
 		its_send_vinvall(its, vpe);
+		return;
 	}
 }
 
