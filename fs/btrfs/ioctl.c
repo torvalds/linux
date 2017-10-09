@@ -2984,7 +2984,7 @@ static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
 out:
 	if (ret)
 		btrfs_cmp_data_free(cmp);
-	return 0;
+	return ret;
 }
 
 static int btrfs_cmp_data(struct inode *src, u64 loff, struct inode *dst,
@@ -4116,6 +4116,10 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
+		goto out;
+	}
+	if (!is_fstree(new_root->objectid)) {
+		ret = -ENOENT;
 		goto out;
 	}
 

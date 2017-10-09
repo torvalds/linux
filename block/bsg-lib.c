@@ -147,7 +147,6 @@ static int bsg_create_job(struct device *dev, struct request *req)
 failjob_rls_rqst_payload:
 	kfree(job->request_payload.sg_list);
 failjob_rls_job:
-	kfree(job);
 	return -ENOMEM;
 }
 

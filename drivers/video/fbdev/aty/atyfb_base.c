@@ -1861,7 +1861,7 @@ static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 #if defined(DEBUG) && defined(CONFIG_FB_ATY_CT)
 	case ATYIO_CLKR:
 		if (M64_HAS(INTEGRATED)) {
-			struct atyclk clk;
+			struct atyclk clk = { 0 };
 			union aty_pll *pll = &par->pll;
 			u32 dsp_config = pll->ct.dsp_config;
 			u32 dsp_on_off = pll->ct.dsp_on_off;
