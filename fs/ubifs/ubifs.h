@@ -38,12 +38,11 @@
 #include <linux/backing-dev.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
-#ifdef CONFIG_UBIFS_FS_ENCRYPTION
-#include <linux/fscrypt_supp.h>
-#else
-#include <linux/fscrypt_notsupp.h>
-#endif
 #include <linux/random.h>
+
+#define __FS_HAS_ENCRYPTION IS_ENABLED(CONFIG_UBIFS_FS_ENCRYPTION)
+#include <linux/fscrypt.h>
+
 #include "ubifs-media.h"
 
 /* Version of this UBIFS implementation */
