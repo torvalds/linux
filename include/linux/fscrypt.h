@@ -174,4 +174,31 @@ static inline int fscrypt_require_key(struct inode *inode)
 	return 0;
 }
 
+/**
+ * fscrypt_prepare_link - prepare to link an inode into a possibly-encrypted directory
+ * @old_dentry: an existing dentry for the inode being linked
+ * @dir: the target directory
+ * @dentry: negative dentry for the target filename
+ *
+ * A new link can only be added to an encrypted directory if the directory's
+ * encryption key is available --- since otherwise we'd have no way to encrypt
+ * the filename.  Therefore, we first set up the directory's encryption key (if
+ * not already done) and return an error if it's unavailable.
+ *
+ * We also verify that the link will not violate the constraint that all files
+ * in an encrypted directory tree use the same encryption policy.
+ *
+ * Return: 0 on success, -ENOKEY if the directory's encryption key is missing,
+ * -EPERM if the link would result in an inconsistent encryption policy, or
+ * another -errno code.
+ */
+static inline int fscrypt_prepare_link(struct dentry *old_dentry,
+				       struct inode *dir,
+				       struct dentry *dentry)
+{
+	if (IS_ENCRYPTED(dir))
+		return __fscrypt_prepare_link(d_inode(old_dentry), dir);
+	return 0;
+}
+
 #endif	/* _LINUX_FSCRYPT_H */
