@@ -55,6 +55,7 @@ enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
 #define QED_IWARP_HANDLE_INVAL		(0xff)
 
 struct qed_iwarp_ll2_buff {
+	struct qed_iwarp_ll2_buff *piggy_buf;
 	void *data;
 	dma_addr_t data_phys_addr;
 	u32 buff_size;

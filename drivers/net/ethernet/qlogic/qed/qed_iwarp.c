@@ -1846,6 +1846,12 @@ qed_iwarp_send_fpdu(struct qed_hwfn *p_hwfn,
 	/* vlan overload with enum iwarp_ll2_tx_queues */
 	tx_pkt.vlan = IWARP_LL2_ALIGNED_TX_QUEUE;
 
+	/* special case of unaligned packet and not packed, need to send
+	 * both buffers as cookie to release.
+	 */
+	if (tcp_payload_size == fpdu->incomplete_bytes)
+		fpdu->mpa_buf->piggy_buf = buf;
+
 	ll2_handle = p_hwfn->p_rdma_info->iwarp.ll2_mpa_handle;
 
 	/* Set first fragment to header */
@@ -2195,9 +2201,19 @@ static void qed_iwarp_ll2_comp_tx_pkt(void *cxt, u8 connection_handle,
 				      bool b_last_fragment, bool b_last_packet)
 {
 	struct qed_iwarp_ll2_buff *buffer = cookie;
+	struct qed_iwarp_ll2_buff *piggy;
 	struct qed_hwfn *p_hwfn = cxt;
 
+	if (!buffer)		/* can happen in packed mpa unaligned... */
+		return;
+
 	/* this was originally an rx packet, post it back */
+	piggy = buffer->piggy_buf;
+	if (piggy) {
+		buffer->piggy_buf = NULL;
+		qed_iwarp_ll2_post_rx(p_hwfn, piggy, connection_handle);
+	}
+
 	qed_iwarp_ll2_post_rx(p_hwfn, buffer, connection_handle);
 
 	if (connection_handle == p_hwfn->p_rdma_info->iwarp.ll2_mpa_handle)
@@ -2215,6 +2231,15 @@ static void qed_iwarp_ll2_rel_tx_pkt(void *cxt, u8 connection_handle,
 
 	if (!buffer)
 		return;
+
+	if (buffer->piggy_buf) {
+		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+				  buffer->piggy_buf->buff_size,
+				  buffer->piggy_buf->data,
+				  buffer->piggy_buf->data_phys_addr);
+
+		kfree(buffer->piggy_buf);
+	}
 
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev, buffer->buff_size,
 			  buffer->data, buffer->data_phys_addr);
