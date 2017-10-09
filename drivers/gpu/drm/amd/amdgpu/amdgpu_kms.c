@@ -270,7 +270,6 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct drm_amdgpu_info *info = data;
 	struct amdgpu_mode_info *minfo = &adev->mode_info;
 	void __user *out = (void __user *)(uintptr_t)info->return_pointer;
@@ -283,8 +282,6 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 	if (!info->return_size || !info->return_pointer)
 		return -EINVAL;
-	if (amdgpu_kms_vram_lost(adev, fpriv))
-		return -ENODEV;
 
 	switch (info->query) {
 	case AMDGPU_INFO_ACCEL_WORKING:
@@ -792,10 +789,19 @@ void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 	vga_switcheroo_process_delayed_switch();
 }
 
+/**
+ * amdgpu_kms_vram_lost - check if VRAM was lost for this client
+ *
+ * @adev: amdgpu device
+ * @fpriv: client private
+ *
+ * Check if all CS is blocked for the client because of lost VRAM
+ */
 bool amdgpu_kms_vram_lost(struct amdgpu_device *adev,
 			  struct amdgpu_fpriv *fpriv)
 {
-	return fpriv->vram_lost_counter != atomic_read(&adev->vram_lost_counter);
+	return fpriv->vram_lost_counter !=
+		atomic_read(&adev->vram_lost_counter);
 }
 
 /**

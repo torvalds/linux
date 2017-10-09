@@ -579,11 +579,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			args->operation);
 		return -EINVAL;
 	}
-	if ((args->operation == AMDGPU_VA_OP_MAP) ||
-	    (args->operation == AMDGPU_VA_OP_REPLACE)) {
-		if (amdgpu_kms_vram_lost(adev, fpriv))
-			return -ENODEV;
-	}
 
 	INIT_LIST_HEAD(&list);
 	INIT_LIST_HEAD(&duplicates);
