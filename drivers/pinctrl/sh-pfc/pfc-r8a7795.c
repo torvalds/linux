@@ -1508,7 +1508,7 @@ static const u16 pinmux_data[] = {
 };
 
 /*
- * R8A7795 has 8 banks with 32 PGIOS in each => 256 GPIOs.
+ * R8A7795 has 8 banks with 32 GPIOs in each => 256 GPIOs.
  * Physical layout rows: A - AW, cols: 1 - 39.
  */
 #define ROW_GROUP_A(r) ('Z' - 'A' + 1 + (r))
