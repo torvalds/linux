@@ -169,38 +169,6 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			if (!print_oneline)
 				printed += fprintf(fp, "\n");
 
-			if (symbol_conf.inline_name && node->map) {
-				struct inline_node *inode;
-
-				addr = map__rip_2objdump(node->map, node->ip),
-				inode = dso__parse_addr_inlines(node->map->dso, addr);
-
-				if (inode) {
-					struct inline_list *ilist;
-
-					list_for_each_entry(ilist, &inode->val, list) {
-						if (print_arrow)
-							printed += fprintf(fp, " <-");
-
-						/* IP is same, just skip it */
-						if (print_ip)
-							printed += fprintf(fp, "%c%16s",
-									   s, "");
-						if (print_sym)
-							printed += fprintf(fp, " %s",
-									   ilist->funcname);
-						if (print_srcline)
-							printed += fprintf(fp, "\n  %s:%d",
-									   ilist->filename,
-									   ilist->line_nr);
-						if (!print_oneline)
-							printed += fprintf(fp, "\n");
-					}
-
-					inline_node__delete(inode);
-				}
-			}
-
 			if (symbol_conf.bt_stop_list &&
 			    node->sym &&
 			    strlist__has_entry(symbol_conf.bt_stop_list,

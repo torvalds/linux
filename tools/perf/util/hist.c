@@ -1141,11 +1141,6 @@ void hist_entry__delete(struct hist_entry *he)
 		zfree(&he->mem_info);
 	}
 
-	if (he->inline_node) {
-		inline_node__delete(he->inline_node);
-		he->inline_node = NULL;
-	}
-
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
 	if (he->srcfile && he->srcfile[0])
