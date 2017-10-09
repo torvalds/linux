@@ -825,12 +825,24 @@ static int sub_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int shl_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
 
-	if (insn->imm != 32)
-		return 1; /* TODO */
-
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2 + 1, insn->dst_reg * 2);
-	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2), 0);
+	if (insn->imm < 32) {
+		emit_shf(nfp_prog, reg_both(dst + 1),
+			 reg_a(dst + 1), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_R_DSHF, 32 - insn->imm);
+		emit_shf(nfp_prog, reg_both(dst),
+			 reg_none(), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_L_SHF, insn->imm);
+	} else if (insn->imm == 32) {
+		wrp_reg_mov(nfp_prog, dst + 1, dst);
+		wrp_immed(nfp_prog, reg_both(dst), 0);
+	} else if (insn->imm > 32) {
+		emit_shf(nfp_prog, reg_both(dst + 1),
+			 reg_none(), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_L_SHF, insn->imm - 32);
+		wrp_immed(nfp_prog, reg_both(dst), 0);
+	}
 
 	return 0;
 }
@@ -838,12 +850,24 @@ static int shl_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int shr_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
 
-	if (insn->imm != 32)
-		return 1; /* TODO */
-
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2, insn->dst_reg * 2 + 1);
-	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2 + 1), 0);
+	if (insn->imm < 32) {
+		emit_shf(nfp_prog, reg_both(dst),
+			 reg_a(dst + 1), SHF_OP_NONE, reg_b(dst),
+			 SHF_SC_R_DSHF, insn->imm);
+		emit_shf(nfp_prog, reg_both(dst + 1),
+			 reg_none(), SHF_OP_NONE, reg_b(dst + 1),
+			 SHF_SC_R_SHF, insn->imm);
+	} else if (insn->imm == 32) {
+		wrp_reg_mov(nfp_prog, dst, dst + 1);
+		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	} else if (insn->imm > 32) {
+		emit_shf(nfp_prog, reg_both(dst),
+			 reg_none(), SHF_OP_NONE, reg_b(dst + 1),
+			 SHF_SC_R_SHF, insn->imm - 32);
+		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	}
 
 	return 0;
 }
