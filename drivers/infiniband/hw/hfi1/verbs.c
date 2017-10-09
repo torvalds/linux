@@ -146,6 +146,9 @@ static int pio_wait(struct rvt_qp *qp,
 /* Length of buffer to create verbs txreq cache name */
 #define TXREQ_NAME_LEN 24
 
+/* 16B trailing buffer */
+static const u8 trail_buf[MAX_16B_PADDING];
+
 static uint wss_threshold;
 module_param(wss_threshold, uint, S_IRUGO);
 MODULE_PARM_DESC(wss_threshold, "Percentage (1-100) of LLC to use as a threshold for a cacheless copy");
@@ -814,7 +817,6 @@ static int build_verbs_tx_desc(
 	u16 hdrbytes = tx->hdr_dwords << 2;
 	u32 *hdr;
 	u8 extra_bytes = 0;
-	static char trail_buf[12]; /* CRC = 4, LT = 1, Pad = 0 to 7 bytes */
 
 	if (tx->phdr.hdr.hdr_type) {
 		/*
@@ -869,9 +871,9 @@ static int build_verbs_tx_desc(
 	}
 
 	/* add icrc, lt byte, and padding to flit */
-	if (extra_bytes != 0)
+	if (extra_bytes)
 		ret = sdma_txadd_kvaddr(sde->dd, &tx->txreq,
-					trail_buf, extra_bytes);
+					(void *)trail_buf, extra_bytes);
 
 bail_txadd:
 	return ret;
@@ -1128,18 +1130,10 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 				len -= slen;
 			}
 		}
-		/*
-		 * Bypass packet will need to copy additional
-		 * bytes to accommodate for CRC and LT bytes
-		 */
-		if (extra_bytes) {
-			u8 *empty_buf;
+		/* add icrc, lt byte, and padding to flit */
+		if (extra_bytes)
+			seg_pio_copy_mid(pbuf, trail_buf, extra_bytes);
 
-			empty_buf = kcalloc(extra_bytes, sizeof(u8),
-					    GFP_KERNEL);
-			seg_pio_copy_mid(pbuf, empty_buf, extra_bytes);
-			kfree(empty_buf);
-		}
 		seg_pio_copy_end(pbuf);
 	}
 
