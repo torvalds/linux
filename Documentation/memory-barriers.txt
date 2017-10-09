@@ -227,17 +227,20 @@ There are some minimal guarantees that may be expected of a CPU:
  (*) On any given CPU, dependent memory accesses will be issued in order, with
      respect to itself.  This means that for:
 
-	Q = READ_ONCE(P); smp_read_barrier_depends(); D = READ_ONCE(*Q);
+	Q = READ_ONCE(P); D = READ_ONCE(*Q);
 
      the CPU will issue the following memory operations:
 
 	Q = LOAD P, D = LOAD *Q
 
-     and always in that order.  On most systems, smp_read_barrier_depends()
-     does nothing, but it is required for DEC Alpha.  The READ_ONCE()
-     is required to prevent compiler mischief.  Please note that you
-     should normally use something like rcu_dereference() instead of
-     open-coding smp_read_barrier_depends().
+     and always in that order.  However, on DEC Alpha, READ_ONCE() also
+     emits a memory-barrier instruction, so that a DEC Alpha CPU will
+     instead issue the following memory operations:
+
+	Q = LOAD P, MEMORY_BARRIER, D = LOAD *Q, MEMORY_BARRIER
+
+     Whether on DEC Alpha or not, the READ_ONCE() also prevents compiler
+     mischief.
 
  (*) Overlapping loads and stores within a particular CPU will appear to be
      ordered within that CPU.  This means that for:
