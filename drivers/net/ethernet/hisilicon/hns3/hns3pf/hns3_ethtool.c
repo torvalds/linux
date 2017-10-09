@@ -215,8 +215,8 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
  * @stats: statistics info.
  * @data: statistics data.
  */
-void hns3_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
-		    u64 *data)
+static void hns3_get_stats(struct net_device *netdev,
+			   struct ethtool_stats *stats, u64 *data)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	u64 *p = data;

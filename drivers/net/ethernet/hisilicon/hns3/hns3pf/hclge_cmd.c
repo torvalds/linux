@@ -276,8 +276,8 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	return retval;
 }
 
-enum hclge_cmd_status hclge_cmd_query_firmware_version(struct hclge_hw *hw,
-						       u32 *version)
+static enum hclge_cmd_status hclge_cmd_query_firmware_version(
+		struct hclge_hw *hw, u32 *version)
 {
 	struct hclge_query_version_cmd *resp;
 	struct hclge_desc desc;

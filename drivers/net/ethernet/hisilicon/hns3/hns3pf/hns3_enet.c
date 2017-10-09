@@ -24,7 +24,7 @@
 #include "hnae3.h"
 #include "hns3_enet.h"
 
-const char hns3_driver_name[] = "hns3";
+static const char hns3_driver_name[] = "hns3";
 const char hns3_driver_version[] = VERMAGIC_STRING;
 static const char hns3_driver_string[] =
 			"Hisilicon Ethernet Network Driver for Hip08 Family";
@@ -304,18 +304,6 @@ static int hns3_nic_net_stop(struct net_device *netdev)
 	return 0;
 }
 
-void hns3_set_multicast_list(struct net_device *netdev)
-{
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct netdev_hw_addr *ha = NULL;
-
-	if (h->ae_algo->ops->set_mc_addr) {
-		netdev_for_each_mc_addr(ha, netdev)
-			if (h->ae_algo->ops->set_mc_addr(h, ha->addr))
-				netdev_err(netdev, "set multicast fail\n");
-	}
-}
-
 static int hns3_nic_uc_sync(struct net_device *netdev,
 			    const unsigned char *addr)
 {
@@ -360,7 +348,7 @@ static int hns3_nic_mc_unsync(struct net_device *netdev,
 	return 0;
 }
 
-void hns3_nic_set_rx_mode(struct net_device *netdev)
+static void hns3_nic_set_rx_mode(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
@@ -2596,7 +2584,7 @@ static void hns3_fini_ring(struct hns3_enet_ring *ring)
 	ring->next_to_use = 0;
 }
 
-int hns3_buf_size2type(u32 buf_size)
+static int hns3_buf_size2type(u32 buf_size)
 {
 	int bd_size_type;
 
@@ -2908,7 +2896,7 @@ err_out:
 	return ret;
 }
 
-const struct hnae3_client_ops client_ops = {
+static const struct hnae3_client_ops client_ops = {
 	.init_instance = hns3_client_init,
 	.uninit_instance = hns3_client_uninit,
 	.link_status_change = hns3_link_status_change,

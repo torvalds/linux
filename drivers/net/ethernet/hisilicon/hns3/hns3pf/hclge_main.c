@@ -1550,8 +1550,8 @@ static int hclge_tx_buffer_calc(struct hclge_dev *hdev,
  * @buf_alloc: pointer to buffer calculation data
  * @return: 0: calculate sucessful, negative: fail
  */
-int hclge_rx_buffer_calc(struct hclge_dev *hdev,
-			 struct hclge_pkt_buf_alloc *buf_alloc)
+static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
+				struct hclge_pkt_buf_alloc *buf_alloc)
 {
 	u32 rx_all = hdev->pkt_buf_size;
 	int no_pfc_priv_num, pfc_priv_num;
@@ -2828,9 +2828,9 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 	return 0;
 }
 
-int hclge_map_handle_ring_to_vector(struct hnae3_handle *handle,
-				    int vector,
-				    struct hnae3_ring_chain_node *ring_chain)
+static int hclge_map_handle_ring_to_vector(
+		struct hnae3_handle *handle, int vector,
+		struct hnae3_ring_chain_node *ring_chain)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -3206,8 +3206,8 @@ static void hclge_prepare_mac_addr(struct hclge_mac_vlan_tbl_entry_cmd *new_req,
 	new_req->mac_addr_lo16 = cpu_to_le16(low_val & 0xffff);
 }
 
-u16 hclge_get_mac_addr_to_mta_index(struct hclge_vport *vport,
-				    const u8 *addr)
+static u16 hclge_get_mac_addr_to_mta_index(struct hclge_vport *vport,
+					   const u8 *addr)
 {
 	u16 high_val = addr[1] | (addr[0] << 8);
 	struct hclge_dev *hdev = vport->back;
