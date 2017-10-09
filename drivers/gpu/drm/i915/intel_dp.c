@@ -254,14 +254,14 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	} else if (IS_GEN9_BC(dev_priv)) {
 		source_rates = skl_rates;
 		size = ARRAY_SIZE(skl_rates);
-	} else {
+	} else if ((IS_HASWELL(dev_priv) && !IS_HSW_ULX(dev_priv)) ||
+		   IS_BROADWELL(dev_priv)) {
 		source_rates = default_rates;
 		size = ARRAY_SIZE(default_rates);
+	} else {
+		source_rates = default_rates;
+		size = ARRAY_SIZE(default_rates) - 1;
 	}
-
-	/* This depends on the fact that 5.4 is last value in the array */
-	if (!intel_dp_source_supports_hbr2(intel_dp))
-		size--;
 
 	intel_dp->source_rates = source_rates;
 	intel_dp->num_source_rates = size;
@@ -1482,14 +1482,9 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	int max_rate = intel_dp->source_rates[intel_dp->num_source_rates - 1];
 
-	if ((IS_HASWELL(dev_priv) && !IS_HSW_ULX(dev_priv)) ||
-	    IS_BROADWELL(dev_priv) || (INTEL_GEN(dev_priv) >= 9))
-		return true;
-	else
-		return false;
+	return max_rate >= 540000;
 }
 
 static void
