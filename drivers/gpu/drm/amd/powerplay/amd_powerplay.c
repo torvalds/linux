@@ -1166,6 +1166,41 @@ static int pp_dpm_switch_power_profile(void *handle,
 	return 0;
 }
 
+static int pp_dpm_notify_smu_memory_info(void *handle,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
+{
+	struct pp_hwmgr  *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+
+	if (ret)
+		return ret;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->notify_cac_buffer_info == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&pp_handle->pp_lock);
+
+	ret = hwmgr->hwmgr_func->notify_cac_buffer_info(hwmgr, virtual_addr_low,
+					virtual_addr_hi, mc_addr_low, mc_addr_hi,
+					size);
+
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return ret;
+}
+
+
 /* export this function to DAL */
 
 static int pp_display_configuration_change(void *handle,
@@ -1437,6 +1472,7 @@ const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_power_profile_state = pp_dpm_set_power_profile_state,
 	.switch_power_profile = pp_dpm_switch_power_profile,
 	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
+	.notify_smu_memory_info = pp_dpm_notify_smu_memory_info,
 /* export to DC */
 	.get_sclk = pp_dpm_get_sclk,
 	.get_mclk = pp_dpm_get_mclk,
