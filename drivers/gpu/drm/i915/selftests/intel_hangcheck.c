@@ -878,9 +878,16 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_reset_queue),
 		SUBTEST(igt_handle_error),
 	};
+	int err;
 
 	if (!intel_has_gpu_reset(i915))
 		return 0;
 
-	return i915_subtests(tests, i915);
+	intel_runtime_pm_get(i915);
+
+	err = i915_subtests(tests, i915);
+
+	intel_runtime_pm_put(i915);
+
+	return err;
 }
