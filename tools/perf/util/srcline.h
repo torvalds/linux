@@ -18,8 +18,7 @@ void free_srcline(char *srcline);
 
 struct inline_list {
 	struct symbol		*symbol;
-	char			*filename;
-	unsigned int		line_nr;
+	char			*srcline;
 	struct list_head	list;
 };
 
