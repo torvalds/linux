@@ -3331,6 +3331,7 @@ static struct snd_soc_tplg_ops skl_tplg_ops  = {
 	.io_ops = skl_tplg_kcontrol_ops,
 	.io_ops_count = ARRAY_SIZE(skl_tplg_kcontrol_ops),
 	.manifest = skl_manifest_load,
+	.dai_load = skl_dai_load,
 };
 
 /*
