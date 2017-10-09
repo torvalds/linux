@@ -1987,6 +1987,7 @@ static int gfs2_getattr(const struct path *path, struct kstat *stat,
 	struct inode *inode = d_inode(path->dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
+	u32 gfsflags;
 	int error;
 
 	gfs2_holder_mark_uninitialized(&gh);
@@ -1996,7 +1997,20 @@ static int gfs2_getattr(const struct path *path, struct kstat *stat,
 			return error;
 	}
 
+	gfsflags = ip->i_diskflags;
+	if (gfsflags & GFS2_DIF_APPENDONLY)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (gfsflags & GFS2_DIF_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+				  STATX_ATTR_COMPRESSED |
+				  STATX_ATTR_ENCRYPTED |
+				  STATX_ATTR_IMMUTABLE |
+				  STATX_ATTR_NODUMP);
+
 	generic_fillattr(inode, stat);
+
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
 
