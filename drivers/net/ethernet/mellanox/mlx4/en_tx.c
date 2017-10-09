@@ -718,7 +718,7 @@ void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring)
 #else
 	iowrite32be(
 #endif
-		  ring->doorbell_qpn,
+		  (__force u32)ring->doorbell_qpn,
 		  ring->bf.uar->map + MLX4_SEND_DOORBELL);
 }
 
