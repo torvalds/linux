@@ -434,8 +434,8 @@ struct hclge_rss_input_tuple_cmd {
 #define HCLGE_RSS_CFG_TBL_SIZE	16
 
 struct hclge_rss_indirection_table_cmd {
-	u16 start_table_index;
-	u16 rss_set_bitmap;
+	__le16 start_table_index;
+	__le16 rss_set_bitmap;
 	u8 rsv[4];
 	u8 rss_result[HCLGE_RSS_CFG_TBL_SIZE];
 };
@@ -446,7 +446,7 @@ struct hclge_rss_indirection_table_cmd {
 #define HCLGE_RSS_TC_SIZE_M		GENMASK(14, 12)
 #define HCLGE_RSS_TC_VALID_B		15
 struct hclge_rss_tc_mode_cmd {
-	u16 rss_tc_mode[HCLGE_MAX_TC_NUM];
+	__le16 rss_tc_mode[HCLGE_MAX_TC_NUM];
 	u8 rsv[8];
 };
 
@@ -601,7 +601,7 @@ struct hclge_cfg_func_mta_filter_cmd {
 #define HCLGE_CFG_MTA_ITEM_IDX_S	0x0
 #define HCLGE_CFG_MTA_ITEM_IDX_M	GENMASK(11, 0)
 struct hclge_cfg_func_mta_item_cmd {
-	u16	item_idx; /* Only used lowest 12 bit */
+	__le16	item_idx; /* Only used lowest 12 bit */
 	u8      accept;   /* Only used lowest 1 bit */
 	u8      rsv[21];
 };
@@ -645,7 +645,7 @@ struct hclge_vlan_filter_pf_cfg_cmd {
 };
 
 struct hclge_vlan_filter_vf_cfg_cmd {
-	u16 vlan_id;
+	__le16 vlan_id;
 	u8  resp_code;
 	u8  rsv;
 	u8  vlan_cfg;

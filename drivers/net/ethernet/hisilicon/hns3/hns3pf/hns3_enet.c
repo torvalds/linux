@@ -761,7 +761,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 
 	if (type == DESC_TYPE_SKB) {
 		skb = (struct sk_buff *)priv;
-		paylen = cpu_to_le16(skb->len);
+		paylen = skb->len;
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			skb_reset_mac_len(skb);
@@ -795,7 +795,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			cpu_to_le32(ol_type_vlan_len_msec);
 		desc->tx.type_cs_vlan_tso_len =
 			cpu_to_le32(type_cs_vlan_tso);
-		desc->tx.paylen = cpu_to_le16(paylen);
+		desc->tx.paylen = cpu_to_le32(paylen);
 		desc->tx.mss = cpu_to_le16(mss);
 	}
 

@@ -362,7 +362,7 @@ static int hclge_64_bit_update_stats(struct hclge_dev *hdev)
 #define HCLGE_64_BIT_RTN_DATANUM 4
 	u64 *data = (u64 *)(&hdev->hw_stats.all_64_bit_stats);
 	struct hclge_desc desc[HCLGE_64_BIT_CMD_NUM];
-	u64 *desc_data;
+	__le64 *desc_data;
 	int i, k, n;
 	int ret;
 
@@ -376,14 +376,14 @@ static int hclge_64_bit_update_stats(struct hclge_dev *hdev)
 
 	for (i = 0; i < HCLGE_64_BIT_CMD_NUM; i++) {
 		if (unlikely(i == 0)) {
-			desc_data = (u64 *)(&desc[i].data[0]);
+			desc_data = (__le64 *)(&desc[i].data[0]);
 			n = HCLGE_64_BIT_RTN_DATANUM - 1;
 		} else {
-			desc_data = (u64 *)(&desc[i]);
+			desc_data = (__le64 *)(&desc[i]);
 			n = HCLGE_64_BIT_RTN_DATANUM;
 		}
 		for (k = 0; k < n; k++) {
-			*data++ += cpu_to_le64(*desc_data);
+			*data++ += le64_to_cpu(*desc_data);
 			desc_data++;
 		}
 	}
@@ -411,7 +411,7 @@ static int hclge_32_bit_update_stats(struct hclge_dev *hdev)
 
 	struct hclge_desc desc[HCLGE_32_BIT_CMD_NUM];
 	struct hclge_32_bit_stats *all_32_bit_stats;
-	u32 *desc_data;
+	__le32 *desc_data;
 	int i, k, n;
 	u64 *data;
 	int ret;
@@ -431,21 +431,27 @@ static int hclge_32_bit_update_stats(struct hclge_dev *hdev)
 	hclge_reset_partial_32bit_counter(all_32_bit_stats);
 	for (i = 0; i < HCLGE_32_BIT_CMD_NUM; i++) {
 		if (unlikely(i == 0)) {
-			all_32_bit_stats->igu_rx_err_pkt +=
-				cpu_to_le32(desc[i].data[0]);
-			all_32_bit_stats->igu_rx_no_eof_pkt +=
-				cpu_to_le32(desc[i].data[1] & 0xffff);
-			all_32_bit_stats->igu_rx_no_sof_pkt +=
-				cpu_to_le32((desc[i].data[1] >> 16) & 0xffff);
+			__le16 *desc_data_16bit;
 
-			desc_data = (u32 *)(&desc[i].data[2]);
+			all_32_bit_stats->igu_rx_err_pkt +=
+				le32_to_cpu(desc[i].data[0]);
+
+			desc_data_16bit = (__le16 *)&desc[i].data[1];
+			all_32_bit_stats->igu_rx_no_eof_pkt +=
+				le16_to_cpu(*desc_data_16bit);
+
+			desc_data_16bit++;
+			all_32_bit_stats->igu_rx_no_sof_pkt +=
+				le16_to_cpu(*desc_data_16bit);
+
+			desc_data = &desc[i].data[2];
 			n = HCLGE_32_BIT_RTN_DATANUM - 4;
 		} else {
-			desc_data = (u32 *)(&desc[i]);
+			desc_data = (__le32 *)&desc[i];
 			n = HCLGE_32_BIT_RTN_DATANUM;
 		}
 		for (k = 0; k < n; k++) {
-			*data++ += cpu_to_le32(*desc_data);
+			*data++ += le32_to_cpu(*desc_data);
 			desc_data++;
 		}
 	}
@@ -460,7 +466,7 @@ static int hclge_mac_update_stats(struct hclge_dev *hdev)
 
 	u64 *data = (u64 *)(&hdev->hw_stats.mac_stats);
 	struct hclge_desc desc[HCLGE_MAC_CMD_NUM];
-	u64 *desc_data;
+	__le64 *desc_data;
 	int i, k, n;
 	int ret;
 
@@ -475,14 +481,14 @@ static int hclge_mac_update_stats(struct hclge_dev *hdev)
 
 	for (i = 0; i < HCLGE_MAC_CMD_NUM; i++) {
 		if (unlikely(i == 0)) {
-			desc_data = (u64 *)(&desc[i].data[0]);
+			desc_data = (__le64 *)(&desc[i].data[0]);
 			n = HCLGE_RTN_DATA_NUM - 2;
 		} else {
-			desc_data = (u64 *)(&desc[i]);
+			desc_data = (__le64 *)(&desc[i]);
 			n = HCLGE_RTN_DATA_NUM;
 		}
 		for (k = 0; k < n; k++) {
-			*data++ += cpu_to_le64(*desc_data);
+			*data++ += le64_to_cpu(*desc_data);
 			desc_data++;
 		}
 	}
@@ -508,7 +514,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 					   HCLGE_OPC_QUERY_RX_STATUS,
 					   true);
 
-		desc[0].data[0] = (tqp->index & 0x1ff);
+		desc[0].data[0] = cpu_to_le32((tqp->index & 0x1ff));
 		ret = hclge_cmd_send(&hdev->hw, desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -517,7 +523,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 			return ret;
 		}
 		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
-			cpu_to_le32(desc[0].data[4]);
+			le32_to_cpu(desc[0].data[4]);
 	}
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
@@ -528,7 +534,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 					   HCLGE_OPC_QUERY_TX_STATUS,
 					   true);
 
-		desc[0].data[0] = (tqp->index & 0x1ff);
+		desc[0].data[0] = cpu_to_le32((tqp->index & 0x1ff));
 		ret = hclge_cmd_send(&hdev->hw, desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -537,7 +543,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 			return ret;
 		}
 		tqp->tqp_stats.rcb_tx_ring_pktnum_rcd +=
-			cpu_to_le32(desc[0].data[4]);
+			le32_to_cpu(desc[0].data[4]);
 	}
 
 	return 0;
@@ -552,12 +558,12 @@ static u64 *hclge_tqps_get_stats(struct hnae3_handle *handle, u64 *data)
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		tqp = container_of(kinfo->tqp[i], struct hclge_tqp, q);
-		*buff++ = cpu_to_le64(tqp->tqp_stats.rcb_tx_ring_pktnum_rcd);
+		*buff++ = tqp->tqp_stats.rcb_tx_ring_pktnum_rcd;
 	}
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		tqp = container_of(kinfo->tqp[i], struct hclge_tqp, q);
-		*buff++ = cpu_to_le64(tqp->tqp_stats.rcb_rx_ring_pktnum_rcd);
+		*buff++ = tqp->tqp_stats.rcb_rx_ring_pktnum_rcd;
 	}
 
 	return buff;
@@ -993,16 +999,17 @@ static int hclge_get_cfg(struct hclge_dev *hdev, struct hclge_cfg *hcfg)
 	int i, ret;
 
 	for (i = 0; i < HCLGE_PF_CFG_DESC_NUM; i++) {
+		u32 offset = 0;
+
 		req = (struct hclge_cfg_param_cmd *)desc[i].data;
 		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_GET_CFG_PARAM,
 					   true);
-		hnae_set_field(req->offset, HCLGE_CFG_OFFSET_M,
+		hnae_set_field(offset, HCLGE_CFG_OFFSET_M,
 			       HCLGE_CFG_OFFSET_S, i * HCLGE_CFG_RD_LEN_BYTES);
 		/* Len should be united by 4 bytes when send to hardware */
-		hnae_set_field(req->offset, HCLGE_CFG_RD_LEN_M,
-			       HCLGE_CFG_RD_LEN_S,
+		hnae_set_field(offset, HCLGE_CFG_RD_LEN_M, HCLGE_CFG_RD_LEN_S,
 			       HCLGE_CFG_RD_LEN_BYTES / HCLGE_CFG_RD_LEN_UNIT);
-		req->offset = cpu_to_le32(req->offset);
+		req->offset = cpu_to_le32(offset);
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_PF_CFG_DESC_NUM);
@@ -1101,14 +1108,21 @@ static int hclge_config_tso(struct hclge_dev *hdev, int tso_mss_min,
 {
 	struct hclge_cfg_tso_status_cmd *req;
 	struct hclge_desc desc;
+	u16 tso_mss;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TSO_GENERIC_CONFIG, false);
 
 	req = (struct hclge_cfg_tso_status_cmd *)desc.data;
-	hnae_set_field(req->tso_mss_min, HCLGE_TSO_MSS_MIN_M,
+
+	tso_mss = 0;
+	hnae_set_field(tso_mss, HCLGE_TSO_MSS_MIN_M,
 		       HCLGE_TSO_MSS_MIN_S, tso_mss_min);
-	hnae_set_field(req->tso_mss_max, HCLGE_TSO_MSS_MIN_M,
+	req->tso_mss_min = cpu_to_le16(tso_mss);
+
+	tso_mss = 0;
+	hnae_set_field(tso_mss, HCLGE_TSO_MSS_MIN_M,
 		       HCLGE_TSO_MSS_MIN_S, tso_mss_max);
+	req->tso_mss_max = cpu_to_le16(tso_mss);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -1152,7 +1166,7 @@ static int hclge_map_tqps_to_func(struct hclge_dev *hdev, u16 func_id,
 
 	req = (struct hclge_tqp_map_cmd *)desc.data;
 	req->tqp_id = cpu_to_le16(tqp_pid);
-	req->tqp_vf = cpu_to_le16(func_id);
+	req->tqp_vf = func_id;
 	req->tqp_flag = !is_pf << HCLGE_TQP_MAP_TYPE_B |
 			1 << HCLGE_TQP_MAP_EN_B;
 	req->tqp_vid = cpu_to_le16(tqp_vid);
@@ -2131,12 +2145,14 @@ static int hclge_set_autoneg_en(struct hclge_dev *hdev, bool enable)
 {
 	struct hclge_config_auto_neg_cmd *req;
 	struct hclge_desc desc;
+	u32 flag = 0;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_AN_MODE, false);
 
 	req = (struct hclge_config_auto_neg_cmd *)desc.data;
-	hnae_set_bit(req->cfg_an_cmd_flag, HCLGE_MAC_CFG_AN_EN_B, !!enable);
+	hnae_set_bit(flag, HCLGE_MAC_CFG_AN_EN_B, !!enable);
+	req->cfg_an_cmd_flag = cpu_to_le32(flag);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -2525,8 +2541,9 @@ static int hclge_set_rss_indir_table(struct hclge_dev *hdev, const u32 *indir)
 		hclge_cmd_setup_basic_desc
 			(&desc, HCLGE_OPC_RSS_INDIR_TABLE, false);
 
-		req->start_table_index = i * HCLGE_RSS_CFG_TBL_SIZE;
-		req->rss_set_bitmap = HCLGE_RSS_SET_BITMAP_MSK;
+		req->start_table_index =
+			cpu_to_le16(i * HCLGE_RSS_CFG_TBL_SIZE);
+		req->rss_set_bitmap = cpu_to_le16(HCLGE_RSS_SET_BITMAP_MSK);
 
 		for (j = 0; j < HCLGE_RSS_CFG_TBL_SIZE; j++)
 			req->rss_result[j] =
@@ -2555,12 +2572,15 @@ static int hclge_set_rss_tc_mode(struct hclge_dev *hdev, u16 *tc_valid,
 	req = (struct hclge_rss_tc_mode_cmd *)desc.data;
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		hnae_set_bit(req->rss_tc_mode[i], HCLGE_RSS_TC_VALID_B,
-			     (tc_valid[i] & 0x1));
-		hnae_set_field(req->rss_tc_mode[i], HCLGE_RSS_TC_SIZE_M,
+		u16 mode = 0;
+
+		hnae_set_bit(mode, HCLGE_RSS_TC_VALID_B, (tc_valid[i] & 0x1));
+		hnae_set_field(mode, HCLGE_RSS_TC_SIZE_M,
 			       HCLGE_RSS_TC_SIZE_S, tc_size[i]);
-		hnae_set_field(req->rss_tc_mode[i], HCLGE_RSS_TC_OFFSET_M,
+		hnae_set_field(mode, HCLGE_RSS_TC_OFFSET_M,
 			       HCLGE_RSS_TC_OFFSET_S, tc_offset[i]);
+
+		req->rss_tc_mode[i] = cpu_to_le16(mode);
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2763,15 +2783,16 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 
 	i = 0;
 	for (node = ring_chain; node; node = node->next) {
-		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_TYPE_M,
-			       HCLGE_INT_TYPE_S,
+		u16 type_and_id = 0;
+
+		hnae_set_field(type_and_id, HCLGE_INT_TYPE_M, HCLGE_INT_TYPE_S,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
-		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
-			       HCLGE_TQP_ID_S,	node->tqp_index);
-		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+		hnae_set_field(type_and_id, HCLGE_TQP_ID_M, HCLGE_TQP_ID_S,
+			       node->tqp_index);
+		hnae_set_field(type_and_id, HCLGE_INT_GL_IDX_M,
 			       HCLGE_INT_GL_IDX_S,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
-		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->tqp_type_and_id[i] = cpu_to_le16(type_and_id);
 		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
@@ -2851,16 +2872,17 @@ static int hclge_unmap_ring_from_vector(
 
 	i = 0;
 	for (node = ring_chain; node; node = node->next) {
-		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_TYPE_M,
-			       HCLGE_INT_TYPE_S,
+		u16 type_and_id = 0;
+
+		hnae_set_field(type_and_id, HCLGE_INT_TYPE_M, HCLGE_INT_TYPE_S,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
-		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
-			       HCLGE_TQP_ID_S,	node->tqp_index);
-		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+		hnae_set_field(type_and_id, HCLGE_TQP_ID_M, HCLGE_TQP_ID_S,
+			       node->tqp_index);
+		hnae_set_field(type_and_id, HCLGE_INT_GL_IDX_M,
 			       HCLGE_INT_GL_IDX_S,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 
-		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->tqp_type_and_id[i] = cpu_to_le16(type_and_id);
 		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
@@ -2948,27 +2970,25 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 	struct hclge_desc desc;
 	struct hclge_config_mac_mode_cmd *req =
 		(struct hclge_config_mac_mode_cmd *)desc.data;
+	u32 loop_en = 0;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, false);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_TX_EN_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_RX_EN_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_PAD_TX_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_PAD_RX_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_1588_TX_B, 0);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_1588_RX_B, 0);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_APP_LP_B, 0);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_LINE_LP_B, 0);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_FCS_TX_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en, HCLGE_MAC_RX_FCS_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en,
-		     HCLGE_MAC_RX_FCS_STRIP_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en,
-		     HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en,
-		     HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B, enable);
-	hnae_set_bit(req->txrx_pad_fcs_loop_en,
-		     HCLGE_MAC_TX_UNDER_MIN_ERR_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_TX_EN_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_RX_EN_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_PAD_TX_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_PAD_RX_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_1588_TX_B, 0);
+	hnae_set_bit(loop_en, HCLGE_MAC_1588_RX_B, 0);
+	hnae_set_bit(loop_en, HCLGE_MAC_APP_LP_B, 0);
+	hnae_set_bit(loop_en, HCLGE_MAC_LINE_LP_B, 0);
+	hnae_set_bit(loop_en, HCLGE_MAC_FCS_TX_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_RX_FCS_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_RX_FCS_STRIP_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B, enable);
+	hnae_set_bit(loop_en, HCLGE_MAC_TX_UNDER_MIN_ERR_B, enable);
+	req->txrx_pad_fcs_loop_en = cpu_to_le32(loop_en);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
@@ -3145,16 +3165,16 @@ static int hclge_update_desc_vfid(struct hclge_desc *desc, int vfid, bool clr)
 		word_num = vfid / 32;
 		bit_num  = vfid % 32;
 		if (clr)
-			desc[1].data[word_num] &= ~(1 << bit_num);
+			desc[1].data[word_num] &= cpu_to_le32(~(1 << bit_num));
 		else
-			desc[1].data[word_num] |= (1 << bit_num);
+			desc[1].data[word_num] |= cpu_to_le32(1 << bit_num);
 	} else {
 		word_num = (vfid - 192) / 32;
 		bit_num  = vfid % 32;
 		if (clr)
-			desc[2].data[word_num] &= ~(1 << bit_num);
+			desc[2].data[word_num] &= cpu_to_le32(~(1 << bit_num));
 		else
-			desc[2].data[word_num] |= (1 << bit_num);
+			desc[2].data[word_num] |= cpu_to_le32(1 << bit_num);
 	}
 
 	return 0;
@@ -3257,15 +3277,16 @@ static int hclge_set_mta_table_item(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_cfg_func_mta_item_cmd *req;
 	struct hclge_desc desc;
+	u16 item_idx = 0;
 	int ret;
 
 	req = (struct hclge_cfg_func_mta_item_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MTA_TBL_ITEM_CFG, false);
 	hnae_set_bit(req->accept, HCLGE_CFG_MTA_ITEM_ACCEPT_B, enable);
 
-	hnae_set_field(req->item_idx, HCLGE_CFG_MTA_ITEM_IDX_M,
+	hnae_set_field(item_idx, HCLGE_CFG_MTA_ITEM_IDX_M,
 		       HCLGE_CFG_MTA_ITEM_IDX_S, idx);
-	req->item_idx = cpu_to_le16(req->item_idx);
+	req->item_idx = cpu_to_le16(item_idx);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -3284,6 +3305,7 @@ static int hclge_remove_mac_vlan_tbl(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
 	u8 resp_code;
+	u16 retval;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_REMOVE, false);
@@ -3297,9 +3319,10 @@ static int hclge_remove_mac_vlan_tbl(struct hclge_vport *vport,
 			ret);
 		return ret;
 	}
-	resp_code = (desc.data[0] >> 8) & 0xff;
+	resp_code = (le32_to_cpu(desc.data[0]) >> 8) & 0xff;
+	retval = le16_to_cpu(desc.retval);
 
-	return hclge_get_mac_vlan_cmd_status(vport, desc.retval, resp_code,
+	return hclge_get_mac_vlan_cmd_status(vport, retval, resp_code,
 					     HCLGE_MAC_VLAN_REMOVE);
 }
 
@@ -3310,6 +3333,7 @@ static int hclge_lookup_mac_vlan_tbl(struct hclge_vport *vport,
 {
 	struct hclge_dev *hdev = vport->back;
 	u8 resp_code;
+	u16 retval;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_MAC_VLAN_ADD, true);
@@ -3338,9 +3362,10 @@ static int hclge_lookup_mac_vlan_tbl(struct hclge_vport *vport,
 			ret);
 		return ret;
 	}
-	resp_code = (desc[0].data[0] >> 8) & 0xff;
+	resp_code = (le32_to_cpu(desc[0].data[0]) >> 8) & 0xff;
+	retval = le16_to_cpu(desc[0].retval);
 
-	return hclge_get_mac_vlan_cmd_status(vport, desc[0].retval, resp_code,
+	return hclge_get_mac_vlan_cmd_status(vport, retval, resp_code,
 					     HCLGE_MAC_VLAN_LKUP);
 }
 
@@ -3351,6 +3376,7 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	int cfg_status;
 	u8 resp_code;
+	u16 retval;
 	int ret;
 
 	if (!mc_desc) {
@@ -3362,8 +3388,10 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 		memcpy(desc.data, req,
 		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-		resp_code = (desc.data[0] >> 8) & 0xff;
-		cfg_status = hclge_get_mac_vlan_cmd_status(vport, desc.retval,
+		resp_code = (le32_to_cpu(desc.data[0]) >> 8) & 0xff;
+		retval = le16_to_cpu(desc.retval);
+
+		cfg_status = hclge_get_mac_vlan_cmd_status(vport, retval,
 							   resp_code,
 							   HCLGE_MAC_VLAN_ADD);
 	} else {
@@ -3376,9 +3404,10 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 		memcpy(mc_desc[0].data, req,
 		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		ret = hclge_cmd_send(&hdev->hw, mc_desc, 3);
-		resp_code = (mc_desc[0].data[0] >> 8) & 0xff;
-		cfg_status = hclge_get_mac_vlan_cmd_status(vport,
-							   mc_desc[0].retval,
+		resp_code = (le32_to_cpu(mc_desc[0].data[0]) >> 8) & 0xff;
+		retval = le16_to_cpu(mc_desc[0].retval);
+
+		cfg_status = hclge_get_mac_vlan_cmd_status(vport, retval,
 							   resp_code,
 							   HCLGE_MAC_VLAN_ADD);
 	}
@@ -3407,6 +3436,7 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_mac_vlan_tbl_entry_cmd req;
 	enum hclge_cmd_status status;
+	u16 egress_port = 0;
 
 	/* mac addr check */
 	if (is_zero_ether_addr(addr) ||
@@ -3426,15 +3456,15 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	hnae_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hnae_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT1_EN_B, 0);
 	hnae_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
-	hnae_set_bit(req.egress_port,
-		     HCLGE_MAC_EPORT_SW_EN_B, 0);
-	hnae_set_bit(req.egress_port,
-		     HCLGE_MAC_EPORT_TYPE_B, 0);
-	hnae_set_field(req.egress_port, HCLGE_MAC_EPORT_VFID_M,
+
+	hnae_set_bit(egress_port, HCLGE_MAC_EPORT_SW_EN_B, 0);
+	hnae_set_bit(egress_port, HCLGE_MAC_EPORT_TYPE_B, 0);
+	hnae_set_field(egress_port, HCLGE_MAC_EPORT_VFID_M,
 		       HCLGE_MAC_EPORT_VFID_S, vport->vport_id);
-	hnae_set_field(req.egress_port, HCLGE_MAC_EPORT_PFID_M,
+	hnae_set_field(egress_port, HCLGE_MAC_EPORT_PFID_M,
 		       HCLGE_MAC_EPORT_PFID_S, 0);
-	req.egress_port = cpu_to_le16(req.egress_port);
+
+	req.egress_port = cpu_to_le16(egress_port);
 
 	hclge_prepare_mac_addr(&req, addr);
 
@@ -3667,7 +3697,7 @@ int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 	req0 = (struct hclge_vlan_filter_vf_cfg_cmd *)desc[0].data;
 	req1 = (struct hclge_vlan_filter_vf_cfg_cmd *)desc[1].data;
 
-	req0->vlan_id  = vlan;
+	req0->vlan_id  = cpu_to_le16(vlan);
 	req0->vlan_cfg = is_kill;
 
 	if (vf_byte_off < HCLGE_MAX_VF_BYTES)

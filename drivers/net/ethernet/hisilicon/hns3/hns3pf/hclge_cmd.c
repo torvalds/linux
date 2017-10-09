@@ -208,7 +208,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	 * which will be use for hardware to write back
 	 */
 	ntc = hw->cmq.csq.next_to_use;
-	opcode = desc[0].opcode;
+	opcode = le16_to_cpu(desc[0].opcode);
 	while (handle < num) {
 		desc_to_use = &hw->cmq.csq.desc[hw->cmq.csq.next_to_use];
 		*desc_to_use = desc[handle];
@@ -225,7 +225,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	 * If the command is sync, wait for the firmware to write back,
 	 * if multi descriptors to be sent, use the first one to check
 	 */
-	if (HCLGE_SEND_SYNC(desc->flag)) {
+	if (HCLGE_SEND_SYNC(le16_to_cpu(desc->flag))) {
 		do {
 			if (hclge_cmd_csq_done(hw))
 				break;
@@ -244,9 +244,9 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 			pr_debug("Get cmd desc:\n");
 
 			if (likely(!hclge_is_special_opcode(opcode)))
-				desc_ret = desc[handle].retval;
+				desc_ret = le16_to_cpu(desc[handle].retval);
 			else
-				desc_ret = desc[0].retval;
+				desc_ret = le16_to_cpu(desc[0].retval);
 
 			if ((enum hclge_cmd_return_status)desc_ret ==
 			    HCLGE_CMD_EXEC_SUCCESS)
