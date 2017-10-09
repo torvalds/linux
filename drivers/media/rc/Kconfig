@@ -286,6 +286,7 @@ config IR_REDRAT3
 config IR_SPI
 	tristate "SPI connected IR LED"
 	depends on SPI && LIRC
+	depends on OF || COMPILE_TEST
 	---help---
 	  Say Y if you want to use an IR LED connected through SPI bus.
 
