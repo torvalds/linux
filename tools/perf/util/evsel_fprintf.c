@@ -157,7 +157,7 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				}
 			}
 
-			if (print_dso) {
+			if (print_dso && (!node->sym || !node->sym->inlined)) {
 				printed += fprintf(fp, " (");
 				printed += map__fprintf_dsoname(node->map, fp);
 				printed += fprintf(fp, ")");
@@ -165,6 +165,9 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 
 			if (print_srcline)
 				printed += map__fprintf_srcline(node->map, addr, "\n  ", fp);
+
+			if (node->sym && node->sym->inlined)
+				printed += fprintf(fp, " (inlined)");
 
 			if (!print_oneline)
 				printed += fprintf(fp, "\n");
