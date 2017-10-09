@@ -2216,6 +2216,18 @@ bool br_multicast_enabled(const struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(br_multicast_enabled);
 
+bool br_multicast_router(const struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	bool is_router;
+
+	spin_lock_bh(&br->multicast_lock);
+	is_router = br_multicast_is_router(br);
+	spin_unlock_bh(&br->multicast_lock);
+	return is_router;
+}
+EXPORT_SYMBOL_GPL(br_multicast_router);
+
 int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
 {
 	unsigned long max_delay;

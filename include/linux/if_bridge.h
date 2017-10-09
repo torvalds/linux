@@ -64,6 +64,7 @@ int br_multicast_list_adjacent(struct net_device *dev,
 bool br_multicast_has_querier_anywhere(struct net_device *dev, int proto);
 bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto);
 bool br_multicast_enabled(const struct net_device *dev);
+bool br_multicast_router(const struct net_device *dev);
 #else
 static inline int br_multicast_list_adjacent(struct net_device *dev,
 					     struct list_head *br_ip_list)
@@ -81,6 +82,10 @@ static inline bool br_multicast_has_querier_adjacent(struct net_device *dev,
 	return false;
 }
 static inline bool br_multicast_enabled(const struct net_device *dev)
+{
+	return false;
+}
+static inline bool br_multicast_router(const struct net_device *dev)
 {
 	return false;
 }
