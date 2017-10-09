@@ -54,9 +54,13 @@ enum br_special {
 };
 
 enum static_regs {
-	STATIC_REG_PKT		= 1,
-#define REG_PKT_BANK	ALU_DST_A
-	STATIC_REG_IMM		= 2, /* Bank AB */
+	STATIC_REG_IMM		= 21, /* Bank AB */
+	STATIC_REG_PKT_LEN	= 22, /* Bank B */
+};
+
+enum pkt_vec {
+	PKT_VEC_PKT_LEN		= 0,
+	PKT_VEC_PKT_PTR		= 2,
 };
 
 enum nfp_bpf_action_type {
@@ -66,15 +70,17 @@ enum nfp_bpf_action_type {
 	NN_ACT_XDP,
 };
 
-#define pkt_reg(np)	reg_a((np)->regs_per_thread - STATIC_REG_PKT)
-#define imm_a(np)	reg_a((np)->regs_per_thread - STATIC_REG_IMM)
-#define imm_b(np)	reg_b((np)->regs_per_thread - STATIC_REG_IMM)
-#define imm_both(np)	reg_both((np)->regs_per_thread - STATIC_REG_IMM)
+#define pv_len(np)	reg_lm(1, PKT_VEC_PKT_LEN)
+#define pv_ctm_ptr(np)	reg_lm(1, PKT_VEC_PKT_PTR)
+
+#define plen_reg(np)	reg_b(STATIC_REG_PKT_LEN)
+#define pptr_reg(np)	pv_ctm_ptr(np)
+#define imm_a(np)	reg_a(STATIC_REG_IMM)
+#define imm_b(np)	reg_b(STATIC_REG_IMM)
+#define imm_both(np)	reg_both(STATIC_REG_IMM)
 
 #define NFP_BPF_ABI_FLAGS	reg_imm(0)
 #define   NFP_BPF_ABI_FLAG_MARK	1
-#define NFP_BPF_ABI_PKT		reg_nnr(2)
-#define NFP_BPF_ABI_LEN		reg_nnr(3)
 
 struct nfp_prog;
 struct nfp_insn_meta;

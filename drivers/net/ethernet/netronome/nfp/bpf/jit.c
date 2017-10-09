@@ -526,22 +526,22 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset,
 		emit_alu(nfp_prog, imm_a(nfp_prog),
 			 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
 		emit_alu(nfp_prog, reg_none(),
-			 NFP_BPF_ABI_LEN, ALU_OP_SUB, imm_a(nfp_prog));
+			 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
 		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
 		/* Load data */
 		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pkt_reg(nfp_prog), imm_b(nfp_prog), sz - 1, true);
+			 pptr_reg(nfp_prog), imm_b(nfp_prog), sz - 1, true);
 	} else {
 		/* Check packet length */
 		tmp_reg = ur_load_imm_any(nfp_prog, offset + size,
 					  imm_a(nfp_prog));
 		emit_alu(nfp_prog, reg_none(),
-			 NFP_BPF_ABI_LEN, ALU_OP_SUB, tmp_reg);
+			 plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
 		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
 		/* Load data */
 		tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
 		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pkt_reg(nfp_prog), tmp_reg, sz - 1, true);
+			 pptr_reg(nfp_prog), tmp_reg, sz - 1, true);
 	}
 
 	i = 0;
@@ -1024,7 +1024,7 @@ static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	if (meta->insn.off == offsetof(struct sk_buff, len))
 		emit_alu(nfp_prog, reg_both(meta->insn.dst_reg * 2),
-			 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_LEN);
+			 reg_none(), ALU_OP_NONE, plen_reg(nfp_prog));
 	else
 		return -EOPNOTSUPP;
 
@@ -1039,12 +1039,12 @@ static int mem_ldx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	    meta->insn.off != offsetof(struct xdp_md, data_end))
 		return -EOPNOTSUPP;
 
-	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, NFP_BPF_ABI_PKT);
+	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, pptr_reg(nfp_prog));
 
 	if (meta->insn.off == offsetof(struct xdp_md, data))
 		return 0;
 
-	emit_alu(nfp_prog, dst,	dst, ALU_OP_ADD, NFP_BPF_ABI_LEN);
+	emit_alu(nfp_prog, dst,	dst, ALU_OP_ADD, plen_reg(nfp_prog));
 
 	return 0;
 }
@@ -1403,8 +1403,9 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 
 static void nfp_intro(struct nfp_prog *nfp_prog)
 {
-	emit_alu(nfp_prog, pkt_reg(nfp_prog),
-		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_PKT);
+	wrp_immed(nfp_prog, plen_reg(nfp_prog), GENMASK(13, 0));
+	emit_alu(nfp_prog, plen_reg(nfp_prog),
+		 plen_reg(nfp_prog), ALU_OP_AND, pv_len(nfp_prog));
 }
 
 static void nfp_outro_tc_legacy(struct nfp_prog *nfp_prog)
