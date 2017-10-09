@@ -63,16 +63,8 @@
  *	MMCRA[9:11] = thresh_cmp[0:2]
  *	MMCRA[12:18] = thresh_cmp[3:9]
  *
- * if unit == 6 or unit == 7
- *	MMCRC[53:55] = cache_sel[1:3]      (L2EVENT_SEL)
- * else if unit == 8 or unit == 9:
- *	if cache_sel[0] == 0: # L3 bank
- *		MMCRC[47:49] = cache_sel[1:3]  (L3EVENT_SEL0)
- *	else if cache_sel[0] == 1:
- *		MMCRC[50:51] = cache_sel[2:3]  (L3EVENT_SEL1)
- * else if cache_sel[1]: # L1 event
- *	MMCR1[16] = cache_sel[2]
- *	MMCR1[17] = cache_sel[3]
+ * MMCR1[16] = cache_sel[2]
+ * MMCR1[17] = cache_sel[3]
  *
  * if mark:
  *	MMCRA[63]    = 1		(SAMPLE_ENABLE)
