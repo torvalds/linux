@@ -1,13 +1,14 @@
 /*
  * fscrypt_supp.h
  *
- * This is included by filesystems configured with encryption support.
+ * Do not include this file directly. Use fscrypt.h instead!
  */
+#ifndef _LINUX_FSCRYPT_H
+#error "Incorrect include of linux/fscrypt_supp.h!"
+#endif
 
 #ifndef _LINUX_FSCRYPT_SUPP_H
 #define _LINUX_FSCRYPT_SUPP_H
-
-#include <linux/fscrypt_common.h>
 
 /* crypto.c */
 extern struct kmem_cache *fscrypt_info_cachep;

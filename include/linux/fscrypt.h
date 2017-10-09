@@ -1,14 +1,17 @@
 /*
- * fscrypt_common.h: common declarations for per-file encryption
+ * fscrypt.h: declarations for per-file encryption
+ *
+ * Filesystems that implement per-file encryption include this header
+ * file with the __FS_HAS_ENCRYPTION set according to whether that filesystem
+ * is being built with encryption support or not.
  *
  * Copyright (C) 2015, Google, Inc.
  *
  * Written by Michael Halcrow, 2015.
  * Modified by Jaegeuk Kim, 2015.
  */
-
-#ifndef _LINUX_FSCRYPT_COMMON_H
-#define _LINUX_FSCRYPT_COMMON_H
+#ifndef _LINUX_FSCRYPT_H
+#define _LINUX_FSCRYPT_H
 
 #include <linux/key.h>
 #include <linux/fs.h>
@@ -116,23 +119,35 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 	return false;
 }
 
+#if __FS_HAS_ENCRYPTION
+
 static inline struct page *fscrypt_control_page(struct page *page)
 {
-#if IS_ENABLED(CONFIG_FS_ENCRYPTION)
 	return ((struct fscrypt_ctx *)page_private(page))->w.control_page;
-#else
+}
+
+static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+{
+	return (inode->i_crypt_info != NULL);
+}
+
+#include <linux/fscrypt_supp.h>
+
+#else /* !__FS_HAS_ENCRYPTION */
+
+static inline struct page *fscrypt_control_page(struct page *page)
+{
 	WARN_ON_ONCE(1);
 	return ERR_PTR(-EINVAL);
-#endif
 }
 
-static inline int fscrypt_has_encryption_key(const struct inode *inode)
+static inline bool fscrypt_has_encryption_key(const struct inode *inode)
 {
-#if IS_ENABLED(CONFIG_FS_ENCRYPTION)
-	return (inode->i_crypt_info != NULL);
-#else
 	return 0;
-#endif
 }
 
-#endif	/* _LINUX_FSCRYPT_COMMON_H */
+#include <linux/fscrypt_notsupp.h>
+#endif /* __FS_HAS_ENCRYPTION */
+
+
+#endif	/* _LINUX_FSCRYPT_H */

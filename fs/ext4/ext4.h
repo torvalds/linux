@@ -37,6 +37,9 @@
 #include <linux/compat.h>
 #endif
 
+#define __FS_HAS_ENCRYPTION IS_ENABLED(CONFIG_EXT4_FS_ENCRYPTION)
+#include <linux/fscrypt.h>
+
 /*
  * The fourth extended filesystem constants/structures
  */
