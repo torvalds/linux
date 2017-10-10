@@ -46,6 +46,9 @@
 /* Max default timeout in ms, */
 #define I40E_MAX_NVM_TIMEOUT		18000
 
+/* Max timeout in ms for the phy to respond */
+#define I40E_MAX_PHY_TIMEOUT		500
+
 /* Switch from ms to the 1usec global time (this is the GTIME resolution) */
 #define I40E_MS_TO_GTIME(time)		((time) * 1000)
 

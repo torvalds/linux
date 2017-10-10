@@ -1372,6 +1372,15 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 	union i40e_rx_desc *rx_desc;
 	struct i40e_rx_buffer *bi;
 
+	/* Hardware only fetches new descriptors in cache lines of 8,
+	 * essentially ignoring the lower 3 bits of the tail register. We want
+	 * to ensure our tail writes are aligned to avoid unnecessary work. We
+	 * can't simply round down the cleaned count, since we might fail to
+	 * allocate some buffers. What we really want is to ensure that
+	 * next_to_used + cleaned_count produces an aligned value.
+	 */
+	cleaned_count -= (ntu + cleaned_count) & 0x7;
+
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
 		return false;
@@ -2202,9 +2211,7 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 	u32 val;
 
 	val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
-	      /* Don't clear PBA because that can cause lost interrupts that
-	       * came in while we were cleaning/polling
-	       */
+	      I40E_PFINT_DYN_CTLN_CLEARPBA_MASK |
 	      (type << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT) |
 	      (itr << I40E_PFINT_DYN_CTLN_INTERVAL_SHIFT);
 
@@ -2241,7 +2248,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 
 	/* If we don't have MSIX, then we only need to re-enable icr0 */
 	if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED)) {
-		i40e_irq_dynamic_enable_icr0(vsi->back, false);
+		i40e_irq_dynamic_enable_icr0(vsi->back);
 		return;
 	}
 
