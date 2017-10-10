@@ -4174,9 +4174,9 @@ err_bfreg:
 err_uar_page:
 	mlx5_put_uars_page(dev->mdev, dev->mdev->priv.uar);
 
-err_cnt:
-	mlx5_ib_cleanup_cong_debugfs(dev);
 err_cong:
+	mlx5_ib_cleanup_cong_debugfs(dev);
+err_cnt:
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
 		mlx5_ib_dealloc_counters(dev);
 
