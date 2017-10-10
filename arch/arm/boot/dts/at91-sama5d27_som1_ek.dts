@@ -165,6 +165,7 @@
 			can0: can@f8054000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_can0_default>;
+				status = "disabled"; /* Conflict with isc. */
 			};
 
 			uart3: serial@fc008000 {
@@ -172,7 +173,7 @@
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart3_default>;
-				status = "disabled";
+				status = "disabled"; /* Conflict with isc. */
 			};
 
 			uart4: serial@fc00c000 {
@@ -196,7 +197,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
 					atmel,fifo-size = <32>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with isc. */
 				};
 
 				spi2: spi@400 {
@@ -208,7 +209,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
 					atmel,fifo-size = <16>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with isc. */
 				};
 			};
 
@@ -225,7 +226,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <32>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with spi3 and i2c3. */
 				};
 
 				spi3: spi@400 {
@@ -237,7 +238,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_spi &pinctrl_mikrobus1_spi_cs &pinctrl_mikrobus2_spi_cs>;
 					atmel,fifo-size = <16>;
-					status = "okay";
+					status = "okay"; /* Conflict with uart6 and i2c3. */
 				};
 
 				i2c3: i2c@600 {
@@ -252,7 +253,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <16>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with uart6 and spi3. */
 				};
 			};
 
