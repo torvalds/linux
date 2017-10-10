@@ -1370,9 +1370,9 @@ static void garmin_unthrottle(struct tty_struct *tty)
  * the tty in cases where the protocol provides no own handshaking
  * to initiate the transfer.
  */
-static void timeout_handler(unsigned long data)
+static void timeout_handler(struct timer_list *t)
 {
-	struct garmin_data *garmin_data_p = (struct garmin_data *) data;
+	struct garmin_data *garmin_data_p = from_timer(garmin_data_p, t, timer);
 
 	/* send the next queued packet to the tty port */
 	if (garmin_data_p->mode == MODE_NATIVE)
@@ -1391,12 +1391,10 @@ static int garmin_port_probe(struct usb_serial_port *port)
 	if (!garmin_data_p)
 		return -ENOMEM;
 
-	init_timer(&garmin_data_p->timer);
+	timer_setup(&garmin_data_p->timer, timeout_handler, 0);
 	spin_lock_init(&garmin_data_p->lock);
 	INIT_LIST_HEAD(&garmin_data_p->pktlist);
 	/* garmin_data_p->timer.expires = jiffies + session_timeout; */
-	garmin_data_p->timer.data = (unsigned long)garmin_data_p;
-	garmin_data_p->timer.function = timeout_handler;
 	garmin_data_p->port = port;
 	garmin_data_p->state = 0;
 	garmin_data_p->flags = 0;
