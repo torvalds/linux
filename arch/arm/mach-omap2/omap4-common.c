@@ -299,30 +299,6 @@ static const struct of_device_id intc_match[] = {
 
 static struct device_node *intc_node;
 
-unsigned int omap4_xlate_irq(unsigned int hwirq)
-{
-	struct of_phandle_args irq_data;
-	unsigned int irq;
-
-	if (!intc_node)
-		intc_node = of_find_matching_node(NULL, intc_match);
-
-	if (WARN_ON(!intc_node))
-		return hwirq;
-
-	irq_data.np = intc_node;
-	irq_data.args_count = 3;
-	irq_data.args[0] = 0;
-	irq_data.args[1] = hwirq - OMAP44XX_IRQ_GIC_START;
-	irq_data.args[2] = IRQ_TYPE_LEVEL_HIGH;
-
-	irq = irq_create_of_mapping(&irq_data);
-	if (WARN_ON(!irq))
-		irq = hwirq;
-
-	return irq;
-}
-
 void __init omap_gic_of_init(void)
 {
 	struct device_node *np;

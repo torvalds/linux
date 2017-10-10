@@ -275,20 +275,10 @@ static struct omap_dma_dev_attr dma_dev_attr = {
 };
 
 /* dma_system */
-static struct omap_hwmod_irq_info omap54xx_dma_system_irqs[] = {
-	{ .name = "0", .irq = 12 + OMAP54XX_IRQ_GIC_START },
-	{ .name = "1", .irq = 13 + OMAP54XX_IRQ_GIC_START },
-	{ .name = "2", .irq = 14 + OMAP54XX_IRQ_GIC_START },
-	{ .name = "3", .irq = 15 + OMAP54XX_IRQ_GIC_START },
-	{ .irq = -1 }
-};
-
 static struct omap_hwmod omap54xx_dma_system_hwmod = {
 	.name		= "dma_system",
 	.class		= &omap54xx_dma_hwmod_class,
 	.clkdm_name	= "dma_clkdm",
-	.mpu_irqs	= omap54xx_dma_system_irqs,
-	.xlate_irq	= omap4_xlate_irq,
 	.main_clk	= "l3_iclk_div",
 	.prcm = {
 		.omap4 = {

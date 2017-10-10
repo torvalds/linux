@@ -65,21 +65,6 @@ struct omap_hwmod_class iva_hwmod_class = {
 	.name = "iva",
 };
 
-/* Common MPU IRQ line data */
-
-struct omap_hwmod_irq_info omap2_dispc_irqs[] = {
-	{ .irq = 25 + OMAP_INTC_START, },
-	{ .irq = -1, },
-};
-
-struct omap_hwmod_irq_info omap2_dma_system_irqs[] = {
-	{ .name = "0", .irq = 12 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ0 */
-	{ .name = "1", .irq = 13 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ1 */
-	{ .name = "2", .irq = 14 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ2 */
-	{ .name = "3", .irq = 15 + OMAP_INTC_START, }, /* INT_24XX_SDMA_IRQ3 */
-	{ .irq = -1, },
-};
-
 struct omap_hwmod_class_sysconfig omap2_hdq1w_sysc = {
 	.rev_offs	= 0x0,
 	.sysc_offs	= 0x14,

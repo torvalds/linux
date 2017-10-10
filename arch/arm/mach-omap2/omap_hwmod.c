@@ -1102,29 +1102,6 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 }
 
 /**
- * _count_mpu_irqs - count the number of MPU IRQ lines associated with @oh
- * @oh: struct omap_hwmod *oh
- *
- * Count and return the number of MPU IRQs associated with the hwmod
- * @oh.  Used to allocate struct resource data.  Returns 0 if @oh is
- * NULL.
- */
-static int _count_mpu_irqs(struct omap_hwmod *oh)
-{
-	struct omap_hwmod_irq_info *ohii;
-	int i = 0;
-
-	if (!oh || !oh->mpu_irqs)
-		return 0;
-
-	do {
-		ohii = &oh->mpu_irqs[i++];
-	} while (ohii->irq != -1);
-
-	return i-1;
-}
-
-/**
  * _count_sdma_reqs - count the number of SDMA request lines associated with @oh
  * @oh: struct omap_hwmod *oh
  *
@@ -1168,50 +1145,6 @@ static int _count_ocp_if_addr_spaces(struct omap_hwmod_ocp_if *os)
 	} while (mem->pa_start != mem->pa_end);
 
 	return i-1;
-}
-
-/**
- * _get_mpu_irq_by_name - fetch MPU interrupt line number by name
- * @oh: struct omap_hwmod * to operate on
- * @name: pointer to the name of the MPU interrupt number to fetch (optional)
- * @irq: pointer to an unsigned int to store the MPU IRQ number to
- *
- * Retrieve a MPU hardware IRQ line number named by @name associated
- * with the IP block pointed to by @oh.  The IRQ number will be filled
- * into the address pointed to by @dma.  When @name is non-null, the
- * IRQ line number associated with the named entry will be returned.
- * If @name is null, the first matching entry will be returned.  Data
- * order is not meaningful in hwmod data, so callers are strongly
- * encouraged to use a non-null @name whenever possible to avoid
- * unpredictable effects if hwmod data is later added that causes data
- * ordering to change.  Returns 0 upon success or a negative error
- * code upon error.
- */
-static int _get_mpu_irq_by_name(struct omap_hwmod *oh, const char *name,
-				unsigned int *irq)
-{
-	int i;
-	bool found = false;
-
-	if (!oh->mpu_irqs)
-		return -ENOENT;
-
-	i = 0;
-	while (oh->mpu_irqs[i].irq != -1) {
-		if (name == oh->mpu_irqs[i].name ||
-		    !strcmp(name, oh->mpu_irqs[i].name)) {
-			found = true;
-			break;
-		}
-		i++;
-	}
-
-	if (!found)
-		return -ENOENT;
-
-	*irq = oh->mpu_irqs[i].irq;
-
-	return 0;
 }
 
 /**
@@ -3452,9 +3385,6 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags)
 {
 	int ret = 0;
 
-	if (flags & IORESOURCE_IRQ)
-		ret += _count_mpu_irqs(oh);
-
 	if (flags & IORESOURCE_DMA)
 		ret += _count_sdma_reqs(oh);
 
@@ -3481,25 +3411,10 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags)
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 {
 	struct omap_hwmod_ocp_if *os;
-	int i, j, mpu_irqs_cnt, sdma_reqs_cnt, addr_cnt;
+	int i, j, sdma_reqs_cnt, addr_cnt;
 	int r = 0;
 
-	/* For each IRQ, DMA, memory area, fill in array.*/
-
-	mpu_irqs_cnt = _count_mpu_irqs(oh);
-	for (i = 0; i < mpu_irqs_cnt; i++) {
-		unsigned int irq;
-
-		if (oh->xlate_irq)
-			irq = oh->xlate_irq((oh->mpu_irqs + i)->irq);
-		else
-			irq = (oh->mpu_irqs + i)->irq;
-		(res + r)->name = (oh->mpu_irqs + i)->name;
-		(res + r)->start = irq;
-		(res + r)->end = irq;
-		(res + r)->flags = IORESOURCE_IRQ;
-		r++;
-	}
+	/* For each DMA, memory area, fill in array.*/
 
 	sdma_reqs_cnt = _count_sdma_reqs(oh);
 	for (i = 0; i < sdma_reqs_cnt; i++) {
@@ -3578,20 +3493,13 @@ int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
 				   const char *name, struct resource *rsrc)
 {
 	int r;
-	unsigned int irq, dma;
+	unsigned int dma;
 	u32 pa_start, pa_end;
 
 	if (!oh || !rsrc)
 		return -EINVAL;
 
-	if (type == IORESOURCE_IRQ) {
-		r = _get_mpu_irq_by_name(oh, name, &irq);
-		if (r)
-			return r;
-
-		rsrc->start = irq;
-		rsrc->end = irq;
-	} else if (type == IORESOURCE_DMA) {
+	if (type == IORESOURCE_DMA) {
 		r = _get_sdma_req_by_name(oh, name, &dma);
 		if (r)
 			return r;
