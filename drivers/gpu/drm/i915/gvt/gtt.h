@@ -85,8 +85,8 @@ struct intel_gvt_gtt {
 	struct list_head oos_page_free_list_head;
 	struct list_head mm_lru_list_head;
 
-	struct page *scratch_ggtt_page;
-	unsigned long scratch_ggtt_mfn;
+	struct page *scratch_page;
+	unsigned long scratch_mfn;
 };
 
 enum {

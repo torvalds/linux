@@ -633,7 +633,7 @@ static void clean_guest_page(struct intel_vgpu *vgpu,
 }
 
 static inline int init_shadow_page(struct intel_vgpu *vgpu,
-		struct intel_vgpu_shadow_page *p, int type)
+		struct intel_vgpu_shadow_page *p, int type, bool hash)
 {
 	struct device *kdev = &vgpu->gvt->dev_priv->drm.pdev->dev;
 	dma_addr_t daddr;
@@ -650,7 +650,8 @@ static inline int init_shadow_page(struct intel_vgpu *vgpu,
 	INIT_HLIST_NODE(&p->node);
 
 	p->mfn = daddr >> I915_GTT_PAGE_SHIFT;
-	hash_add(vgpu->gtt.shadow_page_hash_table, &p->node, p->mfn);
+	if (hash)
+		hash_add(vgpu->gtt.shadow_page_hash_table, &p->node, p->mfn);
 	return 0;
 }
 
@@ -782,7 +783,7 @@ retry:
 	 * TODO: guest page type may be different with shadow page type,
 	 *	 when we support PSE page in future.
 	 */
-	ret = init_shadow_page(vgpu, &spt->shadow_page, type);
+	ret = init_shadow_page(vgpu, &spt->shadow_page, type, true);
 	if (ret) {
 		gvt_vgpu_err("fail to initialize shadow page for spt\n");
 		goto err;
@@ -1902,11 +1903,11 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 			 * update the entry in this situation p2m will fail
 			 * settting the shadow entry to point to a scratch page
 			 */
-			ops->set_pfn(&m, gvt->gtt.scratch_ggtt_mfn);
+			ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 		}
 	} else {
 		m = e;
-		ops->set_pfn(&m, gvt->gtt.scratch_ggtt_mfn);
+		ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 	}
 
 	ggtt_set_shadow_entry(ggtt_mm, &m, g_gtt_index);
@@ -2309,16 +2310,16 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		__free_page(virt_to_page(page));
 		return -ENOMEM;
 	}
-	gvt->gtt.scratch_ggtt_page = virt_to_page(page);
-	gvt->gtt.scratch_ggtt_mfn = (unsigned long)(daddr >>
-			I915_GTT_PAGE_SHIFT);
+
+	gvt->gtt.scratch_page = virt_to_page(page);
+	gvt->gtt.scratch_mfn = (unsigned long)(daddr >> I915_GTT_PAGE_SHIFT);
 
 	if (enable_out_of_sync) {
 		ret = setup_spt_oos(gvt);
 		if (ret) {
 			gvt_err("fail to initialize SPT oos\n");
 			dma_unmap_page(dev, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
-			__free_page(gvt->gtt.scratch_ggtt_page);
+			__free_page(gvt->gtt.scratch_page);
 			return ret;
 		}
 	}
@@ -2337,12 +2338,12 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 void intel_gvt_clean_gtt(struct intel_gvt *gvt)
 {
 	struct device *dev = &gvt->dev_priv->drm.pdev->dev;
-	dma_addr_t daddr = (dma_addr_t)(gvt->gtt.scratch_ggtt_mfn <<
+	dma_addr_t daddr = (dma_addr_t)(gvt->gtt.scratch_mfn <<
 					I915_GTT_PAGE_SHIFT);
 
 	dma_unmap_page(dev, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
 
-	__free_page(gvt->gtt.scratch_ggtt_page);
+	__free_page(gvt->gtt.scratch_page);
 
 	if (enable_out_of_sync)
 		clean_spt_oos(gvt);
@@ -2368,7 +2369,7 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 
 	memset(&e, 0, sizeof(struct intel_gvt_gtt_entry));
 	e.type = GTT_TYPE_GGTT_PTE;
-	ops->set_pfn(&e, gvt->gtt.scratch_ggtt_mfn);
+	ops->set_pfn(&e, gvt->gtt.scratch_mfn);
 	e.val64 |= _PAGE_PRESENT;
 
 	index = vgpu_aperture_gmadr_base(vgpu) >> PAGE_SHIFT;
