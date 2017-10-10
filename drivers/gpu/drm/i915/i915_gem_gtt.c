@@ -135,11 +135,12 @@ static inline void i915_ggtt_invalidate(struct drm_i915_private *i915)
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 			       	int enable_ppgtt)
 {
-	bool has_aliasing_ppgtt;
 	bool has_full_ppgtt;
 	bool has_full_48bit_ppgtt;
 
-	has_aliasing_ppgtt = dev_priv->info.has_aliasing_ppgtt;
+	if (!dev_priv->info.has_aliasing_ppgtt)
+		return 0;
+
 	has_full_ppgtt = dev_priv->info.has_full_ppgtt;
 	has_full_48bit_ppgtt = dev_priv->info.has_full_48bit_ppgtt;
 
@@ -148,9 +149,6 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		has_full_ppgtt = false;
 		has_full_48bit_ppgtt = intel_vgpu_has_full_48bit_ppgtt(dev_priv);
 	}
-
-	if (!has_aliasing_ppgtt)
-		return 0;
 
 	/*
 	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
@@ -188,7 +186,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 			return 2;
 	}
 
-	return has_aliasing_ppgtt ? 1 : 0;
+	return 1;
 }
 
 static int ppgtt_bind_vma(struct i915_vma *vma,
