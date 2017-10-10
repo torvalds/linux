@@ -90,6 +90,8 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		goto free_chunk;
 	}
 
+	mutex_lock(&p->ctx->lock);
+
 	/* get chunks */
 	chunk_array_user = u64_to_user_ptr(cs->in.chunks);
 	if (copy_from_user(chunk_array, chunk_array_user,
@@ -737,8 +739,10 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error,
 
 	dma_fence_put(parser->fence);
 
-	if (parser->ctx)
+	if (parser->ctx) {
+		mutex_unlock(&parser->ctx->lock);
 		amdgpu_ctx_put(parser->ctx);
+	}
 	if (parser->bo_list)
 		amdgpu_bo_list_put(parser->bo_list);
 
@@ -895,9 +899,7 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 			r = amdgpu_ring_parse_cs(ring, p, j);
 			if (r)
 				return r;
-
 		}
-
 		j++;
 	}
 
@@ -985,7 +987,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	    parser->job->ring->funcs->type == AMDGPU_RING_TYPE_VCE))
 		return -EINVAL;
 
-	return 0;
+	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->job->ring->idx);
 }
 
 static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,

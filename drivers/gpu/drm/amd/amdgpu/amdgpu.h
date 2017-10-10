@@ -738,6 +738,7 @@ struct amdgpu_ctx {
 	bool 			preamble_presented;
 	enum amd_sched_priority init_priority;
 	enum amd_sched_priority override_priority;
+	struct mutex            lock;
 };
 
 struct amdgpu_ctx_mgr {
@@ -760,8 +761,11 @@ void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp);
 
+int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx, unsigned ring_id);
+
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
 void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
+
 
 /*
  * file private structure

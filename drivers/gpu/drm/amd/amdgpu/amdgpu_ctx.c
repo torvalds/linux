@@ -67,6 +67,8 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	if (!ctx->fences)
 		return -ENOMEM;
 
+	mutex_init(&ctx->lock);
+
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		ctx->rings[i].sequence = 1;
 		ctx->rings[i].fences = &ctx->fences[amdgpu_sched_jobs * i];
@@ -126,6 +128,8 @@ static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 				      &ctx->rings[i].entity);
 
 	amdgpu_queue_mgr_fini(adev, &ctx->queue_mgr);
+
+	mutex_destroy(&ctx->lock);
 }
 
 static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
@@ -296,12 +300,8 @@ int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 
 	idx = seq & (amdgpu_sched_jobs - 1);
 	other = cring->fences[idx];
-	if (other) {
-		signed long r;
-		r = dma_fence_wait_timeout(other, true, MAX_SCHEDULE_TIMEOUT);
-		if (r < 0)
-			return r;
-	}
+	if (other)
+		BUG_ON(!dma_fence_is_signaled(other));
 
 	dma_fence_get(fence);
 
@@ -370,6 +370,24 @@ void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
 
 		amd_sched_entity_set_rq(entity, rq);
 	}
+}
+
+int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx, unsigned ring_id)
+{
+	struct amdgpu_ctx_ring *cring = &ctx->rings[ring_id];
+	unsigned idx = cring->sequence & (amdgpu_sched_jobs - 1);
+	struct dma_fence *other = cring->fences[idx];
+
+	if (other) {
+		signed long r;
+		r = dma_fence_wait_timeout(other, false, MAX_SCHEDULE_TIMEOUT);
+		if (r < 0) {
+			DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+			return r;
+		}
+	}
+
+	return 0;
 }
 
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
