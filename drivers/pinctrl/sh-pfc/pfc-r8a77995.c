@@ -1437,6 +1437,50 @@ static const unsigned int scif_clk_mux[] = {
 	SCIF_CLK_MARK,
 };
 
+/* - SSI ---------------------------------------------------------------*/
+static const unsigned int ssi3_data_pins[] = {
+	/* SDATA */
+	RCAR_GP_PIN(4, 3),
+};
+static const unsigned int ssi3_data_mux[] = {
+	SSI_SDATA3_MARK,
+};
+static const unsigned int ssi34_ctrl_pins[] = {
+	/* SCK,  WS */
+	RCAR_GP_PIN(4, 2), RCAR_GP_PIN(4, 4),
+};
+static const unsigned int ssi34_ctrl_mux[] = {
+	SSI_SCK34_MARK, SSI_WS34_MARK,
+};
+static const unsigned int ssi4_ctrl_a_pins[] = {
+	/* SCK, WS */
+	RCAR_GP_PIN(4, 5), RCAR_GP_PIN(4, 7),
+};
+static const unsigned int ssi4_ctrl_a_mux[] = {
+	SSI_SCK4_A_MARK, SSI_WS4_A_MARK,
+};
+static const unsigned int ssi4_data_a_pins[] = {
+	/* SDATA */
+	RCAR_GP_PIN(4, 6),
+};
+static const unsigned int ssi4_data_a_mux[] = {
+	SSI_SDATA4_A_MARK,
+};
+static const unsigned int ssi4_ctrl_b_pins[] = {
+	/* SCK, WS */
+	RCAR_GP_PIN(2, 15), RCAR_GP_PIN(2, 20),
+};
+static const unsigned int ssi4_ctrl_b_mux[] = {
+	SSI_SCK4_B_MARK, SSI_WS4_B_MARK,
+};
+static const unsigned int ssi4_data_b_pins[] = {
+	/* SDATA */
+	RCAR_GP_PIN(2, 16),
+};
+static const unsigned int ssi4_data_b_mux[] = {
+	SSI_SDATA4_B_MARK,
+};
+
 /* - USB0 ------------------------------------------------------------------- */
 static const unsigned int usb0_pins[] = {
 	/* PWEN, OVC */
@@ -1509,6 +1553,12 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scif5_data_b),
 	SH_PFC_PIN_GROUP(scif5_clk_b),
 	SH_PFC_PIN_GROUP(scif_clk),
+	SH_PFC_PIN_GROUP(ssi3_data),
+	SH_PFC_PIN_GROUP(ssi34_ctrl),
+	SH_PFC_PIN_GROUP(ssi4_ctrl_a),
+	SH_PFC_PIN_GROUP(ssi4_data_a),
+	SH_PFC_PIN_GROUP(ssi4_ctrl_b),
+	SH_PFC_PIN_GROUP(ssi4_data_b),
 	SH_PFC_PIN_GROUP(usb0),
 };
 
@@ -1627,6 +1677,15 @@ static const char * const scif_clk_groups[] = {
 	"scif_clk",
 };
 
+static const char * const ssi_groups[] = {
+	"ssi3_data",
+	"ssi34_ctrl",
+	"ssi4_ctrl_a",
+	"ssi4_data_a",
+	"ssi4_ctrl_b",
+	"ssi4_data_b",
+};
+
 static const char * const usb0_groups[] = {
 	"usb0",
 };
@@ -1650,6 +1709,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(scif4),
 	SH_PFC_FUNCTION(scif5),
 	SH_PFC_FUNCTION(scif_clk),
+	SH_PFC_FUNCTION(ssi),
 	SH_PFC_FUNCTION(usb0),
 };
 
