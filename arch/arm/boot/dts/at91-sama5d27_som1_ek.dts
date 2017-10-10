@@ -53,6 +53,12 @@
 	model = "Atmel SAMA5D27 SOM1 EK";
 	compatible = "atmel,sama5d27-som1-ek", "atmel,sama5d27-som1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		serial0 = &uart1;	/* DBGU */
+		serial1 = &uart4;	/* mikro BUS 1 */
+		serial2 = &uart2;	/* mikro BUS 2 */
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
