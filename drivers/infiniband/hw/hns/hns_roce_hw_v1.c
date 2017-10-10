@@ -1005,7 +1005,7 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 	}
 
 	if (!ne) {
-		dev_err(dev, "Reseved loop qp is absent!\n");
+		dev_err(dev, "Reserved loop qp is absent!\n");
 		goto free_work;
 	}
 
