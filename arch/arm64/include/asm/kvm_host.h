@@ -435,4 +435,7 @@ static inline bool kvm_arm_harden_branch_predictor(void)
 	return cpus_have_const_cap(ARM64_HARDEN_BRANCH_PREDICTOR);
 }
 
+void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu);
+void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu);
+
 #endif /* __ARM64_KVM_HOST_H__ */

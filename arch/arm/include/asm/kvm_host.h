@@ -312,4 +312,7 @@ static inline bool kvm_arm_harden_branch_predictor(void)
 	return false;
 }
 
+static inline void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu) {}
+static inline void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu) {}
+
 #endif /* __ARM_KVM_HOST_H__ */
