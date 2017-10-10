@@ -600,7 +600,8 @@ static void apic_check_deadline_errata(void)
 	const struct x86_cpu_id *m;
 	u32 rev;
 
-	if (!boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
+	if (!boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER) ||
+	    boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return;
 
 	m = x86_match_cpu(deadline_match);
