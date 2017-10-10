@@ -1709,8 +1709,7 @@ static int synaptics_create_intertouch(struct psmouse *psmouse,
 		.sensor_pdata = {
 			.sensor_type = rmi_sensor_touchpad,
 			.axis_align.flip_y = true,
-			/* to prevent cursors jumps: */
-			.kernel_tracking = true,
+			.kernel_tracking = false,
 			.topbuttonpad = topbuttonpad,
 		},
 		.f30_data = {
