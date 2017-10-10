@@ -174,11 +174,17 @@ static struct cpuidle_state dedicated_states[] = {
  * States for shared partition case.
  */
 static struct cpuidle_state shared_states[] = {
+	{ /* Snooze */
+		.name = "snooze",
+		.desc = "snooze",
+		.exit_latency = 0,
+		.target_residency = 0,
+		.enter = &snooze_loop },
 	{ /* Shared Cede */
 		.name = "Shared Cede",
 		.desc = "Shared Cede",
-		.exit_latency = 0,
-		.target_residency = 0,
+		.exit_latency = 10,
+		.target_residency = 100,
 		.enter = &shared_cede_loop },
 };
 
