@@ -1422,6 +1422,7 @@ int pltfrm_camera_module_set_pm_state(
 		mclk_para.drv_strength = PLTFRM_DRV_STRENGTH_2;
 		cfg_para.cmd = PLTFRM_MCLK_CFG;
 		cfg_para.cfg_para = (void *)&mclk_para;
+		cfg_para.isp_config = &(soc_cfg->isp_config);
 		soc_cfg->soc_cfg(&cfg_para);
 
 		if (v4l2_subdev_call(sd,

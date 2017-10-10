@@ -53,3 +53,11 @@ config VIDEO_OV7675
 	default n
 	---help---
 	  This is ov7675 camera driver adapt to rockchip cif isp platform.
+
+config VIDEO_NT99230
+	tristate "nt99230 driver adapt to rockchip cif isp platform"
+	depends on VIDEO_V4L2 && VIDEO_RK_CIF_ISP10 && I2C
+	default n
+	---help---
+	  This is nt99230 hdmi video driver adapt to rockchip cif isp platform.
+
