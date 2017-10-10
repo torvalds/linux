@@ -2544,12 +2544,12 @@ static int intel_runtime_suspend(struct device *kdev)
 	intel_uncore_suspend(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
-	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
+	WARN_ON_ONCE(atomic_read(&dev_priv->runtime_pm.wakeref_count));
 
 	if (intel_uncore_arm_unclaimed_mmio_detection(dev_priv))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");
 
-	dev_priv->pm.suspended = true;
+	dev_priv->runtime_pm.suspended = true;
 
 	/*
 	 * FIXME: We really should find a document that references the arguments
@@ -2595,11 +2595,11 @@ static int intel_runtime_resume(struct device *kdev)
 
 	DRM_DEBUG_KMS("Resuming device\n");
 
-	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
+	WARN_ON_ONCE(atomic_read(&dev_priv->runtime_pm.wakeref_count));
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
-	dev_priv->pm.suspended = false;
+	dev_priv->runtime_pm.suspended = false;
 	if (intel_uncore_unclaimed_mmio(dev_priv))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 

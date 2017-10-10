@@ -1674,8 +1674,8 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 				   struct i915_gpu_state *error)
 {
 	error->awake = dev_priv->gt.awake;
-	error->wakelock = atomic_read(&dev_priv->pm.wakeref_count);
-	error->suspended = dev_priv->pm.suspended;
+	error->wakelock = atomic_read(&dev_priv->runtime_pm.wakeref_count);
+	error->suspended = dev_priv->runtime_pm.suspended;
 
 	error->iommu = -1;
 #ifdef CONFIG_INTEL_IOMMU

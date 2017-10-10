@@ -1254,7 +1254,7 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 	 * We only use drm_irq_uninstall() at unload and VT switch, so
 	 * this is the only thing we need to check.
 	 */
-	return dev_priv->pm.irqs_enabled;
+	return dev_priv->runtime_pm.irqs_enabled;
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
@@ -1790,7 +1790,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 static inline void
 assert_rpm_device_not_suspended(struct drm_i915_private *dev_priv)
 {
-	WARN_ONCE(dev_priv->pm.suspended,
+	WARN_ONCE(dev_priv->runtime_pm.suspended,
 		  "Device suspended during HW access\n");
 }
 
@@ -1798,7 +1798,7 @@ static inline void
 assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
 {
 	assert_rpm_device_not_suspended(dev_priv);
-	WARN_ONCE(!atomic_read(&dev_priv->pm.wakeref_count),
+	WARN_ONCE(!atomic_read(&dev_priv->runtime_pm.wakeref_count),
 		  "RPM wakelock ref not held during HW access");
 }
 
@@ -1823,7 +1823,7 @@ assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
 static inline void
 disable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 {
-	atomic_inc(&dev_priv->pm.wakeref_count);
+	atomic_inc(&dev_priv->runtime_pm.wakeref_count);
 }
 
 /**
@@ -1840,7 +1840,7 @@ disable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 static inline void
 enable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 {
-	atomic_dec(&dev_priv->pm.wakeref_count);
+	atomic_dec(&dev_priv->runtime_pm.wakeref_count);
 }
 
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);

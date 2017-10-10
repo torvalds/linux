@@ -187,7 +187,7 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 	struct i915_power_well *power_well;
 	bool is_enabled;
 
-	if (dev_priv->pm.suspended)
+	if (dev_priv->runtime_pm.suspended)
 		return false;
 
 	is_enabled = true;
@@ -3128,7 +3128,7 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 	ret = pm_runtime_get_sync(kdev);
 	WARN_ONCE(ret < 0, "pm_runtime_get_sync() failed: %d\n", ret);
 
-	atomic_inc(&dev_priv->pm.wakeref_count);
+	atomic_inc(&dev_priv->runtime_pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);
 }
 
@@ -3162,7 +3162,7 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 			return false;
 	}
 
-	atomic_inc(&dev_priv->pm.wakeref_count);
+	atomic_inc(&dev_priv->runtime_pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);
 
 	return true;
@@ -3193,7 +3193,7 @@ void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 	assert_rpm_wakelock_held(dev_priv);
 	pm_runtime_get_noresume(kdev);
 
-	atomic_inc(&dev_priv->pm.wakeref_count);
+	atomic_inc(&dev_priv->runtime_pm.wakeref_count);
 }
 
 /**
@@ -3210,7 +3210,7 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 	struct device *kdev = &pdev->dev;
 
 	assert_rpm_wakelock_held(dev_priv);
-	atomic_dec(&dev_priv->pm.wakeref_count);
+	atomic_dec(&dev_priv->runtime_pm.wakeref_count);
 
 	pm_runtime_mark_last_busy(kdev);
 	pm_runtime_put_autosuspend(kdev);

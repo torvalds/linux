@@ -4173,7 +4173,7 @@ int intel_irq_install(struct drm_i915_private *dev_priv)
 	 * interrupts as enabled _before_ actually enabling them to avoid
 	 * special cases in our ordering checks.
 	 */
-	dev_priv->pm.irqs_enabled = true;
+	dev_priv->runtime_pm.irqs_enabled = true;
 
 	return drm_irq_install(&dev_priv->drm, dev_priv->drm.pdev->irq);
 }
@@ -4189,7 +4189,7 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 {
 	drm_irq_uninstall(&dev_priv->drm);
 	intel_hpd_cancel_work(dev_priv);
-	dev_priv->pm.irqs_enabled = false;
+	dev_priv->runtime_pm.irqs_enabled = false;
 }
 
 /**
@@ -4202,7 +4202,7 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
 {
 	dev_priv->drm.driver->irq_uninstall(&dev_priv->drm);
-	dev_priv->pm.irqs_enabled = false;
+	dev_priv->runtime_pm.irqs_enabled = false;
 	synchronize_irq(dev_priv->drm.irq);
 }
 
@@ -4215,7 +4215,7 @@ void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv)
 {
-	dev_priv->pm.irqs_enabled = true;
+	dev_priv->runtime_pm.irqs_enabled = true;
 	dev_priv->drm.driver->irq_preinstall(&dev_priv->drm);
 	dev_priv->drm.driver->irq_postinstall(&dev_priv->drm);
 }

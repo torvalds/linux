@@ -9350,8 +9350,8 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 			  __intel_autoenable_gt_powersave);
 	atomic_set(&dev_priv->rps.num_waiters, 0);
 
-	dev_priv->pm.suspended = false;
-	atomic_set(&dev_priv->pm.wakeref_count, 0);
+	dev_priv->runtime_pm.suspended = false;
+	atomic_set(&dev_priv->runtime_pm.wakeref_count, 0);
 }
 
 static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,

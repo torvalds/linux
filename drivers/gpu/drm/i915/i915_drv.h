@@ -2533,7 +2533,7 @@ struct drm_i915_private {
 		bool distrust_bios_wm;
 	} wm;
 
-	struct i915_runtime_pm pm;
+	struct i915_runtime_pm runtime_pm;
 
 	struct {
 		bool initialized;
