@@ -500,7 +500,7 @@ static void i915_guc_submit(struct intel_engine_cs *engine)
 	const unsigned int engine_id = engine->id;
 	unsigned int n;
 
-	for (n = 0; n < ARRAY_SIZE(execlists->port); n++) {
+	for (n = 0; n < execlists_num_ports(execlists); n++) {
 		struct drm_i915_gem_request *rq;
 		unsigned int count;
 

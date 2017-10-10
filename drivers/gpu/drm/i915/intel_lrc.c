@@ -691,7 +691,7 @@ static void
 execlist_cancel_port_requests(struct intel_engine_execlists *execlists)
 {
 	struct execlist_port *port = execlists->port;
-	unsigned int num_ports = ARRAY_SIZE(execlists->port);
+	unsigned int num_ports = execlists_num_ports(execlists);
 
 	while (num_ports-- && port_isset(port)) {
 		struct drm_i915_gem_request *rq = port_request(port);
