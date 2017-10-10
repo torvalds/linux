@@ -1861,7 +1861,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (musb->quirk_retries) {
+		if (musb->quirk_retries && !musb->flush_irq_work) {
 			musb_dbg(musb,
 				 "Poll devctl on invalid vbus, assume no session");
 			schedule_delayed_work(&musb->irq_work,
@@ -1871,7 +1871,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		}
 		/* fall through */
 	case MUSB_QUIRK_A_DISCONNECT_19:
-		if (musb->quirk_retries) {
+		if (musb->quirk_retries && !musb->flush_irq_work) {
 			musb_dbg(musb,
 				 "Poll devctl on possible host mode disconnect");
 			schedule_delayed_work(&musb->irq_work,
@@ -2681,8 +2681,15 @@ static int musb_suspend(struct device *dev)
 
 	musb_platform_disable(musb);
 	musb_disable_interrupts(musb);
+
+	musb->flush_irq_work = true;
+	while (flush_delayed_work(&musb->irq_work))
+		;
+	musb->flush_irq_work = false;
+
 	if (!(musb->io.quirks & MUSB_PRESERVE_SESSION))
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+
 	WARN_ON(!list_empty(&musb->pending_list));
 
 	spin_lock_irqsave(&musb->lock, flags);
