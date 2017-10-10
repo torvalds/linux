@@ -406,11 +406,6 @@ _scsih_get_sas_address(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 	*sas_address = 0;
 
-	if (handle <= ioc->sas_hba.num_phys) {
-		*sas_address = ioc->sas_hba.sas_address;
-		return 0;
-	}
-
 	if ((mpt3sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
 	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
 		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n", ioc->name,
@@ -420,7 +415,15 @@ _scsih_get_sas_address(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
 	if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
-		*sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
+		/* For HBA, vSES doesn't return HBA SAS address. Instead return
+		 * vSES's sas address.
+		 */
+		if ((handle <= ioc->sas_hba.num_phys) &&
+		   (!(le32_to_cpu(sas_device_pg0.DeviceInfo) &
+		   MPI2_SAS_DEVICE_INFO_SEP)))
+			*sas_address = ioc->sas_hba.sas_address;
+		else
+			*sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
 		return 0;
 	}
 
