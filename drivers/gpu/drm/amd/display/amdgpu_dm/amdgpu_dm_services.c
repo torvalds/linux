@@ -35,47 +35,6 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 
-/******************************************************************************
- * IRQ Interfaces.
- *****************************************************************************/
-
-void dal_register_timer_interrupt(
-	struct dc_context *ctx,
-	struct dc_timer_interrupt_params *int_params,
-	interrupt_handler ih,
-	void *args)
-{
-	struct amdgpu_device *adev = ctx->driver_context;
-
-	if (!adev || !int_params) {
-		DRM_ERROR("DM_IRQ: invalid input!\n");
-		return;
-	}
-
-	if (int_params->int_context != INTERRUPT_LOW_IRQ_CONTEXT) {
-		/* only low irq ctx is supported. */
-		DRM_ERROR("DM_IRQ: invalid context: %d!\n",
-				int_params->int_context);
-		return;
-	}
-
-	amdgpu_dm_irq_register_timer(adev, int_params, ih, args);
-}
-
-void dal_isr_acquire_lock(struct dc_context *ctx)
-{
-	/*TODO*/
-}
-
-void dal_isr_release_lock(struct dc_context *ctx)
-{
-	/*TODO*/
-}
-
-/******************************************************************************
- * End-of-IRQ Interfaces.
- *****************************************************************************/
-
 bool dm_write_persistent_data(struct dc_context *ctx,
 		const struct dc_sink *sink,
 		const char *module_name,
@@ -116,18 +75,6 @@ bool dm_pp_pre_dce_clock_change(
 {
 	/*TODO*/
 	return false;
-}
-
-bool dm_pp_apply_safe_state(
-		const struct dc_context *ctx)
-{
-	struct amdgpu_device *adev = ctx->driver_context;
-
-	if (adev->pm.dpm_enabled) {
-		/* TODO: Does this require PreModeChange event to PPLIB? */
-	}
-
-	return true;
 }
 
 bool dm_pp_apply_display_requirements(
