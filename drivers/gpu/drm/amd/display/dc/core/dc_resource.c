@@ -850,22 +850,11 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 */
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
-	/**
-	 * KMD sends us h and v_addressable without the borders, which causes us sometimes to draw
-	 * the blank region on-screen. Correct for this by adding the borders back to their
-	 * respective addressable values, and by shifting recout.
-	 */
-	timing->h_addressable += timing->h_border_left + timing->h_border_right;
-	timing->v_addressable += timing->v_border_top + timing->v_border_bottom;
-	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;
 	pipe_ctx->plane_res.scl_data.recout.x += timing->h_border_left;
-	timing->v_border_top = 0;
-	timing->v_border_bottom = 0;
-	timing->h_border_left = 0;
-	timing->h_border_right = 0;
+	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;
 
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable;
+	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
+	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
 	/* Taps calculations */
 	if (pipe_ctx->plane_res.xfm != NULL)
