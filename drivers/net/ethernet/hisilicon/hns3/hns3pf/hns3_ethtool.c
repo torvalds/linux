@@ -450,7 +450,7 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = h->ae_algo->ops->get_tc_size(h);
+		cmd->data = h->kinfo.num_tc * h->kinfo.rss_size;
 		break;
 	case ETHTOOL_GRXFH:
 		return h->ae_algo->ops->get_rss_tuple(h, cmd);
