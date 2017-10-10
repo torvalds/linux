@@ -1588,8 +1588,7 @@ static bool is_elm_present(struct omap_nand_info *info,
 	return true;
 }
 
-static bool omap2_nand_ecc_check(struct omap_nand_info *info,
-				 struct omap_nand_platform_data	*pdata)
+static bool omap2_nand_ecc_check(struct omap_nand_info *info)
 {
 	bool ecc_needs_bch, ecc_needs_omap_bch, ecc_needs_elm;
 
@@ -1804,7 +1803,6 @@ static const struct mtd_ooblayout_ops omap_sw_ooblayout_ops = {
 static int omap_nand_probe(struct platform_device *pdev)
 {
 	struct omap_nand_info		*info;
-	struct omap_nand_platform_data	*pdata = NULL;
 	struct mtd_info			*mtd;
 	struct nand_chip		*nand_chip;
 	int				err;
@@ -1821,27 +1819,9 @@ static int omap_nand_probe(struct platform_device *pdev)
 
 	info->pdev = pdev;
 
-	if (dev->of_node) {
-		if (omap_get_dt_info(dev, info))
-			return -EINVAL;
-	} else {
-		pdata = dev_get_platdata(&pdev->dev);
-		if (!pdata) {
-			dev_err(&pdev->dev, "platform data missing\n");
-			return -EINVAL;
-		}
-
-		info->gpmc_cs = pdata->cs;
-		info->reg = pdata->reg;
-		info->ecc_opt = pdata->ecc_opt;
-		if (pdata->dev_ready)
-			dev_info(&pdev->dev, "pdata->dev_ready is deprecated\n");
-
-		info->xfer_type = pdata->xfer_type;
-		info->devsize = pdata->devsize;
-		info->elm_of_node = pdata->elm_of_node;
-		info->flash_bbt = pdata->flash_bbt;
-	}
+	err = omap_get_dt_info(dev, info);
+	if (err)
+		return err;
 
 	platform_set_drvdata(pdev, info);
 	info->ops = gpmc_omap_get_nand_ops(&info->reg, info->gpmc_cs);
@@ -2002,7 +1982,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		goto return_error;
 	}
 
-	if (!omap2_nand_ecc_check(info, pdata)) {
+	if (!omap2_nand_ecc_check(info)) {
 		err = -EINVAL;
 		goto return_error;
 	}
@@ -2167,10 +2147,9 @@ scan_tail:
 	if (err)
 		goto return_error;
 
-	if (dev->of_node)
-		mtd_device_register(mtd, NULL, 0);
-	else
-		mtd_device_register(mtd, pdata->parts, pdata->nr_parts);
+	err = mtd_device_register(mtd, NULL, 0);
+	if (err)
+		goto return_error;
 
 	platform_set_drvdata(pdev, mtd);
 
