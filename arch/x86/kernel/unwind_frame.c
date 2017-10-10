@@ -355,6 +355,13 @@ bad_address:
 	    state->regs->sp < (unsigned long)task_pt_regs(state->task))
 		goto the_end;
 
+	/*
+	 * There are some known frame pointer issues on 32-bit.  Disable
+	 * unwinder warnings on 32-bit until it gets objtool support.
+	 */
+	if (IS_ENABLED(CONFIG_X86_32))
+		goto the_end;
+
 	if (state->regs) {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
