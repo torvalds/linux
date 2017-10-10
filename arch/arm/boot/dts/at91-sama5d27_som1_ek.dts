@@ -172,12 +172,6 @@
 				status = "okay";
 			};
 
-			can0: can@f8054000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_can0_default>;
-				status = "disabled"; /* Conflict with isc. */
-			};
-
 			uart3: serial@fc008000 {
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -275,12 +269,6 @@
 			};
 
 			pinctrl@fc038000 {
-
-				pinctrl_can0_default: can0_default {
-					pinmux = <PIN_PC10__CANTX0>,
-						 <PIN_PC11__CANRX0>;
-					bias-disable;
-				};
 
 				pinctrl_can1_default: can1_default {
 					pinmux = <PIN_PC26__CANTX1>,
