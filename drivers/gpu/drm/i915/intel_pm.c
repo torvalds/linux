@@ -6345,9 +6345,14 @@ static void gen6_disable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RP_CONTROL, 0);
 }
 
-static void cherryview_disable_rps(struct drm_i915_private *dev_priv)
+static void cherryview_disable_rc6(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(GEN6_RC_CONTROL, 0);
+}
+
+static void cherryview_disable_rps(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(GEN6_RP_CONTROL, 0);
 }
 
 static void valleyview_disable_rc6(struct drm_i915_private *dev_priv)
@@ -7199,11 +7204,11 @@ static void valleyview_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 	valleyview_cleanup_pctx(dev_priv);
 }
 
-static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
+static void cherryview_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 gtfifodbg, val, rc6_mode = 0, pcbr;
+	u32 gtfifodbg, rc6_mode = 0, pcbr;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
@@ -7236,7 +7241,7 @@ static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
 	/* TO threshold set to 500 us ( 0x186 * 1.28 us) */
 	I915_WRITE(GEN6_RC6_THRESHOLD, 0x186);
 
-	/* allows RC6 residency counter to work */
+	/* Allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
 		   _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH |
 				      VLV_MEDIA_RC6_COUNT_EN |
@@ -7252,7 +7257,18 @@ static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
-	/* 4 Program defaults and thresholds for RPS*/
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+}
+
+static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
+	/* 1: Program defaults and thresholds for RPS*/
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
 	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
 	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
@@ -7261,7 +7277,7 @@ static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 
-	/* 5: Enable RPS */
+	/* 2: Enable RPS */
 	I915_WRITE(GEN6_RP_CONTROL,
 		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
 		   GEN6_RP_MEDIA_IS_GFX |
@@ -7958,6 +7974,7 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 		gen9_disable_rc6(dev_priv);
 		gen9_disable_rps(dev_priv);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
+		cherryview_disable_rc6(dev_priv);
 		cherryview_disable_rps(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		valleyview_disable_rc6(dev_priv);
@@ -7988,6 +8005,7 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
+		cherryview_enable_rc6(dev_priv);
 		cherryview_enable_rps(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		valleyview_enable_rc6(dev_priv);
