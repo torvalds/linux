@@ -206,11 +206,11 @@ static const char *pipe_crc_source_name(enum intel_pipe_crc_source source)
 static int display_crc_ctl_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	int i;
+	enum pipe pipe;
 
-	for (i = 0; i < I915_MAX_PIPES; i++)
-		seq_printf(m, "%c %s\n", pipe_name(i),
-			   pipe_crc_source_name(dev_priv->pipe_crc[i].source));
+	for_each_pipe(dev_priv, pipe)
+		seq_printf(m, "%c %s\n", pipe_name(pipe),
+			   pipe_crc_source_name(dev_priv->pipe_crc[pipe].source));
 
 	return 0;
 }
