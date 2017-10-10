@@ -1415,7 +1415,7 @@ int rt6_remove_exception_rt(struct rt6_info *rt)
 	int err;
 
 	if (!from ||
-	    !(rt->rt6i_flags | RTF_CACHE))
+	    !(rt->rt6i_flags & RTF_CACHE))
 		return -EINVAL;
 
 	if (!rcu_access_pointer(from->rt6i_exception_bucket))
@@ -1459,7 +1459,7 @@ static void rt6_update_exception_stamp_rt(struct rt6_info *rt)
 	struct rt6_exception *rt6_ex;
 
 	if (!from ||
-	    !(rt->rt6i_flags | RTF_CACHE))
+	    !(rt->rt6i_flags & RTF_CACHE))
 		return;
 
 	rcu_read_lock();
