@@ -2171,8 +2171,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_dp_set_link_params(intel_dp, link_rate, lane_count,
 				 link_mst);
-	if (encoder->type == INTEL_OUTPUT_EDP)
-		intel_edp_panel_on(intel_dp);
+
+	intel_edp_panel_on(intel_dp);
 
 	intel_ddi_clk_select(encoder, pll);
 
