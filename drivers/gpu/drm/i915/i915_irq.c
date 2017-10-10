@@ -2252,18 +2252,14 @@ static void ivb_err_int_handler(struct drm_i915_private *dev_priv)
 static void cpt_serr_int_handler(struct drm_i915_private *dev_priv)
 {
 	u32 serr_int = I915_READ(SERR_INT);
+	enum pipe pipe;
 
 	if (serr_int & SERR_INT_POISON)
 		DRM_ERROR("PCH poison interrupt\n");
 
-	if (serr_int & SERR_INT_TRANS_A_FIFO_UNDERRUN)
-		intel_pch_fifo_underrun_irq_handler(dev_priv, PIPE_A);
-
-	if (serr_int & SERR_INT_TRANS_B_FIFO_UNDERRUN)
-		intel_pch_fifo_underrun_irq_handler(dev_priv, PIPE_B);
-
-	if (serr_int & SERR_INT_TRANS_C_FIFO_UNDERRUN)
-		intel_pch_fifo_underrun_irq_handler(dev_priv, PIPE_C);
+	for_each_pipe(dev_priv, pipe)
+		if (serr_int & SERR_INT_TRANS_FIFO_UNDERRUN(pipe))
+			intel_pch_fifo_underrun_irq_handler(dev_priv, pipe);
 
 	I915_WRITE(SERR_INT, serr_int);
 }

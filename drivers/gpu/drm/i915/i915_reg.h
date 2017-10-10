@@ -7182,9 +7182,6 @@ enum {
 
 #define SERR_INT			_MMIO(0xc4040)
 #define  SERR_INT_POISON		(1<<31)
-#define  SERR_INT_TRANS_C_FIFO_UNDERRUN	(1<<6)
-#define  SERR_INT_TRANS_B_FIFO_UNDERRUN	(1<<3)
-#define  SERR_INT_TRANS_A_FIFO_UNDERRUN	(1<<0)
 #define  SERR_INT_TRANS_FIFO_UNDERRUN(pipe)	(1<<((pipe)*3))
 
 /* digital port hotplug */
