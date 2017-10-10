@@ -157,7 +157,6 @@ struct be_bsg_vendor_cmd {
 
 struct beiscsi_endpoint {
 	struct beiscsi_hba *phba;
-	struct beiscsi_sess *sess;
 	struct beiscsi_conn *conn;
 	struct iscsi_endpoint *openiscsi_ep;
 	unsigned short ip_type;
@@ -169,11 +168,6 @@ struct beiscsi_endpoint {
 	u16 cid_vld;
 };
 
-unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
-					 struct beiscsi_endpoint *beiscsi_ep,
-					 unsigned short cid,
-					 unsigned short issue_reset,
-					 unsigned short savecfg_flag);
 int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				 struct invldt_cmd_tbl *inv_tbl,
 				 unsigned int nents);

@@ -1298,19 +1298,9 @@ struct be_cmd_get_port_name {
 						 * a read command
 						 */
 #define TGT_CTX_UPDT_CMD		7	/* Target context update */
-#define TGT_STS_CMD			8	/* Target R2T and other BHS
-						 * where only the status number
-						 * need to be updated
-						 */
-#define TGT_DATAIN_CMD			9	/* Target Data-Ins in response
-						 * to read command
-						 */
-#define TGT_SOS_PDU			10	/* Target:standalone status
-						 * response
-						 */
 #define TGT_DM_CMD			11	/* Indicates that the bhs
-						 *  preparedby
-						 * driver should not be touched
+						 * prepared by driver should not
+						 * be touched.
 						 */
 
 /* Returns the number of items in the field array. */

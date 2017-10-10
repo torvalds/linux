@@ -455,14 +455,12 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 		return -ENOMEM;
 	phba->ctrl.csr = addr;
 	phba->csr_va = addr;
-	phba->csr_pa.u.a64.address = pci_resource_start(pcidev, 2);
 
 	addr = ioremap_nocache(pci_resource_start(pcidev, 4), 128 * 1024);
 	if (addr == NULL)
 		goto pci_map_err;
 	phba->ctrl.db = addr;
 	phba->db_va = addr;
-	phba->db_pa.u.a64.address =  pci_resource_start(pcidev, 4);
 
 	if (phba->generation == BE_GEN2)
 		pcicfg_reg = 1;
@@ -476,7 +474,6 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 		goto pci_map_err;
 	phba->ctrl.pcicfg = addr;
 	phba->pci_va = addr;
-	phba->pci_pa.u.a64.address = pci_resource_start(pcidev, pcicfg_reg);
 	return 0;
 
 pci_map_err:
@@ -942,12 +939,11 @@ free_io_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle)
 		 * this can happen if clean_task is called on a task that
 		 * failed in xmit_task or alloc_pdu.
 		 */
-		 beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_IO,
-			     "BM_%d : Double Free in IO SGL io_sgl_free_index=%d,"
-			     "value there=%p\n", phba->io_sgl_free_index,
-			     phba->io_sgl_hndl_base
-			     [phba->io_sgl_free_index]);
-		 spin_unlock_irqrestore(&phba->io_sgl_lock, flags);
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_IO,
+			    "BM_%d : Double Free in IO SGL io_sgl_free_index=%d, value there=%p\n",
+			    phba->io_sgl_free_index,
+			    phba->io_sgl_hndl_base[phba->io_sgl_free_index]);
+		spin_unlock_irqrestore(&phba->io_sgl_lock, flags);
 		return;
 	}
 	phba->io_sgl_hndl_base[phba->io_sgl_free_index] = psgl_handle;
@@ -1882,8 +1878,8 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 
 		be_dws_le_to_cpu(sol, sizeof(struct sol_cqe));
 
-		 code = (sol->dw[offsetof(struct amap_sol_cqe, code) /
-			 32] & CQE_CODE_MASK);
+		code = (sol->dw[offsetof(struct amap_sol_cqe, code) / 32] &
+				CQE_CODE_MASK);
 
 		 /* Get the CID */
 		if (is_chip_be2_be3r(phba)) {
@@ -3042,7 +3038,7 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 
 		mem->dma = paddr;
 		ret = beiscsi_cmd_eq_create(&phba->ctrl, eq,
-					    phwi_context->cur_eqd);
+					    BEISCSI_EQ_DELAY_DEF);
 		if (ret) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 				    "BM_%d : beiscsi_cmd_eq_create"
@@ -3526,13 +3522,14 @@ static int be_mcc_queues_create(struct beiscsi_hba *phba,
 		goto err;
 	/* Ask BE to create MCC compl queue; */
 	if (phba->pcidev->msix_enabled) {
-		if (beiscsi_cmd_cq_create(ctrl, cq, &phwi_context->be_eq
-					 [phba->num_cpus].q, false, true, 0))
-		goto mcc_cq_free;
+		if (beiscsi_cmd_cq_create(ctrl, cq,
+					&phwi_context->be_eq[phba->num_cpus].q,
+					false, true, 0))
+			goto mcc_cq_free;
 	} else {
 		if (beiscsi_cmd_cq_create(ctrl, cq, &phwi_context->be_eq[0].q,
 					  false, true, 0))
-		goto mcc_cq_free;
+			goto mcc_cq_free;
 	}
 
 	/* Alloc MCC queue */
@@ -3707,9 +3704,6 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
-	phwi_context->max_eqd = 128;
-	phwi_context->min_eqd = 0;
-	phwi_context->cur_eqd = 32;
 	/* set port optic state to unknown */
 	phba->optic_state = 0xff;
 
@@ -4810,10 +4804,10 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 	sg = scsi_sglist(sc);
 	if (sc->sc_data_direction == DMA_TO_DEVICE)
 		writedir = 1;
-	 else
+	else
 		writedir = 0;
 
-	 return phba->iotask_fn(task, sg, num_sg, xferlen, writedir);
+	return phba->iotask_fn(task, sg, num_sg, xferlen, writedir);
 }
 
 /**
@@ -5234,8 +5228,8 @@ static void beiscsi_eqd_update_work(struct work_struct *work)
 
 		if (eqd < 8)
 			eqd = 0;
-		eqd = min_t(u32, eqd, phwi_context->max_eqd);
-		eqd = max_t(u32, eqd, phwi_context->min_eqd);
+		eqd = min_t(u32, eqd, BEISCSI_EQ_DELAY_MAX);
+		eqd = max_t(u32, eqd, BEISCSI_EQ_DELAY_MIN);
 
 		aic->jiffies = now;
 		aic->eq_prev = pbe_eq->cq_count;
