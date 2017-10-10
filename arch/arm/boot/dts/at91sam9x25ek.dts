@@ -16,6 +16,10 @@
 
 	ahb {
 		apb {
+			can1: can@f8004000 {
+				status = "okay";
+			};
+
 			macb0: ethernet@f802c000 {
 				phy-mode = "rmii";
 				status = "okay";
