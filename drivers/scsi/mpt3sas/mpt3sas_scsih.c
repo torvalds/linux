@@ -5274,8 +5274,6 @@ mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address)
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	sas_expander = mpt3sas_scsih_expander_find_by_sas_address(ioc,
 	    sas_address);
-	if (sas_expander)
-		list_del(&sas_expander->list);
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 	if (sas_expander)
 		_scsih_expander_node_remove(ioc, sas_expander);
@@ -7476,7 +7474,6 @@ _scsih_remove_unresponding_sas_devices(struct MPT3SAS_ADAPTER *ioc)
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 	list_for_each_entry_safe(sas_expander, sas_expander_next, &tmp_list,
 	    list) {
-		list_del(&sas_expander->list);
 		_scsih_expander_node_remove(ioc, sas_expander);
 	}
 
@@ -8102,7 +8099,6 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
  * _scsih_expander_node_remove - removing expander device from list.
  * @ioc: per adapter object
  * @sas_expander: the sas_device object
- * Context: Calling function should acquire ioc->sas_node_lock.
  *
  * Removing object and freeing associated memory from the
  * ioc->sas_expander_list.
@@ -8114,6 +8110,7 @@ _scsih_expander_node_remove(struct MPT3SAS_ADAPTER *ioc,
 	struct _sas_node *sas_expander)
 {
 	struct _sas_port *mpt3sas_port, *next;
+	unsigned long flags;
 
 	/* remove sibling ports attached to this expander */
 	list_for_each_entry_safe(mpt3sas_port, next,
@@ -8140,6 +8137,10 @@ _scsih_expander_node_remove(struct MPT3SAS_ADAPTER *ioc,
 		ioc->name,
 	    sas_expander->handle, (unsigned long long)
 	    sas_expander->sas_address);
+
+	spin_lock_irqsave(&ioc->sas_node_lock, flags);
+	list_del(&sas_expander->list);
+	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 
 	kfree(sas_expander->phy);
 	kfree(sas_expander);
