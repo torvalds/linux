@@ -173,6 +173,11 @@ enum trace_reg {
 	TRACE_REG_PERF_UNREGISTER,
 	TRACE_REG_PERF_OPEN,
 	TRACE_REG_PERF_CLOSE,
+	/*
+	 * These (ADD/DEL) use a 'boolean' return value, where 1 (true) means a
+	 * custom action was taken and the default action is not to be
+	 * performed.
+	 */
 	TRACE_REG_PERF_ADD,
 	TRACE_REG_PERF_DEL,
 #endif
