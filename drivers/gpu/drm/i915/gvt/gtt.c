@@ -2395,8 +2395,6 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
  */
 void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu)
 {
-	int i;
-
 	ppgtt_free_all_shadow_page(vgpu);
 
 	/* Shadow pages are only created when there is no page
@@ -2406,11 +2404,4 @@ void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu)
 	intel_vgpu_free_mm(vgpu, INTEL_GVT_MM_PPGTT);
 
 	intel_vgpu_reset_ggtt(vgpu);
-
-	/* clear scratch page for security */
-	for (i = GTT_TYPE_PPGTT_PTE_PT; i < GTT_TYPE_MAX; i++) {
-		if (vgpu->gtt.scratch_pt[i].page != NULL)
-			memset(page_address(vgpu->gtt.scratch_pt[i].page),
-				0, PAGE_SIZE);
-	}
 }
