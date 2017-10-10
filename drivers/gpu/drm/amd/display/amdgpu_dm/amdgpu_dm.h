@@ -193,36 +193,7 @@ struct amdgpu_dm_connector {
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
 
-/* basic init/fini API */
-int amdgpu_dm_init(struct amdgpu_device *adev);
-
-void amdgpu_dm_fini(struct amdgpu_device *adev);
-
-void amdgpu_dm_destroy(void);
-
-/* initializes drm_device display related structures, based on the information
- * provided by DAL. The drm strcutures are: drm_crtc, drm_connector,
- * drm_encoder, drm_mode_config
- *
- * Returns 0 on success
- */
-int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev);
-
-/* removes and deallocates the drm structures, created by the above function */
-void amdgpu_dm_destroy_drm_device(struct amdgpu_display_manager *dm);
-
-/* Locking/Mutex */
-bool amdgpu_dm_acquire_dal_lock(struct amdgpu_display_manager *dm);
-
-bool amdgpu_dm_release_dal_lock(struct amdgpu_display_manager *dm);
-
-/* Register "Backlight device" accessible by user-mode. */
-void amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm);
-
 extern const struct amdgpu_ip_block_version dm_ip_block;
-
-void
-amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector);
 
 struct amdgpu_framebuffer;
 struct amdgpu_display_manager;
@@ -251,36 +222,6 @@ struct dm_atomic_state {
 
 #define to_dm_atomic_state(x) container_of(x, struct dm_atomic_state, base)
 
-
-/*TODO Jodan Hersen use the one in amdgpu_dm*/
-int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
-			 struct amdgpu_plane *aplane,
-			 unsigned long possible_crtcs);
-int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
-			struct drm_plane *plane,
-			uint32_t link_index);
-int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
-			     struct amdgpu_dm_connector *amdgpu_dm_connector,
-			     uint32_t link_index,
-			     struct amdgpu_encoder *amdgpu_encoder);
-int amdgpu_dm_encoder_init(struct drm_device *dev,
-			   struct amdgpu_encoder *aencoder,
-			   uint32_t link_index);
-
-void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc);
-void amdgpu_dm_connector_destroy(struct drm_connector *connector);
-void amdgpu_dm_encoder_destroy(struct drm_encoder *encoder);
-
-int amdgpu_dm_connector_get_modes(struct drm_connector *connector);
-
-int amdgpu_dm_atomic_commit(struct drm_device *dev,
-			    struct drm_atomic_state *state,
-			    bool nonblock);
-
-void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state);
-
-int amdgpu_dm_atomic_check(struct drm_device *dev,
-			   struct drm_atomic_state *state);
 
 void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector);
 struct drm_connector_state *
