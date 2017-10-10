@@ -156,7 +156,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BG_%d : unknown addr family %d\n",
 			    dst_addr->sa_family);
-		return -EINVAL;
+		return 0;
 	}
 
 	phwi_ctrlr = phba->phwi_ctrlr;
