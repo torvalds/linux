@@ -1395,8 +1395,9 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 	 * height. Without that margin the cx23885 fails in this
 	 * check.
 	 */
-	if ((fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
-			(Vlines * 8 < Vsrc) || (Vsrc + 1 < Vlines)) {
+	if ((fmt->width == 0) || (Vlines == 0) ||
+	    (fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
+	    (Vlines * 8 < Vsrc) || (Vsrc + 1 < Vlines)) {
 		v4l_err(client, "%dx%d is not a valid size!\n",
 				fmt->width, fmt->height);
 		return -ERANGE;
