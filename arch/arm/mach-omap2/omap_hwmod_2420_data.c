@@ -370,7 +370,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__dma_system = {
 	.master		= &omap2xxx_l4_core_hwmod,
 	.slave		= &omap2420_dma_system_hwmod,
 	.clk		= "sdma_ick",
-	.addr		= omap2_dma_system_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

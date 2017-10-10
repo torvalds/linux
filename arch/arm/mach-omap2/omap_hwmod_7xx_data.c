@@ -2988,21 +2988,11 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per2__dcan2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space dra7xx_dma_system_addrs[] = {
-	{
-		.pa_start	= 0x4a056000,
-		.pa_end		= 0x4a056fff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_cfg -> dma_system */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__dma_system = {
 	.master		= &dra7xx_l4_cfg_hwmod,
 	.slave		= &dra7xx_dma_system_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_dma_system_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -3246,21 +3236,11 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__gpmc = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space dra7xx_hdq1w_addrs[] = {
-	{
-		.pa_start	= 0x480b2000,
-		.pa_end		= 0x480b201f,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_per1 -> hdq1w */
 static struct omap_hwmod_ocp_if dra7xx_l4_per1__hdq1w = {
 	.master		= &dra7xx_l4_per1_hwmod,
 	.slave		= &dra7xx_hdq1w_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_hdq1w_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -3544,32 +3524,12 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per3__rtcss = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space dra7xx_sata_addrs[] = {
-	{
-		.name		= "sysc",
-		.pa_start	= 0x4a141100,
-		.pa_end		= 0x4a141107,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_cfg -> sata */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__sata = {
 	.master		= &dra7xx_l4_cfg_hwmod,
 	.slave		= &dra7xx_sata_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_sata_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_addr_space dra7xx_smartreflex_core_addrs[] = {
-	{
-		.pa_start	= 0x4a0dd000,
-		.pa_end		= 0x4a0dd07f,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
 };
 
 /* l4_cfg -> smartreflex_core */
@@ -3577,17 +3537,7 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__smartreflex_core = {
 	.master		= &dra7xx_l4_cfg_hwmod,
 	.slave		= &dra7xx_smartreflex_core_hwmod,
 	.clk		= "l4_root_clk_div",
-	.addr		= dra7xx_smartreflex_core_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_addr_space dra7xx_smartreflex_mpu_addrs[] = {
-	{
-		.pa_start	= 0x4a0d9000,
-		.pa_end		= 0x4a0d907f,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
 };
 
 /* l4_cfg -> smartreflex_mpu */
@@ -3595,7 +3545,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__smartreflex_mpu = {
 	.master		= &dra7xx_l4_cfg_hwmod,
 	.slave		= &dra7xx_smartreflex_mpu_hwmod,
 	.clk		= "l4_root_clk_div",
-	.addr		= dra7xx_smartreflex_mpu_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

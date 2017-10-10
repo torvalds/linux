@@ -198,34 +198,6 @@ struct omap_hwmod_omap2_firewall {
 	u8 flags;
 };
 
-
-/*
- * omap_hwmod_addr_space.flags bits
- *
- * ADDR_MAP_ON_INIT: Map this address space during omap_hwmod init.
- * ADDR_TYPE_RT: Address space contains module register target data.
- */
-#define ADDR_MAP_ON_INIT	(1 << 0)	/* XXX does not belong */
-#define ADDR_TYPE_RT		(1 << 1)
-
-/**
- * struct omap_hwmod_addr_space - address space handled by the hwmod
- * @name: name of the address space
- * @pa_start: starting physical address
- * @pa_end: ending physical address
- * @flags: (see omap_hwmod_addr_space.flags macros above)
- *
- * Address space doesn't necessarily follow physical interconnect
- * structure.  GPMC is one example.
- */
-struct omap_hwmod_addr_space {
-	const char *name;
-	u32 pa_start;
-	u32 pa_end;
-	u8 flags;
-};
-
-
 /*
  * omap_hwmod_ocp_if.user bits: these indicate the initiators that use this
  * interface to interact with the hwmod.  Used to add sleep dependencies

@@ -1102,82 +1102,6 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 }
 
 /**
- * _count_ocp_if_addr_spaces - count the number of address space entries for @oh
- * @oh: struct omap_hwmod *oh
- *
- * Count and return the number of address space ranges associated with
- * the hwmod @oh.  Used to allocate struct resource data.  Returns 0
- * if @oh is NULL.
- */
-static int _count_ocp_if_addr_spaces(struct omap_hwmod_ocp_if *os)
-{
-	struct omap_hwmod_addr_space *mem;
-	int i = 0;
-
-	if (!os || !os->addr)
-		return 0;
-
-	do {
-		mem = &os->addr[i++];
-	} while (mem->pa_start != mem->pa_end);
-
-	return i-1;
-}
-
-/**
- * _get_addr_space_by_name - fetch address space start & end by name
- * @oh: struct omap_hwmod * to operate on
- * @name: pointer to the name of the address space to fetch (optional)
- * @pa_start: pointer to a u32 to store the starting address to
- * @pa_end: pointer to a u32 to store the ending address to
- *
- * Retrieve address space start and end addresses for the IP block
- * pointed to by @oh.  The data will be filled into the addresses
- * pointed to by @pa_start and @pa_end.  When @name is non-null, the
- * address space data associated with the named entry will be
- * returned.  If @name is null, the first matching entry will be
- * returned.  Data order is not meaningful in hwmod data, so callers
- * are strongly encouraged to use a non-null @name whenever possible
- * to avoid unpredictable effects if hwmod data is later added that
- * causes data ordering to change.  Returns 0 upon success or a
- * negative error code upon error.
- */
-static int _get_addr_space_by_name(struct omap_hwmod *oh, const char *name,
-				   u32 *pa_start, u32 *pa_end)
-{
-	int j;
-	struct omap_hwmod_ocp_if *os;
-	bool found = false;
-
-	list_for_each_entry(os, &oh->slave_ports, node) {
-
-		if (!os->addr)
-			return -ENOENT;
-
-		j = 0;
-		while (os->addr[j].pa_start != os->addr[j].pa_end) {
-			if (name == os->addr[j].name ||
-			    !strcmp(name, os->addr[j].name)) {
-				found = true;
-				break;
-			}
-			j++;
-		}
-
-		if (found)
-			break;
-	}
-
-	if (!found)
-		return -ENOENT;
-
-	*pa_start = os->addr[j].pa_start;
-	*pa_end = os->addr[j].pa_end;
-
-	return 0;
-}
-
-/**
  * _save_mpu_port_index - find and save the index to @oh's MPU port
  * @oh: struct omap_hwmod *
  *
@@ -1226,32 +1150,6 @@ static struct omap_hwmod_ocp_if *_find_mpu_rt_port(struct omap_hwmod *oh)
 
 	return oh->_mpu_port;
 };
-
-/**
- * _find_mpu_rt_addr_space - return MPU register target address space for @oh
- * @oh: struct omap_hwmod *
- *
- * Returns a pointer to the struct omap_hwmod_addr_space record representing
- * the register target MPU address space; or returns NULL upon error.
- */
-static struct omap_hwmod_addr_space * __init _find_mpu_rt_addr_space(struct omap_hwmod *oh)
-{
-	struct omap_hwmod_ocp_if *os;
-	struct omap_hwmod_addr_space *mem;
-	int found = 0, i = 0;
-
-	os = _find_mpu_rt_port(oh);
-	if (!os || !os->addr)
-		return NULL;
-
-	do {
-		mem = &os->addr[i++];
-		if (mem->flags & ADDR_TYPE_RT)
-			found = 1;
-	} while (!found && mem->pa_start != mem->pa_end);
-
-	return (found) ? mem : NULL;
-}
 
 /**
  * _enable_sysc - try to bring a module out of idle via OCP_SYSCONFIG
@@ -2349,7 +2247,6 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 				    int index, struct device_node *np)
 {
-	struct omap_hwmod_addr_space *mem;
 	void __iomem *va_start = NULL;
 	struct resource res;
 	int error;
@@ -2367,35 +2264,22 @@ static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
 		return -ENXIO;
 
-	mem = _find_mpu_rt_addr_space(oh);
-	if (!mem) {
-		pr_debug("omap_hwmod: %s: no MPU register target found\n",
-			 oh->name);
-
-		/* Extract the IO space from device tree blob */
-		if (!np) {
-			pr_err("omap_hwmod: %s: no dt node\n", oh->name);
-			return -ENXIO;
-		}
-
-		/* Do we have a dts range for the interconnect target module? */
-		error = omap_hwmod_parse_module_range(oh, np, &res);
-		if (!error)
-			va_start = ioremap(res.start, resource_size(&res));
-
-		/* No ranges, rely on device reg entry */
-		if (!va_start)
-			va_start = of_iomap(np, index + oh->mpu_rt_idx);
-	} else {
-		va_start = ioremap(mem->pa_start, mem->pa_end - mem->pa_start);
+	if (!np) {
+		pr_err("omap_hwmod: %s: no dt node\n", oh->name);
+		return -ENXIO;
 	}
 
+	/* Do we have a dts range for the interconnect target module? */
+	error = omap_hwmod_parse_module_range(oh, np, &res);
+	if (!error)
+		va_start = ioremap(res.start, resource_size(&res));
+
+	/* No ranges, rely on device reg entry */
+	if (!va_start)
+		va_start = of_iomap(np, index + oh->mpu_rt_idx);
 	if (!va_start) {
-		if (mem)
-			pr_err("omap_hwmod: %s: Could not ioremap\n", oh->name);
-		else
-			pr_err("omap_hwmod: %s: Missing dt reg%i for %pOF\n",
-			       oh->name, index, np);
+		pr_err("omap_hwmod: %s: Missing dt reg%i for %pOF\n",
+		       oh->name, index, np);
 		return -ENXIO;
 	}
 
@@ -3298,117 +3182,6 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh)
 /*
  * IP block data retrieval functions
  */
-
-/**
- * omap_hwmod_count_resources - count number of struct resources needed by hwmod
- * @oh: struct omap_hwmod *
- * @flags: Type of resources to include when counting (IRQ/DMA/MEM)
- *
- * Count the number of struct resource array elements necessary to
- * contain omap_hwmod @oh resources.  Intended to be called by code
- * that registers omap_devices.  Intended to be used to determine the
- * size of a dynamically-allocated struct resource array, before
- * calling omap_hwmod_fill_resources().  Returns the number of struct
- * resource array elements needed.
- *
- * XXX This code is not optimized.  It could attempt to merge adjacent
- * resource IDs.
- *
- */
-int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags)
-{
-	int ret = 0;
-
-	if (flags & IORESOURCE_MEM) {
-		struct omap_hwmod_ocp_if *os;
-
-		list_for_each_entry(os, &oh->slave_ports, node)
-			ret += _count_ocp_if_addr_spaces(os);
-	}
-
-	return ret;
-}
-
-/**
- * omap_hwmod_fill_resources - fill struct resource array with hwmod data
- * @oh: struct omap_hwmod *
- * @res: pointer to the first element of an array of struct resource to fill
- *
- * Fill the struct resource array @res with resource data from the
- * omap_hwmod @oh.  Intended to be called by code that registers
- * omap_devices.  See also omap_hwmod_count_resources().  Returns the
- * number of array elements filled.
- */
-int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
-{
-	struct omap_hwmod_ocp_if *os;
-	int j, addr_cnt;
-	int r = 0;
-
-	/* For each memory area, fill in array.*/
-
-	list_for_each_entry(os, &oh->slave_ports, node) {
-		addr_cnt = _count_ocp_if_addr_spaces(os);
-
-		for (j = 0; j < addr_cnt; j++) {
-			(res + r)->name = (os->addr + j)->name;
-			(res + r)->start = (os->addr + j)->pa_start;
-			(res + r)->end = (os->addr + j)->pa_end;
-			(res + r)->flags = IORESOURCE_MEM;
-			r++;
-		}
-	}
-
-	return r;
-}
-
-/**
- * omap_hwmod_get_resource_byname - fetch IP block integration data by name
- * @oh: struct omap_hwmod * to operate on
- * @type: one of the IORESOURCE_* constants from include/linux/ioport.h
- * @name: pointer to the name of the data to fetch (optional)
- * @rsrc: pointer to a struct resource, allocated by the caller
- *
- * Retrieve MPU IRQ, SDMA request line, or address space start/end
- * data for the IP block pointed to by @oh.  The data will be filled
- * into a struct resource record pointed to by @rsrc.  The struct
- * resource must be allocated by the caller.  When @name is non-null,
- * the data associated with the matching entry in the IRQ/SDMA/address
- * space hwmod data arrays will be returned.  If @name is null, the
- * first array entry will be returned.  Data order is not meaningful
- * in hwmod data, so callers are strongly encouraged to use a non-null
- * @name whenever possible to avoid unpredictable effects if hwmod
- * data is later added that causes data ordering to change.  This
- * function is only intended for use by OMAP core code.  Device
- * drivers should not call this function - the appropriate bus-related
- * data accessor functions should be used instead.  Returns 0 upon
- * success or a negative error code upon error.
- */
-int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
-				   const char *name, struct resource *rsrc)
-{
-	int r;
-	u32 pa_start, pa_end;
-
-	if (!oh || !rsrc)
-		return -EINVAL;
-
-	if (type == IORESOURCE_MEM) {
-		r = _get_addr_space_by_name(oh, name, &pa_start, &pa_end);
-		if (r)
-			return r;
-
-		rsrc->start = pa_start;
-		rsrc->end = pa_end;
-	} else {
-		return -EINVAL;
-	}
-
-	rsrc->flags = type;
-	rsrc->name = name;
-
-	return 0;
-}
 
 /**
  * omap_hwmod_get_pwrdm - return pointer to this module's main powerdomain

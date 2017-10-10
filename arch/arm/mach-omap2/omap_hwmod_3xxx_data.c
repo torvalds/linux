@@ -2098,20 +2098,10 @@ static struct omap_hwmod_ocp_if omap3_l4_core__i2c3 = {
 };
 
 /* L4 CORE -> SR1 interface */
-static struct omap_hwmod_addr_space omap3_sr1_addr_space[] = {
-	{
-		.pa_start	= OMAP34XX_SR1_BASE,
-		.pa_end		= OMAP34XX_SR1_BASE + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
-
 static struct omap_hwmod_ocp_if omap34xx_l4_core__sr1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_sr1_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr1_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2119,25 +2109,15 @@ static struct omap_hwmod_ocp_if omap36xx_l4_core__sr1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap36xx_sr1_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr1_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
-/* L4 CORE -> SR1 interface */
-static struct omap_hwmod_addr_space omap3_sr2_addr_space[] = {
-	{
-		.pa_start	= OMAP34XX_SR2_BASE,
-		.pa_end		= OMAP34XX_SR2_BASE + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
+/* L4 CORE -> SR2 interface */
 
 static struct omap_hwmod_ocp_if omap34xx_l4_core__sr2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_sr2_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr2_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2145,7 +2125,6 @@ static struct omap_hwmod_ocp_if omap36xx_l4_core__sr2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap36xx_sr2_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr2_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2514,21 +2493,11 @@ static struct omap_hwmod_ocp_if omap3xxx_dma_system__l3 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space omap3xxx_dma_system_addrs[] = {
-	{
-		.pa_start	= 0x48056000,
-		.pa_end		= 0x48056fff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
-
 /* l4_cfg -> dma_system */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dma_system = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_dma_system_hwmod,
 	.clk		= "core_l4_ick",
-	.addr		= omap3xxx_dma_system_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

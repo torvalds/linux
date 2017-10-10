@@ -18,9 +18,6 @@
 #include "common.h"
 #include "display.h"
 
-/* Common address space across OMAP2xxx/3xxx */
-extern struct omap_hwmod_addr_space omap2_dma_system_addrs[];
-
 /* Common IP block data across OMAP2xxx */
 extern struct omap_gpio_dev_attr omap2xxx_gpio_dev_attr;
 extern struct omap_hwmod omap2xxx_l3_main_hwmod;
@@ -88,9 +85,6 @@ extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_venc;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__rng;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__sham;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__aes;
-
-/* Common IP block data across OMAP2/3 */
-extern struct omap_hwmod_addr_space omap2xxx_timer12_addrs[];
 
 /* OMAP hwmod classes - forward declarations */
 extern struct omap_hwmod_class l3_hwmod_class;
