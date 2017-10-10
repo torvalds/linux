@@ -769,7 +769,8 @@ static inline unsigned long get_lock_parent_ip(void)
   static inline void time_hardirqs_off(unsigned long a0, unsigned long a1) { }
 #endif
 
-#ifdef CONFIG_PREEMPT_TRACER
+#if defined(CONFIG_PREEMPT_TRACER) || \
+	(defined(CONFIG_DEBUG_PREEMPT) && defined(CONFIG_PREEMPTIRQ_EVENTS))
   extern void trace_preempt_on(unsigned long a0, unsigned long a1);
   extern void trace_preempt_off(unsigned long a0, unsigned long a1);
 #else
