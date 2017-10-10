@@ -937,9 +937,11 @@ static void mlx5e_ets_init(struct mlx5e_priv *priv)
 		ets.prio_tc[i] = i;
 	}
 
-	/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
-	ets.prio_tc[0] = 1;
-	ets.prio_tc[1] = 0;
+	if (ets.ets_cap > 1) {
+		/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
+		ets.prio_tc[0] = 1;
+		ets.prio_tc[1] = 0;
+	}
 
 	err = mlx5e_dcbnl_ieee_setets_core(priv, &ets);
 	if (err)
