@@ -6731,8 +6731,6 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 	int rc6_mode;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
-
 	I915_WRITE(GEN6_RC_STATE, 0);
 
 	/* Clear the DBG now so we don't confuse earlier errors */
@@ -6805,8 +6803,6 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 
 static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
-
 	/* Here begins a magic sequence of register writes to enable
 	 * auto-downclocking.
 	 *
@@ -7227,8 +7223,6 @@ static void cherryview_enable_rc6(struct drm_i915_private *dev_priv)
 	enum intel_engine_id id;
 	u32 gtfifodbg, rc6_mode = 0, pcbr;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
-
 	gtfifodbg = I915_READ(GTFIFODBG) & ~(GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV |
 					     GT_FIFO_FREE_ENTRIES_CHV);
 	if (gtfifodbg) {
@@ -7281,8 +7275,6 @@ static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
-
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	/* 1: Program defaults and thresholds for RPS*/
@@ -7326,8 +7318,6 @@ static void valleyview_enable_rc6(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	u32 gtfifodbg, rc6_mode = 0;
-
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
 
 	valleyview_check_pctx(dev_priv);
 
@@ -7373,8 +7363,6 @@ static void valleyview_enable_rc6(struct drm_i915_private *dev_priv)
 static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
 {
 	u32 val;
-
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
@@ -7989,6 +7977,36 @@ static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
 	/* Currently there is no HW configuration to be done to disable. */
 }
 
+static void intel_disable_rc6(struct drm_i915_private *dev_priv)
+{
+	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		gen9_disable_rc6(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv))
+		cherryview_disable_rc6(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv))
+		valleyview_disable_rc6(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 6)
+		gen6_disable_rc6(dev_priv);
+}
+
+static void intel_disable_rps(struct drm_i915_private *dev_priv)
+{
+	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		gen9_disable_rps(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv))
+		cherryview_disable_rps(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv))
+		valleyview_disable_rps(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 6)
+		gen6_disable_rps(dev_priv);
+	else if (IS_IRONLAKE_M(dev_priv))
+		ironlake_disable_drps(dev_priv);
+}
+
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
@@ -7998,22 +8016,8 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->pcu_lock);
 
-	if (INTEL_GEN(dev_priv) >= 9) {
-		gen9_disable_rc6(dev_priv);
-		gen9_disable_rps(dev_priv);
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		cherryview_disable_rc6(dev_priv);
-		cherryview_disable_rps(dev_priv);
-	} else if (IS_VALLEYVIEW(dev_priv)) {
-		valleyview_disable_rc6(dev_priv);
-		valleyview_disable_rps(dev_priv);
-	} else if (INTEL_GEN(dev_priv) >= 6) {
-		gen6_disable_rc6(dev_priv);
-		gen6_disable_rps(dev_priv);
-	}  else if (IS_IRONLAKE_M(dev_priv)) {
-		ironlake_disable_drps(dev_priv);
-	}
-
+	intel_disable_rc6(dev_priv);
+	intel_disable_rps(dev_priv);
 	if (HAS_LLC(dev_priv))
 		intel_disable_llc_pstate(dev_priv);
 
@@ -8026,6 +8030,50 @@ static inline void intel_enable_llc_pstate(struct drm_i915_private *i915)
 	lockdep_assert_held(&i915->pcu_lock);
 
 	gen6_update_ring_freq(i915);
+}
+
+static void intel_enable_rc6(struct drm_i915_private *dev_priv)
+{
+	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (IS_CHERRYVIEW(dev_priv))
+		cherryview_enable_rc6(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv))
+		valleyview_enable_rc6(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 9)
+		gen9_enable_rc6(dev_priv);
+	else if (IS_BROADWELL(dev_priv))
+		gen8_enable_rc6(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 6)
+		gen6_enable_rc6(dev_priv);
+}
+
+static void intel_enable_rps(struct drm_i915_private *dev_priv)
+{
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+
+	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (IS_CHERRYVIEW(dev_priv)) {
+		cherryview_enable_rps(dev_priv);
+	} else if (IS_VALLEYVIEW(dev_priv)) {
+		valleyview_enable_rps(dev_priv);
+	} else if (INTEL_GEN(dev_priv) >= 9) {
+		gen9_enable_rps(dev_priv);
+	} else if (IS_BROADWELL(dev_priv)) {
+		gen8_enable_rps(dev_priv);
+	} else if (INTEL_GEN(dev_priv) >= 6) {
+		gen6_enable_rps(dev_priv);
+	} else if (IS_IRONLAKE_M(dev_priv)) {
+		ironlake_enable_drps(dev_priv);
+		intel_init_emon(dev_priv);
+	}
+
+	WARN_ON(rps->max_freq < rps->min_freq);
+	WARN_ON(rps->idle_freq > rps->max_freq);
+
+	WARN_ON(rps->efficient_freq < rps->min_freq);
+	WARN_ON(rps->efficient_freq > rps->max_freq);
 }
 
 void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
@@ -8044,34 +8092,10 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->pcu_lock);
 
-	if (IS_CHERRYVIEW(dev_priv)) {
-		cherryview_enable_rc6(dev_priv);
-		cherryview_enable_rps(dev_priv);
-	} else if (IS_VALLEYVIEW(dev_priv)) {
-		valleyview_enable_rc6(dev_priv);
-		valleyview_enable_rps(dev_priv);
-	} else if (INTEL_GEN(dev_priv) >= 9) {
-		gen9_enable_rc6(dev_priv);
-		gen9_enable_rps(dev_priv);
-	} else if (IS_BROADWELL(dev_priv)) {
-		gen8_enable_rc6(dev_priv);
-		gen8_enable_rps(dev_priv);
-	} else if (INTEL_GEN(dev_priv) >= 6) {
-		gen6_enable_rc6(dev_priv);
-		gen6_enable_rps(dev_priv);
-	} else if (IS_IRONLAKE_M(dev_priv)) {
-		ironlake_enable_drps(dev_priv);
-		intel_init_emon(dev_priv);
-	}
-
+	intel_enable_rc6(dev_priv);
+	intel_enable_rps(dev_priv);
 	if (HAS_LLC(dev_priv))
 		intel_enable_llc_pstate(dev_priv);
-
-	WARN_ON(rps->max_freq < rps->min_freq);
-	WARN_ON(rps->idle_freq > rps->max_freq);
-
-	WARN_ON(rps->efficient_freq < rps->min_freq);
-	WARN_ON(rps->efficient_freq > rps->max_freq);
 
 	rps->enabled = true;
 	mutex_unlock(&dev_priv->pcu_lock);
