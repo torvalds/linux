@@ -156,13 +156,15 @@ int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
 
 struct gtt_type_table_entry {
 	int entry_type;
+	int pt_type;
 	int next_pt_type;
 	int pse_entry_type;
 };
 
-#define GTT_TYPE_TABLE_ENTRY(type, e_type, npt_type, pse_type) \
+#define GTT_TYPE_TABLE_ENTRY(type, e_type, cpt_type, npt_type, pse_type) \
 	[type] = { \
 		.entry_type = e_type, \
+		.pt_type = cpt_type, \
 		.next_pt_type = npt_type, \
 		.pse_entry_type = pse_type, \
 	}
@@ -170,54 +172,67 @@ struct gtt_type_table_entry {
 static struct gtt_type_table_entry gtt_type_table[] = {
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_ROOT_L4_ENTRY,
 			GTT_TYPE_PPGTT_ROOT_L4_ENTRY,
+			GTT_TYPE_INVALID,
 			GTT_TYPE_PPGTT_PML4_PT,
 			GTT_TYPE_INVALID),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PML4_PT,
 			GTT_TYPE_PPGTT_PML4_ENTRY,
+			GTT_TYPE_PPGTT_PML4_PT,
 			GTT_TYPE_PPGTT_PDP_PT,
 			GTT_TYPE_INVALID),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PML4_ENTRY,
 			GTT_TYPE_PPGTT_PML4_ENTRY,
+			GTT_TYPE_PPGTT_PML4_PT,
 			GTT_TYPE_PPGTT_PDP_PT,
 			GTT_TYPE_INVALID),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PDP_PT,
 			GTT_TYPE_PPGTT_PDP_ENTRY,
+			GTT_TYPE_PPGTT_PDP_PT,
 			GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_PPGTT_PTE_1G_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_ROOT_L3_ENTRY,
 			GTT_TYPE_PPGTT_ROOT_L3_ENTRY,
+			GTT_TYPE_INVALID,
 			GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_PPGTT_PTE_1G_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PDP_ENTRY,
 			GTT_TYPE_PPGTT_PDP_ENTRY,
+			GTT_TYPE_PPGTT_PDP_PT,
 			GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_PPGTT_PTE_1G_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_PPGTT_PDE_ENTRY,
+			GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_PPGTT_PTE_2M_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PDE_ENTRY,
 			GTT_TYPE_PPGTT_PDE_ENTRY,
+			GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_PPGTT_PTE_2M_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_PPGTT_PTE_4K_ENTRY,
+			GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_INVALID,
 			GTT_TYPE_INVALID),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_4K_ENTRY,
 			GTT_TYPE_PPGTT_PTE_4K_ENTRY,
+			GTT_TYPE_PPGTT_PTE_PT,
 			GTT_TYPE_INVALID,
 			GTT_TYPE_INVALID),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_2M_ENTRY,
 			GTT_TYPE_PPGTT_PDE_ENTRY,
+			GTT_TYPE_PPGTT_PDE_PT,
 			GTT_TYPE_INVALID,
 			GTT_TYPE_PPGTT_PTE_2M_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_PTE_1G_ENTRY,
 			GTT_TYPE_PPGTT_PDP_ENTRY,
+			GTT_TYPE_PPGTT_PDP_PT,
 			GTT_TYPE_INVALID,
 			GTT_TYPE_PPGTT_PTE_1G_ENTRY),
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_GGTT_PTE,
 			GTT_TYPE_GGTT_PTE,
+			GTT_TYPE_INVALID,
 			GTT_TYPE_INVALID,
 			GTT_TYPE_INVALID),
 };
@@ -225,6 +240,11 @@ static struct gtt_type_table_entry gtt_type_table[] = {
 static inline int get_next_pt_type(int type)
 {
 	return gtt_type_table[type].next_pt_type;
+}
+
+static inline int get_pt_type(int type)
+{
+	return gtt_type_table[type].pt_type;
 }
 
 static inline int get_entry_type(int type)
