@@ -2554,7 +2554,10 @@ struct iscsi_endpoint *cxgbi_ep_connect(struct Scsi_Host *shost,
 			goto err_out;
 		}
 
-		ifindex = hba->ndev->ifindex;
+		rtnl_lock();
+		if (!vlan_uses_dev(hba->ndev))
+			ifindex = hba->ndev->ifindex;
+		rtnl_unlock();
 	}
 
 	if (dst_addr->sa_family == AF_INET) {
