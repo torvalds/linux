@@ -26,6 +26,7 @@
 
 #define MUSB_DMA_NUM_CHANNELS 15
 
+#define DA8XX_USB_MODE		0x10
 #define DA8XX_USB_AUTOREQ	0x14
 #define DA8XX_USB_TEARDOWN	0x1c
 
@@ -41,6 +42,9 @@ struct cppi41_dma_controller {
 
 	u32 tdown_reg;
 	u32 autoreq_reg;
+
+	void (*set_dma_mode)(struct cppi41_dma_channel *cppi41_channel,
+			     unsigned int mode);
 };
 
 static void save_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
@@ -355,6 +359,32 @@ static void cppi41_set_dma_mode(struct cppi41_dma_channel *cppi41_channel,
 	}
 }
 
+static void da8xx_set_dma_mode(struct cppi41_dma_channel *cppi41_channel,
+		unsigned int mode)
+{
+	struct cppi41_dma_controller *controller = cppi41_channel->controller;
+	struct musb *musb = controller->controller.musb;
+	unsigned int shift;
+	u32 port;
+	u32 new_mode;
+	u32 old_mode;
+
+	old_mode = controller->tx_mode;
+	port = cppi41_channel->port_num;
+
+	shift = (port - 1) * 4;
+	if (!cppi41_channel->is_tx)
+		shift += 16;
+	new_mode = old_mode & ~(3 << shift);
+	new_mode |= mode << shift;
+
+	if (new_mode == old_mode)
+		return;
+	controller->tx_mode = new_mode;
+	musb_writel(musb->ctrl_base, DA8XX_USB_MODE, new_mode);
+}
+
+
 static void cppi41_set_autoreq_mode(struct cppi41_dma_channel *cppi41_channel,
 		unsigned mode)
 {
@@ -379,6 +409,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 				dma_addr_t dma_addr, u32 len)
 {
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
+	struct cppi41_dma_controller *controller = cppi41_channel->controller;
 	struct dma_chan *dc = cppi41_channel->dc;
 	struct dma_async_tx_descriptor *dma_desc;
 	enum dma_transfer_direction direction;
@@ -404,7 +435,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 			musb_writel(musb->ctrl_base,
 				RNDIS_REG(cppi41_channel->port_num), len);
 			/* gen rndis */
-			cppi41_set_dma_mode(cppi41_channel,
+			controller->set_dma_mode(cppi41_channel,
 					EP_MODE_DMA_GEN_RNDIS);
 
 			/* auto req */
@@ -413,14 +444,15 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 		} else {
 			musb_writel(musb->ctrl_base,
 					RNDIS_REG(cppi41_channel->port_num), 0);
-			cppi41_set_dma_mode(cppi41_channel,
+			controller->set_dma_mode(cppi41_channel,
 					EP_MODE_DMA_TRANSPARENT);
 			cppi41_set_autoreq_mode(cppi41_channel,
 					EP_MODE_AUTOREQ_NONE);
 		}
 	} else {
 		/* fallback mode */
-		cppi41_set_dma_mode(cppi41_channel, EP_MODE_DMA_TRANSPARENT);
+		controller->set_dma_mode(cppi41_channel,
+				EP_MODE_DMA_TRANSPARENT);
 		cppi41_set_autoreq_mode(cppi41_channel, EP_MODE_AUTOREQ_NONE);
 		len = min_t(u32, packet_sz, len);
 	}
@@ -737,9 +769,11 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	if (musb->io.quirks & MUSB_DA8XX) {
 		controller->tdown_reg = DA8XX_USB_TEARDOWN;
 		controller->autoreq_reg = DA8XX_USB_AUTOREQ;
+		controller->set_dma_mode = da8xx_set_dma_mode;
 	} else {
 		controller->tdown_reg = USB_TDOWN;
 		controller->autoreq_reg = USB_CTRL_AUTOREQ;
+		controller->set_dma_mode = cppi41_set_dma_mode;
 	}
 
 	ret = cppi41_dma_controller_start(controller);
