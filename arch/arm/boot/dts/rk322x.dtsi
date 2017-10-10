@@ -570,9 +570,9 @@
 		interrupt-names = "gp",
 				  "gpmmu",
 				  "pp0",
-				  "pp0mmu",
+				  "ppmmu0",
 				  "pp1",
-				  "pp1mmu";
+				  "ppmmu1";
 		clocks = <&cru ACLK_GPU>, <&cru ACLK_GPU>;
 		clock-names = "core", "bus";
 		resets = <&cru SRST_GPU_A>;

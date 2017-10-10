@@ -568,13 +568,13 @@
 	interrupt-names = "gp",
 			  "gpmmu",
 			  "pp0",
-			  "pp0mmu",
+			  "ppmmu0",
 			  "pp1",
-			  "pp1mmu",
+			  "ppmmu1",
 			  "pp2",
-			  "pp2mmu",
+			  "ppmmu2",
 			  "pp3",
-			  "pp3mmu";
+			  "ppmmu3";
 };
 
 &i2c0 {

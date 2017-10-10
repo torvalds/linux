@@ -162,7 +162,7 @@
 		interrupt-names = "gp",
 				  "gpmmu",
 				  "pp0",
-				  "pp0mmu";
+				  "ppmmu0";
 		assigned-clocks = <&cru SCLK_GPU>;
 		assigned-clock-rates = <100000000>;
 		clocks = <&cru SCLK_GPU>, <&cru SCLK_GPU>;
