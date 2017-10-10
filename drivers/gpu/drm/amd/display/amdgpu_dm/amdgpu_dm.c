@@ -498,11 +498,6 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 	return;
 }
 
-/* moved from amdgpu_dm_kms.c */
-static void amdgpu_dm_destroy(void)
-{
-}
-
 static int dm_sw_init(void *handle)
 {
 	return 0;
@@ -1658,19 +1653,6 @@ static int dm_early_init(void *handle)
 	return 0;
 }
 
-static bool amdgpu_dm_acquire_dal_lock(struct amdgpu_display_manager *dm)
-{
-	/* TODO */
-	return true;
-}
-
-static bool amdgpu_dm_release_dal_lock(struct amdgpu_display_manager *dm)
-{
-	/* TODO */
-	return true;
-}
-
-
 struct dm_connector_state {
 	struct drm_connector_state base;
 
@@ -2007,30 +1989,6 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 }
 
 /*****************************************************************************/
-
-static struct amdgpu_dm_connector *
-aconnector_from_drm_crtc_id(const struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_connector *connector;
-	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-	struct amdgpu_dm_connector *aconnector;
-
-	list_for_each_entry(connector,
-			&dev->mode_config.connector_list, head)	{
-
-		aconnector = to_amdgpu_dm_connector(connector);
-
-		if (aconnector->base.state->crtc != &acrtc->base)
-			continue;
-
-		/* Found the connector */
-		return aconnector;
-	}
-
-	/* If we get here, not found. */
-	return NULL;
-}
 
 static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 					   const struct dm_connector_state *dm_state,
@@ -3016,46 +2974,6 @@ static void dm_plane_helper_cleanup_fb(struct drm_plane *plane,
 	amdgpu_bo_unpin(rbo);
 	amdgpu_bo_unreserve(rbo);
 	amdgpu_bo_unref(&rbo);
-}
-
-static int
-dm_create_validation_set_for_connector(struct drm_connector *connector,
-				       struct drm_display_mode *mode,
-				       struct dc_validation_set *val_set)
-{
-	int result = MODE_ERROR;
-	struct dc_sink *dc_sink =
-			to_amdgpu_dm_connector(connector)->dc_sink;
-	/* TODO: Unhardcode stream count */
-	struct dc_stream_state *stream;
-
-	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
-			(mode->flags & DRM_MODE_FLAG_DBLSCAN))
-		return result;
-
-	if (dc_sink == NULL) {
-		DRM_ERROR("dc_sink is NULL!\n");
-		return result;
-	}
-
-	stream = dc_create_stream_for_sink(dc_sink);
-
-	if (stream == NULL) {
-		DRM_ERROR("Failed to create stream for sink!\n");
-		return result;
-	}
-
-	drm_mode_set_crtcinfo(mode, 0);
-
-	fill_stream_properties_from_drm_display_mode(stream, mode, connector);
-
-	val_set->stream = stream;
-
-	stream->src.width = mode->hdisplay;
-	stream->src.height = mode->vdisplay;
-	stream->dst = stream->src;
-
-	return MODE_OK;
 }
 
 static int dm_plane_atomic_check(struct drm_plane *plane,
