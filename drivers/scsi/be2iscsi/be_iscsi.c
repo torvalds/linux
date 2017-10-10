@@ -762,11 +762,15 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 		}
 		break;
 	case ISCSI_HOST_PARAM_INITIATOR_NAME:
-		status = beiscsi_get_initiator_name(phba, buf);
+		/* try fetching user configured name first */
+		status = beiscsi_get_initiator_name(phba, buf, true);
 		if (status < 0) {
-			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-				    "BS_%d : Retreiving Initiator Name Failed\n");
-			return 0;
+			status = beiscsi_get_initiator_name(phba, buf, false);
+			if (status < 0) {
+				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+					    "BS_%d : Retreiving Initiator Name Failed\n");
+				status = 0;
+			}
 		}
 		break;
 	case ISCSI_HOST_PARAM_PORT_STATE:

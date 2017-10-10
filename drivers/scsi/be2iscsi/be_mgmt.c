@@ -339,12 +339,14 @@ int beiscsi_modify_eq_delay(struct beiscsi_hba *phba,
  * beiscsi_get_initiator_name - read initiator name from flash
  * @phba: device priv structure
  * @name: buffer pointer
+ * @cfg: fetch user configured
  *
  */
-int beiscsi_get_initiator_name(struct beiscsi_hba *phba, char *name)
+int beiscsi_get_initiator_name(struct beiscsi_hba *phba, char *name, bool cfg)
 {
 	struct be_dma_mem nonemb_cmd;
 	struct be_cmd_hba_name resp;
+	struct be_cmd_hba_name *req;
 	int rc;
 
 	rc = beiscsi_prep_nemb_cmd(phba, &nonemb_cmd, CMD_SUBSYSTEM_ISCSI_INI,
@@ -352,6 +354,9 @@ int beiscsi_get_initiator_name(struct beiscsi_hba *phba, char *name)
 	if (rc)
 		return rc;
 
+	req = nonemb_cmd.va;
+	if (cfg)
+		req->hdr.version = 1;
 	rc = beiscsi_exec_nemb_cmd(phba, &nonemb_cmd, NULL,
 				   &resp, sizeof(resp));
 	if (rc) {
