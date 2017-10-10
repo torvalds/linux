@@ -66,7 +66,13 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			    1000 * adjusted_mode->crtc_htotal);
 }
 
+/* FIXME: We should instead only take spinlocks once for the entire update
+ * instead of once per mmio. */
+#if IS_ENABLED(CONFIG_PROVE_LOCKING)
+#define VBLANK_EVASION_TIME_US 250
+#else
 #define VBLANK_EVASION_TIME_US 100
+#endif
 
 /**
  * intel_pipe_update_start() - start update of a set of display registers
