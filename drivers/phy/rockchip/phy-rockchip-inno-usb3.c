@@ -60,12 +60,12 @@ enum rockchip_u3phy_pipe_pwr {
 };
 
 enum rockchip_u3phy_rest_req {
-	U2_POR_RSTN	= 0,
-	U3_POR_RSTN	= 1,
+	U3_POR_RSTN	= 0,
+	U2_POR_RSTN	= 1,
 	PIPE_MAC_RSTN	= 2,
 	UTMI_MAC_RSTN	= 3,
-	UTMI_APB_RSTN	= 4,
-	PIPE_APB_RSTN	= 5,
+	PIPE_APB_RSTN	= 4,
+	UTMI_APB_RSTN	= 5,
 	U3PHY_RESET_MAX	= 6,
 };
 
@@ -328,23 +328,23 @@ static void rockchip_u3phy_rest_deassert(struct rockchip_u3phy *u3phy,
 
 	if (flag & U3PHY_APB_RST) {
 		dev_dbg(u3phy->dev, "deassert APB bus interface reset\n");
-		for (rst = UTMI_APB_RSTN; rst <= PIPE_APB_RSTN; rst++) {
+		for (rst = PIPE_APB_RSTN; rst <= UTMI_APB_RSTN; rst++) {
 			if (u3phy->rsts[rst])
 				reset_control_deassert(u3phy->rsts[rst]);
 		}
 	}
 
 	if (flag & U3PHY_POR_RST) {
-		usleep_range(15, 20);
+		usleep_range(12, 15);
 		dev_dbg(u3phy->dev, "deassert u2 and u3 phy power on reset\n");
-		for (rst = U2_POR_RSTN; rst <= U3_POR_RSTN; rst++) {
+		for (rst = U3_POR_RSTN; rst <= U2_POR_RSTN; rst++) {
 			if (u3phy->rsts[rst])
 				reset_control_deassert(u3phy->rsts[rst]);
 		}
 	}
 
 	if (flag & U3PHY_MAC_RST) {
-		usleep_range(2000, 2100);
+		usleep_range(1200, 1500);
 		dev_dbg(u3phy->dev, "deassert pipe and utmi MAC reset\n");
 		for (rst = PIPE_MAC_RSTN; rst <= UTMI_MAC_RSTN; rst++)
 			if (u3phy->rsts[rst])
@@ -812,10 +812,7 @@ static int rockchip_u3phy_on_init(struct usb_phy *usb_phy)
 	struct rockchip_u3phy *u3phy =
 		container_of(usb_phy, struct rockchip_u3phy, usb_phy);
 
-	reset_control_deassert(u3phy->rsts[U3_POR_RSTN]);
-	usleep_range(250, 300);
-	reset_control_deassert(u3phy->rsts[PIPE_MAC_RSTN]);
-
+	rockchip_u3phy_rest_deassert(u3phy, U3PHY_POR_RST | U3PHY_MAC_RST);
 	return 0;
 }
 
@@ -823,10 +820,13 @@ static void rockchip_u3phy_on_shutdown(struct usb_phy *usb_phy)
 {
 	struct rockchip_u3phy *u3phy =
 		container_of(usb_phy, struct rockchip_u3phy, usb_phy);
+	int rst;
 
-	reset_control_assert(u3phy->rsts[U3_POR_RSTN]);
-	reset_control_assert(u3phy->rsts[PIPE_MAC_RSTN]);
-	usleep_range(15, 20);
+	for (rst = 0; rst < U3PHY_RESET_MAX; rst++)
+		if (u3phy->rsts[rst] && rst != UTMI_APB_RSTN &&
+		    rst != PIPE_APB_RSTN)
+			reset_control_assert(u3phy->rsts[rst]);
+	udelay(1);
 }
 
 static int rockchip_u3phy_on_disconnect(struct usb_phy *usb_phy,
