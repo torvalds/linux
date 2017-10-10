@@ -2424,29 +2424,40 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 		intel_audio_codec_enable(intel_encoder, pipe_config, conn_state);
 }
 
-static void intel_disable_ddi(struct intel_encoder *intel_encoder,
+static void intel_disable_ddi_dp(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *old_crtc_state,
+				 const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	if (old_crtc_state->has_audio)
+		intel_audio_codec_disable(encoder);
+
+	intel_edp_drrs_disable(intel_dp, old_crtc_state);
+	intel_psr_disable(intel_dp, old_crtc_state);
+	intel_edp_backlight_off(old_conn_state);
+}
+
+static void intel_disable_ddi_hdmi(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *old_crtc_state,
+				   const struct drm_connector_state *old_conn_state)
+{
+	if (old_crtc_state->has_audio)
+		intel_audio_codec_disable(encoder);
+
+	intel_hdmi_handle_sink_scrambling(encoder,
+					  old_conn_state->connector,
+					  false, false);
+}
+
+static void intel_disable_ddi(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
-	struct drm_encoder *encoder = &intel_encoder->base;
-	int type = intel_encoder->type;
-
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(intel_encoder);
-
-	if (type == INTEL_OUTPUT_HDMI) {
-		intel_hdmi_handle_sink_scrambling(intel_encoder,
-						  old_conn_state->connector,
-						  false, false);
-	}
-
-	if (type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		intel_edp_drrs_disable(intel_dp, old_crtc_state);
-		intel_psr_disable(intel_dp, old_crtc_state);
-		intel_edp_backlight_off(old_conn_state);
-	}
+	if (intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_HDMI))
+		intel_disable_ddi_hdmi(encoder, old_crtc_state, old_conn_state);
+	else
+		intel_disable_ddi_dp(encoder, old_crtc_state, old_conn_state);
 }
 
 static void bxt_ddi_pre_pll_enable(struct intel_encoder *encoder,
