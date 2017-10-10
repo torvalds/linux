@@ -1063,8 +1063,9 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 		if (!wait_event_timeout(msm_host->pwr_irq_wait,
 				msm_host->pwr_irq_flag,
 				msecs_to_jiffies(MSM_PWR_IRQ_TIMEOUT_MS)))
-			__WARN_printf("%s: pwr_irq for req: (%d) timed out\n",
-					mmc_hostname(host->mmc), req_type);
+			dev_warn(&msm_host->pdev->dev,
+				 "%s: pwr_irq for req: (%d) timed out\n",
+				 mmc_hostname(host->mmc), req_type);
 	}
 	pr_debug("%s: %s: request %d done\n", mmc_hostname(host->mmc),
 			__func__, req_type);
