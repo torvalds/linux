@@ -169,6 +169,7 @@ config BT_HCIUART_BCM
 	bool "Broadcom protocol support"
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
+	depends on (!ACPI || SERIAL_DEV_CTRL_TTYPORT)
 	select BT_HCIUART_H4
 	select BT_BCM
 	help
