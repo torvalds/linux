@@ -145,10 +145,14 @@
 
 #define SUN4I_TCON_MAX_CHANNELS		2
 
+struct sun4i_tcon;
+
 struct sun4i_tcon_quirks {
-	bool	has_unknown_mux; /* sun5i has undocumented mux */
 	bool	has_channel_1;	/* a33 does not have channel 1 */
 	bool	needs_de_be_mux; /* sun6i needs mux to select backend */
+
+	/* callback to handle tcon muxing options */
+	int	(*set_mux)(struct sun4i_tcon *, struct drm_encoder *);
 };
 
 struct sun4i_tcon {
