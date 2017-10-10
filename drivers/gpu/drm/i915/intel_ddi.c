@@ -2369,45 +2369,57 @@ void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,
 	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 }
 
-static void intel_enable_ddi(struct intel_encoder *intel_encoder,
-			     const struct intel_crtc_state *pipe_config,
+static void intel_enable_ddi_dp(struct intel_encoder *encoder,
+				const struct intel_crtc_state *crtc_state,
+				const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	enum port port = intel_ddi_get_encoder_port(encoder);
+
+	if (port == PORT_A && INTEL_GEN(dev_priv) < 9)
+		intel_dp_stop_link_train(intel_dp);
+
+	intel_edp_backlight_on(crtc_state, conn_state);
+	intel_psr_enable(intel_dp, crtc_state);
+	intel_edp_drrs_enable(intel_dp, crtc_state);
+
+	if (crtc_state->has_audio)
+		intel_audio_codec_enable(encoder, crtc_state, conn_state);
+}
+
+static void intel_enable_ddi_hdmi(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	enum port port = intel_ddi_get_encoder_port(encoder);
+
+	intel_hdmi_handle_sink_scrambling(encoder,
+					  conn_state->connector,
+					  crtc_state->hdmi_high_tmds_clock_ratio,
+					  crtc_state->hdmi_scrambling);
+
+	/* In HDMI/DVI mode, the port width, and swing/emphasis values
+	 * are ignored so nothing special needs to be done besides
+	 * enabling the port.
+	 */
+	I915_WRITE(DDI_BUF_CTL(port),
+		   dig_port->saved_port_bits | DDI_BUF_CTL_ENABLE);
+
+	if (crtc_state->has_audio)
+		intel_audio_codec_enable(encoder, crtc_state, conn_state);
+}
+
+static void intel_enable_ddi(struct intel_encoder *encoder,
+			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
-	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
-	enum port port = intel_ddi_get_encoder_port(intel_encoder);
-	int type = intel_encoder->type;
-
-	if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_digital_port *intel_dig_port =
-			enc_to_dig_port(encoder);
-		bool clock_ratio = pipe_config->hdmi_high_tmds_clock_ratio;
-		bool scrambling = pipe_config->hdmi_scrambling;
-
-		intel_hdmi_handle_sink_scrambling(intel_encoder,
-						  conn_state->connector,
-						  clock_ratio, scrambling);
-
-		/* In HDMI/DVI mode, the port width, and swing/emphasis values
-		 * are ignored so nothing special needs to be done besides
-		 * enabling the port.
-		 */
-		I915_WRITE(DDI_BUF_CTL(port),
-			   intel_dig_port->saved_port_bits |
-			   DDI_BUF_CTL_ENABLE);
-	} else if (type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		if (port == PORT_A && INTEL_GEN(dev_priv) < 9)
-			intel_dp_stop_link_train(intel_dp);
-
-		intel_edp_backlight_on(pipe_config, conn_state);
-		intel_psr_enable(intel_dp, pipe_config);
-		intel_edp_drrs_enable(intel_dp, pipe_config);
-	}
-
-	if (pipe_config->has_audio)
-		intel_audio_codec_enable(intel_encoder, pipe_config, conn_state);
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		intel_enable_ddi_hdmi(encoder, crtc_state, conn_state);
+	else
+		intel_enable_ddi_dp(encoder, crtc_state, conn_state);
 }
 
 static void intel_disable_ddi_dp(struct intel_encoder *encoder,
