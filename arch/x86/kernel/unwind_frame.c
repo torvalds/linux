@@ -174,6 +174,7 @@ static bool is_last_task_frame(struct unwind_state *state)
  * This determines if the frame pointer actually contains an encoded pointer to
  * pt_regs on the stack.  See ENCODE_FRAME_POINTER.
  */
+#ifdef CONFIG_X86_64
 static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 {
 	unsigned long regs = (unsigned long)bp;
@@ -183,6 +184,17 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 
 	return (struct pt_regs *)(regs & ~0x1);
 }
+#else
+static struct pt_regs *decode_frame_pointer(unsigned long *bp)
+{
+	unsigned long regs = (unsigned long)bp;
+
+	if (regs & 0x80000000)
+		return NULL;
+
+	return (struct pt_regs *)(regs | 0x80000000);
+}
+#endif
 
 #ifdef CONFIG_X86_32
 #define KERNEL_REGS_SIZE (sizeof(struct pt_regs) - 2*sizeof(long))
