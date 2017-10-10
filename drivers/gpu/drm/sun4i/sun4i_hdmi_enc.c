@@ -22,6 +22,7 @@
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 
 #include "sun4i_backend.h"
 #include "sun4i_crtc.h"
@@ -267,6 +268,13 @@ static const struct cec_pin_ops sun4i_hdmi_cec_pin_ops = {
 };
 #endif
 
+static const struct regmap_config sun4i_hdmi_regmap_config = {
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+	.max_register	= 0x580,
+};
+
 static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 			   void *data)
 {
@@ -319,6 +327,13 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 		dev_err(dev, "Couldn't get the HDMI PLL 1 clock\n");
 		ret = PTR_ERR(hdmi->pll1_clk);
 		goto err_disable_mod_clk;
+	}
+
+	hdmi->regmap = devm_regmap_init_mmio(dev, hdmi->base,
+					     &sun4i_hdmi_regmap_config);
+	if (IS_ERR(hdmi->regmap)) {
+		dev_err(dev, "Couldn't create HDMI encoder regmap\n");
+		return PTR_ERR(hdmi->regmap);
 	}
 
 	ret = sun4i_tmds_create(hdmi);
