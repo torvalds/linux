@@ -1142,10 +1142,12 @@ static DEFINE_SPINLOCK(rt6_exception_lock);
 static void rt6_remove_exception(struct rt6_exception_bucket *bucket,
 				 struct rt6_exception *rt6_ex)
 {
-	struct net *net = dev_net(rt6_ex->rt6i->dst.dev);
+	struct net *net;
 
 	if (!bucket || !rt6_ex)
 		return;
+
+	net = dev_net(rt6_ex->rt6i->dst.dev);
 	rt6_ex->rt6i->rt6i_node = NULL;
 	hlist_del_rcu(&rt6_ex->hlist);
 	rt6_release(rt6_ex->rt6i);
