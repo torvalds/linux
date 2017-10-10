@@ -5383,6 +5383,52 @@ _scsih_check_access_status(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 }
 
 /**
+ * _scsih_get_enclosure_logicalid_chassis_slot - get device's
+ *			EnclosureLogicalID and ChassisSlot information.
+ * @ioc: per adapter object
+ * @sas_device_pg0: SAS device page0
+ * @sas_device: per sas device object
+ *
+ * Returns nothing.
+ */
+static void
+_scsih_get_enclosure_logicalid_chassis_slot(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2SasDevicePage0_t *sas_device_pg0, struct _sas_device *sas_device)
+{
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasEnclosurePage0_t enclosure_pg0;
+
+	if (!sas_device_pg0 || !sas_device)
+		return;
+
+	sas_device->enclosure_handle =
+	    le16_to_cpu(sas_device_pg0->EnclosureHandle);
+	sas_device->is_chassis_slot_valid = 0;
+
+	if (!le16_to_cpu(sas_device_pg0->EnclosureHandle))
+		return;
+
+	if (mpt3sas_config_get_enclosure_pg0(ioc, &mpi_reply,
+	    &enclosure_pg0, MPI2_SAS_ENCLOS_PGAD_FORM_HANDLE,
+	    le16_to_cpu(sas_device_pg0->EnclosureHandle))) {
+		pr_err(MPT3SAS_FMT
+		    "Enclosure Pg0 read failed for handle(0x%04x)\n",
+		    ioc->name, le16_to_cpu(sas_device_pg0->EnclosureHandle));
+		return;
+	}
+
+	sas_device->enclosure_logical_id =
+	    le64_to_cpu(enclosure_pg0.EnclosureLogicalID);
+
+	if (le16_to_cpu(enclosure_pg0.Flags) &
+	    MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID) {
+		sas_device->is_chassis_slot_valid = 1;
+		sas_device->chassis_slot = enclosure_pg0.ChassisSlot;
+	}
+}
+
+
+/**
  * _scsih_check_device - checking device responsiveness
  * @ioc: per adapter object
  * @parent_sas_address: sas address of parent expander or sas host
@@ -5398,7 +5444,6 @@ _scsih_check_device(struct MPT3SAS_ADAPTER *ioc,
 {
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t sas_device_pg0;
-	Mpi2SasEnclosurePage0_t enclosure_pg0;
 	struct _sas_device *sas_device;
 	u32 ioc_status;
 	unsigned long flags;
@@ -5406,7 +5451,6 @@ _scsih_check_device(struct MPT3SAS_ADAPTER *ioc,
 	struct scsi_target *starget;
 	struct MPT3SAS_TARGET *sas_target_priv_data;
 	u32 device_info;
-
 
 	if ((mpt3sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
 	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle)))
@@ -5454,18 +5498,9 @@ _scsih_check_device(struct MPT3SAS_ADAPTER *ioc,
 			sas_device->enclosure_level = 0;
 			sas_device->connector_name[0] = '\0';
 		}
-		sas_device->is_chassis_slot_valid = 0;
-		if (sas_device->enclosure_handle &&
-		    !(mpt3sas_config_get_enclosure_pg0(ioc, &mpi_reply,
-		    &enclosure_pg0, MPI2_SAS_ENCLOS_PGAD_FORM_HANDLE,
-		    sas_device->enclosure_handle))) {
-			if (le16_to_cpu(enclosure_pg0.Flags) &
-			    MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID) {
-				sas_device->is_chassis_slot_valid = 1;
-				sas_device->chassis_slot =
-				    enclosure_pg0.ChassisSlot;
-			}
-		}
+
+		_scsih_get_enclosure_logicalid_chassis_slot(ioc,
+		    &sas_device_pg0, sas_device);
 	}
 
 	/* check if device is present */
@@ -7088,10 +7123,8 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 {
 	struct MPT3SAS_TARGET *sas_target_priv_data = NULL;
 	struct scsi_target *starget;
-	struct _sas_device *sas_device;
+	struct _sas_device *sas_device = NULL;
 	unsigned long flags;
-	Mpi2SasEnclosurePage0_t enclosure_pg0;
-	Mpi2ConfigReply_t mpi_reply;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
@@ -7131,18 +7164,8 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 				sas_device->connector_name[0] = '\0';
 			}
 
-			sas_device->is_chassis_slot_valid = 0;
-			if (sas_device->enclosure_handle &&
-			    !(mpt3sas_config_get_enclosure_pg0(ioc, &mpi_reply,
-			    &enclosure_pg0, MPI2_SAS_ENCLOS_PGAD_FORM_HANDLE,
-			    sas_device->enclosure_handle))) {
-				if (le16_to_cpu(enclosure_pg0.Flags) &
-				    MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID) {
-					sas_device->is_chassis_slot_valid = 1;
-					sas_device->chassis_slot =
-					    enclosure_pg0.ChassisSlot;
-				}
-			}
+			_scsih_get_enclosure_logicalid_chassis_slot(ioc,
+			    sas_device_pg0, sas_device);
 
 			if (sas_device->handle == sas_device_pg0->DevHandle)
 				goto out;
@@ -7340,8 +7363,7 @@ _scsih_search_responding_raid_devices(struct MPT3SAS_ADAPTER *ioc)
 /**
  * _scsih_mark_responding_expander - mark a expander as responding
  * @ioc: per adapter object
- * @sas_address: sas address
- * @handle:
+ * @expander_pg0:SAS Expander Config Page0
  *
  * After host reset, find out whether devices are still responding.
  * Used in _scsih_remove_unresponsive_expanders.
@@ -7349,18 +7371,41 @@ _scsih_search_responding_raid_devices(struct MPT3SAS_ADAPTER *ioc)
  * Return nothing.
  */
 static void
-_scsih_mark_responding_expander(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
-	u16 handle)
+_scsih_mark_responding_expander(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ExpanderPage0_t *expander_pg0)
 {
-	struct _sas_node *sas_expander;
+	struct _sas_node *sas_expander = NULL;
 	unsigned long flags;
-	int i;
+	int i, encl_pg0_rc = -1;
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasEnclosurePage0_t enclosure_pg0;
+	u16 handle = le16_to_cpu(expander_pg0->DevHandle);
+	u64 sas_address = le64_to_cpu(expander_pg0->SASAddress);
+
+	if (le16_to_cpu(expander_pg0->EnclosureHandle)) {
+		encl_pg0_rc = mpt3sas_config_get_enclosure_pg0(ioc, &mpi_reply,
+		    &enclosure_pg0, MPI2_SAS_ENCLOS_PGAD_FORM_HANDLE,
+		    le16_to_cpu(expander_pg0->EnclosureHandle));
+		if (encl_pg0_rc)
+			pr_info(MPT3SAS_FMT
+			    "Enclosure Pg0 read failed for handle(0x%04x)\n",
+			    ioc->name,
+			    le16_to_cpu(expander_pg0->EnclosureHandle));
+	}
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	list_for_each_entry(sas_expander, &ioc->sas_expander_list, list) {
 		if (sas_expander->sas_address != sas_address)
 			continue;
 		sas_expander->responding = 1;
+
+		if (!encl_pg0_rc)
+			sas_expander->enclosure_logical_id =
+			    le64_to_cpu(enclosure_pg0.EnclosureLogicalID);
+
+		sas_expander->enclosure_handle =
+		    le16_to_cpu(expander_pg0->EnclosureHandle);
+
 		if (sas_expander->handle == handle)
 			goto out;
 		pr_info("\texpander(0x%016llx): handle changed" \
@@ -7413,7 +7458,7 @@ _scsih_search_responding_expanders(struct MPT3SAS_ADAPTER *ioc)
 		pr_info("\texpander present: handle(0x%04x), sas_addr(0x%016llx)\n",
 			handle,
 		    (unsigned long long)sas_address);
-		_scsih_mark_responding_expander(ioc, sas_address, handle);
+		_scsih_mark_responding_expander(ioc, &expander_pg0);
 	}
 
  out:
