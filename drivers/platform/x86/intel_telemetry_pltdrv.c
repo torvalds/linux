@@ -17,14 +17,6 @@
  * The accumulated results are fetched from SRAM.
  */
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/io.h>
-#include <linux/uaccess.h>
-#include <linux/pci.h>
-#include <linux/suspend.h>
 #include <linux/platform_device.h>
 
 #include <asm/cpu_device_id.h>
