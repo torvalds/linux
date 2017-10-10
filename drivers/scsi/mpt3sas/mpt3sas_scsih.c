@@ -8056,19 +8056,21 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 		    (Mpi26EventDataActiveCableExcept_t *) mpi_reply->EventData;
 		switch (ActiveCableEventData->ReasonCode) {
 		case MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER:
-			pr_notice(MPT3SAS_FMT "Receptacle ID %d: This active cable"
-				  " requires %d mW of power\n", ioc->name,
-			     ActiveCableEventData->ReceptacleID,
+			pr_notice(MPT3SAS_FMT
+			    "Currently an active cable with ReceptacleID %d\n",
+			    ioc->name, ActiveCableEventData->ReceptacleID);
+			pr_notice("cannot be powered and devices connected\n");
+			pr_notice("to this active cable will not be seen\n");
+			pr_notice("This active cable requires %d mW of power\n",
 			     ActiveCableEventData->ActiveCablePowerRequirement);
-			pr_notice(MPT3SAS_FMT "Receptacle ID %d: Devices connected"
-				  " to this active cable will not be seen\n",
-			     ioc->name, ActiveCableEventData->ReceptacleID);
 			break;
 
 		case MPI26_EVENT_ACTIVE_CABLE_DEGRADED:
-			pr_notice(MPT3SAS_FMT "ReceptacleID %d: This cable",
-				ioc->name, ActiveCableEventData->ReceptacleID);
-			pr_notice(" is not running at an optimal speed(12 Gb/s)\n");
+			pr_notice(MPT3SAS_FMT
+			    "Currently a cable with ReceptacleID %d\n",
+			    ioc->name, ActiveCableEventData->ReceptacleID);
+			pr_notice(
+			    "is not running at optimal speed(12 Gb/s rate)\n");
 			break;
 		}
 
