@@ -56,7 +56,7 @@ static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
 	struct i2c_adapter *adapter = &lspcon_to_intel_dp(lspcon)->aux.ddc;
 
 	if (drm_lspcon_get_mode(adapter, &current_mode)) {
-		DRM_ERROR("Error reading LSPCON mode\n");
+		DRM_DEBUG_KMS("Error reading LSPCON mode\n");
 		return DRM_LSPCON_MODE_INVALID;
 	}
 	return current_mode;
@@ -68,16 +68,15 @@ static enum drm_lspcon_mode lspcon_wait_mode(struct intel_lspcon *lspcon,
 	enum drm_lspcon_mode current_mode;
 
 	current_mode = lspcon_get_current_mode(lspcon);
-	if (current_mode == mode || current_mode == DRM_LSPCON_MODE_INVALID)
+	if (current_mode == mode)
 		goto out;
 
 	DRM_DEBUG_KMS("Waiting for LSPCON mode %s to settle\n",
 		      lspcon_mode_name(mode));
 
-	wait_for((current_mode = lspcon_get_current_mode(lspcon)) == mode ||
-		 current_mode == DRM_LSPCON_MODE_INVALID, 100);
+	wait_for((current_mode = lspcon_get_current_mode(lspcon)) == mode, 100);
 	if (current_mode != mode)
-		DRM_DEBUG_KMS("LSPCON mode hasn't settled\n");
+		DRM_ERROR("LSPCON mode hasn't settled\n");
 
 out:
 	DRM_DEBUG_KMS("Current LSPCON mode %s\n",
