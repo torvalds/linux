@@ -36,22 +36,18 @@
 #ifndef __BPF_TOOL_H
 #define __BPF_TOOL_H
 
+/* BFD and kernel.h both define GCC_VERSION, differently */
+#undef GCC_VERSION
 #include <stdbool.h>
 #include <stdio.h>
 #include <linux/bpf.h>
-
-#define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
+#include <linux/kernel.h>
 
 #define err(msg...)	fprintf(stderr, "Error: " msg)
 #define warn(msg...)	fprintf(stderr, "Warning: " msg)
 #define info(msg...)	fprintf(stderr, msg)
 
 #define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
-
-#define min(a, b)							\
-	({ typeof(a) _a = (a); typeof(b) _b = (b); _a > _b ? _b : _a; })
-#define max(a, b)							\
-	({ typeof(a) _a = (a); typeof(b) _b = (b); _a < _b ? _b : _a; })
 
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
 #define NEXT_ARGP()	({ (*argc)--; (*argv)++; if (*argc < 0) usage(); })
