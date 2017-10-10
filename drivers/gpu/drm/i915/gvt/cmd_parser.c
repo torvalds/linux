@@ -1396,7 +1396,7 @@ static inline int cmd_address_audit(struct parser_exec_state *s,
 	}
 
 	if (index_mode)	{
-		if (guest_gma >= GTT_PAGE_SIZE / sizeof(u64)) {
+		if (guest_gma >= I915_GTT_PAGE_SIZE / sizeof(u64)) {
 			ret = -EFAULT;
 			goto err;
 		}
@@ -1563,10 +1563,10 @@ static int copy_gma_to_hva(struct intel_vgpu *vgpu, struct intel_vgpu_mm *mm,
 			return -EFAULT;
 		}
 
-		offset = gma & (GTT_PAGE_SIZE - 1);
+		offset = gma & (I915_GTT_PAGE_SIZE - 1);
 
-		copy_len = (end_gma - gma) >= (GTT_PAGE_SIZE - offset) ?
-			GTT_PAGE_SIZE - offset : end_gma - gma;
+		copy_len = (end_gma - gma) >= (I915_GTT_PAGE_SIZE - offset) ?
+			I915_GTT_PAGE_SIZE - offset : end_gma - gma;
 
 		intel_gvt_hypervisor_read_gpa(vgpu, gpa, va + len, copy_len);
 
@@ -2540,7 +2540,7 @@ static int scan_workload(struct intel_vgpu_workload *workload)
 	int ret = 0;
 
 	/* ring base is page aligned */
-	if (WARN_ON(!IS_ALIGNED(workload->rb_start, GTT_PAGE_SIZE)))
+	if (WARN_ON(!IS_ALIGNED(workload->rb_start, I915_GTT_PAGE_SIZE)))
 		return -EINVAL;
 
 	gma_head = workload->rb_start + workload->rb_head;
@@ -2589,7 +2589,8 @@ static int scan_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 				wa_ctx);
 
 	/* ring base is page aligned */
-	if (WARN_ON(!IS_ALIGNED(wa_ctx->indirect_ctx.guest_gma, GTT_PAGE_SIZE)))
+	if (WARN_ON(!IS_ALIGNED(wa_ctx->indirect_ctx.guest_gma,
+					I915_GTT_PAGE_SIZE)))
 		return -EINVAL;
 
 	ring_tail = wa_ctx->indirect_ctx.size + 3 * sizeof(uint32_t);

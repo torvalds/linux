@@ -34,9 +34,8 @@
 #ifndef _GVT_GTT_H_
 #define _GVT_GTT_H_
 
-#define GTT_PAGE_SHIFT		12
-#define GTT_PAGE_SIZE		(1UL << GTT_PAGE_SHIFT)
-#define GTT_PAGE_MASK		(~(GTT_PAGE_SIZE-1))
+#define I915_GTT_PAGE_SHIFT         12
+#define I915_GTT_PAGE_MASK		(~(I915_GTT_PAGE_SIZE - 1))
 
 struct intel_vgpu_mm;
 
@@ -245,7 +244,7 @@ struct intel_vgpu_oos_page {
 	struct list_head list;
 	struct list_head vm_list;
 	int id;
-	unsigned char mem[GTT_PAGE_SIZE];
+	unsigned char mem[I915_GTT_PAGE_SIZE];
 };
 
 #define GTT_ENTRY_NUM_IN_ONE_PAGE 512

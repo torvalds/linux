@@ -81,7 +81,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	while (i < context_page_num) {
 		context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
 				(u32)((workload->ctx_desc.lrca + i) <<
-				GTT_PAGE_SHIFT));
+				I915_GTT_PAGE_SHIFT));
 		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
 			gvt_vgpu_err("Invalid guest context descriptor\n");
 			return -EFAULT;
@@ -90,7 +90,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
 		dst = kmap(page);
 		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
-				GTT_PAGE_SIZE);
+				I915_GTT_PAGE_SIZE);
 		kunmap(page);
 		i++;
 	}
@@ -120,7 +120,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			sizeof(*shadow_ring_context),
 			(void *)shadow_ring_context +
 			sizeof(*shadow_ring_context),
-			GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
+			I915_GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
 
 	kunmap(page);
 	return 0;
@@ -635,7 +635,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	while (i < context_page_num) {
 		context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
 				(u32)((workload->ctx_desc.lrca + i) <<
-					GTT_PAGE_SHIFT));
+					I915_GTT_PAGE_SHIFT));
 		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
 			gvt_vgpu_err("invalid guest context descriptor\n");
 			return;
@@ -644,7 +644,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
 		src = kmap(page);
 		intel_gvt_hypervisor_write_gpa(vgpu, context_gpa, src,
-				GTT_PAGE_SIZE);
+				I915_GTT_PAGE_SIZE);
 		kunmap(page);
 		i++;
 	}
@@ -669,7 +669,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			sizeof(*shadow_ring_context),
 			(void *)shadow_ring_context +
 			sizeof(*shadow_ring_context),
-			GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
+			I915_GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
 
 	kunmap(page);
 }
@@ -1198,7 +1198,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	int ret;
 
 	ring_context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
-			(u32)((desc->lrca + 1) << GTT_PAGE_SHIFT));
+			(u32)((desc->lrca + 1) << I915_GTT_PAGE_SHIFT));
 	if (ring_context_gpa == INTEL_GVT_INVALID_ADDR) {
 		gvt_vgpu_err("invalid guest context LRCA: %x\n", desc->lrca);
 		return ERR_PTR(-EINVAL);
