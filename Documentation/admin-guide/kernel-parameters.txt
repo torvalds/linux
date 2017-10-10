@@ -314,7 +314,7 @@
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
-			See also Documentation/input/joystick.txt
+			See also Documentation/input/joydev/joystick.rst
 
 	analog.map=	[HW,JOY] Analog joystick and gamepad support
 			Specifies type or capabilities of an analog joystick
@@ -724,7 +724,7 @@
 	db9.dev[2|3]=	[HW,JOY] Multisystem joystick support via parallel port
 			(one device per port)
 			Format: <port#>,<type>
-			See also Documentation/input/joystick-parport.txt
+			See also Documentation/input/devices/joystick-parport.rst
 
 	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
 			time. See
@@ -1220,7 +1220,7 @@
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
 			Format: <port#>,<pad1>,<pad2>,<pad3>,<pad4>,<pad5>
-			See also Documentation/input/joystick-parport.txt
+			See also Documentation/input/devices/joystick-parport.rst
 
 	gamma=		[HW,DRM]
 
@@ -1766,7 +1766,7 @@
 				ivrs_acpihid[00:14.5]=AMD0020:0
 
 	js=		[HW,JOY] Analog joystick
-			See Documentation/input/joystick.txt.
+			See Documentation/input/joydev/joystick.rst.
 
 	nokaslr		[KNL]
 			When CONFIG_RANDOMIZE_BASE is set, this disables
@@ -4205,7 +4205,7 @@
 			TurboGraFX parallel port interface
 			Format:
 			<port#>,<js1>,<js2>,<js3>,<js4>,<js5>,<js6>,<js7>
-			See also Documentation/input/joystick-parport.txt
+			See also Documentation/input/devices/joystick-parport.rst
 
 	udbg-immortal	[PPC] When debugging early kernel crashes that
 			happen after console_init() and before a proper
