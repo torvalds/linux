@@ -184,6 +184,12 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 	return (struct pt_regs *)(regs & ~0x1);
 }
 
+#ifdef CONFIG_X86_32
+#define KERNEL_REGS_SIZE (sizeof(struct pt_regs) - 2*sizeof(long))
+#else
+#define KERNEL_REGS_SIZE (sizeof(struct pt_regs))
+#endif
+
 static bool update_stack_state(struct unwind_state *state,
 			       unsigned long *next_bp)
 {
@@ -202,7 +208,7 @@ static bool update_stack_state(struct unwind_state *state,
 	regs = decode_frame_pointer(next_bp);
 	if (regs) {
 		frame = (unsigned long *)regs;
-		len = regs_size(regs);
+		len = KERNEL_REGS_SIZE;
 		state->got_irq = true;
 	} else {
 		frame = next_bp;
@@ -224,6 +230,14 @@ static bool update_stack_state(struct unwind_state *state,
 	/* Make sure it only unwinds up and doesn't overlap the prev frame: */
 	if (state->orig_sp && state->stack_info.type == prev_type &&
 	    frame < prev_frame_end)
+		return false;
+
+	/*
+	 * On 32-bit with user mode regs, make sure the last two regs are safe
+	 * to access:
+	 */
+	if (IS_ENABLED(CONFIG_X86_32) && regs && user_mode(regs) &&
+	    !on_stack(info, frame, len + 2*sizeof(long)))
 		return false;
 
 	/* Move state to the next frame: */
