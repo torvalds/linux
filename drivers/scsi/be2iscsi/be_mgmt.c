@@ -335,6 +335,35 @@ int beiscsi_modify_eq_delay(struct beiscsi_hba *phba,
 				     __beiscsi_eq_delay_compl, NULL, 0);
 }
 
+/**
+ * beiscsi_get_initiator_name - read initiator name from flash
+ * @phba: device priv structure
+ * @name: buffer pointer
+ *
+ */
+int beiscsi_get_initiator_name(struct beiscsi_hba *phba, char *name)
+{
+	struct be_dma_mem nonemb_cmd;
+	struct be_cmd_hba_name resp;
+	int rc;
+
+	rc = beiscsi_prep_nemb_cmd(phba, &nonemb_cmd, CMD_SUBSYSTEM_ISCSI_INI,
+			OPCODE_ISCSI_INI_CFG_GET_HBA_NAME, sizeof(resp));
+	if (rc)
+		return rc;
+
+	rc = beiscsi_exec_nemb_cmd(phba, &nonemb_cmd, NULL,
+				   &resp, sizeof(resp));
+	if (rc) {
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BS_%d : Initiator Name MBX Failed\n");
+		return rc;
+	}
+	rc = sprintf(name, "%s\n", resp.initiator_name);
+	return rc;
+}
+
 unsigned int beiscsi_if_get_handle(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
@@ -761,34 +790,6 @@ int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 
 	return beiscsi_exec_nemb_cmd(phba, &nonemb_cmd, NULL,
 				     nic, sizeof(*nic));
-}
-
-
-
-unsigned int be_cmd_get_initname(struct beiscsi_hba *phba)
-{
-	unsigned int tag;
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_hba_name *req;
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-
-	if (mutex_lock_interruptible(&ctrl->mbox_lock))
-		return 0;
-	wrb = alloc_mcc_wrb(phba, &tag);
-	if (!wrb) {
-		mutex_unlock(&ctrl->mbox_lock);
-		return 0;
-	}
-
-	req = embedded_payload(wrb);
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
-			OPCODE_ISCSI_INI_CFG_GET_HBA_NAME,
-			sizeof(*req));
-
-	be_mcc_notify(phba, tag);
-	mutex_unlock(&ctrl->mbox_lock);
-	return tag;
 }
 
 static void beiscsi_boot_process_compl(struct beiscsi_hba *phba,

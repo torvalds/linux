@@ -793,8 +793,6 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
 
-unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
-
 void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag);
 
 int beiscsi_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,

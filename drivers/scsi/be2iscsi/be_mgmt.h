@@ -178,6 +178,8 @@ int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				 struct invldt_cmd_tbl *inv_tbl,
 				 unsigned int nents);
 
+int beiscsi_get_initiator_name(struct beiscsi_hba *phba, char *name);
+
 int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type);
 
 int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
