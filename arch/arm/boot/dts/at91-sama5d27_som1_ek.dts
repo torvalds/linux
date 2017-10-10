@@ -57,6 +57,8 @@
 		serial0 = &uart1;	/* DBGU */
 		serial1 = &uart4;	/* mikro BUS 1 */
 		serial2 = &uart2;	/* mikro BUS 2 */
+		i2c1	= &i2c1;
+		i2c2	= &i2c2;
 	};
 
 	chosen {
