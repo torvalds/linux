@@ -3066,21 +3066,21 @@ int ndo_dflt_fdb_add(struct ndmsg *ndm,
 }
 EXPORT_SYMBOL(ndo_dflt_fdb_add);
 
-static int fdb_vid_parse(struct nlattr *vlan_attr, u16 *p_vid)
+static int fdb_vid_parse(struct nlattr *vlan_attr, u16 *p_vid,
+			 struct netlink_ext_ack *extack)
 {
 	u16 vid = 0;
 
 	if (vlan_attr) {
 		if (nla_len(vlan_attr) != sizeof(u16)) {
-			pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid vlan\n");
+			NL_SET_ERR_MSG(extack, "invalid vlan attribute size");
 			return -EINVAL;
 		}
 
 		vid = nla_get_u16(vlan_attr);
 
 		if (!vid || vid >= VLAN_VID_MASK) {
-			pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid vlan id %d\n",
-				vid);
+			NL_SET_ERR_MSG(extack, "invalid vlan id");
 			return -EINVAL;
 		}
 	}
@@ -3105,24 +3105,24 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_ifindex == 0) {
-		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid ifindex\n");
+		NL_SET_ERR_MSG(extack, "invalid ifindex");
 		return -EINVAL;
 	}
 
 	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
 	if (dev == NULL) {
-		pr_info("PF_BRIDGE: RTM_NEWNEIGH with unknown ifindex\n");
+		NL_SET_ERR_MSG(extack, "unknown ifindex");
 		return -ENODEV;
 	}
 
 	if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
-		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid address\n");
+		NL_SET_ERR_MSG(extack, "invalid address");
 		return -EINVAL;
 	}
 
 	addr = nla_data(tb[NDA_LLADDR]);
 
-	err = fdb_vid_parse(tb[NDA_VLAN], &vid);
+	err = fdb_vid_parse(tb[NDA_VLAN], &vid, extack);
 	if (err)
 		return err;
 
@@ -3209,24 +3209,24 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_ifindex == 0) {
-		pr_info("PF_BRIDGE: RTM_DELNEIGH with invalid ifindex\n");
+		NL_SET_ERR_MSG(extack, "invalid ifindex");
 		return -EINVAL;
 	}
 
 	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
 	if (dev == NULL) {
-		pr_info("PF_BRIDGE: RTM_DELNEIGH with unknown ifindex\n");
+		NL_SET_ERR_MSG(extack, "unknown ifindex");
 		return -ENODEV;
 	}
 
 	if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
-		pr_info("PF_BRIDGE: RTM_DELNEIGH with invalid address\n");
+		NL_SET_ERR_MSG(extack, "invalid address");
 		return -EINVAL;
 	}
 
 	addr = nla_data(tb[NDA_LLADDR]);
 
-	err = fdb_vid_parse(tb[NDA_VLAN], &vid);
+	err = fdb_vid_parse(tb[NDA_VLAN], &vid, extack);
 	if (err)
 		return err;
 
@@ -3666,7 +3666,7 @@ static int rtnl_bridge_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	dev = __dev_get_by_index(net, ifm->ifi_index);
 	if (!dev) {
-		pr_info("PF_BRIDGE: RTM_SETLINK with unknown ifindex\n");
+		NL_SET_ERR_MSG(extack, "unknown ifindex");
 		return -ENODEV;
 	}
 
@@ -3741,7 +3741,7 @@ static int rtnl_bridge_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	dev = __dev_get_by_index(net, ifm->ifi_index);
 	if (!dev) {
-		pr_info("PF_BRIDGE: RTM_SETLINK with unknown ifindex\n");
+		NL_SET_ERR_MSG(extack, "unknown ifindex");
 		return -ENODEV;
 	}
 
