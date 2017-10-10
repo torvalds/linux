@@ -1861,22 +1861,22 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (musb->quirk_retries--) {
+		if (musb->quirk_retries) {
 			musb_dbg(musb,
 				 "Poll devctl on invalid vbus, assume no session");
 			schedule_delayed_work(&musb->irq_work,
 					      msecs_to_jiffies(1000));
-
+			musb->quirk_retries--;
 			return;
 		}
 		/* fall through */
 	case MUSB_QUIRK_A_DISCONNECT_19:
-		if (musb->quirk_retries--) {
+		if (musb->quirk_retries) {
 			musb_dbg(musb,
 				 "Poll devctl on possible host mode disconnect");
 			schedule_delayed_work(&musb->irq_work,
 					      msecs_to_jiffies(1000));
-
+			musb->quirk_retries--;
 			return;
 		}
 		if (!musb->session)
