@@ -468,6 +468,11 @@ int snd_soc_register_codec(struct device *dev,
 		const struct snd_soc_codec_driver *codec_drv,
 		struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_codec(struct device *dev);
+int snd_soc_add_component(struct device *dev,
+		struct snd_soc_component *component,
+		const struct snd_soc_component_driver *component_driver,
+		struct snd_soc_dai_driver *dai_drv,
+		int num_dai);
 int snd_soc_register_component(struct device *dev,
 			 const struct snd_soc_component_driver *component_driver,
 			 struct snd_soc_dai_driver *dai_drv, int num_dai);
