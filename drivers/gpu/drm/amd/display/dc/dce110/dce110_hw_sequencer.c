@@ -1399,6 +1399,15 @@ static void power_down_encoders(struct dc *dc)
 	int i;
 	enum connector_id connector_id;
 	enum signal_type signal = SIGNAL_TYPE_NONE;
+
+	/* do not know BIOS back-front mapping, simply blank all. It will not
+	 * hurt for non-DP
+	 */
+	for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
+		dc->res_pool->stream_enc[i]->funcs->dp_blank(
+					dc->res_pool->stream_enc[i]);
+	}
+
 	for (i = 0; i < dc->link_count; i++) {
 		connector_id = dal_graphics_object_id_get_connector_id(dc->links[i]->link_id);
 		if ((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
