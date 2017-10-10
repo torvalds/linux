@@ -85,6 +85,15 @@ static int hclge_init_cmd_queue(struct hclge_dev *hdev, int ring_type)
 	return 0;
 }
 
+void hclge_cmd_reuse_desc(struct hclge_desc *desc, bool is_read)
+{
+	desc->flag = cpu_to_le16(HCLGE_CMD_FLAG_NO_INTR | HCLGE_CMD_FLAG_IN);
+	if (is_read)
+		desc->flag |= cpu_to_le16(HCLGE_CMD_FLAG_WR);
+	else
+		desc->flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
+}
+
 void hclge_cmd_setup_basic_desc(struct hclge_desc *desc,
 				enum hclge_opcode_type opcode, bool is_read)
 {
