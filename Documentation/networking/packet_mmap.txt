@@ -1055,7 +1055,7 @@ TX_RING part only TP_STATUS_AVAILABLE is set, then the tp_sec and tp_{n,u}sec
 members do not contain a valid value. For TX_RINGs, by default no timestamp
 is generated!
 
-See include/linux/net_tstamp.h and Documentation/networking/timestamping
+See include/linux/net_tstamp.h and Documentation/networking/timestamping.txt
 for more information on hardware timestamps.
 
 -------------------------------------------------------------------------------
