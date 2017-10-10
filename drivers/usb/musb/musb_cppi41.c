@@ -26,6 +26,9 @@
 
 #define MUSB_DMA_NUM_CHANNELS 15
 
+#define DA8XX_USB_AUTOREQ	0x14
+#define DA8XX_USB_TEARDOWN	0x1c
+
 struct cppi41_dma_controller {
 	struct dma_controller controller;
 	struct cppi41_dma_channel rx_channel[MUSB_DMA_NUM_CHANNELS];
@@ -35,6 +38,9 @@ struct cppi41_dma_controller {
 	u32 rx_mode;
 	u32 tx_mode;
 	u32 auto_req;
+
+	u32 tdown_reg;
+	u32 autoreq_reg;
 };
 
 static void save_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
@@ -364,8 +370,8 @@ static void cppi41_set_autoreq_mode(struct cppi41_dma_channel *cppi41_channel,
 	if (new_mode == old_mode)
 		return;
 	controller->auto_req = new_mode;
-	musb_writel(controller->controller.musb->ctrl_base, USB_CTRL_AUTOREQ,
-		    new_mode);
+	musb_writel(controller->controller.musb->ctrl_base,
+		    controller->autoreq_reg, new_mode);
 }
 
 static bool cppi41_configure_channel(struct dma_channel *channel,
@@ -581,12 +587,13 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 
 	do {
 		if (is_tx)
-			musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
+			musb_writel(musb->ctrl_base, controller->tdown_reg,
+				    tdbit);
 		ret = dmaengine_terminate_all(cppi41_channel->dc);
 	} while (ret == -EAGAIN);
 
 	if (is_tx) {
-		musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
+		musb_writel(musb->ctrl_base, controller->tdown_reg, tdbit);
 
 		csr = musb_readw(epio, MUSB_TXCSR);
 		if (csr & MUSB_TXCSR_TXPKTRDY) {
@@ -726,6 +733,14 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	controller->controller.channel_abort = cppi41_dma_channel_abort;
 	controller->controller.is_compatible = cppi41_is_compatible;
 	controller->controller.musb = musb;
+
+	if (musb->io.quirks & MUSB_DA8XX) {
+		controller->tdown_reg = DA8XX_USB_TEARDOWN;
+		controller->autoreq_reg = DA8XX_USB_AUTOREQ;
+	} else {
+		controller->tdown_reg = USB_TDOWN;
+		controller->autoreq_reg = USB_CTRL_AUTOREQ;
+	}
 
 	ret = cppi41_dma_controller_start(controller);
 	if (ret)
