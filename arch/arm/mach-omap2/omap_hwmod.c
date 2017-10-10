@@ -1102,29 +1102,6 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 }
 
 /**
- * _count_sdma_reqs - count the number of SDMA request lines associated with @oh
- * @oh: struct omap_hwmod *oh
- *
- * Count and return the number of SDMA request lines associated with
- * the hwmod @oh.  Used to allocate struct resource data.  Returns 0
- * if @oh is NULL.
- */
-static int _count_sdma_reqs(struct omap_hwmod *oh)
-{
-	struct omap_hwmod_dma_info *ohdi;
-	int i = 0;
-
-	if (!oh || !oh->sdma_reqs)
-		return 0;
-
-	do {
-		ohdi = &oh->sdma_reqs[i++];
-	} while (ohdi->dma_req != -1);
-
-	return i-1;
-}
-
-/**
  * _count_ocp_if_addr_spaces - count the number of address space entries for @oh
  * @oh: struct omap_hwmod *oh
  *
@@ -1145,49 +1122,6 @@ static int _count_ocp_if_addr_spaces(struct omap_hwmod_ocp_if *os)
 	} while (mem->pa_start != mem->pa_end);
 
 	return i-1;
-}
-
-/**
- * _get_sdma_req_by_name - fetch SDMA request line ID by name
- * @oh: struct omap_hwmod * to operate on
- * @name: pointer to the name of the SDMA request line to fetch (optional)
- * @dma: pointer to an unsigned int to store the request line ID to
- *
- * Retrieve an SDMA request line ID named by @name on the IP block
- * pointed to by @oh.  The ID will be filled into the address pointed
- * to by @dma.  When @name is non-null, the request line ID associated
- * with the named entry will be returned.  If @name is null, the first
- * matching entry will be returned.  Data order is not meaningful in
- * hwmod data, so callers are strongly encouraged to use a non-null
- * @name whenever possible to avoid unpredictable effects if hwmod
- * data is later added that causes data ordering to change.  Returns 0
- * upon success or a negative error code upon error.
- */
-static int _get_sdma_req_by_name(struct omap_hwmod *oh, const char *name,
-				 unsigned int *dma)
-{
-	int i;
-	bool found = false;
-
-	if (!oh->sdma_reqs)
-		return -ENOENT;
-
-	i = 0;
-	while (oh->sdma_reqs[i].dma_req != -1) {
-		if (name == oh->sdma_reqs[i].name ||
-		    !strcmp(name, oh->sdma_reqs[i].name)) {
-			found = true;
-			break;
-		}
-		i++;
-	}
-
-	if (!found)
-		return -ENOENT;
-
-	*dma = oh->sdma_reqs[i].dma_req;
-
-	return 0;
 }
 
 /**
@@ -3385,9 +3319,6 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags)
 {
 	int ret = 0;
 
-	if (flags & IORESOURCE_DMA)
-		ret += _count_sdma_reqs(oh);
-
 	if (flags & IORESOURCE_MEM) {
 		struct omap_hwmod_ocp_if *os;
 
@@ -3411,19 +3342,10 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags)
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 {
 	struct omap_hwmod_ocp_if *os;
-	int i, j, sdma_reqs_cnt, addr_cnt;
+	int j, addr_cnt;
 	int r = 0;
 
-	/* For each DMA, memory area, fill in array.*/
-
-	sdma_reqs_cnt = _count_sdma_reqs(oh);
-	for (i = 0; i < sdma_reqs_cnt; i++) {
-		(res + r)->name = (oh->sdma_reqs + i)->name;
-		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
-		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
-		(res + r)->flags = IORESOURCE_DMA;
-		r++;
-	}
+	/* For each memory area, fill in array.*/
 
 	list_for_each_entry(os, &oh->slave_ports, node) {
 		addr_cnt = _count_ocp_if_addr_spaces(os);
@@ -3435,33 +3357,6 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 			(res + r)->flags = IORESOURCE_MEM;
 			r++;
 		}
-	}
-
-	return r;
-}
-
-/**
- * omap_hwmod_fill_dma_resources - fill struct resource array with dma data
- * @oh: struct omap_hwmod *
- * @res: pointer to the array of struct resource to fill
- *
- * Fill the struct resource array @res with dma resource data from the
- * omap_hwmod @oh.  Intended to be called by code that registers
- * omap_devices.  See also omap_hwmod_count_resources().  Returns the
- * number of array elements filled.
- */
-int omap_hwmod_fill_dma_resources(struct omap_hwmod *oh, struct resource *res)
-{
-	int i, sdma_reqs_cnt;
-	int r = 0;
-
-	sdma_reqs_cnt = _count_sdma_reqs(oh);
-	for (i = 0; i < sdma_reqs_cnt; i++) {
-		(res + r)->name = (oh->sdma_reqs + i)->name;
-		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
-		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
-		(res + r)->flags = IORESOURCE_DMA;
-		r++;
 	}
 
 	return r;
@@ -3493,20 +3388,12 @@ int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
 				   const char *name, struct resource *rsrc)
 {
 	int r;
-	unsigned int dma;
 	u32 pa_start, pa_end;
 
 	if (!oh || !rsrc)
 		return -EINVAL;
 
-	if (type == IORESOURCE_DMA) {
-		r = _get_sdma_req_by_name(oh, name, &dma);
-		if (r)
-			return r;
-
-		rsrc->start = dma;
-		rsrc->end = dma;
-	} else if (type == IORESOURCE_MEM) {
+	if (type == IORESOURCE_MEM) {
 		r = _get_addr_space_by_name(oh, name, &pa_start, &pa_end);
 		if (r)
 			return r;

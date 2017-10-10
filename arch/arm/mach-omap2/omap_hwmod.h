@@ -150,20 +150,6 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3;
 #endif
 
 /**
- * struct omap_hwmod_dma_info - DMA channels used by the hwmod
- * @name: name of the DMA channel (module local name)
- * @dma_req: DMA request ID (should be non-negative except -1 = terminator)
- *
- * @name should be something short, e.g., "tx" or "rx".  It is for use
- * by platform_get_resource_byname().  It is defined locally to the
- * hwmod.
- */
-struct omap_hwmod_dma_info {
-	const char	*name;
-	s16		dma_req;
-};
-
-/**
  * struct omap_hwmod_rst_info - IPs reset lines use by hwmod
  * @name: name of the reset line (module local name)
  * @rst_shift: Offset of the reset bit
@@ -598,7 +584,6 @@ struct omap_hwmod_class {
  * @name: name of the hwmod
  * @class: struct omap_hwmod_class * to the class of this hwmod
  * @od: struct omap_device currently associated with this hwmod (internal use)
- * @sdma_reqs: ptr to an array of System DMA request IDs
  * @prcm: PRCM data pertaining to this hwmod
  * @main_clk: main clock: OMAP clock name
  * @_clk: pointer to the main struct clk (filled in at runtime)
@@ -641,7 +626,6 @@ struct omap_hwmod {
 	const char			*name;
 	struct omap_hwmod_class		*class;
 	struct omap_device		*od;
-	struct omap_hwmod_dma_info	*sdma_reqs;
 	struct omap_hwmod_rst_info	*rst_lines;
 	union {
 		struct omap_hwmod_omap2_prcm omap2;
@@ -697,7 +681,6 @@ int omap_hwmod_softreset(struct omap_hwmod *oh);
 
 int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags);
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res);
-int omap_hwmod_fill_dma_resources(struct omap_hwmod *oh, struct resource *res);
 int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
 				   const char *name, struct resource *res);
 

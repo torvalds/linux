@@ -610,11 +610,6 @@ static struct omap_hwmod_class omap44xx_dispc_hwmod_class = {
 };
 
 /* dss_dispc */
-static struct omap_hwmod_dma_info omap44xx_dss_dispc_sdma_reqs[] = {
-	{ .dma_req = 5 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_dss_dispc_dev_attr omap44xx_dss_dispc_dev_attr = {
 	.manager_count		= 3,
 	.has_framedonetv_irq	= 1
@@ -624,7 +619,6 @@ static struct omap_hwmod omap44xx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap44xx_dispc_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
-	.sdma_reqs	= omap44xx_dss_dispc_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
@@ -658,11 +652,6 @@ static struct omap_hwmod_class omap44xx_dsi_hwmod_class = {
 };
 
 /* dss_dsi1 */
-static struct omap_hwmod_dma_info omap44xx_dss_dsi1_sdma_reqs[] = {
-	{ .dma_req = 74 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_opt_clk dss_dsi1_opt_clks[] = {
 	{ .role = "sys_clk", .clk = "dss_sys_clk" },
 };
@@ -671,7 +660,6 @@ static struct omap_hwmod omap44xx_dss_dsi1_hwmod = {
 	.name		= "dss_dsi1",
 	.class		= &omap44xx_dsi_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
-	.sdma_reqs	= omap44xx_dss_dsi1_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
@@ -685,11 +673,6 @@ static struct omap_hwmod omap44xx_dss_dsi1_hwmod = {
 };
 
 /* dss_dsi2 */
-static struct omap_hwmod_dma_info omap44xx_dss_dsi2_sdma_reqs[] = {
-	{ .dma_req = 83 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_opt_clk dss_dsi2_opt_clks[] = {
 	{ .role = "sys_clk", .clk = "dss_sys_clk" },
 };
@@ -698,7 +681,6 @@ static struct omap_hwmod omap44xx_dss_dsi2_hwmod = {
 	.name		= "dss_dsi2",
 	.class		= &omap44xx_dsi_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
-	.sdma_reqs	= omap44xx_dss_dsi2_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
@@ -732,11 +714,6 @@ static struct omap_hwmod_class omap44xx_hdmi_hwmod_class = {
 };
 
 /* dss_hdmi */
-static struct omap_hwmod_dma_info omap44xx_dss_hdmi_sdma_reqs[] = {
-	{ .dma_req = 75 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_opt_clk dss_hdmi_opt_clks[] = {
 	{ .role = "sys_clk", .clk = "dss_sys_clk" },
 	{ .role = "hdmi_clk", .clk = "dss_48mhz_clk" },
@@ -751,7 +728,6 @@ static struct omap_hwmod omap44xx_dss_hdmi_hwmod = {
 	 * set idle mode by software.
 	 */
 	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_OPT_CLKS_NEEDED,
-	.sdma_reqs	= omap44xx_dss_hdmi_sdma_reqs,
 	.main_clk	= "dss_48mhz_clk",
 	.prcm = {
 		.omap4 = {
@@ -785,11 +761,6 @@ static struct omap_hwmod_class omap44xx_rfbi_hwmod_class = {
 };
 
 /* dss_rfbi */
-static struct omap_hwmod_dma_info omap44xx_dss_rfbi_sdma_reqs[] = {
-	{ .dma_req = 13 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_opt_clk dss_rfbi_opt_clks[] = {
 	{ .role = "ick", .clk = "l3_div_ck" },
 };
@@ -798,7 +769,6 @@ static struct omap_hwmod omap44xx_dss_rfbi_hwmod = {
 	.name		= "dss_rfbi",
 	.class		= &omap44xx_rfbi_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
-	.sdma_reqs	= omap44xx_dss_rfbi_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
@@ -1898,19 +1868,6 @@ static struct omap_hwmod_class omap44xx_mcspi_hwmod_class = {
 };
 
 /* mcspi1 */
-static struct omap_hwmod_dma_info omap44xx_mcspi1_sdma_reqs[] = {
-	{ .name = "tx0", .dma_req = 34 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx0", .dma_req = 35 + OMAP44XX_DMA_REQ_START },
-	{ .name = "tx1", .dma_req = 36 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx1", .dma_req = 37 + OMAP44XX_DMA_REQ_START },
-	{ .name = "tx2", .dma_req = 38 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx2", .dma_req = 39 + OMAP44XX_DMA_REQ_START },
-	{ .name = "tx3", .dma_req = 40 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx3", .dma_req = 41 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
-/* mcspi1 dev_attr */
 static struct omap2_mcspi_dev_attr mcspi1_dev_attr = {
 	.num_chipselect	= 4,
 };
@@ -1919,7 +1876,6 @@ static struct omap_hwmod omap44xx_mcspi1_hwmod = {
 	.name		= "mcspi1",
 	.class		= &omap44xx_mcspi_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.sdma_reqs	= omap44xx_mcspi1_sdma_reqs,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -1932,15 +1888,6 @@ static struct omap_hwmod omap44xx_mcspi1_hwmod = {
 };
 
 /* mcspi2 */
-static struct omap_hwmod_dma_info omap44xx_mcspi2_sdma_reqs[] = {
-	{ .name = "tx0", .dma_req = 42 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx0", .dma_req = 43 + OMAP44XX_DMA_REQ_START },
-	{ .name = "tx1", .dma_req = 44 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx1", .dma_req = 45 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
-/* mcspi2 dev_attr */
 static struct omap2_mcspi_dev_attr mcspi2_dev_attr = {
 	.num_chipselect	= 2,
 };
@@ -1949,7 +1896,6 @@ static struct omap_hwmod omap44xx_mcspi2_hwmod = {
 	.name		= "mcspi2",
 	.class		= &omap44xx_mcspi_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.sdma_reqs	= omap44xx_mcspi2_sdma_reqs,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -1962,15 +1908,6 @@ static struct omap_hwmod omap44xx_mcspi2_hwmod = {
 };
 
 /* mcspi3 */
-static struct omap_hwmod_dma_info omap44xx_mcspi3_sdma_reqs[] = {
-	{ .name = "tx0", .dma_req = 14 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx0", .dma_req = 15 + OMAP44XX_DMA_REQ_START },
-	{ .name = "tx1", .dma_req = 22 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx1", .dma_req = 23 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
-/* mcspi3 dev_attr */
 static struct omap2_mcspi_dev_attr mcspi3_dev_attr = {
 	.num_chipselect	= 2,
 };
@@ -1979,7 +1916,6 @@ static struct omap_hwmod omap44xx_mcspi3_hwmod = {
 	.name		= "mcspi3",
 	.class		= &omap44xx_mcspi_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.sdma_reqs	= omap44xx_mcspi3_sdma_reqs,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -1992,13 +1928,6 @@ static struct omap_hwmod omap44xx_mcspi3_hwmod = {
 };
 
 /* mcspi4 */
-static struct omap_hwmod_dma_info omap44xx_mcspi4_sdma_reqs[] = {
-	{ .name = "tx0", .dma_req = 69 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx0", .dma_req = 70 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
-/* mcspi4 dev_attr */
 static struct omap2_mcspi_dev_attr mcspi4_dev_attr = {
 	.num_chipselect	= 1,
 };
@@ -2007,7 +1936,6 @@ static struct omap_hwmod omap44xx_mcspi4_hwmod = {
 	.name		= "mcspi4",
 	.class		= &omap44xx_mcspi_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.sdma_reqs	= omap44xx_mcspi4_sdma_reqs,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -2042,13 +1970,6 @@ static struct omap_hwmod_class omap44xx_mmc_hwmod_class = {
 };
 
 /* mmc1 */
-static struct omap_hwmod_dma_info omap44xx_mmc1_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = 60 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx", .dma_req = 61 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
-/* mmc1 dev_attr */
 static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
 	.flags	= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
@@ -2057,7 +1978,6 @@ static struct omap_hwmod omap44xx_mmc1_hwmod = {
 	.name		= "mmc1",
 	.class		= &omap44xx_mmc_hwmod_class,
 	.clkdm_name	= "l3_init_clkdm",
-	.sdma_reqs	= omap44xx_mmc1_sdma_reqs,
 	.main_clk	= "hsmmc1_fclk",
 	.prcm = {
 		.omap4 = {
@@ -2070,17 +1990,10 @@ static struct omap_hwmod omap44xx_mmc1_hwmod = {
 };
 
 /* mmc2 */
-static struct omap_hwmod_dma_info omap44xx_mmc2_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = 46 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx", .dma_req = 47 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod omap44xx_mmc2_hwmod = {
 	.name		= "mmc2",
 	.class		= &omap44xx_mmc_hwmod_class,
 	.clkdm_name	= "l3_init_clkdm",
-	.sdma_reqs	= omap44xx_mmc2_sdma_reqs,
 	.main_clk	= "hsmmc2_fclk",
 	.prcm = {
 		.omap4 = {
@@ -2092,17 +2005,10 @@ static struct omap_hwmod omap44xx_mmc2_hwmod = {
 };
 
 /* mmc3 */
-static struct omap_hwmod_dma_info omap44xx_mmc3_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = 76 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx", .dma_req = 77 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod omap44xx_mmc3_hwmod = {
 	.name		= "mmc3",
 	.class		= &omap44xx_mmc_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.sdma_reqs	= omap44xx_mmc3_sdma_reqs,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -2114,17 +2020,10 @@ static struct omap_hwmod omap44xx_mmc3_hwmod = {
 };
 
 /* mmc4 */
-static struct omap_hwmod_dma_info omap44xx_mmc4_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = 56 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx", .dma_req = 57 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod omap44xx_mmc4_hwmod = {
 	.name		= "mmc4",
 	.class		= &omap44xx_mmc_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.sdma_reqs	= omap44xx_mmc4_sdma_reqs,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -2136,17 +2035,10 @@ static struct omap_hwmod omap44xx_mmc4_hwmod = {
 };
 
 /* mmc5 */
-static struct omap_hwmod_dma_info omap44xx_mmc5_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = 58 + OMAP44XX_DMA_REQ_START },
-	{ .name = "rx", .dma_req = 59 + OMAP44XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod omap44xx_mmc5_hwmod = {
 	.name		= "mmc5",
 	.class		= &omap44xx_mmc_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.sdma_reqs	= omap44xx_mmc5_sdma_reqs,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {

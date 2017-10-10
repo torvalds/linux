@@ -572,11 +572,6 @@ static struct omap_hwmod_class dra7xx_dss_hwmod_class = {
 };
 
 /* dss */
-static struct omap_hwmod_dma_info dra7xx_dss_sdma_reqs[] = {
-	{ .dma_req = 75 + DRA7XX_DMA_REQ_START },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	{ .role = "dss_clk", .clk = "dss_dss_clk" },
 	{ .role = "hdmi_phy_clk", .clk = "dss_48mhz_clk" },
@@ -592,7 +587,6 @@ static struct omap_hwmod dra7xx_dss_hwmod = {
 	.class		= &dra7xx_dss_hwmod_class,
 	.clkdm_name	= "dss_clkdm",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
-	.sdma_reqs	= dra7xx_dss_sdma_reqs,
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {

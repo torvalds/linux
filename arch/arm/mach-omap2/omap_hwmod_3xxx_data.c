@@ -565,12 +565,6 @@ static struct omap_hwmod_class i2c_class = {
 	.reset	= &omap_i2c_reset,
 };
 
-static struct omap_hwmod_dma_info omap3xxx_dss_sdma_chs[] = {
-	{ .name = "dispc", .dma_req = 5 },
-	{ .name = "dsi1", .dma_req = 74 },
-	{ .dma_req = -1, },
-};
-
 /* dss */
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	/*
@@ -587,7 +581,6 @@ static struct omap_hwmod omap3430es1_dss_core_hwmod = {
 	.name		= "dss_core",
 	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -607,7 +600,6 @@ static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
