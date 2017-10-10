@@ -305,7 +305,6 @@ int __hyp_text __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	guest_ctxt = &vcpu->arch.ctxt;
 
 	__sysreg_save_host_state(host_ctxt);
-	__debug_cond_save_host_state(vcpu);
 
 	__activate_traps(vcpu);
 	__activate_vm(vcpu);
@@ -319,7 +318,7 @@ int __hyp_text __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	 */
 	__sysreg32_restore_state(vcpu);
 	__sysreg_restore_guest_state(guest_ctxt);
-	__debug_restore_state(vcpu, kern_hyp_va(vcpu->arch.debug_ptr), guest_ctxt);
+	__debug_switch_to_guest(vcpu);
 
 	/* Jump in the fire! */
 again:
@@ -416,12 +415,11 @@ again:
 		__fpsimd_restore_state(&host_ctxt->gp_regs.fp_regs);
 	}
 
-	__debug_save_state(vcpu, kern_hyp_va(vcpu->arch.debug_ptr), guest_ctxt);
 	/*
 	 * This must come after restoring the host sysregs, since a non-VHE
 	 * system may enable SPE here and make use of the TTBRs.
 	 */
-	__debug_cond_restore_host_state(vcpu);
+	__debug_switch_to_host(vcpu);
 
 	return exit_code;
 }
