@@ -4917,6 +4917,13 @@ void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle)
 	schedule_work(&phba->boot_work);
 }
 
+/**
+ * Boot flag info for iscsi-utilities
+ * Bit 0 Block valid flag
+ * Bit 1 Firmware booting selected
+ */
+#define BEISCSI_SYSFS_ISCSI_BOOT_FLAGS	3
+
 static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
 {
 	struct beiscsi_hba *phba = data;
@@ -4972,7 +4979,7 @@ static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
 			     auth_data.chap.intr_secret);
 		break;
 	case ISCSI_BOOT_TGT_FLAGS:
-		rc = sprintf(str, "2\n");
+		rc = sprintf(str, "%d\n", BEISCSI_SYSFS_ISCSI_BOOT_FLAGS);
 		break;
 	case ISCSI_BOOT_TGT_NIC_ASSOC:
 		rc = sprintf(str, "0\n");
@@ -5004,7 +5011,7 @@ static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
 
 	switch (type) {
 	case ISCSI_BOOT_ETH_FLAGS:
-		rc = sprintf(str, "2\n");
+		rc = sprintf(str, "%d\n", BEISCSI_SYSFS_ISCSI_BOOT_FLAGS);
 		break;
 	case ISCSI_BOOT_ETH_INDEX:
 		rc = sprintf(str, "0\n");
