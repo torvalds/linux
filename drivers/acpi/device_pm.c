@@ -882,14 +882,13 @@ int acpi_dev_runtime_suspend(struct device *dev)
 EXPORT_SYMBOL_GPL(acpi_dev_runtime_suspend);
 
 /**
- * acpi_dev_runtime_resume - Put device into the full-power state using ACPI.
+ * acpi_dev_resume - Put device into the full-power state using ACPI.
  * @dev: Device to put into the full-power state.
  *
  * Put the given device into the full-power state using the standard ACPI
- * mechanism at run time.  Set the power state of the device to ACPI D0 and
- * disable remote wakeup.
+ * mechanism.  Set the power state of the device to ACPI D0 and disable wakeup.
  */
-int acpi_dev_runtime_resume(struct device *dev)
+int acpi_dev_resume(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 	int error;
@@ -901,7 +900,7 @@ int acpi_dev_runtime_resume(struct device *dev)
 	acpi_device_wakeup_disable(adev);
 	return error;
 }
-EXPORT_SYMBOL_GPL(acpi_dev_runtime_resume);
+EXPORT_SYMBOL_GPL(acpi_dev_resume);
 
 /**
  * acpi_subsys_runtime_suspend - Suspend device using ACPI.
@@ -926,7 +925,7 @@ EXPORT_SYMBOL_GPL(acpi_subsys_runtime_suspend);
  */
 int acpi_subsys_runtime_resume(struct device *dev)
 {
-	int ret = acpi_dev_runtime_resume(dev);
+	int ret = acpi_dev_resume(dev);
 	return ret ? ret : pm_generic_runtime_resume(dev);
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_runtime_resume);
@@ -966,28 +965,6 @@ int acpi_dev_suspend_late(struct device *dev)
 	return error;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_suspend_late);
-
-/**
- * acpi_dev_resume_early - Put device into the full-power state using ACPI.
- * @dev: Device to put into the full-power state.
- *
- * Put the given device into the full-power state using the standard ACPI
- * mechanism during system transition to the working state.  Set the power
- * state of the device to ACPI D0 and disable remote wakeup.
- */
-int acpi_dev_resume_early(struct device *dev)
-{
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	int error;
-
-	if (!adev)
-		return 0;
-
-	error = acpi_dev_pm_full_power(adev);
-	acpi_device_wakeup_disable(adev);
-	return error;
-}
-EXPORT_SYMBOL_GPL(acpi_dev_resume_early);
 
 /**
  * acpi_subsys_prepare - Prepare device for system transition to a sleep state.
@@ -1057,7 +1034,7 @@ EXPORT_SYMBOL_GPL(acpi_subsys_suspend_late);
  */
 int acpi_subsys_resume_early(struct device *dev)
 {
-	int ret = acpi_dev_resume_early(dev);
+	int ret = acpi_dev_resume(dev);
 	return ret ? ret : pm_generic_resume_early(dev);
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_resume_early);
