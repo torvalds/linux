@@ -233,7 +233,9 @@
 			};
 
 			pwm0: pwm@f802c000 {
-				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pwm0_pwm2_default>;
+				status = "disabled"; /* conflict with leds */
 			};
 
 			flx0: flexcom@f8034000 {
@@ -503,6 +505,11 @@
 					bias-disable;
 				};
 
+				pinctrl_pwm0_pwm2_default: pwm0_pwm2_default {
+					pinmux = <PIN_PB5__PWMH2>,
+						 <PIN_PB6__PWML2>;
+					bias-pull-up;
+				};
 			};
 
 			classd: classd@fc048000 {
@@ -539,7 +546,7 @@
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_led_gpio_default>;
-		status = "okay";
+		status = "okay"; /* conflict with pwm0 */
 
 		red {
 			label = "red";
