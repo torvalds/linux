@@ -2349,7 +2349,8 @@ void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,
 	val &= ~FDI_RX_ENABLE;
 	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 
-	intel_ddi_post_disable(encoder, old_crtc_state, old_conn_state);
+	intel_disable_ddi_buf(encoder);
+	intel_ddi_clk_disable(encoder);
 
 	val = I915_READ(FDI_RX_MISC(PIPE_A));
 	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
