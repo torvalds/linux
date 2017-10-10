@@ -533,6 +533,21 @@ int hns3_set_ringparam(struct net_device *ndev, struct ethtool_ringparam *param)
 	return ret;
 }
 
+static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_rss_tuple)
+		return -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		return h->ae_algo->ops->set_rss_tuple(h, cmd);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_link = hns3_get_link,
@@ -543,6 +558,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_ethtool_stats = hns3_get_stats,
 	.get_sset_count = hns3_get_sset_count,
 	.get_rxnfc = hns3_get_rxnfc,
+	.set_rxnfc = hns3_set_rxnfc,
 	.get_rxfh_key_size = hns3_get_rss_key_size,
 	.get_rxfh_indir_size = hns3_get_rss_indir_size,
 	.get_rxfh = hns3_get_rss,
