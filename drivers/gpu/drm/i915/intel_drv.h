@@ -1243,7 +1243,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
 static inline u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915,
 					    u32 mask)
 {
-	return mask & ~i915->rps.pm_intrmsk_mbz;
+	return mask & ~i915->gt_pm.rps.pm_intrmsk_mbz;
 }
 
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);

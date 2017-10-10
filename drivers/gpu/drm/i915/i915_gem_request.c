@@ -416,7 +416,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	spin_lock_irq(&request->lock);
 	if (request->waitboost)
-		atomic_dec(&request->i915->rps.num_waiters);
+		atomic_dec(&request->i915->gt_pm.rps.num_waiters);
 	dma_fence_signal_locked(&request->fence);
 	spin_unlock_irq(&request->lock);
 

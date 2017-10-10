@@ -275,7 +275,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			intel_gpu_freq(dev_priv,
-				       dev_priv->rps.cur_freq));
+				       dev_priv->gt_pm.rps.cur_freq));
 }
 
 static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -284,7 +284,7 @@ static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribu
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			intel_gpu_freq(dev_priv,
-				       dev_priv->rps.boost_freq));
+				       dev_priv->gt_pm.rps.boost_freq));
 }
 
 static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
@@ -292,6 +292,7 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 				       const char *buf, size_t count)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 val;
 	ssize_t ret;
 
@@ -301,11 +302,11 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 
 	/* Validate against (static) hardware limits */
 	val = intel_freq_opcode(dev_priv, val);
-	if (val < dev_priv->rps.min_freq || val > dev_priv->rps.max_freq)
+	if (val < rps->min_freq || val > rps->max_freq)
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->pcu_lock);
-	dev_priv->rps.boost_freq = val;
+	rps->boost_freq = val;
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	return count;
@@ -318,7 +319,7 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			intel_gpu_freq(dev_priv,
-				       dev_priv->rps.efficient_freq));
+				       dev_priv->gt_pm.rps.efficient_freq));
 }
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -327,7 +328,7 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			intel_gpu_freq(dev_priv,
-				       dev_priv->rps.max_freq_softlimit));
+				       dev_priv->gt_pm.rps.max_freq_softlimit));
 }
 
 static ssize_t gt_max_freq_mhz_store(struct device *kdev,
@@ -335,6 +336,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 				     const char *buf, size_t count)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 val;
 	ssize_t ret;
 
@@ -348,23 +350,23 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	val = intel_freq_opcode(dev_priv, val);
 
-	if (val < dev_priv->rps.min_freq ||
-	    val > dev_priv->rps.max_freq ||
-	    val < dev_priv->rps.min_freq_softlimit) {
+	if (val < rps->min_freq ||
+	    val > rps->max_freq ||
+	    val < rps->min_freq_softlimit) {
 		mutex_unlock(&dev_priv->pcu_lock);
 		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
 
-	if (val > dev_priv->rps.rp0_freq)
+	if (val > rps->rp0_freq)
 		DRM_DEBUG("User requested overclocking to %d\n",
 			  intel_gpu_freq(dev_priv, val));
 
-	dev_priv->rps.max_freq_softlimit = val;
+	rps->max_freq_softlimit = val;
 
-	val = clamp_t(int, dev_priv->rps.cur_freq,
-		      dev_priv->rps.min_freq_softlimit,
-		      dev_priv->rps.max_freq_softlimit);
+	val = clamp_t(int, rps->cur_freq,
+		      rps->min_freq_softlimit,
+		      rps->max_freq_softlimit);
 
 	/* We still need *_set_rps to process the new max_delay and
 	 * update the interrupt limits and PMINTRMSK even though
@@ -384,7 +386,7 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			intel_gpu_freq(dev_priv,
-				       dev_priv->rps.min_freq_softlimit));
+				       dev_priv->gt_pm.rps.min_freq_softlimit));
 }
 
 static ssize_t gt_min_freq_mhz_store(struct device *kdev,
@@ -392,6 +394,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 				     const char *buf, size_t count)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 val;
 	ssize_t ret;
 
@@ -405,19 +408,19 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	val = intel_freq_opcode(dev_priv, val);
 
-	if (val < dev_priv->rps.min_freq ||
-	    val > dev_priv->rps.max_freq ||
-	    val > dev_priv->rps.max_freq_softlimit) {
+	if (val < rps->min_freq ||
+	    val > rps->max_freq ||
+	    val > rps->max_freq_softlimit) {
 		mutex_unlock(&dev_priv->pcu_lock);
 		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
 
-	dev_priv->rps.min_freq_softlimit = val;
+	rps->min_freq_softlimit = val;
 
-	val = clamp_t(int, dev_priv->rps.cur_freq,
-		      dev_priv->rps.min_freq_softlimit,
-		      dev_priv->rps.max_freq_softlimit);
+	val = clamp_t(int, rps->cur_freq,
+		      rps->min_freq_softlimit,
+		      rps->max_freq_softlimit);
 
 	/* We still need *_set_rps to process the new min_delay and
 	 * update the interrupt limits and PMINTRMSK even though
@@ -448,14 +451,15 @@ static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
 static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 val;
 
 	if (attr == &dev_attr_gt_RP0_freq_mhz)
-		val = intel_gpu_freq(dev_priv, dev_priv->rps.rp0_freq);
+		val = intel_gpu_freq(dev_priv, rps->rp0_freq);
 	else if (attr == &dev_attr_gt_RP1_freq_mhz)
-		val = intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq);
+		val = intel_gpu_freq(dev_priv, rps->rp1_freq);
 	else if (attr == &dev_attr_gt_RPn_freq_mhz)
-		val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq);
+		val = intel_gpu_freq(dev_priv, rps->min_freq);
 	else
 		BUG();
 

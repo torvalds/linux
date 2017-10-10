@@ -358,7 +358,7 @@ static long
 i915_gem_object_wait_fence(struct dma_fence *fence,
 			   unsigned int flags,
 			   long timeout,
-			   struct intel_rps_client *rps)
+			   struct intel_rps_client *rps_client)
 {
 	struct drm_i915_gem_request *rq;
 
@@ -391,11 +391,11 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 	 * forcing the clocks too high for the whole system, we only allow
 	 * each client to waitboost once in a busy period.
 	 */
-	if (rps) {
+	if (rps_client) {
 		if (INTEL_GEN(rq->i915) >= 6)
-			gen6_rps_boost(rq, rps);
+			gen6_rps_boost(rq, rps_client);
 		else
-			rps = NULL;
+			rps_client = NULL;
 	}
 
 	timeout = i915_wait_request(rq, flags, timeout);
@@ -411,7 +411,7 @@ static long
 i915_gem_object_wait_reservation(struct reservation_object *resv,
 				 unsigned int flags,
 				 long timeout,
-				 struct intel_rps_client *rps)
+				 struct intel_rps_client *rps_client)
 {
 	unsigned int seq = __read_seqcount_begin(&resv->seq);
 	struct dma_fence *excl;
@@ -430,7 +430,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 		for (i = 0; i < count; i++) {
 			timeout = i915_gem_object_wait_fence(shared[i],
 							     flags, timeout,
-							     rps);
+							     rps_client);
 			if (timeout < 0)
 				break;
 
@@ -447,7 +447,8 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 	}
 
 	if (excl && timeout >= 0) {
-		timeout = i915_gem_object_wait_fence(excl, flags, timeout, rps);
+		timeout = i915_gem_object_wait_fence(excl, flags, timeout,
+						     rps_client);
 		prune_fences = timeout >= 0;
 	}
 
@@ -543,7 +544,7 @@ int
 i915_gem_object_wait(struct drm_i915_gem_object *obj,
 		     unsigned int flags,
 		     long timeout,
-		     struct intel_rps_client *rps)
+		     struct intel_rps_client *rps_client)
 {
 	might_sleep();
 #if IS_ENABLED(CONFIG_LOCKDEP)
@@ -555,7 +556,7 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 
 	timeout = i915_gem_object_wait_reservation(obj->resv,
 						   flags, timeout,
-						   rps);
+						   rps_client);
 	return timeout < 0 ? timeout : 0;
 }
 
@@ -563,7 +564,7 @@ static struct intel_rps_client *to_rps_client(struct drm_file *file)
 {
 	struct drm_i915_file_private *fpriv = file->driver_priv;
 
-	return &fpriv->rps;
+	return &fpriv->rps_client;
 }
 
 static int

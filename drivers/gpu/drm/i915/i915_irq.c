@@ -404,19 +404,21 @@ void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
 	gen6_reset_pm_iir(dev_priv, dev_priv->pm_rps_events);
-	dev_priv->rps.pm_iir = 0;
+	dev_priv->gt_pm.rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
-	if (READ_ONCE(dev_priv->rps.interrupts_enabled))
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+
+	if (READ_ONCE(rps->interrupts_enabled))
 		return;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	WARN_ON_ONCE(dev_priv->rps.pm_iir);
+	WARN_ON_ONCE(rps->pm_iir);
 	WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
-	dev_priv->rps.interrupts_enabled = true;
+	rps->interrupts_enabled = true;
 	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
@@ -424,11 +426,13 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
-	if (!READ_ONCE(dev_priv->rps.interrupts_enabled))
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+
+	if (!READ_ONCE(rps->interrupts_enabled))
 		return;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->rps.interrupts_enabled = false;
+	rps->interrupts_enabled = false;
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0u));
 
@@ -442,7 +446,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	 * we will reset the GPU to minimum frequencies, so the current
 	 * state of the worker can be discarded.
 	 */
-	cancel_work_sync(&dev_priv->rps.work);
+	cancel_work_sync(&rps->work);
 	gen6_reset_rps_interrupts(dev_priv);
 }
 
@@ -1119,12 +1123,13 @@ static void vlv_c0_read(struct drm_i915_private *dev_priv,
 
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv)
 {
-	memset(&dev_priv->rps.ei, 0, sizeof(dev_priv->rps.ei));
+	memset(&dev_priv->gt_pm.rps.ei, 0, sizeof(dev_priv->gt_pm.rps.ei));
 }
 
 static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
-	const struct intel_rps_ei *prev = &dev_priv->rps.ei;
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+	const struct intel_rps_ei *prev = &rps->ei;
 	struct intel_rps_ei now;
 	u32 events = 0;
 
@@ -1151,28 +1156,29 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 		c0 = max(render, media);
 		c0 *= 1000 * 100 << 8; /* to usecs and scale to threshold% */
 
-		if (c0 > time * dev_priv->rps.up_threshold)
+		if (c0 > time * rps->up_threshold)
 			events = GEN6_PM_RP_UP_THRESHOLD;
-		else if (c0 < time * dev_priv->rps.down_threshold)
+		else if (c0 < time * rps->down_threshold)
 			events = GEN6_PM_RP_DOWN_THRESHOLD;
 	}
 
-	dev_priv->rps.ei = now;
+	rps->ei = now;
 	return events;
 }
 
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private, rps.work);
+		container_of(work, struct drm_i915_private, gt_pm.rps.work);
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	bool client_boost = false;
 	int new_delay, adj, min, max;
 	u32 pm_iir = 0;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->rps.interrupts_enabled) {
-		pm_iir = fetch_and_zero(&dev_priv->rps.pm_iir);
-		client_boost = atomic_read(&dev_priv->rps.num_waiters);
+	if (rps->interrupts_enabled) {
+		pm_iir = fetch_and_zero(&rps->pm_iir);
+		client_boost = atomic_read(&rps->num_waiters);
 	}
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -1185,14 +1191,14 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	pm_iir |= vlv_wa_c0_ei(dev_priv, pm_iir);
 
-	adj = dev_priv->rps.last_adj;
-	new_delay = dev_priv->rps.cur_freq;
-	min = dev_priv->rps.min_freq_softlimit;
-	max = dev_priv->rps.max_freq_softlimit;
+	adj = rps->last_adj;
+	new_delay = rps->cur_freq;
+	min = rps->min_freq_softlimit;
+	max = rps->max_freq_softlimit;
 	if (client_boost)
-		max = dev_priv->rps.max_freq;
-	if (client_boost && new_delay < dev_priv->rps.boost_freq) {
-		new_delay = dev_priv->rps.boost_freq;
+		max = rps->max_freq;
+	if (client_boost && new_delay < rps->boost_freq) {
+		new_delay = rps->boost_freq;
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		if (adj > 0)
@@ -1200,15 +1206,15 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		else /* CHV needs even encode values */
 			adj = IS_CHERRYVIEW(dev_priv) ? 2 : 1;
 
-		if (new_delay >= dev_priv->rps.max_freq_softlimit)
+		if (new_delay >= rps->max_freq_softlimit)
 			adj = 0;
 	} else if (client_boost) {
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
-		if (dev_priv->rps.cur_freq > dev_priv->rps.efficient_freq)
-			new_delay = dev_priv->rps.efficient_freq;
-		else if (dev_priv->rps.cur_freq > dev_priv->rps.min_freq_softlimit)
-			new_delay = dev_priv->rps.min_freq_softlimit;
+		if (rps->cur_freq > rps->efficient_freq)
+			new_delay = rps->efficient_freq;
+		else if (rps->cur_freq > rps->min_freq_softlimit)
+			new_delay = rps->min_freq_softlimit;
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
@@ -1216,13 +1222,13 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		else /* CHV needs even encode values */
 			adj = IS_CHERRYVIEW(dev_priv) ? -2 : -1;
 
-		if (new_delay <= dev_priv->rps.min_freq_softlimit)
+		if (new_delay <= rps->min_freq_softlimit)
 			adj = 0;
 	} else { /* unknown event */
 		adj = 0;
 	}
 
-	dev_priv->rps.last_adj = adj;
+	rps->last_adj = adj;
 
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
@@ -1232,7 +1238,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	if (intel_set_rps(dev_priv, new_delay)) {
 		DRM_DEBUG_DRIVER("Failed to set new GPU frequency\n");
-		dev_priv->rps.last_adj = 0;
+		rps->last_adj = 0;
 	}
 
 	mutex_unlock(&dev_priv->pcu_lock);
@@ -1240,7 +1246,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 out:
 	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
 	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->rps.interrupts_enabled)
+	if (rps->interrupts_enabled)
 		gen6_unmask_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
@@ -1721,12 +1727,14 @@ static void i9xx_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
  * the work queue. */
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+
 	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
 		gen6_mask_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
-		if (dev_priv->rps.interrupts_enabled) {
-			dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
-			schedule_work(&dev_priv->rps.work);
+		if (rps->interrupts_enabled) {
+			rps->pm_iir |= pm_iir & dev_priv->pm_rps_events;
+			schedule_work(&rps->work);
 		}
 		spin_unlock(&dev_priv->irq_lock);
 	}
@@ -4007,11 +4015,12 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 void intel_irq_init(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	int i;
 
 	intel_hpd_init_work(dev_priv);
 
-	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
+	INIT_WORK(&rps->work, gen6_pm_rps_work);
 
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 	for (i = 0; i < MAX_L3_SLICES; ++i)
@@ -4027,7 +4036,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	else
 		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 
-	dev_priv->rps.pm_intrmsk_mbz = 0;
+	rps->pm_intrmsk_mbz = 0;
 
 	/*
 	 * SNB,IVB,HSW can while VLV,CHV may hard hang on looping batchbuffer
@@ -4036,10 +4045,10 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	 * TODO: verify if this can be reproduced on VLV,CHV.
 	 */
 	if (INTEL_GEN(dev_priv) <= 7)
-		dev_priv->rps.pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
+		rps->pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
 
 	if (INTEL_GEN(dev_priv) >= 8)
-		dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
 	if (IS_GEN2(dev_priv)) {
 		/* Gen2 doesn't have a hardware frame counter */

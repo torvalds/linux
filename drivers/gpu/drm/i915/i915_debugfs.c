@@ -1080,6 +1080,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_next_seqno_fops,
 static int i915_frequency_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	int ret = 0;
 
 	intel_runtime_pm_get(dev_priv);
@@ -1116,20 +1117,20 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
 
 		seq_printf(m, "current GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
+			   intel_gpu_freq(dev_priv, rps->cur_freq));
 
 		seq_printf(m, "max GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+			   intel_gpu_freq(dev_priv, rps->max_freq));
 
 		seq_printf(m, "min GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+			   intel_gpu_freq(dev_priv, rps->min_freq));
 
 		seq_printf(m, "idle GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
+			   intel_gpu_freq(dev_priv, rps->idle_freq));
 
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
+			   intel_gpu_freq(dev_priv, rps->efficient_freq));
 		mutex_unlock(&dev_priv->pcu_lock);
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		u32 rp_state_limits;
@@ -1210,7 +1211,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "PM IER=0x%08x IMR=0x%08x ISR=0x%08x IIR=0x%08x, MASK=0x%08x\n",
 			   pm_ier, pm_imr, pm_isr, pm_iir, pm_mask);
 		seq_printf(m, "pm_intrmsk_mbz: 0x%08x\n",
-			   dev_priv->rps.pm_intrmsk_mbz);
+			   rps->pm_intrmsk_mbz);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "Render p-state ratio: %d\n",
 			   (gt_perf_status & (INTEL_GEN(dev_priv) >= 9 ? 0x1ff00 : 0xff00)) >> 8);
@@ -1230,8 +1231,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   rpcurup, GT_PM_INTERVAL_TO_US(dev_priv, rpcurup));
 		seq_printf(m, "RP PREV UP: %d (%dus)\n",
 			   rpprevup, GT_PM_INTERVAL_TO_US(dev_priv, rpprevup));
-		seq_printf(m, "Up threshold: %d%%\n",
-			   dev_priv->rps.up_threshold);
+		seq_printf(m, "Up threshold: %d%%\n", rps->up_threshold);
 
 		seq_printf(m, "RP CUR DOWN EI: %d (%dus)\n",
 			   rpdownei, GT_PM_INTERVAL_TO_US(dev_priv, rpdownei));
@@ -1239,8 +1239,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   rpcurdown, GT_PM_INTERVAL_TO_US(dev_priv, rpcurdown));
 		seq_printf(m, "RP PREV DOWN: %d (%dus)\n",
 			   rpprevdown, GT_PM_INTERVAL_TO_US(dev_priv, rpprevdown));
-		seq_printf(m, "Down threshold: %d%%\n",
-			   dev_priv->rps.down_threshold);
+		seq_printf(m, "Down threshold: %d%%\n", rps->down_threshold);
 
 		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
@@ -1262,22 +1261,22 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+			   intel_gpu_freq(dev_priv, rps->max_freq));
 
 		seq_printf(m, "Current freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
+			   intel_gpu_freq(dev_priv, rps->cur_freq));
 		seq_printf(m, "Actual freq: %d MHz\n", cagf);
 		seq_printf(m, "Idle freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
+			   intel_gpu_freq(dev_priv, rps->idle_freq));
 		seq_printf(m, "Min freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+			   intel_gpu_freq(dev_priv, rps->min_freq));
 		seq_printf(m, "Boost freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.boost_freq));
+			   intel_gpu_freq(dev_priv, rps->boost_freq));
 		seq_printf(m, "Max freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+			   intel_gpu_freq(dev_priv, rps->max_freq));
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
+			   intel_gpu_freq(dev_priv, rps->efficient_freq));
 	} else {
 		seq_puts(m, "no P-state info available\n");
 	}
@@ -1831,6 +1830,7 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 static int i915_ring_freq_table(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	int ret = 0;
 	int gpu_freq, ia_freq;
 	unsigned int max_gpu_freq, min_gpu_freq;
@@ -1848,13 +1848,11 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		/* Convert GT frequency to 50 HZ units */
-		min_gpu_freq =
-			dev_priv->rps.min_freq_softlimit / GEN9_FREQ_SCALER;
-		max_gpu_freq =
-			dev_priv->rps.max_freq_softlimit / GEN9_FREQ_SCALER;
+		min_gpu_freq = rps->min_freq_softlimit / GEN9_FREQ_SCALER;
+		max_gpu_freq = rps->max_freq_softlimit / GEN9_FREQ_SCALER;
 	} else {
-		min_gpu_freq = dev_priv->rps.min_freq_softlimit;
-		max_gpu_freq = dev_priv->rps.max_freq_softlimit;
+		min_gpu_freq = rps->min_freq_softlimit;
+		max_gpu_freq = rps->max_freq_softlimit;
 	}
 
 	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
@@ -2307,25 +2305,26 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	struct drm_file *file;
 
-	seq_printf(m, "RPS enabled? %d\n", dev_priv->rps.enabled);
+	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
 	seq_printf(m, "GPU busy? %s [%d requests]\n",
 		   yesno(dev_priv->gt.awake), dev_priv->gt.active_requests);
 	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
 	seq_printf(m, "Boosts outstanding? %d\n",
-		   atomic_read(&dev_priv->rps.num_waiters));
+		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Frequency requested %d\n",
-		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
+		   intel_gpu_freq(dev_priv, rps->cur_freq));
 	seq_printf(m, "  min hard:%d, soft:%d; max soft:%d, hard:%d\n",
-		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
-		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit),
-		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit),
-		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+		   intel_gpu_freq(dev_priv, rps->min_freq),
+		   intel_gpu_freq(dev_priv, rps->min_freq_softlimit),
+		   intel_gpu_freq(dev_priv, rps->max_freq_softlimit),
+		   intel_gpu_freq(dev_priv, rps->max_freq));
 	seq_printf(m, "  idle:%d, efficient:%d, boost:%d\n",
-		   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq),
-		   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
-		   intel_gpu_freq(dev_priv, dev_priv->rps.boost_freq));
+		   intel_gpu_freq(dev_priv, rps->idle_freq),
+		   intel_gpu_freq(dev_priv, rps->efficient_freq),
+		   intel_gpu_freq(dev_priv, rps->boost_freq));
 
 	mutex_lock(&dev->filelist_mutex);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
@@ -2337,15 +2336,15 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		seq_printf(m, "%s [%d]: %d boosts\n",
 			   task ? task->comm : "<unknown>",
 			   task ? task->pid : -1,
-			   atomic_read(&file_priv->rps.boosts));
+			   atomic_read(&file_priv->rps_client.boosts));
 		rcu_read_unlock();
 	}
 	seq_printf(m, "Kernel (anonymous) boosts: %d\n",
-		   atomic_read(&dev_priv->rps.boosts));
+		   atomic_read(&rps->boosts));
 	mutex_unlock(&dev->filelist_mutex);
 
 	if (INTEL_GEN(dev_priv) >= 6 &&
-	    dev_priv->rps.enabled &&
+	    rps->enabled &&
 	    dev_priv->gt.active_requests) {
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;
@@ -2358,13 +2357,13 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 		seq_printf(m, "\nRPS Autotuning (current \"%s\" window):\n",
-			   rps_power_to_str(dev_priv->rps.power));
+			   rps_power_to_str(rps->power));
 		seq_printf(m, "  Avg. up: %d%% [above threshold? %d%%]\n",
 			   rpup && rpupei ? 100 * rpup / rpupei : 0,
-			   dev_priv->rps.up_threshold);
+			   rps->up_threshold);
 		seq_printf(m, "  Avg. down: %d%% [below threshold? %d%%]\n",
 			   rpdown && rpdownei ? 100 * rpdown / rpdownei : 0,
-			   dev_priv->rps.down_threshold);
+			   rps->down_threshold);
 	} else {
 		seq_puts(m, "\nRPS Autotuning inactive\n");
 	}
@@ -4304,7 +4303,7 @@ i915_max_freq_get(void *data, u64 *val)
 	if (INTEL_GEN(dev_priv) < 6)
 		return -ENODEV;
 
-	*val = intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
+	*val = intel_gpu_freq(dev_priv, dev_priv->gt_pm.rps.max_freq_softlimit);
 	return 0;
 }
 
@@ -4312,6 +4311,7 @@ static int
 i915_max_freq_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 hw_max, hw_min;
 	int ret;
 
@@ -4329,15 +4329,15 @@ i915_max_freq_set(void *data, u64 val)
 	 */
 	val = intel_freq_opcode(dev_priv, val);
 
-	hw_max = dev_priv->rps.max_freq;
-	hw_min = dev_priv->rps.min_freq;
+	hw_max = rps->max_freq;
+	hw_min = rps->min_freq;
 
-	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_freq_softlimit) {
+	if (val < hw_min || val > hw_max || val < rps->min_freq_softlimit) {
 		mutex_unlock(&dev_priv->pcu_lock);
 		return -EINVAL;
 	}
 
-	dev_priv->rps.max_freq_softlimit = val;
+	rps->max_freq_softlimit = val;
 
 	if (intel_set_rps(dev_priv, val))
 		DRM_DEBUG_DRIVER("failed to update RPS to new softlimit\n");
@@ -4359,7 +4359,7 @@ i915_min_freq_get(void *data, u64 *val)
 	if (INTEL_GEN(dev_priv) < 6)
 		return -ENODEV;
 
-	*val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
+	*val = intel_gpu_freq(dev_priv, dev_priv->gt_pm.rps.min_freq_softlimit);
 	return 0;
 }
 
@@ -4367,6 +4367,7 @@ static int
 i915_min_freq_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 hw_max, hw_min;
 	int ret;
 
@@ -4384,16 +4385,16 @@ i915_min_freq_set(void *data, u64 val)
 	 */
 	val = intel_freq_opcode(dev_priv, val);
 
-	hw_max = dev_priv->rps.max_freq;
-	hw_min = dev_priv->rps.min_freq;
+	hw_max = rps->max_freq;
+	hw_min = rps->min_freq;
 
 	if (val < hw_min ||
-	    val > hw_max || val > dev_priv->rps.max_freq_softlimit) {
+	    val > hw_max || val > rps->max_freq_softlimit) {
 		mutex_unlock(&dev_priv->pcu_lock);
 		return -EINVAL;
 	}
 
-	dev_priv->rps.min_freq_softlimit = val;
+	rps->min_freq_softlimit = val;
 
 	if (intel_set_rps(dev_priv, val))
 		DRM_DEBUG_DRIVER("failed to update RPS to new softlimit\n");
