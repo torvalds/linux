@@ -198,8 +198,8 @@
 #define GPSR6_0		FM(QSPI0_SPCLK)
 
 /* IPSRx */		/* 0 */			/* 1 */			/* 2 */			/* 3 */		/* 4 */			/* 5 */		/* 6  - F */
-#define IP0_3_0		FM(IRQ0_A)		FM(MSIOF2_SYNC_B)	FM(USB0_IDIN)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP0_7_4		FM(MSIOF2_SCK)		F_(0, 0)		FM(USB0_IDPU)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP0_3_0		FM(IRQ0_A)		FM(MSIOF2_SYNC_B)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP0_7_4		FM(MSIOF2_SCK)		F_(0, 0)		F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP0_11_8	FM(MSIOF2_TXD)		FM(SCL3_A)		F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP0_15_12	FM(MSIOF2_RXD)		FM(SDA3_A)		F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP0_19_16	FM(MLB_CLK)		FM(MSIOF2_SYNC_A)	FM(SCK5_A)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -522,10 +522,8 @@ static const u16 pinmux_data[] = {
 	/* IPSR0 */
 	PINMUX_IPSR_MSEL(IP0_3_0,	IRQ0_A, SEL_IRQ_0_0),
 	PINMUX_IPSR_MSEL(IP0_3_0,	MSIOF2_SYNC_B, SEL_MSIOF2_1),
-	PINMUX_IPSR_GPSR(IP0_3_0,	USB0_IDIN),
 
 	PINMUX_IPSR_GPSR(IP0_7_4,	MSIOF2_SCK),
-	PINMUX_IPSR_GPSR(IP0_7_4,	USB0_IDPU),
 
 	PINMUX_IPSR_GPSR(IP0_11_8,	MSIOF2_TXD),
 	PINMUX_IPSR_MSEL(IP0_11_8,	SCL3_A, SEL_I2C3_0),
