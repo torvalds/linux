@@ -2157,24 +2157,24 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 }
 
 static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
-				    int link_rate, uint32_t lane_count,
-				    struct intel_shared_dpll *pll,
-				    bool link_mst)
+				    const struct intel_crtc_state *crtc_state,
+				    const struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	uint32_t level = intel_ddi_dp_level(intel_dp);
 
-	WARN_ON(link_mst && (port == PORT_A || port == PORT_E));
+	WARN_ON(is_mst && (port == PORT_A || port == PORT_E));
 
-	intel_dp_set_link_params(intel_dp, link_rate, lane_count,
-				 link_mst);
+	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
+				 crtc_state->lane_count, is_mst);
 
 	intel_edp_panel_on(intel_dp);
 
-	intel_ddi_clk_select(encoder, pll);
+	intel_ddi_clk_select(encoder, crtc_state->shared_dpll);
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
@@ -2186,7 +2186,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		intel_prepare_dp_ddi_buffers(encoder);
 
 	intel_ddi_init_dp_buf_reg(encoder);
-	if (!link_mst)
+	if (!is_mst)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
@@ -2194,10 +2194,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
-				      bool has_infoframe,
 				      const struct intel_crtc_state *crtc_state,
-				      const struct drm_connector_state *conn_state,
-				      const struct intel_shared_dpll *pll)
+				      const struct drm_connector_state *conn_state)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
@@ -2207,7 +2205,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
-	intel_ddi_clk_select(encoder, pll);
+	intel_ddi_clk_select(encoder, crtc_state->shared_dpll);
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
@@ -2223,38 +2221,26 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 		skl_ddi_set_iboost(encoder, level);
 
 	intel_dig_port->set_infoframes(&encoder->base,
-				       has_infoframe,
+				       crtc_state->has_infoframe,
 				       crtc_state, conn_state);
 }
 
 static void intel_ddi_pre_enable(struct intel_encoder *encoder,
-				 const struct intel_crtc_state *pipe_config,
+				 const struct intel_crtc_state *crtc_state,
 				 const struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	int type = encoder->type;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 
-	WARN_ON(intel_crtc->config->has_pch_encoder);
+	WARN_ON(crtc_state->has_pch_encoder);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
-	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
-		intel_ddi_pre_enable_dp(encoder,
-					pipe_config->port_clock,
-					pipe_config->lane_count,
-					pipe_config->shared_dpll,
-					intel_crtc_has_type(pipe_config,
-							    INTEL_OUTPUT_DP_MST));
-	}
-	if (type == INTEL_OUTPUT_HDMI) {
-		intel_ddi_pre_enable_hdmi(encoder,
-					  pipe_config->has_infoframe,
-					  pipe_config, conn_state,
-					  pipe_config->shared_dpll);
-	}
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		intel_ddi_pre_enable_hdmi(encoder, crtc_state, conn_state);
+	else
+		intel_ddi_pre_enable_dp(encoder, crtc_state, conn_state);
 }
 
 static void intel_disable_ddi_buf(struct intel_encoder *encoder)
