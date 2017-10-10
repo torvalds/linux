@@ -289,6 +289,12 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <1>;
+
+					tcon0_out_hdmi: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&hdmi_in_tcon0>;
+						allwinner,tcon-channel = <1>;
+					};
 				};
 			};
 		};
@@ -331,6 +337,12 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <1>;
+
+					tcon1_out_hdmi: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&hdmi_in_tcon1>;
+						allwinner,tcon-channel = <1>;
+					};
 				};
 			};
 		};
@@ -409,6 +421,49 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		hdmi: hdmi@1c16000 {
+			compatible = "allwinner,sun6i-a31-hdmi";
+			reg = <0x01c16000 0x1000>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_AHB1_HDMI>, <&ccu CLK_HDMI>,
+				 <&ccu CLK_HDMI_DDC>,
+				 <&ccu 7>,
+				 <&ccu 13>;
+			clock-names = "ahb", "mod", "ddc", "pll-0", "pll-1";
+			resets = <&ccu RST_AHB1_HDMI>;
+			reset-names = "ahb";
+			dma-names = "ddc-tx", "ddc-rx", "audio-tx";
+			dmas = <&dma 13>, <&dma 13>, <&dma 14>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				hdmi_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					hdmi_in_tcon0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon0_out_hdmi>;
+					};
+
+					hdmi_in_tcon1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon1_out_hdmi>;
+					};
+				};
+
+				hdmi_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+				};
+			};
 		};
 
 		usb_otg: usb@1c19000 {
