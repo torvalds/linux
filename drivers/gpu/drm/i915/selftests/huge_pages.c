@@ -1047,10 +1047,10 @@ static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	return err;
 }
 
-static int igt_write_huge(struct drm_i915_gem_object *obj)
+static int igt_write_huge(struct i915_gem_context *ctx,
+			  struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_gem_context *ctx = i915->kernel_context;
 	struct i915_address_space *vm = ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
 	struct intel_engine_cs *engine;
 	struct i915_vma *vma;
@@ -1149,7 +1149,8 @@ out_vma_close:
 
 static int igt_ppgtt_exhaust_huge(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx = arg;
+	struct drm_i915_private *i915 = ctx->i915;
 	unsigned long supported = INTEL_INFO(i915)->page_sizes;
 	static unsigned int pages[ARRAY_SIZE(page_sizes)];
 	struct drm_i915_gem_object *obj;
@@ -1220,7 +1221,7 @@ static int igt_ppgtt_exhaust_huge(void *arg)
 			/* Force the page-size for the gtt insertion */
 			obj->mm.page_sizes.sg = page_sizes;
 
-			err = igt_write_huge(obj);
+			err = igt_write_huge(ctx, obj);
 			if (err) {
 				pr_err("exhaust write-huge failed with size=%u\n",
 				       size);
@@ -1245,7 +1246,8 @@ out_device:
 
 static int igt_ppgtt_internal_huge(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx = arg;
+	struct drm_i915_private *i915 = ctx->i915;
 	struct drm_i915_gem_object *obj;
 	static const unsigned int sizes[] = {
 		SZ_64K,
@@ -1280,7 +1282,7 @@ static int igt_ppgtt_internal_huge(void *arg)
 			goto out_unpin;
 		}
 
-		err = igt_write_huge(obj);
+		err = igt_write_huge(ctx, obj);
 		if (err) {
 			pr_err("internal write-huge failed with size=%u\n",
 			       size);
@@ -1308,7 +1310,8 @@ static inline bool igt_can_allocate_thp(struct drm_i915_private *i915)
 
 static int igt_ppgtt_gemfs_huge(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx = arg;
+	struct drm_i915_private *i915 = ctx->i915;
 	struct drm_i915_gem_object *obj;
 	static const unsigned int sizes[] = {
 		SZ_2M,
@@ -1347,7 +1350,7 @@ static int igt_ppgtt_gemfs_huge(void *arg)
 			goto out_unpin;
 		}
 
-		err = igt_write_huge(obj);
+		err = igt_write_huge(ctx, obj);
 		if (err) {
 			pr_err("gemfs write-huge failed with size=%u\n",
 			       size);
@@ -1370,9 +1373,10 @@ out_put:
 
 static int igt_ppgtt_pin_update(void *arg)
 {
-	struct drm_i915_private *dev_priv = arg;
+	struct i915_gem_context *ctx = arg;
+	struct drm_i915_private *dev_priv = ctx->i915;
 	unsigned long supported = INTEL_INFO(dev_priv)->page_sizes;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->kernel_context->ppgtt;
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
@@ -1473,8 +1477,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * land in the now stale 2M page.
 	 */
 
-	err = gpu_write(vma, dev_priv->kernel_context, dev_priv->engine[RCS],
-			0, 0xdeadbeaf);
+	err = gpu_write(vma, ctx, dev_priv->engine[RCS], 0, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;
 
@@ -1492,9 +1495,9 @@ out_put:
 
 static int igt_tmpfs_fallback(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx = arg;
+	struct drm_i915_private *i915 = ctx->i915;
 	struct vfsmount *gemfs = i915->mm.gemfs;
-	struct i915_gem_context *ctx = i915->kernel_context;
 	struct i915_address_space *vm = ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
@@ -1549,8 +1552,8 @@ out_restore:
 
 static int igt_shrink_thp(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
-	struct i915_gem_context *ctx = i915->kernel_context;
+	struct i915_gem_context *ctx = arg;
+	struct drm_i915_private *i915 = ctx->i915;
 	struct i915_address_space *vm = ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
@@ -1590,8 +1593,7 @@ static int igt_shrink_thp(void *arg)
 	if (err)
 		goto out_unpin;
 
-	err = gpu_write(vma, i915->kernel_context, i915->engine[RCS], 0,
-			0xdeadbeaf);
+	err = gpu_write(vma, ctx, i915->engine[RCS], 0, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;
 
@@ -1700,6 +1702,8 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 		SUBTEST(igt_ppgtt_gemfs_huge),
 		SUBTEST(igt_ppgtt_internal_huge),
 	};
+	struct drm_file *file;
+	struct i915_gem_context *ctx;
 	int err;
 
 	if (!USES_PPGTT(dev_priv)) {
@@ -1707,9 +1711,24 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
+	file = mock_file(dev_priv);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	err = i915_subtests(tests, dev_priv);
+
+	ctx = live_context(dev_priv, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_unlock;
+	}
+
+	err = i915_subtests(tests, ctx);
+
+out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	mock_file_free(dev_priv, file);
 
 	return err;
 }
