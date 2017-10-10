@@ -3610,16 +3610,15 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	else if (IS_BROADWELL(dev_priv))
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
-	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_masked;
-	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_masked;
-	dev_priv->de_irq_mask[PIPE_C] = ~de_pipe_masked;
+	for_each_pipe(dev_priv, pipe) {
+		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;
 
-	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
 				POWER_DOMAIN_PIPE(pipe)))
 			GEN8_IRQ_INIT_NDX(DE_PIPE, pipe,
 					  dev_priv->de_irq_mask[pipe],
 					  de_pipe_enables);
+	}
 
 	GEN3_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
 	GEN3_IRQ_INIT(GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
