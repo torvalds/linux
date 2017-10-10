@@ -10662,6 +10662,52 @@ intel_dump_m_n_config(struct intel_crtc_state *pipe_config, char *id,
 		      m_n->link_m, m_n->link_n, m_n->tu);
 }
 
+#define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
+
+static const char * const output_type_str[] = {
+	OUTPUT_TYPE(UNUSED),
+	OUTPUT_TYPE(ANALOG),
+	OUTPUT_TYPE(DVO),
+	OUTPUT_TYPE(SDVO),
+	OUTPUT_TYPE(LVDS),
+	OUTPUT_TYPE(TVOUT),
+	OUTPUT_TYPE(HDMI),
+	OUTPUT_TYPE(DP),
+	OUTPUT_TYPE(EDP),
+	OUTPUT_TYPE(DSI),
+	OUTPUT_TYPE(UNKNOWN),
+	OUTPUT_TYPE(DP_MST),
+};
+
+#undef OUTPUT_TYPE
+
+static void snprintf_output_types(char *buf, size_t len,
+				  unsigned int output_types)
+{
+	char *str = buf;
+	int i;
+
+	str[0] = '\0';
+
+	for (i = 0; i < ARRAY_SIZE(output_type_str); i++) {
+		int r;
+
+		if ((output_types & BIT(i)) == 0)
+			continue;
+
+		r = snprintf(str, len, "%s%s",
+			     str != buf ? "," : "", output_type_str[i]);
+		if (r >= len)
+			break;
+		str += r;
+		len -= r;
+
+		output_types &= ~BIT(i);
+	}
+
+	WARN_ON_ONCE(output_types != 0);
+}
+
 static void intel_dump_pipe_config(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config,
 				   const char *context)
@@ -10672,9 +10718,14 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	struct intel_plane *intel_plane;
 	struct intel_plane_state *state;
 	struct drm_framebuffer *fb;
+	char buf[64];
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]%s\n",
 		      crtc->base.base.id, crtc->base.name, context);
+
+	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
+	DRM_DEBUG_KMS("output_types: %s (0x%x)\n",
+		      buf, pipe_config->output_types);
 
 	DRM_DEBUG_KMS("cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
 		      transcoder_name(pipe_config->cpu_transcoder),
