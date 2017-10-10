@@ -2661,7 +2661,7 @@ static int hns3_init_all_ring(struct hns3_nic_priv *priv)
 
 out_when_alloc_ring_memory:
 	for (j = i - 1; j >= 0; j--)
-		hns3_fini_ring(priv->ring_data[i].ring);
+		hns3_fini_ring(priv->ring_data[j].ring);
 
 	return -ENOMEM;
 }
