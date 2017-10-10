@@ -6350,15 +6350,20 @@ static void cherryview_disable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 }
 
-static void valleyview_disable_rps(struct drm_i915_private *dev_priv)
+static void valleyview_disable_rc6(struct drm_i915_private *dev_priv)
 {
-	/* we're doing forcewake before Disabling RC6,
+	/* We're doing forcewake before Disabling RC6,
 	 * This what the BIOS expects when going into suspend */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+}
+
+static void valleyview_disable_rps(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(GEN6_RP_CONTROL, 0);
 }
 
 static void intel_print_rc6_info(struct drm_i915_private *dev_priv, u32 mode)
@@ -7283,11 +7288,11 @@ static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
 
-static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
+static void valleyview_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 gtfifodbg, val, rc6_mode = 0;
+	u32 gtfifodbg, rc6_mode = 0;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
@@ -7300,11 +7305,45 @@ static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
 		I915_WRITE(GTFIFODBG, gtfifodbg);
 	}
 
-	/* If VLV, Forcewake all wells, else re-direct to regular path */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	/*  Disable RC states. */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
+
+	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 0x00280000);
+	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000);
+	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25);
+
+	for_each_engine(engine, dev_priv, id)
+		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
+
+	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
+
+	/* Allows RC6 residency counter to work */
+	I915_WRITE(VLV_COUNTER_CONTROL,
+		   _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH |
+				      VLV_MEDIA_RC0_COUNT_EN |
+				      VLV_RENDER_RC0_COUNT_EN |
+				      VLV_MEDIA_RC6_COUNT_EN |
+				      VLV_RENDER_RC6_COUNT_EN));
+
+	if (intel_enable_rc6() & INTEL_RC6_ENABLE)
+		rc6_mode = GEN7_RC_CTL_TO_MODE | VLV_RC_CTL_CTX_RST_PARALLEL;
+
+	intel_print_rc6_info(dev_priv, rc6_mode);
+
+	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
+
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+}
+
+static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
 	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
@@ -7321,30 +7360,6 @@ static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_CONT);
-
-	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 0x00280000);
-	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000);
-	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25);
-
-	for_each_engine(engine, dev_priv, id)
-		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
-
-	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
-
-	/* allows RC6 residency counter to work */
-	I915_WRITE(VLV_COUNTER_CONTROL,
-		   _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH |
-				      VLV_MEDIA_RC0_COUNT_EN |
-				      VLV_RENDER_RC0_COUNT_EN |
-				      VLV_MEDIA_RC6_COUNT_EN |
-				      VLV_RENDER_RC6_COUNT_EN));
-
-	if (intel_enable_rc6() & INTEL_RC6_ENABLE)
-		rc6_mode = GEN7_RC_CTL_TO_MODE | VLV_RC_CTL_CTX_RST_PARALLEL;
-
-	intel_print_rc6_info(dev_priv, rc6_mode);
-
-	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
 	/* Setting Fixed Bias */
 	val = VLV_OVERRIDE_EN |
@@ -7945,6 +7960,7 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		cherryview_disable_rps(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
+		valleyview_disable_rc6(dev_priv);
 		valleyview_disable_rps(dev_priv);
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		gen6_disable_rc6(dev_priv);
@@ -7974,6 +7990,7 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 	if (IS_CHERRYVIEW(dev_priv)) {
 		cherryview_enable_rps(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
+		valleyview_enable_rc6(dev_priv);
 		valleyview_enable_rps(dev_priv);
 	} else if (INTEL_GEN(dev_priv) >= 9) {
 		gen9_enable_rc6(dev_priv);

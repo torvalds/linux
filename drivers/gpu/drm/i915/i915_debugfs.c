@@ -1095,9 +1095,19 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		u32 freq_sts;
+		u32 rpmodectl, freq_sts;
 
 		mutex_lock(&dev_priv->rps.hw_lock);
+
+		rpmodectl = I915_READ(GEN6_RP_CONTROL);
+		seq_printf(m, "Video Turbo Mode: %s\n",
+			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
+		seq_printf(m, "HW control enabled: %s\n",
+			   yesno(rpmodectl & GEN6_RP_ENABLE));
+		seq_printf(m, "SW control enabled: %s\n",
+			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
+				  GEN6_RP_MEDIA_SW_MODE));
+
 		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
@@ -1508,21 +1518,11 @@ static void print_rc6_res(struct seq_file *m,
 static int vlv_drpc_info(struct seq_file *m)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	u32 rpmodectl1, rcctl1, pw_status;
+	u32 rcctl1, pw_status;
 
 	pw_status = I915_READ(VLV_GTLC_PW_STATUS);
-	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
 
-	seq_printf(m, "Video Turbo Mode: %s\n",
-		   yesno(rpmodectl1 & GEN6_RP_MEDIA_TURBO));
-	seq_printf(m, "Turbo enabled: %s\n",
-		   yesno(rpmodectl1 & GEN6_RP_ENABLE));
-	seq_printf(m, "HW control enabled: %s\n",
-		   yesno(rpmodectl1 & GEN6_RP_ENABLE));
-	seq_printf(m, "SW control enabled: %s\n",
-		   yesno((rpmodectl1 & GEN6_RP_MEDIA_MODE_MASK) ==
-			  GEN6_RP_MEDIA_SW_MODE));
 	seq_printf(m, "RC6 Enabled: %s\n",
 		   yesno(rcctl1 & (GEN7_RC_CTL_TO_MODE |
 					GEN6_RC_CTL_EI_MODE(1))));
