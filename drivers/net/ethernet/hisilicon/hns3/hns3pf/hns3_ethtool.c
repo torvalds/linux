@@ -459,10 +459,85 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 	return 0;
 }
 
+int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv, u32 new_desc_num)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	h->kinfo.num_desc = new_desc_num;
+
+	for (i = 0; i < h->kinfo.num_tqps * 2; i++)
+		priv->ring_data[i].ring->desc_num = new_desc_num;
+
+	return hns3_init_all_ring(priv);
+}
+
+int hns3_set_ringparam(struct net_device *ndev, struct ethtool_ringparam *param)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	bool if_running = netif_running(ndev);
+	u32 old_desc_num, new_desc_num;
+	int ret;
+
+	if (param->rx_mini_pending || param->rx_jumbo_pending)
+		return -EINVAL;
+
+	if (param->tx_pending != param->rx_pending) {
+		netdev_err(ndev,
+			   "Descriptors of tx and rx must be equal");
+		return -EINVAL;
+	}
+
+	if (param->tx_pending > HNS3_RING_MAX_PENDING ||
+	    param->tx_pending < HNS3_RING_MIN_PENDING) {
+		netdev_err(ndev,
+			   "Descriptors requested (Tx/Rx: %d) out of range [%d-%d]\n",
+			   param->tx_pending, HNS3_RING_MIN_PENDING,
+			   HNS3_RING_MAX_PENDING);
+		return -EINVAL;
+	}
+
+	new_desc_num = param->tx_pending;
+
+	/* Hardware requires that its descriptors must be multiple of eight */
+	new_desc_num = ALIGN(new_desc_num, HNS3_RING_BD_MULTIPLE);
+	old_desc_num = h->kinfo.num_desc;
+	if (old_desc_num == new_desc_num)
+		return 0;
+
+	netdev_info(ndev,
+		    "Changing descriptor count from %d to %d.\n",
+		    old_desc_num, new_desc_num);
+
+	if (if_running)
+		dev_close(ndev);
+
+	ret = hns3_uninit_all_ring(priv);
+	if (ret)
+		return ret;
+
+	ret = hns3_change_all_ring_bd_num(priv, new_desc_num);
+	if (ret) {
+		ret = hns3_change_all_ring_bd_num(priv, old_desc_num);
+		if (ret) {
+			netdev_err(ndev,
+				   "Revert to old bd num fail, ret=%d.\n", ret);
+			return ret;
+		}
+	}
+
+	if (if_running)
+		ret = dev_open(ndev);
+
+	return ret;
+}
+
 static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_link = hns3_get_link,
 	.get_ringparam = hns3_get_ringparam,
+	.set_ringparam = hns3_set_ringparam,
 	.get_pauseparam = hns3_get_pauseparam,
 	.get_strings = hns3_get_strings,
 	.get_ethtool_stats = hns3_get_stats,

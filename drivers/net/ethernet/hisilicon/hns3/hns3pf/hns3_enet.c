@@ -2637,7 +2637,7 @@ static void hns3_init_ring_hw(struct hns3_enet_ring *ring)
 	}
 }
 
-static int hns3_init_all_ring(struct hns3_nic_priv *priv)
+int hns3_init_all_ring(struct hns3_nic_priv *priv)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int ring_num = h->kinfo.num_tqps * 2;
@@ -2666,7 +2666,7 @@ out_when_alloc_ring_memory:
 	return -ENOMEM;
 }
 
-static int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
+int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
