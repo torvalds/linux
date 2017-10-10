@@ -927,6 +927,13 @@ nfsd4_secinfo_release(union nfsd4_op_u *u)
 		exp_put(u->secinfo.si_exp);
 }
 
+static void
+nfsd4_secinfo_no_name_release(union nfsd4_op_u *u)
+{
+	if (u->secinfo_no_name.sin_exp)
+		exp_put(u->secinfo_no_name.sin_exp);
+}
+
 static __be32
 nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	      union nfsd4_op_u *u)
@@ -2375,7 +2382,7 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_SECINFO_NO_NAME] = {
 		.op_func = nfsd4_secinfo_no_name,
-		.op_release = nfsd4_secinfo_release,
+		.op_release = nfsd4_secinfo_no_name_release,
 		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO_NO_NAME",
 		.op_rsize_bop = nfsd4_secinfo_rsize,
