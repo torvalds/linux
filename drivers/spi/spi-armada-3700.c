@@ -387,7 +387,8 @@ static bool a3700_spi_wait_completion(struct spi_device *spi)
 
 	spireg_write(a3700_spi, A3700_SPI_INT_MASK_REG, 0);
 
-	return true;
+	/* Timeout was reached */
+	return false;
 }
 
 static bool a3700_spi_transfer_wait(struct spi_device *spi,
