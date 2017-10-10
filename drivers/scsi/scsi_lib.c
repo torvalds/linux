@@ -1752,7 +1752,10 @@ static void scsi_done(struct scsi_cmnd *cmd)
  *
  * Returns:     Nothing
  *
- * Lock status: IO request lock assumed to be held when called.
+ * Lock status: request queue lock assumed to be held when called.
+ *
+ * Note: See sd_zbc.c sd_zbc_write_lock_zone() for write order
+ * protection for ZBC disks.
  */
 static void scsi_request_fn(struct request_queue *q)
 	__releases(q->queue_lock)
