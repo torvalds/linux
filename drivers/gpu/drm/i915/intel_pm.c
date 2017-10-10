@@ -6621,7 +6621,7 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
 
-static void gen8_enable_rps(struct drm_i915_private *dev_priv)
+static void gen8_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -6630,7 +6630,7 @@ static void gen8_enable_rps(struct drm_i915_private *dev_priv)
 	/* 1a: Software RC state - RC0 */
 	I915_WRITE(GEN6_RC_STATE, 0);
 
-	/* 1c & 1d: Get forcewake during program sequence. Although the driver
+	/* 1b: Get forcewake during program sequence. Although the driver
 	 * hasn't enabled a state yet where we need forcewake, BIOS may have.*/
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
@@ -6655,7 +6655,14 @@ static void gen8_enable_rps(struct drm_i915_private *dev_priv)
 			GEN7_RC_CTL_TO_MODE |
 			rc6_mask);
 
-	/* 4 Program defaults and thresholds for RPS*/
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+}
+
+static void gen8_enable_rps(struct drm_i915_private *dev_priv)
+{
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
+	/* 1 Program defaults and thresholds for RPS*/
 	I915_WRITE(GEN6_RPNSWREQ,
 		   HSW_FREQUENCY(dev_priv->rps.rp1_freq));
 	I915_WRITE(GEN6_RC_VIDEO_FREQ,
@@ -6675,7 +6682,7 @@ static void gen8_enable_rps(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 
-	/* 5: Enable RPS */
+	/* 2: Enable RPS */
 	I915_WRITE(GEN6_RP_CONTROL,
 		   GEN6_RP_MEDIA_TURBO |
 		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
@@ -6683,8 +6690,6 @@ static void gen8_enable_rps(struct drm_i915_private *dev_priv)
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_AVG);
-
-	/* 6: Ring frequency + overclocking (our driver does this later */
 
 	reset_rps(dev_priv, gen6_set_rps);
 
@@ -7976,6 +7981,7 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 		if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv))
 			gen6_update_ring_freq(dev_priv);
 	} else if (IS_BROADWELL(dev_priv)) {
+		gen8_enable_rc6(dev_priv);
 		gen8_enable_rps(dev_priv);
 		gen6_update_ring_freq(dev_priv);
 	} else if (INTEL_GEN(dev_priv) >= 6) {
