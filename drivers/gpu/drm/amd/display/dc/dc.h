@@ -686,7 +686,7 @@ enum dc_status dc_add_stream_to_ctx(
 		struct dc_state *new_ctx,
 		struct dc_stream_state *stream);
 
-bool dc_remove_stream_from_ctx(
+enum dc_status dc_remove_stream_from_ctx(
 		struct dc *dc,
 			struct dc_state *new_ctx,
 			struct dc_stream_state *stream);
@@ -725,9 +725,9 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
-bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
+enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
 
-bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
+enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 enum dc_status dc_validate_global_state(
 		struct dc *dc,

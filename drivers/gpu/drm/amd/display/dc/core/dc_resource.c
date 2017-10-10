@@ -1503,7 +1503,7 @@ enum dc_status dc_add_stream_to_ctx(
 	return res;
 }
 
-bool dc_remove_stream_from_ctx(
+enum dc_status dc_remove_stream_from_ctx(
 			struct dc *dc,
 			struct dc_state *new_ctx,
 			struct dc_stream_state *stream)
@@ -2756,7 +2756,7 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 	fmt_bit_depth->pixel_encoding = pixel_encoding;
 }
 
-bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
+enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
 	struct dc  *core_dc = dc;
 	struct dc_link *link = stream->sink->link;
@@ -2780,14 +2780,16 @@ bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 		      link,
 		      &stream->timing);
 
-	return res == DC_OK;
+	return res;
 }
 
-bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
+enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
 {
+	enum dc_status res = DC_OK;
+
 	/* TODO For now validates pixel format only */
 	if (dc->res_pool->funcs->validate_plane)
-		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps) == DC_OK;
+		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps);
 
-	return true;
+	return res;
 }

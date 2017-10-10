@@ -2794,7 +2794,7 @@ int amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
 	stream->src.height = mode->vdisplay;
 	stream->dst = stream->src;
 
-	if (dc_validate_stream(adev->dm.dc, stream))
+	if (dc_validate_stream(adev->dm.dc, stream) == DC_OK)
 		result = MODE_OK;
 
 	dc_stream_release(stream);
@@ -2839,7 +2839,7 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	if (!dm_crtc_state->stream)
 		return 0;
 
-	if (dc_validate_stream(dc, dm_crtc_state->stream))
+	if (dc_validate_stream(dc, dm_crtc_state->stream) == DC_OK)
 		return 0;
 
 	return ret;
@@ -3034,7 +3034,7 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	if (!dm_plane_state->dc_state)
 		return 0;
 
-	if (dc_validate_plane(dc, dm_plane_state->dc_state))
+	if (dc_validate_plane(dc, dm_plane_state->dc_state) == DC_OK)
 		return 0;
 
 	return -EINVAL;
@@ -4464,10 +4464,10 @@ static int dm_update_crtcs_state(struct dc *dc,
 					crtc->base.id);
 
 			/* i.e. reset mode */
-			if (!dc_remove_stream_from_ctx(
+			if (dc_remove_stream_from_ctx(
 					dc,
 					dm_state->context,
-					dm_old_crtc_state->stream)) {
+					dm_old_crtc_state->stream) != DC_OK) {
 				ret = -EINVAL;
 				goto fail;
 			}

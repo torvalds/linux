@@ -793,7 +793,7 @@ bool dc_enable_stereo(
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
  */
-static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
+static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
@@ -869,7 +869,7 @@ static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 
 	dc->hwss.optimize_shared_resources(dc);
 
-	return (result == DC_OK);
+	return result;
 }
 
 bool dc_commit_state(struct dc *dc, struct dc_state *context)
