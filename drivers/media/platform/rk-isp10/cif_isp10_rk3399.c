@@ -94,19 +94,19 @@
 #define DSIHOST_PHY_TEST_CTRL1             (0x00b8)
 
 #define write_cifisp_reg(addr, val)	\
-		__raw_writel(val, (addr) + rk3399->isp_base)
+		__raw_writel(val, (addr) + isp_cfg->isp_base)
 #define read_cifisp_reg(addr)	\
-		__raw_readl((addr) + rk3399->isp_base)
+		__raw_readl((addr) + isp_cfg->isp_base)
 
 #define write_grf_reg(addr, val)	\
-		regmap_write(rk3399->regmap_grf, addr, val)
+		regmap_write(isp_cfg->regmap_grf, addr, val)
 #define read_grf_reg(addr, val)	\
-		regmap_read(rk3399->regmap_grf, addr, val)
+		regmap_read(isp_cfg->regmap_grf, addr, val)
 
 #define write_dsihost_reg(addr, val)	\
-		__raw_writel(val, (addr) + rk3399->dsihost_base)
+		__raw_writel(val, (addr) + isp_cfg->dsihost_base)
 #define read_dsihost_reg(addr)	\
-		__raw_readl((addr) + rk3399->dsihost_base)
+		__raw_readl((addr) + isp_cfg->dsihost_base)
 
 enum cif_isp10_isp_idx {
 	CIF_ISP10_ISP0 = 0,
@@ -190,8 +190,7 @@ static struct mipi_dphy_hsfreqrange mipi_dphy_hsfreq_range[] = {
 	{1450, 1500, 0x3c}
 };
 
-static struct cif_isp10_rk3399 *rk3399;
-static int mipi_dphy0_wr_reg(unsigned char addr, unsigned char data)
+static int mipi_dphy0_wr_reg(struct cif_isp10_rk3399 *isp_cfg, unsigned char addr, unsigned char data)
 {
 	/*
 	 * TESTCLK=1
@@ -220,7 +219,7 @@ static int mipi_dphy0_wr_reg(unsigned char addr, unsigned char data)
 	return 0;
 }
 
-static int mipi_dphy0_rd_reg(unsigned char addr)
+static int mipi_dphy0_rd_reg(struct cif_isp10_rk3399 *isp_cfg, unsigned char addr)
 {
 	int val = 0;
 	/*TESTCLK=1*/
@@ -238,7 +237,7 @@ static int mipi_dphy0_rd_reg(unsigned char addr)
 	return val & 0xff;
 }
 
-static int mipi_dphy1_wr_reg(unsigned char addr, unsigned char data)
+static int mipi_dphy1_wr_reg(struct cif_isp10_rk3399 *isp_cfg, unsigned char addr, unsigned char data)
 {
 	/*
 	 * TESTEN =1,TESTDIN=addr
@@ -254,7 +253,7 @@ static int mipi_dphy1_wr_reg(unsigned char addr, unsigned char data)
 	return 0;
 }
 
-static int mipi_dphy1_rd_reg(unsigned char addr)
+static int mipi_dphy1_rd_reg(struct cif_isp10_rk3399 *isp_cfg, unsigned char addr)
 {
 	/* TESTEN =1,TESTDIN=addr */
 	write_dsihost_reg(DSIHOST_PHY_TEST_CTRL1, (0x00010000 | addr));
@@ -263,7 +262,7 @@ static int mipi_dphy1_rd_reg(unsigned char addr)
 	return ((read_dsihost_reg(DSIHOST_PHY_TEST_CTRL1) & 0xff00) >> 8);
 }
 
-static int mipi_dphy_cfg(struct pltfrm_cam_mipi_config *para)
+static int mipi_dphy_cfg(struct cif_isp10_rk3399 *isp_cfg, struct pltfrm_cam_mipi_config *para)
 {
 	unsigned char hsfreqrange = 0xff, i;
 	struct mipi_dphy_hsfreqrange *hsfreqrange_p;
@@ -336,21 +335,21 @@ static int mipi_dphy_cfg(struct pltfrm_cam_mipi_config *para)
 
 		/* set clock lane */
 		mipi_dphy0_wr_reg
-			(0x34, 0);
+			(isp_cfg, 0x34, 0);
 		/* HS hsfreqrange & lane 0  settle bypass */
-		mipi_dphy0_wr_reg(0x44, hsfreqrange);
-		mipi_dphy0_wr_reg(0x54, 0);
-		mipi_dphy0_wr_reg(0x84, 0);
-		mipi_dphy0_wr_reg(0x94, 0);
-		mipi_dphy0_wr_reg(0x75, 0x04);
-		mipi_dphy0_rd_reg(0x75);
+		mipi_dphy0_wr_reg(isp_cfg, 0x44, hsfreqrange);
+		mipi_dphy0_wr_reg(isp_cfg, 0x54, 0);
+		mipi_dphy0_wr_reg(isp_cfg, 0x84, 0);
+		mipi_dphy0_wr_reg(isp_cfg, 0x94, 0);
+		mipi_dphy0_wr_reg(isp_cfg, 0x75, 0x04);
+		mipi_dphy0_rd_reg(isp_cfg, 0x75);
 
 		/* Normal operation */
 		/*
 		 * TESTCLK=1
 		 * TESTEN =0
 		 */
-		mipi_dphy0_wr_reg(0x0, -1);
+		mipi_dphy0_wr_reg(isp_cfg, 0x0, -1);
 		write_grf_reg(GRF_SOC_CON25_OFFSET,
 			DPHY_RX0_TESTCLK_MASK | (1 << DPHY_RX0_TESTCLK_BIT));
 		write_grf_reg(GRF_SOC_CON25_OFFSET,
@@ -406,14 +405,14 @@ static int mipi_dphy_cfg(struct pltfrm_cam_mipi_config *para)
 		usleep_range(100, 150);
 
 		/* set clock lane */
-		mipi_dphy1_wr_reg(0x34, 0x00);
-		mipi_dphy1_wr_reg(0x44, hsfreqrange);
-		mipi_dphy1_wr_reg(0x54, 0);
-		mipi_dphy1_wr_reg(0x84, 0);
-		mipi_dphy1_wr_reg(0x94, 0);
-		mipi_dphy1_wr_reg(0x75, 0x04);
+		mipi_dphy1_wr_reg(isp_cfg, 0x34, 0x00);
+		mipi_dphy1_wr_reg(isp_cfg, 0x44, hsfreqrange);
+		mipi_dphy1_wr_reg(isp_cfg, 0x54, 0);
+		mipi_dphy1_wr_reg(isp_cfg, 0x84, 0);
+		mipi_dphy1_wr_reg(isp_cfg, 0x94, 0);
+		mipi_dphy1_wr_reg(isp_cfg, 0x75, 0x04);
 
-		mipi_dphy1_rd_reg(0x0);
+		mipi_dphy1_rd_reg(isp_cfg, 0x0);
 		/*
 		 * TESTCLK=1
 		 * TESTEN =0
@@ -437,11 +436,11 @@ fail:
 	return -1;
 }
 
-static int soc_clk_enable(void)
+static int soc_clk_enable(struct cif_isp10_rk3399 *isp_cfg)
 {
-	struct cif_isp10_clk_rst_rk3399 *clk_rst = &rk3399->clk_rst;
+	struct cif_isp10_clk_rst_rk3399 *clk_rst = &isp_cfg->clk_rst;
 
-	if (rk3399->isp_idx == CIF_ISP10_ISP0) {
+	if (isp_cfg->isp_idx == CIF_ISP10_ISP0) {
 		clk_prepare_enable(clk_rst->hclk_isp0_noc);
 		clk_prepare_enable(clk_rst->hclk_isp0_wrapper);
 		clk_prepare_enable(clk_rst->aclk_isp0_noc);
@@ -467,11 +466,11 @@ static int soc_clk_enable(void)
 	return 0;
 }
 
-static int soc_clk_disable(void)
+static int soc_clk_disable(struct cif_isp10_rk3399 *isp_cfg)
 {
-	struct cif_isp10_clk_rst_rk3399 *clk_rst = &rk3399->clk_rst;
+	struct cif_isp10_clk_rst_rk3399 *clk_rst = &isp_cfg->clk_rst;
 
-	if (rk3399->isp_idx == CIF_ISP10_ISP0) {
+	if (isp_cfg->isp_idx == CIF_ISP10_ISP0) {
 		clk_disable_unprepare(clk_rst->hclk_isp0_noc);
 		clk_disable_unprepare(clk_rst->hclk_isp0_wrapper);
 		clk_disable_unprepare(clk_rst->aclk_isp0_noc);
@@ -503,19 +502,22 @@ static int soc_clk_disable(void)
 	return 0;
 }
 
-static int soc_init(struct pltfrm_soc_init_para *init)
+static int soc_init(struct cif_isp10_rk3399 **isp_cfg, struct pltfrm_soc_init_para *init)
 {
 	struct cif_isp10_clk_rst_rk3399 *clk_rst;
 	struct platform_device *pdev = init->pdev;
 	struct device_node *np = pdev->dev.of_node, *node;
 	struct resource *res;
+	struct cif_isp10_rk3399 *isp_cfg_tmp;
 	int err;
 
-	rk3399 = (struct cif_isp10_rk3399 *)devm_kzalloc(
+	*isp_cfg = NULL;
+
+	isp_cfg_tmp = (struct cif_isp10_rk3399 *)devm_kzalloc(
 				&pdev->dev,
 				sizeof(struct cif_isp10_rk3399),
 				GFP_KERNEL);
-	if (!rk3399) {
+	if (!isp_cfg_tmp) {
 		dev_err(&pdev->dev, "Can't allocate cif_isp10_rk3399\n");
 		err = -ENOMEM;
 		goto alloc_failed;
@@ -523,33 +525,15 @@ static int soc_init(struct pltfrm_soc_init_para *init)
 
 	node = of_parse_phandle(np, "rockchip,grf", 0);
 	if (node) {
-		rk3399->regmap_grf = syscon_node_to_regmap(node);
-		if (IS_ERR(rk3399->regmap_grf)) {
+		isp_cfg_tmp->regmap_grf = syscon_node_to_regmap(node);
+		if (IS_ERR(isp_cfg_tmp->regmap_grf)) {
 			dev_err(&pdev->dev, "Can't allocate cif_isp10_rk3399\n");
 			err = -ENODEV;
 			goto regmap_failed;
 		}
 	}
 
-	res = platform_get_resource_byname(pdev,
-				IORESOURCE_MEM, "dsihost-register");
-	if (!res) {
-		dev_err(&pdev->dev,
-			"platform_get_resource_byname dsihost-register failed\n");
-		err = -ENODEV;
-		goto regmap_failed;
-	}
-	rk3399->dsihost_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR_OR_NULL(rk3399->dsihost_base)) {
-		dev_err(&pdev->dev, "devm_ioremap_resource failed\n");
-		if (IS_ERR(rk3399->dsihost_base))
-			err = PTR_ERR(rk3399->dsihost_base);
-		else
-			err = -ENODEV;
-		goto regmap_failed;
-	}
-
-	clk_rst = &rk3399->clk_rst;
+	clk_rst = &isp_cfg_tmp->clk_rst;
 
 	if (strcmp(pdev->name, "ff910000.cif_isp") == 0) {
 		clk_rst->hclk_isp0_noc	   =
@@ -585,8 +569,26 @@ static int soc_init(struct pltfrm_soc_init_para *init)
 		}
 
 		clk_set_rate(clk_rst->clk_isp0, 420000000);
-		rk3399->isp_idx = CIF_ISP10_ISP0;
+		isp_cfg_tmp->isp_idx = CIF_ISP10_ISP0;
 	} else {
+		res = platform_get_resource_byname(pdev,
+					IORESOURCE_MEM, "dsihost-register");
+		if (!res) {
+			dev_err(&pdev->dev,
+				"platform_get_resource_byname dsihost-register failed\n");
+			err = -ENODEV;
+			goto regmap_failed;
+		}
+		isp_cfg_tmp->dsihost_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR_OR_NULL(isp_cfg_tmp->dsihost_base)) {
+			dev_err(&pdev->dev, "devm_ioremap_resource failed\n");
+			if (IS_ERR(isp_cfg_tmp->dsihost_base))
+				err = PTR_ERR(isp_cfg_tmp->dsihost_base);
+			else
+				err = -ENODEV;
+			goto regmap_failed;
+		}
+
 		clk_rst->hclk_isp1_noc	   =
 			devm_clk_get(&pdev->dev, "hclk_isp1_noc");
 		clk_rst->hclk_isp1_wrapper =
@@ -631,10 +633,11 @@ static int soc_init(struct pltfrm_soc_init_para *init)
 		}
 
 		clk_set_rate(clk_rst->clk_isp1, 420000000);
-		rk3399->isp_idx = CIF_ISP10_ISP1;
+		isp_cfg_tmp->isp_idx = CIF_ISP10_ISP1;
 	}
 
-	rk3399->isp_base = init->isp_base;
+	isp_cfg_tmp->isp_base = init->isp_base;
+	*isp_cfg = isp_cfg_tmp;
 
 	return 0;
 
@@ -697,9 +700,19 @@ alloc_failed:
 	return err;
 }
 
-int pltfrm_rk3399_cfg(
-		struct pltfrm_soc_cfg_para *cfg)
+int pltfrm_rk3399_cfg(struct pltfrm_soc_cfg_para *cfg)
 {
+	int ret = -1;
+	struct cif_isp10_rk3399 *isp_cfg = NULL;
+
+	if (cfg->isp_config == NULL) {
+		return -1;
+	} else {
+		isp_cfg = (struct cif_isp10_rk3399 *)(*cfg->isp_config);
+		if (isp_cfg == NULL  && cfg->cmd != PLTFRM_SOC_INIT)
+			return -1;
+	}
+
 	switch (cfg->cmd) {
 	case PLTFRM_MCLK_CFG: {
 		struct pltfrm_soc_mclk_para *mclk_para;
@@ -712,33 +725,35 @@ int pltfrm_rk3399_cfg(
 
 		write_grf_reg(GRF_GPIO2B_E_OFFSET,
 			CIF_CLKOUT_STRENGTH(mclk_para->drv_strength));
+		ret = 0;
 		break;
 	}
 	case PLTFRM_MIPI_DPHY_CFG:
-		mipi_dphy_cfg((struct pltfrm_cam_mipi_config *)cfg->cfg_para);
+		ret = mipi_dphy_cfg(isp_cfg, (struct pltfrm_cam_mipi_config *)cfg->cfg_para);
 		break;
 
 	case PLTFRM_CLKEN:
-		soc_clk_enable();
+		ret = soc_clk_enable(isp_cfg);
 		break;
 
 	case PLTFRM_CLKDIS:
-		soc_clk_disable();
+		ret = soc_clk_disable(isp_cfg);
 		break;
 
 	case PLTFRM_CLKRST:
 		write_cifisp_reg(VI_IRCL, 0x80);
 		usleep_range(10, 15);
 		write_cifisp_reg(VI_IRCL, 0x00);
+		ret = 0;
 		break;
 
 	case PLTFRM_SOC_INIT:
-		soc_init((struct pltfrm_soc_init_para *)cfg->cfg_para);
+		ret = soc_init((struct cif_isp10_rk3399 **)cfg->isp_config, (struct pltfrm_soc_init_para *)cfg->cfg_para);
 		break;
 
 	default:
 		break;
 	}
 
-	return 0;
+	return ret;
 }

@@ -98,6 +98,12 @@ enum cif_isp10_pm_state {
 	CIF_ISP10_PM_STATE_STREAMING
 };
 
+enum cif_isp10_ispstate {
+	CIF_ISP10_STATE_IDLE      = 0,
+	CIF_ISP10_STATE_RUNNING   = 1,
+	CIF_ISP10_STATE_STOPPING  = 2
+};
+
 enum cif_isp10_inp {
 	CIF_ISP10_INP_CSI     = 0x10000000,
 	CIF_ISP10_INP_CPI     = 0x20000000,
@@ -606,9 +612,15 @@ struct cif_isp10_device {
 	struct v4l2_device v4l2_dev;
 	enum cif_isp10_pm_state pm_state;
 	enum cif_isp10_img_src_state img_src_state;
+	enum cif_isp10_ispstate isp_state;
 
 	spinlock_t vbq_lock;	/* spinlock for videobuf queues */
 	spinlock_t vbreq_lock;	/* spinlock for videobuf requeues */
+	spinlock_t iowrite32_verify_lock;
+	spinlock_t isp_state_lock;
+
+	wait_queue_head_t isp_stop_wait;	/* wait while isp stop */
+	unsigned int isp_stop_flags;
 
 	struct cif_isp10_img_src *img_src;
 	struct cif_isp10_img_src *img_src_array[CIF_ISP10_NUM_INPUTS];
@@ -643,7 +655,7 @@ struct cif_isp10_device {
 	int   otf_zsl_mode;
 	struct flash_timeinfo_s flash_t;
 
-	struct pltfrm_soc_cfg *soc_cfg;
+	struct pltfrm_soc_cfg soc_cfg;
 	void *nodes;
 
 };
@@ -704,6 +716,10 @@ int cif_isp10_streamon(
 int cif_isp10_streamoff(
 	struct cif_isp10_device *dev,
 	u32 stream_ids);
+
+int cif_isp10_g_input(
+	struct cif_isp10_device *dev,
+	enum cif_isp10_inp *inp);
 
 int cif_isp10_s_input(
 	struct cif_isp10_device *dev,

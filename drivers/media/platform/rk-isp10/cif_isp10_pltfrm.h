@@ -37,7 +37,6 @@ enum cif_isp10_pm_state;
 #define CIF_ISP10_PLTFRM_MEM_IO_ADDR void __iomem *
 #define CIF_ISP10_PLTFRM_EVENT wait_queue_head_t
 
-extern spinlock_t iowrite32_verify_lock;
 #ifdef CONFIG_CIF_ISP10_REG_TRACE
 int
 cif_isp10_pltfrm_rtrace_printf(
@@ -117,7 +116,7 @@ u32 cif_isp10_pltfrm_read_reg(
 	{ \
 		unsigned int i = 0; \
 		unsigned long flags = 0; \
-		spin_lock_irqsave(&iowrite32_verify_lock, flags); \
+		spin_lock_irqsave(&dev->iowrite32_verify_lock, flags); \
 		do { \
 			cif_iowrite32(d, a); \
 			udelay(1); \
@@ -127,7 +126,7 @@ u32 cif_isp10_pltfrm_read_reg(
 					WARN_ON(1); \
 			} \
 		} while ((ioread32(a) & mask) != ((d) & mask)); \
-		spin_unlock_irqrestore(&iowrite32_verify_lock, flags);\
+		spin_unlock_irqrestore(&dev->iowrite32_verify_lock, flags);\
 	}
 #define cif_iowrite32OR_verify(d, a, mask) \
 	cif_iowrite32_verify((u32)(d) | cif_ioread32(a), a, mask)

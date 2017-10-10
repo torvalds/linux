@@ -84,8 +84,15 @@
  *2. Implement command VIDIOC_G_FMT.
  *3. Set bytesused of each plane to its real size.
  *4. Support io mode 'VB2_DMABUF'.
+ *
+ *v0.1.0xc
+ *1. support isp0 and isp1 run at the same time.
+ *2. support VIDIOC_G_INPUT command.
+ *3. support VIDIOC_G_PARM command.
+ *4. support VIDIOC_G_PARM command.
+ *5. add pix.bytesperline and pix.sizeimage in VIDIOC_G_FMT command.
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xa)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xc)
 
 #endif

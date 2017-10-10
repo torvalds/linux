@@ -1366,11 +1366,13 @@ int cif_isp10_pltfrm_soc_init(
 	if (!IS_ERR_OR_NULL(soc_cfg) && !IS_ERR_OR_NULL(soc_cfg->soc_cfg)) {
 		cfg_para.cmd = PLTFRM_SOC_INIT;
 		cfg_para.cfg_para = &init_para;
+		cfg_para.isp_config = &(soc_cfg->isp_config);
 		init_para.pdev = pdev;
 		init_para.isp_base = cif_isp10_dev->config.base_addr;
 		ret = soc_cfg->soc_cfg(&cfg_para);
 		if (ret == 0)
-			cif_isp10_dev->soc_cfg = soc_cfg;
+			memcpy(&(cif_isp10_dev->soc_cfg), soc_cfg, sizeof(*soc_cfg));
+
 	}
 
 	return ret;
@@ -1383,13 +1385,14 @@ int cif_isp10_pltfrm_mipi_dphy_config(
 	struct pltfrm_soc_cfg *soc_cfg;
 	int ret = 0;
 
-	soc_cfg = cif_isp10_dev->soc_cfg;
+	soc_cfg = &(cif_isp10_dev->soc_cfg);
 	if (!IS_ERR_OR_NULL(soc_cfg) &&
 		!IS_ERR_OR_NULL(soc_cfg->soc_cfg)) {
 		cfg_para.cmd =
 			PLTFRM_MIPI_DPHY_CFG;
 		cfg_para.cfg_para =
 			(void *)(&cif_isp10_dev->config.cam_itf.cfg.mipi);
+		cfg_para.isp_config = &(soc_cfg->isp_config);
 		ret = soc_cfg->soc_cfg(&cfg_para);
 	}
 
@@ -1402,7 +1405,7 @@ int cif_isp10_pltfrm_pm_set_state(
 {
 	int ret;
 	struct cif_isp10_device *cif_isp10_dev = dev_get_drvdata(dev);
-	struct pltfrm_soc_cfg *soc_cfg = cif_isp10_dev->soc_cfg;
+	struct pltfrm_soc_cfg *soc_cfg = &(cif_isp10_dev->soc_cfg);
 	struct pltfrm_soc_cfg_para cfg_para;
 
 	switch (pm_state) {
@@ -1410,12 +1413,14 @@ int cif_isp10_pltfrm_pm_set_state(
 	case CIF_ISP10_PM_STATE_SUSPENDED:
 		cfg_para.cmd = PLTFRM_CLKDIS;
 		cfg_para.cfg_para = NULL;
+		cfg_para.isp_config = &(soc_cfg->isp_config);
 		ret = soc_cfg->soc_cfg(&cfg_para);
 		break;
 	case CIF_ISP10_PM_STATE_SW_STNDBY:
 	case CIF_ISP10_PM_STATE_STREAMING:
 		cfg_para.cmd = PLTFRM_CLKEN;
 		cfg_para.cfg_para = NULL;
+		cfg_para.isp_config = &(soc_cfg->isp_config);
 		ret = soc_cfg->soc_cfg(&cfg_para);
 		break;
 	default:
@@ -1650,7 +1655,7 @@ int cif_isp10_pltfrm_get_img_src_device(
 		img_src_array[num_cameras] =
 			cif_isp10_img_src_to_img_src(
 				&client->dev,
-				cif_isp10_dev->soc_cfg);
+				&(cif_isp10_dev->soc_cfg));
 		if (!IS_ERR_OR_NULL(img_src_array[num_cameras])) {
 			cif_isp10_pltfrm_pr_info(dev,
 				"%s attach to cif isp10 img_src_array[%d]\n",

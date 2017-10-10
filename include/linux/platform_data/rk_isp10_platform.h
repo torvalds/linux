@@ -168,17 +168,18 @@ struct pltfrm_soc_mclk_para {
 
 struct pltfrm_soc_cfg_para {
 	enum pltfrm_soc_cfg_cmd cmd;
+	void **isp_config;
 	void *cfg_para;
 };
 
 struct pltfrm_soc_cfg {
 	char name[32];
+	void *isp_config;
 	int (*soc_cfg)(struct pltfrm_soc_cfg_para *cfg);
 };
 
-int pltfrm_rk3288_cfg(
-		struct pltfrm_soc_cfg_para *cfg);
-int pltfrm_rk3399_cfg(
-		struct pltfrm_soc_cfg_para *cfg);
+int pltfrm_rk3288_cfg(struct pltfrm_soc_cfg_para *cfg);
+int pltfrm_rk3399_cfg(struct pltfrm_soc_cfg_para *cfg);
+
 
 #endif

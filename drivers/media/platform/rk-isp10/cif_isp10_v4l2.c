@@ -63,9 +63,6 @@ struct cif_isp10_v4l2_device {
 	struct cif_isp10_v4l2_node node[4];
 };
 
-/* spinlock define */
-spinlock_t iowrite32_verify_lock;
-
 static struct cif_isp10_v4l2_fh *to_fh(struct file *file)
 {
 	if (!file || !file->private_data)
@@ -396,6 +393,76 @@ static enum cif_isp10_pix_fmt cif_isp10_v4l2_pix_fmt2cif_isp10_pix_fmt(
 	}
 }
 
+static u32 cif_isp10_pix_fmt2v4l2_pix_fmt(
+		enum cif_isp10_pix_fmt pix_fmt, struct vb2_queue *queue)
+{
+/*struct cif_isp10_v4l2_node *node =
+ *	container_of(queue, struct cif_isp10_v4l2_node, buf_queue);
+ *	struct video_device *vdev =
+ *	&node->vdev;
+ */
+
+	switch (pix_fmt) {
+	case CIF_YUV400:
+		return V4L2_PIX_FMT_GREY;
+	case CIF_YUV420P:
+		return V4L2_PIX_FMT_YUV420;
+	case CIF_YVU420P:
+		return V4L2_PIX_FMT_YVU420;
+	case CIF_YUV420SP:
+		return V4L2_PIX_FMT_NV12;
+	case CIF_YVU420SP:
+		return V4L2_PIX_FMT_NV21;
+	case CIF_YUV422I:
+		return V4L2_PIX_FMT_YUYV;
+	case CIF_UYV422I:
+		return V4L2_PIX_FMT_UYVY;
+	case CIF_YUV422P:
+		return V4L2_PIX_FMT_YUV422P;
+	case CIF_YUV422SP:
+		return V4L2_PIX_FMT_NV16;
+	case CIF_YUV444P:
+		return V4L2_PIX_FMT_YUV444;
+	case CIF_YUV444SP:
+		return V4L2_PIX_FMT_NV24;
+	case CIF_RGB565:
+		return V4L2_PIX_FMT_RGB565;
+	case CIF_RGB888:
+		return V4L2_PIX_FMT_RGB24;
+	case CIF_BAYER_SBGGR8:
+		return V4L2_PIX_FMT_SBGGR8;
+	case CIF_BAYER_SGBRG8:
+		return V4L2_PIX_FMT_SGBRG8;
+	case CIF_BAYER_SGRBG8:
+		return V4L2_PIX_FMT_SGRBG8;
+	case CIF_BAYER_SRGGB8:
+		return V4L2_PIX_FMT_SRGGB8;
+	case CIF_BAYER_SBGGR10:
+		return V4L2_PIX_FMT_SBGGR10;
+	case CIF_BAYER_SGBRG10:
+		return V4L2_PIX_FMT_SGBRG10;
+	case CIF_BAYER_SGRBG10:
+		return V4L2_PIX_FMT_SGRBG10;
+	case CIF_BAYER_SRGGB10:
+		return V4L2_PIX_FMT_SRGGB10;
+	case CIF_BAYER_SBGGR12:
+		return V4L2_PIX_FMT_SBGGR12;
+	case CIF_BAYER_SGBRG12:
+		return V4L2_PIX_FMT_SGBRG12;
+	case CIF_BAYER_SGRBG12:
+		return V4L2_PIX_FMT_SGRBG12;
+	case CIF_BAYER_SRGGB12:
+		return V4L2_PIX_FMT_SRGGB12;
+	case CIF_JPEG:
+		return V4L2_PIX_FMT_JPEG;
+	default:
+		cif_isp10_pltfrm_pr_err(NULL,
+			"unknown or unsupported V4L2 pixel format %x\n",
+			pix_fmt);
+		return 0;
+	}
+}
+
 static int cif_isp10_v4l2_register_video_device(
 	struct cif_isp10_device *dev,
 	struct video_device *vdev,
@@ -676,31 +743,53 @@ static int cif_isp10_v4l2_g_fmt(
 	void *priv,
 	struct v4l2_format *f)
 {
+	enum cif_isp10_pix_fmt pix_fmt;
 	struct vb2_queue *queue = to_vb2_queue(file);
 	struct cif_isp10_device *dev = to_cif_isp10_device(queue);
 	enum cif_isp10_stream_id stream_id = to_cif_isp10_stream_id(queue);
 
 	switch (stream_id) {
 	case CIF_ISP10_STREAM_SP:
+		pix_fmt = dev->config.mi_config.sp.output.pix_fmt;
 		f->fmt.pix.width =
 			dev->config.mi_config.sp.output.width;
 		f->fmt.pix.height =
 			dev->config.mi_config.sp.output.height;
-		f->fmt.pix.pixelformat =
-			dev->config.mi_config.sp.output.pix_fmt;
+		f->fmt.pix.pixelformat = cif_isp10_pix_fmt2v4l2_pix_fmt(pix_fmt, queue);
 		break;
 	case CIF_ISP10_STREAM_MP:
+		pix_fmt = dev->config.mi_config.mp.output.pix_fmt;
 		f->fmt.pix.width =
 			dev->config.mi_config.mp.output.width;
 		f->fmt.pix.height =
 			dev->config.mi_config.mp.output.height;
-		f->fmt.pix.pixelformat =
-			dev->config.mi_config.mp.output.pix_fmt;
+		f->fmt.pix.pixelformat = cif_isp10_pix_fmt2v4l2_pix_fmt(pix_fmt, queue);
 		break;
 	default:
 		return -EINVAL;
 	}
+
 	return 0;
+}
+
+static int cif_isp10_v4l2_g_input(
+	struct file *file,
+	void *priv,
+	unsigned int *i)
+{
+	int ret;
+	struct vb2_queue *queue = to_vb2_queue(file);
+	struct cif_isp10_device *dev = to_cif_isp10_device(queue);
+
+	ret = cif_isp10_g_input(dev, i);
+	if (IS_ERR_VALUE(ret))
+		goto err;
+
+	return 0;
+err:
+	cif_isp10_pltfrm_pr_err(NULL,
+		"failed with error %d\n", ret);
+	return ret;
 }
 
 static int cif_isp10_v4l2_s_input(
@@ -1248,6 +1337,14 @@ static long v4l2_default_ioctl(struct file *file, void *fh,
 	return ret;
 }
 
+static int v4l2_g_parm(
+		struct file *file,
+		void *priv,
+		struct v4l2_streamparm *a)
+{
+	return 0;
+}
+
 static int v4l2_s_parm(
 	struct file *file,
 	void *priv,
@@ -1554,6 +1651,12 @@ int cif_isp10_v4l2_s_crop(
 	return 0;
 }
 
+int cif_isp10_v4l2_try_fmt(struct file *file, void *fh,
+					struct v4l2_format *f)
+{
+	return 0;
+}
+
 const struct v4l2_ioctl_ops cif_isp10_v4l2_sp_ioctlops = {
 	.vidioc_reqbufs = cif_isp10_v4l2_reqbufs,
 	.vidioc_querybuf = cif_isp10_v4l2_querybuf,
@@ -1562,6 +1665,7 @@ const struct v4l2_ioctl_ops cif_isp10_v4l2_sp_ioctlops = {
 	.vidioc_dqbuf = cif_isp10_v4l2_dqbuf,
 	.vidioc_streamon = cif_isp10_v4l2_streamon,
 	.vidioc_streamoff = cif_isp10_v4l2_streamoff,
+	.vidioc_g_input = cif_isp10_v4l2_g_input,
 	.vidioc_s_input = cif_isp10_v4l2_s_input,
 	.vidioc_enum_input = v4l2_enum_input,
 	.vidioc_g_ctrl = v4l2_g_ctrl,
@@ -1583,6 +1687,9 @@ const struct v4l2_ioctl_ops cif_isp10_v4l2_sp_ioctlops = {
 	.vidioc_subscribe_event = cif_isp10_v4l2_subscribe_event,
 	.vidioc_unsubscribe_event = cif_isp10_v4l2_unsubscribe_event,
 	.vidioc_default = v4l2_default_ioctl,
+	.vidioc_try_fmt_vid_cap = cif_isp10_v4l2_try_fmt,
+	.vidioc_s_parm = v4l2_s_parm,
+	.vidioc_g_parm = v4l2_g_parm,
 };
 
 const struct v4l2_ioctl_ops cif_isp10_v4l2_mp_ioctlops = {
@@ -1592,6 +1699,7 @@ const struct v4l2_ioctl_ops cif_isp10_v4l2_mp_ioctlops = {
 	.vidioc_dqbuf = cif_isp10_v4l2_dqbuf,
 	.vidioc_streamon = cif_isp10_v4l2_streamon,
 	.vidioc_streamoff = cif_isp10_v4l2_streamoff,
+	.vidioc_g_input = cif_isp10_v4l2_g_input,
 	.vidioc_s_input = cif_isp10_v4l2_s_input,
 	.vidioc_enum_input = v4l2_enum_input,
 	.vidioc_g_ctrl = mainpath_g_ctrl,
@@ -1607,6 +1715,8 @@ const struct v4l2_ioctl_ops cif_isp10_v4l2_mp_ioctlops = {
 	.vidioc_s_crop = cif_isp10_v4l2_s_crop,
 	.vidioc_g_crop = cif_isp10_v4l2_g_crop,
 	.vidioc_default = v4l2_default_ioctl,
+	.vidioc_try_fmt_vid_cap = cif_isp10_v4l2_try_fmt,
+	.vidioc_g_parm = v4l2_g_parm,
 };
 
 const struct v4l2_ioctl_ops cif_isp10_v4l2_dma_ioctlops = {
@@ -1675,9 +1785,12 @@ static int cif_isp10_v4l2_drv_probe(struct platform_device *pdev)
 	dev->dev_id = cif_isp10_v4l2_dev_cnt;
 	dev->isp_dev.dev_id = &dev->dev_id;
 	dev->nodes = (void *)cif_isp10_v4l2_dev;
+	dev->isp_state = CIF_ISP10_STATE_IDLE;
 	spin_lock_init(&dev->vbq_lock);
 	spin_lock_init(&dev->vbreq_lock);
-	spin_lock_init(&iowrite32_verify_lock);
+	spin_lock_init(&dev->iowrite32_verify_lock);
+	spin_lock_init(&dev->isp_state_lock);
+	init_waitqueue_head(&dev->isp_stop_wait);
 
 	ret = v4l2_device_register(dev->dev, &dev->v4l2_dev);
 	if (IS_ERR_VALUE(ret)) {

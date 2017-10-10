@@ -4690,7 +4690,7 @@ static int cif_isp10_stop(
 {
 	unsigned long flags = 0;
 	bool stop_all;
-	int timeout;
+	unsigned long isp_ctrl;
 
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
 		"SP state = %s, MP state = %s, img_src state = %s, stop_sp = %d, stop_mp = %d\n",
@@ -4724,12 +4724,15 @@ static int cif_isp10_stop(
 		cif_isp10_stop_sp(dev);
 		cif_isp10_stop_dma(dev);
 
-		local_irq_save(flags);
 		/* stop and clear MI, MIPI, and ISP interrupts */
 		cif_iowrite32(0, dev->config.base_addr + CIF_MIPI_IMSC);
 		cif_iowrite32(~0, dev->config.base_addr + CIF_MIPI_ICR);
 
-		cif_iowrite32(0, dev->config.base_addr + CIF_ISP_IMSC);
+		spin_lock_irqsave(&dev->isp_state_lock, flags);
+		dev->isp_state = CIF_ISP10_STATE_STOPPING;
+		spin_unlock_irqrestore(&dev->isp_state_lock, flags);
+		dev->isp_stop_flags = 0;
+		cif_iowrite32(CIF_ISP_OFF, dev->config.base_addr + CIF_ISP_IMSC);
 		cif_iowrite32(~0, dev->config.base_addr + CIF_ISP_ICR);
 
 		cif_iowrite32_verify(0,
@@ -4745,13 +4748,19 @@ static int cif_isp10_stop(
 		cif_iowrite32OR(CIF_ISP_CTRL_ISP_CFG_UPD,
 			dev->config.base_addr + CIF_ISP_CTRL);
 
-		timeout = 100;
-		while ((timeout-- > 0) &&
-			((cif_ioread32(dev->config.base_addr + CIF_ISP_RIS)
-			& CIF_ISP_OFF) != CIF_ISP_OFF)) {
-			msleep(20);
-		};
-		local_irq_restore(flags);
+		wait_event_interruptible_timeout(dev->isp_stop_wait,
+						dev->isp_stop_flags != 0,
+						HZ);
+
+		isp_ctrl = cif_ioread32(dev->config.base_addr + CIF_ISP_CTRL);
+		if ((isp_ctrl & 0x0001) != 0) {
+			cif_isp10_pltfrm_pr_err(dev->dev,
+				"Stop ISP Failure(0x%lx)!\n", isp_ctrl);
+		} else {
+			spin_lock_irqsave(&dev->isp_state_lock, flags);
+			dev->isp_state = CIF_ISP10_STATE_IDLE;
+			spin_unlock_irqrestore(&dev->isp_state_lock, flags);
+		}
 
 		if (!CIF_ISP10_INP_IS_DMA(dev->config.input_sel)) {
 			if (IS_ERR_VALUE(cif_isp10_img_src_set_state(dev,
@@ -4765,9 +4774,7 @@ static int cif_isp10_stop(
 			"unable to put CIF into standby\n");
 	} else if (stop_sp) {
 		if (!dev->config.mi_config.async_updt) {
-			local_irq_save(flags);
 			cif_isp10_stop_mi(dev, true, false);
-			local_irq_restore(flags);
 		}
 		cif_isp10_stop_sp(dev);
 		cif_iowrite32AND_verify(~CIF_MI_SP_FRAME,
@@ -4775,9 +4782,7 @@ static int cif_isp10_stop(
 
 	} else /* stop_mp */ {
 		if (!dev->config.mi_config.async_updt) {
-			local_irq_save(flags);
 			cif_isp10_stop_mi(dev, false, true);
-			local_irq_restore(flags);
 		}
 		cif_isp10_stop_mp(dev);
 		cif_iowrite32AND_verify(~(CIF_MI_MP_FRAME |
@@ -4825,6 +4830,7 @@ static int cif_isp10_start(
 {
 	unsigned int ret;
 	struct vb2_buffer *vb, *n;
+	unsigned long flags;
 
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
 		"SP state = %s, MP state = %s, DMA state = %s, img_src state = %s, start_sp = %d, start_mp = %d\n",
@@ -4865,6 +4871,10 @@ static int cif_isp10_start(
 				CIF_ISP_CTRL_ISP_INFORM_ENABLE |
 				CIF_ISP_CTRL_ISP_ENABLE,
 				dev->config.base_addr + CIF_ISP_CTRL);
+
+		spin_lock_irqsave(&dev->isp_state_lock, flags);
+		dev->isp_state = CIF_ISP10_STATE_RUNNING;
+		spin_unlock_irqrestore(&dev->isp_state_lock, flags);
 	}
 
 	if (start_sp &&
@@ -5809,6 +5819,22 @@ void cif_isp10_destroy(
 		kfree(dev);
 }
 
+int cif_isp10_g_input(
+	struct cif_isp10_device *dev,
+	unsigned int *input)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->img_src_cnt; i++) {
+		if (dev->img_src != NULL && dev->img_src == dev->img_src_array[i]) {
+			*input = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 int cif_isp10_s_input(
 	struct cif_isp10_device *dev,
 	unsigned int input)
@@ -6502,6 +6528,15 @@ int cif_isp10_isp_isr(unsigned int isp_mis, void *cntxt)
 		cif_ioread32(dev->config.base_addr + CIF_ISP_RIS),
 		cif_ioread32(dev->config.base_addr + CIF_ISP_IMSC));
 
+	if (isp_mis & CIF_ISP_OFF) {
+		cif_iowrite32(CIF_ISP_OFF,
+				dev->config.base_addr + CIF_ISP_ICR);
+		cif_isp10_pltfrm_pr_dbg(dev->dev, "ISP Stop Interrupt!\n");
+		dev->isp_stop_flags = 1;
+		wake_up_interruptible(&dev->isp_stop_wait);
+		return 0;
+	}
+
 	if (isp_mis & CIF_ISP_V_START) {
 		struct cif_isp10_isp_vs_work *vs_wk;
 		struct cif_isp10_img_src_exp *exp;
@@ -6603,14 +6638,18 @@ int cif_isp10_isp_isr(unsigned int isp_mis, void *cntxt)
 				      CIF_ISP_ICR);
 		}
 
-		/* Stop ISP */
-		cif_iowrite32AND(~CIF_ISP_CTRL_ISP_INFORM_ENABLE &
-				~CIF_ISP_CTRL_ISP_ENABLE,
-				dev->config.base_addr + CIF_ISP_CTRL);
-		/* isp_update */
-		cif_iowrite32OR(CIF_ISP_CTRL_ISP_CFG_UPD,
-				dev->config.base_addr + CIF_ISP_CTRL);
-		cif_isp10_hw_restart(dev);
+		spin_lock(&dev->isp_state_lock);
+		if (dev->isp_state == CIF_ISP10_STATE_RUNNING) {
+			/* Stop ISP */
+			cif_iowrite32AND(~CIF_ISP_CTRL_ISP_INFORM_ENABLE &
+					~CIF_ISP_CTRL_ISP_ENABLE,
+					dev->config.base_addr + CIF_ISP_CTRL);
+			/* isp_update */
+			cif_iowrite32OR(CIF_ISP_CTRL_ISP_CFG_UPD,
+					dev->config.base_addr + CIF_ISP_CTRL);
+			cif_isp10_hw_restart(dev);
+		}
+		spin_unlock(&dev->isp_state_lock);
 	}
 
 	if (isp_mis & CIF_ISP_FRAME_IN) {
