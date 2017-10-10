@@ -538,7 +538,7 @@ setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 	if (i915_vm_is_48bit(vm) &&
 	    HAS_PAGE_SIZES(vm->i915, I915_GTT_PAGE_SIZE_64K)) {
 		order = get_order(I915_GTT_PAGE_SIZE_64K);
-		page = alloc_pages(gfp | __GFP_ZERO, order);
+		page = alloc_pages(gfp | __GFP_ZERO | __GFP_NOWARN, order);
 		if (page) {
 			addr = dma_map_page(vm->dma, page, 0,
 					    I915_GTT_PAGE_SIZE_64K,
