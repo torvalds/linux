@@ -469,6 +469,8 @@ struct _internal_cmd {
  * @pfa_led_on: flag for PFA LED status
  * @pend_sas_rphy_add: flag to check if device is in sas_rphy_add()
  *	addition routine.
+ * @chassis_slot: chassis slot
+ * @is_chassis_slot_valid: chassis slot valid or not
  */
 struct _sas_device {
 	struct list_head list;
@@ -491,6 +493,8 @@ struct _sas_device {
 	u8	pfa_led_on;
 	u8	pend_sas_rphy_add;
 	u8	enclosure_level;
+	u8	chassis_slot;
+	u8	is_chassis_slot_valid;
 	u8	connector_name[5];
 	struct kref refcount;
 };
