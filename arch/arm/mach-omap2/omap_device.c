@@ -35,6 +35,8 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/notifier.h>
 
 #include "common.h"
@@ -522,6 +524,91 @@ void omap_device_delete(struct omap_device *od)
 }
 
 /**
+ * omap_device_copy_resources - Add legacy IO and IRQ resources
+ * @oh: interconnect target module
+ * @pdev: platform device to copy resources to
+ *
+ * We still have legacy DMA and smartreflex needing resources.
+ * Let's populate what they need until we can eventually just
+ * remove this function. Note that there should be no need to
+ * call this from omap_device_build_from_dt(), nor should there
+ * be any need to call it for other devices.
+ */
+static int
+omap_device_copy_resources(struct omap_hwmod *oh,
+			   struct platform_device *pdev)
+{
+	struct device_node *np, *child;
+	struct property *prop;
+	struct resource *res;
+	const char *name;
+	int error, irq = 0;
+
+	if (!oh || !oh->od || !oh->od->pdev) {
+		error = -EINVAL;
+		goto error;
+	}
+
+	np = oh->od->pdev->dev.of_node;
+	if (!np) {
+		error = -ENODEV;
+		goto error;
+	}
+
+	res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
+	if (!res)
+		return -ENOMEM;
+
+	/* Do we have a dts range for the interconnect target module? */
+	error = omap_hwmod_parse_module_range(oh, np, res);
+
+	/* No ranges, rely on device reg entry */
+	if (error)
+		error = of_address_to_resource(np, 0, res);
+	if (error)
+		goto free;
+
+	/* SmartReflex needs first IO resource name to be "mpu" */
+	res[0].name = "mpu";
+
+	/*
+	 * We may have a configured "ti,sysc" interconnect target with a
+	 * dts child with the interrupt. If so use the first child's
+	 * first interrupt for "ti-hwmods" legacy support.
+	 */
+	of_property_for_each_string(np, "compatible", prop, name)
+		if (!strncmp("ti,sysc-", name, 8))
+			break;
+
+	child = of_get_next_available_child(np, NULL);
+
+	if (name)
+		irq = irq_of_parse_and_map(child, 0);
+	if (!irq)
+		irq = irq_of_parse_and_map(np, 0);
+	if (!irq)
+		goto free;
+
+	/* Legacy DMA code needs interrupt name to be "0" */
+	res[1].start = irq;
+	res[1].end = irq;
+	res[1].flags = IORESOURCE_IRQ;
+	res[1].name = "0";
+
+	error = platform_device_add_resources(pdev, res, 2);
+
+free:
+	kfree(res);
+
+error:
+	WARN(error, "%s: %s device %s failed: %i\n",
+	     __func__, oh->name, dev_name(&pdev->dev),
+	     error);
+
+	return error;
+}
+
+/**
  * omap_device_build - build and register an omap_device with one omap_hwmod
  * @pdev_name: name of the platform_device driver to use
  * @pdev_id: this platform_device's connection ID
@@ -540,44 +627,23 @@ struct platform_device __init *omap_device_build(const char *pdev_name,
 						 struct omap_hwmod *oh,
 						 void *pdata, int pdata_len)
 {
-	struct omap_hwmod *ohs[] = { oh };
-
-	if (!oh)
-		return ERR_PTR(-EINVAL);
-
-	return omap_device_build_ss(pdev_name, pdev_id, ohs, 1, pdata,
-				    pdata_len);
-}
-
-/**
- * omap_device_build_ss - build and register an omap_device with multiple hwmods
- * @pdev_name: name of the platform_device driver to use
- * @pdev_id: this platform_device's connection ID
- * @oh: ptr to the single omap_hwmod that backs this omap_device
- * @pdata: platform_data ptr to associate with the platform_device
- * @pdata_len: amount of memory pointed to by @pdata
- *
- * Convenience function for building and registering an omap_device
- * subsystem record.  Subsystem records consist of multiple
- * omap_hwmods.  This function in turn builds and registers a
- * platform_device record.  Returns an ERR_PTR() on error, or passes
- * along the return value of omap_device_register().
- */
-struct platform_device __init *omap_device_build_ss(const char *pdev_name,
-						    int pdev_id,
-						    struct omap_hwmod **ohs,
-						    int oh_cnt, void *pdata,
-						    int pdata_len)
-{
 	int ret = -ENOMEM;
 	struct platform_device *pdev;
 	struct omap_device *od;
 
-	if (!ohs || oh_cnt == 0 || !pdev_name)
+	if (!oh || !pdev_name)
 		return ERR_PTR(-EINVAL);
 
 	if (!pdata && pdata_len > 0)
 		return ERR_PTR(-EINVAL);
+
+	if (strncmp(oh->name, "smartreflex", 11) &&
+	    strncmp(oh->name, "dma", 3)) {
+		pr_warn("%s need to update %s to probe with dt\na",
+			__func__, pdev_name);
+		ret = -ENODEV;
+		goto odbs_exit;
+	}
 
 	pdev = platform_device_alloc(pdev_name, pdev_id);
 	if (!pdev) {
@@ -591,7 +657,16 @@ struct platform_device __init *omap_device_build_ss(const char *pdev_name,
 	else
 		dev_set_name(&pdev->dev, "%s", pdev->name);
 
-	od = omap_device_alloc(pdev, ohs, oh_cnt);
+	/*
+	 * Must be called before omap_device_alloc() as oh->od
+	 * only contains the currently registered omap_device
+	 * and will get overwritten by omap_device_alloc().
+	 */
+	ret = omap_device_copy_resources(oh, pdev);
+	if (ret)
+		goto odbs_exit1;
+
+	od = omap_device_alloc(pdev, &oh, 1);
 	if (IS_ERR(od))
 		goto odbs_exit1;
 
