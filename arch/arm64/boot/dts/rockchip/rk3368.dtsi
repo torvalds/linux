@@ -113,8 +113,7 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKL>;
-			operating-points-v2 = <&cluster0_opp>;
+
 			#cooling-cells = <2>; /* min followed by max */
 		};
 
@@ -123,8 +122,6 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKL>;
-			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -132,8 +129,6 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKL>;
-			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -141,8 +136,6 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKL>;
-			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu_b0: cpu@100 {
@@ -150,8 +143,7 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKB>;
-			operating-points-v2 = <&cluster1_opp>;
+
 			#cooling-cells = <2>; /* min followed by max */
 		};
 
@@ -160,8 +152,6 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKB>;
-			operating-points-v2 = <&cluster1_opp>;
 		};
 
 		cpu_b2: cpu@102 {
@@ -169,8 +159,6 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKB>;
-			operating-points-v2 = <&cluster1_opp>;
 		};
 
 		cpu_b3: cpu@103 {
@@ -178,62 +166,6 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
-			clocks = <&cru ARMCLKB>;
-			operating-points-v2 = <&cluster1_opp>;
-		};
-	};
-
-	cluster0_opp: opp-table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <312000000>;
-			opp-microvolt = <950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <950000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <950000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <1025000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1125000>;
-		};
-	};
-
-	cluster1_opp: opp-table1 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <312000000>;
-			opp-microvolt = <950000>;
-			clock-latency-ns = <40000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <950000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <950000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <975000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1050000>;
 		};
 	};
 

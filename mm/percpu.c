@@ -353,6 +353,8 @@ static void pcpu_next_md_free_region(struct pcpu_chunk *chunk, int *bit_off,
 					block->contig_hint_start);
 			return;
 		}
+		/* reset to satisfy the second predicate above */
+		block_off = 0;
 
 		*bits = block->right_free;
 		*bit_off = (i + 1) * PCPU_BITMAP_BLOCK_BITS - block->right_free;
@@ -407,6 +409,8 @@ static void pcpu_next_fit_region(struct pcpu_chunk *chunk, int alloc_bits,
 			*bit_off = pcpu_block_off_to_off(i, block->first_free);
 			return;
 		}
+		/* reset to satisfy the second predicate above */
+		block_off = 0;
 
 		*bit_off = ALIGN(PCPU_BITMAP_BLOCK_BITS - block->right_free,
 				 align);

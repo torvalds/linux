@@ -192,6 +192,7 @@ struct scsi_device {
 	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
 	unsigned broken_fua:1;		/* Don't set FUA bit */
 	unsigned lun_in_cdb:1;		/* Store LUN bits in CDB[1] */
+	unsigned unmap_limit_for_ws:1;	/* Use the UNMAP limit for WRITE SAME */
 
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
 

@@ -1520,43 +1520,56 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 EXPORT_SYMBOL(rt_dst_alloc);
 
 /* called in rcu_read_lock() section */
-static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-				u8 tos, struct net_device *dev, int our)
+int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
+			  u8 tos, struct net_device *dev,
+			  struct in_device *in_dev, u32 *itag)
 {
-	struct rtable *rth;
-	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	unsigned int flags = RTCF_MULTICAST;
-	u32 itag = 0;
 	int err;
 
 	/* Primary sanity checks. */
-
 	if (!in_dev)
 		return -EINVAL;
 
 	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr) ||
 	    skb->protocol != htons(ETH_P_IP))
-		goto e_inval;
+		return -EINVAL;
 
 	if (ipv4_is_loopback(saddr) && !IN_DEV_ROUTE_LOCALNET(in_dev))
-		goto e_inval;
+		return -EINVAL;
 
 	if (ipv4_is_zeronet(saddr)) {
 		if (!ipv4_is_local_multicast(daddr))
-			goto e_inval;
+			return -EINVAL;
 	} else {
 		err = fib_validate_source(skb, saddr, 0, tos, 0, dev,
-					  in_dev, &itag);
+					  in_dev, itag);
 		if (err < 0)
-			goto e_err;
+			return err;
 	}
+	return 0;
+}
+
+/* called in rcu_read_lock() section */
+static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
+			     u8 tos, struct net_device *dev, int our)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	unsigned int flags = RTCF_MULTICAST;
+	struct rtable *rth;
+	u32 itag = 0;
+	int err;
+
+	err = ip_mc_validate_source(skb, daddr, saddr, tos, dev, in_dev, &itag);
+	if (err)
+		return err;
+
 	if (our)
 		flags |= RTCF_LOCAL;
 
 	rth = rt_dst_alloc(dev_net(dev)->loopback_dev, flags, RTN_MULTICAST,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, false);
 	if (!rth)
-		goto e_nobufs;
+		return -ENOBUFS;
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
@@ -1572,13 +1585,6 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	skb_dst_set(skb, &rth->dst);
 	return 0;
-
-e_nobufs:
-	return -ENOBUFS;
-e_inval:
-	return -EINVAL;
-e_err:
-	return err;
 }
 
 
@@ -2507,7 +2513,7 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 	struct rtable *ort = (struct rtable *) dst_orig;
 	struct rtable *rt;
 
-	rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, 1, DST_OBSOLETE_NONE, 0);
+	rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, 1, DST_OBSOLETE_DEAD, 0);
 	if (rt) {
 		struct dst_entry *new = &rt->dst;
 

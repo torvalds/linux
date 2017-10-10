@@ -1009,6 +1009,13 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	WARN_ON_ONCE(ret);
 	ret = 0;
 
+	if (iov_iter_rw(iter) == WRITE && !is_sync_kiocb(iocb) &&
+	    !inode->i_sb->s_dio_done_wq) {
+		ret = sb_init_dio_done_wq(inode->i_sb);
+		if (ret < 0)
+			goto out_free_dio;
+	}
+
 	inode_dio_begin(inode);
 
 	blk_start_plug(&plug);
@@ -1030,13 +1037,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	if (ret < 0)
 		iomap_dio_set_error(dio, ret);
-
-	if (ret >= 0 && iov_iter_rw(iter) == WRITE && !is_sync_kiocb(iocb) &&
-			!inode->i_sb->s_dio_done_wq) {
-		ret = sb_init_dio_done_wq(inode->i_sb);
-		if (ret < 0)
-			iomap_dio_set_error(dio, ret);
-	}
 
 	if (!atomic_dec_and_test(&dio->ref)) {
 		if (!is_sync_kiocb(iocb))

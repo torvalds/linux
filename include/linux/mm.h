@@ -240,7 +240,7 @@ extern unsigned int kobjsize(const void *objp);
 
 #if defined(CONFIG_X86_INTEL_MPX)
 /* MPX specific bounds table or bounds directory */
-# define VM_MPX		VM_HIGH_ARCH_BIT_4
+# define VM_MPX		VM_HIGH_ARCH_4
 #else
 # define VM_MPX		VM_NONE
 #endif
