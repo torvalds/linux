@@ -452,6 +452,8 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 	case ETHTOOL_GRXRINGS:
 		cmd->data = h->ae_algo->ops->get_tc_size(h);
 		break;
+	case ETHTOOL_GRXFH:
+		return h->ae_algo->ops->get_rss_tuple(h, cmd);
 	default:
 		return -EOPNOTSUPP;
 	}

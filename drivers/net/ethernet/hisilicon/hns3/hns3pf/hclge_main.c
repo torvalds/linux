@@ -2767,6 +2767,69 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 	return ret;
 }
 
+static int hclge_get_rss_tuple(struct hnae3_handle *handle,
+			       struct ethtool_rxnfc *nfc)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_rss_input_tuple_cmd *req;
+	struct hclge_desc desc;
+	u8 tuple_sets;
+	int ret;
+
+	nfc->data = 0;
+
+	req = (struct hclge_rss_input_tuple_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Read rss tuple fail, status = %d\n", ret);
+		return ret;
+	}
+
+	switch (nfc->flow_type) {
+	case TCP_V4_FLOW:
+		tuple_sets = req->ipv4_tcp_en;
+		break;
+	case UDP_V4_FLOW:
+		tuple_sets = req->ipv4_udp_en;
+		break;
+	case TCP_V6_FLOW:
+		tuple_sets = req->ipv6_tcp_en;
+		break;
+	case UDP_V6_FLOW:
+		tuple_sets = req->ipv6_udp_en;
+		break;
+	case SCTP_V4_FLOW:
+		tuple_sets = req->ipv4_sctp_en;
+		break;
+	case SCTP_V6_FLOW:
+		tuple_sets = req->ipv6_sctp_en;
+		break;
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		tuple_sets = HCLGE_S_IP_BIT | HCLGE_D_IP_BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (!tuple_sets)
+		return 0;
+
+	if (tuple_sets & HCLGE_D_PORT_BIT)
+		nfc->data |= RXH_L4_B_2_3;
+	if (tuple_sets & HCLGE_S_PORT_BIT)
+		nfc->data |= RXH_L4_B_0_1;
+	if (tuple_sets & HCLGE_D_IP_BIT)
+		nfc->data |= RXH_IP_DST;
+	if (tuple_sets & HCLGE_S_IP_BIT)
+		nfc->data |= RXH_IP_SRC;
+
+	return 0;
+}
+
 static int hclge_get_tc_size(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -4435,6 +4498,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_rss = hclge_get_rss,
 	.set_rss = hclge_set_rss,
 	.set_rss_tuple = hclge_set_rss_tuple,
+	.get_rss_tuple = hclge_get_rss_tuple,
 	.get_tc_size = hclge_get_tc_size,
 	.get_mac_addr = hclge_get_mac_addr,
 	.set_mac_addr = hclge_set_mac_addr,

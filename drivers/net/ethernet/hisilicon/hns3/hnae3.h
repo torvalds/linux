@@ -341,6 +341,8 @@ struct hnae3_ae_ops {
 		       const u8 *key, const u8 hfunc);
 	int (*set_rss_tuple)(struct hnae3_handle *handle,
 			     struct ethtool_rxnfc *cmd);
+	int (*get_rss_tuple)(struct hnae3_handle *handle,
+			     struct ethtool_rxnfc *cmd);
 
 	int (*get_tc_size)(struct hnae3_handle *handle);
 
