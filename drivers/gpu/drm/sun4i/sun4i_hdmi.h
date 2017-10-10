@@ -14,6 +14,7 @@
 
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
+#include <linux/regmap.h>
 
 #include <media/cec-pin.h>
 
@@ -157,6 +158,55 @@ enum sun4i_hdmi_pkt_type {
 	SUN4I_HDMI_PKT_END = 15,
 };
 
+struct sun4i_hdmi_variant {
+	bool has_ddc_parent_clk;
+	bool has_reset_control;
+
+	u32 pad_ctrl0_init_val;
+	u32 pad_ctrl1_init_val;
+	u32 pll_ctrl_init_val;
+
+	struct reg_field ddc_clk_reg;
+	u8 ddc_clk_pre_divider;
+	u8 ddc_clk_m_offset;
+
+	u8 tmds_clk_div_offset;
+
+	/* Register fields for I2C adapter */
+	struct reg_field	field_ddc_en;
+	struct reg_field	field_ddc_start;
+	struct reg_field	field_ddc_reset;
+	struct reg_field	field_ddc_addr_reg;
+	struct reg_field	field_ddc_slave_addr;
+	struct reg_field	field_ddc_int_mask;
+	struct reg_field	field_ddc_int_status;
+	struct reg_field	field_ddc_fifo_clear;
+	struct reg_field	field_ddc_fifo_rx_thres;
+	struct reg_field	field_ddc_fifo_tx_thres;
+	struct reg_field	field_ddc_byte_count;
+	struct reg_field	field_ddc_cmd;
+	struct reg_field	field_ddc_sda_en;
+	struct reg_field	field_ddc_sck_en;
+
+	/* DDC FIFO register offset */
+	u32			ddc_fifo_reg;
+
+	/*
+	 * DDC FIFO threshold boundary conditions
+	 *
+	 * This is used to cope with the threshold boundary condition
+	 * being slightly different on sun5i and sun6i.
+	 *
+	 * On sun5i the threshold is exclusive, i.e. does not include,
+	 * the value of the threshold. ( > for RX; < for TX )
+	 * On sun6i the threshold is inclusive, i.e. includes, the
+	 * value of the threshold. ( >= for RX; <= for TX )
+	 */
+	bool			ddc_fifo_thres_incl;
+
+	bool			ddc_fifo_has_dir;
+};
+
 struct sun4i_hdmi {
 	struct drm_connector	connector;
 	struct drm_encoder	encoder;
@@ -165,9 +215,13 @@ struct sun4i_hdmi {
 	void __iomem		*base;
 	struct regmap		*regmap;
 
+	/* Reset control */
+	struct reset_control	*reset;
+
 	/* Parent clocks */
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
+	struct clk		*ddc_parent_clk;
 	struct clk		*pll0_clk;
 	struct clk		*pll1_clk;
 
@@ -177,10 +231,28 @@ struct sun4i_hdmi {
 
 	struct i2c_adapter	*i2c;
 
+	/* Regmap fields for I2C adapter */
+	struct regmap_field	*field_ddc_en;
+	struct regmap_field	*field_ddc_start;
+	struct regmap_field	*field_ddc_reset;
+	struct regmap_field	*field_ddc_addr_reg;
+	struct regmap_field	*field_ddc_slave_addr;
+	struct regmap_field	*field_ddc_int_mask;
+	struct regmap_field	*field_ddc_int_status;
+	struct regmap_field	*field_ddc_fifo_clear;
+	struct regmap_field	*field_ddc_fifo_rx_thres;
+	struct regmap_field	*field_ddc_fifo_tx_thres;
+	struct regmap_field	*field_ddc_byte_count;
+	struct regmap_field	*field_ddc_cmd;
+	struct regmap_field	*field_ddc_sda_en;
+	struct regmap_field	*field_ddc_sck_en;
+
 	struct sun4i_drv	*drv;
 
 	bool			hdmi_monitor;
 	struct cec_adapter	*cec_adap;
+
+	const struct sun4i_hdmi_variant	*variant;
 };
 
 int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *clk);
