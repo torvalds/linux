@@ -246,7 +246,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 
 	intel_runtime_pm_get(dev_priv);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	mutex_lock(&dev_priv->pcu_lock);
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 freq;
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
@@ -261,7 +261,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 			ret = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
 		ret = intel_gpu_freq(dev_priv, ret);
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -304,9 +304,9 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 	if (val < dev_priv->rps.min_freq || val > dev_priv->rps.max_freq)
 		return -EINVAL;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	mutex_lock(&dev_priv->pcu_lock);
 	dev_priv->rps.boost_freq = val;
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	mutex_unlock(&dev_priv->pcu_lock);
 
 	return count;
 }
@@ -344,14 +344,14 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	intel_runtime_pm_get(dev_priv);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	mutex_lock(&dev_priv->pcu_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
 
 	if (val < dev_priv->rps.min_freq ||
 	    val > dev_priv->rps.max_freq ||
 	    val < dev_priv->rps.min_freq_softlimit) {
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		mutex_unlock(&dev_priv->pcu_lock);
 		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
@@ -371,7 +371,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	 * frequency request may be unchanged. */
 	ret = intel_set_rps(dev_priv, val);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -401,14 +401,14 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	intel_runtime_pm_get(dev_priv);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	mutex_lock(&dev_priv->pcu_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
 
 	if (val < dev_priv->rps.min_freq ||
 	    val > dev_priv->rps.max_freq ||
 	    val > dev_priv->rps.max_freq_softlimit) {
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		mutex_unlock(&dev_priv->pcu_lock);
 		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
@@ -424,7 +424,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	 * frequency request may be unchanged. */
 	ret = intel_set_rps(dev_priv, val);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_runtime_pm_put(dev_priv);
 

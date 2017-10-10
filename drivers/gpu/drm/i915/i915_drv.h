@@ -1364,14 +1364,6 @@ struct intel_gen6_power_mgmt {
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei ei;
-
-	/*
-	 * Protects RPS/RC6 register access and PCU communication.
-	 * Must be taken after struct_mutex if nested. Note that
-	 * this lock may be held for long periods of time when
-	 * talking to hw - so only take it when talking to hw!
-	 */
-	struct mutex hw_lock;
 };
 
 /* defined intel_pm.c */
@@ -2420,6 +2412,14 @@ struct drm_i915_private {
 
 	/* Cannot be determined by PCIID. You must always read a register. */
 	u32 edram_cap;
+
+	/*
+	 * Protects RPS/RC6 register access and PCU communication.
+	 * Must be taken after struct_mutex if nested. Note that
+	 * this lock may be held for long periods of time when
+	 * talking to hw - so only take it when talking to hw!
+	 */
+	struct mutex pcu_lock;
 
 	/* gen6+ rps state */
 	struct intel_gen6_power_mgmt rps;

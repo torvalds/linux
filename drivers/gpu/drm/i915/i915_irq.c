@@ -1181,7 +1181,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
 		goto out;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	mutex_lock(&dev_priv->pcu_lock);
 
 	pm_iir |= vlv_wa_c0_ei(dev_priv, pm_iir);
 
@@ -1235,7 +1235,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		dev_priv->rps.last_adj = 0;
 	}
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	mutex_unlock(&dev_priv->pcu_lock);
 
 out:
 	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
