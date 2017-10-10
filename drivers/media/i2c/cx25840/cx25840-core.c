@@ -1759,9 +1759,9 @@ static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 
 		/* 1001 */ V4L2_STD_UNKNOWN,
 		/* 1010 */ V4L2_STD_UNKNOWN,
-		/* 1001 */ V4L2_STD_UNKNOWN,
-		/* 1010 */ V4L2_STD_UNKNOWN,
 		/* 1011 */ V4L2_STD_UNKNOWN,
+		/* 1100 */ V4L2_STD_SECAM,
+		/* 1101 */ V4L2_STD_UNKNOWN,
 		/* 1110 */ V4L2_STD_UNKNOWN,
 		/* 1111 */ V4L2_STD_UNKNOWN
 	};
