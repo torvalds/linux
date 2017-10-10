@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/regmap.h>
 
 #include "sun4i_tcon.h"
 #include "sun4i_hdmi.h"
@@ -18,6 +19,9 @@
 struct sun4i_ddc {
 	struct clk_hw		hw;
 	struct sun4i_hdmi	*hdmi;
+	struct regmap_field	*reg;
+	u8			pre_div;
+	u8			m_offset;
 };
 
 static inline struct sun4i_ddc *hw_to_ddc(struct clk_hw *hw)
@@ -27,6 +31,8 @@ static inline struct sun4i_ddc *hw_to_ddc(struct clk_hw *hw)
 
 static unsigned long sun4i_ddc_calc_divider(unsigned long rate,
 					    unsigned long parent_rate,
+					    const u8 pre_div,
+					    const u8 m_offset,
 					    u8 *m, u8 *n)
 {
 	unsigned long best_rate = 0;
@@ -36,7 +42,8 @@ static unsigned long sun4i_ddc_calc_divider(unsigned long rate,
 		for (_n = 0; _n < 8; _n++) {
 			unsigned long tmp_rate;
 
-			tmp_rate = (((parent_rate / 2) / 10) >> _n) / (_m + 1);
+			tmp_rate = (((parent_rate / pre_div) / 10) >> _n) /
+				(_m + m_offset);
 
 			if (tmp_rate > rate)
 				continue;
@@ -60,21 +67,25 @@ static unsigned long sun4i_ddc_calc_divider(unsigned long rate,
 static long sun4i_ddc_round_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long *prate)
 {
-	return sun4i_ddc_calc_divider(rate, *prate, NULL, NULL);
+	struct sun4i_ddc *ddc = hw_to_ddc(hw);
+
+	return sun4i_ddc_calc_divider(rate, *prate, ddc->pre_div,
+				      ddc->m_offset, NULL, NULL);
 }
 
 static unsigned long sun4i_ddc_recalc_rate(struct clk_hw *hw,
 					    unsigned long parent_rate)
 {
 	struct sun4i_ddc *ddc = hw_to_ddc(hw);
-	u32 reg;
+	unsigned int reg;
 	u8 m, n;
 
-	reg = readl(ddc->hdmi->base + SUN4I_HDMI_DDC_CLK_REG);
-	m = (reg >> 3) & 0x7;
+	regmap_field_read(ddc->reg, &reg);
+	m = (reg >> 3) & 0xf;
 	n = reg & 0x7;
 
-	return (((parent_rate / 2) / 10) >> n) / (m + 1);
+	return (((parent_rate / ddc->pre_div) / 10) >> n) /
+	       (m + ddc->m_offset);
 }
 
 static int sun4i_ddc_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -83,10 +94,12 @@ static int sun4i_ddc_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct sun4i_ddc *ddc = hw_to_ddc(hw);
 	u8 div_m, div_n;
 
-	sun4i_ddc_calc_divider(rate, parent_rate, &div_m, &div_n);
+	sun4i_ddc_calc_divider(rate, parent_rate, ddc->pre_div,
+			       ddc->m_offset, &div_m, &div_n);
 
-	writel(SUN4I_HDMI_DDC_CLK_M(div_m) | SUN4I_HDMI_DDC_CLK_N(div_n),
-	       ddc->hdmi->base + SUN4I_HDMI_DDC_CLK_REG);
+	regmap_field_write(ddc->reg,
+			   SUN4I_HDMI_DDC_CLK_M(div_m) |
+			   SUN4I_HDMI_DDC_CLK_N(div_n));
 
 	return 0;
 }
@@ -111,6 +124,11 @@ int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *parent)
 	if (!ddc)
 		return -ENOMEM;
 
+	ddc->reg = devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					   hdmi->variant->ddc_clk_reg);
+	if (IS_ERR(ddc->reg))
+		return PTR_ERR(ddc->reg);
+
 	init.name = "hdmi-ddc";
 	init.ops = &sun4i_ddc_ops;
 	init.parent_names = &parent_name;
@@ -118,6 +136,8 @@ int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *parent)
 
 	ddc->hdmi = hdmi;
 	ddc->hw.init = &init;
+	ddc->pre_div = hdmi->variant->ddc_clk_pre_divider;
+	ddc->m_offset = hdmi->variant->ddc_clk_m_offset;
 
 	hdmi->ddc_clk = devm_clk_register(hdmi->dev, &ddc->hw);
 	if (IS_ERR(hdmi->ddc_clk))
