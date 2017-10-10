@@ -1444,9 +1444,9 @@ struct be_cmd_get_port_name {
 						 * the cxn
 						 */
 
-void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
+void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, u32 payload_len,
 			bool embedded, u8 sge_cnt);
 
 void be_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
-			u8 subsystem, u8 opcode, int cmd_len);
+			u8 subsystem, u8 opcode, u32 cmd_len);
 #endif /* !BEISCSI_CMDS_H */
