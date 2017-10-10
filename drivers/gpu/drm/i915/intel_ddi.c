@@ -2280,56 +2280,73 @@ static void intel_disable_ddi_buf(struct intel_encoder *encoder)
 		intel_wait_ddi_buf_idle(dev_priv, port);
 }
 
-static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
+static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
+				      const struct intel_crtc_state *old_crtc_state,
+				      const struct drm_connector_state *old_conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_dp *intel_dp = &dig_port->dp;
+	/*
+	 * old_crtc_state and old_conn_state are NULL when called from
+	 * DP_MST. The main connector associated with this port is never
+	 * bound to a crtc for MST.
+	 */
+	bool is_mst = !old_crtc_state;
+
+	/*
+	 * Power down sink before disabling the port, otherwise we end
+	 * up getting interrupts from the sink on detecting link loss.
+	 */
+	if (!is_mst)
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+
+	intel_disable_ddi_buf(encoder);
+
+	intel_edp_panel_vdd_on(intel_dp);
+	intel_edp_panel_off(intel_dp);
+
+	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
+
+	intel_ddi_clk_disable(encoder);
+}
+
+static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
+					const struct intel_crtc_state *old_crtc_state,
+					const struct drm_connector_state *old_conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
+
+	intel_disable_ddi_buf(encoder);
+
+	dig_port->set_infoframes(&encoder->base, false,
+				 old_crtc_state, old_conn_state);
+
+	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
+
+	intel_ddi_clk_disable(encoder);
+
+	intel_dp_dual_mode_set_tmds_output(intel_hdmi, false);
+}
+
+static void intel_ddi_post_disable(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {
-	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	int type = intel_encoder->type;
-
-	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
-		/*
-		 * old_crtc_state and old_conn_state are NULL when called from
-		 * DP_MST. The main connector associated with this port is never
-		 * bound to a crtc for MST.
-		 */
-		bool is_mst = !old_crtc_state;
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		/*
-		 * Power down sink before disabling the port, otherwise we end
-		 * up getting interrupts from the sink on detecting link loss.
-		 */
-		if (!is_mst)
-			intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
-	}
-
-	intel_disable_ddi_buf(intel_encoder);
-
-	if (type == INTEL_OUTPUT_HDMI) {
-		dig_port->set_infoframes(encoder, false,
-					 old_crtc_state, old_conn_state);
-	}
-
-	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		intel_edp_panel_vdd_on(intel_dp);
-		intel_edp_panel_off(intel_dp);
-	}
-
-	if (dig_port)
-		intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
-
-	intel_ddi_clk_disable(intel_encoder);
-
-	if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-
-		intel_dp_dual_mode_set_tmds_output(intel_hdmi, false);
-	}
+	/*
+	 * old_crtc_state and old_conn_state are NULL when called from
+	 * DP_MST. The main connector associated with this port is never
+	 * bound to a crtc for MST.
+	 */
+	if (old_crtc_state &&
+	    intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_HDMI))
+		intel_ddi_post_disable_hdmi(encoder,
+					    old_crtc_state, old_conn_state);
+	else
+		intel_ddi_post_disable_dp(encoder,
+					  old_crtc_state, old_conn_state);
 }
 
 void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,
