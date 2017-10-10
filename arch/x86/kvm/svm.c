@@ -1034,15 +1034,12 @@ static int avic_ga_log_notifier(u32 ga_tag)
 	}
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
 
-	if (!vcpu)
-		return 0;
-
 	/* Note:
 	 * At this point, the IOMMU should have already set the pending
 	 * bit in the vAPIC backing page. So, we just need to schedule
 	 * in the vcpu.
 	 */
-	if (vcpu->mode == OUTSIDE_GUEST_MODE)
+	if (vcpu)
 		kvm_vcpu_wake_up(vcpu);
 
 	return 0;
