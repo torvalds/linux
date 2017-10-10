@@ -7964,7 +7964,8 @@ void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv)
 
 void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	dev_priv->gt_pm.rps.enabled = true; /* force disabling */
+	dev_priv->gt_pm.rps.enabled = true; /* force RPS disabling */
+	dev_priv->gt_pm.rc6.enabled = true; /* force RC6 disabling */
 	intel_disable_gt_powersave(dev_priv);
 
 	gen6_reset_rps_interrupts(dev_priv);
@@ -7974,12 +7975,20 @@ static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->pcu_lock);
 
+	if (!i915->gt_pm.llc_pstate.enabled)
+		return;
+
 	/* Currently there is no HW configuration to be done to disable. */
+
+	i915->gt_pm.llc_pstate.enabled = false;
 }
 
 static void intel_disable_rc6(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (!dev_priv->gt_pm.rc6.enabled)
+		return;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		gen9_disable_rc6(dev_priv);
@@ -7989,11 +7998,16 @@ static void intel_disable_rc6(struct drm_i915_private *dev_priv)
 		valleyview_disable_rc6(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 6)
 		gen6_disable_rc6(dev_priv);
+
+	dev_priv->gt_pm.rc6.enabled = false;
 }
 
 static void intel_disable_rps(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (!dev_priv->gt_pm.rps.enabled)
+		return;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		gen9_disable_rps(dev_priv);
@@ -8005,15 +8019,12 @@ static void intel_disable_rps(struct drm_i915_private *dev_priv)
 		gen6_disable_rps(dev_priv);
 	else if (IS_IRONLAKE_M(dev_priv))
 		ironlake_disable_drps(dev_priv);
+
+	dev_priv->gt_pm.rps.enabled = false;
 }
 
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-
-	if (!READ_ONCE(rps->enabled))
-		return;
-
 	mutex_lock(&dev_priv->pcu_lock);
 
 	intel_disable_rc6(dev_priv);
@@ -8021,7 +8032,6 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 	if (HAS_LLC(dev_priv))
 		intel_disable_llc_pstate(dev_priv);
 
-	rps->enabled = false;
 	mutex_unlock(&dev_priv->pcu_lock);
 }
 
@@ -8029,12 +8039,20 @@ static inline void intel_enable_llc_pstate(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->pcu_lock);
 
+	if (i915->gt_pm.llc_pstate.enabled)
+		return;
+
 	gen6_update_ring_freq(i915);
+
+	i915->gt_pm.llc_pstate.enabled = true;
 }
 
 static void intel_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (dev_priv->gt_pm.rc6.enabled)
+		return;
 
 	if (IS_CHERRYVIEW(dev_priv))
 		cherryview_enable_rc6(dev_priv);
@@ -8046,6 +8064,8 @@ static void intel_enable_rc6(struct drm_i915_private *dev_priv)
 		gen8_enable_rc6(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 6)
 		gen6_enable_rc6(dev_priv);
+
+	dev_priv->gt_pm.rc6.enabled = true;
 }
 
 static void intel_enable_rps(struct drm_i915_private *dev_priv)
@@ -8053,6 +8073,9 @@ static void intel_enable_rps(struct drm_i915_private *dev_priv)
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 
 	lockdep_assert_held(&dev_priv->pcu_lock);
+
+	if (rps->enabled)
+		return;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		cherryview_enable_rps(dev_priv);
@@ -8074,18 +8097,12 @@ static void intel_enable_rps(struct drm_i915_private *dev_priv)
 
 	WARN_ON(rps->efficient_freq < rps->min_freq);
 	WARN_ON(rps->efficient_freq > rps->max_freq);
+
+	rps->enabled = true;
 }
 
 void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-
-	/* We shouldn't be disabling as we submit, so this should be less
-	 * racy than it appears!
-	 */
-	if (READ_ONCE(rps->enabled))
-		return;
-
 	/* Powersaving is controlled by the host when inside a VM */
 	if (intel_vgpu_active(dev_priv))
 		return;
@@ -8097,7 +8114,6 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 	if (HAS_LLC(dev_priv))
 		intel_enable_llc_pstate(dev_priv);
 
-	rps->enabled = true;
 	mutex_unlock(&dev_priv->pcu_lock);
 }
 
@@ -8109,9 +8125,6 @@ static void __intel_autoenable_gt_powersave(struct work_struct *work)
 			     gt_pm.autoenable_work.work);
 	struct intel_engine_cs *rcs;
 	struct drm_i915_gem_request *req;
-
-	if (READ_ONCE(dev_priv->gt_pm.rps.enabled))
-		goto out;
 
 	rcs = dev_priv->engine[RCS];
 	if (rcs->last_retired_context)
@@ -8140,9 +8153,6 @@ out:
 
 void intel_autoenable_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	if (READ_ONCE(dev_priv->gt_pm.rps.enabled))
-		return;
-
 	if (IS_IRONLAKE_M(dev_priv)) {
 		ironlake_enable_drps(dev_priv);
 		intel_init_emon(dev_priv);
