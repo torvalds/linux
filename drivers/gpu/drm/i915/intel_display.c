@@ -12215,7 +12215,10 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 			if (updated & cmask || !cstate->base.active)
 				continue;
 
-			if (skl_ddb_allocation_overlaps(entries, &cstate->wm.skl.ddb, i))
+			if (skl_ddb_allocation_overlaps(dev_priv,
+							entries,
+							&cstate->wm.skl.ddb,
+							i))
 				continue;
 
 			updated |= cmask;
