@@ -5325,6 +5325,7 @@ static int beiscsi_enable_port(struct beiscsi_hba *phba)
 	be2iscsi_enable_msix(phba);
 
 	beiscsi_get_params(phba);
+	beiscsi_set_host_data(phba);
 	/* Re-enable UER. If different TPE occurs then it is recoverable. */
 	beiscsi_set_uer_feature(phba);
 
@@ -5623,6 +5624,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	}
 	beiscsi_get_port_name(&phba->ctrl, phba);
 	beiscsi_get_params(phba);
+	beiscsi_set_host_data(phba);
 	beiscsi_set_uer_feature(phba);
 
 	be2iscsi_enable_msix(phba);

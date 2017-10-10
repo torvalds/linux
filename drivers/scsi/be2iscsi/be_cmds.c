@@ -1522,6 +1522,52 @@ int beiscsi_get_port_name(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba)
 	return ret;
 }
 
+int beiscsi_set_host_data(struct beiscsi_hba *phba)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_cmd_set_host_data *ioctl;
+	struct be_mcc_wrb *wrb;
+	int ret = 0;
+
+	if (is_chip_be2_be3r(phba))
+		return ret;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	memset(wrb, 0, sizeof(*wrb));
+	ioctl = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*ioctl), true, 0);
+	be_cmd_hdr_prepare(&ioctl->h.req_hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_SET_HOST_DATA,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
+	ioctl->param.req.param_id = BE_CMD_SET_HOST_PARAM_ID;
+	ioctl->param.req.param_len =
+		snprintf((char *)ioctl->param.req.param_data,
+			 sizeof(ioctl->param.req.param_data),
+			 "Linux iSCSI v%s", BUILD_STR);
+	ioctl->param.req.param_len = ALIGN(ioctl->param.req.param_len, 4);
+	if (ioctl->param.req.param_len > BE_CMD_MAX_DRV_VERSION)
+		ioctl->param.req.param_len = BE_CMD_MAX_DRV_VERSION;
+	ret = be_mbox_notify(ctrl);
+	if (!ret) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : HBA set host driver version\n");
+	} else {
+		/**
+		 * Check "MCC_STATUS_INVALID_LENGTH" for SKH.
+		 * Older FW versions return this error.
+		 */
+		if (ret == MCC_STATUS_ILLEGAL_REQUEST ||
+				ret == MCC_STATUS_INVALID_LENGTH)
+			__beiscsi_log(phba, KERN_INFO,
+				      "BG_%d : HBA failed to set host driver version\n");
+	}
+
+	mutex_unlock(&ctrl->mbox_lock);
+	return ret;
+}
+
 int beiscsi_set_uer_feature(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;

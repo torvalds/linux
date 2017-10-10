@@ -230,6 +230,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_FUNCTION_RESET			61
 #define OPCODE_COMMON_GET_PORT_NAME			77
+#define OPCODE_COMMON_SET_HOST_DATA			93
 #define OPCODE_COMMON_SET_FEATURES			191
 
 /**
@@ -737,6 +738,30 @@ struct be_cmd_hba_name {
 	u8 initiator_alias[BE_INI_ALIAS_LEN];
 } __packed;
 
+/******************** COMMON SET HOST DATA *******************/
+#define BE_CMD_SET_HOST_PARAM_ID	0x2
+#define BE_CMD_MAX_DRV_VERSION		0x30
+struct be_sethost_req {
+	u32 param_id;
+	u32 param_len;
+	u32 param_data[32];
+};
+
+struct be_sethost_resp {
+	u32 rsvd0;
+};
+
+struct be_cmd_set_host_data {
+	union {
+		struct be_cmd_req_hdr req_hdr;
+		struct be_cmd_resp_hdr resp_hdr;
+	} h;
+	union {
+		struct be_sethost_req req;
+		struct be_sethost_resp resp;
+	} param;
+} __packed;
+
 /******************** COMMON SET Features *******************/
 #define BE_CMD_SET_FEATURE_UER	0x10
 #define BE_CMD_UER_SUPP_BIT	0x1
@@ -845,6 +870,7 @@ int beiscsi_get_fw_config(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba);
 int beiscsi_get_port_name(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba);
 
 int beiscsi_set_uer_feature(struct beiscsi_hba *phba);
+int beiscsi_set_host_data(struct beiscsi_hba *phba);
 
 struct be_default_pdu_context {
 	u32 dw[4];
