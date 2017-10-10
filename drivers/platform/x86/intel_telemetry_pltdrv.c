@@ -1234,7 +1234,6 @@ static struct platform_driver telemetry_soc_driver = {
 
 static int __init telemetry_module_init(void)
 {
-	pr_info(DRIVER_NAME ": version %s loaded\n", DRIVER_VERSION);
 	return platform_driver_register(&telemetry_soc_driver);
 }
 
