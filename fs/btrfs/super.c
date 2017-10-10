@@ -1205,8 +1205,8 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 			 * happens. The pending operations are delayed to the
 			 * next commit after thawing.
 			 */
-			if (__sb_start_write(sb, SB_FREEZE_WRITE, false))
-				__sb_end_write(sb, SB_FREEZE_WRITE);
+			if (sb_start_write_trylock(sb))
+				sb_end_write(sb);
 			else
 				return 0;
 			trans = btrfs_start_transaction(root, 0);
