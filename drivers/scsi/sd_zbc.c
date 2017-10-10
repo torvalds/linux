@@ -475,7 +475,7 @@ static int sd_zbc_check_capacity(struct scsi_disk *sdkp, unsigned char *buf)
 	return 0;
 }
 
-#define SD_ZBC_BUF_SIZE 131072
+#define SD_ZBC_BUF_SIZE 131072U
 
 /**
  * sd_zbc_check_zone_size - Check the device zone sizes
@@ -526,10 +526,7 @@ static int sd_zbc_check_zone_size(struct scsi_disk *sdkp)
 		/* Parse REPORT ZONES header */
 		list_length = get_unaligned_be32(&buf[0]) + 64;
 		rec = buf + 64;
-		if (list_length < SD_ZBC_BUF_SIZE)
-			buf_len = list_length;
-		else
-			buf_len = SD_ZBC_BUF_SIZE;
+		buf_len = min(list_length, SD_ZBC_BUF_SIZE);
 
 		/* Parse zone descriptors */
 		while (rec < buf + buf_len) {
@@ -599,9 +596,8 @@ static int sd_zbc_setup(struct scsi_disk *sdkp)
 	/* chunk_sectors indicates the zone size */
 	blk_queue_chunk_sectors(sdkp->disk->queue,
 			logical_to_sectors(sdkp->device, sdkp->zone_blocks));
-	sdkp->nr_zones = sdkp->capacity >> sdkp->zone_shift;
-	if (sdkp->capacity & (sdkp->zone_blocks - 1))
-		sdkp->nr_zones++;
+	sdkp->nr_zones =
+		round_up(sdkp->capacity, sdkp->zone_blocks) >> sdkp->zone_shift;
 
 	if (!sdkp->zones_wlock) {
 		sdkp->zones_wlock = kcalloc(BITS_TO_LONGS(sdkp->nr_zones),
