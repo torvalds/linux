@@ -213,7 +213,7 @@ static void a3700_spi_mode_set(struct a3700_spi *a3700_spi,
 }
 
 static void a3700_spi_clock_set(struct a3700_spi *a3700_spi,
-				unsigned int speed_hz, u16 mode)
+				unsigned int speed_hz)
 {
 	u32 val;
 	u32 prescale;
@@ -231,17 +231,6 @@ static void a3700_spi_clock_set(struct a3700_spi *a3700_spi,
 		val |= A3700_SPI_CLK_CAPT_EDGE;
 		spireg_write(a3700_spi, A3700_SPI_IF_TIME_REG, val);
 	}
-
-	val = spireg_read(a3700_spi, A3700_SPI_IF_CFG_REG);
-	val &= ~(A3700_SPI_CLK_POL | A3700_SPI_CLK_PHA);
-
-	if (mode & SPI_CPOL)
-		val |= A3700_SPI_CLK_POL;
-
-	if (mode & SPI_CPHA)
-		val |= A3700_SPI_CLK_PHA;
-
-	spireg_write(a3700_spi, A3700_SPI_IF_CFG_REG, val);
 }
 
 static void a3700_spi_bytelen_set(struct a3700_spi *a3700_spi, unsigned int len)
@@ -423,7 +412,7 @@ static void a3700_spi_transfer_setup(struct spi_device *spi,
 
 	a3700_spi = spi_master_get_devdata(spi->master);
 
-	a3700_spi_clock_set(a3700_spi, xfer->speed_hz, spi->mode);
+	a3700_spi_clock_set(a3700_spi, xfer->speed_hz);
 
 	byte_len = xfer->bits_per_word >> 3;
 
@@ -583,6 +572,8 @@ static int a3700_spi_prepare_message(struct spi_master *master,
 		return ret;
 
 	a3700_spi_bytelen_set(a3700_spi, 4);
+
+	a3700_spi_mode_set(a3700_spi, spi->mode);
 
 	return 0;
 }
