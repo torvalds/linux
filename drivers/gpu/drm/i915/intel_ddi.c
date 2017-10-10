@@ -2141,6 +2141,21 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 	}
 }
 
+static void intel_ddi_clk_disable(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = intel_ddi_get_encoder_port(encoder);
+
+	if (IS_CANNONLAKE(dev_priv))
+		I915_WRITE(DPCLKA_CFGCR0, I915_READ(DPCLKA_CFGCR0) |
+			   DPCLKA_CFGCR0_DDI_CLK_OFF(port));
+	else if (IS_GEN9_BC(dev_priv))
+		I915_WRITE(DPLL_CTRL2, I915_READ(DPLL_CTRL2) |
+			   DPLL_CTRL2_DDI_CLK_OFF(port));
+	else if (INTEL_GEN(dev_priv) < 9)
+		I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
+}
+
 static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 				    int link_rate, uint32_t lane_count,
 				    struct intel_shared_dpll *pll,
@@ -2301,14 +2316,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	if (dig_port)
 		intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
-	if (IS_CANNONLAKE(dev_priv))
-		I915_WRITE(DPCLKA_CFGCR0, I915_READ(DPCLKA_CFGCR0) |
-			   DPCLKA_CFGCR0_DDI_CLK_OFF(port));
-	else if (IS_GEN9_BC(dev_priv))
-		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
-					DPLL_CTRL2_DDI_CLK_OFF(port)));
-	else if (INTEL_GEN(dev_priv) < 9)
-		I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
+	intel_ddi_clk_disable(intel_encoder);
 
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
