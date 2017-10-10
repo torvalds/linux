@@ -1274,12 +1274,12 @@ enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_COMA
 };
 
-bool is_lb_conf_valid(
+bool dpp1_dscl_is_lb_conf_valid(
 		int ceil_vratio,
 		int num_partitions,
 		int vtaps);
 
-void dscl1_calc_lb_num_partitions(
+void dpp1_dscl_calc_lb_num_partitions(
 		const struct scaler_data *scl_data,
 		enum lb_memory_config lb_config,
 		int *num_part_y,

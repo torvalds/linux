@@ -372,7 +372,7 @@ void dpp1_cnv_setup (
 	}
 }
 
-void dcn10_set_cursor_attributes(
+void dpp1_set_cursor_attributes(
 		struct dpp *dpp_base,
 		const struct dc_cursor_attributes *attr)
 {
@@ -400,7 +400,7 @@ void dcn10_set_cursor_attributes(
 }
 
 
-void dcn10_set_cursor_position(
+void dpp1_set_cursor_position(
 		struct dpp *dpp_base,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param,
@@ -440,13 +440,13 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.ipp_program_degamma_pwl	= dpp1_set_degamma_pwl,
 		.ipp_setup			= dpp1_cnv_setup,
 		.ipp_full_bypass		= dpp1_full_bypass,
-		.set_cursor_attributes = dcn10_set_cursor_attributes,
-		.set_cursor_position = dcn10_set_cursor_position,
+		.set_cursor_attributes = dpp1_set_cursor_attributes,
+		.set_cursor_position = dpp1_set_cursor_position,
 };
 
 static struct dpp_caps dcn10_dpp_cap = {
 	.dscl_data_proc_format = DSCL_DATA_PRCESSING_FIXED_FORMAT,
-	.dscl_calc_lb_num_partitions = dscl1_calc_lb_num_partitions,
+	.dscl_calc_lb_num_partitions = dpp1_dscl_calc_lb_num_partitions,
 };
 
 /*****************************************/
