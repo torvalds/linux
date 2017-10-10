@@ -277,6 +277,11 @@ config DAVICOM_PHY
 	---help---
 	  Currently supports dm9161e and dm9131
 
+config DP83822_PHY
+	tristate "Texas Instruments DP83822 PHY"
+	---help---
+	  Supports the DP83822 PHY.
+
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
 	---help---
