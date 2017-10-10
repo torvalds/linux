@@ -397,6 +397,11 @@ static void gtt_entry_clear_present(struct intel_gvt_gtt_entry *e)
 	e->val64 &= ~BIT(0);
 }
 
+static void gtt_entry_set_present(struct intel_gvt_gtt_entry *e)
+{
+	e->val64 |= BIT(0);
+}
+
 /*
  * Per-platform GMA routines.
  */
@@ -426,6 +431,7 @@ static struct intel_gvt_gtt_pte_ops gen8_gtt_pte_ops = {
 	.get_entry = gtt_get_entry64,
 	.set_entry = gtt_set_entry64,
 	.clear_present = gtt_entry_clear_present,
+	.set_present = gtt_entry_set_present,
 	.test_present = gen8_gtt_test_present,
 	.test_pse = gen8_gtt_test_pse,
 	.get_pfn = gen8_gtt_get_pfn,
