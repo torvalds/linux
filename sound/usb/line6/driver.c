@@ -175,17 +175,24 @@ static int line6_send_raw_message_async_part(struct message *msg,
 	}
 
 	msg->done += bytes;
-	retval = usb_submit_urb(urb, GFP_ATOMIC);
 
-	if (retval < 0) {
-		dev_err(line6->ifcdev, "%s: usb_submit_urb failed (%d)\n",
-			__func__, retval);
-		usb_free_urb(urb);
-		kfree(msg);
-		return retval;
-	}
+	/* sanity checks of EP before actually submitting */
+	retval = usb_urb_ep_type_check(urb);
+	if (retval < 0)
+		goto error;
+
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval < 0)
+		goto error;
 
 	return 0;
+
+ error:
+	dev_err(line6->ifcdev, "%s: usb_submit_urb failed (%d)\n",
+		__func__, retval);
+	usb_free_urb(urb);
+	kfree(msg);
+	return retval;
 }
 
 /*
