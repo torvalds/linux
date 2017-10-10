@@ -3273,7 +3273,7 @@ early_platform_init_buffer("earlyprintk", &sci_driver,
 			   early_serial_buf, ARRAY_SIZE(early_serial_buf));
 #endif
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON
-static struct __init plat_sci_port port_cfg;
+static struct plat_sci_port port_cfg __initdata;
 
 static int __init early_console_setup(struct earlycon_device *device,
 				      int type)
