@@ -1903,7 +1903,7 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);
 void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
-static inline int intel_enable_rc6(void)
+static inline int intel_rc6_enabled(void)
 {
 	return i915_modparams.enable_rc6;
 }

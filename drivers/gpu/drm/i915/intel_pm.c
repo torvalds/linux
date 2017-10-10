@@ -6625,7 +6625,7 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN9_RENDER_PG_IDLE_HYSTERESIS, 25);
 
 	/* 3a: Enable RC6 */
-	if (intel_enable_rc6() & INTEL_RC6_ENABLE)
+	if (intel_rc6_enabled() & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
 	DRM_INFO("RC6 %s\n", onoff(rc6_mask & GEN6_RC_CTL_RC6_ENABLE));
 	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
@@ -6671,7 +6671,7 @@ static void gen8_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us/1.28 for TO */
 
 	/* 3: Enable RC6 */
-	if (intel_enable_rc6() & INTEL_RC6_ENABLE)
+	if (intel_rc6_enabled() & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
 	intel_print_rc6_info(dev_priv, rc6_mask);
 
@@ -6766,7 +6766,7 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
 	/* Check if we are enabling RC6 */
-	rc6_mode = intel_enable_rc6();
+	rc6_mode = intel_rc6_enabled();
 	if (rc6_mode & INTEL_RC6_ENABLE)
 		rc6_mask |= GEN6_RC_CTL_RC6_ENABLE;
 
@@ -7268,7 +7268,7 @@ static void cherryview_enable_rc6(struct drm_i915_private *dev_priv)
 	pcbr = I915_READ(VLV_PCBR);
 
 	/* 3: Enable RC6 */
-	if ((intel_enable_rc6() & INTEL_RC6_ENABLE) &&
+	if ((intel_rc6_enabled() & INTEL_RC6_ENABLE) &&
 	    (pcbr >> VLV_PCBR_ADDR_SHIFT))
 		rc6_mode = GEN7_RC_CTL_TO_MODE;
 
@@ -7360,7 +7360,7 @@ static void valleyview_enable_rc6(struct drm_i915_private *dev_priv)
 				      VLV_MEDIA_RC6_COUNT_EN |
 				      VLV_RENDER_RC6_COUNT_EN));
 
-	if (intel_enable_rc6() & INTEL_RC6_ENABLE)
+	if (intel_rc6_enabled() & INTEL_RC6_ENABLE)
 		rc6_mode = GEN7_RC_CTL_TO_MODE | VLV_RC_CTL_CTX_RST_PARALLEL;
 
 	intel_print_rc6_info(dev_priv, rc6_mode);
@@ -9437,7 +9437,7 @@ u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 {
 	u64 time_hw, units, div;
 
-	if (!intel_enable_rc6())
+	if (!intel_rc6_enabled())
 		return 0;
 
 	intel_runtime_pm_get(dev_priv);

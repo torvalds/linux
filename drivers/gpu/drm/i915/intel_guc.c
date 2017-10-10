@@ -137,7 +137,8 @@ int intel_guc_sample_forcewake(struct intel_guc *guc)
 
 	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
 	/* WaRsDisableCoarsePowerGating:skl,bxt */
-	if (!intel_enable_rc6() || NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
+	if (!intel_rc6_enabled() ||
+	    NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
 		action[1] = 0;
 	else
 		/* bit 0 and 1 are for Render and Media domain separately */
