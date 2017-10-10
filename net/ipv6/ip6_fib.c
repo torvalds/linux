@@ -2262,7 +2262,7 @@ static void *ipv6_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (!v)
 		goto iter_table;
 
-	n = rcu_dereference(((struct rt6_info *)v)->dst.rt6_next);
+	n = rcu_dereference_bh(((struct rt6_info *)v)->dst.rt6_next);
 	if (n) {
 		++*pos;
 		return n;
