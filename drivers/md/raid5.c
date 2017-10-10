@@ -63,7 +63,7 @@
 #include "md.h"
 #include "raid5.h"
 #include "raid0.h"
-#include "bitmap.h"
+#include "md-bitmap.h"
 #include "raid5-log.h"
 
 #define UNSUPPORTED_MDDEV_FLAGS	(1L << MD_FAILFAST_SUPPORTED)

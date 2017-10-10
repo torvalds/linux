@@ -12,7 +12,7 @@
 #include "raid1.h"
 #include "raid5.h"
 #include "raid10.h"
-#include "bitmap.h"
+#include "md-bitmap.h"
 
 #include <linux/device-mapper.h>
 

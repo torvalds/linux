@@ -25,7 +25,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include "md.h"
-#include "multipath.h"
+#include "md-multipath.h"
 
 #define MAX_WORK_PER_DISK 128
 

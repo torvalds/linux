@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/raid/md_p.h>
 #include "md.h"
-#include "bitmap.h"
+#include "md-bitmap.h"
 #include "md-cluster.h"
 
 #define LVB_SIZE	64

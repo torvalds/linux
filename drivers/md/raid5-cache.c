@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include "md.h"
 #include "raid5.h"
-#include "bitmap.h"
+#include "md-bitmap.h"
 #include "raid5-log.h"
 
 /*
