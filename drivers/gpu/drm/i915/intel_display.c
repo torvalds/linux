@@ -14758,10 +14758,10 @@ static struct intel_connector *intel_encoder_find_connector(struct intel_encoder
 }
 
 static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
-			      enum transcoder pch_transcoder)
+			      enum pipe pch_transcoder)
 {
 	return HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
-		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == TRANSCODER_A);
+		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == PIPE_A);
 }
 
 static void intel_sanitize_crtc(struct intel_crtc *crtc,
@@ -14844,7 +14844,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 		 * PCH transcoders B and C would prevent enabling the south
 		 * error interrupt (see cpt_can_enable_serr_int()).
 		 */
-		if (has_pch_trancoder(dev_priv, (enum transcoder)crtc->pipe))
+		if (has_pch_trancoder(dev_priv, crtc->pipe))
 			crtc->pch_fifo_underrun_disabled = true;
 	}
 }
