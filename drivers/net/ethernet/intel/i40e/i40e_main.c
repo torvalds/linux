@@ -9557,7 +9557,6 @@ static int i40e_init_interrupt_scheme(struct i40e_pf *pf)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 /**
  * i40e_restore_interrupt_scheme - Restore the interrupt scheme
  * @pf: private board data structure
@@ -9606,7 +9605,6 @@ err_unwind:
 
 	return err;
 }
-#endif /* CONFIG_PM */
 
 /**
  * i40e_setup_misc_vector - Setup the misc vector to handle non queue events
@@ -13285,12 +13283,11 @@ static void i40e_shutdown(struct pci_dev *pdev)
 	}
 }
 
-#ifdef CONFIG_PM
 /**
  * i40e_suspend - PM callback for moving to D3
  * @dev: generic device information structure
  **/
-static int i40e_suspend(struct device *dev)
+static int __maybe_unused i40e_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
@@ -13328,7 +13325,7 @@ static int i40e_suspend(struct device *dev)
  * i40e_resume - PM callback for waking up from D3
  * @dev: generic device information structure
  **/
-static int i40e_resume(struct device *dev)
+static int __maybe_unused i40e_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
@@ -13360,8 +13357,6 @@ static int i40e_resume(struct device *dev)
 	return 0;
 }
 
-#endif /* CONFIG_PM */
-
 static const struct pci_error_handlers i40e_err_handler = {
 	.error_detected = i40e_pci_error_detected,
 	.slot_reset = i40e_pci_error_slot_reset,
@@ -13377,11 +13372,9 @@ static struct pci_driver i40e_driver = {
 	.id_table = i40e_pci_tbl,
 	.probe    = i40e_probe,
 	.remove   = i40e_remove,
-#ifdef CONFIG_PM
 	.driver   = {
 		.pm = &i40e_pm_ops,
 	},
-#endif /* CONFIG_PM */
 	.shutdown = i40e_shutdown,
 	.err_handler = &i40e_err_handler,
 	.sriov_configure = i40e_pci_sriov_configure,
