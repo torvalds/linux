@@ -37,6 +37,26 @@ kci_del_dummy()
 	check_err $?
 }
 
+kci_test_netconf()
+{
+	dev="$1"
+	r=$ret
+
+	ip netconf show dev "$dev" > /dev/null
+	check_err $?
+
+	for f in 4 6; do
+		ip -$f netconf show dev "$dev" > /dev/null
+		check_err $?
+	done
+
+	if [ $ret -ne 0 ] ;then
+		echo "FAIL: ip netconf show $dev"
+		test $r -eq 0 && ret=0
+		return 1
+	fi
+}
+
 # add a bridge with vlans on top
 kci_test_bridge()
 {
@@ -63,6 +83,11 @@ kci_test_bridge()
 	check_err $?
 	ip r s t all > /dev/null
 	check_err $?
+
+	for name in "$devbr" "$vlandev" "$devdummy" ; do
+		kci_test_netconf "$name"
+	done
+
 	ip -6 addr del dev "$vlandev" dead:42::1234/64
 	check_err $?
 
@@ -100,6 +125,9 @@ kci_test_gre()
 	check_err $?
 	ip addr > /dev/null
 	check_err $?
+
+	kci_test_netconf "$gredev"
+
 	ip addr del dev "$devdummy" 10.23.7.11/24
 	check_err $?
 
