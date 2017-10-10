@@ -325,9 +325,9 @@ EXPORT_SYMBOL_GPL(metadata_dst_alloc_percpu);
 
 void metadata_dst_free_percpu(struct metadata_dst __percpu *md_dst)
 {
+#ifdef CONFIG_DST_CACHE
 	int cpu;
 
-#ifdef CONFIG_DST_CACHE
 	for_each_possible_cpu(cpu) {
 		struct metadata_dst *one_md_dst = per_cpu_ptr(md_dst, cpu);
 
