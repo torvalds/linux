@@ -63,6 +63,9 @@ struct timer_list {
 
 #define TIMER_TRACE_FLAGMASK	(TIMER_MIGRATING | TIMER_DEFERRABLE | TIMER_PINNED | TIMER_IRQSAFE)
 
+#define TIMER_DATA_TYPE		unsigned long
+#define TIMER_FUNC_TYPE		void (*)(TIMER_DATA_TYPE)
+
 #define __TIMER_INITIALIZER(_function, _data, _flags) {		\
 		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
@@ -74,7 +77,7 @@ struct timer_list {
 
 #define DEFINE_TIMER(_name, _function)				\
 	struct timer_list _name =				\
-		__TIMER_INITIALIZER(_function, 0, 0)
+		__TIMER_INITIALIZER((TIMER_FUNC_TYPE)_function, 0, 0)
 
 void init_timer_key(struct timer_list *timer, unsigned int flags,
 		    const char *name, struct lock_class_key *key);
@@ -146,9 +149,6 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 	__setup_timer_on_stack((timer), (fn), (data), TIMER_DEFERRABLE)
 #define setup_pinned_deferrable_timer_on_stack(timer, fn, data)		\
 	__setup_timer_on_stack((timer), (fn), (data), TIMER_DEFERRABLE | TIMER_PINNED)
-
-#define TIMER_DATA_TYPE		unsigned long
-#define TIMER_FUNC_TYPE		void (*)(TIMER_DATA_TYPE)
 
 #ifndef CONFIG_LOCKDEP
 static inline void timer_setup(struct timer_list *timer,
