@@ -3905,6 +3905,8 @@ int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
 			ret = -ENOMEM;
 			goto param_fail;
 		}
+	} else {
+		w_param_text = NULL;
 	}
 	dev_dbg(card->dev, "ASoC: adding %s widget\n", link_name);
 
