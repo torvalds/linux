@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -84,6 +85,7 @@ struct xlp9xx_i2c_dev {
 	u32 __iomem *base;
 	u32 msg_buf_remaining;
 	u32 msg_len;
+	u32 ip_clk_hz;
 	u32 clk_hz;
 	u32 msg_err;
 	u8 *msg_buf;
@@ -213,7 +215,7 @@ static int xlp9xx_i2c_init(struct xlp9xx_i2c_dev *priv)
 	 * The controller uses 5 * SCL clock internally.
 	 * So prescale value should be divided by 5.
 	 */
-	prescale = DIV_ROUND_UP(XLP9XX_I2C_IP_CLK_FREQ, priv->clk_hz);
+	prescale = DIV_ROUND_UP(priv->ip_clk_hz, priv->clk_hz);
 	prescale = ((prescale - 8) / 5) - 1;
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, XLP9XX_I2C_CTRL_RST);
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, XLP9XX_I2C_CTRL_EN |
@@ -342,8 +344,18 @@ static const struct i2c_algorithm xlp9xx_i2c_algo = {
 static int xlp9xx_i2c_get_frequency(struct platform_device *pdev,
 				    struct xlp9xx_i2c_dev *priv)
 {
+	struct clk *clk;
 	u32 freq;
 	int err;
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		priv->ip_clk_hz = XLP9XX_I2C_IP_CLK_FREQ;
+		dev_dbg(&pdev->dev, "using default input frequency %u\n",
+			priv->ip_clk_hz);
+	} else {
+		priv->ip_clk_hz = clk_get_rate(clk);
+	}
 
 	err = device_property_read_u32(&pdev->dev, "clock-frequency", &freq);
 	if (err) {
