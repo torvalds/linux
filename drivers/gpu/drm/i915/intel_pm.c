@@ -7982,6 +7982,13 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 	gen6_reset_rps_interrupts(dev_priv);
 }
 
+static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
+{
+	lockdep_assert_held(&i915->pcu_lock);
+
+	/* Currently there is no HW configuration to be done to disable. */
+}
+
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
@@ -8007,8 +8014,18 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 		ironlake_disable_drps(dev_priv);
 	}
 
+	if (HAS_LLC(dev_priv))
+		intel_disable_llc_pstate(dev_priv);
+
 	rps->enabled = false;
 	mutex_unlock(&dev_priv->pcu_lock);
+}
+
+static inline void intel_enable_llc_pstate(struct drm_i915_private *i915)
+{
+	lockdep_assert_held(&i915->pcu_lock);
+
+	gen6_update_ring_freq(i915);
 }
 
 void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
@@ -8036,20 +8053,19 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 	} else if (INTEL_GEN(dev_priv) >= 9) {
 		gen9_enable_rc6(dev_priv);
 		gen9_enable_rps(dev_priv);
-		if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv))
-			gen6_update_ring_freq(dev_priv);
 	} else if (IS_BROADWELL(dev_priv)) {
 		gen8_enable_rc6(dev_priv);
 		gen8_enable_rps(dev_priv);
-		gen6_update_ring_freq(dev_priv);
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		gen6_enable_rc6(dev_priv);
 		gen6_enable_rps(dev_priv);
-		gen6_update_ring_freq(dev_priv);
 	} else if (IS_IRONLAKE_M(dev_priv)) {
 		ironlake_enable_drps(dev_priv);
 		intel_init_emon(dev_priv);
 	}
+
+	if (HAS_LLC(dev_priv))
+		intel_enable_llc_pstate(dev_priv);
 
 	WARN_ON(rps->max_freq < rps->min_freq);
 	WARN_ON(rps->idle_freq > rps->max_freq);
