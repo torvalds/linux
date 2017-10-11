@@ -11916,6 +11916,11 @@ static void vmx_setup_mce(struct kvm_vcpu *vcpu)
 			~FEATURE_CONTROL_LMCE;
 }
 
+static int vmx_smi_allowed(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+
 static int vmx_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 {
 	/* TODO: Implement */
@@ -12054,6 +12059,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.setup_mce = vmx_setup_mce,
 
+	.smi_allowed = vmx_smi_allowed,
 	.pre_enter_smm = vmx_pre_enter_smm,
 	.pre_leave_smm = vmx_pre_leave_smm,
 };
