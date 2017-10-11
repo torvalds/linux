@@ -560,16 +560,23 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	snprintf(name, sizeof(name), DRV_MODULE_NAME ".%d", id);
 	misc_device = &test->miscdev;
 	misc_device->minor = MISC_DYNAMIC_MINOR;
-	misc_device->name = name;
+	misc_device->name = kstrdup(name, GFP_KERNEL);
+	if (!misc_device->name) {
+		err = -ENOMEM;
+		goto err_ida_remove;
+	}
 	misc_device->fops = &pci_endpoint_test_fops,
 
 	err = misc_register(misc_device);
 	if (err) {
 		dev_err(dev, "failed to register device\n");
-		goto err_ida_remove;
+		goto err_kfree_name;
 	}
 
 	return 0;
+
+err_kfree_name:
+	kfree(misc_device->name);
 
 err_ida_remove:
 	ida_simple_remove(&pci_endpoint_test_ida, id);
@@ -603,6 +610,7 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 		return;
 
 	misc_deregister(&test->miscdev);
+	kfree(misc_device->name);
 	ida_simple_remove(&pci_endpoint_test_ida, id);
 	for (bar = BAR_0; bar <= BAR_5; bar++) {
 		if (test->bar[bar])
