@@ -569,10 +569,6 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 
 	for (i = 0; i < idaw_nr; i++) {
 		idaw_iova = *(idaws + i);
-		if (IS_ERR_VALUE(idaw_iova)) {
-			ret = -EFAULT;
-			goto out_free_idaws;
-		}
 
 		ret = pfn_array_alloc_pin(pat->pat_pa + i, cp->mdev,
 					  idaw_iova, 1);
