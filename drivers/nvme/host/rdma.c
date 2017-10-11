@@ -1052,7 +1052,7 @@ static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
 	if (!blk_rq_bytes(rq))
 		return;
 
-	if (req->mr->need_inval) {
+	if (req->mr->need_inval && test_bit(NVME_RDMA_Q_LIVE, &req->queue->flags)) {
 		res = nvme_rdma_inv_rkey(queue, req);
 		if (unlikely(res < 0)) {
 			dev_err(ctrl->ctrl.device,
