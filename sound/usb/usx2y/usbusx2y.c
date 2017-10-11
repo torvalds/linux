@@ -279,6 +279,9 @@ int usX2Y_AsyncSeq04_init(struct usX2Ydev *usX2Y)
 						usX2Y->AS04.buffer + URB_DataLen_AsyncSeq*i, 0,
 						i_usX2Y_Out04Int, usX2Y
 				);
+			err = usb_urb_ep_type_check(usX2Y->AS04.urb[i]);
+			if (err < 0)
+				break;
 		}
 	return err;
 }
@@ -298,6 +301,8 @@ int usX2Y_In04_init(struct usX2Ydev *usX2Y)
 			 usX2Y->In04Buf, 21,
 			 i_usX2Y_In04Int, usX2Y,
 			 10);
+	if (usb_urb_ep_type_check(usX2Y->In04urb))
+		return -EINVAL;
 	return usb_submit_urb(usX2Y->In04urb, GFP_KERNEL);
 }
 
