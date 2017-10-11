@@ -1985,13 +1985,13 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 	}
 }
 
-void disasm__purge(struct list_head *head)
+void annotated_source__purge(struct annotated_source *as)
 {
-	struct disasm_line *pos, *n;
+	struct annotation_line *al, *n;
 
-	list_for_each_entry_safe(pos, n, head, al.node) {
-		list_del(&pos->al.node);
-		disasm_line__free(pos);
+	list_for_each_entry_safe(al, n, &as->source, node) {
+		list_del(&al->node);
+		disasm_line__free(disasm_line(al));
 	}
 }
 
@@ -2047,7 +2047,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	if (print_lines)
 		symbol__free_source_line(sym, len);
 
-	disasm__purge(&symbol__annotation(sym)->src->source);
+	annotated_source__purge(symbol__annotation(sym)->src);
 
 	return 0;
 }

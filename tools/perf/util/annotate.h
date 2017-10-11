@@ -212,7 +212,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    int min_pcnt, int max_lines, int context);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
-void disasm__purge(struct list_head *head);
+void annotated_source__purge(struct annotated_source *as);
 
 bool ui__has_annotation(void);
 
