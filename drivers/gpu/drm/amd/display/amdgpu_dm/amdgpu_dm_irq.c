@@ -560,9 +560,9 @@ static void amdgpu_dm_irq_immediate_work(struct amdgpu_device *adev,
  * Generic IRQ handler, calls all registered high irq work immediately, and
  * schedules work for low irq
  */
-int amdgpu_dm_irq_handler(struct amdgpu_device *adev,
-			  struct amdgpu_irq_src *source,
-			  struct amdgpu_iv_entry *entry)
+static int amdgpu_dm_irq_handler(struct amdgpu_device *adev,
+				 struct amdgpu_irq_src *source,
+				 struct amdgpu_iv_entry *entry)
 {
 
 	enum dc_irq_source src =
