@@ -3632,7 +3632,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				aeq_info |= NES_AEQE_AEID_RDMAP_ROE_UNEXPECTED_OPCODE;
 				aeqe->aeqe_words[NES_AEQE_MISC_IDX] = cpu_to_le32(aeq_info);
 			}
-
+			/* fall through */
 		case NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE:
 		case NES_AEQE_AEID_LLP_TOO_MANY_RETRIES:
 		case NES_AEQE_AEID_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE:

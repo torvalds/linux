@@ -1768,6 +1768,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	case NES_CM_STATE_FIN_WAIT1:
 	case NES_CM_STATE_LAST_ACK:
 		cm_node->cm_id->rem_ref(cm_node->cm_id);
+		/* fall through */
 	case NES_CM_STATE_TIME_WAIT:
 		cm_node->state = NES_CM_STATE_CLOSED;
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
