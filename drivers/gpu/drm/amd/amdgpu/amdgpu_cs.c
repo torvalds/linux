@@ -97,7 +97,7 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	if (copy_from_user(chunk_array, chunk_array_user,
 			   sizeof(uint64_t)*cs->in.num_chunks)) {
 		ret = -EFAULT;
-		goto put_ctx;
+		goto free_chunk;
 	}
 
 	p->nchunks = cs->in.num_chunks;
@@ -105,7 +105,7 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 			    GFP_KERNEL);
 	if (!p->chunks) {
 		ret = -ENOMEM;
-		goto put_ctx;
+		goto free_chunk;
 	}
 
 	for (i = 0; i < p->nchunks; i++) {
@@ -191,8 +191,6 @@ free_partial_kdata:
 	kfree(p->chunks);
 	p->chunks = NULL;
 	p->nchunks = 0;
-put_ctx:
-	amdgpu_ctx_put(p->ctx);
 free_chunk:
 	kfree(chunk_array);
 
