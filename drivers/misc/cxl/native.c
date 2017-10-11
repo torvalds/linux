@@ -1263,14 +1263,23 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void cxl_native_err_irq_dump_regs(struct cxl *adapter)
+void cxl_native_err_irq_dump_regs_psl9(struct cxl *adapter)
+{
+	u64 fir1;
+
+	fir1 = cxl_p1_read(adapter, CXL_PSL9_FIR1);
+	dev_crit(&adapter->dev, "PSL_FIR: 0x%016llx\n", fir1);
+}
+
+void cxl_native_err_irq_dump_regs_psl8(struct cxl *adapter)
 {
 	u64 fir1, fir2;
 
 	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
 	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
-
-	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
+	dev_crit(&adapter->dev,
+		 "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n",
+		 fir1, fir2);
 }
 
 static irqreturn_t native_irq_err(int irq, void *data)

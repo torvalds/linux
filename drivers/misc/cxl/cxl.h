@@ -1072,7 +1072,8 @@ u64 cxl_calculate_sr(bool master, bool kernel, bool real_mode, bool p9);
 
 void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx);
 void cxl_native_irq_dump_regs_psl8(struct cxl_context *ctx);
-void cxl_native_err_irq_dump_regs(struct cxl *adapter);
+void cxl_native_err_irq_dump_regs_psl8(struct cxl *adapter);
+void cxl_native_err_irq_dump_regs_psl9(struct cxl *adapter);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
 void cxl_release_mapping(struct cxl_context *ctx);
