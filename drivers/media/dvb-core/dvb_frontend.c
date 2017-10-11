@@ -2096,7 +2096,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 
 	dev_dbg(fe->dvb->device, "%s:\n", __func__);
 
-	switch(cmd) {
+	switch (cmd) {
 	case FE_SET_PROPERTY: {
 		struct dtv_properties *tvps = parg;
 		struct dtv_property *tvp = NULL;
@@ -2164,7 +2164,8 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 			}
 		}
 		for (i = 0; i < tvps->num; i++) {
-			err = dtv_property_process_get(fe, &getp, tvp + i, file);
+			err = dtv_property_process_get(fe, &getp,
+						       tvp + i, file);
 			if (err < 0) {
 				kfree(tvp);
 				return err;
@@ -2296,7 +2297,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 
 	case FE_DISEQC_RECV_SLAVE_REPLY:
 		if (fe->ops.diseqc_recv_slave_reply)
-			err = fe->ops.diseqc_recv_slave_reply(fe, (struct dvb_diseqc_slave_reply*) parg);
+			err = fe->ops.diseqc_recv_slave_reply(fe, parg);
 		break;
 
 	case FE_ENABLE_HIGH_LNB_VOLTAGE:
@@ -2381,7 +2382,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 	case FE_READ_BER:
 		if (fe->ops.read_ber) {
 			if (fepriv->thread)
-				err = fe->ops.read_ber(fe, (__u32 *) parg);
+				err = fe->ops.read_ber(fe, parg);
 			else
 				err = -EAGAIN;
 		}
@@ -2390,7 +2391,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 	case FE_READ_SIGNAL_STRENGTH:
 		if (fe->ops.read_signal_strength) {
 			if (fepriv->thread)
-				err = fe->ops.read_signal_strength(fe, (__u16 *) parg);
+				err = fe->ops.read_signal_strength(fe, parg);
 			else
 				err = -EAGAIN;
 		}
@@ -2399,7 +2400,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 	case FE_READ_SNR:
 		if (fe->ops.read_snr) {
 			if (fepriv->thread)
-				err = fe->ops.read_snr(fe, (__u16 *) parg);
+				err = fe->ops.read_snr(fe, parg);
 			else
 				err = -EAGAIN;
 		}
@@ -2408,7 +2409,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 	case FE_READ_UNCORRECTED_BLOCKS:
 		if (fe->ops.read_ucblocks) {
 			if (fepriv->thread)
-				err = fe->ops.read_ucblocks(fe, (__u32 *) parg);
+				err = fe->ops.read_ucblocks(fe, parg);
 			else
 				err = -EAGAIN;
 		}

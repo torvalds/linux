@@ -101,7 +101,7 @@ struct dvb_demux_filter {
  * @cb:		digital TV callbacks. depending on the feed type, it can be:
  *		if the feed is TS, it contains a dmx_ts_cb() @ts callback;
  *		if the feed is section, it contains a dmx_section_cb() @sec
- * 		callback.
+ *		callback.
  *
  * @demux:	pointer to &struct dvb_demux.
  * @priv:	private data that can optionally be used by a DVB driver.
