@@ -154,9 +154,11 @@ static const u16 csc_coeff_rgb_in_eitu709[3][4] = {
 struct hdmi_vmode {
 	bool mdataenablepolarity;
 
+	unsigned int previous_pixelclock;
 	unsigned int mpixelclock;
 	unsigned int mpixelrepetitioninput;
 	unsigned int mpixelrepetitionoutput;
+	unsigned int previous_tmdsclock;
 	unsigned int mtmdsclock;
 };
 
@@ -1764,6 +1766,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
 	unsigned int vdisplay, hdisplay;
 
+	vmode->previous_pixelclock = vmode->mpixelclock;
 	vmode->mtmdsclock = vmode->mpixelclock = mode->crtc_clock * 1000;
 
 	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
@@ -1772,6 +1775,8 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 		vmode->mtmdsclock /= 2;
+
+	vmode->previous_tmdsclock = vmode->mtmdsclock;
 
 	/* Set up HDMI_FC_INVIDCONF */
 	inv_val = (hdmi->hdmi_data.hdcp_enable ||
@@ -2083,11 +2088,17 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	hdmi_av_composer(hdmi, mode);
 
 	/* HDMI Initializateion Step B.2 */
-	ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
-	if (ret)
-		return ret;
-	hdmi->phy.enabled = true;
-
+	if (!hdmi->phy.enabled ||
+	    hdmi->hdmi_data.video_mode.previous_pixelclock !=
+	    hdmi->hdmi_data.video_mode.mpixelclock ||
+	    hdmi->hdmi_data.video_mode.previous_tmdsclock !=
+	    hdmi->hdmi_data.video_mode.mtmdsclock) {
+		ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data,
+					  &hdmi->previous_mode);
+		if (ret)
+			return ret;
+		hdmi->phy.enabled = true;
+	}
 	/* HDMI Initialization Step B.3 */
 	dw_hdmi_enable_video_path(hdmi);
 
@@ -2282,6 +2293,64 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static void
+dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
+			       struct drm_connector_state *conn_state)
+{
+	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
+					     connector);
+	void *data = hdmi->plat_data->phy_data;
+	struct drm_display_mode *mode = NULL;
+	unsigned int enc_in_bus_format;
+	unsigned int enc_out_bus_format;
+	unsigned int enc_in_encoding;
+	unsigned int enc_out_encoding;
+
+	if (!hdmi->hpd_state || !conn_state->crtc)
+		return;
+
+	DRM_DEBUG("%s\n", __func__);
+
+	/*
+	 * If HDMI is enabled in uboot, it's need to record
+	 * drm_display_mode and set phy status to enabled.
+	 */
+	if (!hdmi->hdmi_data.video_mode.mpixelclock) {
+		mode = &conn_state->crtc->mode;
+		memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
+		hdmi->hdmi_data.video_mode.mpixelclock = mode->clock;
+		hdmi->hdmi_data.video_mode.previous_pixelclock = mode->clock;
+		hdmi->hdmi_data.video_mode.previous_tmdsclock = mode->clock;
+		hdmi->phy.enabled = true;
+		return;
+	}
+
+	if (hdmi->plat_data->get_enc_in_encoding)
+		enc_in_encoding = hdmi->plat_data->get_enc_in_encoding(data);
+	else
+		enc_in_encoding = hdmi->hdmi_data.enc_in_encoding;
+	if (hdmi->plat_data->get_enc_out_encoding)
+		enc_out_encoding = hdmi->plat_data->get_enc_out_encoding(data);
+	else
+		enc_out_encoding = hdmi->hdmi_data.enc_out_encoding;
+	if (hdmi->plat_data->get_input_bus_format)
+		enc_in_bus_format =
+			hdmi->plat_data->get_input_bus_format(data);
+	else
+		enc_in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
+	if (hdmi->plat_data->get_output_bus_format)
+		enc_out_bus_format =
+			hdmi->plat_data->get_output_bus_format(data);
+	else
+		enc_out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
+
+	if (enc_in_encoding != hdmi->hdmi_data.enc_in_encoding ||
+	    enc_out_encoding != hdmi->hdmi_data.enc_out_encoding ||
+	    enc_in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
+	    enc_out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
+		dw_hdmi_setup(hdmi, &hdmi->previous_mode);
+}
+
 static int
 dw_hdmi_atomic_connector_set_property(struct drm_connector *connector,
 				      struct drm_connector_state *state,
@@ -2354,6 +2423,7 @@ static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
 static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.get_modes = dw_hdmi_connector_get_modes,
 	.best_encoder = drm_atomic_helper_best_encoder,
+	.atomic_flush = dw_hdmi_connector_atomic_flush,
 };
 
 static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
