@@ -204,8 +204,6 @@ void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
-int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
-		     struct net_device **hw_dev);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -517,7 +515,6 @@ struct tc_cls_flower_offload {
 	struct fl_flow_key *mask;
 	struct fl_flow_key *key;
 	struct tcf_exts *exts;
-	bool egress_dev;
 };
 
 enum tc_matchall_command {
