@@ -131,6 +131,8 @@ static struct sk_buff *build_linear_skb(struct dpaa2_eth_priv *priv,
 	u16 fd_offset = dpaa2_fd_get_offset(fd);
 	u32 fd_length = dpaa2_fd_get_len(fd);
 
+	ch->buf_count--;
+
 	skb = build_skb(fd_vaddr, DPAA2_ETH_RX_BUF_SIZE +
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
 	if (unlikely(!skb))
@@ -138,8 +140,6 @@ static struct sk_buff *build_linear_skb(struct dpaa2_eth_priv *priv,
 
 	skb_reserve(skb, fd_offset);
 	skb_put(skb, fd_length);
-
-	ch->buf_count--;
 
 	return skb;
 }
@@ -178,8 +178,15 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 			/* We build the skb around the first data buffer */
 			skb = build_skb(sg_vaddr, DPAA2_ETH_RX_BUF_SIZE +
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
-			if (unlikely(!skb))
-				return NULL;
+			if (unlikely(!skb)) {
+				/* We still need to subtract the buffers used
+				 * by this FD from our software counter
+				 */
+				while (!dpaa2_sg_is_final(&sgt[i]) &&
+				       i < DPAA2_ETH_MAX_SG_ENTRIES)
+					i++;
+				break;
+			}
 
 			sg_offset = dpaa2_sg_get_offset(sge);
 			skb_reserve(skb, sg_offset);
