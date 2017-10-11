@@ -124,7 +124,7 @@ static struct sctp_sched_ops sctp_sched_fcfs = {
 extern struct sctp_sched_ops sctp_sched_prio;
 extern struct sctp_sched_ops sctp_sched_rr;
 
-struct sctp_sched_ops *sctp_sched_ops[] = {
+static struct sctp_sched_ops *sctp_sched_ops[] = {
 	&sctp_sched_fcfs,
 	&sctp_sched_prio,
 	&sctp_sched_rr,
