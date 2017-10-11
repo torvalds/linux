@@ -1045,10 +1045,10 @@ static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
 	}
 
 	vaddr = msm_gem_get_vaddr(obj);
-	if (!vaddr) {
+	if (IS_ERR(vaddr)) {
 		msm_gem_put_iova(obj, aspace);
 		drm_gem_object_unreference(obj);
-		return ERR_PTR(-ENOMEM);
+		return ERR_CAST(vaddr);
 	}
 
 	if (bo)
