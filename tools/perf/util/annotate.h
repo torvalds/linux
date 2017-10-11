@@ -61,6 +61,7 @@ struct annotation;
 
 struct annotation_line {
 	struct list_head	 node;
+	struct rb_node		 rb_node;
 	s64			 offset;
 	char			*line;
 	int			 line_nr;
