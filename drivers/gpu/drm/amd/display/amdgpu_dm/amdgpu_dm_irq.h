@@ -39,8 +39,7 @@
  *	0 - success
  *	non-zero - error
  */
-int amdgpu_dm_irq_init(
-	struct amdgpu_device *adev);
+int amdgpu_dm_irq_init(struct amdgpu_device *adev);
 
 /**
  * amdgpu_dm_irq_fini - deallocate internal structures of 'amdgpu_dm_irq'.
@@ -48,8 +47,7 @@ int amdgpu_dm_irq_init(
  * This function should be called exactly once - during DM destruction.
  *
  */
-void amdgpu_dm_irq_fini(
-	struct amdgpu_device *adev);
+void amdgpu_dm_irq_fini(struct amdgpu_device *adev);
 
 /**
  * amdgpu_dm_irq_register_interrupt - register irq handler for Display block.
@@ -65,11 +63,10 @@ void amdgpu_dm_irq_fini(
  *
  * Cannot be called from an interrupt handler.
  */
-void *amdgpu_dm_irq_register_interrupt(
-		struct amdgpu_device *adev,
-		struct dc_interrupt_params *int_params,
-		void (*ih)(void *),
-		void *handler_args);
+void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
+				       struct dc_interrupt_params *int_params,
+				       void (*ih)(void *),
+				       void *handler_args);
 
 /**
  * amdgpu_dm_irq_unregister_interrupt - unregister handler which was registered
@@ -79,26 +76,23 @@ void *amdgpu_dm_irq_register_interrupt(
  * @ih_index: irq handler index which was returned by
  *	amdgpu_dm_irq_register_interrupt
  */
-void amdgpu_dm_irq_unregister_interrupt(
-		struct amdgpu_device *adev,
-		enum dc_irq_source irq_source,
-		void *ih_index);
+void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
+					enum dc_irq_source irq_source,
+					void *ih_index);
 
-void amdgpu_dm_irq_register_timer(
-	struct amdgpu_device *adev,
-	struct dc_timer_interrupt_params *int_params,
-	interrupt_handler ih,
-	void *args);
+void amdgpu_dm_irq_register_timer(struct amdgpu_device *adev,
+				  struct dc_timer_interrupt_params *int_params,
+				  interrupt_handler ih,
+				  void *args);
 
 /**
  * amdgpu_dm_irq_handler
  * Generic IRQ handler, calls all registered high irq work immediately, and
  * schedules work for low irq
  */
-int amdgpu_dm_irq_handler(
-		struct amdgpu_device *adev,
-		struct amdgpu_irq_src *source,
-		struct amdgpu_iv_entry *entry);
+int amdgpu_dm_irq_handler(struct amdgpu_device *adev,
+			  struct amdgpu_irq_src *source,
+			  struct amdgpu_iv_entry *entry);
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev);
 
