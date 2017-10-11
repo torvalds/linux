@@ -245,6 +245,8 @@
 		pinctrl-0 = <&pinctrl_ds1339>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <20 0>;
+		trickle-resistor-ohms = <250>;
+		trickle-diode-disable;
 	};
 };
 
