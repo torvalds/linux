@@ -323,7 +323,7 @@ int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel)
 		dev_dbg(&spi->dev, "set: power level");
 	#endif
 
-	powerLevel +=18; // TODO Abhängigkeit von PA0,1,2 setting
+	powerLevel += 18; // TODO Abhängigkeit von PA0,1,2 setting
 
 	// check input value
 	if (powerLevel > 0x1f) {
@@ -589,24 +589,30 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
 
 	switch (DIONumber) {
 	case 0:
-		mask=MASK_DIO0; shift=SHIFT_DIO0; regaddr=REG_DIOMAPPING1; break;
+		mask = MASK_DIO0; shift = SHIFT_DIO0; regaddr = REG_DIOMAPPING1;
+		break;
 	case 1:
-		mask=MASK_DIO1; shift=SHIFT_DIO1; regaddr=REG_DIOMAPPING1; break;
+		mask = MASK_DIO1; shift = SHIFT_DIO1; regaddr = REG_DIOMAPPING1;
+		break;
 	case 2:
-		mask=MASK_DIO2; shift=SHIFT_DIO2; regaddr=REG_DIOMAPPING1; break;
+		mask = MASK_DIO2; shift = SHIFT_DIO2; regaddr = REG_DIOMAPPING1;
+		break;
 	case 3:
-		mask=MASK_DIO3; shift=SHIFT_DIO3; regaddr=REG_DIOMAPPING1; break;
+		mask = MASK_DIO3; shift = SHIFT_DIO3; regaddr = REG_DIOMAPPING1;
+		break;
 	case 4:
-		mask=MASK_DIO4; shift=SHIFT_DIO4; regaddr=REG_DIOMAPPING2; break;
+		mask = MASK_DIO4; shift = SHIFT_DIO4; regaddr = REG_DIOMAPPING2;
+		break;
 	case 5:
-		mask=MASK_DIO5; shift=SHIFT_DIO5; regaddr=REG_DIOMAPPING2; break;
+		mask = MASK_DIO5; shift = SHIFT_DIO5; regaddr = REG_DIOMAPPING2;
+		break;
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
 	}
 
 	// read reg
-	regValue=READ_REG(regaddr);
+	regValue = READ_REG(regaddr);
 	// delete old value
 	regValue = regValue & ~mask;
 	// add new value
@@ -960,7 +966,7 @@ int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 	retval = spi_sync_transfer(spi, &transfer, 1);
 
 	#ifdef DEBUG_FIFO_ACCESS
-		for (i=0; i<size; i++)
+		for (i = 0; i < size; i++)
 			dev_dbg(&spi->dev, "%d - 0x%x\n", i, local_buffer[i+1]);
 	#endif
 
@@ -988,7 +994,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 	memcpy(&local_buffer[1], buffer, size);  // TODO: ohne memcopy wäre schöner
 
 	#ifdef DEBUG_FIFO_ACCESS
-		for (i=0; i<size; i++)
+		for (i = 0; i < size; i++)
 			dev_dbg(&spi->dev, "0x%x\n",buffer[i]);
 	#endif
 
