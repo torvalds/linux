@@ -68,22 +68,20 @@ static const char * const dnames[] = {
 #else
 #define DVB_MAX_IDS		4
 
-static int nums2minor(int num, enum dvb_device_type type, int id)
-{
-	int n = (num << 6) | (id << 4);
+static const u8 minor_type[] = {
+       [DVB_DEVICE_VIDEO]      = 0,
+       [DVB_DEVICE_AUDIO]      = 1,
+       [DVB_DEVICE_SEC]        = 2,
+       [DVB_DEVICE_FRONTEND]   = 3,
+       [DVB_DEVICE_DEMUX]      = 4,
+       [DVB_DEVICE_DVR]        = 5,
+       [DVB_DEVICE_CA]         = 6,
+       [DVB_DEVICE_NET]        = 7,
+       [DVB_DEVICE_OSD]        = 8,
+};
 
-	switch (type) {
-	case DVB_DEVICE_VIDEO:		return n;
-	case DVB_DEVICE_AUDIO:		return n | 1;
-	case DVB_DEVICE_SEC:		return n | 2;
-	case DVB_DEVICE_FRONTEND:	return n | 3;
-	case DVB_DEVICE_DEMUX:		return n | 4;
-	case DVB_DEVICE_DVR:		return n | 5;
-	case DVB_DEVICE_CA:		return n | 6;
-	case DVB_DEVICE_NET:		return n | 7;
-	case DVB_DEVICE_OSD:		return n | 8;
-	}
-}
+#define nums2minor(num, type, id) \
+       (((num) << 6) | ((id) << 4) | minor_type[type])
 
 #define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS*64)
 #endif
