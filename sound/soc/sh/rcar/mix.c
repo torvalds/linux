@@ -84,7 +84,7 @@ static void rsnd_mix_halt(struct rsnd_mod *mod)
 
 #define rsnd_mix_get_vol(mix, X) \
 	rsnd_flags_has(mix, HAS_VOL##X) ? \
-		(VOL_MAX - mix->volume##X.cfg.val[0]) : 0
+		(VOL_MAX - rsnd_kctrl_vals(mix->volume##X)) : 0
 static void rsnd_mix_volume_parameter(struct rsnd_dai_stream *io,
 				      struct rsnd_mod *mod)
 {
@@ -116,9 +116,9 @@ static void rsnd_mix_volume_init(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, MIX_ADINR, rsnd_runtime_channel_after_ctu(io));
 
 	/* volume step */
-	rsnd_mod_write(mod, MIX_MIXMR, mix->ren.cfg.val[0]);
-	rsnd_mod_write(mod, MIX_MVPDR, mix->rup.cfg.val[0] << 8 |
-				       mix->rdw.cfg.val[0]);
+	rsnd_mod_write(mod, MIX_MIXMR, rsnd_kctrl_vals(mix->ren));
+	rsnd_mod_write(mod, MIX_MVPDR, rsnd_kctrl_vals(mix->rup) << 8 |
+				       rsnd_kctrl_vals(mix->rdw));
 
 	/* common volume parameter */
 	rsnd_mix_volume_parameter(io, mod);
@@ -217,7 +217,7 @@ static int rsnd_mix_pcm_new(struct rsnd_mod *mod,
 			       volume, VOL_MAX);
 	if (ret < 0)
 		return ret;
-	volume->cfg.val[0] = VOL_MAX;
+	rsnd_kctrl_vals(*volume) = VOL_MAX;
 
 	if (rsnd_flags_has(mix, ONCE_KCTRL_INITIALIZED))
 		return ret;

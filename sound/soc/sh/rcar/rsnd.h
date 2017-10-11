@@ -631,6 +631,10 @@ struct rsnd_kctrl_cfg_s {
 	struct rsnd_kctrl_cfg cfg;
 	u32 val;
 };
+#define rsnd_kctrl_size(x)	((x).cfg.size)
+#define rsnd_kctrl_max(x)	((x).cfg.max)
+#define rsnd_kctrl_valm(x, i)	((x).val[i])	/* = (x).cfg.val[i] */
+#define rsnd_kctrl_vals(x)	((x).val)	/* = (x).cfg.val[0] */
 
 int rsnd_kctrl_accept_anytime(struct rsnd_dai_stream *io);
 int rsnd_kctrl_accept_runtime(struct rsnd_dai_stream *io);

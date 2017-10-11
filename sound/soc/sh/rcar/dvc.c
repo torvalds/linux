@@ -73,8 +73,9 @@ static void rsnd_dvc_halt(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, DVC_SWRSR, 0);
 }
 
-#define rsnd_dvc_get_vrpdr(dvc) (dvc->rup.val << 8 | dvc->rdown.val)
-#define rsnd_dvc_get_vrdbr(dvc) (0x3ff - (dvc->volume.val[0] >> 13))
+#define rsnd_dvc_get_vrpdr(dvc) (rsnd_kctrl_vals(dvc->rup) << 8 | \
+				 rsnd_kctrl_vals(dvc->rdown))
+#define rsnd_dvc_get_vrdbr(dvc) (0x3ff - (rsnd_kctrl_valm(dvc->volume, 0) >> 13))
 
 static void rsnd_dvc_volume_parameter(struct rsnd_dai_stream *io,
 					      struct rsnd_mod *mod)
@@ -84,12 +85,12 @@ static void rsnd_dvc_volume_parameter(struct rsnd_dai_stream *io,
 	int i;
 
 	/* Enable Ramp */
-	if (dvc->ren.val)
+	if (rsnd_kctrl_vals(dvc->ren))
 		for (i = 0; i < RSND_MAX_CHANNELS; i++)
-			val[i] = dvc->volume.cfg.max;
+			val[i] = rsnd_kctrl_max(dvc->volume);
 	else
 		for (i = 0; i < RSND_MAX_CHANNELS; i++)
-			val[i] = dvc->volume.val[i];
+			val[i] = rsnd_kctrl_valm(dvc->volume, i);
 
 	/* Enable Digital Volume */
 	rsnd_mod_write(mod, DVC_VOL0R, val[0]);
@@ -119,7 +120,7 @@ static void rsnd_dvc_volume_init(struct rsnd_dai_stream *io,
 	dvucr |= 0x101;
 
 	/* Enable Ramp */
-	if (dvc->ren.val) {
+	if (rsnd_kctrl_vals(dvc->ren)) {
 		dvucr |= 0x10;
 
 		/*
@@ -161,10 +162,10 @@ static void rsnd_dvc_volume_update(struct rsnd_dai_stream *io,
 	u32 vrdbr = 0;
 	int i;
 
-	for (i = 0; i < dvc->mute.cfg.size; i++)
-		zcmcr |= (!!dvc->mute.cfg.val[i]) << i;
+	for (i = 0; i < rsnd_kctrl_size(dvc->mute); i++)
+		zcmcr |= (!!rsnd_kctrl_valm(dvc->mute, i)) << i;
 
-	if (dvc->ren.val) {
+	if (rsnd_kctrl_vals(dvc->ren)) {
 		vrpdr = rsnd_dvc_get_vrpdr(dvc);
 		vrdbr = rsnd_dvc_get_vrdbr(dvc);
 	}
