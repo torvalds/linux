@@ -116,16 +116,16 @@ PNAME(mux_cs_src_p)		= { "apllb_cs", "aplll_cs", "gpll_cs"};
 PNAME(mux_aclk_bus_src_p)	= { "cpll_aclk_bus", "gpll_aclk_bus" };
 
 PNAME(mux_pll_src_cpll_gpll_p)		= { "cpll", "gpll" };
-PNAME(mux_pll_src_cpll_gpll_npll_p)	= { "cpll", "gpll", "npll" };
+PNAME(mux_pll_src_cpll_gpll_npll_p)	= { "cpll", "gpll", "dummy_npll" };
 PNAME(mux_pll_src_dmycpll_dmygpll_npll_p)	= { "dummy_cpll", "dummy_gpll", "npll" };
-PNAME(mux_pll_src_npll_cpll_gpll_p)	= { "npll", "cpll", "gpll" };
+PNAME(mux_pll_src_npll_cpll_gpll_p)	= { "dummy_npll", "cpll", "gpll" };
 PNAME(mux_pll_src_cpll_gpll_usb_p)	= { "cpll", "gpll", "usbphy_480m" };
 PNAME(mux_pll_src_cpll_gpll_usb_usb_p)	= { "cpll", "gpll", "usbphy_480m",
 					    "usbphy_480m" };
 PNAME(mux_pll_src_cpll_gpll_usb_npll_p)	= { "cpll", "gpll", "usbphy_480m",
-					    "npll" };
-PNAME(mux_pll_src_cpll_gpll_npll_npll_p) = { "cpll", "gpll", "npll", "npll" };
-PNAME(mux_pll_src_cpll_gpll_npll_usb_p) = { "cpll", "gpll", "npll",
+					    "dummy_npll" };
+PNAME(mux_pll_src_cpll_gpll_npll_npll_p) = { "cpll", "gpll", "dummy_npll", "dummy_npll" };
+PNAME(mux_pll_src_cpll_gpll_npll_usb_p) = { "cpll", "gpll", "dummy_npll",
 					    "usbphy_480m" };
 
 PNAME(mux_i2s_8ch_pre_p)	= { "i2s_8ch_src", "i2s_8ch_frac",
