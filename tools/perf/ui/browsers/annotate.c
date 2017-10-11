@@ -444,17 +444,16 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct annotation_line *next;
 	struct disasm_line *pos;
-	s64 len = symbol__size(sym);
 
 	browser->entries = RB_ROOT;
 
 	pthread_mutex_lock(&notes->lock);
 
+	symbol__calc_percent(sym, evsel);
+
 	list_for_each_entry(pos, &notes->src->source, al.node) {
 		struct browser_disasm_line *bpos = disasm_line__browser(pos);
-		const char *path = NULL;
 		double max_percent = 0.0;
 		int i;
 
@@ -463,17 +462,11 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 			continue;
 		}
 
-		next = annotation_line__next(&pos->al, &notes->src->source);
-
 		for (i = 0; i < browser->nr_events; i++) {
-			struct sym_hist_entry sample;
+			struct annotation_data *sample = &pos->al.samples[i];
 
-			bpos->samples[i].percent = disasm__calc_percent(notes,
-						evsel->idx + i,
-						pos->al.offset,
-						next ? next->offset : len,
-						&path, &sample);
-			bpos->samples[i].he = sample;
+			bpos->samples[i].percent = sample->percent;
+			bpos->samples[i].he      = sample->he;
 
 			if (max_percent < bpos->samples[i].percent)
 				max_percent = bpos->samples[i].percent;
