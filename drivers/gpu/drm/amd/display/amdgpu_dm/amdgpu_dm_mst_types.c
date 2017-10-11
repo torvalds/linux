@@ -56,11 +56,11 @@ static inline char *side_band_msg_type_to_str(uint32_t address)
 	return str;
 }
 
-void log_dpcd(uint8_t type,
-	      uint32_t address,
-	      uint8_t *data,
-	      uint32_t size,
-	      bool res)
+static void log_dpcd(uint8_t type,
+		     uint32_t address,
+		     uint8_t *data,
+		     uint32_t size,
+		     bool res)
 {
 	DRM_DEBUG_KMS("Op: %s, addr: %04x, SideBand Msg: %s, Op res: %s\n",
 			(type == DP_AUX_NATIVE_READ) ||
