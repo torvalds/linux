@@ -573,11 +573,21 @@ static u32 bdx_deadline_rev(void)
 	return ~0U;
 }
 
+static u32 skx_deadline_rev(void)
+{
+	switch (boot_cpu_data.x86_mask) {
+	case 0x03: return 0x01000136;
+	case 0x04: return 0x02000014;
+	}
+
+	return ~0U;
+}
+
 static const struct x86_cpu_id deadline_match[] = {
 	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_HASWELL_X,	hsx_deadline_rev),
 	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_BROADWELL_X,	0x0b000020),
 	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_BROADWELL_XEON_D,	bdx_deadline_rev),
-	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_SKYLAKE_X,	0x02000014),
+	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_SKYLAKE_X,	skx_deadline_rev),
 
 	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_CORE,	0x22),
 	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_ULT,	0x20),
