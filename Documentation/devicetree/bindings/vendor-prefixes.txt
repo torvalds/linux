@@ -247,6 +247,7 @@ olimex	OLIMEX Ltd.
 onion	Onion Corporation
 onnn	ON Semiconductor Corp.
 ontat	On Tat Industrial Company
+opalkelly	Opal Kelly Incorporated
 opencores	OpenCores.org
 option	Option NV
 ORCL	Oracle Corporation
