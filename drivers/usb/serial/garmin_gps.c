@@ -1414,6 +1414,12 @@ static int garmin_port_probe(struct usb_serial_port *port)
 	usb_set_serial_port_data(port, garmin_data_p);
 
 	status = garmin_init_session(port);
+	if (status)
+		goto err_free;
+
+	return 0;
+err_free:
+	kfree(garmin_data_p);
 
 	return status;
 }
