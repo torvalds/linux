@@ -3186,7 +3186,7 @@ void ocrdma_eqd_set_task(struct work_struct *work)
 {
 	struct ocrdma_dev *dev =
 		container_of(work, struct ocrdma_dev, eqd_work.work);
-	struct ocrdma_eq *eq = 0;
+	struct ocrdma_eq *eq = NULL;
 	int i, num = 0, status = -EINVAL;
 	u64 eq_intr;
 
