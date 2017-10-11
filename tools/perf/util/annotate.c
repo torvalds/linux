@@ -1010,50 +1010,6 @@ annotation_line__next(struct annotation_line *pos, struct list_head *head)
 	return NULL;
 }
 
-double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
-			    s64 end, const char **path, struct sym_hist_entry *sample)
-{
-	struct source_line *src_line = notes->src->lines;
-	double percent = 0.0;
-
-	sample->nr_samples = sample->period = 0;
-
-	if (src_line) {
-		size_t sizeof_src_line = sizeof(*src_line) +
-				sizeof(src_line->samples) * (src_line->nr_pcnt - 1);
-
-		while (offset < end) {
-			src_line = (void *)notes->src->lines +
-					(sizeof_src_line * offset);
-
-			if (*path == NULL)
-				*path = src_line->path;
-
-			percent += src_line->samples[evidx].percent;
-			sample->nr_samples += src_line->samples[evidx].nr;
-			offset++;
-		}
-	} else {
-		struct sym_hist *h = annotation__histogram(notes, evidx);
-		unsigned int hits = 0;
-		u64 period = 0;
-
-		while (offset < end) {
-			hits   += h->addr[offset].nr_samples;
-			period += h->addr[offset].period;
-			++offset;
-		}
-
-		if (h->nr_samples) {
-			sample->period	   = period;
-			sample->nr_samples = hits;
-			percent = 100.0 * hits / h->nr_samples;
-		}
-	}
-
-	return percent;
-}
-
 static const char *annotate__address_color(struct block_range *br)
 {
 	double cov = block_range__coverage(br);
