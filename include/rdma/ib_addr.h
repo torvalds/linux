@@ -305,12 +305,12 @@ static inline void rdma_get_ll_mac(struct in6_addr *addr, u8 *mac)
 
 static inline int rdma_is_multicast_addr(struct in6_addr *addr)
 {
-	u32 ipv4_addr;
+	__be32 ipv4_addr;
 
 	if (addr->s6_addr[0] == 0xff)
 		return 1;
 
-	memcpy(&ipv4_addr, addr->s6_addr + 12, 4);
+	ipv4_addr = addr->s6_addr32[3];
 	return (ipv6_addr_v4mapped(addr) && ipv4_is_multicast(ipv4_addr));
 }
 
