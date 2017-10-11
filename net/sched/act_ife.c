@@ -464,6 +464,13 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_IFE_PARMS]);
 
+	/* IFE_DECODE is 0 and indicates the opposite of IFE_ENCODE because
+	 * they cannot run as the same time. Check on all other values which
+	 * are not supported right now.
+	 */
+	if (parm->flags & ~IFE_ENCODE)
+		return -EINVAL;
+
 	exists = tcf_idr_check(tn, parm->index, a, bind);
 	if (exists && bind)
 		return 0;
@@ -786,17 +793,7 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 	if (ife->flags & IFE_ENCODE)
 		return tcf_ife_encode(skb, a, res);
 
-	if (!(ife->flags & IFE_ENCODE))
-		return tcf_ife_decode(skb, a, res);
-
-	pr_info_ratelimited("unknown failure(policy neither de/encode\n");
-	spin_lock(&ife->tcf_lock);
-	bstats_update(&ife->tcf_bstats, skb);
-	tcf_lastuse_update(&ife->tcf_tm);
-	ife->tcf_qstats.drops++;
-	spin_unlock(&ife->tcf_lock);
-
-	return TC_ACT_SHOT;
+	return tcf_ife_decode(skb, a, res);
 }
 
 static int tcf_ife_walker(struct net *net, struct sk_buff *skb,
