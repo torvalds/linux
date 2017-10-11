@@ -495,8 +495,8 @@ config STM32_DMAMUX
 config STM32_MDMA
 	bool "STMicroelectronics STM32 master dma support"
 	depends on ARCH_STM32 || COMPILE_TEST
+	depends on OF
 	select DMA_ENGINE
-	select DMA_OF
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the on-chip MDMA controller on STMicroelectronics
