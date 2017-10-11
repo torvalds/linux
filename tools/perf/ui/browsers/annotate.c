@@ -1120,9 +1120,9 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
-				  sizeof_bdl, &browser.arch,
-				  perf_evsel__env_cpuid(evsel));
+	err = symbol__annotate(sym, map, perf_evsel__env_arch(evsel),
+			       sizeof_bdl, &browser.arch,
+			       perf_evsel__env_cpuid(evsel));
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
