@@ -121,16 +121,26 @@ static bool access_vm_reg(struct kvm_vcpu *vcpu,
 			  const struct sys_reg_desc *r)
 {
 	bool was_enabled = vcpu_has_cache_enabled(vcpu);
+	u64 val;
+	int reg = r->reg;
 
 	BUG_ON(!p->is_write);
 
-	if (!p->is_aarch32) {
-		vcpu_sys_reg(vcpu, r->reg) = p->regval;
+	/* See the 32bit mapping in kvm_host.h */
+	if (p->is_aarch32)
+		reg = r->reg / 2;
+
+	if (!p->is_aarch32 || !p->is_32bit) {
+		val = p->regval;
 	} else {
-		if (!p->is_32bit)
-			vcpu_cp15_64_high(vcpu, r->reg) = upper_32_bits(p->regval);
-		vcpu_cp15_64_low(vcpu, r->reg) = lower_32_bits(p->regval);
+		val = vcpu_sys_reg(vcpu, reg);
+		if (r->reg % 2)
+			val = (p->regval << 32) | (u64)lower_32_bits(val);
+		else
+			val = ((u64)upper_32_bits(val) << 32) |
+				lower_32_bits(p->regval);
 	}
+	vcpu_sys_reg(vcpu, reg) = val;
 
 	kvm_toggle_cache(vcpu, was_enabled);
 	return true;
