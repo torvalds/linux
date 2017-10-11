@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) ROCKCHIP, Inc.
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
 #ifndef __ASM_ARCH_GENERIC_SENSOR_RK_H_
 #include <linux/videodev2.h>
 #include <linux/slab.h>
@@ -13,7 +25,7 @@
 #include <media/soc_camera.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include "../../../arch/arm/mach-rockchip/rk30_camera.h"
+#include "../../../drivers/soc/rockchip/rk30_camera.h"
 #include <linux/kernel.h>
 /* Camera Sensor driver */
 
@@ -100,7 +112,7 @@ struct rk_sensor_sequence {
 
 /* only one fixed colorspace per pixelcode */
 struct rk_sensor_datafmt {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	enum v4l2_colorspace colorspace;
 };
 
@@ -201,10 +213,10 @@ typedef struct rk_sensor_priv_s
 	int chip_ident;
 	unsigned int gReg_mask;
 	unsigned int gVal_mask;
-	unsigned int gI2c_speed;
-
-    bool stream;
-	
+	struct rk_camera_device_signal_config dev_sig_cnf;
+	struct dentry *debugfs_dir;
+	int video_state;
+	bool stream;
 } rk_sensor_info_priv_t;
 
 struct sensor_v4l2ctrl_info_s {
@@ -245,6 +257,11 @@ struct	rk_flash_timer{
 	struct hrtimer timer;
 };
 
+struct rk_state_check_work {
+	struct workqueue_struct *state_check_wq;
+	struct delayed_work work;
+};
+
 struct generic_sensor
 {
     char dev_name[32];
@@ -254,6 +271,9 @@ struct generic_sensor
     int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
 
     int crop_percent;
+	int irq;
+	struct rk_state_check_work state_check_work;
+	int channel_id;
 
     bool is_need_tasklock;
     atomic_t tasklock_cnt;
@@ -298,9 +318,8 @@ extern int generic_sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext
 extern int generic_sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl);
 extern long generic_sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
 extern int generic_sensor_s_power(struct v4l2_subdev *sd, int on);/*yzm*/
-extern int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,enum v4l2_mbus_pixelcode *code);
+extern int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index, u32 *code);
 extern int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf);
-extern int generic_sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id);
 extern int generic_sensor_af_workqueue_set(struct soc_camera_device *icd, enum rk_sensor_focus_wq_cmd cmd, int var, bool wait);
 extern int generic_sensor_s_stream(struct v4l2_subdev *sd, int enable);
 extern int generic_sensor_writebuf(struct i2c_client *client, char *buf, int buf_size);
@@ -776,7 +795,6 @@ static inline int sensor_v4l2ctrl_flip_default_cb(struct soc_camera_device *icd,
 	    spsensor->common_sensor.info_priv.gReg_mask |= (0xff<<(i*8));  \
     for (i=0; i<SENSOR_VALUE_LEN; i++) \
 	    spsensor->common_sensor.info_priv.gVal_mask |= (0xff<<(i*8));  \
-	spsensor->common_sensor.info_priv.gI2c_speed = 100000;  \
     if (sensor_regarray_check(sensor_softreset_data, sizeof(sensor_softreset_data)/sizeof(struct rk_sensor_reg))==0) { \
         spsensor->common_sensor.info_priv.sensor_SfRstSeqe = sensor_softreset_data; \
     } else { \
@@ -1226,7 +1244,6 @@ static inline int sensor_v4l2ctrl_flip_default_cb(struct soc_camera_device *icd,
 	.s_ctrl 	= generic_sensor_s_control,\
 	.g_ext_ctrls		  = generic_sensor_g_ext_controls,\
 	.s_ext_ctrls		  = generic_sensor_s_ext_controls,\
-	.g_chip_ident	= generic_sensor_g_chip_ident,\
 	.ioctl = generic_sensor_ioctl,\
 	.s_power = generic_sensor_s_power,\
 };\
@@ -1293,6 +1310,7 @@ MODULE_DEVICE_TABLE(i2c, sensor_id);
 \
 	v4l2_i2c_subdev_init(&spsensor->common_sensor.subdev, client, &sensor_subdev_ops);\
     sensor_init_parameters(spsensor,icd);\
+    spsensor->common_sensor.client = client;\
 \
     ret = sensor_video_probe(icd, client);\
 \
@@ -1311,7 +1329,6 @@ sensor_probe_end:\
     	    icd->ops = NULL;\
         }\
         i2c_set_clientdata(client, NULL);\
-    	client->driver = NULL;\
         if (spsensor) {\
             kfree(spsensor);\
         }\
@@ -1348,7 +1365,6 @@ sensor_probe_end:\
 	    icd->ops = NULL;\
     }\
 	i2c_set_clientdata(client, NULL);\
-	client->driver = NULL;\
     if (spsensor) {\
         kfree(spsensor);\
     }\

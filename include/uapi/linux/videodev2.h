@@ -1485,6 +1485,7 @@ struct v4l2_ext_control {
 		struct v4l2_ctrl_vp8_frame_hdr __user *p_vp8_frame_hdr;
 		void __user *ptr;
 	};
+	__s32 rect[4];/*rockchip add for focus zone*/
 } __attribute__ ((packed));
 
 struct v4l2_ext_controls {

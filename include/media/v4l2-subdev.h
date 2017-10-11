@@ -409,12 +409,30 @@ struct v4l2_subdev_video_ops {
 				struct v4l2_subdev_frame_interval *interval);
 	int (*s_frame_interval)(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *interval);
+
+	int (*enum_framesizes)(struct v4l2_subdev *sd,
+			       struct v4l2_frmsizeenum *fsize);
+	int (*enum_frameintervals)(struct v4l2_subdev *sd,
+				   struct v4l2_frmivalenum *fival);
+
 	int (*s_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*g_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
+
+	int (*enum_mbus_fmt)(struct v4l2_subdev *sd, unsigned int index,
+			     u32 *code);
+	int (*enum_mbus_fsizes)(struct v4l2_subdev *sd,
+				struct v4l2_frmsizeenum *fsize);
+	int (*g_mbus_fmt)(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *fmt);
+	int (*try_mbus_fmt)(struct v4l2_subdev *sd,
+			    struct v4l2_mbus_framefmt *fmt);
+	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *fmt);
+
 	int (*g_mbus_config)(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg);
 	int (*s_mbus_config)(struct v4l2_subdev *sd,

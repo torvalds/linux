@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) ROCKCHIP, Inc.
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -60,7 +72,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_RDWRCHK 0
 
 static const struct rk_sensor_datafmt *generic_sensor_find_datafmt(
-	enum v4l2_mbus_pixelcode code, const struct rk_sensor_datafmt *fmt,
+	u32 code, const struct rk_sensor_datafmt *fmt,
 	int n);
 
 int sensor_write_reg2val1(struct i2c_client *client, u16 reg,u8 val){	
@@ -112,10 +124,7 @@ int generic_sensor_write(struct i2c_client *client,struct rk_sensor_reg* sensor_
 	int err,cnt = 0,i;
 	u8 buf[6];
 	struct i2c_msg msg[1];
-	u32 i2c_speed;
     struct generic_sensor *sensor = to_generic_sensor(client);
-    
-	i2c_speed = sensor->info_priv.gI2c_speed;
 
 	err = 0;
 	switch(sensor_reg->reg){
@@ -144,7 +153,6 @@ int generic_sensor_write(struct i2c_client *client,struct rk_sensor_reg* sensor_
 			msg->addr = client->addr;
 			msg->flags = client->flags;
 			msg->buf = buf;
-			msg->scl_rate = i2c_speed;		 /* ddl@rock-chips.com : 100kHz */
 		//	msg->read_type = 0; 			  /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
 			msg->len = cnt;
 			cnt = 3;
@@ -153,7 +161,6 @@ int generic_sensor_write(struct i2c_client *client,struct rk_sensor_reg* sensor_
 			debug_printk( "/___________/msg->addr = %x \n",msg->addr);
 			debug_printk( "/___________/msg->flags = %x\n",msg->flags);
 			debug_printk( "/___________/msg->buf = %d\n",msg->buf);
-			debug_printk( "/___________/msg->scl_rate = %d\n",msg->scl_rate);
 			debug_printk( "/___________/msg->len = %d\n",msg->len);
 			debug_printk( "/___________/client->adapter = %p\n",client->adapter);
 			*/
@@ -185,7 +192,6 @@ int generic_sensor_writebuf(struct i2c_client *client, char *buf, int buf_size)
 	msg->addr = client->addr;
 	msg->flags = client->flags;
 	msg->buf = buf;
-	msg->scl_rate = sensor->info_priv.gI2c_speed;		 /* ddl@rock-chips.com : 100kHz */
 	//msg->read_type = 0; 			  
 	msg->len = buf_size;
 	cnt = 3;
@@ -281,11 +287,9 @@ int generic_sensor_read(struct i2c_client *client, struct rk_sensor_reg* sensor_
 	u8 buf_reg[3];
 	u8 buf_val[3];
 	struct i2c_msg msg[2];
-	u32 i2c_speed;
-    struct generic_sensor *sensor = to_generic_sensor(client);
+	struct generic_sensor *sensor = to_generic_sensor(client);
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-	i2c_speed = sensor->info_priv.gI2c_speed;
-	
+
     cnt=0;            
     for (i=2; i>=0; i--) {
         if((sensor_reg->reg_mask) & (0xff<<(i*8))) {
@@ -296,7 +300,6 @@ int generic_sensor_read(struct i2c_client *client, struct rk_sensor_reg* sensor_
 	msg[0].addr = client->addr;
 	msg[0].flags = client->flags;
 	msg[0].buf = buf_reg;
-	msg[0].scl_rate = i2c_speed;		 /* ddl@rock-chips.com : 100kHz */
 	//msg[0].read_type = 2;	/* fpga i2c:0==I2C_NO_STOP : direct use number not enum for don't want include spi_fpga.h */
 	msg[0].len = cnt;
 
@@ -312,7 +315,6 @@ int generic_sensor_read(struct i2c_client *client, struct rk_sensor_reg* sensor_
 	msg[1].flags = client->flags|I2C_M_RD;
 	msg[1].buf = buf_val;
 	msg[1].len = cnt;
-	msg[1].scl_rate = i2c_speed;						 /* ddl@rock-chips.com : 100kHz */
 	//msg[1].read_type = 2;							  /* fpga i2c:0==I2C_NO_STOP : direct use number not enum for don't want include spi_fpga.h */
 
 	cnt = 1;
@@ -512,7 +514,7 @@ static int sensor_try_fmt(struct i2c_client *client,unsigned int *set_w,unsigned
 	*set_h =  tmp_h;
 	//only has the init array
 	if((tmp_w == 10000) && (tmp_index != -1)){        
-		SENSOR_TR("have not other series meet the requirement except init_serie,array_index = %d",tmp_index);
+		SENSOR_DG("have not other series meet the requirement except init_serie,array_index = %d", tmp_index);
 		*set_w = sensor->info_priv.sensor_series[tmp_index].gSeq_info.w;
 		*set_h = sensor->info_priv.sensor_series[tmp_index].gSeq_info.h;
 		goto try_end;
@@ -560,14 +562,15 @@ int generic_sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf
         fmt = &(sensor->info_priv.curfmt);
         mf->code = fmt->code;
     }
-    /* ddl@rock-chips.com : It is query max resolution only. */
-    if (mf->reserved[6] == 0xfefe5a5a) {
-        mf->height = sensor->info_priv.max_res.h ;
-        mf->width = sensor->info_priv.max_res.w;
-        ret = 0;
-        SENSOR_DG("Query resolution: %dx%d",mf->width, mf->height);
-        goto generic_sensor_try_fmt_end;
-    }
+	/* ddl@rock-chips.com : It is query max resolution only. */
+	if (mf->reserved[6] == 0xfe5a) {
+		mf->height = sensor->info_priv.max_res.h;
+		mf->width = sensor->info_priv.max_res.w;
+		ret = 0;
+		SENSOR_DG("Query resolution: %dx%d", mf->width, mf->height);
+
+		goto generic_sensor_try_fmt_end;
+	}
     //use this to filter unsupported resolutions
     if (sensor->sensor_cb.sensor_try_fmt_cb_th){
    	    ret = sensor->sensor_cb.sensor_try_fmt_cb_th(client, mf);
@@ -596,19 +599,18 @@ generic_sensor_try_fmt_end:
 
 int generic_sensor_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *cc)
 {
-    struct i2c_client *client = v4l2_get_subdevdata(sd);
-    struct generic_sensor *sensor = to_generic_sensor(client);
-    int ret=0;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct generic_sensor *sensor = to_generic_sensor(client);
 
-    cc->bounds.left = 0;
-    cc->bounds.top = 0;
-    cc->bounds.width = sensor->info_priv.max_res.w;
-    cc->bounds.height = sensor->info_priv.max_res.h;
-    
-    cc->pixelaspect.denominator = sensor->info_priv.max_res.w;
-    cc->pixelaspect.numerator = sensor->info_priv.max_res.h;
+	cc->bounds.left = 0;
+	cc->bounds.top = 0;
+	cc->bounds.width = sensor->info_priv.max_res.w;
+	cc->bounds.height = sensor->info_priv.max_res.h;
 
-    return ret;
+	cc->pixelaspect.denominator = sensor->info_priv.max_res.w;
+	cc->pixelaspect.numerator = sensor->info_priv.max_res.h;
+
+	return 0;
 }
 
 int generic_sensor_enum_frameintervals(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival){
@@ -618,7 +620,8 @@ int generic_sensor_enum_frameintervals(struct v4l2_subdev *sd, struct v4l2_frmiv
 	struct generic_sensor *sensor = to_generic_sensor(client);
 
 	if (fival->height > sensor->info_priv.max_res.h|| fival->width > sensor->info_priv.max_res.w){
-        SENSOR_TR("this resolution(%dx%d) isn't support!",fival->width,fival->height);
+		SENSOR_DG("this resolution(%dx%d) isn't support!",
+			  fival->width, fival->height);
         err = -1;
         goto enum_frameintervals_end;
 	}
@@ -630,7 +633,10 @@ int generic_sensor_enum_frameintervals(struct v4l2_subdev *sd, struct v4l2_frmiv
     fival->reserved[1] = (set_w<<16)|set_h;
     fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 
-    SENSOR_DG("%dx%d(real:%dx%d) framerate: %d",fival->width,fival->height,set_w,set_h,fival->discrete.denominator);
+	SENSOR_DG("%dx%d(real:%dx%d) framerate: %d",
+		  fival->width, fival->height,
+		  set_w, set_h,
+		  fival->discrete.denominator);
 enum_frameintervals_end:
 	return err;
 }
@@ -643,7 +649,7 @@ static enum hrtimer_restart generic_flash_off_func(struct hrtimer *timer){
 }
 /* Find a data format by a pixel code in an array */
 static const struct rk_sensor_datafmt *generic_sensor_find_datafmt(
-	enum v4l2_mbus_pixelcode code, const struct rk_sensor_datafmt *fmt,
+	u32 code, const struct rk_sensor_datafmt *fmt,
 	int n)
 {
 	int i;
@@ -811,7 +817,6 @@ int generic_sensor_init(struct v4l2_subdev *sd, u32 val)
     
     /* ddl@rock-chips.com : i2c speed is config in new_camera_device_ex macro */
     if (sensor_device) {
-        sensor->info_priv.gI2c_speed = sensor_device->i2c_rate;
         sensor->info_priv.mirror = sensor_device->mirror;
     }
     
@@ -912,7 +917,8 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     struct generic_sensor *sensor = to_generic_sensor(client);
     struct rk_sensor_sequence *winseqe_set_addr=NULL;
     struct sensor_v4l2ctrl_info_s *v4l2ctrl_info=NULL;
-    bool is_capture=(mf->reserved[0]==0xfefe5a5a)?true:false;    /* ddl@rock-chips.com : v0.1.5 */ 
+	/* ddl@rock-chips.com : v0.1.5 */
+	bool is_capture = (mf->reserved[0] == 0xfe5a) ? true : false;
     int ret=0;
 
     fmt =generic_sensor_find_datafmt(mf->code, sensor->info_priv.datafmt,
@@ -961,23 +967,7 @@ sensor_s_fmt_end:
     Sensor_CropSet(mf,sensor->crop_percent);    /* ddl@rock-chips.com: v0.1.b */
 	return ret;
 }
- int generic_sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct generic_sensor *sensor = to_generic_sensor(client);
 
-	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	if (id->match.addr != client->addr)
-		return -ENODEV;
-
-	id->ident = sensor->info_priv.chip_ident;		/* ddl@rock-chips.com :  Return OV2655	identifier */
-	id->revision = 0;
-
-	return 0;
-}
- 
 int generic_sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1013,32 +1003,32 @@ int generic_sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 int generic_sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct i2c_client *client = v4l2_get_subdevdata(sd);
-    struct generic_sensor *sensor = to_generic_sensor(client);
-    struct soc_camera_subdev_desc *ssdd = client->dev.platform_data;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct generic_sensor *sensor = to_generic_sensor(client);
+	struct soc_camera_subdev_desc *ssdd = client->dev.platform_data;
 	struct soc_camera_device *icd = ssdd->socdev;
-    struct sensor_v4l2ctrl_info_s *ctrl_info;
-    struct v4l2_ext_control ext_ctrl;
-    int ret = 0;
+	struct sensor_v4l2ctrl_info_s *ctrl_info;
+	struct v4l2_ext_control ext_ctrl;
+	int ret = 0;
 
-    ctrl_info = sensor_find_ctrl(sensor->ctrls,ctrl->id);
-    if (!ctrl_info) {
-        SENSOR_TR("v4l2_control id(0x%x) is invalidate",ctrl->id);
-        ret = -EINVAL;
-    } else {
+	ctrl_info = sensor_find_ctrl(sensor->ctrls, ctrl->id);
+	if (!ctrl_info) {
+		SENSOR_DG("v4l2_control id(0x%x) is invalidate", ctrl->id);
+		ret = -EINVAL;
+	} else {
+		ext_ctrl.id = ctrl->id;
+		ext_ctrl.value = ctrl->value;
 
-        ext_ctrl.id = ctrl->id;
-        ext_ctrl.value = ctrl->value;
-        
-        if (ctrl_info->cb) {
-            ret = (ctrl_info->cb)(icd,ctrl_info, &ext_ctrl,true);
-        } else {
-            SENSOR_TR("v4l2_control id(0x%x) callback isn't exist",ctrl->id);
-            ret = -EINVAL;
-        }
-    }
+		if (ctrl_info->cb) {
+			ret = ctrl_info->cb(icd, ctrl_info, &ext_ctrl, true);
+		} else {
+			SENSOR_TR("v4l2_control id(0x%x) callback isn't exist",
+				  ctrl->id);
+			ret = -EINVAL;
+		}
+	}
 
-    return ret;
+	return ret;
 }
 
 int generic_sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_control *ext_ctrl)
@@ -1066,26 +1056,30 @@ int generic_sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext
     return ret;
 }
 
-int generic_sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_control *ext_ctrl)
+int generic_sensor_s_ext_control(struct soc_camera_device *icd,
+				 struct v4l2_ext_control *ext_ctrl)
 {
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct generic_sensor *sensor = to_generic_sensor(client);
-    struct sensor_v4l2ctrl_info_s *ctrl_info;
-    int ret = 0;
-    
-    ctrl_info = sensor_find_ctrl(sensor->ctrls,ext_ctrl->id);
-    if (!ctrl_info) {
-        SENSOR_TR("v4l2_ext_control id(0x%x) is invalidate",ext_ctrl->id);
-        ret = -EINVAL;
-    } else {        
-        if (ctrl_info->cb) {
-            ret = (ctrl_info->cb)(icd,ctrl_info, ext_ctrl,true);
-        } else {
-            SENSOR_TR("v4l2_ext_control id(0x%x) callback isn't exist",ext_ctrl->id);
-            ret = -EINVAL;
-        }
-    }
-    return 0;
+	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct generic_sensor *sensor = to_generic_sensor(client);
+	struct sensor_v4l2ctrl_info_s *ctrl_info;
+	int ret = 0;
+
+	ctrl_info = sensor_find_ctrl(sensor->ctrls, ext_ctrl->id);
+	if (!ctrl_info) {
+		SENSOR_DG("v4l2_ext_control id(0x%x) is invalidate",
+			  ext_ctrl->id);
+		ret = -EINVAL;
+	} else {
+		if (ctrl_info->cb) {
+			ret = ctrl_info->cb(icd, ctrl_info, ext_ctrl, true);
+		} else {
+			SENSOR_TR("v4l2_ext_control id(0x%x) callback isn't exist",
+				  ext_ctrl->id);
+			ret = -EINVAL;
+		}
+	}
+
+	return 0;
 }
   int generic_sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl)
  {
@@ -1175,7 +1169,7 @@ long generic_sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
             /* ddl@rock-chips.com : if gpio_flash havn't been set in board-xxx.c, sensor driver must notify is not support flash control 
                for this project */
             if (sensor->sensor_gpio_res) {                
-                if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
+                if (sensor->sensor_gpio_res->gpio_flash) {
                     flash_attach = false;
                 } else { 
                     flash_attach = true;
@@ -1210,9 +1204,18 @@ long generic_sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
             }
             break;
         }
+
+		case RK29_CAM_SUBDEV_GET_INTERFACE:
+		{
+			memcpy(arg, &sensor->info_priv.dev_sig_cnf,
+			       sizeof(sensor->info_priv.dev_sig_cnf));
+			SENSOR_DG("%s ioctl get src fmt: %s", __func__,
+				  (char *)arg);
+			break;
+		}
         default:
         {
-            SENSOR_TR("%s cmd(0x%x) is unknown !\n",__FUNCTION__,cmd);
+            SENSOR_DG("%s cmd(0x%x) is unknown !\n",__FUNCTION__,cmd);
             break;
         }
     }
@@ -1231,7 +1234,7 @@ int generic_sensor_s_power(struct v4l2_subdev *sd, int on)
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 	if(on)
 		{
-			ret = soc_camera_power_on(icd->pdev,ssdd);
+			ret = soc_camera_power_on(icd->pdev, ssdd, NULL);
 			if(ret < 0)				
             	SENSOR_TR("%s(%d)power_on fail !\n",__FUNCTION__,__LINE__);
 				
@@ -1240,7 +1243,7 @@ int generic_sensor_s_power(struct v4l2_subdev *sd, int on)
 		{
 		
 			v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
-			soc_camera_power_off(icd->pdev,ssdd);			
+			soc_camera_power_off(icd->pdev, ssdd, NULL);
 			if(ret < 0)				
             	SENSOR_TR("%s(%d)power_off fail !\n",__FUNCTION__,__LINE__);
 			
@@ -1251,7 +1254,7 @@ int generic_sensor_s_power(struct v4l2_subdev *sd, int on)
 
  
 int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-	 enum v4l2_mbus_pixelcode *code)
+	 u32 *code)
 {
 
     struct i2c_client *client = v4l2_get_subdevdata(sd);

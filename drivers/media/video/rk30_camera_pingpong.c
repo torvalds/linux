@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) ROCKCHIP, Inc.
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -28,7 +40,7 @@
 #include <linux/rockchip/iomap.h>
 
 #include "../../video/rockchip/rga/rga.h"
-#include "../../../arch/arm/mach-rockchip/rk30_camera.h"/*yzm*/
+#include "../../../drivers/soc/rockchip/rk30_camera.h"/*yzm*/
 #include <linux/rockchip/cru.h>
 
 /*******yzm*********
@@ -161,8 +173,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CIF_F0_READY (0x01<<0)
 #define CIF_F1_READY (0x01<<1)
 
-extern unsigned long rk_cif_grf_base;
-extern unsigned long rk_cif_cru_base;
+extern void __iomem *rk_cif_grf_base;
+extern void __iomem *rk_cif_cru_base;
 
 #define MIN(x,y)   ((x<y) ? x: y)
 #define MAX(x,y)    ((x>y) ? x: y)
