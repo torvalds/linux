@@ -925,10 +925,6 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 
 	++ctrl->ctrl.nr_reconnects;
 
-	if (ctrl->ctrl.queue_count > 1)
-		nvme_rdma_destroy_io_queues(ctrl, false);
-
-	nvme_rdma_destroy_admin_queue(ctrl, false);
 	ret = nvme_rdma_configure_admin_queue(ctrl, false);
 	if (ret)
 		goto requeue;
@@ -936,7 +932,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	if (ctrl->ctrl.queue_count > 1) {
 		ret = nvme_rdma_configure_io_queues(ctrl, false);
 		if (ret)
-			goto requeue;
+			goto destroy_admin;
 	}
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
@@ -946,14 +942,17 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 		return;
 	}
 
-	ctrl->ctrl.nr_reconnects = 0;
-
 	nvme_start_ctrl(&ctrl->ctrl);
 
-	dev_info(ctrl->ctrl.device, "Successfully reconnected\n");
+	dev_info(ctrl->ctrl.device, "Successfully reconnected (%d attempts)\n",
+			ctrl->ctrl.nr_reconnects);
+
+	ctrl->ctrl.nr_reconnects = 0;
 
 	return;
 
+destroy_admin:
+	nvme_rdma_destroy_admin_queue(ctrl, false);
 requeue:
 	dev_info(ctrl->ctrl.device, "Failed reconnect attempt %d\n",
 			ctrl->ctrl.nr_reconnects);
@@ -969,17 +968,15 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 
 	if (ctrl->ctrl.queue_count > 1) {
 		nvme_stop_queues(&ctrl->ctrl);
-		nvme_rdma_stop_io_queues(ctrl);
-	}
-	blk_mq_quiesce_queue(ctrl->ctrl.admin_q);
-	nvme_rdma_stop_queue(&ctrl->queues[0]);
-
-	/* We must take care of fastfail/requeue all our inflight requests */
-	if (ctrl->ctrl.queue_count > 1)
 		blk_mq_tagset_busy_iter(&ctrl->tag_set,
 					nvme_cancel_request, &ctrl->ctrl);
+		nvme_rdma_destroy_io_queues(ctrl, false);
+	}
+
+	blk_mq_quiesce_queue(ctrl->ctrl.admin_q);
 	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
 				nvme_cancel_request, &ctrl->ctrl);
+	nvme_rdma_destroy_admin_queue(ctrl, false);
 
 	/*
 	 * queues are not a live anymore, so restart the queues to fail fast
