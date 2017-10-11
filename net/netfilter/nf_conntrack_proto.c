@@ -87,6 +87,29 @@ void nf_l4proto_log_invalid(const struct sk_buff *skb,
 	va_end(args);
 }
 EXPORT_SYMBOL_GPL(nf_l4proto_log_invalid);
+
+__printf(3, 4)
+void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
+			       const struct nf_conn *ct,
+			       const char *fmt, ...)
+{
+	struct va_format vaf;
+	struct net *net;
+	va_list args;
+
+	net = nf_ct_net(ct);
+	if (likely(net->ct.sysctl_log_invalid == 0))
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	nf_l4proto_log_invalid(skb, net, nf_ct_l3num(ct),
+			       nf_ct_protonum(ct), "%pV", &vaf);
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_log_invalid);
 #endif
 
 const struct nf_conntrack_l4proto *

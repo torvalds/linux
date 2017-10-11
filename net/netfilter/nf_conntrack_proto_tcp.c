@@ -702,9 +702,9 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		if (sender->flags & IP_CT_TCP_FLAG_BE_LIBERAL ||
 		    tn->tcp_be_liberal)
 			res = true;
-		if (!res && LOG_INVALID(net, IPPROTO_TCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-			"nf_ct_tcp: %s ",
+		if (!res) {
+			nf_ct_l4proto_log_invalid(skb, ct,
+			"%s",
 			before(seq, sender->td_maxend + 1) ?
 			in_recv_win ?
 			before(sack, receiver->td_end + 1) ?
@@ -713,6 +713,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			: "ACK is over the upper bound (ACKed data not seen yet)"
 			: "SEQ is under the lower bound (already ACKed data retransmitted)"
 			: "SEQ is over the upper bound (over the window of the receiver)");
+		}
 	}
 
 	pr_debug("tcp_in_window: res=%u sender end=%u maxend=%u maxwin=%u "
@@ -937,10 +938,8 @@ static int tcp_packet(struct nf_conn *ct,
 					IP_CT_EXP_CHALLENGE_ACK;
 		}
 		spin_unlock_bh(&ct->lock);
-		if (LOG_INVALID(net, IPPROTO_TCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				  "nf_ct_tcp: invalid packet ignored in "
-				  "state %s ", tcp_conntrack_names[old_state]);
+		nf_ct_l4proto_log_invalid(skb, ct, "invalid packet ignored in "
+					  "state %s ", tcp_conntrack_names[old_state]);
 		return NF_ACCEPT;
 	case TCP_CONNTRACK_MAX:
 		/* Special case for SYN proxy: when the SYN to the server or
@@ -962,9 +961,7 @@ static int tcp_packet(struct nf_conn *ct,
 		pr_debug("nf_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
 			 dir, get_conntrack_index(th), old_state);
 		spin_unlock_bh(&ct->lock);
-		if (LOG_INVALID(net, IPPROTO_TCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				  "nf_ct_tcp: invalid state ");
+		nf_ct_l4proto_log_invalid(skb, ct, "invalid state");
 		return -NF_ACCEPT;
 	case TCP_CONNTRACK_TIME_WAIT:
 		/* RFC5961 compliance cause stack to send "challenge-ACK"
@@ -979,9 +976,7 @@ static int tcp_packet(struct nf_conn *ct,
 			/* Detected RFC5961 challenge ACK */
 			ct->proto.tcp.last_flags &= ~IP_CT_EXP_CHALLENGE_ACK;
 			spin_unlock_bh(&ct->lock);
-			if (LOG_INVALID(net, IPPROTO_TCP))
-				nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_tcp: challenge-ACK ignored ");
+			nf_ct_l4proto_log_invalid(skb, ct, "challenge-ack ignored");
 			return NF_ACCEPT; /* Don't change state */
 		}
 		break;
@@ -991,9 +986,7 @@ static int tcp_packet(struct nf_conn *ct,
 		    && before(ntohl(th->seq), ct->proto.tcp.seen[!dir].td_maxack)) {
 			/* Invalid RST  */
 			spin_unlock_bh(&ct->lock);
-			if (LOG_INVALID(net, IPPROTO_TCP))
-				nf_log_packet(net, pf, 0, skb, NULL, NULL,
-					      NULL, "nf_ct_tcp: invalid RST ");
+			nf_ct_l4proto_log_invalid(skb, ct, "invalid rst");
 			return -NF_ACCEPT;
 		}
 		if (index == TCP_RST_SET
