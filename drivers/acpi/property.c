@@ -593,7 +593,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 
 	ret = acpi_data_get_property(data, propname, ACPI_TYPE_ANY, &obj);
 	if (ret)
-		return ret;
+		return ret == -EINVAL ? -ENOENT : -EINVAL;
 
 	/*
 	 * The simplest case is when the value is a single reference.  Just
@@ -605,7 +605,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 
 		ret = acpi_bus_get_device(obj->reference.handle, &device);
 		if (ret)
-			return ret;
+			return ret == -ENODEV ? -EINVAL : ret;
 
 		args->adev = device;
 		args->nargs = 0;
@@ -621,8 +621,10 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	 * The index argument is then used to determine which reference
 	 * the caller wants (along with the arguments).
 	 */
-	if (obj->type != ACPI_TYPE_PACKAGE || index >= obj->package.count)
-		return -EPROTO;
+	if (obj->type != ACPI_TYPE_PACKAGE)
+		return -EINVAL;
+	if (index >= obj->package.count)
+		return -ENOENT;
 
 	element = obj->package.elements;
 	end = element + obj->package.count;
