@@ -818,15 +818,14 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 
 	if (pcidev->msix_enabled) {
 		for (i = 0; i < phba->num_cpus; i++) {
-			phba->msi_name[i] = kzalloc(BEISCSI_MSI_NAME,
-						    GFP_KERNEL);
+			phba->msi_name[i] = kasprintf(GFP_KERNEL,
+						      "beiscsi_%02x_%02x",
+						      phba->shost->host_no, i);
 			if (!phba->msi_name[i]) {
 				ret = -ENOMEM;
 				goto free_msix_irqs;
 			}
 
-			sprintf(phba->msi_name[i], "beiscsi_%02x_%02x",
-				phba->shost->host_no, i);
 			ret = request_irq(pci_irq_vector(pcidev, i),
 					  be_isr_msix, 0, phba->msi_name[i],
 					  &phwi_context->be_eq[i]);
@@ -839,13 +838,12 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 				goto free_msix_irqs;
 			}
 		}
-		phba->msi_name[i] = kzalloc(BEISCSI_MSI_NAME, GFP_KERNEL);
+		phba->msi_name[i] = kasprintf(GFP_KERNEL, "beiscsi_mcc_%02x",
+					      phba->shost->host_no);
 		if (!phba->msi_name[i]) {
 			ret = -ENOMEM;
 			goto free_msix_irqs;
 		}
-		sprintf(phba->msi_name[i], "beiscsi_mcc_%02x",
-			phba->shost->host_no);
 		ret = request_irq(pci_irq_vector(pcidev, i), be_isr_mcc, 0,
 				  phba->msi_name[i], &phwi_context->be_eq[i]);
 		if (ret) {
