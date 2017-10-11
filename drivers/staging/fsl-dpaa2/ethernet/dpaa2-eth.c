@@ -2332,7 +2332,7 @@ static irqreturn_t dpni_irq0_handler(int irq_num, void *arg)
 
 static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 {
-	u32 status = 0, clear = 0;
+	u32 status = ~0;
 	struct device *dev = (struct device *)arg;
 	struct fsl_mc_device *dpni_dev = to_fsl_mc_device(dev);
 	struct net_device *net_dev = dev_get_drvdata(dev);
@@ -2342,18 +2342,12 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 				  DPNI_IRQ_INDEX, &status);
 	if (unlikely(err)) {
 		netdev_err(net_dev, "Can't get irq status (err %d)\n", err);
-		clear = 0xffffffff;
-		goto out;
+		return IRQ_HANDLED;
 	}
 
-	if (status & DPNI_IRQ_EVENT_LINK_CHANGED) {
-		clear |= DPNI_IRQ_EVENT_LINK_CHANGED;
+	if (status & DPNI_IRQ_EVENT_LINK_CHANGED)
 		link_state_update(netdev_priv(net_dev));
-	}
 
-out:
-	dpni_clear_irq_status(dpni_dev->mc_io, 0, dpni_dev->mc_handle,
-			      DPNI_IRQ_INDEX, clear);
 	return IRQ_HANDLED;
 }
 
