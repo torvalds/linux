@@ -461,7 +461,8 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 	return 0;
 }
 
-int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv, u32 new_desc_num)
+static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
+				       u32 new_desc_num)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
@@ -474,7 +475,8 @@ int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv, u32 new_desc_num)
 	return hns3_init_all_ring(priv);
 }
 
-int hns3_set_ringparam(struct net_device *ndev, struct ethtool_ringparam *param)
+static int hns3_set_ringparam(struct net_device *ndev,
+			      struct ethtool_ringparam *param)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
