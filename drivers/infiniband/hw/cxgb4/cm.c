@@ -99,10 +99,6 @@ module_param(enable_tcp_window_scaling, int, 0644);
 MODULE_PARM_DESC(enable_tcp_window_scaling,
 		 "Enable tcp window scaling (default=1)");
 
-int c4iw_debug;
-module_param(c4iw_debug, int, 0644);
-MODULE_PARM_DESC(c4iw_debug, "obsolete");
-
 static int peer2peer = 1;
 module_param(peer2peer, int, 0644);
 MODULE_PARM_DESC(peer2peer, "Support peer2peer ULPs (default=1)");
