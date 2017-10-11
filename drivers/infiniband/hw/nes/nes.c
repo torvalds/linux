@@ -757,18 +757,18 @@ static void nes_remove(struct pci_dev *pcidev)
 	int netdev_index = 0;
 	unsigned long flags;
 
-		if (nesdev->netdev_count) {
-			netdev = nesdev->netdev[netdev_index];
-			if (netdev) {
-				netif_stop_queue(netdev);
-				unregister_netdev(netdev);
-				nes_netdev_destroy(netdev);
+	if (nesdev->netdev_count) {
+		netdev = nesdev->netdev[netdev_index];
+		if (netdev) {
+			netif_stop_queue(netdev);
+			unregister_netdev(netdev);
+			nes_netdev_destroy(netdev);
 
-				nesdev->netdev[netdev_index] = NULL;
-				nesdev->netdev_count--;
-				nesdev->nesadapter->netdev_count--;
-			}
+			nesdev->netdev[netdev_index] = NULL;
+			nesdev->netdev_count--;
+			nesdev->nesadapter->netdev_count--;
 		}
+	}
 
 	nes_notifiers_registered--;
 	if (nes_notifiers_registered == 0) {
