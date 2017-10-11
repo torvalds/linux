@@ -356,10 +356,12 @@ static void tb_handle_hotplug(struct work_struct *work)
 		tb_port_info(port,
 			     "got plug event for connected port, ignoring\n");
 	} else {
-		tb_port_info(port, "hotplug: scanning\n");
-		tb_scan_port(port);
-		if (!port->remote)
-			tb_port_info(port, "hotplug: no switch found\n");
+		if (tb_port_is_null(port)) {
+			tb_port_info(port, "hotplug: scanning\n");
+			tb_scan_port(port);
+			if (!port->remote)
+				tb_port_info(port, "hotplug: no switch found\n");
+		}
 	}
 
 put_sw:

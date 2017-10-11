@@ -350,6 +350,11 @@ static inline bool tb_port_has_remote(const struct tb_port *port)
 	return true;
 }
 
+static inline bool tb_port_is_null(const struct tb_port *port)
+{
+	return port && port->port && port->config.type == TB_TYPE_PORT;
+}
+
 static inline bool tb_port_is_pcie_down(const struct tb_port *port)
 {
 	return port && port->config.type == TB_TYPE_PCIE_DOWN;
