@@ -1586,8 +1586,8 @@ static int __init arm_ccn_init(void)
 
 static void __exit arm_ccn_exit(void)
 {
-	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_CCN_ONLINE);
 	platform_driver_unregister(&arm_ccn_driver);
+	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_CCN_ONLINE);
 }
 
 module_init(arm_ccn_init);
