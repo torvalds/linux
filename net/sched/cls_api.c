@@ -1026,8 +1026,9 @@ int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
 }
 EXPORT_SYMBOL(tcf_exts_get_dev);
 
-int tcf_exts_egdev_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
-			   void *type_data, bool err_stop)
+static int tc_exts_setup_cb_egdev_call(struct tcf_exts *exts,
+				       enum tc_setup_type type,
+				       void *type_data, bool err_stop)
 {
 	int ok_count = 0;
 #ifdef CONFIG_NET_CLS_ACT
@@ -1054,7 +1055,13 @@ int tcf_exts_egdev_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
 #endif
 	return ok_count;
 }
-EXPORT_SYMBOL(tcf_exts_egdev_cb_call);
+
+int tc_setup_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
+		     void *type_data, bool err_stop)
+{
+	return tc_exts_setup_cb_egdev_call(exts, type, type_data, err_stop);
+}
+EXPORT_SYMBOL(tc_setup_cb_call);
 
 static int __init tc_filter_init(void)
 {

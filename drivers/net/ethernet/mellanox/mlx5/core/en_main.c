@@ -3108,8 +3108,8 @@ static int mlx5e_setup_tc_cls_flower(struct net_device *dev,
 }
 #endif
 
-static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			  void *type_data)
+int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		   void *type_data)
 {
 	switch (type) {
 #ifdef CONFIG_MLX5_ESWITCH
