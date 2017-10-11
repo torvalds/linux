@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/errno.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
@@ -49,13 +50,22 @@ static const struct device_type serdev_ctrl_type = {
 
 static int serdev_device_match(struct device *dev, struct device_driver *drv)
 {
-	/* TODO: ACPI and platform matching */
+	/* TODO: platform matching */
+	if (acpi_driver_match_device(dev, drv))
+		return 1;
+
 	return of_driver_match_device(dev, drv);
 }
 
 static int serdev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	/* TODO: ACPI and platform modalias */
+	int rc;
+
+	/* TODO: platform modalias */
+	rc = acpi_device_uevent_modalias(dev, env);
+	if (rc != -ENODEV)
+		return rc;
+
 	return of_device_uevent_modalias(dev, env);
 }
 
@@ -260,6 +270,12 @@ static int serdev_drv_remove(struct device *dev)
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
+	int len;
+
+	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
+	if (len != -ENODEV)
+		return len;
+
 	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
 DEVICE_ATTR_RO(modalias);
@@ -385,6 +401,75 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static acpi_status acpi_serdev_register_device(struct serdev_controller *ctrl,
+					    struct acpi_device *adev)
+{
+	struct serdev_device *serdev = NULL;
+	int err;
+
+	if (acpi_bus_get_status(adev) || !adev->status.present ||
+	    acpi_device_enumerated(adev))
+		return AE_OK;
+
+	serdev = serdev_device_alloc(ctrl);
+	if (!serdev) {
+		dev_err(&ctrl->dev, "failed to allocate serdev device for %s\n",
+			dev_name(&adev->dev));
+		return AE_NO_MEMORY;
+	}
+
+	ACPI_COMPANION_SET(&serdev->dev, adev);
+	acpi_device_set_enumerated(adev);
+
+	err = serdev_device_add(serdev);
+	if (err) {
+		dev_err(&serdev->dev,
+			"failure adding ACPI serdev device. status %d\n", err);
+		serdev_device_put(serdev);
+	}
+
+	return AE_OK;
+}
+
+static acpi_status acpi_serdev_add_device(acpi_handle handle, u32 level,
+				       void *data, void **return_value)
+{
+	struct serdev_controller *ctrl = data;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+
+	return acpi_serdev_register_device(ctrl, adev);
+}
+
+static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
+{
+	acpi_status status;
+	acpi_handle handle;
+
+	handle = ACPI_HANDLE(ctrl->dev.parent);
+	if (!handle)
+		return -ENODEV;
+
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+				     acpi_serdev_add_device, NULL, ctrl, NULL);
+	if (ACPI_FAILURE(status))
+		dev_dbg(&ctrl->dev, "failed to enumerate serdev slaves\n");
+
+	if (!ctrl->serdev)
+		return -ENODEV;
+
+	return 0;
+}
+#else
+static inline int acpi_serdev_register_devices(struct serdev_controller *ctrl)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_ACPI */
+
 /**
  * serdev_controller_add() - Add an serdev controller
  * @ctrl:	controller to be registered.
@@ -394,7 +479,7 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
  */
 int serdev_controller_add(struct serdev_controller *ctrl)
 {
-	int ret;
+	int ret_of, ret_acpi, ret;
 
 	/* Can't register until after driver model init */
 	if (WARN_ON(!is_registered))
@@ -404,9 +489,14 @@ int serdev_controller_add(struct serdev_controller *ctrl)
 	if (ret)
 		return ret;
 
-	ret = of_serdev_register_devices(ctrl);
-	if (ret)
+	ret_of = of_serdev_register_devices(ctrl);
+	ret_acpi = acpi_serdev_register_devices(ctrl);
+	if (ret_of && ret_acpi) {
+		dev_dbg(&ctrl->dev, "no devices registered: of:%d acpi:%d\n",
+			ret_of, ret_acpi);
+		ret = -ENODEV;
 		goto out_dev_del;
+	}
 
 	dev_dbg(&ctrl->dev, "serdev%d registered: dev:%p\n",
 		ctrl->nr, &ctrl->dev);
