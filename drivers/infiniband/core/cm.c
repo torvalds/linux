@@ -2808,6 +2808,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 			msg_response = CM_MSG_RESPONSE_OTHER;
 			break;
 		}
+		/* fall through */
 	default:
 		ret = -EINVAL;
 		goto error1;
