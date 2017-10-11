@@ -441,8 +441,8 @@ static int wcove_read_rx_buffer(struct wcove_typec *wcove, void *msg)
 static irqreturn_t wcove_typec_irq(int irq, void *data)
 {
 	struct wcove_typec *wcove = data;
-	unsigned int usbc_irq1;
-	unsigned int usbc_irq2;
+	unsigned int usbc_irq1 = 0;
+	unsigned int usbc_irq2 = 0;
 	unsigned int cc1ctrl;
 	int ret;
 
