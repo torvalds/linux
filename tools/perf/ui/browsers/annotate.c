@@ -606,23 +606,23 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 }
 
 static
-struct disasm_line *annotate_browser__find_string(struct annotate_browser *browser,
+struct annotation_line *annotate_browser__find_string(struct annotate_browser *browser,
 					  char *s, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct disasm_line *pos = disasm_line(browser->selection);
+	struct annotation_line *al = browser->selection;
 
 	*idx = browser->b.index;
-	list_for_each_entry_continue(pos, &notes->src->source, al.node) {
-		if (disasm_line__filter(&browser->b, &pos->al.node))
+	list_for_each_entry_continue(al, &notes->src->source, node) {
+		if (disasm_line__filter(&browser->b, &al->node))
 			continue;
 
 		++*idx;
 
-		if (pos->al.line && strstr(pos->al.line, s) != NULL)
-			return pos;
+		if (al->line && strstr(al->line, s) != NULL)
+			return al;
 	}
 
 	return NULL;
@@ -630,38 +630,38 @@ struct disasm_line *annotate_browser__find_string(struct annotate_browser *brows
 
 static bool __annotate_browser__search(struct annotate_browser *browser)
 {
-	struct disasm_line *dl;
+	struct annotation_line *al;
 	s64 idx;
 
-	dl = annotate_browser__find_string(browser, browser->search_bf, &idx);
-	if (dl == NULL) {
+	al = annotate_browser__find_string(browser, browser->search_bf, &idx);
+	if (al == NULL) {
 		ui_helpline__puts("String not found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, dl, idx);
+	annotate_browser__set_top(browser, disasm_line(al), idx);
 	browser->searching_backwards = false;
 	return true;
 }
 
 static
-struct disasm_line *annotate_browser__find_string_reverse(struct annotate_browser *browser,
+struct annotation_line *annotate_browser__find_string_reverse(struct annotate_browser *browser,
 						  char *s, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct disasm_line *pos = disasm_line(browser->selection);
+	struct annotation_line *al = browser->selection;
 
 	*idx = browser->b.index;
-	list_for_each_entry_continue_reverse(pos, &notes->src->source, al.node) {
-		if (disasm_line__filter(&browser->b, &pos->al.node))
+	list_for_each_entry_continue_reverse(al, &notes->src->source, node) {
+		if (disasm_line__filter(&browser->b, &al->node))
 			continue;
 
 		--*idx;
 
-		if (pos->al.line && strstr(pos->al.line, s) != NULL)
-			return pos;
+		if (al->line && strstr(al->line, s) != NULL)
+			return al;
 	}
 
 	return NULL;
@@ -669,16 +669,16 @@ struct disasm_line *annotate_browser__find_string_reverse(struct annotate_browse
 
 static bool __annotate_browser__search_reverse(struct annotate_browser *browser)
 {
-	struct disasm_line *dl;
+	struct annotation_line *al;
 	s64 idx;
 
-	dl = annotate_browser__find_string_reverse(browser, browser->search_bf, &idx);
-	if (dl == NULL) {
+	al = annotate_browser__find_string_reverse(browser, browser->search_bf, &idx);
+	if (al == NULL) {
 		ui_helpline__puts("String not found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, dl, idx);
+	annotate_browser__set_top(browser, disasm_line(al), idx);
 	browser->searching_backwards = true;
 	return true;
 }
