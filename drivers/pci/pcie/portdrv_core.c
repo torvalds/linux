@@ -114,7 +114,7 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 		 */
 		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 		pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &reg32);
-		entry = reg32 >> 27;
+		entry = (reg32 & PCI_ERR_ROOT_AER_IRQ) >> 27;
 		if (entry >= nr_entries)
 			goto out_free_irqs;
 
@@ -141,7 +141,7 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 		 */
 		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_DPC);
 		pci_read_config_word(dev, pos + PCI_EXP_DPC_CAP, &reg16);
-		entry = reg16 & 0x1f;
+		entry = reg16 & PCI_EXP_DPC_IRQ;
 		if (entry >= nr_entries)
 			goto out_free_irqs;
 
