@@ -660,7 +660,7 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 						  dev->gsi_ll2_handle,
 						  wr->sg_list[0].addr,
 						  wr->sg_list[0].length,
-						  0 /* cookie */,
+						  NULL /* cookie */,
 						  1 /* notify_fw */);
 		if (rc) {
 			DP_ERR(dev,
