@@ -39,7 +39,7 @@
  * There are situations when we want to make sure that all buffers
  * were handled or when IRQs are blocked.
  */
-static int printk_safe_irq_ready;
+static int printk_safe_irq_ready __read_mostly;
 
 #define SAFE_LOG_BUF_LEN ((1 << CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT) -	\
 				sizeof(atomic_t) -			\
@@ -63,11 +63,8 @@ static DEFINE_PER_CPU(struct printk_safe_seq_buf, nmi_print_seq);
 /* Get flushed in a more safe context. */
 static void queue_flush_work(struct printk_safe_seq_buf *s)
 {
-	if (printk_safe_irq_ready) {
-		/* Make sure that IRQ work is really initialized. */
-		smp_rmb();
+	if (printk_safe_irq_ready)
 		irq_work_queue(&s->work);
-	}
 }
 
 /*
@@ -398,8 +395,12 @@ void __init printk_safe_init(void)
 #endif
 	}
 
-	/* Make sure that IRQ works are initialized before enabling. */
-	smp_wmb();
+	/*
+	 * In the highly unlikely event that a NMI were to trigger at
+	 * this moment. Make sure IRQ work is set up before this
+	 * variable is set.
+	 */
+	barrier();
 	printk_safe_irq_ready = 1;
 
 	/* Flush pending messages that did not have scheduled IRQ works. */
