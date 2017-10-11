@@ -597,9 +597,15 @@ static int mv_cesa_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id mv_cesa_plat_id_table[] = {
+	{ .name = "mv_crypto" },
+};
+MODULE_DEVICE_TABLE(platform, mv_cesa_plat_id_table);
+
 static struct platform_driver marvell_cesa = {
 	.probe		= mv_cesa_probe,
 	.remove		= mv_cesa_remove,
+	.id_table	= mv_cesa_plat_id_table,
 	.driver		= {
 		.name	= "marvell-cesa",
 		.of_match_table = mv_cesa_of_match_table,
