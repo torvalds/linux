@@ -464,20 +464,20 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
 
 /**
  * srp_destroy_qp() - destroy an RDMA queue pair
- * @qp: RDMA queue pair.
+ * @ch: SRP RDMA channel.
  *
  * Drain the qp before destroying it.  This avoids that the receive
  * completion handler can access the queue pair while it is
  * being destroyed.
  */
-static void srp_destroy_qp(struct srp_rdma_ch *ch, struct ib_qp *qp)
+static void srp_destroy_qp(struct srp_rdma_ch *ch)
 {
 	spin_lock_irq(&ch->lock);
 	ib_process_cq_direct(ch->send_cq, -1);
 	spin_unlock_irq(&ch->lock);
 
-	ib_drain_qp(qp);
-	ib_destroy_qp(qp);
+	ib_drain_qp(ch->qp);
+	ib_destroy_qp(ch->qp);
 }
 
 static int srp_create_ch_ib(struct srp_rdma_ch *ch)
@@ -550,7 +550,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	}
 
 	if (ch->qp)
-		srp_destroy_qp(ch, ch->qp);
+		srp_destroy_qp(ch);
 	if (ch->recv_cq)
 		ib_free_cq(ch->recv_cq);
 	if (ch->send_cq)
@@ -617,7 +617,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 			ib_destroy_fmr_pool(ch->fmr_pool);
 	}
 
-	srp_destroy_qp(ch, ch->qp);
+	srp_destroy_qp(ch);
 	ib_free_cq(ch->send_cq);
 	ib_free_cq(ch->recv_cq);
 
