@@ -937,9 +937,9 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 	return ins__scnprintf(&dl->ins, bf, size, &dl->ops);
 }
 
-static void disasm__add(struct list_head *head, struct disasm_line *line)
+static void annotation_line__add(struct annotation_line *al, struct list_head *head)
 {
-	list_add_tail(&line->al.node, head);
+	list_add_tail(&al->node, head);
 }
 
 struct annotation_line *
@@ -1301,7 +1301,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 			dl->ops.target.name = strdup(target.sym->name);
 	}
 
-	disasm__add(&notes->src->source, dl);
+	annotation_line__add(&dl->al, &notes->src->source);
 
 	return 0;
 }
