@@ -26,18 +26,6 @@
 #define QRTR_MIN_EPH_SOCKET 0x4000
 #define QRTR_MAX_EPH_SOCKET 0x7fff
 
-enum qrtr_pkt_type {
-	QRTR_TYPE_DATA		= 1,
-	QRTR_TYPE_HELLO		= 2,
-	QRTR_TYPE_BYE		= 3,
-	QRTR_TYPE_NEW_SERVER	= 4,
-	QRTR_TYPE_DEL_SERVER	= 5,
-	QRTR_TYPE_DEL_CLIENT	= 6,
-	QRTR_TYPE_RESUME_TX	= 7,
-	QRTR_TYPE_EXIT		= 8,
-	QRTR_TYPE_PING		= 9,
-};
-
 /**
  * struct qrtr_hdr - (I|R)PCrouter packet header
  * @version: protocol version
