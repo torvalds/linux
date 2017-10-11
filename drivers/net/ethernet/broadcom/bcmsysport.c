@@ -1422,9 +1422,13 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	reg &= ~(RING_QID_MASK | RING_PORT_ID_MASK << RING_PORT_ID_SHIFT);
 	reg |= ring->switch_queue & RING_QID_MASK;
 	reg |= ring->switch_port << RING_PORT_ID_SHIFT;
-	reg |= RING_IGNORE_STATUS;
 	tdma_writel(priv, reg, TDMA_DESC_RING_MAPPING(index));
 	tdma_writel(priv, 0, TDMA_DESC_RING_PCP_DEI_VID(index));
+
+	/* Enable ACB algorithm 2 */
+	reg = tdma_readl(priv, TDMA_CONTROL);
+	reg |= tdma_control_bit(priv, ACB_ALGO);
+	tdma_writel(priv, reg, TDMA_CONTROL);
 
 	/* Do not use tdma_control_bit() here because TSB_SWAP1 collides
 	 * with the original definition of ACB_ALGO
