@@ -556,7 +556,16 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	switch (state) {
 	case FENCE_COMPLETE:
 		trace_i915_gem_request_submit(request);
+		/*
+		 * We need to serialize use of the submit_request() callback with its
+		 * hotplugging performed during an emergency i915_gem_set_wedged().
+		 * We use the RCU mechanism to mark the critical section in order to
+		 * force i915_gem_set_wedged() to wait until the submit_request() is
+		 * completed before proceeding.
+		 */
+		rcu_read_lock();
 		request->engine->submit_request(request);
+		rcu_read_unlock();
 		break;
 
 	case FENCE_FREE:

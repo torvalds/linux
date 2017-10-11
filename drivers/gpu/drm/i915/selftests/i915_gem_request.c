@@ -215,7 +215,9 @@ static int igt_request_rewind(void *arg)
 	}
 	i915_gem_request_get(vip);
 	i915_add_request(vip);
+	rcu_read_lock();
 	request->engine->submit_request(request);
+	rcu_read_unlock();
 
 	mutex_unlock(&i915->drm.struct_mutex);
 

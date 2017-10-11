@@ -3087,6 +3087,14 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
 {
+	GEM_BUG_ON(!i915_terminally_wedged(&request->i915->gpu_error));
+	dma_fence_set_error(&request->fence, -EIO);
+
+	i915_gem_request_submit(request);
+}
+
+static void nop_complete_submit_request(struct drm_i915_gem_request *request)
+{
 	unsigned long flags;
 
 	GEM_BUG_ON(!i915_terminally_wedged(&request->i915->gpu_error));
@@ -3098,45 +3106,59 @@ static void nop_submit_request(struct drm_i915_gem_request *request)
 	spin_unlock_irqrestore(&request->engine->timeline->lock, flags);
 }
 
-static void engine_set_wedged(struct intel_engine_cs *engine)
+void i915_gem_set_wedged(struct drm_i915_private *i915)
 {
-	/* We need to be sure that no thread is running the old callback as
-	 * we install the nop handler (otherwise we would submit a request
-	 * to hardware that will never complete). In order to prevent this
-	 * race, we wait until the machine is idle before making the swap
-	 * (using stop_machine()).
-	 */
-	engine->submit_request = nop_submit_request;
-
-	/* Mark all executing requests as skipped */
-	engine->cancel_requests(engine);
-
-	/* Mark all pending requests as complete so that any concurrent
-	 * (lockless) lookup doesn't try and wait upon the request as we
-	 * reset it.
-	 */
-	intel_engine_init_global_seqno(engine,
-				       intel_engine_last_submit(engine));
-}
-
-static int __i915_gem_set_wedged_BKL(void *data)
-{
-	struct drm_i915_private *i915 = data;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	/*
+	 * First, stop submission to hw, but do not yet complete requests by
+	 * rolling the global seqno forward (since this would complete requests
+	 * for which we haven't set the fence error to EIO yet).
+	 */
 	for_each_engine(engine, i915, id)
-		engine_set_wedged(engine);
+		engine->submit_request = nop_submit_request;
+
+	/*
+	 * Make sure no one is running the old callback before we proceed with
+	 * cancelling requests and resetting the completion tracking. Otherwise
+	 * we might submit a request to the hardware which never completes.
+	 */
+	synchronize_rcu();
+
+	for_each_engine(engine, i915, id) {
+		/* Mark all executing requests as skipped */
+		engine->cancel_requests(engine);
+
+		/*
+		 * Only once we've force-cancelled all in-flight requests can we
+		 * start to complete all requests.
+		 */
+		engine->submit_request = nop_complete_submit_request;
+	}
+
+	/*
+	 * Make sure no request can slip through without getting completed by
+	 * either this call here to intel_engine_init_global_seqno, or the one
+	 * in nop_complete_submit_request.
+	 */
+	synchronize_rcu();
+
+	for_each_engine(engine, i915, id) {
+		unsigned long flags;
+
+		/* Mark all pending requests as complete so that any concurrent
+		 * (lockless) lookup doesn't try and wait upon the request as we
+		 * reset it.
+		 */
+		spin_lock_irqsave(&engine->timeline->lock, flags);
+		intel_engine_init_global_seqno(engine,
+					       intel_engine_last_submit(engine));
+		spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	}
 
 	set_bit(I915_WEDGED, &i915->gpu_error.flags);
 	wake_up_all(&i915->gpu_error.reset_queue);
-
-	return 0;
-}
-
-void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
-{
-	stop_machine(__i915_gem_set_wedged_BKL, dev_priv, NULL);
 }
 
 bool i915_gem_unset_wedged(struct drm_i915_private *i915)
