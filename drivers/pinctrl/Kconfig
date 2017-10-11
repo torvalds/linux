@@ -97,7 +97,7 @@ config PINCTRL_AT91PIO4
 
 config PINCTRL_AMD
 	tristate "AMD GPIO pin control"
-	depends on GPIOLIB
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINCONF
 	select GENERIC_PINCONF
@@ -156,6 +156,7 @@ config PINCTRL_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
 	depends on SPI_MASTER || I2C
 	depends on I2C || I2C=n
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
@@ -224,10 +225,11 @@ config PINCTRL_SIRF
 
 config PINCTRL_SX150X
 	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
-	depends on GPIOLIB && I2C=y
+	depends on I2C=y
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select REGMAP
 	help

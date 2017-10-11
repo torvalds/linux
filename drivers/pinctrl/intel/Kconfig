@@ -5,7 +5,8 @@ if (X86 || COMPILE_TEST)
 
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
-	depends on GPIOLIB && ACPI
+	depends on ACPI
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINMUX
 	select PINCONF
