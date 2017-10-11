@@ -2924,70 +2924,9 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 	return true;
 }
 
-static bool nested_svm_vmrun(struct vcpu_svm *svm)
+static void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
+				 struct vmcb *nested_vmcb, struct page *page)
 {
-	struct vmcb *nested_vmcb;
-	struct vmcb *hsave = svm->nested.hsave;
-	struct vmcb *vmcb = svm->vmcb;
-	struct page *page;
-	u64 vmcb_gpa;
-
-	vmcb_gpa = svm->vmcb->save.rax;
-
-	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
-	if (!nested_vmcb)
-		return false;
-
-	if (!nested_vmcb_checks(nested_vmcb)) {
-		nested_vmcb->control.exit_code    = SVM_EXIT_ERR;
-		nested_vmcb->control.exit_code_hi = 0;
-		nested_vmcb->control.exit_info_1  = 0;
-		nested_vmcb->control.exit_info_2  = 0;
-
-		nested_svm_unmap(page);
-
-		return false;
-	}
-
-	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb_gpa,
-			       nested_vmcb->save.rip,
-			       nested_vmcb->control.int_ctl,
-			       nested_vmcb->control.event_inj,
-			       nested_vmcb->control.nested_ctl);
-
-	trace_kvm_nested_intercepts(nested_vmcb->control.intercept_cr & 0xffff,
-				    nested_vmcb->control.intercept_cr >> 16,
-				    nested_vmcb->control.intercept_exceptions,
-				    nested_vmcb->control.intercept);
-
-	/* Clear internal status */
-	kvm_clear_exception_queue(&svm->vcpu);
-	kvm_clear_interrupt_queue(&svm->vcpu);
-
-	/*
-	 * Save the old vmcb, so we don't need to pick what we save, but can
-	 * restore everything when a VMEXIT occurs
-	 */
-	hsave->save.es     = vmcb->save.es;
-	hsave->save.cs     = vmcb->save.cs;
-	hsave->save.ss     = vmcb->save.ss;
-	hsave->save.ds     = vmcb->save.ds;
-	hsave->save.gdtr   = vmcb->save.gdtr;
-	hsave->save.idtr   = vmcb->save.idtr;
-	hsave->save.efer   = svm->vcpu.arch.efer;
-	hsave->save.cr0    = kvm_read_cr0(&svm->vcpu);
-	hsave->save.cr4    = svm->vcpu.arch.cr4;
-	hsave->save.rflags = kvm_get_rflags(&svm->vcpu);
-	hsave->save.rip    = kvm_rip_read(&svm->vcpu);
-	hsave->save.rsp    = vmcb->save.rsp;
-	hsave->save.rax    = vmcb->save.rax;
-	if (npt_enabled)
-		hsave->save.cr3    = vmcb->save.cr3;
-	else
-		hsave->save.cr3    = kvm_read_cr3(&svm->vcpu);
-
-	copy_vmcb_control_area(hsave, vmcb);
-
 	if (kvm_get_rflags(&svm->vcpu) & X86_EFLAGS_IF)
 		svm->vcpu.arch.hflags |= HF_HIF_MASK;
 	else
@@ -3080,6 +3019,73 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	enable_gif(svm);
 
 	mark_all_dirty(svm->vmcb);
+}
+
+static bool nested_svm_vmrun(struct vcpu_svm *svm)
+{
+	struct vmcb *nested_vmcb;
+	struct vmcb *hsave = svm->nested.hsave;
+	struct vmcb *vmcb = svm->vmcb;
+	struct page *page;
+	u64 vmcb_gpa;
+
+	vmcb_gpa = svm->vmcb->save.rax;
+
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
+	if (!nested_vmcb)
+		return false;
+
+	if (!nested_vmcb_checks(nested_vmcb)) {
+		nested_vmcb->control.exit_code    = SVM_EXIT_ERR;
+		nested_vmcb->control.exit_code_hi = 0;
+		nested_vmcb->control.exit_info_1  = 0;
+		nested_vmcb->control.exit_info_2  = 0;
+
+		nested_svm_unmap(page);
+
+		return false;
+	}
+
+	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb_gpa,
+			       nested_vmcb->save.rip,
+			       nested_vmcb->control.int_ctl,
+			       nested_vmcb->control.event_inj,
+			       nested_vmcb->control.nested_ctl);
+
+	trace_kvm_nested_intercepts(nested_vmcb->control.intercept_cr & 0xffff,
+				    nested_vmcb->control.intercept_cr >> 16,
+				    nested_vmcb->control.intercept_exceptions,
+				    nested_vmcb->control.intercept);
+
+	/* Clear internal status */
+	kvm_clear_exception_queue(&svm->vcpu);
+	kvm_clear_interrupt_queue(&svm->vcpu);
+
+	/*
+	 * Save the old vmcb, so we don't need to pick what we save, but can
+	 * restore everything when a VMEXIT occurs
+	 */
+	hsave->save.es     = vmcb->save.es;
+	hsave->save.cs     = vmcb->save.cs;
+	hsave->save.ss     = vmcb->save.ss;
+	hsave->save.ds     = vmcb->save.ds;
+	hsave->save.gdtr   = vmcb->save.gdtr;
+	hsave->save.idtr   = vmcb->save.idtr;
+	hsave->save.efer   = svm->vcpu.arch.efer;
+	hsave->save.cr0    = kvm_read_cr0(&svm->vcpu);
+	hsave->save.cr4    = svm->vcpu.arch.cr4;
+	hsave->save.rflags = kvm_get_rflags(&svm->vcpu);
+	hsave->save.rip    = kvm_rip_read(&svm->vcpu);
+	hsave->save.rsp    = vmcb->save.rsp;
+	hsave->save.rax    = vmcb->save.rax;
+	if (npt_enabled)
+		hsave->save.cr3    = vmcb->save.cr3;
+	else
+		hsave->save.cr3    = kvm_read_cr3(&svm->vcpu);
+
+	copy_vmcb_control_area(hsave, vmcb);
+
+	enter_svm_guest_mode(svm, vmcb_gpa, nested_vmcb, page);
 
 	return true;
 }
