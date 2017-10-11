@@ -31,14 +31,14 @@ static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 
 	strcpy(buf, "");
 
-	if (dl->offset == (s64) -1)
+	if (dl->al.offset == (s64) -1)
 		return 0;
 
 	symhist = annotation__histogram(symbol__annotation(sym), evidx);
-	if (!symbol_conf.event_group && !symhist->addr[dl->offset].nr_samples)
+	if (!symbol_conf.event_group && !symhist->addr[dl->al.offset].nr_samples)
 		return 0;
 
-	percent = 100.0 * symhist->addr[dl->offset].nr_samples / symhist->nr_samples;
+	percent = 100.0 * symhist->addr[dl->al.offset].nr_samples / symhist->nr_samples;
 
 	markup = perf_gtk__get_percent_color(percent);
 	if (markup)
@@ -57,16 +57,16 @@ static int perf_gtk__get_offset(char *buf, size_t size, struct symbol *sym,
 
 	strcpy(buf, "");
 
-	if (dl->offset == (s64) -1)
+	if (dl->al.offset == (s64) -1)
 		return 0;
 
-	return scnprintf(buf, size, "%"PRIx64, start + dl->offset);
+	return scnprintf(buf, size, "%"PRIx64, start + dl->al.offset);
 }
 
 static int perf_gtk__get_line(char *buf, size_t size, struct disasm_line *dl)
 {
 	int ret = 0;
-	char *line = g_markup_escape_text(dl->line, -1);
+	char *line = g_markup_escape_text(dl->al.line, -1);
 	const char *markup = "<span fgcolor='gray'>";
 
 	strcpy(buf, "");
@@ -74,7 +74,7 @@ static int perf_gtk__get_line(char *buf, size_t size, struct disasm_line *dl)
 	if (!line)
 		return 0;
 
-	if (dl->offset != (s64) -1)
+	if (dl->al.offset != (s64) -1)
 		markup = NULL;
 
 	if (markup)

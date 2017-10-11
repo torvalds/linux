@@ -61,14 +61,14 @@ struct annotation;
 
 struct annotation_line {
 	struct list_head	 node;
+	s64			 offset;
+	char			*line;
+	int			 line_nr;
 };
 
 struct disasm_line {
 	struct annotation_line	 al;
-	s64			 offset;
-	char			*line;
 	struct ins		 ins;
-	int			 line_nr;
 	float			 ipc;
 	u64			 cycles;
 	struct ins_operands	 ops;

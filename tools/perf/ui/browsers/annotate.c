@@ -84,8 +84,9 @@ static bool disasm_line__filter(struct ui_browser *browser __maybe_unused,
 				void *entry)
 {
 	if (annotate_browser__opts.hide_src_code) {
-		struct disasm_line *dl = list_entry(entry, struct disasm_line, al.node);
-		return dl->offset == -1;
+		struct annotation_line *al = list_entry(entry, struct annotation_line, node);
+
+		return al->offset == -1;
 	}
 
 	return false;
@@ -141,7 +142,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			percent_max = bdl->samples[i].percent;
 	}
 
-	if ((row == 0) && (dl->offset == -1 || percent_max == 0.0)) {
+	if ((row == 0) && (dl->al.offset == -1 || percent_max == 0.0)) {
 		if (ab->have_cycles) {
 			if (dl->ipc == 0.0 && dl->cycles == 0)
 				show_title = true;
@@ -149,7 +150,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			show_title = true;
 	}
 
-	if (dl->offset != -1 && percent_max != 0.0) {
+	if (dl->al.offset != -1 && percent_max != 0.0) {
 		for (i = 0; i < ab->nr_events; i++) {
 			ui_browser__set_percent_color(browser,
 						bdl->samples[i].percent,
@@ -199,19 +200,19 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	if (!browser->navkeypressed)
 		width += 1;
 
-	if (!*dl->line)
+	if (!*dl->al.line)
 		ui_browser__write_nstring(browser, " ", width - pcnt_width - cycles_width);
-	else if (dl->offset == -1) {
-		if (dl->line_nr && annotate_browser__opts.show_linenr)
+	else if (dl->al.offset == -1) {
+		if (dl->al.line_nr && annotate_browser__opts.show_linenr)
 			printed = scnprintf(bf, sizeof(bf), "%-*d ",
-					ab->addr_width + 1, dl->line_nr);
+					ab->addr_width + 1, dl->al.line_nr);
 		else
 			printed = scnprintf(bf, sizeof(bf), "%*s  ",
 				    ab->addr_width, " ");
 		ui_browser__write_nstring(browser, bf, printed);
-		ui_browser__write_nstring(browser, dl->line, width - printed - pcnt_width - cycles_width + 1);
+		ui_browser__write_nstring(browser, dl->al.line, width - printed - pcnt_width - cycles_width + 1);
 	} else {
-		u64 addr = dl->offset;
+		u64 addr = dl->al.offset;
 		int color = -1;
 
 		if (!annotate_browser__opts.use_offset)
@@ -247,7 +248,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			ui_browser__set_color(browser, color);
 		if (dl->ins.ops && dl->ins.ops->scnprintf) {
 			if (ins__is_jump(&dl->ins)) {
-				bool fwd = dl->ops.target.offset > dl->offset;
+				bool fwd = dl->ops.target.offset > dl->al.offset;
 
 				ui_browser__write_graph(browser, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
@@ -452,7 +453,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 		double max_percent = 0.0;
 		int i;
 
-		if (pos->offset == -1) {
+		if (pos->al.offset == -1) {
 			RB_CLEAR_NODE(&bpos->rb_node);
 			continue;
 		}
@@ -464,8 +465,8 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 
 			bpos->samples[i].percent = disasm__calc_percent(notes,
 						evsel->idx + i,
-						pos->offset,
-						next ? next->offset : len,
+						pos->al.offset,
+						next ? next->al.offset : len,
 						&path, &sample);
 			bpos->samples[i].he = sample;
 
@@ -590,7 +591,7 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 
 	*idx = 0;
 	list_for_each_entry(pos, &notes->src->source, al.node) {
-		if (pos->offset == offset)
+		if (pos->al.offset == offset)
 			return pos;
 		if (!disasm_line__filter(&browser->b, &pos->al.node))
 			++*idx;
@@ -636,7 +637,7 @@ struct disasm_line *annotate_browser__find_string(struct annotate_browser *brows
 
 		++*idx;
 
-		if (pos->line && strstr(pos->line, s) != NULL)
+		if (pos->al.line && strstr(pos->al.line, s) != NULL)
 			return pos;
 	}
 
@@ -675,7 +676,7 @@ struct disasm_line *annotate_browser__find_string_reverse(struct annotate_browse
 
 		--*idx;
 
-		if (pos->line && strstr(pos->line, s) != NULL)
+		if (pos->al.line && strstr(pos->al.line, s) != NULL)
 			return pos;
 	}
 
@@ -901,7 +902,7 @@ show_help:
 		case K_RIGHT:
 			if (browser->selection == NULL)
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
-			else if (browser->selection->offset == -1)
+			else if (browser->selection->al.offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
 			else if (!browser->selection->ins.ops)
 				goto show_sup_ins;
@@ -1136,13 +1137,13 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 
 	list_for_each_entry(pos, &notes->src->source, al.node) {
 		struct browser_disasm_line *bpos;
-		size_t line_len = strlen(pos->line);
+		size_t line_len = strlen(pos->al.line);
 
 		if (browser.b.width < line_len)
 			browser.b.width = line_len;
 		bpos = disasm_line__browser(pos);
 		bpos->idx = browser.nr_entries++;
-		if (pos->offset != -1) {
+		if (pos->al.offset != -1) {
 			bpos->idx_asm = browser.nr_asm_entries++;
 			/*
 			 * FIXME: short term bandaid to cope with assembly
@@ -1151,8 +1152,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 *
 			 * E.g. copy_user_generic_unrolled
  			 */
-			if (pos->offset < (s64)size)
-				browser.offsets[pos->offset] = pos;
+			if (pos->al.offset < (s64)size)
+				browser.offsets[pos->al.offset] = pos;
 		} else
 			bpos->idx_asm = -1;
 	}

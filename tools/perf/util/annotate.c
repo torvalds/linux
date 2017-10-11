@@ -886,14 +886,15 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line,
 	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
 
 	if (dl != NULL) {
-		dl->offset = offset;
-		dl->line = strdup(line);
-		dl->line_nr = line_nr;
-		if (dl->line == NULL)
+		dl->al.offset  = offset;
+		dl->al.line    = strdup(line);
+		dl->al.line_nr = line_nr;
+
+		if (dl->al.line == NULL)
 			goto out_delete;
 
 		if (offset != -1) {
-			if (disasm_line__parse(dl->line, &dl->ins.name, &dl->ops.raw) < 0)
+			if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
 				goto out_free_line;
 
 			disasm_line__init_ins(dl, arch, map);
@@ -903,7 +904,7 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line,
 	return dl;
 
 out_free_line:
-	zfree(&dl->line);
+	zfree(&dl->al.line);
 out_delete:
 	free(dl);
 	return NULL;
@@ -911,7 +912,7 @@ out_delete:
 
 void disasm_line__free(struct disasm_line *dl)
 {
-	zfree(&dl->line);
+	zfree(&dl->al.line);
 	if (dl->ins.ops && dl->ins.ops->free)
 		dl->ins.ops->free(&dl->ops);
 	else
@@ -937,7 +938,7 @@ static void disasm__add(struct list_head *head, struct disasm_line *line)
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos)
 {
 	list_for_each_entry_continue(pos, head, al.node)
-		if (pos->offset >= 0)
+		if (pos->al.offset >= 0)
 			return pos;
 
 	return NULL;
@@ -1077,7 +1078,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 	static const char *prev_line;
 	static const char *prev_color;
 
-	if (dl->offset != -1) {
+	if (dl->al.offset != -1) {
 		const char *path = NULL;
 		double percent, max_percent = 0.0;
 		double *ppercents = &percent;
@@ -1086,7 +1087,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		int i, nr_percent = 1;
 		const char *color;
 		struct annotation *notes = symbol__annotation(sym);
-		s64 offset = dl->offset;
+		s64 offset = dl->al.offset;
 		const u64 addr = start + offset;
 		struct disasm_line *next;
 		struct block_range *br;
@@ -1106,7 +1107,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			percent = disasm__calc_percent(notes,
 					notes->src->lines ? i : evsel->idx + i,
 					offset,
-					next ? next->offset : (s64) len,
+					next ? next->al.offset : (s64) len,
 					&path, &sample);
 
 			ppercents[i] = percent;
@@ -1165,7 +1166,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 		br = block_range__find(addr);
 		color_fprintf(stdout, annotate__address_color(br), "  %" PRIx64 ":", addr);
-		color_fprintf(stdout, annotate__asm_color(br), "%s", dl->line);
+		color_fprintf(stdout, annotate__asm_color(br), "%s", dl->al.line);
 		annotate__branch_printf(br, addr);
 		printf("\n");
 
@@ -1186,10 +1187,10 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		if (perf_evsel__is_group_event(evsel))
 			width *= evsel->nr_members;
 
-		if (!*dl->line)
+		if (!*dl->al.line)
 			printf(" %*s:\n", width, " ");
 		else
-			printf(" %*s:	%s\n", width, " ", dl->line);
+			printf(" %*s:	%s\n", width, " ", dl->al.line);
 	}
 
 	return 0;
@@ -1311,9 +1312,9 @@ static void delete_last_nop(struct symbol *sym)
 			if (dl->ins.ops != &nop_ops)
 				return;
 		} else {
-			if (!strstr(dl->line, " nop ") &&
-			    !strstr(dl->line, " nopl ") &&
-			    !strstr(dl->line, " nopw "))
+			if (!strstr(dl->al.line, " nop ") &&
+			    !strstr(dl->al.line, " nopl ") &&
+			    !strstr(dl->al.line, " nopw "))
 				return;
 		}
 
@@ -1921,10 +1922,10 @@ static size_t disasm_line__fprintf(struct disasm_line *dl, FILE *fp)
 {
 	size_t printed;
 
-	if (dl->offset == -1)
-		return fprintf(fp, "%s\n", dl->line);
+	if (dl->al.offset == -1)
+		return fprintf(fp, "%s\n", dl->al.line);
 
-	printed = fprintf(fp, "%#" PRIx64 " %s", dl->offset, dl->ins.name);
+	printed = fprintf(fp, "%#" PRIx64 " %s", dl->al.offset, dl->ins.name);
 
 	if (dl->ops.raw[0] != '\0') {
 		printed += fprintf(fp, "%.*s %s\n", 6 - (int)printed, " ",
