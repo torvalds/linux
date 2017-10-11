@@ -61,8 +61,6 @@ struct qrtr_hdr {
 } __packed;
 
 #define QRTR_HDR_SIZE sizeof(struct qrtr_hdr)
-#define QRTR_NODE_BCAST ((unsigned int)-1)
-#define QRTR_PORT_CTRL ((unsigned int)-2)
 
 struct qrtr_sock {
 	/* WARNING: sk must be the first member */
