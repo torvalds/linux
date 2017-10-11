@@ -537,8 +537,8 @@ static int core_imc_mem_init(int cpu, int size)
 
 	/* We need only vbase for core counters */
 	mem_info->vbase = page_address(alloc_pages_node(phys_id,
-					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-					  get_order(size)));
+					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+					  __GFP_NOWARN, get_order(size)));
 	if (!mem_info->vbase)
 		return -ENOMEM;
 
@@ -791,8 +791,8 @@ static int thread_imc_mem_alloc(int cpu_id, int size)
 		 * free the memory in cpu offline path.
 		 */
 		local_mem = page_address(alloc_pages_node(phys_id,
-				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-				  get_order(size)));
+				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+				  __GFP_NOWARN, get_order(size)));
 		if (!local_mem)
 			return -ENOMEM;
 
