@@ -931,12 +931,12 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 
 static void disasm__add(struct list_head *head, struct disasm_line *line)
 {
-	list_add_tail(&line->node, head);
+	list_add_tail(&line->al.node, head);
 }
 
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos)
 {
-	list_for_each_entry_continue(pos, head, node)
+	list_for_each_entry_continue(pos, head, al.node)
 		if (pos->offset >= 0)
 			return pos;
 
@@ -1122,7 +1122,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			return 1;
 
 		if (queue != NULL) {
-			list_for_each_entry_from(queue, &notes->src->source, node) {
+			list_for_each_entry_from(queue, &notes->src->source, al.node) {
 				if (queue == dl)
 					break;
 				disasm_line__print(queue, sym, start, evsel, len,
@@ -1305,7 +1305,7 @@ static void delete_last_nop(struct symbol *sym)
 	struct disasm_line *dl;
 
 	while (!list_empty(list)) {
-		dl = list_entry(list->prev, struct disasm_line, node);
+		dl = list_entry(list->prev, struct disasm_line, al.node);
 
 		if (dl->ins.ops) {
 			if (dl->ins.ops != &nop_ops)
@@ -1317,7 +1317,7 @@ static void delete_last_nop(struct symbol *sym)
 				return;
 		}
 
-		list_del(&dl->node);
+		list_del(&dl->al.node);
 		disasm_line__free(dl);
 	}
 }
@@ -1844,7 +1844,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	if (verbose > 0)
 		symbol__annotate_hits(sym, evsel);
 
-	list_for_each_entry(pos, &notes->src->source, node) {
+	list_for_each_entry(pos, &notes->src->source, al.node) {
 		if (context && queue == NULL) {
 			queue = pos;
 			queue_len = 0;
@@ -1874,7 +1874,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			if (!context)
 				break;
 			if (queue_len == context)
-				queue = list_entry(queue->node.next, typeof(*queue), node);
+				queue = list_entry(queue->al.node.next, typeof(*queue), al.node);
 			else
 				++queue_len;
 			break;
@@ -1911,8 +1911,8 @@ void disasm__purge(struct list_head *head)
 {
 	struct disasm_line *pos, *n;
 
-	list_for_each_entry_safe(pos, n, head, node) {
-		list_del(&pos->node);
+	list_for_each_entry_safe(pos, n, head, al.node) {
+		list_del(&pos->al.node);
 		disasm_line__free(pos);
 	}
 }
@@ -1939,7 +1939,7 @@ size_t disasm__fprintf(struct list_head *head, FILE *fp)
 	struct disasm_line *pos;
 	size_t printed = 0;
 
-	list_for_each_entry(pos, head, node)
+	list_for_each_entry(pos, head, al.node)
 		printed += disasm_line__fprintf(pos, fp);
 
 	return printed;

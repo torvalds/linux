@@ -119,7 +119,7 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(store));
 	g_object_unref(GTK_TREE_MODEL(store));
 
-	list_for_each_entry(pos, &notes->src->source, node) {
+	list_for_each_entry(pos, &notes->src->source, al.node) {
 		GtkTreeIter iter;
 		int ret = 0;
 
@@ -148,8 +148,8 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 
 	gtk_container_add(GTK_CONTAINER(window), view);
 
-	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
-		list_del(&pos->node);
+	list_for_each_entry_safe(pos, n, &notes->src->source, al.node) {
+		list_del(&pos->al.node);
 		disasm_line__free(pos);
 	}
 

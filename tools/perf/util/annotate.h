@@ -59,15 +59,19 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
 struct annotation;
 
+struct annotation_line {
+	struct list_head	 node;
+};
+
 struct disasm_line {
-	struct list_head    node;
-	s64		    offset;
-	char		    *line;
-	struct ins	    ins;
-	int		    line_nr;
-	float		    ipc;
-	u64		    cycles;
-	struct ins_operands ops;
+	struct annotation_line	 al;
+	s64			 offset;
+	char			*line;
+	struct ins		 ins;
+	int			 line_nr;
+	float			 ipc;
+	u64			 cycles;
+	struct ins_operands	 ops;
 };
 
 static inline bool disasm_line__has_offset(const struct disasm_line *dl)

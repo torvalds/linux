@@ -84,7 +84,7 @@ static bool disasm_line__filter(struct ui_browser *browser __maybe_unused,
 				void *entry)
 {
 	if (annotate_browser__opts.hide_src_code) {
-		struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
+		struct disasm_line *dl = list_entry(entry, struct disasm_line, al.node);
 		return dl->offset == -1;
 	}
 
@@ -123,7 +123,7 @@ static int annotate_browser__cycles_width(struct annotate_browser *ab)
 static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
-	struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
+	struct disasm_line *dl = list_entry(entry, struct disasm_line, al.node);
 	struct browser_disasm_line *bdl = disasm_line__browser(dl);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	bool change_color = (!annotate_browser__opts.hide_src_code &&
@@ -286,7 +286,7 @@ static bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sy
 
 static bool is_fused(struct annotate_browser *ab, struct disasm_line *cursor)
 {
-	struct disasm_line *pos = list_prev_entry(cursor, node);
+	struct disasm_line *pos = list_prev_entry(cursor, al.node);
 	const char *name;
 
 	if (!pos)
@@ -404,16 +404,16 @@ static void annotate_browser__set_top(struct annotate_browser *browser,
 	browser->b.top_idx = browser->b.index = idx;
 
 	while (browser->b.top_idx != 0 && back != 0) {
-		pos = list_entry(pos->node.prev, struct disasm_line, node);
+		pos = list_entry(pos->al.node.prev, struct disasm_line, al.node);
 
-		if (disasm_line__filter(&browser->b, &pos->node))
+		if (disasm_line__filter(&browser->b, &pos->al.node))
 			continue;
 
 		--browser->b.top_idx;
 		--back;
 	}
 
-	browser->b.top = pos;
+	browser->b.top = &pos->al;
 	browser->b.navkeypressed = true;
 }
 
@@ -446,7 +446,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 
 	pthread_mutex_lock(&notes->lock);
 
-	list_for_each_entry(pos, &notes->src->source, node) {
+	list_for_each_entry(pos, &notes->src->source, al.node) {
 		struct browser_disasm_line *bpos = disasm_line__browser(pos);
 		const char *path = NULL;
 		double max_percent = 0.0;
@@ -492,7 +492,7 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 	off_t offset = browser->b.index - browser->b.top_idx;
 
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
-	dl = list_entry(browser->b.top, struct disasm_line, node);
+	dl = list_entry(browser->b.top, struct disasm_line, al.node);
 	bdl = disasm_line__browser(dl);
 
 	if (annotate_browser__opts.hide_src_code) {
@@ -589,10 +589,10 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 	struct disasm_line *pos;
 
 	*idx = 0;
-	list_for_each_entry(pos, &notes->src->source, node) {
+	list_for_each_entry(pos, &notes->src->source, al.node) {
 		if (pos->offset == offset)
 			return pos;
-		if (!disasm_line__filter(&browser->b, &pos->node))
+		if (!disasm_line__filter(&browser->b, &pos->al.node))
 			++*idx;
 	}
 
@@ -630,8 +630,8 @@ struct disasm_line *annotate_browser__find_string(struct annotate_browser *brows
 	struct disasm_line *pos = browser->selection;
 
 	*idx = browser->b.index;
-	list_for_each_entry_continue(pos, &notes->src->source, node) {
-		if (disasm_line__filter(&browser->b, &pos->node))
+	list_for_each_entry_continue(pos, &notes->src->source, al.node) {
+		if (disasm_line__filter(&browser->b, &pos->al.node))
 			continue;
 
 		++*idx;
@@ -669,8 +669,8 @@ struct disasm_line *annotate_browser__find_string_reverse(struct annotate_browse
 	struct disasm_line *pos = browser->selection;
 
 	*idx = browser->b.index;
-	list_for_each_entry_continue_reverse(pos, &notes->src->source, node) {
-		if (disasm_line__filter(&browser->b, &pos->node))
+	list_for_each_entry_continue_reverse(pos, &notes->src->source, al.node) {
+		if (disasm_line__filter(&browser->b, &pos->al.node))
 			continue;
 
 		--*idx;
@@ -1134,7 +1134,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	notes = symbol__annotation(sym);
 	browser.start = map__rip_2objdump(map, sym->start);
 
-	list_for_each_entry(pos, &notes->src->source, node) {
+	list_for_each_entry(pos, &notes->src->source, al.node) {
 		struct browser_disasm_line *bpos;
 		size_t line_len = strlen(pos->line);
 
@@ -1174,8 +1174,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	annotate_browser__update_addr_width(&browser);
 
 	ret = annotate_browser__run(&browser, evsel, hbt);
-	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
-		list_del(&pos->node);
+	list_for_each_entry_safe(pos, n, &notes->src->source, al.node) {
+		list_del(&pos->al.node);
 		disasm_line__free(pos);
 	}
 
