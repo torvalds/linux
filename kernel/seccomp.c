@@ -1061,6 +1061,39 @@ out:
 	__put_seccomp_filter(filter);
 	return ret;
 }
+
+long seccomp_get_metadata(struct task_struct *task,
+			  unsigned long size, void __user *data)
+{
+	long ret;
+	struct seccomp_filter *filter;
+	struct seccomp_metadata kmd = {};
+
+	if (!capable(CAP_SYS_ADMIN) ||
+	    current->seccomp.mode != SECCOMP_MODE_DISABLED) {
+		return -EACCES;
+	}
+
+	size = min_t(unsigned long, size, sizeof(kmd));
+
+	if (copy_from_user(&kmd, data, size))
+		return -EFAULT;
+
+	filter = get_nth_filter(task, kmd.filter_off);
+	if (IS_ERR(filter))
+		return PTR_ERR(filter);
+
+	memset(&kmd, 0, sizeof(kmd));
+	if (filter->log)
+		kmd.flags |= SECCOMP_FILTER_FLAG_LOG;
+
+	ret = size;
+	if (copy_to_user(data, &kmd, size))
+		ret = -EFAULT;
+
+	__put_seccomp_filter(filter);
+	return ret;
+}
 #endif
 
 #ifdef CONFIG_SYSCTL
