@@ -2393,7 +2393,7 @@ nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
 
 	nvme_fc_init_io_queues(ctrl);
 
-	ret = blk_mq_reinit_tagset(&ctrl->tag_set, nvme_fc_reinit_request);
+	ret = nvme_reinit_tagset(&ctrl->ctrl, ctrl->ctrl.tagset);
 	if (ret)
 		goto out_free_io_queues;
 
@@ -2753,6 +2753,7 @@ static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.submit_async_event	= nvme_fc_submit_async_event,
 	.delete_ctrl		= nvme_fc_del_nvme_ctrl,
 	.get_address		= nvmf_get_address,
+	.reinit_request		= nvme_fc_reinit_request,
 };
 
 static void

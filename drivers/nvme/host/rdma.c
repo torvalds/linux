@@ -774,8 +774,7 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl,
 			goto out_free_tagset;
 		}
 	} else {
-		error = blk_mq_reinit_tagset(&ctrl->admin_tag_set,
-					     nvme_rdma_reinit_request);
+		error = nvme_reinit_tagset(&ctrl->ctrl, ctrl->ctrl.admin_tagset);
 		if (error)
 			goto out_free_queue;
 	}
@@ -855,8 +854,7 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 			goto out_free_tag_set;
 		}
 	} else {
-		ret = blk_mq_reinit_tagset(&ctrl->tag_set,
-					   nvme_rdma_reinit_request);
+		ret = nvme_reinit_tagset(&ctrl->ctrl, ctrl->ctrl.tagset);
 		if (ret)
 			goto out_free_io_queues;
 
@@ -1845,6 +1843,7 @@ static const struct nvme_ctrl_ops nvme_rdma_ctrl_ops = {
 	.submit_async_event	= nvme_rdma_submit_async_event,
 	.delete_ctrl		= nvme_rdma_del_ctrl,
 	.get_address		= nvmf_get_address,
+	.reinit_request		= nvme_rdma_reinit_request,
 };
 
 static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,

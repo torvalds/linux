@@ -2934,6 +2934,16 @@ void nvme_start_queues(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_start_queues);
 
+int nvme_reinit_tagset(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set)
+{
+	if (!ctrl->ops->reinit_request)
+		return 0;
+
+	return blk_mq_tagset_iter(set, set->driver_data,
+			ctrl->ops->reinit_request);
+}
+EXPORT_SYMBOL_GPL(nvme_reinit_tagset);
+
 int __init nvme_core_init(void)
 {
 	int result;
