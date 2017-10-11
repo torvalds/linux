@@ -615,20 +615,11 @@ static int emac_probe(struct platform_device *pdev)
 	u32 reg;
 	int ret;
 
-	/* The EMAC itself is capable of 64-bit DMA, so try that first. */
-	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	/* The TPD buffer address is limited to 45 bits. */
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(45));
 	if (ret) {
-		/* Some platforms may restrict the EMAC's address bus to less
-		 * then the size of DDR. In this case, we need to try a
-		 * smaller mask.  We could try every possible smaller mask,
-		 * but that's overkill.  Instead, just fall to 32-bit, which
-		 * should always work.
-		 */
-		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (ret) {
-			dev_err(&pdev->dev, "could not set DMA mask\n");
-			return ret;
-		}
+		dev_err(&pdev->dev, "could not set DMA mask\n");
+		return ret;
 	}
 
 	netdev = alloc_etherdev(sizeof(struct emac_adapter));
