@@ -389,15 +389,15 @@
 
 		pinctrl_i2c1: i2c1grp {
 			fsl,pins = <
-				MX53_PAD_EIM_D21__I2C1_SCL		0xc0000000
-				MX53_PAD_EIM_D28__I2C1_SDA		0xc0000000
+				MX53_PAD_EIM_D21__I2C1_SCL		0x400001e4
+				MX53_PAD_EIM_D28__I2C1_SDA		0x400001e4
 			>;
 		};
 
 		pinctrl_i2c3: i2c3grp {
 			fsl,pins = <
-				MX53_PAD_GPIO_3__I2C3_SCL		0xc0000000
-				MX53_PAD_GPIO_6__I2C3_SDA		0xc0000000
+				MX53_PAD_GPIO_3__I2C3_SCL		0x400001e4
+				MX53_PAD_GPIO_6__I2C3_SDA		0x400001e4
 			>;
 		};
 
