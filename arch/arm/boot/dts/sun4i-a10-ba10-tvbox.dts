@@ -125,12 +125,6 @@
 	status = "okay";
 };
 
-&pio {
-	usb2_vbus_pin_a: usb2_vbus_pin@0 {
-		pins = "PH12";
-	};
-};
-
 &reg_usb0_vbus {
 	regulator-boot-on;
 	status = "okay";
