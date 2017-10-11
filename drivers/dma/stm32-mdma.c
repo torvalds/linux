@@ -1252,13 +1252,13 @@ static size_t stm32_mdma_desc_residue(struct stm32_mdma_chan *chan,
 				      u32 curr_hwdesc)
 {
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
-	struct stm32_mdma_hwdesc *hwdesc = desc->hwdesc;
 	u32 cbndtr, residue, modulo, burst_size;
 	int i;
 
 	residue = 0;
 	for (i = curr_hwdesc + 1; i < desc->count; i++) {
-		hwdesc = &desc->hwdesc[i];
+		struct stm32_mdma_hwdesc *hwdesc = &desc->hwdesc[i];
+
 		residue += STM32_MDMA_CBNDTR_BNDT(hwdesc->cbndtr);
 	}
 	cbndtr = stm32_mdma_read(dmadev, STM32_MDMA_CBNDTR(chan->id));
