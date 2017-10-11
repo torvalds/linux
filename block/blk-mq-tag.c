@@ -327,13 +327,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(blk_mq_tagset_iter);
 
-int blk_mq_reinit_tagset(struct blk_mq_tag_set *set,
-			 int (reinit_request)(void *, struct request *))
-{
-	return blk_mq_tagset_iter(set, set->driver_data, reinit_request);
-}
-EXPORT_SYMBOL_GPL(blk_mq_reinit_tagset);
-
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 		void *priv)
 {
