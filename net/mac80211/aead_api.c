@@ -21,7 +21,7 @@
 int aead_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad, size_t aad_len,
 		 u8 *data, size_t data_len, u8 *mic)
 {
-	size_t mic_len = tfm->authsize;
+	size_t mic_len = crypto_aead_authsize(tfm);
 	struct scatterlist sg[3];
 	struct aead_request *aead_req;
 	int reqsize = sizeof(*aead_req) + crypto_aead_reqsize(tfm);
@@ -52,7 +52,7 @@ int aead_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad, size_t aad_len,
 int aead_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad, size_t aad_len,
 		 u8 *data, size_t data_len, u8 *mic)
 {
-	size_t mic_len = tfm->authsize;
+	size_t mic_len = crypto_aead_authsize(tfm);
 	struct scatterlist sg[3];
 	struct aead_request *aead_req;
 	int reqsize = sizeof(*aead_req) + crypto_aead_reqsize(tfm);
