@@ -165,7 +165,7 @@
 				reg = <0>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupts = <0 110 4>;
+				interrupts = <0 111 4>;
 			};
 		};
 
