@@ -213,6 +213,8 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 			break;
 	}
 
+	WARN_ONCE(i == DPAA2_ETH_MAX_SG_ENTRIES, "Final bit not set in SGT");
+
 	/* Count all data buffers + SG table buffer */
 	ch->buf_count -= i + 2;
 
