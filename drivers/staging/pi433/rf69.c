@@ -919,7 +919,7 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 		return retval;
 
 	// access the fifo to activate new threshold
-	return rf69_read_fifo (spi, (u8*) &retval, 1); // retval used as buffer
+	return rf69_read_fifo(spi, (u8 *)&retval, 1); // retval used as buffer
 }
 
 int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
