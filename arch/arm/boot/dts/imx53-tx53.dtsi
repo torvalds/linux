@@ -233,8 +233,11 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-0 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
 	clock-frequency = <400000>;
 	status = "okay";
 
@@ -394,10 +397,24 @@
 			>;
 		};
 
+		pinctrl_i2c1_gpio: i2c1-gpiogrp {
+			fsl,pins = <
+				MX53_PAD_EIM_D21__GPIO3_21		0x400001e6
+				MX53_PAD_EIM_D28__GPIO3_28		0x400001e6
+			>;
+		};
+
 		pinctrl_i2c3: i2c3grp {
 			fsl,pins = <
 				MX53_PAD_GPIO_3__I2C3_SCL		0x400001e4
 				MX53_PAD_GPIO_6__I2C3_SDA		0x400001e4
+			>;
+		};
+
+		pinctrl_i2c3_gpio: i2c3-gpiogrp {
+			fsl,pins = <
+				MX53_PAD_GPIO_3__GPIO1_3		0x400001e6
+				MX53_PAD_GPIO_6__GPIO1_6		0x400001e6
 			>;
 		};
 
