@@ -1087,10 +1087,9 @@ tx_drop:
 
 netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 			       struct mlx4_en_rx_alloc *frame,
-			       struct net_device *dev, unsigned int length,
+			       struct mlx4_en_priv *priv, unsigned int length,
 			       int tx_ind, bool *doorbell_pending)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
 	union mlx4_wqe_qpn_vlan	qpn_vlan = {};
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_en_tx_info *tx_info;

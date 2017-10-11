@@ -693,7 +693,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 			       struct mlx4_en_rx_alloc *frame,
-			       struct net_device *dev, unsigned int length,
+			       struct mlx4_en_priv *priv, unsigned int length,
 			       int tx_ind, bool *doorbell_pending);
 void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring);
 bool mlx4_en_rx_recycle(struct mlx4_en_rx_ring *ring,

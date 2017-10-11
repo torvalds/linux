@@ -778,7 +778,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			case XDP_PASS:
 				break;
 			case XDP_TX:
-				if (likely(!mlx4_en_xmit_frame(ring, frags, dev,
+				if (likely(!mlx4_en_xmit_frame(ring, frags, priv,
 							length, cq_ring,
 							&doorbell_pending))) {
 					frags[0].page = NULL;
