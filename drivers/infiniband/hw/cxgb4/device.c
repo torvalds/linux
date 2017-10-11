@@ -1102,8 +1102,8 @@ static inline struct sk_buff *copy_gl_to_skb_pkt(const struct pkt_gl *gl,
 	if (unlikely(!skb))
 		return NULL;
 
-	 __skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
-		   sizeof(struct rss_header) - pktshift);
+	__skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
+		  sizeof(struct rss_header) - pktshift);
 
 	/*
 	 * This skb will contain:
