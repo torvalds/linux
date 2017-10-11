@@ -115,6 +115,7 @@ static const cxl_p1_reg_t CXL_PSL9_TRACECFG = {0x0368};
 static const cxl_p1_reg_t CXL_PSL9_APCDEDALLOC = {0x0378};
 static const cxl_p1_reg_t CXL_PSL9_APCDEDTYPE = {0x0380};
 static const cxl_p1_reg_t CXL_PSL9_TNR_ADDR = {0x0388};
+static const cxl_p1_reg_t CXL_PSL9_CTCCFG = {0x0390};
 static const cxl_p1_reg_t CXL_PSL9_GP_CT = {0x0398};
 static const cxl_p1_reg_t CXL_XSL9_IERAT = {0x0588};
 static const cxl_p1_reg_t CXL_XSL9_ILPP  = {0x0590};
@@ -416,6 +417,9 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_DEV_MINORS 13   /* 1 control + 4 AFUs * 3 (dedicated/master/shared) */
 #define CXL_CARD_MINOR(adapter) (adapter->adapter_num * CXL_DEV_MINORS)
 #define CXL_DEVT_ADAPTER(dev) (MINOR(dev) / CXL_DEV_MINORS)
+
+#define CXL_PSL9_TRACEID_MAX 0xAU
+#define CXL_PSL9_TRACESTATE_FIN 0x3U
 
 enum cxl_context_status {
 	CLOSED,
@@ -941,8 +945,6 @@ int cxl_debugfs_adapter_add(struct cxl *adapter);
 void cxl_debugfs_adapter_remove(struct cxl *adapter);
 int cxl_debugfs_afu_add(struct cxl_afu *afu);
 void cxl_debugfs_afu_remove(struct cxl_afu *afu);
-void cxl_stop_trace_psl9(struct cxl *cxl);
-void cxl_stop_trace_psl8(struct cxl *cxl);
 void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir);
 void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir);
 void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter, struct dentry *dir);
@@ -975,14 +977,6 @@ static inline int cxl_debugfs_afu_add(struct cxl_afu *afu)
 }
 
 static inline void cxl_debugfs_afu_remove(struct cxl_afu *afu)
-{
-}
-
-static inline void cxl_stop_trace_psl9(struct cxl *cxl)
-{
-}
-
-static inline void cxl_stop_trace_psl8(struct cxl *cxl)
 {
 }
 

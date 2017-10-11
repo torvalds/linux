@@ -1747,6 +1747,44 @@ static void cxl_deconfigure_adapter(struct cxl *adapter)
 	pci_disable_device(pdev);
 }
 
+static void cxl_stop_trace_psl9(struct cxl *adapter)
+{
+	int traceid;
+	u64 trace_state, trace_mask;
+	struct pci_dev *dev = to_pci_dev(adapter->dev.parent);
+
+	/* read each tracearray state and issue mmio to stop them is needed */
+	for (traceid = 0; traceid <= CXL_PSL9_TRACEID_MAX; ++traceid) {
+		trace_state = cxl_p1_read(adapter, CXL_PSL9_CTCCFG);
+		trace_mask = (0x3ULL << (62 - traceid * 2));
+		trace_state = (trace_state & trace_mask) >> (62 - traceid * 2);
+		dev_dbg(&dev->dev, "cxl: Traceid-%d trace_state=0x%0llX\n",
+			traceid, trace_state);
+
+		/* issue mmio if the trace array isn't in FIN state */
+		if (trace_state != CXL_PSL9_TRACESTATE_FIN)
+			cxl_p1_write(adapter, CXL_PSL9_TRACECFG,
+				     0x8400000000000000ULL | traceid);
+	}
+}
+
+static void cxl_stop_trace_psl8(struct cxl *adapter)
+{
+	int slice;
+
+	/* Stop the trace */
+	cxl_p1_write(adapter, CXL_PSL_TRACE, 0x8000000000000017LL);
+
+	/* Stop the slice traces */
+	spin_lock(&adapter->afu_list_lock);
+	for (slice = 0; slice < adapter->slices; slice++) {
+		if (adapter->afu[slice])
+			cxl_p1n_write(adapter->afu[slice], CXL_PSL_SLICE_TRACE,
+				      0x8000000000000000LL);
+	}
+	spin_unlock(&adapter->afu_list_lock);
+}
+
 static const struct cxl_service_layer_ops psl9_ops = {
 	.adapter_regs_init = init_implementation_adapter_regs_psl9,
 	.invalidate_all = cxl_invalidate_all_psl9,
