@@ -3462,7 +3462,8 @@ int snd_soc_add_component(struct device *dev,
 		}
 	}
 
-	ret = snd_soc_register_dais(component, dai_drv, num_dai, true);
+	ret = snd_soc_register_dais(component, dai_drv, num_dai,
+				    !component_driver->non_legacy_dai_naming);
 	if (ret < 0) {
 		dev_err(dev, "ASoC: Failed to register DAIs: %d\n", ret);
 		goto err_cleanup;
