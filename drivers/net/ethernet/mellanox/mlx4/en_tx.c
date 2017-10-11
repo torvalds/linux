@@ -1090,7 +1090,9 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 			       struct mlx4_en_priv *priv, unsigned int length,
 			       int tx_ind, bool *doorbell_pending)
 {
-	union mlx4_wqe_qpn_vlan	qpn_vlan = {};
+	union mlx4_wqe_qpn_vlan qpn_vlan = {
+		.fence_size = MLX4_EN_XDP_TX_REAL_SZ,
+	};
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_en_tx_info *tx_info;
 	struct mlx4_wqe_data_seg *data;
@@ -1140,7 +1142,6 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	data->byte_count = cpu_to_be32(length);
 
 	/* tx completion can avoid cache line miss for common cases */
-	tx_desc->ctrl.srcrb_flags = priv->ctrl_flags;
 
 	op_own = cpu_to_be32(MLX4_OPCODE_SEND) |
 		((ring->prod & ring->size) ?
@@ -1151,10 +1152,16 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 
 	ring->prod += MLX4_EN_XDP_TX_NRTXBB;
 
-	qpn_vlan.fence_size = MLX4_EN_XDP_TX_REAL_SZ;
+	tx_desc->ctrl.qpn_vlan = qpn_vlan;
+	tx_desc->ctrl.srcrb_flags = priv->ctrl_flags;
 
-	mlx4_en_tx_write_desc(ring, tx_desc, qpn_vlan, TXBB_SIZE, 0,
-			      op_own, false, false);
+	/* Ensure new descriptor hits memory
+	 * before setting ownership of this descriptor to HW
+	 */
+	dma_wmb();
+	tx_desc->ctrl.owner_opcode = op_own;
+	ring->xmit_more++;
+
 	*doorbell_pending = true;
 
 	return NETDEV_TX_OK;
