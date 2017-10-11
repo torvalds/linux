@@ -99,6 +99,9 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 	if (!debugfs_create_bool("suspend", S_IRUGO, d, &opp->suspend))
 		return -ENOMEM;
 
+	if (!debugfs_create_u32("performance_state", S_IRUGO, d, &opp->pstate))
+		return -ENOMEM;
+
 	if (!debugfs_create_ulong("rate_hz", S_IRUGO, d, &opp->rate))
 		return -ENOMEM;
 

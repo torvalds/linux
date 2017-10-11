@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/export.h>
+#include <linux/pm_domain.h>
 #include <linux/regulator/consumer.h>
 
 #include "opp.h"
@@ -535,6 +536,44 @@ _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 	return ret;
 }
 
+static inline int
+_generic_set_opp_domain(struct device *dev, struct clk *clk,
+			unsigned long old_freq, unsigned long freq,
+			unsigned int old_pstate, unsigned int new_pstate)
+{
+	int ret;
+
+	/* Scaling up? Scale domain performance state before frequency */
+	if (freq > old_freq) {
+		ret = dev_pm_genpd_set_performance_state(dev, new_pstate);
+		if (ret)
+			return ret;
+	}
+
+	ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
+	if (ret)
+		goto restore_domain_state;
+
+	/* Scaling down? Scale domain performance state after frequency */
+	if (freq < old_freq) {
+		ret = dev_pm_genpd_set_performance_state(dev, new_pstate);
+		if (ret)
+			goto restore_freq;
+	}
+
+	return 0;
+
+restore_freq:
+	if (_generic_set_opp_clk_only(dev, clk, freq, old_freq))
+		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
+			__func__, old_freq);
+restore_domain_state:
+	if (freq > old_freq)
+		dev_pm_genpd_set_performance_state(dev, old_pstate);
+
+	return ret;
+}
+
 static int _generic_set_opp_regulator(const struct opp_table *opp_table,
 				      struct device *dev,
 				      unsigned long old_freq,
@@ -653,7 +692,16 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	/* Only frequency scaling */
 	if (!opp_table->regulators) {
-		ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
+		/*
+		 * We don't support devices with both regulator and
+		 * domain performance-state for now.
+		 */
+		if (opp_table->genpd_performance_state)
+			ret = _generic_set_opp_domain(dev, clk, old_freq, freq,
+						      IS_ERR(old_opp) ? 0 : old_opp->pstate,
+						      opp->pstate);
+		else
+			ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
 	} else if (!opp_table->set_opp) {
 		ret = _generic_set_opp_regulator(opp_table, dev, old_freq, freq,
 						 IS_ERR(old_opp) ? NULL : old_opp->supplies,
@@ -1706,6 +1754,13 @@ void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
 			if (remove_all || !opp->dynamic)
 				dev_pm_opp_put(opp);
 		}
+
+		/*
+		 * The OPP table is getting removed, drop the performance state
+		 * constraints.
+		 */
+		if (opp_table->genpd_performance_state)
+			dev_pm_genpd_set_performance_state(dev, 0);
 	} else {
 		_remove_opp_dev(_find_opp_dev(dev, opp_table), opp_table);
 	}
