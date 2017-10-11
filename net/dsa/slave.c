@@ -1116,6 +1116,7 @@ int dsa_slave_resume(struct net_device *slave_dev)
 
 int dsa_slave_create(struct dsa_port *port, const char *name)
 {
+	struct dsa_notifier_register_info rinfo = { };
 	struct dsa_switch *ds = port->ds;
 	struct net_device *master;
 	struct net_device *slave_dev;
@@ -1177,6 +1178,12 @@ int dsa_slave_create(struct dsa_port *port, const char *name)
 		goto out_free;
 	}
 
+	rinfo.info.dev = slave_dev;
+	rinfo.master = master;
+	rinfo.port_number = p->dp->index;
+	rinfo.switch_number = p->dp->ds->index;
+	call_dsa_notifiers(DSA_PORT_REGISTER, slave_dev, &rinfo.info);
+
 	ret = register_netdev(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
@@ -1200,6 +1207,7 @@ out_free:
 void dsa_slave_destroy(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
+	struct dsa_notifier_register_info rinfo = { };
 	struct device_node *port_dn;
 
 	port_dn = p->dp->dn;
@@ -1211,6 +1219,11 @@ void dsa_slave_destroy(struct net_device *slave_dev)
 		if (of_phy_is_fixed_link(port_dn))
 			of_phy_deregister_fixed_link(port_dn);
 	}
+	rinfo.info.dev = slave_dev;
+	rinfo.master = p->dp->cpu_dp->netdev;
+	rinfo.port_number = p->dp->index;
+	rinfo.switch_number = p->dp->ds->index;
+	call_dsa_notifiers(DSA_PORT_UNREGISTER, slave_dev, &rinfo.info);
 	unregister_netdev(slave_dev);
 	free_percpu(p->stats64);
 	free_netdev(slave_dev);
