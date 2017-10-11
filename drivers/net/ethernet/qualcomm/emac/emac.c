@@ -148,9 +148,8 @@ static irqreturn_t emac_isr(int _irq, void *data)
 		goto exit;
 
 	if (status & ISR_ERROR) {
-		netif_warn(adpt,  intr, adpt->netdev,
-			   "warning: error irq status 0x%lx\n",
-			   status & ISR_ERROR);
+		net_err_ratelimited("%s: error interrupt 0x%lx\n",
+				    adpt->netdev->name, status & ISR_ERROR);
 		/* reset MAC */
 		schedule_work(&adpt->work_thread);
 	}
@@ -169,7 +168,8 @@ static irqreturn_t emac_isr(int _irq, void *data)
 		emac_mac_tx_process(adpt, &adpt->tx_q);
 
 	if (status & ISR_OVER)
-		net_warn_ratelimited("warning: TX/RX overflow\n");
+		net_warn_ratelimited("%s: TX/RX overflow interrupt\n",
+				     adpt->netdev->name);
 
 exit:
 	/* enable the interrupt */
