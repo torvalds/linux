@@ -67,13 +67,21 @@ struct annotation_line {
 	int			 line_nr;
 	float			 ipc;
 	u64			 cycles;
+	size_t			 privsize;
 };
 
 struct disasm_line {
-	struct annotation_line	 al;
 	struct ins		 ins;
 	struct ins_operands	 ops;
+
+	/* This needs to be at the end. */
+	struct annotation_line	 al;
 };
+
+static inline struct disasm_line *disasm_line(struct annotation_line *al)
+{
+	return al ? container_of(al, struct disasm_line, al) : NULL;
+}
 
 static inline bool disasm_line__has_offset(const struct disasm_line *dl)
 {

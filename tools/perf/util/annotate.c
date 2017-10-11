@@ -888,14 +888,64 @@ struct annotate_args {
 	int			 line_nr;
 };
 
+static void annotation_line__delete(struct annotation_line *al)
+{
+	void *ptr = (void *) al - al->privsize;
+
+	zfree(&al->line);
+	free(ptr);
+}
+
+/*
+ * Allocating the annotation line data with following
+ * structure:
+ *
+ *    --------------------------------------
+ *    private space | struct annotation_line
+ *    --------------------------------------
+ *
+ * Size of the private space is stored in 'struct annotation_line'.
+ *
+ */
+static struct annotation_line *
+annotation_line__new(struct annotate_args *args, size_t privsize)
+{
+	struct annotation_line *al;
+	size_t size = privsize + sizeof(*al);
+
+	al = zalloc(size);
+	if (al) {
+		al = (void *) al + privsize;
+		al->privsize   = privsize;
+		al->offset     = args->offset;
+		al->line       = strdup(args->line);
+		al->line_nr    = args->line_nr;
+	}
+
+	return al;
+}
+
+/*
+ * Allocating the disasm annotation line data with
+ * following structure:
+ *
+ *    ------------------------------------------------------------
+ *    privsize space | struct disasm_line | struct annotation_line
+ *    ------------------------------------------------------------
+ *
+ * We have 'struct annotation_line' member as last member
+ * of 'struct disasm_line' to have an easy access.
+ *
+ */
 static struct disasm_line *disasm_line__new(struct annotate_args *args)
 {
-	struct disasm_line *dl = zalloc(sizeof(*dl) + args->privsize);
+	struct disasm_line *dl = NULL;
+	struct annotation_line *al;
+	size_t privsize = args->privsize + offsetof(struct disasm_line, al);
 
-	if (dl != NULL) {
-		dl->al.offset  = args->offset;
-		dl->al.line    = strdup(args->line);
-		dl->al.line_nr = args->line_nr;
+	al = annotation_line__new(args, privsize);
+	if (al != NULL) {
+		dl = disasm_line(al);
 
 		if (dl->al.line == NULL)
 			goto out_delete;
@@ -919,14 +969,13 @@ out_delete:
 
 void disasm_line__free(struct disasm_line *dl)
 {
-	zfree(&dl->al.line);
 	if (dl->ins.ops && dl->ins.ops->free)
 		dl->ins.ops->free(&dl->ops);
 	else
 		ins__delete(&dl->ops);
 	free((void *)dl->ins.name);
 	dl->ins.name = NULL;
-	free(dl);
+	annotation_line__delete(&dl->al);
 }
 
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw)

@@ -76,7 +76,9 @@ struct annotate_browser {
 
 static inline struct browser_disasm_line *disasm_line__browser(struct disasm_line *dl)
 {
-	return (struct browser_disasm_line *)(dl + 1);
+	struct annotation_line *al = &dl->al;
+
+	return (void *) al - al->privsize;
 }
 
 static bool disasm_line__filter(struct ui_browser *browser __maybe_unused,
