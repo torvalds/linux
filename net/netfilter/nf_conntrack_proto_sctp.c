@@ -522,8 +522,7 @@ static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
 	}
 	return NF_ACCEPT;
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_SCTP))
-		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", logmsg);
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_SCTP, "%s", logmsg);
 	return -NF_ACCEPT;
 }
 

@@ -738,6 +738,12 @@ static const u8 tcp_valid_flags[(TCPHDR_FIN|TCPHDR_SYN|TCPHDR_RST|TCPHDR_ACK|
 	[TCPHDR_ACK|TCPHDR_URG]			= 1,
 };
 
+static void tcp_error_log(const struct sk_buff *skb, struct net *net,
+			  u8 pf, const char *msg)
+{
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_TCP, "%s", msg);
+}
+
 /* Protect conntrack agaist broken packets. Code taken from ipt_unclean.c.  */
 static int tcp_error(struct net *net, struct nf_conn *tmpl,
 		     struct sk_buff *skb,
@@ -753,17 +759,13 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 	/* Smaller that minimal TCP header? */
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
-		if (LOG_INVALID(net, IPPROTO_TCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				"nf_ct_tcp: short packet ");
+		tcp_error_log(skb, net, pf, "short packet");
 		return -NF_ACCEPT;
 	}
 
 	/* Not whole TCP header or malformed packet */
 	if (th->doff*4 < sizeof(struct tcphdr) || tcplen < th->doff*4) {
-		if (LOG_INVALID(net, IPPROTO_TCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				"nf_ct_tcp: truncated/malformed packet ");
+		tcp_error_log(skb, net, pf, "truncated packet");
 		return -NF_ACCEPT;
 	}
 
@@ -774,18 +776,14 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 	/* FIXME: Source route IP option packets --RR */
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_checksum(skb, hooknum, dataoff, IPPROTO_TCP, pf)) {
-		if (LOG_INVALID(net, IPPROTO_TCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				  "nf_ct_tcp: bad TCP checksum ");
+		tcp_error_log(skb, net, pf, "bad checksum");
 		return -NF_ACCEPT;
 	}
 
 	/* Check TCP flags. */
 	tcpflags = (tcp_flag_byte(th) & ~(TCPHDR_ECE|TCPHDR_CWR|TCPHDR_PSH));
 	if (!tcp_valid_flags[tcpflags]) {
-		if (LOG_INVALID(net, IPPROTO_TCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				  "nf_ct_tcp: invalid TCP flag combination ");
+		tcp_error_log(skb, net, pf, "invalid tcp flag combination");
 		return -NF_ACCEPT;
 	}
 

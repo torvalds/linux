@@ -176,6 +176,12 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
+static void icmpv6_error_log(const struct sk_buff *skb, struct net *net,
+			     u8 pf, const char *msg)
+{
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_ICMPV6, "%s", msg);
+}
+
 static int
 icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	     struct sk_buff *skb, unsigned int dataoff,
@@ -187,17 +193,13 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
-		if (LOG_INVALID(net, IPPROTO_ICMPV6))
-			nf_log_packet(net, PF_INET6, 0, skb, NULL, NULL, NULL,
-			      "nf_ct_icmpv6: short packet ");
+		icmpv6_error_log(skb, net, pf, "short packet");
 		return -NF_ACCEPT;
 	}
 
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
-		if (LOG_INVALID(net, IPPROTO_ICMPV6))
-			nf_log_packet(net, PF_INET6, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_icmpv6: ICMPv6 checksum failed ");
+		icmpv6_error_log(skb, net, pf, "ICMPv6 checksum failed");
 		return -NF_ACCEPT;
 	}
 

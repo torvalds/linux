@@ -27,6 +27,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_log.h>
 
 static struct nf_conntrack_l4proto __rcu **nf_ct_protos[NFPROTO_NUMPROTO] __read_mostly;
 struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[NFPROTO_NUMPROTO] __read_mostly;
@@ -63,6 +64,29 @@ nf_ct_unregister_sysctl(struct ctl_table_header **header,
 	*header = NULL;
 	*table = NULL;
 }
+
+__printf(5, 6)
+void nf_l4proto_log_invalid(const struct sk_buff *skb,
+			    struct net *net,
+			    u16 pf, u8 protonum,
+			    const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (net->ct.sysctl_log_invalid != protonum ||
+	    net->ct.sysctl_log_invalid != IPPROTO_RAW)
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
+		      "nf_ct_proto_%d: %pV ", protonum, &vaf);
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(nf_l4proto_log_invalid);
 #endif
 
 const struct nf_conntrack_l4proto *

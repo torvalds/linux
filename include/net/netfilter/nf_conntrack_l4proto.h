@@ -152,8 +152,18 @@ extern const struct nla_policy nf_ct_port_nla_policy[];
 #define LOG_INVALID(net, proto)				\
 	((net)->ct.sysctl_log_invalid == (proto) ||	\
 	 (net)->ct.sysctl_log_invalid == IPPROTO_RAW)
+
+__printf(5, 6) __cold
+void nf_l4proto_log_invalid(const struct sk_buff *skb,
+			    struct net *net,
+			    u16 pf, u8 protonum,
+			    const char *fmt, ...);
 #else
 static inline int LOG_INVALID(struct net *net, int proto) { return 0; }
+
+static inline __printf(5, 6) __cold
+void nf_l4proto_log_invalid(const struct sk_buff *skb, struct net *net,
+			    u16 pf, u8 protonum, const char *fmt, ...) {}
 #endif /* CONFIG_SYSCTL */
 
 #endif /*_NF_CONNTRACK_PROTOCOL_H*/

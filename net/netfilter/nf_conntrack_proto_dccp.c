@@ -604,8 +604,7 @@ static int dccp_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_DCCP))
-		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", msg);
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_DCCP, "%s", msg);
 	return -NF_ACCEPT;
 }
 
