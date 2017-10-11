@@ -64,13 +64,13 @@ struct annotation_line {
 	s64			 offset;
 	char			*line;
 	int			 line_nr;
+	float			 ipc;
+	u64			 cycles;
 };
 
 struct disasm_line {
 	struct annotation_line	 al;
 	struct ins		 ins;
-	float			 ipc;
-	u64			 cycles;
 	struct ins_operands	 ops;
 };
 

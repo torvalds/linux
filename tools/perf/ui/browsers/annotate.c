@@ -144,7 +144,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 
 	if ((row == 0) && (dl->al.offset == -1 || percent_max == 0.0)) {
 		if (ab->have_cycles) {
-			if (dl->ipc == 0.0 && dl->cycles == 0)
+			if (dl->al.ipc == 0.0 && dl->al.cycles == 0)
 				show_title = true;
 		} else
 			show_title = true;
@@ -178,16 +178,16 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		}
 	}
 	if (ab->have_cycles) {
-		if (dl->ipc)
-			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, dl->ipc);
+		if (dl->al.ipc)
+			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, dl->al.ipc);
 		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", IPC_WIDTH);
 		else
 			ui_browser__printf(browser, "%*s ", IPC_WIDTH - 1, "IPC");
 
-		if (dl->cycles)
+		if (dl->al.cycles)
 			ui_browser__printf(browser, "%*" PRIu64 " ",
-					   CYCLES_WIDTH - 1, dl->cycles);
+					   CYCLES_WIDTH - 1, dl->al.cycles);
 		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", CYCLES_WIDTH);
 		else
@@ -474,7 +474,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 				max_percent = bpos->samples[i].percent;
 		}
 
-		if (max_percent < 0.01 && pos->ipc == 0) {
+		if (max_percent < 0.01 && pos->al.ipc == 0) {
 			RB_CLEAR_NODE(&bpos->rb_node);
 			continue;
 		}
@@ -994,7 +994,7 @@ static void count_and_fill(struct annotate_browser *browser, u64 start, u64 end,
 			struct disasm_line *dl = browser->offsets[offset];
 
 			if (dl)
-				dl->ipc = ipc;
+				dl->al.ipc = ipc;
 		}
 	}
 }
@@ -1025,7 +1025,7 @@ static void annotate__compute_ipc(struct annotate_browser *browser, size_t size,
 				count_and_fill(browser, ch->start, offset, ch);
 			dl = browser->offsets[offset];
 			if (dl && ch->num_aggr)
-				dl->cycles = ch->cycles_aggr / ch->num_aggr;
+				dl->al.cycles = ch->cycles_aggr / ch->num_aggr;
 			browser->have_cycles = true;
 		}
 	}
