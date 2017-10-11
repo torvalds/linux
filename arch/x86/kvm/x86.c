@@ -7804,17 +7804,39 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_async_pf_hash_reset(vcpu);
 	vcpu->arch.apf.halted = false;
 
+	if (kvm_mpx_supported()) {
+		void *mpx_state_buffer;
+
+		/*
+		 * To avoid have the INIT path from kvm_apic_has_events() that be
+		 * called with loaded FPU and does not let userspace fix the state.
+		 */
+		kvm_put_guest_fpu(vcpu);
+		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
+					XFEATURE_MASK_BNDREGS);
+		if (mpx_state_buffer)
+			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndreg_state));
+		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
+					XFEATURE_MASK_BNDCSR);
+		if (mpx_state_buffer)
+			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndcsr));
+	}
+
 	if (!init_event) {
 		kvm_pmu_reset(vcpu);
 		vcpu->arch.smbase = 0x30000;
 
 		vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
 		vcpu->arch.msr_misc_features_enables = 0;
+
+		vcpu->arch.xcr0 = XFEATURE_MASK_FP;
 	}
 
 	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
 	vcpu->arch.regs_avail = ~0;
 	vcpu->arch.regs_dirty = ~0;
+
+	vcpu->arch.ia32_xss = 0;
 
 	kvm_x86_ops->vcpu_reset(vcpu, init_event);
 }
