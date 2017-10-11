@@ -791,6 +791,7 @@ enum {
 struct rk808 {
 	struct i2c_client *i2c;
 	struct regmap_irq_chip_data *irq_data;
+	struct regmap_irq_chip_data *battery_irq_data;
 	struct regmap *regmap;
 	long variant;
 };

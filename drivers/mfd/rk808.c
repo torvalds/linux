@@ -364,6 +364,38 @@ static const struct regmap_irq rk816_irqs[] = {
 	},
 };
 
+static const struct regmap_irq rk816_battery_irqs[] = {
+	/* INT_STS */
+	[RK816_IRQ_PLUG_IN] = {
+		.mask = RK816_IRQ_PLUG_IN_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_PLUG_OUT] = {
+		.mask = RK816_IRQ_PLUG_OUT_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_OK] = {
+		.mask = RK816_IRQ_CHG_OK_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_TE] = {
+		.mask = RK816_IRQ_CHG_TE_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_TS] = {
+		.mask = RK816_IRQ_CHG_TS_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_CVTLIM] = {
+		.mask = RK816_IRQ_CHG_CVTLIM_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_DISCHG_ILIM] = {
+		.mask = RK816_IRQ_DISCHG_ILIM_MSK,
+		.reg_offset = 0,
+	},
+};
+
 static struct regmap_irq_chip rk816_irq_chip = {
 	.name = "rk816",
 	.irqs = rk816_irqs,
@@ -373,6 +405,17 @@ static struct regmap_irq_chip rk816_irq_chip = {
 	.status_base = RK816_INT_STS_REG1,
 	.mask_base = RK816_INT_STS_MSK_REG1,
 	.ack_base = RK816_INT_STS_REG1,
+	.init_ack_masked = true,
+};
+
+static struct regmap_irq_chip rk816_battery_irq_chip = {
+	.name = "rk816_battery",
+	.irqs = rk816_battery_irqs,
+	.num_irqs = ARRAY_SIZE(rk816_battery_irqs),
+	.num_regs = 1,
+	.status_base = RK816_INT_STS_REG3,
+	.mask_base = RK816_INT_STS_MSK_REG3,
+	.ack_base = RK816_INT_STS_REG3,
 	.init_ack_masked = true,
 };
 
@@ -673,7 +716,7 @@ static int rk808_probe(struct i2c_client *client,
 	int (*pm_shutdown_prepare_fn)(struct regmap *regmap) = NULL;
 	const struct rk808_reg_data *pre_init_reg;
 	const struct regmap_config *regmap_config;
-	const struct regmap_irq_chip *irq_chip;
+	const struct regmap_irq_chip *irq_chip, *battery_irq_chip = NULL;
 	const struct mfd_cell *cell;
 	u8 on_source = 0, off_source = 0;
 	int msb, lsb, reg_num, cell_num;
@@ -727,6 +770,7 @@ static int rk808_probe(struct i2c_client *client,
 		reg_num = ARRAY_SIZE(rk816_pre_init_reg);
 		regmap_config = &rk816_regmap_config;
 		irq_chip = &rk816_irq_chip;
+		battery_irq_chip = &rk816_battery_irq_chip;
 		pm_shutdown_fn = rk816_shutdown;
 		on_source = RK816_ON_SOURCE_REG;
 		off_source = RK816_OFF_SOURCE_REG;
@@ -799,11 +843,24 @@ static int rk808_probe(struct i2c_client *client,
 	}
 
 	ret = regmap_add_irq_chip(rk808->regmap, client->irq,
-				  IRQF_ONESHOT, -1,
+				  IRQF_ONESHOT | IRQF_SHARED, -1,
 				  irq_chip, &rk808->irq_data);
 	if (ret) {
 		dev_err(&client->dev, "Failed to add irq_chip %d\n", ret);
 		return ret;
+	}
+
+	if (battery_irq_chip) {
+		ret = regmap_add_irq_chip(rk808->regmap, client->irq,
+					  IRQF_ONESHOT | IRQF_SHARED, -1,
+					  battery_irq_chip,
+					  &rk808->battery_irq_data);
+		if (ret) {
+			dev_err(&client->dev,
+				"Failed to add batterry irq_chip %d\n", ret);
+			regmap_del_irq_chip(client->irq, rk808->irq_data);
+			return ret;
+		}
 	}
 
 	rk808->i2c = client;
@@ -842,6 +899,8 @@ static int rk808_probe(struct i2c_client *client,
 
 err_irq:
 	regmap_del_irq_chip(client->irq, rk808->irq_data);
+	if (battery_irq_chip)
+		regmap_del_irq_chip(client->irq, rk808->battery_irq_data);
 	return ret;
 }
 
