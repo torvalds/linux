@@ -80,11 +80,6 @@ void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 					enum dc_irq_source irq_source,
 					void *ih_index);
 
-void amdgpu_dm_irq_register_timer(struct amdgpu_device *adev,
-				  struct dc_timer_interrupt_params *int_params,
-				  interrupt_handler ih,
-				  void *args);
-
 /**
  * amdgpu_dm_irq_handler
  * Generic IRQ handler, calls all registered high irq work immediately, and

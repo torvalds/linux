@@ -228,27 +228,6 @@ static void remove_timer_handler(struct amdgpu_device *adev,
 	}
 }
 
-/**
- * dm_timer_work_func - Handle a timer.
- *
- * @work: work struct
- */
-static void dm_timer_work_func(struct work_struct *work)
-{
-	struct amdgpu_dm_timer_handler_data *handler_data =
-		container_of(work, struct amdgpu_dm_timer_handler_data,
-				d_work.work);
-
-	DRM_DEBUG_KMS("DM_IRQ: work_func: handler_data=%p\n", handler_data);
-
-	/* Call a DAL subcomponent which registered for timer notification. */
-	handler_data->hcd.handler(handler_data->hcd.handler_arg);
-
-	/* We support only "single shot" timers. That means we must delete
-	 * the handler after it was called. */
-	remove_timer_handler(handler_data->hcd.dm->adev, handler_data);
-}
-
 static bool
 validate_irq_registration_params(struct dc_interrupt_params *int_params,
 				 void (*ih)(void *))
@@ -417,47 +396,6 @@ int amdgpu_dm_irq_init(struct amdgpu_device *adev)
 	}
 
 	return 0;
-}
-
-void amdgpu_dm_irq_register_timer(struct amdgpu_device *adev,
-				  struct dc_timer_interrupt_params *int_params,
-				  interrupt_handler ih,
-				  void *args)
-{
-	unsigned long jf_delay;
-	struct list_head *handler_list;
-	struct amdgpu_dm_timer_handler_data *handler_data;
-	unsigned long irq_table_flags;
-
-	handler_data = kzalloc(sizeof(*handler_data), GFP_KERNEL);
-	if (!handler_data) {
-		DRM_ERROR("DM_IRQ: failed to allocate timer handler!\n");
-		return;
-	}
-
-	memset(handler_data, 0, sizeof(*handler_data));
-
-	init_handler_common_data(&handler_data->hcd, ih, args, &adev->dm);
-
-	INIT_DELAYED_WORK(&handler_data->d_work, dm_timer_work_func);
-
-	/* Lock the list, add the handler. */
-	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
-
-	handler_list = &adev->dm.timer_handler_list;
-
-	list_add_tail(&handler_data->hcd.list, handler_list);
-
-	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-
-	jf_delay = usecs_to_jiffies(int_params->micro_sec_interval);
-
-	queue_delayed_work(adev->dm.timer_workqueue, &handler_data->d_work,
-			jf_delay);
-
-	DRM_DEBUG_KMS("DM_IRQ: added handler:%p with micro_sec_interval=%u\n",
-			handler_data, int_params->micro_sec_interval);
-	return;
 }
 
 /* DM IRQ and timer resource release */
