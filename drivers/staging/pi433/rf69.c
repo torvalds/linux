@@ -959,8 +959,8 @@ int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 	/* prepare a bidirectional transfer */
 	local_buffer[0] = REG_FIFO;
 	memset(&transfer, 0, sizeof(transfer));
-  	transfer.tx_buf = local_buffer;
-  	transfer.rx_buf = local_buffer;
+	transfer.tx_buf = local_buffer;
+	transfer.rx_buf = local_buffer;
 	transfer.len	= size+1;
 
 	retval = spi_sync_transfer(spi, &transfer, 1);
