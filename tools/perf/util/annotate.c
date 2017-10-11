@@ -882,6 +882,7 @@ struct annotate_args {
 	size_t			 privsize;
 	struct arch		*arch;
 	struct map		*map;
+	struct perf_evsel	*evsel;
 	s64			 offset;
 	char			*line;
 	int			 line_nr;
@@ -1570,15 +1571,20 @@ out_close_stdout:
 }
 
 int symbol__annotate(struct symbol *sym, struct map *map,
-		     const char *arch_name, size_t privsize,
+		     struct perf_evsel *evsel, size_t privsize,
 		     struct arch **parch, char *cpuid)
 {
 	struct annotate_args args = {
 		.privsize	= privsize,
 		.map		= map,
+		.evsel		= evsel,
 	};
+	const char *arch_name = NULL;
 	struct arch *arch;
 	int err;
+
+	if (evsel)
+		arch_name = perf_evsel__env_arch(evsel);
 
 	arch_name = annotate__norm_arch(arch_name);
 	if (!arch_name)
@@ -1975,8 +1981,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	struct rb_root source_line = RB_ROOT;
 	u64 len;
 
-	if (symbol__annotate(sym, map, perf_evsel__env_arch(evsel),
-			     0, NULL, NULL) < 0)
+	if (symbol__annotate(sym, map, evsel, 0, NULL, NULL) < 0)
 		return -1;
 
 	len = symbol__size(sym);

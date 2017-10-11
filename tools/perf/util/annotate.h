@@ -174,7 +174,7 @@ int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map,
-		     const char *arch_name, size_t privsize,
+		     struct perf_evsel *evsel, size_t privsize,
 		     struct arch **parch, char *cpuid);
 
 enum symbol_disassemble_errno {

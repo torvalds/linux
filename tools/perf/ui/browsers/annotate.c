@@ -1120,7 +1120,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	err = symbol__annotate(sym, map, perf_evsel__env_arch(evsel),
+	err = symbol__annotate(sym, map, evsel,
 			       sizeof_bdl, &browser.arch,
 			       perf_evsel__env_cpuid(evsel));
 	if (err) {
