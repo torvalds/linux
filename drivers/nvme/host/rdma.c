@@ -544,7 +544,7 @@ static int nvme_rdma_alloc_queue(struct nvme_rdma_ctrl *ctrl,
 	ret = nvme_rdma_wait_for_cm(queue);
 	if (ret) {
 		dev_info(ctrl->ctrl.device,
-			"rdma_resolve_addr wait failed (%d).\n", ret);
+			"rdma connection establishment failed (%d)\n", ret);
 		goto out_destroy_cm_id;
 	}
 
