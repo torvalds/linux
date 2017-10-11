@@ -1752,6 +1752,7 @@ int mlx4_en_start_port(struct net_device *dev)
 				mlx4_en_arm_cq(priv, cq);
 
 			} else {
+				mlx4_en_init_tx_xdp_ring_descs(priv, tx_ring);
 				mlx4_en_init_recycle_ring(priv, i);
 				/* XDP TX CQ should never be armed */
 			}

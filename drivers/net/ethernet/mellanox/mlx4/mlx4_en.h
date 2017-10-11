@@ -705,6 +705,8 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   int node, int queue_index);
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring **pring);
+void mlx4_en_init_tx_xdp_ring_descs(struct mlx4_en_priv *priv,
+				    struct mlx4_en_tx_ring *ring);
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring,
 			     int cq, int user_prio);
