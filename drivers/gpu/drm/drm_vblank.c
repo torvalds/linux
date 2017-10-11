@@ -82,20 +82,12 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
 
 static unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
 
-/*
- * Default to use monotonic timestamps for wait-for-vblank and page-flip
- * complete events.
- */
-unsigned int drm_timestamp_monotonic = 1;
-
 static int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
 
 module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
-module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
 MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
-MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 static void store_vblank(struct drm_device *dev, unsigned int pipe,
 			 u32 vblank_count_inc,
@@ -672,9 +664,6 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	delta_ns = div_s64(1000000LL * (vpos * mode->crtc_htotal + hpos),
 			   mode->crtc_clock);
 
-	if (!drm_timestamp_monotonic)
-		etime = ktime_mono_to_real(etime);
-
 	/* save this only for debugging purposes */
 	ts_etime = ktime_to_timespec64(etime);
 	ts_vblank_time = ktime_to_timespec64(*vblank_time);
@@ -693,11 +682,6 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	return true;
 }
 EXPORT_SYMBOL(drm_calc_vbltimestamp_from_scanoutpos);
-
-static ktime_t get_drm_timestamp(void)
-{
-	return drm_timestamp_monotonic ? ktime_get() : ktime_get_real();
-}
 
 /**
  * drm_get_last_vbltimestamp - retrieve raw timestamp for the most recent
@@ -738,7 +722,7 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
 	 * Return current monotonic/gettimeofday timestamp as best estimate.
 	 */
 	if (!ret)
-		*tvblank = get_drm_timestamp();
+		*tvblank = ktime_get();
 
 	return ret;
 }
@@ -811,8 +795,8 @@ static void send_vblank_event(struct drm_device *dev,
 	e->event.sequence = seq;
 	/*
 	 * e->event is a user space structure, with hardcoded unsigned
-	 * 32-bit seconds/microseconds. This will overflow in 2106 for
-	 * drm_timestamp_monotonic==0, but not with drm_timestamp_monotonic==1
+	 * 32-bit seconds/microseconds. This is safe as we always use
+	 * monotonic timestamps since linux-4.15
 	 */
 	e->event.tv_sec = tv.tv_sec;
 	e->event.tv_usec = tv.tv_nsec / 1000;
@@ -899,7 +883,7 @@ void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 	} else {
 		seq = 0;
 
-		now = get_drm_timestamp();
+		now = ktime_get();
 	}
 	e->pipe = pipe;
 	e->event.crtc_id = crtc->base.id;
@@ -1408,9 +1392,8 @@ static void drm_wait_vblank_reply(struct drm_device *dev, unsigned int pipe,
 
 	/*
 	 * drm_wait_vblank_reply is a UAPI structure that uses 'long'
-	 * to store the seconds. This will overflow in y2038 on 32-bit
-	 * architectures with drm_timestamp_monotonic==0, but not with
-	 * drm_timestamp_monotonic==1 (the default).
+	 * to store the seconds. This is safe as we always use monotonic
+	 * timestamps since linux-4.15.
 	 */
 	reply->sequence = drm_vblank_count_and_time(dev, pipe, &now);
 	ts = ktime_to_timespec64(now);
