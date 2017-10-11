@@ -882,23 +882,24 @@ struct annotate_args {
 	size_t			 privsize;
 	struct arch		*arch;
 	struct map		*map;
+	s64			 offset;
+	char			*line;
+	int			 line_nr;
 };
 
-static struct disasm_line *disasm_line__new(struct annotate_args *args,
-					    s64 offset, char *line,
-					    int line_nr)
+static struct disasm_line *disasm_line__new(struct annotate_args *args)
 {
 	struct disasm_line *dl = zalloc(sizeof(*dl) + args->privsize);
 
 	if (dl != NULL) {
-		dl->al.offset  = offset;
-		dl->al.line    = strdup(line);
-		dl->al.line_nr = line_nr;
+		dl->al.offset  = args->offset;
+		dl->al.line    = strdup(args->line);
+		dl->al.line_nr = args->line_nr;
 
 		if (dl->al.line == NULL)
 			goto out_delete;
 
-		if (offset != -1) {
+		if (args->offset != -1) {
 			if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
 				goto out_free_line;
 
@@ -1269,7 +1270,11 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 			parsed_line = tmp2 + 1;
 	}
 
-	dl = disasm_line__new(args, offset, parsed_line, *line_nr);
+	args->offset  = offset;
+	args->line    = parsed_line;
+	args->line_nr = *line_nr;
+
+	dl = disasm_line__new(args);
 	free(line);
 	(*line_nr)++;
 
