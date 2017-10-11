@@ -72,6 +72,71 @@ elif [ "${CROSS_COMPILE}" = "aarch64-linux-android-" ] ; then
 (echo "$ans" | grep "100756k") || true
 fi
 
+echo "== PIPE tests =="
+if [ -z `which mkfifo` ]; then
+    echo "WARNIG: no mkfifo command, skipping PIPE tests."
+else
+
+fifo1=${work_dir}/fifo1
+fifo2=${work_dir}/fifo2
+mkfifo ${fifo1}
+mkfifo ${fifo2}
+
+# Make sure our device has the addresses we expect
+addr=$(LKL_HIJACK_NET_IFTYPE=pipe \
+	LKL_HIJACK_NET_IFPARAMS="${fifo1}|${fifo2}" \
+	LKL_HIJACK_NET_IP=192.168.13.2 \
+	LKL_HIJACK_NET_NETMASK_LEN=24 \
+	LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" \
+	${hijack_script} ip addr)
+echo "$addr" | grep eth0
+echo "$addr" | grep 192.168.13.2
+echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
+
+# Copy ping so we're allowed to run it under LKL
+cp $(which ping) .
+cp $(which ping6) .
+
+# Ping receiver
+LKL_HIJACK_NET_IFTYPE=pipe \
+	LKL_HIJACK_NET_IFPARAMS="${fifo1}|${fifo2}" \
+	LKL_HIJACK_NET_IP=192.168.13.1 \
+	LKL_HIJACK_NET_NETMASK_LEN=24 \
+	LKL_HIJACK_NET_GATEWAY=192.168.13.2 \
+	LKL_HIJACK_NET_IPV6=fc03::1   \
+	LKL_HIJACK_NET_NETMASK6_LEN=64\
+	LKL_HIJACK_NET_GATEWAY6=fc03::2 \
+	${hijack_script} sleep 10 &
+
+sleep 5
+
+# Ping under LKL
+sudo LKL_HIJACK_NET_IFTYPE=pipe \
+	LKL_HIJACK_NET_IFPARAMS="${fifo2}|${fifo1}" \
+	LKL_HIJACK_NET_IP=192.168.13.2 \
+	LKL_HIJACK_NET_NETMASK_LEN=24 \
+	LKL_HIJACK_NET_GATEWAY=192.168.13.1 \
+	LKL_HIJACK_NET_IPV6=fc03::2   \
+	LKL_HIJACK_NET_NETMASK6_LEN=64\
+	LKL_HIJACK_NET_GATEWAY6=fc03::1 \
+	${hijack_script} ./ping 192.168.13.1 -c 1
+
+# Ping 6 under LKL
+sudo LKL_HIJACK_NET_IFTYPE=pipe \
+	LKL_HIJACK_NET_IFPARAMS="${fifo2}|${fifo1}" \
+	LKL_HIJACK_NET_IP=192.168.13.2 \
+	LKL_HIJACK_NET_NETMASK_LEN=24 \
+	LKL_HIJACK_NET_GATEWAY=192.168.13.1 \
+	LKL_HIJACK_NET_IPV6=fc03::2   \
+	LKL_HIJACK_NET_NETMASK6_LEN=64\
+	LKL_HIJACK_NET_GATEWAY6=fc03::1 \
+	${hijack_script} ./ping6 fc03::1 -c 1
+
+wait
+rm ./ping
+rm ./ping6
+fi
+
 echo "== TAP tests =="
 if [ ! -c /dev/net/tun ]; then
     echo "WARNING: missing /dev/net/tun, skipping TAP and VDE tests."

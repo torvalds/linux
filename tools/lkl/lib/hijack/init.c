@@ -282,6 +282,8 @@ hijack_init(void)
 			nd = lkl_netdev_macvtap_create(ifparams, offload);
 		} else if ((strcmp(iftype, "dpdk") == 0)) {
 			nd = lkl_netdev_dpdk_create(ifparams, offload, mac);
+		} else if ((strcmp(iftype, "pipe") == 0)) {
+			nd = lkl_netdev_pipe_create(ifparams, offload);
 		} else {
 			if (offload) {
 				fprintf(stderr,
