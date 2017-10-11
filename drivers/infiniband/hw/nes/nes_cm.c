@@ -1389,7 +1389,6 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	struct rtable *rt;
 	struct neighbour *neigh;
 	int rc = arpindex;
-	struct net_device *netdev;
 	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 	__be32 dst_ipaddr = htonl(dst_ip);
 
@@ -1399,11 +1398,6 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		       __func__, dst_ip);
 		return rc;
 	}
-
-	if (netif_is_bond_slave(nesvnic->netdev))
-		netdev = netdev_master_upper_dev_get(nesvnic->netdev);
-	else
-		netdev = nesvnic->netdev;
 
 	neigh = dst_neigh_lookup(&rt->dst, &dst_ipaddr);
 
@@ -3075,7 +3069,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	u32 crc_value;
 	int ret;
 	int passive_state;
-	struct nes_ib_device *nesibdev;
 	struct ib_mr *ibmr = NULL;
 	struct nes_pd *nespd;
 	u64 tagged_offset;
@@ -3158,7 +3151,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (raddr->sin_addr.s_addr != laddr->sin_addr.s_addr) {
 		u64temp = (unsigned long)nesqp;
-		nesibdev = nesvnic->nesibdev;
 		nespd = nesqp->nespd;
 		tagged_offset = (u64)(unsigned long)*start_buff;
 		ibmr = nes_reg_phys_mr(&nespd->ibpd,

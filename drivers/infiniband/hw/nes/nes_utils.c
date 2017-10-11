@@ -753,7 +753,6 @@ void nes_mh_fix(unsigned long parm)
 	u32 mac_tx_frames_low;
 	u32 mac_tx_frames_high;
 	u32 mac_tx_pauses;
-	u32 serdes_status;
 	u32 reset_value;
 	u32 tx_control;
 	u32 tx_config;
@@ -846,7 +845,7 @@ void nes_mh_fix(unsigned long parm)
 		}
 
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, 0x00000008);
-		serdes_status = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0);
+		nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0);
 
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP0, 0x000bdef7);
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_DRIVE0, 0x9ce73000);
@@ -859,7 +858,7 @@ void nes_mh_fix(unsigned long parm)
 		} else {
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_CONTROL0, 0xf0042222);
 		}
-		serdes_status = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_STATUS0);
+		nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_STATUS0);
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL0, 0x000000ff);
 
 		nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONTROL, tx_control);
