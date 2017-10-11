@@ -3638,6 +3638,7 @@ static void active_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 			send_fw_act_open_req(ep, atid);
 			return;
 		}
+		/* fall through */
 	case FW_EADDRINUSE:
 		set_bit(ACT_RETRY_INUSE, &ep->com.history);
 		if (ep->retry_count++ < ACT_OPEN_RETRY_COUNT) {
