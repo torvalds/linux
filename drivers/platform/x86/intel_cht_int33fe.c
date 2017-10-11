@@ -42,7 +42,7 @@ struct cht_int33fe_data {
  * These helpers are used to work around this by checking if an i2c-client
  * for the max17047 has already been registered.
  */
-int cht_int33fe_check_for_max17047(struct device *dev, void *data)
+static int cht_int33fe_check_for_max17047(struct device *dev, void *data)
 {
 	struct i2c_client **max17047 = data;
 	struct acpi_device *adev;
@@ -62,7 +62,7 @@ int cht_int33fe_check_for_max17047(struct device *dev, void *data)
 	return 1;
 }
 
-struct i2c_client *cht_int33fe_find_max17047(void)
+static struct i2c_client *cht_int33fe_find_max17047(void)
 {
 	struct i2c_client *max17047 = NULL;
 
