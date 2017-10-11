@@ -18,3 +18,13 @@ ENTRY(NG4fls)
 	retl
 	 sub	%g3, %g2, %o0
 ENDPROC(NG4fls)
+
+ENTRY(__NG4fls)
+	brz,pn	%o0, 1f
+	LZCNT_O0_G2	!lzcnt	%o0, %g2
+	mov	63, %g3
+	sub	%g3, %g2, %o0
+1:
+	retl
+	 nop
+ENDPROC(__NG4fls)
