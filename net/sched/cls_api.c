@@ -1016,10 +1016,8 @@ int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
 
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		if (a->ops->get_dev) {
-			a->ops->get_dev(a, dev_net(dev), hw_dev);
-			break;
-		}
+		if (a->ops->get_dev)
+			*hw_dev = a->ops->get_dev(a);
 	}
 	if (*hw_dev)
 		return 0;
