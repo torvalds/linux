@@ -88,7 +88,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	unsigned long flags;
 	u32 size, opcode;
 	u16 cookie, cbit;
-	int pg, idx;
 	u8 *preq;
 
 	opcode = req->opcode;
@@ -149,9 +148,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	preq = (u8 *)req;
 	size = req->cmd_size * BNXT_QPLIB_CMDQE_UNITS;
 	do {
-		pg = 0;
-		idx = 0;
-
 		/* Locate the next cmdq slot */
 		sw_prod = HWQ_CMP(cmdq->prod, cmdq);
 		cmdqe = &cmdq_ptr[get_cmdq_pg(sw_prod)][get_cmdq_idx(sw_prod)];

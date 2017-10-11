@@ -160,11 +160,6 @@ void bnxt_qplib_add_flush_qp(struct bnxt_qplib_qp *qp)
 
 static void __bnxt_qplib_del_flush_qp(struct bnxt_qplib_qp *qp)
 {
-	struct bnxt_qplib_cq *scq, *rcq;
-
-	scq = qp->scq;
-	rcq = qp->rcq;
-
 	if (qp->sq.flushed) {
 		qp->sq.flushed = false;
 		list_del(&qp->sq_flush);
