@@ -119,7 +119,7 @@ Satellite TV reception is::
 .. |delta|   unicode:: U+00394
 
 The ``drivers/media/dvb-core/dvb_frontend.c`` has a kernel thread with is
-responsible for tuning the device. It supports multiple algoritms to
+responsible for tuning the device. It supports multiple algorithms to
 detect a channel, as defined at enum :c:func:`dvbfe_algo`.
 
 The algorithm to be used is obtained via ``.get_frontend_algo``. If the driver
