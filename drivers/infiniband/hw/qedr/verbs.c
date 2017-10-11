@@ -2268,7 +2268,7 @@ err:
 	return rc;
 }
 
-int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp)
+static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp)
 {
 	int rc = 0;
 

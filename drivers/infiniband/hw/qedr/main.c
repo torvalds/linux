@@ -54,8 +54,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define QEDR_WQ_MULTIPLIER_DFT	(3)
 
-void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
-			    enum ib_event_type type)
+static void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
+				   enum ib_event_type type)
 {
 	struct ib_event ibev;
 
@@ -96,8 +96,8 @@ static struct net_device *qedr_get_netdev(struct ib_device *dev, u8 port_num)
 	return qdev->ndev;
 }
 
-int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
-			     struct ib_port_immutable *immutable)
+static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
+				    struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
 	int err;
@@ -115,8 +115,8 @@ int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
-			   struct ib_port_immutable *immutable)
+static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+				  struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
 	int err;
@@ -133,7 +133,7 @@ int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-int qedr_iw_register_device(struct qedr_dev *dev)
+static int qedr_iw_register_device(struct qedr_dev *dev)
 {
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	dev->ibdev.query_gid = qedr_iw_query_gid;
@@ -159,7 +159,7 @@ int qedr_iw_register_device(struct qedr_dev *dev)
 	return 0;
 }
 
-void qedr_roce_register_device(struct qedr_dev *dev)
+static void qedr_roce_register_device(struct qedr_dev *dev)
 {
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
 	dev->ibdev.query_gid = qedr_query_gid;
@@ -689,12 +689,12 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	return 0;
 }
 
-void qedr_unaffiliated_event(void *context, u8 event_code)
+static void qedr_unaffiliated_event(void *context, u8 event_code)
 {
 	pr_err("unaffiliated event not implemented yet\n");
 }
 
-void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
+static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 {
 #define EVENT_TYPE_NOT_DEFINED	0
 #define EVENT_TYPE_CQ		1
@@ -833,7 +833,7 @@ out:
 	return rc;
 }
 
-void qedr_stop_hw(struct qedr_dev *dev)
+static void qedr_stop_hw(struct qedr_dev *dev)
 {
 	dev->ops->rdma_remove_user(dev->rdma_ctx, dev->dpi);
 	dev->ops->rdma_stop(dev->rdma_ctx);

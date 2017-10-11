@@ -79,7 +79,7 @@ qedr_fill_sockaddr6(const struct qed_iwarp_cm_info *cm_info,
 	}
 }
 
-void
+static void
 qedr_iw_mpa_request(void *context, struct qed_iwarp_cm_event_params *params)
 {
 	struct qedr_iw_listener *listener = (struct qedr_iw_listener *)context;
@@ -113,7 +113,7 @@ qedr_iw_mpa_request(void *context, struct qed_iwarp_cm_event_params *params)
 	listener->cm_id->event_handler(listener->cm_id, &event);
 }
 
-void
+static void
 qedr_iw_issue_event(void *context,
 		    struct qed_iwarp_cm_event_params *params,
 		    enum iw_cm_event_type event_type)
@@ -136,7 +136,7 @@ qedr_iw_issue_event(void *context,
 		ep->cm_id->event_handler(ep->cm_id, &event);
 }
 
-void
+static void
 qedr_iw_close_event(void *context, struct qed_iwarp_cm_event_params *params)
 {
 	struct qedr_iw_ep *ep = (struct qedr_iw_ep *)context;
@@ -149,7 +149,7 @@ qedr_iw_close_event(void *context, struct qed_iwarp_cm_event_params *params)
 	}
 }
 
-void
+static void
 qedr_iw_qp_event(void *context,
 		 struct qed_iwarp_cm_event_params *params,
 		 enum ib_event_type ib_event, char *str)
@@ -217,7 +217,7 @@ static void qedr_iw_disconnect_worker(struct work_struct *work)
 	qedr_iw_qp_rem_ref(&qp->ibqp);
 }
 
-void
+static void
 qedr_iw_disconnect_event(void *context,
 			 struct qed_iwarp_cm_event_params *params)
 {
@@ -262,7 +262,7 @@ qedr_iw_passive_complete(void *context,
 		qedr_iw_close_event(context, params);
 }
 
-int
+static int
 qedr_iw_mpa_reply(void *context, struct qed_iwarp_cm_event_params *params)
 {
 	struct qedr_iw_ep *ep = (struct qedr_iw_ep *)context;
@@ -274,7 +274,7 @@ qedr_iw_mpa_reply(void *context, struct qed_iwarp_cm_event_params *params)
 	return dev->ops->iwarp_send_rtr(dev->rdma_ctx, &rtr_in);
 }
 
-int
+static int
 qedr_iw_event_handler(void *context, struct qed_iwarp_cm_event_params *params)
 {
 	struct qedr_iw_ep *ep = (struct qedr_iw_ep *)context;
