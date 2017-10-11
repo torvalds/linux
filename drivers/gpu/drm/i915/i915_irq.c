@@ -336,7 +336,7 @@ void gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask)
 	__gen6_mask_pm_irq(dev_priv, mask);
 }
 
-void gen6_reset_pm_iir(struct drm_i915_private *dev_priv, u32 reset_mask)
+static void gen6_reset_pm_iir(struct drm_i915_private *dev_priv, u32 reset_mask)
 {
 	i915_reg_t reg = gen6_pm_iir(dev_priv);
 
@@ -347,7 +347,7 @@ void gen6_reset_pm_iir(struct drm_i915_private *dev_priv, u32 reset_mask)
 	POSTING_READ(reg);
 }
 
-void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, u32 enable_mask)
+static void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, u32 enable_mask)
 {
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -357,7 +357,7 @@ void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, u32 enable_mask)
 	/* unmask_pm_irq provides an implicit barrier (POSTING_READ) */
 }
 
-void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, u32 disable_mask)
+static void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, u32 disable_mask)
 {
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -405,7 +405,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	synchronize_irq(dev_priv->drm.irq);
 
 	/* Now that we will not be generating any more work, flush any
-	 * outsanding tasks. As we are called on the RPS idle path,
+	 * outstanding tasks. As we are called on the RPS idle path,
 	 * we will reset the GPU to minimum frequencies, so the current
 	 * state of the worker can be discarded.
 	 */
@@ -839,7 +839,6 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 								pipe);
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
-	bool in_vbl = true;
 	unsigned long irqflags;
 
 	if (WARN_ON(!mode->crtc_clock)) {
@@ -921,8 +920,6 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-
-	in_vbl = position >= vbl_start && position < vbl_end;
 
 	/*
 	 * While in vblank, position will be negative

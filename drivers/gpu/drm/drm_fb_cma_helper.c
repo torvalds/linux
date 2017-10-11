@@ -38,7 +38,7 @@ struct drm_fbdev_cma {
  * Provides helper functions for creating a cma (contiguous memory allocator)
  * backed framebuffer.
  *
- * drm_fb_cma_create() is used in the &drm_mode_config_funcs.fb_create
+ * drm_gem_fb_create() is used in the &drm_mode_config_funcs.fb_create
  * callback function to create a cma backed framebuffer.
  *
  * An fbdev framebuffer backed by cma is also available by calling
@@ -61,8 +61,8 @@ struct drm_fbdev_cma {
  *     }
  *
  *     static struct drm_framebuffer_funcs driver_fb_funcs = {
- *         .destroy       = drm_fb_cma_destroy,
- *         .create_handle = drm_fb_cma_create_handle,
+ *         .destroy       = drm_gem_fb_destroy,
+ *         .create_handle = drm_gem_fb_create_handle,
  *         .dirty         = driver_fb_dirty,
  *     };
  *
@@ -79,57 +79,6 @@ static inline struct drm_fbdev_cma *to_fbdev_cma(struct drm_fb_helper *helper)
 {
 	return container_of(helper, struct drm_fbdev_cma, fb_helper);
 }
-
-void drm_fb_cma_destroy(struct drm_framebuffer *fb)
-{
-	drm_gem_fb_destroy(fb);
-}
-EXPORT_SYMBOL(drm_fb_cma_destroy);
-
-int drm_fb_cma_create_handle(struct drm_framebuffer *fb,
-	struct drm_file *file_priv, unsigned int *handle)
-{
-	return drm_gem_fb_create_handle(fb, file_priv, handle);
-}
-EXPORT_SYMBOL(drm_fb_cma_create_handle);
-
-/**
- * drm_fb_cma_create_with_funcs() - helper function for the
- *                                  &drm_mode_config_funcs.fb_create
- *                                  callback
- * @dev: DRM device
- * @file_priv: drm file for the ioctl call
- * @mode_cmd: metadata from the userspace fb creation request
- * @funcs: vtable to be used for the new framebuffer object
- *
- * This can be used to set &drm_framebuffer_funcs for drivers that need the
- * &drm_framebuffer_funcs.dirty callback. Use drm_fb_cma_create() if you don't
- * need to change &drm_framebuffer_funcs.
- */
-struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
-	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
-	const struct drm_framebuffer_funcs *funcs)
-{
-	return drm_gem_fb_create_with_funcs(dev, file_priv, mode_cmd, funcs);
-}
-EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
-
-/**
- * drm_fb_cma_create() - &drm_mode_config_funcs.fb_create callback function
- * @dev: DRM device
- * @file_priv: drm file for the ioctl call
- * @mode_cmd: metadata from the userspace fb creation request
- *
- * If your hardware has special alignment or pitch requirements these should be
- * checked before calling this function. Use drm_fb_cma_create_with_funcs() if
- * you need to set &drm_framebuffer_funcs.dirty.
- */
-struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
-	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
-}
-EXPORT_SYMBOL_GPL(drm_fb_cma_create);
 
 /**
  * drm_fb_cma_get_gem_obj() - Get CMA GEM object for framebuffer
@@ -180,26 +129,6 @@ dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 	return paddr;
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_addr);
-
-/**
- * drm_fb_cma_prepare_fb() - Prepare CMA framebuffer
- * @plane: Which plane
- * @state: Plane state attach fence to
- *
- * This should be set as the &struct drm_plane_helper_funcs.prepare_fb hook.
- *
- * This function checks if the plane FB has an dma-buf attached, extracts
- * the exclusive fence and attaches it to plane state for the atomic helper
- * to wait on.
- *
- * There is no need for cleanup_fb for CMA based framebuffer drivers.
- */
-int drm_fb_cma_prepare_fb(struct drm_plane *plane,
-			  struct drm_plane_state *state)
-{
-	return drm_gem_fb_prepare_fb(plane, state);
-}
-EXPORT_SYMBOL_GPL(drm_fb_cma_prepare_fb);
 
 #ifdef CONFIG_DEBUG_FS
 static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)

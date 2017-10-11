@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,15 +20,33 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef CI_SMC_H
+#define CI_SMC_H
 
-#ifndef _EVENTINIT_H_
-#define _EVENTINIT_H_
+#include <linux/types.h>
 
-#define PEM_CURRENT_POWERPLAY_FEATURE_VERSION 4
 
-void pem_init_feature_info(struct pp_eventmgr *eventmgr);
-void pem_uninit_featureInfo(struct pp_eventmgr *eventmgr);
-int pem_register_interrupts(struct pp_eventmgr *eventmgr);
-int pem_unregister_interrupts(struct pp_eventmgr *eventmgr);
+struct pp_smumgr;
+struct pp_hwmgr;
+struct amd_pp_profile;
 
-#endif /* _EVENTINIT_H_ */
+int ci_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+					uint16_t msg, uint32_t parameter);
+int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
+int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr);
+int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr);
+int ci_init_smc_table(struct pp_hwmgr *hwmgr);
+int ci_thermal_setup_fan_table(struct pp_hwmgr *hwmgr);
+int ci_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type);
+int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr);
+uint32_t ci_get_offsetof(uint32_t type, uint32_t member);
+uint32_t ci_get_mac_definition(uint32_t value);
+int ci_process_firmware_header(struct pp_hwmgr *hwmgr);
+int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
+bool ci_is_dpm_running(struct pp_hwmgr *hwmgr);
+int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+					struct amd_pp_profile *request);
+
+
+#endif
+

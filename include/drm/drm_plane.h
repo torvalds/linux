@@ -123,6 +123,14 @@ struct drm_plane_state {
 	 */
 	bool visible;
 
+	/**
+	 * @commit: Tracks the pending commit to prevent use-after-free conditions,
+	 * and for async plane updates.
+	 *
+	 * May be NULL.
+	 */
+	struct drm_crtc_commit *commit;
+
 	struct drm_atomic_state *state;
 };
 
@@ -531,10 +539,10 @@ struct drm_plane {
 	 * This is protected by @mutex. Note that nonblocking atomic commits
 	 * access the current plane state without taking locks. Either by going
 	 * through the &struct drm_atomic_state pointers, see
-	 * for_each_plane_in_state(), for_each_oldnew_plane_in_state(),
-	 * for_each_old_plane_in_state() and for_each_new_plane_in_state(). Or
-	 * through careful ordering of atomic commit operations as implemented
-	 * in the atomic helpers, see &struct drm_crtc_commit.
+	 * for_each_oldnew_plane_in_state(), for_each_old_plane_in_state() and
+	 * for_each_new_plane_in_state(). Or through careful ordering of atomic
+	 * commit operations as implemented in the atomic helpers, see
+	 * &struct drm_crtc_commit.
 	 */
 	struct drm_plane_state *state;
 

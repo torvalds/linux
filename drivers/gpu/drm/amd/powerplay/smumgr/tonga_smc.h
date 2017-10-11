@@ -40,7 +40,7 @@ struct tonga_pt_defaults {
 	uint8_t   tdc_waterfall_ctl;
 	uint8_t   dte_ambient_temp_base;
 	uint32_t  display_cac;
-	uint32_t  bamp_temp_gradient;
+	uint32_t  bapm_temp_gradient;
 	uint16_t  bapmti_r[SMU72_DTE_ITERATIONS * SMU72_DTE_SOURCES * SMU72_DTE_SINKS];
 	uint16_t  bapmti_rc[SMU72_DTE_ITERATIONS * SMU72_DTE_SOURCES * SMU72_DTE_SINKS];
 };

@@ -70,8 +70,7 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 
 /**
  * intel_pipe_update_start() - start update of a set of display registers
- * @crtc: the crtc of which the registers are going to be updated
- * @start_vbl_count: vblank counter return pointer used for error checking
+ * @new_crtc_state: the new crtc state
  *
  * Mark the start of an update to pipe registers that should be updated
  * atomically regarding vblank. If the next vblank will happens within
@@ -79,18 +78,18 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
  *
  * After a successful call to this function, interrupts will be disabled
  * until a subsequent call to intel_pipe_update_end(). That is done to
- * avoid random delays. The value written to @start_vbl_count should be
- * supplied to intel_pipe_update_end() for error checking.
+ * avoid random delays.
  */
-void intel_pipe_update_start(struct intel_crtc *crtc)
+void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &new_crtc_state->base.adjusted_mode;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
 	bool need_vlv_dsi_wa = (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-		intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DSI);
+		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 	DEFINE_WAIT(wait);
 
 	vblank_start = adjusted_mode->crtc_vblank_start;
@@ -170,15 +169,15 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 /**
  * intel_pipe_update_end() - end update of a set of display registers
- * @crtc: the crtc of which the registers were updated
- * @start_vbl_count: start vblank counter (used for error checking)
+ * @new_crtc_state: the new crtc state
  *
  * Mark the end of an update started with intel_pipe_update_start(). This
  * re-enables interrupts and verifies the update was actually completed
- * before a vblank using the value of @start_vbl_count.
+ * before a vblank.
  */
-void intel_pipe_update_end(struct intel_crtc *crtc)
+void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	enum pipe pipe = crtc->pipe;
 	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
@@ -191,14 +190,14 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 	 * Would be slightly nice to just grab the vblank count and arm the
 	 * event outside of the critical section - the spinlock might spin for a
 	 * while ... */
-	if (crtc->base.state->event) {
+	if (new_crtc_state->base.event) {
 		WARN_ON(drm_crtc_vblank_get(&crtc->base) != 0);
 
 		spin_lock(&crtc->base.dev->event_lock);
-		drm_crtc_arm_vblank_event(&crtc->base, crtc->base.state->event);
+		drm_crtc_arm_vblank_event(&crtc->base, new_crtc_state->base.event);
 		spin_unlock(&crtc->base.dev->event_lock);
 
-		crtc->base.state->event = NULL;
+		new_crtc_state->base.event = NULL;
 	}
 
 	local_irq_enable();

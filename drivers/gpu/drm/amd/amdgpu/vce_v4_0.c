@@ -1011,10 +1011,6 @@ static int vce_v4_0_process_interrupt(struct amdgpu_device *adev,
 {
 	DRM_DEBUG("IH: VCE\n");
 
-	WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_SYS_INT_STATUS),
-			VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK,
-			~VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK);
-
 	switch (entry->src_data[0]) {
 	case 0:
 	case 1:

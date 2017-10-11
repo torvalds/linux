@@ -228,6 +228,19 @@ static u32 cik_ih_get_wptr(struct amdgpu_device *adev)
  * [127:96] - reserved
  */
 
+/**
+ * cik_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool cik_ih_prescreen_iv(struct amdgpu_device *adev)
+{
+	/* Process all interrupts */
+	return true;
+}
+
  /**
  * cik_ih_decode_iv - decode an interrupt vector
  *
@@ -433,6 +446,7 @@ static const struct amd_ip_funcs cik_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs cik_ih_funcs = {
 	.get_wptr = cik_ih_get_wptr,
+	.prescreen_iv = cik_ih_prescreen_iv,
 	.decode_iv = cik_ih_decode_iv,
 	.set_rptr = cik_ih_set_rptr
 };

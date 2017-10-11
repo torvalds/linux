@@ -892,6 +892,8 @@ static int kfd_ioctl_get_tile_config(struct file *filep,
 	int err = 0;
 
 	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev)
+		return -EINVAL;
 
 	dev->kfd2kgd->get_tile_config(dev->kgd, &config);
 

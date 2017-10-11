@@ -58,6 +58,10 @@ static uint64_t get_vmem_size(struct kgd_dev *kgd);
 static uint64_t get_gpu_clock_counter(struct kgd_dev *kgd);
 
 static uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd);
+
+static int alloc_pasid(unsigned int bits);
+static void free_pasid(unsigned int pasid);
+
 static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 
 /*
@@ -112,6 +116,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_vmem_size = get_vmem_size,
 	.get_gpu_clock_counter = get_gpu_clock_counter,
 	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
+	.alloc_pasid = alloc_pasid,
+	.free_pasid = free_pasid,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_pipeline = kgd_init_pipeline,
@@ -339,6 +345,31 @@ static uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 
 	/* The sclk is in quantas of 10kHz */
 	return rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk / 100;
+}
+
+/*
+ * PASID manager
+ */
+static DEFINE_IDA(pasid_ida);
+
+int alloc_pasid(unsigned int bits)
+{
+	int pasid = -EINVAL;
+
+	for (bits = min(bits, 31U); bits > 0; bits--) {
+		pasid = ida_simple_get(&pasid_ida,
+				       1U << (bits - 1), 1U << bits,
+				       GFP_KERNEL);
+		if (pasid != -ENOSPC)
+			break;
+	}
+
+	return pasid;
+}
+
+void free_pasid(unsigned int pasid)
+{
+	ida_simple_remove(&pasid_ida, pasid);
 }
 
 static inline struct radeon_device *get_radeon_device(struct kgd_dev *kgd)

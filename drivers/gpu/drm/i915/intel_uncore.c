@@ -1251,7 +1251,7 @@ static const struct register_whitelist {
 } whitelist[] = {
 	{ .offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
 	  .offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
-	  .size = 8, .gen_bitmask = GEN_RANGE(4, 9) },
+	  .size = 8, .gen_bitmask = GEN_RANGE(4, 10) },
 };
 
 int i915_reg_read_ioctl(struct drm_device *dev,

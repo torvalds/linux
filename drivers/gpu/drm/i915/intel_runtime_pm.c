@@ -2707,30 +2707,67 @@ void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 	usleep_range(10, 30);		/* 10 us delay per Bspec */
 }
 
-#define CNL_PROCMON_IDX(val) \
-	(((val) & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) >> VOLTAGE_INFO_SHIFT)
-#define NUM_CNL_PROCMON \
-	(CNL_PROCMON_IDX(VOLTAGE_INFO_MASK | PROCESS_INFO_MASK) + 1)
+enum {
+	PROCMON_0_85V_DOT_0,
+	PROCMON_0_95V_DOT_0,
+	PROCMON_0_95V_DOT_1,
+	PROCMON_1_05V_DOT_0,
+	PROCMON_1_05V_DOT_1,
+};
 
 static const struct cnl_procmon {
 	u32 dw1, dw9, dw10;
-} cnl_procmon_values[NUM_CNL_PROCMON] = {
-	[CNL_PROCMON_IDX(VOLTAGE_INFO_0_85V | PROCESS_INFO_DOT_0)] =
-		{ .dw1 = 0x00 << 16, .dw9 = 0x62AB67BB, .dw10 = 0x51914F96, },
-	[CNL_PROCMON_IDX(VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_0)] =
-		{ .dw1 = 0x00 << 16, .dw9 = 0x86E172C7, .dw10 = 0x77CA5EAB, },
-	[CNL_PROCMON_IDX(VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_1)] =
-		{ .dw1 = 0x00 << 16, .dw9 = 0x93F87FE1, .dw10 = 0x8AE871C5, },
-	[CNL_PROCMON_IDX(VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_0)] =
-		{ .dw1 = 0x00 << 16, .dw9 = 0x98FA82DD, .dw10 = 0x89E46DC1, },
-	[CNL_PROCMON_IDX(VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_1)] =
-		{ .dw1 = 0x44 << 16, .dw9 = 0x9A00AB25, .dw10 = 0x8AE38FF1, },
+} cnl_procmon_values[] = {
+	[PROCMON_0_85V_DOT_0] =
+		{ .dw1 = 0x00000000, .dw9 = 0x62AB67BB, .dw10 = 0x51914F96, },
+	[PROCMON_0_95V_DOT_0] =
+		{ .dw1 = 0x00000000, .dw9 = 0x86E172C7, .dw10 = 0x77CA5EAB, },
+	[PROCMON_0_95V_DOT_1] =
+		{ .dw1 = 0x00000000, .dw9 = 0x93F87FE1, .dw10 = 0x8AE871C5, },
+	[PROCMON_1_05V_DOT_0] =
+		{ .dw1 = 0x00000000, .dw9 = 0x98FA82DD, .dw10 = 0x89E46DC1, },
+	[PROCMON_1_05V_DOT_1] =
+		{ .dw1 = 0x00440000, .dw9 = 0x9A00AB25, .dw10 = 0x8AE38FF1, },
 };
+
+static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv)
+{
+	const struct cnl_procmon *procmon;
+	u32 val;
+
+	val = I915_READ(CNL_PORT_COMP_DW3);
+	switch (val & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) {
+	default:
+		MISSING_CASE(val);
+	case VOLTAGE_INFO_0_85V | PROCESS_INFO_DOT_0:
+		procmon = &cnl_procmon_values[PROCMON_0_85V_DOT_0];
+		break;
+	case VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_0:
+		procmon = &cnl_procmon_values[PROCMON_0_95V_DOT_0];
+		break;
+	case VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_1:
+		procmon = &cnl_procmon_values[PROCMON_0_95V_DOT_1];
+		break;
+	case VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_0:
+		procmon = &cnl_procmon_values[PROCMON_1_05V_DOT_0];
+		break;
+	case VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_1:
+		procmon = &cnl_procmon_values[PROCMON_1_05V_DOT_1];
+		break;
+	}
+
+	val = I915_READ(CNL_PORT_COMP_DW1);
+	val &= ~((0xff << 16) | 0xff);
+	val |= procmon->dw1;
+	I915_WRITE(CNL_PORT_COMP_DW1, val);
+
+	I915_WRITE(CNL_PORT_COMP_DW9, procmon->dw9);
+	I915_WRITE(CNL_PORT_COMP_DW10, procmon->dw10);
+}
 
 static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	const struct cnl_procmon *procmon;
 	struct i915_power_well *well;
 	u32 val;
 
@@ -2746,18 +2783,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	val &= ~CNL_COMP_PWR_DOWN;
 	I915_WRITE(CHICKEN_MISC_2, val);
 
-	val = I915_READ(CNL_PORT_COMP_DW3);
-	procmon = &cnl_procmon_values[CNL_PROCMON_IDX(val)];
-
-	WARN_ON(procmon->dw10 == 0);
-
-	val = I915_READ(CNL_PORT_COMP_DW1);
-	val &= ~((0xff << 16) | 0xff);
-	val |= procmon->dw1;
-	I915_WRITE(CNL_PORT_COMP_DW1, val);
-
-	I915_WRITE(CNL_PORT_COMP_DW9, procmon->dw9);
-	I915_WRITE(CNL_PORT_COMP_DW10, procmon->dw10);
+	cnl_set_procmon_ref_values(dev_priv);
 
 	val = I915_READ(CNL_PORT_COMP_DW0);
 	val |= COMP_INIT;
@@ -2783,9 +2809,6 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	/* 6. Enable DBUF */
 	gen9_dbuf_enable(dev_priv);
 }
-
-#undef CNL_PROCMON_IDX
-#undef NUM_CNL_PROCMON
 
 static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 {

@@ -346,10 +346,8 @@ static void amdgpu_connector_free_edid(struct drm_connector *connector)
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-	if (amdgpu_connector->edid) {
-		kfree(amdgpu_connector->edid);
-		amdgpu_connector->edid = NULL;
-	}
+	kfree(amdgpu_connector->edid);
+	amdgpu_connector->edid = NULL;
 }
 
 static int amdgpu_connector_ddc_get_modes(struct drm_connector *connector)

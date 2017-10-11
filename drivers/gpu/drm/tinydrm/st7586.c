@@ -17,6 +17,7 @@
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
 
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -167,8 +168,8 @@ out_unlock:
 }
 
 static const struct drm_framebuffer_funcs st7586_fb_funcs = {
-	.destroy	= drm_fb_cma_destroy,
-	.create_handle	= drm_fb_cma_create_handle,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
 	.dirty		= st7586_fb_dirty,
 };
 
@@ -343,7 +344,6 @@ MODULE_DEVICE_TABLE(spi, st7586_id);
 static int st7586_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct tinydrm_device *tdev;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *a0;
 	u32 rotation = 0;
@@ -388,20 +388,9 @@ static int st7586_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	tdev = &mipi->tinydrm;
-
-	ret = devm_tinydrm_register(tdev);
-	if (ret)
-		return ret;
-
 	spi_set_drvdata(spi, mipi);
 
-	DRM_DEBUG_DRIVER("Initialized %s:%s @%uMHz on minor %d\n",
-			 tdev->drm->driver->name, dev_name(dev),
-			 spi->max_speed_hz / 1000000,
-			 tdev->drm->primary->index);
-
-	return 0;
+	return devm_tinydrm_register(&mipi->tinydrm);
 }
 
 static void st7586_shutdown(struct spi_device *spi)

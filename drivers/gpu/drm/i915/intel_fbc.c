@@ -291,6 +291,19 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
 
+	/* Display WA #0529: skl, kbl, bxt. */
+	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv)) {
+		u32 val = I915_READ(CHICKEN_MISC_4);
+
+		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
+
+		if (i915_gem_object_get_tiling(params->vma->obj) !=
+		    I915_TILING_X)
+			val |= FBC_STRIDE_OVERRIDE | params->gen9_wa_cfb_stride;
+
+		I915_WRITE(CHICKEN_MISC_4, val);
+	}
+
 	dpfc_ctl = 0;
 	if (IS_IVYBRIDGE(dev_priv))
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.plane);
@@ -881,6 +894,10 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	params->fb.stride = cache->fb.stride;
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
+
+	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
+		params->gen9_wa_cfb_stride = DIV_ROUND_UP(cache->plane.src_w,
+						32 * fbc->threshold) * 8;
 }
 
 static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,

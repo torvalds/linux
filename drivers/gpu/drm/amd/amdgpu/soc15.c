@@ -407,18 +407,27 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-static void soc15_gpu_pci_config_reset(struct amdgpu_device *adev)
+static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	u32 i;
 
-	dev_info(adev->dev, "GPU pci config reset\n");
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	dev_info(adev->dev, "GPU reset\n");
 
 	/* disable BM */
 	pci_clear_master(adev->pdev);
-	/* reset */
-	amdgpu_pci_config_reset(adev);
 
-	udelay(100);
+	pci_save_state(adev->pdev);
+
+	for (i = 0; i < AMDGPU_MAX_IP_NUM; i++) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP){
+			adev->ip_blocks[i].version->funcs->soft_reset((void *)adev);
+			break;
+		}
+	}
+
+	pci_restore_state(adev->pdev);
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -429,14 +438,6 @@ static void soc15_gpu_pci_config_reset(struct amdgpu_device *adev)
 			break;
 		udelay(1);
 	}
-
-}
-
-static int soc15_asic_reset(struct amdgpu_device *adev)
-{
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	soc15_gpu_pci_config_reset(adev);
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 

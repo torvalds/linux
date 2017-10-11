@@ -825,7 +825,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	}
 
 	r = amdgpu_vm_init(adev, &fpriv->vm,
-			   AMDGPU_VM_CONTEXT_GFX);
+			   AMDGPU_VM_CONTEXT_GFX, 0);
 	if (r) {
 		kfree(fpriv);
 		goto out_suspend;
@@ -841,8 +841,11 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	if (amdgpu_sriov_vf(adev)) {
 		r = amdgpu_map_static_csa(adev, &fpriv->vm, &fpriv->csa_va);
-		if (r)
+		if (r) {
+			amdgpu_vm_fini(adev, &fpriv->vm);
+			kfree(fpriv);
 			goto out_suspend;
+		}
 	}
 
 	mutex_init(&fpriv->bo_list_lock);

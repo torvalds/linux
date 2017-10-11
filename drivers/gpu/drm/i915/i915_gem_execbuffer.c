@@ -268,6 +268,11 @@ static inline u64 gen8_noncanonical_addr(u64 address)
 	return address & GENMASK_ULL(GEN8_HIGH_ADDRESS_BIT, 0);
 }
 
+static inline bool eb_use_cmdparser(const struct i915_execbuffer *eb)
+{
+	return eb->engine->needs_cmd_parser && eb->batch_len;
+}
+
 static int eb_create(struct i915_execbuffer *eb)
 {
 	if (!(eb->args->flags & I915_EXEC_HANDLE_LUT)) {
@@ -1159,6 +1164,13 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 	if (unlikely(!cache->rq)) {
 		int err;
 
+		/* If we need to copy for the cmdparser, we will stall anyway */
+		if (eb_use_cmdparser(eb))
+			return ERR_PTR(-EWOULDBLOCK);
+
+		if (!intel_engine_can_store_dword(eb->engine))
+			return ERR_PTR(-ENODEV);
+
 		err = __reloc_gpu_alloc(eb, vma, len);
 		if (unlikely(err))
 			return ERR_PTR(err);
@@ -1183,9 +1195,7 @@ relocate_entry(struct i915_vma *vma,
 
 	if (!eb->reloc_cache.vaddr &&
 	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
-	     !reservation_object_test_signaled_rcu(vma->resv, true)) &&
-	    __intel_engine_can_store_dword(eb->reloc_cache.gen,
-					   eb->engine->class)) {
+	     !reservation_object_test_signaled_rcu(vma->resv, true))) {
 		const unsigned int gen = eb->reloc_cache.gen;
 		unsigned int len;
 		u32 *batch;
@@ -2291,7 +2301,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		goto err_vma;
 	}
 
-	if (eb.engine->needs_cmd_parser && eb.batch_len) {
+	if (eb_use_cmdparser(&eb)) {
 		struct i915_vma *vma;
 
 		vma = eb_parse(&eb, drm_is_current_master(file));

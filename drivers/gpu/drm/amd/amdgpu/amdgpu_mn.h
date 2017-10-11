@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,20 +19,34 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: Christian König
  */
-#include "eventmgr.h"
-#include "eventinit.h"
-#include "eventmanagement.h"
-#include "eventmanager.h"
-#include "power_state.h"
-#include "hardwaremanager.h"
+#ifndef __AMDGPU_MN_H__
+#define __AMDGPU_MN_H__
 
-int psm_get_ui_state(struct pp_eventmgr *eventmgr, enum PP_StateUILabel ui_label, unsigned long *state_id);
+/*
+ * MMU Notifier
+ */
+struct amdgpu_mn;
 
-int psm_get_state_by_classification(struct pp_eventmgr *eventmgr, enum PP_StateClassificationFlag flag, unsigned long *state_id);
+#if defined(CONFIG_MMU_NOTIFIER)
+void amdgpu_mn_lock(struct amdgpu_mn *mn);
+void amdgpu_mn_unlock(struct amdgpu_mn *mn);
+struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev);
+int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
+void amdgpu_mn_unregister(struct amdgpu_bo *bo);
+#else
+static inline void amdgpu_mn_lock(struct amdgpu_mn *mn) {}
+static inline void amdgpu_mn_unlock(struct amdgpu_mn *mn) {}
+static inline struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
+{
+	return NULL;
+}
+static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
+{
+	return -ENODEV;
+}
+static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
+#endif
 
-int psm_set_states(struct pp_eventmgr *eventmgr, unsigned long *state_id);
-
-int psm_adjust_power_state_dynamic(struct pp_eventmgr *eventmgr, bool skip);
-
-int psm_adjust_power_state_static(struct pp_eventmgr *eventmgr, bool skip);
+#endif

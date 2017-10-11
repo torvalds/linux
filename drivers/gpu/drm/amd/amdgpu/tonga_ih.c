@@ -219,6 +219,19 @@ static u32 tonga_ih_get_wptr(struct amdgpu_device *adev)
 }
 
 /**
+ * tonga_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool tonga_ih_prescreen_iv(struct amdgpu_device *adev)
+{
+	/* Process all interrupts */
+	return true;
+}
+
+/**
  * tonga_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
@@ -478,6 +491,7 @@ static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs tonga_ih_funcs = {
 	.get_wptr = tonga_ih_get_wptr,
+	.prescreen_iv = tonga_ih_prescreen_iv,
 	.decode_iv = tonga_ih_decode_iv,
 	.set_rptr = tonga_ih_set_rptr
 };

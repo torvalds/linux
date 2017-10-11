@@ -248,8 +248,11 @@ dma_fence_get_rcu_safe(struct dma_fence * __rcu *fencep)
 		struct dma_fence *fence;
 
 		fence = rcu_dereference(*fencep);
-		if (!fence || !dma_fence_get_rcu(fence))
+		if (!fence)
 			return NULL;
+
+		if (!dma_fence_get_rcu(fence))
+			continue;
 
 		/* The atomic_inc_not_zero() inside dma_fence_get_rcu()
 		 * provides a full memory barrier upon success (such as now).

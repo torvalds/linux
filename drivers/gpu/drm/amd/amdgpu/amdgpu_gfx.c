@@ -260,8 +260,13 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 	/* create MQD for KIQ */
 	ring = &adev->gfx.kiq.ring;
 	if (!ring->mqd_obj) {
+		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
+		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
+		 * deallocated and gart_unbind, to strict diverage we decide to use VRAM domain for
+		 * KIQ MQD no matter SRIOV or Bare-metal
+		 */
 		r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+					    AMDGPU_GEM_DOMAIN_VRAM, &ring->mqd_obj,
 					    &ring->mqd_gpu_addr, &ring->mqd_ptr);
 		if (r) {
 			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);

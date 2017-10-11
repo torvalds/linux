@@ -65,6 +65,7 @@ MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
 static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev);
+static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev);
 
 static const char *amdgpu_asic_name[] = {
 	"TAHITI",
@@ -402,6 +403,15 @@ void amdgpu_pci_config_reset(struct amdgpu_device *adev)
  */
 static int amdgpu_doorbell_init(struct amdgpu_device *adev)
 {
+	/* No doorbell on SI hardware generation */
+	if (adev->asic_type < CHIP_BONAIRE) {
+		adev->doorbell.base = 0;
+		adev->doorbell.size = 0;
+		adev->doorbell.num_doorbells = 0;
+		adev->doorbell.ptr = NULL;
+		return 0;
+	}
+
 	/* doorbell bar mapping */
 	adev->doorbell.base = pci_resource_start(adev->pdev, 2);
 	adev->doorbell.size = pci_resource_len(adev->pdev, 2);
@@ -887,6 +897,20 @@ static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
+static ssize_t amdgpu_atombios_get_vbios_version(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	struct atom_context *ctx = adev->mode_info.atom_context;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", ctx->vbios_version);
+}
+
+static DEVICE_ATTR(vbios_version, 0444, amdgpu_atombios_get_vbios_version,
+		   NULL);
+
 /**
  * amdgpu_atombios_fini - free the driver info and callbacks for atombios
  *
@@ -906,6 +930,7 @@ static void amdgpu_atombios_fini(struct amdgpu_device *adev)
 	adev->mode_info.atom_context = NULL;
 	kfree(adev->mode_info.atom_card_info);
 	adev->mode_info.atom_card_info = NULL;
+	device_remove_file(adev->dev, &dev_attr_vbios_version);
 }
 
 /**
@@ -922,6 +947,7 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 {
 	struct card_info *atom_card_info =
 	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
+	int ret;
 
 	if (!atom_card_info)
 		return -ENOMEM;
@@ -958,6 +984,13 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 		amdgpu_atombios_scratch_regs_init(adev);
 		amdgpu_atombios_allocate_fb_scratch(adev);
 	}
+
+	ret = device_create_file(adev->dev, &dev_attr_vbios_version);
+	if (ret) {
+		DRM_ERROR("Failed to create device file for VBIOS version\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -1757,10 +1790,8 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		adev->ip_blocks[i].status.late_initialized = false;
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_bo_free_kernel(&adev->virt.csa_obj, &adev->virt.csa_vmid0_addr, NULL);
+	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_release_full_gpu(adev, false);
-	}
 
 	return 0;
 }
@@ -2051,9 +2082,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)adev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)adev->rmmio_size);
 
-	if (adev->asic_type >= CHIP_BONAIRE)
-		/* doorbell bar mapping */
-		amdgpu_doorbell_init(adev);
+	/* doorbell bar mapping */
+	amdgpu_doorbell_init(adev);
 
 	/* io port mapping */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -2201,6 +2231,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (r)
 		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
 
+	r = amdgpu_debugfs_vbios_dump_init(adev);
+	if (r)
+		DRM_ERROR("Creating vbios dump debugfs failed (%d).\n", r);
+
 	if ((amdgpu_testing & 1)) {
 		if (adev->accel_working)
 			amdgpu_test_moves(adev);
@@ -2276,8 +2310,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->rio_mem = NULL;
 	iounmap(adev->rmmio);
 	adev->rmmio = NULL;
-	if (adev->asic_type >= CHIP_BONAIRE)
-		amdgpu_doorbell_fini(adev);
+	amdgpu_doorbell_fini(adev);
 	amdgpu_debugfs_regs_cleanup(adev);
 }
 
@@ -2546,7 +2579,8 @@ static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
 		if ((adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) ||
 		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) ||
 		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_ACP) ||
-		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)) {
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) ||
+		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP) {
 			if (adev->ip_blocks[i].status.hang) {
 				DRM_INFO("Some block need full reset!\n");
 				return true;
@@ -2654,7 +2688,7 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 
 	mutex_lock(&adev->virt.lock_reset);
 	atomic_inc(&adev->gpu_reset_counter);
-	adev->gfx.in_reset = true;
+	adev->in_sriov_reset = true;
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
@@ -2765,7 +2799,7 @@ give_up_reset:
 		dev_info(adev->dev, "GPU reset successed!\n");
 	}
 
-	adev->gfx.in_reset = false;
+	adev->in_sriov_reset = false;
 	mutex_unlock(&adev->virt.lock_reset);
 	return r;
 }
@@ -3463,10 +3497,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 
 	valuesize = sizeof(values);
 	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->read_sensor)
-		r = adev->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, idx, &values[0], &valuesize);
-	else if (adev->pm.funcs && adev->pm.funcs->read_sensor)
-		r = adev->pm.funcs->read_sensor(adev, idx, &values[0],
-						&valuesize);
+		r = amdgpu_dpm_read_sensor(adev, idx, &values[0], &valuesize);
 	else
 		return -EINVAL;
 
@@ -3754,12 +3785,38 @@ int amdgpu_debugfs_init(struct drm_minor *minor)
 {
 	return 0;
 }
+
+static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+
+	seq_write(m, adev->bios, adev->bios_size);
+	return 0;
+}
+
+static const struct drm_info_list amdgpu_vbios_dump_list[] = {
+		{"amdgpu_vbios",
+		 amdgpu_debugfs_get_vbios_dump,
+		 0, NULL},
+};
+
+static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev)
+{
+	return amdgpu_debugfs_add_files(adev,
+					amdgpu_vbios_dump_list, 1);
+}
 #else
 static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
+{
+	return 0;
+}
+static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev)
 {
 	return 0;
 }

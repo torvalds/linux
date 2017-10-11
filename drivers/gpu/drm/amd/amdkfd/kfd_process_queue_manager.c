@@ -143,7 +143,6 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	int num_queues = 0;
 	struct queue *cur;
 
-	memset(&q_properties, 0, sizeof(struct queue_properties));
 	memcpy(&q_properties, properties, sizeof(struct queue_properties));
 	q = NULL;
 	kq = NULL;

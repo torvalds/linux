@@ -155,7 +155,7 @@ struct drm_driver {
 	 * reverse order of the initialization.  Similarly to the load
 	 * hook, this handler is deprecated and its usage should be
 	 * dropped in favor of an open-coded teardown function at the
-	 * driver layer.  See drm_dev_unregister() and drm_dev_unref()
+	 * driver layer.  See drm_dev_unregister() and drm_dev_put()
 	 * for the proper way to remove a &struct drm_device.
 	 *
 	 * The unload() hook is called right after unregistering
@@ -611,7 +611,8 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 int drm_dev_register(struct drm_device *dev, unsigned long flags);
 void drm_dev_unregister(struct drm_device *dev);
 
-void drm_dev_ref(struct drm_device *dev);
+void drm_dev_get(struct drm_device *dev);
+void drm_dev_put(struct drm_device *dev);
 void drm_dev_unref(struct drm_device *dev);
 void drm_put_dev(struct drm_device *dev);
 void drm_dev_unplug(struct drm_device *dev);
