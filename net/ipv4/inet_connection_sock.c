@@ -26,8 +26,6 @@
 #include <net/tcp.h>
 #include <net/sock_reuseport.h>
 #include <net/addrconf.h>
-#include <net/cls_cgroup.h>
-#include <net/netprio_cgroup.h>
 
 #ifdef INET_CSK_DEBUG
 const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
@@ -478,9 +476,6 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err, bool kern)
 		spin_unlock_bh(&queue->fastopenq.lock);
 	}
 	mem_cgroup_sk_alloc(newsk);
-	cgroup_sk_alloc(&newsk->sk_cgrp_data);
-	sock_update_classid(&newsk->sk_cgrp_data);
-	sock_update_netprioidx(&newsk->sk_cgrp_data);
 out:
 	release_sock(sk);
 	if (req)

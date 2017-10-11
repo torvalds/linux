@@ -1680,7 +1680,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		/* sk->sk_memcg will be populated at accept() time */
 		newsk->sk_memcg = NULL;
-		memset(&newsk->sk_cgrp_data, 0, sizeof(newsk->sk_cgrp_data));
 
 		atomic_set(&newsk->sk_drops, 0);
 		newsk->sk_send_head	= NULL;
@@ -1718,6 +1717,8 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_priority = 0;
 		newsk->sk_incoming_cpu = raw_smp_processor_id();
 		atomic64_set(&newsk->sk_cookie, 0);
+
+		cgroup_sk_alloc(&newsk->sk_cgrp_data);
 
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
