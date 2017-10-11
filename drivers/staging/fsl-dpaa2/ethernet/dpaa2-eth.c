@@ -2114,7 +2114,7 @@ static int bind_dpni(struct dpaa2_eth_priv *priv)
 	 */
 	err = dpaa2_eth_set_hash(net_dev, DPAA2_RXH_SUPPORTED);
 	if (err)
-		netdev_err(net_dev, "Failed to configure hashing\n");
+		dev_err(dev, "Failed to configure hashing\n");
 
 	/* Configure handling of error frames */
 	err_cfg.errors = DPAA2_FAS_RX_ERR_MASK;
