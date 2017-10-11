@@ -203,28 +203,24 @@
 		default-brightness-level = <50>;
 	};
 
-	regulators {
-		reg_lcd_pwr: regulator@5 {
-			compatible = "regulator-fixed";
-			reg = <5>;
-			regulator-name = "LCD POWER";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	reg_lcd_pwr: regulator-lcd-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD POWER";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 
-		reg_lcd_reset: regulator@6 {
-			compatible = "regulator-fixed";
-			reg = <6>;
-			regulator-name = "LCD RESET";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio3 29 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	reg_lcd_reset: regulator-lcd-reset {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD RESET";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
 	};
 };
 

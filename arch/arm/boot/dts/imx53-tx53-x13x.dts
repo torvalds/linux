@@ -99,28 +99,24 @@
 		default-brightness-level = <50>;
 	};
 
-	regulators {
-		reg_lcd_pwr0: regulator@5 {
-			compatible = "regulator-fixed";
-			reg = <5>;
-			regulator-name = "LVDS0 POWER";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio3 29 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	reg_lcd_pwr0: regulator-lvds0-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "LVDS0 POWER";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 
-		reg_lcd_pwr1: regulator@6 {
-			compatible = "regulator-fixed";
-			reg = <6>;
-			regulator-name = "LVDS1 POWER";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	reg_lcd_pwr1: regulator-lvds1-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "LVDS1 POWER";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
 	};
 };
 

@@ -96,61 +96,50 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_2v5: regulator-2v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "2V5";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+	};
 
-		reg_2v5: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "2V5";
-			regulator-min-microvolt = <2500000>;
-			regulator-max-microvolt = <2500000>;
-		};
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 
-		reg_3v3: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "3V3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-		};
+	reg_can_xcvr: regulator-can-xcvr {
+		compatible = "regulator-fixed";
+		regulator-name = "CAN XCVR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_can_xcvr>;
+		gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
+	};
 
-		reg_can_xcvr: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "CAN XCVR";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_can_xcvr>;
-			gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
-		};
+	reg_usbh1_vbus: regulator-usbh1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usbh1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbh1_vbus>;
+		gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		reg_usbh1_vbus: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "usbh1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbh1_vbus>;
-			gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		reg_usbotg_vbus: regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "usbotg_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbotg_vbus>;
-			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	reg_usbotg_vbus: regulator-usbotg-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usbotg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbotg_vbus>;
+		gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	sound {
