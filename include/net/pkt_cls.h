@@ -206,6 +206,8 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
 		     struct net_device **hw_dev);
+int tcf_exts_egdev_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
+			   void *type_data, bool err_stop);
 
 /**
  * struct tcf_pkt_info - packet information

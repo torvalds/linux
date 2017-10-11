@@ -1026,6 +1026,36 @@ int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
 }
 EXPORT_SYMBOL(tcf_exts_get_dev);
 
+int tcf_exts_egdev_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
+			   void *type_data, bool err_stop)
+{
+	int ok_count = 0;
+#ifdef CONFIG_NET_CLS_ACT
+	const struct tc_action *a;
+	struct net_device *dev;
+	LIST_HEAD(actions);
+	int ret;
+
+	if (!tcf_exts_has_actions(exts))
+		return 0;
+
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
+		if (!a->ops->get_dev)
+			continue;
+		dev = a->ops->get_dev(a);
+		if (!dev || !tc_can_offload(dev))
+			continue;
+		ret = tc_setup_cb_egdev_call(dev, type, type_data, err_stop);
+		if (ret < 0)
+			return ret;
+		ok_count += ret;
+	}
+#endif
+	return ok_count;
+}
+EXPORT_SYMBOL(tcf_exts_egdev_cb_call);
+
 static int __init tc_filter_init(void)
 {
 	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_ctl_tfilter, NULL, 0);
