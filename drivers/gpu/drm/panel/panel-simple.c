@@ -1008,6 +1008,10 @@ static const struct panel_desc hitachi_tx23d38vm0caa = {
 		.width = 195,
 		.height = 117,
 	},
+	.delay = {
+		.enable = 160,
+		.disable = 160,
+	},
 };
 
 static const struct drm_display_mode innolux_at043tn24_mode = {
