@@ -122,10 +122,6 @@
 #define CLKOUT_CMU_CPU		0x14a00
 #define PWR_CTRL1		0x15020
 #define E4X12_PWR_CTRL2		0x15024
-#define E4X12_DIV_ISP0		0x18300
-#define E4X12_DIV_ISP1		0x18304
-#define E4X12_GATE_ISP0		0x18800
-#define E4X12_GATE_ISP1		0x18804
 
 /* Below definitions are used for PWR_CTRL settings */
 #define PWR_CTRL1_CORE2_DOWN_RATIO(x)		(((x) & 0x7) << 28)
@@ -714,18 +710,6 @@ static const struct samsung_div_clock exynos4x12_div_clks[] __initconst = {
 	DIV(0, "div_c2c_aclk", "div_c2c", DIV_DMC1, 12, 3),
 };
 
-static struct samsung_div_clock exynos4x12_isp_div_clks[] = {
-	DIV_F(CLK_DIV_ISP0, "div_isp0", "aclk200", E4X12_DIV_ISP0, 0, 3,
-						CLK_GET_RATE_NOCACHE, 0),
-	DIV_F(CLK_DIV_ISP1, "div_isp1", "aclk200", E4X12_DIV_ISP0, 4, 3,
-						CLK_GET_RATE_NOCACHE, 0),
-	DIV(0, "div_mpwm", "div_isp1", E4X12_DIV_ISP1, 0, 3),
-	DIV_F(CLK_DIV_MCUISP0, "div_mcuisp0", "aclk400_mcuisp", E4X12_DIV_ISP1,
-						4, 3, CLK_GET_RATE_NOCACHE, 0),
-	DIV_F(CLK_DIV_MCUISP1, "div_mcuisp1", "div_mcuisp0", E4X12_DIV_ISP1,
-						8, 3, CLK_GET_RATE_NOCACHE, 0),
-};
-
 /* list of gate clocks supported in all exynos4 soc's */
 static const struct samsung_gate_clock exynos4_gate_clks[] __initconst = {
 	GATE(CLK_PPMULEFT, "ppmuleft", "aclk200", GATE_IP_LEFTBUS, 1, 0, 0),
@@ -1021,61 +1005,6 @@ static const struct samsung_gate_clock exynos4x12_gate_clks[] __initconst = {
 	GATE(CLK_SMMU_G2D, "smmu_g2d", "aclk200", GATE_IP_DMC, 24, 0, 0),
 	GATE(CLK_TMU_APBIF, "tmu_apbif", "aclk100", E4X12_GATE_IP_PERIR, 17, 0,
 		0),
-};
-
-static struct samsung_gate_clock exynos4x12_isp_gate_clks[] = {
-	GATE(CLK_FIMC_ISP, "isp", "aclk200", E4X12_GATE_ISP0, 0,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_FIMC_DRC, "drc", "aclk200", E4X12_GATE_ISP0, 1,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_FIMC_FD, "fd", "aclk200", E4X12_GATE_ISP0, 2,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_FIMC_LITE0, "lite0", "aclk200", E4X12_GATE_ISP0, 3,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_FIMC_LITE1, "lite1", "aclk200", E4X12_GATE_ISP0, 4,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_MCUISP, "mcuisp", "aclk200", E4X12_GATE_ISP0, 5,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_GICISP, "gicisp", "aclk200", E4X12_GATE_ISP0, 7,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SMMU_ISP, "smmu_isp", "aclk200", E4X12_GATE_ISP0, 8,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SMMU_DRC, "smmu_drc", "aclk200", E4X12_GATE_ISP0, 9,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SMMU_FD, "smmu_fd", "aclk200", E4X12_GATE_ISP0, 10,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SMMU_LITE0, "smmu_lite0", "aclk200", E4X12_GATE_ISP0, 11,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SMMU_LITE1, "smmu_lite1", "aclk200", E4X12_GATE_ISP0, 12,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_PPMUISPMX, "ppmuispmx", "aclk200", E4X12_GATE_ISP0, 20,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_PPMUISPX, "ppmuispx", "aclk200", E4X12_GATE_ISP0, 21,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_MCUCTL_ISP, "mcuctl_isp", "aclk200", E4X12_GATE_ISP0, 23,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_MPWM_ISP, "mpwm_isp", "aclk200", E4X12_GATE_ISP0, 24,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_I2C0_ISP, "i2c0_isp", "aclk200", E4X12_GATE_ISP0, 25,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_I2C1_ISP, "i2c1_isp", "aclk200", E4X12_GATE_ISP0, 26,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_MTCADC_ISP, "mtcadc_isp", "aclk200", E4X12_GATE_ISP0, 27,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_PWM_ISP, "pwm_isp", "aclk200", E4X12_GATE_ISP0, 28,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_WDT_ISP, "wdt_isp", "aclk200", E4X12_GATE_ISP0, 30,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_UART_ISP, "uart_isp", "aclk200", E4X12_GATE_ISP0, 31,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_ASYNCAXIM, "asyncaxim", "aclk200", E4X12_GATE_ISP1, 0,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SMMU_ISPCX, "smmu_ispcx", "aclk200", E4X12_GATE_ISP1, 4,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SPI0_ISP, "spi0_isp", "aclk200", E4X12_GATE_ISP1, 12,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
-	GATE(CLK_SPI1_ISP, "spi1_isp", "aclk200", E4X12_GATE_ISP1, 13,
-			CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE, 0),
 };
 
 /*
@@ -1377,8 +1306,6 @@ static void __init exynos4_clk_init(struct device_node *np,
 			e4210_armclk_d, ARRAY_SIZE(e4210_armclk_d),
 			CLK_CPU_NEEDS_DEBUG_ALT_DIV | CLK_CPU_HAS_DIV1);
 	} else {
-		struct resource res;
-
 		samsung_clk_register_mux(ctx, exynos4x12_mux_clks,
 			ARRAY_SIZE(exynos4x12_mux_clks));
 		samsung_clk_register_div(ctx, exynos4x12_div_clks,
@@ -1388,14 +1315,6 @@ static void __init exynos4_clk_init(struct device_node *np,
 		samsung_clk_register_fixed_factor(ctx,
 			exynos4x12_fixed_factor_clks,
 			ARRAY_SIZE(exynos4x12_fixed_factor_clks));
-
-		of_address_to_resource(np, 0, &res);
-		if (resource_size(&res) > 0x18000) {
-			samsung_clk_register_div(ctx, exynos4x12_isp_div_clks,
-				ARRAY_SIZE(exynos4x12_isp_div_clks));
-			samsung_clk_register_gate(ctx, exynos4x12_isp_gate_clks,
-				ARRAY_SIZE(exynos4x12_isp_gate_clks));
-		}
 
 		exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
 			mout_core_p4x12[0], mout_core_p4x12[1], 0x14200,
