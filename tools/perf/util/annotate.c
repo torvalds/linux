@@ -942,10 +942,11 @@ static void disasm__add(struct list_head *head, struct disasm_line *line)
 	list_add_tail(&line->al.node, head);
 }
 
-struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos)
+struct annotation_line *
+annotation_line__next(struct annotation_line *pos, struct list_head *head)
 {
-	list_for_each_entry_continue(pos, head, al.node)
-		if (pos->al.offset >= 0)
+	list_for_each_entry_continue(pos, head, node)
+		if (pos->offset >= 0)
 			return pos;
 
 	return NULL;
@@ -1096,10 +1097,10 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		struct annotation *notes = symbol__annotation(sym);
 		s64 offset = dl->al.offset;
 		const u64 addr = start + offset;
-		struct disasm_line *next;
+		struct annotation_line *next;
 		struct block_range *br;
 
-		next = disasm__get_next_ip_line(&notes->src->source, dl);
+		next = annotation_line__next(&dl->al, &notes->src->source);
 
 		if (perf_evsel__is_group_event(evsel)) {
 			nr_percent = evsel->nr_members;
@@ -1114,7 +1115,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			percent = disasm__calc_percent(notes,
 					notes->src->lines ? i : evsel->idx + i,
 					offset,
-					next ? next->al.offset : (s64) len,
+					next ? next->offset : (s64) len,
 					&path, &sample);
 
 			ppercents[i] = percent;

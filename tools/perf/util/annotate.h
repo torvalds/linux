@@ -85,7 +85,8 @@ struct sym_hist_entry {
 };
 
 void disasm_line__free(struct disasm_line *dl);
-struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
+struct annotation_line *
+annotation_line__next(struct annotation_line *pos, struct list_head *head);
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
