@@ -404,9 +404,6 @@ bool dm_read_persistent_data(struct dc_context *ctx,
 		unsigned int size,
 		struct persistent_data_flag *flag);
 
-void dm_delay_in_microseconds
-	(struct dc_context *ctx, unsigned int microSeconds);
-
 bool dm_query_extended_brightness_caps
 	(struct dc_context *ctx, enum dm_acpi_display_type display,
 			struct dm_acpi_atif_backlight_caps *pCaps);

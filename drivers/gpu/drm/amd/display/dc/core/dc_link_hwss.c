@@ -127,7 +127,7 @@ static bool edp_receiver_ready_T9(struct dc_link *link)
 			break;
 		if (result != DC_OK)
 			break;
-		dm_delay_in_microseconds(link->ctx, 100); //MAx T9
+		udelay(100); //MAx T9
 	} while (++tries < 50);
 	return result;
 }
@@ -271,7 +271,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			pipes[i].stream->sink->link != NULL &&
 			pipes[i].stream_res.stream_enc != NULL &&
 			pipes[i].stream->sink->link == link) {
-			dm_delay_in_microseconds(link->ctx, 100);
+			udelay(100);
 
 			pipes[i].stream_res.stream_enc->funcs->dp_blank(
 					pipes[i].stream_res.stream_enc);

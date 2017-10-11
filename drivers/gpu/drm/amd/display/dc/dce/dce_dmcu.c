@@ -137,7 +137,7 @@ static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 					if (psr_state == 0)
 						break;
 				}
-				dm_delay_in_microseconds(dmcu->ctx, 10);
+				udelay(10);
 		}
 	}
 }
@@ -378,7 +378,7 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 			if (psr_state == 0)
 				break;
 		}
-		dm_delay_in_microseconds(dmcu->ctx, 500);
+		udelay(500);
 	}
 
 	/* assert if max retry hit */
