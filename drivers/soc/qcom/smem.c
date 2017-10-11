@@ -63,13 +63,12 @@
  */
 
 /*
- * Item 3 of the global heap contains an array of versions for the various
- * software components in the SoC. We verify that the boot loader version is
- * what the expected version (SMEM_EXPECTED_VERSION) as a sanity check.
+ * The version member of the smem header contains an array of versions for the
+ * various software components in the SoC. We verify that the boot loader
+ * version is a valid version as a sanity check.
  */
-#define SMEM_ITEM_VERSION	3
-#define  SMEM_MASTER_SBL_VERSION_INDEX	7
-#define  SMEM_EXPECTED_VERSION		11
+#define SMEM_MASTER_SBL_VERSION_INDEX	7
+#define SMEM_EXPECTED_VERSION		11
 
 /*
  * The first 8 items are only to be allocated by the boot loader while
@@ -604,19 +603,11 @@ EXPORT_SYMBOL(qcom_smem_get_free_space);
 
 static int qcom_smem_get_sbl_version(struct qcom_smem *smem)
 {
+	struct smem_header *header;
 	__le32 *versions;
-	size_t size;
 
-	versions = qcom_smem_get_global(smem, SMEM_ITEM_VERSION, &size);
-	if (IS_ERR(versions)) {
-		dev_err(smem->dev, "Unable to read the version item\n");
-		return -ENOENT;
-	}
-
-	if (size < sizeof(unsigned) * SMEM_MASTER_SBL_VERSION_INDEX) {
-		dev_err(smem->dev, "Version item is too small\n");
-		return -EINVAL;
-	}
+	header = smem->regions[0].virt_base;
+	versions = header->version;
 
 	return le32_to_cpu(versions[SMEM_MASTER_SBL_VERSION_INDEX]);
 }
