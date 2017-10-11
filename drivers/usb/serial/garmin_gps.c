@@ -1402,7 +1402,6 @@ static int garmin_port_probe(struct usb_serial_port *port)
 	timer_setup(&garmin_data_p->timer, timeout_handler, 0);
 	spin_lock_init(&garmin_data_p->lock);
 	INIT_LIST_HEAD(&garmin_data_p->pktlist);
-	/* garmin_data_p->timer.expires = jiffies + session_timeout; */
 	garmin_data_p->port = port;
 	garmin_data_p->state = 0;
 	garmin_data_p->flags = 0;
