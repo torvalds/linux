@@ -513,6 +513,38 @@ static const struct regmap_irq_chip rk808_irq_chip = {
 	.init_ack_masked = true,
 };
 
+static const struct regmap_irq rk816_battery_irqs[] = {
+	/* INT_STS */
+	[RK816_IRQ_PLUG_IN] = {
+		.mask = RK816_IRQ_PLUG_IN_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_PLUG_OUT] = {
+		.mask = RK816_IRQ_PLUG_OUT_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_OK] = {
+		.mask = RK816_IRQ_CHG_OK_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_TE] = {
+		.mask = RK816_IRQ_CHG_TE_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_TS] = {
+		.mask = RK816_IRQ_CHG_TS_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_CHG_CVTLIM] = {
+		.mask = RK816_IRQ_CHG_CVTLIM_MSK,
+		.reg_offset = 0,
+	},
+	[RK816_IRQ_DISCHG_ILIM] = {
+		.mask = RK816_IRQ_DISCHG_ILIM_MSK,
+		.reg_offset = 0,
+	},
+};
+
 static struct regmap_irq_chip rk816_irq_chip = {
 	.name = "rk816",
 	.irqs = rk816_irqs,
@@ -522,6 +554,17 @@ static struct regmap_irq_chip rk816_irq_chip = {
 	.status_base = RK816_INT_STS_REG1,
 	.mask_base = RK816_INT_STS_MSK_REG1,
 	.ack_base = RK816_INT_STS_REG1,
+	.init_ack_masked = true,
+};
+
+static struct regmap_irq_chip rk816_battery_irq_chip = {
+	.name = "rk816_battery",
+	.irqs = rk816_battery_irqs,
+	.num_irqs = ARRAY_SIZE(rk816_battery_irqs),
+	.num_regs = 1,
+	.status_base = RK816_INT_STS_REG3,
+	.mask_base = RK816_INT_STS_MSK_REG3,
+	.ack_base = RK816_INT_STS_REG3,
 	.init_ack_masked = true,
 };
 
@@ -676,6 +719,7 @@ static int rk808_probe(struct i2c_client *client,
 	struct device_node *np = client->dev.of_node;
 	struct rk808 *rk808;
 	const struct rk808_reg_data *pre_init_reg;
+	const struct regmap_irq_chip *irq_chip, *battery_irq_chip = NULL;
 	const struct mfd_cell *cells;
 	void (*pm_pwroff_fn)(void);
 	int nr_pre_init_regs;
@@ -709,7 +753,7 @@ static int rk808_probe(struct i2c_client *client,
 	switch (rk808->variant) {
 	case RK805_ID:
 		rk808->regmap_cfg = &rk805_regmap_config;
-		rk808->regmap_irq_chip = &rk805_irq_chip;
+		irq_chip = &rk805_irq_chip;
 		pre_init_reg = rk805_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk805_pre_init_reg);
 		cells = rk805s;
@@ -722,7 +766,7 @@ static int rk808_probe(struct i2c_client *client,
 		break;
 	case RK808_ID:
 		rk808->regmap_cfg = &rk808_regmap_config;
-		rk808->regmap_irq_chip = &rk808_irq_chip;
+		irq_chip = &rk808_irq_chip;
 		pre_init_reg = rk808_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk808_pre_init_reg);
 		cells = rk808s;
@@ -731,7 +775,8 @@ static int rk808_probe(struct i2c_client *client,
 		break;
 	case RK816_ID:
 		rk808->regmap_cfg = &rk816_regmap_config;
-		rk808->regmap_irq_chip = &rk816_irq_chip;
+		irq_chip = &rk816_irq_chip;
+		battery_irq_chip = &rk816_battery_irq_chip;
 		pre_init_reg = rk816_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk816_pre_init_reg);
 		cells = rk816s;
@@ -740,7 +785,7 @@ static int rk808_probe(struct i2c_client *client,
 		break;
 	case RK818_ID:
 		rk808->regmap_cfg = &rk818_regmap_config;
-		rk808->regmap_irq_chip = &rk818_irq_chip;
+		irq_chip = &rk818_irq_chip;
 		pre_init_reg = rk818_pre_init_reg;
 		nr_pre_init_regs = ARRAY_SIZE(rk818_pre_init_reg);
 		cells = rk818s;
@@ -768,11 +813,24 @@ static int rk808_probe(struct i2c_client *client,
 	}
 
 	ret = regmap_add_irq_chip(rk808->regmap, client->irq,
-				  IRQF_ONESHOT, -1,
-				  rk808->regmap_irq_chip, &rk808->irq_data);
+				  IRQF_ONESHOT | IRQF_SHARED, -1,
+				  irq_chip, &rk808->irq_data);
 	if (ret) {
 		dev_err(&client->dev, "Failed to add irq_chip %d\n", ret);
 		return ret;
+	}
+
+	if (battery_irq_chip) {
+		ret = regmap_add_irq_chip(rk808->regmap, client->irq,
+					  IRQF_ONESHOT | IRQF_SHARED, -1,
+					  battery_irq_chip,
+					  &rk808->battery_irq_data);
+		if (ret) {
+			dev_err(&client->dev,
+				"Failed to add batterry irq_chip %d\n", ret);
+			regmap_del_irq_chip(client->irq, rk808->irq_data);
+			return ret;
+		}
 	}
 
 	for (i = 0; i < nr_pre_init_regs; i++) {
@@ -814,6 +872,8 @@ static int rk808_probe(struct i2c_client *client,
 
 err_irq:
 	regmap_del_irq_chip(client->irq, rk808->irq_data);
+	if (battery_irq_chip)
+		regmap_del_irq_chip(client->irq, rk808->battery_irq_data);
 	return ret;
 }
 

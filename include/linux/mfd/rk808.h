@@ -702,9 +702,9 @@ enum {
 struct rk808 {
 	struct i2c_client		*i2c;
 	struct regmap_irq_chip_data	*irq_data;
+	struct regmap_irq_chip_data	*battery_irq_data;
 	struct regmap			*regmap;
 	long				variant;
 	const struct regmap_config	*regmap_cfg;
-	const struct regmap_irq_chip	*regmap_irq_chip;
 };
 #endif /* __LINUX_REGULATOR_RK808_H */
