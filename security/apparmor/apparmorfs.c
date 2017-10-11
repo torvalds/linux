@@ -30,7 +30,7 @@
 #include "include/apparmor.h"
 #include "include/apparmorfs.h"
 #include "include/audit.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/crypto.h"
 #include "include/ipc.h"
 #include "include/label.h"

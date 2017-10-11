@@ -82,7 +82,7 @@
 
 #include "include/apparmor.h"
 #include "include/capability.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/file.h"
 #include "include/ipc.h"
 #include "include/match.h"

@@ -21,7 +21,7 @@
 #include <linux/string.h>
 
 #include "include/apparmor.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/policy_ns.h"
 #include "include/label.h"
 #include "include/policy.h"

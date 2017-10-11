@@ -22,7 +22,7 @@
 
 #include "include/audit.h"
 #include "include/apparmorfs.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/domain.h"
 #include "include/file.h"
 #include "include/ipc.h"

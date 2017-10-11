@@ -18,7 +18,7 @@
 
 #include "include/apparmor.h"
 #include "include/audit.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/file.h"
 #include "include/match.h"
 #include "include/path.h"

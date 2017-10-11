@@ -30,7 +30,7 @@
 #include "include/apparmorfs.h"
 #include "include/audit.h"
 #include "include/capability.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/file.h"
 #include "include/ipc.h"
 #include "include/path.h"

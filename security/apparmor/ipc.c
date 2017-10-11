@@ -17,7 +17,7 @@
 
 #include "include/audit.h"
 #include "include/capability.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/policy.h"
 #include "include/ipc.h"
 #include "include/sig_names.h"

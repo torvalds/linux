@@ -16,7 +16,7 @@
 #include <linux/sort.h>
 
 #include "include/apparmor.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/label.h"
 #include "include/policy.h"
 #include "include/secid.h"
