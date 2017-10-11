@@ -1346,6 +1346,18 @@ static bool get_ext_hdmi_settings(struct pipe_ctx *pipe_ctx,
 					sizeof(integrated_info->dp2_ext_hdmi_6g_reg_settings));
 			result = true;
 			break;
+		case ENGINE_ID_DIGD:
+			settings->slv_addr = integrated_info->dp3_ext_hdmi_slv_addr;
+			settings->reg_num = integrated_info->dp3_ext_hdmi_6g_reg_num;
+			settings->reg_num_6g = integrated_info->dp3_ext_hdmi_6g_reg_num;
+			memmove(settings->reg_settings,
+					integrated_info->dp3_ext_hdmi_reg_settings,
+					sizeof(integrated_info->dp3_ext_hdmi_reg_settings));
+			memmove(settings->reg_settings_6g,
+					integrated_info->dp3_ext_hdmi_6g_reg_settings,
+					sizeof(integrated_info->dp3_ext_hdmi_6g_reg_settings));
+			result = true;
+			break;
 		default:
 			break;
 		}
