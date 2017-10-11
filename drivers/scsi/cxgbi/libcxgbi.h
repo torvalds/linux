@@ -205,7 +205,6 @@ enum cxgbi_skcb_flags {
 	SKCBF_TX_NEED_HDR,	/* packet needs a header */
 	SKCBF_TX_MEM_WRITE,     /* memory write */
 	SKCBF_TX_FLAG_COMPL,    /* wr completion flag */
-	SKCBF_TX_DONE,		/* skb tx done */
 	SKCBF_RX_COALESCED,	/* received whole pdu */
 	SKCBF_RX_HDR,		/* received pdu header */
 	SKCBF_RX_DATA,		/* received pdu payload */
