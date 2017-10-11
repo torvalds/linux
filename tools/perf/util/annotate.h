@@ -126,19 +126,6 @@ struct cyc_hist {
 	u16	reset;
 };
 
-struct source_line_samples {
-	double		percent;
-	double		percent_sum;
-	u64		nr;
-};
-
-struct source_line {
-	struct rb_node	node;
-	char		*path;
-	int		nr_pcnt;
-	struct source_line_samples samples[1];
-};
-
 /** struct annotated_source - symbols with hits have this attached as in sannotation
  *
  * @histogram: Array of addr hit histograms per event being monitored
@@ -154,7 +141,6 @@ struct source_line {
  */
 struct annotated_source {
 	struct list_head   source;
-	struct source_line *lines;
 	int    		   nr_histograms;
 	size_t		   sizeof_sym_hist;
 	struct cyc_hist	   *cycles_hist;
