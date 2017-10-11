@@ -104,9 +104,11 @@ static void free_rx_fd(struct dpaa2_eth_priv *priv,
 		/* We don't support any other format */
 		return;
 
-	/* For S/G frames, we first need to free all SG entries */
+	/* For S/G frames, we first need to free all SG entries
+	 * except the first one, which was taken care of already
+	 */
 	sgt = vaddr + dpaa2_fd_get_offset(fd);
-	for (i = 0; i < DPAA2_ETH_MAX_SG_ENTRIES; i++) {
+	for (i = 1; i < DPAA2_ETH_MAX_SG_ENTRIES; i++) {
 		addr = dpaa2_sg_get_addr(&sgt[i]);
 		sg_vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
@@ -179,6 +181,11 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 			skb = build_skb(sg_vaddr, DPAA2_ETH_RX_BUF_SIZE +
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
 			if (unlikely(!skb)) {
+				/* Free the first SG entry now, since we already
+				 * unmapped it and obtained the virtual address
+				 */
+				skb_free_frag(sg_vaddr);
+
 				/* We still need to subtract the buffers used
 				 * by this FD from our software counter
 				 */
