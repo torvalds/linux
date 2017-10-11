@@ -732,6 +732,10 @@ static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	if (index < 0) {
 		netdev_err(ndp->ndev.dev,
 			   "Failed to add new VLAN tag, error %d\n", index);
+		if (index == -ENOSPC)
+			netdev_err(ndp->ndev.dev,
+				   "Channel %u already has all VLAN filters set\n",
+				   nc->id);
 		return -1;
 	}
 
@@ -1403,7 +1407,6 @@ static int ncsi_kick_channels(struct ncsi_dev_priv *ndp)
 
 int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
-	struct ncsi_channel_filter *ncf;
 	struct ncsi_dev_priv *ndp;
 	unsigned int n_vids = 0;
 	struct vlan_vid *vlan;
@@ -1420,7 +1423,6 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 	}
 
 	ndp = TO_NCSI_DEV_PRIV(nd);
-	ncf = ndp->hot_channel->filters[NCSI_FILTER_VLAN];
 
 	/* Add the VLAN id to our internal list */
 	list_for_each_entry_rcu(vlan, &ndp->vlan_vids, list) {
@@ -1431,12 +1433,11 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 			return 0;
 		}
 	}
-
-	if (n_vids >= ncf->total) {
-		netdev_info(dev,
-			    "NCSI Channel supports up to %u VLAN tags but %u are already set\n",
-			    ncf->total, n_vids);
-		return -EINVAL;
+	if (n_vids >= NCSI_MAX_VLAN_VIDS) {
+		netdev_warn(dev,
+			    "tried to add vlan id %u but NCSI max already registered (%u)\n",
+			    vid, NCSI_MAX_VLAN_VIDS);
+		return -ENOSPC;
 	}
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
