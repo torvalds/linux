@@ -263,7 +263,7 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 		if (exists)
 			spin_unlock_bh(&ife->tcf_lock);
 		rtnl_unlock();
-		request_module("ifemeta%u", metaid);
+		request_module("ife-meta-%u", metaid);
 		rtnl_lock();
 		if (exists)
 			spin_lock_bh(&ife->tcf_lock);
