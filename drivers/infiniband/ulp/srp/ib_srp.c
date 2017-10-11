@@ -711,6 +711,23 @@ out:
 	return ret;
 }
 
+static u8 srp_get_subnet_timeout(struct srp_host *host)
+{
+	struct ib_port_attr attr;
+	int ret;
+	u8 subnet_timeout = 18;
+
+	ret = ib_query_port(host->srp_dev->dev, host->port, &attr);
+	if (ret == 0)
+		subnet_timeout = attr.subnet_timeout;
+
+	if (unlikely(subnet_timeout < 15))
+		pr_warn("%s: subnet timeout %d may cause SRP login to fail.\n",
+			dev_name(&host->srp_dev->dev->dev), subnet_timeout);
+
+	return subnet_timeout;
+}
+
 static int srp_send_req(struct srp_rdma_ch *ch, bool multich)
 {
 	struct srp_target_port *target = ch->target;
@@ -719,6 +736,9 @@ static int srp_send_req(struct srp_rdma_ch *ch, bool multich)
 		struct srp_login_req   priv;
 	} *req = NULL;
 	int status;
+	u8 subnet_timeout;
+
+	subnet_timeout = srp_get_subnet_timeout(target->srp_host);
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
@@ -741,8 +761,8 @@ static int srp_send_req(struct srp_rdma_ch *ch, bool multich)
 	 * module parameters if anyone cared about setting them.
 	 */
 	req->param.responder_resources	      = 4;
-	req->param.remote_cm_response_timeout = 20;
-	req->param.local_cm_response_timeout  = 20;
+	req->param.remote_cm_response_timeout = subnet_timeout + 2;
+	req->param.local_cm_response_timeout  = subnet_timeout + 2;
 	req->param.retry_count                = target->tl_retry_count;
 	req->param.rnr_retry_count 	      = 7;
 	req->param.max_cm_retries 	      = 15;
