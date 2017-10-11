@@ -911,7 +911,14 @@ static struct annotation_line *
 annotation_line__new(struct annotate_args *args, size_t privsize)
 {
 	struct annotation_line *al;
+	struct perf_evsel *evsel = args->evsel;
 	size_t size = privsize + sizeof(*al);
+	int nr = 1;
+
+	if (perf_evsel__is_group_event(evsel))
+		nr = evsel->nr_members;
+
+	size += sizeof(al->samples[0]) * nr;
 
 	al = zalloc(size);
 	if (al) {
@@ -920,6 +927,7 @@ annotation_line__new(struct annotate_args *args, size_t privsize)
 		al->offset     = args->offset;
 		al->line       = strdup(args->line);
 		al->line_nr    = args->line_nr;
+		al->samples_nr = nr;
 	}
 
 	return al;
