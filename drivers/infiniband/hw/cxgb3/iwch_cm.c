@@ -1760,8 +1760,8 @@ static void ep_timeout(unsigned long arg)
 
 int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
-	int err;
 	struct iwch_ep *ep = to_ep(cm_id);
+
 	pr_debug("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
 	if (state_read(&ep->com) == DEAD) {
@@ -1772,8 +1772,8 @@ int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 	if (mpa_rev == 0)
 		abort_connection(ep, NULL, GFP_KERNEL);
 	else {
-		err = send_mpa_reject(ep, pdata, pdata_len);
-		err = iwch_ep_disconnect(ep, 0, GFP_KERNEL);
+		send_mpa_reject(ep, pdata, pdata_len);
+		iwch_ep_disconnect(ep, 0, GFP_KERNEL);
 	}
 	put_ep(&ep->com);
 	return 0;
