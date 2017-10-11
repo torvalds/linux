@@ -827,6 +827,7 @@ struct snd_soc_component_driver {
 			      enum snd_soc_bias_level level);
 
 	const struct snd_pcm_ops *ops;
+	const struct snd_compr_ops *compr_ops;
 
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;
