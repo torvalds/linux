@@ -878,12 +878,17 @@ out_free_name:
 	return -1;
 }
 
-static struct disasm_line *disasm_line__new(s64 offset, char *line,
-					    size_t privsize, int line_nr,
+struct annotate_args {
+	size_t			 privsize;
+};
+
+static struct disasm_line *disasm_line__new(struct annotate_args *args,
+					    s64 offset, char *line,
+					    int line_nr,
 					    struct arch *arch,
 					    struct map *map)
 {
-	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
+	struct disasm_line *dl = zalloc(sizeof(*dl) + args->privsize);
 
 	if (dl != NULL) {
 		dl->al.offset  = offset;
@@ -1217,8 +1222,8 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
  * The ops.raw part will be parsed further according to type of the instruction.
  */
 static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
-				      struct arch *arch,
-				      FILE *file, size_t privsize,
+				      struct arch *arch, FILE *file,
+				      struct annotate_args *args,
 				      int *line_nr)
 {
 	struct annotation *notes = symbol__annotation(sym);
@@ -1264,7 +1269,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 			parsed_line = tmp2 + 1;
 	}
 
-	dl = disasm_line__new(offset, parsed_line, privsize, *line_nr, arch, map);
+	dl = disasm_line__new(args, offset, parsed_line, *line_nr, arch, map);
 	free(line);
 	(*line_nr)++;
 
@@ -1426,7 +1431,8 @@ static const char *annotate__norm_arch(const char *arch_name)
 }
 
 static int symbol__disassemble(struct symbol *sym, struct map *map,
-			       size_t privsize, struct arch *arch)
+			       struct annotate_args *args,
+			       struct arch *arch)
 {
 	struct dso *dso = map->dso;
 	char command[PATH_MAX * 2];
@@ -1526,7 +1532,7 @@ static int symbol__disassemble(struct symbol *sym, struct map *map,
 		 * can associate it with the instructions till the next one.
 		 * See disasm_line__new() and struct disasm_line::line_nr.
 		 */
-		if (symbol__parse_objdump_line(sym, map, arch, file, privsize,
+		if (symbol__parse_objdump_line(sym, map, arch, file, args,
 			    &lineno) < 0)
 			break;
 		nline++;
@@ -1564,6 +1570,9 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		     const char *arch_name, size_t privsize,
 		     struct arch **parch, char *cpuid)
 {
+	struct annotate_args args = {
+		.privsize	= privsize,
+	};
 	struct arch *arch;
 	int err;
 
@@ -1586,7 +1595,7 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		}
 	}
 
-	return symbol__disassemble(sym, map, privsize, arch);
+	return symbol__disassemble(sym, map, &args, arch);
 }
 
 static void insert_source_line(struct rb_root *root, struct source_line *src_line)
