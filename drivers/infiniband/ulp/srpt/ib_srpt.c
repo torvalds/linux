@@ -766,7 +766,7 @@ static int srpt_post_recv(struct srpt_device *sdev,
 	BUG_ON(!sdev);
 	list.addr = ioctx->ioctx.dma;
 	list.length = srp_max_req_size;
-	list.lkey = sdev->pd->local_dma_lkey;
+	list.lkey = sdev->lkey;
 
 	ioctx->ioctx.cqe.done = srpt_recv_done;
 	wr.wr_cqe = &ioctx->ioctx.cqe;
@@ -2343,7 +2343,7 @@ static void srpt_queue_response(struct se_cmd *cmd)
 
 	sge.addr = ioctx->ioctx.dma;
 	sge.length = resp_len;
-	sge.lkey = sdev->pd->local_dma_lkey;
+	sge.lkey = sdev->lkey;
 
 	ioctx->ioctx.cqe.done = srpt_send_done;
 	send_wr.next = NULL;
@@ -2490,6 +2490,8 @@ static void srpt_add_one(struct ib_device *device)
 	sdev->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(sdev->pd))
 		goto free_dev;
+
+	sdev->lkey = sdev->pd->local_dma_lkey;
 
 	sdev->srq_size = min(srpt_srq_size, sdev->device->attrs.max_srq_wr);
 
