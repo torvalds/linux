@@ -309,22 +309,12 @@ void emac_mac_mode_config(struct emac_adapter *adpt)
 /* Config descriptor rings */
 static void emac_mac_dma_rings_config(struct emac_adapter *adpt)
 {
-	static const unsigned short tpd_q_offset[] = {
-		EMAC_DESC_CTRL_8,        EMAC_H1TPD_BASE_ADDR_LO,
-		EMAC_H2TPD_BASE_ADDR_LO, EMAC_H3TPD_BASE_ADDR_LO};
-	static const unsigned short rfd_q_offset[] = {
-		EMAC_DESC_CTRL_2,        EMAC_DESC_CTRL_10,
-		EMAC_DESC_CTRL_12,       EMAC_DESC_CTRL_13};
-	static const unsigned short rrd_q_offset[] = {
-		EMAC_DESC_CTRL_5,        EMAC_DESC_CTRL_14,
-		EMAC_DESC_CTRL_15,       EMAC_DESC_CTRL_16};
-
 	/* TPD (Transmit Packet Descriptor) */
 	writel(upper_32_bits(adpt->tx_q.tpd.dma_addr),
 	       adpt->base + EMAC_DESC_CTRL_1);
 
 	writel(lower_32_bits(adpt->tx_q.tpd.dma_addr),
-	       adpt->base + tpd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_8);
 
 	writel(adpt->tx_q.tpd.count & TPD_RING_SIZE_BMSK,
 	       adpt->base + EMAC_DESC_CTRL_9);
@@ -334,9 +324,9 @@ static void emac_mac_dma_rings_config(struct emac_adapter *adpt)
 	       adpt->base + EMAC_DESC_CTRL_0);
 
 	writel(lower_32_bits(adpt->rx_q.rfd.dma_addr),
-	       adpt->base + rfd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_2);
 	writel(lower_32_bits(adpt->rx_q.rrd.dma_addr),
-	       adpt->base + rrd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_5);
 
 	writel(adpt->rx_q.rfd.count & RFD_RING_SIZE_BMSK,
 	       adpt->base + EMAC_DESC_CTRL_3);
@@ -744,6 +734,11 @@ static int emac_rx_descs_alloc(struct emac_adapter *adpt)
 	rx_q->rrd.size = rx_q->rrd.count * (adpt->rrd_size * 4);
 	rx_q->rfd.size = rx_q->rfd.count * (adpt->rfd_size * 4);
 
+	/* Check if the RRD and RFD are aligned properly, and if not, adjust. */
+	if (upper_32_bits(ring_header->dma_addr) !=
+	    upper_32_bits(ring_header->dma_addr + ALIGN(rx_q->rrd.size, 8)))
+		ring_header->used = ALIGN(rx_q->rrd.size, 8);
+
 	rx_q->rrd.dma_addr = ring_header->dma_addr + ring_header->used;
 	rx_q->rrd.v_addr   = ring_header->v_addr + ring_header->used;
 	ring_header->used += ALIGN(rx_q->rrd.size, 8);
@@ -777,11 +772,18 @@ int emac_mac_rx_tx_rings_alloc_all(struct emac_adapter *adpt)
 
 	/* Ring DMA buffer. Each ring may need up to 8 bytes for alignment,
 	 * hence the additional padding bytes are allocated.
+	 *
+	 * Also double the memory allocated for the RRD so that we can
+	 * re-align it if necessary.  The EMAC has a restriction that the
+	 * upper 32 bits of the base addresses for the RFD and RRD rings
+	 * must be the same.  It is extremely unlikely that this is not the
+	 * case, since the rings are only a few KB in size.  However, we
+	 * need to check for this anyway, and if the two rings are not
+	 * compliant, then we re-align.
 	 */
-	ring_header->size = num_tx_descs * (adpt->tpd_size * 4) +
-			    num_rx_descs * (adpt->rfd_size * 4) +
-			    num_rx_descs * (adpt->rrd_size * 4) +
-			    8 + 2 * 8; /* 8 byte per one Tx and two Rx rings */
+	ring_header->size = ALIGN(num_tx_descs * (adpt->tpd_size * 4), 8) +
+			    ALIGN(num_rx_descs * (adpt->rfd_size * 4), 8) +
+			    ALIGN(num_rx_descs * (adpt->rrd_size * 4), 8) * 2;
 
 	ring_header->used = 0;
 	ring_header->v_addr = dma_zalloc_coherent(dev, ring_header->size,
@@ -790,26 +792,23 @@ int emac_mac_rx_tx_rings_alloc_all(struct emac_adapter *adpt)
 	if (!ring_header->v_addr)
 		return -ENOMEM;
 
-	ring_header->used = ALIGN(ring_header->dma_addr, 8) -
-							ring_header->dma_addr;
-
-	ret = emac_tx_q_desc_alloc(adpt, &adpt->tx_q);
-	if (ret) {
-		netdev_err(adpt->netdev, "error: Tx Queue alloc failed\n");
-		goto err_alloc_tx;
-	}
-
 	ret = emac_rx_descs_alloc(adpt);
 	if (ret) {
 		netdev_err(adpt->netdev, "error: Rx Queue alloc failed\n");
 		goto err_alloc_rx;
 	}
 
+	ret = emac_tx_q_desc_alloc(adpt, &adpt->tx_q);
+	if (ret) {
+		netdev_err(adpt->netdev, "transmit queue allocation failed\n");
+		goto err_alloc_tx;
+	}
+
 	return 0;
 
-err_alloc_rx:
-	emac_tx_q_bufs_free(adpt);
 err_alloc_tx:
+	emac_rx_q_bufs_free(adpt);
+err_alloc_rx:
 	dma_free_coherent(dev, ring_header->size,
 			  ring_header->v_addr, ring_header->dma_addr);
 
