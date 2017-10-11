@@ -948,8 +948,7 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 			break;
 	}
 
-	if (cleaned < budget) {
-		napi_complete_done(napi, cleaned);
+	if (cleaned < budget && napi_complete_done(napi, cleaned)) {
 		/* Re-enable data available notifications */
 		do {
 			err = dpaa2_io_service_rearm(NULL, &ch->nctx);
