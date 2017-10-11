@@ -3431,7 +3431,6 @@ try_intx:
 	for (i = 0; msixnum < dd->cspec->num_msix_entries; i++) {
 		irq_handler_t handler;
 		void *arg;
-		u64 val;
 		int lsb, reg, sh;
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 		int dca = 0;
@@ -3502,8 +3501,8 @@ try_intx:
 			mask &= ~(1ULL << lsb);
 			redirect[reg] |= ((u64) msixnum) << sh;
 		}
-		val = qib_read_kreg64(dd, 2 * msixnum + 1 +
-			(QIB_7322_MsixTable_OFFS / sizeof(u64)));
+		qib_read_kreg64(dd, 2 * msixnum + 1 +
+				(QIB_7322_MsixTable_OFFS / sizeof(u64)));
 		if (firstcpu < nr_cpu_ids &&
 			zalloc_cpumask_var(
 				&dd->cspec->msix_entries[msixnum].mask,
@@ -5358,16 +5357,11 @@ static void try_7322_autoneg(struct qib_pportdata *ppd)
 static void autoneg_7322_work(struct work_struct *work)
 {
 	struct qib_pportdata *ppd;
-	struct qib_devdata *dd;
-	u64 startms;
 	u32 i;
 	unsigned long flags;
 
 	ppd = container_of(work, struct qib_chippport_specific,
 			    autoneg_work.work)->ppd;
-	dd = ppd->dd;
-
-	startms = jiffies_to_msecs(jiffies);
 
 	/*
 	 * Busy wait for this first part, it should be at most a
@@ -7807,13 +7801,12 @@ static void ibsd_wr_allchans(struct qib_pportdata *ppd, int addr, unsigned data,
 {
 	struct qib_devdata *dd = ppd->dd;
 	int chan;
-	u32 rbc;
 
 	for (chan = 0; chan < SERDES_CHANS; ++chan) {
 		ahb_mod(dd, IBSD(ppd->hw_pidx), (chan + (chan >> 1)), addr,
 			data, mask);
-		rbc = ahb_mod(dd, IBSD(ppd->hw_pidx), (chan + (chan >> 1)),
-			      addr, 0, 0);
+		ahb_mod(dd, IBSD(ppd->hw_pidx), (chan + (chan >> 1)), addr,
+			0, 0);
 	}
 }
 

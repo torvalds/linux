@@ -397,7 +397,6 @@ MODULE_PARM_DESC(pcie_coalesce, "tune PCIe colescing on some Intel chipsets");
  */
 static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 {
-	int r;
 	struct pci_dev *parent;
 	u16 devid;
 	u32 mask, bits, val;
@@ -452,7 +451,7 @@ static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 	pci_read_config_dword(parent, 0x48, &val);
 	val &= ~mask;
 	val |= bits;
-	r = pci_write_config_dword(parent, 0x48, val);
+	pci_write_config_dword(parent, 0x48, val);
 }
 
 /*

@@ -3514,15 +3514,12 @@ static void autoneg_7220_work(struct work_struct *work)
 {
 	struct qib_pportdata *ppd;
 	struct qib_devdata *dd;
-	u64 startms;
 	u32 i;
 	unsigned long flags;
 
 	ppd = &container_of(work, struct qib_chippport_specific,
 			    autoneg_work.work)->pportdata;
 	dd = ppd->dd;
-
-	startms = jiffies_to_msecs(jiffies);
 
 	/*
 	 * Busy wait for this first part, it should be at most a
