@@ -1360,7 +1360,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 
 			break;
 		}
-		/* else, just fall thru */
+		/* fall thru */
 	case BNXT_QPLIB_SWQE_TYPE_SEND_WITH_IMM:
 	case BNXT_QPLIB_SWQE_TYPE_SEND_WITH_INV:
 	{
