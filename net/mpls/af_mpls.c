@@ -41,7 +41,7 @@ static int label_limit = (1 << 20) - 1;
 static int ttl_max = 255;
 
 #if IS_ENABLED(CONFIG_NET_IP_TUNNEL)
-size_t ipgre_mpls_encap_hlen(struct ip_tunnel_encap *e)
+static size_t ipgre_mpls_encap_hlen(struct ip_tunnel_encap *e)
 {
 	return sizeof(struct mpls_shim_hdr);
 }
