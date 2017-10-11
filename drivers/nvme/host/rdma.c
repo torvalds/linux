@@ -434,11 +434,9 @@ out_err:
 
 static void nvme_rdma_destroy_queue_ib(struct nvme_rdma_queue *queue)
 {
-	struct nvme_rdma_device *dev;
-	struct ib_device *ibdev;
+	struct nvme_rdma_device *dev = queue->device;
+	struct ib_device *ibdev = dev->dev;
 
-	dev = queue->device;
-	ibdev = dev->dev;
 	rdma_destroy_qp(queue->cm_id);
 	ib_free_cq(queue->ib_cq);
 
