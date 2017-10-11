@@ -551,13 +551,13 @@ static inline void
 MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 			struct desc_struct desc)
 {
-	u32 *p = (u32 *) &desc;
-
 	mcl->op = __HYPERVISOR_update_descriptor;
 	if (sizeof(maddr) == sizeof(long)) {
 		mcl->args[0] = maddr;
 		mcl->args[1] = *(unsigned long *)&desc;
 	} else {
+		u32 *p = (u32 *)&desc;
+
 		mcl->args[0] = maddr;
 		mcl->args[1] = maddr >> 32;
 		mcl->args[2] = *p++;

@@ -158,17 +158,6 @@ struct thread_info {
  */
 #ifndef __ASSEMBLY__
 
-static inline unsigned long current_stack_pointer(void)
-{
-	unsigned long sp;
-#ifdef CONFIG_X86_64
-	asm("mov %%rsp,%0" : "=g" (sp));
-#else
-	asm("mov %%esp,%0" : "=g" (sp));
-#endif
-	return sp;
-}
-
 /*
  * Walks up the stack frames to make sure that the specified object is
  * entirely contained by a single stack frame.

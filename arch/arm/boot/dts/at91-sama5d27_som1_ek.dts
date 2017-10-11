@@ -67,7 +67,10 @@
 
 		usb1: ohci@00400000 {
 			num-ports = <3>;
-			atmel,vbus-gpio = <&pioA PIN_PA10 GPIO_ACTIVE_HIGH>;
+			atmel,vbus-gpio = <0 /* &pioA PIN_PD20 GPIO_ACTIVE_HIGH */
+					   &pioA PIN_PA27 GPIO_ACTIVE_HIGH
+					   0
+					  >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb_default>;
 			status = "okay";
@@ -120,7 +123,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mikrobus2_uart>;
 				atmel,use-dma-rx;
-				atmel-use-dma-tx;
+				atmel,use-dma-tx;
 				status = "okay";
 			};
 
@@ -178,7 +181,7 @@
 			uart4: serial@fc00c000 {
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
-				pinctrl-name = "default";
+				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mikrobus1_uart>;
 				status = "okay";
 			};
@@ -330,7 +333,7 @@
 				};
 
 				pinctrl_led_gpio_default: led_gpio_default {
-					pinmux = <PIN_PA27__GPIO>,
+					pinmux = <PIN_PA10__GPIO>,
 						 <PIN_PB1__GPIO>,
 						 <PIN_PA31__GPIO>;
 					bias-pull-up;
@@ -396,7 +399,7 @@
 				};
 
 				pinctrl_usb_default: usb_default {
-					pinmux = <PIN_PA10__GPIO>,
+					pinmux = <PIN_PA27__GPIO>,
 						 <PIN_PD19__GPIO>;
 					bias-disable;
 				};
@@ -520,17 +523,17 @@
 
 		red {
 			label = "red";
-			gpios = <&pioA PIN_PA27 GPIO_ACTIVE_LOW>;
+			gpios = <&pioA PIN_PA10 GPIO_ACTIVE_HIGH>;
 		};
 
 		green {
 			label = "green";
-			gpios = <&pioA PIN_PB1 GPIO_ACTIVE_LOW>;
+			gpios = <&pioA PIN_PB1 GPIO_ACTIVE_HIGH>;
 		};
 
 		blue {
 			label = "blue";
-			gpios = <&pioA PIN_PA31 GPIO_ACTIVE_LOW>;
+			gpios = <&pioA PIN_PA31 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};

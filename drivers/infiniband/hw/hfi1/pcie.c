@@ -68,7 +68,7 @@
 /*
  * Code to adjust PCIe capabilities.
  */
-static int tune_pcie_caps(struct hfi1_devdata *);
+static void tune_pcie_caps(struct hfi1_devdata *);
 
 /*
  * Do all the common PCIe setup and initialization.
@@ -351,7 +351,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
  */
 int request_msix(struct hfi1_devdata *dd, u32 msireq)
 {
-	int nvec, ret;
+	int nvec;
 
 	nvec = pci_alloc_irq_vectors(dd->pcidev, 1, msireq,
 				     PCI_IRQ_MSIX | PCI_IRQ_LEGACY);
@@ -360,12 +360,7 @@ int request_msix(struct hfi1_devdata *dd, u32 msireq)
 		return nvec;
 	}
 
-	ret = tune_pcie_caps(dd);
-	if (ret) {
-		dd_dev_err(dd, "tune_pcie_caps() failed: %d\n", ret);
-		pci_free_irq_vectors(dd->pcidev);
-		return ret;
-	}
+	tune_pcie_caps(dd);
 
 	/* check for legacy IRQ */
 	if (nvec == 1 && !dd->pcidev->msix_enabled)
@@ -502,7 +497,7 @@ uint aspm_mode = ASPM_MODE_DISABLED;
 module_param_named(aspm, aspm_mode, uint, S_IRUGO);
 MODULE_PARM_DESC(aspm, "PCIe ASPM: 0: disable, 1: enable, 2: dynamic");
 
-static int tune_pcie_caps(struct hfi1_devdata *dd)
+static void tune_pcie_caps(struct hfi1_devdata *dd)
 {
 	struct pci_dev *parent;
 	u16 rc_mpss, rc_mps, ep_mpss, ep_mps;
@@ -513,22 +508,14 @@ static int tune_pcie_caps(struct hfi1_devdata *dd)
 	 * Turn on extended tags in DevCtl in case the BIOS has turned it off
 	 * to improve WFR SDMA bandwidth
 	 */
-	ret = pcie_capability_read_word(dd->pcidev,
-					PCI_EXP_DEVCTL, &ectl);
-	if (ret) {
-		dd_dev_err(dd, "Unable to read from PCI config\n");
-		return ret;
-	}
-
-	if (!(ectl & PCI_EXP_DEVCTL_EXT_TAG)) {
+	ret = pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &ectl);
+	if ((!ret) && !(ectl & PCI_EXP_DEVCTL_EXT_TAG)) {
 		dd_dev_info(dd, "Enabling PCIe extended tags\n");
 		ectl |= PCI_EXP_DEVCTL_EXT_TAG;
 		ret = pcie_capability_write_word(dd->pcidev,
 						 PCI_EXP_DEVCTL, ectl);
-		if (ret) {
-			dd_dev_err(dd, "Unable to write to PCI config\n");
-			return ret;
-		}
+		if (ret)
+			dd_dev_info(dd, "Unable to write to PCI config\n");
 	}
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
@@ -536,15 +523,22 @@ static int tune_pcie_caps(struct hfi1_devdata *dd)
 	 * The driver cannot perform the tuning if it does not have
 	 * access to the upstream component.
 	 */
-	if (!parent)
-		return -EINVAL;
+	if (!parent) {
+		dd_dev_info(dd, "Parent not found\n");
+		return;
+	}
 	if (!pci_is_root_bus(parent->bus)) {
 		dd_dev_info(dd, "Parent not root\n");
-		return -EINVAL;
+		return;
 	}
-
-	if (!pci_is_pcie(parent) || !pci_is_pcie(dd->pcidev))
-		return -EINVAL;
+	if (!pci_is_pcie(parent)) {
+		dd_dev_info(dd, "Parent is not PCI Express capable\n");
+		return;
+	}
+	if (!pci_is_pcie(dd->pcidev)) {
+		dd_dev_info(dd, "PCI device is not PCI Express capable\n");
+		return;
+	}
 	rc_mpss = parent->pcie_mpss;
 	rc_mps = ffs(pcie_get_mps(parent)) - 8;
 	/* Find out supported and configured values for endpoint (us) */
@@ -590,8 +584,6 @@ static int tune_pcie_caps(struct hfi1_devdata *dd)
 		ep_mrrs = max_mrrs;
 		pcie_set_readrq(dd->pcidev, ep_mrrs);
 	}
-
-	return 0;
 }
 
 /* End of PCIe capability tuning */

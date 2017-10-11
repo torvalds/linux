@@ -5166,6 +5166,28 @@ void sched_show_task(struct task_struct *p)
 	put_task_stack(p);
 }
 
+static inline bool
+state_filter_match(unsigned long state_filter, struct task_struct *p)
+{
+	/* no filter, everything matches */
+	if (!state_filter)
+		return true;
+
+	/* filter, but doesn't match */
+	if (!(p->state & state_filter))
+		return false;
+
+	/*
+	 * When looking for TASK_UNINTERRUPTIBLE skip TASK_IDLE (allows
+	 * TASK_KILLABLE).
+	 */
+	if (state_filter == TASK_UNINTERRUPTIBLE && p->state == TASK_IDLE)
+		return false;
+
+	return true;
+}
+
+
 void show_state_filter(unsigned long state_filter)
 {
 	struct task_struct *g, *p;
@@ -5188,7 +5210,7 @@ void show_state_filter(unsigned long state_filter)
 		 */
 		touch_nmi_watchdog();
 		touch_all_softlockup_watchdogs();
-		if (!state_filter || (p->state & state_filter))
+		if (state_filter_match(state_filter, p))
 			sched_show_task(p);
 	}
 

@@ -989,10 +989,14 @@ static bool __sk_filter_charge(struct sock *sk, struct sk_filter *fp)
 
 bool sk_filter_charge(struct sock *sk, struct sk_filter *fp)
 {
-	bool ret = __sk_filter_charge(sk, fp);
-	if (ret)
-		refcount_inc(&fp->refcnt);
-	return ret;
+	if (!refcount_inc_not_zero(&fp->refcnt))
+		return false;
+
+	if (!__sk_filter_charge(sk, fp)) {
+		sk_filter_release(fp);
+		return false;
+	}
+	return true;
 }
 
 static struct bpf_prog *bpf_migrate_filter(struct bpf_prog *fp)
