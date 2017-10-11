@@ -1447,13 +1447,11 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	struct qed_rdma_create_qp_out_params out_params;
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 	struct ib_ucontext *ib_ctx = NULL;
-	struct qedr_ucontext *ctx = NULL;
 	struct qedr_create_qp_ureq ureq;
 	int alloc_and_init = rdma_protocol_roce(&dev->ibdev, 1);
 	int rc = -EINVAL;
 
 	ib_ctx = ibpd->uobject->context;
-	ctx = get_qedr_ucontext(ib_ctx);
 
 	memset(&ureq, 0, sizeof(ureq));
 	rc = ib_copy_from_udata(&ureq, udata, sizeof(ureq));
@@ -2602,7 +2600,6 @@ err0:
 struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd,
 			    enum ib_mr_type mr_type, u32 max_num_sg)
 {
-	struct qedr_dev *dev;
 	struct qedr_mr *mr;
 
 	if (mr_type != IB_MR_TYPE_MEM_REG)
@@ -2612,8 +2609,6 @@ struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd,
 
 	if (IS_ERR(mr))
 		return ERR_PTR(-EINVAL);
-
-	dev = mr->dev;
 
 	return &mr->ibmr;
 }
@@ -3109,7 +3104,7 @@ static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		break;
 	case IB_WR_RDMA_READ_WITH_INV:
 		SET_FIELD2(wqe->flags, RDMA_SQ_RDMA_WQE_1ST_READ_INV_FLG, 1);
-		/* fallthrough... same is identical to RDMA READ */
+		/* fallthrough -- same is identical to RDMA READ */
 
 	case IB_WR_RDMA_READ:
 		wqe->req_type = RDMA_SQ_REQ_TYPE_RDMA_RD;
