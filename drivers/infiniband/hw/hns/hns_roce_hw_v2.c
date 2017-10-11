@@ -976,7 +976,8 @@ static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 				 u16 op, u16 token, int event)
 {
 	struct device *dev = hr_dev->dev;
-	u32 *hcr = (u32 *)(hr_dev->reg_base + ROCEE_VF_MB_CFG0_REG);
+	u32 __iomem *hcr = (u32 __iomem *)(hr_dev->reg_base +
+					   ROCEE_VF_MB_CFG0_REG);
 	unsigned long end;
 	u32 val0 = 0;
 	u32 val1 = 0;

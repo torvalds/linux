@@ -1639,7 +1639,7 @@ static int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 				 u64 out_param, u32 in_modifier, u8 op_modifier,
 				 u16 op, u16 token, int event)
 {
-	u32 *hcr = (u32 *)(hr_dev->reg_base + ROCEE_MB1_REG);
+	u32 __iomem *hcr = (u32 __iomem *)(hr_dev->reg_base + ROCEE_MB1_REG);
 	unsigned long end;
 	u32 val = 0;
 
@@ -2534,7 +2534,7 @@ static int hns_roce_v1_m_sqp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	int rq_pa_start;
 	u32 reg_val;
 	u64 *mtts;
-	u32 *addr;
+	u32 __iomem *addr;
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
@@ -2616,8 +2616,9 @@ static int hns_roce_v1_m_sqp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       QP1C_BYTES_40_SQ_CUR_IDX_S, 0);
 
 		/* Copy context to QP1C register */
-		addr = (u32 *)(hr_dev->reg_base + ROCEE_QP1C_CFG0_0_REG +
-			hr_qp->phy_port * sizeof(*context));
+		addr = (u32 __iomem *)(hr_dev->reg_base +
+				       ROCEE_QP1C_CFG0_0_REG +
+				       hr_qp->phy_port * sizeof(*context));
 
 		writel(context->qp1c_bytes_4, addr);
 		writel(context->sq_rq_bt_l, addr + 1);
