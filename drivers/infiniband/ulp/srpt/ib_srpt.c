@@ -1650,7 +1650,7 @@ retry:
 	 * both both, as RDMA contexts will also post completions for the
 	 * RDMA READ case.
 	 */
-	qp_init->cap.max_send_wr = srp_sq_size / 2;
+	qp_init->cap.max_send_wr = min(srp_sq_size / 2, attrs->max_qp_wr + 0U);
 	qp_init->cap.max_rdma_ctxs = srp_sq_size / 2;
 	qp_init->cap.max_send_sge = min(attrs->max_sge, SRPT_MAX_SG_PER_WQE);
 	qp_init->port_num = ch->sport->port;
@@ -1953,10 +1953,11 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	ch->cm_id = cm_id;
 	cm_id->context = ch;
 	/*
-	 * Avoid QUEUE_FULL conditions by limiting the number of buffers used
-	 * for the SRP protocol to the command queue size.
+	 * ch->rq_size should be at least as large as the initiator queue
+	 * depth to avoid that the initiator driver has to report QUEUE_FULL
+	 * to the SCSI mid-layer.
 	 */
-	ch->rq_size = SRPT_RQ_SIZE;
+	ch->rq_size = min(SRPT_RQ_SIZE, sdev->device->attrs.max_qp_wr);
 	spin_lock_init(&ch->spinlock);
 	ch->state = CH_CONNECTING;
 	INIT_LIST_HEAD(&ch->cmd_wait_list);
