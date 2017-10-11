@@ -1644,7 +1644,6 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	u64 iserr = 0;
 	u64 errs;
 	u64 mask;
-	int log_idx;
 
 	qib_stats.sps_errints++;
 	errs = qib_read_kreg64(dd, kr_errstatus);
@@ -1662,10 +1661,7 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	if (errs & QIB_E_HARDWARE) {
 		*msg = '\0';
 		qib_7322_handle_hwerrors(dd, msg, sizeof(dd->cspec->emsgbuf));
-	} else
-		for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
-			if (errs & dd->eep_st_masks[log_idx].errs_to_log)
-				qib_inc_eeprom_err(dd, log_idx, 1);
+	}
 
 	if (errs & QIB_E_SPKTERRS) {
 		qib_disarm_7322_senderrbufs(dd->pport);

@@ -1094,7 +1094,6 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 	char *msg;
 	u64 ignore_this_time = 0;
 	u64 iserr = 0;
-	int log_idx;
 	struct qib_pportdata *ppd = dd->pport;
 	u64 mask;
 
@@ -1105,10 +1104,6 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 	/* do these first, they are most important */
 	if (errs & ERR_MASK(HardwareErr))
 		qib_7220_handle_hwerrors(dd, msg, sizeof(dd->cspec->emsgbuf));
-	else
-		for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
-			if (errs & dd->eep_st_masks[log_idx].errs_to_log)
-				qib_inc_eeprom_err(dd, log_idx, 1);
 
 	if (errs & QLOGIC_IB_E_SDMAERRS)
 		sdma_7220_errors(ppd, errs);
@@ -1302,7 +1297,6 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 	u32 bits, ctrl;
 	int isfatal = 0;
 	char *bitsmsg;
-	int log_idx;
 
 	hwerrs = qib_read_kreg64(dd, kr_hwerrstatus);
 	if (!hwerrs)
@@ -1326,10 +1320,6 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	hwerrs &= dd->cspec->hwerrmask;
 
-	/* We log some errors to EEPROM, check if we have any of those. */
-	for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
-		if (hwerrs & dd->eep_st_masks[log_idx].hwerrs_to_log)
-			qib_inc_eeprom_err(dd, log_idx, 1);
 	if (hwerrs & ~(TXEMEMPARITYERR_PIOBUF | TXEMEMPARITYERR_PIOPBC |
 		       RXE_PARITY))
 		qib_devinfo(dd->pcidev,
@@ -4015,16 +4005,6 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 		QIB_NODMA_RTAIL | QIB_HAS_THRESH_UPDATE;
 	dd->flags |= qib_special_trigger ?
 		QIB_USE_SPCL_TRIG : QIB_HAS_SEND_DMA;
-
-	/*
-	 * EEPROM error log 0 is TXE Parity errors. 1 is RXE Parity.
-	 * 2 is Some Misc, 3 is reserved for future.
-	 */
-	dd->eep_st_masks[0].hwerrs_to_log = HWE_MASK(TXEMemParityErr);
-
-	dd->eep_st_masks[1].hwerrs_to_log = HWE_MASK(RXEMemParityErr);
-
-	dd->eep_st_masks[2].errs_to_log = ERR_MASK(ResetNegated);
 
 	init_waitqueue_head(&cpspec->autoneg_wait);
 	INIT_DELAYED_WORK(&cpspec->autoneg_work, autoneg_7220_work);

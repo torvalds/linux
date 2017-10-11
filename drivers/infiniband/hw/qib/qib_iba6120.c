@@ -748,7 +748,6 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 	u32 bits, ctrl;
 	int isfatal = 0;
 	char *bitsmsg;
-	int log_idx;
 
 	hwerrs = qib_read_kreg64(dd, kr_hwerrstatus);
 	if (!hwerrs)
@@ -769,11 +768,6 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 		       hwerrs & ~HWE_MASK(PowerOnBISTFailed));
 
 	hwerrs &= dd->cspec->hwerrmask;
-
-	/* We log some errors to EEPROM, check if we have any of those. */
-	for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
-		if (hwerrs & dd->eep_st_masks[log_idx].hwerrs_to_log)
-			qib_inc_eeprom_err(dd, log_idx, 1);
 
 	/*
 	 * Make sure we get this much out, unless told to be quiet,
@@ -1004,7 +998,6 @@ static void handle_6120_errors(struct qib_devdata *dd, u64 errs)
 	char *msg;
 	u64 ignore_this_time = 0;
 	u64 iserr = 0;
-	int log_idx;
 	struct qib_pportdata *ppd = dd->pport;
 	u64 mask;
 
@@ -1015,10 +1008,6 @@ static void handle_6120_errors(struct qib_devdata *dd, u64 errs)
 	/* do these first, they are most important */
 	if (errs & ERR_MASK(HardwareErr))
 		qib_handle_6120_hwerrors(dd, msg, sizeof(dd->cspec->emsgbuf));
-	else
-		for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
-			if (errs & dd->eep_st_masks[log_idx].errs_to_log)
-				qib_inc_eeprom_err(dd, log_idx, 1);
 
 	if (errs & ~IB_E_BITSEXTANT)
 		qib_dev_err(dd,
@@ -3226,20 +3215,6 @@ static int init_6120_variables(struct qib_devdata *dd)
 
 	if (qib_unordered_wc())
 		dd->flags |= QIB_PIO_FLUSH_WC;
-
-	/*
-	 * EEPROM error log 0 is TXE Parity errors. 1 is RXE Parity.
-	 * 2 is Some Misc, 3 is reserved for future.
-	 */
-	dd->eep_st_masks[0].hwerrs_to_log = HWE_MASK(TXEMemParityErr);
-
-	/* Ignore errors in PIO/PBC on systems with unordered write-combining */
-	if (qib_unordered_wc())
-		dd->eep_st_masks[0].hwerrs_to_log &= ~TXE_PIO_PARITY;
-
-	dd->eep_st_masks[1].hwerrs_to_log = HWE_MASK(RXEMemParityErr);
-
-	dd->eep_st_masks[2].errs_to_log = ERR_MASK(ResetNegated);
 
 	ret = qib_init_pportdata(ppd, dd, 0, 1);
 	if (ret)
