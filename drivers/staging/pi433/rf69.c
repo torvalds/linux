@@ -164,9 +164,12 @@ int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate)
 
 	// transmit to RF 69
 	retval = WRITE_REG(REG_BITRATE_MSB, msb);
-	if (retval)  return retval;
+	if (retval)
+		return retval;
+
 	retval = WRITE_REG(REG_BITRATE_LSB, lsb);
-	if (retval)  return retval;
+	if (retval)
+		return retval;
 
 	return 0;
 }
@@ -209,9 +212,12 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 
 	// write to chip
 	retval = WRITE_REG(REG_FDEV_MSB, msb);
-	if (retval)  return retval;
+	if (retval)
+		return retval;
+
 	retval = WRITE_REG(REG_FDEV_LSB, lsb);
-	if (retval)  return retval;
+	if (retval)
+		return retval;
 
 	return 0;
 }
@@ -252,11 +258,16 @@ int rf69_set_frequency(struct spi_device *spi, u32 frequency)
 
 	// write to chip
 	retval = WRITE_REG(REG_FRF_MSB, msb);
-	if (retval)  return retval;
+	if (retval)
+		return retval;
+
 	retval = WRITE_REG(REG_FRF_MID, mid);
-	if (retval)  return retval;
+	if (retval)
+		return retval;
+
 	retval = WRITE_REG(REG_FRF_LSB, lsb);
-	if (retval)  return retval;
+	if (retval)
+		return retval;
 
 	return 0;
 }
@@ -471,9 +482,15 @@ static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
 
 	// add new mantisse
 	switch(mantisse) {
-	case mantisse16: newValue = newValue | BW_MANT_16;	break;
-	case mantisse20: newValue = newValue | BW_MANT_20;	break;
-	case mantisse24: newValue = newValue | BW_MANT_24;	break;
+	case mantisse16:
+		newValue = newValue | BW_MANT_16;
+		break;
+	case mantisse20:
+		newValue = newValue | BW_MANT_20;
+		break;
+	case mantisse24:
+		newValue = newValue | BW_MANT_24;
+		break;
 	}
 
 	// add new exponent
@@ -571,12 +588,18 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
 	#endif
 
 	switch (DIONumber) {
-	case 0: mask=MASK_DIO0; shift=SHIFT_DIO0; regaddr=REG_DIOMAPPING1; break;
-	case 1: mask=MASK_DIO1; shift=SHIFT_DIO1; regaddr=REG_DIOMAPPING1; break;
-	case 2: mask=MASK_DIO2; shift=SHIFT_DIO2; regaddr=REG_DIOMAPPING1; break;
-	case 3: mask=MASK_DIO3; shift=SHIFT_DIO3; regaddr=REG_DIOMAPPING1; break;
-	case 4: mask=MASK_DIO4; shift=SHIFT_DIO4; regaddr=REG_DIOMAPPING2; break;
-	case 5: mask=MASK_DIO5; shift=SHIFT_DIO5; regaddr=REG_DIOMAPPING2; break;
+	case 0:
+		mask=MASK_DIO0; shift=SHIFT_DIO0; regaddr=REG_DIOMAPPING1; break;
+	case 1:
+		mask=MASK_DIO1; shift=SHIFT_DIO1; regaddr=REG_DIOMAPPING1; break;
+	case 2:
+		mask=MASK_DIO2; shift=SHIFT_DIO2; regaddr=REG_DIOMAPPING1; break;
+	case 3:
+		mask=MASK_DIO3; shift=SHIFT_DIO3; regaddr=REG_DIOMAPPING1; break;
+	case 4:
+		mask=MASK_DIO4; shift=SHIFT_DIO4; regaddr=REG_DIOMAPPING2; break;
+	case 5:
+		mask=MASK_DIO5; shift=SHIFT_DIO5; regaddr=REG_DIOMAPPING2; break;
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -686,7 +709,8 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 
 	/* transmit to chip */
 	retval = WRITE_REG(REG_PREAMBLE_MSB, msb);
-	if (retval) return retval;
+	if (retval)
+		return retval;
 	return WRITE_REG(REG_PREAMBLE_LSB, lsb);
 }
 
