@@ -59,13 +59,6 @@ bool dm_read_persistent_data(struct dc_context *ctx,
 	return false;
 }
 
-void dm_delay_in_microseconds(struct dc_context *ctx,
-					unsigned int microSeconds)
-{
-	/*TODO implement*/
-	return;
-}
-
 /**** power component interfaces ****/
 
 bool dm_pp_pre_dce_clock_change(
