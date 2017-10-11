@@ -5409,19 +5409,71 @@ static void svm_setup_mce(struct kvm_vcpu *vcpu)
 
 static int svm_smi_allowed(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/* Per APM Vol.2 15.22.2 "Response to SMI" */
+	if (!gif_set(svm))
+		return 0;
+
+	if (is_guest_mode(&svm->vcpu) &&
+	    svm->nested.intercept & (1ULL << INTERCEPT_SMI)) {
+		/* TODO: Might need to set exit_info_1 and exit_info_2 here */
+		svm->vmcb->control.exit_code = SVM_EXIT_SMI;
+		svm->nested.exit_required = true;
+		return 0;
+	}
+
 	return 1;
 }
 
 static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 {
-	/* TODO: Implement */
+	struct vcpu_svm *svm = to_svm(vcpu);
+	int ret;
+
+	if (is_guest_mode(vcpu)) {
+		/* FED8h - SVM Guest */
+		put_smstate(u64, smstate, 0x7ed8, 1);
+		/* FEE0h - SVM Guest VMCB Physical Address */
+		put_smstate(u64, smstate, 0x7ee0, svm->nested.vmcb);
+
+		svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
+		svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
+		svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
+
+		ret = nested_svm_vmexit(svm);
+		if (ret)
+			return ret;
+	}
 	return 0;
 }
 
 static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, u64 smbase)
 {
-	/* TODO: Implement */
-	return 0;
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb *nested_vmcb;
+	struct page *page;
+	struct {
+		u64 guest;
+		u64 vmcb;
+	} svm_state_save;
+	int ret;
+
+	ret = kvm_vcpu_read_guest(vcpu, smbase + 0xfed8, &svm_state_save,
+				  sizeof(svm_state_save));
+	if (ret)
+		return ret;
+
+	if (svm_state_save.guest) {
+		vcpu->arch.hflags &= ~HF_SMM_MASK;
+		nested_vmcb = nested_svm_map(svm, svm_state_save.vmcb, &page);
+		if (nested_vmcb)
+			enter_svm_guest_mode(svm, svm_state_save.vmcb, nested_vmcb, page);
+		else
+			ret = 1;
+		vcpu->arch.hflags |= HF_SMM_MASK;
+	}
+	return ret;
 }
 
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {

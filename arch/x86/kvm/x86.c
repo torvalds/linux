@@ -6485,9 +6485,6 @@ static void process_nmi(struct kvm_vcpu *vcpu)
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 
-#define put_smstate(type, buf, offset, val)			  \
-	*(type *)((buf) + (offset) - 0x7e00) = val
-
 static u32 enter_smm_get_segment_flags(struct kvm_segment *seg)
 {
 	u32 flags = 0;
