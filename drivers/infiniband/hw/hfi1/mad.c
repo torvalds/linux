@@ -2889,7 +2889,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	struct _vls_dctrs *vlinfo;
 	size_t response_data_size;
 	u32 num_ports;
-	u8 num_pslm;
 	u8 lq, num_vls;
 	u8 res_lli, res_ler;
 	u64 port_mask;
@@ -2899,7 +2898,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	int vfi;
 
 	num_ports = be32_to_cpu(pmp->mad_hdr.attr_mod) >> 24;
-	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
 	num_vls = hweight32(be32_to_cpu(req->vl_select_mask));
 	vl_select_mask = be32_to_cpu(req->vl_select_mask);
 	res_lli = (u8)(be32_to_cpu(req->resolution) & MSK_LLI) >> MSK_LLI_SFT;

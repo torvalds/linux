@@ -812,7 +812,6 @@ static int build_verbs_tx_desc(
 	int ret = 0;
 	struct hfi1_sdma_header *phdr = &tx->phdr;
 	u16 hdrbytes = tx->hdr_dwords << 2;
-	u32 *hdr;
 	u8 extra_bytes = 0;
 	static char trail_buf[12]; /* CRC = 4, LT = 1, Pad = 0 to 7 bytes */
 
@@ -823,9 +822,6 @@ static int build_verbs_tx_desc(
 		 */
 		extra_bytes = hfi1_get_16b_padding(hdrbytes - 8, length) +
 			      (SIZE_OF_CRC << 2) + SIZE_OF_LT;
-		hdr = (u32 *)&phdr->hdr.opah;
-	} else {
-		hdr = (u32 *)&phdr->hdr.ibh;
 	}
 	if (!ahg_info->ahgcount) {
 		ret = sdma_txinit_ahg(
@@ -891,14 +887,12 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	u8 sc5 = priv->s_sc;
 	int ret;
 	u32 dwords;
-	bool bypass = false;
 
 	if (ps->s_txreq->phdr.hdr.hdr_type) {
 		u8 extra_bytes = hfi1_get_16b_padding((hdrwords << 2), len);
 
 		dwords = (len + extra_bytes + (SIZE_OF_CRC << 2) +
 			  SIZE_OF_LT) >> 2;
-		bypass = true;
 	} else {
 		dwords = (len + 3) >> 2;
 	}
@@ -1033,8 +1027,6 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	int wc_status = IB_WC_SUCCESS;
 	int ret = 0;
 	pio_release_cb cb = NULL;
-	u32 lrh0_16b;
-	bool bypass = false;
 	u8 extra_bytes = 0;
 
 	if (ps->s_txreq->phdr.hdr.hdr_type) {
@@ -1043,8 +1035,6 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		extra_bytes = pad_size + (SIZE_OF_CRC << 2) + SIZE_OF_LT;
 		dwords = (len + extra_bytes) >> 2;
 		hdr = (u32 *)&ps->s_txreq->phdr.hdr.opah;
-		lrh0_16b = ps->s_txreq->phdr.hdr.opah.lrh[0];
-		bypass = true;
 	} else {
 		dwords = (len + 3) >> 2;
 		hdr = (u32 *)&ps->s_txreq->phdr.hdr.ibh;

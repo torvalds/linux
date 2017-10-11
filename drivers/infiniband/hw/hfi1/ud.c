@@ -854,7 +854,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	int mgmt_pkey_idx = -1;
 	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	struct ib_header *hdr = packet->hdr;
 	void *data = packet->payload;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
@@ -880,7 +879,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		dlid_is_permissive = (dlid == permissive_lid);
 		slid_is_permissive = (slid == permissive_lid);
 	} else {
-		hdr = packet->hdr;
 		pkey = ib_bth_get_pkey(ohdr);
 		dlid_is_permissive = (dlid == be16_to_cpu(IB_LID_PERMISSIVE));
 		slid_is_permissive = (slid == be16_to_cpu(IB_LID_PERMISSIVE));

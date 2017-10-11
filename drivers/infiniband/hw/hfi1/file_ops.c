@@ -776,7 +776,7 @@ static int complete_subctxt(struct hfi1_filedata *fd)
 static int assign_ctxt(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 {
 	int ret;
-	unsigned int swmajor, swminor;
+	unsigned int swmajor;
 	struct hfi1_ctxtdata *uctxt = NULL;
 	struct hfi1_user_info uinfo;
 
@@ -795,8 +795,6 @@ static int assign_ctxt(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 
 	if (uinfo.subctxt_cnt > HFI1_MAX_SHARED_CTXTS)
 		return -EINVAL;
-
-	swminor = uinfo.userversion & 0xffff;
 
 	/*
 	 * Acquire the mutex to protect against multiple creations of what

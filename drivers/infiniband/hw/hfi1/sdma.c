@@ -2144,7 +2144,6 @@ void sdma_dumpstate(struct sdma_engine *sde)
 
 static void dump_sdma_state(struct sdma_engine *sde)
 {
-	struct hw_sdma_desc *descq;
 	struct hw_sdma_desc *descqp;
 	u64 desc[2];
 	u64 addr;
@@ -2155,7 +2154,6 @@ static void dump_sdma_state(struct sdma_engine *sde)
 	head = sde->descq_head & sde->sdma_mask;
 	tail = sde->descq_tail & sde->sdma_mask;
 	cnt = sdma_descq_freecnt(sde);
-	descq = sde->descq;
 
 	dd_dev_err(sde->dd,
 		   "SDMA (%u) descq_head: %u descq_tail: %u freecnt: %u FLE %d\n",
