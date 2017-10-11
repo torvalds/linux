@@ -1,0 +1,175 @@
+version: 2
+general:
+  artifacts:
+
+## Customize the test machine
+jobs:
+  x86_64:
+   docker:
+     - image: thehajime/lkl-docker:1.1
+   environment:
+     CROSS_COMPILE: ""
+     MKARG: "dpdk=yes"
+     LKL_TEST_DHCP: 1
+   steps:
+     - run: mkdir -p /home/ubuntu/.ccache
+     - restore_cache:
+        key: compiler-cache0
+     # speed up `git clone` instead of `checkout`
+     - run:
+        name: checkout build tree
+        command: |
+          mkdir -p ~/.ssh/
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          git clone --depth=1 --branch $CIRCLE_BRANCH --single-branch $CIRCLE_REPOSITORY_URL .
+          git reset --hard $CIRCLE_SHA1
+     - run: cd tools/lkl && make clean
+     - run: sudo apt-get update && sudo apt-get install -y linux-headers-$(uname -r)
+     - run: cd tools/lkl && ./scripts/dpdk-sdk-build.sh
+     - run: cd tools/lkl && make -j8 ${MKARG}
+     - run: cd tools/lkl && make test
+     - save_cache:
+        key: compiler-cache0-{{ checksum "~/project/tools/lkl/liblkl-hijack.so" }}
+        paths:
+          - /home/ubuntu/.ccache
+
+  mingw32:
+   docker:
+     - image: thehajime/lkl-docker:1.1
+   environment:
+     CROSS_COMPILE: "i686-w64-mingw32-"
+     LKL_TEST_DHCP: 1
+   steps:
+     - run: mkdir -p /home/ubuntu/.ccache
+     - restore_cache:
+        key: compiler-cache1
+     - restore_cache:
+        key: code-tree
+     - checkout
+     - save_cache:
+        key: code-tree
+        paths:
+          - /home/ubuntu/project/.git
+     - run: sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin
+     - run: cd tools/lkl && make clean
+     - run: cd tools/lkl && make -j8 ${MKARG}
+     - run: cd tools/lkl && make test
+     - run: git fetch --tags git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+     - run: tools/lkl/scripts/checkpatch.sh
+     - save_cache:
+        key: compiler-cache1-{{ checksum "~/project/tools/lkl/liblkl.dll" }}
+        paths:
+          - /home/ubuntu/.ccache
+
+  android-arm32:
+   docker:
+     - image: thehajime/lkl-docker:1.1
+   environment:
+     CROSS_COMPILE: "arm-linux-androideabi-"
+     LKL_TEST_DHCP: 1
+     LKL_ANDROID_TEST: 1
+     ANDROID_SDK_ROOT: /home/ubuntu/android-sdk
+   steps:
+     - run: mkdir -p /home/ubuntu/.ccache
+     - restore_cache:
+        key: compiler-cache2
+     # speed up `git clone` instead of `checkout`
+     - run:
+        name: checkout build tree
+        command: |
+          mkdir -p ~/.ssh/
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          git clone --depth=1 --branch $CIRCLE_BRANCH --single-branch $CIRCLE_REPOSITORY_URL .
+          git reset --hard $CIRCLE_SHA1
+     - run: cd tools/lkl && make clean
+     - run: cd tools/lkl && make -j8 ${MKARG}
+     - run:
+        command: emulator -avd Nexus5_API24 -no-window
+        background: true
+     - run: /home/ubuntu/circle-android.sh wait-for-boot
+     - run: cd tools/lkl && make test
+     - save_cache:
+        key: compiler-cache2-{{ checksum "~/project/tools/lkl/liblkl-hijack.so" }}
+        paths:
+          - /home/ubuntu/.ccache
+
+  android-aarch64:
+   docker:
+     - image: thehajime/lkl-docker:1.1
+   environment:
+     CROSS_COMPILE: "aarch64-linux-android-"
+     LKL_TEST_DHCP: 1
+     LKL_ANDROID_TEST: 1
+     ANDROID_SDK_ROOT: /home/ubuntu/android-sdk
+   steps:
+     - run: mkdir -p /home/ubuntu/.ccache
+     - restore_cache:
+        key: compiler-cache3
+     # speed up `git clone` instead of `checkout`
+     - run:
+        name: checkout build tree
+        command: |
+          mkdir -p ~/.ssh/
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          git clone --depth=1 --branch $CIRCLE_BRANCH --single-branch $CIRCLE_REPOSITORY_URL .
+          git reset --hard $CIRCLE_SHA1
+     - run: cd tools/lkl && make clean
+     - run: cd tools/lkl && make -j8 ${MKARG}
+     - run:
+        command: emulator -avd Nexus5X_API24 -no-window
+        background: true
+     - run: /home/ubuntu/circle-android.sh wait-for-boot
+     - run: cd tools/lkl && make test
+     - save_cache:
+        key: compiler-cache3-{{ checksum "~/project/tools/lkl/liblkl-hijack.so" }}
+        paths:
+          - /home/ubuntu/.ccache
+
+  x86_64_valgrind:
+   docker:
+     - image: thehajime/lkl-docker:1.1
+   environment:
+     CROSS_COMPILE: ""
+     MKARG: "dpdk=yes"
+     LKL_TEST_DHCP: 1
+   steps:
+     - run: mkdir -p /home/ubuntu/.ccache
+     - restore_cache:
+        key: compiler-cache4
+     # speed up `git clone` instead of `checkout`
+     - run:
+        name: checkout build tree
+        command: |
+          mkdir -p ~/.ssh/
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          git clone --depth=1 --branch $CIRCLE_BRANCH --single-branch $CIRCLE_REPOSITORY_URL .
+          git reset --hard $CIRCLE_SHA1
+     - run: cd tools/lkl && make clean
+     - run: sudo apt-get update && sudo apt-get install -y linux-headers-$(uname -r)
+     - run: cd tools/lkl && ./scripts/dpdk-sdk-build.sh
+     - run: cd tools/lkl && make -j8 ${MKARG}
+     - run: cd tools/lkl && make test
+     - run: cd tools/lkl && make valgrind
+     - run:
+         name: Save test results
+         command: |
+           mkdir -p ~/junit/
+           find ./tools/lkl/ -type f -name "*.xml" -exec cp {} ~/junit/ \;
+         when: always
+     - store_test_results:
+         path: ~/junit
+     - store_artifacts:
+         path: ~/junit
+     - save_cache:
+        key: compiler-cache4-{{ checksum "~/project/tools/lkl/liblkl-hijack.so" }}
+        paths:
+          - /home/ubuntu/.ccache
+
+workflows:
+  version: 2
+  build:
+    jobs:
+     - x86_64
+     - mingw32
+     - android-arm32
+     - android-aarch64
