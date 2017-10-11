@@ -199,22 +199,8 @@ config CRYPTO_CRC32_S390
 
 	  It is available with IBM z13 or later.
 
-config CRYPTO_DEV_MV_CESA
-	tristate "Marvell's Cryptographic Engine"
-	depends on PLAT_ORION
-	select CRYPTO_AES
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_HASH
-	select SRAM
-	help
-	  This driver allows you to utilize the Cryptographic Engines and
-	  Security Accelerator (CESA) which can be found on the Marvell Orion
-	  and Kirkwood SoCs, such as QNAP's TS-209.
-
-	  Currently the driver supports AES in ECB and CBC mode without DMA.
-
 config CRYPTO_DEV_MARVELL_CESA
-	tristate "New Marvell's Cryptographic Engine driver"
+	tristate "Marvell's Cryptographic Engine driver"
 	depends on PLAT_ORION || ARCH_MVEBU
 	select CRYPTO_AES
 	select CRYPTO_DES
@@ -223,11 +209,9 @@ config CRYPTO_DEV_MARVELL_CESA
 	select SRAM
 	help
 	  This driver allows you to utilize the Cryptographic Engines and
-	  Security Accelerator (CESA) which can be found on the Armada 370.
+	  Security Accelerator (CESA) which can be found on MVEBU and ORION
+	  platforms.
 	  This driver supports CPU offload through DMA transfers.
-
-	  This driver is aimed at replacing the mv_cesa driver. This will only
-	  happen once it has received proper testing.
 
 config CRYPTO_DEV_NIAGARA2
        tristate "Niagara2 Stream Processing Unit driver"

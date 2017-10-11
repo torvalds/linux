@@ -34,10 +34,6 @@
 /* Limit of the crypto queue before reaching the backlog */
 #define CESA_CRYPTO_DEFAULT_MAX_QLEN 128
 
-static int allhwsupport = !IS_ENABLED(CONFIG_CRYPTO_DEV_MV_CESA);
-module_param_named(allhwsupport, allhwsupport, int, 0444);
-MODULE_PARM_DESC(allhwsupport, "Enable support for all hardware (even it if overlaps with the mv_cesa driver)");
-
 struct mv_cesa_dev *cesa_dev;
 
 struct crypto_async_request *
@@ -456,9 +452,6 @@ static int mv_cesa_probe(struct platform_device *pdev)
 
 		caps = match->data;
 	}
-
-	if ((caps == &orion_caps || caps == &kirkwood_caps) && !allhwsupport)
-		return -ENOTSUPP;
 
 	cesa = devm_kzalloc(dev, sizeof(*cesa), GFP_KERNEL);
 	if (!cesa)
