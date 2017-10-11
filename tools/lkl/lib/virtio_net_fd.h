@@ -7,10 +7,11 @@ struct ifreq;
  * lkl_register_netdev_linux_fdnet - register a file descriptor-based network
  * device as a NIC
  *
- * @fd - a POSIX file descriptor number for input/output
+ * @fd_rx - a POSIX file descriptor number for input
+ * @fd_tx - a POSIX file descriptor number for output
  * @returns a struct lkl_netdev_linux_fdnet entry for virtio-net
  */
-struct lkl_netdev *lkl_register_netdev_fd(int fd);
+struct lkl_netdev *lkl_register_netdev_fd(int fd_rx, int fd_tx);
 
 
 /**
