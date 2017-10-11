@@ -24,6 +24,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #define EXPECTED_PTYPE		4
@@ -77,12 +78,21 @@ static const struct property_entry max17047_props[] = {
 	{ }
 };
 
+static const struct property_entry fusb302_props[] = {
+	PROPERTY_ENTRY_STRING("fcs,extcon-name", "cht_wcove_pwrsrc"),
+	PROPERTY_ENTRY_U32("fcs,max-sink-microvolt", 12000000),
+	PROPERTY_ENTRY_U32("fcs,max-sink-microamp",   3000000),
+	PROPERTY_ENTRY_U32("fcs,max-sink-microwatt", 36000000),
+	{ }
+};
+
 static int cht_int33fe_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct i2c_board_info board_info;
 	struct cht_int33fe_data *data;
 	struct i2c_client *max17047;
+	struct regulator *regulator;
 	unsigned long long ptyp;
 	acpi_status status;
 	int fusb302_irq;
@@ -100,6 +110,34 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	 */
 	if (ptyp != EXPECTED_PTYPE)
 		return -ENODEV;
+
+	/* Check presence of INT34D3 (hardware-rev 3) expected for ptype == 4 */
+	if (!acpi_dev_present("INT34D3", "1", 3)) {
+		dev_err(dev, "Error PTYPE == %d, but no INT34D3 device\n",
+			EXPECTED_PTYPE);
+		return -ENODEV;
+	}
+
+	/*
+	 * We expect the WC PMIC to be paired with a TI bq24292i charger-IC.
+	 * We check for the bq24292i vbus regulator here, this has 2 purposes:
+	 * 1) The bq24292i allows charging with up to 12V, setting the fusb302's
+	 *    max-snk voltage to 12V with another charger-IC is not good.
+	 * 2) For the fusb302 driver to get the bq24292i vbus regulator, the
+	 *    regulator-map, which is part of the bq24292i regulator_init_data,
+	 *    must be registered before the fusb302 is instantiated, otherwise
+	 *    it will end up with a dummy-regulator.
+	 * Note "cht_wc_usb_typec_vbus" comes from the regulator_init_data
+	 * which is defined in i2c-cht-wc.c from where the bq24292i i2c-client
+	 * gets instantiated. We use regulator_get_optional here so that we
+	 * don't end up getting a dummy-regulator ourselves.
+	 */
+	regulator = regulator_get_optional(dev, "cht_wc_usb_typec_vbus");
+	if (IS_ERR(regulator)) {
+		ret = PTR_ERR(regulator);
+		return (ret == -ENODEV) ? -EPROBE_DEFER : ret;
+	}
+	regulator_put(regulator);
 
 	/* The FUSB302 uses the irq at index 1 and is the only irq user */
 	fusb302_irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 1);
@@ -127,6 +165,7 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	} else {
 		memset(&board_info, 0, sizeof(board_info));
 		strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
+		board_info.dev_name = "max17047";
 		board_info.properties = max17047_props;
 		data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
 		if (!data->max17047)
@@ -134,7 +173,9 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	}
 
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "fusb302", I2C_NAME_SIZE);
+	strlcpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
+	board_info.dev_name = "fusb302";
+	board_info.properties = fusb302_props;
 	board_info.irq = fusb302_irq;
 
 	data->fusb302 = i2c_acpi_new_device(dev, 2, &board_info);
@@ -142,6 +183,7 @@ static int cht_int33fe_probe(struct i2c_client *client)
 		goto out_unregister_max17047;
 
 	memset(&board_info, 0, sizeof(board_info));
+	board_info.dev_name = "pi3usb30532";
 	strlcpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
