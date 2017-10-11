@@ -836,6 +836,7 @@ struct snd_soc_component_driver {
 	/* bits */
 	unsigned int idle_bias_on:1;
 	unsigned int suspend_bias_off:1;
+	unsigned int pmdown_time:1; /* care pmdown_time at stop */
 };
 
 struct snd_soc_component {
