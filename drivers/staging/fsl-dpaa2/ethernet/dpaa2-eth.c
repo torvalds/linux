@@ -955,6 +955,8 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 			err = dpaa2_io_service_rearm(NULL, &ch->nctx);
 			cpu_relax();
 		} while (err == -EBUSY);
+		WARN_ONCE(err, "CDAN notifications rearm failed on core %d",
+			  ch->nctx.desired_cpu);
 	}
 
 	ch->stats.frames += cleaned;
