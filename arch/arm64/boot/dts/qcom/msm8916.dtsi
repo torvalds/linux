@@ -69,8 +69,11 @@
 		};
 
 		rmtfs@86700000 {
+			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x86700000 0x0 0xe0000>;
 			no-map;
+
+			qcom,client-id = <1>;
 		};
 
 		rfsa@867e00000 {
