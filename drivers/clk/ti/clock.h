@@ -207,6 +207,7 @@ struct ti_dt_clk {
 struct omap_clkctrl_div_data {
 	const int *dividers;
 	int max_div;
+	u32 flags;
 };
 
 struct omap_clkctrl_bit_data {

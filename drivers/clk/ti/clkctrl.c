@@ -335,6 +335,9 @@ _ti_clkctrl_setup_mux(struct omap_clkctrl_provider *provider,
 	}
 
 	mux->mask = num_parents;
+	if (!(mux->flags & CLK_MUX_INDEX_ONE))
+		mux->mask--;
+
 	mux->mask = (1 << fls(mux->mask)) - 1;
 
 	mux->shift = data->bit;
@@ -354,6 +357,7 @@ _ti_clkctrl_setup_div(struct omap_clkctrl_provider *provider,
 {
 	struct clk_omap_divider *div;
 	const struct omap_clkctrl_div_data *div_data = data->data;
+	u8 div_flags = 0;
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
@@ -361,9 +365,13 @@ _ti_clkctrl_setup_div(struct omap_clkctrl_provider *provider,
 
 	div->reg.ptr = reg;
 	div->shift = data->bit;
+	div->flags = div_data->flags;
 
-	if (ti_clk_parse_divider_data((int *)div_data->dividers,
-				      div_data->max_div, 0, 0,
+	if (div->flags & CLK_DIVIDER_POWER_OF_TWO)
+		div_flags |= CLKF_INDEX_POWER_OF_TWO;
+
+	if (ti_clk_parse_divider_data((int *)div_data->dividers, 0,
+				      div_data->max_div, div_flags,
 				      &div->width, &div->table)) {
 		pr_err("%s: Data parsing for %pOF:%04x:%d failed\n", __func__,
 		       node, offset, data->bit);
