@@ -269,10 +269,9 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 
 		priv->mem[b].cpu_addr = devm_ioremap(&pdev->dev,
 						     att->sa, att->size);
-		if (IS_ERR(priv->mem[b].cpu_addr)) {
+		if (!priv->mem[b].cpu_addr) {
 			dev_err(dev, "devm_ioremap_resource failed\n");
-			err = PTR_ERR(priv->mem[b].cpu_addr);
-			return err;
+			return -ENOMEM;
 		}
 		priv->mem[b].sys_addr = att->sa;
 		priv->mem[b].size = att->size;
