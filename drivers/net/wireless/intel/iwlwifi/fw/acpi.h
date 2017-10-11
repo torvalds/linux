@@ -5,8 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2015 Intel Corporation. All rights reserved.
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2017        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,9 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
+ * along with this program;
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -31,8 +28,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2017        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,53 +56,83 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  *****************************************************************************/
-#ifndef __iwl_nvm_parse_h__
-#define __iwl_nvm_parse_h__
+#ifndef __iwl_fw_acpi__
+#define __iwl_fw_acpi__
 
-#include <net/cfg80211.h>
-#include "iwl-eeprom-parse.h"
+#include <linux/acpi.h>
+
+#define ACPI_WRDS_METHOD	"WRDS"
+#define ACPI_EWRD_METHOD	"EWRD"
+#define ACPI_WGDS_METHOD	"WGDS"
+#define ACPI_WRDD_METHOD	"WRDD"
+#define ACPI_SPLC_METHOD	"SPLC"
+
+#define ACPI_WIFI_DOMAIN	(0x07)
+
+#define ACPI_SAR_TABLE_SIZE		10
+#define ACPI_SAR_PROFILE_NUM		4
+
+#define ACPI_GEO_TABLE_SIZE		6
+#define ACPI_NUM_GEO_PROFILES		3
+#define ACPI_GEO_PER_CHAIN_SIZE		3
+
+#define ACPI_SAR_NUM_CHAIN_LIMITS	2
+#define ACPI_SAR_NUM_SUB_BANDS		5
+
+#define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_TABLE_SIZE + 2)
+#define ACPI_EWRD_WIFI_DATA_SIZE	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_TABLE_SIZE + 3)
+#define ACPI_WGDS_WIFI_DATA_SIZE	18
+#define ACPI_WRDD_WIFI_DATA_SIZE	2
+#define ACPI_SPLC_WIFI_DATA_SIZE	2
+
+#define ACPI_WGDS_NUM_BANDS		2
+#define ACPI_WGDS_TABLE_SIZE		3
+
+#ifdef CONFIG_ACPI
+
+void *iwl_acpi_get_object(struct device *dev, acpi_string method);
+union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
+					 union acpi_object *data,
+					 int data_size);
 
 /**
- * iwl_parse_nvm_data - parse NVM data and return values
+ * iwl_acpi_get_mcc - read MCC from ACPI, if available
  *
- * This function parses all NVM values we need and then
- * returns a (newly allocated) struct containing all the
- * relevant values for driver use. The struct must be freed
- * later with iwl_free_nvm_data().
- */
-struct iwl_nvm_data *
-iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
-		   const __be16 *nvm_hw, const __le16 *nvm_sw,
-		   const __le16 *nvm_calib, const __le16 *regulatory,
-		   const __le16 *mac_override, const __le16 *phy_sku,
-		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported);
-
-/**
- * iwl_set_hw_address_from_csr - sets HW address for 9000 devices and on
- */
-void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
-				 struct iwl_nvm_data *data);
-
-/**
- * iwl_init_sbands - parse and set all channel profiles
- */
-void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
-		     struct iwl_nvm_data *data, const __le16 *nvm_ch_flags,
-		     u8 tx_chains, u8 rx_chains, bool lar_supported,
-		     bool no_wide_in_5ghz);
-
-/**
- * iwl_parse_mcc_info - parse MCC (mobile country code) info coming from FW
+ * @dev: the struct device
+ * @mcc: output buffer (3 bytes) that will get the MCC
  *
- * This function parses the regulatory channel data received as a
- * MCC_UPDATE_CMD command. It returns a newly allocation regulatory domain,
- * to be fed into the regulatory core. An ERR_PTR is returned on error.
- * If not given to the regulatory core, the user is responsible for freeing
- * the regdomain returned here with kfree.
+ * This function tries to read the current MCC from ACPI if available.
  */
-struct ieee80211_regdomain *
-iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
-		       int num_of_ch, __le32 *channels, u16 fw_mcc);
+int iwl_acpi_get_mcc(struct device *dev, char *mcc);
 
-#endif /* __iwl_nvm_parse_h__ */
+u64 iwl_acpi_get_pwr_limit(struct device *dev);
+
+#else /* CONFIG_ACPI */
+
+static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
+{
+	return ERR_PTR(-ENOENT);
+}
+
+static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
+						       union acpi_object *data,
+						       int data_size)
+{
+	return ERR_PTR(-ENOENT);
+}
+
+static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
+{
+	return -ENOENT;
+}
+
+static inline u64 iwl_acpi_get_pwr_limit(struct device *dev)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ACPI */
+#endif /* __iwl_fw_acpi__ */
