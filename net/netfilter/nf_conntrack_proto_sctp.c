@@ -306,7 +306,6 @@ static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
 		       unsigned int *timeouts)
 {
 	enum sctp_conntrack new_state, old_state;

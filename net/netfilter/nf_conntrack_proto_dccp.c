@@ -467,7 +467,6 @@ static unsigned int *dccp_get_timeouts(struct net *net)
 
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
 		       unsigned int *timeouts)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);

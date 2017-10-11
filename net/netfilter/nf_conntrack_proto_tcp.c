@@ -493,8 +493,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			  unsigned int index,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
-			  const struct tcphdr *tcph,
-			  u_int8_t pf)
+			  const struct tcphdr *tcph)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_tcp_net *tn = tcp_pernet(net);
@@ -801,7 +800,6 @@ static int tcp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
-		      u_int8_t pf,
 		      unsigned int *timeouts)
 {
 	struct net *net = nf_ct_net(ct);
@@ -1013,7 +1011,7 @@ static int tcp_packet(struct nf_conn *ct,
 	}
 
 	if (!tcp_in_window(ct, &ct->proto.tcp, dir, index,
-			   skb, dataoff, th, pf)) {
+			   skb, dataoff, th)) {
 		spin_unlock_bh(&ct->lock);
 		return -NF_ACCEPT;
 	}
