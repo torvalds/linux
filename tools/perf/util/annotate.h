@@ -107,6 +107,7 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 			    s64 end, const char **path, struct sym_hist_entry *sample);
+int symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel);
 
 struct sym_hist {
 	u64		      nr_samples;

@@ -1628,6 +1628,62 @@ out_close_stdout:
 	goto out_remove_tmp;
 }
 
+static void calc_percent(struct sym_hist *hist,
+			 struct annotation_data *sample,
+			 s64 offset, s64 end)
+{
+	unsigned int hits = 0;
+	u64 period = 0;
+
+	while (offset < end) {
+		hits   += hist->addr[offset].nr_samples;
+		period += hist->addr[offset].period;
+		++offset;
+	}
+
+	if (hist->nr_samples) {
+		sample->he.period     = period;
+		sample->he.nr_samples = hits;
+		sample->percent = 100.0 * hits / hist->nr_samples;
+	}
+}
+
+static int annotation__calc_percent(struct annotation *notes,
+				    struct perf_evsel *evsel, s64 len)
+{
+	struct annotation_line *al, *next;
+
+	list_for_each_entry(al, &notes->src->source, node) {
+		s64 end;
+		int i;
+
+		if (al->offset == -1)
+			continue;
+
+		next = annotation_line__next(al, &notes->src->source);
+		end  = next ? next->offset : len;
+
+		for (i = 0; i < al->samples_nr; i++) {
+			struct annotation_data *sample;
+			struct sym_hist *hist;
+
+			hist   = annotation__histogram(notes, evsel->idx + i);
+			sample = &al->samples[i];
+
+			calc_percent(hist, sample, al->offset, end);
+		}
+	}
+
+	return 0;
+}
+
+int symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel)
+{
+	struct annotation *notes = symbol__annotation(sym);
+
+	return annotation__calc_percent(notes, evsel, symbol__size(sym));
+}
+
 int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct perf_evsel *evsel, size_t privsize,
 		     struct arch **parch, char *cpuid)
@@ -1663,7 +1719,11 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		}
 	}
 
-	return symbol__disassemble(sym, &args);
+	err = symbol__disassemble(sym, &args);
+	if (err)
+		return err;
+
+	return symbol__calc_percent(sym, evsel);
 }
 
 static void insert_source_line(struct rb_root *root, struct source_line *src_line)
