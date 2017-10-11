@@ -57,10 +57,10 @@ static inline char *side_band_msg_type_to_str(uint32_t address)
 }
 
 void log_dpcd(uint8_t type,
-		uint32_t address,
-		uint8_t *data,
-		uint32_t size,
-		bool res)
+	      uint32_t address,
+	      uint8_t *data,
+	      uint32_t size,
+	      bool res)
 {
 	DRM_DEBUG_KMS("Op: %s, addr: %04x, SideBand Msg: %s, Op res: %s\n",
 			(type == DP_AUX_NATIVE_READ) ||
@@ -77,9 +77,11 @@ void log_dpcd(uint8_t type,
 }
 #endif
 
-static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
+				  struct drm_dp_aux_msg *msg)
 {
-	enum i2c_mot_mode mot = (msg->request & DP_AUX_I2C_MOT) ? I2C_MOT_TRUE : I2C_MOT_FALSE;
+	enum i2c_mot_mode mot = (msg->request & DP_AUX_I2C_MOT) ?
+		I2C_MOT_TRUE : I2C_MOT_FALSE;
 	enum ddc_result res;
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
@@ -125,10 +127,10 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg 
 
 #ifdef TRACE_DPCD
 	log_dpcd(msg->request,
-			msg->address,
-			msg->buffer,
-			msg->size,
-			r == DDC_RESULT_SUCESSFULL);
+		 msg->address,
+		 msg->buffer,
+		 msg->size,
+		 r == DDC_RESULT_SUCESSFULL);
 #endif
 
 	return msg->size;
@@ -229,9 +231,10 @@ dm_dp_create_fake_mst_encoder(struct amdgpu_dm_connector *connector)
 	return amdgpu_encoder;
 }
 
-static struct drm_connector *dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
-							 struct drm_dp_mst_port *port,
-							 const char *pathprop)
+static struct drm_connector *
+dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
+			struct drm_dp_mst_port *port,
+			const char *pathprop)
 {
 	struct amdgpu_dm_connector *master = container_of(mgr, struct amdgpu_dm_connector, mst_mgr);
 	struct drm_device *dev = master->base.dev;
@@ -311,9 +314,8 @@ static struct drm_connector *dm_dp_add_mst_connector(struct drm_dp_mst_topology_
 	return connector;
 }
 
-static void dm_dp_destroy_mst_connector(
-	struct drm_dp_mst_topology_mgr *mgr,
-	struct drm_connector *connector)
+static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
+					struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
@@ -438,9 +440,8 @@ static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 	.register_connector = dm_dp_mst_register_connector
 };
 
-void amdgpu_dm_initialize_dp_connector(
-	struct amdgpu_display_manager *dm,
-	struct amdgpu_dm_connector *aconnector)
+void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
+				       struct amdgpu_dm_connector *aconnector)
 {
 	aconnector->dm_dp_aux.aux.name = "dmdc";
 	aconnector->dm_dp_aux.aux.dev = dm->adev->dev;
