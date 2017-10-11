@@ -21,6 +21,8 @@ struct lan9303 {
 	struct dsa_switch *ds;
 	struct mutex indirect_mutex; /* protect indexed register access */
 	const struct lan9303_phy_ops *ops;
+	bool is_bridged; /* true if port 1 and 2 are bridged */
+	u32 swe_port_state; /* remember SWE_PORT_STATE while not bridged */
 };
 
 extern const struct regmap_access_table lan9303_register_set;
