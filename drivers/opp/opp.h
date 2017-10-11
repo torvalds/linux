@@ -140,6 +140,7 @@ enum opp_table_access {
  * @genpd_performance_state: Device's power domain support performance state.
  * @set_opp: Platform specific set_opp callback
  * @set_opp_data: Data to be passed to set_opp callback
+ * @get_pstate: Platform specific get_pstate callback
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
@@ -177,6 +178,7 @@ struct opp_table {
 
 	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct dev_pm_set_opp_data *set_opp_data;
+	int (*get_pstate)(struct device *dev, unsigned long rate);
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
