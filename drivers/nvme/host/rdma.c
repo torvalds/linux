@@ -1818,7 +1818,11 @@ static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
 	}
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
-	WARN_ON_ONCE(!changed);
+	if (!changed) {
+		/* state change failure is ok if we're in DELETING state */
+		WARN_ON_ONCE(ctrl->ctrl.state != NVME_CTRL_DELETING);
+		return;
+	}
 
 	nvme_start_ctrl(&ctrl->ctrl);
 
