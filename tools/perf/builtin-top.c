@@ -226,6 +226,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 static void perf_top__show_details(struct perf_top *top)
 {
 	struct hist_entry *he = top->sym_filter_entry;
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
@@ -237,6 +238,8 @@ static void perf_top__show_details(struct perf_top *top)
 	notes = symbol__annotation(symbol);
 
 	pthread_mutex_lock(&notes->lock);
+
+	symbol__calc_percent(symbol, evsel);
 
 	if (notes->src == NULL)
 		goto out_unlock;
