@@ -152,9 +152,11 @@ static bool bcm_device_exists(struct bcm_device *device)
 {
 	struct list_head *p;
 
+#ifdef CONFIG_PM
 	/* Devices using serdev always exist */
 	if (device && device->hu && device->hu->serdev)
 		return true;
+#endif
 
 	list_for_each(p, &bcm_device_list) {
 		struct bcm_device *dev = list_entry(p, struct bcm_device, list);
@@ -973,7 +975,9 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 		return -ENOMEM;
 
 	bcmdev->dev = &serdev->dev;
+#ifdef CONFIG_PM
 	bcmdev->hu = &bcmdev->serdev_hu;
+#endif
 	bcmdev->serdev_hu.serdev = serdev;
 	serdev_device_set_drvdata(serdev, bcmdev);
 
