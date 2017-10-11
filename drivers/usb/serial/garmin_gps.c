@@ -877,42 +877,33 @@ static int garmin_clear(struct garmin_data *garmin_data_p)
 static int garmin_init_session(struct usb_serial_port *port)
 {
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
-	int status = 0;
-	int i = 0;
+	int status;
+	int i;
 
-	if (status == 0) {
-		usb_kill_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 
-		status = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
-		if (status) {
-			dev_err(&port->dev,
-					"failed to submit interrupt urb: %d\n",
-					status);
-		}
+	status = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+	if (status) {
+		dev_err(&port->dev, "failed to submit interrupt urb: %d\n",
+				status);
+		return status;
 	}
 
 	/*
 	 * using the initialization method from gpsbabel. See comments in
 	 * gpsbabel/jeeps/gpslibusb.c gusb_reset_toggles()
 	 */
-	if (status == 0) {
-		dev_dbg(&port->dev, "%s - starting session ...\n", __func__);
-		garmin_data_p->state = STATE_ACTIVE;
+	dev_dbg(&port->dev, "%s - starting session ...\n", __func__);
+	garmin_data_p->state = STATE_ACTIVE;
 
-		for (i = 0; i < 3; i++) {
-			status = garmin_write_bulk(port,
-					GARMIN_START_SESSION_REQ,
-					sizeof(GARMIN_START_SESSION_REQ), 0);
-
-			if (status < 0)
-				goto err_kill_urbs;
-		}
-
-		if (status > 0)
-			status = 0;
+	for (i = 0; i < 3; i++) {
+		status = garmin_write_bulk(port, GARMIN_START_SESSION_REQ,
+				sizeof(GARMIN_START_SESSION_REQ), 0);
+		if (status < 0)
+			goto err_kill_urbs;
 	}
 
-	return status;
+	return 0;
 
 err_kill_urbs:
 	usb_kill_anchored_urbs(&garmin_data_p->write_urbs);
