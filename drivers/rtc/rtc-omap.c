@@ -830,7 +830,8 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	rtc->pctldev = pinctrl_register(&rtc_pinctrl_desc, &pdev->dev, rtc);
 	if (IS_ERR(rtc->pctldev)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return PTR_ERR(rtc->pctldev);
+		ret = PTR_ERR(rtc->pctldev);
+		goto err;
 	}
 
 	return 0;
