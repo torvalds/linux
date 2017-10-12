@@ -109,6 +109,36 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	return 0;
 }
 
+static void rmnet_unregister_bridge(struct net_device *dev,
+				    struct rmnet_port *port)
+{
+	struct net_device *rmnet_dev, *bridge_dev;
+	struct rmnet_port *bridge_port;
+
+	if (port->rmnet_mode != RMNET_EPMODE_BRIDGE)
+		return;
+
+	/* bridge slave handling */
+	if (!port->nr_rmnet_devs) {
+		rmnet_dev = netdev_master_upper_dev_get_rcu(dev);
+		netdev_upper_dev_unlink(dev, rmnet_dev);
+
+		bridge_dev = port->bridge_ep;
+
+		bridge_port = rmnet_get_port_rtnl(bridge_dev);
+		bridge_port->bridge_ep = NULL;
+		bridge_port->rmnet_mode = RMNET_EPMODE_VND;
+	} else {
+		bridge_dev = port->bridge_ep;
+
+		bridge_port = rmnet_get_port_rtnl(bridge_dev);
+		rmnet_dev = netdev_master_upper_dev_get_rcu(bridge_dev);
+		netdev_upper_dev_unlink(bridge_dev, rmnet_dev);
+
+		rmnet_unregister_real_device(bridge_dev, bridge_port);
+	}
+}
+
 static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],
 			 struct netlink_ext_ack *extack)
@@ -190,10 +220,10 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 	ep = rmnet_get_endpoint(port, mux_id);
 	if (ep) {
 		hlist_del_init_rcu(&ep->hlnode);
+		rmnet_unregister_bridge(dev, port);
 		rmnet_vnd_dellink(mux_id, port, ep);
 		kfree(ep);
 	}
-
 	rmnet_unregister_real_device(real_dev, port);
 
 	unregister_netdevice_queue(dev, head);
@@ -237,6 +267,8 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 	d.port = port;
 
 	rcu_read_lock();
+	rmnet_unregister_bridge(dev, port);
+
 	netdev_walk_all_lower_dev_rcu(real_dev, rmnet_dev_walk_unreg, &d);
 	rcu_read_unlock();
 	unregister_netdevice_many(&list);
@@ -319,6 +351,65 @@ struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
 	}
 
 	return NULL;
+}
+
+int rmnet_add_bridge(struct net_device *rmnet_dev,
+		     struct net_device *slave_dev,
+		     struct netlink_ext_ack *extack)
+{
+	struct rmnet_priv *priv = netdev_priv(rmnet_dev);
+	struct net_device *real_dev = priv->real_dev;
+	struct rmnet_port *port, *slave_port;
+	int err;
+
+	port = rmnet_get_port(real_dev);
+
+	/* If there is more than one rmnet dev attached, its probably being
+	 * used for muxing. Skip the briding in that case
+	 */
+	if (port->nr_rmnet_devs > 1)
+		return -EINVAL;
+
+	if (rmnet_is_real_dev_registered(slave_dev))
+		return -EBUSY;
+
+	err = rmnet_register_real_device(slave_dev);
+	if (err)
+		return -EBUSY;
+
+	err = netdev_master_upper_dev_link(slave_dev, rmnet_dev, NULL, NULL,
+					   extack);
+	if (err)
+		return -EINVAL;
+
+	slave_port = rmnet_get_port(slave_dev);
+	slave_port->rmnet_mode = RMNET_EPMODE_BRIDGE;
+	slave_port->bridge_ep = real_dev;
+
+	port->rmnet_mode = RMNET_EPMODE_BRIDGE;
+	port->bridge_ep = slave_dev;
+
+	netdev_dbg(slave_dev, "registered with rmnet as slave\n");
+	return 0;
+}
+
+int rmnet_del_bridge(struct net_device *rmnet_dev,
+		     struct net_device *slave_dev)
+{
+	struct rmnet_priv *priv = netdev_priv(rmnet_dev);
+	struct net_device *real_dev = priv->real_dev;
+	struct rmnet_port *port, *slave_port;
+
+	port = rmnet_get_port(real_dev);
+	port->rmnet_mode = RMNET_EPMODE_VND;
+	port->bridge_ep = NULL;
+
+	netdev_upper_dev_unlink(slave_dev, rmnet_dev);
+	slave_port = rmnet_get_port(slave_dev);
+	rmnet_unregister_real_device(slave_dev, slave_port);
+
+	netdev_dbg(slave_dev, "removed from rmnet as slave\n");
+	return 0;
 }
 
 /* Startup/Shutdown */

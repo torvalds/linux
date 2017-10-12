@@ -74,6 +74,8 @@ static const struct net_device_ops rmnet_vnd_ops = {
 	.ndo_start_xmit = rmnet_vnd_start_xmit,
 	.ndo_change_mtu = rmnet_vnd_change_mtu,
 	.ndo_get_iflink = rmnet_vnd_get_iflink,
+	.ndo_add_slave  = rmnet_add_bridge,
+	.ndo_del_slave  = rmnet_del_bridge,
 };
 
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,

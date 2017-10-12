@@ -36,6 +36,7 @@ struct rmnet_port {
 	u8 nr_rmnet_devs;
 	u8 rmnet_mode;
 	struct hlist_head muxed_ep[RMNET_MAX_LOGICAL_EP];
+	struct net_device *bridge_ep;
 };
 
 extern struct rtnl_link_ops rmnet_link_ops;
@@ -47,5 +48,9 @@ struct rmnet_priv {
 
 struct rmnet_port *rmnet_get_port(struct net_device *real_dev);
 struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id);
-
+int rmnet_add_bridge(struct net_device *rmnet_dev,
+		     struct net_device *slave_dev,
+		     struct netlink_ext_ack *extack);
+int rmnet_del_bridge(struct net_device *rmnet_dev,
+		     struct net_device *slave_dev);
 #endif /* _RMNET_CONFIG_H_ */

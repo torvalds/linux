@@ -149,6 +149,17 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	return RMNET_MAP_SUCCESS;
 }
 
+static rx_handler_result_t
+rmnet_bridge_handler(struct sk_buff *skb, struct net_device *bridge_dev)
+{
+	if (bridge_dev) {
+		skb->dev = bridge_dev;
+		dev_queue_xmit(skb);
+	}
+
+	return RX_HANDLER_CONSUMED;
+}
+
 /* Ingress / Egress Entry Points */
 
 /* Processes packet as per ingress data format for receiving device. Logical
@@ -157,10 +168,10 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
  */
 rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 {
-	struct rmnet_port *port;
+	int rc = RX_HANDLER_CONSUMED;
 	struct sk_buff *skb = *pskb;
+	struct rmnet_port *port;
 	struct net_device *dev;
-	int rc;
 
 	if (!skb)
 		return RX_HANDLER_CONSUMED;
@@ -168,8 +179,15 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 	dev = skb->dev;
 	port = rmnet_get_port(dev);
 
-	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_MAP)
-		rc = rmnet_map_ingress_handler(skb, port);
+	switch (port->rmnet_mode) {
+	case RMNET_EPMODE_VND:
+		if (port->ingress_data_format & RMNET_INGRESS_FORMAT_MAP)
+			rc = rmnet_map_ingress_handler(skb, port);
+		break;
+	case RMNET_EPMODE_BRIDGE:
+		rc = rmnet_bridge_handler(skb, port->bridge_ep);
+		break;
+	}
 
 	return rc;
 }
