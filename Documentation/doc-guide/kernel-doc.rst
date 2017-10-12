@@ -65,7 +65,7 @@ Without options, the kernel-doc directive includes all documentation comments
 from the source file.
 
 The kernel-doc extension is included in the kernel source tree, at
-``Documentation/sphinx/kernel-doc.py``. Internally, it uses the
+``Documentation/sphinx/kerneldoc.py``. Internally, it uses the
 ``scripts/kernel-doc`` script to extract the documentation comments from the
 source.
 
