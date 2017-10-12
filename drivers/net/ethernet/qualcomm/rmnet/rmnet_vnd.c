@@ -105,12 +105,12 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	struct rmnet_priv *priv;
 	int rc;
 
-	if (port->rmnet_devices[id])
+	if (port->muxed_ep[id].egress_dev)
 		return -EINVAL;
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
-		port->rmnet_devices[id] = rmnet_dev;
+		port->muxed_ep[id].egress_dev = rmnet_dev;
 		port->nr_rmnet_devs++;
 
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
@@ -127,10 +127,10 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 
 int rmnet_vnd_dellink(u8 id, struct rmnet_port *port)
 {
-	if (id >= RMNET_MAX_LOGICAL_EP || !port->rmnet_devices[id])
+	if (id >= RMNET_MAX_LOGICAL_EP || !port->muxed_ep[id].egress_dev)
 		return -EINVAL;
 
-	port->rmnet_devices[id] = NULL;
+	port->muxed_ep[id].egress_dev = NULL;
 	port->nr_rmnet_devs--;
 	return 0;
 }
