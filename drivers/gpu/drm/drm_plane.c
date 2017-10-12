@@ -241,8 +241,6 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	list_add_tail(&plane->head, &config->plane_list);
 	plane->index = config->num_total_plane++;
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
-		config->num_overlay_plane++;
 
 	drm_object_attach_property(&plane->base,
 				   config->plane_type_property,
@@ -353,8 +351,6 @@ void drm_plane_cleanup(struct drm_plane *plane)
 
 	list_del(&plane->head);
 	dev->mode_config.num_total_plane--;
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
-		dev->mode_config.num_overlay_plane--;
 
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
@@ -462,43 +458,33 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	struct drm_mode_config *config;
 	struct drm_plane *plane;
 	uint32_t __user *plane_ptr;
-	int copied = 0;
-	unsigned num_planes;
+	int count = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
 	config = &dev->mode_config;
-
-	if (file_priv->universal_planes)
-		num_planes = config->num_total_plane;
-	else
-		num_planes = config->num_overlay_plane;
+	plane_ptr = u64_to_user_ptr(plane_resp->plane_id_ptr);
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it.
 	 */
-	if (num_planes &&
-	    (plane_resp->count_planes >= num_planes)) {
-		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
+	drm_for_each_plane(plane, dev) {
+		/*
+		 * Unless userspace set the 'universal planes'
+		 * capability bit, only advertise overlays.
+		 */
+		if (plane->type != DRM_PLANE_TYPE_OVERLAY &&
+		    !file_priv->universal_planes)
+			continue;
 
-		/* Plane lists are invariant, no locking needed. */
-		drm_for_each_plane(plane, dev) {
-			/*
-			 * Unless userspace set the 'universal planes'
-			 * capability bit, only advertise overlays.
-			 */
-			if (plane->type != DRM_PLANE_TYPE_OVERLAY &&
-			    !file_priv->universal_planes)
-				continue;
-
-			if (put_user(plane->base.id, plane_ptr + copied))
-				return -EFAULT;
-			copied++;
-		}
+		if (count < plane_resp->count_planes &&
+		    put_user(plane->base.id, plane_ptr + count))
+			return -EFAULT;
+		count++;
 	}
-	plane_resp->count_planes = num_planes;
+	plane_resp->count_planes = count;
 
 	return 0;
 }
