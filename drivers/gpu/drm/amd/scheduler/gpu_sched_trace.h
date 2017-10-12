@@ -29,8 +29,8 @@ TRACE_EVENT(amd_sched_job,
 			   __entry->id = sched_job->id;
 			   __entry->fence = &sched_job->s_fence->finished;
 			   __entry->name = sched_job->sched->name;
-			   __entry->job_count = kfifo_len(
-				   &sched_job->s_entity->job_queue) / sizeof(sched_job);
+			   __entry->job_count = spsc_queue_count(
+				   &sched_job->s_entity->job_queue);
 			   __entry->hw_job_count = atomic_read(
 				   &sched_job->sched->hw_rq_count);
 			   ),
