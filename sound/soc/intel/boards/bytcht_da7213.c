@@ -27,9 +27,9 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include "../../codecs/da7213.h"
 #include "../atom/sst-atom-controls.h"
-#include "../common/sst-acpi.h"
 
 static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
@@ -224,7 +224,7 @@ static char codec_name[16]; /* i2c-<HID>:00 with HID being 8 chars */
 static int bytcht_da7213_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
-	struct sst_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach;
 	const char *i2c_name = NULL;
 	int dai_index = 0;
 	int ret_val = 0;
@@ -243,7 +243,7 @@ static int bytcht_da7213_probe(struct platform_device *pdev)
 	}
 
 	/* fixup codec name based on HID */
-	i2c_name = sst_acpi_find_name_from_hid(mach->id);
+	i2c_name = snd_soc_acpi_find_name_from_hid(mach->id);
 	if (i2c_name) {
 		snprintf(codec_name, sizeof(codec_name),
 			"%s%s", "i2c-", i2c_name);

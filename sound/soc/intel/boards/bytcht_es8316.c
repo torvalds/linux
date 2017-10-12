@@ -29,8 +29,8 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include "../atom/sst-atom-controls.h"
-#include "../common/sst-acpi.h"
 #include "../common/sst-dsp.h"
 
 struct byt_cht_es8316_private {

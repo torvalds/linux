@@ -41,6 +41,7 @@ config SND_SOC_INTEL_SST_ACPI
 
 config SND_SOC_INTEL_SST_MATCH
 	tristate
+	select SND_SOC_ACPI if ACPI
 
 config SND_SOC_INTEL_HASWELL
 	tristate

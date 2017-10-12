@@ -32,9 +32,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
+#include <sound/soc-acpi.h>
 #include "../../codecs/rt5645.h"
 #include "../atom/sst-atom-controls.h"
-#include "../common/sst-acpi.h"
 
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI1	"rt5645-aif1"
@@ -523,7 +523,7 @@ struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = snd_soc_cards[0].soc_card;
-	struct sst_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach;
 	struct cht_mc_private *drv;
 	const char *i2c_name = NULL;
 	bool found = false;
@@ -566,7 +566,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		}
 
 	/* fixup codec name based on HID */
-	i2c_name = sst_acpi_find_name_from_hid(mach->id);
+	i2c_name = snd_soc_acpi_find_name_from_hid(mach->id);
 	if (i2c_name) {
 		snprintf(cht_rt5645_codec_name, sizeof(cht_rt5645_codec_name),
 			"%s%s", "i2c-", i2c_name);
@@ -599,7 +599,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		/* format specified: 2 64-bit integers */
 		struct acpi_buffer format = {sizeof("NN"), "NN"};
 		struct acpi_buffer state = {0, NULL};
-		struct sst_acpi_package_context pkg_ctx;
+		struct snd_soc_acpi_package_context pkg_ctx;
 		bool pkg_found = false;
 
 		state.length = sizeof(chan_package);
@@ -611,7 +611,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		pkg_ctx.state = &state;
 		pkg_ctx.data_valid = false;
 
-		pkg_found = sst_acpi_find_package_from_hid(mach->id, &pkg_ctx);
+		pkg_found = snd_soc_acpi_find_package_from_hid(mach->id,
+							       &pkg_ctx);
 		if (pkg_found) {
 			if (chan_package.aif_value == 1) {
 				dev_info(&pdev->dev, "BIOS Routing: AIF1 connected\n");

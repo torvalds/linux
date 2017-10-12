@@ -1,5 +1,5 @@
 /*
- * sst_match_apci.c - SST (LPE) match for ACPI enumeration.
+ * soc-apci.c - support for ACPI enumeration.
  *
  * Copyright (c) 2013-15, Intel Corporation.
  *
@@ -14,9 +14,9 @@
  * more details.
  */
 
-#include "sst-acpi.h"
+#include <sound/soc-acpi.h>
 
-static acpi_status sst_acpi_find_name(acpi_handle handle, u32 level,
+static acpi_status snd_soc_acpi_find_name(acpi_handle handle, u32 level,
 				      void *context, void **ret)
 {
 	struct acpi_device *adev;
@@ -34,12 +34,12 @@ static acpi_status sst_acpi_find_name(acpi_handle handle, u32 level,
 	return AE_OK;
 }
 
-const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
+const char *snd_soc_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
 {
 	const char *name = NULL;
 	acpi_status status;
 
-	status = acpi_get_devices(hid, sst_acpi_find_name, NULL,
+	status = acpi_get_devices(hid, snd_soc_acpi_find_name, NULL,
 				  (void **)&name);
 
 	if (ACPI_FAILURE(status) || name[0] == '\0')
@@ -47,9 +47,9 @@ const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
 
 	return name;
 }
-EXPORT_SYMBOL_GPL(sst_acpi_find_name_from_hid);
+EXPORT_SYMBOL_GPL(snd_soc_acpi_find_name_from_hid);
 
-static acpi_status sst_acpi_mach_match(acpi_handle handle, u32 level,
+static acpi_status snd_soc_acpi_mach_match(acpi_handle handle, u32 level,
 				       void *context, void **ret)
 {
 	unsigned long long sta;
@@ -63,26 +63,27 @@ static acpi_status sst_acpi_mach_match(acpi_handle handle, u32 level,
 	return AE_OK;
 }
 
-bool sst_acpi_check_hid(const u8 hid[ACPI_ID_LEN])
+bool snd_soc_acpi_check_hid(const u8 hid[ACPI_ID_LEN])
 {
 	acpi_status status;
 	bool found = false;
 
-	status = acpi_get_devices(hid, sst_acpi_mach_match, &found, NULL);
+	status = acpi_get_devices(hid, snd_soc_acpi_mach_match, &found, NULL);
 
 	if (ACPI_FAILURE(status))
 		return false;
 
 	return found;
 }
-EXPORT_SYMBOL_GPL(sst_acpi_check_hid);
+EXPORT_SYMBOL_GPL(snd_soc_acpi_check_hid);
 
-struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines)
+struct snd_soc_acpi_mach *
+snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
 {
-	struct sst_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach;
 
 	for (mach = machines; mach->id[0]; mach++) {
-		if (sst_acpi_check_hid(mach->id) == true) {
+		if (snd_soc_acpi_check_hid(mach->id) == true) {
 			if (mach->machine_quirk == NULL)
 				return mach;
 
@@ -92,14 +93,14 @@ struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(sst_acpi_find_machine);
+EXPORT_SYMBOL_GPL(snd_soc_acpi_find_machine);
 
-static acpi_status sst_acpi_find_package(acpi_handle handle, u32 level,
-					void *context, void **ret)
+static acpi_status snd_soc_acpi_find_package(acpi_handle handle, u32 level,
+					     void *context, void **ret)
 {
 	struct acpi_device *adev;
 	acpi_status status = AE_OK;
-	struct sst_acpi_package_context *pkg_ctx = context;
+	struct snd_soc_acpi_package_context *pkg_ctx = context;
 
 	pkg_ctx->data_valid = false;
 
@@ -137,37 +138,38 @@ static acpi_status sst_acpi_find_package(acpi_handle handle, u32 level,
 	return AE_OK;
 }
 
-bool sst_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
-				struct sst_acpi_package_context *ctx)
+bool snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
+				struct snd_soc_acpi_package_context *ctx)
 {
 	acpi_status status;
 
-	status = acpi_get_devices(hid, sst_acpi_find_package, ctx, NULL);
+	status = acpi_get_devices(hid, snd_soc_acpi_find_package, ctx, NULL);
 
 	if (ACPI_FAILURE(status) || !ctx->data_valid)
 		return false;
 
 	return true;
 }
-EXPORT_SYMBOL_GPL(sst_acpi_find_package_from_hid);
+EXPORT_SYMBOL_GPL(snd_soc_acpi_find_package_from_hid);
 
-struct sst_acpi_mach *sst_acpi_codec_list(void *arg)
+struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
 {
-	struct sst_acpi_mach *mach = arg;
-	struct sst_codecs *codec_list = (struct sst_codecs *) mach->quirk_data;
+	struct snd_soc_acpi_mach *mach = arg;
+	struct snd_soc_acpi_codecs *codec_list =
+		(struct snd_soc_acpi_codecs *) mach->quirk_data;
 	int i;
 
 	if (mach->quirk_data == NULL)
 		return mach;
 
 	for (i = 0; i < codec_list->num_codecs; i++) {
-		if (sst_acpi_check_hid(codec_list->codecs[i]) != true)
+		if (snd_soc_acpi_check_hid(codec_list->codecs[i]) != true)
 			return NULL;
 	}
 
 	return mach;
 }
-EXPORT_SYMBOL_GPL(sst_acpi_codec_list);
+EXPORT_SYMBOL_GPL(snd_soc_acpi_codec_list);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Common ACPI Match module");
+MODULE_DESCRIPTION("ALSA SoC ACPI module");

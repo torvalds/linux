@@ -36,6 +36,9 @@ config SND_SOC_COMPRESS
 config SND_SOC_TOPOLOGY
 	bool
 
+config SND_SOC_ACPI
+	tristate
+
 # All the supported SoCs
 source "sound/soc/adi/Kconfig"
 source "sound/soc/amd/Kconfig"
