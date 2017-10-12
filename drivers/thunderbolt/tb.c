@@ -180,40 +180,39 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 	}
 }
 
-
 /**
- * find_pci_up_port() - return the first PCIe up port on @sw or NULL
+ * tb_find_port() - return the first port of @type on @sw or NULL
+ * @sw: Switch to find the port from
+ * @type: Port type to look for
  */
-static struct tb_port *tb_find_pci_up_port(struct tb_switch *sw)
+static struct tb_port *tb_find_port(struct tb_switch *sw,
+				    enum tb_port_type type)
 {
 	int i;
 	for (i = 1; i <= sw->config.max_port_number; i++)
-		if (sw->ports[i].config.type == TB_TYPE_PCIE_UP)
+		if (sw->ports[i].config.type == type)
 			return &sw->ports[i];
 	return NULL;
 }
 
 /**
- * find_unused_down_port() - return the first inactive PCIe down port on @sw
+ * tb_find_unused_port() - return the first inactive port on @sw
+ * @sw: Switch to find the port on
+ * @type: Port type to look for
  */
-static struct tb_port *tb_find_unused_down_port(struct tb_switch *sw)
+static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
+					   enum tb_port_type type)
 {
 	int i;
-	int cap;
-	int res;
-	int data;
+
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		if (tb_is_upstream_port(&sw->ports[i]))
 			continue;
-		if (sw->ports[i].config.type != TB_TYPE_PCIE_DOWN)
+		if (sw->ports[i].config.type != type)
 			continue;
-		cap = sw->ports[i].cap_adap;
-		if (!cap)
+		if (!sw->ports[i].cap_adap)
 			continue;
-		res = tb_port_read(&sw->ports[i], &data, TB_CFG_PORT, cap, 1);
-		if (res < 0)
-			continue;
-		if (data & 0x80000000)
+		if (tb_port_is_enabled(&sw->ports[i]))
 			continue;
 		return &sw->ports[i];
 	}
@@ -255,7 +254,7 @@ static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 	}
 
 out:
-	return tb_find_unused_down_port(sw);
+	return tb_find_unused_port(sw, TB_TYPE_PCIE_DOWN);
 }
 
 static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
@@ -265,7 +264,7 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	struct tb_switch *parent_sw;
 	struct tb_tunnel *tunnel;
 
-	up = tb_find_pci_up_port(sw);
+	up = tb_find_port(sw, TB_TYPE_PCIE_UP);
 	if (!up)
 		return 0;
 

@@ -731,6 +731,22 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 }
 
 /**
+ * tb_port_is_enabled() - Is the adapter port enabled
+ * @port: Port to check
+ */
+bool tb_port_is_enabled(struct tb_port *port)
+{
+	switch (port->config.type) {
+	case TB_TYPE_PCIE_UP:
+	case TB_TYPE_PCIE_DOWN:
+		return tb_pci_port_is_enabled(port);
+
+	default:
+		return false;
+	}
+}
+
+/**
  * tb_pci_port_is_enabled() - Is the PCIe adapter port enabled
  * @port: PCIe port to check
  */
