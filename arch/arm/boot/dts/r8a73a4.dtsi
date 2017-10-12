@@ -27,6 +27,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0>;
+			clocks = <&cpg_clocks R8A73A4_CLK_Z>;
 			clock-frequency = <1500000000>;
 			power-domains = <&pd_a2sl>;
 			next-level-cache = <&L2_CA15>;
