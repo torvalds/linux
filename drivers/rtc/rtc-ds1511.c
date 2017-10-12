@@ -511,16 +511,8 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 static int ds1511_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-
 	sysfs_remove_bin_file(&pdev->dev.kobj, &ds1511_nvram_attr);
-	if (pdata->irq > 0) {
-		/*
-		 * disable the alarm interrupt
-		 */
-		rtc_write(rtc_read(RTC_CMD) & ~RTC_TIE, RTC_CMD);
-		rtc_read(RTC_CMD1);
-	}
+
 	return 0;
 }
 
