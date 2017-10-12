@@ -49,7 +49,7 @@
 /*
  * External function declarations
  */
-extern void queued_read_lock_slowpath(struct qrwlock *lock, u32 cnts);
+extern void queued_read_lock_slowpath(struct qrwlock *lock);
 extern void queued_write_lock_slowpath(struct qrwlock *lock);
 
 /**
@@ -100,7 +100,7 @@ static inline void queued_read_lock(struct qrwlock *lock)
 		return;
 
 	/* The slowpath will decrement the reader count, if necessary. */
-	queued_read_lock_slowpath(lock, cnts);
+	queued_read_lock_slowpath(lock);
 }
 
 /**
