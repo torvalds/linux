@@ -610,7 +610,6 @@ static int gfs2_xattr_get(const struct xattr_handler *handler,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
-	bool need_unlock = false;
 	int ret;
 
 	/* During lookup, SELinux calls this function with the glock locked. */
@@ -619,10 +618,11 @@ static int gfs2_xattr_get(const struct xattr_handler *handler,
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
 		if (ret)
 			return ret;
-		need_unlock = true;
+	} else {
+		gfs2_holder_mark_uninitialized(&gh);
 	}
 	ret = __gfs2_xattr_get(inode, name, buffer, size, handler->flags);
-	if (need_unlock)
+	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
 	return ret;
 }
@@ -1244,11 +1244,20 @@ static int gfs2_xattr_set(const struct xattr_handler *handler,
 	if (ret)
 		return ret;
 
-	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	if (ret)
-		return ret;
+	/* May be called from gfs_setattr with the glock locked. */
+
+	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
+		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+		if (ret)
+			return ret;
+	} else {
+		if (WARN_ON_ONCE(ip->i_gl->gl_state != LM_ST_EXCLUSIVE))
+			return -EIO;
+		gfs2_holder_mark_uninitialized(&gh);
+	}
 	ret = __gfs2_xattr_set(inode, name, value, size, flags, handler->flags);
-	gfs2_glock_dq_uninit(&gh);
+	if (gfs2_holder_initialized(&gh))
+		gfs2_glock_dq_uninit(&gh);
 	return ret;
 }
 
