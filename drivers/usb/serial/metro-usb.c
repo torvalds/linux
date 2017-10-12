@@ -53,12 +53,24 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define UNI_CMD_OPEN	0x80
 #define UNI_CMD_CLOSE	0xFF
 
-static inline int metrousb_is_unidirectional_mode(struct usb_serial_port *port)
+static int metrousb_is_unidirectional_mode(struct usb_serial *serial)
 {
-	__u16 product_id = le16_to_cpu(
-		port->serial->dev->descriptor.idProduct);
+	u16 product_id = le16_to_cpu(serial->dev->descriptor.idProduct);
 
 	return product_id == FOCUS_PRODUCT_ID_UNI;
+}
+
+static int metrousb_calc_num_ports(struct usb_serial *serial,
+				   struct usb_serial_endpoints *epds)
+{
+	if (metrousb_is_unidirectional_mode(serial)) {
+		if (epds->num_interrupt_out == 0) {
+			dev_err(&serial->interface->dev, "interrupt-out endpoint missing\n");
+			return -ENODEV;
+		}
+	}
+
+	return 1;
 }
 
 static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port)
@@ -67,7 +79,7 @@ static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port
 	int actual_len;
 	u8 *buffer_cmd = NULL;
 
-	if (!metrousb_is_unidirectional_mode(port))
+	if (!metrousb_is_unidirectional_mode(port->serial))
 		return 0;
 
 	buffer_cmd = kzalloc(sizeof(cmd), GFP_KERNEL);
@@ -334,8 +346,8 @@ static struct usb_serial_driver metrousb_device = {
 	},
 	.description		= "Metrologic USB to Serial",
 	.id_table		= id_table,
-	.num_ports		= 1,
 	.num_interrupt_in	= 1,
+	.calc_num_ports		= metrousb_calc_num_ports,
 	.open			= metrousb_open,
 	.close			= metrousb_cleanup,
 	.read_int_callback	= metrousb_read_int_callback,
