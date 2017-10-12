@@ -853,36 +853,37 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_ring *ring = p->job->ring;
-	int i, j, r;
+	int r;
 
-	for (i = 0, j = 0; i < p->nchunks && j < p->job->num_ibs; i++) {
+	/* Only for UVD/VCE VM emulation */
+	if (p->job->ring->funcs->parse_cs) {
+		unsigned i, j;
 
-		struct amdgpu_cs_chunk *chunk;
-		struct amdgpu_ib *ib;
-		struct drm_amdgpu_cs_chunk_ib *chunk_ib;
-
-		chunk = &p->chunks[i];
-		ib = &p->job->ibs[j];
-		chunk_ib = (struct drm_amdgpu_cs_chunk_ib *)chunk->kdata;
-
-		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
-			continue;
-
-		if (p->job->ring->funcs->parse_cs) {
+		for (i = 0, j = 0; i < p->nchunks && j < p->job->num_ibs; i++) {
+			struct drm_amdgpu_cs_chunk_ib *chunk_ib;
 			struct amdgpu_bo_va_mapping *m;
 			struct amdgpu_bo *aobj = NULL;
+			struct amdgpu_cs_chunk *chunk;
+			struct amdgpu_ib *ib;
 			uint64_t offset;
 			uint8_t *kptr;
 
+			chunk = &p->chunks[i];
+			ib = &p->job->ibs[j];
+			chunk_ib = chunk->kdata;
+
+			if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
+				continue;
+
 			r = amdgpu_cs_find_mapping(p, chunk_ib->va_start,
-					&aobj, &m);
+						   &aobj, &m);
 			if (r) {
 				DRM_ERROR("IB va_start is invalid\n");
 				return r;
 			}
 
 			if ((chunk_ib->va_start + chunk_ib->ib_bytes) >
-				(m->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
+			    (m->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
 				DRM_ERROR("IB va_start+ib_bytes is invalid\n");
 				return -EINVAL;
 			}
@@ -899,12 +900,12 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 			memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
 			amdgpu_bo_kunmap(aobj);
 
-			/* Only for UVD/VCE VM emulation */
 			r = amdgpu_ring_parse_cs(ring, p, j);
 			if (r)
 				return r;
+
+			j++;
 		}
-		j++;
 	}
 
 	if (p->job->vm) {
