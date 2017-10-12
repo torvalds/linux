@@ -515,63 +515,66 @@ static void wrp_reg_mov(struct nfp_prog *nfp_prog, u16 dst, u16 src)
 }
 
 static int
-construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset,
-		      u16 src, bool src_valid, u8 size)
+data_ld(struct nfp_prog *nfp_prog, swreg offset, u8 dst_gpr, int size)
 {
 	unsigned int i;
 	u16 shift, sz;
-	swreg tmp_reg;
 
 	/* We load the value from the address indicated in @offset and then
 	 * shift out the data we don't need.  Note: this is big endian!
 	 */
-	sz = size < 4 ? 4 : size;
+	sz = max(size, 4);
 	shift = size < 4 ? 4 - size : 0;
 
-	if (src_valid) {
-		/* Calculate the true offset (src_reg + imm) */
-		tmp_reg = ur_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
-		emit_alu(nfp_prog, imm_both(nfp_prog),
-			 reg_a(src), ALU_OP_ADD, tmp_reg);
-		/* Check packet length (size guaranteed to fit b/c it's u8) */
-		emit_alu(nfp_prog, imm_a(nfp_prog),
-			 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
-		emit_alu(nfp_prog, reg_none(),
-			 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
-		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
-		/* Load data */
-		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pptr_reg(nfp_prog), imm_b(nfp_prog), sz - 1, true);
-	} else {
-		/* Check packet length */
-		tmp_reg = ur_load_imm_any(nfp_prog, offset + size,
-					  imm_a(nfp_prog));
-		emit_alu(nfp_prog, reg_none(),
-			 plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
-		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
-		/* Load data */
-		tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
-		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pptr_reg(nfp_prog), tmp_reg, sz - 1, true);
-	}
+	emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
+		 pptr_reg(nfp_prog), offset, sz - 1, true);
 
 	i = 0;
 	if (shift)
-		emit_shf(nfp_prog, reg_both(0), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst_gpr), reg_none(), SHF_OP_NONE,
 			 reg_xfer(0), SHF_SC_R_SHF, shift * 8);
 	else
 		for (; i * 4 < size; i++)
-			wrp_mov(nfp_prog, reg_both(i), reg_xfer(i));
+			wrp_mov(nfp_prog, reg_both(dst_gpr + i), reg_xfer(i));
 
 	if (i < 2)
-		wrp_immed(nfp_prog, reg_both(1), 0);
+		wrp_immed(nfp_prog, reg_both(dst_gpr + 1), 0);
 
 	return 0;
 }
 
+static int
+construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset, u16 src, u8 size)
+{
+	swreg tmp_reg;
+
+	/* Calculate the true offset (src_reg + imm) */
+	tmp_reg = ur_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
+	emit_alu(nfp_prog, imm_both(nfp_prog), reg_a(src), ALU_OP_ADD, tmp_reg);
+
+	/* Check packet length (size guaranteed to fit b/c it's u8) */
+	emit_alu(nfp_prog, imm_a(nfp_prog),
+		 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
+	emit_alu(nfp_prog, reg_none(),
+		 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
+	wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
+
+	/* Load data */
+	return data_ld(nfp_prog, imm_b(nfp_prog), 0, size);
+}
+
 static int construct_data_ld(struct nfp_prog *nfp_prog, u16 offset, u8 size)
 {
-	return construct_data_ind_ld(nfp_prog, offset, 0, false, size);
+	swreg tmp_reg;
+
+	/* Check packet length */
+	tmp_reg = ur_load_imm_any(nfp_prog, offset + size, imm_a(nfp_prog));
+	emit_alu(nfp_prog, reg_none(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
+	wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
+
+	/* Load data */
+	tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
+	return data_ld(nfp_prog, tmp_reg, 0, size);
 }
 
 static void
@@ -1055,19 +1058,19 @@ static int data_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int data_ind_ld1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return construct_data_ind_ld(nfp_prog, meta->insn.imm,
-				     meta->insn.src_reg * 2, true, 1);
+				     meta->insn.src_reg * 2, 1);
 }
 
 static int data_ind_ld2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return construct_data_ind_ld(nfp_prog, meta->insn.imm,
-				     meta->insn.src_reg * 2, true, 2);
+				     meta->insn.src_reg * 2, 2);
 }
 
 static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return construct_data_ind_ld(nfp_prog, meta->insn.imm,
-				     meta->insn.src_reg * 2, true, 4);
+				     meta->insn.src_reg * 2, 4);
 }
 
 static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
