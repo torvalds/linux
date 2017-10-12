@@ -614,11 +614,15 @@ static int abx80x_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	rtc = devm_rtc_device_register(&client->dev, "abx8xx",
-				       &abx80x_rtc_ops, THIS_MODULE);
-
+	rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
+
+	rtc->ops = &abx80x_rtc_ops;
+
+	err = rtc_register_device(rtc);
+	if (err)
+		return err;
 
 	i2c_set_clientdata(client, rtc);
 
