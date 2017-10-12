@@ -57,9 +57,6 @@ struct tegra_dc {
 
 	struct drm_info_list *debugfs_files;
 
-	/* page-flip handling */
-	struct drm_pending_vblank_event *event;
-
 	const struct tegra_dc_soc_info *soc;
 
 	struct iommu_domain *domain;
