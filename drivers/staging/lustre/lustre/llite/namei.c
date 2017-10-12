@@ -949,7 +949,9 @@ static int ll_mknod(struct inode *dir, struct dentry *dchild,
 
 	switch (mode & S_IFMT) {
 	case 0:
-		mode |= S_IFREG; /* for mode = 0 case, fallthrough */
+		mode |= S_IFREG;
+		/* for mode = 0 case */
+		/* fall through */
 	case S_IFREG:
 	case S_IFCHR:
 	case S_IFBLK:
