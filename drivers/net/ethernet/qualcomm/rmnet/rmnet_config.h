@@ -34,7 +34,6 @@ struct rmnet_endpoint {
  */
 struct rmnet_port {
 	struct net_device *dev;
-	struct rmnet_endpoint local_ep;
 	struct rmnet_endpoint muxed_ep[RMNET_MAX_LOGICAL_EP];
 	u32 ingress_data_format;
 	u32 egress_data_format;

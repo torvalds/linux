@@ -44,54 +44,16 @@ static void rmnet_set_skb_proto(struct sk_buff *skb)
 /* Generic handler */
 
 static rx_handler_result_t
-rmnet_bridge_handler(struct sk_buff *skb, struct rmnet_endpoint *ep)
+rmnet_deliver_skb(struct sk_buff *skb)
 {
-	if (!ep->egress_dev)
-		kfree_skb(skb);
-	else
-		rmnet_egress_handler(skb, ep);
+	skb_reset_transport_header(skb);
+	skb_reset_network_header(skb);
+	rmnet_vnd_rx_fixup(skb, skb->dev);
 
+	skb->pkt_type = PACKET_HOST;
+	skb_set_mac_header(skb, 0);
+	netif_receive_skb(skb);
 	return RX_HANDLER_CONSUMED;
-}
-
-static rx_handler_result_t
-rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_endpoint *ep)
-{
-	switch (ep->rmnet_mode) {
-	case RMNET_EPMODE_NONE:
-		return RX_HANDLER_PASS;
-
-	case RMNET_EPMODE_BRIDGE:
-		return rmnet_bridge_handler(skb, ep);
-
-	case RMNET_EPMODE_VND:
-		skb_reset_transport_header(skb);
-		skb_reset_network_header(skb);
-		rmnet_vnd_rx_fixup(skb, skb->dev);
-
-		skb->pkt_type = PACKET_HOST;
-		skb_set_mac_header(skb, 0);
-		netif_receive_skb(skb);
-		return RX_HANDLER_CONSUMED;
-
-	default:
-		kfree_skb(skb);
-		return RX_HANDLER_CONSUMED;
-	}
-}
-
-static rx_handler_result_t
-rmnet_ingress_deliver_packet(struct sk_buff *skb,
-			     struct rmnet_port *port)
-{
-	if (!port) {
-		kfree_skb(skb);
-		return RX_HANDLER_CONSUMED;
-	}
-
-	skb->dev = port->local_ep.egress_dev;
-
-	return rmnet_deliver_skb(skb, &port->local_ep);
 }
 
 /* MAP handler */
@@ -130,7 +92,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	skb_pull(skb, sizeof(struct rmnet_map_header));
 	skb_trim(skb, len);
 	rmnet_set_skb_proto(skb);
-	return rmnet_deliver_skb(skb, ep);
+	return rmnet_deliver_skb(skb);
 }
 
 static rx_handler_result_t
@@ -204,29 +166,8 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 	dev = skb->dev;
 	port = rmnet_get_port(dev);
 
-	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_MAP) {
+	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_MAP)
 		rc = rmnet_map_ingress_handler(skb, port);
-	} else {
-		switch (ntohs(skb->protocol)) {
-		case ETH_P_MAP:
-			if (port->local_ep.rmnet_mode ==
-				RMNET_EPMODE_BRIDGE) {
-				rc = rmnet_ingress_deliver_packet(skb, port);
-			} else {
-				kfree_skb(skb);
-				rc = RX_HANDLER_CONSUMED;
-			}
-			break;
-
-		case ETH_P_IP:
-		case ETH_P_IPV6:
-			rc = rmnet_ingress_deliver_packet(skb, port);
-			break;
-
-		default:
-			rc = RX_HANDLER_PASS;
-		}
-	}
 
 	return rc;
 }
