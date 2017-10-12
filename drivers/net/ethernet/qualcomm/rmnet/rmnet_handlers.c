@@ -116,8 +116,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 }
 
 static int rmnet_map_egress_handler(struct sk_buff *skb,
-				    struct rmnet_port *port,
-				    struct rmnet_endpoint *ep,
+				    struct rmnet_port *port, u8 mux_id,
 				    struct net_device *orig_dev)
 {
 	int required_headroom, additional_header_len;
@@ -136,10 +135,10 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 		return RMNET_MAP_CONSUMED;
 
 	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MUXING) {
-		if (ep->mux_id == 0xff)
+		if (mux_id == 0xff)
 			map_header->mux_id = 0;
 		else
-			map_header->mux_id = ep->mux_id;
+			map_header->mux_id = mux_id;
 	}
 
 	skb->protocol = htons(ETH_P_MAP);
@@ -176,14 +175,17 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
  * for egress device configured in logical endpoint. Packet is then transmitted
  * on the egress device.
  */
-void rmnet_egress_handler(struct sk_buff *skb,
-			  struct rmnet_endpoint *ep)
+void rmnet_egress_handler(struct sk_buff *skb)
 {
 	struct net_device *orig_dev;
 	struct rmnet_port *port;
+	struct rmnet_priv *priv;
+	u8 mux_id;
 
 	orig_dev = skb->dev;
-	skb->dev = ep->egress_dev;
+	priv = netdev_priv(orig_dev);
+	skb->dev = priv->real_dev;
+	mux_id = priv->mux_id;
 
 	port = rmnet_get_port(skb->dev);
 	if (!port) {
@@ -192,7 +194,7 @@ void rmnet_egress_handler(struct sk_buff *skb,
 	}
 
 	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MAP) {
-		switch (rmnet_map_egress_handler(skb, port, ep, orig_dev)) {
+		switch (rmnet_map_egress_handler(skb, port, mux_id, orig_dev)) {
 		case RMNET_MAP_CONSUMED:
 			return;
 

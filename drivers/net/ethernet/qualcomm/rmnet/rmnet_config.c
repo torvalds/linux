@@ -67,13 +67,8 @@ rmnet_get_endpoint(struct net_device *dev, int config_id)
 	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 
-	if (!rmnet_is_real_dev_registered(dev)) {
-		ep = rmnet_vnd_get_endpoint(dev);
-	} else {
-		port = rmnet_get_port_rtnl(dev);
-
-		ep = &port->muxed_ep[config_id];
-	}
+	port = rmnet_get_port_rtnl(dev);
+	ep = &port->muxed_ep[config_id];
 
 	return ep;
 }
@@ -183,7 +178,6 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	port->rmnet_mode = mode;
 
 	rmnet_set_endpoint_config(real_dev, mux_id, dev);
-	rmnet_set_endpoint_config(dev, mux_id, real_dev);
 	return 0;
 
 err2:

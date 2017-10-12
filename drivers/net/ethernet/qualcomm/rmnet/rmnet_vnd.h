@@ -17,7 +17,6 @@
 #define _RMNET_VND_H_
 
 int rmnet_vnd_do_flow_control(struct net_device *dev, int enable);
-struct rmnet_endpoint *rmnet_vnd_get_endpoint(struct net_device *dev);
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		      struct rmnet_port *port,
 		      struct net_device *real_dev);

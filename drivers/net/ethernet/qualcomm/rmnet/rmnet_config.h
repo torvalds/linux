@@ -20,9 +20,6 @@
 
 #define RMNET_MAX_LOGICAL_EP 255
 
-/* Information about the next device to deliver the packet to.
- * Exact usage of this parameter depends on the rmnet_mode.
- */
 struct rmnet_endpoint {
 	u8 mux_id;
 	struct net_device *egress_dev;
@@ -44,7 +41,6 @@ struct rmnet_port {
 extern struct rtnl_link_ops rmnet_link_ops;
 
 struct rmnet_priv {
-	struct rmnet_endpoint local_ep;
 	u8 mux_id;
 	struct net_device *real_dev;
 };

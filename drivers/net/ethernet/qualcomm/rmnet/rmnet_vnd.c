@@ -45,8 +45,8 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 	struct rmnet_priv *priv;
 
 	priv = netdev_priv(dev);
-	if (priv->local_ep.egress_dev) {
-		rmnet_egress_handler(skb, &priv->local_ep);
+	if (priv->real_dev) {
+		rmnet_egress_handler(skb);
 	} else {
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);
@@ -141,21 +141,6 @@ u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev)
 
 	priv = netdev_priv(rmnet_dev);
 	return priv->mux_id;
-}
-
-/* Gets the logical endpoint configuration for a RmNet virtual network device
- * node. Caller should confirm that devices is a RmNet VND before calling.
- */
-struct rmnet_endpoint *rmnet_vnd_get_endpoint(struct net_device *rmnet_dev)
-{
-	struct rmnet_priv *priv;
-
-	if (!rmnet_dev)
-		return NULL;
-
-	priv = netdev_priv(rmnet_dev);
-
-	return &priv->local_ep;
 }
 
 int rmnet_vnd_do_flow_control(struct net_device *rmnet_dev, int enable)
