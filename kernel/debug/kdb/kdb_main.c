@@ -2479,41 +2479,6 @@ static int kdb_kill(int argc, const char **argv)
 	return 0;
 }
 
-struct kdb_tm {
-	int tm_sec;	/* seconds */
-	int tm_min;	/* minutes */
-	int tm_hour;	/* hours */
-	int tm_mday;	/* day of the month */
-	int tm_mon;	/* month */
-	int tm_year;	/* year */
-};
-
-static void kdb_gmtime(struct timespec *tv, struct kdb_tm *tm)
-{
-	/* This will work from 1970-2099, 2100 is not a leap year */
-	static int mon_day[] = { 31, 29, 31, 30, 31, 30, 31,
-				 31, 30, 31, 30, 31 };
-	memset(tm, 0, sizeof(*tm));
-	tm->tm_sec  = tv->tv_sec % (24 * 60 * 60);
-	tm->tm_mday = tv->tv_sec / (24 * 60 * 60) +
-		(2 * 365 + 1); /* shift base from 1970 to 1968 */
-	tm->tm_min =  tm->tm_sec / 60 % 60;
-	tm->tm_hour = tm->tm_sec / 60 / 60;
-	tm->tm_sec =  tm->tm_sec % 60;
-	tm->tm_year = 68 + 4*(tm->tm_mday / (4*365+1));
-	tm->tm_mday %= (4*365+1);
-	mon_day[1] = 29;
-	while (tm->tm_mday >= mon_day[tm->tm_mon]) {
-		tm->tm_mday -= mon_day[tm->tm_mon];
-		if (++tm->tm_mon == 12) {
-			tm->tm_mon = 0;
-			++tm->tm_year;
-			mon_day[1] = 28;
-		}
-	}
-	++tm->tm_mday;
-}
-
 /*
  * Most of this code has been lifted from kernel/timer.c::sys_sysinfo().
  * I cannot call that code directly from kdb, it has an unconditional
@@ -2539,8 +2504,8 @@ static void kdb_sysinfo(struct sysinfo *val)
  */
 static int kdb_summary(int argc, const char **argv)
 {
-	struct timespec now;
-	struct kdb_tm tm;
+	time64_t now;
+	struct tm tm;
 	struct sysinfo val;
 
 	if (argc)
@@ -2554,9 +2519,9 @@ static int kdb_summary(int argc, const char **argv)
 	kdb_printf("domainname %s\n", init_uts_ns.name.domainname);
 	kdb_printf("ccversion  %s\n", __stringify(CCVERSION));
 
-	now = __current_kernel_time();
-	kdb_gmtime(&now, &tm);
-	kdb_printf("date       %04d-%02d-%02d %02d:%02d:%02d "
+	now = __ktime_get_real_seconds();
+	time64_to_tm(now, 0, &tm);
+	kdb_printf("date       %04ld-%02d-%02d %02d:%02d:%02d "
 		   "tz_minuteswest %d\n",
 		1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec,
