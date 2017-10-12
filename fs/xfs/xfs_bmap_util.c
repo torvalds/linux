@@ -84,6 +84,7 @@ xfs_zero_extent(
 		GFP_NOFS, 0);
 }
 
+#ifdef CONFIG_XFS_RT
 int
 xfs_bmap_rtalloc(
 	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
@@ -190,6 +191,7 @@ xfs_bmap_rtalloc(
 	}
 	return 0;
 }
+#endif /* CONFIG_XFS_RT */
 
 /*
  * Check if the endoff is outside the last extent. If so the caller will grow
