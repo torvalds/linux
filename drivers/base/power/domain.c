@@ -237,6 +237,95 @@ static void genpd_update_accounting(struct generic_pm_domain *genpd)
 static inline void genpd_update_accounting(struct generic_pm_domain *genpd) {}
 #endif
 
+/**
+ * dev_pm_genpd_set_performance_state- Set performance state of device's power
+ * domain.
+ *
+ * @dev: Device for which the performance-state needs to be set.
+ * @state: Target performance state of the device. This can be set as 0 when the
+ *	   device doesn't have any performance state constraints left (And so
+ *	   the device wouldn't participate anymore to find the target
+ *	   performance state of the genpd).
+ *
+ * It is assumed that the users guarantee that the genpd wouldn't be detached
+ * while this routine is getting called.
+ *
+ * Returns 0 on success and negative error values on failures.
+ */
+int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
+{
+	struct generic_pm_domain *genpd;
+	struct generic_pm_domain_data *gpd_data, *pd_data;
+	struct pm_domain_data *pdd;
+	unsigned int prev;
+	int ret = 0;
+
+	genpd = dev_to_genpd(dev);
+	if (IS_ERR(genpd))
+		return -ENODEV;
+
+	if (unlikely(!genpd->set_performance_state))
+		return -EINVAL;
+
+	if (unlikely(!dev->power.subsys_data ||
+		     !dev->power.subsys_data->domain_data)) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	genpd_lock(genpd);
+
+	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
+	prev = gpd_data->performance_state;
+	gpd_data->performance_state = state;
+
+	/* New requested state is same as Max requested state */
+	if (state == genpd->performance_state)
+		goto unlock;
+
+	/* New requested state is higher than Max requested state */
+	if (state > genpd->performance_state)
+		goto update_state;
+
+	/* Traverse all devices within the domain */
+	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+		pd_data = to_gpd_data(pdd);
+
+		if (pd_data->performance_state > state)
+			state = pd_data->performance_state;
+	}
+
+	if (state == genpd->performance_state)
+		goto unlock;
+
+	/*
+	 * We aren't propagating performance state changes of a subdomain to its
+	 * masters as we don't have hardware that needs it. Over that, the
+	 * performance states of subdomain and its masters may not have
+	 * one-to-one mapping and would require additional information. We can
+	 * get back to this once we have hardware that needs it. For that
+	 * reason, we don't have to consider performance state of the subdomains
+	 * of genpd here.
+	 */
+
+update_state:
+	if (genpd_status_on(genpd)) {
+		ret = genpd->set_performance_state(genpd, state);
+		if (ret) {
+			gpd_data->performance_state = prev;
+			goto unlock;
+		}
+	}
+
+	genpd->performance_state = state;
+
+unlock:
+	genpd_unlock(genpd);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_genpd_set_performance_state);
+
 static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 {
 	unsigned int state_idx = genpd->state_idx;
@@ -256,6 +345,15 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 		return ret;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
+
+	if (unlikely(genpd->set_performance_state)) {
+		ret = genpd->set_performance_state(genpd, genpd->performance_state);
+		if (ret) {
+			pr_warn("%s: Failed to set performance state %d (%d)\n",
+				genpd->name, genpd->performance_state, ret);
+		}
+	}
+
 	if (elapsed_ns <= genpd->states[state_idx].power_on_latency_ns)
 		return ret;
 
