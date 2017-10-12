@@ -52,7 +52,7 @@
 
 #define ADS1015_CFG_COMP_QUE_MASK	GENMASK(1, 0)
 #define ADS1015_CFG_COMP_LAT_MASK	BIT(2)
-#define ADS1015_CFG_COMP_POL_MASK	BIT(2)
+#define ADS1015_CFG_COMP_POL_MASK	BIT(3)
 #define ADS1015_CFG_COMP_MODE_MASK	BIT(4)
 #define ADS1015_CFG_DR_MASK	GENMASK(7, 5)
 #define ADS1015_CFG_MOD_MASK	BIT(8)
@@ -1017,10 +1017,12 @@ static int ads1015_probe(struct i2c_client *client,
 
 		switch (irq_trig) {
 		case IRQF_TRIGGER_LOW:
-			cfg_comp |= ADS1015_CFG_COMP_POL_LOW;
+			cfg_comp |= ADS1015_CFG_COMP_POL_LOW <<
+					ADS1015_CFG_COMP_POL_SHIFT;
 			break;
 		case IRQF_TRIGGER_HIGH:
-			cfg_comp |= ADS1015_CFG_COMP_POL_HIGH;
+			cfg_comp |= ADS1015_CFG_COMP_POL_HIGH <<
+					ADS1015_CFG_COMP_POL_SHIFT;
 			break;
 		default:
 			return -EINVAL;

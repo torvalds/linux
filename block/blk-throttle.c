@@ -1911,11 +1911,11 @@ static void throtl_upgrade_state(struct throtl_data *td)
 
 		tg->disptime = jiffies - 1;
 		throtl_select_dispatch(sq);
-		throtl_schedule_next_dispatch(sq, false);
+		throtl_schedule_next_dispatch(sq, true);
 	}
 	rcu_read_unlock();
 	throtl_select_dispatch(&td->service_queue);
-	throtl_schedule_next_dispatch(&td->service_queue, false);
+	throtl_schedule_next_dispatch(&td->service_queue, true);
 	queue_work(kthrotld_workqueue, &td->dispatch_work);
 }
 

@@ -1459,7 +1459,19 @@ xfs_shift_file_space(
 		return error;
 
 	/*
-	 * The extent shiting code works on extent granularity. So, if
+	 * Clean out anything hanging around in the cow fork now that
+	 * we've flushed all the dirty data out to disk to avoid having
+	 * CoW extents at the wrong offsets.
+	 */
+	if (xfs_is_reflink_inode(ip)) {
+		error = xfs_reflink_cancel_cow_range(ip, offset, NULLFILEOFF,
+				true);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * The extent shifting code works on extent granularity. So, if
 	 * stop_fsb is not the starting block of extent, we need to split
 	 * the extent at stop_fsb.
 	 */
@@ -2110,11 +2122,31 @@ xfs_swap_extents(
 		ip->i_d.di_flags2 |= tip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK;
 		tip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
 		tip->i_d.di_flags2 |= f & XFS_DIFLAG2_REFLINK;
+	}
+
+	/* Swap the cow forks. */
+	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+		xfs_extnum_t	extnum;
+
+		ASSERT(ip->i_cformat == XFS_DINODE_FMT_EXTENTS);
+		ASSERT(tip->i_cformat == XFS_DINODE_FMT_EXTENTS);
+
+		extnum = ip->i_cnextents;
+		ip->i_cnextents = tip->i_cnextents;
+		tip->i_cnextents = extnum;
+
 		cowfp = ip->i_cowfp;
 		ip->i_cowfp = tip->i_cowfp;
 		tip->i_cowfp = cowfp;
-		xfs_inode_set_cowblocks_tag(ip);
-		xfs_inode_set_cowblocks_tag(tip);
+
+		if (ip->i_cowfp && ip->i_cnextents)
+			xfs_inode_set_cowblocks_tag(ip);
+		else
+			xfs_inode_clear_cowblocks_tag(ip);
+		if (tip->i_cowfp && tip->i_cnextents)
+			xfs_inode_set_cowblocks_tag(tip);
+		else
+			xfs_inode_clear_cowblocks_tag(tip);
 	}
 
 	xfs_trans_log_inode(tp, ip,  src_log_flags);

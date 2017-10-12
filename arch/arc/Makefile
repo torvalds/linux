@@ -6,8 +6,6 @@
 # published by the Free Software Foundation.
 #
 
-UTS_MACHINE := arc
-
 ifeq ($(CROSS_COMPILE),)
 ifndef CONFIG_CPU_BIG_ENDIAN
 CROSS_COMPILE := arc-linux-

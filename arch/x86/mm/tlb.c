@@ -191,7 +191,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			 * mapped in the new pgd, we'll double-fault.  Forcibly
 			 * map it.
 			 */
-			unsigned int index = pgd_index(current_stack_pointer());
+			unsigned int index = pgd_index(current_stack_pointer);
 			pgd_t *pgd = next->pgd + index;
 
 			if (unlikely(pgd_none(*pgd)))

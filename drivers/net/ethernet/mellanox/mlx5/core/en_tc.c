@@ -1317,6 +1317,69 @@ static bool csum_offload_supported(struct mlx5e_priv *priv, u32 action, u32 upda
 	return true;
 }
 
+static bool modify_header_match_supported(struct mlx5_flow_spec *spec,
+					  struct tcf_exts *exts)
+{
+	const struct tc_action *a;
+	bool modify_ip_header;
+	LIST_HEAD(actions);
+	u8 htype, ip_proto;
+	void *headers_v;
+	u16 ethertype;
+	int nkeys, i;
+
+	headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
+	ethertype = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ethertype);
+
+	/* for non-IP we only re-write MACs, so we're okay */
+	if (ethertype != ETH_P_IP && ethertype != ETH_P_IPV6)
+		goto out_ok;
+
+	modify_ip_header = false;
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
+		if (!is_tcf_pedit(a))
+			continue;
+
+		nkeys = tcf_pedit_nkeys(a);
+		for (i = 0; i < nkeys; i++) {
+			htype = tcf_pedit_htype(a, i);
+			if (htype == TCA_PEDIT_KEY_EX_HDR_TYPE_IP4 ||
+			    htype == TCA_PEDIT_KEY_EX_HDR_TYPE_IP6) {
+				modify_ip_header = true;
+				break;
+			}
+		}
+	}
+
+	ip_proto = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ip_protocol);
+	if (modify_ip_header && ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP) {
+		pr_info("can't offload re-write of ip proto %d\n", ip_proto);
+		return false;
+	}
+
+out_ok:
+	return true;
+}
+
+static bool actions_match_supported(struct mlx5e_priv *priv,
+				    struct tcf_exts *exts,
+				    struct mlx5e_tc_flow_parse_attr *parse_attr,
+				    struct mlx5e_tc_flow *flow)
+{
+	u32 actions;
+
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+		actions = flow->esw_attr->action;
+	else
+		actions = flow->nic_attr->action;
+
+	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+		return modify_header_match_supported(&parse_attr->spec, exts);
+
+	return true;
+}
+
 static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
 				struct mlx5e_tc_flow *flow)
@@ -1377,6 +1440,9 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 		return -EINVAL;
 	}
+
+	if (!actions_match_supported(priv, exts, parse_attr, flow))
+		return -EOPNOTSUPP;
 
 	return 0;
 }
@@ -1564,7 +1630,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 		break;
 	default:
 		err = -EOPNOTSUPP;
-		goto out;
+		goto free_encap;
 	}
 	fl4.flowi4_tos = tun_key->tos;
 	fl4.daddr = tun_key->u.ipv4.dst;
@@ -1573,7 +1639,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev,
 				      &fl4, &n, &ttl);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
 	 * entry in the neigh hash table when a user deletes a rule
@@ -1590,7 +1656,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	 */
 	err = mlx5e_rep_encap_entry_attach(netdev_priv(out_dev), e);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	read_lock_bh(&n->lock);
 	nud_state = n->nud_state;
@@ -1630,8 +1696,9 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 
 destroy_neigh_entry:
 	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-out:
+free_encap:
 	kfree(encap_header);
+out:
 	if (n)
 		neigh_release(n);
 	return err;
@@ -1668,7 +1735,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 		break;
 	default:
 		err = -EOPNOTSUPP;
-		goto out;
+		goto free_encap;
 	}
 
 	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
@@ -1678,7 +1745,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev,
 				      &fl6, &n, &ttl);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
 	 * entry in the neigh hash table when a user deletes a rule
@@ -1695,7 +1762,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	 */
 	err = mlx5e_rep_encap_entry_attach(netdev_priv(out_dev), e);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	read_lock_bh(&n->lock);
 	nud_state = n->nud_state;
@@ -1736,8 +1803,9 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 
 destroy_neigh_entry:
 	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-out:
+free_encap:
 	kfree(encap_header);
+out:
 	if (n)
 		neigh_release(n);
 	return err;
@@ -1791,6 +1859,7 @@ vxlan_encap_offload_err:
 		}
 	}
 
+	/* must verify if encap is valid or not */
 	if (found)
 		goto attach_flow;
 
@@ -1817,6 +1886,8 @@ attach_flow:
 	*encap_dev = e->out_dev;
 	if (e->flags & MLX5_ENCAP_ENTRY_VALID)
 		attr->encap_id = e->encap_id;
+	else
+		err = -EAGAIN;
 
 	return err;
 
@@ -1934,6 +2005,10 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 		return -EINVAL;
 	}
+
+	if (!actions_match_supported(priv, exts, parse_attr, flow))
+		return -EOPNOTSUPP;
+
 	return err;
 }
 

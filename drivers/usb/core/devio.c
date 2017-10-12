@@ -140,6 +140,9 @@ module_param(usbfs_memory_mb, uint, 0644);
 MODULE_PARM_DESC(usbfs_memory_mb,
 		"maximum MB allowed for usbfs buffers (0 = no limit)");
 
+/* Hard limit, necessary to avoid arithmetic overflow */
+#define USBFS_XFER_MAX         (UINT_MAX / 2 - 1000000)
+
 static atomic64_t usbfs_memory_usage;	/* Total memory currently allocated */
 
 /* Check whether it's okay to allocate more memory for a transfer */
@@ -1460,6 +1463,8 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 				USBDEVFS_URB_ZERO_PACKET |
 				USBDEVFS_URB_NO_INTERRUPT))
 		return -EINVAL;
+	if ((unsigned int)uurb->buffer_length >= USBFS_XFER_MAX)
+		return -EINVAL;
 	if (uurb->buffer_length > 0 && !uurb->buffer)
 		return -EINVAL;
 	if (!(uurb->type == USBDEVFS_URB_TYPE_CONTROL &&
@@ -1571,7 +1576,11 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 			totlen += isopkt[u].length;
 		}
 		u *= sizeof(struct usb_iso_packet_descriptor);
-		uurb->buffer_length = totlen;
+		if (totlen <= uurb->buffer_length)
+			uurb->buffer_length = totlen;
+		else
+			WARN_ONCE(1, "uurb->buffer_length is too short %d vs %d",
+				  totlen, uurb->buffer_length);
 		break;
 
 	default:

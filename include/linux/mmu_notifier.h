@@ -400,6 +400,11 @@ extern void mmu_notifier_synchronize(void);
 
 #else /* CONFIG_MMU_NOTIFIER */
 
+static inline int mm_has_notifiers(struct mm_struct *mm)
+{
+	return 0;
+}
+
 static inline void mmu_notifier_release(struct mm_struct *mm)
 {
 }
