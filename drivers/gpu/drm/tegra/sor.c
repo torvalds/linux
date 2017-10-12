@@ -184,7 +184,6 @@ struct tegra_sor {
 
 	struct drm_info_list *debugfs_files;
 	struct drm_minor *minor;
-	struct dentry *debugfs;
 
 	const struct tegra_sor_ops *ops;
 
@@ -1260,13 +1259,9 @@ static const struct drm_info_list debugfs_files[] = {
 static int tegra_sor_debugfs_init(struct tegra_sor *sor,
 				  struct drm_minor *minor)
 {
-	const char *name = sor->soc->supports_dp ? "sor1" : "sor";
+	struct dentry *root = sor->output.connector.debugfs_entry;
 	unsigned int i;
 	int err;
-
-	sor->debugfs = debugfs_create_dir(name, minor->debugfs_root);
-	if (!sor->debugfs)
-		return -ENOMEM;
 
 	sor->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
 				     GFP_KERNEL);
@@ -1280,7 +1275,7 @@ static int tegra_sor_debugfs_init(struct tegra_sor *sor,
 
 	err = drm_debugfs_create_files(sor->debugfs_files,
 				       ARRAY_SIZE(debugfs_files),
-				       sor->debugfs, minor);
+				       root, minor);
 	if (err < 0)
 		goto free;
 
@@ -1292,13 +1287,14 @@ free:
 	kfree(sor->debugfs_files);
 	sor->debugfs_files = NULL;
 remove:
-	debugfs_remove_recursive(sor->debugfs);
-	sor->debugfs = NULL;
+	debugfs_remove_recursive(root);
 	return err;
 }
 
 static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 {
+	struct dentry *root = sor->output.connector.debugfs_entry;
+
 	drm_debugfs_remove_files(sor->debugfs_files, ARRAY_SIZE(debugfs_files),
 				 sor->minor);
 	sor->minor = NULL;
@@ -1306,8 +1302,7 @@ static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 	kfree(sor->debugfs_files);
 	sor->debugfs_files = NULL;
 
-	debugfs_remove_recursive(sor->debugfs);
-	sor->debugfs = NULL;
+	debugfs_remove_recursive(root);
 }
 
 static void tegra_sor_connector_reset(struct drm_connector *connector)
