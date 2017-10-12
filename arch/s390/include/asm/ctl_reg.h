@@ -7,6 +7,16 @@
 #ifndef __ASM_CTL_REG_H
 #define __ASM_CTL_REG_H
 
+#include <linux/const.h>
+
+#define CR14_CHANNEL_REPORT_SUBMASK	_BITUL(63 - 35)
+#define CR14_RECOVERY_SUBMASK		_BITUL(63 - 36)
+#define CR14_DEGRADATION_SUBMASK	_BITUL(63 - 37)
+#define CR14_EXTERNAL_DAMAGE_SUBMASK	_BITUL(63 - 38)
+#define CR14_WARNING_SUBMASK		_BITUL(63 - 39)
+
+#ifndef __ASSEMBLY__
+
 #include <linux/bug.h>
 
 #define __ctl_load(array, low, high) do {				\
@@ -95,4 +105,5 @@ union ctlreg2 {
 # define ctl_clear_bit(cr, bit) __ctl_clear_bit(cr, bit)
 #endif
 
+#endif /* __ASSEMBLY__ */
 #endif /* __ASM_CTL_REG_H */
