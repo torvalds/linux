@@ -573,12 +573,12 @@ struct amdgpu_dm_connector *amdgpu_dm_find_first_crct_matching_connector(
 	struct drm_crtc *crtc)
 {
 	uint32_t i;
-	struct drm_connector_state *conn_state;
+	struct drm_connector_state *new_con_state;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc_from_state;
 
-	for_each_new_connector_in_state(state, connector, conn_state, i) {
-		crtc_from_state = conn_state->crtc;
+	for_each_new_connector_in_state(state, connector, new_con_state, i) {
+		crtc_from_state = new_con_state->crtc;
 
 		if (crtc_from_state == crtc)
 			return to_amdgpu_dm_connector(connector);
@@ -608,7 +608,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	struct amdgpu_dm_connector *aconnector;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 	int ret = 0;
 	int i;
 
@@ -644,8 +644,8 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	}
 
 	/* Force mode set in atomic comit */
-	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, crtc_state, i)
-			crtc_state->active_changed = true;
+	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i)
+		new_crtc_state->active_changed = true;
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
 
@@ -3971,7 +3971,7 @@ int amdgpu_dm_atomic_commit(
 		bool nonblock)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct amdgpu_device *adev = dev->dev_private;
 	int i;
 
@@ -3982,11 +3982,11 @@ int amdgpu_dm_atomic_commit(
 	 * it will update crtc->dm_crtc_state->stream pointer which is used in
 	 * the ISRs.
 	 */
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct dm_crtc_state *old_acrtc_state = to_dm_crtc_state(old_crtc_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-		if (drm_atomic_crtc_needs_modeset(new_state) && old_acrtc_state->stream)
+		if (drm_atomic_crtc_needs_modeset(new_crtc_state) && old_acrtc_state->stream)
 			manage_dm_interrupts(adev, acrtc, false);
 	}
 
@@ -4011,7 +4011,7 @@ void amdgpu_dm_atomic_commit_tail(
 	unsigned long flags;
 	bool wait_for_vblank = true;
 	struct drm_connector *connector;
-	struct drm_connector_state *old_conn_state, *new_con_state;
+	struct drm_connector_state *old_con_state, *new_con_state;
 	struct dm_crtc_state *old_acrtc_state, *new_acrtc_state;
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
@@ -4145,9 +4145,9 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* Handle scaling and undersacn changes*/
-	for_each_oldnew_connector_in_state(state, connector, old_conn_state, new_con_state, i) {
+	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *con_new_state = to_dm_connector_state(new_con_state);
-		struct dm_connector_state *con_old_state = to_dm_connector_state(old_conn_state);
+		struct dm_connector_state *con_old_state = to_dm_connector_state(old_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(con_new_state->base.crtc);
 		struct dc_stream_status *status = NULL;
 
@@ -4375,7 +4375,7 @@ static int dm_update_crtcs_state(
 		bool *lock_and_validation_needed)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int i;
 	struct dm_crtc_state *old_acrtc_state, *new_acrtc_state;
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
@@ -4384,34 +4384,34 @@ static int dm_update_crtcs_state(
 
 	/*TODO Move this code into dm_crtc_atomic_check once we get rid of dc_validation_set */
 	/* update changed items */
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = NULL;
 		struct amdgpu_dm_connector *aconnector = NULL;
-		struct drm_connector_state *conn_state = NULL;
+		struct drm_connector_state *new_con_state = NULL;
 		struct dm_connector_state *dm_conn_state = NULL;
 
 		new_stream = NULL;
 
 		old_acrtc_state = to_dm_crtc_state(old_crtc_state);
-		new_acrtc_state = to_dm_crtc_state(crtc_state);
+		new_acrtc_state = to_dm_crtc_state(new_crtc_state);
 		acrtc = to_amdgpu_crtc(crtc);
 
 		aconnector = amdgpu_dm_find_first_crct_matching_connector(state, crtc);
 
 		/* TODO This hack should go away */
 		if (aconnector) {
-			conn_state = drm_atomic_get_connector_state(state,
-								    &aconnector->base);
+			new_con_state = drm_atomic_get_connector_state(state,
+ 								    &aconnector->base);
 
-			if (IS_ERR(conn_state)) {
-				ret = PTR_ERR_OR_ZERO(conn_state);
+			if (IS_ERR(new_con_state)) {
+				ret = PTR_ERR_OR_ZERO(new_con_state);
 				break;
 			}
 
-			dm_conn_state = to_dm_connector_state(conn_state);
+			dm_conn_state = to_dm_connector_state(new_con_state);
 
 			new_stream = create_stream_for_sink(aconnector,
-							    &crtc_state->mode,
+							     &new_crtc_state->mode,
 							    dm_conn_state);
 
 			/*
@@ -4431,14 +4431,14 @@ static int dm_update_crtcs_state(
 		if (dc_is_stream_unchanged(new_stream,
 				old_acrtc_state->stream)) {
 
-				crtc_state->mode_changed = false;
+			new_crtc_state->mode_changed = false;
 
-				DRM_DEBUG_DRIVER("Mode change not required, setting mode_changed to %d",
-					      crtc_state->mode_changed);
+			DRM_DEBUG_DRIVER("Mode change not required, setting mode_changed to %d",
+					new_crtc_state->mode_changed);
 		}
 
 
-		if (!drm_atomic_crtc_needs_modeset(crtc_state))
+		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			goto next_crtc;
 
 		DRM_DEBUG_DRIVER(
@@ -4446,12 +4446,12 @@ static int dm_update_crtcs_state(
 			"planes_changed:%d, mode_changed:%d,active_changed:%d,"
 			"connectors_changed:%d\n",
 			acrtc->crtc_id,
-			crtc_state->enable,
-			crtc_state->active,
-			crtc_state->planes_changed,
-			crtc_state->mode_changed,
-			crtc_state->active_changed,
-			crtc_state->connectors_changed);
+			new_crtc_state->enable,
+			new_crtc_state->active,
+			new_crtc_state->planes_changed,
+			new_crtc_state->mode_changed,
+			new_crtc_state->active_changed,
+			new_crtc_state->connectors_changed);
 
 		/* Remove stream for any changed/disabled CRTC */
 		if (!enable) {
@@ -4478,10 +4478,10 @@ static int dm_update_crtcs_state(
 
 		} else {/* Add stream for any updated/enabled CRTC */
 
-			if (modereset_required(crtc_state))
+			if (modereset_required(new_crtc_state))
 				goto next_crtc;
 
-			if (modeset_required(crtc_state, new_stream,
+			if (modeset_required(new_crtc_state, new_stream,
 					     old_acrtc_state->stream)) {
 
 				WARN_ON(new_acrtc_state->stream);
@@ -4646,9 +4646,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct dc *dc = adev->dm.dc;
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
 	struct drm_connector *connector;
-	struct drm_connector_state *old_con_state, *conn_state;
+	struct drm_connector_state *old_con_state, *new_con_state;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 
 	/*
 	 * This bool will be set for true for any modeset/reset
@@ -4667,8 +4667,8 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 * Hack: Commit needs planes right now, specifically for gamma
 	 * TODO rework commit to check CRTC for gamma change
 	 */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc_state->color_mgmt_changed) {
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->color_mgmt_changed) {
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				goto fail;
@@ -4713,9 +4713,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 * new stream into context w\o causing full reset. Need to
 	 * decide how to handle.
 	 */
-	for_each_oldnew_connector_in_state(state, connector, old_con_state, conn_state, i) {
+	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *con_old_state = to_dm_connector_state(old_con_state);
-		struct dm_connector_state *con_new_state = to_dm_connector_state(conn_state);
+		struct dm_connector_state *con_new_state = to_dm_connector_state(new_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(con_new_state->base.crtc);
 
 		/* Skip any modesets/resets */
