@@ -72,9 +72,10 @@
  * - 3.20.0 - Add support for local BOs
  * - 3.21.0 - Add DRM_AMDGPU_FENCE_TO_HANDLE ioctl
  * - 3.22.0 - Add DRM_AMDGPU_SCHED ioctl
+ * - 3.23.0 - Add query for VRAM lost counter
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	22
+#define KMS_DRIVER_MINOR	23
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
