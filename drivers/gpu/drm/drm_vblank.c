@@ -251,7 +251,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	}
 
 	DRM_DEBUG_VBL("updating vblank count on crtc %u:"
-		      " current=%u, diff=%u, hw=%u hw_last=%u\n",
+		      " current=%llu, diff=%u, hw=%u hw_last=%u\n",
 		      pipe, vblank->count, diff, cur_vblank, vblank->last);
 
 	if (diff == 0) {
@@ -740,17 +740,31 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
  * Returns:
  * The software vblank counter.
  */
-u32 drm_crtc_vblank_count(struct drm_crtc *crtc)
+u64 drm_crtc_vblank_count(struct drm_crtc *crtc)
 {
 	return drm_vblank_count(crtc->dev, drm_crtc_index(crtc));
 }
 EXPORT_SYMBOL(drm_crtc_vblank_count);
 
-static u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
+/**
+ * drm_vblank_count_and_time - retrieve "cooked" vblank counter value and the
+ *     system timestamp corresponding to that vblank counter value.
+ * @dev: DRM device
+ * @pipe: index of CRTC whose counter to retrieve
+ * @vblanktime: Pointer to ktime_t to receive the vblank timestamp.
+ *
+ * Fetches the "cooked" vblank count value that represents the number of
+ * vblank events since the system was booted, including lost events due to
+ * modesetting activity. Returns corresponding system timestamp of the time
+ * of the vblank interval that corresponds to the current vblank counter value.
+ *
+ * This is the legacy version of drm_crtc_vblank_count_and_time().
+ */
+static u64 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 				     ktime_t *vblanktime)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-	u32 vblank_count;
+	u64 vblank_count;
 	unsigned int seq;
 
 	if (WARN_ON(pipe >= dev->num_crtcs)) {
@@ -778,7 +792,7 @@ static u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
  * modesetting activity. Returns corresponding system timestamp of the time
  * of the vblank interval that corresponds to the current vblank counter value.
  */
-u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
+u64 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
 				   ktime_t *vblanktime)
 {
 	return drm_vblank_count_and_time(crtc->dev, drm_crtc_index(crtc),
@@ -788,7 +802,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_count_and_time);
 
 static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
-		unsigned long seq, ktime_t now)
+		u64 seq, ktime_t now)
 {
 	struct timespec64 tv = ktime_to_timespec64(now);
 
@@ -854,7 +868,7 @@ void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 	assert_spin_locked(&dev->event_lock);
 
 	e->pipe = pipe;
-	e->event.sequence = drm_crtc_accurate_vblank_count(crtc) + 1;
+	e->sequence = drm_crtc_accurate_vblank_count(crtc) + 1;
 	e->event.crtc_id = crtc->base.id;
 	list_add_tail(&e->base.link, &dev->vblank_event_list);
 }
@@ -875,7 +889,8 @@ void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 				struct drm_pending_vblank_event *e)
 {
 	struct drm_device *dev = crtc->dev;
-	unsigned int seq, pipe = drm_crtc_index(crtc);
+	u64 seq;
+	unsigned int pipe = drm_crtc_index(crtc);
 	ktime_t now;
 
 	if (dev->num_crtcs > 0) {
@@ -1088,7 +1103,7 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 
 	ktime_t now;
 	unsigned long irqflags;
-	unsigned int seq;
+	u64 seq;
 
 	if (WARN_ON(pipe >= dev->num_crtcs))
 		return;
@@ -1123,8 +1138,8 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 		if (e->pipe != pipe)
 			continue;
 		DRM_DEBUG("Sending premature vblank event on disable: "
-			  "wanted %u, current %u\n",
-			  e->event.sequence, seq);
+			  "wanted %llu, current %llu\n",
+			  e->sequence, seq);
 		list_del(&e->base.link);
 		drm_vblank_put(dev, pipe);
 		send_vblank_event(dev, e, seq, now);
@@ -1296,12 +1311,13 @@ int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static inline bool vblank_passed(u32 seq, u32 ref)
+static inline bool vblank_passed(u64 seq, u64 ref)
 {
 	return (seq - ref) <= (1 << 23);
 }
 
 static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
+				  u64 req_seq,
 				  union drm_wait_vblank *vblwait,
 				  struct drm_file *file_priv)
 {
@@ -1309,7 +1325,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	struct drm_pending_vblank_event *e;
 	ktime_t now;
 	unsigned long flags;
-	unsigned int seq;
+	u64 seq;
 	int ret;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
@@ -1344,21 +1360,20 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 
 	seq = drm_vblank_count_and_time(dev, pipe, &now);
 
-	DRM_DEBUG("event on vblank count %u, current %u, crtc %u\n",
-		  vblwait->request.sequence, seq, pipe);
+	DRM_DEBUG("event on vblank count %llu, current %llu, crtc %u\n",
+		  req_seq, seq, pipe);
 
-	trace_drm_vblank_event_queued(file_priv, pipe,
-				      vblwait->request.sequence);
+	trace_drm_vblank_event_queued(file_priv, pipe, req_seq);
 
-	e->event.sequence = vblwait->request.sequence;
-	if (vblank_passed(seq, vblwait->request.sequence)) {
+	e->sequence = req_seq;
+	if (vblank_passed(seq, req_seq)) {
 		drm_vblank_put(dev, pipe);
 		send_vblank_event(dev, e, seq, now);
 		vblwait->reply.sequence = seq;
 	} else {
 		/* drm_handle_vblank_events will call drm_vblank_put */
 		list_add_tail(&e->base.link, &dev->vblank_event_list);
-		vblwait->reply.sequence = vblwait->request.sequence;
+		vblwait->reply.sequence = req_seq;
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -1384,6 +1399,22 @@ static bool drm_wait_vblank_is_query(union drm_wait_vblank *vblwait)
 					  _DRM_VBLANK_NEXTONMISS));
 }
 
+/*
+ * Widen a 32-bit param to 64-bits.
+ *
+ * \param narrow 32-bit value (missing upper 32 bits)
+ * \param near 64-bit value that should be 'close' to near
+ *
+ * This function returns a 64-bit value using the lower 32-bits from
+ * 'narrow' and constructing the upper 32-bits so that the result is
+ * as close as possible to 'near'.
+ */
+
+static u64 widen_32_to_64(u32 narrow, u64 near)
+{
+	return near + (s32) (narrow - near);
+}
+
 static void drm_wait_vblank_reply(struct drm_device *dev, unsigned int pipe,
 				  struct drm_wait_vblank_reply *reply)
 {
@@ -1407,7 +1438,8 @@ int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 	struct drm_vblank_crtc *vblank;
 	union drm_wait_vblank *vblwait = data;
 	int ret;
-	unsigned int flags, seq, pipe, high_pipe;
+	u64 req_seq, seq;
+	unsigned int flags, pipe, high_pipe;
 
 	if (!dev->irq_enabled)
 		return -EINVAL;
@@ -1455,9 +1487,12 @@ int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 
 	switch (vblwait->request.type & _DRM_VBLANK_TYPES_MASK) {
 	case _DRM_VBLANK_RELATIVE:
-		vblwait->request.sequence += seq;
+		req_seq = seq + vblwait->request.sequence;
+		vblwait->request.sequence = req_seq;
 		vblwait->request.type &= ~_DRM_VBLANK_RELATIVE;
+		break;
 	case _DRM_VBLANK_ABSOLUTE:
+		req_seq = widen_32_to_64(vblwait->request.sequence, seq);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1465,22 +1500,25 @@ int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if ((flags & _DRM_VBLANK_NEXTONMISS) &&
-	    vblank_passed(seq, vblwait->request.sequence))
-		vblwait->request.sequence = seq + 1;
+	    vblank_passed(seq, req_seq)) {
+		req_seq = seq + 1;
+		vblwait->request.type &= ~_DRM_VBLANK_NEXTONMISS;
+		vblwait->request.sequence = req_seq;
+	}
 
 	if (flags & _DRM_VBLANK_EVENT) {
 		/* must hold on to the vblank ref until the event fires
 		 * drm_vblank_put will be called asynchronously
 		 */
-		return drm_queue_vblank_event(dev, pipe, vblwait, file_priv);
+		return drm_queue_vblank_event(dev, pipe, req_seq, vblwait, file_priv);
 	}
 
-	if (vblwait->request.sequence != seq) {
-		DRM_DEBUG("waiting on vblank count %u, crtc %u\n",
-			  vblwait->request.sequence, pipe);
+	if (req_seq != seq) {
+		DRM_DEBUG("waiting on vblank count %llu, crtc %u\n",
+			  req_seq, pipe);
 		DRM_WAIT_ON(ret, vblank->queue, 3 * HZ,
 			    vblank_passed(drm_vblank_count(dev, pipe),
-					  vblwait->request.sequence) ||
+					  req_seq) ||
 			    !READ_ONCE(vblank->enabled));
 	}
 
@@ -1502,7 +1540,7 @@ static void drm_handle_vblank_events(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_pending_vblank_event *e, *t;
 	ktime_t now;
-	unsigned int seq;
+	u64 seq;
 
 	assert_spin_locked(&dev->event_lock);
 
@@ -1511,11 +1549,11 @@ static void drm_handle_vblank_events(struct drm_device *dev, unsigned int pipe)
 	list_for_each_entry_safe(e, t, &dev->vblank_event_list, base.link) {
 		if (e->pipe != pipe)
 			continue;
-		if (!vblank_passed(seq, e->event.sequence))
+		if (!vblank_passed(seq, e->sequence))
 			continue;
 
-		DRM_DEBUG("vblank event on %u, current %u\n",
-			  e->event.sequence, seq);
+		DRM_DEBUG("vblank event on %llu, current %llu\n",
+			  e->sequence, seq);
 
 		list_del(&e->base.link);
 		drm_vblank_put(dev, pipe);

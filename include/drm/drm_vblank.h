@@ -48,6 +48,10 @@ struct drm_pending_vblank_event {
 	 */
 	unsigned int pipe;
 	/**
+	 * @sequence: frame event should be triggered at
+	 */
+	u64 sequence;
+	/**
 	 * @event: Actual event which will be sent to userspace.
 	 */
 	struct drm_event_vblank event;
@@ -88,7 +92,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @count: Current software vblank counter.
 	 */
-	u32 count;
+	u64 count;
 	/**
 	 * @time: Vblank timestamp corresponding to @count.
 	 */
@@ -152,8 +156,8 @@ struct drm_vblank_crtc {
 };
 
 int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs);
-u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
-u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
+u64 drm_crtc_vblank_count(struct drm_crtc *crtc);
+u64 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
 				   ktime_t *vblanktime);
 void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 			       struct drm_pending_vblank_event *e);
