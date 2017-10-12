@@ -1590,6 +1590,36 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
  * Dynamic controls
  */
 
+/*
+ * Retrieve flags for a given control
+ */
+static int uvc_ctrl_get_flags(struct uvc_device *dev,
+			      const struct uvc_control *ctrl,
+			      struct uvc_control_info *info)
+{
+	u8 *data;
+	int ret;
+
+	data = kmalloc(1, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id, dev->intfnum,
+			     info->selector, data, 1);
+	if (!ret)
+		info->flags = UVC_CTRL_FLAG_GET_MIN | UVC_CTRL_FLAG_GET_MAX
+			    | UVC_CTRL_FLAG_GET_RES | UVC_CTRL_FLAG_GET_DEF
+			    | (data[0] & UVC_CONTROL_CAP_GET ?
+			       UVC_CTRL_FLAG_GET_CUR : 0)
+			    | (data[0] & UVC_CONTROL_CAP_SET ?
+			       UVC_CTRL_FLAG_SET_CUR : 0)
+			    | (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
+			       UVC_CTRL_FLAG_AUTO_UPDATE : 0);
+
+	kfree(data);
+	return ret;
+}
+
 static void uvc_ctrl_fixup_xu_info(struct uvc_device *dev,
 	const struct uvc_control *ctrl, struct uvc_control_info *info)
 {
@@ -1659,24 +1689,13 @@ static int uvc_ctrl_fill_xu_info(struct uvc_device *dev,
 
 	info->size = le16_to_cpup((__le16 *)data);
 
-	/* Query the control information (GET_INFO) */
-	ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id, dev->intfnum,
-			     info->selector, data, 1);
+	ret = uvc_ctrl_get_flags(dev, ctrl, info);
 	if (ret < 0) {
 		uvc_trace(UVC_TRACE_CONTROL,
-			  "GET_INFO failed on control %pUl/%u (%d).\n",
+			  "Failed to get flags for control %pUl/%u (%d).\n",
 			  info->entity, info->selector, ret);
 		goto done;
 	}
-
-	info->flags = UVC_CTRL_FLAG_GET_MIN | UVC_CTRL_FLAG_GET_MAX
-		    | UVC_CTRL_FLAG_GET_RES | UVC_CTRL_FLAG_GET_DEF
-		    | (data[0] & UVC_CONTROL_CAP_GET ?
-		       UVC_CTRL_FLAG_GET_CUR : 0)
-		    | (data[0] & UVC_CONTROL_CAP_SET ?
-		       UVC_CTRL_FLAG_SET_CUR : 0)
-		    | (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
-		       UVC_CTRL_FLAG_AUTO_UPDATE : 0);
 
 	uvc_ctrl_fixup_xu_info(dev, ctrl, info);
 
@@ -1901,6 +1920,13 @@ static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
 		ret = -ENOMEM;
 		goto done;
 	}
+
+	/*
+	 * Retrieve control flags from the device. Ignore errors and work with
+	 * default flag values from the uvc_ctrl array when the device doesn't
+	 * properly implement GET_INFO on standard controls.
+	 */
+	uvc_ctrl_get_flags(dev, ctrl, &ctrl->info);
 
 	ctrl->initialized = 1;
 
