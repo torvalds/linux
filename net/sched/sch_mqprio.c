@@ -153,6 +153,10 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!netif_is_multiqueue(dev))
 		return -EOPNOTSUPP;
 
+	/* make certain can allocate enough classids to handle queues */
+	if (dev->num_tx_queues >= TC_H_MIN_PRIORITY)
+		return -ENOMEM;
+
 	if (!opt || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 
@@ -305,7 +309,7 @@ static struct netdev_queue *mqprio_queue_get(struct Qdisc *sch,
 					     unsigned long cl)
 {
 	struct net_device *dev = qdisc_dev(sch);
-	unsigned long ntx = cl - 1 - netdev_get_num_tc(dev);
+	unsigned long ntx = cl - 1;
 
 	if (ntx >= dev->num_tx_queues)
 		return NULL;
@@ -447,38 +451,35 @@ static unsigned long mqprio_find(struct Qdisc *sch, u32 classid)
 	struct net_device *dev = qdisc_dev(sch);
 	unsigned int ntx = TC_H_MIN(classid);
 
-	if (ntx > dev->num_tx_queues + netdev_get_num_tc(dev))
-		return 0;
-	return ntx;
+	/* There are essentially two regions here that have valid classid
+	 * values. The first region will have a classid value of 1 through
+	 * num_tx_queues. All of these are backed by actual Qdiscs.
+	 */
+	if (ntx < TC_H_MIN_PRIORITY)
+		return (ntx <= dev->num_tx_queues) ? ntx : 0;
+
+	/* The second region represents the hardware traffic classes. These
+	 * are represented by classid values of TC_H_MIN_PRIORITY through
+	 * TC_H_MIN_PRIORITY + netdev_get_num_tc - 1
+	 */
+	return ((ntx - TC_H_MIN_PRIORITY) < netdev_get_num_tc(dev)) ? ntx : 0;
 }
 
 static int mqprio_dump_class(struct Qdisc *sch, unsigned long cl,
 			 struct sk_buff *skb, struct tcmsg *tcm)
 {
-	struct net_device *dev = qdisc_dev(sch);
+	if (cl < TC_H_MIN_PRIORITY) {
+		struct netdev_queue *dev_queue = mqprio_queue_get(sch, cl);
+		struct net_device *dev = qdisc_dev(sch);
+		int tc = netdev_txq_to_tc(dev, cl - 1);
 
-	if (cl <= netdev_get_num_tc(dev)) {
+		tcm->tcm_parent = (tc < 0) ? 0 :
+			TC_H_MAKE(TC_H_MAJ(sch->handle),
+				  TC_H_MIN(tc + TC_H_MIN_PRIORITY));
+		tcm->tcm_info = dev_queue->qdisc_sleeping->handle;
+	} else {
 		tcm->tcm_parent = TC_H_ROOT;
 		tcm->tcm_info = 0;
-	} else {
-		int i;
-		struct netdev_queue *dev_queue;
-
-		dev_queue = mqprio_queue_get(sch, cl);
-		tcm->tcm_parent = 0;
-		for (i = 0; i < netdev_get_num_tc(dev); i++) {
-			struct netdev_tc_txq tc = dev->tc_to_txq[i];
-			int q_idx = cl - netdev_get_num_tc(dev);
-
-			if (q_idx > tc.offset &&
-			    q_idx <= tc.offset + tc.count) {
-				tcm->tcm_parent =
-					TC_H_MAKE(TC_H_MAJ(sch->handle),
-						  TC_H_MIN(i + 1));
-				break;
-			}
-		}
-		tcm->tcm_info = dev_queue->qdisc_sleeping->handle;
 	}
 	tcm->tcm_handle |= TC_H_MIN(cl);
 	return 0;
@@ -489,15 +490,14 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	__releases(d->lock)
 	__acquires(d->lock)
 {
-	struct net_device *dev = qdisc_dev(sch);
-
-	if (cl <= netdev_get_num_tc(dev)) {
+	if (cl >= TC_H_MIN_PRIORITY) {
 		int i;
 		__u32 qlen = 0;
 		struct Qdisc *qdisc;
 		struct gnet_stats_queue qstats = {0};
 		struct gnet_stats_basic_packed bstats = {0};
-		struct netdev_tc_txq tc = dev->tc_to_txq[cl - 1];
+		struct net_device *dev = qdisc_dev(sch);
+		struct netdev_tc_txq tc = dev->tc_to_txq[cl & TC_BITMASK];
 
 		/* Drop lock here it will be reclaimed before touching
 		 * statistics this is required because the d->lock we
@@ -550,12 +550,25 @@ static void mqprio_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 
 	/* Walk hierarchy with a virtual class per tc */
 	arg->count = arg->skip;
-	for (ntx = arg->skip;
-	     ntx < dev->num_tx_queues + netdev_get_num_tc(dev);
-	     ntx++) {
+	for (ntx = arg->skip; ntx < netdev_get_num_tc(dev); ntx++) {
+		if (arg->fn(sch, ntx + TC_H_MIN_PRIORITY, arg) < 0) {
+			arg->stop = 1;
+			return;
+		}
+		arg->count++;
+	}
+
+	/* Pad the values and skip over unused traffic classes */
+	if (ntx < TC_MAX_QUEUE) {
+		arg->count = TC_MAX_QUEUE;
+		ntx = TC_MAX_QUEUE;
+	}
+
+	/* Reset offset, sort out remaining per-queue qdiscs */
+	for (ntx -= TC_MAX_QUEUE; ntx < dev->num_tx_queues; ntx++) {
 		if (arg->fn(sch, ntx + 1, arg) < 0) {
 			arg->stop = 1;
-			break;
+			return;
 		}
 		arg->count++;
 	}

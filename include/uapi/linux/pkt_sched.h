@@ -74,6 +74,7 @@ struct tc_estimator {
 #define TC_H_INGRESS    (0xFFFFFFF1U)
 #define TC_H_CLSACT	TC_H_INGRESS
 
+#define TC_H_MIN_PRIORITY	0xFFE0U
 #define TC_H_MIN_INGRESS	0xFFF2U
 #define TC_H_MIN_EGRESS		0xFFF3U
 
