@@ -132,7 +132,7 @@ failure_2:
 
 		if (slot)
 			kfree(slot);
-	};
+	}
 
 failure_1:
 	kfree(service);
