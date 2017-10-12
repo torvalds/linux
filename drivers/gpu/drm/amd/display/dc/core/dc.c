@@ -926,9 +926,9 @@ bool dc_commit_planes_to_stream(
 		struct dc_state *state)
 {
 	struct dc_surface_update updates[MAX_SURFACES];
-	struct dc_flip_addrs flip_addr[MAX_SURFACES];
-	struct dc_plane_info plane_info[MAX_SURFACES];
-	struct dc_scaling_info scaling_info[MAX_SURFACES];
+	struct dc_flip_addrs *flip_addr;
+	struct dc_plane_info *plane_info;
+	struct dc_scaling_info *scaling_info;
 	int i;
 	struct dc_stream_update *stream_update =
 			kzalloc(sizeof(struct dc_stream_update), GFP_KERNEL);
@@ -938,10 +938,14 @@ bool dc_commit_planes_to_stream(
 		return false;
 	}
 
+	flip_addr = kcalloc(MAX_SURFACES, sizeof(struct dc_flip_addrs),
+			    GFP_KERNEL);
+	plane_info = kcalloc(MAX_SURFACES, sizeof(struct dc_plane_info),
+			     GFP_KERNEL);
+	scaling_info = kcalloc(MAX_SURFACES, sizeof(struct dc_scaling_info),
+			       GFP_KERNEL);
+
 	memset(updates, 0, sizeof(updates));
-	memset(flip_addr, 0, sizeof(flip_addr));
-	memset(plane_info, 0, sizeof(plane_info));
-	memset(scaling_info, 0, sizeof(scaling_info));
 
 	stream_update->src = dc_stream->src;
 	stream_update->dst = dc_stream->dst;
@@ -980,6 +984,9 @@ bool dc_commit_planes_to_stream(
 			new_plane_count,
 			dc_stream, stream_update, plane_states, state);
 
+	kfree(flip_addr);
+	kfree(plane_info);
+	kfree(scaling_info);
 	kfree(stream_update);
 	return true;
 }
