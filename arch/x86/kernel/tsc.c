@@ -962,10 +962,14 @@ static void detect_art(void)
 	if (boot_cpu_data.cpuid_level < ART_CPUID_LEAF)
 		return;
 
-	/* Don't enable ART in a VM, non-stop TSC and TSC_ADJUST required */
+	/*
+	 * Don't enable ART in a VM, non-stop TSC and TSC_ADJUST required,
+	 * and the TSC counter resets must not occur asynchronously.
+	 */
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) ||
 	    !boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||
-	    !boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+	    !boot_cpu_has(X86_FEATURE_TSC_ADJUST) ||
+	    tsc_async_resets)
 		return;
 
 	cpuid(ART_CPUID_LEAF, &art_to_tsc_denominator,
