@@ -58,7 +58,7 @@ static int __load_block_bitmap(struct super_block *sb,
 	int nr_groups = bitmap->s_nr_groups;
 
 	if (block_group >= nr_groups) {
-		udf_debug("block_group (%d) > nr_groups (%d)\n",
+		udf_debug("block_group (%u) > nr_groups (%d)\n",
 			  block_group, nr_groups);
 	}
 
@@ -122,7 +122,7 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 	partmap = &sbi->s_partmaps[bloc->partitionReferenceNum];
 	if (bloc->logicalBlockNum + count < count ||
 	    (bloc->logicalBlockNum + count) > partmap->s_partition_len) {
-		udf_debug("%d < %d || %d + %d > %d\n",
+		udf_debug("%u < %d || %u + %u > %u\n",
 			  bloc->logicalBlockNum, 0,
 			  bloc->logicalBlockNum, count,
 			  partmap->s_partition_len);
@@ -151,9 +151,9 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 		bh = bitmap->s_block_bitmap[bitmap_nr];
 		for (i = 0; i < count; i++) {
 			if (udf_set_bit(bit + i, bh->b_data)) {
-				udf_debug("bit %ld already set\n", bit + i);
+				udf_debug("bit %lu already set\n", bit + i);
 				udf_debug("byte=%2x\n",
-					  ((char *)bh->b_data)[(bit + i) >> 3]);
+					  ((__u8 *)bh->b_data)[(bit + i) >> 3]);
 			}
 		}
 		udf_add_free_space(sb, sbi->s_partition, count);
@@ -364,7 +364,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	partmap = &sbi->s_partmaps[bloc->partitionReferenceNum];
 	if (bloc->logicalBlockNum + count < count ||
 	    (bloc->logicalBlockNum + count) > partmap->s_partition_len) {
-		udf_debug("%d < %d || %d + %d > %d\n",
+		udf_debug("%u < %d || %u + %u > %u\n",
 			  bloc->logicalBlockNum, 0,
 			  bloc->logicalBlockNum, count,
 			  partmap->s_partition_len);
@@ -517,7 +517,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 
 	while (first_block != eloc.logicalBlockNum &&
 	       (etype = udf_next_aext(table, &epos, &eloc, &elen, 1)) != -1) {
-		udf_debug("eloc=%d, elen=%d, first_block=%d\n",
+		udf_debug("eloc=%u, elen=%u, first_block=%u\n",
 			  eloc.logicalBlockNum, elen, first_block);
 		; /* empty loop body */
 	}
