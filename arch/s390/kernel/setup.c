@@ -66,6 +66,7 @@
 #include <asm/sclp.h>
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
+#include <asm/alternative.h>
 #include "entry.h"
 
 /*
@@ -956,6 +957,8 @@ void __init setup_arch(char **cmdline_p)
         /* Setup default console */
 	conmode_default();
 	set_preferred_console();
+
+	apply_alternative_instructions();
 
 	/* Setup zfcpdump support */
 	setup_zfcpdump();
