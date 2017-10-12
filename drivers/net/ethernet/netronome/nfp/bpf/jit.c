@@ -402,8 +402,8 @@ __emit_ld_field(struct nfp_prog *nfp_prog, enum shf_sc sc,
 }
 
 static void
-emit_ld_field_any(struct nfp_prog *nfp_prog, enum shf_sc sc, u8 shift,
-		  swreg dst, u8 bmask, swreg src, bool zero)
+emit_ld_field_any(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
+		  enum shf_sc sc, u8 shift, bool zero)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -424,7 +424,7 @@ static void
 emit_ld_field(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	      enum shf_sc sc, u8 shift)
 {
-	emit_ld_field_any(nfp_prog, sc, shift, dst, bmask, src, false);
+	emit_ld_field_any(nfp_prog, dst, bmask, src, sc, shift, false);
 }
 
 static void emit_nop(struct nfp_prog *nfp_prog)
