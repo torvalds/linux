@@ -160,13 +160,6 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags = 0;
 	int result = 0;
 
-	/* Make sure the urb is initialized. */
-	if (!port->interrupt_in_urb) {
-		dev_err(&port->dev, "%s - interrupt urb not initialized\n",
-			__func__);
-		return -ENODEV;
-	}
-
 	/* Set the private data information for the port. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	metro_priv->control_state = 0;
@@ -342,6 +335,7 @@ static struct usb_serial_driver metrousb_device = {
 	.description		= "Metrologic USB to Serial",
 	.id_table		= id_table,
 	.num_ports		= 1,
+	.num_interrupt_in	= 1,
 	.open			= metrousb_open,
 	.close			= metrousb_cleanup,
 	.read_int_callback	= metrousb_read_int_callback,
