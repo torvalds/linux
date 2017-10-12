@@ -494,6 +494,8 @@ struct intel_crtc_scaler_state {
 
 /* drm_mode->private_flags */
 #define I915_MODE_FLAG_INHERITED 1
+/* Flag to get scanline using frame time stamps */
+#define I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP (1<<1)
 
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
@@ -1898,9 +1900,11 @@ bool ilk_disable_lp_wm(struct drm_device *dev);
 int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);
+void intel_init_ipc(struct drm_i915_private *dev_priv);
+void intel_enable_ipc(struct drm_i915_private *dev_priv);
 static inline int intel_enable_rc6(void)
 {
-	return i915.enable_rc6;
+	return i915_modparams.enable_rc6;
 }
 
 /* intel_sdvo.c */

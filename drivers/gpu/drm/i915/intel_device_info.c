@@ -82,6 +82,39 @@ void intel_device_info_dump(struct drm_i915_private *dev_priv)
 #undef PRINT_FLAG
 }
 
+static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
+{
+	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
+	const u32 fuse2 = I915_READ(GEN8_FUSE2);
+
+	sseu->slice_mask = (fuse2 & GEN10_F2_S_ENA_MASK) >>
+			    GEN10_F2_S_ENA_SHIFT;
+	sseu->subslice_mask = (1 << 4) - 1;
+	sseu->subslice_mask &= ~((fuse2 & GEN10_F2_SS_DIS_MASK) >>
+				 GEN10_F2_SS_DIS_SHIFT);
+
+	sseu->eu_total = hweight32(~I915_READ(GEN8_EU_DISABLE0));
+	sseu->eu_total += hweight32(~I915_READ(GEN8_EU_DISABLE1));
+	sseu->eu_total += hweight32(~I915_READ(GEN8_EU_DISABLE2));
+	sseu->eu_total += hweight8(~(I915_READ(GEN10_EU_DISABLE3) &
+				     GEN10_EU_DIS_SS_MASK));
+
+	/*
+	 * CNL is expected to always have a uniform distribution
+	 * of EU across subslices with the exception that any one
+	 * EU in any one subslice may be fused off for die
+	 * recovery.
+	 */
+	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
+				DIV_ROUND_UP(sseu->eu_total,
+					     sseu_subslice_total(sseu)) : 0;
+
+	/* No restrictions on Power Gating */
+	sseu->has_slice_pg = 1;
+	sseu->has_subslice_pg = 1;
+	sseu->has_eu_pg = 1;
+}
+
 static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
@@ -343,7 +376,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			info->num_sprites[pipe] = 1;
 	}
 
-	if (i915.disable_display) {
+	if (i915_modparams.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");
 		info->num_pipes = 0;
 	} else if (info->num_pipes > 0 &&
@@ -409,10 +442,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
 		broadwell_sseu_info_init(dev_priv);
-	else if (INTEL_INFO(dev_priv)->gen >= 9)
+	else if (INTEL_GEN(dev_priv) == 9)
 		gen9_sseu_info_init(dev_priv);
-
-	WARN_ON(info->has_snoop != !info->has_llc);
+	else if (INTEL_GEN(dev_priv) >= 10)
+		gen10_sseu_info_init(dev_priv);
 
 	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));

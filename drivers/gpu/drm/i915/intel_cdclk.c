@@ -669,8 +669,12 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 	val |= LCPLL_CD_SOURCE_FCLK;
 	I915_WRITE(LCPLL_CTL, val);
 
+	/*
+	 * According to the spec, it should be enough to poll for this 1 us.
+	 * However, extensive testing shows that this can take longer.
+	 */
 	if (wait_for_us(I915_READ(LCPLL_CTL) &
-			LCPLL_CD_SOURCE_FCLK_DONE, 1))
+			LCPLL_CD_SOURCE_FCLK_DONE, 100))
 		DRM_ERROR("Switching to FCLK failed\n");
 
 	val = I915_READ(LCPLL_CTL);

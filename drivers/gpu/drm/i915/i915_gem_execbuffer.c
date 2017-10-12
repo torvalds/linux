@@ -58,6 +58,7 @@ enum {
 
 #define __EXEC_HAS_RELOC	BIT(31)
 #define __EXEC_VALIDATED	BIT(30)
+#define __EXEC_INTERNAL_FLAGS	(~0u << 30)
 #define UPDATE			PIN_OFFSET_FIXED
 
 #define BATCH_OFFSET_BIAS (256*1024)
@@ -679,7 +680,7 @@ static int eb_select_context(struct i915_execbuffer *eb)
 static int eb_lookup_vmas(struct i915_execbuffer *eb)
 {
 	struct radix_tree_root *handles_vma = &eb->ctx->handles_vma;
-	struct drm_i915_gem_object *uninitialized_var(obj);
+	struct drm_i915_gem_object *obj;
 	unsigned int i;
 	int err;
 
@@ -725,19 +726,17 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 			goto err_obj;
 		}
 
+		/* transfer ref to ctx */
 		vma->open_count++;
 		list_add(&lut->obj_link, &obj->lut_list);
 		list_add(&lut->ctx_link, &eb->ctx->handles_list);
 		lut->ctx = eb->ctx;
 		lut->handle = handle;
 
-		/* transfer ref to ctx */
-		obj = NULL;
-
 add_vma:
 		err = eb_add_vma(eb, i, vma);
 		if (unlikely(err))
-			goto err_obj;
+			goto err_vma;
 
 		GEM_BUG_ON(vma != eb->vma[i]);
 		GEM_BUG_ON(vma->exec_flags != &eb->flags[i]);
@@ -766,8 +765,7 @@ add_vma:
 	return eb_reserve(eb);
 
 err_obj:
-	if (obj)
-		i915_gem_object_put(obj);
+	i915_gem_object_put(obj);
 err_vma:
 	eb->vma[i] = NULL;
 	return err;
@@ -1587,7 +1585,7 @@ static int eb_prefault_relocations(const struct i915_execbuffer *eb)
 	const unsigned int count = eb->buffer_count;
 	unsigned int i;
 
-	if (unlikely(i915.prefault_disable))
+	if (unlikely(i915_modparams.prefault_disable))
 		return 0;
 
 	for (i = 0; i < count; i++) {
@@ -2188,6 +2186,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	int out_fence_fd = -1;
 	int err;
 
+	BUILD_BUG_ON(__EXEC_INTERNAL_FLAGS & ~__I915_EXEC_ILLEGAL_FLAGS);
 	BUILD_BUG_ON(__EXEC_OBJECT_INTERNAL_FLAGS &
 		     ~__EXEC_OBJECT_UNKNOWN_FLAGS);
 

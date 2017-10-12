@@ -314,7 +314,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	 * present or not in use we still need a small bias as ring wraparound
 	 * at offset 0 sometimes hangs. No idea why.
 	 */
-	if (HAS_GUC(dev_priv) && i915.enable_guc_loading)
+	if (HAS_GUC(dev_priv) && i915_modparams.enable_guc_loading)
 		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
 	else
 		ctx->ggtt_offset_bias = I915_GTT_PAGE_SIZE;
@@ -407,7 +407,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	i915_gem_context_set_closed(ctx); /* not user accessible */
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_force_single_submission(ctx);
-	if (!i915.enable_guc_submission)
+	if (!i915_modparams.enable_guc_submission)
 		ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
 
 	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
@@ -431,7 +431,7 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 
 	if (intel_vgpu_active(dev_priv) &&
 	    HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		if (!i915.enable_execlists) {
+		if (!i915_modparams.enable_execlists) {
 			DRM_INFO("Only EXECLIST mode is supported in vgpu.\n");
 			return -EINVAL;
 		}
@@ -483,7 +483,7 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 	}
 
 	/* Force the GPU state to be restored on enabling */
-	if (!i915.enable_execlists) {
+	if (!i915_modparams.enable_execlists) {
 		struct i915_gem_context *ctx;
 
 		list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
@@ -568,7 +568,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 flags)
 	enum intel_engine_id id;
 	const int num_rings =
 		/* Use an extended w/a on gen7 if signalling from other rings */
-		(i915.semaphores && INTEL_GEN(dev_priv) == 7) ?
+		(i915_modparams.semaphores && INTEL_GEN(dev_priv) == 7) ?
 		INTEL_INFO(dev_priv)->num_rings - 1 :
 		0;
 	int len;
@@ -837,7 +837,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
-	if (i915.enable_execlists)
+	if (i915_modparams.enable_execlists)
 		return 0;
 
 	if (!req->ctx->engine[engine->id].state) {

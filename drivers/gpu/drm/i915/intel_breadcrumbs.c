@@ -64,7 +64,7 @@ static unsigned long wait_timeout(void)
 
 static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 {
-	DRM_DEBUG_DRIVER("%s missed breadcrumb at %pF, irq posted? %s, current seqno=%x, last=%x\n",
+	DRM_DEBUG_DRIVER("%s missed breadcrumb at %pS, irq posted? %s, current seqno=%x, last=%x\n",
 			 engine->name, __builtin_return_address(0),
 			 yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
 					&engine->irq_posted)),
