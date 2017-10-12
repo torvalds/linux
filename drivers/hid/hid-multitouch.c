@@ -85,11 +85,12 @@ MODULE_LICENSE("GPL");
 #define MT_IO_FLAGS_PENDING_SLOTS	2
 
 struct mt_slot {
-	__s32 x, y, cx, cy, p, w, h;
+	__s32 x, y, cx, cy, p, w, h, a;
 	__s32 contactid;	/* the device ContactID assigned to this slot */
 	bool touch_state;	/* is the touch valid? */
 	bool inrange_state;	/* is the finger in proximity of the sensor? */
 	bool confidence_state;  /* is the touch made by a finger? */
+	bool has_azimuth;       /* the contact reports azimuth */
 };
 
 struct mt_class {
@@ -586,8 +587,15 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			if (!(cls->quirks & MT_QUIRK_NO_AREA)) {
 				set_abs(hi->input, ABS_MT_TOUCH_MINOR, field,
 					cls->sn_height);
-				input_set_abs_params(hi->input,
-					ABS_MT_ORIENTATION, 0, 1, 0, 0);
+
+				/*
+				 * Only set ABS_MT_ORIENTATION if it is not
+				 * already set by the HID_DG_AZIMUTH usage.
+				 */
+				if (!test_bit(ABS_MT_ORIENTATION,
+						hi->input->absbit))
+					input_set_abs_params(hi->input,
+						ABS_MT_ORIENTATION, 0, 1, 0, 0);
 			}
 			mt_store_field(usage, td, hi);
 			return 1;
@@ -617,6 +625,21 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 				return 1;
 			td->cc_index = field->index;
 			td->cc_value_index = usage->usage_index;
+			return 1;
+		case HID_DG_AZIMUTH:
+			hid_map_usage(hi, usage, bit, max,
+				EV_ABS, ABS_MT_ORIENTATION);
+			/*
+			 * Azimuth has the range of [0, MAX) representing a full
+			 * revolution. Set ABS_MT_ORIENTATION to a quarter of
+			 * MAX according the definition of ABS_MT_ORIENTATION
+			 */
+			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
+				-field->logical_maximum / 4,
+				field->logical_maximum / 4,
+				cls->sn_move ?
+				field->logical_maximum / cls->sn_move : 0, 0);
+			mt_store_field(usage, td, hi);
 			return 1;
 		case HID_DG_CONTACTMAX:
 			/* we don't set td->last_slot_field as contactcount and
@@ -710,6 +733,10 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 			int wide = (s->w > s->h);
 			int major = max(s->w, s->h);
 			int minor = min(s->w, s->h);
+			int orientation = wide;
+
+			if (s->has_azimuth)
+				orientation = s->a;
 
 			/*
 			 * divided by two to match visual scale of touch
@@ -726,7 +753,8 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 			input_event(input, EV_ABS, ABS_MT_TOOL_Y, s->cy);
 			input_event(input, EV_ABS, ABS_MT_DISTANCE,
 				!s->touch_state);
-			input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
+			input_event(input, EV_ABS, ABS_MT_ORIENTATION,
+				orientation);
 			input_event(input, EV_ABS, ABS_MT_PRESSURE, s->p);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
@@ -849,6 +877,22 @@ static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
 			td->timestamp = mt_compute_timestamp(td, field, value);
 			break;
 		case HID_DG_CONTACTCOUNT:
+			break;
+		case HID_DG_AZIMUTH:
+			/*
+			 * Azimuth is counter-clockwise and ranges from [0, MAX)
+			 * (a full revolution). Convert it to clockwise ranging
+			 * [-MAX/2, MAX/2].
+			 *
+			 * Note that ABS_MT_ORIENTATION require us to report
+			 * the limit of [-MAX/4, MAX/4], but the value can go
+			 * out of range to [-MAX/2, MAX/2] to report an upside
+			 * down ellipsis.
+			 */
+			if (value > field->logical_maximum / 2)
+				value -= field->logical_maximum;
+			td->curdata.a = -value;
+			td->curdata.has_azimuth = true;
 			break;
 		case HID_DG_TOUCH:
 			/* do nothing */
