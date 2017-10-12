@@ -708,10 +708,15 @@ static int ds1305_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "AM/PM\n");
 
 	/* register RTC ... from here on, ds1305->ctrl needs locking */
-	ds1305->rtc = devm_rtc_device_register(&spi->dev, "ds1305",
-			&ds1305_ops, THIS_MODULE);
+	ds1305->rtc = devm_rtc_allocate_device(&spi->dev);
 	if (IS_ERR(ds1305->rtc)) {
-		status = PTR_ERR(ds1305->rtc);
+		return PTR_ERR(ds1305->rtc);
+	}
+
+	ds1305->rtc->ops = &ds1305_ops;
+
+	status = rtc_register_device(ds1305->rtc);
+	if (status) {
 		dev_dbg(&spi->dev, "register rtc --> %d\n", status);
 		return status;
 	}
