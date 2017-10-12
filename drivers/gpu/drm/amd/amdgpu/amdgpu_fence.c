@@ -641,6 +641,19 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 			   atomic_read(&ring->fence_drv.last_seq));
 		seq_printf(m, "Last emitted        0x%08x\n",
 			   ring->fence_drv.sync_seq);
+
+		if (ring->funcs->type != AMDGPU_RING_TYPE_GFX)
+			continue;
+
+		/* set in CP_VMID_PREEMPT and preemption occurred */
+		seq_printf(m, "Last preempted      0x%08x\n",
+			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 2)));
+		/* set in CP_VMID_RESET and reset occurred */
+		seq_printf(m, "Last reset          0x%08x\n",
+			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 4)));
+		/* Both preemption and reset occurred */
+		seq_printf(m, "Last both           0x%08x\n",
+			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 6)));
 	}
 	return 0;
 }
