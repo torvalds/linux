@@ -99,6 +99,9 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct ccu_nm *nm = hw_to_ccu_nm(hw);
 	struct _ccu_nm _nm;
 
+	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate))
+		return rate;
+
 	_nm.min_n = nm->n.min ?: 1;
 	_nm.max_n = nm->n.max ?: 1 << nm->n.width;
 	_nm.min_m = 1;
