@@ -59,6 +59,9 @@ static struct snd_soc_acpi_mach byt_thinkpad_10 = {
 	.drv_name = "cht-bsw-rt5672",
 	.fw_filename = "intel/fw_sst_0f28.bin",
 	.board = "cht-bsw",
+	.sof_fw_filename = "intel/reef-byt.ri",
+	.sof_tplg_filename = "intel/reef-byt-rt5670.tplg",
+	.asoc_plat_name = "sst-mfld-platform",
 };
 
 static struct snd_soc_acpi_mach *byt_quirk(void *arg)
@@ -95,36 +98,54 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcr_rt5640",
 		.machine_quirk = byt_quirk,
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-rt5640.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC5642",
 		.drv_name = "bytcr_rt5640",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcr_rt5640",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-rt5640.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "INTCCFFD",
 		.drv_name = "bytcr_rt5640",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcr_rt5640",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-rt5640.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC5651",
 		.drv_name = "bytcr_rt5651",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcr_rt5651",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-rt5651.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "DLGS7212",
 		.drv_name = "bytcht_da7213",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcht_da7213",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-da7213.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "DLGS7213",
 		.drv_name = "bytcht_da7213",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcht_da7213",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-da7213.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	/* some Baytrail platforms rely on RT5645, use CHT machine driver */
 	{
@@ -132,12 +153,18 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "cht-bsw-rt5645",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-rt5645.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC5648",
 		.drv_name = "cht-bsw-rt5645",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-rt5645.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	/* use CHT driver to Baytrail Chromebooks */
 	{
@@ -145,6 +172,9 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "cht-bsw-max98090",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-max98090.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)
 	/*

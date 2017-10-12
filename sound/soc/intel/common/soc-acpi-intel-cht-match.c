@@ -39,12 +39,14 @@ static const struct dmi_system_id cht_table[] = {
 	{ }
 };
 
-
 static struct snd_soc_acpi_mach cht_surface_mach = {
 	.id = "10EC5640",
 	.drv_name = "cht-bsw-rt5645",
 	.fw_filename = "intel/fw_sst_22a8.bin",
 	.board = "cht-bsw",
+	.sof_fw_filename = "intel/reef-cht.ri",
+	.sof_tplg_filename = "intel/reef-cht-rt5645.tplg",
+	.asoc_plat_name = "sst-mfld-platform",
 };
 
 static struct snd_soc_acpi_mach *cht_quirk(void *arg)
@@ -66,54 +68,81 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_cherrytrail_machines[] = {
 		.drv_name = "cht-bsw-rt5672",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5670.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC5672",
 		.drv_name = "cht-bsw-rt5672",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5670.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC5645",
 		.drv_name = "cht-bsw-rt5645",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5645.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC5650",
 		.drv_name = "cht-bsw-rt5645",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5645.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC3270",
 		.drv_name = "cht-bsw-rt5645",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5645.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "193C9890",
 		.drv_name = "cht-bsw-max98090",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "cht-bsw",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-max98090.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "DLGS7212",
 		.drv_name = "bytcht_da7213",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "bytcht_da7213",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-da7213.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "DLGS7213",
 		.drv_name = "bytcht_da7213",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "bytcht_da7213",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-da7213.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "ESSX8316",
 		.drv_name = "bytcht_es8316",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "bytcht_es8316",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-es8316.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	/* some CHT-T platforms rely on RT5640, use Baytrail machine driver */
 	{
@@ -122,12 +151,18 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_cherrytrail_machines[] = {
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "bytcr_rt5640",
 		.machine_quirk = cht_quirk,
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5640.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
 		.id = "10EC3276",
 		.drv_name = "bytcr_rt5640",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "bytcr_rt5640",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5640.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 	/* some CHT-T platforms rely on RT5651, use Baytrail machine driver */
 	{
@@ -135,6 +170,9 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_cherrytrail_machines[] = {
 		.drv_name = "bytcr_rt5651",
 		.fw_filename = "intel/fw_sst_22a8.bin",
 		.board = "bytcr_rt5651",
+		.sof_fw_filename = "intel/reef-cht.ri",
+		.sof_tplg_filename = "intel/reef-cht-rt5651.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
 	},
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)
 	/*
