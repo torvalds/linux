@@ -13,11 +13,11 @@ typedef struct qrwlock {
 		atomic_t cnts;
 		struct {
 #ifdef __LITTLE_ENDIAN
-			u8 wmode;	/* Writer mode   */
-			u8 rcnts[3];	/* Reader counts */
+			u8 wlocked;	/* Locked for write? */
+			u8 __lstate[3];
 #else
-			u8 rcnts[3];	/* Reader counts */
-			u8 wmode;	/* Writer mode   */
+			u8 __lstate[3];
+			u8 wlocked;	/* Locked for write? */
 #endif
 		};
 	};

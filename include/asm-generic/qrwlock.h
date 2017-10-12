@@ -26,24 +26,11 @@
 
 /*
  * Writer states & reader shift and bias.
- *
- *       | +0 | +1 | +2 | +3 |
- *   ----+----+----+----+----+
- *    LE | 78 | 56 | 34 | 12 | 0x12345678
- *   ----+----+----+----+----+
- *       | wr |      rd      |
- *       +----+----+----+----+
- *
- *   ----+----+----+----+----+
- *    BE | 12 | 34 | 56 | 78 | 0x12345678
- *   ----+----+----+----+----+
- *       |      rd      | wr |
- *       +----+----+----+----+
  */
-#define	_QW_WAITING	1		/* A writer is waiting	   */
-#define	_QW_LOCKED	0xff		/* A writer holds the lock */
-#define	_QW_WMASK	0xff		/* Writer mask		   */
-#define	_QR_SHIFT	8		/* Reader count shift	   */
+#define	_QW_WAITING	0x100		/* A writer is waiting	   */
+#define	_QW_LOCKED	0x0ff		/* A writer holds the lock */
+#define	_QW_WMASK	0x1ff		/* Writer mask		   */
+#define	_QR_SHIFT	9		/* Reader count shift	   */
 #define _QR_BIAS	(1U << _QR_SHIFT)
 
 /*
@@ -134,7 +121,7 @@ static inline void queued_read_unlock(struct qrwlock *lock)
  */
 static inline void queued_write_unlock(struct qrwlock *lock)
 {
-	smp_store_release(&lock->wmode, 0);
+	smp_store_release(&lock->wlocked, 0);
 }
 
 /*
