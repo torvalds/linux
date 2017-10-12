@@ -287,7 +287,9 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 
 static const u32 tegra_primary_plane_formats[] = {
 	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_RGB565,
 };
 
@@ -630,7 +632,9 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 
 static const uint32_t tegra_overlay_plane_formats[] = {
 	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUYV,

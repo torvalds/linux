@@ -598,6 +598,8 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define WIN_COLOR_DEPTH_YUV422R        23
 #define WIN_COLOR_DEPTH_YCbCr422RA     24
 #define WIN_COLOR_DEPTH_YUV422RA       25
+#define WIN_COLOR_DEPTH_B8G8R8X8       37
+#define WIN_COLOR_DEPTH_R8G8B8X8       38
 
 #define DC_WIN_POSITION				0x704
 #define H_POSITION(x) (((x) & 0x1fff) <<  0) /* XXX 0x7fff on Tegra186 */

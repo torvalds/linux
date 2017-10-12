@@ -111,10 +111,18 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 
 	switch (fourcc) {
 	case DRM_FORMAT_XBGR8888:
+		*format = WIN_COLOR_DEPTH_R8G8B8X8;
+		break;
+
+	case DRM_FORMAT_ABGR8888:
 		*format = WIN_COLOR_DEPTH_R8G8B8A8;
 		break;
 
 	case DRM_FORMAT_XRGB8888:
+		*format = WIN_COLOR_DEPTH_B8G8R8X8;
+		break;
+
+	case DRM_FORMAT_ARGB8888:
 		*format = WIN_COLOR_DEPTH_B8G8R8A8;
 		break;
 
