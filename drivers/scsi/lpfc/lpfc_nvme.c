@@ -948,7 +948,7 @@ out_err:
 	/* NVME targets need completion held off until the abort exchange
 	 * completes.
 	 */
-	if (!lpfc_ncmd->flags & LPFC_SBUF_XBUSY)
+	if (!(lpfc_ncmd->flags & LPFC_SBUF_XBUSY))
 		nCmd->done(nCmd);
 
 	spin_lock_irqsave(&phba->hbalock, flags);
