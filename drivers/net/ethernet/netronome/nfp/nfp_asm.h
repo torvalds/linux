@@ -217,7 +217,7 @@ struct cmd_tgt_act {
 
 enum cmd_tgt_map {
 	CMD_TGT_READ8,
-	CMD_TGT_WRITE8,
+	CMD_TGT_WRITE8_SWAP,
 	CMD_TGT_READ32,
 	CMD_TGT_READ32_LE,
 	CMD_TGT_READ32_SWAP,
