@@ -1507,12 +1507,16 @@ int lprocfs_write_frac_u64_helper(const char __user *buffer,
 		switch (tolower(*end)) {
 		case 'p':
 			units <<= 10;
+			/* fall through */
 		case 't':
 			units <<= 10;
+			/* fall through */
 		case 'g':
 			units <<= 10;
+			/* fall through */
 		case 'm':
 			units <<= 10;
+			/* fall through */
 		case 'k':
 			units <<= 10;
 		}
