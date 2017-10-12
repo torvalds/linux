@@ -90,6 +90,14 @@ static unsigned long ccu_nm_recalc_rate(struct clk_hw *hw,
 	if (!m)
 		m++;
 
+	if (ccu_sdm_helper_is_enabled(&nm->common, &nm->sdm)) {
+		unsigned long rate =
+			ccu_sdm_helper_read_rate(&nm->common, &nm->sdm,
+						 m, n);
+		if (rate)
+			return rate;
+	}
+
 	return parent_rate * n / m;
 }
 
@@ -100,6 +108,9 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct _ccu_nm _nm;
 
 	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate))
+		return rate;
+
+	if (ccu_sdm_helper_has_rate(&nm->common, &nm->sdm, rate))
 		return rate;
 
 	_nm.min_n = nm->n.min ?: 1;
@@ -143,7 +154,16 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
-	ccu_nm_find_best(parent_rate, rate, &_nm);
+	if (ccu_sdm_helper_has_rate(&nm->common, &nm->sdm, rate)) {
+		ccu_sdm_helper_enable(&nm->common, &nm->sdm, rate);
+
+		/* Sigma delta modulation requires specific N and M factors */
+		ccu_sdm_helper_get_factors(&nm->common, &nm->sdm, rate,
+					   &_nm.m, &_nm.n);
+	} else {
+		ccu_sdm_helper_disable(&nm->common, &nm->sdm);
+		ccu_nm_find_best(parent_rate, rate, &_nm);
+	}
 
 	spin_lock_irqsave(nm->common.lock, flags);
 
