@@ -797,12 +797,13 @@ static int omap_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, true);
 
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-			&omap_rtc_ops, THIS_MODULE);
+	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
 		goto err;
 	}
+
+	rtc->rtc->ops = &omap_rtc_ops;
 
 	/* handle periodic and alarm irqs */
 	ret = devm_request_irq(&pdev->dev, rtc->irq_timer, rtc_irq, 0,
@@ -833,6 +834,10 @@ static int omap_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rtc->pctldev);
 		goto err;
 	}
+
+	ret = rtc_register_device(rtc->rtc);
+	if (ret)
+		goto err;
 
 	return 0;
 
