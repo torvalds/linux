@@ -177,10 +177,9 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	 * Compare the boot value and complain if it differs in the
 	 * package.
 	 */
-	if (bootval != ref->bootval) {
-		pr_warn(FW_BUG "TSC ADJUST differs: Reference CPU%u: %lld CPU%u: %lld\n",
-			refcpu, ref->bootval, cpu, bootval);
-	}
+	if (bootval != ref->bootval)
+		printk_once(FW_BUG "TSC ADJUST differs within socket(s), fixing all errors\n");
+
 	/*
 	 * The TSC_ADJUST values in a package must be the same. If the boot
 	 * value on this newly upcoming CPU differs from the adjustment
@@ -188,8 +187,6 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	 * adjusted value.
 	 */
 	if (bootval != ref->adjusted) {
-		pr_warn("TSC ADJUST synchronize: Reference CPU%u: %lld CPU%u: %lld\n",
-			refcpu, ref->adjusted, cpu, bootval);
 		cur->adjusted = ref->adjusted;
 		wrmsrl(MSR_IA32_TSC_ADJUST, ref->adjusted);
 	}
