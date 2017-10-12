@@ -14,21 +14,28 @@ if PINCTRL_MESON
 config PINCTRL_MESON8
 	bool "Meson 8 SoC pinctrl driver"
 	depends on ARM
+	select PINCTRL_MESON8_PMX
 	default y
 
 config PINCTRL_MESON8B
 	bool "Meson 8b SoC pinctrl driver"
 	depends on ARM
+	select PINCTRL_MESON8_PMX
 	default y
 
 config PINCTRL_MESON_GXBB
 	bool "Meson gxbb SoC pinctrl driver"
 	depends on ARM64
+	select PINCTRL_MESON8_PMX
 	default y
 
 config PINCTRL_MESON_GXL
 	bool "Meson gxl SoC pinctrl driver"
 	depends on ARM64
+	select PINCTRL_MESON8_PMX
 	default y
+
+config PINCTRL_MESON8_PMX
+	bool
 
 endif

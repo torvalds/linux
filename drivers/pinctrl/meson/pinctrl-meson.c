@@ -31,10 +31,6 @@
  * In some cases the register ranges for pull enable and pull
  * direction are the same and thus there are only 3 register ranges.
  *
- * Every pinmux group can be enabled by a specific bit in the first
- * register range; when all groups for a given pin are disabled the
- * pin acts as a GPIO.
- *
  * For the pull and GPIO configuration every bank uses a contiguous
  * set of bits in the register sets described above; the same register
  * can be shared by more banks with different offsets.
@@ -148,94 +144,24 @@ static const struct pinctrl_ops meson_pctrl_ops = {
 	.pin_dbg_show		= meson_pin_dbg_show,
 };
 
-/**
- * meson_pmx_disable_other_groups() - disable other groups using a given pin
- *
- * @pc:		meson pin controller device
- * @pin:	number of the pin
- * @sel_group:	index of the selected group, or -1 if none
- *
- * The function disables all pinmux groups using a pin except the
- * selected one. If @sel_group is -1 all groups are disabled, leaving
- * the pin in GPIO mode.
- */
-static void meson_pmx_disable_other_groups(struct meson_pinctrl *pc,
-					   unsigned int pin, int sel_group)
-{
-	struct meson_pmx_group *group;
-	int i, j;
-
-	for (i = 0; i < pc->data->num_groups; i++) {
-		group = &pc->data->groups[i];
-		if (group->is_gpio || i == sel_group)
-			continue;
-
-		for (j = 0; j < group->num_pins; j++) {
-			if (group->pins[j] == pin) {
-				/* We have found a group using the pin */
-				regmap_update_bits(pc->reg_mux,
-						   group->reg * 4,
-						   BIT(group->bit), 0);
-			}
-		}
-	}
-}
-
-static int meson_pmx_set_mux(struct pinctrl_dev *pcdev, unsigned func_num,
-			     unsigned group_num)
-{
-	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
-	struct meson_pmx_func *func = &pc->data->funcs[func_num];
-	struct meson_pmx_group *group = &pc->data->groups[group_num];
-	int i, ret = 0;
-
-	dev_dbg(pc->dev, "enable function %s, group %s\n", func->name,
-		group->name);
-
-	/*
-	 * Disable groups using the same pin.
-	 * The selected group is not disabled to avoid glitches.
-	 */
-	for (i = 0; i < group->num_pins; i++)
-		meson_pmx_disable_other_groups(pc, group->pins[i], group_num);
-
-	/* Function 0 (GPIO) doesn't need any additional setting */
-	if (func_num)
-		ret = regmap_update_bits(pc->reg_mux, group->reg * 4,
-					 BIT(group->bit), BIT(group->bit));
-
-	return ret;
-}
-
-static int meson_pmx_request_gpio(struct pinctrl_dev *pcdev,
-				  struct pinctrl_gpio_range *range,
-				  unsigned offset)
-{
-	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
-
-	meson_pmx_disable_other_groups(pc, offset, -1);
-
-	return 0;
-}
-
-static int meson_pmx_get_funcs_count(struct pinctrl_dev *pcdev)
+int meson_pmx_get_funcs_count(struct pinctrl_dev *pcdev)
 {
 	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
 
 	return pc->data->num_funcs;
 }
 
-static const char *meson_pmx_get_func_name(struct pinctrl_dev *pcdev,
-					   unsigned selector)
+const char *meson_pmx_get_func_name(struct pinctrl_dev *pcdev,
+				    unsigned selector)
 {
 	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
 
 	return pc->data->funcs[selector].name;
 }
 
-static int meson_pmx_get_groups(struct pinctrl_dev *pcdev, unsigned selector,
-				const char * const **groups,
-				unsigned * const num_groups)
+int meson_pmx_get_groups(struct pinctrl_dev *pcdev, unsigned selector,
+			 const char * const **groups,
+			 unsigned * const num_groups)
 {
 	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
 
@@ -244,14 +170,6 @@ static int meson_pmx_get_groups(struct pinctrl_dev *pcdev, unsigned selector,
 
 	return 0;
 }
-
-static const struct pinmux_ops meson_pmx_ops = {
-	.set_mux = meson_pmx_set_mux,
-	.get_functions_count = meson_pmx_get_funcs_count,
-	.get_function_name = meson_pmx_get_func_name,
-	.get_function_groups = meson_pmx_get_groups,
-	.gpio_request_enable = meson_pmx_request_gpio,
-};
 
 static int meson_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 			     unsigned long *configs, unsigned num_configs)
@@ -609,7 +527,7 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 	pc->desc.name		= "pinctrl-meson";
 	pc->desc.owner		= THIS_MODULE;
 	pc->desc.pctlops	= &meson_pctrl_ops;
-	pc->desc.pmxops		= &meson_pmx_ops;
+	pc->desc.pmxops		= pc->data->pmx_ops;
 	pc->desc.confops	= &meson_pinconf_ops;
 	pc->desc.pins		= pc->data->pins;
 	pc->desc.npins		= pc->data->num_pins;

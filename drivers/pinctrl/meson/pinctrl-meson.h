@@ -32,9 +32,7 @@ struct meson_pmx_group {
 	const char *name;
 	const unsigned int *pins;
 	unsigned int num_pins;
-	bool is_gpio;
-	unsigned int reg;
-	unsigned int bit;
+	const void *data;
 };
 
 /**
@@ -109,6 +107,7 @@ struct meson_pinctrl_data {
 	unsigned int num_funcs;
 	struct meson_bank *banks;
 	unsigned int num_banks;
+	const struct pinmux_ops *pmx_ops;
 };
 
 struct meson_pinctrl {
@@ -123,23 +122,6 @@ struct meson_pinctrl {
 	struct gpio_chip chip;
 	struct device_node *of_node;
 };
-
-#define GROUP(grp, r, b)						\
-	{								\
-		.name = #grp,						\
-		.pins = grp ## _pins,					\
-		.num_pins = ARRAY_SIZE(grp ## _pins),			\
-		.reg = r,						\
-		.bit = b,						\
-	 }
-
-#define GPIO_GROUP(gpio)						\
-	{								\
-		.name = #gpio,						\
-		.pins = (const unsigned int[]){ gpio },			\
-		.num_pins = 1,						\
-		.is_gpio = true,					\
-	 }
 
 #define FUNCTION(fn)							\
 	{								\
@@ -165,6 +147,15 @@ struct meson_pinctrl {
 	 }
 
 #define MESON_PIN(x) PINCTRL_PIN(x, #x)
+
+/* Common pmx functions */
+int meson_pmx_get_funcs_count(struct pinctrl_dev *pcdev);
+const char *meson_pmx_get_func_name(struct pinctrl_dev *pcdev,
+				    unsigned selector);
+int meson_pmx_get_groups(struct pinctrl_dev *pcdev,
+			 unsigned selector,
+			 const char * const **groups,
+			 unsigned * const num_groups);
 
 /* Common probe function */
 int meson_pinctrl_probe(struct platform_device *pdev);

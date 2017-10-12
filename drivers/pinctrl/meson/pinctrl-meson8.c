@@ -13,6 +13,7 @@
 
 #include <dt-bindings/gpio/meson8-gpio.h>
 #include "pinctrl-meson.h"
+#include "pinctrl-meson8-pmx.h"
 
 static const struct pinctrl_pin_desc meson8_cbus_pins[] = {
 	MESON_PIN(GPIOX_0),
@@ -1054,6 +1055,7 @@ static struct meson_pinctrl_data meson8_cbus_pinctrl_data = {
 	.num_groups	= ARRAY_SIZE(meson8_cbus_groups),
 	.num_funcs	= ARRAY_SIZE(meson8_cbus_functions),
 	.num_banks	= ARRAY_SIZE(meson8_cbus_banks),
+	.pmx_ops	= &meson8_pmx_ops,
 };
 
 static struct meson_pinctrl_data meson8_aobus_pinctrl_data = {
@@ -1066,6 +1068,7 @@ static struct meson_pinctrl_data meson8_aobus_pinctrl_data = {
 	.num_groups	= ARRAY_SIZE(meson8_aobus_groups),
 	.num_funcs	= ARRAY_SIZE(meson8_aobus_functions),
 	.num_banks	= ARRAY_SIZE(meson8_aobus_banks),
+	.pmx_ops	= &meson8_pmx_ops,
 };
 
 static const struct of_device_id meson8_pinctrl_dt_match[] = {
