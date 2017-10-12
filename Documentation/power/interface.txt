@@ -43,7 +43,7 @@ The currently selected option is printed in square brackets.
 The 'platform' option is only available if the platform provides a special
 mechanism to put the system to sleep after creating a hibernation image (ACPI
 does that, for example).  The 'suspend' option is available if Suspend-to-RAM
-is supported.  Refer to Documentation/power/basic_pm_debugging.txt for the
+is supported.  Refer to Documentation/power/basic-pm-debugging.txt for the
 description of the 'test_resume' option.
 
 To select an option, write the string representing it to /sys/power/disk.
