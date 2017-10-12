@@ -117,7 +117,7 @@ PM support:
 		anything.  For the driver testing instructions see
 		Documentation/power/drivers-testing.txt and for a relatively
 		complete overview of the power management issues related to
-		drivers see Documentation/power/admin-guide/devices.rst .
+		drivers see Documentation/driver-api/pm/devices.rst.
 
 Control:
 		In general if there is active maintenance of a driver by
