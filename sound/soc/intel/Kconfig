@@ -1,7 +1,3 @@
-config SND_SST_ATOM_HIFI2_PLATFORM
-	tristate
-	select SND_SOC_COMPRESS
-
 config SND_SST_IPC
 	tristate
 
@@ -20,9 +16,7 @@ config SND_SOC_INTEL_COMMON
 
 config SND_SOC_INTEL_SST
 	tristate
-	select SND_SOC_INTEL_COMMON
 	select SND_SOC_INTEL_SST_ACPI if ACPI
-	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 
 config SND_SOC_INTEL_SST_FIRMWARE
 	tristate
@@ -35,18 +29,31 @@ config SND_SOC_ACPI_INTEL_MATCH
 	tristate
 	select SND_SOC_ACPI if ACPI
 
+config SND_SOC_INTEL_SST_TOPLEVEL
+	tristate "Intel ASoC SST drivers"
+	select SND_SOC_INTEL_MACH
+	select SND_SOC_INTEL_COMMON
+
 config SND_SOC_INTEL_HASWELL
-	tristate
+	tristate "Intel ASoC SST driver for Haswell/Broadwell"
+	depends on SND_SOC_INTEL_SST_TOPLEVEL
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_FIRMWARE
 
 config SND_SOC_INTEL_BAYTRAIL
-	tristate
+	tristate "Intel ASoC SST driver for Baytrail (legacy)"
+	depends on SND_SOC_INTEL_SST_TOPLEVEL
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_FIRMWARE
 
+config SND_SST_ATOM_HIFI2_PLATFORM
+	tristate "Intel ASoC SST driver for HiFi2 platforms (*field, *trail)"
+	depends on SND_SOC_INTEL_SST_TOPLEVEL
+	select SND_SOC_COMPRESS
+
 config SND_SOC_INTEL_SKYLAKE
-	tristate
+	tristate "Intel ASoC SST driver for SKL/BXT/KBL/GLK/CNL"
+	depends on SND_SOC_INTEL_SST_TOPLEVEL
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
 	select SND_SOC_TOPOLOGY
