@@ -1191,6 +1191,7 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		emit_alu(nfp_prog, reg_none(), reg_a(insn->dst_reg * 2),
 			 ALU_OP_OR, reg_b(insn->dst_reg * 2 + 1));
 		emit_br(nfp_prog, BR_BNE, insn->off, 0);
+		return 0;
 	}
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
