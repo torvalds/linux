@@ -629,6 +629,7 @@ delayed_msg_process(struct list_head *msg_list, bool drop)
 			case LNET_CREDIT_OK:
 				lnet_ni_recv(ni, msg->msg_private, msg, 0,
 					     0, msg->msg_len, msg->msg_len);
+				/* fall through */
 			case LNET_CREDIT_WAIT:
 				continue;
 			default: /* failures */
