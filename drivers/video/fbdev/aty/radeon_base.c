@@ -1534,7 +1534,7 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs *regs,
 				 unsigned long freq)
 {
-	const struct {
+	static const struct {
 		int divider;
 		int bitvalue;
 	} *post_div,
