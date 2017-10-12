@@ -4144,7 +4144,7 @@ void amdgpu_dm_atomic_commit_tail(
 		}
 	}
 
-	/* Handle scaling and undersacn changes*/
+	/* Handle scaling and underscan changes*/
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
@@ -4707,7 +4707,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 if (ret)
 		 goto fail;
 
-	/* Check scaling and undersacn changes*/
+	/* Check scaling and underscan changes*/
 	/*TODO Removed scaling changes validation due to inability to commit
 	 * new stream into context w\o causing full reset. Need to
 	 * decide how to handle.
