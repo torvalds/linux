@@ -2951,8 +2951,7 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 
 	case VCHIQ_SRVSTATE_OPENSYNC:
 		mutex_lock(&state->sync_mutex);
-		/* Drop through */
-
+		/* fall through */
 	case VCHIQ_SRVSTATE_OPEN:
 		if (state->is_master || close_recvd) {
 			if (!do_abort_bulks(service))
