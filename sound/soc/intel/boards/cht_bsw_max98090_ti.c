@@ -41,18 +41,6 @@ struct cht_mc_private {
 	bool ts3a227e_present;
 };
 
-static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-		if (!strncmp(rtd->codec_dai->name, CHT_CODEC_DAI,
-			     strlen(CHT_CODEC_DAI)))
-			return rtd->codec_dai;
-	}
-	return NULL;
-}
-
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 					  struct snd_kcontrol *k, int  event)
 {
@@ -62,7 +50,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(card);
 	int ret;
 
-	codec_dai = cht_get_codec_dai(card);
+	codec_dai = snd_soc_card_get_codec_dai(card, CHT_CODEC_DAI);
 	if (!codec_dai) {
 		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
 		return -EIO;

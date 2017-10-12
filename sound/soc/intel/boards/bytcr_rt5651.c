@@ -68,18 +68,6 @@ static void log_quirks(struct device *dev)
 
 #define BYT_CODEC_DAI1	"rt5651-aif1"
 
-static inline struct snd_soc_dai *byt_get_codec_dai(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-		if (!strncmp(rtd->codec_dai->name, BYT_CODEC_DAI1,
-			     strlen(BYT_CODEC_DAI1)))
-			return rtd->codec_dai;
-	}
-	return NULL;
-}
-
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int  event)
 {
@@ -89,7 +77,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
 	int ret;
 
-	codec_dai = byt_get_codec_dai(card);
+	codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI1);
 	if (!codec_dai) {
 		dev_err(card->dev,
 			"Codec dai not found; Unable to set platform clock\n");
