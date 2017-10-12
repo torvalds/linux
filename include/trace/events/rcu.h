@@ -458,45 +458,6 @@ TRACE_EVENT(rcu_dyntick,
 );
 
 /*
- * Tracepoint for RCU preparation for idle, the goal being to get RCU
- * processing done so that the current CPU can shut off its scheduling
- * clock and enter dyntick-idle mode.  One way to accomplish this is
- * to drain all RCU callbacks from this CPU, and the other is to have
- * done everything RCU requires for the current grace period.  In this
- * latter case, the CPU will be awakened at the end of the current grace
- * period in order to process the remainder of its callbacks.
- *
- * These tracepoints take a string as argument:
- *
- *	"No callbacks": Nothing to do, no callbacks on this CPU.
- *	"In holdoff": Nothing to do, holding off after unsuccessful attempt.
- *	"Begin holdoff": Attempt failed, don't retry until next jiffy.
- *	"Dyntick with callbacks": Entering dyntick-idle despite callbacks.
- *	"Dyntick with lazy callbacks": Entering dyntick-idle w/lazy callbacks.
- *	"More callbacks": Still more callbacks, try again to clear them out.
- *	"Callbacks drained": All callbacks processed, off to dyntick idle!
- *	"Timer": Timer fired to cause CPU to continue processing callbacks.
- *	"Demigrate": Timer fired on wrong CPU, woke up correct CPU.
- *	"Cleanup after idle": Idle exited, timer canceled.
- */
-TRACE_EVENT(rcu_prep_idle,
-
-	TP_PROTO(const char *reason),
-
-	TP_ARGS(reason),
-
-	TP_STRUCT__entry(
-		__field(const char *, reason)
-	),
-
-	TP_fast_assign(
-		__entry->reason = reason;
-	),
-
-	TP_printk("%s", __entry->reason)
-);
-
-/*
  * Tracepoint for the registration of a single RCU callback function.
  * The first argument is the type of RCU, the second argument is
  * a pointer to the RCU callback itself, the third element is the
@@ -803,7 +764,6 @@ TRACE_EVENT(rcu_barrier,
 	while (0)
 #define trace_rcu_fqs(rcuname, gpnum, cpu, qsevent) do { } while (0)
 #define trace_rcu_dyntick(polarity, oldnesting, newnesting, dyntick) do { } while (0)
-#define trace_rcu_prep_idle(reason) do { } while (0)
 #define trace_rcu_callback(rcuname, rhp, qlen_lazy, qlen) do { } while (0)
 #define trace_rcu_kfree_callback(rcuname, rhp, offset, qlen_lazy, qlen) \
 	do { } while (0)
