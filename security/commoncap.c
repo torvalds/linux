@@ -695,6 +695,52 @@ out:
 	return rc;
 }
 
+/*
+ * handle_privileged_root - Handle case of privileged root
+ * @bprm: The execution parameters, including the proposed creds
+ * @has_fcap: Are any file capabilities set?
+ * @effective: Do we have effective root privilege?
+ * @root_uid: This namespace' root UID WRT initial USER namespace
+ *
+ * Handle the case where root is privileged and hasn't been neutered by
+ * SECURE_NOROOT.  If file capabilities are set, they won't be combined with
+ * set UID root and nothing is changed.  If we are root, cap_permitted is
+ * updated.  If we have become set UID root, the effective bit is set.
+ */
+static void handle_privileged_root(struct linux_binprm *bprm, bool has_cap,
+				   bool *effective, kuid_t root_uid)
+{
+	const struct cred *old = current_cred();
+	struct cred *new = bprm->cred;
+
+	if (issecure(SECURE_NOROOT))
+		return;
+	/*
+	 * If the legacy file capability is set, then don't set privs
+	 * for a setuid root binary run by a non-root user.  Do set it
+	 * for a root user just to cause least surprise to an admin.
+	 */
+	if (has_cap && !uid_eq(new->uid, root_uid) && uid_eq(new->euid, root_uid)) {
+		warn_setuid_and_fcaps_mixed(bprm->filename);
+		return;
+	}
+	/*
+	 * To support inheritance of root-permissions and suid-root
+	 * executables under compatibility mode, we override the
+	 * capability sets for the file.
+	 */
+	if (uid_eq(new->euid, root_uid) || uid_eq(new->uid, root_uid)) {
+		/* pP' = (cap_bset & ~0) | (pI & ~0) */
+		new->cap_permitted = cap_combine(old->cap_bset,
+						 old->cap_inheritable);
+	}
+	/*
+	 * If only the real uid is 0, we do not set the effective bit.
+	 */
+	if (uid_eq(new->euid, root_uid))
+		*effective = true;
+}
+
 /**
  * cap_bprm_set_creds - Set up the proposed credentials for execve().
  * @bprm: The execution parameters, including the proposed creds
@@ -707,46 +753,20 @@ int cap_bprm_set_creds(struct linux_binprm *bprm)
 {
 	const struct cred *old = current_cred();
 	struct cred *new = bprm->cred;
-	bool effective, has_cap = false, is_setid;
+	bool effective = false, has_cap = false, is_setid;
 	int ret;
 	kuid_t root_uid;
 
 	if (WARN_ON(!cap_ambient_invariant_ok(old)))
 		return -EPERM;
 
-	effective = false;
 	ret = get_file_caps(bprm, &effective, &has_cap);
 	if (ret < 0)
 		return ret;
 
 	root_uid = make_kuid(new->user_ns, 0);
 
-	if (!issecure(SECURE_NOROOT)) {
-		/*
-		 * If the legacy file capability is set, then don't set privs
-		 * for a setuid root binary run by a non-root user.  Do set it
-		 * for a root user just to cause least surprise to an admin.
-		 */
-		if (has_cap && !uid_eq(new->uid, root_uid) && uid_eq(new->euid, root_uid)) {
-			warn_setuid_and_fcaps_mixed(bprm->filename);
-			goto skip;
-		}
-		/*
-		 * To support inheritance of root-permissions and suid-root
-		 * executables under compatibility mode, we override the
-		 * capability sets for the file.
-		 *
-		 * If only the real uid is 0, we do not set the effective bit.
-		 */
-		if (uid_eq(new->euid, root_uid) || uid_eq(new->uid, root_uid)) {
-			/* pP' = (cap_bset & ~0) | (pI & ~0) */
-			new->cap_permitted = cap_combine(old->cap_bset,
-							 old->cap_inheritable);
-		}
-		if (uid_eq(new->euid, root_uid))
-			effective = true;
-	}
-skip:
+	handle_privileged_root(bprm, has_cap, &effective, root_uid);
 
 	/* if we have fs caps, clear dangerous personality flags */
 	if (!cap_issubset(new->cap_permitted, old->cap_permitted))
