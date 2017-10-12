@@ -720,7 +720,10 @@ wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	    enum br_mask br_mask, bool swap)
 {
 	const struct bpf_insn *insn = &meta->insn;
-	u8 areg = insn->src_reg * 2, breg = insn->dst_reg * 2;
+	u8 areg, breg;
+
+	areg = insn->dst_reg * 2;
+	breg = insn->src_reg * 2;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -1129,22 +1132,22 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int jgt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, false);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, true);
 }
 
 static int jge_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, true);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, false);
 }
 
 static int jlt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, false);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, false);
 }
 
 static int jle_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, true);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, true);
 }
 
 static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1227,22 +1230,22 @@ static int jeq_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int jgt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, false);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, true);
 }
 
 static int jge_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, true);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, false);
 }
 
 static int jlt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, false);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, false);
 }
 
 static int jle_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, true);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, true);
 }
 
 static int jset_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
