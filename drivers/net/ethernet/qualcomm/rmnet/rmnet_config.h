@@ -23,6 +23,7 @@
 struct rmnet_endpoint {
 	u8 mux_id;
 	struct net_device *egress_dev;
+	struct hlist_node hlnode;
 };
 
 /* One instance of this structure is instantiated for each real_dev associated
@@ -30,11 +31,11 @@ struct rmnet_endpoint {
  */
 struct rmnet_port {
 	struct net_device *dev;
-	struct rmnet_endpoint muxed_ep[RMNET_MAX_LOGICAL_EP];
 	u32 ingress_data_format;
 	u32 egress_data_format;
 	u8 nr_rmnet_devs;
 	u8 rmnet_mode;
+	struct hlist_head muxed_ep[RMNET_MAX_LOGICAL_EP];
 };
 
 extern struct rtnl_link_ops rmnet_link_ops;
@@ -45,5 +46,6 @@ struct rmnet_priv {
 };
 
 struct rmnet_port *rmnet_get_port(struct net_device *real_dev);
+struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id);
 
 #endif /* _RMNET_CONFIG_H_ */

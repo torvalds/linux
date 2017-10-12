@@ -61,18 +61,6 @@ rmnet_get_port_rtnl(const struct net_device *real_dev)
 	return rtnl_dereference(real_dev->rx_handler_data);
 }
 
-static struct rmnet_endpoint*
-rmnet_get_endpoint(struct net_device *dev, int config_id)
-{
-	struct rmnet_endpoint *ep;
-	struct rmnet_port *port;
-
-	port = rmnet_get_port_rtnl(dev);
-	ep = &port->muxed_ep[config_id];
-
-	return ep;
-}
-
 static int rmnet_unregister_real_device(struct net_device *real_dev,
 					struct rmnet_port *port)
 {
@@ -93,7 +81,7 @@ static int rmnet_unregister_real_device(struct net_device *real_dev,
 static int rmnet_register_real_device(struct net_device *real_dev)
 {
 	struct rmnet_port *port;
-	int rc;
+	int rc, entry;
 
 	ASSERT_RTNL();
 
@@ -114,24 +102,11 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	/* hold on to real dev for MAP data */
 	dev_hold(real_dev);
 
+	for (entry = 0; entry < RMNET_MAX_LOGICAL_EP; entry++)
+		INIT_HLIST_HEAD(&port->muxed_ep[entry]);
+
 	netdev_dbg(real_dev, "registered with rmnet\n");
 	return 0;
-}
-
-static void rmnet_set_endpoint_config(struct net_device *dev,
-				      u8 mux_id, struct net_device *egress_dev)
-{
-	struct rmnet_endpoint *ep;
-
-	netdev_dbg(dev, "id %d dev %s\n", mux_id, egress_dev->name);
-
-	ep = rmnet_get_endpoint(dev, mux_id);
-	/* This config is cleared on every set, so its ok to not
-	 * clear it on a device delete.
-	 */
-	memset(ep, 0, sizeof(struct rmnet_endpoint));
-	ep->egress_dev = egress_dev;
-	ep->mux_id = mux_id;
 }
 
 static int rmnet_newlink(struct net *src_net, struct net_device *dev,
@@ -145,6 +120,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			    RMNET_EGRESS_FORMAT_MAP;
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
+	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 	int err = 0;
 	u16 mux_id;
@@ -156,6 +132,10 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (!data[IFLA_VLAN_ID])
 		return -EINVAL;
 
+	ep = kzalloc(sizeof(*ep), GFP_ATOMIC);
+	if (!ep)
+		return -ENOMEM;
+
 	mux_id = nla_get_u16(data[IFLA_VLAN_ID]);
 
 	err = rmnet_register_real_device(real_dev);
@@ -163,7 +143,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		goto err0;
 
 	port = rmnet_get_port_rtnl(real_dev);
-	err = rmnet_vnd_newlink(mux_id, dev, port, real_dev);
+	err = rmnet_vnd_newlink(mux_id, dev, port, real_dev, ep);
 	if (err)
 		goto err1;
 
@@ -177,11 +157,11 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	port->ingress_data_format = ingress_format;
 	port->rmnet_mode = mode;
 
-	rmnet_set_endpoint_config(real_dev, mux_id, dev);
+	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
 	return 0;
 
 err2:
-	rmnet_vnd_dellink(mux_id, port);
+	rmnet_vnd_dellink(mux_id, port, ep);
 err1:
 	rmnet_unregister_real_device(real_dev, port);
 err0:
@@ -191,6 +171,7 @@ err0:
 static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct net_device *real_dev;
+	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 	u8 mux_id;
 
@@ -204,8 +185,15 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 	port = rmnet_get_port_rtnl(real_dev);
 
 	mux_id = rmnet_vnd_get_mux(dev);
-	rmnet_vnd_dellink(mux_id, port);
 	netdev_upper_dev_unlink(dev, real_dev);
+
+	ep = rmnet_get_endpoint(port, mux_id);
+	if (ep) {
+		hlist_del_init_rcu(&ep->hlnode);
+		rmnet_vnd_dellink(mux_id, port, ep);
+		kfree(ep);
+	}
+
 	rmnet_unregister_real_device(real_dev, port);
 
 	unregister_netdevice_queue(dev, head);
@@ -214,11 +202,16 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 static int rmnet_dev_walk_unreg(struct net_device *rmnet_dev, void *data)
 {
 	struct rmnet_walk_data *d = data;
+	struct rmnet_endpoint *ep;
 	u8 mux_id;
 
 	mux_id = rmnet_vnd_get_mux(rmnet_dev);
-
-	rmnet_vnd_dellink(mux_id, d->port);
+	ep = rmnet_get_endpoint(d->port, mux_id);
+	if (ep) {
+		hlist_del_init_rcu(&ep->hlnode);
+		rmnet_vnd_dellink(mux_id, d->port, ep);
+		kfree(ep);
+	}
 	netdev_upper_dev_unlink(rmnet_dev, d->real_dev);
 	unregister_netdevice_queue(rmnet_dev, d->head);
 
@@ -314,6 +307,18 @@ struct rmnet_port *rmnet_get_port(struct net_device *real_dev)
 		return rcu_dereference_rtnl(real_dev->rx_handler_data);
 	else
 		return NULL;
+}
+
+struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
+{
+	struct rmnet_endpoint *ep;
+
+	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlnode) {
+		if (ep->mux_id == mux_id)
+			return ep;
+	}
+
+	return NULL;
 }
 
 /* Startup/Shutdown */

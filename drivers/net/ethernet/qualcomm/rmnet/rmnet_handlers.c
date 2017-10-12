@@ -71,19 +71,18 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 		    & RMNET_INGRESS_FORMAT_MAP_COMMANDS)
 			return rmnet_map_command(skb, port);
 
-		kfree_skb(skb);
-		return RX_HANDLER_CONSUMED;
+		goto free_skb;
 	}
 
 	mux_id = RMNET_MAP_GET_MUX_ID(skb);
 	len = RMNET_MAP_GET_LENGTH(skb) - RMNET_MAP_GET_PAD(skb);
 
-	if (mux_id >= RMNET_MAX_LOGICAL_EP) {
-		kfree_skb(skb);
-		return RX_HANDLER_CONSUMED;
-	}
+	if (mux_id >= RMNET_MAX_LOGICAL_EP)
+		goto free_skb;
 
-	ep = &port->muxed_ep[mux_id];
+	ep = rmnet_get_endpoint(port, mux_id);
+	if (!ep)
+		goto free_skb;
 
 	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEMUXING)
 		skb->dev = ep->egress_dev;
@@ -93,6 +92,10 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	skb_trim(skb, len);
 	rmnet_set_skb_proto(skb);
 	return rmnet_deliver_skb(skb);
+
+free_skb:
+	kfree_skb(skb);
+	return RX_HANDLER_CONSUMED;
 }
 
 static rx_handler_result_t
