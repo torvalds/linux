@@ -4004,7 +4004,7 @@ void amdgpu_dm_atomic_commit_tail(
 	struct dm_atomic_state *dm_state;
 	uint32_t i, j;
 	uint32_t new_crtcs_count = 0;
-	struct drm_crtc *crtc, *pcrtc;
+	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
 	struct dc_stream_state *new_stream = NULL;
@@ -4200,11 +4200,11 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* update planes when needed per crtc*/
-	for_each_new_crtc_in_state(state, pcrtc, new_crtc_state, j) {
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j) {
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
 		if (dm_new_crtc_state->stream)
-			amdgpu_dm_commit_planes(state, dev, dm, pcrtc, &wait_for_vblank);
+			amdgpu_dm_commit_planes(state, dev, dm, crtc, &wait_for_vblank);
 	}
 
 
