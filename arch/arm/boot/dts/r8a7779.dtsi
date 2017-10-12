@@ -29,12 +29,14 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			clock-frequency = <1000000000>;
+			clocks = <&cpg_clocks R8A7779_CLK_Z>;
 		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
 			clock-frequency = <1000000000>;
+			clocks = <&cpg_clocks R8A7779_CLK_Z>;
 			power-domains = <&sysc R8A7779_PD_ARM1>;
 		};
 		cpu@2 {
@@ -42,6 +44,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <2>;
 			clock-frequency = <1000000000>;
+			clocks = <&cpg_clocks R8A7779_CLK_Z>;
 			power-domains = <&sysc R8A7779_PD_ARM2>;
 		};
 		cpu@3 {
@@ -49,6 +52,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <3>;
 			clock-frequency = <1000000000>;
+			clocks = <&cpg_clocks R8A7779_CLK_Z>;
 			power-domains = <&sysc R8A7779_PD_ARM3>;
 		};
 	};
