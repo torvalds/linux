@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
@@ -260,6 +261,28 @@ bool dsa_schedule_work(struct work_struct *work)
 {
 	return queue_work(dsa_owq, work);
 }
+
+static ATOMIC_NOTIFIER_HEAD(dsa_notif_chain);
+
+int register_dsa_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&dsa_notif_chain, nb);
+}
+EXPORT_SYMBOL_GPL(register_dsa_notifier);
+
+int unregister_dsa_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&dsa_notif_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_dsa_notifier);
+
+int call_dsa_notifiers(unsigned long val, struct net_device *dev,
+		       struct dsa_notifier_info *info)
+{
+	info->dev = dev;
+	return atomic_notifier_call_chain(&dsa_notif_chain, val, info);
+}
+EXPORT_SYMBOL_GPL(call_dsa_notifiers);
 
 static int __init dsa_init_module(void)
 {

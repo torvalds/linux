@@ -86,6 +86,12 @@ static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb, struct net_device *dev
 		brcm_tag[2] = BRCM_IG_DSTMAP2_MASK;
 	brcm_tag[3] = (1 << p->dp->index) & BRCM_IG_DSTMAP1_MASK;
 
+	/* Now tell the master network device about the desired output queue
+	 * as well
+	 */
+	skb_set_queue_mapping(skb, BRCM_TAG_SET_PORT_QUEUE(p->dp->index,
+							   queue));
+
 	return skb;
 }
 

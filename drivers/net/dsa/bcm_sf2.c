@@ -205,6 +205,19 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_enable(priv, port);
 
+	/* Set per-queue pause threshold to 32 */
+	core_writel(priv, 32, CORE_TXQ_THD_PAUSE_QN_PORT(port));
+
+	/* Set ACB threshold to 24 */
+	for (i = 0; i < SF2_NUM_EGRESS_QUEUES; i++) {
+		reg = acb_readl(priv, ACB_QUEUE_CFG(port *
+						    SF2_NUM_EGRESS_QUEUES + i));
+		reg &= ~XOFF_THRESHOLD_MASK;
+		reg |= 24;
+		acb_writel(priv, reg, ACB_QUEUE_CFG(port *
+						    SF2_NUM_EGRESS_QUEUES + i));
+	}
+
 	return b53_enable_port(ds, port, phy);
 }
 
@@ -613,6 +626,20 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 		status->pause = 1;
 }
 
+static void bcm_sf2_enable_acb(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	u32 reg;
+
+	/* Enable ACB globally */
+	reg = acb_readl(priv, ACB_CONTROL);
+	reg |= (ACB_FLUSH_MASK << ACB_FLUSH_SHIFT);
+	acb_writel(priv, reg, ACB_CONTROL);
+	reg &= ~(ACB_FLUSH_MASK << ACB_FLUSH_SHIFT);
+	reg |= ACB_EN | ACB_ALGORITHM;
+	acb_writel(priv, reg, ACB_CONTROL);
+}
+
 static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
@@ -654,6 +681,8 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
 	}
+
+	bcm_sf2_enable_acb(ds);
 
 	return 0;
 }
@@ -766,6 +795,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	}
 
 	bcm_sf2_sw_configure_vlan(ds);
+	bcm_sf2_enable_acb(ds);
 
 	return 0;
 }
