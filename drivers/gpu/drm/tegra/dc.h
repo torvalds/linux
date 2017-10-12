@@ -141,6 +141,7 @@ struct tegra_dc_window {
 };
 
 /* from dc.c */
+bool tegra_dc_has_output(struct tegra_dc *dc, struct device *dev);
 void tegra_dc_commit(struct tegra_dc *dc);
 int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 			       struct drm_crtc_state *crtc_state,
@@ -289,9 +290,9 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define HDMI_ENABLE	(1 << 30)
 #define DSI_ENABLE	(1 << 29)
 #define SOR1_TIMING_CYA	(1 << 27)
-#define SOR1_ENABLE	(1 << 26)
-#define SOR_ENABLE	(1 << 25)
 #define CURSOR_ENABLE	(1 << 16)
+
+#define SOR_ENABLE(x)	(1 << (25 + (x)))
 
 #define DC_DISP_DISP_MEM_HIGH_PRIORITY		0x403
 #define CURSOR_THRESHOLD(x)   (((x) & 0x03) << 24)

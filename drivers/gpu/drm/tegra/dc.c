@@ -54,6 +54,19 @@ static u32 tegra_dc_readl_active(struct tegra_dc *dc, unsigned long offset)
 	return value;
 }
 
+bool tegra_dc_has_output(struct tegra_dc *dc, struct device *dev)
+{
+	struct device_node *np = dc->dev->of_node;
+	struct of_phandle_iterator it;
+	int err;
+
+	of_for_each_phandle(&it, err, np, "nvidia,outputs", NULL, 0)
+		if (it.node == dev->of_node)
+			return true;
+
+	return false;
+}
+
 /*
  * Double-buffered registers have two copies: ASSEMBLY and ACTIVE. When the
  * *_ACT_REQ bits are set the ASSEMBLY copy is latched into the ACTIVE copy.
