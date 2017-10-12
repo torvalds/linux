@@ -474,6 +474,14 @@ config GPIO_TZ1090_PDC
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
 
+config GPIO_UNIPHIER
+	tristate "UniPhier GPIO support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF_GPIO
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to support UniPhier GPIOs.
+
 config GPIO_VF610
 	def_bool y
 	depends on ARCH_MXC && SOC_VF610
