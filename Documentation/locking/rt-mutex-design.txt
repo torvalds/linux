@@ -8,7 +8,7 @@ RT-mutex implementation design
 
 This document tries to describe the design of the rtmutex.c implementation.
 It doesn't describe the reasons why rtmutex.c exists. For that please see
-Documentation/rt-mutex.txt.  Although this document does explain problems
+Documentation/locking/rt-mutex.txt.  Although this document does explain problems
 that happen without this code, but that is in the concept to understand
 what the code actually is doing.
 
