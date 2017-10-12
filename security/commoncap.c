@@ -782,10 +782,10 @@ static inline bool nonroot_raised_pE(struct cred *cred, kuid_t root)
 	bool ret = false;
 
 	if (__cap_grew(effective, ambient, cred) &&
-	    (!__cap_full(effective, cred) ||
-	     !__is_eff(root, cred) ||
-	     !__is_real(root, cred) ||
-	     !root_privileged()))
+	    !(__cap_full(effective, cred) &&
+	      __is_eff(root, cred) &&
+	      __is_real(root, cred) &&
+	      root_privileged()))
 		ret = true;
 	return ret;
 }
