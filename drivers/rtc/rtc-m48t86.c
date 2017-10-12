@@ -228,6 +228,7 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 	struct m48t86_rtc_info *info;
 	struct resource *res;
 	unsigned char reg;
+	int err;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -254,10 +255,15 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	info->rtc = devm_rtc_device_register(&pdev->dev, "m48t86",
-					     &m48t86_rtc_ops, THIS_MODULE);
+	info->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(info->rtc))
 		return PTR_ERR(info->rtc);
+
+	info->rtc->ops = &m48t86_rtc_ops;
+
+	err = rtc_register_device(info->rtc);
+	if (err)
+		return err;
 
 	/* read battery status */
 	reg = m48t86_readb(&pdev->dev, M48T86_D);
