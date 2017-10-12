@@ -115,7 +115,7 @@ static struct fb_ops dn_fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-struct fb_var_screeninfo dnfb_var = {
+static const struct fb_var_screeninfo dnfb_var = {
 	.xres		= 1280,
 	.yres		= 1024,
 	.xres_virtual	= 2048,
