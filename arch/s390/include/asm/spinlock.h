@@ -13,6 +13,7 @@
 #include <asm/atomic_ops.h>
 #include <asm/barrier.h>
 #include <asm/processor.h>
+#include <asm/alternative.h>
 
 #define SPINLOCK_LOCKVAL (S390_lowcore.spinlock_lockval)
 
@@ -86,9 +87,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
 {
 	typecheck(int, lp->lock);
 	asm volatile(
-#ifdef CONFIG_HAVE_MARCH_ZEC12_FEATURES
-		"	.long	0xb2fa0070\n"	/* NIAI 7 */
-#endif
+		ALTERNATIVE("", ".long 0xb2fa0070", 49)	/* NIAI 7 */
 		"	sth	%1,%0\n"
 		: "=Q" (((unsigned short *) &lp->lock)[1])
 		: "d" (0) : "cc", "memory");

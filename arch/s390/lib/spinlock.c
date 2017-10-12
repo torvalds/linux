@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/percpu.h>
+#include <asm/alternative.h>
 #include <asm/io.h>
 
 int spin_retry = -1;
@@ -73,9 +74,7 @@ static inline int arch_load_niai4(int *lock)
 	int owner;
 
 	asm volatile(
-#ifdef CONFIG_HAVE_MARCH_ZEC12_FEATURES
-		"	.long	0xb2fa0040\n"	/* NIAI 4 */
-#endif
+		ALTERNATIVE("", ".long 0xb2fa0040", 49)	/* NIAI 4 */
 		"	l	%0,%1\n"
 		: "=d" (owner) : "Q" (*lock) : "memory");
        return owner;
@@ -86,9 +85,7 @@ static inline int arch_cmpxchg_niai8(int *lock, int old, int new)
 	int expected = old;
 
 	asm volatile(
-#ifdef CONFIG_HAVE_MARCH_ZEC12_FEATURES
-		"	.long	0xb2fa0080\n"	/* NIAI 8 */
-#endif
+		ALTERNATIVE("", ".long 0xb2fa0080", 49)	/* NIAI 8 */
 		"	cs	%0,%3,%1\n"
 		: "=d" (old), "=Q" (*lock)
 		: "0" (old), "d" (new), "Q" (*lock)
