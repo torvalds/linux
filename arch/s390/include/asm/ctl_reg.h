@@ -9,6 +9,8 @@
 
 #include <linux/const.h>
 
+#define CR2_GUARDED_STORAGE		_BITUL(63 - 59)
+
 #define CR14_CHANNEL_REPORT_SUBMASK	_BITUL(63 - 35)
 #define CR14_RECOVERY_SUBMASK		_BITUL(63 - 36)
 #define CR14_DEGRADATION_SUBMASK	_BITUL(63 - 37)
