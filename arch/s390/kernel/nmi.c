@@ -12,7 +12,9 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/hardirq.h>
+#include <linux/log2.h>
 #include <linux/kprobes.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
@@ -38,6 +40,86 @@ struct mcck_struct {
 };
 
 static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
+static struct kmem_cache *mcesa_cache;
+static unsigned long mcesa_origin_lc;
+
+static inline int nmi_needs_mcesa(void)
+{
+	return MACHINE_HAS_VX || MACHINE_HAS_GS;
+}
+
+static inline unsigned long nmi_get_mcesa_size(void)
+{
+	if (MACHINE_HAS_GS)
+		return MCESA_MAX_SIZE;
+	return MCESA_MIN_SIZE;
+}
+
+/*
+ * The initial machine check extended save area for the boot CPU.
+ * It will be replaced by nmi_init() with an allocated structure.
+ * The structure is required for machine check happening early in
+ * the boot process.
+ */
+static struct mcesa boot_mcesa __initdata __aligned(MCESA_MAX_SIZE);
+
+void __init nmi_alloc_boot_cpu(struct lowcore *lc)
+{
+	if (!nmi_needs_mcesa())
+		return;
+	lc->mcesad = (unsigned long) &boot_mcesa;
+	if (MACHINE_HAS_GS)
+		lc->mcesad |= ilog2(MCESA_MAX_SIZE);
+}
+
+static int __init nmi_init(void)
+{
+	unsigned long origin, cr0, size;
+
+	if (!nmi_needs_mcesa())
+		return 0;
+	size = nmi_get_mcesa_size();
+	if (size > MCESA_MIN_SIZE)
+		mcesa_origin_lc = ilog2(size);
+	/* create slab cache for the machine-check-extended-save-areas */
+	mcesa_cache = kmem_cache_create("nmi_save_areas", size, size, 0, NULL);
+	if (!mcesa_cache)
+		panic("Couldn't create nmi save area cache");
+	origin = (unsigned long) kmem_cache_alloc(mcesa_cache, GFP_KERNEL);
+	if (!origin)
+		panic("Couldn't allocate nmi save area");
+	/* The pointer is stored with mcesa_bits ORed in */
+	kmemleak_not_leak((void *) origin);
+	__ctl_store(cr0, 0, 0);
+	__ctl_clear_bit(0, 28); /* disable lowcore protection */
+	/* Replace boot_mcesa on the boot CPU */
+	S390_lowcore.mcesad = origin | mcesa_origin_lc;
+	__ctl_load(cr0, 0, 0);
+	return 0;
+}
+early_initcall(nmi_init);
+
+int nmi_alloc_per_cpu(struct lowcore *lc)
+{
+	unsigned long origin;
+
+	if (!nmi_needs_mcesa())
+		return 0;
+	origin = (unsigned long) kmem_cache_alloc(mcesa_cache, GFP_KERNEL);
+	if (!origin)
+		return -ENOMEM;
+	/* The pointer is stored with mcesa_bits ORed in */
+	kmemleak_not_leak((void *) origin);
+	lc->mcesad = origin | mcesa_origin_lc;
+	return 0;
+}
+
+void nmi_free_per_cpu(struct lowcore *lc)
+{
+	if (!nmi_needs_mcesa())
+		return;
+	kmem_cache_free(mcesa_cache, (void *)(lc->mcesad & MCESA_ORIGIN_MASK));
+}
 
 static notrace void s390_handle_damage(void)
 {

@@ -80,6 +80,8 @@ union mci {
 
 #define MCESA_ORIGIN_MASK	(~0x3ffUL)
 #define MCESA_LC_MASK		(0xfUL)
+#define MCESA_MIN_SIZE		(1024)
+#define MCESA_MAX_SIZE		(2048)
 
 struct mcesa {
 	u8 vector_save_area[1024];
@@ -88,8 +90,12 @@ struct mcesa {
 
 struct pt_regs;
 
-extern void s390_handle_mcck(void);
-extern void s390_do_machine_check(struct pt_regs *regs);
+void nmi_alloc_boot_cpu(struct lowcore *lc);
+int nmi_alloc_per_cpu(struct lowcore *lc);
+void nmi_free_per_cpu(struct lowcore *lc);
+
+void s390_handle_mcck(void);
+void s390_do_machine_check(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_NMI_H */

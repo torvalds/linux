@@ -55,6 +55,7 @@
 #include <asm/mmu_context.h>
 #include <asm/cpcmd.h>
 #include <asm/lowcore.h>
+#include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
@@ -340,15 +341,7 @@ static void __init setup_lowcore(void)
 	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       MAX_FACILITY_BIT/8);
-	if (MACHINE_HAS_VX || MACHINE_HAS_GS) {
-		unsigned long bits, size;
-
-		bits = MACHINE_HAS_GS ? 11 : 10;
-		size = 1UL << bits;
-		lc->mcesad = (__u64) memblock_virt_alloc(size, size);
-		if (MACHINE_HAS_GS)
-			lc->mcesad |= bits;
-	}
+	nmi_alloc_boot_cpu(lc);
 	vdso_alloc_boot_cpu(lc);
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
 	lc->async_enter_timer = S390_lowcore.async_enter_timer;
