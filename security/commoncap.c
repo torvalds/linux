@@ -695,6 +695,8 @@ out:
 	return rc;
 }
 
+static inline bool root_privileged(void) { return !issecure(SECURE_NOROOT); }
+
 /*
  * handle_privileged_root - Handle case of privileged root
  * @bprm: The execution parameters, including the proposed creds
@@ -713,7 +715,7 @@ static void handle_privileged_root(struct linux_binprm *bprm, bool has_fcap,
 	const struct cred *old = current_cred();
 	struct cred *new = bprm->cred;
 
-	if (issecure(SECURE_NOROOT))
+	if (!root_privileged())
 		return;
 	/*
 	 * If the legacy file capability is set, then don't set privs
@@ -838,7 +840,7 @@ int cap_bprm_set_creds(struct linux_binprm *bprm)
 	if (__cap_grew(effective, ambient, new)) {
 		if (!__cap_full(effective, new) ||
 		    !uid_eq(new->euid, root_uid) || !uid_eq(new->uid, root_uid) ||
-		    issecure(SECURE_NOROOT)) {
+		    !root_privileged()) {
 			ret = audit_log_bprm_fcaps(bprm, new, old);
 			if (ret < 0)
 				return ret;
