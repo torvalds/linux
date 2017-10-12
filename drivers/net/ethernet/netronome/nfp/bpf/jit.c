@@ -1070,47 +1070,56 @@ static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 				     meta->insn.src_reg * 2, true, 4);
 }
 
-static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		       u8 size)
 {
-	if (meta->insn.off == offsetof(struct sk_buff, len))
+	switch (meta->insn.off) {
+	case offsetof(struct sk_buff, len):
+		if (size != FIELD_SIZEOF(struct sk_buff, len))
+			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog,
 			reg_both(meta->insn.dst_reg * 2), plen_reg(nfp_prog));
-	else
+		break;
+	default:
 		return -EOPNOTSUPP;
+	}
+
+	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
 
 	return 0;
 }
 
-static int mem_ldx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_ldx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		       u8 size)
 {
 	swreg dst = reg_both(meta->insn.dst_reg * 2);
 
-	if (meta->insn.off != offsetof(struct xdp_md, data) &&
-	    meta->insn.off != offsetof(struct xdp_md, data_end))
+	if (size != sizeof(void *))
+		return -EINVAL;
+
+	switch (meta->insn.off) {
+	case offsetof(struct xdp_buff, data):
+		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
+		break;
+	case offsetof(struct xdp_buff, data_end):
+		emit_alu(nfp_prog, dst,
+			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
+		break;
+	default:
 		return -EOPNOTSUPP;
+	}
 
-	wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
-
-	if (meta->insn.off == offsetof(struct xdp_md, data))
-		return 0;
-
-	emit_alu(nfp_prog, dst,	dst, ALU_OP_ADD, plen_reg(nfp_prog));
+	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
 
 	return 0;
 }
 
 static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	int ret;
-
 	if (nfp_prog->act == NN_ACT_XDP)
-		ret = mem_ldx4_xdp(nfp_prog, meta);
+		return mem_ldx_xdp(nfp_prog, meta, 4);
 	else
-		ret = mem_ldx4_skb(nfp_prog, meta);
-
-	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
-
-	return ret;
+		return mem_ldx_skb(nfp_prog, meta, 4);
 }
 
 static int mem_stx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
