@@ -72,6 +72,19 @@ static int ufs_qcom_phy_qmp_20nm_exit(struct phy *generic_phy)
 }
 
 static
+int ufs_qcom_phy_qmp_20nm_set_mode(struct phy *generic_phy, enum phy_mode mode)
+{
+	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
+
+	phy_common->mode = PHY_MODE_INVALID;
+
+	if (mode > 0)
+		phy_common->mode = mode;
+
+	return 0;
+}
+
+static
 void ufs_qcom_phy_qmp_20nm_power_control(struct ufs_qcom_phy *phy, bool val)
 {
 	bool hibern8_exit_after_pwr_collapse = phy->quirks &
@@ -160,6 +173,7 @@ static const struct phy_ops ufs_qcom_phy_qmp_20nm_phy_ops = {
 	.exit		= ufs_qcom_phy_qmp_20nm_exit,
 	.power_on	= ufs_qcom_phy_power_on,
 	.power_off	= ufs_qcom_phy_power_off,
+	.set_mode	= ufs_qcom_phy_qmp_20nm_set_mode,
 	.owner		= THIS_MODULE,
 };
 

@@ -115,6 +115,8 @@ struct ufs_qcom_phy {
 	int cached_regs_table_size;
 	bool is_powered_on;
 	struct ufs_qcom_phy_specific_ops *phy_spec_ops;
+
+	enum phy_mode mode;
 };
 
 /**
