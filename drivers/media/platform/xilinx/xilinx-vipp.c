@@ -76,19 +76,15 @@ static int xvip_graph_build_one(struct xvip_composite_device *xdev,
 	struct xvip_graph_entity *ent;
 	struct v4l2_fwnode_link link;
 	struct device_node *ep = NULL;
-	struct device_node *next;
 	int ret = 0;
 
 	dev_dbg(xdev->dev, "creating links for entity %s\n", local->name);
 
 	while (1) {
 		/* Get the next endpoint and parse its link. */
-		next = of_graph_get_next_endpoint(entity->node, ep);
-		if (next == NULL)
+		ep = of_graph_get_next_endpoint(entity->node, ep);
+		if (ep == NULL)
 			break;
-
-		of_node_put(ep);
-		ep = next;
 
 		dev_dbg(xdev->dev, "processing endpoint %pOF\n", ep);
 
@@ -200,7 +196,6 @@ static int xvip_graph_build_dma(struct xvip_composite_device *xdev)
 	struct xvip_graph_entity *ent;
 	struct v4l2_fwnode_link link;
 	struct device_node *ep = NULL;
-	struct device_node *next;
 	struct xvip_dma *dma;
 	int ret = 0;
 
@@ -208,12 +203,9 @@ static int xvip_graph_build_dma(struct xvip_composite_device *xdev)
 
 	while (1) {
 		/* Get the next endpoint and parse its link. */
-		next = of_graph_get_next_endpoint(node, ep);
-		if (next == NULL)
+		ep = of_graph_get_next_endpoint(node, ep);
+		if (ep == NULL)
 			break;
-
-		of_node_put(ep);
-		ep = next;
 
 		dev_dbg(xdev->dev, "processing endpoint %pOF\n", ep);
 
