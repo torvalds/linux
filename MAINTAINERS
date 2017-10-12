@@ -7571,7 +7571,7 @@ F:	arch/mips/include/asm/kvm*
 F:	arch/mips/kvm/
 
 KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
-M:	Alexander Graf <agraf@suse.com>
+M:	Paul Mackerras <paulus@ozlabs.org>
 L:	kvm-ppc@vger.kernel.org
 W:	http://www.linux-kvm.org/
 T:	git git://github.com/agraf/linux-2.6.git
