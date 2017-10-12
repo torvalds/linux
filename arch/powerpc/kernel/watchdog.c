@@ -257,10 +257,7 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		pr_emerg("CPU %d self-detected hard LOCKUP\n", cpu);
 		print_modules();
 		print_irqtrace_events(current);
-		if (regs)
-			show_regs(regs);
-		else
-			dump_stack();
+		show_regs(regs);
 
 		wd_smp_unlock(&flags);
 
