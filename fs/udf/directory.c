@@ -52,7 +52,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 	}
 
 	if (fibh->eoffset == dir->i_sb->s_blocksize) {
-		int lextoffset = epos->offset;
+		uint32_t lextoffset = epos->offset;
 		unsigned char blocksize_bits = dir->i_sb->s_blocksize_bits;
 
 		if (udf_next_aext(dir, epos, eloc, elen, 1) !=
@@ -111,7 +111,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 		memcpy((uint8_t *)cfi, (uint8_t *)fi,
 		       sizeof(struct fileIdentDesc));
 	} else if (fibh->eoffset > dir->i_sb->s_blocksize) {
-		int lextoffset = epos->offset;
+		uint32_t lextoffset = epos->offset;
 
 		if (udf_next_aext(dir, epos, eloc, elen, 1) !=
 		    (EXT_RECORDED_ALLOCATED >> 30))
