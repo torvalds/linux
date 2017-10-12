@@ -401,7 +401,7 @@ static struct snd_soc_dai_link byt_rt5651_dais[] = {
 	/* back ends */
 	{
 		.name = "SSP2-Codec",
-		.id = 1,
+		.id = 0,
 		.cpu_dai_name = "ssp2-port",
 		.platform_name = "sst-mfld-platform",
 		.no_pcm = 1,

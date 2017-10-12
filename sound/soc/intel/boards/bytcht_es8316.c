@@ -209,7 +209,7 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 		 * require SSP0 will not work.
 		 */
 		.name = "SSP2-Codec",
-		.id = 1,
+		.id = 0,
 		.cpu_dai_name = "ssp2-port",
 		.platform_name = "sst-mfld-platform",
 		.no_pcm = 1,
