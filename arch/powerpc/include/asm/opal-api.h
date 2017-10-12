@@ -896,6 +896,8 @@ enum {
 	 */
 	OPAL_REINIT_CPUS_MMU_HASH	= (1 << 2),
 	OPAL_REINIT_CPUS_MMU_RADIX	= (1 << 3),
+
+	OPAL_REINIT_CPUS_TM_SUSPEND_DISABLED = (1 << 4),
 };
 
 typedef struct oppanel_line {

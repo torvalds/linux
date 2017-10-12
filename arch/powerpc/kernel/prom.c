@@ -47,6 +47,7 @@
 #include <asm/mmu.h>
 #include <asm/paca.h>
 #include <asm/pgtable.h>
+#include <asm/powernv.h>
 #include <asm/iommu.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
@@ -681,7 +682,10 @@ static void __init tm_init(void)
 		cur_cpu_spec->cpu_user_features2 &=
 			~(PPC_FEATURE2_HTM_NOSC | PPC_FEATURE2_HTM);
 		cur_cpu_spec->cpu_features &= ~CPU_FTR_TM;
+		return;
 	}
+
+	pnv_tm_init();
 }
 #else
 static void tm_init(void) { }

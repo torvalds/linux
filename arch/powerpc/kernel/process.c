@@ -77,6 +77,13 @@
 extern unsigned long _get_SP(void);
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+/*
+ * Are we running in "Suspend disabled" mode? If so we have to block any
+ * sigreturn that would get us into suspended state, and we also warn in some
+ * other paths that we should never reach with suspend disabled.
+ */
+bool tm_suspend_disabled __ro_after_init = false;
+
 static void check_if_tm_restore_required(struct task_struct *tsk)
 {
 	/*

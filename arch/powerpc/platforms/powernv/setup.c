@@ -36,6 +36,7 @@
 #include <asm/opal.h>
 #include <asm/kexec.h>
 #include <asm/smp.h>
+#include <asm/tm.h>
 
 #include "powernv.h"
 
@@ -303,6 +304,28 @@ static int __init pnv_probe(void)
 
 	return 1;
 }
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+void __init pnv_tm_init(void)
+{
+	if (!firmware_has_feature(FW_FEATURE_OPAL) ||
+	    !pvr_version_is(PVR_POWER9) ||
+	    early_cpu_has_feature(CPU_FTR_TM))
+		return;
+
+	if (opal_reinit_cpus(OPAL_REINIT_CPUS_TM_SUSPEND_DISABLED) != OPAL_SUCCESS)
+		return;
+
+	pr_info("Enabling TM (Transactional Memory) with Suspend Disabled\n");
+	cur_cpu_spec->cpu_features |= CPU_FTR_TM;
+	/* Make sure "normal" HTM is off (it should be) */
+	cur_cpu_spec->cpu_user_features2 &= ~PPC_FEATURE2_HTM;
+	/* Turn on no suspend mode, and HTM no SC */
+	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_HTM_NO_SUSPEND | \
+					    PPC_FEATURE2_HTM_NOSC;
+	tm_suspend_disabled = true;
+}
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 /*
  * Returns the cpu frequency for 'cpu' in Hz. This is used by
