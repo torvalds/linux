@@ -1255,6 +1255,16 @@ config GPIO_74X164
 	  shift registers. This driver can be used to provide access
 	  to more gpio outputs.
 
+config GPIO_MAX3191X
+	tristate "Maxim MAX3191x industrial serializer"
+	select CRC8
+	help
+	  GPIO driver for Maxim MAX31910, MAX31911, MAX31912, MAX31913,
+	  MAX31953 and MAX31963 industrial serializer, a daisy-chainable
+	  chip to make 8 digital 24V inputs available via SPI.  Supports
+	  CRC checksums to guard against electromagnetic interference,
+	  as well as undervoltage and overtemperature detection.
+
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"
 	select GPIO_MAX730X
