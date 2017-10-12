@@ -167,16 +167,6 @@ config PINCTRL_MCP23S08
 	  This provides a GPIO interface supporting inputs and outputs.
 	  The I2C versions of the chips can be used as interrupt-controller.
 
-config PINCTRL_MESON
-	bool
-	depends on OF
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select OF_GPIO
-	select REGMAP_MMIO
-
 config PINCTRL_OXNAS
 	bool
 	depends on OF
@@ -369,6 +359,7 @@ source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"
 source "drivers/pinctrl/zte/Kconfig"
+source "drivers/pinctrl/meson/Kconfig"
 
 config PINCTRL_XWAY
 	bool

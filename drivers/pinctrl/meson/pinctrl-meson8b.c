@@ -904,7 +904,7 @@ static struct meson_bank meson8b_aobus_banks[] = {
 	BANK("AO",   GPIOAO_0, GPIO_TEST_N, 0, 13, 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
 };
 
-struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
+static struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
 	.name		= "cbus-banks",
 	.pins		= meson8b_cbus_pins,
 	.groups		= meson8b_cbus_groups,
@@ -916,7 +916,7 @@ struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
 	.num_banks	= ARRAY_SIZE(meson8b_cbus_banks),
 };
 
-struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
+static struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
 	.name		= "aobus-banks",
 	.pins		= meson8b_aobus_pins,
 	.groups		= meson8b_aobus_groups,
@@ -927,3 +927,24 @@ struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
 	.num_funcs	= ARRAY_SIZE(meson8b_aobus_functions),
 	.num_banks	= ARRAY_SIZE(meson8b_aobus_banks),
 };
+
+static const struct of_device_id meson8b_pinctrl_dt_match[] = {
+	{
+		.compatible = "amlogic,meson8b-cbus-pinctrl",
+		.data = &meson8b_cbus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8b-aobus-pinctrl",
+		.data = &meson8b_aobus_pinctrl_data,
+	},
+	{ },
+};
+
+static struct platform_driver meson8b_pinctrl_driver = {
+	.probe		= meson_pinctrl_probe,
+	.driver = {
+		.name	= "meson8b-pinctrl",
+		.of_match_table = meson8b_pinctrl_dt_match,
+	},
+};
+builtin_platform_driver(meson8b_pinctrl_driver);

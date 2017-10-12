@@ -13,6 +13,7 @@
 
 #include <linux/gpio.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 
@@ -165,11 +166,5 @@ struct meson_pinctrl {
 
 #define MESON_PIN(x) PINCTRL_PIN(x, #x)
 
-extern struct meson_pinctrl_data meson8_cbus_pinctrl_data;
-extern struct meson_pinctrl_data meson8_aobus_pinctrl_data;
-extern struct meson_pinctrl_data meson8b_cbus_pinctrl_data;
-extern struct meson_pinctrl_data meson8b_aobus_pinctrl_data;
-extern struct meson_pinctrl_data meson_gxbb_periphs_pinctrl_data;
-extern struct meson_pinctrl_data meson_gxbb_aobus_pinctrl_data;
-extern struct meson_pinctrl_data meson_gxl_periphs_pinctrl_data;
-extern struct meson_pinctrl_data meson_gxl_aobus_pinctrl_data;
+/* Common probe function */
+int meson_pinctrl_probe(struct platform_device *pdev);

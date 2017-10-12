@@ -809,7 +809,7 @@ static struct meson_bank meson_gxl_aobus_banks[] = {
 	BANK("AO",   GPIOAO_0,  GPIOAO_9, 0, 9, 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
 };
 
-struct meson_pinctrl_data meson_gxl_periphs_pinctrl_data = {
+static struct meson_pinctrl_data meson_gxl_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
 	.pins		= meson_gxl_periphs_pins,
 	.groups		= meson_gxl_periphs_groups,
@@ -821,7 +821,7 @@ struct meson_pinctrl_data meson_gxl_periphs_pinctrl_data = {
 	.num_banks	= ARRAY_SIZE(meson_gxl_periphs_banks),
 };
 
-struct meson_pinctrl_data meson_gxl_aobus_pinctrl_data = {
+static struct meson_pinctrl_data meson_gxl_aobus_pinctrl_data = {
 	.name		= "aobus-banks",
 	.pins		= meson_gxl_aobus_pins,
 	.groups		= meson_gxl_aobus_groups,
@@ -832,3 +832,24 @@ struct meson_pinctrl_data meson_gxl_aobus_pinctrl_data = {
 	.num_funcs	= ARRAY_SIZE(meson_gxl_aobus_functions),
 	.num_banks	= ARRAY_SIZE(meson_gxl_aobus_banks),
 };
+
+static const struct of_device_id meson_gxl_pinctrl_dt_match[] = {
+	{
+		.compatible = "amlogic,meson-gxl-periphs-pinctrl",
+		.data = &meson_gxl_periphs_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson-gxl-aobus-pinctrl",
+		.data = &meson_gxl_aobus_pinctrl_data,
+	},
+	{ },
+};
+
+static struct platform_driver meson_gxl_pinctrl_driver = {
+	.probe		= meson_pinctrl_probe,
+	.driver = {
+		.name	= "meson-gxl-pinctrl",
+		.of_match_table = meson_gxl_pinctrl_dt_match,
+	},
+};
+builtin_platform_driver(meson_gxl_pinctrl_driver);
