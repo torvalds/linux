@@ -27,10 +27,14 @@ config SND_SST_IPC_ACPI
 	select SND_SOC_INTEL_SST
 	select IOSF_MBI
 
+config SND_SOC_INTEL_COMMON
+	tristate
+
 config SND_SOC_INTEL_SST
 	tristate
+	select SND_SOC_INTEL_COMMON
 	select SND_SOC_INTEL_SST_ACPI if ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 
 config SND_SOC_INTEL_SST_FIRMWARE
 	tristate
@@ -39,7 +43,7 @@ config SND_SOC_INTEL_SST_FIRMWARE
 config SND_SOC_INTEL_SST_ACPI
 	tristate
 
-config SND_SOC_INTEL_SST_MATCH
+config SND_SOC_ACPI_INTEL_MATCH
 	tristate
 	select SND_SOC_ACPI if ACPI
 
@@ -145,7 +149,7 @@ config SND_SOC_INTEL_BYTCR_RT5640_MACH
 	select SND_SOC_RT5640
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 	help
           This adds support for ASoC machine driver for Intel(R) Baytrail and Baytrail-CR
           platforms with RT5640 audio codec.
@@ -158,7 +162,7 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	select SND_SOC_RT5651
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 	help
           This adds support for ASoC machine driver for Intel(R) Baytrail and Baytrail-CR
           platforms with RT5651 audio codec.
@@ -171,7 +175,7 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
         select SND_SOC_RT5670
         select SND_SST_ATOM_HIFI2_PLATFORM
         select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
         help
           This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
           platforms with RT5672 audio codec.
@@ -184,7 +188,7 @@ config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	select SND_SOC_RT5645
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 	help
 	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
 	  platforms with RT5645/5650 audio codec.
@@ -197,7 +201,7 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	select SND_SOC_TS3A227E
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 	help
 	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
 	  platforms with MAX98090 audio codec it also can support TI jack chip as aux device.
@@ -209,7 +213,7 @@ config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 	select SND_SOC_DA7213
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 	help
 	  This adds support for ASoC machine driver for Intel(R) Baytrail & CherryTrail
 	  platforms with DA7212/7213 audio codec.
@@ -221,7 +225,7 @@ config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	select SND_SOC_ES8316
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 	help
 	  This adds support for ASoC machine driver for Intel(R) Baytrail &
 	  Cherrytrail platforms with ES8316 audio codec.
@@ -232,7 +236,7 @@ config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
-	select SND_SOC_INTEL_SST_MATCH if ACPI
+	select SND_SOC_ACPI_INTEL_MATCH if ACPI
 	help
 	  This adds support for ASoC machine driver for the MinnowBoard Max or
 	  Up boards and provides access to I2S signals on the Low-Speed

@@ -22,6 +22,7 @@
 
 #include "sst-dsp.h"
 #include <sound/soc-acpi.h>
+#include <sound/soc-acpi-intel-match.h>
 
 #define SST_LPT_DSP_DMA_ADDR_OFFSET	0x0F0000
 #define SST_WPT_DSP_DMA_ADDR_OFFSET	0x0FE000
@@ -179,18 +180,9 @@ static int sst_acpi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct snd_soc_acpi_mach haswell_machines[] = {
-	{
-		.id = "INT33CA",
-		.drv_name = "haswell-audio",
-		.fw_filename = "intel/IntcSST1.bin",
-	},
-	{}
-};
-
 static struct sst_acpi_desc sst_acpi_haswell_desc = {
 	.drv_name = "haswell-pcm-audio",
-	.machines = haswell_machines,
+	.machines = snd_soc_acpi_intel_haswell_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
 	.resindex_fw_base = -1,
@@ -201,23 +193,9 @@ static struct sst_acpi_desc sst_acpi_haswell_desc = {
 	.dma_size = SST_LPT_DSP_DMA_SIZE,
 };
 
-static struct snd_soc_acpi_mach broadwell_machines[] = {
-	{
-		.id = "INT343A",
-		.drv_name = "broadwell-audio",
-		.fw_filename =  "intel/IntcSST2.bin",
-	},
-	{
-		.id = "RT5677CE",
-		.drv_name = "bdw-rt5677",
-		.fw_filename =  "intel/IntcSST2.bin",
-	},
-	{}
-};
-
 static struct sst_acpi_desc sst_acpi_broadwell_desc = {
 	.drv_name = "haswell-pcm-audio",
-	.machines = broadwell_machines,
+	.machines = snd_soc_acpi_intel_broadwell_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
 	.resindex_fw_base = -1,
@@ -229,23 +207,9 @@ static struct sst_acpi_desc sst_acpi_broadwell_desc = {
 };
 
 #if !IS_ENABLED(CONFIG_SND_SST_IPC_ACPI)
-static struct snd_soc_acpi_mach baytrail_machines[] = {
-	{
-		.id = "10EC5640",
-		.drv_name = "byt-rt5640",
-		.fw_filename = "intel/fw_sst_0f28.bin-48kHz_i2s_master",
-	},
-	{
-		.id = "193C9890",
-		.drv_name = "byt-max98090",
-		.fw_filename = "intel/fw_sst_0f28.bin-48kHz_i2s_master",
-	},
-	{}
-};
-
 static struct sst_acpi_desc sst_acpi_baytrail_desc = {
 	.drv_name = "baytrail-pcm-audio",
-	.machines = baytrail_machines,
+	.machines = snd_soc_acpi_intel_baytrail_legacy_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
 	.resindex_fw_base = 2,
