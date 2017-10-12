@@ -254,7 +254,7 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		}
 		set_cpu_stuck(cpu, tb);
 
-		pr_emerg("CPU %d self-detected hard LOCKUP\n", cpu);
+		pr_emerg("CPU %d self-detected hard LOCKUP @ %pS\n", cpu, (void *)regs->nip);
 		print_modules();
 		print_irqtrace_events(current);
 		show_regs(regs);
