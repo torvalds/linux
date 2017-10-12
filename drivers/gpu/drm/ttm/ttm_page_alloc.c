@@ -733,22 +733,33 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 		/* No pool for this memory type so free the pages */
 		i = 0;
 		while (i < npages) {
-			unsigned order;
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+			struct page *p = pages[i];
+#endif
+			unsigned order = 0, j;
 
 			if (!pages[i]) {
 				++i;
 				continue;
 			}
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+			for (j = 0; j < HPAGE_PMD_NR; ++j)
+				if (p++ != pages[i + j])
+				    break;
+
+			if (j == HPAGE_PMD_NR)
+				order = HPAGE_PMD_ORDER;
+#endif
+
 			if (page_count(pages[i]) != 1)
 				pr_err("Erroneous page count. Leaking pages.\n");
-			order = compound_order(pages[i]);
 			__free_pages(pages[i], order);
 
-			order = 1 << order;
-			while (order) {
+			j = 1 << order;
+			while (j) {
 				pages[i++] = NULL;
-				--order;
+				--j;
 			}
 		}
 		return;
