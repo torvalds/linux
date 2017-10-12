@@ -278,6 +278,8 @@ process_counter_values(struct perf_stat_config *config, struct perf_evsel *evsel
 		perf_counts_values__scale(count, config->scale, NULL);
 		if (config->aggr_mode == AGGR_NONE)
 			perf_stat__update_shadow_stats(evsel, count->val, cpu);
+		if (config->aggr_mode == AGGR_THREAD)
+			perf_stat__update_shadow_stats(evsel, count->val, 0);
 		break;
 	case AGGR_GLOBAL:
 		aggr->val += count->val;
