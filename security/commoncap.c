@@ -781,13 +781,12 @@ static inline bool nonroot_raised_pE(struct cred *cred, kuid_t root)
 {
 	bool ret = false;
 
-	if (__cap_grew(effective, ambient, cred)) {
-		if (!__cap_full(effective, cred) ||
-		    !__is_eff(root, cred) || !__is_real(root, cred) ||
-		    !root_privileged()) {
-			ret = true;
-		}
-	}
+	if (__cap_grew(effective, ambient, cred) &&
+	    (!__cap_full(effective, cred) ||
+	     !__is_eff(root, cred) ||
+	     !__is_real(root, cred) ||
+	     !root_privileged()))
+		ret = true;
 	return ret;
 }
 
@@ -880,13 +879,11 @@ int cap_bprm_set_creds(struct linux_binprm *bprm)
 
 	/* Check for privilege-elevated exec. */
 	bprm->cap_elevated = 0;
-	if (is_setid) {
+	if (is_setid ||
+	    (!__is_real(root_uid, new) &&
+	     (effective ||
+	      __cap_grew(permitted, ambient, new))))
 		bprm->cap_elevated = 1;
-	} else if (!__is_real(root_uid, new)) {
-		if (effective ||
-		    __cap_grew(permitted, ambient, new))
-			bprm->cap_elevated = 1;
-	}
 
 	return 0;
 }
