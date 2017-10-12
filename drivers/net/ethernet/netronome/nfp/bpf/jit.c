@@ -746,6 +746,14 @@ wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	return 0;
 }
 
+static void wrp_end32(struct nfp_prog *nfp_prog, swreg reg_in, u8 gpr_out)
+{
+	emit_ld_field(nfp_prog, reg_both(gpr_out), 0xf, reg_in,
+		      SHF_SC_R_ROT, 8);
+	emit_ld_field(nfp_prog, reg_both(gpr_out), 0x5, reg_a(gpr_out),
+		      SHF_SC_R_ROT, 16);
+}
+
 /* --- Callbacks --- */
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
@@ -978,6 +986,35 @@ static int shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		 reg_none(), SHF_OP_NONE, reg_b(insn->dst_reg * 2),
 		 SHF_SC_L_SHF, insn->imm);
 	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2 + 1), 0);
+
+	return 0;
+}
+
+static int end_reg32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u8 gpr = insn->dst_reg * 2;
+
+	switch (insn->imm) {
+	case 16:
+		emit_ld_field(nfp_prog, reg_both(gpr), 0x9, reg_b(gpr),
+			      SHF_SC_R_ROT, 8);
+		emit_ld_field(nfp_prog, reg_both(gpr), 0xe, reg_a(gpr),
+			      SHF_SC_R_SHF, 16);
+
+		wrp_immed(nfp_prog, reg_both(gpr + 1), 0);
+		break;
+	case 32:
+		wrp_end32(nfp_prog, reg_a(gpr), gpr);
+		wrp_immed(nfp_prog, reg_both(gpr + 1), 0);
+		break;
+	case 64:
+		wrp_mov(nfp_prog, imm_a(nfp_prog), reg_b(gpr + 1));
+
+		wrp_end32(nfp_prog, reg_a(gpr), gpr + 1);
+		wrp_end32(nfp_prog, imm_a(nfp_prog), gpr);
+		break;
+	}
 
 	return 0;
 }
@@ -1297,6 +1334,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU | BPF_SUB | BPF_X] =	sub_reg,
 	[BPF_ALU | BPF_SUB | BPF_K] =	sub_imm,
 	[BPF_ALU | BPF_LSH | BPF_K] =	shl_imm,
+	[BPF_ALU | BPF_END | BPF_X] =	end_reg32,
 	[BPF_LD | BPF_IMM | BPF_DW] =	imm_ld8,
 	[BPF_LD | BPF_ABS | BPF_B] =	data_ld1,
 	[BPF_LD | BPF_ABS | BPF_H] =	data_ld2,
