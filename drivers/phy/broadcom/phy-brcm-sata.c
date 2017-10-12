@@ -190,7 +190,7 @@ static u32 brcm_sata_phy_rd(void __iomem *pcb_base, u32 bank, u32 ofs)
 #define STB_FMAX_VAL_DEFAULT	0x3df
 #define STB_FMAX_VAL_SSC	0x83
 
-static int brcm_stb_sata_init(struct brcm_sata_port *port)
+static void brcm_stb_sata_ssc_init(struct brcm_sata_port *port)
 {
 	void __iomem *base = brcm_sata_pcb_base(port);
 	struct brcm_sata_phy *priv = port->phy_priv;
@@ -215,6 +215,11 @@ static int brcm_stb_sata_init(struct brcm_sata_port *port)
 
 	brcm_sata_phy_wr(base, TXPMD_REG_BANK, TXPMD_TX_FREQ_CTRL_CONTROL3,
 			  ~TXPMD_TX_FREQ_CTRL_CONTROL3_FMAX_MASK, tmp);
+}
+
+static int brcm_stb_sata_init(struct brcm_sata_port *port)
+{
+	brcm_stb_sata_ssc_init(port);
 
 	return 0;
 }
