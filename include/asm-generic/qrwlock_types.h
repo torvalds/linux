@@ -9,12 +9,23 @@
  */
 
 typedef struct qrwlock {
-	atomic_t		cnts;
+	union {
+		atomic_t cnts;
+		struct {
+#ifdef __LITTLE_ENDIAN
+			u8 wmode;	/* Writer mode   */
+			u8 rcnts[3];	/* Reader counts */
+#else
+			u8 rcnts[3];	/* Reader counts */
+			u8 wmode;	/* Writer mode   */
+#endif
+		};
+	};
 	arch_spinlock_t		wait_lock;
 } arch_rwlock_t;
 
 #define	__ARCH_RW_LOCK_UNLOCKED {		\
-	.cnts = ATOMIC_INIT(0),			\
+	{ .cnts = ATOMIC_INIT(0), },		\
 	.wait_lock = __ARCH_SPIN_LOCK_UNLOCKED,	\
 }
 
