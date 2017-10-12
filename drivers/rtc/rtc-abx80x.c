@@ -620,10 +620,6 @@ static int abx80x_probe(struct i2c_client *client,
 
 	rtc->ops = &abx80x_rtc_ops;
 
-	err = rtc_register_device(rtc);
-	if (err)
-		return err;
-
 	i2c_set_clientdata(client, rtc);
 
 	if (client->irq > 0) {
@@ -650,10 +646,14 @@ static int abx80x_probe(struct i2c_client *client,
 	err = devm_add_action_or_reset(&client->dev,
 				       rtc_calib_remove_sysfs_group,
 				       &client->dev);
-	if (err)
+	if (err) {
 		dev_err(&client->dev,
 			"Failed to add sysfs cleanup action: %d\n",
 			err);
+		return err;
+	}
+
+	err = rtc_register_device(rtc);
 
 	return err;
 }
