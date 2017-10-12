@@ -41,6 +41,11 @@ static inline void debug_fence_init(struct i915_sw_fence *fence)
 	debug_object_init(fence, &i915_sw_fence_debug_descr);
 }
 
+static inline void debug_fence_init_onstack(struct i915_sw_fence *fence)
+{
+	debug_object_init_on_stack(fence, &i915_sw_fence_debug_descr);
+}
+
 static inline void debug_fence_activate(struct i915_sw_fence *fence)
 {
 	debug_object_activate(fence, &i915_sw_fence_debug_descr);
@@ -76,6 +81,10 @@ static inline void debug_fence_assert(struct i915_sw_fence *fence)
 #else
 
 static inline void debug_fence_init(struct i915_sw_fence *fence)
+{
+}
+
+static inline void debug_fence_init_onstack(struct i915_sw_fence *fence)
 {
 }
 
@@ -507,5 +516,6 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/lib_sw_fence.c"
 #include "selftests/i915_sw_fence.c"
 #endif
