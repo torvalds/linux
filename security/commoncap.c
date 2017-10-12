@@ -766,7 +766,7 @@ static inline bool __is_setgid(struct cred *new, const struct cred *old)
 { return !gid_eq(new->egid, old->gid); }
 
 /*
- * Audit candidate if current->cap_effective is set
+ * 1) Audit candidate if current->cap_effective is set
  *
  * We do not bother to audit if 3 things are true:
  *   1) cap_effective has all caps
@@ -776,16 +776,31 @@ static inline bool __is_setgid(struct cred *new, const struct cred *old)
  *
  * Number 1 above might fail if you don't have a full bset, but I think
  * that is interesting information to audit.
+ *
+ * A number of other conditions require logging:
+ * 2) something prevented setuid root getting all caps
+ * 3) non-setuid root gets fcaps
+ * 4) non-setuid root gets ambient
  */
-static inline bool nonroot_raised_pE(struct cred *cred, kuid_t root)
+static inline bool nonroot_raised_pE(struct cred *new, const struct cred *old,
+				     kuid_t root, bool has_fcap)
 {
 	bool ret = false;
 
-	if (__cap_grew(effective, ambient, cred) &&
-	    !(__cap_full(effective, cred) &&
-	      (__is_eff(root, cred) || __is_real(root, cred)) &&
-	      root_privileged()))
+	if ((__cap_grew(effective, ambient, new) &&
+	     !(__cap_full(effective, new) &&
+	       (__is_eff(root, new) || __is_real(root, new)) &&
+	       root_privileged())) ||
+	    (root_privileged() &&
+	     __is_suid(root, new) &&
+	     !__cap_full(effective, new)) ||
+	    (!__is_setuid(new, old) &&
+	     ((has_fcap &&
+	       __cap_gained(permitted, new, old)) ||
+	      __cap_gained(ambient, new, old))))
+
 		ret = true;
+
 	return ret;
 }
 
@@ -865,7 +880,7 @@ int cap_bprm_set_creds(struct linux_binprm *bprm)
 	if (WARN_ON(!cap_ambient_invariant_ok(new)))
 		return -EPERM;
 
-	if (nonroot_raised_pE(new, root_uid)) {
+	if (nonroot_raised_pE(new, old, root_uid, has_fcap)) {
 		ret = audit_log_bprm_fcaps(bprm, new, old);
 		if (ret < 0)
 			return ret;
