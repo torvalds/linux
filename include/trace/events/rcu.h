@@ -243,6 +243,7 @@ TRACE_EVENT(rcu_exp_funnel_lock,
 		  __entry->grphi, __entry->gpevent)
 );
 
+#ifdef CONFIG_RCU_NOCB_CPU
 /*
  * Tracepoint for RCU no-CBs CPU callback handoffs.  This event is intended
  * to assist debugging of these handoffs.
@@ -285,6 +286,7 @@ TRACE_EVENT(rcu_nocb_wake,
 
 	TP_printk("%s %d %s", __entry->rcuname, __entry->cpu, __entry->reason)
 );
+#endif
 
 /*
  * Tracepoint for tasks blocking within preemptible-RCU read-side
