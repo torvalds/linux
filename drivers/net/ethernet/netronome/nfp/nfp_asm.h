@@ -153,6 +153,7 @@ enum shf_op {
 
 enum shf_sc {
 	SHF_SC_R_ROT = 0,
+	SHF_SC_NONE = SHF_SC_R_ROT,
 	SHF_SC_R_SHF = 1,
 	SHF_SC_L_SHF = 2,
 	SHF_SC_R_DSHF = 3,
@@ -217,6 +218,9 @@ struct cmd_tgt_act {
 enum cmd_tgt_map {
 	CMD_TGT_READ8,
 	CMD_TGT_WRITE8,
+	CMD_TGT_READ32,
+	CMD_TGT_READ32_LE,
+	CMD_TGT_READ32_SWAP,
 	CMD_TGT_READ_LE,
 	CMD_TGT_READ_SWAP_LE,
 	__CMD_TGT_MAP_SIZE,

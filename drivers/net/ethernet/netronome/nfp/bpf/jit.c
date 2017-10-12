@@ -544,6 +544,36 @@ data_ld(struct nfp_prog *nfp_prog, swreg offset, u8 dst_gpr, int size)
 }
 
 static int
+data_ld_host_order(struct nfp_prog *nfp_prog, u8 src_gpr, swreg offset,
+		   u8 dst_gpr, int size)
+{
+	unsigned int i;
+	u8 mask, sz;
+
+	/* We load the value from the address indicated in @offset and then
+	 * mask out the data we don't need.  Note: this is little endian!
+	 */
+	sz = max(size, 4);
+	mask = size < 4 ? GENMASK(size - 1, 0) : 0;
+
+	emit_cmd(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0,
+		 reg_a(src_gpr), offset, sz / 4 - 1, true);
+
+	i = 0;
+	if (mask)
+		emit_ld_field_any(nfp_prog, reg_both(dst_gpr), mask,
+				  reg_xfer(0), SHF_SC_NONE, 0, true);
+	else
+		for (; i * 4 < size; i++)
+			wrp_mov(nfp_prog, reg_both(dst_gpr + i), reg_xfer(i));
+
+	if (i < 2)
+		wrp_immed(nfp_prog, reg_both(dst_gpr + 1), 0);
+
+	return 0;
+}
+
+static int
 construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset, u16 src, u8 size)
 {
 	swreg tmp_reg;
@@ -1117,12 +1147,53 @@ static int mem_ldx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	return 0;
 }
 
+static int
+mem_ldx_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	     unsigned int size)
+{
+	swreg tmp_reg;
+
+	tmp_reg = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+
+	return data_ld_host_order(nfp_prog, meta->insn.src_reg * 2, tmp_reg,
+				  meta->insn.dst_reg * 2, size);
+}
+
+static int
+mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	unsigned int size)
+{
+	if (meta->ptr.type == PTR_TO_CTX) {
+		if (nfp_prog->act == NN_ACT_XDP)
+			return mem_ldx_xdp(nfp_prog, meta, size);
+		else
+			return mem_ldx_skb(nfp_prog, meta, size);
+	}
+
+	if (meta->ptr.type == PTR_TO_PACKET)
+		return mem_ldx_data(nfp_prog, meta, size);
+
+	return -EOPNOTSUPP;
+}
+
+static int mem_ldx1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_ldx(nfp_prog, meta, 1);
+}
+
+static int mem_ldx2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_ldx(nfp_prog, meta, 2);
+}
+
 static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	if (nfp_prog->act == NN_ACT_XDP)
-		return mem_ldx_xdp(nfp_prog, meta, 4);
-	else
-		return mem_ldx_skb(nfp_prog, meta, 4);
+	return mem_ldx(nfp_prog, meta, 4);
+}
+
+static int mem_ldx8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_ldx(nfp_prog, meta, 8);
 }
 
 static int mem_stx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1137,6 +1208,9 @@ static int mem_stx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	if (meta->ptr.type == PTR_TO_PACKET)
+		return -EOPNOTSUPP;
+
 	if (nfp_prog->act == NN_ACT_XDP)
 		return mem_stx4_xdp(nfp_prog, meta);
 	return mem_stx4_skb(nfp_prog, meta);
@@ -1354,7 +1428,10 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_LD | BPF_IND | BPF_B] =	data_ind_ld1,
 	[BPF_LD | BPF_IND | BPF_H] =	data_ind_ld2,
 	[BPF_LD | BPF_IND | BPF_W] =	data_ind_ld4,
+	[BPF_LDX | BPF_MEM | BPF_B] =	mem_ldx1,
+	[BPF_LDX | BPF_MEM | BPF_H] =	mem_ldx2,
 	[BPF_LDX | BPF_MEM | BPF_W] =	mem_ldx4,
+	[BPF_LDX | BPF_MEM | BPF_DW] =	mem_ldx8,
 	[BPF_STX | BPF_MEM | BPF_W] =	mem_stx4,
 	[BPF_JMP | BPF_JA | BPF_K] =	jump,
 	[BPF_JMP | BPF_JEQ | BPF_K] =	jeq_imm,

@@ -42,6 +42,9 @@
 const struct cmd_tgt_act cmd_tgt_act[__CMD_TGT_MAP_SIZE] = {
 	[CMD_TGT_WRITE8] =		{ 0x00, 0x42 },
 	[CMD_TGT_READ8] =		{ 0x01, 0x43 },
+	[CMD_TGT_READ32] =		{ 0x00, 0x5c },
+	[CMD_TGT_READ32_LE] =		{ 0x01, 0x5c },
+	[CMD_TGT_READ32_SWAP] =		{ 0x02, 0x5c },
 	[CMD_TGT_READ_LE] =		{ 0x01, 0x40 },
 	[CMD_TGT_READ_SWAP_LE] =	{ 0x03, 0x40 },
 };
