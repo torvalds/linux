@@ -194,15 +194,6 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 		.ops = &byt_cht_es8316_aif1_ops,
 	},
 
-	[MERR_DPCM_COMPR] = {
-		.name = "Compressed Port",
-		.stream_name = "Compress",
-		.cpu_dai_name = "compress-cpu-dai",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.platform_name = "sst-mfld-platform",
-	},
-
 		/* back ends */
 	{
 		/* Only SSP2 has been tested here, so BYT-CR platforms that
