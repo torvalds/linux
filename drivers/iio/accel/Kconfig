@@ -148,6 +148,17 @@ config HID_SENSOR_ACCEL_3D
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-sensor-accel-3d.
 
+config IIO_CROS_EC_ACCEL_LEGACY
+	tristate "ChromeOS EC Legacy Accelerometer Sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select CROS_EC_LPC_REGISTER_DEVICE
+	help
+	  Say yes here to get support for accelerometers on Chromebook using
+	  legacy EC firmware.
+	  Sensor data is retrieved through IO memory.
+	  Newer devices should use IIO_CROS_EC_SENSORS.
+
 config IIO_ST_ACCEL_3AXIS
 	tristate "STMicroelectronics accelerometers 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
