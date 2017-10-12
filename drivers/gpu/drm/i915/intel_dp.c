@@ -1032,7 +1032,7 @@ static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       DP_AUX_CH_CTL_DONE |
 	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
 	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
-	       DP_AUX_CH_CTL_TIME_OUT_1600us |
+	       DP_AUX_CH_CTL_TIME_OUT_MAX |
 	       DP_AUX_CH_CTL_RECEIVE_ERROR |
 	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 	       DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(32) |

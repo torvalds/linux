@@ -5242,7 +5242,7 @@ enum {
 #define   DP_AUX_CH_CTL_TIME_OUT_400us	    (0 << 26)
 #define   DP_AUX_CH_CTL_TIME_OUT_600us	    (1 << 26)
 #define   DP_AUX_CH_CTL_TIME_OUT_800us	    (2 << 26)
-#define   DP_AUX_CH_CTL_TIME_OUT_1600us	    (3 << 26)
+#define   DP_AUX_CH_CTL_TIME_OUT_MAX	    (3 << 26) /* Varies per platform */
 #define   DP_AUX_CH_CTL_TIME_OUT_MASK	    (3 << 26)
 #define   DP_AUX_CH_CTL_RECEIVE_ERROR	    (1 << 25)
 #define   DP_AUX_CH_CTL_MESSAGE_SIZE_MASK    (0x1f << 20)
