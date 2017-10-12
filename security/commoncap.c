@@ -770,7 +770,7 @@ static inline bool __is_setgid(struct cred *new, const struct cred *old)
  *
  * We do not bother to audit if 3 things are true:
  *   1) cap_effective has all caps
- *   2) we are root
+ *   2) we became root *OR* are were already root
  *   3) root is supposed to have all caps (SECURE_NOROOT)
  * Since this is just a normal root execing a process.
  *
@@ -783,8 +783,7 @@ static inline bool nonroot_raised_pE(struct cred *cred, kuid_t root)
 
 	if (__cap_grew(effective, ambient, cred) &&
 	    !(__cap_full(effective, cred) &&
-	      __is_eff(root, cred) &&
-	      __is_real(root, cred) &&
+	      (__is_eff(root, cred) || __is_real(root, cred)) &&
 	      root_privileged()))
 		ret = true;
 	return ret;
