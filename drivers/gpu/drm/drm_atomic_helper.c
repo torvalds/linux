@@ -1819,7 +1819,7 @@ EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
  * This function waits for all preceeding commits that touch the same CRTC as
  * @old_state to both be committed to the hardware (as signalled by
  * drm_atomic_helper_commit_hw_done) and executed by the hardware (as signalled
- * by calling drm_crtc_vblank_send_event() on the &drm_crtc_state.event).
+ * by calling drm_crtc_send_vblank_event() on the &drm_crtc_state.event).
  *
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
