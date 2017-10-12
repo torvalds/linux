@@ -108,7 +108,7 @@
 	backlight = <&backlight>;
 	bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
 	enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
-	delay,disable = <10>;
+	enable-delay-ms = <10>;
 	power-supply = <&vcc_lcd>;
 	rockchip,data-mapping = "jeida";
 	rockchip,data-width = <24>;
