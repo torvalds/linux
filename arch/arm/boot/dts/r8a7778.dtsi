@@ -33,6 +33,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			clock-frequency = <800000000>;
+			clocks = <&z_clk>;
 		};
 	};
 
