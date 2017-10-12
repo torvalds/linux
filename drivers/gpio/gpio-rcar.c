@@ -452,19 +452,17 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-
-	if (!io || !irq) {
-		dev_err(dev, "missing IRQ or IOMEM\n");
+	if (!irq) {
+		dev_err(dev, "missing IRQ\n");
 		ret = -EINVAL;
 		goto err0;
 	}
 
-	p->base = devm_ioremap_nocache(dev, io->start, resource_size(io));
-	if (!p->base) {
-		dev_err(dev, "failed to remap I/O memory\n");
-		ret = -ENXIO;
+	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	p->base = devm_ioremap_resource(dev, io);
+	if (IS_ERR(p->base)) {
+		ret = PTR_ERR(p->base);
 		goto err0;
 	}
 
