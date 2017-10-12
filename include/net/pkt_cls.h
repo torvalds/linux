@@ -204,8 +204,6 @@ void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
-int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
-		     struct net_device **hw_dev);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -405,6 +403,9 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 #endif /* CONFIG_NET_CLS_IND */
 
+int tc_setup_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
+		     void *type_data, bool err_stop);
+
 struct tc_cls_common_offload {
 	u32 chain_index;
 	__be16 protocol;
@@ -514,7 +515,6 @@ struct tc_cls_flower_offload {
 	struct fl_flow_key *mask;
 	struct fl_flow_key *key;
 	struct tcf_exts *exts;
-	bool egress_dev;
 };
 
 enum tc_matchall_command {
