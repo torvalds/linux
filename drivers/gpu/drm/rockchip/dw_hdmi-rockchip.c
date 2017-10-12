@@ -836,6 +836,9 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 	prop = connector->dev->mode_config.hdr_output_metadata_property;
 	if (version >= 0x211a)
 		drm_object_attach_property(&connector->base, prop, 0);
+
+	prop = connector->dev->mode_config.hdr_panel_metadata_property;
+	drm_object_attach_property(&connector->base, prop, 0);
 }
 
 static void
