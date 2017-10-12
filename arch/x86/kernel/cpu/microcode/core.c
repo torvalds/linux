@@ -94,9 +94,6 @@ static bool __init check_loader_disabled_bsp(void)
 	bool *res = &dis_ucode_ldr;
 #endif
 
-	if (!have_cpuid_p())
-		return *res;
-
 	a = 1;
 	c = 0;
 	native_cpuid(&a, &b, &c, &d);
@@ -138,8 +135,9 @@ void __init load_ucode_bsp(void)
 {
 	int vendor;
 	unsigned int family;
+	bool intel = true;
 
-	if (check_loader_disabled_bsp())
+	if (!have_cpuid_p())
 		return;
 
 	vendor = x86_vendor();
@@ -147,16 +145,27 @@ void __init load_ucode_bsp(void)
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
-		if (family >= 6)
-			load_ucode_intel_bsp();
+		if (family < 6)
+			return;
 		break;
+
 	case X86_VENDOR_AMD:
-		if (family >= 0x10)
-			load_ucode_amd_bsp(family);
+		if (family < 0x10)
+			return;
+		intel = false;
 		break;
+
 	default:
-		break;
+		return;
 	}
+
+	if (check_loader_disabled_bsp())
+		return;
+
+	if (intel)
+		load_ucode_intel_bsp();
+	else
+		load_ucode_amd_bsp(family);
 }
 
 static bool check_loader_disabled_ap(void)
