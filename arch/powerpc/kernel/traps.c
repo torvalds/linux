@@ -1337,13 +1337,8 @@ void program_check_exception(struct pt_regs *regs)
 		 * -  A treclaim is attempted when non transactional.
 		 * -  A tend is illegally attempted.
 		 * -  writing a TM SPR when transactional.
-		 */
-		if (!user_mode(regs) &&
-		    report_bug(regs->nip, regs) == BUG_TRAP_TYPE_WARN) {
-			regs->nip += 4;
-			goto bail;
-		}
-		/* If usermode caused this, it's done something illegal and
+		 *
+		 * If usermode caused this, it's done something illegal and
 		 * gets a SIGILL slap on the wrist.  We call it an illegal
 		 * operand to distinguish from the instruction just being bad
 		 * (e.g. executing a 'tend' on a CPU without TM!); it's an
