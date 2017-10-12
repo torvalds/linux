@@ -124,20 +124,17 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 }
 
 static void rmnet_set_endpoint_config(struct net_device *dev,
-				      u8 mux_id, u8 rmnet_mode,
-				      struct net_device *egress_dev)
+				      u8 mux_id, struct net_device *egress_dev)
 {
 	struct rmnet_endpoint *ep;
 
-	netdev_dbg(dev, "id %d mode %d dev %s\n",
-		   mux_id, rmnet_mode, egress_dev->name);
+	netdev_dbg(dev, "id %d dev %s\n", mux_id, egress_dev->name);
 
 	ep = rmnet_get_endpoint(dev, mux_id);
 	/* This config is cleared on every set, so its ok to not
 	 * clear it on a device delete.
 	 */
 	memset(ep, 0, sizeof(struct rmnet_endpoint));
-	ep->rmnet_mode = rmnet_mode;
 	ep->egress_dev = egress_dev;
 	ep->mux_id = mux_id;
 }
@@ -183,9 +180,10 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		   ingress_format, egress_format);
 	port->egress_data_format = egress_format;
 	port->ingress_data_format = ingress_format;
+	port->rmnet_mode = mode;
 
-	rmnet_set_endpoint_config(real_dev, mux_id, mode, dev);
-	rmnet_set_endpoint_config(dev, mux_id, mode, real_dev);
+	rmnet_set_endpoint_config(real_dev, mux_id, dev);
+	rmnet_set_endpoint_config(dev, mux_id, real_dev);
 	return 0;
 
 err2:

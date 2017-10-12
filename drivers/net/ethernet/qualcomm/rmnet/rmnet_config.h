@@ -24,7 +24,6 @@
  * Exact usage of this parameter depends on the rmnet_mode.
  */
 struct rmnet_endpoint {
-	u8 rmnet_mode;
 	u8 mux_id;
 	struct net_device *egress_dev;
 };
@@ -39,6 +38,7 @@ struct rmnet_port {
 	u32 egress_data_format;
 	struct net_device *rmnet_devices[RMNET_MAX_LOGICAL_EP];
 	u8 nr_rmnet_devs;
+	u8 rmnet_mode;
 };
 
 extern struct rtnl_link_ops rmnet_link_ops;

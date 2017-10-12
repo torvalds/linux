@@ -205,8 +205,7 @@ void rmnet_egress_handler(struct sk_buff *skb,
 		}
 	}
 
-	if (ep->rmnet_mode == RMNET_EPMODE_VND)
-		rmnet_vnd_tx_fixup(skb, orig_dev);
+	rmnet_vnd_tx_fixup(skb, orig_dev);
 
 	dev_queue_xmit(skb);
 }
