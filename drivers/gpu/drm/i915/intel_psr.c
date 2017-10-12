@@ -58,6 +58,9 @@
 
 static bool is_edp_psr(struct intel_dp *intel_dp)
 {
+	if (!intel_dp_is_edp(intel_dp))
+		return false;
+
 	return intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
 }
 
@@ -376,22 +379,25 @@ static void hsw_psr_activate(struct intel_dp *intel_dp)
 		hsw_activate_psr1(intel_dp);
 }
 
-static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
+void intel_psr_compute_config(struct intel_dp *intel_dp,
+			      struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *crtc = dig_port->base.base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	const struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config->base.adjusted_mode;
+		&crtc_state->base.adjusted_mode;
 	int psr_setup_time;
 
-	lockdep_assert_held(&dev_priv->psr.lock);
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+	if (!HAS_PSR(dev_priv))
+		return;
 
-	dev_priv->psr.source_ok = false;
+	if (!is_edp_psr(intel_dp))
+		return;
+
+	if (!i915_modparams.enable_psr) {
+		DRM_DEBUG_KMS("PSR disable by flag\n");
+		return;
+	}
 
 	/*
 	 * HSW spec explicitly says PSR is tied to port A.
@@ -402,66 +408,70 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	 */
 	if (HAS_DDI(dev_priv) && dig_port->port != PORT_A) {
 		DRM_DEBUG_KMS("PSR condition failed: Port not supported\n");
-		return false;
-	}
-
-	if (!i915_modparams.enable_psr) {
-		DRM_DEBUG_KMS("PSR disable by flag\n");
-		return false;
+		return;
 	}
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    !dev_priv->psr.link_standby) {
 		DRM_ERROR("PSR condition failed: Link off requested but not supported on this platform\n");
-		return false;
+		return;
 	}
 
 	if (IS_HASWELL(dev_priv) &&
-	    I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config->cpu_transcoder)) &
+	    I915_READ(HSW_STEREO_3D_CTL(crtc_state->cpu_transcoder)) &
 		      S3D_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
-		return false;
+		return;
 	}
 
 	if (IS_HASWELL(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
-		return false;
+		return;
 	}
 
 	psr_setup_time = drm_dp_psr_setup_time(intel_dp->psr_dpcd);
 	if (psr_setup_time < 0) {
 		DRM_DEBUG_KMS("PSR condition failed: Invalid PSR setup time (0x%02x)\n",
 			      intel_dp->psr_dpcd[1]);
-		return false;
+		return;
 	}
 
 	if (intel_usecs_to_scanlines(adjusted_mode, psr_setup_time) >
 	    adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vdisplay - 1) {
 		DRM_DEBUG_KMS("PSR condition failed: PSR setup time (%d us) too long\n",
 			      psr_setup_time);
-		return false;
+		return;
+	}
+
+	/*
+	 * FIXME psr2_support is messed up. It's both computed
+	 * dynamically during PSR enable, and extracted from sink
+	 * caps during eDP detection.
+	 */
+	if (!dev_priv->psr.psr2_support) {
+		crtc_state->has_psr = true;
+		return;
 	}
 
 	/* PSR2 is restricted to work with panel resolutions upto 3200x2000 */
-	if (dev_priv->psr.psr2_support &&
-	    (intel_crtc->config->pipe_src_w > 3200 ||
-	     intel_crtc->config->pipe_src_h > 2000)) {
-		dev_priv->psr.psr2_support = false;
-		return false;
+	if (adjusted_mode->crtc_hdisplay > 3200 ||
+	    adjusted_mode->crtc_vdisplay > 2000) {
+		DRM_DEBUG_KMS("PSR2 disabled, panel resolution too big\n");
+		return;
 	}
 
 	/*
 	 * FIXME:enable psr2 only for y-cordinate psr2 panels
 	 * After gtc implementation , remove this restriction.
 	 */
-	if (!dev_priv->psr.y_cord_support &&  dev_priv->psr.psr2_support) {
+	if (!dev_priv->psr.y_cord_support) {
 		DRM_DEBUG_KMS("PSR2 disabled, panel does not support Y coordinate\n");
-		return false;
+		return;
 	}
 
-	dev_priv->psr.source_ok = true;
-	return true;
+	crtc_state->has_psr = true;
+	crtc_state->has_psr2 = true;
 }
 
 static void intel_psr_activate(struct intel_dp *intel_dp)
@@ -531,13 +541,8 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (!HAS_PSR(dev_priv))
+	if (!crtc_state->has_psr)
 		return;
-
-	if (!is_edp_psr(intel_dp)) {
-		DRM_DEBUG_KMS("PSR not supported by this panel\n");
-		return;
-	}
 
 	WARN_ON(dev_priv->drrs.dp);
 	mutex_lock(&dev_priv->psr.lock);
@@ -546,8 +551,8 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 		goto unlock;
 	}
 
-	if (!intel_psr_match_conditions(intel_dp))
-		goto unlock;
+	dev_priv->psr.psr2_support = crtc_state->has_psr2;
+	dev_priv->psr.source_ok = true;
 
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
@@ -668,7 +673,7 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (!HAS_PSR(dev_priv))
+	if (!old_crtc_state->has_psr)
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);

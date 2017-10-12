@@ -1832,6 +1832,8 @@ found:
 	if (!HAS_DDI(dev_priv))
 		intel_dp_set_clock(encoder, pipe_config);
 
+	intel_psr_compute_config(intel_dp, pipe_config);
+
 	return true;
 }
 
