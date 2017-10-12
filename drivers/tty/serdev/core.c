@@ -358,6 +358,15 @@ struct serdev_controller *serdev_controller_alloc(struct device *parent,
 	if (!ctrl)
 		return NULL;
 
+	id = ida_simple_get(&ctrl_ida, 0, 0, GFP_KERNEL);
+	if (id < 0) {
+		dev_err(parent,
+			"unable to allocate serdev controller identifier.\n");
+		goto err_free;
+	}
+
+	ctrl->nr = id;
+
 	device_initialize(&ctrl->dev);
 	ctrl->dev.type = &serdev_ctrl_type;
 	ctrl->dev.bus = &serdev_bus_type;
@@ -365,19 +374,15 @@ struct serdev_controller *serdev_controller_alloc(struct device *parent,
 	ctrl->dev.of_node = parent->of_node;
 	serdev_controller_set_drvdata(ctrl, &ctrl[1]);
 
-	id = ida_simple_get(&ctrl_ida, 0, 0, GFP_KERNEL);
-	if (id < 0) {
-		dev_err(parent,
-			"unable to allocate serdev controller identifier.\n");
-		serdev_controller_put(ctrl);
-		return NULL;
-	}
-
-	ctrl->nr = id;
 	dev_set_name(&ctrl->dev, "serial%d", id);
 
 	dev_dbg(&ctrl->dev, "allocated controller 0x%p id %d\n", ctrl, id);
 	return ctrl;
+
+err_free:
+	kfree(ctrl);
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(serdev_controller_alloc);
 
