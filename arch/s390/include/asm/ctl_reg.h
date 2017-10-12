@@ -54,7 +54,11 @@ void smp_ctl_clear_bit(int cr, int bit);
 union ctlreg0 {
 	unsigned long val;
 	struct {
-		unsigned long	   : 32;
+		unsigned long	   : 8;
+		unsigned long tcx  : 1;	/* Transactional-Execution control */
+		unsigned long pifo : 1;	/* Transactional-Execution Program-
+					   Interruption-Filtering Override */
+		unsigned long	   : 22;
 		unsigned long	   : 3;
 		unsigned long lap  : 1; /* Low-address-protection control */
 		unsigned long	   : 4;
@@ -67,6 +71,19 @@ union ctlreg0 {
 		unsigned long	   : 7;
 		unsigned long sssm : 1; /* Service signal subclass mask */
 		unsigned long	   : 9;
+	};
+};
+
+union ctlreg2 {
+	unsigned long val;
+	struct {
+		unsigned long	    : 33;
+		unsigned long ducto : 25;
+		unsigned long	    : 1;
+		unsigned long gse   : 1;
+		unsigned long	    : 1;
+		unsigned long tds   : 1;
+		unsigned long tdc   : 2;
 	};
 };
 

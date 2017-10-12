@@ -47,42 +47,42 @@ void update_cr_regs(struct task_struct *task)
 	struct pt_regs *regs = task_pt_regs(task);
 	struct thread_struct *thread = &task->thread;
 	struct per_regs old, new;
-	unsigned long cr0_old, cr0_new;
-	unsigned long cr2_old, cr2_new;
+	union ctlreg0 cr0_old, cr0_new;
+	union ctlreg2 cr2_old, cr2_new;
 	int cr0_changed, cr2_changed;
 
-	__ctl_store(cr0_old, 0, 0);
-	__ctl_store(cr2_old, 2, 2);
+	__ctl_store(cr0_old.val, 0, 0);
+	__ctl_store(cr2_old.val, 2, 2);
 	cr0_new = cr0_old;
 	cr2_new = cr2_old;
 	/* Take care of the enable/disable of transactional execution. */
 	if (MACHINE_HAS_TE) {
 		/* Set or clear transaction execution TXC bit 8. */
-		cr0_new |= (1UL << 55);
+		cr0_new.tcx = 1;
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
-			cr0_new &= ~(1UL << 55);
+			cr0_new.tcx = 0;
 		/* Set or clear transaction execution TDC bits 62 and 63. */
-		cr2_new &= ~3UL;
+		cr2_new.tdc = 0;
 		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
 			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND_TEND)
-				cr2_new |= 1UL;
+				cr2_new.tdc = 1;
 			else
-				cr2_new |= 2UL;
+				cr2_new.tdc = 2;
 		}
 	}
 	/* Take care of enable/disable of guarded storage. */
 	if (MACHINE_HAS_GS) {
-		cr2_new &= ~(1UL << 4);
+		cr2_new.gse = 0;
 		if (task->thread.gs_cb)
-			cr2_new |= (1UL << 4);
+			cr2_new.gse = 1;
 	}
 	/* Load control register 0/2 iff changed */
-	cr0_changed = cr0_new != cr0_old;
-	cr2_changed = cr2_new != cr2_old;
+	cr0_changed = cr0_new.val != cr0_old.val;
+	cr2_changed = cr2_new.val != cr2_old.val;
 	if (cr0_changed)
-		__ctl_load(cr0_new, 0, 0);
+		__ctl_load(cr0_new.val, 0, 0);
 	if (cr2_changed)
-		__ctl_load(cr2_new, 2, 2);
+		__ctl_load(cr2_new.val, 2, 2);
 	/* Copy user specified PER registers */
 	new.control = thread->per_user.control;
 	new.start = thread->per_user.start;

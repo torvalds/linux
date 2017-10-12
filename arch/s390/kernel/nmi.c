@@ -107,6 +107,7 @@ EXPORT_SYMBOL_GPL(s390_handle_mcck);
  */
 static int notrace s390_validate_registers(union mci mci, int umode)
 {
+	union ctlreg2 cr2;
 	int kill_task;
 	u64 zero;
 	void *fpt_save_area;
@@ -231,7 +232,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		kill_task = 1;
 	}
 	/* Validate guarded storage registers */
-	if (MACHINE_HAS_GS && (S390_lowcore.cregs_save_area[2] & (1UL << 4))) {
+	cr2.val = S390_lowcore.cregs_save_area[2];
+	if (cr2.gse) {
 		if (!mci.gs)
 			/*
 			 * Guarded storage register can't be restored and
