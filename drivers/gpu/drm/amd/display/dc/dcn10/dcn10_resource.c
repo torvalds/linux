@@ -367,25 +367,25 @@ static const struct bios_registers bios_regs = {
 		NBIO_SR(BIOS_SCRATCH_6)
 };
 
-#define mi_regs(id)\
+#define hubp_regs(id)\
 [id] = {\
-	MI_REG_LIST_DCN10(id)\
+	HUBP_REG_LIST_DCN10(id)\
 }
 
 
-static const struct dcn_mi_registers mi_regs[] = {
-	mi_regs(0),
-	mi_regs(1),
-	mi_regs(2),
-	mi_regs(3),
+static const struct dcn_mi_registers hubp_regs[] = {
+	hubp_regs(0),
+	hubp_regs(1),
+	hubp_regs(2),
+	hubp_regs(3),
 };
 
-static const struct dcn_mi_shift mi_shift = {
-		MI_MASK_SH_LIST_DCN10(__SHIFT)
+static const struct dcn_mi_shift hubp_shift = {
+		HUBP_MASK_SH_LIST_DCN10(__SHIFT)
 };
 
-static const struct dcn_mi_mask mi_mask = {
-		MI_MASK_SH_LIST_DCN10(_MASK)
+static const struct dcn_mi_mask hubp_mask = {
+		HUBP_MASK_SH_LIST_DCN10(_MASK)
 };
 
 #define clk_src_regs(index, pllid)\
@@ -768,7 +768,7 @@ static struct hubp *dcn10_hubp_create(
 		return NULL;
 
 	dcn10_hubp_construct(hubp1, ctx, inst,
-			     &mi_regs[inst], &mi_shift, &mi_mask);
+			     &hubp_regs[inst], &hubp_shift, &hubp_mask);
 	return &hubp1->base;
 }
 

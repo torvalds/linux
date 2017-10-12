@@ -29,14 +29,14 @@
 #include "dcn10_hubp.h"
 
 #define REG(reg)\
-	hubp1->mi_regs->reg
+	hubp1->hubp_regs->reg
 
 #define CTX \
 	hubp1->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
-	hubp1->mi_shift->field_name, hubp1->mi_mask->field_name
+	hubp1->hubp_shift->field_name, hubp1->hubp_mask->field_name
 
 void hubp1_set_blank(struct hubp *hubp, bool blank)
 {
@@ -943,15 +943,15 @@ void dcn10_hubp_construct(
 	struct dcn10_hubp *hubp1,
 	struct dc_context *ctx,
 	uint32_t inst,
-	const struct dcn_mi_registers *mi_regs,
-	const struct dcn_mi_shift *mi_shift,
-	const struct dcn_mi_mask *mi_mask)
+	const struct dcn_mi_registers *hubp_regs,
+	const struct dcn_mi_shift *hubp_shift,
+	const struct dcn_mi_mask *hubp_mask)
 {
 	hubp1->base.funcs = &dcn10_hubp_funcs;
 	hubp1->base.ctx = ctx;
-	hubp1->mi_regs = mi_regs;
-	hubp1->mi_shift = mi_shift;
-	hubp1->mi_mask = mi_mask;
+	hubp1->hubp_regs = hubp_regs;
+	hubp1->hubp_shift = hubp_shift;
+	hubp1->hubp_mask = hubp_mask;
 	hubp1->base.inst = inst;
 	hubp1->base.opp_id = 0xf;
 	hubp1->base.mpcc_id = 0xf;
