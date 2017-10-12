@@ -723,7 +723,9 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 			  enum ttm_caching_state cstate)
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, false, cstate);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	struct ttm_page_pool *huge = ttm_get_pool(flags, true, cstate);
+#endif
 	unsigned long irq_flags;
 	unsigned i;
 
@@ -825,7 +827,9 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 			 enum ttm_caching_state cstate)
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, false, cstate);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	struct ttm_page_pool *huge = ttm_get_pool(flags, true, cstate);
+#endif
 	struct list_head plist;
 	struct page *p = NULL;
 	unsigned count;
@@ -834,7 +838,10 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 	/* No pool for cached pages */
 	if (pool == NULL) {
 		gfp_t gfp_flags = GFP_USER;
-		unsigned i, j;
+		unsigned i;
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		unsigned j;
+#endif
 
 		/* set zero flag for page allocation if required */
 		if (flags & TTM_PAGE_FLAG_ZERO_ALLOC)
