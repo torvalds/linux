@@ -1,5 +1,5 @@
 config CRAMFS
-	tristate "Compressed ROM file system support (cramfs) (OBSOLETE)"
+	tristate "Compressed ROM file system support (cramfs)"
 	select ZLIB_INFLATE
 	help
 	  Saying Y here includes support for CramFs (Compressed ROM File
@@ -15,8 +15,11 @@ config CRAMFS
 	  cramfs.  Note that the root file system (the one containing the
 	  directory /) cannot be compiled as a module.
 
-	  This filesystem is obsoleted by SquashFS, which is much better
-	  in terms of performance and features.
+	  This filesystem is limited in capabilities and performance on
+	  purpose to remain small and low on RAM usage. It is most suitable
+	  for small embedded systems. If you have ample RAM to spare, you may
+	  consider a more capable compressed filesystem such as SquashFS
+	  which is much better in terms of performance and features.
 
 	  If unsure, say N.
 
