@@ -1629,18 +1629,6 @@ static inline struct sk_buff *tcp_write_queue_tail(const struct sock *sk)
 	return skb_peek_tail(&sk->sk_write_queue);
 }
 
-static inline struct sk_buff *tcp_write_queue_next(const struct sock *sk,
-						   const struct sk_buff *skb)
-{
-	return skb_queue_next(&sk->sk_write_queue, skb);
-}
-
-static inline struct sk_buff *tcp_write_queue_prev(const struct sock *sk,
-						   const struct sk_buff *skb)
-{
-	return skb_queue_prev(&sk->sk_write_queue, skb);
-}
-
 #define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
 	skb_queue_walk_from_safe(&(sk)->sk_write_queue, skb, tmp)
 
@@ -1695,11 +1683,6 @@ static inline void tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb
 		if (tcp_sk(sk)->highest_sack == NULL)
 			tcp_sk(sk)->highest_sack = skb;
 	}
-}
-
-static inline void __tcp_add_write_queue_head(struct sock *sk, struct sk_buff *skb)
-{
-	__skb_queue_head(&sk->sk_write_queue, skb);
 }
 
 /* Insert new before skb on the write queue of sk.  */
