@@ -6,6 +6,9 @@
  *
  * This uses code from arch/sparc/kernel/nmi.c and kernel/watchdog.c
  */
+
+#define pr_fmt(fmt) "watchdog: " fmt
+
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
@@ -108,7 +111,7 @@ static inline void wd_smp_unlock(unsigned long *flags)
 
 static void wd_lockup_ipi(struct pt_regs *regs)
 {
-	pr_emerg("Watchdog CPU:%d Hard LOCKUP\n", raw_smp_processor_id());
+	pr_emerg("CPU %d Hard LOCKUP\n", raw_smp_processor_id());
 	print_modules();
 	print_irqtrace_events(current);
 	if (regs)
@@ -149,8 +152,8 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 	if (cpumask_weight(&wd_smp_cpus_pending) == 0)
 		goto out;
 
-	pr_emerg("Watchdog CPU:%d detected Hard LOCKUP other CPUS:%*pbl\n",
-			cpu, cpumask_pr_args(&wd_smp_cpus_pending));
+	pr_emerg("CPU %d detected hard LOCKUP on other CPUs %*pbl\n",
+		 cpu, cpumask_pr_args(&wd_smp_cpus_pending));
 
 	if (!sysctl_hardlockup_all_cpu_backtrace) {
 		/*
@@ -193,7 +196,7 @@ static void wd_smp_clear_cpu_pending(int cpu, u64 tb)
 		if (unlikely(cpumask_test_cpu(cpu, &wd_smp_cpus_stuck))) {
 			unsigned long flags;
 
-			pr_emerg("Watchdog CPU:%d became unstuck\n", cpu);
+			pr_emerg("CPU %d became unstuck\n", cpu);
 			wd_smp_lock(&flags);
 			cpumask_clear_cpu(cpu, &wd_smp_cpus_stuck);
 			wd_smp_unlock(&flags);
@@ -251,7 +254,7 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		}
 		set_cpu_stuck(cpu, tb);
 
-		pr_emerg("Watchdog CPU:%d Hard LOCKUP\n", cpu);
+		pr_emerg("CPU %d self-detected hard LOCKUP\n", cpu);
 		print_modules();
 		print_irqtrace_events(current);
 		if (regs)
@@ -406,7 +409,7 @@ int __init watchdog_nmi_probe(void)
 					"powerpc/watchdog:online",
 					start_wd_on_cpu, stop_wd_on_cpu);
 	if (err < 0) {
-		pr_warn("Watchdog could not be initialized");
+		pr_warn("could not be initialized");
 		return err;
 	}
 	return 0;
