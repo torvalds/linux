@@ -117,9 +117,6 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 	init_timer_on_stack_key((_timer), (_flags), NULL, NULL)
 #endif
 
-#define init_timer(timer)						\
-	__init_timer((timer), 0)
-
 #define __setup_timer(_timer, _fn, _data, _flags)			\
 	do {								\
 		__init_timer((_timer), (_flags));			\
