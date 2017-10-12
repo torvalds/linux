@@ -1366,7 +1366,7 @@ static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
 			ccr &= ~(0xf << CC_SRCBRSTLEN_SHFT);
 			ccr &= ~(0xf << CC_DSTBRSTLEN_SHFT);
 			off += _emit_MOV(dry_run, &buf[off], CCR, ccr);
-			off += _emit_LP(dry_run, &buf[off], 1, c - 1);
+			off += _emit_LP(dry_run, &buf[off], 1, c);
 			ljmp1 = off;
 			off += _bursts(pl330, dry_run, &buf[off], pxs, 1);
 			lpend.cond = ALWAYS;
