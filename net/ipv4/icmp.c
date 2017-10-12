@@ -782,7 +782,7 @@ static bool icmp_tag_validation(int proto)
 }
 
 /*
- *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, ICMP_QUENCH, and
+ *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEEDED, ICMP_QUENCH, and
  *	ICMP_PARAMETERPROB.
  */
 
@@ -810,7 +810,8 @@ static bool icmp_unreach(struct sk_buff *skb)
 	if (iph->ihl < 5) /* Mangled header, drop. */
 		goto out_err;
 
-	if (icmph->type == ICMP_DEST_UNREACH) {
+	switch (icmph->type) {
+	case ICMP_DEST_UNREACH:
 		switch (icmph->code & 15) {
 		case ICMP_NET_UNREACH:
 		case ICMP_HOST_UNREACH:
@@ -846,8 +847,16 @@ static bool icmp_unreach(struct sk_buff *skb)
 		}
 		if (icmph->code > NR_ICMP_UNREACH)
 			goto out;
-	} else if (icmph->type == ICMP_PARAMETERPROB)
+		break;
+	case ICMP_PARAMETERPROB:
 		info = ntohl(icmph->un.gateway) >> 24;
+		break;
+	case ICMP_TIME_EXCEEDED:
+		__ICMP_INC_STATS(net, ICMP_MIB_INTIMEEXCDS);
+		if (icmph->code == ICMP_EXC_FRAGTIME)
+			goto out;
+		break;
+	}
 
 	/*
 	 *	Throw it at our lower layers
