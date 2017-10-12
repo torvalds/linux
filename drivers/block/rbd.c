@@ -348,7 +348,6 @@ struct rbd_client_id {
 struct rbd_mapping {
 	u64                     size;
 	u64                     features;
-	bool			read_only;
 };
 
 /*
@@ -607,9 +606,6 @@ static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
 	struct rbd_device *rbd_dev = bdev->bd_disk->private_data;
 	bool removing = false;
-
-	if ((mode & FMODE_WRITE) && rbd_dev->mapping.read_only)
-		return -EROFS;
 
 	spin_lock_irq(&rbd_dev->lock);
 	if (test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags))
@@ -4028,15 +4024,8 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 
-	/* Only reads are allowed to a read-only device */
-
-	if (op_type != OBJ_OP_READ) {
-		if (rbd_dev->mapping.read_only) {
-			result = -EROFS;
-			goto err_rq;
-		}
-		rbd_assert(rbd_dev->spec->snap_id == CEPH_NOSNAP);
-	}
+	rbd_assert(op_type == OBJ_OP_READ ||
+		   rbd_dev->spec->snap_id == CEPH_NOSNAP);
 
 	/*
 	 * Quit early if the mapped snapshot no longer exists.  It's
@@ -5972,7 +5961,7 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 		goto err_out_disk;
 
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
-	set_disk_ro(rbd_dev->disk, rbd_dev->mapping.read_only);
+	set_disk_ro(rbd_dev->disk, rbd_dev->opts->read_only);
 
 	ret = dev_set_name(&rbd_dev->dev, "%d", rbd_dev->dev_id);
 	if (ret)
@@ -6123,7 +6112,6 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	struct rbd_options *rbd_opts = NULL;
 	struct rbd_spec *spec = NULL;
 	struct rbd_client *rbdc;
-	bool read_only;
 	int rc;
 
 	if (!try_module_get(THIS_MODULE))
@@ -6172,11 +6160,8 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	}
 
 	/* If we are mapping a snapshot it must be marked read-only */
-
-	read_only = rbd_dev->opts->read_only;
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
-		read_only = true;
-	rbd_dev->mapping.read_only = read_only;
+		rbd_dev->opts->read_only = true;
 
 	rc = rbd_dev_device_setup(rbd_dev);
 	if (rc)
