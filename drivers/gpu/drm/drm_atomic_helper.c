@@ -1704,7 +1704,7 @@ crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
  * drm_atomic_helper_commit_cleanup_done().
  *
  * This is all implemented by in drm_atomic_helper_commit(), giving drivers a
- * complete and esay-to-use default implementation of the atomic_commit() hook.
+ * complete and easy-to-use default implementation of the atomic_commit() hook.
  *
  * The tracking of asynchronously executed and still pending commits is done
  * using the core structure &drm_crtc_commit.
