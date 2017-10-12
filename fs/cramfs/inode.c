@@ -618,34 +618,86 @@ static int cramfs_readpage(struct file *file, struct page *page)
 
 	if (page->index < maxblock) {
 		struct super_block *sb = inode->i_sb;
-		u32 blkptr_offset = OFFSET(inode) + page->index*4;
-		u32 start_offset, compr_len;
+		u32 blkptr_offset = OFFSET(inode) + page->index * 4;
+		u32 block_ptr, block_start, block_len;
+		bool uncompressed, direct;
 
-		start_offset = OFFSET(inode) + maxblock*4;
 		mutex_lock(&read_mutex);
-		if (page->index)
-			start_offset = *(u32 *) cramfs_read(sb, blkptr_offset-4,
-				4);
-		compr_len = (*(u32 *) cramfs_read(sb, blkptr_offset, 4) -
-			start_offset);
-		mutex_unlock(&read_mutex);
+		block_ptr = *(u32 *) cramfs_read(sb, blkptr_offset, 4);
+		uncompressed = (block_ptr & CRAMFS_BLK_FLAG_UNCOMPRESSED);
+		direct = (block_ptr & CRAMFS_BLK_FLAG_DIRECT_PTR);
+		block_ptr &= ~CRAMFS_BLK_FLAGS;
 
-		if (compr_len == 0)
-			; /* hole */
-		else if (unlikely(compr_len > (PAGE_SIZE << 1))) {
-			pr_err("bad compressed blocksize %u\n",
-				compr_len);
-			goto err;
+		if (direct) {
+			/*
+			 * The block pointer is an absolute start pointer,
+			 * shifted by 2 bits. The size is included in the
+			 * first 2 bytes of the data block when compressed,
+			 * or PAGE_SIZE otherwise.
+			 */
+			block_start = block_ptr << CRAMFS_BLK_DIRECT_PTR_SHIFT;
+			if (uncompressed) {
+				block_len = PAGE_SIZE;
+				/* if last block: cap to file length */
+				if (page->index == maxblock - 1)
+					block_len =
+						offset_in_page(inode->i_size);
+			} else {
+				block_len = *(u16 *)
+					cramfs_read(sb, block_start, 2);
+				block_start += 2;
+			}
 		} else {
-			mutex_lock(&read_mutex);
+			/*
+			 * The block pointer indicates one past the end of
+			 * the current block (start of next block). If this
+			 * is the first block then it starts where the block
+			 * pointer table ends, otherwise its start comes
+			 * from the previous block's pointer.
+			 */
+			block_start = OFFSET(inode) + maxblock * 4;
+			if (page->index)
+				block_start = *(u32 *)
+					cramfs_read(sb, blkptr_offset - 4, 4);
+			/* Beware... previous ptr might be a direct ptr */
+			if (unlikely(block_start & CRAMFS_BLK_FLAG_DIRECT_PTR)) {
+				/* See comments on earlier code. */
+				u32 prev_start = block_start;
+			       block_start = prev_start & ~CRAMFS_BLK_FLAGS;
+			       block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
+				if (prev_start & CRAMFS_BLK_FLAG_UNCOMPRESSED) {
+					block_start += PAGE_SIZE;
+				} else {
+					block_len = *(u16 *)
+						cramfs_read(sb, block_start, 2);
+					block_start += 2 + block_len;
+				}
+			}
+			block_start &= ~CRAMFS_BLK_FLAGS;
+			block_len = block_ptr - block_start;
+		}
+
+		if (block_len == 0)
+			; /* hole */
+		else if (unlikely(block_len > 2*PAGE_SIZE ||
+				  (uncompressed && block_len > PAGE_SIZE))) {
+			mutex_unlock(&read_mutex);
+			pr_err("bad data blocksize %u\n", block_len);
+			goto err;
+		} else if (uncompressed) {
+			memcpy(pgdata,
+			       cramfs_read(sb, block_start, block_len),
+			       block_len);
+			bytes_filled = block_len;
+		} else {
 			bytes_filled = cramfs_uncompress_block(pgdata,
 				 PAGE_SIZE,
-				 cramfs_read(sb, start_offset, compr_len),
-				 compr_len);
-			mutex_unlock(&read_mutex);
-			if (unlikely(bytes_filled < 0))
-				goto err;
+				 cramfs_read(sb, block_start, block_len),
+				 block_len);
 		}
+		mutex_unlock(&read_mutex);
+		if (unlikely(bytes_filled < 0))
+			goto err;
 	}
 
 	memset(pgdata + bytes_filled, 0, PAGE_SIZE - bytes_filled);
