@@ -1135,12 +1135,25 @@ static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		       u8 size)
 {
+	swreg dst = reg_both(meta->insn.dst_reg * 2);
+
 	switch (meta->insn.off) {
 	case offsetof(struct sk_buff, len):
 		if (size != FIELD_SIZEOF(struct sk_buff, len))
 			return -EOPNOTSUPP;
-		wrp_mov(nfp_prog,
-			reg_both(meta->insn.dst_reg * 2), plen_reg(nfp_prog));
+		wrp_mov(nfp_prog, dst, plen_reg(nfp_prog));
+		break;
+	case offsetof(struct sk_buff, data):
+		if (size != sizeof(void *))
+			return -EOPNOTSUPP;
+		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
+		break;
+	case offsetof(struct sk_buff, cb) +
+	     offsetof(struct bpf_skb_data_end, data_end):
+		if (size != sizeof(void *))
+			return -EOPNOTSUPP;
+		emit_alu(nfp_prog, dst,
+			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
 		break;
 	default:
 		return -EOPNOTSUPP;
