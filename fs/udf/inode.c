@@ -52,7 +52,7 @@ static int udf_alloc_i_data(struct inode *inode, size_t size);
 static sector_t inode_getblk(struct inode *, sector_t, int *, int *);
 static int8_t udf_insert_aext(struct inode *, struct extent_position,
 			      struct kernel_lb_addr, uint32_t);
-static void udf_split_extents(struct inode *, int *, int, int,
+static void udf_split_extents(struct inode *, int *, int, udf_pblk_t,
 			      struct kernel_long_ad *, int *);
 static void udf_prealloc_extents(struct inode *, int, int,
 				 struct kernel_long_ad *, int *);
@@ -316,10 +316,10 @@ int udf_expand_file_adinicb(struct inode *inode)
 	return err;
 }
 
-struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
-					   int *err)
+struct buffer_head *udf_expand_dir_adinicb(struct inode *inode,
+					    udf_pblk_t *block, int *err)
 {
-	int newblock;
+	udf_pblk_t newblock;
 	struct buffer_head *dbh = NULL;
 	struct kernel_lb_addr eloc;
 	uint8_t alloctype;
@@ -446,7 +446,7 @@ abort:
 	return err;
 }
 
-static struct buffer_head *udf_getblk(struct inode *inode, long block,
+static struct buffer_head *udf_getblk(struct inode *inode, udf_pblk_t block,
 				      int create, int *err)
 {
 	struct buffer_head *bh;
@@ -663,11 +663,11 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	struct kernel_lb_addr eloc, tmpeloc;
 	int c = 1;
 	loff_t lbcount = 0, b_off = 0;
-	uint32_t newblocknum, newblock;
+	udf_pblk_t newblocknum, newblock;
 	sector_t offset = 0;
 	int8_t etype;
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	int goal = 0, pgoal = iinfo->i_location.logicalBlockNum;
+	udf_pblk_t goal = 0, pgoal = iinfo->i_location.logicalBlockNum;
 	int lastblock = 0;
 	bool isBeyondEOF;
 
@@ -879,8 +879,8 @@ out_free:
 }
 
 static void udf_split_extents(struct inode *inode, int *c, int offset,
-			      int newblocknum, struct kernel_long_ad *laarr,
-			      int *endnum)
+			       udf_pblk_t newblocknum,
+			       struct kernel_long_ad *laarr, int *endnum)
 {
 	unsigned long blocksize = inode->i_sb->s_blocksize;
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
@@ -1166,7 +1166,7 @@ static void udf_update_extents(struct inode *inode, struct kernel_long_ad *laarr
 	}
 }
 
-struct buffer_head *udf_bread(struct inode *inode, int block,
+struct buffer_head *udf_bread(struct inode *inode, udf_pblk_t block,
 			      int create, int *err)
 {
 	struct buffer_head *bh = NULL;
@@ -1852,7 +1852,7 @@ struct inode *__udf_iget(struct super_block *sb, struct kernel_lb_addr *ino,
 	return inode;
 }
 
-int udf_setup_indirect_aext(struct inode *inode, int block,
+int udf_setup_indirect_aext(struct inode *inode, udf_pblk_t block,
 			    struct extent_position *epos)
 {
 	struct super_block *sb = inode->i_sb;
@@ -1994,7 +1994,7 @@ int udf_add_aext(struct inode *inode, struct extent_position *epos,
 
 	if (epos->offset + (2 * adsize) > sb->s_blocksize) {
 		int err;
-		int new_block;
+		udf_pblk_t new_block;
 
 		new_block = udf_new_block(sb, NULL,
 					  epos->block.partitionReferenceNum,
@@ -2076,7 +2076,7 @@ int8_t udf_next_aext(struct inode *inode, struct extent_position *epos,
 
 	while ((etype = udf_current_aext(inode, epos, eloc, elen, inc)) ==
 	       (EXT_NEXT_EXTENT_ALLOCDECS >> 30)) {
-		int block;
+		udf_pblk_t block;
 
 		if (++indirections > UDF_MAX_INDIR_EXTS) {
 			udf_err(inode->i_sb,
@@ -2289,13 +2289,13 @@ int8_t inode_bmap(struct inode *inode, sector_t block,
 	return etype;
 }
 
-long udf_block_map(struct inode *inode, sector_t block)
+udf_pblk_t udf_block_map(struct inode *inode, sector_t block)
 {
 	struct kernel_lb_addr eloc;
 	uint32_t elen;
 	sector_t offset;
 	struct extent_position epos = {};
-	int ret;
+	udf_pblk_t ret;
 
 	down_read(&UDF_I(inode)->i_data_sem);
 

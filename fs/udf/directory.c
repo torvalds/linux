@@ -26,7 +26,8 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					 sector_t *offset)
 {
 	struct fileIdentDesc *fi;
-	int i, num, block;
+	int i, num;
+	udf_pblk_t block;
 	struct buffer_head *tmp, *bha[16];
 	struct udf_inode_info *iinfo = UDF_I(dir);
 

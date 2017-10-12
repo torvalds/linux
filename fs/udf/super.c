@@ -2389,7 +2389,7 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 	struct buffer_head *bh = NULL;
 	unsigned int accum = 0;
 	int index;
-	int block = 0, newblock;
+	udf_pblk_t block = 0, newblock;
 	struct kernel_lb_addr loc;
 	uint32_t bytes;
 	uint8_t *ptr;

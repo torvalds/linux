@@ -28,7 +28,7 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-struct buffer_head *udf_tgetblk(struct super_block *sb, int block)
+struct buffer_head *udf_tgetblk(struct super_block *sb, udf_pblk_t block)
 {
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV))
 		return sb_getblk(sb, udf_fixed_to_variable(block));
@@ -36,7 +36,7 @@ struct buffer_head *udf_tgetblk(struct super_block *sb, int block)
 		return sb_getblk(sb, block);
 }
 
-struct buffer_head *udf_tread(struct super_block *sb, int block)
+struct buffer_head *udf_tread(struct super_block *sb, udf_pblk_t block)
 {
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV))
 		return sb_bread(sb, udf_fixed_to_variable(block));
