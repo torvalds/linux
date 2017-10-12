@@ -219,33 +219,40 @@ static bool rcar_gen3_is_host(struct rcar_gen3_chan *ch)
 	return !(readl(ch->base + USB2_COMMCTRL) & USB2_COMMCTRL_OTG_PERI);
 }
 
+static enum phy_mode rcar_gen3_get_phy_mode(struct rcar_gen3_chan *ch)
+{
+	if (rcar_gen3_is_host(ch))
+		return PHY_MODE_USB_HOST;
+
+	return PHY_MODE_USB_DEVICE;
+}
+
 static ssize_t role_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	struct rcar_gen3_chan *ch = dev_get_drvdata(dev);
-	bool is_b_device, is_host, new_mode_is_host;
+	bool is_b_device;
+	enum phy_mode cur_mode, new_mode;
 
 	if (!ch->has_otg || !ch->phy->init_count)
 		return -EIO;
 
-	/*
-	 * is_b_device: true is B-Device. false is A-Device.
-	 * If {new_mode_}is_host: true is Host mode. false is Peripheral mode.
-	 */
-	is_b_device = rcar_gen3_check_id(ch);
-	is_host = rcar_gen3_is_host(ch);
 	if (!strncmp(buf, "host", strlen("host")))
-		new_mode_is_host = true;
+		new_mode = PHY_MODE_USB_HOST;
 	else if (!strncmp(buf, "peripheral", strlen("peripheral")))
-		new_mode_is_host = false;
+		new_mode = PHY_MODE_USB_DEVICE;
 	else
 		return -EINVAL;
 
+	/* is_b_device: true is B-Device. false is A-Device. */
+	is_b_device = rcar_gen3_check_id(ch);
+	cur_mode = rcar_gen3_get_phy_mode(ch);
+
 	/* If current and new mode is the same, this returns the error */
-	if (is_host == new_mode_is_host)
+	if (cur_mode == new_mode)
 		return -EINVAL;
 
-	if (new_mode_is_host) {		/* And is_host must be false */
+	if (new_mode == PHY_MODE_USB_HOST) { /* And is_host must be false */
 		if (!is_b_device)	/* A-Peripheral */
 			rcar_gen3_init_from_a_peri_to_a_host(ch);
 		else			/* B-Peripheral */
