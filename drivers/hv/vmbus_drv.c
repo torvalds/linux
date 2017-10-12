@@ -940,6 +940,9 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 			if (channel->offermsg.child_relid != relid)
 				continue;
 
+			if (channel->rescind)
+				continue;
+
 			switch (channel->callback_mode) {
 			case HV_CALL_ISR:
 				vmbus_channel_isr(channel);
@@ -1450,23 +1453,6 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size)
 
 }
 EXPORT_SYMBOL_GPL(vmbus_free_mmio);
-
-/**
- * vmbus_cpu_number_to_vp_number() - Map CPU to VP.
- * @cpu_number: CPU number in Linux terms
- *
- * This function returns the mapping between the Linux processor
- * number and the hypervisor's virtual processor number, useful
- * in making hypercalls and such that talk about specific
- * processors.
- *
- * Return: Virtual processor number in Hyper-V terms
- */
-int vmbus_cpu_number_to_vp_number(int cpu_number)
-{
-	return hv_context.vp_index[cpu_number];
-}
-EXPORT_SYMBOL_GPL(vmbus_cpu_number_to_vp_number);
 
 static int vmbus_acpi_add(struct acpi_device *device)
 {

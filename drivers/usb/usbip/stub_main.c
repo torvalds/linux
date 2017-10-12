@@ -302,7 +302,6 @@ static int __init usbip_host_init(void)
 		goto err_create_file;
 	}
 
-	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");
 	return ret;
 
 err_create_file:
@@ -335,4 +334,3 @@ module_exit(usbip_host_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(USBIP_VERSION);

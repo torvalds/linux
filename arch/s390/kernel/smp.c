@@ -1181,6 +1181,7 @@ static int __init s390_smp_init(void)
 
 	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "s390/smp:online",
 			       smp_cpu_online, smp_cpu_pre_down);
+	rc = rc <= 0 ? rc : 0;
 out:
 	return rc;
 }

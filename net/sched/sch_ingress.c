@@ -27,23 +27,18 @@ static struct Qdisc *ingress_leaf(struct Qdisc *sch, unsigned long arg)
 	return NULL;
 }
 
-static unsigned long ingress_get(struct Qdisc *sch, u32 classid)
+static unsigned long ingress_find(struct Qdisc *sch, u32 classid)
 {
 	return TC_H_MIN(classid) + 1;
-}
-
-static bool ingress_cl_offload(u32 classid)
-{
-	return true;
 }
 
 static unsigned long ingress_bind_filter(struct Qdisc *sch,
 					 unsigned long parent, u32 classid)
 {
-	return ingress_get(sch, classid);
+	return ingress_find(sch, classid);
 }
 
-static void ingress_put(struct Qdisc *sch, unsigned long cl)
+static void ingress_unbind_filter(struct Qdisc *sch, unsigned long cl)
 {
 }
 
@@ -99,13 +94,11 @@ nla_put_failure:
 
 static const struct Qdisc_class_ops ingress_class_ops = {
 	.leaf		=	ingress_leaf,
-	.get		=	ingress_get,
-	.put		=	ingress_put,
+	.find		=	ingress_find,
 	.walk		=	ingress_walk,
 	.tcf_block	=	ingress_tcf_block,
-	.tcf_cl_offload	=	ingress_cl_offload,
 	.bind_tcf	=	ingress_bind_filter,
-	.unbind_tcf	=	ingress_put,
+	.unbind_tcf	=	ingress_unbind_filter,
 };
 
 static struct Qdisc_ops ingress_qdisc_ops __read_mostly = {
@@ -123,7 +116,7 @@ struct clsact_sched_data {
 	struct tcf_block *egress_block;
 };
 
-static unsigned long clsact_get(struct Qdisc *sch, u32 classid)
+static unsigned long clsact_find(struct Qdisc *sch, u32 classid)
 {
 	switch (TC_H_MIN(classid)) {
 	case TC_H_MIN(TC_H_MIN_INGRESS):
@@ -134,15 +127,10 @@ static unsigned long clsact_get(struct Qdisc *sch, u32 classid)
 	}
 }
 
-static bool clsact_cl_offload(u32 classid)
-{
-	return TC_H_MIN(classid) == TC_H_MIN(TC_H_MIN_INGRESS);
-}
-
 static unsigned long clsact_bind_filter(struct Qdisc *sch,
 					unsigned long parent, u32 classid)
 {
-	return clsact_get(sch, classid);
+	return clsact_find(sch, classid);
 }
 
 static struct tcf_block *clsact_tcf_block(struct Qdisc *sch, unsigned long cl)
@@ -194,13 +182,11 @@ static void clsact_destroy(struct Qdisc *sch)
 
 static const struct Qdisc_class_ops clsact_class_ops = {
 	.leaf		=	ingress_leaf,
-	.get		=	clsact_get,
-	.put		=	ingress_put,
+	.find		=	clsact_find,
 	.walk		=	ingress_walk,
 	.tcf_block	=	clsact_tcf_block,
-	.tcf_cl_offload	=	clsact_cl_offload,
 	.bind_tcf	=	clsact_bind_filter,
-	.unbind_tcf	=	ingress_put,
+	.unbind_tcf	=	ingress_unbind_filter,
 };
 
 static struct Qdisc_ops clsact_qdisc_ops __read_mostly = {

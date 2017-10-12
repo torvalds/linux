@@ -61,6 +61,7 @@ struct omap_iommu {
 	 */
 	u32		*iopgd;
 	spinlock_t	page_table_lock; /* protect iopgd */
+	dma_addr_t	pd_dma;
 
 	int		nr_tlb_entries;
 

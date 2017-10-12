@@ -18,8 +18,8 @@
 #define pr_fmt(fmt) "apple-properties: " fmt
 
 #include <linux/bootmem.h>
-#include <linux/dmi.h>
 #include <linux/efi.h>
+#include <linux/platform_data/x86/apple.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/ucs2_string.h>
@@ -191,8 +191,7 @@ static int __init map_properties(void)
 	u64 pa_data;
 	int ret;
 
-	if (!dmi_match(DMI_SYS_VENDOR, "Apple Inc.") &&
-	    !dmi_match(DMI_SYS_VENDOR, "Apple Computer, Inc."))
+	if (!x86_apple_machine)
 		return 0;
 
 	pa_data = boot_params.hdr.setup_data;

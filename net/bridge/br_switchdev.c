@@ -115,7 +115,7 @@ br_switchdev_fdb_call_notifiers(bool adding, const unsigned char *mac,
 void
 br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
 {
-	if (!fdb->added_by_user)
+	if (!fdb->added_by_user || !fdb->dst)
 		return;
 
 	switch (type) {

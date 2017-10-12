@@ -23,7 +23,6 @@ extern void reloc_got2(unsigned long);
 
 void check_for_initrd(void);
 void initmem_init(void);
-void setup_panic(void);
 #define ARCH_PANIC_TIMEOUT 180
 
 #ifdef CONFIG_PPC_PSERIES

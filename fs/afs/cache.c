@@ -39,7 +39,6 @@ static uint16_t afs_vnode_cache_get_aux(const void *cookie_netfs_data,
 static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 						       const void *buffer,
 						       uint16_t buflen);
-static void afs_vnode_cache_now_uncached(void *cookie_netfs_data);
 
 struct fscache_netfs afs_cache_netfs = {
 	.name			= "afs",
@@ -75,7 +74,6 @@ struct fscache_cookie_def afs_vnode_cache_index_def = {
 	.get_attr		= afs_vnode_cache_get_attr,
 	.get_aux		= afs_vnode_cache_get_aux,
 	.check_aux		= afs_vnode_cache_check_aux,
-	.now_uncached		= afs_vnode_cache_now_uncached,
 };
 
 /*
@@ -358,45 +356,4 @@ static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 
 	_leave(" = SUCCESS");
 	return FSCACHE_CHECKAUX_OKAY;
-}
-
-/*
- * indication the cookie is no longer uncached
- * - this function is called when the backing store currently caching a cookie
- *   is removed
- * - the netfs should use this to clean up any markers indicating cached pages
- * - this is mandatory for any object that may have data
- */
-static void afs_vnode_cache_now_uncached(void *cookie_netfs_data)
-{
-	struct afs_vnode *vnode = cookie_netfs_data;
-	struct pagevec pvec;
-	pgoff_t first;
-	int loop, nr_pages;
-
-	_enter("{%x,%x,%Lx}",
-	       vnode->fid.vnode, vnode->fid.unique, vnode->status.data_version);
-
-	pagevec_init(&pvec, 0);
-	first = 0;
-
-	for (;;) {
-		/* grab a bunch of pages to clean */
-		nr_pages = pagevec_lookup(&pvec, vnode->vfs_inode.i_mapping,
-					  first,
-					  PAGEVEC_SIZE - pagevec_count(&pvec));
-		if (!nr_pages)
-			break;
-
-		for (loop = 0; loop < nr_pages; loop++)
-			ClearPageFsCache(pvec.pages[loop]);
-
-		first = pvec.pages[nr_pages - 1]->index + 1;
-
-		pvec.nr = nr_pages;
-		pagevec_release(&pvec);
-		cond_resched();
-	}
-
-	_leave("");
 }

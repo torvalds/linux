@@ -1085,7 +1085,7 @@ static int qe_uart_verify_port(struct uart_port *port,
  *
  * Details on these functions can be found in Documentation/serial/driver
  */
-static struct uart_ops qe_uart_pops = {
+static const struct uart_ops qe_uart_pops = {
 	.tx_empty       = qe_uart_tx_empty,
 	.set_mctrl      = qe_uart_set_mctrl,
 	.get_mctrl      = qe_uart_get_mctrl,

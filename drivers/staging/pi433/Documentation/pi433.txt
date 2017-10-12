@@ -1,0 +1,274 @@
+=====
+Pi433
+=====
+
+
+Introduction
+============
+This driver is for controlling pi433, a radio module for the Raspberry Pi
+(www.pi433.de). It supports transmission and reception. It can be opened
+by multiple applications for transmission and reception. While transmit
+jobs were queued and process automatically in the background, the first
+application asking for reception will block out all other applications
+until something gets received terminates the read request.
+The driver supports on the fly reloading of the hardware fifo of the rf
+chip, thus enabling for much longer telegrams then hardware fifo size.
+
+Discription of driver operation
+===============================
+
+a) transmission
+
+Each transmission can take place with a different configuration of the rf
+module. Therfore each application can set its own set of parameters. The driver
+takes care, that each transmission takes place with the parameterset of the
+application, that requests the transmission. To allow the transmission to take
+place in the background, a tx thread is introduced.
+The transfer of data from the main thread to the tx thread is realised by a
+kfifo. With each write request of an application, the passed in data and the
+corresponding parameter set gets written to the kfifo.
+On the other "side" of the kfifo, the tx thread continuously checks, whether the
+kfifo is empty. If not, it gets one set of config and data from the kfifo. If
+there is no receive request or the receiver is still waiting for something in
+the air, the rf module is set to standby, the parameters for transmission gets
+set, the hardware fifo of the rf chip gets preloaded and the transmission gets
+started. Upon hardware fifo threshold interrupt it gets reloaded, thus enabling
+much longer telegrams then hardware fifo size. If the telegram is send and there
+is more data available in the kfifo, the procedure is repeated. If not the
+transmission cycle ends.
+
+b) reception
+
+Since there is only one application allowed to receive data at a time, for
+reception there is only one configuration set.
+As soon as an application sets an request for receiving a telegram, the reception
+configuration set is written to the rf module and it gets set into receiving mode.
+Now the driver is waiting, that a predefined RSSI level (signal strength at the
+receiver) is reached. Until this hasn't happened, the reception can be
+interrupted by the transmission thread at any time to insert a transmission cycle.
+As soon as the predefined RSSI level is meat, a receiving cycle starts. Similar
+as described for the transmission cycle the read out of the hardware fifo is done
+dynamically. Upon each hardware fifo threshold interrupt, a portion of data gets
+read. So also for reception it is possible to receive more data then the hardware
+fifo can hold.
+
+
+Driver API
+==========
+
+The driver is currently implemented as a character device. Therefore it supports
+the calls open, ioctl, read, write and close.
+
+
+params for ioctl
+----------------
+
+There are four options:
+PI433_IOC_RD_TX_CFG - get the transmission parameters from the driver
+PI433_IOC_WR_TX_CFG - set the transmission parameters
+PI433_IOC_RD_RX_CFG - get the receiving parameters from the driver
+PI433_IOC_WR_RX_CFG - set the receiving parameters
+
+The tx configuration is transfered via struct pi433_tx_cfg, the parameterset for transmission.
+It is devided into two sections: rf parameters and packet format.
+
+rf params:
+	frequency
+		frequency used for transmission.
+		Allowed values: 433050000...434790000
+	bit_rate
+		bit rate used for transmission.
+		Allowed values: #####
+	dev_frequency
+		frequency deviation in case of FSK.
+		Allowed values: 600...500000
+	modulation
+		FSK - frequency shift key
+		OOK - On-Off-key
+	modShaping
+		shapingOff	- no shaping
+		shaping1_0	- gauss filter with BT 1 (FSK only)
+		shaping0_5	- gauss filter with BT 0.5 (FSK only)
+		shaping0_3	- gauss filter with BT 0.3 (FSK only)
+		shapingBR	- filter cut off at BR (OOK only)
+		shaping2BR	- filter cut off at 2*BR (OOK only)
+	paRamp (FSK only)
+		ramp3400	- amp ramps up in 3.4ms
+		ramp2000	- amp ramps up in 2.0ms
+		ramp1000	- amp ramps up in 1ms
+		ramp500		- amp ramps up in 500us
+		ramp250		- amp ramps up in 250us
+		ramp125		- amp ramps up in 125us
+		ramp100		- amp ramps up in 100us
+		ramp62		- amp ramps up in 62us
+		ramp50		- amp ramps up in 50us
+		ramp40		- amp ramps up in 40us
+		ramp31		- amp ramps up in 31us
+		ramp25		- amp ramps up in 25us
+		ramp20		- amp ramps up in 20us
+		ramp15		- amp ramps up in 15us
+		ramp12		- amp ramps up in 12us
+		ramp10		- amp ramps up in 10us
+	tx_start_condition
+		fifoLevel	- transmission starts, if fifo is filled to
+				  threshold level
+		fifoNotEmpty	- transmission starts, as soon as there is one
+				  byte in internal fifo
+	repetitions
+		This gives the option, to send a telegram multiple times. Default: 1
+
+packet format:
+	enable_preamble
+		optionOn	- a preamble will be automatically generated
+		optionOff	- no preamble will be generated
+	enable_sync
+		optionOn	- a sync word will be automatically added to
+				  the telegram after preamble
+		optionOff	- no sync word will be added
+		Attention: While possible to generate sync without preamble, the
+		receiver won't be able to detect the sync without preamble.
+	enable_length_byte
+		optionOn	- the length of the telegram will be automatically
+				  added to the telegram. It's part of the payload
+		optionOff	- no length information will be automatically added
+				  to the telegram.
+		Attention: For telegram length over 255 bytes, this option can't be used
+		Attention: should be used in combination with sync, only
+	enable_address_byte
+		optionOn	- the address byte will be automatically added to the
+				  telgram. It's part of the payload
+		optionOff	- the address byte will not be added to the telegram.
+		The address byte can be used for address filtering, so the receiver
+		will only receive telegrams with a given address byte.
+		Attention: should be used in combination with sync, only
+	enable_crc
+		optionOn	- an crc will be automatically calculated over the
+				  payload of the telegram and added to the telegram
+				  after payload.
+		optionOff	- no crc will be calculated
+	preamble_length
+		length of the preamble. Allowed values: 0...65536
+	sync_length
+		length of the sync word. Allowed values: 0...8
+	fixed_message_length
+		length of the payload of the telegram. Will override the length
+		given by the buffer, passed in with the write command. Will be
+		ignored if set to zero.
+	sync_pattern[8]
+		contains up to eight values, that are used as the sync pattern
+		on sync option
+	address_byte
+		one byte, used as address byte on address byte option.
+
+
+The rx configuration is transfered via struct pi433_rx_cfg, the parameterset for receiving. It is devided into two sections: rf parameters and packet format.
+
+rf params:
+	frequency
+		frequency used for transmission.
+		Allowed values: 433050000...434790000
+	bit_rate
+		bit rate used for transmission.
+		Allowed values: #####
+	dev_frequency
+		frequency deviation in case of FSK.
+		Allowed values: 600...500000
+	modulation
+		FSK - frequency shift key
+		OOK - on off key
+	rssi_threshold
+		threshold value for the signal strength on the receiver input.
+		If this value is exeeded, a reception cycle starts
+		Allowed values: 0...255
+	thresholdDecrement
+		in order to adapt to different levels of singnal strength, over
+		time the receiver gets more and more sensitive. This value
+		determs, how fast the sensitivity increases.
+		step_0_5db	- increase in 0,5dB steps
+		step_1_0db	- increase in 1 db steps
+		step_1_5db	- increase in 1,5dB steps
+		step_2_0db	- increase in 2 db steps
+		step_3_0db	- increase in 3 db steps
+		step_4_0db	- increase in 4 db steps
+		step_5_0db	- increase in 5 db steps
+		step_6_0db	- increase in 6 db steps
+	antennaImpedance
+		sets the electrical adoption of the antenna
+		fiftyOhm	- for antennas with an impedance of 50Ohm
+		twohundretOhm	- for antennas with an impedance of 200Ohm
+	lnaGain
+		sets the gain of the low noise amp
+		automatic	- lna gain is determed by an agc
+		max		- lna gain is set to maximum
+		maxMinus6	- lna gain is set to  6db below max
+		maxMinus12	- lna gain is set to 12db below max
+		maxMinus24	- lna gain is set to 24db below max
+		maxMinus36	- lna gain is set to 36db below max
+		maxMinus48	- lna gain is set to 48db below max
+	bw_mantisse
+		sets the bandwidth of the channel filter - part one: mantisse.
+		mantisse16	- mantisse is set to 16
+		mantisse20	- mantisse is set to 20
+		mantisse24	- mantisse is set to 24
+	bw_exponent
+		sets the bandwidth of the channel filter - part two: exponent.
+		Allowd values: 0...7
+	dagc;
+		operation mode of the digital automatic gain control
+		normalMode
+		improve
+		improve4LowModulationIndex
+
+ packet format:
+	enable_sync
+		optionOn  - sync detection is enabled. If configured sync pattern
+			    isn't found, telegram will be internally discarded
+		optionOff - sync detection is disabled.
+	enable_length_byte
+		optionOn   - First byte of payload will be used as length byte,
+			     regardless of the amount of bytes that were requested
+			     by the read request.
+		optionOff  - Number of bytes to be read will be set according to
+			     amount of bytes that were requested by the read request.
+		Attention: should be used in combination with sync, only
+	enable_address_filtering;
+		filteringOff		- no adress filtering will take place
+		nodeAddress		- all telegrams, not matching the node
+					  address will be internally discarded
+		nodeOrBroadcastAddress	- all telegrams, neither matching the
+					  node, nor the broadcast address will
+					  be internally discarded
+		Attention: Sync option must be enabled in order to use this feature
+	enable_crc
+		optionOn	- a crc will be calculated over the payload of
+				  the telegram, that was received. If the
+				  calculated crc doesn't match to two bytes,
+				  that follow the payload, the telegram will be
+				  internally discarded.
+		Attention: This option is only operational, if sync on and fixed length
+		or length byte is used
+	sync_length
+		Gives the length of the payload.
+		Attention: This setting must meet the setting of the transmitter,
+		if sync option is used.
+	fixed_message_length
+		Overrides the telegram length either given by the first byte of
+		payload or by the read request.
+	bytes_to_drop
+		gives the number of bytes, that will be dropped before transfering
+		data to the read buffer
+		This option is only usefull, if all packet helper are switched
+		off and the rf chip is used in raw receiving mode. This may be
+		needed, if a telegram of a third party device should be received,
+		using a protocol not compatible with the packet engine of the rf69 chip.
+	sync_pattern[8]
+		contains up to eight values, that are used as the sync pattern
+		on sync option.
+		This setting must meet the configuration of the transmitting device,
+		if sync option is enabled.
+	node_address
+		one byte, used as node address byte on address byte option.
+	broadcast_address
+		one byte, used as broadcast address byte on address byte option.
+
+

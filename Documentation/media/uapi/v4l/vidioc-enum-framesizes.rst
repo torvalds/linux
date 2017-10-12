@@ -26,7 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to a struct :c:type:`v4l2_frmsizeenum`
+    Pointer to struct :c:type:`v4l2_frmsizeenum`
     that contains an index and pixel format and receives a frame width
     and height.
 
@@ -139,6 +139,8 @@ application should zero out all members except for the *IN* fields.
 
 
 .. c:type:: v4l2_frmsizeenum
+
+.. tabularcolumns:: |p{1.4cm}|p{5.9cm}|p{2.3cm}|p{8.0cm}|
 
 .. flat-table:: struct v4l2_frmsizeenum
     :header-rows:  0

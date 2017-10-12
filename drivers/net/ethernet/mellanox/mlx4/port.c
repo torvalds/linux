@@ -52,6 +52,7 @@
 
 #define MLX4_FLAG2_V_IGNORE_FCS_MASK		BIT(1)
 #define MLX4_FLAG2_V_USER_MTU_MASK		BIT(5)
+#define MLX4_FLAG2_V_USER_MAC_MASK		BIT(6)
 #define MLX4_FLAG_V_MTU_MASK			BIT(0)
 #define MLX4_FLAG_V_PPRX_MASK			BIT(1)
 #define MLX4_FLAG_V_PPTX_MASK			BIT(2)
@@ -1699,6 +1700,30 @@ int mlx4_SET_PORT_user_mtu(struct mlx4_dev *dev, u8 port, u16 user_mtu)
 	return err;
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_user_mtu);
+
+int mlx4_SET_PORT_user_mac(struct mlx4_dev *dev, u8 port, u8 *user_mac)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_set_port_general_context *context;
+	u32 in_mod;
+	int err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	context = mailbox->buf;
+	context->flags2 |= MLX4_FLAG2_V_USER_MAC_MASK;
+	memcpy(context->user_mac, user_mac, sizeof(context->user_mac));
+
+	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, MLX4_SET_PORT_ETH_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_SET_PORT_user_mac);
 
 int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port, u8 ignore_fcs_value)
 {

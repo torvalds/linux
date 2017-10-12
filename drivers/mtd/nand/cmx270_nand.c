@@ -18,7 +18,7 @@
  *   CM-X270 board.
  */
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>

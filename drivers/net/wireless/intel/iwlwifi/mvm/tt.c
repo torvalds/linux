@@ -71,7 +71,7 @@
 
 #define IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT	HZ
 
-static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
+void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 	u32 duration = tt->params.ct_kill_duration;
@@ -529,6 +529,7 @@ int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 state)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	status = 0;
 	ret = iwl_mvm_send_cmd_pdu_status(mvm, WIDE_ID(PHY_OPS_GROUP,
 						       CTDP_CONFIG_CMD),
 					  sizeof(cmd), &cmd, &status);
@@ -629,7 +630,7 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 	mutex_lock(&mvm->mutex);
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->cur_ucode != IWL_UCODE_REGULAR) {
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
 		ret = -EIO;
 		goto out;
 	}
@@ -680,7 +681,7 @@ static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
 	mutex_lock(&mvm->mutex);
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->cur_ucode != IWL_UCODE_REGULAR) {
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
 		ret = -EIO;
 		goto out;
 	}
@@ -795,7 +796,7 @@ static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 	mutex_lock(&mvm->mutex);
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->cur_ucode != IWL_UCODE_REGULAR) {
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
 		ret = -EIO;
 		goto unlock;
 	}
@@ -813,7 +814,7 @@ unlock:
 	return ret;
 }
 
-static struct thermal_cooling_device_ops tcooling_ops = {
+static const struct thermal_cooling_device_ops tcooling_ops = {
 	.get_max_state = iwl_mvm_tcool_get_max_state,
 	.get_cur_state = iwl_mvm_tcool_get_cur_state,
 	.set_cur_state = iwl_mvm_tcool_set_cur_state,

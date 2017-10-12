@@ -47,6 +47,8 @@ static int sxgbe_probe_config_dt(struct platform_device *pdev,
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(*plat->mdio_bus_data),
 					   GFP_KERNEL);
+	if (!plat->mdio_bus_data)
+		return -ENOMEM;
 
 	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg), GFP_KERNEL);
 	if (!dma_cfg)

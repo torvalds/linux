@@ -127,7 +127,6 @@ static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, trimslice);
 
 	trimslice_tlv320aic23_dai.codec_of_node = of_parse_phandle(np,

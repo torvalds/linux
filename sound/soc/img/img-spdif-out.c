@@ -334,7 +334,7 @@ static int img_spdif_out_probe(struct platform_device *pdev)
 
 	spdif->base = base;
 
-	spdif->rst = devm_reset_control_get(&pdev->dev, "rst");
+	spdif->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
 	if (IS_ERR(spdif->rst)) {
 		if (PTR_ERR(spdif->rst) != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "No top level reset found\n");

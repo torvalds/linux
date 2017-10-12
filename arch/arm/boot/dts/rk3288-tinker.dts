@@ -50,7 +50,7 @@
 	compatible = "asus,rk3288-tinker", "rockchip,rk3288";
 
 	memory {
-		reg = <0x0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 		device_type = "memory";
 	};
 
@@ -154,6 +154,11 @@
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 	status = "ok";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu>;
+	status = "okay";
 };
 
 &hdmi {
@@ -465,7 +470,6 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;			/* wp not hooked up */
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	status = "okay";

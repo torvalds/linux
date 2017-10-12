@@ -435,6 +435,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_ACMD23_BROKEN			(1<<14)
 /* Broken Clock divider zero in controller */
 #define SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN		(1<<15)
+/* Controller has CRC in 136 bit Command Response */
+#define SDHCI_QUIRK2_RSP_136_HAS_CRC			(1<<16)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
@@ -540,6 +542,9 @@ struct sdhci_host {
 #define SDHCI_TUNING_MODE_3	2
 	/* Delay (ms) between tuning commands */
 	int			tuning_delay;
+
+	/* Host SDMA buffer boundary. */
+	u32			sdma_boundary;
 
 	unsigned long private[0] ____cacheline_aligned;
 };

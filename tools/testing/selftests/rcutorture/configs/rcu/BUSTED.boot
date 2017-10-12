@@ -1,1 +1,1 @@
-rcutorture.torture_type=rcu_busted
+rcutorture.torture_type=busted

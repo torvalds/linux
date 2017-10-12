@@ -39,7 +39,7 @@ Arguments
 Description
 ===========
 
-The :c:func:`ioctl()` function manipulates cec device parameters. The
+The :c:func:`ioctl() <cec-ioctl>` function manipulates cec device parameters. The
 argument ``fd`` must be an open file descriptor.
 
 The ioctl ``request`` code specifies the cec function to be called. It

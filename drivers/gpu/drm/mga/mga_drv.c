@@ -62,7 +62,6 @@ static struct drm_driver driver = {
 	.load = mga_driver_load,
 	.unload = mga_driver_unload,
 	.lastclose = mga_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
 	.dma_quiescent = mga_driver_dma_quiescent,
 	.get_vblank_counter = mga_get_vblank_counter,
 	.enable_vblank = mga_enable_vblank,
@@ -90,12 +89,12 @@ static struct pci_driver mga_pci_driver = {
 static int __init mga_init(void)
 {
 	driver.num_ioctls = mga_max_ioctl;
-	return drm_pci_init(&driver, &mga_pci_driver);
+	return drm_legacy_pci_init(&driver, &mga_pci_driver);
 }
 
 static void __exit mga_exit(void)
 {
-	drm_pci_exit(&driver, &mga_pci_driver);
+	drm_legacy_pci_exit(&driver, &mga_pci_driver);
 }
 
 module_init(mga_init);

@@ -158,14 +158,12 @@ void free_io_pgtable_ops(struct io_pgtable_ops *ops);
  * @fmt:    The page table format.
  * @cookie: An opaque token provided by the IOMMU driver and passed back to
  *          any callback routines.
- * @tlb_sync_pending: Private flag for optimising out redundant syncs.
  * @cfg:    A copy of the page table configuration.
  * @ops:    The page table operations in use for this set of page tables.
  */
 struct io_pgtable {
 	enum io_pgtable_fmt	fmt;
 	void			*cookie;
-	bool			tlb_sync_pending;
 	struct io_pgtable_cfg	cfg;
 	struct io_pgtable_ops	ops;
 };
@@ -175,22 +173,17 @@ struct io_pgtable {
 static inline void io_pgtable_tlb_flush_all(struct io_pgtable *iop)
 {
 	iop->cfg.tlb->tlb_flush_all(iop->cookie);
-	iop->tlb_sync_pending = true;
 }
 
 static inline void io_pgtable_tlb_add_flush(struct io_pgtable *iop,
 		unsigned long iova, size_t size, size_t granule, bool leaf)
 {
 	iop->cfg.tlb->tlb_add_flush(iova, size, granule, leaf, iop->cookie);
-	iop->tlb_sync_pending = true;
 }
 
 static inline void io_pgtable_tlb_sync(struct io_pgtable *iop)
 {
-	if (iop->tlb_sync_pending) {
-		iop->cfg.tlb->tlb_sync(iop->cookie);
-		iop->tlb_sync_pending = false;
-	}
+	iop->cfg.tlb->tlb_sync(iop->cookie);
 }
 
 /**

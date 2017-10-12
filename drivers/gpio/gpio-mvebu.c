@@ -557,7 +557,7 @@ static void mvebu_gpio_irq_handler(struct irq_desc *desc)
 	edge_cause = mvebu_gpio_read_edge_cause(mvchip);
 	edge_mask  = mvebu_gpio_read_edge_mask(mvchip);
 
-	cause = (data_in ^ level_mask) | (edge_cause & edge_mask);
+	cause = (data_in & level_mask) | (edge_cause & edge_mask);
 
 	for (i = 0; i < mvchip->chip.ngpio; i++) {
 		int irq;

@@ -107,6 +107,12 @@ static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq);
 bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq);
 
+struct mmc_async_req;
+
+struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
+				     struct mmc_async_req *areq,
+				     enum mmc_blk_status *ret_stat);
+
 int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 		unsigned int arg);
 int mmc_can_erase(struct mmc_card *card);

@@ -4,6 +4,14 @@ Required properties:
 - compatible : Should be "dlg,da9052", "dlg,da9053-aa",
 			 "dlg,da9053-ab", or "dlg,da9053-bb"
 
+Optional properties:
+- dlg,tsi-as-adc : Boolean, if set the X+, X-, Y+, Y- touchscreen
+                    input lines are used as general purpose analogue
+					input.
+- tsiref-supply: Phandle to the regulator, which provides the reference
+                 voltage for the TSIREF pin. Must be provided when the
+			     touchscreen pins are used for ADC purposes.
+
 Sub-nodes:
 - regulators : Contain the regulator nodes. The DA9052/53 regulators are
   bound using their names as listed below:
@@ -29,7 +37,6 @@ Sub-nodes:
 Examples:
 
 i2c@63fc8000 { /* I2C1 */
-	status = "okay";
 
 	pmic: dialog@48 {
 		compatible = "dlg,da9053-aa";

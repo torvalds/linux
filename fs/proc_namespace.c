@@ -178,7 +178,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	} else {
 		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 	}
-	seq_puts(m, sb->s_flags & MS_RDONLY ? " ro" : " rw");
+	seq_puts(m, sb_rdonly(sb) ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
 	if (err)
 		goto out;

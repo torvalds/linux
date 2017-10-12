@@ -249,14 +249,14 @@ struct ll_header {
  * Compatibility macros for busy handling
  * of network devices.
  */
-static inline void netiucv_clear_busy(struct net_device *dev)
+static void netiucv_clear_busy(struct net_device *dev)
 {
 	struct netiucv_priv *priv = netdev_priv(dev);
 	clear_bit(0, &priv->tbusy);
 	netif_wake_queue(dev);
 }
 
-static inline int netiucv_test_and_set_busy(struct net_device *dev)
+static int netiucv_test_and_set_busy(struct net_device *dev)
 {
 	struct netiucv_priv *priv = netdev_priv(dev);
 	netif_stop_queue(dev);

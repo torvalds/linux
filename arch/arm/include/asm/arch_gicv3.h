@@ -276,6 +276,12 @@ static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
 #define gicr_write_pendbaser(v, c)	__gic_writeq_nonatomic(v, c)
 
 /*
+ * GICR_xLPIR - only the lower bits are significant
+ */
+#define gic_read_lpir(c)		readl_relaxed(c)
+#define gic_write_lpir(v, c)		writel_relaxed(lower_32_bits(v), c)
+
+/*
  * GITS_TYPER is an ID register and doesn't need atomicity.
  */
 #define gits_read_typer(c)		__gic_readq_nonatomic(c)
@@ -290,6 +296,34 @@ static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
  * GITS_CWRITER - hi and lo bits may be accessed independently.
  */
 #define gits_write_cwriter(v, c)	__gic_writeq_nonatomic(v, c)
+
+/*
+ * GITS_VPROPBASER - hi and lo bits may be accessed independently.
+ */
+#define gits_write_vpropbaser(v, c)	__gic_writeq_nonatomic(v, c)
+
+/*
+ * GITS_VPENDBASER - the Valid bit must be cleared before changing
+ * anything else.
+ */
+static inline void gits_write_vpendbaser(u64 val, void * __iomem addr)
+{
+	u32 tmp;
+
+	tmp = readl_relaxed(addr + 4);
+	if (tmp & (GICR_VPENDBASER_Valid >> 32)) {
+		tmp &= ~(GICR_VPENDBASER_Valid >> 32);
+		writel_relaxed(tmp, addr + 4);
+	}
+
+	/*
+	 * Use the fact that __gic_writeq_nonatomic writes the second
+	 * half of the 64bit quantity after the first.
+	 */
+	__gic_writeq_nonatomic(val, addr);
+}
+
+#define gits_read_vpendbaser(c)		__gic_readq_nonatomic(c)
 
 #endif /* !__ASSEMBLY__ */
 #endif /* !__ASM_ARCH_GICV3_H */

@@ -357,7 +357,7 @@ static void zx_i2s_shutdown(struct snd_pcm_substream *substream,
 	clk_disable_unprepare(zx_i2s->dai_pclk);
 }
 
-static struct snd_soc_dai_ops zx_i2s_dai_ops = {
+static const struct snd_soc_dai_ops zx_i2s_dai_ops = {
 	.trigger	= zx_i2s_trigger,
 	.hw_params	= zx_i2s_hw_params,
 	.set_fmt	= zx_i2s_set_fmt,

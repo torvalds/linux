@@ -69,7 +69,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&wl12xx_vmmc2>;
-	vmmc_aux-supply = <&wl12xx_vaux2>;
+	vqmmc-supply = <&wl12xx_vaux2>;
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;

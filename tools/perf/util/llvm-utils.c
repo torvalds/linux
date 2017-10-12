@@ -33,7 +33,7 @@ struct llvm_param llvm_param = {
 
 int perf_llvm_config(const char *var, const char *value)
 {
-	if (prefixcmp(var, "llvm."))
+	if (!strstarts(var, "llvm."))
 		return 0;
 	var += sizeof("llvm.") - 1;
 

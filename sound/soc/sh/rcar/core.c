@@ -726,7 +726,6 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 2:
 	case 6:
 	case 8:
-	case 16:
 		/* TDM Extend Mode */
 		rsnd_rdai_channels_set(rdai, slots);
 		rsnd_rdai_ssi_lane_set(rdai, 1);
@@ -740,7 +739,7 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 }
 
 static unsigned int rsnd_soc_hw_channels_list[] = {
-	2, 6, 8, 16,
+	2, 6, 8,
 };
 
 static unsigned int rsnd_soc_hw_rate_list[] = {
@@ -844,12 +843,28 @@ static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
 				ir, &ic);
 }
 
-static void rsnd_soc_hw_constraint(struct snd_pcm_runtime *runtime,
-				   struct snd_soc_dai *dai)
+static const struct snd_pcm_hardware rsnd_pcm_hardware = {
+	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
+			SNDRV_PCM_INFO_MMAP		|
+			SNDRV_PCM_INFO_MMAP_VALID,
+	.buffer_bytes_max	= 64 * 1024,
+	.period_bytes_min	= 32,
+	.period_bytes_max	= 8192,
+	.periods_min		= 1,
+	.periods_max		= 32,
+	.fifo_size		= 256,
+};
+
+static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	struct snd_pcm_hw_constraint_list *constraint = &rdai->constraint;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int max_channels = rsnd_rdai_channels_get(rdai);
+	int ret;
 	int i;
 
 	/*
@@ -866,34 +881,26 @@ static void rsnd_soc_hw_constraint(struct snd_pcm_runtime *runtime,
 		constraint->count = i + 1;
 	}
 
+	snd_soc_set_runtime_hwparams(substream, &rsnd_pcm_hardware);
+
 	snd_pcm_hw_constraint_list(runtime, 0,
 				   SNDRV_PCM_HW_PARAM_CHANNELS, constraint);
+
+	snd_pcm_hw_constraint_integer(runtime,
+				      SNDRV_PCM_HW_PARAM_PERIODS);
 
 	/*
 	 * Sampling Rate / Channel Limitation
 	 * It depends on Clock Master Mode
 	 */
-	if (!rsnd_rdai_is_clk_master(rdai))
-		return;
-
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-			    rsnd_soc_hw_rule_rate, dai,
-			    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			    rsnd_soc_hw_rule_channels, dai,
-			    SNDRV_PCM_HW_PARAM_RATE, -1);
-}
-
-static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
-				struct snd_soc_dai *dai)
-{
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
-	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	int ret;
-
-	/* rsnd_io_to_runtime() is not yet enabled here */
-	rsnd_soc_hw_constraint(substream->runtime, dai);
+	if (rsnd_rdai_is_clk_master(rdai)) {
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				    rsnd_soc_hw_rule_rate, dai,
+				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				    rsnd_soc_hw_rule_channels, dai,
+				    SNDRV_PCM_HW_PARAM_RATE, -1);
+	}
 
 	/*
 	 * call rsnd_dai_call without spinlock
@@ -1017,7 +1024,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->playback.rates		= RSND_RATES;
 	drv->playback.formats		= RSND_FMTS;
 	drv->playback.channels_min	= 2;
-	drv->playback.channels_max	= 16;
+	drv->playback.channels_max	= 8;
 	drv->playback.stream_name	= rdai->playback.name;
 
 	snprintf(rdai->capture.name, RSND_DAI_NAME_SIZE,
@@ -1025,7 +1032,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->capture.rates		= RSND_RATES;
 	drv->capture.formats		= RSND_FMTS;
 	drv->capture.channels_min	= 2;
-	drv->capture.channels_max	= 16;
+	drv->capture.channels_max	= 8;
 	drv->capture.stream_name	= rdai->capture.name;
 
 	rdai->playback.rdai		= rdai;
@@ -1105,31 +1112,6 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 /*
  *		pcm ops
  */
-static struct snd_pcm_hardware rsnd_pcm_hardware = {
-	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
-			SNDRV_PCM_INFO_MMAP		|
-			SNDRV_PCM_INFO_MMAP_VALID,
-	.buffer_bytes_max	= 64 * 1024,
-	.period_bytes_min	= 32,
-	.period_bytes_max	= 8192,
-	.periods_min		= 1,
-	.periods_max		= 32,
-	.fifo_size		= 256,
-};
-
-static int rsnd_pcm_open(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret = 0;
-
-	snd_soc_set_runtime_hwparams(substream, &rsnd_pcm_hardware);
-
-	ret = snd_pcm_hw_constraint_integer(runtime,
-					    SNDRV_PCM_HW_PARAM_PERIODS);
-
-	return ret;
-}
-
 static int rsnd_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
@@ -1158,8 +1140,7 @@ static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
 	return pointer;
 }
 
-static struct snd_pcm_ops rsnd_pcm_ops = {
-	.open		= rsnd_pcm_open,
+static const struct snd_pcm_ops rsnd_pcm_ops = {
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= rsnd_hw_params,
 	.hw_free	= snd_pcm_lib_free_pages,
@@ -1169,11 +1150,10 @@ static struct snd_pcm_ops rsnd_pcm_ops = {
 /*
  *		snd_kcontrol
  */
-#define kcontrol_to_cfg(kctrl) ((struct rsnd_kctrl_cfg *)kctrl->private_value)
 static int rsnd_kctrl_info(struct snd_kcontrol *kctrl,
 			   struct snd_ctl_elem_info *uinfo)
 {
-	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	struct rsnd_kctrl_cfg *cfg = snd_kcontrol_chip(kctrl);
 
 	if (cfg->texts) {
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -1199,7 +1179,7 @@ static int rsnd_kctrl_info(struct snd_kcontrol *kctrl,
 static int rsnd_kctrl_get(struct snd_kcontrol *kctrl,
 			  struct snd_ctl_elem_value *uc)
 {
-	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	struct rsnd_kctrl_cfg *cfg = snd_kcontrol_chip(kctrl);
 	int i;
 
 	for (i = 0; i < cfg->size; i++)
@@ -1214,8 +1194,7 @@ static int rsnd_kctrl_get(struct snd_kcontrol *kctrl,
 static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 			  struct snd_ctl_elem_value *uc)
 {
-	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
-	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	struct rsnd_kctrl_cfg *cfg = snd_kcontrol_chip(kctrl);
 	int i, change = 0;
 
 	if (!cfg->accept(cfg->io))
@@ -1232,7 +1211,7 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 	}
 
 	if (change && cfg->update)
-		cfg->update(cfg->io, mod);
+		cfg->update(cfg->io, cfg->mod);
 
 	return change;
 }
@@ -1284,14 +1263,13 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 		.index		= rtd->num,
 		.get		= rsnd_kctrl_get,
 		.put		= rsnd_kctrl_put,
-		.private_value	= (unsigned long)cfg,
 	};
 	int ret;
 
 	if (size > RSND_MAX_CHANNELS)
 		return -EINVAL;
 
-	kctrl = snd_ctl_new1(&knew, mod);
+	kctrl = snd_ctl_new1(&knew, cfg);
 	if (!kctrl)
 		return -ENOMEM;
 
@@ -1307,6 +1285,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 	cfg->card	= card;
 	cfg->kctrl	= kctrl;
 	cfg->io		= io;
+	cfg->mod	= mod;
 
 	return 0;
 }
@@ -1339,7 +1318,7 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
 }
 
-static struct snd_soc_platform_driver rsnd_soc_platform = {
+static const struct snd_soc_platform_driver rsnd_soc_platform = {
 	.ops		= &rsnd_pcm_ops,
 	.pcm_new	= rsnd_pcm_new,
 };
@@ -1422,10 +1401,8 @@ static int rsnd_probe(struct platform_device *pdev)
 	 *	init priv data
 	 */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev, "priv allocate failed\n");
+	if (!priv)
 		return -ENODEV;
-	}
 
 	priv->pdev	= pdev;
 	priv->flags	= (unsigned long)of_device_get_match_data(dev);

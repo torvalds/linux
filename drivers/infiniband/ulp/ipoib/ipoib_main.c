@@ -60,7 +60,6 @@ const char ipoib_driver_version[] = DRV_VERSION;
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 int ipoib_sendq_size __read_mostly = IPOIB_TX_RING_SIZE;
 int ipoib_recvq_size __read_mostly = IPOIB_RX_RING_SIZE;
@@ -100,6 +99,8 @@ static struct net_device *ipoib_get_net_dev_by_params(
 		const union ib_gid *gid, const struct sockaddr *addr,
 		void *client_data);
 static int ipoib_set_mac(struct net_device *dev, void *addr);
+static int ipoib_ioctl(struct net_device *dev, struct ifreq *ifr,
+		       int cmd);
 
 static struct ib_client ipoib_client = {
 	.name   = "ipoib",
@@ -1560,6 +1561,7 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 	int i, wait_flushed = 0;
 
 	init_completion(&priv->ntbl.flushed);
+	set_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1604,7 +1606,6 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 
 	ipoib_dbg(priv, "ipoib_neigh_hash_uninit\n");
 	init_completion(&priv->ntbl.deleted);
-	set_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 
 	/* Stop GC if called at init fail need to cancel work */
 	stopped = test_and_set_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
@@ -1679,6 +1680,17 @@ out_rx_ring_cleanup:
 out:
 	netif_napi_del(&priv->napi);
 	return -ENOMEM;
+}
+
+static int ipoib_ioctl(struct net_device *dev, struct ifreq *ifr,
+		       int cmd)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	if (!priv->rn_ops->ndo_do_ioctl)
+		return -EOPNOTSUPP;
+
+	return priv->rn_ops->ndo_do_ioctl(dev, ifr, cmd);
 }
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
@@ -1835,6 +1847,7 @@ static const struct net_device_ops ipoib_netdev_ops_pf = {
 	.ndo_set_vf_guid	 = ipoib_set_vf_guid,
 	.ndo_set_mac_address	 = ipoib_set_mac,
 	.ndo_get_stats64	 = ipoib_get_stats,
+	.ndo_do_ioctl		 = ipoib_ioctl,
 };
 
 static const struct net_device_ops ipoib_netdev_ops_vf = {
@@ -1847,6 +1860,8 @@ static const struct net_device_ops ipoib_netdev_ops_vf = {
 	.ndo_tx_timeout		 = ipoib_timeout,
 	.ndo_set_rx_mode	 = ipoib_set_mcast_list,
 	.ndo_get_iflink		 = ipoib_get_iflink,
+	.ndo_get_stats64	 = ipoib_get_stats,
+	.ndo_do_ioctl		 = ipoib_ioctl,
 };
 
 void ipoib_setup_common(struct net_device *dev)
@@ -1877,6 +1892,8 @@ static void ipoib_build_priv(struct net_device *dev)
 	priv->dev = dev;
 	spin_lock_init(&priv->lock);
 	init_rwsem(&priv->vlan_rwsem);
+	mutex_init(&priv->mcast_mutex);
+	mutex_init(&priv->sysfs_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -2163,6 +2180,7 @@ static struct net_device *ipoib_add_port(const char *format,
 {
 	struct ipoib_dev_priv *priv;
 	struct ib_port_attr attr;
+	struct rdma_netdev *rn;
 	int result = -ENOMEM;
 
 	priv = ipoib_intf_alloc(hca, port, format);
@@ -2173,13 +2191,13 @@ static struct net_device *ipoib_add_port(const char *format,
 	priv->dev->dev_id = port - 1;
 
 	result = ib_query_port(hca, port, &attr);
-	if (!result)
-		priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
-	else {
+	if (result) {
 		printk(KERN_WARNING "%s: ib_query_port %d failed\n",
 		       hca->name, port);
 		goto device_init_failed;
 	}
+
+	priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
 
 	/* MTU will be reset when mcast join happens */
 	priv->dev->mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
@@ -2211,12 +2229,14 @@ static struct net_device *ipoib_add_port(const char *format,
 		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
-	} else
-		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
+	}
+
+	memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw,
+	       sizeof(union ib_gid));
 	set_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
 
 	result = ipoib_dev_init(priv->dev, hca, port);
-	if (result < 0) {
+	if (result) {
 		printk(KERN_WARNING "%s: failed to initialize port %d (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
@@ -2224,13 +2244,7 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	INIT_IB_EVENT_HANDLER(&priv->event_handler,
 			      priv->ca, ipoib_event);
-	result = ib_register_event_handler(&priv->event_handler);
-	if (result < 0) {
-		printk(KERN_WARNING "%s: ib_register_event_handler failed for "
-		       "port %d (ret = %d)\n",
-		       hca->name, port, result);
-		goto event_failed;
-	}
+	ib_register_event_handler(&priv->event_handler);
 
 	result = register_netdev(priv->dev);
 	if (result) {
@@ -2263,12 +2277,11 @@ register_failed:
 	set_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
 	cancel_delayed_work(&priv->neigh_reap_task);
 	flush_workqueue(priv->wq);
-
-event_failed:
 	ipoib_dev_cleanup(priv->dev);
 
 device_init_failed:
-	free_netdev(priv->dev);
+	rn = netdev_priv(priv->dev);
+	rn->free_rdma_netdev(priv->dev);
 	kfree(priv);
 
 alloc_mem_failed:
@@ -2317,7 +2330,7 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		return;
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
-		struct rdma_netdev *rn = netdev_priv(priv->dev);
+		struct rdma_netdev *parent_rn = netdev_priv(priv->dev);
 
 		ib_unregister_event_handler(&priv->event_handler);
 		flush_workqueue(ipoib_workqueue);
@@ -2334,11 +2347,20 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		cancel_delayed_work(&priv->neigh_reap_task);
 		flush_workqueue(priv->wq);
 
+		/* Wrap rtnl_lock/unlock with mutex to protect sysfs calls */
+		mutex_lock(&priv->sysfs_mutex);
 		unregister_netdev(priv->dev);
-		rn->free_rdma_netdev(priv->dev);
+		mutex_unlock(&priv->sysfs_mutex);
 
-		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)
+		parent_rn->free_rdma_netdev(priv->dev);
+
+		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
+			struct rdma_netdev *child_rn;
+
+			child_rn = netdev_priv(cpriv->dev);
+			child_rn->free_rdma_netdev(cpriv->dev);
 			kfree(cpriv);
+		}
 
 		kfree(priv);
 	}
@@ -2365,6 +2387,7 @@ static int __init ipoib_init_module(void)
 	ipoib_sendq_size = max3(ipoib_sendq_size, 2 * MAX_SEND_CQE, IPOIB_MIN_QUEUE_SIZE);
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	ipoib_max_conn_qp = min(ipoib_max_conn_qp, IPOIB_CM_MAX_CONN_QP);
+	ipoib_max_conn_qp = max(ipoib_max_conn_qp, 0);
 #endif
 
 	/*

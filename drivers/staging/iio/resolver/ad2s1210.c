@@ -472,7 +472,7 @@ static int ad2s1210_read_raw(struct iio_dev *indio_dev,
 			     long m)
 {
 	struct ad2s1210_state *st = iio_priv(indio_dev);
-	bool negative;
+	u16 negative;
 	int ret = 0;
 	u16 pos;
 	s16 vel;

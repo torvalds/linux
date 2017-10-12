@@ -1443,7 +1443,7 @@ int dpni_get_queue(struct fsl_mc_io *mc_io,
 	queue->destination.id = le32_to_cpu(rsp_params->dest_id);
 	queue->destination.priority = rsp_params->dest_prio;
 	queue->destination.type = dpni_get_field(rsp_params->flags,
-						     DEST_TYPE);
+						 DEST_TYPE);
 	queue->flc.stash_control = dpni_get_field(rsp_params->flags,
 						  STASH_CTRL);
 	queue->destination.hold_active = dpni_get_field(rsp_params->flags,

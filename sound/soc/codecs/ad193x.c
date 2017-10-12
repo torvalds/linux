@@ -408,7 +408,7 @@ static int ad193x_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_ad193x = {
+static const struct snd_soc_codec_driver soc_codec_dev_ad193x = {
 	.probe = ad193x_codec_probe,
 	.component_driver = {
 		.controls		= ad193x_snd_controls,

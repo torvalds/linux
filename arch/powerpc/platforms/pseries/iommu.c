@@ -511,8 +511,8 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	basep = of_get_property(node, "linux,tce-base", NULL);
 	sizep = of_get_property(node, "linux,tce-size", NULL);
 	if (basep == NULL || sizep == NULL) {
-		printk(KERN_ERR "PCI_DMA: iommu_table_setparms: %s has "
-				"missing tce entries !\n", dn->full_name);
+		printk(KERN_ERR "PCI_DMA: iommu_table_setparms: %pOF has "
+				"missing tce entries !\n", dn);
 		return;
 	}
 
@@ -587,7 +587,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 
 	dn = pci_bus_to_OF_node(bus);
 
-	pr_debug("pci_dma_bus_setup_pSeries: setting up bus %s\n", dn->full_name);
+	pr_debug("pci_dma_bus_setup_pSeries: setting up bus %pOF\n", dn);
 
 	if (bus->self) {
 		/* This is not a root bus, any setup will be done for the
@@ -701,8 +701,8 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 
 	dn = pci_bus_to_OF_node(bus);
 
-	pr_debug("pci_dma_bus_setup_pSeriesLP: setting up bus %s\n",
-		 dn->full_name);
+	pr_debug("pci_dma_bus_setup_pSeriesLP: setting up bus %pOF\n",
+		 dn);
 
 	/* Find nearest ibm,dma-window, walking up the device tree */
 	for (pdn = dn; pdn != NULL; pdn = pdn->parent) {
@@ -718,8 +718,8 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 
 	ppci = PCI_DN(pdn);
 
-	pr_debug("  parent is %s, iommu_table: 0x%p\n",
-		 pdn->full_name, ppci->table_group);
+	pr_debug("  parent is %pOF, iommu_table: 0x%p\n",
+		 pdn, ppci->table_group);
 
 	if (!ppci->table_group) {
 		ppci->table_group = iommu_pseries_alloc_group(ppci->phb->node);
@@ -817,28 +817,28 @@ static void remove_ddw(struct device_node *np, bool remove_prop)
 	ret = tce_clearrange_multi_pSeriesLP(0,
 		1ULL << (be32_to_cpu(dwp->window_shift) - PAGE_SHIFT), dwp);
 	if (ret)
-		pr_warning("%s failed to clear tces in window.\n",
-			 np->full_name);
+		pr_warning("%pOF failed to clear tces in window.\n",
+			 np);
 	else
-		pr_debug("%s successfully cleared tces in window.\n",
-			 np->full_name);
+		pr_debug("%pOF successfully cleared tces in window.\n",
+			 np);
 
 	ret = rtas_call(ddw_avail[2], 1, 1, NULL, liobn);
 	if (ret)
-		pr_warning("%s: failed to remove direct window: rtas returned "
+		pr_warning("%pOF: failed to remove direct window: rtas returned "
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
-			np->full_name, ret, ddw_avail[2], liobn);
+			np, ret, ddw_avail[2], liobn);
 	else
-		pr_debug("%s: successfully removed direct window: rtas returned "
+		pr_debug("%pOF: successfully removed direct window: rtas returned "
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
-			np->full_name, ret, ddw_avail[2], liobn);
+			np, ret, ddw_avail[2], liobn);
 
 delprop:
 	if (remove_prop)
 		ret = of_remove_property(np, win64);
 	if (ret)
-		pr_warning("%s: failed to remove direct window property: %d\n",
-			np->full_name, ret);
+		pr_warning("%pOF: failed to remove direct window property: %d\n",
+			np, ret);
 }
 
 static u64 find_existing_ddw(struct device_node *pdn)
@@ -1004,7 +1004,7 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	 * list.
 	 */
 	list_for_each_entry(fpdn, &failed_ddw_pdn_list, list) {
-		if (!strcmp(fpdn->pdn->full_name, pdn->full_name))
+		if (fpdn->pdn == pdn)
 			goto out_unlock;
 	}
 
@@ -1087,8 +1087,8 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	ddwprop->tce_shift = cpu_to_be32(page_shift);
 	ddwprop->window_shift = cpu_to_be32(len);
 
-	dev_dbg(&dev->dev, "created tce table LIOBN 0x%x for %s\n",
-		  create.liobn, dn->full_name);
+	dev_dbg(&dev->dev, "created tce table LIOBN 0x%x for %pOF\n",
+		  create.liobn, dn);
 
 	window = kzalloc(sizeof(*window), GFP_KERNEL);
 	if (!window)
@@ -1097,15 +1097,15 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	ret = walk_system_ram_range(0, memblock_end_of_DRAM() >> PAGE_SHIFT,
 			win64->value, tce_setrange_multi_pSeriesLP_walk);
 	if (ret) {
-		dev_info(&dev->dev, "failed to map direct window for %s: %d\n",
-			 dn->full_name, ret);
+		dev_info(&dev->dev, "failed to map direct window for %pOF: %d\n",
+			 dn, ret);
 		goto out_free_window;
 	}
 
 	ret = of_add_property(pdn, win64);
 	if (ret) {
-		dev_err(&dev->dev, "unable to add dma window property for %s: %d",
-			 pdn->full_name, ret);
+		dev_err(&dev->dev, "unable to add dma window property for %pOF: %d",
+			 pdn, ret);
 		goto out_free_window;
 	}
 
@@ -1158,7 +1158,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 * already allocated.
 	 */
 	dn = pci_device_to_OF_node(dev);
-	pr_debug("  node is %s\n", dn->full_name);
+	pr_debug("  node is %pOF\n", dn);
 
 	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
 	     pdn = pdn->parent) {
@@ -1169,11 +1169,11 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 
 	if (!pdn || !PCI_DN(pdn)) {
 		printk(KERN_WARNING "pci_dma_dev_setup_pSeriesLP: "
-		       "no DMA window found for pci dev=%s dn=%s\n",
-				 pci_name(dev), of_node_full_name(dn));
+		       "no DMA window found for pci dev=%s dn=%pOF\n",
+				 pci_name(dev), dn);
 		return;
 	}
-	pr_debug("  parent is %s\n", pdn->full_name);
+	pr_debug("  parent is %pOF\n", pdn);
 
 	pci = PCI_DN(pdn);
 	if (!pci->table_group) {
@@ -1213,7 +1213,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 	/* only attempt to use a new window if 64-bit DMA is requested */
 	if (!disable_ddw && dma_mask == DMA_BIT_MASK(64)) {
 		dn = pci_device_to_OF_node(pdev);
-		dev_dbg(dev, "node is %s\n", dn->full_name);
+		dev_dbg(dev, "node is %pOF\n", dn);
 
 		/*
 		 * the device tree might contain the dma-window properties

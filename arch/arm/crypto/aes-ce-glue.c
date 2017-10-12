@@ -285,9 +285,7 @@ static int ctr_encrypt(struct skcipher_request *req)
 
 		ce_aes_ctr_encrypt(tail, NULL, (u8 *)ctx->key_enc,
 				   num_rounds(ctx), blocks, walk.iv);
-		if (tdst != tsrc)
-			memcpy(tdst, tsrc, nbytes);
-		crypto_xor(tdst, tail, nbytes);
+		crypto_xor_cpy(tdst, tsrc, tail, nbytes);
 		err = skcipher_walk_done(&walk, 0);
 	}
 	kernel_neon_end();

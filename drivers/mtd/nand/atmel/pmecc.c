@@ -47,7 +47,7 @@
 #include <linux/genalloc.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -363,7 +363,7 @@ atmel_pmecc_create_user(struct atmel_pmecc *pmecc,
 	size += (req->ecc.strength + 1) * sizeof(u16);
 	/* Reserve space for mu, dmu and delta. */
 	size = ALIGN(size, sizeof(s32));
-	size += (req->ecc.strength + 1) * sizeof(s32);
+	size += (req->ecc.strength + 1) * sizeof(s32) * 3;
 
 	user = kzalloc(size, GFP_KERNEL);
 	if (!user)
@@ -945,6 +945,7 @@ struct atmel_pmecc *devm_atmel_pmecc_get(struct device *userdev)
 		 */
 		struct platform_device *pdev = to_platform_device(userdev);
 		const struct atmel_pmecc_caps *caps;
+		const struct of_device_id *match;
 
 		/* No PMECC engine available. */
 		if (!of_property_read_bool(userdev->of_node,
@@ -953,21 +954,11 @@ struct atmel_pmecc *devm_atmel_pmecc_get(struct device *userdev)
 
 		caps = &at91sam9g45_caps;
 
-		/*
-		 * Try to find the NFC subnode and extract the associated caps
-		 * from there.
-		 */
-		np = of_find_compatible_node(userdev->of_node, NULL,
-					     "atmel,sama5d3-nfc");
-		if (np) {
-			const struct of_device_id *match;
-
-			match = of_match_node(atmel_pmecc_legacy_match, np);
-			if (match && match->data)
-				caps = match->data;
-
-			of_node_put(np);
-		}
+		/* Find the caps associated to the NAND dev node. */
+		match = of_match_node(atmel_pmecc_legacy_match,
+				      userdev->of_node);
+		if (match && match->data)
+			caps = match->data;
 
 		pmecc = atmel_pmecc_create(pdev, caps, 1, 2);
 	}

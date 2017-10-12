@@ -1,5 +1,9 @@
 The following properties are common to the Ethernet controllers:
 
+NOTE: All 'phy*' properties documented below are Ethernet specific. For the
+generic PHY 'phys' property, see
+Documentation/devicetree/bindings/phy/phy-bindings.txt.
+
 - local-mac-address: array of 6 bytes, specifies the MAC address that was
   assigned to the network device;
 - mac-address: array of 6 bytes, specifies the MAC address that was last used by

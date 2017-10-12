@@ -36,9 +36,9 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre/lustre_idl.h"
+#include <obd_class.h>
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 #include <linux/seq_file.h>
 #include <linux/ctype.h>
 
@@ -1031,7 +1031,7 @@ static struct kobj_type obd_ktype = {
 };
 
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
-		      struct attribute_group *attrs)
+		      const struct attribute_group *attrs)
 {
 	int rc = 0;
 

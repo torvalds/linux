@@ -25,7 +25,7 @@
 #define PPC_LCMPI	stringify_in_c(cmpdi)
 #define PPC_LCMPLI	stringify_in_c(cmpldi)
 #define PPC_LCMP	stringify_in_c(cmpd)
-#define PPC_LONG	stringify_in_c(.llong)
+#define PPC_LONG	stringify_in_c(.8byte)
 #define PPC_LONG_ALIGN	stringify_in_c(.balign 8)
 #define PPC_TLNEI	stringify_in_c(tdnei)
 #define PPC_LLARX(t, a, b, eh)	PPC_LDARX(t, a, b, eh)

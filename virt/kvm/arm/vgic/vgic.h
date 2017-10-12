@@ -220,4 +220,20 @@ int vgic_debug_destroy(struct kvm *kvm);
 bool lock_all_vcpus(struct kvm *kvm);
 void unlock_all_vcpus(struct kvm *kvm);
 
+static inline int vgic_v3_max_apr_idx(struct kvm_vcpu *vcpu)
+{
+	struct vgic_cpu *cpu_if = &vcpu->arch.vgic_cpu;
+
+	/*
+	 * num_pri_bits are initialized with HW supported values.
+	 * We can rely safely on num_pri_bits even if VM has not
+	 * restored ICC_CTLR_EL1 before restoring APnR registers.
+	 */
+	switch (cpu_if->num_pri_bits) {
+	case 7: return 3;
+	case 6: return 1;
+	default: return 0;
+	}
+}
+
 #endif

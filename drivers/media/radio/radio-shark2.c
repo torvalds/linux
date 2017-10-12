@@ -358,7 +358,7 @@ static int usb_shark_resume(struct usb_interface *intf)
 #endif
 
 /* Specify the bcdDevice value, as the radioSHARK and radioSHARK2 share ids */
-static struct usb_device_id usb_shark_device_table[] = {
+static const struct usb_device_id usb_shark_device_table[] = {
 	{ .match_flags = USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 			 USB_DEVICE_ID_MATCH_INT_CLASS,
 	  .idVendor     = 0x077d,

@@ -373,7 +373,7 @@ static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops vimc_deb_video_ops = {
+static const struct v4l2_subdev_video_ops vimc_deb_video_ops = {
 	.s_stream = vimc_deb_s_stream,
 };
 
@@ -577,19 +577,20 @@ static int vimc_deb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vimc_deb_pdrv = {
-	.probe		= vimc_deb_probe,
-	.remove		= vimc_deb_remove,
-	.driver		= {
-		.name	= VIMC_DEB_DRV_NAME,
-	},
-};
-
 static const struct platform_device_id vimc_deb_driver_ids[] = {
 	{
 		.name           = VIMC_DEB_DRV_NAME,
 	},
 	{ }
+};
+
+static struct platform_driver vimc_deb_pdrv = {
+	.probe		= vimc_deb_probe,
+	.remove		= vimc_deb_remove,
+	.id_table	= vimc_deb_driver_ids,
+	.driver		= {
+		.name	= VIMC_DEB_DRV_NAME,
+	},
 };
 
 module_platform_driver(vimc_deb_pdrv);

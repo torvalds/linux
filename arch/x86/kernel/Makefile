@@ -42,7 +42,7 @@ CFLAGS_irq.o := -I$(src)/../include/asm/trace
 
 obj-y			:= process_$(BITS).o signal.o
 obj-$(CONFIG_COMPAT)	+= signal_compat.o
-obj-y			+= traps.o irq.o irq_$(BITS).o dumpstack_$(BITS).o
+obj-y			+= traps.o idt.o irq.o irq_$(BITS).o dumpstack_$(BITS).o
 obj-y			+= time.o ioport.o dumpstack.o nmi.o
 obj-$(CONFIG_MODIFY_LDT_SYSCALL)	+= ldt.o
 obj-y			+= setup.o x86_init.o i8259.o irqinit.o jump_label.o
@@ -111,6 +111,7 @@ obj-$(CONFIG_PARAVIRT_SPINLOCKS)+= paravirt-spinlocks.o
 obj-$(CONFIG_PARAVIRT_CLOCK)	+= pvclock.o
 obj-$(CONFIG_X86_PMEM_LEGACY_DEVICE) += pmem.o
 
+obj-$(CONFIG_EISA)		+= eisa.o
 obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
 
 obj-$(CONFIG_X86_CHECK_BIOS_CORRUPTION) += check.o
@@ -126,11 +127,9 @@ obj-$(CONFIG_PERF_EVENTS)		+= perf_regs.o
 obj-$(CONFIG_TRACING)			+= tracepoint.o
 obj-$(CONFIG_SCHED_MC_PRIO)		+= itmt.o
 
-ifdef CONFIG_FRAME_POINTER
-obj-y					+= unwind_frame.o
-else
-obj-y					+= unwind_guess.o
-endif
+obj-$(CONFIG_ORC_UNWINDER)		+= unwind_orc.o
+obj-$(CONFIG_FRAME_POINTER_UNWINDER)	+= unwind_frame.o
+obj-$(CONFIG_GUESS_UNWINDER)		+= unwind_guess.o
 
 ###
 # 64 bit specific files

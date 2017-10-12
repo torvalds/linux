@@ -766,7 +766,6 @@ static int mv64x60_mc_err_probe(struct platform_device *pdev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = MV64x60_REVISION;
 	mci->ctl_name = mv64x60_ctl_name;
 
 	if (edac_op_state == EDAC_OPSTATE_POLL)

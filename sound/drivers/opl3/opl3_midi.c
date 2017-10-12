@@ -131,8 +131,8 @@ static void debug_alloc(struct snd_opl3 *opl3, char *s, int voice) {
 
 	printk(KERN_DEBUG "time %.5i: %s [%.2i]: ", opl3->use_time, s, voice);
 	for (i = 0; i < opl3->max_voices; i++)
-		printk("%c", *(str + opl3->voices[i].state + 1));
-	printk("\n");
+		printk(KERN_CONT "%c", *(str + opl3->voices[i].state + 1));
+	printk(KERN_CONT "\n");
 }
 #endif
 

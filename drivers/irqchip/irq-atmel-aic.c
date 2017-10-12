@@ -209,20 +209,20 @@ static const struct irq_domain_ops aic_irq_ops = {
 	.xlate	= aic_irq_domain_xlate,
 };
 
-static void __init at91rm9200_aic_irq_fixup(struct device_node *root)
+static void __init at91rm9200_aic_irq_fixup(void)
 {
-	aic_common_rtc_irq_fixup(root);
+	aic_common_rtc_irq_fixup();
 }
 
-static void __init at91sam9260_aic_irq_fixup(struct device_node *root)
+static void __init at91sam9260_aic_irq_fixup(void)
 {
-	aic_common_rtt_irq_fixup(root);
+	aic_common_rtt_irq_fixup();
 }
 
-static void __init at91sam9g45_aic_irq_fixup(struct device_node *root)
+static void __init at91sam9g45_aic_irq_fixup(void)
 {
-	aic_common_rtc_irq_fixup(root);
-	aic_common_rtt_irq_fixup(root);
+	aic_common_rtc_irq_fixup();
+	aic_common_rtt_irq_fixup();
 }
 
 static const struct of_device_id aic_irq_fixups[] __initconst = {

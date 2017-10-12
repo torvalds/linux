@@ -16,13 +16,16 @@ EVENT(PM_CYC,					0x0001e)
 EVENT(PM_ICT_NOSLOT_CYC,			0x100f8)
 EVENT(PM_CMPLU_STALL,				0x1e054)
 EVENT(PM_INST_CMPL,				0x00002)
-EVENT(PM_BRU_CMPL,				0x4d05e)
+EVENT(PM_BR_CMPL,				0x4d05e)
 EVENT(PM_BR_MPRED_CMPL,				0x400f6)
 
 /* All L1 D cache load references counted at finish, gated by reject */
 EVENT(PM_LD_REF_L1,				0x100fc)
 /* Load Missed L1 */
 EVENT(PM_LD_MISS_L1_FIN,			0x2c04e)
+EVENT(PM_LD_MISS_L1,				0x3e054)
+/* Alternate event code for PM_LD_MISS_L1 */
+EVENT(PM_LD_MISS_L1_ALT,			0x400f0)
 /* Store Missed L1 */
 EVENT(PM_ST_MISS_L1,				0x300f0)
 /* L1 cache data prefetches */
@@ -62,3 +65,7 @@ EVENT(PM_INST_DISP,				0x200f2)
 EVENT(PM_INST_DISP_ALT,				0x300f2)
 /* Alternate Branch event code */
 EVENT(PM_BR_CMPL_ALT,				0x10012)
+/* Branch event that are not strongly biased */
+EVENT(PM_BR_2PATH,				0x20036)
+/* ALternate branch event that are not strongly biased */
+EVENT(PM_BR_2PATH_ALT,				0x40036)

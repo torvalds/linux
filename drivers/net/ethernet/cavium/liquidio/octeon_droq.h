@@ -328,7 +328,7 @@ struct octeon_droq {
 
 	u32 cpu_id;
 
-	struct call_single_data csd;
+	call_single_data_t csd;
 };
 
 #define OCT_DROQ_SIZE   (sizeof(struct octeon_droq))

@@ -95,7 +95,7 @@ static void asoc_graph_card_shutdown(struct snd_pcm_substream *substream)
 	asoc_simple_card_clk_disable(&dai_props->codec_dai);
 }
 
-static struct snd_soc_ops asoc_graph_card_ops = {
+static const struct snd_soc_ops asoc_graph_card_ops = {
 	.startup = asoc_graph_card_startup,
 	.shutdown = asoc_graph_card_shutdown,
 };
@@ -224,9 +224,11 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 
 	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
 		ret = asoc_graph_card_dai_link_of(it.node, priv, idx++);
-		of_node_put(it.node);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(it.node);
+
 			return ret;
+		}
 	}
 
 	return asoc_simple_card_parse_card_name(card, NULL);
@@ -239,10 +241,8 @@ static int asoc_graph_get_dais_count(struct device *dev)
 	int count = 0;
 	int rc;
 
-	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
+	of_for_each_phandle(&it, rc, node, "dais", NULL, 0)
 		count++;
-		of_node_put(it.node);
-	}
 
 	return count;
 }
@@ -325,6 +325,7 @@ MODULE_DEVICE_TABLE(of, asoc_graph_of_match);
 static struct platform_driver asoc_graph_card = {
 	.driver = {
 		.name = "asoc-audio-graph-card",
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = asoc_graph_of_match,
 	},
 	.probe = asoc_graph_card_probe,

@@ -179,7 +179,7 @@ static void __init icoll_add_domain(struct device_node *np,
 					     &icoll_irq_domain_ops, NULL);
 
 	if (!icoll_domain)
-		panic("%s: unable to create irq domain", np->full_name);
+		panic("%pOF: unable to create irq domain", np);
 }
 
 static void __iomem * __init icoll_init_iobase(struct device_node *np)
@@ -188,7 +188,7 @@ static void __iomem * __init icoll_init_iobase(struct device_node *np)
 
 	icoll_base = of_io_request_and_map(np, 0, np->name);
 	if (IS_ERR(icoll_base))
-		panic("%s: unable to map resource", np->full_name);
+		panic("%pOF: unable to map resource", np);
 	return icoll_base;
 }
 

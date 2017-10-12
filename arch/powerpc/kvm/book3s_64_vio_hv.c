@@ -39,6 +39,7 @@
 #include <asm/udbg.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
+#include <asm/pte-walk.h>
 
 #ifdef CONFIG_BUG
 
@@ -353,7 +354,16 @@ static long kvmppc_rm_ua_to_hpa(struct kvm_vcpu *vcpu,
 	pte_t *ptep, pte;
 	unsigned shift = 0;
 
-	ptep = __find_linux_pte_or_hugepte(vcpu->arch.pgdir, ua, NULL, &shift);
+	/*
+	 * Called in real mode with MSR_EE = 0. We are safe here.
+	 * It is ok to do the lookup with arch.pgdir here, because
+	 * we are doing this on secondary cpus and current task there
+	 * is not the hypervisor. Also this is safe against THP in the
+	 * host, because an IPI to primary thread will wait for the secondary
+	 * to exit which will agains result in the below page table walk
+	 * to finish.
+	 */
+	ptep = __find_linux_pte(vcpu->arch.pgdir, ua, NULL, &shift);
 	if (!ptep || !pte_present(*ptep))
 		return -ENXIO;
 	pte = *ptep;

@@ -8,11 +8,12 @@
 #include <linux/sched/task_stack.h>
 #include <linux/thread_info.h>
 
-#define __TYPE_IS_PTR(t) (!__builtin_types_compatible_p(typeof(0?(t)0:0ULL), u64))
+#define __TYPE_IS_PTR(t) (!__builtin_types_compatible_p( \
+				typeof(0?(__force t)0:0ULL), u64))
 
 #define __SC_DELOUSE(t,v) ({ \
 	BUILD_BUG_ON(sizeof(t) > 4 && !__TYPE_IS_PTR(t)); \
-	(t)(__TYPE_IS_PTR(t) ? ((v) & 0x7fffffff) : (v)); \
+	(__force t)(__TYPE_IS_PTR(t) ? ((v) & 0x7fffffff) : (v)); \
 })
 
 #define PSW32_MASK_PER		0x40000000UL

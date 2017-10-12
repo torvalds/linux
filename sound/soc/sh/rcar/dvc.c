@@ -380,13 +380,16 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			of_node_put(np);
 			goto rsnd_dvc_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(dvc), &rsnd_dvc_ops,
 				    clk, rsnd_mod_get_status, RSND_MOD_DVC, i);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto rsnd_dvc_probe_done;
+		}
 
 		i++;
 	}

@@ -17,14 +17,27 @@
 
 #include "chip.h"
 
-#define MV88E6XXX_G2	0x1c
-
 /* Offset 0x00: Interrupt Source Register */
-#define MV88E6XXX_G2_INT_SOURCE			0x00
+#define MV88E6XXX_G2_INT_SRC			0x00
+#define MV88E6XXX_G2_INT_SRC_WDOG		0x8000
+#define MV88E6XXX_G2_INT_SRC_JAM_LIMIT		0x4000
+#define MV88E6XXX_G2_INT_SRC_DUPLEX_MISMATCH	0x2000
+#define MV88E6XXX_G2_INT_SRC_WAKE_EVENT		0x1000
+#define MV88E6352_G2_INT_SRC_SERDES		0x0800
+#define MV88E6352_G2_INT_SRC_PHY		0x001f
+#define MV88E6390_G2_INT_SRC_PHY		0x07fe
+
 #define MV88E6XXX_G2_INT_SOURCE_WATCHDOG	15
 
 /* Offset 0x01: Interrupt Mask Register */
-#define MV88E6XXX_G2_INT_MASK	0x01
+#define MV88E6XXX_G2_INT_MASK			0x01
+#define MV88E6XXX_G2_INT_MASK_WDOG		0x8000
+#define MV88E6XXX_G2_INT_MASK_JAM_LIMIT		0x4000
+#define MV88E6XXX_G2_INT_MASK_DUPLEX_MISMATCH	0x2000
+#define MV88E6XXX_G2_INT_MASK_WAKE_EVENT	0x1000
+#define MV88E6352_G2_INT_MASK_SERDES		0x0800
+#define MV88E6352_G2_INT_MASK_PHY		0x001f
+#define MV88E6390_G2_INT_MASK_PHY		0x07fe
 
 /* Offset 0x02: MGMT Enable Register 2x */
 #define MV88E6XXX_G2_MGMT_EN_2X		0x02
@@ -245,7 +258,11 @@ int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip);
-int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
+
+int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
+int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
+
+int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip);
 
 extern const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops;
 extern const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops;
@@ -254,7 +271,7 @@ extern const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops;
 
 static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 {
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_GLOBAL2)) {
+	if (chip->info->global2_addr) {
 		dev_err(chip->dev, "this chip requires CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 enabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -347,7 +364,17 @@ static inline void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip)
 {
 }
 
-static inline int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+static inline int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 {
 	return -EOPNOTSUPP;
 }

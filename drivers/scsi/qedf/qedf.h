@@ -300,7 +300,6 @@ struct qedf_ctx {
 #define QEDF_FALLBACK_VLAN	1002
 #define QEDF_DEFAULT_PRIO	3
 	int vlan_id;
-	uint vlan_hw_insert:1;
 	struct qed_dev *cdev;
 	struct qed_dev_fcoe_info dev_info;
 	struct qed_int_info int_info;
@@ -443,7 +442,6 @@ extern void qedf_cmd_mgr_free(struct qedf_cmd_mgr *cmgr);
 extern int qedf_queuecommand(struct Scsi_Host *host,
 	struct scsi_cmnd *sc_cmd);
 extern void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb);
-extern void qedf_update_src_mac(struct fc_lport *lport, u8 *addr);
 extern u8 *qedf_get_src_mac(struct fc_lport *lport);
 extern void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb);
 extern void qedf_fcoe_send_vlan_req(struct qedf_ctx *qedf);
@@ -528,7 +526,8 @@ struct fip_vlan {
 #define QEDF_WRITE                    (1 << 0)
 #define MAX_FIBRE_LUNS			0xffffffff
 
-#define QEDF_MAX_NUM_CQS		8
+#define MIN_NUM_CPUS_MSIX(x)	min_t(u32, x->dev_info.num_cqs, \
+					num_online_cpus())
 
 /*
  * PCI function probe defines

@@ -1189,11 +1189,11 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 				next_reclaimed;
 			IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d\n",
 						  next_reclaimed);
+			iwlagn_check_ratid_empty(priv, sta_id, tid);
 		}
 
 		iwl_trans_reclaim(priv->trans, txq_id, ssn, &skbs);
 
-		iwlagn_check_ratid_empty(priv, sta_id, tid);
 		freed = 0;
 
 		/* process frames */

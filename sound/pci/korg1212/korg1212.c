@@ -1231,7 +1231,7 @@ static int snd_korg1212_downloadDSPCode(struct snd_korg1212 *korg1212)
         return 0;
 }
 
-static struct snd_pcm_hardware snd_korg1212_playback_info =
+static const struct snd_pcm_hardware snd_korg1212_playback_info =
 {
 	.info =              (SNDRV_PCM_INFO_MMAP |
                               SNDRV_PCM_INFO_MMAP_VALID |
@@ -1252,7 +1252,7 @@ static struct snd_pcm_hardware snd_korg1212_playback_info =
         .fifo_size =          0,
 };
 
-static struct snd_pcm_hardware snd_korg1212_capture_info =
+static const struct snd_pcm_hardware snd_korg1212_capture_info =
 {
         .info =              (SNDRV_PCM_INFO_MMAP |
                               SNDRV_PCM_INFO_MMAP_VALID |

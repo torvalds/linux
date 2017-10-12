@@ -6,12 +6,14 @@
 #include <linux/swiotlb.h>
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
+#include <linux/mem_encrypt.h>
 
 #include <asm/iommu.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
 #include <asm/xen/swiotlb-xen.h>
 #include <asm/iommu_table.h>
+
 int swiotlb __read_mostly;
 
 void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
@@ -79,8 +81,8 @@ IOMMU_INIT_FINISH(pci_swiotlb_detect_override,
 		  pci_swiotlb_late_init);
 
 /*
- * if 4GB or more detected (and iommu=off not set) return 1
- * and set swiotlb to 1.
+ * If 4GB or more detected (and iommu=off not set) or if SME is active
+ * then set swiotlb to 1 and return 1.
  */
 int __init pci_swiotlb_detect_4gb(void)
 {
@@ -89,6 +91,15 @@ int __init pci_swiotlb_detect_4gb(void)
 	if (!no_iommu && max_possible_pfn > MAX_DMA32_PFN)
 		swiotlb = 1;
 #endif
+
+	/*
+	 * If SME is active then swiotlb will be set to 1 so that bounce
+	 * buffers are allocated and used for devices that do not support
+	 * the addressing range required for the encryption mask.
+	 */
+	if (sme_active())
+		swiotlb = 1;
+
 	return swiotlb;
 }
 IOMMU_INIT(pci_swiotlb_detect_4gb,

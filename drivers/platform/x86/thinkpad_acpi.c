@@ -24,7 +24,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define TPACPI_VERSION "0.25"
-#define TPACPI_SYSFS_VERSION 0x020700
+#define TPACPI_SYSFS_VERSION 0x030000
 
 /*
  *  Changelog:
@@ -6342,7 +6342,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 	switch (thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		res = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
+		res = sysfs_create_group(&tpacpi_hwmon->kobj,
 				&thermal_temp_input16_group);
 		if (res)
 			return res;
@@ -6350,7 +6350,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		res = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
+		res = sysfs_create_group(&tpacpi_hwmon->kobj,
 				&thermal_temp_input8_group);
 		if (res)
 			return res;
@@ -6367,13 +6367,13 @@ static void thermal_exit(void)
 {
 	switch (thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
+		sysfs_remove_group(&tpacpi_hwmon->kobj,
 				   &thermal_temp_input16_group);
 		break;
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
+		sysfs_remove_group(&tpacpi_hwmon->kobj,
 				   &thermal_temp_input8_group);
 		break;
 	case TPACPI_THERMAL_NONE:
@@ -8696,7 +8696,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			fan_attributes[ARRAY_SIZE(fan_attributes)-2] =
 					&dev_attr_fan2_input.attr;
 		}
-		rc = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
+		rc = sysfs_create_group(&tpacpi_hwmon->kobj,
 					 &fan_attr_group);
 		if (rc < 0)
 			return rc;
@@ -8704,7 +8704,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		rc = driver_create_file(&tpacpi_hwmon_pdriver.driver,
 					&driver_attr_fan_watchdog);
 		if (rc < 0) {
-			sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
+			sysfs_remove_group(&tpacpi_hwmon->kobj,
 					&fan_attr_group);
 			return rc;
 		}
@@ -8719,7 +8719,7 @@ static void fan_exit(void)
 		    "cancelling any pending fan watchdog tasks\n");
 
 	/* FIXME: can we really do this unconditionally? */
-	sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj, &fan_attr_group);
+	sysfs_remove_group(&tpacpi_hwmon->kobj, &fan_attr_group);
 	driver_remove_file(&tpacpi_hwmon_pdriver.driver,
 			   &driver_attr_fan_watchdog);
 
@@ -9148,16 +9148,6 @@ static void hotkey_driver_event(const unsigned int scancode)
 {
 	tpacpi_driver_event(TP_HKEY_EV_HOTKEY_BASE + scancode);
 }
-
-/* sysfs name ---------------------------------------------------------- */
-static ssize_t thinkpad_acpi_pdev_name_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", TPACPI_NAME);
-}
-
-static DEVICE_ATTR(name, S_IRUGO, thinkpad_acpi_pdev_name_show, NULL);
 
 /* --------------------------------------------------------------------- */
 
@@ -9696,8 +9686,6 @@ static void thinkpad_acpi_module_exit(void)
 	if (tpacpi_hwmon)
 		hwmon_device_unregister(tpacpi_hwmon);
 
-	if (tp_features.sensors_pdev_attrs_registered)
-		device_remove_file(&tpacpi_sensors_pdev->dev, &dev_attr_name);
 	if (tpacpi_sensors_pdev)
 		platform_device_unregister(tpacpi_sensors_pdev);
 	if (tpacpi_pdev)
@@ -9818,14 +9806,10 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
-	ret = device_create_file(&tpacpi_sensors_pdev->dev, &dev_attr_name);
-	if (ret) {
-		pr_err("unable to create sysfs hwmon device attributes\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
 	tp_features.sensors_pdev_attrs_registered = 1;
-	tpacpi_hwmon = hwmon_device_register(&tpacpi_sensors_pdev->dev);
+	tpacpi_hwmon = hwmon_device_register_with_groups(
+		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, NULL);
+
 	if (IS_ERR(tpacpi_hwmon)) {
 		ret = PTR_ERR(tpacpi_hwmon);
 		tpacpi_hwmon = NULL;

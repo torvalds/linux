@@ -69,14 +69,14 @@ void rds_tcp_state_change(struct sock *sk)
 		if (!IS_CANONICAL(cp->cp_conn->c_laddr, cp->cp_conn->c_faddr) &&
 		    rds_conn_path_transition(cp, RDS_CONN_CONNECTING,
 					     RDS_CONN_ERROR)) {
-			rds_conn_path_drop(cp);
+			rds_conn_path_drop(cp, false);
 		} else {
 			rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
 		}
 		break;
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSE:
-		rds_conn_path_drop(cp);
+		rds_conn_path_drop(cp, false);
 	default:
 		break;
 	}

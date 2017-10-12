@@ -14,6 +14,7 @@
 #define _LINUX_SYNC_H
 
 #include <linux/list.h>
+#include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/dma-fence.h>
 
@@ -24,42 +25,41 @@
  * struct sync_timeline - sync object
  * @kref:		reference count on fence.
  * @name:		name of the sync_timeline. Useful for debugging
- * @child_list_head:	list of children sync_pts for this sync_timeline
- * @child_list_lock:	lock protecting @child_list_head and fence.status
- * @active_list_head:	list of active (unsignaled/errored) sync_pts
+ * @lock:		lock protecting @pt_list and @value
+ * @pt_tree:		rbtree of active (unsignaled/errored) sync_pts
+ * @pt_list:		list of active (unsignaled/errored) sync_pts
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
 struct sync_timeline {
 	struct kref		kref;
 	char			name[32];
 
-	/* protected by child_list_lock */
+	/* protected by lock */
 	u64			context;
 	int			value;
 
-	struct list_head	child_list_head;
-	spinlock_t		child_list_lock;
-
-	struct list_head	active_list_head;
+	struct rb_root		pt_tree;
+	struct list_head	pt_list;
+	spinlock_t		lock;
 
 	struct list_head	sync_timeline_list;
 };
 
 static inline struct sync_timeline *dma_fence_parent(struct dma_fence *fence)
 {
-	return container_of(fence->lock, struct sync_timeline, child_list_lock);
+	return container_of(fence->lock, struct sync_timeline, lock);
 }
 
 /**
  * struct sync_pt - sync_pt object
  * @base: base fence object
- * @child_list: sync timeline child's list
- * @active_list: sync timeline active child's list
+ * @link: link on the sync timeline's list
+ * @node: node in the sync timeline's tree
  */
 struct sync_pt {
 	struct dma_fence base;
-	struct list_head child_list;
-	struct list_head active_list;
+	struct list_head link;
+	struct rb_node node;
 };
 
 #ifdef CONFIG_SW_SYNC

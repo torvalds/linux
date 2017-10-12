@@ -12,6 +12,7 @@
 #include <asm/setup.h>
 #include <asm/hypervisor.h>
 #include <asm/e820/api.h>
+#include <asm/early_ioremap.h>
 
 #include <asm/xen/cpuid.h>
 #include <asm/xen/hypervisor.h>
@@ -21,36 +22,48 @@
 #include "mmu.h"
 #include "smp.h"
 
-void __ref xen_hvm_init_shared_info(void)
+static unsigned long shared_info_pfn;
+
+void xen_hvm_init_shared_info(void)
 {
 	struct xen_add_to_physmap xatp;
-	u64 pa;
-
-	if (HYPERVISOR_shared_info == &xen_dummy_shared_info) {
-		/*
-		 * Search for a free page starting at 4kB physical address.
-		 * Low memory is preferred to avoid an EPT large page split up
-		 * by the mapping.
-		 * Starting below X86_RESERVE_LOW (usually 64kB) is fine as
-		 * the BIOS used for HVM guests is well behaved and won't
-		 * clobber memory other than the first 4kB.
-		 */
-		for (pa = PAGE_SIZE;
-		     !e820__mapped_all(pa, pa + PAGE_SIZE, E820_TYPE_RAM) ||
-		     memblock_is_reserved(pa);
-		     pa += PAGE_SIZE)
-			;
-
-		memblock_reserve(pa, PAGE_SIZE);
-		HYPERVISOR_shared_info = __va(pa);
-	}
 
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = virt_to_pfn(HYPERVISOR_shared_info);
+	xatp.gpfn = shared_info_pfn;
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		BUG();
+}
+
+static void __init reserve_shared_info(void)
+{
+	u64 pa;
+
+	/*
+	 * Search for a free page starting at 4kB physical address.
+	 * Low memory is preferred to avoid an EPT large page split up
+	 * by the mapping.
+	 * Starting below X86_RESERVE_LOW (usually 64kB) is fine as
+	 * the BIOS used for HVM guests is well behaved and won't
+	 * clobber memory other than the first 4kB.
+	 */
+	for (pa = PAGE_SIZE;
+	     !e820__mapped_all(pa, pa + PAGE_SIZE, E820_TYPE_RAM) ||
+	     memblock_is_reserved(pa);
+	     pa += PAGE_SIZE)
+		;
+
+	shared_info_pfn = PHYS_PFN(pa);
+
+	memblock_reserve(pa, PAGE_SIZE);
+	HYPERVISOR_shared_info = early_memremap(pa, PAGE_SIZE);
+}
+
+static void __init xen_hvm_init_mem_mapping(void)
+{
+	early_memunmap(HYPERVISOR_shared_info, PAGE_SIZE);
+	HYPERVISOR_shared_info = __va(PFN_PHYS(shared_info_pfn));
 }
 
 static void __init init_hvm_pv_info(void)
@@ -153,6 +166,7 @@ static void __init xen_hvm_guest_init(void)
 
 	init_hvm_pv_info();
 
+	reserve_shared_info();
 	xen_hvm_init_shared_info();
 
 	/*
@@ -218,5 +232,6 @@ const struct hypervisor_x86 x86_hyper_xen_hvm = {
 	.init_platform          = xen_hvm_guest_init,
 	.pin_vcpu               = xen_pin_vcpu,
 	.x2apic_available       = xen_x2apic_para_available,
+	.init_mem_mapping	= xen_hvm_init_mem_mapping,
 };
 EXPORT_SYMBOL(x86_hyper_xen_hvm);

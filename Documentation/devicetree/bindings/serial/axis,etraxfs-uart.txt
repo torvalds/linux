@@ -15,7 +15,6 @@ serial@b00260000 {
 	compatible = "axis,etraxfs-uart";
 	reg = <0xb0026000 0x1000>;
 	interrupts = <68>;
-	status = "disabled";
 	dtr-gpios = <&sysgpio 0 GPIO_ACTIVE_LOW>;
 	dsr-gpios = <&sysgpio 1 GPIO_ACTIVE_LOW>;
 	rng-gpios = <&sysgpio 2 GPIO_ACTIVE_LOW>;

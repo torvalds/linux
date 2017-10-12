@@ -69,6 +69,7 @@ static int ladder_select_state(struct cpuidle_driver *drv,
 	struct ladder_device *ldev = this_cpu_ptr(&ladder_devices);
 	struct ladder_device_state *last_state;
 	int last_residency, last_idx = ldev->last_state_idx;
+	int first_idx = drv->states[0].flags & CPUIDLE_FLAG_POLLING ? 1 : 0;
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 
 	/* Special case when user has set very strict latency requirement */
@@ -96,13 +97,13 @@ static int ladder_select_state(struct cpuidle_driver *drv,
 	}
 
 	/* consider demotion */
-	if (last_idx > CPUIDLE_DRIVER_STATE_START &&
+	if (last_idx > first_idx &&
 	    (drv->states[last_idx].disabled ||
 	    dev->states_usage[last_idx].disable ||
 	    drv->states[last_idx].exit_latency > latency_req)) {
 		int i;
 
-		for (i = last_idx - 1; i > CPUIDLE_DRIVER_STATE_START; i--) {
+		for (i = last_idx - 1; i > first_idx; i--) {
 			if (drv->states[i].exit_latency <= latency_req)
 				break;
 		}
@@ -110,7 +111,7 @@ static int ladder_select_state(struct cpuidle_driver *drv,
 		return i;
 	}
 
-	if (last_idx > CPUIDLE_DRIVER_STATE_START &&
+	if (last_idx > first_idx &&
 	    last_residency < last_state->threshold.demotion_time) {
 		last_state->stats.demotion_count++;
 		last_state->stats.promotion_count = 0;
@@ -133,13 +134,14 @@ static int ladder_enable_device(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev)
 {
 	int i;
+	int first_idx = drv->states[0].flags & CPUIDLE_FLAG_POLLING ? 1 : 0;
 	struct ladder_device *ldev = &per_cpu(ladder_devices, dev->cpu);
 	struct ladder_device_state *lstate;
 	struct cpuidle_state *state;
 
-	ldev->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+	ldev->last_state_idx = first_idx;
 
-	for (i = CPUIDLE_DRIVER_STATE_START; i < drv->state_count; i++) {
+	for (i = first_idx; i < drv->state_count; i++) {
 		state = &drv->states[i];
 		lstate = &ldev->states[i];
 
@@ -151,7 +153,7 @@ static int ladder_enable_device(struct cpuidle_driver *drv,
 
 		if (i < drv->state_count - 1)
 			lstate->threshold.promotion_time = state->exit_latency;
-		if (i > CPUIDLE_DRIVER_STATE_START)
+		if (i > first_idx)
 			lstate->threshold.demotion_time = state->exit_latency;
 	}
 

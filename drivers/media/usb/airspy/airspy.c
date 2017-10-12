@@ -859,7 +859,7 @@ static const struct v4l2_file_operations airspy_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device airspy_template = {
+static const struct video_device airspy_template = {
 	.name                     = "AirSpy SDR",
 	.release                  = video_device_release_empty,
 	.fops                     = &airspy_fops,
@@ -1087,7 +1087,7 @@ err_free_mem:
 }
 
 /* USB device ID list */
-static struct usb_device_id airspy_id_table[] = {
+static const struct usb_device_id airspy_id_table[] = {
 	{ USB_DEVICE(0x1d50, 0x60a1) }, /* AirSpy */
 	{ }
 };

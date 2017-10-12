@@ -133,6 +133,7 @@ extern int do_page_fault(struct pt_regs *, unsigned long, unsigned long);
 extern void bad_page_fault(struct pt_regs *, unsigned long, int);
 extern void _exception(int, struct pt_regs *, int, unsigned long);
 extern void die(const char *, struct pt_regs *, long);
+extern bool die_will_crash(void);
 
 #endif /* !__ASSEMBLY__ */
 

@@ -5,6 +5,7 @@
  */
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
+#include <linux/uaccess.h>
 
 #include "internals.h"
 
@@ -171,8 +172,55 @@ static int irq_debug_open(struct inode *inode, struct file *file)
 	return single_open(file, irq_debug_show, inode->i_private);
 }
 
+static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct irq_desc *desc = file_inode(file)->i_private;
+	char buf[8] = { 0, };
+	size_t size;
+
+	size = min(sizeof(buf) - 1, count);
+	if (copy_from_user(buf, user_buf, size))
+		return -EFAULT;
+
+	if (!strncmp(buf, "trigger", size)) {
+		unsigned long flags;
+		int err;
+
+		/* Try the HW interface first */
+		err = irq_set_irqchip_state(irq_desc_get_irq(desc),
+					    IRQCHIP_STATE_PENDING, true);
+		if (!err)
+			return count;
+
+		/*
+		 * Otherwise, try to inject via the resend interface,
+		 * which may or may not succeed.
+		 */
+		chip_bus_lock(desc);
+		raw_spin_lock_irqsave(&desc->lock, flags);
+
+		if (irq_settings_is_level(desc)) {
+			/* Can't do level, sorry */
+			err = -EINVAL;
+		} else {
+			desc->istate |= IRQS_PENDING;
+			check_irq_resend(desc);
+			err = 0;
+		}
+
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
+		chip_bus_sync_unlock(desc);
+
+		return err ? err : count;
+	}
+
+	return count;
+}
+
 static const struct file_operations dfs_irq_ops = {
 	.open		= irq_debug_open,
+	.write		= irq_debug_write,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -186,7 +234,7 @@ void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc)
 		return;
 
 	sprintf(name, "%d", irq);
-	desc->debugfs_file = debugfs_create_file(name, 0444, irq_dir, desc,
+	desc->debugfs_file = debugfs_create_file(name, 0644, irq_dir, desc,
 						 &dfs_irq_ops);
 }
 

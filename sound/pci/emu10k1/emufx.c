@@ -698,10 +698,18 @@ static int copy_gctl(struct snd_emu10k1 *emu,
 {
 	struct snd_emu10k1_fx8010_control_old_gpr __user *octl;
 
-	if (emu->support_tlv)
-		return copy_from_user(gctl, &_gctl[idx], sizeof(*gctl));
+	if (emu->support_tlv) {
+		if (in_kernel)
+			memcpy(gctl, (void *)&_gctl[idx], sizeof(*gctl));
+		else if (copy_from_user(gctl, &_gctl[idx], sizeof(*gctl)))
+			return -EFAULT;
+		return 0;
+	}
+
 	octl = (struct snd_emu10k1_fx8010_control_old_gpr __user *)_gctl;
-	if (copy_from_user(gctl, &octl[idx], sizeof(*octl)))
+	if (in_kernel)
+		memcpy(gctl, (void *)&octl[idx], sizeof(*octl));
+	else if (copy_from_user(gctl, &octl[idx], sizeof(*octl)))
 		return -EFAULT;
 	gctl->tlv = NULL;
 	return 0;

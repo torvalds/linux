@@ -29,7 +29,7 @@
 #include <linux/bitops.h>
 #include <linux/mm.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>

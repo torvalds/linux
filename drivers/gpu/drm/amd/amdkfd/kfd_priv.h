@@ -239,11 +239,6 @@ enum kfd_preempt_type_filter {
 	KFD_PREEMPT_TYPE_FILTER_BY_PASID
 };
 
-enum kfd_preempt_type {
-	KFD_PREEMPT_TYPE_WAVEFRONT,
-	KFD_PREEMPT_TYPE_WAVEFRONT_RESET
-};
-
 /**
  * enum kfd_queue_type
  *
@@ -294,13 +289,13 @@ enum kfd_queue_format {
  * @write_ptr: Defines the number of dwords written to the ring buffer.
  *
  * @doorbell_ptr: This field aim is to notify the H/W of new packet written to
- * the queue ring buffer. This field should be similar to write_ptr and the user
- * should update this field after he updated the write_ptr.
+ * the queue ring buffer. This field should be similar to write_ptr and the
+ * user should update this field after he updated the write_ptr.
  *
  * @doorbell_off: The doorbell offset in the doorbell pci-bar.
  *
- * @is_interop: Defines if this is a interop queue. Interop queue means that the
- * queue can access both graphics and compute resources.
+ * @is_interop: Defines if this is a interop queue. Interop queue means that
+ * the queue can access both graphics and compute resources.
  *
  * @is_active: Defines if the queue is active or not.
  *
@@ -352,9 +347,10 @@ struct queue_properties {
  * @properties: The queue properties.
  *
  * @mec: Used only in no cp scheduling mode and identifies to micro engine id
- * that the queue should be execute on.
+ *	 that the queue should be execute on.
  *
- * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe id.
+ * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe
+ *	  id.
  *
  * @queue: Used only in no cp scheduliong mode and identifies the queue's slot.
  *
@@ -436,6 +432,7 @@ struct qcm_process_device {
 	uint32_t gds_size;
 	uint32_t num_gws;
 	uint32_t num_oac;
+	uint32_t sh_hidden_private_base;
 };
 
 /* Data that is per-process-per device. */
@@ -520,10 +517,11 @@ struct kfd_process {
 	struct mutex event_mutex;
 	/* All events in process hashed by ID, linked on kfd_event.events. */
 	DECLARE_HASHTABLE(events, 4);
-	struct list_head signal_event_pages;	/* struct slot_page_header.
-								event_pages */
+	/* struct slot_page_header.event_pages */
+	struct list_head signal_event_pages;
 	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
+	bool signal_event_limit_reached;
 };
 
 /**
@@ -559,8 +557,10 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 
 /* Process device data iterator */
-struct kfd_process_device *kfd_get_first_process_device_data(struct kfd_process *p);
-struct kfd_process_device *kfd_get_next_process_device_data(struct kfd_process *p,
+struct kfd_process_device *kfd_get_first_process_device_data(
+							struct kfd_process *p);
+struct kfd_process_device *kfd_get_next_process_device_data(
+						struct kfd_process *p,
 						struct kfd_process_device *pdd);
 bool kfd_has_process_device_data(struct kfd_process *p);
 
@@ -573,7 +573,8 @@ unsigned int kfd_pasid_alloc(void);
 void kfd_pasid_free(unsigned int pasid);
 
 /* Doorbells */
-void kfd_doorbell_init(struct kfd_dev *kfd);
+int kfd_doorbell_init(struct kfd_dev *kfd);
+void kfd_doorbell_fini(struct kfd_dev *kfd);
 int kfd_doorbell_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 					unsigned int *doorbell_off);

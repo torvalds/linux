@@ -61,7 +61,7 @@ static int vexpress_osc_set_rate(struct clk_hw *hw, unsigned long rate,
 	return regmap_write(osc->reg, 0, rate);
 }
 
-static struct clk_ops vexpress_osc_ops = {
+static const struct clk_ops vexpress_osc_ops = {
 	.recalc_rate = vexpress_osc_recalc_rate,
 	.round_rate = vexpress_osc_round_rate,
 	.set_rate = vexpress_osc_set_rate,

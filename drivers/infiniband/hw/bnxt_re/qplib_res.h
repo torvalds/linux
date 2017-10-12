@@ -116,6 +116,7 @@ struct bnxt_qplib_sgid_tbl {
 	u16				max;
 	u16				active;
 	void				*ctx;
+	u8				*vlan;
 };
 
 struct bnxt_qplib_pkey_tbl {
@@ -188,6 +189,7 @@ struct bnxt_qplib_res {
 	struct bnxt_qplib_sgid_tbl	sgid_tbl;
 	struct bnxt_qplib_pkey_tbl	pkey_tbl;
 	struct bnxt_qplib_dpi_tbl	dpi_tbl;
+	bool				prio;
 };
 
 #define to_bnxt_qplib(ptr, type, member)	\

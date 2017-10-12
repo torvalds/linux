@@ -125,8 +125,8 @@ void hostap_remove_interface(struct net_device *dev, int rtnl_locked,
 	else
 		unregister_netdev(dev);
 
-	/* dev->destructor = free_netdev() will free the device data, including
-	 * private data, when removing the device */
+	/* 'dev->needs_free_netdev = true' implies device data, including
+	 * private data, will be freed when the device is removed */
 }
 
 

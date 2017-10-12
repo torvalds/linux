@@ -56,8 +56,6 @@
 #define PORT_ALTR_16550_F128 28 /* Altera 16550 UART with 128 FIFOs */
 #define PORT_RT2880	29	/* Ralink RT2880 internal UART */
 #define PORT_16550A_FSL64 30	/* Freescale 16550 UART with 64 FIFOs */
-#define PORT_DA830	31	/* TI DA8xx/66AK2x */
-#define PORT_MAX_8250	31	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -70,11 +68,16 @@
 #define PORT_CLPS711X	33
 #define PORT_SA1100	34
 #define PORT_UART00	35
+#define PORT_OWL	36
 #define PORT_21285	37
 
 /* Sparc type numbers.  */
 #define PORT_SUNZILOG	38
 #define PORT_SUNSAB	39
+
+/* Intel EG20 */
+#define PORT_PCH_8LINE	44
+#define PORT_PCH_2LINE	45
 
 /* DEC */
 #define PORT_DZ		46
@@ -205,8 +208,8 @@
 /* MAX310X */
 #define PORT_MAX310X	94
 
-/* High Speed UART for Medfield */
-#define PORT_MFD	95
+/* TI DA8xx/66AK2x */
+#define PORT_DA830	95
 
 /* TI OMAP-UART */
 #define PORT_OMAP	96
@@ -270,5 +273,8 @@
 
 /* MPS2 UART */
 #define PORT_MPS2UART	116
+
+/* MediaTek BTIF */
+#define PORT_MTK_BTIF	117
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

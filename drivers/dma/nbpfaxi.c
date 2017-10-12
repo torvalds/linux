@@ -1005,21 +1005,6 @@ static struct dma_async_tx_descriptor *nbpf_prep_memcpy(
 			    DMA_MEM_TO_MEM, flags);
 }
 
-static struct dma_async_tx_descriptor *nbpf_prep_memcpy_sg(
-	struct dma_chan *dchan,
-	struct scatterlist *dst_sg, unsigned int dst_nents,
-	struct scatterlist *src_sg, unsigned int src_nents,
-	unsigned long flags)
-{
-	struct nbpf_channel *chan = nbpf_to_chan(dchan);
-
-	if (dst_nents != src_nents)
-		return NULL;
-
-	return nbpf_prep_sg(chan, src_sg, dst_sg, src_nents,
-			    DMA_MEM_TO_MEM, flags);
-}
-
 static struct dma_async_tx_descriptor *nbpf_prep_slave_sg(
 	struct dma_chan *dchan, struct scatterlist *sgl, unsigned int sg_len,
 	enum dma_transfer_direction direction, unsigned long flags, void *context)
@@ -1417,13 +1402,11 @@ static int nbpf_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);
 	dma_cap_set(DMA_SLAVE, dma_dev->cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma_dev->cap_mask);
-	dma_cap_set(DMA_SG, dma_dev->cap_mask);
 
 	/* Common and MEMCPY operations */
 	dma_dev->device_alloc_chan_resources
 		= nbpf_alloc_chan_resources;
 	dma_dev->device_free_chan_resources = nbpf_free_chan_resources;
-	dma_dev->device_prep_dma_sg = nbpf_prep_memcpy_sg;
 	dma_dev->device_prep_dma_memcpy = nbpf_prep_memcpy;
 	dma_dev->device_tx_status = nbpf_tx_status;
 	dma_dev->device_issue_pending = nbpf_issue_pending;

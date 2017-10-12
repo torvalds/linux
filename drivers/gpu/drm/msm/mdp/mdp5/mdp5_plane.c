@@ -246,7 +246,6 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp5_plane_destroy,
-		.set_property = drm_atomic_helper_plane_set_property,
 		.atomic_set_property = mdp5_plane_atomic_set_property,
 		.atomic_get_property = mdp5_plane_atomic_get_property,
 		.reset = mdp5_plane_reset,
@@ -259,7 +258,6 @@ static const struct drm_plane_funcs mdp5_cursor_plane_funcs = {
 		.update_plane = mdp5_update_cursor_plane_legacy,
 		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp5_plane_destroy,
-		.set_property = drm_atomic_helper_plane_set_property,
 		.atomic_set_property = mdp5_plane_atomic_set_property,
 		.atomic_get_property = mdp5_plane_atomic_get_property,
 		.reset = mdp5_plane_reset,
@@ -890,8 +888,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	struct mdp5_hw_pipe *right_hwpipe;
 	const struct mdp_format *format;
 	uint32_t nplanes, config = 0;
-	struct phase_step step = { 0 };
-	struct pixel_ext pe = { 0 };
+	struct phase_step step = { { 0 } };
+	struct pixel_ext pe = { { 0 } };
 	uint32_t hdecm = 0, vdecm = 0;
 	uint32_t pix_format;
 	unsigned int rotation;
@@ -1139,12 +1137,12 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 		ret = drm_universal_plane_init(dev, plane, 0xff,
 				&mdp5_cursor_plane_funcs,
 				mdp5_plane->formats, mdp5_plane->nformats,
-				type, NULL);
+				NULL, type, NULL);
 	else
 		ret = drm_universal_plane_init(dev, plane, 0xff,
 				&mdp5_plane_funcs,
 				mdp5_plane->formats, mdp5_plane->nformats,
-				type, NULL);
+				NULL, type, NULL);
 	if (ret)
 		goto fail;
 

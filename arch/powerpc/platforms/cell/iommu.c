@@ -278,8 +278,8 @@ static int cell_iommu_find_ioc(int nid, unsigned long *base)
 		if (of_node_to_nid(np) != nid)
 			continue;
 		if (of_address_to_resource(np, 0, &r)) {
-			printk(KERN_ERR "iommu: can't get address for %s\n",
-			       np->full_name);
+			printk(KERN_ERR "iommu: can't get address for %pOF\n",
+			       np);
 			continue;
 		}
 		*base = r.start;
@@ -458,8 +458,8 @@ static inline u32 cell_iommu_get_ioid(struct device_node *np)
 
 	ioid = of_get_property(np, "ioid", NULL);
 	if (ioid == NULL) {
-		printk(KERN_WARNING "iommu: missing ioid for %s using 0\n",
-		       np->full_name);
+		printk(KERN_WARNING "iommu: missing ioid for %pOF using 0\n",
+		       np);
 		return 0;
 	}
 
@@ -559,8 +559,8 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	 */
 	iommu = cell_iommu_for_node(dev_to_node(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
-		dev_err(dev, "iommu: missing iommu for %s (node %d)\n",
-		       of_node_full_name(dev->of_node), dev_to_node(dev));
+		dev_err(dev, "iommu: missing iommu for %pOF (node %d)\n",
+		       dev->of_node, dev_to_node(dev));
 		return NULL;
 	}
 	window = list_entry(iommu->windows.next, struct iommu_window, list);
@@ -720,12 +720,12 @@ static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 	/* Get node ID */
 	nid = of_node_to_nid(np);
 	if (nid < 0) {
-		printk(KERN_ERR "iommu: failed to get node for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "iommu: failed to get node for %pOF\n",
+		       np);
 		return NULL;
 	}
-	pr_debug("iommu: setting up iommu for node %d (%s)\n",
-		 nid, np->full_name);
+	pr_debug("iommu: setting up iommu for node %d (%pOF)\n",
+		 nid, np);
 
 	/* XXX todo: If we can have multiple windows on the same IOMMU, which
 	 * isn't the case today, we probably want here to check whether the
@@ -736,8 +736,8 @@ static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 	 */
 
 	if (cbe_nr_iommus >= NR_IOMMUS) {
-		printk(KERN_ERR "iommu: too many IOMMUs detected ! (%s)\n",
-		       np->full_name);
+		printk(KERN_ERR "iommu: too many IOMMUs detected ! (%pOF)\n",
+		       np);
 		return NULL;
 	}
 

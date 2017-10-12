@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/remoteproc.h>
 
@@ -38,9 +39,27 @@ MODULE_PARM_DESC(da8xx_fw_name,
 #define SYSCFG_CHIPSIG3 BIT(3)
 #define SYSCFG_CHIPSIG4 BIT(4)
 
+#define DA8XX_RPROC_LOCAL_ADDRESS_MASK	(SZ_16M - 1)
+
+/**
+ * struct da8xx_rproc_mem - internal memory structure
+ * @cpu_addr: MPU virtual address of the memory region
+ * @bus_addr: Bus address used to access the memory region
+ * @dev_addr: Device address of the memory region from DSP view
+ * @size: Size of the memory region
+ */
+struct da8xx_rproc_mem {
+	void __iomem *cpu_addr;
+	phys_addr_t bus_addr;
+	u32 dev_addr;
+	size_t size;
+};
+
 /**
  * struct da8xx_rproc - da8xx remote processor instance state
  * @rproc: rproc handle
+ * @mem: internal memory regions data
+ * @num_mems: number of internal memory regions
  * @dsp_clk: placeholder for platform's DSP clk
  * @ack_fxn: chip-specific ack function for ack'ing irq
  * @irq_data: ack_fxn function parameter
@@ -50,6 +69,8 @@ MODULE_PARM_DESC(da8xx_fw_name,
  */
 struct da8xx_rproc {
 	struct rproc *rproc;
+	struct da8xx_rproc_mem *mem;
+	int num_mems;
 	struct clk *dsp_clk;
 	void (*ack_fxn)(struct irq_data *data);
 	struct irq_data *irq_data;
@@ -158,6 +179,44 @@ static const struct rproc_ops da8xx_rproc_ops = {
 	.kick = da8xx_rproc_kick,
 };
 
+static int da8xx_rproc_get_internal_memories(struct platform_device *pdev,
+					     struct da8xx_rproc *drproc)
+{
+	static const char * const mem_names[] = {"l2sram", "l1pram", "l1dram"};
+	int num_mems = ARRAY_SIZE(mem_names);
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+	int i;
+
+	drproc->mem = devm_kcalloc(dev, num_mems, sizeof(*drproc->mem),
+				   GFP_KERNEL);
+	if (!drproc->mem)
+		return -ENOMEM;
+
+	for (i = 0; i < num_mems; i++) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   mem_names[i]);
+		drproc->mem[i].cpu_addr = devm_ioremap_resource(dev, res);
+		if (IS_ERR(drproc->mem[i].cpu_addr)) {
+			dev_err(dev, "failed to parse and map %s memory\n",
+				mem_names[i]);
+			return PTR_ERR(drproc->mem[i].cpu_addr);
+		}
+		drproc->mem[i].bus_addr = res->start;
+		drproc->mem[i].dev_addr =
+				res->start & DA8XX_RPROC_LOCAL_ADDRESS_MASK;
+		drproc->mem[i].size = resource_size(res);
+
+		dev_dbg(dev, "memory %8s: bus addr %pa size 0x%x va %p da 0x%x\n",
+			mem_names[i], &drproc->mem[i].bus_addr,
+			drproc->mem[i].size, drproc->mem[i].cpu_addr,
+			drproc->mem[i].dev_addr);
+	}
+	drproc->num_mems = num_mems;
+
+	return 0;
+}
+
 static int da8xx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -184,12 +243,14 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bootreg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	bootreg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "host1cfg");
 	bootreg = devm_ioremap_resource(dev, bootreg_res);
 	if (IS_ERR(bootreg))
 		return PTR_ERR(bootreg);
 
-	chipsig_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	chipsig_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "chipsig");
 	chipsig = devm_ioremap_resource(dev, chipsig_res);
 	if (IS_ERR(chipsig))
 		return PTR_ERR(chipsig);
@@ -201,15 +262,30 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 		return PTR_ERR(dsp_clk);
 	}
 
+	if (dev->of_node) {
+		ret = of_reserved_mem_device_init(dev);
+		if (ret) {
+			dev_err(dev, "device does not have specific CMA pool: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
 	rproc = rproc_alloc(dev, "dsp", &da8xx_rproc_ops, da8xx_fw_name,
 		sizeof(*drproc));
-	if (!rproc)
-		return -ENOMEM;
+	if (!rproc) {
+		ret = -ENOMEM;
+		goto free_mem;
+	}
 
 	drproc = rproc->priv;
 	drproc->rproc = rproc;
 	drproc->dsp_clk = dsp_clk;
 	rproc->has_iommu = false;
+
+	ret = da8xx_rproc_get_internal_memories(pdev, drproc);
+	if (ret)
+		goto free_rproc;
 
 	platform_set_drvdata(pdev, rproc);
 
@@ -247,7 +323,9 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 
 free_rproc:
 	rproc_free(rproc);
-
+free_mem:
+	if (dev->of_node)
+		of_reserved_mem_device_release(dev);
 	return ret;
 }
 
@@ -255,6 +333,7 @@ static int da8xx_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
+	struct device *dev = &pdev->dev;
 
 	/*
 	 * The devm subsystem might end up releasing things before
@@ -265,15 +344,24 @@ static int da8xx_rproc_remove(struct platform_device *pdev)
 
 	rproc_del(rproc);
 	rproc_free(rproc);
+	if (dev->of_node)
+		of_reserved_mem_device_release(dev);
 
 	return 0;
 }
+
+static const struct of_device_id davinci_rproc_of_match[] __maybe_unused = {
+	{ .compatible = "ti,da850-dsp", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, davinci_rproc_of_match);
 
 static struct platform_driver da8xx_rproc_driver = {
 	.probe = da8xx_rproc_probe,
 	.remove = da8xx_rproc_remove,
 	.driver = {
 		.name = "davinci-rproc",
+		.of_match_table = of_match_ptr(davinci_rproc_of_match),
 	},
 };
 

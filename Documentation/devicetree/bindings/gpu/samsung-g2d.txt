@@ -24,5 +24,4 @@ Example:
 		interrupts = <0 89 0>;
 		clocks = <&clock 177>, <&clock 277>;
 		clock-names = "sclk_fimg2d", "fimg2d";
-		status = "disabled";
 	};

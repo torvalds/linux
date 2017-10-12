@@ -76,6 +76,8 @@ static inline int crypto_ahash_walk_last(struct crypto_hash_walk *walk)
 
 int crypto_register_ahash(struct ahash_alg *alg);
 int crypto_unregister_ahash(struct ahash_alg *alg);
+int crypto_register_ahashes(struct ahash_alg *algs, int count);
+void crypto_unregister_ahashes(struct ahash_alg *algs, int count);
 int ahash_register_instance(struct crypto_template *tmpl,
 			    struct ahash_instance *inst);
 void ahash_free_instance(struct crypto_instance *inst);

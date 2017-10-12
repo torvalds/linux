@@ -275,17 +275,17 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 		bio = split;
 	}
 
-	bio->bi_bdev = tmp_dev->rdev->bdev;
+	bio_set_dev(bio, tmp_dev->rdev->bdev);
 	bio->bi_iter.bi_sector = bio->bi_iter.bi_sector -
 		start_sector + data_offset;
 
 	if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
-		     !blk_queue_discard(bdev_get_queue(bio->bi_bdev)))) {
+		     !blk_queue_discard(bio->bi_disk->queue))) {
 		/* Just ignore it */
 		bio_endio(bio);
 	} else {
 		if (mddev->gendisk)
-			trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
+			trace_block_bio_remap(bio->bi_disk->queue,
 					      bio, disk_devt(mddev->gendisk),
 					      bio_sector);
 		mddev_check_writesame(mddev, bio);

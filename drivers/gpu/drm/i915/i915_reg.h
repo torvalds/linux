@@ -25,6 +25,97 @@
 #ifndef _I915_REG_H_
 #define _I915_REG_H_
 
+/**
+ * DOC: The i915 register macro definition style guide
+ *
+ * Follow the style described here for new macros, and while changing existing
+ * macros. Do **not** mass change existing definitions just to update the style.
+ *
+ * Layout
+ * ''''''
+ *
+ * Keep helper macros near the top. For example, _PIPE() and friends.
+ *
+ * Prefix macros that generally should not be used outside of this file with
+ * underscore '_'. For example, _PIPE() and friends, single instances of
+ * registers that are defined solely for the use by function-like macros.
+ *
+ * Avoid using the underscore prefixed macros outside of this file. There are
+ * exceptions, but keep them to a minimum.
+ *
+ * There are two basic types of register definitions: Single registers and
+ * register groups. Register groups are registers which have two or more
+ * instances, for example one per pipe, port, transcoder, etc. Register groups
+ * should be defined using function-like macros.
+ *
+ * For single registers, define the register offset first, followed by register
+ * contents.
+ *
+ * For register groups, define the register instance offsets first, prefixed
+ * with underscore, followed by a function-like macro choosing the right
+ * instance based on the parameter, followed by register contents.
+ *
+ * Define the register contents (i.e. bit and bit field macros) from most
+ * significant to least significant bit. Indent the register content macros
+ * using two extra spaces between ``#define`` and the macro name.
+ *
+ * For bit fields, define a ``_MASK`` and a ``_SHIFT`` macro. Define bit field
+ * contents so that they are already shifted in place, and can be directly
+ * OR'd. For convenience, function-like macros may be used to define bit fields,
+ * but do note that the macros may be needed to read as well as write the
+ * register contents.
+ *
+ * Define bits using ``(1 << N)`` instead of ``BIT(N)``. We may change this in
+ * the future, but this is the prevailing style. Do **not** add ``_BIT`` suffix
+ * to the name.
+ *
+ * Group the register and its contents together without blank lines, separate
+ * from other registers and their contents with one blank line.
+ *
+ * Indent macro values from macro names using TABs. Align values vertically. Use
+ * braces in macro values as needed to avoid unintended precedence after macro
+ * substitution. Use spaces in macro values according to kernel coding
+ * style. Use lower case in hexadecimal values.
+ *
+ * Naming
+ * ''''''
+ *
+ * Try to name registers according to the specs. If the register name changes in
+ * the specs from platform to another, stick to the original name.
+ *
+ * Try to re-use existing register macro definitions. Only add new macros for
+ * new register offsets, or when the register contents have changed enough to
+ * warrant a full redefinition.
+ *
+ * When a register macro changes for a new platform, prefix the new macro using
+ * the platform acronym or generation. For example, ``SKL_`` or ``GEN8_``. The
+ * prefix signifies the start platform/generation using the register.
+ *
+ * When a bit (field) macro changes or gets added for a new platform, while
+ * retaining the existing register macro, add a platform acronym or generation
+ * suffix to the name. For example, ``_SKL`` or ``_GEN8``.
+ *
+ * Examples
+ * ''''''''
+ *
+ * (Note that the values in the example are indented using spaces instead of
+ * TABs to avoid misalignment in generated documentation. Use TABs in the
+ * definitions.)::
+ *
+ *  #define _FOO_A                      0xf000
+ *  #define _FOO_B                      0xf001
+ *  #define FOO(pipe)                   _MMIO_PIPE(pipe, _FOO_A, _FOO_B)
+ *  #define   FOO_ENABLE                (1 << 31)
+ *  #define   FOO_MODE_MASK             (0xf << 16)
+ *  #define   FOO_MODE_SHIFT            16
+ *  #define   FOO_MODE_BAR              (0 << 16)
+ *  #define   FOO_MODE_BAZ              (1 << 16)
+ *  #define   FOO_MODE_QUX_SNB          (2 << 16)
+ *
+ *  #define BAR                         _MMIO(0xb000)
+ *  #define GEN8_BAR                    _MMIO(0xb888)
+ */
+
 typedef struct {
 	uint32_t reg;
 } i915_reg_t;
@@ -228,6 +319,28 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   GEN8_RPCS_EU_MAX_MASK		(0xf << GEN8_RPCS_EU_MAX_SHIFT)
 #define   GEN8_RPCS_EU_MIN_SHIFT	0
 #define   GEN8_RPCS_EU_MIN_MASK		(0xf << GEN8_RPCS_EU_MIN_SHIFT)
+
+#define WAIT_FOR_RC6_EXIT		_MMIO(0x20CC)
+/* HSW only */
+#define   HSW_SELECTIVE_READ_ADDRESSING_SHIFT		2
+#define   HSW_SELECTIVE_READ_ADDRESSING_MASK		(0x3 << HSW_SLECTIVE_READ_ADDRESSING_SHIFT)
+#define   HSW_SELECTIVE_WRITE_ADDRESS_SHIFT		4
+#define   HSW_SELECTIVE_WRITE_ADDRESS_MASK		(0x7 << HSW_SELECTIVE_WRITE_ADDRESS_SHIFT)
+/* HSW+ */
+#define   HSW_WAIT_FOR_RC6_EXIT_ENABLE			(1 << 0)
+#define   HSW_RCS_CONTEXT_ENABLE			(1 << 7)
+#define   HSW_RCS_INHIBIT				(1 << 8)
+/* Gen8 */
+#define   GEN8_SELECTIVE_WRITE_ADDRESS_SHIFT		4
+#define   GEN8_SELECTIVE_WRITE_ADDRESS_MASK		(0x3 << GEN8_SELECTIVE_WRITE_ADDRESS_SHIFT)
+#define   GEN8_SELECTIVE_WRITE_ADDRESS_SHIFT		4
+#define   GEN8_SELECTIVE_WRITE_ADDRESS_MASK		(0x3 << GEN8_SELECTIVE_WRITE_ADDRESS_SHIFT)
+#define   GEN8_SELECTIVE_WRITE_ADDRESSING_ENABLE	(1 << 6)
+#define   GEN8_SELECTIVE_READ_SUBSLICE_SELECT_SHIFT	9
+#define   GEN8_SELECTIVE_READ_SUBSLICE_SELECT_MASK	(0x3 << GEN8_SELECTIVE_READ_SUBSLICE_SELECT_SHIFT)
+#define   GEN8_SELECTIVE_READ_SLICE_SELECT_SHIFT	11
+#define   GEN8_SELECTIVE_READ_SLICE_SELECT_MASK		(0x3 << GEN8_SELECTIVE_READ_SLICE_SELECT_SHIFT)
+#define   GEN8_SELECTIVE_READ_ADDRESSING_ENABLE         (1 << 13)
 
 #define GAM_ECOCHK			_MMIO(0x4090)
 #define   BDW_DISABLE_HDC_INVALIDATION	(1<<25)
@@ -729,118 +842,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define EU_PERF_CNTL5	    _MMIO(0xe55c)
 #define EU_PERF_CNTL6	    _MMIO(0xe65c)
 
-#define GDT_CHICKEN_BITS    _MMIO(0x9840)
-#define GT_NOA_ENABLE	    0x00000080
-
 /*
  * OA Boolean state
  */
-
-#define OAREPORTTRIG1 _MMIO(0x2740)
-#define OAREPORTTRIG1_THRESHOLD_MASK 0xffff
-#define OAREPORTTRIG1_EDGE_LEVEL_TRIGER_SELECT_MASK 0xffff0000 /* 0=level */
-
-#define OAREPORTTRIG2 _MMIO(0x2744)
-#define OAREPORTTRIG2_INVERT_A_0  (1<<0)
-#define OAREPORTTRIG2_INVERT_A_1  (1<<1)
-#define OAREPORTTRIG2_INVERT_A_2  (1<<2)
-#define OAREPORTTRIG2_INVERT_A_3  (1<<3)
-#define OAREPORTTRIG2_INVERT_A_4  (1<<4)
-#define OAREPORTTRIG2_INVERT_A_5  (1<<5)
-#define OAREPORTTRIG2_INVERT_A_6  (1<<6)
-#define OAREPORTTRIG2_INVERT_A_7  (1<<7)
-#define OAREPORTTRIG2_INVERT_A_8  (1<<8)
-#define OAREPORTTRIG2_INVERT_A_9  (1<<9)
-#define OAREPORTTRIG2_INVERT_A_10 (1<<10)
-#define OAREPORTTRIG2_INVERT_A_11 (1<<11)
-#define OAREPORTTRIG2_INVERT_A_12 (1<<12)
-#define OAREPORTTRIG2_INVERT_A_13 (1<<13)
-#define OAREPORTTRIG2_INVERT_A_14 (1<<14)
-#define OAREPORTTRIG2_INVERT_A_15 (1<<15)
-#define OAREPORTTRIG2_INVERT_B_0  (1<<16)
-#define OAREPORTTRIG2_INVERT_B_1  (1<<17)
-#define OAREPORTTRIG2_INVERT_B_2  (1<<18)
-#define OAREPORTTRIG2_INVERT_B_3  (1<<19)
-#define OAREPORTTRIG2_INVERT_C_0  (1<<20)
-#define OAREPORTTRIG2_INVERT_C_1  (1<<21)
-#define OAREPORTTRIG2_INVERT_D_0  (1<<22)
-#define OAREPORTTRIG2_THRESHOLD_ENABLE	    (1<<23)
-#define OAREPORTTRIG2_REPORT_TRIGGER_ENABLE (1<<31)
-
-#define OAREPORTTRIG3 _MMIO(0x2748)
-#define OAREPORTTRIG3_NOA_SELECT_MASK	    0xf
-#define OAREPORTTRIG3_NOA_SELECT_8_SHIFT    0
-#define OAREPORTTRIG3_NOA_SELECT_9_SHIFT    4
-#define OAREPORTTRIG3_NOA_SELECT_10_SHIFT   8
-#define OAREPORTTRIG3_NOA_SELECT_11_SHIFT   12
-#define OAREPORTTRIG3_NOA_SELECT_12_SHIFT   16
-#define OAREPORTTRIG3_NOA_SELECT_13_SHIFT   20
-#define OAREPORTTRIG3_NOA_SELECT_14_SHIFT   24
-#define OAREPORTTRIG3_NOA_SELECT_15_SHIFT   28
-
-#define OAREPORTTRIG4 _MMIO(0x274c)
-#define OAREPORTTRIG4_NOA_SELECT_MASK	    0xf
-#define OAREPORTTRIG4_NOA_SELECT_0_SHIFT    0
-#define OAREPORTTRIG4_NOA_SELECT_1_SHIFT    4
-#define OAREPORTTRIG4_NOA_SELECT_2_SHIFT    8
-#define OAREPORTTRIG4_NOA_SELECT_3_SHIFT    12
-#define OAREPORTTRIG4_NOA_SELECT_4_SHIFT    16
-#define OAREPORTTRIG4_NOA_SELECT_5_SHIFT    20
-#define OAREPORTTRIG4_NOA_SELECT_6_SHIFT    24
-#define OAREPORTTRIG4_NOA_SELECT_7_SHIFT    28
-
-#define OAREPORTTRIG5 _MMIO(0x2750)
-#define OAREPORTTRIG5_THRESHOLD_MASK 0xffff
-#define OAREPORTTRIG5_EDGE_LEVEL_TRIGER_SELECT_MASK 0xffff0000 /* 0=level */
-
-#define OAREPORTTRIG6 _MMIO(0x2754)
-#define OAREPORTTRIG6_INVERT_A_0  (1<<0)
-#define OAREPORTTRIG6_INVERT_A_1  (1<<1)
-#define OAREPORTTRIG6_INVERT_A_2  (1<<2)
-#define OAREPORTTRIG6_INVERT_A_3  (1<<3)
-#define OAREPORTTRIG6_INVERT_A_4  (1<<4)
-#define OAREPORTTRIG6_INVERT_A_5  (1<<5)
-#define OAREPORTTRIG6_INVERT_A_6  (1<<6)
-#define OAREPORTTRIG6_INVERT_A_7  (1<<7)
-#define OAREPORTTRIG6_INVERT_A_8  (1<<8)
-#define OAREPORTTRIG6_INVERT_A_9  (1<<9)
-#define OAREPORTTRIG6_INVERT_A_10 (1<<10)
-#define OAREPORTTRIG6_INVERT_A_11 (1<<11)
-#define OAREPORTTRIG6_INVERT_A_12 (1<<12)
-#define OAREPORTTRIG6_INVERT_A_13 (1<<13)
-#define OAREPORTTRIG6_INVERT_A_14 (1<<14)
-#define OAREPORTTRIG6_INVERT_A_15 (1<<15)
-#define OAREPORTTRIG6_INVERT_B_0  (1<<16)
-#define OAREPORTTRIG6_INVERT_B_1  (1<<17)
-#define OAREPORTTRIG6_INVERT_B_2  (1<<18)
-#define OAREPORTTRIG6_INVERT_B_3  (1<<19)
-#define OAREPORTTRIG6_INVERT_C_0  (1<<20)
-#define OAREPORTTRIG6_INVERT_C_1  (1<<21)
-#define OAREPORTTRIG6_INVERT_D_0  (1<<22)
-#define OAREPORTTRIG6_THRESHOLD_ENABLE	    (1<<23)
-#define OAREPORTTRIG6_REPORT_TRIGGER_ENABLE (1<<31)
-
-#define OAREPORTTRIG7 _MMIO(0x2758)
-#define OAREPORTTRIG7_NOA_SELECT_MASK	    0xf
-#define OAREPORTTRIG7_NOA_SELECT_8_SHIFT    0
-#define OAREPORTTRIG7_NOA_SELECT_9_SHIFT    4
-#define OAREPORTTRIG7_NOA_SELECT_10_SHIFT   8
-#define OAREPORTTRIG7_NOA_SELECT_11_SHIFT   12
-#define OAREPORTTRIG7_NOA_SELECT_12_SHIFT   16
-#define OAREPORTTRIG7_NOA_SELECT_13_SHIFT   20
-#define OAREPORTTRIG7_NOA_SELECT_14_SHIFT   24
-#define OAREPORTTRIG7_NOA_SELECT_15_SHIFT   28
-
-#define OAREPORTTRIG8 _MMIO(0x275c)
-#define OAREPORTTRIG8_NOA_SELECT_MASK	    0xf
-#define OAREPORTTRIG8_NOA_SELECT_0_SHIFT    0
-#define OAREPORTTRIG8_NOA_SELECT_1_SHIFT    4
-#define OAREPORTTRIG8_NOA_SELECT_2_SHIFT    8
-#define OAREPORTTRIG8_NOA_SELECT_3_SHIFT    12
-#define OAREPORTTRIG8_NOA_SELECT_4_SHIFT    16
-#define OAREPORTTRIG8_NOA_SELECT_5_SHIFT    20
-#define OAREPORTTRIG8_NOA_SELECT_6_SHIFT    24
-#define OAREPORTTRIG8_NOA_SELECT_7_SHIFT    28
 
 #define OASTARTTRIG1 _MMIO(0x2710)
 #define OASTARTTRIG1_THRESHOLD_COUNT_MASK_MBZ 0xffff0000
@@ -956,6 +960,112 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OASTARTTRIG8_NOA_SELECT_6_SHIFT    24
 #define OASTARTTRIG8_NOA_SELECT_7_SHIFT    28
 
+#define OAREPORTTRIG1 _MMIO(0x2740)
+#define OAREPORTTRIG1_THRESHOLD_MASK 0xffff
+#define OAREPORTTRIG1_EDGE_LEVEL_TRIGER_SELECT_MASK 0xffff0000 /* 0=level */
+
+#define OAREPORTTRIG2 _MMIO(0x2744)
+#define OAREPORTTRIG2_INVERT_A_0  (1<<0)
+#define OAREPORTTRIG2_INVERT_A_1  (1<<1)
+#define OAREPORTTRIG2_INVERT_A_2  (1<<2)
+#define OAREPORTTRIG2_INVERT_A_3  (1<<3)
+#define OAREPORTTRIG2_INVERT_A_4  (1<<4)
+#define OAREPORTTRIG2_INVERT_A_5  (1<<5)
+#define OAREPORTTRIG2_INVERT_A_6  (1<<6)
+#define OAREPORTTRIG2_INVERT_A_7  (1<<7)
+#define OAREPORTTRIG2_INVERT_A_8  (1<<8)
+#define OAREPORTTRIG2_INVERT_A_9  (1<<9)
+#define OAREPORTTRIG2_INVERT_A_10 (1<<10)
+#define OAREPORTTRIG2_INVERT_A_11 (1<<11)
+#define OAREPORTTRIG2_INVERT_A_12 (1<<12)
+#define OAREPORTTRIG2_INVERT_A_13 (1<<13)
+#define OAREPORTTRIG2_INVERT_A_14 (1<<14)
+#define OAREPORTTRIG2_INVERT_A_15 (1<<15)
+#define OAREPORTTRIG2_INVERT_B_0  (1<<16)
+#define OAREPORTTRIG2_INVERT_B_1  (1<<17)
+#define OAREPORTTRIG2_INVERT_B_2  (1<<18)
+#define OAREPORTTRIG2_INVERT_B_3  (1<<19)
+#define OAREPORTTRIG2_INVERT_C_0  (1<<20)
+#define OAREPORTTRIG2_INVERT_C_1  (1<<21)
+#define OAREPORTTRIG2_INVERT_D_0  (1<<22)
+#define OAREPORTTRIG2_THRESHOLD_ENABLE	    (1<<23)
+#define OAREPORTTRIG2_REPORT_TRIGGER_ENABLE (1<<31)
+
+#define OAREPORTTRIG3 _MMIO(0x2748)
+#define OAREPORTTRIG3_NOA_SELECT_MASK	    0xf
+#define OAREPORTTRIG3_NOA_SELECT_8_SHIFT    0
+#define OAREPORTTRIG3_NOA_SELECT_9_SHIFT    4
+#define OAREPORTTRIG3_NOA_SELECT_10_SHIFT   8
+#define OAREPORTTRIG3_NOA_SELECT_11_SHIFT   12
+#define OAREPORTTRIG3_NOA_SELECT_12_SHIFT   16
+#define OAREPORTTRIG3_NOA_SELECT_13_SHIFT   20
+#define OAREPORTTRIG3_NOA_SELECT_14_SHIFT   24
+#define OAREPORTTRIG3_NOA_SELECT_15_SHIFT   28
+
+#define OAREPORTTRIG4 _MMIO(0x274c)
+#define OAREPORTTRIG4_NOA_SELECT_MASK	    0xf
+#define OAREPORTTRIG4_NOA_SELECT_0_SHIFT    0
+#define OAREPORTTRIG4_NOA_SELECT_1_SHIFT    4
+#define OAREPORTTRIG4_NOA_SELECT_2_SHIFT    8
+#define OAREPORTTRIG4_NOA_SELECT_3_SHIFT    12
+#define OAREPORTTRIG4_NOA_SELECT_4_SHIFT    16
+#define OAREPORTTRIG4_NOA_SELECT_5_SHIFT    20
+#define OAREPORTTRIG4_NOA_SELECT_6_SHIFT    24
+#define OAREPORTTRIG4_NOA_SELECT_7_SHIFT    28
+
+#define OAREPORTTRIG5 _MMIO(0x2750)
+#define OAREPORTTRIG5_THRESHOLD_MASK 0xffff
+#define OAREPORTTRIG5_EDGE_LEVEL_TRIGER_SELECT_MASK 0xffff0000 /* 0=level */
+
+#define OAREPORTTRIG6 _MMIO(0x2754)
+#define OAREPORTTRIG6_INVERT_A_0  (1<<0)
+#define OAREPORTTRIG6_INVERT_A_1  (1<<1)
+#define OAREPORTTRIG6_INVERT_A_2  (1<<2)
+#define OAREPORTTRIG6_INVERT_A_3  (1<<3)
+#define OAREPORTTRIG6_INVERT_A_4  (1<<4)
+#define OAREPORTTRIG6_INVERT_A_5  (1<<5)
+#define OAREPORTTRIG6_INVERT_A_6  (1<<6)
+#define OAREPORTTRIG6_INVERT_A_7  (1<<7)
+#define OAREPORTTRIG6_INVERT_A_8  (1<<8)
+#define OAREPORTTRIG6_INVERT_A_9  (1<<9)
+#define OAREPORTTRIG6_INVERT_A_10 (1<<10)
+#define OAREPORTTRIG6_INVERT_A_11 (1<<11)
+#define OAREPORTTRIG6_INVERT_A_12 (1<<12)
+#define OAREPORTTRIG6_INVERT_A_13 (1<<13)
+#define OAREPORTTRIG6_INVERT_A_14 (1<<14)
+#define OAREPORTTRIG6_INVERT_A_15 (1<<15)
+#define OAREPORTTRIG6_INVERT_B_0  (1<<16)
+#define OAREPORTTRIG6_INVERT_B_1  (1<<17)
+#define OAREPORTTRIG6_INVERT_B_2  (1<<18)
+#define OAREPORTTRIG6_INVERT_B_3  (1<<19)
+#define OAREPORTTRIG6_INVERT_C_0  (1<<20)
+#define OAREPORTTRIG6_INVERT_C_1  (1<<21)
+#define OAREPORTTRIG6_INVERT_D_0  (1<<22)
+#define OAREPORTTRIG6_THRESHOLD_ENABLE	    (1<<23)
+#define OAREPORTTRIG6_REPORT_TRIGGER_ENABLE (1<<31)
+
+#define OAREPORTTRIG7 _MMIO(0x2758)
+#define OAREPORTTRIG7_NOA_SELECT_MASK	    0xf
+#define OAREPORTTRIG7_NOA_SELECT_8_SHIFT    0
+#define OAREPORTTRIG7_NOA_SELECT_9_SHIFT    4
+#define OAREPORTTRIG7_NOA_SELECT_10_SHIFT   8
+#define OAREPORTTRIG7_NOA_SELECT_11_SHIFT   12
+#define OAREPORTTRIG7_NOA_SELECT_12_SHIFT   16
+#define OAREPORTTRIG7_NOA_SELECT_13_SHIFT   20
+#define OAREPORTTRIG7_NOA_SELECT_14_SHIFT   24
+#define OAREPORTTRIG7_NOA_SELECT_15_SHIFT   28
+
+#define OAREPORTTRIG8 _MMIO(0x275c)
+#define OAREPORTTRIG8_NOA_SELECT_MASK	    0xf
+#define OAREPORTTRIG8_NOA_SELECT_0_SHIFT    0
+#define OAREPORTTRIG8_NOA_SELECT_1_SHIFT    4
+#define OAREPORTTRIG8_NOA_SELECT_2_SHIFT    8
+#define OAREPORTTRIG8_NOA_SELECT_3_SHIFT    12
+#define OAREPORTTRIG8_NOA_SELECT_4_SHIFT    16
+#define OAREPORTTRIG8_NOA_SELECT_5_SHIFT    20
+#define OAREPORTTRIG8_NOA_SELECT_6_SHIFT    24
+#define OAREPORTTRIG8_NOA_SELECT_7_SHIFT    28
+
 /* CECX_0 */
 #define OACEC_COMPARE_LESS_OR_EQUAL	6
 #define OACEC_COMPARE_NOT_EQUAL		5
@@ -994,6 +1104,51 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OACEC7_0 _MMIO(0x27a8)
 #define OACEC7_1 _MMIO(0x27ac)
 
+/* OA perf counters */
+#define OA_PERFCNT1_LO      _MMIO(0x91B8)
+#define OA_PERFCNT1_HI      _MMIO(0x91BC)
+#define OA_PERFCNT2_LO      _MMIO(0x91C0)
+#define OA_PERFCNT2_HI      _MMIO(0x91C4)
+
+#define OA_PERFMATRIX_LO    _MMIO(0x91C8)
+#define OA_PERFMATRIX_HI    _MMIO(0x91CC)
+
+/* RPM unit config (Gen8+) */
+#define RPM_CONFIG0	    _MMIO(0x0D00)
+#define RPM_CONFIG1	    _MMIO(0x0D04)
+
+/* RPC unit config (Gen8+) */
+#define RPM_CONFIG	    _MMIO(0x0D08)
+
+/* NOA (Gen8+) */
+#define NOA_CONFIG(i)	    _MMIO(0x0D0C + (i) * 4)
+
+#define MICRO_BP0_0	    _MMIO(0x9800)
+#define MICRO_BP0_2	    _MMIO(0x9804)
+#define MICRO_BP0_1	    _MMIO(0x9808)
+
+#define MICRO_BP1_0	    _MMIO(0x980C)
+#define MICRO_BP1_2	    _MMIO(0x9810)
+#define MICRO_BP1_1	    _MMIO(0x9814)
+
+#define MICRO_BP2_0	    _MMIO(0x9818)
+#define MICRO_BP2_2	    _MMIO(0x981C)
+#define MICRO_BP2_1	    _MMIO(0x9820)
+
+#define MICRO_BP3_0	    _MMIO(0x9824)
+#define MICRO_BP3_2	    _MMIO(0x9828)
+#define MICRO_BP3_1	    _MMIO(0x982C)
+
+#define MICRO_BP_TRIGGER		_MMIO(0x9830)
+#define MICRO_BP3_COUNT_STATUS01	_MMIO(0x9834)
+#define MICRO_BP3_COUNT_STATUS23	_MMIO(0x9838)
+#define MICRO_BP_FIRED_ARMED		_MMIO(0x983C)
+
+#define GDT_CHICKEN_BITS    _MMIO(0x9840)
+#define   GT_NOA_ENABLE	    0x00000080
+
+#define NOA_DATA	    _MMIO(0x986C)
+#define NOA_WRITE	    _MMIO(0x9888)
 
 #define _GEN7_PIPEA_DE_LOAD_SL	0x70068
 #define _GEN7_PIPEB_DE_LOAD_SL	0x71068
@@ -1063,9 +1218,26 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DP_SSS_RESET(pipe)			_DP_SSS(0x2, (pipe))
 #define   DP_SSS_PWR_GATE(pipe)			_DP_SSS(0x3, (pipe))
 
-/* See the PUNIT HAS v0.8 for the below bits */
-enum punit_power_well {
-	/* These numbers are fixed and must match the position of the pw bits */
+/*
+ * i915_power_well_id:
+ *
+ * Platform specific IDs used to look up power wells and - except for custom
+ * power wells - to define request/status register flag bit positions. As such
+ * the set of IDs on a given platform must be unique and except for custom
+ * power wells their value must stay fixed.
+ */
+enum i915_power_well_id {
+	/*
+	 * I830
+	 *  - custom power well
+	 */
+	I830_DISP_PW_PIPES = 0,
+
+	/*
+	 * VLV/CHV
+	 *  - PUNIT_REG_PWRGT_CTRL (bit: id*2),
+	 *    PUNIT_REG_PWRGT_STATUS (bit: id*2) (PUNIT HAS v0.8)
+	 */
 	PUNIT_POWER_WELL_RENDER			= 0,
 	PUNIT_POWER_WELL_MEDIA			= 1,
 	PUNIT_POWER_WELL_DISP2D			= 3,
@@ -1077,14 +1249,20 @@ enum punit_power_well {
 	PUNIT_POWER_WELL_DPIO_RX0		= 10,
 	PUNIT_POWER_WELL_DPIO_RX1		= 11,
 	PUNIT_POWER_WELL_DPIO_CMN_D		= 12,
+	/*  - custom power well */
+	CHV_DISP_PW_PIPE_A,			/* 13 */
 
-	/* Not actual bit groups. Used as IDs for lookup_power_well() */
-	PUNIT_POWER_WELL_ALWAYS_ON,
-};
+	/*
+	 * HSW/BDW
+	 *  - HSW_PWR_WELL_CTL_DRIVER(0) (status bit: id*2, req bit: id*2+1)
+	 */
+	HSW_DISP_PW_GLOBAL = 15,
 
-enum skl_disp_power_wells {
-	/* These numbers are fixed and must match the position of the pw bits */
-	SKL_DISP_PW_MISC_IO,
+	/*
+	 * GEN9+
+	 *  - HSW_PWR_WELL_CTL_DRIVER(0) (status bit: id*2, req bit: id*2+1)
+	 */
+	SKL_DISP_PW_MISC_IO = 0,
 	SKL_DISP_PW_DDI_A_E,
 	GLK_DISP_PW_DDI_A = SKL_DISP_PW_DDI_A_E,
 	CNL_DISP_PW_DDI_A = SKL_DISP_PW_DDI_A_E,
@@ -1103,17 +1281,19 @@ enum skl_disp_power_wells {
 	SKL_DISP_PW_1 = 14,
 	SKL_DISP_PW_2,
 
-	/* Not actual bit groups. Used as IDs for lookup_power_well() */
-	SKL_DISP_PW_ALWAYS_ON,
+	/* - custom power wells */
 	SKL_DISP_PW_DC_OFF,
-
 	BXT_DPIO_CMN_A,
 	BXT_DPIO_CMN_BC,
-	GLK_DPIO_CMN_C,
-};
+	GLK_DPIO_CMN_C,			/* 19 */
 
-#define SKL_POWER_WELL_STATE(pw) (1 << ((pw) * 2))
-#define SKL_POWER_WELL_REQ(pw) (1 << (((pw) * 2) + 1))
+	/*
+	 * Multiple platforms.
+	 * Must start following the highest ID of any platform.
+	 * - custom power wells
+	 */
+	I915_DISP_PW_ALWAYS_ON = 20,
+};
 
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
@@ -2156,6 +2336,7 @@ enum skl_disp_power_wells {
 #define DONE_REG		_MMIO(0x40b0)
 #define GEN8_PRIVATE_PAT_LO	_MMIO(0x40e0)
 #define GEN8_PRIVATE_PAT_HI	_MMIO(0x40e0 + 4)
+#define GEN10_PAT_INDEX(index)	_MMIO(0x40e0 + index*4)
 #define BSD_HWS_PGA_GEN7	_MMIO(0x04180)
 #define BLT_HWS_PGA_GEN7	_MMIO(0x04280)
 #define VEBOX_HWS_PGA_GEN7	_MMIO(0x04380)
@@ -3522,7 +3703,7 @@ enum skl_disp_power_wells {
 #define INTERVAL_1_28_US(us)	roundup(((us) * 100) >> 7, 25)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
 #define INTERVAL_0_833_US(us)	(((us) * 6) / 5)
-#define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
+#define GT_INTERVAL_FROM_US(dev_priv, us) (INTEL_GEN(dev_priv) >= 9 ? \
 				(IS_GEN9_LP(dev_priv) ? \
 				INTERVAL_0_833_US(us) : \
 				INTERVAL_1_33_US(us)) : \
@@ -3531,7 +3712,7 @@ enum skl_disp_power_wells {
 #define INTERVAL_1_28_TO_US(interval)  (((interval) << 7) / 100)
 #define INTERVAL_1_33_TO_US(interval)  (((interval) << 2) / 3)
 #define INTERVAL_0_833_TO_US(interval) (((interval) * 5)  / 6)
-#define GT_PM_INTERVAL_TO_US(dev_priv, interval) (IS_GEN9(dev_priv) ? \
+#define GT_PM_INTERVAL_TO_US(dev_priv, interval) (INTEL_GEN(dev_priv) >= 9 ? \
                            (IS_GEN9_LP(dev_priv) ? \
                            INTERVAL_0_833_TO_US(interval) : \
                            INTERVAL_1_33_TO_US(interval)) : \
@@ -3783,6 +3964,7 @@ enum {
 #define EDP_PSR_CTL				_MMIO(dev_priv->psr_mmio_base + 0)
 #define   EDP_PSR_ENABLE			(1<<31)
 #define   BDW_PSR_SINGLE_FRAME			(1<<30)
+#define   EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK	(1<<29) /* SW can't modify */
 #define   EDP_PSR_LINK_STANDBY			(1<<27)
 #define   EDP_PSR_MIN_LINK_ENTRY_TIME_MASK	(3<<25)
 #define   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES	(0<<25)
@@ -5227,6 +5409,9 @@ enum {
 
 #define _PIPE_MISC_A			0x70030
 #define _PIPE_MISC_B			0x71030
+#define   PIPEMISC_YUV420_ENABLE	(1<<27)
+#define   PIPEMISC_YUV420_MODE_FULL_BLEND (1<<26)
+#define   PIPEMISC_OUTPUT_COLORSPACE_YUV  (1<<11)
 #define   PIPEMISC_DITHER_BPC_MASK	(7<<5)
 #define   PIPEMISC_DITHER_8_BPC		(0<<5)
 #define   PIPEMISC_DITHER_10_BPC	(1<<5)
@@ -6106,6 +6291,10 @@ enum {
 #define _PLANE_KEYMSK_2_A			0x70298
 #define _PLANE_KEYMAX_1_A			0x701a0
 #define _PLANE_KEYMAX_2_A			0x702a0
+#define _PLANE_AUX_DIST_1_A			0x701c0
+#define _PLANE_AUX_DIST_2_A			0x702c0
+#define _PLANE_AUX_OFFSET_1_A			0x701c4
+#define _PLANE_AUX_OFFSET_2_A			0x702c4
 #define _PLANE_COLOR_CTL_1_A			0x701CC /* GLK+ */
 #define _PLANE_COLOR_CTL_2_A			0x702CC /* GLK+ */
 #define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
@@ -6211,6 +6400,24 @@ enum {
 	_PIPE(pipe, _PLANE_NV12_BUF_CFG_2_A, _PLANE_NV12_BUF_CFG_2_B)
 #define PLANE_NV12_BUF_CFG(pipe, plane)	\
 	_MMIO_PLANE(plane, _PLANE_NV12_BUF_CFG_1(pipe), _PLANE_NV12_BUF_CFG_2(pipe))
+
+#define _PLANE_AUX_DIST_1_B		0x711c0
+#define _PLANE_AUX_DIST_2_B		0x712c0
+#define _PLANE_AUX_DIST_1(pipe) \
+			_PIPE(pipe, _PLANE_AUX_DIST_1_A, _PLANE_AUX_DIST_1_B)
+#define _PLANE_AUX_DIST_2(pipe) \
+			_PIPE(pipe, _PLANE_AUX_DIST_2_A, _PLANE_AUX_DIST_2_B)
+#define PLANE_AUX_DIST(pipe, plane)     \
+	_MMIO_PLANE(plane, _PLANE_AUX_DIST_1(pipe), _PLANE_AUX_DIST_2(pipe))
+
+#define _PLANE_AUX_OFFSET_1_B		0x711c4
+#define _PLANE_AUX_OFFSET_2_B		0x712c4
+#define _PLANE_AUX_OFFSET_1(pipe)       \
+		_PIPE(pipe, _PLANE_AUX_OFFSET_1_A, _PLANE_AUX_OFFSET_1_B)
+#define _PLANE_AUX_OFFSET_2(pipe)       \
+		_PIPE(pipe, _PLANE_AUX_OFFSET_2_A, _PLANE_AUX_OFFSET_2_B)
+#define PLANE_AUX_OFFSET(pipe, plane)   \
+	_MMIO_PLANE(plane, _PLANE_AUX_OFFSET_1(pipe), _PLANE_AUX_OFFSET_2(pipe))
 
 #define _PLANE_COLOR_CTL_1_B			0x711CC
 #define _PLANE_COLOR_CTL_2_B			0x712CC
@@ -6695,6 +6902,7 @@ enum {
 # define CHICKEN3_DGMG_DONE_FIX_DISABLE		(1 << 2)
 
 #define CHICKEN_PAR1_1		_MMIO(0x42080)
+#define  SKL_RC_HASH_OUTSIDE	(1 << 15)
 #define  DPA_MASK_VBLANK_SRD	(1 << 15)
 #define  FORCE_ARB_IDLE_PLANES	(1 << 14)
 #define  SKL_EDP_PSR_FIX_RDWRAP	(1 << 3)
@@ -6703,12 +6911,10 @@ enum {
 #define  KVM_CONFIG_CHANGE_NOTIFICATION_SELECT	(1 << 14)
 
 #define CHICKEN_MISC_2		_MMIO(0x42084)
-#define  GLK_CL0_PWR_DOWN	(1 << 10)
-#define  GLK_CL1_PWR_DOWN	(1 << 11)
+#define  CNL_COMP_PWR_DOWN	(1 << 23)
 #define  GLK_CL2_PWR_DOWN	(1 << 12)
-
-#define CHICKEN_MISC_2		_MMIO(0x42084)
-#define  COMP_PWR_DOWN		(1 << 23)
+#define  GLK_CL1_PWR_DOWN	(1 << 11)
+#define  GLK_CL0_PWR_DOWN	(1 << 10)
 
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
@@ -7984,12 +8190,31 @@ enum {
 #define   SKL_AUD_CODEC_WAKE_SIGNAL		(1 << 15)
 
 /* HSW Power Wells */
-#define HSW_PWR_WELL_BIOS			_MMIO(0x45400) /* CTL1 */
-#define HSW_PWR_WELL_DRIVER			_MMIO(0x45404) /* CTL2 */
-#define HSW_PWR_WELL_KVMR			_MMIO(0x45408) /* CTL3 */
-#define HSW_PWR_WELL_DEBUG			_MMIO(0x4540C) /* CTL4 */
-#define   HSW_PWR_WELL_ENABLE_REQUEST		(1<<31)
-#define   HSW_PWR_WELL_STATE_ENABLED		(1<<30)
+#define _HSW_PWR_WELL_CTL1			0x45400
+#define _HSW_PWR_WELL_CTL2			0x45404
+#define _HSW_PWR_WELL_CTL3			0x45408
+#define _HSW_PWR_WELL_CTL4			0x4540C
+
+/*
+ * Each power well control register contains up to 16 (request, status) HW
+ * flag tuples. The register index and HW flag shift is determined by the
+ * power well ID (see i915_power_well_id). There are 4 possible sources of
+ * power well requests each source having its own set of control registers:
+ * BIOS, DRIVER, KVMR, DEBUG.
+ */
+#define _HSW_PW_REG_IDX(pw)			((pw) >> 4)
+#define _HSW_PW_SHIFT(pw)			(((pw) & 0xf) * 2)
+/* TODO: Add all PWR_WELL_CTL registers below for new platforms */
+#define HSW_PWR_WELL_CTL_BIOS(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
+						    _HSW_PWR_WELL_CTL1))
+#define HSW_PWR_WELL_CTL_DRIVER(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
+						    _HSW_PWR_WELL_CTL2))
+#define HSW_PWR_WELL_CTL_KVMR		_MMIO(_HSW_PWR_WELL_CTL3)
+#define HSW_PWR_WELL_CTL_DEBUG(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
+						    _HSW_PWR_WELL_CTL4))
+
+#define   HSW_PWR_WELL_CTL_REQ(pw)		(1 << (_HSW_PW_SHIFT(pw) + 1))
+#define   HSW_PWR_WELL_CTL_STATE(pw)		(1 << _HSW_PW_SHIFT(pw))
 #define HSW_PWR_WELL_CTL5			_MMIO(0x45410)
 #define   HSW_PWR_WELL_ENABLE_SINGLE_STEP	(1<<31)
 #define   HSW_PWR_WELL_PWR_GATE_OVERRIDE	(1<<20)
@@ -7997,11 +8222,17 @@ enum {
 #define HSW_PWR_WELL_CTL6			_MMIO(0x45414)
 
 /* SKL Fuse Status */
+enum skl_power_gate {
+	SKL_PG0,
+	SKL_PG1,
+	SKL_PG2,
+};
+
 #define SKL_FUSE_STATUS				_MMIO(0x42000)
-#define  SKL_FUSE_DOWNLOAD_STATUS              (1<<31)
-#define  SKL_FUSE_PG0_DIST_STATUS              (1<<27)
-#define  SKL_FUSE_PG1_DIST_STATUS              (1<<26)
-#define  SKL_FUSE_PG2_DIST_STATUS              (1<<25)
+#define  SKL_FUSE_DOWNLOAD_STATUS		(1<<31)
+/* PG0 (HW control->no power well ID), PG1..PG2 (SKL_DISP_PW1..SKL_DISP_PW2) */
+#define  SKL_PW_TO_PG(pw)			((pw) - SKL_DISP_PW_1 + SKL_PG1)
+#define  SKL_FUSE_PG_DIST_STATUS(pg)		(1 << (27 - (pg)))
 
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400
@@ -8343,6 +8574,7 @@ enum {
 #define  DPLL_CFGCR0_LINK_RATE_3240	(6 << 25)
 #define  DPLL_CFGCR0_LINK_RATE_4050	(7 << 25)
 #define  DPLL_CFGCR0_DCO_FRACTION_MASK	(0x7fff << 10)
+#define  DPLL_CFGCR0_DCO_FRAC_SHIFT	(10)
 #define  DPLL_CFGCR0_DCO_FRACTION(x)	((x) << 10)
 #define  DPLL_CFGCR0_DCO_INTEGER_MASK	(0x3ff)
 #define CNL_DPLL_CFGCR0(pll)		_MMIO_PLL(pll, _CNL_DPLL0_CFGCR0, _CNL_DPLL1_CFGCR0)
@@ -8350,6 +8582,7 @@ enum {
 #define _CNL_DPLL0_CFGCR1		0x6C004
 #define _CNL_DPLL1_CFGCR1		0x6C084
 #define  DPLL_CFGCR1_QDIV_RATIO_MASK	(0xff << 10)
+#define  DPLL_CFGCR1_QDIV_RATIO_SHIFT	(10)
 #define  DPLL_CFGCR1_QDIV_RATIO(x)	((x) << 10)
 #define  DPLL_CFGCR1_QDIV_MODE(x)	((x) << 9)
 #define  DPLL_CFGCR1_KDIV_MASK		(7 << 6)

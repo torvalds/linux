@@ -43,6 +43,10 @@ OPTIONS
 --quiet::
 	Do not show any message.  (Suppress -v)
 
+-n::
+--show-nr-samples::
+	Show the number of samples for each symbol
+
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
@@ -87,6 +91,8 @@ OPTIONS
 
 --asm-raw::
 	Show raw instruction encoding of assembly instructions.
+
+--show-total-period:: Show a column with the sum of periods.
 
 --source::
 	Interleave source code with assembly code. Enabled by default,

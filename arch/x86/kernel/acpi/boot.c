@@ -115,24 +115,24 @@ static u32 isa_irq_to_gsi[NR_IRQS_LEGACY] __read_mostly = {
 #define	ACPI_INVALID_GSI		INT_MIN
 
 /*
- * This is just a simple wrapper around early_ioremap(),
+ * This is just a simple wrapper around early_memremap(),
  * with sanity checks for phys == 0 and size == 0.
  */
-char *__init __acpi_map_table(unsigned long phys, unsigned long size)
+void __init __iomem *__acpi_map_table(unsigned long phys, unsigned long size)
 {
 
 	if (!phys || !size)
 		return NULL;
 
-	return early_ioremap(phys, size);
+	return early_memremap(phys, size);
 }
 
-void __init __acpi_unmap_table(char *map, unsigned long size)
+void __init __acpi_unmap_table(void __iomem *map, unsigned long size)
 {
 	if (!map || !size)
 		return;
 
-	early_iounmap(map, size);
+	early_memunmap(map, size);
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -199,8 +199,10 @@ static int __init
 acpi_parse_x2apic(struct acpi_subtable_header *header, const unsigned long end)
 {
 	struct acpi_madt_local_x2apic *processor = NULL;
+#ifdef CONFIG_X86_X2APIC
 	int apic_id;
 	u8 enabled;
+#endif
 
 	processor = (struct acpi_madt_local_x2apic *)header;
 
@@ -209,9 +211,10 @@ acpi_parse_x2apic(struct acpi_subtable_header *header, const unsigned long end)
 
 	acpi_table_print_madt_entry(header);
 
+#ifdef CONFIG_X86_X2APIC
 	apic_id = processor->local_apic_id;
 	enabled = processor->lapic_flags & ACPI_MADT_ENABLED;
-#ifdef CONFIG_X86_X2APIC
+
 	/*
 	 * We need to register disabled CPU as well to permit
 	 * counting disabled CPUs. This allows us to size
@@ -1083,7 +1086,7 @@ static void __init mp_config_acpi_legacy_irqs(void)
 	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
 #endif
 	set_bit(MP_ISA_BUS, mp_bus_not_pci);
-	pr_debug("Bus #%d is ISA\n", MP_ISA_BUS);
+	pr_debug("Bus #%d is ISA (nIRQs: %d)\n", MP_ISA_BUS, nr_legacy_irqs());
 
 	/*
 	 * Use the default configuration for the IRQs 0-15.  Unless
@@ -1370,7 +1373,7 @@ static void __init acpi_reduced_hw_init(void)
  * If your system is blacklisted here, but you find that acpi=force
  * works for you, please contact linux-acpi@vger.kernel.org
  */
-static struct dmi_system_id __initdata acpi_dmi_table[] = {
+static const struct dmi_system_id acpi_dmi_table[] __initconst = {
 	/*
 	 * Boxes that need ACPI disabled
 	 */
@@ -1445,7 +1448,7 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 };
 
 /* second table for DMI checks that should run after early-quirks */
-static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 	/*
 	 * HP laptops which use a DSDT reporting as HP/SB400/10000,
 	 * which includes some code which overrides all temperature

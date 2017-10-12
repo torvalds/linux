@@ -522,7 +522,7 @@ static int ak4613_resume(struct snd_soc_codec *codec)
 	return regcache_sync(regmap);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_ak4613 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ak4613 = {
 	.suspend		= ak4613_suspend,
 	.resume			= ak4613_resume,
 	.set_bias_level		= ak4613_set_bias_level,

@@ -1396,7 +1396,7 @@ static const struct i2c_algorithm qup_i2c_algo_v2 = {
  * the end of the read, the length of the read is specified as one byte
  * which limits the possible read to 256 (QUP_READ_LIMIT) bytes.
  */
-static struct i2c_adapter_quirks qup_i2c_quirks = {
+static const struct i2c_adapter_quirks qup_i2c_quirks = {
 	.max_read_len = QUP_READ_LIMIT,
 };
 

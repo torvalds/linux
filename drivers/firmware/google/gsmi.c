@@ -709,7 +709,7 @@ static u32 __init hash_oem_table_id(char s[8])
 	return local_hash_64(input, 32);
 }
 
-static struct dmi_system_id gsmi_dmi_table[] __initdata = {
+static const struct dmi_system_id gsmi_dmi_table[] __initconst = {
 	{
 		.ident = "Google Board",
 		.matches = {

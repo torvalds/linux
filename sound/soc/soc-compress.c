@@ -737,9 +737,6 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	}
 
 	/* check client and interface hw capabilities */
-	snprintf(new_name, sizeof(new_name), "%s %s-%d",
-			rtd->dai_link->stream_name, codec_dai->name, num);
-
 	if (codec_dai->driver->playback.channels_min)
 		playback = 1;
 	if (codec_dai->driver->capture.channels_min)
@@ -758,21 +755,18 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		return -EINVAL;
 	}
 
-	if(playback)
+	if (playback)
 		direction = SND_COMPRESS_PLAYBACK;
 	else
 		direction = SND_COMPRESS_CAPTURE;
 
 	compr = kzalloc(sizeof(*compr), GFP_KERNEL);
-	if (compr == NULL) {
-		snd_printk(KERN_ERR "Cannot allocate compr\n");
+	if (!compr)
 		return -ENOMEM;
-	}
 
 	compr->ops = devm_kzalloc(rtd->card->dev, sizeof(soc_compr_ops),
 				  GFP_KERNEL);
-	if (compr->ops == NULL) {
-		dev_err(rtd->card->dev, "Cannot allocate compressed ops\n");
+	if (!compr->ops) {
 		ret = -ENOMEM;
 		goto compr_err;
 	}
@@ -797,19 +791,18 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		else if (rtd->dai_link->dpcm_capture)
 			be_pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream->private_data = rtd;
 		memcpy(compr->ops, &soc_compr_dyn_ops, sizeof(soc_compr_dyn_ops));
-	} else
+	} else {
+		snprintf(new_name, sizeof(new_name), "%s %s-%d",
+			rtd->dai_link->stream_name, codec_dai->name, num);
+
 		memcpy(compr->ops, &soc_compr_ops, sizeof(soc_compr_ops));
+	}
 
 	/* Add copy callback for not memory mapped DSPs */
 	if (platform->driver->compr_ops && platform->driver->compr_ops->copy)
 		compr->ops->copy = soc_compr_copy;
 
 	mutex_init(&compr->lock);
-
-	snprintf(new_name, sizeof(new_name), "%s %s-%d",
-		 rtd->dai_link->stream_name,
-		 rtd->codec_dai->name, num);
-
 	ret = snd_compress_new(rtd->card->snd_card, num, direction,
 				new_name, compr);
 	if (ret < 0) {

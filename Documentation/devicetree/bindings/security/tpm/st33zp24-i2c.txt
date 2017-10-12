@@ -19,7 +19,6 @@ Example (for ARM-based BeagleBoard xM with ST33ZP24 on I2C2):
 
 &i2c2 {
 
-        status = "okay";
 
         st33zp24: st33zp24@13 {
 

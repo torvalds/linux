@@ -695,8 +695,8 @@ static int fsl_qman_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "Can't get %s property 'IORESOURCE_MEM'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'IORESOURCE_MEM'\n",
+			node);
 		return -ENXIO;
 	}
 	qm_ccsr_start = devm_ioremap(dev, res->start, resource_size(res));
@@ -740,15 +740,15 @@ static int fsl_qman_probe(struct platform_device *pdev)
 
 	err_irq = platform_get_irq(pdev, 0);
 	if (err_irq <= 0) {
-		dev_info(dev, "Can't get %s property 'interrupts'\n",
-			 node->full_name);
+		dev_info(dev, "Can't get %pOF property 'interrupts'\n",
+			 node);
 		return -ENODEV;
 	}
 	ret = devm_request_irq(dev, err_irq, qman_isr, IRQF_SHARED, "qman-err",
 			       dev);
 	if (ret)  {
-		dev_err(dev, "devm_request_irq() failed %d for '%s'\n",
-			ret, node->full_name);
+		dev_err(dev, "devm_request_irq() failed %d for '%pOF'\n",
+			ret, node);
 		return ret;
 	}
 

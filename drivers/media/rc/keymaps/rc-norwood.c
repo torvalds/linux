@@ -62,10 +62,10 @@ static struct rc_map_table norwood[] = {
 
 static struct rc_map_list norwood_map = {
 	.map = {
-		.scan    = norwood,
-		.size    = ARRAY_SIZE(norwood),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_NORWOOD,
+		.scan     = norwood,
+		.size     = ARRAY_SIZE(norwood),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_NORWOOD,
 	}
 };
 

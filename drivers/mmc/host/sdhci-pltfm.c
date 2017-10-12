@@ -209,22 +209,42 @@ int sdhci_pltfm_unregister(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(sdhci_pltfm_unregister);
 
 #ifdef CONFIG_PM_SLEEP
-static int sdhci_pltfm_suspend(struct device *dev)
+int sdhci_pltfm_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 
-	return sdhci_suspend_host(host);
-}
+	ret = sdhci_suspend_host(host);
+	if (ret)
+		return ret;
 
-static int sdhci_pltfm_resume(struct device *dev)
+	clk_disable_unprepare(pltfm_host->clk);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sdhci_pltfm_suspend);
+
+int sdhci_pltfm_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
 
-	return sdhci_resume_host(host);
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		return ret;
+
+	ret = sdhci_resume_host(host);
+	if (ret)
+		clk_disable_unprepare(pltfm_host->clk);
+
+	return ret;
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_resume);
 #endif
 
 const struct dev_pm_ops sdhci_pltfm_pmops = {

@@ -924,7 +924,7 @@ config HID_UDRAW_PS3
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
-	depends on HID
+	depends on USB_HID
 	select POWER_SUPPLY
 	select NEW_LEDS
 	select LEDS_CLASS

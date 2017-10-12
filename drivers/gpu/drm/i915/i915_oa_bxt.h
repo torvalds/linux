@@ -29,12 +29,6 @@
 #ifndef __I915_OA_BXT_H__
 #define __I915_OA_BXT_H__
 
-extern int i915_oa_n_builtin_metric_sets_bxt;
-
-extern int i915_oa_select_metric_set_bxt(struct drm_i915_private *dev_priv);
-
-extern int i915_perf_register_sysfs_bxt(struct drm_i915_private *dev_priv);
-
-extern void i915_perf_unregister_sysfs_bxt(struct drm_i915_private *dev_priv);
+extern void i915_perf_load_test_config_bxt(struct drm_i915_private *dev_priv);
 
 #endif

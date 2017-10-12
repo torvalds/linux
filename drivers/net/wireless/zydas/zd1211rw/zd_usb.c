@@ -35,7 +35,7 @@
 #include "zd_mac.h"
 #include "zd_usb.h"
 
-static struct usb_device_id usb_ids[] = {
+static const struct usb_device_id usb_ids[] = {
 	/* ZD1211 */
 	{ USB_DEVICE(0x0105, 0x145f), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0586, 0x3401), .driver_info = DEVICE_ZD1211 },

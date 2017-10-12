@@ -45,7 +45,8 @@ static inline void init_tlb_gather(struct mmu_gather *tlb)
 }
 
 static inline void
-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
+arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+		unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
 	tlb->start = start;
@@ -80,13 +81,19 @@ tlb_flush_mmu(struct mmu_gather *tlb)
 	tlb_flush_mmu_free(tlb);
 }
 
-/* tlb_finish_mmu
+/* arch_tlb_finish_mmu
  *	Called at the end of the shootdown operation to free up any resources
  *	that were required.
  */
 static inline void
-tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+arch_tlb_finish_mmu(struct mmu_gather *tlb,
+		unsigned long start, unsigned long end, bool force)
 {
+	if (force) {
+		tlb->start = start;
+		tlb->end = end;
+		tlb->need_flush = 1;
+	}
 	tlb_flush_mmu(tlb);
 
 	/* keep the page table cache within bounds */

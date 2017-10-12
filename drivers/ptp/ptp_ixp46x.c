@@ -236,7 +236,7 @@ static int ptp_ixp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_ixp_caps = {
+static const struct ptp_clock_info ptp_ixp_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "IXP46X timer",
 	.max_adj	= 66666655,

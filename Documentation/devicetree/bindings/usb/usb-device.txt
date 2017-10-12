@@ -2,7 +2,7 @@ Generic USB Device Properties
 
 Usually, we only use device tree for hard wired USB device.
 The reference binding doc is from:
-http://www.firmware.org/1275/bindings/usb/usb-1_0.ps
+http://www.devicetree.org/open-firmware/bindings/usb/usb-1_0.ps
 
 Required properties:
 - compatible: usbVID,PID. The textual representation of VID, PID shall
@@ -16,7 +16,6 @@ Required properties:
 Example:
 
 &usb1 {
-	status = "okay";
 
 	#address-cells = <1>;
 	#size-cells = <0>;

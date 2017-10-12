@@ -593,10 +593,10 @@ void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 	BUG_ON(bio->bi_pool && BVEC_POOL_IDX(bio));
 
 	/*
-	 * most users will be overriding ->bi_bdev with a new target,
+	 * most users will be overriding ->bi_disk with a new target,
 	 * so we don't set nor calculate new physical/hw segment counts here
 	 */
-	bio->bi_bdev = bio_src->bi_bdev;
+	bio->bi_disk = bio_src->bi_disk;
 	bio_set_flag(bio, BIO_CLONED);
 	bio->bi_opf = bio_src->bi_opf;
 	bio->bi_write_hint = bio_src->bi_write_hint;
@@ -681,7 +681,7 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 	bio = bio_alloc_bioset(gfp_mask, bio_segments(bio_src), bs);
 	if (!bio)
 		return NULL;
-	bio->bi_bdev		= bio_src->bi_bdev;
+	bio->bi_disk		= bio_src->bi_disk;
 	bio->bi_opf		= bio_src->bi_opf;
 	bio->bi_write_hint	= bio_src->bi_write_hint;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
@@ -936,6 +936,10 @@ static void submit_bio_wait_endio(struct bio *bio)
  *
  * Simple wrapper around submit_bio(). Returns 0 on success, or the error from
  * bio_endio() on failure.
+ *
+ * WARNING: Unlike to how submit_bio() is usually used, this function does not
+ * result in bio reference to be consumed. The caller must drop the reference
+ * on his own.
  */
 int submit_bio_wait(struct bio *bio)
 {
@@ -1732,29 +1736,29 @@ void bio_check_pages_dirty(struct bio *bio)
 	}
 }
 
-void generic_start_io_acct(int rw, unsigned long sectors,
-			   struct hd_struct *part)
+void generic_start_io_acct(struct request_queue *q, int rw,
+			   unsigned long sectors, struct hd_struct *part)
 {
 	int cpu = part_stat_lock();
 
-	part_round_stats(cpu, part);
+	part_round_stats(q, cpu, part);
 	part_stat_inc(cpu, part, ios[rw]);
 	part_stat_add(cpu, part, sectors[rw], sectors);
-	part_inc_in_flight(part, rw);
+	part_inc_in_flight(q, part, rw);
 
 	part_stat_unlock();
 }
 EXPORT_SYMBOL(generic_start_io_acct);
 
-void generic_end_io_acct(int rw, struct hd_struct *part,
-			 unsigned long start_time)
+void generic_end_io_acct(struct request_queue *q, int rw,
+			 struct hd_struct *part, unsigned long start_time)
 {
 	unsigned long duration = jiffies - start_time;
 	int cpu = part_stat_lock();
 
 	part_stat_add(cpu, part, ticks[rw], duration);
-	part_round_stats(cpu, part);
-	part_dec_in_flight(part, rw);
+	part_round_stats(q, cpu, part);
+	part_dec_in_flight(q, part, rw);
 
 	part_stat_unlock();
 }
@@ -1826,8 +1830,8 @@ again:
 		goto again;
 	}
 
-	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
-		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev), bio,
+	if (bio->bi_disk && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
+		trace_block_bio_complete(bio->bi_disk->queue, bio,
 					 blk_status_to_errno(bio->bi_status));
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 	}
@@ -2085,7 +2089,7 @@ void bio_clone_blkcg_association(struct bio *dst, struct bio *src)
 	if (src->bi_css)
 		WARN_ON(bio_associate_blkcg(dst, src->bi_css));
 }
-
+EXPORT_SYMBOL_GPL(bio_clone_blkcg_association);
 #endif /* CONFIG_BLK_CGROUP */
 
 static void __init biovec_init_slabs(void)

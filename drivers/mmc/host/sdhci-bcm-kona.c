@@ -186,7 +186,7 @@ static void sdhci_bcm_kona_init_74_clocks(struct sdhci_host *host,
 		udelay(740);
 }
 
-static struct sdhci_ops sdhci_bcm_kona_ops = {
+static const struct sdhci_ops sdhci_bcm_kona_ops = {
 	.set_clock = sdhci_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
@@ -197,7 +197,7 @@ static struct sdhci_ops sdhci_bcm_kona_ops = {
 	.card_event = sdhci_bcm_kona_card_event,
 };
 
-static struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
+static const struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
 	.ops    = &sdhci_bcm_kona_ops,
 	.quirks = SDHCI_QUIRK_NO_CARD_NO_RESET |
 		SDHCI_QUIRK_BROKEN_TIMEOUT_VAL | SDHCI_QUIRK_32BIT_DMA_ADDR |

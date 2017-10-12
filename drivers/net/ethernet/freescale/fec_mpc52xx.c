@@ -960,8 +960,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 
 	/* We're done ! */
 	platform_set_drvdata(op, ndev);
-	netdev_info(ndev, "%s MAC %pM\n",
-		    op->dev.of_node->full_name, ndev->dev_addr);
+	netdev_info(ndev, "%pOF MAC %pM\n",
+		    op->dev.of_node, ndev->dev_addr);
 
 	return 0;
 

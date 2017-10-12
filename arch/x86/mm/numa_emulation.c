@@ -75,13 +75,15 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
 
 /*
  * Sets up nr_nodes fake nodes interleaved over physical nodes ranging from addr
- * to max_addr.  The return value is the number of nodes allocated.
+ * to max_addr.
+ *
+ * Returns zero on success or negative on error.
  */
 static int __init split_nodes_interleave(struct numa_meminfo *ei,
 					 struct numa_meminfo *pi,
 					 u64 addr, u64 max_addr, int nr_nodes)
 {
-	nodemask_t physnode_mask = NODE_MASK_NONE;
+	nodemask_t physnode_mask = numa_nodes_parsed;
 	u64 size;
 	int big;
 	int nid = 0;
@@ -115,9 +117,6 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 			"NUMA emulation disabled.\n");
 		return -1;
 	}
-
-	for (i = 0; i < pi->nr_blks; i++)
-		node_set(pi->blk[i].nid, physnode_mask);
 
 	/*
 	 * Continue to fill physical nodes with fake nodes until there is no
@@ -200,13 +199,15 @@ static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
 
 /*
  * Sets up fake nodes of `size' interleaved over physical nodes ranging from
- * `addr' to `max_addr'.  The return value is the number of nodes allocated.
+ * `addr' to `max_addr'.
+ *
+ * Returns zero on success or negative on error.
  */
 static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 					      struct numa_meminfo *pi,
 					      u64 addr, u64 max_addr, u64 size)
 {
-	nodemask_t physnode_mask = NODE_MASK_NONE;
+	nodemask_t physnode_mask = numa_nodes_parsed;
 	u64 min_size;
 	int nid = 0;
 	int i, ret;
@@ -230,9 +231,6 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 		size = min_size;
 	}
 	size &= FAKE_NODE_MIN_HASH_MASK;
-
-	for (i = 0; i < pi->nr_blks; i++)
-		node_set(pi->blk[i].nid, physnode_mask);
 
 	/*
 	 * Fill physical nodes with fake nodes of size until there is no memory
@@ -278,6 +276,22 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 		}
 	}
 	return 0;
+}
+
+int __init setup_emu2phys_nid(int *dfl_phys_nid)
+{
+	int i, max_emu_nid = 0;
+
+	*dfl_phys_nid = NUMA_NO_NODE;
+	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++) {
+		if (emu_nid_to_phys[i] != NUMA_NO_NODE) {
+			max_emu_nid = i;
+			if (*dfl_phys_nid == NUMA_NO_NODE)
+				*dfl_phys_nid = emu_nid_to_phys[i];
+		}
+	}
+
+	return max_emu_nid;
 }
 
 /**
@@ -376,22 +390,17 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	 * Determine the max emulated nid and the default phys nid to use
 	 * for unmapped nodes.
 	 */
-	max_emu_nid = 0;
-	dfl_phys_nid = NUMA_NO_NODE;
-	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++) {
-		if (emu_nid_to_phys[i] != NUMA_NO_NODE) {
-			max_emu_nid = i;
-			if (dfl_phys_nid == NUMA_NO_NODE)
-				dfl_phys_nid = emu_nid_to_phys[i];
-		}
-	}
-	if (dfl_phys_nid == NUMA_NO_NODE) {
-		pr_warning("NUMA: Warning: can't determine default physical node, disabling emulation\n");
-		goto no_emu;
-	}
+	max_emu_nid = setup_emu2phys_nid(&dfl_phys_nid);
 
 	/* commit */
 	*numa_meminfo = ei;
+
+	/* Make sure numa_nodes_parsed only contains emulated nodes */
+	nodes_clear(numa_nodes_parsed);
+	for (i = 0; i < ARRAY_SIZE(ei.blk); i++)
+		if (ei.blk[i].start != ei.blk[i].end &&
+		    ei.blk[i].nid != NUMA_NO_NODE)
+			node_set(ei.blk[i].nid, numa_nodes_parsed);
 
 	/*
 	 * Transform __apicid_to_node table to use emulated nids by

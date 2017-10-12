@@ -559,6 +559,15 @@ config REGULATOR_MT6323
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6380
+	tristate "MediaTek MT6380 PMIC"
+	depends on MTK_PMIC_WRAP
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6380 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_MT6397
 	tristate "MediaTek MT6397 PMIC"
 	depends on MFD_MT6397
@@ -687,11 +696,11 @@ config REGULATOR_RC5T583
 	  outputs which can be controlled by i2c communication.
 
 config REGULATOR_RK808
-	tristate "Rockchip RK808/RK818 Power regulators"
+	tristate "Rockchip RK805/RK808/RK818 Power regulators"
 	depends on MFD_RK808
 	help
 	  Select this option to enable the power regulator of ROCKCHIP
-	  PMIC RK808 and RK818.
+	  PMIC RK805,RK808 and RK818.
 	  This driver supports the control of different power rails of device
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
@@ -700,8 +709,8 @@ config REGULATOR_RN5T618
 	tristate "Ricoh RN5T567/618 voltage regulators"
 	depends on MFD_RN5T618
 	help
-	  Say y here to support the regulators found on Ricoh RN5T567 or
-	  RN5T618 PMIC.
+	  Say y here to support the regulators found on Ricoh RN5T567,
+	  RN5T618 or RC5T619 PMIC.
 
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"
@@ -745,6 +754,18 @@ config REGULATOR_SKY81452
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sky81452-regulator.
+
+config REGULATOR_STM32_VREFBUF
+	tristate "STMicroelectronics STM32 VREFBUF"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  This driver supports STMicroelectronics STM32 VREFBUF (voltage
+	  reference buffer) which can be used as voltage reference for
+	  internal ADCs, DACs and also for external components through
+	  dedicated Vref+ pin.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called stm32-vrefbuf.
 
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"

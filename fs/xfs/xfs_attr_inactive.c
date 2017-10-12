@@ -97,7 +97,7 @@ xfs_attr3_leaf_freextent(
 			/*
 			 * Roll to next transaction.
 			 */
-			error = xfs_trans_roll(trans, dp);
+			error = xfs_trans_roll_inode(trans, dp);
 			if (error)
 				return error;
 		}
@@ -308,7 +308,7 @@ xfs_attr3_node_inactive(
 		/*
 		 * Atomically commit the whole invalidate stuff.
 		 */
-		error = xfs_trans_roll(trans, dp);
+		error = xfs_trans_roll_inode(trans, dp);
 		if (error)
 			return  error;
 	}
@@ -375,7 +375,7 @@ xfs_attr3_root_inactive(
 	/*
 	 * Commit the invalidate and start the next transaction.
 	 */
-	error = xfs_trans_roll(trans, dp);
+	error = xfs_trans_roll_inode(trans, dp);
 
 	return error;
 }

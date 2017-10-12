@@ -114,6 +114,8 @@ int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_plane_state *state = &intel_state->base;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 	int ret;
 
 	/*
@@ -172,6 +174,19 @@ int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
 	ret = intel_plane->check_plane(intel_plane, crtc_state, intel_state);
 	if (ret)
 		return ret;
+
+	/*
+	 * Y-tiling is not supported in IF-ID Interlace mode in
+	 * GEN9 and above.
+	 */
+	if (state->fb && INTEL_GEN(dev_priv) >= 9 && crtc_state->base.enable &&
+	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		if (state->fb->modifier == I915_FORMAT_MOD_Y_TILED ||
+		    state->fb->modifier == I915_FORMAT_MOD_Yf_TILED) {
+			DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
+			return -EINVAL;
+		}
+	}
 
 	/* FIXME pre-g4x don't work like this */
 	if (intel_state->base.visible)

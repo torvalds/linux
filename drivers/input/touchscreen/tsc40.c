@@ -141,7 +141,7 @@ static void tsc_disconnect(struct serio *serio)
 	serio_set_drvdata(serio, NULL);
 }
 
-static struct serio_device_id tsc_serio_ids[] = {
+static const struct serio_device_id tsc_serio_ids[] = {
 	{
 		.type   = SERIO_RS232,
 		.proto  = SERIO_TSC40,

@@ -9,9 +9,7 @@
 #ifndef _EBCDIC_H
 #define _EBCDIC_H
 
-#ifndef _S390_TYPES_H
-#include <types.h>
-#endif
+#include <linux/types.h>
 
 extern __u8 _ascebc_500[256];   /* ASCII -> EBCDIC 500 conversion table */
 extern __u8 _ebcasc_500[256];   /* EBCDIC 500 -> ASCII conversion table */

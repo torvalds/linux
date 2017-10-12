@@ -2293,15 +2293,27 @@ typedef struct {
 	uint32_t rttov;
 	uint32_t altov;
 	uint32_t crtov;
-	uint32_t citov;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd4:19;
+	uint32_t cscn:1;
+	uint32_t bbscn:4;
+	uint32_t rsvd3:8;
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
+	uint32_t rsvd3:8;
+	uint32_t bbscn:4;
+	uint32_t cscn:1;
+	uint32_t rsvd4:19;
+#endif
+
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rrq_enable:1;
 	uint32_t rrq_immed:1;
-	uint32_t rsvd4:29;
+	uint32_t rsvd5:29;
 	uint32_t ack0_enable:1;
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 	uint32_t ack0_enable:1;
-	uint32_t rsvd4:29;
+	uint32_t rsvd5:29;
 	uint32_t rrq_immed:1;
 	uint32_t rrq_enable:1;
 #endif

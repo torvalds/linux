@@ -5,6 +5,8 @@
 
 #if !defined(__ASSEMBLY__)
 
+extern int parisc_narrow_firmware;
+
 extern int pdc_type;
 extern unsigned long parisc_cell_num; /* cell number the CPU runs on (PAT) */
 extern unsigned long parisc_cell_loc; /* cell location of CPU (PAT)	   */
@@ -278,6 +280,7 @@ void setup_pdc(void);		/* in inventory.c */
 /* wrapper-functions from pdc.c */
 
 int pdc_add_valid(unsigned long address);
+int pdc_instr(unsigned int *instr);
 int pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_info, unsigned long len);
 int pdc_chassis_disp(unsigned long disp);
 int pdc_chassis_warn(unsigned long *warn);

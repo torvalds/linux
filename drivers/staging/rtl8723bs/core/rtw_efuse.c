@@ -163,7 +163,7 @@ Efuse_CalculateWordCnts(u8 word_en)
 /* 	Description: */
 /* 		1. Execute E-Fuse read byte operation according as map offset and */
 /* 		    save to E-Fuse table. */
-/* 		2. Refered from SD1 Richard. */
+/* 		2. Referred from SD1 Richard. */
 /*  */
 /* 	Assumption: */
 /* 		1. Boot from E-Fuse and successfully auto-load. */

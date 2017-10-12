@@ -614,6 +614,7 @@ struct rsnd_kctrl_cfg {
 	struct rsnd_dai_stream *io;
 	struct snd_card *card;
 	struct snd_kcontrol *kctrl;
+	struct rsnd_mod *mod;
 };
 
 #define RSND_MAX_CHANNELS	8

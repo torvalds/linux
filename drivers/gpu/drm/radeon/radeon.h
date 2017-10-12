@@ -464,7 +464,7 @@ struct radeon_bo_list {
 	struct radeon_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	uint64_t			gpu_offset;
-	unsigned			prefered_domains;
+	unsigned			preferred_domains;
 	unsigned			allowed_domains;
 	uint32_t			tiling_flags;
 };
@@ -924,7 +924,7 @@ struct radeon_vm_id {
 struct radeon_vm {
 	struct mutex		mutex;
 
-	struct rb_root		va;
+	struct rb_root_cached	va;
 
 	/* protecting invalidated and freed */
 	spinlock_t		status_lock;
@@ -2327,7 +2327,7 @@ struct radeon_device {
 	uint8_t				*bios;
 	bool				is_atom_bios;
 	uint16_t			bios_header_start;
-	struct radeon_bo		*stollen_vga_memory;
+	struct radeon_bo		*stolen_vga_memory;
 	/* Register mmio */
 	resource_size_t			rmmio_base;
 	resource_size_t			rmmio_size;
