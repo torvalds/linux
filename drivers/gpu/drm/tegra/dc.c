@@ -1648,8 +1648,8 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 {
 	struct drm_device *drm = dc->base.dev;
 	struct drm_crtc *crtc = &dc->base;
-	unsigned long flags, base;
-	struct tegra_bo *bo;
+	u64 base = 0, phys = 0;
+	unsigned long flags;
 
 	spin_lock_irqsave(&drm->event_lock, flags);
 
@@ -1658,19 +1658,24 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 		return;
 	}
 
-	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
+	if (crtc->primary->fb) {
+		struct tegra_bo *bo = tegra_fb_get_plane(crtc->primary->fb, 0);
 
-	spin_lock(&dc->lock);
+		phys = bo->paddr + crtc->primary->fb->offsets[0];
 
-	/* check if new start address has been latched */
-	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
-	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
-	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
-	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
+		spin_lock(&dc->lock);
 
-	spin_unlock(&dc->lock);
+		/* check if new start address has been latched */
+		tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
+		tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
+		base = (u64)tegra_dc_readl(dc, DC_WINBUF_START_ADDR_HI) << 32;
+		base |= tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
+		tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
-	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
+		spin_unlock(&dc->lock);
+	}
+
+	if (base == phys) {
 		drm_crtc_send_vblank_event(crtc, dc->event);
 		drm_crtc_vblank_put(crtc);
 		dc->event = NULL;

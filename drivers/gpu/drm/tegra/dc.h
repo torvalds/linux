@@ -579,6 +579,8 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_WINBUF_SURFACE_KIND_BLOCK	(2 << 0)
 #define DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(x) (((x) & 0x7) << 4)
 
+#define DC_WINBUF_START_ADDR_HI			0x80d
+
 #define DC_WINBUF_AD_UFLOW_STATUS		0xbca
 #define DC_WINBUF_BD_UFLOW_STATUS		0xdca
 #define DC_WINBUF_CD_UFLOW_STATUS		0xfca
