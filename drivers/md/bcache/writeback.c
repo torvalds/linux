@@ -52,7 +52,8 @@ static void __update_writeback_rate(struct cached_dev *dc)
 	int64_t error = dirty - target;
 	int64_t proportional_scaled =
 		div_s64(error, dc->writeback_rate_p_term_inverse);
-	int64_t integral_scaled, new_rate;
+	int64_t integral_scaled;
+	uint32_t new_rate;
 
 	if ((error < 0 && dc->writeback_rate_integral > 0) ||
 	    (error > 0 && time_before64(local_clock(),
@@ -74,8 +75,8 @@ static void __update_writeback_rate(struct cached_dev *dc)
 	integral_scaled = div_s64(dc->writeback_rate_integral,
 			dc->writeback_rate_i_term_inverse);
 
-	new_rate = clamp_t(int64_t, (proportional_scaled + integral_scaled),
-			dc->writeback_rate_minimum, NSEC_PER_MSEC);
+	new_rate = clamp_t(int32_t, (proportional_scaled + integral_scaled),
+			dc->writeback_rate_minimum, NSEC_PER_SEC);
 
 	dc->writeback_rate_proportional = proportional_scaled;
 	dc->writeback_rate_integral_scaled = integral_scaled;

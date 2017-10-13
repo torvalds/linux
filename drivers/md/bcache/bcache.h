@@ -361,7 +361,7 @@ struct cached_dev {
 	int64_t			writeback_rate_proportional;
 	int64_t			writeback_rate_integral;
 	int64_t			writeback_rate_integral_scaled;
-	int64_t			writeback_rate_change;
+	int32_t			writeback_rate_change;
 
 	unsigned		writeback_rate_update_seconds;
 	unsigned		writeback_rate_i_term_inverse;
