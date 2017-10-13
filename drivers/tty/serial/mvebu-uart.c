@@ -322,6 +322,12 @@ static int mvebu_uart_startup(struct uart_port *port)
 	writel(CTRL_TXFIFO_RST | CTRL_RXFIFO_RST,
 	       port->membase + UART_CTRL(port));
 	udelay(1);
+
+	/* Clear the error bits of state register before IRQ request */
+	ret = readl(port->membase + UART_STAT);
+	ret |= STAT_BRK_ERR;
+	writel(ret, port->membase + UART_STAT);
+
 	writel(CTRL_BRK_INT, port->membase + UART_CTRL(port));
 
 	ctl = readl(port->membase + UART_INTR(port));
