@@ -413,10 +413,22 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 	if (!tipc_group_is_receiver(m))
 		goto drop;
 
+	m->bc_rcv_nxt = msg_grp_bc_seqno(hdr) + 1;
+
+	/* Drop multicast here if not for this member */
+	if (mtyp == TIPC_GRP_MCAST_MSG) {
+		if (msg_nameinst(hdr) != grp->instance) {
+			m->bc_rcv_nxt = msg_grp_bc_seqno(hdr) + 1;
+			tipc_group_update_rcv_win(grp, msg_blocks(hdr),
+						  node, port, xmitq);
+			kfree_skb(skb);
+			return;
+		}
+	}
+
 	TIPC_SKB_CB(skb)->orig_member = m->instance;
 	__skb_queue_tail(inputq, skb);
 
-	m->bc_rcv_nxt = msg_grp_bc_seqno(hdr) + 1;
 	return;
 drop:
 	kfree_skb(skb);

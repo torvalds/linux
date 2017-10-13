@@ -999,6 +999,7 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 				 int dlen, long timeout)
 {
+	DECLARE_SOCKADDR(struct sockaddr_tipc *, dest, m->msg_name);
 	struct sock *sk = sock->sk;
 	struct net *net = sock_net(sk);
 	struct tipc_sock *tsk = tipc_sk(sk);
@@ -1021,11 +1022,16 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 		return rc;
 
 	/* Complete message header */
-	msg_set_type(hdr, TIPC_GRP_BCAST_MSG);
+	if (dest) {
+		msg_set_type(hdr, TIPC_GRP_MCAST_MSG);
+		msg_set_nameinst(hdr, dest->addr.name.name.instance);
+	} else {
+		msg_set_type(hdr, TIPC_GRP_BCAST_MSG);
+		msg_set_nameinst(hdr, 0);
+	}
 	msg_set_hdr_sz(hdr, GROUP_H_SIZE);
 	msg_set_destport(hdr, 0);
 	msg_set_destnode(hdr, 0);
-	msg_set_nameinst(hdr, 0);
 	msg_set_grp_bc_seqno(hdr, tipc_group_bc_snd_nxt(grp));
 
 	/* Build message as chain of buffers */
@@ -1043,6 +1049,48 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	/* Update broadcast sequence number and send windows */
 	tipc_group_update_bc_members(tsk->group, blks);
 	return dlen;
+}
+
+/**
+ * tipc_send_group_mcast - send message to all members with given identity
+ * @sock: socket structure
+ * @m: message to send
+ * @dlen: total length of message data
+ * @timeout: timeout to wait for wakeup
+ *
+ * Called from function tipc_sendmsg(), which has done all sanity checks
+ * Returns the number of bytes sent on success, or errno
+ */
+static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
+				 int dlen, long timeout)
+{
+	struct sock *sk = sock->sk;
+	DECLARE_SOCKADDR(struct sockaddr_tipc *, dest, m->msg_name);
+	struct tipc_name_seq *seq = &dest->addr.nameseq;
+	struct tipc_sock *tsk = tipc_sk(sk);
+	struct tipc_group *grp = tsk->group;
+	struct net *net = sock_net(sk);
+	u32 domain, exclude, dstcnt;
+	struct list_head dsts;
+
+	INIT_LIST_HEAD(&dsts);
+
+	if (seq->lower != seq->upper)
+		return -ENOTSUPP;
+
+	domain = addr_domain(net, dest->scope);
+	exclude = tipc_group_exclude(grp);
+	if (!tipc_nametbl_lookup(net, seq->type, seq->lower, domain,
+				 &dsts, &dstcnt, exclude, true))
+		return -EHOSTUNREACH;
+
+	if (dstcnt == 1) {
+		tipc_dest_pop(&dsts, &dest->addr.id.node, &dest->addr.id.ref);
+		return tipc_send_group_unicast(sock, m, dlen, timeout);
+	}
+
+	tipc_dest_list_purge(&dsts);
+	return tipc_send_group_bcast(sock, m, dlen, timeout);
 }
 
 /**
@@ -1213,6 +1261,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 			return tipc_send_group_anycast(sock, m, dlen, timeout);
 		if (dest->addrtype == TIPC_ADDR_ID)
 			return tipc_send_group_unicast(sock, m, dlen, timeout);
+		if (dest->addrtype == TIPC_ADDR_MCAST)
+			return tipc_send_group_mcast(sock, m, dlen, timeout);
 		return -EINVAL;
 	}
 
@@ -2022,8 +2072,6 @@ static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
 
 	if (unlikely(!msg_isdata(hdr)))
 		tipc_sk_proto_rcv(sk, &inputq, xmitq);
-	else if (unlikely(msg_type(hdr) > TIPC_GRP_UCAST_MSG))
-		return kfree_skb(skb);
 
 	if (unlikely(grp))
 		tipc_group_filter_msg(grp, &inputq, xmitq);

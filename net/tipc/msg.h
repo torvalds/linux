@@ -67,7 +67,8 @@ struct plist;
 #define TIPC_DIRECT_MSG         3
 #define TIPC_GRP_MEMBER_EVT     4
 #define TIPC_GRP_BCAST_MSG      5
-#define TIPC_GRP_UCAST_MSG      6
+#define TIPC_GRP_MCAST_MSG      6
+#define TIPC_GRP_UCAST_MSG      7
 
 /*
  * Internal message users
@@ -195,6 +196,11 @@ static inline u32 msg_size(struct tipc_msg *m)
 	return msg_bits(m, 0, 0, 0x1ffff);
 }
 
+static inline u32 msg_blocks(struct tipc_msg *m)
+{
+	return (msg_size(m) / 1024) + 1;
+}
+
 static inline u32 msg_data_sz(struct tipc_msg *m)
 {
 	return msg_size(m) - msg_hdr_sz(m);
@@ -279,7 +285,8 @@ static inline u32 msg_mcast(struct tipc_msg *m)
 {
 	int mtyp = msg_type(m);
 
-	return ((mtyp == TIPC_MCAST_MSG) || (mtyp == TIPC_GRP_BCAST_MSG));
+	return ((mtyp == TIPC_MCAST_MSG) || (mtyp == TIPC_GRP_BCAST_MSG) ||
+		(mtyp == TIPC_GRP_MCAST_MSG));
 }
 
 static inline u32 msg_connected(struct tipc_msg *m)
