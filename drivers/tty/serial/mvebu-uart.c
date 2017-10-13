@@ -547,20 +547,36 @@ static struct uart_driver mvebu_uart_driver = {
 #endif
 };
 
+/* Counter to keep track of each UART port id when not using CONFIG_OF */
+static int uart_num_counter;
+
 static int mvebu_uart_probe(struct platform_device *pdev)
 {
 	struct resource *reg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct uart_port *port;
 	struct mvebu_uart_data *data;
-	int ret;
+	int ret, id;
 
 	if (!reg || !irq) {
 		dev_err(&pdev->dev, "no registers/irq defined\n");
 		return -EINVAL;
 	}
 
-	port = &mvebu_uart_ports[0];
+	/* Assume that all UART ports have a DT alias or none has */
+	id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (!pdev->dev.of_node || id < 0)
+		pdev->id = uart_num_counter++;
+	else
+		pdev->id = id;
+
+	if (pdev->id >= MVEBU_NR_UARTS) {
+		dev_err(&pdev->dev, "cannot have more than %d UART ports\n",
+			MVEBU_NR_UARTS);
+		return -EINVAL;
+	}
+
+	port = &mvebu_uart_ports[pdev->id];
 
 	spin_lock_init(&port->lock);
 
@@ -572,7 +588,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	port->fifosize   = 32;
 	port->iotype     = UPIO_MEM32;
 	port->flags      = UPF_FIXED_PORT;
-	port->line       = 0; /* single port: force line number to  0 */
+	port->line       = pdev->id;
 
 	port->irq        = irq->start;
 	port->irqflags   = 0;
