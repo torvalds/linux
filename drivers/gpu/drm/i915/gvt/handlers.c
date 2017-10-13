@@ -1638,7 +1638,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_DFH(RING_TAIL, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_RING_DFH(RING_HEAD, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_RING_DFH(RING_CTL, D_ALL, F_CMD_ACCESS, NULL, NULL);
-	MMIO_RING_DFH(RING_ACTHD, D_ALL, F_CMD_ACCESS, NULL, NULL);
+	MMIO_RING_DFH(RING_ACTHD, D_ALL, F_CMD_ACCESS, mmio_read_from_hw, NULL);
 	MMIO_RING_GM_RDR(RING_START, D_ALL, NULL, NULL);
 
 	/* RING MODE */
@@ -2463,7 +2463,8 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(GEN8_MASTER_IRQ, D_BDW_PLUS, NULL,
 		intel_vgpu_reg_master_irq_handler);
 
-	MMIO_RING_DFH(RING_ACTHD_UDW, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
+	MMIO_RING_DFH(RING_ACTHD_UDW, D_BDW_PLUS, F_CMD_ACCESS,
+		mmio_read_from_hw, NULL);
 
 #define RING_REG(base) (base + 0xd0)
 	MMIO_RING_F(RING_REG, 4, F_RO, 0,
