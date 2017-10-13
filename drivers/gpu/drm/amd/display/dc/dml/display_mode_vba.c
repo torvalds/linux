@@ -3463,7 +3463,7 @@ bool Calculate256BBlockSizes(
 		unsigned int *BlockWidth256BytesC)
 {
 	if ((SourcePixelFormat == dm_444_64 || SourcePixelFormat == dm_444_32
-			|| SourcePixelFormat == dm_444_16 || SourcePixelFormat == dm_444_16
+			|| SourcePixelFormat == dm_444_16
 			|| SourcePixelFormat == dm_444_8)) {
 		if (SurfaceTiling == dm_sw_linear) {
 			*BlockHeight256BytesY = 1;
