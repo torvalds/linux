@@ -508,6 +508,9 @@ static int pblk_lines_configure(struct pblk *pblk, int flags)
 		}
 	}
 
+	/* Free full lines directly as GC has not been started yet */
+	pblk_gc_free_full_lines(pblk);
+
 	if (!line) {
 		/* Configure next line for user data */
 		line = pblk_line_get_first_data(pblk);

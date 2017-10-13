@@ -330,26 +330,16 @@ static bool pblk_gc_should_run(struct pblk_gc *gc, struct pblk_rl *rl)
 	return ((gc->gc_active) && (nr_blocks_need > nr_blocks_free));
 }
 
-/*
- * Lines with no valid sectors will be returned to the free list immediately. If
- * GC is activated - either because the free block count is under the determined
- * threshold, or because it is being forced from user space - only lines with a
- * high count of invalid sectors will be recycled.
- */
-static void pblk_gc_run(struct pblk *pblk)
+void pblk_gc_free_full_lines(struct pblk *pblk)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
-	struct pblk_gc *gc = &pblk->gc;
 	struct pblk_line *line;
-	struct list_head *group_list;
-	bool run_gc;
-	int inflight_gc, gc_group = 0, prev_group = 0;
 
 	do {
 		spin_lock(&l_mg->gc_lock);
 		if (list_empty(&l_mg->gc_full_list)) {
 			spin_unlock(&l_mg->gc_lock);
-			break;
+			return;
 		}
 
 		line = list_first_entry(&l_mg->gc_full_list,
@@ -365,6 +355,24 @@ static void pblk_gc_run(struct pblk *pblk)
 
 		kref_put(&line->ref, pblk_line_put);
 	} while (1);
+}
+
+/*
+ * Lines with no valid sectors will be returned to the free list immediately. If
+ * GC is activated - either because the free block count is under the determined
+ * threshold, or because it is being forced from user space - only lines with a
+ * high count of invalid sectors will be recycled.
+ */
+static void pblk_gc_run(struct pblk *pblk)
+{
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_gc *gc = &pblk->gc;
+	struct pblk_line *line;
+	struct list_head *group_list;
+	bool run_gc;
+	int inflight_gc, gc_group = 0, prev_group = 0;
+
+	pblk_gc_free_full_lines(pblk);
 
 	run_gc = pblk_gc_should_run(&pblk->gc, &pblk->rl);
 	if (!run_gc || (atomic_read(&gc->inflight_gc) >= PBLK_GC_L_QD))
