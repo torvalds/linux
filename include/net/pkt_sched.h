@@ -4,7 +4,9 @@
 #include <linux/jiffies.h>
 #include <linux/ktime.h>
 #include <linux/if_vlan.h>
+#include <linux/netdevice.h>
 #include <net/sch_generic.h>
+#include <net/net_namespace.h>
 #include <uapi/linux/pkt_sched.h>
 
 #define DEFAULT_TX_QUEUE_LEN	1000
@@ -144,6 +146,11 @@ static inline bool is_classid_clsact_egress(u32 classid)
 {
 	return TC_H_MAJ(classid) == TC_H_MAJ(TC_H_CLSACT) &&
 	       TC_H_MIN(classid) == TC_H_MIN(TC_H_MIN_EGRESS);
+}
+
+static inline struct net *qdisc_net(struct Qdisc *q)
+{
+	return dev_net(q->dev_queue->dev);
 }
 
 #endif

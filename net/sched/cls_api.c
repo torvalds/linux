@@ -257,6 +257,7 @@ int tcf_block_get(struct tcf_block **p_block,
 		goto err_chain_create;
 	}
 	tcf_chain_filter_chain_ptr_set(chain, p_filter_chain);
+	block->net = qdisc_net(q);
 	block->q = q;
 	*p_block = block;
 	return 0;
