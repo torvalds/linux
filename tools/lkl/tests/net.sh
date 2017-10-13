@@ -1,4 +1,6 @@
-#!/bin/bash -e
+#!/bin/bash
+
+set -e
 
 # currently not supported mingw
 if [ "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" != "y" ] ; then
@@ -81,7 +83,8 @@ if ! [ -z $DST ]; then
     ${SUDO} ip link set dev ${IFNAME} promisc off
 
     echo "== macvtap (LKL net) tests =="
-    ${SUDO} ip link add link ${IFNAME} name lkl_vtap0 type macvtap mode passthru
+    ${SUDO} ip link add link ${IFNAME} name lkl_vtap0 \
+	    type macvtap mode passthru || true
     if ls /dev/tap* > /dev/null 2>&1 ; then
 	${SUDO} ip link set dev lkl_vtap0 up
 	${SUDO} chown ${USER} `ls /dev/tap*`
