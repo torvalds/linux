@@ -1513,6 +1513,7 @@ struct i915_gem_mm {
 	 */
 	struct llist_head free_list;
 	struct work_struct free_work;
+	spinlock_t free_lock;
 
 	/**
 	 * Small stash of WC pages

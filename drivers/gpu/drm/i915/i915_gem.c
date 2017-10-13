@@ -4555,9 +4555,18 @@ static void i915_gem_flush_free_objects(struct drm_i915_private *i915)
 {
 	struct llist_node *freed;
 
-	freed = llist_del_all(&i915->mm.free_list);
-	if (unlikely(freed))
+	/* Free the oldest, most stale object to keep the free_list short */
+	freed = NULL;
+	if (!llist_empty(&i915->mm.free_list)) { /* quick test for hotpath */
+		/* Only one consumer of llist_del_first() allowed */
+		spin_lock(&i915->mm.free_lock);
+		freed = llist_del_first(&i915->mm.free_list);
+		spin_unlock(&i915->mm.free_lock);
+	}
+	if (unlikely(freed)) {
+		freed->next = NULL;
 		__i915_gem_free_objects(i915, freed);
+	}
 }
 
 static void __i915_gem_free_work(struct work_struct *work)
@@ -5059,6 +5068,7 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
 
 	spin_lock_init(&dev_priv->mm.obj_lock);
+	spin_lock_init(&dev_priv->mm.free_lock);
 	init_llist_head(&dev_priv->mm.free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
