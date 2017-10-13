@@ -932,6 +932,19 @@ static int mv88e6xxx_irl_setup(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+static int mv88e6xxx_mac_setup(struct mv88e6xxx_chip *chip)
+{
+	if (chip->info->ops->set_switch_mac) {
+		u8 addr[ETH_ALEN];
+
+		eth_random_addr(addr);
+
+		return chip->info->ops->set_switch_mac(chip, addr);
+	}
+
+	return 0;
+}
+
 static int mv88e6xxx_pvt_map(struct mv88e6xxx_chip *chip, int dev, int port)
 {
 	u16 pvlan = 0;
@@ -2013,6 +2026,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	if (err)
 		goto unlock;
 
+	err = mv88e6xxx_mac_setup(chip);
+	if (err)
+		goto unlock;
+
 	err = mv88e6xxx_phy_setup(chip);
 	if (err)
 		goto unlock;
@@ -2038,21 +2055,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		goto unlock;
 
 unlock:
-	mutex_unlock(&chip->reg_lock);
-
-	return err;
-}
-
-static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	int err;
-
-	if (!chip->info->ops->set_switch_mac)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&chip->reg_lock);
-	err = chip->info->ops->set_switch_mac(chip, addr);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -3785,7 +3787,6 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.probe			= mv88e6xxx_drv_probe,
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
-	.set_addr		= mv88e6xxx_set_addr,
 	.adjust_link		= mv88e6xxx_adjust_link,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
