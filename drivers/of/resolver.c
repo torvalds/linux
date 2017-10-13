@@ -84,10 +84,9 @@ static int update_usages_of_a_phandle_reference(struct device_node *overlay,
 	int offset, len;
 	int err = 0;
 
-	value = kmalloc(prop_fixup->length, GFP_KERNEL);
+	value = kmemdup(prop_fixup->value, prop_fixup->length, GFP_KERNEL);
 	if (!value)
 		return -ENOMEM;
-	memcpy(value, prop_fixup->value, prop_fixup->length);
 
 	/* prop_fixup contains a list of tuples of path:property_name:offset */
 	end = value + prop_fixup->length;
