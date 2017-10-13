@@ -532,7 +532,7 @@ void perf_hpp_list__prepend_sort_field(struct perf_hpp_list *list,
 
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 {
-	list_del(&format->list);
+	list_del_init(&format->list);
 }
 
 void perf_hpp__cancel_cumulate(void)
