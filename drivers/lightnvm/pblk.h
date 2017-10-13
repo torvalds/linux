@@ -618,7 +618,7 @@ struct pblk {
 
 	struct list_head compl_list;
 
-	mempool_t *page_pool;
+	mempool_t *page_bio_pool;
 	mempool_t *line_ws_pool;
 	mempool_t *rec_pool;
 	mempool_t *g_rq_pool;
