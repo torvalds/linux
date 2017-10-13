@@ -1801,12 +1801,14 @@ typedef int (*entry_fn_t)(struct vgic_its *its, u32 id, void *entry,
 static int scan_its_table(struct vgic_its *its, gpa_t base, int size, int esz,
 			  int start_id, entry_fn_t fn, void *opaque)
 {
-	void *entry = kzalloc(esz, GFP_KERNEL);
 	struct kvm *kvm = its->dev->kvm;
 	unsigned long len = size;
 	int id = start_id;
 	gpa_t gpa = base;
+	char entry[esz];
 	int ret;
+
+	memset(entry, 0, esz);
 
 	while (len > 0) {
 		int next_offset;
@@ -1814,24 +1816,18 @@ static int scan_its_table(struct vgic_its *its, gpa_t base, int size, int esz,
 
 		ret = kvm_read_guest(kvm, gpa, entry, esz);
 		if (ret)
-			goto out;
+			return ret;
 
 		next_offset = fn(its, id, entry, opaque);
-		if (next_offset <= 0) {
-			ret = next_offset;
-			goto out;
-		}
+		if (next_offset <= 0)
+			return next_offset;
 
 		byte_offset = next_offset * esz;
 		id += next_offset;
 		gpa += byte_offset;
 		len -= byte_offset;
 	}
-	ret =  1;
-
-out:
-	kfree(entry);
-	return ret;
+	return 1;
 }
 
 /**
