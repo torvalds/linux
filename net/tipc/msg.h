@@ -78,6 +78,7 @@ struct plist;
 #define  MSG_FRAGMENTER       12
 #define  LINK_CONFIG          13
 #define  SOCK_WAKEUP          14       /* pseudo user */
+#define  TOP_SRV              15       /* pseudo user */
 
 /*
  * Message header sizes

@@ -896,6 +896,10 @@ exit:
 	kfree_skb(skb);
 }
 
+static void tipc_sk_top_evt(struct tipc_sock *tsk, struct tipc_event *evt)
+{
+}
+
 /**
  * tipc_sendmsg - send message in connectionless manner
  * @sock: socket structure
@@ -1671,20 +1675,24 @@ static bool filter_rcv(struct sock *sk, struct sk_buff *skb,
 	struct tipc_msg *hdr = buf_msg(skb);
 	unsigned int limit = rcvbuf_limit(sk, skb);
 	int err = TIPC_OK;
-	int usr = msg_user(hdr);
-	u32 onode;
 
-	if (unlikely(msg_user(hdr) == CONN_MANAGER)) {
-		tipc_sk_proto_rcv(tsk, skb, xmitq);
-		return false;
-	}
-
-	if (unlikely(usr == SOCK_WAKEUP)) {
-		onode = msg_orignode(hdr);
+	if (unlikely(!msg_isdata(hdr))) {
+		switch (msg_user(hdr)) {
+		case CONN_MANAGER:
+			tipc_sk_proto_rcv(tsk, skb, xmitq);
+			return false;
+		case SOCK_WAKEUP:
+			u32_del(&tsk->cong_links, msg_orignode(hdr));
+			tsk->cong_link_cnt--;
+			sk->sk_write_space(sk);
+			break;
+		case TOP_SRV:
+			tipc_sk_top_evt(tsk, (void *)msg_data(hdr));
+			break;
+		default:
+			break;
+		}
 		kfree_skb(skb);
-		u32_del(&tsk->cong_links, onode);
-		tsk->cong_link_cnt--;
-		sk->sk_write_space(sk);
 		return false;
 	}
 
