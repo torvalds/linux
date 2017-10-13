@@ -856,6 +856,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
+
 	/* Taps calculations */
 	if (pipe_ctx->plane_res.xfm != NULL)
 		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
@@ -864,16 +865,21 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.dpp != NULL)
 		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
 				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
-
 	if (!res) {
 		/* Try 24 bpp linebuffer */
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_24BPP;
 
-		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
-			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+		if (pipe_ctx->plane_res.xfm != NULL)
+			res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
+					pipe_ctx->plane_res.xfm,
+					&pipe_ctx->plane_res.scl_data,
+					&plane_state->scaling_quality);
 
-		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
-			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+		if (pipe_ctx->plane_res.dpp != NULL)
+			res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
+					pipe_ctx->plane_res.dpp,
+					&pipe_ctx->plane_res.scl_data,
+					&plane_state->scaling_quality);
 	}
 
 	if (res)
