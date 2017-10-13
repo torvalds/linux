@@ -526,7 +526,7 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	dc->writeback_percent		= 10;
 	dc->writeback_delay		= 30;
 	dc->writeback_rate.rate		= 1024;
-	dc->writeback_rate_minimum	= 1;
+	dc->writeback_rate_minimum	= 8;
 
 	dc->writeback_rate_update_seconds = 5;
 	dc->writeback_rate_p_term_inverse = 40;
