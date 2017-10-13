@@ -63,7 +63,6 @@
 /* IO virtual address start page frame number */
 #define IOVA_START_PFN		(1)
 #define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
-#define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
 
 /* Reserved IOVA ranges */
 #define MSI_RANGE_START		(0xfee00000)
@@ -1547,10 +1546,11 @@ static unsigned long dma_ops_alloc_iova(struct device *dev,
 
 	if (dma_mask > DMA_BIT_MASK(32))
 		pfn = alloc_iova_fast(&dma_dom->iovad, pages,
-				      IOVA_PFN(DMA_BIT_MASK(32)));
+				      IOVA_PFN(DMA_BIT_MASK(32)), false);
 
 	if (!pfn)
-		pfn = alloc_iova_fast(&dma_dom->iovad, pages, IOVA_PFN(dma_mask));
+		pfn = alloc_iova_fast(&dma_dom->iovad, pages,
+				      IOVA_PFN(dma_mask), true);
 
 	return (pfn << PAGE_SHIFT);
 }
@@ -1788,8 +1788,7 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 	if (!dma_dom->domain.pt_root)
 		goto free_dma_dom;
 
-	init_iova_domain(&dma_dom->iovad, PAGE_SIZE,
-			 IOVA_START_PFN, DMA_32BIT_PFN);
+	init_iova_domain(&dma_dom->iovad, PAGE_SIZE, IOVA_START_PFN);
 
 	if (init_iova_flush_queue(&dma_dom->iovad, iova_domain_flush_tlb, NULL))
 		goto free_dma_dom;
@@ -2696,8 +2695,7 @@ static int init_reserved_iova_ranges(void)
 	struct pci_dev *pdev = NULL;
 	struct iova *val;
 
-	init_iova_domain(&reserved_iova_ranges, PAGE_SIZE,
-			 IOVA_START_PFN, DMA_32BIT_PFN);
+	init_iova_domain(&reserved_iova_ranges, PAGE_SIZE, IOVA_START_PFN);
 
 	lockdep_set_class(&reserved_iova_ranges.iova_rbtree_lock,
 			  &reserved_rbtree_key);
@@ -3663,11 +3661,11 @@ out_unlock:
 	return table;
 }
 
-static int alloc_irq_index(u16 devid, int count)
+static int alloc_irq_index(u16 devid, int count, bool align)
 {
 	struct irq_remap_table *table;
+	int index, c, alignment = 1;
 	unsigned long flags;
-	int index, c;
 	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
 
 	if (!iommu)
@@ -3677,16 +3675,22 @@ static int alloc_irq_index(u16 devid, int count)
 	if (!table)
 		return -ENODEV;
 
+	if (align)
+		alignment = roundup_pow_of_two(count);
+
 	spin_lock_irqsave(&table->lock, flags);
 
 	/* Scan table for free entries */
-	for (c = 0, index = table->min_index;
+	for (index = ALIGN(table->min_index, alignment), c = 0;
 	     index < MAX_IRQS_PER_TABLE;
-	     ++index) {
-		if (!iommu->irte_ops->is_allocated(table, index))
+	     index++) {
+		if (!iommu->irte_ops->is_allocated(table, index)) {
 			c += 1;
-		else
-			c = 0;
+		} else {
+			c     = 0;
+			index = ALIGN(index, alignment);
+			continue;
+		}
 
 		if (c == count)	{
 			for (; c != 0; --c)
@@ -4099,7 +4103,9 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 		else
 			ret = -ENOMEM;
 	} else {
-		index = alloc_irq_index(devid, nr_irqs);
+		bool align = (info->type == X86_IRQ_ALLOC_TYPE_MSI);
+
+		index = alloc_irq_index(devid, nr_irqs, align);
 	}
 	if (index < 0) {
 		pr_warn("Failed to allocate IRTE\n");
