@@ -355,7 +355,6 @@ static int pblk_rb_sync_point_set(struct pblk_rb *rb, struct bio *bio,
 {
 	struct pblk_rb_entry *entry;
 	unsigned int subm, sync_point;
-	int flags;
 
 	subm = READ_ONCE(rb->subm);
 
@@ -368,12 +367,6 @@ static int pblk_rb_sync_point_set(struct pblk_rb *rb, struct bio *bio,
 
 	sync_point = (pos == 0) ? (rb->nr_entries - 1) : (pos - 1);
 	entry = &rb->entries[sync_point];
-
-	flags = READ_ONCE(entry->w_ctx.flags);
-	flags |= PBLK_FLUSH_ENTRY;
-
-	/* Release flags on context. Protect from writes */
-	smp_store_release(&entry->w_ctx.flags, flags);
 
 	/* Protect syncs */
 	smp_store_release(&rb->sync_point, sync_point);
@@ -454,6 +447,7 @@ static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 
 	/* Protect from read count */
 	smp_store_release(&rb->mem, mem);
+
 	return 1;
 }
 

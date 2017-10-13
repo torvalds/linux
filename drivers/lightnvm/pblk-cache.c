@@ -43,8 +43,10 @@ retry:
 	if (unlikely(!bio_has_data(bio)))
 		goto out;
 
-	w_ctx.flags = flags;
 	pblk_ppa_set_empty(&w_ctx.ppa);
+	w_ctx.flags = flags;
+	if (bio->bi_opf & REQ_PREFLUSH)
+		w_ctx.flags |= PBLK_FLUSH_ENTRY;
 
 	for (i = 0; i < nr_entries; i++) {
 		void *data = bio_data(bio);
