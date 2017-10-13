@@ -5457,7 +5457,7 @@ F:	include/uapi/linux/fb.h
 
 FREESCALE CAAM (Cryptographic Acceleration and Assurance Module) DRIVER
 M:	Horia Geantă <horia.geanta@nxp.com>
-M:	Dan Douglass <dan.douglass@nxp.com>
+M:	Aymen Sghaier <aymen.sghaier@nxp.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	drivers/crypto/caam/
