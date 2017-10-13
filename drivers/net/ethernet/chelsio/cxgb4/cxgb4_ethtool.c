@@ -336,10 +336,10 @@ static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
 	memset(s, 0, sizeof(*s));
 
 	spin_lock(&adap->stats_lock);
-	t4_tp_get_tcp_stats(adap, &v4, &v6);
-	t4_tp_get_rdma_stats(adap, &rdma_stats);
-	t4_get_usm_stats(adap, &usm_stats);
-	t4_tp_get_err_stats(adap, &err_stats);
+	t4_tp_get_tcp_stats(adap, &v4, &v6, false);
+	t4_tp_get_rdma_stats(adap, &rdma_stats, false);
+	t4_get_usm_stats(adap, &usm_stats, false);
+	t4_tp_get_err_stats(adap, &err_stats, false);
 	spin_unlock(&adap->stats_lock);
 
 	s->db_drop = adap->db_stats.db_drop;
@@ -389,9 +389,9 @@ static void collect_channel_stats(struct adapter *adap, struct channel_stats *s,
 	memset(s, 0, sizeof(*s));
 
 	spin_lock(&adap->stats_lock);
-	t4_tp_get_cpl_stats(adap, &cpl_stats);
-	t4_tp_get_err_stats(adap, &err_stats);
-	t4_get_fcoe_stats(adap, i, &fcoe_stats);
+	t4_tp_get_cpl_stats(adap, &cpl_stats, false);
+	t4_tp_get_err_stats(adap, &err_stats, false);
+	t4_get_fcoe_stats(adap, i, &fcoe_stats, false);
 	spin_unlock(&adap->stats_lock);
 
 	s->cpl_req = cpl_stats.req[i];
