@@ -678,8 +678,8 @@ static int pblk_lines_init(struct pblk *pblk)
 	lm->blk_bitmap_len = BITS_TO_LONGS(geo->nr_luns) * sizeof(long);
 	lm->sec_bitmap_len = BITS_TO_LONGS(lm->sec_per_line) * sizeof(long);
 	lm->lun_bitmap_len = BITS_TO_LONGS(geo->nr_luns) * sizeof(long);
-	lm->high_thrs = lm->sec_per_line / 2;
-	lm->mid_thrs = lm->sec_per_line / 4;
+	lm->mid_thrs = lm->sec_per_line / 2;
+	lm->high_thrs = lm->sec_per_line / 4;
 	lm->meta_distance = (geo->nr_luns / 2) * pblk->min_write_pgs;
 
 	/* Calculate necessary pages for smeta. See comment over struct
