@@ -1911,28 +1911,27 @@ static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 	int previous;
 	int res = 0;
 
+	if (destlen != sizeof(struct sockaddr_tipc))
+		return -EINVAL;
+
 	lock_sock(sk);
+
+	if (dst->family == AF_UNSPEC) {
+		memset(&tsk->peer, 0, sizeof(struct sockaddr_tipc));
+		if (!tipc_sk_type_connectionless(sk))
+			res = -EINVAL;
+		goto exit;
+	} else if (dst->family != AF_TIPC) {
+		res = -EINVAL;
+	}
+	if (dst->addrtype != TIPC_ADDR_ID && dst->addrtype != TIPC_ADDR_NAME)
+		res = -EINVAL;
+	if (res)
+		goto exit;
 
 	/* DGRAM/RDM connect(), just save the destaddr */
 	if (tipc_sk_type_connectionless(sk)) {
-		if (dst->family == AF_UNSPEC) {
-			memset(&tsk->peer, 0, sizeof(struct sockaddr_tipc));
-		} else if (destlen != sizeof(struct sockaddr_tipc)) {
-			res = -EINVAL;
-		} else {
-			memcpy(&tsk->peer, dest, destlen);
-		}
-		goto exit;
-	}
-
-	/*
-	 * Reject connection attempt using multicast address
-	 *
-	 * Note: send_msg() validates the rest of the address fields,
-	 *       so there's no need to do it here
-	 */
-	if (dst->addrtype == TIPC_ADDR_MCAST) {
-		res = -EINVAL;
+		memcpy(&tsk->peer, dest, destlen);
 		goto exit;
 	}
 
