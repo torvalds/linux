@@ -1684,8 +1684,10 @@ enum dc_status resource_map_pool_resources(
 	/* acquire new resources */
 	pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	if (pipe_idx < 0)
 		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
+#endif
 
 	if (pipe_idx < 0)
 		return DC_NO_CONTROLLER_RESOURCE;
