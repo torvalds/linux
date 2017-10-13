@@ -96,7 +96,7 @@ unsigned long pblk_rl_nr_free_blks(struct pblk_rl *rl)
  *
  * Only the total number of free blocks is used to configure the rate limiter.
  */
-static void pblk_rl_update_rates(struct pblk_rl *rl)
+void pblk_rl_update_rates(struct pblk_rl *rl)
 {
 	struct pblk *pblk = container_of(rl, struct pblk, rl);
 	unsigned long free_blocks = pblk_rl_nr_free_blks(rl);

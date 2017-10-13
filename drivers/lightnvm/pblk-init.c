@@ -1025,6 +1025,10 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 			pblk->rwb.nr_entries);
 
 	wake_up_process(pblk->writer_ts);
+
+	/* Check if we need to start GC */
+	pblk_gc_should_kick(pblk);
+
 	return pblk;
 
 fail_stop_writer:

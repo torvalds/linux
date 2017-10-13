@@ -510,6 +510,11 @@ void pblk_gc_should_stop(struct pblk *pblk)
 		pblk_gc_stop(pblk, 0);
 }
 
+void pblk_gc_should_kick(struct pblk *pblk)
+{
+	pblk_rl_update_rates(&pblk->rl);
+}
+
 void pblk_gc_sysfs_state_show(struct pblk *pblk, int *gc_enabled,
 			      int *gc_active)
 {
