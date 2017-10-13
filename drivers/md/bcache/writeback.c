@@ -25,48 +25,62 @@ static void __update_writeback_rate(struct cached_dev *dc)
 				bcache_flash_devs_sectors_dirty(c);
 	uint64_t cache_dirty_target =
 		div_u64(cache_sectors * dc->writeback_percent, 100);
-
 	int64_t target = div64_u64(cache_dirty_target * bdev_sectors(dc->bdev),
 				   c->cached_dev_sectors);
 
-	/* PD controller */
-
+	/*
+	 * PI controller:
+	 * Figures out the amount that should be written per second.
+	 *
+	 * First, the error (number of sectors that are dirty beyond our
+	 * target) is calculated.  The error is accumulated (numerically
+	 * integrated).
+	 *
+	 * Then, the proportional value and integral value are scaled
+	 * based on configured values.  These are stored as inverses to
+	 * avoid fixed point math and to make configuration easy-- e.g.
+	 * the default value of 40 for writeback_rate_p_term_inverse
+	 * attempts to write at a rate that would retire all the dirty
+	 * blocks in 40 seconds.
+	 *
+	 * The writeback_rate_i_inverse value of 10000 means that 1/10000th
+	 * of the error is accumulated in the integral term per second.
+	 * This acts as a slow, long-term average that is not subject to
+	 * variations in usage like the p term.
+	 */
 	int64_t dirty = bcache_dev_sectors_dirty(&dc->disk);
-	int64_t derivative = dirty - dc->disk.sectors_dirty_last;
-	int64_t proportional = dirty - target;
-	int64_t change;
+	int64_t error = dirty - target;
+	int64_t proportional_scaled =
+		div_s64(error, dc->writeback_rate_p_term_inverse);
+	int64_t integral_scaled, new_rate;
 
-	dc->disk.sectors_dirty_last = dirty;
+	if ((error < 0 && dc->writeback_rate_integral > 0) ||
+	    (error > 0 && time_before64(local_clock(),
+			 dc->writeback_rate.next + NSEC_PER_MSEC))) {
+		/*
+		 * Only decrease the integral term if it's more than
+		 * zero.  Only increase the integral term if the device
+		 * is keeping up.  (Don't wind up the integral
+		 * ineffectively in either case).
+		 *
+		 * It's necessary to scale this by
+		 * writeback_rate_update_seconds to keep the integral
+		 * term dimensioned properly.
+		 */
+		dc->writeback_rate_integral += error *
+			dc->writeback_rate_update_seconds;
+	}
 
-	/* Scale to sectors per second */
+	integral_scaled = div_s64(dc->writeback_rate_integral,
+			dc->writeback_rate_i_term_inverse);
 
-	proportional *= dc->writeback_rate_update_seconds;
-	proportional = div_s64(proportional, dc->writeback_rate_p_term_inverse);
+	new_rate = clamp_t(int64_t, (proportional_scaled + integral_scaled),
+			dc->writeback_rate_minimum, NSEC_PER_MSEC);
 
-	derivative = div_s64(derivative, dc->writeback_rate_update_seconds);
-
-	derivative = ewma_add(dc->disk.sectors_dirty_derivative, derivative,
-			      (dc->writeback_rate_d_term /
-			       dc->writeback_rate_update_seconds) ?: 1, 0);
-
-	derivative *= dc->writeback_rate_d_term;
-	derivative = div_s64(derivative, dc->writeback_rate_p_term_inverse);
-
-	change = proportional + derivative;
-
-	/* Don't increase writeback rate if the device isn't keeping up */
-	if (change > 0 &&
-	    time_after64(local_clock(),
-			 dc->writeback_rate.next + NSEC_PER_MSEC))
-		change = 0;
-
-	dc->writeback_rate.rate =
-		clamp_t(int64_t, (int64_t) dc->writeback_rate.rate + change,
-			1, NSEC_PER_MSEC);
-
-	dc->writeback_rate_proportional = proportional;
-	dc->writeback_rate_derivative = derivative;
-	dc->writeback_rate_change = change;
+	dc->writeback_rate_proportional = proportional_scaled;
+	dc->writeback_rate_integral_scaled = integral_scaled;
+	dc->writeback_rate_change = new_rate - dc->writeback_rate.rate;
+	dc->writeback_rate.rate = new_rate;
 	dc->writeback_rate_target = target;
 }
 
@@ -499,8 +513,6 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 
 	bch_btree_map_keys(&op.op, d->c, &KEY(op.inode, 0, 0),
 			   sectors_dirty_init_fn, 0);
-
-	d->sectors_dirty_last = bcache_dev_sectors_dirty(d);
 }
 
 void bch_cached_dev_writeback_init(struct cached_dev *dc)
@@ -514,10 +526,11 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	dc->writeback_percent		= 10;
 	dc->writeback_delay		= 30;
 	dc->writeback_rate.rate		= 1024;
+	dc->writeback_rate_minimum	= 1;
 
 	dc->writeback_rate_update_seconds = 5;
-	dc->writeback_rate_d_term	= 30;
-	dc->writeback_rate_p_term_inverse = 6000;
+	dc->writeback_rate_p_term_inverse = 40;
+	dc->writeback_rate_i_term_inverse = 10000;
 
 	INIT_DELAYED_WORK(&dc->writeback_rate_update, update_writeback_rate);
 }
