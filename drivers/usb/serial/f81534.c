@@ -128,11 +128,13 @@ struct f81534_serial_private {
 
 struct f81534_port_private {
 	struct mutex mcr_mutex;
+	struct mutex lcr_mutex;
 	struct work_struct lsr_work;
 	struct usb_serial_port *port;
 	unsigned long tx_empty;
 	spinlock_t msr_lock;
 	u8 shadow_mcr;
+	u8 shadow_lcr;
 	u8 shadow_msr;
 	u8 phy_num;
 };
@@ -465,6 +467,7 @@ static u32 f81534_calc_baud_divisor(u32 baudrate, u32 clockrate)
 static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 					u8 lcr)
 {
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
 	u32 divisor;
 	int status;
 	u8 value;
@@ -493,35 +496,65 @@ static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 	}
 
 	divisor = f81534_calc_baud_divisor(baudrate, F81534_MAX_BAUDRATE);
+
+	mutex_lock(&port_priv->lcr_mutex);
+
 	value = UART_LCR_DLAB;
 	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
 						value);
 	if (status) {
 		dev_err(&port->dev, "%s: set LCR failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
 	value = divisor & 0xff;
 	status = f81534_set_port_register(port, F81534_DIVISOR_LSB_REG, value);
 	if (status) {
 		dev_err(&port->dev, "%s: set DLAB LSB failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
 	value = (divisor >> 8) & 0xff;
 	status = f81534_set_port_register(port, F81534_DIVISOR_MSB_REG, value);
 	if (status) {
 		dev_err(&port->dev, "%s: set DLAB MSB failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
-	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG, lcr);
+	value = lcr | (port_priv->shadow_lcr & UART_LCR_SBC);
+	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
+						value);
 	if (status) {
 		dev_err(&port->dev, "%s: set LCR failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
-	return 0;
+	port_priv->shadow_lcr = value;
+out_unlock:
+	mutex_unlock(&port_priv->lcr_mutex);
+
+	return status;
+}
+
+static void f81534_break_ctl(struct tty_struct *tty, int break_state)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
+	int status;
+
+	mutex_lock(&port_priv->lcr_mutex);
+
+	if (break_state)
+		port_priv->shadow_lcr |= UART_LCR_SBC;
+	else
+		port_priv->shadow_lcr &= ~UART_LCR_SBC;
+
+	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
+					port_priv->shadow_lcr);
+	if (status)
+		dev_err(&port->dev, "set break failed: %d\n", status);
+
+	mutex_unlock(&port_priv->lcr_mutex);
 }
 
 static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
@@ -1194,6 +1227,7 @@ static int f81534_port_probe(struct usb_serial_port *port)
 
 	spin_lock_init(&port_priv->msr_lock);
 	mutex_init(&port_priv->mcr_mutex);
+	mutex_init(&port_priv->lcr_mutex);
 	INIT_WORK(&port_priv->lsr_work, f81534_lsr_worker);
 
 	/* Assign logic-to-phy mapping */
@@ -1360,6 +1394,7 @@ static struct usb_serial_driver f81534_device = {
 	.attach =		f81534_attach,
 	.port_probe =		f81534_port_probe,
 	.port_remove =		f81534_port_remove,
+	.break_ctl =		f81534_break_ctl,
 	.dtr_rts =		f81534_dtr_rts,
 	.process_read_urb =	f81534_process_read_urb,
 	.ioctl =		f81534_ioctl,
