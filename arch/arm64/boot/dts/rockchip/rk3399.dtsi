@@ -1601,8 +1601,12 @@
 		compatible = "rockchip,rk3399-dw-hdmi";
 		reg = <0x0 0xff940000 0x0 0x20000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH 0>;
-		clocks = <&cru PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_SFR>, <&cru PLL_VPLL>, <&cru PCLK_VIO_GRF>;
-		clock-names = "iahb", "isfr", "vpll", "grf";
+		clocks = <&cru PCLK_HDMI_CTRL>,
+			 <&cru SCLK_HDMI_SFR>,
+			 <&cru PLL_VPLL>,
+			 <&cru PCLK_VIO_GRF>,
+			 <&cru SCLK_HDMI_CEC>;
+		clock-names = "iahb", "isfr", "vpll", "grf", "cec";
 		power-domains = <&power RK3399_PD_HDCP>;
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
