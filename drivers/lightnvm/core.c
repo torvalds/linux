@@ -390,7 +390,6 @@ static void __nvm_remove_target(struct nvm_target *t)
 static int nvm_remove_tgt(struct nvm_dev *dev, struct nvm_ioctl_remove *remove)
 {
 	struct nvm_target *t;
-	struct block_device *bdev;
 
 	mutex_lock(&dev->mlock);
 	t = nvm_find_target(dev, remove->tgtname);
@@ -398,19 +397,6 @@ static int nvm_remove_tgt(struct nvm_dev *dev, struct nvm_ioctl_remove *remove)
 		mutex_unlock(&dev->mlock);
 		return 1;
 	}
-	bdev = bdget_disk(t->disk, 0);
-	if (!bdev) {
-		pr_err("nvm: removal failed, allocating bd failed\n");
-		mutex_unlock(&dev->mlock);
-		return -ENOMEM;
-	}
-	if (bdev->bd_super || bdev->bd_part_count) {
-		pr_err("nvm: removal failed, block device busy\n");
-		bdput(bdev);
-		mutex_unlock(&dev->mlock);
-		return -EBUSY;
-	}
-	bdput(bdev);
 	__nvm_remove_target(t);
 	mutex_unlock(&dev->mlock);
 
