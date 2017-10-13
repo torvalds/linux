@@ -246,6 +246,27 @@
         ]
     },
     {
+        "id": "3edf",
+        "name": "Flush gact actions",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            "$TC actions add action reclassify index 101",
+            "$TC actions add action reclassify index 102",
+            "$TC actions add action reclassify index 103",
+            "$TC actions add action reclassify index 104",
+            "$TC actions add action reclassify index 105"
+        ],
+        "cmdUnderTest": "$TC actions flush action gact",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action reclassify",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
         "id": "63ec",
         "name": "Delete pass action",
         "category": [
@@ -464,6 +485,32 @@
         "verifyCmd": "$TC actions list action mirred",
         "matchPattern": "[Mirror|Redirect] to device lo",
         "matchCount": "2",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "58c3",
+        "name": "Flush mirred actions",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action mirred egress mirror index 1 dev lo",
+            "$TC actions add action mirred egress redirect index 2 dev lo"
+        ],
+        "cmdUnderTest": "$TC actions show action mirred",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "[Mirror|Redirect] to device lo",
+        "matchCount": "0",
         "teardown": [
             "$TC actions flush action mirred"
         ]
