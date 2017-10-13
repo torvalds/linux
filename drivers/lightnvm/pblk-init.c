@@ -914,7 +914,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	int ret;
 
 	if (dev->identity.dom & NVM_RSP_L2P) {
-		pr_err("pblk: device-side L2P table not supported. (%x)\n",
+		pr_err("pblk: host-side L2P table not supported. (%x)\n",
 							dev->identity.dom);
 		return ERR_PTR(-EINVAL);
 	}
