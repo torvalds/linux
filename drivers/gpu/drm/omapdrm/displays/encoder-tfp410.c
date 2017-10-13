@@ -173,7 +173,8 @@ static int tfp410_probe_of(struct platform_device *pdev)
 	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
 		ddata->pd_gpio = gpio;
 	} else {
-		dev_err(&pdev->dev, "failed to parse PD gpio\n");
+		if (gpio != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to parse PD gpio\n");
 		return gpio;
 	}
 
