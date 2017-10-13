@@ -492,7 +492,6 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 /* called during probe() after chip reset completes */
 static int xhci_mtk_setup(struct usb_hcd *hcd)
 {
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
 	int ret;
 
@@ -507,8 +506,6 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 		return ret;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		mtk->num_u3_ports = xhci->num_usb3_ports;
-		mtk->num_u2_ports = xhci->num_usb2_ports;
 		ret = xhci_mtk_sch_init(mtk);
 		if (ret)
 			return ret;
