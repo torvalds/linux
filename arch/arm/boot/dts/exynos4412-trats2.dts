@@ -40,7 +40,7 @@
 		stdout-path = &serial_2;
 	};
 
-	firmware@0204F000 {
+	firmware@204f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0204F000 0x1000>;
 	};
@@ -206,7 +206,7 @@
 		#size-cells = <0>;
 		status = "okay";
 
-		ak8975@0c {
+		ak8975@c {
 			compatible = "asahi-kasei,ak8975";
 			reg = <0x0c>;
 			gpios = <&gpj0 7 GPIO_ACTIVE_HIGH>;
@@ -587,7 +587,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	max77686: max77686_pmic@09 {
+	max77686: max77686_pmic@9 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 IRQ_TYPE_NONE>;

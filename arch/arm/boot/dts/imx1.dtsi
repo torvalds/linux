@@ -40,7 +40,7 @@
 		spi1 = &cspi2;
 	};
 
-	aitc: aitc-interrupt-controller@00223000 {
+	aitc: aitc-interrupt-controller@223000 {
 		compatible = "fsl,imx1-aitc", "fsl,avic";
 		interrupt-controller;
 		#interrupt-cells = <1>;
@@ -69,14 +69,14 @@
 		interrupt-parent = <&aitc>;
 		ranges;
 
-		aipi@00200000 {
+		aipi@200000 {
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x00200000 0x10000>;
 			ranges;
 
-			gpt1: timer@00202000 {
+			gpt1: timer@202000 {
 				compatible = "fsl,imx1-gpt";
 				reg = <0x00202000 0x1000>;
 				interrupts = <59>;
@@ -85,7 +85,7 @@
 				clock-names = "ipg", "per";
 			};
 
-			gpt2: timer@00203000 {
+			gpt2: timer@203000 {
 				compatible = "fsl,imx1-gpt";
 				reg = <0x00203000 0x1000>;
 				interrupts = <58>;
@@ -94,7 +94,7 @@
 				clock-names = "ipg", "per";
 			};
 
-			fb: fb@00205000 {
+			fb: fb@205000 {
 				compatible = "fsl,imx1-fb";
 				reg = <0x00205000 0x1000>;
 				interrupts = <14>;
@@ -105,7 +105,7 @@
 				status = "disabled";
 			};
 
-			uart1: serial@00206000 {
+			uart1: serial@206000 {
 				compatible = "fsl,imx1-uart";
 				reg = <0x00206000 0x1000>;
 				interrupts = <30 29 26>;
@@ -115,7 +115,7 @@
 				status = "disabled";
 			};
 
-			uart2: serial@00207000 {
+			uart2: serial@207000 {
 				compatible = "fsl,imx1-uart";
 				reg = <0x00207000 0x1000>;
 				interrupts = <24 23 20>;
@@ -125,7 +125,7 @@
 				status = "disabled";
 			};
 
-			pwm: pwm@00208000 {
+			pwm: pwm@208000 {
 				#pwm-cells = <2>;
 				compatible = "fsl,imx1-pwm";
 				reg = <0x00208000 0x1000>;
@@ -135,7 +135,7 @@
 				clock-names = "ipg", "per";
 			};
 
-			dma: dma@00209000 {
+			dma: dma@209000 {
 				compatible = "fsl,imx1-dma";
 				reg = <0x00209000 0x1000>;
 				interrupts = <61 60>;
@@ -145,7 +145,7 @@
 				#dma-cells = <1>;
 			};
 
-			uart3: serial@0020a000 {
+			uart3: serial@20a000 {
 				compatible = "fsl,imx1-uart";
 				reg = <0x0020a000 0x1000>;
 				interrupts = <54 4 1>;
@@ -156,14 +156,14 @@
 			};
 		};
 
-		aipi@00210000 {
+		aipi@210000 {
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x00210000 0x10000>;
 			ranges;
 
-			cspi1: cspi@00213000 {
+			cspi1: cspi@213000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx1-cspi";
@@ -175,7 +175,7 @@
 				status = "disabled";
 			};
 
-			i2c: i2c@00217000 {
+			i2c: i2c@217000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx1-i2c";
@@ -185,7 +185,7 @@
 				status = "disabled";
 			};
 
-			cspi2: cspi@00219000 {
+			cspi2: cspi@219000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx1-cspi";
@@ -197,20 +197,20 @@
 				status = "disabled";
 			};
 
-			clks: ccm@0021b000 {
+			clks: ccm@21b000 {
 				compatible = "fsl,imx1-ccm";
 				reg = <0x0021b000 0x1000>;
 				#clock-cells = <1>;
 			};
 
-			iomuxc: iomuxc@0021c000 {
+			iomuxc: iomuxc@21c000 {
 				compatible = "fsl,imx1-iomuxc";
 				reg = <0x0021c000 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges;
 
-				gpio1: gpio@0021c000 {
+				gpio1: gpio@21c000 {
 					compatible = "fsl,imx1-gpio";
 					reg = <0x0021c000 0x100>;
 					interrupts = <11>;
@@ -220,7 +220,7 @@
 					#interrupt-cells = <2>;
 				};
 
-				gpio2: gpio@0021c100 {
+				gpio2: gpio@21c100 {
 					compatible = "fsl,imx1-gpio";
 					reg = <0x0021c100 0x100>;
 					interrupts = <12>;
@@ -230,7 +230,7 @@
 					#interrupt-cells = <2>;
 				};
 
-				gpio3: gpio@0021c200 {
+				gpio3: gpio@21c200 {
 					compatible = "fsl,imx1-gpio";
 					reg = <0x0021c200 0x100>;
 					interrupts = <13>;
@@ -240,7 +240,7 @@
 					#interrupt-cells = <2>;
 				};
 
-				gpio4: gpio@0021c300 {
+				gpio4: gpio@21c300 {
 					compatible = "fsl,imx1-gpio";
 					reg = <0x0021c300 0x100>;
 					interrupts = <62>;
@@ -252,7 +252,7 @@
 			};
 		};
 
-		weim: weim@00220000 {
+		weim: weim@220000 {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			compatible = "fsl,imx1-weim";
@@ -269,7 +269,7 @@
 			status = "disabled";
 		};
 
-		esram: esram@00300000 {
+		esram: esram@300000 {
 			compatible = "mmio-sram";
 			reg = <0x00300000 0x20000>;
 		};

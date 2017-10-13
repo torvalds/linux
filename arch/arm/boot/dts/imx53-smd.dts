@@ -232,12 +232,12 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 	};
 
-	magnetometer: mag3110@0e {
+	magnetometer: mag3110@e {
 		compatible = "fsl,mag3110";
 		reg = <0x0e>;
 	};

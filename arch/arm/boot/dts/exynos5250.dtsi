@@ -93,7 +93,7 @@
 	};
 
 	soc: soc {
-		sysram@02020000 {
+		sysram@2020000 {
 			compatible = "mmio-sram";
 			reg = <0x02020000 0x30000>;
 			#address-cells = <1>;
@@ -219,7 +219,7 @@
 			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pinctrl_3: pinctrl@03860000 {
+		pinctrl_3: pinctrl@3860000 {
 			compatible = "samsung,exynos5250-pinctrl";
 			reg = <0x03860000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
@@ -475,7 +475,7 @@
 			status = "disabled";
 		};
 
-		i2s0: i2s@03830000 {
+		i2s0: i2s@3830000 {
 			compatible = "samsung,s5pv210-i2s";
 			status = "disabled";
 			reg = <0x03830000 0x100>;

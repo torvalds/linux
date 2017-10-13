@@ -332,32 +332,32 @@
 		 * change the default environment, unless you know
 		 * what you are doing.
 		 */
-		partition@00000000 { /* u-boot */
+		partition@0 { /* u-boot */
 			label = "RedBoot";
 			reg = <0x00000000 0x000d0000>; /* 832KB */
 		};
 
-		partition@000c0000 { /* uImage */
+		partition@c0000 { /* uImage */
 			label = "zImage";
 			reg = <0x000d0000 0x002d0000>; /* 2880KB */
 		};
 
-		partition@003a0000 { /* uInitramfs */
+		partition@3a0000 { /* uInitramfs */
 			label = "rd.gz";
 			reg = <0x003a0000 0x00430000>; /* 4250KB */
 		};
 
-		partition@007d0000 { /* MAC address and serial number */
+		partition@7d0000 { /* MAC address and serial number */
 			label = "vendor";
 			reg = <0x007d0000 0x00010000>; /* 64KB */
 		};
 
-		partition@007e0000 {
+		partition@7e0000 {
 			label = "RedBoot config";
 			reg = <0x007e0000 0x00010000>; /* 64KB */
 		};
 
-		partition@007f0000 {
+		partition@7f0000 {
 			label = "FIS directory";
 			reg = <0x007f0000 0x00010000>; /* 64KB */
 		};

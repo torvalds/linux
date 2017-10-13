@@ -93,7 +93,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	touchscreen2: eeti@04 {
+	touchscreen2: eeti@4 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		pinctrl-names = "default";
@@ -110,7 +110,7 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		VDDA-supply = <&reg_2v5>;
@@ -118,7 +118,7 @@
 		clocks = <&mclk>;
 	};
 
-	touchscreen1: eeti@04 {
+	touchscreen1: eeti@4 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		pinctrl-names = "default";

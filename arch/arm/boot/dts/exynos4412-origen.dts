@@ -32,7 +32,7 @@
 		stdout-path = &serial_2;
 	};
 
-	firmware@0203F000 {
+	firmware@203f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0203F000 0x1000>;
 	};

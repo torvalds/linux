@@ -165,7 +165,7 @@
 			#size-cells = <0>;
 			reg = <0x3>;
 
-			sgtl5000: codec@0a {
+			sgtl5000: codec@a {
 				compatible = "fsl,sgtl5000";
 				reg = <0x0a>;
 				clocks = <&mclk>;

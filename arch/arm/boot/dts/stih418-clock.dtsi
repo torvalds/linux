@@ -92,7 +92,7 @@
 			clock-output-names = "clk-s-icn-reg-0";
 		};
 
-		clockgen-a@090ff000 {
+		clockgen-a@90ff000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x90ff000 0x1000>;
 
@@ -131,7 +131,7 @@
 					     "clk-s-c0-fs0-ch3";
 		};
 
-		clk_s_c0: clockgen-c@09103000 {
+		clk_s_c0: clockgen-c@9103000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9103000 0x1000>;
 
@@ -223,7 +223,7 @@
 					     "clk-s-d0-fs0-ch3";
 		};
 
-		clockgen-d0@09104000 {
+		clockgen-d0@9104000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9104000 0x1000>;
 

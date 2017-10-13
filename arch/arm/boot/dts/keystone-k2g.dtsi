@@ -42,7 +42,7 @@
 		};
 	};
 
-	gic: interrupt-controller@02561000 {
+	gic: interrupt-controller@2561000 {
 		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
@@ -80,7 +80,7 @@
 		ranges = <0x0 0x0 0x0 0xc0000000>;
 		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
 
-		msm_ram: msmram@0c000000 {
+		msm_ram: msmram@c000000 {
 			compatible = "mmio-sram";
 			reg = <0x0c000000 0x100000>;
 			ranges = <0x0 0x0c000000 0x100000>;
@@ -92,19 +92,19 @@
 			};
 		};
 
-		k2g_pinctrl: pinmux@02621000 {
+		k2g_pinctrl: pinmux@2621000 {
 			compatible = "pinctrl-single";
 			reg = <0x02621000 0x410>;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <0x001b0007>;
 		};
 
-		devctrl: device-state-control@02620000 {
+		devctrl: device-state-control@2620000 {
 			compatible = "ti,keystone-devctrl", "syscon";
 			reg = <0x02620000 0x1000>;
 		};
 
-		uart0: serial@02530c00 {
+		uart0: serial@2530c00 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -115,7 +115,7 @@
 			status = "disabled";
 		};
 
-		dcan0: can@0260B200 {
+		dcan0: can@260b200 {
 			compatible = "ti,am4372-d_can", "ti,am3352-d_can";
 			reg = <0x0260B200 0x200>;
 			interrupts = <GIC_SPI 190 IRQ_TYPE_EDGE_RISING>;
@@ -124,7 +124,7 @@
 			clocks = <&k2g_clks 0x0008 1>;
 		};
 
-		dcan1: can@0260B400 {
+		dcan1: can@260b400 {
 			compatible = "ti,am4372-d_can", "ti,am3352-d_can";
 			reg = <0x0260B400 0x200>;
 			interrupts = <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>;
@@ -133,7 +133,7 @@
 			clocks = <&k2g_clks 0x0009 1>;
 		};
 
-		kirq0: keystone_irq@026202a0 {
+		kirq0: keystone_irq@26202a0 {
 			compatible = "ti,keystone-irq";
 			interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
 			interrupt-controller;
@@ -141,7 +141,7 @@
 			ti,syscon-dev = <&devctrl 0x2a0>;
 		};
 
-		dspgpio0: keystone_dsp_gpio@02620240 {
+		dspgpio0: keystone_dsp_gpio@2620240 {
 			compatible = "ti,keystone-dsp-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -164,7 +164,7 @@
 			status = "disabled";
 		};
 
-		msgmgr: msgmgr@02a00000 {
+		msgmgr: msgmgr@2a00000 {
 			compatible = "ti,k2g-message-manager";
 			#mbox-cells = <2>;
 			reg-names = "queue_proxy_region",
@@ -176,7 +176,7 @@
 				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pmmc: pmmc@02921c00 {
+		pmmc: pmmc@2921c00 {
 			compatible = "ti,k2g-sci";
 			/*
 			 * In case of rare platforms that does not use k2g as
@@ -246,7 +246,7 @@
 			clock-names = "gpio";
 		};
 
-		edma0: edma@02700000 {
+		edma0: edma@2700000 {
 			compatible = "ti,k2g-edma3-tpcc", "ti,edma3-tpcc";
 			reg =	<0x02700000 0x8000>;
 			reg-names = "edma3_cc";
@@ -265,19 +265,19 @@
 			power-domains = <&k2g_pds 0x3f>;
 		};
 
-		edma0_tptc0: tptc@02760000 {
+		edma0_tptc0: tptc@2760000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
 			reg =	<0x02760000 0x400>;
 			power-domains = <&k2g_pds 0x3f>;
 		};
 
-		edma0_tptc1: tptc@02768000 {
+		edma0_tptc1: tptc@2768000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
 			reg =	<0x02768000 0x400>;
 			power-domains = <&k2g_pds 0x3f>;
 		};
 
-		edma1: edma@02728000 {
+		edma1: edma@2728000 {
 			compatible = "ti,k2g-edma3-tpcc", "ti,edma3-tpcc";
 			reg =	<0x02728000 0x8000>;
 			reg-names = "edma3_cc";
@@ -300,13 +300,13 @@
 			power-domains = <&k2g_pds 0x4f>;
 		};
 
-		edma1_tptc0: tptc@027b0000 {
+		edma1_tptc0: tptc@27b0000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
 			reg =	<0x027b0000 0x400>;
 			power-domains = <&k2g_pds 0x4f>;
 		};
 
-		edma1_tptc1: tptc@027b8000 {
+		edma1_tptc1: tptc@27b8000 {
 			compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
 			reg =	<0x027b8000 0x400>;
 			power-domains = <&k2g_pds 0x4f>;

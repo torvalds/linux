@@ -118,13 +118,13 @@
 		};
 	};
 
-	soc@01c00000 {
+	soc@1c00000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
-		dma: dma-controller@01c02000 {
+		dma: dma-controller@1c02000 {
 			compatible = "allwinner,sun8i-a23-dma";
 			reg = <0x01c02000 0x1000>;
 			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
@@ -133,7 +133,7 @@
 			#dma-cells = <1>;
 		};
 
-		mmc0: mmc@01c0f000 {
+		mmc0: mmc@1c0f000 {
 			compatible = "allwinner,sun7i-a20-mmc";
 			reg = <0x01c0f000 0x1000>;
 			clocks = <&ccu CLK_BUS_MMC0>,
@@ -152,7 +152,7 @@
 			#size-cells = <0>;
 		};
 
-		mmc1: mmc@01c10000 {
+		mmc1: mmc@1c10000 {
 			compatible = "allwinner,sun7i-a20-mmc";
 			reg = <0x01c10000 0x1000>;
 			clocks = <&ccu CLK_BUS_MMC1>,
@@ -171,7 +171,7 @@
 			#size-cells = <0>;
 		};
 
-		mmc2: mmc@01c11000 {
+		mmc2: mmc@1c11000 {
 			compatible = "allwinner,sun7i-a20-mmc";
 			reg = <0x01c11000 0x1000>;
 			clocks = <&ccu CLK_BUS_MMC2>,
@@ -190,7 +190,7 @@
 			#size-cells = <0>;
 		};
 
-		nfc: nand@01c03000 {
+		nfc: nand@1c03000 {
 			compatible = "allwinner,sun4i-a10-nand";
 			reg = <0x01c03000 0x1000>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
@@ -203,7 +203,7 @@
 			#size-cells = <0>;
 		};
 
-		usb_otg: usb@01c19000 {
+		usb_otg: usb@1c19000 {
 			/* compatible gets set in SoC specific dtsi file */
 			reg = <0x01c19000 0x0400>;
 			clocks = <&ccu CLK_BUS_OTG>;
@@ -216,7 +216,7 @@
 			status = "disabled";
 		};
 
-		usbphy: phy@01c19400 {
+		usbphy: phy@1c19400 {
 			/*
 			 * compatible and address regions get set in
 			 * SoC specific dtsi file
@@ -233,7 +233,7 @@
 			#phy-cells = <1>;
 		};
 
-		ehci0: usb@01c1a000 {
+		ehci0: usb@1c1a000 {
 			compatible = "allwinner,sun8i-a23-ehci", "generic-ehci";
 			reg = <0x01c1a000 0x100>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
@@ -244,7 +244,7 @@
 			status = "disabled";
 		};
 
-		ohci0: usb@01c1a400 {
+		ohci0: usb@1c1a400 {
 			compatible = "allwinner,sun8i-a23-ohci", "generic-ohci";
 			reg = <0x01c1a400 0x100>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
@@ -255,7 +255,7 @@
 			status = "disabled";
 		};
 
-		ccu: clock@01c20000 {
+		ccu: clock@1c20000 {
 			reg = <0x01c20000 0x400>;
 			clocks = <&osc24M>, <&rtc 0>;
 			clock-names = "hosc", "losc";
@@ -263,7 +263,7 @@
 			#reset-cells = <1>;
 		};
 
-		pio: pinctrl@01c20800 {
+		pio: pinctrl@1c20800 {
 			/* compatible gets set in SoC specific dtsi file */
 			reg = <0x01c20800 0x400>;
 			/* interrupts get set in SoC specific dtsi file */
@@ -344,7 +344,7 @@
 			};
 		};
 
-		timer@01c20c00 {
+		timer@1c20c00 {
 			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x01c20c00 0xa0>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
@@ -352,13 +352,13 @@
 			clocks = <&osc24M>;
 		};
 
-		wdt0: watchdog@01c20ca0 {
+		wdt0: watchdog@1c20ca0 {
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x01c20ca0 0x20>;
 			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pwm: pwm@01c21400 {
+		pwm: pwm@1c21400 {
 			compatible = "allwinner,sun7i-a20-pwm";
 			reg = <0x01c21400 0xc>;
 			clocks = <&osc24M>;
@@ -366,14 +366,14 @@
 			status = "disabled";
 		};
 
-		lradc: lradc@01c22800 {
+		lradc: lradc@1c22800 {
 			compatible = "allwinner,sun4i-a10-lradc-keys";
 			reg = <0x01c22800 0x100>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
-		uart0: serial@01c28000 {
+		uart0: serial@1c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
@@ -386,7 +386,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@01c28400 {
+		uart1: serial@1c28400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
 			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
@@ -399,7 +399,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@01c28800 {
+		uart2: serial@1c28800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28800 0x400>;
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
@@ -412,7 +412,7 @@
 			status = "disabled";
 		};
 
-		uart3: serial@01c28c00 {
+		uart3: serial@1c28c00 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28c00 0x400>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
@@ -425,7 +425,7 @@
 			status = "disabled";
 		};
 
-		uart4: serial@01c29000 {
+		uart4: serial@1c29000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29000 0x400>;
 			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
@@ -438,7 +438,7 @@
 			status = "disabled";
 		};
 
-		i2c0: i2c@01c2ac00 {
+		i2c0: i2c@1c2ac00 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
@@ -449,7 +449,7 @@
 			#size-cells = <0>;
 		};
 
-		i2c1: i2c@01c2b000 {
+		i2c1: i2c@1c2b000 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x01c2b000 0x400>;
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
@@ -460,7 +460,7 @@
 			#size-cells = <0>;
 		};
 
-		i2c2: i2c@01c2b400 {
+		i2c2: i2c@1c2b400 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x01c2b400 0x400>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
@@ -498,7 +498,7 @@
 			assigned-clock-rates = <384000000>;
 		};
 
-		gic: interrupt-controller@01c81000 {
+		gic: interrupt-controller@1c81000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
 			      <0x01c82000 0x2000>,
@@ -509,7 +509,7 @@
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
-		rtc: rtc@01f00000 {
+		rtc: rtc@1f00000 {
 			compatible = "allwinner,sun6i-a31-rtc";
 			reg = <0x01f00000 0x54>;
 			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
@@ -527,7 +527,7 @@
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		prcm@01f01400 {
+		prcm@1f01400 {
 			compatible = "allwinner,sun8i-a23-prcm";
 			reg = <0x01f01400 0x200>;
 
@@ -575,12 +575,12 @@
 			};
 		};
 
-		cpucfg@01f01c00 {
+		cpucfg@1f01c00 {
 			compatible = "allwinner,sun8i-a23-cpuconfig";
 			reg = <0x01f01c00 0x300>;
 		};
 
-		r_uart: serial@01f02800 {
+		r_uart: serial@1f02800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01f02800 0x400>;
 			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
@@ -591,7 +591,7 @@
 			status = "disabled";
 		};
 
-		r_pio: pinctrl@01f02c00 {
+		r_pio: pinctrl@1f02c00 {
 			compatible = "allwinner,sun8i-a23-r-pinctrl";
 			reg = <0x01f02c00 0x400>;
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
@@ -618,7 +618,7 @@
 			};
 		};
 
-		r_rsb: rsb@01f03400 {
+		r_rsb: rsb@1f03400 {
 			compatible = "allwinner,sun8i-a23-rsb";
 			reg = <0x01f03400 0x400>;
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;

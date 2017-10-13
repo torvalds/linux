@@ -791,7 +791,7 @@
 	};
 
 	/* D/A converter for auto-focus */
-	ad5820: dac@0c {
+	ad5820: dac@c {
 		compatible = "adi,ad5820";
 		reg = <0x0c>;
 

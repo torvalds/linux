@@ -56,7 +56,7 @@
 			samsung,spi-feedback-delay = <0>;
 		};
 
-		partition@00000 {
+		partition@0 {
 			label = "BootLoader";
 			reg = <0x60000 0x80000>;
 			read-only;

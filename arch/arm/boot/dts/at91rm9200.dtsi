@@ -66,7 +66,7 @@
 		};
 	};
 
-	sram: sram@00200000 {
+	sram: sram@200000 {
 		compatible = "mmio-sram";
 		reg = <0x00200000 0x4000>;
 	};
@@ -938,7 +938,7 @@
 			status = "disabled";
 		};
 
-		usb0: ohci@00300000 {
+		usb0: ohci@300000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00300000 0x100000>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH 2>;
