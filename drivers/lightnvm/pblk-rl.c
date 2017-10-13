@@ -163,6 +163,11 @@ int pblk_rl_sysfs_rate_show(struct pblk_rl *rl)
 	return rl->rb_user_max;
 }
 
+int pblk_rl_max_io(struct pblk_rl *rl)
+{
+	return rl->rb_max_io;
+}
+
 static void pblk_rl_u_timer(unsigned long data)
 {
 	struct pblk_rl *rl = (struct pblk_rl *)data;
@@ -199,6 +204,7 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	/* To start with, all buffer is available to user I/O writers */
 	rl->rb_budget = budget;
 	rl->rb_user_max = budget;
+	rl->rb_max_io = budget >> 1;
 	rl->rb_gc_max = 0;
 	rl->rb_state = PBLK_RL_HIGH;
 
