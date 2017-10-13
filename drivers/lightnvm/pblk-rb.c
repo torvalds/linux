@@ -201,8 +201,7 @@ unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int nr_entries)
 	return subm;
 }
 
-static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int *l2p_upd,
-				unsigned int to_update)
+static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int to_update)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_line *line;
@@ -213,7 +212,7 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int *l2p_upd,
 	int flags;
 
 	for (i = 0; i < to_update; i++) {
-		entry = &rb->entries[*l2p_upd];
+		entry = &rb->entries[rb->l2p_update];
 		w_ctx = &entry->w_ctx;
 
 		flags = READ_ONCE(entry->w_ctx.flags);
@@ -230,7 +229,7 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int *l2p_upd,
 		line = &pblk->lines[pblk_tgt_ppa_to_line(w_ctx->ppa)];
 		kref_put(&line->ref, pblk_line_put);
 		clean_wctx(w_ctx);
-		*l2p_upd = (*l2p_upd + 1) & (rb->nr_entries - 1);
+		rb->l2p_update = (rb->l2p_update + 1) & (rb->nr_entries - 1);
 	}
 
 	pblk_rl_out(&pblk->rl, user_io, gc_io);
@@ -258,7 +257,7 @@ static int pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int nr_entries,
 
 	count = nr_entries - space;
 	/* l2p_update used exclusively under rb->w_lock */
-	ret = __pblk_rb_update_l2p(rb, &rb->l2p_update, count);
+	ret = __pblk_rb_update_l2p(rb, count);
 
 out:
 	return ret;
@@ -280,7 +279,7 @@ void pblk_rb_sync_l2p(struct pblk_rb *rb)
 	sync = smp_load_acquire(&rb->sync);
 
 	to_update = pblk_rb_ring_count(sync, rb->l2p_update, rb->nr_entries);
-	__pblk_rb_update_l2p(rb, &rb->l2p_update, to_update);
+	__pblk_rb_update_l2p(rb, to_update);
 
 	spin_unlock(&rb->w_lock);
 }
