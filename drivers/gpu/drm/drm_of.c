@@ -262,36 +262,3 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_of_find_panel_or_bridge);
-
-#ifdef CONFIG_DRM_PANEL_BRIDGE
-/*
- * drm_of_panel_bridge_remove - remove panel bridge
- * @np: device tree node containing panel bridge output ports
- *
- * Remove the panel bridge of a given DT node's port and endpoint number
- *
- * Returns zero if successful, or one of the standard error codes if it fails.
- */
-int drm_of_panel_bridge_remove(const struct device_node *np,
-			       int port, int endpoint)
-{
-	struct drm_bridge *bridge;
-	struct device_node *remote;
-
-	remote = of_graph_get_remote_node(np, port, endpoint);
-	if (!remote)
-		return -ENODEV;
-
-	bridge = of_drm_find_bridge(remote);
-	drm_panel_bridge_remove(bridge);
-
-	return 0;
-}
-#else
-int drm_of_panel_bridge_remove(const struct device_node *np,
-			       int port, int endpoint)
-{
-	return -EINVAL;
-}
-#endif
-EXPORT_SYMBOL_GPL(drm_of_panel_bridge_remove);
