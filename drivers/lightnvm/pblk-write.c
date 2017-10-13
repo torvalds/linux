@@ -198,8 +198,8 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 
 	sync = atomic_add_return(rqd->nr_ppas, &emeta->sync);
 	if (sync == emeta->nr_entries)
-		pblk_line_run_ws(pblk, line, NULL, pblk_line_close_ws,
-								pblk->close_wq);
+		pblk_gen_run_ws(pblk, line, NULL, pblk_line_close_ws,
+						GFP_ATOMIC, pblk->close_wq);
 
 	bio_put(rqd->bio);
 	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);

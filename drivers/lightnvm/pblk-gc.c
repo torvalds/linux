@@ -136,12 +136,12 @@ static void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
 
 static void pblk_gc_line_ws(struct work_struct *work)
 {
-	struct pblk_line_ws *line_rq_ws = container_of(work,
+	struct pblk_line_ws *gc_rq_ws = container_of(work,
 						struct pblk_line_ws, ws);
-	struct pblk *pblk = line_rq_ws->pblk;
+	struct pblk *pblk = gc_rq_ws->pblk;
 	struct pblk_gc *gc = &pblk->gc;
-	struct pblk_line *line = line_rq_ws->line;
-	struct pblk_gc_rq *gc_rq = line_rq_ws->priv;
+	struct pblk_line *line = gc_rq_ws->line;
+	struct pblk_gc_rq *gc_rq = gc_rq_ws->priv;
 
 	up(&gc->gc_sem);
 
@@ -151,7 +151,7 @@ static void pblk_gc_line_ws(struct work_struct *work)
 						gc_rq->nr_secs);
 	}
 
-	mempool_free(line_rq_ws, pblk->line_ws_pool);
+	kfree(gc_rq_ws);
 }
 
 static void pblk_gc_line_prepare_ws(struct work_struct *work)
@@ -164,7 +164,7 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_gc *gc = &pblk->gc;
 	struct line_emeta *emeta_buf;
-	struct pblk_line_ws *line_rq_ws;
+	struct pblk_line_ws *gc_rq_ws;
 	struct pblk_gc_rq *gc_rq;
 	__le64 *lba_list;
 	int sec_left, nr_secs, bit;
@@ -223,19 +223,19 @@ next_rq:
 	gc_rq->nr_secs = nr_secs;
 	gc_rq->line = line;
 
-	line_rq_ws = mempool_alloc(pblk->line_ws_pool, GFP_KERNEL);
-	if (!line_rq_ws)
+	gc_rq_ws = kmalloc(sizeof(struct pblk_line_ws), GFP_KERNEL);
+	if (!gc_rq_ws)
 		goto fail_free_gc_rq;
 
-	line_rq_ws->pblk = pblk;
-	line_rq_ws->line = line;
-	line_rq_ws->priv = gc_rq;
+	gc_rq_ws->pblk = pblk;
+	gc_rq_ws->line = line;
+	gc_rq_ws->priv = gc_rq;
 
 	down(&gc->gc_sem);
 	kref_get(&line->ref);
 
-	INIT_WORK(&line_rq_ws->ws, pblk_gc_line_ws);
-	queue_work(gc->gc_line_reader_wq, &line_rq_ws->ws);
+	INIT_WORK(&gc_rq_ws->ws, pblk_gc_line_ws);
+	queue_work(gc->gc_line_reader_wq, &gc_rq_ws->ws);
 
 	sec_left -= nr_secs;
 	if (sec_left > 0)
@@ -243,7 +243,7 @@ next_rq:
 
 out:
 	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
-	mempool_free(line_ws, pblk->line_ws_pool);
+	kfree(line_ws);
 
 	kref_put(&line->ref, pblk_line_put);
 	atomic_dec(&gc->inflight_gc);
@@ -256,7 +256,7 @@ fail_free_emeta:
 	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
 	pblk_put_line_back(pblk, line);
 	kref_put(&line->ref, pblk_line_put);
-	mempool_free(line_ws, pblk->line_ws_pool);
+	kfree(line_ws);
 	atomic_dec(&gc->inflight_gc);
 
 	pr_err("pblk: Failed to GC line %d\n", line->id);
@@ -269,7 +269,7 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 
 	pr_debug("pblk: line '%d' being reclaimed for GC\n", line->id);
 
-	line_ws = mempool_alloc(pblk->line_ws_pool, GFP_KERNEL);
+	line_ws = kmalloc(sizeof(struct pblk_line_ws), GFP_KERNEL);
 	if (!line_ws)
 		return -ENOMEM;
 

@@ -33,7 +33,8 @@ static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
 		pr_err("pblk: attempted to erase bb: line:%d, pos:%d\n",
 							line->id, pos);
 
-	pblk_line_run_ws(pblk, NULL, ppa, pblk_line_mark_bb, pblk->bb_wq);
+	pblk_gen_run_ws(pblk, NULL, ppa, pblk_line_mark_bb,
+						GFP_ATOMIC, pblk->bb_wq);
 }
 
 static void __pblk_end_io_erase(struct pblk *pblk, struct nvm_rq *rqd)
@@ -1623,7 +1624,7 @@ void pblk_line_close_ws(struct work_struct *work)
 	struct pblk_line *line = line_ws->line;
 
 	pblk_line_close(pblk, line);
-	mempool_free(line_ws, pblk->line_ws_pool);
+	mempool_free(line_ws, pblk->gen_ws_pool);
 }
 
 void pblk_line_mark_bb(struct work_struct *work)
@@ -1648,16 +1649,16 @@ void pblk_line_mark_bb(struct work_struct *work)
 	}
 
 	kfree(ppa);
-	mempool_free(line_ws, pblk->line_ws_pool);
+	mempool_free(line_ws, pblk->gen_ws_pool);
 }
 
-void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
-		      void (*work)(struct work_struct *),
+void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
+		      void (*work)(struct work_struct *), gfp_t gfp_mask,
 		      struct workqueue_struct *wq)
 {
 	struct pblk_line_ws *line_ws;
 
-	line_ws = mempool_alloc(pblk->line_ws_pool, GFP_ATOMIC);
+	line_ws = mempool_alloc(pblk->gen_ws_pool, gfp_mask);
 	if (!line_ws)
 		return;
 

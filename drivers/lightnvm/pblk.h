@@ -40,7 +40,6 @@
 #define PBLK_MAX_REQ_ADDRS (64)
 #define PBLK_MAX_REQ_ADDRS_PW (6)
 
-#define PBLK_WS_POOL_SIZE (128)
 #define PBLK_META_POOL_SIZE (128)
 #define PBLK_READ_REQ_POOL_SIZE (1024)
 
@@ -60,6 +59,8 @@
 			(i) < (pblk)->nr_luns; (i)++, rlun = &(pblk)->luns[(i)])
 
 #define ERASE 2 /* READ = 0, WRITE = 1 */
+
+#define PBLK_GEN_WS_POOL_SIZE (2)
 
 enum {
 	/* IO Types */
@@ -621,7 +622,7 @@ struct pblk {
 	struct list_head compl_list;
 
 	mempool_t *page_bio_pool;
-	mempool_t *line_ws_pool;
+	mempool_t *gen_ws_pool;
 	mempool_t *rec_pool;
 	mempool_t *g_rq_pool;
 	mempool_t *w_rq_pool;
@@ -725,9 +726,9 @@ void pblk_line_close_meta_sync(struct pblk *pblk);
 void pblk_line_close_ws(struct work_struct *work);
 void pblk_pipeline_stop(struct pblk *pblk);
 void pblk_line_mark_bb(struct work_struct *work);
-void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
-		      void (*work)(struct work_struct *),
-		      struct workqueue_struct *wq);
+void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
+		     void (*work)(struct work_struct *), gfp_t gfp_mask,
+		     struct workqueue_struct *wq);
 u64 pblk_line_smeta_start(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_read_smeta(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line,
