@@ -393,13 +393,11 @@ static void pblk_line_meta_free(struct pblk *pblk)
 	kfree(l_mg->bb_aux);
 	kfree(l_mg->vsc_list);
 
-	spin_lock(&l_mg->free_lock);
 	for (i = 0; i < PBLK_DATA_LINES; i++) {
 		kfree(l_mg->sline_meta[i]);
 		pblk_mfree(l_mg->eline_meta[i]->buf, l_mg->emeta_alloc_type);
 		kfree(l_mg->eline_meta[i]);
 	}
-	spin_unlock(&l_mg->free_lock);
 
 	kfree(pblk->lines);
 }
