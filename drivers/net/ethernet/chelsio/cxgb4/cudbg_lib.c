@@ -90,6 +90,45 @@ int cudbg_collect_reg_dump(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+int cudbg_collect_fw_devlog(struct cudbg_init *pdbg_init,
+			    struct cudbg_buffer *dbg_buff,
+			    struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct devlog_params *dparams;
+	int rc = 0;
+
+	rc = t4_init_devlog_params(padap);
+	if (rc < 0) {
+		cudbg_err->sys_err = rc;
+		return rc;
+	}
+
+	dparams = &padap->params.devlog;
+	rc = cudbg_get_buff(dbg_buff, dparams->size, &temp_buff);
+	if (rc)
+		return rc;
+
+	/* Collect FW devlog */
+	if (dparams->start != 0) {
+		spin_lock(&padap->win0_lock);
+		rc = t4_memory_rw(padap, padap->params.drv_memwin,
+				  dparams->memtype, dparams->start,
+				  dparams->size,
+				  (__be32 *)(char *)temp_buff.data,
+				  1);
+		spin_unlock(&padap->win0_lock);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 			     struct cudbg_buffer *dbg_buff, u8 mem_type,
 			     unsigned long tot_len,
@@ -212,4 +251,49 @@ int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
 {
 	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
 					MEM_EDC1);
+}
+
+int cudbg_collect_mbox_log(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_mbox_log *mboxlog = NULL;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct mbox_cmd_log *log = NULL;
+	struct mbox_cmd *entry;
+	unsigned int entry_idx;
+	u16 mbox_cmds;
+	int i, k, rc;
+	u64 flit;
+	u32 size;
+
+	log = padap->mbox_log;
+	mbox_cmds = padap->mbox_log->size;
+	size = sizeof(struct cudbg_mbox_log) * mbox_cmds;
+	rc = cudbg_get_buff(dbg_buff, size, &temp_buff);
+	if (rc)
+		return rc;
+
+	mboxlog = (struct cudbg_mbox_log *)temp_buff.data;
+	for (k = 0; k < mbox_cmds; k++) {
+		entry_idx = log->cursor + k;
+		if (entry_idx >= log->size)
+			entry_idx -= log->size;
+
+		entry = mbox_cmd_log_entry(log, entry_idx);
+		/* skip over unused entries */
+		if (entry->timestamp == 0)
+			continue;
+
+		memcpy(&mboxlog->entry, entry, sizeof(struct mbox_cmd));
+		for (i = 0; i < MBOX_LEN / 8; i++) {
+			flit = entry->cmd[i];
+			mboxlog->hi[i] = (u32)(flit >> 32);
+			mboxlog->lo[i] = (u32)flit;
+		}
+		mboxlog++;
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
 }

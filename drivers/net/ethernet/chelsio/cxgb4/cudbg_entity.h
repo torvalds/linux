@@ -26,4 +26,10 @@ struct card_mem {
 	u16 size_edc1;
 	u16 mem_flag;
 };
+
+struct cudbg_mbox_log {
+	struct mbox_cmd entry;
+	u32 hi[MBOX_LEN / 8];
+	u32 lo[MBOX_LEN / 8];
+};
 #endif /* __CUDBG_ENTITY_H__ */

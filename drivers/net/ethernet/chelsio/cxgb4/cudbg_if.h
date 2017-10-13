@@ -28,8 +28,10 @@
 
 enum cudbg_dbg_entity_type {
 	CUDBG_REG_DUMP = 1,
+	CUDBG_DEV_LOG = 2,
 	CUDBG_EDC0 = 18,
 	CUDBG_EDC1 = 19,
+	CUDBG_MBOX_LOG = 66,
 	CUDBG_MAX_ENTITY = 70,
 };
 
