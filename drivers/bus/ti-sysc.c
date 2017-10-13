@@ -529,6 +529,30 @@ unprepare:
 	return error;
 }
 
+static int sysc_remove(struct platform_device *pdev)
+{
+	struct sysc *ddata = platform_get_drvdata(pdev);
+	int error;
+
+	error = pm_runtime_get_sync(ddata->dev);
+	if (error < 0) {
+		pm_runtime_put_noidle(ddata->dev);
+		pm_runtime_disable(ddata->dev);
+		goto unprepare;
+	}
+
+	of_platform_depopulate(&pdev->dev);
+
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
+unprepare:
+	sysc_unprepare(ddata);
+
+	return 0;
+}
+
 static const struct of_device_id sysc_match[] = {
 	{ .compatible = "ti,sysc-omap2" },
 	{ .compatible = "ti,sysc-omap4" },
@@ -546,6 +570,7 @@ MODULE_DEVICE_TABLE(of, sysc_match);
 
 static struct platform_driver sysc_driver = {
 	.probe		= sysc_probe,
+	.remove		= sysc_remove,
 	.driver         = {
 		.name   = "ti-sysc",
 		.of_match_table	= sysc_match,
