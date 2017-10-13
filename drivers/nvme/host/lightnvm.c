@@ -600,8 +600,6 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 
 	rq->timeout = timeout ? timeout : ADMIN_TIMEOUT;
 
-	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
-
 	if (ppa_buf && ppa_len) {
 		ppa_list = dma_pool_alloc(dev->dma_pool, GFP_KERNEL, &ppa_dma);
 		if (!ppa_list) {
