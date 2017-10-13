@@ -1255,6 +1255,9 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 	if (!net_device)
 		return ERR_PTR(-ENOMEM);
 
+	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
+		net_device_ctx->tx_table[i] = 0;
+
 	net_device->ring_size = ring_size;
 
 	/* Because the device uses NAPI, all the interrupt batching and
