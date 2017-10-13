@@ -300,10 +300,6 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	of_property_read_u32(node, "mediatek,u3p-dis-msk",
 			     &ssusb->u3p_dis_msk);
 
-	if (ssusb->dr_mode != USB_DR_MODE_OTG)
-		return 0;
-
-	/* if dual-role mode is supported */
 	vbus = devm_regulator_get(&pdev->dev, "vbus");
 	if (IS_ERR(vbus)) {
 		dev_err(dev, "failed to get vbus\n");
@@ -311,6 +307,10 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	}
 	otg_sx->vbus = vbus;
 
+	if (ssusb->dr_mode == USB_DR_MODE_HOST)
+		return 0;
+
+	/* if dual-role mode is supported */
 	otg_sx->is_u3_drd = of_property_read_bool(node, "mediatek,usb3-drd");
 	otg_sx->manual_drd_enabled =
 		of_property_read_bool(node, "enable-manual-drd");
