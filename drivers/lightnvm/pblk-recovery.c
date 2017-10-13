@@ -133,8 +133,8 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_emeta *emeta = line->emeta;
 	struct line_emeta *emeta_buf = emeta->buf;
 	__le64 *lba_list;
-	int data_start;
-	int nr_data_lbas, nr_valid_lbas, nr_lbas = 0;
+	int data_start, data_end;
+	int nr_valid_lbas, nr_lbas = 0;
 	int i;
 
 	lba_list = pblk_recov_get_lba_list(pblk, emeta_buf);
@@ -142,10 +142,10 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 		return 1;
 
 	data_start = pblk_line_smeta_start(pblk, line) + lm->smeta_sec;
-	nr_data_lbas = lm->sec_per_line - lm->emeta_sec[0];
+	data_end = lm->sec_per_line - lm->emeta_sec[0];
 	nr_valid_lbas = le64_to_cpu(emeta_buf->nr_valid_lbas);
 
-	for (i = data_start; i < nr_data_lbas && nr_lbas < nr_valid_lbas; i++) {
+	for (i = data_start; i < data_end; i++) {
 		struct ppa_addr ppa;
 		int pos;
 
