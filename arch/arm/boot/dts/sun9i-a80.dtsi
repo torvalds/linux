@@ -139,7 +139,7 @@
 		 * would also throw all the PLL clock rates off, or just the
 		 * downstream clocks in the PRCM.
 		 */
-		osc24M: osc24M_clk {
+		osc24M: clk-24M {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
@@ -151,7 +151,7 @@
 		 * AC100 codec/RTC chip. This serves as a placeholder for
 		 * board dts files to specify the source.
 		 */
-		osc32k: osc32k_clk {
+		osc32k: clk-32k {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clock-div = <1>;
@@ -169,7 +169,7 @@
 			clock-output-names = "cpus";
 		};
 
-		ahbs: ahbs_clk {
+		ahbs: clk-ahbs {
 			compatible = "fixed-factor-clock";
 			#clock-cells = <0>;
 			clock-div = <1>;
@@ -708,12 +708,12 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			r_ir_pins: r_ir {
+			r_ir_pins: r-ir-pins {
 				pins = "PL6";
 				function = "s_cir_rx";
 			};
 
-			r_rsb_pins: r_rsb {
+			r_rsb_pins: r-rsb-pins {
 				pins = "PN0", "PN1";
 				function = "s_rsb";
 				drive-strength = <20>;
