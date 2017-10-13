@@ -268,6 +268,15 @@ MODULE_PARM_DESC(ql2xautodetectsfp,
 		 "Detect SFP range and set appropriate distance.\n"
 		 "1 (Default): Enable\n");
 
+int ql2xenablemsix = 1;
+module_param(ql2xenablemsix, int, 0444);
+MODULE_PARM_DESC(ql2xenablemsix,
+		 "Set to enable MSI or MSI-X interrupt mechanism.\n"
+		 " Default is 1, enable MSI-X interrupt mechanism.\n"
+		 " 0 -- enable traditional pin-based mechanism.\n"
+		 " 1 -- enable MSI-X interrupt mechanism.\n"
+		 " 2 -- enable MSI interrupt mechanism.\n");
+
 /*
  * SCSI host template entry points
  */
