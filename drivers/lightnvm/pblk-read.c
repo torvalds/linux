@@ -235,7 +235,7 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	rqd->end_io = pblk_end_io_sync;
 	rqd->private = &wait;
 
-	if (unlikely(nr_secs > 1 && nr_holes == 1)) {
+	if (unlikely(nr_holes == 1)) {
 		ppa_ptr = rqd->ppa_list;
 		dma_ppa_list = rqd->dma_ppa_list;
 		rqd->ppa_addr = rqd->ppa_list[0];
@@ -260,7 +260,7 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 #endif
 	}
 
-	if (unlikely(nr_secs > 1 && nr_holes == 1)) {
+	if (unlikely(nr_holes == 1)) {
 		struct ppa_addr ppa;
 
 		ppa = rqd->ppa_addr;
