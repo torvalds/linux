@@ -411,8 +411,6 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	if (emeta->mem >= lm->emeta_len[0]) {
 		spin_lock(&l_mg->close_lock);
 		list_del(&meta_line->list);
-		WARN(!bitmap_full(meta_line->map_bitmap, lm->sec_per_line),
-				"pblk: corrupt meta line %d\n", meta_line->id);
 		spin_unlock(&l_mg->close_lock);
 	}
 
@@ -456,7 +454,7 @@ retry:
 		return 0;
 	}
 	meta_line = list_first_entry(&l_mg->emeta_list, struct pblk_line, list);
-	if (bitmap_full(meta_line->map_bitmap, lm->sec_per_line))
+	if (meta_line->emeta->mem >= lm->emeta_len[0])
 		goto retry;
 	spin_unlock(&l_mg->close_lock);
 

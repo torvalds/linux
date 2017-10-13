@@ -987,7 +987,7 @@ next:
 			list_move_tail(&line->list, move_list);
 			spin_unlock(&l_mg->gc_lock);
 
-			mempool_free(line->map_bitmap, pblk->line_meta_pool);
+			kfree(line->map_bitmap);
 			line->map_bitmap = NULL;
 			line->smeta = NULL;
 			line->emeta = NULL;

@@ -40,8 +40,6 @@
 #define PBLK_MAX_REQ_ADDRS (64)
 #define PBLK_MAX_REQ_ADDRS_PW (6)
 
-#define PBLK_META_POOL_SIZE (128)
-
 #define PBLK_NR_CLOSE_JOBS (4)
 
 #define PBLK_CACHE_NAME_LEN (DISK_NAME_LEN + 16)
@@ -627,7 +625,6 @@ struct pblk {
 	mempool_t *r_rq_pool;
 	mempool_t *w_rq_pool;
 	mempool_t *e_rq_pool;
-	mempool_t *line_meta_pool;
 
 	struct workqueue_struct *close_wq;
 	struct workqueue_struct *bb_wq;

@@ -21,7 +21,7 @@
 #include "pblk.h"
 
 static struct kmem_cache *pblk_ws_cache, *pblk_rec_cache, *pblk_g_rq_cache,
-				*pblk_w_rq_cache, *pblk_line_meta_cache;
+				*pblk_w_rq_cache;
 static DECLARE_RWSEM(pblk_lock);
 struct bio_set *pblk_bio_set;
 
@@ -181,8 +181,6 @@ static int pblk_set_ppaf(struct pblk *pblk)
 
 static int pblk_init_global_caches(struct pblk *pblk)
 {
-	char cache_name[PBLK_CACHE_NAME_LEN];
-
 	down_write(&pblk_lock);
 	pblk_ws_cache = kmem_cache_create("pblk_blk_ws",
 				sizeof(struct pblk_line_ws), 0, 0, NULL);
@@ -214,19 +212,6 @@ static int pblk_init_global_caches(struct pblk *pblk)
 		kmem_cache_destroy(pblk_ws_cache);
 		kmem_cache_destroy(pblk_rec_cache);
 		kmem_cache_destroy(pblk_g_rq_cache);
-		up_write(&pblk_lock);
-		return -ENOMEM;
-	}
-
-	snprintf(cache_name, sizeof(cache_name), "pblk_line_m_%s",
-							pblk->disk->disk_name);
-	pblk_line_meta_cache = kmem_cache_create(cache_name,
-				pblk->lm.sec_bitmap_len, 0, 0, NULL);
-	if (!pblk_line_meta_cache) {
-		kmem_cache_destroy(pblk_ws_cache);
-		kmem_cache_destroy(pblk_rec_cache);
-		kmem_cache_destroy(pblk_g_rq_cache);
-		kmem_cache_destroy(pblk_w_rq_cache);
 		up_write(&pblk_lock);
 		return -ENOMEM;
 	}
@@ -276,16 +261,10 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->w_rq_pool)
 		goto free_e_rq_pool;
 
-	pblk->line_meta_pool =
-			mempool_create_slab_pool(PBLK_META_POOL_SIZE,
-							pblk_line_meta_cache);
-	if (!pblk->line_meta_pool)
-		goto free_w_rq_pool;
-
 	pblk->close_wq = alloc_workqueue("pblk-close-wq",
 			WQ_MEM_RECLAIM | WQ_UNBOUND, PBLK_NR_CLOSE_JOBS);
 	if (!pblk->close_wq)
-		goto free_line_meta_pool;
+		goto free_w_rq_pool;
 
 	pblk->bb_wq = alloc_workqueue("pblk-bb-wq",
 			WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
@@ -305,8 +284,6 @@ free_bb_wq:
 	destroy_workqueue(pblk->bb_wq);
 free_close_wq:
 	destroy_workqueue(pblk->close_wq);
-free_line_meta_pool:
-	mempool_destroy(pblk->line_meta_pool);
 free_w_rq_pool:
 	mempool_destroy(pblk->w_rq_pool);
 free_e_rq_pool:
@@ -336,13 +313,11 @@ static void pblk_core_free(struct pblk *pblk)
 	mempool_destroy(pblk->r_rq_pool);
 	mempool_destroy(pblk->e_rq_pool);
 	mempool_destroy(pblk->w_rq_pool);
-	mempool_destroy(pblk->line_meta_pool);
 
 	kmem_cache_destroy(pblk_ws_cache);
 	kmem_cache_destroy(pblk_rec_cache);
 	kmem_cache_destroy(pblk_g_rq_cache);
 	kmem_cache_destroy(pblk_w_rq_cache);
-	kmem_cache_destroy(pblk_line_meta_cache);
 }
 
 static void pblk_luns_free(struct pblk *pblk)

@@ -1095,25 +1095,21 @@ static int pblk_line_prepare(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_line_meta *lm = &pblk->lm;
 	int blk_in_line = atomic_read(&line->blk_in_line);
 
-	line->map_bitmap = mempool_alloc(pblk->line_meta_pool, GFP_ATOMIC);
+	line->map_bitmap = kzalloc(lm->sec_bitmap_len, GFP_ATOMIC);
 	if (!line->map_bitmap)
 		return -ENOMEM;
-	memset(line->map_bitmap, 0, lm->sec_bitmap_len);
 
-	/* invalid_bitmap is special since it is used when line is closed. No
-	 * need to zeroized; it will be initialized using bb info form
-	 * map_bitmap
-	 */
-	line->invalid_bitmap = mempool_alloc(pblk->line_meta_pool, GFP_ATOMIC);
+	/* will be initialized using bb info from map_bitmap */
+	line->invalid_bitmap = kmalloc(lm->sec_bitmap_len, GFP_ATOMIC);
 	if (!line->invalid_bitmap) {
-		mempool_free(line->map_bitmap, pblk->line_meta_pool);
+		kfree(line->map_bitmap);
 		return -ENOMEM;
 	}
 
 	spin_lock(&line->lock);
 	if (line->state != PBLK_LINESTATE_FREE) {
-		mempool_free(line->invalid_bitmap, pblk->line_meta_pool);
-		mempool_free(line->map_bitmap, pblk->line_meta_pool);
+		kfree(line->map_bitmap);
+		kfree(line->invalid_bitmap);
 		spin_unlock(&line->lock);
 		WARN(1, "pblk: corrupted line %d, state %d\n",
 							line->id, line->state);
@@ -1165,7 +1161,7 @@ int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line)
 
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line)
 {
-	mempool_free(line->map_bitmap, pblk->line_meta_pool);
+	kfree(line->map_bitmap);
 	line->map_bitmap = NULL;
 	line->smeta = NULL;
 	line->emeta = NULL;
@@ -1440,10 +1436,8 @@ retry_setup:
 
 void pblk_line_free(struct pblk *pblk, struct pblk_line *line)
 {
-	if (line->map_bitmap)
-		mempool_free(line->map_bitmap, pblk->line_meta_pool);
-	if (line->invalid_bitmap)
-		mempool_free(line->invalid_bitmap, pblk->line_meta_pool);
+	kfree(line->map_bitmap);
+	kfree(line->invalid_bitmap);
 
 	*line->vsc = cpu_to_le32(EMPTY_ENTRY);
 
@@ -1584,7 +1578,7 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 
 	list_add_tail(&line->list, move_list);
 
-	mempool_free(line->map_bitmap, pblk->line_meta_pool);
+	kfree(line->map_bitmap);
 	line->map_bitmap = NULL;
 	line->smeta = NULL;
 	line->emeta = NULL;
