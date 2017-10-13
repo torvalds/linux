@@ -565,7 +565,7 @@ static int tipc_release(struct socket *sock)
 
 	/* Reject any messages that accumulated in backlog queue */
 	release_sock(sk);
-	u32_list_purge(&tsk->cong_links);
+	tipc_dest_list_purge(&tsk->cong_links);
 	tsk->cong_link_cnt = 0;
 	call_rcu(&tsk->rcu, tipc_sk_callback);
 	sock->sk = NULL;
@@ -826,8 +826,7 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 		tipc_nametbl_mc_translate(net,
 					  msg_nametype(msg), msg_namelower(msg),
 					  msg_nameupper(msg), scope, &dports);
-		portid = u32_pop(&dports);
-		for (; portid; portid = u32_pop(&dports)) {
+		while (tipc_dest_pop(&dports, NULL, &portid)) {
 			_skb = __pskb_copy(skb, hsz, GFP_ATOMIC);
 			if (_skb) {
 				msg_set_destport(buf_msg(_skb), portid);
@@ -1000,7 +999,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	}
 
 	/* Block or return if destination link is congested */
-	rc = tipc_wait_for_cond(sock, &timeout, !u32_find(clinks, dnode));
+	rc = tipc_wait_for_cond(sock, &timeout,
+				!tipc_dest_find(clinks, dnode, 0));
 	if (unlikely(rc))
 		return rc;
 
@@ -1012,7 +1012,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 
 	rc = tipc_node_xmit(net, &pkts, dnode, tsk->portid);
 	if (unlikely(rc == -ELINKCONG)) {
-		u32_push(clinks, dnode);
+		tipc_dest_push(clinks, dnode, 0);
 		tsk->cong_link_cnt++;
 		rc = 0;
 	}
@@ -1549,7 +1549,7 @@ static void tipc_sk_proto_rcv(struct sock *sk,
 		tipc_sk_conn_proto_rcv(tsk, skb, xmitq);
 		return;
 	case SOCK_WAKEUP:
-		u32_del(&tsk->cong_links, msg_orignode(hdr));
+		tipc_dest_del(&tsk->cong_links, msg_orignode(hdr), 0);
 		tsk->cong_link_cnt--;
 		sk->sk_write_space(sk);
 		break;

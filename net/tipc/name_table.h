@@ -120,16 +120,22 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(struct net *net);
 void tipc_nametbl_stop(struct net *net);
 
-struct u32_item {
+struct tipc_dest {
 	struct list_head list;
-	u32 value;
+	union {
+		struct {
+			u32 port;
+			u32 node;
+		};
+		u64 value;
+	};
 };
 
-bool u32_push(struct list_head *l, u32 value);
-u32 u32_pop(struct list_head *l);
-bool u32_find(struct list_head *l, u32 value);
-bool u32_del(struct list_head *l, u32 value);
-void u32_list_purge(struct list_head *l);
-int u32_list_len(struct list_head *l);
+struct tipc_dest *tipc_dest_find(struct list_head *l, u32 node, u32 port);
+bool tipc_dest_push(struct list_head *l, u32 node, u32 port);
+bool tipc_dest_pop(struct list_head *l, u32 *node, u32 *port);
+bool tipc_dest_del(struct list_head *l, u32 node, u32 port);
+void tipc_dest_list_purge(struct list_head *l);
+int tipc_dest_list_len(struct list_head *l);
 
 #endif

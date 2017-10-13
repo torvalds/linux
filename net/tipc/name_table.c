@@ -634,7 +634,7 @@ int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 		info = sseq->info;
 		list_for_each_entry(publ, &info->node_list, node_list) {
 			if (publ->scope <= limit)
-				u32_push(dports, publ->ref);
+				tipc_dest_push(dports, 0, publ->ref);
 		}
 
 		if (info->cluster_list_size != info->node_list_size)
@@ -1057,78 +1057,79 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-bool u32_find(struct list_head *l, u32 value)
+struct tipc_dest *tipc_dest_find(struct list_head *l, u32 node, u32 port)
 {
-	struct u32_item *item;
+	u64 value = (u64)node << 32 | port;
+	struct tipc_dest *dst;
 
-	list_for_each_entry(item, l, list) {
-		if (item->value == value)
-			return true;
+	list_for_each_entry(dst, l, list) {
+		if (dst->value != value)
+			continue;
+		return dst;
 	}
-	return false;
+	return NULL;
 }
 
-bool u32_push(struct list_head *l, u32 value)
+bool tipc_dest_push(struct list_head *l, u32 node, u32 port)
 {
-	struct u32_item *item;
+	u64 value = (u64)node << 32 | port;
+	struct tipc_dest *dst;
 
-	list_for_each_entry(item, l, list) {
-		if (item->value == value)
-			return false;
-	}
-	item = kmalloc(sizeof(*item), GFP_ATOMIC);
-	if (unlikely(!item))
+	if (tipc_dest_find(l, node, port))
 		return false;
 
-	item->value = value;
-	list_add(&item->list, l);
+	dst = kmalloc(sizeof(*dst), GFP_ATOMIC);
+	if (unlikely(!dst))
+		return false;
+	dst->value = value;
+	list_add(&dst->list, l);
 	return true;
 }
 
-u32 u32_pop(struct list_head *l)
+bool tipc_dest_pop(struct list_head *l, u32 *node, u32 *port)
 {
-	struct u32_item *item;
-	u32 value = 0;
+	struct tipc_dest *dst;
 
 	if (list_empty(l))
-		return 0;
-	item = list_first_entry(l, typeof(*item), list);
-	value = item->value;
-	list_del(&item->list);
-	kfree(item);
-	return value;
+		return false;
+	dst = list_first_entry(l, typeof(*dst), list);
+	if (port)
+		*port = dst->port;
+	if (node)
+		*node = dst->node;
+	list_del(&dst->list);
+	kfree(dst);
+	return true;
 }
 
-bool u32_del(struct list_head *l, u32 value)
+bool tipc_dest_del(struct list_head *l, u32 node, u32 port)
 {
-	struct u32_item *item, *tmp;
+	struct tipc_dest *dst;
 
-	list_for_each_entry_safe(item, tmp, l, list) {
-		if (item->value != value)
-			continue;
-		list_del(&item->list);
-		kfree(item);
-		return true;
+	dst = tipc_dest_find(l, node, port);
+	if (!dst)
+		return false;
+	list_del(&dst->list);
+	kfree(dst);
+	return true;
+}
+
+void tipc_dest_list_purge(struct list_head *l)
+{
+	struct tipc_dest *dst, *tmp;
+
+	list_for_each_entry_safe(dst, tmp, l, list) {
+		list_del(&dst->list);
+		kfree(dst);
 	}
-	return false;
 }
 
-void u32_list_purge(struct list_head *l)
+int tipc_dest_list_len(struct list_head *l)
 {
-	struct u32_item *item, *tmp;
-
-	list_for_each_entry_safe(item, tmp, l, list) {
-		list_del(&item->list);
-		kfree(item);
-	}
-}
-
-int u32_list_len(struct list_head *l)
-{
-	struct u32_item *item;
+	struct tipc_dest *dst;
 	int i = 0;
 
-	list_for_each_entry(item, l, list) {
+	list_for_each_entry(dst, l, list) {
 		i++;
 	}
 	return i;
