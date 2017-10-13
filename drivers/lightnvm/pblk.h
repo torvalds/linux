@@ -666,8 +666,8 @@ void pblk_rb_flush(struct pblk_rb *rb);
 
 void pblk_rb_sync_l2p(struct pblk_rb *rb);
 unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
-				 struct bio *bio, unsigned int pos,
-				 unsigned int nr_entries, unsigned int count);
+				 unsigned int pos, unsigned int nr_entries,
+				 unsigned int count);
 unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
 				      struct list_head *list,
 				      unsigned int max);

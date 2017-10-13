@@ -552,12 +552,13 @@ out:
  * persist data on the write buffer to the media.
  */
 unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
-				 struct bio *bio, unsigned int pos,
-				 unsigned int nr_entries, unsigned int count)
+				 unsigned int pos, unsigned int nr_entries,
+				 unsigned int count)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct request_queue *q = pblk->dev->q;
 	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
+	struct bio *bio = rqd->bio;
 	struct pblk_rb_entry *entry;
 	struct page *page;
 	unsigned int pad = 0, to_read = nr_entries;

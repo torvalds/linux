@@ -534,7 +534,16 @@ static int pblk_submit_write(struct pblk *pblk)
 	if (!secs_to_flush && secs_avail < pblk->min_write_pgs)
 		return 1;
 
-	bio = bio_alloc(GFP_KERNEL, pblk->max_write_pgs);
+	secs_to_sync = pblk_calc_secs_to_sync(pblk, secs_avail, secs_to_flush);
+	if (secs_to_sync > pblk->max_write_pgs) {
+		pr_err("pblk: bad buffer sync calculation\n");
+		return 1;
+	}
+
+	secs_to_com = (secs_to_sync > secs_avail) ? secs_avail : secs_to_sync;
+	pos = pblk_rb_read_commit(&pblk->rwb, secs_to_com);
+
+	bio = bio_alloc(GFP_KERNEL, secs_to_sync);
 
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
@@ -542,16 +551,7 @@ static int pblk_submit_write(struct pblk *pblk)
 	rqd = pblk_alloc_rqd(pblk, WRITE);
 	rqd->bio = bio;
 
-	secs_to_sync = pblk_calc_secs_to_sync(pblk, secs_avail, secs_to_flush);
-	if (secs_to_sync > pblk->max_write_pgs) {
-		pr_err("pblk: bad buffer sync calculation\n");
-		goto fail_put_bio;
-	}
-
-	secs_to_com = (secs_to_sync > secs_avail) ? secs_avail : secs_to_sync;
-	pos = pblk_rb_read_commit(&pblk->rwb, secs_to_com);
-
-	if (pblk_rb_read_to_bio(&pblk->rwb, rqd, bio, pos, secs_to_sync,
+	if (pblk_rb_read_to_bio(&pblk->rwb, rqd, pos, secs_to_sync,
 								secs_avail)) {
 		pr_err("pblk: corrupted write bio\n");
 		goto fail_put_bio;
