@@ -81,6 +81,7 @@
 #include "cxgb4_tc_u32.h"
 #include "cxgb4_tc_flower.h"
 #include "cxgb4_ptp.h"
+#include "cxgb4_cudbg.h"
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
 
@@ -5034,6 +5035,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 		cxgb4_set_ethtool_ops(netdev);
 	}
+
+	cxgb4_init_ethtool_dump(adapter);
 
 	pci_set_drvdata(pdev, adapter);
 

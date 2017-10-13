@@ -21,6 +21,7 @@
 #include "cxgb4.h"
 #include "t4_regs.h"
 #include "t4fw_api.h"
+#include "cxgb4_cudbg.h"
 
 #define EEPROM_MAGIC 0x38E2F10C
 
@@ -1374,6 +1375,56 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	return -EOPNOTSUPP;
 }
 
+static int set_dump(struct net_device *dev, struct ethtool_dump *eth_dump)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	u32 len = 0;
+
+	len = sizeof(struct cudbg_hdr) +
+	      sizeof(struct cudbg_entity_hdr) * CUDBG_MAX_ENTITY;
+	len += cxgb4_get_dump_length(adapter, eth_dump->flag);
+
+	adapter->eth_dump.flag = eth_dump->flag;
+	adapter->eth_dump.len = len;
+	return 0;
+}
+
+static int get_dump_flag(struct net_device *dev, struct ethtool_dump *eth_dump)
+{
+	struct adapter *adapter = netdev2adap(dev);
+
+	eth_dump->flag = adapter->eth_dump.flag;
+	eth_dump->len = adapter->eth_dump.len;
+	eth_dump->version = adapter->eth_dump.version;
+	return 0;
+}
+
+static int get_dump_data(struct net_device *dev, struct ethtool_dump *eth_dump,
+			 void *buf)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	u32 len = 0;
+	int ret = 0;
+
+	if (adapter->eth_dump.flag == CXGB4_ETH_DUMP_NONE)
+		return -ENOENT;
+
+	len = sizeof(struct cudbg_hdr) +
+	      sizeof(struct cudbg_entity_hdr) * CUDBG_MAX_ENTITY;
+	len += cxgb4_get_dump_length(adapter, adapter->eth_dump.flag);
+	if (eth_dump->len < len)
+		return -ENOMEM;
+
+	ret = cxgb4_cudbg_collect(adapter, buf, &len, adapter->eth_dump.flag);
+	if (ret)
+		return ret;
+
+	eth_dump->flag = adapter->eth_dump.flag;
+	eth_dump->len = len;
+	eth_dump->version = adapter->eth_dump.version;
+	return 0;
+}
+
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
@@ -1404,7 +1455,10 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
 	.flash_device      = set_flash,
-	.get_ts_info       = get_ts_info
+	.get_ts_info       = get_ts_info,
+	.set_dump          = set_dump,
+	.get_dump_flag     = get_dump_flag,
+	.get_dump_data     = get_dump_data,
 };
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)
