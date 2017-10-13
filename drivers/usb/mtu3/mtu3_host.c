@@ -79,20 +79,6 @@ int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 	if (!ssusb->wakeup_en)
 		return 0;
 
-	ssusb->wk_deb_p0 = devm_clk_get(dev, "wakeup_deb_p0");
-	if (IS_ERR(ssusb->wk_deb_p0)) {
-		dev_err(dev, "fail to get wakeup_deb_p0\n");
-		return PTR_ERR(ssusb->wk_deb_p0);
-	}
-
-	if (of_property_read_bool(dn, "wakeup_deb_p1")) {
-		ssusb->wk_deb_p1 = devm_clk_get(dev, "wakeup_deb_p1");
-		if (IS_ERR(ssusb->wk_deb_p1)) {
-			dev_err(dev, "fail to get wakeup_deb_p1\n");
-			return PTR_ERR(ssusb->wk_deb_p1);
-		}
-	}
-
 	ssusb->pericfg = syscon_regmap_lookup_by_phandle(dn,
 						"mediatek,syscon-wakeup");
 	if (IS_ERR(ssusb->pericfg)) {
@@ -101,36 +87,6 @@ int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 	}
 
 	return 0;
-}
-
-static int ssusb_wakeup_clks_enable(struct ssusb_mtk *ssusb)
-{
-	int ret;
-
-	ret = clk_prepare_enable(ssusb->wk_deb_p0);
-	if (ret) {
-		dev_err(ssusb->dev, "failed to enable wk_deb_p0\n");
-		goto usb_p0_err;
-	}
-
-	ret = clk_prepare_enable(ssusb->wk_deb_p1);
-	if (ret) {
-		dev_err(ssusb->dev, "failed to enable wk_deb_p1\n");
-		goto usb_p1_err;
-	}
-
-	return 0;
-
-usb_p1_err:
-	clk_disable_unprepare(ssusb->wk_deb_p0);
-usb_p0_err:
-	return -EINVAL;
-}
-
-static void ssusb_wakeup_clks_disable(struct ssusb_mtk *ssusb)
-{
-	clk_disable_unprepare(ssusb->wk_deb_p1);
-	clk_disable_unprepare(ssusb->wk_deb_p0);
 }
 
 static void host_ports_num_get(struct ssusb_mtk *ssusb)
@@ -286,19 +242,14 @@ void ssusb_host_exit(struct ssusb_mtk *ssusb)
 
 int ssusb_wakeup_enable(struct ssusb_mtk *ssusb)
 {
-	int ret = 0;
-
-	if (ssusb->wakeup_en) {
-		ret = ssusb_wakeup_clks_enable(ssusb);
+	if (ssusb->wakeup_en)
 		ssusb_wakeup_ip_sleep_en(ssusb);
-	}
-	return ret;
+
+	return 0;
 }
 
 void ssusb_wakeup_disable(struct ssusb_mtk *ssusb)
 {
-	if (ssusb->wakeup_en) {
+	if (ssusb->wakeup_en)
 		ssusb_wakeup_ip_sleep_dis(ssusb);
-		ssusb_wakeup_clks_disable(ssusb);
-	}
 }

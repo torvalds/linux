@@ -214,8 +214,6 @@ struct otg_switch_mtk {
  *		disable u3port0, bit1==1 to disable u3port1,... etc
  * @dbgfs_root: only used when supports manual dual-role switch via debugfs
  * @wakeup_en: it's true when supports remote wakeup in host mode
- * @wk_deb_p0: port0's wakeup debounce clock
- * @wk_deb_p1: it's optional, and depends on port1 is supported or not
  */
 struct ssusb_mtk {
 	struct device *dev;
@@ -238,8 +236,6 @@ struct ssusb_mtk {
 	struct dentry *dbgfs_root;
 	/* usb wakeup for host mode */
 	bool wakeup_en;
-	struct clk *wk_deb_p0;
-	struct clk *wk_deb_p1;
 	struct regmap *pericfg;
 };
 
