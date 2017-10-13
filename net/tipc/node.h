@@ -48,7 +48,8 @@ enum {
 	TIPC_BCAST_SYNCH      = (1 << 1),
 	TIPC_BCAST_STATE_NACK = (1 << 2),
 	TIPC_BLOCK_FLOWCTL    = (1 << 3),
-	TIPC_BCAST_RCAST      = (1 << 4)
+	TIPC_BCAST_RCAST      = (1 << 4),
+	TIPC_MCAST_GROUPS     = (1 << 5)
 };
 
 #define TIPC_NODE_CAPABILITIES (TIPC_BCAST_SYNCH | \

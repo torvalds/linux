@@ -43,6 +43,7 @@
 #include "bcast.h"
 #include "addr.h"
 #include "node.h"
+#include "group.h"
 #include <net/genetlink.h>
 
 #define TIPC_NAMETBL_SIZE 1024		/* must be a power of 2 */
@@ -596,18 +597,6 @@ not_found:
 	return ref;
 }
 
-/**
- * tipc_nametbl_mc_translate - find multicast destinations
- *
- * Creates list of all local ports that overlap the given multicast address;
- * also determines if any off-node ports overlap.
- *
- * Note: Publications with a scope narrower than 'limit' are ignored.
- * (i.e. local node-scope publications mustn't receive messages arriving
- * from another node, even if the multcast link brought it here)
- *
- * Returns non-zero if any off-node ports overlap
- */
 int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 			      u32 limit, struct list_head *dports)
 {
@@ -672,6 +661,37 @@ void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
 		list_for_each_entry(publ, &info->zone_list, zone_list) {
 			if (tipc_in_scope(domain, publ->node))
 				tipc_nlist_add(nodes, publ->node);
+		}
+	}
+	spin_unlock_bh(&seq->lock);
+exit:
+	rcu_read_unlock();
+}
+
+/* tipc_nametbl_build_group - build list of communication group members
+ */
+void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
+			      u32 type, u32 domain)
+{
+	struct sub_seq *sseq, *stop;
+	struct name_info *info;
+	struct publication *p;
+	struct name_seq *seq;
+
+	rcu_read_lock();
+	seq = nametbl_find_seq(net, type);
+	if (!seq)
+		goto exit;
+
+	spin_lock_bh(&seq->lock);
+	sseq = seq->sseqs;
+	stop = seq->sseqs + seq->first_free;
+	for (; sseq != stop; sseq++) {
+		info = sseq->info;
+		list_for_each_entry(p, &info->zone_list, zone_list) {
+			if (!tipc_in_scope(domain, p->node))
+				continue;
+			tipc_group_add_member(grp, p->node, p->ref);
 		}
 	}
 	spin_unlock_bh(&seq->lock);
