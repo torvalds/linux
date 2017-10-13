@@ -161,7 +161,8 @@ struct drm_i915_gem_object {
 	/** Count of VMA actually bound by this object */
 	unsigned int bind_count;
 	unsigned int active_count;
-	unsigned int pin_display;
+	/** Count of how many global VMA are currently pinned for use by HW */
+	unsigned int pin_global;
 
 	struct {
 		struct mutex lock; /* protects the pages and their use */

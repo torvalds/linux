@@ -56,7 +56,7 @@ static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 		return true;
 
-	return obj->pin_display;
+	return obj->pin_global; /* currently in use by HW, keep flushed */
 }
 
 static int
@@ -3493,7 +3493,7 @@ static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 {
-	if (!READ_ONCE(obj->pin_display))
+	if (!READ_ONCE(obj->pin_global))
 		return;
 
 	mutex_lock(&obj->base.dev->struct_mutex);
@@ -3860,10 +3860,10 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	/* Mark the pin_display early so that we account for the
+	/* Mark the global pin early so that we account for the
 	 * display coherency whilst setting up the cache domains.
 	 */
-	obj->pin_display++;
+	obj->pin_global++;
 
 	/* The display engine is not coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
@@ -3879,7 +3879,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 					      I915_CACHE_WT : I915_CACHE_NONE);
 	if (ret) {
 		vma = ERR_PTR(ret);
-		goto err_unpin_display;
+		goto err_unpin_global;
 	}
 
 	/* As the user may map the buffer once pinned in the display plane
@@ -3910,7 +3910,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment, flags);
 	}
 	if (IS_ERR(vma))
-		goto err_unpin_display;
+		goto err_unpin_global;
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
@@ -3925,8 +3925,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	return vma;
 
-err_unpin_display:
-	obj->pin_display--;
+err_unpin_global:
+	obj->pin_global--;
 	return vma;
 }
 
@@ -3935,10 +3935,10 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 {
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 
-	if (WARN_ON(vma->obj->pin_display == 0))
+	if (WARN_ON(vma->obj->pin_global == 0))
 		return;
 
-	if (--vma->obj->pin_display == 0)
+	if (--vma->obj->pin_global == 0)
 		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */

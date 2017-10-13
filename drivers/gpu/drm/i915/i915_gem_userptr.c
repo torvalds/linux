@@ -83,10 +83,10 @@ static void cancel_userptr(struct work_struct *work)
 	if (i915_gem_object_unbind(obj) == 0)
 		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
 	WARN_ONCE(i915_gem_object_has_pages(obj),
-		  "Failed to release pages: bind_count=%d, pages_pin_count=%d, pin_display=%d\n",
+		  "Failed to release pages: bind_count=%d, pages_pin_count=%d, pin_global=%d\n",
 		  obj->bind_count,
 		  atomic_read(&obj->mm.pages_pin_count),
-		  obj->pin_display);
+		  obj->pin_global);
 
 	mutex_unlock(&obj->base.dev->struct_mutex);
 
