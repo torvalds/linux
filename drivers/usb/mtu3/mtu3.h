@@ -210,6 +210,8 @@ struct otg_switch_mtk {
  *		host only, device only or dual-role mode
  * @u2_ports: number of usb2.0 host ports
  * @u3_ports: number of usb3.0 host ports
+ * @u3p_dis_msk: mask of disabling usb3 ports, for example, bit0==1 to
+ *		disable u3port0, bit1==1 to disable u3port1,... etc
  * @dbgfs_root: only used when supports manual dual-role switch via debugfs
  * @wakeup_en: it's true when supports remote wakeup in host mode
  * @wk_deb_p0: port0's wakeup debounce clock
@@ -232,6 +234,7 @@ struct ssusb_mtk {
 	bool is_host;
 	int u2_ports;
 	int u3_ports;
+	int u3p_dis_msk;
 	struct dentry *dbgfs_root;
 	/* usb wakeup for host mode */
 	bool wakeup_en;

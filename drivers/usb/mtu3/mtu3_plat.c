@@ -276,6 +276,10 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	if (ret)
 		return ret;
 
+	/* optional property, ignore the error if it does not exist */
+	of_property_read_u32(node, "mediatek,u3p-dis-msk",
+			     &ssusb->u3p_dis_msk);
+
 	if (ssusb->dr_mode != USB_DR_MODE_OTG)
 		return 0;
 
@@ -304,8 +308,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		}
 	}
 
-	dev_info(dev, "dr_mode: %d, is_u3_dr: %d\n",
-		ssusb->dr_mode, otg_sx->is_u3_drd);
+	dev_info(dev, "dr_mode: %d, is_u3_dr: %d, u3p_dis_msk:%x\n",
+		ssusb->dr_mode, otg_sx->is_u3_drd, ssusb->u3p_dis_msk);
 
 	return 0;
 }
