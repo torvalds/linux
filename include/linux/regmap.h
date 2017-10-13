@@ -120,22 +120,24 @@ struct reg_sequence {
  */
 #define regmap_read_poll_timeout(map, addr, val, cond, sleep_us, timeout_us) \
 ({ \
-	ktime_t __timeout = ktime_add_us(ktime_get(), timeout_us); \
+	u64 __timeout_us = (timeout_us); \
+	unsigned long __sleep_us = (sleep_us); \
+	ktime_t __timeout = ktime_add_us(ktime_get(), __timeout_us); \
 	int __ret; \
-	might_sleep_if(sleep_us); \
+	might_sleep_if(__sleep_us); \
 	for (;;) { \
 		__ret = regmap_read((map), (addr), &(val)); \
 		if (__ret) \
 			break; \
 		if (cond) \
 			break; \
-		if ((timeout_us) && \
+		if ((__timeout_us) && \
 		    ktime_compare(ktime_get(), __timeout) > 0) { \
 			__ret = regmap_read((map), (addr), &(val)); \
 			break; \
 		} \
-		if (sleep_us) \
-			usleep_range(((sleep_us) >> 2) + 1, sleep_us); \
+		if (__sleep_us) \
+			usleep_range((__sleep_us >> 2) + 1, __sleep_us); \
 	} \
 	__ret ?: ((cond) ? 0 : -ETIMEDOUT); \
 })
@@ -160,21 +162,23 @@ struct reg_sequence {
  */
 #define regmap_field_read_poll_timeout(field, val, cond, sleep_us, timeout_us) \
 ({ \
-	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us); \
+	u64 __timeout_us = (timeout_us); \
+	unsigned long __sleep_us = (sleep_us); \
+	ktime_t timeout = ktime_add_us(ktime_get(), __timeout_us); \
 	int pollret; \
-	might_sleep_if(sleep_us); \
+	might_sleep_if(__sleep_us); \
 	for (;;) { \
 		pollret = regmap_field_read((field), &(val)); \
 		if (pollret) \
 			break; \
 		if (cond) \
 			break; \
-		if (timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
+		if (__timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
 			pollret = regmap_field_read((field), &(val)); \
 			break; \
 		} \
-		if (sleep_us) \
-			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+		if (__sleep_us) \
+			usleep_range((__sleep_us >> 2) + 1, __sleep_us); \
 	} \
 	pollret ?: ((cond) ? 0 : -ETIMEDOUT); \
 })
