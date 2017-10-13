@@ -59,6 +59,7 @@ enum mbr_state {
 struct tipc_member {
 	struct rb_node tree_node;
 	struct list_head list;
+	struct sk_buff *event_msg;
 	u32 node;
 	u32 port;
 	u32 instance;
@@ -79,6 +80,7 @@ struct tipc_group {
 	u16 member_cnt;
 	u16 bc_snd_nxt;
 	bool loopback;
+	bool events;
 };
 
 static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
@@ -117,6 +119,7 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	grp->instance = mreq->instance;
 	grp->scope = mreq->scope;
 	grp->loopback = mreq->flags & TIPC_GROUP_LOOPBACK;
+	grp->events = mreq->flags & TIPC_GROUP_MEMBER_EVTS;
 	if (tipc_topsrv_kern_subscr(net, portid, type, 0, ~0, &grp->subid))
 		return grp;
 	kfree(grp);
@@ -279,6 +282,13 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 	if (!msg_in_group(hdr))
 		goto drop;
 
+	if (mtyp == TIPC_GRP_MEMBER_EVT) {
+		if (!grp->events)
+			goto drop;
+		__skb_queue_tail(inputq, skb);
+		return;
+	}
+
 	m = tipc_group_find_member(grp, node, port);
 	if (!tipc_group_is_receiver(m))
 		goto drop;
@@ -311,6 +321,7 @@ static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 }
 
 void tipc_group_proto_rcv(struct tipc_group *grp, struct tipc_msg *hdr,
+			  struct sk_buff_head *inputq,
 			  struct sk_buff_head *xmitq)
 {
 	u32 node = msg_orignode(hdr);
@@ -332,10 +343,12 @@ void tipc_group_proto_rcv(struct tipc_group *grp, struct tipc_msg *hdr,
 		m->bc_rcv_nxt = msg_grp_bc_syncpt(hdr);
 
 		/* Wait until PUBLISH event is received */
-		if (m->state == MBR_DISCOVERED)
+		if (m->state == MBR_DISCOVERED) {
 			m->state = MBR_JOINING;
-		else if (m->state == MBR_PUBLISHED)
+		} else if (m->state == MBR_PUBLISHED) {
 			m->state = MBR_JOINED;
+			__skb_queue_tail(inputq, m->event_msg);
+		}
 		return;
 	case GRP_LEAVE_MSG:
 		if (!m)
@@ -347,6 +360,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, struct tipc_msg *hdr,
 			return;
 		}
 		/* Otherwise deliver already received WITHDRAW event */
+		__skb_queue_tail(inputq, m->event_msg);
 		tipc_group_delete_member(grp, m);
 		return;
 	default:
@@ -354,16 +368,17 @@ void tipc_group_proto_rcv(struct tipc_group *grp, struct tipc_msg *hdr,
 	}
 }
 
-/* tipc_group_member_evt() - receive and handle a member up/down event
- */
 void tipc_group_member_evt(struct tipc_group *grp,
 			   struct sk_buff *skb,
+			   struct sk_buff_head *inputq,
 			   struct sk_buff_head *xmitq)
 {
 	struct tipc_msg *hdr = buf_msg(skb);
 	struct tipc_event *evt = (void *)msg_data(hdr);
+	u32 instance = evt->found_lower;
 	u32 node = evt->port.node;
 	u32 port = evt->port.ref;
+	int event = evt->event;
 	struct tipc_member *m;
 	struct net *net;
 	u32 self;
@@ -376,32 +391,51 @@ void tipc_group_member_evt(struct tipc_group *grp,
 	if (!grp->loopback && node == self && port == grp->portid)
 		goto drop;
 
+	/* Convert message before delivery to user */
+	msg_set_hdr_sz(hdr, GROUP_H_SIZE);
+	msg_set_user(hdr, TIPC_CRITICAL_IMPORTANCE);
+	msg_set_type(hdr, TIPC_GRP_MEMBER_EVT);
+	msg_set_origport(hdr, port);
+	msg_set_orignode(hdr, node);
+	msg_set_nametype(hdr, grp->type);
+	msg_set_grp_evt(hdr, event);
+
 	m = tipc_group_find_member(grp, node, port);
 
-	if (evt->event == TIPC_PUBLISHED) {
+	if (event == TIPC_PUBLISHED) {
 		if (!m)
 			m = tipc_group_create_member(grp, node, port,
 						     MBR_DISCOVERED);
 		if (!m)
 			goto drop;
 
-		/* Wait if JOIN message not yet received */
-		if (m->state == MBR_DISCOVERED)
+		/* Hold back event if JOIN message not yet received */
+		if (m->state == MBR_DISCOVERED) {
+			m->event_msg = skb;
 			m->state = MBR_PUBLISHED;
-		else
+		} else {
+			__skb_queue_tail(inputq, skb);
 			m->state = MBR_JOINED;
-		m->instance = evt->found_lower;
+		}
+		m->instance = instance;
+		TIPC_SKB_CB(skb)->orig_member = m->instance;
 		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, xmitq);
-	} else if (evt->event == TIPC_WITHDRAWN) {
+	} else if (event == TIPC_WITHDRAWN) {
 		if (!m)
 			goto drop;
 
-		/* Keep back event if more messages might be expected */
-		if (m->state != MBR_LEAVING && tipc_node_is_up(net, node))
+		TIPC_SKB_CB(skb)->orig_member = m->instance;
+
+		/* Hold back event if more messages might be expected */
+		if (m->state != MBR_LEAVING && tipc_node_is_up(net, node)) {
+			m->event_msg = skb;
 			m->state = MBR_LEAVING;
-		else
+		} else {
+			__skb_queue_tail(inputq, skb);
 			tipc_group_delete_member(grp, m);
+		}
 	}
+	return;
 drop:
 	kfree_skb(skb);
 }

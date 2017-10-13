@@ -65,7 +65,8 @@ struct plist;
 #define TIPC_MCAST_MSG          1
 #define TIPC_NAMED_MSG          2
 #define TIPC_DIRECT_MSG         3
-#define TIPC_GRP_BCAST_MSG      4
+#define TIPC_GRP_MEMBER_EVT     4
+#define TIPC_GRP_BCAST_MSG      5
 
 /*
  * Internal message users
@@ -258,7 +259,14 @@ static inline void msg_set_type(struct tipc_msg *m, u32 n)
 
 static inline int msg_in_group(struct tipc_msg *m)
 {
-	return (msg_type(m) == TIPC_GRP_BCAST_MSG);
+	int mtyp = msg_type(m);
+
+	return (mtyp == TIPC_GRP_BCAST_MSG) || (mtyp == TIPC_GRP_MEMBER_EVT);
+}
+
+static inline bool msg_is_grp_evt(struct tipc_msg *m)
+{
+	return msg_type(m) == TIPC_GRP_MEMBER_EVT;
 }
 
 static inline u32 msg_named(struct tipc_msg *m)
@@ -824,6 +832,16 @@ static inline void msg_set_grp_bc_syncpt(struct tipc_msg *m, u16 n)
 
 /* Word 10
  */
+static inline u16 msg_grp_evt(struct tipc_msg *m)
+{
+	return msg_bits(m, 10, 0, 0x3);
+}
+
+static inline void msg_set_grp_evt(struct tipc_msg *m, int n)
+{
+	msg_set_bits(m, 10, 0, 0x3, n);
+}
+
 static inline u16 msg_grp_bc_seqno(struct tipc_msg *m)
 {
 	return msg_bits(m, 10, 16, 0xffff);

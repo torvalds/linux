@@ -709,41 +709,43 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 			      poll_table *wait)
 {
 	struct sock *sk = sock->sk;
+	struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_group *grp = tsk->group;
-	u32 mask = 0;
+	u32 revents = 0;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
+		revents |= POLLRDHUP | POLLIN | POLLRDNORM;
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
-		mask |= POLLHUP;
+		revents |= POLLHUP;
 
 	switch (sk->sk_state) {
 	case TIPC_ESTABLISHED:
 		if (!tsk->cong_link_cnt && !tsk_conn_cong(tsk))
-			mask |= POLLOUT;
+			revents |= POLLOUT;
 		/* fall thru' */
 	case TIPC_LISTEN:
 	case TIPC_CONNECTING:
-		if (!skb_queue_empty(&sk->sk_receive_queue))
-			mask |= (POLLIN | POLLRDNORM);
+		if (skb)
+			revents |= POLLIN | POLLRDNORM;
 		break;
 	case TIPC_OPEN:
 		if (!grp || tipc_group_size(grp))
 			if (!tsk->cong_link_cnt)
-				mask |= POLLOUT;
-		if (tipc_sk_type_connectionless(sk) &&
-		    (!skb_queue_empty(&sk->sk_receive_queue)))
-			mask |= (POLLIN | POLLRDNORM);
+				revents |= POLLOUT;
+		if (!tipc_sk_type_connectionless(sk))
+			break;
+		if (!skb)
+			break;
+		revents |= POLLIN | POLLRDNORM;
 		break;
 	case TIPC_DISCONNECTING:
-		mask = (POLLIN | POLLRDNORM | POLLHUP);
+		revents = POLLIN | POLLRDNORM | POLLHUP;
 		break;
 	}
-
-	return mask;
+	return revents;
 }
 
 /**
@@ -1415,11 +1417,12 @@ static int tipc_recvmsg(struct socket *sock, struct msghdr *m,
 			size_t buflen,	int flags)
 {
 	struct sock *sk = sock->sk;
-	struct tipc_sock *tsk = tipc_sk(sk);
-	struct sk_buff *skb;
-	struct tipc_msg *hdr;
 	bool connected = !tipc_sk_type_connectionless(sk);
+	struct tipc_sock *tsk = tipc_sk(sk);
 	int rc, err, hlen, dlen, copy;
+	struct tipc_msg *hdr;
+	struct sk_buff *skb;
+	bool grp_evt;
 	long timeout;
 
 	/* Catch invalid receive requests */
@@ -1443,6 +1446,7 @@ static int tipc_recvmsg(struct socket *sock, struct msghdr *m,
 		dlen = msg_data_sz(hdr);
 		hlen = msg_hdr_sz(hdr);
 		err = msg_errcode(hdr);
+		grp_evt = msg_is_grp_evt(hdr);
 		if (likely(dlen || err))
 			break;
 		tsk_advance_rx_queue(sk);
@@ -1469,11 +1473,20 @@ static int tipc_recvmsg(struct socket *sock, struct msghdr *m,
 	if (unlikely(rc))
 		goto exit;
 
+	/* Mark message as group event if applicable */
+	if (unlikely(grp_evt)) {
+		if (msg_grp_evt(hdr) == TIPC_WITHDRAWN)
+			m->msg_flags |= MSG_EOR;
+		m->msg_flags |= MSG_OOB;
+		copy = 0;
+	}
+
 	/* Caption of data or error code/rejected data was successful */
 	if (unlikely(flags & MSG_PEEK))
 		goto exit;
 
 	tsk_advance_rx_queue(sk);
+
 	if (likely(!connected))
 		goto exit;
 
@@ -1648,10 +1661,10 @@ static void tipc_sk_proto_rcv(struct sock *sk,
 		sk->sk_write_space(sk);
 		break;
 	case GROUP_PROTOCOL:
-		tipc_group_proto_rcv(grp, hdr, xmitq);
+		tipc_group_proto_rcv(grp, hdr, inputq, xmitq);
 		break;
 	case TOP_SRV:
-		tipc_group_member_evt(tsk->group, skb, xmitq);
+		tipc_group_member_evt(tsk->group, skb, inputq, xmitq);
 		skb = NULL;
 		break;
 	default:

@@ -54,9 +54,11 @@ void tipc_group_filter_msg(struct tipc_group *grp,
 			   struct sk_buff_head *xmitq);
 void tipc_group_member_evt(struct tipc_group *grp,
 			   struct sk_buff *skb,
+			   struct sk_buff_head *inputq,
 			   struct sk_buff_head *xmitq);
 void tipc_group_proto_rcv(struct tipc_group *grp,
 			  struct tipc_msg *hdr,
+			  struct sk_buff_head *inputq,
 			  struct sk_buff_head *xmitq);
 void tipc_group_update_bc_members(struct tipc_group *grp);
 u16 tipc_group_bc_snd_nxt(struct tipc_group *grp);

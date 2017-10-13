@@ -238,6 +238,7 @@ struct sockaddr_tipc {
  * Flag values
  */
 #define TIPC_GROUP_LOOPBACK     0x1  /* Receive copy of sent msg when match */
+#define TIPC_GROUP_MEMBER_EVTS  0x2  /* Receive membership events in socket */
 
 struct tipc_group_req {
 	__u32 type;      /* group id */
