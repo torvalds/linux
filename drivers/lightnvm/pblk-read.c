@@ -39,20 +39,13 @@ static int pblk_read_from_cache(struct pblk *pblk, struct bio *bio,
 }
 
 static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
-				 unsigned long *read_bitmap)
+				 sector_t blba, unsigned long *read_bitmap)
 {
 	struct bio *bio = rqd->bio;
 	struct ppa_addr ppas[PBLK_MAX_REQ_ADDRS];
-	sector_t blba = pblk_get_lba(bio);
 	int nr_secs = rqd->nr_ppas;
 	bool advanced_bio = false;
 	int i, j = 0;
-
-	/* logic error: lba out-of-bounds. Ignore read request */
-	if (blba + nr_secs >= pblk->rl.nr_secs) {
-		WARN(1, "pblk: read lbas out of bounds\n");
-		return;
-	}
 
 	pblk_lookup_l2p_seq(pblk, ppas, blba, nr_secs);
 
@@ -259,17 +252,10 @@ err:
 }
 
 static void pblk_read_rq(struct pblk *pblk, struct nvm_rq *rqd,
-			 unsigned long *read_bitmap)
+			 sector_t lba, unsigned long *read_bitmap)
 {
 	struct bio *bio = rqd->bio;
 	struct ppa_addr ppa;
-	sector_t lba = pblk_get_lba(bio);
-
-	/* logic error: lba out-of-bounds. Ignore read request */
-	if (lba >= pblk->rl.nr_secs) {
-		WARN(1, "pblk: read lba out of bounds\n");
-		return;
-	}
 
 	pblk_lookup_l2p_seq(pblk, &ppa, lba, 1);
 
@@ -305,14 +291,19 @@ retry:
 int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
+	sector_t blba = pblk_get_lba(bio);
 	unsigned int nr_secs = pblk_get_secs(bio);
 	struct nvm_rq *rqd;
 	unsigned long read_bitmap; /* Max 64 ppas per request */
 	unsigned int bio_init_idx;
 	int ret = NVM_IO_ERR;
 
-	if (nr_secs > PBLK_MAX_REQ_ADDRS)
+	/* logic error: lba out-of-bounds. Ignore read request */
+	if (blba >= pblk->rl.nr_secs || nr_secs > PBLK_MAX_REQ_ADDRS) {
+		WARN(1, "pblk: read lba out of bounds (lba:%llu, nr:%d)\n",
+					(unsigned long long)blba, nr_secs);
 		return NVM_IO_ERR;
+	}
 
 	bitmap_zero(&read_bitmap, nr_secs);
 
@@ -340,9 +331,9 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size;
 		rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size;
 
-		pblk_read_ppalist_rq(pblk, rqd, &read_bitmap);
+		pblk_read_ppalist_rq(pblk, rqd, blba, &read_bitmap);
 	} else {
-		pblk_read_rq(pblk, rqd, &read_bitmap);
+		pblk_read_rq(pblk, rqd, blba, &read_bitmap);
 	}
 
 	bio_get(bio);
