@@ -830,6 +830,7 @@ static int tipc_send_group_msg(struct net *net, struct tipc_sock *tsk,
 			       struct msghdr *m, struct tipc_member *mb,
 			       u32 dnode, u32 dport, int dlen)
 {
+	u16 bc_snd_nxt = tipc_group_bc_snd_nxt(tsk->group);
 	int blks = tsk_blocks(GROUP_H_SIZE + dlen);
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct sk_buff_head pkts;
@@ -840,6 +841,7 @@ static int tipc_send_group_msg(struct net *net, struct tipc_sock *tsk,
 	msg_set_hdr_sz(hdr, GROUP_H_SIZE);
 	msg_set_destport(hdr, dport);
 	msg_set_destnode(hdr, dnode);
+	msg_set_grp_bc_seqno(hdr, bc_snd_nxt);
 
 	/* Build message as chain of buffers */
 	skb_queue_head_init(&pkts);
