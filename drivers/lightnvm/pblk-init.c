@@ -630,7 +630,10 @@ static int pblk_lines_alloc_metadata(struct pblk *pblk)
 
 fail_free_emeta:
 	while (--i >= 0) {
-		vfree(l_mg->eline_meta[i]->buf);
+		if (l_mg->emeta_alloc_type == PBLK_VMALLOC_META)
+			vfree(l_mg->eline_meta[i]->buf);
+		else
+			kfree(l_mg->eline_meta[i]->buf);
 		kfree(l_mg->eline_meta[i]);
 	}
 
