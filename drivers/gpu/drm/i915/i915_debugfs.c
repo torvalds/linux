@@ -568,7 +568,6 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_i915_private *dev_priv = node_to_i915(node);
 	struct drm_device *dev = &dev_priv->drm;
-	bool show_pin_display_only = !!node->info_ent->data;
 	struct drm_i915_gem_object *obj;
 	u64 total_obj_size, total_gtt_size;
 	int count, ret;
@@ -579,9 +578,6 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
-		if (show_pin_display_only && !obj->pin_global)
-			continue;
-
 		seq_puts(m, "   ");
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
@@ -4751,7 +4747,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
-	{"i915_gem_pin_display", i915_gem_gtt_info, 0, (void *)1},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
