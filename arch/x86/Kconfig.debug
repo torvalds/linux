@@ -358,13 +358,13 @@ config PUNIT_ATOM_DEBUG
 
 choice
 	prompt "Choose kernel unwinder"
-	default FRAME_POINTER_UNWINDER
+	default UNWINDER_FRAME_POINTER
 	---help---
 	  This determines which method will be used for unwinding kernel stack
 	  traces for panics, oopses, bugs, warnings, perf, /proc/<pid>/stack,
 	  livepatch, lockdep, and more.
 
-config FRAME_POINTER_UNWINDER
+config UNWINDER_FRAME_POINTER
 	bool "Frame pointer unwinder"
 	select FRAME_POINTER
 	---help---
@@ -379,7 +379,7 @@ config FRAME_POINTER_UNWINDER
 	  consistency model, as this is currently the only way to get a
 	  reliable stack trace (CONFIG_HAVE_RELIABLE_STACKTRACE).
 
-config ORC_UNWINDER
+config UNWINDER_ORC
 	bool "ORC unwinder"
 	depends on X86_64
 	select STACK_VALIDATION
@@ -395,7 +395,7 @@ config ORC_UNWINDER
 	  Enabling this option will increase the kernel's runtime memory usage
 	  by roughly 2-4MB, depending on your kernel config.
 
-config GUESS_UNWINDER
+config UNWINDER_GUESS
 	bool "Guess unwinder"
 	depends on EXPERT
 	---help---
@@ -410,7 +410,7 @@ config GUESS_UNWINDER
 endchoice
 
 config FRAME_POINTER
-	depends on !ORC_UNWINDER && !GUESS_UNWINDER
+	depends on !UNWINDER_ORC && !UNWINDER_GUESS
 	bool
 
 endmenu
