@@ -37,6 +37,9 @@
 #define RPM_SYS_FABRIC_A_CLK			19
 #define RPM_SFPB_CLK				20
 #define RPM_SFPB_A_CLK				21
+#define RPM_SMI_CLK				22
+#define RPM_SMI_A_CLK				23
+#define RPM_PLL4_CLK				24
 
 /* SMD RPM clocks */
 #define RPM_SMD_XO_CLK_SRC				0
