@@ -157,7 +157,7 @@ static void tipc_node_timeout(unsigned long data);
 static void tipc_node_fsm_evt(struct tipc_node *n, int evt);
 static struct tipc_node *tipc_node_find(struct net *net, u32 addr);
 static void tipc_node_put(struct tipc_node *node);
-static bool tipc_node_is_up(struct tipc_node *n);
+static bool node_is_up(struct tipc_node *n);
 
 struct tipc_sock_conn {
 	u32 port;
@@ -657,7 +657,7 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 		*slot1 = i;
 	}
 
-	if (!tipc_node_is_up(n)) {
+	if (!node_is_up(n)) {
 		if (tipc_link_peer_is_down(l))
 			tipc_node_fsm_evt(n, PEER_LOST_CONTACT_EVT);
 		tipc_node_fsm_evt(n, SELF_LOST_CONTACT_EVT);
@@ -717,9 +717,25 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 	tipc_sk_rcv(n->net, &le->inputq);
 }
 
-static bool tipc_node_is_up(struct tipc_node *n)
+static bool node_is_up(struct tipc_node *n)
 {
 	return n->active_links[0] != INVALID_BEARER_ID;
+}
+
+bool tipc_node_is_up(struct net *net, u32 addr)
+{
+	struct tipc_node *n;
+	bool retval = false;
+
+	if (in_own_node(net, addr))
+		return true;
+
+	n = tipc_node_find(net, addr);
+	if (!n)
+		return false;
+	retval = node_is_up(n);
+	tipc_node_put(n);
+	return retval;
 }
 
 void tipc_node_check_dest(struct net *net, u32 onode,
@@ -1149,7 +1165,7 @@ static int __tipc_nl_add_node(struct tipc_nl_msg *msg, struct tipc_node *node)
 
 	if (nla_put_u32(msg->skb, TIPC_NLA_NODE_ADDR, node->addr))
 		goto attr_msg_full;
-	if (tipc_node_is_up(node))
+	if (node_is_up(node))
 		if (nla_put_flag(msg->skb, TIPC_NLA_NODE_UP))
 			goto attr_msg_full;
 
@@ -1238,6 +1254,22 @@ int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
 	return 0;
 }
 
+/* tipc_node_distr_xmit(): send single buffer msgs to individual destinations
+ * Note: this is only for SYSTEM_IMPORTANCE messages, which cannot be rejected
+ */
+int tipc_node_distr_xmit(struct net *net, struct sk_buff_head *xmitq)
+{
+	struct sk_buff *skb;
+	u32 selector, dnode;
+
+	while ((skb = __skb_dequeue(xmitq))) {
+		selector = msg_origport(buf_msg(skb));
+		dnode = msg_destnode(buf_msg(skb));
+		tipc_node_xmit_skb(net, skb, dnode, selector);
+	}
+	return 0;
+}
+
 void tipc_node_broadcast(struct net *net, struct sk_buff *skb)
 {
 	struct sk_buff *txskb;
@@ -1249,7 +1281,7 @@ void tipc_node_broadcast(struct net *net, struct sk_buff *skb)
 		dst = n->addr;
 		if (in_own_node(net, dst))
 			continue;
-		if (!tipc_node_is_up(n))
+		if (!node_is_up(n))
 			continue;
 		txskb = pskb_copy(skb, GFP_ATOMIC);
 		if (!txskb)

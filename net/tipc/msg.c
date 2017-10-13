@@ -666,3 +666,10 @@ void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 	}
 	kfree_skb(skb);
 }
+
+void tipc_skb_reject(struct net *net, int err, struct sk_buff *skb,
+		     struct sk_buff_head *xmitq)
+{
+	if (tipc_msg_reverse(tipc_own_addr(net), &skb, err))
+		__skb_queue_tail(xmitq, skb);
+}
