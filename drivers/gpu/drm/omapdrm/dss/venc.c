@@ -857,10 +857,10 @@ static int venc_probe_of(struct platform_device *pdev)
 	of_node_put(ep);
 
 	return 0;
+
 err:
 	of_node_put(ep);
-
-	return 0;
+	return r;
 }
 
 /* VENC HW IP initialisation */
