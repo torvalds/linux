@@ -548,6 +548,8 @@ static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
 #define GRP_LEAVE_MSG        1
 #define GRP_ADV_MSG          2
 #define GRP_ACK_MSG          3
+#define GRP_RECLAIM_MSG      4
+#define GRP_REMIT_MSG        5
 
 /*
  * Word 1
@@ -846,6 +848,16 @@ static inline u16 msg_grp_bc_acked(struct tipc_msg *m)
 }
 
 static inline void msg_set_grp_bc_acked(struct tipc_msg *m, u16 n)
+{
+	msg_set_bits(m, 9, 16, 0xffff, n);
+}
+
+static inline u16 msg_grp_remitted(struct tipc_msg *m)
+{
+	return msg_bits(m, 9, 16, 0xffff);
+}
+
+static inline void msg_set_grp_remitted(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }

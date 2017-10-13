@@ -54,6 +54,10 @@ enum mbr_state {
 	MBR_JOINING,
 	MBR_PUBLISHED,
 	MBR_JOINED,
+	MBR_PENDING,
+	MBR_ACTIVE,
+	MBR_RECLAIMING,
+	MBR_REMITTED,
 	MBR_LEAVING
 };
 
@@ -79,6 +83,9 @@ struct tipc_member {
 struct tipc_group {
 	struct rb_root members;
 	struct list_head congested;
+	struct list_head pending;
+	struct list_head active;
+	struct list_head reclaiming;
 	struct tipc_nlist dests;
 	struct net *net;
 	int subid;
@@ -88,6 +95,8 @@ struct tipc_group {
 	u32 scope;
 	u32 portid;
 	u16 member_cnt;
+	u16 active_cnt;
+	u16 max_active;
 	u16 bc_snd_nxt;
 	u16 bc_ackers;
 	bool loopback;
@@ -97,12 +106,29 @@ struct tipc_group {
 static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 				  int mtyp, struct sk_buff_head *xmitq);
 
+static void tipc_group_decr_active(struct tipc_group *grp,
+				   struct tipc_member *m)
+{
+	if (m->state == MBR_ACTIVE || m->state == MBR_RECLAIMING)
+		grp->active_cnt--;
+}
+
 static int tipc_group_rcvbuf_limit(struct tipc_group *grp)
 {
+	int max_active, active_pool, idle_pool;
 	int mcnt = grp->member_cnt + 1;
 
+	/* Limit simultaneous reception from other members */
+	max_active = min(mcnt / 8, 64);
+	max_active = max(max_active, 16);
+	grp->max_active = max_active;
+
+	/* Reserve blocks for active and idle members */
+	active_pool = max_active * ADV_ACTIVE;
+	idle_pool = (mcnt - max_active) * ADV_IDLE;
+
 	/* Scale to bytes, considering worst-case truesize/msgsize ratio */
-	return mcnt * ADV_ACTIVE * FLOWCTL_BLK_SZ * 4;
+	return (active_pool + idle_pool) * FLOWCTL_BLK_SZ * 4;
 }
 
 u16 tipc_group_bc_snd_nxt(struct tipc_group *grp)
@@ -143,6 +169,9 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 		return NULL;
 	tipc_nlist_init(&grp->dests, tipc_own_addr(net));
 	INIT_LIST_HEAD(&grp->congested);
+	INIT_LIST_HEAD(&grp->active);
+	INIT_LIST_HEAD(&grp->pending);
+	INIT_LIST_HEAD(&grp->reclaiming);
 	grp->members = RB_ROOT;
 	grp->net = net;
 	grp->portid = portid;
@@ -286,6 +315,7 @@ static void tipc_group_delete_member(struct tipc_group *grp,
 
 	list_del_init(&m->list);
 	list_del_init(&m->congested);
+	tipc_group_decr_active(grp, m);
 
 	/* If last member on a node, remove node from dest list */
 	if (!tipc_group_find_node(grp, m->node))
@@ -377,6 +407,10 @@ bool tipc_group_cong(struct tipc_group *grp, u32 dnode, u32 dport,
 	if (state < MBR_JOINED)
 		return true;
 	if (state == MBR_JOINED && adv == ADV_IDLE)
+		return true;
+	if (state == MBR_ACTIVE && adv == ADV_ACTIVE)
+		return true;
+	if (state == MBR_PENDING && adv == ADV_IDLE)
 		return true;
 	skb_queue_head_init(&xmitq);
 	tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, &xmitq);
@@ -523,7 +557,11 @@ drop:
 void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 			       u32 port, struct sk_buff_head *xmitq)
 {
-	struct tipc_member *m;
+	struct list_head *active = &grp->active;
+	int max_active = grp->max_active;
+	int reclaim_limit = max_active * 3 / 4;
+	int active_cnt = grp->active_cnt;
+	struct tipc_member *m, *rm;
 
 	m = tipc_group_find_member(grp, node, port);
 	if (!m)
@@ -533,9 +571,41 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 
 	switch (m->state) {
 	case MBR_JOINED:
-		if (m->advertised <= (ADV_ACTIVE - ADV_UNIT))
-			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
+		/* Reclaim advertised space from least active member */
+		if (!list_empty(active) && active_cnt >= reclaim_limit) {
+			rm = list_first_entry(active, struct tipc_member, list);
+			rm->state = MBR_RECLAIMING;
+			list_move_tail(&rm->list, &grp->reclaiming);
+			tipc_group_proto_xmit(grp, rm, GRP_RECLAIM_MSG, xmitq);
+		}
+		/* If max active, become pending and wait for reclaimed space */
+		if (active_cnt >= max_active) {
+			m->state = MBR_PENDING;
+			list_add_tail(&m->list, &grp->pending);
+			break;
+		}
+		/* Otherwise become active */
+		m->state = MBR_ACTIVE;
+		list_add_tail(&m->list, &grp->active);
+		grp->active_cnt++;
+		/* Fall through */
+	case MBR_ACTIVE:
+		if (!list_is_last(&m->list, &grp->active))
+			list_move_tail(&m->list, &grp->active);
+		if (m->advertised > (ADV_ACTIVE * 3 / 4))
+			break;
+		tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
 		break;
+	case MBR_REMITTED:
+		if (m->advertised > ADV_IDLE)
+			break;
+		m->state = MBR_JOINED;
+		if (m->advertised < ADV_IDLE) {
+			pr_warn_ratelimited("Rcv unexpected msg after REMIT\n");
+			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
+		}
+		break;
+	case MBR_RECLAIMING:
 	case MBR_DISCOVERED:
 	case MBR_JOINING:
 	case MBR_LEAVING:
@@ -557,8 +627,10 @@ static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 	if (!skb)
 		return;
 
-	if (m->state == MBR_JOINED)
+	if (m->state == MBR_ACTIVE)
 		adv = ADV_ACTIVE - m->advertised;
+	else if (m->state == MBR_JOINED || m->state == MBR_PENDING)
+		adv = ADV_IDLE - m->advertised;
 
 	hdr = buf_msg(skb);
 
@@ -573,6 +645,8 @@ static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 		m->advertised += adv;
 	} else if (mtyp == GRP_ACK_MSG) {
 		msg_set_grp_bc_acked(hdr, m->bc_rcv_nxt);
+	} else if (mtyp == GRP_REMIT_MSG) {
+		msg_set_grp_remitted(hdr, m->window);
 	}
 	__skb_queue_tail(xmitq, skb);
 }
@@ -583,8 +657,9 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 {
 	u32 node = msg_orignode(hdr);
 	u32 port = msg_origport(hdr);
-	struct tipc_member *m;
+	struct tipc_member *m, *pm;
 	struct tipc_msg *ehdr;
+	u16 remitted, in_flight;
 
 	if (!grp)
 		return;
@@ -626,6 +701,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 
 		/* Wait until WITHDRAW event is received */
 		if (m->state != MBR_LEAVING) {
+			tipc_group_decr_active(grp, m);
 			m->state = MBR_LEAVING;
 			return;
 		}
@@ -652,6 +728,48 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			break;
 		*usr_wakeup = true;
 		m->usr_pending = false;
+		return;
+	case GRP_RECLAIM_MSG:
+		if (!m)
+			return;
+		*usr_wakeup = m->usr_pending;
+		m->usr_pending = false;
+		tipc_group_proto_xmit(grp, m, GRP_REMIT_MSG, xmitq);
+		m->window = ADV_IDLE;
+		return;
+	case GRP_REMIT_MSG:
+		if (!m || m->state != MBR_RECLAIMING)
+			return;
+
+		list_del_init(&m->list);
+		grp->active_cnt--;
+		remitted = msg_grp_remitted(hdr);
+
+		/* Messages preceding the REMIT still in receive queue */
+		if (m->advertised > remitted) {
+			m->state = MBR_REMITTED;
+			in_flight = m->advertised - remitted;
+		}
+		/* All messages preceding the REMIT have been read */
+		if (m->advertised <= remitted) {
+			m->state = MBR_JOINED;
+			in_flight = 0;
+		}
+		/* ..and the REMIT overtaken by more messages => re-advertise */
+		if (m->advertised < remitted)
+			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
+
+		m->advertised = ADV_IDLE + in_flight;
+
+		/* Set oldest pending member to active and advertise */
+		if (list_empty(&grp->pending))
+			return;
+		pm = list_first_entry(&grp->pending, struct tipc_member, list);
+		pm->state = MBR_ACTIVE;
+		list_move_tail(&pm->list, &grp->active);
+		grp->active_cnt++;
+		if (pm->advertised <= (ADV_ACTIVE * 3 / 4))
+			tipc_group_proto_xmit(grp, pm, GRP_ADV_MSG, xmitq);
 		return;
 	default:
 		pr_warn("Received unknown GROUP_PROTO message\n");
@@ -735,6 +853,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 		/* Hold back event if more messages might be expected */
 		if (m->state != MBR_LEAVING && node_up) {
 			m->event_msg = skb;
+			tipc_group_decr_active(grp, m);
 			m->state = MBR_LEAVING;
 		} else {
 			if (node_up)
