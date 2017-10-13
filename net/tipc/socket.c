@@ -62,6 +62,11 @@ enum {
 	TIPC_CONNECTING = TCP_SYN_SENT,
 };
 
+struct sockaddr_pair {
+	struct sockaddr_tipc sock;
+	struct sockaddr_tipc member;
+};
+
 /**
  * struct tipc_sock - TIPC socket structure
  * @sk: socket - interacts with 'port' and with user via the socket API
@@ -1222,26 +1227,38 @@ static void tipc_sk_finish_conn(struct tipc_sock *tsk, u32 peer_port,
 }
 
 /**
- * set_orig_addr - capture sender's address for received message
+ * tipc_sk_set_orig_addr - capture sender's address for received message
  * @m: descriptor for message info
- * @msg: received message header
+ * @hdr: received message header
  *
  * Note: Address is not captured if not requested by receiver.
  */
-static void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
+static void tipc_sk_set_orig_addr(struct msghdr *m, struct sk_buff *skb)
 {
-	DECLARE_SOCKADDR(struct sockaddr_tipc *, addr, m->msg_name);
+	DECLARE_SOCKADDR(struct sockaddr_pair *, srcaddr, m->msg_name);
+	struct tipc_msg *hdr = buf_msg(skb);
 
-	if (addr) {
-		addr->family = AF_TIPC;
-		addr->addrtype = TIPC_ADDR_ID;
-		memset(&addr->addr, 0, sizeof(addr->addr));
-		addr->addr.id.ref = msg_origport(msg);
-		addr->addr.id.node = msg_orignode(msg);
-		addr->addr.name.domain = 0;	/* could leave uninitialized */
-		addr->scope = 0;		/* could leave uninitialized */
-		m->msg_namelen = sizeof(struct sockaddr_tipc);
-	}
+	if (!srcaddr)
+		return;
+
+	srcaddr->sock.family = AF_TIPC;
+	srcaddr->sock.addrtype = TIPC_ADDR_ID;
+	srcaddr->sock.addr.id.ref = msg_origport(hdr);
+	srcaddr->sock.addr.id.node = msg_orignode(hdr);
+	srcaddr->sock.addr.name.domain = 0;
+	srcaddr->sock.scope = 0;
+	m->msg_namelen = sizeof(struct sockaddr_tipc);
+
+	if (!msg_in_group(hdr))
+		return;
+
+	/* Group message users may also want to know sending member's id */
+	srcaddr->member.family = AF_TIPC;
+	srcaddr->member.addrtype = TIPC_ADDR_NAME;
+	srcaddr->member.addr.name.name.type = msg_nametype(hdr);
+	srcaddr->member.addr.name.name.instance = TIPC_SKB_CB(skb)->orig_member;
+	srcaddr->member.addr.name.domain = 0;
+	m->msg_namelen = sizeof(*srcaddr);
 }
 
 /**
@@ -1432,7 +1449,7 @@ static int tipc_recvmsg(struct socket *sock, struct msghdr *m,
 	} while (1);
 
 	/* Collect msg meta data, including error code and rejected data */
-	set_orig_addr(m, hdr);
+	tipc_sk_set_orig_addr(m, skb);
 	rc = tipc_sk_anc_data_recv(m, hdr, tsk);
 	if (unlikely(rc))
 		goto exit;
@@ -1526,7 +1543,7 @@ static int tipc_recvstream(struct socket *sock, struct msghdr *m,
 
 		/* Collect msg meta data, incl. error code and rejected data */
 		if (!copied) {
-			set_orig_addr(m, hdr);
+			tipc_sk_set_orig_addr(m, skb);
 			rc = tipc_sk_anc_data_recv(m, hdr, tsk);
 			if (rc)
 				break;

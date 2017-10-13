@@ -61,6 +61,7 @@ struct tipc_member {
 	struct list_head list;
 	u32 node;
 	u32 port;
+	u32 instance;
 	enum mbr_state state;
 	u16 bc_rcv_nxt;
 };
@@ -282,6 +283,7 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 	if (!tipc_group_is_receiver(m))
 		goto drop;
 
+	TIPC_SKB_CB(skb)->orig_member = m->instance;
 	__skb_queue_tail(inputq, skb);
 
 	m->bc_rcv_nxt = msg_grp_bc_seqno(hdr) + 1;
@@ -388,6 +390,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 			m->state = MBR_PUBLISHED;
 		else
 			m->state = MBR_JOINED;
+		m->instance = evt->found_lower;
 		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, xmitq);
 	} else if (evt->event == TIPC_WITHDRAWN) {
 		if (!m)

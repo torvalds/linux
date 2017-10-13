@@ -100,6 +100,7 @@ struct plist;
 
 struct tipc_skb_cb {
 	u32 bytes_read;
+	u32 orig_member;
 	struct sk_buff *tail;
 	bool validated;
 	u16 chain_imp;
