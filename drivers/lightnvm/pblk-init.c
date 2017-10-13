@@ -76,6 +76,28 @@ static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 	return BLK_QC_T_NONE;
 }
 
+static size_t pblk_trans_map_size(struct pblk *pblk)
+{
+	int entry_size = 8;
+
+	if (pblk->ppaf_bitsize < 32)
+		entry_size = 4;
+
+	return entry_size * pblk->rl.nr_secs;
+}
+
+#ifdef CONFIG_NVM_DEBUG
+static u32 pblk_l2p_crc(struct pblk *pblk)
+{
+	size_t map_size;
+	u32 crc = ~(u32)0;
+
+	map_size = pblk_trans_map_size(pblk);
+	crc = crc32_le(crc, pblk->trans_map, map_size);
+	return crc;
+}
+#endif
+
 static void pblk_l2p_free(struct pblk *pblk)
 {
 	vfree(pblk->trans_map);
@@ -85,12 +107,10 @@ static int pblk_l2p_init(struct pblk *pblk)
 {
 	sector_t i;
 	struct ppa_addr ppa;
-	int entry_size = 8;
+	size_t map_size;
 
-	if (pblk->ppaf_bitsize < 32)
-		entry_size = 4;
-
-	pblk->trans_map = vmalloc(entry_size * pblk->rl.nr_secs);
+	map_size = pblk_trans_map_size(pblk);
+	pblk->trans_map = vmalloc(map_size);
 	if (!pblk->trans_map)
 		return -ENOMEM;
 
@@ -508,6 +528,10 @@ static int pblk_lines_configure(struct pblk *pblk, int flags)
 		}
 	}
 
+#ifdef CONFIG_NVM_DEBUG
+	pr_info("pblk init: L2P CRC: %x\n", pblk_l2p_crc(pblk));
+#endif
+
 	/* Free full lines directly as GC has not been started yet */
 	pblk_gc_free_full_lines(pblk);
 
@@ -901,6 +925,11 @@ static void pblk_exit(void *private)
 	down_write(&pblk_lock);
 	pblk_gc_exit(pblk);
 	pblk_tear_down(pblk);
+
+#ifdef CONFIG_NVM_DEBUG
+	pr_info("pblk exit: L2P CRC: %x\n", pblk_l2p_crc(pblk));
+#endif
+
 	pblk_free(pblk);
 	up_write(&pblk_lock);
 }
