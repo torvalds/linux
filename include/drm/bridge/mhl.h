@@ -262,6 +262,10 @@ enum {
 #define MHL_RAPK_UNSUPPORTED	0x02	/* Rcvd RAP action code not supported */
 #define MHL_RAPK_BUSY		0x03	/* Responder too busy to respond */
 
+/* Bit masks for RCP messages */
+#define MHL_RCP_KEY_RELEASED_MASK	0x80
+#define MHL_RCP_KEY_ID_MASK		0x7F
+
 /*
  * Error status codes for RCPE messages
  */

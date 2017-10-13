@@ -585,12 +585,12 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_oldnew_connector_in_state(__state, connector, old_connector_state, new_connector_state, __i) \
 	for ((__i) = 0;								\
-	     (__i) < (__state)->num_connector &&				\
-	     ((connector) = (__state)->connectors[__i].ptr,			\
-	     (old_connector_state) = (__state)->connectors[__i].old_state,	\
-	     (new_connector_state) = (__state)->connectors[__i].new_state, 1); 	\
-	     (__i)++)							\
-		for_each_if (connector)
+	     (__i) < (__state)->num_connector;					\
+	     (__i)++)								\
+		for_each_if ((__state)->connectors[__i].ptr &&			\
+			     ((connector) = (__state)->connectors[__i].ptr,	\
+			     (old_connector_state) = (__state)->connectors[__i].old_state,	\
+			     (new_connector_state) = (__state)->connectors[__i].new_state, 1))
 
 /**
  * for_each_old_connector_in_state - iterate over all connectors in an atomic update
@@ -606,11 +606,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_old_connector_in_state(__state, connector, old_connector_state, __i) \
 	for ((__i) = 0;								\
-	     (__i) < (__state)->num_connector &&				\
-	     ((connector) = (__state)->connectors[__i].ptr,			\
-	     (old_connector_state) = (__state)->connectors[__i].old_state, 1); 	\
-	     (__i)++)							\
-		for_each_if (connector)
+	     (__i) < (__state)->num_connector;					\
+	     (__i)++)								\
+		for_each_if ((__state)->connectors[__i].ptr &&			\
+			     ((connector) = (__state)->connectors[__i].ptr,	\
+			     (old_connector_state) = (__state)->connectors[__i].old_state, 1))
 
 /**
  * for_each_new_connector_in_state - iterate over all connectors in an atomic update
@@ -626,11 +626,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_new_connector_in_state(__state, connector, new_connector_state, __i) \
 	for ((__i) = 0;								\
-	     (__i) < (__state)->num_connector &&				\
-	     ((connector) = (__state)->connectors[__i].ptr,			\
-	     (new_connector_state) = (__state)->connectors[__i].new_state, 1); 	\
-	     (__i)++)							\
-		for_each_if (connector)
+	     (__i) < (__state)->num_connector;					\
+	     (__i)++)								\
+		for_each_if ((__state)->connectors[__i].ptr &&			\
+			     ((connector) = (__state)->connectors[__i].ptr,	\
+			     (new_connector_state) = (__state)->connectors[__i].new_state, 1))
 
 /**
  * for_each_oldnew_crtc_in_state - iterate over all CRTCs in an atomic update
@@ -646,12 +646,12 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_oldnew_crtc_in_state(__state, crtc, old_crtc_state, new_crtc_state, __i) \
 	for ((__i) = 0;							\
-	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
-	     ((crtc) = (__state)->crtcs[__i].ptr,			\
-	     (old_crtc_state) = (__state)->crtcs[__i].old_state,	\
-	     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1);	\
+	     (__i) < (__state)->dev->mode_config.num_crtc;		\
 	     (__i)++)							\
-		for_each_if (crtc)
+		for_each_if ((__state)->crtcs[__i].ptr &&		\
+			     ((crtc) = (__state)->crtcs[__i].ptr,	\
+			     (old_crtc_state) = (__state)->crtcs[__i].old_state, \
+			     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1))
 
 /**
  * for_each_old_crtc_in_state - iterate over all CRTCs in an atomic update
@@ -666,11 +666,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_old_crtc_in_state(__state, crtc, old_crtc_state, __i)	\
 	for ((__i) = 0;							\
-	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
-	     ((crtc) = (__state)->crtcs[__i].ptr,			\
-	     (old_crtc_state) = (__state)->crtcs[__i].old_state, 1);	\
+	     (__i) < (__state)->dev->mode_config.num_crtc;		\
 	     (__i)++)							\
-		for_each_if (crtc)
+		for_each_if ((__state)->crtcs[__i].ptr &&		\
+			     ((crtc) = (__state)->crtcs[__i].ptr,	\
+			     (old_crtc_state) = (__state)->crtcs[__i].old_state, 1))
 
 /**
  * for_each_new_crtc_in_state - iterate over all CRTCs in an atomic update
@@ -685,11 +685,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_new_crtc_in_state(__state, crtc, new_crtc_state, __i)	\
 	for ((__i) = 0;							\
-	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
-	     ((crtc) = (__state)->crtcs[__i].ptr,			\
-	     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1);	\
+	     (__i) < (__state)->dev->mode_config.num_crtc;		\
 	     (__i)++)							\
-		for_each_if (crtc)
+		for_each_if ((__state)->crtcs[__i].ptr &&		\
+			     ((crtc) = (__state)->crtcs[__i].ptr,	\
+			     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1))
 
 /**
  * for_each_oldnew_plane_in_state - iterate over all planes in an atomic update
@@ -705,12 +705,12 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_oldnew_plane_in_state(__state, plane, old_plane_state, new_plane_state, __i) \
 	for ((__i) = 0;							\
-	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
-	     ((plane) = (__state)->planes[__i].ptr,			\
-	     (old_plane_state) = (__state)->planes[__i].old_state,	\
-	     (new_plane_state) = (__state)->planes[__i].new_state, 1);	\
+	     (__i) < (__state)->dev->mode_config.num_total_plane;	\
 	     (__i)++)							\
-		for_each_if (plane)
+		for_each_if ((__state)->planes[__i].ptr &&		\
+			     ((plane) = (__state)->planes[__i].ptr,	\
+			      (old_plane_state) = (__state)->planes[__i].old_state,\
+			      (new_plane_state) = (__state)->planes[__i].new_state, 1))
 
 /**
  * for_each_old_plane_in_state - iterate over all planes in an atomic update
@@ -725,12 +725,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_old_plane_in_state(__state, plane, old_plane_state, __i) \
 	for ((__i) = 0;							\
-	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
-	     ((plane) = (__state)->planes[__i].ptr,			\
-	     (old_plane_state) = (__state)->planes[__i].old_state, 1);	\
+	     (__i) < (__state)->dev->mode_config.num_total_plane;	\
 	     (__i)++)							\
-		for_each_if (plane)
-
+		for_each_if ((__state)->planes[__i].ptr &&		\
+			     ((plane) = (__state)->planes[__i].ptr,	\
+			      (old_plane_state) = (__state)->planes[__i].old_state, 1))
 /**
  * for_each_new_plane_in_state - iterate over all planes in an atomic update
  * @__state: &struct drm_atomic_state pointer
@@ -744,11 +743,11 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  */
 #define for_each_new_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0;							\
-	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
-	     ((plane) = (__state)->planes[__i].ptr,			\
-	     (new_plane_state) = (__state)->planes[__i].new_state, 1);	\
+	     (__i) < (__state)->dev->mode_config.num_total_plane;	\
 	     (__i)++)							\
-		for_each_if (plane)
+		for_each_if ((__state)->planes[__i].ptr &&		\
+			     ((plane) = (__state)->planes[__i].ptr,	\
+			      (new_plane_state) = (__state)->planes[__i].new_state, 1))
 
 /**
  * for_each_oldnew_private_obj_in_state - iterate over all private objects in an atomic update
@@ -768,8 +767,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 		     ((obj) = (__state)->private_objs[__i].ptr, \
 		      (old_obj_state) = (__state)->private_objs[__i].old_state,	\
 		      (new_obj_state) = (__state)->private_objs[__i].new_state, 1); \
-	     (__i)++) \
-		for_each_if (obj)
+	     (__i)++)
 
 /**
  * for_each_old_private_obj_in_state - iterate over all private objects in an atomic update
@@ -787,8 +785,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i) < (__state)->num_private_objs && \
 		     ((obj) = (__state)->private_objs[__i].ptr, \
 		      (old_obj_state) = (__state)->private_objs[__i].old_state, 1); \
-	     (__i)++) \
-		for_each_if (obj)
+	     (__i)++)
 
 /**
  * for_each_new_private_obj_in_state - iterate over all private objects in an atomic update
@@ -806,8 +803,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i) < (__state)->num_private_objs && \
 		     ((obj) = (__state)->private_objs[__i].ptr, \
 		      (new_obj_state) = (__state)->private_objs[__i].new_state, 1); \
-	     (__i)++) \
-		for_each_if (obj)
+	     (__i)++)
 
 /**
  * drm_atomic_crtc_needs_modeset - compute combined modeset need
