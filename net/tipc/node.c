@@ -1254,6 +1254,22 @@ int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
 	return 0;
 }
 
+/* tipc_node_distr_xmit(): send single buffer msgs to individual destinations
+ * Note: this is only for SYSTEM_IMPORTANCE messages, which cannot be rejected
+ */
+int tipc_node_distr_xmit(struct net *net, struct sk_buff_head *xmitq)
+{
+	struct sk_buff *skb;
+	u32 selector, dnode;
+
+	while ((skb = __skb_dequeue(xmitq))) {
+		selector = msg_origport(buf_msg(skb));
+		dnode = msg_destnode(buf_msg(skb));
+		tipc_node_xmit_skb(net, skb, dnode, selector);
+	}
+	return 0;
+}
+
 void tipc_node_broadcast(struct net *net, struct sk_buff *skb)
 {
 	struct sk_buff *txskb;

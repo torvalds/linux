@@ -1740,14 +1740,11 @@ static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
  * @skb: message
  *
  * Caller must hold socket lock
- *
- * Returns 0
  */
 static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	unsigned int before = sk_rmem_alloc_get(sk);
 	struct sk_buff_head xmitq;
-	u32 dnode, selector;
 	unsigned int added;
 
 	__skb_queue_head_init(&xmitq);
@@ -1757,11 +1754,7 @@ static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	atomic_add(added, &tipc_sk(sk)->dupl_rcvcnt);
 
 	/* Send pending response/rejected messages, if any */
-	while ((skb = __skb_dequeue(&xmitq))) {
-		selector = msg_origport(buf_msg(skb));
-		dnode = msg_destnode(buf_msg(skb));
-		tipc_node_xmit_skb(sock_net(sk), skb, dnode, selector);
-	}
+	tipc_node_distr_xmit(sock_net(sk), &xmitq);
 	return 0;
 }
 
@@ -1840,10 +1833,7 @@ void tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq)
 				spin_unlock_bh(&sk->sk_lock.slock);
 			}
 			/* Send pending response/rejected messages, if any */
-			while ((skb = __skb_dequeue(&xmitq))) {
-				dnode = msg_destnode(buf_msg(skb));
-				tipc_node_xmit_skb(net, skb, dnode, dport);
-			}
+			tipc_node_distr_xmit(sock_net(sk), &xmitq);
 			sock_put(sk);
 			continue;
 		}
