@@ -1591,8 +1591,6 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 
 	spin_unlock(&line->lock);
 	spin_unlock(&l_mg->gc_lock);
-
-	pblk_gc_should_kick(pblk);
 }
 
 void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)
