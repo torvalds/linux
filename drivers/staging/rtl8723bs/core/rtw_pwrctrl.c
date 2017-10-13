@@ -34,7 +34,7 @@ void _ips_enter(struct adapter *padapter)
 
 	if (rf_off == pwrpriv->change_rfpwrstate) {
 		pwrpriv->bpower_saving = true;
-		DBG_871X_LEVEL(_drv_always_, "nolinked power save enter\n");
+		DBG_871X("nolinked power save enter\n");
 
 		if (pwrpriv->ips_mode == IPS_LEVEL_2)
 			pwrpriv->bkeepfwalive = true;
@@ -73,7 +73,7 @@ int _ips_leave(struct adapter *padapter)
 		if (result == _SUCCESS) {
 			pwrpriv->rf_pwrstate = rf_on;
 		}
-		DBG_871X_LEVEL(_drv_always_, "nolinked power save leave\n");
+		DBG_871X("nolinked power save leave\n");
 
 		DBG_871X("==> ips_leave.....LED(0x%08x)...\n", rtw_read32(padapter, 0x4c));
 		pwrpriv->bips_processing = false;
