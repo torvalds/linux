@@ -93,7 +93,7 @@ struct tc_u_hnode {
 
 struct tc_u_common {
 	struct tc_u_hnode __rcu	*hlist;
-	struct Qdisc		*q;
+	struct tcf_block	*block;
 	int			refcnt;
 	struct idr		handle_idr;
 	struct hlist_node	hnode;
@@ -335,11 +335,7 @@ static struct hlist_head *tc_u_common_hash;
 
 static unsigned int tc_u_hash(const struct tcf_proto *tp)
 {
-	struct net_device *dev = tp->q->dev_queue->dev;
-	u32 qhandle = tp->q->handle;
-	int ifindex = dev->ifindex;
-
-	return hash_64((u64)ifindex << 32 | qhandle, U32_HASH_SHIFT);
+	return hash_64((u64) tp->chain->block, U32_HASH_SHIFT);
 }
 
 static struct tc_u_common *tc_u_common_find(const struct tcf_proto *tp)
@@ -349,7 +345,7 @@ static struct tc_u_common *tc_u_common_find(const struct tcf_proto *tp)
 
 	h = tc_u_hash(tp);
 	hlist_for_each_entry(tc, &tc_u_common_hash[h], hnode) {
-		if (tc->q == tp->q)
+		if (tc->block == tp->chain->block)
 			return tc;
 	}
 	return NULL;
@@ -378,7 +374,7 @@ static int u32_init(struct tcf_proto *tp)
 			kfree(root_ht);
 			return -ENOBUFS;
 		}
-		tp_c->q = tp->q;
+		tp_c->block = tp->chain->block;
 		INIT_HLIST_NODE(&tp_c->hnode);
 		idr_init(&tp_c->handle_idr);
 
