@@ -170,13 +170,12 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 
 	new_bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(new_bio, REQ_OP_READ, 0);
-	new_bio->bi_private = &wait;
-	new_bio->bi_end_io = pblk_end_bio_sync;
 
 	rqd->bio = new_bio;
 	rqd->nr_ppas = nr_holes;
 	rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
-	rqd->end_io = NULL;
+	rqd->end_io = pblk_end_io_sync;
+	rqd->private = &wait;
 
 	if (unlikely(nr_secs > 1 && nr_holes == 1)) {
 		ppa_ptr = rqd->ppa_list;
