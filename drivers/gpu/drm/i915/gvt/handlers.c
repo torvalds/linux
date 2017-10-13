@@ -1429,18 +1429,7 @@ static int skl_lcpll_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return 0;
 }
 
-static int ring_timestamp_mmio_read(struct intel_vgpu *vgpu,
-		unsigned int offset, void *p_data, unsigned int bytes)
-{
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-
-	mmio_hw_access_pre(dev_priv);
-	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
-	mmio_hw_access_post(dev_priv);
-	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
-}
-
-static int instdone_mmio_read(struct intel_vgpu *vgpu,
+static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -1637,9 +1626,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x6c)
-	MMIO_RING_DFH(RING_REG, D_ALL, 0, instdone_mmio_read, NULL);
+	MMIO_RING_DFH(RING_REG, D_ALL, 0, mmio_read_from_hw, NULL);
 #undef RING_REG
-	MMIO_DH(GEN7_SC_INSTDONE, D_BDW_PLUS, instdone_mmio_read, NULL);
+	MMIO_DH(GEN7_SC_INSTDONE, D_BDW_PLUS, mmio_read_from_hw, NULL);
 
 	MMIO_GM_RDR(0x2148, D_ALL, NULL, NULL);
 	MMIO_GM_RDR(CCID, D_ALL, NULL, NULL);
@@ -1663,9 +1652,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_DFH(RING_INSTPM, D_ALL, F_MODE_MASK | F_CMD_ACCESS,
 			NULL, NULL);
 	MMIO_RING_DFH(RING_TIMESTAMP, D_ALL, F_CMD_ACCESS,
-			ring_timestamp_mmio_read, NULL);
+			mmio_read_from_hw, NULL);
 	MMIO_RING_DFH(RING_TIMESTAMP_UDW, D_ALL, F_CMD_ACCESS,
-			ring_timestamp_mmio_read, NULL);
+			mmio_read_from_hw, NULL);
 
 	MMIO_DFH(GEN7_GT_MODE, D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(CACHE_MODE_0_GEN7, D_ALL, F_MODE_MASK | F_CMD_ACCESS,
