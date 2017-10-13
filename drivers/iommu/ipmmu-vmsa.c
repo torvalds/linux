@@ -528,6 +528,27 @@ static struct iommu_domain *__ipmmu_domain_alloc(unsigned type)
 	return &domain->io_domain;
 }
 
+static struct iommu_domain *ipmmu_domain_alloc(unsigned type)
+{
+	struct iommu_domain *io_domain = NULL;
+
+	switch (type) {
+	case IOMMU_DOMAIN_UNMANAGED:
+		io_domain = __ipmmu_domain_alloc(type);
+		break;
+
+	case IOMMU_DOMAIN_DMA:
+		io_domain = __ipmmu_domain_alloc(type);
+		if (io_domain && iommu_get_dma_cookie(io_domain)) {
+			kfree(io_domain);
+			io_domain = NULL;
+		}
+		break;
+	}
+
+	return io_domain;
+}
+
 static void ipmmu_domain_free(struct iommu_domain *io_domain)
 {
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
@@ -536,6 +557,7 @@ static void ipmmu_domain_free(struct iommu_domain *io_domain)
 	 * Free the domain resources. We assume that all devices have already
 	 * been detached.
 	 */
+	iommu_put_dma_cookie(io_domain);
 	ipmmu_domain_destroy_context(domain);
 	free_io_pgtable_ops(domain->iop);
 	kfree(domain);
@@ -671,14 +693,6 @@ static int ipmmu_of_xlate(struct device *dev,
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
 
-static struct iommu_domain *ipmmu_domain_alloc(unsigned type)
-{
-	if (type != IOMMU_DOMAIN_UNMANAGED)
-		return NULL;
-
-	return __ipmmu_domain_alloc(type);
-}
-
 static int ipmmu_add_device(struct device *dev)
 {
 	struct ipmmu_vmsa_device *mmu = NULL;
@@ -779,37 +793,6 @@ static const struct iommu_ops ipmmu_ops = {
 static DEFINE_SPINLOCK(ipmmu_slave_devices_lock);
 static LIST_HEAD(ipmmu_slave_devices);
 
-static struct iommu_domain *ipmmu_domain_alloc_dma(unsigned type)
-{
-	struct iommu_domain *io_domain = NULL;
-
-	switch (type) {
-	case IOMMU_DOMAIN_UNMANAGED:
-		io_domain = __ipmmu_domain_alloc(type);
-		break;
-
-	case IOMMU_DOMAIN_DMA:
-		io_domain = __ipmmu_domain_alloc(type);
-		if (io_domain)
-			iommu_get_dma_cookie(io_domain);
-		break;
-	}
-
-	return io_domain;
-}
-
-static void ipmmu_domain_free_dma(struct iommu_domain *io_domain)
-{
-	switch (io_domain->type) {
-	case IOMMU_DOMAIN_DMA:
-		iommu_put_dma_cookie(io_domain);
-		/* fall-through */
-	default:
-		ipmmu_domain_free(io_domain);
-		break;
-	}
-}
-
 static int ipmmu_add_device_dma(struct device *dev)
 {
 	struct iommu_group *group;
@@ -878,8 +861,8 @@ static struct iommu_group *ipmmu_find_group_dma(struct device *dev)
 }
 
 static const struct iommu_ops ipmmu_ops = {
-	.domain_alloc = ipmmu_domain_alloc_dma,
-	.domain_free = ipmmu_domain_free_dma,
+	.domain_alloc = ipmmu_domain_alloc,
+	.domain_free = ipmmu_domain_free,
 	.attach_dev = ipmmu_attach_device,
 	.detach_dev = ipmmu_detach_device,
 	.map = ipmmu_map,
