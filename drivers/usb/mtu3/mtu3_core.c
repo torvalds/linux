@@ -17,6 +17,7 @@
  *
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -759,7 +760,31 @@ static void mtu3_hw_exit(struct mtu3 *mtu)
 	mtu3_mem_free(mtu);
 }
 
-/*-------------------------------------------------------------------------*/
+/**
+ * we set 32-bit DMA mask by default, here check whether the controller
+ * supports 36-bit DMA or not, if it does, set 36-bit DMA mask.
+ */
+static int mtu3_set_dma_mask(struct mtu3 *mtu)
+{
+	struct device *dev = mtu->dev;
+	bool is_36bit = false;
+	int ret = 0;
+	u32 value;
+
+	value = mtu3_readl(mtu->mac_base, U3D_MISC_CTRL);
+	if (value & DMA_ADDR_36BIT) {
+		is_36bit = true;
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
+		/* If set 36-bit DMA mask fails, fall back to 32-bit DMA mask */
+		if (ret) {
+			is_36bit = false;
+			ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+		}
+	}
+	dev_info(dev, "dma mask: %s bits\n", is_36bit ? "36" : "32");
+
+	return ret;
+}
 
 int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 {
@@ -820,6 +845,12 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 		return ret;
 	}
 
+	ret = mtu3_set_dma_mask(mtu);
+	if (ret) {
+		dev_err(dev, "mtu3 set dma_mask failed:%d\n", ret);
+		goto dma_mask_err;
+	}
+
 	ret = devm_request_irq(dev, mtu->irq, mtu3_irq, 0, dev_name(dev), mtu);
 	if (ret) {
 		dev_err(dev, "request irq %d failed!\n", mtu->irq);
@@ -845,6 +876,7 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 gadget_err:
 	device_init_wakeup(dev, false);
 
+dma_mask_err:
 irq_err:
 	mtu3_hw_exit(mtu);
 	ssusb->u3d = NULL;

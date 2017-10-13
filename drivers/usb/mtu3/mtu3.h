@@ -46,6 +46,9 @@ struct mtu3_request;
 #define	MU3D_EP_RXCR1(epnum)	(U3D_RX1CSR1 + (((epnum) - 1) * 0x10))
 #define	MU3D_EP_RXCR2(epnum)	(U3D_RX1CSR2 + (((epnum) - 1) * 0x10))
 
+#define USB_QMU_TQHIAR(epnum)	(U3D_TXQHIAR1 + (((epnum) - 1) * 0x4))
+#define USB_QMU_RQHIAR(epnum)	(U3D_RXQHIAR1 + (((epnum) - 1) * 0x4))
+
 #define USB_QMU_RQCSR(epnum)	(U3D_RXQCSR1 + (((epnum) - 1) * 0x10))
 #define USB_QMU_RQSAR(epnum)	(U3D_RXQSAR1 + (((epnum) - 1) * 0x10))
 #define USB_QMU_RQCPR(epnum)	(U3D_RXQCPR1 + (((epnum) - 1) * 0x10))
@@ -138,23 +141,33 @@ struct mtu3_fifo_info {
  *	Checksum value is calculated over the 16 bytes of the GPD by default;
  * @data_buf_len (RX ONLY): This value indicates the length of
  *	the assigned data buffer
+ * @tx_ext_addr (TX ONLY): [3:0] are 4 extension bits of @buffer,
+ *	[7:4] are 4 extension bits of @next_gpd
  * @next_gpd: Physical address of the next GPD
  * @buffer: Physical address of the data buffer
  * @buf_len:
  *	(TX): This value indicates the length of the assigned data buffer
  *	(RX): The total length of data received
  * @ext_len: reserved
+ * @rx_ext_addr(RX ONLY): [3:0] are 4 extension bits of @buffer,
+ *	[7:4] are 4 extension bits of @next_gpd
  * @ext_flag:
  *	bit5 (TX ONLY): Zero Length Packet (ZLP),
  */
 struct qmu_gpd {
 	__u8 flag;
 	__u8 chksum;
-	__le16 data_buf_len;
+	union {
+		__le16 data_buf_len;
+		__le16 tx_ext_addr;
+	};
 	__le32 next_gpd;
 	__le32 buffer;
 	__le16 buf_len;
-	__u8 ext_len;
+	union {
+		__u8 ext_len;
+		__u8 rx_ext_addr;
+	};
 	__u8 ext_flag;
 } __packed;
 
