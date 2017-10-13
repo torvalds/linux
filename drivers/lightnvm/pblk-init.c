@@ -931,6 +931,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	pblk->dev = dev;
 	pblk->disk = tdisk;
 	pblk->state = PBLK_STATE_RUNNING;
+	pblk->gc.gc_enabled = 0;
 
 	spin_lock_init(&pblk->trans_lock);
 	spin_lock_init(&pblk->lock);
