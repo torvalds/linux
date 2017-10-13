@@ -621,7 +621,7 @@ static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
 	host->cfg_div_clk = devm_clk_register(host->controller_dev,
 					      &host->cfg_div.hw);
 	if (WARN_ON(PTR_ERR_OR_ZERO(host->cfg_div_clk)))
-		return PTR_ERR(host->fixed_factor_clk);
+		return PTR_ERR(host->cfg_div_clk);
 
 	return 0;
 }
