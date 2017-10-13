@@ -109,9 +109,6 @@ static void klp_complete_transition(void)
 		}
 	}
 
-	if (klp_target_state == KLP_UNPATCHED && !immediate_func)
-		module_put(klp_transition_patch->mod);
-
 	/* Prevent klp_ftrace_handler() from seeing KLP_UNDEFINED state */
 	if (klp_target_state == KLP_PATCHED)
 		klp_synchronize_transition();
@@ -130,6 +127,24 @@ static void klp_complete_transition(void)
 	}
 
 done:
+	klp_for_each_object(klp_transition_patch, obj) {
+		if (!klp_is_object_loaded(obj))
+			continue;
+		if (klp_target_state == KLP_PATCHED)
+			klp_post_patch_callback(obj);
+		else if (klp_target_state == KLP_UNPATCHED)
+			klp_post_unpatch_callback(obj);
+	}
+
+	/*
+	 * See complementary comment in __klp_enable_patch() for why we
+	 * keep the module reference for immediate patches.
+	 */
+	if (!klp_transition_patch->immediate && !immediate_func &&
+	    klp_target_state == KLP_UNPATCHED) {
+		module_put(klp_transition_patch->mod);
+	}
+
 	klp_target_state = KLP_UNDEFINED;
 	klp_transition_patch = NULL;
 }
