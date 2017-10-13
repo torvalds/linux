@@ -253,6 +253,120 @@ int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
 					MEM_EDC1);
 }
 
+int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct ireg_buf *ch_tp_pio;
+	int i, rc, n = 0;
+	u32 size;
+
+	if (is_t5(padap->params.chip))
+		n = sizeof(t5_tp_pio_array) +
+		    sizeof(t5_tp_tm_pio_array) +
+		    sizeof(t5_tp_mib_index_array);
+	else
+		n = sizeof(t6_tp_pio_array) +
+		    sizeof(t6_tp_tm_pio_array) +
+		    sizeof(t6_tp_mib_index_array);
+
+	n = n / (IREG_NUM_ELEM * sizeof(u32));
+	size = sizeof(struct ireg_buf) * n;
+	rc = cudbg_get_buff(dbg_buff, size, &temp_buff);
+	if (rc)
+		return rc;
+
+	ch_tp_pio = (struct ireg_buf *)temp_buff.data;
+
+	/* TP_PIO */
+	if (is_t5(padap->params.chip))
+		n = sizeof(t5_tp_pio_array) / (IREG_NUM_ELEM * sizeof(u32));
+	else if (is_t6(padap->params.chip))
+		n = sizeof(t6_tp_pio_array) / (IREG_NUM_ELEM * sizeof(u32));
+
+	for (i = 0; i < n; i++) {
+		struct ireg_field *tp_pio = &ch_tp_pio->tp_pio;
+		u32 *buff = ch_tp_pio->outbuf;
+
+		if (is_t5(padap->params.chip)) {
+			tp_pio->ireg_addr = t5_tp_pio_array[i][0];
+			tp_pio->ireg_data = t5_tp_pio_array[i][1];
+			tp_pio->ireg_local_offset = t5_tp_pio_array[i][2];
+			tp_pio->ireg_offset_range = t5_tp_pio_array[i][3];
+		} else if (is_t6(padap->params.chip)) {
+			tp_pio->ireg_addr = t6_tp_pio_array[i][0];
+			tp_pio->ireg_data = t6_tp_pio_array[i][1];
+			tp_pio->ireg_local_offset = t6_tp_pio_array[i][2];
+			tp_pio->ireg_offset_range = t6_tp_pio_array[i][3];
+		}
+		t4_tp_pio_read(padap, buff, tp_pio->ireg_offset_range,
+			       tp_pio->ireg_local_offset, true);
+		ch_tp_pio++;
+	}
+
+	/* TP_TM_PIO */
+	if (is_t5(padap->params.chip))
+		n = sizeof(t5_tp_tm_pio_array) / (IREG_NUM_ELEM * sizeof(u32));
+	else if (is_t6(padap->params.chip))
+		n = sizeof(t6_tp_tm_pio_array) / (IREG_NUM_ELEM * sizeof(u32));
+
+	for (i = 0; i < n; i++) {
+		struct ireg_field *tp_pio = &ch_tp_pio->tp_pio;
+		u32 *buff = ch_tp_pio->outbuf;
+
+		if (is_t5(padap->params.chip)) {
+			tp_pio->ireg_addr = t5_tp_tm_pio_array[i][0];
+			tp_pio->ireg_data = t5_tp_tm_pio_array[i][1];
+			tp_pio->ireg_local_offset = t5_tp_tm_pio_array[i][2];
+			tp_pio->ireg_offset_range = t5_tp_tm_pio_array[i][3];
+		} else if (is_t6(padap->params.chip)) {
+			tp_pio->ireg_addr = t6_tp_tm_pio_array[i][0];
+			tp_pio->ireg_data = t6_tp_tm_pio_array[i][1];
+			tp_pio->ireg_local_offset = t6_tp_tm_pio_array[i][2];
+			tp_pio->ireg_offset_range = t6_tp_tm_pio_array[i][3];
+		}
+		t4_tp_tm_pio_read(padap, buff, tp_pio->ireg_offset_range,
+				  tp_pio->ireg_local_offset, true);
+		ch_tp_pio++;
+	}
+
+	/* TP_MIB_INDEX */
+	if (is_t5(padap->params.chip))
+		n = sizeof(t5_tp_mib_index_array) /
+		    (IREG_NUM_ELEM * sizeof(u32));
+	else if (is_t6(padap->params.chip))
+		n = sizeof(t6_tp_mib_index_array) /
+		    (IREG_NUM_ELEM * sizeof(u32));
+
+	for (i = 0; i < n ; i++) {
+		struct ireg_field *tp_pio = &ch_tp_pio->tp_pio;
+		u32 *buff = ch_tp_pio->outbuf;
+
+		if (is_t5(padap->params.chip)) {
+			tp_pio->ireg_addr = t5_tp_mib_index_array[i][0];
+			tp_pio->ireg_data = t5_tp_mib_index_array[i][1];
+			tp_pio->ireg_local_offset =
+				t5_tp_mib_index_array[i][2];
+			tp_pio->ireg_offset_range =
+				t5_tp_mib_index_array[i][3];
+		} else if (is_t6(padap->params.chip)) {
+			tp_pio->ireg_addr = t6_tp_mib_index_array[i][0];
+			tp_pio->ireg_data = t6_tp_mib_index_array[i][1];
+			tp_pio->ireg_local_offset =
+				t6_tp_mib_index_array[i][2];
+			tp_pio->ireg_offset_range =
+				t6_tp_mib_index_array[i][3];
+		}
+		t4_tp_mib_read(padap, buff, tp_pio->ireg_offset_range,
+			       tp_pio->ireg_local_offset, true);
+		ch_tp_pio++;
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 int cudbg_collect_mbox_log(struct cudbg_init *pdbg_init,
 			   struct cudbg_buffer *dbg_buff,
 			   struct cudbg_error *cudbg_err)

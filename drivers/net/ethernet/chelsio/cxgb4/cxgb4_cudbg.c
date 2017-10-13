@@ -29,11 +29,12 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_MBOX_LOG, cudbg_collect_mbox_log },
 	{ CUDBG_DEV_LOG, cudbg_collect_fw_devlog },
 	{ CUDBG_REG_DUMP, cudbg_collect_reg_dump },
+	{ CUDBG_TP_INDIRECT, cudbg_collect_tp_indirect },
 };
 
 static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 {
-	u32 value, len = 0;
+	u32 value, n = 0, len = 0;
 
 	switch (entity) {
 	case CUDBG_REG_DUMP:
@@ -67,6 +68,24 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			len = EDRAM1_SIZE_G(value);
 		}
 		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_TP_INDIRECT:
+		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
+		case CHELSIO_T5:
+			n = sizeof(t5_tp_pio_array) +
+			    sizeof(t5_tp_tm_pio_array) +
+			    sizeof(t5_tp_mib_index_array);
+			break;
+		case CHELSIO_T6:
+			n = sizeof(t6_tp_pio_array) +
+			    sizeof(t6_tp_tm_pio_array) +
+			    sizeof(t6_tp_mib_index_array);
+			break;
+		default:
+			break;
+		}
+		n = n / (IREG_NUM_ELEM * sizeof(u32));
+		len = sizeof(struct ireg_buf) * n;
 		break;
 	case CUDBG_MBOX_LOG:
 		len = sizeof(struct cudbg_mbox_log) * adap->mbox_log->size;

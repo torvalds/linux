@@ -5118,6 +5118,9 @@ static void t4_tp_indirect_rw(struct adapter *adap, u32 reg_addr, u32 reg_data,
 	case TP_PIO_ADDR_A:
 		cmd = FW_LDST_ADDRSPC_TP_PIO;
 		break;
+	case TP_TM_PIO_ADDR_A:
+		cmd = FW_LDST_ADDRSPC_TP_TM_PIO;
+		break;
 	case TP_MIB_INDEX_A:
 		cmd = FW_LDST_ADDRSPC_TP_MIB;
 		break;
@@ -5173,6 +5176,23 @@ static void t4_tp_pio_write(struct adapter *adap, u32 *buff, u32 nregs,
 {
 	t4_tp_indirect_rw(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, buff, nregs,
 			  start_index, 0, sleep_ok);
+}
+
+/**
+ * t4_tp_tm_pio_read - Read TP TM PIO registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are written
+ * @nregs: how many indirect registers to read
+ * @start_index: index of first indirect register to read
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read TP TM PIO Registers
+ **/
+void t4_tp_tm_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		       u32 start_index, bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, TP_TM_PIO_ADDR_A, TP_TM_PIO_DATA_A, buff,
+			  nregs, start_index, 1, sleep_ok);
 }
 
 /**

@@ -31,6 +31,7 @@ enum cudbg_dbg_entity_type {
 	CUDBG_DEV_LOG = 2,
 	CUDBG_EDC0 = 18,
 	CUDBG_EDC1 = 19,
+	CUDBG_TP_INDIRECT = 36,
 	CUDBG_MBOX_LOG = 66,
 	CUDBG_MAX_ENTITY = 70,
 };
