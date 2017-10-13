@@ -44,6 +44,8 @@ Optional properties:
  - mediatek,enable-wakeup : supports ip sleep wakeup used by host mode
  - mediatek,syscon-wakeup : phandle to syscon used to access USB wakeup
 	control register, it depends on "mediatek,enable-wakeup".
+ - mediatek,u3p-dis-msk : mask to disable u3ports, bit0 for u3port0,
+	bit1 for u3port1, ... etc;
 
 Sub-nodes:
 The xhci should be added as subnode to mtu3 as shown in the following example
