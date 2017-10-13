@@ -226,11 +226,6 @@ extern const struct amdgpu_ip_block_version dm_ip_block;
 void amdgpu_dm_update_connector_after_detect(
 	struct amdgpu_dm_connector *aconnector);
 
-struct amdgpu_dm_connector *amdgpu_dm_find_first_crct_matching_connector(
-	struct drm_atomic_state *state,
-	struct drm_crtc *crtc);
-
-
 struct amdgpu_framebuffer;
 struct amdgpu_display_manager;
 struct dc_validation_set;
