@@ -206,6 +206,9 @@ struct otg_switch_mtk {
  * @ippc_base: register base address of IP Power and Clock interface (IPPC)
  * @vusb33: usb3.3V shared by device/host IP
  * @sys_clk: system clock of mtu3, shared by device/host IP
+ * @ref_clk: reference clock
+ * @mcu_clk: mcu_bus_ck clock for AHB bus etc
+ * @dma_clk: dma_bus_ck clock for AXI bus etc
  * @dr_mode: works in which mode:
  *		host only, device only or dual-role mode
  * @u2_ports: number of usb2.0 host ports
@@ -226,6 +229,8 @@ struct ssusb_mtk {
 	struct regulator *vusb33;
 	struct clk *sys_clk;
 	struct clk *ref_clk;
+	struct clk *mcu_clk;
+	struct clk *dma_clk;
 	/* otg */
 	struct otg_switch_mtk otg_switch;
 	enum usb_dr_mode dr_mode;
