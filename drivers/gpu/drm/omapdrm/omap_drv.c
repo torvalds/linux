@@ -715,7 +715,7 @@ static int omap_drm_resume(struct device *dev)
 
 	drm_kms_helper_poll_enable(drm_dev);
 
-	return omap_gem_resume(dev);
+	return omap_gem_resume(drm_dev);
 }
 #endif
 

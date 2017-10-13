@@ -97,7 +97,7 @@ void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
 
 #ifdef CONFIG_PM
-int omap_gem_resume(struct device *dev);
+int omap_gem_resume(struct drm_device *dev);
 #endif
 
 int omap_irq_enable_vblank(struct drm_crtc *crtc);

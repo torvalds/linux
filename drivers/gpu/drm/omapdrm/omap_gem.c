@@ -996,10 +996,9 @@ void *omap_gem_vaddr(struct drm_gem_object *obj)
 
 #ifdef CONFIG_PM
 /* re-pin objects in DMM in resume path: */
-int omap_gem_resume(struct device *dev)
+int omap_gem_resume(struct drm_device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct omap_drm_private *priv = drm_dev->dev_private;
+	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj;
 	int ret = 0;
 
@@ -1012,7 +1011,7 @@ int omap_gem_resume(struct device *dev)
 					omap_obj->pages, npages,
 					omap_obj->roll, true);
 			if (ret) {
-				dev_err(dev, "could not repin: %d\n", ret);
+				dev_err(dev->dev, "could not repin: %d\n", ret);
 				return ret;
 			}
 		}
