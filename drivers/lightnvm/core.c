@@ -589,9 +589,9 @@ void nvm_unregister_tgt_type(struct nvm_tgt_type *tt)
 	if (!tt)
 		return;
 
-	down_write(&nvm_lock);
+	down_write(&nvm_tgtt_lock);
 	list_del(&tt->list);
-	up_write(&nvm_lock);
+	up_write(&nvm_tgtt_lock);
 }
 EXPORT_SYMBOL(nvm_unregister_tgt_type);
 
@@ -1195,7 +1195,7 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	info->version[1] = NVM_VERSION_MINOR;
 	info->version[2] = NVM_VERSION_PATCH;
 
-	down_write(&nvm_lock);
+	down_write(&nvm_tgtt_lock);
 	list_for_each_entry(tt, &nvm_tgt_types, list) {
 		struct nvm_ioctl_info_tgt *tgt = &info->tgts[tgt_iter];
 
@@ -1208,7 +1208,7 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	}
 
 	info->tgtsize = tgt_iter;
-	up_write(&nvm_lock);
+	up_write(&nvm_tgtt_lock);
 
 	if (copy_to_user(arg, info, sizeof(struct nvm_ioctl_info))) {
 		kfree(info);
