@@ -175,17 +175,3 @@ out:
 	return dssdev;
 }
 EXPORT_SYMBOL(omap_dss_get_next_device);
-
-struct omap_dss_device *omap_dss_find_device(void *data,
-		int (*match)(struct omap_dss_device *dssdev, void *data))
-{
-	struct omap_dss_device *dssdev = NULL;
-
-	while ((dssdev = omap_dss_get_next_device(dssdev)) != NULL) {
-		if (match(dssdev, data))
-			return dssdev;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(omap_dss_find_device);

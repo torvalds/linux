@@ -594,9 +594,6 @@ struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);
 #define for_each_dss_dev(d) while ((d = omap_dss_get_next_device(d)) != NULL)
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
-struct omap_dss_device *omap_dss_find_device(void *data,
-		int (*match)(struct omap_dss_device *dssdev, void *data));
-
 
 int omap_dss_get_num_overlay_managers(void);
 
