@@ -710,7 +710,7 @@ add_emeta_page:
 		goto add_emeta_page;
 	}
 
-	lm->emeta_bb = geo->nr_luns - i;
+	lm->emeta_bb = geo->nr_luns > i ? geo->nr_luns - i : 0;
 
 	lm->min_blk_line = 1;
 	if (geo->nr_luns > 1)
