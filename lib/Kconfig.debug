@@ -376,7 +376,7 @@ config STACK_VALIDATION
 	  that runtime stack traces are more reliable.
 
 	  This is also a prerequisite for generation of ORC unwind data, which
-	  is needed for CONFIG_ORC_UNWINDER.
+	  is needed for CONFIG_UNWINDER_ORC.
 
 	  For more information, see
 	  tools/objtool/Documentation/stack-validation.txt.
