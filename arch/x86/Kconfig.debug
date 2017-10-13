@@ -358,26 +358,12 @@ config PUNIT_ATOM_DEBUG
 
 choice
 	prompt "Choose kernel unwinder"
-	default UNWINDER_FRAME_POINTER
+	default UNWINDER_ORC if X86_64
+	default UNWINDER_FRAME_POINTER if X86_32
 	---help---
 	  This determines which method will be used for unwinding kernel stack
 	  traces for panics, oopses, bugs, warnings, perf, /proc/<pid>/stack,
 	  livepatch, lockdep, and more.
-
-config UNWINDER_FRAME_POINTER
-	bool "Frame pointer unwinder"
-	select FRAME_POINTER
-	---help---
-	  This option enables the frame pointer unwinder for unwinding kernel
-	  stack traces.
-
-	  The unwinder itself is fast and it uses less RAM than the ORC
-	  unwinder, but the kernel text size will grow by ~3% and the kernel's
-	  overall performance will degrade by roughly 5-10%.
-
-	  This option is recommended if you want to use the livepatch
-	  consistency model, as this is currently the only way to get a
-	  reliable stack trace (CONFIG_HAVE_RELIABLE_STACKTRACE).
 
 config UNWINDER_ORC
 	bool "ORC unwinder"
@@ -394,6 +380,21 @@ config UNWINDER_ORC
 
 	  Enabling this option will increase the kernel's runtime memory usage
 	  by roughly 2-4MB, depending on your kernel config.
+
+config UNWINDER_FRAME_POINTER
+	bool "Frame pointer unwinder"
+	select FRAME_POINTER
+	---help---
+	  This option enables the frame pointer unwinder for unwinding kernel
+	  stack traces.
+
+	  The unwinder itself is fast and it uses less RAM than the ORC
+	  unwinder, but the kernel text size will grow by ~3% and the kernel's
+	  overall performance will degrade by roughly 5-10%.
+
+	  This option is recommended if you want to use the livepatch
+	  consistency model, as this is currently the only way to get a
+	  reliable stack trace (CONFIG_HAVE_RELIABLE_STACKTRACE).
 
 config UNWINDER_GUESS
 	bool "Guess unwinder"
