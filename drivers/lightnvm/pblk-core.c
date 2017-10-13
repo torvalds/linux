@@ -78,11 +78,7 @@ void __pblk_map_invalidate(struct pblk *pblk, struct pblk_line *line,
 	 * that newer updates are not overwritten.
 	 */
 	spin_lock(&line->lock);
-	if (line->state == PBLK_LINESTATE_GC ||
-					line->state == PBLK_LINESTATE_FREE) {
-		spin_unlock(&line->lock);
-		return;
-	}
+	WARN_ON(line->state == PBLK_LINESTATE_FREE);
 
 	if (test_and_set_bit(paddr, line->invalid_bitmap)) {
 		WARN_ONCE(1, "pblk: double invalidate\n");
@@ -99,8 +95,7 @@ void __pblk_map_invalidate(struct pblk *pblk, struct pblk_line *line,
 		spin_lock(&l_mg->gc_lock);
 		spin_lock(&line->lock);
 		/* Prevent moving a line that has just been chosen for GC */
-		if (line->state == PBLK_LINESTATE_GC ||
-					line->state == PBLK_LINESTATE_FREE) {
+		if (line->state == PBLK_LINESTATE_GC) {
 			spin_unlock(&line->lock);
 			spin_unlock(&l_mg->gc_lock);
 			return;
@@ -1766,6 +1761,7 @@ void pblk_update_map(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 
 void pblk_update_map_cache(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 {
+
 #ifdef CONFIG_NVM_DEBUG
 	/* Callers must ensure that the ppa points to a cache address */
 	BUG_ON(!pblk_addr_in_cache(ppa));
@@ -1776,9 +1772,9 @@ void pblk_update_map_cache(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 }
 
 int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa_new,
-		       struct pblk_line *gc_line)
+		       struct pblk_line *gc_line, u64 paddr_gc)
 {
-	struct ppa_addr ppa_l2p;
+	struct ppa_addr ppa_l2p, ppa_gc;
 	int ret = 1;
 
 #ifdef CONFIG_NVM_DEBUG
@@ -1795,10 +1791,13 @@ int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa_new,
 
 	spin_lock(&pblk->trans_lock);
 	ppa_l2p = pblk_trans_map_get(pblk, lba);
+	ppa_gc = addr_to_gen_ppa(pblk, paddr_gc, gc_line->id);
 
-	/* Prevent updated entries to be overwritten by GC */
-	if (pblk_addr_in_cache(ppa_l2p) || pblk_ppa_empty(ppa_l2p) ||
-				pblk_tgt_ppa_to_line(ppa_l2p) != gc_line->id) {
+	if (!pblk_ppa_comp(ppa_l2p, ppa_gc)) {
+		spin_lock(&gc_line->lock);
+		WARN(!test_bit(paddr_gc, gc_line->invalid_bitmap),
+						"pblk: corrupted GC update");
+		spin_unlock(&gc_line->lock);
 
 		ret = 0;
 		goto out;
@@ -1870,15 +1869,13 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
 void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 			  u64 *lba_list, int nr_secs)
 {
-	sector_t lba;
+	u64 lba;
 	int i;
 
 	spin_lock(&pblk->trans_lock);
 	for (i = 0; i < nr_secs; i++) {
 		lba = lba_list[i];
-		if (lba == ADDR_EMPTY) {
-			ppas[i].ppa = ADDR_EMPTY;
-		} else {
+		if (lba != ADDR_EMPTY) {
 			/* logic error: lba out-of-bounds. Ignore update */
 			if (!(lba < pblk->rl.nr_secs)) {
 				WARN(1, "pblk: corrupted L2P map request\n");

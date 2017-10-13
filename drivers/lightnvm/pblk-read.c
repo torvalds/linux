@@ -388,34 +388,40 @@ fail_rqd_free:
 
 static int read_ppalist_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 			      struct pblk_line *line, u64 *lba_list,
-			      unsigned int nr_secs)
+			      u64 *paddr_list_gc, unsigned int nr_secs)
 {
-	struct ppa_addr ppas[PBLK_MAX_REQ_ADDRS];
+	struct ppa_addr ppa_list_l2p[PBLK_MAX_REQ_ADDRS];
+	struct ppa_addr ppa_gc;
 	int valid_secs = 0;
 	int i;
 
-	pblk_lookup_l2p_rand(pblk, ppas, lba_list, nr_secs);
+	pblk_lookup_l2p_rand(pblk, ppa_list_l2p, lba_list, nr_secs);
 
 	for (i = 0; i < nr_secs; i++) {
-		if (pblk_addr_in_cache(ppas[i]) || ppas[i].g.blk != line->id ||
-						pblk_ppa_empty(ppas[i])) {
-			lba_list[i] = ADDR_EMPTY;
+		if (lba_list[i] == ADDR_EMPTY)
+			continue;
+
+		ppa_gc = addr_to_gen_ppa(pblk, paddr_list_gc[i], line->id);
+		if (!pblk_ppa_comp(ppa_list_l2p[i], ppa_gc)) {
+			paddr_list_gc[i] = lba_list[i] = ADDR_EMPTY;
 			continue;
 		}
 
-		rqd->ppa_list[valid_secs++] = ppas[i];
+		rqd->ppa_list[valid_secs++] = ppa_list_l2p[i];
 	}
 
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(valid_secs, &pblk->inflight_reads);
 #endif
+
 	return valid_secs;
 }
 
 static int read_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
-		      struct pblk_line *line, sector_t lba)
+		      struct pblk_line *line, sector_t lba,
+		      u64 paddr_gc)
 {
-	struct ppa_addr ppa;
+	struct ppa_addr ppa_l2p, ppa_gc;
 	int valid_secs = 0;
 
 	if (lba == ADDR_EMPTY)
@@ -428,15 +434,14 @@ static int read_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 	}
 
 	spin_lock(&pblk->trans_lock);
-	ppa = pblk_trans_map_get(pblk, lba);
+	ppa_l2p = pblk_trans_map_get(pblk, lba);
 	spin_unlock(&pblk->trans_lock);
 
-	/* Ignore updated values until the moment */
-	if (pblk_addr_in_cache(ppa) || ppa.g.blk != line->id ||
-							pblk_ppa_empty(ppa))
+	ppa_gc = addr_to_gen_ppa(pblk, paddr_gc, line->id);
+	if (!pblk_ppa_comp(ppa_l2p, ppa_gc))
 		goto out;
 
-	rqd->ppa_addr = ppa;
+	rqd->ppa_addr = ppa_l2p;
 	valid_secs = 1;
 
 #ifdef CONFIG_NVM_DEBUG
@@ -447,15 +452,14 @@ out:
 	return valid_secs;
 }
 
-int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
-			unsigned int nr_secs, unsigned int *secs_to_gc,
-			struct pblk_line *line)
+int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct bio *bio;
 	struct nvm_rq rqd;
-	int ret, data_len;
+	int data_len;
+	int ret = NVM_IO_OK;
 	DECLARE_COMPLETION_ONSTACK(wait);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
@@ -463,25 +467,29 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 	rqd.meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
 							&rqd.dma_meta_list);
 	if (!rqd.meta_list)
-		return NVM_IO_ERR;
+		return -ENOMEM;
 
-	if (nr_secs > 1) {
+	if (gc_rq->nr_secs > 1) {
 		rqd.ppa_list = rqd.meta_list + pblk_dma_meta_size;
 		rqd.dma_ppa_list = rqd.dma_meta_list + pblk_dma_meta_size;
 
-		*secs_to_gc = read_ppalist_rq_gc(pblk, &rqd, line, lba_list,
-								nr_secs);
-		if (*secs_to_gc == 1)
+		gc_rq->secs_to_gc = read_ppalist_rq_gc(pblk, &rqd, gc_rq->line,
+							gc_rq->lba_list,
+							gc_rq->paddr_list,
+							gc_rq->nr_secs);
+		if (gc_rq->secs_to_gc == 1)
 			rqd.ppa_addr = rqd.ppa_list[0];
 	} else {
-		*secs_to_gc = read_rq_gc(pblk, &rqd, line, lba_list[0]);
+		gc_rq->secs_to_gc = read_rq_gc(pblk, &rqd, gc_rq->line,
+							gc_rq->lba_list[0],
+							gc_rq->paddr_list[0]);
 	}
 
-	if (!(*secs_to_gc))
+	if (!(gc_rq->secs_to_gc))
 		goto out;
 
-	data_len = (*secs_to_gc) * geo->sec_size;
-	bio = pblk_bio_map_addr(pblk, data, *secs_to_gc, data_len,
+	data_len = (gc_rq->secs_to_gc) * geo->sec_size;
+	bio = pblk_bio_map_addr(pblk, gc_rq->data, gc_rq->secs_to_gc, data_len,
 						PBLK_VMALLOC_META, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		pr_err("pblk: could not allocate GC bio (%lu)\n", PTR_ERR(bio));
@@ -494,13 +502,12 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.end_io = pblk_end_io_sync;
 	rqd.private = &wait;
-	rqd.nr_ppas = *secs_to_gc;
+	rqd.nr_ppas = gc_rq->secs_to_gc;
 	rqd.flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 	rqd.bio = bio;
 
-	ret = pblk_submit_read_io(pblk, &rqd);
-	if (ret) {
-		bio_endio(bio);
+	if (pblk_submit_read_io(pblk, &rqd)) {
+		ret = -EIO;
 		pr_err("pblk: GC read request failed\n");
 		goto err_free_bio;
 	}
@@ -519,19 +526,19 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 	}
 
 #ifdef CONFIG_NVM_DEBUG
-	atomic_long_add(*secs_to_gc, &pblk->sync_reads);
-	atomic_long_add(*secs_to_gc, &pblk->recov_gc_reads);
-	atomic_long_sub(*secs_to_gc, &pblk->inflight_reads);
+	atomic_long_add(gc_rq->secs_to_gc, &pblk->sync_reads);
+	atomic_long_add(gc_rq->secs_to_gc, &pblk->recov_gc_reads);
+	atomic_long_sub(gc_rq->secs_to_gc, &pblk->inflight_reads);
 #endif
 
 	bio_put(bio);
 out:
 	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
-	return NVM_IO_OK;
+	return ret;
 
 err_free_bio:
 	bio_put(bio);
 err_free_dma:
 	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
-	return NVM_IO_ERR;
+	return ret;
 }

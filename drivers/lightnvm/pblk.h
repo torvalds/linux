@@ -206,6 +206,7 @@ struct pblk_lun {
 struct pblk_gc_rq {
 	struct pblk_line *line;
 	void *data;
+	u64 paddr_list[PBLK_MAX_REQ_ADDRS];
 	u64 lba_list[PBLK_MAX_REQ_ADDRS];
 	int nr_secs;
 	int secs_to_gc;
@@ -658,8 +659,8 @@ int pblk_rb_may_write_gc(struct pblk_rb *rb, unsigned int nr_entries,
 void pblk_rb_write_entry_user(struct pblk_rb *rb, void *data,
 			      struct pblk_w_ctx w_ctx, unsigned int pos);
 void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
-			    struct pblk_w_ctx w_ctx, struct pblk_line *gc_line,
-			    unsigned int pos);
+			    struct pblk_w_ctx w_ctx, struct pblk_line *line,
+			    u64 paddr, unsigned int pos);
 struct pblk_w_ctx *pblk_rb_w_ctx(struct pblk_rb *rb, unsigned int pos);
 void pblk_rb_flush(struct pblk_rb *rb);
 
@@ -761,7 +762,7 @@ void pblk_update_map_cache(struct pblk *pblk, sector_t lba,
 void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 			 struct ppa_addr ppa, struct ppa_addr entry_line);
 int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa,
-		       struct pblk_line *gc_line);
+		       struct pblk_line *gc_line, u64 paddr);
 void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 			  u64 *lba_list, int nr_secs);
 void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
@@ -772,9 +773,7 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
  */
 int pblk_write_to_cache(struct pblk *pblk, struct bio *bio,
 			unsigned long flags);
-int pblk_write_gc_to_cache(struct pblk *pblk, void *data, u64 *lba_list,
-			   unsigned int nr_entries, unsigned int nr_rec_entries,
-			   struct pblk_line *gc_line, unsigned long flags);
+int pblk_write_gc_to_cache(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 
 /*
  * pblk map
@@ -798,9 +797,7 @@ void pblk_write_should_kick(struct pblk *pblk);
  */
 extern struct bio_set *pblk_bio_set;
 int pblk_submit_read(struct pblk *pblk, struct bio *bio);
-int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
-			unsigned int nr_secs, unsigned int *secs_to_gc,
-			struct pblk_line *line);
+int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 /*
  * pblk recovery
  */
@@ -893,13 +890,7 @@ static inline void *emeta_to_vsc(struct pblk *pblk, struct line_emeta *emeta)
 
 static inline int pblk_line_vsc(struct pblk_line *line)
 {
-	int vsc;
-
-	spin_lock(&line->lock);
-	vsc = le32_to_cpu(*line->vsc);
-	spin_unlock(&line->lock);
-
-	return vsc;
+	return le32_to_cpu(*line->vsc);
 }
 
 #define NVM_MEM_PAGE_WRITE (8)
