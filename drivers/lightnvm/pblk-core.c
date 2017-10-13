@@ -978,7 +978,7 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 	memcpy(smeta_buf->header.uuid, pblk->instance_uuid, 16);
 	smeta_buf->header.id = cpu_to_le32(line->id);
 	smeta_buf->header.type = cpu_to_le16(line->type);
-	smeta_buf->header.version = cpu_to_le16(1);
+	smeta_buf->header.version = SMETA_VERSION;
 
 	/* Start metadata */
 	smeta_buf->seq_nr = cpu_to_le64(line->seq_nr);

@@ -900,9 +900,9 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		if (le32_to_cpu(smeta_buf->header.identifier) != PBLK_MAGIC)
 			continue;
 
-		if (le16_to_cpu(smeta_buf->header.version) != 1) {
+		if (smeta_buf->header.version != SMETA_VERSION) {
 			pr_err("pblk: found incompatible line version %u\n",
-					smeta_buf->header.version);
+					le16_to_cpu(smeta_buf->header.version));
 			return ERR_PTR(-EINVAL);
 		}
 

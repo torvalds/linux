@@ -310,6 +310,7 @@ enum {
 };
 
 #define PBLK_MAGIC 0x70626c6b /*pblk*/
+#define SMETA_VERSION cpu_to_le16(1)
 
 struct line_header {
 	__le32 crc;
