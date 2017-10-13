@@ -267,35 +267,35 @@
 		 * enumerated. The MAC address and the serial number are listed
 		 * in the "vendor" partition.
 		 */
-		partition@00000000 {
+		partition@0 {
 			label = "RedBoot";
 			reg = <0x00000000 0x000f0000>;
 			read-only;
 		};
 
-		partition@000c0000 {
+		partition@c0000 {
 			label = "zImage";
 			reg = <0x000f0000 0x002d0000>;
 		};
 
-		partition@00390000 {
+		partition@390000 {
 			label = "rd.gz";
 			reg = <0x003c0000 0x00410000>;
 		};
 
-		partition@007d0000 {
+		partition@7d0000 {
 			label = "vendor";
 			reg = <0x007d0000 0x00010000>;
 			read-only;
 		};
 
-		partition@007e0000 {
+		partition@7e0000 {
 			label = "RedBoot config";
 			reg = <0x007e0000 0x00010000>;
 			read-only;
 		};
 
-		partition@007f0000 {
+		partition@7f0000 {
 			label = "FIS directory";
 			reg = <0x007f0000 0x00010000>;
 			read-only;

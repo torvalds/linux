@@ -20,7 +20,7 @@
 		};
 	};
 
-	bootrom: bootrom@00000000 {
+	bootrom: bootrom@0 {
 		reg = <0x00000000 0x80000>;
 	};
 

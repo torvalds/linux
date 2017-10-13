@@ -247,7 +247,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			sram_a: sram@00000000 {
+			sram_a: sram@0 {
 				compatible = "mmio-sram";
 				reg = <0x00000000 0xc000>;
 				#address-cells = <1>;
@@ -268,7 +268,7 @@
 				#size-cells = <1>;
 				ranges = <0 0x00010000 0x1000>;
 
-				otg_sram: sram-section@0000 {
+				otg_sram: sram-section@0 {
 					compatible = "allwinner,sun4i-a10-sram-d";
 					reg = <0x0000 0x1000>;
 					status = "disabled";

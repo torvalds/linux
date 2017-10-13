@@ -108,7 +108,7 @@
 };
 
 &i2c3 {
-	polytouch1: eeti@04 {
+	polytouch1: eeti@4 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		pinctrl-names = "default";

@@ -116,7 +116,7 @@
 };
 
 &i2c2 {
-	/delete-node/ codec@0a;
+	/delete-node/ codec@a;
 	/delete-node/ touchscreen@48;
 
 	rtc: mcp7940x@6f {

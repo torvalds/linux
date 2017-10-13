@@ -75,11 +75,11 @@
 			st,i2c-min-sda-pulse-width-us = <5>;
 		};
 
-		mmc1: sdhci@09080000 {
+		mmc1: sdhci@9080000 {
 			status = "okay";
 		};
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			status = "okay";
 			max-frequency = <200000000>;
 			sd-uhs-sdr50;

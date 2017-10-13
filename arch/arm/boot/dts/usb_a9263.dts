@@ -128,7 +128,7 @@
 			};
 		};
 
-		usb0: ohci@00a00000 {
+		usb0: ohci@a00000 {
 			num-ports = <2>;
 			status = "okay";
 		};

@@ -231,24 +231,24 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		mtd0@00000000 {
+		mtd0@0 {
 			label = "ea3250-boot";
 			reg = <0x00000000 0x00080000>;
 			read-only;
 		};
 
-		mtd1@00080000 {
+		mtd1@80000 {
 			label = "ea3250-uboot";
 			reg = <0x00080000 0x000c0000>;
 			read-only;
 		};
 
-		mtd2@00140000 {
+		mtd2@140000 {
 			label = "ea3250-kernel";
 			reg = <0x00140000 0x00400000>;
 		};
 
-		mtd3@00540000 {
+		mtd3@540000 {
 			label = "ea3250-rootfs";
 			reg = <0x00540000 0x07ac0000>;
 		};
