@@ -23,7 +23,7 @@ cfg80211-y += extra-certs.o
 endif
 
 $(obj)/shipped-certs.c: $(wildcard $(srctree)/$(src)/certs/*.x509)
-	@echo "  GEN     $@"
+	@$(kecho) "  GEN     $@"
 	@echo '#include "reg.h"' > $@
 	@echo 'const u8 shipped_regdb_certs[] = {' >> $@
 	@for f in $^ ; do hexdump -v -e '1/1 "0x%.2x," "\n"' < $$f >> $@ ; done
@@ -32,7 +32,7 @@ $(obj)/shipped-certs.c: $(wildcard $(srctree)/$(src)/certs/*.x509)
 
 $(obj)/extra-certs.c: $(CONFIG_CFG80211_EXTRA_REGDB_KEYDIR:"%"=%) \
 		      $(wildcard $(CONFIG_CFG80211_EXTRA_REGDB_KEYDIR:"%"=%)/*.x509)
-	@echo "  GEN     $@"
+	@$(kecho) "  GEN     $@"
 	@echo '#include "reg.h"' > $@
 	@echo 'const u8 extra_regdb_certs[] = {' >> $@
 	@for f in $^ ; do test -f $$f && hexdump -v -e '1/1 "0x%.2x," "\n"' < $$f >> $@ || true ; done
