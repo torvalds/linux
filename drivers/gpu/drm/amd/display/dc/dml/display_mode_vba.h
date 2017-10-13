@@ -98,7 +98,6 @@ bool Calculate256BBlockSizes(
 struct vba_vars_st {
 	ip_params_st	ip;
 	soc_bounding_box_st	soc;
-	mode_evaluation_st me;
 
 	unsigned int MaximumMaxVStartupLines;
 	double cursor_bw[DC__NUM_DPP__MAX];

@@ -2015,10 +2015,11 @@ static void dcn10_power_on_fe(
 				plane_state->dst_rect.height);
 
 		dm_logger_write(dc->ctx->logger, LOG_DC,
-				"Pipe %d: width, height, x, y\n"
+				"Pipe %d: width, height, x, y         format:%d\n"
 				"viewport:%d, %d, %d, %d\n"
 				"recout:  %d, %d, %d, %d\n",
 				pipe_ctx->pipe_idx,
+				plane_state->format,
 				pipe_ctx->plane_res.scl_data.viewport.width,
 				pipe_ctx->plane_res.scl_data.viewport.height,
 				pipe_ctx->plane_res.scl_data.viewport.x,

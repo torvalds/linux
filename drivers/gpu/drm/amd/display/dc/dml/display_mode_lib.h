@@ -40,7 +40,6 @@ enum dml_project {
 struct display_mode_lib {
 	struct _vcs_dpi_ip_params_st ip;
 	struct _vcs_dpi_soc_bounding_box_st soc;
-	struct _vcs_dpi_mode_evaluation_st me;
 	enum dml_project project;
 	struct vba_vars_st vba;
 	struct dal_logger *logger;

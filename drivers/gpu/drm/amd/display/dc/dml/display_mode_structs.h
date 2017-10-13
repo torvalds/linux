@@ -27,7 +27,6 @@
 
 typedef struct _vcs_dpi_voltage_scaling_st	voltage_scaling_st;
 typedef struct _vcs_dpi_soc_bounding_box_st	soc_bounding_box_st;
-typedef struct _vcs_dpi_mode_evaluation_st	mode_evaluation_st;
 typedef struct _vcs_dpi_ip_params_st	ip_params_st;
 typedef struct _vcs_dpi_display_pipe_source_params_st	display_pipe_source_params_st;
 typedef struct _vcs_dpi_display_output_params_st	display_output_params_st;
@@ -59,10 +58,6 @@ typedef struct _vcs_dpi_display_dlg_sys_params_st	display_dlg_sys_params_st;
 typedef struct _vcs_dpi_display_dlg_prefetch_param_st	display_dlg_prefetch_param_st;
 typedef struct _vcs_dpi_display_pipe_clock_st	display_pipe_clock_st;
 typedef struct _vcs_dpi_display_arb_params_st	display_arb_params_st;
-
-struct _vcs_dpi_mode_evaluation_st {
-	int voltage_override;
-};
 
 struct _vcs_dpi_voltage_scaling_st {
 	int state;
@@ -96,6 +91,7 @@ struct	_vcs_dpi_soc_bounding_box_st	{
 	double fabric_datapath_to_dcn_data_return_bytes;
 	double dcn_downspread_percent;
 	double dispclk_dppclk_vco_speed_mhz;
+	double dfs_vco_period_ps;
 	unsigned int	round_trip_ping_latency_dcfclk_cycles;
 	unsigned int	urgent_out_of_order_return_per_channel_bytes;
 	unsigned int	channel_interleave_bytes;
@@ -105,6 +101,7 @@ struct	_vcs_dpi_soc_bounding_box_st	{
 	double	dram_clock_change_latency_us;
 	double	writeback_dram_clock_change_latency_us;
 	unsigned int	return_bus_width_bytes;
+	unsigned int	voltage_override;
 	double	xfc_bus_transport_time_us;
 	double	xfc_xbuf_latency_tolerance_us;
 	struct _vcs_dpi_voltage_scaling_st clock_limits[7];

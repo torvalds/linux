@@ -127,17 +127,11 @@ static void set_ip_params(struct _vcs_dpi_ip_params_st *ip, enum dml_project pro
 	}
 }
 
-static void set_mode_evaluation(struct _vcs_dpi_mode_evaluation_st *me, enum dml_project project)
-{
-	me->voltage_override = dm_vmin;
-}
-
 void dml_init_instance(struct display_mode_lib *lib, enum dml_project project)
 {
 	if (lib->project != project) {
 		set_soc_bounding_box(&lib->soc, project);
 		set_ip_params(&lib->ip, project);
-		set_mode_evaluation(&lib->me, project);
 		lib->project = project;
 	}
 }

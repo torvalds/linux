@@ -251,19 +251,14 @@ unsigned int dml_get_voltage_level(
 		const display_e2e_pipe_params_st *pipes,
 		unsigned int num_pipes)
 {
-	bool need_recalculate = memcmp(
-			&mode_lib->soc,
-			&mode_lib->vba.soc,
-			sizeof(mode_lib->vba.soc)) != 0
+	bool need_recalculate = memcmp(&mode_lib->soc, &mode_lib->vba.soc, sizeof(mode_lib->vba.soc)) != 0
 			|| memcmp(&mode_lib->ip, &mode_lib->vba.ip, sizeof(mode_lib->vba.ip)) != 0
-			|| memcmp(&mode_lib->me, &mode_lib->vba.me, sizeof(mode_lib->vba.me)) != 0
 			|| num_pipes != mode_lib->vba.cache_num_pipes
 			|| memcmp(pipes, mode_lib->vba.cache_pipes,
 					sizeof(display_e2e_pipe_params_st) * num_pipes) != 0;
 
 	mode_lib->vba.soc = mode_lib->soc;
 	mode_lib->vba.ip = mode_lib->ip;
-	mode_lib->vba.me = mode_lib->me;
 	memcpy(mode_lib->vba.cache_pipes, pipes, sizeof(*pipes) * num_pipes);
 	mode_lib->vba.cache_num_pipes = num_pipes;
 
@@ -772,7 +767,6 @@ static void recalculate_params(
 	// This is only safe to use memcmp because there are non-POD types in struct display_mode_lib
 	if (memcmp(&mode_lib->soc, &mode_lib->vba.soc, sizeof(mode_lib->vba.soc)) != 0
 			|| memcmp(&mode_lib->ip, &mode_lib->vba.ip, sizeof(mode_lib->vba.ip)) != 0
-			|| memcmp(&mode_lib->me, &mode_lib->vba.me, sizeof(mode_lib->vba.me)) != 0
 			|| num_pipes != mode_lib->vba.cache_num_pipes
 			|| memcmp(
 					pipes,
@@ -780,7 +774,6 @@ static void recalculate_params(
 					sizeof(display_e2e_pipe_params_st) * num_pipes) != 0) {
 		mode_lib->vba.soc = mode_lib->soc;
 		mode_lib->vba.ip = mode_lib->ip;
-		mode_lib->vba.me = mode_lib->me;
 		memcpy(mode_lib->vba.cache_pipes, pipes, sizeof(*pipes) * num_pipes);
 		mode_lib->vba.cache_num_pipes = num_pipes;
 		recalculate(mode_lib);
