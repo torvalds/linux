@@ -39,9 +39,11 @@
 #define F81534_UART_OFFSET		0x10
 #define F81534_DIVISOR_LSB_REG		(0x00 + F81534_UART_BASE_ADDRESS)
 #define F81534_DIVISOR_MSB_REG		(0x01 + F81534_UART_BASE_ADDRESS)
+#define F81534_INTERRUPT_ENABLE_REG	(0x01 + F81534_UART_BASE_ADDRESS)
 #define F81534_FIFO_CONTROL_REG		(0x02 + F81534_UART_BASE_ADDRESS)
 #define F81534_LINE_CONTROL_REG		(0x03 + F81534_UART_BASE_ADDRESS)
 #define F81534_MODEM_CONTROL_REG	(0x04 + F81534_UART_BASE_ADDRESS)
+#define F81534_LINE_STATUS_REG		(0x05 + F81534_UART_BASE_ADDRESS)
 #define F81534_MODEM_STATUS_REG		(0x06 + F81534_UART_BASE_ADDRESS)
 #define F81534_CONFIG1_REG		(0x09 + F81534_UART_BASE_ADDRESS)
 
@@ -126,6 +128,8 @@ struct f81534_serial_private {
 
 struct f81534_port_private {
 	struct mutex mcr_mutex;
+	struct work_struct lsr_work;
+	struct usb_serial_port *port;
 	unsigned long tx_empty;
 	spinlock_t msr_lock;
 	u8 shadow_mcr;
@@ -1015,6 +1019,8 @@ static void f81534_process_per_serial_block(struct usb_serial_port *port,
 				tty_insert_flip_char(&port->port, 0,
 						TTY_OVERRUN);
 			}
+
+			schedule_work(&port_priv->lsr_work);
 		}
 
 		if (port->port.console && port->sysrq) {
@@ -1162,6 +1168,21 @@ static int f81534_attach(struct usb_serial *serial)
 	return 0;
 }
 
+static void f81534_lsr_worker(struct work_struct *work)
+{
+	struct f81534_port_private *port_priv;
+	struct usb_serial_port *port;
+	int status;
+	u8 tmp;
+
+	port_priv = container_of(work, struct f81534_port_private, lsr_work);
+	port = port_priv->port;
+
+	status = f81534_get_port_register(port, F81534_LINE_STATUS_REG, &tmp);
+	if (status)
+		dev_warn(&port->dev, "read LSR failed: %d\n", status);
+}
+
 static int f81534_port_probe(struct usb_serial_port *port)
 {
 	struct f81534_port_private *port_priv;
@@ -1173,6 +1194,7 @@ static int f81534_port_probe(struct usb_serial_port *port)
 
 	spin_lock_init(&port_priv->msr_lock);
 	mutex_init(&port_priv->mcr_mutex);
+	INIT_WORK(&port_priv->lsr_work, f81534_lsr_worker);
 
 	/* Assign logic-to-phy mapping */
 	ret = f81534_logic_to_phy_port(port->serial, port);
@@ -1180,10 +1202,30 @@ static int f81534_port_probe(struct usb_serial_port *port)
 		return ret;
 
 	port_priv->phy_num = ret;
+	port_priv->port = port;
 	usb_set_serial_port_data(port, port_priv);
 	dev_dbg(&port->dev, "%s: port_number: %d, phy_num: %d\n", __func__,
 			port->port_number, port_priv->phy_num);
 
+	/*
+	 * The F81532/534 will hang-up when enable LSR interrupt in IER and
+	 * occur data overrun. So we'll disable the LSR interrupt in probe()
+	 * and submit the LSR worker to clear LSR state when reported LSR error
+	 * bit with bulk-in data in f81534_process_per_serial_block().
+	 */
+	ret = f81534_set_port_register(port, F81534_INTERRUPT_ENABLE_REG,
+			UART_IER_RDI | UART_IER_THRI | UART_IER_MSI);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int f81534_port_remove(struct usb_serial_port *port)
+{
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
+
+	flush_work(&port_priv->lsr_work);
 	return 0;
 }
 
@@ -1317,6 +1359,7 @@ static struct usb_serial_driver f81534_device = {
 	.calc_num_ports =	f81534_calc_num_ports,
 	.attach =		f81534_attach,
 	.port_probe =		f81534_port_probe,
+	.port_remove =		f81534_port_remove,
 	.dtr_rts =		f81534_dtr_rts,
 	.process_read_urb =	f81534_process_read_urb,
 	.ioctl =		f81534_ioctl,
