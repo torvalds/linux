@@ -216,7 +216,6 @@ static int pblk_recov_read_oob(struct pblk *pblk, struct pblk_line *line,
 	int rq_ppas, rq_len;
 	int i, j;
 	int ret = 0;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	ppa_list = p.ppa_list;
 	meta_list = p.meta_list;
@@ -253,8 +252,6 @@ next_read_rq:
 	rqd->ppa_list = ppa_list;
 	rqd->dma_ppa_list = dma_ppa_list;
 	rqd->dma_meta_list = dma_meta_list;
-	rqd->end_io = pblk_end_io_sync;
-	rqd->private = &wait;
 
 	if (pblk_io_aligned(pblk, rq_ppas))
 		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
@@ -280,19 +277,13 @@ next_read_rq:
 	}
 
 	/* If read fails, more padding is needed */
-	ret = pblk_submit_io(pblk, rqd);
+	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
 		pr_err("pblk: I/O submission failed: %d\n", ret);
 		return ret;
 	}
 
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: L2P recovery read timed out\n");
-		return -EINTR;
-	}
 	atomic_dec(&pblk->inflight_io);
-	reinit_completion(&wait);
 
 	/* At this point, the read should not fail. If it does, it is a problem
 	 * we cannot recover from here. Need FTL log.
@@ -504,7 +495,6 @@ static int pblk_recov_scan_all_oob(struct pblk *pblk, struct pblk_line *line,
 	int ret = 0;
 	int rec_round;
 	int left_ppas = pblk_calc_sec_in_line(pblk, line) - line->cur_sec;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	ppa_list = p.ppa_list;
 	meta_list = p.meta_list;
@@ -539,8 +529,6 @@ next_rq:
 	rqd->ppa_list = ppa_list;
 	rqd->dma_ppa_list = dma_ppa_list;
 	rqd->dma_meta_list = dma_meta_list;
-	rqd->end_io = pblk_end_io_sync;
-	rqd->private = &wait;
 
 	if (pblk_io_aligned(pblk, rq_ppas))
 		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
@@ -566,18 +554,13 @@ next_rq:
 				addr_to_gen_ppa(pblk, w_ptr, line->id);
 	}
 
-	ret = pblk_submit_io(pblk, rqd);
+	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
 		pr_err("pblk: I/O submission failed: %d\n", ret);
 		return ret;
 	}
 
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: L2P recovery read timed out\n");
-	}
 	atomic_dec(&pblk->inflight_io);
-	reinit_completion(&wait);
 
 	/* This should not happen since the read failed during normal recovery,
 	 * but the media works funny sometimes...
@@ -645,7 +628,6 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 	int i, j;
 	int ret = 0;
 	int left_ppas = pblk_calc_sec_in_line(pblk, line);
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	ppa_list = p.ppa_list;
 	meta_list = p.meta_list;
@@ -678,8 +660,6 @@ next_rq:
 	rqd->ppa_list = ppa_list;
 	rqd->dma_ppa_list = dma_ppa_list;
 	rqd->dma_meta_list = dma_meta_list;
-	rqd->end_io = pblk_end_io_sync;
-	rqd->private = &wait;
 
 	if (pblk_io_aligned(pblk, rq_ppas))
 		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
@@ -705,19 +685,14 @@ next_rq:
 				addr_to_gen_ppa(pblk, paddr, line->id);
 	}
 
-	ret = pblk_submit_io(pblk, rqd);
+	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
 		pr_err("pblk: I/O submission failed: %d\n", ret);
 		bio_put(bio);
 		return ret;
 	}
 
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: L2P recovery read timed out\n");
-	}
 	atomic_dec(&pblk->inflight_io);
-	reinit_completion(&wait);
 
 	/* Reached the end of the written line */
 	if (rqd->error) {

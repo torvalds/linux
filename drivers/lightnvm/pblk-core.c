@@ -412,39 +412,33 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 	struct nvm_tgt_dev *dev = pblk->dev;
 
 #ifdef CONFIG_NVM_DEBUG
-	struct ppa_addr *ppa_list;
+	int ret;
 
-	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
-	if (pblk_boundary_ppa_checks(dev, ppa_list, rqd->nr_ppas)) {
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	if (rqd->opcode == NVM_OP_PWRITE) {
-		struct pblk_line *line;
-		struct ppa_addr ppa;
-		int i;
-
-		for (i = 0; i < rqd->nr_ppas; i++) {
-			ppa = ppa_list[i];
-			line = &pblk->lines[pblk_dev_ppa_to_line(ppa)];
-
-			spin_lock(&line->lock);
-			if (line->state != PBLK_LINESTATE_OPEN) {
-				pr_err("pblk: bad ppa: line:%d,state:%d\n",
-							line->id, line->state);
-				WARN_ON(1);
-				spin_unlock(&line->lock);
-				return -EINVAL;
-			}
-			spin_unlock(&line->lock);
-		}
-	}
+	ret = pblk_check_io(pblk, rqd);
+	if (ret)
+		return ret;
 #endif
 
 	atomic_inc(&pblk->inflight_io);
 
 	return nvm_submit_io(dev, rqd);
+}
+
+int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+
+#ifdef CONFIG_NVM_DEBUG
+	int ret;
+
+	ret = pblk_check_io(pblk, rqd);
+	if (ret)
+		return ret;
+#endif
+
+	atomic_inc(&pblk->inflight_io);
+
+	return nvm_submit_io_sync(dev, rqd);
 }
 
 static void pblk_bio_map_addr_endio(struct bio *bio)
@@ -597,7 +591,6 @@ static int pblk_line_submit_emeta_io(struct pblk *pblk, struct pblk_line *line,
 	int cmd_op, bio_op;
 	int i, j;
 	int ret;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	if (dir == PBLK_WRITE) {
 		bio_op = REQ_OP_WRITE;
@@ -639,8 +632,6 @@ next_rq:
 	rqd.dma_ppa_list = dma_ppa_list;
 	rqd.opcode = cmd_op;
 	rqd.nr_ppas = rq_ppas;
-	rqd.end_io = pblk_end_io_sync;
-	rqd.private = &wait;
 
 	if (dir == PBLK_WRITE) {
 		struct pblk_sec_meta *meta_list = rqd.meta_list;
@@ -694,19 +685,14 @@ next_rq:
 		}
 	}
 
-	ret = pblk_submit_io(pblk, &rqd);
+	ret = pblk_submit_io_sync(pblk, &rqd);
 	if (ret) {
 		pr_err("pblk: emeta I/O submission failed: %d\n", ret);
 		bio_put(bio);
 		goto free_rqd_dma;
 	}
 
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: emeta I/O timed out\n");
-	}
 	atomic_dec(&pblk->inflight_io);
-	reinit_completion(&wait);
 
 	if (rqd.error) {
 		if (dir == PBLK_WRITE)
@@ -750,7 +736,6 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	int i, ret;
 	int cmd_op, bio_op;
 	int flags;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	if (dir == PBLK_WRITE) {
 		bio_op = REQ_OP_WRITE;
@@ -787,8 +772,6 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	rqd.opcode = cmd_op;
 	rqd.flags = flags;
 	rqd.nr_ppas = lm->smeta_sec;
-	rqd.end_io = pblk_end_io_sync;
-	rqd.private = &wait;
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++) {
 		struct pblk_sec_meta *meta_list = rqd.meta_list;
@@ -807,17 +790,13 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	 * the write thread is the only one sending write and erase commands,
 	 * there is no need to take the LUN semaphore.
 	 */
-	ret = pblk_submit_io(pblk, &rqd);
+	ret = pblk_submit_io_sync(pblk, &rqd);
 	if (ret) {
 		pr_err("pblk: smeta I/O submission failed: %d\n", ret);
 		bio_put(bio);
 		goto free_ppa_list;
 	}
 
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: smeta I/O timed out\n");
-	}
 	atomic_dec(&pblk->inflight_io);
 
 	if (rqd.error) {
@@ -861,19 +840,15 @@ static int pblk_blk_erase_sync(struct pblk *pblk, struct ppa_addr ppa)
 {
 	struct nvm_rq rqd;
 	int ret = 0;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
 	pblk_setup_e_rq(pblk, &rqd, ppa);
 
-	rqd.end_io = pblk_end_io_sync;
-	rqd.private = &wait;
-
 	/* The write thread schedules erases so that it minimizes disturbances
 	 * with writes. Thus, there is no need to take the LUN semaphore.
 	 */
-	ret = pblk_submit_io(pblk, &rqd);
+	ret = pblk_submit_io_sync(pblk, &rqd);
 	if (ret) {
 		struct nvm_tgt_dev *dev = pblk->dev;
 		struct nvm_geo *geo = &dev->geo;
@@ -884,11 +859,6 @@ static int pblk_blk_erase_sync(struct pblk *pblk, struct ppa_addr ppa)
 
 		rqd.error = ret;
 		goto out;
-	}
-
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: sync erase timed out\n");
 	}
 
 out:

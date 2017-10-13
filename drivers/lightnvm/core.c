@@ -720,12 +720,25 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
-static void nvm_end_io_sync(struct nvm_rq *rqd)
+int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
-	struct completion *waiting = rqd->private;
+	struct nvm_dev *dev = tgt_dev->parent;
+	int ret;
 
-	complete(waiting);
+	if (!dev->ops->submit_io_sync)
+		return -ENODEV;
+
+	nvm_rq_tgt_to_dev(tgt_dev, rqd);
+
+	rqd->dev = tgt_dev;
+
+	/* In case of error, fail with right address format */
+	ret = dev->ops->submit_io_sync(dev, rqd);
+	nvm_rq_dev_to_tgt(tgt_dev, rqd);
+
+	return ret;
 }
+EXPORT_SYMBOL(nvm_submit_io_sync);
 
 int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 								int nr_ppas)
@@ -733,25 +746,21 @@ int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 	struct nvm_geo *geo = &tgt_dev->geo;
 	struct nvm_rq rqd;
 	int ret;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
 	rqd.opcode = NVM_OP_ERASE;
-	rqd.end_io = nvm_end_io_sync;
-	rqd.private = &wait;
 	rqd.flags = geo->plane_mode >> 1;
 
 	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
 	if (ret)
 		return ret;
 
-	ret = nvm_submit_io(tgt_dev, &rqd);
+	ret = nvm_submit_io_sync(tgt_dev, &rqd);
 	if (ret) {
 		pr_err("rrpr: erase I/O submission failed: %d\n", ret);
 		goto free_ppa_list;
 	}
-	wait_for_completion_io(&wait);
 
 free_ppa_list:
 	nvm_free_rqd_ppalist(tgt_dev, &rqd);

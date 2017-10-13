@@ -207,7 +207,6 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	int nr_secs = rqd->nr_ppas;
 	int nr_holes = nr_secs - bitmap_weight(read_bitmap, nr_secs);
 	int i, ret, hole;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	/* Re-use allocated memory for intermediate lbas */
 	lba_list_mem = (((void *)rqd->ppa_list) + pblk_dma_ppa_size);
@@ -232,8 +231,6 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	rqd->bio = new_bio;
 	rqd->nr_ppas = nr_holes;
 	rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
-	rqd->end_io = pblk_end_io_sync;
-	rqd->private = &wait;
 
 	if (unlikely(nr_holes == 1)) {
 		ppa_ptr = rqd->ppa_list;
@@ -241,16 +238,11 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 		rqd->ppa_addr = rqd->ppa_list[0];
 	}
 
-	ret = pblk_submit_read_io(pblk, rqd);
+	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
 		bio_put(rqd->bio);
-		pr_err("pblk: read IO submission failed\n");
+		pr_err("pblk: sync read IO submission failed\n");
 		goto err;
-	}
-
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: partial read I/O timed out\n");
 	}
 
 	if (rqd->error) {
@@ -537,7 +529,6 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 	struct nvm_rq rqd;
 	int data_len;
 	int ret = NVM_IO_OK;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
@@ -577,22 +568,16 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 	bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 	rqd.opcode = NVM_OP_PREAD;
-	rqd.end_io = pblk_end_io_sync;
-	rqd.private = &wait;
 	rqd.nr_ppas = gc_rq->secs_to_gc;
 	rqd.flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 	rqd.bio = bio;
 
-	if (pblk_submit_read_io(pblk, &rqd)) {
+	if (pblk_submit_io_sync(pblk, &rqd)) {
 		ret = -EIO;
 		pr_err("pblk: GC read request failed\n");
 		goto err_free_bio;
 	}
 
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: GC read I/O timed out\n");
-	}
 	atomic_dec(&pblk->inflight_io);
 
 	if (rqd.error) {

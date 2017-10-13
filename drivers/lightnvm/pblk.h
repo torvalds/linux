@@ -714,6 +714,7 @@ void pblk_discard(struct pblk *pblk, struct bio *bio);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
+int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line);
 struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 			      unsigned int nr_secs, unsigned int len,
@@ -1203,7 +1204,6 @@ static inline void pblk_print_failed_rqd(struct pblk *pblk, struct nvm_rq *rqd,
 
 	pr_err("error:%d, ppa_status:%llx\n", error, rqd->ppa_status);
 }
-#endif
 
 static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 				       struct ppa_addr *ppas, int nr_ppas)
@@ -1224,13 +1224,49 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 				ppa->g.sec < geo->sec_per_pg)
 			continue;
 
-#ifdef CONFIG_NVM_DEBUG
 		print_ppa(ppa, "boundary", i);
-#endif
+
 		return 1;
 	}
 	return 0;
 }
+
+static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct ppa_addr *ppa_list;
+
+	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
+
+	if (pblk_boundary_ppa_checks(dev, ppa_list, rqd->nr_ppas)) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (rqd->opcode == NVM_OP_PWRITE) {
+		struct pblk_line *line;
+		struct ppa_addr ppa;
+		int i;
+
+		for (i = 0; i < rqd->nr_ppas; i++) {
+			ppa = ppa_list[i];
+			line = &pblk->lines[pblk_dev_ppa_to_line(ppa)];
+
+			spin_lock(&line->lock);
+			if (line->state != PBLK_LINESTATE_OPEN) {
+				pr_err("pblk: bad ppa: line:%d,state:%d\n",
+							line->id, line->state);
+				WARN_ON(1);
+				spin_unlock(&line->lock);
+				return -EINVAL;
+			}
+			spin_unlock(&line->lock);
+		}
+	}
+
+	return 0;
+}
+#endif
 
 static inline int pblk_boundary_paddr_checks(struct pblk *pblk, u64 paddr)
 {
