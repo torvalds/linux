@@ -218,7 +218,13 @@ next_rq:
 	gc_rq_ws->line = line;
 	gc_rq_ws->priv = gc_rq;
 
-	down(&gc->gc_sem);
+	/* The write GC path can be much slower than the read GC one due to
+	 * the budget imposed by the rate-limiter. Balance in case that we get
+	 * back pressure from the write GC path.
+	 */
+	while (down_timeout(&gc->gc_sem, msecs_to_jiffies(30000)))
+		io_schedule();
+
 	kref_get(&line->ref);
 
 	INIT_WORK(&gc_rq_ws->ws, pblk_gc_line_ws);
