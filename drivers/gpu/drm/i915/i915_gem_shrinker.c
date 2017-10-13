@@ -295,20 +295,39 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 static unsigned long
 i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
-	struct drm_i915_private *dev_priv =
+	struct drm_i915_private *i915 =
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
 	struct drm_i915_gem_object *obj;
+	unsigned long num_objects = 0;
 	unsigned long count = 0;
 
-	spin_lock(&dev_priv->mm.obj_lock);
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link)
-		if (can_release_pages(obj))
+	spin_lock(&i915->mm.obj_lock);
+	list_for_each_entry(obj, &i915->mm.unbound_list, mm.link)
+		if (can_release_pages(obj)) {
 			count += obj->base.size >> PAGE_SHIFT;
+			num_objects++;
+		}
 
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link)
-		if (!i915_gem_object_is_active(obj) && can_release_pages(obj))
+	list_for_each_entry(obj, &i915->mm.bound_list, mm.link)
+		if (!i915_gem_object_is_active(obj) && can_release_pages(obj)) {
 			count += obj->base.size >> PAGE_SHIFT;
-	spin_unlock(&dev_priv->mm.obj_lock);
+			num_objects++;
+		}
+	spin_unlock(&i915->mm.obj_lock);
+
+	/* Update our preferred vmscan batch size for the next pass.
+	 * Our rough guess for an effective batch size is roughly 2
+	 * available GEM objects worth of pages. That is we don't want
+	 * the shrinker to fire, until it is worth the cost of freeing an
+	 * entire GEM object.
+	 */
+	if (num_objects) {
+		unsigned long avg = 2 * count / num_objects;
+
+		i915->mm.shrinker.batch =
+			max((i915->mm.shrinker.batch + avg) >> 1,
+			    128ul /* default SHRINK_BATCH */);
+	}
 
 	return count;
 }
@@ -473,6 +492,7 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
 	dev_priv->mm.shrinker.scan_objects = i915_gem_shrinker_scan;
 	dev_priv->mm.shrinker.count_objects = i915_gem_shrinker_count;
 	dev_priv->mm.shrinker.seeks = DEFAULT_SEEKS;
+	dev_priv->mm.shrinker.batch = 4096;
 	WARN_ON(register_shrinker(&dev_priv->mm.shrinker));
 
 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;

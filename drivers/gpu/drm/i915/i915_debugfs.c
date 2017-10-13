@@ -3331,6 +3331,16 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_shrinker_info(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+
+	seq_printf(m, "seeks = %d\n", i915->mm.shrinker.seeks);
+	seq_printf(m, "batch = %lu\n", i915->mm.shrinker.batch);
+
+	return 0;
+}
+
 static int i915_semaphore_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4811,6 +4821,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_dmc_info", i915_dmc_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_engine_info", i915_engine_info, 0},
+	{"i915_shrinker_info", i915_shrinker_info, 0},
 	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
