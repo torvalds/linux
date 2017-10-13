@@ -384,6 +384,14 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	     op_is_write(bio_op(bio))))
 		goto skip;
 
+	/*
+	 * Flag for bypass if the IO is for read-ahead or background,
+	 * unless the read-ahead request is for metadata (eg, for gfs2).
+	 */
+	if (bio->bi_opf & (REQ_RAHEAD|REQ_BACKGROUND) &&
+	    !(bio->bi_opf & REQ_META))
+		goto skip;
+
 	if (bio->bi_iter.bi_sector & (c->sb.block_size - 1) ||
 	    bio_sectors(bio) & (c->sb.block_size - 1)) {
 		pr_debug("skipping unaligned io");
