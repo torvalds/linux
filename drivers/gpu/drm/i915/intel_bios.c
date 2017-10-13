@@ -699,8 +699,6 @@ static void parse_dsi_backlight_ports(struct drm_i915_private *dev_priv,
 		if (dev_priv->vbt.dsi.config->cabc_supported)
 			dev_priv->vbt.dsi.cabc_ports = BIT(port);
 
-		dev_priv->vbt.dsi.config->dl_dcs_cabc_ports = 0;
-		dev_priv->vbt.dsi.config->dl_dcs_backlight_ports = 0;
 		return;
 	}
 
