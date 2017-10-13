@@ -121,6 +121,7 @@ struct xhci_hcd_mtk {
 	bool has_ippc;
 	int num_u2_ports;
 	int num_u3_ports;
+	int u3p_dis_msk;
 	struct regulator *vusb33;
 	struct regulator *vbus;
 	struct clk *sys_clk;	/* sys and mac clock */
