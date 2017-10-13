@@ -2762,6 +2762,10 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 	rc = tipc_sk_publish(tsk, mreq->scope, &seq);
 	if (rc)
 		tipc_group_delete(net, grp);
+
+	/* Eliminate any risk that a broadcast overtakes the sent JOIN */
+	tsk->mc_method.rcast = true;
+	tsk->mc_method.mandatory = true;
 	return rc;
 }
 
