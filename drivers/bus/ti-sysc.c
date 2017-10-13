@@ -418,7 +418,7 @@ static void sysc_show_registers(struct sysc *ddata)
 		buf);
 }
 
-static int sysc_runtime_suspend(struct device *dev)
+static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 {
 	struct sysc *ddata;
 	int i;
@@ -437,7 +437,7 @@ static int sysc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int sysc_runtime_resume(struct device *dev)
+static int __maybe_unused sysc_runtime_resume(struct device *dev)
 {
 	struct sysc *ddata;
 	int i, error;
