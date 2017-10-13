@@ -41,6 +41,9 @@
  */
 
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <dt-bindings/display/mipi_dsi.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/media-bus-format.h>
 #include "rk3128-dram-default-timing.dtsi"
 
 / {
@@ -142,7 +145,18 @@
 
 &display_subsystem {
 	memory-region = <&drm_logo>;
+	status = "okay";
+
 	route {
+		route_dsi: route-dsi {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vop_out_dsi>;
+		};
+
 		route_lvds: route-lvds {
 			status = "disabled";
 			logo,uboot = "logo.bmp";
