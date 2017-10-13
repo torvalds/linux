@@ -1403,6 +1403,9 @@ static void i915_stop_engines(struct drm_i915_private *dev_priv,
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	if (INTEL_GEN(dev_priv) < 3)
+		return;
+
 	for_each_engine_masked(engine, dev_priv, engine_mask, id)
 		gen3_stop_engine(engine);
 }
@@ -1742,15 +1745,11 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 
 int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
-	reset_func reset;
+	reset_func reset = intel_get_gpu_reset(dev_priv);
 	int retry;
 	int ret;
 
 	might_sleep();
-
-	reset = intel_get_gpu_reset(dev_priv);
-	if (reset == NULL)
-		return -ENODEV;
 
 	/* If the power well sleeps during the reset, the reset
 	 * request may be dropped and never completes (causing -EIO).
@@ -1771,7 +1770,9 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 		 */
 		i915_stop_engines(dev_priv, engine_mask);
 
-		ret = reset(dev_priv, engine_mask);
+		ret = -ENODEV;
+		if (reset)
+			ret = reset(dev_priv, engine_mask);
 		if (ret != -ETIMEDOUT)
 			break;
 
