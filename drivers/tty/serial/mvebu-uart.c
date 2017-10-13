@@ -660,6 +660,11 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	port->private_data = mvuart;
 	platform_set_drvdata(pdev, mvuart);
 
+	/* UART Soft Reset*/
+	writel(CTRL_SOFT_RST, port->membase + UART_CTRL(port));
+	udelay(1);
+	writel(0, port->membase + UART_CTRL(port));
+
 	ret = uart_add_one_port(&mvebu_uart_driver, port);
 	if (ret)
 		return ret;
