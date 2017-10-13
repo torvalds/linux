@@ -1822,17 +1822,32 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 
 	if (IS_FWI2_CAPABLE(ha)) {
 		uint64_t zero = 0;
+		u8 current_login_state, last_login_state;
+
 		pd24 = (struct port_database_24xx *) pd;
 
 		/* Check for logged in state. */
-		if (pd24->current_login_state != PDS_PRLI_COMPLETE &&
-		    pd24->last_login_state != PDS_PRLI_COMPLETE) {
-			ql_dbg(ql_dbg_mbx, vha, 0x1051,
-			    "Unable to verify login-state (%x/%x) for "
-			    "loop_id %x.\n", pd24->current_login_state,
-			    pd24->last_login_state, fcport->loop_id);
+		if (fcport->fc4f_nvme) {
+			current_login_state = pd24->current_login_state >> 4;
+			last_login_state = pd24->last_login_state >> 4;
+		} else {
+			current_login_state = pd24->current_login_state & 0xf;
+			last_login_state = pd24->last_login_state & 0xf;
+		}
+		fcport->current_login_state = pd24->current_login_state;
+		fcport->last_login_state = pd24->last_login_state;
+
+		/* Check for logged in state. */
+		if (current_login_state != PDS_PRLI_COMPLETE &&
+		    last_login_state != PDS_PRLI_COMPLETE) {
+			ql_dbg(ql_dbg_mbx, vha, 0x119a,
+			    "Unable to verify login-state (%x/%x) for loop_id %x.\n",
+			    current_login_state, last_login_state,
+			    fcport->loop_id);
 			rval = QLA_FUNCTION_FAILED;
-			goto gpd_error_out;
+
+			if (!fcport->query)
+				goto gpd_error_out;
 		}
 
 		if (fcport->loop_id == FC_NO_LOOP_ID ||

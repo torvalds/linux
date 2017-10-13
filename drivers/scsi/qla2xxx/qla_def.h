@@ -2303,6 +2303,7 @@ typedef struct fc_port {
 	unsigned int send_els_logo:1;
 	unsigned int login_pause:1;
 	unsigned int login_succ:1;
+	unsigned int query:1;
 
 	struct work_struct nvme_del_work;
 	struct completion nvme_del_done;
@@ -2369,6 +2370,8 @@ typedef struct fc_port {
 	struct list_head gnl_entry;
 	struct work_struct del_work;
 	u8 iocb[IOCB_SIZE];
+	u8 current_login_state;
+	u8 last_login_state;
 } fc_port_t;
 
 #define QLA_FCPORT_SCAN		1
@@ -4114,6 +4117,7 @@ typedef struct scsi_qla_host {
 #define QPAIR_ONLINE_CHECK_NEEDED	27
 #define SET_ZIO_THRESHOLD_NEEDED	28
 #define DETECT_SFP_CHANGE	29
+#define N2N_LOGIN_NEEDED	30
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
