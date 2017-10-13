@@ -221,6 +221,44 @@ static int xhci_mtk_ssusb_config(struct xhci_hcd_mtk *mtk)
 	return xhci_mtk_host_enable(mtk);
 }
 
+/* ignore the error if the clock does not exist */
+static struct clk *optional_clk_get(struct device *dev, const char *id)
+{
+	struct clk *opt_clk;
+
+	opt_clk = devm_clk_get(dev, id);
+	/* ignore error number except EPROBE_DEFER */
+	if (IS_ERR(opt_clk) && (PTR_ERR(opt_clk) != -EPROBE_DEFER))
+		opt_clk = NULL;
+
+	return opt_clk;
+}
+
+static int xhci_mtk_clks_get(struct xhci_hcd_mtk *mtk)
+{
+	struct device *dev = mtk->dev;
+
+	mtk->sys_clk = devm_clk_get(dev, "sys_ck");
+	if (IS_ERR(mtk->sys_clk)) {
+		dev_err(dev, "fail to get sys_ck\n");
+		return PTR_ERR(mtk->sys_clk);
+	}
+
+	mtk->ref_clk = optional_clk_get(dev, "ref_ck");
+	if (IS_ERR(mtk->ref_clk))
+		return PTR_ERR(mtk->ref_clk);
+
+	mtk->mcu_clk = optional_clk_get(dev, "mcu_ck");
+	if (IS_ERR(mtk->mcu_clk))
+		return PTR_ERR(mtk->mcu_clk);
+
+	mtk->dma_clk = optional_clk_get(dev, "dma_ck");
+	if (IS_ERR(mtk->dma_clk))
+		return PTR_ERR(mtk->dma_clk);
+
+	return 0;
+}
+
 static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 {
 	int ret;
@@ -237,16 +275,34 @@ static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 		goto sys_clk_err;
 	}
 
+	ret = clk_prepare_enable(mtk->mcu_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable mcu_clk\n");
+		goto mcu_clk_err;
+	}
+
+	ret = clk_prepare_enable(mtk->dma_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable dma_clk\n");
+		goto dma_clk_err;
+	}
+
 	return 0;
 
+dma_clk_err:
+	clk_disable_unprepare(mtk->mcu_clk);
+mcu_clk_err:
+	clk_disable_unprepare(mtk->sys_clk);
 sys_clk_err:
 	clk_disable_unprepare(mtk->ref_clk);
 ref_clk_err:
-	return -EINVAL;
+	return ret;
 }
 
 static void xhci_mtk_clks_disable(struct xhci_hcd_mtk *mtk)
 {
+	clk_disable_unprepare(mtk->dma_clk);
+	clk_disable_unprepare(mtk->mcu_clk);
 	clk_disable_unprepare(mtk->sys_clk);
 	clk_disable_unprepare(mtk->ref_clk);
 }
@@ -529,24 +585,9 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		return PTR_ERR(mtk->vusb33);
 	}
 
-	mtk->sys_clk = devm_clk_get(dev, "sys_ck");
-	if (IS_ERR(mtk->sys_clk)) {
-		dev_err(dev, "fail to get sys_ck\n");
-		return PTR_ERR(mtk->sys_clk);
-	}
-
-	/*
-	 * reference clock is usually a "fixed-clock", make it optional
-	 * for backward compatibility and ignore the error if it does
-	 * not exist.
-	 */
-	mtk->ref_clk = devm_clk_get(dev, "ref_ck");
-	if (IS_ERR(mtk->ref_clk)) {
-		if (PTR_ERR(mtk->ref_clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		mtk->ref_clk = NULL;
-	}
+	ret = xhci_mtk_clks_get(mtk);
+	if (ret)
+		return ret;
 
 	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
 	/* optional property, ignore the error if it does not exist */

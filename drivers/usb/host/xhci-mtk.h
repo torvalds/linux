@@ -126,6 +126,8 @@ struct xhci_hcd_mtk {
 	struct regulator *vbus;
 	struct clk *sys_clk;	/* sys and mac clock */
 	struct clk *ref_clk;
+	struct clk *mcu_clk;
+	struct clk *dma_clk;
 	struct regmap *pericfg;
 	struct phy **phys;
 	int num_phys;
