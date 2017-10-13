@@ -126,8 +126,6 @@ struct xhci_hcd_mtk {
 	struct regulator *vbus;
 	struct clk *sys_clk;	/* sys and mac clock */
 	struct clk *ref_clk;
-	struct clk *wk_deb_p0;	/* port0's wakeup debounce clock */
-	struct clk *wk_deb_p1;
 	struct regmap *pericfg;
 	struct phy **phys;
 	int num_phys;

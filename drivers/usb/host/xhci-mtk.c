@@ -237,25 +237,8 @@ static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 		goto sys_clk_err;
 	}
 
-	if (mtk->wakeup_src) {
-		ret = clk_prepare_enable(mtk->wk_deb_p0);
-		if (ret) {
-			dev_err(mtk->dev, "failed to enable wk_deb_p0\n");
-			goto usb_p0_err;
-		}
-
-		ret = clk_prepare_enable(mtk->wk_deb_p1);
-		if (ret) {
-			dev_err(mtk->dev, "failed to enable wk_deb_p1\n");
-			goto usb_p1_err;
-		}
-	}
 	return 0;
 
-usb_p1_err:
-	clk_disable_unprepare(mtk->wk_deb_p0);
-usb_p0_err:
-	clk_disable_unprepare(mtk->sys_clk);
 sys_clk_err:
 	clk_disable_unprepare(mtk->ref_clk);
 ref_clk_err:
@@ -264,10 +247,6 @@ ref_clk_err:
 
 static void xhci_mtk_clks_disable(struct xhci_hcd_mtk *mtk)
 {
-	if (mtk->wakeup_src) {
-		clk_disable_unprepare(mtk->wk_deb_p1);
-		clk_disable_unprepare(mtk->wk_deb_p0);
-	}
 	clk_disable_unprepare(mtk->sys_clk);
 	clk_disable_unprepare(mtk->ref_clk);
 }
@@ -370,18 +349,6 @@ static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
 	of_property_read_u32(dn, "mediatek,wakeup-src", &mtk->wakeup_src);
 	if (!mtk->wakeup_src)
 		return 0;
-
-	mtk->wk_deb_p0 = devm_clk_get(dev, "wakeup_deb_p0");
-	if (IS_ERR(mtk->wk_deb_p0)) {
-		dev_err(dev, "fail to get wakeup_deb_p0\n");
-		return PTR_ERR(mtk->wk_deb_p0);
-	}
-
-	mtk->wk_deb_p1 = devm_clk_get(dev, "wakeup_deb_p1");
-	if (IS_ERR(mtk->wk_deb_p1)) {
-		dev_err(dev, "fail to get wakeup_deb_p1\n");
-		return PTR_ERR(mtk->wk_deb_p1);
-	}
 
 	mtk->pericfg = syscon_regmap_lookup_by_phandle(dn,
 						"mediatek,syscon-wakeup");
