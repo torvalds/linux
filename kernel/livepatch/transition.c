@@ -82,6 +82,10 @@ static void klp_complete_transition(void)
 	unsigned int cpu;
 	bool immediate_func = false;
 
+	pr_debug("'%s': completing %s transition\n",
+		 klp_transition_patch->mod->name,
+		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+
 	if (klp_target_state == KLP_UNPATCHED) {
 		/*
 		 * All tasks have transitioned to KLP_UNPATCHED so we can now
@@ -162,6 +166,9 @@ void klp_cancel_transition(void)
 {
 	if (WARN_ON_ONCE(klp_target_state != KLP_PATCHED))
 		return;
+
+	pr_debug("'%s': canceling patching transition, going to unpatch\n",
+		 klp_transition_patch->mod->name);
 
 	klp_target_state = KLP_UNPATCHED;
 	klp_complete_transition();
@@ -441,7 +448,8 @@ void klp_start_transition(void)
 
 	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
 
-	pr_notice("'%s': %s...\n", klp_transition_patch->mod->name,
+	pr_notice("'%s': starting %s transition\n",
+		  klp_transition_patch->mod->name,
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	/*
@@ -496,6 +504,9 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	 * has no effect until the TIF_PATCH_PENDING flags get set later.
 	 */
 	klp_target_state = state;
+
+	pr_debug("'%s': initializing %s transition\n", patch->mod->name,
+		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	/*
 	 * If the patch can be applied or reverted immediately, skip the
@@ -561,6 +572,11 @@ void klp_reverse_transition(void)
 {
 	unsigned int cpu;
 	struct task_struct *g, *task;
+
+	pr_debug("'%s': reversing transition from %s\n",
+		 klp_transition_patch->mod->name,
+		 klp_target_state == KLP_PATCHED ? "patching to unpatching" :
+						   "unpatching to patching");
 
 	klp_transition_patch->enabled = !klp_transition_patch->enabled;
 
