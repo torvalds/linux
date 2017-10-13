@@ -61,7 +61,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *wakeup,
 			  struct tipc_msg *hdr,
 			  struct sk_buff_head *inputq,
 			  struct sk_buff_head *xmitq);
-void tipc_group_update_bc_members(struct tipc_group *grp, int len);
+void tipc_group_update_bc_members(struct tipc_group *grp, int len, bool ack);
 bool tipc_group_cong(struct tipc_group *grp, u32 dnode, u32 dport,
 		     int len, struct tipc_member **m);
 bool tipc_group_bc_cong(struct tipc_group *grp, int len);
@@ -69,7 +69,5 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 			       u32 port, struct sk_buff_head *xmitq);
 u16 tipc_group_bc_snd_nxt(struct tipc_group *grp);
 void tipc_group_update_member(struct tipc_member *m, int len);
-struct tipc_member *tipc_group_find_sender(struct tipc_group *grp,
-					   u32 node, u32 port);
 int tipc_group_size(struct tipc_group *grp);
 #endif

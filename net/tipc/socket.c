@@ -831,6 +831,7 @@ static int tipc_send_group_msg(struct net *net, struct tipc_sock *tsk,
 			       u32 dnode, u32 dport, int dlen)
 {
 	u16 bc_snd_nxt = tipc_group_bc_snd_nxt(tsk->group);
+	struct tipc_mc_method *method = &tsk->mc_method;
 	int blks = tsk_blocks(GROUP_H_SIZE + dlen);
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct sk_buff_head pkts;
@@ -857,9 +858,12 @@ static int tipc_send_group_msg(struct net *net, struct tipc_sock *tsk,
 		tsk->cong_link_cnt++;
 	}
 
-	/* Update send window and sequence number */
+	/* Update send window */
 	tipc_group_update_member(mb, blks);
 
+	/* A broadcast sent within next EXPIRE period must follow same path */
+	method->rcast = true;
+	method->mandatory = true;
 	return dlen;
 }
 
@@ -1008,6 +1012,7 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	struct tipc_group *grp = tsk->group;
 	struct tipc_nlist *dsts = tipc_group_dests(grp);
 	struct tipc_mc_method *method = &tsk->mc_method;
+	bool ack = method->mandatory && method->rcast;
 	int blks = tsk_blocks(MCAST_H_SIZE + dlen);
 	struct tipc_msg *hdr = &tsk->phdr;
 	int mtu = tipc_bcast_get_mtu(net);
@@ -1036,6 +1041,9 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	msg_set_destnode(hdr, 0);
 	msg_set_grp_bc_seqno(hdr, tipc_group_bc_snd_nxt(grp));
 
+	/* Avoid getting stuck with repeated forced replicasts */
+	msg_set_grp_bc_ack_req(hdr, ack);
+
 	/* Build message as chain of buffers */
 	skb_queue_head_init(&pkts);
 	rc = tipc_msg_build(hdr, m, 0, dlen, mtu, &pkts);
@@ -1043,13 +1051,17 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 		return rc;
 
 	/* Send message */
-	rc = tipc_mcast_xmit(net, &pkts, method, dsts,
-			     &tsk->cong_link_cnt);
+	rc = tipc_mcast_xmit(net, &pkts, method, dsts, &tsk->cong_link_cnt);
 	if (unlikely(rc))
 		return rc;
 
 	/* Update broadcast sequence number and send windows */
-	tipc_group_update_bc_members(tsk->group, blks);
+	tipc_group_update_bc_members(tsk->group, blks, ack);
+
+	/* Broadcast link is now free to choose method for next broadcast */
+	method->mandatory = false;
+	method->expires = jiffies;
+
 	return dlen;
 }
 
@@ -1113,7 +1125,7 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 	u32 portid, oport, onode;
 	struct list_head dports;
 	struct tipc_msg *msg;
-	int hsz;
+	int user, mtyp, hsz;
 
 	__skb_queue_head_init(&tmpq);
 	INIT_LIST_HEAD(&dports);
@@ -1121,6 +1133,18 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 	skb = tipc_skb_peek(arrvq, &inputq->lock);
 	for (; skb; skb = tipc_skb_peek(arrvq, &inputq->lock)) {
 		msg = buf_msg(skb);
+		user = msg_user(msg);
+		mtyp = msg_type(msg);
+		if (mtyp == TIPC_GRP_UCAST_MSG || user == GROUP_PROTOCOL) {
+			spin_lock_bh(&inputq->lock);
+			if (skb_peek(arrvq) == skb) {
+				__skb_dequeue(arrvq);
+				__skb_queue_tail(inputq, skb);
+			}
+			refcount_dec(&skb->users);
+			spin_unlock_bh(&inputq->lock);
+			continue;
+		}
 		hsz = skb_headroom(skb) + msg_hdr_sz(msg);
 		oport = msg_origport(msg);
 		onode = msg_orignode(msg);

@@ -1046,13 +1046,12 @@ static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 	case TIPC_MEDIUM_IMPORTANCE:
 	case TIPC_HIGH_IMPORTANCE:
 	case TIPC_CRITICAL_IMPORTANCE:
-		if (unlikely(msg_mcast(hdr))) {
+		if (unlikely(msg_in_group(hdr) || msg_mcast(hdr))) {
 			skb_queue_tail(l->bc_rcvlink->inputq, skb);
 			return true;
 		}
-	case CONN_MANAGER:
 	case GROUP_PROTOCOL:
-		skb_queue_tail(inputq, skb);
+	case CONN_MANAGER:
 		return true;
 	case NAME_DISTRIBUTOR:
 		l->bc_rcvlink->state = LINK_ESTABLISHED;
