@@ -993,7 +993,6 @@ static int __init unittest_data_add(void)
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
 		return -ENODATA;
 	}
-	of_node_set_flag(unittest_data_node, OF_DETACHED);
 	rc = of_resolve_phandles(unittest_data_node);
 	if (rc) {
 		pr_err("%s: Failed to resolve phandles (rc=%i)\n", __func__, rc);
@@ -2143,7 +2142,6 @@ static int __init overlay_data_add(int onum)
 		ret = 0;
 		goto out_free_data;
 	}
-	of_node_set_flag(info->np_overlay, OF_DETACHED);
 
 	ret = of_resolve_phandles(info->np_overlay);
 	if (ret) {
