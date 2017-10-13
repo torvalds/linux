@@ -97,7 +97,7 @@ static bool swap_available(void)
 
 static bool can_release_pages(struct drm_i915_gem_object *obj)
 {
-	if (!obj->mm.pages)
+	if (!i915_gem_object_has_pages(obj))
 		return false;
 
 	/* Consider only shrinkable ojects. */
@@ -129,7 +129,7 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj)
 {
 	if (i915_gem_object_unbind(obj) == 0)
 		__i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
-	return !READ_ONCE(obj->mm.pages);
+	return !i915_gem_object_has_pages(obj);
 }
 
 /**
@@ -247,7 +247,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 				/* May arrive from get_pages on another bo */
 				mutex_lock_nested(&obj->mm.lock,
 						  I915_MM_SHRINKER);
-				if (!obj->mm.pages) {
+				if (!i915_gem_object_has_pages(obj)) {
 					__i915_gem_object_invalidate(obj);
 					list_del_init(&obj->global_link);
 					count += obj->base.size >> PAGE_SHIFT;
@@ -413,7 +413,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 */
 	unbound = bound = unevictable = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
-		if (!obj->mm.pages)
+		if (!i915_gem_object_has_pages(obj))
 			continue;
 
 		if (!can_release_pages(obj))
@@ -422,7 +422,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 			unbound += obj->base.size >> PAGE_SHIFT;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
-		if (!obj->mm.pages)
+		if (!i915_gem_object_has_pages(obj))
 			continue;
 
 		if (!can_release_pages(obj))
