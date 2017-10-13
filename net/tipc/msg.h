@@ -67,6 +67,7 @@ struct plist;
 #define TIPC_DIRECT_MSG         3
 #define TIPC_GRP_MEMBER_EVT     4
 #define TIPC_GRP_BCAST_MSG      5
+#define TIPC_GRP_UCAST_MSG      6
 
 /*
  * Internal message users
@@ -261,7 +262,7 @@ static inline int msg_in_group(struct tipc_msg *m)
 {
 	int mtyp = msg_type(m);
 
-	return (mtyp == TIPC_GRP_BCAST_MSG) || (mtyp == TIPC_GRP_MEMBER_EVT);
+	return mtyp >= TIPC_GRP_MEMBER_EVT && mtyp <= TIPC_GRP_UCAST_MSG;
 }
 
 static inline bool msg_is_grp_evt(struct tipc_msg *m)

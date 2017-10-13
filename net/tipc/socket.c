@@ -818,6 +818,93 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 }
 
 /**
+ * tipc_send_group_msg - send a message to a member in the group
+ * @net: network namespace
+ * @m: message to send
+ * @mb: group member
+ * @dnode: destination node
+ * @dport: destination port
+ * @dlen: total length of message data
+ */
+static int tipc_send_group_msg(struct net *net, struct tipc_sock *tsk,
+			       struct msghdr *m, struct tipc_member *mb,
+			       u32 dnode, u32 dport, int dlen)
+{
+	int blks = tsk_blocks(GROUP_H_SIZE + dlen);
+	struct tipc_msg *hdr = &tsk->phdr;
+	struct sk_buff_head pkts;
+	int mtu, rc;
+
+	/* Complete message header */
+	msg_set_type(hdr, TIPC_GRP_UCAST_MSG);
+	msg_set_hdr_sz(hdr, GROUP_H_SIZE);
+	msg_set_destport(hdr, dport);
+	msg_set_destnode(hdr, dnode);
+
+	/* Build message as chain of buffers */
+	skb_queue_head_init(&pkts);
+	mtu = tipc_node_get_mtu(net, dnode, tsk->portid);
+	rc = tipc_msg_build(hdr, m, 0, dlen, mtu, &pkts);
+	if (unlikely(rc != dlen))
+		return rc;
+
+	/* Send message */
+	rc = tipc_node_xmit(net, &pkts, dnode, tsk->portid);
+	if (unlikely(rc == -ELINKCONG)) {
+		tipc_dest_push(&tsk->cong_links, dnode, 0);
+		tsk->cong_link_cnt++;
+	}
+
+	/* Update send window and sequence number */
+	tipc_group_update_member(mb, blks);
+
+	return dlen;
+}
+
+/**
+ * tipc_send_group_unicast - send message to a member in the group
+ * @sock: socket structure
+ * @m: message to send
+ * @dlen: total length of message data
+ * @timeout: timeout to wait for wakeup
+ *
+ * Called from function tipc_sendmsg(), which has done all sanity checks
+ * Returns the number of bytes sent on success, or errno
+ */
+static int tipc_send_group_unicast(struct socket *sock, struct msghdr *m,
+				   int dlen, long timeout)
+{
+	struct sock *sk = sock->sk;
+	DECLARE_SOCKADDR(struct sockaddr_tipc *, dest, m->msg_name);
+	int blks = tsk_blocks(GROUP_H_SIZE + dlen);
+	struct tipc_sock *tsk = tipc_sk(sk);
+	struct tipc_group *grp = tsk->group;
+	struct net *net = sock_net(sk);
+	struct tipc_member *mb = NULL;
+	u32 node, port;
+	int rc;
+
+	node = dest->addr.id.node;
+	port = dest->addr.id.ref;
+	if (!port && !node)
+		return -EHOSTUNREACH;
+
+	/* Block or return if destination link or member is congested */
+	rc = tipc_wait_for_cond(sock, &timeout,
+				!tipc_dest_find(&tsk->cong_links, node, 0) &&
+				!tipc_group_cong(grp, node, port, blks, &mb));
+	if (unlikely(rc))
+		return rc;
+
+	if (unlikely(!mb))
+		return -EHOSTUNREACH;
+
+	rc = tipc_send_group_msg(net, tsk, m, mb, node, port, dlen);
+
+	return rc ? rc : dlen;
+}
+
+/**
  * tipc_send_group_bcast - send message to all members in communication group
  * @sk: socket structure
  * @m: message to send
@@ -1030,20 +1117,26 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	if (unlikely(dlen > TIPC_MAX_USER_MSG_SIZE))
 		return -EMSGSIZE;
 
-	if (unlikely(grp && !dest))
-		return tipc_send_group_bcast(sock, m, dlen, timeout);
+	if (likely(dest)) {
+		if (unlikely(m->msg_namelen < sizeof(*dest)))
+			return -EINVAL;
+		if (unlikely(dest->family != AF_TIPC))
+			return -EINVAL;
+	}
+
+	if (grp) {
+		if (!dest)
+			return tipc_send_group_bcast(sock, m, dlen, timeout);
+		if (dest->addrtype == TIPC_ADDR_ID)
+			return tipc_send_group_unicast(sock, m, dlen, timeout);
+		return -EINVAL;
+	}
 
 	if (unlikely(!dest)) {
 		dest = &tsk->peer;
 		if (!syn || dest->family != AF_TIPC)
 			return -EDESTADDRREQ;
 	}
-
-	if (unlikely(m->msg_namelen < sizeof(*dest)))
-		return -EINVAL;
-
-	if (unlikely(dest->family != AF_TIPC))
-		return -EINVAL;
 
 	if (unlikely(syn)) {
 		if (sk->sk_state == TIPC_LISTEN)
@@ -1077,7 +1170,6 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 		msg_set_destport(hdr, dport);
 		if (unlikely(!dport && !dnode))
 			return -EHOSTUNREACH;
-
 	} else if (dest->addrtype == TIPC_ADDR_ID) {
 		dnode = dest->addr.id.node;
 		msg_set_type(hdr, TIPC_DIRECT_MSG);
@@ -1846,7 +1938,7 @@ static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
 
 	if (unlikely(!msg_isdata(hdr)))
 		tipc_sk_proto_rcv(sk, &inputq, xmitq);
-	else if (unlikely(msg_type(hdr) > TIPC_GRP_BCAST_MSG))
+	else if (unlikely(msg_type(hdr) > TIPC_GRP_UCAST_MSG))
 		return kfree_skb(skb);
 
 	if (unlikely(grp))

@@ -186,6 +186,17 @@ struct tipc_member *tipc_group_find_member(struct tipc_group *grp,
 	return NULL;
 }
 
+static struct tipc_member *tipc_group_find_dest(struct tipc_group *grp,
+						u32 node, u32 port)
+{
+	struct tipc_member *m;
+
+	m = tipc_group_find_member(grp, node, port);
+	if (m && tipc_group_is_enabled(m))
+		return m;
+	return NULL;
+}
+
 static struct tipc_member *tipc_group_find_node(struct tipc_group *grp,
 						u32 node)
 {
@@ -318,9 +329,39 @@ void tipc_group_update_bc_members(struct tipc_group *grp, int len)
 	grp->bc_snd_nxt++;
 }
 
+bool tipc_group_cong(struct tipc_group *grp, u32 dnode, u32 dport,
+		     int len, struct tipc_member **mbr)
+{
+	struct sk_buff_head xmitq;
+	struct tipc_member *m;
+	int adv, state;
+
+	m = tipc_group_find_dest(grp, dnode, dport);
+	*mbr = m;
+	if (!m)
+		return false;
+	if (m->usr_pending)
+		return true;
+	if (m->window >= len)
+		return false;
+	m->usr_pending = true;
+
+	/* If not fully advertised, do it now to prevent mutual blocking */
+	adv = m->advertised;
+	state = m->state;
+	if (state < MBR_JOINED)
+		return true;
+	if (state == MBR_JOINED && adv == ADV_IDLE)
+		return true;
+	skb_queue_head_init(&xmitq);
+	tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, &xmitq);
+	tipc_node_distr_xmit(grp->net, &xmitq);
+	return true;
+}
+
 bool tipc_group_bc_cong(struct tipc_group *grp, int len)
 {
-	struct tipc_member *m;
+	struct tipc_member *m = NULL;
 
 	if (list_empty(&grp->congested))
 		return false;
@@ -329,7 +370,7 @@ bool tipc_group_bc_cong(struct tipc_group *grp, int len)
 	if (m->window >= len)
 		return false;
 
-	return true;
+	return tipc_group_cong(grp, m->node, m->port, len, &m);
 }
 
 /* tipc_group_filter_msg() - determine if we should accept arriving message
