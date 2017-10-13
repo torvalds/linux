@@ -165,7 +165,6 @@ static int adjust_local_phandle_references(struct device_node *local_fixups,
 	struct property *prop_fix, *prop;
 	int err, i, count;
 	unsigned int off;
-	phandle phandle;
 
 	if (!local_fixups)
 		return 0;
@@ -195,9 +194,7 @@ static int adjust_local_phandle_references(struct device_node *local_fixups,
 			if ((off + 4) > prop->length)
 				return -EINVAL;
 
-			phandle = be32_to_cpu(*(__be32 *)(prop->value + off));
-			phandle += phandle_delta;
-			*(__be32 *)(prop->value + off) = cpu_to_be32(phandle);
+			be32_add_cpu(prop->value + off, phandle_delta);
 		}
 	}
 
