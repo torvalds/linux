@@ -1465,6 +1465,7 @@ void pblk_line_free(struct pblk *pblk, struct pblk_line *line)
 static void __pblk_line_put(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_gc *gc = &pblk->gc;
 
 	spin_lock(&line->lock);
 	WARN_ON(line->state != PBLK_LINESTATE_GC);
@@ -1472,6 +1473,8 @@ static void __pblk_line_put(struct pblk *pblk, struct pblk_line *line)
 	line->gc_group = PBLK_LINEGC_NONE;
 	pblk_line_free(pblk, line);
 	spin_unlock(&line->lock);
+
+	atomic_dec(&gc->pipeline_gc);
 
 	spin_lock(&l_mg->free_lock);
 	list_add_tail(&line->list, &l_mg->free_list);

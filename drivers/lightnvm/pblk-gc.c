@@ -234,7 +234,7 @@ out:
 	kfree(invalid_bitmap);
 
 	kref_put(&line->ref, pblk_line_put);
-	atomic_dec(&gc->inflight_gc);
+	atomic_dec(&gc->read_inflight_gc);
 
 	return;
 
@@ -249,7 +249,7 @@ fail_free_ws:
 
 	pblk_put_line_back(pblk, line);
 	kref_put(&line->ref, pblk_line_put);
-	atomic_dec(&gc->inflight_gc);
+	atomic_dec(&gc->read_inflight_gc);
 
 	pr_err("pblk: Failed to GC line %d\n", line->id);
 }
@@ -268,6 +268,7 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 	line_ws->pblk = pblk;
 	line_ws->line = line;
 
+	atomic_inc(&gc->pipeline_gc);
 	INIT_WORK(&line_ws->ws, pblk_gc_line_prepare_ws);
 	queue_work(gc->gc_reader_wq, &line_ws->ws);
 
@@ -333,6 +334,7 @@ static bool pblk_gc_should_run(struct pblk_gc *gc, struct pblk_rl *rl)
 void pblk_gc_free_full_lines(struct pblk *pblk)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_gc *gc = &pblk->gc;
 	struct pblk_line *line;
 
 	do {
@@ -353,6 +355,7 @@ void pblk_gc_free_full_lines(struct pblk *pblk)
 		list_del(&line->list);
 		spin_unlock(&l_mg->gc_lock);
 
+		atomic_inc(&gc->pipeline_gc);
 		kref_put(&line->ref, pblk_line_put);
 	} while (1);
 }
@@ -370,12 +373,12 @@ static void pblk_gc_run(struct pblk *pblk)
 	struct pblk_line *line;
 	struct list_head *group_list;
 	bool run_gc;
-	int inflight_gc, gc_group = 0, prev_group = 0;
+	int read_inflight_gc, gc_group = 0, prev_group = 0;
 
 	pblk_gc_free_full_lines(pblk);
 
 	run_gc = pblk_gc_should_run(&pblk->gc, &pblk->rl);
-	if (!run_gc || (atomic_read(&gc->inflight_gc) >= PBLK_GC_L_QD))
+	if (!run_gc || (atomic_read(&gc->read_inflight_gc) >= PBLK_GC_L_QD))
 		return;
 
 next_gc_group:
@@ -402,14 +405,14 @@ next_gc_group:
 		list_add_tail(&line->list, &gc->r_list);
 		spin_unlock(&gc->r_lock);
 
-		inflight_gc = atomic_inc_return(&gc->inflight_gc);
+		read_inflight_gc = atomic_inc_return(&gc->read_inflight_gc);
 		pblk_gc_reader_kick(gc);
 
 		prev_group = 1;
 
 		/* No need to queue up more GC lines than we can handle */
 		run_gc = pblk_gc_should_run(&pblk->gc, &pblk->rl);
-		if (!run_gc || inflight_gc >= PBLK_GC_L_QD)
+		if (!run_gc || read_inflight_gc >= PBLK_GC_L_QD)
 			break;
 	} while (1);
 
@@ -470,6 +473,7 @@ static int pblk_gc_writer_ts(void *data)
 static int pblk_gc_reader_ts(void *data)
 {
 	struct pblk *pblk = data;
+	struct pblk_gc *gc = &pblk->gc;
 
 	while (!kthread_should_stop()) {
 		if (!pblk_gc_read(pblk))
@@ -477,6 +481,18 @@ static int pblk_gc_reader_ts(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		io_schedule();
 	}
+
+#ifdef CONFIG_NVM_DEBUG
+	pr_info("pblk: flushing gc pipeline, %d lines left\n",
+		atomic_read(&gc->pipeline_gc));
+#endif
+
+	do {
+		if (!atomic_read(&gc->pipeline_gc))
+			break;
+
+		schedule();
+	} while (1);
 
 	return 0;
 }
@@ -586,7 +602,8 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_forced = 0;
 	gc->gc_enabled = 1;
 	gc->w_entries = 0;
-	atomic_set(&gc->inflight_gc, 0);
+	atomic_set(&gc->read_inflight_gc, 0);
+	atomic_set(&gc->pipeline_gc, 0);
 
 	/* Workqueue that reads valid sectors from a line and submit them to the
 	 * GC writer to be recycled.

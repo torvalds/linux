@@ -238,7 +238,10 @@ struct pblk_gc {
 	struct timer_list gc_timer;
 
 	struct semaphore gc_sem;
-	atomic_t inflight_gc;
+	atomic_t read_inflight_gc; /* Number of lines with inflight GC reads */
+	atomic_t pipeline_gc;	   /* Number of lines in the GC pipeline -
+				    * started reads to finished writes
+				    */
 	int w_entries;
 
 	struct list_head w_list;
