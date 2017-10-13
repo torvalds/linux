@@ -283,10 +283,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		return PTR_ERR(ssusb->ippc_base);
 
 	ssusb->dr_mode = usb_get_dr_mode(dev);
-	if (ssusb->dr_mode == USB_DR_MODE_UNKNOWN) {
-		dev_err(dev, "dr_mode is error\n");
-		return -EINVAL;
-	}
+	if (ssusb->dr_mode == USB_DR_MODE_UNKNOWN)
+		ssusb->dr_mode = USB_DR_MODE_OTG;
 
 	if (ssusb->dr_mode == USB_DR_MODE_PERIPHERAL)
 		return 0;
