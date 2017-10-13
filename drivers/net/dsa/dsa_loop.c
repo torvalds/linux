@@ -110,13 +110,6 @@ static void dsa_loop_get_ethtool_stats(struct dsa_switch *ds, int port,
 		data[i] = ps->ports[port].mib[i].val;
 }
 
-static int dsa_loop_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	dev_dbg(ds->dev, "%s\n", __func__);
-
-	return 0;
-}
-
 static int dsa_loop_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
 	struct dsa_loop_priv *ps = ds->priv;
@@ -263,7 +256,6 @@ static const struct dsa_switch_ops dsa_loop_driver = {
 	.get_strings		= dsa_loop_get_strings,
 	.get_ethtool_stats	= dsa_loop_get_ethtool_stats,
 	.get_sset_count		= dsa_loop_get_sset_count,
-	.set_addr		= dsa_loop_set_addr,
 	.phy_read		= dsa_loop_phy_read,
 	.phy_write		= dsa_loop_phy_write,
 	.port_bridge_join	= dsa_loop_port_bridge_join,
