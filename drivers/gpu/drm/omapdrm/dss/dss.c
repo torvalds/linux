@@ -368,7 +368,8 @@ const char *dss_get_clk_source_name(enum dss_clk_source clk_src)
 	return dss_generic_clk_source_names[clk_src];
 }
 
-void dss_dump_clocks(struct seq_file *s)
+#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
+static void dss_dump_clocks(struct seq_file *s)
 {
 	const char *fclk_name;
 	unsigned long fclk_rate;
@@ -387,6 +388,7 @@ void dss_dump_clocks(struct seq_file *s)
 
 	dss_runtime_put();
 }
+#endif
 
 static void dss_dump_regs(struct seq_file *s)
 {
