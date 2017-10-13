@@ -356,7 +356,8 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 
 	if (map->flags & ACPI_IORT_ID_SINGLE_MAPPING) {
 		if (node->type == ACPI_IORT_NODE_NAMED_COMPONENT ||
-		    node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
+		    node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX ||
+		    node->type == ACPI_IORT_NODE_SMMU_V3) {
 			*id_out = map->output_base;
 			return parent;
 		}
@@ -365,10 +366,46 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	return NULL;
 }
 
+#if (ACPI_CA_VERSION > 0x20170929)
+static int iort_get_id_mapping_index(struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu_v3 *smmu;
+
+	switch (node->type) {
+	case ACPI_IORT_NODE_SMMU_V3:
+		/*
+		 * SMMUv3 dev ID mapping index was introduced in revision 1
+		 * table, not available in revision 0
+		 */
+		if (node->revision < 1)
+			return -EINVAL;
+
+		smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+		/*
+		 * ID mapping index is only ignored if all interrupts are
+		 * GSIV based
+		 */
+		if (smmu->event_gsiv && smmu->pri_gsiv && smmu->gerr_gsiv
+		    && smmu->sync_gsiv)
+			return -EINVAL;
+
+		if (smmu->id_mapping_index >= node->mapping_count) {
+			pr_err(FW_BUG "[node %p type %d] ID mapping index overflows valid mappings\n",
+			       node, node->type);
+			return -EINVAL;
+		}
+
+		return smmu->id_mapping_index;
+	default:
+		return -EINVAL;
+	}
+}
+#else
 static inline int iort_get_id_mapping_index(struct acpi_iort_node *node)
 {
 	return -EINVAL;
 }
+#endif
 
 static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 					       u32 id_in, u32 *id_out,
