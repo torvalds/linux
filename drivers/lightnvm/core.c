@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/sem.h>
 #include <linux/bitmap.h>
+#include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
 #include <linux/lightnvm.h>
@@ -316,6 +317,8 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	list_add_tail(&t->list, &dev->targets);
 	mutex_unlock(&dev->mlock);
 
+	__module_get(tt->owner);
+
 	return 0;
 err_sysfs:
 	if (tt->exit)
@@ -351,6 +354,7 @@ static void __nvm_remove_target(struct nvm_target *t)
 
 	nvm_remove_tgt_dev(t->dev, 1);
 	put_disk(tdisk);
+	module_put(t->type->owner);
 
 	list_del(&t->list);
 	kfree(t);

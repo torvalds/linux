@@ -460,6 +460,7 @@ struct nvm_tgt_type {
 
 	/* For internal use */
 	struct list_head list;
+	struct module *owner;
 };
 
 extern struct nvm_tgt_type *nvm_find_target_type(const char *, int);

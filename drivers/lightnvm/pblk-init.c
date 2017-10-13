@@ -1044,6 +1044,7 @@ static struct nvm_tgt_type tt_pblk = {
 
 	.sysfs_init	= pblk_sysfs_init,
 	.sysfs_exit	= pblk_sysfs_exit,
+	.owner		= THIS_MODULE,
 };
 
 static int __init pblk_module_init(void)
