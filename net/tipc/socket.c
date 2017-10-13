@@ -111,7 +111,7 @@ struct tipc_sock {
 	struct rcu_head rcu;
 };
 
-static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb);
+static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 static void tipc_data_ready(struct sock *sk);
 static void tipc_write_space(struct sock *sk);
 static void tipc_sock_destruct(struct sock *sk);
@@ -453,7 +453,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	msg_set_origport(msg, tsk->portid);
 	setup_timer(&sk->sk_timer, tipc_sk_timeout, (unsigned long)tsk);
 	sk->sk_shutdown = 0;
-	sk->sk_backlog_rcv = tipc_backlog_rcv;
+	sk->sk_backlog_rcv = tipc_sk_backlog_rcv;
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
 	sk->sk_write_space = tipc_write_space;
@@ -850,16 +850,16 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 }
 
 /**
- * tipc_sk_proto_rcv - receive a connection mng protocol message
+ * tipc_sk_conn_proto_rcv - receive a connection mng protocol message
  * @tsk: receiving socket
  * @skb: pointer to message buffer.
  */
-static void tipc_sk_proto_rcv(struct tipc_sock *tsk, struct sk_buff *skb,
-			      struct sk_buff_head *xmitq)
+static void tipc_sk_conn_proto_rcv(struct tipc_sock *tsk, struct sk_buff *skb,
+				   struct sk_buff_head *xmitq)
 {
-	struct sock *sk = &tsk->sk;
-	u32 onode = tsk_own_node(tsk);
 	struct tipc_msg *hdr = buf_msg(skb);
+	u32 onode = tsk_own_node(tsk);
+	struct sock *sk = &tsk->sk;
 	int mtyp = msg_type(hdr);
 	bool conn_cong;
 
@@ -1536,14 +1536,41 @@ static void tipc_sock_destruct(struct sock *sk)
 	__skb_queue_purge(&sk->sk_receive_queue);
 }
 
+static void tipc_sk_proto_rcv(struct sock *sk,
+			      struct sk_buff_head *inputq,
+			      struct sk_buff_head *xmitq)
+{
+	struct sk_buff *skb = __skb_dequeue(inputq);
+	struct tipc_sock *tsk = tipc_sk(sk);
+	struct tipc_msg *hdr = buf_msg(skb);
+
+	switch (msg_user(hdr)) {
+	case CONN_MANAGER:
+		tipc_sk_conn_proto_rcv(tsk, skb, xmitq);
+		return;
+	case SOCK_WAKEUP:
+		u32_del(&tsk->cong_links, msg_orignode(hdr));
+		tsk->cong_link_cnt--;
+		sk->sk_write_space(sk);
+		break;
+	case TOP_SRV:
+		tipc_sk_top_evt(tsk, (void *)msg_data(hdr));
+		break;
+	default:
+		break;
+	}
+
+	kfree_skb(skb);
+}
+
 /**
- * filter_connect - Handle all incoming messages for a connection-based socket
+ * tipc_filter_connect - Handle incoming message for a connection-based socket
  * @tsk: TIPC socket
  * @skb: pointer to message buffer. Set to NULL if buffer is consumed
  *
  * Returns true if everything ok, false otherwise
  */
-static bool filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
+static bool tipc_sk_filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
 {
 	struct sock *sk = &tsk->sk;
 	struct net *net = sock_net(sk);
@@ -1657,7 +1684,7 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- * filter_rcv - validate incoming message
+ * tipc_sk_filter_rcv - validate incoming message
  * @sk: socket
  * @skb: pointer to message.
  *
@@ -1666,75 +1693,49 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *skb)
  *
  * Called with socket lock already taken
  *
- * Returns true if message was added to socket receive queue, otherwise false
  */
-static bool filter_rcv(struct sock *sk, struct sk_buff *skb,
-		       struct sk_buff_head *xmitq)
+static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
+			       struct sk_buff_head *xmitq)
 {
+	bool sk_conn = !tipc_sk_type_connectionless(sk);
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_msg *hdr = buf_msg(skb);
-	unsigned int limit = rcvbuf_limit(sk, skb);
-	int err = TIPC_OK;
+	struct net *net = sock_net(sk);
+	struct sk_buff_head inputq;
+	int limit, err = TIPC_OK;
 
-	if (unlikely(!msg_isdata(hdr))) {
-		switch (msg_user(hdr)) {
-		case CONN_MANAGER:
-			tipc_sk_proto_rcv(tsk, skb, xmitq);
-			return false;
-		case SOCK_WAKEUP:
-			u32_del(&tsk->cong_links, msg_orignode(hdr));
-			tsk->cong_link_cnt--;
-			sk->sk_write_space(sk);
-			break;
-		case TOP_SRV:
-			tipc_sk_top_evt(tsk, (void *)msg_data(hdr));
-			break;
-		default:
-			break;
-		}
-		kfree_skb(skb);
-		return false;
-	}
-
-	/* Drop if illegal message type */
-	if (unlikely(msg_type(hdr) > TIPC_DIRECT_MSG)) {
-		kfree_skb(skb);
-		return false;
-	}
-
-	/* Reject if wrong message type for current socket state */
-	if (tipc_sk_type_connectionless(sk)) {
-		if (msg_connected(hdr)) {
-			err = TIPC_ERR_NO_PORT;
-			goto reject;
-		}
-	} else if (unlikely(!filter_connect(tsk, skb))) {
-		err = TIPC_ERR_NO_PORT;
-		goto reject;
-	}
-
-	/* Reject message if there isn't room to queue it */
-	if (unlikely(sk_rmem_alloc_get(sk) + skb->truesize >= limit)) {
-		err = TIPC_ERR_OVERLOAD;
-		goto reject;
-	}
-
-	/* Enqueue message */
 	TIPC_SKB_CB(skb)->bytes_read = 0;
-	__skb_queue_tail(&sk->sk_receive_queue, skb);
-	skb_set_owner_r(skb, sk);
+	__skb_queue_head_init(&inputq);
+	__skb_queue_tail(&inputq, skb);
 
-	sk->sk_data_ready(sk);
-	return true;
+	if (unlikely(!msg_isdata(hdr)))
+		tipc_sk_proto_rcv(sk, &inputq, xmitq);
+	else if (unlikely(msg_type(hdr) > TIPC_DIRECT_MSG))
+		return kfree_skb(skb);
 
-reject:
-	if (tipc_msg_reverse(tsk_own_node(tsk), &skb, err))
-		__skb_queue_tail(xmitq, skb);
-	return false;
+	/* Validate and add to receive buffer if there is space */
+	while ((skb = __skb_dequeue(&inputq))) {
+		hdr = buf_msg(skb);
+		limit = rcvbuf_limit(sk, skb);
+		if ((sk_conn && !tipc_sk_filter_connect(tsk, skb)) ||
+		    (!sk_conn && msg_connected(hdr)))
+			err = TIPC_ERR_NO_PORT;
+		else if (sk_rmem_alloc_get(sk) + skb->truesize >= limit)
+			err = TIPC_ERR_OVERLOAD;
+
+		if (unlikely(err)) {
+			tipc_skb_reject(net, err, skb, xmitq);
+			err = TIPC_OK;
+			continue;
+		}
+		__skb_queue_tail(&sk->sk_receive_queue, skb);
+		skb_set_owner_r(skb, sk);
+		sk->sk_data_ready(sk);
+	}
 }
 
 /**
- * tipc_backlog_rcv - handle incoming message from backlog queue
+ * tipc_sk_backlog_rcv - handle incoming message from backlog queue
  * @sk: socket
  * @skb: message
  *
@@ -1742,27 +1743,25 @@ reject:
  *
  * Returns 0
  */
-static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
+static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
-	unsigned int truesize = skb->truesize;
+	unsigned int before = sk_rmem_alloc_get(sk);
 	struct sk_buff_head xmitq;
 	u32 dnode, selector;
+	unsigned int added;
 
 	__skb_queue_head_init(&xmitq);
 
-	if (likely(filter_rcv(sk, skb, &xmitq))) {
-		atomic_add(truesize, &tipc_sk(sk)->dupl_rcvcnt);
-		return 0;
+	tipc_sk_filter_rcv(sk, skb, &xmitq);
+	added = sk_rmem_alloc_get(sk) - before;
+	atomic_add(added, &tipc_sk(sk)->dupl_rcvcnt);
+
+	/* Send pending response/rejected messages, if any */
+	while ((skb = __skb_dequeue(&xmitq))) {
+		selector = msg_origport(buf_msg(skb));
+		dnode = msg_destnode(buf_msg(skb));
+		tipc_node_xmit_skb(sock_net(sk), skb, dnode, selector);
 	}
-
-	if (skb_queue_empty(&xmitq))
-		return 0;
-
-	/* Send response/rejected message */
-	skb = __skb_dequeue(&xmitq);
-	dnode = msg_destnode(buf_msg(skb));
-	selector = msg_origport(buf_msg(skb));
-	tipc_node_xmit_skb(sock_net(sk), skb, dnode, selector);
 	return 0;
 }
 
@@ -1794,7 +1793,7 @@ static void tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 
 		/* Add message directly to receive queue if possible */
 		if (!sock_owned_by_user(sk)) {
-			filter_rcv(sk, skb, xmitq);
+			tipc_sk_filter_rcv(sk, skb, xmitq);
 			continue;
 		}
 
