@@ -10,6 +10,7 @@
  */
 #include <linux/fs.h>
 #include <linux/f2fs_fs.h>
+#include <linux/sched.h>
 #include "f2fs.h"
 #include "node.h"
 #include "acl.h"
@@ -875,6 +876,14 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 				min(npages - n, (pgoff_t)MAX_DIR_RA_PAGES));
 
 	for (; n < npages; n++) {
+
+		/* allow readdir() to be interrupted */
+		if (fatal_signal_pending(current)) {
+			err = -ERESTARTSYS;
+			goto out_free;
+		}
+		cond_resched();
+
 		dentry_page = get_lock_data_page(inode, n, false);
 		if (IS_ERR(dentry_page)) {
 			err = PTR_ERR(dentry_page);
