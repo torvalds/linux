@@ -1076,7 +1076,8 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 			child = pci_add_new_bus(bus, dev, max+1);
 			if (!child)
 				goto out;
-			pci_bus_insert_busn_res(child, max+1, 0xff);
+			pci_bus_insert_busn_res(child, max+1,
+						bus->busn_res.end);
 		}
 		max++;
 		buses = (buses & 0xff000000)
@@ -2433,6 +2434,10 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 	if (bus->self && bus->self->is_hotplug_bridge && pci_hotplug_bus_size) {
 		if (max - bus->busn_res.start < pci_hotplug_bus_size - 1)
 			max = bus->busn_res.start + pci_hotplug_bus_size - 1;
+
+		/* Do not allocate more buses than we have room left */
+		if (max > bus->busn_res.end)
+			max = bus->busn_res.end;
 	}
 
 	/*
