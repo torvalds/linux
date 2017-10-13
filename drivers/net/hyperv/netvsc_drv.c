@@ -252,8 +252,8 @@ static inline int netvsc_get_tx_queue(struct net_device *ndev,
 	struct sock *sk = skb->sk;
 	int q_idx;
 
-	q_idx = ndc->tx_send_table[netvsc_get_hash(skb, ndc) &
-				   (VRSS_SEND_TAB_SIZE - 1)];
+	q_idx = ndc->tx_table[netvsc_get_hash(skb, ndc) &
+			      (VRSS_SEND_TAB_SIZE - 1)];
 
 	/* If queue index changed record the new value */
 	if (q_idx != old_idx &&
