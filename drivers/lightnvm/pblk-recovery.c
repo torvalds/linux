@@ -329,11 +329,9 @@ static void pblk_end_io_recov(struct nvm_rq *rqd)
 {
 	struct pblk_pad_rq *pad_rq = rqd->private;
 	struct pblk *pblk = pad_rq->pblk;
-	struct nvm_tgt_dev *dev = pblk->dev;
 
 	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
 
-	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 
 	atomic_dec(&pblk->inflight_io);

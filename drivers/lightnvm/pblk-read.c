@@ -124,8 +124,6 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 		WARN_ONCE(bio->bi_status, "pblk: corrupted read error\n");
 #endif
 
-	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
-
 	bio_put(bio);
 	if (r_ctx->private) {
 		struct bio *orig_bio = r_ctx->private;

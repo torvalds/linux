@@ -20,7 +20,6 @@
 static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 				    struct pblk_c_ctx *c_ctx)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
 	struct bio *original_bio;
 	unsigned long ret;
 	int i;
@@ -42,8 +41,6 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 #endif
 
 	ret = pblk_rb_sync_advance(&pblk->rwb, c_ctx->nr_valid);
-
-	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 
 	bio_put(rqd->bio);
 	pblk_free_rqd(pblk, rqd, PBLK_WRITE);
@@ -176,7 +173,6 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 {
 	struct pblk *pblk = rqd->private;
-	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_g_ctx *m_ctx = nvm_rq_to_pdu(rqd);
 	struct pblk_line *line = m_ctx->private;
 	struct pblk_emeta *emeta = line->emeta;
@@ -194,7 +190,6 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 		pblk_gen_run_ws(pblk, line, NULL, pblk_line_close_ws,
 						GFP_ATOMIC, pblk->close_wq);
 
-	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 
 	atomic_dec(&pblk->inflight_io);
@@ -419,8 +414,6 @@ fail_rollback:
 	pblk_dealloc_page(pblk, meta_line, rq_ppas);
 	list_add(&meta_line->list, &meta_line->list);
 	spin_unlock(&l_mg->close_lock);
-
-	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 fail_free_bio:
 	bio_put(bio);
 fail_free_rqd:

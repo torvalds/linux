@@ -699,11 +699,11 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf);
 /*
  * pblk core
  */
-struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int rw);
+struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int type);
+void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type);
 void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write);
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct pblk_c_ctx *c_ctx);
-void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int rw);
 void pblk_wait_for_meta(struct pblk *pblk);
 struct ppa_addr pblk_get_lba_map(struct pblk *pblk, sector_t lba);
 void pblk_discard(struct pblk *pblk, struct bio *bio);
