@@ -922,6 +922,7 @@ struct mbx_cmd_32 {
 #define INTR_RSP_QUE_UPDATE_83XX	0x14
 #define INTR_ATIO_QUE_UPDATE		0x1C
 #define INTR_ATIO_RSP_QUE_UPDATE	0x1D
+#define INTR_ATIO_QUE_UPDATE_27XX	0x1E
 
 /* ISP mailbox loopback echo diagnostic error code */
 #define MBS_LB_RESET	0x17

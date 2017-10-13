@@ -3129,6 +3129,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		case INTR_ATIO_QUE_UPDATE_27XX:
 		case INTR_ATIO_QUE_UPDATE:{
 			unsigned long flags2;
 			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
@@ -3259,6 +3260,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		case INTR_ATIO_QUE_UPDATE_27XX:
 		case INTR_ATIO_QUE_UPDATE:{
 			unsigned long flags2;
 			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
@@ -3347,7 +3349,8 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		.pre_vectors = QLA_BASE_VECTORS,
 	};
 
-	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
+	if (QLA_TGT_MODE_ENABLED() && (ql2xenablemsix != 0) &&
+	    IS_ATIO_MSIX_CAPABLE(ha)) {
 		desc.pre_vectors++;
 		min_vecs++;
 	}
@@ -3432,7 +3435,8 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	 * If target mode is enable, also request the vector for the ATIO
 	 * queue.
 	 */
-	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
+	if (QLA_TGT_MODE_ENABLED() && (ql2xenablemsix != 0) &&
+	    IS_ATIO_MSIX_CAPABLE(ha)) {
 		qentry = &ha->msix_entries[QLA_ATIO_VECTOR];
 		rsp->msix = qentry;
 		qentry->handle = rsp;
