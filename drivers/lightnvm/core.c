@@ -226,6 +226,24 @@ static const struct block_device_operations nvm_fops = {
 	.owner		= THIS_MODULE,
 };
 
+static struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
+{
+	struct nvm_tgt_type *tmp, *tt = NULL;
+
+	if (lock)
+		down_write(&nvm_tgtt_lock);
+
+	list_for_each_entry(tmp, &nvm_tgt_types, list)
+		if (!strcmp(name, tmp->name)) {
+			tt = tmp;
+			break;
+		}
+
+	if (lock)
+		up_write(&nvm_tgtt_lock);
+	return tt;
+}
+
 static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 {
 	struct nvm_ioctl_create_simple *s = &create->conf.s;
@@ -549,25 +567,6 @@ void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
 }
 EXPORT_SYMBOL(nvm_part_to_tgt);
 
-struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
-{
-	struct nvm_tgt_type *tmp, *tt = NULL;
-
-	if (lock)
-		down_write(&nvm_tgtt_lock);
-
-	list_for_each_entry(tmp, &nvm_tgt_types, list)
-		if (!strcmp(name, tmp->name)) {
-			tt = tmp;
-			break;
-		}
-
-	if (lock)
-		up_write(&nvm_tgtt_lock);
-	return tt;
-}
-EXPORT_SYMBOL(nvm_find_target_type);
-
 int nvm_register_tgt_type(struct nvm_tgt_type *tt)
 {
 	int ret = 0;
@@ -618,6 +617,52 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 
 	return NULL;
 }
+
+static int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
+			const struct ppa_addr *ppas, int nr_ppas)
+{
+	struct nvm_dev *dev = tgt_dev->parent;
+	struct nvm_geo *geo = &tgt_dev->geo;
+	int i, plane_cnt, pl_idx;
+	struct ppa_addr ppa;
+
+	if (geo->plane_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
+		rqd->nr_ppas = nr_ppas;
+		rqd->ppa_addr = ppas[0];
+
+		return 0;
+	}
+
+	rqd->nr_ppas = nr_ppas;
+	rqd->ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL, &rqd->dma_ppa_list);
+	if (!rqd->ppa_list) {
+		pr_err("nvm: failed to allocate dma memory\n");
+		return -ENOMEM;
+	}
+
+	plane_cnt = geo->plane_mode;
+	rqd->nr_ppas *= plane_cnt;
+
+	for (i = 0; i < nr_ppas; i++) {
+		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+			ppa = ppas[i];
+			ppa.g.pl = pl_idx;
+			rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
+		}
+	}
+
+	return 0;
+}
+
+static void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev,
+			struct nvm_rq *rqd)
+{
+	if (!rqd->ppa_list)
+		return;
+
+	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
+}
+
 
 int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 		       int nr_ppas, int type)
@@ -791,52 +836,6 @@ void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t begin)
 	spin_unlock(&dev->lock);
 }
 EXPORT_SYMBOL(nvm_put_area);
-
-int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
-			const struct ppa_addr *ppas, int nr_ppas)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-	struct nvm_geo *geo = &tgt_dev->geo;
-	int i, plane_cnt, pl_idx;
-	struct ppa_addr ppa;
-
-	if (geo->plane_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
-		rqd->nr_ppas = nr_ppas;
-		rqd->ppa_addr = ppas[0];
-
-		return 0;
-	}
-
-	rqd->nr_ppas = nr_ppas;
-	rqd->ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL, &rqd->dma_ppa_list);
-	if (!rqd->ppa_list) {
-		pr_err("nvm: failed to allocate dma memory\n");
-		return -ENOMEM;
-	}
-
-	plane_cnt = geo->plane_mode;
-	rqd->nr_ppas *= plane_cnt;
-
-	for (i = 0; i < nr_ppas; i++) {
-		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
-			ppa = ppas[i];
-			ppa.g.pl = pl_idx;
-			rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(nvm_set_rqd_ppalist);
-
-void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
-{
-	if (!rqd->ppa_list)
-		return;
-
-	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
-}
-EXPORT_SYMBOL(nvm_free_rqd_ppalist);
 
 void nvm_end_io(struct nvm_rq *rqd)
 {

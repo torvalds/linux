@@ -463,8 +463,6 @@ struct nvm_tgt_type {
 	struct module *owner;
 };
 
-extern struct nvm_tgt_type *nvm_find_target_type(const char *, int);
-
 extern int nvm_register_tgt_type(struct nvm_tgt_type *);
 extern void nvm_unregister_tgt_type(struct nvm_tgt_type *);
 
@@ -480,9 +478,6 @@ extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
 extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_erase_sync(struct nvm_tgt_dev *, struct ppa_addr *, int);
-extern int nvm_set_rqd_ppalist(struct nvm_tgt_dev *, struct nvm_rq *,
-					const struct ppa_addr *, int);
-extern void nvm_free_rqd_ppalist(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_get_l2p_tbl(struct nvm_tgt_dev *, u64, u32, nvm_l2p_update_fn *,
 			   void *);
 extern int nvm_get_area(struct nvm_tgt_dev *, sector_t *, sector_t);
@@ -490,8 +485,6 @@ extern void nvm_put_area(struct nvm_tgt_dev *, sector_t);
 extern void nvm_end_io(struct nvm_rq *);
 extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
 extern int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr, u8 *);
-
-extern int nvm_dev_factory(struct nvm_dev *, int flags);
 
 extern void nvm_part_to_tgt(struct nvm_dev *, sector_t *, int);
 
