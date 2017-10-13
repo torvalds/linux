@@ -437,6 +437,7 @@ static int unflatten_dt_nodes(const void *blob,
  * @mynodes: The device_node tree created by the call
  * @dt_alloc: An allocator that provides a virtual address to memory
  * for the resulting tree
+ * @detached: if true set OF_DETACHED on @mynodes
  *
  * Returns NULL on failure or the memory chunk containing the unflattened
  * device tree on success.
