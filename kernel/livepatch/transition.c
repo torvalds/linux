@@ -136,6 +136,9 @@ done:
 			klp_post_unpatch_callback(obj);
 	}
 
+	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
+		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+
 	/*
 	 * See complementary comment in __klp_enable_patch() for why we
 	 * keep the module reference for immediate patches.
@@ -423,9 +426,6 @@ void klp_try_complete_transition(void)
 	}
 
 success:
-	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
-		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
-
 	/* we're done, now cleanup the data structures */
 	klp_complete_transition();
 }
