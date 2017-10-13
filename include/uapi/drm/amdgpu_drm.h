@@ -172,12 +172,12 @@ union drm_amdgpu_bo_list {
 
 /* Context priority level */
 #define AMDGPU_CTX_PRIORITY_UNSET       -2048
-#define AMDGPU_CTX_PRIORITY_LOW_HW      -1023
-#define AMDGPU_CTX_PRIORITY_LOW_SW      -512
+#define AMDGPU_CTX_PRIORITY_VERY_LOW    -1023
+#define AMDGPU_CTX_PRIORITY_LOW         -512
 #define AMDGPU_CTX_PRIORITY_NORMAL      0
 /* Selecting a priority above NORMAL requires CAP_SYS_NICE or DRM_MASTER */
-#define AMDGPU_CTX_PRIORITY_HIGH_SW     512
-#define AMDGPU_CTX_PRIORITY_HIGH_HW     1023
+#define AMDGPU_CTX_PRIORITY_HIGH        512
+#define AMDGPU_CTX_PRIORITY_VERY_HIGH   1023
 
 struct drm_amdgpu_ctx_in {
 	/** AMDGPU_CTX_OP_* */
