@@ -395,7 +395,7 @@
 			#clock-cells = <1>;
 		};
 
-		blsp1_spi0: spi@07575000 {
+		blsp1_spi0: spi@7575000 {
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x07575000 0x600>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
@@ -410,7 +410,7 @@
 			status = "disabled";
 		};
 
-		blsp2_i2c0: i2c@075b5000 {
+		blsp2_i2c0: i2c@75b5000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b5000 0x1000>;
 			interrupts = <GIC_SPI 101 0>;
@@ -441,7 +441,7 @@
 			status = "disabled";
 		};
 
-		blsp2_i2c1: i2c@075b6000 {
+		blsp2_i2c1: i2c@75b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b6000 0x1000>;
 			interrupts = <GIC_SPI 102 0>;
@@ -466,7 +466,7 @@
 			status = "disabled";
 		};
 
-		blsp1_i2c2: i2c@07577000 {
+		blsp1_i2c2: i2c@7577000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x07577000 0x1000>;
 			interrupts = <GIC_SPI 97 0>;
@@ -481,7 +481,7 @@
 			status = "disabled";
 		};
 
-		blsp2_spi5: spi@075ba000{
+		blsp2_spi5: spi@75ba000{
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x075ba000 0x600>;
 			interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
@@ -522,7 +522,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		timer@09840000 {
+		timer@9840000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;

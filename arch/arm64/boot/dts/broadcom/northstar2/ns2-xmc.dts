@@ -114,7 +114,7 @@
 			reg = <0x04000000 0x06400000>; /*  100MB */
 		};
 
-		partition@0a400000{
+		partition@a400000{
 			label = "ncustfs";
 			reg = <0x0a400000 0x35c00000>; /*  860MB */
 		};

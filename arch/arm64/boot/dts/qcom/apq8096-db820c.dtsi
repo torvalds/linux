@@ -51,31 +51,31 @@
 			pinctrl-1 = <&blsp2_uart2_4pins_sleep>;
 		};
 
-		i2c@07577000 {
+		i2c@7577000 {
 		/* On Low speed expansion */
 			label = "LS-I2C0";
 			status = "okay";
 		};
 
-		i2c@075b6000 {
+		i2c@75b6000 {
 		/* On Low speed expansion */
 			label = "LS-I2C1";
 			status = "okay";
 		};
 
-		spi@07575000 {
+		spi@7575000 {
 		/* On Low speed expansion */
 			label = "LS-SPI0";
 			status = "okay";
 		};
 
-		i2c@075b5000 {
+		i2c@75b5000 {
 		/* On High speed expansion */
 			label = "HS-I2C2";
 			status = "okay";
 		};
 
-		spi@075ba000{
+		spi@75ba000{
 		/* On High speed expansion */
 			label = "HS-SPI1";
 			status = "okay";
