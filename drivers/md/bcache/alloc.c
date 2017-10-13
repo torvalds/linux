@@ -601,7 +601,7 @@ bool bch_alloc_sectors(struct cache_set *c, struct bkey *k, unsigned sectors,
 
 	/*
 	 * If we had to allocate, we might race and not need to allocate the
-	 * second time we call find_data_bucket(). If we allocated a bucket but
+	 * second time we call pick_data_bucket(). If we allocated a bucket but
 	 * didn't use it, drop the refcount bch_bucket_alloc_set() took:
 	 */
 	if (KEY_PTRS(&alloc.key))
