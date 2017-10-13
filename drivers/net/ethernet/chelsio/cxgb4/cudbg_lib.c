@@ -129,6 +129,171 @@ int cudbg_collect_fw_devlog(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+static int cudbg_read_cim_ibq(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err, int qid)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	int no_of_read_words, rc = 0;
+	u32 qsize;
+
+	/* collect CIM IBQ */
+	qsize = CIM_IBQ_SIZE * 4 * sizeof(u32);
+	rc = cudbg_get_buff(dbg_buff, qsize, &temp_buff);
+	if (rc)
+		return rc;
+
+	/* t4_read_cim_ibq will return no. of read words or error */
+	no_of_read_words = t4_read_cim_ibq(padap, qid,
+					   (u32 *)((u32 *)temp_buff.data +
+					   temp_buff.offset), qsize);
+	/* no_of_read_words is less than or equal to 0 means error */
+	if (no_of_read_words <= 0) {
+		if (!no_of_read_words)
+			rc = CUDBG_SYSTEM_ERROR;
+		else
+			rc = no_of_read_words;
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
+int cudbg_collect_cim_ibq_tp0(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_ibq(pdbg_init, dbg_buff, cudbg_err, 0);
+}
+
+int cudbg_collect_cim_ibq_tp1(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_ibq(pdbg_init, dbg_buff, cudbg_err, 1);
+}
+
+int cudbg_collect_cim_ibq_ulp(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_ibq(pdbg_init, dbg_buff, cudbg_err, 2);
+}
+
+int cudbg_collect_cim_ibq_sge0(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_ibq(pdbg_init, dbg_buff, cudbg_err, 3);
+}
+
+int cudbg_collect_cim_ibq_sge1(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_ibq(pdbg_init, dbg_buff, cudbg_err, 4);
+}
+
+int cudbg_collect_cim_ibq_ncsi(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_ibq(pdbg_init, dbg_buff, cudbg_err, 5);
+}
+
+static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err, int qid)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	int no_of_read_words, rc = 0;
+	u32 qsize;
+
+	/* collect CIM OBQ */
+	qsize =  6 * CIM_OBQ_SIZE * 4 *  sizeof(u32);
+	rc = cudbg_get_buff(dbg_buff, qsize, &temp_buff);
+	if (rc)
+		return rc;
+
+	/* t4_read_cim_obq will return no. of read words or error */
+	no_of_read_words = t4_read_cim_obq(padap, qid,
+					   (u32 *)((u32 *)temp_buff.data +
+					   temp_buff.offset), qsize);
+	/* no_of_read_words is less than or equal to 0 means error */
+	if (no_of_read_words <= 0) {
+		if (!no_of_read_words)
+			rc = CUDBG_SYSTEM_ERROR;
+		else
+			rc = no_of_read_words;
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+	temp_buff.size = no_of_read_words * 4;
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
+int cudbg_collect_cim_obq_ulp0(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 0);
+}
+
+int cudbg_collect_cim_obq_ulp1(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 1);
+}
+
+int cudbg_collect_cim_obq_ulp2(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 2);
+}
+
+int cudbg_collect_cim_obq_ulp3(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 3);
+}
+
+int cudbg_collect_cim_obq_sge(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 4);
+}
+
+int cudbg_collect_cim_obq_ncsi(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 5);
+}
+
+int cudbg_collect_obq_sge_rx_q0(struct cudbg_init *pdbg_init,
+				struct cudbg_buffer *dbg_buff,
+				struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 6);
+}
+
+int cudbg_collect_obq_sge_rx_q1(struct cudbg_init *pdbg_init,
+				struct cudbg_buffer *dbg_buff,
+				struct cudbg_error *cudbg_err)
+{
+	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 7);
+}
+
 static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 			     struct cudbg_buffer *dbg_buff, u8 mem_type,
 			     unsigned long tot_len,
