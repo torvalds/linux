@@ -255,17 +255,18 @@ static inline void dst_hold(struct dst_entry *dst)
 	WARN_ON(atomic_inc_not_zero(&dst->__refcnt) == 0);
 }
 
-static inline void dst_use(struct dst_entry *dst, unsigned long time)
-{
-	dst_hold(dst);
-	dst->__use++;
-	dst->lastuse = time;
-}
-
 static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
 {
-	dst->__use++;
-	dst->lastuse = time;
+	if (time != dst->lastuse) {
+		dst->__use++;
+		dst->lastuse = time;
+	}
+}
+
+static inline void dst_hold_and_use(struct dst_entry *dst, unsigned long time)
+{
+	dst_hold(dst);
+	dst_use_noref(dst, time);
 }
 
 static inline struct dst_entry *dst_clone(struct dst_entry *dst)
