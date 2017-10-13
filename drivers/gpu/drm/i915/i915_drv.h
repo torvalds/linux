@@ -1778,6 +1778,8 @@ struct intel_vbt_data {
 		u16 panel_id;
 		struct mipi_config *config;
 		struct mipi_pps_data *pps;
+		u16 bl_ports;
+		u16 cabc_ports;
 		u8 seq_version;
 		u32 size;
 		u8 *data;
