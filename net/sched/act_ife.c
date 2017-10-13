@@ -248,6 +248,20 @@ static int ife_validate_metatype(struct tcf_meta_ops *ops, void *val, int len)
 	return ret;
 }
 
+static const char *ife_meta_id2name(u32 metaid)
+{
+	switch (metaid) {
+	case IFE_META_SKBMARK:
+		return "skbmark";
+	case IFE_META_PRIO:
+		return "skbprio";
+	case IFE_META_TCINDEX:
+		return "tcindex";
+	default:
+		return "unknown";
+	}
+}
+
 /* called when adding new meta information
  * under ife->tcf_lock for existing action
 */
@@ -263,7 +277,7 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 		if (exists)
 			spin_unlock_bh(&ife->tcf_lock);
 		rtnl_unlock();
-		request_module("ifemeta%u", metaid);
+		request_module("ife-meta-%s", ife_meta_id2name(metaid));
 		rtnl_lock();
 		if (exists)
 			spin_lock_bh(&ife->tcf_lock);

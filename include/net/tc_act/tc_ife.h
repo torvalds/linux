@@ -40,7 +40,7 @@ struct tcf_meta_ops {
 	struct module	*owner;
 };
 
-#define MODULE_ALIAS_IFE_META(metan)   MODULE_ALIAS("ifemeta" __stringify_1(metan))
+#define MODULE_ALIAS_IFE_META(metan)   MODULE_ALIAS("ife-meta-" metan)
 
 int ife_get_meta_u32(struct sk_buff *skb, struct tcf_meta_info *mi);
 int ife_get_meta_u16(struct sk_buff *skb, struct tcf_meta_info *mi);
