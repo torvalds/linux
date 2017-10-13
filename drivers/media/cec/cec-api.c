@@ -32,6 +32,7 @@
 
 #include <media/cec-pin.h>
 #include "cec-priv.h"
+#include "cec-pin-priv.h"
 
 static inline struct cec_devnode *cec_devnode_data(struct file *filp)
 {
