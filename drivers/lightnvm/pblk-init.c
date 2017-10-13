@@ -220,6 +220,14 @@ static int pblk_init_global_caches(struct pblk *pblk)
 	return 0;
 }
 
+static void pblk_free_global_caches(struct pblk *pblk)
+{
+	kmem_cache_destroy(pblk_ws_cache);
+	kmem_cache_destroy(pblk_rec_cache);
+	kmem_cache_destroy(pblk_g_rq_cache);
+	kmem_cache_destroy(pblk_w_rq_cache);
+}
+
 static int pblk_core_init(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
@@ -235,7 +243,7 @@ static int pblk_core_init(struct pblk *pblk)
 	pblk->page_bio_pool = mempool_create_page_pool(nvm_max_phys_sects(dev),
 									0);
 	if (!pblk->page_bio_pool)
-		return -ENOMEM;
+		goto free_global_caches;
 
 	pblk->gen_ws_pool = mempool_create_slab_pool(PBLK_GEN_WS_POOL_SIZE,
 							pblk_ws_cache);
@@ -303,6 +311,8 @@ free_gen_ws_pool:
 	mempool_destroy(pblk->gen_ws_pool);
 free_page_bio_pool:
 	mempool_destroy(pblk->page_bio_pool);
+free_global_caches:
+	pblk_free_global_caches(pblk);
 	return -ENOMEM;
 }
 
@@ -324,10 +334,7 @@ static void pblk_core_free(struct pblk *pblk)
 	mempool_destroy(pblk->e_rq_pool);
 	mempool_destroy(pblk->w_rq_pool);
 
-	kmem_cache_destroy(pblk_ws_cache);
-	kmem_cache_destroy(pblk_rec_cache);
-	kmem_cache_destroy(pblk_g_rq_cache);
-	kmem_cache_destroy(pblk_w_rq_cache);
+	pblk_free_global_caches(pblk);
 }
 
 static void pblk_luns_free(struct pblk *pblk)
