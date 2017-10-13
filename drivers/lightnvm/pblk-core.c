@@ -64,7 +64,7 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
 	struct pblk *pblk = rqd->private;
 
 	__pblk_end_io_erase(pblk, rqd);
-	mempool_free(rqd, pblk->g_rq_pool);
+	mempool_free(rqd, pblk->e_rq_pool);
 }
 
 void __pblk_map_invalidate(struct pblk *pblk, struct pblk_line *line,
@@ -161,7 +161,7 @@ struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int rw)
 		pool = pblk->w_rq_pool;
 		rq_size = pblk_w_rq_size;
 	} else {
-		pool = pblk->g_rq_pool;
+		pool = pblk->r_rq_pool;
 		rq_size = pblk_g_rq_size;
 	}
 
@@ -178,7 +178,7 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int rw)
 	if (rw == WRITE)
 		pool = pblk->w_rq_pool;
 	else
-		pool = pblk->g_rq_pool;
+		pool = pblk->r_rq_pool;
 
 	mempool_free(rqd, pool);
 }
@@ -1479,7 +1479,7 @@ int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr ppa)
 	struct nvm_rq *rqd;
 	int err;
 
-	rqd = mempool_alloc(pblk->g_rq_pool, GFP_KERNEL);
+	rqd = mempool_alloc(pblk->e_rq_pool, GFP_KERNEL);
 	memset(rqd, 0, pblk_g_rq_size);
 
 	pblk_setup_e_rq(pblk, rqd, ppa);

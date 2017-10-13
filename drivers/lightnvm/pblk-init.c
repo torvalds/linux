@@ -261,15 +261,20 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->rec_pool)
 		goto free_gen_ws_pool;
 
-	pblk->g_rq_pool = mempool_create_slab_pool(PBLK_READ_REQ_POOL_SIZE,
+	pblk->r_rq_pool = mempool_create_slab_pool(geo->nr_luns,
 							pblk_g_rq_cache);
-	if (!pblk->g_rq_pool)
+	if (!pblk->r_rq_pool)
 		goto free_rec_pool;
 
-	pblk->w_rq_pool = mempool_create_slab_pool(geo->nr_luns * 2,
+	pblk->e_rq_pool = mempool_create_slab_pool(geo->nr_luns,
+							pblk_g_rq_cache);
+	if (!pblk->e_rq_pool)
+		goto free_r_rq_pool;
+
+	pblk->w_rq_pool = mempool_create_slab_pool(geo->nr_luns,
 							pblk_w_rq_cache);
 	if (!pblk->w_rq_pool)
-		goto free_g_rq_pool;
+		goto free_e_rq_pool;
 
 	pblk->line_meta_pool =
 			mempool_create_slab_pool(PBLK_META_POOL_SIZE,
@@ -304,8 +309,10 @@ free_line_meta_pool:
 	mempool_destroy(pblk->line_meta_pool);
 free_w_rq_pool:
 	mempool_destroy(pblk->w_rq_pool);
-free_g_rq_pool:
-	mempool_destroy(pblk->g_rq_pool);
+free_e_rq_pool:
+	mempool_destroy(pblk->e_rq_pool);
+free_r_rq_pool:
+	mempool_destroy(pblk->r_rq_pool);
 free_rec_pool:
 	mempool_destroy(pblk->rec_pool);
 free_gen_ws_pool:
@@ -326,7 +333,8 @@ static void pblk_core_free(struct pblk *pblk)
 	mempool_destroy(pblk->page_bio_pool);
 	mempool_destroy(pblk->gen_ws_pool);
 	mempool_destroy(pblk->rec_pool);
-	mempool_destroy(pblk->g_rq_pool);
+	mempool_destroy(pblk->r_rq_pool);
+	mempool_destroy(pblk->e_rq_pool);
 	mempool_destroy(pblk->w_rq_pool);
 	mempool_destroy(pblk->line_meta_pool);
 

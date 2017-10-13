@@ -41,7 +41,6 @@
 #define PBLK_MAX_REQ_ADDRS_PW (6)
 
 #define PBLK_META_POOL_SIZE (128)
-#define PBLK_READ_REQ_POOL_SIZE (1024)
 
 #define PBLK_NR_CLOSE_JOBS (4)
 
@@ -60,6 +59,7 @@
 
 #define ERASE 2 /* READ = 0, WRITE = 1 */
 
+/* Static pool sizes */
 #define PBLK_GEN_WS_POOL_SIZE (2)
 
 enum {
@@ -624,8 +624,9 @@ struct pblk {
 	mempool_t *page_bio_pool;
 	mempool_t *gen_ws_pool;
 	mempool_t *rec_pool;
-	mempool_t *g_rq_pool;
+	mempool_t *r_rq_pool;
 	mempool_t *w_rq_pool;
+	mempool_t *e_rq_pool;
 	mempool_t *line_meta_pool;
 
 	struct workqueue_struct *close_wq;
