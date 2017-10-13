@@ -14,6 +14,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
+#include "udl_connector.h"
 #include "udl_drv.h"
 
 /* dummy connector to just get EDID,
@@ -56,28 +57,15 @@ error:
 
 static int udl_get_modes(struct drm_connector *connector)
 {
-	struct udl_device *udl = connector->dev->dev_private;
-	struct edid *edid;
-	int ret;
+	struct udl_drm_connector *udl_connector =
+					container_of(connector,
+					struct udl_drm_connector,
+					connector);
 
-	edid = (struct edid *)udl_get_edid(udl);
-	if (!edid) {
-		drm_mode_connector_update_edid_property(connector, NULL);
-		return 0;
-	}
-
-	/*
-	 * We only read the main block, but if the monitor reports extension
-	 * blocks then the drm edid code expects them to be present, so patch
-	 * the extension count to 0.
-	 */
-	edid->checksum += edid->extensions;
-	edid->extensions = 0;
-
-	drm_mode_connector_update_edid_property(connector, edid);
-	ret = drm_add_edid_modes(connector, edid);
-	kfree(edid);
-	return ret;
+	drm_mode_connector_update_edid_property(connector, udl_connector->edid);
+	if (udl_connector->edid)
+		return drm_add_edid_modes(connector, udl_connector->edid);
+	return 0;
 }
 
 static int udl_mode_valid(struct drm_connector *connector,
@@ -96,8 +84,33 @@ static int udl_mode_valid(struct drm_connector *connector,
 static enum drm_connector_status
 udl_detect(struct drm_connector *connector, bool force)
 {
-	if (drm_dev_is_unplugged(connector->dev))
+	struct edid *edid;
+	struct udl_device *udl = connector->dev->dev_private;
+	struct udl_drm_connector *udl_connector =
+					container_of(connector,
+					struct udl_drm_connector,
+					connector);
+
+	if (udl_connector->edid != NULL) {
+		kfree(udl_connector->edid);
+		udl_connector->edid = NULL;
+	}
+
+	edid = (struct edid *)udl_get_edid(udl);
+	if (!edid || !memchr_inv(edid, 0, EDID_LENGTH))
 		return connector_status_disconnected;
+
+	udl_connector->edid = edid;
+
+	/*
+	 * We only read the main block, but if the monitor reports extension
+	 * blocks then the drm edid code expects them to be present, so patch
+	 * the extension count to 0.
+	 */
+	udl_connector->edid->checksum +=
+			udl_connector->edid->extensions;
+	udl_connector->edid->extensions = 0;
+
 	return connector_status_connected;
 }
 
@@ -117,8 +130,14 @@ static int udl_connector_set_property(struct drm_connector *connector,
 
 static void udl_connector_destroy(struct drm_connector *connector)
 {
+	struct udl_drm_connector *udl_connector =
+					container_of(connector,
+					struct udl_drm_connector,
+					connector);
+
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
+	kfree(udl_connector->edid);
 	kfree(connector);
 }
 
@@ -138,17 +157,22 @@ static const struct drm_connector_funcs udl_connector_funcs = {
 
 int udl_connector_init(struct drm_device *dev, struct drm_encoder *encoder)
 {
+	struct udl_drm_connector *udl_connector;
 	struct drm_connector *connector;
 
-	connector = kzalloc(sizeof(struct drm_connector), GFP_KERNEL);
-	if (!connector)
+	udl_connector = kzalloc(sizeof(struct udl_drm_connector), GFP_KERNEL);
+	if (!udl_connector)
 		return -ENOMEM;
 
-	drm_connector_init(dev, connector, &udl_connector_funcs, DRM_MODE_CONNECTOR_DVII);
+	connector = &udl_connector->connector;
+	drm_connector_init(dev, connector, &udl_connector_funcs,
+			   DRM_MODE_CONNECTOR_DVII);
 	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
 
 	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
+	connector->polled = DRM_CONNECTOR_POLL_HPD |
+		DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
 	return 0;
 }
