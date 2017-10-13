@@ -538,6 +538,7 @@ static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
  */
 #define GRP_JOIN_MSG         0
 #define GRP_LEAVE_MSG        1
+#define GRP_ADV_MSG          2
 
 /*
  * Word 1
@@ -790,12 +791,12 @@ static inline void msg_set_conn_ack(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }
 
-static inline u32 msg_adv_win(struct tipc_msg *m)
+static inline u16 msg_adv_win(struct tipc_msg *m)
 {
 	return msg_bits(m, 9, 0, 0xffff);
 }
 
-static inline void msg_set_adv_win(struct tipc_msg *m, u32 n)
+static inline void msg_set_adv_win(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 9, 0, 0xffff, n);
 }

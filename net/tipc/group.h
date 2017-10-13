@@ -52,15 +52,18 @@ void tipc_group_self(struct tipc_group *grp, struct tipc_name_seq *seq,
 void tipc_group_filter_msg(struct tipc_group *grp,
 			   struct sk_buff_head *inputq,
 			   struct sk_buff_head *xmitq);
-void tipc_group_member_evt(struct tipc_group *grp,
-			   struct sk_buff *skb,
+void tipc_group_member_evt(struct tipc_group *grp, bool *wakeup,
+			   int *sk_rcvbuf, struct sk_buff *skb,
 			   struct sk_buff_head *inputq,
 			   struct sk_buff_head *xmitq);
-void tipc_group_proto_rcv(struct tipc_group *grp,
+void tipc_group_proto_rcv(struct tipc_group *grp, bool *wakeup,
 			  struct tipc_msg *hdr,
 			  struct sk_buff_head *inputq,
 			  struct sk_buff_head *xmitq);
-void tipc_group_update_bc_members(struct tipc_group *grp);
+void tipc_group_update_bc_members(struct tipc_group *grp, int len);
+bool tipc_group_bc_cong(struct tipc_group *grp, int len);
+void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
+			       u32 port, struct sk_buff_head *xmitq);
 u16 tipc_group_bc_snd_nxt(struct tipc_group *grp);
 int tipc_group_size(struct tipc_group *grp);
 #endif
