@@ -492,6 +492,67 @@ out:
 	return leap;
 }
 
+static void sync_hw_clock(struct work_struct *work);
+static DECLARE_DELAYED_WORK(sync_work, sync_hw_clock);
+
+static void sched_sync_hw_clock(struct timespec64 now,
+				unsigned long target_nsec, bool fail)
+
+{
+	struct timespec64 next;
+
+	getnstimeofday64(&next);
+	if (!fail)
+		next.tv_sec = 659;
+	else {
+		/*
+		 * Try again as soon as possible. Delaying long periods
+		 * decreases the accuracy of the work queue timer. Due to this
+		 * the algorithm is very likely to require a short-sleep retry
+		 * after the above long sleep to synchronize ts_nsec.
+		 */
+		next.tv_sec = 0;
+	}
+
+	/* Compute the needed delay that will get to tv_nsec == target_nsec */
+	next.tv_nsec = target_nsec - next.tv_nsec;
+	if (next.tv_nsec <= 0)
+		next.tv_nsec += NSEC_PER_SEC;
+	if (next.tv_nsec >= NSEC_PER_SEC) {
+		next.tv_sec++;
+		next.tv_nsec -= NSEC_PER_SEC;
+	}
+
+	queue_delayed_work(system_power_efficient_wq, &sync_work,
+			   timespec64_to_jiffies(&next));
+}
+
+static void sync_rtc_clock(void)
+{
+	unsigned long target_nsec;
+	struct timespec64 adjust, now;
+	int rc;
+
+	if (!IS_ENABLED(CONFIG_RTC_SYSTOHC))
+		return;
+
+	getnstimeofday64(&now);
+
+	adjust = now;
+	if (persistent_clock_is_local)
+		adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
+
+	/*
+	 * The current RTC in use will provide the target_nsec it wants to be
+	 * called at, and does rtc_tv_nsec_ok internally.
+	 */
+	rc = rtc_set_ntp_time(adjust, &target_nsec);
+	if (rc == -ENODEV)
+		return;
+
+	sched_sync_hw_clock(now, target_nsec, rc);
+}
+
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
 int __weak update_persistent_clock(struct timespec now)
 {
@@ -507,76 +568,75 @@ int __weak update_persistent_clock64(struct timespec64 now64)
 }
 #endif
 
-#if defined(CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC)
-static void sync_cmos_clock(struct work_struct *work);
-
-static DECLARE_DELAYED_WORK(sync_cmos_work, sync_cmos_clock);
-
-static void sync_cmos_clock(struct work_struct *work)
+static bool sync_cmos_clock(void)
 {
+	static bool no_cmos;
 	struct timespec64 now;
-	struct timespec64 next;
-	int fail = 1;
+	struct timespec64 adjust;
+	int rc = -EPROTO;
+	long target_nsec = NSEC_PER_SEC / 2;
+
+	if (!IS_ENABLED(CONFIG_GENERIC_CMOS_UPDATE))
+		return false;
+
+	if (no_cmos)
+		return false;
 
 	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 * This code is run on a timer.  If the clock is set, that timer
-	 * may not expire at the correct time.  Thus, we adjust...
-	 * We want the clock to be within a couple of ticks from the target.
+	 * Historically update_persistent_clock64() has followed x86
+	 * semantics, which match the MC146818A/etc RTC. This RTC will store
+	 * 'adjust' and then in .5s it will advance once second.
+	 *
+	 * Architectures are strongly encouraged to use rtclib and not
+	 * implement this legacy API.
 	 */
-	if (!ntp_synced()) {
-		/*
-		 * Not synced, exit, do not restart a timer (if one is
-		 * running, let it run out).
-		 */
-		return;
-	}
-
 	getnstimeofday64(&now);
-	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec * 5) {
-		struct timespec64 adjust = now;
-
-		fail = -ENODEV;
+	if (rtc_tv_nsec_ok(-1 * target_nsec, &adjust, &now)) {
 		if (persistent_clock_is_local)
 			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
-#ifdef CONFIG_GENERIC_CMOS_UPDATE
-		fail = update_persistent_clock64(adjust);
-#endif
-
-#ifdef CONFIG_RTC_SYSTOHC
-		if (fail == -ENODEV)
-			fail = rtc_set_ntp_time(adjust);
-#endif
+		rc = update_persistent_clock64(adjust);
+		/*
+		 * The machine does not support update_persistent_clock64 even
+		 * though it defines CONFIG_GENERIC_CMOS_UPDATE.
+		 */
+		if (rc == -ENODEV) {
+			no_cmos = true;
+			return false;
+		}
 	}
 
-	next.tv_nsec = (NSEC_PER_SEC / 2) - now.tv_nsec - (TICK_NSEC / 2);
-	if (next.tv_nsec <= 0)
-		next.tv_nsec += NSEC_PER_SEC;
+	sched_sync_hw_clock(now, target_nsec, rc);
+	return true;
+}
 
-	if (!fail || fail == -ENODEV)
-		next.tv_sec = 659;
-	else
-		next.tv_sec = 0;
+/*
+ * If we have an externally synchronized Linux clock, then update RTC clock
+ * accordingly every ~11 minutes. Generally RTCs can only store second
+ * precision, but many RTCs will adjust the phase of their second tick to
+ * match the moment of update. This infrastructure arranges to call to the RTC
+ * set at the correct moment to phase synchronize the RTC second tick over
+ * with the kernel clock.
+ */
+static void sync_hw_clock(struct work_struct *work)
+{
+	if (!ntp_synced())
+		return;
 
-	if (next.tv_nsec >= NSEC_PER_SEC) {
-		next.tv_sec++;
-		next.tv_nsec -= NSEC_PER_SEC;
-	}
-	queue_delayed_work(system_power_efficient_wq,
-			   &sync_cmos_work, timespec64_to_jiffies(&next));
+	if (sync_cmos_clock())
+		return;
+
+	sync_rtc_clock();
 }
 
 void ntp_notify_cmos_timer(void)
 {
-	queue_delayed_work(system_power_efficient_wq, &sync_cmos_work, 0);
+	if (!ntp_synced())
+		return;
+
+	if (IS_ENABLED(CONFIG_GENERIC_CMOS_UPDATE) ||
+	    IS_ENABLED(CONFIG_RTC_SYSTOHC))
+		queue_delayed_work(system_power_efficient_wq, &sync_work, 0);
 }
-
-#else
-void ntp_notify_cmos_timer(void) { }
-#endif
-
 
 /*
  * Propagate a new txc->status value into the NTP state:
