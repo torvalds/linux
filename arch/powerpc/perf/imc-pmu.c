@@ -1176,7 +1176,8 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 	}
 
 	/* Only free the attr_groups which are dynamically allocated  */
-	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
+	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
+		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
 	kfree(pmu_ptr);
 	return;
