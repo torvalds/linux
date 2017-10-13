@@ -15,6 +15,7 @@
 #include <asm/fpu/xstate.h>
 
 #include <asm/tlbflush.h>
+#include <asm/cpufeature.h>
 
 /*
  * Although we spell it out in here, the Processor Trace
@@ -34,6 +35,19 @@ static const char *xfeature_names[] =
 	"Processor Trace (unused)"	,
 	"Protection Keys User registers",
 	"unknown xstate feature"	,
+};
+
+static short xsave_cpuid_features[] __initdata = {
+	X86_FEATURE_FPU,
+	X86_FEATURE_XMM,
+	X86_FEATURE_AVX,
+	X86_FEATURE_MPX,
+	X86_FEATURE_MPX,
+	X86_FEATURE_AVX512F,
+	X86_FEATURE_AVX512F,
+	X86_FEATURE_AVX512F,
+	X86_FEATURE_INTEL_PT,
+	X86_FEATURE_PKU,
 };
 
 /*
@@ -726,6 +740,7 @@ void __init fpu__init_system_xstate(void)
 	unsigned int eax, ebx, ecx, edx;
 	static int on_boot_cpu __initdata = 1;
 	int err;
+	int i;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -757,6 +772,14 @@ void __init fpu__init_system_xstate(void)
 		 */
 		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
 		goto out_disable;
+	}
+
+	/*
+	 * Clear XSAVE features that are disabled in the normal CPUID.
+	 */
+	for (i = 0; i < ARRAY_SIZE(xsave_cpuid_features); i++) {
+		if (!boot_cpu_has(xsave_cpuid_features[i]))
+			xfeatures_mask &= ~BIT(i);
 	}
 
 	xfeatures_mask &= fpu__get_supported_xfeatures_mask();
