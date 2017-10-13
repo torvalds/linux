@@ -148,6 +148,7 @@ TRACE_EVENT(thermal_power_cpu_limit,
 		__entry->power)
 );
 
+#ifdef CONFIG_DEVFREQ_THERMAL
 TRACE_EVENT(thermal_power_devfreq_get_power,
 	TP_PROTO(struct thermal_cooling_device *cdev,
 		 struct devfreq_dev_status *status, unsigned long freq,
@@ -203,6 +204,7 @@ TRACE_EVENT(thermal_power_devfreq_limit,
 		__get_str(type), __entry->freq, __entry->cdev_state,
 		__entry->power)
 );
+#endif /* CONFIG_DEVFREQ_THERMAL */
 #endif /* _TRACE_THERMAL_H */
 
 /* This part must be outside protection */
