@@ -21,6 +21,11 @@
  * this feature bit is not displayed in /proc/cpuinfo at all.
  */
 
+/*
+ * When adding new features here that depend on other features,
+ * please update the table in kernel/cpu/cpuid-deps.c
+ */
+
 /* Intel-defined CPU features, CPUID level 0x00000001 (edx), word 0 */
 #define X86_FEATURE_FPU		( 0*32+ 0) /* Onboard FPU */
 #define X86_FEATURE_VME		( 0*32+ 1) /* Virtual Mode Extensions */
