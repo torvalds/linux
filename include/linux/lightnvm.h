@@ -481,7 +481,7 @@ extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_erase_sync(struct nvm_tgt_dev *, struct ppa_addr *, int);
 extern int nvm_set_rqd_ppalist(struct nvm_tgt_dev *, struct nvm_rq *,
-					const struct ppa_addr *, int, int);
+					const struct ppa_addr *, int);
 extern void nvm_free_rqd_ppalist(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_get_l2p_tbl(struct nvm_tgt_dev *, u64, u32, nvm_l2p_update_fn *,
 			   void *);

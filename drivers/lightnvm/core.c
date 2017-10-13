@@ -633,7 +633,7 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
+	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
 	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
 
 	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
@@ -697,7 +697,7 @@ int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 	rqd.private = &wait;
 	rqd.flags = geo->plane_mode >> 1;
 
-	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
+	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
 	if (ret)
 		return ret;
 
@@ -793,14 +793,14 @@ void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t begin)
 EXPORT_SYMBOL(nvm_put_area);
 
 int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
-			const struct ppa_addr *ppas, int nr_ppas, int vblk)
+			const struct ppa_addr *ppas, int nr_ppas)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 	struct nvm_geo *geo = &tgt_dev->geo;
 	int i, plane_cnt, pl_idx;
 	struct ppa_addr ppa;
 
-	if ((!vblk || geo->plane_mode == NVM_PLANE_SINGLE) && nr_ppas == 1) {
+	if (geo->plane_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
 		rqd->nr_ppas = nr_ppas;
 		rqd->ppa_addr = ppas[0];
 
@@ -814,19 +814,14 @@ int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
 		return -ENOMEM;
 	}
 
-	if (!vblk) {
-		for (i = 0; i < nr_ppas; i++)
-			rqd->ppa_list[i] = ppas[i];
-	} else {
-		plane_cnt = geo->plane_mode;
-		rqd->nr_ppas *= plane_cnt;
+	plane_cnt = geo->plane_mode;
+	rqd->nr_ppas *= plane_cnt;
 
-		for (i = 0; i < nr_ppas; i++) {
-			for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
-				ppa = ppas[i];
-				ppa.g.pl = pl_idx;
-				rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
-			}
+	for (i = 0; i < nr_ppas; i++) {
+		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+			ppa = ppas[i];
+			ppa.g.pl = pl_idx;
+			rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
 		}
 	}
 
