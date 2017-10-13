@@ -61,7 +61,7 @@
     },
     {
         "BriefDescription": "Average Branch Address Clear Cost (fraction of cycles)",
-        "MetricExpr": "2* (( RS_EVENTS.EMPTY_CYCLES - ICACHE.IFDATA_STALL  - (( 14 * ITLB_MISSES.STLB_HIT + ITLB_MISSES.WALK_DURATION:c1 + 7* ITLB_MISSES.WALK_COMPLETED )) ) / RS_EVENTS.EMPTY_END)",
+        "MetricExpr": "2* (( RS_EVENTS.EMPTY_CYCLES - ICACHE.IFDATA_STALL  - (( 14 * ITLB_MISSES.STLB_HIT + cpu@ITLB_MISSES.WALK_DURATION\\,cmask\\=1@ + 7* ITLB_MISSES.WALK_COMPLETED )) ) / RS_EVENTS.EMPTY_END)",
         "MetricGroup": "Unknown_Branches",
         "MetricName": "BAClear_Cost"
     },
@@ -85,7 +85,7 @@
     },
     {
         "BriefDescription": "Utilization of the core's Page Walker(s) serving STLB misses triggered by instruction/Load/Store accesses",
-        "MetricExpr": "( ITLB_MISSES.WALK_DURATION:c1 + DTLB_LOAD_MISSES.WALK_DURATION:c1 + DTLB_STORE_MISSES.WALK_DURATION:c1 + 7*(DTLB_STORE_MISSES.WALK_COMPLETED+DTLB_LOAD_MISSES.WALK_COMPLETED+ITLB_MISSES.WALK_COMPLETED)) / (( CPU_CLK_UNHALTED.THREAD_ANY / 2 ) if #SMT_on else cycles)",
+        "MetricExpr": "( cpu@ITLB_MISSES.WALK_DURATION\\,cmask\\=1@ + cpu@DTLB_LOAD_MISSES.WALK_DURATION\\,cmask\\=1@ + cpu@DTLB_STORE_MISSES.WALK_DURATION\\,cmask\\=1@ + 7*(DTLB_STORE_MISSES.WALK_COMPLETED+DTLB_LOAD_MISSES.WALK_COMPLETED+ITLB_MISSES.WALK_COMPLETED)) / (( CPU_CLK_UNHALTED.THREAD_ANY / 2 ) if #SMT_on else cycles)",
         "MetricGroup": "TLB",
         "MetricName": "Page_Walks_Utilization"
     },

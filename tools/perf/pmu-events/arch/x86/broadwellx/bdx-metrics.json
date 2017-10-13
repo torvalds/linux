@@ -61,7 +61,7 @@
     },
     {
         "BriefDescription": "Average Branch Address Clear Cost (fraction of cycles)",
-        "MetricExpr": "2* (( RS_EVENTS.EMPTY_CYCLES - ICACHE.IFDATA_STALL  - (( 14 * ITLB_MISSES.STLB_HIT + ITLB_MISSES.WALK_DURATION:c1 + 7* ITLB_MISSES.WALK_COMPLETED )) ) / RS_EVENTS.EMPTY_END)",
+        "MetricExpr": "2* (( RS_EVENTS.EMPTY_CYCLES - ICACHE.IFDATA_STALL  - (( 14 * ITLB_MISSES.STLB_HIT + cpu@ITLB_MISSES.WALK_DURATION\\,cmask\\=1@ + 7* ITLB_MISSES.WALK_COMPLETED )) ) / RS_EVENTS.EMPTY_END)",
         "MetricGroup": "Unknown_Branches",
         "MetricName": "BAClear_Cost"
     },

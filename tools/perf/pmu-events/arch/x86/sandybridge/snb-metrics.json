@@ -55,7 +55,7 @@
     },
     {
         "BriefDescription": "Instruction-Level-Parallelism (average number of uops executed when there is at least 1 uop executed)",
-        "MetricExpr": "UOPS_DISPATCHED.THREAD / (( UOPS_DISPATCHED.CORE:c1 / 2) if #SMT_on else UOPS_DISPATCHED.CORE:c1)",
+        "MetricExpr": "UOPS_DISPATCHED.THREAD / (( cpu@UOPS_DISPATCHED.CORE\\,cmask\\=1@ / 2) if #SMT_on else cpu@UOPS_DISPATCHED.CORE\\,cmask\\=1@)",
         "MetricGroup": "Pipeline;Ports_Utilization",
         "MetricName": "ILP"
     },
