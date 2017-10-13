@@ -4761,7 +4761,7 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 		if (pla)
 			qlt_plogi_ack_unref(vha, pla);
 		else
-			qla24xx_async_gnl(vha, fcport);
+			qla24xx_async_gffid(vha, fcport);
 	}
 
 	if (free_fcport) {
