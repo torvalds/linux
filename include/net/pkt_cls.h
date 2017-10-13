@@ -22,7 +22,7 @@ struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 				bool create);
 void tcf_chain_put(struct tcf_chain *chain);
 int tcf_block_get(struct tcf_block **p_block,
-		  struct tcf_proto __rcu **p_filter_chain);
+		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q);
 void tcf_block_put(struct tcf_block *block);
 int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode);
@@ -30,7 +30,7 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 #else
 static inline
 int tcf_block_get(struct tcf_block **p_block,
-		  struct tcf_proto __rcu **p_filter_chain)
+		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q)
 {
 	return 0;
 }
