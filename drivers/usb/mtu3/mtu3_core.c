@@ -237,7 +237,7 @@ void mtu3_ep_stall_set(struct mtu3_ep *mep, bool set)
 
 void mtu3_dev_on_off(struct mtu3 *mtu, int is_on)
 {
-	if (mtu->is_u3_ip && (mtu->max_speed == USB_SPEED_SUPER))
+	if (mtu->is_u3_ip && mtu->max_speed >= USB_SPEED_SUPER)
 		mtu3_ss_func_set(mtu, is_on);
 	else
 		mtu3_hs_softconn_set(mtu, is_on);
@@ -547,6 +547,9 @@ static void mtu3_set_speed(struct mtu3 *mtu)
 		mtu3_clrbits(mbase, U3D_USB3_CONFIG, USB3_EN);
 		/* HS/FS detected by HW */
 		mtu3_setbits(mbase, U3D_POWER_MANAGEMENT, HS_ENABLE);
+	} else if (mtu->max_speed == USB_SPEED_SUPER) {
+		mtu3_clrbits(mtu->ippc_base, SSUSB_U3_CTRL(0),
+			     SSUSB_U3_PORT_SSP_SPEED);
 	}
 
 	dev_info(mtu->dev, "max_speed: %s\n",
@@ -622,6 +625,10 @@ static irqreturn_t mtu3_link_isr(struct mtu3 *mtu)
 		break;
 	case MTU3_SPEED_SUPER:
 		udev_speed = USB_SPEED_SUPER;
+		maxpkt = 512;
+		break;
+	case MTU3_SPEED_SUPER_PLUS:
+		udev_speed = USB_SPEED_SUPER_PLUS;
 		maxpkt = 512;
 		break;
 	default:
@@ -825,14 +832,15 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		break;
 	default:
 		dev_err(dev, "invalid max_speed: %s\n",
 			usb_speed_string(mtu->max_speed));
 		/* fall through */
 	case USB_SPEED_UNKNOWN:
-		/* default as SS */
-		mtu->max_speed = USB_SPEED_SUPER;
+		/* default as SSP */
+		mtu->max_speed = USB_SPEED_SUPER_PLUS;
 		break;
 	}
 

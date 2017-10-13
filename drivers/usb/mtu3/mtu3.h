@@ -94,6 +94,7 @@ enum mtu3_speed {
 	MTU3_SPEED_FULL = 1,
 	MTU3_SPEED_HIGH = 3,
 	MTU3_SPEED_SUPER = 4,
+	MTU3_SPEED_SUPER_PLUS = 5,
 };
 
 /**

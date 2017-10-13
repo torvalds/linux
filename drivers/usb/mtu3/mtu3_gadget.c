@@ -89,6 +89,7 @@ static int mtu3_ep_enable(struct mtu3_ep *mep)
 
 	switch (mtu->g.speed) {
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		if (usb_endpoint_xfer_int(desc) ||
 				usb_endpoint_xfer_isoc(desc)) {
 			interval = desc->bInterval;
@@ -456,7 +457,7 @@ static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
 		return  -EOPNOTSUPP;
 
 	spin_lock_irqsave(&mtu->lock, flags);
-	if (mtu->g.speed == USB_SPEED_SUPER) {
+	if (mtu->g.speed >= USB_SPEED_SUPER) {
 		mtu3_setbits(mtu->mac_base, U3D_LINK_POWER_CONTROL, UX_EXIT);
 	} else {
 		mtu3_setbits(mtu->mac_base, U3D_POWER_MANAGEMENT, RESUME);
