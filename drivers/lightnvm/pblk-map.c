@@ -45,6 +45,8 @@ static void pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 	paddr = pblk_alloc_page(pblk, line, nr_secs);
 
 	for (i = 0; i < nr_secs; i++, paddr++) {
+		__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+
 		/* ppa to be sent to the device */
 		ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 
@@ -61,10 +63,9 @@ static void pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 			w_ctx->ppa = ppa_list[i];
 			meta_list[i].lba = cpu_to_le64(w_ctx->lba);
 			lba_list[paddr] = cpu_to_le64(w_ctx->lba);
-			line->nr_valid_lbas++;
+			if (lba_list[paddr] != addr_empty)
+				line->nr_valid_lbas++;
 		} else {
-			__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
-
 			lba_list[paddr] = meta_list[i].lba = addr_empty;
 			__pblk_map_invalidate(pblk, line, paddr);
 		}
