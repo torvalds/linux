@@ -772,6 +772,35 @@ TRACE_EVENT(f2fs_lookup_end,
 		__entry->err)
 );
 
+TRACE_EVENT(f2fs_readdir,
+
+	TP_PROTO(struct inode *dir, loff_t start_pos, loff_t end_pos, int err),
+
+	TP_ARGS(dir, start_pos, end_pos, err),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	start)
+		__field(loff_t,	end)
+		__field(int,	err)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= dir->i_sb->s_dev;
+		__entry->ino	= dir->i_ino;
+		__entry->start	= start_pos;
+		__entry->end	= end_pos;
+		__entry->err	= err;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, start_pos:%llu, end_pos:%llu, err:%d",
+		show_dev_ino(__entry),
+		__entry->start,
+		__entry->end,
+		__entry->err)
+);
+
 TRACE_EVENT(f2fs_fallocate,
 
 	TP_PROTO(struct inode *inode, int mode,
