@@ -179,13 +179,21 @@ static void write_dirty(struct closure *cl)
 	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
 	struct keybuf_key *w = io->bio.bi_private;
 
-	dirty_init(w);
-	bio_set_op_attrs(&io->bio, REQ_OP_WRITE, 0);
-	io->bio.bi_iter.bi_sector = KEY_START(&w->key);
-	bio_set_dev(&io->bio, io->dc->bdev);
-	io->bio.bi_end_io	= dirty_endio;
+	/*
+	 * IO errors are signalled using the dirty bit on the key.
+	 * If we failed to read, we should not attempt to write to the
+	 * backing device.  Instead, immediately go to write_dirty_finish
+	 * to clean up.
+	 */
+	if (KEY_DIRTY(&w->key)) {
+		dirty_init(w);
+		bio_set_op_attrs(&io->bio, REQ_OP_WRITE, 0);
+		io->bio.bi_iter.bi_sector = KEY_START(&w->key);
+		bio_set_dev(&io->bio, io->dc->bdev);
+		io->bio.bi_end_io	= dirty_endio;
 
-	closure_bio_submit(&io->bio, cl);
+		closure_bio_submit(&io->bio, cl);
+	}
 
 	continue_at(cl, write_dirty_finish, io->dc->writeback_write_wq);
 }
