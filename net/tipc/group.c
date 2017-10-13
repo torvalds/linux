@@ -116,6 +116,13 @@ static bool tipc_group_is_receiver(struct tipc_member *m)
 	return m && m->state >= MBR_JOINED;
 }
 
+u32 tipc_group_exclude(struct tipc_group *grp)
+{
+	if (!grp->loopback)
+		return grp->portid;
+	return 0;
+}
+
 int tipc_group_size(struct tipc_group *grp)
 {
 	return grp->member_cnt;

@@ -49,6 +49,7 @@ void tipc_group_add_member(struct tipc_group *grp, u32 node, u32 port);
 struct tipc_nlist *tipc_group_dests(struct tipc_group *grp);
 void tipc_group_self(struct tipc_group *grp, struct tipc_name_seq *seq,
 		     int *scope);
+u32 tipc_group_exclude(struct tipc_group *grp);
 void tipc_group_filter_msg(struct tipc_group *grp,
 			   struct sk_buff_head *inputq,
 			   struct sk_buff_head *xmitq);
@@ -68,5 +69,7 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 			       u32 port, struct sk_buff_head *xmitq);
 u16 tipc_group_bc_snd_nxt(struct tipc_group *grp);
 void tipc_group_update_member(struct tipc_member *m, int len);
+struct tipc_member *tipc_group_find_sender(struct tipc_group *grp,
+					   u32 node, u32 port);
 int tipc_group_size(struct tipc_group *grp);
 #endif

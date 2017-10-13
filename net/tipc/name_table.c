@@ -597,6 +597,47 @@ not_found:
 	return ref;
 }
 
+bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
+			 struct list_head *dsts, int *dstcnt, u32 exclude,
+			 bool all)
+{
+	u32 self = tipc_own_addr(net);
+	struct publication *publ;
+	struct name_info *info;
+	struct name_seq *seq;
+	struct sub_seq *sseq;
+
+	if (!tipc_in_scope(domain, self))
+		return false;
+
+	*dstcnt = 0;
+	rcu_read_lock();
+	seq = nametbl_find_seq(net, type);
+	if (unlikely(!seq))
+		goto exit;
+	spin_lock_bh(&seq->lock);
+	sseq = nameseq_find_subseq(seq, instance);
+	if (likely(sseq)) {
+		info = sseq->info;
+		list_for_each_entry(publ, &info->zone_list, zone_list) {
+			if (!tipc_in_scope(domain, publ->node))
+				continue;
+			if (publ->ref == exclude && publ->node == self)
+				continue;
+			tipc_dest_push(dsts, publ->node, publ->ref);
+			(*dstcnt)++;
+			if (all)
+				continue;
+			list_move_tail(&publ->zone_list, &info->zone_list);
+			break;
+		}
+	}
+	spin_unlock_bh(&seq->lock);
+exit:
+	rcu_read_unlock();
+	return !list_empty(dsts);
+}
+
 int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 			      u32 limit, struct list_head *dports)
 {
